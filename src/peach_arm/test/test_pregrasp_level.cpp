@@ -28,9 +28,13 @@ TEST(PregraspLevel, NotReachedStaysNone)
     peach_arm::completion_level_after_pregrasp_verify(true, false, true));
 }
 
-TEST(AcmPolicy, NoWholeOctomapExemption)
+TEST(AcmPolicy, WholeOctomapToolExemptionIsF10Fallback)
 {
-  EXPECT_FALSE(peach_arm::allowToolVersusWholeOctomap());
+  // F10 真机回退（5fbb8d9）：眼在手上时 octomap updater self-filter 漏收
+  // 工具点云，工具×地图幽灵体素自碰死锁（Survey 全灭根因）——整图豁免=
+  // true 是现行语义；self-filter 修复后改回 false 并同步本断言
+  // （acm_policy.hpp 头注释同源）。
+  EXPECT_TRUE(peach_arm::allowToolVersusWholeOctomap());
   EXPECT_FALSE(
     peach_arm::acmAllows(
       "target_1", "sleeve_mouth", peach_arm::ContactAcmStage::Transit));

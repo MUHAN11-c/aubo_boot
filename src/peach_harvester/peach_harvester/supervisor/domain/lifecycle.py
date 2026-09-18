@@ -35,9 +35,11 @@ class HeartbeatWatchdog:
     last_beat: dict = field(default_factory=dict)
 
     def beat(self, name: str, now_s: float) -> None:
+        """记录一拍（name → 最近心跳时刻）."""
         self.last_beat[name] = now_s
 
     def missing(self, names, now_s: float) -> list:
+        """超时未心跳的名单（从未心跳=缺失）."""
         lost = []
         for name in names:
             last = self.last_beat.get(name)

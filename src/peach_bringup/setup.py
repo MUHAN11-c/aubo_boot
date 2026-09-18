@@ -14,6 +14,7 @@ setup(
          ['resource/' + package_name]),
         (os.path.join('share', package_name), ['package.xml', 'LICENSE']),
         (os.path.join('share', package_name, 'launch'), glob('launch/*.launch.py')),
+        (os.path.join('share', package_name, 'config'), glob('config/*.yaml')),
     ],
     install_requires=['setuptools'],
     extras_require={'test': ['pytest']},

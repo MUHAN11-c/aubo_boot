@@ -16,19 +16,32 @@ from peach_harvester.vision.target_reconstruction.refine import candidate_axis_h
 class CapturedFrame:
     """一次成功采帧的全部内容（原始观测 + base 系几何 + 诊断标记）."""
 
-    rgb: np.ndarray                      # (H, W, 3) uint8 BGR（OpenCV 惯例）
-    depth_mm: np.ndarray                 # (H, W) uint16 深度 [mm]
-    camera_K: dict                       # {"fx","fy","cx","cy","width","height"}
-    stamp: float                         # 图像时间戳 [s]（按 depth.header.stamp）
-    T_base_camera: np.ndarray            # (4, 4) base←camera 齐次矩阵
-    T_base_camera_fk: Optional[np.ndarray] = None  # ICP 前的机器人 FK 位姿
-    target_id: str = ''                  # 绑定的候选目标 ID（无候选时为空串）
-    valid_depth_ratio: float = 0.0       # 有效深度占比 [0, 1]
-    camera_position_base: Optional[np.ndarray] = None  # (3,) 相机位置 [m]
-    cloud_base: Optional[np.ndarray] = None            # (N, 3) base 系点云 [m]
-    cloud_rgb: Optional[np.ndarray] = None             # (N, 3) uint8 BGR（OpenCV 排列）
-    diagnostic_flags: List[str] = field(default_factory=list)  # 如 'pose_icp'
-    registration: dict = field(default_factory=dict)  # ICP fitness/RMSE/修正量
+    rgb: np.ndarray
+    """(H, W, 3) uint8 BGR（OpenCV 惯例）."""
+    depth_mm: np.ndarray
+    """(H, W) uint16 深度 [mm]."""
+    camera_K: dict
+    """{'fx','fy','cx','cy','width','height'}."""
+    stamp: float
+    """图像时间戳 [s]（depth.header.stamp）."""
+    T_base_camera: np.ndarray
+    """(4, 4) base←camera 齐次（ICP 后使用位姿）."""
+    T_base_camera_fk: Optional[np.ndarray] = None
+    """ICP 前的机器人 FK 位姿；缺省等于使用位姿."""
+    target_id: str = ''
+    """绑定的候选目标 ID；无候选时为空串."""
+    valid_depth_ratio: float = 0.0
+    """有效深度占比 [0, 1]."""
+    camera_position_base: Optional[np.ndarray] = None
+    """(3,) 相机位置 [m]，base 系."""
+    cloud_base: Optional[np.ndarray] = None
+    """(N, 3) base 系点云 [m]."""
+    cloud_rgb: Optional[np.ndarray] = None
+    """(N, 3) uint8 BGR."""
+    diagnostic_flags: List[str] = field(default_factory=list)
+    """如 'pose_icp'."""
+    registration: dict = field(default_factory=dict)
+    """ICP fitness / RMSE / 修正量."""
 
     def __post_init__(self):
         """补派生默认值：FK 缺省等于使用位姿，相机位置取使用位姿平移列."""
@@ -85,9 +98,12 @@ GATE_NEED_TF = 'need_tf'
 class GateDecision:
     """capture_gate 的判定结果（纯数据）."""
 
-    action: str  # GATE_ALLOW / GATE_DENY / GATE_SKIP / GATE_NEED_TF
-    reason: str = ''  # 拒绝/跳过原因（中文）；allow 与 need_tf 时为空
-    count_reject: bool = True  # deny 时是否计 collector.rejected_views
+    action: str
+    """GATE_ALLOW / GATE_DENY / GATE_SKIP / GATE_NEED_TF."""
+    reason: str = ''
+    """拒绝/跳过原因（中文）；allow 与 need_tf 时为空."""
+    count_reject: bool = True
+    """deny 时是否计 collector.rejected_views."""
     count_tf_failure: bool = False  # 是否计 collector.tf_failures
 
 
@@ -328,15 +344,22 @@ STATE_READY = 'READY'
 class CollectorConfig:
     """采帧与视角过滤配置（平移 [m]，旋转 [deg]，间隔 [s]）."""
 
-    min_views: int = 2                # finalize 所需最少机位数
-    recommended_views: int = 5        # 推荐视角数（不足仅提示）
-    max_views: int = 8                # 帧栈上限
-    min_translation: float = 0.002    # [m] 与上一帧最小平移（低于=近重复）
-    min_rotation_deg: float = 1.0     # [deg] 最小旋转
-    # ── 自动模式（默认开；False 使用纯手动 Trigger 服务流）──
-    auto_mode: bool = True            # 自动开始/采帧/完成总开关
-    auto_finalize_at_max: bool = False  # 连续扫描默认由用户 finalize
-    auto_min_interval_s: float = 0.0  # [s] 0=每个唯一时间戳均进入质量门
+    min_views: int = 2
+    """finalize 所需最少机位数."""
+    recommended_views: int = 5
+    """推荐视角数（不足仅提示）."""
+    max_views: int = 8
+    """帧栈上限."""
+    min_translation: float = 0.002
+    """与上一帧最小平移 [m]；低于=近重复."""
+    min_rotation_deg: float = 1.0
+    """最小旋转 [deg]."""
+    auto_mode: bool = True
+    """自动开始/采帧/完成总开关."""
+    auto_finalize_at_max: bool = False
+    """True=满栈自动 finalize；连续扫描默认 False."""
+    auto_min_interval_s: float = 0.0
+    """采帧最小间隔 [s]；0=每个唯一时间戳均进质量门."""
 
 
 class FrameCollector:

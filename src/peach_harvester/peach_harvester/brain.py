@@ -1,4 +1,5 @@
-"""peach_harvester 大脑进程：vision（看+建）与 supervisor（批）一进程三节点。
+"""
+peach_harvester 大脑进程：vision（看+建）与 supervisor（批）一进程三节点.
 
 清洁重写轮 3b：ScenePerception / TargetReconstruction / TaskExecutor 三节点
 对象进同一 MultiThreadedExecutor——进程合并（故障域统一、部署一件化），
@@ -10,9 +11,6 @@ lifecycle_manager 按名单（场景→重建→调度）configure/activate。
 """
 from __future__ import annotations
 
-import rclpy
-from rclpy.executors import MultiThreadedExecutor
-
 from peach_harvester.supervisor.executor_node import TaskExecutorNode
 from peach_harvester.vision.scene_perception.scene_perception_node import (
     ScenePerceptionNode,
@@ -20,9 +18,12 @@ from peach_harvester.vision.scene_perception.scene_perception_node import (
 from peach_harvester.vision.target_reconstruction.target_reconstruction_node import (
     TargetReconstructionNode,
 )
+import rclpy
+from rclpy.executors import MultiThreadedExecutor
 
 
 def main(argv=None) -> None:
+    """大脑入口：三节点进同一 MultiThreadedExecutor spin."""
     rclpy.init(args=argv)
     nodes = []
     executor = MultiThreadedExecutor()

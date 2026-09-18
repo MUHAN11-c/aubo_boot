@@ -1,9 +1,8 @@
 # peach_scene_perception_node 参数全量清单（nav2 式：launch 以 ParameterFile 装入，部署值即事实源）
-# 代码侧兜底默认与校验规则：peach_perception 包 params.py（C++ 为 include/peach_arm/params.hpp）；
-# 键名冻结（真机命令/文档零破坏）。改默认值须模块与 yaml 各改一处。
-# 运行期临时改参：ros2 param set（技能节点空闲态生效；感知/重建/监控/lifecycle 需重启或 reconfigure）。
-# 跨包轴向后撤（tool.entry_d_* / refit.*_standoff_m / moveit.mtc_approach_along_axis_m）
-# 由 grasp_standoffs.yaml 经 launch 注入覆盖，此处值仅为默认。
+# 节点 ScenePerceptionParams.attach 按本文件声明叶子；ros2 param set 原地刷新。
+# 键名冻结（真机命令/文档零破坏）。空 yolo_model_path / sam_model_path 拒绝启动。
+# 逐帧读取键热生效；模型/管线/记忆等构造期捕获键改后须重启。
+# 跨包轴向后撤（tool.entry_d_*）由 grasp_standoffs.yaml 经 launch 注入覆盖。
 peach_scene_perception_node:
   ros__parameters:
     color_topic: /camera/color/image_raw  # 彩色图话题（bgr8）
@@ -26,17 +25,17 @@ peach_scene_perception_node:
     publish_masks: true  # 是否发布 SAM 掩膜图 (/peach/perception/masks)
     publish_detection_cloud: true  # 是否发布检测框内深度反投影彩色点云 (/peach/perception/single_cloud)
     detection_cloud_stride: 2  # 点云降采样步长（>1 减轻 RViz 负载）
-    yolo_model_path: ''  # YOLO 权重路径；空串=包内 model/best.pt
-    sam_model_path: ''  # MobileSAM 权重路径；空串=包内 model/mobile_sam.pt
+    yolo_model_path: '$(find-pkg-share peach_harvester)/model/best.pt'  # YOLO 权重路径；空串拒绝启动
+    sam_model_path: '$(find-pkg-share peach_harvester)/model/mobile_sam.pt'  # MobileSAM 权重路径；空串拒绝启动
     model_version: yolo:6981750db67a726e|mobile_sam:6dbb90523a35330f  # 模型版本标识（随结果发布，便于追溯）
     calibration_version: percipio-640x480-chessboard|hand_eye:import_humble_20260128T114006  # 内外参版本标识（内参 color_camera_info.yaml；外参 aubo_hand_eye_calibration/hand_eye/active.yaml）
     gravity_hint_xyz: ''  # 重力方向提示 x,y,z（相机系）；空串=算法默认相机系 +Y
     gravity_mode: tf  # 重力来源：tf=腕载相机默认，由本帧 output←camera 的 TF 旋转反推相机系重力；fixed=仅用 gravity_hint_xyz（output_frame 系重力约定 [0,0,-1]，只乘旋转不加平移；TF 不可用的帧回退 gravity_hint_xyz）
     pipeline:
       bag_impl: robust_bag  # 袋装线位姿管线映射名（PIPELINES_BY_IMPL；默认 robust_bag=RobustBagPosePipeline）
-      fruit_impl: robust_fruit  # 裸果线位姿管线映射名（PIPELINES_BY_IMPL；默认 robust_fruit=RobustFruitPosePipeline）
+      fruit_impl: robust_fruit  # 裸果线映射名；from_params enable_fruit=False 时不构造
       min_depth_m: 0.3  # 位姿管线有效深度下限 (m)，过近视为噪声
-      max_depth_m: 2.5  # 位姿管线有效深度上限 (m)，过远视为背景
+      max_depth_m: 1.5  # 位姿管线有效深度上限 (m)，过远视为背景
       min_points: 100  # 位姿管线有效前景点数下限，不足直接 REJECT
       locked_only_segmentation: true  # 锁定后 SAM 只对锁定集目标的检测框推理（2.13-E1）：分割前尚无本帧 target_id，用锁定目标世界系记忆锚点经 TF 反投影到本帧像素，落进外扩 10% 的检测框就分割；锁定前/开关关/TF 不可用帧回退全量分割（旧行为），锁定目标全部不可见时本帧 SAM 零推理
     tool:
@@ -53,7 +52,7 @@ peach_scene_perception_node:
       match_radius_m: 0.06  # 目标匹配半径 (m)：同类且距离 ≤ 本值的最近历史目标命中复用 ID
       max_targets: 50  # 目标表容量上限；超限按最久未见淘汰
       position_ema: 0.3  # 命中后位置/轴/直径的 EMA 平滑系数 α (0,1]，越大越跟随最新观测
-      recovery_scale: 1.0  # 恢复匹配半径倍率 (≥1)：正常匹配未命中时放宽到 match_radius×本值再匹配一次，抗检测跳动引起的锚点跳变（常态相邻目标不受影响）。2026-08-13 真机实测：拍照位姿(0.66m)与环绕视点(0.28m)对同一颗桃的世界系锚点相差 15.7cm，欧氏 2.0(12cm) 不够会每帧发新 ID、3.5(21cm) 才稳；马氏门控下本值只膨胀 Σ，默认 1.0 避免旧 21cm 欧氏恢复半径误合并
+      recovery_scale: 1.0  # 马氏门 Σ 膨胀倍率 (≥1)：节点不传 covariance 时 σ=(match_radius/3)×本值。帧路径只走 identity.assign_detections（χ² 门），不走欧氏两段 SpatialEmaMatcher.match。默认 1.0。2026-08-13 真机：拍照/环绕锚点差 15.7cm，旧欧氏 recovery 3.5 才稳、易误合并，故马氏下保持 1.0
       confirm_frames: 5  # 目标确认帧数：累计命中 ≥ 本值才计入锁定/候选话题/3D Marker；短暂闪现不转正；1=立即确认
       tentative_ttl_frames: 20  # 未确认目标存活时限（帧）：连续超本帧数未再命中即清除（瞬时误检不占身份；按帧计，帧率以运行状态为准）。09-17 A/B 实测按帧计的 TTL 随前端帧率缩短墙钟：percipio 端 2.43fps×8≈3.3s，peach_stereo 端 ~7.5fps×8 仅 1.1s（遮挡/闪检目标过快被弃），上调 20 帧维持 ~2.7s 墙钟语义；percipio 前端下本值偏保守无害
       anchor_max_age_s: 30.0  # 锁定集 LOST 目标锚点新鲜度上限 (s)：超龄打 anchor_stale 旗标且视为不可选（不移除）；运行期按实测帧间隔 EMA 折算帧数判定（I4）

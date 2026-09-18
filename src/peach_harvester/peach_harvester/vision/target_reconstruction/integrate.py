@@ -767,16 +767,27 @@ class IcpConfig:
     """两尺度点到平面 ICP 参数，长度单位均为米."""
 
     min_points: int = 300
+    """源云最少点数，不足直接 reject."""
     coarse_voxel: float = 0.006
+    """粗配准体素 [m]."""
     fine_voxel: float = 0.003
+    """精配准体素 [m]."""
     coarse_correspondence: float = 0.015
+    """粗配准对应距离 [m]."""
     fine_correspondence: float = 0.007
+    """精配准对应距离 [m]."""
     coarse_iterations: int = 20
+    """粗配准迭代."""
     fine_iterations: int = 10
+    """精配准迭代."""
     min_fitness: float = 0.35
+    """重叠度下限 [0,1]."""
     max_rmse: float = 0.008
+    """RMSE 上限 [m]."""
     max_translation: float = 0.010
+    """ICP 平移修正上限 [m]；越界不进 TSDF."""
     max_rotation_deg: float = 3.0
+    """ICP 旋转修正上限 [deg]."""
 
 
 @dataclass(frozen=True)
@@ -784,12 +795,19 @@ class IcpResult:
     """一次帧到模型配准结果."""
 
     mode: str
+    """'icp' | 'fk' | 'reject'."""
     correction: np.ndarray
+    """4×4 小刚性修正；fk/reject 为单位阵."""
     fitness: float
+    """重叠度 [0,1]."""
     rmse: float
+    """配准 RMSE [m]."""
     translation_m: float
+    """修正平移模 [m]."""
     rotation_deg: float
+    """修正转角 [deg]."""
     reason: str
+    """拒绝原因；接受时为空或短码."""
 
     @property
     def accepted(self) -> bool:

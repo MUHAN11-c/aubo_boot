@@ -10,14 +10,22 @@ from typing import List, Tuple
 import cv2
 from geometry_msgs.msg import Point, Pose, Vector3
 import numpy as np
+from peach_harvester.vision.common.geometry import pack_rgb_bgr
+from peach_harvester.vision.scene_perception.identity import (
+    STATUS_DEPTH_VOID,
+    STATUS_LOST,
+    STATUS_OBSERVED,
+    STATUS_OCCLUDED,
+    STATUS_OUT_OF_VIEW,
+)
+from peach_harvester.vision.scene_perception.image_gates import clip_bbox
+from peach_harvester.vision.scene_perception.pose_pipelines import _rotation_to_quat
 from peach_interfaces.msg import (
     BagFitting,
     BagGrasp2D as BagGrasp2DMsg,
     BagGraspCandidate,
+    PeachTargetObservation,
 )
-from peach_harvester.vision.common.geometry import pack_rgb_bgr
-from peach_harvester.vision.scene_perception.image_gates import clip_bbox
-from peach_harvester.vision.scene_perception.pose_pipelines import _rotation_to_quat
 from sensor_msgs.msg import PointCloud2, PointField
 from sensor_msgs_py import point_cloud2 as pc2
 from std_msgs.msg import Header
@@ -34,6 +42,26 @@ _pack_rgb_bgr = pack_rgb_bgr
 #   REJECT=2    不可用：存在硬性失败（如 tool_clearance_failed 净空不足、
 #               有效点太少等），禁止据此位姿动作
 STATUS_MAP = {'ACCEPT': 0, 'REOBSERVE': 1, 'REJECT': 2}
+TRACKING_STATUS_TO_MSG = {
+    STATUS_OBSERVED: PeachTargetObservation.OBSERVED,
+    STATUS_OCCLUDED: PeachTargetObservation.OCCLUDED,
+    STATUS_LOST: PeachTargetObservation.LOST,
+    STATUS_OUT_OF_VIEW: PeachTargetObservation.OUT_OF_VIEW,
+    STATUS_DEPTH_VOID: PeachTargetObservation.DEPTH_VOID,
+}
+
+
+def best_axis_direction(frame_axes):
+    """First ACCEPT direction, else first valid direction."""
+    best = None
+    for status, direction in frame_axes:
+        if direction is None:
+            continue
+        if status == 'ACCEPT':
+            return direction
+        if best is None:
+            best = direction
+    return best
 
 
 def _point(xyz) -> Point:

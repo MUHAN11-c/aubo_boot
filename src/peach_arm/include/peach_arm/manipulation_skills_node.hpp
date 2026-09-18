@@ -129,7 +129,8 @@ private:
   void createServices();
   void createActions();
 
-  // 订阅回调（薄壳）：消息字段提取后委托 cache_ 做四源一致性调和。
+  // 订阅回调（薄壳）：抽消息字段后委托 cache_ 做四源一致性调和。
+  // 映射表不写回本文件；热路径周期走 executeCycle(ctx)。
   void onTargets(
     const peach_interfaces::msg::PeachTargetObservationArray::SharedPtr message);
   void onDiagnostics(
@@ -170,6 +171,8 @@ private:
   bool authorizeTransit(std::string & why);
   // 操作台使能广播订阅（清洁重写轮；无发布者时本地参数保持权威）。
   void onEnables(const peach_interfaces::msg::Enables::SharedPtr message);
+  // 使能心跳看门狗（1Hz）：external 源超时未心跳即回落本地参数权威。
+  void checkEnablesHeartbeat();
   // 阶段检查点（CK_*）：到达即记，反馈随行下发；0=未到首个检查点。
   void markCheckpoint(uint8_t checkpoint, const char * where);
   void onStart(const Trigger::Response::SharedPtr & response);
@@ -319,34 +322,31 @@ private:
     const std::shared_ptr<ExecuteTarget::Result> & result,
     const CycleContext * ctx);
 
-  std::string base_frame_;
-  std::string tip_frame_;  // 规划/IK 末端连杆（MoveIt 组 tip_link，当前为 tcp）
-  std::string camera_frame_;
-  std::string tool_frame_;
-  std::string planning_group_;
-  std::string photo_pose_named_target_;
-  std::string harvest_stow_named_target_{"harvest_stow"};
-  double planning_time_s_{1.5};
-  int planning_attempts_{1};
-  double transit_velocity_scaling_{0.10};
-  double transit_acceleration_scaling_{0.10};
-  // 未测得观测间隔 EMA 时的回退帧间隔（秒）。0=不预填。
+  std::string base_frame_;            ///< 规划参考系（通常 base_link）。
+  std::string tip_frame_;             ///< 规划/IK 末端连杆（MoveIt 组 tip_link，当前 tcp）。
+  std::string camera_frame_;          ///< 相机光学系。
+  std::string tool_frame_;            ///< 工具系（常与 tcp 同）。
+  std::string planning_group_;        ///< MoveIt 规划组名。
+  std::string photo_pose_named_target_;           ///< Survey 拍照位 SRDF group_state。
+  std::string harvest_stow_named_target_{"harvest_stow"};  ///< 周期终局纳位。
+  double planning_time_s_{1.5};       ///< 默认规划时限 [s]。
+  int planning_attempts_{1};          ///< 默认规划尝试数。
+  double transit_velocity_scaling_{0.10};      ///< 自由空间转移速度档。
+  double transit_acceleration_scaling_{0.10};  ///< 自由空间转移加速度档。
+  /// 未测得观测间隔 EMA 时的回退帧间隔 [s]。0=不预填。
   double assumed_frame_interval_s_{0.4};
-  // 本目标内移动+等帧成本（秒，≤0=未测得）：stageAcquireViews 开头清零，
-  // 成功一次有效视点后 0.7/0.3 刷新，只进日志。
+  /// 本目标内移动+等帧成本 [s]，≤0=未测得。
   double scan_move_cost_ema_s_{0.0};
-  double frame_wait_s_{4.0};
-  // 帧率自适应：观测话题到达间隔 EMA（≤0=未测得）与最近到达时刻。
-  // onTargets（订阅线程）写、等帧取值（周期线程）读：relaxed 原子即可
-  // （EMA 只作超时估计，读到偶发旧值无害）。
+  double frame_wait_s_{4.0};          ///< 等帧超时配置上限 [s]。
+  /// 观测话题到达间隔 EMA [s]（≤0=未测得）；订阅线程写、周期线程读。
   std::atomic<double> frame_interval_ema_s_{0.0};
-  std::atomic<double> last_targets_arrival_s_{0.0};
-  double target_observation_max_age_config_s_{3.0};
-  std::atomic_bool execution_enabled_{false};
-  std::atomic_bool grasp_enabled_{false};
-  double neck_margin_m_{0.015};
-  double minimum_travel_m_{0.02};
-  double maximum_travel_m_{0.20};
+  std::atomic<double> last_targets_arrival_s_{0.0};  ///< 最近观测到达 monotonic [s]。
+  double target_observation_max_age_config_s_{3.0};  ///< 观测龄配置基准 [s]。
+  std::atomic_bool execution_enabled_{false};  ///< 自由空间运动使能（默认关）。
+  std::atomic_bool grasp_enabled_{false};      ///< 套入使能（默认关）。
+  double neck_margin_m_{0.015};        ///< 袋颈前安全停止 [m]。
+  double minimum_travel_m_{0.02};      ///< 插入行程下限 [m]。
+  double maximum_travel_m_{0.20};      ///< 插入行程上限 [m]。
   // 环境几何保护区（阶段 F1，scan.protected_zones 解析结果）：base 系轴对齐
   // 盒列表。视点剔除由 view_planner_ 持有的配置副本执行；GraspTask 把同一
   // 列表写入 planning scene 参与碰撞检查。与 view_planner_ 同一重载纪律：
@@ -355,14 +355,14 @@ private:
   std::vector<ProtectedZone> protected_zones_;
   // 抓取前再确认（2.7-RECONFIRM）三参数与回退开关，语义见
   // config/peach_arm.yaml grasp.* 注释（权威源）。
-  double reconfirm_wait_s_{6.0};
-  double reconfirm_tolerance_m_{0.03};
-  int reconfirm_max_attempts_{3};
-  bool allow_stale_anchor_{false};
-  std::atomic_bool tool_enabled_{false};
-  int tool_io_fun_{3};
-  int tool_io_pin_{0};
-  double tool_close_state_{1.0};
+  double reconfirm_wait_s_{6.0};       ///< 再确认等新鲜观测超时 [s]。
+  double reconfirm_tolerance_m_{0.03}; ///< 锚点漂移门 [m]。
+  int reconfirm_max_attempts_{3};      ///< 再确认最大次数。
+  bool allow_stale_anchor_{false};     ///< True=允许用记忆锚点再确认。
+  std::atomic_bool tool_enabled_{false};  ///< 刀具使能（默认关）。
+  int tool_io_fun_{3};                 ///< SetIO 功能码。
+  int tool_io_pin_{0};                 ///< SetIO 引脚。
+  double tool_close_state_{1.0};       ///< 闭合电平。
   // 当前末端工具档案标签（PregraspVerification.tool_profile_id；
   // 整栈由 launch tool_profile 档案注入）
   std::string tool_profile_id_{"hollow_cylinder_v1"};
@@ -467,6 +467,11 @@ private:
   // 未收到过（旧栈/无大脑）本地参数保持唯一权威——行为零变化。
   rclcpp::Subscription<peach_interfaces::msg::Enables>::SharedPtr enables_sub_;
   bool enables_external_{false};
+  // 使能心跳看门狗（缺心跳=故障）：steady 时钟记录最近一拍，超时回落
+  // 本地参数权威。timeout<=0 时禁用（锁存兼容档）。
+  rclcpp::TimerBase::SharedPtr enables_watchdog_timer_;
+  std::chrono::steady_clock::time_point enables_last_beat_{};
+  double enables_heartbeat_timeout_s_{5.0};
   // 当前周期最新检查点（ExecuteTarget::Goal::CK_*；0=未到）。
   std::atomic<uint8_t> last_checkpoint_{0};
   // 最近观测快照三元组（SurveyScene result 数据源）：onTargets（订阅线程）写、

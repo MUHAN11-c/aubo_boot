@@ -1,0 +1,19 @@
+# peach_vegetation 参数全量清单（nav2 式：launch 以 ParameterFile 装入，部署值即事实源）
+# 节点 peach_vegetation.attach 按本文件声明叶子；ros2 param set 原地刷新。
+# 话题名不进参数：输入相对名 image，launch remap；输出绝对名见 docs/io.md。
+peach_vegetation:
+  ros__parameters:
+    device: auto  # auto=有 CUDA 用 cuda:0 否则 cpu；显式 cuda / cuda:0 无卡则 configure 失败
+    publish_overlay: true  # 是否发布 /peach/vegetation/overlay（绿叶红枝）
+    leaf.exg_min: 20.0  # Excess Green 2G-R-B 下限
+    leaf.h_min: 35  # HSV 绿窗 H 下限（OpenCV 0-179）
+    leaf.h_max: 90  # HSV 绿窗 H 上限
+    leaf.s_min: 30  # HSV S 下限
+    leaf.v_min: 30  # HSV V 下限
+    branch.sigmas: [1, 3, 5, 7, 9]  # Frangi 高斯尺度 (px)
+    branch.beta: 0.5  # Frangi blobness β
+    branch.gamma: 15.0  # Frangi structureness γ
+    branch.percentile: 88.0  # vesselness 百分位阈值
+    branch.dilate_px: 2  # 阈值后方形膨胀半径 (px)
+    branch.dark_max: 90.0  # 只保留灰度 ≤ 本值的脊（暗枝）
+    branch.exclude_leaf: true  # 枝掩膜减去叶，避免绿叶被当成脊

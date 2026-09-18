@@ -1,62 +1,82 @@
-"""视点策略两档（清洁重写轮 3c 纯核，零 ROS）。
+"""
+视点策略两档（清洁重写轮 3c 纯核，零 ROS）.
 
-fast（重写轮新默认）：拍照位单视决策——单视质量信号够即收，不足才补视，
-补视封顶 3 固定视（荔枝三视先例）；补视方向取沿当前相机直线截
-max_camera_step_m（现行口径原值）与绕袋轴 ±30° 两个候选里行程短者。
-conservative：现行多视观察循环（覆盖门 8°/独立机位/maximum_moves 原值），
-判定委托重建侧覆盖门，本模块只给出「继续/停止」的框架性判定。
+fast（重写轮新默认）：拍照位起单视决策——质量信号够**且机位数达
+supervisor 门限（min_views，P1-B）**才收，否则补视，补视封顶 3 固定视
+（荔枝三视先例）；补视方向取沿当前相机直线截 max_camera_step_m（现行
+口径原值）与绕袋轴 ±30° 两个候选里行程短者。conservative：现行多视
+观察循环（覆盖门 8°/独立机位/maximum_moves 原值），判定委托重建侧
+覆盖门，本模块只给出「继续/停止」的框架性判定。
 
 质量信号阈值与 stop 准则常数 = 现行 arm 侧 view_planner 同值
 （bbox 面积占比 0.04、掩膜前景 0.40、框心偏移推动），原值移植不调参。
 """
 from __future__ import annotations
 
-import math
 from dataclasses import dataclass, field
 from enum import Enum
+import math
 from typing import Optional, Sequence
 
 
 class ViewDecision(Enum):
-    ENOUGH = 'enough'            # 质量足够，停止观察
-    SUPPLEMENT = 'supplement'    # 需要补视
-    CAP_REACHED = 'cap_reached'  # 补视封顶，停止（质量未达标也停，交许可门否决）
+    """单点决策三态（fast/conservative 共用返回类型）."""
+
+    ENOUGH = 'enough'
+    """质量足够，停止观察."""
+    SUPPLEMENT = 'supplement'
+    """需要补视."""
+    CAP_REACHED = 'cap_reached'
+    """补视封顶，停止（质量未达标也停，交许可门否决）."""
 
 
 @dataclass(frozen=True)
 class ViewSignals:
-    """单视质量信号（来自当前机位的观测/分割）。"""
+    """单视质量信号（来自当前机位的观测/分割）."""
 
-    bbox_area_ratio: float = 0.0      # 检测框面积/画面（<0.04 视为太远）
-    mask_foreground_ratio: float = -1.0  # 分割前景占比（<0.40 视为掩膜不足）
-    tf_ok: bool = True                 # 本帧 TF 三态（unavailable 不作数）
+    bbox_area_ratio: float = 0.0
+    """检测框面积/画面；<0.04 视为太远."""
+    mask_foreground_ratio: float = -1.0
+    """分割前景占比；<0.40 视为不足；-1=缺省不判."""
+    tf_ok: bool = True
+    """本帧 TF 可用（unavailable 不作数）."""
     bbox_valid: bool = True
+    """检测框合法."""
 
     def too_small(self) -> bool:
+        """检测框占画面比例过低（太远/残片）."""
         return self.bbox_valid and self.bbox_area_ratio < 0.04
 
     def mask_low(self) -> bool:
+        """掩膜前景占比不足（-1=缺省不判，三态设计）."""
         return (self.mask_foreground_ratio >= 0.0
                 and self.mask_foreground_ratio < 0.40)
 
     def acceptable(self) -> bool:
-        """单视可用：TF 可用且不太小且掩膜不缺。"""
+        """单视可用：TF 可用且不太小且掩膜不缺."""
         return self.tf_ok and not self.too_small() and not self.mask_low()
 
 
 @dataclass(frozen=True)
 class FastViewConfig:
-    """fast 档常数（现行口径原值；调整须重封回放基线）。"""
+    """fast 档常数（现行口径原值；调整须重封回放基线）."""
 
-    max_supplemental_views: int = 2   # 补视数上限（总视数 ≤3）
-    max_camera_step_m: float = 0.15   # 沿当前相机直线截距
-    azimuth_sweep_deg: float = 30.0   # 绕袋轴候选摆角
+    max_supplemental_views: int = 2
+    """补视数上限（总视数 ≤3）."""
+    max_camera_step_m: float = 0.15
+    """沿当前相机直线截距 [m]."""
+    azimuth_sweep_deg: float = 30.0
+    """绕袋轴候选摆角 [deg]."""
 
 
 @dataclass
 class ViewPolicyState:
-    used_views: int = 1                # 当前已用机位数（fast 从拍照位 1 起）
+    """fast 档决策状态（当前已用机位数与历史）."""
+
+    used_views: int = 1
+    """当前已用机位数（fast 从拍照位 1 起）."""
     history: list = field(default_factory=list)
+    """已采视点摘要（诊断）."""
 
 
 def _norm(v: Sequence[float]) -> float:
@@ -79,12 +99,22 @@ def decide_fast(
     signals: ViewSignals,
     state: ViewPolicyState,
     config: Optional[FastViewConfig] = None,
+    min_views: int = 1,
 ) -> ViewDecision:
-    """fast 档单点决策：质量可收即收；不足且未封顶则补视。"""
+    """
+    Fast 档单点决策：质量可收且机位数达门限才收；不足则补视.
+
+    min_views（调用方传 supervisor reconstruction_min_views；默认 1=不
+    约束，兼容旧语义）：好单视不再直接收口——消除「fast 好单视不移动 ×
+    supervisor min_views=2 × 重建基线门」三层矛盾（09-17 真机 P1-B：
+    单站永不收口，宽限后被按质量跳过）。机位未达门限时即使质量合格也
+    补视；门限高于补视封顶时按 CAP_REACHED 停（交许可门否决）。
+    """
     cfg = config or FastViewConfig()
-    if signals.acceptable():
+    cap = 1 + cfg.max_supplemental_views
+    if signals.acceptable() and state.used_views >= max(int(min_views), 1):
         return ViewDecision.ENOUGH
-    if state.used_views >= 1 + cfg.max_supplemental_views:
+    if state.used_views >= cap:
         return ViewDecision.CAP_REACHED
     return ViewDecision.SUPPLEMENT
 
@@ -96,8 +126,12 @@ def supplemental_viewpoint(
     camera_front: Optional[Sequence[float]] = None,
     config: Optional[FastViewConfig] = None,
 ) -> list[float]:
-    """补视机位（base 系）：沿当前相机直线截 max_camera_step 与绕轴 ±30°
-    两候选中行程较短者。纯几何，常数原值；不绕球面、不对侧兜圈。"""
+    """
+    补视机位（base 系）：两候选中行程较短者.
+
+    沿当前相机→目标直线截 max_camera_step 与绕袋轴 ±30° 摆角两候选
+    中取行程短者。纯几何，常数原值；不绕球面、不对侧兜圈。
+    """
     cfg = config or FastViewConfig()
     axis_len = _norm(bag_axis)
     unit_axis = [x / (axis_len or 1.0) for x in bag_axis]
@@ -148,7 +182,7 @@ def conservative_should_continue(
     maximum_moves_used: int,
     maximum_moves: int,
 ) -> ViewDecision:
-    """conservative 档框架判定：覆盖达标即停；moves 用尽即停（现行口径）。"""
+    """Conservative 档框架判定：覆盖达标即停；moves 用尽即停（现行口径）."""
     if covered:
         return ViewDecision.ENOUGH
     if maximum_moves_used >= maximum_moves or station_count >= 2:

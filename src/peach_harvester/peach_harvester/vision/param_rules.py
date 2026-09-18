@@ -1,4 +1,4 @@
-"""零 ROS 参数规则校验（perception / 日后 GPL 对照的单一规则语义）."""
+"""零 ROS 参数规则校验（perception 侧 params 模块规则表的单一规则语义）."""
 
 from __future__ import annotations
 
@@ -29,6 +29,8 @@ def check(rule, value, key):
         return f'{key}: 须 <= {args[0]}'
     if kind == 'bounds' and not args[0] <= value <= args[1]:
         return f'{key}: 须在 [{args[0]}, {args[1]}] 内'
+    if kind == 'nonempty' and not str(value or '').strip():
+        return f'{key}: 须为非空路径'
     return None
 
 

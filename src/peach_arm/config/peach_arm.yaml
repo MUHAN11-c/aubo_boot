@@ -30,12 +30,12 @@ peach_arm:
       mtc_approach_max_duration_s: 0.0  # MTC 接近段预计时长上限（秒）。0=不按时长拒发。绕腕看关节行程；口侧/上方绕行看袋囊 keepout。
       mtc_approach_max_total_joint_travel_rad: 12.0  # MTC 接近段六轴累计绝对行程硬上限（弧度）。拦绕腕；口侧/上方绕行另审袋囊 keepout。
       mtc_approach_max_single_joint_travel_rad: 6.1  # MTC 接近段任一单轴累计绝对行程硬上限（弧度）。6.1=URDF ±3.05 满行程；E5 无法 2π 折返。
-      mtc_approach_max_detour_ratio: 1.8  # 接近 TCP 路径长/弦长上限。0=不查。拦关节 PTP 抬腕绕行（09-11 mock rand_10 比 2.33）。
-      mtc_approach_max_chord_deviation_m: 0.25  # 接近 TCP 相对起止弦最大偏离（米）。0=不查。
-      mtc_approach_max_recede_m: 0.08  # 接近中途相对起点更远离目标的最大回退（米）。0=不查。
-      mtc_approach_transit_max_detour_ratio: 1.8  # staging 转移级 TCP 路径长/弦长上限。0=不查。须 >0 才会审 PTP 弧（旧实现只看接近三项，转移键无效）。
-      mtc_approach_transit_max_chord_deviation_m: 0.25  # staging 转移级 TCP 相对起止弦最大偏离（米）。0=不查。
-      mtc_approach_transit_max_recede_m: 0.08  # staging 转移级中途相对起点更远离目标的最大回退（米）。0=不查。
+      mtc_approach_max_detour_ratio: 2.6  # 接近 TCP 路径长/弦长上限。0=不查。2026-09-18 标定：合法 staging 绕行簇 max 1.90（30 例无门实测），游荡簇 min 4.37；旧 1.8 压在合法簇边上致 1/30。
+      mtc_approach_max_chord_deviation_m: 0.32  # 接近 TCP 相对起止弦最大偏离（米）。0=不查。2026-09-18 标定：合法簇 max 0.258，游荡簇 min 0.42。
+      mtc_approach_max_recede_m: 0.12  # 接近中途相对起点更远离目标的最大回退（米）。0=不查。2026-09-18 标定：合法簇 max 0.075，游荡簇 min 0.17。
+      mtc_approach_transit_max_detour_ratio: 2.6  # staging 转移级 TCP 路径长/弦长上限。0=不查。须 >0 才会审 PTP 弧（旧实现只看接近三项，转移键无效）。同 09-18 标定。
+      mtc_approach_transit_max_chord_deviation_m: 0.32  # staging 转移级 TCP 相对起止弦最大偏离（米）。0=不查。同 09-18 标定。
+      mtc_approach_transit_max_recede_m: 0.12  # staging 转移级中途相对起点更远离目标的最大回退（米）。0=不查。同 09-18 标定。
       mtc_approach_max_tcp_rotation_deg: 110.0  # 接近段相对起点 TCP 姿态测地线绝对上限（度）。0=不查。感知允许水平袋：keep-roll γ≈90°，±60° 滚转闭式 γ(90,60)≈105°；仍拦 180° 拧腕。
       mtc_approach_tcp_rotation_slack_deg: 20.0  # 相对本段起止测地线的路径余量（度）。0=只看绝对上限。拦对轴只需 ~20° 却中途拧到 90°+ 的 PTP（09-11 的 108°）。
       mtc_approach_keepout_radius_m: 0.12  # ①层果实胶囊回退半径（米）：感知直径无效时用本值作 fruitRadiusM 的 base，再加 fruit_inflation_m。键名冻结，不再当半无限圆柱半径。

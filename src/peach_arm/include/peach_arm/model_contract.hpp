@@ -10,31 +10,32 @@ namespace peach_arm
 
 enum class Capability : std::uint8_t
 {
-  Valid = 0,
-  Invalid = 1,
-  Unknown = 2
+  Valid = 0,     ///< 该项可执行。
+  Invalid = 1,   ///< 该项明确不可。
+  Unknown = 2    ///< 尚未判定。
 };
 
+/// 模型身份元组：须全字段非空才 complete；心跳不得改 valid_until。
 struct ModelIdentity
 {
-  std::string run_id;
-  std::uint32_t scene_epoch{0};
-  std::string target_id;
-  std::string model_revision;
-  std::string tool_profile_id;
-  std::string calibration_revision;
-  std::string config_revision;
+  std::string run_id;                 ///< 批次 harvest_run_id。
+  std::uint32_t scene_epoch{0};       ///< BeginScene 世代。
+  std::string target_id;              ///< 绑定目标。
+  std::string model_revision;         ///< 模型修订。
+  std::string tool_profile_id;        ///< 工具剖面。
+  std::string calibration_revision;   ///< 标定修订。
+  std::string config_revision;        ///< 配置修订。
 };
 
 struct ModelSnapshot
 {
-  ModelIdentity identity;
-  double generated_s{0.0};
-  double valid_until_s{0.0};
-  Capability geometry{Capability::Unknown};
-  Capability pregrasp{Capability::Unknown};
-  Capability sleeve{Capability::Unknown};
-  Capability cut{Capability::Unknown};
+  ModelIdentity identity;             ///< 身份元组。
+  double generated_s{0.0};            ///< 生成时刻 [s]（注入时钟）。
+  double valid_until_s{0.0};          ///< 过期时刻 [s]；心跳不得续签。
+  Capability geometry{Capability::Unknown};   ///< 融合几何能力。
+  Capability pregrasp{Capability::Unknown};   ///< 预抓取能力（不进 allowed）。
+  Capability sleeve{Capability::Unknown};     ///< 套入能力。
+  Capability cut{Capability::Unknown};        ///< 剪切能力。
 };
 
 inline bool identityComplete(const ModelIdentity & identity)

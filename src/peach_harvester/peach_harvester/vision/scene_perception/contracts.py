@@ -13,32 +13,26 @@ import numpy as np
 
 @dataclass
 class ToolGeometry:
-    """
-    空心圆柱工具几何参数（台架测量, 版本化）.
+    """空心圆柱工具几何（台架测量，版本化）。长度均为米."""
 
-    所有长度单位为米。
-
-    Fields:
-        d_inner_m: 圆柱内径 — 袋子必须能通过
-        insert_length_m: 最大插入深度 (从入口起点计)
-        blade_offset_m: TCP 到剪切平面的轴向距离 (沿Z_tool正方向；当前为 0)
-        entry_d_tool: 入口相对袋底；由 ROS 参数装载
-        entry_d_s: 附加安全距离；由 ROS 参数装载
-        entry_standoff: [legacy] = entry_d_tool + entry_d_s
-        clearance_min: 袋体与工具内壁之间的最小径向余量
-        margin_neck: 袋颈候选前方的安全停止距离
-        version: 此工具配置的语义版本号
-    """
-
-    d_inner_m: float = 0.104          # 104mm 内径
-    insert_length_m: float = 0.200         # 200mm 最大插入
-    blade_offset_m: float = 0.0            # TCP 与剪切平面重合
+    d_inner_m: float = 0.104
+    """圆柱内径；袋子必须能通过."""
+    insert_length_m: float = 0.200
+    """最大插入深度，从入口起点计."""
+    blade_offset_m: float = 0.0
+    """TCP 到剪切平面的轴向距离（沿 Z_tool；现行 0=重合）."""
     entry_d_tool: float = 0.0
+    """入口相对袋底的工具分量；由 yaml/launch 注入."""
     entry_d_s: float = 0.0
-    entry_standoff: float = 0.0   # = d_tool + d_s
-    clearance_min: float = 0.005    # 5mm 最小径向余量
-    margin_neck: float = 0.015      # 袋颈前 15mm 安全距离
+    """入口相对袋底的附加安全距离."""
+    entry_standoff: float = 0.0
+    """= entry_d_tool + entry_d_s；入口后撤总量."""
+    clearance_min: float = 0.005
+    """袋体与工具内壁最小径向余量."""
+    margin_neck: float = 0.015
+    """袋颈前方安全停止距离."""
     version: str = '1.1'
+    """此工具配置的语义版本."""
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -66,14 +60,20 @@ TOOL_GEOMETRY = ToolGeometry(
 class BagObservation:
     """单帧感知输入：对齐的 RGB-D + YOLO 检测列表."""
 
-    rgb: np.ndarray                        # (H, W, 3) BGR（OpenCV 惯例）
-    depth: np.ndarray                      # (H, W) uint16，单位 mm，与 RGB 对齐
-    camera_K: dict                         # {"fx","fy","cx","cy","width","height"}
-    frame_id: str = 'camera_depth_optical_frame'  # 相机光学系 frame_id
-    gravity_hint: Optional[np.ndarray] = None  # (3,) 相机系重力方向；IMU 不可用时 None
-    # [{"bbox","class_id","conf"}]，bbox 常为 xyxy
+    rgb: np.ndarray
+    """(H, W, 3) BGR uint8（OpenCV 惯例）."""
+    depth: np.ndarray
+    """(H, W) uint16 毫米，与 RGB 对齐."""
+    camera_K: dict
+    """{'fx','fy','cx','cy','width','height'}，像素."""
+    frame_id: str = 'camera_depth_optical_frame'
+    """相机光学系 frame_id."""
+    gravity_hint: Optional[np.ndarray] = None
+    """(3,) 相机系重力；IMU 不可用时 None."""
     detections: List[dict] = field(default_factory=list)
-    metadata: dict = field(default_factory=dict)  # 版本追溯（model/calibration_version）
+    """[{'bbox','class_id','conf'}, ...]，bbox 常为 xyxy."""
+    metadata: dict = field(default_factory=dict)
+    """版本追溯（model/calibration_version）."""
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -82,18 +82,28 @@ class BagObservation:
 
 @dataclass
 class BagGrasp2D:
-    """2D 视觉参考 (像素坐标)."""
+    """2D 视觉参考（像素坐标）."""
 
-    detection_bbox: Tuple[int, int, int, int] = (0, 0, 0, 0)  # x, y, w, h
-    foreground_mask: Optional[np.ndarray] = None    # bbox深度前景伪mask
-    bottom_px: Optional[Tuple[float, float]] = None  # 袋底像素 (u, v)
-    neck_px: Optional[Tuple[float, float]] = None   # 袋颈像素 (u, v)
-    grasp_px: Optional[Tuple[float, float]] = None  # 抓取参考点像素 (u, v)
-    bag_axis_line: Optional[Tuple] = None           # [bottom_px, neck_px]
-    travel_line: Optional[Tuple] = None             # [grasp_px, travel_end_px]
-    confidence: float = 0.0                         # [0, 1]，越高越可信
-    status: str = 'REJECT'                          # ACCEPT|REOBSERVE|REJECT
-    diagnostic_flags: List[str] = field(default_factory=list)  # 门控诊断标记
+    detection_bbox: Tuple[int, int, int, int] = (0, 0, 0, 0)
+    """检测框 x, y, w, h [px]."""
+    foreground_mask: Optional[np.ndarray] = None
+    """bbox 深度前景伪 mask."""
+    bottom_px: Optional[Tuple[float, float]] = None
+    """袋底像素 (u, v)."""
+    neck_px: Optional[Tuple[float, float]] = None
+    """袋颈像素 (u, v)."""
+    grasp_px: Optional[Tuple[float, float]] = None
+    """抓取参考点像素 (u, v)."""
+    bag_axis_line: Optional[Tuple] = None
+    """[bottom_px, neck_px]."""
+    travel_line: Optional[Tuple] = None
+    """[grasp_px, travel_end_px]."""
+    confidence: float = 0.0
+    """[0, 1]，越高越可信."""
+    status: str = 'REJECT'
+    """ACCEPT | REOBSERVE | REJECT."""
+    diagnostic_flags: List[str] = field(default_factory=list)
+    """门控诊断标记."""
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -102,29 +112,50 @@ class BagGrasp2D:
 
 @dataclass
 class BagGraspReference3D:
-    """3D 抓取参考位姿 (相机坐标系, 米)."""
+    """3D 抓取参考位姿（相机光学系，米）."""
 
-    frame_id: str = 'camera_depth_optical_frame'  # 坐标系（默认相机光学系）
-    entry_start: Optional[np.ndarray] = None  # P_entry_start (3,) — 圆柱顶面圆心 = 末端TCP, 位于袋底外侧
-    position: Optional[np.ndarray] = None  # P_grasp (3,) — [legacy] 保留兼容, 新代码优先用 entry_start
-    points_centroid: Optional[np.ndarray] = None  # 检测框前景点云中位质心 (3,) — 身份锚点，比端点抗抖
-    orientation: Optional[np.ndarray] = None          # R = [Xg, Yg, Zg] (3×3)
-    bag_bottom: Optional[np.ndarray] = None           # P_bottom (3,)
-    bag_neck: Optional[np.ndarray] = None             # P_neck (3,)
-    translation_direction: Optional[np.ndarray] = None  # +Zg = bag bottom → bag neck = 圆柱轴线
-    bag_diameter_upper_m: float = 0.0                # 保守袋体直径上界 (m)
-    suggested_travel_m: float = 0.0                   # 视觉建议行程 (圆柱长度)
-    suggested_travel_end: Optional[np.ndarray] = None    # P_entry_start + travel × Zg
-    position_covariance: Optional[np.ndarray] = None     # (3×3)
-    direction_covariance: Optional[np.ndarray] = None    # (3×3)
-    confidence: float = 0.0                             # [0, 1]
-    status: str = 'REJECT'                            # ACCEPT|REOBSERVE|REJECT
-    diagnostic_flags: List[str] = field(default_factory=list)  # 门控诊断标记
-    diagnostic_info: dict = field(default_factory=dict)  # 诊断详情
-    strategy_id: str = ''                             # 策略标识（管线:前景模式）
-    model_version: str = ''                           # 模型版本标识
-    calibration_version: str = ''                     # 内外参版本标识
-    tool_version: str = ''                            # 工具几何版本
+    frame_id: str = 'camera_depth_optical_frame'
+    """坐标系（默认相机光学系）."""
+    entry_start: Optional[np.ndarray] = None
+    """圆柱顶面圆心 = 末端 TCP，位于袋底外侧 (3,) [m]."""
+    position: Optional[np.ndarray] = None
+    """[legacy] P_grasp；新代码优先用 entry_start."""
+    points_centroid: Optional[np.ndarray] = None
+    """检测框前景点云中位质心 (3,) — 身份锚点."""
+    orientation: Optional[np.ndarray] = None
+    """R = [Xg, Yg, Zg] (3×3)."""
+    bag_bottom: Optional[np.ndarray] = None
+    """袋底 (3,) [m]."""
+    bag_neck: Optional[np.ndarray] = None
+    """袋颈 (3,) [m]."""
+    translation_direction: Optional[np.ndarray] = None
+    """+Zg = 袋底→袋口 = 圆柱轴线."""
+    bag_diameter_upper_m: float = 0.0
+    """保守袋体直径上界 [m]."""
+    suggested_travel_m: float = 0.0
+    """视觉建议插入行程（圆柱长度）[m]."""
+    suggested_travel_end: Optional[np.ndarray] = None
+    """entry_start + travel × Zg."""
+    position_covariance: Optional[np.ndarray] = None
+    """位置 Σ (3×3) [m²]."""
+    direction_covariance: Optional[np.ndarray] = None
+    """轴向 Σ (3×3)."""
+    confidence: float = 0.0
+    """[0, 1]."""
+    status: str = 'REJECT'
+    """ACCEPT | REOBSERVE | REJECT."""
+    diagnostic_flags: List[str] = field(default_factory=list)
+    """门控诊断标记."""
+    diagnostic_info: dict = field(default_factory=dict)
+    """诊断详情."""
+    strategy_id: str = ''
+    """策略标识（管线:前景模式）."""
+    model_version: str = ''
+    """模型版本标识."""
+    calibration_version: str = ''
+    """内外参版本标识."""
+    tool_version: str = ''
+    """工具几何版本."""
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -183,26 +214,19 @@ def compute_travel_range(P_entry_start: np.ndarray, P_neck: np.ndarray,
 
 @dataclass(frozen=True)
 class MatchResult:
-    """
-    SpatialEmaMatcher 匹配结果（不可变值对象）.
-
-    target_id 为命中的历史表项 ID；None 表示未命中（调用方发新 ID）。
-    distance 为命中距离（米），未命中时为查询半径（诊断用）。
-    """
+    """SpatialEmaMatcher 匹配结果（不可变）."""
 
     target_id: Optional[str]
+    """命中的历史表项 ID；None=未命中，调用方发新 ID."""
     distance: float
+    """命中距离 [m]；未命中时为查询半径（诊断）."""
     status: str = 'ok'
+    """'ok' | 其它诊断短码."""
 
 
 @dataclass(frozen=True)
 class LockEvent:
-    """
-    CollectLockPolicy 窗口关闭事件（不可变值对象）.
-
-    records 为收齐窗口关闭时累积的确认记录快照（每 target_id 取窗口内
-    最新一帧，顺序为首次入集序）；排序/截断/锁定记账由调用方
-    （GlobalHarvestPlan）完成，策略本身不持有锁定后状态。
-    """
+    """CollectLockPolicy 窗口关闭事件（不可变）."""
 
     records: Tuple[dict, ...]
+    """累积确认记录快照（每 target_id 取窗口内最新一帧）."""

@@ -23,7 +23,6 @@ from .contracts import (
 from .image_gates import clip_bbox, foreground_mask, valid_depth_mask
 from .pose_pipelines import (
     RobustBagPosePipeline,
-    RobustFruitPosePipeline,
     TargetPoseResult,
 )
 
@@ -292,9 +291,12 @@ class InferenceEngine:
 class ForegroundMode:
     """前景模式描述（目前仅 hybrid_dilated）."""
 
-    mode_id: str      # 模式 ID（如 'hybrid_dilated'），估计路由键
-    label: str        # 中文短标签（报告/界面显示）
-    description: str  # 一句话说明
+    mode_id: str
+    """估计路由键（如 'hybrid_dilated'）."""
+    label: str
+    """中文短标签（报告/界面）."""
+    description: str
+    """一句话说明."""
 
 
 FOREGROUND_MODES = (
@@ -312,9 +314,21 @@ class CandidateEstimator:
 
     按检测类别分流：
       - ``peach_bag`` (class_id=0) → 圆柱轴袋线 ``RobustBagPosePipeline``
-      - ``peach_nobag`` (class_id=1) → 球+梗腔果线 ``RobustFruitPosePipeline``
+      - ``peach_nobag`` (class_id=1) → 球+梗腔果线（仅 ``fruit_pipeline`` 已注入）
     两线共用同一圆柱刀具、入口/行程公式与安全门控。
+    ``fruit_pipeline=None`` 时不构造果线；误入的裸果不走袋线。
     """
+
+    pipeline: RobustBagPosePipeline
+    """袋装线；None 构造时默认 RobustBagPosePipeline."""
+    fruit_pipeline: Optional[RobustBagPosePipeline]
+    """裸果线；None=关闭，class_id=1 不走袋线."""
+    dilate_px: int
+    """深度连通域膨胀半径 [px]，≥1."""
+    min_mask_points: int
+    """掩膜最少像素，不足 mask_unavailable."""
+    last_timings_ms: dict
+    """最近一拍几何耗时 [ms]."""
 
     def __init__(self, pipeline: Optional[RobustBagPosePipeline] = None,
                  fruit_pipeline: Optional[RobustBagPosePipeline] = None,
@@ -324,8 +338,7 @@ class CandidateEstimator:
 
         Args:
             pipeline: 袋线实例；None 时新建 RobustBagPosePipeline.
-            fruit_pipeline: 果线实例；None 时新建 RobustFruitPosePipeline
-                并复用袋线的 ToolGeometry，保证刀具契约一致.
+            fruit_pipeline: 果线实例；None=裸果线关闭（不默认新建）.
             dilate_px: 深度连通域膨胀半径（像素，≥1；核边长 2*(p//2)+1）.
             min_mask_points: 掩膜最小像素数，不足判 mask_unavailable.
 
@@ -335,13 +348,11 @@ class CandidateEstimator:
 
         """
         self.pipeline = pipeline or RobustBagPosePipeline()
-        self.fruit_pipeline = fruit_pipeline or RobustFruitPosePipeline(
-            tool=self.pipeline.tool)
-        # 类别路由：class_id==1 → 'fruit'，其余 → 'bag'
-        self._estimator_by_kind = {
-            'bag': self.pipeline,
-            'fruit': self.fruit_pipeline,
-        }
+        self.fruit_pipeline = fruit_pipeline
+        # 类别路由：class_id==1 → 'fruit'（仅注入时），其余 → 'bag'
+        self._estimator_by_kind = {'bag': self.pipeline}
+        if fruit_pipeline is not None:
+            self._estimator_by_kind['fruit'] = fruit_pipeline
         self.dilate_px = max(1, int(dilate_px))
         self.min_mask_points = max(1, int(min_mask_points))
         self.last_timings_ms: dict[str, float] = {}
@@ -356,7 +367,8 @@ class CandidateEstimator:
 
         Returns
         -------
-            (kind, pipeline)：class_id==1 → fruit，否则 bag.
+            (kind, pipeline)：class_id==1 → fruit，否则 bag；
+            果线未注入时 pipeline 为 None（不退回袋线）.
 
         """
         class_id = 0
@@ -364,7 +376,7 @@ class CandidateEstimator:
         if detections:
             class_id = int(detections[0].get('class_id', 0))
         kind = 'fruit' if class_id == 1 else 'bag'
-        return kind, self._estimator_by_kind[kind]
+        return kind, self._estimator_by_kind.get(kind)
 
     def estimate_modes(self, obs: BagObservation, target_id: str, bbox: tuple,
                        sam_mask: Optional[np.ndarray],
@@ -393,8 +405,17 @@ class CandidateEstimator:
             raise ValueError(f'unknown foreground modes: {sorted(unknown)}')
 
         bbox = clip_bbox(bbox, obs.depth.shape)
-        masks, valid_roi = self.build_masks(obs, bbox, sam_mask)
         kind, pipeline = self._pipeline_for(obs)
+        if pipeline is None:
+            # 果线未注入：不走袋线，避免裸果被当袋进身份表。
+            self.last_timings_ms = {}
+            results = {}
+            for mode in selected:
+                results[mode] = self._unavailable(
+                    obs, target_id, bbox, mode, 'fruit_pipeline_disabled')
+                results[mode].target_kind = kind
+            return results
+        masks, valid_roi = self.build_masks(obs, bbox, sam_mask)
         results = {}
         self.last_timings_ms = {}
         for mode in selected:

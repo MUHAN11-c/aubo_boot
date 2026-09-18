@@ -1,48 +1,18 @@
 """
 场景感知 ROS 2 节点（图名 `peach_scene_perception_node`）.
 
-订阅时间对齐的 RGB-D + CameraInfo，经 YOLO → MobileSAM → 实测深度几何管线，
-发布面为规范组单套话题 ``/peach/perception/*``（initial_pose / axis /
-single_cloud / detections / masks / diagnostics / markers / debug_image /
-target_observations / harvest_state；2D 候选随 target_observations 的
-candidate_2d 字段下发，不再单独成话题）。
-
-只发参考位姿，不发送运动指令。几何默认可经 TF 变到 ``output_frame``
-（默认 ``base_link``，依赖 ``hand_eye_extrinsics_publisher``）。
-图像编解码统一走 cv_bridge（bgr8 / passthrough uint16 / mono8）。
-
-本模块为编排层（参数、订阅发布、回调编排、main）；纯函数按职责拆分：
-  params.py        — 参数层（ScenePerceptionParams 集中 declare/装载）
-  stream_metrics.py — 帧率/超时/耗时/光照 EMA 观测原语
-  identity.py      — χ² 分配、身份匹配与锁定窗（直接构造）
-  image_gates.py   — 锚点投影与深度/前景门控
-  pose_pipelines.py — 袋/果位姿线（PIPELINES_BY_IMPL）
-  inference.py     — YOLO/SAM（直接构造）
-  visualization.py — 消息组装、RViz Marker 与 debug 叠加图
-  peach_perception.common — 通用纯核（geometry/runtime/tool_budget/bag_landmarks）
+Lifecycle + 接线。热路径：decode_rgbd → pipeline.process → publish。
 """
 from __future__ import annotations
 
-import dataclasses
 from datetime import datetime
 import json
-from pathlib import Path
-import threading
-from typing import List, Optional, Tuple
+from typing import Optional, Tuple
 
-from ament_index_python.packages import get_package_share_directory
 from cv_bridge import CvBridge
 from geometry_msgs.msg import Vector3, Vector3Stamped
 import message_filters
 import numpy as np
-from peach_interfaces.msg import (
-    BagFittingArray,
-    BagGraspCandidateArray,
-    HarvestState,
-    PeachTargetObservation,
-    PeachTargetObservationArray,
-)
-from peach_interfaces.srv import BeginScene
 from peach_harvester.vision.common.geometry import (
     gravity_camera_from_R,
     normalize_depth_to_uint16_mm,
@@ -54,57 +24,33 @@ from peach_harvester.vision.common.runtime import (
     default_runs_root,
     HarvestDataStore,
 )
-from peach_harvester.vision.domain.evidence import may_commit_identity
-from peach_harvester.vision.scene_perception.contracts import BagObservation
 from peach_harvester.vision.scene_perception.identity import (
-    bbox_touches_image_edge,
     classify_tracking_status,
-    CollectLockPolicy,
-    first_point,
-    GlobalHarvestPlan,
     memory_grasp,
-    SpatialEmaMatcher,
     STATUS_DEPTH_VOID,
-    STATUS_LOST,
-    STATUS_OBSERVED,
-    STATUS_OCCLUDED,
     STATUS_OUT_OF_VIEW,
-    TargetRegistry,
-)
-from peach_harvester.vision.scene_perception.image_gates import (
-    plan_segmentation_bboxes,
-    project_positions_to_pixels,
-    valid_depth_mask,
-)
-from peach_harvester.vision.scene_perception.inference import (
-    CandidateEstimator,
-    dedup_overlapping_detections,
-    InferenceEngine,
-    MobileSam,
-    UltralyticsYolo,
 )
 from peach_harvester.vision.scene_perception.params import ScenePerceptionParams
-from peach_harvester.vision.scene_perception.pose_pipelines import (
-    _apply_T_to_grasp3d,
-    _rotation_to_quat,
-    make_pipeline,
+from peach_harvester.vision.scene_perception.pipeline import (
+    PerceptionPipeline,
+    SyncedRgbd,
 )
-from peach_harvester.vision.scene_perception.stream_metrics import (
-    AdaptiveTimeout,
-    LightingMeter,
-    RateEstimator,
-    TimingMetrics,
-)
+from peach_harvester.vision.scene_perception.pose_pipelines import _rotation_to_quat
 from peach_harvester.vision.scene_perception.visualization import (
     _bbox_cloud_xyzrgb,
-    _draw_debug,
-    _to_candidate,
-    _to_candidate_2d,
     _to_detection2d,
-    _to_fitting,
-    _to_markers,
     _xyzrgb_to_cloud_msg,
+    best_axis_direction,
+    TRACKING_STATUS_TO_MSG,
 )
+from peach_interfaces.msg import (
+    BagFittingArray,
+    BagGraspCandidateArray,
+    HarvestState,
+    PeachTargetObservation,
+    PeachTargetObservationArray,
+)
+from peach_interfaces.srv import BeginScene
 import rclpy
 from rclpy.duration import Duration
 from rclpy.lifecycle import LifecycleNode, TransitionCallbackReturn
@@ -113,155 +59,51 @@ from sensor_msgs.msg import CameraInfo, Image, PointCloud2
 from std_msgs.msg import Header, String
 from tf2_ros import Buffer, TransformException, TransformListener
 from vision_msgs.msg import Detection2DArray
-from visualization_msgs.msg import Marker, MarkerArray
-
-# 跟踪状态四分类 token → msg 常量（阶段 D1；分类纯函数在
-# identity.classify_tracking_status，msg 常量只能在本层映射）
-_TRACKING_STATUS_TO_MSG = {
-    STATUS_OBSERVED: PeachTargetObservation.OBSERVED,
-    STATUS_OCCLUDED: PeachTargetObservation.OCCLUDED,
-    STATUS_LOST: PeachTargetObservation.LOST,
-    STATUS_OUT_OF_VIEW: PeachTargetObservation.OUT_OF_VIEW,
-    STATUS_DEPTH_VOID: PeachTargetObservation.DEPTH_VOID,
-}
-
-
-@dataclasses.dataclass
-class SyncedRgbd:
-    """解码后的一帧 RGB-D 与 TF 查询结果."""
-
-    rgb: np.ndarray
-    depth: np.ndarray
-    K: dict
-    cam_frame: str
-    out_frame: str
-    geometry_stamp: object
-    img_header: Header
-    header: Header
-    T_out_cam: np.ndarray
-    tf_status: str
-    gravity_hint: np.ndarray
+from visualization_msgs.msg import MarkerArray
 
 
 class ScenePerceptionNode(LifecycleNode):
     """RGB-D 感知 Lifecycle 节点：Active 后才处理帧并受理 BeginScene."""
 
+    params: ScenePerceptionParams
+    """config/scene_perception.yaml 快照；逐帧键可热更新."""
+    pipeline: PerceptionPipeline
+    """检测→分割→袋位姿；计划/身份/锁都在管线上，节点不另抄别名."""
+    harvest_data: HarvestDataStore
+    """runs/.../perception_data 事件与掩膜；不写调度 ledger.json."""
+    harvest_run_id: str = ''
+    """锁定瞬间生成的轮 ID（harvest_时间_s快照号）."""
+    _executor_run_id: str = ''
+    """调度 HarvestState.run_id，用于轮目录根."""
+    _executor_target_id: str = ''
+    """调度当前目标；覆盖感知 selected."""
+    _executor_state_seen: bool = False
+    """True 后不再回退收齐窗口 cursor."""
+    _scene_epoch: int = 0
+    """BeginScene 次数；写入观测数组."""
+    _scene_key: str = ''
+    """物理场景键；与上次不同才清身份表."""
+    _lifecycle_active: bool = False
+    """仅 Active 为 True：才处理 RGB-D / 受理 BeginScene."""
+    _ros_entities_wired: bool = False
+    """on_configure 已创建订阅/发布."""
+    tf_timeout: Duration
+    """精确 stamp TF 查询超时."""
+
     def __init__(self):
         """建节点：参数层装载 → 模型与管线 → 发布者、RGB-D 同步订阅与 TF 监听."""
         super().__init__('peach_scene_perception_node')
-        self._lifecycle_active = False
         self.bridge = CvBridge()
-        # 参数层：ParamListener 声明（源 peach_perception/params.py），
-        # from_params 只派生 tool / gravity；其余读 self.params 生成嵌套结构。
-        self._param_listener = ScenePerceptionParams.declare(self)
-        self.params = ScenePerceptionParams.from_params(
-            self._param_listener.get_params())
+        # 参数层一行接入：yaml 声明 + on-set 动态刷新（见 params.py）。
+        self.params = ScenePerceptionParams.attach(self)
         self.tf_timeout = Duration(seconds=self.params.tf_timeout_sec)
-
-        share = Path(get_package_share_directory('peach_harvester'))
-        yolo = self.params.yolo_model_path or str(share / 'model' / 'best.pt')
-        sam = self.params.sam_model_path or str(share / 'model' / 'mobile_sam.pt')
-        self.get_logger().info(f'YOLO={yolo}')
-        self.get_logger().info(f'SAM={sam}')
-
-        # 唯一实现直接构造（原 *.impl 注册缝位已收回）；袋/果两条位姿线
-        # 保留 yaml pipeline.bag_impl / fruit_impl 映射选择。
-        detector = UltralyticsYolo(
-            yolo_model=yolo, yolo_conf=self.params.yolo_conf,
-            yolo_iou=self.params.yolo_nms_iou)
-        segmenter = MobileSam(
-            sam_model=sam,
-            sam_max_bboxes=self.params.sam_max_bboxes, sam_min_area=self.params.sam_min_area)
-        self.engine = InferenceEngine(detector=detector, segmenter=segmenter)
-        # 有效深度窗与前景点数下限随参数下发（阶段 D1 参数化；两条管线共用
-        # 同一相机/深度约定，取同一组 pipeline.* 值）
-        pipeline_kwargs = {
-            'min_depth_m': self.params.pipeline.min_depth_m,
-            'max_depth_m': self.params.pipeline.max_depth_m,
-            'min_points': self.params.pipeline.min_points,
-        }
-        bag_pipeline = make_pipeline(
-            self.params.pipeline.bag_impl, tool=self.params.tool,
-            **pipeline_kwargs)
-        fruit_pipeline = make_pipeline(
-            self.params.pipeline.fruit_impl, tool=self.params.tool,
-            **pipeline_kwargs)
-        self.estimator = CandidateEstimator(
-            pipeline=bag_pipeline, fruit_pipeline=fruit_pipeline,
-            min_mask_points=self.params.min_mask_points)
-        # 目标身份记忆：匹配器直接构造，表由 TargetRegistry 持有
-        if self.params.target_memory.enable:
-            matcher = SpatialEmaMatcher(
-                match_radius=self.params.target_memory.match_radius_m,
-                recovery_scale=self.params.target_memory.recovery_scale)
-            self.target_registry = TargetRegistry(
-                matcher=matcher,
-                max_targets=self.params.target_memory.max_targets,
-                position_ema=self.params.target_memory.position_ema,
-                confirm_frames=self.params.target_memory.confirm_frames,
-                tentative_ttl_frames=self.params.target_memory.tentative_ttl_frames,
-                max_age_s=self.params.target_memory.max_age_s,
-                swing_threshold_m=self.params.wind.swing_threshold_m,
-                swing_frames=self.params.wind.swing_frames)
-        else:
-            self.target_registry = None
-        # plan 竞态防护选型：BoundedWorker（capacity=1, drop_oldest=True）的
-        # 丢帧策略会静默吞掉 reset/complete 命令任务，不满足「命令不丢」语义；
-        # 改造 worker 支持双优先级队列代价大于收益，故用节点级 RLock 细粒度锁：
-        # harvest_plan 与 harvest_run_id/harvest_data 是同一份一致性状态，
-        # 全部由本锁保护（worker 线程帧处理 + executor 线程服务回调）；
-        # RLock 允许持锁内嵌套 _publish_harvest_state → _harvest_state_dict。
-        self._plan_lock = threading.RLock()
-        lock_policy = CollectLockPolicy(
-            min_collect_frames=self.params.harvest.min_collect_frames,
-            lock_settle_frames=self.params.harvest.lock_settle_frames,
-            max_collect_s=self.params.harvest.max_collect_s)
-        self.harvest_plan = GlobalHarvestPlan(
-            max_targets=self.params.target_memory.max_targets,
-            prefer_lower_first=self.params.harvest.priority_prefer_lower_first,
-            # 锚点帧龄阈值初值按 5 fps 名义帧率折算（30 s/120 s → 150/600
-            # 帧）兜底；首帧实测帧间隔 EMA 就位后逐帧改写（协议 I4）
-            anchor_max_age_frames=max(
-                1, round(self.params.target_memory.anchor_max_age_s / 0.2)),
-            anchor_drop_frames=max(
-                1, round(self.params.target_memory.anchor_drop_s / 0.2)),
-            lock_policy=lock_policy)
-        self.harvest_data = HarvestDataStore()
-        self.harvest_run_id = ''
-        self._executor_run_id = ''
-        self._executor_target_id = ''
-        self._executor_state_seen = False
-        self._scene_epoch = 0
-        self._scene_key = ''
-        # 阶段 D1：锁定集目标光照质量统计（观测指标，不打阻断旗标）；
-        # OUT_OF_VIEW 分类用的「消失前最后检测框是否触图像边缘」记忆
-        # （稳定 target_id → bool；换场清身份时一并清空）
-        self._lighting = LightingMeter(
-            alpha=0.3,
-            min_depth_ratio=self.params.lighting.min_depth_ratio,
-            min_conf_mean=self.params.lighting.min_conf_mean,
-            bad_frames=self.params.lighting.bad_frames)
-        self._bbox_at_edge = {}
-        # 协议 I3（时钟唯一）：节点时钟为唯一时钟源，经适配器注入纯核；
-        # 帧率自适应收齐兜底 = RateEstimator(实测帧间隔 EMA, α=0.3) +
-        # AdaptiveTimeout(clamp(0.4×cfg, (min_collect+settle+3)×EMA, ∞))，
-        # 与原内联实现逐项等价（异常间隔 ≤1ms/>30s 不进 EMA）
+        self.get_logger().info(f'YOLO={self.params.yolo_model_path}')
+        self.get_logger().info(f'SAM={self.params.sam_model_path}')
         self._clock = RclpyClockAdapter(self.get_clock())
-        self._frame_rate = RateEstimator(alpha=0.3)
-        self._collect_window_timeout = AdaptiveTimeout(
-            lower=0.4 * self.params.harvest.max_collect_s, upper=float('inf'),
-            factor=(self.params.harvest.min_collect_frames
-                    + self.params.harvest.lock_settle_frames + 3))
-        # 推理耗时分项埋点：_process_rgbd 各段（detect/segment/geometry/total）
-        # 用上面同一个注入时钟测量，EMA（α=0.3 与帧率同纪律）后随
-        # harvest_state JSON 的 timing 子对象下发，不新增话题
-        self._timing = TimingMetrics(alpha=0.3)
-
-        # ROS 实体（发布器/订阅/服务/TF）统一在 on_configure 创建（官方
-        # LifecycleNode 写法：Unconfigured 期零 ROS 接口，configure 失败即 ERROR），
-        # on_cleanup 释放；见 _wire_ros / _unwire_ros。
-        self._ros_entities_wired = False
-
+        self.pipeline = PerceptionPipeline.from_params(
+            self.params, self._clock, logger=self.get_logger(),
+            enable_fruit=False)
+        self.harvest_data = HarvestDataStore()
         self.get_logger().info(
             f'Subscribed color={self.params.color_topic} depth={self.params.depth_topic} '
             f'info={self.params.camera_info_topic} slop={self.params.sync_slop_s}s '
@@ -270,12 +112,13 @@ class ScenePerceptionNode(LifecycleNode):
             f'depth_scale_unit={self.params.depth_scale_unit} '
             f'gravity_mode={self.params.gravity_mode} '
             f'calib={self.params.calibration_version}')
-        if self.target_registry is not None:
+        if self.pipeline.target_registry is not None:
+            registry = self.pipeline.target_registry
             self.get_logger().info(
                 f'目标身份记忆已启用：match_radius='
-                f'{self.target_registry.match_radius} m, max_targets='
-                f'{self.target_registry.max_targets}, ema='
-                f'{self.target_registry.alpha}')
+                f'{registry.match_radius} m, max_targets='
+                f'{registry.max_targets}, ema='
+                f'{registry.alpha}')
         else:
             self.get_logger().info('目标身份记忆已禁用：target_id 为帧内序号')
 
@@ -416,20 +259,20 @@ class ScenePerceptionNode(LifecycleNode):
     def _on_executor_state(self, msg: HarvestState) -> None:
         """执行器当前目标覆盖感知 selected；作业结束写入 completed_ids."""
         new_id = str(msg.target_id or '')
-        with self._plan_lock:
+        with self.pipeline.plan_lock:
             self._executor_state_seen = True
             # 单根会话目录（R7）：批次 request_id 驱动 datastore 基目录
             self._executor_run_id = str(msg.run_id or '')
             old = self._executor_target_id
             if old and old != new_id:
-                self.harvest_plan.mark_completed(old)
+                self.pipeline.harvest_plan.mark_completed(old)
             self._executor_target_id = new_id
 
     def _effective_selected_id(self) -> str:
         """批次当前目标；已见执行器状态时不回退收齐窗口 cursor."""
         if self._executor_state_seen:
             return self._executor_target_id
-        return self.harvest_plan.selected_target_id
+        return self.pipeline.harvest_plan.selected_target_id
 
     def _discovery_counts(self) -> Tuple[int, int]:
         """
@@ -440,39 +283,39 @@ class ScenePerceptionNode(LifecycleNode):
         pending_count：锁定前=注册表确认中（未转正）记录数，锁定后恒 0；
         身份记忆禁用时恒 0（每帧记录即确认，无攒帧过程）。
         """
-        collecting = self.harvest_plan.collecting_count
-        if self.harvest_plan.locked or self.target_registry is None:
+        collecting = self.pipeline.harvest_plan.collecting_count
+        if self.pipeline.harvest_plan.locked or self.pipeline.target_registry is None:
             return collecting, 0
-        return collecting, self.target_registry.pending_count
+        return collecting, self.pipeline.target_registry.pending_count
 
     def _harvest_state_dict(self) -> dict:
         """返回可序列化的全局采摘计划与数据路径（持锁读取一致快照）."""
-        with self._plan_lock:
+        with self.pipeline.plan_lock:
             collecting_count, pending_count = self._discovery_counts()
             return {
                 'harvest_run_id': self.harvest_run_id,
-                'snapshot_id': self.harvest_plan.snapshot_id,
-                'target_set_locked': self.harvest_plan.locked,
-                'target_count': self.harvest_plan.target_count,
+                'snapshot_id': self.pipeline.harvest_plan.snapshot_id,
+                'target_set_locked': self.pipeline.harvest_plan.locked,
+                'target_count': self.pipeline.harvest_plan.target_count,
                 # R-D8 发现进度摘要：与 target_observations 同名字段对齐
                 'collecting_count': collecting_count,
                 'pending_count': pending_count,
-                'target_ids': list(self.harvest_plan.locked_ids),
-                'completed_target_ids': sorted(self.harvest_plan.completed_ids),
-                'priorities': dict(self.harvest_plan.priorities),
+                'target_ids': list(self.pipeline.harvest_plan.locked_ids),
+                'completed_target_ids': sorted(self.pipeline.harvest_plan.completed_ids),
+                'priorities': dict(self.pipeline.harvest_plan.priorities),
                 'selected_target_id': self._effective_selected_id(),
                 # 阶段 D1（协议 2.4）：锚点陈旧/出视野/已移除目标集（均为
                 # 纯增量键，下游只读消费）与光照质量观测指标
                 'anchor_stale_target_ids': sorted(
-                    self.harvest_plan.anchor_stale_ids),
+                    self.pipeline.harvest_plan.anchor_stale_ids),
                 'out_of_view_target_ids': sorted(
-                    self.harvest_plan.out_of_view_ids),
-                'dropped_target_ids': sorted(self.harvest_plan.dropped_ids),
-                'lighting': self._lighting.snapshot(),
-                'low_light_quality': self._lighting.low_quality,
+                    self.pipeline.harvest_plan.out_of_view_ids),
+                'dropped_target_ids': sorted(self.pipeline.harvest_plan.dropped_ids),
+                'lighting': self.pipeline.lighting.snapshot(),
+                'low_light_quality': self.pipeline.lighting.low_quality,
                 'scene_epoch': self._scene_epoch,
                 # 推理耗时分项 EMA（毫秒）+ 实测 fps；详见 TimingMetrics
-                'timing': self._timing.snapshot(fps=self._frame_rate.rate_hz),
+                'timing': self.pipeline.timing.snapshot(fps=self.pipeline.frame_rate.rate_hz),
                 'data': self.harvest_data.query(),
             }
 
@@ -490,7 +333,7 @@ class ScenePerceptionNode(LifecycleNode):
             response.scene_epoch = self._scene_epoch
             response.message = 'perception not Active'
             return response
-        with self._plan_lock:
+        with self.pipeline.plan_lock:
             self._scene_epoch += 1
             old_run = self.harvest_run_id
             if old_run:
@@ -499,16 +342,12 @@ class ScenePerceptionNode(LifecycleNode):
                     'scene_key': request.scene_key,
                     'scene_epoch': self._scene_epoch,
                 })
-            self.harvest_plan.reset()
             self.harvest_data = HarvestDataStore(root=self.harvest_data.root)
             self.harvest_run_id = ''
-            cleared = 0
             scene_changed = bool(
                 self._scene_key and request.scene_key != self._scene_key)
-            if self.target_registry is not None and scene_changed:
-                cleared = self.target_registry.clear()
+            cleared = self.pipeline.begin_scene(scene_changed)
             self._scene_key = request.scene_key
-            self._bbox_at_edge.clear()
             self._publish_harvest_state()
         response.accepted = True
         response.scene_epoch = self._scene_epoch
@@ -520,7 +359,7 @@ class ScenePerceptionNode(LifecycleNode):
 
     def _start_harvest_run(self) -> None:
         """为刚锁定的全局目标集合创建不可变 manifest（须持 _plan_lock 调用）."""
-        with self._plan_lock:
+        with self.pipeline.plan_lock:
             # 批次在跑：轮目录落 runs/<request_id>/perception_data/<轮ID>；
             # 无批次回退旧布局（root/<轮ID>）
             if self._executor_run_id:
@@ -532,16 +371,16 @@ class ScenePerceptionNode(LifecycleNode):
             now = datetime.now()
             self.harvest_run_id = (
                 f'harvest_{now.strftime("%Y%m%dT%H%M%S_%f")}_'
-                f's{self.harvest_plan.snapshot_id}')
+                f's{self.pipeline.harvest_plan.snapshot_id}')
             targets = [
                 {'target_id': target_id,
-                 'priority': self.harvest_plan.priority(target_id)}
-                for target_id in self.harvest_plan.locked_ids
+                 'priority': self.pipeline.harvest_plan.priority(target_id)}
+                for target_id in self.pipeline.harvest_plan.locked_ids
             ]
             self.harvest_data.start(self.harvest_run_id, {
-                'snapshot_id': self.harvest_plan.snapshot_id,
-                'target_count': self.harvest_plan.target_count,
-                'selected_target_id': self.harvest_plan.selected_target_id,
+                'snapshot_id': self.pipeline.harvest_plan.snapshot_id,
+                'target_count': self.pipeline.harvest_plan.target_count,
+                'selected_target_id': self.pipeline.harvest_plan.selected_target_id,
                 'targets': targets,
                 'model_version': self.params.model_version,
                 'calibration_version': self.params.calibration_version,
@@ -549,8 +388,8 @@ class ScenePerceptionNode(LifecycleNode):
             })
             self.harvest_data.append_event({
                 'source': 'perception', 'event': 'global_targets_locked',
-                'target_count': self.harvest_plan.target_count,
-                'selected_target_id': self.harvest_plan.selected_target_id,
+                'target_count': self.pipeline.harvest_plan.target_count,
+                'selected_target_id': self.pipeline.harvest_plan.selected_target_id,
             })
 
     def _publish_target_observations(
@@ -561,80 +400,80 @@ class ScenePerceptionNode(LifecycleNode):
         全程持 _plan_lock：plan.update 及后续逐字段读取必须与服务回调
         （reset/complete）互斥，保证 plan 单写者与快照一致性。
         """
-        with self._plan_lock:
-            was_locked = self.harvest_plan.locked
+        with self.pipeline.plan_lock:
+            was_locked = self.pipeline.harvest_plan.locked
             # 帧率自适应收齐兜底：按实测帧间隔 EMA 伸缩 max_collect_s（帧率
             # 以运行状态为准）——低帧率放大防误锁空集，高帧率收紧提速；
             # 配置值 ×0.4 作下限。异常间隔（暂停后首帧）不进 EMA。
             # 协议 I3：now 取节点时钟（同一时钟源同时驱动窗口超时判定）
             now_s = self._clock.now()
-            self._frame_rate.update(now_s)
-            frame_interval = self._frame_rate.interval
+            self.pipeline.frame_rate.update(now_s)
+            frame_interval = self.pipeline.frame_rate.interval
             if frame_interval is not None:
-                self.harvest_plan.max_collect_s = (
-                    self._collect_window_timeout.value(frame_interval))
+                self.pipeline.harvest_plan.max_collect_s = (
+                    self.pipeline.collect_window_timeout.value(frame_interval))
                 # 锚点新鲜度两档时限（阶段 D1，协议 2.4/I4）：秒级上限 ÷
                 # 实测帧间隔 EMA = 帧数阈值，逐帧改写；帧率跌落时帧数变少，
                 # 墙钟上限保持不变
-                self.harvest_plan.anchor_max_age_frames = max(
+                self.pipeline.harvest_plan.anchor_max_age_frames = max(
                     1, round(self.params.target_memory.anchor_max_age_s
                              / frame_interval))
-                self.harvest_plan.anchor_drop_frames = max(
+                self.pipeline.harvest_plan.anchor_drop_frames = max(
                     1, round(self.params.target_memory.anchor_drop_s
                              / frame_interval))
             # OUT_OF_VIEW 预分类（须在 plan.update 前完成：计划按本集合做
             # 不可选/去选判定）：锁定目标本帧无观测且消失前最后检测框触
             # 图像边缘 → 走出视野；单位姿模型下复扫无益，视为不可选（2.4）
             out_of_view_ids = {
-                target_id for target_id in self.harvest_plan.locked_ids
+                target_id for target_id in self.pipeline.harvest_plan.locked_ids
                 if target_id not in payloads
-                and self._bbox_at_edge.get(target_id, False)
+                and self.pipeline.bbox_at_edge.get(target_id, False)
             }
-            current = self.harvest_plan.update(
+            current = self.pipeline.harvest_plan.update(
                 records, now=now_s, out_of_view_ids=out_of_view_ids)
             # 锚点超龄移除（LOST 超 anchor_drop）：记账 target_dropped 事件，
             # 编排侧据此按 SKIPPED_UNREACHABLE「目标丢失超时」入账（协议 2.4）
-            for dropped_id in self.harvest_plan.pop_dropped():
+            for dropped_id in self.pipeline.harvest_plan.pop_dropped():
                 self.harvest_data.append_event({
                     'source': 'perception', 'event': 'target_dropped',
                     'target_id': dropped_id,
                     'reason': 'anchor_drop_timeout（目标丢失超时）',
                 })
             try:
-                if self.harvest_plan.locked and not was_locked:
+                if self.pipeline.harvest_plan.locked and not was_locked:
                     self._start_harvest_run()
             except OSError as exc:
                 self.get_logger().error(f'采摘运行目录创建失败: {exc}')
 
             # 光照质量统计（阶段 D1；观测指标，不打阻断旗标）：锁定集中
             # 本帧带掩膜观测的目标，逐帧注入掩膜内有效深度占比与置信度
-            if self.harvest_plan.locked:
+            if self.pipeline.harvest_plan.locked:
                 depth_ratios = []
                 confidences = []
-                for target_id in self.harvest_plan.locked_ids:
+                for target_id in self.pipeline.harvest_plan.locked_ids:
                     payload = payloads.get(target_id)
                     if payload is None or payload.get('mask') is None:
                         continue
                     depth_ratios.append(payload.get('mask_depth_ratio', 0.0))
                     confidences.append(float(
                         current.get(target_id, {}).get('confidence', 0.0)))
-                self._lighting.update(depth_ratios, confidences)
-            if self._lighting.low_quality:
+                self.pipeline.lighting.update(depth_ratios, confidences)
+            if self.pipeline.lighting.low_quality:
                 self.get_logger().warning(
                     f'光照质量持续偏低（{self.params.lighting.bad_frames} 帧连击：'
                     f'掩膜内有效深度占比 EMA='
-                    f'{self._lighting.snapshot()["depth_ratio"]} < '
+                    f'{self.pipeline.lighting.snapshot()["depth_ratio"]} < '
                     f'{self.params.lighting.min_depth_ratio} 或置信度 EMA < '
                     f'{self.params.lighting.min_conf_mean}），建议现场补光/调曝光',
                     throttle_duration_sec=10.0)
 
             array = PeachTargetObservationArray()
             array.header = header
-            array.snapshot_id = self.harvest_plan.snapshot_id
+            array.snapshot_id = self.pipeline.harvest_plan.snapshot_id
             array.scene_epoch = self._scene_epoch
             array.harvest_run_id = self.harvest_run_id
-            array.target_set_locked = self.harvest_plan.locked
-            array.target_count = self.harvest_plan.target_count
+            array.target_set_locked = self.pipeline.harvest_plan.locked
+            array.target_count = self.pipeline.harvest_plan.target_count
             array.selected_target_id = self._effective_selected_id()
             # R-D8 发现进度摘要：锁定前 observations 恒空，下游经本两字段
             # 跟踪收齐进度；锁定后=锁定集大小/0（语义见 msg 注释）
@@ -642,14 +481,14 @@ class ScenePerceptionNode(LifecycleNode):
                 self._discovery_counts())
             observed_ids = []
             stamp_ns = Time.from_msg(mask_header.stamp).nanoseconds
-            for target_id in self.harvest_plan.locked_ids:
+            for target_id in self.pipeline.harvest_plan.locked_ids:
                 item = PeachTargetObservation()
                 item.header = header
                 item.target_id = target_id
-                item.priority = self.harvest_plan.priority(target_id)
+                item.priority = self.pipeline.harvest_plan.priority(target_id)
                 item.confirmed = True
                 item.selected = target_id == array.selected_target_id
-                item.harvest_status = self.harvest_plan.harvest_status(
+                item.harvest_status = self.pipeline.harvest_plan.harvest_status(
                     target_id,
                     executor_id=(
                         self._executor_target_id if self._executor_state_seen
@@ -666,9 +505,9 @@ class ScenePerceptionNode(LifecycleNode):
                         None if payload is None
                         else payload.get('mask_depth_ratio')),
                     min_depth_ratio=self.params.lighting.min_depth_ratio,
-                    last_bbox_touched_edge=self._bbox_at_edge.get(
+                    last_bbox_touched_edge=self.pipeline.bbox_at_edge.get(
                         target_id, False))
-                item.tracking_status = _TRACKING_STATUS_TO_MSG[token]
+                item.tracking_status = TRACKING_STATUS_TO_MSG[token]
                 if payload is None:
                     if token == STATUS_OUT_OF_VIEW:
                         item.diagnostic_flags = ['target_out_of_view']
@@ -703,7 +542,7 @@ class ScenePerceptionNode(LifecycleNode):
                 # 锚点陈旧旗标（阶段 D1，协议 2.4）：LOST 超 anchor_max_age
                 # 的锁定目标已被计划排除出可选集，此处把旗标同步进该目标的
                 # diagnostic_flags 供下游/Web 展示
-                if (target_id in self.harvest_plan.anchor_stale_ids
+                if (target_id in self.pipeline.harvest_plan.anchor_stale_ids
                         and 'anchor_stale' not in item.diagnostic_flags):
                     item.diagnostic_flags.append('anchor_stale')
                 # 几何退化且本帧无活体观测：用身份表记忆锚点回填。
@@ -713,7 +552,7 @@ class ScenePerceptionNode(LifecycleNode):
                     self._fill_memory_anchor(item, target_id)
                 array.observations.append(item)
             self.pub_target_observations.publish(array)
-            if self.harvest_plan.locked:
+            if self.pipeline.harvest_plan.locked:
                 self.harvest_data.append_event({
                     'source': 'perception', 'event': 'frame_observations',
                     'stamp_ns': stamp_ns, 'observed_target_ids': observed_ids,
@@ -733,8 +572,8 @@ class ScenePerceptionNode(LifecycleNode):
 
     def _fill_memory_anchor(self, item, target_id: str) -> None:
         """用身份表记忆回填 candidate，并打 anchor_from_memory."""
-        entry = (None if self.target_registry is None
-                 else self.target_registry.get(target_id))
+        entry = (None if self.pipeline.target_registry is None
+                 else self.pipeline.target_registry.get(target_id))
         standoff = self.params.tool.entry_standoff
         grasp = memory_grasp(entry, standoff)
         if grasp is None:
@@ -791,52 +630,6 @@ class ScenePerceptionNode(LifecycleNode):
                 self.get_logger().warning(
                     f'TF 失败，输出退回相机系 {cam_frame}: {ex}')
                 return None, 'unavailable'
-
-    def _segmentation_bboxes(self, kept, T_out_cam, K):
-        """
-        决定本帧送 SAM 的检测框集（阶段 H，协议 2.13-E1 锁定后 selected-only）.
-
-        锁定前/开关关/TF 不可用帧全量（旧行为）；锁定后把锁定且未终局目标
-        的世界系记忆锚点（TargetRegistry 表项 position）经 T_out_cam 逆变换
-        反投影到本帧像素，只分割「包含锚点投影」的检测框（重叠框宁多勿漏）。已终局
-        （completed）目标不再分割：账目已定，掩膜不再进任何判定。
-        分割失败的锁定目标在下游被显式判 OCCLUDED + mask_unavailable，
-        几何走深度带降级——不漏报、不静默。
-
-        Args:
-            kept: 本帧入管线检测 dict 列表（置信度过滤+去重后）.
-            T_out_cam: (4, 4) output←camera 齐次矩阵或 None（TF 彻底失败）.
-            K: 本帧相机内参 dict（fx/fy/cx/cy/width/height）.
-
-        Returns
-        -------
-            送 SAM 的 (x1, y1, x2, y2) 框列表（顺序与 kept 一致）.
-
-        """
-        # 持 _plan_lock：harvest_plan 与 target_registry 是同一份一致性状态
-        # （BeginScene 换场清表在同锁下进行），门控读取须与之互斥；
-        # 锁内只有 dict 读取与一次 4×4 求逆，耗时微秒级
-        with self._plan_lock:
-            locked = self.harvest_plan.locked
-            anchor_px = None
-            if (self.params.pipeline.locked_only_segmentation and locked
-                    and self.target_registry is not None
-                    and T_out_cam is not None):
-                positions = {}
-                for target_id in self.harvest_plan.locked_ids:
-                    if target_id in self.harvest_plan.completed_ids:
-                        continue
-                    if (self._executor_target_id
-                            and target_id != self._executor_target_id):
-                        continue
-                    entry = self.target_registry.get(target_id)
-                    if entry is not None and entry.get('position') is not None:
-                        positions[target_id] = np.asarray(
-                            entry['position'], dtype=float)
-                anchor_px = project_positions_to_pixels(
-                    positions, np.linalg.inv(T_out_cam), K)
-            return plan_segmentation_bboxes(
-                kept, self.params.pipeline.locked_only_segmentation, locked, anchor_px)
 
     def _on_rgbd(self, rgb_msg: Image, depth_msg: Image, info: CameraInfo):
         """将最新同步帧交给容量一推理 worker."""
@@ -930,7 +723,7 @@ class ScenePerceptionNode(LifecycleNode):
             gravity_hint=gravity_hint)
 
     def _process_rgbd(self, frame):
-        """一帧 RGB-D → 检测 / 分割 / 几何 / 观测发布."""
+        """Decode RGB-D, run pipeline.process, then publish."""
         rgb_msg, depth_msg, info = frame
         t_total_start = self._clock.now()
         self.get_logger().debug(
@@ -938,331 +731,68 @@ class ScenePerceptionNode(LifecycleNode):
         synced = self._decode_rgbd(rgb_msg, depth_msg, info)
         if synced is None:
             return
-        rgb, depth, K = synced.rgb, synced.depth, synced.K
-        cam_frame, out_frame = synced.cam_frame, synced.out_frame
-        geometry_stamp = synced.geometry_stamp
-        img_header, header = synced.img_header, synced.header
-        T_out_cam, tf_status = synced.T_out_cam, synced.tf_status
-        gravity_hint = synced.gravity_hint
-
-        # ---- 检测 ----
-        # YOLO 异常（权重缺失/CUDA 错误等）不得炸穿 worker：记日志跳过本帧，
-        # 与上方 convert 失败的早退形状一致（SAM 侧已在 engine 内捕获返回 []）
-        t_detect_start = self._clock.now()
-        try:
-            detections = self.engine.detect(rgb)
-        except Exception as exc:  # noqa: BLE001
-            self.get_logger().error(
-                f'YOLO 检测异常，跳过本帧: {exc}', throttle_duration_sec=1.0)
+        out = self.pipeline.process(
+            synced, executor_target_id=self._executor_target_id)
+        if out is None:
             return
-        # 置信度过滤（第二级，严出）→ IoS 去重（消一果两框/局部误检小框，
-        # 跨类生效，防同一物理目标在身份表重复占号）；发布的 detections
-        # 即实际入管线的目标
-        kept = [d for d in detections
-                if float(d.get('conf', 0.0)) >= self.params.min_detection_conf]
-        kept = dedup_overlapping_detections(
-            kept, self.params.detection_dedup_ios,
-            frag_area_ratio=self.params.detection_dedup_area_ratio)
-        # detect 段 = YOLO 推理 + 置信度过滤 + IoS 去重（入管线目标的完整出品）
-        self._timing.record(
-            'detect_ms', (self._clock.now() - t_detect_start) * 1e3)
+        self._publish_frame(synced, out)
+        self.pipeline.timing.record(
+            'total_ms', (self._clock.now() - t_total_start) * 1e3)
+
+    def _publish_frame(self, synced, out):
+        """Publish one PerceptionResult (ROS I/O only)."""
         det_msg = Detection2DArray()
-        det_msg.header = img_header
-        for d in kept:
-            det_msg.detections.append(_to_detection2d(d, img_header))
+        det_msg.header = out.img_header
+        for det in out.kept:
+            det_msg.detections.append(_to_detection2d(det, out.img_header))
         self.pub_norm_dets.publish(det_msg)
-
-        # 稳定点云（confirmed bbox）在身份判定后生成发布（见循环下方）；
-        # 全量检测点云不再发布——RViz 呈现层只收筛选后稳定内容。
-
-        mask_canvas = np.zeros(depth.shape[:2], dtype=np.uint16)
-        # 双画布：debug=稳定流（confirmed-only，RViz）；debug_raw=真相流
-        # （全量含未确认，供记录层筛选前后对比）
-        debug = rgb.copy() if self.params.publish_debug_image else None
-        debug_raw = rgb.copy() if self.params.publish_debug_image else None
-        cand_arr = BagGraspCandidateArray()
-        cand_arr.header = header
-        fit_arr = BagFittingArray()
-        fit_arr.header = header
-        markers = MarkerArray()
-        confirmed_bboxes = []
-        # DELETEALL 不要设 ns/id：否则会与首个 ADD (scene_perception, 0) 冲突，
-        # RViz 报 "same ns and id: (scene_perception, 0)"
-        clear = Marker()
-        clear.header = header
-        clear.action = Marker.DELETEALL
-        markers.markers.append(clear)
-        # 本帧各候选的 (状态, 平移方向)，供 /peach/perception/axis 选最优
-        frame_axes: List[Tuple[str, Optional[np.ndarray]]] = []
-        harvest_records = []
-        harvest_payloads = {}
-        mask_header = Header()
-        mask_header.stamp = geometry_stamp
-        mask_header.frame_id = cam_frame
-
-        # ---- 逐目标：SAM → 前景∩深度 → 袋/果管线 → TF → 消息 ----
-        # 目标身份记忆：仅精确 stamp TF（ok）才匹配/注册；stale 不得改权威身份（F15）。
-        track_this_frame = (
-            self.target_registry is not None
-            and may_commit_identity(tf_status == 'ok'))
-        if track_this_frame:
-            # I3：与 match_or_register 注入同一节点时钟——max_age_s 墙钟
-            # 淘汰（阶段 D1）要求两入口同一时钟基准；不注入则注册表跳过
-            # 墙钟淘汰（防 time.monotonic 兜底与注入时钟混比误清表项）。
-            # 持 _plan_lock：与 BeginScene 清表 / plan.update 同一互斥
-            # （worker 帧处理 vs executor 服务回调对身份表的并发读写）。
-            with self._plan_lock:
-                self.target_registry.begin_frame(now=self._clock.now())
-        # ---- SAM 批量分割：整帧收集全部 bbox 一次 forward（N 目标 N 次 → 1 次），
-        # 再按 bbox 精确取回各目标掩膜（segment 丢弃面积过小掩膜，返回项与目标
-        # 非一一对齐，故按 bbox 建映射而非按下标）；批量路径自身异常时回退逐目标
-        # 调用兜底（engine 内部已捕获的 SAM 推理失败返回 []，不触发本回退）
-        t_segment_start = self._clock.now()
-        # 阶段 H（协议 2.13-E1）：锁定后 selected-only 门控——只对锁定集目标的
-        # 检测框跑 SAM（锁定前/开关关/TF 不可用帧全量，见 _segmentation_bboxes）；
-        # segment_ms 分项随之真实回落，是 E1「帧率随目标数回升」的量测口径
-        frame_bboxes = self._segmentation_bboxes(kept, T_out_cam, K)
-        mask_by_bbox = {}
-        if frame_bboxes:
-            try:
-                segs = self.engine.segment(rgb, frame_bboxes)
-            except Exception as exc:  # noqa: BLE001
-                self.get_logger().warning(
-                    f'SAM 批量分割异常，回退逐目标调用: {exc}')
-                segs = []
-                for fallback_bbox in frame_bboxes:
-                    try:
-                        segs.extend(self.engine.segment(rgb, [fallback_bbox]))
-                    except Exception as exc_single:  # noqa: BLE001
-                        self.get_logger().warning(
-                            f'SAM 单目标分割异常: {exc_single}')
-            mask_by_bbox = {bbox: mask for mask, bbox in segs}
-        # segment 段 = SAM 批量分割（含异常时的逐目标回退兜底耗时）
-        self._timing.record(
-            'segment_ms', (self._clock.now() - t_segment_start) * 1e3)
-        # geometry 段 = 逐目标袋/果双管线位姿估计 + TF 变换 + 候选消息构造
-        t_geometry_start = self._clock.now()
-        # 有效深度掩膜（全图，阶段 D1）：逐目标「掩膜内有效深度占比」的
-        # 分母/分子基础，光照质量指标与 DEPTH_VOID 分类共用；参数与几何
-        # 管线同源（pipeline.*），口径一致
-        valid_depth_full = valid_depth_mask(
-            depth, self.params.pipeline.min_depth_m, self.params.pipeline.max_depth_m)
-        pending = []
-        for i, det in enumerate(kept):
-            bbox = tuple(det['bbox'])
-            sam_mask = mask_by_bbox.get(bbox)
-            if sam_mask is not None:
-                # 掩膜裁剪到检测框内（分割原理边界）：SAM 框提示可能泄漏到
-                # 框外（枝叶），几何/TSDF/绘制全链只认框内部分——从此处
-                # 裁剪，下游（ROI 前景、observations.mask、叠加轮廓）一致
-                x1, y1, x2, y2 = (int(v) for v in bbox)
-                sam_mask = sam_mask.copy()
-                sam_mask[:max(y1, 0), :] = 0
-                sam_mask[max(y2, 0):, :] = 0
-                sam_mask[:, :max(x1, 0)] = 0
-                sam_mask[:, max(x2, 0):] = 0
-                mask_canvas[sam_mask > 0] = np.uint16(i + 1)
-
-            obs = BagObservation(
-                rgb=rgb, depth=depth, camera_K=K, frame_id=cam_frame,
-                gravity_hint=gravity_hint,
-                detections=[det],
-                metadata={
-                    'model_version': self.params.model_version,
-                    'calibration_version': self.params.calibration_version,
-                },
-            )
-            results = self.estimator.estimate_modes(
-                obs, f'target_{i}', bbox, sam_mask)
-            result = results['hybrid_dilated']
-            # TF 回退打标：本帧几何可信度经 diagnostic_flags 暴露给下游
-            if tf_status != 'ok':
-                flag = 'tf_stale' if tf_status == 'stale' else 'tf_unavailable'
-                if flag not in result.grasp_3d.diagnostic_flags:
-                    result.grasp_3d.diagnostic_flags.append(flag)
-            camera_anchor = first_point(
-                result.grasp_3d.points_centroid,
-                result.grasp_3d.bag_bottom,
-                result.grasp_3d.position,
-                result.grasp_3d.entry_start)
-            camera_distance_m = (
-                0.0 if camera_anchor is None
-                else float(np.linalg.norm(camera_anchor)))
-            if T_out_cam is not None and out_frame != cam_frame:
-                _apply_T_to_grasp3d(result.grasp_3d, T_out_cam)
-            frame_axes.append((result.grasp_3d.status,
-                               result.grasp_3d.translation_direction))
-            pending.append({
-                'i': i, 'det': det, 'bbox': bbox, 'sam_mask': sam_mask,
-                'result': result, 'camera_distance_m': camera_distance_m,
-            })
-
-        # 整帧一次匈牙利分配，避免逐检测贪心交叉误绑
-        assigned_ids = [(f'untracked_{p["i"]}', False) for p in pending]
-        if self.target_registry is not None and track_this_frame:
-            assign_items = []
-            for p in pending:
-                grasp_3d = p['result'].grasp_3d
-                assign_items.append({
-                    'position': first_point(
-                        grasp_3d.points_centroid, grasp_3d.bag_bottom,
-                        grasp_3d.position, grasp_3d.entry_start),
-                    'class_id': int(p['det'].get('class_id', 0)),
-                    'axis': grasp_3d.translation_direction,
-                    'diameter': float(grasp_3d.bag_diameter_upper_m or 0.0),
-                    'status': grasp_3d.status,
-                })
-            # 持 _plan_lock：身份分配与 BeginScene 清表 / plan.update 互斥
-            # （字典迭代与清空不得跨线程并发）。
-            with self._plan_lock:
-                assigned_ids = self.target_registry.match_or_register_frame(
-                    assign_items, now=self._clock.now())
-
-        for p, (tid, is_new) in zip(pending, assigned_ids):
-            i, det, bbox, sam_mask = (
-                p['i'], p['det'], p['bbox'], p['sam_mask'])
-            result = p['result']
-            camera_distance_m = p['camera_distance_m']
-            if self.target_registry is not None:
-                if track_this_frame:
-                    result.grasp_3d.diagnostic_flags.append(
-                        'target_new' if is_new else 'target_matched')
-                    if str(tid).startswith('ambiguous_'):
-                        result.grasp_3d.diagnostic_flags.append(
-                            'target_ambiguous')
-                    tracked_entry = self.target_registry.get(tid)
-                    if (tracked_entry is not None
-                            and tracked_entry.get('swinging')):
-                        result.grasp_3d.diagnostic_flags.append(
-                            'target_swinging')
-                    # ambiguous_* 每帧生成新键且无人回读（读者只查锁定集/
-                    # selected 的真实 ID），写入只会无界增长
-                    if not str(tid).startswith('ambiguous_'):
-                        self._bbox_at_edge[tid] = bbox_touches_image_edge(
-                            bbox, depth.shape[1], depth.shape[0])
-                else:
-                    result.grasp_3d.diagnostic_flags.append('target_untracked')
-            grasp_3d, grasp_2d = result.grasp_3d, result.grasp_2d
-            candidate_msg = _to_candidate(
-                header, tid, grasp_3d, model_version=self.params.model_version,
-                calibration_version=self.params.calibration_version,
-                tool_version=self.params.tool.version)
-            candidate_2d_msg = _to_candidate_2d(header, tid, grasp_2d)
-            fitting_msg = _to_fitting(header, tid, result)
-            registry_item = (
-                None if self.target_registry is None
-                else self.target_registry.get(tid))
-            confirmed = (
-                True if self.target_registry is None
-                else bool(registry_item and registry_item['confirmed']))
-            if str(tid).startswith(('untracked_', 'ambiguous_')):
-                confirmed = False
-            # 果实高度（output_frame 系 Z，供全局计划「先低后高」排序）：
-            # 取袋底 bag_bottom——果实最低点最贴近「高度」语义；几何缺失时
-            # 按锚点链回退，全 None 则不写该键（排序键按 inf 兜底）。
-            # 此处 grasp_3d 已经 _apply_T_to_grasp3d 变到 out_frame；
-            # output_frame 为世界系（默认 base_link）时 Z 才是真实高度
-            base_anchor = first_point(
-                result.grasp_3d.bag_bottom,
-                result.grasp_3d.points_centroid,
-                result.grasp_3d.position,
-                result.grasp_3d.entry_start)
-            record = {
-                'target_id': tid, 'status': int(candidate_msg.status),
-                'confidence': float(candidate_msg.confidence),
-                'camera_distance_m': camera_distance_m,
-                'confirmed': confirmed,
-                'diagnostic_flags': list(candidate_msg.diagnostic_flags),
-            }
-            if base_anchor is not None:
-                record['base_height_m'] = float(base_anchor[2])
-            harvest_records.append(record)
-            if confirmed:
-                confirmed_bboxes.append(det['bbox'])
-                mask_depth_ratio = 0.0
-                if sam_mask is not None:
-                    sam_foreground = np.asarray(sam_mask) > 0
-                    n_foreground = int(np.count_nonzero(sam_foreground))
-                    if n_foreground > 0:
-                        mask_depth_ratio = float(
-                            np.count_nonzero(sam_foreground & valid_depth_full)
-                            / n_foreground)
-                harvest_payloads[tid] = {
-                    'candidate': candidate_msg,
-                    'candidate_2d': candidate_2d_msg,
-                    'fitting': fitting_msg,
-                    'mask': sam_mask,
-                    'mask_depth_ratio': mask_depth_ratio,
-                }
-                cand_arr.candidates.append(candidate_msg)
-                fit_arr.fittings.append(fitting_msg)
-                markers.markers.extend(_to_markers(
-                    header, tid, i, result,
-                    tool_d_inner=float(self.params.tool.d_inner_m)))
-            if debug_raw is not None:
-                _draw_debug(debug_raw, det, grasp_2d, sam_mask, tid, confirmed=confirmed)
-            if debug is not None and confirmed:
-                _draw_debug(debug, det, grasp_2d, sam_mask, tid, confirmed=True)
-
-        self._timing.record(
-            'geometry_ms', (self._clock.now() - t_geometry_start) * 1e3)
         self._publish_target_observations(
-            header, mask_header, harvest_records, harvest_payloads)
-        self.pub_norm_pose.publish(cand_arr)
-        self.pub_norm_diag.publish(fit_arr)
-        self.pub_norm_markers.publish(markers)
-        # /peach/perception/axis：最优候选（第一个 ACCEPT，否则第一个有效
-        # 方向）的平移方向；无候选或无有效方向不发布
-        best_dir = None
-        for status, direction in frame_axes:
-            if direction is None:
-                continue
-            if status == 'ACCEPT':
-                best_dir = direction
-                break
-            if best_dir is None:
-                best_dir = direction
+            out.header, out.mask_header, out.harvest_records,
+            out.harvest_payloads)
+        self.pub_norm_pose.publish(out.candidates)
+        self.pub_norm_diag.publish(out.fittings)
+        self.pub_norm_markers.publish(out.markers)
+        best_dir = best_axis_direction(out.frame_axes)
         if best_dir is not None:
             axis_msg = Vector3Stamped()
-            axis_msg.header = header
+            axis_msg.header = out.header
             axis_msg.vector = Vector3(
-                x=float(best_dir[0]), y=float(best_dir[1]), z=float(best_dir[2]))
+                x=float(best_dir[0]), y=float(best_dir[1]),
+                z=float(best_dir[2]))
             self.pub_norm_axis.publish(axis_msg)
         self.get_logger().debug(
-            f'Published {len(cand_arr.candidates)} candidates '
-            f'(detections={len(kept)})')
-        if self.target_registry is not None:
-            st = self.target_registry.stats()
+            f'Published {len(out.candidates.candidates)} candidates '
+            f'(detections={len(out.kept)})')
+        if self.pipeline.target_registry is not None:
+            st = self.pipeline.target_registry.stats()
             self.get_logger().info(
                 f'目标注册表在册 {st["n_targets"]} 个目标'
                 f'（累计注册 {st["n_registered"]}、累计命中 {st["n_matched"]}）',
                 throttle_duration_sec=10.0)
         if self.params.publish_masks:
-            mask_msg = self.bridge.cv2_to_imgmsg(mask_canvas, encoding='mono16')
-            mask_msg.header = img_header
+            mask_msg = self.bridge.cv2_to_imgmsg(
+                out.mask_canvas, encoding='mono16')
+            mask_msg.header = out.img_header
             self.pub_norm_masks.publish(mask_msg)
-        if self.params.publish_detection_cloud and confirmed_bboxes:
+        if self.params.publish_detection_cloud and out.confirmed_bboxes:
             xyz_cam, rgb_f = _bbox_cloud_xyzrgb(
-                rgb, depth, K, confirmed_bboxes,
+                synced.rgb, synced.depth, synced.K, out.confirmed_bboxes,
                 stride=self.params.detection_cloud_stride)
-            if xyz_cam.shape[0] and T_out_cam is not None:
-                R, t = T_out_cam[:3, :3], T_out_cam[:3, 3]
-                xyz_out = (R @ xyz_cam.T).T + t
+            if xyz_cam.shape[0] and synced.T_out_cam is not None:
+                rot, trans = synced.T_out_cam[:3, :3], synced.T_out_cam[:3, 3]
+                xyz_out = (rot @ xyz_cam.T).T + trans
             else:
                 xyz_out = xyz_cam
-            cloud_msg = _xyzrgb_to_cloud_msg(header, xyz_out, rgb_f)
-            self.pub_norm_cloud.publish(cloud_msg)
-        if debug is not None:
-            dbg_msg = self.bridge.cv2_to_imgmsg(debug, encoding='bgr8')
-            dbg_msg.header = img_header
+            self.pub_norm_cloud.publish(
+                _xyzrgb_to_cloud_msg(out.header, xyz_out, rgb_f))
+        if out.debug is not None:
+            dbg_msg = self.bridge.cv2_to_imgmsg(out.debug, encoding='bgr8')
+            dbg_msg.header = out.img_header
             self.pub_norm_debug.publish(dbg_msg)
-        if debug_raw is not None:
-            raw_msg = self.bridge.cv2_to_imgmsg(debug_raw, encoding='bgr8')
-            raw_msg.header = img_header
+        if out.debug_raw is not None:
+            raw_msg = self.bridge.cv2_to_imgmsg(out.debug_raw, encoding='bgr8')
+            raw_msg.header = out.img_header
             self.pub_norm_debug_raw.publish(raw_msg)
-        # total 段 = 整帧 _process_rgbd（含转换/检测/分割/几何/发布全链路）
-        self._timing.record(
-            'total_ms', (self._clock.now() - t_total_start) * 1e3)
 
     def destroy_node(self):
         """停止推理 worker 后销毁 ROS 节点."""

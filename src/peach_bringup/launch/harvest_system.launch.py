@@ -1,6 +1,9 @@
 """
 启动桃子采摘完整业务栈（整栈入口；autostart 参数控制是否自动开批）.
 
+本文件只做预检与 Include，不含业务。各包 `yaml_params.py` 自持同文副本，
+不合并（包独立 KEEP）。
+
 清洁重写轮阶段 5：生命周期管理换 nav2_lifecycle_manager（bond_timeout=0.0
 管 rclpy 节点；名单/顺序语义同原自研件；进程死检由 supervisor
 HeartbeatWatchdog 承担）+ lifecycle_flag_bridge 把 is_active 桥接为闩锁
@@ -22,7 +25,7 @@ from launch.substitutions import (
     PathJoinSubstitution,
     PythonExpression,
 )
-from launch_ros.actions import Node
+from launch_ros.actions import Node, SetParameter
 from launch_ros.substitutions import FindPackageShare
 
 from peach_bringup.preflight import running_stack_pids
@@ -111,6 +114,12 @@ def generate_launch_description():
         DeclareLaunchArgument(
             'imu_enabled', default_value='true',
             description='启动 USB 串口 IMU；不进 lifecycle'),
+        DeclareLaunchArgument(
+            'use_sim_time', default_value='false',
+            description='true 时全图跟 /clock（bag play --clock 回放）；'
+                        '真机必须 false'),
+        # 须在所有 Node / Include 之前：included launch 里的节点同样吃到
+        SetParameter(name='use_sim_time', value=LaunchConfiguration('use_sim_time')),
         # stereo include 必须位于 aubo bringup include 之前：jazzy launch 的
         # IncludeLaunchDescription 会把 launch_arguments 落成全局
         # SetLaunchConfiguration 且不回滚——aubo include 传入的 camera_enabled

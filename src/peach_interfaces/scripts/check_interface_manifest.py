@@ -53,9 +53,11 @@ _CONSUMER_PATHS = {
     'peach_bringup': [
         'peach_bringup/peach_bringup',
         'peach_bringup/launch',
+        'peach_bringup/config',
     ],
     'peach_lifecycle_flag_bridge': [
         'peach_bringup/peach_bringup/lifecycle_flag_bridge.py',
+        'peach_bringup/config',
     ],
     'peach_observability': [
         'peach_observability/peach_observability',

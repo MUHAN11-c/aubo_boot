@@ -2,7 +2,7 @@
 # 名称 / 类型 / QoS / 生产与消费方。脚本 scripts/check_interface_manifest.py 双向核对：
 #   正向 manifest→源码字面量；反向源码绝对 /peach 话题字面量→manifest（可视化豁免表内除外）。
 # 现行核心栈：peach_interfaces / peach_perception / peach_arm / peach_supervisor /
-# peach_bringup / peach_observability / peach_system_tests。
+# peach_bringup / peach_observability / peach_vegetation / peach_system_tests。
 version: 2
 interfaces:
   - name: /peach_supervisor/state
@@ -281,6 +281,30 @@ interfaces:
     kind: service
     type: std_srvs/srv/Trigger
     producers: [peach_target_reconstruction]
+    consumers: []
+  - name: /peach/vegetation/leaf_mask
+    kind: topic
+    type: sensor_msgs/msg/Image
+    qos: {reliability: reliable, durability: volatile, depth: 10}
+    producers: [peach_vegetation]
+    consumers: []   # 影子能力：不进 harvest_system；不写 PlanningScene
+  - name: /peach/vegetation/branch_mask
+    kind: topic
+    type: sensor_msgs/msg/Image
+    qos: {reliability: reliable, durability: volatile, depth: 10}
+    producers: [peach_vegetation]
+    consumers: []
+  - name: /peach/vegetation/overlay
+    kind: topic
+    type: sensor_msgs/msg/Image
+    qos: {reliability: reliable, durability: volatile, depth: 10}
+    producers: [peach_vegetation]
+    consumers: []
+  - name: /peach/vegetation/status
+    kind: topic
+    type: std_msgs/msg/String
+    qos: {reliability: reliable, durability: volatile, depth: 10}
+    producers: [peach_vegetation]
     consumers: []
 
 # 预留：固定座归档的导航适配（_archive/parked_2026-09/peach_navigation）。

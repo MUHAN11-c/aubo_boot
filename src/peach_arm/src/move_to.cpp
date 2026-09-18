@@ -48,6 +48,7 @@ void ManipulationSkillsNode::onEnables(
     RCLCPP_INFO(
       get_logger(), "使能切换到操作台广播源（/peach/batch/enables）");
   }
+  enables_last_beat_ = std::chrono::steady_clock::now();
   execution_enabled_.store(message->execution);
   grasp_enabled_.store(message->grasp);
   tool_enabled_.store(message->tool);
@@ -55,6 +56,36 @@ void ManipulationSkillsNode::onEnables(
     get_logger(), "操作台使能: execution=%d grasp=%d tool=%d（%s）",
     message->execution ? 1 : 0, message->grasp ? 1 : 0,
     message->tool ? 1 : 0, message->reason.c_str());
+  publishState();
+}
+
+void ManipulationSkillsNode::checkEnablesHeartbeat()
+{
+  // 缺心跳=故障（AGENTS 第 2 章 DEFAULT 3）：操作台广播断流超时后不得
+  // 永久保持最后值——回落本地参数权威，使能链重新由本节点参数决定。
+  // 与 onEnables 同在默认互斥回调组，enables_external_ 无需原子。
+  if (!enables_external_ || enables_heartbeat_timeout_s_ <= 0.0) {
+    return;
+  }
+  const double age_s = std::chrono::duration<double>(
+    std::chrono::steady_clock::now() - enables_last_beat_).count();
+  if (age_s <= enables_heartbeat_timeout_s_) {
+    return;
+  }
+  enables_external_ = false;
+  const auto params = param_listener_->get_params();
+  execution_enabled_.store(params.execution.enabled);
+  grasp_enabled_.store(params.grasp.enabled);
+  tool_enabled_.store(params.tool.enabled);
+  if (!execution_enabled_.load()) {
+    execution_armed_.store(false);
+  }
+  RCLCPP_WARN(
+    get_logger(),
+    "操作台使能广播超时（%.1fs 无心跳），回落本地参数权威: "
+    "execution=%d grasp=%d tool=%d",
+    age_s, params.execution.enabled ? 1 : 0, params.grasp.enabled ? 1 : 0,
+    params.tool.enabled ? 1 : 0);
   publishState();
 }
 

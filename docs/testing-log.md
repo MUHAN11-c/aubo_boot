@@ -369,3 +369,58 @@ SIGINT 旧栈后用 16:57 编的 `peach_manipulation` 重起；开批前在 `glo
 5. **桌面模型水平保守度（P2）**：`table_link×upperArm_Link` 在视点位形接触（物理未撞，z 高度 2026 已修不再动；近臂 25cm 内网格顶点全在 z∈[-0.10,0] 即桌面平板本身，覆盖 1.5m×0.83m）——待台面实测尺寸校核水平范围。
 
 **本轮运行时参数**：`reconstruction_min_views 2→1`（在线，未入 yaml，随栈消亡）。**未跑**：stereo 前端真机对比、T7 使能门负测试、FULL 单目标（均被缺陷 3 挡在接近段之前）。账本：`runs/e2e25r_{percipio_163254,percipio_fast2_163445,pick1_170449,pregrasp2_170647,pregrasp3_171710,pregrasp4_171833,pregrasp5_171948}`。
+
+### 09-18 真机预抓取轮（nanoseconds 崩溃修复 + octomap/桌面碰撞定性 + 点云统计 + 回放架适配）
+
+**批次**：`field_pregrasp_20260918_{1029,1039,1055}`（域 77，adaptive_cylinder_v1，全程 tool=false 无 SetIO，web 8090 监控在线；详细见 `runs/field_test_20260918/log.md`）。
+
+- **1029 崩溃（已修）**：`supervisor/executor_node.py:1317` `get_clock().now().nanoseconds()` 把 rclpy **属性**当方法调用 → run_harvest 回调 `TypeError: 'int' object is not callable` → ABORTED 且 `termination_reason=''`、summary 全 0。修复：`.nanoseconds`（随本轮工作区）。
+- **1039（octomap 在）**：接近 12 次重试全 0 解，FCL 实证 `<octomap>×wrist2_Link`。点云统计：袋 XY 15cm 走廊 z0.70–1.01 有 ~1.8k **真实**点（相机距≈0.55m，非 1.01/2.02 鬼影带）=袋上方枝叶；单位自检 ✓（果 0.53m 落 0.50–0.75 档，无 4× 单位错）；鬼影带占比 2.5%/≈0%；远端离群超窗（p99 z=3.92m，octomap max_range=2.0 已裁）。
+- **1055（octomap 关）**：用户指令「碰撞先不开」→ `sensors_3d.yaml` `sensors: []`（**临时态须恢复**）。审查门全过（候选 3/5/5/5 均解出 163–168 点轨迹、短路径/胶囊/笛卡尔/姿态门全绿）后 **Pilz 轴向 LIN goal IK NO_IK_SOLUTION**；伴随 `table_link×upperArm`、`foreArm×wrist2` 仅出现在边界构型采样。与 09-17 缺陷 5（桌面模型水平保守度 1.5×0.83m 待实测）叠加解释：正常构型不碰、边界构型蹭（可能含桌面模型偏大幻影）。
+- **袋位出包络**：今日袋底 r=0.732/z=0.641（肩到预抓取 0.846m）vs 成功参考 1757 r=0.707/z=0.561（0.786m）+ adaptive TCP +17.6mm ≈ 多要 8cm 伸展。**门缝**：CheckReachability 单点停位 IK 放行 ≠ Pilz LIN goal IK 可行。
+- **果胶囊门复核（用户质询）**：果侧 ✓ 已用拟合直径+0.01 膨胀（回退 0.12 仅无效时+告警）；工具侧两处债：实心圆柱模型（D_inner=0.116 空心筒）+ 常量硬编码未走档案单一事实源（当前两档 D_outer/L 相同故数值未脱钩）。1639_1（−24.6mm，轴距≈7.5cm）空心环模型仍拒=真侧贴；12rad/0.25m 门为 09-11 收紧设计值。
+- **回放架回归（已修）**：09-18 身份元组门把 `sim_field_targets.py` 打成 0/14 全拒——goal 未填 model_revision/tool_profile_id/calibration_revision/config_revision 四字段；decision 缺 `valid_until` → model_not_executable。已补（goal+decision 同套身份串、valid_until=now+30s），**adaptive 档 7/14**：3 行程门、1 弦偏离、1 筒体压胶囊、1 规划 0 解、1 有效期竞态。
+- **新缺陷**：①CANCEL_NOW 终局空（termination_reason=''/summary 全 0，复现 2 次，P1）；②批次收尾停滞 5min 无臂活动无日志、per_target_timeout 未兜住（P2）；③web「柜侧硬件」光照字段 `[object Object]`（P2 展示）。
+- **用户裁定**：暂时不减速——运行期 `ros2 param set /peach_arm moveit.approach_near_velocity_scaling 1.0`（仓库默认 0.05 不动）。
+
+### 09-18 续二（三门标定：1/30→30/30 复盘与回填）
+
+**用户两次质疑推动定位**（「不可能碰撞」「100 例 80% 都能去」均成立）。回归链全貌：
+
+- **回归实锤**：hollow 同 seed 20260911 30 例 **1/30**（历史 26/30；纯几何回放塔 25 测绿=核心数学未回归）。拍照位二分排除（旧位 e1ed331^ 也 1/30）；adaptive/hollow 外径同（D_outer 0.120）排除；09-18 未提交改动全是门/心跳、不改轨迹生成，排除。
+- **根因=笛卡尔三门阈值失配**：基线提交 cb9e5a1（09-10，66/100 时代）该三门全为 **0=不查**；526eb11（09-11）收紧为 1.8/0.25/0.08 后 100 例 66→**54**（在案）；09-14 胶囊化+09-16 重写后路径族漂移，现行阈值恰压在合法簇边缘——**无门 30 例实测：合法簇 24/30（比≤1.90、偏≤0.258、退≤0.075，其中 rand_28 偏 0.258>0.25、rand_06 退 0.075≈0.08 正被旧值压住），游荡簇 6/30（比≥4.37、偏≥0.42、退≥0.17）**，两簇间隔巨大。
+- **随机性注记**：staging 候选扫描含 4 随机种子，同案逐次路径不同——开门跑里连「本有干净候选」的案子也常死（换候选后超阈值）；历史 26/30 本身带抽签方差。
+- **隔离实验**：三门运行期置 0 → **30/30** 全过且全部果实胶囊外（回放架 model_revision 改每案唯一串修掉有效期假失败）。
+- **标定与回填**：新值 **绕行比 2.6 / 弦偏离 0.32 / 回退 0.12**（合法簇 max×余量，仍拦游荡簇）。运行期验证 28/30；回填 `arm_parameters.yaml` 默认+`config/peach_arm.yaml` 部署两处并重建后，新拍照位+hollow 终验 **30/30**（旧值同配置 1/30）。
+- **残余观察**：终验「未从拍照位返程旗标」9/30（无门跑 3/30）——返程记账口径待查，非失败；游荡候选（袋上方悬停被实心胶囊模型拦 −62mm 一类）与规划随机方差仍是 0-2 例/轮的残差来源。
+- **流程修正（写进本节供后续轮次遵守）**：回归排查第一动作=**对参**（当前阈值 vs 最后全绿基线提交同名键）+ **门关/开 A/B 对照**；报错信息已含门名/实测值/阈值三要素，缺的是聚合视图——mock 回放汇总应输出逐门拒发直方图。
+
+本轮文件：`runs/sim_field_targets_20260918_{113507,114404,115140,121238,123455}.jsonl`（1/30→1/30→30/30→28/30→30/30 五段证据链）。
+
+### 09-18 续三（harvest_system 真机 + camera_frontend:=stereo 冒烟）
+
+整栈 `hardware_mode:=real camera_enabled:=true camera_frontend:=stereo`（autostart 关）。`peach_stereo` 打开 PS800-E1 `169.254.10.110` status=0，组率 **13.5 gps**；无 `percipio_camera` 节点。lifecycle 四节点 Active；透传/JSB/IO 控制器 active；柜 `AuboE5Hardware` on_activate OK。`execution.enabled` / `execution_enabled` / `grasp.enabled` / `tool.enabled` 均 false，未发 `RunHarvest`、未 SetIO。MoveIt RViz 已起。
+
+**刷屏根因与修复**：Jazzy `image_transport` 加载全部插件且无 `enable_pub_plugins`；observability catch-all 订 `/compressed` 与 `/compressedDepth` 后，jpeg 编 16UC1、compressedDepth 编 bgr8，每帧 ERROR。已改为只发 raw `sensor_msgs/Image`（感知本来订 raw）。复验无 `cv_bridge` / `CompressedPublisher` / `compressed_depth_image_transport` 报错。剩余 MoveIt 噪声：`occupancy_map_monitor` 无 3D 插件、RViz `/recognize_objects` 不可用（非本前端）。
+
+### 09-18 续四（peach_stereo 话题与 percipio_camera 同构）
+
+对照 harvest 用 `percipio_camera.launch.py` 默认面（`color_point_cloud_enable:=true`、`left_ir_enable:=false`、`point_cloud_enable:=false`）。`peach_stereo` 去掉自研 `depth/debug_color`，补发 `depth/camera_info` 与 `depth_registered/points`（配准彩色点云，frame=`camera_depth_optical_frame`，字段 xyz+rgb，与驱动 `publishColorPointCloud` 同构）。真机 `camera_frontend:=stereo` 复验图上只有：
+
+`/camera/color/image_raw`（bgr8）、`/camera/depth/image_raw`（16UC1）、`/camera/{color,depth}/camera_info`、`/camera/depth_registered/points`；无 `debug_color`。未恢复 image_transport 插件后缀（会再次交叉编码刷 ERROR）。未发 `RunHarvest`、使能仍关。
+
+### 09-18 续五（stereo 深度/点云抽帧）
+
+整栈再起 `camera_frontend:=stereo`（使能关）。10 帧同戳：`depth/image_raw` 16UC1 640×480，有效约 **49%**（零值左侧配准空洞，无 65535）；`depth_registered/points` 点数 = 有效像素（约 15.1 万），xyz+rgb，frame 均为 `camera_depth_optical_frame`。Z 中位 **0.73 m**，额定带 0.40–0.80 m 约占有效点 60%。配准后彩色图左约 **26%** 无深度（左 IR→彩色 `TYMap` 基线空洞）；近袋在空洞外、中袋在有效区内。远点噪声：约 1.2% Z>2 m、个别到 ~12 m（SGBM 小视差）。生产组率 ~13.5 gps；`ros2 topic hz` RELIABLE 大消息约 3–5 Hz（已知 FastDDS 坍塌）。感知在册 1 个目标。
+
+### 09-18 续六（真机 Percipio vs stereo 感知 10s 对比视频）
+
+同场景静态腕相机、`hardware_mode:=real`、autostart 关、`execution.enabled=false`，未发 `RunHarvest` / Survey / SetIO。两前端互斥串行：先 `camera_frontend:=percipio` 再 `stereo`。各录 `/peach/perception/debug_image` 与 RViz 3D 视口（Perception Markers 圆柱）10 s 墙钟，拼 2×2。
+
+| 前端 | debug 帧/10s | 锁定 | 目标 | 相机距 | 观测 conf | debug 叠加 conf |
+|------|-------------|------|------|--------|-----------|-----------------|
+| percipio（设备 18 图案） | 21 | 是 | target_1 | 0.553 m | 0.54 | 0.84 |
+| peach_stereo（主机 SGBM） | 37 | 是 | target_0 | 0.565 m | 0.986 | 0.81 |
+
+两前端都只锁中间那颗袋；左侧悬挂袋未进确认集。距离交叉验证差 **12 mm**。感知 worker `capacity=1 drop_oldest`，stereo 相机 13.5 gps 并未变成 13.5 Hz 感知——墙钟帧数 37 vs 21（约 1.8×）。产物：`runs/camera_ab_20260918/comparison_2x2.mp4`（及 debug/rviz 左右拼接）。
+

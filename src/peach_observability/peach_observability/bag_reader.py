@@ -65,6 +65,39 @@ def type_name_of(message) -> str:
     return f'{cls.__module__.split(".")[0]}/msg/{cls.__name__}'
 
 
+# action 生成消息在 DDS 侧按 msg 命名空间登记（如 RunHarvest_FeedbackMessage），
+# rosidl get_message 只认 action 命名空间；按后缀回退解析。仍失败的类型折叠为
+# 「仅时间戳」（单个未知类型不断整份报告——全量录制订阅域内全部话题）。
+_ACTION_MSG_SUFFIXES = ('_FeedbackMessage', '_Goal', '_Result')
+# 「类型解析失败」哨兵：与合法 msg 类型区分开，整袋只解析一次
+_UNRESOLVED = object()
+
+
+def action_fallback_name(type_name: str) -> str | None:
+    """``pkg/msg/<Name>_FeedbackMessage`` → ``pkg/action/<Name>_FeedbackMessage``."""
+    parts = type_name.split('/')
+    if len(parts) == 3 and parts[1] == 'msg':
+        for suffix in _ACTION_MSG_SUFFIXES:
+            if parts[2].endswith(suffix):
+                return f'{parts[0]}/action/{parts[2]}'
+    return None
+
+
+def message_class(type_name: str):
+    """类型串 → 消息类；action 后缀回退到 action 命名空间，失败给 None."""
+    from rosidl_runtime_py.utilities import get_message
+    try:
+        return get_message(type_name)
+    except (AttributeError, ImportError, LookupError, ValueError):
+        fallback = action_fallback_name(type_name)
+        if fallback is None:
+            return None
+        try:
+            return get_message(fallback)
+        except (AttributeError, ImportError, LookupError, ValueError):
+            return None
+
+
 def _to_dict(value):
     """
     消息/字段递归转 dict；bytes 折叠为 byte_count（不展开图像原始数据）.
@@ -96,7 +129,6 @@ def read_bag(bag_dir, *, stamps_only=HEAVY_TOPICS) -> dict:
     """
     from rosbag2_py import ConverterOptions, SequentialReader, StorageOptions
     from rclpy.serialization import deserialize_message
-    from rosidl_runtime_py.utilities import get_message
 
     from .state import (
         to_grasp_decision,
@@ -125,12 +157,19 @@ def read_bag(bag_dir, *, stamps_only=HEAVY_TOPICS) -> dict:
             records.append((int(t_ns), None))
             continue
         msg_type = type_cache.get(topic)
+        if msg_type is _UNRESOLVED:
+            records.append((int(t_ns), None))
+            continue
         if msg_type is None:
             type_name = topic_types.get(topic)
             if type_name is None:
                 continue
             type_name = LEGACY_TYPE_ALIASES.get(type_name, type_name)
-            msg_type = get_message(type_name)
+            msg_type = message_class(type_name)
+            if msg_type is None:
+                type_cache[topic] = _UNRESOLVED
+                records.append((int(t_ns), None))
+                continue
             type_cache[topic] = msg_type
         message = deserialize_message(data, msg_type)
         kind = type_name_of(message)

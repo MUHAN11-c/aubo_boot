@@ -28,46 +28,41 @@ inline bool nonzeroFinite(const Eigen::Vector3d & value)
   return value.allFinite() && value.norm() > 1.0e-6;
 }
 
-// 当前选中目标的初始几何（感知观测侧）。
+/// 当前选中目标的初始几何（感知观测侧，base 系）。
 struct CachedTarget
 {
-  std::string id;
-  std::string harvest_run_id;
-  Eigen::Vector3d center{Eigen::Vector3d::Zero()};
-  Eigen::Isometry3d initial_pose{Eigen::Isometry3d::Identity()};
-  Eigen::Vector3d initial_axis{Eigen::Vector3d::UnitZ()};
-  double suggested_travel_m{0.0};
-  double received_s{0.0};  // 有效观测帧接收时刻（秒，与注入时钟同源）
-  double updated_s{0.0};   // 任意诊断帧到达时刻（含记忆锚点/非 OBSERVED）
-  // 最近一帧（含非 OBSERVED 帧）的诊断透传：target_swinging 摆动旗标与
-  // tracking_status 原始枚举值（PeachTargetObservation.msg 常量；255=未知），
-  // 供抓取前再确认（2.7-RECONFIRM）的摆动等平息与失败原因文案使用。
-  bool swinging{false};
-  uint8_t tracking_status{255};
-  bool valid{false};
-  // 当前帧检测框（像素）与框内分割占比：观察视点朝分割更满的方向走。
-  int bbox_x{0};
-  int bbox_y{0};
-  int bbox_w{0};
-  int bbox_h{0};
-  int image_width{640};
-  int image_height{480};
-  bool bbox_valid{false};
-  double foreground_ratio{-1.0};
+  std::string id;                 ///< 稳定 target_id。
+  std::string harvest_run_id;     ///< 所属批次；空=无批次。
+  Eigen::Vector3d center{Eigen::Vector3d::Zero()};           ///< 身份锚点 [m]。
+  Eigen::Isometry3d initial_pose{Eigen::Isometry3d::Identity()};  ///< 入口姿态。
+  Eigen::Vector3d initial_axis{Eigen::Vector3d::UnitZ()};    ///< 袋底→袋口。
+  double suggested_travel_m{0.0};  ///< 视觉建议插入行程 [m]。
+  double received_s{0.0};          ///< 有效 OBSERVED 帧接收时刻 [s]（注入时钟）。
+  double updated_s{0.0};           ///< 任意诊断帧到达时刻（含记忆锚点）。
+  bool swinging{false};            ///< 感知 target_swinging。
+  uint8_t tracking_status{255};    ///< PeachTargetObservation 常量；255=未知。
+  bool valid{false};               ///< 几何有限且可用。
+  int bbox_x{0};                   ///< 检测框左上 x [px]。
+  int bbox_y{0};                   ///< 检测框左上 y [px]。
+  int bbox_w{0};                   ///< 检测框宽 [px]。
+  int bbox_h{0};                   ///< 检测框高 [px]。
+  int image_width{640};            ///< 图像宽 [px]。
+  int image_height{480};           ///< 图像高 [px]。
+  bool bbox_valid{false};          ///< 框尺寸合法。
+  double foreground_ratio{-1.0};   ///< 框内分割占比；无效 -1。
 };
 
-// 精化几何（重建侧锁存的最终拟合结果）。bag_diameter_upper_m 为感知
-// 拟合圆柱直径（米，无效 -1）：果实胶囊审计的逐目标半径来源。
+/// 精化几何（重建侧锁存）。bag_diameter_upper_m 无效为 -1。
 struct CachedRefined
 {
-  std::string id;
-  Eigen::Vector3d entry{Eigen::Vector3d::Zero()};
-  Eigen::Vector3d bottom{Eigen::Vector3d::Zero()};
-  Eigen::Vector3d neck{Eigen::Vector3d::Zero()};
-  Eigen::Vector3d axis{Eigen::Vector3d::UnitZ()};
-  double suggested_travel_m{0.0};
-  double bag_diameter_upper_m{-1.0};
-  bool valid{false};
+  std::string id;  ///< 必须与 selected target_id 一致才采用。
+  Eigen::Vector3d entry{Eigen::Vector3d::Zero()};   ///< 袋外入口 [m]。
+  Eigen::Vector3d bottom{Eigen::Vector3d::Zero()};  ///< 袋底 [m]。
+  Eigen::Vector3d neck{Eigen::Vector3d::Zero()};    ///< 袋口 [m]。
+  Eigen::Vector3d axis{Eigen::Vector3d::UnitZ()};   ///< 袋底→袋口。
+  double suggested_travel_m{0.0};     ///< 建议插入行程 [m]。
+  double bag_diameter_upper_m{-1.0};  ///< 感知圆柱直径 [m]；无效 -1。
+  bool valid{false};                  ///< 精化可用。
 };
 
 // updateSelectedTarget 输入：observed 由节点按消息字段判定

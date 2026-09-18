@@ -79,73 +79,64 @@ inline moveit_msgs::msg::Constraints makeOrientationGate(
 // 已在袋底侧的直连短修正；G/under 单弦档已删（见文件头）。
 struct ApproachSplit
 {
-  bool need_lin{true};
-  bool need_align{true};
+  bool need_lin{true};     ///< True=需要沿轴 LIN。
+  bool need_align{true};   ///< True=需要先对轴。
   enum class Kind
   {
-    SKIP, LIN, LIN_ALIGN_THEN_LIN, STAGING, BLOCKED
+    SKIP,                 ///< 已在入口，无需接近。
+    LIN,                  ///< 已齐，直连 LIN。
+    LIN_ALIGN_THEN_LIN,   ///< 先短 LIN 对轴再插入。
+    STAGING,              ///< 主路径：预抓取下方 PTP + 轴向 LIN。
+    BLOCKED               ///< 无法接近。
   } kind{
     Kind::STAGING};
-  double lin_to_entry_m{0.0};
-  double lateral_m{0.0};
-  double axial_m{0.0};
-  double align_deg{180.0};
-  double sweep_deg{0.0};
-  double radius_m{0.0};
-  // classifyApproach 取到的当前 TCP 快照：后续装配/日志复用，避免
-  // 一次接近分档内多次 TF 查询（各带 1s 超时）且保证几何一致。
+  double lin_to_entry_m{0.0};   ///< 沿轴到入口剩余 [m]。
+  double lateral_m{0.0};        ///< 侧向偏差 [m]。
+  double axial_m{0.0};          ///< 轴向偏差 [m]。
+  double align_deg{180.0};      ///< 工具 Z 与轴夹角 [deg]。
+  double sweep_deg{0.0};        ///< 绕行扫角 [deg]。
+  double radius_m{0.0};         ///< 绕行半径 [m]。
+  /// classifyApproach 取到的当前 TCP；后续装配复用，避免多次 TF。
   std::optional<Eigen::Isometry3d> current_tip;
-  // 对轴后绕工具 Z 的刀口滚转。0=keep-roll；规划扫描写入，不参与分档。
-  double tool_roll_rad{0.0};
-  std::string blocked_reason{"无当前 TCP"};
+  double tool_roll_rad{0.0};    ///< 对轴后绕工具 Z 的刀口滚转；0=keep-roll。
+  std::string blocked_reason{"无当前 TCP"};  ///< Kind::BLOCKED 原因。
 };
 
 struct GraspTaskConfig
 {
-  std::string planning_group;  // MoveIt 规划组
-  std::string tip_frame;       // IK 末端连杆（当前 tcp）
-  std::string base_frame;      // 位姿参考系（base_link）
-  std::string free_space_pipeline{"pilz_industrial_motion_planner"};
-  std::string free_space_planner{"LIN"};
-  double planning_time_s{1.5};
-  double velocity_scaling{0.10};       // 接触段（靠近/插入/撤离）
-  double acceleration_scaling{0.10};
-  double cartesian_step_m{0.005};      // 直线插入步长 [m]
-  double cartesian_min_fraction{0.95};  // 直线完成比例；1.0 会因末步离散失败
-  double cartesian_precision_m{0.001};
-  std::size_t max_solutions{5U};
-  double approach_max_duration_s{0.0};
-  double approach_max_total_joint_travel_rad{12.0};
-  double approach_max_single_joint_travel_rad{6.1};
-  // 笛卡尔绕行/姿态审查；任一项 <=0 则跳过该项。
-  double approach_max_detour_ratio{1.8};
-  double approach_max_chord_deviation_m{0.25};
-  double approach_max_recede_m{0.08};
+  std::string planning_group;  ///< MoveIt 规划组。
+  std::string tip_frame;       ///< IK 末端连杆（当前 tcp）。
+  std::string base_frame;      ///< 位姿参考系（base_link）。
+  std::string free_space_pipeline{"pilz_industrial_motion_planner"};  ///< 自由空间规划管线。
+  std::string free_space_planner{"LIN"};  ///< 自由空间规划器 ID。
+  double planning_time_s{1.5};            ///< 规划时限 [s]。
+  double velocity_scaling{0.10};          ///< 接触段速度缩放。
+  double acceleration_scaling{0.10};      ///< 接触段加速度缩放。
+  double cartesian_step_m{0.005};         ///< 直线插入步长 [m]。
+  double cartesian_min_fraction{0.95};    ///< 直线完成比例；1.0 会因末步离散失败。
+  double cartesian_precision_m{0.001};    ///< 笛卡尔精度 [m]。
+  std::size_t max_solutions{5U};          ///< 最多尝试 IK/规划解数。
+  double approach_max_duration_s{0.0};    ///< 接近时限 [s]；0=不限。
+  double approach_max_total_joint_travel_rad{12.0};   ///< 接近总关节行程上限 [rad]。
+  double approach_max_single_joint_travel_rad{6.1};   ///< 单关节行程上限 [rad]。
+  double approach_max_detour_ratio{1.8};              ///< 笛卡尔绕行比；≤0 跳过。
+  double approach_max_chord_deviation_m{0.25};        ///< 弦偏差上限 [m]。
+  double approach_max_recede_m{0.08};                 ///< 回退上限 [m]。
   double staging_max_detour_ratio{1.8};
   double staging_max_chord_deviation_m{0.25};
   double staging_max_recede_m{0.08};
-  double approach_max_tcp_rotation_deg{110.0};
-  double approach_tcp_rotation_slack_deg{20.0};
-  // 果实胶囊回退半径（感知直径无效时的保守值）与开关（axial<=0 关闭
-  // 果实审查）。正常半径 = 感知直径/2 + fruit_inflation_m，逐目标随
-  // FruitCapsule 参数传入（半无限 BagKeepout 已删，2026-09-14）。
-  double approach_keepout_radius_m{0.12};
-  double approach_keepout_axial_m{0.12};
-  double fruit_inflation_m{0.01};
-  // 接触笛卡尔弦长/弧长上限；超过则 skipped_unreachable，不改 PTP。
-  double approach_cartesian_max_distance_m{0.80};
-  // 预抓取点在入口沿 −axis 后撤量；0=与入口重合（拟合袋底）。轴向 LIN 只走这一段。
-  double approach_along_axis_m{0.0};
-  // staging=预抓取沿 −axis 再退本值（主路径 PTP 落点，即「预抓取点下方」）。
-  double approach_staging_standoff_m{0.10};
-  // 侧向小于此值视为已对轴，LIN 是最短直线。
-  double approach_max_lateral_m{0.05};
-  // 工具 Z 与轴夹角小于此值视为已齐；已齐 LIN 才挂同值姿态路径约束。
-  double approach_max_align_deg{20.0};
-  // 近果低速档（④层）：staging→预抓取轴向 LIN 与套入/撤退段的独立速度
-  // 缩放，低于 velocity_scaling 以限制接触动能；staging PTP 不降档。
-  double approach_near_velocity_scaling{0.05};
-  std::function<std::optional<Eigen::Isometry3d>()> lookup_current_tip;
+  double approach_max_tcp_rotation_deg{110.0};        ///< TCP 转角上限 [deg]。
+  double approach_tcp_rotation_slack_deg{20.0};       ///< 转角松弛 [deg]。
+  double approach_keepout_radius_m{0.12};             ///< 果实胶囊回退半径 [m]。
+  double approach_keepout_axial_m{0.12};              ///< 轴向审查长度 [m]；≤0 关闭。
+  double fruit_inflation_m{0.01};                     ///< 感知半径外膨胀 [m]。
+  double approach_cartesian_max_distance_m{0.80};     ///< 接触笛卡尔弦长上限 [m]。
+  double approach_along_axis_m{0.0};                  ///< 预抓取相对入口沿 −axis 后撤 [m]。
+  double approach_staging_standoff_m{0.10};           ///< staging 相对预抓取再退 [m]。
+  double approach_max_lateral_m{0.05};                ///< 小于此值视为已对轴 [m]。
+  double approach_max_align_deg{20.0};                ///< 小于此值视为已齐 [deg]。
+  double approach_near_velocity_scaling{0.05};        ///< 近果低速档（staging PTP 不降）。
+  std::function<std::optional<Eigen::Isometry3d>()> lookup_current_tip;  ///< 查当前 TCP。
   // staging 关节目标（主路径 PTP 落点；keep-roll 及 ±30°/±60° × 当前+4随机种子取最近且无自碰的
   // 最多 5 个候选，按关节距离（腕轴加权）+滚转惩罚升序）。转移逐候选试规划，救弧穿袋囊与
   // 自碰构型。
@@ -322,7 +313,6 @@ public:
     moveit::planning_interface::PlanningSceneInterface & scene) const;
 
 private:
-
   std::shared_ptr<moveit::task_constructor::solvers::PipelinePlanner>
   makePilzSolver(
     const std::string & planner_id,

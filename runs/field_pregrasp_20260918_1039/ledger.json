@@ -1,0 +1,26 @@
+{
+  "claimed": [
+    "target_0"
+  ],
+  "outcomes": [
+    {
+      "target_id": "target_0",
+      "outcome": 2,
+      "reason": "skipped_unreachable: 到预抓取失败: MTC planning failed: Failing stage(s):\nlin align tool z (0/1)",
+      "quality_score": 0.0,
+      "elapsed_s": 14.981,
+      "failure_code": "skipped_unreachable",
+      "stage_names": [
+        "reconfirm",
+        "approach_insert"
+      ],
+      "stage_durations": [
+        0.079,
+        6.526
+      ],
+      "build_view_count": 2,
+      "build_status": "局部重建完成：3 帧，9602 点（少于推荐 5 帧）；重叠 mean=1.0mm p95=8.2mm；TSDF 569 点 / mesh 1001 顶点（累计积分 0.01s）；refit ACCEPT（袋模型 2 视）",
+      "build_duration_s": 8.365
+    }
+  ]
+}

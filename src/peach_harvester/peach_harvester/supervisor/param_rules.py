@@ -1,4 +1,4 @@
-"""零 ROS 参数规则校验（executor；与 perception 同语义，禁止跨包 import）."""
+"""零 ROS 参数规则校验（supervisor 侧 params 模块规则表；禁止跨包 import）."""
 
 from __future__ import annotations
 

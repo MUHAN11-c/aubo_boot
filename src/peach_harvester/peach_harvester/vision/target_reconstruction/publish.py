@@ -23,15 +23,6 @@ from geometry_msgs.msg import (
     Vector3Stamped,
 )
 import numpy as np
-from peach_interfaces.msg import (
-    BagFitting,
-    BagFittingArray,
-    BagGraspCandidate,
-    BagGraspCandidateArray,
-    GraspDecision,
-    ReconstructionStatus,
-    ShapeHypothesis,
-)
 from peach_harvester.vision.common.geometry import pack_rgb_bgr, rotation_to_quat
 from peach_harvester.vision.domain.model_contract import (
     allowed_from_capabilities,
@@ -48,6 +39,15 @@ from peach_harvester.vision.target_reconstruction.refine import (
     STATUS_ACCEPT,
     STATUS_REJECT,
     STATUS_REOBSERVE,
+)
+from peach_interfaces.msg import (
+    BagFitting,
+    BagFittingArray,
+    BagGraspCandidate,
+    BagGraspCandidateArray,
+    GraspDecision,
+    ReconstructionStatus,
+    ShapeHypothesis,
 )
 from sensor_msgs.msg import PointCloud2, PointField
 from sensor_msgs_py.point_cloud2 import create_cloud

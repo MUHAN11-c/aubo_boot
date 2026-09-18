@@ -1,6 +1,6 @@
 # peach_observability
 
-只读观测：8090/JSONL、会话 bag、`peach_bag_report`。实现模块在本包；参数键仍由 `peach_supervisor.params.peach_observability` + `peach_supervisor/config/observability.yaml` 声明（避免第三套参数框架）。删除本包后核心调度仍可构建，但 8090 不起。
+只读观测：8090/JSONL、会话 bag、`peach_bag_report`。实现模块在本包；参数 yaml 在 `peach_harvester/config/observability.yaml`，节点 `ObservabilityParams.attach`。删除本包后核心调度仍可构建，但 8090 不起。
 
 ## 公有入口
 

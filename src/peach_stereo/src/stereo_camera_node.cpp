@@ -10,10 +10,15 @@
 //   - 标定结构体是 float32：必须 Mat(...,CV_32F,ptr).convertTo(x,CV_64F)，直接 CV_64F 包装=NaN
 //   - 彩色不设分辨率时默认 2560x1920 yuyv（9.8MB/帧），会把帧组拖到 ~2.5 组/s
 //   - 激光设置跨连接自动复位（auto=1/power=50）；曝光值跨连接残留
+//   - 不要用 image_transport 发 16UC1 / bgr8 混流：Jazzy 加载全部插件且无
+//     enable_pub_plugins；harvest catch-all 一订，jpeg 编深度、compressedDepth
+//     编彩色，每帧 ERROR
 #include <atomic>
 #include <chrono>
 #include <cmath>
+#include <cstdint>
 #include <cstring>
+#include <memory>
 #include <string>
 #include <thread>
 #include <vector>
@@ -25,14 +30,15 @@
 #include <rclcpp/rclcpp.hpp>
 #include <sensor_msgs/msg/camera_info.hpp>
 #include <sensor_msgs/msg/image.hpp>
+#include <sensor_msgs/msg/point_cloud2.hpp>
+#include <sensor_msgs/point_cloud2_iterator.hpp>
 
 #include <cv_bridge/cv_bridge.hpp>
+#include <sensor_msgs/image_encodings.hpp>
 #include <camera_calibration_parsers/parse.hpp>
-#include <image_transport/image_transport.hpp>
 #include <tf2/LinearMath/Quaternion.hpp>
 #include <tf2_ros/static_transform_broadcaster.h>
 #include <geometry_msgs/msg/transform_stamped.hpp>
-#include <sensor_msgs/msg/camera_info.hpp>
 #include <std_msgs/msg/header.hpp>
 
 #include "TYApi.h"
@@ -54,10 +60,11 @@ class StereoCameraNode : public rclcpp::Node {
     block_ = static_cast<int>(get_parameter("sgbm.block_size").as_int());
     proc_scale_ = static_cast<double>(get_parameter("sgbm.processing_scale").as_double());
     avg_k_ = std::max(1, static_cast<int>(get_parameter("avg_k").as_int()));
-    publish_debug_ = get_parameter("publish_debug_image").as_bool();
 
     color_frame_ = camera_name_ + "_color_frame";
     color_optical_ = camera_name_ + "_color_optical_frame";
+    depth_frame_ = camera_name_ + "_depth_frame";
+    depth_optical_ = camera_name_ + "_depth_optical_frame";
     link_frame_ = camera_name_ + "_link";
 
     // 彩色内参文件覆盖（与 percipio 前端共用同一份标定 yaml；空=设备内参折算）
@@ -76,13 +83,17 @@ class StereoCameraNode : public rclcpp::Node {
       }
     }
 
-    color_pub_ = image_transport::create_publisher(this, "color/image_raw");
-    depth_pub_ = image_transport::create_publisher(this, "depth/image_raw");
-    info_pub_ = create_publisher<sensor_msgs::msg::CameraInfo>("color/camera_info", 10);
+    // 话题名与 percipio_camera 同构（namespace=camera）。只发 raw，避免 Jazzy
+    // image_transport 全插件被 catch-all 订到后交叉编码刷 ERROR。
+    color_pub_ = create_publisher<sensor_msgs::msg::Image>("color/image_raw", 10);
+    depth_pub_ = create_publisher<sensor_msgs::msg::Image>("depth/image_raw", 10);
+    color_info_pub_ = create_publisher<sensor_msgs::msg::CameraInfo>(
+        "color/camera_info", 10);
+    depth_info_pub_ = create_publisher<sensor_msgs::msg::CameraInfo>(
+        "depth/camera_info", 10);
+    points_pub_ = create_publisher<sensor_msgs::msg::PointCloud2>(
+        "depth_registered/points", 10);
     static_tf_ = std::make_shared<tf2_ros::StaticTransformBroadcaster>(this);
-    if (publish_debug_) {
-      debug_pub_ = image_transport::create_publisher(this, "depth/debug_color");
-    }
 
     if (!openDevice()) {
       RCLCPP_FATAL(get_logger(), "open device %s failed", device_ip_.c_str());
@@ -110,7 +121,6 @@ class StereoCameraNode : public rclcpp::Node {
     declare_parameter<int>("sgbm.block_size", 5);
     declare_parameter<double>("sgbm.processing_scale", 0.5);
     declare_parameter<int>("avg_k", 1);
-    declare_parameter<bool>("publish_debug_image", true);
   }
 
   // 按 IP 枚举设备（不依赖 percipio_camera 的 Utils.hpp/TYThread）
@@ -281,8 +291,8 @@ class StereoCameraNode : public rclcpp::Node {
     color_to_optical.transform.rotation.z = q.getZ();
     color_to_optical.transform.rotation.w = q.getW();
 
-    const std::string depth_frame = camera_name_ + "_depth_frame";
-    const std::string depth_optical = camera_name_ + "_depth_optical_frame";
+    const std::string depth_frame = depth_frame_;
+    const std::string depth_optical = depth_optical_;
     link_to_depth.header.stamp = stamp;
     link_to_depth.header.frame_id = link_frame_;
     link_to_depth.child_frame_id = depth_frame;
@@ -298,10 +308,11 @@ class StereoCameraNode : public rclcpp::Node {
         {link_to_color, color_to_optical, link_to_depth, depth_to_optical});
   }
 
-  std::unique_ptr<sensor_msgs::msg::CameraInfo> makeCameraInfo(const rclcpp::Time& stamp) const {
+  std::unique_ptr<sensor_msgs::msg::CameraInfo> makeCameraInfo(
+      const rclcpp::Time& stamp, const std::string& frame_id) const {
     auto msg = std::make_unique<sensor_msgs::msg::CameraInfo>();
     msg->header.stamp = stamp;
-    msg->header.frame_id = color_optical_;
+    msg->header.frame_id = frame_id;
     msg->width = color_size_.width;
     msg->height = color_size_.height;
     if (info_override_) {
@@ -333,7 +344,6 @@ class StereoCameraNode : public rclcpp::Node {
     int groups = 0, published = 0;
     int acc_frames = 0;
     cv::Mat z_acc;
-    auto last_dbg = std::chrono::steady_clock::now();
 
     while (running_.load() && rclcpp::ok()) {
       TY_FRAME_DATA frame;
@@ -366,7 +376,7 @@ class StereoCameraNode : public rclcpp::Node {
         rclcpp::Time stamp(static_cast<int64_t>(ts_us) * 1000);
         cv::Mat z;
         if (computeDepth(ir_l, ir_r, z_acc, acc_frames, z)) {
-          publishGroup(stamp, color, cw, ch, z, last_dbg);
+          publishGroup(stamp, color, cw, ch, z);
           published++;
         }
       }
@@ -423,13 +433,11 @@ class StereoCameraNode : public rclcpp::Node {
   }
 
   void publishGroup(const rclcpp::Time& stamp, const uint8_t* color, int cw, int ch,
-                    const cv::Mat& z, std::chrono::steady_clock::time_point& last_dbg) {
-    // 彩色 yuyv→bgr
+                    const cv::Mat& z) {
     cv::Mat yuyv(ch, cw, CV_8UC2, const_cast<uint8_t*>(color));
     cv::Mat bgr;
     cv::cvtColor(yuyv, bgr, cv::COLOR_YUV2BGR_YUY2);
 
-    // 深度量化为 0.25mm 单位 uint16（与 percipio depth_scale_unit=0.25 对齐）
     cv::Mat depth16(proc_size_, CV_16UC1, cv::Scalar(0));
     for (int y = 0; y < proc_size_.height; y++) {
       const float* zr = z.ptr<float>(y);
@@ -443,7 +451,6 @@ class StereoCameraNode : public rclcpp::Node {
       }
     }
 
-    // 配准到彩色几何（厂商 SDK 主机侧配准；输出同为 0.25mm 单位）
     cv::Mat reg(color_size_, CV_16UC1, cv::Scalar(0));
     TYMapDepthImageToColorCoordinate(
         &calib_l_, static_cast<uint32_t>(proc_size_.width),
@@ -457,37 +464,79 @@ class StereoCameraNode : public rclcpp::Node {
         std_msgs::msg::Header(), sensor_msgs::image_encodings::BGR8, bgr).toImageMsg();
     color_msg->header.stamp = stamp;
     color_msg->header.frame_id = color_optical_;
-    color_pub_.publish(color_msg);
+    color_pub_->publish(*color_msg);
 
     auto depth_msg = cv_bridge::CvImage(
         std_msgs::msg::Header(), sensor_msgs::image_encodings::TYPE_16UC1, reg).toImageMsg();
     depth_msg->header.stamp = stamp;
-    depth_msg->header.frame_id = color_optical_;
-    depth_pub_.publish(depth_msg);
+    depth_msg->header.frame_id = depth_optical_;
+    depth_pub_->publish(*depth_msg);
 
-    info_pub_->publish(makeCameraInfo(stamp));
+    color_info_pub_->publish(makeCameraInfo(stamp, color_optical_));
+    depth_info_pub_->publish(makeCameraInfo(stamp, depth_optical_));
+    publishRegisteredCloud(stamp, bgr, reg);
+  }
 
-    if (publish_debug_ &&
-        std::chrono::steady_clock::now() - last_dbg > std::chrono::milliseconds(500)) {
-      last_dbg = std::chrono::steady_clock::now();
-      cv::Mat vis(color_size_, CV_8UC1, cv::Scalar(0));
-      for (int y = 0; y < color_size_.height; y++) {
-        const uint16_t* dr = reg.ptr<uint16_t>(y);
-        uint8_t* vr = vis.ptr<uint8_t>(y);
-        for (int x = 0; x < color_size_.width; x++) {
-          float mm = dr[x] * 0.25f;
-          vr[x] = (mm > 200.f && mm < 1500.f)
-              ? static_cast<uint8_t>((mm - 200.f) / 1300.f * 255.f) : 0;
-        }
-      }
-      cv::Mat jet;
-      cv::applyColorMap(vis, jet, cv::COLORMAP_JET);
-      auto dbg = cv_bridge::CvImage(
-          std_msgs::msg::Header(), sensor_msgs::image_encodings::BGR8, jet).toImageMsg();
-      dbg->header.stamp = stamp;
-      dbg->header.frame_id = color_optical_;
-      debug_pub_.publish(dbg);
+  void publishRegisteredCloud(const rclcpp::Time& stamp, const cv::Mat& bgr,
+                              const cv::Mat& depth16) {
+    if (points_pub_->get_subscription_count() == 0) {
+      return;
     }
+    if (bgr.size() != depth16.size() || bgr.type() != CV_8UC3) {
+      return;
+    }
+    auto info = makeCameraInfo(stamp, depth_optical_);
+    const double fx = info->k[0];
+    const double fy = info->k[4];
+    const double cx = info->k[2];
+    const double cy = info->k[5];
+    if (fx <= 0.0 || fy <= 0.0) {
+      return;
+    }
+
+    auto cloud = std::make_unique<sensor_msgs::msg::PointCloud2>();
+    cloud->header.stamp = stamp;
+    cloud->header.frame_id = depth_optical_;
+    cloud->height = 1;
+    cloud->is_dense = true;
+    sensor_msgs::PointCloud2Modifier modifier(*cloud);
+    modifier.setPointCloud2FieldsByString(2, "xyz", "rgb");
+    const int max_n = depth16.rows * depth16.cols;
+    modifier.resize(static_cast<size_t>(max_n));
+    sensor_msgs::PointCloud2Iterator<float> iter_x(*cloud, "x");
+    sensor_msgs::PointCloud2Iterator<float> iter_y(*cloud, "y");
+    sensor_msgs::PointCloud2Iterator<float> iter_z(*cloud, "z");
+    sensor_msgs::PointCloud2Iterator<uint8_t> iter_r(*cloud, "r");
+    sensor_msgs::PointCloud2Iterator<uint8_t> iter_g(*cloud, "g");
+    sensor_msgs::PointCloud2Iterator<uint8_t> iter_b(*cloud, "b");
+    size_t n = 0;
+    for (int v = 0; v < depth16.rows; v++) {
+      const uint16_t* dr = depth16.ptr<uint16_t>(v);
+      const cv::Vec3b* cr = bgr.ptr<cv::Vec3b>(v);
+      for (int u = 0; u < depth16.cols; u++) {
+        const uint16_t q = dr[u];
+        if (q == 0) {
+          continue;
+        }
+        const float z_m = static_cast<float>(q) * 0.00025f;
+        *iter_x = static_cast<float>((u - cx) * z_m / fx);
+        *iter_y = static_cast<float>((v - cy) * z_m / fy);
+        *iter_z = z_m;
+        *iter_b = cr[u][0];
+        *iter_g = cr[u][1];
+        *iter_r = cr[u][2];
+        ++iter_x;
+        ++iter_y;
+        ++iter_z;
+        ++iter_r;
+        ++iter_g;
+        ++iter_b;
+        ++n;
+      }
+    }
+    cloud->width = static_cast<uint32_t>(n);
+    modifier.resize(n);
+    points_pub_->publish(std::move(cloud));
   }
 
   // ---- 成员 ----
@@ -495,8 +544,7 @@ class StereoCameraNode : public rclcpp::Node {
   int32_t ir_exposure_{990}, laser_power_{100};
   int num_disp_{128}, block_{5}, avg_k_{1};
   double proc_scale_{0.5};
-  bool publish_debug_{true};
-  std::string color_frame_, color_optical_, link_frame_;
+  std::string color_frame_, color_optical_, depth_frame_, depth_optical_, link_frame_;
 
   TY_INTERFACE_HANDLE iface_{nullptr};
   TY_DEV_HANDLE dev_{nullptr};
@@ -509,10 +557,11 @@ class StereoCameraNode : public rclcpp::Node {
   std::atomic<bool> running_{false};
   std::thread capture_thread_;
 
-  image_transport::Publisher color_pub_;
-  image_transport::Publisher depth_pub_;
-  image_transport::Publisher debug_pub_;
-  rclcpp::Publisher<sensor_msgs::msg::CameraInfo>::SharedPtr info_pub_;
+  rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr color_pub_;
+  rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr depth_pub_;
+  rclcpp::Publisher<sensor_msgs::msg::CameraInfo>::SharedPtr color_info_pub_;
+  rclcpp::Publisher<sensor_msgs::msg::CameraInfo>::SharedPtr depth_info_pub_;
+  rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr points_pub_;
   std::shared_ptr<tf2_ros::StaticTransformBroadcaster> static_tf_;
   sensor_msgs::msg::CameraInfo color_info_override_;
   bool info_override_{false};

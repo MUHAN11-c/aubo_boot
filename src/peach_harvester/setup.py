@@ -1,12 +1,12 @@
 import os
-import sys
 from pathlib import Path
+import sys
 
 from setuptools import find_packages, setup
 
 
 def _venv_python() -> str:
-    """工作区 aubo_py3.12 存在则用作 console_scripts shebang（torch/open3d）。"""
+    """工作区 aubo_py3.12 存在则用作 console_scripts shebang（torch/open3d）."""
     ws_venv = Path(__file__).resolve().parents[2] / 'aubo_py3.12' / 'bin' / 'python'
     if ws_venv.exists():
         return str(ws_venv)

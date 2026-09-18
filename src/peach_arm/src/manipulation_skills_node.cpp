@@ -84,6 +84,10 @@ ManipulationSkillsNode::ManipulationSkillsNode(const rclcpp::NodeOptions & optio
       if (!execution_enabled_.load()) {execution_armed_.store(false);}
       publishState();
     });
+  // 使能心跳看门狗（缺心跳=故障）：与 onEnables 同在默认互斥组，无锁安全。
+  enables_watchdog_timer_ = create_wall_timer(
+    std::chrono::milliseconds(500),
+    std::bind(&ManipulationSkillsNode::checkEnablesHeartbeat, this));
 }
 
 CallbackReturn ManipulationSkillsNode::on_configure(const rclcpp_lifecycle::State &)
@@ -354,8 +358,13 @@ void ManipulationSkillsNode::loadParameters()
   safety_gate_ = std::make_unique<SafetyGate>(
     safety_config, [this]() {return now().seconds();});
 
-  execution_enabled_.store(params.execution.enabled);
-  grasp_enabled_.store(params.grasp.enabled);
+  // 广播源在权时本地参数不得覆盖使能（Enables.msg 契约：收到即覆盖；
+  // 断流超时由 checkEnablesHeartbeat 回落后本地值才重新生效）。
+  enables_heartbeat_timeout_s_ = params.execution.enables_heartbeat_timeout_s;
+  if (!enables_external_) {
+    execution_enabled_.store(params.execution.enabled);
+    grasp_enabled_.store(params.grasp.enabled);
+  }
   neck_margin_m_ = params.grasp.neck_margin_m;
   minimum_travel_m_ = params.grasp.minimum_travel_m;
   maximum_travel_m_ = params.grasp.maximum_travel_m;
@@ -363,7 +372,9 @@ void ManipulationSkillsNode::loadParameters()
   reconfirm_tolerance_m_ = params.grasp.reconfirm_tolerance_m;
   reconfirm_max_attempts_ = static_cast<int>(params.grasp.reconfirm_max_attempts);
   allow_stale_anchor_ = params.grasp.allow_stale_anchor;
-  tool_enabled_.store(params.tool.enabled);
+  if (!enables_external_) {
+    tool_enabled_.store(params.tool.enabled);
+  }
   tool_io_fun_ = static_cast<int>(params.tool.io_fun);
   tool_io_pin_ = static_cast<int>(params.tool.io_pin);
   tool_close_state_ = params.tool.close_state;

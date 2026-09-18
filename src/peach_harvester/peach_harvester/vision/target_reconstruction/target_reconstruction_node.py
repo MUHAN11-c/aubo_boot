@@ -21,9 +21,9 @@ on-change + 最小间隔节流（心跳/状态/诊断 1Hz 活性发布不动）.
 _query_tf → _finish 三段式），锁内按帧 stamp 复核收口，查询期间 Trigger
 服务/目标观测回调/1Hz 心跳不被堵住（A7 起）.
 
-模块边界：本文件为节点编排壳；自动状态机在 capture.AutoControllerMixin，
-发布面在 publish.PublisherMixin。import capture / integrate / refine 完成
-柱/球精化映射与唯一实现类加载。
+模块边界：本文件为节点编排壳（decode → `session.process` → 入环）；
+自动状态机在 capture.AutoControllerMixin，发布面在 publish.PublisherMixin。
+`ReconstructionSession.from_params` 装配柱/球 refitter；映射表只在 refine.py。
 """
 from __future__ import annotations
 
@@ -38,24 +38,10 @@ import cv_bridge
 from geometry_msgs.msg import Point, Vector3, Vector3Stamped
 import message_filters
 import numpy as np
-from peach_interfaces.action import BuildTargetModel
-from peach_interfaces.msg import (
-    BagFittingArray,
-    BagGraspCandidateArray,
-    GraspDecision,
-    HarvestState,
-    PeachTargetObservationArray,
-    PregraspVerification,
-    ReconstructionStatus,
-    ShapeHypothesis,
-    TargetModel,
-    TargetQuality,
-)
 from peach_harvester.vision.common.bag_landmarks import (
     estimate_bag_landmarks,
 )
 from peach_harvester.vision.common.geometry import (
-    normalize_depth_to_uint16_mm,
     transform_msg_to_matrix,
     transform_points,
 )
@@ -107,13 +93,28 @@ from peach_harvester.vision.target_reconstruction.refine import (
     candidate_axis_hint,
     evaluate_pregrasp,
     fuse_bag_views,
-    make_refitter,
     RefitConfig,
     select_reconstruction_candidate,
     select_refitter,
     STATUS_ACCEPT,
     STATUS_REOBSERVE,
     TargetKindMemory,
+)
+from peach_harvester.vision.target_reconstruction.session import (
+    ReconstructionSession,
+)
+from peach_interfaces.action import BuildTargetModel
+from peach_interfaces.msg import (
+    BagFittingArray,
+    BagGraspCandidateArray,
+    GraspDecision,
+    HarvestState,
+    PeachTargetObservationArray,
+    PregraspVerification,
+    ReconstructionStatus,
+    ShapeHypothesis,
+    TargetModel,
+    TargetQuality,
 )
 import rclpy
 from rclpy.action import ActionServer, CancelResponse, GoalResponse
@@ -150,6 +151,25 @@ class TargetReconstructionNode(
         AutoControllerMixin, FrameStoreMixin, PublisherMixin, LifecycleNode):
     """连续运动局部重建 Lifecycle 节点：Active 后才积分与受理 BuildTargetModel."""
 
+    params: TargetReconstructionParams
+    """config/target_reconstruction.yaml 快照."""
+    session: ReconstructionSession
+    """柱/球 refitter 装配；process() 过深度门."""
+    _refitters: dict
+    """{'cylinder': …, 'sphere': …}，与 session.refitters 同一引用."""
+    tf_timeout: Duration
+    """精确 stamp TF 查询超时."""
+    collector: FrameCollector
+    """采帧状态机 + 视角过滤；不查 TF."""
+    _lifecycle_active: bool
+    """仅 Active 才积分 / 受理 BuildTargetModel."""
+    _state_lock: threading.RLock
+    """保护 collector / TSDF / 产物（worker 与 executor 双写）."""
+    _preferred_target_id: str
+    """当前绑定目标；空串=未绑定."""
+    _latest_candidates: Optional[BagGraspCandidateArray]
+    """感知 initial_pose 缓存，供自动绑定."""
+
     def __init__(self):
         """建节点：参数层一行装载 → 直接构造算法 → ROS 接线."""
         super().__init__('peach_target_reconstruction_node')
@@ -157,12 +177,9 @@ class TargetReconstructionNode(
         self.bridge = cv_bridge.CvBridge()
         # 协议 I3（时钟唯一）：节点时钟适配为纯核 Clock，一切计时走注入 now
         self._algo_clock = RclpyClockAdapter(self.get_clock())
-        # 手写参数模块装载链（决策 0017）：ParamListener 声明（类型/
-        # 兜底默认/校验源 peach_perception/params.py，部署值源 config/target_reconstruction.yaml），
-        # 快照装载为 frozen dataclass（params.py from_params）
-        self._param_listener = TargetReconstructionParams.declare(self)
-        self.params = TargetReconstructionParams.from_params(
-            self._param_listener.get_params())
+        self.params = TargetReconstructionParams.attach(self)
+        self.session = ReconstructionSession.from_params(self.params)
+        self._refitters = self.session.refitters
         p = self.params
         # 派生量（ROS 类型/容器形态转换，非参数副本）
         self.tf_timeout = Duration(seconds=p.tf_timeout_sec)
@@ -204,10 +221,6 @@ class TargetReconstructionNode(
                 auto_min_interval_s=p.capture.auto_min_interval_s,
             ))
         self._cloud_builder = Open3dCloudBuilder()
-        self._refitters = {
-            'cylinder': make_refitter(p.refitter.cylinder_impl),
-            'sphere': make_refitter(p.refitter.sphere_impl),
-        }
         self._icp_refiner = BoundedIcp(config=self.icp_config)
         self._mask_gate = StrictMaskGate(
             require_target_mask=p.capture.require_target_mask,
@@ -245,7 +258,7 @@ class TargetReconstructionNode(
         self._products_version = 0
         self._products_force_publish = False
 
-        # 并发收敛选型（方案 b，与 peach_scene_perception_node._plan_lock 同模式）：
+        # 并发收敛选型（方案 b，与 PerceptionPipeline.plan_lock 同模式）：
         # collector/在线 TSDF/派生产物的竞态源是 worker 线程
         # （_process_rgbd→_auto_drive）与 executor 线程（订阅/服务回调）
         # 双写；方案 (a) 把命令类任务也挤进 BoundedWorker 不可行——
@@ -574,20 +587,7 @@ class TargetReconstructionNode(
                 throttle_duration_sec=1.0)
 
     def _process_rgbd(self, frame):
-        """
-        同步回调：归一化深度后写入 5 帧环（绝不自动累积积分）.
-
-        Args:
-            rgb_msg: 彩色图（bgr8）.
-            depth_msg: 深度图（uint16 原始值或 32FC1 米制）.
-            info: 彩色相机内参.
-
-        Returns
-        -------
-            无返回值（None）；环选帧见 FrameStoreMixin._select_cached_frame
-            （优先「有同戳掩膜的最新帧」，严格同戳、不回退 latest TF）。
-
-        """
+        """Decode RGB-D, ingest, then push the frame ring."""
         rgb_msg, depth_msg, info = frame
         try:
             rgb = self.bridge.imgmsg_to_cv2(rgb_msg, desired_encoding='bgr8')
@@ -602,34 +602,17 @@ class TargetReconstructionNode(
                 f'depth_frame={depth_msg.header.frame_id} '
                 f'depth_stamp={depth_stamp.sec}.{depth_stamp.nanosec:09d}: {exc}')
             return
-        # uint16：raw × depth_scale_unit = 毫米；32FC1：米 ×1000 = 毫米
-        try:
-            depth_mm = normalize_depth_to_uint16_mm(depth_raw, self.params.depth_scale_unit)
-        except ValueError as exc:
-            self.get_logger().warning(f'深度归一化失败，丢帧: {exc}')
-            return
-        if rgb.shape[:2] != depth_mm.shape[:2]:
-            self.get_logger().warning(
-                f'RGB/深度分辨率不一致 {rgb.shape[:2]} vs {depth_mm.shape[:2]}，丢帧')
-            return
-        K = {
-            'fx': float(info.k[0]), 'fy': float(info.k[4]),
-            'cx': float(info.k[2]), 'cy': float(info.k[5]),
-            'width': int(depth_mm.shape[1]), 'height': int(depth_mm.shape[0]),
-        }
-
-        intrinsic_values = np.array(
-            [K['fx'], K['fy'], K['cx'], K['cy']], dtype=np.float64)
-        if (not np.all(np.isfinite(intrinsic_values))
-                or K['fx'] <= 0.0 or K['fy'] <= 0.0):
-            self.get_logger().warning('相机内参含非有限值或 fx/fy≤0，丢帧')
+        ingested = self.session.process(rgb, depth_raw, info.k)
+        if ingested.frame is None:
+            self.get_logger().warning(ingested.reason)
             return
         # TF 查询按深度图时间戳（相机 HW 时间戳，常超前机器人 TF）
         stamp_msg = depth_msg.header.stamp
         stamp_sec = float(stamp_msg.sec) + float(stamp_msg.nanosec) * 1e-9
         cam_frame = depth_msg.header.frame_id or rgb_msg.header.frame_id
         self._push_frame_ring(
-            (rgb, depth_mm, K, stamp_msg, stamp_sec, cam_frame))
+            (ingested.frame.rgb, ingested.frame.depth_mm, ingested.frame.K,
+             stamp_msg, stamp_sec, cam_frame))
         # 自动模式：每个新同步帧驱动一次（自动开始/采帧/完成）；
         # auto_mode=false 时不走这里，改用纯手动 Trigger 服务流
         if self.params.capture.auto_mode:

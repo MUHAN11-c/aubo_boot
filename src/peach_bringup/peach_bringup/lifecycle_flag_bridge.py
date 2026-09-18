@@ -9,6 +9,7 @@ keeping consumers (supervisor require_managed_stack etc.) unchanged.
 """
 from __future__ import annotations
 
+from peach_bringup.params import attach_flag_bridge
 import rclpy
 from rclpy.node import Node
 from rclpy.qos import (
@@ -27,11 +28,10 @@ class LifecycleFlagBridge(Node):
     """Bridges nav2_lm is_active service to a latched Bool topic."""
 
     def __init__(self) -> None:
-        """Declare parameters, create publisher, service client, and timer."""
+        """Attach parameters, create publisher, service client, and timer."""
         super().__init__('peach_lifecycle_flag_bridge')
-        self.declare_parameter(
-            'is_active_service', '/peach_lifecycle_manager/is_active')
-        self.declare_parameter('poll_hz', 1.0)
+        # 参数一行接入（config/bringup.yaml 直读 + 校验）；服务名/频率构造期捕获
+        self._params = attach_flag_bridge(self)
         latched = QoSProfile(
             history=HistoryPolicy.KEEP_LAST,
             depth=1,
@@ -41,9 +41,8 @@ class LifecycleFlagBridge(Node):
         self._pub = self.create_publisher(
             Bool, '/peach/lifecycle/managed_nodes_activated', latched)
         self._client = self.create_client(
-            Trigger,
-            self.get_parameter('is_active_service').value)
-        hz = float(self.get_parameter('poll_hz').value)
+            Trigger, self._params.is_active_service)
+        hz = float(self._params.poll_hz)
         self._last = None
         self._timer = self.create_timer(
             max(0.1, 1.0 / max(hz, 0.1)), self._poll)

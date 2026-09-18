@@ -9,4 +9,4 @@ ros2 launch peach_arm peach_arm.launch.py
 # 整栈由 harvest_system.launch.py include，autostart:=false，lifecycle 拉起
 ```
 
-默认 `execution.enabled` / `grasp.enabled` / `tool.enabled` 全关；真运动须与调度 `execution_enabled` 同时开并经人工授权。工具几何权威在 `aubo_description`（`hollow_cylinder_v1`）。
+默认 `execution.enabled` / `grasp.enabled` / `tool.enabled` 全关；真运动须与调度 `execution_enabled` 同时开并经人工授权。工具几何权威在 `aubo_description` 工具档案（整栈 `tool_profile` 参数，默认 `adaptive_cylinder_v1`）。节点回调只抽字段委托 `cache_`；周期走 `executeCycle`。

@@ -14,7 +14,6 @@ find_package(sensor_msgs REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(cv_bridge REQUIRED)
 find_package(camera_calibration_parsers REQUIRED)
-find_package(image_transport REQUIRED)
 find_package(tf2_ros REQUIRED)
 find_package(OpenCV REQUIRED COMPONENTS core imgproc calib3d)
 
@@ -31,7 +30,7 @@ add_executable(stereo_camera_node src/stereo_camera_node.cpp)
 target_include_directories(stereo_camera_node PRIVATE ${TYCAM_DIR}/include)
 target_link_libraries(stereo_camera_node ${LIB_TYCAM} ${LIB_TYIMGPROC} ${OpenCV_LIBS})
 ament_target_dependencies(stereo_camera_node
-  rclcpp sensor_msgs std_msgs cv_bridge camera_calibration_parsers image_transport tf2_ros)
+  rclcpp sensor_msgs std_msgs cv_bridge camera_calibration_parsers tf2_ros)
 
 install(TARGETS stereo_camera_node DESTINATION lib/${PROJECT_NAME})
 install(DIRECTORY launch DESTINATION share/${PROJECT_NAME})

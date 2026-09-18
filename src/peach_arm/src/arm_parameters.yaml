@@ -146,38 +146,38 @@ peach_arm:
         gt<>: [0.0]
     mtc_approach_max_detour_ratio:
       type: double
-      default_value: 1.8
-      description: "笛卡尔绕行比门"
+      default_value: 2.6
+      description: "笛卡尔绕行比门（2026-09-18 标定：合法簇 max 1.90×余量；游荡簇 min 4.37）"
       validation:
         gt_eq<>: [0.0]
     mtc_approach_max_chord_deviation_m:
       type: double
-      default_value: 0.25
-      description: "弦偏离门 [m]"
+      default_value: 0.32
+      description: "弦偏离门 [m]（2026-09-18 标定：合法簇 max 0.258×余量；游荡簇 min 0.42）"
       validation:
         gt_eq<>: [0.0]
     mtc_approach_max_recede_m:
       type: double
-      default_value: 0.08
-      description: "回退门 [m]"
+      default_value: 0.12
+      description: "回退门 [m]（2026-09-18 标定：合法簇 max 0.075×余量；游荡簇 min 0.17）"
       validation:
         gt_eq<>: [0.0]
     mtc_approach_transit_max_detour_ratio:
       type: double
-      default_value: 1.8
-      description: "staging 转移绕行比门"
+      default_value: 2.6
+      description: "staging 转移绕行比门（同 09-18 标定）"
       validation:
         gt_eq<>: [0.0]
     mtc_approach_transit_max_chord_deviation_m:
       type: double
-      default_value: 0.25
-      description: "staging 转移弦偏离门 [m]"
+      default_value: 0.32
+      description: "staging 转移弦偏离门 [m]（同 09-18 标定）"
       validation:
         gt_eq<>: [0.0]
     mtc_approach_transit_max_recede_m:
       type: double
-      default_value: 0.08
-      description: "staging 转移回退门 [m]"
+      default_value: 0.12
+      description: "staging 转移回退门 [m]（同 09-18 标定）"
       validation:
         gt_eq<>: [0.0]
     mtc_approach_max_tcp_rotation_deg:
@@ -458,6 +458,12 @@ peach_arm:
       type: bool
       default_value: false
       description: "TRANSIT/PREGRASP 级运动使能（操作台广播可覆盖）"
+    enables_heartbeat_timeout_s:
+      type: double
+      default_value: 5.0
+      description: "操作台使能广播心跳超时 [s]（supervisor 激活后 1Hz 重发；<=0 关闭超时回退锁存；超时回落本地参数权威）"
+      validation:
+        gt_eq<>: [0.0]
     require_robot_status:
       type: bool
       default_value: true

@@ -689,3 +689,30 @@ colcon build/test 三包全绿（222 tests 0 failures）；venv 回归 test_web_
 ### 同日复核轮（逻辑/流程/数学审查）
 
 数值实测：np.mod 两种归一化 40 万样本扫描与旧 while 循环等价（仅 ±180 边界互换=同角度、1e-18 级浮点噪声）；下游角度消费经 `arctan2(sin,cos)` 归一化对边界互换天然免疫；模板库 70 个四元数全部单位（scipy 非单位归一化差异不触达）；cv2 0°/360° 矩阵一致。复核发现并修复：守卫初版漏 `..`（pathlib 视其为普通组件，`Path('..').name=='..'`，只查 name 拦不住）且 `pose_id` 含 `/` 可沙箱内重定向——改单段组件校验（非空/单组件/不含 `..`）+ 越界双重校验，对抗 12 用例与真实 HTTP 层（三类越界全 400）复验；3D handler 兜底 except 补 `response.message`（加字段正是为此路径）。另发现存量无害项：StandardizeTemplate 处理器成功摘要写入不存在的 message 字段被 hasattr 静默跳过（错误信息走 error_message 不丢）。
+
+---
+
+## 2026-09-18 peach_vegetation GPU 枝/叶分割包
+
+新建 `src/peach_vegetation`（ament_python）：零 ROS 核 `frangi.py` / `split.py`（torch Hessian Frangi + Excess Green/HSV），Lifecycle 节点发 `/peach/vegetation/{leaf_mask,branch_mask,overlay,status}`，`diagnostic_updater` → `/diagnostics`。独立 launch，不进 `harvest_system` / lifecycle，不写 PlanningScene。参数 0017 同款 ParamListener。清单 +4 active。活文档 architecture / io / testing 同轮。
+
+---
+
+## 2026-09-18 scene_perception 参数回迁 GPL（Python 端）+ 动态改参
+
+`peach_scene_perception_node` 参数声明/兜底默认/校验从手写 `vision/params.py`（决策 0017）迁到 generate_parameter_library 0.7.6 Python 生成：声明单源 `config/scene_perception.params.yaml`（59 参，键名/校验逐条转写冻结，默认值对齐部署清单）→ 生成物 `vision/scene_perception/params_gen.py` 随库提交（ament_python 无 cmake 钩），`scripts/gen_scene_perception_params.sh` 再生成，`test_vision_params_gen.py` 精确再生校同步。主节点两行接 `ScenePerceptionParams.declare + from_params` 改一行 `attach(node)`，on-set 动态刷新：逐帧读取键 `ros2 param set` 即时热生效；构造期捕获键（模型/管线/记忆/收齐策略）仍需重启。
+
+踩坑（生成物源码核实）：① GPL Python 生成类的嵌套组是**类级共享实例**（`pipeline = __Pipeline()` 为类属性），对 Params 整体 deepcopy 不复制它们、update() 原地改共享实例会穿透所有引用——手写版是实例属性无此问题；派生层 `_structural_copy`（逐属性 SimpleNamespace 树）隔离后才实现「派生失败整体冻结在上一份一致快照」。② Python 端校验算子无跨参数比较（lt_param 仅 C++），`min_depth < max_depth` 留派生层。③ apt 入口点 `generate_parameter_library_python` 缺 dist-info 元数据跑不起来，用 `python3 -m generate_parameter_library_py.generate_python_module` 直调模块。④ 生成物 `# flake8: noqa` 全文件豁免、ament pep257 约定本就忽略 D100-D107，lint 无需改测试。
+
+验收：colcon test peach_harvester 110/110 绿（新增同步门 1、派生层纯核 5、冻结键测试改读声明 yaml）；隔离域 rclpy 冒烟——部署清单覆盖声明、非法 set 拒绝、热更新重建 ToolGeometry、跨字段坏组合冻结+恢复全过。`vision/params.py` 删 scene 类仅剩重建（键冻结测试拆两侧）；package.xml 增 `generate_parameter_library_py` exec_depend。活文档 AGENTS（缝位+偏离表）/architecture（参数模块行、文件树、§感知、§参数分层、GPL 行）/testing（venv 段、调参分层）同轮。遗留：target_reconstruction / supervisor / observability / vegetation 仍 0017 手写，迁法照本 round。
+
+---
+
+## 2026-09-18 Python 参数改为 yaml 直读（决策 0024）
+
+删 scene 的 GPL Python 生成物（`scene_perception.params.yaml` / `params_gen.py` / `scripts/gen_scene_perception_params.sh` / `test_vision_params_gen.py`）与重建/调度/观测/lifecycle/vegetation 的手写 ParamListener DEFAULTS 双源。共用 `yaml_params.attach(node, yaml)`：按部署清单叶子 `declare_parameter`，`ros2 param set` 原地改同一棵 namespace；主节点一行 `Xxx.attach(self)`。空 YOLO/SAM 路径在参数层拒绝，不写主节点。`peach_arm` C++ 仍 GPL。活文档 architecture / io / testing 同轮。
+
+### 同日补全轮（校验防线 / bringup / 清单核对）
+
+0024 落地时 attach 未挂校验，0017 的数值规则防线丢失——本轮补回并推广到全部 peach Python 节点：各 params 模块持 `_RULES` 规则表经 `validate=` 进 attach（越界/白名单启动期拒启、运行期非法 set 即拒；scene 完整 33 键含空模型路径、重建 48 键、supervisor 8 键、observability 9 键、vegetation 12 键、lifecycle 1 键），跨字段窗经 `preview=`（scene `min_depth<max_depth`、supervisor 选果 reach/depth 双窗、vegetation `leaf.h_min<h_max`：整批拒绝、保持当前一致快照）。`peach_bringup` 两小组件（lifecycle_flag_bridge / autostart_client）从内联 declare 迁入 `config/bringup.yaml` + `peach_bringup.params` attach（下限规则；autostart 的 scene_key/intent 发批时热读）；setup.py 装 config。接口清单核对器 `_CONSUMER_PATHS` 补 `peach_bringup/config`（服务名字面量随参数迁 yaml 后反向扫描失配）。测试：各包新增「规则键⊆部署清单键」对账 + vegetation/observability/bringup validate 单测；r0_gate 四包 + 清单全绿；隔离域真 rclpy 冒烟（规则拒非法、跨字段拒、热更新、派生重建）全过。三份 `yaml_params` 副本（harvester/vegetation/bringup）byte 级一致并加 vendoring 注记（与 param_rules 同款每包自持模式）。AGENTS 残留 GPL 措辞清一致性（缝位/偏离表/反模式/新节点流程）。
+

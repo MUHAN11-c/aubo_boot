@@ -1,0 +1,222 @@
+{
+  "session": {
+    "bag": "/home/mu/Desktop/aubo_e5_jazzy_ws/runs/session_20260918_133922/bag",
+    "session_dir": "/home/mu/Desktop/aubo_e5_jazzy_ws/runs/session_20260918_133922",
+    "started_at": 1789709962.4571867,
+    "ended_at": 1789710062.9367912,
+    "duration_s": 100.5
+  },
+  "requests": [],
+  "gates": {
+    "rows": [
+      [
+        "感知帧率 FPS",
+        2.0,
+        "≥ 2.0",
+        "✓"
+      ],
+      [
+        "重建 TF 失败次数",
+        0,
+        "= 0",
+        "✓"
+      ],
+      [
+        "到预抓取停住（succeeded）",
+        0,
+        "≥1（有派发目标时）",
+        "—"
+      ]
+    ],
+    "fps": 2.0,
+    "tf_failures": 0,
+    "succeeded": 0
+  },
+  "targets": [],
+  "phase_durations": [],
+  "events": {
+    "total": 0,
+    "by_code": {},
+    "by_severity": {}
+  },
+  "perception": {
+    "frames": 350,
+    "median_interval_s": 0.5,
+    "fps": 2.0,
+    "target_count_min": 0,
+    "target_count_max": 1
+  },
+  "reconstruction": {
+    "state": "IDLE",
+    "target_id": "",
+    "captured_views": 0,
+    "rejected_views": 0,
+    "tf_failures": 0,
+    "grasp_allowed": false,
+    "grasp_reason": "reconstruction_not_ready"
+  },
+  "reconstruction_per_target": [],
+  "jobs": [
+    {
+      "target_id": "target_1",
+      "cycle_id": "",
+      "batch_state": 0,
+      "target_phase": 0,
+      "active_id": "discover",
+      "why": "接触未许可（reconstruction_not_ready）；有几何则可去预抓取",
+      "flags": {
+        "execution_enabled": false,
+        "grasp_enabled": false,
+        "tool_enabled": false,
+        "skill_grasp_enabled": false,
+        "skill_execution_enabled": false
+      },
+      "stages": [
+        {
+          "id": "discover",
+          "label": "发现",
+          "status": "active",
+          "detail": ""
+        },
+        {
+          "id": "photo",
+          "label": "拍照",
+          "status": "pending",
+          "detail": ""
+        },
+        {
+          "id": "lock",
+          "label": "锁定",
+          "status": "pending",
+          "detail": ""
+        },
+        {
+          "id": "observe",
+          "label": "观察",
+          "status": "pending",
+          "detail": "IDLE"
+        },
+        {
+          "id": "permit",
+          "label": "许可",
+          "status": "pending",
+          "detail": "reconstruction_not_ready"
+        },
+        {
+          "id": "approach",
+          "label": "靠近",
+          "status": "gated",
+          "detail": "抓取档关闭，本轮不接触"
+        },
+        {
+          "id": "tool",
+          "label": "工具",
+          "status": "gated",
+          "detail": "工具档关闭，不打 SetIO"
+        },
+        {
+          "id": "retreat",
+          "label": "撤离",
+          "status": "pending",
+          "detail": ""
+        },
+        {
+          "id": "done",
+          "label": "完成",
+          "status": "pending",
+          "detail": ""
+        }
+      ],
+      "coords": {
+        "frame_id": "base_link",
+        "perception_entry": [
+          0.44301279376526115,
+          -0.5935122261580793,
+          0.6513772557594093
+        ],
+        "perception_bottom": [
+          0.44301279376526115,
+          -0.5935122261580793,
+          0.6513772557594093
+        ],
+        "perception_neck": [
+          0.44381675387123376,
+          -0.6037410446399322,
+          0.7015003619750537
+        ],
+        "reconstruction_center": null,
+        "refined_axis": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "grasp_entry": null,
+        "grasp_pregrasp": null,
+        "hypothesis_entry": null,
+        "hypothesis_travel_m": null,
+        "camera_distance_m": 0.5348864197731018
+      },
+      "grasp": {
+        "allowed": false,
+        "reason": "reconstruction_not_ready",
+        "target_id": "",
+        "entry": null,
+        "pregrasp": null,
+        "axis": null,
+        "cut_pose": null,
+        "diameter_m": null,
+        "rmse_m": null,
+        "inlier_ratio": null
+      },
+      "motion": {
+        "state": "IDLE",
+        "message": "已配置；activate 后才开放运动输出权限",
+        "running": false
+      },
+      "reconstruction": {
+        "state": "IDLE",
+        "captured_views": 0,
+        "rejected_views": 0,
+        "max_baseline_deg": 0.0,
+        "mean_nearest_baseline_deg": null
+      },
+      "perception": {
+        "locked": true,
+        "target_count": 1,
+        "harvest_status": "PLANNED",
+        "tracking_status": "OBSERVED",
+        "confidence": 0.5114155411720276
+      }
+    }
+  ],
+  "metrics": {
+    "samples": 138,
+    "cpu_percent": {
+      "mean": 28.5,
+      "max": 67.7
+    },
+    "memory_percent": {
+      "mean": 50.89,
+      "max": 60.5
+    },
+    "gpu_utilization_percent": {
+      "mean": 15.16,
+      "max": 45.0
+    },
+    "gpu_memory_used_mb": {
+      "mean": 1628.52,
+      "max": 1857.0
+    }
+  },
+  "tcp": {
+    "count": 1,
+    "path_length_m": 0.0,
+    "chord_m": 0.0,
+    "detour_ratio": null,
+    "max_dev_m": 0.0,
+    "z_min_m": 0.7056,
+    "z_max_m": 0.7056,
+    "dz_m": 0.0,
+    "samples": 1
+  }
+}

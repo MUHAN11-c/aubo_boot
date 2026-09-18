@@ -101,7 +101,7 @@ def is_motion(action: str, payload: dict) -> bool:
     分类一次调试操作是否会引发臂/机位运动.
 
     规则（与各 IDL/阶段文档对齐）：
-      - run_harvest：intent != SURVEY_ONLY（会 Survey/Execute）
+      - run_harvest：恒为运动（SURVEY_ONLY 也会 Survey 移到拍照位）
       - survey / photo_pose / arm / skill 端 start_cycle：本身运动
       - execute：mode != PREVIEW（OBSERVE_ONLY 有 0.15 m 级观察短移）
       - control：RESUME / EXIT_MAINTENANCE（恢复自动流会继续派动作）；
@@ -118,13 +118,9 @@ def is_motion(action: str, payload: dict) -> bool:
         True = 属运动类，须 motion_enabled 放行.
 
     """
-    if action in ('survey_action', 'photo_pose_service', 'arm_service'):
+    if action in ('survey_action', 'photo_pose_service', 'arm_service',
+                  'run_harvest_action'):
         return True
-    if action == 'run_harvest_action':
-        intent = str(payload.get('intent', 'PICK_ALL')).upper()
-        return _INTENT.get(
-            intent, RunHarvest.Goal.INTENT_PICK_ALL
-        ) != RunHarvest.Goal.INTENT_SURVEY_ONLY
     if action == 'execute_action':
         mode = str(payload.get('mode', 'PREVIEW')).upper()
         return _EXECUTE_MODE.get(

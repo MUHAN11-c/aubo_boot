@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import time
 
+from peach_bringup.params import attach_autostart_client
 from peach_interfaces.action import RunHarvest
 
 import rclpy
@@ -31,9 +32,9 @@ class AutostartClient(Node):
     def __init__(self) -> None:
         """Initialize subscribers, action client, and the readiness timer."""
         super().__init__('peach_autostart_client')
-        self.declare_parameter('scene_key', 'default')
-        self.declare_parameter('intent', 0)  # INTENT_PICK_ALL
-        self.declare_parameter('wait_stack_timeout_s', 90.0)
+        # 参数一行接入（config/bringup.yaml 直读 + 校验）；scene_key/intent
+        # 发批时读取（热生效），wait_stack_timeout_s 构造期捕获
+        self._params = attach_autostart_client(self)
         latched = QoSProfile(
             history=HistoryPolicy.KEEP_LAST,
             depth=1,
@@ -48,7 +49,7 @@ class AutostartClient(Node):
         self._client = ActionClient(
             self, RunHarvest, '/peach_supervisor/run_harvest')
         self._deadline = time.monotonic() + float(
-            self.get_parameter('wait_stack_timeout_s').value)
+            self._params.wait_stack_timeout_s)
         self._timer = self.create_timer(0.5, self._tick)
 
     def _on_flag(self, msg: Bool) -> None:
@@ -66,8 +67,8 @@ class AutostartClient(Node):
             return
         goal = RunHarvest.Goal()
         goal.request_id = 'auto_' + time.strftime('%Y%m%dT%H%M%S')
-        goal.scene_key = str(self.get_parameter('scene_key').value)
-        goal.intent = int(self.get_parameter('intent').value)
+        goal.scene_key = str(self._params.scene_key)
+        goal.intent = int(self._params.intent)
         self.get_logger().info(
             f'autostart：托管栈就绪，自动开批 {goal.request_id}'
             f'（scene_key={goal.scene_key}）')

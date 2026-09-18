@@ -17,12 +17,14 @@ class WatchdogSample:
 
 
 def robot_status_fresh(sample: WatchdogSample) -> bool:
+    """柜侧状态流在超时窗内（未见/超龄=False）."""
     if not sample.robot_status_seen:
         return False
     return (sample.now_mono_s - sample.robot_status_mono_s) <= sample.timeout_s
 
 
 def model_still_valid(sample: WatchdogSample) -> bool:
+    """模型有效期未过（valid_until=0 视为未提供=False）."""
     return sample.model_valid_until_s > 0.0 and sample.now_mono_s <= sample.model_valid_until_s
 
 

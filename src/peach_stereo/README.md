@@ -31,7 +31,8 @@ PS800-E1 **主机侧单图案立体深度**相机节点：`percipio_camera` 的�
 解锁激光(关自动控制+拉功率) → 彩色640x480 + 双目IR 1280x960 同帧组(~13.7 组/s)
 → stereoRectify 校正 → SGBM(半分辨率 ~13ms) → 深度(左IR系, mm)
 → TYMapDepthImageToColorCoordinate 配准到彩色几何
-→ /camera/color/image_raw + /camera/depth/image_raw(uint16×0.25mm) + camera_info
+→ 与 percipio 同构：color/image_raw + depth/image_raw(uint16×0.25mm)
+   + {color,depth}/camera_info + depth_registered/points
 ```
 
 - **帧组硬件同步**：彩色/左 IR/右 IR 同时间戳（纪元微秒，TIME_SYNC=HOST），RGB-D 时间对齐天然满足感知 `sync_slop 0.05s`。
@@ -43,12 +44,13 @@ PS800-E1 **主机侧单图案立体深度**相机节点：`percipio_camera` 的�
 
 | 话题 | 类型 | 说明 |
 |------|------|------|
-| `color/image_raw` (+`/compressed`) | bgr8 | 彩色，与深度同帧组时间戳 |
-| `depth/image_raw` (+`/compressed`) | mono16 | **已配准到彩色几何**，单位 0.25mm |
+| `color/image_raw` | bgr8 | 彩色，与深度同帧组时间戳 |
+| `depth/image_raw` | 16UC1 | **已配准到彩色几何**，单位 0.25mm |
 | `color/camera_info` | CameraInfo | 按彩色流分辨率折算的 K |
-| `depth/debug_color` | bgr8 | 2Hz JET 伪彩调试流（可关） |
+| `depth/camera_info` | CameraInfo | 与彩色同 K（配准后），frame=`camera_depth_optical_frame` |
+| `depth_registered/points` | PointCloud2 | 配准彩色点云（与 percipio `color_point_cloud_enable` 同名） |
 
-静态 TF：`camera_link → camera_color_frame → camera_color_optical_frame`（与 percipio 一致）。
+静态 TF：`camera_link → {color,depth}_frame → 各 optical`（与 percipio 同名链；depth 帧 identity 等价）。
 
 ## 使用
 
@@ -65,6 +67,6 @@ ros2 topic hz /camera/depth/image_raw   # 预期 ~13.7 Hz
 
 - **激光满功率持续点亮**（`laser_power: 100`）：长时间运行的热管理未验证；停栈自动复位（auto=1/50）。台架连续观察为宜，田间长时间挂机前先做温升确认。
 - 依赖 `percipio_camera` 源码树 vendored 的 camport4 SDK（头文件未随包安装，CMake 直接引用源码路径）；运行时 `.so` 由 `install/percipio_camera/lib` 解析。
-- 大消息投递：raw RELIABLE 大图在本机 FastDDS 下有坍塌现象（testing-log 09-16 条目）；本节点经 image_transport 发布，自带 `/compressed` 通道，感知侧改订 compressed 可解。
-- 未进 harvest_system 默认栈（需真机验证后接入）；当前作为独立相机前端并行存在。
+- 大消息投递：raw RELIABLE 大图在本机 FastDDS 下有坍塌现象（testing-log 09-16）。Jazzy `image_transport` 无法按话题关插件；整栈 catch-all 会订 jpeg/compressedDepth，16UC1 与 bgr8 交叉编码每帧 ERROR。本节点只发 raw Image（感知订 raw）。
+- 默认不进 harvest_system（`camera_frontend` 默认 percipio）。整栈切 stereo：`camera_enabled:=true camera_frontend:=stereo`。
 - 深度工作范围：设备端额定 0.4–0.8m；本链路 SGBM 理论下限 ~0.27m（近距光学质量未标定）。

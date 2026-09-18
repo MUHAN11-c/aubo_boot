@@ -1,13 +1,14 @@
-"""批次策略/补采清单纯核测试（重写轮 3c；随用户单独验证轮运行）。"""
+"""批次策略/补采清单纯核测试（重写轮 3c；随用户单独验证轮运行）."""
 from __future__ import annotations
 
 import json
 
 from peach_harvester.cycle_core.batch_policy import (
     BatchPolicy,
+    ratio_reached,
+    rework_kind,
     ReworkList,
     TargetDeadline,
-    ratio_reached,
 )
 
 
@@ -63,3 +64,13 @@ def test_rework_list_rejects_unknown_kind():
     except ValueError:
         return
     raise AssertionError('未知类别应拒绝')
+
+
+def test_rework_kind_maps_failure_codes():
+    assert rework_kind('timeout', 0) == 'timeout'
+    assert rework_kind('operator_skip', 0) == 'operator_skipped'
+    assert rework_kind('ik_no_solution', 0) == 'unreachable'
+    assert rework_kind('observe_failed', 0) == 'occluded'
+    assert rework_kind('sleeve_stuck', 0) == 'contact_failed'
+    assert rework_kind('', 1) == 'quality'
+    assert rework_kind('other', 3) == 'quality'

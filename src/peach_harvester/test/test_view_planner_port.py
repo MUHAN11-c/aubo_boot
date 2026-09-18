@@ -1,16 +1,16 @@
-"""view_planner Python 移植对照测试（C++ 同场景语义锚；重写轮 3c-2b）。"""
+"""view_planner Python 移植对照测试（C++ 同场景语义锚；重写轮 3c-2b）."""
 from __future__ import annotations
 
 import math
 
 from peach_harvester.cycle_core.view_planner import (
-    ViewContext,
-    ViewPlannerConfig,
     _angle_deg,
     _clamp_to_step,
     _project_look_ray_into_reach,
     generate,
     look_at_optical,
+    ViewContext,
+    ViewPlannerConfig,
 )
 
 

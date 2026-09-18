@@ -200,6 +200,15 @@ class LightingMeter:
     线程安全：无内部锁，与调用方（节点 _plan_lock 保护区）同一把锁。
     """
 
+    alpha: float
+    """EMA 新样本权重 (0,1]."""
+    min_depth_ratio: float
+    """深度占比 EMA 下限 [0,1]."""
+    min_conf_mean: float
+    """置信度 EMA 下限 [0,1]."""
+    bad_frames: int
+    """连续低质帧数才置 low_quality."""
+
     def __init__(self, alpha: float = 0.3, min_depth_ratio: float = 0.35,
                  min_conf_mean: float = 0.3, bad_frames: int = 5):
         """建表；α∈(0,1]、阈值∈[0,1]、连击帧数≥1 校验."""

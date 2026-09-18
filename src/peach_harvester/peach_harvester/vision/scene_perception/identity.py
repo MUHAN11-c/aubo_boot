@@ -20,7 +20,9 @@ from .contracts import compute_entry_start, LockEvent, MatchResult
 
 # 3 自由度约 3σ（χ²₀.₉₉₇ ≈ 11.3；取 9 ≈ 3σ 实用门）
 CHI2_GATE = 9.0
+"""马氏 χ² 门（约 3σ / 3 自由度）；超过则禁止配对."""
 AMBIGUOUS_RATIO = 1.2
+"""次优/最优代价比超过本值判歧义，不分配."""
 
 
 def regularize_cov(cov, floor: float = 1e-6) -> np.ndarray:
@@ -160,10 +162,15 @@ def assign_detections(
 
 # 跟踪状态 token：节点映射到 PeachTargetObservation.msg 同名常量
 STATUS_OBSERVED = 'OBSERVED'
+"""本帧有检测且掩膜深度占比达标."""
 STATUS_OCCLUDED = 'OCCLUDED'
+"""本帧有检测但无可用 SAM 掩膜."""
 STATUS_LOST = 'LOST'
+"""本帧无检测，且上一框未贴边（非出视野）."""
 STATUS_OUT_OF_VIEW = 'OUT_OF_VIEW'
+"""本帧无检测，且消失前检测框贴图像边缘."""
 STATUS_DEPTH_VOID = 'DEPTH_VOID'
+"""有掩膜但有效深度占比低于 lighting.min_depth_ratio."""
 
 
 def bbox_touches_image_edge(bbox: Tuple[int, int, int, int],
@@ -229,6 +236,10 @@ _BLOCKING_FLAGS = frozenset({
     # wind.swing_threshold_m 的锁定目标由注册表置 swinging、节点打入
     # record 旗标；室外风动场景下靠近抓取由能力端 RECONFIRM 等平息
     'target_swinging',
+    # 09-17 真机 P1-A：本帧检测框贴图像边缘（含贴边滑动噪声块）——
+    # 框不完整、质心偏置，确认累积已在注册表侧拦（at_edge 不攒），
+    # 此处再拦可选性：移入视野内旗标即消，目标恢复可选
+    'bbox_edge',
 })
 _STATUS_REJECT = 2
 
@@ -263,6 +274,13 @@ class CollectLockPolicy:
     线程安全：无内部锁，与 plan 同一把外部锁保护（见模块 docstring）。
     现行为唯一实现（直接构造）；换策略=改一个类。
     """
+
+    min_collect_frames: int
+    """关窗前最少累积帧数（≥1）."""
+    lock_settle_frames: int
+    """连续无新增确认 ID 的静止帧数."""
+    max_collect_s: float
+    """窗口最长时长 [s]；超时空集也关."""
 
     def __init__(self, min_collect_frames: int = 10,
                  lock_settle_frames: int = 5, max_collect_s: float = 25.0):
@@ -360,6 +378,29 @@ class GlobalHarvestPlan:
     ÷ 实测帧间隔 EMA 逐帧改写（协议 I4，帧率以运行状态为准），同名
     property setter 可写。
     """
+
+    max_targets: int
+    """锁定集容量上限；超出按优先级截断."""
+    prefer_lower_first: bool
+    """True=先低后高，避免摘高处碰落低处."""
+    snapshot_id: int
+    """锁定世代；reset 后递增."""
+    locked_ids: tuple
+    """已锁定 target_id 元组（关窗后冻结）."""
+    priorities: dict
+    """target_id → 排序键."""
+    selected_target_id: str
+    """当前推进目标；空串=未选。感知只锁定，调度才写."""
+    completed_ids: set
+    """本轮已完成/跳过 ID."""
+    current_selectable_ids: set
+    """本帧仍可选（非 stale / 非出视野）."""
+    anchor_stale_ids: set
+    """LOST 超 max_age：不可选但不移除."""
+    out_of_view_ids: set
+    """本帧 OUT_OF_VIEW 的锁定 ID（节点注入）."""
+    dropped_ids: set
+    """LOST 超 drop 阈值后从计划移除的 ID."""
 
     def __init__(self, max_targets: int = 20, min_collect_frames: int = 10,
                  lock_settle_frames: int = 5, max_collect_s: float = 25.0,
@@ -688,21 +729,18 @@ class GlobalHarvestPlan:
 
 class SpatialEmaMatcher:
     """
-    空间最近邻匹配器（唯一实现，直接构造）.
+    匹配半径容器（帧路径不调用本类搜邻）.
 
-    两段搜索（仅前一段未命中才进下一段）：
-      1. 正常匹配：同类、距离 ≤ match_radius 取最近者；
-      2. 恢复匹配（同类）：半径放宽到 match_radius × recovery_scale
-         （recovery_scale>1 时），抗检测跳动导致的锚点跳变。
-    两档优先级：已确认表项优先于未确认表项（瞬时目标不抢稳定身份）。
-    帧级路径（match_or_register_frame）只走全局 1-1 同类分配；跨类恢复
-    为预留能力（曾以 cross_class_recovery 配置承诺、帧级路径从未生效，
-    已删配置；需要时在帧级分配后对未命中项补一次 class 打开的二次分配）。
-
-    生命周期：与 TargetRegistry 同寿，由节点直接构造注入。
-    线程安全：无内部状态（配置不可变），与注册表同一把外部锁保护。
-    现行为唯一实现（直接构造）；换匹配器=改一个类。
+    只持有 ``match_radius`` / ``recovery_scale``，供
+    ``TargetRegistry.match_or_register_frame`` → ``assign_detections``
+    写马氏 Σ（无 covariance 时 σ=match_radius/3×recovery_scale）。
+    曾有欧氏两段 ``match()``，帧路径从未走；跨类恢复配置已删。
     """
+
+    match_radius: float
+    """正常匹配半径 [m]；无 covariance 时 σ=本值/3×recovery_scale."""
+    recovery_scale: float
+    """马氏 Σ 膨胀倍率（≥1）."""
 
     def __init__(self, match_radius: float = 0.06,
                  recovery_scale: float = 1.0):
@@ -740,6 +778,21 @@ class TargetRegistry:
     swing_threshold_m / swing_frames 为摆动判定：观测残差连续
     swing_frames 帧超阈值置 swinging，连续同帧数低于阈值清除。
     """
+
+    max_targets: int
+    """表容量；超限淘汰 last_seen 最旧."""
+    alpha: float
+    """位置/轴/直径 EMA 系数 α∈(0,1]，越大越跟新观测."""
+    confirm_frames: int
+    """累计命中满本值才转正（计入锁定）."""
+    tentative_ttl_frames: int
+    """未确认表项连续未命中超过本帧数即清除."""
+    max_age_s: float
+    """已确认表项墙钟龄上限 [s]."""
+    swing_threshold_m: float
+    """观测残差超本值 [m] 计入摆动连击."""
+    swing_frames: int
+    """连续超/低于阈值的帧数才置/清 swinging."""
 
     def __init__(self, match_radius: float = 0.06, max_targets: int = 50,
                  position_ema: float = 0.3, recovery_scale: float = 1.0,
@@ -869,10 +922,12 @@ class TargetRegistry:
                     if nrm > 1e-9:
                         ax = candidate_axis / nrm
             diameter_value = float(item.get('diameter') or 0.0)
-            if not np.isfinite(diameter_value) or diameter_value <= 0.0:
+            if not math.isfinite(diameter_value) or diameter_value <= 0.0:
                 diameter_value = 0.0
+            at_edge = bool(item.get('at_edge', False))
             parsed.append((pos, int(item.get('class_id', 0)), ax,
-                           diameter_value, str(item.get('status', ''))))
+                           diameter_value, str(item.get('status', '')),
+                           at_edge))
             detections.append({
                 'position': pos,
                 'class_id': int(item.get('class_id', 0)),
@@ -888,25 +943,27 @@ class TargetRegistry:
             protected = set()
             for local_i, (tid, d2, status) in enumerate(assigned):
                 i = index_map[local_i]
-                pos, class_id, ax, diameter_value, st = parsed[local_i]
+                pos, class_id, ax, diameter_value, st, at_edge = parsed[local_i]
                 matched = MatchResult(
                     target_id=tid, distance=float(d2), status=status)
                 pending.append(
-                    (i, pos, class_id, ax, diameter_value, st, matched))
+                    (i, pos, class_id, ax, diameter_value, st, at_edge,
+                     matched))
                 if status == 'ok' and tid is not None:
                     protected.add(tid)
             # 先提交已分配命中（保护这些 ID），再注册新目标；禁止淘汰本帧命中。
             for item in pending:
-                i, pos, class_id, ax, diameter_value, st, matched = item
+                i, pos, class_id, ax, diameter_value, st, at_edge, matched = item
                 if matched.status != 'new':
                     out[i] = self._commit_match(
-                        pos, class_id, ax, diameter_value, st, ts, matched)
+                        pos, class_id, ax, diameter_value, st, ts, matched,
+                        at_edge=at_edge)
             for item in pending:
-                i, pos, class_id, ax, diameter_value, st, matched = item
+                i, pos, class_id, ax, diameter_value, st, at_edge, matched = item
                 if matched.status == 'new':
                     out[i] = self._commit_match(
                         pos, class_id, ax, diameter_value, st, ts, matched,
-                        protected=protected)
+                        protected=protected, at_edge=at_edge)
         return [row if row is not None else (f'untracked_{i}', False)
                 for i, row in enumerate(out)]
 
@@ -914,6 +971,7 @@ class TargetRegistry:
         self, pos, class_id: int, ax, diameter_value: float, status: str,
         ts: float, matched: MatchResult,
         protected: Optional[set] = None,
+        at_edge: bool = False,
     ) -> Tuple[str, bool]:
         """把一次分配结果写入表（命中 EMA / 歧义跳过 / 新注册）."""
         best_id = matched.target_id
@@ -960,9 +1018,13 @@ class TargetRegistry:
             if diameter_value > 0.0:
                 t['diameter'] = (
                     (1.0 - a) * t['diameter'] + a * diameter_value)
-            t['obs_count'] += 1
-            if t['obs_count'] >= self.confirm_frames:
-                t['confirmed'] = True
+            # 贴边帧不计确认（09-17 真机 P1-A）：图像边缘滑动噪声块靠贴边
+            # 恒显也会攒满 confirm_frames；真果贴边帧同样不攒，移入视野内
+            # 即恢复累积。EMA/last_seen 照常更新（同一物理目标的观测仍可信）。
+            if not at_edge:
+                t['obs_count'] += 1
+                if t['obs_count'] >= self.confirm_frames:
+                    t['confirmed'] = True
             t['last_seen'] = ts
             t['last_seen_frame'] = self._frame_index
             t['last_status'] = status
@@ -982,6 +1044,7 @@ class TargetRegistry:
             del self._targets[oldest]
         tid = f'target_{self._next_index}'
         self._next_index += 1
+        obs_count = 0 if at_edge else 1
         self._targets[tid] = {
             'target_id': tid,
             'class_id': int(class_id),
@@ -991,12 +1054,13 @@ class TargetRegistry:
             'first_seen': ts,
             'last_seen': ts,
             'last_seen_frame': self._frame_index,
-            'obs_count': 1,
+            'obs_count': obs_count,
             'last_status': status,
             # 未确认表项：累计命中满 confirm_frames 才转正；连续超
             # tentative_ttl_frames 帧未再命中由 begin_frame 清除（瞬时误检
-            # 不留长期记录；按帧计，帧率以运行状态为准）
-            'confirmed': self.confirm_frames <= 1,
+            # 不留长期记录；按帧计，帧率以运行状态为准）。贴边首帧不攒
+            # （P1-A，同命中分支）。
+            'confirmed': (not at_edge) and self.confirm_frames <= 1,
             # 摆动检测连击（阶段 D1）：首帧注册无残差可判，从零计起
             'swing_up': 0,
             'swing_down': 0,
@@ -1079,13 +1143,18 @@ def first_point(*candidates) -> Optional[np.ndarray]:
 
 @dataclass(frozen=True)
 class MemoryGrasp:
-    """身份表记忆还原的袋底/颈/轴/入口."""
+    """身份表记忆还原的袋底/颈/轴/入口（输出系，米）."""
 
     bottom: np.ndarray
+    """袋底 (3,) [m]."""
     neck: np.ndarray
+    """袋口/颈 (3,) [m]."""
     axis: np.ndarray
+    """袋底→袋口单位向量."""
     entry_start: np.ndarray
+    """圆柱入口 TCP (3,) [m]."""
     rotation: np.ndarray
+    """3×3 抓取系 [Xg Yg Zg]，Zg=axis."""
 
 
 def memory_grasp(entry: dict, standoff: float) -> Optional[MemoryGrasp]:

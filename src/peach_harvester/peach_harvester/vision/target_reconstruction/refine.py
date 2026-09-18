@@ -176,11 +176,16 @@ class RefitConfig:
     bag_model.fuse_bag_views 按同一组参数构造（grasp_standoffs 注入）。
     """
 
-    cylinder_inlier_min: float = 0.35  # ACCEPT 门控：内点率下限（圆柱/球共用）
-    rmse_max_m: float = 0.005          # ACCEPT 门控：拟合 RMSE 上限 [m]
-    max_axis_angle_deg: float = 35.0   # 检测轴 vs 精化轴夹角上限 [deg]
-    normal_neighbors: int = 24         # 法线估计 kNN 邻域点数
-    seed: int = 0                      # RANSAC 随机种子（固定保证可复现）
+    cylinder_inlier_min: float = 0.35
+    """ACCEPT 门控：内点率下限（圆柱/球共用）."""
+    rmse_max_m: float = 0.005
+    """ACCEPT 门控：拟合 RMSE 上限 [m]."""
+    max_axis_angle_deg: float = 35.0
+    """检测轴 vs 精化轴夹角上限 [deg]."""
+    normal_neighbors: int = 24
+    """法线估计 kNN 邻域点数."""
+    seed: int = 0
+    """RANSAC 随机种子（固定保证可复现）."""
 
 
 def estimate_normals_knn(xyz: np.ndarray, k: int = 24) -> np.ndarray:

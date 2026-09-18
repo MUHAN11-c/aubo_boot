@@ -3,7 +3,7 @@
 
 只读面回答「现在跑到哪一步、坐标是什么、TCP 怎么走的」；过程记录为会话
 级 MCAP bag（决策 0019：随节点启停开合，栈停自动出 bag_report 并按预算
-回收旧 bag）。调试 POST /api/debug/<action> 转发既有动作/服务（决策 0018：
+回收旧 bag）。节点只接线；阶段时间线 / 账本直播 / 地标合并在 pipeline.py。调试 POST /api/debug/<action> 转发既有动作/服务（决策 0018：
 无令牌）。debug.enabled 默认开（回环）；动臂另需 debug.motion_enabled
 （默认关→423）。技能侧 ExecutionAuthority 等既有安全门不受影响：Web 只是
 又一个客户端。
@@ -50,11 +50,11 @@ from visualization_msgs.msg import MarkerArray
 
 from . import bag_report
 from . import http_server
+from . import pipeline
 from . import retention
 from .catch_all_recorder import CatchAllRecorder
 from .debug_actions import DebugAudit, DebugBridge, is_motion
-from .params import declare as _declare_params
-from .params import from_params as _from_params
+from .params import ObservabilityParams
 from .recorder import Recorder
 from .state import (
     merge_joint_hardware,
@@ -142,7 +142,6 @@ class ObservabilityNode(LifecycleNode):
     def __init__(self):
         """声明参数；订阅与 HTTP 等到 configure / activate."""
         super().__init__('peach_observability')
-        self._param_listener = None
         self._params = None
         self._state = ObservabilityState()
         self._http = None
@@ -187,18 +186,22 @@ class ObservabilityNode(LifecycleNode):
         # 调试 POST（debug.enabled=true 才建桥）
         self._debug_bridge: DebugBridge | None = None
         self._debug_audit: DebugAudit | None = None
+        # 全流程时序跟踪器（pipeline.py 纯核）：调度 FSM / 技能周期
+        self._fsm_tracker = pipeline.StageTracker(limit=150)
+        self._arm_tracker = pipeline.StageTracker(limit=150)
+        # 批次账本直播（runs/<request_id>/ledger.json；run_id==request_id）
+        self._ledger_watch: pipeline.LedgerWatch | None = None
+        self._ledger_request_id = ''
 
     def on_configure(self, state):
         del state
         try:
-            # 手写参数模块装载链（决策 0017）：on_configure 内声明
-            # （declare 期校验非法值即失败，节点停在 Unconfigured 可查日志）
-            self._param_listener = _declare_params(self)
-            self._params = _from_params(self._param_listener.get_params())
+            self._params = ObservabilityParams.attach(self)
         except Exception as exc:  # noqa: BLE001 参数库校验异常类型跨 rclpy 版本
             self.get_logger().error(f'参数非法: {exc}')
             return TransitionCallbackReturn.FAILURE
         runs_root = resolve_runs_root(self._params.record_root_dir)
+        self._ledger_watch = pipeline.LedgerWatch(runs_root)
         # 会话 bag 开启前先跑一次体积回收（超预算清最旧 bag，写审计）
         retention.sweep(
             runs_root, self._params.record_max_total_bag_gb,
@@ -477,10 +480,24 @@ class ObservabilityNode(LifecycleNode):
         self._record_raw('refined_diagnostics_topic', message)
 
     def _manipulation_callback(self, message: String) -> None:
-        """技能节点状态：进状态缓存并进会话 bag."""
+        """技能节点状态：进状态缓存、喂周期时序跟踪器并进会话 bag."""
         value = parse_json_text(message.data)
         self._traj_ctx['skill'] = str(value.get('state') or '')
         self._state.update('manipulation', 'status', value)
+        # 技能周期阶段时序：CycleState/消息/目标任一变化记一条转移，
+        # 段时长=到下一转移的间隔（服务器侧权威，页面刷新不丢）
+        now = time.time()
+        entry = {
+            'state': str(value.get('state') or ''),
+            'message': str(value.get('message') or ''),
+            'target_id': str(value.get('target_id') or ''),
+            'running': bool(value.get('running')),
+            'recovery': bool(value.get('contact_recovery_required')),
+        }
+        key = tuple(entry.items())
+        if self._arm_tracker.feed(key, entry, now):
+            self._state.update(
+                'pipeline', 'arm', self._arm_tracker.export(now))
         self._record_raw('manipulation_status_topic', message)
         self._publish_job()
 
@@ -506,6 +523,7 @@ class ObservabilityNode(LifecycleNode):
         """把调度节点类型化状态转换为稳定的浏览器对象."""
         value = {
             'revision': message.revision,
+            'state_seq': int(getattr(message, 'state_seq', 0) or 0),
             'run_id': message.run_id,
             'cycle_id': message.cycle_id,
             'target_id': message.target_id,
@@ -521,6 +539,7 @@ class ObservabilityNode(LifecycleNode):
             'progress': message.progress,
             'message': message.message,
             'blockers': list(message.blockers),
+            'scene_epoch': int(getattr(message, 'scene_epoch', 0) or 0),
         }
         self._state.update('task_executor', 'state', value)
         self._traj_ctx['target_id'] = str(message.target_id or '')
@@ -530,6 +549,31 @@ class ObservabilityNode(LifecycleNode):
             self._traj_run_id = run_id
             if self._tcp_path is not None:
                 self._tcp_path.clear()
+        # run_id 即账本目录名（supervisor：_run_id = goal.request_id）
+        if run_id:
+            self._ledger_request_id = run_id
+        # 调度 FSM 时序：状态/相位/消息/使能任一变化记一条转移
+        now = time.time()
+        entry = {
+            'batch_state': int(message.batch_state or 0),
+            'target_phase': int(message.target_phase or 0),
+            'message': str(message.message or ''),
+            'run_id': run_id,
+            'cycle_id': str(message.cycle_id or ''),
+            'target_id': str(message.target_id or ''),
+            'recovery_required': bool(message.recovery_required),
+            'execution_enabled': bool(message.execution_enabled),
+            'grasp_enabled': bool(message.grasp_enabled),
+            'tool_enabled': bool(message.tool_enabled),
+            'state_seq': int(getattr(message, 'state_seq', 0) or 0),
+        }
+        key = (entry['run_id'], entry['cycle_id'], entry['target_id'],
+               entry['batch_state'], entry['target_phase'], entry['message'],
+               entry['recovery_required'], entry['execution_enabled'],
+               entry['grasp_enabled'], entry['tool_enabled'])
+        if self._fsm_tracker.feed(key, entry, now):
+            self._state.update(
+                'pipeline', 'fsm', self._fsm_tracker.export(now))
         self._record_raw('task_executor_state_topic', message)
         self._publish_job()
 
@@ -560,7 +604,7 @@ class ObservabilityNode(LifecycleNode):
             callback_group=self._cb)
 
     def _poll_params(self) -> None:
-        """对就绪的参数服务发起异步查询（在途请求去重）."""
+        """对就绪的参数服务发起异步查询（在途请求去重）+ 刷批次账本."""
         for name, client in self._param_clients.items():
             if name in self._param_inflight or not client.service_is_ready():
                 continue
@@ -570,6 +614,15 @@ class ObservabilityNode(LifecycleNode):
             future = client.call_async(request)
             future.add_done_callback(
                 lambda fut, node_name=name: self._on_params(node_name, fut))
+        self._refresh_ledger()
+
+    def _refresh_ledger(self) -> None:
+        """账本直播：mtime 变化才刷镜像（run_id 即 request_id）."""
+        if self._ledger_watch is None:
+            return
+        payload = self._ledger_watch.refresh(self._ledger_request_id)
+        if payload is not None:
+            self._state.update('ledger', 'live', payload)
 
     def _on_params(self, node_name: str, future) -> None:
         """落参数镜像到状态缓存；异常仅降级为空镜像."""
@@ -668,24 +721,7 @@ class ObservabilityNode(LifecycleNode):
     def _landmarks_now(self) -> dict:
         """作业票坐标优先，重建许可镜像补缺（入口/预抓取/轴）."""
         job = self._state.snapshot().get('job') or {}
-        coords = job.get('coords') or {}
-        grasp = job.get('grasp') or {}
-        merged = dict(self._traj_landmarks)
-        mapping = {
-            'perception_entry': coords.get('perception_entry'),
-            'perception_bottom': coords.get('perception_bottom'),
-            'perception_neck': coords.get('perception_neck'),
-            'reconstruction_center': coords.get('reconstruction_center'),
-            'grasp_entry': coords.get('grasp_entry'),
-            'grasp_pregrasp': coords.get('grasp_pregrasp'),
-            'axis': grasp.get('axis') or coords.get('refined_axis'),
-        }
-        for key, value in mapping.items():
-            if value:
-                merged[key] = value
-        merged['target_id'] = (
-            job.get('target_id') or merged.get('target_id') or '')
-        return merged
+        return pipeline.merge_job_landmarks(self._traj_landmarks, job)
 
     def _maybe_publish_tcp_viz(self, force: bool = False) -> None:
         """Path / MarkerArray 约 5 Hz；点写入或超时则发（transient_local）."""
@@ -977,6 +1013,10 @@ class ObservabilityNode(LifecycleNode):
             self._debug_bridge.close()
             self._debug_bridge = None
         self._debug_audit = None
+        self._fsm_tracker.reset()
+        self._arm_tracker.reset()
+        self._ledger_watch = None
+        self._ledger_request_id = ''
         self._spawn_report(self._close_recorder())
         self._metrics = None
         self._params = None

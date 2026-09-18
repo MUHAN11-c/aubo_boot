@@ -25,14 +25,14 @@ python3 src/peach_interfaces/scripts/check_interface_manifest.py
 
 | 文件 | 管什么 |
 |------|--------|
-| `peach_perception/config/scene_perception.yaml` | 检测、锁定窗、深度窗、袋/果管线 |
-| `peach_perception/config/target_reconstruction.yaml` | 采帧门、TSDF、机位数 |
-| `peach_perception/config/grasp_standoffs.yaml` | 入口相对袋底、预抓取后撤（launch 注入各节点已声明参数） |
+| `peach_harvester/config/scene_perception.yaml` | 检测、锁定窗、深度窗、袋/果管线 |
+| `peach_harvester/config/target_reconstruction.yaml` | 采帧门、TSDF、机位数 |
+| `peach_harvester/config/grasp_standoffs.yaml` | 入口相对袋底、预抓取后撤（launch 注入各节点已声明参数） |
 | `peach_arm/config/peach_arm.yaml` | 视点、MTC、接触、刀具 IO |
-| `peach_arm/src/execution_contract_parameters.yaml` | 执行合同（GPL） |
-| `peach_executor/config/peach_executor.yaml` | 批次、选果、`execute_pregrasp_only` |
-| `peach_executor/config/lifecycle_manager.yaml` | lifecycle 名单与顺序 |
-| `peach_executor/config/observability.yaml` | 监控 Web；`debug.motion_enabled` 默认关 |
+| `peach_arm/src/arm_parameters.yaml` | 执行合同（GPL 单源，2c 回迁） |
+| `peach_harvester/config/peach_supervisor.yaml` | 批次、选果、`execute_pregrasp_only` |
+| `peach_harvester/config/lifecycle_manager.yaml` | lifecycle 名单与顺序 |
+| `peach_harvester/config/observability.yaml` | 监控 Web；`debug.motion_enabled` 默认关 |
 
 ---
 
@@ -104,6 +104,15 @@ QoS 缩写：`R` reliable；`TL` transient_local（晚订户仍拿得到最后�
 |------|------|------|------|----|----|-----|
 | `/peach/observability/tcp_path` | topic | `nav_msgs/Path` | TCP 轨迹 | 监控 | （核内无订） | R/TL/1 |
 | `/peach/observability/markers` | topic | `MarkerArray` | 监控叠加 | 监控 | （核内无订） | R/TL/1 |
+
+### 枝/叶掩膜（`peach_vegetation`，不进 harvest_system）
+
+| 名字 | 种类 | 类型 | 含义 | 发 | 订 | QoS |
+|------|------|------|------|----|----|-----|
+| `/peach/vegetation/leaf_mask` | topic | `sensor_msgs/Image` | 叶掩膜 mono8 | 植被 | （核内无订） | R/V/10 |
+| `/peach/vegetation/branch_mask` | topic | `sensor_msgs/Image` | 木质脊掩膜 mono8 | 植被 | （核内无订） | R/V/10 |
+| `/peach/vegetation/overlay` | topic | `sensor_msgs/Image` | 绿叶红枝叠加 | 植被 | （核内无订） | R/V/10 |
+| `/peach/vegetation/status` | topic | `std_msgs/String` | JSON 耗时/覆盖率 | 植被 | （核内无订） | R/V/10 |
 
 清单故意不收的可视化话题（源码仍发，RViz 用手订）：`/peach/perception/{axis,debug_image_raw,detections,markers,masks,single_cloud}`、`/peach/reconstruction/local_cloud`、`/peach_arm/planned_views`。
 

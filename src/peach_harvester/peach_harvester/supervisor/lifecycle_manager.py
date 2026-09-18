@@ -33,8 +33,7 @@ class LifecycleManagerNode(Node):
 
     def __init__(self):
         super().__init__('peach_lifecycle_manager')
-        # 声明/兜底默认/校验：peach_supervisor/params.py；部署值 config/lifecycle_manager.yaml
-        self._param_listener = peach_lifecycle_manager.ParamListener(self)
+        self._params = peach_lifecycle_manager.attach(self)
         latched = QoSProfile(
             history=HistoryPolicy.KEEP_LAST, depth=1,
             reliability=ReliabilityPolicy.RELIABLE,
@@ -56,8 +55,8 @@ class LifecycleManagerNode(Node):
             1.0, self._watch_tick, callback_group=self._cb)
 
     def _snapshot(self):
-        """当前 GPL 参数快照（名单与超时）."""
-        return self._param_listener.get_params()
+        """当前参数（名单与超时；ros2 param set 原地刷新）."""
+        return self._params
 
     def _kick(self):
         # 离开定时器回调再阻塞 RPC，避免卡住默认 executor

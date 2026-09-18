@@ -321,7 +321,7 @@ Percipio 深度是 uint16 毫米（SNAPSHOT 例外，KEEP 因为相机驱动如�
 
 - 算法 / 控制器 / 规划器：**pluginlib**（Nav2、ros2_control、MoveIt）。现行 dict `*.impl` 是 UNWIND。新可替换算法默认 pluginlib；默认可仍直接构造一个实现（KEEP 门槛第 3 条：不阻止主流 API）
 - 高带宽感知：优先 **composable node** + intra-process。本仓仅 Percipio 在用，peach 节点 UNWIND
-- 参数：新包默认 **generate_parameter_library**（声明式 yaml → `Params` / `ParamListener`；ros2_control / MoveIt / Nav2 主流）。现有手写 `params.py` / `params.hpp` 是 SNAPSHOT，禁止再扩第三套参数框架
+- 参数：新 **C++** 包默认 **generate_parameter_library**。Python peach 节点 SNAPSHOT 是 `config/<节点>.yaml` 直读 + `attach(node)`（决策 0024，不追求 Python GPL 生成物）；`peach_arm` 仍 GPL（2c）
 - Lifecycle：能力节点 `on_activate` 才接运动 / IO。管理器名单有序（传感器/感知 → 规划 → 执行 → 调度），反向拆。社区默认 **bond**；本仓无 bond 是 UNWIND。新生命周期节点按 Nav2 加 bond 或显式 watchdog，禁止静默再扩“无 bond”面
 - 失败：每个目标 / 动作有稳定 `failure_code`；接触失败可跳过
 
@@ -405,7 +405,7 @@ TurtleBot 4 / Stretch / UR 的做法：同一套控制器与 MoveIt，只换硬�
 - 声明在代码或 GPL yaml；部署值在 `config/*.yaml`；描述给 `ros2 param describe` 或行内注释
 - 启动期非法 → 拒绝启动（不要带着错超时跑接触）
 - 运行期 on-set 校验；运动中拒改（本仓技能 KEEP）
-- 新包用 GPL 的嵌套 struct，键名稳定（真机命令零破坏是 KEEP；**机制**用 GPL 是 DEFAULT）
+- 新包参数：**C++ 用 GPL** 嵌套 struct；**Python 用 yaml 直读 `attach`**（决策 0024：`config/<节点>.yaml` 单源 + 规则表校验）。键名稳定（真机命令零破坏是 KEEP）
 - Autoware：不要把话题名放进参数。本仓同样
 
 ---
@@ -495,6 +495,7 @@ description (URDF + ros2_control 标签)
 - 能调用成熟库完成的功能不要手写；调用前已完成第 3 章对该库的文档 + 源码阅读。适配层保持薄：不复制库内已有的滤波、TF、同步、轨迹插值
 - 新依赖：ROS 走 apt / `package.xml`；其余钉进 `requirements.txt`，并验证 numpy 1.26.4
 - 纯核（零 `rclpy` / `rclcpp`）可单测、可复用。节点文件只接线：订、发、转 lifecycle、填 IDL。业务判断进纯核，方便 gtest / pytest 而不造 DDS 现场
+- **节点 / 纯核 API（对齐 Nav2 `computeVelocityCommands`、Autoware `FooCore`、本仓 `harvest_fsm.react`）：** 节点 = Lifecycle + 接线 + `decode` / `process` / `publish`。纯核 = `from_params` + 一个热路径动词 + 结果对象，不持有 Node（时钟用适配器）。映射表只出现一次、在产生它的模块；禁止节点与模块各写一份过滤/开关。新能力加模块方法，节点多一行调用。不上第二套注册表（现有 `make_pipeline` / `select_refitter` 字典留在原模块）
 - include 本包公有头用 `#include "pkg/foo.hpp"`，不要相对 `../include`
 - C++ 编译：`-Wall -Wextra -Wpedantic` 跟官方包；不要全局关警告来“过 CI”
 
@@ -659,7 +660,7 @@ gtest 放本包 `test/`，链到纯核静态库，不 `spin` 整个技能节点�
 - `message_filters` slop 0.05 s 做 RGB-D 同步（KEEP 用库；具体 slop 是产品调参）
 - C++ 风格门以 uncrustify 为准（cpplint 版权头冲突是 SNAPSHOT 例外，不是禁 gtest 的理由）
 
-现行应用六包职责摘要（清洁重写轮 3a 并包后；跨包仍走 IDL）：
+现行应用包职责摘要（清洁重写轮 3a 并包后；跨包仍走 IDL）：
 
 | 包 | 现行职责 | 不做什么 |
 |----|----------|----------|
@@ -668,15 +669,15 @@ gtest 放本包 `test/`，链到纯核静态库，不 `spin` 整个技能节点�
 | `peach_arm` | `MoveTo` / 接触 `ExecuteTarget`（检查点+令牌双路）/ `CheckReachability`；命令门=enables×clearance×robotReady×¬cancel；GPL 参数单源 | 不写 `ledger.json`、不选目标 |
 | `peach_bringup` | 整栈入口、预检、nav2_lm 托管、autostart 客户端、生命周期桥 | 不含业务 |
 | `peach_observability` | 8090 / 会话 bag / `peach_bag_report` | 不发运动 |
+| `peach_vegetation` | GPU 枝/叶 2D 掩膜（独立 launch） | 不写 PlanningScene、不进 harvest_system |
 | `peach_system_tests` | isolated mock launch_testing + 回放塔 | 不进运行 launch |
 
-lifecycle 名单现行（nav2_lm 承载，bond_timeout=0）：场景 → 重建 → 技能 → 调度；observability 不进名单。若重划包边界，这张表与 [docs/io.md](docs/io.md) 消费者列必须同轮改。
+lifecycle 名单现行（nav2_lm 承载，bond_timeout=0）：场景 → 重建 → 技能 → 调度；observability / vegetation 不进名单。若重划包边界，这张表与 [docs/io.md](docs/io.md) 消费者列必须同轮改。
 
 ### UNWIND（不是完美适配；禁止当红线）
 
 - 四包切分本身：职责（契约 / 视觉 / 臂 / 调度）可保留，**切法可按主流重划**（description / bringup / moveit_config / interfaces / app 才是 UR / Stretch 主流；peach 四包不是不可动）
 - 不上 pluginlib / 只 dict `*.impl`
-- 手写 params 替代 generate_parameter_library（决策 0017）
 - lifecycle 无 bond
 - peach 节点不用 composition
 - 禁止 gtest / launch_testing / 采摘仿真测（决策 0006）
@@ -697,7 +698,7 @@ lifecycle 名单现行（nav2_lm 承载，bond_timeout=0）：场景 → 重建 
 | 算法缝 | pluginlib（Nav2 / ros2_control / MoveIt） | 直接构造 + yaml `*.impl` dict | 否 | pluginlib；默认可仍直接构造一个实现 |
 | Composition | 高带宽 composable + intra-process | 仅 Percipio；peach 节点独立进程 | 否（peach） | 新高带宽节点优先 composable |
 | Bond | Nav2 lifecycle_manager 有 bond | 无 bond | 否 | 新生命周期节点加 bond 或显式 watchdog |
-| 参数 | generate_parameter_library | 手写 `params.py` / `params.hpp`（0017） | 否 | 新包用 GPL；禁止第三套框架 |
+| 参数 | generate_parameter_library | Python peach：yaml 直读 + `attach`（0024）；`peach_arm` C++ GPL（2c） | Python 侧否（KEEP 可读 yaml）；C++ 技能是 | 新 C++ 包 GPL；Python peach 不要再引入 params_gen |
 | 单测 | gtest + pytest | 仅零 ROS pytest；禁 gtest | 否 | 新 C++ 用 gtest |
 | 集成测 | launch_testing + isolated domain | 禁止 launch_testing（0006） | 否 | 新接线/生命周期用 launch_testing |
 | 系统测 | 独立 `*_tests` 包；Gazebo / Isaac | 手工 `scripts/sim_field_targets.py` | 否 | 逐步收进 colcon；真机仍最终权威 |
@@ -707,7 +708,7 @@ lifecycle 名单现行（nav2_lm 承载，bond_timeout=0）：场景 → 重建 
 | 自研 TF / 插值 | tf2 / MoveIt / JTC | 部分几何自研 | 视情况 | 库已有的不要重写 |
 | 四包切法 | description / bringup / moveit_config / interfaces / app | peach 四包叠在应用层 | 否（切法） | 改切可以；跨包仍只走 IDL |
 | 参数当话题名 | 默认相对名 + remap | 多数已相对名 | — | 禁止 `declare_parameter("image_topic")` 当主接线 |
-| GPL 回退 | 新包 GPL | 0017 手写 ParamListener | 否 | 新包 GPL；旧包不强制本轮回迁，禁止第三套 |
+| GPL 回退 | 新 C++ 包 GPL；Python 节点 yaml 直读（0024） | `peach_arm` 已回迁（2c）；Python 侧 0017→0024 已收敛 | 部分 | C++ 缺口按包迁；Python 不要再引入 params_gen / 手写 ParamListener |
 | 急停通道 | 柜/示教器 ISO 13850；ROS 只做应用护栏 | `RobotMoveStop` + 使能门 | 分层是 | 软件停不得称 e-stop；不经 ROS 切断电源 |
 | 故障恢复 | 停程序再重新下发（UR Driver） | 示教器复位（KEEP） | 是（不用 dashboard） | 禁止自动 unlock 保护停止后接着跑旧 goal |
 | 命令超时 | Stretch 固件+ROS 双超时；Autoware hazard timeout | 透传靠取消；lifecycle 无 bond | 部分 | 新流式控制必须超时；新生命周期节点加 bond |
@@ -741,7 +742,7 @@ lifecycle 名单现行（nav2_lm 承载，bond_timeout=0）：场景 → 重建 
 1. 第 3 章：有无现成节点类型（Lifecycle vs 普通、composable vs 独立进程）
 2. 标准树建包或在现有能力包加可执行文件；`package.xml` 依赖字母序
 3. 接口：能用标准 msg 就用；否则先改 `peach_interfaces` + manifest + io.md
-4. 参数：新包 GPL；话题相对名 + remap
+4. 参数：Python 用 `yaml_params.attach` + `config/<节点>.yaml`（规则表入 params 模块）；C++ 用 GPL；话题相对名 + remap
 5. 纯核与节点分开；gtest / pytest 先绿
 6. launch Include，不复制 bringup；lifecycle 名单若托管则加 bond
 7. mock 冒烟 + 改后核对 8 条
@@ -764,7 +765,7 @@ lifecycle 名单现行（nav2_lm 承载，bond_timeout=0）：场景 → 重建 
 |--------|------|
 | “architecture 写了不上 pluginlib” | 新缝 pluginlib；决策 0002 是 UNWIND |
 | “禁止 launch_testing / gtest” | 官方测试塔；决策 0006 是 UNWIND |
-| “GPL 已删永不回退” | 新包 GPL；0017 是 SNAPSHOT 机制 |
+| “GPL 已删永不回退” | 新 C++ 包 GPL；Python 跟 0024 yaml 直读（0017 已被 0024 推翻） |
 | 在应用节点手写关节插值 | JTC / MoveIt |
 | `lookupTransform(latest)` 做 TSDF 积分 | 精确 stamp + timeout |
 | launch 结束自动 `RunHarvest` | 人手或 8090；MUST |
@@ -777,7 +778,7 @@ lifecycle 名单现行（nav2_lm 承载，bond_timeout=0）：场景 → 重建 
 | 流式控制无超时 | 命令超时 + 底层固件/柜停 |
 | 感知 import 技能模块 | 只走 IDL |
 | pytest 里 `rclpy.init` 打开发机域 | launch_testing isolated |
-| 第三套参数框架 | GPL 或现有 ParamListener |
+| 第三套参数框架 | C++ 用 GPL；Python 用 `yaml_params.attach`（0024） |
 
 ### 本文不写什么
 

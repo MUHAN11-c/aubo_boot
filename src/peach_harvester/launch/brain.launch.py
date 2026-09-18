@@ -1,4 +1,5 @@
-"""peach_harvester 大脑进程 launch（3b）：一进程三节点，lifecycle_manager 驱动。
+"""
+peach_harvester 大脑进程 launch（3b）：一进程三节点，lifecycle_manager 驱动.
 
 参数装配：三份节点 yaml（按各自根键即节点名生效）+ grasp_standoffs 注入
 （scene/recon overlay 并集）+ 工具档案注入并集 + require_managed_stack。
@@ -11,7 +12,6 @@ from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
 from launch_ros.actions import Node
 from launch_ros.parameter_descriptions import ParameterFile
 from launch_ros.substitutions import FindPackageShare
-
 from peach_harvester.vision.grasp_standoffs import (
     reconstruction_overlay,
     scene_overlay,
@@ -24,6 +24,7 @@ from peach_harvester.vision.tool_profiles import (
 
 
 def generate_launch_description():
+    """大脑单进程入口：三节点 + lifecycle_manager 托管."""
     share = FindPackageShare('peach_harvester')
     scene_params = PathJoinSubstitution(
         [share, 'config', 'scene_perception.yaml'])

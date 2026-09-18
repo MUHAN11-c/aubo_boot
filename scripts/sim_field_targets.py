@@ -659,10 +659,17 @@ def main() -> int:
             return
         msg = GraspDecision()
         msg.header = header()
-        msg.harvest_run_id = f"sim_{case_id(case)}"
+        msg.harvest_run_id = f"sim_{case['run']}"
         msg.target_id = case['target_id']
+        # 09-18 起非预览执行须带完整身份元组（ExecuteTarget.action 20-23 行）
+        msg.model_revision = f'sim-model-{cid}'  # 每案唯一：快照心跳不续签，同串复用会过期
+        msg.tool_profile_id = 'adaptive_cylinder_v1'
+        msg.calibration_revision = 'sim-calib-v1'
+        msg.config_revision = 'sim-config-v1'
         msg.allowed = True
         msg.reason = 'sim_full_budget'
+        msg.valid_until = node.get_clock().now().to_msg()
+        msg.valid_until.sec += 30  # 模型有效期窗（过期= model_not_executable）
         dec_pub.publish(msg)
 
     def on_robot_status(_=None):
@@ -880,6 +887,11 @@ def main() -> int:
         goal.cycle_id = f'sim_{cid}:{case["target_id"]}'
         goal.target_id = case['target_id']
         goal.mode = ExecuteTarget.Goal.PREGRASP_ONLY
+        # 09-18 起身份元组不完整直接拒；与 GraspDecision 注入同串（每案唯一）
+        goal.model_revision = f'sim-model-{cid}'
+        goal.tool_profile_id = 'adaptive_cylinder_v1'
+        goal.calibration_revision = 'sim-calib-v1'
+        goal.config_revision = 'sim-config-v1'
         goal.skip_observation = True
         t0 = time.time()
         send = action_cli.send_goal_async(goal)

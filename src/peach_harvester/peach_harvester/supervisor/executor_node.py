@@ -46,27 +46,6 @@ from std_msgs.msg import Bool
 from std_srvs.srv import Trigger
 import tf2_ros
 
-from ..cycle_core.batch_policy import (
-    BatchPolicy,
-    ReworkList,
-    TargetDeadline,
-    ratio_reached,
-)
-from ..cycle_core.view_policy import (
-    FastViewConfig,
-    ViewDecision,
-    ViewPolicyState,
-    ViewSignals,
-    decide_fast,
-)
-from ..cycle_core.view_planner import (
-    ViewContext,
-    ViewPlannerConfig,
-    basis_to_quat,
-    generate,
-    look_at_optical,
-)
-
 from .batch import (
     apply_control,
     build_summary,
@@ -100,30 +79,82 @@ from .harvest_fsm import (
     settle_terminal,
     WAITING_READY,
 )
-
-
-def _rework_kind(failure_code: str, outcome_code: int) -> str:
-    """失败码 → 补采类别（cycle_core.batch_policy.REWORK_KINDS 口径）。"""
-    code = str(failure_code or '')
-    if code == 'timeout' or 'timeout' in code:
-        return 'timeout'
-    if 'operator_skip' in code or 'skip_target' in code:
-        return 'operator_skipped'
-    if 'unreachable' in code or 'ik_no_solution' in code:
-        return 'unreachable'
-    if 'observe' in code or 'occlu' in code:
-        return 'occluded'
-    if 'sleeve' in code or 'retreat' in code or 'cut' in code:
-        return 'contact_failed'
-    if int(outcome_code) == int(TargetOutcome.SKIPPED_QUALITY):
-        return 'quality'
-    return 'quality'
+from .params import SupervisorParams
+from ..cycle_core.batch_policy import (
+    BatchPolicy,
+    ratio_reached,
+    rework_kind,
+    ReworkList,
+    TargetDeadline,
+)
+from ..cycle_core.view_planner import (
+    basis_to_quat,
+    generate,
+    look_at_optical,
+    ViewContext,
+    ViewPlannerConfig,
+)
+from ..cycle_core.view_policy import (
+    decide_fast,
+    FastViewConfig,
+    ViewDecision,
+    ViewPolicyState,
+    ViewSignals,
+)
 
 
 class TaskExecutorNode(LifecycleNode):
     """整栈调度：RunHarvest 串联导航/感知/臂；launch 从不自动开批."""
 
+    _params: SupervisorParams
+    """peach_supervisor.yaml 实时命名空间."""
+    _batch_state: int
+    """HarvestState.batch_state；只经 harvest_fsm / _apply 写入."""
+    _target_phase: int
+    """HarvestState.target_phase；只经 FSM 推导."""
+    _paused: bool
+    """操作台暂停请求已落地."""
+    _cancel: bool
+    """整批取消旗标."""
+    _skip_target: bool
+    """跳过当前目标（下一拍 FSM SKIP）."""
+    _active: bool
+    """Lifecycle Active."""
+    _run_id: str
+    """本批 request_id / HarvestState.run_id."""
+    _current_target_id: str
+    """调度当前目标；覆盖感知 selected."""
+    _scene_epoch: int
+    """BeginScene 世代."""
+    _operation_mode: int
+    """MODE_AUTO / PAUSED / MAINTENANCE."""
+    _action_active: bool
+    """RunHarvest action 正在执行."""
+    _recovery_required: bool
+    """接触故障，须 ACK."""
+    _grasp_enabled: bool
+    """套入使能（操作台覆盖或本地参数）."""
+    _tool_enabled: bool
+    """刀具使能."""
+    _batch_policy: BatchPolicy
+    """采收率/时限/视点档；goal 初值，SetBatchPolicy 可改."""
+    _rework: Optional[ReworkList]
+    """本批补采清单；批末落盘."""
+    _target_deadline: Optional[TargetDeadline]
+    """当前目标单果时限；None=不限."""
+    _enables_override: dict
+    """SetEnables 后的使能覆盖；空=跟随本地参数."""
+    _observations: Optional[PeachTargetObservationArray]
+    """最近一帧感知观测（选果数据源）."""
+    _decision_cache: Optional[GraspDecision]
+    """接触许可令牌缓存（装配 goal.clearance）."""
+    _stack_ready: bool
+    """managed_nodes_activated."""
+    _harvest_busy: bool
+    """RunHarvest execute 占用."""
+
     def __init__(self):
+        """构造：状态与缓存初始化；ROS 实体在 on_configure 建."""
         super().__init__('peach_supervisor')
         self._lock = threading.Lock()
         self._state_seq = 0
@@ -178,19 +209,16 @@ class TaskExecutorNode(LifecycleNode):
         self._rework: Optional[ReworkList] = None
         self._target_deadline: Optional[TargetDeadline] = None
         # 操作台使能覆盖（阶段 4）：None=跟随本地参数；SetEnables 后覆盖并
-        # 广播 /peach/batch/enables（臂侧命令门为强制点）
+        # 广播 /peach/batch/enables（臂侧命令门为强制点；激活后 1Hz 心跳重发）
         self._enables_override: dict = {}
+        self._enables_heartbeat_timer = None
         self._next_policy_default = None
         self._last_model_revision = ''
         self._stack_ready = False
         self._wake = threading.Event()
         self._cb = ReentrantCallbackGroup()
         from peach_harvester.supervisor.params import peach_supervisor as params_ns
-        self._param_listener = params_ns.ParamListener(self)
-        # 手写监听器（params.py）用途：运行路径读快照，不散落 get_parameter。
-        # 开批与 HarvestState 发布会按 stamp 刷新，故 ros2 param set
-        # execution_enabled 可在下次 RunHarvest 生效，不必改 yaml 默认。
-        self._params = self._param_listener.get_params()
+        self._params = params_ns.attach(self)
 
     def on_configure(self, state):
         try:  # 官方 LifecycleNode：configure 失败返回 ERROR，停在 Unconfigured.
@@ -279,6 +307,10 @@ class TaskExecutorNode(LifecycleNode):
         self._set_enables_srv = self.create_service(
             SetEnables, '~/set_enables', self._on_set_enables,
             callback_group=self._cb)
+        # 使能心跳（缺心跳=故障）：override 非空且 Active 时 1Hz 重发，
+        # 臂侧 enables_heartbeat_timeout_s 超时即回落本地参数权威。
+        self._enables_heartbeat_timer = self.create_timer(
+            1.0, self._heartbeat_enables, callback_group=self._cb)
         self._set_batch_policy_srv = self.create_service(
             SetBatchPolicy, '~/set_batch_policy', self._on_set_batch_policy,
             callback_group=self._cb)
@@ -320,6 +352,9 @@ class TaskExecutorNode(LifecycleNode):
             pass
         try:
             self.destroy_lifecycle_publisher(self._pub_enables)
+            if self._enables_heartbeat_timer is not None:
+                self.destroy_timer(self._enables_heartbeat_timer)
+                self._enables_heartbeat_timer = None
             self.destroy_service(self._set_enables_srv)
             self.destroy_service(self._set_batch_policy_srv)
             self.destroy_service(self._fire_step_srv)
@@ -357,20 +392,26 @@ class TaskExecutorNode(LifecycleNode):
             return bool(override)
         return bool(self._params.execution_enabled)
 
-    def _on_set_enables(self, request, response):
-        """使能开关：意图源在此（广播覆盖臂侧本地参数），强制点在臂命令门。"""
-        self._enables_override.update(
-            execution=bool(request.execution),
-            grasp=bool(request.grasp),
-            tool=bool(request.tool))
+    def _publish_enables(self, reason: str) -> Enables:
+        """按当前 override 组装并广播使能（latched；1Hz 心跳复用同一口）."""
         msg = Enables()
         msg.header.stamp = self.get_clock().now().to_msg()
         msg.header.frame_id = self.get_name()
-        msg.execution = bool(request.execution)
-        msg.grasp = bool(request.grasp)
-        msg.tool = bool(request.tool)
-        msg.reason = str(request.reason or '')
+        msg.execution = bool(self._enables_override.get('execution', False))
+        msg.grasp = bool(self._enables_override.get('grasp', False))
+        msg.tool = bool(self._enables_override.get('tool', False))
+        msg.reason = str(reason or '')
         self._pub_enables.publish(msg)
+        return msg
+
+    def _on_set_enables(self, request, response):
+        """使能开关：意图源在此（广播覆盖臂侧本地参数），强制点在臂命令门."""
+        self._enables_override.update(
+            execution=bool(request.execution),
+            grasp=bool(request.grasp),
+            tool=bool(request.tool),
+            reason=str(request.reason or ''))
+        msg = self._publish_enables(self._enables_override['reason'])
         self._emit(
             'enables_changed', '',
             details={'execution': msg.execution, 'grasp': msg.grasp,
@@ -383,8 +424,19 @@ class TaskExecutorNode(LifecycleNode):
         response.message = '已广播 /peach/batch/enables'
         return response
 
+    def _heartbeat_enables(self) -> None:
+        """
+        1Hz 重发操作台使能：臂侧缺心跳超时即回落本地参数权威.
+
+        仅在操作台至少设过一次（override 非空）且节点 Active 时重发；
+        从未设过使能的栈不发——臂侧本地参数保持唯一权威（旧栈兼容）。
+        """
+        if not self._active or not self._enables_override:
+            return
+        self._publish_enables(self._enables_override.get('reason', ''))
+
     def _on_set_batch_policy(self, request, response):
-        """批次策略运行期改：当前批立即生效或作下批默认。"""
+        """批次策略运行期改：当前批立即生效或作下批默认."""
         updates = {
             'target_harvest_ratio': max(
                 0.0, float(request.target_harvest_ratio)),
@@ -406,8 +458,11 @@ class TaskExecutorNode(LifecycleNode):
         return response
 
     def _on_fire_step(self, request, response):
-        """操作台单步（阶段 4 首批落地 PHOTO；其余步骤走既有 8090 调试面，
-        逐项接线随后续轮——运动类最终都过臂侧命令门，不旁路）。"""
+        """
+        操作台单步：阶段 4 首批落地 PHOTO；其余步骤走既有 8090 调试面.
+
+        逐项接线随后续轮——运动类最终都过臂侧命令门，不旁路。
+        """
         self._fire_step_seq += 1
         step = int(request.step)
         if step == FireStep.Request.PHOTO:
@@ -727,14 +782,8 @@ class TaskExecutorNode(LifecycleNode):
                 self._harvest_busy = False
             self._publish_state()
 
-    def _refresh_params(self) -> None:
-        """Copy a runtime snapshot when the parameter listener stamp changes."""
-        if self._param_listener.is_old(self._params):
-            self._params = self._param_listener.get_params()
-
     def _run_harvest_body(self, goal_handle, goal, reaction):
         """批次命令循环；开批 Reaction 由 _run_harvest 传入，busy 旗标由其 finally 清."""
-        self._refresh_params()
         result = RunHarvest.Result()
         claimed = set()
         empty_limit = max(1, int(self._params.empty_survey_limit))
@@ -1144,7 +1193,12 @@ class TaskExecutorNode(LifecycleNode):
             if bool(self._params.execute_pregrasp_only)
             else ExecuteTarget.Goal.PROFILE_FULL)
         decision = self._decision_cache
-        if decision is not None:
+        # 令牌绑目标：缓存决策不绑定当前目标时整体不装配（臂侧走快照回退
+        # 复检路径），旧目标的许可不得授权新目标（Clearance.target_id 契约）。
+        if decision is not None and str(
+                getattr(decision, 'target_id', '') or '') == target_id:
+            full.clearance.target_id = target_id
+            full.clearance.valid_until = decision.valid_until
             full.clearance.model_stamp = decision.header.stamp
             full.clearance.allowed = bool(decision.allowed)
             full.clearance.radial_margin_m = float(
@@ -1234,10 +1288,18 @@ class TaskExecutorNode(LifecycleNode):
         return None
 
     def _view_signals(self, target_id: str) -> ViewSignals:
-        """当前机位质量信号（观测缓存 → ViewSignals；TF 门上游已过）。"""
+        """
+        当前机位质量信号（观测缓存 → ViewSignals）.
+
+        TF 门读观测 diagnostic_flags：tf_stale / tf_unavailable 时本帧
+        信号不作数（ViewSignals.tf_ok=False → 不给 ENOUGH，防静止图像
+        被当好单视收口）。
+        """
         item = self._observation_item(target_id)
         if item is None:
             return ViewSignals(tf_ok=False, bbox_valid=False)
+        flags = set(getattr(item, 'diagnostic_flags', []) or [])
+        tf_ok = not ({'tf_stale', 'tf_unavailable'} & flags)
         bbox = getattr(item, 'candidate_2d', None)
         mask = getattr(item, 'mask', None)
         fitting = getattr(item, 'fitting', None)
@@ -1254,7 +1316,7 @@ class TaskExecutorNode(LifecycleNode):
             bbox_area_ratio=area_ratio,
             mask_foreground_ratio=float(
                 getattr(fitting, 'foreground_ratio', -1.0)),
-            tf_ok=True,
+            tf_ok=tf_ok,
             bbox_valid=bbox_valid)
 
     def _target_anchor(self, target_id: str):
@@ -1266,9 +1328,14 @@ class TaskExecutorNode(LifecycleNode):
             return None
         return [float(bottom.x), float(bottom.y), float(bottom.z)]
 
+    # latest TF 回退陈旧上限：补视在 MoveTo 刚结束时调用，臂静止时 TF 年龄
+    # 应远低于此；超限说明链路异常，latest 位姿不可当补视几何用
+    _TF_FALLBACK_STALE_S = 1.0
+
     def _camera_position(self):
-        """latest 相机位（base 系；补视规划用，臂静止时 latest 即安全）。"""
+        """相机位（base 系）：精确时刻优先；latest 回退须过陈旧门."""
         target, source = 'base_link', 'camera_depth_optical_frame'
+        now_s = self.get_clock().now().nanoseconds * 1e-9
         try:
             # 精确时刻查询（运动中正确）；给 0.5s 缓冲等链路就绪，避免
             # 首帧/瞬时未就绪即抛异常导致补视被跳过（09-17 E2E 实测）
@@ -1276,18 +1343,26 @@ class TaskExecutorNode(LifecycleNode):
             tf = self._tf_buffer.lookup_transform(
                 target, source, self.get_clock().now().to_msg(),
                 timeout=Duration(seconds=0.5))
-        except Exception:  # noqa: BLE001 精确时刻不可得，臂静止时 latest 即安全
+        except Exception:  # noqa: BLE001 精确时刻不可得；latest 须新鲜
             try:
                 from rclpy.time import Time
                 tf = self._tf_buffer.lookup_transform(
                     target, source, Time())
+                stamp_s = (
+                    tf.header.stamp.sec + tf.header.stamp.nanosec * 1e-9)
+                if now_s - stamp_s > self._TF_FALLBACK_STALE_S:
+                    self.get_logger().warning(
+                        f'latest TF 回退已陈旧（{now_s - stamp_s:.2f}s > '
+                        f'{self._TF_FALLBACK_STALE_S}s），fast 补视按几何缺失收口')
+                    return None
             except Exception:  # noqa: BLE001 链路缺失
                 return None
         tr = tf.transform.translation
         return [float(tr.x), float(tr.y), float(tr.z)]
 
     def _fast_observe_loop(self, request_id: str, target_id: str) -> tuple:
-        """fast 档观察循环：单视决策→低置信补视（封顶 3 视）→交 Build 收口。
+        """
+        Fast 档观察循环：单视决策→低置信补视（封顶 3 视）→交 Build 收口.
 
         返回 (observe_ok, details)；取消/跳过/几何缺失 → not ok。
         """
@@ -1299,7 +1374,8 @@ class TaskExecutorNode(LifecycleNode):
         t0 = time.monotonic()
         while not self._cancel and not self._peek_skip():
             decision = decide_fast(
-                self._view_signals(target_id), state, cfg)
+                self._view_signals(target_id), state, cfg,
+                min_views=int(self._params.reconstruction_min_views))
             if decision is not ViewDecision.SUPPLEMENT:
                 return True, {
                     'view_policy': 'fast',
@@ -1362,7 +1438,7 @@ class TaskExecutorNode(LifecycleNode):
             'observe_elapsed_s': round(time.monotonic() - t0, 3)}
 
     def _target_deadline_exceeded(self, request_id: str) -> bool:
-        """单果时限门（0=不限）：超限记账 timeout 跳过并复位本果时限。"""
+        """单果时限门（0=不限）：超限记账 timeout 跳过并复位本果时限."""
         if (self._target_deadline is None
                 or not self._target_deadline.exceeded()):
             return False
@@ -1395,7 +1471,7 @@ class TaskExecutorNode(LifecycleNode):
         if self._rework is not None and target_id:
             self._rework.append(
                 target_id,
-                _rework_kind(failure_code or str(reason), code),
+                rework_kind(failure_code or str(reason), code),
                 str(reason), attempted=True)
 
     def _push_outcome(self, outcome, extra=None) -> None:
@@ -1926,7 +2002,6 @@ class TaskExecutorNode(LifecycleNode):
             self._idle(0.1)
 
     def _make_state(self) -> HarvestState:
-        self._refresh_params()
         msg = HarvestState()
         msg.header.stamp = self.get_clock().now().to_msg()
         msg.header.frame_id = 'base_link'

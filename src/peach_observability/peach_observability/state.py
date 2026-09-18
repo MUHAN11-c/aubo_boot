@@ -51,6 +51,13 @@ def stamp_seconds(header) -> float:
     return float(stamp.sec) + float(stamp.nanosec) * 1e-9
 
 
+def stamp_seconds_dict_time(stamp) -> float:
+    """把 builtin_interfaces/Time（如 GraspDecision.valid_until）转秒."""
+    if stamp is None:
+        return 0.0
+    return float(stamp.sec) + float(stamp.nanosec) * 1e-9
+
+
 def to_point(point_message) -> list[float]:
     """转换 geometry_msgs Point/Vector3."""
     return [
@@ -350,6 +357,11 @@ def to_grasp_decision(message) -> dict:
         'tool_profile_id': message.tool_profile_id,
         'allowed': bool(message.allowed),
         'reason': message.reason,
+        # 冻结有效期（秒，心跳不续签）：前端倒计时「许可还剩几秒」
+        'valid_until': stamp_seconds_dict_time(message.valid_until),
+        'model_revision': message.model_revision,
+        'scene_epoch': int(getattr(message, 'scene_epoch', 0) or 0),
+        'failure_code': int(getattr(message, 'failure_code', 0) or 0),
     }
     axis = message.axis
     has_geom = (axis.x * axis.x + axis.y * axis.y + axis.z * axis.z) > 0.25
@@ -518,6 +530,15 @@ class ObservabilityState:
     返回值只读，叶子与缓存共享引用。
     """
 
+    _revision: int
+    """快照代数；每次 update/append 递增."""
+    _started: float
+    """进程启动 wall time [s]."""
+    _values: dict
+    """分区缓存：perception / reconstruction / manipulation / …."""
+    _updated: dict
+    """'section.key' → 最近写入 wall time [s]."""
+
     def __init__(self):
         """创建空状态."""
         self._lock = threading.Lock()
@@ -546,6 +567,15 @@ class ObservabilityState:
                 'state': {},
                 # 批次过程/审计事件时间线（按到达顺序追加，超限截断头部）
                 'events': [],
+            },
+            # 全流程阶段时序（服务器侧权威：调度 FSM / 技能周期，见 pipeline.py）
+            'pipeline': {
+                'fsm': [],
+                'arm': [],
+            },
+            # 批次账本直播（runs/<request_id>/ledger.json 增量归一化行）
+            'ledger': {
+                'live': {},
             },
             # 机械臂状态（aubo_msgs/RobotStatus）+ latest TF 末端 + 关节硬件表
             'robot': {

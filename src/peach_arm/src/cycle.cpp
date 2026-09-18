@@ -71,12 +71,30 @@ bool ManipulationSkillsNode::authorizeStage(
       why = "接触许可令牌 allowed=false";
       return false;
     }
+    if (ctx.clearance_target_id.empty() || ctx.clearance_target_id != ctx.target_id) {
+      why = "接触许可令牌目标不符（未绑定或非当前目标）";
+      return false;
+    }
+    // valid_until 冻结有效期（GraspDecision 源头心跳不续签；零值=生产端
+    // 未提供，退回 model_stamp 新鲜度单门）。
+    if (ctx.clearance_valid_until.nanoseconds() > 0 &&
+      now().seconds() > ctx.clearance_valid_until.seconds())
+    {
+      why = "接触许可令牌过期（valid_until）";
+      return false;
+    }
     if (ctx.clearance_fresh_window_s > 0.0) {
       const double age_s = now().seconds() - ctx.clearance_model_stamp.seconds();
       if (age_s < -0.5 || age_s > ctx.clearance_fresh_window_s) {
         why = "接触许可令牌过期（model_stamp 超窗）";
         return false;
       }
+    }
+    // 令牌只覆盖 allowed/绑定/有效期；档位门仍在（stages.cpp 另有兜底，
+    // 此处前置保持授权矩阵单点）。
+    if (stage == MotionStage::TOOL && !tool_enabled_.load()) {
+      why = "tool.enabled=false";
+      return false;
     }
     return true;
   }
@@ -247,6 +265,8 @@ void ManipulationSkillsNode::executeAction(
       {
         ctx->clearance_present = true;
         ctx->clearance_allowed = goal->clearance.allowed;
+        ctx->clearance_target_id = goal->clearance.target_id;
+        ctx->clearance_valid_until = rclcpp::Time(goal->clearance.valid_until);
         ctx->clearance_model_stamp = rclcpp::Time(goal->clearance.model_stamp);
         ctx->clearance_fresh_window_s = effectiveTargetMaxAgeS();
       }

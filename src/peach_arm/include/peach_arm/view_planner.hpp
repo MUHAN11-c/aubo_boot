@@ -12,39 +12,36 @@
 namespace peach_arm
 {
 
-// 单个候选视点：相机位姿（base 系，光学坐标约定 +Z 朝目标）与评分/标签。
+/// 单个候选视点：相机位姿（base 系，光学坐标约定 +Z 朝目标）与评分/标签。
 struct ViewCandidate
 {
-  Eigen::Isometry3d camera_pose{Eigen::Isometry3d::Identity()};
-  Eigen::Vector3d direction_target_to_camera{Eigen::Vector3d::UnitX()};
-  double radius_m{0.0};
-  double azimuth_deg{0.0};
-  double elevation_deg{0.0};
-  double nearest_baseline_deg{0.0};
-  double motion_angle_deg{0.0};
-  double travel_m{0.0};  // 当前相机到本候选的直线距离（截步后）
-  double score{0.0};
-  std::string label;
+  Eigen::Isometry3d camera_pose{Eigen::Isometry3d::Identity()};  ///< 相机光学系位姿。
+  Eigen::Vector3d direction_target_to_camera{Eigen::Vector3d::UnitX()};  ///< 目标→相机单位向量。
+  double radius_m{0.0};               ///< 当前相机距目标 [m]（截步后）。
+  double azimuth_deg{0.0};            ///< 方位角 [deg]。
+  double elevation_deg{0.0};          ///< 仰角 [deg]。
+  double nearest_baseline_deg{0.0};   ///< 与已采方向最近夹角 [deg]。
+  double motion_angle_deg{0.0};       ///< 相对当前视线转角 [deg]。
+  double travel_m{0.0};               ///< 当前相机到本候选直线距离 [m]。
+  double score{0.0};                  ///< 越大越优先（行程短为主）。
+  std::string label;                  ///< 诊断标签。
 };
 
-// generate() 的全部输入（纯值）：目标锚点、当前相机位置、已采集观察方向
-// （target→camera 单位向量，base 系），以及检测/分割可见性（像素框、框内分割占比、邻果）。
-// 实现不得读取除此之外的任何隐式状态。
+/// generate() 的全部输入（纯值）。实现不得读隐式状态。
 struct ViewContext
 {
-  Eigen::Vector3d target{Eigen::Vector3d::Zero()};
-  Eigen::Vector3d current_camera_position{Eigen::Vector3d::Zero()};
-  std::vector<Eigen::Vector3d> observed_directions;
-  int image_width{640};
-  int image_height{480};
-  int bbox_x{0};
-  int bbox_y{0};
-  int bbox_w{0};
-  int bbox_h{0};
-  bool bbox_valid{false};
-  // 检测框内分割占比（BagFitting.foreground_ratio）；无效 -1。
-  double foreground_ratio{-1.0};
-  std::vector<Eigen::Vector3d> neighbor_centers;
+  Eigen::Vector3d target{Eigen::Vector3d::Zero()};  ///< 目标锚点 [m]，base 系。
+  Eigen::Vector3d current_camera_position{Eigen::Vector3d::Zero()};  ///< 当前相机位置 [m]。
+  std::vector<Eigen::Vector3d> observed_directions;  ///< 已采 target→camera 单位向量。
+  int image_width{640};   ///< 图像宽 [px]。
+  int image_height{480};  ///< 图像高 [px]。
+  int bbox_x{0};          ///< 检测框左上 x [px]。
+  int bbox_y{0};          ///< 检测框左上 y [px]。
+  int bbox_w{0};          ///< 检测框宽 [px]。
+  int bbox_h{0};          ///< 检测框高 [px]。
+  bool bbox_valid{false}; ///< 框可用。
+  double foreground_ratio{-1.0};  ///< 框内分割占比；无效 -1。
+  std::vector<Eigen::Vector3d> neighbor_centers;  ///< 邻果中心（朝「更多果」走）。
 };
 
 // 视点规划器抽象基类。

@@ -12,10 +12,14 @@
 # self-filter 由 updater 内 ShapeMask 默认开（无独立 yaml 开关）。
 # 近端裁 0.3 是 DepthImageOctomapUpdater 的键；点云 updater 用 0→max_range。
 # mock 无点云 = 空地图，与未开 octomap 行为一致。
+# 临时态（2026-09-18 真机预抓取轮，用户指令「碰撞先不开」）：
+# sensors 置空=move_group 空地图（见下行注释「mock 无点云=空地图，与未开
+# octomap 行为一致」）。阻塞证据：octomap×wrist2 真实碰撞（袋上方 z0.70-1.01
+# 有真实枝叶回波，相机距≈0.55m 非 1.01/2.02 鬼影带）。恢复=把 camera_pointcloud
+# 加回 sensors 列表。
 octomap_resolution: 0.04
 octomap_frame: world
-sensors:
-  - camera_pointcloud
+sensors: []
 camera_pointcloud:
   sensor_plugin: occupancy_map_monitor/PointCloudOctomapUpdater
   point_cloud_topic: /camera/depth_registered/points

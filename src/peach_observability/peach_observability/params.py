@@ -1,22 +1,42 @@
 """
-ObservabilityParams：手写参数模块之上的不可变参数快照（A9）.
+ObservabilityParams：yaml 直读后的扁平快照.
 
-声明 / 兜底默认 / 校验的权威源统一为 peach_supervisor/params.py（决策 0017），
-部署值与中文描述的事实源为 config/observability.yaml（nav2 式全量清单）；
-数值校验（端口越界、周期/缓冲非正）由手写校验器承担，declare 期即拒绝
-非法值。运行路径只持有快照引用，不再逐回调 get_parameter。
-
-本模块只依赖标准库与鸭子类型 Params 快照，不 import rclpy，可被无 ROS
-上下文的单测直接装载。
+部署事实源 ``peach_harvester/config/observability.yaml``。节点一行
+``ObservabilityParams.attach(node)``：声明叶子并挂规则校验（端口/周期/
+缓冲越界启动期拒绝、运行期非法 set 即拒），``ros2 param set`` 原地刷新本
+对象。话题名集中进 topics；debug 端点集中进 debug_endpoints。
 """
-
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, fields
 from types import MappingProxyType
 from typing import Mapping, Tuple
 
-# 话题键（*_topic）集中进 topics 映射，供快照只读索引
+from peach_harvester.supervisor.param_rules import check as _check
+from peach_harvester.supervisor.params import peach_observability
+
+_RULES = {  # 键 -> 校验规则表（启动期非法即拒启；运行期非法 set 即拒）
+    'port': (('bounds', 1.0, 65535.0),),
+    'param_poll_period_s': (('gt', 0.0),),
+    'event_buffer_size': (('gt_eq', 1),),
+    'metrics_period_s': (('gt', 0.0),),
+    'trajectory.period_s': (('gt', 0.0),),
+    'trajectory.min_step_m': (('gt', 0.0),),
+    'trajectory.max_points': (('gt_eq', 100),),
+    'record.max_total_bag_gb': (('gt_eq', 0.0),),
+    'debug.action_timeout_s': (('gt', 0.0),),
+}
+
+
+def _validate(name, value):
+    """逐条规则校验；返回拒绝理由或 None."""
+    for rule in _RULES.get(name, ()):
+        why = _check(rule, value, name)
+        if why:
+            return why
+    return None
+
+
 TOPIC_NAMES = (
     'target_observations_topic',
     'harvest_state_topic',
@@ -46,7 +66,6 @@ TOPIC_NAMES = (
     'tcp_markers_topic',
 )
 
-# 手动调试操作面的目标端点名（debug.endpoints.* 子组，集中进 endpoints 映射）
 DEBUG_ENDPOINTS = (
     'run_harvest_action',
     'control_service',
@@ -69,108 +88,123 @@ DEBUG_ENDPOINTS = (
 )
 
 
-@dataclass(frozen=True)
+@dataclass
 class ObservabilityParams:
-    """
-    启动期静态装载的不可变参数快照（运行路径只持有本快照引用）.
-
-    topics 以 MappingProxyType 包装保证不可变；
-    metrics_process_patterns 固化为 tuple。
-    """
+    """Live parameter snapshot; topics / endpoints are read-only maps."""
 
     host: str
+    """HTTP 绑定地址."""
     port: int
+    """8090 调试页端口."""
     param_poll_period_s: float
+    """节点参数镜像轮询周期 [s]."""
     event_buffer_size: int
+    """批次事件环形缓冲条数."""
     metrics_period_s: float
+    """系统/GPU 采样周期 [s]."""
     metrics_process_patterns: Tuple[str, ...]
+    """计入进程表的命令行子串."""
     record_enabled: bool
+    """会话 bag 总开关."""
     record_root_dir: str
+    """runs/session_* 根目录."""
     record_save_images: bool
+    """bag 是否收图像."""
     record_save_clouds: bool
+    """bag 是否收点云."""
     record_rosout: bool
+    """bag 是否收 /rosout."""
     record_level: str
+    """bag 话题档（如 'default'）."""
     record_bag_topics: Tuple[str, ...]
+    """显式收录话题列表."""
     record_max_total_bag_gb: float
+    """bag 总容量上限 [GB]；0=不限."""
     trajectory_enabled: bool
+    """TCP 轨迹采样开关."""
     trajectory_base_frame: str
+    """轨迹参考系."""
     trajectory_tip_frame: str
+    """轨迹末端系."""
     trajectory_period_s: float
+    """轨迹采样周期 [s]."""
     trajectory_min_step_m: float
+    """轨迹最小步长 [m]."""
     trajectory_max_points: int
+    """轨迹点上限."""
     topics: Mapping[str, str]
+    """监控订阅话题名表（只读）."""
     debug_enabled: bool
+    """8090 调试客户端总开关."""
     debug_motion_enabled: bool
+    """8090 是否允许发运动类动作（仍过 authorizeStage）."""
     debug_token: str
+    """预留；现行无鉴权."""
     debug_action_timeout_s: float
+    """调试动作等待上限 [s]."""
     debug_audit_enabled: bool
+    """调试审计 jsonl 开关."""
     debug_endpoints: Mapping[str, str]
+    """调试动作/服务名表（只读）."""
+
+    @classmethod
+    def attach(cls, node) -> 'ObservabilityParams':
+        """Declare yaml leaves and keep this snapshot live on param set."""
+        holder = []
+
+        def _commit(raw):
+            if holder:
+                _copy_fields(holder[0], from_params(raw))
+
+        raw = peach_observability.attach(
+            node, on_commit=_commit, validate=_validate)
+        snapshot = from_params(raw)
+        holder.append(snapshot)
+        return snapshot
 
 
-def declare(node) -> object:
-    """
-    手写 ParamListener（params.py）集中声明全部参数.
-
-    Args:
-        node: rclpy 节点（声明参数+挂 on_set 校验）.
-
-    Returns
-    -------
-        ParamListener：调用方持有并用于读取 Params 快照（建议在 on_configure
-        内创建，declare 期校验失败→TransitionCallbackReturn.FAILURE）.
-
-    """
-    from peach_harvester.supervisor.params import peach_observability
-    return peach_observability.ParamListener(node)
+def _copy_fields(dst: ObservabilityParams, src: ObservabilityParams) -> None:
+    """Overwrite dst in place so the node keeps one object."""
+    for field in fields(src):
+        setattr(dst, field.name, getattr(src, field.name))
 
 
-def from_params(p) -> ObservabilityParams:
-    """
-    从生成的 Params 快照集中装载为 frozen 快照.
-
-    数值范围（port/周期/缓冲）已由参数库校验器承担；此处仅做字符串 strip 与
-    只读容器转换。
-
-    Args:
-        p: peach_observability.Params（declare 后 get_params() 快照）.
-
-    Returns
-    -------
-        ObservabilityParams（frozen；topics 为 MappingProxyType）.
-
-    """
+def from_params(raw) -> ObservabilityParams:
+    """Flatten the yaml namespace into ObservabilityParams."""
     topics = MappingProxyType(
-        {name: str(getattr(p, name)).strip() for name in TOPIC_NAMES})
-    endpoints = getattr(p.debug, 'endpoints')
+        {name: str(getattr(raw, name)).strip() for name in TOPIC_NAMES})
+    endpoints = raw.debug.endpoints
     debug_endpoints = MappingProxyType(
         {name: str(getattr(endpoints, name)).strip()
          for name in DEBUG_ENDPOINTS})
     return ObservabilityParams(
-        host=str(p.host).strip(),
-        port=int(p.port),
-        param_poll_period_s=float(p.param_poll_period_s),
-        event_buffer_size=int(p.event_buffer_size),
-        metrics_period_s=float(p.metrics_period_s),
-        metrics_process_patterns=tuple(str(item) for item in p.metrics_process_patterns),
-        record_enabled=bool(p.record.enabled),
-        record_root_dir=str(p.record.root_dir),
-        record_save_images=bool(p.record.save_images),
-        record_save_clouds=bool(p.record.save_clouds),
-        record_rosout=bool(getattr(p.record, 'rosout', True)),
-        record_level=str(getattr(p.record, 'level', 'std')).strip() or 'std',
-        record_bag_topics=tuple(str(item).strip() for item in p.record.bag_topics),
-        record_max_total_bag_gb=float(p.record.max_total_bag_gb),
-        trajectory_enabled=bool(p.trajectory.enabled),
-        trajectory_base_frame=str(p.trajectory.base_frame).strip(),
-        trajectory_tip_frame=str(p.trajectory.tip_frame).strip(),
-        trajectory_period_s=float(p.trajectory.period_s),
-        trajectory_min_step_m=float(p.trajectory.min_step_m),
-        trajectory_max_points=int(p.trajectory.max_points),
+        host=str(raw.host).strip(),
+        port=int(raw.port),
+        param_poll_period_s=float(raw.param_poll_period_s),
+        event_buffer_size=int(raw.event_buffer_size),
+        metrics_period_s=float(raw.metrics_period_s),
+        metrics_process_patterns=tuple(
+            str(item) for item in raw.metrics_process_patterns),
+        record_enabled=bool(raw.record.enabled),
+        record_root_dir=str(raw.record.root_dir),
+        record_save_images=bool(raw.record.save_images),
+        record_save_clouds=bool(raw.record.save_clouds),
+        record_rosout=bool(getattr(raw.record, 'rosout', True)),
+        record_level=str(getattr(raw.record, 'level', 'std')).strip() or 'std',
+        record_bag_topics=tuple(
+            str(item).strip() for item in raw.record.bag_topics),
+        record_max_total_bag_gb=float(raw.record.max_total_bag_gb),
+        trajectory_enabled=bool(raw.trajectory.enabled),
+        trajectory_base_frame=str(raw.trajectory.base_frame).strip(),
+        trajectory_tip_frame=str(raw.trajectory.tip_frame).strip(),
+        trajectory_period_s=float(raw.trajectory.period_s),
+        trajectory_min_step_m=float(raw.trajectory.min_step_m),
+        trajectory_max_points=int(raw.trajectory.max_points),
         topics=topics,
-        debug_enabled=bool(p.debug.enabled),
-        debug_motion_enabled=bool(p.debug.motion_enabled),
-        debug_token=str(p.debug.token),
-        debug_action_timeout_s=float(p.debug.action_timeout_s),
-        debug_audit_enabled=bool(p.debug.audit_enabled),
+        debug_enabled=bool(raw.debug.enabled),
+        debug_motion_enabled=bool(raw.debug.motion_enabled),
+        debug_token=str(raw.debug.token),
+        debug_action_timeout_s=float(raw.debug.action_timeout_s),
+        debug_audit_enabled=bool(raw.debug.audit_enabled),
         debug_endpoints=debug_endpoints,
     )

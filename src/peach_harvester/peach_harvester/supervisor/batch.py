@@ -39,8 +39,9 @@ def _eligible_locked_items(observations, claimed):
     枚举锁定集内可执行候选：(target_id, item) 生成器.
 
     资格：锁定集内、target_id 非空、未入账、已确认、非裸果
-    （unbagged_display_only / fruit 线不进执行候选）。reach_queries
-    与 next_target 共用同一谓词，避免两份过滤条件漂移。
+    （unbagged_display_only / fruit 线不进执行候选）、非贴边
+    （bbox_edge：P1-A 贴边滑动噪声块不得被选；移入视野内旗标即消）。
+    reach_queries 与 next_target 共用同一谓词，避免两份过滤条件漂移。
     """
     if observations is None:
         return
@@ -54,7 +55,8 @@ def _eligible_locked_items(observations, claimed):
         flags = list(getattr(item, 'diagnostic_flags', []) or [])
         cand = getattr(item, 'candidate', None)
         strat = str(getattr(cand, 'strategy_id', '') or '')
-        if 'unbagged_display_only' in flags or 'fruit' in strat:
+        if ('unbagged_display_only' in flags or 'fruit' in strat
+                or 'bbox_edge' in flags):
             continue
         yield str(tid), item
 

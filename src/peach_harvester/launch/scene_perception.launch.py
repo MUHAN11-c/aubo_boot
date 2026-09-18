@@ -11,7 +11,6 @@ from launch_ros.events.lifecycle import ChangeState
 from launch_ros.parameter_descriptions import ParameterFile
 from launch_ros.substitutions import FindPackageShare
 from lifecycle_msgs.msg import Transition
-
 from peach_harvester.vision.grasp_standoffs import scene_overlay
 from peach_harvester.vision.tool_profiles import scene_tool_params
 

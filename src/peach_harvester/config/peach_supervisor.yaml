@@ -1,9 +1,6 @@
 # peach_supervisor 参数全量清单（nav2 式：launch 以 ParameterFile 装入，部署值即事实源）
-# 代码侧兜底默认与校验规则：peach_supervisor 包 params.py（C++ 为 include/peach_arm/params.hpp）；
-# 键名冻结（真机命令/文档零破坏）。改默认值须模块与 yaml 各改一处。
-# 运行期临时改参：ros2 param set（技能节点空闲态生效；感知/重建/监控/lifecycle 需重启或 reconfigure）。
-# 跨包轴向后撤（tool.entry_d_* / refit.*_standoff_m / moveit.mtc_approach_along_axis_m）
-# 由 grasp_standoffs.yaml 经 launch 注入覆盖，此处值仅为默认。
+# 节点 peach_supervisor.attach 按本文件声明叶子；ros2 param set 原地刷新。
+# 键名冻结。tool.profile_id 基础值是固定圆柱标签，整栈由 launch tool_profile 注入覆盖。
 peach_supervisor:
   ros__parameters:
     execution_enabled: false  # false 时 WAIT_LOCK 后直接结算，不选目标、不派 ExecuteTarget。

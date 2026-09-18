@@ -6,6 +6,7 @@ class LedgerIndex:
     """按 transaction_id 只结案一次."""
 
     def __init__(self):
+        """建空账本索引."""
         self._closed = {}
 
     def close(self, transaction_id: str, target_id: str, outcome: int) -> bool:
@@ -19,4 +20,5 @@ class LedgerIndex:
         return True
 
     def get(self, transaction_id: str):
+        """查事务入账（未入账=None）."""
         return self._closed.get(str(transaction_id or ''))

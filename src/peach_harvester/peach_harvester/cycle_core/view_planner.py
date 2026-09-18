@@ -1,4 +1,5 @@
-"""观察视点候选生成与评分（C++ view_planner.cpp 逐字移植，清洁重写轮 3c-2b）。
+"""
+观察视点候选生成与评分（C++ view_planner.cpp 逐字移植，清洁重写轮 3c-2b）.
 
 spherical_adaptive：从当前相机沿直线截 max_camera_step_m，评分以行程最短
 为主；禁止绕球面、不对侧兜圈。常数与评分权重 = C++ 原值（丁组：不调参）；
@@ -9,8 +10,8 @@ spherical_adaptive：从当前相机沿直线截 max_camera_step_m，评分以�
 """
 from __future__ import annotations
 
-import math
 from dataclasses import dataclass, field
+import math
 from typing import Optional, Sequence
 
 Vec3 = Sequence[float]
@@ -44,7 +45,7 @@ def _v_norm(a: Vec3) -> float:
 
 
 def _safe_unit(value: Vec3, fallback: Vec3) -> list:
-    """零向量/非有限退 fallback，防归一化 NaN 污染候选方向。"""
+    """零向量/非有限退 fallback，防归一化 NaN 污染候选方向."""
     if not all(math.isfinite(x) for x in value) or _v_norm(value) < 1.0e-9:
         return list(fallback)
     n = _v_norm(value)
@@ -56,7 +57,7 @@ def _clamp(value: float, lo: float, hi: float) -> float:
 
 
 def _angle_deg(first: Vec3, second: Vec3) -> float:
-    """夹角（度）；退化按 +x 兜底，结果有限且 0–180°。"""
+    """夹角（度）；退化按 +x 兜底，结果有限且 0–180°."""
     unit_x = (1.0, 0.0, 0.0)
     a = _safe_unit(first, unit_x)
     b = _safe_unit(second, unit_x)
@@ -66,63 +67,97 @@ def _angle_deg(first: Vec3, second: Vec3) -> float:
 
 @dataclass(frozen=True)
 class ViewPlannerConfig:
-    """默认值与 config/peach_arm.yaml scan.* 同值（原值）。"""
+    """默认值与 config/peach_arm.yaml scan.* 同值（原值）."""
 
-    # 观察半径须高于 PS800-E1 深度额定下限 0.4 m（09-17 由 0.40/0.32 上调）
     observation_radius_m: float = 0.45
+    """观察半径 [m]；须高于 PS800-E1 深度额定下限 0.4."""
     minimum_radius_m: float = 0.42
+    """过近时的半径下限 [m]."""
     azimuth_step_deg: float = 12.0
+    """方位角采样步长 [deg]."""
     azimuth_limit_deg: float = 16.0
+    """相对当前视线方位半宽 [deg]."""
     elevation_step_deg: float = 8.0
+    """仰角采样步长 [deg]."""
     elevation_limit_deg: float = 0.0
+    """仰角半宽 [deg]；0=不抬仰角."""
     preferred_baseline_deg: float = 12.0
+    """期望与已采方向夹角 [deg]."""
     radial_step_m: float = 0.015
+    """径向层步长 [m]."""
     candidate_layers: int = 1
+    """径向层数."""
     views_to_minimum_radius: int = 5
+    """收到最小半径的视点数提示."""
     max_camera_step_m: float = 0.15
+    """单步相机平移上限 [m]（禁止绕球面）."""
     workspace_max_reach_m: float = 0.78
+    """工作空间最大半径 [m]."""
     min_camera_height_m: float = 0.06
+    """相机高度下限 [m]，base 系 z."""
     protected_zones: tuple = ()
+    """轴对齐保护区列表（剔除落在盒内的候选）."""
 
 
 @dataclass
 class ViewContext:
-    """generate 的上下文（信号来自当前观测缓存）。"""
+    """generate 的上下文（信号来自当前观测缓存）."""
 
     target: Vec3
+    """目标锚点 [m]，base 系."""
     current_camera_position: Vec3
+    """当前相机位置 [m]."""
     observed_directions: list = field(default_factory=list)
-    # 画面信号（bbox/邻目标/前景占比）
+    """已采 target→camera 单位向量."""
     image_width: int = 640
+    """图像宽 [px]."""
     image_height: int = 480
+    """图像高 [px]."""
     bbox_valid: bool = False
+    """检测框可用."""
     bbox_x: int = 0
+    """检测框左上 x [px]."""
     bbox_y: int = 0
+    """检测框左上 y [px]."""
     bbox_w: int = 0
+    """检测框宽 [px]."""
     bbox_h: int = 0
+    """检测框高 [px]."""
     neighbor_centers: list = field(default_factory=list)
+    """邻果中心 [m]，朝「更多果」走."""
     foreground_ratio: float = -1.0
+    """框内分割占比；无效 -1."""
 
 
 @dataclass
 class ViewCandidate:
-    """候选视点（排序用快照；camera_pose 只含位置，姿态装配在调用方）。"""
+    """候选视点（排序用快照；camera_pose 只含位置，姿态装配在调用方）."""
 
     direction_target_to_camera: list = field(default_factory=list)
+    """目标→相机单位向量."""
     radius_m: float = 0.0
+    """相机距目标 [m]（截步后）."""
     azimuth_deg: float = 0.0
+    """方位角 [deg]."""
     elevation_deg: float = 0.0
+    """仰角 [deg]."""
     nearest_baseline_deg: float = 0.0
+    """与已采方向最近夹角 [deg]."""
     motion_angle_deg: float = 0.0
+    """相对当前视线转角 [deg]."""
     travel_m: float = 0.0
+    """当前相机到本候选直线距离 [m]."""
     score: float = 0.0
+    """越大越优先（行程短为主）."""
     position: list = field(default_factory=list)
+    """候选相机位置 [m]，base 系."""
     label: str = ''
+    """诊断标签."""
 
 
 def _visibility_desired(
         context: ViewContext, target: Vec3, side: Vec3, up: Vec3) -> list:
-    """像面期望分量：框心归中 + 贴边裁切回推 + 邻目标避让（前景足够时）。"""
+    """像面期望分量：框心归中 + 贴边裁切回推 + 邻目标避让（前景足够时）."""
     desired = [0.0, 0.0]
     width = max(1, context.image_width)
     height = max(1, context.image_height)
@@ -177,7 +212,7 @@ def _scale_helper(a: Vec3, s: float) -> list:
 
 def _project_look_ray_into_reach(
         target: Vec3, camera: Vec3, min_radius: float, reach: float) -> list:
-    """视线（目标→相机）与可达球最近交点：沿射线收进，不绕行。"""
+    """视线（目标→相机）与可达球最近交点：沿射线收进，不绕行."""
     offset = _v_sub(camera, target)
     radius = _v_norm(offset)
     if radius < 1.0e-9 or reach <= 0.0 or _v_norm(camera) <= reach:
@@ -198,7 +233,7 @@ def _project_look_ray_into_reach(
 
 
 def _protected_zone_hit(goal: Vec3, zones) -> bool:
-    """轴对齐盒保护区命中（zones: [minx,miny,minz,maxx,maxy,maxz]×N）。"""
+    """轴对齐盒保护区命中（zones: [minx,miny,minz,maxx,maxy,maxz]×N）."""
     for zone in zones or ():
         if len(zone) < 6:
             continue
@@ -211,7 +246,7 @@ def _protected_zone_hit(goal: Vec3, zones) -> bool:
 def look_at_optical(
         camera_position: Vec3, target: Vec3,
         world_up: Vec3 = (0.0, 0.0, 1.0)) -> list:
-    """光学系朝向（返回三列基 [x,y,z] 行列表；调用方转四元数）。"""
+    """光学系朝向（返回三列基 [x,y,z] 行列表；调用方转四元数）."""
     unit_z = (0.0, 0.0, 1.0)
     optical_z = _safe_unit(_v_sub(target, camera_position), unit_z)
     down = _v_scale(_safe_unit(world_up, unit_z), -1.0)
@@ -224,7 +259,7 @@ def look_at_optical(
 
 
 def basis_to_quat(basis: Sequence[Sequence[float]]) -> tuple:
-    """旋转矩阵（三列基 [x,y,z]）→ 四元数 (x, y, z, w)。"""
+    """旋转矩阵（三列基 [x,y,z]）→ 四元数 (x, y, z, w)."""
     ex, ey, ez = basis[0], basis[1], basis[2]
     m00, m01, m02 = ex[0], ey[0], ez[0]
     m10, m11, m12 = ex[1], ey[1], ez[1]
@@ -260,7 +295,7 @@ def basis_to_quat(basis: Sequence[Sequence[float]]) -> tuple:
 
 def generate(context: ViewContext,
              config: Optional[ViewPlannerConfig] = None) -> list:
-    """候选生成（C++ generate 逐句移植；评分权重原值）。"""
+    """候选生成（C++ generate 逐句移植；评分权重原值）."""
     cfg = config or ViewPlannerConfig()
     target = context.target
     current = context.current_camera_position

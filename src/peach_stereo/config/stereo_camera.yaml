@@ -13,4 +13,3 @@ peach_stereo_camera_node:
       block_size: 5
       processing_scale: 0.5    # 匹配分辨率相对 1280x960 的缩放（0.5=640x480，~13ms/帧）
     avg_k: 1                   # k 帧时域融合（1/2/4/8：质量换帧率，k=5 噪声约 0.96mm@0.8m）
-    publish_debug_image: true  # 2Hz JET 伪彩调试流（depth/debug_color）

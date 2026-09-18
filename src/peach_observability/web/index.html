@@ -106,6 +106,23 @@
     </aside>
   </section>
 
+  <section class="panel stage-panel" id="stage-panel">
+    <div class="section-head">
+      <div><p class="kicker">TIMING</p><h2>阶段时序（服务器侧）</h2></div>
+      <span class="traj-hint">段时长 = 到下一次转移的间隔；末段计时中</span>
+    </div>
+    <div class="stage-cols">
+      <div class="stage-col">
+        <div class="section-head compact"><div><p class="kicker">FSM</p><h2>调度阶段</h2></div><span id="fsm-count" class="empty">0 条</span></div>
+        <div class="timeline" id="fsm-list"><p class="empty">等待调度状态转移</p></div>
+      </div>
+      <div class="stage-col">
+        <div class="section-head compact"><div><p class="kicker">SKILL</p><h2>技能周期阶段</h2></div><span id="arm-count" class="empty">0 条</span></div>
+        <div class="timeline" id="arm-list"><p class="empty">等待技能状态（/peach_arm/status）</p></div>
+      </div>
+    </div>
+  </section>
+
   <section class="panel traj-panel" id="traj-panel">
     <div class="section-head">
       <div><p class="kicker">TCP</p><h2>末端俯视（X–Y）</h2></div>
@@ -138,6 +155,49 @@
         <tbody id="target-list"><tr><td colspan="5" class="empty">等待 target_observations</td></tr></tbody>
       </table>
     </div>
+  </section>
+
+  <section class="panel ledger-panel" id="ledger-panel">
+    <div class="section-head">
+      <div><p class="kicker">LEDGER</p><h2>批次账本</h2></div>
+      <div class="plan-summary-inline" id="ledger-summary"></div>
+    </div>
+    <p class="ledger-note empty" id="ledger-note">等待批次账本（runs/&lt;request_id&gt;/ledger.json，随终局入账）</p>
+    <div class="target-table-wrap">
+      <table class="target-table">
+        <thead><tr><th>目标</th><th>结果</th><th>原因 / 失败码</th><th>耗时 s</th><th>视角</th><th>阶段耗时</th></tr></thead>
+        <tbody id="ledger-body"><tr><td colspan="6" class="empty">尚未开批</td></tr></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="panel vision-panel" id="vision-panel">
+    <div class="stage-cols">
+      <div class="stage-col">
+        <div class="section-head compact"><div><p class="kicker">PERCEPTION</p><h2>感知节拍</h2></div></div>
+        <div class="vision-metrics" id="perception-metrics"><p class="empty">等待 /peach/perception/harvest_state</p></div>
+      </div>
+      <div class="stage-col">
+        <div class="section-head compact"><div><p class="kicker">RECONSTRUCTION</p><h2>重建进度</h2></div></div>
+        <div class="vision-metrics" id="recon-metrics"><p class="empty">等待 /peach/reconstruction/diagnostics</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel system-panel" id="system-panel">
+    <details>
+      <summary>系统负载 · 关键参数镜像 <span id="system-summary" class="empty">—</span></summary>
+      <div class="stage-cols system-cols">
+        <div class="stage-col">
+          <div class="section-head compact"><div><p class="kicker">LOAD</p><h2>负载与进程</h2></div></div>
+          <div class="vision-metrics" id="system-metrics"><p class="empty">等待性能采样</p></div>
+        </div>
+        <div class="stage-col">
+          <div class="section-head compact"><div><p class="kicker">PARAMS</p><h2>参数镜像（只读）</h2></div></div>
+          <div class="params-mirror" id="params-mirror"><p class="empty">等待参数轮询</p></div>
+        </div>
+      </div>
+    </details>
   </section>
   </div>
 
@@ -183,6 +243,8 @@
           <label class="inline"><input type="checkbox" id="exec-skip-obs" checked> skip_observation</label>
           <button type="button" data-debug="execute_action" data-confirm="1">发送 ExecuteTarget</button>
           <button type="button" data-debug-cancel="execute_action">取消 Execute</button>
+          <button type="button" data-debug="arm_service" data-payload='{"data":true}' data-confirm="1">武装本周期</button>
+          <button type="button" data-debug="arm_service" data-payload='{"data":false}'>解除武装</button>
         </fieldset>
         <fieldset><legend>批次</legend>
           <label>intent <select id="run-intent">
@@ -193,6 +255,10 @@
           <label>target_ids <input id="run-target-ids" placeholder="逗号分隔，仅 PICK_SELECTED"></label>
           <button type="button" data-debug="run_harvest_action" data-confirm="1">RunHarvest</button>
           <button type="button" data-debug-cancel="run_harvest_action">取消批次</button>
+          <button type="button" data-debug="control_service" data-payload='{"command":"PAUSE"}'>PAUSE</button>
+          <button type="button" data-debug="control_service" data-payload='{"command":"RESUME"}' data-confirm="1">RESUME</button>
+          <button type="button" data-debug="control_service" data-payload='{"command":"SKIP_TARGET"}'>SKIP_TARGET</button>
+          <button type="button" data-debug="control_service" data-payload='{"command":"ACKNOWLEDGE_RECOVERY"}'>ACK 恢复</button>
           <button type="button" data-debug="control_service" data-payload='{"command":"CANCEL_NOW"}' class="danger">CANCEL_NOW</button>
         </fieldset>
       </div>

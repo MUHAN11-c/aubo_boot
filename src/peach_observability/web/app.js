@@ -2,6 +2,8 @@
 
 // 感知抓取过程页：/api/state（1s）+ /api/trajectory（0.4s）。
 // 调试面转发既有动作/服务；动臂由 yaml debug.motion_enabled 放行。
+// 全流程反馈：阶段时序（pipeline.fsm/arm 服务器侧）+ 批次账本（ledger.live）
+// + 感知节拍/重建进度 + 系统负载与参数镜像。
 
 const $ = (id) => document.getElementById(id);
 const numeric = (value) => value !== null && value !== undefined && value !== "" &&
@@ -17,6 +19,9 @@ const setText = (id, value) => { const el = $(id); if (el) el.textContent = valu
 const batchNames = ["等待就绪", "发现目标", "运行中", "等待安全暂停点", "已暂停", "维护模式", "已完成", "需要恢复", "已中断"];
 const phaseNames = ["空闲", "选择目标", "观测中", "完成观测", "质量校验", "靠近中", "工具动作", "撤退中", "收尾中", "目标成功", "目标跳过", "目标失败"];
 const pipelineClass = ["done", "active", "alert", "gated", "failed", "skipped"];
+
+// 最新一次 /api/state（调试面取 state_seq；渲染器共用）
+let monitorState = null;
 
 function renderPipeline(job, state) {
   const byId = {};
@@ -134,7 +139,12 @@ function renderEvents(events) {
       ? new Date(ev.stamp * 1000).toLocaleTimeString("zh-CN", {hour12: false}) : "--:--:--";
     const severity = numeric(ev.severity) ? Number(ev.severity) : 0;
     const target = ev.target_id ? `<span class="target">[${safe(ev.target_id)}]</span>` : "";
-    return `<div class="event-item sev-${severity}"><time>${time}</time><i class="dot" title="${safe(ev.severity_name)}"></i><div class="body"><span class="code">${safe(ev.code)}</span>${target}<p>${safe(ev.message)}</p></div></div>`;
+    const detailKeys = ev.details && Object.keys(ev.details).length
+      ? Object.keys(ev.details) : [];
+    const details = detailKeys.length
+      ? `<details class="event-details"><summary>${detailKeys.length} 项详情</summary><pre>${safe(JSON.stringify(ev.details))}</pre></details>`
+      : "";
+    return `<div class="event-item sev-${severity}"><time>${time}</time><i class="dot" title="${safe(ev.severity_name)}"></i><div class="body"><span class="code">${safe(ev.code)}</span>${target}<p>${safe(ev.message)}</p>${details}</div></div>`;
   }).join("");
 }
 
@@ -205,6 +215,215 @@ function renderPlan(perception, taskExecutor) {
         <td class="mono">${entry[0]}, ${entry[1]}, ${entry[2]}</td>
       </tr>`;
     }).join("");
+}
+
+/* ---------- 批次账本（runs/<request_id>/ledger.json 直播） ---------- */
+
+const ledgerChip = {
+  SUCCEEDED: "ok", SKIPPED_QUALITY: "warn", SKIPPED_UNREACHABLE: "warn",
+  FAILED: "err", CANCELED: "warn",
+};
+const ledgerNames = {
+  SUCCEEDED: "成功", SKIPPED_QUALITY: "跳过·质量", SKIPPED_UNREACHABLE: "跳过·不可达",
+  FAILED: "失败", CANCELED: "取消",
+};
+
+function fmtDur(sec) {
+  if (!numeric(sec)) return "—";
+  return `${Number(sec) >= 10 ? Number(sec).toFixed(0) : Number(sec).toFixed(1)}s`;
+}
+
+function renderLedger(ledger) {
+  const live = (ledger && ledger.live) || {};
+  const note = $("ledger-note");
+  const rows = live.rows || [];
+  if (!live.request_id) {
+    note.textContent = "等待批次账本（runs/<request_id>/ledger.json，随终局入账）";
+    $("ledger-summary").innerHTML = "";
+    $("ledger-body").innerHTML = '<tr><td colspan="6" class="empty">尚未开批</td></tr>';
+    return;
+  }
+  note.textContent = live.error
+    ? `${live.request_id} · ${live.error}`
+    : `${live.request_id} · ${live.path}`;
+  const totals = live.totals || {};
+  const pending = Math.max(0, Number(totals.claimed || 0) - Number(totals.attempted || 0));
+  $("ledger-summary").innerHTML = [
+    ["入账", totals.attempted ?? rows.length],
+    ["成功", totals.SUCCEEDED ?? 0],
+    ["跳过", (totals.SKIPPED_QUALITY ?? 0) + (totals.SKIPPED_UNREACHABLE ?? 0)],
+    ["失败", totals.FAILED ?? 0],
+    ["取消", totals.CANCELED ?? 0],
+    ["待完成", pending],
+  ].map(([label, value]) => `<span>${label} <b>${safe(String(value))}</b></span>`).join("");
+
+  if (!rows.length) {
+    $("ledger-body").innerHTML = '<tr><td colspan="6" class="empty">本批尚无终局目标</td></tr>';
+    return;
+  }
+  $("ledger-body").innerHTML = rows.slice().reverse().map((row) => {
+    const cls = ledgerChip[row.outcome_name] || "";
+    const name = ledgerNames[row.outcome_name] || row.outcome_name || "—";
+    const failure = row.failure_code !== undefined && row.failure_code !== null
+      ? ` <span class="mono">[${safe(String(row.failure_code))}${row.failure_code_n !== undefined ? `/${safe(String(row.failure_code_n))}` : ""}]</span>` : "";
+    const stages = (row.stages || []);
+    const stageChips = stages.length
+      ? stages.map((s) => `<span class="phase-chip">${safe(s.name)} ${s.dur_s === null ? "—" : s.dur_s.toFixed(1)}s</span>`).join("")
+      : '<p class="empty">无阶段记录</p>';
+    const stageTotal = stages.length
+      ? ` ${stages.reduce((acc, s) => acc + (Number(s.dur_s) || 0), 0).toFixed(1)}s` : "";
+    return `<tr>
+      <td><b>${safe(row.target_id)}</b></td>
+      <td>${chip(name, cls)}</td>
+      <td class="reason-cell">${safe(row.reason || "—")}${failure}</td>
+      <td class="mono">${row.elapsed_s === null || row.elapsed_s === undefined ? "—" : Number(row.elapsed_s).toFixed(1)}</td>
+      <td class="mono">${row.build_view_count ?? "—"}</td>
+      <td><details class="stage-details"><summary>${stages.length} 段${stageTotal}</summary><div class="phase-durations">${stageChips}</div></details></td>
+    </tr>`;
+  }).join("");
+}
+
+/* ---------- 阶段时序（服务器侧 pipeline.fsm / pipeline.arm） ---------- */
+
+function timelineTime(t) {
+  return numeric(t) && t > 0
+    ? new Date(t * 1000).toLocaleTimeString("zh-CN", {hour12: false}) : "--:--:--";
+}
+
+function renderStages(pipelineSection) {
+  const fsm = (pipelineSection && pipelineSection.fsm) || [];
+  const arm = (pipelineSection && pipelineSection.arm) || [];
+  setText("fsm-count", `${fsm.length} 条`);
+  setText("arm-count", `${arm.length} 条`);
+
+  if (!fsm.length) {
+    $("fsm-list").innerHTML = '<p class="empty">等待调度状态转移</p>';
+  } else {
+    $("fsm-list").innerHTML = fsm.slice().reverse().slice(0, 40).map((item) => {
+      const batch = batchNames[item.batch_state] || item.batch_state;
+      const phase = phaseNames[item.target_phase] || item.target_phase;
+      const flags = [
+        item.recovery_required ? "恢复" : null,
+        item.execution_enabled ? null : "执行关",
+        item.grasp_enabled ? null : "抓取关",
+      ].filter(Boolean).join("·") || null;
+      const target = item.target_id ? ` <span class="target">[${safe(item.target_id)}]</span>` : "";
+      return `<div class="tl-item${item.current ? " current" : ""}">
+        <time>${timelineTime(item.t)}</time>
+        <div class="tl-main"><span class="tl-pill">${safe(batch)} → ${safe(phase)}</span>${target}
+        ${flags ? `<span class="tl-flag">${safe(flags)}</span>` : ""}
+        <p>${safe(item.message || "")}</p></div>
+        <b class="tl-dur">${fmtDur(item.dur_s)}</b></div>`;
+    }).join("");
+  }
+
+  if (!arm.length) {
+    $("arm-list").innerHTML = '<p class="empty">等待技能状态（/peach_arm/status）</p>';
+  } else {
+    $("arm-list").innerHTML = arm.slice().reverse().slice(0, 40).map((item) => {
+      const target = item.target_id ? ` <span class="target">[${safe(item.target_id)}]</span>` : "";
+      return `<div class="tl-item${item.current ? " current" : ""}">
+        <time>${timelineTime(item.t)}</time>
+        <div class="tl-main"><span class="state-pill ${pillClass(item.state)}">${safe(item.state || "—")}</span>${target}${item.recovery ? '<span class="tl-flag">恢复</span>' : ""}
+        <p>${safe(item.message || "")}</p></div>
+        <b class="tl-dur">${fmtDur(item.dur_s)}</b></div>`;
+    }).join("");
+  }
+}
+
+/* ---------- 感知节拍 / 重建进度 ---------- */
+
+function metricChip(label, value, cls = "") {
+  return value === null || value === undefined || value === ""
+    ? "" : `<span class="${cls}">${label} <b>${safe(String(value))}</b></span>`;
+}
+
+function renderVision(state) {
+  const harvest = state.perception?.harvest || {};
+  const perBody = $("perception-metrics");
+  if (!harvest || !Object.keys(harvest).length) {
+    perBody.innerHTML = '<p class="empty">等待 /peach/perception/harvest_state</p>';
+  } else {
+    const timing = harvest.timing || {};
+    const fpsHot = numeric(timing.fps) && Number(timing.fps) < 2.0 ? "hot" : "";
+    const dropped = (harvest.dropped_target_ids || []).length;
+    const stale = (harvest.anchor_stale_target_ids || []).length;
+    perBody.innerHTML = [
+      metricChip("FPS", numeric(timing.fps) ? Number(timing.fps).toFixed(2) : "—", fpsHot),
+      metricChip("检测", numeric(timing.detect_ms) ? `${Number(timing.detect_ms).toFixed(0)}ms` : "—"),
+      metricChip("分割", numeric(timing.segment_ms) ? `${Number(timing.segment_ms).toFixed(0)}ms` : "—"),
+      metricChip("几何", numeric(timing.geometry_ms) ? `${Number(timing.geometry_ms).toFixed(0)}ms` : "—"),
+      metricChip("整帧", numeric(timing.total_ms) ? `${Number(timing.total_ms).toFixed(0)}ms` : "—"),
+      metricChip("光照", harvest.lighting),
+      metricChip("低光", harvest.low_light_quality === true ? "是" : (harvest.low_light_quality === false ? "否" : null), harvest.low_light_quality === true ? "hot" : ""),
+      metricChip("掉锚", dropped || null, dropped ? "hot" : ""),
+      metricChip("陈旧锚", stale || null, stale ? "hot" : ""),
+      metricChip("epoch", harvest.scene_epoch ?? null),
+      metricChip("收齐/待收", harvest.target_count !== undefined ? `${harvest.collecting_count ?? "—"}/${harvest.pending_count ?? "—"}` : null),
+    ].filter(Boolean).join("") || '<p class="empty">等待节拍字段</p>';
+  }
+
+  const diag = state.reconstruction?.diagnostics || {};
+  const decision = state.reconstruction?.grasp_decision || {};
+  const reconBody = $("recon-metrics");
+  if (!diag || !Object.keys(diag).length) {
+    reconBody.innerHTML = '<p class="empty">等待 /peach/reconstruction/diagnostics</p>';
+  } else {
+    const coverage = diag.view_coverage || {};
+    const tfFail = Number(diag.tf_failures ?? 0);
+    const serverNow = state.system?.server_time || 0;
+    const validLeft = numeric(decision.valid_until) && decision.valid_until > 0 && serverNow
+      ? decision.valid_until - serverNow : null;
+    const validText = decision.allowed === undefined
+      ? null
+      : (validLeft === null
+        ? (decision.allowed ? "允许" : "未许可")
+        : `${decision.allowed ? "允许" : "未许可"} · 剩 ${validLeft > 0 ? validLeft.toFixed(1) : "0.0"}s`);
+    reconBody.innerHTML = [
+      metricChip("状态", diag.state || "—"),
+      metricChip("目标", diag.target_id || diag.selected_target_id || null),
+      metricChip("机位", Number(diag.captured_views ?? -1) >= 0 ? diag.captured_views : "—"),
+      metricChip("拒帧", Number(diag.rejected_views ?? -1) > 0 ? diag.rejected_views : null,
+        Number(diag.rejected_views ?? 0) > 0 ? "hot" : ""),
+      metricChip("TF 失败", tfFail > 0 ? tfFail : null, tfFail > 0 ? "hot" : ""),
+      metricChip("TF 延迟", numeric(diag.tf_latency_ms) ? `${Number(diag.tf_latency_ms).toFixed(0)}ms` : "—"),
+      metricChip("最大基线", numeric(coverage.max_baseline_deg) ? `${Number(coverage.max_baseline_deg).toFixed(1)}°` : "—"),
+      metricChip("许可", validText, decision.allowed ? "" : "hot"),
+      metricChip("原因", decision.reason || null),
+    ].filter(Boolean).join("") || '<p class="empty">等待重建心跳</p>';
+  }
+}
+
+/* ---------- 系统负载与参数镜像 ---------- */
+
+function renderSystem(state) {
+  const sample = state.metrics?.sample || {};
+  const gpu = sample.gpu || {};
+  setText("system-summary", numeric(sample.cpu_percent)
+    ? `CPU ${Number(sample.cpu_percent).toFixed(0)}% · 内存 ${Math.round(Number(sample.memory_used_mb || 0))}/${Math.round(Number(sample.memory_total_mb || 0))} MB${gpu.utilization_percent !== undefined ? ` · GPU ${Number(gpu.utilization_percent).toFixed(0)}%` : ""}`
+    : "—");
+  $("system-metrics").innerHTML = [
+    metricChip("CPU", numeric(sample.cpu_percent) ? `${Number(sample.cpu_percent).toFixed(0)}%` : "—",
+      numeric(sample.cpu_percent) && Number(sample.cpu_percent) > 85 ? "hot" : ""),
+    metricChip("内存", numeric(sample.memory_used_mb)
+      ? `${Number(sample.memory_used_mb).toFixed(0)}/${Number(sample.memory_total_mb).toFixed(0)} MB` : "—"),
+    metricChip("load1", sample.load1),
+    metricChip("GPU", gpu.utilization_percent !== undefined && gpu.utilization_percent !== null
+      ? `${Number(gpu.utilization_percent).toFixed(0)}% · ${Number(gpu.memory_used_mb || 0).toFixed(0)} MB` : null),
+    ...(sample.processes || []).map((p) => metricChip(
+      p.name, numeric(p.cpu_percent)
+        ? `cpu ${Number(p.cpu_percent).toFixed(0)}% · ${Number(p.rss_mb || 0).toFixed(0)} MB` : "—")),
+  ].filter(Boolean).join("") || '<p class="empty">等待性能采样</p>';
+
+  const params = state.params || {};
+  const nodes = Object.keys(params).filter((n) => params[n] && Object.keys(params[n]).length);
+  $("params-mirror").innerHTML = nodes.length
+    ? nodes.map((node) => {
+      const rows = Object.entries(params[node]).map(([k, v]) =>
+        `<div class="node-row"><span>${safe(k)}</span><b>${safe(String(v))}</b></div>`).join("");
+      return `<div class="param-node"><h3>${safe(node)}</h3>${rows}</div>`;
+    }).join("")
+    : '<p class="empty">等待参数轮询</p>';
 }
 
 function freshnessHtml(age) {
@@ -508,6 +727,7 @@ async function pollState() {
     const response = await fetch(`/api/state?t=${Date.now()}`, {cache: "no-store"});
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const state = await response.json();
+    monitorState = state;
     const record = state.record?.info || {};
     setText("record-dir", record.enabled === false
       ? "记录已关闭" : record.directory || "等待首批数据");
@@ -516,6 +736,10 @@ async function pollState() {
     renderStatus(state);
     renderFlow(state.task_executor || {}, state.job || {});
     renderPlan(state.perception || {}, state.task_executor || {});
+    renderStages(state.pipeline || {});
+    renderLedger(state.ledger || {});
+    renderVision(state);
+    renderSystem(state);
     renderDebugPanel(state.debug || {});
     $("connection").className = "connection online";
     $("connection").querySelector("span").textContent = "已连接";
@@ -627,7 +851,16 @@ function buildDebugPayload(action, el) {
   }
   if (action === "control_service") {
     const command = el.dataset.payload ? JSON.parse(el.dataset.payload).command : "CANCEL_NOW";
-    return {command, expected_state_seq: 0, reason: "web 调试"};
+    // 降险类命令（暂停/立即取消）不带序号防过期拦截；恢复/跳过/ACK 带
+    // 最新镜像 state_seq，避免点错对象（过期会被调度拒并提示 mismatch）
+    const seqUnchecked = command === "PAUSE" || command === "CANCEL_NOW";
+    const stateSeq = Number(monitorState?.task_executor?.state?.state_seq) || 0;
+    return {command, expected_state_seq: seqUnchecked ? 0 : stateSeq,
+      reason: "web 调试"};
+  }
+  if (action === "arm_service") {
+    const data = el.dataset.payload ? JSON.parse(el.dataset.payload).data : true;
+    return {data: data === true};
   }
   if (action === "begin_scene_service") {
     return {request_id: requestId || "dev", scene_key: sceneKey};
@@ -645,7 +878,8 @@ function buildDebugPayload(action, el) {
     return {request_id: requestId || "dev", target_id: targetId,
       mode: $("exec-mode").value, skip_observation: $("exec-skip-obs").checked};
   }
-  return {};
+  const inline = el.dataset.payload ? JSON.parse(el.dataset.payload) : null;
+  return inline && typeof inline === "object" ? inline : {};
 }
 
 bindDebugControls();

@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from peach_harvester.yaml_params import dict_to_ns, leaf_keys
+from peach_common.yaml_params import dict_to_ns, leaf_keys
 from peach_observability.params import (
     _RULES,
     DEBUG_ENDPOINTS,
@@ -11,10 +11,10 @@ from peach_observability.params import (
     TOPIC_NAMES,
 )
 
-# 部署清单随 launch 留在 peach_harvester/config（同仓源码树可对账）
+# 部署清单随包走（W11 起从 peach_harvester/config 迁入本包）
 DEPLOY = (
-    Path(__file__).resolve().parents[2]
-    / 'peach_harvester' / 'config' / 'observability.yaml')
+    Path(__file__).resolve().parents[1]
+    / 'config' / 'observability.yaml')
 
 
 def test_rules_reference_yaml_keys():

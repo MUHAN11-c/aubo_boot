@@ -1,10 +1,12 @@
 """
 ObservabilityParams：yaml 直读后的扁平快照.
 
-部署事实源 ``peach_harvester/config/observability.yaml``。节点一行
-``ObservabilityParams.attach(node)``：声明叶子并挂规则校验（端口/周期/
-缓冲越界启动期拒绝、运行期非法 set 即拒），``ros2 param set`` 原地刷新本
-对象。话题名集中进 topics；debug 端点集中进 debug_endpoints。
+部署事实源 ``peach_observability/config/observability.yaml``（W11 起随包
+走，此前寄居 peach_harvester/config 并跨包 import 其 attach——违反能力包
+单向依赖）。节点一行 ``ObservabilityParams.attach(node)``：声明叶子并挂
+规则校验（端口/周期/缓冲越界启动期拒绝、运行期非法 set 即拒），
+``ros2 param set`` 原地刷新本对象。话题名集中进 topics；debug 端点集中进
+debug_endpoints。
 """
 from __future__ import annotations
 
@@ -12,8 +14,9 @@ from dataclasses import dataclass, fields
 from types import MappingProxyType
 from typing import Mapping, Tuple
 
-from peach_harvester.supervisor.param_rules import check as _check
-from peach_harvester.supervisor.params import peach_observability
+from peach_common.param_rules import check as _check
+from peach_common.yaml_params import attach as _attach
+from peach_common.yaml_params import package_yaml as _package_yaml
 
 _RULES = {  # 键 -> 校验规则表（启动期非法即拒启；运行期非法 set 即拒）
     'port': (('bounds', 1.0, 65535.0),),
@@ -155,8 +158,9 @@ class ObservabilityParams:
             if holder:
                 _copy_fields(holder[0], from_params(raw))
 
-        raw = peach_observability.attach(
-            node, on_commit=_commit, validate=_validate)
+        raw = _attach(
+            node, _package_yaml('peach_observability', 'observability.yaml'),
+            on_commit=_commit, validate=_validate)
         snapshot = from_params(raw)
         holder.append(snapshot)
         return snapshot

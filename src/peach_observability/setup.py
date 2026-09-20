@@ -25,6 +25,9 @@ setup(
          ['resource/' + package_name]),
         (os.path.join('share', package_name), ['package.xml', 'LICENSE']),
         (os.path.join('share', package_name, 'launch'), glob('launch/*.launch.py')),
+        (os.path.join('share', package_name, 'config'),
+         [os.path.join('config', f) for f in sorted(os.listdir('config'))
+          if f.endswith('.yaml')]),
         (os.path.join('share', package_name, 'web'), glob('web/*')),
     ],
     install_requires=['setuptools'],

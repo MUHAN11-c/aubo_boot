@@ -10,7 +10,7 @@ from launch_ros.substitutions import FindPackageShare
 def generate_launch_description():
     """转发到 peach_observability；不自动 RunHarvest."""
     config = PathJoinSubstitution([
-        FindPackageShare('peach_harvester'),
+        FindPackageShare('peach_observability'),
         'config', 'observability.yaml'])
     return LaunchDescription([
         DeclareLaunchArgument(

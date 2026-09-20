@@ -17,14 +17,6 @@ def test_executor_yaml_loads():
     assert 'tool.profile_id' in keys
 
 
-def test_observability_yaml_loads():
-    keys = leaf_keys(
-        ROOT / 'config' / 'observability.yaml', 'peach_observability')
-    assert 'host' in keys
-    assert 'record.enabled' in keys
-    assert 'debug.motion_enabled' in keys
-
-
 def test_lifecycle_manager_yaml_loads():
     keys = leaf_keys(
         ROOT / 'config' / 'lifecycle_manager.yaml',

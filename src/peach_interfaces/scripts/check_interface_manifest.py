@@ -61,7 +61,7 @@ _CONSUMER_PATHS = {
     ],
     'peach_observability': [
         'peach_observability/peach_observability',
-        'peach_harvester/config/observability.yaml',
+        'peach_observability/config/observability.yaml',
     ],
     'peach_scene_perception': [
         'peach_harvester/peach_harvester/vision/scene_perception',
@@ -163,9 +163,7 @@ def main() -> int:
         blob += _read(path)
     missing = []
     for name in names:
-        token = name
-        rel = name.rsplit('/', 1)[-1]
-        if token not in blob and f"'~/{rel}'" not in blob and f'"~/{rel}"' not in blob:
+        if not _name_in_blob(name, blob):
             missing.append(name)
     if missing:
         print('interface manifest names not found in peach_* sources:')
@@ -187,8 +185,10 @@ def main() -> int:
         for literal in untracked:
             print(f'  {literal}')
         return 1
-    # 弱校验：现行 consumers 须在对应节点源码出现该名字（自订阅跳过）
+    # 弱校验：现行 consumers 须在对应节点源码出现该名字（自订阅跳过）。
+    # 同一 consumer 被 N 个接口引用只拼一次 blob（原实现接口数×consumer 数重复 IO）
     consumer_miss = []
+    consumer_blobs: dict[str, str] = {}
     for item in interfaces:
         name = item['name']
         producers = set(item.get('producers') or [])
@@ -198,7 +198,10 @@ def main() -> int:
             if consumer not in _CONSUMER_PATHS:
                 consumer_miss.append(f'{name}: unknown consumer {consumer}')
                 continue
-            cblob = _consumer_blob(src_root, consumer)
+            cblob = consumer_blobs.get(consumer)
+            if cblob is None:
+                cblob = consumer_blobs[consumer] = _consumer_blob(
+                    src_root, consumer)
             if not _name_in_blob(name, cblob):
                 consumer_miss.append(f'{name} consumer {consumer}')
     if consumer_miss:

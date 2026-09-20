@@ -56,9 +56,9 @@ def _launch_node(context):
 
 
 def generate_launch_description():
-    """生成监控节点 launch；yaml 在 peach_harvester/config（3a 并包随迁）."""
+    """生成监控节点 launch；yaml 在本包 config/（W11 起随包走）."""
     config = PathJoinSubstitution([
-        FindPackageShare('peach_harvester'),
+        FindPackageShare('peach_observability'),
         'config', 'observability.yaml'])
     return LaunchDescription([
         DeclareLaunchArgument(
@@ -66,7 +66,7 @@ def generate_launch_description():
             description='true 时另起独立 ros2 bag record 进程'),
         DeclareLaunchArgument(
             'params_file', default_value=config,
-            description='只读监控参数文件；默认 peach_harvester/config/observability.yaml'),
+            description='只读监控参数文件；默认 peach_observability/config/observability.yaml'),
         DeclareLaunchArgument(
             'host', default_value='',
             description='覆盖监听地址；空串使用 YAML'),

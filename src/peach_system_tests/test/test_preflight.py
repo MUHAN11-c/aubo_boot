@@ -104,7 +104,17 @@ def test_executor_observability_launch_forwards():
         root / 'peach_harvester' / 'launch' / 'observability.launch.py'
         ).read_text(encoding='utf-8')
     assert "FindPackageShare('peach_observability')" in text
-    assert "FindPackageShare('peach_harvester')" in text
+    # W11 起 observability.yaml 随 peach_observability/config 走，harvester 不再代持
+    assert "FindPackageShare('peach_harvester')" not in text
+
+
+def test_observability_yaml_ownership():
+    root = _src_root()
+    assert root is not None
+    assert (root / 'peach_observability' / 'config' / 'observability.yaml'
+            ).is_file()
+    assert not (root / 'peach_harvester' / 'config' / 'observability.yaml'
+                ).exists()
 
 
 def test_observability_setup_owns_entry_points():
@@ -114,7 +124,8 @@ def test_observability_setup_owns_entry_points():
         encoding='utf-8')
     assert 'peach_observability.observability_node:main' in text
     assert 'peach_observability.bag_report:main' in text
-    assert "glob('config/*.yaml')" not in text
+    # W11 起 config/ 随包安装（yaml 归属从 harvester 迁入）
+    assert "share', package_name, 'config" in text
 
 
 def test_executor_setup_does_not_install_observability():

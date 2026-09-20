@@ -443,7 +443,7 @@ flowchart LR
   perc -->|"观测 + GraspDecision"| skills
 ```
 
-**读图：** 从左到右是产品链，不是启动顺序。调度点视觉/臂；视觉把「有哪些桃」和「这一颗能不能套」交给臂。契约横线表示能力包都只认同一套 IDL；`peach_common` 是公共库（参数/规则/QoS/路径单源，对齐 `nav2_common`），不跑节点故不画盒子。整栈入口在 `peach_bringup`；lifecycle 管理器仍在调度包；8090 实现与静态页在 `peach_observability`（观测依赖调度拿参数键；runs 根解析已单源 `peach_common.paths.runs_root`（W6-B），调度不依赖观测）。yaml 仍在 `peach_harvester/config/observability.yaml`。
+**读图：** 从左到右是产品链，不是启动顺序。调度点视觉/臂；视觉把「有哪些桃」和「这一颗能不能套」交给臂。契约横线表示能力包都只认同一套 IDL；`peach_common` 是公共库（参数/规则/QoS/路径/名单外 lifecycle 自转换单源，对齐 `nav2_common`），不跑节点故不画盒子。整栈入口在 `peach_bringup`；lifecycle 管理器仍在调度包；8090 实现与静态页在 `peach_observability`（参数 yaml 自持于本包 config，W11 起不再跨包 import 调度；runs 根解析单源 `peach_common.paths.runs_root`）。
 
 ### 驱动九包（只读面见 AGENTS）
 
@@ -1102,7 +1102,7 @@ yaml：仅上述 4 键仍为 `*.impl`（技能 yaml 无 `*.impl`）。检测/分
 3. 参数只走 nav2 式 `config/<节点>.yaml`（部署事实源）+ `attach(node)` 声明叶子（Python）或 GPL（`peach_arm`）。
 4. 未注册名必须列出全部可用名后失败。
 5. 仅袋/果、柱/球保留 yaml 选择键 `*.impl`。
-6. 不把监控再拆成新的 peach **业务能力**包。`peach_observability` 是应用层可拆包（0009/0021）：实现与 launch 在本包；参数 yaml 仍在 `peach_harvester/config/observability.yaml`（`ObservabilityParams.attach`）。真底盘时导航从归档恢复 `peach_navigation`，不加新业务包。
+6. 不把监控再拆成新的 peach **业务能力**包。`peach_observability` 是应用层可拆包（0009/0021）：实现与 launch 在本包；参数 yaml 也在本包 `config/observability.yaml`（W11 起从 `peach_harvester/config` 迁入，`ObservabilityParams.attach` 不再跨包 import）。真底盘时导航从归档恢复 `peach_navigation`，不加新业务包。
 7. 不虚构深度；重建积分禁止 latest TF。
 8. `SafetyGate::robotReady` 任何实现不得旁路硬件安全门。
 9. 不删 `_archive/runs/` 与现场 `runs/`。

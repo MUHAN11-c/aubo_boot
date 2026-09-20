@@ -1,11 +1,11 @@
 """
-Supervisor / observability / lifecycle: yaml 直读 + 一行 attach.
+Supervisor / lifecycle: yaml 直读 + 一行 attach.
 
-部署事实源 ``config/{peach_supervisor,observability,lifecycle_manager}.yaml``。
+部署事实源 ``config/{peach_supervisor,lifecycle_manager}.yaml``。
 节点 ``Xxx.attach(node)`` 声明叶子并挂校验：启动期非法覆盖即抛（拒绝启动）；
 ``ros2 param set`` 原地刷新，整批合法才提交（跨字段选果窗经 preview 拒绝）。
-observability 的规则表随节点派生层在 ``peach_observability/params.py``，
-经 ``validate=`` 透传进来。
+observability 的参数/规则随 ``peach_observability/params.py`` 自持（W11 起
+yaml 迁 ``peach_observability/config``，本包不再代持）。
 """
 from __future__ import annotations
 
@@ -113,17 +113,6 @@ class peach_supervisor:
             _yaml('peach_supervisor.yaml'),
             validate=_validator(_SUPERVISOR_RULES),
             preview=_supervisor_preview)
-
-
-class peach_observability:
-    """peach_observability parameters from observability.yaml."""
-
-    @staticmethod
-    def attach(node, on_commit=None, validate=None):
-        """Declare yaml leaves; validate/on_commit supplied by the node layer."""
-        return attach(
-            node, _yaml('observability.yaml'),
-            validate=validate, on_commit=on_commit)
 
 
 class peach_lifecycle_manager:

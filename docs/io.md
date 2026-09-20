@@ -461,7 +461,7 @@ flowchart TB
 
 ## 5. `peach_harvester`（supervisor）
 
-调度与 lifecycle 管理器同包。8090 实现在 `peach_observability`；参数 yaml 在 `peach_harvester/config/observability.yaml`，节点 `ObservabilityParams.attach`。调度是批次唯一所有者；lifecycle 不发 `RunHarvest`；监控只读。
+调度与 lifecycle 管理器同包。8090 实现在 `peach_observability`；参数 yaml 也在 `peach_observability/config/observability.yaml`（W11 起随包走），节点 `ObservabilityParams.attach`。调度是批次唯一所有者；lifecycle 不发 `RunHarvest`；监控只读。
 
 ### 5.1 `peach_harvester`（supervisor）（批）
 

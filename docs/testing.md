@@ -123,7 +123,7 @@ cd src/ivg_graspnet && ../../aubo_py3.12/bin/python -m pytest test/test_grasp_co
 python3 -m pytest src/peach_arm/test/test_contact_monitor.py
 ```
 
-监控：`http://127.0.0.1:8090`。参数 `peach_harvester/config/observability.yaml`。过程页：作业票（发现→完成）、事件（含 details 展开）、落盘目录、阶段时序（调度 FSM / 技能周期两列，段时长服务器侧结算）、批次账本（per-target 结果/原因/失败码/阶段耗时，随 `ledger.json` 终局入账直播）、感知节拍（fps/检测/分割/几何耗时、掉锚/陈旧锚）、重建进度（机位/拒帧/TF 失败/基线/许可倒计时）、TCP 俯视（绕行比、Δz、对照预抓取/入口/弦）、本场目标、柜侧硬件（TCP xyz/rpy、六轴角/速度、电流 SDK 原单位、温度、跟随误差）、系统负载与参数镜像（折叠）。`/api/state` 区段：`perception` / `reconstruction` / `refined` / `manipulation` / `task_executor` / `robot`（`status` / `tcp` / `joints`）/ `metrics` / `record` / `params` / `pipeline` / `ledger` / `job` / `debug`。默认不上电、不派发运动、不打工具 IO、不自动开批。
+监控：`http://127.0.0.1:8090`。参数 `peach_observability/config/observability.yaml`（W11 起随包走）。过程页：作业票（发现→完成）、事件（含 details 展开）、落盘目录、阶段时序（调度 FSM / 技能周期两列，段时长服务器侧结算）、批次账本（per-target 结果/原因/失败码/阶段耗时，随 `ledger.json` 终局入账直播）、感知节拍（fps/检测/分割/几何耗时、掉锚/陈旧锚）、重建进度（机位/拒帧/TF 失败/基线/许可倒计时）、TCP 俯视（绕行比、Δz、对照预抓取/入口/弦）、本场目标、柜侧硬件（TCP xyz/rpy、六轴角/速度、电流 SDK 原单位、温度、跟随误差）、系统负载与参数镜像（折叠）。`/api/state` 区段：`perception` / `reconstruction` / `refined` / `manipulation` / `task_executor` / `robot`（`status` / `tcp` / `joints`）/ `metrics` / `record` / `params` / `pipeline` / `ledger` / `job` / `debug`。默认不上电、不派发运动、不打工具 IO、不自动开批。
 
 ### Web 单步调试（决策 0018）
 

@@ -20,6 +20,7 @@ from ament_index_python.packages import get_package_share_directory
 from aubo_msgs.msg import JointStatus, RobotStatus
 from geometry_msgs.msg import Vector3Stamped
 from nav_msgs.msg import Path as NavPath
+from peach_common.lifecycle import ensure_lifecycle_active
 from peach_common.paths import runs_root as resolve_runs_root
 from peach_interfaces.msg import (
     BagFittingArray,
@@ -960,14 +961,9 @@ class ObservabilityNode(LifecycleNode):
         进入 Active 并开 HTTP.
 
         整栈 include 时 launch 的 lifecycle EmitEvent 经常匹配不到本节点
-        （不进 lifecycle 名单），这里在 spin 前自行转换。
+        （不进 lifecycle 名单），这里在 spin 前自行转换（共享 helper）。
         """
-        label = self._state_machine.current_state[1]
-        if label == 'unconfigured':
-            self.trigger_configure()
-            label = self._state_machine.current_state[1]
-        if label == 'inactive':
-            self.trigger_activate()
+        ensure_lifecycle_active(self)
 
     def start_http(self) -> None:
         """按快照参数提示非回环风险并启动 HTTP 服务线程."""

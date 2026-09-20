@@ -7,7 +7,8 @@ json``：会话概览、验收门三行对照（口径沿用旧 summary.md / doc
 量化基线）、按 request_id 分批的逐目标 outcome 与阶段耗时、事件/感知/重建/
 性能统计、逐目标作业票、TCP 轨迹（/tf 离线重算，沿用 3 mm 静止门槛）。
 
-本模块只依赖标准库与 numpy；bag 读取（rosbag2_py）在 generate 层懒加载。
+本模块只依赖标准库、numpy 与 scipy.spatial.transform（W11 起旋转走
+scipy Rotation）；bag 读取（rosbag2_py）在 generate 层懒加载。
 """
 
 from __future__ import annotations
@@ -18,6 +19,7 @@ from pathlib import Path
 import time
 
 import numpy as np
+from scipy.spatial.transform import Rotation
 
 from .path_metrics import path_metrics
 
@@ -398,30 +400,15 @@ def merge_reconstruction_streams(streams: dict) -> list[dict]:
     return records
 
 
-def _quat_mul(a, b):
-    """四元数乘法（xyzw 顺序）."""
-    ax, ay, az, aw = a
-    bx, by, bz, bw = b
-    return np.array([
-        aw * bx + ax * bw + ay * bz - az * by,
-        aw * by - ax * bz + ay * bw + az * bx,
-        aw * bz + ax * by - ay * bx + az * bw,
-        aw * bw - ax * bx - ay * by - az * bz,
-    ])
-
-
-def _quat_rotate(q, v):
-    """四元数旋转向量 v（xyzw 顺序）."""
-    qv = np.array([q[0], q[1], q[2]])
-    w = q[3]
-    return (v + 2.0 * np.cross(qv, np.cross(qv, v) + w * v))
-
-
 def _compose_chain(edges, base_frame: str, tip_frame: str):
     """
-    沿边表 BFS 合成 base→tip 位姿；不通给 None.
+    沿边表 BFS 合成 base→tip 位姿；不通或退化给 None.
 
     edges: {(parent, child): (xyz(3,), quat(xyzw,))}，取各边最新值。
+    旋转用 scipy Rotation（W11 前手写哈密顿积/旋转向量，AGENTS 禁手写
+    四元数运算）；四元数 xyzw 与 ROS 同序。tf2_ros.Buffer 不适用于此处：
+    消费的是 bag 读出的 dict 流（非消息对象），且合成口径=latest 边镜像
+    在线采样器（无时间插值需求）。
     """
     children = {}
     for (parent, child) in edges:
@@ -438,15 +425,16 @@ def _compose_chain(edges, base_frame: str, tip_frame: str):
     if not path:
         return None
     trans = np.zeros(3)
-    rot = np.array([0.0, 0.0, 0.0, 1.0])
-    for parent, child in zip(path, path[1:]):
-        p_xyz, p_rot = edges[(parent, child)]
-        trans = trans + _quat_rotate(rot, p_xyz)
-        rot = _quat_mul(rot, p_rot)
-    norm = float(np.linalg.norm(rot))
-    if norm < 1.0e-9:
+    rot = Rotation.identity()
+    try:
+        for parent, child in zip(path, path[1:]):
+            p_xyz, p_rot = edges[(parent, child)]
+            trans = trans + rot.apply(p_xyz)
+            rot = rot * Rotation.from_quat(p_rot)
+    except ValueError:
+        # from_quat 拒绝退化（近零范数）四元数：整链判不通
         return None
-    return trans, rot / norm
+    return trans, rot.as_quat()
 
 
 def tcp_points_from_tf(streams: dict, base_frame: str = 'base_link',

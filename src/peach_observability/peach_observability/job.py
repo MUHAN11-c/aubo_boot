@@ -44,6 +44,17 @@ _SKILL_NO_CONTACT = {
     'READY_FOR_GRASP', 'PLAN_READY', 'PREVIEW_READY',
 }
 
+# 失败环节判定子串表：匹配 supervisor/技能状态消息的人读文本（blob 小写
+# 后比对，中文不受 lower 影响）。上游改文案须同步这里；表序=优先级。
+_FAIL_STAGE_TOKENS = (
+    ('observe', ('observe', '扫描', '视点', '重建', 'build_target', 'stale')),
+    ('permit', ('许可', 'quality', 'grasp_decision', 'axis')),
+    ('approach', ('approach', 'mtc', 'unreachable', '靠近')),
+    ('tool', ('tool', '工具')),
+)
+# COMPLETED 批次的失败签名（blob 小写后匹配；命中即该批按失败环节呈现）
+_BATCH_FAIL_TOKENS = ('observe_failed', '扫描上限', '未收敛')
+
 
 def build_harvest_job(snapshot: dict) -> dict:
     """
@@ -247,8 +258,8 @@ def _active_stage(batch: int, phase: int, message: str, skill: str,
     """返回 (当前环节, 失败环节或 None)."""
     blob = f'{message} {skill_message} {skill}'
     if batch == _BATCH_COMPLETED:
-        if skill == 'FAILED' or any(token in blob.lower() for token in (
-                'observe_failed', '扫描上限', '未收敛')):
+        if skill == 'FAILED' or any(
+                token in blob.lower() for token in _BATCH_FAIL_TOKENS):
             failed = _fail_stage(blob, skill, phase)
             return failed, failed
         return 'done', None
@@ -298,18 +309,11 @@ def _active_stage(batch: int, phase: int, message: str, skill: str,
 
 
 def _fail_stage(message: str, skill: str, phase: int) -> str:
+    """按消息/技能文本子串判失败环节；无命中按 phase 里程碑倒推."""
     text = f'{message} {skill}'.lower()
-    if any(token in text for token in (
-            'observe', '扫描', '视点', '重建', 'build_target', 'stale')):
-        return 'observe'
-    if any(token in text for token in (
-            '许可', 'quality', 'grasp_decision', 'axis')):
-        return 'permit'
-    if any(token in text for token in (
-            'approach', 'mtc', 'unreachable', '靠近')):
-        return 'approach'
-    if 'tool' in text or '工具' in message:
-        return 'tool'
+    for stage_id, tokens in _FAIL_STAGE_TOKENS:
+        if any(token in text for token in tokens):
+            return stage_id
     if phase >= _PHASE_TOOL:
         return 'tool'
     if phase >= _PHASE_APPROACHING:

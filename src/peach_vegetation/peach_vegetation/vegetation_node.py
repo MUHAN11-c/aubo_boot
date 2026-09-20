@@ -15,6 +15,7 @@ from cv_bridge import CvBridge
 from diagnostic_msgs.msg import DiagnosticStatus
 from diagnostic_updater import Updater
 import numpy as np
+from peach_common.lifecycle import ensure_lifecycle_active
 from peach_vegetation.params import peach_vegetation
 from peach_vegetation.split import config_from_params, FrangiExgSplitter
 import rclpy
@@ -118,14 +119,10 @@ class VegetationNode(LifecycleNode):
         """
         进入 Active.
 
-        独立 launch 的 EmitEvent 有时匹配不到本节点；spin 前自行转换。
+        独立 launch 的 EmitEvent 有时匹配不到本节点；spin 前自行转换
+        （与 observability 共用 peach_common helper）。
         """
-        label = self._state_machine.current_state[1]
-        if label == 'unconfigured':
-            self.trigger_configure()
-            label = self._state_machine.current_state[1]
-        if label == 'inactive':
-            self.trigger_activate()
+        ensure_lifecycle_active(self)
 
     def _release(self) -> None:
         """Destroy ROS handles and drop the splitter (frees CUDA)."""

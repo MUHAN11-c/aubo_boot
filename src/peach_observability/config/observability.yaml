@@ -1,6 +1,6 @@
 # peach_observability 参数全量清单（nav2 式：launch 以 ParameterFile 装入，部署值即事实源）
 # 节点 ObservabilityParams.attach 按本文件声明叶子；ros2 param set 原地刷新。
-# 键名冻结。yaml 在 peach_harvester/config（实现包不另开一份清单）。
+# 键名冻结。yaml 随包走（W11 起从 peach_harvester/config 迁入，实现包自持清单）。
 peach_observability:
   ros__parameters:
     host: 127.0.0.1  # HTTP 监听地址；局域网访问显式设 0.0.0.0

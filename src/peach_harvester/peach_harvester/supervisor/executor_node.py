@@ -79,8 +79,8 @@ from .harvest_fsm import (
     settle_terminal,
     WAITING_READY,
 )
-from .params import SupervisorParams
 from .param_rules import check_enable_deps
+from .params import SupervisorParams
 from ..cycle_core.batch_policy import (
     BatchPolicy,
     ratio_reached,

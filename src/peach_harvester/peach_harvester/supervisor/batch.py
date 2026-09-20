@@ -6,6 +6,7 @@ import os
 from pathlib import Path
 
 from builtin_interfaces.msg import Duration
+from peach_common.paths import safe_component
 from peach_interfaces.msg import HarvestSummary, TargetOutcome
 
 
@@ -239,11 +240,12 @@ def default_ledger_root() -> Path:
 
 
 def _safe_run_component(request_id: str, fallback: str) -> str:
-    """目录名段：拒绝含 / 、反斜杠或 .. 的 id（路径穿越），回退 fallback."""
-    text = str(request_id or '').strip()
-    if not text or any(token in text for token in ('/', '\\', '..')):
-        return fallback
-    return text
+    """目录名段净化（W1 起单源委托 peach_common.paths.safe_component）.
+
+    语义收紧：在旧「拒路径分隔符与上跳」之上补拒 NUL 与纯点段；非法
+    回退 fallback（折叠隔离目录，不拒绝整批）。
+    """
+    return safe_component(request_id, fallback)
 
 
 def ledger_file(root: Path, request_id: str) -> Path:

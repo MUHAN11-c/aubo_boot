@@ -38,6 +38,7 @@ import cv_bridge
 from geometry_msgs.msg import Point, Vector3, Vector3Stamped
 import message_filters
 import numpy as np
+from peach_common.paths import safe_component
 from peach_harvester.vision.common.bag_landmarks import (
     estimate_bag_landmarks,
 )
@@ -1792,10 +1793,13 @@ class TargetReconstructionNode(
         """
         Session 根：批次在跑=runs/<request_id>/sessions（单根，R7）.
 
-        无批次回退旧布局（配置根/工作区 runs/）。
+        无批次回退旧布局（配置根/工作区 runs/）。request_id 为消息来源，
+        入路径前经 safe_component 净化（W1 路径穿越修复）。
         """
         if self._executor_run_id:
-            return resolve_runs_root(None) / self._executor_run_id / 'sessions'
+            return (resolve_runs_root(None) /
+                    safe_component(self._executor_run_id, 'harvest') /
+                    'sessions')
         return resolve_runs_root(self.params.session.root_dir)
 
     def _session_metadata(self) -> dict:
@@ -1894,9 +1898,13 @@ class TargetReconstructionNode(
         }
 
     def _geometry_root(self) -> Path:
-        """geometry.jsonl 根：批次=runs/<request_id>/（单根批根，R7）."""
+        """geometry.jsonl 根：批次=runs/<request_id>/（单根批根，R7）.
+
+        request_id 消息来源，入路径前净化（W1 路径穿越修复）。
+        """
         if self._executor_run_id:
-            return resolve_runs_root(None) / self._executor_run_id
+            return (resolve_runs_root(None) /
+                    safe_component(self._executor_run_id, 'harvest'))
         return resolve_runs_root(self.params.session.root_dir)
 
     def _log_geometry_row(self, result: dict, fused: dict) -> None:

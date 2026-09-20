@@ -21,6 +21,7 @@ from typing import (
 
 import cv2
 import numpy as np
+from peach_common.paths import safe_component
 import yaml
 
 # 纯核不能 import ROS，走 stdlib logging（print 会污染 stdout）
@@ -189,9 +190,13 @@ class HarvestDataStore:
         self._mask_last_saved = {}
 
     def _resolve(self, run_id: str) -> Path:
-        """轮目录：批次在跑=base_dir/run_id，否则 root/run_id（旧布局）."""
+        """轮目录：批次在跑=base_dir/run_id，否则 root/run_id（旧布局）.
+
+        run_id 是消息来源（executor 广播），入路径前经 safe_component
+        净化（W1 路径穿越修复：拒绝分隔符/上跳/NUL，非法折叠 fallback）。
+        """
         base = self.base_dir if self.base_dir is not None else self.root
-        return base / run_id
+        return base / safe_component(run_id, 'run')
 
     def start(self, run_id: str, manifest: dict) -> Path:
         """创建运行目录并原子写 manifest.yaml."""

@@ -11,9 +11,10 @@ import threading
 import numpy as np
 import pytest
 
-pytest.importorskip('geometry_msgs')
-
-from peach_harvester.vision.scene_perception.inference import MobileSam  # noqa: E402
+try:
+    from peach_harvester.vision.scene_perception.inference import MobileSam
+except ImportError:  # 零 ROS 门环境：inference→pose_pipelines→geometry_msgs
+    MobileSam = None
 
 
 class _Boom:
@@ -34,6 +35,8 @@ def _sam_with_broken_backend():
 
 
 def test_segment_propagates_backend_exception():
+    if MobileSam is None:
+        pytest.skip('geometry_msgs unavailable（inference 导入链需 ROS 环境）')
     sam = _sam_with_broken_backend()
     rgb = np.zeros((8, 8, 3), dtype=np.uint8)
     with pytest.raises(RuntimeError):

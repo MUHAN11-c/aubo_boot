@@ -51,6 +51,7 @@ python3 -m pytest -q -p no:cacheprovider --import-mode=importlib \
 python3 -m pytest -q -p no:cacheprovider --import-mode=importlib \
   src/peach_common/test/test_yaml_params.py \
   src/peach_common/test/test_param_rules.py \
+  src/peach_common/test/test_paths.py \
   src/peach_common/test/test_qos.py
 
 python3 -m pytest -q -p no:cacheprovider --import-mode=importlib \

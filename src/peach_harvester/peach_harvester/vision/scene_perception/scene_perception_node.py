@@ -13,6 +13,7 @@ from cv_bridge import CvBridge
 from geometry_msgs.msg import Vector3, Vector3Stamped
 import message_filters
 import numpy as np
+from peach_common.paths import safe_component
 from peach_harvester.vision.common.geometry import (
     gravity_camera_from_R,
     normalize_depth_to_uint16_mm,
@@ -361,10 +362,12 @@ class ScenePerceptionNode(LifecycleNode):
         """为刚锁定的全局目标集合创建不可变 manifest（须持 _plan_lock 调用）."""
         with self.pipeline.plan_lock:
             # 批次在跑：轮目录落 runs/<request_id>/perception_data/<轮ID>；
-            # 无批次回退旧布局（root/<轮ID>）
+            # 无批次回退旧布局（root/<轮ID>）。request_id 为消息来源，入路径
+            # 前经 safe_component 净化（W1 路径穿越修复）。
             if self._executor_run_id:
                 self.harvest_data.base_dir = (
-                    default_runs_root() / self._executor_run_id
+                    default_runs_root() /
+                    safe_component(self._executor_run_id, 'harvest')
                     / 'perception_data')
             else:
                 self.harvest_data.base_dir = None

@@ -355,6 +355,11 @@ def save_session(root_dir, frames: List, metadata: dict,
 
     """
     root = Path(root_dir)
+    # 路径守卫（W1 安全修复）：root_dir 上游含消息来源的 request_id 段
+    # （_session_root 已净化）；此处再拒显式上跳段，防任何未净化调用方
+    # 把写盘目录逃出预期根。
+    if '..' in root.parts:
+        raise ValueError(f'session root 含上跳段，拒绝落盘: {root}')
     # 微秒参与目录名并禁止复用：连续 finalize 不得静默覆盖前一次原始数据。
     session_dir = root / f'session_{datetime.now():%Y%m%d_%H%M%S_%f}'
     session_dir.mkdir(parents=True, exist_ok=False)

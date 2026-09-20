@@ -144,14 +144,16 @@ class ReworkList:
         })
 
     def save(self, runs_root: Path) -> Path:
-        """落盘 rework_list.json 并返回路径."""
+        """落盘 rework_list.json（tmp+replace 原子写，对齐 save_ledger）."""
         out = Path(runs_root) / self.request_id / 'rework_list.json'
         out.parent.mkdir(parents=True, exist_ok=True)
-        out.write_text(
+        tmp = out.with_suffix('.json.tmp')
+        tmp.write_text(
             json.dumps(
                 {'request_id': self.request_id, 'entries': self.entries},
                 ensure_ascii=False, indent=1),
             encoding='utf-8')
+        tmp.replace(out)
         return out
 
     @classmethod

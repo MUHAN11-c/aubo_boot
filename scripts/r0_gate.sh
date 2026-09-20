@@ -46,8 +46,7 @@ python3 -m pytest -q -p no:cacheprovider --import-mode=importlib \
 python3 -m pytest -q -p no:cacheprovider --import-mode=importlib \
   src/peach_harvester/test/test_supervisor_harvest_fsm.py \
   src/peach_harvester/test/test_supervisor_reducer.py \
-  src/peach_harvester/test/test_supervisor_ledger.py \
-  src/peach_harvester/test/test_supervisor_watchdog.py \
+  src/peach_harvester/test/test_supervisor_batch.py \
   src/peach_harvester/test/test_supervisor_lifecycle.py \
   src/peach_harvester/test/test_supervisor_idl_constants.py \
   src/peach_harvester/test/test_supervisor_import_guard.py \

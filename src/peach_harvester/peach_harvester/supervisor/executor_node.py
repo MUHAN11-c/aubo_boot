@@ -63,7 +63,6 @@ from .batch import (
     set_elapsed,
     stages_from_execute,
 )
-from .domain.ledger import LedgerIndex
 from .domain.reducer import BatchEvent, OrchestratorState, reduce_event
 from .harvest_fsm import (
     apply_recovery_ack,
@@ -181,7 +180,6 @@ class TaskExecutorNode(LifecycleNode):
         self._event_hold = EventHold()
         self._action_generation = 0
         self._transaction_id = ''
-        self._txn_ledger = LedgerIndex()
         self._settled_transaction = ''
         self._cycle_plan_id = ''
         self._last_calibration_revision = ''
@@ -806,6 +804,9 @@ class TaskExecutorNode(LifecycleNode):
             self._current_target_id = ''
             self._action_active = False
             self._run_goal_handle = None
+            # W6-B/S5：终局与异常路径统一在此落账（原 body 末次持久化移此，
+            # 写序仍为 ledger → rework_list；幂等重写无内容差异）
+            self._persist_ledger(self._claimed)
             if self._rework is not None and self._rework.entries:
                 try:
                     out = self._rework.save(default_ledger_root())
@@ -902,17 +903,27 @@ class TaskExecutorNode(LifecycleNode):
             # 终局统一入口：COMPLETED 只经 settle_terminal 落地；仍在
             # 终态迁移之后发布，与旧序（赋值→succeed→发布）对外一致
             self._apply_state(settle_terminal(), force_publish=True)
-        self._persist_ledger(self._claimed)
         return result
 
     def _cmd_survey(self, goal, reaction):
         """SURVEY 分支（原循环分支逐字搬运）：SurveyScene + 首轮后断点恢复."""
         survey_ok = self._survey_body(self._survey_goal)
         if not self._ledger_loaded:
-            claimed, restored = self._restore_ledger(self._run_id)
+            claimed, restored, restored_details = self._restore_ledger(
+                self._run_id)
             if restored:
                 self._outcomes = restored
-                self._outcome_details = [{} for _ in restored]
+                # W6-B/S7：details 随账本回读（load_ledger 按 _EXTRA_KEYS
+                # 回填），恢复批遥测细节不再归零成空 dict。
+                self._outcome_details = restored_details
+                # discovered 计数不随账本恢复（历史观测帧不可重放），维持
+                # 复位值 0；在恢复事件里注明，防读账本时误读为「零发现」。
+                self._emit(
+                    'ledger_restored', goal.request_id,
+                    details={
+                        'claimed': len(claimed),
+                        'outcomes': len(restored),
+                        'discovered': 'not_restored'})
             self._claimed = claimed
             self._ledger_loaded = True
         if self._cancel:
@@ -1466,9 +1477,6 @@ class TaskExecutorNode(LifecycleNode):
         """将 outcomes 与遥测附加字段等长追加."""
         self._outcomes.append(outcome)
         self._outcome_details.append(dict(extra or {}))
-        self._txn_ledger.close(
-            self._transaction_id, str(getattr(outcome, 'target_id', '') or ''),
-            int(getattr(outcome, 'outcome', 0) or 0))
 
     def _wait_build_after_observe(
             self, handle, timeout_s: float, grace_s: float, min_views: int):
@@ -1812,14 +1820,15 @@ class TaskExecutorNode(LifecycleNode):
         return ledger_file(default_ledger_root(), self._run_id)
 
     def _restore_ledger(self, run_id: str):
+        """读回 (claimed, outcomes, details)；persist_ledger 关时空恢复."""
         if not bool(self._params.persist_ledger):
-            return set(), []
-        claimed, outcomes = load_ledger(
+            return set(), [], []
+        claimed, outcomes, details = load_ledger(
             ledger_file(default_ledger_root(), run_id))
         if claimed:
             self.get_logger().info(
                 f'resume ledger {run_id}: {len(claimed)} claimed')
-        return claimed, outcomes
+        return claimed, outcomes, details
 
     def _persist_ledger(self, claimed) -> None:
         if not bool(self._params.persist_ledger):

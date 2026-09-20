@@ -9,7 +9,6 @@ from peach_harvester.supervisor.harvest_fsm import (
     Event,
     INTERRUPTED,
     MODE_AUTO,
-    MODE_MAINTENANCE,
     MODE_PAUSED,
     PAUSE_PENDING,
     react,
@@ -112,25 +111,3 @@ def reduce_event(
         settled_transaction=settled,
     )
     return nxt, effects
-
-
-def set_paused(state: OrchestratorState, paused: bool) -> OrchestratorState:
-    """只改 operation_mode，不覆盖 batch_state."""
-    if state.batch_state in (6, 8):  # COMPLETED / INTERRUPTED
-        return state
-    mode = MODE_PAUSED if paused else MODE_AUTO
-    if state.operation_mode == MODE_MAINTENANCE and paused:
-        mode = MODE_MAINTENANCE
-    return replace(state, operation_mode=mode)
-
-
-def set_recovery(state: OrchestratorState, latched: bool) -> OrchestratorState:
-    """接触恢复闩与 phase 正交."""
-    return replace(state, recovery_latch=latched)
-
-
-def begin_session(state: OrchestratorState, session_id: str) -> OrchestratorState:
-    """开批绑定会话，丢弃跨会话结果."""
-    return replace(
-        state, session_id=session_id, generation=0, transaction_id='',
-        settled_transaction='')

@@ -20,7 +20,7 @@ from ament_index_python.packages import get_package_share_directory
 from aubo_msgs.msg import JointStatus, RobotStatus
 from geometry_msgs.msg import Vector3Stamped
 from nav_msgs.msg import Path as NavPath
-from peach_harvester.supervisor.batch import resolve_runs_root
+from peach_common.paths import runs_root as resolve_runs_root
 from peach_interfaces.msg import (
     BagFittingArray,
     BagGraspCandidateArray,

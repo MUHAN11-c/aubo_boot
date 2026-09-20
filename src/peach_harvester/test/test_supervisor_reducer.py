@@ -1,10 +1,8 @@
 """Zero-ROS 3D reducer: pause/resume/cancel/out-of-order."""
 from peach_harvester.supervisor.domain.reducer import (
     BatchEvent,
-    begin_session,
     OrchestratorState,
     reduce_event,
-    set_paused,
 )
 from peach_harvester.supervisor.harvest_fsm import (
     Command,
@@ -17,15 +15,20 @@ from peach_harvester.supervisor.harvest_fsm import (
 
 
 def test_pause_keeps_running_and_resume_dispatches_once():
-    state = OrchestratorState(batch_state=RUNNING, target_phase=2, session_id='s')
-    state = set_paused(state, True)
+    # set_paused/set_recovery/begin_session 是节点未调用的死动词（W6-B
+    # 删除）；暂停投影由 OrchestratorState.operation_mode 直接表达。
+    state = OrchestratorState(
+        batch_state=RUNNING, target_phase=2, session_id='s',
+        operation_mode=MODE_PAUSED)
     assert state.batch_state == RUNNING
     assert state.operation_mode == MODE_PAUSED
     state, effects = reduce_event(
         state, BatchEvent(Event.READY_FULL, transaction_id='txn-1', session_id='s'))
     assert not effects
     assert state.batch_state == RUNNING
-    state = set_paused(state, False)
+    state = OrchestratorState(
+        batch_state=state.batch_state, target_phase=state.target_phase,
+        session_id='s', settled_transaction=state.settled_transaction)
     state, effects = reduce_event(
         state, BatchEvent(Event.READY_FULL, transaction_id='txn-1', session_id='s'))
     assert len(effects) == 1
@@ -54,8 +57,8 @@ def test_duplicate_terminal_does_not_redispatch():
 
 
 def test_cross_session_dropped():
-    state = begin_session(
-        OrchestratorState(batch_state=DISCOVERY, target_phase=0), 'sess-a')
+    state = OrchestratorState(
+        batch_state=DISCOVERY, target_phase=0, session_id='sess-a')
     state, effects = reduce_event(
         state, BatchEvent(Event.TARGET_SELECTED, session_id='sess-b'))
     assert effects == []

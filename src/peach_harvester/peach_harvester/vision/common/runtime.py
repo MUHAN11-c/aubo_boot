@@ -22,6 +22,7 @@ from typing import (
 
 import cv2
 import numpy as np
+from peach_common.paths import runs_root as _runs_root
 from peach_common.paths import safe_component
 import yaml
 
@@ -146,25 +147,13 @@ class BoundedWorker(Generic[Item]):
 
 
 def default_runs_root() -> Path:
-    """过程数据唯一根目录：工作区 ``runs/``."""
-    override = os.environ.get('AUBO_RUNS_DIR') or os.environ.get(
-        'AUBO_HARVEST_DATA_DIR')
-    if override:
-        return Path(override)
-    for parent in Path(__file__).resolve().parents:
-        if (parent / 'src' / 'peach_interfaces').is_dir():
-            return parent / 'runs'
-    return Path.cwd() / 'runs'
+    """过程数据唯一根目录（W6-B 单源委托 peach_common.paths.runs_root）."""
+    return _runs_root()
 
 
 def resolve_runs_root(configured: str = '') -> Path:
     """参数/yaml 给出绝对路径则用之，否则回到 ``default_runs_root()``."""
-    text = str(configured or '').strip()
-    if text:
-        path = Path(text)
-        if path.is_absolute():
-            return path
-    return default_runs_root()
+    return _runs_root(configured)
 
 
 def default_harvest_root() -> Path:

@@ -1,14 +1,18 @@
-"""选果、控制面、摘要与账本（批次纯函数）."""
+"""
+选果、控制面、摘要与账本（批次纯函数）.
+
+ROS msg（builtin_interfaces / peach_interfaces）按调用点延迟 import：
+本模块保持零 ROS 环境可导入（纯核单测/回放；对齐 harvest_fsm 惯例），
+消息构造只发生在 build_summary / elapsed_msg / dict_to_outcome 等出口。
+"""
 from __future__ import annotations
 
 import json
-import os
 from pathlib import Path
 import time
 
-from builtin_interfaces.msg import Duration
+from peach_common.paths import runs_root as _runs_root
 from peach_common.paths import safe_component
-from peach_interfaces.msg import HarvestSummary, TargetOutcome
 
 
 def pregrasp_pose_of(item):
@@ -103,8 +107,13 @@ def next_target(
     targets_filtered 事件——「为什么没人被选」必须可归因。
     """
     claimed = set(claimed)
+    # S6：preferred（goal 显式名单）同样过资格谓词——未确认/裸果/贴边
+    # 不得被点名直通；过滤后无候选走常规路径（不受窗限语义保留给
+    # 合格的 preferred）。
+    eligible = dict(
+        _eligible_locked_items(observations, claimed))
     for tid in preferred:
-        if tid and tid not in claimed:
+        if tid and str(tid) in eligible and tid not in claimed:
             return str(tid), []
 
     def _window_reasons(item, tid):
@@ -173,8 +182,9 @@ def apply_control(
     return False, state_seq, paused, False, False
 
 
-def elapsed_msg(seconds: float) -> Duration:
+def elapsed_msg(seconds: float):
     """单调时钟秒数 → Duration（小数进位到 sec，nanosec 恒 < 1s）."""
+    from builtin_interfaces.msg import Duration
     msg = Duration()
     safe = max(0.0, float(seconds))
     total_ns = int(round(safe * 1e9))
@@ -184,8 +194,9 @@ def elapsed_msg(seconds: float) -> Duration:
 
 
 def build_summary(run_id: str, outcomes, discovered: int,
-                  elapsed_s: float) -> HarvestSummary:
+                  elapsed_s: float):
     """填充 HarvestSummary 计数与账本."""
+    from peach_interfaces.msg import HarvestSummary, TargetOutcome
     summary = HarvestSummary()
     summary.run_id = run_id
     summary.outcomes = list(outcomes)
@@ -208,31 +219,13 @@ def build_summary(run_id: str, outcomes, discovered: int,
 
 
 def default_runs_root() -> Path:
-    """
-    过程数据根目录：工作区 ``runs/``（本包等价实现，不跨包 import）.
-
-    优先级：AUBO_RUNS_DIR / AUBO_HARVEST_DATA_DIR 环境变量
-    > 从本文件向上找含 ``src/peach_interfaces`` 的工作区根，取其 ``runs/``
-    > ``Path.cwd()/runs`` 兜底。语义与感知 ``common/runtime`` 同名实现一致。
-    """
-    override = os.environ.get('AUBO_RUNS_DIR') or os.environ.get(
-        'AUBO_HARVEST_DATA_DIR')
-    if override:
-        return Path(override)
-    for parent in Path(__file__).resolve().parents:
-        if (parent / 'src' / 'peach_interfaces').is_dir():
-            return parent / 'runs'
-    return Path.cwd() / 'runs'
+    """过程数据根目录（W6-B 单源委托 peach_common.paths.runs_root）."""
+    return _runs_root()
 
 
 def resolve_runs_root(configured: str = '') -> Path:
     """参数给出绝对路径则用之，否则回 ``default_runs_root()``."""
-    text = str(configured or '').strip()
-    if text:
-        path = Path(text)
-        if path.is_absolute():
-            return path
-    return default_runs_root()
+    return _runs_root(configured)
 
 
 def default_ledger_root() -> Path:
@@ -254,13 +247,6 @@ def ledger_file(root: Path, request_id: str) -> Path:
     """单个批次的 ledger.json 路径（request_id 过滤路径穿越）."""
     safe = _safe_run_component(request_id, 'harvest')
     return Path(root) / safe / 'ledger.json'
-
-
-def target_artifact_dir(root: Path, request_id: str, target_id: str) -> Path:
-    """runs/<request_id>/targets/<target_id>/ 过程目录（同规则过滤）."""
-    safe_run = _safe_run_component(request_id, 'harvest')
-    safe_tid = _safe_run_component(target_id, 'target')
-    return Path(root) / safe_run / 'targets' / safe_tid
 
 
 def elapsed_s(outcome) -> float | None:
@@ -285,7 +271,17 @@ def set_elapsed(outcome, seconds: float) -> None:
     outcome.elapsed.nanosec = nanosec
 
 
-def outcome_to_dict(outcome: TargetOutcome, extra: dict | None = None) -> dict:
+# ledger 遥测附加键白名单（W6-B/S4）：_cmd_full/_record_skip 写入的
+# extra 键全集，对齐 observability pipeline._ROW_PASSTHROUGH 期望。
+# cut/retreat/harvest_confirmed 三 bool 键不补——W7 IDL 收敛将随
+# ExecuteTarget.Result 顶层删除。
+_EXTRA_KEYS = (
+    'failure_code', 'failure_code_n', 'completion_level', 'stage_names',
+    'stage_durations', 'build_view_count', 'build_status', 'build_duration_s',
+    'timeout_source')
+
+
+def outcome_to_dict(outcome, extra: dict | None = None) -> dict:
     """Serialize TargetOutcome plus optional telemetry extra."""
     data = {
         'target_id': str(outcome.target_id),
@@ -295,17 +291,15 @@ def outcome_to_dict(outcome: TargetOutcome, extra: dict | None = None) -> dict:
         'elapsed_s': elapsed_s(outcome),
     }
     extra = extra or {}
-    for key in (
-            'failure_code', 'stage_names', 'stage_durations',
-            'build_view_count', 'build_status', 'build_duration_s',
-            'timeout_source'):
+    for key in _EXTRA_KEYS:
         if extra.get(key) is not None:
             data[key] = extra[key]
     return data
 
 
-def dict_to_outcome(data: dict) -> TargetOutcome:
+def dict_to_outcome(data: dict):
     """Build TargetOutcome from a ledger dict."""
+    from peach_interfaces.msg import TargetOutcome
     item = TargetOutcome()
     item.target_id = str(data.get('target_id', ''))
     item.outcome = int(data.get('outcome', TargetOutcome.FAILED))
@@ -317,16 +311,27 @@ def dict_to_outcome(data: dict) -> TargetOutcome:
 
 
 def load_ledger(path: Path) -> tuple:
-    """Return claimed IDs and outcomes; missing file yields empty."""
+    """
+    Return claimed IDs, outcomes and per-outcome extras; missing file yields empty.
+
+    W6-B/S7：extras（白名单键）随账本回读，供断点恢复回填
+    ``_outcome_details``——恢复批的遥测细节不再归零成空 dict。
+    """
     if not path.is_file():
-        return set(), []
+        return set(), [], []
     raw = json.loads(path.read_text(encoding='utf-8'))
     claimed = {str(tid) for tid in raw.get('claimed', []) if tid}
-    outcomes = [dict_to_outcome(item) for item in raw.get('outcomes', [])]
-    for item in outcomes:
-        if item.target_id:
-            claimed.add(item.target_id)
-    return claimed, outcomes
+    outcomes = []
+    details = []
+    for item in raw.get('outcomes', []):
+        outcome = dict_to_outcome(item)
+        outcomes.append(outcome)
+        details.append({
+            key: item[key] for key in _EXTRA_KEYS
+            if item.get(key) is not None})
+        if outcome.target_id:
+            claimed.add(outcome.target_id)
+    return claimed, outcomes, details
 
 
 def save_ledger(path: Path, claimed, outcomes, details=None) -> None:
@@ -368,6 +373,7 @@ def stages_from_execute(executed) -> dict:
 
 def full_failure_code(outcome, operator_skip: bool) -> str:
     """按 TargetOutcome 分级 FULL 失败码，质量/不可达不记 full_failed."""
+    from peach_interfaces.msg import TargetOutcome
     if operator_skip or int(outcome.outcome) == int(TargetOutcome.CANCELED):
         return 'canceled'
     code = int(outcome.outcome)

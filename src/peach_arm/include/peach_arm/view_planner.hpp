@@ -51,13 +51,10 @@ struct ViewPlannerConfig
   double observation_radius_m{0.40};
   double minimum_radius_m{0.32};
   double azimuth_step_deg{12.0};
-  double azimuth_limit_deg{16.0};
   double elevation_step_deg{8.0};
   double elevation_limit_deg{0.0};
   double preferred_baseline_deg{12.0};
   double radial_step_m{0.015};
-  int candidate_layers{1};
-  int views_to_minimum_radius{5};
   // 每步相机直线位移上限：沿当前位→目标视点截断，禁止绕球面走远路。
   double max_camera_step_m{0.15};
   // 相机位置距 base 原点上限；超出则沿视线收进球内，不绕行。

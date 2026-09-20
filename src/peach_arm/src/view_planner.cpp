@@ -314,6 +314,10 @@ std::vector<ViewCandidate> ViewPlanner::generate(const ViewContext & context) co
       0.0, 0.0, 0, 0, 0, "see_in");
   }
 
+  // 方位每侧只走一步（一步 ≈ azimuth_step_deg 的短 PTP）：原 azimuth_limit_deg
+  // 上限参数与单步 12° 是同一约束的两种写法，且实现从不读该参数（W13-B 删
+  // 死键后由本硬编码唯一表达"禁止大环绕"）；candidate_layers 同为死键，
+  // 分层数实际由 want_closer（画面过小才再靠近一层）决定。
   const int azimuth_steps = 1;
   const int elevation_steps = config_.elevation_limit_deg > 1.0e-6 ? 1 : 0;
   const int layer_count = want_closer ? 2 : 1;

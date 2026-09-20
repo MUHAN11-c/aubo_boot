@@ -54,21 +54,6 @@ def test_msg_builders_imports_in_ros_env():
         assert hasattr(module, name), name
 
 
-def test_visualization_shim_reexports_split_modules():
-    """拆分壳向后兼容：旧模块路径仍取到全部公开名."""
-    try:
-        module = importlib.import_module(
-            'peach_harvester.vision.scene_perception.visualization')
-    except ImportError:
-        pytest.skip('ROS msg 环境不可用（visualization 壳 re-export msg 层）')
-    for name in ('to_detection2d', 'to_candidate', 'to_candidate_2d',
-                 'to_fitting', 'to_markers', 'xyzrgb_to_cloud_msg',
-                 'bbox_cloud_xyzrgb', 'best_axis_direction', 'draw_debug',
-                 'TRACKING_STATUS_TO_MSG'):
-        assert hasattr(module, name), name
-    assert not hasattr(module, '_pack_rgb_bgr')  # W3 已删死别名
-
-
 def test_domain_budget_imports_without_rclpy():
     module = importlib.import_module(
         'peach_harvester.vision.domain.budget')

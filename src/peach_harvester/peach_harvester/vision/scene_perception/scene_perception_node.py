@@ -504,17 +504,20 @@ class ScenePerceptionNode(LifecycleNode):
                 f'stamp={stamp.sec}.{stamp.nanosec:09d}: {exc}')
             return None
         if rgb.shape[:2] != depth.shape[:2]:
+            # rclpy 的 throttle_duration_sec 实为毫秒：1000.0 = 1 s
             self.get_logger().warning(
                 f'RGB/深度分辨率不一致 {rgb.shape[:2]} vs {depth.shape[:2]} '
                 f'rgb_frame={rgb_msg.header.frame_id} '
-                f'depth_frame={depth_msg.header.frame_id}')
+                f'depth_frame={depth_msg.header.frame_id}',
+                throttle_duration_sec=1000.0)
             return None
         if info.width and info.height and (
                 int(info.width) != depth.shape[1]
                 or int(info.height) != depth.shape[0]):
             self.get_logger().warning(
                 f'CameraInfo size {info.width}x{info.height} != depth '
-                f'{depth.shape[1]}x{depth.shape[0]}')
+                f'{depth.shape[1]}x{depth.shape[0]}',
+                throttle_duration_sec=1000.0)
             return None
         K = {
             'fx': float(info.k[0]), 'fy': float(info.k[4]),

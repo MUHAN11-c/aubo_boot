@@ -30,11 +30,19 @@ GateResult QualityGate::commonIdentityGate(const QualitySnapshot & snapshot) con
 
 GateResult QualityGate::axisConsistencyGate(const QualitySnapshot & snapshot) const
 {
-  // 固定 35° 只诊断完全错轴；接触许可只信 GraspDecision.allowed。
-  if (snapshot.axis_angle_deg > config_.maximum_axis_angle_deg) {
-    return {true, "axis_mismatch_diagnostic_only"};
+  // 固定 35° 只诊断完全错轴；接触许可只信 GraspDecision.allowed。两分支
+  // 恒 allowed=true（行为不变，W13-B）：轴一致性误差改走诊断字段
+  // （axis_angle_deg/axis_mismatch）由外层门透传，reason 令牌保持稳定。
+  GateResult result;
+  result.allowed = true;
+  result.axis_angle_deg = snapshot.axis_angle_deg;
+  result.axis_mismatch = snapshot.axis_angle_deg > config_.maximum_axis_angle_deg;
+  if (result.axis_mismatch) {
+    result.reason = "axis_mismatch_diagnostic_only";
+    return result;
   }
-  return {true, "axis_consistency_ok"};
+  result.reason = "axis_consistency_ok";
+  return result;
 }
 
 GateResult QualityGate::readyToFinalize(const QualitySnapshot & snapshot) const
@@ -91,7 +99,13 @@ GateResult QualityGate::readyToPreviewContact(const QualitySnapshot & snapshot) 
   if (!snapshot.grasp_allowed) {
     return {false, "refined_quality_not_allowed"};
   }
-  return {true, "contact_preview_ready"};
+  // 轴一致性诊断透传：reason 令牌不变，观测值随结果带给调用端日志。
+  GateResult preview;
+  preview.allowed = true;
+  preview.reason = "contact_preview_ready";
+  preview.axis_angle_deg = axis_gate.axis_angle_deg;
+  preview.axis_mismatch = axis_gate.axis_mismatch;
+  return preview;
 }
 
 GateResult QualityGate::readyToApproach(const QualitySnapshot & snapshot) const
@@ -113,7 +127,13 @@ GateResult QualityGate::readyToApproach(const QualitySnapshot & snapshot) const
   if (!snapshot.refined_accept) {
     return {false, "refined_geometry_unavailable"};
   }
-  return {true, "pregrasp_geometry_ready"};
+  // 轴一致性诊断透传：reason 令牌不变，观测值随结果带给调用端日志。
+  GateResult approach;
+  approach.allowed = true;
+  approach.reason = "pregrasp_geometry_ready";
+  approach.axis_angle_deg = axis_gate.axis_angle_deg;
+  approach.axis_mismatch = axis_gate.axis_mismatch;
+  return approach;
 }
 
 GateResult QualityGate::readyToGrasp(const QualitySnapshot & snapshot) const
@@ -125,7 +145,13 @@ GateResult QualityGate::readyToGrasp(const QualitySnapshot & snapshot) const
   if (!snapshot.grasp_allowed) {
     return {false, "refined_quality_not_allowed"};
   }
-  return {true, "grasp_quality_ready"};
+  // 轴一致性诊断透传（同 readyToApproach/readyToPreviewContact）。
+  GateResult grasp;
+  grasp.allowed = true;
+  grasp.reason = "grasp_quality_ready";
+  grasp.axis_angle_deg = approach.axis_angle_deg;
+  grasp.axis_mismatch = approach.axis_mismatch;
+  return grasp;
 }
 
 }  // namespace peach_arm

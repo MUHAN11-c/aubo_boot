@@ -7,6 +7,7 @@
 #include <cmath>
 #include <cstddef>
 #include <exception>
+#include <future>
 #include <memory>
 #include <mutex>
 #include <optional>
@@ -187,10 +188,31 @@ void ManipulationSkillsNode::onActionAccepted(
 {
   // action 执行线程保持可 join：析构时先置取消标志再回收，避免 detach 后
   // 线程在 shutdown 之后访问已销毁成员。同一时刻至多一个周期在运行。
+  // 有界回收（W13-B）：onActionGoal 在 running_ 时已拒单，正常路径旧线程
+  // 此刻只剩终局上报，join 立即返回；若旧线程卡死（如 MoveIt 内部长阻塞、
+  // 无视取消标志），无限 join 会把 executor 回调吊死——经 packaged_task
+  // future 有界等 2 s，超时 WARN 后 detach 放行新周期（detach 只是放弃
+  // 回收、不是放弃取消，线程仍受取消标志约束；析构的 joinable 检查自然
+  // 跳过已 detach 线程）。
   if (action_thread_.joinable()) {
-    action_thread_.join();
+    if (action_thread_done_.valid() &&
+      action_thread_done_.wait_for(2s) == std::future_status::ready)
+    {
+      action_thread_.join();
+    } else {
+      RCLCPP_WARN(
+        get_logger(),
+        "上一 ExecuteTarget 执行线程 2s 内未退场，放弃 join 改为 detach；"
+        "线程仍受取消标志约束，请排查卡死原因");
+      action_thread_.detach();
+    }
   }
-  action_thread_ = std::thread([this, goal_handle]() {executeAction(goal_handle);});
+  std::packaged_task<void(std::shared_ptr<RunTargetGoalHandle>)> task(
+    [this](std::shared_ptr<RunTargetGoalHandle> handle) {
+      executeAction(handle);
+    });
+  action_thread_done_ = task.get_future();
+  action_thread_ = std::thread(std::move(task), goal_handle);
 }
 
 void ManipulationSkillsNode::executeAction(
@@ -543,6 +565,8 @@ void ManipulationSkillsNode::executeSurvey(
     result->degraded = !last_target_set_locked_ || last_observation_count_ == 0;
   }
   result->message = response->message;
+  // 场景纪元无真实源接入：SurveyScene 结果恒填 0（BeginScene 世代尚未
+  // 回传给本节点）；接入场景纪元源时改此单点，勿在别处复填。
   result->scene_epoch = 0;
   if (goal_handle->is_canceling()) {
     goal_handle->canceled(result);

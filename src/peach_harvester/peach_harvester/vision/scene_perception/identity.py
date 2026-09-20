@@ -910,6 +910,11 @@ class TargetRegistry:
         无 position 的项标 untracked_{i}、不占表（不用 target_{i}，避免
         与注册表 target_0 撞号）。歧义标 ambiguous_* 且不入表.
         """
+        # S9 时钟纪律（W13-A 注明）：表项年龄只与单调钟比，wall stamp 不得
+        # 混入。now=None 的兜底统一 time.monotonic()——与 begin_frame 注入
+        # 的 now（生产路径两者都传 pipeline.clock.now()，同源）混用时，
+        # last_seen 会瞬间误判超龄；故本默认值只允许与单调钟基准比较，
+        # 注入 wall-clock now 的调用方必须对 begin_frame 传同一基准。
         ts = time.monotonic() if now is None else float(now)
         out: List[Optional[Tuple[str, bool]]] = [None] * len(items)
         detections: List[dict] = []

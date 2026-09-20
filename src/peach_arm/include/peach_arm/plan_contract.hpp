@@ -12,15 +12,17 @@
 namespace peach_arm
 {
 
+/// 接触计划绑定契约：预览与执行共用 plan_id + 模型元组 + 起始关节。
 struct ContactPlan
 {
-  std::string plan_id;
-  ModelIdentity model;
-  std::vector<double> start_joints;
-  std::uint32_t scene_epoch{0};
-  bool require_start_joints{true};
+  std::string plan_id;              ///< 计划标识（空=未绑定，执行侧拒）。
+  ModelIdentity model;              ///< 生成该计划的模型身份元组。
+  std::vector<double> start_joints; ///< 计划起始关节（require_start_joints 时比对容差）。
+  std::uint32_t scene_epoch{0};     ///< 生成时的场景世代（跨世代计划作废）。
+  bool require_start_joints{true};  ///< true=执行前核对当前关节仍在起点容差内。
 };
 
+/// 逐轴关节差是否全在容差内（维度不符/空集恒 false——宁拒不猜）。
 inline bool jointsWithinTolerance(
   const std::vector<double> & left, const std::vector<double> & right, double tol_rad)
 {
@@ -35,6 +37,8 @@ inline bool jointsWithinTolerance(
   return true;
 }
 
+/// 预览计划能否绑定本次执行：plan_id、场景世代、模型元组三重一致，
+/// 再按 require_start_joints 比对起始关节容差。
 inline bool previewMatchesExecute(
   const ContactPlan & preview, const ContactPlan & execute, double joint_tol_rad)
 {

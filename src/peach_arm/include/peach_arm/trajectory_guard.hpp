@@ -20,11 +20,14 @@
 namespace peach_arm
 {
 
+/// builtin_interfaces::Duration → 秒（double）。轨迹时长运算统一先过本换算，
+/// 避免 sec/nanosec 拆算在多处各写一份。
 inline double durationToSec(const builtin_interfaces::msg::Duration & d)
 {
   return static_cast<double>(d.sec) + static_cast<double>(d.nanosec) * 1.0e-9;
 }
 
+/// 秒 → builtin_interfaces::Duration；负值截 0（时间戳不允许回退）。
 inline builtin_interfaces::msg::Duration secToDuration(double s)
 {
   builtin_interfaces::msg::Duration d;
@@ -108,52 +111,58 @@ inline trajectory_msgs::msg::JointTrajectory reverseJointTrajectory(
   return out;
 }
 
+/// 关节行程门限（拦绕腕）：多段接近轨迹拼接后的三项审查上限。
 struct TrajectoryGuardLimits
 {
   // <=0：不按时长拒发（时长随速度变，不能当绕行判据）。
-  double max_duration_s{0.0};
-  double max_total_joint_travel_rad{12.0};
-  double max_single_joint_travel_rad{6.1};
+  double max_duration_s{0.0};                ///< 预计时长上限 [s]；<=0 只记录不拒。
+  double max_total_joint_travel_rad{12.0};   ///< 六轴累计 |Δq| 上限 [rad]，拦绕腕大弧。
+  double max_single_joint_travel_rad{6.1};   ///< 单轴累计 |Δq| 上限 [rad]；6.1=URDF ±3.05 满行程。
 };
 
+/// 笛卡尔路点（位置 + 四元数姿态）：护栏审查的轨迹点通用载体，
+/// 与具体消息类型解耦（MTC 采样/审查共用同一表达）。
 struct CartesianWaypoint
 {
-  double x{0.0};
-  double y{0.0};
-  double z{0.0};
-  double qx{0.0};
-  double qy{0.0};
-  double qz{0.0};
-  double qw{1.0};
+  double x{0.0};   ///< 位置 x [m]。
+  double y{0.0};   ///< 位置 y [m]。
+  double z{0.0};   ///< 位置 z [m]。
+  double qx{0.0};  ///< 姿态四元数 x。
+  double qy{0.0};  ///< 姿态四元数 y。
+  double qz{0.0};  ///< 姿态四元数 z。
+  double qw{1.0};  ///< 姿态四元数 w（默认单位旋转）。
 };
 
+/// TCP 笛卡尔绕行三项审查（绕行比/弦偏离/回退）上限。
 struct CartesianDetourLimits
 {
   // <=0：不查该项。宁可不执行，不许先远离目标再绕回来。
-  double max_detour_ratio{2.2};
-  double max_chord_deviation_m{0.25};
-  double max_recede_m{0.08};
+  double max_detour_ratio{2.2};       ///< 路径长/起止弦长上限；<=0 不查。
+  double max_chord_deviation_m{0.25}; ///< 相对起止弦最大偏离 [m]；<=0 不查。
+  double max_recede_m{0.08};          ///< 中途相对起点更远离目标的最大回退 [m]；<=0 不查。
 };
 
+/// 笛卡尔绕行审查结果：量测值全量回报（无论过否），供日志与阈值标定复盘。
 struct CartesianDetourReport
 {
-  bool allowed{false};
-  double path_m{0.0};
-  double chord_m{0.0};
-  double detour_ratio{0.0};
-  double max_dev_m{0.0};
-  double max_recede_m{0.0};
-  std::string reason;
+  bool allowed{false};         ///< 是否放行。
+  double path_m{0.0};          ///< 实测路径长 [m]（逐点累加）。
+  double chord_m{0.0};         ///< 起止弦长 [m]（绕行比分母）。
+  double detour_ratio{0.0};    ///< path/chord；弦 <0.02 m 不算比值（短弦噪声大）。
+  double max_dev_m{0.0};       ///< 路点相对起止弦最大偏离 [m]。
+  double max_recede_m{0.0};    ///< 中途比起点更远离终点的最大量 [m]。
+  std::string reason;          ///< 拒发/通过原因（含量测值，人读）。
 };
 
+/// 关节行程审查结果：时长仅记录（<=0 不拒），行程两项超限即拒。
 struct TrajectoryGuardReport
 {
-  bool allowed{false};
-  double duration_s{0.0};
-  double total_joint_travel_rad{0.0};
-  double max_single_joint_travel_rad{0.0};
-  std::size_t point_count{0U};
-  std::string reason;
+  bool allowed{false};                    ///< 是否放行。
+  double duration_s{0.0};                 ///< 拼接后预计总时长 [s]（只记录）。
+  double total_joint_travel_rad{0.0};     ///< 六轴累计 |Δq| [rad]（含段间接缝）。
+  double max_single_joint_travel_rad{0.0};///< 最忙单轴累计 |Δq| [rad]。
+  std::size_t point_count{0U};            ///< 参与审查的轨迹点总数（诊断用）。
+  std::string reason;                     ///< 拒发/通过原因（含阈值，人读）。
 };
 
 // 关节行程审查：多段接近轨迹（staging PTP + LIN 拼接）按点名对齐后累计每轴 |Δq|，
@@ -362,11 +371,12 @@ inline double quatGeodesicDeg(
   return first.angularDistance(second) * 180.0 / static_cast<double>(EIGEN_PI);
 }
 
+/// TCP 姿态行程审查结果（测地线口径，相对本段起点）。
 struct OrientationTravelReport
 {
-  bool allowed{true};
-  double max_from_start_deg{0.0};
-  std::string reason{"TCP 姿态行程通过"};
+  bool allowed{true};             ///< 是否放行（关闭/点列不足时恒 true 并在 reason 说明）。
+  double max_from_start_deg{0.0}; ///< 路点相对起点最大测地线转角 [deg]。
+  std::string reason{"TCP 姿态行程通过"}; ///< 拒发/跳过/通过原因（人读）。
 };
 
 // 接近段 TCP 姿态测地线。max_rotation_deg<=0 跳过。

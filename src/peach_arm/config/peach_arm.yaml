@@ -63,14 +63,11 @@ peach_arm:
     scan:
       observation_radius_m: 0.45  # 观察半径参考（米）：视点从当前相机沿直线截步；画面过小时才向本值/下限靠近，不再把相机贴到球面上。09-17 由 0.40 上调：PS800-E1 深度额定 0.4-0.8 m，环绕下限须留余量。
       minimum_radius_m: 0.42  # 观察半径下限（米）：退出深度相机近距盲区。09-17 由 0.32 上调：原值低于 PS800-E1 额定下限 0.4 m（percipio 端深度无效靠占比门兜底；peach_stereo 端 SGBM 理论下限 ~0.27 m，近档待近距标定后再评估放开）。
-      azimuth_step_deg: 12.0  # 候选视点的方位角步进（度）。
-      azimuth_limit_deg: 16.0  # 候选视点的方位角上限（度，相对初始视线）。16° 只允许一次 ~12° 短 PTP，禁止大环绕。
+      azimuth_step_deg: 12.0  # 候选视点的方位角步进（度）。每侧只走一步（实现侧钉死，禁止大环绕；原 azimuth_limit_deg 死键已删）。
       elevation_step_deg: 8.0  # 候选视点的俯仰角步进（度）。
       elevation_limit_deg: 0.0  # 候选视点的俯仰角上限（度）。0=不俯仰环绕，只做水平短 PTP。
       preferred_baseline_deg: 12.0  # 相邻机位期望基线角（度），与质量门 minimum_baseline_deg 对齐。0.15 m 短移在 0.7 m 处约 12°。
-      radial_step_m: 0.015  # 半径向最小半径收敛的每步进给（米）。
-      candidate_layers: 1  # 候选视点分层数。观察以当前半径为种子，画面过小时才再靠近一层。
-      views_to_minimum_radius: 5  # 收敛到最小半径的视点数。
+      radial_step_m: 0.015  # 半径向最小半径收敛的每步进给（米）。（原 candidate_layers / views_to_minimum_radius 死键已删：分层实际由画面过小的 want_closer 决定。）
       max_camera_step_m: 0.15  # 观察每步相机直线位移上限（米）。沿当前位到候选视点截断。0.15 使 ~0.7 m 处弦约 12°、0.88 m 处约 9.8°，一跨过覆盖门 8°（0.08 仅 6.6° 过不了）；禁止绕球面走远路。
       workspace_max_reach_m: 0.78  # 相机位置距 base 原点上限（米）。超出则沿视线收进球内并提高评分，不因超限清空候选。E5 标称约 0.80 m。
       maximum_moves: 2  # 单目标观察移动次数封顶。当前位先采帧；覆盖未过则把次数走完（只 LIN，失败换候选），不是环绕。覆盖达标立即停。

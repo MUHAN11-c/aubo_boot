@@ -11,7 +11,10 @@ import threading
 from typing import List, Optional, Tuple
 
 import numpy as np
-from peach_harvester.vision.common.geometry import crop_mask_to_bbox
+from peach_harvester.vision.common.geometry import (
+    crop_mask_to_bbox,
+    invert_transform,
+)
 from peach_harvester.vision.domain.evidence import may_commit_identity
 from peach_harvester.vision.scene_perception.contracts import BagObservation
 from peach_harvester.vision.scene_perception.debug_draw import draw_debug
@@ -287,8 +290,10 @@ class PerceptionPipeline:
                     if entry is not None and entry.get('position') is not None:
                         positions[target_id] = np.asarray(
                             entry['position'], dtype=float)
+                # T_camera_base = inv(T_base_camera)：W13-A 走 geometry
+                # 单源 invert_transform（数值同 np.linalg.inv，口径有测试锚点）
                 anchor_px = project_positions_to_pixels(
-                    positions, np.linalg.inv(T_out_cam), K)
+                    positions, invert_transform(T_out_cam), K)
             return plan_segmentation_bboxes(
                 kept, self.params.pipeline.locked_only_segmentation,
                 locked, anchor_px)

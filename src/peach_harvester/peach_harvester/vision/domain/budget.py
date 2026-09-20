@@ -30,6 +30,9 @@ def evaluate_capabilities(
         neck_position95, cut_to_fruit_m, params)
     sleeve = capability_from_ok(raw['sleeve_ok'])
     cut = capability_from_ok(raw['cut_ok'])
+    # TODO(W13-A 占位)：geometry 恒 VALID 是占位语义——本评估器只见点云
+    # 拟合质量，几何/预抓可达性（IK、场景碰撞）尚无独立信号源接入；
+    # 接入真实信号后此处应改为按观测推导，不得默认放行。
     geometry = capability_from_ok(True)
     allowed = allowed_from_capabilities(geometry, geometry, sleeve, cut)
     return {
@@ -41,5 +44,8 @@ def evaluate_capabilities(
         'cut_feasible': cut == CAPABILITY_VALID,
         'sleeve_feasible': sleeve == CAPABILITY_VALID,
         'allowed': allowed,
+        # TODO(W13-A 占位)：ready_ok 恒 True 是占位语义——预算三态尚不
+        # 产出「就绪」判定（现由 allowed 单独承担门控）；引入真实就绪
+        # 条件（如标定/模型版本核对）前，消费方不得把 True 当校验结论。
         'ready_ok': True,
     }

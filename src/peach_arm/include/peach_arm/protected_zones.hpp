@@ -18,15 +18,15 @@ namespace peach_arm
 // 危险，边界不留缝隙。
 struct ProtectedZone
 {
-  Eigen::Vector3d min{Eigen::Vector3d::Zero()};
-  Eigen::Vector3d max{Eigen::Vector3d::Zero()};
+  Eigen::Vector3d min{Eigen::Vector3d::Zero()};  ///< 盒下角（min 三轴）。
+  Eigen::Vector3d max{Eigen::Vector3d::Zero()};  ///< 盒上角（max 三轴；须逐轴大于 min）。
 };
 
-// parseProtectedZones 输出：合法盒 + 丢弃原因（调用方 WARN，不炸节点）。
+/// parseProtectedZones 输出：合法盒 + 丢弃原因（调用方 WARN，不炸节点）。
 struct ProtectedZoneParseResult
 {
-  std::vector<ProtectedZone> zones;
-  std::vector<std::string> issues;
+  std::vector<ProtectedZone> zones;     ///< 解析成功的合法盒。
+  std::vector<std::string> issues;      ///< 逐盒丢弃原因（残余组/非有限/min>=max）。
 };
 
 // 解析 stride-6。长度非 6 倍数：完整盒保留，残余丢弃。单盒非有限或 min>=max：丢该盒。

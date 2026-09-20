@@ -30,32 +30,32 @@ namespace peach_arm
 // MoveIt 运动接口的运行配置（默认值以 config/peach_arm.yaml 为权威源）。
 struct MoveItMotionConfig
 {
-  std::string base_frame;
-  std::string tip_frame;  // 规划/IK 末端连杆（MoveIt 组 tip_link，当前为 tcp）
-  std::string camera_frame;
-  std::string tool_frame;
-  std::string pilz_pipeline;
-  std::string fallback_pipeline;
+  std::string base_frame;   ///< 模型基座系（规划参考系）。
+  std::string tip_frame;    ///< 规划/IK 末端连杆（MoveIt 组 tip_link，当前为 tcp）。
+  std::string camera_frame; ///< 相机光学系（planOrMoveCamera 的目标系）。
+  std::string tool_frame;   ///< 工具系（tip←tool 变换查询用）。
+  std::string pilz_pipeline;    ///< 主规划管线（PTP/LIN 工业插值）。
+  std::string fallback_pipeline;  ///< Pilz 失败后的兜底管线（OMPL）。
   // 自由空间转移速度档（观察视点、拍照位姿往返）。
-  double transit_velocity_scaling{0.10};
-  double transit_acceleration_scaling{0.10};
+  double transit_velocity_scaling{0.10};        ///< 转移段速度缩放（真机初始验证不得高于 0.1）。
+  double transit_acceleration_scaling{0.10};    ///< 转移段加速度缩放（同上档位约束）。
   // 观察/相机转移护栏。结构默认值仅兜底；现行值以部署 yaml
   // config/peach_arm.yaml 为单一事实源，节点构造时整体覆盖。
-  double transit_max_duration_s{0.0};
-  double transit_max_total_joint_travel_rad{6.0};
-  double transit_max_single_joint_travel_rad{2.5};
-  double observe_planning_time_s{1.0};
-  int observe_planning_attempts{1};
-  double observe_max_duration_s{0.0};
-  double observe_max_total_joint_travel_rad{2.5};
-  double observe_max_single_joint_travel_rad{1.5};
-  double photo_planning_time_s{3.0};
-  double photo_ptp_planning_time_s{0.5};
-  double default_planning_time_s{1.5};
-  int default_planning_attempts{1};
+  double transit_max_duration_s{0.0};           ///< goToPhotoPose 新规划时长上限 [s]；0=不按时长拒发。
+  double transit_max_total_joint_travel_rad{6.0};   ///< goToPhotoPose 新规划累计行程上限 [rad]（原路返程不受限）。
+  double transit_max_single_joint_travel_rad{2.5};  ///< goToPhotoPose 新规划单轴行程上限 [rad]。
+  double observe_planning_time_s{1.0};          ///< 观察短 LIN 单次规划时间上限 [s]。
+  int observe_planning_attempts{1};             ///< 观察短 LIN 规划尝试次数。
+  double observe_max_duration_s{0.0};           ///< 观察转移轨迹时长上限 [s]；0=不查。
+  double observe_max_total_joint_travel_rad{2.5};  ///< 观察转移累计行程上限 [rad]。
+  double observe_max_single_joint_travel_rad{1.5}; ///< 观察转移单轴行程上限 [rad]。
+  double photo_planning_time_s{3.0};            ///< 回拍照位 OMPL 回退规划时间上限 [s]。
+  double photo_ptp_planning_time_s{0.5};        ///< 回拍照位 Pilz PTP 预算 [s]（确定性插值不必用满）。
+  double default_planning_time_s{1.5};          ///< 其余规划默认时间上限 [s]。
+  int default_planning_attempts{1};             ///< 其余规划默认尝试次数。
   // goToPhotoPose 成功出口复核：当前关节须在命名状态且静止。
-  double photo_pose_joint_tolerance_rad{0.05};
-  double photo_pose_max_joint_vel_rad_s{0.05};
+  double photo_pose_joint_tolerance_rad{0.05};    ///< 出口每轴 |Δq| 容差 [rad]（execute=false 仍核）。
+  double photo_pose_max_joint_vel_rad_s{0.05};    ///< 出口任一轴 |qdot| 上限 [rad/s]（未静止即 mismatch）。
 };
 
 // MoveIt 运动接口：tip/camera 位姿规划执行、TF 查询、拍照位往返。

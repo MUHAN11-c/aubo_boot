@@ -34,6 +34,14 @@ struct StagingSelectorConfig
   int top_n{5};              ///< 输出候选上限（按 dist_sq 升序取前 top_n）。
 };
 
+/// staging 扫描与选果 IK 预检共享的单次 setFromIK 超时单源（W13-B）：
+/// 深搜档用于节点 select_goal_joints（随机种子重试，宁多等换解）；
+/// 快速档用于 CheckReachability 逐位姿可行性预检（supervisor 选果整链
+/// 须早退，预算减半）。滚转表不在本头：单源是 grasp_geometry.hpp 的
+/// toolRollsRad()（keep-roll 及 ±30°/±60°，扫描与预检共用同一张表）。
+inline constexpr double kStagingIkSolveTimeoutS = 0.1;
+inline constexpr double kQuickIkProbeTimeoutS = 0.05;
+
 /// 单个 staging 候选：PTP 落点关节目标 + 对应工具位姿（含滚转）。
 struct StagingCandidate
 {

@@ -117,10 +117,15 @@ TEST(QualityGate, PreviewContactIgnoresAgeButRequiresDecision)
   EXPECT_EQ(
     gate.readyToPreviewContact(denied).reason,
     "refined_quality_not_allowed");
-  // 轴夹角超 35° 只是诊断，不拒。
+  // 轴夹角超 35° 只是诊断不拒（allowed 恒 true）；误差进诊断字段透传，
+  // reason 令牌不受影响（W13-B）。
   peach_arm::QualitySnapshot bad_axis = preview;
   bad_axis.axis_angle_deg = 40.0;
-  EXPECT_TRUE(gate.readyToPreviewContact(bad_axis).allowed);
+  const peach_arm::GateResult diagnostic = gate.readyToPreviewContact(bad_axis);
+  EXPECT_TRUE(diagnostic.allowed);
+  EXPECT_EQ(diagnostic.reason, "contact_preview_ready");
+  EXPECT_DOUBLE_EQ(diagnostic.axis_angle_deg, 40.0);
+  EXPECT_TRUE(diagnostic.axis_mismatch);
 }
 
 // ---------- readyToApproach / readyToGrasp：几何门与接触许可分离 ----------

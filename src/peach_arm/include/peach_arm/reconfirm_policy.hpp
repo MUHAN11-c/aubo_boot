@@ -13,6 +13,7 @@ namespace peach_arm
 // 判定与超限计数。等待窗口/帧率自适应在阶段执行器（stageReconfirmTarget），本类
 // 只做逐样本判定，零 ROS、零阻塞，可单测。
 
+/// 抓取前再确认配置（GPL yaml grasp.reconfirm_*）。
 struct ReconfirmConfig
 {
   double tolerance_m{0.03};    // 锚点漂移容差（米）
@@ -45,8 +46,8 @@ enum class ReconfirmVerdict
 
 struct ReconfirmDecision
 {
-  ReconfirmVerdict verdict{ReconfirmVerdict::PENDING};
-  std::string reason;
+  ReconfirmVerdict verdict{ReconfirmVerdict::PENDING};  ///< 判定档位（见 ReconfirmVerdict）。
+  std::string reason;  ///< 人读原因（终局分级文案由节点体落地）。
 };
 
 // 逐样本判定：

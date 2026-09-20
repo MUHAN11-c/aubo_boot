@@ -27,6 +27,7 @@
 #include "peach_arm/manipulation_skills_node.hpp"
 #include "peach_arm/eigen_conversions.hpp"
 #include "peach_arm/grasp_geometry.hpp"
+#include "peach_arm/staging_selector.hpp"
 #include "peach_arm/trajectory_guard.hpp"
 
 using namespace std::chrono_literals;
@@ -376,13 +377,16 @@ void ManipulationSkillsNode::onCheckReachability(
       target = pregraspFromEntryKeepRoll(
         target, current_tip.linear(), params_.moveit.mtc_approach_along_axis_m);
     }
-    // 快速可行性 IK：当前种子 + 固定 50ms 单次；选果整链须早退。
+    // 快速可行性 IK：当前种子 + 单次有界超时——单源常量在
+    // staging_selector.hpp（kQuickIkProbeTimeoutS；与 staging 扫描的
+    // 深搜档 kStagingIkSolveTimeoutS 区分，选果整链须早退）。
     const auto ik_quick =
       [&](const Eigen::Isometry3d & goal) {
         moveit::core::RobotState probe = seed;
-        return probe.setFromIK(group, goal, params_.frames.tip, 0.05);
+        return probe.setFromIK(group, goal, params_.frames.tip, kQuickIkProbeTimeoutS);
       };
-    // 预抓取停位检查（keep-roll 先行，失败才 ±30°/±60°，与接近扫描同表）：
+    // 预抓取停位检查（keep-roll 先行，失败才 ±30°/±60°；滚转表与 staging
+    // 接近扫描同源=grasp_geometry.hpp 的 toolRollsRad()）：
     // 圆筒套袋的刀口滚转是自由参数，keep-roll 单姿态无解 ≠ 全滚转无解。
     bool pregrasp_ok = ik_quick(target);
     if (!pregrasp_ok && have_current_tip) {

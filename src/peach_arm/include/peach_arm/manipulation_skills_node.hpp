@@ -9,6 +9,7 @@
 
 #include <atomic>
 #include <cstdint>
+#include <future>
 #include <memory>
 #include <mutex>
 #include <optional>
@@ -19,6 +20,7 @@
 #include <aubo_msgs/msg/joint_status.hpp>
 #include <aubo_msgs/msg/robot_status.hpp>
 #include <aubo_msgs/srv/set_io.hpp>
+#include <bondcpp/bond.hpp>
 #include <builtin_interfaces/msg/duration.hpp>
 #include <diagnostic_updater/diagnostic_updater.hpp>
 #include <nlohmann/json.hpp>
@@ -367,8 +369,8 @@ private:
   std::unique_ptr<MoveItMotionInterface> motion_;
   std::unique_ptr<moveit::planning_interface::MoveGroupInterface> move_group_;
   std::unique_ptr<GraspTask> grasp_task_;
-  tf2_ros::Buffer tf_buffer_;
-  tf2_ros::TransformListener tf_listener_;
+  tf2_ros::Buffer tf_buffer_;          ///< TF 缓冲（精确 stamp 查询；含静态外参）。
+  tf2_ros::TransformListener tf_listener_;  ///< tf_buffer_ 的订阅填充器（节点生命周期内常驻）。
 
   // 目标/精化/质量/抓取决策四源缓存（纯核，注入时钟）；线程安全自给。
   TargetCache cache_;
@@ -376,11 +378,11 @@ private:
   std::mutex robot_mutex_;
   aubo_msgs::msg::RobotStatus robot_status_;
   rclcpp::Time robot_status_received_{0, 0, RCL_ROS_TIME};
-  double robot_status_mono_s_{0.0};
-  bool robot_status_valid_{false};
+  double robot_status_mono_s_{0.0};   ///< 收包时刻（单调秒，安全门超龄判据；ROS 时间会随回拨跳变）。
+  bool robot_status_valid_{false};    ///< 最近一帧是否已解析可用。
 
   std::mutex state_mutex_;
-  json state_json_;
+  json state_json_;                   ///< ~/status 的 JSON 投影（current_state_ 的发布层快照）。
   // 唯一权威周期状态（枚举）；state_json_["state"] 只是它的发布层投影。
   CycleState current_state_{CycleState::IDLE};
   // 周期阶段耗时计时器（重构阶段 C）：仅在本互斥锁内访问（setState 喂入、
@@ -398,8 +400,14 @@ private:
   std::atomic<uint8_t> pending_outcome_{ExecuteTarget::Result::FAILED};
   std::thread worker_;
   // action 执行线程保持可 join，析构时先取消再回收，避免 shutdown 后访问悬空 this。
+  // 配套 future（W13-B）：onActionAccepted 经它做有界等待——std::thread 无
+  // timed join，超时分支只能 WARN 后 detach 放行新周期（析构的 joinable 检查
+  // 自然跳过已 detach 线程）。
   std::thread action_thread_;
+  std::future<void> action_thread_done_;
 
+  // 四源缓存订阅（回调薄壳见 onTargets 等）：目标观测/重建诊断/抓取决策/
+  // 精化位姿与拟合诊断，组装纯值样本后全部委托 cache_ 调和。
   rclcpp::Subscription<peach_interfaces::msg::PeachTargetObservationArray>::SharedPtr target_sub_;
   rclcpp::Subscription<peach_interfaces::msg::ReconstructionStatus>::SharedPtr
     diagnostics_sub_;
@@ -407,14 +415,15 @@ private:
   rclcpp::Subscription<peach_interfaces::msg::BagGraspCandidateArray>::SharedPtr
     refined_pose_sub_;
   rclcpp::Subscription<peach_interfaces::msg::BagFittingArray>::SharedPtr refined_diag_sub_;
+  /// 柜侧 robot_status 订阅（安全门样本源；I5 不得旁路）。
   rclcpp::Subscription<aubo_msgs::msg::RobotStatus>::SharedPtr robot_status_sub_;
   // ④层接触止损接线：joint_status 电流缓存（定长 128 环形，互斥保护，
   // W5-13），guarded 段 timer 评估；默认 enabled=false 只缓存不判定。
   rclcpp::Subscription<aubo_msgs::msg::JointStatus>::SharedPtr joint_status_sub_;
-  rclcpp::TimerBase::SharedPtr contact_guard_timer_;
-  std::mutex joint_current_mutex_;
-  JointCurrentRing joint_current_samples_;
-  ContactDetectConfig contact_detect_config_;
+  rclcpp::TimerBase::SharedPtr contact_guard_timer_;  ///< 接触止损守护段评估 timer（enabled=false 时不启动）。
+  std::mutex joint_current_mutex_;                    ///< 电流环形缓存互斥（订阅回调写/守护 timer 读）。
+  JointCurrentRing joint_current_samples_;            ///< 腕轴电流环形缓存（守护段特征判别输入）。
+  ContactDetectConfig contact_detect_config_;         ///< 接触止损阈值（params_bridge 单点转换；真机标定前默认关）。
   std::unique_ptr<ContactMonitor> contact_monitor_;
   std::atomic<bool> contact_abort_suspected_{false};
   // 生命周期发布者：on_activate/on_deactivate 切换激活态；publishState 在
@@ -428,6 +437,12 @@ private:
   // （DiagnosticArray），~/status 完全不动。与生命周期实体同纪律：
   // on_configure 创建、releaseResources 释放（Unconfigured 期零 ROS 接口）。
   std::unique_ptr<diagnostic_updater::Updater> diagnostics_;
+  // 进程存活心跳（W14）：on_activate 建 /bond 心跳（生命周期发布者随激活
+  // 门控，Inactive 期自动静默），on_deactivate 断开；nav2_lm 的 bond_timeout
+  // 置 0 时无观察者也无害。进程死检从 HeartbeatWatchdog 平滑升级的接线前提。
+  std::unique_ptr<bond::Bond> bond_;
+  void startBond();
+  void stopBond();
   void reportStreamDiagnostics(
     diagnostic_updater::DiagnosticStatusWrapper & status);
   void reportTargetCacheDiagnostics(
@@ -438,23 +453,34 @@ private:
     diagnostic_updater::DiagnosticStatusWrapper & status);
   void reportEnablesDiagnostics(
     diagnostic_updater::DiagnosticStatusWrapper & status);
+  /// 视点候选 marker（RViz 调试面；Active 才发）。
   rclcpp_lifecycle::LifecyclePublisher<visualization_msgs::msg::MarkerArray>::SharedPtr
     marker_pub_;
   // 与 status/markers 一样走 LifecyclePublisher：Active 才发，Inactive 空操作。
   rclcpp_lifecycle::LifecyclePublisher<peach_interfaces::msg::GraspHypothesis>::SharedPtr
     grasp_hyp_pub_;
+  /// 只规划不执行的接近/接触预览服务（RViz 可视；不占周期互斥）。
   rclcpp::Service<Trigger>::SharedPtr preview_approach_service_;
+  /// 完整接触轨迹（到入口、插入、同轴撤离）只规划预览服务。
   rclcpp::Service<Trigger>::SharedPtr preview_full_contact_service_;
+  /// 取消服务：requestCancelAll 公共段（置标志 + 停 MoveIt/MTC + 唤醒等待）。
   rclcpp::Service<Trigger>::SharedPtr cancel_service_;
+  /// 接触区人工撤离确认（解除 contact_recovery_required_ 锁）。
   rclcpp::Service<Trigger>::SharedPtr recovery_service_;
+  /// 回全局拍照位 SRDF 命名状态（execution 使能时含执行）。
   rclcpp::Service<Trigger>::SharedPtr photo_pose_service_;
+  /// 选果级 TCP IK 预检（只答能否，不规划不占周期）。
   rclcpp::Service<CheckReachability>::SharedPtr reachability_service_;
+  /// 下一次周期一次性 arm（execution.enabled 之上的双钥）。
   rclcpp::Service<SetBool>::SharedPtr arm_service_;
   // 长规划类服务独立互斥回调组（preview_approach_insert / preview_full_contact /
   // go_to_photo_pose）：组内串行，数秒级规划不挡默认组的订阅与快捷服务。
   rclcpp::CallbackGroup::SharedPtr planning_callback_group_;
+  /// ExecuteTarget action 服务端（单目标完整周期；running_ 时拒单）。
   rclcpp_action::Server<ExecuteTarget>::SharedPtr cycle_action_server_;
+  /// SurveyScene action 服务端（拍照位+等新快照；与周期互斥占用）。
   rclcpp_action::Server<SurveyScene>::SharedPtr survey_action_server_;
+  /// survey 执行线程（与 action 线程同纪律：可 join、互斥占用）。
   std::thread survey_thread_;
   // MoveTo 动作服务端与执行线程（与 survey 同纪律：可 join、互斥占用）。
   rclcpp_action::Server<MoveToAction>::SharedPtr move_to_action_server_;
@@ -466,26 +492,28 @@ private:
   // 使能心跳看门狗（缺心跳=故障）：steady 时钟记录最近一拍，超时回落
   // 本地参数权威。timeout<=0 时禁用（锁存兼容档）。
   rclcpp::TimerBase::SharedPtr enables_watchdog_timer_;
-  std::chrono::steady_clock::time_point enables_last_beat_{};
-  double enables_heartbeat_timeout_s_{5.0};
+  std::chrono::steady_clock::time_point enables_last_beat_{};  ///< 最近一拍使能广播时刻（steady，不受系统时钟回拨影响）。
+  double enables_heartbeat_timeout_s_{5.0};  ///< 使能心跳超时 [s]；<=0 禁用看门狗（锁存兼容档）。
   // 当前周期最新检查点（ExecuteTarget::Goal::CK_*；0=未到）。
   std::atomic<uint8_t> last_checkpoint_{0};
   // 最近观测快照三元组（SurveyScene result 数据源）：onTargets（订阅线程）写、
   // executeSurvey（survey 线程）读，经 snapshot_mutex_ 互斥。
   std::mutex snapshot_mutex_;
-  std::string last_snapshot_id_;
-  uint32_t last_observation_count_{0};
-  bool last_target_set_locked_{false};
+  std::string last_snapshot_id_;         ///< 最近重建快照 id（到位判定基准）。
+  uint32_t last_observation_count_{0};   ///< 最近一帧目标观测数。
+  bool last_target_set_locked_{false};   ///< 最近一帧锁定集是否非空（degraded 判据）。
+  /// on-set 验证钩子句柄（运行中拒改 + 依赖链校验）。
   OnSetParametersCallbackHandle::SharedPtr parameter_callback_handle_;
+  /// post-set 钩子句柄（校验通过后触发 loadParameters 重载快照）。
   PostSetParametersCallbackHandle::SharedPtr post_parameter_callback_handle_;
   // 参数监听器（构造即声明全部参数并做启动校验；运行期 set 经其内置范围
   // 校验 + onParameters 钩子，post-set 后 loadParameters 重载快照）。
   std::shared_ptr<peach_arm::ParamListener> param_listener_;
-  peach_arm::Params params_;
-  double robot_status_contract_timeout_s_{0.5};
-  ContactPlan last_preview_plan_{};
-  bool last_preview_valid_{false};
-  rclcpp::Client<aubo_msgs::srv::SetIO>::SharedPtr tool_io_client_;
+  peach_arm::Params params_;  ///< GPL 参数快照（loadParameters 空闲期整体重写，周期只读）。
+  double robot_status_contract_timeout_s_{0.5};  ///< robot_status 断流诊断阈值 [s]（io 契约值，非安全门）。
+  ContactPlan last_preview_plan_{};   ///< 最近一次 PREVIEW 的计划绑定（plan_id+模型元组+起始关节）。
+  bool last_preview_valid_{false};    ///< 预览计划可否供 FULL 执行绑定（plan_id 非空）。
+  rclcpp::Client<aubo_msgs::srv::SetIO>::SharedPtr tool_io_client_;  ///< 刀具 SetIO 客户端（伴随节点侧）。
 };
 
 }  // namespace peach_arm

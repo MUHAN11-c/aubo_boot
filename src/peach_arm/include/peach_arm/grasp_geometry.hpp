@@ -95,13 +95,15 @@ inline Eigen::Isometry3d pregraspFromEntryKeepRoll(
 // 半无限 BagKeepout 已删（G 弦时代产物；2026-09-10 探针）。
 struct FruitCapsule
 {
-  Eigen::Vector3d bottom{Eigen::Vector3d::Zero()};
-  Eigen::Vector3d neck{Eigen::Vector3d::Zero()};
-  Eigen::Vector3d axis{Eigen::Vector3d::UnitZ()};
-  double radius_m{0.05};
-  bool enabled{true};
+  Eigen::Vector3d bottom{Eigen::Vector3d::Zero()};  ///< 果底中心（胶囊段起点）[m]，base 系。
+  Eigen::Vector3d neck{Eigen::Vector3d::Zero()};    ///< 果颈中心（胶囊段终点）[m]，base 系。
+  Eigen::Vector3d axis{Eigen::Vector3d::UnitZ()};   ///< 果轴单位向量（bottom→neck）。
+  double radius_m{0.05};  ///< 胶囊半径 [m]（含膨胀；工具间隙据此扣减）。
+  bool enabled{true};     ///< false=审查整体关闭（感知无效时调用方决定）。
 };
 
+/// 果实胶囊保护半径：diameter>0 取半径，否则回退 fallback；下限 0.025 m
+/// 防感知给极小直径把保护半径归零，另加固定膨胀。
 inline double fruitRadiusM(
   double diameter_m, double inflation_m, double fallback_radius_m)
 {
@@ -109,6 +111,8 @@ inline double fruitRadiusM(
   return std::max(0.025, base) + std::max(0.0, inflation_m);
 }
 
+/// 由感知拟合量组装 FruitCapsule；轴退化（近零）按 +Z 兜底，保证审查
+/// 几何恒有效（NaN/零轴进审查会把所有点判同侧）。
 inline FruitCapsule fruitCapsuleFrom(
   const Eigen::Vector3d & bottom, const Eigen::Vector3d & neck,
   const Eigen::Vector3d & axis, double diameter_m, double inflation_m,
@@ -123,6 +127,8 @@ inline FruitCapsule fruitCapsuleFrom(
   return fruit;
 }
 
+/// 胶囊审查是否整体关闭：enabled=false、半径非正或任一几何量非有限时
+/// 调用方按「关闭」处理（返回无穷间隙），不产生误判拒发。
 inline bool fruitCapsuleDisabled(const FruitCapsule & fruit)
 {
   return !fruit.enabled || fruit.radius_m <= 1.0e-6 ||
@@ -174,6 +180,8 @@ inline double segmentSegmentDistance(
   return (r + s * d1 - t * d2).norm();
 }
 
+/// 工具筒体尾点（TCP 沿 −Z 退 tool_length）：有限圆柱段的另一端，
+/// 胶囊间隙按 TCP→尾点线段计算。
 inline Eigen::Vector3d toolTailPoint(
   const Eigen::Vector3d & tcp, const Eigen::Quaterniond & tcp_quat,
   double tool_length_m)
@@ -182,6 +190,8 @@ inline Eigen::Vector3d toolTailPoint(
   return tcp - tool_z * tool_length_m;
 }
 
+/// 两轴向区间（果底→果颈 vs 工具首尾投影）是否重叠（含 1e-9 容差）：
+/// 不重叠则径向接触不伤果，直接判无穷间隙。
 inline bool axialRangesOverlap(double a0, double a1, double b0, double b1)
 {
   const double amin = std::min(a0, a1);
@@ -191,6 +201,8 @@ inline bool axialRangesOverlap(double a0, double a1, double b0, double b1)
   return amin <= bmax + 1.0e-9 && bmin <= amax + 1.0e-9;
 }
 
+/// 工具有限圆柱 vs 果实胶囊的径向间隙 [m]：轴向投影不重叠或审查关闭
+/// 返回 +∞；否则为线段距 − 工具半径 − 果半径（<=0 即接触）。
 inline double toolCapsuleClearance(
   const Eigen::Vector3d & tcp, const Eigen::Quaterniond & tcp_quat,
   const FruitCapsule & fruit, double tool_length_m, double tool_radius_m)
@@ -215,11 +227,12 @@ inline double toolCapsuleClearance(
          tool_radius_m - fruit.radius_m;
 }
 
+/// 工具×果实胶囊逐点审查结果。
 struct FruitAuditReport
 {
-  bool allowed{true};
-  std::string reason{"果实胶囊审查通过"};
-  double min_clearance_m{std::numeric_limits<double>::infinity()};
+  bool allowed{true};  ///< 是否放行（接触胶囊或反爬超限即 false）。
+  std::string reason{"果实胶囊审查通过"};  ///< 拒发原因（含量测值，人读）。
+  double min_clearance_m{std::numeric_limits<double>::infinity()};  ///< 全程最小间隙 [m]（含通过时的观测值）。
 };
 
 // audit_climb=false 只查工具×果实胶囊接触（staging 转移首段 PTP 弧用：

@@ -6,7 +6,6 @@ torch / ultralytics 惰性导入（无权重环境仍可 import 本模块做几�
 """
 from __future__ import annotations
 
-from dataclasses import dataclass
 import logging
 import threading
 import time
@@ -319,25 +318,10 @@ class InferenceEngine:
         self._segmenter.reset()
 
 
-@dataclass(frozen=True)
-class ForegroundMode:
-    """前景模式描述（目前仅 hybrid_dilated）."""
-
-    mode_id: str
-    """估计路由键（如 'hybrid_dilated'）."""
-    label: str
-    """中文短标签（报告/界面）."""
-    description: str
-    """一句话说明."""
-
-
-FOREGROUND_MODES = (
-    ForegroundMode(
-        'hybrid_dilated', 'SAM∩膨胀深度',
-        'SAM 掩膜与膨胀后的实测深度连通域求交'),
-)
-MODE_IDS = tuple(mode.mode_id for mode in FOREGROUND_MODES)
-MODE_LABELS = {mode.mode_id: mode.label for mode in FOREGROUND_MODES}
+# W13-A 压缩：原 ForegroundMode dataclass + FOREGROUND_MODES 单模式
+# 注册表 + MODE_LABELS 已删（三者全仓零消费者）；估计路由/计时键
+# 单源本常量，语义与旧 tuple(mode.mode_id ...) 完全一致。
+MODE_IDS = ('hybrid_dilated',)
 
 
 class CandidateEstimator:
@@ -389,6 +373,9 @@ class CandidateEstimator:
         self.min_mask_points = max(1, int(min_mask_points))
         self.last_timings_ms: dict[str, float] = {}
         self._last_mask_timings_ms: dict[str, float] = {}
+        # W13-A：膨胀椭圆核按边长缓存（原每目标 getStructuringElement 重建
+        # 是纯重复分配；dilate_px 为公开属性可后改，故按核边长字典缓存）.
+        self._dilate_kernel_cache: dict[int, np.ndarray] = {}
 
     def _pipeline_for(self, obs: BagObservation) -> tuple:
         """
@@ -512,7 +499,10 @@ class CandidateEstimator:
             roi, valid, None, bbox, source='depth_fallback')
         measured_sam = sam_roi & valid
         k = 2 * (self.dilate_px // 2) + 1
-        kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (k, k))
+        kernel = self._dilate_kernel_cache.get(k)
+        if kernel is None:
+            kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (k, k))
+            self._dilate_kernel_cache[k] = kernel
         expanded_depth = cv2.dilate(depth_mask.astype(np.uint8), kernel) > 0
         mask = self._enough(measured_sam & expanded_depth)
         elapsed_ms = (time.perf_counter() - started) * 1000.0

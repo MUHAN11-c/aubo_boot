@@ -22,6 +22,7 @@ from peach_harvester.vision.common.geometry import (
     fit_sphere_robust,
     grasp_frame_from_axis,
     polish_sphere_lm,
+    project_point,
     transform_direction,
     transform_point,
 )
@@ -100,6 +101,38 @@ class TargetPoseResult:
     target_kind: str = 'bag'  # "bag" | "fruit"
 
 
+@dataclass
+class _EstimateInputs:
+    """estimate 同构前奏产物（袋/果共用；W13-A 抽取，字段见 _prepare_estimate_inputs）."""
+
+    x1: int
+    """ROI 左上 x（像素）."""
+    y1: int
+    """ROI 左上 y（像素）."""
+    x2: int
+    """ROI 右下 x（像素）."""
+    y2: int
+    """ROI 右下 y（像素）."""
+    roi: np.ndarray
+    """(h, w) uint16 ROI 深度（毫米）."""
+    base_2d: BagGrasp2D
+    """2D 结果骨架（foreground_mask 已填）."""
+    local_mask: np.ndarray
+    """(h, w) bool ROI 前景掩膜."""
+    valid_ratio: float
+    """ROI 有效深度占比."""
+    coverage: float
+    """ROI 前景掩膜占比."""
+    points: np.ndarray
+    """(N, 3) float64 相机系点（米，已剔离群）."""
+    pixels: np.ndarray
+    """(N, 2) int ROI 内像素坐标 (x, y)."""
+    source: str
+    """掩膜来源标签."""
+    gravity: np.ndarray
+    """(3,) 单位重力方向（相机系）."""
+
+
 class RobustBagPosePipeline:
     """
     袋装桃的保守位姿估计器（圆柱套入工具）.
@@ -151,33 +184,26 @@ class RobustBagPosePipeline:
             TargetPoseResult；status ∈ ACCEPT/REOBSERVE/REJECT，硬性失败
             （点太少/净空不足等）直接 REJECT，诊断指标经 metrics 暴露.
 
+        与 RobustFruitPosePipeline.estimate 同构（W13-A）：前奏共用
+        _prepare_estimate_inputs；中段（轴估计/参考点/门控）与结果组装
+        按袋线工艺分线，本轮未并成模板方法——轴来源（圆柱 RANSAC+袋
+        地标）与果线（球拟合+梗洼）分支、flags/metrics 字段集均不同且
+        纠缠，回放塔要求逐字节保持。改本方法时对照果线同名方法。
+
         """
-        x1, y1, x2, y2 = self._clip_bbox(bbox, obs.depth.shape)
-        base_2d = BagGrasp2D(detection_bbox=(x1, y1, x2 - x1, y2 - y1))
-        if x2 - x1 < 8 or y2 - y1 < 8:
-            return self._failed(target_id, base_2d, 'invalid_bbox', mask_source)
-
-        roi = obs.depth[y1:y2, x1:x2]
-        valid = valid_roi if valid_roi is not None else self._valid_depth(roi)
-        valid_ratio = float(valid.mean()) if valid.size else 0.0
-        local_mask, source = self._foreground(roi, valid, mask, bbox, source=mask_source)
-        base_2d.foreground_mask = local_mask
-        coverage = float(local_mask.mean()) if local_mask.size else 0.0
-        points, pixels = self._to_points(
-            roi, local_mask, x1, y1, obs.camera_K, valid)
-        points, pixels = self._filter_depth_outliers(points, pixels)
-        if len(points) < self.min_points:
-            return self._failed(target_id, base_2d, 'insufficient_measured_points', source,
-                                valid_depth_ratio=valid_ratio, foreground_ratio=coverage,
-                                n_points=len(points))
-
-        gravity = np.asarray(obs.gravity_hint if obs.gravity_hint is not None
-                             else [0.0, 1.0, 0.0], dtype=float)
-        if np.linalg.norm(gravity) < 1e-8:
-            return self._failed(target_id, base_2d, 'invalid_gravity', source,
-                                valid_depth_ratio=valid_ratio, foreground_ratio=coverage,
-                                n_points=len(points))
-        gravity /= np.linalg.norm(gravity)
+        failure, inputs = self._prepare_estimate_inputs(
+            obs, target_id, bbox, mask, mask_source, valid_roi)
+        if failure is not None:
+            return failure
+        x1, y1, x2, y2 = inputs.x1, inputs.y1, inputs.x2, inputs.y2
+        roi = inputs.roi
+        base_2d = inputs.base_2d
+        local_mask = inputs.local_mask
+        valid_ratio = inputs.valid_ratio
+        coverage = inputs.coverage
+        points, pixels = inputs.points, inputs.pixels
+        source = inputs.source
+        gravity = inputs.gravity
 
         # ── 套入轴估计: 圆柱 RANSAC 主估 → 2D 掩膜校验 → 重力显式降级 ──
         # 理论: 圆柱法线 ⊥ 轴 (a = n₁×n₂)；局部几何结构良态，全局 PCA 对
@@ -373,9 +399,72 @@ class RobustBagPosePipeline:
             tool_version=self.tool.version)
         return TargetPoseResult(target_id, base_2d, grasp_3d, source, metrics)
 
+    def _prepare_estimate_inputs(self, obs, target_id, bbox, mask,
+                                 mask_source, valid_roi):
+        """
+        袋/果两线 estimate 的同构前奏（W13-A 抽取；步骤序与原内联逐字一致）.
+
+        裁框 → 建 BagGrasp2D → 尺寸门 → 深度窗/前景掩膜 → 反投影点云
+        → MAD 离群剔除 → 点数门 → 重力解析归一。任一门失败即返回本线
+        （self.kind）的 REJECT 结果；成功返回前奏产物供两线各自的
+        中段（轴估计/参考点/门控）继续。
+
+        Args:
+            obs: 单帧输入（深度 uint16 毫米）.
+            target_id: 目标 ID.
+            bbox: (x1, y1, x2, y2) 检测框（像素，自动裁剪到图内）.
+            mask: 外部前景掩膜（全图或 ROI）；None 走深度带降级.
+            mask_source: 掩膜来源标签，写入诊断.
+            valid_roi: 与 ROI 同尺寸的有效深度掩膜；None 按管线深度窗现算.
+
+        Returns
+        -------
+            (failure, inputs)：failure 非 None 时调用方直接返回该 REJECT
+            结果；inputs 为 _EstimateInputs（failure 非 None 时为 None）.
+
+        """
+        x1, y1, x2, y2 = self._clip_bbox(bbox, obs.depth.shape)
+        base_2d = BagGrasp2D(detection_bbox=(x1, y1, x2 - x1, y2 - y1))
+        if x2 - x1 < 8 or y2 - y1 < 8:
+            return self._failed(
+                target_id, base_2d, 'invalid_bbox', mask_source), None
+
+        roi = obs.depth[y1:y2, x1:x2]
+        valid = valid_roi if valid_roi is not None else self._valid_depth(roi)
+        valid_ratio = float(valid.mean()) if valid.size else 0.0
+        local_mask, source = self._foreground(roi, valid, mask, bbox, source=mask_source)
+        base_2d.foreground_mask = local_mask
+        coverage = float(local_mask.mean()) if local_mask.size else 0.0
+        points, pixels = self._to_points(
+            roi, local_mask, x1, y1, obs.camera_K, valid)
+        points, pixels = self._filter_depth_outliers(points, pixels)
+        if len(points) < self.min_points:
+            return self._failed(
+                target_id, base_2d, 'insufficient_measured_points', source,
+                valid_depth_ratio=valid_ratio, foreground_ratio=coverage,
+                n_points=len(points)), None
+
+        gravity = np.asarray(obs.gravity_hint if obs.gravity_hint is not None
+                             else [0.0, 1.0, 0.0], dtype=float)
+        if np.linalg.norm(gravity) < 1e-8:
+            return self._failed(
+                target_id, base_2d, 'invalid_gravity', source,
+                valid_depth_ratio=valid_ratio, foreground_ratio=coverage,
+                n_points=len(points)), None
+        gravity /= np.linalg.norm(gravity)
+        inputs = _EstimateInputs(
+            x1=x1, y1=y1, x2=x2, y2=y2, roi=roi, base_2d=base_2d,
+            local_mask=local_mask, valid_ratio=valid_ratio, coverage=coverage,
+            points=points, pixels=pixels, source=source, gravity=gravity)
+        return None, inputs
+
     def _failed(self, target_id, grasp_2d, reason, source, **metrics):
         """
-        构造袋线 REJECT 结果（status=REJECT + 单一诊断标记）.
+        构造 REJECT 结果（袋/果两线共用；W13-A 合并原 _failed_fruit）.
+
+        strategy_id 与 target_kind 均按 self.kind 推导（'bag' →
+        'robust_bag_pose' / target_kind='bag'；'fruit' → 'robust_fruit_pose'
+        / target_kind='fruit'），两线失败产物与合并前逐字段一致。
 
         Args:
             target_id: 目标 ID.
@@ -386,16 +475,18 @@ class RobustBagPosePipeline:
 
         Returns
         -------
-            TargetPoseResult（target_kind='bag'）.
+            TargetPoseResult（target_kind=self.kind，status=REJECT）.
 
         """
         grasp_2d.status = 'REJECT'
         grasp_2d.diagnostic_flags = [reason]
         grasp_3d = BagGraspReference3D(
             status='REJECT', diagnostic_flags=[reason],
-            strategy_id='robust_bag_pose', tool_version=self.tool.version,
+            strategy_id=f'robust_{self.kind}_pose',
+            tool_version=self.tool.version,
             diagnostic_info={**metrics, 'mask_source': source})
-        return TargetPoseResult(target_id, grasp_2d, grasp_3d, source, metrics)
+        return TargetPoseResult(target_id, grasp_2d, grasp_3d, source, metrics,
+                                target_kind=self.kind)
 
     @staticmethod
     def _clip_bbox(bbox, shape):
@@ -414,13 +505,16 @@ class RobustBagPosePipeline:
         """前景掩膜（委托模块级 :func:`foreground_mask`，语义不变）."""
         return foreground_mask(depth, valid, supplied_mask, bbox, source)
 
-    def _to_points(self, depth, mask, xoff, yoff, K, valid):
+    @staticmethod
+    def _to_points(depth, mask, xoff, yoff, K, valid):
         """
         前景像素反投影为相机系 3D 点（米），委托 geometry.backproject.
 
         W3：距离窗不再在此重算——直接复用 estimate 已解析的 `valid`
         掩膜（valid_roi 或管线深度窗，同一 valid_depth_mask 口径）；
         反投影数学单源在 common.geometry.backproject。
+        （W13-A：原声明 self 但函数体零引用，改为静态方法；调用点
+        self._to_points(...) / 实例直调均不受影响。）
 
         Args:
             depth: (h, w) uint16 ROI 深度（毫米）.
@@ -603,7 +697,7 @@ class RobustBagPosePipeline:
     @staticmethod
     def _project(point, K):
         """
-        相机系 3D 点 → 像素 (u, v).
+        相机系 3D 点 → 像素 (u, v)（W13-A 起委托 geometry.project_point）.
 
         Args:
             point: (3,) 点（米）；None 或 z≤1e-8 给 None.
@@ -614,10 +708,7 @@ class RobustBagPosePipeline:
             (u, v) float 像素；不可投影返回 None.
 
         """
-        if point is None or point[2] <= 1e-8:
-            return None
-        return (float(point[0] * K['fx'] / point[2] + K['cx']),
-                float(point[1] * K['fy'] / point[2] + K['cy']))
+        return project_point(point, K)
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -672,33 +763,27 @@ class RobustFruitPosePipeline(RobustBagPosePipeline):
             fruit_radius_m / sphere_rms_m / sphere_inlier_ratio /
             cavity_dip_mm / axis_polarity_corrected（球拟合失败时前三项为 None）.
 
+        与 RobustBagPosePipeline.estimate 同构（W13-A）：前奏共用
+        _prepare_estimate_inputs；中段（球拟合+梗洼定向）与结果组装按
+        果线工艺分线，本轮未并成模板方法——flags/metrics/参考点公式
+        与袋线（圆柱 RANSAC+袋地标）纠缠，回放塔要求逐字节保持。
+        改本方法时对照袋线同名方法。
+
         """
-        x1, y1, x2, y2 = self._clip_bbox(bbox, obs.depth.shape)
-        base_2d = BagGrasp2D(detection_bbox=(x1, y1, x2 - x1, y2 - y1))
-        if x2 - x1 < 8 or y2 - y1 < 8:
-            return self._failed_fruit(target_id, base_2d, 'invalid_bbox', mask_source)
-
-        roi = obs.depth[y1:y2, x1:x2]
-        valid = valid_roi if valid_roi is not None else self._valid_depth(roi)
-        valid_ratio = float(valid.mean()) if valid.size else 0.0
-        local_mask, source = self._foreground(roi, valid, mask, bbox, source=mask_source)
-        base_2d.foreground_mask = local_mask
-        coverage = float(local_mask.mean()) if local_mask.size else 0.0
-        points, pixels = self._to_points(
-            roi, local_mask, x1, y1, obs.camera_K, valid)
-        points, pixels = self._filter_depth_outliers(points, pixels)
-        if len(points) < self.min_points:
-            return self._failed_fruit(target_id, base_2d, 'insufficient_measured_points',
-                                      source, valid_depth_ratio=valid_ratio,
-                                      foreground_ratio=coverage, n_points=len(points))
-
-        gravity = np.asarray(obs.gravity_hint if obs.gravity_hint is not None
-                             else [0.0, 1.0, 0.0], dtype=float)
-        if np.linalg.norm(gravity) < 1e-8:
-            return self._failed_fruit(target_id, base_2d, 'invalid_gravity', source,
-                                      valid_depth_ratio=valid_ratio,
-                                      foreground_ratio=coverage, n_points=len(points))
-        gravity /= np.linalg.norm(gravity)
+        failure, inputs = self._prepare_estimate_inputs(
+            obs, target_id, bbox, mask, mask_source, valid_roi)
+        if failure is not None:
+            return failure
+        # 果线后段只消费 x1/y1（estimate_normals ROI 偏移），不引用 x2/y2
+        x1, y1 = inputs.x1, inputs.y1
+        roi = inputs.roi
+        base_2d = inputs.base_2d
+        local_mask = inputs.local_mask
+        valid_ratio = inputs.valid_ratio
+        coverage = inputs.coverage
+        points, pixels = inputs.points, inputs.pixels
+        source = inputs.source
+        gravity = inputs.gravity
 
         normals_map, nvalid_map = estimate_normals(roi, x1, y1, obs.camera_K)
         pnormals = normals_map[pixels[:, 1], pixels[:, 0]]
@@ -922,32 +1007,6 @@ class RobustFruitPosePipeline(RobustBagPosePipeline):
         refined = (u[sel] * w[:, None]).sum(axis=0)
         refined /= np.linalg.norm(refined)
         return refined, best_dip
-
-    def _failed_fruit(self, target_id, grasp_2d, reason, source, **metrics):
-        """
-        构造果线 REJECT 结果（同 _failed，target_kind='fruit'）.
-
-        Args:
-            target_id: 目标 ID.
-            grasp_2d: 已建的 BagGrasp2D（被改写为 REJECT）.
-            reason: 失败原因标记（写入 diagnostic_flags）.
-            source: 掩膜来源标签.
-            **metrics: 已采集的诊断指标，原样透传.
-
-        Returns
-        -------
-            TargetPoseResult（target_kind='fruit'）.
-
-        """
-        grasp_2d.status = 'REJECT'
-        grasp_2d.diagnostic_flags = [reason]
-        grasp_3d = BagGraspReference3D(
-            status='REJECT', diagnostic_flags=[reason],
-            strategy_id='robust_fruit_pose',
-            tool_version=self.tool.version,
-            diagnostic_info={**metrics, 'mask_source': source})
-        return TargetPoseResult(target_id, grasp_2d, grasp_3d, source, metrics,
-                                target_kind='fruit')
 
 
 # 袋/果两条位姿线的实现映射（yaml pipeline.bag_impl / fruit_impl；未知名

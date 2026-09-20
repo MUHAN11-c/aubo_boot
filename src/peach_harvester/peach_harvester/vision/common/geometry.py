@@ -683,6 +683,28 @@ def backproject(depth_mm: np.ndarray, mask: np.ndarray, K: dict, *,
     return xyz, colors
 
 
+def project_point(point, K: dict):
+    """
+    相机系 3D 点 → 像素 (u, v)（backproject 的对偶单点版）.
+
+    u = fx·x/z + cx、v = fy·y/z + cy（z 单位米，K 像素单位）；
+    语义与原 pose_pipelines._project 逐字一致（None 透传、z≤1e-8 不可投影）。
+
+    Args:
+        point: (3,) 相机系点（米）；None 原样返回 None.
+        K: 相机内参 {"fx","fy","cx","cy"}（像素单位）.
+
+    Returns
+    -------
+        (u, v) float 像素；不可投影返回 None.
+
+    """
+    if point is None or point[2] <= 1e-8:
+        return None
+    return (float(point[0] * K['fx'] / point[2] + K['cx']),
+            float(point[1] * K['fy'] / point[2] + K['cy']))
+
+
 def _backproject_grid(depth_roi: np.ndarray, xoff: int, yoff: int, K: dict
                       ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """

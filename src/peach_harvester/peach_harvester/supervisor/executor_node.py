@@ -223,6 +223,7 @@ class TaskExecutorNode(LifecycleNode):
         self._params = params_ns.attach(self)
 
     def on_configure(self, state):
+        """配置转移：集中建 ROS 实体，失败回 ERROR 停在 Unconfigured."""
         try:  # 官方 LifecycleNode：configure 失败返回 ERROR，停在 Unconfigured.
             self._configure_ros()
         except Exception as exc:  # noqa: BLE001 接线失败（话题/参数非法）整包停走
@@ -364,6 +365,7 @@ class TaskExecutorNode(LifecycleNode):
             pass
 
     def on_activate(self, state):
+        """激活转移：置 Active 并复位到 FSM 初始批次态（立即发布）."""
         result = super().on_activate(state)
         self._active = True
         # 生命周期复位到初始批次态（FSM 初值，非手写迁移）
@@ -371,15 +373,18 @@ class TaskExecutorNode(LifecycleNode):
         return result
 
     def on_deactivate(self, state):
+        """去激活转移：清 Active 旗标（在途动作由取消/收口路径处理）."""
         self._active = False
         return super().on_deactivate(state)
 
     def on_cleanup(self, state):
+        """清理转移：清 Active 并释放全部 ROS 实体."""
         self._active = False
         self._unconfigure_ros()
         return super().on_cleanup(state)
 
     def _on_stack_ready(self, msg: Bool) -> None:
+        """托管栈就绪订阅：缓存 managed_nodes_activated 供 goal 门判读."""
         self._stack_ready = bool(msg.data)
 
     def _on_decision(self, msg: GraspDecision) -> None:
@@ -389,6 +394,7 @@ class TaskExecutorNode(LifecycleNode):
     # ---- 操作台服务面（阶段 4）----
 
     def _execution_enabled_effective(self) -> bool:
+        """读执行使能有效值：操作台 override 优先，未覆盖回落本地参数."""
         override = self._enables_override.get('execution')
         if override is not None:
             return bool(override)
@@ -470,9 +476,11 @@ class TaskExecutorNode(LifecycleNode):
 
     def _on_fire_step(self, request, response):
         """
-        操作台单步：阶段 4 首批落地 PHOTO；其余步骤走既有 8090 调试面.
+        操作台单步（debug-only 占位面）：仅 PHOTO 已接线，走 MoveTo 拍照位.
 
-        逐项接线随后续轮——运动类最终都过臂侧命令门，不旁路。
+        VIEWPOINT / BUILD / APPROACH / PREVIEW / TOOL_DEBUG 五个单步为
+        占位——未接线，随后续轮补（当前请用 8090 调试面既有单步）；
+        运动类最终都过臂侧命令门，不旁路。
         """
         self._fire_step_seq += 1
         step = int(request.step)
@@ -533,6 +541,7 @@ class TaskExecutorNode(LifecycleNode):
         self._wake.clear()
 
     def _goal_if_active(self, goal_request):
+        """放行或拒绝 RunHarvest goal：未激活/栈未就绪/已有批次则拒绝."""
         del goal_request
         with self._lock:
             if not self._active:
@@ -548,10 +557,12 @@ class TaskExecutorNode(LifecycleNode):
             return GoalResponse.ACCEPT
 
     def _accept_cancel(self, cancel_request):
+        """受理 RunHarvest 取消请求（实际收口走取消路径）."""
         del cancel_request
         return CancelResponse.ACCEPT
 
     def _on_obs(self, msg):
+        """观测订阅：缓存最近一帧，持锁更新发现数并唤醒批次循环."""
         self._observations = msg
         if msg is not None:
             # 读-改-写须持锁（W6-A）：与 _run_harvest 复位/摘要读取并发
@@ -561,6 +572,7 @@ class TaskExecutorNode(LifecycleNode):
         self._poke()
 
     def _on_control(self, request, response):
+        """处理 ControlTask 命令：按批次权限放行，落 seq/暂停/取消/跳过."""
         cmd = int(request.command)
         if cmd == 6:
             return self._on_ack_recovery(request, response)
@@ -662,6 +674,7 @@ class TaskExecutorNode(LifecycleNode):
 
     def _apply(self, reaction, request_id: str, target_id: str = '',
                force_publish: bool = False) -> None:
+        """落地 Reaction：唯一批次态写点，发布状态并按需发 canonical 事件."""
         self._batch_state = reaction.batch_state
         self._target_phase = reaction.target_phase
         self._fsm_message = reaction.message
@@ -757,6 +770,7 @@ class TaskExecutorNode(LifecycleNode):
         return self._reaction_from(nxt, effects)
 
     def _run_harvest(self, goal_handle):
+        """执行 RunHarvest：开批复位 → 命令循环 → finally 收口落账."""
         goal = goal_handle.request
         self._run_goal_handle = goal_handle
         self._run_started = time.monotonic()
@@ -1046,9 +1060,10 @@ class TaskExecutorNode(LifecycleNode):
         """DISPATCH 分支（原循环分支逐字搬运）：单果时限门 + 观察周期派发."""
         request_id = goal.request_id
         if self._target_deadline_exceeded(request_id):
-            reaction = self._react(Event.OBSERVE_FAILED)
-            self._apply(reaction, request_id, self._current_target_id)
-            return reaction, True
+            # 时限门不落 TargetOutcome（淘汰语义由单果时限自身决定）
+            return self._fail_dispatch(
+                self._react(Event.OBSERVE_FAILED), request_id,
+                self._current_target_id)
         timeout = float(self._params.action_timeout_s)
         min_views = int(self._params.reconstruction_min_views)
         start_timeout = float(
@@ -1059,21 +1074,16 @@ class TaskExecutorNode(LifecycleNode):
         self._cycle_observe_extra = {}
         self._cycle_dispatch_t0 = 0.0
         if self._take_skip():
-            reaction = self._react(Event.SKIP)
-            self._record_skip(
-                target_id, TargetOutcome.CANCELED, 'skip_target',
-                failure_code='canceled', elapsed_s=time.monotonic() - dispatch_t0)
-            self._apply(reaction, request_id, target_id)
-            return reaction, True
+            return self._fail_dispatch(
+                self._react(Event.SKIP), request_id, target_id,
+                outcome=TargetOutcome.CANCELED, reason='skip_target',
+                failure_code='canceled', dispatch_t0=dispatch_t0)
         if not self._wait_target_in_locked_set(target_id, 2.5):
-            reaction = self._react(Event.OBSERVE_FAILED)
-            self._record_skip(
-                target_id, TargetOutcome.SKIPPED_QUALITY,
-                'observe_failed: target_not_in_locked_set',
-                failure_code='observe_failed',
-                elapsed_s=time.monotonic() - dispatch_t0)
-            self._apply(reaction, request_id, target_id)
-            return reaction, True
+            return self._fail_dispatch(
+                self._react(Event.OBSERVE_FAILED), request_id, target_id,
+                outcome=TargetOutcome.SKIPPED_QUALITY,
+                reason='observe_failed: target_not_in_locked_set',
+                failure_code='observe_failed', dispatch_t0=dispatch_t0)
         build_goal = BuildTargetModel.Goal()
         build_goal.request_id = request_id
         build_goal.target_id = target_id
@@ -1084,14 +1094,11 @@ class TaskExecutorNode(LifecycleNode):
             self._build, build_goal, timeout,
             feedback_cb=self._on_build_feedback)
         if build_handle is None:
-            reaction = self._react(Event.BUILD_FAILED)
-            self._record_skip(
-                target_id, TargetOutcome.SKIPPED_QUALITY,
-                'build_target_model rejected',
-                failure_code='build_rejected',
-                elapsed_s=time.monotonic() - dispatch_t0)
-            self._apply(reaction, request_id, target_id)
-            return reaction, True
+            return self._fail_dispatch(
+                self._react(Event.BUILD_FAILED), request_id, target_id,
+                outcome=TargetOutcome.SKIPPED_QUALITY,
+                reason='build_target_model rejected',
+                failure_code='build_rejected', dispatch_t0=dispatch_t0)
         self._in_flight.append(build_handle)
         if not self._wait_build_started(build_handle, start_timeout):
             self._cancel_handle(build_handle)
@@ -1102,34 +1109,35 @@ class TaskExecutorNode(LifecycleNode):
                 build_handle, min(timeout, 10.0),
                 goal_handle=self._run_goal_handle)
             self._forget_handle(build_handle)
-            reaction = self._react(Event.BUILD_FAILED)
-            self._record_skip(
-                target_id, TargetOutcome.SKIPPED_QUALITY,
-                'build_start_timeout: reconstruction not COLLECTING',
-                failure_code='build_start_timeout',
-                elapsed_s=time.monotonic() - dispatch_t0,
+            return self._fail_dispatch(
+                self._react(Event.BUILD_FAILED), request_id, target_id,
+                outcome=TargetOutcome.SKIPPED_QUALITY,
+                reason='build_start_timeout: reconstruction not COLLECTING',
+                failure_code='build_start_timeout', dispatch_t0=dispatch_t0,
                 extra=build_details(self._build_feedback, dispatch_t0, None))
-            self._apply(reaction, request_id, target_id)
-            return reaction, True
-        observe = ExecuteTarget.Goal()
-        observe.request_id = request_id
-        observe.run_id = self._run_id
-        observe.cycle_id = self._cycle_id
-        observe.target_id = target_id
-        observe.mode = ExecuteTarget.Goal.OBSERVE_ONLY
-        observe.scene_epoch = int(self._scene_epoch or 0)
-        observe.tool_profile_id = str(self._params.tool.profile_id)
-        observe.generation = int(self._action_generation)
-        self._cycle_plan_id = f'{request_id}:{target_id}:{self._action_generation}'
-        observe.plan_id = self._cycle_plan_id
         # 视点策略开关（3c-2c）：fast=supervisor 直驱补视（单视优先封顶
         # 3 视）；conservative=现行多视观察（arm OBSERVE_ONLY 原值路径）。
+        # plan_id 两档共用（W13-A：fast 档不发 arm 观察动作，但
+        # _cmd_full 组装 FULL goal 时读 _cycle_plan_id，故保持在分支外）。
+        self._cycle_plan_id = f'{request_id}:{target_id}:{self._action_generation}'
         fast_policy = (
             int(self._batch_policy.view_policy) == BatchPolicy.VIEW_FAST)
         if fast_policy:
             observe_ok, observe_details, observed = self._dispatch_fast(
                 request_id, target_id)
         else:
+            # OBSERVE goal 组装（W13-A 自无条件段移入本分支）：仅
+            # conservative 档需要 arm 观察动作，fast 档跳过装配。
+            observe = ExecuteTarget.Goal()
+            observe.request_id = request_id
+            observe.run_id = self._run_id
+            observe.cycle_id = self._cycle_id
+            observe.target_id = target_id
+            observe.mode = ExecuteTarget.Goal.OBSERVE_ONLY
+            observe.scene_epoch = int(self._scene_epoch or 0)
+            observe.tool_profile_id = str(self._params.tool.profile_id)
+            observe.generation = int(self._action_generation)
+            observe.plan_id = self._cycle_plan_id
             observe_ok, observe_details, observed = self._dispatch_observe(
                 target_id, observe, timeout)
         if self._cancel or self._peek_skip() or not observe_ok:
@@ -1139,40 +1147,32 @@ class TaskExecutorNode(LifecycleNode):
                 build_handle, min(timeout, 10.0),
                 goal_handle=self._run_goal_handle)
             if not observe_ok and not self._cancel:
-                reaction = self._react(Event.OBSERVE_FAILED)
-                reason = (
-                    str(getattr(observed, 'reason', '') or 'observe_only failed')
-                    if observed is not None else
-                    'observe_only rejected (skills locked set)')
-                self._record_skip(
-                    target_id, TargetOutcome.SKIPPED_QUALITY,
-                    'observe_failed: ' + reason,
-                    failure_code='observe_failed',
-                    elapsed_s=time.monotonic() - dispatch_t0,
+                return self._fail_dispatch(
+                    self._react(Event.OBSERVE_FAILED), request_id, target_id,
+                    outcome=TargetOutcome.SKIPPED_QUALITY,
+                    reason=(
+                        str(getattr(observed, 'reason', '')
+                            or 'observe_only failed')
+                        if observed is not None else
+                        'observe_only rejected (skills locked set)'),
+                    failure_code='observe_failed', dispatch_t0=dispatch_t0,
                     extra=observe_details)
-            else:
-                reaction = self._react(Event.SKIP)
-                self._record_skip(
-                    target_id, TargetOutcome.CANCELED, 'canceled_or_skipped',
-                    failure_code='canceled',
-                    elapsed_s=time.monotonic() - dispatch_t0,
-                    extra=observe_details)
-            self._apply(reaction, request_id, target_id)
-            return reaction, True
+            return self._fail_dispatch(
+                self._react(Event.SKIP), request_id, target_id,
+                outcome=TargetOutcome.CANCELED, reason='canceled_or_skipped',
+                failure_code='canceled', dispatch_t0=dispatch_t0,
+                extra=observe_details)
         built, wait_kind = self._wait_build_after_observe(
             build_handle, timeout, grace_s, min_views)
         self._forget_handle(build_handle)
         details = build_details(self._build_feedback, dispatch_t0, built)
         details.update(observe_details)
         if self._cancel or self._take_skip():
-            reaction = self._react(Event.SKIP)
-            self._record_skip(
-                target_id, TargetOutcome.CANCELED, 'canceled_or_skipped',
-                failure_code='canceled',
-                elapsed_s=time.monotonic() - dispatch_t0,
+            return self._fail_dispatch(
+                self._react(Event.SKIP), request_id, target_id,
+                outcome=TargetOutcome.CANCELED, reason='canceled_or_skipped',
+                failure_code='canceled', dispatch_t0=dispatch_t0,
                 extra=details)
-            self._apply(reaction, request_id, target_id)
-            return reaction, True
         views = int(self._build_feedback.get('view_count') or 0)
         if wait_kind == 'observe_build_view_race' or (
                 built is None and views < min_views):
@@ -1182,28 +1182,23 @@ class TaskExecutorNode(LifecycleNode):
                     'view_count': views, 'min_views': min_views,
                     'timeout_source': 'observe_build_view_race',
                 })
-            reaction = self._react(Event.BUILD_FAILED)
-            self._record_skip(
-                target_id, TargetOutcome.SKIPPED_QUALITY,
-                f'observe_build_view_race: views={views} min_views={min_views}',
+            return self._fail_dispatch(
+                self._react(Event.BUILD_FAILED), request_id, target_id,
+                outcome=TargetOutcome.SKIPPED_QUALITY,
+                reason=(f'observe_build_view_race: views={views} '
+                        f'min_views={min_views}'),
                 failure_code='observe_build_view_race',
-                elapsed_s=time.monotonic() - dispatch_t0,
-                extra=details)
-            self._apply(reaction, request_id, target_id)
-            return reaction, True
+                dispatch_t0=dispatch_t0, extra=details)
         if built is None or not bool(getattr(built, 'success', False)):
             message = (
                 'build_timeout:executor_wait' if built is None
                 else str(getattr(built, 'message', '') or ''))
             failure_code, reason = classify_build_failure(built, message)
-            reaction = self._react(Event.BUILD_FAILED)
-            self._record_skip(
-                target_id, TargetOutcome.SKIPPED_QUALITY, reason,
-                failure_code=failure_code,
-                elapsed_s=time.monotonic() - dispatch_t0,
+            return self._fail_dispatch(
+                self._react(Event.BUILD_FAILED), request_id, target_id,
+                outcome=TargetOutcome.SKIPPED_QUALITY, reason=reason,
+                failure_code=failure_code, dispatch_t0=dispatch_t0,
                 extra={**details, 'timeout_source': failure_code})
-            self._apply(reaction, request_id, target_id)
-            return reaction, True
         model = getattr(built, 'model', None)
         self._last_model_revision = str(
             getattr(model, 'model_revision', '') or '')
@@ -1214,6 +1209,40 @@ class TaskExecutorNode(LifecycleNode):
         reaction = self._react(Event.READY_FULL)
         self._cycle_observe_extra = dict(details)
         self._cycle_dispatch_t0 = dispatch_t0
+        self._apply(reaction, request_id, target_id)
+        return reaction, True
+
+    def _fail_dispatch(self, reaction, request_id: str, target_id: str, *,
+                       outcome=None, reason: str = '',
+                       failure_code: str = '', dispatch_t0: float = 0.0,
+                       extra: dict | None = None):
+        """
+        DISPATCH 分支统一失败收尾（W13-A 收敛原 7 处收尾四连）.
+
+        outcome 给 None 时只 _apply 不落账（如单果时限门：淘汰由时限
+        本身决定，不走 TargetOutcome 账目）。
+
+        Args:
+            reaction: 已按失败事件求得的 Reaction（self._react 产物）.
+            request_id: 本批请求 ID.
+            target_id: 当前目标 ID.
+            outcome: TargetOutcome.* 码；None 跳过 _record_skip.
+            reason: 人读失败原因（落 outcome.reason）.
+            failure_code: 稳定失败码（落遥测 details）.
+            dispatch_t0: 本目标派发起始 monotonic 时刻（计 elapsed_s）.
+            extra: 附加遥测字段（observe_details / build_details 等）.
+
+        Returns
+        -------
+            (reaction, True)：分支终止元组，调用方直接 return.
+
+        """
+        if outcome is not None:
+            self._record_skip(
+                target_id, outcome, reason,
+                failure_code=failure_code,
+                elapsed_s=time.monotonic() - dispatch_t0,
+                extra=extra)
         self._apply(reaction, request_id, target_id)
         return reaction, True
 
@@ -1375,12 +1404,14 @@ class TaskExecutorNode(LifecycleNode):
     def _camera_position(self):
         """相机位（W6-A 薄接线）：TF 查询闭包在节点侧，解析在纯核."""
         def lookup_exact(target, source, timeout_s):
+            """按当前时刻查 TF（带超时；供纯核精确 stamp 查询回调）."""
             from rclpy.duration import Duration
             return self._tf_buffer.lookup_transform(
                 target, source, self.get_clock().now().to_msg(),
                 timeout=Duration(seconds=timeout_s))
 
         def lookup_latest(target, source):
+            """按最新可用 TF 查（Time()=0；供纯核回退查询回调）."""
             from rclpy.time import Time
             return self._tf_buffer.lookup_transform(target, source, Time())
 
@@ -1447,6 +1478,7 @@ class TaskExecutorNode(LifecycleNode):
             self, target_id: str, code: int, reason: str,
             failure_code: str = '', elapsed_s: float = 0.0,
             extra: dict | None = None) -> None:
+        """跳过/失败落账：TargetOutcome + 遥测细节 + 补采清单挂钩."""
         outcome = TargetOutcome()
         outcome.target_id = target_id
         outcome.outcome = code
@@ -1589,6 +1621,7 @@ class TaskExecutorNode(LifecycleNode):
 
     def _send_goal(self, client, goal_msg, timeout_s: float,
                    feedback: bool = False, feedback_cb=None):
+        """发 action goal：切片等服务器、取消可打断；被拒/超时给 None."""
         # W2/S2：服务器等待切片化（≤5s）+ 取消可打断——旧式单次
         # wait_for_server(action_timeout_s=180s) 纯阻塞不可取消，违仓规。
         deadline = time.monotonic() + max(float(timeout_s), 0.0)
@@ -1698,6 +1731,7 @@ class TaskExecutorNode(LifecycleNode):
         return False
 
     def _on_exec_feedback(self, feedback_msg) -> None:
+        """镜像 ExecuteTarget 反馈：阶段/周期消息/恢复旗标并发布状态."""
         feedback = getattr(feedback_msg, 'feedback', feedback_msg)
         state = getattr(feedback, 'state', None)
         if state is None:
@@ -1764,6 +1798,7 @@ class TaskExecutorNode(LifecycleNode):
     def _send_action(self, client, goal_msg, timeout_s: float,
                      feedback: bool = False, interrupt_on_pause: bool = False,
                      goal_handle=None, want_status: bool = False):
+        """一站式动作调用：_send_goal + _wait_result + 清 in-flight."""
         handle = self._send_goal(
             client, goal_msg, timeout_s, feedback=feedback)
         if handle is not None:
@@ -1775,6 +1810,7 @@ class TaskExecutorNode(LifecycleNode):
         return result
 
     def _cancel_handle(self, handle) -> None:
+        """取消单个 action goal（异常仅告警不抛）."""
         if handle is None:
             return
         try:
@@ -1783,20 +1819,24 @@ class TaskExecutorNode(LifecycleNode):
             self.get_logger().warning(f'cancel goal failed: {exc}')
 
     def _cancel_inflight(self) -> None:
+        """取消全部在途 action 并清表."""
         for handle in list(self._in_flight):
             self._cancel_handle(handle)
         self._in_flight = []
 
     def _forget_handle(self, handle) -> None:
+        """把已收口的 handle 移出在途表."""
         self._in_flight = [item for item in self._in_flight if item is not handle]
 
     def _take_skip(self) -> bool:
+        """取走并清零「跳过当前目标」旗标（锁内）."""
         with self._lock:
             skip = self._skip_target
             self._skip_target = False
             return skip
 
     def _peek_skip(self) -> bool:
+        """只读查看「跳过当前目标」旗标（不清零）."""
         with self._lock:
             return self._skip_target
 
@@ -1808,6 +1848,7 @@ class TaskExecutorNode(LifecycleNode):
         return {'reason': reason} if reason else {}
 
     def _ledger_path(self):
+        """本批账本文件路径（default_ledger_root 下按 run_id）."""
         return ledger_file(default_ledger_root(), self._run_id)
 
     def _restore_ledger(self, run_id: str):
@@ -1822,6 +1863,7 @@ class TaskExecutorNode(LifecycleNode):
         return claimed, outcomes, details
 
     def _persist_ledger(self, claimed) -> None:
+        """落盘批次账本（claimed/outcomes/details；开关关时空操作）."""
         if not bool(self._params.persist_ledger):
             return
         try:
@@ -1832,6 +1874,7 @@ class TaskExecutorNode(LifecycleNode):
             self.get_logger().warning(f'ledger write failed: {exc}')
 
     def _call_service(self, client, request):
+        """调用服务：切片等可用、取消可打断；超时/取消给 None."""
         timeout = float(self._params.service_timeout_s)
         # W2/S2：等待切片化（≤5s）+ 取消可打断（旧式 30s 单次阻塞）。
         deadline = time.monotonic() + max(timeout, 0.0)
@@ -1846,6 +1889,7 @@ class TaskExecutorNode(LifecycleNode):
         return self._await_future(fut, timeout)
 
     def _await_future(self, fut, timeout_s: float):
+        """按 ≤1s 切片等 future：取消/超时给 None，异常仅告警."""
         done = threading.Event()
         fut.add_done_callback(lambda _: done.set())
         # W2/S2：future 按 ≤1s 切片等待，批取消时可提前退场（旧式单次
@@ -1930,6 +1974,7 @@ class TaskExecutorNode(LifecycleNode):
             self._idle(0.1)
 
     def _make_state(self) -> HarvestState:
+        """组装 HarvestState 快照（seq/进度/权限/使能投影，不发布）."""
         msg = HarvestState()
         msg.header.stamp = self.get_clock().now().to_msg()
         msg.header.frame_id = 'base_link'
@@ -1974,6 +2019,7 @@ class TaskExecutorNode(LifecycleNode):
     _STATE_PUBLISH_MIN_INTERVAL_S = 0.1
 
     def _publish_state(self, bump: bool = True, force: bool = False):
+        """发布（限频）HarvestState 并回传；goal 活跃时同步发 RunHarvest 反馈."""
         if bump:
             with self._lock:
                 self._state_seq += 1
@@ -2006,6 +2052,7 @@ class TaskExecutorNode(LifecycleNode):
 
     def _emit(self, code: str, request_id: str, target_id: str = '',
               details: dict | None = None) -> None:
+        """发 canonical 事件：终局码按最近 outcome 规范化，severity 按契约."""
         if code in {
             'target_succeeded', 'target_skipped', 'target_failed',
             'target_canceled', 'target_operator_skipped',

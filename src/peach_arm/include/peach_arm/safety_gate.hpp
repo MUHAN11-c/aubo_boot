@@ -15,18 +15,18 @@ struct RobotStatusSample
 {
   bool received{false};    // 是否已收到过 robot_status
   double received_s{0.0};  // 接收时刻（秒，与注入时钟同源）
-  bool e_stopped{false};
-  bool in_error{false};
-  bool drives_powered{false};
-  bool motion_possible{false};
+  bool e_stopped{false};   ///< 急停位（观测，非急停通道；硬件急停不经 ROS）。
+  bool in_error{false};    ///< 柜侧错误位。
+  bool drives_powered{false};   ///< 驱动已上电。
+  bool motion_possible{false};  ///< 柜侧判定可运动（抱闸/使能就绪）。
 };
 
 // 周期目标的纯值快照：id 在观测无效时也可能非空（身份一致性判定先于有效性判定）。
 struct TargetGateSample
 {
-  std::string id;
-  bool valid{false};
-  double received_s{0.0};
+  std::string id;           ///< 观测绑定的目标 id（与周期生效目标比对）。
+  bool valid{false};        ///< 观测有效性（锁定集/感知侧判定）。
+  double received_s{0.0};   ///< 观测到达时刻（秒，与注入时钟同源）。
 };
 
 // 帧率自适应超时（纯函数）：等待预算以帧数表达（per_frame_mult），按实测帧
@@ -40,11 +40,12 @@ inline double adaptive_timeout_s(
     per_frame_mult * frame_interval_ema_s + margin_s, floor_s, cap_s);
 }
 
+/// 执行前安全门配置（默认值以 config/peach_arm.yaml 为权威源）。
 struct SafetyGateConfig
 {
-  bool require_robot_status{true};
-  double robot_status_max_age_s{1.0};
-  double target_observation_max_age_s{3.0};
+  bool require_robot_status{true};          ///< false=机器人状态门整体关闭（调试档；I5 不得旁路运行期）。
+  double robot_status_max_age_s{1.0};       ///< robot_status 超龄阈值 [s]（断流视为不就绪）。
+  double target_observation_max_age_s{3.0}; ///< 目标观测新鲜度基线 [s]（运行期按实测帧率只放宽不收紧）。
 };
 
 // 执行前安全门（唯一实现，零第二实现虚基类已删，W5-8；将来需要第二实现

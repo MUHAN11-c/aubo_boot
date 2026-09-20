@@ -14,6 +14,7 @@ namespace peach_arm
 
 // 非法四元数（非有限/近零范数）回退为单位旋转、仅取平移，
 // 避免污染下游规划；tf2::fromMsg 本身不检查四元数有效性。
+/// geometry_msgs::Pose → Eigen::Isometry3d（内部走 tf2::fromMsg）。
 inline Eigen::Isometry3d poseToEigen(const geometry_msgs::msg::Pose & pose)
 {
   const Eigen::Quaterniond quaternion(
@@ -29,11 +30,13 @@ inline Eigen::Isometry3d poseToEigen(const geometry_msgs::msg::Pose & pose)
   return transform;
 }
 
+/// Eigen::Isometry3d → geometry_msgs::Pose（tf2::toMsg）。
 inline geometry_msgs::msg::Pose eigenToPose(const Eigen::Isometry3d & transform)
 {
   return tf2::toMsg(transform);
 }
 
+/// geometry_msgs::Point → Eigen::Vector3d。
 inline Eigen::Vector3d pointToEigen(const geometry_msgs::msg::Point & point)
 {
   Eigen::Vector3d out;
@@ -41,6 +44,7 @@ inline Eigen::Vector3d pointToEigen(const geometry_msgs::msg::Point & point)
   return out;
 }
 
+/// geometry_msgs::Vector3 → Eigen::Vector3d。
 inline Eigen::Vector3d vectorToEigen(const geometry_msgs::msg::Vector3 & vector)
 {
   Eigen::Vector3d out;

@@ -184,6 +184,7 @@ CallbackReturn ManipulationSkillsNode::on_activate(const rclcpp_lifecycle::State
   status_pub_->on_activate();
   marker_pub_->on_activate();
   grasp_hyp_pub_->on_activate();
+  startBond();
   // ③层工具×octomap ACM 豁免：后台线程一次应用（含最多 4s 服务等待，
   // 不得占激活回调；static 入口无对象生命周期依赖）。Survey/观察/接近
   // 全程生效——09-17 真机实锤：不豁免则眼在手上 self-filter 漏收的工具
@@ -211,6 +212,7 @@ CallbackReturn ManipulationSkillsNode::on_deactivate(const rclcpp_lifecycle::Sta
   status_pub_->on_deactivate();
   marker_pub_->on_deactivate();
   grasp_hyp_pub_->on_deactivate();
+  stopBond();
   return CallbackReturn::SUCCESS;
 }
 
@@ -281,11 +283,31 @@ void ManipulationSkillsNode::closeMotionOutputAndCancel()
   }
 }
 
+void ManipulationSkillsNode::startBond()
+{
+  if (bond_) {
+    return;  // 重激活路径：心跳已在（on_deactivate 已断则此处为 null）
+  }
+  // W14：bondcpp 生命周期构造器——发布者走 LifecyclePublisher，Inactive 期
+  // 自动静默，因此只在 on_activate 启动；bond_timeout=0 期无观察者亦无害。
+  bond_ = std::make_unique<bond::Bond>("/bond", get_name(), shared_from_this());
+  bond_->start();
+}
+
+void ManipulationSkillsNode::stopBond()
+{
+  if (bond_) {
+    bond_->breakBond();
+    bond_.reset();
+  }
+}
+
 void ManipulationSkillsNode::releaseResources()
 {
   // 与 createInterfaces/initializeMoveIt 对称；参数声明、验证钩子与
   // view_planner_/quality_gate_/safety_gate_ 纯核保留（再次 configure 时
   // loadParameters 重建），contact_recovery_required_ 跨清理保持。
+  stopBond();
   cycle_action_server_.reset();
   survey_action_server_.reset();
   move_to_action_server_.reset();
@@ -352,21 +374,9 @@ void ManipulationSkillsNode::loadParameters()
 {
   params_ = param_listener_->get_params();
   const auto & params = params_;
-  ViewPlannerConfig view_config;
-  view_config.observation_radius_m = params.scan.observation_radius_m;
-  view_config.minimum_radius_m = params.scan.minimum_radius_m;
-  view_config.azimuth_step_deg = params.scan.azimuth_step_deg;
-  view_config.azimuth_limit_deg = params.scan.azimuth_limit_deg;
-  view_config.elevation_step_deg = params.scan.elevation_step_deg;
-  view_config.elevation_limit_deg = params.scan.elevation_limit_deg;
-  view_config.preferred_baseline_deg = params.scan.preferred_baseline_deg;
-  view_config.radial_step_m = params.scan.radial_step_m;
-  view_config.candidate_layers = static_cast<int>(params.scan.candidate_layers);
-  view_config.views_to_minimum_radius =
-    static_cast<int>(params.scan.views_to_minimum_radius);
-  view_config.max_camera_step_m = params.scan.max_camera_step_m;
-  view_config.workspace_max_reach_m = params.scan.workspace_max_reach_m;
-  view_config.min_camera_height_m = params.scan.min_camera_height_m;
+  // Config 值字段经 params_bridge 单点转换（W13-B）；保护区解析需逐盒
+  // WARN 日志，留在节点装配。
+  ViewPlannerConfig view_config = toViewPlannerConfig(params);
   // 环境几何保护区（阶段 F1）：stride-6 扁平数组解析为轴对齐盒列表；
   // 畸形盒（残余组/非有限分量/min>=max）逐条 WARN 并丢弃，不炸节点。
   // 同一列表两处生效：视点生成剔除（view_config 副本）与 GraspTask
@@ -385,23 +395,9 @@ void ManipulationSkillsNode::loadParameters()
   // 职责实现直接构造（唯一实现，原 *.impl 工厂缝位已删除）。
   view_planner_ = std::make_unique<ViewPlanner>(view_config);
 
-  QualityGateConfig gate_config;
-  gate_config.minimum_views = static_cast<std::size_t>(params.quality.minimum_views);
-  gate_config.minimum_baseline_deg = params.quality.minimum_baseline_deg;
-  gate_config.minimum_mean_nearest_baseline_deg =
-    params.quality.minimum_mean_nearest_baseline_deg;
-  gate_config.minimum_mean_depth_ratio = params.quality.minimum_mean_depth_ratio;
-  gate_config.maximum_data_age_s = params.quality.maximum_data_age_s;
-  gate_config.maximum_axis_angle_deg = params.quality.maximum_axis_angle_deg;
-  quality_gate_ = std::make_unique<QualityGate>(gate_config);
-
-  SafetyGateConfig safety_config;
-  safety_config.require_robot_status = params.execution.require_robot_status;
-  safety_config.robot_status_max_age_s = params.execution.robot_status_max_age_s;
-  safety_config.target_observation_max_age_s =
-    params.execution.target_observation_max_age_s;
+  quality_gate_ = std::make_unique<QualityGate>(toQualityGateConfig(params));
   safety_gate_ = std::make_unique<SafetyGate>(
-    safety_config, [this]() {return now().seconds();});
+    toSafetyGateConfig(params), [this]() {return now().seconds();});
   frame_timeouts_.updateConfig(toFrameRateTimeoutConfig(params_));
 
   // 广播源在权时本地参数不得覆盖使能（Enables.msg 契约：收到即覆盖；
@@ -412,12 +408,9 @@ void ManipulationSkillsNode::loadParameters()
     grasp_enabled_.store(params.grasp.enabled);
     tool_enabled_.store(params.tool.enabled);
   }
-  contact_detect_config_.enabled = params.grasp.contact_detect.enabled;
-  contact_detect_config_.baseline_s = params.grasp.contact_detect.baseline_s;
-  contact_detect_config_.slope_threshold =
-    params.grasp.contact_detect.slope_threshold;
-  contact_detect_config_.spike_threshold =
-    params.grasp.contact_detect.spike_threshold;
+  // 接触止损配置经 params_bridge 单点转换（W13-B）；阈值默认关，
+  // 须真机受控试验标定后启用。
+  contact_detect_config_ = toContactDetectConfig(params);
   // 参数重载时同步重建运动接口实现（MoveIt 未初始化前为空操作，由
   // initializeMoveIt 首次装配）。GraspTask 同样按现行 yaml 重建，使接近/
   // 护栏改参在空闲时生效。
@@ -494,7 +487,10 @@ void ManipulationSkillsNode::rebuildGraspTask()
           bool ik_ok = false;
           {
             std::lock_guard<std::mutex> lock(ik_mutex);
-            ik_ok = probe.setFromIK(group, pose, params_.frames.tip, 0.1);
+            // 深搜档单次超时（单源 staging_selector.hpp；选果预检的
+            // kQuickIkProbeTimeoutS 减半预算）。
+            ik_ok = probe.setFromIK(
+              group, pose, params_.frames.tip, kStagingIkSolveTimeoutS);
           }
           if (!ik_ok) {
             return std::nullopt;

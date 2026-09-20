@@ -320,12 +320,6 @@ peach_arm:
       description: "方位角步进 [deg]"
       validation:
         gt<>: [0.0]
-    azimuth_limit_deg:
-      type: double
-      default_value: 16.0
-      description: "方位角限 [deg]"
-      validation:
-        gt_eq<>: [0.0]
     elevation_step_deg:
       type: double
       default_value: 8.0
@@ -350,18 +344,6 @@ peach_arm:
       description: "径向步进 [m]"
       validation:
         gt<>: [0.0]
-    candidate_layers:
-      type: int
-      default_value: 1
-      description: "视点候选层数"
-      validation:
-        gt_eq<>: [1]
-    views_to_minimum_radius:
-      type: int
-      default_value: 5
-      description: "缩到最小半径的视点数"
-      validation:
-        gt_eq<>: [1]
     max_camera_step_m:
       type: double
       default_value: 0.15

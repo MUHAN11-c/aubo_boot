@@ -477,7 +477,8 @@ class ReconstructionCore:
             with self._state_lock:
                 self.collector.rejected_views += 1
                 self._record_auto_skip(reject, count_reject=False)
-            self._logger.warning(f'自动采帧未入库：{reject}')
+            self._logger.warning(f'自动采帧未入库：{reject}',
+                                 throttle_duration_sec=1000.0)
             return
         with self._state_lock:
             if (self.collector.state != STATE_COLLECTING
@@ -490,7 +491,8 @@ class ReconstructionCore:
             if not accepted:
                 self.collector.rejected_views += 1
                 self._record_auto_skip(message, count_reject=False)
-                self._logger.warning(f'自动采帧未入库：{message}')
+                self._logger.warning(f'自动采帧未入库：{message}',
+                                     throttle_duration_sec=1000.0)
                 return
         # 累加云/Marker 组装与序列化是重活，移出锁外（E4 节流仍在）
         self._publish_all()

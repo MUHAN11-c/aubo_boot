@@ -9,10 +9,14 @@
 
 #include <peach_arm/arm_parameters.hpp>
 
+#include "peach_arm/contact_monitor.hpp"
 #include "peach_arm/frame_timeouts.hpp"
 #include "peach_arm/grasp_task.hpp"
 #include "peach_arm/motion.hpp"
+#include "peach_arm/quality_gate.hpp"
+#include "peach_arm/safety_gate.hpp"
 #include "peach_arm/staging_selector.hpp"
+#include "peach_arm/view_planner.hpp"
 
 namespace peach_arm
 {
@@ -124,6 +128,61 @@ inline FrameRateTimeoutConfig toFrameRateTimeoutConfig(const Params & params)
     params.execution.target_observation_max_age_s;
   config.reconfirm_wait_s = params.grasp.reconfirm_wait_s;
   config.refined_timeout_s = params.timeouts.refined_s;
+  return config;
+}
+
+/// Params → 视点规划配置值字段（W13-B）。protected_zones 需逐盒 WARN 的
+/// 解析（parseProtectedZones），留在节点装配（view_config.protected_zones）。
+inline ViewPlannerConfig toViewPlannerConfig(const Params & params)
+{
+  ViewPlannerConfig config;
+  config.observation_radius_m = params.scan.observation_radius_m;
+  config.minimum_radius_m = params.scan.minimum_radius_m;
+  config.azimuth_step_deg = params.scan.azimuth_step_deg;
+  config.elevation_step_deg = params.scan.elevation_step_deg;
+  config.elevation_limit_deg = params.scan.elevation_limit_deg;
+  config.preferred_baseline_deg = params.scan.preferred_baseline_deg;
+  config.radial_step_m = params.scan.radial_step_m;
+  config.max_camera_step_m = params.scan.max_camera_step_m;
+  config.workspace_max_reach_m = params.scan.workspace_max_reach_m;
+  config.min_camera_height_m = params.scan.min_camera_height_m;
+  return config;
+}
+
+/// Params → 质量门配置值字段（W13-B）。
+inline QualityGateConfig toQualityGateConfig(const Params & params)
+{
+  QualityGateConfig config;
+  config.minimum_views = static_cast<std::size_t>(params.quality.minimum_views);
+  config.minimum_baseline_deg = params.quality.minimum_baseline_deg;
+  config.minimum_mean_nearest_baseline_deg =
+    params.quality.minimum_mean_nearest_baseline_deg;
+  config.minimum_mean_depth_ratio = params.quality.minimum_mean_depth_ratio;
+  config.maximum_data_age_s = params.quality.maximum_data_age_s;
+  config.maximum_axis_angle_deg = params.quality.maximum_axis_angle_deg;
+  return config;
+}
+
+/// Params → 安全门配置值字段（W13-B）。运行期帧率自适应的新鲜度上限经
+/// SafetyGate::set_target_observation_max_age_s 注入，不走本桥。
+inline SafetyGateConfig toSafetyGateConfig(const Params & params)
+{
+  SafetyGateConfig config;
+  config.require_robot_status = params.execution.require_robot_status;
+  config.robot_status_max_age_s = params.execution.robot_status_max_age_s;
+  config.target_observation_max_age_s =
+    params.execution.target_observation_max_age_s;
+  return config;
+}
+
+/// Params → 接触止损配置（grasp.contact_detect.*，W13-B；阈值须真机标定）。
+inline ContactDetectConfig toContactDetectConfig(const Params & params)
+{
+  ContactDetectConfig config;
+  config.enabled = params.grasp.contact_detect.enabled;
+  config.baseline_s = params.grasp.contact_detect.baseline_s;
+  config.slope_threshold = params.grasp.contact_detect.slope_threshold;
+  config.spike_threshold = params.grasp.contact_detect.spike_threshold;
   return config;
 }
 

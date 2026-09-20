@@ -24,6 +24,7 @@ _RULES = {  # 键 -> 校验规则表（启动期非法即拒启；运行期非�
     'trajectory.min_step_m': (('gt', 0.0),),
     'trajectory.max_points': (('gt_eq', 100),),
     'record.max_total_bag_gb': (('gt_eq', 0.0),),
+    'record.queue_depth': (('gt_eq', 1),),
     'debug.action_timeout_s': (('gt', 0.0),),
 }
 
@@ -118,6 +119,8 @@ class ObservabilityParams:
     """bag 话题档（如 'default'）."""
     record_max_total_bag_gb: float
     """bag 总容量上限 [GB]；0=不限."""
+    record_queue_depth: int
+    """bag 写队列深度上限；满时丢最旧并计数."""
     trajectory_enabled: bool
     """TCP 轨迹采样开关."""
     trajectory_base_frame: str
@@ -188,6 +191,7 @@ def from_params(raw) -> ObservabilityParams:
         record_rosout=bool(getattr(raw.record, 'rosout', True)),
         record_level=str(getattr(raw.record, 'level', 'std')).strip() or 'std',
         record_max_total_bag_gb=float(raw.record.max_total_bag_gb),
+        record_queue_depth=int(getattr(raw.record, 'queue_depth', 512)),
         trajectory_enabled=bool(raw.trajectory.enabled),
         trajectory_base_frame=str(raw.trajectory.base_frame).strip(),
         trajectory_tip_frame=str(raw.trajectory.tip_frame).strip(),

@@ -60,11 +60,21 @@ class CatchAllRecorder:
         self._timer = self._node.create_timer(SCAN_PERIOD_S, self._scan)
 
     def stop(self) -> None:
+        """
+        停止发现并销毁全部通配订阅（幂等；activate 可重新发现）.
+
+        rclpy 节点对 create_subscription 返回值持强引用：只清 Python
+        列表不 destroy_subscription，deactivate 后回调仍会向记录器入队。
+        """
         if self._timer is not None:
-            self._timer.cancel()
+            self._node.destroy_timer(self._timer)
             self._timer = None
         with self._lock:
-            self._subs.clear()
+            subs, self._subs = self._subs, []
+            self._recorded.clear()
+            self._last_raw_ts.clear()
+        for sub in subs:
+            self._node.destroy_subscription(sub)
 
     def _allow(self, topic: str) -> bool:
         if topic in EXCLUDE_TOPICS or topic in self._recorded:

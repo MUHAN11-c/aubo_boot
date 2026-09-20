@@ -579,6 +579,7 @@ flowchart LR
 | `record.enabled` | 会话 bag 录制总开关（默认 true；关则不建录制订阅） |
 | `record.level` | 录制档：`std`=通配发现全话题+相机 raw 限 1Hz（默认）；`all`=不限速；`core`=仅固定订阅集（镜像订阅+派生 job/metrics） |
 | `record.max_total_bag_gb` | bag 二进制总量预算（GB，默认 20；0=禁用回收）：超限从最旧删 `session_*/bag` 与旧 `mcap_*`，报告/账本/文本永不删，逐条审计 |
+| `record.queue_depth` | bag 写队列深度上限（默认 512）：盘速掉队时丢最旧保最新，丢帧计数进 `/api/state` 的 `record.info.drops` |
 | `record.save_images` / `record.save_clouds` | 调试图/TSDF 点云进 bag 的门控（键名沿用，语义已从「落 jpg/ply 文件」改为「进 bag」） |
 | `trajectory.enabled` | latest TF 采 TCP 轨迹给 Web/RViz（bag 侧由 `/tf` 离线重算，同源） |
 | `joint_states_topic` / `joint_status_topic` | 硬件表：实际角/速度与柜侧电流（SDK 原单位）/温度/跟随误差；镜像只在 Web，原始话题随 bag 录制 |

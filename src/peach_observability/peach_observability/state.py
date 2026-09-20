@@ -205,6 +205,30 @@ def to_harvest_event(message) -> dict:
     }
 
 
+def to_task_executor_state(message) -> dict:
+    """HarvestState（调度类型化状态）→ 浏览器镜像 dict（W10 从节点回调下沉）."""
+    return {
+        'revision': message.revision,
+        'state_seq': int(getattr(message, 'state_seq', 0) or 0),
+        'run_id': message.run_id,
+        'cycle_id': message.cycle_id,
+        'target_id': message.target_id,
+        'operation_mode': message.operation_mode,
+        'batch_state': message.batch_state,
+        'target_phase': message.target_phase,
+        'action_active': message.action_active,
+        'auto_start_enabled': message.auto_start_enabled,
+        'execution_enabled': message.execution_enabled,
+        'grasp_enabled': message.grasp_enabled,
+        'tool_enabled': message.tool_enabled,
+        'recovery_required': message.recovery_required,
+        'progress': message.progress,
+        'message': message.message,
+        'blockers': list(message.blockers),
+        'scene_epoch': int(getattr(message, 'scene_epoch', 0) or 0),
+    }
+
+
 def to_robot_status(message) -> dict:
     """转换机械臂状态（aubo_msgs/RobotStatus，简化 industrial 语义）."""
     return {
@@ -527,7 +551,9 @@ class ObservabilityState:
     HTTP 与 ROS 回调之间的线程安全最新值缓存（只读监控，无写入口）.
 
     写侧 copy-on-write、读侧短锁浅拷贝（见模块 docstring）；snapshot()
-    返回值只读，叶子与缓存共享引用。
+    返回值只读，叶子与缓存共享引用。作业票（job）按快照代数记忆化：
+    build_harvest_job 是全量折叠，而 snapshot 被 Web 轮询与轨迹/路标
+    高频调用，每代只算一次、多调用方共享同一只读 dict。
     """
 
     _revision: int
@@ -544,6 +570,8 @@ class ObservabilityState:
         self._lock = threading.Lock()
         self._revision = 0
         self._started = time.time()
+        self._job_cache: dict | None = None
+        self._job_revision: int = -1
         self._values = {
             'perception': {
                 'harvest': {},
@@ -643,13 +671,29 @@ class ObservabilityState:
                 if isinstance(events, list):
                     copied['events'] = list(events)
                 result[section] = copied
+            revision = self._revision
             result['system'] = {
-                'revision': self._revision,
+                'revision': revision,
                 'server_time': now,
                 'uptime_s': now - self._started,
                 'topic_age_s': {
                     key: round(now - stamp, 3)
                     for key, stamp in self._updated.items()},
             }
-        result['job'] = build_harvest_job(result)
+        result['job'] = self._job_for(result, revision)
         return result
+
+    def job(self) -> dict:
+        """窄访问器：只取当前作业票（轨迹/路标高频路径不整树浅拷贝）."""
+        with self._lock:
+            revision = self._revision
+        if self._job_cache is not None and self._job_revision == revision:
+            return self._job_cache
+        return self._job_for(self.snapshot(), revision)
+
+    def _job_for(self, snapshot: dict, revision: int) -> dict:
+        """按快照代数缓存作业票；并发重复计算无害（幂等纯折叠）."""
+        if self._job_cache is None or self._job_revision != revision:
+            self._job_cache = build_harvest_job(snapshot)
+            self._job_revision = revision
+        return self._job_cache

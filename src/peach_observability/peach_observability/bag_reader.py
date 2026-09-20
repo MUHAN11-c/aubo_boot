@@ -138,6 +138,17 @@ def read_bag(bag_dir, *, stamps_only=HEAVY_TOPICS) -> dict:
         to_target_observations,
     )
 
+    # 类型化转换表：循环外构造一次（原实现逐消息重建 5 键 dict + 跨模块查找）
+    converters = {
+        'peach_interfaces/msg/CanonicalEvent': to_harvest_event,
+        'peach_interfaces/msg/PeachTargetObservationArray':
+            to_target_observations,
+        'peach_interfaces/msg/ReconstructionStatus':
+            to_reconstruction_status,
+        'peach_interfaces/msg/GraspDecision': to_grasp_decision,
+        'peach_interfaces/msg/GraspHypothesis': to_grasp_hypothesis,
+    }
+
     bag = ensure_index(bag_dir)
     reader = SequentialReader()
     reader.open(
@@ -172,17 +183,7 @@ def read_bag(bag_dir, *, stamps_only=HEAVY_TOPICS) -> dict:
                 continue
             type_cache[topic] = msg_type
         message = deserialize_message(data, msg_type)
-        kind = type_name_of(message)
-        converters = {
-            'peach_interfaces/msg/CanonicalEvent': to_harvest_event,
-            'peach_interfaces/msg/PeachTargetObservationArray':
-                to_target_observations,
-            'peach_interfaces/msg/ReconstructionStatus':
-                to_reconstruction_status,
-            'peach_interfaces/msg/GraspDecision': to_grasp_decision,
-            'peach_interfaces/msg/GraspHypothesis': to_grasp_hypothesis,
-        }
-        converter = converters.get(kind)
+        converter = converters.get(type_name_of(message))
         records.append(
             (int(t_ns), converter(message) if converter else _to_dict(message)))
     return streams

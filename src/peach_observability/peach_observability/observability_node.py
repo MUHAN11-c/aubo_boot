@@ -71,6 +71,7 @@ from .state import (
     to_reconstruction_status,
     to_robot_status,
     to_target_observations,
+    to_task_executor_state,
     to_vector_stamped,
 )
 from .tcp_trajectory import (
@@ -136,6 +137,57 @@ def _parameter_scalar(value) -> object:
     return None
 
 
+# 核心订阅表（镜像 + 落盘）：(消息类型, 话题参数名, 回调属性名, QoS 档名)。
+# W10 表驱动化：新增订阅=表加一行，不再往 _create_subscriptions 堆平铺。
+_CORE_SUBSCRIPTIONS = (
+    (PeachTargetObservationArray, 'target_observations_topic',
+     '_targets_callback', 'reliable'),
+    (String, 'harvest_state_topic', '_harvest_callback', 'latched'),
+    (String, 'reconstruction_status_topic',
+     '_recon_status_callback', 'latched'),
+    (ReconstructionStatus, 'reconstruction_diagnostics_topic',
+     '_recon_diagnostics_callback', 'latched'),
+    # 调试明细（tsdf/registration/overlap/refined/逐机位）：并入镜像与落盘，
+    # 保持「类型化后过程数据不缩水」；类型化字段为准，明细键补充
+    (String, 'reconstruction_diagnostics_debug_topic',
+     '_recon_debug_callback', 'latched'),
+    (GraspDecision, 'grasp_decision_topic', '_recon_decision_callback',
+     'latched'),
+    (BagGraspCandidateArray, 'refined_pose_topic', '_refined_pose_callback',
+     'latched'),
+    (Vector3Stamped, 'refined_axis_topic', '_refined_axis_callback',
+     'latched'),
+    (BagFittingArray, 'refined_diagnostics_topic',
+     '_refined_diagnostics_callback', 'latched'),
+    (String, 'manipulation_status_topic', '_manipulation_callback',
+     'latched'),
+    (GraspHypothesis, 'grasp_hypothesis_topic', '_grasp_hypothesis_callback',
+     'latched'),
+    (HarvestState, 'task_executor_state_topic', '_task_executor_callback',
+     'latched'),
+    (CanonicalEvent, 'task_executor_events_topic', '_events_callback',
+     'events'),
+    (RobotStatus, 'robot_status_topic', '_robot_status_callback',
+     'reliable'),
+    (JointState, 'joint_states_topic', '_joint_state_callback', 'sensor'),
+    (JointStatus, 'joint_status_topic', '_joint_status_callback',
+     'reliable'),
+)
+
+# bag 专用 raw 订阅（只落盘不镜像）：(消息类型, 话题参数名, QoS 档名,
+# 门控参数属性名)。'/rosout' 无参数名，用 None 标记直连固定话题。
+_RAW_SUBSCRIPTIONS = (
+    (RosoutLog, None, 'reliable', 'record_rosout'),
+    (Image, 'debug_image_topic', 'reliable', 'record_save_images'),
+    # 真相流画布（raw 前缀）：与稳定流成对进 bag，筛选前后对比不依赖 RViz
+    (Image, 'debug_image_raw_topic', 'reliable', 'record_save_images'),
+    (PointCloud2, 'tsdf_cloud_topic', 'latched', 'record_save_clouds'),
+    (SceneSnapshot, 'scene_snapshot_topic', 'reliable', None),
+    (TFMessage, 'tf_topic', 'tf', None),
+    (TFMessage, 'tf_static_topic', 'tf_static', None),
+)
+
+
 class ObservabilityNode(LifecycleNode):
     """订阅采摘链路各阶段输出，提供过程监控 API 与单步调试 POST."""
 
@@ -177,6 +229,11 @@ class ObservabilityNode(LifecycleNode):
         self._joint_state = {}
         self._joint_status = {}
         self._joints_push_t = 0.0
+        # TCP 可视化缓存（RViz 5Hz 与 HTTP /api/trajectory 共享一次构建）
+        self._viz_bundle = ([], [], [])
+        self._viz_bundle_sig = None
+        # configure 期体积回收线程（rglob 全部 bag 目录，大库下秒级）
+        self._sweep_thread: threading.Thread | None = None
         # 派生话题（job/metrics 进 bag）与作业票指纹去重
         self._job_pub = None
         self._metrics_pub = None
@@ -202,13 +259,19 @@ class ObservabilityNode(LifecycleNode):
             return TransitionCallbackReturn.FAILURE
         runs_root = resolve_runs_root(self._params.record_root_dir)
         self._ledger_watch = pipeline.LedgerWatch(runs_root)
-        # 会话 bag 开启前先跑一次体积回收（超预算清最旧 bag，写审计）
-        retention.sweep(
-            runs_root, self._params.record_max_total_bag_gb,
-            log_warning=lambda msg: self.get_logger().warning(msg))
+        # 会话 bag 开启前先跑一次体积回收（超预算清最旧 bag，写审计）。
+        # rglob 全部 bag 目录在 20GB 库下秒级阻塞 configure，挪后台线程；
+        # 与停栈报告线程的 sweep 极小概率并发删同一目录，失败侧跳过并告警
+        self._sweep_thread = threading.Thread(
+            target=retention.sweep,
+            args=(runs_root, self._params.record_max_total_bag_gb),
+            kwargs={'log_warning': lambda msg: self.get_logger().warning(msg)},
+            name='peach-retention', daemon=True)
+        self._sweep_thread.start()
         self._recorder = Recorder(
             root_dir=str(runs_root),
             enabled=self._params.record_enabled,
+            queue_depth=self._params.record_queue_depth,
             on_info=lambda info: self._state.update('record', 'info', info),
             log_warning=lambda msg: self.get_logger().warning(msg))
         self._job_pub = self.create_publisher(
@@ -280,106 +343,46 @@ class ObservabilityNode(LifecycleNode):
         return sub
 
     def _create_subscriptions(self) -> None:
-        """建立全部只读订阅."""
-        latched_qos = QoSProfile(
-            depth=1,
-            durability=DurabilityPolicy.TRANSIENT_LOCAL,
-            reliability=ReliabilityPolicy.RELIABLE,
-        )
-        reliable_qos = QoSProfile(
-            depth=10,
-            reliability=ReliabilityPolicy.RELIABLE,
-        )
-        self._subscribe(
-            PeachTargetObservationArray,
-            self._topic('target_observations_topic'),
-            self._targets_callback, reliable_qos)
-        self._subscribe(
-            String, self._topic('harvest_state_topic'),
-            self._harvest_callback, latched_qos)
-        self._subscribe(
-            String, self._topic('reconstruction_status_topic'),
-            self._recon_status_callback, latched_qos)
-        self._subscribe(
-            ReconstructionStatus,
-            self._topic('reconstruction_diagnostics_topic'),
-            self._recon_diagnostics_callback, latched_qos)
-        # 调试明细（tsdf/registration/overlap/refined/逐机位）：并入镜像与落盘，
-        # 保持「类型化后过程数据不缩水」；类型化字段为准，明细键补充
-        self._subscribe(
-            String, self._topic('reconstruction_diagnostics_debug_topic'),
-            self._recon_debug_callback, latched_qos)
-        self._subscribe(
-            GraspDecision, self._topic('grasp_decision_topic'),
-            self._recon_decision_callback, latched_qos)
-        self._subscribe(
-            BagGraspCandidateArray, self._topic('refined_pose_topic'),
-            self._refined_pose_callback, latched_qos)
-        self._subscribe(
-            Vector3Stamped, self._topic('refined_axis_topic'),
-            self._refined_axis_callback, latched_qos)
-        self._subscribe(
-            BagFittingArray, self._topic('refined_diagnostics_topic'),
-            self._refined_diagnostics_callback, latched_qos)
-        self._subscribe(
-            String, self._topic('manipulation_status_topic'),
-            self._manipulation_callback, latched_qos)
-        self._subscribe(
-            GraspHypothesis, self._topic('grasp_hypothesis_topic'),
-            self._grasp_hypothesis_callback, latched_qos)
-        self._subscribe(
-            HarvestState, self._topic('task_executor_state_topic'),
-            self._task_executor_callback, latched_qos)
-        self._subscribe(
-            CanonicalEvent, self._topic('task_executor_events_topic'),
-            self._events_callback,
-            QoSProfile(
+        """按订阅表建立全部只读订阅（核心镜像表 + bag raw 表）."""
+        profiles = {
+            'latched': QoSProfile(
+                depth=1,
+                durability=DurabilityPolicy.TRANSIENT_LOCAL,
+                reliability=ReliabilityPolicy.RELIABLE),
+            'reliable': QoSProfile(
+                depth=10, reliability=ReliabilityPolicy.RELIABLE),
+            'sensor': qos_profile_sensor_data,
+            'events': QoSProfile(
                 depth=50,
                 durability=DurabilityPolicy.TRANSIENT_LOCAL,
-                reliability=ReliabilityPolicy.RELIABLE))
-        self._subscribe(
-            RobotStatus, self._topic('robot_status_topic'),
-            self._robot_status_callback, reliable_qos)
-        self._subscribe(
-            JointState, self._topic('joint_states_topic'),
-            self._joint_state_callback, qos_profile_sensor_data)
-        self._subscribe(
-            JointStatus, self._topic('joint_status_topic'),
-            self._joint_status_callback, reliable_qos)
+                reliability=ReliabilityPolicy.RELIABLE),
+            'tf': QoSProfile(
+                depth=200, reliability=ReliabilityPolicy.RELIABLE),
+            'tf_static': QoSProfile(
+                depth=100,
+                durability=DurabilityPolicy.TRANSIENT_LOCAL,
+                reliability=ReliabilityPolicy.RELIABLE),
+        }
+        for msg_type, param, callback_name, profile in _CORE_SUBSCRIPTIONS:
+            self._subscribe(
+                msg_type, self._topic(param),
+                getattr(self, callback_name), profiles[profile])
         # 记录器图像/点云订阅：只在对应开关开启时建立（省带宽），直接进 bag
-        if self._params.record_enabled:
-            # /rosout 全量进 bag：全部节点日志（stamp/level/logger）可回放，
-            # 测试复盘最低完备集（record.rosout 门控，默认开）
-            if self._params.record_rosout:
+        if not self._params.record_enabled:
+            return
+        for msg_type, param, profile, gate in _RAW_SUBSCRIPTIONS:
+            if gate is not None and not getattr(self._params, gate):
+                continue
+            if param is not None:
                 self._subscribe(
-                    RosoutLog, '/rosout', self._rosout_callback, reliable_qos)
-            if self._params.record_save_images:
+                    msg_type, self._topic(param), self._raw_cb(param),
+                    profiles[profile])
+            else:
+                # /rosout 全量进 bag：全部节点日志（stamp/level/logger）可
+                # 回放，测试复盘最低完备集（record.rosout 门控，默认开）
                 self._subscribe(
-                    Image, self._topic('debug_image_topic'),
-                    self._raw_cb('debug_image_topic'), reliable_qos)
-                # 真相流画布（raw 前缀）：与稳定流成对进 bag，筛选前后对比不依赖 RViz
-                self._subscribe(
-                    Image, self._topic('debug_image_raw_topic'),
-                    self._raw_cb('debug_image_raw_topic'), reliable_qos)
-            if self._params.record_save_clouds:
-                self._subscribe(
-                    PointCloud2, self._topic('tsdf_cloud_topic'),
-                    self._raw_cb('tsdf_cloud_topic'), latched_qos)
-            # bag 专用订阅（监控不镜像）：场景快照与 TF 全量
-            self._subscribe(
-                SceneSnapshot, self._topic('scene_snapshot_topic'),
-                self._raw_cb('scene_snapshot_topic'), reliable_qos)
-            self._subscribe(
-                TFMessage, self._topic('tf_topic'),
-                self._raw_cb('tf_topic'),
-                QoSProfile(depth=200, reliability=ReliabilityPolicy.RELIABLE))
-            self._subscribe(
-                TFMessage, self._topic('tf_static_topic'),
-                self._raw_cb('tf_static_topic'),
-                QoSProfile(
-                    depth=100,
-                    durability=DurabilityPolicy.TRANSIENT_LOCAL,
-                    reliability=ReliabilityPolicy.RELIABLE))
+                    msg_type, '/rosout', self._rosout_callback,
+                    profiles[profile])
 
     def _robot_status_callback(self, message: RobotStatus) -> None:
         """机械臂柜侧状态；in_motion 给 TCP 采样当运动标记."""
@@ -520,31 +523,19 @@ class ObservabilityNode(LifecycleNode):
         self._state.append_event(value, self._params.event_buffer_size)
 
     def _task_executor_callback(self, message: HarvestState) -> None:
-        """把调度节点类型化状态转换为稳定的浏览器对象."""
-        value = {
-            'revision': message.revision,
-            'state_seq': int(getattr(message, 'state_seq', 0) or 0),
-            'run_id': message.run_id,
-            'cycle_id': message.cycle_id,
-            'target_id': message.target_id,
-            'operation_mode': message.operation_mode,
-            'batch_state': message.batch_state,
-            'target_phase': message.target_phase,
-            'action_active': message.action_active,
-            'auto_start_enabled': message.auto_start_enabled,
-            'execution_enabled': message.execution_enabled,
-            'grasp_enabled': message.grasp_enabled,
-            'tool_enabled': message.tool_enabled,
-            'recovery_required': message.recovery_required,
-            'progress': message.progress,
-            'message': message.message,
-            'blockers': list(message.blockers),
-            'scene_epoch': int(getattr(message, 'scene_epoch', 0) or 0),
-        }
+        """调度类型化状态：镜像 + 轨迹上下文 + FSM 时序 + 落盘 + 作业票."""
+        value = to_task_executor_state(message)
         self._state.update('task_executor', 'state', value)
-        self._traj_ctx['target_id'] = str(message.target_id or '')
-        self._traj_ctx['phase'] = int(message.target_phase or 0)
-        run_id = str(message.run_id or '')
+        self._track_run_context(value)
+        self._track_fsm(message)
+        self._record_raw('task_executor_state_topic', message)
+        self._publish_job()
+
+    def _track_run_context(self, value: dict) -> None:
+        """轨迹上下文与账本 run_id 跟随（换 run 清空上一轮轨迹）."""
+        self._traj_ctx['target_id'] = str(value['target_id'] or '')
+        self._traj_ctx['phase'] = int(value['target_phase'] or 0)
+        run_id = str(value['run_id'] or '')
         if run_id and run_id != self._traj_run_id:
             self._traj_run_id = run_id
             if self._tcp_path is not None:
@@ -552,13 +543,14 @@ class ObservabilityNode(LifecycleNode):
         # run_id 即账本目录名（supervisor：_run_id = goal.request_id）
         if run_id:
             self._ledger_request_id = run_id
-        # 调度 FSM 时序：状态/相位/消息/使能任一变化记一条转移
-        now = time.time()
+
+    def _track_fsm(self, message: HarvestState) -> None:
+        """调度 FSM 时序：状态/相位/消息/使能任一变化记一条转移."""
         entry = {
             'batch_state': int(message.batch_state or 0),
             'target_phase': int(message.target_phase or 0),
             'message': str(message.message or ''),
-            'run_id': run_id,
+            'run_id': str(message.run_id or ''),
             'cycle_id': str(message.cycle_id or ''),
             'target_id': str(message.target_id or ''),
             'recovery_required': bool(message.recovery_required),
@@ -571,11 +563,10 @@ class ObservabilityNode(LifecycleNode):
                entry['batch_state'], entry['target_phase'], entry['message'],
                entry['recovery_required'], entry['execution_enabled'],
                entry['grasp_enabled'], entry['tool_enabled'])
+        now = time.time()
         if self._fsm_tracker.feed(key, entry, now):
             self._state.update(
                 'pipeline', 'fsm', self._fsm_tracker.export(now))
-        self._record_raw('task_executor_state_topic', message)
-        self._publish_job()
 
     def _targets_callback(self, message) -> None:
         try:
@@ -720,8 +711,8 @@ class ObservabilityNode(LifecycleNode):
 
     def _landmarks_now(self) -> dict:
         """作业票坐标优先，重建许可镜像补缺（入口/预抓取/轴）."""
-        job = self._state.snapshot().get('job') or {}
-        return pipeline.merge_job_landmarks(self._traj_landmarks, job)
+        return pipeline.merge_job_landmarks(
+            self._traj_landmarks, self._state.job())
 
     def _maybe_publish_tcp_viz(self, force: bool = False) -> None:
         """Path / MarkerArray 约 5 Hz；点写入或超时则发（transient_local）."""
@@ -730,6 +721,29 @@ class ObservabilityNode(LifecycleNode):
             return
         self._last_viz_ns = now_ns
         self._publish_tcp_viz()
+
+    def _tcp_viz_bundle(self, exported: dict, frame_id: str) -> tuple:
+        """
+        (downsample xyz, phases, TCP marker 字典)；带缓存共享给 RViz 与 HTTP.
+
+        轨迹末点/点数与路标都未变时直接命中缓存——/api/trajectory 每个网页
+        0.4s 轮询、RViz 5Hz 发布，两次构建同Marker 集是纯重复功。
+        """
+        xyz_flat = exported.get('xyz') or []
+        landmarks = self._landmarks_now()
+        signature = (
+            len(xyz_flat),
+            tuple(xyz_flat[-3:]) if xyz_flat else (),
+            json.dumps(landmarks, ensure_ascii=False, sort_keys=True),
+        )
+        if signature != self._viz_bundle_sig:
+            xyz, phases = downsample_path(
+                xyz_flat, exported.get('phase') or [], 800)
+            self._viz_bundle = (
+                xyz, phases,
+                build_tcp_marker_dicts(xyz, phases, landmarks, frame_id))
+            self._viz_bundle_sig = signature
+        return self._viz_bundle
 
     def _publish_tcp_viz(self) -> None:
         """与网页同源：downsample 后的 Path + MarkerArray."""
@@ -742,14 +756,11 @@ class ObservabilityNode(LifecycleNode):
         exported = (
             self._tcp_path.export() if self._tcp_path is not None else {})
         frame_id = self._params.trajectory_base_frame
-        xyz, phases = downsample_path(
-            exported.get('xyz') or [], exported.get('phase') or [], 800)
+        xyz, phases, markers = self._tcp_viz_bundle(exported, frame_id)
         stamp = self.get_clock().now()
         self._tcp_path_pub.publish(path_from_xyz(xyz, stamp, frame_id))
-        markers = build_tcp_marker_dicts(
-            xyz, phases, self._landmarks_now(), frame_id)
-        markers.extend(
-            self._selection_markers(frame_id))
+        markers = list(markers)
+        markers.extend(self._selection_markers(frame_id))
         # 反闪烁（R3 稳定呈现）：仅当图元集合（ns+id）变化时才发 DELETEALL
         # 头，否则只重发 ADD 更新位姿——避免 20Hz 删-建在 RViz 里闪帧
         sig = tuple((m.get('ns', ''), m.get('id', 0)) for m in markers)
@@ -898,12 +909,16 @@ class ObservabilityNode(LifecycleNode):
             payload['frame_id'] = self._params.trajectory_base_frame
             payload['tip_frame'] = self._params.trajectory_tip_frame
             payload['enabled'] = True
-        landmarks = self._landmarks_now()
-        payload['landmarks'] = landmarks
-        xyz, phases = downsample_path(
-            payload.get('xyz') or [], payload.get('phase') or [], 800)
-        payload['markers'] = build_tcp_marker_dicts(
-            xyz, phases, landmarks, payload['frame_id'])
+            bundle_source = {
+                'xyz': payload.get('xyz') or [],
+                'phase': payload.get('phase') or [],
+            }
+        else:
+            bundle_source = {'xyz': [], 'phase': []}
+        # 与 RViz 发布共享同一份 downsample+markers（轨迹/路标未变时命中缓存）
+        _, _, markers = self._tcp_viz_bundle(bundle_source, payload['frame_id'])
+        payload['markers'] = markers
+        payload['landmarks'] = self._landmarks_now()
         payload['topics'] = {
             'path': (
                 self._topic('tcp_path_topic') if self._params else
@@ -918,7 +933,7 @@ class ObservabilityNode(LifecycleNode):
         """作业票指纹变化时发布 JSON 话题并进会话 bag（bag_report 离线消费）."""
         if self._job_pub is None:
             return
-        job = self._state.snapshot().get('job') or {}
+        job = self._state.job()
         if not job:
             return
         key = json.dumps({
@@ -987,6 +1002,9 @@ class ObservabilityNode(LifecycleNode):
 
     def _release_resources(self) -> None:
         """释放 configure 期资源，允许再次 configure."""
+        if self._sweep_thread is not None:
+            self._sweep_thread.join(timeout=5.0)
+            self._sweep_thread = None
         if self._traj_timer is not None:
             self.destroy_timer(self._traj_timer)
             self._traj_timer = None

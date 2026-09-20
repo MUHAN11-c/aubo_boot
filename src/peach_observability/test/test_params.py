@@ -34,7 +34,7 @@ def test_from_params_flattens_topics_and_endpoints():
         'record': {
             'enabled': True, 'root_dir': '', 'save_images': True,
             'save_clouds': True, 'rosout': True, 'level': 'std',
-            'max_total_bag_gb': 20.0},
+            'max_total_bag_gb': 20.0, 'queue_depth': 64},
         'trajectory': {
             'enabled': True, 'base_frame': 'base_link', 'tip_frame': 'tcp',
             'period_s': 0.05, 'min_step_m': 0.003, 'max_points': 8000},
@@ -47,5 +47,6 @@ def test_from_params_flattens_topics_and_endpoints():
     snapshot = from_params(dict_to_ns(spec))
     assert snapshot.port == 8090
     assert snapshot.record_level == 'std'
+    assert snapshot.record_queue_depth == 64
     assert snapshot.topics['target_observations_topic'] == '/t'
     assert snapshot.debug_endpoints['run_harvest_action'] == '/x'

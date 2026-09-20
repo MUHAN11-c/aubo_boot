@@ -35,14 +35,22 @@ class Recorder:
 
     def __init__(self, root_dir='runs', enabled: bool = True,
                  on_info=None, log_warning=lambda msg: None,
-                 now: float | None = None):
-        """初始化并启动写线程；enabled 时入队开会话 bag（on_info 回调状态）."""
+                 now: float | None = None, queue_depth: int = 512):
+        """
+        初始化并启动写线程；enabled 时入队开会话 bag（on_info 回调状态）.
+
+        queue_depth 给写队列上界（drop-oldest）：'all' 档 ~50MB/s 时盘速
+        掉队不再无界吃内存，丢最旧保最新并计数（info().drops 供诊断）。
+        """
         self._root = Path(root_dir)
         self._enabled = bool(enabled)
         self._on_info = on_info or (lambda info: None)
         self._log_warning = log_warning
         self._lock = threading.Lock()
-        self._queue: queue.Queue = queue.Queue()
+        self._queue: queue.Queue = queue.Queue(
+            maxsize=max(1, int(queue_depth)))
+        self._drops = 0
+        self._drop_warn_t = 0.0
         self._stop = threading.Event()
         self._session_dir: Path | None = None
         self._bag_dir: Path | None = None
@@ -63,12 +71,15 @@ class Recorder:
     # observability 回调入口（只入队，绝不阻塞）
     # ------------------------------------------------------------------
     def info(self) -> dict:
-        """当前记录状态（前端状态栏显示用；directory=bag URI）."""
+        """当前记录状态（前端状态栏/诊断用；directory=bag URI）."""
         with self._lock:
             return {
                 'enabled': self._enabled,
                 'directory': str(self._bag_dir) if self._bag_dir else None,
                 'session': str(self._session_dir) if self._session_dir else None,
+                'queue_size': self._queue.qsize(),
+                'queue_depth': self._queue.maxsize,
+                'drops': self._drops,
             }
 
     def handle_raw(self, topic: str, message,
@@ -76,9 +87,35 @@ class Recorder:
         """原始消息入队写 bag；未启用或打开失败时静默丢弃（监控优先）."""
         if not self._enabled or self._open_failed:
             return
-        self._queue.put((
+        self._enqueue((
             'msg', str(topic), message,
             int(timestamp_ns if timestamp_ns is not None else time.time_ns())))
+
+    def _enqueue(self, item) -> None:
+        """有界入队：满时丢最旧保最新（宁丢旧帧不撑内存）."""
+        try:
+            self._queue.put_nowait(item)
+            return
+        except queue.Full:
+            pass
+        try:
+            self._queue.get_nowait()
+            # 被丢的那条也要销账，否则 close() 的 queue.join() 永远等不齐
+            self._queue.task_done()
+            self._queue.put_nowait(item)
+        except (queue.Empty, queue.Full):
+            pass
+        self._note_drop()
+
+    def _note_drop(self) -> None:
+        """丢帧计数 + 10s 节流告警（持续掉队=盘速不足，值得看见）."""
+        self._drops += 1
+        now = time.monotonic()
+        if now - self._drop_warn_t >= 10.0:
+            self._drop_warn_t = now
+            self._log_warning(
+                f'bag 写队列掉队丢帧：累计 {self._drops}'
+                '（盘速不足，丢最旧保最新）')
 
     def close(self) -> Path | None:
         """排空队列并收尾 bag；返回 bag 目录（未启用/打开失败给 None）."""

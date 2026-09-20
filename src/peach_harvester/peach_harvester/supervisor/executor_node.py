@@ -716,11 +716,15 @@ class TaskExecutorNode(LifecycleNode):
                 self._action_generation += 1
                 self._transaction_id = f'{self._action_generation}:{event}'
                 return held
+        # 事件级事务 id（W2/S1 修复）：与暂停释放路径（上方 f'{gen}:{event}'）
+        # 同一约定。终局结案只钉死「同一世代同一事件」的重复投递；若传节点
+        # 级常驻 txn，首个终局会把 settled 钉成该常驻值，此后一切事件被
+        # _stale 第三条款丢弃（CYCLE_DONE 无限重发的终局活锁）。
         nxt, effects = reduce_event(
             self._orch_state(),
             BatchEvent(
                 event,
-                transaction_id=self._transaction_id,
+                transaction_id=f'{self._action_generation}:{event}',
                 generation=self._action_generation,
                 session_id=self._run_id))
         return self._reaction_from(nxt, effects)

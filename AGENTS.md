@@ -175,7 +175,7 @@ ISO 10218 要求独立的正常停止、保护停止、急停，且急停优先�
 
 **KEEP：** 示教器上电与抱闸；不起 dashboard、不远程上电；`ExecutionAuthority`；使能默认关；launch 不自动接触；停轨 = 透传 abort + `RobotMoveStop`（失败再 `robotMoveFastStop`）；`robot_status` 给安全门看抱闸 / `motion_possible` / 急停**状态**（观测，不是急停通道）；刀默认关。
 
-**UNWIND / 缺口：** lifecycle 无 bond；peach 主路径未用 `diagnostic_updater`（`serial_imu` 已发 `/diagnostics`）；腕轴 `ContactMonitor` 已有、默认关（须真机标定），不是 Nav2 Collision Monitor，**不能**代替柜急停；`imu_follow` 开运动时不经 `authorizeStage`（默认 `motion.enabled=false`；Servo 已有 `incoming_command_timeout`）。
+**UNWIND / 缺口：** lifecycle 无 bond；`diagnostic_updater` 已上 `peach_arm`（W5 起 ~/status 与 /diagnostics 双轨），感知/重建/调度/观测仍未用（`serial_imu` 早已用）；腕轴 `ContactMonitor` 已有、默认关（须真机标定），不是 Nav2 Collision Monitor，**不能**代替柜急停；`imu_follow` 开运动时不经 `authorizeStage`（默认 `motion.enabled=false`；Servo 已有 `incoming_command_timeout`）。
 
 ### 真机操作纪律
 
@@ -551,7 +551,7 @@ flowchart LR
 - 运行中检查：`ros2 control list_controllers` / `list_hardware_interfaces`；`ros2 lifecycle get`；`ros2 topic hz`；`ros2 run tf2_ros tf2_echo`
 - 时间：仿真必须全图 `use_sim_time` + `/clock`；真机禁止误开。rosbag `--use-sim-time` 等到 `/clock` 再写
 - 录制：rosbag2 默认 **MCAP**。本仓过程录制是会话 bag：`runs/session_*/bag/`，随 observability 启停（决策 0019）。批次账本另根 `runs/<request_id>/ledger.json`
-- 诊断：优先 `diagnostic_updater` + `/diagnostics`（UNWIND：peach 主路径未用；`serial_imu` 已用）。8090 是 SNAPSHOT 调试面，不是第二控制面，**绕不过** `authorizeStage`
+- 诊断：优先 `diagnostic_updater` + `/diagnostics`（`peach_arm` W5 起已用、`serial_imu` 已用；感知/重建/调度/观测 UNWIND）。8090 是 SNAPSHOT 调试面，不是第二控制面，**绕不过** `authorizeStage`
 - 停栈：Ctrl+C 后复查 pgrep；不要留下第二套 RSP
 - 环境：官方建议 `ros2 doctor`；本仓另加启动前 pgrep
 - 日志：现场复盘靠 bag + `runs/` jsonl，不靠终端滚动。`RCLCPP_INFO` 写节拍与目标 ID，不写矩阵
@@ -665,6 +665,7 @@ gtest 放本包 `test/`，链到纯核静态库，不 `spin` 整个技能节点�
 | 包 | 现行职责 | 不做什么 |
 |----|----------|----------|
 | `peach_interfaces` | 唯一 IDL + manifest 双向核对 | 不跑节点 |
+| `peach_common` | Python 共享库（对齐 nav2_common）：yaml_params/param_rules/qos/paths 单源（W1 起，各包旧路径留 shim） | 不跑节点、不进 launch |
 | `peach_harvester` | 大脑一进程三节点：`vision`（场景观测+目标重建）+ `supervisor`（批次 FSM/选果/视点两档/批次策略/操作台服务/账本+补采清单）；台架独立入口保留 | 不发关节命令、不做 IK（问臂） |
 | `peach_arm` | `MoveTo` / 接触 `ExecuteTarget`（检查点+令牌双路）/ `CheckReachability`；命令门=enables×clearance×robotReady×¬cancel；GPL 参数单源 | 不写 `ledger.json`、不选目标 |
 | `peach_bringup` | 整栈入口、预检、nav2_lm 托管、autostart 客户端、生命周期桥 | 不含业务 |
@@ -682,7 +683,7 @@ lifecycle 名单现行（nav2_lm 承载，bond_timeout=0）：场景 → 重建 
 - peach 节点不用 composition
 - 禁止 gtest / launch_testing / 采摘仿真测（决策 0006）
 - 无 Gazebo / Isaac 系统测；industrial_ci 已进 workflow（忽略 IVG / `imu_follow` / `percipio_camera` / `camera_calibration`）
-- 无 diagnostic_updater 的 peach 主路径（`serial_imu` 已用）
+- diagnostic_updater 仅 `peach_arm`/`serial_imu` 在用（感知/重建/调度/观测仍缺口）
 - 8090 若越权成第二控制面（纯调试客户端仍 KEEP）
 - 腕轴 `ContactMonitor` 默认关；无 Nav2 Collision Monitor 同类独立监视（**不能**代替柜急停）
 - `imu_follow` 开运动时旁路 `authorizeStage`（默认门关；Servo 已有命令超时）
@@ -703,7 +704,7 @@ lifecycle 名单现行（nav2_lm 承载，bond_timeout=0）：场景 → 重建 
 | 集成测 | launch_testing + isolated domain | 禁止 launch_testing（0006） | 否 | 新接线/生命周期用 launch_testing |
 | 系统测 | 独立 `*_tests` 包；Gazebo / Isaac | 手工 `scripts/sim_field_targets.py` | 否 | 逐步收进 colcon；真机仍最终权威 |
 | CI | industrial_ci | `.github/workflows/jazzy.yaml` 有 r0_gate + industrial_ci（忽略 IVG/`imu_follow`/`percipio_camera`/`camera_calibration`） | 否（切法） | 真机 job 仍不进 PR 必过门 |
-| 诊断 | `diagnostic_updater` | peach 主路径未用；`serial_imu` 已用；8090 自研 | 否（peach 主路径） | 新健康信号走 `/diagnostics` |
+| 诊断 | `diagnostic_updater` | `peach_arm`（W5 双轨）与 `serial_imu` 已用；其余包未用；8090 自研 | 部分 | 新健康信号走 `/diagnostics` |
 | 话题名当参数 | 默认名 + remap | 多数已相对名 | — | 禁止 `declare_parameter("image_topic")` |
 | 自研 TF / 插值 | tf2 / MoveIt / JTC | 部分几何自研 | 视情况 | 库已有的不要重写 |
 | 四包切法 | description / bringup / moveit_config / interfaces / app | peach 四包叠在应用层 | 否（切法） | 改切可以；跨包仍只走 IDL |

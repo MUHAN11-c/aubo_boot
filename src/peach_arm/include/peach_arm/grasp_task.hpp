@@ -28,6 +28,7 @@
 #include "peach_arm/grasp_geometry.hpp"
 #include "peach_arm/math_utils.hpp"
 #include "peach_arm/protected_zones.hpp"
+#include "peach_arm/staging_selector.hpp"
 
 namespace moveit::task_constructor
 {
@@ -137,14 +138,11 @@ struct GraspTaskConfig
   double approach_max_align_deg{20.0};                ///< 小于此值视为已齐 [deg]。
   double approach_near_velocity_scaling{0.05};        ///< 近果低速档（staging PTP 不降）。
   std::function<std::optional<Eigen::Isometry3d>()> lookup_current_tip;  ///< 查当前 TCP。
-  // staging 关节目标（主路径 PTP 落点；keep-roll 及 ±30°/±60° × 当前+4随机种子取最近且无自碰的
-  // 最多 5 个候选，按关节距离（腕轴加权）+滚转惩罚升序）。转移逐候选试规划，救弧穿袋囊与
-  // 自碰构型。
-  struct StagingCandidate
-  {
-    std::map<std::string, double> joints;
-    Eigen::Isometry3d pose;
-  };
+  // staging 关节目标（主路径 PTP 落点）：候选编排（keep-roll 及 ±30°/±60° ×
+  // 当前+N-1 随机种子、腕轴加权距离+滚转惩罚排序、top_n 截断）在
+  // StagingCandidateSelector 纯核（staging_selector.hpp，W5-2）；转移逐候选
+  // 试规划，救弧穿袋囊与自碰构型。候选类型即纯核 StagingCandidate。
+  using StagingCandidate = peach_arm::StagingCandidate;
   std::function<std::vector<StagingCandidate>(
       const Eigen::Isometry3d & staging_pose)> select_goal_joints;
   std::vector<ProtectedZone> protected_zones;  // base 系 AABB → planning scene

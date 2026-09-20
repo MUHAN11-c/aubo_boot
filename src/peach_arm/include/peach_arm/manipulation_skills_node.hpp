@@ -46,6 +46,7 @@
 #include "peach_arm/contact_monitor.hpp"
 #include "peach_arm/cycle_context.hpp"
 #include "peach_arm/cycle_support.hpp"
+#include "peach_arm/frame_timeouts.hpp"
 #include "peach_arm/grasp_task.hpp"
 #include "peach_arm/motion.hpp"
 #include "peach_arm/quality_gate.hpp"
@@ -224,9 +225,8 @@ private:
     const std::string & target_id, double after_s, double window_s,
     bool live_observation_required = true);
   bool waitForRefined(const std::string & target_id);
-  // 帧率自适应取值：等帧窗口在 EMA 未测得时可用 assumed_frame_interval_s
-  // 按 2.5 FPS 估超时；新鲜度门在未测得前保持 yaml 回退，且不得收得比回退更紧。
-  double waitIntervalS() const;
+  // 帧率自适应超时族（W5-3）：公式内聚于 FrameRateTimeouts 纯核
+  // （frame_timeouts.hpp），以下节点方法只做转发（保持既有调用点不变）。
   double effectiveFrameWaitS() const;
   double effectiveTargetMaxAgeS() const;
   // 再确认窗口（2.7-RECONFIRM）：实测帧间隔 EMA 自适应伸缩，未测得时回退
@@ -234,7 +234,7 @@ private:
   double effectiveReconfirmWaitS() const;
   // 精化等待（2.7-FINALIZE 的 T(refined)）：refit 实测耗时本包不可得（不跨包
   // 改接口），按观测帧间隔 EMA 近似（finalize 后约 3 帧内闩锁发布 refined），
-  // refined_timeout_s_ 为回退值与自适应上限。
+  // refined_timeout_s 为回退值与自适应上限。
   double effectiveRefinedWaitS() const;
   // 观测话题到达间隔 EMA 更新（onTargets 每帧调用）。
   void trackFrameInterval();
@@ -322,52 +322,27 @@ private:
     const std::shared_ptr<ExecuteTarget::Result> & result,
     const CycleContext * ctx);
 
-  std::string base_frame_;            ///< 规划参考系（通常 base_link）。
-  std::string tip_frame_;             ///< 规划/IK 末端连杆（MoveIt 组 tip_link，当前 tcp）。
-  std::string camera_frame_;          ///< 相机光学系。
-  std::string tool_frame_;            ///< 工具系（常与 tcp 同）。
-  std::string planning_group_;        ///< MoveIt 规划组名。
-  std::string photo_pose_named_target_;           ///< Survey 拍照位 SRDF group_state。
-  std::string harvest_stow_named_target_{"harvest_stow"};  ///< 周期终局纳位。
-  double planning_time_s_{1.5};       ///< 默认规划时限 [s]。
-  int planning_attempts_{1};          ///< 默认规划尝试数。
-  double transit_velocity_scaling_{0.10};      ///< 自由空间转移速度档。
-  double transit_acceleration_scaling_{0.10};  ///< 自由空间转移加速度档。
-  /// 未测得观测间隔 EMA 时的回退帧间隔 [s]。0=不预填。
-  double assumed_frame_interval_s_{0.4};
-  /// 本目标内移动+等帧成本 [s]，≤0=未测得。
+  // 运行配置不再镜像为扁平成员（W5-1）：值一律读 params_ 快照（GPL 单源，
+  // 见 params_bridge.hpp 的 Config 单点转换）；此处只留运行期状态与纯核组件。
+  /// 本目标内移动+等帧成本 [s]，≤0=未测得（观察段日志对照）。
   double scan_move_cost_ema_s_{0.0};
-  double frame_wait_s_{4.0};          ///< 等帧超时配置上限 [s]。
-  /// 观测话题到达间隔 EMA [s]（≤0=未测得）；订阅线程写、周期线程读。
-  std::atomic<double> frame_interval_ema_s_{0.0};
-  std::atomic<double> last_targets_arrival_s_{0.0};  ///< 最近观测到达 monotonic [s]。
-  double target_observation_max_age_config_s_{3.0};  ///< 观测龄配置基准 [s]。
   std::atomic_bool execution_enabled_{false};  ///< 自由空间运动使能（默认关）。
   std::atomic_bool grasp_enabled_{false};      ///< 套入使能（默认关）。
-  double neck_margin_m_{0.015};        ///< 袋颈前安全停止 [m]。
-  double minimum_travel_m_{0.02};      ///< 插入行程下限 [m]。
-  double maximum_travel_m_{0.20};      ///< 插入行程上限 [m]。
   // 环境几何保护区（阶段 F1，scan.protected_zones 解析结果）：base 系轴对齐
   // 盒列表。视点剔除由 view_planner_ 持有的配置副本执行；GraspTask 把同一
   // 列表写入 planning scene 参与碰撞检查。与 view_planner_ 同一重载纪律：
   // 仅空闲时 loadParameters 重写（运行中改参已被 onParameters 前置拒绝），
   // 周期工作线程读取，无需额外锁。
   std::vector<ProtectedZone> protected_zones_;
-  // 抓取前再确认（2.7-RECONFIRM）三参数与回退开关，语义见
-  // config/peach_arm.yaml grasp.* 注释（权威源）。
-  double reconfirm_wait_s_{6.0};       ///< 再确认等新鲜观测超时 [s]。
-  double reconfirm_tolerance_m_{0.03}; ///< 锚点漂移门 [m]。
-  int reconfirm_max_attempts_{3};      ///< 再确认最大次数。
-  bool allow_stale_anchor_{false};     ///< True=允许用记忆锚点再确认。
   std::atomic_bool tool_enabled_{false};  ///< 刀具使能（默认关）。
-  int tool_io_fun_{3};                 ///< SetIO 功能码。
-  int tool_io_pin_{0};                 ///< SetIO 引脚。
-  double tool_close_state_{1.0};       ///< 闭合电平。
-  // 当前末端工具档案标签（PregraspVerification.tool_profile_id；
-  // 整栈由 launch tool_profile 档案注入）
-  std::string tool_profile_id_{"hollow_cylinder_v1"};
-  double service_timeout_s_{3.0};
-  double refined_timeout_s_{30.0};
+  // 帧率自适应超时族（W5-3）：观测帧间隔 EMA 状态与六个 effective* 公式
+  // 内聚于纯核；loadParameters 空闲期重写配置，节点方法只做转发。
+  FrameRateTimeouts frame_timeouts_;
+  // staging IK 自碰环境池（W5-2）：每 roll 任务一个 CollisionEnvFCL（SRDF
+  // ACM 构造、无跨调用状态），首次调用构造、跨调用复用；定义在
+  // manipulation_skills_node.cpp（避免节点头引入 MoveIt 碰撞检测头）。
+  struct StagingIkEnvironment;
+  std::unique_ptr<StagingIkEnvironment> staging_ik_env_;
   // 刀具 GPIO 状态机（SetIO ACK ≠ 切断确认；confirmFeedback 预留）。
   ToolActuator tool_actuator_{};
 

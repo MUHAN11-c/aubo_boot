@@ -414,6 +414,31 @@ peach_arm:
       description: "等帧超时回退 [s]"
       validation:
         gt<>: [0.0]
+  staging:
+    seeds:
+      type: int
+      default_value: 5
+      description: "staging 候选每 roll 的 IK 尝试数（1 当前种子 + N-1 随机）"
+      validation:
+        gt_eq<>: [1]
+    wrist_weight:
+      type: double
+      default_value: 2.5
+      description: "staging 候选关节距离中腕轴（名含 wrist）权重"
+      validation:
+        gt<>: [0.0]
+    roll_penalty:
+      type: double
+      default_value: 4.0
+      description: "staging 候选滚转惩罚系数（dist² += 本值·roll²）"
+      validation:
+        gt_eq<>: [0.0]
+    top_n:
+      type: int
+      default_value: 5
+      description: "staging 输出候选上限（按加权距离升序取前 N）"
+      validation:
+        gt_eq<>: [1]
   quality:
     minimum_views:
       type: int
@@ -544,6 +569,25 @@ peach_arm:
       description: "①层果实胶囊膨胀 [m]"
       validation:
         gt_eq<>: [0.0]
+    pregrasp_residual:
+      frame_consistent_deg:
+        type: double
+        default_value: 1.5
+        description: "预抓取残差门：两次采样 tool Z 帧间一致上限 [deg]（严格小于）"
+        validation:
+          gt<>: [0.0]
+      axis_deg:
+        type: double
+        default_value: 2.0
+        description: "预抓取残差门：tool Z 与袋轴夹角上限 [deg]"
+        validation:
+          gt<>: [0.0]
+      lateral_m:
+        type: double
+        default_value: 0.003
+        description: "预抓取残差门：横向偏差上限 [m]（axial 只记录不判定）"
+        validation:
+          gt<>: [0.0]
     contact_detect:
       enabled:
         type: bool

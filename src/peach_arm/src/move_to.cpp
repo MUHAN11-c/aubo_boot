@@ -210,14 +210,14 @@ void ManipulationSkillsNode::executeMoveTo(
   } else {  // KIND_POSE（受理门已保证 frame_id 非空）
     Eigen::Isometry3d target_pose;
     tf2::fromMsg(goal->pose.pose, target_pose);
-    if (goal->pose.header.frame_id != base_frame_) {
+    if (goal->pose.header.frame_id != params_.frames.base) {
       const auto to_base = motion_->lookupTransform(
-        base_frame_, goal->pose.header.frame_id);
+        params_.frames.base, goal->pose.header.frame_id);
       if (!to_base) {
         result->arrived = false;
         result->failure_code = FailureCode::EXACT_TF_MISSING;
         result->detail = "MoveTo 位姿换系缺 TF: " + goal->pose.header.frame_id +
-          " → " + base_frame_;
+          " → " + params_.frames.base;
         goal_handle->abort(result);
         return;
       }

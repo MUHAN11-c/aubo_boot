@@ -32,11 +32,36 @@
 #include "peach_arm/eigen_conversions.hpp"
 #include "peach_arm/grasp_geometry.hpp"
 #include "peach_arm/model_contract.hpp"
+#include "peach_arm/params_bridge.hpp"
+#include "peach_arm/staging_selector.hpp"
 #include "peach_arm/tool_txn.hpp"
 #include <peach_arm/arm_parameters.hpp>
 
 namespace peach_arm
 {
+
+// staging IK 自碰环境池（W5-2）：每 roll 任务一个 CollisionEnvFCL，从
+// RobotModel + SRDF 相邻豁免 ACM 构造（无跨调用状态），首次调用构造后
+// 跨调用复用；机器人模型变化时按模型指针重建。仅在周期规划路径串行访问。
+struct ManipulationSkillsNode::StagingIkEnvironment
+{
+  moveit::core::RobotModelConstPtr model;
+  collision_detection::AllowedCollisionMatrix acm;
+  std::vector<std::shared_ptr<collision_detection::CollisionEnvFCL>> envs;
+
+  void ensure(const moveit::core::RobotModelConstPtr & robot_model, std::size_t count)
+  {
+    if (model == robot_model && envs.size() == count && !envs.empty()) {
+      return;
+    }
+    model = robot_model;
+    acm = collision_detection::AllowedCollisionMatrix(*robot_model->getSRDF());
+    envs.assign(count, {});
+    for (auto & env : envs) {
+      env = std::make_shared<collision_detection::CollisionEnvFCL>(robot_model);
+    }
+  }
+};
 
 ManipulationSkillsNode::ManipulationSkillsNode(const rclcpp::NodeOptions & options)
 : LifecycleNode("peach_arm", options),
@@ -269,13 +294,15 @@ void ManipulationSkillsNode::initializeMoveIt()
   // 会把 on_configure 卡死在生命周期转换回调里；有界等待只影响启动同步
   // （返回值被 MGI 忽略），规划/执行调用自身在服务器缺席时快速失败并报错。
   move_group_ = std::make_unique<moveit::planning_interface::MoveGroupInterface>(
-    moveit_node_, planning_group_, std::shared_ptr<tf2_ros::Buffer>(),
+    moveit_node_, params_.moveit.planning_group, std::shared_ptr<tf2_ros::Buffer>(),
     rclcpp::Duration::from_seconds(5.0));
-  move_group_->setPoseReferenceFrame(base_frame_);
-  move_group_->setPlanningTime(planning_time_s_);
-  move_group_->setNumPlanningAttempts(planning_attempts_);
-  move_group_->setMaxVelocityScalingFactor(transit_velocity_scaling_);
-  move_group_->setMaxAccelerationScalingFactor(transit_acceleration_scaling_);
+  move_group_->setPoseReferenceFrame(params_.frames.base);
+  move_group_->setPlanningTime(params_.moveit.planning_time_s);
+  move_group_->setNumPlanningAttempts(
+    static_cast<int>(params_.moveit.planning_attempts));
+  move_group_->setMaxVelocityScalingFactor(params_.moveit.transit_velocity_scaling);
+  move_group_->setMaxAccelerationScalingFactor(
+    params_.moveit.transit_acceleration_scaling);
   move_group_->allowReplanning(true);
   rebuildMotionInterface();
   rebuildGraspTask();
@@ -283,8 +310,9 @@ void ManipulationSkillsNode::initializeMoveIt()
     get_logger(),
     "主动视觉靠近节点 ready: group=%s base=%s tip=%s camera=%s "
     "execution=%s grasp=%s",
-    planning_group_.c_str(), base_frame_.c_str(), tip_frame_.c_str(),
-    camera_frame_.c_str(), execution_enabled_.load() ? "enabled" : "plan_only",
+    params_.moveit.planning_group.c_str(), params_.frames.base.c_str(),
+    params_.frames.tip.c_str(), params_.frames.camera.c_str(),
+    execution_enabled_.load() ? "enabled" : "plan_only",
     grasp_enabled_.load() ? "enabled" : "disabled");
 }
 
@@ -292,18 +320,6 @@ void ManipulationSkillsNode::loadParameters()
 {
   params_ = param_listener_->get_params();
   const auto & params = params_;
-  base_frame_ = params.frames.base;
-  tip_frame_ = params.frames.tip;
-  camera_frame_ = params.frames.camera;
-  tool_frame_ = params.frames.tool;
-  planning_group_ = params.moveit.planning_group;
-  planning_time_s_ = params.moveit.planning_time_s;
-  planning_attempts_ = static_cast<int>(params.moveit.planning_attempts);
-  transit_velocity_scaling_ = params.moveit.transit_velocity_scaling;
-  transit_acceleration_scaling_ = params.moveit.transit_acceleration_scaling;
-  photo_pose_named_target_ = params.photo_pose_named_target;
-  harvest_stow_named_target_ = params.harvest_stow_named_target;
-
   ViewPlannerConfig view_config;
   view_config.observation_radius_m = params.scan.observation_radius_m;
   view_config.minimum_radius_m = params.scan.minimum_radius_m;
@@ -336,8 +352,6 @@ void ManipulationSkillsNode::loadParameters()
   }
   // 职责实现直接构造（唯一实现，原 *.impl 工厂缝位已删除）。
   view_planner_ = std::make_unique<ViewPlanner>(view_config);
-  assumed_frame_interval_s_ = params.scan.assumed_frame_interval_s;
-  frame_wait_s_ = params.scan.frame_wait_s;
 
   QualityGateConfig gate_config;
   gate_config.minimum_views = static_cast<std::size_t>(params.quality.minimum_views);
@@ -354,9 +368,9 @@ void ManipulationSkillsNode::loadParameters()
   safety_config.robot_status_max_age_s = params.execution.robot_status_max_age_s;
   safety_config.target_observation_max_age_s =
     params.execution.target_observation_max_age_s;
-  target_observation_max_age_config_s_ = safety_config.target_observation_max_age_s;
   safety_gate_ = std::make_unique<SafetyGate>(
     safety_config, [this]() {return now().seconds();});
+  frame_timeouts_.updateConfig(toFrameRateTimeoutConfig(params_));
 
   // 广播源在权时本地参数不得覆盖使能（Enables.msg 契约：收到即覆盖；
   // 断流超时由 checkEnablesHeartbeat 回落后本地值才重新生效）。
@@ -364,29 +378,14 @@ void ManipulationSkillsNode::loadParameters()
   if (!enables_external_) {
     execution_enabled_.store(params.execution.enabled);
     grasp_enabled_.store(params.grasp.enabled);
-  }
-  neck_margin_m_ = params.grasp.neck_margin_m;
-  minimum_travel_m_ = params.grasp.minimum_travel_m;
-  maximum_travel_m_ = params.grasp.maximum_travel_m;
-  reconfirm_wait_s_ = params.grasp.reconfirm_wait_s;
-  reconfirm_tolerance_m_ = params.grasp.reconfirm_tolerance_m;
-  reconfirm_max_attempts_ = static_cast<int>(params.grasp.reconfirm_max_attempts);
-  allow_stale_anchor_ = params.grasp.allow_stale_anchor;
-  if (!enables_external_) {
     tool_enabled_.store(params.tool.enabled);
   }
-  tool_io_fun_ = static_cast<int>(params.tool.io_fun);
-  tool_io_pin_ = static_cast<int>(params.tool.io_pin);
-  tool_close_state_ = params.tool.close_state;
-  tool_profile_id_ = params.tool.profile_id;
   contact_detect_config_.enabled = params.grasp.contact_detect.enabled;
   contact_detect_config_.baseline_s = params.grasp.contact_detect.baseline_s;
   contact_detect_config_.slope_threshold =
     params.grasp.contact_detect.slope_threshold;
   contact_detect_config_.spike_threshold =
     params.grasp.contact_detect.spike_threshold;
-  service_timeout_s_ = params.timeouts.service_s;
-  refined_timeout_s_ = params.timeouts.refined_s;
   // 参数重载时同步重建运动接口实现（MoveIt 未初始化前为空操作，由
   // initializeMoveIt 首次装配）。GraspTask 同样按现行 yaml 重建，使接近/
   // 护栏改参在空闲时生效。
@@ -399,44 +398,15 @@ void ManipulationSkillsNode::rebuildMotionInterface()
   if (!move_group_) {
     return;
   }
-  MoveItMotionConfig motion_config;
-  motion_config.base_frame = base_frame_;
-  motion_config.tip_frame = tip_frame_;
-  motion_config.camera_frame = camera_frame_;
-  motion_config.tool_frame = tool_frame_;
-  const auto & moveit = params_.moveit;
-  motion_config.pilz_pipeline = moveit.pilz_pipeline;
-  motion_config.fallback_pipeline = moveit.fallback_pipeline;
-  motion_config.transit_velocity_scaling = transit_velocity_scaling_;
-  motion_config.transit_acceleration_scaling = transit_acceleration_scaling_;
-  motion_config.transit_max_duration_s = moveit.transit_max_duration_s;
-  motion_config.transit_max_total_joint_travel_rad =
-    moveit.transit_max_total_joint_travel_rad;
-  motion_config.transit_max_single_joint_travel_rad =
-    moveit.transit_max_single_joint_travel_rad;
-  motion_config.observe_planning_time_s = moveit.observe_planning_time_s;
-  motion_config.observe_planning_attempts =
-    static_cast<int>(moveit.observe_planning_attempts);
-  motion_config.observe_max_duration_s = moveit.observe_max_duration_s;
-  motion_config.observe_max_total_joint_travel_rad =
-    moveit.observe_max_total_joint_travel_rad;
-  motion_config.observe_max_single_joint_travel_rad =
-    moveit.observe_max_single_joint_travel_rad;
-  motion_config.photo_planning_time_s = moveit.photo_planning_time_s;
-  motion_config.photo_ptp_planning_time_s = moveit.photo_ptp_planning_time_s;
-  motion_config.default_planning_time_s = planning_time_s_;
-  motion_config.default_planning_attempts = planning_attempts_;
-  motion_config.photo_pose_joint_tolerance_rad =
-    params_.photo_pose_joint_tolerance_rad;
-  motion_config.photo_pose_max_joint_vel_rad_s =
-    params_.photo_pose_max_joint_vel_rad_s;
-  // 直接构造唯一实现。执行闸门（A8/I5）：运动输出权限（Active 态）叠加
+  // Config 值字段经 params_bridge 单点转换（W5-1）；节点只装配安全门与
+  // 状态投影回调。执行闸门（A8/I5）：运动输出权限（Active 态）叠加
   // 硬件安全门回调注入——即授权矩阵的 TRANSIT 级底座（任何 execute 路径
   // 不得旁路；plan-only 路径不经其执行段）；safety_block_hook 保持原
   // planOrMoveTip 被拦下时的 FAILED 状态投影。CONTACT/TOOL 级在阶段函数
   // （stages.cpp）与 GraspTask 门显式加查。
   motion_ = std::make_unique<MoveItMotionInterface>(
-    move_group_.get(), &tf_buffer_, get_logger(), get_clock(), motion_config,
+    move_group_.get(), &tf_buffer_, get_logger(), get_clock(),
+    toMotionConfig(params_),
     [this](std::string & reason) {
       return motionOutputAllowed(reason) && safetyReady(reason);
     },
@@ -450,164 +420,74 @@ void ManipulationSkillsNode::rebuildGraspTask()
   if (!moveit_node_ || !motion_) {
     return;
   }
-  GraspTaskConfig task_config;
-  const auto & moveit = params_.moveit;
-  task_config.planning_group = planning_group_;
-  task_config.tip_frame = tip_frame_;
-  task_config.base_frame = base_frame_;
-  task_config.free_space_pipeline = moveit.mtc_free_space_pipeline;
-  task_config.free_space_planner = moveit.mtc_free_space_planner;
-  task_config.planning_time_s = planning_time_s_;
-  task_config.velocity_scaling = moveit.velocity_scaling;
-  task_config.acceleration_scaling = moveit.acceleration_scaling;
-  task_config.cartesian_step_m = moveit.mtc_cartesian_step_m;
-  task_config.cartesian_min_fraction = moveit.mtc_cartesian_min_fraction;
-  task_config.cartesian_precision_m = moveit.mtc_cartesian_precision_m;
-  task_config.max_solutions = static_cast<std::size_t>(moveit.mtc_max_solutions);
-  task_config.approach_max_duration_s = moveit.mtc_approach_max_duration_s;
-  task_config.approach_max_total_joint_travel_rad =
-    moveit.mtc_approach_max_total_joint_travel_rad;
-  task_config.approach_max_single_joint_travel_rad =
-    moveit.mtc_approach_max_single_joint_travel_rad;
-  task_config.approach_max_detour_ratio = moveit.mtc_approach_max_detour_ratio;
-  task_config.approach_max_chord_deviation_m =
-    moveit.mtc_approach_max_chord_deviation_m;
-  task_config.approach_max_recede_m = moveit.mtc_approach_max_recede_m;
-  task_config.staging_max_detour_ratio =
-    moveit.mtc_approach_transit_max_detour_ratio;
-  task_config.staging_max_chord_deviation_m =
-    moveit.mtc_approach_transit_max_chord_deviation_m;
-  task_config.staging_max_recede_m =
-    moveit.mtc_approach_transit_max_recede_m;
-  task_config.approach_max_tcp_rotation_deg =
-    moveit.mtc_approach_max_tcp_rotation_deg;
-  task_config.approach_tcp_rotation_slack_deg =
-    moveit.mtc_approach_tcp_rotation_slack_deg;
-  task_config.approach_keepout_radius_m =
-    moveit.mtc_approach_keepout_radius_m;
-  task_config.approach_keepout_axial_m =
-    moveit.mtc_approach_keepout_axial_m;
-  task_config.approach_cartesian_max_distance_m =
-    moveit.mtc_approach_cartesian_max_distance_m;
-  task_config.approach_along_axis_m = moveit.mtc_approach_along_axis_m;
-  task_config.approach_staging_standoff_m =
-    moveit.approach_staging_standoff_m;
-  task_config.approach_near_velocity_scaling =
-    moveit.approach_near_velocity_scaling;
+  GraspTaskConfig task_config = toGraspTaskConfig(params_);
   // 滚转扫描 + 多 IK 种子：圆筒刀口滚转是自由参数，但只扫 keep-roll 及
   // ±30°/±60°。更大滚转会让 PTP 把 TCP 拧过 90°+。只把最近支位姿交给
   // 笛卡尔接近当目标姿态，不用关节目标下发 PTP（1740 跨构型绕行）。
+  // 候选编排（权重/惩罚/top_n）在 StagingCandidateSelector 纯核
+  // （staging_selector.hpp，W5-2）；本回调只供给 MoveIt 侧 IK/自碰探测：
+  // KDL 互斥在回调内，每 roll 一个池内 CollisionEnvFCL（跨调用复用）。
+  const StagingSelectorConfig staging_config = toStagingSelectorConfig(params_);
   task_config.select_goal_joints =
-    [this](const Eigen::Isometry3d & keep_roll_pose)
+    [this, staging_config](const Eigen::Isometry3d & keep_roll_pose)
     -> std::vector<GraspTaskConfig::StagingCandidate>
     {
-      // keep-roll 及 ±30°/±60° × 当前+4 随机种子；解须过关节限位
-      // 与自碰（camera_body×wrist1/foreArm 的构型直接拒，不再交给 PTP
-      // 规划失败兜底）；按关节距离（腕轴加权）+ 滚转惩罚升序取最近 5 个候选。
-      // 各滚转并行：KDL 插件非线程安全，setFromIK 加锁；CollisionEnvFCL
-      // 每线程一份。质量仍扫完全部种子再排序，不因并行提前截断。
       if (!move_group_) {
         return {};
       }
       const auto base = move_group_->getCurrentState();
-      const auto * group = base->getJointModelGroup(planning_group_);
+      const auto * group =
+        base->getJointModelGroup(params_.moveit.planning_group);
       if (group == nullptr) {
         return {};
       }
       const auto names = group->getActiveJointModelNames();
       std::vector<double> current;
       base->copyJointGroupPositions(group, current);
-      struct Scored
-      {
-        double dist_sq;
-        GraspTaskConfig::StagingCandidate candidate;
-      };
-      std::mutex ik_mutex;
-      std::mutex scored_mutex;
-      std::vector<Scored> scored;
-      std::vector<std::future<void>> jobs;
+      if (!staging_ik_env_) {
+        staging_ik_env_ = std::make_unique<StagingIkEnvironment>();
+      }
       const auto rolls = toolRollsRad();
-      jobs.reserve(rolls.size());
-      for (const double roll : rolls) {
-        jobs.push_back(std::async(
-            std::launch::async,
-            [this, roll, keep_roll_pose, base, group, names, current,
-            &ik_mutex, &scored_mutex, &scored]()
-            {
-              Eigen::Isometry3d pose = keep_roll_pose;
-              if (std::abs(roll) > 1.0e-12) {
-                pose.linear() = keep_roll_pose.linear() *
-                Eigen::AngleAxisd(roll, Eigen::Vector3d::UnitZ());
-              }
-              auto collision_env =
-              std::make_shared<collision_detection::CollisionEnvFCL>(
-                base->getRobotModel());
-              const collision_detection::AllowedCollisionMatrix collision_acm(
-                *base->getRobotModel()->getSRDF());
-              for (int attempt = 0; attempt < 5; ++attempt) {
-                moveit::core::RobotState probe = *base;
-                if (attempt > 0) {
-                  probe.setToRandomPositions(group);
-                }
-                bool ik_ok = false;
-                {
-                  std::lock_guard<std::mutex> lock(ik_mutex);
-                  ik_ok = probe.setFromIK(group, pose, tip_frame_, 0.1);
-                }
-                if (!ik_ok) {
-                  continue;
-                }
-                probe.update();
-                if (!probe.satisfiesBounds(group)) {
-                  continue;
-                }
-                collision_detection::CollisionRequest collision_request;
-                collision_detection::CollisionResult collision_result;
-                collision_env->checkSelfCollision(
-                  collision_request, collision_result, probe, collision_acm);
-                if (collision_result.collision) {
-                  continue;
-                }
-                std::vector<double> sol;
-                probe.copyJointGroupPositions(group, sol);
-                double dist_sq = 0.0;
-                for (std::size_t i = 0; i < sol.size(); ++i) {
-                  const double d = sol[i] - current[i];
-                  const double weight =
-                  names[i].find("wrist") != std::string::npos ? 2.5 : 1.0;
-                  dist_sq += weight * d * d;
-                }
-                dist_sq += 4.0 * roll * roll;
-                GraspTaskConfig::StagingCandidate candidate;
-                candidate.pose = pose;
-                for (std::size_t i = 0; i < names.size(); ++i) {
-                  candidate.joints[names[i]] = sol[i];
-                }
-                std::lock_guard<std::mutex> lock(scored_mutex);
-                scored.push_back({dist_sq, candidate});
-              }
-            }));
-      }
-      for (auto & job : jobs) {
-        job.get();
-      }
-      std::sort(
-        scored.begin(), scored.end(),
-        [](const Scored & a, const Scored & b) {return a.dist_sq < b.dist_sq;});
-      std::vector<GraspTaskConfig::StagingCandidate> out;
-      out.reserve(std::min<std::size_t>(scored.size(), 5U));
-      for (const auto & item : scored) {
-        if (out.size() >= 5U) {
-          break;
-        }
-        out.push_back(item.candidate);
-      }
-      return out;
+      staging_ik_env_->ensure(base->getRobotModel(), rolls.size());
+      StagingIkEnvironment & env_pool = *staging_ik_env_;
+      std::mutex ik_mutex;
+      const StagingIkSolve solve =
+        [&](int roll_index, const Eigen::Isometry3d & pose, int attempt)
+        -> std::optional<std::vector<double>>
+        {
+          moveit::core::RobotState probe = *base;
+          if (attempt > 0) {
+            probe.setToRandomPositions(group);
+          }
+          bool ik_ok = false;
+          {
+            std::lock_guard<std::mutex> lock(ik_mutex);
+            ik_ok = probe.setFromIK(group, pose, params_.frames.tip, 0.1);
+          }
+          if (!ik_ok) {
+            return std::nullopt;
+          }
+          probe.update();
+          if (!probe.satisfiesBounds(group)) {
+            return std::nullopt;
+          }
+          collision_detection::CollisionRequest collision_request;
+          collision_detection::CollisionResult collision_result;
+          env_pool.envs[static_cast<std::size_t>(roll_index) %
+            env_pool.envs.size()]->checkSelfCollision(
+            collision_request, collision_result, probe, env_pool.acm);
+          if (collision_result.collision) {
+            return std::nullopt;
+          }
+          std::vector<double> sol;
+          probe.copyJointGroupPositions(group, sol);
+          return sol;
+        };
+      return selectStagingCandidates(
+        staging_config, keep_roll_pose, current, names, rolls, solve);
     };
-  task_config.approach_max_lateral_m = moveit.mtc_approach_max_lateral_m;
-  task_config.approach_max_align_deg = moveit.mtc_approach_max_align_deg;
   task_config.lookup_current_tip = [this]() {
-      return motion_->lookupTransform(base_frame_, tip_frame_);
+      return motion_->lookupTransform(params_.frames.base, params_.frames.tip);
     };
   task_config.protected_zones = protected_zones_;
   // 执行边界 = 授权矩阵公共级 + execution + grasp（GraspTask 门内显式加查）；
@@ -897,79 +777,34 @@ void ManipulationSkillsNode::onTargets(
   cache_.updateSelectedTarget(update);
 }
 
+// 帧率自适应超时族转发（W5-3）：公式在 FrameRateTimeouts 纯核，此处只供
+// 数据（EMA/缓存状态）；调用点与语义不变。
 void ManipulationSkillsNode::trackFrameInterval()
 {
-  const double arrival_s = now().seconds();
-  const double last = last_targets_arrival_s_.load(std::memory_order_relaxed);
-  if (last > 0.0) {
-    const double dt = arrival_s - last;
-    // 异常间隔（暂停后首帧/时钟跳变）不进 EMA，避免污染帧率估计
-    if (dt > 1e-3 && dt < 30.0) {
-      const double ema = frame_interval_ema_s_.load(std::memory_order_relaxed);
-      frame_interval_ema_s_.store(
-        ema > 0.0 ? 0.7 * ema + 0.3 * dt : dt, std::memory_order_relaxed);
-    }
-  }
-  last_targets_arrival_s_.store(arrival_s, std::memory_order_relaxed);
-}
-
-double ManipulationSkillsNode::waitIntervalS() const
-{
-  const double ema = frame_interval_ema_s_.load(std::memory_order_relaxed);
-  if (ema > 0.0) {
-    return ema;
-  }
-  return assumed_frame_interval_s_;
+  frame_timeouts_.onTargetFrame(now().seconds());
 }
 
 double ManipulationSkillsNode::effectiveFrameWaitS() const
 {
-  const double interval = waitIntervalS();
-  if (interval <= 0.0) {return frame_wait_s_;}
-  // 视点到位后等 ~4 帧 + 1s 稳定余量；下限 2s，上限为配置值
-  return adaptive_timeout_s(interval, 4.0, 1.0, 2.0, frame_wait_s_);
+  return frame_timeouts_.frameWaitS();
 }
 
 double ManipulationSkillsNode::effectiveTargetMaxAgeS() const
 {
-  const double fallback = target_observation_max_age_config_s_;
-  const double ema = frame_interval_ema_s_.load(std::memory_order_relaxed);
-  if (ema <= 0.0) {return fallback;}
-  // 低帧率放宽；不得收得比 yaml 回退更紧（曾用 0.4s 预填 EMA，把 3s 收到 1.5s）。
-  return std::max(
-    fallback,
-    adaptive_timeout_s(ema, 2.5, 0.5, 1.0, 10.0));
+  return frame_timeouts_.targetMaxAgeS();
 }
 
 double ManipulationSkillsNode::effectiveReconfirmWaitS() const
 {
-  const double interval = waitIntervalS();
-  if (interval <= 0.0) {return reconfirm_wait_s_;}
-  // 与视点等帧同一形状：等 ~4 帧 + 1s 稳定余量，下限 2s，上限为配置值
-  // （reconfirm_wait_s 同时承担回退值与自适应上限，摆动等平息也在本窗口预算内）。
-  return adaptive_timeout_s(interval, 4.0, 1.0, 2.0, reconfirm_wait_s_);
+  return frame_timeouts_.reconfirmWaitS();
 }
 
 double ManipulationSkillsNode::effectiveRefinedWaitS() const
 {
-  // 窗口态感知（2026-09-09 真机）：下方短自适应窗的假设是「finalize 已
-  // 触发、refit 在 ~3 帧内闩锁」。重建仍在 COLLECTING 时不成立——还要
-  // 采满机位、过基线门才 finalize，2.5 FPS 下 3.2s 窗会在 4/5 视角时
-  // 先到期，observe 误判「未等到精化」。COLLECTING 用配置上限覆盖
-  // 采集→finalize→refit 全程；IDLE 维持短窗快速失败（无会话等不来）。
-  if (cache_.qualitySnapshot().reconstruction_state == "COLLECTING") {
-    return refined_timeout_s_;
-  }
-  const double interval = waitIntervalS();
-  if (interval <= 0.0) {return refined_timeout_s_;}
-  // 协议 2.7-FINALIZE 的 T(refined)=clamp(下限, 3×实测refit耗时EMA, 上限)：
-  // refit 耗时由重建节点持有、本包不可得（本阶段不动其他包接口），按观测帧
-  // 间隔近似——finalize 触发后 refit 在后续约 3 帧内闩锁发布 refined，
-  // 故 ≈3 帧 + 2s 余量；下限 2s（高帧率时 refit 仍有固定计算耗时），上限为
-  // 配置值（同时是未测得帧率时的回退值）。
-  return adaptive_timeout_s(
-    interval, 3.0, 2.0, std::min(2.0, refined_timeout_s_),
-    refined_timeout_s_);
+  // 窗口态感知（2026-09-09 真机）：COLLECTING 用配置上限覆盖采集→finalize
+  // →refit 全程（公式与分支见 frame_timeouts.hpp 注释）。
+  return frame_timeouts_.refinedWaitS(
+    cache_.qualitySnapshot().reconstruction_state == "COLLECTING");
 }
 
 void ManipulationSkillsNode::onDiagnostics(

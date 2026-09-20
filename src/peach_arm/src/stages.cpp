@@ -5,6 +5,7 @@
 #include "peach_arm/manipulation_skills_node.hpp"
 #include "peach_arm/math_utils.hpp"
 #include "peach_arm/pregrasp_level.hpp"
+#include "peach_arm/pregrasp_residual.hpp"
 #include "peach_arm/acm_policy.hpp"
 #include "peach_arm/reconfirm_policy.hpp"
 #include "peach_arm/retreat_policy.hpp"
@@ -34,15 +35,6 @@ using FailureCode = peach_interfaces::msg::FailureCode;
 
 namespace
 {
-// 夹角（度）；零向量按 180°（最大不对轴）处理，让门判定走拒绝侧而非误放行。
-double axisAngleDeg(const Eigen::Vector3d & first, const Eigen::Vector3d & second)
-{
-  if (first.norm() < 1e-9 || second.norm() < 1e-9) {
-    return 180.0;
-  }
-  return angleBetweenDeg(first, second);
-}
-
 // 跟踪状态枚举 → 中文标签（再确认失败原因文案用；常量为
 // PeachTargetObservation.msg 的 tracking_status 枚举，255=缓存未知）。
 std::string trackingStatusLabel(uint8_t status)
@@ -185,7 +177,7 @@ Eigen::Isometry3d ManipulationSkillsNode::entryToolPose(
 {
   Eigen::Isometry3d entry_tool_pose = Eigen::Isometry3d::Identity();
   entry_tool_pose.translation() = entry;
-  const auto current_tool = motion_->lookupTransform(base_frame_, tool_frame_);
+  const auto current_tool = motion_->lookupTransform(params_.frames.base, params_.frames.tool);
   entry_tool_pose.linear() = current_tool ?
     alignFrameZ(current_tool->linear(), axis) :
     ViewPlanner::toolOrientation(axis, preferred_x);
@@ -198,7 +190,7 @@ bool ManipulationSkillsNode::contactEntryGeometry(
 {
   const Eigen::Isometry3d entry_tool_pose = entryToolPose(
     refined.entry, refined.axis, initial_pose.linear().col(0));
-  const auto tip_from_tool = motion_->lookupTransform(tip_frame_, tool_frame_);
+  const auto tip_from_tool = motion_->lookupTransform(params_.frames.tip, params_.frames.tool);
   if (!tip_from_tool) {
     error = "无法取得 tip 到 tool 的变换";
     return false;
@@ -348,7 +340,8 @@ bool ManipulationSkillsNode::stagePrepareCycle(CycleContext & ctx)
   }
   ctx.target_id = ctx.target->id;
   setState(CycleState::PLAN_OBSERVATION, "生成目标导向主动视点", ctx.target_id);
-  const auto base_from_camera = motion_->lookupTransform(base_frame_, camera_frame_);
+  const auto base_from_camera = motion_->lookupTransform(params_.frames.base,
+      params_.frames.camera);
   if (!base_from_camera) {
     return failStage(ctx, "无法取得当前相机位姿");
   }
@@ -461,7 +454,8 @@ bool ManipulationSkillsNode::stageAcquireViews(CycleContext & ctx)
     if (verdict == ScanVerdict::MOVES_EXHAUSTED) {
       break;
     }
-    const auto current_camera = motion_->lookupTransform(base_frame_, camera_frame_);
+    const auto current_camera = motion_->lookupTransform(params_.frames.base,
+        params_.frames.camera);
     if (!current_camera) {
       return failStage(ctx, "扫描中无法取得相机位姿");
     }
@@ -630,7 +624,7 @@ bool ManipulationSkillsNode::stageFinalizeAndValidate(CycleContext & ctx)
   const bool grasp_ready = refined_arrived && gate.allowed &&
     (ctx.pregrasp_only ||
     graspDecisionTargetSnapshot() == ctx.target_id);
-  const auto tip_from_tool = motion_->lookupTransform(tip_frame_, tool_frame_);
+  const auto tip_from_tool = motion_->lookupTransform(params_.frames.tip, params_.frames.tool);
   if (!tip_from_tool) {
     return failStage(ctx, "无法取得 tip 到 tool 的变换");
   }
@@ -663,7 +657,7 @@ bool ManipulationSkillsNode::stageFinalizeAndValidate(CycleContext & ctx)
     if (grasp_hyp_pub_) {
       peach_interfaces::msg::GraspHypothesis hyp;
       hyp.header.stamp = now();
-      hyp.header.frame_id = base_frame_;
+      hyp.header.frame_id = params_.frames.base;
       hyp.target_id = ctx.target_id;
       hyp.entry_pose = tf2::toMsg(ctx.entry_tip_pose);
       hyp.travel_m = static_cast<float>(ctx.travel_m);
@@ -689,7 +683,7 @@ bool ManipulationSkillsNode::stageReconfirmTarget(CycleContext & ctx)
   //
   // 回退开关（验证期遗留）：allow_stale_anchor=true 时退化为旧"按静态锚点
   // 继续"行为，直接放行；false（默认）时新鲜度由本阶段单点把关。
-  if (allow_stale_anchor_) {
+  if (params_.grasp.allow_stale_anchor) {
     RCLCPP_WARN(
       get_logger(),
       "grasp.allow_stale_anchor=true：跳过抓取前再确认，按静态目标锚点继续"
@@ -704,7 +698,8 @@ bool ManipulationSkillsNode::stageReconfirmTarget(CycleContext & ctx)
     CycleState::RECONFIRM,
     "抓取前再确认：等待新鲜观测复核身份/锚点漂移/摆动平息", ctx.target_id);
   ReconfirmPolicy policy(ReconfirmConfig{
-      reconfirm_tolerance_m_, reconfirm_max_attempts_, false});
+      params_.grasp.reconfirm_tolerance_m,
+      static_cast<int>(params_.grasp.reconfirm_max_attempts), false});
   Eigen::Vector3d reference_anchor = ctx.reference_anchor;
   while (!cancel_requested_.load()) {
     // 单次尝试窗口：实测帧间隔 EMA 自适应（运行时优先，禁硬编码墙钟）；
@@ -813,7 +808,7 @@ bool ManipulationSkillsNode::stageMovePregrasp(CycleContext & ctx)
   // （08-28 G PTP 0/1；08-31 1405 LIN NO_IK）。拍照位是已知可达的自由空间点。
   std::string photo_msg;
   bool from_photo = motion_ && motion_->goToPhotoPose(
-    photo_pose_named_target_, execution_enabled_.load(), photo_msg);
+    params_.photo_pose_named_target, execution_enabled_.load(), photo_msg);
   if (from_photo) {
     RCLCPP_INFO(get_logger(), "预抓取从拍照位出发: %s", photo_msg.c_str());
   } else {
@@ -834,7 +829,7 @@ bool ManipulationSkillsNode::stageMovePregrasp(CycleContext & ctx)
   }
   if (!result.success && !result.execution_started && motion_ && !from_photo) {
     if (motion_->goToPhotoPose(
-        photo_pose_named_target_, execution_enabled_.load(), photo_msg))
+        params_.photo_pose_named_target, execution_enabled_.load(), photo_msg))
     {
       from_photo = true;
       RCLCPP_WARN(
@@ -885,15 +880,15 @@ bool ManipulationSkillsNode::stageVerifyPregrasp(CycleContext & ctx)
       FailureCode::PREGRASP_RESIDUAL, "预抓取验证无精化几何");
   }
   ctx.pregrasp_msg.target_id = ctx.target_id;
-  ctx.pregrasp_msg.tool_profile_id = tool_profile_id_;
+  ctx.pregrasp_msg.tool_profile_id = params_.tool.profile_id;
   for (uint8_t attempt = 0; attempt < 3; ++attempt) {
-    const auto first_axis = motion_->lookupTransform(base_frame_, "tool_axis");
-    const auto first_mouth = motion_->lookupTransform(base_frame_, "sleeve_mouth");
-    const auto first_cut = motion_->lookupTransform(base_frame_, "cutting_plane");
+    const auto first_axis = motion_->lookupTransform(params_.frames.base, "tool_axis");
+    const auto first_mouth = motion_->lookupTransform(params_.frames.base, "sleeve_mouth");
+    const auto first_cut = motion_->lookupTransform(params_.frames.base, "cutting_plane");
     std::this_thread::sleep_for(200ms);
-    const auto second_axis = motion_->lookupTransform(base_frame_, "tool_axis");
-    const auto second_mouth = motion_->lookupTransform(base_frame_, "sleeve_mouth");
-    const auto second_cut = motion_->lookupTransform(base_frame_, "cutting_plane");
+    const auto second_axis = motion_->lookupTransform(params_.frames.base, "tool_axis");
+    const auto second_mouth = motion_->lookupTransform(params_.frames.base, "sleeve_mouth");
+    const auto second_cut = motion_->lookupTransform(params_.frames.base, "cutting_plane");
     if (!first_axis || !second_axis || !first_mouth || !second_mouth ||
       !first_cut || !second_cut)
     {
@@ -902,30 +897,33 @@ bool ManipulationSkillsNode::stageVerifyPregrasp(CycleContext & ctx)
         FailureCode::EXACT_TF_MISSING,
         "预抓取缺少 tool_axis/sleeve_mouth/cutting_plane TF");
     }
-    const Eigen::Vector3d tool_z = second_axis->linear().col(2);
-    const double frames_deg = axisAngleDeg(
-      first_axis->linear().col(2), tool_z);
-    const Eigen::Vector3d bag_axis = ctx.refined->axis;
-    const double angle = axisAngleDeg(tool_z, bag_axis);
-    const Eigen::Vector3d delta_b =
-      second_mouth->translation() - ctx.refined->bottom;
-    const Eigen::Vector3d delta_c =
-      second_cut->translation() - ctx.refined->neck;
-    const double axial = delta_c.dot(bag_axis);
-    const double lateral = std::max(
-      (delta_b - delta_b.dot(bag_axis) * bag_axis).norm(),
-      (delta_c - axial * bag_axis).norm());
-    // 残差门硬编码：帧间一致 1.5°，角度 2.0°，横向 0.003（axial 只记录）。
-    const bool consistent = frames_deg < 1.5;
-    const bool passed = consistent && angle <= 2.0 && lateral <= 0.003;
-    ctx.pregrasp_msg.frames_consistent = consistent;
+    // 残差计算与三阈值判定在 PregraspResidualChecker 纯核（W5-4）；
+    // 门限来自 yaml grasp.pregrasp_residual.*（原为 1.5°/2.0°/0.003 硬编码，
+    // 部署默认同值），axial 只记录不判定。
+    PregraspPoseSample first_sample;
+    first_sample.tool_axis = *first_axis;
+    first_sample.sleeve_mouth = *first_mouth;
+    first_sample.cutting_plane = *first_cut;
+    PregraspPoseSample second_sample;
+    second_sample.tool_axis = *second_axis;
+    second_sample.sleeve_mouth = *second_mouth;
+    second_sample.cutting_plane = *second_cut;
+    const PregraspThresholds residual_thresholds{
+      params_.grasp.pregrasp_residual.frame_consistent_deg,
+      params_.grasp.pregrasp_residual.axis_deg,
+      params_.grasp.pregrasp_residual.lateral_m};
+    const ResidualReport residual = evaluatePregraspResidual(
+      residual_thresholds, first_sample, second_sample, ctx.refined->bottom,
+      ctx.refined->neck, ctx.refined->axis);
+    ctx.pregrasp_msg.frames_consistent = residual.consistent;
     ctx.pregrasp_msg.correction_count = attempt;
-    ctx.pregrasp_msg.axis_angle_deg = static_cast<float>(angle);
-    ctx.pregrasp_msg.lateral_error_m = static_cast<float>(lateral);
-    ctx.pregrasp_msg.axial_error_m = static_cast<float>(axial);
-    ctx.pregrasp_msg.needs_correction = (!passed) && consistent;
-    ctx.pregrasp_msg.passed = passed;
-    if (passed) {
+    ctx.pregrasp_msg.axis_angle_deg = static_cast<float>(residual.angle_deg);
+    ctx.pregrasp_msg.lateral_error_m = static_cast<float>(residual.lateral_m);
+    ctx.pregrasp_msg.axial_error_m = static_cast<float>(residual.axial_m);
+    ctx.pregrasp_msg.needs_correction =
+      (!residual.passed) && residual.consistent;
+    ctx.pregrasp_msg.passed = residual.passed;
+    if (residual.passed) {
       ctx.pregrasp_verified = true;
       ctx.pregrasp_msg.reason = "pregrasp_verified";
       ctx.completion_level = std::max(
@@ -1173,8 +1171,8 @@ bool ManipulationSkillsNode::stageReturnHarvestStow(CycleContext & ctx)
   if (!motion_) {
     return failStage(ctx, "MoveIt 尚未初始化");
   }
-  const std::string stow = harvest_stow_named_target_.empty() ?
-    photo_pose_named_target_ : harvest_stow_named_target_;
+  const std::string stow = params_.harvest_stow_named_target.empty() ?
+    params_.photo_pose_named_target : params_.harvest_stow_named_target;
   std::string message;
   if (!motion_->goToPhotoPose(stow, execution_enabled_.load(), message)) {
     return failStage(ctx, "返回 harvest_stow 失败: " + message);
@@ -1226,7 +1224,7 @@ void ManipulationSkillsNode::publishViewMarkers(
   const std::size_t limit = std::min<std::size_t>(candidates.size(), 24U);
   for (std::size_t index = 0; index < limit; ++index) {
     visualization_msgs::msg::Marker marker;
-    marker.header.frame_id = base_frame_;
+    marker.header.frame_id = params_.frames.base;
     marker.header.stamp = now();
     marker.ns = "candidate_views";
     marker.id = static_cast<int>(index);

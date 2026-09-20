@@ -152,9 +152,9 @@ double ManipulationSkillsNode::insertionTravel(const CachedRefined & refined) co
     (refined.neck - refined.bottom).norm() > 1.0e-6;
   if (travel <= 1.0e-6 && has_refined_geometry) {
     const Eigen::Vector3d axis = refined.axis.normalized();
-    travel = (refined.neck - refined.entry).dot(axis) - neck_margin_m_;
+    travel = (refined.neck - refined.entry).dot(axis) - params_.grasp.neck_margin_m;
   }
-  return std::clamp(travel, minimum_travel_m_, maximum_travel_m_);
+  return std::clamp(travel, params_.grasp.minimum_travel_m, params_.grasp.maximum_travel_m);
 }
 
 bool ManipulationSkillsNode::safetyReady(std::string & reason)
@@ -207,17 +207,17 @@ bool ManipulationSkillsNode::commandToolClose()
     return false;
   }
   if (!tool_io_client_->wait_for_service(
-      std::chrono::duration<double>(service_timeout_s_)))
+      std::chrono::duration<double>(params_.timeouts.service_s)))
   {
     setState(CycleState::FAILED, "末端工具 set_io 服务不可用");
     return false;
   }
   auto request = std::make_shared<aubo_msgs::srv::SetIO::Request>();
-  request->fun = static_cast<int8_t>(tool_io_fun_);
-  request->pin = static_cast<int8_t>(tool_io_pin_);
-  request->state = static_cast<float>(tool_close_state_);
+  request->fun = static_cast<int8_t>(params_.tool.io_fun);
+  request->pin = static_cast<int8_t>(params_.tool.io_pin);
+  request->state = static_cast<float>(params_.tool.close_state);
   auto future = tool_io_client_->async_send_request(request);
-  if (future.wait_for(std::chrono::duration<double>(service_timeout_s_)) !=
+  if (future.wait_for(std::chrono::duration<double>(params_.timeouts.service_s)) !=
     std::future_status::ready || !future.get()->success)
   {
     setState(CycleState::FAILED, "末端工具关闭命令失败");
@@ -340,7 +340,7 @@ void ManipulationSkillsNode::onCheckReachability(
     return;
   }
   const auto robot_model = move_group_->getRobotModel();
-  const auto group = robot_model->getJointModelGroup(planning_group_);
+  const auto group = robot_model->getJointModelGroup(params_.moveit.planning_group);
   if (group == nullptr) {
     response->message = "unknown_planning_group";
     for (auto & code : response->error_codes) {
@@ -351,8 +351,8 @@ void ManipulationSkillsNode::onCheckReachability(
   moveit::core::RobotState seed = *move_group_->getCurrentState();
   Eigen::Isometry3d current_tip = Eigen::Isometry3d::Identity();
   bool have_current_tip = false;
-  if (robot_model->hasLinkModel(tip_frame_)) {
-    current_tip = seed.getGlobalLinkTransform(tip_frame_);
+  if (robot_model->hasLinkModel(params_.frames.tip)) {
+    current_tip = seed.getGlobalLinkTransform(params_.frames.tip);
     have_current_tip = current_tip.matrix().allFinite();
   }
   for (std::size_t i = 0; i < request->tcp_poses.size(); ++i) {
@@ -383,7 +383,7 @@ void ManipulationSkillsNode::onCheckReachability(
     const auto ik_quick =
       [&](const Eigen::Isometry3d & goal) {
         moveit::core::RobotState probe = seed;
-        return probe.setFromIK(group, goal, tip_frame_, 0.05);
+        return probe.setFromIK(group, goal, params_.frames.tip, 0.05);
       };
     // 预抓取停位检查（keep-roll 先行，失败才 ±30°/±60°，与接近扫描同表）：
     // 圆筒套袋的刀口滚转是自由参数，keep-roll 单姿态无解 ≠ 全滚转无解。
@@ -449,7 +449,7 @@ void ManipulationSkillsNode::onGoToPhotoPose(
     };
   std::string message;
   const bool success = motion_->goToPhotoPose(
-    photo_pose_named_target_, execution_enabled_.load(), message);
+    params_.photo_pose_named_target, execution_enabled_.load(), message);
   finish(success, message);
 }
 

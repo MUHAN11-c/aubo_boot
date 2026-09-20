@@ -20,7 +20,7 @@ import yaml
 
 CASES_PATH = (
     Path(__file__).resolve().parents[2] /
-    'peach_arm/config/field_pregrasp_cases.yaml')
+    'peach_arm/test/fixtures/field_pregrasp_cases.yaml')
 
 # --- 常量（sim_field_targets.py 原值） ---
 CART_MAX_M = 0.80            # mtc_approach_cartesian_max_distance_m

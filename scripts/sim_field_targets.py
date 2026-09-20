@@ -45,7 +45,7 @@ import yaml
 
 CASES_PATH = (
     Path(__file__).resolve().parents[1] /
-    'src/peach_arm/config/field_pregrasp_cases.yaml')
+    'src/peach_arm/test/fixtures/field_pregrasp_cases.yaml')
 NODE = 'peach_arm'
 RESULTS_DIR = Path(__file__).resolve().parents[1] / 'runs'
 JOINT_ORDER = (

@@ -1,0 +1,37 @@
+{
+  "_comment": "性能基线锚点（W0）：数字全部来自仓内实测记录，供 W3-W5 优化前后对拍与回放塔时延断言扩展使用。改这里须附来源。",
+  "_provenance": {
+    "perception": "runs harvest_20260901T090114 perception.jsonl（percipio 前端）",
+    "reconstruction": "runs harvest_20260831T134707 reconstruction.jsonl 及跨 run 峰值（frames_timed=13）",
+    "delivery": "docs/testing-log.md:190（RELIABLE raw 彩图投递实测）",
+    "stereo_ab": "docs/testing-log.md:277（stereo 前端 A/B）",
+    "tf_absent": "docs/testing-log.md:272（无 TF 每帧双 0.5s 超时）",
+    "inference": "docs/testing-log.md:270（YOLO/SAM 单项）"
+  },
+  "perception_frame_ms": {
+    "detect": [4.0, 5.36],
+    "segment": [17.2, 26.5],
+    "geometry": [34.6, 61.6],
+    "total": [84.3, 105.4],
+    "fps": [2.43, 2.54]
+  },
+  "inference_ms": {
+    "yolo_per_frame": 4.0,
+    "sam_per_bbox": 21.0
+  },
+  "stereo_ab_perception_total_ms": 133,
+  "reconstruction_ms_peak": {
+    "icp_ema": 26.45,
+    "tsdf_integrate_ema": 7497.3,
+    "frame_total_ema": 11075.1,
+    "refit_last": 13001.1,
+    "finalize_last": 12178.7,
+    "frames_timed": 13
+  },
+  "delivery": {
+    "color_raw_reliable_hz": [0.3, 1.3],
+    "color_compressed_hz": 2.432,
+    "depth_registered_points_hz": 2.2
+  },
+  "tf_absent_perception_fps": 0.87
+}

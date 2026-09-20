@@ -56,7 +56,7 @@ import yaml
 
 CASES_PATH = (
     Path(__file__).resolve().parents[1] /
-    'src/peach_arm/config/field_pregrasp_cases.yaml')
+    'src/peach_arm/test/fixtures/field_pregrasp_cases.yaml')
 RESULTS_DIR = Path(__file__).resolve().parents[1] / 'runs'
 
 # ---- 与源码/yaml 对齐的常量（改动须同步源码） ----

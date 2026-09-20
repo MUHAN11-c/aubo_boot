@@ -2,7 +2,7 @@
 """接近/护栏解析回放塔：确定性语料对照冻结基线。
 
 三层语料（零 ROS、不规划关节、不执臂）：
-1. field——现场真袋案册（peach_arm/config/field_pregrasp_cases.yaml
+1. field——现场真袋案册（peach_arm/test/fixtures/field_pregrasp_cases.yaml
    的 targets_20260909，14 例）；
 2. stratified——分层合成 200 例（seed 20260911，09-11 mock typical 同源）；
 3. random——随机 100 例（seed 20260910，09-10 接近重写同 seed）。

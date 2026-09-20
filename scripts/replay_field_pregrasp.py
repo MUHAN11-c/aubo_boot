@@ -34,7 +34,7 @@ TOOL_ROLLS_DEG = (0, 30, -30, 60, -60, 90, -90, 120, -120, 150, -150, 180)
 
 CASES_PATH = (
     Path(__file__).resolve().parents[1] /
-    'src/peach_arm/config/field_pregrasp_cases.yaml')
+    'src/peach_arm/test/fixtures/field_pregrasp_cases.yaml')
 
 
 def _quat_to_mat(q):

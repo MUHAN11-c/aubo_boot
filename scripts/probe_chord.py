@@ -10,7 +10,7 @@ import sys
 import yaml
 
 CASES_PATH = (
-    '/home/mu/Desktop/aubo_e5_jazzy_ws/src/peach_arm/config/'
+    '/home/mu/Desktop/aubo_e5_jazzy_ws/src/peach_arm/test/fixtures/'
     'field_pregrasp_cases.yaml')
 JOINT_ORDER = (
     'shoulder_joint', 'upperArm_joint', 'foreArm_joint',

@@ -1898,7 +1898,8 @@ class TargetReconstructionNode(
         }
 
     def _geometry_root(self) -> Path:
-        """geometry.jsonl 根：批次=runs/<request_id>/（单根批根，R7）.
+        """
+        geometry.jsonl 根：批次=runs/<request_id>/（单根批根，R7）.
 
         request_id 消息来源，入路径前净化（W1 路径穿越修复）。
         """
@@ -1991,7 +1992,8 @@ class TargetReconstructionNode(
         return T[:3, 3].copy(), T[:3, 2].copy()
 
     def _pregrasp_verification_msg(self, header):
-        """工具帧相对融合袋模型的预抓取残差（观测用，不授权 SetIO）.
+        """
+        工具帧相对融合袋模型的预抓取残差（观测用，不授权 SetIO）.
 
         W2/R3：本方法双路并发可达（心跳持 _state_lock vs _publish_all 锁外），
         状态快照与 `_pregrasp_prev` 交换必须入锁（RLock：心跳路径重入安全）；

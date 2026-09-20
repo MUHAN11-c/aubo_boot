@@ -9,7 +9,6 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Optional, Tuple
 
-from geometry_msgs.msg import Quaternion
 import numpy as np
 from peach_harvester.vision.common.bag_landmarks import (
     clamp_upper_hemisphere,
@@ -17,11 +16,12 @@ from peach_harvester.vision.common.bag_landmarks import (
     estimate_bag_landmarks,
 )
 from peach_harvester.vision.common.geometry import (
+    backproject,
     estimate_normals,
     fit_cylinder_robust,
     fit_sphere_robust,
+    grasp_frame_from_axis,
     polish_sphere_lm,
-    rotation_to_quat,
     transform_direction,
     transform_point,
 )
@@ -38,16 +38,30 @@ from .contracts import (
 from .identity import estimate_pose_covariance
 from .image_gates import clip_bbox, foreground_mask, valid_depth_mask
 
+# W3 迁移兼容 re-export：grasp_frame_from_axis 已迁 common.geometry
+# （identity.memory_grasp 与本模块共用；迁出消除 identity↔pose_pipelines
+# 循环依赖）。旧 import 路径保持可用，调用方逐步改走 geometry。
+__all__ = [
+    'RobustBagPosePipeline',
+    'RobustFruitPosePipeline',
+    'TargetPoseResult',
+    'apply_transform_to_reference',
+    'grasp_frame_from_axis',
+    'make_pipeline',
+    'PIPELINES_BY_IMPL',
+]
 
-def _apply_T_to_grasp3d(grasp_3d, T: np.ndarray) -> None:
+
+def apply_transform_to_reference(grasp_3d, T: np.ndarray) -> None:
     """
     抓取几何由相机系变到输出系（默认 base_link），原地修改 grasp_3d.
 
     T 为 4×4 齐次矩阵（输出系←相机系）。规则：点 R@p+t（含 entry_start /
     bag_bottom / bag_neck / suggested_travel_end / legacy position /
-    points_centroid，走 peach_perception.common transform_point）；方向只乘 R 并归一化
-    （transform_direction：平移不影响方向）；姿态矩阵左乘 R。None 字段
-    原样保留。
+    points_centroid，走 common.geometry transform_point）；方向只乘 R 并
+    归一化（transform_direction：平移不影响方向）；姿态矩阵左乘 R。None
+    字段原样保留。（W3 起 `_apply_T_to_grasp3d` 公开为本名，pipeline 不再
+    跨模块 import 私有符号。）
 
     Args:
         grasp_3d: BagGraspReference3D（相机光学系，米）；被原地改写.
@@ -72,41 +86,6 @@ def _apply_T_to_grasp3d(grasp_3d, T: np.ndarray) -> None:
     if grasp_3d.orientation is not None:
         grasp_3d.orientation = (
             T[:3, :3] @ np.asarray(grasp_3d.orientation, dtype=float))
-
-
-def _rotation_to_quat(R: np.ndarray) -> Quaternion:
-    """
-    3×3 旋转矩阵 → geometry_msgs/Quaternion（peach_perception.common 值对象的消息包装）.
-
-    数值路径与重构前完全一致：官方 scipy Rotation（见
-    peach_perception.common.geometry.rotation_to_quat），此处仅把 QuaternionValue
-    组装成消息（纯核不 import geometry_msgs）。
-
-    Args:
-        R: (3, 3) 旋转矩阵.
-
-    Returns
-    -------
-        单位四元数 Quaternion 消息（x, y, z, w）.
-
-    """
-    q = rotation_to_quat(R)
-    return Quaternion(x=q.x, y=q.y, z=q.z, w=q.w)
-
-
-def grasp_frame_from_axis(axis) -> np.ndarray:
-    """右手抓取系 R=[Xg,Yg,Zg]，无点云时由袋轴与参考轴叉积得到."""
-    zg = np.asarray(axis, dtype=np.float64)
-    norm = float(np.linalg.norm(zg))
-    zg = zg / norm if norm > 1e-9 else np.array([0.0, 0.0, 1.0])
-    ref = (np.array([1.0, 0.0, 0.0]) if abs(zg[0]) < 0.9
-           else np.array([0.0, 0.0, 1.0]))
-    xg = np.cross(zg, ref)
-    xg /= np.linalg.norm(xg)
-    if xg[0] < 0:
-        xg = -xg
-    yg = np.cross(zg, xg)
-    return np.column_stack((xg, yg, zg))
 
 
 @dataclass
@@ -184,7 +163,8 @@ class RobustBagPosePipeline:
         local_mask, source = self._foreground(roi, valid, mask, bbox, source=mask_source)
         base_2d.foreground_mask = local_mask
         coverage = float(local_mask.mean()) if local_mask.size else 0.0
-        points, pixels = self._to_points(roi, local_mask, x1, y1, obs.camera_K)
+        points, pixels = self._to_points(
+            roi, local_mask, x1, y1, obs.camera_K, valid)
         points, pixels = self._filter_depth_outliers(points, pixels)
         if len(points) < self.min_points:
             return self._failed(target_id, base_2d, 'insufficient_measured_points', source,
@@ -434,16 +414,21 @@ class RobustBagPosePipeline:
         """前景掩膜（委托模块级 :func:`foreground_mask`，语义不变）."""
         return foreground_mask(depth, valid, supplied_mask, bbox, source)
 
-    def _to_points(self, depth, mask, xoff, yoff, K):
+    def _to_points(self, depth, mask, xoff, yoff, K, valid):
         """
-        前景像素反投影为相机系 3D 点（米）.
+        前景像素反投影为相机系 3D 点（米），委托 geometry.backproject.
+
+        W3：距离窗不再在此重算——直接复用 estimate 已解析的 `valid`
+        掩膜（valid_roi 或管线深度窗，同一 valid_depth_mask 口径）；
+        反投影数学单源在 common.geometry.backproject。
 
         Args:
             depth: (h, w) uint16 ROI 深度（毫米）.
-            mask: (h, w) bool 前景掩膜（内部再与有效深度求交）.
+            mask: (h, w) bool 前景掩膜（内部再与 valid 求交）.
             xoff: ROI 在全图的 x 像素偏移.
             yoff: ROI 在全图的 y 像素偏移.
             K: 相机内参 {"fx","fy","cx","cy"}.
+            valid: (h, w) bool 有效深度掩膜（estimate 传入）.
 
         Returns
         -------
@@ -451,10 +436,9 @@ class RobustBagPosePipeline:
             pixels 为 (N, 2) int ROI 内像素坐标 (x, y).
 
         """
-        ys, xs = np.where(mask & self._valid_depth(depth))
-        z = depth[ys, xs].astype(float) / 1000.0
-        points = np.column_stack(((xs + xoff - K['cx']) * z / K['fx'],
-                                 (ys + yoff - K['cy']) * z / K['fy'], z))
+        selected = np.asarray(mask, dtype=bool) & valid
+        points, _ = backproject(depth, selected, K, xoff=xoff, yoff=yoff)
+        ys, xs = np.nonzero(selected)
         return points, np.column_stack((xs, ys))
 
     @staticmethod
@@ -700,7 +684,8 @@ class RobustFruitPosePipeline(RobustBagPosePipeline):
         local_mask, source = self._foreground(roi, valid, mask, bbox, source=mask_source)
         base_2d.foreground_mask = local_mask
         coverage = float(local_mask.mean()) if local_mask.size else 0.0
-        points, pixels = self._to_points(roi, local_mask, x1, y1, obs.camera_K)
+        points, pixels = self._to_points(
+            roi, local_mask, x1, y1, obs.camera_K, valid)
         points, pixels = self._filter_depth_outliers(points, pixels)
         if len(points) < self.min_points:
             return self._failed_fruit(target_id, base_2d, 'insufficient_measured_points',

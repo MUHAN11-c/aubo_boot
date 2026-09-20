@@ -15,6 +15,8 @@ from typing import Iterable, List, Optional, Tuple
 import cv2
 import numpy as np
 
+from peach_harvester.vision.common.geometry import crop_mask_to_bbox
+
 from .contracts import (
     BagGrasp2D,
     BagGraspReference3D,
@@ -56,7 +58,8 @@ class UltralyticsYolo:
     """
 
     def __init__(self, yolo_model: str = '', yolo_conf: float = 0.3,
-                 yolo_iou: float = 0.5, class_names: dict = None):
+                 yolo_iou: float = 0.5, yolo_imgsz: int = 640,
+                 yolo_half: bool = False, class_names: dict = None):
         """
         构造检测器（模型懒加载，首次推理时才读权重）.
 
@@ -64,6 +67,10 @@ class UltralyticsYolo:
             yolo_model: YOLO 权重路径（.pt）；空串行为取决于 ultralytics.
             yolo_conf: YOLO 置信度阈值 [0, 1].
             yolo_iou: YOLO NMS IoU 阈值 [0, 1].
+            yolo_imgsz: 推理输入边长（px，ultralytics imgsz；640=现行为，
+                须为 32 的倍数；构造期捕获）.
+            yolo_half: FP16 推理开关（档案化：默认 False=现行为，仅在已
+                验证半精度的设备上开启；构造期捕获）.
             class_names: {class_id: 名称}；None 用默认 {0: peach_bag,
                 1: peach_nobag}.
 
@@ -75,6 +82,8 @@ class UltralyticsYolo:
         self._yolo_model_path = yolo_model
         self._yolo_conf = yolo_conf
         self._yolo_iou = yolo_iou
+        self._yolo_imgsz = int(yolo_imgsz)
+        self._yolo_half = bool(yolo_half)
         self._class_names = class_names or {0: 'peach_bag', 1: 'peach_nobag'}
         # 懒加载: None 表示尚未 load 权重
         self._yolo = None
@@ -82,6 +91,24 @@ class UltralyticsYolo:
         self._device = _resolve_device()
         # CUDA 线程安全: 锁序列化 load + forward
         self._lock = threading.Lock()
+
+    def _warmup(self):
+        """
+        首个真实帧前对 imgsz×imgsz 零图热身一次（PF-6）.
+
+        目的：构造 CUDA 上下文 / 推理引擎缓存，把首个真实帧的首推理
+        延迟尖峰从现场帧路径挪到启动路径。失败仅告警不阻断——热身是
+        性能优化，真实错误由首个真实帧的正常报告路径暴露。
+        """
+        try:
+            self._yolo(
+                np.zeros((self._yolo_imgsz, self._yolo_imgsz, 3),
+                         dtype=np.uint8),
+                conf=self._yolo_conf, iou=self._yolo_iou,
+                imgsz=self._yolo_imgsz, half=self._yolo_half,
+                device=self._device, verbose=False)
+        except Exception as exc:  # noqa: BLE001 热身失败不阻断推理
+            _logger.warning('YOLO warmup 失败（不阻断，首帧照常推理）: %s', exc)
 
     def detect(self, rgb: np.ndarray) -> List[dict]:
         """
@@ -92,8 +119,8 @@ class UltralyticsYolo:
 
         Returns
         -------
-        [{"class_id", "class_name", "bbox": (x1,y1,x2,y2), "conf"}, ...]
-        按置信度降序排列
+            [{"class_id", "class_name", "bbox": (x1,y1,x2,y2), "conf"}, ...]
+            按置信度降序排列
 
         """
         with self._lock:
@@ -105,9 +132,11 @@ class UltralyticsYolo:
                     self._yolo.to(self._device)
                 except Exception:
                     pass
+                self._warmup()
 
             results = self._yolo(
                 rgb, conf=self._yolo_conf, iou=self._yolo_iou,
+                imgsz=self._yolo_imgsz, half=self._yolo_half,
                 device=self._device, verbose=False)
 
         # 锁外解析: 纯 CPU 后处理，不涉及 CUDA
@@ -495,6 +524,8 @@ class CandidateEstimator:
         """
         把全图或 ROI 掩膜裁成与 bbox 同尺寸；尺寸不符返回 None.
 
+        裁剪核单源 geometry.crop_mask_to_bbox（W3；与 pipeline 侧同一原语）。
+
         Args:
             mask: bool/0-1 掩膜（全图尺寸则裁 ROI）；None 原样返回 None.
             bbox: (x1, y1, x2, y2) 已裁剪到图内的整数框（像素）.
@@ -510,7 +541,7 @@ class CandidateEstimator:
         x1, y1, x2, y2 = bbox
         arr = np.asarray(mask, dtype=bool)
         if arr.shape[:2] == image_shape[:2]:
-            arr = arr[y1:y2, x1:x2]
+            arr = crop_mask_to_bbox(arr, bbox)
         expected = (y2 - y1, x2 - x1)
         return arr if arr.shape == expected else None
 

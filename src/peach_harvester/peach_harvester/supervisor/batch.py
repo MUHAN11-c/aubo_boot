@@ -240,7 +240,8 @@ def default_ledger_root() -> Path:
 
 
 def _safe_run_component(request_id: str, fallback: str) -> str:
-    """目录名段净化（W1 起单源委托 peach_common.paths.safe_component）.
+    """
+    目录名段净化（W1 起单源委托 peach_common.paths.safe_component）.
 
     语义收紧：在旧「拒路径分隔符与上跳」之上补拒 NUL 与纯点段；非法
     回退 fallback（折叠隔离目录，不拒绝整批）。

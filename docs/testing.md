@@ -342,7 +342,7 @@ Fixed Frame 用 **`base_link`**，不要用未接上的 `world`。改显示配�
 | Reconstruction Markers | 开 | `/peach/reconstruction/markers` | 主 ns `target_reconstruction`；精化 `peach_reconstruction/refined`。相机轨迹与精化示意 |
 | Planned Views | 开 | `/peach_arm/planned_views` | 候选拍照位；`execution.enabled=false` 时仍会出，不代表已走到 |
 | Camera Color | 关 | `/camera/color/image_raw` | 原彩图 |
-| Debug Image | 开 | `/peach/perception/debug_image` | 检/分割叠加。灰框=未满 confirm_frames |
+| Debug Image | 关（W3/PF-3 起 `publish_debug_image` 默认 false；`ros2 param set ... true` 现场调图时开，可配 `debug_downscale`） | `/peach/perception/debug_image` | 检/分割叠加。灰框=未满 confirm_frames |
 | Imu | 开 | `/imu/data` | `rviz_imu_plugin`：TCP 上的灰盒子 / RGB 轴 / 黄比力。姿态不写进 `imu_link` TF |
 
 ---

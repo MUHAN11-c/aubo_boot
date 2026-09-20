@@ -190,7 +190,8 @@ class HarvestDataStore:
         self._mask_last_saved = {}
 
     def _resolve(self, run_id: str) -> Path:
-        """轮目录：批次在跑=base_dir/run_id，否则 root/run_id（旧布局）.
+        """
+        轮目录：批次在跑=base_dir/run_id，否则 root/run_id（旧布局）.
 
         run_id 是消息来源（executor 广播），入路径前经 safe_component
         净化（W1 路径穿越修复：拒绝分隔符/上跳/NUL，非法折叠 fallback）。
@@ -221,6 +222,55 @@ class HarvestDataStore:
             return False
         self.run_dir = candidate
         return True
+
+    def start_harvest_run(self, plan, params, executor_run_id: str = '') -> str:
+        """
+        为刚锁定的目标集合创建轮目录与 manifest（W3 自节点下沉的领域方法）.
+
+        批次在跑：轮目录落 runs/<request_id>/perception_data/<轮ID>；无批次
+        回退旧布局（root/<轮ID>）。request_id 为消息来源，入路径前经
+        safe_component 净化（W1 路径穿越修复）。调用方（节点）须在
+        plan_lock 持有区调用；轮 ID 格式与拆分前逐字一致。
+
+        Args:
+            plan: GlobalHarvestPlan（读 snapshot/targets/selected）.
+            params: ScenePerceptionParams（读版本与 output_frame）.
+            executor_run_id: 调度 HarvestState.run_id；空串=无批次.
+
+        Returns
+        -------
+            生成的 harvest_run_id（同时写入 self.run_dir 与 manifest）.
+
+        """
+        if executor_run_id:
+            self.base_dir = (
+                default_runs_root()
+                / safe_component(executor_run_id, 'harvest')
+                / 'perception_data')
+        else:
+            self.base_dir = None
+        now = datetime.now()
+        run_id = (
+            f'harvest_{now.strftime("%Y%m%dT%H%M%S_%f")}_s{plan.snapshot_id}')
+        targets = [
+            {'target_id': target_id, 'priority': plan.priority(target_id)}
+            for target_id in plan.locked_ids
+        ]
+        self.start(run_id, {
+            'snapshot_id': plan.snapshot_id,
+            'target_count': plan.target_count,
+            'selected_target_id': plan.selected_target_id,
+            'targets': targets,
+            'model_version': params.model_version,
+            'calibration_version': params.calibration_version,
+            'output_frame': params.output_frame,
+        })
+        self.append_event({
+            'source': 'perception', 'event': 'global_targets_locked',
+            'target_count': plan.target_count,
+            'selected_target_id': plan.selected_target_id,
+        })
+        return run_id
 
     def append_event(self, event: dict) -> None:
         """

@@ -115,13 +115,8 @@ def estimate_normals(depth_roi: np.ndarray, xoff: int, yoff: int, K: dict,
 
     """
     h, w = depth_roi.shape
-    z = depth_roi.astype(np.float64) / 1000.0
-    valid = (depth_roi > 0) & (depth_roi < 65535)
-
-    us = np.arange(w)[None, :] + xoff
-    vs = np.arange(h)[:, None] + yoff
-    X = (us - K['cx']) * z / K['fx']
-    Y = (vs - K['cy']) * z / K['fy']
+    # 反投影内联段已提取为 _backproject_grid（公式与 backproject 同源）
+    X, Y, z, valid = _backproject_grid(depth_roi, xoff, yoff, K)
 
     # 中心差分切向量（边缘退化为前/后向差分，numpy 自动处理）
     du = np.zeros((h, w, 3))
@@ -608,6 +603,208 @@ def normalize_depth_to_uint16_mm(depth: np.ndarray,
         mm = np.where(np.isfinite(mm) & (mm > 0.0), mm, 0.0)
         return np.clip(np.round(mm), 0.0, _UINT16_MAX_MM).astype(np.uint16)
     raise ValueError(f'不支持的深度 dtype {depth.dtype}（仅支持 uint16/浮点）')
+
+
+# ═══════════════════════════════════════════════════════════════
+# 针孔反投影（W3 单实现：原三份手写反投影收敛于此）
+# ═══════════════════════════════════════════════════════════════
+
+def backproject(depth_mm: np.ndarray, mask: np.ndarray, K: dict, *,
+                min_depth_m: Optional[float] = None,
+                max_depth_m: Optional[float] = None,
+                stride: int = 1,
+                rgb_bgr: Optional[np.ndarray] = None,
+                xoff: int = 0, yoff: int = 0,
+                valid_mask: Optional[np.ndarray] = None
+                ) -> Tuple[np.ndarray, Optional[np.ndarray]]:
+    """
+    针孔反投影单实现：mask ∧ 有效深度像素 → 相机系 3D 点（米）+ 可选 BGR.
+
+    x = (u − cx)·z/fx、y = (v − cy)·z/fy、z = depth/1000（毫米→米）；
+    u/v 为全图像素坐标（ROI 输入时由 xoff/yoff 补偿）。无效深度
+    （0 / 饱和 65535）恒剔除；距离窗 min/max_depth_m 为开区间
+    （None = 不设窗），窗比较沿用 image_gates.valid_depth_mask 的
+    float32 口径（边界毫米值的取舍与旧三份实现逐位一致，对拍锚点）。
+
+    Args:
+        depth_mm: (H, W) uint16 深度（毫米）.
+        mask: (H, W) bool 掩膜（选中像素；内部再与有效深度求交）.
+        K: 相机内参 {"fx","fy","cx","cy"}（像素单位）.
+        min_depth_m: 有效深度下限 (m)；None 不设窗.
+        max_depth_m: 有效深度上限 (m)；None 不设窗.
+        stride: 全图网格抽稀步长（``sel[::stride, ::stride]``，锚在 (0,0)）；
+            逐检测框锚定的抽稀由调用方在 mask 构造期完成（见
+            bbox_cloud_xyzrgb），此处 1 = 不抽稀.
+        rgb_bgr: (H, W, 3) uint8 BGR 图；给定时按选中像素采集颜色.
+        xoff / yoff: ROI 在全图中的像素偏移（0 = 全图输入）.
+        valid_mask: 预计算的有效深度掩膜；给定时直接用作有效判定
+            （忽略 min/max_depth_m，避免重复算窗——estimate 复用
+            valid_roi 的路径）.
+
+    Returns
+    -------
+        (xyz_cam, colors_bgr_or_None)：xyz 为 (N, 3) float64 相机系点
+        （米）；rgb_bgr 给定时 colors 为 (N, 3) uint8 BGR，否则 None；
+        无有效点时 xyz 为 (0, 3) 空数组.
+
+    """
+    depth = np.asarray(depth_mm)
+    if valid_mask is not None:
+        valid = np.asarray(valid_mask, dtype=bool)
+    else:
+        valid = (depth > 0) & (depth < _UINT16_MAX_MM)
+        if min_depth_m is not None or max_depth_m is not None:
+            # 与 image_gates.valid_depth_mask 同口径：mm→m 在 float32 下比较
+            z32 = depth.astype(np.float32) / 1000.0
+            if min_depth_m is not None:
+                valid = valid & (z32 > float(min_depth_m))
+            if max_depth_m is not None:
+                valid = valid & (z32 < float(max_depth_m))
+    selected = np.asarray(mask, dtype=bool) & valid
+    if stride > 1:
+        step = int(stride)
+        # 子采样视图上的 nonzero 是子网格坐标，须放大回全图像素坐标
+        vs, us = np.nonzero(selected[::step, ::step])
+        vs = vs * step
+        us = us * step
+    else:
+        vs, us = np.nonzero(selected)
+    if vs.size == 0:
+        empty_colors = (
+            np.zeros((0, 3), dtype=np.uint8) if rgb_bgr is not None else None)
+        return np.zeros((0, 3), dtype=np.float64), empty_colors
+    z = depth[vs, us].astype(np.float64) / 1000.0
+    fx, fy = float(K['fx']), float(K['fy'])
+    cx, cy = float(K['cx']), float(K['cy'])
+    u = us.astype(np.float64) + float(xoff)
+    v = vs.astype(np.float64) + float(yoff)
+    xyz = np.column_stack(((u - cx) * z / fx, (v - cy) * z / fy, z))
+    colors = None if rgb_bgr is None else np.asarray(rgb_bgr)[vs, us]
+    return xyz, colors
+
+
+def _backproject_grid(depth_roi: np.ndarray, xoff: int, yoff: int, K: dict
+                      ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    """
+    有序深度图全网格反投影（estimate_normals 专用内联段提取）.
+
+    公式与 :func:`backproject` 同源（x=(u−cx)·z/fx）；区别仅在形态：
+    本函数返回 (h, w) 稠密网格（法线差分需要邻域），backproject 返回
+    选中像素点列。0/65535 无效位一并返回。
+
+    Args:
+        depth_roi: (h, w) uint16 深度（毫米）.
+        xoff / yoff: ROI 在全图中的像素偏移.
+        K: 相机内参 {"fx","fy","cx","cy"}.
+
+    Returns
+    -------
+        (X, Y, z, valid)：X/Y/z 为 (h, w) float64 网格（z 米），
+        valid 为 (h, w) bool（0/65535 剔除）.
+
+    """
+    z = depth_roi.astype(np.float64) / 1000.0
+    valid = (depth_roi > 0) & (depth_roi < _UINT16_MAX_MM)
+    us = np.arange(depth_roi.shape[1])[None, :] + int(xoff)
+    vs = np.arange(depth_roi.shape[0])[:, None] + int(yoff)
+    X = (us - K['cx']) * z / K['fx']
+    Y = (vs - K['cy']) * z / K['fy']
+    return X, Y, z, valid
+
+
+def crop_mask_to_bbox(mask: np.ndarray, bbox) -> np.ndarray:
+    """
+    掩膜裁剪原语（W3 合一）：返回 bbox ROI 切片，越界侧先钳到图内.
+
+    pipeline._crop_mask_to_bbox（全图清零式）与 inference._crop_mask
+    （ROI 切片式）共用的像素裁剪核；本函数只做切片，形状语义由调用方
+    包装（全图清零 / ROI 尺寸校验）。
+
+    Args:
+        mask: (H, W) 掩膜（bool/uint8，dtype 保留）.
+        bbox: (x1, y1, x2, y2) 像素框（可越界；负侧与图外侧截断）.
+
+    Returns
+    -------
+        (y2'−y1', x2'−x1') 掩膜视图（钳位后的 ROI 切片）.
+
+    """
+    x1, y1, x2, y2 = (int(v) for v in bbox)
+    return mask[max(y1, 0):max(y2, 0), max(x1, 0):max(x2, 0)]
+
+
+def bbox_cloud_xyzrgb(rgb_bgr: np.ndarray, depth_mm: np.ndarray, K: dict,
+                      bboxes, stride: int = 1
+                      ) -> Tuple[np.ndarray, np.ndarray]:
+    """
+    检测框内像素反投影成彩色点云：返回 (N,3) xyz（米）与 (N,) 打包 rgb.
+
+    depth_mm 为毫米单位 uint16（Percipio 原始值已 × depth_scale_unit）；
+    剔除无效深度（0/饱和 65535），无距离窗（全窗直通）。stride 为
+    **逐框锚定**抽稀（``mask[y1:y2:stride, x1:x2:stride]``，锚在各框
+    左上角，与 W3 前旧实现逐像素一致）；backproject 的 stride 参数是
+    全图网格锚定，两者语义不同，故此处在 mask 构造期完成抽稀后以
+    stride=1 调用。
+
+    Args:
+        rgb_bgr: (H, W, 3) uint8 BGR 图，与深度对齐.
+        depth_mm: (H, W) uint16 深度，单位毫米.
+        K: 相机内参 {"fx","fy","cx","cy"}（像素单位）.
+        bboxes: 检测框列表 [(x1, y1, x2, y2)]（像素，自动裁剪到图内）.
+        stride: 逐框降采样步长（像素）；1 为不降采样.
+
+    Returns
+    -------
+        (xyz, rgb_packed)：xyz 为 (N, 3) float64 相机系点（米），
+        rgb_packed 为 (N,) float32 打包颜色；无有效点时均为空数组.
+
+    """
+    h, w = depth_mm.shape[:2]
+    mask = np.zeros((h, w), dtype=bool)
+    for bbox in bboxes:
+        x1, y1, x2, y2 = [int(v) for v in bbox]
+        x1 = max(0, min(w - 1, x1))
+        x2 = max(0, min(w, x2))
+        y1 = max(0, min(h - 1, y1))
+        y2 = max(0, min(h, y2))
+        if x2 <= x1 or y2 <= y1:
+            continue
+        mask[y1:y2:stride, x1:x2:stride] = True
+    xyz, colors = backproject(depth_mm, mask, K, rgb_bgr=rgb_bgr)
+    if colors is None:
+        return xyz, np.zeros((0,), dtype=np.float32)
+    return xyz, pack_rgb_bgr(colors)
+
+
+def grasp_frame_from_axis(axis) -> np.ndarray:
+    """
+    由袋轴构造右手抓取系 R=[Xg,Yg,Zg]（无点云时的定向回退）.
+
+    Zg=axis（归一化，近零回退 +Z）；Xg 取 Zg 与参考轴叉积（|x|<0.9 用
+    +X，否则 +Z，避免共线退化）且 x 分量取正（视角对称约定）；
+    Yg=Zg×Xg。（W3 自 pose_pipelines 迁入：identity.memory_grasp 与
+    位姿线共用，迁 common 后消除 identity↔pose_pipelines 循环依赖；
+    pose_pipelines 旧路径 re-export。）
+
+    Args:
+        axis: (3,) 轴向（内部归一化；近零回退 [0,0,1]）.
+
+    Returns
+    -------
+        (3, 3) 旋转矩阵 [Xg, Yg, Zg]，Zg=归一化轴.
+
+    """
+    zg = np.asarray(axis, dtype=np.float64)
+    norm = float(np.linalg.norm(zg))
+    zg = zg / norm if norm > 1e-9 else np.array([0.0, 0.0, 1.0])
+    ref = (np.array([1.0, 0.0, 0.0]) if abs(zg[0]) < 0.9
+           else np.array([0.0, 0.0, 1.0]))
+    xg = np.cross(zg, ref)
+    xg /= np.linalg.norm(xg)
+    if xg[0] < 0:
+        xg = -xg
+    yg = np.cross(zg, xg)
+    return np.column_stack((xg, yg, zg))
 
 
 # ═══════════════════════════════════════════════════════════════

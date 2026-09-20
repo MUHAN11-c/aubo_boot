@@ -13,6 +13,10 @@ from typing import (
 )
 
 import numpy as np
+from peach_harvester.vision.common.geometry import (
+    grasp_frame_from_axis,
+    rotation_to_quat,
+)
 from scipy.optimize import linear_sum_assignment
 
 from .contracts import compute_entry_start, LockEvent, MatchResult
@@ -1163,8 +1167,13 @@ class MemoryGrasp:
 
 
 def memory_grasp(entry: dict, standoff: float) -> Optional[MemoryGrasp]:
-    """从 TargetRegistry 条目还原可规划锚点；缺位置则 None."""
-    from .pose_pipelines import grasp_frame_from_axis
+    """
+    从 TargetRegistry 条目还原可规划锚点；缺位置则 None.
+
+    grasp_frame_from_axis 自 W3 起迁 common.geometry（顶层 import），
+    消除原 ``from .pose_pipelines import ...`` 的 lazy 循环依赖
+    （pose_pipelines 顶层 import 本模块）。
+    """
     if not entry or entry.get('position') is None:
         return None
     center = np.asarray(entry['position'], dtype=np.float64)
@@ -1183,3 +1192,34 @@ def memory_grasp(entry: dict, standoff: float) -> Optional[MemoryGrasp]:
         entry_start=compute_entry_start(bottom, zg, standoff),
         rotation=rotation,
     )
+
+
+def memory_anchor_fields(entry: dict, standoff: float) -> Optional[dict]:
+    """
+    身份表记忆 → 观测回填字段（W3：dict/值对象，零 ROS msg）.
+
+    原 scene_perception_node._fill_memory_anchor 的纯逻辑：记忆锚点
+    （bottom/neck/axis/entry_start，输出系米）+ 抓取系四元数
+    （geometry.rotation_to_quat 的 QuaternionValue 值对象）。节点/纯核
+    只做字段拷贝，Quaternion 消息组装在 ROS 层（msg_builders.quat_to_msg）。
+
+    Args:
+        entry: TargetRegistry 条目（缺位置/空表项返回 None）.
+        standoff: 入口后撤量 [m]（params.tool.entry_standoff）.
+
+    Returns
+    -------
+        {'bottom': (3,), 'neck': (3,), 'axis': (3,), 'entry_start': (3,),
+         'orientation': QuaternionValue}；memory_grasp 不可用时 None.
+
+    """
+    grasp = memory_grasp(entry, standoff)
+    if grasp is None:
+        return None
+    return {
+        'bottom': grasp.bottom,
+        'neck': grasp.neck,
+        'axis': grasp.axis,
+        'entry_start': grasp.entry_start,
+        'orientation': rotation_to_quat(grasp.rotation),
+    }

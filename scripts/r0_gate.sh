@@ -27,6 +27,8 @@ python3 -c "import peach_common"
 python3 -m pytest -q -p no:cacheprovider --import-mode=importlib \
   src/peach_harvester/test/test_vision_param_rules.py \
   src/peach_harvester/test/test_vision_identity.py \
+  src/peach_harvester/test/test_vision_geometry.py \
+  src/peach_harvester/test/test_vision_plan_updater.py \
   src/peach_harvester/test/test_vision_tool_budget.py \
   src/peach_harvester/test/test_vision_runtime_core.py \
   src/peach_harvester/test/test_vision_tool_profiles.py \

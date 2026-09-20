@@ -1,8 +1,8 @@
-"""W2/V1 回归：MobileSam.segment 不得吞异常（上层逐目标回退依赖抛出）.
+"""
+W2/V1 回归：MobileSam.segment 不得吞异常（上层逐目标回退依赖抛出）.
 
-inference 模块经 CandidateEstimator 导入 pose_pipelines（其顶层 import
-geometry_msgs——已知 V5 纯核违规，W3 拆分时消除）；零 ROS 门环境按缺依赖
-跳过，colcon test（ROS 环境）真跑。
+W3/V5 修复后 inference→pose_pipelines 链已零 ROS msg import，本测试
+在零 ROS 门环境亦可真跑（保留 try/except 以防 cv_bridge 类依赖缺失）。
 """
 from __future__ import annotations
 
@@ -13,7 +13,7 @@ import pytest
 
 try:
     from peach_harvester.vision.scene_perception.inference import MobileSam
-except ImportError:  # 零 ROS 门环境：inference→pose_pipelines→geometry_msgs
+except ImportError:  # 防御保留：推理栈依赖缺失时跳过
     MobileSam = None
 
 

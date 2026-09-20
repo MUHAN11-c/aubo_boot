@@ -20,12 +20,15 @@ _RULES = {  # 键 -> 校验规则表（启动期非法即拒启；运行期非�
     'yolo_model_path': (('nonempty',),),
     'sam_model_path': (('nonempty',),),
     'tf_timeout_sec': (('gt_eq', 0.0),),
+    'tf_fallback_timeout_sec': (('gt_eq', 0.0),),
     'depth_scale_unit': (('gt', 0.0),),
     'sync_slop_s': (('gt_eq', 0.0),),
     'sam_max_bboxes': (('gt_eq', 1),),
     'sam_min_area': (('gt_eq', 0),),
     'min_mask_points': (('gt_eq', 1),),
     'detection_cloud_stride': (('gt_eq', 1),),
+    'yolo_imgsz': (('gt_eq', 32),),
+    'debug_downscale': (('gt', 0.0), ('lt_eq', 1.0),),
     'pipeline.min_depth_m': (('gt', 0.0),),
     'pipeline.max_depth_m': (('gt', 0.0),),
     'pipeline.min_points': (('gt_eq', 1),),
@@ -164,6 +167,10 @@ class ScenePerceptionParams:
     """YOLO 第一级置信度阈值."""
     yolo_nms_iou: float
     """YOLO NMS IoU."""
+    yolo_imgsz: int
+    """YOLO 推理输入边长（px，32 的倍数；640=现行为；构造期捕获）."""
+    yolo_half: bool
+    """YOLO FP16 开关（档案化：False=现行为；构造期捕获）."""
     min_detection_conf: float
     """进入几何管线的第二级置信度下限."""
     depth_scale_unit: float
@@ -172,6 +179,8 @@ class ScenePerceptionParams:
     """RGB-D ApproximateTime 允差 [s]."""
     tf_timeout_sec: float
     """精确 stamp TF 查询超时 [s]."""
+    tf_fallback_timeout_sec: float
+    """按 stamp 失败回退最新 TF 的二次查询超时 [s]（0.5=现值，收紧旋钮）."""
     camera_optical_frame: str
     """光学系 frame_id；空串则用深度图 header."""
     output_frame: str
@@ -179,7 +188,9 @@ class ScenePerceptionParams:
     gravity_mode: str
     """'tf'=由 output←camera 反推；'fixed'=只用 gravity_hint."""
     publish_debug_image: bool
-    """是否发 /peach/perception/debug_image."""
+    """是否发 /peach/perception/debug_image（默认 false=PF-3；现场调图显式开）."""
+    debug_downscale: float
+    """debug/debug_raw 发布前缩放比例 ∈(0,1]；1.0=直通零开销（逐帧热键）."""
     publish_masks: bool
     """是否发 SAM 掩膜图."""
     publish_detection_cloud: bool

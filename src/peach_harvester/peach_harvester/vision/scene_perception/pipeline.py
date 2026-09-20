@@ -11,8 +11,10 @@ import threading
 from typing import List, Optional, Tuple
 
 import numpy as np
+from peach_harvester.vision.common.geometry import crop_mask_to_bbox
 from peach_harvester.vision.domain.evidence import may_commit_identity
 from peach_harvester.vision.scene_perception.contracts import BagObservation
+from peach_harvester.vision.scene_perception.debug_draw import draw_debug
 from peach_harvester.vision.scene_perception.identity import (
     bbox_touches_image_edge,
     CollectLockPolicy,
@@ -33,8 +35,14 @@ from peach_harvester.vision.scene_perception.inference import (
     MobileSam,
     UltralyticsYolo,
 )
+from peach_harvester.vision.scene_perception.msg_builders import (
+    to_candidate,
+    to_candidate_2d,
+    to_fitting,
+    to_markers,
+)
 from peach_harvester.vision.scene_perception.pose_pipelines import (
-    _apply_T_to_grasp3d,
+    apply_transform_to_reference,
     make_pipeline,
 )
 from peach_harvester.vision.scene_perception.stream_metrics import (
@@ -42,13 +50,6 @@ from peach_harvester.vision.scene_perception.stream_metrics import (
     LightingMeter,
     RateEstimator,
     TimingMetrics,
-)
-from peach_harvester.vision.scene_perception.visualization import (
-    _draw_debug,
-    _to_candidate,
-    _to_candidate_2d,
-    _to_fitting,
-    _to_markers,
 )
 from peach_interfaces.msg import BagFittingArray, BagGraspCandidateArray
 from std_msgs.msg import Header
@@ -120,13 +121,19 @@ class PerceptionResult:
 
 
 def filter_detections(detections, params, enable_fruit: bool = False):
-    """Apply confidence gate, optional fruit drop, then IoS dedup.
+    """
+    Apply confidence gate, optional fruit drop, then IoS dedup.
 
     Args:
-        detections: YOLO 输出 dict 列表（须含 conf / class_id / bbox）。
+        detections: YOLO 输出 dict 列表（须含 conf / class_id / bbox）.
         params: 须有 min_detection_conf、detection_dedup_ios、
-            detection_dedup_area_ratio。
-        enable_fruit: False 时丢掉 peach_nobag（class_id=1）。
+            detection_dedup_area_ratio.
+        enable_fruit: False 时丢掉 peach_nobag（class_id=1）.
+
+    Returns
+    -------
+        过滤+去重后的检测 dict 列表.
+
     """
     kept = [d for d in detections
             if float(d.get('conf', 0.0)) >= params.min_detection_conf]
@@ -138,13 +145,12 @@ def filter_detections(detections, params, enable_fruit: bool = False):
 
 
 def _crop_mask_to_bbox(sam_mask, bbox):
+    """全图掩膜 bbox 外清零（裁剪核单源 geometry.crop_mask_to_bbox；W3）."""
+    cropped = crop_mask_to_bbox(sam_mask, bbox)
     x1, y1, x2, y2 = (int(v) for v in bbox)
-    sam_mask = sam_mask.copy()
-    sam_mask[:max(y1, 0), :] = 0
-    sam_mask[max(y2, 0):, :] = 0
-    sam_mask[:, :max(x1, 0)] = 0
-    sam_mask[:, max(x2, 0):] = 0
-    return sam_mask
+    out = np.zeros_like(sam_mask)
+    out[max(y1, 0):max(y2, 0), max(x1, 0):max(x2, 0)] = cropped
+    return out
 
 
 class PerceptionPipeline:
@@ -187,7 +193,9 @@ class PerceptionPipeline:
             detector=UltralyticsYolo(
                 yolo_model=params.yolo_model_path,
                 yolo_conf=params.yolo_conf,
-                yolo_iou=params.yolo_nms_iou),
+                yolo_iou=params.yolo_nms_iou,
+                yolo_imgsz=int(getattr(params, 'yolo_imgsz', 640)),
+                yolo_half=bool(getattr(params, 'yolo_half', False))),
             segmenter=MobileSam(
                 sam_model=params.sam_model_path,
                 sam_max_bboxes=params.sam_max_bboxes,
@@ -383,12 +391,16 @@ class PerceptionPipeline:
                 0.0 if camera_anchor is None
                 else float(np.linalg.norm(camera_anchor)))
             if T_out_cam is not None and out_frame != cam_frame:
-                _apply_T_to_grasp3d(result.grasp_3d, T_out_cam)
+                apply_transform_to_reference(result.grasp_3d, T_out_cam)
             frame_axes.append((result.grasp_3d.status,
                                result.grasp_3d.translation_direction))
             pending.append({
                 'i': i, 'det': det, 'bbox': bbox, 'sam_mask': sam_mask,
                 'result': result, 'camera_distance_m': camera_distance_m,
+                # W3 去重：贴边判定同帧只算一次（at_edge 双消费：
+                # 身份分配入参 + bbox_at_edge 旁路缓存）
+                'at_edge': bbox_touches_image_edge(
+                    bbox, depth.shape[1], depth.shape[0]),
             })
 
         assigned_ids = [(f'untracked_{p["i"]}', False) for p in pending]
@@ -404,8 +416,7 @@ class PerceptionPipeline:
                     'axis': g3.translation_direction,
                     'diameter': float(g3.bag_diameter_upper_m or 0.0),
                     'status': g3.status,
-                    'at_edge': bbox_touches_image_edge(
-                        p['bbox'], depth.shape[1], depth.shape[0]),
+                    'at_edge': p['at_edge'],
                 })
             with self.plan_lock:
                 assigned_ids = self.target_registry.match_or_register_frame(
@@ -426,20 +437,19 @@ class PerceptionPipeline:
                         result.grasp_3d.diagnostic_flags.append(
                             'target_swinging')
                     if not str(tid).startswith('ambiguous_'):
-                        at_edge = bbox_touches_image_edge(
-                            bbox, depth.shape[1], depth.shape[0])
+                        at_edge = p['at_edge']
                         self.bbox_at_edge[tid] = at_edge
                         if at_edge:
                             result.grasp_3d.diagnostic_flags.append('bbox_edge')
                 else:
                     result.grasp_3d.diagnostic_flags.append('target_untracked')
             g3, g2 = result.grasp_3d, result.grasp_2d
-            candidate_msg = _to_candidate(
+            candidate_msg = to_candidate(
                 header, tid, g3, model_version=params.model_version,
                 calibration_version=params.calibration_version,
                 tool_version=params.tool.version)
-            candidate_2d_msg = _to_candidate_2d(header, tid, g2)
-            fitting_msg = _to_fitting(header, tid, result)
+            candidate_2d_msg = to_candidate_2d(header, tid, g2)
+            fitting_msg = to_fitting(header, tid, result)
             registry_item = (
                 None if self.target_registry is None
                 else self.target_registry.get(tid))
@@ -478,13 +488,13 @@ class PerceptionPipeline:
                 }
                 cand_arr.candidates.append(candidate_msg)
                 fit_arr.fittings.append(fitting_msg)
-                markers.markers.extend(_to_markers(
+                markers.markers.extend(to_markers(
                     header, tid, p['i'], result,
                     tool_d_inner=float(params.tool.d_inner_m)))
             if debug_raw is not None:
-                _draw_debug(debug_raw, det, g2, sam_mask, tid, confirmed=confirmed)
+                draw_debug(debug_raw, det, g2, sam_mask, tid, confirmed=confirmed)
             if debug is not None and confirmed:
-                _draw_debug(debug, det, g2, sam_mask, tid, confirmed=True)
+                draw_debug(debug, det, g2, sam_mask, tid, confirmed=True)
 
         self.timing.record('geometry_ms', (self.clock.now() - t_geom) * 1e3)
         return PerceptionResult(

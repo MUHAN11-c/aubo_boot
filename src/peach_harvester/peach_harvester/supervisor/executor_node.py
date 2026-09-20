@@ -80,6 +80,7 @@ from .harvest_fsm import (
     WAITING_READY,
 )
 from .params import SupervisorParams
+from .param_rules import check_enable_deps
 from ..cycle_core.batch_policy import (
     BatchPolicy,
     ratio_reached,
@@ -406,6 +407,15 @@ class TaskExecutorNode(LifecycleNode):
 
     def _on_set_enables(self, request, response):
         """使能开关：意图源在此（广播覆盖臂侧本地参数），强制点在臂命令门."""
+        # W2/S3：使能依赖链校验（execution→grasp→tool）——操作台不得越级
+        # 开刀；violation 时拒绝且不落 override（旧版任何组合都广播）。
+        violation = check_enable_deps(
+            bool(request.execution), bool(request.grasp), bool(request.tool))
+        if violation:
+            response.accepted = False
+            response.message = f'拒绝：{violation}'
+            self.get_logger().warning(response.message)
+            return response
         self._enables_override.update(
             execution=bool(request.execution),
             grasp=bool(request.grasp),
@@ -466,11 +476,23 @@ class TaskExecutorNode(LifecycleNode):
         self._fire_step_seq += 1
         step = int(request.step)
         if step == FireStep.Request.PHOTO:
+            # W2/S3：运动类单步先过使能门（本地参数与操作台 override 的
+            # 有效值都为关时拒绝——调试单步不得绕开 execution 使能）。
+            if not self._execution_enabled_effective():
+                self._emit(
+                    'fire_step', '', details={
+                        'step': 'photo', 'seq': self._fire_step_seq,
+                        'accepted': False,
+                        'rejected': 'execution_disabled'})
+                response.accepted = False
+                response.message = '拒绝：execution 未使能'
+                response.request_seq = self._fire_step_seq
+                return response
             goal = MoveTo.Goal()
             goal.kind = MoveTo.Goal.KIND_NAMED
             goal.named_target = 'global_photo_pose'
             moved = self._send_action(
-                self._move_to, goal, 45.0, feedback=False,
+                self._move_to, goal, 18.0, feedback=False,
                 goal_handle=None)
             arrived = moved is not None and bool(
                 getattr(moved, 'arrived', False))
@@ -1371,7 +1393,8 @@ class TaskExecutorNode(LifecycleNode):
         返回 (observe_ok, details)；取消/跳过/几何缺失 → not ok。
         """
         timeout = float(self._params.action_timeout_s)
-        move_timeout = min(timeout, 30.0)
+        # W2/S2：单步移动上限压到仓规 ≤18s（旧式 min(timeout,30)=30s）。
+        move_timeout = min(timeout, 18.0)
         state = ViewPolicyState(used_views=1)
         cfg = FastViewConfig()
         moves_used = 0
@@ -1693,9 +1716,16 @@ class TaskExecutorNode(LifecycleNode):
 
     def _send_goal(self, client, goal_msg, timeout_s: float,
                    feedback: bool = False, feedback_cb=None):
-        if not client.wait_for_server(timeout_sec=timeout_s):
-            self.get_logger().warning('action server not ready')
-            return None
+        # W2/S2：服务器等待切片化（≤5s）+ 取消可打断——旧式单次
+        # wait_for_server(action_timeout_s=180s) 纯阻塞不可取消，违仓规。
+        deadline = time.monotonic() + max(float(timeout_s), 0.0)
+        while True:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0.0 or self._cancel:
+                self.get_logger().warning('action server not ready')
+                return None
+            if client.wait_for_server(timeout_sec=min(5.0, remaining)):
+                break
         kwargs = {}
         callback = feedback_cb
         if callback is None and feedback:
@@ -1929,23 +1959,39 @@ class TaskExecutorNode(LifecycleNode):
 
     def _call_service(self, client, request):
         timeout = float(self._params.service_timeout_s)
-        if not client.wait_for_service(timeout_sec=timeout):
-            self.get_logger().warning('service not ready')
-            return None
+        # W2/S2：等待切片化（≤5s）+ 取消可打断（旧式 30s 单次阻塞）。
+        deadline = time.monotonic() + max(timeout, 0.0)
+        while True:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0.0 or self._cancel:
+                self.get_logger().warning('service not ready')
+                return None
+            if client.wait_for_service(timeout_sec=min(5.0, remaining)):
+                break
         fut = client.call_async(request)
         return self._await_future(fut, timeout)
 
     def _await_future(self, fut, timeout_s: float):
         done = threading.Event()
         fut.add_done_callback(lambda _: done.set())
-        if fut.done() or done.wait(timeout=max(timeout_s, 0.0)):
-            try:
-                return fut.result()
-            except Exception as exc:  # noqa: BLE001
-                self.get_logger().warning(f'future failed: {exc}')
+        # W2/S2：future 按 ≤1s 切片等待，批取消时可提前退场（旧式单次
+        # 整段 Event.wait 不可打断）。
+        deadline = time.monotonic() + max(timeout_s, 0.0)
+        while not fut.done():
+            remaining = deadline - time.monotonic()
+            if remaining <= 0.0:
+                self.get_logger().warning('future timeout')
                 return None
-        self.get_logger().warning('future timeout')
-        return None
+            if done.wait(timeout=min(1.0, remaining)):
+                break
+            if self._cancel:
+                self.get_logger().warning('future abandoned on cancel')
+                return None
+        try:
+            return fut.result()
+        except Exception as exc:  # noqa: BLE001
+            self.get_logger().warning(f'future failed: {exc}')
+            return None
 
     def _wait_pause(self) -> None:
         """暂停门：只改 operation_mode，不覆盖作业 batch_state."""

@@ -1,8 +1,9 @@
 """精化：候选契约、柱/球 refit、袋融合、预抓取残差."""
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import (
+    Callable,
     Iterable,
     List,
     Mapping,
@@ -15,6 +16,7 @@ from peach_harvester.vision.common.bag_landmarks import (
     BagLandmarks,
     clamp_upper_hemisphere,
     enforce_wide_bottom,
+    estimate_bag_landmarks,
     OCCLUSION_BRANCH,
     OCCLUSION_DAMAGED,
     OCCLUSION_NEIGHBOR,
@@ -40,7 +42,10 @@ from peach_harvester.vision.domain.evidence import (
     occlusion_class as evidence_occlusion,
 )
 from peach_harvester.vision.domain.model_contract import allowed_from_capabilities
-from peach_harvester.vision.target_reconstruction.integrate import require_open3d
+from peach_harvester.vision.target_reconstruction.integrate import (
+    require_open3d,
+    summarize_view_coverage,
+)
 
 
 _STATUS_ACCEPT = 0
@@ -188,6 +193,218 @@ class RefitConfig:
     """RANSAC 随机种子（固定保证可复现）."""
 
 
+@dataclass
+class RefitResult:
+    """
+    RefitResult：refit+融合产物唯一载体（节点 ``_refined`` 缓存的类型）.
+
+    W4 起 refit 线与 merge 线共用本 dataclass；键集按 §7 消费表裁剪
+    （axis_point / diagnostic_axis_mismatch 等死键已删）。N1：旧单键
+    ``axis_angle_deg`` 在 merge 阶段被融合值覆写（refit 值丢失），拆
+    ``refit_axis_angle_deg``（refit 轴 vs 感知 hint，_apply_axis_consistency
+    写）与 ``fused_axis_angle_deg``（融合轴 vs hint，merge 写）双字段；
+    ``as_dict()`` 的兼容投影 ``axis_angle_deg`` 保持旧 JSON 语义
+    （融合值优先，融合未发生时回退 refit 值）。
+    """
+
+    ok: bool = False
+    """refit+融合是否产出可用几何（merge 成功才置 True）."""
+    reason: str = ''
+    """失败原因（英文标记，写诊断 JSON）；成功为空串."""
+    kind: str = ''
+    """拟合线名 'cylinder'/'sphere'（N6：merge 不再强制 'cylinder'）."""
+    status: int = STATUS_REJECT
+    """ACCEPT/REOBSERVE/REJECT 枚举值."""
+    center: Optional[np.ndarray] = None
+    """(3,) 几何中心 [m]（base 系）."""
+    axis: Optional[np.ndarray] = None
+    """(3,) bottom→neck 单位轴 [m]."""
+    bottom: Optional[np.ndarray] = None
+    """(3,) 袋底点 [m]."""
+    neck: Optional[np.ndarray] = None
+    """(3,) 袋颈点 [m]."""
+    entry: Optional[np.ndarray] = None
+    """(3,) 套入入口 [m]（仅 merge 写入：bottom − standoff×axis）."""
+    pregrasp: Optional[np.ndarray] = None
+    """(3,) 预抓取点 [m]（仅 merge 写入）."""
+    cut_pose: Optional[np.ndarray] = None
+    """(3,) 剪切参考点 [m]（袋口）."""
+    cut_plane_point: Optional[np.ndarray] = None
+    """(3,) 剪切平面参考点 [m]."""
+    cut_travel_m: float = 0.0
+    """入口沿轴到剪切参考的行程 [m]."""
+    cut_to_fruit_m: float = 0.0
+    """剪切参考到果包络上缘的轴向距离 [m]."""
+    radius: float = -1.0
+    """半径 [m]；merge 后 = 0.5×d95（无效 -1）."""
+    diameter: float = -1.0
+    """直径 [m]；merge 后 = d95（无效 -1）."""
+    d95_m: float = -1.0
+    """袋径 95 分位 [m]（仅 merge 写入；无效 -1）."""
+    span_m: float = -1.0
+    """底→颈跨度 [m]；merge 后 = 融合 length_m（无效 -1）."""
+    rmse: float = -1.0
+    """拟合 RMSE [m]；merge 后为融合关键点 RMSE（无效 -1）."""
+    inlier_ratio: float = -1.0
+    """内点率 [0,1]；merge 后为融合一致率（无效 -1）."""
+    n_points: int = 0
+    """输入点数."""
+    radial_margin_m: float = 0.0
+    """径向预算余量 [m]（仅 merge 写入）."""
+    axial_margin_m: float = 0.0
+    """轴向预算余量 [m]（仅 merge 写入）."""
+    corridor_clear: bool = False
+    """套入走廊净空（仅 merge 写入）."""
+    budget: dict = field(default_factory=dict)
+    """动态接触预算（evaluate_capabilities 产物）；空=无许可."""
+    occlusion_class: str = ''
+    """遮挡分类（仅 merge 写入）."""
+    fruit_prior_radius_m: float = 0.0
+    """果先验半径 [m]（仅 merge 写入）."""
+    model_revision: str = ''
+    """模型版本号 '<target_id>:<视图数>'（仅 merge 写入）."""
+    flags: List[str] = field(default_factory=list)
+    """诊断标记（refit 线先写，merge 追加融合标记）."""
+    final: bool = False
+    """finalize 定稿标记（编排层置位）."""
+    envelope_conditioned: bool = False
+    """体积包络是否可判定轴向（仅 merge 写入）."""
+    envelope_reason: str = ''
+    """包络不可判定原因（仅 merge 写入）."""
+    axis_conflict_deg: float = 0.0
+    """关键点轴 vs 体积包络轴夹角 [deg]（仅 merge 写入）."""
+    perception_axis: Optional[List[float]] = None
+    """感知 hint 轴 [m]（_apply_axis_consistency 写；无 hint 为 None）."""
+    refit_axis_angle_deg: Optional[float] = None
+    """N1：refit 轴 vs 感知 hint 夹角 [deg]；无 hint 为 None."""
+    fused_axis_angle_deg: Optional[float] = None
+    """N1：融合轴 vs 感知 hint 夹角 [deg]；无 hint 为 None."""
+
+    @property
+    def axis_angle_deg(self) -> Optional[float]:
+        """旧单键语义：融合值优先，融合未发生时回退 refit 值."""
+        if self.fused_axis_angle_deg is not None:
+            return self.fused_axis_angle_deg
+        return self.refit_axis_angle_deg
+
+    @staticmethod
+    def _xyz(value) -> Optional[List[float]]:
+        if value is None:
+            return None
+        return [float(v) for v in np.asarray(value).reshape(-1)[:3]]
+
+    def as_dict(self) -> dict:
+        """
+        兼容投影：diagnostics JSON / metadata.yaml（numpy → 原生类型）.
+
+        键集 = 旧 ``_refined_diag_dict`` 成功投影 + ``reason``/``final``
+        + N1 双字段；``axis_angle_deg`` 保持旧值语义（见类 docstring）。
+        """
+        return {
+            'ok': bool(self.ok),
+            'kind': str(self.kind),
+            'status': int(self.status),
+            'reason': str(self.reason),
+            'center': self._xyz(self.center),
+            'axis': self._xyz(self.axis),
+            'bottom': self._xyz(self.bottom),
+            'neck': self._xyz(self.neck),
+            'diameter': float(self.diameter),
+            'span_m': float(self.span_m),
+            'rmse': float(self.rmse),
+            'inlier_ratio': float(self.inlier_ratio),
+            'n_points': int(self.n_points),
+            'flags': list(self.flags),
+            'axis_angle_deg': (
+                None if self.axis_angle_deg is None
+                else float(self.axis_angle_deg)),
+            'refit_axis_angle_deg': (
+                None if self.refit_axis_angle_deg is None
+                else float(self.refit_axis_angle_deg)),
+            'fused_axis_angle_deg': (
+                None if self.fused_axis_angle_deg is None
+                else float(self.fused_axis_angle_deg)),
+            'axis_conflict_deg': float(self.axis_conflict_deg),
+            'envelope_conditioned': bool(self.envelope_conditioned),
+            'envelope_reason': str(self.envelope_reason),
+            'perception_axis': (
+                None if self.perception_axis is None
+                else list(self.perception_axis)),
+            'final': bool(self.final),
+        }
+
+
+@dataclass
+class BagModel:
+    """
+    多视角袋关键点融合模型（节点 ``_bag_model`` 缓存的类型）.
+
+    W4 起为 dataclass；按 §7 消费表裁掉六个无消费键
+    （cut_normal/fruit_prior_auxiliary/envelope_span_m/envelope_d95_m/
+    detection_conflict_deg 与 refit 侧 axis_point）。失败路径仅填
+    ok/reason/allowed，几何字段保持默认。
+    """
+
+    ok: bool = False
+    """融合是否成功."""
+    reason: str = ''
+    """失败原因（英文标记）；成功取预算 reason."""
+    bottom: Optional[np.ndarray] = None
+    """(3,) 融合袋底 [m]."""
+    neck: Optional[np.ndarray] = None
+    """(3,) 融合袋颈 [m]."""
+    axis: Optional[np.ndarray] = None
+    """(3,) 融合轴（bottom→neck 单位向量）."""
+    entry: Optional[np.ndarray] = None
+    """(3,) 套入入口 [m]."""
+    pregrasp: Optional[np.ndarray] = None
+    """(3,) 预抓取点 [m]."""
+    cut_plane_point: Optional[np.ndarray] = None
+    """(3,) 剪切平面参考点 [m]."""
+    cut_pose: Optional[np.ndarray] = None
+    """(3,) 剪切参考点 [m]."""
+    cut_to_fruit_m: float = 0.0
+    """剪切参考到果上缘距离 [m]."""
+    cut_travel_m: float = 0.0
+    """入口到剪切参考行程 [m]."""
+    d95_m: float = 0.0
+    """袋径 95 分位 [m]."""
+    length_m: float = 0.0
+    """底→颈轴向长度 [m]."""
+    fruit_prior_radius_m: float = 0.0
+    """果先验半径 [m]."""
+    sigma_position_m: float = 0.0
+    """位置 σ [m]."""
+    sigma_axis_deg: float = 0.0
+    """轴向 σ [deg]."""
+    rmse: float = 0.0
+    """融合关键点 RMSE [m]."""
+    inlier_ratio: float = 0.0
+    """关键点一致率 [0,1]."""
+    axis_conflict_deg: float = 0.0
+    """关键点轴 vs 包络轴夹角 [deg]."""
+    envelope_conditioned: bool = False
+    """体积包络是否可判定轴向."""
+    envelope_reason: str = ''
+    """包络不可判定原因."""
+    occlusion_class: str = ''
+    """遮挡分类."""
+    view_count: int = 0
+    """参与融合的视角数（对打否决剔除后）."""
+    flags: List[str] = field(default_factory=list)
+    """融合诊断标记."""
+    budget: dict = field(default_factory=dict)
+    """动态接触预算（evaluate_capabilities 产物）."""
+    allowed: bool = False
+    """接触许可（budget.allowed 投影）."""
+    radial_margin_m: float = 0.0
+    """径向预算余量 [m]."""
+    axial_margin_m: float = 0.0
+    """轴向预算余量 [m]."""
+    corridor_clear: bool = False
+    """套入走廊净空."""
+
+
 def estimate_normals_knn(xyz: np.ndarray, k: int = 24) -> np.ndarray:
     """
     无序点云法线估计（open3d 官方 estimate_normals，单位向量，朝向任意）.
@@ -281,7 +498,7 @@ def _cylinder_ends(points_inl: np.ndarray, axis_point: np.ndarray,
     return axis, bottom, neck
 
 
-def _fail(reason: str, n_points: int) -> dict:
+def _fail(reason: str, n_points: int) -> RefitResult:
     """
     统一失败返回：ok=False、status=REJECT、几何字段全 None/−1.
 
@@ -291,18 +508,15 @@ def _fail(reason: str, n_points: int) -> dict:
 
     Returns
     -------
-        精化失败返回 dict.
+        精化失败 RefitResult.
 
     """
-    return {
-        'ok': False, 'reason': reason, 'kind': '', 'status': STATUS_REJECT,
-        'n_points': int(n_points),
-        'center': None, 'axis': None, 'axis_point': None,
-        'bottom': None, 'neck': None, 'entry': None,
-        'radius': -1.0, 'diameter': -1.0, 'span_m': -1.0,
-        'rmse': -1.0, 'inlier_ratio': -1.0,
-        'flags': ['refit_failed'],
-    }
+    return RefitResult(
+        ok=False, reason=reason, kind='', status=STATUS_REJECT,
+        n_points=int(n_points),
+        radius=-1.0, diameter=-1.0, span_m=-1.0,
+        rmse=-1.0, inlier_ratio=-1.0,
+        flags=['refit_failed'])
 
 
 def _precheck(cloud_xyz) -> Tuple[np.ndarray, Optional[dict]]:
@@ -329,22 +543,23 @@ def _precheck(cloud_xyz) -> Tuple[np.ndarray, Optional[dict]]:
 
 
 def _gated_result(kind: str, n_points: int, center: np.ndarray,
-                  axis: np.ndarray, axis_point: np.ndarray,
-                  bottom: np.ndarray, neck: np.ndarray, span_m: float,
-                  est: dict, config: RefitConfig,
-                  flags: List[str]) -> dict:
+                  axis: np.ndarray, bottom: np.ndarray, neck: np.ndarray,
+                  span_m: float, est: dict, config: RefitConfig,
+                  flags: List[str]) -> RefitResult:
     """
     两条拟合线共用的成功结果组装 + ACCEPT/REOBSERVE 门控.
 
     inlier_ratio ≥ config.cylinder_inlier_min 且 rmse ≤ config.rmse_max_m
     → ACCEPT，否则 REOBSERVE（标记 low_inlier_ratio/high_rmse）。
+    entry/pregrasp/cut_* 不在此写（N11 修正旧 docstring 谎称写 entry）：
+    入口与剪切参考由 fuse_bag_views 按同一组 standoff 参数构造、经
+    merge_fused_bag_model 并入。
 
     Args:
         kind: 'cylinder'/'sphere'.
         n_points: 输入点数.
         center: (3,) 几何中心 [m].
         axis: (3,) bottom→neck 单位轴.
-        axis_point: (3,) 轴上一点 [m].
         bottom: (3,) 底端点 [m].
         neck: (3,) 颈端点 [m].
         span_m: 底→颈跨度 [m].
@@ -354,7 +569,7 @@ def _gated_result(kind: str, n_points: int, center: np.ndarray,
 
     Returns
     -------
-        ok=True 的 RefitResult dict（entry = bottom − axis×standoff）.
+        ok=True 的 RefitResult.
 
     """
     radius = float(est['radius'])
@@ -367,15 +582,13 @@ def _gated_result(kind: str, n_points: int, center: np.ndarray,
     if rmse > config.rmse_max_m:
         flags.append('high_rmse')
         status = STATUS_REOBSERVE
-    return {
-        'ok': True, 'reason': '', 'kind': kind, 'status': status,
-        'n_points': int(n_points),
-        'center': center, 'axis': axis, 'axis_point': axis_point,
-        'bottom': bottom, 'neck': neck,
-        'radius': radius, 'diameter': 2.0 * radius, 'span_m': float(span_m),
-        'rmse': rmse, 'inlier_ratio': inlier_ratio,
-        'flags': flags,
-    }
+    return RefitResult(
+        ok=True, reason='', kind=kind, status=status,
+        n_points=int(n_points),
+        center=center, axis=axis, bottom=bottom, neck=neck,
+        radius=radius, diameter=2.0 * radius, span_m=float(span_m),
+        rmse=rmse, inlier_ratio=inlier_ratio,
+        flags=flags)
 
 
 def _normalize_axis_hint(axis_hint):
@@ -383,34 +596,37 @@ def _normalize_axis_hint(axis_hint):
     return unit_vector(axis_hint)
 
 
-def _apply_axis_consistency(result: dict, axis_hint, config: RefitConfig) -> dict:
+def _apply_axis_consistency(result: RefitResult, axis_hint,
+                            config: RefitConfig) -> RefitResult:
     """
     Flag axis mismatch; do not change ACCEPT/REOBSERVE here.
 
-    Missing axis hint only records axis_angle_deg=None. Contact still
-    follows GraspDecision.allowed from the fused bag budget.
+    Missing axis hint only records refit_axis_angle_deg=None. Contact still
+    follows GraspDecision.allowed from the fused bag budget. N1: the refit
+    angle lives in refit_axis_angle_deg — the fused angle is written later by
+    merge_fused_bag_model (the old single axis_angle_deg key was overwritten
+    there, losing the refit value).
 
     Args:
-        result: _gated_result ok=True dict, updated in place.
+        result: _gated_result ok=True result, updated in place.
         axis_hint: optional detection axis, normalized inside.
         config: gate parameters including max_axis_angle_deg.
 
     Returns
     -------
-        The same result dict.
+        The same RefitResult.
 
     """
     hint = _normalize_axis_hint(axis_hint)
     if hint is None:
-        result['axis_angle_deg'] = None
+        result.refit_axis_angle_deg = None
         return result
-    angle = axis_angle_deg(result['axis'], hint)
-    result['axis_angle_deg'] = angle
-    result['perception_axis'] = [float(v) for v in hint]
+    angle = axis_angle_deg(result.axis, hint)
+    result.refit_axis_angle_deg = angle
+    result.perception_axis = [float(v) for v in hint]
     max_deg = float(config.max_axis_angle_deg)
     if angle is not None and angle > max_deg:
-        result['flags'].append('perception_reconstruction_axis_mismatch')
-        result['diagnostic_axis_mismatch'] = True
+        result.flags.append('perception_reconstruction_axis_mismatch')
     return result
 
 
@@ -437,7 +653,7 @@ class CylinderRefitter:
 
         Returns
         -------
-            RefitResult dict.
+            RefitResult.
 
         """
         del target_kind  # 圆柱线不使用（选线在 select_refitter）
@@ -456,9 +672,8 @@ class CylinderRefitter:
             xyz[est['inliers']], est['q0'], est['axis'])
         center = 0.5 * (bottom + neck)
         span = float(np.linalg.norm(neck - bottom))
-        axis_point = np.asarray(est['q0'], dtype=np.float64)
         result = _gated_result(
-            'cylinder', n, center, axis, axis_point, bottom, neck, span,
+            'cylinder', n, center, axis, bottom, neck, span,
             est, config, flags=[])
         return _apply_axis_consistency(result, axis_hint, config)
 
@@ -486,7 +701,7 @@ class SphereRefitter:
 
         Returns
         -------
-            RefitResult dict.
+            RefitResult.
 
         """
         del target_kind  # 球线不使用（选线在 select_refitter）
@@ -517,7 +732,7 @@ class SphereRefitter:
         neck = center + est['radius'] * axis
         span = 2.0 * float(est['radius'])
         result = _gated_result(
-            'sphere', n, center, axis, center.copy(), bottom, neck, span,
+            'sphere', n, center, axis, bottom, neck, span,
             est, config, flags=[axis_flag])
         return _apply_axis_consistency(result, axis_hint, config)
 
@@ -791,7 +1006,7 @@ def fuse_bag_views(
         cloud_xyz=None,
         detection_axis=None,
         entry_standoff_m: float = 0.0,
-        pregrasp_standoff_m: float = 0.0) -> dict:
+        pregrasp_standoff_m: float = 0.0) -> BagModel:
     """
     融合多视角袋关键点.
 
@@ -800,15 +1015,18 @@ def fuse_bag_views(
     剪切站：袋口 / 分割贴检测框极限；果距不足只否决 allowed，不挪刀。
     包络长径比不足则跳过 12° 否决。检测轴夹角只诊断，不进接触预算。
     后撤量由调用方传入（节点从 ROS 参数读，不在本函数写死米数）。
+    W4：返回 BagModel（§7 消费表裁掉 detection_conflict_deg /
+    envelope_span_m / envelope_d95_m / cut_normal / fruit_prior_auxiliary
+    五个无消费输出键；detection_axis 形参保留调用方契约，不再产出键）。
     """
     cfg = params or ToolBudgetParams()
     items = [item for item in views if item.neck_center is not None
              and item.bottom_center is not None]
     if not items:
-        return {'ok': False, 'reason': 'no_landmark_views', 'allowed': False}
+        return BagModel(ok=False, reason='no_landmark_views', allowed=False)
     aligned = _majority_sense_views(items)
     if not aligned:
-        return {'ok': False, 'reason': 'landmark_axis_conflict', 'allowed': False}
+        return BagModel(ok=False, reason='landmark_axis_conflict', allowed=False)
     n_dropped = len(items) - len(aligned)
     items = aligned
     bottoms = np.stack([item.bottom_center for item in items])
@@ -824,7 +1042,7 @@ def fuse_bag_views(
     if axis is None and axes:
         axis = _unit(np.mean(np.stack(axes), axis=0))
     if bottom is None or neck is None or axis is None:
-        return {'ok': False, 'reason': 'fusion_failed', 'allowed': False}
+        return BagModel(ok=False, reason='fusion_failed', allowed=False)
     d95_values = [item.d95_m for item in items if item.d95_m > 0]
     # 全部视角 d95 缺失（0/负）时回退 0：下游预算把 0 当「无径向散布数据」
     # 处理，不得让 np.median([]) 的 NaN 流进许可与 diagnostics JSON。
@@ -865,9 +1083,6 @@ def fuse_bag_views(
     axis_conflict_deg = 0.0
     if envelope.get('conditioned'):
         axis_conflict_deg = _signed_angle_deg(axis, envelope.get('axis'))
-    detection_conflict_deg = 0.0
-    if _unit(detection_axis) is not None:
-        detection_conflict_deg = _signed_angle_deg(axis, detection_axis)
     axis_error_deg = max(sig_a, axis_conflict_deg)
     env_d95 = float(envelope.get('d95_m') or 0.0)
     if env_d95 > 1e-6:
@@ -949,43 +1164,155 @@ def fuse_bag_views(
         int(budget.get('pregrasp_capability', CAPABILITY_UNKNOWN)),
         int(budget.get('sleeve_capability', CAPABILITY_UNKNOWN)),
         int(budget.get('cut_capability', CAPABILITY_UNKNOWN)))
-    model = {
-        'ok': True,
-        'bottom': bottom,
-        'neck': neck,
-        'axis': axis,
-        'entry': entry,
-        'pregrasp': pregrasp,
-        'cut_plane_point': cut['cut'],
-        'cut_pose': cut['cut'],
-        'cut_normal': axis,
-        'cut_to_fruit_m': float(cut['cut_to_fruit_m']),
-        'cut_travel_m': cut_travel,
-        'd95_m': d95,
-        'length_m': length,
-        'fruit_prior_radius_m': fruit_r,
-        'fruit_prior_auxiliary': True,
-        'sigma_position_m': sig_p,
-        'sigma_axis_deg': sig_a,
-        'rmse': rmse,
-        'inlier_ratio': inlier_ratio,
-        'axis_conflict_deg': axis_conflict_deg,
-        'detection_conflict_deg': detection_conflict_deg,
-        'envelope_conditioned': bool(envelope.get('conditioned')),
-        'envelope_span_m': float(envelope.get('span_m') or 0.0),
-        'envelope_d95_m': env_d95,
-        'envelope_reason': str(envelope.get('reason') or ''),
-        'occlusion_class': occlusion,
-        'view_count': len(items),
-        'flags': flags,
-        'budget': budget,
-        'allowed': bool(budget.get('allowed')),
-        'reason': budget.get('reason', ''),
-        'radial_margin_m': float(budget.get('radial_margin_m', 0.0)),
-        'axial_margin_m': float(budget.get('axial_margin_m', 0.0)),
-        'corridor_clear': bool(corridor),
-    }
-    return model
+    return BagModel(
+        ok=True,
+        bottom=bottom,
+        neck=neck,
+        axis=axis,
+        entry=entry,
+        pregrasp=pregrasp,
+        cut_plane_point=cut['cut'],
+        cut_pose=cut['cut'],
+        cut_to_fruit_m=float(cut['cut_to_fruit_m']),
+        cut_travel_m=cut_travel,
+        d95_m=d95,
+        length_m=length,
+        fruit_prior_radius_m=fruit_r,
+        sigma_position_m=sig_p,
+        sigma_axis_deg=sig_a,
+        rmse=rmse,
+        inlier_ratio=inlier_ratio,
+        axis_conflict_deg=axis_conflict_deg,
+        envelope_conditioned=bool(envelope.get('conditioned')),
+        envelope_reason=str(envelope.get('reason') or ''),
+        occlusion_class=occlusion,
+        view_count=len(items),
+        flags=flags,
+        budget=budget,
+        allowed=bool(budget.get('allowed')),
+        reason=budget.get('reason', ''),
+        radial_margin_m=float(budget.get('radial_margin_m', 0.0)),
+        axial_margin_m=float(budget.get('axial_margin_m', 0.0)),
+        corridor_clear=bool(corridor),
+    )
+
+
+def collect_bag_views(frames, target_center,
+                      on_view: Optional[Callable] = None) -> List[BagLandmarks]:
+    """
+    Extract bag landmarks, one cloud per camera pose cluster.
+
+    W4 自节点 ``_collect_bag_views`` 下沉（数学零改动）：按机位聚类选取
+    代表帧（每簇取有效深度占比最高者），对代表帧 base 系点云估计袋
+    关键点。on_view(landmarks, frame) 在每个视角估计成功后回调（节点
+    用于追加 geometry.jsonl 视角行；无 IO 时传 None）。
+
+    Args:
+        frames: 已采帧列表（collector.frames 快照）.
+        target_center: (3,) 绑定目标中心（base 系 [m]）；None 时退全帧.
+        on_view: 可选逐视角回调（不得抛出——视角行写失败不拦融合）.
+
+    Returns
+    -------
+        BagLandmarks 列表（每个代表视角一条）.
+
+    """
+    coverage = summarize_view_coverage(frames, target_center)
+    selected = []
+    if coverage.get('views'):
+        for pose in coverage['views']:
+            indices = pose.get('member_indices') or [pose['index']]
+            valid = [
+                index for index in indices
+                if 0 <= int(index) < len(frames)]
+            if not valid:
+                continue
+            best = max(
+                valid,
+                key=lambda index: float(frames[index].valid_depth_ratio))
+            selected.append(frames[best])
+    else:
+        selected = list(frames)
+    views = []
+    for frame in selected:
+        cloud = getattr(frame, 'cloud_base', None)
+        if cloud is None:
+            continue
+        cloud = np.asarray(cloud, dtype=np.float64)
+        if cloud.ndim != 2 or cloud.shape[0] < 30:
+            continue
+        landmarks = estimate_bag_landmarks(
+            cloud,
+            gravity=np.array([0.0, 0.0, -1.0], dtype=np.float64),
+            valid_depth_ratio=float(frame.valid_depth_ratio))
+        views.append(landmarks)
+        if on_view is not None:
+            on_view(landmarks, frame)
+    return views
+
+
+def merge_fused_bag_model(result: RefitResult, fused: BagModel,
+                          views_count: int, bound_axis_hint,
+                          target_id: str = '') -> RefitResult:
+    """
+    Merge fused geometry into refit result; drop budget on fusion fail.
+
+    W4 自节点 ``_merge_fused_bag_model`` 下沉改纯函数（数学零改动）。
+    不写任何缓存：``_refined``/``_bag_model`` 的成对写入权在编排层
+    ``_run_refit``（见其注释），否则 keep_last_good 分支会留下新旧
+    混合的缓存对。N1：融合轴夹角写 ``fused_axis_angle_deg``（不再覆写
+    refit 值）。N6：不再强制 kind='cylinder'——保留 refit 线原 kind
+    （cylinder/sphere），下游 _refined_fitting_msg 按 kind=='sphere' 判
+    'fruit'，果目标不再误报袋。旧 merge 写的 diagnostic_axis_mismatch
+    为死键（无消费），随裁剪删除——诊断 mismatch 由 _grasp_decision
+    现场计算。
+    """
+    if not fused.ok:
+        result.flags.append('bag_fusion_required')
+        result.ok = False
+        result.budget = {}
+        result.corridor_clear = False
+        result.status = STATUS_REOBSERVE
+        result.reason = str(
+            fused.reason or result.reason or 'bag_model_unavailable')
+        return result
+    result.ok = True
+    result.bottom = fused.bottom
+    result.neck = fused.neck
+    result.axis = fused.axis
+    result.center = 0.5 * (
+        np.asarray(fused.bottom) + np.asarray(fused.neck))
+    result.d95_m = fused.d95_m
+    result.diameter = fused.d95_m
+    result.radius = 0.5 * float(fused.d95_m)
+    result.rmse = float(fused.rmse or 0.0)
+    result.inlier_ratio = float(fused.inlier_ratio or 0.0)
+    result.radial_margin_m = fused.radial_margin_m
+    result.axial_margin_m = fused.axial_margin_m
+    result.corridor_clear = fused.corridor_clear
+    result.budget = fused.budget or {}
+    result.occlusion_class = fused.occlusion_class
+    result.fruit_prior_radius_m = fused.fruit_prior_radius_m
+    result.model_revision = f'{target_id}:{views_count}'
+    result.span_m = float(fused.length_m or 0.0)
+    result.fused_axis_angle_deg = axis_angle_deg(
+        fused.axis, bound_axis_hint)
+    # 融合成功即可接近预抓取；接触许可仍只看 budget.allowed。
+    result.status = STATUS_ACCEPT
+    result.flags.extend(fused.flags or [])
+    result.envelope_conditioned = bool(fused.envelope_conditioned)
+    result.envelope_reason = str(fused.envelope_reason or '')
+    result.axis_conflict_deg = float(fused.axis_conflict_deg or 0.0)
+    result.entry = fused.entry
+    result.pregrasp = fused.pregrasp
+    result.cut_pose = (
+        fused.cut_pose if fused.cut_pose is not None else fused.neck)
+    result.cut_plane_point = (
+        fused.cut_plane_point if fused.cut_plane_point is not None
+        else fused.neck)
+    result.cut_travel_m = float(fused.cut_travel_m or 0.0)
+    result.cut_to_fruit_m = float(fused.cut_to_fruit_m or 0.0)
+    return result
 
 
 def _pregrasp_axis_angle_deg(tool_axis, bag_axis) -> float:

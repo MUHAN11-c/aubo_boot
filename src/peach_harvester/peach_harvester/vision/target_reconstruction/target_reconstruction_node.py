@@ -21,27 +21,26 @@ on-change + 最小间隔节流（心跳/状态/诊断 1Hz 活性发布不动）.
 _query_tf → _finish 三段式），锁内按帧 stamp 复核收口，查询期间 Trigger
 服务/目标观测回调/1Hz 心跳不被堵住（A7 起）.
 
-模块边界：本文件为节点编排壳（decode → `session.process` → 入环）；
-自动状态机在 capture.AutoControllerMixin，发布面在 publish.PublisherMixin。
-`ReconstructionSession.from_params` 装配柱/球 refitter；映射表只在 refine.py。
+模块边界（W4）：本文件为节点编排壳（decode → `session.process` → 入环；
+三段式门禁/构云/提交/TSDF 积分原位保留）。自动状态机、帧环、掩膜缓存与
+发布面本体在 reconstruction_core.ReconstructionCore（Mixin 留过渡薄壳）；
+refit/融合编排在 refit_orchestrator.RefitOrchestrator（本节点只保留
+``_refined``/``_bag_model`` 成对写入与产物版本记账）；session/geometry
+落盘在 session_recorder；TargetModel/PregraspVerification 组装在 publish
+公开函数。`ReconstructionSession.from_params` 装配柱/球 refitter；映射表
+只在 refine.py。
 """
 from __future__ import annotations
 
-from datetime import datetime
 import json
 from pathlib import Path
 import threading
-import time
 from typing import Optional, Tuple
 
 import cv_bridge
-from geometry_msgs.msg import Point, Vector3, Vector3Stamped
+from geometry_msgs.msg import Vector3Stamped
 import message_filters
 import numpy as np
-from peach_common.paths import safe_component
-from peach_harvester.vision.common.bag_landmarks import (
-    estimate_bag_landmarks,
-)
 from peach_harvester.vision.common.geometry import (
     transform_msg_to_matrix,
     transform_points,
@@ -49,7 +48,6 @@ from peach_harvester.vision.common.geometry import (
 from peach_harvester.vision.common.ros.clock_adapter import RclpyClockAdapter
 from peach_harvester.vision.common.runtime import (
     BoundedWorker,
-    HarvestDataStore,
     resolve_runs_root,
 )
 from peach_harvester.vision.common.tool_budget import ToolBudgetParams
@@ -66,43 +64,47 @@ from peach_harvester.vision.target_reconstruction.capture import (
     GATE_NEED_TF,
     GATE_SKIP,
     GateDecision,
-    STATE_COLLECTING,
     STATE_IDLE,
     StrictMaskGate,
     TimingStats,
 )
 from peach_harvester.vision.target_reconstruction.integrate import (
-    assembly_overlap_metrics,
     BoundedIcp,
     IcpConfig,
     IcpTargetCache,
     IcpTargetRefreshConfig,
     LocalTsdf,
     Open3dCloudBuilder,
-    summarize_pairs_mm,
     summarize_view_coverage,
 )
 from peach_harvester.vision.target_reconstruction.params import TargetReconstructionParams
 from peach_harvester.vision.target_reconstruction.publish import (
+    build_pregrasp_verification,
+    fill_target_model,
+    lookup_tool_frame,
     PublisherMixin,
     PublishThrottle,
-    save_session,
+)
+from peach_harvester.vision.target_reconstruction.reconstruction_core import (
+    ReconstructionCore,
 )
 from peach_harvester.vision.target_reconstruction.refine import (
-    axis_angle_deg,
     axis_from_vector3,
     candidate_axis_hint,
-    evaluate_pregrasp,
-    fuse_bag_views,
     RefitConfig,
     select_reconstruction_candidate,
-    select_refitter,
     STATUS_ACCEPT,
-    STATUS_REOBSERVE,
     TargetKindMemory,
+)
+from peach_harvester.vision.target_reconstruction.refit_orchestrator import (
+    RefitOrchestrator,
 )
 from peach_harvester.vision.target_reconstruction.session import (
     ReconstructionSession,
+)
+from peach_harvester.vision.target_reconstruction.session_recorder import (
+    save_session,
+    SessionRecorder,
 )
 from peach_interfaces.action import BuildTargetModel
 from peach_interfaces.msg import (
@@ -138,18 +140,9 @@ from tf2_ros import Buffer, TransformException, TransformListener
 from visualization_msgs.msg import MarkerArray
 
 
-def _xyz_list(value, fallback=(0.0, 0.0, 0.0)):
-    """三维点转三个 float；ndarray 不得走 Python `or`（真值歧义会抛）."""
-    if value is None:
-        value = fallback
-    arr = np.asarray(value, dtype=np.float64).reshape(-1)
-    if arr.size < 3 or not np.all(np.isfinite(arr[:3])):
-        arr = np.asarray(fallback, dtype=np.float64).reshape(-1)
-    return [float(v) for v in arr[:3]]
-
-
 class TargetReconstructionNode(
-        AutoControllerMixin, FrameStoreMixin, PublisherMixin, LifecycleNode):
+        AutoControllerMixin, FrameStoreMixin, PublisherMixin,
+        ReconstructionCore, LifecycleNode):
     """连续运动局部重建 Lifecycle 节点：Active 后才积分与受理 BuildTargetModel."""
 
     params: TargetReconstructionParams
@@ -161,20 +154,13 @@ class TargetReconstructionNode(
     tf_timeout: Duration
     """精确 stamp TF 查询超时."""
     collector: FrameCollector
-    """采帧状态机 + 视角过滤；不查 TF."""
-    _lifecycle_active: bool
-    """仅 Active 才积分 / 受理 BuildTargetModel."""
-    _state_lock: threading.RLock
-    """保护 collector / TSDF / 产物（worker 与 executor 双写）."""
-    _preferred_target_id: str
-    """当前绑定目标；空串=未绑定."""
-    _latest_candidates: Optional[BagGraspCandidateArray]
-    """感知 initial_pose 缓存，供自动绑定."""
+    """采帧状态机 + 视角过滤；不查 TF（共享状态宿主见 ReconstructionCore）."""
 
     def __init__(self):
-        """建节点：参数层一行装载 → 直接构造算法 → ROS 接线."""
-        super().__init__('peach_target_reconstruction_node')
-        self._lifecycle_active = False
+        """建节点：参数层一行装载 → 直接构造算法 → 组装 Core → ROS 接线."""
+        # Mixin 薄壳与 Core 都不提供 LifecycleNode.__init__ 兼容签名，
+        # 显式初始化 ROS 基类（W4；行为与旧 super().__init__ 一致）
+        LifecycleNode.__init__(self, 'peach_target_reconstruction_node')
         self.bridge = cv_bridge.CvBridge()
         # 协议 I3（时钟唯一）：节点时钟适配为纯核 Clock，一切计时走注入 now
         self._algo_clock = RclpyClockAdapter(self.get_clock())
@@ -184,13 +170,6 @@ class TargetReconstructionNode(
         p = self.params
         # 派生量（ROS 类型/容器形态转换，非参数副本）
         self.tf_timeout = Duration(seconds=p.tf_timeout_sec)
-        self.local_volume = (
-            p.local_volume.size_x, p.local_volume.size_y, p.local_volume.size_z)
-        self.tsdf_params = {
-            'voxel_length': p.tsdf.voxel_length,
-            'sdf_trunc': p.tsdf.sdf_trunc,
-            'depth_trunc': p.tsdf.depth_trunc,
-        }
         self.refit_config = RefitConfig(
             cylinder_inlier_min=p.refit.cylinder_inlier_min,
             rmse_max_m=p.refit.rmse_max_m,
@@ -251,78 +230,43 @@ class TargetReconstructionNode(
         # 三件套不经过本节流。on_change_only=false 时编排层整体绕过
         self._publish_throttle = PublishThrottle(
             min_interval_s=p.publish.min_interval_s, now=self._algo_clock.now)
-        # 产物版本号（E4 发布节流的 on-change 判据）：_tsdf_cloud_version
-        # 随 _tsdf_cloud_cache 每次写入递增；_products_version 随任一
-        # 云/Marker 产物（含 refined/mesh）写入递增；清空类事件另置
-        # _products_force_publish 强制下一轮 _publish_all 立即透传
-        self._tsdf_cloud_version = 0
-        self._products_version = 0
-        self._products_force_publish = False
-
-        # 并发收敛选型（方案 b，与 PerceptionPipeline.plan_lock 同模式）：
-        # collector/在线 TSDF/派生产物的竞态源是 worker 线程
-        # （_process_rgbd→_auto_drive）与 executor 线程（订阅/服务回调）
-        # 双写；方案 (a) 把命令类任务也挤进 BoundedWorker 不可行——
-        # capacity=3 且 drop_oldest=False，满队列直接拒收，与「命令不丢」
-        # 冲突，Trigger 服务又需同步应答难以异步化。故用节点级 RLock：
-        # 服务/订阅/自动驱动入口持锁，帧栈、TSDF 积分与全部产物读写均在
-        # 锁内（RLock 允许 _auto_drive→_finalize_now 等锁内嵌套调用）。
-        # 唯一锁外段：采帧门禁的阻塞式精确时刻 TF 查询（_gated_capture_*
-        # 三段式，最长 tf_timeout），查询期间锁空闲、Trigger 服务/观测回调/
-        # 心跳不被堵；锁内 finish 按帧 stamp 复核后落地，杜绝旧帧位姿套新帧。
-        # _latest_frame/_latest_candidates/_max_joint_vel 等单字段原子
-        # 赋值不持锁（CPython 引用赋值原子，读者一次取引用后局部使用）。
-        self._state_lock = threading.RLock()
-        self._view_progress = threading.Event()
-
-        # 同步 RGB-D 帧环：按 stamp_ns 保留最近若干帧，供掩膜滞后对齐。
-        # 元组 (rgb, depth_mm, K, stamp_msg, stamp_sec, cam_frame)。
-        # 只缓存、不直接累积；手动/自动门禁通过后才会入帧栈。
-        # _latest_frame 仍指向环内最新一帧（兼容只读侧）。
-        self._frame_ring_max = 5
-        self._frame_ring: dict = {}
-        self._latest_frame: Optional[tuple] = None
-        self._last_captured_stamp_sec = -1.0  # [s] 上次成功采帧的图像时间戳
-        self._latest_candidates: Optional[BagGraspCandidateArray] = None
-        self._preferred_target_id = ''
-        self._executor_target_id = ''
-        self._executor_state_seen = False
-        self._harvest_run_id = ''
-        self._executor_run_id = ''
-        self._scene_epoch = 0
-        self._target_observation_seen = False
-        self._target_masks = {}
-        # 锁定集目标锚点缓存 {target_id: (3,) base 系中心 [m]}：E2 邻目标
-        # 串扰门数据源（每条 target_observations 全量重建，未锁定恒空）
-        self._locked_target_centers = {}
-        self._locked_target_areas = {}
-        self._harvest_data = HarvestDataStore()
-        self._joint_states_seen = False
-        self._max_joint_vel = 0.0  # [rad/s] 最近 /joint_states 的最大关节速度
-        self._last_tf_latency_ms: Optional[float] = None  # 最近一次 TF 查询墙钟耗时
         # 耗时累计器（阶段 C 埋点）：ICP/TSDF 积分/帧总耗时 EMA + refit/
         # finalize last 值；计时打点用注入时钟（I3），快照进 diagnostics
         # JSON 的 timing 子对象与 session metadata
         self._timing = TimingStats()
-        # finalize 时计算的 overlap 指标缓存（帧栈变动即失效置 None）
-        self._overlap_cache: Optional[dict] = None
-        # TSDF 云缓存：(xyz, colors_bgr) 或 None；finalize 时重建，帧栈变动失效
-        self._tsdf_cloud_cache: Optional[tuple] = None
-        self._tsdf_info: Optional[dict] = None  # diagnostics 的 tsdf 键内容
-        self._tsdf_volume = None  # 每轮 session 持续在线积分
-        self._mesh_cache: Optional[dict] = None
-        # refit：感知 diagnostics 的 target_id→target_kind 映射；
-        # _refined 为 refit 唯一缓存——refit 成功结果 dict 或
-        # {'ok': False, 'reason': ...} 失败记录（None=未跑/已失效），
-        # diagnostics JSON 的 refined 键由 _refined_info() 投影派生
-        self._target_kind_memory = TargetKindMemory()
-        self._refined: Optional[dict] = None
-        self._bag_model: Optional[dict] = None
-        self._pregrasp_prev: Optional[dict] = None
+
+        # —— 组装 Core（W4：Mixin 方法宿主；§3.3 属性盘点显式注入，N12）——
+        ReconstructionCore.__init__(
+            self,
+            collector=self.collector,
+            mask_gate=self._mask_gate,
+            kind_memory=TargetKindMemory(),
+            params=self.params,
+            algo_clock=self._algo_clock,
+            logger=self.get_logger(),
+            timing=self._timing,
+            throttle=self._publish_throttle,
+            icp_target_cache=self._icp_target_cache)
+
+        # refit 编排纯核（_run_refit 计算本体；成对写入约定见 _run_refit）
+        self._refit_orchestrator = RefitOrchestrator(
+            self._refitters, self.refit_config, self._timing,
+            self.get_logger(), now=self._algo_clock.now)
+        # session/geometry 落盘纯核（锁外写盘，W2/R4；参数快照走 snapshot）
+        self._recorder = SessionRecorder(
+            root_resolver=lambda: resolve_runs_root(
+                self.params.session.root_dir))
+
+        # —— 节点专属状态（共享状态均在 Core；_harvest_run_id/_scene_epoch
+        # 等 Core 已初始化的属性不重复置位）——
+        self._view_progress = threading.Event()
+        self._executor_target_id = ''
+        self._executor_state_seen = False
+        self._target_observation_seen = False
+        self._joint_states_seen = False
+        self._max_joint_vel = 0.0  # [rad/s] 最近 /joint_states 的最大关节速度
         # BuildTargetModel 单槽重入护栏（goal 回调置位，执行体 finally 清零）
         self._build_goal_active = False
-        # 球体 refit 无法独立恢复姿态轴；绑定时冻结感知侧果梗/凹陷方向先验。
-        self._bound_axis_hint = None
         # ROS 实体（发布器/订阅/服务/ActionServer/TF/心跳）统一在 on_configure
         # 创建（官方 LifecycleNode 写法：Unconfigured 期零 ROS 接口，configure
         # 失败即 ERROR），on_cleanup 释放；见 _wire_ros / _unwire_ros。
@@ -531,7 +475,7 @@ class TargetReconstructionNode(
         return TransitionCallbackReturn.SUCCESS
 
     def on_activate(self, state):
-        result = super().on_activate(state)
+        result = LifecycleNode.on_activate(self, state)
         self._lifecycle_active = True
         # 激活后首发一次（IDLE + 空云），闩锁话题让后启动的订阅者立即可读
         self._publish_all()
@@ -540,12 +484,12 @@ class TargetReconstructionNode(
 
     def on_deactivate(self, state):
         self._lifecycle_active = False
-        return super().on_deactivate(state)
+        return LifecycleNode.on_deactivate(self, state)
 
     def on_cleanup(self, state):
         self._lifecycle_active = False
         self._unwire_ros()
-        return super().on_cleanup(state)
+        return LifecycleNode.on_cleanup(self, state)
 
     def _on_build_goal(self, goal_request):
         del goal_request
@@ -832,107 +776,6 @@ class TargetReconstructionNode(
     # ------------------------------------------------------------------
     # 服务回调
     # ------------------------------------------------------------------
-    def _create_volume(self):
-        """建一个空融合体积（LocalTsdf 唯一实现；I3 注入时钟）."""
-        return LocalTsdf(
-            now=self._algo_clock.now, **self.tsdf_params)
-
-    def _bump_products_version(self, tsdf_cloud: bool = False) -> None:
-        """
-        产物版本号递增（E4 发布节流的 on-change 判据；须持 _state_lock）.
-
-        Args:
-            tsdf_cloud: True 表示 _tsdf_cloud_cache 也被写入（同步递增
-                tsdf_cloud 版本）.
-
-        Returns
-        -------
-            无返回值（None）.
-
-        """
-        self._products_version += 1
-        if tsdf_cloud:
-            self._tsdf_cloud_version += 1
-
-    def _reset_products(self, create_volume: bool) -> None:
-        """清空本轮派生结果；开始新轮时同时创建一个空在线 TSDF."""
-        # 预抓取验证的一致性比对基点一并清空：换目标后首拍不得与上一
-        # 目标（甚至上一轮）的残差比 frames_consistent。
-        self._pregrasp_prev = None
-        self._overlap_cache = None
-        self._tsdf_cloud_cache = None
-        self._tsdf_info = None
-        self._mesh_cache = None
-        self._refined = None
-        # 与 _refined 成对清空：换目标后 _bag_model 若残留旧目标融合结果，
-        # PregraspVerification/TargetModel 会拿上一颗的袋模型报残差。
-        self._bag_model = None
-        self._tsdf_volume = None
-        # E4：模型已清空，ICP target 缓存作废（下次采帧强制全量刷新）；
-        # 版本号递增 + force 标志使下一轮 _publish_all 立即透传空产物
-        # （RViz 同步刷新不被 on-change/间隔门抑制）
-        self._icp_target_cache.invalidate()
-        self._bump_products_version(tsdf_cloud=True)
-        self._products_force_publish = True
-        if create_volume and self.params.tsdf.enable:
-            self._tsdf_volume = self._create_volume()
-
-    def _roi_center(self):
-        """返回局部体素盒中心；候选缺失时退到首帧局部云质心."""
-        center = self.collector.target_center
-        if center is None and self.collector.frames:
-            first = self.collector.frames[0].cloud_base
-            if first is not None and len(first):
-                center = np.asarray(first).mean(axis=0)
-        return center
-
-    def _refresh_tsdf_outputs(self, extract_mesh: bool = False) -> None:
-        """
-        从当前在线体积刷新局部点云；finalize 时额外提取网格.
-
-        E4：本方法是 TSDF 全量 extract 的唯一入口（采帧路径受
-        IcpTargetCache 节流，每 k 帧或关键事件才调用）；每次调用同步
-        重置 ICP target 复用基线并递增 tsdf_cloud 产物版本号。
-        """
-        if self._tsdf_volume is None:
-            self._tsdf_cloud_cache = None
-            self._mesh_cache = None
-            # 体积不存在：产物清空 + target 缓存作废（防御性路径，
-            # 正常流程采帧/ finalize 前体积必已创建）
-            self._icp_target_cache.invalidate()
-            self._bump_products_version(tsdf_cloud=True)
-            return
-        xyz, colors = self._tsdf_volume.extract_cloud()
-        center = self._roi_center()
-        if center is not None and xyz.size:
-            xyz, colors = LocalTsdf.crop_to_box(
-                xyz, colors, center, self.local_volume)
-        if self.params.cloud_filter.voxel_size > 0.0:
-            xyz, colors = LocalTsdf.voxel_downsample(
-                xyz, colors, self.params.cloud_filter.voxel_size)
-        if self.params.cloud_filter.enable_statistical_filter:
-            xyz, colors = LocalTsdf.statistical_filter(xyz, colors)
-        self._tsdf_cloud_cache = (xyz, colors)
-        # E4：全量提取结果即 ICP target 复用基线（帧到模型语义不变，
-        # 仅 extract 频率从逐帧降为每 k 帧）
-        self._icp_target_cache.set_full(xyz)
-        self._bump_products_version(tsdf_cloud=True)
-        if extract_mesh:
-            self._mesh_cache = self._tsdf_volume.extract_mesh(
-                center=center, size_xyz=self.local_volume)
-        self._tsdf_info = {
-            'points': int(xyz.shape[0]),
-            'integrated_frames': len(self.collector.frames),
-            'integrate_time_s': float(self._tsdf_volume.integrate_time_s),
-            'voxel_length': self.tsdf_params['voxel_length'],
-            'sdf_trunc': self.tsdf_params['sdf_trunc'],
-            'mesh_vertices': int(
-                0 if self._mesh_cache is None
-                else len(self._mesh_cache['vertices'])),
-            'roi_center': (None if center is None
-                           else [float(v) for v in center]),
-        }
-
     def _best_candidate(self) -> Tuple[str, Optional[np.ndarray]]:
         """取全局计划选中且坐标系与 TF 诊断均安全的候选."""
         if (self.params.capture.require_target_mask
@@ -1087,11 +930,9 @@ class TargetReconstructionNode(
     def _crop_for_icp(self, cloud_fk, cloud_rgb):
         """把 ICP 输入裁到目标局部盒，避免背景主导刚体修正."""
         center = self._roi_center()
-        if center is None:
-            center = self.collector.target_center
         if center is not None and cloud_fk.size:
             return LocalTsdf.crop_to_box(
-                cloud_fk, cloud_rgb, center, self.local_volume)
+                cloud_fk, cloud_rgb, center, self._local_volume)
         return cloud_fk, cloud_rgb
 
     def _register_cloud(self, cloud_fk, target):
@@ -1290,126 +1131,13 @@ class TargetReconstructionNode(
             self._publish_all()
             return response
 
-    def _finalize_now(self) -> Tuple[bool, str]:
-        """
-        共享 finalize：状态迁移、重叠指标、最终网格与几何精化.
-
-        Returns
-        -------
-            (ok, message)；ok=False 时保持 COLLECTING.
-
-        """
-        # finalize 总耗时起点（含重叠指标、TSDF 最终提取、refit 全链；
-        # 成功/失败路径都记 last 值）
-        t_finalize0 = self._algo_clock.now()
-        coverage = summarize_view_coverage(
-            self.collector.frames, self.collector.target_center)
-        pose_count = int(coverage.get('view_count') or 0)
-        min_views = int(self.params.capture.min_views)
-        if pose_count < min_views:
-            message = (
-                f'已采 {pose_count} 机位 < min_views={min_views}，'
-                '继续采帧或 reset')
-            self.get_logger().warning(message)
-            self._timing.record_finalize(
-                (self._algo_clock.now() - t_finalize0) * 1000.0)
-            self._publish_all()
-            return False, message
-        ok, message, _cloud = self.collector.finalize()
-        if not ok:
-            self._overlap_cache = None
-            self._tsdf_cloud_cache = None
-            self._tsdf_info = None
-            self._refined = None
-            self._bag_model = None
-            self._bump_products_version(tsdf_cloud=True)
-            self.get_logger().warning(message)
-        else:
-            self._overlap_cache = assembly_overlap_metrics(self.collector.frames)
-            summary = summarize_pairs_mm(self._overlap_cache['pairs'])
-            if summary is None:
-                message += '；重叠指标需 ≥2 帧，本批次不可用'
-            else:
-                message += (f'；重叠 mean={summary["mean_mm"]:.1f}mm '
-                            f'p95={summary["p95_mm"]:.1f}mm')
-            product_ok = True
-            if self.params.tsdf.enable:
-                message += self._run_tsdf()
-                product_ok = (
-                    self._tsdf_cloud_cache is not None
-                    and self._tsdf_cloud_cache[0].size)
-                if not product_ok:
-                    message += '；TSDF 产物为空'
-                elif self.params.refit.enable:
-                    message += self._run_refit(
-                        keep_last_good=False, mark_final=True)
-                    if not (self._refined and self._refined.get('ok')):
-                        product_ok = False
-                        message += '；refit 未产出可用几何'
-            if product_ok:
-                self.get_logger().info(message)
-                self._harvest_data.append_event({
-                    'source': 'reconstruction',
-                    'event': 'reconstruction_finalized',
-                    'target_id': self.collector.target_id,
-                    'captured_views': len(self.collector.frames),
-                    'pose_count': pose_count,
-                    'refined': self._refined_info(),
-                    'grasp_decision': self._grasp_decision(),
-                })
-            else:
-                # 已提取的 TSDF 留给 RViz；状态退回 COLLECTING，Build 失败
-                ok = False
-                self.collector.state = STATE_COLLECTING
-                self.get_logger().warning(message)
-        self._timing.record_finalize((self._algo_clock.now() - t_finalize0) * 1000.0)
-        self._publish_all()
-        return ok, message
-
-    def _run_tsdf(self) -> str:
-        """
-        从在线 TSDF 提取最终点云和三角网格.
-
-        每帧已在 _commit_prepared_frame 中完成积分；此处禁止再次批量积分，只做
-        ROI 点云后处理与 Open3D marching-cubes 网格提取.
-
-        Returns
-        -------
-            追加到 finalize message 的片段（如 '；TSDF 123456 点'）.
-
-        """
-        try:
-            self._refresh_tsdf_outputs(extract_mesh=True)
-            xyz = self._tsdf_cloud_cache[0]
-            mesh_vertices = (
-                0 if self._mesh_cache is None
-                else len(self._mesh_cache['vertices']))
-        except Exception as exc:  # noqa: BLE001
-            self._tsdf_cloud_cache = None
-            self._tsdf_info = None
-            self._mesh_cache = None
-            # E4：提取失败清空产物，版本号递增保证闩锁话题覆盖旧内容
-            self._bump_products_version(tsdf_cloud=True)
-            self.get_logger().error(f'TSDF 最终提取失败: {exc}')
-            return f'；TSDF 提取失败（{exc}）'
-        return (f'；TSDF {xyz.shape[0]} 点'
-                f' / mesh {mesh_vertices} 顶点'
-                f'（累计积分 {self._tsdf_volume.integrate_time_s:.2f}s）')
-
     def _run_refit(self, keep_last_good: bool = False,
                    mark_final: bool = False) -> str:
         """
-        Fuse bag landmarks; TSDF cylinder/sphere is visualization only.
+        refit/袋融合编排壳（计算本体在 RefitOrchestrator.run）.
 
-        Contact authority is the fused bag model plus dynamic budget.
-        TSDF cloud supplies envelope-axis consistency only; squat volumes
-        skip the 12° veto. Fusion still runs from cloud_base when TSDF is
-        enabled-but-empty. NOTE: caller gates this on tsdf.enable — with
-        tsdf disabled, refit/fusion is skipped entirely and GraspDecision
-        stays refined_geometry_unavailable (raw-cloud accumulation only).
-        keep_last_good keeps the last bag model that already has
-        a budget. Finalize marks the result final. GraspDecision still
-        requires collector.state==READY.
+        本方法只保留缓存成对写入与产物版本记账。融合数学与门控语义见
+        refit_orchestrator/refine docstring（W4 自本方法下沉，零改动）。
 
         Returns
         -------
@@ -1418,53 +1146,28 @@ class TargetReconstructionNode(
         """
         previous = self._refined if keep_last_good else None
         kind, defaulted = self._resolve_target_kind()
-        has_tsdf = (
-            self._tsdf_cloud_cache is not None
-            and self._tsdf_cloud_cache[0].size)
-        result = None
-        if has_tsdf:
-            xyz = self._tsdf_cloud_cache[0]
-            self.get_logger().info(
-                f'REFINING：几何二次拟合开始（kind={kind}，{xyz.shape[0]} 点）')
-            t_refit0 = self._algo_clock.now()
-            try:
-                result = select_refitter(self._refitters, kind).refit(
-                    xyz, kind, self.refit_config, self._bound_axis_hint)
-                self._timing.record_refit(
-                    (self._algo_clock.now() - t_refit0) * 1000.0)
-            except Exception as exc:  # noqa: BLE001
-                self._timing.record_refit(
-                    (self._algo_clock.now() - t_refit0) * 1000.0)
-                self.get_logger().warning(f'refit 异常: {exc}')
-                result = {
-                    'ok': False, 'reason': f'exception:{exc}',
-                    'kind': kind, 'n_points': int(xyz.shape[0]),
-                    'flags': []}
-            if defaulted and result is not None:
-                result.setdefault('flags', []).append('target_kind_defaulted')
+        if (self._tsdf_cloud_cache is not None
+                and self._tsdf_cloud_cache[0].size):
+            tsdf_xyz = self._tsdf_cloud_cache[0]
         else:
-            result = {
-                'ok': False, 'reason': 'no_tsdf_cloud',
-                'kind': kind, 'n_points': 0, 'flags': ['no_tsdf_cloud']}
-        result = result or {
-            'ok': False, 'reason': 'refit_missing', 'kind': kind,
-            'n_points': 0, 'flags': []}
-        result['final'] = bool(mark_final)
-        views = self._collect_bag_views()
-        cloud_xyz = (
-            self._tsdf_cloud_cache[0] if has_tsdf else None)
-        fused = fuse_bag_views(
-            views,
-            cloud_xyz=cloud_xyz,
-            detection_axis=self._bound_axis_hint,
+            tsdf_xyz = None
+        result, fused = self._refit_orchestrator.run(
+            tsdf_xyz=tsdf_xyz,
+            frames=list(self.collector.frames),
+            target_center=self.collector.target_center,
+            kind=kind,
+            kind_defaulted=defaulted,
+            bound_axis_hint=self._bound_axis_hint,
+            target_id=self.collector.target_id,
             entry_standoff_m=float(self.params.refit.entry_standoff_m),
-            pregrasp_standoff_m=float(
-                self.params.refit.pregrasp_standoff_m),
+            pregrasp_standoff_m=float(self.params.refit.pregrasp_standoff_m),
             # 许可数学内径随当前工具档案（tool_profile launch 注入）
-            params=ToolBudgetParams(
-                d_inner=float(self.params.tool.budget.d_inner)))
-        result = self._merge_fused_bag_model(result, fused, views)
-        if result.get('ok') and result.get('budget'):
+            budget_params=ToolBudgetParams(
+                d_inner=float(self.params.tool.budget.d_inner)),
+            mark_final=mark_final,
+            previous=previous,
+            on_view=self._on_view_geometry)
+        if result.ok and result.budget:
             # _refined/_bag_model 须成对写入：GraspDecision 读 _refined、
             # PregraspVerification/TargetModel 读 _bag_model，只写一个会让
             # 同一时刻「许可与残差观测」互相矛盾。
@@ -1474,122 +1177,16 @@ class TargetReconstructionNode(
             self._bump_products_version()
             self._products_force_publish = True
             status_text = (
-                'ACCEPT' if result.get('status') == STATUS_ACCEPT
-                else 'REOBSERVE')
-            self.get_logger().info(
-                f"REFINING 完成：{result.get('kind')} status={status_text} "
-                f"final={result['final']} "
-                f"axis={np.round(result['axis'], 4).tolist()} "
-                f"diameter={float(result.get('diameter') or 0) * 1000.0:.1f}mm")
-            return (f'；refit {status_text}（袋模型 '
-                    f"{fused.get('view_count', 0)} 视）")
-        if previous and previous.get('ok') and previous.get('budget'):
+                'ACCEPT' if result.status == STATUS_ACCEPT else 'REOBSERVE')
+            return f'；refit {status_text}（袋模型 {fused.view_count} 视）'
+        if (previous is not None and previous.ok and previous.budget):
             # keep_last_good：两个缓存都不动（_bag_model 由成对写入维护），
             # 避免旧 good _refined 配新失败 _bag_model 的矛盾对。
-            self.get_logger().warning(
-                f"refit/融合未收敛，保留上一帧袋模型：{result.get('reason')}")
-            return f'；refit 未更新（{result.get("reason")}）'
+            return f'；refit 未更新（{result.reason}）'
         self._refined = result
         self._bag_model = fused
         self._bump_products_version()
-        self.get_logger().warning(
-            f"REFINING：无接触权威几何（{result.get('reason')}）")
-        return f'；refit 失败（{result.get("reason")}）'
-
-    def _collect_bag_views(self) -> list:
-        """Extract bag landmarks, one cloud per camera pose cluster."""
-        frames = list(self.collector.frames)
-        coverage = summarize_view_coverage(frames, self.collector.target_center)
-        selected = []
-        if coverage.get('views'):
-            for pose in coverage['views']:
-                indices = pose.get('member_indices') or [pose['index']]
-                valid = [
-                    index for index in indices
-                    if 0 <= int(index) < len(frames)]
-                if not valid:
-                    continue
-                best = max(
-                    valid,
-                    key=lambda index: float(frames[index].valid_depth_ratio))
-                selected.append(frames[best])
-        else:
-            selected = frames
-        views = []
-        for frame in selected:
-            cloud = getattr(frame, 'cloud_base', None)
-            if cloud is None:
-                continue
-            cloud = np.asarray(cloud, dtype=np.float64)
-            if cloud.ndim != 2 or cloud.shape[0] < 30:
-                continue
-            landmarks = estimate_bag_landmarks(
-                cloud,
-                gravity=np.array([0.0, 0.0, -1.0], dtype=np.float64),
-                valid_depth_ratio=float(frame.valid_depth_ratio))
-            views.append(landmarks)
-            self._log_view_geometry(landmarks, frame)
-        return views
-
-    def _merge_fused_bag_model(self, result: dict, fused: dict, views) -> dict:
-        """
-        Merge fused geometry into refit result; drop budget on fusion fail.
-
-        不直接写 ``self._bag_model``：成对写入权在 ``_run_refit``（见其
-        注释），否则 keep_last_good 分支会留下新旧混合的缓存对。
-        """
-        if not fused.get('ok'):
-            result.setdefault('flags', []).append('bag_fusion_required')
-            result['ok'] = False
-            result['budget'] = {}
-            result['corridor_clear'] = False
-            result['status'] = STATUS_REOBSERVE
-            result['reason'] = str(
-                fused.get('reason') or result.get('reason') or
-                'bag_model_unavailable')
-            return result
-        result['ok'] = True
-        result['kind'] = 'cylinder'
-        result['bottom'] = fused['bottom']
-        result['neck'] = fused['neck']
-        result['axis'] = fused['axis']
-        result['center'] = 0.5 * (
-            np.asarray(fused['bottom']) + np.asarray(fused['neck']))
-        result['d95_m'] = fused['d95_m']
-        result['diameter'] = fused['d95_m']
-        result['radius'] = 0.5 * float(fused['d95_m'])
-        result['rmse'] = float(fused.get('rmse') or 0.0)
-        result['inlier_ratio'] = float(fused.get('inlier_ratio') or 0.0)
-        result.setdefault('n_points', 0)
-        result['radial_margin_m'] = fused['radial_margin_m']
-        result['axial_margin_m'] = fused['axial_margin_m']
-        result['corridor_clear'] = fused['corridor_clear']
-        result['budget'] = fused.get('budget') or {}
-        result['occlusion_class'] = fused.get('occlusion_class', '')
-        result['fruit_prior_radius_m'] = fused.get(
-            'fruit_prior_radius_m', 0.0)
-        result['model_revision'] = (
-            f'{self.collector.target_id}:{len(views)}')
-        result['span_m'] = float(fused.get('length_m') or 0.0)
-        angle = axis_angle_deg(fused['axis'], self._bound_axis_hint)
-        result['axis_angle_deg'] = angle
-        max_deg = float(self.refit_config.max_axis_angle_deg)
-        result['diagnostic_axis_mismatch'] = bool(
-            angle is not None and angle > max_deg)
-        # 融合成功即可接近预抓取；接触许可仍只看 budget.allowed。
-        result['status'] = STATUS_ACCEPT
-        result.setdefault('flags', []).extend(fused.get('flags') or [])
-        result['envelope_conditioned'] = bool(fused.get('envelope_conditioned'))
-        result['envelope_reason'] = str(fused.get('envelope_reason') or '')
-        result['axis_conflict_deg'] = float(fused.get('axis_conflict_deg') or 0.0)
-        result['entry'] = fused['entry']
-        result['pregrasp'] = fused.get('pregrasp')
-        result['cut_pose'] = fused.get('cut_pose', fused['neck'])
-        result['cut_plane_point'] = fused.get(
-            'cut_plane_point', fused['neck'])
-        result['cut_travel_m'] = float(fused.get('cut_travel_m') or 0.0)
-        result['cut_to_fruit_m'] = float(fused.get('cut_to_fruit_m') or 0.0)
-        return result
+        return f'；refit 失败（{result.reason}）'
 
     def _on_finalize(self, request, response):
         """~/finalize_reconstruction：机位与帧数达标则拼接全部帧发 local_cloud."""
@@ -1607,21 +1204,24 @@ class TargetReconstructionNode(
             self._executor_target_id = str(msg.target_id or '')
             # 单根会话目录（R7）：批次 request_id 驱动 session/geometry 与
             # 事件库基目录（与感知 datastore 同一 runs/<request_id>/ 根）
-            self._executor_run_id = str(msg.run_id or '')
+            executor_run_id = str(msg.run_id or '')
             self._scene_epoch = int(getattr(msg, 'scene_epoch', 0) or 0)
             self._harvest_data.base_dir = (
-                resolve_runs_root(None) / self._executor_run_id
+                resolve_runs_root(None) / executor_run_id
                 / 'perception_data'
-                if self._executor_run_id else None)
+                if executor_run_id else None)
+            self._recorder.bind_executor_run_id(executor_run_id)
 
     def _wait_min_views(self, goal_handle, target_id: str, timeout_s: float):
         """等独立机位数与角基线同时达标（或取消/超时）."""
         capture = self.params.capture
         min_views = int(capture.min_views)
-        deadline = time.monotonic() + timeout_s
+        # I3（时钟唯一）：等待/超时走注入 _algo_clock（旧 time.monotonic
+        # 直取违反协议；Event 机制不动）
+        deadline = self._algo_clock.now() + timeout_s
         last_poses = -1
         pose_count, bound = 0, ''
-        while time.monotonic() < deadline:
+        while self._algo_clock.now() < deadline:
             if goal_handle.is_cancel_requested:
                 return 'canceled', pose_count, bound
             with self._state_lock:
@@ -1650,7 +1250,7 @@ class TargetReconstructionNode(
                 goal_handle.publish_feedback(feedback)
             if (target_id and bound == target_id and coverage_ready):
                 return 'ready', pose_count, bound
-            remaining = deadline - time.monotonic()
+            remaining = deadline - self._algo_clock.now()
             if remaining <= 0.0:
                 break
             self._view_progress.wait(timeout=min(0.5, remaining))
@@ -1787,333 +1387,83 @@ class TargetReconstructionNode(
         return response
 
     # ------------------------------------------------------------------
-    # 自动模式（决策纯逻辑在 FrameCollector，这里只做 TF/订阅接线）
+    # 落盘薄壳（本体在 session_recorder；W4）
     # ------------------------------------------------------------------
     def _session_root(self) -> Path:
-        """
-        Session 根：批次在跑=runs/<request_id>/sessions（单根，R7）.
-
-        无批次回退旧布局（配置根/工作区 runs/）。request_id 为消息来源，
-        入路径前经 safe_component 净化（W1 路径穿越修复）。
-        """
-        if self._executor_run_id:
-            return (resolve_runs_root(None) /
-                    safe_component(self._executor_run_id, 'harvest') /
-                    'sessions')
-        return resolve_runs_root(self.params.session.root_dir)
-
-    def _session_metadata(self) -> dict:
-        """参数快照与帧级摘要（随 metadata.yaml 落盘，供离线复现）."""
-        c = self.collector
-        return {
-            'created': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-            'node': 'peach_target_reconstruction_node',
-            'pipeline': 'exact-time FK + bounded ICP + online TSDF + refit',
-            'harvest_run_id': self._harvest_run_id,
-            'selected_target_id': self._preferred_target_id,
-            'target_mask_cache_size': len(self._target_masks),
-            'state': c.state,
-            'target_id': c.target_id,
-            'target_center_base': (None if c.target_center is None
-                                   else [float(v) for v in c.target_center]),
-            'captured_views': len(c.frames),
-            'rejected_views': c.rejected_views,
-            'tf_failures': c.tf_failures,
-            'skipped_views': c.skipped_views,
-            'skip_reasons': dict(c.skip_reasons),
-            'last_skip_code': c.last_skip_code,
-            'view_coverage': summarize_view_coverage(
-                c.frames, c.target_center),
-            'parameters': {
-                'frames.base_frame': self.params.frames.base_frame,
-                'sync_slop_s': self.params.sync_slop_s,
-                'tf_timeout_sec': self.params.tf_timeout_sec,
-                'depth_scale_unit': self.params.depth_scale_unit,
-                'capture.min_views': self.params.capture.min_views,
-                'capture.recommended_views': self.params.capture.recommended_views,
-                'capture.max_views': self.params.capture.max_views,
-                'capture.require_robot_static': self.params.capture.require_robot_static,
-                'capture.static_joint_vel_thresh': self.params.capture.static_joint_vel_thresh,
-                'capture.max_frame_age_s': self.params.capture.max_frame_age_s,
-                'view_filter.min_translation': self.params.view_filter.min_translation,
-                'view_filter.min_rotation_deg': self.params.view_filter.min_rotation_deg,
-                'icp.enable': self.params.icp.enable,
-                'icp.min_points': self.icp_config.min_points,
-                'icp.coarse_voxel': self.icp_config.coarse_voxel,
-                'icp.fine_voxel': self.icp_config.fine_voxel,
-                'icp.coarse_correspondence':
-                    self.icp_config.coarse_correspondence,
-                'icp.fine_correspondence':
-                    self.icp_config.fine_correspondence,
-                'icp.min_fitness': self.icp_config.min_fitness,
-                'icp.max_rmse': self.icp_config.max_rmse,
-                'icp.max_translation': self.icp_config.max_translation,
-                'icp.max_rotation_deg': self.icp_config.max_rotation_deg,
-                'icp.target_refresh_min_period':
-                    self.params.icp.target_refresh_min_period,
-                'icp.target_refresh_max_period':
-                    self.params.icp.target_refresh_max_period,
-                'icp.target_refresh_drift_ratio':
-                    self.params.icp.target_refresh_drift_ratio,
-                'local_volume.size_x': self.local_volume[0],
-                'local_volume.size_y': self.local_volume[1],
-                'local_volume.size_z': self.local_volume[2],
-                'tsdf.enable': self.params.tsdf.enable,
-                'tsdf.voxel_length': self.tsdf_params['voxel_length'],
-                'tsdf.sdf_trunc': self.tsdf_params['sdf_trunc'],
-                'tsdf.depth_trunc': self.tsdf_params['depth_trunc'],
-                'cloud_filter.voxel_size': self.params.cloud_filter.voxel_size,
-                'cloud_filter.enable_statistical_filter':
-                    self.params.cloud_filter.enable_statistical_filter,
-                'refit.enable': self.params.refit.enable,
-                'refit.cylinder_inlier_min':
-                    self.refit_config.cylinder_inlier_min,
-                'refit.rmse_max_m': self.refit_config.rmse_max_m,
-                'refit.entry_standoff_m':
-                    self.params.refit.entry_standoff_m,
-                'refit.pregrasp_standoff_m':
-                    self.params.refit.pregrasp_standoff_m,
-                'refit.max_axis_angle_deg':
-                    self.refit_config.max_axis_angle_deg,
-            },
-            'tsdf_result': self._tsdf_info,
-            'refined_result': self._refined_info(),
-            # 耗时基线（与 diagnostics JSON 的 timing 子对象同契约同实例）
-            'timing': self._timing.snapshot(),
-            'frames': [{
-                'index': i,
-                'stamp_sec': float(f.stamp),
-                'valid_depth_ratio': float(f.valid_depth_ratio),
-                'camera_position_base': [float(v)
-                                         for v in f.camera_position_base],
-                'cloud_points': int(0 if f.cloud_base is None
-                                    else f.cloud_base.shape[0]),
-                'diagnostic_flags': list(f.diagnostic_flags),
-                'T_base_camera_fk': np.asarray(
-                    f.T_base_camera_fk, dtype=np.float64).tolist(),
-                'T_base_camera_used': np.asarray(
-                    f.T_base_camera, dtype=np.float64).tolist(),
-                'registration': dict(f.registration),
-            } for i, f in enumerate(c.frames)],
-        }
+        """Session 根（本体 session_recorder.SessionRecorder；R7 单根 + W1 净化）."""
+        return self._recorder.session_root()
 
     def _geometry_root(self) -> Path:
-        """
-        geometry.jsonl 根：批次=runs/<request_id>/（单根批根，R7）.
+        """geometry.jsonl 根（本体 session_recorder.SessionRecorder；R7 批根）."""
+        return self._recorder.geometry_root()
 
-        request_id 消息来源，入路径前净化（W1 路径穿越修复）。
-        """
-        if self._executor_run_id:
-            return (resolve_runs_root(None) /
-                    safe_component(self._executor_run_id, 'harvest'))
-        return resolve_runs_root(self.params.session.root_dir)
+    def _session_metadata(self) -> dict:
+        """参数快照与帧级摘要（组装在 SessionRecorder；快照走 params.snapshot）."""
+        return self._recorder.session_metadata(
+            collector=self.collector,
+            parameters=self.params.snapshot(),
+            harvest_run_id=self._harvest_run_id,
+            selected_target_id=self._preferred_target_id,
+            target_mask_cache_size=len(self._target_masks),
+            tsdf_result=self._tsdf_info,
+            refined_result=self._refined_info(),
+            timing=self._timing.snapshot())
 
-    def _log_geometry_row(self, result: dict, fused: dict) -> None:
-        """追加 geometry.jsonl，供离线基线复算."""
-        root = self._geometry_root()
-        path = Path(root) / 'geometry.jsonl'
-        try:
-            path.parent.mkdir(parents=True, exist_ok=True)
-            cut_pose = fused.get('cut_pose')
-            if cut_pose is None:
-                cut_pose = result.get('neck')
-            row = {
-                'target_id': self.collector.target_id,
-                'bag_bottom': _xyz_list(result.get('bottom')),
-                'bag_neck': _xyz_list(result.get('neck')),
-                'axis': _xyz_list(result.get('axis'), (0.0, 0.0, 1.0)),
-                'd95_m': float(result.get('d95_m') or result.get('diameter') or 0),
-                'length_m': float(fused.get('length_m') or result.get('span_m') or 0),
-                'sigma_position_m': float(fused.get('sigma_position_m') or 0.02),
-                'sigma_axis_deg': float(fused.get('sigma_axis_deg') or 8.0),
-                'radial_margin_m': float(fused.get('radial_margin_m') or 0.0),
-                'axial_margin_m': float(fused.get('axial_margin_m') or 0.0),
-                'occlusion_class': str(fused.get('occlusion_class') or ''),
-                'allowed': bool(fused.get('allowed')),
-                'reason': str(fused.get('reason') or ''),
-                'view_count': int(fused.get('view_count') or 0),
-                'axis_conflict_deg': float(
-                    fused.get('axis_conflict_deg') or 0.0),
-                'envelope_conditioned': bool(
-                    fused.get('envelope_conditioned')),
-                'envelope_reason': str(fused.get('envelope_reason') or ''),
-                'cut_pose': _xyz_list(cut_pose),
-                'cut_to_fruit_m': float(fused.get('cut_to_fruit_m') or 0.0),
-                'cut_travel_m': float(fused.get('cut_travel_m') or 0.0),
-                'rmse_m': float(fused.get('rmse') or 0.0),
-                'inlier_ratio': float(fused.get('inlier_ratio') or 0.0),
-                'corridor_clear': bool(fused.get('corridor_clear')),
-                'flags': list(fused.get('flags') or []),
-                'fused': True,
-            }
-            with path.open('a', encoding='utf-8') as stream:
-                stream.write(json.dumps(row, ensure_ascii=False) + '\n')
-        except Exception as exc:  # noqa: BLE001
-            self.get_logger().warning(f'geometry.jsonl 写入失败: {exc}')
+    def _log_geometry_row(self, result, fused) -> None:
+        """追加 geometry.jsonl 融合行（本体 SessionRecorder.geometry_row）."""
+        self._recorder.geometry_row(result, fused, self.collector.target_id)
 
-    def _log_view_geometry(self, landmarks, frame) -> None:
-        """单视角袋关键点行，供多视角离散度基线."""
-        if landmarks.bottom_center is None or landmarks.neck_center is None:
-            return
-        root = self._geometry_root()
-        path = Path(root) / 'geometry.jsonl'
-        try:
-            path.parent.mkdir(parents=True, exist_ok=True)
-            row = {
-                'target_id': self.collector.target_id,
-                'bag_bottom': [float(v) for v in landmarks.bottom_center],
-                'bag_neck': [float(v) for v in landmarks.neck_center],
-                'axis': [float(v) for v in (
-                    landmarks.bag_axis if landmarks.bag_axis is not None
-                    else (0, 0, 1))],
-                'd95_m': float(landmarks.d95_m or 0.0),
-                'length_m': float(np.linalg.norm(
-                    landmarks.neck_center - landmarks.bottom_center)),
-                'sigma_position_m': float(landmarks.sigma_position_m),
-                'sigma_axis_deg': float(landmarks.sigma_axis_deg),
-                'occlusion_class': str(landmarks.occlusion_class or ''),
-                'flags': list(landmarks.flags),
-                'stamp_sec': float(getattr(frame, 'stamp', 0.0) or 0.0),
-                'fused': False,
-            }
-            with path.open('a', encoding='utf-8') as stream:
-                stream.write(json.dumps(row, ensure_ascii=False) + '\n')
-        except OSError:
-            self.get_logger().warning('geometry.jsonl 视角行写入失败')
+    def _on_view_geometry(self, landmarks, frame) -> None:
+        """逐视角 geometry.jsonl 行（RefitOrchestrator on_view 回调）."""
+        self._recorder.view_row(landmarks, frame, self.collector.target_id)
 
-    def _lookup_tool_frame(self, child: str):
-        """Latest TF: base <- child; None on failure."""
-        try:
-            tf = self.tf_buffer.lookup_transform(
-                self.params.frames.base_frame, child, Time())
-        except TransformException:
-            return None, None
-        T = transform_msg_to_matrix(tf.transform)
-        return T[:3, 3].copy(), T[:3, 2].copy()
-
+    # ------------------------------------------------------------------
+    # 消息组装薄壳（本体在 publish 公开函数；W4）
+    # ------------------------------------------------------------------
     def _pregrasp_verification_msg(self, header):
         """
         工具帧相对融合袋模型的预抓取残差（观测用，不授权 SetIO）.
 
         W2/R3：本方法双路并发可达（心跳持 _state_lock vs _publish_all 锁外），
         状态快照与 `_pregrasp_prev` 交换必须入锁（RLock：心跳路径重入安全）；
-        三次 latest TF 查询留在锁外（1s 级超时不得占锁）。
+        三次 latest TF 查询留在锁外（1s 级超时不得占锁）。组装本体在
+        publish.build_pregrasp_verification。
         """
-        msg = PregraspVerification()
-        msg.header = header
         with self._state_lock:
-            msg.target_id = str(self.collector.target_id or '')
-            fused = dict(self._bag_model or {})
-            result = dict(self._refined or {})
+            target_id = str(self.collector.target_id or '')
+            fused = self._bag_model
+            result = self._refined
             previous = self._pregrasp_prev
-        msg.model_revision = str(result.get('model_revision') or '')
-        msg.tool_profile_id = str(self.params.tool.profile_id)
-        if not fused.get('ok'):
-            msg.reason = 'bag_model_unavailable'
-            return msg
-        mouth, _ = self._lookup_tool_frame('sleeve_mouth')
-        _, tool_z = self._lookup_tool_frame('tool_axis')
-        blade, _ = self._lookup_tool_frame('cutting_plane')
-        if mouth is None or tool_z is None or blade is None:
-            msg.reason = 'tool_tf_missing'
-            msg.failure_code = 11
-            return msg
-        cut_pt = fused.get('cut_plane_point', fused.get('cut_pose'))
-        if cut_pt is None:
-            cut_pt = fused.get('neck')
-        eval_row = evaluate_pregrasp(
-            tool_z, fused.get('axis'), mouth, fused.get('bottom'),
-            blade, cut_pt,
-            float(fused.get('radial_margin_m') or 0.0),
-            float(fused.get('axial_margin_m') or 0.0),
-            previous=previous)
-        with self._state_lock:
-            self._pregrasp_prev = eval_row
-        msg.frames_consistent = bool(eval_row['frames_consistent'])
-        msg.axis_angle_deg = float(eval_row['axis_angle_deg'])
-        msg.lateral_error_m = float(eval_row['lateral_error_m'])
-        msg.axial_error_m = float(eval_row['axial_error_m'])
-        msg.radial_margin_m = float(eval_row['radial_margin_m'])
-        msg.axial_margin_m = float(eval_row['axial_margin_m'])
-        msg.needs_correction = bool(eval_row['needs_correction'])
-        msg.passed = bool(eval_row['passed'])
-        msg.failure_code = int(eval_row['failure_code'])
-        msg.reason = str(eval_row['reason'])
+        tool_frames = None
+        if fused is not None and fused.ok:
+            # 袋模型不可用时跳过 TF 查询（build 早退 bag_model_unavailable）
+            base = self.params.frames.base_frame
+            mouth, _ = lookup_tool_frame(self.tf_buffer, base, 'sleeve_mouth')
+            _, tool_z = lookup_tool_frame(self.tf_buffer, base, 'tool_axis')
+            blade, _ = lookup_tool_frame(
+                self.tf_buffer, base, 'cutting_plane')
+            tool_frames = (mouth, tool_z, blade)
+        msg, eval_row = build_pregrasp_verification(
+            header, fused, result, tool_frames, previous, self.params)
+        msg.target_id = target_id
+        if eval_row is not None:
+            with self._state_lock:
+                self._pregrasp_prev = eval_row
         return msg
 
     def _fill_target_model(self, model: TargetModel) -> None:
-        """把融合袋模型写入 TargetModel 扩展字段."""
-        fused = self._bag_model or {}
-        result = self._refined or {}
-        model.model_revision = str(result.get('model_revision') or '')
-        model.tool_profile_id = str(self.params.tool.profile_id)
-        model.run_id = str(getattr(self, '_harvest_run_id', '') or '')
-        model.scene_epoch = int(getattr(self, '_scene_epoch', 0) or model.scene_epoch)
-        cal = str(getattr(self.params, 'calibration_version', '') or 'unspecified')
-        model.calibration_version = cal
-        model.calibration_revision = cal
-        model.config_revision = str(
-            getattr(self.params.tool, 'version', '') or self.params.tool.profile_id)
-        now = self.get_clock().now()
-        model.generated_at = now.to_msg()
-        model.header.stamp = model.generated_at
-        model.valid_until = (now + Duration(seconds=5.0)).to_msg()
-        model.capture_start = model.generated_at
-        model.capture_end = model.generated_at
-        fused_ok = bool(fused.get('ok'))
-        model.geometry_capability = 0 if fused_ok else 2
-        model.pregrasp_capability = model.geometry_capability
-        budget = fused.get('budget') or {}
-        if budget:
-            model.sleeve_capability = int(
-                budget.get('sleeve_capability', 0 if budget.get('sleeve_ok') else 1))
-            model.cut_capability = int(
-                budget.get('cut_capability', 0 if budget.get('cut_ok') else 1))
-        else:
-            model.sleeve_capability = 2
-            model.cut_capability = 2
-        if not fused.get('ok'):
-            return
-        bottom = fused.get('bottom')
-        neck = fused.get('neck')
-        axis = fused.get('axis')
-        if bottom is not None:
-            model.bag_bottom = Point(
-                x=float(bottom[0]), y=float(bottom[1]), z=float(bottom[2]))
-        if neck is not None:
-            model.bag_neck = Point(
-                x=float(neck[0]), y=float(neck[1]), z=float(neck[2]))
-        cut_pt = fused.get('cut_plane_point', fused.get('cut_pose', neck))
-        if cut_pt is not None:
-            model.cut_plane_point = Point(
-                x=float(cut_pt[0]), y=float(cut_pt[1]), z=float(cut_pt[2]))
-        if axis is not None:
-            model.bag_axis = Vector3(
-                x=float(axis[0]), y=float(axis[1]), z=float(axis[2]))
-            model.cut_normal = model.bag_axis
-        model.d95_m = float(fused.get('d95_m') or 0.0)
-        model.fruit_prior_radius_m = float(
-            fused.get('fruit_prior_radius_m') or 0.0)
-        model.fruit_prior_auxiliary = True
-        model.radial_margin_m = float(fused.get('radial_margin_m') or 0.0)
-        model.axial_margin_m = float(fused.get('axial_margin_m') or 0.0)
-        model.corridor_clear = bool(fused.get('corridor_clear'))
-        model.occlusion_class = str(fused.get('occlusion_class') or '')
-        sig = float(fused.get('sigma_position_m') or 0.02)
-        pos_cov = [0.0] * 9
-        pos_cov[0] = pos_cov[4] = pos_cov[8] = sig * sig
-        model.bottom_covariance = pos_cov
-        model.neck_covariance = pos_cov
-        sig_axis = float(fused.get('sigma_axis_deg') or 8.0)
-        axis_rad = sig_axis * 3.141592653589793 / 180.0
-        axis_cov = [0.0] * 9
-        axis_cov[0] = axis_cov[4] = axis_cov[8] = axis_rad * axis_rad
-        model.axis_covariance = axis_cov
+        """把融合袋模型写入 TargetModel 扩展字段（本体 publish.fill_target_model）."""
+        fill_target_model(
+            model, self._bag_model, self._refined, self.params,
+            self.get_clock().now(),
+            run_id=self._harvest_run_id,
+            scene_epoch=self._scene_epoch)
 
     def destroy_node(self):
-        """停止重建单写者 worker 后销毁 ROS 节点."""
+        """停止重建单写者 worker 与事件落盘线程后销毁 ROS 节点."""
         self._frame_worker.close(drain=False)
-        return super().destroy_node()
+        self._harvest_data.close(drain=True)
+        return LifecycleNode.destroy_node(self)
 
 
 def main(args=None):

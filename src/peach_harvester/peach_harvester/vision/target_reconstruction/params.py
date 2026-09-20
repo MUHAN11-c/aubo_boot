@@ -104,6 +104,21 @@ class TargetReconstructionParams:
         """Forward undeclared names to the yaml namespace."""
         return getattr(self._raw, name)
 
+    def snapshot(self) -> dict:
+        """
+        Live 参数快照（dotted 键 → 原生类型 dict；W4 替代 metadata 手抄）.
+
+        经 ``peach_common.yaml_params.snapshot`` 自省 ``_raw`` 命名空间；
+        frames/session 字符串叶子按 _StripProxy 同语义 strip。
+        """
+        from peach_common.yaml_params import snapshot as _snapshot
+        data = _snapshot(self._raw)
+        for key, value in list(data.items()):
+            if (key.startswith('frames.') or key.startswith('session.')) \
+                    and isinstance(value, str):
+                data[key] = str(value).strip()
+        return data
+
     @classmethod
     def attach(cls, node) -> 'TargetReconstructionParams':
         """Declare yaml leaves with range checks; return a live wrapper."""

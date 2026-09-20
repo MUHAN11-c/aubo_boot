@@ -9,6 +9,7 @@ import json
 import logging
 import os
 from pathlib import Path
+import queue
 import threading
 import time
 import traceback
@@ -178,7 +179,17 @@ class HarvestDataStore:
     单根会话目录（R7）：executor 批次在跑时 base_dir 指向
     ``runs/<request_id>/perception_data``，start/attach 的轮目录落其下；
     base_dir 为 None 时维持旧布局 ``<root>/<run_id>``（无批次回退）。
+
+    V4（异步落盘）：append_event/save_mask 的文件 IO 经单后台写线程 +
+    ``queue.Queue(maxsize=512)``——感知 plan_lock 与重建采帧链不再被磁盘
+    抖动拖住（旧版同步写在 plan_lock 持有区内逐帧 imwrite/追加 JSONL）。
+    队列满时同步降级写（极端背压下短暂回到旧行为，事件不丢；此刻调用
+    方与写线程瞬时双写，events.jsonl 的 fcntl 排他锁仍保证行不撕裂，
+    但极端下两条事件可能小幅乱序）。事件顺序在常态下单写者保持 FIFO。
+    close(drain=True) 排空队列（节点 destroy 前调用）。
     """
+
+    _WRITE_QUEUE_MAX = 512
 
     def __init__(self, root=None, base_dir=None):
         """创建尚未开始的存储器；base_dir 由节点按 executor run_id 设置."""
@@ -188,6 +199,59 @@ class HarvestDataStore:
         self.latest_state = {}
         # target_id → 上次掩膜落盘的 time.monotonic() 时刻（save_mask 节流用）
         self._mask_last_saved = {}
+        # V4：单后台写线程（daemon；close() 排空收口）
+        self._write_queue: queue.Queue = queue.Queue(maxsize=self._WRITE_QUEUE_MAX)
+        self._writer = threading.Thread(
+            target=self._write_loop, name='harvest-data-writer', daemon=True)
+        self._writer.start()
+
+    def _write_loop(self) -> None:
+        """后台写线程：FIFO 消费写队列；单条失败记日志不杀线程."""
+        while True:
+            item = self._write_queue.get()
+            try:
+                if item is None:
+                    return
+                self._write_item(item)
+            except Exception:  # noqa: BLE001 写线程不得死：单条失败记日志继续
+                _logger.error('落盘写线程任务异常:\n%s', traceback.format_exc())
+            finally:
+                self._write_queue.task_done()
+
+    def _write_item(self, item) -> None:
+        """执行一条写任务（事件追加或掩膜 PNG；worker 与降级路径共用）."""
+        kind, payload = item
+        if kind == 'event':
+            record, run_dir = payload
+            self._append_event_sync(record, run_dir)
+        else:
+            path, binary = payload
+            if not cv2.imwrite(str(path), binary):
+                _logger.error('掩膜保存失败: %s', path)
+
+    def _enqueue_write(self, item) -> None:
+        """入队；队列满时同步降级写（事件不丢）."""
+        try:
+            self._write_queue.put_nowait(item)
+        except queue.Full:
+            self._write_item(item)
+
+    def close(self, *, drain: bool = True) -> None:
+        """
+        停止写线程（V4）.
+
+        drain=True 先排空队列再收口（节点 destroy 用）；drain=False 直接
+        放弃未写条目（进程即将退出、容忍丢失时用）。
+        """
+        if not self._writer.is_alive():
+            return
+        if drain:
+            self._write_queue.join()
+        try:
+            self._write_queue.put_nowait(None)
+        except queue.Full:  # pragma: no cover - join 后必有空位，防御
+            return
+        self._writer.join(timeout=5.0)
 
     def _resolve(self, run_id: str) -> Path:
         """
@@ -274,17 +338,23 @@ class HarvestDataStore:
 
     def append_event(self, event: dict) -> None:
         """
-        追加 JSONL 事件并刷新 latest_state.json.
+        追加 JSONL 事件并刷新 latest_state.json（V4：经写队列异步落盘）.
 
         events.jsonl 追加持 fcntl 排他锁：感知/重建双进程 attach 同一
         run_dir 并发写时互斥，防止行撕裂（修复 A1 前双进程追加无锁）。
+        recorded_at 在调用线程取（入队序=事件序）；latest_state 随写线程
+        完成后刷新，query() 可能滞后一条（诊断通道，可接受）。
         """
         if self.run_dir is None:
             return
         record = dict(event)
         record.setdefault(
             'recorded_at', datetime.now(timezone.utc).isoformat())
-        with (self.run_dir / 'events.jsonl').open(
+        self._enqueue_write(('event', (record, self.run_dir)))
+
+    def _append_event_sync(self, record: dict, run_dir: Path) -> None:
+        """事件落盘本体（写线程/降级路径执行；与旧同步版逐字一致）."""
+        with (run_dir / 'events.jsonl').open(
                 'a', encoding='utf-8') as stream:
             fcntl.flock(stream.fileno(), fcntl.LOCK_EX)
             try:
@@ -296,12 +366,12 @@ class HarvestDataStore:
         self.latest_state = record
         source = str(record.get('source', 'perception'))
         token = f'{os.getpid()}_{time.time_ns()}'
-        tmp = self.run_dir / f'latest_{source}.{token}.json.tmp'
+        tmp = run_dir / f'latest_{source}.{token}.json.tmp'
         try:
             tmp.write_text(
                 json.dumps(record, ensure_ascii=False, indent=2),
                 encoding='utf-8')
-            tmp.replace(self.run_dir / f'latest_{source}.json')
+            tmp.replace(run_dir / f'latest_{source}.json')
         except OSError:
             # 并发同名 tmp 或 run_dir 已切走：events.jsonl 已落，latest 可丢
             try:
@@ -312,10 +382,13 @@ class HarvestDataStore:
     def save_mask(self, target_id: str, stamp_ns: int,
                   mask: np.ndarray, min_interval_s: float = 1.0) -> str:
         """
-        保存选中目标的 mono8 PNG 掩膜并返回相对路径.
+        保存选中目标的 mono8 PNG 掩膜并返回相对路径（V4：经写队列异步写）.
 
         每目标按 monotonic 时钟节流（间隔 < min_interval_s 直接返回 ''），
-        防长观测期 masks/ 文件数无界；写失败仍抛 OSError 由调用方记日志。
+        防长观测期 masks/ 文件数无界；记账移至入队时刻（写失败由写线程
+        记日志，不再向调用方抛 OSError——异步路径无法回传异常；节流窗口
+        语义不变）。路径与相对名在调用线程按当时 run_dir 计算（事件归属
+        入队时的轮目录）。
         """
         if self.run_dir is None or mask is None:
             return ''
@@ -325,11 +398,10 @@ class HarvestDataStore:
             return ''
         binary = (np.asarray(mask) > 0).astype(np.uint8) * 255
         path = self.run_dir / 'masks' / f'{stamp_ns}_{target_id}.png'
-        if not cv2.imwrite(str(path), binary):
-            raise OSError(f'掩膜保存失败: {path}')
-        # 仅写成功才记录时刻：失败帧下一帧可立即重试
+        relative = str(path.relative_to(self.run_dir))
+        self._enqueue_write(('mask', (path, binary)))
         self._mask_last_saved[target_id] = now
-        return str(path.relative_to(self.run_dir))
+        return relative
 
     def query(self) -> dict:
         """返回当前运行路径与最后事件，供 ROS 查询服务/状态话题复用."""

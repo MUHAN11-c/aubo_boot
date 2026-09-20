@@ -107,6 +107,41 @@ def package_yaml(package: str, filename: str) -> Path:
     return Path(get_package_share_directory(package)) / 'config' / filename
 
 
+def snapshot(root: SimpleNamespace) -> dict[str, Any]:
+    """
+    Walk a live namespace into a flat dotted-key dict of native types.
+
+    W4: replaces per-node hand-copied parameter snapshots (the 94-line
+    ``_session_metadata`` transcription). Leaves are converted to native
+    scalars (numpy scalars via ``.item()``); lists/dicts are shallow-copied so
+    later runtime ``set`` calls cannot mutate an already-taken snapshot.
+    """
+    out: dict[str, Any] = {}
+
+    def _native(value: Any) -> Any:
+        if hasattr(value, 'item'):
+            try:
+                return value.item()
+            except (ValueError, AttributeError):  # pragma: no cover - 防御
+                return value
+        return value
+
+    def _walk(node: Any, prefix: str) -> None:
+        for name, value in vars(node).items():
+            key = f'{prefix}.{name}' if prefix else str(name)
+            if isinstance(value, SimpleNamespace):
+                _walk(value, key)
+            elif isinstance(value, dict):
+                out[key] = {str(k): _native(v) for k, v in value.items()}
+            elif isinstance(value, (list, tuple)):
+                out[key] = [_native(v) for v in value]
+            else:
+                out[key] = _native(value)
+
+    _walk(root, '')
+    return out
+
+
 def attach(
         node,
         yaml_path: Path | str,

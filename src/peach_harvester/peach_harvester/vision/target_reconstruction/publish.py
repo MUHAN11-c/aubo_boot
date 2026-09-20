@@ -1,9 +1,13 @@
-"""重建发布：诊断状态、点云节流、Marker、session 落盘."""
+"""
+重建发布：诊断状态、点云节流、Marker、TargetModel/预抓取组装.
+
+W4：session 文件 IO（save_session/PLY/yaml writer）迁 session_recorder；
+PublisherMixin 方法本体迁 reconstruction_core.ReconstructionCore（本文件
+留过渡薄壳）；``_fill_target_model``/``_pregrasp_verification_msg``/
+``_lookup_tool_frame`` 的组装本体自节点下沉为公开函数.
+"""
 from __future__ import annotations
 
-from datetime import datetime
-import json
-from pathlib import Path
 import time
 from typing import (
     Callable,
@@ -11,49 +15,40 @@ from typing import (
     Hashable,
     List,
     Optional,
+    Tuple,
 )
 
 from builtin_interfaces.msg import Time
-import cv2
-from geometry_msgs.msg import (
-    Point,
-    Pose,
-    Quaternion,
-    Vector3,
-    Vector3Stamped,
-)
+from geometry_msgs.msg import Point, Quaternion, Vector3
 import numpy as np
-from peach_harvester.vision.common.geometry import pack_rgb_bgr, rotation_to_quat
+from peach_harvester.vision.common.geometry import (
+    pack_rgb_bgr,
+    rotation_to_quat,
+    transform_msg_to_matrix,
+)
 from peach_harvester.vision.domain.model_contract import (
     allowed_from_capabilities,
-    CAPABILITY_INVALID,
     CAPABILITY_UNKNOWN,
-    CAPABILITY_VALID,
-)
-from peach_harvester.vision.target_reconstruction.integrate import (
-    require_open3d,
-    summarize_view_coverage,
 )
 from peach_harvester.vision.target_reconstruction.refine import (
-    axis_angle_deg,
+    BagModel,
+    evaluate_pregrasp,
+    RefitResult,
     STATUS_ACCEPT,
     STATUS_REJECT,
     STATUS_REOBSERVE,
 )
 from peach_interfaces.msg import (
-    BagFitting,
-    BagFittingArray,
-    BagGraspCandidate,
-    BagGraspCandidateArray,
     GraspDecision,
+    PregraspVerification,
     ReconstructionStatus,
-    ShapeHypothesis,
 )
+from rclpy.duration import Duration
 from sensor_msgs.msg import PointCloud2, PointField
 from sensor_msgs_py.point_cloud2 import create_cloud
-from std_msgs.msg import ColorRGBA, Header, String
+from std_msgs.msg import ColorRGBA, Header
+from tf2_ros import TransformException
 from visualization_msgs.msg import Marker, MarkerArray
-import yaml
 
 
 class PublishThrottle:
@@ -273,138 +268,6 @@ def grasp_decision_to_msg(decision: dict, header) -> GraspDecision:
     return msg
 
 
-def _dump_yaml(data: dict, path) -> None:
-    """
-    把 dict 写入 yaml 文件（utf-8，不排序保持可读顺序）.
-
-    Args:
-        data: 可 yaml 序列化的 dict（numpy 类型须已转原生类型）.
-        path: 输出路径.
-
-    Returns
-    -------
-        无返回值（None）；文件写入 path.
-
-    """
-    with open(str(path), 'w', encoding='utf-8') as f:
-        yaml.safe_dump(data, f, allow_unicode=True, sort_keys=False)
-
-
-def _write_ply_xyzrgb(path, xyz: np.ndarray,
-                      colors_bgr: np.ndarray) -> None:
-    """
-    写 ASCII PLY（open3d 官方 write_point_cloud，xyz + uchar red/green/blue）.
-
-    与旧手写版的差异：标量属性为 double（旧为 float）、头部多一行
-    ``comment Created by Open3D``——PLY 消费者（CloudCompare/离线脚本）
-    均按属性名解析，无语义差异。颜色 BGR→RGB 经 [0,1] float 往返无损。
-
-    Args:
-        path: 输出 ply 路径.
-        xyz: (N, 3) 点 [m].
-        colors_bgr: (N, 3) uint8 BGR（OpenCV 排列）.
-
-    Returns
-    -------
-        无返回值（None）；文件写入 path；写失败抛 IOError.
-
-    """
-    o3d = require_open3d()
-    pcd = o3d.geometry.PointCloud(
-        o3d.utility.Vector3dVector(np.asarray(xyz, dtype=np.float64)))
-    pcd.colors = o3d.utility.Vector3dVector(
-        np.asarray(colors_bgr, dtype=np.uint8)[:, ::-1] / 255.0)  # BGR→RGB
-    if not o3d.io.write_point_cloud(str(path), pcd, write_ascii=True):
-        raise OSError(f'PLY 写出失败: {path}')
-
-
-def _write_triangle_mesh(path, mesh_data: dict) -> None:
-    """用 Open3D 官方 writer 保存顶点、三角形、法向和颜色."""
-    o3d = require_open3d()
-    mesh = o3d.geometry.TriangleMesh()
-    mesh.vertices = o3d.utility.Vector3dVector(mesh_data['vertices'])
-    mesh.triangles = o3d.utility.Vector3iVector(mesh_data['triangles'])
-    if len(mesh_data.get('normals', [])) == len(mesh_data['vertices']):
-        mesh.vertex_normals = o3d.utility.Vector3dVector(mesh_data['normals'])
-    colors = mesh_data.get('colors_bgr')
-    if colors is not None and len(colors) == len(mesh_data['vertices']):
-        mesh.vertex_colors = o3d.utility.Vector3dVector(
-            np.asarray(colors, dtype=np.uint8)[:, ::-1] / 255.0)
-    if not o3d.io.write_triangle_mesh(
-            str(path), mesh, write_ascii=True, write_vertex_normals=True,
-            write_vertex_colors=True):
-        raise OSError(f'网格 PLY 写出失败: {path}')
-
-
-def save_session(root_dir, frames: List, metadata: dict,
-                 tsdf_cloud=None, tsdf_mesh=None) -> Path:
-    """
-    把一次重建的全部帧写到 root_dir/session_<时间戳>/.
-
-    Args:
-        root_dir: session 根目录（不存在自动创建）.
-        frames: CapturedFrame 列表（按采集顺序编号 frame_00, frame_01, ...）.
-        metadata: 参数快照等元信息（写入 metadata.yaml）.
-        tsdf_cloud: 可选 (xyz, colors_bgr) 元组；给出时写
-            result/tsdf_cloud.ply（xyz+rgb）.
-        tsdf_mesh: 可选 LocalTsdf.extract_mesh() 字典.
-
-    Returns
-    -------
-        创建成功的 session 目录 Path.
-
-    """
-    root = Path(root_dir)
-    # 路径守卫（W1 安全修复）：root_dir 上游含消息来源的 request_id 段
-    # （_session_root 已净化）；此处再拒显式上跳段，防任何未净化调用方
-    # 把写盘目录逃出预期根。
-    if '..' in root.parts:
-        raise ValueError(f'session root 含上跳段，拒绝落盘: {root}')
-    # 微秒参与目录名并禁止复用：连续 finalize 不得静默覆盖前一次原始数据。
-    session_dir = root / f'session_{datetime.now():%Y%m%d_%H%M%S_%f}'
-    session_dir.mkdir(parents=True, exist_ok=False)
-    for i, frame in enumerate(frames):
-        stem = str(session_dir / f'frame_{i:02d}')
-        if not cv2.imwrite(stem + '_rgb.png', frame.rgb):
-            raise OSError(f'RGB PNG 写出失败: {stem}_rgb.png')
-        np.save(stem + '_depth.npy', frame.depth_mm)
-        _dump_yaml({
-            'stamp_sec': float(frame.stamp),
-            'width': int(frame.camera_K.get('width', 0)),
-            'height': int(frame.camera_K.get('height', 0)),
-            'fx': float(frame.camera_K['fx']),
-            'fy': float(frame.camera_K['fy']),
-            'cx': float(frame.camera_K['cx']),
-            'cy': float(frame.camera_K['cy']),
-        }, stem + '_camera_info.yaml')
-        _dump_yaml({
-            'T_base_camera_used': np.asarray(
-                frame.T_base_camera, dtype=np.float64).tolist(),
-            'T_base_camera_fk': np.asarray(
-                getattr(frame, 'T_base_camera_fk', frame.T_base_camera),
-                dtype=np.float64).tolist(),
-            'camera_position_base': np.asarray(
-                frame.camera_position_base, dtype=np.float64).tolist(),
-            'valid_depth_ratio': float(frame.valid_depth_ratio),
-            'registration': dict(getattr(frame, 'registration', {})),
-            'diagnostic_flags': list(frame.diagnostic_flags),
-        }, stem + '_T_base_camera.yaml')
-    if tsdf_cloud is not None:
-        xyz, colors = tsdf_cloud
-        if xyz is not None and len(xyz):
-            result_dir = session_dir / 'result'
-            result_dir.mkdir(exist_ok=True)
-            if colors is None:
-                colors = np.zeros((len(xyz), 3), dtype=np.uint8)
-            _write_ply_xyzrgb(result_dir / 'tsdf_cloud.ply', xyz, colors)
-    if tsdf_mesh is not None and len(tsdf_mesh.get('vertices', [])):
-        result_dir = session_dir / 'result'
-        result_dir.mkdir(exist_ok=True)
-        _write_triangle_mesh(result_dir / 'tsdf_mesh.ply', tsdf_mesh)
-    _dump_yaml(metadata, session_dir / 'metadata.yaml')
-    return session_dir
-
-
 _MARKER_NS = 'target_reconstruction'
 _REFINED_NS = 'peach_reconstruction/refined'  # refined 轴箭头独立 namespace
 _MESH_NS = 'peach_reconstruction/tsdf_mesh'
@@ -571,7 +434,7 @@ def _quat_from_rotation(rotation: np.ndarray) -> Quaternion:
 
 
 def build_refined_grasp_markers(
-    header, refined: Optional[dict], target_id: str = '',
+    header, refined: Optional[RefitResult], target_id: str = '',
     tool_d_inner: float = 0.104,
 ) -> List[Marker]:
     """
@@ -579,25 +442,27 @@ def build_refined_grasp_markers(
 
     袋轴用拟合底/颈；半透明圆柱直径用工具内径（与感知 Marker 同，
     不是袋径）；行程从 entry 画到颈。文字放在颈上方，避免叠在入口架上。
+    W4：入参改 RefitResult（属性访问；键语义与旧 dict 版一致）。
     """
-    if not refined or not refined.get('ok'):
+    if not refined or not refined.ok:
         return []
-    bottom = np.asarray(refined['bottom'], dtype=np.float64)
-    neck = np.asarray(refined['neck'], dtype=np.float64)
-    axis = np.asarray(refined['axis'], dtype=np.float64)
-    entry = np.asarray(refined['entry'], dtype=np.float64)
-    diameter = float(refined.get('diameter', 0.0))
+    bottom = np.asarray(refined.bottom, dtype=np.float64)
+    neck = np.asarray(refined.neck, dtype=np.float64)
+    axis = np.asarray(refined.axis, dtype=np.float64)
+    entry = np.asarray(refined.entry, dtype=np.float64)
+    diameter = float(refined.diameter)
     radius = 0.5 * diameter
     rotation = _grasp_rotation(axis)
-    cut = refined.get('cut_pose', refined.get('cut_plane_point'))
+    cut = refined.cut_pose if refined.cut_pose is not None \
+        else refined.cut_plane_point
     if cut is None:
         cut = neck
     cut = np.asarray(cut, dtype=np.float64)
     to_cut = float(np.dot(cut - entry, axis))
     travel = to_cut if to_cut > 1e-6 else float(
-        refined.get('cut_travel_m') or refined.get('span_m', 0.0))
+        refined.cut_travel_m or refined.span_m)
     travel_end = entry + travel * axis
-    red, green, blue, alpha = _status_rgba(refined.get('status', STATUS_REJECT))
+    red, green, blue, alpha = _status_rgba(refined.status)
     out: List[Marker] = []
 
     def _mk(mid: int, mtype: int) -> Marker:
@@ -640,8 +505,8 @@ def build_refined_grasp_markers(
         env.color = _color(0.2, 0.7, 0.9, 0.22)
         out.append(env)
 
-    kind = str(refined.get('kind', ''))
-    prior_r = float(refined.get('fruit_prior_radius_m') or 0.0)
+    kind = str(refined.kind)
+    prior_r = float(refined.fruit_prior_radius_m or 0.0)
     if kind in ('fruit', 'sphere') or prior_r > 1e-6:
         sphere = _mk(3, Marker.SPHERE)
         sphere.ns = 'prior'
@@ -669,8 +534,8 @@ def build_refined_grasp_markers(
 
     text = _mk(10, Marker.TEXT_VIEW_FACING)
     text.scale.z = 0.03
-    suffix = 'final' if refined.get('final') else 'live'
-    tid = target_id or str(refined.get('kind', 'refit'))
+    suffix = 'final' if refined.final else 'live'
+    tid = target_id or str(refined.kind or 'refit')
     text.text = f'{tid} {suffix}'
     text.pose.position = _point_msg(neck + np.array([0.0, 0.0, 0.04]))
     out.append(text)
@@ -746,448 +611,197 @@ def xyzrgb_to_cloud_msg(xyz: np.ndarray, colors_bgr,
     return msg
 
 
+def lookup_tool_frame(tf_buffer, base_frame: str, child: str):
+    """
+    Latest TF: base <- child; (None, None) on failure.
+
+    自节点 ``_lookup_tool_frame`` 下沉（W4）。预抓取验证的工具三帧
+    （sleeve_mouth/tool_axis/cutting_plane）只有 1 s 级 latest TF 可查
+    （tf_buffer 无这些帧的精确 stamp 数据源），显式 latest 豁免以函数名
+    与本注释保留——不得用于采帧/积分路径（那两处必须精确 stamp）。
+
+    Args:
+        tf_buffer: tf2_ros.Buffer（节点持有）.
+        base_frame: 基座系名.
+        child: 工具子帧名.
+
+    Returns
+    -------
+        (position, z_axis)：(3,) base 系平移与旋转矩阵第三列（工具轴
+        方向）；查询失败给 (None, None).
+
+    """
+    try:
+        tf = tf_buffer.lookup_transform(base_frame, child, Time())
+    except TransformException:
+        return None, None
+    T = transform_msg_to_matrix(tf.transform)
+    return T[:3, 3].copy(), T[:3, 2].copy()
+
+
+def build_pregrasp_verification(
+        header, fused: Optional[BagModel], refined: Optional[RefitResult],
+        tool_frames, previous, params) -> Tuple[PregraspVerification,
+                                                Optional[dict]]:
+    """
+    工具帧相对融合袋模型的预抓取残差（观测用，不授权 SetIO）.
+
+    自节点 ``_pregrasp_verification_msg`` 的组装段下沉（W4；R3 语义保持：
+    状态快照与 ``_pregrasp_prev`` 锁内交换留在节点，本函数纯组装）。
+
+    Args:
+        header: 输出头（frame_id=base_frame）.
+        fused: 融合袋模型缓存 _bag_model（None=未产出）.
+        refined: refit 结果缓存 _refined（取 model_revision）.
+        tool_frames: latest TF 三帧查询结果 (sleeve_mouth, tool_z_axis,
+            cutting_plane)；任一 None 走 tool_tf_missing；传 None 表示
+            调用方因袋模型不可用已跳过 TF 查询.
+        previous: 上一帧残差行（evaluate_pregrasp 产物）或 None.
+        params: TargetReconstructionParams（读 tool.profile_id）.
+
+    Returns
+    -------
+        (msg, eval_row)：eval_row 为本帧残差 dict（调用方锁内置入
+        _pregrasp_prev）；早退路径（袋模型/TF 缺失）给 (msg, None)——
+        不得覆盖上一帧比对基点.
+
+    """
+    msg = PregraspVerification()
+    msg.header = header
+    msg.model_revision = (
+        '' if refined is None else str(refined.model_revision or ''))
+    msg.tool_profile_id = str(params.tool.profile_id)
+    if fused is None or not fused.ok:
+        msg.reason = 'bag_model_unavailable'
+        return msg, None
+    if tool_frames is None:
+        mouth = tool_z = blade = None
+    else:
+        mouth, tool_z, blade = tool_frames
+    if mouth is None or tool_z is None or blade is None:
+        msg.reason = 'tool_tf_missing'
+        msg.failure_code = 11
+        return msg, None
+    cut_pt = fused.cut_plane_point
+    if cut_pt is None:
+        cut_pt = fused.cut_pose
+    if cut_pt is None:
+        cut_pt = fused.neck
+    eval_row = evaluate_pregrasp(
+        tool_z, fused.axis, mouth, fused.bottom,
+        blade, cut_pt,
+        float(fused.radial_margin_m or 0.0),
+        float(fused.axial_margin_m or 0.0),
+        previous=previous)
+    msg.frames_consistent = bool(eval_row['frames_consistent'])
+    msg.axis_angle_deg = float(eval_row['axis_angle_deg'])
+    msg.lateral_error_m = float(eval_row['lateral_error_m'])
+    msg.axial_error_m = float(eval_row['axial_error_m'])
+    msg.radial_margin_m = float(eval_row['radial_margin_m'])
+    msg.axial_margin_m = float(eval_row['axial_margin_m'])
+    msg.needs_correction = bool(eval_row['needs_correction'])
+    msg.passed = bool(eval_row['passed'])
+    msg.failure_code = int(eval_row['failure_code'])
+    msg.reason = str(eval_row['reason'])
+    return msg, eval_row
+
+
+def fill_target_model(model, fused: Optional[BagModel],
+                      refined: Optional[RefitResult], params, now,
+                      run_id: str = '', scene_epoch: int = 0) -> None:
+    """
+    把融合袋模型写入 TargetModel 扩展字段.
+
+    自节点 ``_fill_target_model`` 下沉（W4；字段与协方差手拼原样）。
+
+    Args:
+        model: BuildTargetModel.Result.model（调用方已填 target_id/
+            scene_epoch/accepted 等）.
+        fused: 融合袋模型缓存 _bag_model（None 时能力全置 2=未知）.
+        refined: refit 结果缓存 _refined（取 model_revision）.
+        params: TargetReconstructionParams（tool 档案与版本）.
+        now: rclpy Time（节点时钟；generated_at/valid_until 基准）.
+        run_id: 当前 harvest_run_id.
+        scene_epoch: 当前批次 scene_epoch（0 保持调用方已填值）.
+
+    Returns
+    -------
+        无返回值（None）；model 原地填充.
+
+    """
+    fused = fused if fused is not None and fused.ok else None
+    model.model_revision = (
+        '' if refined is None else str(refined.model_revision or ''))
+    model.tool_profile_id = str(params.tool.profile_id)
+    model.run_id = str(run_id or '')
+    if scene_epoch:
+        model.scene_epoch = int(scene_epoch)
+    cal = str(getattr(params, 'calibration_version', '') or 'unspecified')
+    model.calibration_version = cal
+    model.calibration_revision = cal
+    model.config_revision = str(
+        getattr(params.tool, 'version', '') or params.tool.profile_id)
+    model.generated_at = now.to_msg()
+    model.header.stamp = model.generated_at
+    model.valid_until = (now + Duration(seconds=5.0)).to_msg()
+    model.capture_start = model.generated_at
+    model.capture_end = model.generated_at
+    fused_ok = fused is not None
+    model.geometry_capability = 0 if fused_ok else 2
+    model.pregrasp_capability = model.geometry_capability
+    budget = fused.budget if fused_ok else {}
+    if budget:
+        model.sleeve_capability = int(
+            budget.get('sleeve_capability', 0 if budget.get('sleeve_ok') else 1))
+        model.cut_capability = int(
+            budget.get('cut_capability', 0 if budget.get('cut_ok') else 1))
+    else:
+        model.sleeve_capability = 2
+        model.cut_capability = 2
+    if not fused_ok:
+        return
+    if fused.bottom is not None:
+        model.bag_bottom = Point(
+            x=float(fused.bottom[0]), y=float(fused.bottom[1]),
+            z=float(fused.bottom[2]))
+    if fused.neck is not None:
+        model.bag_neck = Point(
+            x=float(fused.neck[0]), y=float(fused.neck[1]),
+            z=float(fused.neck[2]))
+    cut_pt = fused.cut_plane_point
+    if cut_pt is None:
+        cut_pt = fused.cut_pose if fused.cut_pose is not None else fused.neck
+    if cut_pt is not None:
+        model.cut_plane_point = Point(
+            x=float(cut_pt[0]), y=float(cut_pt[1]), z=float(cut_pt[2]))
+    if fused.axis is not None:
+        model.bag_axis = Vector3(
+            x=float(fused.axis[0]), y=float(fused.axis[1]),
+            z=float(fused.axis[2]))
+        model.cut_normal = model.bag_axis
+    model.d95_m = float(fused.d95_m or 0.0)
+    model.fruit_prior_radius_m = float(fused.fruit_prior_radius_m or 0.0)
+    model.fruit_prior_auxiliary = True
+    model.radial_margin_m = float(fused.radial_margin_m or 0.0)
+    model.axial_margin_m = float(fused.axial_margin_m or 0.0)
+    model.corridor_clear = bool(fused.corridor_clear)
+    model.occlusion_class = str(fused.occlusion_class or '')
+    sig = float(fused.sigma_position_m or 0.02)
+    pos_cov = [0.0] * 9
+    pos_cov[0] = pos_cov[4] = pos_cov[8] = sig * sig
+    model.bottom_covariance = pos_cov
+    model.neck_covariance = pos_cov
+    sig_axis = float(fused.sigma_axis_deg or 8.0)
+    axis_rad = sig_axis * 3.141592653589793 / 180.0
+    axis_cov = [0.0] * 9
+    axis_cov[0] = axis_cov[4] = axis_cov[8] = axis_rad * axis_rad
+    model.axis_covariance = axis_cov
+
+
 class PublisherMixin:
-    """发布面方法集（宿主契约见模块 docstring；不自带 __init__）."""
+    """
+    过渡薄壳（W4）：方法本体已迁 reconstruction_core.ReconstructionCore.
 
-    def _publish_heartbeat(self):
-        """1Hz 活性心跳：状态 + 诊断 + 抓取许可（轻量三件套，不含云/Marker）."""
-        if not self._lifecycle_active:
-            return
-        with self._state_lock:
-            header = Header()
-            header.stamp = self.get_clock().now().to_msg()
-            header.frame_id = self.params.frames.base_frame
-            self._publish_status_trio(header)
-
-    def _publish_status_trio(self, header: Header):
-        """
-        状态名 + 类型化诊断 + 调试 JSON + 抓取许可统一重发（心跳/状态变化共用）.
-
-        结构化核心走 ReconstructionStatus（/diagnostics），完整明细走
-        String JSON（/diagnostics_debug），许可走 GraspDecision——三者同
-        transient_local 闩锁，后启动订阅者读到的始终是最新一轮。
-        """
-        diag = self._diagnostics()
-        self.pub_status.publish(String(data=self.collector.state))
-        self.pub_diag.publish(diagnostics_to_status_msg(diag, header))
-        self.pub_diag_debug.publish(
-            String(data=json.dumps(diag, ensure_ascii=False)))
-        self.pub_grasp_decision.publish(
-            grasp_decision_to_msg(
-                self._lock_decision_validity(self._grasp_decision()), header))
-        if getattr(self, 'pub_pregrasp', None) is not None:
-            self.pub_pregrasp.publish(self._pregrasp_verification_msg(header))
-
-    def _lock_decision_validity(self, decision: dict) -> dict:
-        """心跳不得续签 valid_until：同一 model_revision 沿用首次冻结时刻."""
-        revision = str(decision.get('model_revision') or '')
-        locked = getattr(self, '_locked_model_revision', None)
-        if locked != revision or getattr(self, '_locked_valid_until', None) is None:
-            now = self.get_clock().now().to_msg()
-            self._locked_model_revision = revision
-            self._locked_generated_at = now
-            self._locked_valid_until = _time_plus(now, MODEL_VALIDITY_S)
-        decision['generated_at'] = self._locked_generated_at
-        decision['valid_until'] = self._locked_valid_until
-        return decision
-
-    def _publish_all(self):
-        """
-        状态变化后统一重发：累加云 + 状态三件套 + 相机轨迹 Marker.
-
-        E4 发布节流（publish.on_change_only / publish.min_interval_s）：
-        local_cloud/tsdf_cloud/markers 三类大消息仅内容版本变化且距上次
-        实际发布超过最小间隔才真正组装发布（on-change key 用帧数/末帧
-        时间戳/产物版本号等廉价标量，不做内容哈希）；零变化或间隔内抑制
-        ——三话题均为 transient_local 闩锁，订阅者/RViz 保留最后一帧不丢
-        显示，被抑制的变化留待下次调用补发最新版本。产物清空事件
-        （_reset_products 置 force 标志）绕过间隔门立即透传，保证绑定
-        切换/reset 时 RViz 同步清屏。心跳/状态/诊断/refit 三件套不节流
-        （就绪门/新鲜度门载体与闩锁覆盖防陈旧语义不动）。
-        """
-        header = Header()
-        header.stamp = self.get_clock().now().to_msg()
-        header.frame_id = self.params.frames.base_frame
-        # on_change_only=false 回退逐次全发旧行为（不查节流器）
-        throttle = (self._publish_throttle
-                    if self.params.publish.on_change_only else None)
-        force = self._products_force_publish
-        self._products_force_publish = False
-        frames = self.collector.frames
-        n_frames = len(frames)
-        # 累加云内容随帧栈增删变化；同长度同末帧戳即同内容（reset 后帧栈
-        # 为空 n=0 自然判变；remove_last 改变 n_frames）
-        last_stamp = float(frames[-1].stamp) if frames else -1.0
-        if throttle is None or throttle.should_publish(
-                'local_cloud', (n_frames, last_stamp), force=force):
-            cloud = self.collector.accumulated_cloud()
-            self.pub_cloud.publish(xyzrgb_to_cloud_msg(
-                cloud, self.collector.accumulated_rgb(), header))
-        # TSDF 云仅 finalize 后非空；无缓存发空云（字段布局保持一致）。
-        # 内容版本 = _tsdf_cloud_version（每次全量 extract/清空递增）
-        if throttle is None or throttle.should_publish(
-                'tsdf_cloud', (self._tsdf_cloud_version,), force=force):
-            if self._tsdf_cloud_cache is not None:
-                tsdf_xyz, tsdf_rgb = self._tsdf_cloud_cache
-            else:
-                tsdf_xyz, tsdf_rgb = np.zeros((0, 3)), None
-            self.pub_tsdf_cloud.publish(
-                xyzrgb_to_cloud_msg(tsdf_xyz, tsdf_rgb, header))
-        self._publish_status_trio(header)
-        # Marker 内容 = 相机轨迹（帧栈）+ refined 抓取示意 + mesh
-        # _products_version 覆盖（refit 写入/finalize 清理均递增）
-        if throttle is None or throttle.should_publish(
-                'markers', (n_frames, last_stamp, self._products_version),
-                force=force):
-            markers = build_camera_markers(header, self.collector.frames)
-            markers.markers.extend(build_refined_grasp_markers(
-                header, self._refined, self.collector.target_id or '',
-                tool_d_inner=float(self.params.tool.budget.d_inner)))
-            mesh_marker = build_mesh_marker(header, self._mesh_cache)
-            if mesh_marker is not None:
-                markers.markers.append(mesh_marker)
-            self.pub_markers.publish(markers)
-        # refit 三件套：闩锁话题每次重发（无结果发空消息，防陈旧数据）
-        pose_arr, axis_msg, fit_arr = self._refined_messages(header)
-        self.pub_refined_pose.publish(pose_arr)
-        self.pub_refined_axis.publish(axis_msg)
-        self.pub_refined_diag.publish(fit_arr)
-        self.pub_shape.publish(self._shape_hypothesis_msg(header))
-
-    def _shape_hypothesis_msg(self, header: Header) -> ShapeHypothesis:
-        """由 refit 缓存组形状假设（几何+协方差占位，不含工具抓取量）."""
-        msg = ShapeHypothesis()
-        msg.header = header
-        msg.target_id = self.collector.target_id or ''
-        result = self._refined
-        if result is None or not result.get('ok'):
-            return msg
-        bottom = result['bottom']
-        neck = result['neck']
-        center = 0.5 * (bottom + neck)
-        msg.center = Point(
-            x=float(center[0]), y=float(center[1]), z=float(center[2]))
-        msg.axis = Vector3(
-            x=float(result['axis'][0]),
-            y=float(result['axis'][1]),
-            z=float(result['axis'][2]))
-        msg.diameter_m = float(result['diameter'])
-        msg.length_m = float(result.get('span_m', 0.0))
-        msg.confidence = float(result.get('inlier_ratio', 0.0))
-        msg.model_kind = str(result.get('kind', ''))
-        return msg
-
-    def _refined_messages(self, header: Header):
-        """
-        由 refit 缓存组 refined 三话题消息（闩锁重发/清空共用）.
-
-        无结果（未跑 finalize/refit 关闭）→ 全空消息；拟合成功 →
-        pose/axis/diagnostics 按结果填充（status=ACCEPT/REOBSERVE 照常
-        发布）；拟合失败（REJECT）→ pose 发空数组、axis 发零向量（无效
-        占位），diagnostics 发 status=REJECT 单条记录（标量 -1）——闩锁
-        话题必须发消息覆盖，防后启动订阅者读到上一轮陈旧结果。
-
-        Args:
-            header: 输出头（frame_id=base_frame）.
-
-        Returns
-        -------
-            (BagGraspCandidateArray, Vector3Stamped, BagFittingArray).
-
-        """
-        pose_arr = BagGraspCandidateArray()
-        pose_arr.header = header
-        axis_msg = Vector3Stamped()
-        axis_msg.header = header
-        fit_arr = BagFittingArray()
-        fit_arr.header = header
-        result = self._refined
-        if result is not None and result['ok']:
-            cand = BagGraspCandidate()
-            cand.header = header
-            cand.target_id = self.collector.target_id
-            # entry = bottom − axis×standoff（几何在 refiner 内算好）；
-            # 姿态未用（接近方向由 translation_direction 给出），置单位四元数
-            cand.entry_pose = Pose(
-                position=Point(x=float(result['entry'][0]),
-                               y=float(result['entry'][1]),
-                               z=float(result['entry'][2])),
-                orientation=Quaternion(w=1.0))
-            cand.bag_bottom = Point(x=float(result['bottom'][0]),
-                                    y=float(result['bottom'][1]),
-                                    z=float(result['bottom'][2]))
-            cand.bag_neck = Point(x=float(result['neck'][0]),
-                                  y=float(result['neck'][1]),
-                                  z=float(result['neck'][2]))
-            # 剪切行进方向 = refined 轴（bottom→neck 单位向量）
-            cand.translation_direction = Vector3(x=float(result['axis'][0]),
-                                                 y=float(result['axis'][1]),
-                                                 z=float(result['axis'][2]))
-            # 圆柱为袋径、球为果径（均 = 2r）
-            cand.bag_diameter_upper_m = float(result['diameter'])
-            # 套入行程 = 入口沿轴到剪切参考；执行端优先用本字段。
-            cand.suggested_travel_m = float(
-                result.get('cut_travel_m') or 0.0)
-            cand.confidence = float(result['inlier_ratio'])
-            cand.status = int(result['status'])
-            cand.diagnostic_flags = list(result['flags'])
-            cand.strategy_id = f"reconstruction_refit_{result['kind']}"
-            pose_arr.candidates.append(cand)
-            axis_msg.vector = Vector3(x=float(result['axis'][0]),
-                                      y=float(result['axis'][1]),
-                                      z=float(result['axis'][2]))
-        fit = self._refined_fitting_msg(header, result)
-        if fit is not None:
-            fit_arr.fittings.append(fit)
-        return pose_arr, axis_msg, fit_arr
-
-    def _refined_fitting_msg(self, header: Header,
-                             result: Optional[dict]) -> Optional[BagFitting]:
-        """
-        由 refit 结果组 BagFitting（无效标量 -1，语义对齐感知包 _to_fitting）.
-
-        Args:
-            header: 输出头.
-            result: refit 唯一缓存 _refined（成功结果或 {'ok': False,
-                'reason': ...} 失败记录）；None 表示未跑（失败时由
-                _refined_info() 取原因，发 REJECT 记录）.
-
-        Returns
-        -------
-            peach_interfaces/BagFitting；从未跑过 refit 给 None.
-
-        """
-        info = self._refined_info()
-        if result is None and not info:
-            return None
-        m = BagFitting()
-        m.header = header
-        m.target_id = self.collector.target_id
-        m.axis_source = 'reconstruction_refit'
-        # 全部标量先置 -1（无效约定），再按拟合线逐项覆盖有效字段
-        for attr in ('axis_confidence', 'axis_disagreement_deg', 'theta_err_deg',
-                     'error_budget_mm', 'radial_clearance_mm', 'valid_depth_ratio',
-                     'foreground_ratio', 'boundary_touch_ratio', 'bag_length_m',
-                     'bag_diameter_upper_m', 'travel_m', 'cylinder_rms_m',
-                     'cylinder_inlier_ratio', 'fruit_radius_m', 'sphere_rms_m',
-                     'sphere_inlier_ratio', 'cavity_dip_mm'):
-            setattr(m, attr, -1.0)
-        m.boundary_sides_touched = -1
-        m.n_points = -1
-        if result is None or not result['ok']:
-            info = info or {}
-            m.target_kind = str(info.get('kind', ''))
-            m.status = STATUS_REJECT  # 拟合失败不发 pose/axis，仅留诊断记录
-            m.diagnostic_flags = ['refit_failed',
-                                  str(info.get('reason', 'unknown'))]
-            return m
-        m.target_kind = 'fruit' if result['kind'] == 'sphere' else 'bag'
-        m.n_points = int(result['n_points'])
-        m.bag_diameter_upper_m = float(result['diameter'])
-        m.travel_m = float(result['span_m'])
-        if result['kind'] == 'cylinder':
-            m.bag_length_m = float(result['span_m'])
-            m.cylinder_rms_m = float(result['rmse'])
-            m.cylinder_inlier_ratio = float(result['inlier_ratio'])
-        else:
-            m.fruit_radius_m = float(result['radius'])
-            m.sphere_rms_m = float(result['rmse'])
-            m.sphere_inlier_ratio = float(result['inlier_ratio'])
-        m.status = int(result['status'])
-        m.diagnostic_flags = list(result['flags'])
-        return m
-
-    def _grasp_decision(self) -> dict:
-        """把最终精化质量归一成只读抓取许可，不发送运动指令."""
-        decision = {
-            'harvest_run_id': self._harvest_run_id,
-            'target_id': self.collector.target_id,
-            'allowed': False,
-            'geometry_valid': False,
-            'reason': 'reconstruction_not_ready',
-        }
-        if self.collector.state != 'READY':
-            return decision
-        result = self._refined
-        if result is None or not result.get('ok'):
-            decision['reason'] = 'refined_geometry_unavailable'
-            return decision
-        angle = result.get('axis_angle_deg')
-        if angle is None:
-            angle = axis_angle_deg(result.get('axis'), self._bound_axis_hint)
-        if angle is not None:
-            decision['axis_angle_deg'] = float(angle)
-            max_deg = float(self.params.refit.max_axis_angle_deg)
-            decision['diagnostic_axis_mismatch'] = bool(angle > max_deg)
-        entry = [float(v) for v in result['entry']]
-        axis = [float(v) for v in result['axis']]
-        pregrasp = result.get('pregrasp')
-        if pregrasp is None:
-            pregrasp = [
-                entry[0] - 0.10 * axis[0],
-                entry[1] - 0.10 * axis[1],
-                entry[2] - 0.10 * axis[2],
-            ]
-        cut_src = result.get('cut_pose', result.get('neck', entry))
-        decision.update({
-            'geometry_valid': True,
-            'entry': entry,
-            'axis': axis,
-            'pregrasp': [float(v) for v in pregrasp],
-            'cut_pose': [float(v) for v in cut_src],
-            'diameter_m': float(
-                result.get('d95_m') or result.get('diameter') or 0.0),
-            'd95_m': float(
-                result.get('d95_m') or result.get('diameter') or 0.0),
-            'travel_m': float(result.get('cut_travel_m') or result.get(
-                'span_m') or 0.0),
-            'cut_travel_m': float(result.get('cut_travel_m') or 0.0),
-            'radial_margin_m': float(result.get('radial_margin_m') or 0.0),
-            'axial_margin_m': float(result.get('axial_margin_m') or 0.0),
-            'corridor_clear': bool(result.get('corridor_clear', False)),
-            'rmse_m': float(result.get('rmse') or 0.0),
-            'inlier_ratio': float(result.get('inlier_ratio') or 0.0),
-            'model_revision': str(result.get('model_revision') or ''),
-            'tool_profile_id': str(self.params.tool.profile_id),
-            'scene_epoch': int(getattr(self, '_scene_epoch', 0) or 0),
-            'calibration_revision': str(
-                getattr(self.params, 'calibration_version', '') or 'unspecified'),
-            'config_revision': str(getattr(self.params.tool, 'version', '')
-                                   or self.params.tool.profile_id),
-            'geometry_capability': CAPABILITY_VALID,
-            'pregrasp_capability': CAPABILITY_VALID,
-        })
-        budget = result.get('budget') or {}
-        if not budget:
-            decision['sleeve_capability'] = CAPABILITY_UNKNOWN
-            decision['cut_capability'] = CAPABILITY_UNKNOWN
-            decision['reason'] = 'bag_model_unavailable'
-            decision['failure_code'] = 3
-            return decision
-        decision['sleeve_capability'] = int(
-            budget.get('sleeve_capability',
-                       CAPABILITY_VALID if budget.get('sleeve_ok')
-                       else CAPABILITY_INVALID))
-        decision['cut_capability'] = int(
-            budget.get('cut_capability',
-                       CAPABILITY_VALID if budget.get('cut_ok')
-                       else CAPABILITY_INVALID))
-        decision['reason'] = str(
-            budget.get('reason') or 'refined_geometry_accept')
-        decision['failure_code'] = int(budget.get('failure_code') or 0)
-        return decision
-
-    def _diagnostics(self) -> dict:
-        """组装完整诊断 dict（调试明细，随 /diagnostics_debug 以 JSON 发出）."""
-        c = self.collector
-        cloud = c.accumulated_cloud()
-        last_ratio = c.frames[-1].valid_depth_ratio if c.frames else None
-        # registration 摘要不存副本，由帧栈各帧 registration 派生
-        registrations = [f.registration for f in c.frames]
-        coverage = summarize_view_coverage(c.frames, c.target_center)
-        return {
-            'harvest_run_id': self._harvest_run_id,
-            'selected_target_id': self._preferred_target_id,
-            'target_mask_cache_size': len(self._target_masks),
-            'state': c.state,
-            'target_id': c.target_id,
-            'target_center_base': (None if c.target_center is None
-                                   else [float(v) for v in c.target_center]),
-            'bound_axis_hint': (None if self._bound_axis_hint is None
-                                else [float(v) for v in self._bound_axis_hint]),
-            # 实际积分帧数；机位数见 view_coverage.view_count。
-            'captured_views': len(c.frames),
-            'pose_count': int(coverage.get('view_count') or 0),
-            'rejected_views': c.rejected_views,
-            'tf_failures': c.tf_failures,
-            'skipped_views': c.skipped_views,
-            'skip_reasons': dict(c.skip_reasons),
-            'last_skip_code': c.last_skip_code,
-            'last_skip_reason': c.last_skip_reason,
-            'frame_ring_size': len(getattr(self, '_frame_ring', {})),
-            'tf_latency_ms': self._last_tf_latency_ms,
-            'valid_depth_ratio': last_ratio,
-            'cloud_points': int(cloud.shape[0]),
-            'last_rel_translation_m': c.last_rel_translation_m,
-            'last_rel_rotation_deg': c.last_rel_rotation_deg,
-            # finalize 时的重叠度指标（pairs/质心）；未 finalize 或帧栈已变为 None
-            'overlap': self._overlap_cache,
-            # finalize 时的 TSDF 摘要（points/integrate_time_s/roi_center 等）
-            'tsdf': self._tsdf_info,
-            'registration': {
-                'accepted': len(registrations),
-                'latest': (None if not registrations
-                           else registrations[-1]),
-                # E4 ICP target 增量复用观测：当前自适应刷新周期 k、缓存
-                # target 点数、全量刷新/增量拼接累计次数
-                'target_refresh_period': self._icp_target_cache.period,
-                'target_points': self._icp_target_cache.target_size,
-                'target_full_refreshes':
-                    self._icp_target_cache.full_refreshes,
-                'target_incremental_appends':
-                    self._icp_target_cache.incremental_appends,
-            },
-            # 主动视觉控制器消费精确采帧位姿，而不是回调时刻的 latest TF。
-            # 覆盖指标按机位聚类（同机位连帧不稀释角基线）；积分帧数另由
-            # captured_views 报告。
-            'view_coverage': coverage,
-            # refit 摘要（kind/center/axis/diameter/rmse/inlier_ratio/ok）；
-            # 未跑为 None，失败为 {'ok': False, 'reason': ...}
-            'refined': self._refined_info(),
-            'grasp_decision': self._grasp_decision(),
-            # 耗时基线（阶段 C 埋点）：ICP/TSDF/帧总 EMA + refit/finalize
-            # last 值 + 计数；键集恒定，随 diagnostics_debug JSON 发出
-            'timing': self._timing.snapshot(),
-        }
-
-    def _refined_info(self) -> Optional[dict]:
-        """
-        由唯一 refit 缓存 _refined 投影出 diagnostics JSON 的 refined 键.
-
-        Returns
-        -------
-            None（未跑/已失效）；失败记录原样拷贝（{'ok': False,
-            'reason': ...}）；成功结果经 _refined_diag_dict 转 JSON 形态.
-
-        """
-        result = self._refined
-        if result is None:
-            return None
-        if not result.get('ok'):
-            return dict(result)
-        return self._refined_diag_dict(result)
-
-    @staticmethod
-    def _refined_diag_dict(result: dict) -> dict:
-        """
-        组装 diagnostics JSON 的 refined 键（refit 成功结果，numpy→原生类型）.
-
-        Args:
-            result: refit 的 ok=True 结果（select_refitter().refit 产物）.
-
-        Returns
-        -------
-            JSON 可序列化 dict（kind/center/axis/diameter/rmse/
-            inlier_ratio/ok 等）.
-
-        """
-        return {
-            'ok': True,
-            'kind': result['kind'],
-            'status': int(result['status']),
-            'center': [float(v) for v in result['center']],
-            'axis': [float(v) for v in result['axis']],
-            'bottom': [float(v) for v in result['bottom']],
-            'neck': [float(v) for v in result['neck']],
-            'diameter': float(result['diameter']),
-            'span_m': float(result['span_m']),
-            'rmse': float(result['rmse']),
-            'inlier_ratio': float(result['inlier_ratio']),
-            'n_points': int(result['n_points']),
-            'flags': list(result.get('flags') or []),
-            'axis_angle_deg': result.get('axis_angle_deg'),
-            'axis_conflict_deg': result.get('axis_conflict_deg'),
-            'envelope_conditioned': bool(result.get('envelope_conditioned')),
-            'envelope_reason': str(result.get('envelope_reason') or ''),
-            'perception_axis': result.get('perception_axis'),
-        }
+    本类保留名称与文件位置一个提交期（node 经 MRO 从 Core 取全部发布
+    方法）；与 FrameStoreMixin/AutoControllerMixin 同批收口后删除。
+    """

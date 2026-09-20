@@ -9,7 +9,6 @@ import numpy as np
 from peach_harvester.vision.common.geometry import relative_motion
 from peach_harvester.vision.common.runtime import ScalarEma
 from peach_harvester.vision.target_reconstruction.integrate import apply_target_mask
-from peach_harvester.vision.target_reconstruction.refine import candidate_axis_hint
 
 
 @dataclass
@@ -398,6 +397,8 @@ class FrameCollector:
         self.last_skip_reason = ''
         self.last_rel_translation_m: Optional[float] = None
         self.last_rel_rotation_deg: Optional[float] = None
+        # PF-5：累加点数标量增量维护（心跳/诊断只取数，不再全量 vstack）
+        self._points_count = 0
 
     def note_skip(self, code: str, reason: str = '') -> None:
         """按原因码累计一次跳过（自动 skip 与手动 deny 共用）."""
@@ -521,6 +522,9 @@ class FrameCollector:
         if len(self.frames) >= self.config.max_views:
             return False
         self.frames.append(frame)
+        # PF-5：与帧栈同步的点数标量（见 accumulated_points_count）
+        self._points_count += (
+            0 if frame.cloud_base is None else int(frame.cloud_base.shape[0]))
         return True
 
     def remove_last(self):
@@ -534,7 +538,21 @@ class FrameCollector:
         """
         if not self.frames:
             return None
-        return self.frames.pop()
+        frame = self.frames.pop()
+        self._points_count -= (
+            0 if frame.cloud_base is None else int(frame.cloud_base.shape[0]))
+        return frame
+
+    @property
+    def accumulated_points_count(self) -> int:
+        """
+        全部已采帧 base 系点云的总点数（增量维护，PF-5）.
+
+        与 ``accumulated_cloud().shape[0]`` 恒相等（add_frame/remove_last/
+        reset 同步维护）；诊断/心跳等只要点数的场合用它，避免为取一个
+        标量而 vstack 整个帧栈。
+        """
+        return int(self._points_count)
 
     def accumulated_cloud(self) -> np.ndarray:
         """
@@ -762,246 +780,18 @@ class StrictMaskGate:
 
 
 class FrameStoreMixin:
-    """帧环与掩膜缓存方法集（宿主契约见模块 docstring；不自带 __init__）."""
+    """
+    过渡薄壳（W4）：帧环/掩膜缓存方法本体已迁 reconstruction_core.
 
-    def _stamp_ns(self, stamp_msg) -> int:
-        """ROS Time → 纳秒整数（与掩膜缓存键一致）."""
-        return int(stamp_msg.sec) * 1000000000 + int(stamp_msg.nanosec)
-
-    def _clear_frame_ring(self) -> None:
-        """换绑/reset 时丢弃未对齐的陈帧，避免旧目标点云混入."""
-        self._frame_ring = {}
-        self._latest_frame = None
-
-    def _push_frame_ring(self, frame_tuple) -> None:
-        """
-        按 stamp_ns 写入帧环，超出容量丢最旧.
-
-        须持宿主 ``_state_lock``：读者（``_select_cached_frame``，持锁）
-        对环做 ``list(...)`` 快照迭代，无锁并发插入会触发
-        ``RuntimeError: dictionary changed size during iteration``。
-        """
-        stamp_msg = frame_tuple[3]
-        stamp_ns = self._stamp_ns(stamp_msg)
-        with self._state_lock:
-            self._frame_ring.pop(stamp_ns, None)
-            self._frame_ring[stamp_ns] = frame_tuple
-            while len(self._frame_ring) > self._frame_ring_max:
-                self._frame_ring.pop(next(iter(self._frame_ring)))
-        self._latest_frame = frame_tuple
-
-    def _select_cached_frame(
-            self, prefer_stamp_sec=None, prefer_cam_frame=None):
-        """
-        取采帧缓存：优先指定 stamp；否则取「有同戳掩膜的最新帧」.
-
-        严格同戳语义不变：不回退 latest TF。掩膜尚未到达的最新帧留在环
-        内，等感知回调再驱动。环空返回 None。
-        """
-        if prefer_stamp_sec is not None:
-            # 持锁遍历：_push_frame_ring 与本读同锁（写侧注释见上）
-            for frame in list(self._frame_ring.values()):
-                if abs(float(frame[4]) - float(prefer_stamp_sec)) > 1e-9:
-                    continue
-                if (prefer_cam_frame is not None
-                        and (frame[5] or '') != prefer_cam_frame):
-                    continue
-                return frame
-            return None
-        for stamp_ns in reversed(list(self._frame_ring.keys())):
-            if stamp_ns in self._target_masks:
-                return self._frame_ring[stamp_ns]
-        if self._frame_ring:
-            return next(reversed(list(self._frame_ring.values())))
-        return self._latest_frame
-
-    @staticmethod
-    def _candidate_center(candidate):
-        """候选几何袋底/袋颈中点（base 系 [m]）；非有限或全零时返回 None."""
-        bottom = np.array([
-            candidate.bag_bottom.x,
-            candidate.bag_bottom.y,
-            candidate.bag_bottom.z], dtype=np.float64)
-        neck = np.array([
-            candidate.bag_neck.x,
-            candidate.bag_neck.y,
-            candidate.bag_neck.z], dtype=np.float64)
-        center = 0.5 * (bottom + neck)
-        if not np.all(np.isfinite(center)) or not np.any(center):
-            return None
-        return center
-
-    def _target_mask_for_frame(self, stamp_msg, depth_mm):
-        """取严格同时间戳掩膜并过五道质量门（判定本体在 MaskGate 实现）."""
-        stamp_ns = self._stamp_ns(stamp_msg)
-        # 邻目标锚点=锁定集锚点缓存剔除绑定目标自身（E2 串扰门输入）；
-        # 框面积并行携带，供串扰门按面积比豁免小框邻居
-        neighbors = tuple(
-            (c, self._locked_target_areas.get(tid, 0.0))
-            for tid, c in self._locked_target_centers.items()
-            if tid != self._preferred_target_id)
-        centers = tuple(c for c, _ in neighbors)
-        areas = tuple(a for _, a in neighbors)
-        result = self._mask_gate.check(MaskContext(
-            stamp_ns=stamp_ns,
-            depth_mm=depth_mm,
-            masks=self._target_masks,
-            bound_center=self.collector.target_center,
-            neighbor_centers=centers,
-            bound_area=self._locked_target_areas.get(
-                self._preferred_target_id, 0.0),
-            neighbor_areas=areas))
-        return result.mask, result.reason
+    本类保留名称与文件位置一个提交期（node 经 MRO 从 Core 取方法），
+    与 PublisherMixin 同批收口后删。
+    """
 
 
 class AutoControllerMixin:
-    """自动状态机驱动方法集（宿主契约见模块 docstring；不自带 __init__）."""
+    """
+    过渡薄壳（W4）：自动状态机驱动方法本体已迁 reconstruction_core.
 
-    def _auto_drive(self):
-        """
-        自动模式驱动：每个新同步帧回调末尾调用一次.
-
-        流程：IDLE 且有候选 → 自动开始；COLLECTING → 满 max_views 自动
-        finalize，否则尝试自动采帧；READY/FAILED 停采，等 reset/start 进
-        下一轮。所有"不行"都只对当前帧跳过/告警，不打断流程。
-        并发收敛：本方法可由 worker 线程（_process_rgbd）与 executor 线程
-        （_on_target_observations）并发进入；collector/TSDF/产物读写全程
-        持 _state_lock（RLock 允许锁内嵌套调 _finalize_now）。唯一例外是
-        采帧的阻塞式 TF 查询：锁内 begin 采集判据 → 锁外查询（最长
-        tf_timeout，期间服务/心跳可取锁）→ 锁内 finish 按 stamp 复核收口
-        （见 _gated_capture_finish 竞态说明）。
-        """
-        with self._state_lock:
-            if self.collector.state == STATE_IDLE and \
-                    self.collector.should_auto_start():
-                self._auto_start()
-            if self.collector.state != STATE_COLLECTING:
-                return
-            if self.collector.should_auto_finalize():
-                ok, message = self._finalize_now()
-                if ok:
-                    self.get_logger().info(f'自动完成：{message}')
-                return
-            if len(self.collector.frames) >= self.params.capture.max_views:
-                # 满栈后静默等待 finalize，避免每帧重复构云/ICP和刷屏
-                return
-            decision, tf_request = self._gated_capture_begin(automatic=True)
-            if tf_request is None:
-                # 前置门禁已定案（skip），无需 TF 查询。落账须持锁
-                # （W2/R1）：collector.note_skip/rejected_views 与其他锁内
-                # 写者互斥，锁外调用曾与 :939-946 锁内路径锁契约不一致。
-                if decision.reason:
-                    self._record_auto_skip(
-                        decision.reason,
-                        count_reject=decision.count_reject,
-                        count_tf_failure=decision.count_tf_failure)
-                return
-        # 锁外：阻塞式 TF 查询（不得持 _state_lock）。
-        tf_result = self._gated_capture_query_tf(tf_request)
-        with self._state_lock:
-            decision, context = self._gated_capture_finish(
-                automatic=True, tf_request=tf_request, tf_result=tf_result)
-            bound_target = self.collector.target_id
-        # 锁域自管：构云/ICP 重活在锁外（见 _auto_capture_commit）。旧版
-        # 全程持 _state_lock，心跳/观测回调被饿死（2026-09-09 真机：
-        # 心跳违约 57 次、绑定延迟 73s > build_start_timeout 12s）。
-        self._auto_capture_commit(decision, context, bound_target)
-
-    def _auto_start(self):
-        """自动开始：绑定当前最优候选进 COLLECTING；无候选则保持 IDLE 等待."""
-        target_id, center = self._best_candidate()
-        if not target_id:
-            self.get_logger().debug(
-                '自动开始：无 initial_pose 候选，保持 IDLE')
-            return
-        message = self.collector.start(target_id, center)
-        self._target_kind_memory.bind(target_id)
-        self._last_captured_stamp_sec = -1.0
-        self._reset_products(create_volume=True)
-        self._bound_axis_hint = candidate_axis_hint(
-            self._latest_candidates, target_id)
-        self.get_logger().info(f'自动开始：{message}')
-        self._publish_all()
-
-    def _auto_capture_commit(self, decision, context, bound_target):
-        """
-        自动采帧落地段（锁域自管）：锁内判门取上下文，锁外构云/ICP，锁内窄临界提交.
-
-        decision 非 GATE_ALLOW 即按 skip 跳过（按需计 tf_failures）；
-        context 为 ALLOW 时的帧上下文（见 _gated_capture_finish）。
-        bound_target 是 finish 锁内快照的绑定目标，提交前复核会话未变。
-
-        并发说明（2026-09-09 锁手术）：构云+ICP 是每帧最重的纯计算，
-        持 _state_lock 执行会把心跳/观测回调饿到分钟级滞后；现移到锁外，
-        提交段仅剩 add_frame/TSDF 积分/计数（毫秒级）。准备期间会话被
-        reset/切换/收口时按 target/state 复核丢弃陈旧帧，与 finish 的
-        stamp 复核构成同一竞态窗口的两道闸。
-        """
-        if decision.action != GATE_ALLOW:
-            with self._state_lock:
-                if decision.reason:
-                    self._record_auto_skip(
-                        decision.reason,
-                        count_reject=decision.count_reject,
-                        count_tf_failure=decision.count_tf_failure)
-                elif decision.count_tf_failure:
-                    self.collector.tf_failures += 1
-            return
-        t_frame0 = self._algo_clock.now()
-        with self._state_lock:
-            if (self.collector.state != STATE_COLLECTING
-                    or self.collector.target_id != bound_target):
-                return
-            (rgb, depth_mm, K, stamp_sec,
-             T_base_camera, tf_status, target_mask) = context
-            if self._last_captured_stamp_sec > 0.0:
-                since_last = stamp_sec - self._last_captured_stamp_sec
-            else:
-                since_last = float('inf')  # 首帧不受间隔门限制
-            action, reason = self.collector.auto_capture_decision(
-                T_base_camera, since_last)
-            if action != 'capture':
-                self._record_auto_skip(reason)
-                return
-        prepared, reject = self._prepare_frame(context, bound_target)
-        if prepared is None:
-            # 构云/ICP 拒帧：与原 _accept_frame 失败路径同语义
-            with self._state_lock:
-                self.collector.rejected_views += 1
-                self._record_auto_skip(reject, count_reject=False)
-            self.get_logger().warning(f'自动采帧未入库：{reject}')
-            return
-        with self._state_lock:
-            if (self.collector.state != STATE_COLLECTING
-                    or self.collector.target_id != bound_target):
-                self.get_logger().debug(
-                    '采帧准备期间会话已切换/收口，丢弃陈旧帧 '
-                    f'{bound_target or "（空）"}')
-                return
-            accepted, message = self._commit_prepared_frame(prepared, t_frame0)
-            if not accepted:
-                self.collector.rejected_views += 1
-                self._record_auto_skip(message, count_reject=False)
-                self.get_logger().warning(f'自动采帧未入库：{message}')
-                return
-        # 累加云/Marker 组装与序列化是重活，移出锁外（E4 节流仍在）
-        self._publish_all()
-
-    def _record_auto_skip(
-            self, reason: str, *, count_reject: bool = False,
-            count_tf_failure: bool = False) -> None:
-        """自动 skip 落账：原因码计数 + 节流 WARN + harvest_data 事件."""
-        code = classify_skip_reason(reason)
-        self.collector.note_skip(code, reason)
-        if count_tf_failure:
-            self.collector.tf_failures += 1
-        if count_reject:
-            self.collector.rejected_views += 1
-        self.get_logger().warning(
-            f'自动采帧跳过 [{code}]：{reason}',
-            throttle_duration_sec=1.0)
-        self._harvest_data.append_event({
-            'source': 'reconstruction', 'event': 'frame_skipped',
-            'target_id': self.collector.target_id,
-            'code': code, 'reason': reason,
-        })
+    三段式门禁/构云/提交仍在节点（锁协议函数原位保留）。本类保留名称
+    与文件位置一个提交期。
+    """

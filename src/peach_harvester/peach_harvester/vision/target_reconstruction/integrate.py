@@ -854,6 +854,13 @@ class BoundedIcp:
         模型尚未形成时返回 mode=fk 用于首帧/预热；模型形成后先评估
         FK 原位姿，再做粗细两层 ICP。ICP 越界或质量差但 FK 原位姿合格时
         返回 mode=fk；二者都差则 mode=reject。
+
+        PF-4（Open3D multi-scale ICP 惯用法）：fine 层 source/target 已为
+        initial 评估准备过，粗细循环按 (voxel, correspondence) 键复用本帧
+        已准备云（source/target 各持缓存）——复用同一对象
+        （evaluate_registration/registration_icp 均不改动输入云），迭代
+        输入逐位一致，修正/fitness 数值不变（对拍测试留旧 6×_prepare 参考
+        实现锚定）；_prepare 调用 6→4 次。
         """
         source = np.asarray(source_fk_base, dtype=np.float64).reshape(-1, 3)
         target = np.asarray(target_base, dtype=np.float64).reshape(-1, 3)
@@ -869,12 +876,29 @@ class BoundedIcp:
         o3d = require_open3d()
         source_raw = self._cloud(source)
         target_raw = self._cloud(target)
-        source_fine = self._prepare(
-            source_raw, self.config.fine_voxel,
-            self.config.fine_correspondence)
-        target_fine = self._prepare(
-            target_raw, self.config.fine_voxel,
-            self.config.fine_correspondence)
+
+        def _make_cached_prepare():
+            # PF-4：按 (voxel, correspondence) 缓存本帧已准备云；source 与
+            # target 各持一份缓存（键不含云身份，共享会把 target 换成
+            # source 的缓存云——对拍测试抓出过的真实缺陷）
+            cache: dict = {}
+
+            def _cached_prepare(raw, voxel: float, correspondence: float):
+                key = (float(voxel), float(correspondence))
+                cloud = cache.get(key)
+                if cloud is None:
+                    cloud = self._prepare(raw, voxel, correspondence)
+                    cache[key] = cloud
+                return cloud
+
+            return _cached_prepare
+
+        cached_source = _make_cached_prepare()
+        cached_target = _make_cached_prepare()
+        source_fine = cached_source(
+            source_raw, self.config.fine_voxel, self.config.fine_correspondence)
+        target_fine = cached_target(
+            target_raw, self.config.fine_voxel, self.config.fine_correspondence)
         initial = o3d.pipelines.registration.evaluate_registration(
             source_fine, target_fine,
             self.config.fine_correspondence, identity)
@@ -890,8 +914,8 @@ class BoundedIcp:
         )
         final = initial
         for voxel, correspondence, iterations in levels:
-            source_level = self._prepare(source_raw, voxel, correspondence)
-            target_level = self._prepare(target_raw, voxel, correspondence)
+            source_level = cached_source(source_raw, voxel, correspondence)
+            target_level = cached_target(target_raw, voxel, correspondence)
             loss = o3d.pipelines.registration.TukeyLoss(
                 k=float(correspondence))
             estimator = (

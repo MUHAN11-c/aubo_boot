@@ -36,7 +36,12 @@ python3 -m pytest -q -p no:cacheprovider --import-mode=importlib \
   src/peach_harvester/test/test_vision_cross_field.py \
   src/peach_harvester/test/test_vision_model_contract.py \
   src/peach_harvester/test/test_vision_evidence.py \
-  src/peach_harvester/test/test_vision_frozen_keys.py
+  src/peach_harvester/test/test_vision_frozen_keys.py \
+  src/peach_harvester/test/test_reconstruction_session.py \
+  src/peach_harvester/test/test_reconstruction_refine_result.py \
+  src/peach_harvester/test/test_refit_orchestrator.py \
+  src/peach_harvester/test/test_reconstruction_session_recorder.py \
+  src/peach_harvester/test/test_reconstruction_icp_cache.py
 
 python3 -m pytest -q -p no:cacheprovider --import-mode=importlib \
   src/peach_harvester/test/test_supervisor_harvest_fsm.py \

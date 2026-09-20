@@ -4,7 +4,7 @@
 
 对象是套袋桃。跨包只走 `peach_interfaces`。能力包不互发批次命令；作业目标只认调度 `~/state.target_id`。包职责见 [architecture.md](architecture.md) §3。
 
-下表生产/消费名与清单一致。**名字之外须能看出功能含义**（这一口数据/命令干什么、谁据此做什么）。改接口先改 IDL 再改清单再改本文。运行参数部署值在各包 `config/<节点>.yaml`（nav2 式全量清单）；Python 节点 `attach(node)` 按该 yaml 声明叶子（`yaml_params.py`），`peach_arm` 仍 GPL `arm_parameters.yaml`。下表只列改变作业行为的键。
+下表生产/消费名与清单一致。**名字之外须能看出功能含义**（这一口数据/命令干什么、谁据此做什么）。改接口先改 IDL 再改清单再改本文。运行参数部署值在各包 `config/<节点>.yaml`（nav2 式全量清单）；Python 节点 `attach(node)` 按该 yaml 声明叶子（实现单源 `peach_common.yaml_params`，W1；包内旧路径 shim），`peach_arm` 仍 GPL `arm_parameters.yaml`。下表只列改变作业行为的键。
 
 | 节 | 包 | 节点 |
 |----|----|------|
@@ -406,7 +406,7 @@ flowchart TB
 | `/peach_arm/acknowledge_recovery` | service | 技能确认停驻已看过；调度 ACK 会调它，成功才消耗 `state_seq` | peach_arm | peach_supervisor |
 | `/peach/manipulation/grasp_hypothesis` | topic | 本周期抓取假说（监控三维；未当批次门） | peach_arm | peach_observability |
 | `/peach_arm/status` | topic | 技能短状态 JSON，作业票「靠近/工具」用 | peach_arm | peach_observability |
-| `/diagnostics` | topic | 技能节点诊断双轨（W5-10，diagnostic_updater 1Hz：观测流/TF 新鲜度、目标缓存、回调耗时 TopN、接触电流特征、使能心跳；不进接口清单，同 serial_imu 先例口径） | peach_arm | （诊断消费端，随 `/diagnostics` 生态） |
+| `/diagnostics` | topic | 技能节点诊断双轨（W5-10，diagnostic_updater 1Hz：观测流/TF 新鲜度、目标缓存、回调耗时 TopN、接触电流特征、使能心跳）。不进接口清单：核对器只扫 `/peach` 前缀绝对名字面量，`/diagnostics` 属 ROS 标准诊断面（同 `serial_imu` 先例，W5 验证不登记也绿）；生产方 `peach_arm` + `serial_imu`（+ `peach_vegetation`），消费端为通用诊断工具（`ros2 topic echo /diagnostics` / diagnostics 聚合器），非跨包数据通道 | peach_arm | 通用诊断面（无 peach 内消费方） |
 
 另有 Trigger（已进清单；8090 调试面调用，调度主路径走动作 cancel）：
 

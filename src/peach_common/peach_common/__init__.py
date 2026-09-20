@@ -1,5 +1,9 @@
-"""W1 单源 shim：实现已迁 ``peach_common.yaml_params``，本旧路径保持可用."""
-from peach_common.yaml_params import *  # noqa: F401,F403
+"""
+peach_common：peach 参数 / QoS 设施单源（W1 起；角色对齐 Nav2 nav2_common）.
+
+yaml_params（yaml 直读 + attach）、param_rules（三包规则并集）、qos（QoS
+工厂）在此单源；各能力包保留旧 import 路径作为转发 shim。
+"""
 from peach_common.yaml_params import (
     attach,
     CommitFn,

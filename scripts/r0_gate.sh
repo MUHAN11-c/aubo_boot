@@ -3,11 +3,13 @@
 # 2026-09-18 测试改名（消除 pytest 不收集假绿）：vision_test_* →
 # test_vision_*、supervisor_test_* → test_supervisor_*（对齐 test_*.py
 # 默认收集规则；内容零变化）。
+# 2026-09-20 W1：新增 peach_common 参数设施单源组（PYTHONPATH 前置 +
+# 纯核测试；三包 yaml_params/param_rules 已 shim 转发）。
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 export PYTHONDONTWRITEBYTECODE=1
-export PYTHONPATH="$ROOT/src/peach_harvester:$ROOT/src/peach_observability:$ROOT/src/peach_bringup:$ROOT/src/peach_vegetation${PYTHONPATH:+:$PYTHONPATH}"
+export PYTHONPATH="$ROOT/src/peach_common:$ROOT/src/peach_harvester:$ROOT/src/peach_observability:$ROOT/src/peach_bringup:$ROOT/src/peach_vegetation${PYTHONPATH:+:$PYTHONPATH}"
 
 python3 - <<'PY'
 import numpy
@@ -20,6 +22,7 @@ python3 -c "import peach_harvester.supervisor.harvest_fsm"
 python3 -c "import peach_bringup.preflight"
 python3 -c "import peach_vegetation.split"
 python3 -c "import peach_observability.path_metrics"
+python3 -c "import peach_common"
 
 python3 -m pytest -q -p no:cacheprovider --import-mode=importlib \
   src/peach_harvester/test/test_vision_param_rules.py \
@@ -44,6 +47,11 @@ python3 -m pytest -q -p no:cacheprovider --import-mode=importlib \
   src/peach_harvester/test/test_supervisor_frozen_keys.py \
   src/peach_harvester/test/test_supervisor_cross_field.py \
   src/peach_harvester/test/test_supervisor_param_rules.py
+
+python3 -m pytest -q -p no:cacheprovider --import-mode=importlib \
+  src/peach_common/test/test_yaml_params.py \
+  src/peach_common/test/test_param_rules.py \
+  src/peach_common/test/test_qos.py
 
 python3 -m pytest -q -p no:cacheprovider --import-mode=importlib \
   src/peach_harvester/test/test_view_policy.py \

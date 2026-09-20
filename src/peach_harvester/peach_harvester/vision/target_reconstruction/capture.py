@@ -886,14 +886,16 @@ class AutoControllerMixin:
                 # 满栈后静默等待 finalize，避免每帧重复构云/ICP和刷屏
                 return
             decision, tf_request = self._gated_capture_begin(automatic=True)
-        if tf_request is None:
-            # 前置门禁已定案（skip），无需 TF 查询。
-            if decision.reason:
-                self._record_auto_skip(
-                    decision.reason,
-                    count_reject=decision.count_reject,
-                    count_tf_failure=decision.count_tf_failure)
-            return
+            if tf_request is None:
+                # 前置门禁已定案（skip），无需 TF 查询。落账须持锁
+                # （W2/R1）：collector.note_skip/rejected_views 与其他锁内
+                # 写者互斥，锁外调用曾与 :939-946 锁内路径锁契约不一致。
+                if decision.reason:
+                    self._record_auto_skip(
+                        decision.reason,
+                        count_reject=decision.count_reject,
+                        count_tf_failure=decision.count_tf_failure)
+                return
         # 锁外：阻塞式 TF 查询（不得持 _state_lock）。
         tf_result = self._gated_capture_query_tf(tf_request)
         with self._state_lock:

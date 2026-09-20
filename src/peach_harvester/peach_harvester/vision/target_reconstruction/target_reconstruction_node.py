@@ -1146,6 +1146,10 @@ class TargetReconstructionNode(
         except Exception as exc:  # noqa: BLE001
             self.collector.remove_last()
             self._tsdf_volume = self._create_volume()
+            # W2/R2：体积重建即模型重建，ICP target 复用缓存按其契约作废
+            # （回放后由 _refresh_tsdf_outputs 的 set_full 重建基线），
+            # 防止回放窗口内采帧路径取用 stale target。
+            self._icp_target_cache.invalidate()
             for old in self.collector.frames:
                 self._tsdf_volume.integrate_frame(
                     old.rgb, old.depth_mm, old.camera_K, old.T_base_camera)
@@ -1744,36 +1748,42 @@ class TargetReconstructionNode(
     def _on_save_session(self, request, response):
         """~/save_session：全部已采帧落盘 session_<时间戳>/（含参数快照）."""
         del request
-        # 落盘期间持锁：帧栈/TSDF 缓存快照须一致，worker 短暂阻塞属预期
+        # W2/R4：锁内只取一致快照，多帧 PNG/PLY 同步 IO 全部移出锁外——
+        # 旧版持锁写盘秒级阻塞心跳（diag offered deadline 1.5s 违约风险）。
         with self._state_lock:
-            frames = self.collector.frames
+            frames = list(self.collector.frames)
+            bound_target_id = str(self.collector.target_id or '')
             if not frames:
                 response.success = False
                 response.message = '无已采帧，未落盘'
                 self.get_logger().warning(response.message)
                 self._publish_all()
                 return response
-            try:
-                session_dir = save_session(
-                    self._session_root(), frames, self._session_metadata(),
-                    tsdf_cloud=self._tsdf_cloud_cache,
-                    tsdf_mesh=self._mesh_cache)
-            except Exception as exc:  # noqa: BLE001
-                response.success = False
-                response.message = f'落盘失败: {exc}'
-                self.get_logger().error(response.message)
-                self._publish_all()
-                return response
-            response.success = True
-            response.message = f'已保存 {len(frames)} 帧到 {session_dir}'
-            self._harvest_data.append_event({
-                'source': 'reconstruction', 'event': 'session_saved',
-                'target_id': self.collector.target_id,
-                'session_dir': str(session_dir),
-            })
-            self.get_logger().info(response.message)
+            metadata = self._session_metadata()
+            tsdf_cloud = self._tsdf_cloud_cache
+            tsdf_mesh = self._mesh_cache
+            session_root = self._session_root()
+        try:
+            session_dir = save_session(
+                session_root, frames, metadata,
+                tsdf_cloud=tsdf_cloud,
+                tsdf_mesh=tsdf_mesh)
+        except Exception as exc:  # noqa: BLE001
+            response.success = False
+            response.message = f'落盘失败: {exc}'
+            self.get_logger().error(response.message)
             self._publish_all()
             return response
+        response.success = True
+        response.message = f'已保存 {len(frames)} 帧到 {session_dir}'
+        self._harvest_data.append_event({
+            'source': 'reconstruction', 'event': 'session_saved',
+            'target_id': bound_target_id,
+            'session_dir': str(session_dir),
+        })
+        self.get_logger().info(response.message)
+        self._publish_all()
+        return response
 
     # ------------------------------------------------------------------
     # 自动模式（决策纯逻辑在 FrameCollector，这里只做 TF/订阅接线）
@@ -1973,12 +1983,19 @@ class TargetReconstructionNode(
         return T[:3, 3].copy(), T[:3, 2].copy()
 
     def _pregrasp_verification_msg(self, header):
-        """工具帧相对融合袋模型的预抓取残差（观测用，不授权 SetIO）."""
+        """工具帧相对融合袋模型的预抓取残差（观测用，不授权 SetIO）.
+
+        W2/R3：本方法双路并发可达（心跳持 _state_lock vs _publish_all 锁外），
+        状态快照与 `_pregrasp_prev` 交换必须入锁（RLock：心跳路径重入安全）；
+        三次 latest TF 查询留在锁外（1s 级超时不得占锁）。
+        """
         msg = PregraspVerification()
         msg.header = header
-        msg.target_id = str(self.collector.target_id or '')
-        fused = self._bag_model or {}
-        result = self._refined or {}
+        with self._state_lock:
+            msg.target_id = str(self.collector.target_id or '')
+            fused = dict(self._bag_model or {})
+            result = dict(self._refined or {})
+            previous = self._pregrasp_prev
         msg.model_revision = str(result.get('model_revision') or '')
         msg.tool_profile_id = str(self.params.tool.profile_id)
         if not fused.get('ok'):
@@ -1999,8 +2016,9 @@ class TargetReconstructionNode(
             blade, cut_pt,
             float(fused.get('radial_margin_m') or 0.0),
             float(fused.get('axial_margin_m') or 0.0),
-            previous=self._pregrasp_prev)
-        self._pregrasp_prev = eval_row
+            previous=previous)
+        with self._state_lock:
+            self._pregrasp_prev = eval_row
         msg.frames_consistent = bool(eval_row['frames_consistent'])
         msg.axis_angle_deg = float(eval_row['axis_angle_deg'])
         msg.lateral_error_m = float(eval_row['lateral_error_m'])

@@ -26,6 +26,7 @@
 #include <utility>
 #include <vector>
 #include <moveit/move_group_interface/move_group_interface.hpp>
+#include <tf2/time.h>
 #include <moveit/robot_state/cartesian_interpolator.hpp>
 #include <moveit/collision_detection/collision_matrix.hpp>
 #include <moveit/collision_detection_fcl/collision_env_fcl.hpp>
@@ -134,6 +135,35 @@ CallbackReturn ManipulationSkillsNode::on_configure(const rclcpp_lifecycle::Stat
     }
     loadParameters();
     createInterfaces();
+    // 诊断双轨（W5-10）：/diagnostics 1Hz（~/status 不动）。与生命周期实体
+    // 同纪律——configure 创建、cleanup 释放；Unconfigured 期零 ROS 接口。
+    diagnostics_ = std::make_unique<diagnostic_updater::Updater>(this, 1.0);
+    diagnostics_->setHardwareID("peach_arm");
+    diagnostics_->add(
+      "perception_stream",
+      [this](diagnostic_updater::DiagnosticStatusWrapper & st) {
+        reportStreamDiagnostics(st);
+      });
+    diagnostics_->add(
+      "target_cache",
+      [this](diagnostic_updater::DiagnosticStatusWrapper & st) {
+        reportTargetCacheDiagnostics(st);
+      });
+    diagnostics_->add(
+      "callback_timing",
+      [this](diagnostic_updater::DiagnosticStatusWrapper & st) {
+        reportCallbackTimingDiagnostics(st);
+      });
+    diagnostics_->add(
+      "contact_monitor",
+      [this](diagnostic_updater::DiagnosticStatusWrapper & st) {
+        reportContactMonitorDiagnostics(st);
+      });
+    diagnostics_->add(
+      "enables",
+      [this](diagnostic_updater::DiagnosticStatusWrapper & st) {
+        reportEnablesDiagnostics(st);
+      });
     // MoveIt/MTC 资源分配放 configure（activate 只做快速切换）；
     // 机器人模型缺失/规划组不存在等在此抛异常 → FAILURE。
     initializeMoveIt();
@@ -273,6 +303,7 @@ void ManipulationSkillsNode::releaseResources()
   robot_status_sub_.reset();
   joint_status_sub_.reset();
   contact_guard_timer_.reset();
+  diagnostics_.reset();
   status_pub_.reset();
   marker_pub_.reset();
   grasp_hyp_pub_.reset();
@@ -976,6 +1007,157 @@ void ManipulationSkillsNode::publishState()
   std_msgs::msg::String message;
   message.data = state_json_.dump();
   status_pub_->publish(message);
+}
+
+// ---- 诊断双轨任务（W5-10）----
+// 级别口径：OK=正常观测；WARN=数据陈旧/降级（周期仍可自行判停）；
+// ERROR=通道断流/授权异常。只读投影，不做任何控制决策；不与 ~/status
+// 互相替代（web 消费端不动）。
+
+void ManipulationSkillsNode::reportStreamDiagnostics(
+  diagnostic_updater::DiagnosticStatusWrapper & status)
+{
+  using Status = diagnostic_msgs::msg::DiagnosticStatus;
+  const double now_s = now().seconds();
+  const double last_arrival = frame_timeouts_.lastArrivalS();
+  const double arrival_age_s = last_arrival > 0.0 ? now_s - last_arrival : -1.0;
+  const double ema_s = frame_timeouts_.frameIntervalEmaS();
+  status.add("frame_interval_ema_s", ema_s);
+  status.add("last_arrival_age_s", arrival_age_s);
+  status.add("frame_wait_s", frame_timeouts_.frameWaitS());
+  status.add("target_max_age_s", frame_timeouts_.targetMaxAgeS());
+  status.add("refined_wait_s", frame_timeouts_.refinedWaitS(
+      cache_.qualitySnapshot().reconstruction_state == "COLLECTING"));
+  // base<-camera 最新 TF 可用性（0 超时探测，不阻塞）：视点生成/接近几何
+  // 都依赖这条链，不可用即 ERROR。先核帧名是否已在树上（camera_enabled
+  // =false 时相机帧不存在），避免 canTransform 对无效帧名刷 tf2 WARN。
+  const auto frames = tf_buffer_.getAllFrameNames();
+  const bool base_known =
+    std::find(frames.begin(), frames.end(), params_.frames.base) != frames.end();
+  const bool camera_known =
+    std::find(frames.begin(), frames.end(), params_.frames.camera) != frames.end();
+  const bool tf_ok = base_known && camera_known &&
+    tf_buffer_.canTransform(
+    params_.frames.base, params_.frames.camera, tf2::TimePointZero,
+    std::chrono::milliseconds(0));
+  status.add("tf_base_to_camera_ok", tf_ok ? 1 : 0);
+  if (!camera_known) {
+    status.summary(Status::WARN, "相机 TF 帧未发布（camera_enabled=false 或外参未起）");
+    return;
+  }
+  if (!tf_ok) {
+    status.summary(Status::ERROR, "base<-camera TF 不可用");
+    return;
+  }
+  if (arrival_age_s < 0.0) {
+    status.summary(Status::WARN, "尚未收到目标观测帧");
+    return;
+  }
+  if (arrival_age_s > frame_timeouts_.targetMaxAgeS()) {
+    status.summary(Status::WARN, "目标观测流陈旧");
+    return;
+  }
+  status.summary(Status::OK, "观测流与 TF 正常");
+}
+
+void ManipulationSkillsNode::reportTargetCacheDiagnostics(
+  diagnostic_updater::DiagnosticStatusWrapper & status)
+{
+  using Status = diagnostic_msgs::msg::DiagnosticStatus;
+  const QualitySnapshot snapshot = qualitySnapshot();
+  status.add("reconstruction_state", snapshot.reconstruction_state);
+  status.add("data_age_s", snapshot.data_age_s);
+  status.add("captured_views",
+    static_cast<int>(snapshot.captured_views));
+  status.add("station_count", static_cast<int>(snapshot.station_count));
+  status.add("selected_target_id", snapshot.selected_target_id);
+  status.add("refined_target_id", snapshot.refined_target_id);
+  const bool id_consistent =
+    snapshot.selected_target_id.empty() ||
+    snapshot.refined_target_id.empty() ||
+    snapshot.selected_target_id == snapshot.refined_target_id;
+  if (!id_consistent) {
+    status.summary(Status::WARN, "selected 与精化目标 ID 不一致");
+    return;
+  }
+  status.summary(Status::OK, "目标缓存正常");
+}
+
+void ManipulationSkillsNode::reportCallbackTimingDiagnostics(
+  diagnostic_updater::DiagnosticStatusWrapper & status)
+{
+  using Status = diagnostic_msgs::msg::DiagnosticStatus;
+  // TopN 耗时（按 max_ms 降序取前 5；数值口径与 ~/status 的
+  // callback_timing 投影一致——复用同一注册表，不新增计时点）。
+  auto entries = callback_timing_.snapshot();
+  std::vector<std::pair<std::string, CallbackTimingRegistry::Entry>> top(
+    entries.begin(), entries.end());
+  std::sort(
+    top.begin(), top.end(),
+    [](const auto & a, const auto & b) {
+      return a.second.max_ms > b.second.max_ms;
+    });
+  std::size_t shown = 0;
+  for (const auto & [label, entry] : top) {
+    if (shown++ >= 5U) {
+      break;
+    }
+    status.add(label + ".count", static_cast<int>(entry.count));
+    status.add(label + ".last_ms", entry.last_ms);
+    status.add(label + ".max_ms", entry.max_ms);
+  }
+  status.summary(Status::OK, "回调耗时 TopN");
+}
+
+void ManipulationSkillsNode::reportContactMonitorDiagnostics(
+  diagnostic_updater::DiagnosticStatusWrapper & status)
+{
+  using Status = diagnostic_msgs::msg::DiagnosticStatus;
+  status.add("enabled", contact_detect_config_.enabled ? 1 : 0);
+  status.add("baseline_s", contact_detect_config_.baseline_s);
+  status.add("slope_threshold", contact_detect_config_.slope_threshold);
+  status.add("spike_threshold", contact_detect_config_.spike_threshold);
+  status.add("abort_suspected", contactAbortSuspected() ? 1 : 0);
+  std::size_t sample_count = 0;
+  {
+    std::lock_guard<std::mutex> lock(joint_current_mutex_);
+    sample_count = joint_current_samples_.size();
+  }
+  status.add("current_sample_count", static_cast<int>(sample_count));
+  if (contactAbortSuspected()) {
+    status.summary(Status::ERROR, "疑似硬接触（已取消执行，须现场确认后 ACK）");
+    return;
+  }
+  status.summary(
+    Status::OK, contact_detect_config_.enabled ? "接触检测运行中" : "接触检测关闭（仅缓存）");
+}
+
+void ManipulationSkillsNode::reportEnablesDiagnostics(
+  diagnostic_updater::DiagnosticStatusWrapper & status)
+{
+  using Status = diagnostic_msgs::msg::DiagnosticStatus;
+  const char * source = enables_external_ ? "console_broadcast" : "local_params";
+  double heartbeat_age_s = -1.0;
+  if (enables_external_) {
+    heartbeat_age_s = std::chrono::duration<double>(
+      std::chrono::steady_clock::now() - enables_last_beat_).count();
+  }
+  status.add("source", source);
+  status.add("heartbeat_age_s", heartbeat_age_s);
+  status.add("heartbeat_timeout_s", enables_heartbeat_timeout_s_);
+  status.add("execution_enabled", execution_enabled_.load() ? 1 : 0);
+  status.add("grasp_enabled", grasp_enabled_.load() ? 1 : 0);
+  status.add("tool_enabled", tool_enabled_.load() ? 1 : 0);
+  status.add("execution_armed", execution_armed_.load() ? 1 : 0);
+  status.add("motion_output_permitted", motion_output_permitted_.load() ? 1 : 0);
+  status.add("contact_recovery_required", contact_recovery_required_.load() ? 1 : 0);
+  if (enables_external_ && enables_heartbeat_timeout_s_ > 0.0 &&
+    heartbeat_age_s > enables_heartbeat_timeout_s_)
+  {
+    status.summary(Status::WARN, "操作台使能广播心跳超时（看门狗将回落本地参数）");
+    return;
+  }
+  status.summary(Status::OK, std::string("使能正常（源=") + source + "）");
 }
 
 void ManipulationSkillsNode::startCycleTiming()

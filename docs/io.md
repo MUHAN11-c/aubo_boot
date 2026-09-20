@@ -406,6 +406,7 @@ flowchart TB
 | `/peach_arm/acknowledge_recovery` | service | 技能确认停驻已看过；调度 ACK 会调它，成功才消耗 `state_seq` | peach_arm | peach_supervisor |
 | `/peach/manipulation/grasp_hypothesis` | topic | 本周期抓取假说（监控三维；未当批次门） | peach_arm | peach_observability |
 | `/peach_arm/status` | topic | 技能短状态 JSON，作业票「靠近/工具」用 | peach_arm | peach_observability |
+| `/diagnostics` | topic | 技能节点诊断双轨（W5-10，diagnostic_updater 1Hz：观测流/TF 新鲜度、目标缓存、回调耗时 TopN、接触电流特征、使能心跳；不进接口清单，同 serial_imu 先例口径） | peach_arm | （诊断消费端，随 `/diagnostics` 生态） |
 
 另有 Trigger（已进清单；8090 调试面调用，调度主路径走动作 cancel）：
 

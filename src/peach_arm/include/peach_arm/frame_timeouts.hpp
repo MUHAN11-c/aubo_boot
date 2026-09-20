@@ -55,6 +55,13 @@ public:
     return frame_interval_ema_s_;
   }
 
+  /// 最近观测到达时刻 [s]（注入时钟同源）；0=尚未收到帧（诊断新鲜度用）。
+  double lastArrivalS() const
+  {
+    std::lock_guard<std::mutex> lock(mutex_);
+    return last_arrival_s_;
+  }
+
   // 帧率自适应取值：等帧窗口在 EMA 未测得时用 assumed_frame_interval_s
   // 估超时；新鲜度门在未测得前保持 yaml 回退，且不得收得比回退更紧。
   double waitIntervalS() const

@@ -169,6 +169,37 @@ bool ManipulationSkillsNode::failStage(
   return failStage(ctx, reason);
 }
 
+bool ManipulationSkillsNode::failStage(
+  CycleContext & ctx, uint32_t failure_code, const std::string & reason)
+{
+  // W5-9：调用方已按语义分级（或保持 FAILED 默认）的失败点只补失败码。
+  ctx.failure_code = failure_code;
+  return failStage(ctx, reason);
+}
+
+// ViewContext 组装单点（W5-11：原 stagePrepareCycle 与扫描环两份重复合一）。
+// target=当前生效目标快照（扫描环按最新锚点、越权回退周期目标），
+// camera_position=当前相机位置（base 系），target_id=锁定集邻居排除键。
+ViewContext ManipulationSkillsNode::makeViewContext(
+  const CachedTarget & target, const Eigen::Vector3d & camera_position,
+  const std::string & target_id)
+{
+  ViewContext context;
+  context.target = target.center;
+  context.current_camera_position = camera_position;
+  context.observed_directions = observedDirectionsSnapshot();
+  context.bbox_valid = target.bbox_valid;
+  context.bbox_x = target.bbox_x;
+  context.bbox_y = target.bbox_y;
+  context.bbox_w = target.bbox_w;
+  context.bbox_h = target.bbox_h;
+  context.image_width = target.image_width;
+  context.image_height = target.image_height;
+  context.neighbor_centers = cache_.lockedNeighborCenters(target_id);
+  context.foreground_ratio = target.foreground_ratio;
+  return context;
+}
+
 Eigen::Isometry3d ManipulationSkillsNode::entryToolPose(
   const Eigen::Vector3d & entry, const Eigen::Vector3d & axis,
   const Eigen::Vector3d & preferred_x)
@@ -323,7 +354,9 @@ bool ManipulationSkillsNode::stagePrepareCycle(CycleContext & ctx)
   ctx.contact_transaction_id = ctx.target_id + ":contact";
   tool_actuator_.resetSafe();
   if (!ctx.target) {
-    return failStage(ctx, "周期目标（selected/锁定集锚点）在启动后失效");
+    return failStage(
+      ctx, FailureCode::OBSERVE_FAILED,
+      "周期目标（selected/锁定集锚点）在启动后失效");
   }
   // goal 钉死校验（ExecuteTarget.goal.target_id）：action 受理到本快照之间感知若已切换
   // selected，身份不一致即周期失败，由编排按新 selected 重新派发；
@@ -332,7 +365,7 @@ bool ManipulationSkillsNode::stagePrepareCycle(CycleContext & ctx)
   // 失败分支），本校验恒通过。
   if (!ctx.target_id.empty() && ctx.target->id != ctx.target_id) {
     return failStage(
-      ctx,
+      ctx, FailureCode::MODEL_STALE,
       "目标身份变更: goal=" + ctx.target_id +
       " 当前 selected=" + ctx.target->id);
   }
@@ -341,25 +374,15 @@ bool ManipulationSkillsNode::stagePrepareCycle(CycleContext & ctx)
   const auto base_from_camera = motion_->lookupTransform(params_.frames.base,
       params_.frames.camera);
   if (!base_from_camera) {
-    return failStage(ctx, "无法取得当前相机位姿");
+    return failStage(
+      ctx, FailureCode::EXACT_TF_MISSING, "无法取得当前相机位姿");
   }
-  ViewContext view_context;
-  view_context.target = ctx.target->center;
-  view_context.current_camera_position = base_from_camera->translation();
-  view_context.observed_directions = observedDirectionsSnapshot();
-  view_context.bbox_valid = ctx.target->bbox_valid;
-  view_context.bbox_x = ctx.target->bbox_x;
-  view_context.bbox_y = ctx.target->bbox_y;
-  view_context.bbox_w = ctx.target->bbox_w;
-  view_context.bbox_h = ctx.target->bbox_h;
-  view_context.image_width = ctx.target->image_width;
-  view_context.image_height = ctx.target->image_height;
-  view_context.neighbor_centers = cache_.lockedNeighborCenters(ctx.target_id);
-  view_context.foreground_ratio = ctx.target->foreground_ratio;
-  ctx.candidates = view_planner_->generate(view_context);
+  ctx.candidates = view_planner_->generate(
+    makeViewContext(*ctx.target, base_from_camera->translation(), ctx.target_id));
   publishViewMarkers(ctx.target->center, ctx.candidates);
   if (ctx.candidates.empty()) {
-    return failStage(ctx, "没有生成可用观察视点");
+    return failStage(
+      ctx, FailureCode::OBSERVE_FAILED, "没有生成可用观察视点");
   }
   return true;
 }
@@ -384,7 +407,8 @@ bool ManipulationSkillsNode::stagePlanPreview(CycleContext & ctx)
     }
   }
   pending_outcome_.store(ExecuteTarget::Result::SKIPPED_UNREACHABLE);
-  return failStage(ctx, "所有候选观察位姿均不可规划");
+  return failStage(
+      ctx, FailureCode::OBSERVE_FAILED, "所有候选观察位姿均不可规划");
 }
 
 bool ManipulationSkillsNode::stageAcquireViews(CycleContext & ctx)
@@ -435,43 +459,18 @@ bool ManipulationSkillsNode::stageAcquireViews(CycleContext & ctx)
     const auto current_camera = motion_->lookupTransform(params_.frames.base,
         params_.frames.camera);
     if (!current_camera) {
-      return failStage(ctx, "扫描中无法取得相机位姿");
+      return failStage(
+      ctx, FailureCode::EXACT_TF_MISSING, "扫描中无法取得相机位姿");
     }
     // 每次规划前用缓存中的最新观测锚点：跨视角锚点偏差在近距获得观测后
     // 自动纠偏，避免按拍照位姿的旧锚点把目标指到画面外（stale 主因）。
     // OBSERVE_ONLY 周期取 goal 目标的锁定集锚点（见 cycleTargetSnapshot）。
     const auto latest_target = cycleTargetSnapshot(ctx.target_id);
-    const Eigen::Vector3d scan_center =
-      (latest_target && latest_target->id == ctx.target_id) ?
-      latest_target->center : ctx.target->center;
-    ViewContext scan_context;
-    scan_context.target = scan_center;
-    scan_context.current_camera_position = current_camera->translation();
-    scan_context.observed_directions = observedDirectionsSnapshot();
-    if (latest_target && latest_target->id == ctx.target_id) {
-      scan_context.bbox_valid = latest_target->bbox_valid;
-      scan_context.bbox_x = latest_target->bbox_x;
-      scan_context.bbox_y = latest_target->bbox_y;
-      scan_context.bbox_w = latest_target->bbox_w;
-      scan_context.bbox_h = latest_target->bbox_h;
-      scan_context.image_width = latest_target->image_width;
-      scan_context.image_height = latest_target->image_height;
-    } else if (ctx.target) {
-      scan_context.bbox_valid = ctx.target->bbox_valid;
-      scan_context.bbox_x = ctx.target->bbox_x;
-      scan_context.bbox_y = ctx.target->bbox_y;
-      scan_context.bbox_w = ctx.target->bbox_w;
-      scan_context.bbox_h = ctx.target->bbox_h;
-      scan_context.image_width = ctx.target->image_width;
-      scan_context.image_height = ctx.target->image_height;
-    }
-    scan_context.neighbor_centers = cache_.lockedNeighborCenters(ctx.target_id);
-    if (latest_target && latest_target->id == ctx.target_id) {
-      scan_context.foreground_ratio = latest_target->foreground_ratio;
-    } else if (ctx.target) {
-      scan_context.foreground_ratio = ctx.target->foreground_ratio;
-    }
-    ctx.candidates = view_planner_->generate(scan_context);
+    const bool latest_valid = latest_target && latest_target->id == ctx.target_id;
+    const CachedTarget & view_target = latest_valid ? *latest_target : *ctx.target;
+    const Eigen::Vector3d scan_center = view_target.center;
+    ctx.candidates = view_planner_->generate(
+      makeViewContext(view_target, current_camera->translation(), ctx.target_id));
     publishViewMarkers(scan_center, ctx.candidates);
     bool moved = false;
     for (const auto & candidate : ctx.candidates) {
@@ -494,7 +493,9 @@ bool ManipulationSkillsNode::stageAcquireViews(CycleContext & ctx)
           // 移动，到位后由 waitForFreshTarget 判定是否重新可见
           RCLCPP_INFO(get_logger(), "目标观测暂陈旧，凭记忆锚点执行获取性移动");
         } else if (!recovered) {
-          return failStage(ctx, "目标身份/可见性安全门失败: " + target_reason);
+          return failStage(
+          ctx, FailureCode::OBSERVE_FAILED,
+          "目标身份/可见性安全门失败: " + target_reason);
         }
       }
       setState(
@@ -544,7 +545,8 @@ bool ManipulationSkillsNode::stageAcquireViews(CycleContext & ctx)
       }
       // 视角规划不可达：批次侧可按 SKIPPED_UNREACHABLE 直接跳过该目标。
       pending_outcome_.store(ExecuteTarget::Result::SKIPPED_UNREACHABLE);
-      return failStage(ctx, "剩余候选视点均不可达或规划失败");
+      return failStage(
+      ctx, FailureCode::OBSERVE_FAILED, "剩余候选视点均不可达或规划失败");
     }
   }
   if (cancel_requested_.load()) {
@@ -555,7 +557,7 @@ bool ManipulationSkillsNode::stageAcquireViews(CycleContext & ctx)
     // 移动次数上限内采集帧不足/不收敛（含有效视点未达下限）：按目标不可达跳过。
     pending_outcome_.store(ExecuteTarget::Result::SKIPPED_UNREACHABLE);
     return failStage(
-      ctx,
+      ctx, FailureCode::OBSERVE_FAILED,
       "达到扫描上限仍未收敛（有效视点 " + std::to_string(effective_views) +
       "/" + std::to_string(params_.scan.min_effective_views) + "）: " + gate.reason);
   }
@@ -570,7 +572,8 @@ bool ManipulationSkillsNode::stageFinalizeAndValidate(CycleContext & ctx)
     if (!refined_arrived) {
       pending_outcome_.store(ExecuteTarget::Result::SKIPPED_QUALITY);
       return failStage(
-        ctx, "observe_only 未等到绑定目标的 TSDF/精化几何: " + ctx.target_id);
+        ctx, FailureCode::BUILD_FAILED,
+        "observe_only 未等到绑定目标的 TSDF/精化几何: " + ctx.target_id);
     }
     return true;
   }
@@ -590,12 +593,14 @@ bool ManipulationSkillsNode::stageFinalizeAndValidate(CycleContext & ctx)
     graspDecisionTargetSnapshot() == ctx.target_id);
   const auto tip_from_tool = motion_->lookupTransform(params_.frames.tip, params_.frames.tool);
   if (!tip_from_tool) {
-    return failStage(ctx, "无法取得 tip 到 tool 的变换");
+    return failStage(
+      ctx, FailureCode::EXACT_TF_MISSING, "无法取得 tip 到 tool 的变换");
   }
   if (grasp_ready) {
     ctx.refined = refinedSnapshot();
     if (!ctx.refined) {
-      return failStage(ctx, "精化位姿数据不存在");
+      return failStage(
+      ctx, FailureCode::BUILD_FAILED, "精化位姿数据不存在");
     }
     // 再确认漂移判定必须和后续新鲜观测用同一套锚点定义（感知底/颈中点）。
     // 若拿 TSDF 中点去比单帧检测中点，现场曾把 ~5cm 的定义差当成果实移动，
@@ -656,7 +661,9 @@ bool ManipulationSkillsNode::stageReconfirmTarget(CycleContext & ctx)
   }
   if (!ctx.refined || !ctx.refined->valid) {
     pending_outcome_.store(ExecuteTarget::Result::SKIPPED_QUALITY);
-    return failStage(ctx, "再确认无有效入口几何（FinalizeAndValidate 未产出）");
+    return failStage(
+      ctx, FailureCode::DEGRADED_CONTACT_FORBIDDEN,
+      "再确认无有效入口几何（FinalizeAndValidate 未产出）");
   }
   setState(
     CycleState::RECONFIRM,
@@ -735,7 +742,7 @@ bool ManipulationSkillsNode::stageReconfirmTarget(CycleContext & ctx)
       reason += " updated_s=" + std::to_string(latest->updated_s);
     }
     pending_outcome_.store(ExecuteTarget::Result::SKIPPED_QUALITY);
-    return failStage(ctx, reason);
+    return failStage(ctx, FailureCode::OBSERVE_FAILED, reason);
   }
   return false;
 }
@@ -766,7 +773,8 @@ bool ManipulationSkillsNode::stageMovePregrasp(CycleContext & ctx)
   }
   setState(CycleState::MTC_APPROACH_INSERT, "拍照位再最短路径到预抓取", ctx.target_id);
   if (!ctx.refined || !grasp_task_) {
-    return failStage(ctx, "预抓取无入口几何");
+    return failStage(
+      ctx, FailureCode::DEGRADED_CONTACT_FORBIDDEN, "预抓取无入口几何");
   }
   // 观察停在 look-at。从该姿态直接 LIN/PTP 到预抓取现场常无 IK
   // （08-28 G PTP 0/1；08-31 1405 LIN NO_IK）。拍照位是已知可达的自由空间点。
@@ -981,7 +989,8 @@ bool ManipulationSkillsNode::stagePlanSleeveAndReverseRetreat(CycleContext & ctx
   }
   setState(CycleState::PREVIEW_CONTACT_PLANNING, "预规划套入与反向撤退", ctx.target_id);
   if (!ctx.refined || !grasp_task_) {
-    return failStage(ctx, "套入预规划无几何");
+    return failStage(
+      ctx, FailureCode::DEGRADED_CONTACT_FORBIDDEN, "套入预规划无几何");
   }
   const auto result = grasp_task_->previewFullContact(
     ctx.entry_tip_pose, ctx.refined->axis, ctx.travel_m,
@@ -1007,7 +1016,8 @@ bool ManipulationSkillsNode::stageSleeveLinear(CycleContext & ctx)
     grasp_task_->setContactAcm(ctx.target_id, ContactAcmStage::Sleeve);
   }
   if (!ctx.sleeve_planned || !grasp_task_ || !ctx.refined) {
-    return failStage(ctx, "套入前未完成正反向预规划");
+    return failStage(
+      ctx, FailureCode::SLEEVE_PLAN_FAILED, "套入前未完成正反向预规划");
   }
   startContactGuard();
   const auto result = grasp_task_->sleeveLinear(
@@ -1041,7 +1051,8 @@ bool ManipulationSkillsNode::stageSleeveLinear(CycleContext & ctx)
 bool ManipulationSkillsNode::stageActuateCutter(CycleContext & ctx)
 {
   if (ctx.pregrasp_only) {
-    return failStage(ctx, "PREGRASP_ONLY 不得 SetIO");
+    return failStage(
+      ctx, FailureCode::CUT_COMMAND_FAILED, "PREGRASP_ONLY 不得 SetIO");
   }
   if (!tool_enabled_.load()) {
     setState(CycleState::ACTUATE_TOOL, "tool.enabled=false，跳过末端 IO", ctx.target_id);
@@ -1131,7 +1142,8 @@ bool ManipulationSkillsNode::stageReturnHarvestStow(CycleContext & ctx)
     params_.photo_pose_named_target : params_.harvest_stow_named_target;
   std::string message;
   if (!motion_->goToPhotoPose(stow, execution_enabled_.load(), message)) {
-    return failStage(ctx, "返回 harvest_stow 失败: " + message);
+    return failStage(
+      ctx, FailureCode::RETREAT_FAILED, "返回 harvest_stow 失败: " + message);
   }
   contact_recovery_required_.store(false);
   markCheckpoint(ExecuteTarget::Goal::CK_STOWED, "回收纳位");

@@ -20,6 +20,7 @@
 #include <aubo_msgs/msg/robot_status.hpp>
 #include <aubo_msgs/srv/set_io.hpp>
 #include <builtin_interfaces/msg/duration.hpp>
+#include <diagnostic_updater/diagnostic_updater.hpp>
 #include <nlohmann/json.hpp>
 #include <peach_interfaces/msg/bag_fitting_array.hpp>
 #include <peach_interfaces/msg/bag_grasp_candidate_array.hpp>
@@ -260,12 +261,20 @@ private:
   bool failStage(
     CycleContext & ctx, uint8_t outcome, uint32_t failure_code,
     const std::string & reason);
+  // 阶段失败带失败码、不改变终局分级（W5-9）：pending_outcome_ 已由调用方
+  // 按语义分级（或保持周期起步的 FAILED 默认），此处只补 FailureCode。
+  bool failStage(CycleContext & ctx, uint32_t failure_code, const std::string & reason);
   // 入口工具位姿（三处共用）：平移=精化入口；姿态优先沿当前工具姿态对轴
   // （alignFrameZ），TF 不可用退到 ViewPlanner::toolOrientation（preferred_x
   // 通常取目标 initial_pose 的 X 轴）；tip 位姿由调用方乘 (tip←tool)^-1。
   Eigen::Isometry3d entryToolPose(
     const Eigen::Vector3d & entry, const Eigen::Vector3d & axis,
     const Eigen::Vector3d & preferred_x);
+  // ViewContext 组装单点（W5-11）：stagePrepareCycle 与扫描环两处共用；
+  // target=当前生效目标快照，camera_position=当前相机位置（base 系）。
+  ViewContext makeViewContext(
+    const CachedTarget & target, const Eigen::Vector3d & camera_position,
+    const std::string & target_id);
   // 接触入口三元组（preview 与 VerifyPregrasp 修正两处同构收敛）：
   // (entry_tip_pose, travel_m)。tip←tool 变换缺失时 false 并置 error
   // （统一文案「无法取得 tip 到 tool 的变换」，调用方按各自路径分级）。
@@ -412,8 +421,23 @@ private:
   // 未激活/已清理时只更新内存投影不发布（~/status 仍随激活发布）。
   rclcpp_lifecycle::LifecyclePublisher<std_msgs::msg::String>::SharedPtr status_pub_;
   // 回调耗时累计注册表（2.16-5）：关键回调入口的 ScopedTimer 析构时写入，
-  // publishState 将其 JSON 投影随 ~/status 一起发布（不新增话题）。
+  // publishState 将其 JSON 投影随 ~/status 一起发布（不新增话题）；
+  // TopN 耗时另随 /diagnostics 双轨发布（W5-10）。
   CallbackTimingRegistry callback_timing_;
+  // 诊断双轨（W5-10）：diagnostic_updater 1Hz 发布 /diagnostics
+  // （DiagnosticArray），~/status 完全不动。与生命周期实体同纪律：
+  // on_configure 创建、releaseResources 释放（Unconfigured 期零 ROS 接口）。
+  std::unique_ptr<diagnostic_updater::Updater> diagnostics_;
+  void reportStreamDiagnostics(
+    diagnostic_updater::DiagnosticStatusWrapper & status);
+  void reportTargetCacheDiagnostics(
+    diagnostic_updater::DiagnosticStatusWrapper & status);
+  void reportCallbackTimingDiagnostics(
+    diagnostic_updater::DiagnosticStatusWrapper & status);
+  void reportContactMonitorDiagnostics(
+    diagnostic_updater::DiagnosticStatusWrapper & status);
+  void reportEnablesDiagnostics(
+    diagnostic_updater::DiagnosticStatusWrapper & status);
   rclcpp_lifecycle::LifecyclePublisher<visualization_msgs::msg::MarkerArray>::SharedPtr
     marker_pub_;
   // 与 status/markers 一样走 LifecyclePublisher：Active 才发，Inactive 空操作。

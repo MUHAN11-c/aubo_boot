@@ -11,6 +11,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 find_package(ament_cmake REQUIRED)
 find_package(aubo_msgs REQUIRED)
+find_package(diagnostic_updater REQUIRED)
 find_package(Eigen3 REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(moveit_msgs REQUIRED)
@@ -73,6 +74,7 @@ target_include_directories(peach_arm PRIVATE include)
 # ament_target_dependencies）；节点非导出目标，一律 PRIVATE。
 target_link_libraries(peach_arm PRIVATE
   ${PROJECT_NAME}_core
+  ${diagnostic_updater_TARGETS}
   arm_parameters
   Threads::Threads
   nlohmann_json::nlohmann_json

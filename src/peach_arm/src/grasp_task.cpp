@@ -182,20 +182,25 @@ ApproachSplit classifyApproach(
 }
 
 
-// 关节轨迹逐点 FK 成 TCP 点列，供笛卡尔绕行审查（inspectCartesianDetour）。
+// 关节轨迹逐点 FK 成 TCP 点列（PF-4/W5-11：单次 FK，按段切分返回）。
+// 返回值 per_part[i] = 第 i 段的 TCP 点列（段序=parts 序）；笛卡尔绕行/
+// 姿态审查的全量点列 = 顺序拼接（同一批 FK 结果，不二次正运动学）。
 // 关节名/维度与模型对不上返回空；调用方拿不到点列按拒发处理，不跳过审查。
-std::vector<CartesianWaypoint> tcpPathFromJoints(
+std::vector<std::vector<CartesianWaypoint>> tcpPathsFromJointsPerPart(
   const moveit::core::RobotModelConstPtr & model,
   const std::string & tip_frame,
   const std::vector<trajectory_msgs::msg::JointTrajectory> & parts)
 {
-  std::vector<CartesianWaypoint> points;
+  std::vector<std::vector<CartesianWaypoint>> per_part;
+  per_part.reserve(parts.size());
   if (!model || !model->hasLinkModel(tip_frame)) {
-    return points;
+    return {};
   }
   moveit::core::RobotState state(model);
   state.setToDefaultValues();
   for (const auto & trajectory : parts) {
+    std::vector<CartesianWaypoint> segment;
+    segment.reserve(trajectory.points.size());
     for (const auto & point : trajectory.points) {
       if (point.positions.size() != trajectory.joint_names.size()) {
         return {};
@@ -211,10 +216,11 @@ std::vector<CartesianWaypoint> tcpPathFromJoints(
       const Eigen::Isometry3d tip = state.getGlobalLinkTransform(tip_frame);
       const Eigen::Vector3d p = tip.translation();
       const Eigen::Quaterniond q(tip.linear());
-      points.push_back({p.x(), p.y(), p.z(), q.x(), q.y(), q.z(), q.w()});
+      segment.push_back({p.x(), p.y(), p.z(), q.x(), q.y(), q.z(), q.w()});
     }
+    per_part.push_back(std::move(segment));
   }
-  return points;
+  return per_part;
 }
 }  // namespace
 
@@ -970,8 +976,21 @@ GraspTaskResult GraspTask::planTaskOnly(
       output.reason = "MTC short-path guard rejected: " + report.reason;
       return output;
     }
-    const auto tcp = tcpPathFromJoints(
+    // PF-4（W5-11）：FK 只做一次（全量按段切分）；逐段果实胶囊审查与全量
+    // 笛卡尔/姿态审查复用同一批点列，不再对每段重复正运动学。
+    const auto tcp_per_part = tcpPathsFromJointsPerPart(
       active->getRobotModel(), config_.tip_frame, approach_parts);
+    std::vector<CartesianWaypoint> tcp;
+    {
+      std::size_t total = 0U;
+      for (const auto & segment : tcp_per_part) {
+        total += segment.size();
+      }
+      tcp.reserve(total);
+      for (const auto & segment : tcp_per_part) {
+        tcp.insert(tcp.end(), segment.begin(), segment.end());
+      }
+    }
     if (inspect_fruit_) {
       // 逐段审查（①+②层）：staging 转移首段（PTP 弧）只查工具有限圆柱×
       // 果实胶囊接触——拍照位本就在果上方，锚定起点的反爬门会把关节弧
@@ -981,8 +1000,7 @@ GraspTaskResult GraspTask::planTaskOnly(
       bool fruit_allowed = true;
       std::string fruit_reason;
       for (std::size_t part = 0; part < approach_parts.size(); ++part) {
-        const auto part_points = tcpPathFromJoints(
-          active->getRobotModel(), config_.tip_frame, {approach_parts[part]});
+        const auto & part_points = tcp_per_part[part];
         if (part_points.size() < 2U) {
           fruit_allowed = false;
           fruit_reason = "无法 FK 果实胶囊审查";

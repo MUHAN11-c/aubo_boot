@@ -1,5 +1,5 @@
 """QoS factory profile tests (rclpy required; skipped in pure-core shells)."""
-from peach_common.qos import latched, reliable, stream
+from peach_common.qos import latched, reliable, sensor, stream
 import pytest
 
 qos = pytest.importorskip('rclpy.qos')
@@ -27,3 +27,11 @@ def test_reliable_alias_and_depth_override():
     assert profile.depth == 10
     assert stream(depth=2).depth == 2
     assert reliable(depth=3).depth == 3
+
+
+def test_sensor_is_best_effort_volatile_keep_last():
+    profile = sensor(depth=10)
+    assert profile.reliability == qos.ReliabilityPolicy.BEST_EFFORT
+    assert profile.durability == qos.DurabilityPolicy.VOLATILE
+    assert profile.history == qos.HistoryPolicy.KEEP_LAST
+    assert profile.depth == 10

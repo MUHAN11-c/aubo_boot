@@ -6,6 +6,7 @@ from dataclasses import dataclass
 import time
 from typing import Sequence
 
+import cv2
 import numpy as np
 
 from peach_vegetation.frangi import (
@@ -76,38 +77,8 @@ def excess_green(bgr: np.ndarray) -> np.ndarray:
 
 
 def _hsv_u8(bgr: np.ndarray) -> np.ndarray:
-    """Return HSV uint8; use cv2 when present, else a coarse numpy path."""
-    try:
-        import cv2
-        return cv2.cvtColor(bgr, cv2.COLOR_BGR2HSV)
-    except ImportError:
-        rgb = bgr[:, :, ::-1].astype(np.float32) / 255.0
-        red, green, blue = rgb[:, :, 0], rgb[:, :, 1], rgb[:, :, 2]
-        maxc = np.maximum(np.maximum(red, green), blue)
-        minc = np.minimum(np.minimum(red, green), blue)
-        chroma = maxc - minc
-        hue = np.zeros_like(maxc)
-        nonempty = chroma > 1e-6
-        rc = np.zeros_like(maxc)
-        gc = np.zeros_like(maxc)
-        bc = np.zeros_like(maxc)
-        rc[nonempty] = (maxc[nonempty] - red[nonempty]) / chroma[nonempty]
-        gc[nonempty] = (maxc[nonempty] - green[nonempty]) / chroma[nonempty]
-        bc[nonempty] = (maxc[nonempty] - blue[nonempty]) / chroma[nonempty]
-        hue_r = (bc - gc)
-        hue_g = 2.0 + (rc - bc)
-        hue_b = 4.0 + (gc - rc)
-        hue = np.where(nonempty & (maxc == red), hue_r, hue)
-        hue = np.where(nonempty & (maxc == green), hue_g, hue)
-        hue = np.where(nonempty & (maxc == blue), hue_b, hue)
-        hue = (hue / 6.0) % 1.0
-        sat = np.zeros_like(maxc)
-        sat[maxc > 1e-6] = chroma[maxc > 1e-6] / maxc[maxc > 1e-6]
-        hsv = np.empty(bgr.shape, dtype=np.uint8)
-        hsv[:, :, 0] = np.clip(hue * 180.0, 0, 179).astype(np.uint8)
-        hsv[:, :, 1] = np.clip(sat * 255.0, 0, 255).astype(np.uint8)
-        hsv[:, :, 2] = np.clip(maxc * 255.0, 0, 255).astype(np.uint8)
-        return hsv
+    """BGR → HSV uint8（cv2；cv_bridge 是硬 exec_depend，cv2 必在）."""
+    return cv2.cvtColor(bgr, cv2.COLOR_BGR2HSV)
 
 
 def leaf_mask_bgr(

@@ -165,14 +165,8 @@ def threshold_ridges(
 
 
 def _dilate_bool(mask: np.ndarray, radius: int) -> np.ndarray:
-    """Square morphological dilate without requiring scipy at import."""
-    try:
-        import cv2
-        kernel = np.ones((2 * radius + 1, 2 * radius + 1), np.uint8)
-        return cv2.dilate(mask.astype(np.uint8), kernel, iterations=1).astype(bool)
-    except ImportError:
-        pass
-    from numpy.lib.stride_tricks import sliding_window_view
-    padded = np.pad(mask, radius, mode='constant', constant_values=False)
-    windows = sliding_window_view(padded, (2 * radius + 1, 2 * radius + 1))
-    return np.any(windows, axis=(-2, -1))
+    """方形态学膨胀（cv2；cv_bridge 硬依赖保证可用）."""
+    import cv2
+    kernel = np.ones((2 * radius + 1, 2 * radius + 1), np.uint8)
+    return cv2.dilate(
+        mask.astype(np.uint8), kernel, iterations=1).astype(bool)

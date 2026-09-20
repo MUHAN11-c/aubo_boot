@@ -16,10 +16,12 @@ from diagnostic_msgs.msg import DiagnosticStatus
 from diagnostic_updater import Updater
 import numpy as np
 from peach_common.lifecycle import ensure_lifecycle_active
+from peach_common.qos import sensor
 from peach_vegetation.params import peach_vegetation
 from peach_vegetation.split import config_from_params, FrangiExgSplitter
 import rclpy
-from rclpy.executors import ExternalShutdownException
+from rclpy.callback_groups import MutuallyExclusiveCallbackGroup
+from rclpy.executors import ExternalShutdownException, MultiThreadedExecutor
 from rclpy.lifecycle import LifecycleNode, TransitionCallbackReturn
 from rclpy.qos import (
     DurabilityPolicy, HistoryPolicy, QoSProfile, ReliabilityPolicy)
@@ -61,6 +63,9 @@ class VegetationNode(LifecycleNode):
         self._last_leaf_frac = 0.0
         self._last_branch_frac = 0.0
         self._last_device = ''
+        # GPU 推理专用互斥组：不与诊断定时器/生命周期服务共用默认组，
+        # 否则一帧 Frangi（数百 ms）期间 diagnostics 全部饿死
+        self._infer_group = MutuallyExclusiveCallbackGroup()
 
     def on_configure(self, state):
         """装参数、预热 GPU、建 publisher / diagnostics."""
@@ -81,7 +86,8 @@ class VegetationNode(LifecycleNode):
         self._status_pub = self.create_lifecycle_publisher(
             String, STATUS_TOPIC, _STREAM_QOS)
         self._image_sub = self.create_subscription(
-            Image, 'image', self._on_image, _STREAM_QOS)
+            Image, 'image', self._on_image, sensor(depth=10),
+            callback_group=self._infer_group)
         self._updater = Updater(self)
         self._updater.setHardwareID(self._splitter.device)
         self._updater.add('vegetation_split', self._diag)
@@ -220,17 +226,25 @@ class VegetationNode(LifecycleNode):
 
 
 def main(args=None):
-    """Run the vegetation node; self-activate if launch events miss."""
+    """
+    Run the vegetation node; self-activate if launch events miss.
+
+    双线程执行器：GPU 推理（专用互斥组）与 diagnostics 定时器并行，
+    单线程会把诊断饿死在长帧推理上。
+    """
     rclpy.init(args=args)
     node = VegetationNode()
+    executor = MultiThreadedExecutor(num_threads=2)
+    executor.add_node(node)
     try:
         node.ensure_active()
-        rclpy.spin(node)
+        executor.spin()
     except KeyboardInterrupt:
         pass
     except ExternalShutdownException:
         pass
     finally:
+        executor.shutdown()
         node.destroy_node()
         if rclpy.ok():
             rclpy.shutdown()

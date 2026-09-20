@@ -9,17 +9,20 @@ peach_bringup: yaml 直读 + 一行 attach.
 from __future__ import annotations
 
 from peach_bringup.yaml_params import attach, package_yaml
+from peach_common.param_rules import check as _check
 
-_POSITIVE = {  # 键 -> 下限（须严格大于）
-    'poll_hz': 0.0,
-    'wait_stack_timeout_s': 0.0,
+_RULES = {  # 键 -> 校验规则表（启动期非法即拒启；运行期非法 set 即拒）
+    'poll_hz': (('gt', 0.0),),
+    'wait_stack_timeout_s': (('gt', 0.0),),
 }
 
 
 def _validate(name, value):
-    """数值下限校验；返回拒绝理由或 None."""
-    if name in _POSITIVE and not value > _POSITIVE[name]:
-        return f'{name} must be > {_POSITIVE[name]}'
+    """逐条规则校验；返回拒绝理由或 None."""
+    for rule in _RULES.get(name, ()):
+        why = _check(rule, value, name)
+        if why:
+            return why
     return None
 
 

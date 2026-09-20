@@ -36,9 +36,8 @@ peach_observability:
       save_images: true  # debug_image/debug_image_raw 进 bag（替代旧 jpg 落盘；QoS 与监控订阅一致）
       save_clouds: true  # tsdf_cloud 进 bag（替代旧终局 PLY 落盘）
       rosout: true  # /rosout 全量进 bag：全部节点日志（stamp/level/logger）可回放——测试复盘最低完备集（scripts/collect_round.py 离线归集依赖它）
-      level: std  # 全量录制档位：all=域内全部话题通配发现订阅、相机 raw 不限速（真全量，仿真复现/问题分析用；stereo 前端约 50MB/s，超 20GB 预算靠 retention 回收）；std=全话题但相机 raw 大流限 1Hz（默认）；core=仅 bag_topics 别名表（旧行为）
+      level: std  # 全量录制档位：all=域内全部话题通配发现订阅、相机 raw 不限速（真全量，仿真复现/问题分析用；stereo 前端约 50MB/s，超 20GB 预算靠 retention 回收）；std=全话题但相机 raw 大流限 1Hz（默认）；core=仅固定订阅集（observability_node 镜像订阅 + 派生 job/metrics，2026-09-20 起 bag_topics 键已删）
       max_total_bag_gb: 20.0  # bag 二进制总量预算（GB）：session_*/bag 与旧 mcap_* 合计超限按最旧先删；0=禁用回收；报告/账本/文本永不删；回收写 runs/retention_audit.jsonl
-      bag_topics: [events, state, scene_snapshot, target_observations, harvest_state, recon_status, recon_diagnostics, recon_debug, grasp_decision, refined_pose, refined_axis, refined_diagnostics, manipulation_status, grasp_hypothesis, tf, tf_static, joint_states, robot_status, joint_status, job, metrics, debug_image, debug_image_raw, tsdf_cloud]  # 录制话题别名表（别名→话题/类型注册表见 observability/bag_reader.py；debug_image/debug_image_raw 另受 save_images、tsdf_cloud 另受 save_clouds 门控）
     trajectory:
       enabled: true  # 采样末端 TCP 轨迹供 Web/路标（latest TF base←tip；bag 侧由 /tf 离线重算，同一来源）
       base_frame: base_link  # 轨迹参考系（与 GraspDecision 入口同系）
@@ -54,7 +53,6 @@ peach_observability:
     debug:
       enabled: true  # 调试 POST 总开关；false 时全部 POST 拒绝，只读监控不受影响
       motion_enabled: false  # 运动类操作放行（Survey / Execute 非 PREVIEW / go_to_photo_pose / 非 SURVEY_ONLY 的 RunHarvest 等）；false 一律 423；PREVIEW 与 BeginScene 不拦；技能侧既有安全门不受影响
-      token: ''  # 键保留不校验（决策 0018）；旧客户端仍可带 X-Debug-Token 头
       action_timeout_s: 180.0  # 动作结果等待上限（秒）；服务 10 秒
       audit_enabled: true  # 调试操作审计落盘 runs/debug_audit/<日期>.jsonl（含被拒请求）
     debug.endpoints:

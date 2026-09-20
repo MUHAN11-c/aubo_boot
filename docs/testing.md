@@ -29,7 +29,7 @@
 
 **单轮复盘完备集（2026-09-17 起）**：① 会话 bag 录 `/rosout` 全量节点日志（`record.rosout` 默认开，stamp/level/logger 可回放：`ros2 bag play` 后 `ros2 topic echo /rosout`）；② ros2 自动日志在 `~/.ros/log/<launch 时间戳>/launch.log`（含全部进程 stdout，目录时间戳=起栈时刻）；③ `runs/<request_id>/` 账本与事件流。三者按运行窗口归集：`python3 scripts/collect_round.py <request_id>` → 生成 `runs/<rid>/round_report.md`（逐目标 outcome 表 + 感知/重建时间轴 + 自动日志关键行 + bag 互链）。
 
-**全量录制（`record.level`，2026-09-17 起）**：`std`（默认）=计算图通配发现订阅域内全部话题自动进会话 bag（新话题无需改代码即被录），相机 raw 大流限 1Hz；`all`=同上但大流不限速（真全量，仿真复现首选；stereo 前端约 50MB/s，超 `max_total_bag_gb` 预算靠 retention 回收）；`core`=仅 `bag_topics` 别名表（旧行为）。运行时切档：改 `observability.yaml` 后重启，或 `ros2 param set /peach_observability record.level all` 再重启节点生效（订阅在 activate 期建立）。
+**全量录制（`record.level`，2026-09-17 起）**：`std`（默认）=计算图通配发现订阅域内全部话题自动进会话 bag（新话题无需改代码即被录），相机 raw 大流限 1Hz；`all`=同上但大流不限速（真全量，仿真复现首选；stereo 前端约 50MB/s，超 `max_total_bag_gb` 预算靠 retention 回收）；`core`=仅固定订阅集（镜像订阅+派生 job/metrics；2026-09-20 起 `bag_topics` 键已删）。运行时切档：改 `observability.yaml` 后重启，或 `ros2 param set /peach_observability record.level all` 再重启节点生效（订阅在 activate 期建立）。
 
 ---
 
@@ -154,7 +154,7 @@ Tab「调试」＝向**既有**动作/服务发请求的纯客户端，页面只
 | `use_sim_time` | false | bag 回放须 `true` + `ros2 bag play --clock`；真机必须 false |
 | 调度 `execute_pregrasp_only` | true | 接触段 `PREGRASP_ONLY`：停预抓取不回 stow；套入前改 false |
 
-过程录制不再有 launch 参数：observability 的 `record.enabled`（默认 true）随栈开合会话 bag，栈停自动出报告；`record.bag_topics`/`record.max_total_bag_gb` 见 `config/observability.yaml`。
+过程录制不再有 launch 参数：observability 的 `record.enabled`（默认 true）随栈开合会话 bag，栈停自动出报告；`record.level`/`record.max_total_bag_gb` 见 `config/observability.yaml`。
 
 完整列表：`--show-args`。只起手臂：`ros2 launch aubo_e5_bringup bringup.launch.py …`。
 

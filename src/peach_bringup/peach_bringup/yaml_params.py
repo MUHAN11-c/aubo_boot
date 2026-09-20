@@ -11,6 +11,7 @@ from peach_common.yaml_params import (
     package_yaml,
     PreviewFn,
     set_dotted,
+    snapshot,
     ValidateFn,
 )
 
@@ -25,5 +26,6 @@ __all__ = [
     'package_yaml',
     'PreviewFn',
     'set_dotted',
+    'snapshot',
     'ValidateFn',
 ]

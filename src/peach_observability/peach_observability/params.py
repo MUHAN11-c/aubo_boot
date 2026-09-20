@@ -116,8 +116,6 @@ class ObservabilityParams:
     """bag 是否收 /rosout."""
     record_level: str
     """bag 话题档（如 'default'）."""
-    record_bag_topics: Tuple[str, ...]
-    """显式收录话题列表."""
     record_max_total_bag_gb: float
     """bag 总容量上限 [GB]；0=不限."""
     trajectory_enabled: bool
@@ -138,8 +136,6 @@ class ObservabilityParams:
     """8090 调试客户端总开关."""
     debug_motion_enabled: bool
     """8090 是否允许发运动类动作（仍过 authorizeStage）."""
-    debug_token: str
-    """预留；现行无鉴权."""
     debug_action_timeout_s: float
     """调试动作等待上限 [s]."""
     debug_audit_enabled: bool
@@ -191,8 +187,6 @@ def from_params(raw) -> ObservabilityParams:
         record_save_clouds=bool(raw.record.save_clouds),
         record_rosout=bool(getattr(raw.record, 'rosout', True)),
         record_level=str(getattr(raw.record, 'level', 'std')).strip() or 'std',
-        record_bag_topics=tuple(
-            str(item).strip() for item in raw.record.bag_topics),
         record_max_total_bag_gb=float(raw.record.max_total_bag_gb),
         trajectory_enabled=bool(raw.trajectory.enabled),
         trajectory_base_frame=str(raw.trajectory.base_frame).strip(),
@@ -203,7 +197,6 @@ def from_params(raw) -> ObservabilityParams:
         topics=topics,
         debug_enabled=bool(raw.debug.enabled),
         debug_motion_enabled=bool(raw.debug.motion_enabled),
-        debug_token=str(raw.debug.token),
         debug_action_timeout_s=float(raw.debug.action_timeout_s),
         debug_audit_enabled=bool(raw.debug.audit_enabled),
         debug_endpoints=debug_endpoints,

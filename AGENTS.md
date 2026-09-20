@@ -162,7 +162,7 @@ ISO 10218 要求独立的正常停止、保护停止、急停，且急停优先�
 
 1. **单一命令门。** Autoware：异常时把输出从正常控制切到 MRM（舒适停 / 紧急停），应用不能绕过这扇门直写执行器。本仓 `ExecutionAuthority` 是同类 KEEP。新运动源（Servo、imu_follow、IVG、8090）必须进同一扇门或硬件急停，禁止旁路话题直写透传。
 2. **使能是运行时开关，意图源单一，强制点在最后写硬件的一环。** OSU apple-harvest `enable_*`；Stretch runstop 后拒一切运动。本仓现行（清洁重写轮）：`execution/grasp/tool` 使能=操作台 `SetEnables` 运行时开关（意图源=supervisor，广播 `/peach/batch/enables`，臂侧命令门强制；无操作台广播时臂侧本地参数权威）；autostart 是部署参数（授权=发起 launch）。
-3. **缺心跳 = 故障。** Autoware `timeout_hazard_status`（默认 0.5 s）收不到危害状态就紧急停。Nav2 Collision Monitor `source_timeout` / `stop_pub_timeout`：传感器断流不当“前方清空”。Stretch：ROS 0.5 s 无 Twist 则平滑停，**固件再 1 s 硬停**（驱动进程死了底层仍停）。本仓 lifecycle 无 bond 是 UNWIND；新托管节点加 bond 或等价 watchdog。
+3. **缺心跳 = 故障。** Autoware `timeout_hazard_status`（默认 0.5 s）收不到危害状态就紧急停。Nav2 Collision Monitor `source_timeout` / `stop_pub_timeout`：传感器断流不当“前方清空”。Stretch：ROS 0.5 s 无 Twist 则平滑停，**固件再 1 s 硬停**（驱动进程死了底层仍停）。本仓四托管节点已接 bond（2026-09-20 W14，C++ 生效、Python 待 apt bondpy，见 SNAPSHOT）；新托管节点同样加 bond 或等价 watchdog。
 4. **安全过滤必须是命令链最后一环。** Nav2：Collision Monitor **必须**是发布 `cmd_vel` 的最后节点；前面再聪明，被旁路就失效。`twist_mux` 优先级挡不住有人直接往执行话题发。臂侧同类：最后写硬件的是控制器 + 柜，不要在应用里再开一条平行写口。
 5. **规划碰撞不是现场安全。** MoveIt 只看见 PlanningScene 里的障碍；Pilz LIN **不避障，碰了整条拒**。octomap / 胶囊是护栏，不是安全激光。场景没有的枝条、人、桌子，规划器看不见。
 6. **指令断流要停。** ros2_control：`read`/`write`/`update` 返回 `ERROR` 则停用相关控制器。JTC `cmd_timeout`、流式控制的 `command_timeout`、Stretch 超时都是“没人说话就停”，不要做成“没人说话就保持上次速度”。流式 Servo / Twist 必须有超时；开环跟到底的透传轨迹靠取消 + `RobotMoveStop`。
@@ -175,7 +175,7 @@ ISO 10218 要求独立的正常停止、保护停止、急停，且急停优先�
 
 **KEEP：** 示教器上电与抱闸；不起 dashboard、不远程上电；`ExecutionAuthority`；使能默认关；launch 不自动接触；停轨 = 透传 abort + `RobotMoveStop`（失败再 `robotMoveFastStop`）；`robot_status` 给安全门看抱闸 / `motion_possible` / 急停**状态**（观测，不是急停通道）；刀默认关。
 
-**UNWIND / 缺口：** lifecycle 无 bond；`diagnostic_updater` 已上 `peach_arm`（W5 起 ~/status 与 /diagnostics 双轨），感知/重建/调度/观测仍未用（`serial_imu` 早已用）；腕轴 `ContactMonitor` 已有、默认关（须真机标定），不是 Nav2 Collision Monitor，**不能**代替柜急停；`imu_follow` 开运动时不经 `authorizeStage`（默认 `motion.enabled=false`；Servo 已有 `incoming_command_timeout`）。
+**UNWIND / 缺口：** lifecycle bond 已接线（2026-09-20 W14：`peach_arm` bondcpp 生效、Python 三节点守卫式 bondpy——本机缺 `ros-jazzy-bondpy` 时降级 WARN，apt 装上并把 launch `bond_timeout` 置 8.0 即开 nav2_lm 进程死检；未开启期死检仍由 supervisor HeartbeatWatchdog 承担）；`diagnostic_updater` 已上 `peach_arm`（W5 双轨）、`peach_observability`（W15 双轨）、`serial_imu`，感知/重建/调度仍未用；腕轴 `ContactMonitor` 已有、默认关（须真机标定），不是 Nav2 Collision Monitor，**不能**代替柜急停；`imu_follow` 开运动时不经 `authorizeStage`（默认 `motion.enabled=false`；Servo 已有 `incoming_command_timeout`）。
 
 ### 真机操作纪律
 
@@ -315,14 +315,14 @@ Percipio 深度是 uint16 毫米（SNAPSHOT 例外，KEEP 因为相机驱动如�
 
 ### Lifecycle 顺序
 
-硬件邻接节点按 [Managed Nodes](https://docs.ros.org/en/jazzy/Concepts/About-Lifecycle.html)：configure 建资源（打开设备、分配缓冲），activate 才进实时路径。拆栈反向：deactivate → cleanup。Nav2 `lifecycle_manager` 对每个托管节点建 **bond**：进程死则整栈降级，而不是名单上显示 Active 其实已经没了。本仓现行无 bond（UNWIND）；新生命周期节点加 bond，或显式 watchdog 等价物，并写进 architecture。
+硬件邻接节点按 [Managed Nodes](https://docs.ros.org/en/jazzy/Concepts/About-Lifecycle.html)：configure 建资源（打开设备、分配缓冲），activate 才进实时路径。拆栈反向：deactivate → cleanup。Nav2 `lifecycle_manager` 对每个托管节点建 **bond**：进程死则整栈降级，而不是名单上显示 Active 其实已经没了。本仓四托管节点已接 bond（W14；`bond_timeout` 参数默认 0，开启前装 apt bondpy）；新生命周期节点加 bond，或显式 watchdog 等价物，并写进 architecture。
 
 ### 可替换缝位
 
 - 算法 / 控制器 / 规划器：**pluginlib**（Nav2、ros2_control、MoveIt）。现行 dict `*.impl` 是 UNWIND。新可替换算法默认 pluginlib；默认可仍直接构造一个实现（KEEP 门槛第 3 条：不阻止主流 API）
 - 高带宽感知：优先 **composable node** + intra-process。本仓仅 Percipio 在用，peach 节点 UNWIND
 - 参数：新 **C++** 包默认 **generate_parameter_library**。Python peach 节点 SNAPSHOT 是 `config/<节点>.yaml` 直读 + `attach(node)`（决策 0024，不追求 Python GPL 生成物）；`peach_arm` 仍 GPL（2c）
-- Lifecycle：能力节点 `on_activate` 才接运动 / IO。管理器名单有序（传感器/感知 → 规划 → 执行 → 调度），反向拆。社区默认 **bond**；本仓无 bond 是 UNWIND。新生命周期节点按 Nav2 加 bond 或显式 watchdog，禁止静默再扩“无 bond”面
+- Lifecycle：能力节点 `on_activate` 才接运动 / IO。管理器名单有序（传感器/感知 → 规划 → 执行 → 调度），反向拆。社区默认 **bond**；本仓已接线（W14，Python 侧待 apt bondpy 生效）。新生命周期节点按 Nav2 加 bond 或显式 watchdog，禁止静默再扩“无 bond”面
 - 失败：每个目标 / 动作有稳定 `failure_code`；接触失败可跳过
 
 pluginlib 最小形态（新缝用这个，不要再加 yaml dict）：`PLUGINLIB_EXPORT_CLASS` + `plugins.xml` + `package.xml` 的 `member_of_group`；节点用 `pluginlib::ClassLoader<Base>` 按参数名 load。默认可 load 一个内置实现，yaml 只给类名，不再维护本仓 `PIPELINES_BY_IMPL` 那种平行注册表。现有 dict 缝改到那一块再迁。
@@ -673,17 +673,17 @@ gtest 放本包 `test/`，链到纯核静态库，不 `spin` 整个技能节点�
 | `peach_vegetation` | GPU 枝/叶 2D 掩膜（独立 launch） | 不写 PlanningScene、不进 harvest_system |
 | `peach_system_tests` | isolated mock launch_testing + 回放塔 | 不进运行 launch |
 
-lifecycle 名单现行（nav2_lm 承载，bond_timeout=0）：场景 → 重建 → 技能 → 调度；observability / vegetation 不进名单。若重划包边界，这张表与 [docs/io.md](docs/io.md) 消费者列必须同轮改。
+lifecycle 名单现行（nav2_lm 承载，`bond_timeout` launch 参数默认 0；四托管节点已接线心跳——C++ bondcpp 生效、Python 待 apt bondpy）：场景 → 重建 → 技能 → 调度；observability / vegetation 不进名单。若重划包边界，这张表与 [docs/io.md](docs/io.md) 消费者列必须同轮改。
 
 ### UNWIND（不是完美适配；禁止当红线）
 
 - 四包切分本身：职责（契约 / 视觉 / 臂 / 调度）可保留，**切法可按主流重划**（description / bringup / moveit_config / interfaces / app 才是 UR / Stretch 主流；peach 四包不是不可动）
 - 不上 pluginlib / 只 dict `*.impl`
 - lifecycle 无 bond
-- peach 节点不用 composition
+- peach 节点不用 composition（已核实平台阻断：Python 无组件容器；LifecycleNode 不入 ComponentManager，证据见 architecture 偏离表——进程隔离+bond 是当前可达上限）
 - 禁止 gtest / launch_testing / 采摘仿真测（决策 0006）
 - 无 Gazebo / Isaac 系统测；industrial_ci 已进 workflow（忽略 IVG / `imu_follow` / `percipio_camera` / `camera_calibration`）
-- diagnostic_updater 仅 `peach_arm`/`serial_imu` 在用（感知/重建/调度/观测仍缺口）
+- diagnostic_updater 仅 `peach_arm`/`peach_observability`/`serial_imu` 在用（感知/重建/调度仍缺口）
 - 8090 若越权成第二控制面（纯调试客户端仍 KEEP）
 - 腕轴 `ContactMonitor` 默认关；无 Nav2 Collision Monitor 同类独立监视（**不能**代替柜急停）
 - `imu_follow` 开运动时旁路 `authorizeStage`（默认门关；Servo 已有命令超时）
@@ -698,7 +698,7 @@ lifecycle 名单现行（nav2_lm 承载，bond_timeout=0）：场景 → 重建 
 |------|----------|------|------------|--------|
 | 算法缝 | pluginlib（Nav2 / ros2_control / MoveIt） | 直接构造 + yaml `*.impl` dict | 否 | pluginlib；默认可仍直接构造一个实现 |
 | Composition | 高带宽 composable + intra-process | 仅 Percipio；peach 节点独立进程 | 否（peach） | 新高带宽节点优先 composable |
-| Bond | Nav2 lifecycle_manager 有 bond | 无 bond | 否 | 新生命周期节点加 bond 或显式 watchdog |
+| Bond | Nav2 lifecycle_manager 有 bond | 四节点已接线（arm 生效；Python 待 apt bondpy，lm 超时默认 0） | 是（接线完成） | 新生命周期节点一律加 bond 或显式 watchdog |
 | 参数 | generate_parameter_library | Python peach：yaml 直读 + `attach`（0024）；`peach_arm` C++ GPL（2c） | Python 侧否（KEEP 可读 yaml）；C++ 技能是 | 新 C++ 包 GPL；Python peach 不要再引入 params_gen |
 | 单测 | gtest + pytest | 仅零 ROS pytest；禁 gtest | 否 | 新 C++ 用 gtest |
 | 集成测 | launch_testing + isolated domain | 禁止 launch_testing（0006） | 否 | 新接线/生命周期用 launch_testing |
@@ -712,7 +712,7 @@ lifecycle 名单现行（nav2_lm 承载，bond_timeout=0）：场景 → 重建 
 | GPL 回退 | 新 C++ 包 GPL；Python 节点 yaml 直读（0024） | `peach_arm` 已回迁（2c）；Python 侧 0017→0024 已收敛 | 部分 | C++ 缺口按包迁；Python 不要再引入 params_gen / 手写 ParamListener |
 | 急停通道 | 柜/示教器 ISO 13850；ROS 只做应用护栏 | `RobotMoveStop` + 使能门 | 分层是 | 软件停不得称 e-stop；不经 ROS 切断电源 |
 | 故障恢复 | 停程序再重新下发（UR Driver） | 示教器复位（KEEP） | 是（不用 dashboard） | 禁止自动 unlock 保护停止后接着跑旧 goal |
-| 命令超时 | Stretch 固件+ROS 双超时；Autoware hazard timeout | 透传靠取消；lifecycle 无 bond | 部分 | 新流式控制必须超时；新生命周期节点加 bond |
+| 命令超时 | Stretch 固件+ROS 双超时；Autoware hazard timeout | 透传靠取消；bond 已接线（lm 超时默认 0） | 部分 | 新流式控制必须超时；新生命周期节点加 bond |
 
 当时否决（0002 不上 pluginlib、0006 禁止 launch_testing、0017 已删 GPL）记在 architecture 决策表里作**历史**，态度改为 UNWIND。新代码碰到这些行，跟 Nav2 / 官方测试塔 / generate_parameter_library，而不是继续维护该禁令。
 

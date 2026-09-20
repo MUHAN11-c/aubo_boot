@@ -423,4 +423,22 @@ SIGINT 旧栈后用 16:57 编的 `peach_manipulation` 重起；开批前在 `glo
 | peach_stereo（主机 SGBM） | 37 | 是 | target_0 | 0.565 m | 0.986 | 0.81 |
 
 两前端都只锁中间那颗袋；左侧悬挂袋未进确认集。距离交叉验证差 **12 mm**。感知 worker `capacity=1 drop_oldest`，stereo 相机 13.5 gps 并未变成 13.5 Hz 感知——墙钟帧数 37 vs 21（约 1.8×）。产物：`runs/camera_ab_20260918/comparison_2x2.mp4`（及 debug/rviz 左右拼接）。
+## 2026-09-20（下午）外围五包质量轮 W9–W16（ce7f68b→本轮）
 
+**范围**：W0–W8 主链深审后，本轮覆盖外围五包（observability/vegetation/bringup/common/system_tests）+ Round1 遗留清扫 + UNWIND 收敛（用户裁定：bond/composition/diagnostics 全做；PF-1 推迟相机轮）。全程 mock/单测门，不动真机、不动 peach_stereo 用户工作区。
+
+**W9 安全网**：test_perf_baseline 补 CMake 注册（25→29 测）；replay_oracle `_mat_to_quat` m22 分支 w 分量笔误修复（移植时误抄，插桩证实三层语料 1640 调用零触发、基线数值逐数复核不变，json 附 reverified 记录）；observability 死参数 record.bag_topics/debug_token 删除；bringup 参数校验统一 peach_common.param_rules；旧 shim 补 snapshot 再导出。
+
+**W10 observability 热路径**：build_harvest_job 按快照代数记忆化（原每次 snapshot 全量折叠、Web/轨迹以 ~10Hz 重复算）；bag 写队列有界化 record.queue_depth=512（drop-oldest+计数+task_done 销账防 close 挂死）；catch_all stop() 改真 destroy_subscription（rclpy 强引用，原清列表不停回调）；订阅表驱动化；_task_executor_callback 拆分；TCP markers RViz/HTTP 共享缓存；configure 期 retention 后台线程。+4 单测。
+
+**W11 架构收敛**：observability.yaml git mv 随包走+跨包 import 拆除（AGENTS 单向依赖违例清零）；bag_report 手写四元数→scipy Rotation（TF 链既有测作回归门）；ensure_active 双份 workaround→peach_common 单源；manifest 校验 consumer blob 缓存。
+
+**W12 vegetation**：GPU 推理专用回调组+双线程执行器（原单线程长帧饿死 diagnostics）；订阅 QoS→传感档 BEST_EFFORT（peach_common 新增 sensor 工厂）；cv2 死回退路径删除。
+
+**W13 Round1 遗留**（双实施代理+回放塔字节门）：harvester 死码批（tracking/observation/visualization shim/MODE_LABELS/ForegroundMode）、kernel 缓存、4 处 WARN 节流、pose_pipelines 前奏抽取+_failed 合并（全并模板方法按风险降级并互注）、executor 9 处失败收尾收敛+30 docstring；arm params_bridge 四转换归桥、view_planner 三死参数全链删、axisConsistencyGate 诊断字段化、timed join、十个公有头 /// 补齐。回放塔 3 passed、arm 211 测 0 失败、uncrustify 0 违规。
+
+**W14 bond 接线**（UNWIND 收敛-1）：四托管节点 `/bond` 心跳——peach_arm bondcpp 生效（on_activate 起、deactivate 断）；Python 三节点守卫式 bondpy（**本机未装 ros-jazzy-bondpy 且无 sudo：apt 装上+launch bond_timeout:=8.0 即开 nav2_lm 进程死检，未开启期死检由 supervisor HeartbeatWatchdog 承担**）；launch bond_timeout 参数化默认 0。launch_testing 新用例锁「激活后 ≥3 条 id=peach_arm 心跳」。实测：本机 bondcpp 心跳 1Hz、无 sister ~10s ConnectTimeout 停发；ReadyToTest 提前 2s 赶爆发窗；WaitForTopics 收不到 /bond（机制未明，改直接 rclpy 订阅+对照 /joint_states）。活栈嗅探 reliable/best_effort 双路各收 10 条。
+
+**W15 diagnostics+composition 落档**（UNWIND 收敛-2）：observability /diagnostics 双轨（session_recorder 队列/丢帧 + ingest_liveness 摄入活度，对齐 arm W5 做法）；composition 核实为**平台阻断**——Python 无组件容器、ComponentManager 零生命周期处理（源码 grep 证实）、臂侧非高带宽无零拷贝收益——architecture 偏离表记证据，进程隔离+bond 为当前可达上限。
+
+**终验门**（见 W16 提交）：colcon test 全绿（数量以提交记录为准）、r0_gate 绿、manifest ok（54+4）、mock launch 含 bond 用例绿。

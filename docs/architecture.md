@@ -667,7 +667,7 @@ flowchart TB
 #### `peach_lifecycle_manager`（管）
 
 - **名单（部署值 `config/lifecycle_manager.yaml`）：** 场景感知 → 重建 → 技能 → 调度。observability **不进名单**。节点 `peach_lifecycle_manager.attach` 按 yaml 声明叶子。
-- **入口：** `~/manage_nodes`。STARTUP 先 configure 再 activate；拆除逆序。发闩锁 `/peach/lifecycle/managed_nodes_activated`。**整栈由 `nav2_lifecycle_manager` 承载**（节点名同为 `peach_lifecycle_manager`，bond_timeout=0，名单硬编码在整栈 launch；闩锁由 `peach_lifecycle_flag_bridge` 发出）；本节点保留独立 launch（`peach_harvester/launch/lifecycle_manager.launch.py`）。
+- **入口：** `~/manage_nodes`。STARTUP 先 configure 再 activate；拆除逆序。发闩锁 `/peach/lifecycle/managed_nodes_activated`。**整栈由 `nav2_lifecycle_manager` 承载**（节点名同为 `peach_lifecycle_manager`，`bond_timeout` 为 launch 参数默认 0，名单硬编码在整栈 launch；四托管节点已接 `/bond` 心跳——`peach_arm`（bondcpp）生效、Python 三节点待 apt `ros-jazzy-bondpy` 后生效；闩锁由 `peach_lifecycle_flag_bridge` 发出）；本节点保留独立 launch（`peach_harvester/launch/lifecycle_manager.launch.py`）。
 - **禁止：** 发 `RunHarvest`。PAUSE 是节点 Inactive，不是批次 `ControlTask` 暂停。
 
 #### `peach_observability`（监）
@@ -827,7 +827,7 @@ USB 串口 IMU（QinHeng USB 转串适配器：CH340 `1a86:7523`（旧，ttyUSB�
 4. `peach_harvester` `brain.launch.py` — 大脑一进程三节点（感知 + 重建 + 调度），`require_managed_stack:=true`
 5. `peach_arm`
 6. `peach_observability`（HTTP / 会话 bag）；独立 `record_bag.launch.py` 是额外 ros2 bag 进程，默认关（`record_bag:=true` 才起）
-7. `nav2_lifecycle_manager`（节点名 `peach_lifecycle_manager`，bond_timeout=0，名单=场景→重建→技能→调度；先 configure 再 activate）
+7. `nav2_lifecycle_manager`（节点名 `peach_lifecycle_manager`，`bond_timeout` launch 参数默认 0，名单=场景→重建→技能→调度；先 configure 再 activate；四托管节点已接 `/bond` 心跳，arm 侧生效）
 8. `peach_lifecycle_flag_bridge` — is_active 桥接为闩锁 `/peach/lifecycle/managed_nodes_activated`
 9. `peach_autostart_client`（仅 `autostart:=true`；默认关）
 

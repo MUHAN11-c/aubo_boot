@@ -4,6 +4,7 @@ from __future__ import annotations
 import json
 import os
 from pathlib import Path
+import time
 
 from builtin_interfaces.msg import Duration
 from peach_common.paths import safe_component
@@ -345,3 +346,95 @@ def save_ledger(path: Path, claimed, outcomes, details=None) -> None:
         json.dumps(document, ensure_ascii=False, indent=2) + '\n',
         encoding='utf-8')
     tmp.replace(path)
+
+
+# ---- 结果入账纯函数（W6-A 自 executor_node 下沉；零 ROS）----
+
+def stages_from_execute(executed) -> dict:
+    """将 ExecuteTarget 结果中的阶段耗时转换为 ledger extra."""
+    if executed is None:
+        return {}
+    names = [str(n) for n in list(getattr(executed, 'stage_names', []) or [])]
+    raw = list(getattr(executed, 'stage_durations', []) or [])
+    durations = []
+    for item in raw:
+        durations.append(
+            round(float(getattr(item, 'sec', 0) or 0)
+                  + float(getattr(item, 'nanosec', 0) or 0) * 1e-9, 3))
+    if not names:
+        return {}
+    return {'stage_names': names, 'stage_durations': durations}
+
+
+def full_failure_code(outcome, operator_skip: bool) -> str:
+    """按 TargetOutcome 分级 FULL 失败码，质量/不可达不记 full_failed."""
+    if operator_skip or int(outcome.outcome) == int(TargetOutcome.CANCELED):
+        return 'canceled'
+    code = int(outcome.outcome)
+    if code == int(TargetOutcome.SKIPPED_QUALITY):
+        return 'skipped_quality'
+    if code == int(TargetOutcome.SKIPPED_UNREACHABLE):
+        return 'skipped_unreachable'
+    return 'full_failed'
+
+
+def merge_cycle_extra(observe_extra, full_extra) -> dict:
+    """合并 OBSERVE_ONLY 与 FULL 的阶段耗时；丢掉 FULL 里为零的观察段."""
+    merged = dict(observe_extra or {})
+    full_extra = dict(full_extra or {})
+    obs_names = [str(n) for n in list(merged.get('stage_names') or [])]
+    obs_durs = list(merged.get('stage_durations') or [])
+    while len(obs_durs) < len(obs_names):
+        obs_durs.append(0.0)
+    obs_durs = obs_durs[:len(obs_names)]
+    skip = {'prepare', 'observe', 'finalize'}
+    keep_names = []
+    keep_durs = []
+    full_names = [str(n) for n in list(full_extra.get('stage_names') or [])]
+    full_durs = list(full_extra.get('stage_durations') or [])
+    for index, name in enumerate(full_names):
+        if name in skip:
+            continue
+        keep_names.append(name)
+        keep_durs.append(
+            float(full_durs[index]) if index < len(full_durs) else 0.0)
+    if obs_names or keep_names:
+        merged['stage_names'] = obs_names + keep_names
+        merged['stage_durations'] = [
+            round(float(d), 3) for d in obs_durs + keep_durs]
+    for key, value in full_extra.items():
+        if key in ('stage_names', 'stage_durations'):
+            continue
+        merged[key] = value
+    return merged
+
+
+def build_details(build_feedback: dict, dispatch_t0: float, built) -> dict:
+    """Build 反馈与耗时摘要（build_feedback 为节点侧反馈缓存快照）."""
+    started = float(build_feedback.get('started_s') or dispatch_t0)
+    details = {
+        'build_view_count': int(
+            build_feedback.get('view_count') or 0),
+        'build_status': str(build_feedback.get('status') or ''),
+        'build_duration_s': round(time.monotonic() - started, 3),
+    }
+    if built is not None:
+        model = getattr(built, 'model', None)
+        if model is not None and getattr(model, 'view_count', None) is not None:
+            details['build_view_count'] = int(model.view_count)
+        status = str(getattr(built, 'message', '') or '')
+        if status:
+            details['build_status'] = status
+    return details
+
+
+def classify_build_failure(built, message: str) -> tuple:
+    """区分执行器等待超时 / 重建内部 timeout / finalize 失败."""
+    text = str(message or '')
+    if built is None or text == 'build_timeout:executor_wait':
+        return 'build_timeout:executor_wait', 'build_timeout:executor_wait'
+    if text == 'timeout':
+        return 'build_timeout:reconstruction', 'build_timeout:reconstruction'
+    if text in ('canceled', 'cancelled'):
+        return 'canceled', 'build_canceled'
+    return 'build_finalize_failed', 'build_finalize_failed: ' + text

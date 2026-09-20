@@ -46,16 +46,22 @@ from std_msgs.msg import Bool
 from std_srvs.srv import Trigger
 import tf2_ros
 
+from . import observe
 from .batch import (
     apply_control,
+    build_details,
     build_summary,
+    classify_build_failure,
     default_ledger_root,
+    full_failure_code,
     ledger_file,
     load_ledger,
+    merge_cycle_extra,
     next_target,
     reach_queries,
     save_ledger,
     set_elapsed,
+    stages_from_execute,
 )
 from .domain.ledger import LedgerIndex
 from .domain.reducer import BatchEvent, OrchestratorState, reduce_event
@@ -88,20 +94,7 @@ from ..cycle_core.batch_policy import (
     ReworkList,
     TargetDeadline,
 )
-from ..cycle_core.view_planner import (
-    basis_to_quat,
-    generate,
-    look_at_optical,
-    ViewContext,
-    ViewPlannerConfig,
-)
-from ..cycle_core.view_policy import (
-    decide_fast,
-    FastViewConfig,
-    ViewDecision,
-    ViewPolicyState,
-    ViewSignals,
-)
+from ..cycle_core.view_policy import ViewSignals
 
 
 class TaskExecutorNode(LifecycleNode):
@@ -203,6 +196,16 @@ class TaskExecutorNode(LifecycleNode):
         self._ledger_loaded = False
         self._cycle_observe_extra = {}
         self._cycle_dispatch_t0 = 0.0
+        # 批次命令循环内共享态（W6-A 表化：handler 间传递；单批串行，
+        # _harvest_busy 门保证无并发批）
+        self._claimed = set()
+        self._empty_rounds = 0
+        self._empty_limit = 1
+        self._survey_goal = None
+        self._survey_only = False
+        self._run_enabled = False
+        # state/feedback 广播节流（W6-A 限频）：上次发布时刻（monotonic）
+        self._state_last_publish_s = 0.0
         self._observations: Optional[PeachTargetObservationArray] = None
         self._decision_cache: Optional[GraspDecision] = None
         # 批次策略（3c-2a：RunHarvest goal 初值；0=不限；fast 默认）
@@ -366,7 +369,7 @@ class TaskExecutorNode(LifecycleNode):
         result = super().on_activate(state)
         self._active = True
         # 生命周期复位到初始批次态（FSM 初值，非手写迁移）
-        self._apply_state(WAITING_READY)
+        self._apply_state(WAITING_READY, force_publish=True)
         return result
 
     def on_deactivate(self, state):
@@ -553,8 +556,10 @@ class TaskExecutorNode(LifecycleNode):
     def _on_obs(self, msg):
         self._observations = msg
         if msg is not None:
-            self._discovered = max(
-                self._discovered, len(msg.observations))
+            # 读-改-写须持锁（W6-A）：与 _run_harvest 复位/摘要读取并发
+            with self._lock:
+                self._discovered = max(
+                    self._discovered, len(msg.observations))
         self._poke()
 
     def _on_control(self, request, response):
@@ -657,13 +662,14 @@ class TaskExecutorNode(LifecycleNode):
             self._recovery_required = False
         return True, str(getattr(resp, 'message', 'ok'))
 
-    def _apply(self, reaction, request_id: str, target_id: str = '') -> None:
+    def _apply(self, reaction, request_id: str, target_id: str = '',
+               force_publish: bool = False) -> None:
         self._batch_state = reaction.batch_state
         self._target_phase = reaction.target_phase
         self._fsm_message = reaction.message
         if reaction.operation_mode != MODE_AUTO:
             self._operation_mode = reaction.operation_mode
-        self._publish_state()
+        self._publish_state(force=force_publish)
         if reaction.event_code:
             # 终局目标事件并入最近一条 outcome 的遥测细节（failure_code 等）：
             # 终局事件总在 _push_outcome 之后发出，否则 events/summary 只有
@@ -677,7 +683,8 @@ class TaskExecutorNode(LifecycleNode):
             self._emit(
                 reaction.event_code, request_id, target_id, details=details)
 
-    def _apply_state(self, state: int) -> None:
+    def _apply_state(self, state: int,
+                     force_publish: bool = False) -> None:
         """
         表外批次态迁移（暂停/恢复/恢复等待/终局）的统一落地.
 
@@ -687,7 +694,7 @@ class TaskExecutorNode(LifecycleNode):
         """
         self._apply(
             Reaction(state, self._target_phase, Command.NONE, '', ''),
-            self._run_id)
+            self._run_id, force_publish=force_publish)
 
     def _orch_state(self) -> OrchestratorState:
         """当前三维状态快照，供单一 reducer 使用."""
@@ -771,6 +778,9 @@ class TaskExecutorNode(LifecycleNode):
             self._settled_transaction = ''
             self._action_generation = 0
             self._transaction_id = ''
+            # 批内共享态（W6-A 表化：handler 间传递）
+            self._claimed = set()
+            self._empty_rounds = 0
         # 批次策略与补采清单（3c-2a：跳过是调度参数不是失败；跳过目标
         # 自动入 rework_list.json 供人工补采，批末随账本落盘）
         self._batch_policy = BatchPolicy.from_goal({
@@ -806,20 +816,28 @@ class TaskExecutorNode(LifecycleNode):
             self._target_deadline = None
             with self._lock:
                 self._harvest_busy = False
-            self._publish_state()
+            # 批次收口态必达（突破限频）
+            self._publish_state(force=True)
 
     def _run_harvest_body(self, goal_handle, goal, reaction):
-        """批次命令循环；开批 Reaction 由 _run_harvest 传入，busy 旗标由其 finally 清."""
+        """
+        批次命令循环；开批 Reaction 由 _run_harvest 传入，busy 旗标由其 finally 清.
+
+        W6-A 表化：命令分发到 ``_COMMAND_HANDLERS``（行为与拆分前逐字
+        一致——每分支的等待/事件/emit 顺序原样搬运）；handler 返回
+        ``(reaction, persist)``，persist=False 对应原分支的 continue
+        （跳过循环尾统一落账）。
+        """
         result = RunHarvest.Result()
-        claimed = set()
-        empty_limit = max(1, int(self._params.empty_survey_limit))
-        empty_rounds = 0
-        enabled = self._execution_enabled_effective()
-        survey_only = (
+        self._empty_limit = max(1, int(self._params.empty_survey_limit))
+        self._empty_rounds = 0
+        # 使能快照在开批时刻取一次（原局部 enabled 语义不变）
+        self._run_enabled = self._execution_enabled_effective()
+        self._survey_only = (
             int(goal.intent) == int(RunHarvest.Goal.INTENT_SURVEY_ONLY))
-        survey_goal = SurveyScene.Goal()
-        survey_goal.request_id = goal.request_id
-        survey_goal.scene_key = goal.scene_key
+        self._survey_goal = SurveyScene.Goal()
+        self._survey_goal.request_id = goal.request_id
+        self._survey_goal.scene_key = goal.scene_key
         terminal = {Command.SETTLE, Command.ABORT, Command.INTERRUPT}
         while reaction.command not in terminal:
             if goal_handle.is_cancel_requested:
@@ -827,7 +845,9 @@ class TaskExecutorNode(LifecycleNode):
                 self._poke()
             if self._cancel:
                 reaction = self._react(Event.CANCEL)
-                self._apply(reaction, goal.request_id, self._current_target_id)
+                # 取消是关键迁移：突破限频立即发布
+                self._apply(reaction, goal.request_id,
+                            self._current_target_id, force_publish=True)
                 self._cancel_inflight()
                 break
             self._wait_pause()
@@ -840,121 +860,13 @@ class TaskExecutorNode(LifecycleNode):
                 self._wait_recovery()
                 if self._cancel:
                     continue
-            if cmd == Command.NAVIGATE:
-                reaction = self._cmd_navigate(goal)
-            elif cmd == Command.BEGIN_SCENE:
-                reaction = self._cmd_begin(goal)
-            elif cmd == Command.SURVEY:
-                survey_ok = self._survey_body(survey_goal)
-                if not self._ledger_loaded:
-                    claimed, restored = self._restore_ledger(self._run_id)
-                    if restored:
-                        self._outcomes = restored
-                        self._outcome_details = [{} for _ in restored]
-                    self._ledger_loaded = True
-                if self._cancel:
-                    continue
-                if not survey_ok:
-                    reaction = self._react(Event.SURVEY_FAILED)
-                elif self._scene_epoch == 0:
-                    reaction = self._react(Event.SURVEY_AT_POSE)
-                else:
-                    reaction = self._react(Event.SURVEY_DONE)
-                self._apply(reaction, goal.request_id)
-            elif cmd == Command.WAIT_LOCK:
-                self._wait_lock()
-                self._publish_scene_snapshot(survey_goal.scene_key)
-                if self._cancel:
-                    continue
-                if survey_only:
-                    reaction = self._react(Event.SURVEY_ONLY)
-                elif not enabled:
-                    reaction = self._react(Event.EXECUTION_DISABLED)
-                else:
-                    reaction = self._react(Event.LOCK_READY)
-                self._apply(reaction, goal.request_id)
-            elif cmd == Command.SELECT:
-                # 采收率门（3c-2a：跳过是调度参数不是失败——达标即收批，
-                # 余果不再尝试，入补采清单）
-                if ratio_reached(
-                        sum(1 for o in self._outcomes
-                            if int(o.outcome) == int(TargetOutcome.SUCCEEDED)),
-                        int(self._discovered or 0), self._batch_policy):
-                    self._emit(
-                        'batch_ratio_satisfied', goal.request_id,
-                        details={
-                            'target_harvest_ratio':
-                                self._batch_policy.target_harvest_ratio})
-                    reaction = self._react(Event.EMPTY_LIMIT)
-                    self._apply(reaction, goal.request_id)
-                    continue
-                # 联合约束选果：有效深度窗 ∩ 可达性（CheckReachability 把入口
-                # 换成停位几何再 IK；服务不可用回退半径窗；超窗 targets_filtered）
-                if not self._lock_set_ready():
-                    ik_results, ik_note = None, 'lock_set_not_ready'
-                    target_id, filtered = '', {}
-                else:
-                    ik_results, ik_note = self._query_reachability(
-                        reach_queries(self._observations, claimed))
-                    target_id, filtered = next_target(
-                        self._observations, claimed, goal.target_ids,
-                        depth_range=(
-                            float(self._params.selection_depth_min_m),
-                            float(self._params.selection_depth_max_m)),
-                        ik_results=ik_results,
-                        fallback_reach_range=(
-                            float(self._params.selection_reach_min_m),
-                            float(self._params.selection_reach_max_m)))
-                if filtered or (
-                        ik_note and ik_note != 'lock_set_not_ready'):
-                    details = {'filtered': filtered} if filtered else {}
-                    if ik_note:
-                        details['reach_check'] = ik_note
-                    self._emit(
-                        'targets_filtered', goal.request_id, details=details)
-                if not target_id:
-                    empty_rounds += 1
-                    event = (
-                        Event.EMPTY_LIMIT if empty_rounds >= empty_limit
-                        else Event.NO_TARGET)
-                    reaction = self._react(event)
-                    self._apply(reaction, goal.request_id)
-                    continue
-                empty_rounds = 0
-                claimed.add(target_id)
-                self._current_target_id = target_id
-                self._cycle_id = f'{self._run_id}:{target_id}'
-                if self._batch_policy.per_target_timeout_s > 0.0:
-                    self._target_deadline = TargetDeadline(
-                        time.monotonic(),
-                        self._batch_policy.per_target_timeout_s)
-                reaction = self._react(Event.TARGET_SELECTED)
-                self._apply(reaction, goal.request_id, target_id)
-            elif cmd == Command.DISPATCH:
-                if self._target_deadline_exceeded(goal.request_id):
-                    reaction = self._react(Event.OBSERVE_FAILED)
-                    self._apply(
-                        reaction, goal.request_id, self._current_target_id)
-                else:
-                    reaction = self._cmd_dispatch(goal.request_id)
-            elif cmd == Command.EXECUTE_FULL:
-                if self._target_deadline_exceeded(goal.request_id):
-                    reaction = self._react(
-                        event_for_outcome(TargetOutcome.SKIPPED_QUALITY, False))
-                    self._apply(
-                        reaction, goal.request_id, self._current_target_id)
-                else:
-                    reaction = self._cmd_full(goal.request_id)
-            elif cmd == Command.RECORD_DISABLED:
+            handler = self._COMMAND_HANDLERS.get(cmd)
+            if handler is None:
                 break
-            elif cmd == Command.NONE:
-                reaction = self._react(Event.CYCLE_DONE)
-                self._current_target_id = ''
-                self._apply(reaction, goal.request_id)
-            else:
-                break
-            # 账本统一在每条命令收口后落盘一次（NONE 分支不再前置双写）
-            self._persist_ledger(claimed)
+            reaction, persist = handler(self, goal, reaction)
+            if persist:
+                # 账本统一在每条命令收口后落盘一次（NONE 分支不再前置双写）
+                self._persist_ledger(self._claimed)
         aborted = reaction.command == Command.ABORT
         interrupted = (
             reaction.command == Command.INTERRUPT or self._cancel)
@@ -980,25 +892,131 @@ class TaskExecutorNode(LifecycleNode):
             result.termination_reason = 'completed'
         if interrupted:
             goal_handle.canceled()
-            self._publish_state()
+            # 终局/取消突破限频立即发
+            self._publish_state(force=True)
         elif aborted:
             goal_handle.abort()
-            self._publish_state()
+            self._publish_state(force=True)
         else:
             goal_handle.succeed()
             # 终局统一入口：COMPLETED 只经 settle_terminal 落地；仍在
             # 终态迁移之后发布，与旧序（赋值→succeed→发布）对外一致
-            self._apply_state(settle_terminal())
-        self._persist_ledger(claimed)
+            self._apply_state(settle_terminal(), force_publish=True)
+        self._persist_ledger(self._claimed)
         return result
 
-    def _cmd_navigate(self, goal):
+    def _cmd_survey(self, goal, reaction):
+        """SURVEY 分支（原循环分支逐字搬运）：SurveyScene + 首轮后断点恢复."""
+        survey_ok = self._survey_body(self._survey_goal)
+        if not self._ledger_loaded:
+            claimed, restored = self._restore_ledger(self._run_id)
+            if restored:
+                self._outcomes = restored
+                self._outcome_details = [{} for _ in restored]
+            self._claimed = claimed
+            self._ledger_loaded = True
+        if self._cancel:
+            return reaction, False
+        if not survey_ok:
+            reaction = self._react(Event.SURVEY_FAILED)
+        elif self._scene_epoch == 0:
+            reaction = self._react(Event.SURVEY_AT_POSE)
+        else:
+            reaction = self._react(Event.SURVEY_DONE)
+        self._apply(reaction, goal.request_id)
+        return reaction, True
+
+    def _cmd_wait_lock(self, goal, reaction):
+        """WAIT_LOCK 分支（原循环分支逐字搬运）：等锁→快照→三路事件."""
+        self._wait_lock()
+        self._publish_scene_snapshot(self._survey_goal.scene_key)
+        if self._cancel:
+            return reaction, False
+        if self._survey_only:
+            reaction = self._react(Event.SURVEY_ONLY)
+        elif not self._run_enabled:
+            reaction = self._react(Event.EXECUTION_DISABLED)
+        else:
+            reaction = self._react(Event.LOCK_READY)
+        self._apply(reaction, goal.request_id)
+        return reaction, True
+
+    def _cmd_select(self, goal, reaction):
+        """SELECT 分支（原循环分支逐字搬运）：采收率门→联合约束选果→claim."""
+        # 采收率门（3c-2a：跳过是调度参数不是失败——达标即收批，
+        # 余果不再尝试，入补采清单）
+        if ratio_reached(
+                sum(1 for o in self._outcomes
+                    if int(o.outcome) == int(TargetOutcome.SUCCEEDED)),
+                int(self._discovered or 0), self._batch_policy):
+            self._emit(
+                'batch_ratio_satisfied', goal.request_id,
+                details={
+                    'target_harvest_ratio':
+                        self._batch_policy.target_harvest_ratio})
+            reaction = self._react(Event.EMPTY_LIMIT)
+            self._apply(reaction, goal.request_id)
+            return reaction, False
+        # 联合约束选果：有效深度窗 ∩ 可达性（CheckReachability 把入口
+        # 换成停位几何再 IK；服务不可用回退半径窗；超窗 targets_filtered）
+        if not self._lock_set_ready():
+            ik_results, ik_note = None, 'lock_set_not_ready'
+            target_id, filtered = '', {}
+        else:
+            ik_results, ik_note = self._query_reachability(
+                reach_queries(self._observations, self._claimed))
+            target_id, filtered = next_target(
+                self._observations, self._claimed, goal.target_ids,
+                depth_range=(
+                    float(self._params.selection_depth_min_m),
+                    float(self._params.selection_depth_max_m)),
+                ik_results=ik_results,
+                fallback_reach_range=(
+                    float(self._params.selection_reach_min_m),
+                    float(self._params.selection_reach_max_m)))
+        if filtered or (
+                ik_note and ik_note != 'lock_set_not_ready'):
+            details = {'filtered': filtered} if filtered else {}
+            if ik_note:
+                details['reach_check'] = ik_note
+            self._emit(
+                'targets_filtered', goal.request_id, details=details)
+        if not target_id:
+            self._empty_rounds += 1
+            event = (
+                Event.EMPTY_LIMIT
+                if self._empty_rounds >= self._empty_limit
+                else Event.NO_TARGET)
+            reaction = self._react(event)
+            self._apply(reaction, goal.request_id)
+            return reaction, False
+        self._empty_rounds = 0
+        self._claimed.add(target_id)
+        self._current_target_id = target_id
+        self._cycle_id = f'{self._run_id}:{target_id}'
+        if self._batch_policy.per_target_timeout_s > 0.0:
+            self._target_deadline = TargetDeadline(
+                time.monotonic(),
+                self._batch_policy.per_target_timeout_s)
+        reaction = self._react(Event.TARGET_SELECTED)
+        self._apply(reaction, goal.request_id, target_id)
+        return reaction, True
+
+    def _cmd_cycle_done(self, goal, reaction):
+        """NONE 分支（原循环分支逐字搬运）：本目标周期收口回选果."""
+        reaction = self._react(Event.CYCLE_DONE)
+        self._current_target_id = ''
+        self._apply(reaction, goal.request_id)
+        return reaction, True
+
+    def _cmd_navigate(self, goal, reaction):
         """固定座直通：到位一步当 NAV_OK（NavigateToWorksite 预留）."""
         reaction = self._react(Event.NAV_OK)
         self._apply(reaction, goal.request_id)
-        return reaction
+        return reaction, True
 
-    def _cmd_begin(self, goal):
+    def _cmd_begin(self, goal, reaction):
+        """BEGIN_SCENE 分支：调感知 BeginScene，成功读世代并清观测缓存."""
         begin = BeginScene.Request()
         begin.request_id = goal.request_id
         begin.scene_key = goal.scene_key
@@ -1006,14 +1024,20 @@ class TaskExecutorNode(LifecycleNode):
         if resp is None or not bool(getattr(resp, 'accepted', False)):
             reaction = self._react(Event.BEGIN_FAILED)
             self._apply(reaction, goal.request_id)
-            return reaction
+            return reaction, True
         self._scene_epoch = int(getattr(resp, 'scene_epoch', 0) or 0)
         self._observations = None
         reaction = self._react(Event.BEGIN_OK)
         self._apply(reaction, goal.request_id)
-        return reaction
+        return reaction, True
 
-    def _cmd_dispatch(self, request_id: str):
+    def _cmd_dispatch(self, goal, reaction):
+        """DISPATCH 分支（原循环分支逐字搬运）：单果时限门 + 观察周期派发."""
+        request_id = goal.request_id
+        if self._target_deadline_exceeded(request_id):
+            reaction = self._react(Event.OBSERVE_FAILED)
+            self._apply(reaction, request_id, self._current_target_id)
+            return reaction, True
         timeout = float(self._params.action_timeout_s)
         min_views = int(self._params.reconstruction_min_views)
         start_timeout = float(
@@ -1029,7 +1053,7 @@ class TaskExecutorNode(LifecycleNode):
                 target_id, TargetOutcome.CANCELED, 'skip_target',
                 failure_code='canceled', elapsed_s=time.monotonic() - dispatch_t0)
             self._apply(reaction, request_id, target_id)
-            return reaction
+            return reaction, True
         if not self._wait_target_in_locked_set(target_id, 2.5):
             reaction = self._react(Event.OBSERVE_FAILED)
             self._record_skip(
@@ -1038,7 +1062,7 @@ class TaskExecutorNode(LifecycleNode):
                 failure_code='observe_failed',
                 elapsed_s=time.monotonic() - dispatch_t0)
             self._apply(reaction, request_id, target_id)
-            return reaction
+            return reaction, True
         build_goal = BuildTargetModel.Goal()
         build_goal.request_id = request_id
         build_goal.target_id = target_id
@@ -1056,7 +1080,7 @@ class TaskExecutorNode(LifecycleNode):
                 failure_code='build_rejected',
                 elapsed_s=time.monotonic() - dispatch_t0)
             self._apply(reaction, request_id, target_id)
-            return reaction
+            return reaction, True
         self._in_flight.append(build_handle)
         if not self._wait_build_started(build_handle, start_timeout):
             self._cancel_handle(build_handle)
@@ -1073,9 +1097,9 @@ class TaskExecutorNode(LifecycleNode):
                 'build_start_timeout: reconstruction not COLLECTING',
                 failure_code='build_start_timeout',
                 elapsed_s=time.monotonic() - dispatch_t0,
-                extra=self._build_details(dispatch_t0, None))
+                extra=build_details(self._build_feedback, dispatch_t0, None))
             self._apply(reaction, request_id, target_id)
-            return reaction
+            return reaction, True
         observe = ExecuteTarget.Goal()
         observe.request_id = request_id
         observe.run_id = self._run_id
@@ -1091,27 +1115,12 @@ class TaskExecutorNode(LifecycleNode):
         # 3 视）；conservative=现行多视观察（arm OBSERVE_ONLY 原值路径）。
         fast_policy = (
             int(self._batch_policy.view_policy) == BatchPolicy.VIEW_FAST)
-        observed = None
         if fast_policy:
-            observe_ok, observe_details = self._fast_observe_loop(
+            observe_ok, observe_details, observed = self._dispatch_fast(
                 request_id, target_id)
         else:
-            for attempt in range(4):
-                if self._cancel or self._peek_skip():
-                    break
-                observed = self._send_action(
-                    self._exec, observe, timeout, feedback=True,
-                    goal_handle=self._run_goal_handle)
-                if observed is not None:
-                    break
-                self.get_logger().warning(
-                    f'ExecuteTarget OBSERVE_ONLY rejected {target_id} '
-                    f'attempt={attempt + 1}/4')
-                self._idle(0.4)
-            observe_ok = (
-                observed is not None
-                and int(getattr(observed, 'outcome', 3)) == 0)
-            observe_details = self._stages_from_execute(observed)
+            observe_ok, observe_details, observed = self._dispatch_observe(
+                target_id, observe, timeout)
         if self._cancel or self._peek_skip() or not observe_ok:
             self._take_skip()
             self._cancel_handle(build_handle)
@@ -1138,21 +1147,21 @@ class TaskExecutorNode(LifecycleNode):
                     elapsed_s=time.monotonic() - dispatch_t0,
                     extra=observe_details)
             self._apply(reaction, request_id, target_id)
-            return reaction
+            return reaction, True
         built, wait_kind = self._wait_build_after_observe(
             build_handle, timeout, grace_s, min_views)
         self._forget_handle(build_handle)
-        build_details = self._build_details(dispatch_t0, built)
-        build_details.update(observe_details)
+        details = build_details(self._build_feedback, dispatch_t0, built)
+        details.update(observe_details)
         if self._cancel or self._take_skip():
             reaction = self._react(Event.SKIP)
             self._record_skip(
                 target_id, TargetOutcome.CANCELED, 'canceled_or_skipped',
                 failure_code='canceled',
                 elapsed_s=time.monotonic() - dispatch_t0,
-                extra=build_details)
+                extra=details)
             self._apply(reaction, request_id, target_id)
-            return reaction
+            return reaction, True
         views = int(self._build_feedback.get('view_count') or 0)
         if wait_kind == 'observe_build_view_race' or (
                 built is None and views < min_views):
@@ -1168,22 +1177,22 @@ class TaskExecutorNode(LifecycleNode):
                 f'observe_build_view_race: views={views} min_views={min_views}',
                 failure_code='observe_build_view_race',
                 elapsed_s=time.monotonic() - dispatch_t0,
-                extra=build_details)
+                extra=details)
             self._apply(reaction, request_id, target_id)
-            return reaction
+            return reaction, True
         if built is None or not bool(getattr(built, 'success', False)):
             message = (
                 'build_timeout:executor_wait' if built is None
                 else str(getattr(built, 'message', '') or ''))
-            failure_code, reason = self._classify_build_failure(built, message)
+            failure_code, reason = classify_build_failure(built, message)
             reaction = self._react(Event.BUILD_FAILED)
             self._record_skip(
                 target_id, TargetOutcome.SKIPPED_QUALITY, reason,
                 failure_code=failure_code,
                 elapsed_s=time.monotonic() - dispatch_t0,
-                extra={**build_details, 'timeout_source': failure_code})
+                extra={**details, 'timeout_source': failure_code})
             self._apply(reaction, request_id, target_id)
-            return reaction
+            return reaction, True
         model = getattr(built, 'model', None)
         self._last_model_revision = str(
             getattr(model, 'model_revision', '') or '')
@@ -1192,12 +1201,46 @@ class TaskExecutorNode(LifecycleNode):
         self._last_config_revision = str(
             getattr(model, 'config_revision', '') or '')
         reaction = self._react(Event.READY_FULL)
-        self._cycle_observe_extra = dict(build_details)
+        self._cycle_observe_extra = dict(details)
         self._cycle_dispatch_t0 = dispatch_t0
         self._apply(reaction, request_id, target_id)
-        return reaction
+        return reaction, True
 
-    def _cmd_full(self, request_id: str):
+    def _dispatch_fast(self, request_id: str, target_id: str) -> tuple:
+        """Fast 档观察（3c-2c）：supervisor 直驱补视，无 arm 观察结果."""
+        observe_ok, observe_details = self._fast_observe_loop(
+            request_id, target_id)
+        return observe_ok, observe_details, None
+
+    def _dispatch_observe(self, target_id: str, observe, timeout: float) -> tuple:
+        """Conservative 档观察：arm OBSERVE_ONLY 原值路径（4 次重试）."""
+        observed = None
+        for attempt in range(4):
+            if self._cancel or self._peek_skip():
+                break
+            observed = self._send_action(
+                self._exec, observe, timeout, feedback=True,
+                goal_handle=self._run_goal_handle)
+            if observed is not None:
+                break
+            self.get_logger().warning(
+                f'ExecuteTarget OBSERVE_ONLY rejected {target_id} '
+                f'attempt={attempt + 1}/4')
+            self._idle(0.4)
+        observe_ok = (
+            observed is not None
+            and int(getattr(observed, 'outcome', 3)) == 0)
+        observe_details = stages_from_execute(observed)
+        return observe_ok, observe_details, observed
+
+    def _cmd_full(self, goal, reaction):
+        """EXECUTE_FULL 分支（原循环分支逐字搬运）：时限门 + 接触执行入账."""
+        request_id = goal.request_id
+        if self._target_deadline_exceeded(request_id):
+            reaction = self._react(
+                event_for_outcome(TargetOutcome.SKIPPED_QUALITY, False))
+            self._apply(reaction, request_id, self._current_target_id)
+            return reaction, True
         timeout = float(self._params.action_timeout_s)
         target_id = self._current_target_id
         t0 = time.monotonic()
@@ -1247,8 +1290,8 @@ class TaskExecutorNode(LifecycleNode):
         operator_skip = self._take_skip()
         outcome = TargetOutcome()
         outcome.target_id = target_id
-        extra = self._merge_cycle_extra(
-            self._cycle_observe_extra, self._stages_from_execute(executed))
+        extra = merge_cycle_extra(
+            self._cycle_observe_extra, stages_from_execute(executed))
         if executed is None:
             outcome.outcome = TargetOutcome.FAILED
             extra['failure_code'] = (
@@ -1265,7 +1308,7 @@ class TaskExecutorNode(LifecycleNode):
                     executed, 'outcome', TargetOutcome.FAILED))
                 outcome.reason = str(getattr(executed, 'reason', ''))
             if int(outcome.outcome) != int(TargetOutcome.SUCCEEDED):
-                extra['failure_code'] = self._full_failure_code(
+                extra['failure_code'] = full_failure_code(
                     outcome, operator_skip)
                 prefix = extra['failure_code']
                 if prefix and not str(outcome.reason).startswith(prefix):
@@ -1301,168 +1344,86 @@ class TaskExecutorNode(LifecycleNode):
         event = event_for_outcome(outcome.outcome, operator_skip)
         reaction = self._react(event)
         self._apply(reaction, request_id, target_id)
-        return reaction
+        return reaction, True
 
-    # ---- fast 档观察（3c-2c）：supervisor 直驱补视，观察循环内化 ----
+    # 命令处理器表（W6-A）：Command → 节点方法（统一签名
+    # (goal, reaction) -> (Reaction, persist)）。RECORD_DISABLED 与未知
+    # 命令不入表 → 循环 break（原 else 分支语义）。
+    _COMMAND_HANDLERS = {
+        Command.NAVIGATE: _cmd_navigate,
+        Command.BEGIN_SCENE: _cmd_begin,
+        Command.SURVEY: _cmd_survey,
+        Command.WAIT_LOCK: _cmd_wait_lock,
+        Command.SELECT: _cmd_select,
+        Command.DISPATCH: _cmd_dispatch,
+        Command.EXECUTE_FULL: _cmd_full,
+        Command.NONE: _cmd_cycle_done,
+    }
 
-    def _observation_item(self, target_id: str):
-        if self._observations is None:
-            return None
-        for item in getattr(self._observations, 'observations', []):
-            if str(getattr(item, 'target_id', '')) == str(target_id):
-                return item
-        return None
+    # ---- fast 档观察（3c-2c）：supervisor 直驱补视，循环纯核在 observe.py ----
 
     def _view_signals(self, target_id: str) -> ViewSignals:
-        """
-        当前机位质量信号（观测缓存 → ViewSignals）.
-
-        TF 门读观测 diagnostic_flags：tf_stale / tf_unavailable 时本帧
-        信号不作数（ViewSignals.tf_ok=False → 不给 ENOUGH，防静止图像
-        被当好单视收口）。
-        """
-        item = self._observation_item(target_id)
-        if item is None:
-            return ViewSignals(tf_ok=False, bbox_valid=False)
-        flags = set(getattr(item, 'diagnostic_flags', []) or [])
-        tf_ok = not ({'tf_stale', 'tf_unavailable'} & flags)
-        bbox = getattr(item, 'candidate_2d', None)
-        mask = getattr(item, 'mask', None)
-        fitting = getattr(item, 'fitting', None)
-        width = int(getattr(mask, 'width', 0) or 0) or 640
-        height = int(getattr(mask, 'height', 0) or 0) or 480
-        bbox_valid = bool(
-            getattr(bbox, 'bbox_w', 0) and getattr(bbox, 'bbox_h', 0))
-        area_ratio = 0.0
-        if bbox_valid:
-            area_ratio = (
-                float(bbox.bbox_w) * float(bbox.bbox_h)) / float(
-                    max(1, width) * max(1, height))
-        return ViewSignals(
-            bbox_area_ratio=area_ratio,
-            mask_foreground_ratio=float(
-                getattr(fitting, 'foreground_ratio', -1.0)),
-            tf_ok=tf_ok,
-            bbox_valid=bbox_valid)
+        """当前机位质量信号（W6-A 薄接线：纯核在 supervisor.observe）."""
+        return observe.view_signals(self._observations, target_id)
 
     def _target_anchor(self, target_id: str):
-        item = self._observation_item(target_id)
-        if item is None:
-            return None
-        bottom = getattr(getattr(item, 'candidate', None), 'bag_bottom', None)
-        if bottom is None:
-            return None
-        return [float(bottom.x), float(bottom.y), float(bottom.z)]
-
-    # latest TF 回退陈旧上限：补视在 MoveTo 刚结束时调用，臂静止时 TF 年龄
-    # 应远低于此；超限说明链路异常，latest 位姿不可当补视几何用
-    _TF_FALLBACK_STALE_S = 1.0
+        """目标锚点（W6-A 薄接线：纯核在 supervisor.observe）."""
+        return observe.target_anchor(self._observations, target_id)
 
     def _camera_position(self):
-        """相机位（base 系）：精确时刻优先；latest 回退须过陈旧门."""
-        target, source = 'base_link', 'camera_depth_optical_frame'
-        now_s = self.get_clock().now().nanoseconds * 1e-9
-        try:
-            # 精确时刻查询（运动中正确）；给 0.5s 缓冲等链路就绪，避免
-            # 首帧/瞬时未就绪即抛异常导致补视被跳过（09-17 E2E 实测）
+        """相机位（W6-A 薄接线）：TF 查询闭包在节点侧，解析在纯核."""
+        def lookup_exact(target, source, timeout_s):
             from rclpy.duration import Duration
-            tf = self._tf_buffer.lookup_transform(
+            return self._tf_buffer.lookup_transform(
                 target, source, self.get_clock().now().to_msg(),
-                timeout=Duration(seconds=0.5))
-        except Exception:  # noqa: BLE001 精确时刻不可得；latest 须新鲜
-            try:
-                from rclpy.time import Time
-                tf = self._tf_buffer.lookup_transform(
-                    target, source, Time())
-                stamp_s = (
-                    tf.header.stamp.sec + tf.header.stamp.nanosec * 1e-9)
-                if now_s - stamp_s > self._TF_FALLBACK_STALE_S:
-                    self.get_logger().warning(
-                        f'latest TF 回退已陈旧（{now_s - stamp_s:.2f}s > '
-                        f'{self._TF_FALLBACK_STALE_S}s），fast 补视按几何缺失收口')
-                    return None
-            except Exception:  # noqa: BLE001 链路缺失
-                return None
-        tr = tf.transform.translation
-        return [float(tr.x), float(tr.y), float(tr.z)]
+                timeout=Duration(seconds=timeout_s))
+
+        def lookup_latest(target, source):
+            from rclpy.time import Time
+            return self._tf_buffer.lookup_transform(target, source, Time())
+
+        now_s = self.get_clock().now().nanoseconds * 1e-9
+        return observe.camera_position(
+            lookup_exact, lookup_latest, now_s,
+            warn=self.get_logger().warning)
+
+    def _fast_move_to(self, position, quat, timeout_s: float):
+        """补视移动（MoveTo KIND_POSE，camera_frame 直线）."""
+        goal = MoveTo.Goal()
+        goal.kind = MoveTo.Goal.KIND_POSE
+        goal.camera_frame = True
+        goal.lin_only = True
+        goal.pose.header.frame_id = 'base_link'
+        goal.pose.header.stamp = self.get_clock().now().to_msg()
+        goal.pose.pose.position.x = float(position[0])
+        goal.pose.pose.position.y = float(position[1])
+        goal.pose.pose.position.z = float(position[2])
+        goal.pose.pose.orientation.x = quat[0]
+        goal.pose.pose.orientation.y = quat[1]
+        goal.pose.pose.orientation.z = quat[2]
+        goal.pose.pose.orientation.w = quat[3]
+        return self._send_action(
+            self._move_to, goal, timeout_s, feedback=False,
+            goal_handle=self._run_goal_handle)
 
     def _fast_observe_loop(self, request_id: str, target_id: str) -> tuple:
         """
-        Fast 档观察循环：单视决策→低置信补视（封顶 3 视）→交 Build 收口.
+        Fast 档观察循环薄接线（W6-A）：循环与判定在 supervisor.observe 纯核.
 
         返回 (observe_ok, details)；取消/跳过/几何缺失 → not ok。
         """
-        timeout = float(self._params.action_timeout_s)
-        # W2/S2：单步移动上限压到仓规 ≤18s（旧式 min(timeout,30)=30s）。
-        move_timeout = min(timeout, 18.0)
-        state = ViewPolicyState(used_views=1)
-        cfg = FastViewConfig()
-        moves_used = 0
-        t0 = time.monotonic()
-        while not self._cancel and not self._peek_skip():
-            decision = decide_fast(
-                self._view_signals(target_id), state, cfg,
-                min_views=int(self._params.reconstruction_min_views))
-            if decision is not ViewDecision.SUPPLEMENT:
-                return True, {
-                    'view_policy': 'fast',
-                    'view_decision': decision.value,
-                    'view_moves': moves_used,
-                    'observe_elapsed_s': round(time.monotonic() - t0, 3)}
-            camera = self._camera_position()
-            target_xyz = self._target_anchor(target_id)
-            if camera is None or target_xyz is None:
-                self.get_logger().warning(
-                    f'fast 补视缺几何（camera={camera is not None} '
-                    f'anchor={target_xyz is not None}），按封顶收口')
-                return True, {
-                    'view_policy': 'fast', 'view_decision': 'geometry_missing',
-                    'view_moves': moves_used,
-                    'observe_elapsed_s': round(time.monotonic() - t0, 3)}
-            context = ViewContext(
-                target=target_xyz, current_camera_position=camera,
-                observed_directions=[[
-                    camera[0] - target_xyz[0],
-                    camera[1] - target_xyz[1],
-                    camera[2] - target_xyz[2]]])
-            candidates = generate(context, ViewPlannerConfig())
-            if not candidates:
-                return True, {
-                    'view_policy': 'fast', 'view_decision': 'no_candidate',
-                    'view_moves': moves_used,
-                    'observe_elapsed_s': round(time.monotonic() - t0, 3)}
-            top = candidates[0]
-            basis = look_at_optical(top.position, target_xyz)
-            quat = basis_to_quat(basis)
-            goal = MoveTo.Goal()
-            goal.kind = MoveTo.Goal.KIND_POSE
-            goal.camera_frame = True
-            goal.lin_only = True
-            goal.pose.header.frame_id = 'base_link'
-            goal.pose.header.stamp = self.get_clock().now().to_msg()
-            goal.pose.pose.position.x = float(top.position[0])
-            goal.pose.pose.position.y = float(top.position[1])
-            goal.pose.pose.position.z = float(top.position[2])
-            goal.pose.pose.orientation.x = quat[0]
-            goal.pose.pose.orientation.y = quat[1]
-            goal.pose.pose.orientation.z = quat[2]
-            goal.pose.pose.orientation.w = quat[3]
-            moved = self._send_action(
-                self._move_to, goal, move_timeout, feedback=False,
-                goal_handle=self._run_goal_handle)
-            moves_used += 1
-            state = ViewPolicyState(used_views=state.used_views + 1)
-            if moved is None:
-                self.get_logger().warning(
-                    f'fast 补视 MoveTo 失败（{target_id}，已移 {moves_used}）')
-                return (not self._cancel), {
-                    'view_policy': 'fast', 'view_decision': 'move_failed',
-                    'view_moves': moves_used,
-                    'observe_elapsed_s': round(time.monotonic() - t0, 3)}
-        return (not self._cancel), {
-            'view_policy': 'fast', 'view_decision': 'canceled',
-            'view_moves': moves_used,
-            'observe_elapsed_s': round(time.monotonic() - t0, 3)}
+        del request_id  # 原签名保留（调用方兼容）；循环体不消费
+        return observe.fast_observe_loop(
+            target_id,
+            signals=lambda: self._view_signals(target_id),
+            camera_pos=self._camera_position,
+            anchor=lambda: self._target_anchor(target_id),
+            move=self._fast_move_to,
+            canceled=lambda: self._cancel,
+            skip_requested=self._peek_skip,
+            warn=self.get_logger().warning,
+            action_timeout_s=float(self._params.action_timeout_s),
+            min_views=int(self._params.reconstruction_min_views))
 
     def _target_deadline_exceeded(self, request_id: str) -> bool:
         """单果时限门（0=不限）：超限记账 timeout 跳过并复位本果时限."""
@@ -1508,93 +1469,6 @@ class TaskExecutorNode(LifecycleNode):
         self._txn_ledger.close(
             self._transaction_id, str(getattr(outcome, 'target_id', '') or ''),
             int(getattr(outcome, 'outcome', 0) or 0))
-
-    def _stages_from_execute(self, executed) -> dict:
-        """将 ExecuteTarget 结果中的阶段耗时转换为 ledger extra."""
-        if executed is None:
-            return {}
-        names = [str(n) for n in list(getattr(executed, 'stage_names', []) or [])]
-        raw = list(getattr(executed, 'stage_durations', []) or [])
-        durations = []
-        for item in raw:
-            durations.append(
-                round(float(getattr(item, 'sec', 0) or 0)
-                      + float(getattr(item, 'nanosec', 0) or 0) * 1e-9, 3))
-        if not names:
-            return {}
-        return {'stage_names': names, 'stage_durations': durations}
-
-    @staticmethod
-    def _full_failure_code(outcome, operator_skip: bool) -> str:
-        """按 TargetOutcome 分级 FULL 失败码，质量/不可达不记 full_failed."""
-        if operator_skip or int(outcome.outcome) == int(TargetOutcome.CANCELED):
-            return 'canceled'
-        code = int(outcome.outcome)
-        if code == int(TargetOutcome.SKIPPED_QUALITY):
-            return 'skipped_quality'
-        if code == int(TargetOutcome.SKIPPED_UNREACHABLE):
-            return 'skipped_unreachable'
-        return 'full_failed'
-
-    @staticmethod
-    def _merge_cycle_extra(observe_extra, full_extra) -> dict:
-        """合并 OBSERVE_ONLY 与 FULL 的阶段耗时；丢掉 FULL 里为零的观察段."""
-        merged = dict(observe_extra or {})
-        full_extra = dict(full_extra or {})
-        obs_names = [str(n) for n in list(merged.get('stage_names') or [])]
-        obs_durs = list(merged.get('stage_durations') or [])
-        while len(obs_durs) < len(obs_names):
-            obs_durs.append(0.0)
-        obs_durs = obs_durs[:len(obs_names)]
-        skip = {'prepare', 'observe', 'finalize'}
-        keep_names = []
-        keep_durs = []
-        full_names = [str(n) for n in list(full_extra.get('stage_names') or [])]
-        full_durs = list(full_extra.get('stage_durations') or [])
-        for index, name in enumerate(full_names):
-            if name in skip:
-                continue
-            keep_names.append(name)
-            keep_durs.append(
-                float(full_durs[index]) if index < len(full_durs) else 0.0)
-        if obs_names or keep_names:
-            merged['stage_names'] = obs_names + keep_names
-            merged['stage_durations'] = [
-                round(float(d), 3) for d in obs_durs + keep_durs]
-        for key, value in full_extra.items():
-            if key in ('stage_names', 'stage_durations'):
-                continue
-            merged[key] = value
-        return merged
-
-    def _build_details(self, dispatch_t0: float, built) -> dict:
-        """Build 反馈与耗时摘要."""
-        started = float(self._build_feedback.get('started_s') or dispatch_t0)
-        details = {
-            'build_view_count': int(
-                self._build_feedback.get('view_count') or 0),
-            'build_status': str(self._build_feedback.get('status') or ''),
-            'build_duration_s': round(time.monotonic() - started, 3),
-        }
-        if built is not None:
-            model = getattr(built, 'model', None)
-            if model is not None and getattr(model, 'view_count', None) is not None:
-                details['build_view_count'] = int(model.view_count)
-            status = str(getattr(built, 'message', '') or '')
-            if status:
-                details['build_status'] = status
-        return details
-
-    def _classify_build_failure(self, built, message: str) -> tuple:
-        """区分执行器等待超时 / 重建内部 timeout / finalize 失败."""
-        text = str(message or '')
-        if built is None or text == 'build_timeout:executor_wait':
-            return 'build_timeout:executor_wait', 'build_timeout:executor_wait'
-        if text == 'timeout':
-            return 'build_timeout:reconstruction', 'build_timeout:reconstruction'
-        if text in ('canceled', 'cancelled'):
-            return 'canceled', 'build_canceled'
-        return 'build_finalize_failed', 'build_finalize_failed: ' + text
 
     def _wait_build_after_observe(
             self, handle, timeout_s: float, grace_s: float, min_views: int):
@@ -2005,7 +1879,8 @@ class TaskExecutorNode(LifecycleNode):
                 if entered:
                     if not maintenance:
                         self._operation_mode = MODE_AUTO
-                    self._publish_state()
+                    # 暂停/恢复是审计关键迁移：突破限频立即发布
+                    self._publish_state(force=True)
                     self._emit(
                         'batch_resumed', self._run_id,
                         self._current_target_id,
@@ -2019,7 +1894,7 @@ class TaskExecutorNode(LifecycleNode):
                 self._paused_batch = self._batch_state
                 self._operation_mode = (
                     MODE_MAINTENANCE if maintenance else MODE_PAUSED)
-                self._publish_state()
+                self._publish_state(force=True)
                 self._emit(
                     'batch_paused', self._run_id,
                     self._current_target_id,
@@ -2039,12 +1914,15 @@ class TaskExecutorNode(LifecycleNode):
             if cancel or not recovery:
                 if entered:
                     self._apply_state(
-                        apply_recovery_ack(self._recovery_batch))
+                        apply_recovery_ack(self._recovery_batch),
+                        force_publish=True)
                 return
             if not entered:
                 entered = True
                 self._recovery_batch = self._batch_state
-                self._apply_state(enter_recovery(self._recovery_batch))
+                self._apply_state(
+                    enter_recovery(self._recovery_batch),
+                    force_publish=True)
                 # 人工操作审计：进入恢复等待（真运动后停驻）进事件时间线
                 self._emit(
                     'recovery_required', self._run_id,
@@ -2066,8 +1944,9 @@ class TaskExecutorNode(LifecycleNode):
         msg.target_phase = self._target_phase
         msg.action_active = self._action_active
         msg.auto_start_enabled = False
-        msg.execution_enabled = bool(
-            self._params.execution_enabled)
+        # 投影统一（W6-A）：读有效使能（操作台 override 优先），消除
+        # 本地参数/override 双口径投影失真
+        msg.execution_enabled = self._execution_enabled_effective()
         msg.grasp_enabled = self._grasp_enabled
         msg.tool_enabled = self._tool_enabled
         msg.recovery_required = self._recovery_required
@@ -2087,11 +1966,28 @@ class TaskExecutorNode(LifecycleNode):
         msg.scene_epoch = int(self._scene_epoch or 0)
         return msg
 
-    def _publish_state(self, bump: bool = True):
+    # state/feedback 广播节流下限（W6-A 限频）：高频调用方（_apply 每次
+    # 迁移、_on_exec_feedback 每条反馈）限频到 10 Hz；终局/取消/暂停/
+    # 恢复等稀疏关键迁移由调用方 force=True 突破节流立即发。topic 为
+    # latched，晚订户仍取最后值，web 轮询不受影响；被节流的调用仍返回
+    # 最新 _make_state（服务响应携带新 seq）。
+    _STATE_PUBLISH_MIN_INTERVAL_S = 0.1
+
+    def _publish_state(self, bump: bool = True, force: bool = False):
         if bump:
             with self._lock:
                 self._state_seq += 1
         if not hasattr(self, '_pub_state'):
+            return self._make_state()
+        now = time.monotonic()
+        with self._lock:
+            throttled = (
+                not force
+                and now - self._state_last_publish_s
+                < self._STATE_PUBLISH_MIN_INTERVAL_S)
+            if not throttled:
+                self._state_last_publish_s = now
+        if throttled:
             return self._make_state()
         state = self._make_state()
         self._pub_state.publish(state)

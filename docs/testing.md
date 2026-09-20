@@ -322,7 +322,7 @@ ros2 action send_goal /hand_eye_calibration_server/run \
 
 ### 授权后真运动（本页不写默认使能）
 
-须同时打开调度与技能 `execution`。`RunHarvest` / `ExecuteTarget` / `SurveyScene` 动作入口会自动 arm；手动 Trigger 才 `~/set_execution_armed`。抓取再开 `grasp.enabled`；工具再开 `tool.enabled`。卸果站为预留（`DepositToStation` 已删，`DepositResult` 恒 `deposited=false`，无 `deposit_pose_named_target` 参数）。使能顺序：先关 `grasp` 再关 `execution`（依赖链 execution→grasp→tool）。
+须同时打开调度与技能 `execution`。`RunHarvest` / `ExecuteTarget` / `SurveyScene` 动作入口会自动 arm；手动 Trigger 才 `~/set_execution_armed`。抓取再开 `grasp.enabled`；工具再开 `tool.enabled`。卸果站为预留（`DepositToStation` 已删，`DepositResult` 消息保留、W7 起不再随 `ExecuteTarget.Result` 携带，无 `deposit_pose_named_target` 参数）。使能顺序：先关 `grasp` 再关 `execution`（依赖链 execution→grasp→tool）。
 
 ---
 

@@ -174,7 +174,7 @@ Result 终局 `outcome`：`SUCCEEDED=0` / `SKIPPED_QUALITY=1` / `SKIPPED_UNREACH
 
 `completion_level`：`LEVEL_NONE` → `LEVEL_PREGRASP_REACHED`（已到位）→ `LEVEL_PREGRASP_VERIFIED`（残差过门且有新鲜观测）→ 套入 → 刀指令受理 → 切断确认 → 撤退确认 → `LEVEL_HARVEST_CONFIRMED`。`pregrasp.passed` 与 `completion_level` 不得互相抬级。产品成功看 `harvest.grasped`：仅切断证据∧撤退证据。`recovery_required` 为真时须人工 ACK 才允许下一颗。
 
-其余 Result 块：`harvest` / `deposit` / `verification` / `outcome_record` / `pregrasp`（技能自填的残差，不是订重建话题）。
+其余 Result 块：`harvest` / `verification` / `outcome_record` / `pregrasp`（技能自填的残差，不是订重建话题）。cut/retreat/harvest 证据单源这些块（W7 起顶层 bool 镜像与 `deposit` 已删）。
 
 Feedback：`HarvestState`。
 
@@ -335,7 +335,7 @@ Goal：`pose`、`site_id`。现行固定座调度直通 `NAV_OK`，**不发送**
 
 **`HarvestResult`**：`grasped` 仅切断且撤退确认；`commanded` / `confirmed`；`completion_level` 与 ExecuteTarget 同一组。规划占位不得置 `grasped`。
 
-**`DepositResult`**：`deposited`；卸果站未标定时最高到 G9，`deposited=false`，`reason` 如 `pending_m8_unload_pose`。
+**`DepositResult`**：`deposited`；卸果站未标定时最高到 G9，`deposited=false`，`reason` 如 `pending_m8_unload_pose`。W7 起不再随 `ExecuteTarget.Result` 携带（消息保留，卸果站预留）。
 
 **`Verification`**：本周期 `passed`；`harvest_confirmed` 才表示果已带走；`failure_code`。
 

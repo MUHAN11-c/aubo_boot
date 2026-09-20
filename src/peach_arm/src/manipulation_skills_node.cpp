@@ -1193,24 +1193,19 @@ void ManipulationSkillsNode::fillExecuteResults(
     result->outcome == ExecuteTarget::Result::SUCCEEDED;
   result->completion_level = ctx ? ctx->completion_level : 0;
   result->failure_code = succeeded || !ctx ? 0u : ctx->failure_code;
-  result->cut_command_accepted = ctx && ctx->cut_command_accepted;
-  result->cut_confirmed = ctx && ctx->cut_confirmed;
-  result->retreat_confirmed = ctx && ctx->retreat_confirmed;
-  result->harvest_confirmed = harvestConfirmed(
+  // W7：顶层 bool 镜像已删；cut/retreat/harvest 证据单源 harvest/verification 块。
+  const bool harvest_confirmed = harvestConfirmed(
     ctx && ctx->cut_confirmed, ctx && ctx->retreat_confirmed);
   result->pregrasp = ctx ? ctx->pregrasp_msg : peach_interfaces::msg::PregraspVerification{};
   result->harvest.completion_level = result->completion_level;
   result->harvest.commanded =
     grasp_enabled_.load() && !observe_only && !pregrasp_only;
-  result->harvest.confirmed = result->harvest_confirmed;
-  result->harvest.grasped = result->harvest_confirmed;
+  result->harvest.confirmed = harvest_confirmed;
+  result->harvest.grasped = harvest_confirmed;
   result->harvest.reason = result->reason;
   if (!tool_enabled_.load() && result->harvest.commanded) {
     result->harvest.reason += "；tool.enabled=false，跳过末端 IO";
   }
-  // DepositResult 预留：M8 卸果站未标定，固定按"跳过转移"语义填充。
-  result->deposit.deposited = false;
-  result->deposit.reason.clear();
   if (observe_only || pregrasp_only) {
     result->verification.passed = succeeded;
     result->verification.commanded = false;
@@ -1220,11 +1215,11 @@ void ManipulationSkillsNode::fillExecuteResults(
     result->verification.reason = result->reason;
     result->verification.failure_code = result->failure_code;
   } else {
-    // FULL：deposit 恒跳过（M8 预留），验证随采摘确认走。
+    // FULL：验证随采摘确认走（M8 卸果预留不随 Result 携带）。
     result->verification.passed = result->harvest.grasped;
     result->verification.commanded = result->harvest.commanded;
     result->verification.confirmed = result->harvest.confirmed;
-    result->verification.harvest_confirmed = result->harvest_confirmed;
+    result->verification.harvest_confirmed = harvest_confirmed;
     result->verification.reason = result->reason;
     result->verification.failure_code = result->failure_code;
   }

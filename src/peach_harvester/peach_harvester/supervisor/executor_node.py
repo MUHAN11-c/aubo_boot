@@ -1325,23 +1325,14 @@ class TaskExecutorNode(LifecycleNode):
                 if prefix and not str(outcome.reason).startswith(prefix):
                     outcome.reason = (
                         f'{prefix}: {outcome.reason}').strip(': ')
+            # W7：顶层镜像已删，harvest 证据单源 harvest/verification 块。
+            harvest = getattr(executed, 'harvest', None)
             extra['harvest_confirmed'] = bool(
-                getattr(executed, 'harvest_confirmed', False))
+                getattr(harvest, 'grasped', False))
             extra['completion_level'] = int(
                 getattr(executed, 'completion_level', 0) or 0)
-            extra['cut_confirmed'] = bool(
-                getattr(executed, 'cut_confirmed', False))
-            extra['retreat_confirmed'] = bool(
-                getattr(executed, 'retreat_confirmed', False))
             if int(getattr(executed, 'failure_code', 0) or 0):
                 extra['failure_code_n'] = int(executed.failure_code)
-            deposit = getattr(executed, 'deposit', None)
-            if deposit is not None and not bool(
-                    getattr(deposit, 'deposited', False)):
-                extra_reason = str(getattr(deposit, 'reason', ''))
-                if extra_reason and extra_reason not in outcome.reason:
-                    outcome.reason = (
-                        outcome.reason + '; ' + extra_reason).strip('; ')
             with self._lock:
                 # ACK 清旗标（_acknowledge_recovery）与反馈置位并发，
                 # 读-改-写须持锁，否则可能把已 ACK 的恢复门写回 True。

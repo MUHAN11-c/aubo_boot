@@ -60,14 +60,10 @@ uint8 completion_level         # LEVEL_* 最高到达档
 uint32 failure_code            # FailureCode.*；0=NONE
 string reason                  # 稳定原因码
 bool recovery_required         # true=须人工 ACK 才允许下一颗（PREGRASP_ONLY 停住亦然）
-bool cut_command_accepted      # 刀指令已受理
-bool cut_confirmed             # 切断已确认（无硬件反馈时不得仅凭指令置 true）
-bool retreat_confirmed         # 撤退已确认
-bool harvest_confirmed         # 切断且撤退确认
+# cut/retreat/harvest 证据单源 harvest/verification 块（W7 起顶层镜像删除）。
 builtin_interfaces/Duration[] stage_durations  # 与 stage_names 等长的各阶段耗时
 string[] stage_names           # 阶段名（观察/预抓取/套入/刀/撤退等）
 peach_interfaces/HarvestResult harvest           # 接触段抓取结果
-peach_interfaces/DepositResult deposit           # 卸果；未标定则 deposited=false
 peach_interfaces/Verification verification       # 周期校验块
 peach_interfaces/TargetOutcome outcome_record    # 入账用终局
 peach_interfaces/PregraspVerification pregrasp   # 技能用工具 TF 自填的残差（不是订重建话题）

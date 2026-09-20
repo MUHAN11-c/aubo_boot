@@ -22,11 +22,11 @@ OUTCOME_NAMES = {
     4: 'CANCELED',
 }
 
-# ledger 行可选遥测键（supervisor outcome_to_dict 白名单 + FULL 附加）
+# ledger 行可选遥测键（supervisor outcome_to_dict 白名单 + FULL 附加）。
+# W7：cut/retreat/harvest_confirmed 顶层镜像已删且白名单本就不收——不再透传。
 _ROW_PASSTHROUGH = (
     'failure_code', 'build_view_count', 'build_status', 'build_duration_s',
-    'timeout_source', 'completion_level', 'cut_confirmed',
-    'retreat_confirmed', 'harvest_confirmed', 'failure_code_n',
+    'timeout_source', 'completion_level', 'failure_code_n',
 )
 
 

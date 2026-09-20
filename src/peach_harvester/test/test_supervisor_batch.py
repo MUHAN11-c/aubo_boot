@@ -36,7 +36,7 @@ def test_outcome_whitelist_includes_full_extras():
 
 
 def test_outcome_whitelist_excludes_idl_doomed_bools():
-    """cut/retreat/harvest_confirmed 三键不补——W7 IDL 收敛将删."""
+    """cut/retreat/harvest_confirmed 三键不补——W7 起顶层镜像已删，证据单源 harvest/verification 块."""
     extra = {
         'cut_confirmed': True,
         'retreat_confirmed': True,

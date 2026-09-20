@@ -1,8 +1,12 @@
 // 功能：ACM 只对指定目标对象 × 指定工具链接 × 明确接触阶段放行。
+// 工具连杆清单自工具档案参数注入（W5-6，GPL yaml tool.links /
+// tool.contact_links；默认=原三处硬编码），本文件只保留阶段策略判定。
 #ifndef PEACH_MANIPULATION__ACM_POLICY_HPP_
 #define PEACH_MANIPULATION__ACM_POLICY_HPP_
 
+#include <algorithm>
 #include <string>
+#include <vector>
 
 namespace peach_arm
 {
@@ -26,10 +30,13 @@ inline bool allowToolVersusWholeOctomap()
   return true;
 }
 
+/// 接触阶段（套入/剪切）目标对象 × 工具连杆放行判定：目标/连杆非空、
+/// 阶段为 Sleeve/Cut、且连杆在接触豁免清单（tool.contact_links）内。
 inline bool acmAllows(
   const std::string & target_object_id,
   const std::string & tool_link,
-  ContactAcmStage stage)
+  ContactAcmStage stage,
+  const std::vector<std::string> & contact_tool_links)
 {
   if (target_object_id.empty() || tool_link.empty()) {
     return false;
@@ -37,8 +44,9 @@ inline bool acmAllows(
   if (stage != ContactAcmStage::Sleeve && stage != ContactAcmStage::Cut) {
     return false;
   }
-  return tool_link == "sleeve_mouth" || tool_link == "tcp" ||
-         tool_link == "tool_axis" || tool_link == "cutting_plane";
+  return std::find(
+    contact_tool_links.begin(), contact_tool_links.end(),
+    tool_link) != contact_tool_links.end();
 }
 
 }  // namespace peach_arm

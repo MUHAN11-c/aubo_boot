@@ -2,10 +2,12 @@
 #include "peach_arm/model_contract.hpp"
 #include "peach_arm/plan_contract.hpp"
 #include "peach_arm/pregrasp_level.hpp"
-#include "peach_arm/retreat_policy.hpp"
-#include "peach_arm/tool_txn.hpp"
+#include "peach_arm/tool_actuator.hpp"
 
 #include <gtest/gtest.h>
+
+#include <string>
+#include <vector>
 
 TEST(PregraspLevel, ResidualFailIsReachedNotVerified)
 {
@@ -33,14 +35,24 @@ TEST(AcmPolicy, WholeOctomapToolExemptionIsF10Fallback)
   // F10 真机回退（5fbb8d9）：眼在手上时 octomap updater self-filter 漏收
   // 工具点云，工具×地图幽灵体素自碰死锁（Survey 全灭根因）——整图豁免=
   // true 是现行语义；self-filter 修复后改回 false 并同步本断言
-  // （acm_policy.hpp 头注释同源）。
+  // （acm_policy.hpp 头注释同源）。接触豁免连杆清单自 yaml tool.contact_links
+  // 注入（W5-6），此处用默认档案值。
+  const std::vector<std::string> contact_links{
+    "sleeve_mouth", "tcp", "tool_axis", "cutting_plane"};
   EXPECT_TRUE(peach_arm::allowToolVersusWholeOctomap());
   EXPECT_FALSE(
     peach_arm::acmAllows(
-      "target_1", "sleeve_mouth", peach_arm::ContactAcmStage::Transit));
+      "target_1", "sleeve_mouth", peach_arm::ContactAcmStage::Transit,
+      contact_links));
   EXPECT_TRUE(
     peach_arm::acmAllows(
-      "target_1", "sleeve_mouth", peach_arm::ContactAcmStage::Sleeve));
+      "target_1", "sleeve_mouth", peach_arm::ContactAcmStage::Sleeve,
+      contact_links));
+  // 档案外的连杆（筒体/快换件）不得获目标对象豁免。
+  EXPECT_FALSE(
+    peach_arm::acmAllows(
+      "target_1", "tool_body_link", peach_arm::ContactAcmStage::Sleeve,
+      contact_links));
 }
 
 TEST(PlanContract, PreviewMustMatchExecute)
@@ -80,26 +92,11 @@ TEST(PlanContract, ObserveBindingSkipsJoints)
   EXPECT_FALSE(peach_arm::previewMatchesExecute(observe, execute, 0.05));
 }
 
-TEST(RetreatPolicy, PartialUsesActual)
+TEST(ToolActuatorPolicy, HarvestConfirmedNeedsBothEvidence)
 {
-  EXPECT_EQ(
-    peach_arm::RetreatMode::FromActual,
-    peach_arm::sleeveRetreatMode(true));
-  EXPECT_EQ(
-    peach_arm::RetreatMode::ReverseNominal,
-    peach_arm::sleeveRetreatMode(false));
-}
-
-TEST(ToolTxn, TimeoutUnknownNoAutoRetreat)
-{
-  EXPECT_EQ(
-    peach_arm::ToolTxnState::Unknown,
-    peach_arm::onSetIoTimeout(peach_arm::ToolTxnState::CommandSent));
-  EXPECT_FALSE(
-    peach_arm::mayAutoRetreatOnTimeout(
-      peach_arm::ToolTxnState::Unknown));
-  EXPECT_FALSE(peach_arm::mayResendCut(peach_arm::ToolTxnState::Unknown));
+  // harvestConfirmed 自 tool_txn.hpp 迁入 tool_actuator.hpp（W5-6 死档案删除）。
   EXPECT_FALSE(peach_arm::harvestConfirmed(true, false));
+  EXPECT_FALSE(peach_arm::harvestConfirmed(false, true));
   EXPECT_TRUE(peach_arm::harvestConfirmed(true, true));
 }
 

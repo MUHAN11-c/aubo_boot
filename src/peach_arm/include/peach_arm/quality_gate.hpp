@@ -38,29 +38,6 @@ struct GateResult
   std::string reason;
 };
 
-// 质量门抽象基类。
-// 用途：判定观察覆盖是否可 finalize、精化质量是否可预览/可抓取。
-// 生命周期：由节点构造期/参数重载时重建，unique_ptr 独占持有。
-// 线程安全：判定方法为 const 纯函数，只在周期工作线程/executor 回调调用。
-// 可替换性：唯一实现 QualityGate（节点直接构造）。
-class QualityGateBase
-{
-public:
-  virtual ~QualityGateBase() = default;
-
-  // finalize 门：覆盖证据（机位数/基线/深度）与身份、时效是否达标。
-  virtual GateResult readyToFinalize(const QualitySnapshot & snapshot) const = 0;
-  // 接触轨迹预览门：预览只读锁存几何、不执行运动，时效要求由实现自定。
-  virtual GateResult readyToPreviewContact(const QualitySnapshot & snapshot) const = 0;
-  // 预抓取门：融合几何可接近，不要求 GraspDecision.allowed。
-  virtual GateResult readyToApproach(const QualitySnapshot & snapshot) const
-  {
-    return readyToGrasp(snapshot);
-  }
-  // 抓取门：接近几何 + 接触许可（真实套入/剪切的最终质量门）。
-  virtual GateResult readyToGrasp(const QualitySnapshot & snapshot) const = 0;
-};
-
 // 默认值以 config/peach_arm.yaml 为权威源，此处仅为直接构造兜底
 // （yaml：当前位+一次 0.15 m 短移，覆盖门 8°）。
 struct QualityGateConfig
@@ -73,17 +50,23 @@ struct QualityGateConfig
   double maximum_axis_angle_deg{35.0};
 };
 
-// 默认质量门实现：固定阈值档的身份一致性 + 视图覆盖 +
-// 精化拟合质量判定。线程安全与生命周期约定见 QualityGateBase。
-class QualityGate : public QualityGateBase
+// 默认质量门（唯一实现，零第二实现虚基类已删，W5-8；将来需要第二实现时
+// 按 AGENTS 走 pluginlib 新缝）：固定阈值档的身份一致性 + 视图覆盖 +
+// 精化拟合质量判定。判定方法为 const 纯函数，只在周期工作线程/executor
+// 回调调用；生命周期=节点构造期/参数重载时重建，unique_ptr 独占持有。
+class QualityGate
 {
 public:
   explicit QualityGate(QualityGateConfig config = QualityGateConfig());
 
-  GateResult readyToFinalize(const QualitySnapshot & snapshot) const override;
-  GateResult readyToPreviewContact(const QualitySnapshot & snapshot) const override;
-  GateResult readyToApproach(const QualitySnapshot & snapshot) const override;
-  GateResult readyToGrasp(const QualitySnapshot & snapshot) const override;
+  // finalize 门：覆盖证据（机位数/基线/深度）与身份、时效是否达标。
+  GateResult readyToFinalize(const QualitySnapshot & snapshot) const;
+  // 接触轨迹预览门：预览只读锁存几何、不执行运动，时效要求较宽。
+  GateResult readyToPreviewContact(const QualitySnapshot & snapshot) const;
+  // 预抓取门：融合几何可接近，不要求 GraspDecision.allowed。
+  GateResult readyToApproach(const QualitySnapshot & snapshot) const;
+  // 抓取门：接近几何 + 接触许可（真实套入/剪切的最终质量门）。
+  GateResult readyToGrasp(const QualitySnapshot & snapshot) const;
 
 private:
   GateResult commonIdentityGate(const QualitySnapshot & snapshot) const;

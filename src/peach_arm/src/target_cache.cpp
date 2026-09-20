@@ -11,6 +11,7 @@
 #include <utility>
 #include <vector>
 
+#include "peach_arm/angles.hpp"
 #include "peach_arm/math_utils.hpp"
 #include "peach_arm/model_contract.hpp"
 
@@ -32,16 +33,6 @@ void copyBbox(CachedTarget & dest, const Src & src)
   dest.image_height = src.image_height;
   dest.bbox_valid = src.bbox_valid;
   dest.foreground_ratio = src.foreground_ratio;
-}
-
-// 夹角（度）；任一向量非有限或为零返回 -1，调用方按「不可判」处理，
-// 不会与真实夹角区间混淆。
-double axisAngleDeg(const Eigen::Vector3d & first, const Eigen::Vector3d & second)
-{
-  if (!nonzeroFinite(first) || !nonzeroFinite(second)) {
-    return -1.0;
-  }
-  return angleBetweenDeg(first, second);
 }
 
 // 新鲜判据（io.md 门口径）：live_observation_required=true 只认末次 live
@@ -67,6 +58,33 @@ double freshnessStamp(const CachedTarget & target)
     return target.updated_s;
   }
   return target.received_s;
+}
+
+// 单目标观测调和（W5-13，自 updateSelectedTarget/updateLockedTargets 抽出，
+// 两路 ~90% 重复的逐字段拷贝收敛单实现）：诊断透传每帧刷新（含非观测帧），
+// 锚点几何（center/axis/travel）凡携带即采用（含 LOST 帧记忆锚点——世界系
+// 身份记忆的意义所在，短暂不可见仍可派发/规划），entry_pose/received_s 仅
+// OBSERVED 有效观测帧刷新（安全门按 max_age 判陈旧）。Update 取
+// SelectedTargetUpdate / LockedTargetUpdate（字段同名同义）。
+template<typename Update>
+void applyObservation(CachedTarget & entry, const Update & update, double now_s)
+{
+  entry.swinging = update.swinging;
+  entry.tracking_status = update.tracking_status;
+  copyBbox(entry, update);
+  entry.updated_s = now_s;
+  const bool has_anchor = nonzeroFinite(update.bottom) &&
+    nonzeroFinite(update.neck) && nonzeroFinite(update.axis);
+  if (has_anchor) {
+    entry.center = 0.5 * (update.bottom + update.neck);
+    entry.initial_axis = update.axis.normalized();
+    entry.suggested_travel_m = update.suggested_travel_m;
+    entry.valid = true;
+  }
+  if (update.observed && has_anchor) {
+    entry.initial_pose = update.entry_pose;
+    entry.received_s = now_s;
+  }
 }
 }  // namespace
 
@@ -100,29 +118,7 @@ void TargetCache::updateSelectedTarget(const SelectedTargetUpdate & update)
   }
   target_.id = update.selected_id;
   target_.harvest_run_id = update.harvest_run_id;
-  // 诊断透传每帧都刷新（含非观测帧）：再确认段摆动判定与失败原因文案以
-  // 最近一帧为准；received_s 仍只在有效观测帧刷新（见下）。
-  target_.swinging = update.swinging;
-  target_.tracking_status = update.tracking_status;
-  copyBbox(target_, update);
-  target_.updated_s = clock_s_();
-  const bool has_anchor = nonzeroFinite(update.bottom) && nonzeroFinite(update.neck) &&
-    nonzeroFinite(update.axis);
-  if (has_anchor) {
-    // 锚点几何即采用：LOST 帧携带的注册表记忆锚点同样可用（世界系身份记忆
-    // 的意义所在），短暂不可见的目标保持可派发/可规划；观测新鲜度仍由
-    // received_s 只在有效观测帧刷新来把关（安全门按 max_age 判陈旧）。
-    target_.center = 0.5 * (update.bottom + update.neck);
-    target_.initial_axis = update.axis.normalized();
-    target_.suggested_travel_m = update.suggested_travel_m;
-    target_.valid = true;
-  }
-  if (update.observed && has_anchor) {
-    target_.initial_pose = update.entry_pose;
-    // 仅在有效观测帧刷新时间戳：短暂检测闪烁保留最后有效样本（安全门按
-    // max_age 判陈旧），真消失的目标会在 max_age 后按 stale 拒绝。
-    target_.received_s = clock_s_();
-  }
+  applyObservation(target_, update, clock_s_());
   quality_.selected_target_id = target_.id;
   cv_.notify_all();
 }
@@ -155,26 +151,7 @@ void TargetCache::updateLockedTargets(
     CachedTarget & entry = locked_targets_[update.target_id];
     entry.id = update.target_id;
     entry.harvest_run_id = harvest_run_id;
-    // 诊断透传每帧刷新（含非观测帧，与 selected 缓存同语义）：残局目标的
-    // 摆动旗标/跟踪状态是再确认段与失败原因文案的数据源。
-    entry.swinging = update.swinging;
-    entry.tracking_status = update.tracking_status;
-    copyBbox(entry, update);
-    entry.updated_s = clock_s_();
-    const bool has_anchor = nonzeroFinite(update.bottom) &&
-      nonzeroFinite(update.neck) && nonzeroFinite(update.axis);
-    if (has_anchor) {
-      // 锚点几何即采用（含 LOST 帧的记忆锚点，理由同 updateSelectedTarget）；
-      // 观测新鲜度仍由 received_s 只在有效观测帧刷新来把关。
-      entry.center = 0.5 * (update.bottom + update.neck);
-      entry.initial_axis = update.axis.normalized();
-      entry.suggested_travel_m = update.suggested_travel_m;
-      entry.valid = true;
-    }
-    if (update.observed && has_anchor) {
-      entry.initial_pose = update.entry_pose;
-      entry.received_s = clock_s_();
-    }
+    applyObservation(entry, update, clock_s_());
   }
   cv_.notify_all();
 }
@@ -278,8 +255,10 @@ bool TargetCache::updateRefinedFitting(const RefinedFittingUpdate & update)
 {
   std::lock_guard<std::mutex> lock(mutex_);
   if (update.clear) {
-    quality_.refined_rmse_m = 0.0;
-    quality_.refined_inlier_ratio = 0.0;
+    // 无效标量约定 -1（同 QualitySnapshot 默认）：原 0.0 会把「无精化」
+    // 误投影成「完美拟合」（W5-13 修复）。
+    quality_.refined_rmse_m = -1.0;
+    quality_.refined_inlier_ratio = -1.0;
     quality_.refined_accept = false;
     if (refined_.id.empty()) {
       quality_.refined_target_id.clear();
@@ -370,7 +349,9 @@ QualitySnapshot TargetCache::qualitySnapshot() const
     snapshot.data_age_s = std::max(0.0, clock_s_() - diagnostics_received_s_);
   }
   if (target_.valid && refined_.valid) {
-    snapshot.axis_angle_deg = axisAngleDeg(target_.initial_axis, refined_.axis);
+    // 退化向量按 -1（不可判）——原 axisAngleDeg 包装语义，统一进 angles.hpp（W5-7）。
+    snapshot.axis_angle_deg =
+      angleDeg(target_.initial_axis, refined_.axis, AngleDegenerate::Invalid, 1.0e-6);
   } else {
     snapshot.axis_angle_deg = -1.0;
   }

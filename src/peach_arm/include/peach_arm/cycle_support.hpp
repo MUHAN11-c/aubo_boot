@@ -36,29 +36,24 @@ namespace peach_arm
 enum class MotionStage { TRANSIT, PREGRASP, CONTACT, TOOL };
 
 // 停准则对齐体积重建惯例（Open3D TSDF 对一组相机位姿逐张 integrate；
-// 工业 NBV 在 max_views 或信息增益够了才停），而不是用「上次移动+等帧」
-// 预测下一视点买不买得起：
+// 工业 NBV 在 max_views 或信息增益够了才停）：
 //   * 质量门放行 → CONVERGED（不再为凑次数运动）；
 //   * moves < maximum_moves → CONTINUE（把设计好的短移走完）；
 //   * 否则 MOVES_EXHAUSTED。
-// 墙钟 time_budget_s 只作日志对照。等帧超时在 waitForFreshTarget /
-// waitForNewStation，不在这里用 EMA 放大预算或预测收口。
-// 08-31 1633/1636：等帧把 EMA 抬到 ~8 s，15 s 预算剩 6 s，8 cm 第二机位被
-// 预测收口砍掉，基线永远不够。
+// 墙钟时间预算与「移动+等帧」EMA 预测收口已删除（W5-12：time_budget_s /
+// 移动成本 EMA 自停准则中移除后无生产方，BUDGET_EXHAUSTED 不可达）；
+// 等帧超时在 waitForFreshTarget / waitForNewStation。
 // 纯核零 ROS、零阻塞、零时钟依赖。
 
 struct ScanBudgetConfig
 {
   int maximum_moves{2};
-  int min_effective_views{1};
-  double time_budget_s{15.0};
 };
 
 enum class ScanVerdict
 {
   CONTINUE,
   CONVERGED,
-  BUDGET_EXHAUSTED,
   MOVES_EXHAUSTED
 };
 
@@ -70,18 +65,9 @@ public:
   {
   }
 
-  double effectiveBudgetS(double /*move_cost_ema_s*/) const
-  {
-    return config_.time_budget_s;
-  }
-
   // 判定只消费质量门与移动次数：停准则=覆盖达标或 maximum_moves 用尽
-  //（docs「不按移动+等帧 EMA 预测收口」的既定口径）。elapsed/有效视点/
-  // 移动成本 EMA 仅为日志保留；BUDGET_EXHAUSTED 当前无生产方，stages
-  // 的对应分支不可达（保留枚举与分支以兼容既有文案结构）。
-  ScanVerdict poll(
-    bool gate_allowed, int moves, int /*effective_views*/, double /*elapsed_s*/,
-    double /*move_cost_ema_s*/) const
+  //（docs「不按时长/移动+等帧 EMA 预测收口」的既定口径，W5-12 收紧签名）。
+  ScanVerdict poll(bool gate_allowed, int moves) const
   {
     if (gate_allowed) {
       return ScanVerdict::CONVERGED;

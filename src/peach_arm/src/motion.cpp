@@ -77,10 +77,7 @@ void ManipulationSkillsNode::onJointStatus(
     sample.current[j] = message->current[j];
   }
   std::lock_guard<std::mutex> lock(joint_current_mutex_);
-  joint_current_samples_.push_back(sample);
-  if (joint_current_samples_.size() > 128U) {
-    joint_current_samples_.erase(joint_current_samples_.begin());
-  }
+  joint_current_samples_.push(sample);
 }
 
 void ManipulationSkillsNode::startContactGuard()
@@ -93,7 +90,7 @@ void ManipulationSkillsNode::startContactGuard()
   {
     std::lock_guard<std::mutex> lock(joint_current_mutex_);
     const double now_s = now().seconds();
-    for (const auto & sample : joint_current_samples_) {
+    for (const auto & sample : joint_current_samples_.oldestToNewest()) {
       if (now_s - sample.t <= contact_detect_config_.baseline_s) {
         baseline.push_back(sample);
       }

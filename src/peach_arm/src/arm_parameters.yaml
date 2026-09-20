@@ -386,12 +386,6 @@ peach_arm:
       description: "最小有效视点数"
       validation:
         gt_eq<>: [1]
-    time_budget_s:
-      type: double
-      default_value: 15.0
-      description: "扫描时间预算（只进日志）"
-      validation:
-        gt<>: [0.0]
     assumed_frame_interval_s:
       type: double
       default_value: 0.4
@@ -632,6 +626,26 @@ peach_arm:
       type: double
       default_value: 1.0
       description: "闭合电平"
+    links:
+      type: string_array
+      default_value: ["tool_axis", "cutting_plane", "tcp", "sleeve_mouth", "tool_body_link", "quick_changer_link"]
+      description: "工具链连杆（③层整图 octomap 豁免清单；连杆名须与 URDF/tcp.xacro 一致）"
+    contact_links:
+      type: string_array
+      default_value: ["sleeve_mouth", "tcp", "tool_axis", "cutting_plane"]
+      description: "接触阶段（套入/剪切）× 目标对象豁免的工具连杆（不含筒体/快换件）"
+    body_length_m:
+      type: double
+      default_value: 0.2
+      description: "工具筒体长 [m]（①层果实胶囊审查；与 tcp.xacro tool_body_link 对齐，改几何须同步）"
+      validation:
+        gt<>: [0.0]
+    body_radius_m:
+      type: double
+      default_value: 0.06
+      description: "工具筒体半径 [m]（①层果实胶囊审查；半径只径向、不含端球）"
+      validation:
+        gt<>: [0.0]
     profile_id:
       type: string
       default_value: hollow_cylinder_v1

@@ -35,6 +35,50 @@ struct CurrentSample
   std::array<double, 6> current{};
 };
 
+// 关节电流样本定长环形缓存（W5-13）：容量 128（20Hz joint_status 约 6.4s
+// 窗口；节点侧原注释误写 64，已对齐实际容量）。写满覆盖最旧，O(1) 无
+// erase(begin()) 搬移；旧→新顺序快照供基线窗回放。
+class JointCurrentRing
+{
+public:
+  static constexpr std::size_t kCapacity = 128U;
+
+  void push(const CurrentSample & sample)
+  {
+    samples_[head_] = sample;
+    head_ = (head_ + 1U) % kCapacity;
+    if (size_ < kCapacity) {
+      ++size_;
+    }
+  }
+
+  bool empty() const {return size_ == 0U;}
+  std::size_t size() const {return size_;}
+
+  /// 最新样本（empty() 时调用未定义）。
+  const CurrentSample & back() const
+  {
+    return samples_[(head_ + kCapacity - 1U) % kCapacity];
+  }
+
+  /// 旧→新顺序快照（基线窗回放用；一次性拷贝，不进 50ms 评估热路径）。
+  std::vector<CurrentSample> oldestToNewest() const
+  {
+    std::vector<CurrentSample> out;
+    out.reserve(size_);
+    const std::size_t oldest = head_ >= size_ ? head_ - size_ : head_ + kCapacity - size_;
+    for (std::size_t i = 0; i < size_; ++i) {
+      out.push_back(samples_[(oldest + i) % kCapacity]);
+    }
+    return out;
+  }
+
+private:
+  std::array<CurrentSample, kCapacity> samples_{};
+  std::size_t size_{0U};
+  std::size_t head_{0U};  // 下一写入位
+};
+
 enum class ContactVerdict
 {
   NORMAL,          // 正常（含合法摩擦渐变）

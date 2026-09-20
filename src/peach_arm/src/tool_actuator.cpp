@@ -4,11 +4,6 @@
 namespace peach_arm
 {
 
-ToolActuator::ToolActuator(ToolProfile profile)
-: profile_(std::move(profile))
-{
-}
-
 void ToolActuator::setSendIo(SendIo send_io)
 {
   send_io_ = std::move(send_io);
@@ -42,7 +37,7 @@ bool ToolActuator::sendCut(std::string & reason)
     reason = "tool_io_not_wired";
     return false;
   }
-  if (!send_io_(profile_.io_fun, profile_.io_pin, profile_.close_state, reason)) {
+  if (!send_io_(reason)) {
     state_ = ToolActuatorState::UNKNOWN;
     return false;
   }

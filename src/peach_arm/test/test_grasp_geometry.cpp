@@ -8,6 +8,10 @@
 #include <cmath>
 #include <vector>
 
+// 工具筒体尺寸（W5-6 起由 yaml tool.body_* 注入；测试用原硬编码默认值）。
+constexpr double kToolLen = 0.200;
+constexpr double kToolRad = 0.060;
+
 namespace
 {
 
@@ -21,7 +25,7 @@ struct TestWaypoint
 Eigen::Quaterniond toolQuatMinusX()
 {
   return Eigen::Quaterniond(
-    Eigen::AngleAxisd(-(peach_arm::kPi / 2.0), Eigen::Vector3d::UnitY()));
+    Eigen::AngleAxisd(-(EIGEN_PI / 2.0), Eigen::Vector3d::UnitY()));
 }
 
 // 常用果实胶囊：bottom=(0,0,0)、neck=(0,0,0.10)、轴 +Z、
@@ -48,7 +52,7 @@ TEST(GraspGeometry, AlignFrameZPointsZAlongAxis)
 {
   // 绕 X 转 90° 的姿态：Z 指向 +Y；对轴到 +Z 后 Z 必须平行 +Z。
   const Eigen::Matrix3d current =
-    Eigen::AngleAxisd((peach_arm::kPi / 2.0), Eigen::Vector3d::UnitX()).toRotationMatrix();
+    Eigen::AngleAxisd((EIGEN_PI / 2.0), Eigen::Vector3d::UnitX()).toRotationMatrix();
   const Eigen::Matrix3d aligned =
     peach_arm::alignFrameZ(current, Eigen::Vector3d::UnitZ());
   EXPECT_NEAR(aligned.col(2).dot(Eigen::Vector3d::UnitZ()), 1.0, 1e-9);
@@ -74,11 +78,11 @@ TEST(GraspGeometry, AlignFrameZRolledKeepsAxisAndRollAngle)
 {
   // 对轴后绕工具 Z 滚转：Z 仍指目标轴；X 相对未滚转框转 roll 角。
   const Eigen::Matrix3d current =
-    Eigen::AngleAxisd((peach_arm::kPi / 2.0), Eigen::Vector3d::UnitX()).toRotationMatrix();
+    Eigen::AngleAxisd((EIGEN_PI / 2.0), Eigen::Vector3d::UnitX()).toRotationMatrix();
   const Eigen::Vector3d axis = Eigen::Vector3d::UnitZ();
   const Eigen::Matrix3d aligned =
     peach_arm::alignFrameZ(current, axis);
-  const double roll = peach_arm::kPi / 6.0;
+  const double roll = EIGEN_PI / 6.0;
   const Eigen::Matrix3d rolled =
     peach_arm::alignFrameZRolled(current, axis, roll);
   EXPECT_NEAR(rolled.col(2).dot(axis), 1.0, 1e-9);
@@ -98,10 +102,10 @@ TEST(GraspGeometry, ToolRollsAreFiveLevelsAroundZero)
   const std::vector<double> rolls = peach_arm::toolRollsRad();
   ASSERT_EQ(rolls.size(), 5U);
   EXPECT_NEAR(rolls[0], 0.0, 1e-12);
-  EXPECT_NEAR(rolls[1], peach_arm::kPi / 6.0, 1e-12);
-  EXPECT_NEAR(rolls[2], -peach_arm::kPi / 6.0, 1e-12);
-  EXPECT_NEAR(rolls[3], peach_arm::kPi / 3.0, 1e-12);
-  EXPECT_NEAR(rolls[4], -peach_arm::kPi / 3.0, 1e-12);
+  EXPECT_NEAR(rolls[1], EIGEN_PI / 6.0, 1e-12);
+  EXPECT_NEAR(rolls[2], -EIGEN_PI / 6.0, 1e-12);
+  EXPECT_NEAR(rolls[3], EIGEN_PI / 3.0, 1e-12);
+  EXPECT_NEAR(rolls[4], -EIGEN_PI / 3.0, 1e-12);
 }
 
 // ---------- pregraspAlongAxis / pregraspFromEntryKeepRoll ----------
@@ -145,7 +149,7 @@ TEST(GraspGeometry, PregraspFromEntryKeepRollAlignsCurrentAttitude)
   EXPECT_TRUE(pregrasp.linear().isApprox(current_R, 1e-9));
   // 当前 TCP 姿态 Z 偏轴：对轴后 Z 指向入口 Z（=轴），滚转由最小旋转决定。
   const Eigen::Matrix3d tilted =
-    Eigen::AngleAxisd((peach_arm::kPi / 2.0), Eigen::Vector3d::UnitX()).toRotationMatrix();
+    Eigen::AngleAxisd((EIGEN_PI / 2.0), Eigen::Vector3d::UnitX()).toRotationMatrix();
   const Eigen::Isometry3d aligned = peach_arm::pregraspFromEntryKeepRoll(
     entry, tilted, 0.03);
   EXPECT_TRUE(aligned.translation().isApprox(
@@ -221,19 +225,19 @@ TEST(GraspGeometry, ToolCapsuleClearanceClearCase)
   // 净间隙 = 0.2 - 工具半径 0.06 - 果半径 0.04 = 0.10。
   const double clearance = peach_arm::toolCapsuleClearance(
     Eigen::Vector3d(0.2, 0, 0.05), toolQuatMinusX(), standardFruit(),
-    peach_arm::kToolBodyLengthM, peach_arm::kToolBodyRadiusM);
+    kToolLen, kToolRad);
   EXPECT_NEAR(clearance, 0.10, 1e-9);
   // 接触态：工具拉近到轴距 0.05 → 净间隙 -0.05。
   const double hit = peach_arm::toolCapsuleClearance(
     Eigen::Vector3d(0.05, 0, 0.05), toolQuatMinusX(), standardFruit(),
-    peach_arm::kToolBodyLengthM, peach_arm::kToolBodyRadiusM);
+    kToolLen, kToolRad);
   EXPECT_NEAR(hit, -0.05, 1e-9);
   // 轴向投影不重叠（工具整体在果上方）：不判侧撞，间隙无穷。
   Eigen::Isometry3d pose = Eigen::Isometry3d::Identity();
   pose.translation() = Eigen::Vector3d(0.0, 0.0, 0.5);
   const double above = peach_arm::toolCapsuleClearance(
     pose.translation(), Eigen::Quaterniond(pose.linear()), standardFruit(),
-    peach_arm::kToolBodyLengthM, peach_arm::kToolBodyRadiusM);
+    kToolLen, kToolRad);
   EXPECT_TRUE(std::isinf(above));
   // 胶囊关闭：恒放行。
   peach_arm::FruitCapsule disabled = standardFruit();
@@ -241,7 +245,7 @@ TEST(GraspGeometry, ToolCapsuleClearanceClearCase)
   EXPECT_TRUE(std::isinf(
       peach_arm::toolCapsuleClearance(
         Eigen::Vector3d(0.05, 0, 0.05), toolQuatMinusX(), disabled,
-        peach_arm::kToolBodyLengthM, peach_arm::kToolBodyRadiusM)));
+        kToolLen, kToolRad)));
 }
 
 // ---------- inspectToolVsFruit：clear/hit 两态与反爬门 ----------
@@ -256,7 +260,7 @@ TEST(GraspGeometry, InspectToolVsFruitClearAndHit)
   const peach_arm::FruitAuditReport clear_report =
     peach_arm::inspectToolVsFruit(
       clear_points, standardFruit(), false,
-      peach_arm::kToolBodyLengthM, peach_arm::kToolBodyRadiusM);
+      kToolLen, kToolRad);
   EXPECT_TRUE(clear_report.allowed);
   EXPECT_NEAR(clear_report.min_clearance_m, 0.10, 1e-9);
   // 接触点列：筒体压到胶囊 → 拒绝，理由含接触关键词。
@@ -266,7 +270,7 @@ TEST(GraspGeometry, InspectToolVsFruitClearAndHit)
   const peach_arm::FruitAuditReport hit_report =
     peach_arm::inspectToolVsFruit(
       hit_points, standardFruit(), false,
-      peach_arm::kToolBodyLengthM, peach_arm::kToolBodyRadiusM);
+      kToolLen, kToolRad);
   EXPECT_FALSE(hit_report.allowed);
   EXPECT_NE(hit_report.reason.find("工具筒体接触果实胶囊"), std::string::npos);
 }
@@ -281,7 +285,7 @@ TEST(GraspGeometry, InspectToolVsFruitClimbAuditAndDisabled)
   const peach_arm::FruitAuditReport climb =
     peach_arm::inspectToolVsFruit(
       climb_points, standardFruit(), true,
-      peach_arm::kToolBodyLengthM, peach_arm::kToolBodyRadiusM);
+      kToolLen, kToolRad);
   EXPECT_FALSE(climb.allowed);
   EXPECT_NE(climb.reason.find("从果上方绕行"), std::string::npos);
   // 关闭胶囊：恒过。
@@ -290,7 +294,7 @@ TEST(GraspGeometry, InspectToolVsFruitClimbAuditAndDisabled)
   const peach_arm::FruitAuditReport off =
     peach_arm::inspectToolVsFruit(
       climb_points, disabled, true,
-      peach_arm::kToolBodyLengthM, peach_arm::kToolBodyRadiusM);
+      kToolLen, kToolRad);
   EXPECT_TRUE(off.allowed);
   // 点列不足：跳过（allowed）。
   std::vector<TestWaypoint> single = {
@@ -298,7 +302,7 @@ TEST(GraspGeometry, InspectToolVsFruitClimbAuditAndDisabled)
   const peach_arm::FruitAuditReport few =
     peach_arm::inspectToolVsFruit(
       single, standardFruit(), true,
-      peach_arm::kToolBodyLengthM, peach_arm::kToolBodyRadiusM);
+      kToolLen, kToolRad);
   EXPECT_TRUE(few.allowed);
 }
 
@@ -316,19 +320,19 @@ TEST(GraspGeometry, ToolSweepHitsFruitAlongSweep)
   EXPECT_TRUE(
     peach_arm::toolSweepHitsFruit(
       start, goal, standardFruit(),
-      peach_arm::kToolBodyLengthM, peach_arm::kToolBodyRadiusM));
+      kToolLen, kToolRad));
   // 两端都远离：不命中。
   Eigen::Isometry3d safe_goal = start;
   safe_goal.translation() = Eigen::Vector3d(0.4, 0.0, 0.05);
   EXPECT_FALSE(
     peach_arm::toolSweepHitsFruit(
       start, safe_goal, standardFruit(),
-      peach_arm::kToolBodyLengthM, peach_arm::kToolBodyRadiusM));
+      kToolLen, kToolRad));
   // 胶囊关闭：扫掠恒不命中。
   peach_arm::FruitCapsule disabled = standardFruit();
   disabled.enabled = false;
   EXPECT_FALSE(
     peach_arm::toolSweepHitsFruit(
       start, goal, disabled,
-      peach_arm::kToolBodyLengthM, peach_arm::kToolBodyRadiusM));
+      kToolLen, kToolRad));
 }

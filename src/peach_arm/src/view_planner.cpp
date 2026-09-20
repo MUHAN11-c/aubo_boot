@@ -12,6 +12,7 @@
 #include <utility>
 #include <vector>
 
+#include "peach_arm/angles.hpp"
 #include "peach_arm/math_utils.hpp"
 
 namespace peach_arm
@@ -21,7 +22,7 @@ namespace
 
 double radians(double degrees)
 {
-  return degrees * kPi / 180.0;
+  return degrees * static_cast<double>(EIGEN_PI) / 180.0;
 }
 
 // 零向量/非有限时退回 fallback，避免归一化产生 NaN 污染候选方向。
@@ -142,12 +143,11 @@ Eigen::Vector3d projectLookRayIntoReach(
 }
 }  // namespace
 
-// 夹角（度）；退化向量按 +x 兜底归一化，保证结果有限且落在 0–180°。
+// 夹角（度）；退化向量按 +x 兜底归一化，保证结果有限且落在 0–180°
+//（W5-7：实现统一走 angles.hpp 的 FallbackUnitX 语义）。
 double angleDegrees(const Eigen::Vector3d & first, const Eigen::Vector3d & second)
 {
-  return angleBetweenDeg(
-    safeUnit(first, Eigen::Vector3d::UnitX()),
-    safeUnit(second, Eigen::Vector3d::UnitX()));
+  return angleDeg(first, second, AngleDegenerate::FallbackUnitX);
 }
 
 ViewPlanner::ViewPlanner(ViewPlannerConfig config)

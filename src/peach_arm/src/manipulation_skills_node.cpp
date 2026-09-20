@@ -34,7 +34,6 @@
 #include "peach_arm/model_contract.hpp"
 #include "peach_arm/params_bridge.hpp"
 #include "peach_arm/staging_selector.hpp"
-#include "peach_arm/tool_txn.hpp"
 #include <peach_arm/arm_parameters.hpp>
 
 namespace peach_arm
@@ -158,12 +157,14 @@ CallbackReturn ManipulationSkillsNode::on_activate(const rclcpp_lifecycle::State
   // ③层工具×octomap ACM 豁免：后台线程一次应用（含最多 4s 服务等待，
   // 不得占激活回调；static 入口无对象生命周期依赖）。Survey/观察/接近
   // 全程生效——09-17 真机实锤：不豁免则眼在手上 self-filter 漏收的工具
-  // 点云会让臂停在任意视点位后所有规划自碰死锁。
+  // 点云会让臂停在任意视点位后所有规划自碰死锁。豁免清单=工具档案
+  // tool.links（W5-6 参数化）。
   {
     const auto logger = get_logger();
-    std::thread([logger]() {
+    const std::vector<std::string> tool_links = params_.tool.links;
+    std::thread([logger, tool_links]() {
         moveit::planning_interface::PlanningSceneInterface scene;
-        GraspTask::applyWholeOctomapToolExemption(logger, scene);
+        GraspTask::applyWholeOctomapToolExemption(logger, scene, tool_links);
       }).detach();
   }
   RCLCPP_INFO(get_logger(), "节点已激活：运动输出权限开放");
@@ -641,7 +642,7 @@ void ManipulationSkillsNode::createServices()
   tool_io_client_ = create_client<aubo_msgs::srv::SetIO>(
     "/aubo_io_controller/set_io");
   tool_actuator_.setSendIo(
-    [this](int, int, double, std::string & reason) {
+    [this](std::string & reason) {
       if (!commandToolClose()) {
         reason = "set_io_failed";
         return false;

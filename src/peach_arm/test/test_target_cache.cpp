@@ -212,12 +212,13 @@ TEST(TargetCache, RefinedFittingSelectsSphereOrCylinder)
   EXPECT_EQ(cache.expectedFittingTargetId(), "t1");
   update.target_id = "t9";
   EXPECT_FALSE(cache.updateRefinedFitting(update));
-  // clear 复位指标。
+  // clear 复位指标（W5-13：置 -1=无效，不再误投影成 0=完美拟合）。
   peach_arm::RefinedFittingUpdate clear;
   clear.clear = true;
   ASSERT_TRUE(cache.updateRefinedFitting(clear));
   quality = cache.qualitySnapshot();
-  EXPECT_NEAR(quality.refined_rmse_m, 0.0, 1e-12);
+  EXPECT_NEAR(quality.refined_rmse_m, -1.0, 1e-12);
+  EXPECT_NEAR(quality.refined_inlier_ratio, -1.0, 1e-12);
   EXPECT_FALSE(quality.refined_accept);
 }
 

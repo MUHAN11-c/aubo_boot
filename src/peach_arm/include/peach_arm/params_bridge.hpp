@@ -96,6 +96,10 @@ inline GraspTaskConfig toGraspTaskConfig(const Params & params)
   config.approach_max_lateral_m = moveit.mtc_approach_max_lateral_m;
   config.approach_max_align_deg = moveit.mtc_approach_max_align_deg;
   config.fruit_inflation_m = params.grasp.fruit_inflation_m;
+  config.tool_links = params.tool.links;
+  config.contact_tool_links = params.tool.contact_links;
+  config.tool_body_length_m = params.tool.body_length_m;
+  config.tool_body_radius_m = params.tool.body_radius_m;
   return config;
 }
 

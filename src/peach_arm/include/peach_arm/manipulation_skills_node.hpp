@@ -295,7 +295,6 @@ private:
   bool stageHoldPregrasp(CycleContext & ctx);
   bool stagePlanSleeveAndReverseRetreat(CycleContext & ctx);
   bool stageSleeveLinear(CycleContext & ctx);
-  bool stageVerifyCutHold(CycleContext & ctx);
   bool stageActuateCutter(CycleContext & ctx);
   bool stageVerifyCut(CycleContext & ctx);
   bool stageExecuteReservedReverseRetreat(CycleContext & ctx);
@@ -324,8 +323,6 @@ private:
 
   // 运行配置不再镜像为扁平成员（W5-1）：值一律读 params_ 快照（GPL 单源，
   // 见 params_bridge.hpp 的 Config 单点转换）；此处只留运行期状态与纯核组件。
-  /// 本目标内移动+等帧成本 [s]，≤0=未测得（观察段日志对照）。
-  double scan_move_cost_ema_s_{0.0};
   std::atomic_bool execution_enabled_{false};  ///< 自由空间运动使能（默认关）。
   std::atomic_bool grasp_enabled_{false};      ///< 套入使能（默认关）。
   // 环境几何保护区（阶段 F1，scan.protected_zones 解析结果）：base 系轴对齐
@@ -402,12 +399,12 @@ private:
     refined_pose_sub_;
   rclcpp::Subscription<peach_interfaces::msg::BagFittingArray>::SharedPtr refined_diag_sub_;
   rclcpp::Subscription<aubo_msgs::msg::RobotStatus>::SharedPtr robot_status_sub_;
-  // ④层接触止损接线：joint_status 电流缓存（环形 64 样本，互斥保护），
-  // guarded 段 timer 评估；默认 enabled=false 只缓存不判定。
+  // ④层接触止损接线：joint_status 电流缓存（定长 128 环形，互斥保护，
+  // W5-13），guarded 段 timer 评估；默认 enabled=false 只缓存不判定。
   rclcpp::Subscription<aubo_msgs::msg::JointStatus>::SharedPtr joint_status_sub_;
   rclcpp::TimerBase::SharedPtr contact_guard_timer_;
   std::mutex joint_current_mutex_;
-  std::vector<CurrentSample> joint_current_samples_;
+  JointCurrentRing joint_current_samples_;
   ContactDetectConfig contact_detect_config_;
   std::unique_ptr<ContactMonitor> contact_monitor_;
   std::atomic<bool> contact_abort_suspected_{false};

@@ -84,7 +84,8 @@ void logApproachSplit(
     "半径 %.3fm 沿轴LIN %.3fm 刀口滚转 %.0f° 原语 %s",
     dist_m,
     split.axial_m, split.lateral_m, split.align_deg, split.sweep_deg,
-    split.radius_m, split.lin_to_entry_m, split.tool_roll_rad * 180.0 / kPi,
+    split.radius_m, split.lin_to_entry_m,
+        split.tool_roll_rad * 180.0 / static_cast<double>(EIGEN_PI),
     approachKindName(split.kind));
 }
 
@@ -167,7 +168,8 @@ ApproachSplit classifyApproach(
   const bool lin_eligible =
     start_s <= 0.0 &&
     !toolSweepHitsFruit(
-      *start, pregrasp, fruit, kToolBodyLengthM, kToolBodyRadiusM) &&
+      *start, pregrasp, fruit, config.tool_body_length_m,
+      config.tool_body_radius_m) &&
     chord_m <= config.approach_cartesian_max_distance_m;
   if (lin_eligible) {
     const bool already_square = out.align_deg <= 2.0;
@@ -339,16 +341,22 @@ void GraspTask::syncKeepoutCollisionObjects() const
   scene.applyCollisionObjects(objects);
 }
 
-// ③层工具豁免（周期级，static）：整图 工具链 × <octomap> = allowed。
-// 供 on_activate 后台线程在周期外应用——Survey/观察/接近全程生效；臂
-// 连杆与 camera_body 保持受查（防撞主力）。MoveIt setPlanningSceneDiffMsg
-// 在 ACM entry_names 非空时用消息矩阵**整表替换** SRDF 相邻豁免，须先
-// GetPlanningScene 取现行 ACM 再回写全表。对象名是保留名 "<octomap>"
-// （planning_scene.cpp OCTOMAP_NS）。GetPlanningScene 走独立短命节点，
-// 避免在技能 planning callback group 上 wait 同源服务死锁。
-void GraspTask::applyWholeOctomapToolExemption(
+// ③层工具豁免合并实现（W5-5，原整图/轮内两份 90% 重复）：
+//   - 整图：工具链（tool.links 档案）× <octomap> = allowed；
+//   - per_target_id 非空（PerTarget 策略）：接触阶段 指定目标对象 × 接触
+//     连杆（tool.contact_links 档案，经 acmAllows 阶段策略过滤）。
+// MoveIt setPlanningSceneDiffMsg 在 ACM entry_names 非空时用消息矩阵
+// **整表替换** SRDF 相邻豁免，不能只发子方阵：先 GetPlanningScene 取现行
+// ACM，setEntry 后回写全表。对象名是保留名 "<octomap>"
+// （planning_scene.cpp OCTOMAP_NS），不是 "octomap"。GetPlanningScene 走
+// 独立短命节点，避免在技能 planning callback group 上 wait 同源服务死锁。
+void GraspTask::applyOctomapExemptionImpl(
   const rclcpp::Logger & logger,
-  moveit::planning_interface::PlanningSceneInterface & scene)
+  moveit::planning_interface::PlanningSceneInterface & scene,
+  const std::vector<std::string> & tool_links,
+  const std::vector<std::string> & contact_tool_links,
+  const std::string & per_target_id,
+  ContactAcmStage per_target_stage)
 {
   static std::atomic<int> fetch_seq{0};
   const std::string helper_name =
@@ -378,93 +386,18 @@ void GraspTask::applyWholeOctomapToolExemption(
       logger, "现行 ACM 为空，跳过工具×octomap 豁免（避免冲掉 SRDF）");
     return;
   }
-  if (!allowToolVersusWholeOctomap()) {
-    return;
-  }
   collision_detection::AllowedCollisionMatrix acm(
     response->scene.allowed_collision_matrix);
-  const std::string octomap_ns = "<octomap>";
-  const std::vector<std::string> tool_links = {
-    "tool_axis", "cutting_plane", "tcp", "sleeve_mouth",
-    "tool_body_link", "quick_changer_link"};
-  for (const auto & link : tool_links) {
-    acm.setEntry(link, octomap_ns, true);
-  }
-  moveit_msgs::msg::PlanningScene diff;
-  diff.is_diff = true;
-  diff.robot_state.is_diff = true;
-  acm.getMessage(diff.allowed_collision_matrix);
-  scene.applyPlanningScene(diff);
-}
-
-// ③层工具豁免：工具链连杆 × <octomap> = allowed。工具穿果袋（套入）/
-// 蹭细枝树叶是任务语义，规划期不查工具×地图；臂连杆与 camera_body
-// 保持受查（防撞主力）。
-// MoveIt setPlanningSceneDiffMsg 在 ACM entry_names 非空时用消息矩阵
-// **整表替换** SRDF 相邻豁免，不能只发工具×octomap 子方阵。先
-// GetPlanningScene 取现行 ACM，setEntry 后回写全表。对象名是保留名
-// "<octomap>"（planning_scene.cpp OCTOMAP_NS），不是 "octomap"。
-// GetPlanningScene 走独立短命节点，避免在技能 planning callback group
-// 上 wait 同源服务死锁。
-void GraspTask::applyToolOctomapExemption(
-  moveit::planning_interface::PlanningSceneInterface & scene) const
-{
-  static std::atomic<int> fetch_seq{0};
-  const std::string helper_name =
-    "peach_octomap_acm_" + std::to_string(fetch_seq.fetch_add(1));
-  auto helper = std::make_shared<rclcpp::Node>(helper_name);
-  auto client = helper->create_client<moveit_msgs::srv::GetPlanningScene>(
-    "/get_planning_scene");
-  if (!client->wait_for_service(std::chrono::seconds(2))) {
-    if (node_) {
-      RCLCPP_WARN(
-        node_->get_logger(),
-        "get_planning_scene 不可用，跳过工具×octomap ACM 豁免");
-    }
-    return;
-  }
-  auto request = std::make_shared<moveit_msgs::srv::GetPlanningScene::Request>();
-  request->components.components =
-    moveit_msgs::msg::PlanningSceneComponents::ALLOWED_COLLISION_MATRIX;
-  auto future = client->async_send_request(request);
-  const auto spin_rc = rclcpp::spin_until_future_complete(
-    helper, future, std::chrono::seconds(2));
-  if (spin_rc != rclcpp::FutureReturnCode::SUCCESS) {
-    if (node_) {
-      RCLCPP_WARN(
-        node_->get_logger(),
-        "读取现行 ACM 超时，跳过工具×octomap 豁免（避免整表替换）");
-    }
-    return;
-  }
-  const auto response = future.get();
-  if (!response || response->scene.allowed_collision_matrix.entry_names.empty()) {
-    if (node_) {
-      RCLCPP_WARN(
-        node_->get_logger(),
-        "现行 ACM 为空，跳过工具×octomap 豁免（避免冲掉 SRDF）");
-    }
-    return;
-  }
-  collision_detection::AllowedCollisionMatrix acm(
-    response->scene.allowed_collision_matrix);
-  const std::string octomap_ns = "<octomap>";
-  (void)octomap_ns;
   if (allowToolVersusWholeOctomap()) {
-    const std::vector<std::string> tool_links = {
-      "tool_axis", "cutting_plane", "tcp", "sleeve_mouth",
-      "tool_body_link", "quick_changer_link"};
     for (const auto & link : tool_links) {
-      acm.setEntry(link, octomap_ns, true);
+      acm.setEntry(link, "<octomap>", true);
     }
   }
-  // 接触阶段只对指定工具链接 × 指定目标对象放行；默认不豁免整张 octomap。
-  if (!pending_acm_target_id_.empty()) {
-    const std::vector<std::string> tool_links = {
-      "sleeve_mouth", "tcp", "tool_axis", "cutting_plane"};
-    for (const auto & link : tool_links) {
-      if (acmAllows(pending_acm_target_id_, link, pending_acm_stage_)) {
-        acm.setEntry(link, pending_acm_target_id_, true);
+  // 接触阶段只对接触连杆 × 指定目标对象放行；默认不豁免整张 octomap。
+  if (!per_target_id.empty()) {
+    for (const auto & link : contact_tool_links) {
+      if (acmAllows(per_target_id, link, per_target_stage, contact_tool_links)) {
+        acm.setEntry(link, per_target_id, true);
       }
     }
   }
@@ -473,6 +406,26 @@ void GraspTask::applyToolOctomapExemption(
   diff.robot_state.is_diff = true;
   acm.getMessage(diff.allowed_collision_matrix);
   scene.applyPlanningScene(diff);
+}
+
+void GraspTask::applyWholeOctomapToolExemption(
+  const rclcpp::Logger & logger,
+  moveit::planning_interface::PlanningSceneInterface & scene,
+  const std::vector<std::string> & tool_links)
+{
+  applyOctomapExemptionImpl(
+    logger, scene, tool_links, {}, std::string(), ContactAcmStage::Transit);
+}
+
+void GraspTask::applyToolOctomapExemption(
+  moveit::planning_interface::PlanningSceneInterface & scene,
+  OctomapExemptionPolicy policy) const
+{
+  applyOctomapExemptionImpl(
+    node_ ? node_->get_logger() : rclcpp::get_logger("peach_arm"), scene,
+    config_.tool_links, config_.contact_tool_links,
+    policy == OctomapExemptionPolicy::PerTarget ? pending_acm_target_id_ :
+    std::string(), pending_acm_stage_);
 }
 
 void GraspTask::appendLinToPose(
@@ -712,7 +665,7 @@ bool GraspTask::tryRolledApproach(
         RCLCPP_INFO(
           node_->get_logger(),
           "接近通过（%s）：刀口滚转 %.0f°",
-          approachKindName(rolled.kind), roll * 180.0 / kPi);
+          approachKindName(rolled.kind), roll * 180.0 / static_cast<double>(EIGEN_PI));
       }
       last = result;
       return true;
@@ -1037,8 +990,8 @@ GraspTaskResult GraspTask::planTaskOnly(
         }
         const bool audit_climb = !(staging_guard && part == 0U);
         const auto fruit_report = inspectToolVsFruit(
-          part_points, pending_fruit_, audit_climb, kToolBodyLengthM,
-          kToolBodyRadiusM);
+          part_points, pending_fruit_, audit_climb, config_.tool_body_length_m,
+          config_.tool_body_radius_m);
         RCLCPP_INFO(
           node_->get_logger(),
           "MTC 接近果实胶囊审查(seg%zu%s): allowed=%s "

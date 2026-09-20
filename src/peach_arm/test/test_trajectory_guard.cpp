@@ -3,6 +3,7 @@
 
 #include <gtest/gtest.h>
 
+#include <array>
 #include <cmath>
 #include <limits>
 #include <string>
@@ -332,6 +333,33 @@ TEST(TrajectoryGuard, QuatGeodesicHandlesIdentityAndSign)
   EXPECT_NEAR(peach_arm::quatGeodesicDeg(0, 0, 1, 1, 0, 0, -1, -1), 0.0, 1e-4);
   // 零四元数按不可判处理：0。
   EXPECT_NEAR(peach_arm::quatGeodesicDeg(0, 0, 0, 0, 0, 0, 0, 1), 0.0, 1e-6);
+}
+
+TEST(TrajectoryGuard, QuatGeodesicMatchesEigenAngularDistance)
+{
+  // W5-7 对拍：实现已改由 Eigen::Quaterniond::angularDistance 承载，
+  // 与 Eigen 结果逐对互证（0/90/180°、q~-q 双覆盖、非单位模长、任意旋转）。
+  const std::vector<std::array<double, 4>> quats = {
+    {0.0, 0.0, 0.0, 1.0},                                // 恒等
+    {0.0, 0.0, 0.7071067811865476, 0.7071067811865476},  // 绕 Z 90°
+    {1.0, 0.0, 0.0, 0.0},                                // 绕 X 180°
+    {0.0, 0.0, 1.0, 1.0},                                // 非单位（90°）
+    {0.3, -0.2, 0.1, 0.9},                               // 任意
+    {0.0, 0.0, 0.0, -1.0},                               // -q（与恒等同一姿态）
+    {0.0, 0.0, -1.0, -1.0},                              // -q（非单位 90°）
+  };
+  for (std::size_t i = 0; i < quats.size(); ++i) {
+    for (std::size_t j = 0; j < quats.size(); ++j) {
+      const auto & a = quats[i];
+      const auto & b = quats[j];
+      const Eigen::Quaterniond qa(a[3], a[0], a[1], a[2]);
+      const Eigen::Quaterniond qb(b[3], b[0], b[1], b[2]);
+      const double expected = qa.angularDistance(qb) * 180.0 / EIGEN_PI;
+      EXPECT_NEAR(
+        peach_arm::quatGeodesicDeg(a[0], a[1], a[2], a[3], b[0], b[1], b[2], b[3]),
+        expected, 1e-9) << "pair " << i << "," << j;
+    }
+  }
 }
 
 TEST(TrajectoryGuard, OrientationTravelCapAndSlack)

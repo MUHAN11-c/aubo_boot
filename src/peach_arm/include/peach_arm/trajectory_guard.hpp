@@ -4,6 +4,8 @@
 #ifndef PEACH_MANIPULATION__TRAJECTORY_GUARD_HPP_
 #define PEACH_MANIPULATION__TRAJECTORY_GUARD_HPP_
 
+#include <Eigen/Geometry>
+
 #include <algorithm>
 #include <cmath>
 #include <cstddef>
@@ -348,21 +350,16 @@ inline CartesianDetourReport inspectCartesianDetour(
   return report;
 }
 
-// 两单位四元数测地线夹角（度）。dot 取绝对值，q 与 −q 同一姿态。
+// 两四元数测地线夹角（度）。实现委托 Eigen::Quaterniond::angularDistance
+//（W5-7 替换手写 acos+π：Eigen 内部 2·atan2(|vec|,|w|) 以 |w| 参与比值，
+// 天然处理 q 与 −q 同一姿态；非单位输入按比值不变换算；全零四元数按 0）。
 inline double quatGeodesicDeg(
   double ax, double ay, double az, double aw,
   double bx, double by, double bz, double bw)
 {
-  const double na = std::sqrt(ax * ax + ay * ay + az * az + aw * aw);
-  const double nb = std::sqrt(bx * bx + by * by + bz * bz + bw * bw);
-  if (na < 1.0e-9 || nb < 1.0e-9) {
-    return 0.0;
-  }
-  double dot = std::abs((ax * bx + ay * by + az * bz + aw * bw) / (na * nb));
-  if (dot > 1.0) {
-    dot = 1.0;
-  }
-  return 2.0 * std::acos(dot) * 180.0 / 3.14159265358979323846;
+  const Eigen::Quaterniond first(aw, ax, ay, az);
+  const Eigen::Quaterniond second(bw, bx, by, bz);
+  return first.angularDistance(second) * 180.0 / static_cast<double>(EIGEN_PI);
 }
 
 struct OrientationTravelReport

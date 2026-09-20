@@ -1,4 +1,7 @@
 // 功能：套入入口点纯函数。入口 = 锚点 − 轴·(行程 + standoff)。
+// 工具筒体尺寸常量已删（W5-6）：审查函数的 tool_length/tool_radius 一律
+// 由调用方注入（GraspTaskConfig.tool_body_*，yaml tool.body_*，与
+// tcp.xacro tool_body_link 对齐）。
 #ifndef PEACH_MANIPULATION__GRASP_GEOMETRY_HPP_
 #define PEACH_MANIPULATION__GRASP_GEOMETRY_HPP_
 
@@ -51,7 +54,7 @@ inline Eigen::Matrix3d alignFrameZRolled(
 // 拧过 90°+（09-11 mock 30 例里出现 180° 姿态行程）。
 inline std::vector<double> toolRollsRad()
 {
-  constexpr double step = kPi / 6.0;
+  constexpr double step = static_cast<double>(EIGEN_PI) / 6.0;
   return {0.0, step, -step, 2.0 * step, -2.0 * step};
 }
 
@@ -170,13 +173,6 @@ inline double segmentSegmentDistance(
   }
   return (r + s * d1 - t * d2).norm();
 }
-
-// 工具筒体：TCP（开口）沿 −工具Z 方向长 L、半径 R 的有限实心圆柱。
-// 尺寸与 tcp.xacro tool_body_link（r=0.060、L=0.200）对齐，改几何须同步。
-// 半径只径向、不含端球：端球会把预抓取 30 mm 轴向余量全部吃掉
-// （r_tool 60 mm + r_fruit ≥ 35 mm），把合法筒口对果判成接触。
-constexpr double kToolBodyLengthM = 0.200;
-constexpr double kToolBodyRadiusM = 0.060;
 
 inline Eigen::Vector3d toolTailPoint(
   const Eigen::Vector3d & tcp, const Eigen::Quaterniond & tcp_quat,

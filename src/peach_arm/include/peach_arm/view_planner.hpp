@@ -44,23 +44,6 @@ struct ViewContext
   std::vector<Eigen::Vector3d> neighbor_centers;  ///< 邻果中心（朝「更多果」走）。
 };
 
-// 视点规划器抽象基类。
-// 用途：为目标生成按优先级排序的候选观察视点列表。
-// 生命周期：由节点构造期/参数重载时经工厂创建，unique_ptr 独占持有。
-// 线程安全：generate() 为 const 纯函数语义，只在周期工作线程调用。
-// 可替换性：唯一实现 ViewPlanner（节点直接构造）。
-class ViewPlannerBase
-{
-public:
-  virtual ~ViewPlannerBase() = default;
-
-  // 前置：context.target 为有效锚点；observed_directions 可为空（实现应自行
-  //   兜底为当前视线方向）。
-  // 后置：返回按实现内优先级排序的候选列表；空列表表示无可用视点。
-  // 失败语义：不抛异常，以空列表表达"没有生成可用观察视点"。
-  virtual std::vector<ViewCandidate> generate(const ViewContext & context) const = 0;
-};
-
 struct ViewPlannerConfig
 {
   // 默认值以 config/peach_arm.yaml 为权威源，此处仅为直接构造兜底。
@@ -90,15 +73,17 @@ struct ViewPlannerConfig
   std::vector<ProtectedZone> protected_zones;
 };
 
-// 默认视点规划实现：从当前相机沿直线截到 max_camera_step_m，评分以行程最短为主；
-// 朝框内分割更满的方向微偏，不绕球面、不对侧兜圈。线程安全见 ViewPlannerBase。
-class ViewPlanner : public ViewPlannerBase
+// 默认视点规划实现（唯一实现，零第二实现虚基类已删，W5-8；将来需要第二
+// 实现时按 AGENTS 走 pluginlib 新缝）：从当前相机沿直线截到
+// max_camera_step_m，评分以行程最短为主；朝框内分割更满的方向微偏，不绕
+// 球面、不对侧兜圈。generate() 为 const 纯函数语义，只在周期工作线程调用。
+class ViewPlanner
 {
 public:
   explicit ViewPlanner(ViewPlannerConfig config = ViewPlannerConfig());
 
-  // 基类接口：候选生成（纯函数，空列表=无可用视点）。
-  std::vector<ViewCandidate> generate(const ViewContext & context) const override;
+  // 候选生成（纯函数，空列表=无可用视点；退化输入由实现兜底）。
+  std::vector<ViewCandidate> generate(const ViewContext & context) const;
 
   // 便捷重载：与 generate(ViewContext) 等价，供既有单测/直调方使用。
   std::vector<ViewCandidate> generate(

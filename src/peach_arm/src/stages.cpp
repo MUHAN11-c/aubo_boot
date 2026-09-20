@@ -8,8 +8,6 @@
 #include "peach_arm/pregrasp_residual.hpp"
 #include "peach_arm/acm_policy.hpp"
 #include "peach_arm/reconfirm_policy.hpp"
-#include "peach_arm/retreat_policy.hpp"
-#include "peach_arm/tool_txn.hpp"
 #include <algorithm>
 #include <chrono>
 #include <cmath>
@@ -226,7 +224,8 @@ bool ManipulationSkillsNode::requireStageAuthority(
 // （IsSkipObservation|ObserveScan）→ QualityValidate →（IsObserveOnly→
 // ReportObserveOnly | IsGraspDisabled→ReportReadyForGrasp |（ReconfirmTarget →
 // MovePregrasp → VerifyPregrasp →（IsPregraspOnly→HoldPregrasp |
-// SleeveCutRetreat 子树））→ CompleteTarget））。
+// SleeveCutRetreat 子树））→ CompleteTarget））。VerifyCutHold 空阶段已删
+// （W5-12：原实现只落状态不判定；tool 遥测桶由 ActuateCutter 同投影）。
 void ManipulationSkillsNode::executeCycle(CycleContext & ctx)
 {
   const auto finish = [this, &ctx](CycleState state, const std::string & message) {
@@ -267,7 +266,6 @@ void ManipulationSkillsNode::executeCycle(CycleContext & ctx)
               } else {
                 ok = stagePlanSleeveAndReverseRetreat(ctx);
                 if (ok) {ok = stageSleeveLinear(ctx);}
-                if (ok) {stageVerifyCutHold(ctx);}
                 if (ok) {ok = stageActuateCutter(ctx);}
                 if (ok) {ok = stageVerifyCut(ctx);}
                 if (ok) {ok = stageExecuteReservedReverseRetreat(ctx);}
@@ -404,17 +402,12 @@ bool ManipulationSkillsNode::stageAcquireViews(CycleContext & ctx)
   // 扫描停准则（判定纯核 ScanBudget，对齐 Open3D TSDF / NBV）：
   //   - 质量门放行即停，不为凑次数继续运动；
   //   - 否则把 maximum_moves 走完（当前位已采帧；短移补基线）；
-  //   - 等帧超时在 waitFor*，不用移动+等帧 EMA 预测收口。
-  // 每目标重置 EMA：等帧占 ~2.5 FPS 的数秒，不是机型不变量，跨周期保留会
-  // 把下一颗的第二机位在第一拍就判成买不起。
-  scan_move_cost_ema_s_ = 0.0;
+  //   - 等帧超时在 waitFor*；时长预算/移动成本 EMA 预测收口已随死分支
+  //     删除（W5-12），不参与停准则。
   const ScanBudget scan_budget(ScanBudgetConfig{
-      static_cast<int>(params_.scan.maximum_moves),
-      static_cast<int>(params_.scan.min_effective_views),
-      params_.scan.time_budget_s});
+      static_cast<int>(params_.scan.maximum_moves)});
   int moves = 0;
   int effective_views = 0;
-  bool budget_exhausted = false;
   std::vector<std::string> attempted;
   const double scan_start_s = now().seconds();
   setState(CycleState::WAIT_FRAME, "当前位采帧，不环绕", ctx.target_id);
@@ -432,23 +425,8 @@ bool ManipulationSkillsNode::stageAcquireViews(CycleContext & ctx)
   }
   while (!cancel_requested_.load()) {
     const GateResult finalize_gate = quality_gate_->readyToFinalize(qualitySnapshot());
-    const double elapsed_s = now().seconds() - scan_start_s;
-    const ScanVerdict verdict = scan_budget.poll(
-      finalize_gate.allowed, moves, effective_views, elapsed_s,
-      scan_move_cost_ema_s_);
+    const ScanVerdict verdict = scan_budget.poll(finalize_gate.allowed, moves);
     if (verdict == ScanVerdict::CONVERGED) {
-      break;
-    }
-    if (verdict == ScanVerdict::BUDGET_EXHAUSTED) {
-      budget_exhausted = true;
-      RCLCPP_WARN(
-        get_logger(),
-        "观察预算收口（已耗时 %.1fs / 预算 %.1fs，移动成本EMA %.1fs，"
-        "有效视点 %d/%d）：%s，强制 finalize",
-        elapsed_s, scan_budget.effectiveBudgetS(scan_move_cost_ema_s_),
-        scan_move_cost_ema_s_, effective_views,
-        static_cast<int>(params_.scan.min_effective_views),
-        finalize_gate.reason.c_str());
       break;
     }
     if (verdict == ScanVerdict::MOVES_EXHAUSTED) {
@@ -555,11 +533,7 @@ bool ManipulationSkillsNode::stageAcquireViews(CycleContext & ctx)
         break;
       }
       ++effective_views;
-      // 本目标内移动+等帧成本（0.7/0.3），只进日志对照 time_budget_s；
-      // 不参与停准则。每目标开头已清零。
-      const double move_cost_s = now().seconds() - move_start_s;
-      scan_move_cost_ema_s_ = scan_move_cost_ema_s_ > 0.0 ?
-        0.7 * scan_move_cost_ema_s_ + 0.3 * move_cost_s : move_cost_s;
+      (void)move_start_s;  // 移动起点仅过程对照（成本 EMA 已随死分支删除）
       break;
     }
     if (!moved) {
@@ -578,16 +552,6 @@ bool ManipulationSkillsNode::stageAcquireViews(CycleContext & ctx)
   }
   const GateResult gate = quality_gate_->readyToFinalize(qualitySnapshot());
   if (!gate.allowed) {
-    if (budget_exhausted) {
-      // FULL：预算收口带现有覆盖强制 finalize，精化不达标由后续质量门拦截
-      // （降级抓取链已删除）。OBSERVE_ONLY：没有精化产物就算失败，不能把
-      // 重建未绑定/帧不足当成功。
-      if (ctx.observe_only) {
-        pending_outcome_.store(ExecuteTarget::Result::SKIPPED_QUALITY);
-        return failStage(ctx, "观察预算收口但重建未收敛: " + gate.reason);
-      }
-      return true;
-    }
     // 移动次数上限内采集帧不足/不收敛（含有效视点未达下限）：按目标不可达跳过。
     pending_outcome_.store(ExecuteTarget::Result::SKIPPED_UNREACHABLE);
     return failStage(
@@ -1074,12 +1038,6 @@ bool ManipulationSkillsNode::stageSleeveLinear(CycleContext & ctx)
   return true;
 }
 
-bool ManipulationSkillsNode::stageVerifyCutHold(CycleContext & ctx)
-{
-  setState(CycleState::ACTUATE_TOOL, "切割保持位确认", ctx.target_id);
-  return true;
-}
-
 bool ManipulationSkillsNode::stageActuateCutter(CycleContext & ctx)
 {
   if (ctx.pregrasp_only) {
@@ -1140,10 +1098,8 @@ bool ManipulationSkillsNode::stageExecuteReservedReverseRetreat(CycleContext & c
   if (grasp_task_) {
     grasp_task_->setContactAcm(ctx.target_id, ContactAcmStage::Retreat);
   }
-  // 部分套入从实际位姿规划撤离（不逆播完整名义轨迹）。
-  if (sleeveRetreatMode(ctx.sleeve_partial) != RetreatMode::FromActual) {
-    RCLCPP_WARN(get_logger(), "sleeve complete still retreats from actual pose");
-  }
+  // 撤离一律从实际位姿规划（部分套入不逆播完整名义轨迹；ReverseNominal
+  // 死分支与恒 WARN 已随 retreat_policy.hpp 删除，W5-12）。
   // 撤离授权经 GraspTask retreat 门（Active∧robotReady∧!cancel∧execution∧
   // grasp，无决策复检——插入后目标常被遮挡/收割后决策翻转，撤离不依赖视觉）。
   const auto result = grasp_task_->retreat(

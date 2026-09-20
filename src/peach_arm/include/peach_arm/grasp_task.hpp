@@ -63,7 +63,7 @@ inline moveit_msgs::msg::Constraints makeOrientationGate(
   orientation.link_name = link_name;
   orientation.header.frame_id = frame_id;
   orientation.orientation = tf2::toMsg(Eigen::Quaterniond(target_pose.linear()));
-  const double tol = tol_deg * kPi / 180.0;
+  const double tol = tol_deg * static_cast<double>(EIGEN_PI) / 180.0;
   orientation.absolute_x_axis_tolerance = tol;
   orientation.absolute_y_axis_tolerance = tol;
   orientation.absolute_z_axis_tolerance = tol;
@@ -137,6 +137,15 @@ struct GraspTaskConfig
   double approach_max_lateral_m{0.05};                ///< 小于此值视为已对轴 [m]。
   double approach_max_align_deg{20.0};                ///< 小于此值视为已齐 [deg]。
   double approach_near_velocity_scaling{0.05};        ///< 近果低速档（staging PTP 不降）。
+  // 工具档案（W5-6，GPL yaml tool.*；默认值=原三处硬编码）：
+  std::vector<std::string> tool_links{
+    "tool_axis", "cutting_plane", "tcp", "sleeve_mouth",
+    "tool_body_link", "quick_changer_link"};  ///< 工具链连杆（整图 octomap 豁免）。
+  std::vector<std::string> contact_tool_links{
+    "sleeve_mouth", "tcp", "tool_axis",
+    "cutting_plane"};  ///< 接触阶段 × 目标对象豁免的连杆。
+  double tool_body_length_m{0.200};  ///< 工具筒体长 [m]（①层审查，tcp.xacro 对齐）。
+  double tool_body_radius_m{0.060};  ///< 工具筒体半径 [m]。
   std::function<std::optional<Eigen::Isometry3d>()> lookup_current_tip;  ///< 查当前 TCP。
   // staging 关节目标（主路径 PTP 落点）：候选编排（keep-roll 及 ±30°/±60° ×
   // 当前+N-1 随机种子、腕轴加权距离+滚转惩罚排序、top_n 截断）在
@@ -299,18 +308,40 @@ private:
   void syncKeepoutCollisionObjects() const;
 
 public:
-  // ③层工具豁免（周期级）：整表回写 工具链 × <octomap> = allowed。static
-  // 无成员依赖——on_activate 后台线程应用一次，Survey/观察/接近全程生效。
+  // ③层工具豁免（周期级）策略（W5-5 合并原整图/轮内两份 90% 重复实现）：
+  //   WholeMap  —— 整表回写 工具链 × <octomap> = allowed（on_activate 后台
+  //                线程应用一次，Survey/观察/接近全程生效）；
+  //   PerTarget —— 整图豁免（若策略开启）+ 接触阶段 指定目标对象 × 接触
+  //                连杆（pending_acm_* 由 setContactAcm 预置）。
   // 09-17 真机实锤：眼在手上时 updater self-filter 漏收工具点云，不豁免则
   // 工具×自家幽灵体素自碰死锁。臂/相机连杆保持受查（防撞主力）。
+  enum class OctomapExemptionPolicy
+  {
+    WholeMap,
+    PerTarget
+  };
+
+  // 整图豁免 static 入口（无对象依赖）：tool_links 来自调用方参数档案。
   static void applyWholeOctomapToolExemption(
     const rclcpp::Logger & logger,
-    moveit::planning_interface::PlanningSceneInterface & scene);
-  // 接触轮内版本：整图豁免（若策略开启）+ 接触阶段目标对象×工具链接。
+    moveit::planning_interface::PlanningSceneInterface & scene,
+    const std::vector<std::string> & tool_links);
+  // 接触轮内版本：策略默认 PerTarget（整图豁免 + 接触阶段目标对象豁免）。
   void applyToolOctomapExemption(
-    moveit::planning_interface::PlanningSceneInterface & scene) const;
+    moveit::planning_interface::PlanningSceneInterface & scene,
+    OctomapExemptionPolicy policy = OctomapExemptionPolicy::PerTarget) const;
 
 private:
+  // ACM 豁免合并核心（W5-5）：整图豁免 + 可选接触阶段目标对象豁免，
+  // 供 static 整图入口与轮内 PerTarget 入口共用。
+  static void applyOctomapExemptionImpl(
+    const rclcpp::Logger & logger,
+    moveit::planning_interface::PlanningSceneInterface & scene,
+    const std::vector<std::string> & tool_links,
+    const std::vector<std::string> & contact_tool_links,
+    const std::string & per_target_id,
+    ContactAcmStage per_target_stage);
+
   std::shared_ptr<moveit::task_constructor::solvers::PipelinePlanner>
   makePilzSolver(
     const std::string & planner_id,

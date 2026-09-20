@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
-from peach_common.lifecycle import ensure_lifecycle_active
+from peach_common.lifecycle import break_bond, ensure_lifecycle_active
 
 
 def _stub_node(label: str) -> SimpleNamespace:
@@ -43,3 +43,28 @@ def test_noop_when_active():
     node = _stub_node('active')
     ensure_lifecycle_active(node)
     assert node._calls == []
+
+
+def test_break_bond_none_safe_and_delegates():
+    """None 直接返回；有 bond 时调 break_bond+shutdown（异常吞掉）."""
+    break_bond(None)  # 不抛
+    broken = []
+
+    class _Bond:
+        def break_bond(self):
+            broken.append('break')
+
+        def shutdown(self):
+            broken.append('shutdown')
+
+    break_bond(_Bond())
+    assert broken == ['break', 'shutdown']
+
+    class _Bad:
+        def break_bond(self):
+            raise RuntimeError('already dead')
+
+        def shutdown(self):
+            raise RuntimeError('already dead')
+
+    break_bond(_Bad())  # 拆除异常不外抛

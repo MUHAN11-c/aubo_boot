@@ -41,6 +41,7 @@ import cv_bridge
 from geometry_msgs.msg import Vector3Stamped
 import message_filters
 import numpy as np
+from peach_common.lifecycle import break_bond, create_bond
 from peach_harvester.vision.common.geometry import (
     transform_msg_to_matrix,
     transform_points,
@@ -162,6 +163,8 @@ class TargetReconstructionNode(
         # 显式初始化 ROS 基类（W4；行为与旧 super().__init__ 一致）
         LifecycleNode.__init__(self, 'peach_target_reconstruction_node')
         self.bridge = cv_bridge.CvBridge()
+        # W14：nav2_lm 进程死检心跳句柄（configure 建 / deactivate-cleanup 断）
+        self._bond = None
         # 协议 I3（时钟唯一）：节点时钟适配为纯核 Clock，一切计时走注入 now
         self._algo_clock = RclpyClockAdapter(self.get_clock())
         self.params = TargetReconstructionParams.attach(self)
@@ -472,11 +475,15 @@ class TargetReconstructionNode(
         except Exception as exc:  # noqa: BLE001 接线失败（话题/参数非法）整包停走
             self.get_logger().error(f'configure 失败: {exc}')
             return TransitionCallbackReturn.ERROR
+        # W14：nav2_lm 进程死检心跳（缺 ros-jazzy-bondpy 时守卫降级为 WARN）
+        self._bond = create_bond(self, self.get_name())
         return TransitionCallbackReturn.SUCCESS
 
     def on_activate(self, state):
         result = LifecycleNode.on_activate(self, state)
         self._lifecycle_active = True
+        if self._bond is None:
+            self._bond = create_bond(self, self.get_name())  # deactivate 后重臂
         # 激活后首发一次（IDLE + 空云），闩锁话题让后启动的订阅者立即可读
         self._publish_all()
         self.get_logger().info('reconstruction Active：开始积分')
@@ -484,10 +491,14 @@ class TargetReconstructionNode(
 
     def on_deactivate(self, state):
         self._lifecycle_active = False
+        break_bond(self._bond)
+        self._bond = None
         return LifecycleNode.on_deactivate(self, state)
 
     def on_cleanup(self, state):
         self._lifecycle_active = False
+        break_bond(self._bond)
+        self._bond = None
         self._unwire_ros()
         return LifecycleNode.on_cleanup(self, state)
 

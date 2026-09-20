@@ -637,6 +637,14 @@ class ObservabilityState:
         with self._lock:
             return list(self._values['task_executor']['events'])
 
+    def topic_ages(self, now: float | None = None) -> dict[str, float]:
+        """各镜像键的年龄 [s]（'section.key' → 距最近写入；诊断用）."""
+        now = time.time() if now is None else now
+        with self._lock:
+            return {
+                key: round(now - stamp, 3)
+                for key, stamp in self._updated.items()}
+
     def append_event(self, value, limit: int = 100) -> None:
         """追加一条批次事件到环形缓冲，只保留最近 limit 条."""
         now = time.time()

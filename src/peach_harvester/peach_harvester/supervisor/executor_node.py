@@ -13,6 +13,7 @@ from typing import Optional
 
 from action_msgs.msg import GoalStatus
 import geometry_msgs.msg
+from peach_common.lifecycle import break_bond, create_bond
 
 from peach_interfaces.action import (
     BuildTargetModel, ExecuteTarget, MoveTo, RunHarvest, SurveyScene)
@@ -155,6 +156,8 @@ class TaskExecutorNode(LifecycleNode):
         self._cancel = False
         self._skip_target = False
         self._active = False
+        # W14：nav2_lm 进程死检心跳句柄（configure 建 / deactivate-cleanup 断）
+        self._bond = None
         self._run_id = ''
         self._cycle_id = ''
         self._cycle_message = ''
@@ -229,6 +232,8 @@ class TaskExecutorNode(LifecycleNode):
         except Exception as exc:  # noqa: BLE001 接线失败（话题/参数非法）整包停走
             self.get_logger().error(f'configure 失败: {exc}')
             return TransitionCallbackReturn.ERROR
+        # W14：nav2_lm 进程死检心跳（缺 ros-jazzy-bondpy 时守卫降级为 WARN）
+        self._bond = create_bond(self, self.get_name())
         self.get_logger().info(
             'task executor configured; will not auto-start harvest')
         return super().on_configure(state)
@@ -368,6 +373,8 @@ class TaskExecutorNode(LifecycleNode):
         """激活转移：置 Active 并复位到 FSM 初始批次态（立即发布）."""
         result = super().on_activate(state)
         self._active = True
+        if self._bond is None:
+            self._bond = create_bond(self, self.get_name())  # deactivate 后重臂
         # 生命周期复位到初始批次态（FSM 初值，非手写迁移）
         self._apply_state(WAITING_READY, force_publish=True)
         return result
@@ -375,11 +382,15 @@ class TaskExecutorNode(LifecycleNode):
     def on_deactivate(self, state):
         """去激活转移：清 Active 旗标（在途动作由取消/收口路径处理）."""
         self._active = False
+        break_bond(self._bond)
+        self._bond = None
         return super().on_deactivate(state)
 
     def on_cleanup(self, state):
         """清理转移：清 Active 并释放全部 ROS 实体."""
         self._active = False
+        break_bond(self._bond)
+        self._bond = None
         self._unconfigure_ros()
         return super().on_cleanup(state)
 

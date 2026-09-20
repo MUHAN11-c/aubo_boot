@@ -18,6 +18,8 @@ import time
 
 from ament_index_python.packages import get_package_share_directory
 from aubo_msgs.msg import JointStatus, RobotStatus
+from diagnostic_msgs.msg import DiagnosticStatus
+from diagnostic_updater import Updater
 from geometry_msgs.msg import Vector3Stamped
 from nav_msgs.msg import Path as NavPath
 from peach_common.lifecycle import ensure_lifecycle_active
@@ -250,6 +252,8 @@ class ObservabilityNode(LifecycleNode):
         # 批次账本直播（runs/<request_id>/ledger.json；run_id==request_id）
         self._ledger_watch: pipeline.LedgerWatch | None = None
         self._ledger_request_id = ''
+        # /diagnostics 双轨（W15：对齐 peach_arm W5 / vegetation 的做法）
+        self._diag: Updater | None = None
 
     def on_configure(self, state):
         del state
@@ -284,6 +288,7 @@ class ObservabilityNode(LifecycleNode):
         self._create_metrics_sampler()
         self._create_tcp_sampler()
         self._create_debug_bridge()
+        self._create_diagnostics()
         return TransitionCallbackReturn.SUCCESS
 
     def on_activate(self, state):
@@ -795,6 +800,52 @@ class ObservabilityNode(LifecycleNode):
         return build_selection_marker_dicts(
             observations, selected_id, filtered, frame_id)
 
+    def _create_diagnostics(self) -> None:
+        """建 /diagnostics 周期任务：录制队列健康 + 订阅摄入活度."""
+        self._diag = Updater(self, period=5.0)
+        self._diag.setHardwareID('peach_observability')
+        self._diag.add('session_recorder', self._diag_recorder)
+        self._diag.add('ingest_liveness', self._diag_ingest)
+
+    def _diag_recorder(self, stat) -> object:
+        """会话录制健康：丢帧>0 报 WARN（盘速掉队），否则 OK."""
+        info = self._recorder.info() if self._recorder is not None else {}
+        if not info.get('enabled'):
+            stat.summary(DiagnosticStatus.OK, 'record disabled by config')
+        elif info.get('drops', 0) > 0:
+            stat.summary(
+                DiagnosticStatus.WARN,
+                f"bag queue drops={info['drops']} (disk behind, oldest dropped)")
+        else:
+            stat.summary(DiagnosticStatus.OK, 'recording')
+        stat.add('queue_size', str(info.get('queue_size')))
+        stat.add('queue_depth', str(info.get('queue_depth')))
+        stat.add('drops', str(info.get('drops', 0)))
+        stat.add('session', str(info.get('session')))
+        return stat
+
+    def _diag_ingest(self, stat) -> object:
+        """订阅摄入活度：最热键年龄 ≤10s OK / ≤60s WARN / 更久 STALE."""
+        ages = self._state.topic_ages()
+        if not ages:
+            stat.summary(DiagnosticStatus.WARN, 'no ingest yet')
+            stat.add('watched_keys', '0')
+            return stat
+        newest = min(ages.values())
+        oldest = sorted(ages.items(), key=lambda item: -item[1])[:3]
+        if newest <= 10.0:
+            stat.summary(DiagnosticStatus.OK, f'ingesting (newest {newest}s)')
+        elif newest <= 60.0:
+            stat.summary(DiagnosticStatus.WARN, f'quiet (newest {newest}s)')
+        else:
+            stat.summary(DiagnosticStatus.STALE, f'silent {newest}s')
+        stat.add('watched_keys', str(len(ages)))
+        stat.add('newest_age_s', str(newest))
+        stat.add(
+            'oldest_keys',
+            ', '.join(f'{key}:{age}s' for key, age in oldest))
+        return stat
+
     def _metrics_callback(self, sample: dict) -> None:
         """性能采样：镜像进状态缓存，并发布 JSON 进会话 bag."""
         self._state.update('metrics', 'sample', sample)
@@ -1031,6 +1082,7 @@ class ObservabilityNode(LifecycleNode):
         self._arm_tracker.reset()
         self._ledger_watch = None
         self._ledger_request_id = ''
+        self._diag = None
         self._spawn_report(self._close_recorder())
         self._metrics = None
         self._params = None

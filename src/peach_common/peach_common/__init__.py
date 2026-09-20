@@ -5,7 +5,7 @@ yaml_params（yaml 直读 + attach）、param_rules（三包规则并集）、qo
 工厂）、lifecycle（名单外节点自转换）在此单源；各能力包保留旧 import
 路径作为转发 shim。
 """
-from peach_common.lifecycle import ensure_lifecycle_active
+from peach_common.lifecycle import break_bond, create_bond, ensure_lifecycle_active
 from peach_common.yaml_params import (
     attach,
     CommitFn,
@@ -23,7 +23,9 @@ from peach_common.yaml_params import (
 
 __all__ = [
     'attach',
+    'break_bond',
     'CommitFn',
+    'create_bond',
     'dict_to_ns',
     'ensure_lifecycle_active',
     'expand_share',

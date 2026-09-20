@@ -6,6 +6,7 @@ CatchAllRecorder.stop 真正销毁订阅、调度状态转换器下沉。
 """
 from __future__ import annotations
 
+import time
 from types import SimpleNamespace
 
 from peach_observability.catch_all_recorder import CatchAllRecorder
@@ -126,3 +127,16 @@ def test_to_task_executor_state_converter():
     assert value['blockers'] == ['b1']
     value['blockers'].append('b2')
     assert list(message.blockers) == ['b1']  # 拷贝不回写
+
+
+def test_topic_ages_reports_update_recency():
+    """topic_ages 给诊断用的镜像键年龄；未更新的键不在表内."""
+    state = ObservabilityState()
+    assert state.topic_ages() == {}
+    state.update('perception', 'harvest', {'x': 1})
+    ages = state.topic_ages()
+    assert set(ages) == {'perception.harvest'}
+    assert 0.0 <= ages['perception.harvest'] < 1.0
+    # 显式 now 注入：年龄按给定时刻计算
+    later = state.topic_ages(now=time.time() + 100.0)
+    assert 100.0 <= later['perception.harvest'] < 101.0

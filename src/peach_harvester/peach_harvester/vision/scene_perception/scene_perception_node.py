@@ -15,6 +15,7 @@ from cv_bridge import CvBridge
 from geometry_msgs.msg import Vector3, Vector3Stamped
 import message_filters
 import numpy as np
+from peach_common.lifecycle import break_bond, create_bond
 from peach_common.qos import latched, stream
 from peach_harvester.vision.common.geometry import (
     gravity_camera_from_R,
@@ -97,6 +98,8 @@ class ScenePerceptionNode(LifecycleNode):
         """建节点：参数层装载 → 模型与管线 → 发布者、RGB-D 同步订阅与 TF 监听."""
         super().__init__('peach_scene_perception_node')
         self.bridge = CvBridge()
+        # W14：nav2_lm 进程死检心跳句柄（configure 建 / deactivate-cleanup 断）
+        self._bond = None
         # 参数层一行接入：yaml 声明 + on-set 动态刷新（见 params.py）。
         self.params = ScenePerceptionParams.attach(self)
         self.tf_timeout = Duration(seconds=self.params.tf_timeout_sec)
@@ -249,20 +252,28 @@ class ScenePerceptionNode(LifecycleNode):
         except Exception as exc:  # noqa: BLE001 接线失败（话题/参数非法）整包停走
             self.get_logger().error(f'configure 失败: {exc}')
             return TransitionCallbackReturn.ERROR
+        # W14：nav2_lm 进程死检心跳（缺 ros-jazzy-bondpy 时守卫降级为 WARN）
+        self._bond = create_bond(self, self.get_name())
         return TransitionCallbackReturn.SUCCESS
 
     def on_activate(self, state):
         result = super().on_activate(state)
         self._lifecycle_active = True
+        if self._bond is None:
+            self._bond = create_bond(self, self.get_name())  # deactivate 后重臂
         self.get_logger().info('perception Active：开始处理 RGB-D')
         return result
 
     def on_deactivate(self, state):
         self._lifecycle_active = False
+        break_bond(self._bond)
+        self._bond = None
         return super().on_deactivate(state)
 
     def on_cleanup(self, state):
         self._lifecycle_active = False
+        break_bond(self._bond)
+        self._bond = None
         self._unwire_ros()
         return super().on_cleanup(state)
 

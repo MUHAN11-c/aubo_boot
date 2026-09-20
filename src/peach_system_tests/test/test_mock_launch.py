@@ -1,9 +1,11 @@
 """Isolated launch_testing: mock harvest_system, no arm, no auto RunHarvest."""
 import os
 import tempfile
+import time
 import unittest
 
 from ament_index_python.packages import get_package_share_directory
+from bond.msg import Status as BondStatus
 import launch
 from launch.actions import IncludeLaunchDescription
 from launch.actions import SetEnvironmentVariable
@@ -40,6 +42,13 @@ _LATCHED = QoSProfile(
     durability=DurabilityPolicy.TRANSIENT_LOCAL,
 )
 
+# /bond 心跳：订阅端 BEST_EFFORT 与任何发布端兼容（bondcpp/bondpy 均可收）
+_BOND_QOS = QoSProfile(
+    history=HistoryPolicy.KEEP_LAST,
+    depth=100,
+    reliability=ReliabilityPolicy.BEST_EFFORT,
+    durability=DurabilityPolicy.VOLATILE)
+
 
 @pytest.mark.launch_test
 def generate_test_description():
@@ -69,7 +78,10 @@ def generate_test_description():
                     'hand_eye_enabled': 'false',
                     'hand_eye_web_enabled': 'false',
                 }.items()),
-            TimerAction(period=12.0, actions=[ReadyToTest()]),
+            # ReadyToTest 提前到 2s：bond 用例必须赶在 peach_arm 激活后的
+            # 心跳窗口内已订阅（无 sister 时 bondcpp ~10s 后停发；激活实测
+            # +1.5s 左右）。其余用例是事件驱动等待，提前开跑无碍。
+            TimerAction(period=2.0, actions=[ReadyToTest()]),
         ]),
         {},
     )
@@ -108,6 +120,48 @@ class TestMockHarvestSystem(unittest.TestCase):
             self.assertTrue(any(message.data for message in flagged))
         finally:
             waiter.shutdown()
+
+    def test_arm_bond_heartbeats(self):
+        """W14：peach_arm（bondcpp）激活后有 1Hz bond 心跳（约 10s 爆发）.
+
+        无 sister（nav2_lm bond_timeout=0）时 bondcpp 约 10s 后 ConnectTimeout
+        进 Dead 停发——本用例锁「激活后确有心跳爆发」这一接线前提；lm 开
+        bond_timeout 后 sister 存在、心跳常驻。直接 rclpy 订阅（WaitForTopics
+        在本用例上收不到该话题，机制未明；/joint_states 对照同订阅方式收得
+        正常）。Python 三节点心跳依赖 ros-jazzy-bondpy（未装时守卫降级不
+        发言），不在本用例范围。
+        """
+        import rclpy
+        counts = {'bond': 0, 'joints': 0}
+        seen_ids = set()
+        owned_init = not rclpy.ok()
+        if owned_init:
+            rclpy.init()
+        probe = rclpy.create_node('bond_test_probe')
+        try:
+            probe.create_subscription(
+                BondStatus, '/bond',
+                lambda msg: (counts.__setitem__('bond', counts['bond'] + 1),
+                             seen_ids.add(str(msg.id))), _BOND_QOS)
+            probe.create_subscription(
+                JointState, '/joint_states',
+                lambda msg: counts.__setitem__('joints', counts['joints'] + 1),
+                qos_profile_sensor_data)
+            deadline = time.monotonic() + 90.0
+            while time.monotonic() < deadline and counts['bond'] < 3:
+                rclpy.spin_once(probe, timeout_sec=0.5)
+        finally:
+            probe.destroy_node()
+            if owned_init:
+                rclpy.shutdown()
+        self.assertGreater(
+            counts['joints'], 0, 'control topic /joint_states not received; '
+            'test environment broken')
+        arm = counts['bond']
+        self.assertGreaterEqual(
+            arm, 3,
+            'peach_arm bond heartbeats too few (%d, ids=%s)'
+            % (arm, sorted(seen_ids)))
 
 
 @launch_testing.post_shutdown_test()

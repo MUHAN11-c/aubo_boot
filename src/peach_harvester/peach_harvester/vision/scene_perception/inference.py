@@ -209,9 +209,12 @@ class MobileSam:
                 results = self._sam(
                     rgb, bboxes=bboxes, device=self._device, verbose=False)
             except Exception as e:
-                # 纯核不能 import ROS，走 stdlib logging（print 会污染 stdout）
-                _logger.warning('SAM 分割失败: %s', e)
-                return []
+                # W2/V1：不吞异常——上层 pipeline 的逐目标回退分支
+                # （pipeline.process 的 try/except）依赖本方法抛出才会执行；
+                # 吞成 return [] 会让回退成死路径、全帧掩膜静默缺失。
+                # 纯核不能 import ROS，走 stdlib logging（print 会污染 stdout）。
+                _logger.warning('SAM 批量分割失败: %s', e)
+                raise
 
         if not results or results[0].masks is None:
             return []

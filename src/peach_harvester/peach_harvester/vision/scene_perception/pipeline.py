@@ -329,7 +329,11 @@ class PerceptionPipeline:
             and may_commit_identity(tf_status == 'ok'))
         if track:
             with self.plan_lock:
-                self.target_registry.begin_frame(now=self.clock.now())
+                # W2/V2：注册表淘汰的 id 须同步清出 bbox_at_edge 旁路缓存，
+                # 否则键只增不减（长运行缓慢泄漏）。
+                for evicted_id in self.target_registry.begin_frame(
+                        now=self.clock.now()):
+                    self.bbox_at_edge.pop(evicted_id, None)
 
         t_seg = self.clock.now()
         frame_bboxes = self.segmentation_bboxes(

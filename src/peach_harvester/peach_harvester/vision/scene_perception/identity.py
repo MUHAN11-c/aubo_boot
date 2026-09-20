@@ -828,6 +828,9 @@ class TargetRegistry:
         self.swing_frames = int(swing_frames)
         self._targets: Dict[str, dict] = {}
         self._next_index = 0          # 单调计数器，不复用已消亡序号
+        # W2/V3：ambiguous/overflow 匿名 id 单调计数器——旧式
+        # f'{frame_index}_{len(frame_used)}' 在同帧多次歧义/溢出时会撞号
+        self._anon_seq = 0
         self._frame_used: set = set()  # 本帧已命中的 target_id（同帧去重）
         self._frame_index = 0         # 帧计数（begin_frame 递增，TTL 按帧判定）
         self._n_matched = 0           # 累计命中次数（诊断用）
@@ -868,7 +871,9 @@ class TargetRegistry:
 
         Returns
         -------
-            无返回值（None）；每帧匹配循环前由节点调用一次.
+            本帧被淘汰的 target_id 列表（W2/V2）：调用方（pipeline）持有
+            bbox_at_edge 等旁路缓存，须据此同步清理，防长运行缓慢泄漏；
+            每帧匹配循环前由节点调用一次.
 
         """
         self._frame_used.clear()
@@ -885,8 +890,10 @@ class TargetRegistry:
             stale.extend(
                 tid for tid, t in self._targets.items()
                 if ts - t['last_seen'] > self.max_age_s)
-        for tid in set(stale):
+        evicted = sorted(set(stale))
+        for tid in evicted:
             del self._targets[tid]
+        return evicted
 
     def match_or_register_frame(
         self,
@@ -976,15 +983,14 @@ class TargetRegistry:
         """把一次分配结果写入表（命中 EMA / 歧义跳过 / 新注册）."""
         best_id = matched.target_id
         if matched.status == 'ambiguous':
-            tid = f'ambiguous_{self._frame_index}_{len(self._frame_used)}'
-            return tid, True
+            self._anon_seq += 1
+            return f'ambiguous_{self._anon_seq}', True
 
         if best_id is not None:
             t = self._targets.get(best_id)
             if t is None:
-                return (
-                    f'overflow_{self._frame_index}_{len(self._frame_used)}',
-                    False)
+                self._anon_seq += 1
+                return f'overflow_{self._anon_seq}', False
             # 摆动检测（阶段 D1，协议 2.4）：残差取 EMA 更新前的距离——
             # 反映原始观测相对平滑估计的跳动；EMA 更新后残差会被 α 衰减，
             # 灵敏度失真。有观测才投票；目标 LOST 帧不增不清连击（无观测
@@ -1036,9 +1042,8 @@ class TargetRegistry:
         if len(self._targets) >= self.max_targets:
             candidates = [tid for tid in self._targets if tid not in held]
             if not candidates:
-                overflow = (
-                    f'overflow_{self._frame_index}_{len(self._frame_used)}')
-                return overflow, False
+                self._anon_seq += 1
+                return f'overflow_{self._anon_seq}', False
             oldest = min(
                 candidates, key=lambda tid: self._targets[tid]['last_seen'])
             del self._targets[oldest]

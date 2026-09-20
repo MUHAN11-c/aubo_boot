@@ -127,3 +127,35 @@ def test_equal_cost_full_matching_is_ambiguous():
     registry.match_or_register_frame([_det(pos), _det(pos)], now=2.0)
     np.testing.assert_allclose(registry._targets[first_id]['position'], anchor)
     np.testing.assert_allclose(registry._targets['t_dup']['position'], anchor)
+
+
+# ---- W2/V2+V3 回归：淘汰回传与匿名 id 唯一性 ----
+def test_begin_frame_returns_evicted_ids():
+    registry = TargetRegistry(
+        max_targets=8, confirm_frames=5, tentative_ttl_frames=2)
+    registry.begin_frame(now=1.0)
+    registry.match_or_register_frame([_det([0.0, 0.0, 0.5])], now=1.0)
+    tid = next(iter(registry._targets))
+    # 越过 TTL（未确认表项按帧计，判定为严格大于）：begin_frame 必须回传
+    # 被淘汰 id，供 pipeline 同步清理 bbox_at_edge 旁路缓存（防长运行泄漏）。
+    registry.begin_frame(now=1.0)
+    registry.begin_frame(now=1.0)
+    evicted = registry.begin_frame(now=1.0)
+    assert evicted == [tid]
+    assert registry.stats()['n_targets'] == 0
+
+
+def test_anonymous_ids_unique_within_frame():
+    from types import SimpleNamespace
+
+    registry = TargetRegistry(max_targets=8, confirm_frames=1)
+    registry.begin_frame(now=1.0)
+    matched = SimpleNamespace(status='ambiguous', target_id=None)
+    first = registry._commit_match(
+        np.asarray([0.0, 0.0, 0.5]), 0, None, 0.0, 'ok', 1.0, matched)
+    second = registry._commit_match(
+        np.asarray([0.2, 0.0, 0.5]), 0, None, 0.0, 'ok', 1.0, matched)
+    # 旧式 f'{frame_index}_{len(frame_used)}' 同帧两次歧义会撞号
+    assert first[0] != second[0]
+    assert first[0].startswith('ambiguous_')
+    assert second[0].startswith('ambiguous_')

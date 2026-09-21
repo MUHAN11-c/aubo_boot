@@ -7,7 +7,8 @@
     "stereo_ab": "docs/testing-log.md:277（stereo 前端 A/B）",
     "tf_absent": "docs/testing-log.md:272（无 TF 每帧双 0.5s 超时）",
     "inference": "docs/testing-log.md:270（YOLO/SAM 单项）",
-    "geometry_bench": "2026-09-21 preemptive RANSAC 优化轮：bag session_20260920_175240 真实帧+SAM 掩膜（3 帧，N=2375-2754），空载机逐段中位；同帧集 A/B（旧实现内嵌 monkeypatch 对拍），test_vision_ransac.py 锁质量界"
+    "geometry_bench": "2026-09-21 preemptive RANSAC 优化轮：bag session_20260920_175240 真实帧+SAM 掩膜（3 帧，N=2375-2754），空载机逐段中位；同帧集 A/B（旧实现内嵌 monkeypatch 对拍），test_vision_ransac.py 锁质量界",
+    "live_tuning": "2026-09-21 感知调参闭环（reports/2026-09-21-perception-live-tuning）：stereo hh4 活流 13.7gps、域 77、2 目标（N≈2.4k/目标）、output_frame 置空调参模式；debug 开/关两轮 harvest_state timing EMA + 60s target_observations 稳定性取证"
   },
   "geometry_bench_ms": {
     "estimate_median_before": 50.9,
@@ -16,6 +17,15 @@
     "normals_after": 3.3,
     "landmarks_after": 7.5,
     "quality_ab": "3 帧 status/confidence/直径全一致；轴差两帧 <0.1°、退化帧 7.9°（该帧 landmarks 已失败、双版同 REJECT）"
+  },
+  "live_tuning_stereo_2targets_ms": {
+    "detect": [4.9, 5.6],
+    "segment": [25.9, 28.5],
+    "geometry": [85.3, 99.3],
+    "total": [127.3, 144.7],
+    "effective_fps": [7.5, 8.0],
+    "identity": "60s/485 帧 idset_changes=0（双目标全程在册）",
+    "debug_publish_overhead": "开/关两轮 total 差在场景方差内（debug ≈ 噪声级，PF-3 零拷贝路线兑现）"
   },
   "perception_frame_ms": {
     "detect": [4.0, 5.36],

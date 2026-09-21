@@ -423,6 +423,76 @@ SIGINT 旧栈后用 16:57 编的 `peach_manipulation` 重起；开批前在 `glo
 | peach_stereo（主机 SGBM） | 37 | 是 | target_0 | 0.565 m | 0.986 | 0.81 |
 
 两前端都只锁中间那颗袋；左侧悬挂袋未进确认集。距离交叉验证差 **12 mm**。感知 worker `capacity=1 drop_oldest`，stereo 相机 13.5 gps 并未变成 13.5 Hz 感知——墙钟帧数 37 vs 21（约 1.8×）。产物：`runs/camera_ab_20260918/comparison_2x2.mp4`（及 debug/rviz 左右拼接）。
+
+
+### 09-20（peach_stereo 配准几何审查 → 修复 → 实测推翻 → 终态回退，相机连机全链验证）
+
+**起点**：对 `src/peach_stereo` 做数学审查（图像/深度/点云/配准）。Z 链（stereoRectify→SGBM→z=f·B/d→0.25mm 量化）、camera_info/TF/点云发布与 percipio 同构性全部核对无误；疑点一处：SGBM 的 z 位于 OpenCV 校正网格（R1/P1），而 SDK 配准按所传标定的针孔解释输入网格（libtyimgproc 1.1.0 反汇编证实：`TYMapDepthImageToPoint3d`/`TYMapPoint3dToDepthImage` 只读内参区、**忽略畸变**、内参按 `imageW/intrinsicWidth` 折算——半分辨率深度合法）。
+
+**设备标定直读**（自写 `gridprobe` 系列探针，非交互按 IP 打开，绕开 selectDevice 交互崩溃）：左 IR K=(1103.57/1104.22, cx=647.40, cy=490.49) 有理畸变 k1=0.14…；右 IR 外参 R 含 **4.2° 绕 Y 会聚**、T=(-62.19, 0.19, 1.72)；**DEPTH_CAM 自有标定：fx=fy=1044.93、cx=605.31、cy=491.63、畸变全零、外参单位阵**（零畸变校正网格，与左 IR 标定完全不同）；彩色(2560×1920) 折算 640×480 后与共用 yaml 差 dcy≈-4.1px（两源小差异，两前端同在，不单独修）。
+
+**第一轮修复（后被推翻）**：按纯针孔推理把 z 用 `initInverseRectificationMap` 反校正回原始左 IR 网格再喂 calibL。base vs fixed 同场景位移实测 **+19.1px**，与解析预测（R1=2.64°绕Y→+19.6px）吻合——warp 实现本身正确。但同帧组实测推翻其方向：
+
+**决定性方法（gridprobe2/3：同帧组同时抓 彩色+双IR+设备深度，TIME_SYNC=HOST 同微秒，消除场景漂移伪影）**——期间发现纯 live 背靠背比对不可靠（本台架枝叶数分钟内漂 3~16px、54% 特征外点；percipio 自一致对照才 ±4px 噪声底）。真 SDK 三方裁决（z_rect+calibL / z_raw+calibL / z 重投影到 calibD 网格+calibD，各自过真 `TYMapDepthImageToColorCoordinate`，与设备深度配准 D=dev∘calibD 比）三组同帧组一致：
+
+| 变体 | 相对 vendor 链位移 |
+|------|--------------------|
+| **A=z_rect 直接喂 calibL（原实现）** | **+7~+9px（最贴）** |
+| B=z 反校正回原始左 IR 网格喂 calibL | +22~+26px |
+| C=z 重投影到 calibD 网格喂 calibD | +25~+26px |
+
+**结论与物理解释**：设备把校正旋转折进了 DEPTH_CAM 标定的主点/焦距（cx 605 vs 647 ≈ -42px ≈ R1 2.64°×f），我的校正网格∘calibL 与设备网格∘calibD 本就近似同构；"反校正到原始左 IR"与"calibD 网格移植"两个"更纯"方案都反而偏离。设备真实内部网格不可从标定推导（C 变体 +26px 证明 calibD 针孔≠设备网格）。**手眼/感知按 percipio 链标定——与 vendor 同构即系统正确**。已回退 warp（代码注释载明缘由与"勿再修"），保留三项真修复：
+
+1. **avg_k 有效值均值**：原实现把无效 0 计入 k 帧均值分母（2/5 有效→800mm 变 320mm 仍过 200mm 门，产生偏近幻影面）；改为累加值+逐像素有效计数、按计数求商（计数 0 处=0 保持无效）。k=4 冒烟：近距(200,450)mm 占比 9.09% 与 k=1 的 8.97% 一致（均为真实近结构边缘），无新增幻影；发布节奏按 k 下降符合预期。
+2. **color_mode 失配拒启**：原 WARN 后 fallback 640×480 默认值，若设备实际给 2560×1920 则配准/camera_info/点云全链错位；现 FATAL 拒启（启动期非法即拒绝启动）。
+3. **SDK 返回值检查**：`TYMapDepthImageToColorCoordinate` 失败丢帧+节流告警（原静默发全零深度）。
+
+**验证与终态**：回退版输出与 09-20 上午基线逐位一致（dx=0 dy=0 |ΔZ|中位 4.8mm，n=14.6 万）；13.6gps 无性能回归；新增 `rectify: R1=…deg` 诊断日志。**遗留（记录在案）**：peach_stereo 与 percipio 配准输出存在 **+8px 系统差**（≈10mm@0.6m，随距离线性）——两前端切换采果前应重做一次手眼标定（旋转样系统差可被手眼吸收）或接受 ~1cm 偏差；勿在节点内再加 warp 修补。lint：本轮新增代码零违规（uncrustify 193 行 diff 与 cpplint 行宽均为提交前存量债，与本轮无关）。
+
+**过程沉淀**：① camport4 预编译 `stereo_grab` 系无 tty 必崩（selectDevice 交互），非交互操作照抄节点 openDevice 流程自写探针；② 稀疏深度图比对用「全局位移扫描+中位 |ΔZ| 谷」而非 tile 匹配（设备深度 10~16% 有效时 tile 全灭）；③ 彩色边-深度边对齐裁判在本台架（枝叶稠密纹理）不可用（重合率平台 ~56%，峰值仅 +2%，选择偏差把任何变体拉向 0）——**同帧组对照是唯一可信仪器**。环境复原：全部探针/节点已停、激光 auto=1/power=50 复验、进程清零。
+
+### 09-20 续（SGBM 参数优化轮：同帧组扫描 → uniqueness 10→6，minDisp>0 证伪）
+
+**方法**：gridprobe4（gridprobe3 参数化派生，标定缓存后纯离线）对 /tmp/simul 3 组同帧组跑真 SDK A 链 vs 设备 D 链；评分=覆盖率优先，三门=精度（谷底中位|ΔZ|≤基线×1.10）/鬼影带不升/轮廓位移≤2px。**两个过程坑（防复发）**：① OpenCV SGBM `minDisparity>0` 时输出视差是相对索引，真实视差=输出+minDisp（dadd 对照：A/D 比值 1.45→1.02）；② gridprobe4 初版 `cv::Mat(640,480)` 行列建反致扫描数据错乱作废重跑——gridprobe3 用 Size 重载无损，+8px 裁决不受影响。
+
+**裁决**：`minDisparity=16` 覆盖 +28pp 全为幻觉（远背景墙强制错配成中距，谷底精度 219~232mm=基线 25 倍；RealSense 式视差窗平移在有远背景入画场景失效）；P2=3200 优于 800（覆盖 +6~8pp）；`numDisparities=128` 最优性证明（0.3m 下限 ⇒ d≥113.8 ⇒ 112 档 Z_min=305mm 会切目标）。**赢家 uniqueness_ratio 10→6**：覆盖 44.55→47.28%（+2.73pp）、精度 9.0mm 门内、鬼影 +0.18pp 经 8 邻域连贯性检验为真墙面非伪影；备选 b7_u6 全门过但覆盖低（记录不落地）。
+
+**落地**：`stereo_camera_node.cpp` 暴露 `sgbm.uniqueness_ratio`（默认 6）+ yaml 键；构建绿（uncrustify/cpplint 失败项=提交前存量债，本轮新增行零违规）。**live 验证**：同场景窗内覆盖 48.45→50.4%（4 帧一致）；帧率 A/B uniq10=13.5gps / uniq6=13.4~13.5gps 无回归；深度中位 736→729mm 无漂移。报告 `reports/2026-09-20-camera-image-analysis/sgbm-sweep.md`。环境：节点/探针全停进程清零；感知演示栈（/demo/* + rviz）应要求保留运行。
+
+### 09-20 续二（学习式立体匹配零样本实测：RAFT-Stereo/IGEV 9 档全灭，better-algorithms 假设闭环）
+
+**动机**：better-algorithms.md §2 遗留"学习式对本机散斑 IR 的泛化是未验证假设，先测再定"。本轮把 GitHub 零样本口碑最好的两族真权重拉到同款三门仪器上裁决。
+
+**方法与仪器等价性**：Python 复现 A 链（rectify→SGBM→Z→0.25mm 量化→ctypes 直调 libtyimgproc `TYMapDepthImageToColorCoordinate`）先对 /tmp/sweep/base 验证——D 链位级一致（diffD=0×3 组）、A 链窗内中位差 0.000mm、覆盖率差 ≤0.05pp、谷底 8.25/8.00/8.50 vs 基线 8.50mm。学习式视差走同一尾部（`/tmp/lstereo/run_model.py`），评分仍是 `sweep_metrics.py` 三门。校正是节点同几何（前 8 畸变、alpha=0），灰度平铺 3 通道（两仓库训练同约定）。
+
+**候选**：RAFT-Stereo（eth3d/middlebury/realtime 权重）+ IGEV（eth3d/middlebury），半分辨率 640×480（与现行可比）与全分辨率 1280×960（IGEV max_disp=256）。环境：yolo_env（torch 2.12.1+cu130@3090）；IGEV 钉 timm==0.5.4，以符号链接法隔离进 /tmp/lstereo/igev_env（yolo_env 的 timm 1.0.27 未动）。权重 gdown 经代理取自两仓库官方 Google Drive。
+
+**裁决（3 组同帧对）**：9 档全部撞毁精度门——谷底 29~84mm vs 基线 8.5mm（3.4~9.9 倍），RAFT 半分覆盖 71%（+24pp）但 A/D 共同域 P25 |ΔZ| 已 19mm、P75 达 172~206mm；A/D 中位比值 1.026~1.036（~3% 深度尺度偏差）+ 大面积局部形变；幻觉面多落在 0.3–1.5m **抓取窗内**（鬼影门反而 0.00 全过——比窗外鬼影更危险）。realtime 变体 28ms/帧（35fps、272MB）是唯一生产帧率档，精度同样全灭。全分辨率把 IGEV 谷底从 80→30mm 但仍差 3.4 倍——域差距是主矛盾，不是分辨率。
+
+**终态**：零样本学习式路线就此关闭；现行 SGBM uniq=6 保持全部已测候选（经典 + 学习式共 14 档）帕累托最优。剩余严肃路线只有域内微调（设备链 18-pattern 深度当伪 GT，同帧组现成），代价未评估。报告 `reports/2026-09-20-camera-image-analysis/learned-stereo-live-test.md`（better-algorithms.md §0/§2/§3 已同步改写）。**第三个"覆盖幻觉"实例**（继 WLS、minDisp>0），再次自证同帧组三门是唯一可信仪器。环境：无节点/相机进程起停（纯离线数据）；/tmp/lstereo 与 /tmp/sweep/{raft_*,igev_*} 易失，表格数字已固化进报告。
+
+### 09-20 续三（点云质量轮：广域调研 + 有效值中值落地 + mono 基础模型探针判负）
+
+**调研**（三路并行，要点与 URL 归档在 `reports/2026-09-20-camera-image-analysis/pointcloud-quality.md`）：厂商滤波栈（librealsense/Orbbec/Percipio/Luxonis：视差域滤波、补洞=假数据官方明言、DQT 四指标、物理层曝光/增益/激光优先）；算法开源（ximgproc 只去噪用法、Open3D 点云 SOR、多帧中值>均值、置信度 PointField 实践）；基础模型（DA-V2 metric/DepthPro/MoGe-2 全景 + Stereo Anywhere/MonSter"mono 裁判"范式）。
+
+**新指标**：局部平面粗糙度（3×3 平面拟合残差中位，mm）——与 DQT Plane Fit RMS / Orbbec Spatial Precision / ISO 10360-13 同族，设备链参考 1.08mm。
+
+**滤波实测（3 组同帧对，三门+粗糙度）**：med3（3×3 有效值中值）全过且粗糙度 1.17→**1.03mm（−12%，低于设备链）**、谷底 8.75 优于 9.00、覆盖不变；med5 鬼影 +0.08 超门；联合双边谷底 11.25 撞精度门（跨边缘平滑，WLS 教训重现）；引导滤波纹理拷入（粗糙度 4.5× 劣化，文献预警命中）。**机理**：中值保边输出真实观测值，线性/核平滑在边缘造中间值。
+
+**大模型探针（判负）**：DA-V2 Metric Indoor/Outdoor Small-hf（33ms/帧@3090）对 0.3–1.5m 工作窗无信号——0.3–0.6m 桶预测 26m、0.6–0.9m 桶 20m（倒挂），ρ≈0.01。"mono 当裁判"文献成立但本内容（近距+植被）双重 OOD；与零样本立体证伪互证。MoGe-2 为唯一未测第二意见。
+
+**落地**：`median_ksize` 参数（0/3/5，非法拒启，默认 3）+ computeDepth 有效值中值（nth_element 无分配）+ yaml 键 + rectify 日志 `med=`。构建绿；lint 新增行零违规（存量 4 项经 stash 对照确认：copyright/include_order/2×行宽）；**live 冒烟过**：med=3 生效、13.5–13.6 gps 无回归、点云/彩色话题在发（域 77，演示栈已恢复运行——旧 13.5gps 节点为换新二进制主动重启）。**域偏差认知（不改行为）**：librealsense 结论平滑应在视差域做；avg_k（Z 域均值）存域偏差属存量债（默认 k=1 未生效），中值是序统计量与单调变换可交换故免疫——后续路线见报告 §5（物理层标定/avg_k 视差域化/置信度字段）。
+
+### 09-20 续四（端到端实测对比轮：12 变体矩阵 vs 原驱动 → sgbm.mode=hh4 落地）
+
+**方法**：`/tmp/lstereo/e2e_matrix.py`——变体轴 scale(0.5/1.0)×mode(3WAY/HH/HH4)×时域(无/视差域 k3 中值/均值)，A 链位级复现（repro_a ctypes 真 SDK 配准）vs 设备 18 图案 D 链，三门+粗糙度+匹配计时；帧组=/tmp/simul（09:45）+ /tmp/simul2（15:54 新鲜复验，gridprobe4 live 重抓）。**前置静态性检查过**（D 链组间谷底 0.75–1.25mm @dx=0），时域融合评估方法论成立。
+
+**裁决**：**`sgbm.mode: hh4` 端到端帕累托最优并落地**——谷底 8.75→7.50mm（新鲜组 9.00→8.00mm）、鬼影 1.65→1.48%（1.32→1.05%）、粗糙度 1.03→0.94mm（低于设备链 1.08）、覆盖 −0.34pp 门内、匹配 10.9→54ms 仍装进相机 73ms 帧间隔。HH4 为本轮关键发现：HH 一半时间拿接近质量（54 vs 116ms，OpenCV 4 路径向量化变体）。**端到端硬约束=发布率**：视差域 k3 中值覆盖 +4.5pp（47→51.5）且门内，但批式语义发布率÷3（1.9–2.8Hz≈设备链 2.43fps——09-17 轮 percipio 曾因此败 observe_build_view_race）→ 记档不落地；全分辨率档（s100 系谷底 5.5–6.5mm 最优）粗糙度 1.4–2.2mm 劣化 + HH 匹配 386–990ms → 记档不落地。k3 视差域**均值**撞精度/边缘门（均值对野值敏感，中值稳健再证）。
+
+**落地**：`stereo_camera_node.cpp` `sgbm.mode` 参数（3way/sgbm/hh/hh4 非法拒启，默认 hh4）+ rectify 日志 `mode=`；yaml 键 + 注释。构建绿；lint 新增行零违规（uncrustify 171 行 diff 全为存量 brace 风格，新增标识符零出现）。**live 冒烟过**：`mode=3` 生效、**13.7gps 700/700 无丢帧**（相机节拍限速，处理链 <73ms 帧间隔）、camera_info 正确、话题在流（hz 订户抖动=已知 raw RELIABLE 大图坍塌缺陷）。演示栈已恢复（域 77 新默认档运行）。报告 `reports/2026-09-20-e2e-stereo-optimal/`（含完整矩阵与记档未落地项：滑窗时域融合、全分辨率特写档、HH 档）。
+
+**与原相机对比分析（round5b，fig6）**：同帧组双链补充测量——D 链逐帧时域一致性 **1.50mm** vs hh4 9.00mm（base 10.25mm）——**单图案逐帧抖动是主机链本征代价**（18 图案融合 vs 单图案），由 med3/avg_k>1(k=5 时 0.96mm 反超设备 1.13mm)/下游多视 TSDF 融合三点吸收；D 窗内覆盖 50.31% vs hh4 47.40%（hh4+k3med 52.2% 反超）；粗糙度 hh4 0.97–1.00mm **优于** D 1.08–1.14mm。停走节拍下端到端仍是 hh4 占优（帧率 5.6×：感知锁定 2.8s vs 48s；双链目标互证差 5mm）。对比表与图见报告 §7/§5.5。
+
 ## 2026-09-20（下午）外围五包质量轮 W9–W16（ce7f68b→本轮）
 
 **范围**：W0–W8 主链深审后，本轮覆盖外围五包（observability/vegetation/bringup/common/system_tests）+ Round1 遗留清扫 + UNWIND 收敛（用户裁定：bond/composition/diagnostics 全做；PF-1 推迟相机轮）。全程 mock/单测门，不动真机、不动 peach_stereo 用户工作区。
@@ -442,6 +512,37 @@ SIGINT 旧栈后用 16:57 编的 `peach_manipulation` 重起；开批前在 `glo
 **W15 diagnostics+composition 落档**（UNWIND 收敛-2）：observability /diagnostics 双轨（session_recorder 队列/丢帧 + ingest_liveness 摄入活度，对齐 arm W5 做法）；composition 核实为**平台阻断**——Python 无组件容器、ComponentManager 零生命周期处理（源码 grep 证实）、臂侧非高带宽无零拷贝收益——architecture 偏离表记证据，进程隔离+bond 为当前可达上限。
 
 **终验门**（见 W16 提交）：colcon test 全绿（数量以提交记录为准）、r0_gate 绿、manifest ok（54+4）、mock launch 含 bond 用例绿。
+
+### 09-21（percipio 深度崩塌根因定位与修复 + 双前端健康档重测）
+
+**根因终章**：09-20 下午起 percipio 原驱动深度反复崩塌（窗内 valid 5–12%、mdr 0.33–0.55），先后排除配准环节/laser_power/软触发/IR 组件/闲置冷却/SIGKILL 与优雅停组合/激光预置（干净与异常断连）/SDK 固件复位（`TYCloseDevice(h,true)` 仅 0.06→0.12）/整机断电——一夜未愈。09-21 判别实验（install 副本 parameters.xml 改名→官方 launch 无 XML 下发）一击恢复 **0.474/0.977**：真凶为 `percipio_camera/launch/parameters.xml` 调参残留值 `DepthSgbmImageNumber=2` 被 launch 无条件读取下发（percipio_camera.launch.py:13/99），设备 18 图案 SGBM 被砍成 2 幅。**修复**：源码该值清空（=设备默认）+ 注释记录结论 + `colcon build --packages-select percipio_camera`；官方配置复测 **0.477/0.986**。此前"切换毒害/激光状态/热衰减"假设全部修正为排查路径；教训：该 XML 是无条件下发通道，实验值残留即生产事故（本仓纪律同步：percipio_camera=官方驱动+仅本机 IP/分辨率调整）。
+
+**双健康档重测**（主机与相机 08:42 断电重启后，同场景同感知链各 70s/~140 帧）：hh4 vs percipio 修复档——覆盖 0.500 vs 0.478、mdr 1.000 vs 0.985、检出 3/确认 1 一致；**entry std z 0.58 vs 3.31mm（hh4 拟合点稳 5–8×）**、帧间跳变 0.40 vs 1.85mm；percipio ROI 级更稳（掩膜中位 std 0.00 vs 0.32、场景中位 0.34 vs 0.54）；帧源 13.8gps vs 2.43fps（5.7×）。两档均远低于 pregrasp 3mm 门。注意 percipio entry std 昨日曾 0.25mm——随场景/目标构成波动，不作档位优劣断言。**运维新增**：反复强杀容器积累 FastDDS SHM 死锁（/dev/shm/fastrtps_*，实测 166 个）致新订户失连，主机重启或手动清理即除；驱动深度健康口径=首 30 帧 valid（<10% 异常）。
+
+**归档**：peach_stereo/e2e_compare_20260920/（精简后：对比分析文档+实测报告+最新图/视频 7 件+核心脚本 12+数据 2 份）；本轮源码改动=parameters.xml 单值清空。演示栈恢复 stereo hh4（mode=3，13.8gps）。
+
+**因果终裁（bag A/B）**：为排除"一夜重启才是恢复原因"，同日同会话同设备只翻转 XML 值各录 20s ros2 bag（/home/mu/Pictures/video/xml_value2 vs xml_empty，color+depth+camera_info）：值 2→**valid 0.096**（78 帧/20s，帧率反常高=2 幅图案生效佐证）；空值→**valid 0.473（0.470–0.477，39 帧稳定）**。值 2 当日重装即崩、清空即愈——**XML 残留值因果坐实，重启假说排除**。
+
+### 09-21 续（temporal_k 落地轮：滑窗时域中值 + 置信度 PointField + yaml 键匹配 bug 修复）
+
+**temporal_k 实现**：`stereo_camera_node.cpp` 新增 `temporal_k`（1/3/5，非法 FATAL）——配准后彩色网格深度上 k 帧逐像素有效中值（环形缓冲 `treg_`），**每帧照常发布不除率**（区别于 avg_k 批式 Z 域均值）。中值=序统计量、域无关（round4 已证），顺带稳定配准闪烁。同步在 PointCloud2 加 `confidence` 字段（float32：采样数占比×窗内取值一致性，temporal_k=1 时恒 1）。
+
+**live A/B（同场景同感知链各 45s/~85 帧）**：
+
+| 指标 | tk=1（对照） | **tk=3** | tk=5 |
+|---|---|---|---|
+| entry std (x,y,z) [mm] | 0.32/0.35/0.41 | **0.01/0.11/0.21** | 0.11/0.15/0.25 |
+| 帧间跳变 \|Δ\| [mm] | 0.31/0.32/0.30 | **0.01/0.06/0.11** | 0.05/0.10/0.21 |
+| 袋半径 [mm] | 34.1±0.27 | 32.9**±0.14** | 32.9**±0.06** |
+| 场景深度中位 std [mm] | 0.82 | **0.43** | 0.67 |
+| 窗内覆盖 | 0.4974 | **0.5015** | **0.5129** |
+| mdr | 0.9999 | 1.0000 | 1.0000 |
+| gps | 13.7 | **13.7** | 13.7 |
+
+**裁定**：tk=3 落地为默认档——entry std z **−48%**（0.41→0.21mm）、半径 std **−48%**（0.27→0.14mm）、场景中位 std **−48%**、覆盖 +0.4pp，**13.7gps 无回归**（滑窗在采集线程内 ~3ms 额外开销）。tk=5 半径更优（±0.06mm）但 tk=3 已远超门限且保守。
+
+**yaml 键匹配 bug（存量修复）**：yaml 顶层键 `peach_stereo_camera_node:` 与 launch namespace=`camera` 的节点全名 `/camera/peach_stereo_camera_node` **从不匹配**——此前所有 yaml 部署值实际从未生效（节点全用代码默认值，碰巧一致）。改为 `/**:` 通配后验证 `temporal_k=3` 正确加载。**这是本仓 launch 的存量 bug，所有参数默认值碰巧等于 yaml 值所以未暴露**。
+
 ## 2026-09-21 E2E 审查修复轮（G1-G5+M1/M2/M3+M11/M13/M15）
 
 按 2026-09-20 端到端审查优先序修复（审查报告 `reports/2026-09-20-e2e-code-review/`）：
@@ -453,3 +554,129 @@ SIGINT 旧栈后用 16:57 编的 `peach_manipulation` 重起；开批前在 `glo
 - **速赢**：M11 诊断 JSON allowed 与类型化消息同源派生（model_contract 单源）；M13 SceneSnapshot 落盘订阅改 transient_local（晚启动不再丢单发快照）；M15 DepositResult.msg 保留（0012 卸果站预留）但头注释改口为预留现状。
 
 **验证**：colcon test 七包 0 失败（interfaces 9/common 37/bringup 4/harvester 188/arm 216/observability 34/vegetation 16）+ system_tests pytest 三件套 25 过；manifest ok（54+4）；r0_gate 242 纯核过。mock launch 冒烟因用户相机栈在跑按 preflight 设计跳过（arm 侧 12 例接触级 gtest 覆盖），相机空闲后可补跑。**未做**：其余中危 M4-M10/M12/M14/M16-M19 与低危清单（审查报告跟踪）；G1 窗口 120s 与 G2 语义需真机验收。
+
+### 09-21（文档同步轮：把修复轮与相机轮的已实施行为落进三份活文档）
+
+**改了什么（只动 docs，零源码）**：architecture——技能节点「含什么」补 M1 取消旗标收口 / M2 三线程 2s 有界回收 / G2 预览绑定只由 PREVIEW 写入且执行周期终局清复位 / M3a-b 受理期拒单与 onStart 拒绝落码，授权分级句改为 M3c 口径（EXPIRED→SKIPPED_QUALITY 可重派）；决策 0011 补 M3c 细化追记、新增决策 0025（修复轮全清单 + percipio `parameters.xml` 残留清空 + peach_stereo hh4/uniq6/med3 档指档）；整栈入口预检句补 G5 名单依据；观测 bag 固定订阅补 M13 `scene_snapshot` transient_local；相机前端 13.5→13.7 FPS（hh4）。io——`Clearance` 行补装配过期 WARN 与 `decision.validity_s` 指针、相机前端行同步 hh4/13.7 与 parameters.xml 纪律、会话 bag 订阅集补 `scene_snapshot` 落盘 QoS。G1/G3/G4 在本轮之前已由修复轮追记进 0022②/重建节/观测节。
+
+**复跑验证**：`scripts/r0_gate.sh` 绿（vision 8 过 + supervisor 10 过 4 skip + common 19 过 + manifest 54+4）；最近一轮 colcon test（09-21 09:12）七包全绿（arm 199 计 0 失败、harvester 186 过 2 skip、observability 34、common 37、bringup 4）。mock launch_testing 复跑仍被在跑演示相机栈（percipio launch 拉起的 `component_container`）按 preflight 设计拒测——与上条「相机空闲后可补跑」同状态，未清用户栈。
+
+**缺口（记档不修）**：① `scripts/r0_gate.sh` 文件清单未含新增 `test_reconstruction_decision_validity.py`（colcon pytest 会收集并已过；CI peach-core 门不跑该文件）；② peach_stereo lint 存量债（copyright/cpplint 2×行宽/include_order + uncrustify 211 行 diff）仍红——用户工作区既有债，09-20 轮已记档。
+
+**追补（同日 temporal_k/confidence 文档同步，零源码）**：io.md `/camera/depth_registered/points` 表行与相机前端行补 `confidence` FLOAT32 字段（point_step 24：rgb@16、confidence@20；初版 offset16/step20 与 byString 的 rgb 槽重叠、线上颜色被置信度覆写，同日修正 @20/step24；消费方按字段名读——graspnet 旁路 `read_points_numpy(field_names=['x','y','z'])`、move_group octomap、RViz 均兼容）与 `temporal_k` 档（部署=3，A/B 数字见本文件上方「09-21 续（temporal_k 落地轮）」表）；architecture 前端条目 4 与决策 0025 追记同轮，并记 yaml 顶层键 `/**:` 存量修复。PointCloud2 类型不变、manifest 不动；`src/peach_stereo/README.md` 已补 temporal_k/confidence/yaml 键三处条目（规格表行+工作原理+话题节布局段+使用节键名警告）。
+
+### 09-21 终（重启验证 + 旧录制清理重录 + XML 因果现场重测 + 影响评估）
+
+**重启验证挖出四件事并闭环**：① confidence 偏移 bug 线上坐实与修复——重启后 `ros2 topic echo` 见 `rgb@16==confidence@16`，源码改 `confidence@20/point_step=24` + rebuild，字节级复核（中点 rgb=0x76805D 与 conf=0.997 相互独立）；与 percipio 自家点云 rgb@16/step20 布局对齐。② **4 个挂死 `ros2 bag record`（-d 30/-d 10 挂 50–60 分钟，其一写已删除 mcap）以 4 个死订户占住 `/camera/{depth,color}/image_raw`，新订户（topic hz/感知）0 帧**——按 PID 清杀 + `/dev/shm/fastrtps_*` 清零 + daemon 重启 + 栈重启后恢复（30 帧 valid 0.506）；沉淀新规则 `.cursor/rules/test-program-cleanup.mdc`（测试进程 timeout 包裹+收尾 pgrep 复核+清理后复验数据流）。③ 感知叠加图无框无掩膜（用户报告）：生产 yaml `publish_debug_image: false` 所致，采集器 collect.py 本地置 True（生产默认不动），/demo/debug 与视频恢复框/掩膜/entry 轴。④ `ros2 topic hz` CLI 恒 0 帧（echo/rclpy 订户正常）——工具层怪癖记档，健康验证以 30 帧探针为准。
+
+**XML 因果现场重测**（原证据 bag 已清理，按用户要求重验；同场景同会话只翻 `DepthSgbmImageNumber`，源码→rebuild→重启→30 帧探针）：值 2 → valid **0.053**/点云 16,470 点/fps 反常 2.0；空值 → valid **0.466**/154,985 点。因果再坐实；测后 XML 恢复空值 + rebuild。
+
+**全量重录（旧录制清理后）**：同场景同感知链各 55s——hh4 107 帧 / percipio 104 帧；hh4 entry std z **1.20 vs 4.31mm（3.6×）**、半径 **±0.06 vs ±0.24（4×）**、密度 1.000 vs 0.975、粗糙度 0.33 vs 0.44、valid 0.507 vs 0.467；percipio 场景中位 std 0.45 vs 0.65 与左缘覆盖（缺口 59.7% vs 67.0%）仍占优；entry 均值逐轴差 ≤4.1mm（+8px≈10mm@0.6m 系统差内）；确认数 hh4 3/2 vs percipio 3/1（密度差利于过确认门，单轮数据点）。bag hh4 10s（~455MB）/percipio 30s、双 30s 窗口视频与 8 件图全量重生成归档。
+
+**工程补丁（同轮）**：`ros2 bag record -d N` 自停不可靠（收尾极慢、metadata 延迟落盘）→ 一律 `timeout -s INT -k 10` 包裹；make_fig_f.sh `scale=600:-1` 奇数高被 yuv420p/x264 拒 → 改 `-2`；fig_e 改自窗口视频抽帧（make_fig_e.py，替代截图法）。
+
+**归档**：e2e_compare_20260920 更新为重录轮定版——README 索引、report.md（事件链+新数字）、新增 **analysis/peach_project_impact.md（peach 项目影响评估：集成面已接线感知零改动/收益/切换清单/运维风险）**、run_analysis.sh 总跑器入 scripts/。演示栈恢复 stereo hh4+tk3（13.5gps、valid 0.511、字段布局正确）。
+
+### 09-21 终二（testing.md 冒烟节补全：三份活文档对源码的最后一处漂移收口，零源码）
+
+**核对结论**：temporal_k/confidence/parameters.xml/yaml `/**:` 等源码行为此前已由「文档同步轮+追补」落进 architecture（条目 4 + 决策 0025 追记）、io（点云 confidence 字段布局 + 相机前端段落）与本文件；逐条对照 `stereo_camera_node.cpp`/`stereo_camera.yaml`/`parameters.xml` 复核无剩余漂移，唯一漏网是 **testing.md**（c242de3 与追补轮均未触及）：其冒烟节帧率口径只写了 percipio 2.43，且未收录「09-21 终」沉淀的四条运维口径。本轮补齐四句：① 帧率按前端计——stereo 前端 ~13.7 fps（相机节拍限速，hh4+tk3 处理链 <73 ms 帧间隔）；② 驱动深度健康门=头 30 帧 valid <10% 即异常（percipio 崩塌事故验收口径）；③ 本机 `ros2 topic hz` CLI 恒 0 帧怪癖——帧率/健康以 30 帧探针为准；④ 订户全线 0 帧排查路径=挂死 `ros2 bag record`（`timeout -s INT -k 10` 包裹）+ `/dev/shm/fastrtps_*` 残留。
+
+**发现记档不修（用户工作区）**：`src/peach_stereo/config/stereo_camera.yaml` 的 `sgbm.mode: hh4` 行注释写「全率发布 ~8gps」，与其自引报告（`reports/2026-09-20-e2e-stereo-optimal/`：live 13.7gps、700/700 无丢帧、组率由相机节拍决定）及本文件 09-20 续四/live 冒烟记录矛盾——疑为落地前预估未随实测更新。三份活文档与 README 均为 13.7，以实测为准；yaml 属用户工作区未改，留用户处理。
+
+### 09-21 末（test/ 精简归档 + 带标注 30s 终录 + target_1 答复）
+
+**目录迁移（用户主导）**：`e2e_compare_20260920/` 整体迁入 `src/peach_stereo/test/`（analysis/data/report/scripts）并删除旧档；本轮把脚本改自定位 `SD=$(dirname $0)`（run_collect/run_rviz/run_analysis 不再依赖 /tmp 副本与旧档路径），make_fig_e.py/make_fig_f.sh 收进 scripts/（run_analysis 全自洽），verify_stack.py（重启验证探针）入档。旧 bag（hh4_10s/percipio_30s）清除——终录轮不录 bag（精简集=视频+图+jsonl）。
+
+**target_1 深度答复**：上轮 hh4 档 `target_1`=远距小目标——掩膜中位 **758.2±0.43mm**、entry z 761.4±3.23mm（103 帧）；**注意 tid 是会话内轨迹号非稳定物理 ID**（本轮 percipio 的 target_1=近袋 550mm），跨轮比较按物理目标对齐。
+
+**终录轮（带检测框/掩码，60s×2）**：hh4 116 帧 / percipio 115 帧，同场景 3 检 1 确（确认为同一近袋，tid 两档不同）；hh4 entry std (0.18/0.44/0.58)mm vs percipio (0.56/1.75/3.26)mm（**z 5.7×**）、跳变中位 4.6×、密度 1.000 vs 0.975、粗糙度 0.33 vs 0.44、valid 0.509 vs 0.464；场景中位 std 本轮 hh4 反超（0.66 vs 0.74）；左缘覆盖 percipio 略好（59.7% vs 67.6%）；entry 均值 z 差 6.0mm（系统差内）。连续两轮方向一致（z 3.6×→5.7×，量级随场景波动）。30s×2 窗口视频（标注直显）+8 图+jsonl 归档 test/，report.md/README 更新为终版。演示栈恢复 stereo（13.9gps、valid 0.510）。
+
+### 09-21 终三（"录制视频不对"返工：composite 全尺寸窗 + 自检门，145/146 帧终版）
+
+**用户判上一轮视频不合格——复核属实**：rviz 内嵌 Image 面板在 1228×866 窗里被缩到 ~300px 宽且渲染偏暗，2px 框线/掩膜轮廓经视频缩放后不可见（静态分析图 fig_a/cyl/pcq 与 jsonl 数据本身正常，问题纯在视频路径）。**修复**：① collect.py 增 `E2E_GUI=1` composite 全尺寸窗（感知叠加图|彩色|深度JET 各 640×480 横排，cv2.imshow 固定位置供 x11grab 直录）；② `record_session.sh` 一条链=起采集→等帧→**后**起 rviz（闩锁首帧即带标注）→`check_frame.py` 截图自检门（绿/橙框+红掩膜轮廓像素计数，与 debug_draw.py 绘制色对齐；不过门拒绝录制）→30s 双窗并行录制→收尾 pgrep 复核；③ make_fig_f 四源拼接（每前端 composite 上+rviz 3D 下竖叠，两前端横排）。坑修：`set -u` 与 ROS setup 冲突、percipio2 tag 文件名对齐。
+
+**终版轮（75s×2，双档自检门均一次过）**：hh4 145 帧 / percipio 146 帧，3 检 1 确；hh4 entry std **0.39/0.53/1.92mm** vs percipio **2.39/2.88/4.37mm**、跳变中位全线 2–4×、密度 1.000 vs 0.971、粗糙度 0.33 vs 0.44、场景中位 std 0.44 vs 0.83、valid 0.510 vs 0.465；左缘覆盖 percipio 60.2% vs 67.5%；entry 均值逐轴差 0.6/6.0/0.7mm（系统差内）。**连续三轮 entry std z：3.6×/5.7×/2.3×——方向稳定，量级随场景波动**。视频目检：composite 三联全尺寸上检测框/掩膜轮廓/ID 置信度文字清晰可见（终检合格）。归档 test/report/ 增 4 件源视频（{hh4,percipio2}_{composite,rvizwin}.mp4）+ 拼接 fig_f；report.md/README 终版。演示栈恢复 stereo（13.6gps、valid 0.507、无测试残留进程）。
+
+**追记（同日，percipio 覆盖/细节优势定量——用户图上观察复核）**：用户从 fig_pcq 指出"原相机驱动能看清更多细节、范围更好"——量化证实（frame_0141）：**左缘 15% 列覆盖 hh4 0.000（结构性全盲）vs percipio 0.035；远端 1–1.5m 覆盖 0.017 vs 0.024（+40%）；细节密度（全有效 3×3 局部 std）12.8 vs 20.7mm（percipio +62%，含真实细结构与少量噪声纹理——hh4 半分辨率+med3+tk3 平滑链以细节换拟合稳定）**；hh4 的全图 valid 更高（0.510 vs 0.462）是中心区+时域中值贡献，空间分布上 percipio 更连片。report.md §2/§4、README 速查、影响评估 §2（增"代价"节）§3（视点居中升为硬要求+新增覆盖/细节损失条）§6 同轮改口：选型结论不变（停走节拍用 hh4），但 percipio 明确为覆盖/细节敏感场景的正当前端（双前端按场景并存）。
+
+### 09-21 收口（文档同步终检：README 档案链接随 test/ 迁移修正 + reports 全路径，零源码）
+
+**逐条复核**：三份活文档对 temporal_k/confidence/parameters.xml 清空/yaml `/**:` 已由「文档同步轮+追补+终二」收口，与 `stereo_camera_node.cpp`/`stereo_camera.yaml`/`parameters.xml` 现行源码逐条对上。本轮剩余漂移全是 09-21 末「目录迁移（用户主导）」的下游：① `src/peach_stereo/README.md` 端到端对比档案链接仍指旧路径 `e2e_compare_20260920/`（目录已迁 `test/`，链接悬空）——改指 `test/README.md`；② README 两处报告简写 `reports/sgbm-sweep.md`、`reports/pointcloud-quality.md` 实际位于 `reports/2026-09-20-camera-image-analysis/` 下——补全路径；③ README「使用」节 `ros2 topic hz` 快验行补本机 CLI 恒 0 帧怪癖指引（「终」轮沉淀，见 testing.md 冒烟节），条目日期链补全为 09-16/17/18/20/21。architecture「命名与文件树」peach_stereo 条目补 `test/` 一行（档案索引 test/README.md）。testing-log 历史条目中的旧路径按只追加原则保留原样。**仍在用户侧（终二已记档）**：yaml `sgbm.mode: hh4` 行注释「~8gps」与实测 13.7gps 不符，留用户处理。
+
+### 09-21 深度（影响评估深度版：消费者地图/帧率逐层兑现/真实门限考据/真机验证矩阵）
+
+**产出**：`test/analysis/peach_project_impact.md` 重写为深度版。核心增量结论：
+
+1. **帧率优势逐层兑现分解**：相机源 5.6× → 感知层 **3.1×**（BoundedWorker capacity=1 drop_oldest 丢旧保新，scene_perception_node.py:196；09-17 实测 stereo 端感知 ~7.5fps vs percipio 被源限 2.43fps）→ 身份锁定 ~3×（testing-log:278 纯帧数口径 18 帧）→ **重建收口层 0×：09-17 stereo mock E2E 的 observe→build FAIL（views=1<min_views=2）三连缺陷仍在代码**——掩膜按**纳秒精确 stamp** 查表（capture.py:724 `masks.get(stamp_ns)`，无容差配对）+ near_duplicate 静态拒收与 min_views=2 互斥 + 13.4fps 重建队列打满。2.8s vs 48s 宣传口径澄清：48s 含病理 settle 重置，对等口径 ~3×。
+2. **"pregrasp 3mm 门"考据为讹传**（沿自早期对比报告并进了本轮所有文档——已全量改口）：仓库真实门限=重建精配准体素 fine_voxel **3mm**、pregrasp 偏置 **30mm**（grasp_standoffs.yaml）、采集漂移门 **40mm**。按真门重算尾部（按稳定目标分组）：近袋 hh4 P95 4.5/MAX 5.5mm、percipio P95 9.0mm（多视均值按 std/√N 收敛入体素内，偏置裕度 3.3–5.5×）；**远目标 0.95m 上 hh4 P95 19.5/MAX 29mm 逼近 30mm 偏置预算**（percipio 额定 0.4–0.8m 根本不确认该目标——两种"范围"语义：hh4 量程远但精度退化，percipio 覆盖连片但量程截止）。
+3. **真机验证状态矩阵**：percipio 真机 observe→refit→READY 全链已过（pick1 8.56s）；**stereo 从未真机闭环 observe→build**——切换硬门槛新增【阻断】stamp 配对修复（最近邻容差或掩膜流提频）+ mock 复测 + 真机闭环一次，排序在手眼重标之前。
+4. 消费者地图（file:line）：相机话题唯一生产消费者=感知节点（臂/调度/观测只经 IDL）；跨前端耦合参数表（tentative_ttl_frames 20/max_views 24/race 窗自适应 15.1s↔4.4s/sync_slop）入档。
+5. 同轮改口：report.md/README/对比分析文档中全部"3mm 门"表述替换为真实门限口径；README 索引标注影响评估为深度版。
+
+### 09-21 收口二（基于源码的文档终检：ps800_eval 工具表补 temp_probe + stereo yaml 过期注释修正，零行为改动）
+
+**逐条核对结论**：对 `stereo_camera_node.cpp` 当前工作区版本做全量源码↔文档对照——参数面（`sgbm.uniqueness_ratio` 默认 6、`sgbm.mode` 3way/sgbm/hh/hh4 非法 FATAL、`median_ksize` 0/3/5 默认 3、`temporal_k` 1/3/5 非法 FATAL、代码默认 1/部署 yaml=3）、confidence 布局（rgb@16/confidence@20/point_step 24、temporal_k=1 时恒 1.0）、注册失败丢帧+5s 节流 WARN、color_mode 失配 FATAL 拒启、avg_k 有效值均值（z_sum/z_cnt）——与 architecture 条目 4+决策 0025 追记、io.md 相机前端段落、testing.md 冒烟节、`src/peach_stereo/README.md` 规格表逐条一致；README 引用的 test/README.md 与两个 reports/ 路径均存在。此前「文档同步轮+追补+终二+收口」的收口声明属实，无剩余漂移。
+
+**本轮修两处**（仅文档/注释，零行为）：
+
+1. `src/percipio_camera/scripts/ps800_eval/README.md`：build.sh 已加 `temp_probe` 构建但「工具一览」缺行——按源码头注释补行（只读温度探针：不开流、不点激光，三路探测 SDK 温度可读性，09-20 激光热管理可行性验证用）。
+2. `src/peach_stereo/config/stereo_camera.yaml`：`sgbm.mode: hh4` 行注释「全率发布 ~8gps」是落地前预估残留，与同文件 temporal_k 注释、e2e 报告（live 13.7gps、700/700 无丢帧、组率由相机节拍决定）及本文件 09-20 续四/09-21 终二记录矛盾——终二曾记档「留用户处理」，本轮按用户文档同步指令改为实测口径（匹配 ~54ms 仍装进相机 73ms 帧间隔→全率发布实测 13.7gps）。yaml 注释改动不参与运行时行为；下一轮 percipio_camera/peach_stereo 无需重建。
+
+### 09-21 收口三（文档同步：test/ 精简归档悬空引用清理 + branch_analysis 工具入索引，零源码/零行为）
+
+**逐条复核结论**：承接「收口二」，对工作区源码（`stereo_camera_node.cpp`/`stereo_camera.yaml`/`parameters.xml`/launch/ps800_eval）与三份活文档、`src/peach_stereo/README.md` 重做全量对照——无新增漂移（temporal_k/confidence 布局/yaml `/**:`/parameters.xml 清空口径均已在档）。剩余漂移集中在 test/ 档案自身：①「终三」轮曾归档 4 件源视频（`{hh4,percipio2}_{composite,rvizwin}.mp4`），其后用户精简归档只保留 rvizwin 两件，composite 已不在库，但 `test/README.md` 目录树与 `report/report.md` §3 清单未跟着删（悬空引用）；② 13:51 新增 `test/scripts/branch_analysis.py` 完全未入索引。
+
+**本轮修三处**（仅文档）：
+
+1. `test/README.md`：目录树删 composite 行、rvizwin 行注明 composite 未随归档保留（`fig_f_compare.mp4` 即其合成终版，重录经 record_session.sh 再生成）；scripts 索引补 `branch_analysis.py` 与 `probe_raw_depth.py`/`run_probe.sh`（09-20 评估工具，原索引漏收）。`.cursor/rules/test-program-cleanup.mdc` 等其余引用复核存在，无悬空。
+2. `test/report/report.md`：§3 同 composite 口径修正；§6 复现节补 `branch_analysis.py <profile> [n_frames]` 入口（需 stereo 前端与 peach_vegetation 分割同跑，**stdout SUMMARY 须 tee 落盘**）。
+3. `branch_analysis.py` 记录：peach_vegetation 枝掩膜 × 相机深度质量分析（避障口径：cov/cov_thick/cov_thin、detail_mm 枝上 3×3 局部 std、mad；掩膜带源图 stamp 与深度就近配对容差 0.3s）。14:00–14:04 已跑两档 `p1_hh4_base`（15 帧）/`p2_hh4_detail`（12 帧），**stdout（逐帧 JSON+SUMMARY 数字）未落盘、产物图仅在 /tmp/e2e_live/branch/**——无数字可入档；两档标签对应的参数组也无落盘记录。后续比较须重跑并 tee 保存 stdout、同步记档参数组。
+
+### 09-21 避障轮（hh4 细化四档实测：peach_vegetation 枝掩膜×深度——"能否更细化"终裁）
+
+**参数组与数字全部落档**（`test/report/branch/branch_p{1..4}.log` + 代表图八件 + `fig_branch_{depth,overlay}.png`；配对容差已放宽 0.6s）：
+
+| 档位（参数） | 枝覆盖 | 细枝覆盖 | 细节密度 | 帧率 |
+|---|---|---|---|---|
+| p1 hh4 现行（yaml 部署 med3+tk3+scale0.5） | **0.604** | **0.652** | 12.9mm | 13.5gps |
+| p2 hh4 med0+tk1 | 0.585 | 0.629 | 13.1mm | 13.5gps |
+| p3 hh4 全分辨率（+scale1.0） | 0.493 | 0.544 | 15.1mm | **4.3gps** |
+| p4 percipio（640x480 官方档，n=7） | 0.540 | 0.622 | **16.0mm** | ~1–2fps |
+
+**终裁**：①避障口径下 **hh4 现行档已是覆盖最优**——tk3 时域中值补细枝深度闪烁（此前"percipio 覆盖更好"是全图连片口径，枝掩膜×有效深度口径 hh4 反超）；**为避障改档是负收益**（p2：+2% 细节 −3% 覆盖）。②细化上限结构性受限：p3 换 +18% 细节但覆盖 −18%、帧率 −68%、numDisp=128@全分辨率 z_min≈0.53m 侵入 0.3–0.8m 工作区——坏交易不采用；细枝几何精度敏感的单帧场合用 percipio。影响评估新增 §4a、report 新增 §2a、README 图件行同步。
+
+**peach_vegetation 两缺陷记档（待修）**：①**换相机节点后订阅楔死**（收流不吐掩膜，进程 2% CPU 空闲）——每次前端/档位切换后必须重启 veg（本轮三次复现）；②launch autostart 事件与 main 自激活（ensure_active）确定性互杀——launch 路径不可用，`ros2 run` 直起勿发 lifecycle 命令（误发 activate 即打死节点）。运维顺带：分析器须 nohup 分离跑（同命令块内前台跑会被组信号误杀）。演示栈恢复 stereo 现行档（13.6gps、valid 0.507）。
+
+### 09-21 注释同步轮（避障轮结论落进代码注释与文档，零行为改动）
+
+按用户核定把本轮沉淀写进源码注释（全部 comment-only，无行为变化、无需重建生效）：
+
+1. `stereo_camera.yaml`：`num_disparities` 补「勿与 scale=1.0 组合（128@全分辨率 z_min≈0.53m 侵入工作区）」；`processing_scale` 补全分辨率四档实测坏交易（细节 +18%/覆盖 −18%/4.3gps）；`temporal_k` 补避障轮结论（tk3 补细枝闪烁、为避障关滤波负收益）。
+2. `target_reconstruction/capture.py`：精确 stamp 查表处（原 :724）补已知缺陷注释——高帧源下近乎必失配、stereo 前端 observe→build 阻断项、修法（最近邻容差/掩膜提频）与影响评估 §3 指针。
+3. `peach_vegetation`：节点 docstring 补两条运维注意（launch 互杀勿用/相机重启后须重启本节点）；launch `autostart` 参数描述补互杀警告。
+4. `peach_stereo/README.md` 规格表新增「避障（枝细结构）」行（现行档覆盖全档最优/全分辨率坏交易/percipio 细节 16.0mm）。
+5. yaml 的 `sgbm.mode` 行 "~8gps" 过时注释此前已由并行轮修正为 13.7gps（收口二记档的"留用户处理"项已闭）。
+
+### 09-21 几何拟合性能轮（preemptive RANSAC 打分 + 球先验抽稀 + Powell 单起点救援，行为契约不变）
+
+**范围**：`vision/common/geometry.py` + `vision/common/bag_landmarks.py` 纯核拟合热路径——感知估计（袋/果位姿）与重建 refine 共用。动机：近距大掩膜点云（N 可达数万）时 RANSAC 打分与 LM 抛光成本随点数线性膨胀；无对外契约/IDL/参数变化，三份活文档对 geometry 只有模块级口径（architecture「拟合共用」行），零活文档改动，本轮只落档。
+
+**三处改动**（依据见源码注释）：
+
+1. **RANSAC 打分两段式（preemptive）**：`ransac_sphere`/`ransac_cylinder` 全部 max_iter 个假设先在固定种子子样本（`_PREEMPT_SCREEN_N=512`，超限才抽、N≤512 原样返回零 rng 消耗）上粗排，仅前 `_PREEMPT_FINALISTS=16` 名回全点集复核取最优。打分成本 O(iter×N) → O(iter×screen + finalists×N)。Nistér 2003 preemptive RANSAC 同构；PCL「先降采样云再拟合」同一实践。假设生成的 rng 消费序与旧版逐字一致（抽样本在循环前一次性发生）；并列按（子样本计数降序、迭代序升序）先到先得，等价旧 `>` 语义；N≤512 时逐数等价单段版本。**语义注意**：大点云下 finalist 选择由子样本粗排决定，与全量打分为近义（固定种子可复现），不承诺逐数一致。
+2. **`polish_cylinder_axis` 单起点+救援**：RANSAC 提示起点先跑，仅结果非有限（提示落入退化盆）才补跑三个 canonical 起点（原版四起点无条件全跑）。实测定点数据上四起点收敛到同一 G 极小（hint 与 canonical 差 <10%、轴差在优化容差内），常态下三起点是纯冗余——scipy Powell 每起点 ~5ms 封装成本，热路径每次柱轴抛光省三跑。
+3. **球先验拟合抽稀**：`bag_landmarks.estimate_bag_landmarks` 的 `fit_sphere_robust` 输入 >1200 点时固定种子均匀抽 1200（球 RANSAC 打分与 LM 抛光均随点数线性）。球先验是辅助量（诊断 + 多帧融合后的禁切包络先验，非主几何），先验经 refine 多帧融合平滑，单帧抽稀噪声不进主几何。
+
+**验证**：`test_vision_geometry` 8 过；refine/ICP 纯核（`test_reconstruction_refine_result`/`test_reconstruction_icp_cache`）17 过 2 skip（本轮 15:00 后复跑，PYTHONPATH 直指源码树，未起 ROS 图）。全量 colcon 绿基线仍为当日 09:12 七包 0 失败——本轮改动晚于该轮，全量复跑并入下次构建轮。无端到端计时数字（收益为分析性：复杂度式与 Powell 单起点成本，非实测墙钟）。
+
+### 09-21 感知真实数据迭代轮（stereo 活流调参闭环 + 成熟库对比，零行为改动）
+
+**范围**：几何优化（上条）之后，用户接通相机要求真实数据+RViz 迭代取证。全程 stereo hh4 活流（域 77，相机栈为用户数据源保留）；感知单节点调参模式（/tmp launch：output_frame 空=相机系 T=I、gravity fixed、TUNE_DEBUG 开关），不动 yaml 部署默认。细节与数据见 `reports/2026-09-21-perception-live-tuning/report.md`。
+
+**结论**：
+
+1. **性能**：live 2 目标 total 127–145ms、有效 7.5–8fps（容量 1 worker 稳态，源 13.7gps）；geometry 85–99ms≈42–50ms/目标，与微基准一致。昨晚 350–600ms 确证争用放大非代码退化。debug 发布开销实测≈噪声级——**订户门控裁定不做**（PF-3 已兑现零拷贝）。
+2. **稳定性**：60s/485 帧身份零抖动（idset_changes=0，双目标全程在册）；r0 debug 图双目标框/掩膜/轴合理、零误检（runs/tune_20260921/r0/）。
+3. **发现（未改行为）**：单帧门 ACCEPT 生产/调参均 0 触发（refine 有 non-REJECT 兜底=良性但偏好分支死码）；`low_valid_depth` 按检测框 ROI 均值计分母致生产 56/56 恒命中；`travel_too_short` 同恒命中。三项记遗留，与真机验收轮同改。
+4. **成熟库对比（先评估后换）**：identity 匈牙利已是 scipy；pyransac3d 圆柱拟合否决（轴误差 15.9° vs 自研 0.051°、8× 慢、无种子确定性）；Open3D voxel 降采样破坏确定性不采纳。自研拟合栈三轴均优，保留。
+5. perf_baseline.json 增 `live_tuning_stereo_2targets_ms` 段。清理：调参节点已停 pgrep 零残留。

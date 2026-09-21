@@ -37,6 +37,8 @@ struct CachedTarget
   Eigen::Isometry3d initial_pose{Eigen::Isometry3d::Identity()};  ///< 入口姿态。
   Eigen::Vector3d initial_axis{Eigen::Vector3d::UnitZ()};    ///< 袋底→袋口。
   double suggested_travel_m{0.0};  ///< 视觉建议插入行程 [m]。
+  Eigen::Vector3d bottom{Eigen::Vector3d::Zero()};  ///< 袋底 [m]（观测携带）.
+  Eigen::Vector3d neck{Eigen::Vector3d::Zero()};    ///< 袋口 [m]（观测携带）.
   double received_s{0.0};          ///< 有效 OBSERVED 帧接收时刻 [s]（注入时钟）。
   double updated_s{0.0};           ///< 任意诊断帧到达时刻（含记忆锚点）。
   bool swinging{false};            ///< 感知 target_swinging。
@@ -227,6 +229,10 @@ public:
   bool waitForRefined(
     const std::string & target_id, double timeout_s,
     const std::atomic_bool & cancel) const;
+  // 把锁定集（优先）或 selected 场景观测提升为精化入口，并钉住重建门
+  // （state=READY、refined_accept）。之后忽略重建诊断/精化话题，避免 IDLE
+  // 心跳冲掉未精化几何。无有效锚点返回 false。
+  bool promoteUnrefinedGeometry(const std::string & target_id);
   // 等待一条 received_s 晚于 after_s 的有效目标观测：视点移动到位后等待
   // 到位后的新鲜帧（移动中途被接受的帧不算），供安全门在新鲜样本上复核。
   bool waitForFreshTarget(
@@ -261,6 +267,7 @@ private:
   double diagnostics_received_s_{0.0};
   ModelSnapshot model_;
   double model_generated_s_{0.0};
+  bool unrefined_hold_{false};
 };
 
 }  // namespace peach_arm

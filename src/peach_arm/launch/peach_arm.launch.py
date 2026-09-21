@@ -56,6 +56,12 @@ def launch_setup(context):
     """tool_profile 须 perform 后再拼 Builder（xacro 映射构建期展开）."""
     tool_profile = LaunchConfiguration('tool_profile').perform(context)
     params_file = LaunchConfiguration('params_file')
+    # 字符串 launch 参数勿直接 ParameterValue(bool)：非空 'false' 会被当成 True。
+    require_robot_status = LaunchConfiguration(
+        'require_robot_status').perform(context).lower() in ('true', '1', 'yes')
+    allow_unrefined_geometry = LaunchConfiguration(
+        'allow_unrefined_geometry').perform(context).lower() in (
+            'true', '1', 'yes')
     node = LifecycleNode(
         package='peach_arm',
         executable='peach_arm',
@@ -67,6 +73,8 @@ def launch_setup(context):
             manipulation_overlay(),
             tool_profile_id_params(LaunchConfiguration('tool_profile')),
             *_skills_moveit_params(tool_profile),
+            {'execution.require_robot_status': require_robot_status},
+            {'quality.allow_unrefined_geometry': allow_unrefined_geometry},
         ],
     )
     autostart = LaunchConfiguration('autostart')
@@ -104,5 +112,14 @@ def generate_launch_description():
             'tool_profile', default_value='adaptive_cylinder_v1',
             choices=['hollow_cylinder_v1', 'adaptive_cylinder_v1'],
             description='末端工具档案（URDF/标签随档案切换）'),
+        DeclareLaunchArgument(
+            'require_robot_status', default_value='true',
+            description='安全门是否要求 /aubo_io_controller/robot_status；'
+                        'harvest_system mock 传 false（bringup mock 不起 '
+                        'aubo_io_controller）；真机须 true'),
+        DeclareLaunchArgument(
+            'allow_unrefined_geometry', default_value='false',
+            description='true 时用场景观测几何代替重建精化；'
+                        'harvest_system skip_reconstruction:=true 时传入 true'),
         OpaqueFunction(function=launch_setup),
     ])

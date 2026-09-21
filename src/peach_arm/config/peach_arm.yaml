@@ -83,6 +83,7 @@ peach_arm:
       top_n: 5  # staging 输出候选上限（按加权关节距离升序取前 N，转移逐候选试规划）。
     quality:
       minimum_views: 2  # 质量门最少机位数，与重建 capture.min_views 对齐。当前位+一次 0.15 m 短移。
+      allow_unrefined_geometry: false  # true 时用场景观测当精化入口（跳过重建 READY/refined 门）。默认关。harvest_system skip_reconstruction:=true 时覆盖为 true；真机 KEEP false。
       minimum_baseline_deg: 8.0  # 质量门最大基线角下限（度）。0.15 m 短移在 0.7 m 处约 12°（聚类 5°），本值取 8；0.08 过不了本门（08-31 1633/1636 两轮实测）。
       minimum_mean_nearest_baseline_deg: 6.0  # 质量门平均最近基线角下限（度）。
       minimum_mean_depth_ratio: 0.4  # 质量门平均有效深度比例下限（0~1）。
@@ -90,7 +91,7 @@ peach_arm:
       maximum_axis_angle_deg: 35.0  # 检测轴与重建轴完全错轴诊断上限（度）；只打诊断旗标。套入许可走重建动态径向/轴向预算，本角不单独授权或拒绝接触。
     execution:
       enabled: false  # 执行使能（默认只规划）：设为 true 后每个周期还必须人工调用 set_execution_armed。依赖链 execution→grasp→tool 由参数校验钩子强制。
-      require_robot_status: true  # 安全门是否要求 robot_status 在线。
+      require_robot_status: true  # 安全门是否要求 robot_status 在线。真机 KEEP true。harvest_system mock 经 peach_arm.launch require_robot_status:=false 覆盖（bringup mock 不起 aubo_io_controller，否则 Survey 入口 robot_status_missing）。
       robot_status_max_age_s: 1.0  # robot_status 最大年龄（秒）。
       target_observation_max_age_s: 3.0  # 目标观测新鲜度门下限（秒）。未测得帧间隔时用本值；测得后只按低帧率放宽，不得收得比本值更紧。
     grasp:

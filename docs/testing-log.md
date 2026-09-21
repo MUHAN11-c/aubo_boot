@@ -709,3 +709,11 @@ SIGINT 旧栈后用 16:57 编的 `peach_manipulation` 重起；开批前在 `glo
 **验证**：合成深度空洞测试（上半段深度置 0，剪影完整）锁融合恢复袋长；**peach_harvester 202 测 0 失败**；live 复测 target_0：fit_len 0.090→**0.110m**、len_err **−29%→−12%**（剩余=掩膜分位裁剪+投影近似，且掩膜反推本身是物理下界）、travel 0.075→0.095m；直径/耗时无回归（r3 total 102ms/9.9fps）。取证 runs/tune_20260921/r3/。io.md §3.1 同轮。
 
 **边界说明**：融合后 travel 变长会让「误差预算门」（(standoff+travel)·sinθ vs 径向净空）更易触发——这是诚实几何（杆臂长了指向误差放大），不是回归；ACCEPT 合成测试已改用短袋场景保持「信息 flag 不压门」命题独立。
+
+### 09-21 mock 臂 + 真立体相机：跳过重建验证接触链（审查轮，不评方向）
+
+**档位**：`hardware_mode:=mock` `camera_frontend:=stereo` `skip_reconstruction:=true` `autostart:=false`；`SetEnables(execution+grasp, tool=false)`；默认 `execute_pregrasp_only=true`。不放松 `min_views` / `max_target_drift_m`。未授权真机动臂/SetIO。
+
+**接线问题与同轮修复**：① mock 无 `aubo_io_controller`，`require_robot_status` 仍 true → Survey ~40 ms `robot_status_missing`；`harvest_system` mock overlay 置 false。② `publish_debug_image` 须默认 true（空 Debug Image）。③ 不开 skip 时 PICK_ALL 卡 `observe_build_view_race`（views=1，`min_views=2`；mock TF 动、相机不跟）。④ `skip_reconstruction` 根级 launch overlay 打不进 brain 进程里的 `peach_supervisor`，须 `peach_supervisor.ros__parameters`；本轮先热设再补 overlay。
+
+**走通**：`e2e_unrefined_20260921T185527` Survey→锁→无 Build→`ExecuteTarget PREGRASP_ONLY`（reconfirm 0.43 s + approach_insert 13.0 s）→ ACK → 回拍照位再 Survey → `completed`。ledger `target_1` outcome=0、`completion_level=2`、`geometry_source=scene_observation`。全程无 SetIO。重建节点仍 WARN 队列满，不挡接触。跑法见 [testing.md](testing.md)「实验室端到端」。

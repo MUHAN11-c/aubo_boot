@@ -128,6 +128,10 @@ def generate_launch_description():
                         '栈——Python 托管节点的心跳由 bondpy 提供，缺失时节点'
                         '守卫降级不起 bond，lm 会误报节点崩溃；peach_arm'
                         '（bondcpp）不受影响'),
+        DeclareLaunchArgument(
+            'skip_reconstruction', default_value='false',
+            description='true 时跳过 Build/补视，用未精化场景观测验证接触；'
+                        '默认关。mock+相机不跟随可开；真机 KEEP false'),
         # 须在所有 Node / Include 之前：included launch 里的节点同样吃到
         SetParameter(name='use_sim_time', value=LaunchConfiguration('use_sim_time')),
         # stereo include 必须位于 aubo bringup include 之前：jazzy launch 的
@@ -165,10 +169,25 @@ def generate_launch_description():
             condition=IfCondition(LaunchConfiguration('imu_enabled'))),
         _include(
             'peach_harvester', 'brain.launch.py',
-            {'require_managed_stack': 'true', 'tool_profile': tool_profile}),
+            {
+                'require_managed_stack': 'true',
+                'tool_profile': tool_profile,
+                'skip_reconstruction': LaunchConfiguration(
+                    'skip_reconstruction'),
+            }),
         _include(
             'peach_arm', 'peach_arm.launch.py',
-            {'autostart': 'false', 'tool_profile': tool_profile}),
+            {
+                'autostart': 'false',
+                'tool_profile': tool_profile,
+                # mock 不起 aubo_io_controller（bringup 仅 real 拉起）；
+                # 仍要求 robot_status 则 Survey goToPhotoPose 入口
+                # robot_status_missing → 立即 survey_failed。
+                'require_robot_status': PythonExpression(
+                    ["'false' if '", hardware_mode, "' == 'mock' else 'true'"]),
+                'allow_unrefined_geometry': LaunchConfiguration(
+                    'skip_reconstruction'),
+            }),
         _include('peach_observability', 'observability.launch.py'),
         # 阶段 5：nav2_lifecycle_manager 替自研件（bond_timeout 参数化，
         # 默认 0 关；名单顺序=场景→重建→技能→调度；进程死检=watchdog/bond）
@@ -194,7 +213,8 @@ def generate_launch_description():
             executable='peach_lifecycle_flag_bridge',
             name='peach_lifecycle_flag_bridge',
             output='screen'),
-        # mock 初始位姿：xacro state_interface initial_value（SRDF 拍照位）
+        # mock 初始位姿：xacro state_interface initial_value（harvest_stow，
+        # 不是 SRDF global_photo_pose；第一次 Survey 才 PTP 到拍照位）
         # 官方 ros2_control 机制，非轨迹——详见 aubo_e5.ros2_control.xacro
         # autostart 客户端（默认关；授权=操作员发起 launch，红线 3）
         Node(

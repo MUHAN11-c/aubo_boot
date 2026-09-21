@@ -74,6 +74,8 @@ class SupervisorParams:
     """是否把 TargetOutcome 写入 runs/ 账本."""
     reconstruction_min_views: int
     """OBSERVE 成功后 Build 至少机位数."""
+    skip_reconstruction: bool
+    """True 时 DISPATCH 跳过 Build/观察，用场景观测几何进接触."""
     build_start_timeout_s: float
     """Build 进入 COLLECTING 的等待上限 [s]."""
     observe_build_grace_s: float

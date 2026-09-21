@@ -342,3 +342,43 @@ TEST(TargetCache, WaitForNewViewTimesOutAndSatisfiesFast)
   std::atomic_bool cancelled{true};
   EXPECT_FALSE(cache.waitForNewView(99, 0.05, cancelled));
 }
+
+TEST(TargetCache, PromoteUnrefinedFromLockedAndHoldsAgainstDiagnostics)
+{
+  double now = 100.0;
+  peach_arm::TargetCache cache([&now] {return now;});
+  peach_arm::LockedTargetUpdate first;
+  first.target_id = "a";
+  first.observed = true;
+  first.bottom = Eigen::Vector3d(0.4, -0.6, 0.5);
+  first.neck = Eigen::Vector3d(0.45, -0.6, 0.7);
+  first.axis = (first.neck - first.bottom).normalized();
+  first.suggested_travel_m = 0.04;
+  first.entry_pose = Eigen::Isometry3d::Identity();
+  first.entry_pose.translation() = first.bottom - first.axis * 0.03;
+  cache.updateLockedTargets(true, "run1", {first});
+
+  EXPECT_FALSE(cache.promoteUnrefinedGeometry("missing"));
+  ASSERT_TRUE(cache.promoteUnrefinedGeometry("a"));
+  const auto refined = cache.refinedSnapshot();
+  ASSERT_TRUE(refined.has_value());
+  EXPECT_EQ(refined->id, "a");
+  EXPECT_TRUE(refined->valid);
+  EXPECT_TRUE(
+    refined->entry.isApprox(first.entry_pose.translation(), 1e-12));
+  peach_arm::QualitySnapshot quality = cache.qualitySnapshot();
+  EXPECT_EQ(quality.reconstruction_state, "READY");
+  EXPECT_TRUE(quality.refined_accept);
+  EXPECT_EQ(quality.reconstruction_target_id, "a");
+  EXPECT_EQ(quality.selected_target_id, "a");
+  EXPECT_NEAR(quality.data_age_s, 0.0, 1e-12);
+
+  now = 110.0;
+  peach_arm::ReconstructionDiagnosticsUpdate idle;
+  idle.state = "IDLE";
+  cache.updateReconstructionDiagnostics(idle);
+  quality = cache.qualitySnapshot();
+  EXPECT_EQ(quality.reconstruction_state, "READY");
+  EXPECT_NEAR(quality.data_age_s, 0.0, 1e-12);
+  EXPECT_FALSE(cache.updateRefinedPose(refinedPoseUpdate("a")));
+}

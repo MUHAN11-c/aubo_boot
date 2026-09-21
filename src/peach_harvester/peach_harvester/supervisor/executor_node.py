@@ -1130,6 +1130,9 @@ class TaskExecutorNode(LifecycleNode):
                 outcome=TargetOutcome.SKIPPED_QUALITY,
                 reason='observe_failed: target_not_in_locked_set',
                 failure_code='observe_failed', dispatch_t0=dispatch_t0)
+        if bool(self._params.skip_reconstruction):
+            return self._dispatch_unrefined(
+                request_id, target_id, dispatch_t0)
         build_goal = BuildTargetModel.Goal()
         build_goal.request_id = request_id
         build_goal.target_id = target_id
@@ -1289,6 +1292,33 @@ class TaskExecutorNode(LifecycleNode):
                 failure_code=failure_code,
                 elapsed_s=time.monotonic() - dispatch_t0,
                 extra=extra)
+        self._apply(reaction, request_id, target_id)
+        return reaction, True
+
+    def _dispatch_unrefined(
+            self, request_id: str, target_id: str, dispatch_t0: float):
+        """
+        跳过 Build/补视：用锁定集场景几何进接触.
+
+        验证路径（skip_reconstruction，默认关）。身份三修订填 unrefined:*
+        以满足 ExecuteTarget 受理门；臂侧须 quality.allow_unrefined_geometry
+        把观测提升为精化入口。不放松 min_views / drift 生产门。
+        """
+        self._cycle_plan_id = (
+            f'{request_id}:{target_id}:{self._action_generation}:unrefined')
+        epoch = int(self._scene_epoch or 0)
+        self._last_model_revision = f'unrefined:{epoch}:{target_id}'
+        self._last_calibration_revision = 'unrefined'
+        self._last_config_revision = 'unrefined'
+        self._cycle_observe_extra = {
+            'skip_reconstruction': True,
+            'geometry_source': 'scene_observation',
+        }
+        self._cycle_dispatch_t0 = dispatch_t0
+        self.get_logger().warning(
+            f'skip_reconstruction: 用未精化场景观测进接触 target={target_id} '
+            '(no BuildTargetModel)')
+        reaction = self._react(Event.READY_FULL)
         self._apply(reaction, request_id, target_id)
         return reaction, True
 

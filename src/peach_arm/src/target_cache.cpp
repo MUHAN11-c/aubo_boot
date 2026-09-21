@@ -76,6 +76,8 @@ void applyObservation(CachedTarget & entry, const Update & update, double now_s)
   const bool has_anchor = nonzeroFinite(update.bottom) &&
     nonzeroFinite(update.neck) && nonzeroFinite(update.axis);
   if (has_anchor) {
+    entry.bottom = update.bottom;
+    entry.neck = update.neck;
     entry.center = 0.5 * (update.bottom + update.neck);
     entry.initial_axis = update.axis.normalized();
     entry.suggested_travel_m = update.suggested_travel_m;
@@ -115,6 +117,7 @@ void TargetCache::updateSelectedTarget(const SelectedTargetUpdate & update)
     quality_.refined_accept = false;
     quality_.grasp_allowed = false;
     grasp_decision_target_id_.clear();
+    unrefined_hold_ = false;
   }
   target_.id = update.selected_id;
   target_.harvest_run_id = update.harvest_run_id;
@@ -160,6 +163,9 @@ void TargetCache::updateReconstructionDiagnostics(
   const ReconstructionDiagnosticsUpdate & update)
 {
   std::lock_guard<std::mutex> lock(mutex_);
+  if (unrefined_hold_) {
+    return;
+  }
   quality_.reconstruction_target_id = update.target_id;
   quality_.reconstruction_state = update.state;
   quality_.captured_views = update.captured_views;
@@ -228,6 +234,9 @@ ModelSnapshot TargetCache::modelSnapshot() const
 bool TargetCache::updateRefinedPose(const RefinedPoseUpdate & update)
 {
   std::lock_guard<std::mutex> lock(mutex_);
+  if (unrefined_hold_ && !update.clear) {
+    return false;
+  }
   if (update.clear) {
     refined_ = CachedRefined();
     quality_.refined_target_id.clear();
@@ -254,6 +263,9 @@ bool TargetCache::updateRefinedPose(const RefinedPoseUpdate & update)
 bool TargetCache::updateRefinedFitting(const RefinedFittingUpdate & update)
 {
   std::lock_guard<std::mutex> lock(mutex_);
+  if (unrefined_hold_ && !update.clear) {
+    return false;
+  }
   if (update.clear) {
     // 无效标量约定 -1（同 QualitySnapshot 默认）：原 0.0 会把「无精化」
     // 误投影成「完美拟合」（W5-13 修复）。
@@ -345,7 +357,9 @@ QualitySnapshot TargetCache::qualitySnapshot() const
 {
   std::lock_guard<std::mutex> lock(mutex_);
   QualitySnapshot snapshot = quality_;
-  if (diagnostics_seen_) {
+  if (unrefined_hold_) {
+    snapshot.data_age_s = 0.0;
+  } else if (diagnostics_seen_) {
     snapshot.data_age_s = std::max(0.0, clock_s_() - diagnostics_received_s_);
   }
   if (target_.valid && refined_.valid) {
@@ -421,6 +435,54 @@ bool TargetCache::waitForRefined(
              (quality_.reconstruction_state == "READY" &&
              refined_.valid && refined_.id == target_id);
     }) && !cancel.load();
+}
+
+bool TargetCache::promoteUnrefinedGeometry(const std::string & target_id)
+{
+  std::lock_guard<std::mutex> lock(mutex_);
+  if (target_id.empty()) {
+    return false;
+  }
+  const CachedTarget * src = nullptr;
+  const auto locked = locked_targets_.find(target_id);
+  if (locked != locked_targets_.end() && locked->second.valid) {
+    src = &locked->second;
+  } else if (target_.id == target_id && target_.valid) {
+    src = &target_;
+  }
+  if (src == nullptr || !nonzeroFinite(src->initial_axis)) {
+    return false;
+  }
+  Eigen::Vector3d entry = src->initial_pose.translation();
+  if (!nonzeroFinite(entry) && nonzeroFinite(src->bottom)) {
+    entry = src->bottom - src->initial_axis.normalized() * 0.03;
+  }
+  if (!entry.allFinite()) {
+    return false;
+  }
+  refined_ = CachedRefined();
+  refined_.id = target_id;
+  refined_.entry = entry;
+  refined_.bottom = src->bottom;
+  refined_.neck = src->neck;
+  refined_.axis = src->initial_axis.normalized();
+  refined_.suggested_travel_m = src->suggested_travel_m;
+  refined_.valid = nonzeroFinite(refined_.axis) && refined_.entry.allFinite();
+  if (!refined_.valid) {
+    refined_ = CachedRefined();
+    return false;
+  }
+  quality_.selected_target_id = target_id;
+  quality_.refined_target_id = target_id;
+  quality_.refined_accept = true;
+  quality_.reconstruction_target_id = target_id;
+  quality_.reconstruction_state = "READY";
+  quality_.data_age_s = 0.0;
+  diagnostics_seen_ = false;
+  unrefined_hold_ = true;
+  model_generated_s_ = clock_s_();
+  cv_.notify_all();
+  return true;
 }
 
 bool TargetCache::waitForFreshTarget(

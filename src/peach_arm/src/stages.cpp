@@ -149,7 +149,19 @@ bool ManipulationSkillsNode::waitForFreshCycleTarget(
 
 bool ManipulationSkillsNode::waitForRefined(const std::string & target_id)
 {
-  // 超时按协议 2.7-FINALIZE 的 T(refined) 帧率自适应（effectiveRefinedWaitS）。
+  if (params_.quality.allow_unrefined_geometry) {
+    if (cache_.promoteUnrefinedGeometry(target_id)) {
+      RCLCPP_WARN(
+        get_logger(),
+        "quality.allow_unrefined_geometry: 用场景观测几何代替重建精化 target=%s",
+        target_id.c_str());
+      return true;
+    }
+    RCLCPP_WARN(
+      get_logger(),
+      "quality.allow_unrefined_geometry 但无有效场景几何 target=%s",
+      target_id.c_str());
+  }
   return cache_.waitForRefined(target_id, effectiveRefinedWaitS(), cancel_requested_);
 }
 

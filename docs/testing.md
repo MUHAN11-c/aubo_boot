@@ -19,6 +19,8 @@
 | 预抓取真机 | `field_pregrasp_<YYYYMMDD>_<HHMM>` | `field_pregrasp_20260901_1757` |
 | 接触干跑（不开刀） | `field_full_<YYYYMMDD>_<HHMM>` | `field_full_20260825_1851` |
 | 只扫不运动 | `field_dry`；或预抓取名 + `intent: 2` | `intent: 2` = SURVEY_ONLY |
+| 实验室只扫（mock 臂+真相机） | `e2e_survey_<YYYYMMDDTHHMMSS>` | `intent: 2`；不评套袋方向 |
+| 跳过重建接触验证 | `e2e_unrefined_<YYYYMMDDTHHMMSS>` | `intent: 0` + `skip_reconstruction:=true` |
 | 开发机 mock | `dev` | `intent` 默认 0 |
 | 当日综述 | `runs/field_test_<YYYYMMDD>/log.md` | `runs/field_test_20260901/log.md` |
 | 监控会话 | `runs/session_<YYYYMMDD>_<HHMMSS>/bag/`（观测自动，随栈启停开合） | 内含 `bag_0.mcap` 与自动生成的 `bag_report.md/json`，与账本互引 |
@@ -62,7 +64,11 @@ bash scripts/r0_gate.sh
 # 开发机：无相机、不运动
 ros2 launch peach_bringup harvest_system.launch.py \
   hardware_mode:=mock camera_enabled:=false
-# 等价薄转发：ros2 launch peach_bringup harvest_system.launch.py hardware_mode:=mock camera_enabled:=false
+# 实验室：mock 臂 + 真立体相机（物理相机不跟随 mock TF）
+ros2 launch peach_bringup harvest_system.launch.py \
+  hardware_mode:=mock camera_enabled:=true camera_frontend:=stereo autostart:=false
+# 同上并跳过重建、用锁定集场景观测验证接触（不评套袋方向；真机 KEEP false）：
+#   追加 skip_reconstruction:=true
 
 # 真机 RGB-D bag 回放：先 play --clock 再起栈（感知身份要精确 stamp TF）
 # ros2 bag play /home/mu/Pictures/pipeline_replay_20260918_162704/bag --clock
@@ -153,6 +159,7 @@ Tab「调试」＝向**既有**动作/服务发请求的纯客户端，页面只
 | `hand_eye_web_enabled` | false | 标定 Web `:8088` |
 | `use_sim_time` | false | bag 回放须 `true` + `ros2 bag play --clock`；真机必须 false |
 | 调度 `execute_pregrasp_only` | true | 接触段 `PREGRASP_ONLY`：停预抓取不回 stow；套入前改 false |
+| `skip_reconstruction` | false | true 时调度不发 Build/补视，且同 arg 打开技能 `quality.allow_unrefined_geometry`。overlay 须打进 `peach_supervisor` 命名空间（brain 一进程三节点，根级键打不到）。起栈后核 `ros2 param get /peach_supervisor skip_reconstruction` 与 `ros2 param get /peach_arm quality.allow_unrefined_geometry`。真机 KEEP false |
 
 过程录制不再有 launch 参数：observability 的 `record.enabled`（默认 true）随栈开合会话 bag，栈停自动出报告；`record.level`/`record.max_total_bag_gb` 见 `config/observability.yaml`。
 
@@ -244,6 +251,7 @@ ros2 service call /peach_supervisor/control peach_interfaces/srv/ControlTask \
 
 ```bash
 ros2 topic echo --once /joint_states
+# mock 无发布者（bringup 仅 real 起 aubo_io_controller）；真机须有
 ros2 topic echo --once /aubo_io_controller/robot_status
 ros2 topic hz /camera/color/image_raw
 ros2 topic echo --once /peach_supervisor/state
@@ -258,16 +266,63 @@ ros2 lifecycle get /peach_supervisor
 timeout 5 ros2 run tf2_ros tf2_echo wrist3_Link camera_link
 ```
 
-关节名必须是：`shoulder_joint, upperArm_joint, foreArm_joint, wrist1_joint, wrist2_joint, wrist3_joint`。把 `/joint_states` 对照 SRDF `global_photo_pose`（`src/aubo_e5_moveit_config/config/aubo_e5.srdf` 的 `group_state`）。launch / lifecycle **不到**拍照位；开执行后第一次 `SurveyScene` 才 PTP 过去。`execution.enabled=false` 时 Survey 仍核**当前**关节：停在袋口开批须 `termination_reason=survey_failed`，不得把袋口 FOV 收进本批锁定集。上一轮若停在 HoldPregrasp，当前多半还在袋口——差值大时先目视/示教器确认再开 `execution`。`ros2 topic hz /camera/color/image_raw` 的订阅 QoS 须与发布端一致。Percipio launch 默认 `color_qos:=default`（RELIABLE）；感知订户也是 RELIABLE depth 10。若改成 `SENSOR_DATA`（BEST_EFFORT），默认可靠的 `hz` 会误报未发布。帧率按前端计：percipio `fps ≈ 2.43` 与感知注册表；`camera_frontend:=stereo` 时 ~13.7 fps（组率由相机节拍限速，hh4+`temporal_k=3` 处理链仍小于相机 73 ms 帧间隔，见 `src/peach_stereo/README.md`）。驱动深度健康另有口径：头 30 帧 valid <10% 即异常（09-21 percipio 曾因 `parameters.xml` 残留值无条件下发崩到 ~5–12%，只看彩色 hz 冒烟发现不了）。本机 `ros2 topic hz` CLI 另有恒 0 帧的工具怪癖（`echo`/rclpy 订户正常）——帧率与健康一律以 30 帧探针为准。订户全线 0 帧而发布端进程健在时，先查挂死的 `ros2 bag record`（`-d N` 自停不可靠，录制一律 `timeout -s INT -k 10` 包裹；死订户会占住 `/camera` 大流）与 `/dev/shm/fastrtps_*` 残留，清杀后复验数据流。四节点须 Active。重建有时停在 inactive：`ros2 lifecycle set /peach_target_reconstruction_node activate`。固定座无导航动作（`NavigateToWorksite` 预留，调度 `_cmd_navigate` 直通 `NAV_OK`）。
+关节名必须是：`shoulder_joint, upperArm_joint, foreArm_joint, wrist1_joint, wrist2_joint, wrist3_joint`。把 `/joint_states` 对照 SRDF `global_photo_pose`（`src/aubo_e5_moveit_config/config/aubo_e5.srdf` 的 `group_state`）。launch / lifecycle **不到**拍照位：mock xacro `initial_value` 是 `harvest_stow`（wrist2≈−0.50，拍照位 −0.28，Δ≈0.22 rad > `photo_pose_joint_tolerance_rad` 0.05）。开执行后第一次 `SurveyScene` 才 PTP 过去。`execution.enabled=false` 时 Survey **仍核当前**关节：停在袋口开批须 `termination_reason=survey_failed`，不得把袋口 FOV 收进本批锁定集。上一轮若停在 HoldPregrasp，当前多半还在袋口——差值大时先目视/示教器确认再开 `execution`。`harvest_system` mock **不起** `aubo_io_controller`（`/aubo_io_controller/robot_status` 发布者计数为 0）；同 launch 把技能 `execution.require_robot_status` 置 false，否则 Survey 入口 `robot_status_missing`、约数十毫秒 `survey_failed`。真机 KEEP 该门为 true，冒烟须 `drives_powered=1 motion_possible=1`。`ros2 topic hz /camera/color/image_raw` 的订阅 QoS 须与发布端一致。Percipio launch 默认 `color_qos:=default`（RELIABLE）；感知订户也是 RELIABLE depth 10。若改成 `SENSOR_DATA`（BEST_EFFORT），默认可靠的 `hz` 会误报未发布。帧率按前端计：percipio `fps ≈ 2.43` 与感知注册表；`camera_frontend:=stereo` 时 ~13.7 fps（组率由相机节拍限速，hh4+`temporal_k=3` 处理链仍小于相机 73 ms 帧间隔，见 `src/peach_stereo/README.md`）。驱动深度健康另有口径：头 30 帧 valid <10% 即异常（09-21 percipio 曾因 `parameters.xml` 残留值无条件下发崩到 ~5–12%，只看彩色 hz 冒烟发现不了）。本机 `ros2 topic hz` CLI 另有恒 0 帧的工具怪癖（`echo`/rclpy 订户正常）——帧率与健康一律以 30 帧探针为准。订户全线 0 帧而发布端进程健在时，先查挂死的 `ros2 bag record`（`-d N` 自停不可靠，录制一律 `timeout -s INT -k 10` 包裹；死订户会占住 `/camera` 大流）与 `/dev/shm/fastrtps_*` 残留，清杀后复验数据流。四节点须 Active。重建有时停在 inactive：`ros2 lifecycle set /peach_target_reconstruction_node activate`。固定座无导航动作（`NavigateToWorksite` 预留，调度 `_cmd_navigate` 直通 `NAV_OK`）。
 
-显式只扫（仍不运动）：
+显式只扫（SURVEY_ONLY：不选果、不接触；mock 开 execution 仍会 PTP 到拍照位）：
 
 ```bash
+# mock：先开 execution（grasp/tool 保持关），再 SURVEY_ONLY。未授权不得对真机 SetEnables(execution=true)。
+ros2 service call /peach_supervisor/set_enables peach_interfaces/srv/SetEnables \
+  "{execution: true, grasp: false, tool: false, reason: 'mock survey ptp'}"
 ros2 action send_goal /peach_supervisor/run_harvest peach_interfaces/action/RunHarvest \
   "{request_id: 'field_dry', scene_key: 'lab', profile_id: 'default', intent: 2}"
 ```
 
-`intent: 2` = SURVEY_ONLY。技能 `execution.enabled=false` 时 Survey **仍核当前关节**（只规划不够）。调度会先 Survey、再 Begin、再 WAIT_LOCK，然后结算（不选果）。默认 intent 0 且调度 `execution_enabled` 关时同样：拍照位失败则 `survey_failed`；成功则锁定后直接结算（不选果、不记 `SKIPPED_QUALITY`）。全流程到预抓取须两边 `execution=true` 且技能 `grasp.enabled=true`。
+`intent: 2` = SURVEY_ONLY。技能 `execution.enabled=false` 时 Survey **仍核当前关节**（只规划不够）。调度会先 Survey、再 Begin、再 WAIT_LOCK，然后结算（不选果）。默认 intent 0 且调度 `execution_enabled` 关时同样：拍照位失败则 `survey_failed`；成功则锁定后直接结算（不选果、不记 `SKIPPED_QUALITY`）。全流程到预抓取须两边 `execution=true` 且技能 `grasp.enabled=true`。mock 验收：Survey result `已到达全局拍照位姿`、`/joint_states` 过拍照位容差、`termination_reason=completed`、`scene_epoch≥1`、账本 `claimed` 仍为空。使能走操作台 `SetEnables`（广播 `/peach/batch/enables`）；不要只 `ros2 param set` 技能侧。测完 `SetEnables` 全 false。
+
+### 实验室端到端（mock 臂 + 真立体相机）
+
+物理相机不跟随 mock TF，重建凑不齐第二独立机位（`observe_build_view_race` / `min_views=2`）。**不要**放宽 `min_views` / `max_target_drift_m`。接触链验证走 `skip_reconstruction`（默认关；真机 KEEP false；不评套袋方向精度）。默认仍 `execute_pregrasp_only=true`（停预抓取、不 SetIO）。顺序：前清 → 起栈 → 自检 → 只扫 → 跳过重建 PICK_ALL → ACK → 关使能 → 停栈。
+
+```bash
+pgrep -af 'ros2 launch|component_container|extrinsics_publisher|ros2 run|bag record|collect|probe'
+# 实验室接触验证（只扫可去掉 skip_reconstruction）
+ros2 launch peach_bringup harvest_system.launch.py hardware_mode:=mock \
+  camera_enabled:=true camera_frontend:=stereo skip_reconstruction:=true autostart:=false
+```
+
+**自检（开批前，相机开时）：** §2 冒烟四节点 Active + `/joint_states` MUST 序；mock **不要**等 `/aubo_io_controller/robot_status`（无发布者，launch 已把 `execution.require_robot_status` 置 false）。另核：
+
+```bash
+ros2 param get /peach_supervisor skip_reconstruction          # 须 True（否则 brain overlay 没打进节点）
+ros2 param get /peach_arm quality.allow_unrefined_geometry    # 须 True
+ros2 param get /peach_scene_perception_node publish_debug_image  # 须 True
+# RViz Debug Image 须有检/分割叠加；空图先核上一参再查相机流
+timeout 5 ros2 topic hz /camera/color/image_raw
+timeout 5 ros2 run tf2_ros tf2_echo wrist3_Link camera_link
+```
+
+**只扫**（`intent: 2`，execution 开、grasp/tool 关）：命令见上节。通过：`photo_pose_reached` → `round_locked` → `completed`，账本 `claimed` 空。
+
+**跳过重建到预抓取**（`intent: 0` = PICK_ALL，`view_policy: 0` = VIEW_FAST）：
+
+```bash
+ros2 service call /peach_supervisor/set_enables peach_interfaces/srv/SetEnables \
+  "{execution: true, grasp: true, tool: false, reason: 'mock skip_reconstruction pregrasp'}"
+ros2 action send_goal -f /peach_supervisor/run_harvest peach_interfaces/action/RunHarvest \
+  "{request_id: 'e2e_unrefined_YYYYMMDDTHHMMSS', scene_key: 'lab', profile_id: 'default', intent: 0, view_policy: 0}"
+```
+
+事件链：`photo_pose_reached` → `round_locked` → `target_dispatched`（调度 WARN `skip_reconstruction`，**无** `BuildTargetModel`）→ `ExecuteTarget PREGRASP_ONLY`（再确认 → 拍照位最短路径到预抓取 → 停稳）→ `target_succeeded`（`geometry_source=scene_observation`）→ `recovery_required`。`PREGRASP_ONLY` 后 `RunHarvest` **等 ACK 才收口**，须在结果返回前发命令 6（`expected_state_seq` 用当前 `HarvestState.state_seq`，ACK 路径允许 0）。不要在订阅回调里再 `spin_until_future_complete`（同 executor 会 `already spinning`）。ACK 后回拍照位再 Survey；已 claim 的果不再选，空巡达限 → `completed`。
+
+```bash
+ros2 service call /peach_supervisor/control peach_interfaces/srv/ControlTask \
+  "{command: 6, expected_state_seq: 0, reason: 'unrefined pregrasp ack'}"
+ros2 service call /peach_supervisor/set_enables peach_interfaces/srv/SetEnables \
+  "{execution: false, grasp: false, tool: false, reason: 'e2e done'}"
+```
+
+通过（接线，不评方向）：ledger `outcome=0`、`completion_level=2`、阶段 `reconfirm`+`approach_insert`；全程无 SetIO；`HarvestState.batch_state=completed`。重建节点仍在跑，可能 WARN「worker 队列已满」——skip 不关该节点，不挡接触。对照账本：`runs/e2e_unrefined_20260921T185527/`。
 
 停栈（MUST，与启动前 pgrep 成对；整栈、探针、采集器、`ros2 bag record` 一律适用）：launch 终端 Ctrl+C；一次性命令用 `timeout` 包裹（`ros2 bag record -d N` 自停不可靠，用 `timeout -s INT -k 10`）。结束后复核：
 
@@ -512,7 +567,7 @@ ros2 service call /peach_supervisor/control peach_interfaces/srv/ControlTask \
   "{command: 6, expected_state_seq: 0}"
 ```
 
-异常先命令 4（`CANCEL_NOW`）。过程数据在工作区 `runs/`（gitignore，不入库）；结论写进 [testing-log.md](testing-log.md) 与 `runs/field_test_<日期>/log.md`。
+异常先命令 4（`CANCEL_NOW`）。过程数据在工作区 `runs/`：结构化文本（jsonl/json/csv/md/yaml/txt/log）入库随仓推送；bag/图像/点云二进制仍只留本地（`.gitignore` 白名单）。结论写进 [testing-log.md](testing-log.md) 与 `runs/field_test_<日期>/log.md`。
 
 选果约束（有效深度 + TCP IK 可达，09-01 定稿）：
 

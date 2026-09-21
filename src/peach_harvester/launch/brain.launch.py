@@ -10,7 +10,7 @@ from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument
 from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
 from launch_ros.actions import Node
-from launch_ros.parameter_descriptions import ParameterFile
+from launch_ros.parameter_descriptions import ParameterFile, ParameterValue
 from launch_ros.substitutions import FindPackageShare
 from peach_harvester.vision.grasp_standoffs import (
     reconstruction_overlay,
@@ -52,8 +52,16 @@ def generate_launch_description():
             ParameterFile(supervisor_params, allow_substs=True),
             overlays,
             {
-                'require_managed_stack': LaunchConfiguration(
-                    'require_managed_stack'),
+                'peach_supervisor': {
+                    'ros__parameters': {
+                        'require_managed_stack': ParameterValue(
+                            LaunchConfiguration('require_managed_stack'),
+                            value_type=bool),
+                        'skip_reconstruction': ParameterValue(
+                            LaunchConfiguration('skip_reconstruction'),
+                            value_type=bool),
+                    }
+                }
             },
         ],
     )
@@ -61,6 +69,9 @@ def generate_launch_description():
         DeclareLaunchArgument(
             'require_managed_stack', default_value='true',
             description='true 时须等生命周期管理器就绪旗标才接受 RunHarvest'),
+        DeclareLaunchArgument(
+            'skip_reconstruction', default_value='false',
+            description='true 时 DISPATCH 跳过 Build/补视，用场景观测进接触'),
         DeclareLaunchArgument(
             'tool_profile', default_value='adaptive_cylinder_v1',
             choices=['hollow_cylinder_v1', 'adaptive_cylinder_v1'],

@@ -70,6 +70,7 @@ flowchart LR
 | `ExecuteTarget` OBSERVE_ONLY | 技能 `~/execute_target` | `_cmd_dispatch` | 主动视点给重建凑 `min_views` 机位 |
 | `ExecuteTarget` FULL | 技能 `~/execute_target` | `_cmd_full` | 观察+模型都过门之后；仅 `execute_pregrasp_only=false` |
 | `ExecuteTarget` PREGRASP_ONLY | 技能 `~/execute_target` | `_cmd_full` | 默认 `execute_pregrasp_only=true` 时替代 FULL；停预抓取等 ACK |
+| （可选）`skip_reconstruction` | 调度参数 | `_cmd_dispatch` | launch `skip_reconstruction:=true` 时 **不发** Build/OBSERVE，直接 `READY_FULL`；接触几何=锁定集场景观测。overlay 打进 `peach_supervisor` 命名空间（brain 一进程三节点）。默认 false |
 | `ControlTask` | 调度 `~/control` | 人工（监控只读不发） | PAUSE / SKIP / CANCEL… |
 | `ManageLifecycleNodes` | 管理器 `~/manage_nodes` | 人工 | STARTUP/PAUSE/RESUME/RESET/SHUTDOWN；不发 RunHarvest |
 
@@ -455,6 +456,7 @@ flowchart TB
 | `max_camera_step_m` | 下一视点沿当前相机直线截步（默认 0.15 m） |
 | `maximum_moves` | 观察移动次数封顶；覆盖达标即停 |
 | `quality.minimum_baseline_deg` | 覆盖门 8° |
+| `quality.allow_unrefined_geometry` | 默认 false；true 时用场景观测当精化入口（`skip_reconstruction` 打开） |
 | `photo_pose_named_target` | Survey / 回拍照位的 SRDF 名（`global_photo_pose`） |
 | `photo_pose_joint_tolerance_rad` / `photo_pose_max_joint_vel_rad_s` | `goToPhotoPose` 成功出口每轴 \|Δq\| / \|qdot\| 上限（默认 0.05） |
 
@@ -512,6 +514,7 @@ flowchart TB
 |------|------|
 | `execution_enabled` | false：WAIT_LOCK 后结算，不选果、不派 ExecuteTarget。运行期 `ros2 param set`，不改仓库默认 |
 | `execute_pregrasp_only` | true（默认）：接触槽发 PREGRASP_ONLY；false 才 FULL 套入 |
+| `skip_reconstruction` | false（默认）：true 时 DISPATCH 不发 Build/补视，用场景观测进接触 |
 | `require_managed_stack` | 整栈 launch 为 true：未收到 lifecycle 旗标拒绝开批 |
 | `survey_wait_s` | WAIT_LOCK 上限（默认 15 s） |
 | `survey_dwell_s` | 已锁回访到位后驻留（默认 2 s） |
@@ -667,7 +670,7 @@ flowchart TB
 
 | 名字 | 含义 |
 |------|------|
-| `/aubo_io_controller/robot_status` | 技能安全门：抱闸、`motion_possible`、急停**状态观测**（不是急停通道；急停在示教器/柜，见 AGENTS 第 2 章）；监控 Web 柜侧灯 |
+| `/aubo_io_controller/robot_status` | 技能安全门：抱闸、`motion_possible`、急停**状态观测**（不是急停通道；急停在示教器/柜，见 AGENTS 第 2 章）；监控 Web 柜侧灯。mock bringup 不起本控制器（发布者计数 0）；`harvest_system` mock 把 `peach_arm` `execution.require_robot_status` 置 false，真机 KEEP true |
 | `/aubo_io_controller/joint_status` | 监控 Web：关节电流（SDK 原单位）、温度、跟随误差。技能 ④层接触检测只读 `current[6]`（默认关，只缓存） |
 | `/aubo_io_controller/set_io` | 工具闭合；仅 `tool.enabled` 且 FULL 切断阶段 |
 | `/joint_states` | 重建静止门、技能规划当前关节；监控 Web 实际角/速度 |

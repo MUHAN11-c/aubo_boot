@@ -422,6 +422,10 @@ peach_arm:
       description: "最小机位数"
       validation:
         gt_eq<>: [1]
+    allow_unrefined_geometry:
+      type: bool
+      default_value: false
+      description: "用场景观测几何代替重建精化（验证路径；默认关）"
     minimum_baseline_deg:
       type: double
       default_value: 8.0

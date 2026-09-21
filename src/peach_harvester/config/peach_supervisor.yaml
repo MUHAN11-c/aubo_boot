@@ -11,6 +11,7 @@ peach_supervisor:
     empty_survey_limit: 2  # 连续空扫次数上限，达到则结算批次。
     persist_ledger: true  # 是否把 TargetOutcome 写入 runs/ 账本。
     reconstruction_min_views: 2  # OBSERVE 成功后 Build 至少应有的机位数，不足则 observe_build_view_race。与当前位+一次短 PTP 对齐。
+    skip_reconstruction: false  # true 时 DISPATCH 不发 Build/补视，用锁定集场景几何进 PREGRASP/FULL（身份 revision=unrefined:*）。默认关。mock+相机不跟随时验证接触用；真机 KEEP false。须与 peach_arm quality.allow_unrefined_geometry 同开。
     build_start_timeout_s: 2.0  # Build 目标绑定并进入 COLLECTING 的等待上限；超时禁止观察运动。
     observe_build_grace_s: 3.0  # OBSERVE 结束后等待重建机位数追上的宽限秒数。e2e25 轮（09-17）mock 下曾放 12.0（伪影所致 race）；mock 作废转真机后回调原值，真机证据另立。
     begin_scene_service: /peach_scene_perception_node/begin_scene  # BeginScene 服务名。

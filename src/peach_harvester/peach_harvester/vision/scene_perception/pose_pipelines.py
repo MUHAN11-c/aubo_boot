@@ -115,6 +115,7 @@ _INFORMATIONAL_FLAGS = frozenset({
     'fruit_prior_auxiliary',      # 球先验仅为辅助量（按构造恒在）
     'neck_from_band', 'bottom_from_band',
     'gravity_defaulted',          # 无重力提示回退默认（下游另有不确定度门）
+    'length_extended_from_2d',    # 袋长经 2D 掩膜展程补全（2D+3D 融合）
 })
 
 
@@ -152,6 +153,42 @@ def axis_length_consistent(length_m: float, bbox_w_px: int, bbox_h_px: int,
     if implied_m <= 0.08:
         return True
     return length_m >= 0.5 * implied_m
+
+
+def mask_axial_length_px(raw_mask: np.ndarray, bottom_px, dir2d,
+                         xoff: int, yoff: int) -> Optional[tuple]:
+    """
+    原始 SAM 掩膜像素沿投影轴方向相对袋底的两端展程（像素，1/99 分位）.
+
+    2D+3D 融合用：几何点云只覆盖「有有效深度的段」，SAM 掩膜覆盖 RGB
+    可见的整段（含深度空洞/被浅遮挡部分）。返回 (t_lo, t_hi)：t_hi 为
+    颈向展程、t_lo 为底向展程（负值），分别钳制两端延伸。
+
+    Args:
+        raw_mask: ROI 尺寸原始 SAM 掩膜（未经深度门控；None/空给 None）.
+        bottom_px: 袋底 3D 投影像素（全图坐标，向内取 ROI 局部）.
+        dir2d: 投影轴 2D 单位方向（底→颈）.
+        xoff: ROI 在全图的 x 偏移（像素）.
+        yoff: ROI 在全图的 y 偏移（像素）.
+
+    Returns
+    -------
+        (t_lo, t_hi) 像素展程；掩膜过小/展程退化给 None.
+
+    """
+    if raw_mask is None:
+        return None
+    m = np.asarray(raw_mask, dtype=bool)
+    ys, xs = np.nonzero(m)
+    if xs.size < 30:
+        return None
+    rel_x = xs - (float(bottom_px[0]) - float(xoff))
+    rel_y = ys - (float(bottom_px[1]) - float(yoff))
+    t = rel_x * dir2d[0] + rel_y * dir2d[1]
+    t_lo, t_hi = np.percentile(t, [1.0, 99.0])
+    if float(t_hi - t_lo) < 12.0:
+        return None
+    return float(t_lo), float(t_hi)
 
 
 @dataclass
@@ -221,8 +258,8 @@ class RobustBagPosePipeline:
                  mask: Optional[np.ndarray] = None,
                  mask_source: str = 'depth_fallback',
                  valid_roi: Optional[np.ndarray] = None,
-                 target_valid_ratio: Optional[float] = None
-                 ) -> TargetPoseResult:
+                 target_valid_ratio: Optional[float] = None,
+                 raw_mask: Optional[np.ndarray] = None) -> TargetPoseResult:
         """
         估计 bbox 内单个袋装目标，返回显式安全状态的结果.
 
@@ -237,6 +274,11 @@ class RobustBagPosePipeline:
                 （build_masks 的 sam_yield）；None 回退旧 ROI 均值口径
                 （外部直调/降级路径）。该值同时驱动 low_valid_depth 门、
                 confidence 与 σ 缩放、遮挡分类.
+            raw_mask: ROI 尺寸的原始 SAM 掩膜（未经深度门控）。给定时做
+                2D+3D 长度融合：几何点云只覆盖有有效深度的段，掩膜沿投
+                影轴的像素展程×中位深度/焦距可补全被深度空洞/浅遮挡截
+                断的部分（只延伸不回缩，打 length_extended_from_2d 信
+                息类 flag；投影退化/展程不足时跳过）.
 
         Returns
         -------
@@ -361,6 +403,45 @@ class RobustBagPosePipeline:
             if t_tip > 0.02:
                 neck = np.asarray(bottom, dtype=float) + t_tip * np.asarray(
                     axis, dtype=float)
+        # ── 2D+3D 融合补全（检测框限幅，09-21 用户定版）──
+        # 深度空洞/遮挡让点云只覆盖袋体可见段，分位带长度系统性偏短
+        # （活流对拍 len −29%）。2D 证据优先原始 SAM 掩膜剪影（
+        # mask_axial_length_px，P99 展程）；无掩膜时退检测框角点展程。
+        # 展程一律被检测框沿轴像素范围限幅（框是硬边界），另设绝对/
+        # 相对护栏防误检框带飞长度；两端只延不缩。直径不融合——径向
+        # P95 已稳健且直接进净空安全门，掺入框内叶片会假性收紧净空。
+        fuse_flags = []
+        _bpx = self._project(bottom, obs.camera_K)
+        _npx = self._project(neck, obs.camera_K)
+        if _bpx is not None and _npx is not None and length > 1e-4:
+            u2d = np.array([_npx[0] - _bpx[0], _npx[1] - _bpx[1]],
+                           dtype=float)
+            span_px = float(np.linalg.norm(u2d))
+            if span_px >= 5.0:
+                u2d /= span_px
+                px_per_m = span_px / length
+                corners = np.array([
+                    (x1, y1), (x2, y1), (x1, y2), (x2, y2)], dtype=float)
+                tc = (corners - np.array([_bpx[0], _bpx[1]])) @ u2d
+                hi_px = float(tc.max())
+                lo_px = float(tc.min())
+                mask_span = mask_axial_length_px(
+                    raw_mask, _bpx, u2d, x1, y1)
+                if mask_span is not None:
+                    # 掩膜剪影优先作两端证据，检测框保持硬限幅
+                    hi_px = min(hi_px, mask_span[1])
+                    lo_px = max(lo_px, mask_span[0])
+                cap = min(0.35, max(3.0 * length, length + 0.05))
+                s_hi = min(hi_px / px_per_m, cap)
+                s_lo = max(lo_px / px_per_m, -cap)
+                if s_hi > length + 0.005:
+                    neck = (np.asarray(bottom, dtype=float)
+                            + s_hi * np.asarray(axis, dtype=float))
+                    fuse_flags.append('length_extended_from_2d')
+                if s_lo < -0.005:
+                    bottom = (np.asarray(bottom, dtype=float)
+                              + s_lo * np.asarray(axis, dtype=float))
+                    fuse_flags.append('length_extended_from_2d')
         length = float(np.dot(neck - bottom, axis))
 
         # ── entry_start = P_bottom − (d_tool + d_s)·axis (Gürsoy 分解) ──
@@ -383,6 +464,7 @@ class RobustBagPosePipeline:
 
         flags = []
         flags.extend(landmark_flags)
+        flags.extend(fuse_flags)
         if valid_ratio < 0.40:
             flags.append('low_valid_depth')
         if coverage < 0.01:

@@ -699,3 +699,13 @@ SIGINT 旧栈后用 16:57 编的 `peach_manipulation` 重起；开批前在 `glo
 
 1. **RViz 调参配置**（/tmp/perception_tune.rviz + run_rviz_tune.sh，域 77、DISPLAY=:0、Fixed Frame=camera_color_optical_frame）：SceneCloud（/camera/depth_registered/points）+ TargetCloud（/peach/perception/single_cloud 方块）+ CylinderFitting（/peach/perception/markers：轴/入口/绿黄红三态）+ DebugImage + TF。已在用户屏幕拉起，调参栈留运行动态观看。
 2. **debug 掩膜改官方 ultralytics plot 风格**（debug_draw.py）：半透明逐实例色填充（alpha 0.40，字节数组和稳定取色）+ 同色轮廓，替代 09-01 起的纯描边（用户本轮明确改口；纹理可透见性保留）。r2 取证 runs/tune_20260921/r2/debug.png：填充/轮廓/箭头/剪切线正常，timing 无回归（total 159ms/7.0fps 同负载区间）。peach_harvester 201 测绿。
+
+### 09-21 袋长 2D+3D 融合（检测框限幅，用户定向）——尺寸对拍驱动
+
+**动机**：用户问「圆柱拟合的尺寸对吗」。活流对拍（/tmp/run_sizecheck.sh：拟合值 vs 掩膜像素×深度/焦距独立反推）：直径 6.7 vs ≥7.8cm（−14%，径向 P95 稳健可接受）；**长度 9.0 vs ≥12.6cm（−29%）系统性偏短**——点云只覆盖有有效深度的可见段，分位带（P10/P90/P98）再截一截。
+
+**实现**（pose_pipelines + inference，与暂停会话遗留的 raw_mask 半成品合并为一套）：`mask_axial_length_px` 取原始 SAM 剪影沿投影轴两端展程（1/99 分位）；build_masks 第 4 返回值透传 raw SAM ROI（未经深度门控）→ estimate_modes 袋线注入 `raw_mask`（果线签名不收，球拟合不受剪影影响）；estimate 内两端只延不缩：掩膜剪影优先、检测框角点沿轴像素范围硬限幅，另设 0.35m 绝对/3×相对护栏。flag=`length_extended_from_2d`（信息类，不压门）。
+
+**验证**：合成深度空洞测试（上半段深度置 0，剪影完整）锁融合恢复袋长；**peach_harvester 202 测 0 失败**；live 复测 target_0：fit_len 0.090→**0.110m**、len_err **−29%→−12%**（剩余=掩膜分位裁剪+投影近似，且掩膜反推本身是物理下界）、travel 0.075→0.095m；直径/耗时无回归（r3 total 102ms/9.9fps）。取证 runs/tune_20260921/r3/。io.md §3.1 同轮。
+
+**边界说明**：融合后 travel 变长会让「误差预算门」（(standoff+travel)·sinθ vs 径向净空）更易触发——这是诚实几何（杆臂长了指向误差放大），不是回归；ACCEPT 合成测试已改用短袋场景保持「信息 flag 不压门」命题独立。

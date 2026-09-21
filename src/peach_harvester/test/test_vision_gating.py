@@ -56,7 +56,7 @@ def test_build_masks_reports_sam_yield():
                                        min_points=100),
         min_mask_points=50)
     obs = _obs()
-    masks, valid, sam_yield = est.build_masks(
+    masks, valid, sam_yield, _raw = est.build_masks(
         obs, (16, 2, 48, 46), _target_mask())
     assert masks['hybrid_dilated'] is not None
     # ROI 均值口径会被 2200mm 背景压到 ~0.3；目标级应接近 1.0
@@ -94,18 +94,21 @@ def test_informational_flags_do_not_block_accept():
     K = dict(_K)
     depth = np.full((48, 64), 2200, dtype=np.uint16)
     rng = np.random.default_rng(3)
+    # 短袋（z 跨 0.09m）：融合补全后 travel~0.075m，20° 默认轴不确定度
+    # 预算 ~26mm < 30mm 径向余量——保证本测试只考「信息 flag 不压门」，
+    # 不被误差预算门反客为主
     for j in range(48):
-        t = (j - 6) / 34.0
+        t = (j - 6) / 28.0
         if not 0.0 <= t <= 1.0:
             continue
-        z = (0.62 + 0.11 * t) * 1000
+        z = (0.62 + 0.09 * t) * 1000
         r_px = 17 - 9 * t
         for i in range(64):
             if (i - 32) ** 2 <= r_px ** 2:
                 depth[j, i] = int(z + rng.normal(0, 1.5))
     mask = np.zeros((48, 64), dtype=bool)
-    mask[6:41, 13:51] = True
-    bbox = (13, 4, 51, 43)
+    mask[6:35, 13:51] = True
+    bbox = (13, 5, 51, 36)
     obs = BagObservation(
         rgb=None, depth=depth, camera_K=K, frame_id='cam',
         gravity_hint=np.array([0.0, 1.0, 0.0]),
@@ -163,3 +166,45 @@ def test_backproject_still_feeds_points_for_bench_target():
     pts, _ = backproject(depth, mask & valid, _K)
     assert len(pts) > 500
     assert 0.6 < float(np.median(pts[:, 2])) < 0.8
+
+
+def test_bbox_fusion_recovers_depth_holed_bag_length():
+    """
+    2D+3D 融合：上半段深度空洞时，袋长按掩膜剪影/检测框补全.
+
+    合成锥形袋（rows 6-40、z 0.62→0.73、物理轴长 ~0.11m）；上半段深度
+    置 0（空洞）。hybrid 点云只剩下半段（旧口径 fit_len ~0.06m 系统性
+    偏短），原始 SAM 剪影经检测框限幅补全后 fit_len 应恢复到接近全长。
+    """
+    K = dict(_K)
+    depth = np.full((48, 64), 2200, dtype=np.uint16)
+    rng = np.random.default_rng(3)
+    for j in range(48):
+        t = (j - 6) / 34.0
+        if not 0.0 <= t <= 1.0:
+            continue
+        z = (0.62 + 0.11 * t) * 1000
+        r_px = 17 - 9 * t
+        for i in range(64):
+            if (i - 32) ** 2 <= r_px ** 2:
+                depth[j, i] = int(z + rng.normal(0, 1.5))
+    depth[6:20, :] = 0  # 上半段深度空洞（RGB 可见、深度缺失）
+    sam_mask = np.zeros((48, 64), dtype=bool)
+    sam_mask[6:41, 13:51] = True  # 原始剪影：覆盖整段（含空洞区）
+    bbox = (13, 4, 51, 43)
+    obs = BagObservation(
+        rgb=None, depth=depth, camera_K=K, frame_id='cam',
+        gravity_hint=np.array([0.0, 1.0, 0.0]),
+        detections=[{'class_id': 0, 'conf': 0.9, 'bbox': bbox}], metadata={})
+    est = CandidateEstimator(
+        pipeline=RobustBagPosePipeline(tool=TOOL_GEOMETRY,
+                                       min_depth_m=0.3, max_depth_m=1.5,
+                                       min_points=100),
+        min_mask_points=50)
+    result = est.estimate_modes(obs, 't', bbox, sam_mask)['hybrid_dilated']
+    length = float(np.linalg.norm(
+        np.asarray(result.grasp_3d.bag_neck)
+        - np.asarray(result.grasp_3d.bag_bottom)))
+    # 旧口径（点云可见段）≈ 0.06m；融合后应接近物理全长 0.11m
+    assert length >= 0.085, length
+    assert 'length_extended_from_2d' in result.grasp_3d.diagnostic_flags

@@ -50,16 +50,26 @@ def _draw_label(img, text, x, y, color):
         font, scale, color, thickness)
 
 
+# 官方 plot 风格逐实例调色板（BGR；按 target_id 稳定取色，多目标可区分）
+_PALETTE = (
+    (80, 220, 80), (235, 140, 60), (60, 60, 235), (200, 60, 220),
+    (50, 200, 220), (40, 120, 240), (180, 200, 60), (120, 160, 255),
+)
+_MASK_ALPHA = 0.40
+"""官方 plot 同量级的半透明掩膜填充强度（0-1；纹理仍可透见）."""
+
+
 def draw_debug(img, det, grasp_2d, sam_mask, tid='', confirmed: bool = True):
     """
-    叠检测框/掩膜轮廓/底→颈箭头/剪切线/ID 置信度文字（原地改 img，三态用颜色表达）.
+    叠检测框/掩膜填充+轮廓/底→颈箭头/剪切线/ID 置信度文字（原地改写 img，三态用颜色表达）.
 
     Args:
         img: (H, W, 3) uint8 BGR，被原地改写.
         det: 检测 dict（bbox、class_id、conf；class 0 绿框，其他橙框）.
         grasp_2d: BagGrasp2D（提供关键点像素与状态）.
-        sam_mask: (H, W) 掩膜或 None（None 时不画轮廓）.
-        tid: 目标稳定 ID（target_registry 匹配结果；空串则不显示）.
+        sam_mask: (H, W) 掩膜或 None（None 时不画掩膜）.
+        tid: 目标稳定 ID（target_registry 匹配结果；空串则不显示，
+            掩膜取色回退类别色）.
         confirmed: False 时只画灰框+文字，不把突现误检画成正式目标.
 
     Returns
@@ -84,12 +94,21 @@ def draw_debug(img, det, grasp_2d, sam_mask, tid='', confirmed: bool = True):
             sam_mask = cv2.resize(
                 (sam_mask > 0).astype(np.uint8), (w, h),
                 interpolation=cv2.INTER_NEAREST)
-        # 只画分割轮廓线，不做半透明颜色填充——掩膜上色会盖住果实纹理，
-        # 轮廓更便于观察分割边界是否贴边
+        # 官方 ultralytics plot 同风格：半透明逐实例色填充 + 轮廓描边
+        # （09-21 用户定版；填充强度 0.40 保纹理可透见，逐实例色可分辨
+        # 相邻目标；空 tid 回退类别色）
+        mask_bool = sam_mask > 0
+        if tid:
+            idx = sum(tid.encode('utf-8')) % len(_PALETTE)
+        else:
+            idx = int(det.get('class_id', 0)) % len(_PALETTE)
+        fill = np.zeros_like(img)
+        fill[mask_bool] = _PALETTE[idx]
+        cv2.addWeighted(fill, _MASK_ALPHA, img, 1.0, 0, dst=img)
         contours, _ = cv2.findContours(
-            (sam_mask > 0).astype(np.uint8),
+            mask_bool.astype(np.uint8),
             cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-        cv2.drawContours(img, contours, -1, (80, 80, 230), 2)
+        cv2.drawContours(img, contours, -1, _PALETTE[idx], 2)
     status = grasp_2d.status
     st_color = {
         'ACCEPT': (0, 220, 0), 'REOBSERVE': (0, 200, 255), 'REJECT': (0, 0, 220)

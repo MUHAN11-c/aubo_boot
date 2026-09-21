@@ -692,3 +692,10 @@ SIGINT 旧栈后用 16:57 编的 `peach_manipulation` 重起；开批前在 `glo
 3. **门控/信息分离→ACCEPT 可达**：`_INFORMATIONAL_FLAGS`（taper_*/polarity_*/axis_from_pca/fruit_prior_auxiliary/*_from_band/gravity_defaulted/axis_from_profile_sign）不再压状态；`unbagged_display_only` 留门控（果线仅显示语义不变）。合成良态锥形袋走完整链 **status=ACCEPT、gating=[]、信息 flag 在列**（test 锁定）；refine ACCEPT 偏好分支复活。live 场景两目标仍 REOBSERVE=**error_budget_exceeded**（6.6cm 袋/14mm 径向余量 vs 20° 轴不确定度预算 24mm——真实几何警示，应当门控；圆柱 RANSAC 赢下时 θ→2-5° 即放行）。
 
 **live 重取证（stereo 活流，调参模式）**：60s/462 帧 `idset_changes=0`（身份零抖动保持）；r1 debug 图视觉复核无退化（runs/tune_20260921/r1/）；timing total 166ms/6.6fps（同机负载波动区间，geometry 111ms 为 EMA 未稳+场景方差，无系统性回归）。清理照旧：本轮结束留调参栈运行待用户 RViz 确认后停。
+
+### 09-21 过程可视化 + 分割显示官方风格定版（用户验收轮）
+
+**用户要求**：过程图像可视化（点云+圆柱拟合）+ 分割按官方可视化显示。
+
+1. **RViz 调参配置**（/tmp/perception_tune.rviz + run_rviz_tune.sh，域 77、DISPLAY=:0、Fixed Frame=camera_color_optical_frame）：SceneCloud（/camera/depth_registered/points）+ TargetCloud（/peach/perception/single_cloud 方块）+ CylinderFitting（/peach/perception/markers：轴/入口/绿黄红三态）+ DebugImage + TF。已在用户屏幕拉起，调参栈留运行动态观看。
+2. **debug 掩膜改官方 ultralytics plot 风格**（debug_draw.py）：半透明逐实例色填充（alpha 0.40，字节数组和稳定取色）+ 同色轮廓，替代 09-01 起的纯描边（用户本轮明确改口；纹理可透见性保留）。r2 取证 runs/tune_20260921/r2/debug.png：填充/轮廓/箭头/剪切线正常，timing 无回归（total 159ms/7.0fps 同负载区间）。peach_harvester 201 测绿。

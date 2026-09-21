@@ -22,6 +22,21 @@ def test_preflight_patterns_include_executor():
     assert 'extrinsics_publisher' in PREFLIGHT_PATTERNS
 
 
+def test_preflight_patterns_cover_current_topology():
+    """G5：brain 进程（exec=peach_harvester）与 bringup 两小组件、相机前端必须入名单."""
+    for pattern in (
+            'peach_harvester', 'peach_lifecycle_flag_bridge',
+            'peach_autostart_client', 'stereo_camera_node'):
+        assert pattern in PREFLIGHT_PATTERNS, pattern
+
+
+def test_preflight_matches_brain_process_exec():
+    """brain 三节点合进程只暴露 exec 名，节点名不在 argv."""
+    cmdline = (
+        '/home/ws/install/peach_harvester/lib/peach_harvester/peach_harvester')
+    assert cmdline_looks_like_stack(cmdline)
+
+
 def test_running_stack_pids_skips_missing_proc(tmp_path):
     assert running_stack_pids(str(tmp_path)) == []
 

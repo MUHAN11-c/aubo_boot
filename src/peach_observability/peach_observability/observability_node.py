@@ -185,7 +185,9 @@ _RAW_SUBSCRIPTIONS = (
     # 真相流画布（raw 前缀）：与稳定流成对进 bag，筛选前后对比不依赖 RViz
     (Image, 'debug_image_raw_topic', 'reliable', 'record_save_images'),
     (PointCloud2, 'tsdf_cloud_topic', 'latched', 'record_save_clouds'),
-    (SceneSnapshot, 'scene_snapshot_topic', 'reliable', None),
+    # SceneSnapshot 单发闩锁（M13）：落盘订阅须 transient_local，VOLATILE
+    # 会在记录节点晚于发布启动时永久丢单发快照
+    (SceneSnapshot, 'scene_snapshot_topic', 'latched', None),
     (TFMessage, 'tf_topic', 'tf', None),
     (TFMessage, 'tf_static_topic', 'tf_static', None),
 )
@@ -1129,8 +1131,8 @@ class ObservabilityNode(LifecycleNode):
             target=finalize, name='peach-bag-report', daemon=False)
         self._report_thread.start()
 
-    def join_report(self, timeout: float = 300.0) -> None:
-        """进程退出前等报告线程收尾（防悬挂）."""
+    def join_report(self, timeout: float = 55.0) -> None:
+        """进程退出前等报告线程收尾（防悬挂；上限对齐 launch 停栈窗 60s）."""
         if self._report_thread is not None:
             self._report_thread.join(timeout=timeout)
 

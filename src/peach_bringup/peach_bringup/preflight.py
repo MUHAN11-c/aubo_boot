@@ -4,13 +4,28 @@ from __future__ import annotations
 import os
 
 PREFLIGHT_PATTERNS = (
-    'peach_scene_perception_node', 'peach_target_reconstruction_node',
-    'peach_arm', 'peach_supervisor', 'peach_observability',
-    'peach_lifecycle_manager', 'component_container', 'move_group',
-    'robot_state_publisher', 'ros2_control_node', 'controller_manager',
-    'joint_state_publisher', 'joint_state_publisher_gui',
+    # brain 进程 exec=peach_harvester 承载场景/重建/调度三托管节点（launch
+    # 不传 name= 重映射，节点名不进 argv），必须按 exec 名匹配——否则残留
+    # 旧脑时双 supervisor 静默共存（G5，2026-09-20 端到端审查）。
+    'peach_harvester',
+    'peach_scene_perception_node',
+    'peach_target_reconstruction_node',
+    'peach_arm',
+    'peach_supervisor',
+    'peach_observability',
+    'peach_lifecycle_flag_bridge',
+    'peach_autostart_client',
+    'peach_lifecycle_manager',
+    'component_container',
+    'move_group',
+    'robot_state_publisher',
+    'ros2_control_node',
+    'controller_manager',
+    'joint_state_publisher',
+    'joint_state_publisher_gui',
     'extrinsics_publisher',
     'serial_imu_node',
+    'stereo_camera_node',
 )
 
 

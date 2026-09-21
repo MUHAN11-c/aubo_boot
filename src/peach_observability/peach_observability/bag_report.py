@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 from pathlib import Path
 import time
 
@@ -824,14 +825,24 @@ def render_markdown(report: dict) -> str:
 
 
 def write_report(report: dict, markdown: str, out_dir) -> tuple[Path, Path]:
-    """写 bag_report.md 与 bag_report.json，返回两文件路径."""
+    """
+    写 bag_report.md 与 bag_report.json，返回两文件路径.
+
+    原子写（G4）：报告线程可能被 launch 停栈窗口 SIGKILL（默认 5+5s，
+    大 bag 报告生成可超）——tmp 写完再 os.replace，最坏留「无新报告」而
+    非「半份报告」（CLI 可复跑补出）。
+    """
     out = Path(out_dir)
     out.mkdir(parents=True, exist_ok=True)
     md_path = out / 'bag_report.md'
     json_path = out / 'bag_report.json'
-    md_path.write_text(markdown, encoding='utf-8')
-    json_path.write_text(
+    md_tmp = out / 'bag_report.md.partial'
+    json_tmp = out / 'bag_report.json.partial'
+    md_tmp.write_text(markdown, encoding='utf-8')
+    json_tmp.write_text(
         json.dumps(report, ensure_ascii=False, indent=2), encoding='utf-8')
+    os.replace(md_tmp, md_path)
+    os.replace(json_tmp, json_path)
     return md_path, json_path
 
 

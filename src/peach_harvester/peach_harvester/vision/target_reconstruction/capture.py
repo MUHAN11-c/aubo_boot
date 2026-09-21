@@ -721,6 +721,11 @@ class StrictMaskGate:
         """
         if not self.require_target_mask:
             return GateResult(None, '')
+        # 已知缺陷（09-17 E2E 遗留，stereo 前端阻断项）：按纳秒精确 stamp 查表——
+        # 高帧源（peach_stereo 13.6gps 深度 ≫ 感知 ~7.5fps 掩膜）下缓存帧与掩膜
+        # stamp 近乎必失配，observe→build 链 missing_mask 主因（percipio 2.4fps
+        # 下两流节奏接近故真机可用）。修法=最近邻 stamp 容差配对或感知掩膜流
+        # 提频；修前 stereo 前端未真机闭环（见 test/analysis/peach_project_impact.md §3）
         entry = mask_ctx.masks.get(mask_ctx.stamp_ns)
         if entry is None:
             return GateResult(None, '缺少所选 target_id 的同时间戳掩膜')

@@ -262,7 +262,7 @@ class RefitResult:
     fruit_prior_radius_m: float = 0.0
     """果先验半径 [m]（仅 merge 写入）."""
     model_revision: str = ''
-    """模型版本号 '<target_id>:<视图数>'（仅 merge 写入）."""
+    """模型版本号 '<target_id>:<views>:<finalize_counter>'（仅 merge 写入，G3）."""
     flags: List[str] = field(default_factory=list)
     """诊断标记（refit 线先写，merge 追加融合标记）."""
     final: bool = False
@@ -1253,7 +1253,8 @@ def collect_bag_views(frames, target_center,
 
 def merge_fused_bag_model(result: RefitResult, fused: BagModel,
                           views_count: int, bound_axis_hint,
-                          target_id: str = '') -> RefitResult:
+                          target_id: str = '',
+                          finalize_counter: int = 0) -> RefitResult:
     """
     Merge fused geometry into refit result; drop budget on fusion fail.
 
@@ -1266,6 +1267,12 @@ def merge_fused_bag_model(result: RefitResult, fused: BagModel,
     'fruit'，果目标不再误报袋。旧 merge 写的 diagnostic_axis_mismatch
     为死键（无消费），随裁剪删除——诊断 mismatch 由 _grasp_decision
     现场计算。
+
+    G3（2026-09-20）：``model_revision`` 尾段并入单调 ``finalize_counter``
+    ——同目标重 Build 且聚类机位数相同时字符串仍变化（臂侧 ModelSnapshot
+    只按 (revision,target_id) 变化刷新，格式对 arm/observability/
+    bag_report 均为不透明字符串）。计数由 RefitOrchestrator 进程级维护，
+    reset_reconstruction 不清零；融合失败早退不写 revision（保持归空）。
     """
     if not fused.ok:
         result.flags.append('bag_fusion_required')
@@ -1293,7 +1300,10 @@ def merge_fused_bag_model(result: RefitResult, fused: BagModel,
     result.budget = fused.budget or {}
     result.occlusion_class = fused.occlusion_class
     result.fruit_prior_radius_m = fused.fruit_prior_radius_m
-    result.model_revision = f'{target_id}:{views_count}'
+    # G3：非空 revision 必含单调计数段（tid:views:counter），保证同目标
+    # 同机位数的两次 finalize 产出不同字符串。
+    result.model_revision = (
+        f'{target_id}:{views_count}:{finalize_counter}')
     result.span_m = float(fused.length_m or 0.0)
     result.fused_axis_angle_deg = axis_angle_deg(
         fused.axis, bound_axis_hint)

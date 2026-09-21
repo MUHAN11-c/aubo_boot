@@ -11,9 +11,14 @@ _SCENE_DIR = (Path(__file__).resolve().parents[1] / 'peach_harvester'
 
 def test_identity_imports_without_rclpy():
     identity_mod = 'peach_harvester.vision.scene_perception.identity'
-    assert 'rclpy' not in sys.modules or identity_mod not in sys.modules
+    # 顺序鲁棒（2026-09-21）：只断言「导入 identity 不引入 rclpy」本身。
+    # 同进程已有其他测试组（重建 decision_validity）合法 import rclpy 时，
+    # 进程级 'rclpy not in sys.modules' 前置断言与测试顺序耦合假红；
+    # 零 ROS 环境（r0_gate）下 had_rclpy=False，强断言原样生效。
+    had_rclpy = 'rclpy' in sys.modules
     module = importlib.import_module(identity_mod)
     assert hasattr(module, 'TargetRegistry')
+    assert had_rclpy or 'rclpy' not in sys.modules
     assert 'rclpy' not in sys.modules or not hasattr(module, 'Node')
 
 

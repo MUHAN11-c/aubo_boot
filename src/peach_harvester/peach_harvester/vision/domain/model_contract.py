@@ -54,6 +54,34 @@ def allowed_from_capabilities(
         and cut == CAPABILITY_VALID)
 
 
+def capabilities_from_decision(decision: dict) -> tuple:
+    """
+    Extract the four capabilities from the GraspDecision precursor dict.
+
+    M11（2026-09-20）：``_grasp_decision()`` 的 dict 侧与
+    ``publish.grasp_decision_to_msg`` 的消息侧共用本提取与
+    :func:`allowed_from_capabilities`，events.jsonl / diagnostics_debug
+    的 ``allowed`` 不再与类型化消息各执一词。缺能力键按 UNKNOWN；
+    pregrasp 缺省回落 geometry（与 publish 旧缺省一致）。
+    """
+    geometry = int(decision.get('geometry_capability', CAPABILITY_UNKNOWN))
+    pregrasp = int(decision.get('pregrasp_capability', geometry))
+    sleeve = int(decision.get('sleeve_capability', CAPABILITY_UNKNOWN))
+    cut = int(decision.get('cut_capability', CAPABILITY_UNKNOWN))
+    return geometry, pregrasp, sleeve, cut
+
+
+def allowed_from_decision(decision: dict) -> bool:
+    """
+    Derive allowed from the decision dict（dict 侧单源，M11）.
+
+    与 ``publish.grasp_decision_to_msg`` 的消息侧共用同一提取与判定；
+    见 :func:`capabilities_from_decision`。
+    """
+    geometry, pregrasp, sleeve, cut = capabilities_from_decision(decision)
+    return allowed_from_capabilities(geometry, pregrasp, sleeve, cut)
+
+
 def model_executable(
         identity: ModelIdentity, generated_s: float, valid_until_s: float,
         now_s: float, preview: bool = False) -> tuple[bool, str]:

@@ -52,6 +52,7 @@ _RULES = {  # 键 -> 校验规则表（启动期非法即拒启；运行期非�
     'tsdf.sdf_trunc': (('gt', 0.0),),
     'tsdf.depth_trunc': (('gt', 0.0),),
     'cloud_filter.voxel_size': (('gt_eq', 0.0),),
+    'decision.validity_s': (('gt', 0.0),),
     'refit.cylinder_inlier_min': (('bounds', 0.0, 1.0),),
     'refit.rmse_max_m': (('gt', 0.0),),
     'refit.entry_standoff_m': (('gt_eq', 0.0),),

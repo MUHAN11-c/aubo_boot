@@ -28,7 +28,7 @@ from peach_harvester.vision.common.geometry import (
 )
 from peach_harvester.vision.domain.model_contract import (
     allowed_from_capabilities,
-    CAPABILITY_UNKNOWN,
+    capabilities_from_decision,
 )
 from peach_harvester.vision.target_reconstruction.refine import (
     BagModel,
@@ -108,7 +108,26 @@ class PublishThrottle:
 INVALID_SCALAR = -1.0
 # 未绑定目标的 target_center_base 占位
 INVALID_CENTER = (-1.0, -1.0, -1.0)
-MODEL_VALIDITY_S = 5.0
+# G1（2026-09-20）：接触许可有效窗 fallback 默认——真实窗口走参数
+# decision.validity_s（config/target_reconstruction.yaml，部署默认 120.0），
+# 仅当快照缺该键（旧参数对象/直接调用的测试）时兜底。依据：须覆盖
+# finalize→套入全链（真机单 LIN 7.5s、FULL 链 30-60s），模型陈旧性主要
+# 由 revision 单调性把关，窗口是第二道界。
+MODEL_VALIDITY_S = 120.0
+
+
+def decision_validity_s(params) -> float:
+    """
+    读 ``decision.validity_s``；缺键（旧快照）回退 ``MODEL_VALIDITY_S``.
+
+    G1：唯一取窗入口——``_lock_decision_validity`` 冻结处、
+    ``fill_target_model`` 与 ``grasp_decision_to_msg`` 兜底共用，不另开
+    第二套传参。
+    """
+    try:
+        return float(params.decision.validity_s)
+    except AttributeError:
+        return MODEL_VALIDITY_S
 
 
 def _time_plus(stamp, extra_s: float) -> Time:
@@ -216,17 +235,21 @@ def _fill_decision_geometry(msg, decision: dict) -> None:
     msg.inlier_ratio = _scalar_or_invalid(decision.get('inlier_ratio'))
 
 
-def grasp_decision_to_msg(decision: dict, header) -> GraspDecision:
+def grasp_decision_to_msg(decision: dict, header,
+                          validity_s: float = MODEL_VALIDITY_S) -> GraspDecision:
     """
     _grasp_decision() 的 dict → GraspDecision（闩锁覆盖语义）.
 
     融合成功时写入入口/轴/剪切参考，供预抓取与目视。allowed 只表示
     套入/剪切接触许可；false 时几何仍有效，禁止据此降级接触。
     无几何时入口/轴保持零、标量填 0/-1.
+    validity_s：dict 未携带冻结 valid_until 时的兜底窗（G1 参数化，
+    调用方传 decision_validity_s(params)；常量为旧快照 fallback）.
 
     Args:
         decision: _grasp_decision() 返回的许可 dict.
         header: std_msgs/Header（stamp=发布时刻，frame_id=base_frame）.
+        validity_s: 兜底有效窗 [s]（G1；默认 MODEL_VALIDITY_S=120.0）.
 
     Returns
     -------
@@ -242,10 +265,7 @@ def grasp_decision_to_msg(decision: dict, header) -> GraspDecision:
     msg.scene_epoch = int(decision.get('scene_epoch') or 0)
     msg.calibration_revision = str(decision.get('calibration_revision') or '')
     msg.config_revision = str(decision.get('config_revision') or '')
-    geometry = int(decision.get('geometry_capability', CAPABILITY_UNKNOWN))
-    pregrasp = int(decision.get('pregrasp_capability', geometry))
-    sleeve = int(decision.get('sleeve_capability', CAPABILITY_UNKNOWN))
-    cut = int(decision.get('cut_capability', CAPABILITY_UNKNOWN))
+    geometry, pregrasp, sleeve, cut = capabilities_from_decision(decision)
     msg.geometry_capability = geometry
     msg.pregrasp_capability = pregrasp
     msg.sleeve_capability = sleeve
@@ -254,7 +274,9 @@ def grasp_decision_to_msg(decision: dict, header) -> GraspDecision:
     if valid_until is not None:
         msg.valid_until = valid_until
     else:
-        msg.valid_until = _time_plus(header.stamp, MODEL_VALIDITY_S)
+        msg.valid_until = _time_plus(header.stamp, float(validity_s))
+    # M11：allowed 与重建诊断 dict 侧（reconstruction_core._grasp_decision）
+    # 同源——能力提取/许可判定单源在 model_contract，两边互指本行。
     msg.allowed = allowed_from_capabilities(geometry, pregrasp, sleeve, cut)
     msg.reason = str(decision.get('reason') or '')
     msg.failure_code = int(decision.get('failure_code') or 0)
@@ -743,7 +765,10 @@ def fill_target_model(model, fused: Optional[BagModel],
         getattr(params.tool, 'version', '') or params.tool.profile_id)
     model.generated_at = now.to_msg()
     model.header.stamp = model.generated_at
-    model.valid_until = (now + Duration(seconds=5.0)).to_msg()
+    # G1：TargetModel 有效窗与 GraspDecision 同参数同源（原各自硬编码 5s，
+    # 与接近链时长错配；见 decision_validity_s 注释）。
+    model.valid_until = (
+        now + Duration(seconds=decision_validity_s(params))).to_msg()
     model.capture_start = model.generated_at
     model.capture_end = model.generated_at
     fused_ok = fused is not None

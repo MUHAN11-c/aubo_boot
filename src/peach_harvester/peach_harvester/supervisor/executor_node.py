@@ -142,6 +142,8 @@ class TaskExecutorNode(LifecycleNode):
     """最近一帧感知观测（选果数据源）."""
     _decision_cache: Optional[GraspDecision]
     """接触许可令牌缓存（装配 goal.clearance）."""
+    _decision_expiry_warned: set
+    """已打过过期预警的 (target_id, model_revision)；防 1Hz 心跳刷屏."""
     _stack_ready: bool
     """managed_nodes_activated."""
     _harvest_busy: bool
@@ -209,6 +211,8 @@ class TaskExecutorNode(LifecycleNode):
         self._state_last_publish_s = 0.0
         self._observations: Optional[PeachTargetObservationArray] = None
         self._decision_cache: Optional[GraspDecision] = None
+        # G1：令牌过期预警去重键（见 _warn_decision_expiry）
+        self._decision_expiry_warned: set = set()
         # 批次策略（3c-2a：RunHarvest goal 初值；0=不限；fast 默认）
         self._batch_policy = BatchPolicy()
         self._rework: Optional[ReworkList] = None
@@ -401,6 +405,37 @@ class TaskExecutorNode(LifecycleNode):
     def _on_decision(self, msg: GraspDecision) -> None:
         """接触许可令牌缓存（goal.clearance 装配源；心跳不续签语义不变）."""
         self._decision_cache = msg
+
+    def _warn_decision_expiry(self, decision, target_id: str) -> None:
+        """
+        G1 预警：装配的许可令牌已过 ``valid_until`` 时 WARN 一次.
+
+        只补现场可见性（超龄秒数 + target_id + revision），不改 FSM
+        流程——不拒发、不重排；过期最终仍由臂侧套入授权点的
+        valid_until 门拒绝（审查 2026-09-20 已确认靠臂拒可归因）。
+        每令牌（target_id+model_revision）只警一次，防 1Hz 心跳重发
+        刷屏；新 revision 到来自动重获报警资格。零值 valid_until
+        （生产端未给窗）与 arm 侧同语义：不算过期、不警。用节点时钟比。
+        """
+        valid_until = getattr(decision, 'valid_until', None)
+        if valid_until is None:
+            return
+        valid_s = float(valid_until.sec) + 1e-9 * float(valid_until.nanosec)
+        if valid_s <= 0.0:
+            return
+        now_s = self.get_clock().now().nanoseconds * 1e-9
+        overdue_s = now_s - valid_s
+        if overdue_s <= 0.0:
+            return
+        revision = str(getattr(decision, 'model_revision', '') or '')
+        key = (str(target_id), revision)
+        if key in self._decision_expiry_warned:
+            return
+        self._decision_expiry_warned.add(key)
+        self.get_logger().warning(
+            f'接触许可令牌已过期 {overdue_s:.1f}s（target={target_id} '
+            f'revision={revision or "-"}）：仍按缓存装配，臂侧套入前将按 '
+            'valid_until 拒绝（G1 预警，不拒发不重排）')
 
     # ---- 操作台服务面（阶段 4）----
 
@@ -1317,6 +1352,8 @@ class TaskExecutorNode(LifecycleNode):
         # 复检路径），旧目标的许可不得授权新目标（Clearance.target_id 契约）。
         if decision is not None and str(
                 getattr(decision, 'target_id', '') or '') == target_id:
+            # G1：已过期的令牌仍照装（臂侧拒），但打一次预警供现场归因
+            self._warn_decision_expiry(decision, target_id)
             full.clearance.target_id = target_id
             full.clearance.valid_until = decision.valid_until
             full.clearance.model_stamp = decision.header.stamp

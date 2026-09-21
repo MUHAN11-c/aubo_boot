@@ -20,6 +20,7 @@ from geometry_msgs.msg import Point, Pose, Quaternion, Vector3, Vector3Stamped
 import numpy as np
 from peach_harvester.vision.common.runtime import HarvestDataStore
 from peach_harvester.vision.domain.model_contract import (
+    allowed_from_decision,
     CAPABILITY_INVALID,
     CAPABILITY_UNKNOWN,
     CAPABILITY_VALID,
@@ -42,9 +43,9 @@ from peach_harvester.vision.target_reconstruction.publish import (
     build_camera_markers,
     build_mesh_marker,
     build_refined_grasp_markers,
+    decision_validity_s,
     diagnostics_to_status_msg,
     grasp_decision_to_msg,
-    MODEL_VALIDITY_S,
     xyzrgb_to_cloud_msg,
 )
 from peach_harvester.vision.target_reconstruction.refine import (
@@ -654,19 +655,28 @@ class ReconstructionCore:
             String(data=json.dumps(diag, ensure_ascii=False)))
         self.pub_grasp_decision.publish(
             grasp_decision_to_msg(
-                self._lock_decision_validity(self._grasp_decision()), header))
+                self._lock_decision_validity(self._grasp_decision()), header,
+                validity_s=decision_validity_s(self.params)))
         if getattr(self, 'pub_pregrasp', None) is not None:
             self.pub_pregrasp.publish(self._pregrasp_verification_msg(header))
 
     def _lock_decision_validity(self, decision: dict) -> dict:
-        """心跳不得续签 valid_until：同一 model_revision 沿用首次冻结时刻."""
+        """
+        心跳不得续签 valid_until：同一 model_revision 沿用首次冻结时刻.
+
+        G1（2026-09-20）：窗口长度走 ``decision.validity_s`` 参数（部署
+        默认 120s，原 5s 与接近链时长错配——真机单 LIN 7.5s、FULL 链
+        30-60s）；冻结语义（0022）不变：同 revision 不续签，新 revision
+        按当时钟重新冻结。
+        """
         revision = str(decision.get('model_revision') or '')
         locked = self._locked_model_revision
         if locked != revision or self._locked_valid_until is None:
             now = self.get_clock().now().to_msg()
             self._locked_model_revision = revision
             self._locked_generated_at = now
-            self._locked_valid_until = _time_plus(now, MODEL_VALIDITY_S)
+            self._locked_valid_until = _time_plus(
+                now, decision_validity_s(self.params))
         decision['generated_at'] = self._locked_generated_at
         decision['valid_until'] = self._locked_valid_until
         return decision
@@ -949,6 +959,8 @@ class ReconstructionCore:
             decision['cut_capability'] = CAPABILITY_UNKNOWN
             decision['reason'] = 'bag_model_unavailable'
             decision['failure_code'] = 3
+            # M11：dict 侧 allowed 与消息侧同源派生（见下）
+            decision['allowed'] = allowed_from_decision(decision)
             return decision
         decision['sleeve_capability'] = int(
             budget.get('sleeve_capability',
@@ -961,6 +973,12 @@ class ReconstructionCore:
         decision['reason'] = str(
             budget.get('reason') or 'refined_geometry_accept')
         decision['failure_code'] = int(budget.get('failure_code') or 0)
+        # M11（2026-09-20）：dict 侧 allowed 用与 publish.grasp_decision_to_msg
+        # 完全相同的能力派生（model_contract.allowed_from_decision 单源；
+        # 提取/判定与消息侧互指），events.jsonl 与 diagnostics_debug 不再
+        # 恒 False。早期返回路径（非 READY/无几何）保持初始 False——与
+        # 缺能力键按 UNKNOWN 派生的结果一致。
+        decision['allowed'] = allowed_from_decision(decision)
         return decision
 
     def _diagnostics(self) -> dict:

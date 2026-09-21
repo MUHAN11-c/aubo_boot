@@ -29,7 +29,14 @@ class RefitOrchestrator:
     """
     refit 管线编排器（refitters/refit_config/timing 注入；零 ROS）.
 
-    ctor 另注入单调时钟 now（协议 I3）与宿主 logger。
+    ctor 另注入单调时钟 now（协议 I3）和宿主 logger。
+
+    G3（2026-09-20）：本对象是 revision 单调计数的宿主——进程级
+    ``_finalize_counter`` 每次 ``run``（每轮 refit/融合，含 finalize 与
+    COLLECTING 期 live refit）递增，节点 reset_reconstruction 不清零
+    （本类无 reset 口，节点也不重建实例），保证同目标重 Build 且机位
+    数相同时 ``model_revision`` 仍变化。``run`` 按模块契约在调用方
+    ``_state_lock`` 内执行，计数读写随之线程安全（现有锁纪律）。
     """
 
     def __init__(self, refitters: dict, refit_config: RefitConfig,
@@ -57,6 +64,8 @@ class RefitOrchestrator:
         self._timing = timing
         self._logger = logger
         self._now = now
+        # G3：进程级单调 finalize/refit 轮次计数（见类 docstring）
+        self._finalize_counter = 0
 
     def run(
             self, *,
@@ -145,8 +154,11 @@ class RefitOrchestrator:
             pregrasp_standoff_m=float(pregrasp_standoff_m),
             # 许可数学内径随当前工具档案（tool_profile launch 注入）
             params=budget_params)
+        # G3：先取号再 merge——本轮 revision 尾段即该单调计数
+        self._finalize_counter += 1
         result = merge_fused_bag_model(
-            result, fused, len(views), bound_axis_hint, target_id)
+            result, fused, len(views), bound_axis_hint, target_id,
+            finalize_counter=self._finalize_counter)
         # 分支日志（缓存写入分支由节点 _run_refit 按同一判据执行）
         if result.ok and result.budget:
             status_text = (

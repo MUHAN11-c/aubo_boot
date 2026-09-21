@@ -442,3 +442,14 @@ SIGINT 旧栈后用 16:57 编的 `peach_manipulation` 重起；开批前在 `glo
 **W15 diagnostics+composition 落档**（UNWIND 收敛-2）：observability /diagnostics 双轨（session_recorder 队列/丢帧 + ingest_liveness 摄入活度，对齐 arm W5 做法）；composition 核实为**平台阻断**——Python 无组件容器、ComponentManager 零生命周期处理（源码 grep 证实）、臂侧非高带宽无零拷贝收益——architecture 偏离表记证据，进程隔离+bond 为当前可达上限。
 
 **终验门**（见 W16 提交）：colcon test 全绿（数量以提交记录为准）、r0_gate 绿、manifest ok（54+4）、mock launch 含 bond 用例绿。
+## 2026-09-21 E2E 审查修复轮（G1-G5+M1/M2/M3+M11/M13/M15）
+
+按 2026-09-20 端到端审查优先序修复（审查报告 `reports/2026-09-20-e2e-code-review/`）：
+
+- **G1+G3（令牌生命周期同域）**：`decision.validity_s` 参数化默认 120s（原硬编码 5s 与接近链时长错配——真机单 LIN 7.5s、全链 30-60s；0022「冻结不续签」语义原样，窗口=第二道界）；model_revision 增进程级单调 finalize 计数（`tid:views:N`，reset 不清零），同目标同机位数重 Build 不再让臂持过期快照。supervisor 装配处补过期 WARN（按 target+revision 去重，不改 FSM）。TargetModel.valid_until 第二处硬编码 5s 同参数收口。
+- **G2（preview 绑定语义）**：只 PREVIEW 档 goal 记 preview 绑定（observe 是采数据且模型建好前带不了三修订——旧实现把 OBSERVE 记成 preview 是 conservative 档 FULL 必拒根因）；FULL/PREGRASP_ONLY 终局清绑定；受理即拒带 `failure_code=PLAN_MISMATCH(20)`（static_assert 与 IDL 钉死）。新增 3 例 gtest：observe→FULL 不拒 / PREVIEW 改身份仍拒 / 过期分级。
+- **M1**：`cancel_requested_` 各动作终局 `!running_` 守卫自动清——单果取消不再拖死后续 MoveTo/补视（已录「批次取消后 PHOTO 亦失败」的机理修复）。**M2**：Survey/MoveTo/预览 worker 三处无限 join 统一 2s 有界（packaged_task 模式）。**M3**：失败码断链修复（plan mismatch→20、recovery 拒→9、锚点缺→1）；授权拒绝分级纯核 `stage_denial`——许可过期→SKIPPED_QUALITY（可重派）、明确不允许→FAILED。
+- **G4**：bag_report 原子写（tmp+rename）+ observability SIGTERM 窗 60s + join_report 55s 对齐——停栈报告不再出半份，超窗留「无新报告」可 CLI 复跑。**G5**：preflight 名单补 brain 进程（exec=peach_harvester，三节点合进程不进 argv——残留旧脑双 supervisor 共存的缺口）+ flag_bridge/autostart_client/stereo_camera_node。
+- **速赢**：M11 诊断 JSON allowed 与类型化消息同源派生（model_contract 单源）；M13 SceneSnapshot 落盘订阅改 transient_local（晚启动不再丢单发快照）；M15 DepositResult.msg 保留（0012 卸果站预留）但头注释改口为预留现状。
+
+**验证**：colcon test 七包 0 失败（interfaces 9/common 37/bringup 4/harvester 188/arm 216/observability 34/vegetation 16）+ system_tests pytest 三件套 25 过；manifest ok（54+4）；r0_gate 242 纯核过。mock launch 冒烟因用户相机栈在跑按 preflight 设计跳过（arm 侧 12 例接触级 gtest 覆盖），相机空闲后可补跑。**未做**：其余中危 M4-M10/M12/M14/M16-M19 与低危清单（审查报告跟踪）；G1 窗口 120s 与 G2 语义需真机验收。

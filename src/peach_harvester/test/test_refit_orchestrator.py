@@ -106,7 +106,7 @@ def test_run_success_path_merges_and_marks_final():
     assert result.ok
     assert result.final is True
     assert result.budget  # 融合预算并入
-    assert result.model_revision == 'tgt-1:2'
+    assert result.model_revision == 'tgt-1:2:1'  # G3：首轮计数=1
     assert 'from_refit' in result.flags
     # 分支日志命中成功行
     assert any('REFINING 完成' in msg for _, msg in orch._logger.records)
@@ -123,7 +123,7 @@ def test_run_no_tsdf_cloud_fuses_from_views_only():
     assert refitter.calls == []  # 无云不跑拟合线
     assert fused.ok
     assert result.ok  # 融合成功即 ok（旧 no_tsdf_cloud 失败被 merge 覆盖）
-    assert result.model_revision == 't:2'
+    assert result.model_revision == 't:2:1'
 
 
 def test_run_exception_path_records_timing_and_fuses():
@@ -195,3 +195,47 @@ def test_run_view_sink_called_per_view():
         target_id='t', entry_standoff_m=0.0, pregrasp_standoff_m=0.0,
         budget_params=ToolBudgetParams(), on_view=lambda lm, f: seen.append(f))
     assert len(seen) == 2
+
+
+def _run_kwargs(**overrides):
+    kwargs = {
+        'tsdf_xyz': None, 'frames': _frames(), 'target_center': np.zeros(3),
+        'kind': 'bag', 'kind_defaulted': False, 'bound_axis_hint': None,
+        'target_id': 't', 'entry_standoff_m': 0.0, 'pregrasp_standoff_m': 0.0,
+        'budget_params': ToolBudgetParams()}
+    kwargs.update(overrides)
+    return kwargs
+
+
+def test_revision_monotonic_same_target_and_views():
+    """G3：同目标两次 finalize 且聚类机位数相同 → revision 必不同."""
+    orch = _make(_FakeRefitter(product=_ok_refit()))
+    results = [orch.run(**_run_kwargs())[0] for _ in range(3)]
+    revisions = [r.model_revision for r in results]
+    assert len(set(revisions)) == 3  # 两两不同
+    # 前两段不变（target:views），尾段为严格递增计数
+    assert all(rev.startswith('t:2:') for rev in revisions)
+    counters = [int(rev.rsplit(':', 1)[1]) for rev in revisions]
+    assert counters == [1, 2, 3]
+
+
+def test_revision_counter_survives_reset_and_target_switch():
+    """
+    G3：reset_reconstruction 不清计数（orchestrator 无 reset 口）.
+
+    模拟现场序：Build A → reset（节点清帧栈/缓存，计数不动）→ 重 Build A
+    （同机位数）→ 切目标 B——revision 尾段全程单调，无重复。
+    """
+    orch = _make(_FakeRefitter(product=_ok_refit()))
+    first, _ = orch.run(**_run_kwargs(target_id='A'))
+    # reset_reconstruction 在节点侧只清 collector/产物缓存，不触碰
+    # orchestrator；此处无操作即等价模拟
+    rebuild, _ = orch.run(**_run_kwargs(target_id='A'))
+    other, _ = orch.run(**_run_kwargs(target_id='B'))
+    assert first.model_revision != rebuild.model_revision
+    assert first.model_revision != other.model_revision
+    counters = [
+        int(rev.rsplit(':', 1)[1])
+        for rev in (first.model_revision, rebuild.model_revision,
+                    other.model_revision)]
+    assert counters == sorted(counters) == [1, 2, 3]

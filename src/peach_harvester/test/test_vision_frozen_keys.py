@@ -3,11 +3,12 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from peach_harvester.vision.param_rules import check
 from peach_harvester.vision.scene_perception import params as scene_params
 from peach_harvester.vision.target_reconstruction import (
     params as recon_params,
 )
-from peach_harvester.yaml_params import leaf_keys
+from peach_harvester.yaml_params import leaf_keys, load_ros_parameters
 import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -59,3 +60,17 @@ def test_reconstruction_rules_reference_yaml_keys():
         ROOT / 'config' / 'target_reconstruction.yaml',
         'peach_target_reconstruction_node')
     assert set(recon_params._RULES) <= keys
+
+
+def test_decision_validity_key_default_and_rule():
+    """G1 对账：decision.validity_s 键存在、部署默认 120s、gt 0 规则生效."""
+    config = ROOT / 'config' / 'target_reconstruction.yaml'
+    keys = leaf_keys(config, 'peach_target_reconstruction_node')
+    assert 'decision.validity_s' in keys
+    assert 'decision.validity_s' in recon_params._RULES
+    deployed = load_ros_parameters(config, 'peach_target_reconstruction_node')
+    assert float(deployed['decision']['validity_s']) == 120.0
+    (rule,) = recon_params._RULES['decision.validity_s']
+    assert check(rule, 0.0, 'decision.validity_s') is not None  # 非法拒启
+    assert check(rule, -5.0, 'decision.validity_s') is not None
+    assert check(rule, 120.0, 'decision.validity_s') is None  # 合法放行

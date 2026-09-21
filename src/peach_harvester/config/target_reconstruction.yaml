@@ -65,6 +65,8 @@ peach_target_reconstruction_node:
     cloud_filter:
       voxel_size: 0.003  # [m] 体素降采样（≤0 不降）
       enable_statistical_filter: true  # 统计离群剔除（20 邻域 2σ）
+    decision:
+      validity_s: 120.0  # [s] GraspDecision/TargetModel 有效窗（G1 2026-09-20 参数化，原硬编码 5s 与接近链时长错配）：须覆盖 finalize→套入全链——真机单段 LIN 实测 7.5s，FULL 链（reconfirm 2-6s→回拍照→PTP+LIN→残差验证）全程 30-60s，120 留裕量。模型陈旧性主要由 model_revision 单调性把关（0022 心跳不续签语义不变），本窗口是第二道界
     refit:
       enable: true  # false=不做几何 refit
       cylinder_inlier_min: 0.35  # ACCEPT 门控：内点率下限（圆柱/球共用）

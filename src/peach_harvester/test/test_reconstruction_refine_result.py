@@ -143,7 +143,8 @@ def test_merge_success_geometry_contract():
     merged = merge_fused_bag_model(
         result, fused, views_count=3, bound_axis_hint=None, target_id='t-9')
     assert merged.ok
-    assert merged.model_revision == 't-9:3'
+    # G3：非空 revision 必含单调计数段（默认 0；编排器传进程级计数）
+    assert merged.model_revision == 't-9:3:0'
     assert merged.status == STATUS_ACCEPT
     np.testing.assert_allclose(merged.bottom, fused.bottom)
     np.testing.assert_allclose(merged.d95_m, fused.d95_m)
@@ -157,6 +158,22 @@ def test_merge_success_geometry_contract():
     # center 重算为融合底/颈中点
     np.testing.assert_allclose(
         merged.center, 0.5 * (fused.bottom + fused.neck))
+
+
+def test_merge_revision_carries_monotonic_counter():
+    """G3：计数进 revision 尾段；同 views 不同计数 → 不同字符串."""
+    def _merged_with(counter):
+        return merge_fused_bag_model(
+            RefitResult(ok=True, kind='cylinder', status=STATUS_ACCEPT,
+                        n_points=10, center=np.zeros(3),
+                        axis=np.array([0.0, 0.0, 1.0]), bottom=np.zeros(3),
+                        neck=np.array([0.0, 0.0, 0.2]), diameter=0.06,
+                        span_m=0.2, rmse=0.003, inlier_ratio=0.8),
+            _fused_ok(), views_count=3, bound_axis_hint=None, target_id='t',
+            finalize_counter=counter)
+    assert _merged_with(7).model_revision == 't:3:7'
+    assert (_merged_with(7).model_revision
+            != _merged_with(8).model_revision)
 
 
 def test_bag_model_drops_dead_keys_by_schema():

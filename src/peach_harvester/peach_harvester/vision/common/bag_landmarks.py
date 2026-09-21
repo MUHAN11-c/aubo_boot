@@ -377,7 +377,14 @@ def estimate_bag_landmarks(
     result.bag_axis = axis
     radial = axis_radial_distance(finite, result.bag_axis, result.bottom_center)
     result.d95_m = float(2.0 * np.percentile(radial, 95))
-    sphere = fit_sphere_robust(finite)
+    # 球先验是辅助量（诊断 + 多帧融合后的禁切包络先验，非主几何）：
+    # RANSAC 打分与 LM 抛光都随点数线性走，>1200 时固定种子均匀抽稀
+    # （PCL「先降采样云再拟合」同一实践；先验经 refine 多帧融合平滑）
+    sphere_pts = finite
+    if len(finite) > 1200:
+        sphere_pts = finite[np.random.default_rng(0).choice(
+            len(finite), 1200, replace=False)]
+    sphere = fit_sphere_robust(sphere_pts)
     if sphere is not None:
         result.fruit_prior_center = np.asarray(sphere['center'], dtype=np.float64)
         result.fruit_prior_radius_m = float(sphere['radius'])

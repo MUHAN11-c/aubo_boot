@@ -6,7 +6,16 @@
     "delivery": "docs/testing-log.md:190（RELIABLE raw 彩图投递实测）",
     "stereo_ab": "docs/testing-log.md:277（stereo 前端 A/B）",
     "tf_absent": "docs/testing-log.md:272（无 TF 每帧双 0.5s 超时）",
-    "inference": "docs/testing-log.md:270（YOLO/SAM 单项）"
+    "inference": "docs/testing-log.md:270（YOLO/SAM 单项）",
+    "geometry_bench": "2026-09-21 preemptive RANSAC 优化轮：bag session_20260920_175240 真实帧+SAM 掩膜（3 帧，N=2375-2754），空载机逐段中位；同帧集 A/B（旧实现内嵌 monkeypatch 对拍），test_vision_ransac.py 锁质量界"
+  },
+  "geometry_bench_ms": {
+    "estimate_median_before": 50.9,
+    "estimate_median_after": 35.9,
+    "ransac_fit_cylinder_after": 18.1,
+    "normals_after": 3.3,
+    "landmarks_after": 7.5,
+    "quality_ab": "3 帧 status/confidence/直径全一致；轴差两帧 <0.1°、退化帧 7.9°（该帧 landmarks 已失败、双版同 REJECT）"
   },
   "perception_frame_ms": {
     "detect": [4.0, 5.36],

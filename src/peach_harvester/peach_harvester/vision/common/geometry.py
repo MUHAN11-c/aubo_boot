@@ -183,6 +183,8 @@ def ransac_sphere(points: np.ndarray, normals: Optional[np.ndarray] = None,
 
     理论: c = p − r·n（射线约束）；半径已知 → 最小采样 1 点（迭代数 ~7）；
     半径未知 → 2 点+法线，r = |p₁−p₂|² / ((n₁−n₂)·(p₁−p₂))。
+    打分两段式（preemptive）：全部假设先在固定种子子样本（≤512 点）上
+    粗排，仅前 16 名回全点集复核（动机见 _preempt_screen 注释）。
 
     Args:
         points: (N, 3) 点（米）；N<10 直接 None.
@@ -204,8 +206,10 @@ def ransac_sphere(points: np.ndarray, normals: Optional[np.ndarray] = None,
         return None
     use_normals = (normals is not None and len(normals) == n
                    and np.isfinite(normals).all())
-    best = None
-    for _ in range(max_iter):
+    screen = _preempt_screen(points, rng)
+    # 假设生成与旧版逐字一致（同一 rng 消费序）；打分换子样本粗排
+    candidates = []  # (screen_count, iter_idx, center, radius)
+    for it in range(max_iter):
         center = radius = None
         if use_normals and radius_prior is not None:
             i = rng.integers(n)
@@ -235,6 +239,16 @@ def ransac_sphere(points: np.ndarray, normals: Optional[np.ndarray] = None,
             if not (radius_range[0] <= radius <= radius_range[1]):
                 continue
 
+        d_screen = np.linalg.norm(screen - center, axis=1)
+        count = int(np.count_nonzero(np.abs(d_screen - radius) <= thresh))
+        candidates.append((count, it, center, radius))
+
+    if not candidates:
+        return None
+    # 粗排：子样本计数降序、迭代序升序（并列先到先得，等价旧 `>` 语义）
+    candidates.sort(key=lambda c: (-c[0], c[1]))
+    best = None
+    for _cnt, _it, center, radius in candidates[:_PREEMPT_FINALISTS]:
         inl = _sphere_inliers(points, center, radius, thresh)
         if best is None or len(inl) > len(best['inliers']):
             best = {'center': center, 'radius': radius, 'inliers': inl}
@@ -323,6 +337,35 @@ def fit_sphere_robust(points: np.ndarray, normals: Optional[np.ndarray] = None,
 # 圆柱拟合: 2 点+2 法线 RANSAC + Eberly 轴向抛光
 # ═══════════════════════════════════════════════════════════════
 
+# 预筛两段式打分（Nistér 2003 preemptive RANSAC 同构；PCL 实践先降采样
+# 云再 RANSAC 也是同一动机）：max_iter 个假设先在固定种子子样本上粗排，
+# 仅前 _PREEMPT_FINALISTS 名进全点集复核。打分成本从 O(iter×N) 降到
+# O(iter×screen + finalists×N)，封死近距大掩膜（N 可达数万）时打分随时
+# 间线性膨胀的尾延。N ≤ screen 时不抽子样本——rng 流与逐假设打分均与
+# 单段版本逐数一致（排序后仍按 (计数, 迭代序) 先到先得，等价原 `>` 语义）。
+_PREEMPT_SCREEN_N = 512
+_PREEMPT_FINALISTS = 16
+
+
+def _preempt_screen(points: np.ndarray, rng) -> np.ndarray:
+    """
+    打分子样本：N 超过 _PREEMPT_SCREEN_N 时固定种子均匀抽取.
+
+    Args:
+        points: (N, 3) 点（米）.
+        rng: 已种子化的 Generator（抽取只发生一次，在假设循环之前）.
+
+    Returns
+    -------
+        (≤ _PREEMPT_SCREEN_N, 3) 打分点集；N 不超限时原样返回（零 rng 消耗）.
+
+    """
+    n = len(points)
+    if n <= _PREEMPT_SCREEN_N:
+        return points
+    return points[rng.choice(n, _PREEMPT_SCREEN_N, replace=False)]
+
+
 def _cylinder_radial_dist(points: np.ndarray, q0: np.ndarray, axis: np.ndarray) -> np.ndarray:
     """
     点到圆柱轴的径向距离.
@@ -351,6 +394,8 @@ def ransac_cylinder(points: np.ndarray, normals: np.ndarray,
 
     理论: 圆柱法线 ⊥ 轴 → a = (n₁×n₂)/|n₁×n₂|；投影 ⊥a 平面退化为 2D 圆，
     圆心 = 两射线 p'₁+α·n'₁ 与 p'₂+β·n'₂ 的交点；半径夹紧剪掉退化假设。
+    打分两段式（preemptive）：全部假设先在固定种子子样本（≤512 点）上
+    粗排，仅前 16 名回全点集复核（动机见 _preempt_screen 注释）。
 
     Args:
         points: (N, 3) 点（米）；N<20 直接 None.
@@ -369,8 +414,10 @@ def ransac_cylinder(points: np.ndarray, normals: np.ndarray,
     n = len(points)
     if n < 20 or normals is None or len(normals) != n:
         return None
-    best = None
-    for _ in range(max_iter):
+    screen = _preempt_screen(points, rng)
+    # 假设生成与旧版逐字一致（同一 rng 消费序）；打分换子样本粗排
+    candidates = []  # (screen_count, iter_idx, axis, q0, radius)
+    for it in range(max_iter):
         i, j = rng.choice(n, size=2, replace=False)
         n1, n2 = normals[i], normals[j]
         a = np.cross(n1, n2)
@@ -392,6 +439,16 @@ def ransac_cylinder(points: np.ndarray, normals: np.ndarray,
         if not (radius_range[0] <= radius <= radius_range[1]):
             continue
 
+        d_screen = _cylinder_radial_dist(screen, center2d, a)
+        count = int(np.count_nonzero(np.abs(d_screen - radius) <= thresh))
+        candidates.append((count, it, a, center2d, radius))
+
+    if not candidates:
+        return None
+    # 粗排：子样本计数降序、迭代序升序（并列先到先得，等价旧 `>` 语义）
+    candidates.sort(key=lambda c: (-c[0], c[1]))
+    best = None
+    for _cnt, _it, a, center2d, radius in candidates[:_PREEMPT_FINALISTS]:
         d = _cylinder_radial_dist(points, center2d, a)
         inl = np.where(np.abs(d - radius) <= thresh)[0]
         if best is None or len(inl) > len(best['inliers']):
@@ -481,6 +538,11 @@ def polish_cylinder_axis(points: np.ndarray,
     """
     Eberly 轴向抛光：5 维消元为 2 维，以 axis_hint 为起点 Powell 优化.
 
+    单起点 + 救援：RANSAC 提示起点先跑；结果非有限（提示落入退化盆）才
+    补跑三个 canonical 起点。实测定点数据上四起点收敛到同一 G 极小
+    （hint 与 canonical 差 <10%、轴差在优化容差内），常态下三起点是
+    纯冗余（scipy Powell 每起点 ~5ms 封装成本）；救援路径保留原鲁棒性.
+
     Args:
         points: (N, 3) 点（米）.
         axis_hint: (3,) 初始轴向（内部归一化；结果与之同向，防符号翻转）.
@@ -495,14 +557,22 @@ def polish_cylinder_axis(points: np.ndarray,
     hint = axis_hint / np.linalg.norm(axis_hint)
     theta0 = float(np.arccos(np.clip(hint[2], -1.0, 1.0)))
     phi0 = float(np.arctan2(hint[1], hint[0]))
-    starts = [(theta0, phi0), (0.0, 0.0),
-              (np.pi / 2, 0.0), (np.pi / 2, np.pi / 2)]
+    rescue_starts = [(0.0, 0.0),
+                     (np.pi / 2, 0.0), (np.pi / 2, np.pi / 2)]
     best_w, best_g = None, float('inf')
-    for sp in starts:
-        res = minimize(lambda x: _eberly_G(_eberly_direction(x[0], x[1]), X),
-                       sp, method='Powell', tol=1e-6)
-        if res.fun < best_g:
-            best_g, best_w = res.fun, _eberly_direction(res.x[0], res.x[1])
+    res = minimize(lambda x: _eberly_G(_eberly_direction(x[0], x[1]), X),
+                   (theta0, phi0), method='Powell', tol=1e-6)
+    if res.fun < best_g:
+        best_g, best_w = res.fun, _eberly_direction(res.x[0], res.x[1])
+    if best_w is None or not np.isfinite(best_g):
+        # 救援：提示起点退化（G 非有限）时才启用 canonical 起点
+        for sp in rescue_starts:
+            res = minimize(
+                lambda x: _eberly_G(_eberly_direction(x[0], x[1]), X),
+                sp, method='Powell', tol=1e-6)
+            if res.fun < best_g:
+                best_g, best_w = res.fun, _eberly_direction(
+                    res.x[0], res.x[1])
     if best_w is None:
         return hint, t
     # 与 hint 同向，避免符号翻转

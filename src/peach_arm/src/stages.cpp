@@ -229,14 +229,16 @@ bool ManipulationSkillsNode::contactEntryGeometry(
   return true;
 }
 
-// 授权矩阵（cycle_support.hpp）的失败包装：GraspDecision 复检未通过
-// 沿用 skipped_quality 语义（质量原因跳过，编排器可重派）；其余拒绝
-// （权限/安全/取消/使能）按 FAILED 分级。
+// 授权矩阵（cycle_support.hpp）的失败包装：令牌/许可过期（StageDenial::
+// EXPIRED，M3c——可重派：重建后令牌换新即可再执行）与 GraspDecision 复检
+// 未通过沿用 skipped_quality 语义（质量原因跳过，编排器可重派）；其余拒绝
+// （权限/安全/取消/使能/许可明确不允许）按 FAILED 分级。
 bool ManipulationSkillsNode::requireStageAuthority(
   CycleContext & ctx, MotionStage stage, const std::string & label)
 {
   std::string why;
-  if (authorizeStage(ctx, stage, why)) {
+  StageDenial denial = StageDenial::DENIED;
+  if (authorizeStage(ctx, stage, why, denial)) {
     return true;
   }
   const bool decision_recheck_failed =
@@ -244,8 +246,7 @@ bool ManipulationSkillsNode::requireStageAuthority(
     (graspDecisionTargetSnapshot() != ctx.target_id ||
     !qualitySnapshot().grasp_allowed);
   pending_outcome_.store(
-    decision_recheck_failed ?
-    ExecuteTarget::Result::SKIPPED_QUALITY : ExecuteTarget::Result::FAILED);
+    stageDenialOutcome(denial, decision_recheck_failed));
   return failStage(
     ctx, label + "被拒绝（" + motionStageName(stage) + "）: " + why);
 }

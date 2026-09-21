@@ -6,6 +6,7 @@
 #include "peach_arm/manipulation_skills_node.hpp"
 
 #include <chrono>
+#include <future>
 #include <memory>
 #include <string>
 #include <thread>
@@ -151,11 +152,28 @@ rclcpp_action::CancelResponse ManipulationSkillsNode::onMoveToCancel(
 void ManipulationSkillsNode::onMoveToAccepted(
   const std::shared_ptr<MoveToGoalHandle> goal_handle)
 {
+  // M2（W13-B 同款有界回收）：本回调在默认互斥组——旧 MoveTo 线程卡死时
+  // 裸 join 会把 ACK/取消/订阅一并吊死（恢复死锁最坏形态）；经
+  // packaged_task future 有界等 2s，超时 WARN 后 detach 放行新 MoveTo
+  // （放弃回收≠放弃取消，线程仍受取消标志约束；析构的 joinable 检查自然
+  // 跳过已 detach 线程）。
   if (move_to_thread_.joinable()) {
-    move_to_thread_.join();
+    if (move_to_thread_done_.valid() &&
+      move_to_thread_done_.wait_for(2s) == std::future_status::ready)
+    {
+      move_to_thread_.join();
+    } else {
+      RCLCPP_WARN(
+        get_logger(),
+        "上一 MoveTo 执行线程 2s 内未退场，放弃 join 改为 detach；"
+        "线程仍受取消标志约束，请排查卡死原因");
+      move_to_thread_.detach();
+    }
   }
-  move_to_thread_ = std::thread(
-    [this, goal_handle]() {executeMoveTo(goal_handle);});
+  std::packaged_task<void(std::shared_ptr<MoveToGoalHandle>)> move_task(
+    [this](std::shared_ptr<MoveToGoalHandle> handle) {executeMoveTo(handle);});
+  move_to_thread_done_ = move_task.get_future();
+  move_to_thread_ = std::thread(std::move(move_task), goal_handle);
 }
 
 void ManipulationSkillsNode::executeMoveTo(
@@ -190,6 +208,8 @@ void ManipulationSkillsNode::executeMoveTo(
     result->arrived = false;
     result->failure_code = FailureCode::DECISION_REJECTED;
     result->detail = why;
+    // M1：授权拒（含取消旗标所致）终局收口，sticky 取消不得延续到下一动作。
+    clearCancelFlagIfIdle();
     goal_handle->abort(result);
     return;
   }
@@ -244,6 +264,8 @@ void ManipulationSkillsNode::executeMoveTo(
     result->arrived = false;
     result->failure_code = FailureCode::RECOVERY_REQUIRED;
     result->detail = "MoveTo 已取消（透传 abort + RobotMoveStop）";
+    // M1：取消终局收口取消旗标（语义见 clearCancelFlagIfIdle 声明处注释）。
+    clearCancelFlagIfIdle();
     try {
       goal_handle->canceled(result);
     } catch (const std::exception & error) {
@@ -258,6 +280,8 @@ void ManipulationSkillsNode::executeMoveTo(
   result->arrived = ok;
   result->failure_code = ok ? FailureCode::NONE : FailureCode::SLEEVE_PLAN_FAILED;
   result->detail = message;
+  // M1：MoveTo 终局收口取消旗标（谁最后结束谁清）。
+  clearCancelFlagIfIdle();
   try {
     if (ok) {
       goal_handle->succeed(result);

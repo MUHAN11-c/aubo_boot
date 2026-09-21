@@ -54,6 +54,7 @@
 #include "peach_arm/motion.hpp"
 #include "peach_arm/quality_gate.hpp"
 #include "peach_arm/safety_gate.hpp"
+#include "peach_arm/stage_denial.hpp"
 #include "peach_arm/target_cache.hpp"
 #include "peach_arm/tool_actuator.hpp"
 #include "peach_arm/view_planner.hpp"
@@ -243,13 +244,24 @@ private:
   void trackFrameInterval();
 
   // 运动阶段授权（cycle_support.hpp 矩阵的唯一实现，cycle.cpp）：
-  // 一切运动执行入口最终收敛到本判定；why 给出拒绝原因（日志带 stage 名）。
-  bool authorizeStage(const CycleContext & ctx, MotionStage stage, std::string & why);
-  // authorizeStage 的失败包装（stages.cpp）：拒绝时按语义分级——GraspDecision
-  // 复检未通过沿用 skipped_quality，其余（权限/安全/取消/使能）落 FAILED——
-  // 并经 failStage 终结周期。
+  // 一切运动执行入口最终收敛到本判定；why 给出拒绝原因（日志带 stage 名），
+  // denial 输出拒因分类（StageDenial；M3c——EXPIRED=令牌/许可过期可重派，
+  // DENIED=权限/安全/取消/使能/许可明确不允许），供终局分级消费。
+  bool authorizeStage(
+    const CycleContext & ctx, MotionStage stage, std::string & why,
+    StageDenial & denial);
+  // authorizeStage 的失败包装（stages.cpp）：拒绝时按语义分级——令牌/许可
+  // 过期与 GraspDecision 复检未通过沿用 skipped_quality，其余（权限/安全/
+  // 取消/使能/许可明确不允许）落 FAILED——并经 failStage 终结周期。
   bool requireStageAuthority(
     CycleContext & ctx, MotionStage stage, const std::string & label);
+  // M1：取消旗标收口。三动作（ExecuteTarget/Survey/MoveTo）终局各自调用：
+  // 周期 worker 已落终态（running_=false，即取消不再向周期内传播）时清除
+  // 全局取消旗标，避免一次单果取消/skip 后 sticky 旗标把后续一切 MoveTo/
+  // 观察拒之门外。并发的其它取消在途时清旗无副作用——requestCancelAll 的
+  // 停运动语义在置旗当下已生效（move_group stop/缓存唤醒），清旗不会
+  // “复活”任何被停的运动；各动作自身终局另判 is_canceling。
+  void clearCancelFlagIfIdle();
 
   // 显式模式 switch 执行器（stages.cpp）。阶段调用序列与原 behavior_tree.xml
   // 主树遍历严格同构：Prepare →（plan-only 预览 | 观察 → 精化验证 →
@@ -399,12 +411,23 @@ private:
   // abort 路径的终局分级（ExecuteTarget::Result 常量），由阶段失败点按需覆盖。
   std::atomic<uint8_t> pending_outcome_{ExecuteTarget::Result::FAILED};
   std::thread worker_;
+  // worker（executeCycle）的配套 future（M2，W13-B 同款）：onStart 经它做
+  // 有界等待，超时分支 WARN 后 detach 放行新周期（detach 只是放弃回收、
+  // 不是放弃取消，线程仍受取消标志约束；析构的 joinable 检查自然跳过）。
+  std::future<void> worker_done_;
   // action 执行线程保持可 join，析构时先取消再回收，避免 shutdown 后访问悬空 this。
   // 配套 future（W13-B）：onActionAccepted 经它做有界等待——std::thread 无
   // timed join，超时分支只能 WARN 后 detach 放行新周期（析构的 joinable 检查
   // 自然跳过已 detach 线程）。
   std::thread action_thread_;
   std::future<void> action_thread_done_;
+  // survey 执行线程与其配套 future（M2：onSurveyAccepted 有界回收，同
+  // action 线程纪律——卡死时 2s 超时 detach，不吊死默认互斥组回调）。
+  std::thread survey_thread_;
+  std::future<void> survey_thread_done_;
+  // MoveTo 执行线程与其配套 future（M2：onMoveToAccepted 有界回收，同上）。
+  std::thread move_to_thread_;
+  std::future<void> move_to_thread_done_;
 
   // 四源缓存订阅（回调薄壳见 onTargets 等）：目标观测/重建诊断/抓取决策/
   // 精化位姿与拟合诊断，组装纯值样本后全部委托 cache_ 调和。
@@ -480,11 +503,8 @@ private:
   rclcpp_action::Server<ExecuteTarget>::SharedPtr cycle_action_server_;
   /// SurveyScene action 服务端（拍照位+等新快照；与周期互斥占用）。
   rclcpp_action::Server<SurveyScene>::SharedPtr survey_action_server_;
-  /// survey 执行线程（与 action 线程同纪律：可 join、互斥占用）。
-  std::thread survey_thread_;
-  // MoveTo 动作服务端与执行线程（与 survey 同纪律：可 join、互斥占用）。
+  // MoveTo 动作服务端（与 survey 同纪律：互斥占用；线程声明见上方 M2 块）。
   rclcpp_action::Server<MoveToAction>::SharedPtr move_to_action_server_;
-  std::thread move_to_thread_;
   // 操作台使能广播（清洁重写轮）：收到过即 external 生效并覆盖本地参数；
   // 未收到过（旧栈/无大脑）本地参数保持唯一权威——行为零变化。
   rclcpp::Subscription<peach_interfaces::msg::Enables>::SharedPtr enables_sub_;
@@ -511,8 +531,16 @@ private:
   std::shared_ptr<peach_arm::ParamListener> param_listener_;
   peach_arm::Params params_;  ///< GPL 参数快照（loadParameters 空闲期整体重写，周期只读）。
   double robot_status_contract_timeout_s_{0.5};  ///< robot_status 断流诊断阈值 [s]（io 契约值，非安全门）。
+  // G2 语义修正：预览绑定只由 PREVIEW 模式 goal 写入（observe/执行类模式
+  // 不写——观察是采数据不是计划预览）；FULL/PREGRASP_ONLY 周期终局清复位，
+  // 防陈旧 preview 跨目标误绑。受理即拒（plan mismatch）不清：保留绑定让
+  // 修正后的 FULL 仍受全字段比对约束。
   ContactPlan last_preview_plan_{};   ///< 最近一次 PREVIEW 的计划绑定（plan_id+模型元组+起始关节）。
-  bool last_preview_valid_{false};    ///< 预览计划可否供 FULL 执行绑定（plan_id 非空）。
+  bool last_preview_valid_{false};    ///< 预览计划可否供执行 goal 绑定（plan_id 非空）。
+  // 受理期拒单失败码（M3a）：plan mismatch 发生在 Result 组装所能读到的
+  // ctx 创建之前，经本成员把码带给 fillExecuteResults 的 !ctx 分支。
+  // executeAction 受理→终局同一 action 线程内写读，无需原子。
+  std::uint32_t pending_accept_failure_code_{0};
   rclcpp::Client<aubo_msgs::srv::SetIO>::SharedPtr tool_io_client_;  ///< 刀具 SetIO 客户端（伴随节点侧）。
 };
 

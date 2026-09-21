@@ -200,7 +200,8 @@ bool ManipulationSkillsNode::commandToolClose()
   CycleContext probe;
   probe.target_id = tool_actuator_.context().target_id;
   std::string why;
-  if (!authorizeStage(probe, MotionStage::TOOL, why)) {
+  StageDenial denial = StageDenial::DENIED;
+  if (!authorizeStage(probe, MotionStage::TOOL, why, denial)) {
     setState(CycleState::FAILED, "工具 IO 被拒绝: " + why, probe.target_id);
     return false;
   }

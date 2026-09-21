@@ -16,6 +16,7 @@
 #include <vector>
 
 #include <moveit/move_group_interface/move_group_interface.hpp>
+#include <peach_interfaces/msg/failure_code.hpp>
 #include <peach_interfaces/msg/harvest_state.hpp>
 #include <tf2_eigen/tf2_eigen.hpp>
 
@@ -26,8 +27,11 @@ using namespace std::chrono_literals;
 
 namespace peach_arm
 {
+using FailureCode = peach_interfaces::msg::FailureCode;
 // A13：targetPhase 投影字面量与 HarvestState.msg 的 TARGET_* 常量双向钉死
-// （防消息常量重排后投影静默漂移）。
+// （防消息常量重排后投影静默漂移）。同款钉死（M3a/M3c）：纯核
+// plan_contract.hpp / stage_denial.hpp 不引 ROS 消息，其钉死值与 IDL 常量
+// 在此双向锁定。
 using HarvestStateMsg = peach_interfaces::msg::HarvestState;
 static_assert(targetPhase(CycleState::IDLE) == HarvestStateMsg::TARGET_IDLE);
 static_assert(
@@ -41,17 +45,35 @@ static_assert(targetPhase(CycleState::MTC_RETREAT) == HarvestStateMsg::RETREATIN
 static_assert(targetPhase(CycleState::PLAN_READY) == HarvestStateMsg::COMPLETING);
 static_assert(targetPhase(CycleState::SUCCEEDED) == HarvestStateMsg::TARGET_SUCCEEDED);
 static_assert(targetPhase(CycleState::FAILED) == HarvestStateMsg::TARGET_FAILED);
+static_assert(
+  FailureCode::PLAN_MISMATCH == 20u,
+  "plan_contract.hpp ExecutePlanGate 的失败码须与 FailureCode.PLAN_MISMATCH 一致");
+static_assert(
+  ExecuteTarget::Result::FAILED == kOutcomeFailed,
+  "stage_denial.hpp kOutcomeFailed 须与 ExecuteTarget.Result.FAILED 一致");
+static_assert(
+  ExecuteTarget::Result::SKIPPED_QUALITY == kOutcomeSkippedQuality,
+  "stage_denial.hpp kOutcomeSkippedQuality 须与 ExecuteTarget.Result.SKIPPED_QUALITY 一致");
 
 // 运动阶段授权矩阵（cycle_support.hpp）：一切运动执行入口最终收敛到
 // 本判定。公共 = Active ∧ robotReady ∧ !cancel；TRANSIT/PREGRASP 叠加
 // execution_enabled；CONTACT 叠加 grasp_enabled ∧ 接触许可复检（清洁重写轮
 // 双路：goal.clearance 令牌优先——只验新鲜度与 allowed，不重算几何；旧
 // 客户端未填令牌时回退 GraspDecision 话题快照）；TOOL 再叠加 tool_enabled。
+// denial（M3c）输出拒因分类：令牌/许可「过期」（valid_until / model_stamp
+// 超窗）= EXPIRED——可重派；其余（含令牌 allowed=false 的明确不允许）
+// = DENIED；通过 = ALLOWED。requireStageAuthority 据此分级终局。
 bool ManipulationSkillsNode::authorizeStage(
-  const CycleContext & ctx, MotionStage stage, std::string & why)
+  const CycleContext & ctx, MotionStage stage, std::string & why,
+  StageDenial & denial)
 {
+  denial = StageDenial::DENIED;
   if (stage == MotionStage::TRANSIT || stage == MotionStage::PREGRASP) {
-    return authorizeTransit(why);
+    if (authorizeTransit(why)) {
+      denial = StageDenial::ALLOWED;
+      return true;
+    }
+    return false;
   }
   if (!motionOutputAllowed(why)) {
     return false;
@@ -82,12 +104,14 @@ bool ManipulationSkillsNode::authorizeStage(
       now().seconds() > ctx.clearance_valid_until.seconds())
     {
       why = "接触许可令牌过期（valid_until）";
+      denial = StageDenial::EXPIRED;
       return false;
     }
     if (ctx.clearance_fresh_window_s > 0.0) {
       const double age_s = now().seconds() - ctx.clearance_model_stamp.seconds();
       if (age_s < -0.5 || age_s > ctx.clearance_fresh_window_s) {
         why = "接触许可令牌过期（model_stamp 超窗）";
+        denial = StageDenial::EXPIRED;
         return false;
       }
     }
@@ -97,6 +121,7 @@ bool ManipulationSkillsNode::authorizeStage(
       why = "tool.enabled=false";
       return false;
     }
+    denial = StageDenial::ALLOWED;
     return true;
   }
   if (graspDecisionTargetSnapshot() != ctx.target_id ||
@@ -109,6 +134,7 @@ bool ManipulationSkillsNode::authorizeStage(
     why = "tool.enabled=false";
     return false;
   }
+  denial = StageDenial::ALLOWED;
   return true;
 }
 
@@ -220,6 +246,8 @@ void ManipulationSkillsNode::executeAction(
 {
   const auto goal = goal_handle->get_goal();
   auto trigger_response = std::make_shared<Trigger::Response>();
+  // M3a：每 goal 复位受理期拒单码，防上一 goal 的码泄入本次终局组装。
+  pending_accept_failure_code_ = 0;
   // 周期上下文：PREVIEW 模式走预览入口（不是周期，不创建 ctx，终局按空
   // 上下文默认值填充）；其余模式受理即创建并钉 goal 身份，action 线程自持
   // shared_ptr——后续周期整体丢弃本份也不影响本次终局读取。
@@ -242,6 +270,11 @@ void ManipulationSkillsNode::executeAction(
       return plan;
     };
   if (goal->mode == ExecuteTarget::Goal::PREVIEW) {
+    // G2：预览绑定只由 PREVIEW 模式 goal 写入。OBSERVE_ONLY / PREGRASP_ONLY /
+    // FULL 一律不写（观察是采数据不是计划预览；observe goal 在模型建好前
+    // 本就带不了三修订，旧「observe 转记绑定」会让保守档 FULL 必拒且
+    // last_preview_valid_ 无复位点）。手动 preview→FULL 链路（本写入 +
+    // 下方全字段比对）校验强度不变。
     last_preview_plan_ = fill_plan(*goal, true);
     last_preview_valid_ = !goal->plan_id.empty();
     previewContact(false, trigger_response);
@@ -250,20 +283,18 @@ void ManipulationSkillsNode::executeAction(
     if (last_preview_valid_ && !goal->plan_id.empty()) {
       ContactPlan execute = fill_plan(
         *goal, last_preview_plan_.require_start_joints);
-      if (!previewMatchesExecute(last_preview_plan_, execute, 0.05)) {
+      const ExecutePlanGate gate = executePlanGate(
+        true, true, last_preview_plan_, execute, 0.05);
+      if (!gate.pass) {
         plan_ok = false;
+        // M3a：受理期拒单码经 pending 成员带入 Result 组装（此路径 ctx 尚
+        // 未创建；gate.failure_code=20=PLAN_MISMATCH，static_assert 与 IDL 钉死）。
+        pending_accept_failure_code_ = gate.failure_code;
         trigger_response->success = false;
         trigger_response->message = "plan_id mismatch: preview != execute";
       }
     }
     if (plan_ok) {
-      if (goal->mode == ExecuteTarget::Goal::OBSERVE_ONLY &&
-        !goal->plan_id.empty())
-      {
-        // 观察会动臂；FULL 只核 plan_id + 身份元组，不冻起始关节。
-        last_preview_plan_ = fill_plan(*goal, false);
-        last_preview_valid_ = true;
-      }
       // Action 是唯一周期入口（自动编排）：受理即自动 arm（手动 Trigger
       // 类入口须另行 set_execution_armed）。
       if (execution_enabled_.load()) {execution_armed_.store(true);}
@@ -306,6 +337,8 @@ void ManipulationSkillsNode::executeAction(
     fillStageDurations(result);
     fillExecuteResults(result, ctx.get());
     goal_handle->abort(result);
+    // M1：受理即拒的终局同样收口取消旗标（周期未启动，running_=false 恒真）。
+    clearCancelFlagIfIdle();
     return;
   }
 
@@ -377,12 +410,32 @@ void ManipulationSkillsNode::executeAction(
     RCLCPP_WARN(
       get_logger(), "action 终局上报失败（可能正在 shutdown）: %s", error.what());
   }
+  // G2 复位：FULL / PREGRASP_ONLY 周期终局（成功/失败/取消）清预览绑定。
+  // 二者是消费预览比对的执行周期（调度 _cmd_full 二选一，PREGRASP_ONLY 是
+  // 现行默认干跑档）；周期已终局，绑定跨目标残留只会把下一颗误拒。
+  // PREVIEW 模式不进本路径（绑定刚写入）；受理即拒（plan mismatch）在上方
+  // 早退分支，保留绑定让修正后的 FULL 仍受全字段比对约束；OBSERVE_ONLY
+  // 不写绑定也无须清（观察不是计划预览）。
+  if (goal->mode == ExecuteTarget::Goal::FULL ||
+    goal->mode == ExecuteTarget::Goal::PREGRASP_ONLY)
+  {
+    last_preview_valid_ = false;
+    last_preview_plan_ = ContactPlan{};
+  }
+  // M1：周期终局（worker 已落终态、取消不再向周期内传播）收口取消旗标，
+  // 一次单果取消/skip 不得把后续一切 MoveTo/观察拒之门外。
+  clearCancelFlagIfIdle();
 }
 
 void ManipulationSkillsNode::onStart(const Trigger::Response::SharedPtr & response)
 {
   const ScopedTimer timer(get_logger(), "start_cycle", &callback_timing_);
   // 运动输出权限绑定 Active 态（A8）：action 派生周期唯一启动入口。
+  // M3b：启动拒绝优先落既有词表码（下方 recovery / 锚点失效两支）；无 ctx
+  // 的调用安全跳过（Result 组装经 fillExecuteResults 读 ctx->failure_code）。
+  const auto set_failure = [this](uint32_t code) {
+      if (cycle_) {cycle_->failure_code = code;}
+    };
   std::string motion_reason;
   if (!motionOutputAllowed(motion_reason)) {
     response->success = false;
@@ -390,6 +443,9 @@ void ManipulationSkillsNode::onStart(const Trigger::Response::SharedPtr & respon
     return;
   }
   if (!move_group_) {
+    // M3b：词表无对应码（MoveIt 未初始化 / 周期占用 / 未 arm 三支同此），
+    // 保持 failure_code=0 由 reason 传达；新增枚举值须动 IDL，本轮不做
+    // （TODO：FailureCode 词表扩充轮补 NOT_ARMED / MOVEIT_UNAVAILABLE 类码）。
     response->success = false;
     response->message = "MoveIt 尚未初始化";
     return;
@@ -398,6 +454,7 @@ void ManipulationSkillsNode::onStart(const Trigger::Response::SharedPtr & respon
     response->success = false;
     response->message =
       "上一周期可能停在接触区；现场人工撤离并确认后调用 acknowledge_recovery";
+    set_failure(FailureCode::RECOVERY_REQUIRED);
     return;
   }
   bool expected = false;
@@ -426,11 +483,28 @@ void ManipulationSkillsNode::onStart(const Trigger::Response::SharedPtr & respon
       response->message = observe_only ?
         "goal 目标在锁定集锚点缓存中无有效锚点（受理后已解锁/换批次）" :
         "没有可用的 selected_target 初始几何";
+      // M3b：与 stagePrepareCycle 同条件同码（周期目标锚点失效=观察失败）。
+      set_failure(FailureCode::OBSERVE_FAILED);
       return;
     }
   }
   if (worker_.joinable()) {
-    worker_.join();
+    // M2（W13-B 同款有界回收）：正常路径旧 worker 已落终态（finish 置
+    // running_=false 后线程即将退场），join 立即返回；卡死（MoveIt 内部
+    // 长阻塞、无视取消标志）时经 packaged_task future 有界等 2s，超时
+    // WARN 后 detach 放行新周期——放弃回收不等于放弃取消，线程仍受取消
+    // 标志约束；析构的 joinable 检查自然跳过已 detach 线程。
+    if (worker_done_.valid() &&
+      worker_done_.wait_for(2s) == std::future_status::ready)
+    {
+      worker_.join();
+    } else {
+      RCLCPP_WARN(
+        get_logger(),
+        "上一周期 worker 线程 2s 内未退场，放弃 join 改为 detach；"
+        "线程仍受取消标志约束，请排查卡死原因");
+      worker_.detach();
+    }
   }
   cancel_requested_.store(false);
   // 每周期开始重置终局分级（阶段失败点按需覆盖）。
@@ -438,8 +512,10 @@ void ManipulationSkillsNode::onStart(const Trigger::Response::SharedPtr & respon
   // 阶段耗时计时随周期真正启动开始（此前一切拒绝路径不计时）。
   startCycleTiming();
   // worker 按 shared_ptr 持有周期上下文：周期消亡即整体丢弃，钉残留不可能。
-  worker_ = std::thread(
+  std::packaged_task<void()> cycle_task(
     [this, ctx = cycle_]() {executeCycle(*ctx);});
+  worker_done_ = cycle_task.get_future();
+  worker_ = std::thread(std::move(cycle_task));
   response->success = true;
   response->message = execution_enabled_.load() ? "已启动主动视觉靠近周期" :
     "已启动只规划预览（不会发送运动）";
@@ -520,10 +596,27 @@ rclcpp_action::CancelResponse ManipulationSkillsNode::onSurveyCancel(
 void ManipulationSkillsNode::onSurveyAccepted(
   const std::shared_ptr<SurveyGoalHandle> goal_handle)
 {
+  // M2（W13-B 同款有界回收）：本回调在默认互斥组——旧 survey 线程卡死时
+  // 裸 join 会把 ACK/取消/订阅一并吊死；经 packaged_task future 有界等 2s，
+  // 超时 WARN 后 detach 放行新 survey（放弃回收≠放弃取消，线程仍受取消
+  // 标志约束；析构的 joinable 检查自然跳过已 detach 线程）。
   if (survey_thread_.joinable()) {
-    survey_thread_.join();
+    if (survey_thread_done_.valid() &&
+      survey_thread_done_.wait_for(2s) == std::future_status::ready)
+    {
+      survey_thread_.join();
+    } else {
+      RCLCPP_WARN(
+        get_logger(),
+        "上一 SurveyScene 执行线程 2s 内未退场，放弃 join 改为 detach；"
+        "线程仍受取消标志约束，请排查卡死原因");
+      survey_thread_.detach();
+    }
   }
-  survey_thread_ = std::thread([this, goal_handle]() {executeSurvey(goal_handle);});
+  std::packaged_task<void(std::shared_ptr<SurveyGoalHandle>)> survey_task(
+    [this](std::shared_ptr<SurveyGoalHandle> handle) {executeSurvey(handle);});
+  survey_thread_done_ = survey_task.get_future();
+  survey_thread_ = std::thread(std::move(survey_task), goal_handle);
 }
 
 void ManipulationSkillsNode::executeSurvey(
@@ -568,6 +661,8 @@ void ManipulationSkillsNode::executeSurvey(
   // 场景纪元无真实源接入：SurveyScene 结果恒填 0（BeginScene 世代尚未
   // 回传给本节点）；接入场景纪元源时改此单点，勿在别处复填。
   result->scene_epoch = 0;
+  // M1：survey 终局收口取消旗标（周期不在运行即清；语义见声明处注释）。
+  clearCancelFlagIfIdle();
   if (goal_handle->is_canceling()) {
     goal_handle->canceled(result);
     return;

@@ -260,6 +260,19 @@ void ManipulationSkillsNode::requestCancelAll()
   cache_.notifyAll();
 }
 
+void ManipulationSkillsNode::clearCancelFlagIfIdle()
+{
+  // M1：取消旗标此前唯一复位点是下一 ExecuteTarget 周期 onStart，一次单果
+  // 取消/skip 后 sticky 旗标会把后续一切 MoveTo/观察拒之门外。三动作
+  // （ExecuteTarget/Survey/MoveTo）终局各自调用本收口；只在周期 worker 已
+  // 落终态（running_=false，取消不再向周期内传播）时清，避免取消传播中
+  // 过早清（在途的其它取消经 requestCancelAll 已即时停运动，清旗不复活
+  // 任何被停的运动；各动作自身终局另判 is_canceling）。
+  if (!running_.load()) {
+    cancel_requested_.store(false);
+  }
+}
+
 void ManipulationSkillsNode::closeMotionOutputAndCancel()
 {
   // 顺序即语义：先关权限/撤 arm（拒新入口），再取消活动周期并唤醒所有等待。
@@ -1188,7 +1201,11 @@ void ManipulationSkillsNode::fillExecuteResults(
   const bool succeeded =
     result->outcome == ExecuteTarget::Result::SUCCEEDED;
   result->completion_level = ctx ? ctx->completion_level : 0;
-  result->failure_code = succeeded || !ctx ? 0u : ctx->failure_code;
+  // M3a：受理期拒单（plan mismatch）发生在 ctx 创建之前，读 pending 成员
+  // 把码带出（每 goal 于 executeAction 入口复位）；PREVIEW 模式中断路径
+  // 同为 !ctx，但该成员恒 0，行为与原状一致。
+  result->failure_code = succeeded ?
+    0u : (ctx != nullptr ? ctx->failure_code : pending_accept_failure_code_);
   // W7：顶层 bool 镜像已删；cut/retreat/harvest 证据单源 harvest/verification 块。
   const bool harvest_confirmed = harvestConfirmed(
     ctx && ctx->cut_confirmed, ctx && ctx->retreat_confirmed);

@@ -1,4 +1,7 @@
 // 功能：预览与执行绑定同一 plan_id + 模型元组 + 起始关节容差。
+// G2 语义修正：预览绑定只由 PREVIEW 模式 goal 写入——OBSERVE_ONLY（及
+// PREGRASP_ONLY/FULL 等执行类模式）一律不写（观察是采数据不是计划预览；
+// observe goal 在模型建好前本就带不了三修订）。执行侧消费经 executePlanGate。
 #ifndef PEACH_MANIPULATION__PLAN_CONTRACT_HPP_
 #define PEACH_MANIPULATION__PLAN_CONTRACT_HPP_
 
@@ -55,6 +58,33 @@ inline bool previewMatchesExecute(
     return true;
   }
   return jointsWithinTolerance(preview.start_joints, execute.start_joints, joint_tol_rad);
+}
+
+/// 执行侧计划契约门结果：pass=false 时 failure_code=20（peach_interfaces
+/// FailureCode.PLAN_MISMATCH；纯核头不引 ROS 消息，数值钉死，cycle.cpp
+/// static_assert 与 IDL 双向锁定），放行时 failure_code=0（NONE）。
+struct ExecutePlanGate
+{
+  bool pass{true};
+  std::uint32_t failure_code{0};
+};
+
+/// 执行 goal 的计划绑定门（G2 语义修正）：绑定只在「上一受理 goal 是
+/// PREVIEW 模式」时存在（写侧仅 PREVIEW；observe/执行模式不写绑定）。
+/// 无绑定或 goal 无 plan_id → 放行（契约未启用，非拒单——fast 档不发
+/// PREVIEW 即整条不生效，是有意的）；否则全字段比对（plan_id/场景世代/
+/// 模型元组/按需起始关节），不一致拒单并给 PLAN_MISMATCH。
+inline ExecutePlanGate executePlanGate(
+  bool preview_valid, bool goal_has_plan_id, const ContactPlan & preview,
+  const ContactPlan & execute, double joint_tol_rad)
+{
+  if (!preview_valid || !goal_has_plan_id) {
+    return ExecutePlanGate{};
+  }
+  if (previewMatchesExecute(preview, execute, joint_tol_rad)) {
+    return ExecutePlanGate{};
+  }
+  return ExecutePlanGate{false, 20u};
 }
 
 }  // namespace peach_arm

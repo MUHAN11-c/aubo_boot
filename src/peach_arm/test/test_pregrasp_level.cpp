@@ -2,6 +2,7 @@
 #include "peach_arm/model_contract.hpp"
 #include "peach_arm/plan_contract.hpp"
 #include "peach_arm/pregrasp_level.hpp"
+#include "peach_arm/stage_denial.hpp"
 #include "peach_arm/tool_actuator.hpp"
 
 #include <gtest/gtest.h>
@@ -75,6 +76,9 @@ TEST(PlanContract, PreviewMustMatchExecute)
 
 TEST(PlanContract, ObserveBindingSkipsJoints)
 {
+  // G2 语义修正后 observe goal 不再写预览绑定（见下方 gate 用例）；本用例
+  // 只钉 previewMatchesExecute 对 require_start_joints=false 的比对力学
+  // （跳过起始关节、身份元组仍全比对），结构体契约不变。
   peach_arm::ContactPlan observe;
   observe.plan_id = "plan-1";
   observe.scene_epoch = 2;
@@ -90,6 +94,68 @@ TEST(PlanContract, ObserveBindingSkipsJoints)
   EXPECT_TRUE(peach_arm::previewMatchesExecute(observe, execute, 0.05));
   execute.model.tool_profile_id = "other";
   EXPECT_FALSE(peach_arm::previewMatchesExecute(observe, execute, 0.05));
+}
+
+TEST(PlanContract, ObserveOnlyLeavesNoPreviewBindingSoFullPasses)
+{
+  // G2 ①：OBSERVE_ONLY 不写预览绑定（观察是采数据不是计划预览；observe
+  // goal 在模型建好前本就带不了三修订）——保守档同 plan_id 的 FULL 带
+  // 完整身份元组时不得因 preview 契约被拒。
+  peach_arm::ContactPlan execute;
+  execute.plan_id = "plan-1";
+  execute.scene_epoch = 2;
+  execute.model.run_id = "run";
+  execute.model.target_id = "t1";
+  execute.model.model_revision = "t0:3";
+  execute.model.tool_profile_id = "hollow_cylinder_v1";
+  execute.model.calibration_revision = "cal";
+  execute.model.config_revision = "cfg";
+  const auto gate = peach_arm::executePlanGate(
+    false /* observe 未写绑定 */, true, peach_arm::ContactPlan{}, execute, 0.05);
+  EXPECT_TRUE(gate.pass);
+  EXPECT_EQ(gate.failure_code, 0u);
+}
+
+TEST(PlanContract, PreviewBindingRejectsIdentityChangedFull)
+{
+  // G2 ②（保全面）+ M3a：PREVIEW 绑定存在时，改身份（model_revision）的
+  // FULL 必拒，失败码 PLAN_MISMATCH（=20，peach_interfaces FailureCode 词表；
+  // 纯核数值由 cycle.cpp static_assert 与 IDL 双向锁定）。
+  peach_arm::ContactPlan preview;
+  preview.plan_id = "plan-1";
+  preview.scene_epoch = 2;
+  preview.start_joints = {0.0, 0.1, 0.2, 0.3, 0.4, 0.5};
+  preview.model.run_id = "run";
+  preview.model.target_id = "t1";
+  preview.model.model_revision = "t0:3";
+  preview.model.tool_profile_id = "hollow_cylinder_v1";
+  preview.model.calibration_revision = "cal";
+  preview.model.config_revision = "cfg";
+  peach_arm::ContactPlan execute = preview;
+  execute.model.model_revision = "t0:4";
+  const auto gate = peach_arm::executePlanGate(true, true, preview, execute, 0.05);
+  EXPECT_FALSE(gate.pass);
+  EXPECT_EQ(gate.failure_code, 20u);
+}
+
+TEST(StageDenial, ExpiredTokenIsSkippedQualityNotFailed)
+{
+  // M3c：令牌/许可「过期」可重派（重建后令牌换新即可再执行）→
+  // SKIPPED_QUALITY（=ExecuteTarget.Result 1），不再落 FAILED（=3）；
+  // 「许可明确不允许」等其余拒因保持 FAILED；GraspDecision 复检未通过
+  // 沿用 SKIPPED_QUALITY。
+  EXPECT_EQ(
+    peach_arm::kOutcomeSkippedQuality,
+    peach_arm::stageDenialOutcome(peach_arm::StageDenial::EXPIRED, false));
+  EXPECT_EQ(
+    peach_arm::kOutcomeFailed,
+    peach_arm::stageDenialOutcome(peach_arm::StageDenial::DENIED, false));
+  EXPECT_EQ(
+    peach_arm::kOutcomeSkippedQuality,
+    peach_arm::stageDenialOutcome(peach_arm::StageDenial::DENIED, true));
+  EXPECT_EQ(
+    peach_arm::kOutcomeSkippedQuality,
+    peach_arm::stageDenialOutcome(peach_arm::StageDenial::EXPIRED, true));
 }
 
 TEST(ToolActuatorPolicy, HarvestConfirmedNeedsBothEvidence)

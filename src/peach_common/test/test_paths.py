@@ -1,7 +1,9 @@
-"""safe_component 目录段净化与 runs_root 归一（消息 id 拼路径的统一守卫）."""
+"""safe_component 目录段净化、ensure_within 包含性与 runs_root 归一."""
 from pathlib import Path
 
-from peach_common.paths import runs_root, safe_component
+import pytest
+
+from peach_common.paths import ensure_within, runs_root, safe_component
 
 
 def test_normal_ids_pass_through():
@@ -67,3 +69,32 @@ def test_runs_root_configured_relative_falls_back(monkeypatch):
     """相对路径 configured 不生效（回默认），与归一前语义一致."""
     _clear_runs_env(monkeypatch)
     assert runs_root('relative/root') == _expected_default_root()
+
+
+# ---- ensure_within 写入包含性（writer 边界兜底；符号链接解出）----
+
+def test_ensure_within_accepts_inside_paths(tmp_path):
+    base = tmp_path / 'session'
+    base.mkdir()
+    deep = base / 'frame_00' / 'meta.yaml'
+    assert ensure_within(deep, base) == str(
+        Path(__import__('os').path.realpath(deep)))
+
+
+def test_ensure_within_rejects_escape(tmp_path):
+    base = tmp_path / 'session'
+    base.mkdir()
+    outside = tmp_path / 'elsewhere' / 'x.yaml'
+    with pytest.raises(ValueError):
+        ensure_within(outside, base)
+    with pytest.raises(ValueError):
+        ensure_within(base / '..' / 'escape.yaml', base)
+
+
+def test_ensure_within_resolves_symlink_escape(tmp_path):
+    base = tmp_path / 'session'
+    base.mkdir()
+    link = base / 'link'
+    link.symlink_to(tmp_path)
+    with pytest.raises(ValueError):
+        ensure_within(link / 'x.yaml', base)

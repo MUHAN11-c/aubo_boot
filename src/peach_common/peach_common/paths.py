@@ -43,6 +43,34 @@ def safe_component(name, fallback: str) -> str:
     return text
 
 
+def ensure_within(path, base) -> str:
+    """
+    写入路径包含性防御：realpath 归一后必须落在 base 目录内.
+
+    与 safe_component 互补：safe_component 净化单个目录段（拼路径前），
+    本函数在 writer 边界兜底（拼好后）——任何来源（target_id、外部串）
+    携带上跳段逃出 base 的路径一律拒绝。realpath 同时解掉符号链接，
+    防 ``base/link`` 指向目录外的绕行。
+
+    Args:
+        path: 待写入路径（str 或 PathLike；相对路径按 cwd 归一）.
+        base: 允许写入的根目录；该目录内部任意深度均合法.
+
+    Returns
+    -------
+        归一化后的绝对路径字符串；越出 base 抛 ValueError.
+
+    """
+    resolved = Path(os.path.realpath(path))
+    allowed = Path(os.path.realpath(base))
+    try:
+        resolved.relative_to(allowed)
+    except ValueError:
+        raise ValueError(
+            f'写入路径越出允许目录 {allowed}: {str(path)!r}') from None
+    return str(resolved)
+
+
 def runs_root(configured: str = '') -> Path:
     """
     过程数据根目录（工作区 ``runs/``）唯一解析.

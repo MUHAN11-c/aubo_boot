@@ -1,6 +1,6 @@
 # AGENTS.md — ROS 2 机器人工作流百科
 
-**MUST（先读）：** 未授权不得真机运动或 SetIO（操作员在 real 上发起 launch/操作台指令=授权）。硬件急停不经 ROS。驱动栈只读。`numpy == 1.26.4`。autostart 是部署参数（默认关）。
+**MUST（先读）：** 未授权不得真机运动或 SetIO（操作员在 real 上发起 launch/操作台指令=授权）。硬件急停不经 ROS。驱动栈只读。`numpy == 1.26.4`。autostart 是部署参数（默认关）。**任何测试或程序结束后必须停干净并清进程。**
 
 入口：
 
@@ -25,6 +25,7 @@ flowchart TB
     Safety[未授权不动臂_硬件急停不经ROS]
     HW[驱动栈只读]
     Distro[Jazzy_C++17_numpy1.26.4]
+    Cleanup[测完即停_pgrep清残留]
   end
   subgraph default [默认采用]
     Community[官方与优秀GitHub主流]
@@ -66,7 +67,7 @@ flowchart TB
 
 | 标签 | 含义 |
 |------|------|
-| **MUST** | 不可破：安全、发行版/ABI、不提交 `build/` `install/` `log/` `_archive/` |
+| **MUST** | 不可破：安全、发行版/ABI、测完清进程、不提交 `build/` `install/` `log/` `_archive/` |
 | **DEFAULT** | 主流。新代码、重构触及处、文档与代码已漂移处，都跟主流 |
 | **KEEP** | 仅当完美适配当前真机/产品（下三条同时成立） |
 | **SNAPSHOT** | 三份活文档里**现在跑什么**。不是“永远必须这样” |
@@ -105,6 +106,7 @@ flowchart TB
 - 用 venv 时：先 source Jazzy，再 source 工作区，再确认 `python3` 指向 `aubo_py3.12`。venv 若抢 `PYTHONPATH` 导致 `cv_bridge` 进错副本，按 testing.md 清再 source。不要 `pip install numpy --upgrade`。
 - 关节序冻结：`shoulder_joint, upperArm_joint, foreArm_joint, wrist1_joint, wrist2_joint, wrist3_joint`。顺序与 URDF / `joint_states` / 控制器 yaml 必须一致，否则透传点会拧腕。
 - 启动前：`pgrep -af 'ros2 launch|component_container|extrinsics_publisher|ros2 run'`。多代 `robot_state_publisher` 或 `extrinsics_publisher` 会叠同一 child frame，TF 静默错。
+- **测完即停、不允许残留：** 任何测试或程序（整栈 `ros2 launch`、`ros2 run`、采集器、`ros2 bag record`、探针、演示节点）运行结束后必须退出并清进程，不允许挂在后台。残留订户会占 FastDDS SHM、以死订户卡住 RELIABLE 大图流，使下一轮新订户 0 帧、TF 叠 child frame（2026-09-21：4 个挂死 `ros2 bag record` 堵死 `/camera/depth/image_raw`）。与「启动前 pgrep」成对：前清后清。收尾步骤见第 9 章。
 - 不向 `build/`、`install/`、`log/`、`_archive/` 提交。
 - launch 有 `autostart` **部署参数**（默认关，清洁重写轮 2026-09-16 核定删原红线）：true 时栈就绪自动发 `RunHarvest`。**授权语义=操作员在 real 上发起本 launch**（红线 3）；使能档=操作台运行时开关（意图源 supervisor、强制点臂侧命令门）。mock 自由。
 - **硬件急停不经 ROS。** 示教器红钮 / 柜安全回路是 ISO 13850 急停（IEC 60204-1 Category 0 或 1：切断驱动电源）。`RobotMoveStop`、取消 action、8090、DDS 话题都是应用停轨，**不得称为 e-stop**，也不得替代硬件急停（[ROS Answers / gvdhoorn](https://answers.ros.org/question/401774/e-stop-handling-on-ros-control/)：`ros_control` 不是安全额定急停）。
@@ -541,6 +543,7 @@ flowchart LR
   Bringup --> Lifecycle[能力节点_Active]
   Lifecycle --> Smoke[joint_states_TF_camera_hz]
   Smoke --> Intent[人发RunHarvest或单步]
+  Intent --> Teardown[停栈并pgrep清残留]
 ```
 
 - Overlay：`source /opt/ros/jazzy/setup.bash` → 工作区 `install/setup.bash`。venv 抢 `PYTHONPATH` 时按 testing.md 清再 source
@@ -552,8 +555,12 @@ flowchart LR
 - 时间：仿真必须全图 `use_sim_time` + `/clock`；真机禁止误开。rosbag `--use-sim-time` 等到 `/clock` 再写
 - 录制：rosbag2 默认 **MCAP**。本仓过程录制是会话 bag：`runs/session_*/bag/`，随 observability 启停（决策 0019）。批次账本另根 `runs/<request_id>/ledger.json`
 - 诊断：优先 `diagnostic_updater` + `/diagnostics`（`peach_arm` W5 起已用、`serial_imu` 已用；感知/重建/调度/观测 UNWIND）。8090 是 SNAPSHOT 调试面，不是第二控制面，**绕不过** `authorizeStage`
-- 停栈：Ctrl+C 后复查 pgrep；不要留下第二套 RSP
-- 环境：官方建议 `ros2 doctor`；本仓另加启动前 pgrep
+- 停栈 / 测完清进程（MUST，与启动前 pgrep 成对；整栈、单测探针、采集器、bag 一律适用）：
+  1. **结束即停**：launch 终端 Ctrl+C；一次性命令带 `timeout` 前缀跑，不裸挂（`ros2 bag record -d N` 自停不可靠，用 `timeout -s INT -k 10` 包裹）。
+  2. **结束即复核**：`pgrep -af 'ros2 launch|component_container|extrinsics_publisher|ros2 run|bag record|collect|probe'`。有预期时长超时后还在进程表里就是挂死。不要留下第二套 RSP。
+  3. **挂死按 PID 清**：`kill -TERM <pid>`，2 秒仍存活则 `kill -9`，再复核。不要宽泛 `pkill`（会自匹配/误伤）。
+  4. **别人的残留先报告再清理**；清后复验数据流（探针或 `ros2 topic echo --once`）。残留会占 FastDDS SHM（`/dev/shm/fastrtps_*`）并堵 RELIABLE 大图。
+- 环境：官方建议 `ros2 doctor`；本仓启动前与结束后都 pgrep
 - 日志：现场复盘靠 bag + `runs/` jsonl，不靠终端滚动。`RCLCPP_INFO` 写节拍与目标 ID，不写矩阵
 
 带相机 / MoveIt / IMU 的 launch 参数与真机干跑步骤见 [docs/testing.md](docs/testing.md)。不要把 testing.md 的命令表再贴一遍。
@@ -597,6 +604,7 @@ flowchart TB
 
 - 改动后本地 `colcon test --packages-select …` + `colcon test-result --verbose`
 - 新功能：先单测，再 launch_testing，最后才真机
+- **测完即停：** 探针 / bag / 采集 / 演示栈 / mock 冒烟结束后必须退出并 `pgrep` 复核（MUST 第 1 章；步骤第 9 章）。`colcon test` 与 isolated launch_testing 本身会拆栈，但本机手工起的进程不在其列。
 - 真机命名：[docs/testing.md](docs/testing.md) 的 `field_pregrasp_*` / `field_full_*`；`request_id` 不复用
 - `colcon test` 绿 **不等于** 采摘方向验收；也不再把“禁止仿真测”写成原则
 - CI DEFAULT：[industrial_ci](https://github.com/ros-industrial/industrial_ci) GitHub Action，`ROS_DISTRO: jazzy`，跑 build+test。真机 job 不进 PR 必过门。本仓 `.github/workflows/jazzy.yaml`：`peach-core` = `scripts/r0_gate.sh`；`industrial_ci` job 编测驱动+peach（忽略 IVG / `imu_follow` / `percipio_camera` / `camera_calibration`；apt scipy/pytest/yaml，不 Docker pip）
@@ -623,11 +631,11 @@ Gazebo Harmonic（Jazzy 搭配）或 Isaac / MuJoCo：同一 URDF，换 `gz_ros2
 1. 风格：受影响包 `colcon test --packages-select <pkg>`（lint + 纯核 / gtest）
 2. 接口：改了 IDL / 接线则跑 `python3 src/peach_interfaces/scripts/check_interface_manifest.py`；`ros2 interface show` 对得上 io.md
 3. 图：无重复节点；TF `tf2_echo` 无叠 child frame
-4. Launch：mock 能起；lifecycle Active；pgrep 无残留
+4. Launch：mock 能起；lifecycle Active；**停栈后** pgrep 无残留（含 bag record / collect / probe）
 5. 行为：运动路径至少 `hardware_mode:=mock` 走通；真机另需授权
 6. 文档：architecture / io / testing 与源码同一轮
 7. 静态：C++ 改完 **Clangd: Restart language server**（`CMAKE_EXPORT_COMPILE_COMMANDS`）
-8. 环境：`ros2 doctor`；启动前 pgrep
+8. 环境：`ros2 doctor`；启动前与结束后都 pgrep
 
 gtest 放本包 `test/`，链到纯核静态库，不 `spin` 整个技能节点。pytest 纯核不 `import rclpy`（现行 `test_harvest_fsm.py` 是范例，KEEP 这种切法）。需要图的，走 launch_testing，不要在 pytest 里手动 `rclpy.init` 抢默认域。
 
@@ -716,7 +724,7 @@ lifecycle 名单现行（nav2_lm 承载，`bond_timeout` launch 参数默认 0�
 
 当时否决（0002 不上 pluginlib、0006 禁止 launch_testing、0017 已删 GPL）记在 architecture 决策表里作**历史**，态度改为 UNWIND。新代码碰到这些行，跟 Nav2 / 官方测试塔 / generate_parameter_library，而不是继续维护该禁令。
 
-抽查：可以加 launch_testing；不可以改 hardware 包；不可以未授权动臂；不可以把 ROS 话题叫 e-stop；不可以跳过编写前检索去发明第二套参数框架，或在未读 tf2 / MoveIt 源码前手写变换 / 插值。
+抽查：可以加 launch_testing；不可以改 hardware 包；不可以未授权动臂；不可以把 ROS 话题叫 e-stop；不可以测完留下进程；不可以跳过编写前检索去发明第二套参数框架，或在未读 tf2 / MoveIt 源码前手写变换 / 插值。
 
 ---
 
@@ -737,6 +745,7 @@ lifecycle 名单现行（nav2_lm 承载，`bond_timeout` launch 参数默认 0�
 8. mock 冒烟或 launch_testing
 9. 同轮三份活文档（若改为主流，删掉旧“禁止 / 不上”口吻）
 10. 未授权则不动真机
+11. 测完 / 跑完 pgrep 无残留（MUST）
 
 ### 加一个新节点（流程）
 
@@ -780,6 +789,7 @@ lifecycle 名单现行（nav2_lm 承载，`bond_timeout` launch 参数默认 0�
 | 感知 import 技能模块 | 只走 IDL |
 | pytest 里 `rclpy.init` 打开发机域 | launch_testing isolated |
 | 第三套参数框架 | C++ 用 GPL；Python 用 `yaml_params.attach`（0024） |
+| 测完 / bag 录完不杀进程 | 停栈 + pgrep 复核；挂死按 PID 清（MUST） |
 
 ### 本文不写什么
 

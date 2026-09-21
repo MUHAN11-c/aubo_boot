@@ -1,8 +1,10 @@
 <source name="Depth">
     <feature name="DepthScaleUnit"></feature>
-    <!-- SGBM 参与图像数：空值=设备默认；置 5 提高深度稳定性（代价是帧率下降，
-         启动后需观察 percipio fps 日志确认帧率可接受） -->
-    <feature name="DepthSgbmImageNumber">2</feature>
+    <!-- SGBM 参与图像数：空值=设备默认（18）。2026-09-20/21 实测：残留值 2 经本文件
+         无条件下发会使设备端深度大面积无效（窗内 valid ~7%，mdr ~0.35）；清空后
+         恢复健康（valid ~0.47，mdr ~0.98）。本包定位=官方驱动+仅本机必要调整
+         （IP/分辨率走 launch 参数），调参实验值勿留在此文件 -->
+    <feature name="DepthSgbmImageNumber"></feature>
     <feature name="DepthSgbmDisparityNumber"></feature>
     <feature name="DepthSgbmDisparityOffset"></feature>
     <feature name="DepthSgbmMatchWinHeight"></feature>

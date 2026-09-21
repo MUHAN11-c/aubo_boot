@@ -14,6 +14,7 @@ export LD_LIBRARY_PATH=../../camport4/lib/linux/lib_x64:$LD_LIBRARY_PATH
 | 工具 | 用途 |
 |------|------|
 | `feature_dump` | 枚举各组件 0x1000-0x4FFF 特征 ID，读回名称/可写性/当前值（75 项全量） |
+| `temp_probe` | 只读温度探针（不开流、不点激光）：三路探测 SDK 温度可读性——Device 全特征扫描名字含 Temp 项 / `TY_ENUM_TEMPERATURE_ID` 选测点 + `TY_STRUCT_TEMPERATURE` / struct 尺寸兜底扫描（09-20 激光热管理可行性验证用） |
 | `write_test` | 空闲态写 image number(0x1610) 并读回，验证寄存器接受度 |
 | `laser_check [reset]` | 查询/复位 laser 设置（auto ctrl / power）。**laser 跨连接自动复位；曝光值跨连接残留**，改完设备参数务必核验 |
 | `raw_ir_test <exposure> [plain/laser/flood/dual]` | 裸 SDK 独立 IR 采集测试。`laser`/`dual` 模式先解锁投射器 |

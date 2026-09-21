@@ -15,6 +15,7 @@ build() {  # build <src> <out> [extra_libs]
       -L"$SDK_LIB" -ltycam -ltyimgproc -lpthread ${3:-} -o "bin/$2"
 }
 build feature_dump.cpp  feature_dump
+build temp_probe.cpp    temp_probe
 build write_test.cpp    write_test
 build laser_check.cpp   laser_check
 build raw_ir_test.cpp   raw_ir_test

@@ -49,6 +49,9 @@ def generate_launch_description():
             description='彩色图话题（remap 到节点相对名 image）'),
         DeclareLaunchArgument(
             'autostart', default_value='true',
-            description='false 时保持 Unconfigured，须外部 configure/activate'),
+            description='false 时保持 Unconfigured，须外部 configure/activate。'
+                        '注意：节点 main() 已自激活（ensure_active），本参数 true 时'
+                        'activate 事件会打到已 active 节点并将其打死（09-21 实测确定性'
+                        '互杀）——launch 路径暂不可用，用 ros2 run 直起'),
         activate, node, configure,
     ])

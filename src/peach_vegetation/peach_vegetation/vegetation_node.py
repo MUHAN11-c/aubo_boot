@@ -4,6 +4,13 @@
 订阅相对名 ``image``（launch remap 到相机彩色图），Active 后才推理。
 发布 ``/peach/vegetation/{leaf_mask,branch_mask,overlay,status}``。
 不写 PlanningScene、不发运动、不进 harvest_system。
+
+运维注意（2026-09-21 避障轮实测，缺陷待修）：
+- main() 的 ensure_active() 自激活与 launch autostart 事件确定性互杀——
+  launch 路径不可用；用 ``ros2 run`` 直起（自激活），勿再发 lifecycle
+  change_state（对已 active 节点发 activate 会打死进程）。
+- 相机节点重启/换前端后本节点订阅会楔死（收流不吐掩膜、CPU 空闲）——
+  每次相机侧重启后须重启本节点。
 """
 
 from __future__ import annotations

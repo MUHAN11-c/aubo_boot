@@ -188,7 +188,7 @@ class ScenePerceptionParams:
     gravity_mode: str
     """'tf'=由 output←camera 反推；'fixed'=只用 gravity_hint."""
     publish_debug_image: bool
-    """是否发 /peach/perception/debug_image（默认 false=PF-3；现场调图显式开）."""
+    """是否发 /peach/perception/debug_image（默认 true；关则管线零拷贝零发布）."""
     debug_downscale: float
     """debug/debug_raw 发布前缩放比例 ∈(0,1]；1.0=直通零开销（逐帧热键）."""
     publish_masks: bool

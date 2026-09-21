@@ -1,0 +1,90 @@
+{
+  "session": {
+    "bag": "/home/mu/Desktop/aubo_e5_jazzy_ws/runs/session_20260920_143028/bag",
+    "session_dir": "/home/mu/Desktop/aubo_e5_jazzy_ws/runs/session_20260920_143028",
+    "started_at": 1789885828.658732,
+    "ended_at": 1789885977.1612601,
+    "duration_s": 148.5
+  },
+  "requests": [],
+  "gates": {
+    "rows": [
+      [
+        "感知帧率 FPS",
+        "—",
+        "≥ 2.0",
+        "—"
+      ],
+      [
+        "重建 TF 失败次数",
+        0,
+        "= 0",
+        "✓"
+      ],
+      [
+        "到预抓取停住（succeeded）",
+        0,
+        "≥1（有派发目标时）",
+        "—"
+      ]
+    ],
+    "fps": null,
+    "tf_failures": 0,
+    "succeeded": 0
+  },
+  "targets": [],
+  "phase_durations": [],
+  "events": {
+    "total": 0,
+    "by_code": {},
+    "by_severity": {}
+  },
+  "perception": {
+    "frames": 0,
+    "median_interval_s": null,
+    "fps": null,
+    "target_count_min": null,
+    "target_count_max": null
+  },
+  "reconstruction": {
+    "state": "IDLE",
+    "target_id": "",
+    "captured_views": 0,
+    "rejected_views": 0,
+    "tf_failures": 0,
+    "grasp_allowed": false,
+    "grasp_reason": "reconstruction_not_ready"
+  },
+  "reconstruction_per_target": [],
+  "jobs": [],
+  "metrics": {
+    "samples": 228,
+    "cpu_percent": {
+      "mean": 49.98,
+      "max": 74.3
+    },
+    "memory_percent": {
+      "mean": 44.13,
+      "max": 47.5
+    },
+    "gpu_utilization_percent": {
+      "mean": 14.29,
+      "max": 86.0
+    },
+    "gpu_memory_used_mb": {
+      "mean": 1756.82,
+      "max": 3295.0
+    }
+  },
+  "tcp": {
+    "count": 1,
+    "path_length_m": 0.0,
+    "chord_m": 0.0,
+    "detour_ratio": null,
+    "max_dev_m": 0.0,
+    "z_min_m": 0.7075,
+    "z_max_m": 0.7075,
+    "dz_m": 0.0,
+    "samples": 1
+  }
+}

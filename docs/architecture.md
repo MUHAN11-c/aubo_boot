@@ -24,7 +24,7 @@ Robotics_Tutorial 教程库已归档 `_archive/parked_2026-09/`，不再随库�
 - **近期成功标准：** [testing.md](testing.md) 现行定位门是 `PREGRASP_ONLY`：到预抓取停住，不回 `harvest_stow`、不套入、不 SetIO。套入干跑须把 `execute_pregrasp_only` 改 false（默认 `tool.enabled=false`）。切断+撤退均确认才记采摘成功。树干 CollisionObject 仍预留；`peach_vegetation` 只发 2D 掩膜，不写 PlanningScene。
 - **非目标：** launch 自动 `RunHarvest`；感知发运动；技能写 `ledger.json`；学习模型补深度；nvblox；改只读驱动栈；把 ROS / 8090 当成功能安全急停。
 
-现场基线（归档数字与轮次：[testing-log.md](testing-log.md)）：相机已运行 ~2.4–2.5 FPS（launch 仍请求 5.0）。现行 `PREGRASP_ONLY` 停袋底对照：`field_pregrasp_20260901_1757:target_1`（目视方向与定位中上水平，只需微调）。
+现场基线（归档数字与轮次：[testing-log.md](testing-log.md)）：相机已运行 ~2.4–2.5 FPS（launch 现行请求 2.5；09-16 实测 5.0 不可达且无加速作用）。现行 `PREGRASP_ONLY` 停袋底对照：`field_pregrasp_20260901_1757:target_1`（目视方向与定位中上水平，只需微调）。
 
 **产品结论：** 栈能跑完全流程。失败不在缺包，而在观察节拍、身份新鲜度、可达性门、会话隔离没有按 2.5 FPS 停走式相机做成一等公民。
 
@@ -37,7 +37,7 @@ Robotics_Tutorial 教程库已归档 `_archive/parked_2026-09/`，不再随库�
 1. **契约先于实现。** 跨包名字与 QoS 以 [interface_manifest.yaml](../src/peach_interfaces/config/interface_manifest.yaml) 为准。感知不发运动；批次唯一所有者是 `peach_harvester`（supervisor）。
 2. **替换走缝位，不拆包。** 现行多数算法直接构造；仅袋/果位姿管线与柱/球 refitter 留 dict 映射（yaml `pipeline.*_impl` / `refitter.*_impl`）——这是 SNAPSHOT / **UNWIND**，不是永久禁 pluginlib。**新可替换算法默认 pluginlib**（Nav2 / ros2_control / MoveIt）；默认可仍直接构造一个实现。技能原 C++ 工厂缝位已收回，不要为 `stages.cpp` 再加平行 Manager。
 3. **失败可定位、可跳过。** 每个目标必须有 `failure_code`。观察失败不接触；规划失败不执行残缺轨迹。
-4. **停走式感知是产品相机模型。** 节拍按实测 ~2.5 FPS + 静止门，不是 5 Hz 连续积分，也不是参考文 0.8 FPS。覆盖预算优于 `max_views=24`。2026-09-17 起相机前端可选（`camera_frontend:=percipio|stereo`）：`peach_stereo` 主机单图案立体 ~13.7 FPS（hh4 档，09-20 端到端矩阵；话题同构，A/B：感知锁定 2.8 s vs 48 s、双深度链同目标互证差 5 mm；激光满功率点亮注意热管理），默认仍 percipio，田间验证后切换。规格档案见 `src/peach_stereo/README.md`。
+4. **停走式感知是产品相机模型。** 节拍按实测 ~2.5 FPS + 静止门，不是 5 Hz 连续积分，也不是参考文 0.8 FPS。覆盖预算优于 `max_views=24`。2026-09-17 起相机前端可选（`camera_frontend:=percipio|stereo`）：`peach_stereo` 主机单图案立体 ~13.7 FPS（hh4 档，09-20 端到端矩阵；09-21 部署档加配准后滑窗时域中值 `temporal_k=3` 与点云 `confidence` 字段，见决策 0025 追记；话题与 percipio 同构——stereo 点云多一个 `confidence` 字段，A/B：感知锁定 2.8 s vs 48 s、双深度链同目标互证差 5 mm；激光满功率点亮注意热管理），默认仍 percipio，田间验证后切换。规格档案见 `src/peach_stereo/README.md`。
 5. **套入/剪切唯一权威是 `GraspDecision.allowed`。** 感知 ACCEPT 只当初值/可视化。融合成功时入口/轴/剪切参考有效，`PREGRASP_ONLY` 可据此到预抓取。`allowed=false` 禁止套入/SetIO，禁止单帧候选降级接触。套入许可走逐目标动态径向/轴向预算；固定 35° 只诊断完全错轴。
 6. **会话有边界。** 一次 `RunHarvest` 对应一份账本目录 `runs/<request_id>/`；过程录制为会话 bag（决策 0019），随节点启停开合，批次边界由消息自带 `request_id` 还原。
 7. **导航已归档，不是底盘驱动。** `peach_navigation` 包体在 `_archive/parked_2026-09/`，不进 colcon 构建；四个导航 IDL 在 manifest 标「预留」并由清单脚本双向核对。调度 `_cmd_navigate` 固定座直通 `NAV_OK`，不发动作。雷达/odom/cmd_vel 驱动与 Nav2 接线须另授权后从归档恢复，不加第五个 peach 包。
@@ -183,7 +183,7 @@ flowchart TB
     systest["peach_system_tests 隔离域测"]
   end
   subgraph hw ["只读驱动层 AGENTS红线"]
-    cam["Percipio RGB-D 请求5.0 实测2.5FPS"]
+    cam["Percipio RGB-D 请求2.5 实测2.4FPS"]
     arm["aubo_e5_hardware controllers MoveIt"]
     eye["hand_eye wrist3 到 camera_link"]
   end
@@ -378,7 +378,8 @@ peach_common/                     # 共享设施库（W1，对齐 nav2_common）
   test/{test_yaml_params,test_param_rules,test_paths,test_qos}.py
 
 peach_stereo/          # 可选相机前端（camera_frontend:=stereo）：主机单图案立体 RGB-D，话题与 percipio 同构
-  src/  config/  launch/  README.md   # 规格档案与 A/B 实测见 src/peach_stereo/README.md
+  src/  config/  launch/  README.md   # 规格档案（参数档/confidence 布局）见 src/peach_stereo/README.md
+  test/                               # 与 percipio 双前端对比档案：analysis/report/scripts/data（索引 test/README.md）
 
 serial_imu/
   serial_imu/{imu_node,protocol,frame}.py
@@ -755,7 +756,7 @@ launch 参数装载走官方 `moveit_configs_utils.MoveItConfigsBuilder`（与 M
 
 #### `percipio_camera`
 
-图漾驱动（厂商代码）。采摘订彩色/深度/`camera_info`；深度须与彩图配准。感知 `depth_scale_unit=0.25`（raw×0.25=毫米）。launch 请求 `frame_rate:=5.0`，现场约 2.5 FPS；未授权不改帧率。
+图漾驱动（厂商代码）。采摘订彩色/深度/`camera_info`；深度须与彩图配准。感知 `depth_scale_unit=0.25`（raw×0.25=毫米）。launch 请求 `frame_rate:=2.5`（09-16 实测 5.0 不可达且无加速作用），现场约 2.4–2.5 FPS；未授权不改帧率。
 
 #### `serial_imu`
 
@@ -1070,7 +1071,7 @@ yaml：仅上述 4 键仍为 `*.impl`（技能 yaml 无 `*.impl`）。检测/分
 | 0022 | 安全收口 + 假绿拆除（2026-09-18 全面审查轮）：① 使能广播加心跳——supervisor Active 且 override 非空时 1Hz 重发 `/peach/batch/enables`，臂侧 `execution.enables_heartbeat_timeout_s`（默认 5.0，<=0 锁存兼容）超时回落本地参数权威；广播在权时本地参数 set 不覆盖使能（双写竞争修复）。② 接触许可令牌绑目标——`Clearance.msg` 加 `target_id`/`valid_until`（GraspDecision 原值冻结不续签），装配端不绑定当前目标不装令牌（走快照复检回退），臂侧令牌路径查绑定+valid_until+TOOL 级 tool_enabled，堵「旧决策授权新目标」与「1Hz 心跳刷新 stamp 致新鲜度永不触发」（②的窗口 2026-09-20 参数化 `decision.validity_s` 默认 120s——G1：原 5s 与接近链时长错配，真机单 LIN 7.5s、FULL 链 30-60s；`model_revision` 含单调 finalize 计数——G3：同目标重 Build 且机位数相同不再沿用旧令牌；supervisor 装配处加过期 WARN，不拒发不重排）。③ 8090 `SURVEY_ONLY` 收紧为运动类（会 Survey 移到拍照位，原判非运动是 423 门旁路）。④ 真机 P1-A：贴边帧不计确认 + `bbox_edge` 旗标锁可选/选果双侧过滤；P1-B：fast 档 `decide_fast` 接 `reconstruction_min_views`（好单视不再直接收口，消除「fast 不移动×min_views=2×基线 8°」三层矛盾）。⑤ 测试假绿拆除：24 个 `vision_test_*`/`supervisor_test_*` 改名 `test_*` 并入 pytest 收集（97→全部用例真实执行），peach_harvester lint 债全清（D400/D205/D209/D403/import 序/缺 docstring）；F10 回退后的 octomap 豁免 gtest 断言同步（`allowToolVersusWholeOctomap`=true 为现行语义）。⑥ fast 补视 latest TF 回退加 1.0s 陈旧门；`_view_signals` 接 `tf_stale/tf_unavailable` 诊断旗标。驱动只读、使能默认关、无真机运动。 |
 | 0023 | GPU 枝/叶分割独立包 `peach_vegetation`（2026-09-18）：首版直接构造 Frangi（torch Hessian，`device:=auto`）+ Excess Green/HSV 叶，发布 `sensor_msgs/Image` 掩膜与 overlay。不写 PlanningScene / 不删 octomap 叶 / 不进 `harvest_system` / lifecycle。参数沿用 0017 ParamListener（非第三套；C++ 化再 GPL）。健康走 `diagnostic_updater` `/diagnostics`。后续木类语义分割换同一 `split()` 面，禁止先扩 yaml `*.impl` 表。零新 IDL。推翻：无。 |
 | 0024 | Python 参数改为 yaml 直读（2026-09-18）：删 scene 的 GPL Python 生成物（`scene_perception.params.yaml` / `params_gen.py` / 再生成脚本）与手写 ParamListener DEFAULTS 双源。`yaml_params.attach(node, yaml)` 按部署清单声明叶子，`ros2 param set` 原地刷新；主节点一行 `attach(self)`。空 YOLO/SAM 路径在参数层拒绝。感知/重建/调度/观测/lifecycle/vegetation 同一写法。`peach_arm` C++ 仍 GPL（类型化 Params）。键名冻结。推翻 0017 的 Python ParamListener 与随后 scene GPL Python 回迁。同日补全：各 params 模块挂 `_RULES` 规则表（`validate=`：越界/白名单启动期拒启、运行期非法 set 即拒，逐条转写自 0017 RULES）与跨字段 `preview=`（scene 深度窗、supervisor 选果窗、vegetation HSV 窗：非法整批拒绝）；`peach_bringup` 两小组件节点入 `config/bringup.yaml` + attach；接口清单核对器 consumer 扫描补 `peach_bringup/config`；规则键⊆部署清单键入各包测试。 |
-| 0025 | 端到端审查修复轮（2026-09-20/21，报告 `reports/2026-09-20-e2e-code-review/`；G1/G3/G4 追记见 0022②与本表上方 observability/reconstruction 节）：**G2** 预览绑定只由 PREVIEW 模式 goal 写入（旧「observe 转记绑定」会让保守档 FULL 必拒且绑定无复位点），FULL/PREGRASP_ONLY 周期终局清复位、受理即拒不清（`plan_contract.hpp` `executePlanGate`：无绑定或 goal 无 plan_id 放行——fast 档不发 PREVIEW 是有意的）。**M1** 取消旗标收口：三动作（ExecuteTarget/Survey/MoveTo）终局各自 `clearCancelFlagIfIdle`，sticky 取消不再拒后续 MoveTo/观察。**M2** 周期 worker/survey/move_to 线程 packaged_task future 2s 有界回收、超时 WARN+detach（W13-B 同款扩展，默认互斥组裸 join 死锁拆除）。**M3a/M3b/M3c** 受理期 plan mismatch 以 PLAN_MISMATCH(20) 进 Result（纯核常量 static_assert 与 IDL 钉死）、`onStart` 拒绝落 RECOVERY_REQUIRED/OBSERVE_FAILED 码、`StageDenial` 拒因分级（EXPIRED→SKIPPED_QUALITY 可重派，DENIED→FAILED）。**G5** 预检名单补 brain exec 名 `peach_harvester`（brain 一进程三节点不传 name= 重映射，按节点名查会漏旧脑致双 supervisor 静默共存）与 `peach_lifecycle_flag_bridge`/`peach_autostart_client`/`stereo_camera_node`。**M11** GraspDecision dict 侧 allowed 与消息侧同源派生（`model_contract.allowed_from_decision` 单源；events.jsonl/diagnostics_debug 不再与类型化消息各执一词）。**M13** 观测落盘 `scene_snapshot` 订阅改 transient_local（单发闩锁，记录节点晚于发布启动不再永久丢快照）。驱动侧（非 aubo 只读面）：`percipio_camera/launch/parameters.xml` 调参残留 `DepthSgbmImageNumber=2` 清空——09-21 根因终章：该 XML 被 launch 无条件下发，18 图案 SGBM 被砍成 2 幅致设备深度大面积无效（testing-log 09-21）；纪律同步：percipio_camera=官方驱动+仅本机 IP/分辨率调整，调参实验值不留此文件。`peach_stereo` 参数档 hh4/`uniqueness_ratio`6/`median_ksize`3 落地（档案见该包 README 与 reports，工作区属用户不在此展开）。零新 IDL（`DepositResult` 仅注释修订：预留零生产零消费，到期无人接线随下轮接口清理删除）。推翻：无。 |
+| 0025 | 端到端审查修复轮（2026-09-20/21，报告 `reports/2026-09-20-e2e-code-review/`；G1/G3/G4 追记见 0022②与本表上方 observability/reconstruction 节）：**G2** 预览绑定只由 PREVIEW 模式 goal 写入（旧「observe 转记绑定」会让保守档 FULL 必拒且绑定无复位点），FULL/PREGRASP_ONLY 周期终局清复位、受理即拒不清（`plan_contract.hpp` `executePlanGate`：无绑定或 goal 无 plan_id 放行——fast 档不发 PREVIEW 是有意的）。**M1** 取消旗标收口：三动作（ExecuteTarget/Survey/MoveTo）终局各自 `clearCancelFlagIfIdle`，sticky 取消不再拒后续 MoveTo/观察。**M2** 周期 worker/survey/move_to 线程 packaged_task future 2s 有界回收、超时 WARN+detach（W13-B 同款扩展，默认互斥组裸 join 死锁拆除）。**M3a/M3b/M3c** 受理期 plan mismatch 以 PLAN_MISMATCH(20) 进 Result（纯核常量 static_assert 与 IDL 钉死）、`onStart` 拒绝落 RECOVERY_REQUIRED/OBSERVE_FAILED 码、`StageDenial` 拒因分级（EXPIRED→SKIPPED_QUALITY 可重派，DENIED→FAILED）。**G5** 预检名单补 brain exec 名 `peach_harvester`（brain 一进程三节点不传 name= 重映射，按节点名查会漏旧脑致双 supervisor 静默共存）与 `peach_lifecycle_flag_bridge`/`peach_autostart_client`/`stereo_camera_node`。**M11** GraspDecision dict 侧 allowed 与消息侧同源派生（`model_contract.allowed_from_decision` 单源；events.jsonl/diagnostics_debug 不再与类型化消息各执一词）。**M13** 观测落盘 `scene_snapshot` 订阅改 transient_local（单发闩锁，记录节点晚于发布启动不再永久丢快照）。驱动侧（非 aubo 只读面）：`percipio_camera/launch/parameters.xml` 调参残留 `DepthSgbmImageNumber=2` 清空——09-21 根因终章：该 XML 被 launch 无条件下发，18 图案 SGBM 被砍成 2 幅致设备深度大面积无效（testing-log 09-21）；纪律同步：percipio_camera=官方驱动+仅本机 IP/分辨率调整，调参实验值不留此文件。`peach_stereo` 参数档 hh4/`uniqueness_ratio`6/`median_ksize`3 落地（档案见该包 README 与 reports，工作区属用户不在此展开）。**追记（09-21 temporal_k 落地轮，详见 testing-log 09-21 续）**：`temporal_k` 滑窗时域中值（1/3/5 非法拒启；配准后彩色网格上 k 帧逐像素有效中值，每帧照常发布不除率——区别于 avg_k 批式；部署 yaml=3，live A/B：entry std z 0.41→0.21mm、袋半径 std 0.27→0.14mm（均 −48%）、覆盖 +0.4pp、13.7gps 无回归）；`depth_registered/points` 增 `confidence` FLOAT32 字段（point_step 16→24：rgb@16、confidence@20——初版 confidence@16 与 byString 的 rgb 槽重叠，线上实测颜色被置信度覆写后修正；temporal_k>1 时=窗内采样占比×取值一致性、与发布深度逐像素对齐，否则恒 1.0）——「话题与 percipio 同构」自此带此一例外，io.md 同轮标注。同轮修存量 bug：stereo yaml 顶层键 `peach_stereo_camera_node:` 与 namespaced 节点全名 `/camera/peach_stereo_camera_node` 从不匹配（所有 yaml 部署值此前从未生效、默认值碰巧一致），改 `/**:` 通配。零新 IDL（`DepositResult` 仅注释修订：预留零生产零消费，到期无人接线随下轮接口清理删除）。推翻：无。 |
 
 ---
 

@@ -39,7 +39,9 @@ def _launch_node(context):
         # G4（2026-09-20 审查）：launch 默认停栈窗 5+5s 会杀掉 bag 报告线程
         # （join_report 上限 55s）——给本进程放宽 SIGTERM 窗，写盘为原子
         # （tmp+rename），超窗最坏留「无新报告」（CLI 可复跑）而非半份。
-        sigterm_timeout=60.0,
+        # 须为字符串 substitution：浮点会让 launch 展开报
+        # 'float' object is not iterable（09-21 E2E 实测修复）
+        sigterm_timeout='60',
     )
     autostart = LaunchConfiguration('autostart')
     configure = EmitEvent(

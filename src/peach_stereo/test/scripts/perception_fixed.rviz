@@ -1,0 +1,151 @@
+Panels:
+  - Class: rviz_common/Displays
+    Name: Displays
+  - Class: rviz_common/Views
+    Name: Views
+Visualization Manager:
+  Class: ''
+  Displays:
+    - Alpha: 0.3
+      Cell Size: 0.1
+      Class: rviz_default_plugins/Grid
+      Color: 160; 160; 164
+      Enabled: true
+      Line Style:
+        Line Width: 0.005
+        Value: Lines
+      Name: Grid
+      Normal Cell Count: 0
+      Offset:
+        X: 0
+        Y: 0
+        Z: 0
+      Plane: XY
+      Plane Cell Count: 10
+      Reference Frame: <Fixed Frame>
+      Value: true
+    - Alpha: 1
+      Autocompute Intensity Bounds: true
+      Autocompute Value Bounds:
+        Max Value: 10
+        Min Value: -10
+        Value: true
+      Axis: X
+      Channel Name: intensity
+      Class: rviz_default_plugins/PointCloud2
+      Color: 255; 255; 255
+      Color Transformer: RGB8
+      Decay Time: 0
+      Enabled: true
+      Invert Rainbow: false
+      Max Color: 255; 255; 255
+      Min Color: 0; 0; 0
+      Name: RGBD 点云（相机光学系）
+      Position Transformer: XYZ
+      Selectable: false
+      Size (m): 0.004
+      Style: Flat Squares
+      Topic:
+        Depth: 5
+        Durability Policy: Transient Local
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /demo/cloud
+      Use Fixed Frame: true
+      Use rainbow: true
+      Value: true
+    - Class: rviz_default_plugins/MarkerArray
+      Enabled: true
+      Name: 圆柱拟合（袋轴/袋体/刀具包络）
+      Namespaces:
+        {}
+      Topic:
+        Depth: 100
+        Durability Policy: Transient Local
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /demo/cyl_markers
+      Value: true
+    - Class: rviz_default_plugins/Image
+      Enabled: true
+      Max Height: 480
+      Max Width: 640
+      Middle click algorithm: Nearest
+      Name: 彩色图
+      Normalize Range: true
+      Topic:
+        Depth: 5
+        Durability Policy: Transient Local
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /demo/color
+      Value: true
+    - Class: rviz_default_plugins/Image
+      Enabled: true
+      Max Height: 480
+      Max Width: 640
+      Middle click algorithm: Nearest
+      Name: 配准深度（米）
+      Normalize Range: true
+      Topic:
+        Depth: 5
+        Durability Policy: Transient Local
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /demo/depth
+      Value: true
+    - Class: rviz_default_plugins/Image
+      Enabled: true
+      Max Height: 480
+      Max Width: 640
+      Middle click algorithm: Nearest
+      Name: 感知叠加图（检测/掩膜/袋轴）
+      Normalize Range: true
+      Topic:
+        Depth: 5
+        Durability Policy: Transient Local
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /demo/debug
+      Value: true
+  Enabled: true
+  Global Options:
+    Background Color: 48; 48; 48
+    Default Light: true
+    Fixed Frame: camera_color_optical_frame
+    Frame Rate: 30
+  Name: root
+  Tools:
+    - Class: rviz_default_plugins/MoveCamera
+  Value: true
+  Views:
+    Current:
+      Class: rviz_default_plugins/Orbit
+      Distance: 1.3
+      Enable Stereo Rendering:
+        Stereo Eye Separation: 0.06
+        Stereo Swap Eyes: false
+        Value: false
+      Field of View: 0.7854
+      Focal Point:
+        X: 0
+        Y: 0
+        Z: 0.6
+      Focal Shape Fixed Size: true
+      Focal Shape Size: 0.05
+      Invert Z Axis: false
+      Name: Current View
+      Near Clip Distance: 0.01
+      Pitch: 0.15
+      Target Frame: <Fixed Frame>
+      Yaw: 1.5708
+    Saved: ~
+Window Geometry:
+  X: 360
+  Y: 120
+  Displays:
+    Collapsed: false
+  Height: 800
+  Views:
+    Collapsed: false
+  Width: 1200

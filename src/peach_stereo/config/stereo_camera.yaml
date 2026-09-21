@@ -1,5 +1,5 @@
 # peach_stereo_camera_node 参数（部署值即事实源；键名冻结）
-peach_stereo_camera_node:
+/**:
   ros__parameters:
     device_ip: 169.254.10.110
     camera_name: camera
@@ -9,7 +9,21 @@ peach_stereo_camera_node:
     ir_exposure: 990           # 左右 IR 曝光（深度质量/工作距离旋钮；深度帧率不受它影响）
     laser_power: 100           # 解锁投射器功率（满功率点亮，停栈自动复位）
     sgbm:
-      num_disparities: 128     # 视差搜索范围（半分辨率 128 ≈ 全分辨率 256）
+      num_disparities: 128     # 视差搜索范围（半分辨率 128 ≈ 全分辨率 256；0.3m 感知下限已证最优勿改。
+                               # 勿与 scale=1.0 组合：128@全分辨率 z_min≈0.53m 侵入 0.3-0.8m 工作区，
+                               # 避障轮实测近枝失深——见 test/report/branch/branch_p3*.log）
       block_size: 5
-      processing_scale: 0.5    # 匹配分辨率相对 1280x960 的缩放（0.5=640x480，~13ms/帧）
+      uniqueness_ratio: 6      # 匹配唯一性比（10→6：09-20 同帧组扫描覆盖 +2.7pp、精度门内，见 reports）
+      processing_scale: 0.5    # 匹配分辨率相对 1280x960 的缩放（0.5=640x480）。避障轮四档实测：
+                               # 全分辨率(1.0) 换细节 +18% 但枝覆盖 −18%、帧率 13.5→4.3gps、近距失深——
+                               # 坏交易勿用；半分辨率是细节/覆盖/帧率的实测最优平衡（test/ 避障轮）
+      mode: hh4                # SGBM 路径聚合模式（3way/sgbm/hh/hh4；hh4=端到端矩阵最优：精度 8.75→7.50mm、
+                               # 粗糙度 1.03→0.94mm、匹配 ~54ms 仍装进相机 73ms 帧间隔→全率发布实测 13.7gps，
+                               # 09-20 轮见 reports/2026-09-20-e2e-stereo-optimal/）
     avg_k: 1                   # k 帧时域融合（1/2/4/8：质量换帧率，k=5 噪声约 0.96mm@0.8m）
+    median_ksize: 3            # 深度有效值中值窗（0=关/3/5；3x3 过 09-20 三门且点云粗糙度 -12%，见 reports）
+    temporal_k: 3              # 滑窗时域中值（1=关/3/5，非法拒启）：配准后彩色网格深度上 k 帧逐像素中值，
+                               # 每帧照常发布不除率（区别于 avg_k 批式）。entry std z 0.41→0.21mm（−48%），
+                               # 半径 std 0.27→0.14mm（−48%），覆盖 +0.4pp，13.7gps 无回归——live A/B 09-21。
+                               # 避障轮：tk3 还补细枝深度闪烁（枝上覆盖 0.652 全档最优）——为避障关
+                               # med3/tk3 是负收益（细节仅 +2%、覆盖 −3%），见 test/report/branch/

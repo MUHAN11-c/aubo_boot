@@ -258,7 +258,7 @@ ros2 lifecycle get /peach_supervisor
 timeout 5 ros2 run tf2_ros tf2_echo wrist3_Link camera_link
 ```
 
-关节名必须是：`shoulder_joint, upperArm_joint, foreArm_joint, wrist1_joint, wrist2_joint, wrist3_joint`。把 `/joint_states` 对照 SRDF `global_photo_pose`（`src/aubo_e5_moveit_config/config/aubo_e5.srdf` 的 `group_state`）。launch / lifecycle **不到**拍照位；开执行后第一次 `SurveyScene` 才 PTP 过去。`execution.enabled=false` 时 Survey 仍核**当前**关节：停在袋口开批须 `termination_reason=survey_failed`，不得把袋口 FOV 收进本批锁定集。上一轮若停在 HoldPregrasp，当前多半还在袋口——差值大时先目视/示教器确认再开 `execution`。`ros2 topic hz /camera/color/image_raw` 的订阅 QoS 须与发布端一致。Percipio launch 默认 `color_qos:=default`（RELIABLE）；感知订户也是 RELIABLE depth 10。若改成 `SENSOR_DATA`（BEST_EFFORT），默认可靠的 `hz` 会误报未发布。帧率以 Percipio `fps ≈ 2.43` 与感知注册表为准。四节点须 Active。重建有时停在 inactive：`ros2 lifecycle set /peach_target_reconstruction_node activate`。固定座无导航动作（`NavigateToWorksite` 预留，调度 `_cmd_navigate` 直通 `NAV_OK`）。
+关节名必须是：`shoulder_joint, upperArm_joint, foreArm_joint, wrist1_joint, wrist2_joint, wrist3_joint`。把 `/joint_states` 对照 SRDF `global_photo_pose`（`src/aubo_e5_moveit_config/config/aubo_e5.srdf` 的 `group_state`）。launch / lifecycle **不到**拍照位；开执行后第一次 `SurveyScene` 才 PTP 过去。`execution.enabled=false` 时 Survey 仍核**当前**关节：停在袋口开批须 `termination_reason=survey_failed`，不得把袋口 FOV 收进本批锁定集。上一轮若停在 HoldPregrasp，当前多半还在袋口——差值大时先目视/示教器确认再开 `execution`。`ros2 topic hz /camera/color/image_raw` 的订阅 QoS 须与发布端一致。Percipio launch 默认 `color_qos:=default`（RELIABLE）；感知订户也是 RELIABLE depth 10。若改成 `SENSOR_DATA`（BEST_EFFORT），默认可靠的 `hz` 会误报未发布。帧率按前端计：percipio `fps ≈ 2.43` 与感知注册表；`camera_frontend:=stereo` 时 ~13.7 fps（组率由相机节拍限速，hh4+`temporal_k=3` 处理链仍小于相机 73 ms 帧间隔，见 `src/peach_stereo/README.md`）。驱动深度健康另有口径：头 30 帧 valid <10% 即异常（09-21 percipio 曾因 `parameters.xml` 残留值无条件下发崩到 ~5–12%，只看彩色 hz 冒烟发现不了）。本机 `ros2 topic hz` CLI 另有恒 0 帧的工具怪癖（`echo`/rclpy 订户正常）——帧率与健康一律以 30 帧探针为准。订户全线 0 帧而发布端进程健在时，先查挂死的 `ros2 bag record`（`-d N` 自停不可靠，录制一律 `timeout -s INT -k 10` 包裹；死订户会占住 `/camera` 大流）与 `/dev/shm/fastrtps_*` 残留，清杀后复验数据流。四节点须 Active。重建有时停在 inactive：`ros2 lifecycle set /peach_target_reconstruction_node activate`。固定座无导航动作（`NavigateToWorksite` 预留，调度 `_cmd_navigate` 直通 `NAV_OK`）。
 
 显式只扫（仍不运动）：
 
@@ -269,7 +269,13 @@ ros2 action send_goal /peach_supervisor/run_harvest peach_interfaces/action/RunH
 
 `intent: 2` = SURVEY_ONLY。技能 `execution.enabled=false` 时 Survey **仍核当前关节**（只规划不够）。调度会先 Survey、再 Begin、再 WAIT_LOCK，然后结算（不选果）。默认 intent 0 且调度 `execution_enabled` 关时同样：拍照位失败则 `survey_failed`；成功则锁定后直接结算（不选果、不记 `SKIPPED_QUALITY`）。全流程到预抓取须两边 `execution=true` 且技能 `grasp.enabled=true`。
 
-停栈：launch 终端 Ctrl+C，再 `pgrep`。
+停栈（MUST，与启动前 pgrep 成对；整栈、探针、采集器、`ros2 bag record` 一律适用）：launch 终端 Ctrl+C；一次性命令用 `timeout` 包裹（`ros2 bag record -d N` 自停不可靠，用 `timeout -s INT -k 10`）。结束后复核：
+
+```bash
+pgrep -af 'ros2 launch|component_container|extrinsics_publisher|ros2 run|bag record|collect|probe'
+```
+
+有残留按 PID `kill -TERM`，2 秒仍存活则 `kill -9`，再复核。不要宽泛 `pkill`。发现别人的残留先报告再清理；清后复验数据流（30 帧探针或 `ros2 topic echo --once`）。步骤见 [AGENTS.md](../AGENTS.md) 第 1、9 章。
 
 ### 透传冒烟（仅 real）
 
@@ -343,7 +349,7 @@ Fixed Frame 用 **`base_link`**，不要用未接上的 `world`。改显示配�
 | Reconstruction Markers | 开 | `/peach/reconstruction/markers` | 主 ns `target_reconstruction`；精化 `peach_reconstruction/refined`。相机轨迹与精化示意 |
 | Planned Views | 开 | `/peach_arm/planned_views` | 候选拍照位；`execution.enabled=false` 时仍会出，不代表已走到 |
 | Camera Color | 关 | `/camera/color/image_raw` | 原彩图 |
-| Debug Image | 关（W3/PF-3 起 `publish_debug_image` 默认 false；RViz 调图须显式 `ros2 param set /peach_scene_perception_node publish_debug_image true`，可配 `debug_downscale` 降采样） | `/peach/perception/debug_image` | 检/分割叠加。灰框=未满 confirm_frames |
+| Debug Image | 开（`publish_debug_image` 默认 true；关：`ros2 param set /peach_scene_perception_node publish_debug_image false`。可配 `debug_downscale` 降采样） | `/peach/perception/debug_image` | 检/分割叠加。灰框=未满 confirm_frames |
 | Imu | 开 | `/imu/data` | `rviz_imu_plugin`：TCP 上的灰盒子 / RGB 轴 / 黄比力。姿态不写进 `imu_link` TF |
 
 ---
@@ -448,6 +454,8 @@ python3 src/peach_interfaces/scripts/check_interface_manifest.py
 5. 相机出图且深度配准：`ros2 topic hz /camera/color/image_raw` ≈2.5 FPS。
 6. 当前关节对照 SRDF `global_photo_pose`。launch 不自动到位；开执行后第一段运动是 Survey 回拍照位（进程内无接近记录则 PTP）。停在预抓取重启时这一段行程大，须现场确认再开批。
 
+收尾（轮次结束，MUST）：launch 终端 Ctrl+C，再按「停栈」节 `pgrep` 复核无残留（含 bag / collect / probe）。挂死按 PID 清。
+
 档位（预抓取全程）：
 
 | 项 | 值 | 说明 |
@@ -519,6 +527,7 @@ ros2 service call /peach_supervisor/control peach_interfaces/srv/ControlTask \
 2. Active 后先对照拍照位，再 `ros2 param set` 开执行/抓取（`tool.enabled` 保持 false），再发 `RunHarvest`（launch 不自动开批）。完整命令见上「复现命令」。
 3. 每颗期望链：首巡 Survey → Begin → WAIT_LOCK → SELECT → Build+OBSERVE 并行 → `PREGRASP_ONLY` 停在预抓取（作业票停在「靠近」）→ 现场目视评方向/定位（筒口对袋轴？侧向偏多少？剪切点落袋口？）→ `ControlTask` 命令 6 ACK → 回访 Survey（不 Begin）→ 下一颗。
 4. 通过判据：`ExecuteTarget` 终局 `SUCCEEDED` 且 `recovery_required=true`（不得 `FAILED`）；全程无 SetIO；这些对错只在现场评，`allowed`/余量只作记录。Hold 等 ACK 期间不写 summary（结算只认批次终局）；若需当场核对，以技能 `[SUCCEEDED] PREGRASP_ONLY` 日志与现场停位为准。
+5. 轮次结束：launch Ctrl+C，按「停栈」节 pgrep 复核无残留（MUST）。
 
 中断与异常：
 

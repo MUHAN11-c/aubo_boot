@@ -1,0 +1,127 @@
+# ROS 2 构建产物
+build/
+install/
+log/
+
+# generate_parameter_library_py 写入源码包（供 PYTHONPATH 指向 src 时导入）
+src/peach_perception/peach_perception/scene_perception_parameters.py
+src/peach_perception/peach_perception/target_reconstruction_parameters.py
+src/peach_executor/peach_executor/executor_parameters.py
+src/peach_executor/peach_executor/observability_parameters.py
+src/peach_executor/peach_executor/lifecycle_manager_parameters.py
+
+# Python 环境（本机 venv，不随仓库分发）
+aubo_py3.12/
+**/.venv-yolo/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# 工作空间归档（运行输出、厂商资料、一次性排查、大模型）
+_archive/
+
+# 厂商原始资料（体积大，本地保留；已迁入 _archive/vendor/）
+SDK资料/
+src.tar.xz
+
+# C/C++ 扩展 IntelliSense 数据库（可再生，可达数 GB）
+.vscode/browse.vc.db*
+
+# 工作区根目录调试产物（不入库）
+/debug/
+
+# rembg u2net 权重约 168MB，超过 Gitee 社区版单文件配额与 GitHub 100MB；
+# 本机文件保留不删。clone 后见
+# src/ivg_pose_estimation/models/README.md
+src/ivg_pose_estimation/models/*.onnx
+src/visual_pose_estimation/visual_pose_estimation_python/models/*.onnx
+# MobileCLIP2 权重约 243MB，同样超单文件配额，本机保留
+/mobileclip2_b.ts
+
+# 工具/测试运行输出
+diagnostics/build/
+diagnostics/results/
+src/percipio_camera/depth_eval_out/
+test_results/
+harvest_runs/
+web_runs/
+peach_sessions/
+# 过程记录 runs/：结构化文本（jsonl/json/csv/md/yaml/txt/log/mmd）入库随仓推送，
+# 克隆即可离线复算/分析；图像/mcap/点云等二进制仍只留本地。
+runs/**
+!runs/**/
+!runs/**/*.jsonl
+!runs/**/*.json
+!runs/**/*.md
+!runs/**/*.csv
+!runs/**/*.yaml
+!runs/**/*.yml
+!runs/**/*.txt
+!runs/**/*.log
+!runs/**/*.mmd
+recon_maps/*.ply
+validation_runs/
+# 手眼标定：hand_eye/active.yaml 是唯一在用外参事实源，入库随仓（09-17 唯一性整理；
+# 此前整目录被忽略导致标定仅存本机，工作区清理后只剩 _archive 副本）；
+# candidates/ 为标定会话产物，不入库
+src/aubo_hand_eye_calibration/hand_eye/candidates/
+release/
+rosbag2_*/
+
+# IDE 与工具缓存
+.vscode/
+.serena/
+.mimosa/
+**/.mimosa/
+.playwright-mcp/
+.patch_probe
+*.orig
+*~
+
+# AI 工具会话状态（本地保留，不入库）
+.cursor/
+.zcode/
+.v2c/
+.video_agent/
+.claude/
+**/.claude/
+.remember/
+
+# 复刻学习资料：官方免费 PDF 与配套源码体积大，本地保留不入库
+复刻学习资料/免费资源/*.pdf
+复刻学习资料/官方配套源码/
+
+# 系统
+.DS_Store
+Thumbs.db
+
+# ===== ↑ 以上同步自 .gitignore（「从 .gitignore 同步」只重写以上部分）=====
+.git/
+.hg/
+.svn/
+node_modules/
+bower_components/
+jspm_packages/
+site-packages/
+venv/
+coverage/
+htmlcov/
+lcov-report/
+cmakefiles/
+cmake-build-*/
+bazel-*/
+pods/
+deriveddata/
+storybook-static/
+playwright-report/
+test-results/
+allure-results/
+allure-report/
+cdk.out/
+*.egg-info/
+*.dist-info/
+eggs/
+pip-wheel-metadata/
+wheels/
+# ----- ↑ 以上为 ZCode 默认排除规则（自定义规则请写在本行下方，不会被同步/恢复改动）-----
+# 自定义规则写在下方（本行提示可删除）

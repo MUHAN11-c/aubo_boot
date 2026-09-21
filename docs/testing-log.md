@@ -680,3 +680,15 @@ SIGINT 旧栈后用 16:57 编的 `peach_manipulation` 重起；开批前在 `glo
 3. **发现（未改行为）**：单帧门 ACCEPT 生产/调参均 0 触发（refine 有 non-REJECT 兜底=良性但偏好分支死码）；`low_valid_depth` 按检测框 ROI 均值计分母致生产 56/56 恒命中；`travel_too_short` 同恒命中。三项记遗留，与真机验收轮同改。
 4. **成熟库对比（先评估后换）**：identity 匈牙利已是 scipy；pyransac3d 圆柱拟合否决（轴误差 15.9° vs 自研 0.051°、8× 慢、无种子确定性）；Open3D voxel 降采样破坏确定性不采纳。自研拟合栈三轴均优，保留。
 5. perf_baseline.json 增 `live_tuning_stereo_2targets_ms` 段。清理：调参节点已停 pgrep 零残留。
+
+### 09-21 感知第二轮调参迭代（单帧门三处语义修正，live 重取证绿）
+
+**范围**：`pose_pipelines.py`（门控/信息 flag 分离 + valid_ratio 目标级口径 + 长度一致性门）、`inference.py`（build_masks 返回 sam_yield）、新测试 `test_vision_gating.py` 7 测；io.md §3.1 单帧门条目同轮改口。全量 **peach_harvester 201 测 0 失败**。
+
+**三处修正与证据**：
+
+1. **valid_ratio 目标级口径**：build_masks 新增返回 sam_yield=|SAM∩valid|/|SAM|，经 estimate_modes→estimate(`target_valid_ratio`) 驱动 low_valid_depth 门/confidence/σ/遮挡分类；None 回退旧 ROI 均值（外部直调兼容）。live 复测：良态目标 confidence **0.14→0.977**，`low_valid_depth` 消失。注：取证中更正一个误判——175240 三帧掩膜下深度 p50=0（87% 零洞），该帧目标真实产率本就 0.131，新旧口径同判差帧；口径修正在**健康帧**上兑现收益。
+2. **travel_too_short 复核**：公式 travel=min(袋长−margin_neck, insert_length) 本身正确；生产 56/56 恒命中根因是**袋长塌缩**（隐含 4-5.5cm vs 物理 ~15cm，疑地标/重力极性在该 rig 失准）。处置=阈值不动（健康场景 live 复测 travel 0.055-0.070 不再命中）+ 新增 `axis_length_inconsistent` 门（纯函数 `axis_length_consistent`）把塌缩显式化，根因修复留真机验收轮。
+3. **门控/信息分离→ACCEPT 可达**：`_INFORMATIONAL_FLAGS`（taper_*/polarity_*/axis_from_pca/fruit_prior_auxiliary/*_from_band/gravity_defaulted/axis_from_profile_sign）不再压状态；`unbagged_display_only` 留门控（果线仅显示语义不变）。合成良态锥形袋走完整链 **status=ACCEPT、gating=[]、信息 flag 在列**（test 锁定）；refine ACCEPT 偏好分支复活。live 场景两目标仍 REOBSERVE=**error_budget_exceeded**（6.6cm 袋/14mm 径向余量 vs 20° 轴不确定度预算 24mm——真实几何警示，应当门控；圆柱 RANSAC 赢下时 θ→2-5° 即放行）。
+
+**live 重取证（stereo 活流，调参模式）**：60s/462 帧 `idset_changes=0`（身份零抖动保持）；r1 debug 图视觉复核无退化（runs/tune_20260921/r1/）；timing total 166ms/6.6fps（同机负载波动区间，geometry 111ms 为 EMA 未稳+场景方差，无系统性回归）。清理照旧：本轮结束留调参栈运行待用户 RViz 确认后停。

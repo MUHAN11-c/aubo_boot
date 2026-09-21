@@ -434,7 +434,7 @@ class CandidateEstimator:
                     obs, target_id, bbox, mode, 'fruit_pipeline_disabled')
                 results[mode].target_kind = kind
             return results
-        masks, valid_roi = self.build_masks(obs, bbox, sam_mask)
+        masks, valid_roi, sam_yield = self.build_masks(obs, bbox, sam_mask)
         results = {}
         self.last_timings_ms = {}
         for mode in selected:
@@ -447,7 +447,7 @@ class CandidateEstimator:
             else:
                 results[mode] = pipeline.estimate(
                     obs, target_id, bbox, mask, self._source(mode),
-                    valid_roi=valid_roi)
+                    valid_roi=valid_roi, target_valid_ratio=sam_yield)
             pose = results[mode].grasp_3d
             results[mode].target_kind = kind
             pose.strategy_id = f'robust_{kind}_pose:{mode}'
@@ -463,7 +463,8 @@ class CandidateEstimator:
 
     def build_masks(self, obs: BagObservation, bbox: tuple,
                     sam_mask: Optional[np.ndarray]
-                    ) -> tuple[dict[str, Optional[np.ndarray]], Optional[np.ndarray]]:
+                    ) -> tuple[dict[str, Optional[np.ndarray]],
+                               Optional[np.ndarray], Optional[float]]:
         """
         在 bbox ROI 内构造 hybrid_dilated 掩膜（实测深度单位：毫米 uint16）.
 
@@ -477,7 +478,12 @@ class CandidateEstimator:
 
         Returns
         -------
-            ({mode_id: ROI 掩膜或 None}, ROI 有效深度掩膜或 None)；
+            ({mode_id: ROI 掩膜或 None}, ROI 有效深度掩膜或 None,
+            sam_yield 或 None)：sam_yield = |SAM∩valid|/|SAM|（ROI 内），
+            即「分割声称的目标里有多少具备有效深度」。作为
+            target_valid_ratio 传给位姿管线，取代旧 ROI 均值口径——
+            检测框背景超窗会把 ROI 均值压到掩膜占比量级（实测 0.09 vs
+            目标真实 ~0.9），连带压垮 confidence/σ/遮挡分类；
             副作用：刷新 _last_mask_timings_ms（毫秒）.
 
         """
@@ -487,17 +493,20 @@ class CandidateEstimator:
         roi = obs.depth[y1:y2, x1:x2]
         empty = {mode: None for mode in MODE_IDS}
         if roi.size == 0:
-            return empty, None
+            return empty, None, None
         sam_roi = self._crop_mask(sam_mask, (x1, y1, x2, y2), obs.depth.shape)
         if sam_roi is None:
             elapsed_ms = (time.perf_counter() - started) * 1000.0
             self._last_mask_timings_ms = {mode: elapsed_ms for mode in MODE_IDS}
-            return empty, None
+            return empty, None, None
         valid = valid_depth_mask(
             roi, self.pipeline.min_depth_m, self.pipeline.max_depth_m)
         depth_mask, _ = foreground_mask(
             roi, valid, None, bbox, source='depth_fallback')
         measured_sam = sam_roi & valid
+        n_sam = int(sam_roi.sum())
+        sam_yield = (
+            float(measured_sam.sum() / n_sam) if n_sam > 0 else None)
         k = 2 * (self.dilate_px // 2) + 1
         kernel = self._dilate_kernel_cache.get(k)
         if kernel is None:
@@ -507,7 +516,7 @@ class CandidateEstimator:
         mask = self._enough(measured_sam & expanded_depth)
         elapsed_ms = (time.perf_counter() - started) * 1000.0
         self._last_mask_timings_ms = {mode: elapsed_ms for mode in MODE_IDS}
-        return {'hybrid_dilated': mask}, valid
+        return {'hybrid_dilated': mask}, valid, sam_yield
 
     def _crop_mask(self, mask: Optional[np.ndarray], bbox: tuple,
                    image_shape: tuple) -> Optional[np.ndarray]:

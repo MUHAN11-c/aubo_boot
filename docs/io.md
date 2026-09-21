@@ -151,9 +151,9 @@ flowchart LR
 | `/camera/depth/image_raw` | 配准深度（uint16 或 32FC1） |
 | `/camera/color/camera_info` | 彩色内参 K |
 | `/camera/depth/camera_info` | 深度内参（配准后与彩色同 K；stereo 前端同发） |
-| `/camera/depth_registered/points` | 配准彩色点云（percipio 默认开；stereo 同名） |
+| `/camera/depth_registered/points` | 配准彩色点云（percipio 默认开；stereo 同名，点云多一个 `confidence` 字段，见下） |
 
-**相机前端（2026-09-17 起，harvest_system `camera_frontend:=percipio|stereo`，默认 percipio）**：percipio=设备端 18 图案深度（~2.43 fps，额定量程 0.4–0.8 m；09-21 修复 `parameters.xml` 调参残留下发致深度大面积无效——该 XML 是无条件下发通道，实验值勿残留）；stereo=`peach_stereo` 主机单图案立体（~13.7 fps，hh4 档；话题与 percipio 同构：`color/image_raw`、`depth/image_raw`、`{color,depth}/camera_info`、`depth_registered/points`；深度口径 uint16×0.25 mm；只发 raw Image + 点云，不用 image_transport；静态 TF 同名链；激光满功率点亮、停栈自动复位；与 percipio 相机连接互斥；SGBM 档 `sgbm.mode`/`sgbm.uniqueness_ratio`/`median_ksize`，参数依据见该包 README）。规格档案与实测数据见 `src/peach_stereo/README.md`。感知/重建订阅零改动。
+**相机前端（2026-09-17 起，harvest_system `camera_frontend:=percipio|stereo`，默认 percipio）**：percipio=设备端 18 图案深度（~2.43 fps，额定量程 0.4–0.8 m；09-21 修复 `parameters.xml` 调参残留下发致深度大面积无效——该 XML 是无条件下发通道，实验值勿残留）；stereo=`peach_stereo` 主机单图案立体（~13.7 fps，hh4 档；话题与 percipio 同构：`color/image_raw`、`depth/image_raw`、`{color,depth}/camera_info`、`depth_registered/points`——stereo 点云比 percipio 多一个 `confidence` FLOAT32 字段（point_step 24=xyz12+pad4+rgb4+confidence4——confidence 在 rgb 槽之后，勿与 rgb@16 重叠；`temporal_k>1` 时=窗内采样占比×取值一致性、与发布深度逐像素对齐，`=1` 时恒 1.0；消费方按字段名读，octomap/RViz/PCL 兼容）；深度口径 uint16×0.25 mm；只发 raw Image + 点云，不用 image_transport；静态 TF 同名链；激光满功率点亮、停栈自动复位；与 percipio 相机连接互斥；SGBM 档 `sgbm.mode`/`sgbm.uniqueness_ratio`/`median_ksize` + 配准后滑窗时域中值 `temporal_k`（1=关/3/5 非法拒启；逐像素有效中值、每帧照常发布不除率；部署 yaml=3，09-21 live A/B：entry std z 0.41→0.21mm、袋半径 std 0.27→0.14mm、覆盖 +0.4pp、13.7gps 无回归），参数依据见该包 README 与 yaml 注释）。规格档案与实测数据见 `src/peach_stereo/README.md`。感知/重建订阅零改动。
 
 感知/重建 ApproximateTime slop **0.05 s**。驱动 QoS 字符串 `default`（RELIABLE）；订户手写 RELIABLE、depth=10。跨包轴向后撤只改 `src/peach_harvester/config/grasp_standoffs.yaml` 两行（`entry_standoff_m` / `pregrasp_standoff_m`），launch 注入各节点已声明参数。
 
@@ -222,6 +222,7 @@ flowchart TB
 
 - YOLO 异常：整帧跳过，不炸 worker。无框不补假框。
 - SAM 只出像素掩膜。截断超 16 框的目标常变 OCCLUDED。前景几何只用 `hybrid_dilated`；SAM 缺失或交后像素 < `min_mask_points` 给 `mask_unavailable` / REOBSERVE，**不**走深度-only 几何回退。`depth_fallback` 只出现在构造 hybrid 时的深度连通域标签。
+- 单帧门（2026-09-21 第二轮起）：`status` 只看**门控类** flag（净空/行程/误差预算/有效深度/截断/2D 校验/长度一致性等）；过程类 flag（`taper_*`/`polarity_*`/`axis_from_pca`/`fruit_prior_auxiliary`/`*_from_band`/`gravity_defaulted`）只进 `diagnostic_flags` 供追溯、不再压状态——修正前生产 56/56 恒 REOBSERVE（过程 flag 全帧在场）、refine 的 ACCEPT 偏好分支死码。`valid_depth_ratio` 同轮改**目标级口径** |SAM∩valid|/|SAM|（旧 ROI 均值被窗外背景稀释一个量级，连带压垮 confidence/σ/遮挡分类）；袋长塌缩新增显式 `axis_length_inconsistent` 门（3D 长度 vs 框 2D 展程×深度/焦距粗测）。
 - 身份：整帧一次全局 1-1 分配（`identity.assign_detections`：同类 + 马氏 χ² 门 9≈3σ + 歧义比 1.2）。节点不传 `covariance`，σ=`match_radius/3`×`recovery_scale`。`SpatialEmaMatcher` 欧氏两段匹配**不**走帧路径（只提供半径属性）。`tf_unavailable` 与 `tf_stale` 均不改权威身份。确认 `confirm_frames=5`；贴边帧不攒确认。摆动连续 3 帧残差 >0.03 m → `target_swinging`（不可选）。
 - 跟踪 token：OUT_OF_VIEW / LOST / OCCLUDED / DEPTH_VOID / OBSERVED。
 - 锁定：`CollectLockPolicy`；`tf_stale` / `tf_unavailable` / `target_untracked` / `target_swinging` / `bbox_edge` 不可选。锁定后新 ID 不入集。`observations[]` 只发锁定 ID；锁定前数组空。

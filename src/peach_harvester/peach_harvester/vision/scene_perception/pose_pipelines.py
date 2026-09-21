@@ -101,6 +101,59 @@ class TargetPoseResult:
     target_kind: str = 'bag'  # "bag" | "fruit"
 
 
+# 信息类 flags：描述估计过程（轴来源/极性校正/辅助先验），不反映几何
+# 质量，不参与单帧门。2026-09-21 前所有 flags 一律压 ACCEPT（生产 56/56
+# 恒 REOBSERVE、refine 的 ACCEPT 偏好分支死码）；分离后 ACCEPT=无门控类
+# flag 可达，REJECT/REOBSERVE 语义不变。
+_INFORMATIONAL_FLAGS = frozenset({
+    'axis_from_pca',              # 轴来自 PCA 而非圆柱 RANSAC（过程事实）
+    'axis_from_profile_sign',     # 剖面符号退化回主轴（过程事实）
+    'taper_neck',                 # 锥度判口成功（过程事实）
+    'taper_polarity_swapped',     # 宽窄端已对调（校正完成）
+    'taper_lower_hemisphere_ignored',
+    'polarity_upper_hemisphere',  # 上半球夹持已生效（校正完成）
+    'fruit_prior_auxiliary',      # 球先验仅为辅助量（按构造恒在）
+    'neck_from_band', 'bottom_from_band',
+    'gravity_defaulted',          # 无重力提示回退默认（下游另有不确定度门）
+})
+
+
+def _gating_flags(flags) -> list:
+    """过滤出参与单帧门的 flags（全集减信息类）."""
+    return [f for f in flags if f not in _INFORMATIONAL_FLAGS]
+
+
+def axis_length_consistent(length_m: float, bbox_w_px: int, bbox_h_px: int,
+                           z_med_m: float, fx_px: float) -> bool:
+    """
+    3D 袋长与检测框 2D 展程一致性（长度塌缩显式化门）.
+
+    背景：地标/重力极性钳制在重力方向失准时会把 bottom→neck 长度压塌
+    （2026-09-20 生产 56 帧 travel 0.024-0.040m ⟹ 隐含袋长 ~4-5.5cm，
+    物理 ~15cm+），旧口径下只表现为 travel_too_short 恒命中、根因不可
+    见。本门用 2D 展程×深度/焦距的独立粗测交叉验证：3D 长度不足粗测
+    一半且粗测本身不退化（>8cm）时判不一致。
+
+    Args:
+        length_m: 估计的 3D 袋长（米）.
+        bbox_w_px: 检测框宽（像素）.
+        bbox_h_px: 检测框高（像素）.
+        z_med_m: 前景点中位深度（米）.
+        fx_px: 相机焦距（像素）.
+
+    Returns
+    -------
+        True = 一致或粗测无判别力；False = 长度塌缩嫌疑.
+
+    """
+    if fx_px <= 0.0 or z_med_m <= 0.0:
+        return True
+    implied_m = float(np.hypot(bbox_w_px, bbox_h_px)) * z_med_m / fx_px
+    if implied_m <= 0.08:
+        return True
+    return length_m >= 0.5 * implied_m
+
+
 @dataclass
 class _EstimateInputs:
     """estimate 同构前奏产物（袋/果共用；W13-A 抽取，字段见 _prepare_estimate_inputs）."""
@@ -167,7 +220,9 @@ class RobustBagPosePipeline:
     def estimate(self, obs: BagObservation, target_id: str, bbox: tuple,
                  mask: Optional[np.ndarray] = None,
                  mask_source: str = 'depth_fallback',
-                 valid_roi: Optional[np.ndarray] = None) -> TargetPoseResult:
+                 valid_roi: Optional[np.ndarray] = None,
+                 target_valid_ratio: Optional[float] = None
+                 ) -> TargetPoseResult:
         """
         估计 bbox 内单个袋装目标，返回显式安全状态的结果.
 
@@ -178,11 +233,16 @@ class RobustBagPosePipeline:
             mask: 外部前景掩膜（全图或 ROI，bool/0-1）；None 走深度带降级.
             mask_source: 掩膜来源标签，写入诊断.
             valid_roi: 与 ROI 同尺寸的有效深度掩膜；None 时按管线深度窗现算.
+            target_valid_ratio: 目标级有效深度占比 |SAM∩valid|/|SAM|
+                （build_masks 的 sam_yield）；None 回退旧 ROI 均值口径
+                （外部直调/降级路径）。该值同时驱动 low_valid_depth 门、
+                confidence 与 σ 缩放、遮挡分类.
 
         Returns
         -------
-            TargetPoseResult；status ∈ ACCEPT/REOBSERVE/REJECT，硬性失败
-            （点太少/净空不足等）直接 REJECT，诊断指标经 metrics 暴露.
+            TargetPoseResult；status ∈ ACCEPT/REOBSERVE/REJECT。门控语义
+            （2026-09-21 起）：ACCEPT=无门控类 flag（信息类见
+            _INFORMATIONAL_FLAGS 不再压状态）；硬性失败直接 REJECT。
 
         与 RobustFruitPosePipeline.estimate 同构（W13-A）：前奏共用
         _prepare_estimate_inputs；中段（轴估计/参考点/门控）与结果组装
@@ -192,7 +252,8 @@ class RobustBagPosePipeline:
 
         """
         failure, inputs = self._prepare_estimate_inputs(
-            obs, target_id, bbox, mask, mask_source, valid_roi)
+            obs, target_id, bbox, mask, mask_source, valid_roi,
+            target_valid_ratio)
         if failure is not None:
             return failure
         x1, y1, x2, y2 = inputs.x1, inputs.y1, inputs.x2, inputs.y2
@@ -343,8 +404,15 @@ class RobustBagPosePipeline:
         boundary_touch, boundary_sides = self._boundary_metrics(local_mask)
         if boundary_touch > 0.15 or boundary_sides >= 3:
             flags.append('foreground_truncated')
+        # 长度塌缩显式化：3D 袋长 vs 检测框 2D 展程×深度/焦距交叉验证
+        # （生产长度塌缩只变现为 travel_too_short 恒命中、根因不可见）
+        if not axis_length_consistent(
+                length, x2 - x1, y2 - y1, float(np.median(points[:, 2])),
+                float(obs.camera_K.get('fx', 0.0))):
+            flags.append('axis_length_inconsistent')
 
-        status = 'ACCEPT' if not flags else (
+        gating = _gating_flags(flags)
+        status = 'ACCEPT' if not gating else (
             'REJECT' if 'tool_clearance_failed' in flags else 'REOBSERVE')
         confidence = float(np.clip(
             min(valid_ratio / 0.65, 1.0) * min(len(points) / 800.0, 1.0)
@@ -400,7 +468,8 @@ class RobustBagPosePipeline:
         return TargetPoseResult(target_id, base_2d, grasp_3d, source, metrics)
 
     def _prepare_estimate_inputs(self, obs, target_id, bbox, mask,
-                                 mask_source, valid_roi):
+                                 mask_source, valid_roi,
+                                 target_valid_ratio=None):
         """
         袋/果两线 estimate 的同构前奏（W13-A 抽取；步骤序与原内联逐字一致）.
 
@@ -416,6 +485,8 @@ class RobustBagPosePipeline:
             mask: 外部前景掩膜（全图或 ROI）；None 走深度带降级.
             mask_source: 掩膜来源标签，写入诊断.
             valid_roi: 与 ROI 同尺寸的有效深度掩膜；None 按管线深度窗现算.
+            target_valid_ratio: 目标级有效深度占比（见 estimate 文档）；
+                None 回退 ROI 均值（旧口径，外部直调/降级路径保留）.
 
         Returns
         -------
@@ -431,7 +502,14 @@ class RobustBagPosePipeline:
 
         roi = obs.depth[y1:y2, x1:x2]
         valid = valid_roi if valid_roi is not None else self._valid_depth(roi)
-        valid_ratio = float(valid.mean()) if valid.size else 0.0
+        # valid_ratio 语义（2026-09-21 修正）：优先目标级 |SAM∩valid|/|SAM|
+        # （sam_yield）。旧 ROI 均值把检测框背景超窗算进分母，实测被压到
+        # 掩膜占比量级（0.09 vs 目标真实 ~0.9），连带压垮 confidence、
+        # σ_position（膨胀 ~5×）与遮挡分类；目标级口径三者同步回到真实。
+        if target_valid_ratio is not None:
+            valid_ratio = float(np.clip(target_valid_ratio, 0.0, 1.0))
+        else:
+            valid_ratio = float(valid.mean()) if valid.size else 0.0
         local_mask, source = self._foreground(roi, valid, mask, bbox, source=mask_source)
         base_2d.foreground_mask = local_mask
         coverage = float(local_mask.mean()) if local_mask.size else 0.0
@@ -745,7 +823,9 @@ class RobustFruitPosePipeline(RobustBagPosePipeline):
     def estimate(self, obs: BagObservation, target_id: str, bbox: tuple,
                  mask: Optional[np.ndarray] = None,
                  mask_source: str = 'depth_fallback',
-                 valid_roi: Optional[np.ndarray] = None) -> TargetPoseResult:
+                 valid_roi: Optional[np.ndarray] = None,
+                 target_valid_ratio: Optional[float] = None
+                 ) -> TargetPoseResult:
         """
         估计 bbox 内单个裸果目标，返回显式安全状态的结果.
 
@@ -756,6 +836,7 @@ class RobustFruitPosePipeline(RobustBagPosePipeline):
             mask: 外部前景掩膜（全图或 ROI）；None 走深度带降级.
             mask_source: 掩膜来源标签，写入诊断.
             valid_roi: 与 ROI 同尺寸的有效深度掩膜；None 时按管线深度窗现算.
+            target_valid_ratio: 目标级有效深度占比（见袋线同名参数文档）.
 
         Returns
         -------
@@ -771,7 +852,8 @@ class RobustFruitPosePipeline(RobustBagPosePipeline):
 
         """
         failure, inputs = self._prepare_estimate_inputs(
-            obs, target_id, bbox, mask, mask_source, valid_roi)
+            obs, target_id, bbox, mask, mask_source, valid_roi,
+            target_valid_ratio)
         if failure is not None:
             return failure
         # 果线后段只消费 x1/y1（estimate_normals ROI 偏移），不引用 x2/y2
@@ -901,7 +983,10 @@ class RobustFruitPosePipeline(RobustBagPosePipeline):
         if boundary_touch > 0.15 or boundary_sides >= 3:
             flags.append('foreground_truncated')
 
-        status = 'ACCEPT' if not flags else (
+        # 果线门控：unbagged_display_only 是硬性「仅显示」标记，保持门控
+        # （不入 _INFORMATIONAL_FLAGS），果线至多 REOBSERVE 的设计不变。
+        gating = _gating_flags(flags)
+        status = 'ACCEPT' if not gating else (
             'REJECT' if 'tool_clearance_failed' in flags else 'REOBSERVE')
         confidence = float(np.clip(
             min(valid_ratio / 0.65, 1.0) * min(len(points) / 800.0, 1.0)

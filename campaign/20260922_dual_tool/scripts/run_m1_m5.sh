@@ -10,6 +10,9 @@ cd "$ROOT"
 OUT="campaign/20260922_dual_tool/analysis/injection"
 mkdir -p "$OUT"
 export ROS_DOMAIN_ID="${CAMPAIGN_DOMAIN:-61}"
+# 自含环境：脚本内 source（不能 set -u，ROS setup 依赖未绑定变量探测）
+source /opt/ros/jazzy/setup.bash
+source install/setup.bash
 MODE="${1:?用法: run_m1_m5.sh m1|m2|m3|m4|m3pick [ids...]}"
 shift || true
 case "$MODE" in

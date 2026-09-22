@@ -1,32 +1,34 @@
 """
 imu_follow 节点：IMU 姿态增量 → TCP 姿态实时跟随（servo / fjt 双后端）.
 
-独立工具包（同 serial_imu 定位：不随 harvest_system 起、不进 lifecycle、
-不改只读 bringup）。`~/enable` 采两组参考（TF base→tip 当前位姿 + 当前
-IMU 四元数），此后每节拍把 IMU 体轴姿态增量经死区/符号映射/锥限幅/平滑
-叠加到参考 TCP 姿态上（位置钉死参考点，只跟姿态）。
+独立工具包（不进 lifecycle、不改只读 bringup、不订 peach 话题）。
+`harvest_system` 仅在 `tool_profile:=adaptive_cylinder_v1` 时 Include
+`imu_follow_servo.launch.py`；空心末端不起本节点。`~/enable` 采两组
+参考（TF base→tip 当前位姿 + 当前 IMU 四元数），此后每节拍把 IMU 体轴
+姿态增量经死区/符号映射/锥限幅/平滑叠加到参考 TCP 姿态上（位置钉死
+参考点，只跟姿态；插入/回退时位置沿锁定开口方向移动）。
 
 后端 `motion.backend`：
 - `servo`（默认，MoveIt 官方实时方案）：对当前 TF 姿态求体轴误差，P 控制
   成角速度（位置误差同法小增益保持），`TwistStamped` 发 moveit_servo 的
   `delta_twist_cmds`（speed_units、EE 系）；Servo 以 100 Hz 增量 IK 流式
-  下发（奇异缩放/碰撞减速/平滑内建），输出 JTC 话题。
+  下发（奇异缩放/碰撞减速/平滑内建），输出 JTC 话题。未 enable 时 pause
+  servo，避免与 peach MTC 同时写 JTC。
 - `fjt`（真机透传备选）：经 move_group `/compute_ik` 解关节、单步钳制后
   流式 FollowJointTrajectory；透传控制器只有 FJT 动作口时用这条。
 
 `motion.enabled` 默认 false：只发布 `~/target_pose`、`~/command`（fjt）或
-`~/command_twist`（servo）供检查、不发运动；真机使用须另行人工授权。
-IMU/关节状态断流、连续 IK 失败自动 disable（servo 后端补发一次零 twist
-刹车；fjt 取消在途 goal，与整栈「透传取消」停轨口径一致）。姿态数学在
+`~/command_twist`（servo）供检查、不发运动；peach 不自动开门。真机使用
+须另行人工授权。IMU/关节状态断流、连续 IK 失败自动 disable（servo 后端
+补发一次零 twist 刹车并 pause；fjt 取消在途 goal）。姿态数学在
 follow_core（零 ROS，纯核表驱动测试）。
 
-插入推进（2026-09 自适应圆柱配套）：`~/insert_start` 在跟随会话内把位置
-目标从参考点沿 insert_start 时刻工具开口方向（tip +Z，base 系锁定）按
+插入推进（自适应圆柱配套）：`~/insert_start` 在跟随会话内把位置目标从
+参考点沿 insert_start 时刻工具开口方向（tip +Z，base 系锁定）按
 `insert.speed_m_s` 低速推进、钳 `insert.max_travel_m` 行程；姿态照常跟
-IMU（柔性筒偏斜→臂跟随），横向保持只剩死区+低速钳的温和定心。用于套入
-直线段弥补视觉误差的编排（peach 侧 PREGRASP_ONLY 停靠后人工衔接，本包
-保持不订 peach 话题、不随 harvest_system）。`~/insert_stop` 停推进，
-disable / 断流 / 达行程上限亦停。
+IMU。`~/insert_stop` 停推进；`~/insert_retract` 沿锁定开口把行程收回
+参考点（跟随保持）。disable / 断流 / 达行程上限亦停推进。peach 仅对
+`adaptive_cylinder_v1` FULL 在预抓取→套入→回预抓取窗内调这些服务。
 """
 
 from action_msgs.msg import GoalStatus
@@ -69,9 +71,11 @@ class ImuFollowNode(Node):
         self._ref_imu_q = (0.0, 0.0, 0.0, 1.0)      # 参考 IMU 姿态
         self._smooth_q = (0.0, 0.0, 0.0, 1.0)       # 平滑后目标姿态
         self._insert_active = False                 # 插入推进中
+        self._insert_retracting = False             # 插入回退中（与推进互斥）
         self._insert_dir = (0.0, 0.0, 1.0)          # 推进方向（base 系，锁定）
         self._insert_travel = 0.0                    # 已推进行程（m）
         self._insert_last_t = 0.0                    # 上次积分时刻（节点钟秒）
+        self._servo_paused_idle = False             # 未 enable 时已 pause servo
         self._ik_busy = False
         self._ik_failures = 0
         self._goal_handle = None
@@ -94,6 +98,7 @@ class ImuFollowNode(Node):
         self.create_service(Trigger, '~/disable', self._on_disable)
         self.create_service(Trigger, '~/insert_start', self._on_insert_start)
         self.create_service(Trigger, '~/insert_stop', self._on_insert_stop)
+        self.create_service(Trigger, '~/insert_retract', self._on_insert_retract)
         self._ik_cli = self.create_client(
             GetPositionIK, self._p.moveit.compute_ik_service)
         self._servo_type_cli = self.create_client(
@@ -157,9 +162,11 @@ class ImuFollowNode(Node):
         self._ref_imu_q = self._imu_q
         self._smooth_q = self._ref_tcp_q
         self._insert_active = False
+        self._insert_retracting = False
         self._insert_travel = 0.0
         self._ik_failures = 0
         self._enabled = True
+        self._servo_paused_idle = False
         if self._p.motion.backend == 'servo':
             self._activate_servo()
         message = (f'参考已采集（{self._p.frames.base_frame}→'
@@ -181,9 +188,7 @@ class ImuFollowNode(Node):
                 'servo 会拒收 twist（Command type has not been set）',
                 throttle_duration_sec=_WARN_PERIOD_S)
         if self._servo_pause_cli.service_is_ready():
-            req = SetBool.Request()
-            req.data = False
-            self._servo_pause_cli.call_async(req)
+            self._set_servo_paused(False)
 
     def _enable_blockers(self):
         """前置条件清单；全就绪返回 None，否则返回原因（enable 前核对）."""
@@ -227,13 +232,24 @@ class ImuFollowNode(Node):
         was = self._enabled
         self._enabled = False
         self._insert_active = False
+        self._insert_retracting = False
         handle, self._goal_handle = self._goal_handle, None
         if handle is not None:
             handle.cancel_goal_async()
         if was and self._p.motion.backend == 'servo':
             self._publish_twist((0.0, 0.0, 0.0), (0.0, 0.0, 0.0))
+            self._set_servo_paused(True)
+            self._servo_paused_idle = True
         if was:
             self.get_logger().warning(f'跟随已停：{reason}')
+
+    def _set_servo_paused(self, paused):
+        """异步 pause_servo（True=暂停，避免与 peach MTC 同时写 JTC）."""
+        if not self._servo_pause_cli.service_is_ready():
+            return
+        req = SetBool.Request()
+        req.data = paused
+        self._servo_pause_cli.call_async(req)
 
     def _on_insert_start(self, request, response):
         """开始插入推进：锁当前工具开口方向，位置目标沿之前进."""
@@ -256,6 +272,7 @@ class ImuFollowNode(Node):
         self._insert_dir = follow_core.quat_rotate(q_tip, (0.0, 0.0, 1.0))
         self._insert_travel = 0.0
         self._insert_last_t = self._now_s()
+        self._insert_retracting = False
         self._insert_active = True
         message = (
             f'插入推进开始：速度 {self._p.insert.speed_m_s} m/s，'
@@ -275,12 +292,37 @@ class ImuFollowNode(Node):
             else '插入推进本就未在进行')
         return Trigger.Response(success=True, message=message)
 
+    def _on_insert_retract(self, request, response):
+        """沿锁定开口方向把行程收回参考点（跟随会话保持）."""
+        del request
+        if not self._enabled:
+            return Trigger.Response(
+                success=False, message='未 enable：先 ~/enable 采参考')
+        self._insert_active = False
+        if self._insert_travel <= 1e-6:
+            self._insert_travel = 0.0
+            self._insert_retracting = False
+            return Trigger.Response(
+                success=True, message='已在参考点，无需回退')
+        self._insert_last_t = self._now_s()
+        self._insert_retracting = True
+        message = (
+            f'插入回退开始：速度 {self._p.insert.speed_m_s} m/s，'
+            f'当前行程 {self._insert_travel:.3f} m → 0')
+        self.get_logger().info(message)
+        return Trigger.Response(success=True, message=message)
+
     def _tick(self):
         """节拍主体：刷新参数 → 新鲜度门 → 目标姿态 → 按后端下发."""
         if self._listener.is_old(self._p):
             self._p = self._listener.get_params()
             self._refresh_timer()
         if not self._enabled:
+            if (self._p.motion.backend == 'servo' and
+                    not self._servo_paused_idle and
+                    self._servo_pause_cli.service_is_ready()):
+                self._set_servo_paused(True)
+                self._servo_paused_idle = True
             return
         now = self._now_s()
         if now - self._imu_t > self._p.safety.imu_timeout_s:
@@ -289,7 +331,17 @@ class ImuFollowNode(Node):
         if now - self._joints_t > self._p.safety.joint_states_timeout_s:
             self._disable(f'关节状态断流 {now - self._joints_t:.2f}s')
             return
-        if self._insert_active:
+        if self._insert_retracting:
+            dt = now - self._insert_last_t
+            self._insert_last_t = now
+            self._insert_travel = follow_core.retraction_step(
+                self._insert_travel, self._p.insert.speed_m_s, dt)
+            if self._insert_travel <= 1e-9:
+                self._insert_travel = 0.0
+                self._insert_retracting = False
+                self.get_logger().info(
+                    '插入回退到位（行程 0，跟随保持，位置目标=参考点）')
+        elif self._insert_active:
             dt = now - self._insert_last_t
             self._insert_last_t = now
             self._insert_travel = follow_core.insertion_step(

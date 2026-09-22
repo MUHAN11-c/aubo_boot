@@ -205,6 +205,7 @@ def _goal_for(action: str, payload: dict):
     if action == 'check_reachability_service':
         request = CheckReachability.Request()
         request.timeout_s = float(payload.get('timeout_s', 0.0) or 0.0)
+        request.require_sleeve = bool(payload.get('require_sleeve', False))
         for item in payload.get('tcp_poses') or []:
             pose = PoseStamped()
             position = item.get('position') or {}
@@ -219,6 +220,8 @@ def _goal_for(action: str, payload: dict):
             pose.header.frame_id = str(
                 item.get('frame_id', 'base_link') or 'base_link')
             request.tcp_poses.append(pose)
+            request.suggested_travel_m.append(
+                float(item.get('suggested_travel_m', 0.0) or 0.0))
         return request
     if action == 'arm_service':
         request = SetBool.Request()

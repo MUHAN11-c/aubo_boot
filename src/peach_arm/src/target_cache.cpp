@@ -62,7 +62,7 @@ double freshnessStamp(const CachedTarget & target)
 
 // 单目标观测调和（W5-13，自 updateSelectedTarget/updateLockedTargets 抽出，
 // 两路 ~90% 重复的逐字段拷贝收敛单实现）：诊断透传每帧刷新（含非观测帧），
-// 锚点几何（center/axis/travel）凡携带即采用（含 LOST 帧记忆锚点——世界系
+// 锚点几何（center/axis/travel/diameter）凡携带即采用（含 LOST 帧记忆锚点——世界系
 // 身份记忆的意义所在，短暂不可见仍可派发/规划），entry_pose/received_s 仅
 // OBSERVED 有效观测帧刷新（安全门按 max_age 判陈旧）。Update 取
 // SelectedTargetUpdate / LockedTargetUpdate（字段同名同义）。
@@ -81,6 +81,7 @@ void applyObservation(CachedTarget & entry, const Update & update, double now_s)
     entry.center = 0.5 * (update.bottom + update.neck);
     entry.initial_axis = update.axis.normalized();
     entry.suggested_travel_m = update.suggested_travel_m;
+    entry.bag_diameter_upper_m = update.bag_diameter_upper_m;
     entry.valid = true;
   }
   if (update.observed && has_anchor) {
@@ -195,6 +196,11 @@ bool TargetCache::updateGraspDecision(
 {
   std::lock_guard<std::mutex> lock(mutex_);
   (void)valid_until_s;  // 心跳/决策不得续签；有效期只经 replaceModelSnapshot。
+  if (unrefined_hold_) {
+    // 验证路径：重建未融合的 GraspDecision（常 allowed=false）不得冲掉
+    // promoteUnrefinedGeometry 钉住的套入入口。
+    return true;
+  }
   if (identity.target_id.empty()) {
     grasp_decision_target_id_.clear();
     quality_.grasp_allowed = false;
@@ -467,6 +473,7 @@ bool TargetCache::promoteUnrefinedGeometry(const std::string & target_id)
   refined_.neck = src->neck;
   refined_.axis = src->initial_axis.normalized();
   refined_.suggested_travel_m = src->suggested_travel_m;
+  refined_.bag_diameter_upper_m = src->bag_diameter_upper_m;
   refined_.valid = nonzeroFinite(refined_.axis) && refined_.entry.allFinite();
   if (!refined_.valid) {
     refined_ = CachedRefined();
@@ -478,6 +485,8 @@ bool TargetCache::promoteUnrefinedGeometry(const std::string & target_id)
   quality_.reconstruction_target_id = target_id;
   quality_.reconstruction_state = "READY";
   quality_.data_age_s = 0.0;
+  quality_.grasp_allowed = true;
+  grasp_decision_target_id_ = target_id;
   diagnostics_seen_ = false;
   unrefined_hold_ = true;
   model_generated_s_ = clock_s_();

@@ -93,7 +93,7 @@ QoS 缩写：`R` reliable；`TL` transient_local（晚订户仍拿得到最后�
 |------|------|------|------|----|----|-----|
 | `/peach_arm/survey_scene` | action | `SurveyScene` | 去全局拍照位并确认关节已静止。失败整批 `survey_failed`，不 Begin | 技能 | 调度 | — |
 | `/peach_arm/execute_target` | action | `ExecuteTarget` | 对当前 `target_id` 跑一周期：预览 / 补视角 / 停预抓取 / 套入 | 技能 | 调度 | — |
-| `/peach_arm/check_reachability` | service | `CheckReachability` | 选果：入口换成与 Hold 同一停位后，当前关节有没有 IK。不规划、不动臂 | 技能 | 调度 | — |
+| `/peach_arm/check_reachability` | service | `CheckReachability` | 选果：预抓取停位 IK；FULL 时再检套入终点。不规划、不动臂 | 技能 | 调度 | — |
 | `/peach_arm/acknowledge_recovery` | service | `std_srvs/Trigger` | 接触或预抓取停住后，调度转发人工 ACK | 技能 | 调度 | — |
 | `/peach/manipulation/grasp_hypothesis` | topic | `GraspHypothesis` | 本周期技能打算怎么抓。**只有监控订**，FSM 不靠它做决定 | 技能 | 监控 | R/TL/1 |
 | `/peach_arm/status` | topic | `std_msgs/String` | 技能短状态 | 技能 | 监控 | R/TL/1 |
@@ -169,6 +169,7 @@ Goal：
 | `scene_epoch` | 须与当前场世代一致 |
 | `model_revision` / `tool_profile_id` / `calibration_revision` / `config_revision` | 模型身份；FULL/PREGRASP_ONLY 空版本拒执行 |
 | `plan_id` / `generation` | 预览=执行同一计划；迟到结果丢弃 |
+| `profile` | `0` 是 IDL 默认 HOLD，不覆盖 `mode=FULL`；`PROFILE_FULL=1` 强制套入 |
 
 Result 终局 `outcome`：`SUCCEEDED=0` / `SKIPPED_QUALITY=1` / `SKIPPED_UNREACHABLE=2` / `FAILED=3` / `CANCELED=4`。
 
@@ -192,11 +193,11 @@ Goal：`pose`、`site_id`。现行固定座调度直通 `NAV_OK`，**不发送**
 
 ### `CheckReachability`
 
-请求：`header`；`tcp_poses[]` = 感知入口（位置=袋底，姿态 Z=袋轴，滚转任意）；`timeout_s`（≤0 用服务端 0.1 s）。
+请求：`header`；`tcp_poses[]` = 感知入口（位置=袋底，姿态 Z=袋轴，滚转任意）；`timeout_s`（≤0 用服务端 0.1 s）；`require_sleeve`（默认 false=只预抓取；true=再检套入终点）；`suggested_travel_m[]` 与入口并行（空或 ≤0 用服务端 `minimum_travel_m`）。
 
-服务端换成与 Hold 同一停位再 IK：沿 −Z 后撤 `mtc_approach_along_axis_m`（`grasp_standoffs.yaml`，现行 0.03 m）；姿态 `alignFrameZ(当前 TCP, 袋轴)`，不抄感知滚转。
+服务端预抓取停位再 IK：沿 −Z 后撤 `mtc_approach_along_axis_m`（`grasp_standoffs.yaml`，现行 0.03 m）；姿态 `alignFrameZ(当前 TCP, 袋轴)`，不抄感知滚转。`require_sleeve` 时套入终点 = 入口沿袋轴 + clamp(travel, grasp min/max)，同姿态滚转扫描，再从预抓取 IK 解沿轴笛卡尔插值（步长/完成比与接触 LIN 同参）。
 
-响应：`reachable[]` 与请求等长；`error_codes[]`（`no_ik` / `invalid_frame` / `moveit_unavailable`）；`message`。服务不可用时调度回退半径窗。
+响应：`reachable[]` 与请求等长；`error_codes[]`（`no_ik` / `sleeve_no_ik` / `sleeve_no_cartesian` / `invalid_frame` / `moveit_unavailable`）；`message`。服务不可用时调度回退半径窗（FULL 另卡套入终点半径）。旧客户端不填新字段则行为与只检预抓取相同。
 
 ### `ControlTask`
 

@@ -16,6 +16,9 @@ PREFLIGHT_PATTERNS = (
     'peach_lifecycle_flag_bridge',
     'peach_autostart_client',
     'peach_lifecycle_manager',
+    # nav2 可执行文件 basename；节点名 peach_lifecycle_manager 只在
+    # -r __node:= 里，按 argv0 匹配必须用 lifecycle_manager，否则停栈漏杀。
+    'lifecycle_manager',
     'component_container',
     'move_group',
     'robot_state_publisher',
@@ -26,6 +29,9 @@ PREFLIGHT_PATTERNS = (
     'extrinsics_publisher',
     'serial_imu_node',
     'stereo_camera_node',
+    'imu_follow_node',
+    'servo_node',
+    'rviz2',
 )
 
 

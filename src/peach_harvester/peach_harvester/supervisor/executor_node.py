@@ -1028,8 +1028,8 @@ class TaskExecutorNode(LifecycleNode):
             reaction = self._react(Event.EMPTY_LIMIT)
             self._apply(reaction, goal.request_id)
             return reaction, False
-        # 联合约束选果：有效深度窗 ∩ 可达性（CheckReachability 把入口
-        # 换成停位几何再 IK；服务不可用回退半径窗；超窗 targets_filtered）
+        # 联合约束选果：有效深度窗 ∩ 可达性（CheckReachability 预抓取停位
+        # IK；FULL 时再检套入终点；服务不可用回退半径窗；超窗 targets_filtered）
         if not self._lock_set_ready():
             ik_results, ik_note = None, 'lock_set_not_ready'
             target_id, filtered = '', {}
@@ -1044,7 +1044,8 @@ class TaskExecutorNode(LifecycleNode):
                 ik_results=ik_results,
                 fallback_reach_range=(
                     float(self._params.selection_reach_min_m),
-                    float(self._params.selection_reach_max_m)))
+                    float(self._params.selection_reach_max_m)),
+                check_sleeve=not bool(self._params.execute_pregrasp_only))
         if filtered or (
                 ik_note and ik_note != 'lock_set_not_ready'):
             details = {'filtered': filtered} if filtered else {}
@@ -1302,7 +1303,8 @@ class TaskExecutorNode(LifecycleNode):
 
         验证路径（skip_reconstruction，默认关）。身份三修订填 unrefined:*
         以满足 ExecuteTarget 受理门；臂侧须 quality.allow_unrefined_geometry
-        把观测提升为精化入口。不放松 min_views / drift 生产门。
+        把观测提升为精化入口并钉住 grasp_allowed。FULL 不装重建 GraspDecision
+        令牌。不放松 min_views / drift 生产门。
         """
         self._cycle_plan_id = (
             f'{request_id}:{target_id}:{self._action_generation}:unrefined')
@@ -1370,9 +1372,9 @@ class TaskExecutorNode(LifecycleNode):
             if bool(self._params.execute_pregrasp_only)
             else ExecuteTarget.Goal.FULL)
         full.skip_observation = True
-        # 清洁重写轮（3c-2a）：profile 档位显式下发（与 mode 等价衔接，
-        # 臂侧 profile 优先）；接触许可令牌随 goal（臂侧双路复检：令牌
-        # 优先/快照回退），装配自最新 GraspDecision 缓存。
+        # 清洁重写轮（3c-2a）：profile 与 mode 对齐下发；臂侧以 mode 为
+        # 接触深度权威（默认 profile=0 不再盖掉 FULL）。接触许可令牌随
+        # goal（臂侧双路复检：令牌优先/快照回退），装配自最新 GraspDecision 缓存。
         full.profile = (
             ExecuteTarget.Goal.PROFILE_PREGRASP_HOLD
             if bool(self._params.execute_pregrasp_only)
@@ -1380,6 +1382,10 @@ class TaskExecutorNode(LifecycleNode):
         decision = self._decision_cache
         # 令牌绑目标：缓存决策不绑定当前目标时整体不装配（臂侧走快照回退
         # 复检路径），旧目标的许可不得授权新目标（Clearance.target_id 契约）。
+        # skip_reconstruction：不把未融合 GraspDecision（常 allowed=false）
+        # 装成 CONTACT 令牌；臂侧 promoteUnrefined 提升 grasp_allowed。
+        if bool(self._params.skip_reconstruction):
+            decision = None
         if decision is not None and str(
                 getattr(decision, 'target_id', '') or '') == target_id:
             # G1：已过期的令牌仍照装（臂侧拒），但打一次预警供现场归因
@@ -1762,6 +1768,8 @@ class TaskExecutorNode(LifecycleNode):
         返回 (ik_results, note)：ik_results 为 tid→(reachable, code)，
         服务不可用/超时/异常返回 (None, 原因说明)——调用方回退半径窗。
         空查询直接 (None, '')（无目标可检，next_target 无 IK 分支自然跳过）。
+        FULL（非 execute_pregrasp_only）时 require_sleeve，失败码含
+        sleeve_no_ik / sleeve_no_cartesian。
         """
         if not queries:
             return None, ''
@@ -1769,28 +1777,34 @@ class TaskExecutorNode(LifecycleNode):
             return None, 'service_unavailable'
         request = CheckReachability.Request()
         request.timeout_s = 0.1
-        for _tid, (px, py, pz, qx, qy, qz, qw) in queries:
-            pose = geometry_msgs.msg.PoseStamped()
-            pose.header.frame_id = 'base_link'
-            pose.header.stamp = self.get_clock().now().to_msg()
-            pose.pose.position.x = float(px)
-            pose.pose.position.y = float(py)
-            pose.pose.position.z = float(pz)
-            pose.pose.orientation.x = float(qx)
-            pose.pose.orientation.y = float(qy)
-            pose.pose.orientation.z = float(qz)
-            pose.pose.orientation.w = float(qw)
-            request.tcp_poses.append(pose)
+        request.require_sleeve = not bool(self._params.execute_pregrasp_only)
+        for row in queries:
+            pose = row[1]
+            px, py, pz, qx, qy, qz, qw = pose
+            travel = float(row[2]) if len(row) > 2 else 0.0
+            pose_msg = geometry_msgs.msg.PoseStamped()
+            pose_msg.header.frame_id = 'base_link'
+            pose_msg.header.stamp = self.get_clock().now().to_msg()
+            pose_msg.pose.position.x = float(px)
+            pose_msg.pose.position.y = float(py)
+            pose_msg.pose.position.z = float(pz)
+            pose_msg.pose.orientation.x = float(qx)
+            pose_msg.pose.orientation.y = float(qy)
+            pose_msg.pose.orientation.z = float(qz)
+            pose_msg.pose.orientation.w = float(qw)
+            request.tcp_poses.append(pose_msg)
+            request.suggested_travel_m.append(travel)
         response = self._await_future(
-            self._reach.call_async(request), 2.0)
+            self._reach.call_async(request),
+            8.0 if request.require_sleeve else 2.0)
         if response is None:
             return None, 'service_timeout'
         if len(response.reachable) != len(queries):
             return None, 'response_mismatch'
         results = {}
-        for (tid, _pose), ok, code in zip(
+        for row, ok, code in zip(
                 queries, response.reachable, response.error_codes):
-            results[tid] = (bool(ok), str(code or ''))
+            results[row[0]] = (bool(ok), str(code or ''))
         note = str(response.message or '')
         return results, note
 

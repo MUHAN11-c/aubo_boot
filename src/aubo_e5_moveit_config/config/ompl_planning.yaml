@@ -14,7 +14,8 @@ response_adapters:
   - default_planning_response_adapters/AddTimeOptimalParameterization
   - default_planning_response_adapters/AddRuckigTrajectorySmoothing
   - default_planning_response_adapters/ValidateSolution
-  - default_planning_response_adapters/DisplayMotionPath
+  # 不挂 DisplayMotionPath：每次 plan() 成功都会发 /display_planned_path，
+  # 未执行的 OMPL 回退解会在 RViz Planned Path 里留幽灵。执行轨迹走 TCP Path。
 start_state_max_bounds_error: 0.1
 totg:
   resample_dt: 0.01

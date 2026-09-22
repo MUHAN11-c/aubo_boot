@@ -16,13 +16,13 @@ peach_arm:
       planning_time_s: 1.5  # MTC/默认单次规划时间上限（秒）。观察另用 observe_planning_time_s。
       planning_attempts: 1  # 默认规划尝试次数。观察另用 observe_planning_attempts。
       velocity_scaling: 0.1  # 接触段速度缩放（MTC 靠近/插入/撤离）。0.05 时接近段常被参数化到 40s 而护栏拒发；真机初始验证不得高于 0.1。
-      acceleration_scaling: 0.1  # 接触段加速度缩放（同 velocity_scaling 的档位约束）。
+      acceleration_scaling: 0.1  # 接触段加速度缩放。果平面斜插 LIN 另封顶 0.20/0.10，wrist1 超限再降到 0.10/0.04（sim --velocity 1.0 不得把 wrist1 打爆后 PTP 抡枝）。
       transit_velocity_scaling: 0.1  # 自由空间转移速度缩放（环绕视点/拍照位姿往返）；高速度缩短高重力矩姿态持续时间，反而降低过流风险；真机初始验证不得高于 0.1。
       transit_acceleration_scaling: 0.1  # 自由空间转移加速度缩放（同 transit_velocity_scaling 的档位约束）。
       pilz_pipeline: pilz_industrial_motion_planner  # Pilz 规划管线名（PTP/LIN）。
       fallback_pipeline: ompl  # Pilz 失败后的兜底规划管线。
-      mtc_free_space_pipeline: pilz_industrial_motion_planner  # MTC 到预抓取的 Pilz 管线。接近主路径 = staging 转移（PTP 到预抓取下方 + 轴向 LIN）。
-      mtc_free_space_planner: LIN  # Pilz LIN 规划器 id。staging 转移的轴向段与袋底侧直连短修正用它；keep-roll 自碰则按 keep-roll 及 ±30°/±60° 扫描刀口。插入段仍是沿轴 CartesianPath。G/under 单弦档已删（photo→G 弦 fraction 0.41–0.73，2026-09-10 100 位姿探针）。接触不用 CIRC/STOMP/OMPL。
+      mtc_free_space_pipeline: pilz_industrial_motion_planner  # MTC 到预抓取的 Pilz 管线。接近主路径 = 果平面折线 LIN（面内斜插到轴上 staging + 沿轴垂直进入）。斜插 keep-roll 对轴（开口已近 +Z，感知袋轴亦近 +Z，约 8°），不把 ±30/±60 刀口滚转叠进笛卡尔。斜插 0.20/0.10，腕轴超限再 0.10/0.04，两档失败才 PTP staging。
+      mtc_free_space_planner: LIN  # Pilz LIN 规划器 id。果平面折线各跳与袋底侧直连短修正用它；keep-roll 自碰则按 keep-roll 及 ±30°/±60° 扫描刀口。插入段仍是沿轴 CartesianPath。G/under 单弦档已删（photo→G 弦 fraction 0.41–0.73，2026-09-10 100 位姿探针）。接触不用 CIRC/STOMP/OMPL。
       mtc_cartesian_step_m: 0.005  # MTC 笛卡尔段步长（米）。
       mtc_cartesian_min_fraction: 0.95  # MTC 直线插入最低完成比例。1.0 会因笛卡尔末步离散在接触深度失败（真机常见 0.966）；0.95 仍拒绝半程插入。
       mtc_cartesian_precision_m: 0.001  # MTC 笛卡尔段平移精度（米）。
@@ -33,17 +33,17 @@ peach_arm:
       mtc_approach_max_detour_ratio: 2.6  # 接近 TCP 路径长/弦长上限。0=不查。2026-09-18 标定：合法 staging 绕行簇 max 1.90（30 例无门实测），游荡簇 min 4.37；旧 1.8 压在合法簇边上致 1/30。
       mtc_approach_max_chord_deviation_m: 0.32  # 接近 TCP 相对起止弦最大偏离（米）。0=不查。2026-09-18 标定：合法簇 max 0.258，游荡簇 min 0.42。
       mtc_approach_max_recede_m: 0.12  # 接近中途相对起点更远离目标的最大回退（米）。0=不查。2026-09-18 标定：合法簇 max 0.075，游荡簇 min 0.17。
-      mtc_approach_transit_max_detour_ratio: 2.6  # staging 转移级 TCP 路径长/弦长上限。0=不查。须 >0 才会审 PTP 弧（旧实现只看接近三项，转移键无效）。同 09-18 标定。
+      mtc_approach_transit_max_detour_ratio: 2.6  # PTP staging 兜底的 TCP 路径长/弦长上限。0=不查。果平面折线逐段审（每跳直线比≈1）。须 >0 才会审 PTP 弧。同 09-18 标定。
       mtc_approach_transit_max_chord_deviation_m: 0.32  # staging 转移级 TCP 相对起止弦最大偏离（米）。0=不查。同 09-18 标定。
       mtc_approach_transit_max_recede_m: 0.12  # staging 转移级中途相对起点更远离目标的最大回退（米）。0=不查。同 09-18 标定。
       mtc_approach_max_tcp_rotation_deg: 110.0  # 接近段相对起点 TCP 姿态测地线绝对上限（度）。0=不查。感知允许水平袋：keep-roll γ≈90°，±60° 滚转闭式 γ(90,60)≈105°；仍拦 180° 拧腕。
       mtc_approach_tcp_rotation_slack_deg: 20.0  # 相对本段起止测地线的路径余量（度）。0=只看绝对上限。拦对轴只需 ~20° 却中途拧到 90°+ 的 PTP（09-11 的 108°）。
       mtc_approach_keepout_radius_m: 0.12  # ①层果实胶囊回退半径（米）：感知直径无效时用本值作 fruitRadiusM 的 base，再加 fruit_inflation_m。键名冻结，不再当半无限圆柱半径。
       mtc_approach_keepout_axial_m: 0.12  # ①+②层开关：>0 启用接近段果实胶囊/反爬审查。0=关闭。套入/撤退不审。
-      mtc_approach_cartesian_max_distance_m: 0.8  # 袋底侧直连 LIN 的弦长上限（米）；主路径 staging 转移是关节空间 PTP，不受此限。0.80 覆盖拍照位到袋口（现场弦长约 0.44 m）。
+      mtc_approach_cartesian_max_distance_m: 0.8  # 直连 LIN 与果平面折线单跳弦长上限（米）。超限则该候选不走折线、改 PTP staging 兜底。0.80 覆盖拍照位到袋口（现场弦长约 0.44 m）。
       mtc_approach_along_axis_m: 0.0  # 预抓取点在入口沿检测轴反向后撤量（米）。0=与入口重合。整栈由 grasp_standoffs.yaml 注入；已对轴时 LIN 走这一段。
-      approach_staging_standoff_m: 0.1  # staging = 预抓取沿 −axis 再退本值（米），即「预抓取点下方」轴上 PTP 落点（主路径）。0=关闭 staging 转移。
-      approach_near_velocity_scaling: 0.05  # ④层近果低速档：staging→预抓取轴向 LIN 与套入/撤退段速度缩放（低于 velocity_scaling 0.10，限制接触动能）；staging PTP 不降档。
+      approach_staging_standoff_m: 0.1  # staging = 预抓取沿 −axis 再退本值（米）。果平面折线面内斜插落到此轴上点，再沿轴进入；0=关闭折线/staging 转移。
+      approach_near_velocity_scaling: 0.05  # ④层近果低速档：只套入/撤退 LIN。果平面斜插封顶 0.20/0.10（失败再 0.10/0.04）；沿轴跳已对轴走更高档。PTP 兜底走 velocity_scaling 0.10。
       mtc_approach_max_lateral_m: 0.05  # 末端到抓取轴线的侧向偏差（米）。小于此值视为已对轴，LIN 是最短直线。
       mtc_approach_max_align_deg: 20.0  # 末端 Z 与检测轴夹角（度）。小于此值视为已齐，走 LIN 且挂同值姿态路径约束。未齐则先 LIN 原地对齐再平移。规划时另按 keep-roll 及 ±30°/±60° 扫描刀口滚转；接触不用 STOMP/OMPL。
       observe_planning_time_s: 1.0  # 观察短 LIN 单次规划时间上限（秒）。
@@ -59,7 +59,7 @@ peach_arm:
     photo_pose_named_target: global_photo_pose  # 全局拍照位姿的 SRDF 命名状态（go_to_photo_pose 服务的目标），与 aubo_e5_moveit_config/config/aubo_e5.srdf 的 group_state 对应。
     photo_pose_joint_tolerance_rad: 0.05  # goToPhotoPose 成功出口：每轴当前关节与命名状态 |Δq| 上限（弧度）。execute=false 仍核当前关节。
     photo_pose_max_joint_vel_rad_s: 0.05  # goToPhotoPose 成功出口：任一轴 |qdot| 上限（弧度/秒）；未静止则 photo_pose_mismatch。
-    harvest_stow_named_target: harvest_stow  # 接触后安全观察/收纳位 SRDF 命名状态；空串则回退 photo_pose_named_target。
+    harvest_stow_named_target: harvest_stow  # 接触后安全观察/收纳位 SRDF 命名状态；空串则回退 photo_pose_named_target。FULL 回收纳先倒放回拍照位再短 PTP 到本状态（与 photo 已分叉，wrist2 约 0.22 rad；禁止从预抓取直达，否则跳过原路返程撞 transit_max）。
     scan:
       observation_radius_m: 0.45  # 观察半径参考（米）：视点从当前相机沿直线截步；画面过小时才向本值/下限靠近，不再把相机贴到球面上。09-17 由 0.40 上调：PS800-E1 深度额定 0.4-0.8 m，环绕下限须留余量。
       minimum_radius_m: 0.42  # 观察半径下限（米）：退出深度相机近距盲区。09-17 由 0.32 上调：原值低于 PS800-E1 额定下限 0.4 m（percipio 端深度无效靠占比门兜底；peach_stereo 端 SGBM 理论下限 ~0.27 m，近档待近距标定后再评估放开）。
@@ -80,7 +80,7 @@ peach_arm:
       seeds: 5  # staging 候选每 roll 的 IK 尝试数（1 当前种子 + 4 随机；W5 前为硬编码同值）。
       wrist_weight: 2.5  # staging 候选关节距离中腕轴（关节名含 wrist）权重——护腕优先，减少接近末段腕部大改构。
       roll_penalty: 4.0  # staging 候选滚转惩罚系数（dist² += 本值·roll²）：keep-roll 优先，仅 ±30°/±60° 扫描。
-      top_n: 5  # staging 输出候选上限（按加权关节距离升序取前 N，转移逐候选试规划）。
+      top_n: 5  # staging 输出候选上限。折线 plan() 每趟至多两档（0.20/0.10，失败再 0.10/0.04）；再按加权关节距离逐候选 PTP。
     quality:
       minimum_views: 2  # 质量门最少机位数，与重建 capture.min_views 对齐。当前位+一次 0.15 m 短移。
       allow_unrefined_geometry: false  # true 时用场景观测当精化入口（跳过重建 READY/refined 门）。默认关。harvest_system skip_reconstruction:=true 时覆盖为 true；真机 KEEP false。

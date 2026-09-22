@@ -343,6 +343,11 @@ void ManipulationSkillsNode::releaseResources()
   marker_pub_.reset();
   grasp_hyp_pub_.reset();
   tool_io_client_.reset();
+  imu_follow_enable_client_.reset();
+  imu_follow_disable_client_.reset();
+  imu_follow_insert_start_client_.reset();
+  imu_follow_insert_stop_client_.reset();
+  imu_follow_insert_retract_client_.reset();
   grasp_task_.reset();
   motion_.reset();
   move_group_.reset();
@@ -681,6 +686,18 @@ void ManipulationSkillsNode::createServices()
       std::placeholders::_1, std::placeholders::_2));
   tool_io_client_ = create_client<aubo_msgs::srv::SetIO>(
     "/aubo_io_controller/set_io");
+  // 仅自适应档案建客户端。空心也 create_client 会在 FastDDS 图上挂出
+  // /imu_follow/* 名（无服务端），隔离验收会误判栈已起跟随。
+  if (usesImuFollowContact()) {
+    imu_follow_enable_client_ = create_client<Trigger>("/imu_follow/enable");
+    imu_follow_disable_client_ = create_client<Trigger>("/imu_follow/disable");
+    imu_follow_insert_start_client_ = create_client<Trigger>(
+      "/imu_follow/insert_start");
+    imu_follow_insert_stop_client_ = create_client<Trigger>(
+      "/imu_follow/insert_stop");
+    imu_follow_insert_retract_client_ = create_client<Trigger>(
+      "/imu_follow/insert_retract");
+  }
   tool_actuator_.setSendIo(
     [this](std::string & reason) {
       if (!commandToolClose()) {
@@ -758,6 +775,7 @@ void ManipulationSkillsNode::onTargets(
       out.axis = vectorToEigen(item.candidate.translation_direction);
       out.entry_pose = poseToEigen(item.candidate.entry_pose);
       out.suggested_travel_m = item.candidate.suggested_travel_m;
+      out.bag_diameter_upper_m = item.candidate.bag_diameter_upper_m;
       out.bbox_x = item.candidate_2d.bbox_x;
       out.bbox_y = item.candidate_2d.bbox_y;
       out.bbox_w = item.candidate_2d.bbox_w;

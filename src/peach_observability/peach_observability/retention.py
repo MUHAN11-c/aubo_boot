@@ -124,3 +124,47 @@ def sweep(runs_root, max_total_bag_gb: float, keep=(),
         except OSError as error:
             log_warning(f'回收审计写入失败: {error}')
     return rows
+
+
+def purge_analyzed_sessions(runs_root, sessions, log_warning=lambda msg: None,
+                            audit_path=None, now: float | None = None):
+    """
+    分析完成后删除指定会话的 bag/ 二进制，保留 bag_report 与账本.
+
+    sessions：session 目录或 bag 目录路径列表。只删名为 bag 的子目录；
+    同级 bag_report.md/json、ledger 与其它文本不动。审计 reason=analyzed_purge。
+    """
+    deleted = []
+    rows = []
+    stamp = round(time.time() if now is None else now, 3)
+    for item in sessions:
+        path = Path(item)
+        bag = path if path.name == 'bag' else path / 'bag'
+        if not bag.is_dir():
+            continue
+        size = directory_size(bag)
+        try:
+            shutil.rmtree(bag)
+        except OSError as error:
+            log_warning(f'分析后清理失败（跳过）{bag}: {error}')
+            continue
+        deleted.append(bag)
+        rows.append({
+            'recorded_at': stamp,
+            'deleted': str(bag),
+            'kind': 'session_bag',
+            'size_bytes': size,
+            'budget_bytes': 0,
+            'reason': 'analyzed_purge',
+        })
+        log_warning(f'分析后清理 bag：{bag}')
+    if rows:
+        audit = Path(audit_path) if audit_path else Path(runs_root) / AUDIT_FILENAME
+        try:
+            audit.parent.mkdir(parents=True, exist_ok=True)
+            with open(audit, 'a', encoding='utf-8') as stream:
+                for row in rows:
+                    stream.write(json.dumps(row, ensure_ascii=False) + '\n')
+        except OSError as error:
+            log_warning(f'回收审计写入失败: {error}')
+    return deleted

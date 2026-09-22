@@ -22,6 +22,7 @@
 #include <tf2/utils.h>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
 #include <moveit/move_group_interface/move_group_interface.hpp>
+#include <moveit/robot_state/cartesian_interpolator.hpp>
 #include <moveit/utils/moveit_error_code.hpp>
 
 #include "peach_arm/manipulation_skills_node.hpp"
@@ -34,6 +35,34 @@ using namespace std::chrono_literals;
 
 namespace peach_arm
 {
+namespace
+{
+
+// SELECT 套入段：从预抓取 IK 解沿轴 interpolate 到套入终点，分数对齐接触 LIN。
+double sleeve_cartesian_fraction(
+  const moveit::core::RobotState & start,
+  const moveit::core::JointModelGroup * group,
+  const moveit::core::LinkModel * link,
+  const Eigen::Isometry3d & sleeve,
+  double step_m,
+  double precision_m)
+{
+  if (group == nullptr || link == nullptr) {
+    return 0.0;
+  }
+  std::vector<moveit::core::RobotStatePtr> traj;
+  const moveit::core::MaxEEFStep max_step(step_m);
+  moveit::core::CartesianPrecision precision;
+  precision.translational = precision_m > 0.0 ? precision_m : 0.001;
+  // Isometry 重载的 options 无默认实参；空回调 = 只问沿轴 IK，不装配 MTC。
+  const auto fraction = moveit::core::CartesianInterpolator::computeCartesianPath(
+    &start, group, traj, link, sleeve, true, max_step, precision,
+    moveit::core::GroupStateValidityCallbackFn(),
+    kinematics::KinematicsQueryOptions());
+  return fraction.value;
+}
+
+}  // namespace
 
 void ManipulationSkillsNode::onRobotStatus(
   const aubo_msgs::msg::RobotStatus::SharedPtr message)
@@ -321,9 +350,10 @@ void ManipulationSkillsNode::previewContact(
     "入口与插入轨迹已发布到 RViz；仅规划，未发送任何运动");
 }
 
-// 选果级 TCP IK 预检：请求当入口，换成与 MovePregrasp 同一停位再 setFromIK
-// （后撤 mtc_approach_along_axis_m + alignFrameZ 保留当前 TCP 滚转）。只答能否，
-// 不规划、不占周期互斥、不绑 Active；无解由 executor SELECT 过滤。
+// 选果级 TCP IK + 套入沿轴笛卡尔预检：请求当入口，换成与 MovePregrasp 同一停位再 setFromIK
+// （后撤 mtc_approach_along_axis_m + alignFrameZ 保留当前 TCP 滚转）。
+// require_sleeve 时再检套入终点 IK，并用 CartesianInterpolator 从预抓取解
+// 沿轴插到终点（阈值 mtc_cartesian_min_fraction）。只答能否，不动臂。
 void ManipulationSkillsNode::onCheckReachability(
   const CheckReachability::Request::SharedPtr request,
   CheckReachability::Response::SharedPtr response)
@@ -381,33 +411,80 @@ void ManipulationSkillsNode::onCheckReachability(
     // 快速可行性 IK：当前种子 + 单次有界超时——单源常量在
     // staging_selector.hpp（kQuickIkProbeTimeoutS；与 staging 扫描的
     // 深搜档 kStagingIkSolveTimeoutS 区分，选果整链须早退）。
-    const auto ik_quick =
-      [&](const Eigen::Isometry3d & goal) {
+    const auto try_ik =
+      [&](const Eigen::Isometry3d & pose, moveit::core::RobotState * out) {
         moveit::core::RobotState probe = seed;
-        return probe.setFromIK(group, goal, params_.frames.tip, kQuickIkProbeTimeoutS);
-      };
-    // 预抓取停位检查（keep-roll 先行，失败才 ±30°/±60°；滚转表与 staging
-    // 接近扫描同源=grasp_geometry.hpp 的 toolRollsRad()）：
-    // 圆筒套袋的刀口滚转是自由参数，keep-roll 单姿态无解 ≠ 全滚转无解。
-    bool pregrasp_ok = ik_quick(target);
-    if (!pregrasp_ok && have_current_tip) {
-      for (const double roll : toolRollsRad()) {
-        if (std::abs(roll) < 1.0e-12) {
-          continue;
+        if (probe.setFromIK(group, pose, params_.frames.tip, kQuickIkProbeTimeoutS)) {
+          if (out != nullptr) {
+            *out = probe;
+          }
+          return true;
         }
-        Eigen::Isometry3d probe_pose = target;
-        probe_pose.linear() = target.linear() *
-          Eigen::AngleAxisd(roll, Eigen::Vector3d::UnitZ());
-        pregrasp_ok = ik_quick(probe_pose);
-        if (pregrasp_ok) {
-          break;
+        if (!have_current_tip) {
+          return false;
+        }
+        for (const double roll : toolRollsRad()) {
+          if (std::abs(roll) < 1.0e-12) {
+            continue;
+          }
+          Eigen::Isometry3d probe_pose = pose;
+          probe_pose.linear() = pose.linear() *
+            Eigen::AngleAxisd(roll, Eigen::Vector3d::UnitZ());
+          probe = seed;
+          if (probe.setFromIK(
+              group, probe_pose, params_.frames.tip, kQuickIkProbeTimeoutS))
+          {
+            if (out != nullptr) {
+              *out = probe;
+            }
+            return true;
+          }
+        }
+        return false;
+      };
+    // 预抓取停位（keep-roll 先行，失败才 ±30°/±60°；滚转表与 staging
+    // 接近扫描同源=grasp_geometry.hpp 的 toolRollsRad()）。
+    // 圆筒套袋的刀口滚转是自由参数，keep-roll 单姿态无解 ≠ 全滚转无解。
+    moveit::core::RobotState pregrasp_state = seed;
+    const bool pregrasp_ok = try_ik(target, &pregrasp_state);
+    bool sleeve_ok = true;
+    bool cartesian_ok = true;
+    if (request->require_sleeve && pregrasp_ok) {
+      const double suggested =
+        (i < request->suggested_travel_m.size()) ?
+        request->suggested_travel_m[i] : 0.0;
+      const double travel = clampInsertionTravel(
+        suggested,
+        params_.grasp.minimum_travel_m,
+        params_.grasp.maximum_travel_m);
+      const Eigen::Matrix3d tip_R =
+        have_current_tip ? current_tip.linear() : entry.linear();
+      Eigen::Isometry3d sleeve =
+        sleeveFromEntryKeepRoll(entry, tip_R, travel);
+      // 笛卡尔段与接触 LIN 同形：姿态跟预抓取 IK 解（含滚转扫描），只沿轴平移。
+      if (robot_model->hasLinkModel(params_.frames.tip)) {
+        const Eigen::Isometry3d pregrasp_tcp =
+          pregrasp_state.getGlobalLinkTransform(params_.frames.tip);
+        if (pregrasp_tcp.matrix().allFinite()) {
+          sleeve.linear() = pregrasp_tcp.linear();
         }
       }
+      sleeve_ok = try_ik(sleeve, nullptr);
+      if (sleeve_ok) {
+        const auto * tip_link = robot_model->hasLinkModel(params_.frames.tip) ?
+          robot_model->getLinkModel(params_.frames.tip) : nullptr;
+        const double fraction = sleeve_cartesian_fraction(
+          pregrasp_state, group, tip_link, sleeve,
+          params_.moveit.mtc_cartesian_step_m,
+          params_.moveit.mtc_cartesian_precision_m);
+        cartesian_ok = fraction + 1.0e-9 >=
+          params_.moveit.mtc_cartesian_min_fraction;
+      }
     }
-    response->reachable[i] = pregrasp_ok;
-    if (!pregrasp_ok) {
-      response->error_codes[i] = "no_ik";
-    }
+    const char * code = sleeveReachabilityCode(
+      pregrasp_ok, sleeve_ok, cartesian_ok);
+    response->reachable[i] = (code[0] == '\0');
+    response->error_codes[i] = code;
   }
 }
 

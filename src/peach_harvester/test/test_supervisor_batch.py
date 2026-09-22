@@ -139,6 +139,95 @@ def test_preferred_without_lock_falls_to_regular_path():
     assert target_id == ''
 
 
+def _pose_item(tid, xyz, quat=(0.0, 0.0, 0.0, 1.0), travel=0.08, **kw):
+    item = _item(tid, **kw)
+    item.candidate.header = SimpleNamespace(frame_id='base_link')
+    item.candidate.entry_pose = SimpleNamespace(
+        position=SimpleNamespace(x=xyz[0], y=xyz[1], z=xyz[2]),
+        orientation=SimpleNamespace(
+            x=quat[0], y=quat[1], z=quat[2], w=quat[3]))
+    item.candidate.suggested_travel_m = travel
+    return item
+
+
+def test_reach_queries_include_travel():
+    item = _pose_item('t1', (0.4, 0.0, 0.6), travel=0.09)
+    queries = batch.reach_queries(_observations([item]), claimed=set())
+    assert queries == [
+        ('t1', (0.4, 0.0, 0.6, 0.0, 0.0, 0.0, 1.0), 0.09)]
+
+
+def test_sleeve_no_cartesian_skips_to_reachable_peer():
+    ok_item = _pose_item('ok', (0.5, 0.0, 0.7))
+    far_item = _pose_item('far', (0.5, 0.0, 0.7), prio=0)
+    ok_item.priority = 1
+    target_id, filtered = batch.next_target(
+        _observations([far_item, ok_item]), claimed=set(),
+        ik_results={
+            'far': (False, 'sleeve_no_cartesian'),
+            'ok': (True, ''),
+        })
+    assert target_id == 'ok'
+    assert 'sleeve_no_cartesian' in filtered['far']
+
+
+def test_bbox_edge_not_selected_even_if_reachable():
+    edge = _item('edge', flags=['bbox_edge'], prio=0)
+    ok = _pose_item('ok', (0.5, 0.0, 0.7))
+    ok.priority = 1
+    target_id, filtered = batch.next_target(
+        _observations([edge, ok]), claimed=set(),
+        ik_results={'ok': (True, '')})
+    assert target_id == 'ok'
+    assert 'edge' not in (target_id,)
+
+
+def test_informational_flag_still_selectable():
+    item = _pose_item('ok', (0.5, 0.0, 0.7))
+    item.diagnostic_flags = ['length_extended_from_2d']
+    target_id, filtered = batch.next_target(
+        _observations([item]), claimed=set(),
+        ik_results={'ok': (True, '')})
+    assert target_id == 'ok'
+    assert filtered == {}
+
+
+def test_tool_clearance_failed_not_selected():
+    bad = _item('bad', flags=['tool_clearance_failed'], prio=0)
+    ok = _pose_item('ok', (0.5, 0.0, 0.7))
+    ok.priority = 1
+    target_id, _filtered = batch.next_target(
+        _observations([bad, ok]), claimed=set(),
+        ik_results={'ok': (True, '')})
+    assert target_id == 'ok'
+
+
+def test_sleeve_no_ik_skips_to_reachable_peer():
+    ok_item = _pose_item('ok', (0.5, 0.0, 0.7))
+    far_item = _pose_item('far', (0.5, 0.0, 0.7), prio=0)
+    ok_item.priority = 1
+    target_id, filtered = batch.next_target(
+        _observations([far_item, ok_item]), claimed=set(),
+        ik_results={
+            'far': (False, 'sleeve_no_ik'),
+            'ok': (True, ''),
+        })
+    assert target_id == 'ok'
+    assert 'sleeve_no_ik' in filtered['far']
+
+
+def test_fallback_sleeve_window_only_when_check_sleeve():
+    # 入口半径 ~0.86 < 0.88；沿 +Z 行程 0.20 → 套入终点 ~1.03 > 0.88。
+    item = _pose_item('a', (0.5, 0.0, 0.7), travel=0.20)
+    hold_id, _hold_f = batch.next_target(
+        _observations([item]), claimed=set(), check_sleeve=False)
+    assert hold_id == 'a'
+    full_id, filtered = batch.next_target(
+        _observations([item]), claimed=set(), check_sleeve=True)
+    assert full_id == ''
+    assert 'out_of_sleeve_reach_window' in filtered['a']
+
+
 # ---- W6-B：runs-root 单源对拍（batch / runtime / peach_common 三方一致）----
 
 def _clear_env(monkeypatch):

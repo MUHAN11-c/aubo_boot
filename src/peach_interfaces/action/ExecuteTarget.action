@@ -23,9 +23,9 @@ string calibration_revision    # 标定修订；空=非预览执行须拒
 string config_revision         # 配置修订；空=非预览执行须拒
 string plan_id                 # 预览与执行须同一计划对象
 uint64 generation              # 动作事务世代；迟到结果丢弃
-# 清洁重写轮附加（阶段 2 消费；观察模式届时由大脑内化，本动作收窄为纯接触）：
-uint8 PROFILE_PREGRASP_HOLD=0  # 停预抓取检查点（不 SetIO、不回 stow；须 ACK）
-uint8 PROFILE_FULL=1           # 全程套入 / 剪切 / 撤退
+# 清洁重写轮附加（观察模式届时由大脑内化，本动作收窄为纯接触）：
+uint8 PROFILE_PREGRASP_HOLD=0  # IDL 默认。mode=FULL 仍走套入；不要把未填 profile 当成强制 HOLD
+uint8 PROFILE_FULL=1           # 强制全程套入 / 剪切 / 撤退（覆盖 mode=PREGRASP_ONLY）
 # 阶段检查点（阶段 2 起 feedback.checkpoint 取值；均 abortable——取消即透传 abort + RobotMoveStop）
 uint8 CK_AT_STAGING=1          # 到 staging 停位
 uint8 CK_AT_PREGRASP=2         # 到预抓取（PREGRASP_HOLD 终点）

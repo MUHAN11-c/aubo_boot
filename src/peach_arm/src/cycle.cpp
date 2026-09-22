@@ -20,6 +20,7 @@
 #include <peach_interfaces/msg/harvest_state.hpp>
 #include <tf2_eigen/tf2_eigen.hpp>
 
+#include "peach_arm/grasp_geometry.hpp"
 #include "peach_arm/model_contract.hpp"
 #include "peach_arm/plan_contract.hpp"
 
@@ -54,6 +55,10 @@ static_assert(
 static_assert(
   ExecuteTarget::Result::SKIPPED_QUALITY == kOutcomeSkippedQuality,
   "stage_denial.hpp kOutcomeSkippedQuality 须与 ExecuteTarget.Result.SKIPPED_QUALITY 一致");
+static_assert(kExecuteFull == ExecuteTarget::Goal::FULL);
+static_assert(kExecutePregraspOnly == ExecuteTarget::Goal::PREGRASP_ONLY);
+static_assert(kProfilePregraspHold == ExecuteTarget::Goal::PROFILE_PREGRASP_HOLD);
+static_assert(kProfileFull == ExecuteTarget::Goal::PROFILE_FULL);
 
 // 运动阶段授权矩阵（cycle_support.hpp）：一切运动执行入口最终收敛到
 // 本判定。公共 = Active ∧ robotReady ∧ !cancel；TRANSIT/PREGRASP 叠加
@@ -301,18 +306,12 @@ void ManipulationSkillsNode::executeAction(
       ctx = std::make_shared<CycleContext>();
       ctx->target_id = goal->target_id;
       ctx->observe_only = goal->mode == ExecuteTarget::Goal::OBSERVE_ONLY;
-      ctx->pregrasp_only = goal->mode == ExecuteTarget::Goal::PREGRASP_ONLY;
+      ctx->pregrasp_only = pregraspOnlyFromGoal(goal->mode, goal->profile);
       ctx->skip_observation = goal->skip_observation;
       ctx->action_driven = true;
-      // 清洁重写轮：goal.profile 优先（PREGRASP_HOLD≈PREGRASP_ONLY、
-      // FULL≈FULL）；旧客户端不填 profile（0=PREGRASP_HOLD 与 PREGRASP_ONLY
-      // 语义衔接，mode 仍各自赋值，行为不变）。接触许可令牌填写即启用
-      // CONTACT/TOOL 级令牌复检路径（authorizeStage 双路）。
-      if (goal->profile == ExecuteTarget::Goal::PROFILE_FULL) {
-        ctx->pregrasp_only = false;
-      } else if (goal->profile == ExecuteTarget::Goal::PROFILE_PREGRASP_HOLD) {
-        ctx->pregrasp_only = true;
-      }
+      // mode 是接触深度权威：FULL 不被默认 profile=0（HOLD）盖成停预抓取。
+      // PROFILE_FULL 强制套入。接触许可令牌填写即启用 CONTACT/TOOL 级
+      // 令牌复检路径（authorizeStage 双路）。
       if (goal->clearance.model_stamp.sec > 0 ||
         goal->clearance.model_stamp.nanosec > 0)
       {

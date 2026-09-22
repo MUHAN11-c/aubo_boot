@@ -9,4 +9,4 @@ ros2 launch peach_arm peach_arm.launch.py
 # 整栈由 harvest_system.launch.py include，autostart:=false，lifecycle 拉起
 ```
 
-默认 `execution.enabled` / `grasp.enabled` / `tool.enabled` 全关；真运动须与调度 `execution_enabled` 同时开并经人工授权。工具几何权威在 `aubo_description` 工具档案（整栈 `tool_profile` 参数，默认 `adaptive_cylinder_v1`）。节点回调只抽字段委托 `cache_`；周期走 `executeCycle`。
+默认 `execution.enabled` / `grasp.enabled` / `tool.enabled` 全关；真运动须与调度 `execution_enabled` 同时开并经人工授权。工具几何权威在 `aubo_description` 工具档案（整栈 `tool_profile` 参数，默认 `adaptive_cylinder_v1`）。自适应 FULL 在预抓取→套入→回预抓取窗内调 imu_follow；空心走 MTC LIN 且不建 `/imu_follow` 客户端。接近主路径是果平面折线 LIN（面内斜插到轴上 staging + 沿轴垂直进入；斜插 keep-roll 对轴，不叠 ±30/±60 刀口滚转；斜插 0.20/0.10，wrist1 超限再 0.10/0.04，两档失败才 PTP staging）。节点回调只抽字段委托 `cache_`；周期走 `executeCycle`。

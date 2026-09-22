@@ -125,7 +125,7 @@
 
   <section class="panel traj-panel" id="traj-panel">
     <div class="section-head">
-      <div><p class="kicker">TCP</p><h2>末端俯视（X–Y）</h2></div>
+        <div><p class="kicker">TCP</p><h2 id="traj-title">末端轨迹（主平面）</h2></div>
       <span id="traj-status">等待 TF base_link←tcp</span>
     </div>
     <div class="traj-metrics" id="traj-metrics"></div>
@@ -134,8 +134,8 @@
         <canvas id="tcp-canvas" width="960" height="260"></canvas>
       </div>
       <aside class="traj-legend">
-        <div><i class="swatch path"></i>TCP 路径</div>
-        <div><i class="swatch chord"></i>起止弦</div>
+        <div><i class="swatch path"></i>已走 TCP</div>
+        <div><i class="swatch approach"></i>靠近</div>
         <div><i class="swatch entry"></i>抓取入口</div>
         <div><i class="swatch pregrasp"></i>预抓取</div>
         <div><i class="swatch center"></i>重建中心</div>

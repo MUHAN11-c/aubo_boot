@@ -7,7 +7,7 @@
   自动建 bag 专用订阅（消息类型运行期 import），删掉话题不再重订。
 - 大流护栏：camera raw 图像/点云（/camera/ 前缀 + image/points/depth）在
   `level=std` 档限 1Hz（首帧必录 + 周期限速）；`level=all` 不限速（真全量，
-  stereo 13.4fps 约 50MB/s，20GB 预算约 1.7h，超预算靠既有 retention 回收）。
+  stereo 13.4fps 约 50MB/s，100GB 预算约 30+ 分钟，超预算靠既有 retention 回收）。
 - 排除：/rosout（专用订阅已录）、/parameter_events（噪声）。
 """
 from __future__ import annotations

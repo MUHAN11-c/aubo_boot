@@ -167,6 +167,17 @@ def generate_launch_description():
                 'align_to_parent': 'true',
             },
             condition=IfCondition(LaunchConfiguration('imu_enabled'))),
+        # 自适应末端接触窗：预抓取→套入→回预抓取走 imu_follow+Servo。
+        # 空心末端不起本 Include（进程隔离）；peach 永不自动 motion.enabled。
+        # 未 enable 时 follow_node pause servo，避免与 Survey/MovePregrasp MTC
+        # 同时写 JTC。
+        _include(
+            'imu_follow', 'imu_follow_servo.launch.py', {
+                'tool_profile': tool_profile,
+                'motion_enabled': 'false',
+            },
+            condition=IfCondition(PythonExpression(
+                ["'", tool_profile, "' == 'adaptive_cylinder_v1'"]))),
         _include(
             'peach_harvester', 'brain.launch.py',
             {

@@ -717,3 +717,126 @@ SIGINT 旧栈后用 16:57 编的 `peach_manipulation` 重起；开批前在 `glo
 **接线问题与同轮修复**：① mock 无 `aubo_io_controller`，`require_robot_status` 仍 true → Survey ~40 ms `robot_status_missing`；`harvest_system` mock overlay 置 false。② `publish_debug_image` 须默认 true（空 Debug Image）。③ 不开 skip 时 PICK_ALL 卡 `observe_build_view_race`（views=1，`min_views=2`；mock TF 动、相机不跟）。④ `skip_reconstruction` 根级 launch overlay 打不进 brain 进程里的 `peach_supervisor`，须 `peach_supervisor.ros__parameters`；本轮先热设再补 overlay。
 
 **走通**：`e2e_unrefined_20260921T185527` Survey→锁→无 Build→`ExecuteTarget PREGRASP_ONLY`（reconfirm 0.43 s + approach_insert 13.0 s）→ ACK → 回拍照位再 Survey → `completed`。ledger `target_1` outcome=0、`completion_level=2`、`geometry_source=scene_observation`。全程无 SetIO。重建节点仍 WARN 队列满，不挡接触。跑法见 [testing.md](testing.md)「实验室端到端」。
+
+### 09-21 续：skip 路径 FULL 许可钉住（未融合 GraspDecision 冲门修复，未实跑 FULL）
+
+**缺陷**：skip_reconstruction 路径重建节点不关、持续发布未融合 GraspDecision（常 `allowed=false`），FULL 有两条路径被它冲掉套入许可——① 臂侧 `TargetCache.updateGraspDecision` 把 `promoteUnrefinedGeometry` 钉住的 `quality.grasp_allowed` 冲回 false，CONTACT 复检拒；② 调度装配 ExecuteTarget goal 时把该决策装成 CONTACT 令牌，臂侧令牌复检 `allowed=false` 拒。PREGRASP_ONLY 轮不读 `grasp_allowed` 故未暴露（`e2e_unrefined_20260921T185527` 只有预抓取）。
+
+**修复**（`peach_arm/target_cache` + `peach_harvester/executor_node`）：`promoteUnrefinedGeometry` 同时钉 `grasp_allowed=true` 与决策目标 ID；`unrefined_hold_` 期间 `updateGraspDecision` 直接放行不落账（心跳/决策不续签语义不变，有效期仍只经 replaceModelSnapshot）；调度 skip 档 decision 置空整体不装令牌（走快照回退=钉住后的臂侧 quality）。`test_target_cache` 锁定钉住+拒绝决策不冲门，peach_arm 12 测绿（本机复跑）；调度装配分支属节点层，现行测试塔无覆盖（缺口记下）。
+
+**文档同轮**：architecture 档位/FSM 段、io.md `allow_unrefined_geometry` / `skip_reconstruction` / Clearance 行、testing.md e2e_unrefined 行补档位说明并新增「跳过重建完整接触（套入干跑，不开刀）」一节。该 FULL 干跑**尚未实跑**；验收断言已逐一对照源码核过（tool 关跳 ActuateCutter/VerifyCut、撤离成功即清 recovery、`VerifyHarvestOutcome` 在 tool 关时不拦、不记采摘成功）。
+
+### 09-22 mock 臂 + 真立体相机：skip 路径 FULL 套入干跑（不开刀）
+
+**档位**：`hardware_mode:=mock` `camera_frontend:=stereo` `skip_reconstruction:=true` `autostart:=false`；运行期 `execute_pregrasp_only:=false`；`SetEnables(execution+grasp, tool=false)`。未授权真机动臂/SetIO。launch 后 `/peach_supervisor skip_reconstruction` 仍为 False（brain 一进程三节点，`Node()` 默认名 `peach_harvester`，嵌套 `peach_supervisor.ros__parameters` overlay 打不进），热设 True 后核过；臂侧 `quality.allow_unrefined_geometry` 已 True。深度探针 30 帧 valid_mean=0.496、13.6 fps；手眼平移 `[0.045, 0.108, 0.002]`。
+
+**走通到哪**：`e2e_full_unrefined_20260922T094345` Survey→锁→无 Build→`ExecuteTarget` **FULL**（再确认 0.36 s + 接近 12.9 s 到预抓取，检查点 CK_AT_PREGRASP）→ CONTACT 授权过（未再被未融合 `GraspDecision.allowed=false` 拒）→ `previewFullContact` 失败。账本 `target_1` outcome=2、`failure_code=skipped_unreachable`、`completion_level=2`、阶段仅 `reconfirm`+`approach_insert`。ACK 后回访 Survey，已 claim 不再选 → `HarvestState.batch_state=completed`。全程无 SetIO；`tool.enabled` 保持 false。
+
+**套入失败原因（不是许可门）**：MTC `sleeve linear along bag axis (0/1)`。感知 `d95_m≈0.068`、袋底 `base_link` ≈`[0.434, -0.611, 0.610]`、轴 ≈`[0.296, -0.521, 0.800]`；预抓取 |p|≈0.94 m（E5 工作空间边缘，IK 仍到）；沿轴插入到袋颈 |p|≈1.05 m，笛卡尔直线无解。`promoteUnrefinedGeometry` 未拷贝 `bag_diameter_upper_m`（观测侧也未入 `CachedTarget`），胶囊回退 0.12 m——与本轮 Cartesian 0/1 无关，skip FULL 几何钉住仍缺口。重建节点仍 WARN `missing_mask`/队列，不挡接触。报告 `runs/e2e_full_unrefined_20260922T094345/round_report.md`；会话 bag `runs/session_20260922_094104/bag/`（停栈后 observability 未出 `bag_report`）。
+
+### 09-22 续：skip overlay / 直径钉住 + mock FULL 套入干跑走通（不开刀）
+
+**缺口补上（同轮源码+活文档）**：① brain unnamed `Node` 上嵌套 `peach_supervisor.ros__parameters` dict 打不进进程内调度节点；改为 OpaqueFunction 写成 `peach_supervisor` 键 ParameterFile。本轮 mock 起栈后 **未热设** `ros2 param get /peach_supervisor skip_reconstruction` → True，臂侧 `quality.allow_unrefined_geometry` True。② 观测 `bag_diameter_upper_m` 进 `CachedTarget` / Selected·Locked update，`promoteUnrefinedGeometry` 拷进精化；gtest `PromoteUnrefinedFromLockedAndHoldsAgainstDiagnostics` 断言 0.068。③ `sim_field_targets.py --mode full`：goal 须 `PROFILE_FULL`（默认 profile=0 会把 `mode=FULL` 盖成停预抓取）。
+
+**软件接触链（无相机、在达几何）**：`hardware_mode:=mock camera_enabled:=false skip_reconstruction:=true autostart:=false imu_enabled:=false`；`scripts/sim_field_targets.py --mode full --case 1757 --velocity 1.0`（tool 保持关，直发 `ExecuteTarget` 不经 `RunHarvest`）。`runs/sim_field_targets_20260922_100400.jsonl`：outcome=0、`completion_level=6`（`LEVEL_RETREAT_CONFIRMED`）、`grasped=false`、`recovery_required=false`、`pregrasp_passed=true`。检查点 2 预抓取 → 3 套入预规划 → 4 套入到位 → `tool.enabled=false` 跳过 SetIO → 8 原路撤回 → 9 `harvest_stow` → `SUCCEEDED`。无「感知果实直径无效」回退（注入直径 0.06 m）。脚本 `detour_flag` 是 `--velocity 1.0` 切段把返程并进接近（`from_photo=false`），不当套入形状。实验室上午那袋 |p|≈1.05 m 仍不可达，未重跑相机 FULL。
+
+**停栈**：launch SIGINT 后 observability 挂死（PID 144945），TERM 2 s 仍在则 KILL；`pgrep` 无 peach/ros2 残留；`/dev/shm/fastrtps_*` 已清。会话 bag `runs/session_20260922_100001/bag/`（KILL 后无 `bag_report`）。`test_target_cache` 12 测绿。未授权真机动臂/SetIO。
+
+### 09-22 续：SELECT 套入终点 IK + mode 权威；mock 复跑 1757 FULL
+
+**档位**：`hardware_mode:=mock camera_enabled:=false skip_reconstruction:=true autostart:=false imu_enabled:=false`。launch overlay 后 `/peach_supervisor skip_reconstruction` True、`quality.allow_unrefined_geometry` True、四托管 Active。未授权真机动臂/SetIO。`SetEnables(execution)` 后 `SurveyScene` 到拍照位再探 IK（与 SELECT 种子一致）。
+
+**CheckReachability（拍照位种子）**：
+
+| 入口 | travel | require_sleeve | 结果 |
+|------|--------|----------------|------|
+| 1757 `[0.304,-0.614,0.536]` \|e\|=0.870 \|s\|=0.903 | 0.06 | false / true | 均 `reachable=true` |
+| 实验室上午袋 `[0.434,-0.611,0.610]` 轴 `[0.296,-0.521,0.800]` \|e\|=0.966 \|s\|=1.044 | 0.08 | false / true | **均 true**（单点 IK 仍有解） |
+| 同上 | 0.20 | true | `sleeve_no_ik`（\|s\|=1.161） |
+| `[1.20,-0.40,0.50]` \|e\|=1.36 | 0.08 | false | `no_ik` |
+| 径向前插 `[0.70,-0.50,0.40]` travel 0.20 \|s\|=1.145 | — | false / true | 预抓取 true / `sleeve_no_ik` |
+
+上午那袋 travel≈0.08 时 SELECT 套入终点 IK **仍会放行**；当时失败是 MTC 沿轴 LIN `(0/1)`，不是终点无 IK。门挡住的是「终点已经无 IK」的袋，不是全部笛卡尔空洞。
+
+**软件接触链**：`SetEnables(execution+grasp, tool=false)` + `scripts/sim_field_targets.py --mode full --case 1757 --velocity 1.0`。`runs/sim_field_targets_20260922_103933.jsonl`：outcome=0、`completion_level=6`、`grasped=false`、`recovery_required=false`、`pregrasp_passed=true`、阶段 reconfirm 0.26 s / approach_insert 12.1 s / retreat 3.3 s。检查点 2→3→4 → `[ACTUATE_TOOL] tool.enabled=false，跳过末端 IO` → 8→9 → `[SUCCEEDED]`。脚本 `detour_flag=true`（`from_photo=true` 段事后胶囊审查）不当套入失败。
+
+**停栈**：launch 父进程已退、子进程成孤儿；按 PID TERM，observability 282612 2 s 后 KILL；`pgrep` 无 peach/ros2 节点；`/dev/shm/fastrtps_*` 已清。会话 `runs/session_20260922_103652/bag/`（KILL 后无 `bag_report`）。
+
+### 09-22 续：本轮不开自适应；hollow mock FULL 网格 9/10
+
+**档位**：`hardware_mode:=mock camera_enabled:=false skip_reconstruction:=true tool_profile:=hollow_cylinder_v1 imu_enabled:=false autostart:=false`（`ROS_DOMAIN_ID=43`）。未授权真机动臂/SetIO。本轮**不起** `adaptive_cylinder_v1` / `imu_follow` / Servo。
+
+**隔离**：`/peach_arm tool.profile_id=hollow_cylinder_v1`；无 `imu_follow` / `servo_node` 进程与节点；`ros2 service list` 无 `/imu_follow/*`。空心栈若仍 `create_client(/imu_follow/enable)`，FastDDS 图上会挂出服务名（无服务端）——已改为仅自适应档案建客户端。
+
+**网格** `scripts/sim_field_targets.py --grid --mode full --velocity 1.0 --tool-profile hollow_cylinder_v1` → `runs/sim_field_targets_20260922_120255.jsonl`：**9/10 matched**。在达 5 例（`typical_1757` / `tilt_1639_1` / `travel_min` / `travel_max` / `info_length_extended`）outcome=0、`completion_level=6`、`grasped=false`、无 SetIO。SELECT 正确 skip：`lab_oos_20260922`=`sleeve_no_cartesian`、`far_no_ik`=`no_ik`、`bbox_edge`、`tool_clearance_failed`。`near_horizontal_1021_1` 套入/撤回完成（completion=6）后 `ReturnHarvestStow` PTP「累计关节行程 6.91 rad > 6 rad」→ outcome=3（`transit_max` 护栏，不是套入失败）。脚本 `detour_flag` 仍是胶囊事后审查，不当套入失败。
+
+**停栈**：launch SIGINT 后按 preflight PID TERM；observability 2 s 后 KILL。当时预检名单只有节点名 `peach_lifecycle_manager`、匹配不到 nav2 可执行名 `lifecycle_manager`，漏杀两只 lm（433358/449158），已按 PID 清并补名单。`pgrep` 无 peach/ros2 残留。会话 `runs/session_20260922_120244/bag/`（后补 `peach_bag_report`）。`peach_arm` 18/18、`peach_bringup`/`peach_system_tests` 本包测绿。
+
+### 09-22 续：bag/RViz 对照后 stow 两跳；hollow 网格 10/10
+
+**证据**：`session_20260922_112338` / `120244` 作业票同一句：`返回 harvest_stow 失败: 拍照位姿拒绝绕行轨迹: 累计关节行程 7.57/6.91 rad > 6 rad`，入口 `[0.518,-0.695,0.521]`=`near_horizontal_1021_1`。套入/撤回已完成（jsonl completion=6）。根因不是 `transit_max` 过严：`harvest_stow` 与 `global_photo_pose` 已分叉（wrist2 −0.50 vs −0.28，Δ≈0.22 rad），`stageReturnHarvestStow` 直调 `goToPhotoPose(stow)` 对不上接近轨迹起点，跳过原路返程去新规划 PTP。本轮网格无 RViz 录像（当时 `QT_QPA_PLATFORM=offscreen`，rviz2 崩）。09-18 `camera_ab_*_rviz.mp4` 是感知 A/B，不含本网格接触。
+
+**调优（未抬 6 rad 门）**：`harvestStowNamedHops(photo, stow)` → 先 `goToPhotoPose(photo)`（可倒放已过门接近）再短 PTP `harvest_stow`。gtest `HarvestStowNamedHopsViaPhotoThenStow`。architecture / io / testing / `peach_arm.yaml` 同轮。
+
+**复跑**：`tool_profile:=hollow_cylinder_v1 imu_enabled:=false`，无 `/imu_follow`。`runs/sim_field_targets_20260922_134716.jsonl`：**10/10**。`near_horizontal_1021_1` outcome=0、completion=6、grasped=false。RViz `runs/grid_hollow_stowfix_20260922/rvizwin.mp4`（4:00，1418×815）：t=5/60/150 空心筒口对袋轴、白线为接近/套入；Debug Image 无帧（本网格 `camera_enabled:=false`）。预检补 `lifecycle_manager` 与 `rviz2`（本轮曾漏杀 rviz 494433，已按 PID 清）。会话 `runs/session_20260922_134706/`。未授权真机动臂/SetIO。柜 IP 169.254.10.98 本轮 ping 不通；相机 169.254.10.110 通，live 仍 hollow。
+
+### 09-22 续：接近改为果平面折线 LIN
+
+**证据**：`runs/sim_field_targets_20260922_134716.jsonl` 接近段 path/chord 常 1.5–2.65、弦偏离 0.31–0.61 m；RViz t60/t150 白线从拍照位抡出大弧。根因是拍照位→staging 的关节 PTP 不约束 TCP 面，侧向扫枝。
+
+**复跑**：`tool_profile:=hollow_cylinder_v1 imu_enabled:=false`。`runs/sim_field_targets_20260922_141241.jsonl`（会话 `session_20260922_141232`）：**10/10**。`typical_1757` 走通果平面折线（三跳 LIN ratio 1.00）；tilt/travel_min/travel_max/near_horizontal 折线规划失败后 PTP 兜底仍到位。未授权真机动臂/SetIO。
+
+### 09-22 续：接近不再用近果档；可视化只画已走到
+
+**证据**：折线末跳（AlongAxis）套了 `approach_near_velocity_scaling` 0.05，把赶路拖成接触速度；每个滚转候选都 `plan()` 折线，`DisplayMotionPath` 把护栏拒掉的解发到 `/display_planned_path`。observability `tcp_chord` 把会话首末点直连，穿过未走到的空间；`planned_views` 把最多 24 个未走视点画成箭头。
+
+**调优**：接近折线三跳与 PTP 兜底沿轴 LIN 走 `velocity_scaling` 0.10；`approach_near` 0.05 只套入/撤退。折线 `plan()` 每趟至多一次。Pilz/OMPL 去掉 `DisplayMotionPath`（对齐 Nav2：只可视化正在跟随/已执行的路径）。删 `tcp_chord`。`planned_views` 只在观察短移成功后画该视点。RViz Planned Path `Show Robot Visual=false`。pytest `test_tcp_markers_draw_sampled_path_not_unreached_chord`。未抬 `transit_max`。本轮不开自适应、未 `hardware_mode:=real`。
+
+### 09-22 续：接近改面内斜插；网格点位拉开
+
+**证据**：矩形两段 LIN（先落到果面再横收 0.4 m）把一次接近拆成三次规划，路程是直角边之和；`--grid` 六个 succeed 里四个入口都是 1757，轨迹看起来永远同一条。枝间需要垂直进果，但不需要走满矩形。
+
+**调优**：未齐先原地对齐；面内一跳斜插到轴上 staging，再沿轴垂直进入（gtest `PlanarApproachHopsAisleThenPerpendicular` 断言第一跳同时有侧向与轴向、比直角两段短）。折线 LIN 加速度仍封顶 0.10。网格在达点改为现场不同簇（1757 巷中 / 1639_1 深左斜 / 1113_1 近左 travel_min / 1740 中偏 travel_max / 1113_0 右巷 flag / 1021_1 近水平）。打断的 mock 栈已按 PID 清。未 `hardware_mode:=real`。
+
+### 09-22 续：斜插 keep-roll，不叠刀口 Rz
+
+**模型**：空心圆筒 TCP `Rx(-90°)`，Z=开口、XY=刀口；零位开口朝世界 +Z。SRDF `global_photo_pose` 的 TCP 四元数近单位阵（xyzw `[-0.005,-0.010,-0.037,0.999]`），开口已近 +Z。
+
+**感知**：悬挂袋轴亦近 +Z（`typical_1757` axis `[0.042,0.136,0.990]`）。拍照位 TCP Z 与袋轴夹角 **8.4°**（与 09-01 现场「倾斜约 8°、目视不像大拧腕」一致）。圆筒绕 Z 对称，笛卡尔斜插不需要 ±30°/±60° 刀口滚转。
+
+**调优**：`planarApproachHops` 只用 `alignFrameZ` keep-roll；笛卡尔折线不再 `applyPlanarApproachOrientation` 叠候选滚转（滚转只给 PTP 兜底）。小对轴仍走 **长斜插**——把 8.4° 挪到 0.13 m 沿轴段后 typical wrist1 到 −7.18（与零位移拧腕同类），已收回。gtest `PlanarApproachHopsKeepsPhotoRollWhenZAlreadyNearAxis`。`peach_arm` 18/18。
+
+**网格** `runs/sim_field_targets_20260922_154317.jsonl`：**10/10**（hollow mock FULL；未 `hardware_mode:=real`）。日志对轴 8.4°/16.8°/23.5°/28.2°/31.4°/75° keep-roll。近水平 75° 是袋轴本身接近水平，不是刀口 Rz。停栈 leftover 0。
+
+### 09-22 续：keep-roll 长斜插复核；保持拍照姿态撤回
+
+**证据** `runs/sim_field_targets_20260922_155057.jsonl`：**10/10**（hollow mock FULL；`ROS_DOMAIN_ID=55`；未 `hardware_mode:=real`）。`near_horizontal` outcome=0 completion=6，stow 不再 `transit_max`。typical 对轴 8.4° keep-roll 走长斜插：wrist1 −3.28 / 限 3，降档 −3.12，改 PTP；执行接近比 1.33–1.56（typical 1.56、travel_min 1.46、travel_max 1.48、info 1.33、近水平 1.36）。tilt 当时比 34.6 是 photo→photo 切段误把整周期合成一段，不是套入失败。
+
+**保持拍照姿态（撤回）**：对轴 <15° 时 hop 不 `alignFrameZ`，typical wrist1 恶化到 −7.15 / 降档 −5.51（残差落到 0.13 m 沿轴，与 delay-align 同类）。已收回，仍 keep-roll 走长斜边。刀口 ±30/±60 仍不叠进笛卡尔。
+
+**切段**：`sim_field_targets` 把「起止都在拍照位、路径≫弦」的段按离拍照最远点拆成出程/返程。keep-photo 半轮 tilt 比从 34.6 变成 1.13。
+
+`peach_arm` 18/18。未 `hardware_mode:=real`。
+
+### 09-22 续：空心 live SURVEY（mock 臂 + 真立体相机）
+
+柜 `169.254.10.98` 不通，未 `hardware_mode:=real`。相机 `169.254.10.110` PS800-E1 在。`camera_enabled:=true camera_frontend:=stereo skip_reconstruction:=true tool_profile:=hollow_cylinder_v1 imu_enabled:=false`。彩色探针 30 帧 / 2.37 s ≈ **12.6 FPS**。`SetEnables(execution=true)` 后 `RunHarvest` `e2e_survey_20260922T160318` intent=2：**SUCCEEDED** `termination_reason=completed`，discovered=1 attempted=0，账本 `claimed=[]`。感知 `target_1`。使能已关。停栈 leftover 0。panda_sort_gazebo 未动。
+
+### 09-22 续：自适应 mock FULL 网格（与空心隔离）
+
+`tool_profile:=adaptive_cylinder_v1`，`imu_enabled:=false`（无 USB），`imu_follow` 仍随档案 Include。`runs/sim_field_targets_20260922_161623.jsonl`：**10/10**。succeed 六案 completion=6、接近比 1.34–1.61、胶囊外。套入阶段日志「IMU 跟随接管、跳过 MTC CartesianPath」；`waitImuFollowTravel` 按 0.01 m/s 墙钟等，不是真跟随位移。贴边/净空 skip_select、超程 `no_ik`、实验室袋 `sleeve_no_cartesian` 仍命中。未 `hardware_mode:=real`。
+
+### 09-22 续：空心 live SURVEY + PREGRASP（真立体相机 + mock 臂）
+
+柜不通，未 `hardware_mode:=real`。`tool_profile:=hollow_cylinder_v1 imu_enabled:=false`，图上无 `imu_follow`/`servo`。彩色 30 帧 / 4.88 s ≈ **6.1 FPS**。`e2e_survey_20260922T162215` SURVEY_ONLY completed、discovered=1。锁定采样 8 拍全是 `target_1` confirmed、`target_set_locked=True`（ID 不闪）。`e2e_unrefined_20260922T162302` skip_reconstruction 无 Build：账本 outcome=0、`completion_level=2`、阶段 `reconfirm`+`approach_insert` 10.2 s，`[SUCCEEDED] PREGRASP_ONLY` 停预抓取、无 SetIO。过早 ACK 被拒「周期运行中不能确认恢复」；Hold 后命令 6 才 `accepted`。使能已关。停栈 leftover 0。live FULL 未发：实验室袋 SELECT 仍可能 `sleeve_no_cartesian`。
+
+### 09-22 续：对照 bag/RViz 视频收可视化
+
+**证据**：`runs/grid_hollow_stowfix_20260922/{t5,t60,t150}.png` 白线三角 + 1 m TF 名 `tool_axis` 挡住筒口；`e2e_adaptive_grid_20260922T1616/rvizwin.mp4` 多数帧是叠在 RViz 上的 IDE（x11grab 录屏幕像素）。live 帧 `adapt_t350` Debug Image 有 `target_0` 掩膜，检测点云过碎、TSDF/重建 markers 在 skip_reconstruction 下仍开。8090 固定 X–Y 俯视把沿轴升程压扁。
+
+**调优**：RViz TF 轴 0.15 m、不显示名字/箭头；Detection Cloud 开（8 mm 方块）；TSDF/重建 markers/TCP Path 默认关。套入轴只画预抓取→入口，换 run/目标清路标。8090 按跨度最大两轴投影并按相位着色。录像脚本先 `wmctrl` 前置 MoveIt 窗。未 `hardware_mode:=real`。
+
+### 09-22 续：过程数据压缩
+
+`runs/` 只留空心网格 `155057`、自适应网格 `161623`、live SURVEY `e2e_survey_20260922T162215`、live PREGRASP `e2e_unrefined_20260922T162302`、stowfix RViz 关键帧。历史 idle/session/harvest 目录、MCAP、被挡住的自适应录像、根目录自行车草稿已删。旧 `reports/`（09-17～09-20）与 `summary_2026-09-14` 归档 `_archive/`。`_archive/runs` 与 `_archive/caches` 清空。结论仍以本文件为准。
+

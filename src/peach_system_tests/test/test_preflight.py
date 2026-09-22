@@ -26,7 +26,8 @@ def test_preflight_patterns_cover_current_topology():
     """G5：brain 进程（exec=peach_harvester）与 bringup 两小组件、相机前端必须入名单."""
     for pattern in (
             'peach_harvester', 'peach_lifecycle_flag_bridge',
-            'peach_autostart_client', 'stereo_camera_node'):
+            'peach_autostart_client', 'stereo_camera_node',
+            'imu_follow_node', 'servo_node', 'lifecycle_manager', 'rviz2'):
         assert pattern in PREFLIGHT_PATTERNS, pattern
 
 
@@ -34,6 +35,19 @@ def test_preflight_matches_brain_process_exec():
     """brain 三节点合进程只暴露 exec 名，节点名不在 argv."""
     cmdline = (
         '/home/ws/install/peach_harvester/lib/peach_harvester/peach_harvester')
+    assert cmdline_looks_like_stack(cmdline)
+
+
+def test_preflight_matches_nav2_lifecycle_manager_exec():
+    """节点名 peach_lifecycle_manager 在 -r 里，argv0 basename 是 lifecycle_manager."""
+    cmdline = (
+        '/opt/ros/jazzy/lib/nav2_lifecycle_manager/lifecycle_manager\x00'
+        '--ros-args\x00-r\x00__node:=peach_lifecycle_manager')
+    assert cmdline_looks_like_stack(cmdline)
+
+
+def test_preflight_matches_rviz2_exec():
+    cmdline = '/opt/ros/jazzy/lib/rviz2/rviz2\x00-d\x00moveit.rviz'
     assert cmdline_looks_like_stack(cmdline)
 
 
@@ -90,6 +104,10 @@ def test_bringup_launch_does_not_auto_run_harvest():
         ).read_text(encoding='utf-8')
     assert 'ros2 action send_goal' not in text
     assert 'send_goal(' not in text
+    assert "'imu_follow'" in text
+    assert "imu_follow_servo.launch.py" in text
+    assert "adaptive_cylinder_v1" in text
+    assert "'motion_enabled': 'false'" in text
 
 
 def test_executor_enable_default_off():

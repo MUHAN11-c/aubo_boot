@@ -4,8 +4,8 @@ import math
 from imu_follow.follow_core import (
     apply_deadband, clamp_joint_step, clamp_rotvec, delta_rotvec,
     insertion_position, insertion_step, map_signs, quat_conj, quat_mul,
-    quat_normalize, quat_rotate, quat_to_rotvec, rotvec_to_quat, scale_vector,
-    slerp_toward, target_orientation)
+    quat_normalize, quat_rotate, quat_to_rotvec, retraction_step,
+    rotvec_to_quat, scale_vector, slerp_toward, target_orientation)
 
 
 def _mag(v):
@@ -122,6 +122,17 @@ def test_insertion_step_integrates_and_caps():
     # 负时长/负速度不回退（钳 0）
     assert insertion_step(0.1, 0.01, -1.0, 0.20) == 0.1
     assert insertion_step(0.1, -0.05, 1.0, 0.20) == 0.1
+
+
+def test_retraction_step_decreases_and_floors():
+    assert abs(retraction_step(0.10, 0.01, 0.05) - 0.0995) < 1e-12
+    travel = 0.20
+    for _ in range(400):
+        travel = retraction_step(travel, 0.01, 0.05)
+    assert travel == 0.0
+    assert retraction_step(0.005, 0.01, 1.0) == 0.0
+    assert retraction_step(0.1, 0.01, -1.0) == 0.1
+    assert retraction_step(0.1, -0.05, 1.0) == 0.1
 
 
 def test_insertion_position_moves_along_direction():

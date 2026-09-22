@@ -36,8 +36,8 @@ peach_observability:
       save_images: true  # debug_image/debug_image_raw 进 bag（替代旧 jpg 落盘；QoS 与监控订阅一致）
       save_clouds: true  # tsdf_cloud 进 bag（替代旧终局 PLY 落盘）
       rosout: true  # /rosout 全量进 bag：全部节点日志（stamp/level/logger）可回放——测试复盘最低完备集（scripts/collect_round.py 离线归集依赖它）
-      level: std  # 全量录制档位：all=域内全部话题通配发现订阅、相机 raw 不限速（真全量，仿真复现/问题分析用；stereo 前端约 50MB/s，超 20GB 预算靠 retention 回收）；std=全话题但相机 raw 大流限 1Hz（默认）；core=仅固定订阅集（observability_node 镜像订阅 + 派生 job/metrics，2026-09-20 起 bag_topics 键已删）
-      max_total_bag_gb: 20.0  # bag 二进制总量预算（GB）：session_*/bag 与旧 mcap_* 合计超限按最旧先删；0=禁用回收；报告/账本/文本永不删；回收写 runs/retention_audit.jsonl
+      level: std  # 全量录制档位：all=域内全部话题通配发现订阅、相机 raw 不限速（真全量，仿真复现/问题分析用；stereo 前端约 50MB/s，超 100GB 预算靠 retention 回收，失败短抓才切 all）；std=全话题但相机 raw 大流限 1Hz（默认长跑）；core=仅固定订阅集（observability_node 镜像订阅 + 派生 job/metrics，2026-09-20 起 bag_topics 键已删）
+      max_total_bag_gb: 100.0  # bag 二进制总量预算（GB）：session_*/bag 与旧 mcap_* 合计超限按最旧先删；0=禁用回收；报告/账本/文本永不删；回收写 runs/retention_audit.jsonl。战役上限 100；分析完成后用 scripts/purge_analyzed_bags.py 删 MCAP 留报告
       queue_depth: 512  # bag 写队列深度上限：盘速掉队时丢最旧保最新（不再无界吃内存），丢帧计数进 /api/state 的 record.drops
     trajectory:
       enabled: true  # 采样末端 TCP 轨迹供 Web/路标（latest TF base←tip；bag 侧由 /tf 离线重算，同一来源）

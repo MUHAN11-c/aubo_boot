@@ -318,9 +318,9 @@ class ObservabilityNode(LifecycleNode):
         return super().on_cleanup(state)
 
     def on_shutdown(self, state):
-        """Shutdown 迁移：收尾 bag 并起自动报告（名单管理路径走 destroy_node）."""
+        """Shutdown 迁移：先停通配订阅再收尾 bag（名单管理路径走 destroy_node）."""
         del state
-        self._spawn_report(self._close_recorder())
+        self._stop_recording()
         return TransitionCallbackReturn.SUCCESS
 
     def _record_raw(self, topic_parameter: str, message) -> None:
@@ -540,14 +540,22 @@ class ObservabilityNode(LifecycleNode):
         self._publish_job()
 
     def _track_run_context(self, value: dict) -> None:
-        """轨迹上下文与账本 run_id 跟随（换 run 清空上一轮轨迹）."""
-        self._traj_ctx['target_id'] = str(value['target_id'] or '')
+        """轨迹上下文与账本 run_id 跟随（换 run / 目标清空上一轮轨迹与路标）."""
+        previous_tid = str(self._traj_ctx.get('target_id') or '')
+        new_tid = str(value['target_id'] or '')
+        self._traj_ctx['target_id'] = new_tid
         self._traj_ctx['phase'] = int(value['target_phase'] or 0)
         run_id = str(value['run_id'] or '')
-        if run_id and run_id != self._traj_run_id:
-            self._traj_run_id = run_id
+        run_changed = bool(run_id) and run_id != self._traj_run_id
+        target_changed = bool(new_tid) and bool(previous_tid) and new_tid != previous_tid
+        if run_changed or target_changed:
+            if run_changed:
+                self._traj_run_id = run_id
             if self._tcp_path is not None:
                 self._tcp_path.clear()
+            self._traj_landmarks.clear()
+            self._viz_bundle_sig = None
+            self._last_marker_sig = None
         # run_id 即账本目录名（supervisor：_run_id = goal.request_id）
         if run_id:
             self._ledger_request_id = run_id
@@ -1085,13 +1093,20 @@ class ObservabilityNode(LifecycleNode):
         self._ledger_watch = None
         self._ledger_request_id = ''
         self._diag = None
-        self._spawn_report(self._close_recorder())
+        self._stop_recording()
         self._metrics = None
         self._params = None
 
     # ------------------------------------------------------------------
     # 会话收尾：bag 关闭 → 后台线程自动出报告 + 体积回收（决策 0019）
     # ------------------------------------------------------------------
+    def _stop_recording(self) -> None:
+        """先停通配订阅再关 bag：否则 close 的 join 会被持续入队撑死."""
+        if self._catch_all is not None:
+            self._catch_all.stop()
+            self._catch_all = None
+        self._spawn_report(self._close_recorder())
+
     def _close_recorder(self):
         """关 bag（排空写队列）；返回 bag 目录，未启用/重复调用给 None."""
         recorder, self._recorder = self._recorder, None
@@ -1137,9 +1152,9 @@ class ObservabilityNode(LifecycleNode):
             self._report_thread.join(timeout=timeout)
 
     def destroy_node(self):
-        """停止 HTTP/性能采样，收尾 bag 并起自动报告后销毁 ROS 节点."""
+        """停止 HTTP/性能采样，先停通配录制再收尾 bag 并起自动报告后销毁 ROS 节点."""
         self._stop_runtime()
-        self._spawn_report(self._close_recorder())
+        self._stop_recording()
         super().destroy_node()
 
 

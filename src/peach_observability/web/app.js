@@ -583,6 +583,13 @@ const LANDMARKS = [
   ["grasp_pregrasp", "预抓取", [224, 169, 62], 5],
   ["grasp_entry", "抓取入口", [224, 92, 92], 5],
 ];
+const AXIS_NAME = ["X", "Y", "Z"];
+const PHASE_RGB = {
+  2: [79, 163, 224],
+  5: [224, 169, 62],
+  6: [196, 125, 255],
+  7: [64, 191, 115],
+};
 
 function unpackXyz(flat) {
   const points = [];
@@ -597,6 +604,23 @@ function unpackXyz(flat) {
 function finiteXyz(value) {
   return Array.isArray(value) && value.length >= 3 &&
     value.slice(0, 3).every((item) => Number.isFinite(Number(item)));
+}
+
+function principalAxes(points) {
+  const span = [0, 0, 0];
+  if (!points.length) return [0, 1];
+  for (let axis = 0; axis < 3; axis += 1) {
+    let min = Infinity;
+    let max = -Infinity;
+    points.forEach((xyz) => {
+      const value = xyz[axis];
+      if (value < min) min = value;
+      if (value > max) max = value;
+    });
+    span[axis] = max - min;
+  }
+  const order = [0, 1, 2].sort((a, b) => span[b] - span[a]);
+  return [order[0], order[1]];
 }
 
 function renderTrajHud(payload) {
@@ -638,6 +662,7 @@ function renderTcpMini(payload) {
   ctx.clearRect(0, 0, width, height);
 
   const points = unpackXyz(payload && payload.xyz);
+  const phases = Array.isArray(payload && payload.phase) ? payload.phase : [];
   const marks = (payload && payload.landmarks) || {};
   const scene = points.slice();
   LANDMARKS.forEach(([key]) => {
@@ -649,46 +674,56 @@ function renderTcpMini(payload) {
     ctx.fillText("等待末端轨迹数据（latest TF base_link←tcp）", 16, height / 2);
     return;
   }
+  const [ii, jj] = principalAxes(scene);
+  const title = $("traj-title");
+  if (title) title.textContent = `末端轨迹（${AXIS_NAME[ii]}–${AXIS_NAME[jj]}）`;
   const pad = 34;
-  let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
-  scene.forEach(([x, y]) => {
-    minX = Math.min(minX, x); maxX = Math.max(maxX, x);
-    minY = Math.min(minY, y); maxY = Math.max(maxY, y);
+  let minU = Infinity, maxU = -Infinity, minV = Infinity, maxV = -Infinity;
+  scene.forEach((xyz) => {
+    minU = Math.min(minU, xyz[ii]); maxU = Math.max(maxU, xyz[ii]);
+    minV = Math.min(minV, xyz[jj]); maxV = Math.max(maxV, xyz[jj]);
   });
-  const spanX = Math.max(maxX - minX, 0.2);
-  const spanY = Math.max(maxY - minY, 0.2);
-  const scale = Math.min((width - pad * 2) / spanX, (height - pad * 2) / spanY);
-  const toPx = ([x, y]) => [
-    pad + (x - minX) * scale + (width - pad * 2 - spanX * scale) / 2,
-    height - pad - (y - minY) * scale - (height - pad * 2 - spanY * scale) / 2,
+  const spanU = Math.max(maxU - minU, 0.2);
+  const spanV = Math.max(maxV - minV, 0.2);
+  const scale = Math.min((width - pad * 2) / spanU, (height - pad * 2) / spanV);
+  const toPx = (xyz) => [
+    pad + (xyz[ii] - minU) * scale + (width - pad * 2 - spanU * scale) / 2,
+    height - pad - (xyz[jj] - minV) * scale - (height - pad * 2 - spanV * scale) / 2,
   ];
 
-  const origin = toPx([0, 0]);
   ctx.strokeStyle = "rgba(42,51,61,0.9)";
   ctx.lineWidth = 1;
   ctx.beginPath();
+  const origin = toPx([0, 0, 0]);
   ctx.moveTo(0, origin[1]); ctx.lineTo(width, origin[1]);
   ctx.moveTo(origin[0], 0); ctx.lineTo(origin[0], height);
   ctx.stroke();
 
   if (points.length >= 2) {
-    ctx.strokeStyle = "rgba(79,163,224,0.95)";
     ctx.lineWidth = 2;
     ctx.lineJoin = "round";
-    ctx.beginPath();
-    points.forEach((p, index) => {
-      const [px, py] = toPx(p);
-      if (index === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
-    });
+    let current = -1;
+    for (let index = 0; index < points.length; index += 1) {
+      const phase = Number.isFinite(Number(phases[index])) ? Number(phases[index]) : 0;
+      const [px, py] = toPx(points[index]);
+      if (index === 0 || phase !== current) {
+        if (index > 0) ctx.stroke();
+        current = phase;
+        const rgb = PHASE_RGB[phase] || [222, 230, 236];
+        ctx.strokeStyle = `rgba(${rgb.join(",")},0.95)`;
+        ctx.beginPath();
+        if (index > 0) {
+          const prev = toPx(points[index - 1]);
+          ctx.moveTo(prev[0], prev[1]);
+          ctx.lineTo(px, py);
+        } else {
+          ctx.moveTo(px, py);
+        }
+      } else {
+        ctx.lineTo(px, py);
+      }
+    }
     ctx.stroke();
-    const [ax, ay] = toPx(points[0]);
-    const [bx, by] = toPx(points[points.length - 1]);
-    ctx.save();
-    ctx.setLineDash([6, 5]);
-    ctx.strokeStyle = "rgba(223,230,236,0.55)";
-    ctx.lineWidth = 1.4;
-    ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(bx, by); ctx.stroke();
-    ctx.restore();
   }
   LANDMARKS.forEach(([key, label, rgb, radius]) => {
     if (!finiteXyz(marks[key])) return;

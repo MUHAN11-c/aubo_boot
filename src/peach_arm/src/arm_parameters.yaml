@@ -67,7 +67,7 @@ peach_arm:
     acceleration_scaling:
       type: double
       default_value: 0.1
-      description: "默认加速度缩放"
+      description: "默认加速度缩放（果平面斜插 LIN 封顶 0.10，失败再 0.04）"
       validation:
         gt<>: [0.0]
         lt_eq<>: [1.0]
@@ -207,7 +207,7 @@ peach_arm:
     mtc_approach_cartesian_max_distance_m:
       type: double
       default_value: 0.8
-      description: "直连 LIN 弦长上限 [m]"
+      description: "直连 LIN / 果平面折线单跳弦长上限 [m]"
       validation:
         gt<>: [0.0]
     mtc_approach_along_axis_m:
@@ -219,13 +219,13 @@ peach_arm:
     approach_staging_standoff_m:
       type: double
       default_value: 0.1
-      description: "staging 在预抓取正下方再后撤 [m]"
+      description: "预抓取下方轴上 staging 再后撤 [m]（面内斜插落点）"
       validation:
         gt_eq<>: [0.0]
     approach_near_velocity_scaling:
       type: double
       default_value: 0.05
-      description: "近果 LIN/套入/撤退速度档"
+      description: "近果速度档（仅套入/撤退 LIN；斜插折线不降近果档）"
       validation:
         gt<>: [0.0]
         lt_eq<>: [1.0]

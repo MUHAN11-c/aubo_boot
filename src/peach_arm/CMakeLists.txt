@@ -170,6 +170,7 @@ if(BUILD_TESTING)
     target_link_libraries(test_pregrasp_residual ${PROJECT_NAME}_core)
   endif()
   ament_add_pytest_test(test_contact_monitor test/test_contact_monitor.py)
+  ament_add_pytest_test(test_constraint_grid test/test_constraint_grid.py)
 endif()
 
 ament_export_include_directories(include)

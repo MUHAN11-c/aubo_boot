@@ -191,3 +191,11 @@ def test_merge_job_landmarks_prefers_job_coords():
     assert merged['perception_entry'] == [4.0, 5.0, 6.0]
     assert merged['axis'] == [0.0, 0.0, 1.0]
     assert merged['target_id'] == 't1'
+
+
+def test_merge_job_landmarks_drops_previous_target_xyz():
+    merged = merge_job_landmarks(
+        {'grasp_entry': [0.4, -0.6, 0.6], 'target_id': 't1'},
+        {'target_id': 't2', 'coords': {}, 'grasp': {}})
+    assert 'grasp_entry' not in merged
+    assert merged['target_id'] == 't2'

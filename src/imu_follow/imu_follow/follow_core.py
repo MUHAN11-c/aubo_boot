@@ -151,6 +151,16 @@ def insertion_step(travel_m, speed_m_s, dt_s, max_travel_m):
     return min(travel_m + max(0.0, speed_m_s) * max(0.0, dt_s), max_travel_m)
 
 
+def retraction_step(travel_m, speed_m_s, dt_s):
+    """
+    插入回退行程积分一步：travel − speed·dt，钳到 ≥0.
+
+    ~/insert_retract 沿锁定开口方向把位置目标收回 enable 参考点；到 0
+    即停回退（跟随会话保持）。负时长/负速度不推进。
+    """
+    return max(0.0, travel_m - max(0.0, speed_m_s) * max(0.0, dt_s))
+
+
 def insertion_position(ref_pos, direction, travel_m):
     """插入期间的位置目标：参考点沿锁向方向推进 travel 米."""
     return (

@@ -62,6 +62,47 @@ def test_recorder_bounded_queue_drops_oldest(tmp_path):
         recorder.close()  # enabled=False：跳过 join 路径，只收线程
 
 
+def test_recorder_close_enqueues_when_queue_full():
+    """SIGINT 路径：队列满时 close 必须腾位入队，禁止阻塞 put / 无界 join."""
+    recorder = Recorder(root_dir='/tmp/peach_obs_unused', enabled=False,
+                        queue_depth=3)
+    try:
+        for index in range(8):
+            recorder._enqueue(('msg', f'/t{index}', index, index))
+        assert recorder._queue.full()
+        assert recorder._put_control(('close',))
+        kinds = []
+        while True:
+            try:
+                kinds.append(recorder._queue.get_nowait()[0])
+                recorder._queue.task_done()
+            except Exception:
+                break
+        assert 'close' in kinds
+        assert kinds[-1] == 'close'
+    finally:
+        recorder.close(timeout_s=1.0)
+
+
+def test_recorder_close_times_out(monkeypatch):
+    """写线程卡住时 close 须在 timeout 内返回，不得永久 join."""
+    recorder = Recorder(root_dir='/tmp/peach_obs_unused', enabled=False,
+                        queue_depth=2)
+    recorder._enabled = True
+    recorder._closed.clear()
+
+    def stuck_put_control(item):
+        del item
+        return True
+
+    monkeypatch.setattr(recorder, '_put_control', stuck_put_control)
+    t0 = time.monotonic()
+    bag = recorder.close(timeout_s=0.2)
+    elapsed = time.monotonic() - t0
+    assert elapsed < 1.5
+    assert bag is None
+
+
 class _StubNode:
     """CatchAllRecorder 依赖的最小节点面（create/destroy 记账）."""
 

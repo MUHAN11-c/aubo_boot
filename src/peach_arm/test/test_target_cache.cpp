@@ -354,6 +354,7 @@ TEST(TargetCache, PromoteUnrefinedFromLockedAndHoldsAgainstDiagnostics)
   first.neck = Eigen::Vector3d(0.45, -0.6, 0.7);
   first.axis = (first.neck - first.bottom).normalized();
   first.suggested_travel_m = 0.04;
+  first.bag_diameter_upper_m = 0.068;
   first.entry_pose = Eigen::Isometry3d::Identity();
   first.entry_pose.translation() = first.bottom - first.axis * 0.03;
   cache.updateLockedTargets(true, "run1", {first});
@@ -366,9 +367,11 @@ TEST(TargetCache, PromoteUnrefinedFromLockedAndHoldsAgainstDiagnostics)
   EXPECT_TRUE(refined->valid);
   EXPECT_TRUE(
     refined->entry.isApprox(first.entry_pose.translation(), 1e-12));
+  EXPECT_NEAR(refined->bag_diameter_upper_m, 0.068, 1e-12);
   peach_arm::QualitySnapshot quality = cache.qualitySnapshot();
   EXPECT_EQ(quality.reconstruction_state, "READY");
   EXPECT_TRUE(quality.refined_accept);
+  EXPECT_TRUE(quality.grasp_allowed);
   EXPECT_EQ(quality.reconstruction_target_id, "a");
   EXPECT_EQ(quality.selected_target_id, "a");
   EXPECT_NEAR(quality.data_age_s, 0.0, 1e-12);
@@ -377,8 +380,12 @@ TEST(TargetCache, PromoteUnrefinedFromLockedAndHoldsAgainstDiagnostics)
   peach_arm::ReconstructionDiagnosticsUpdate idle;
   idle.state = "IDLE";
   cache.updateReconstructionDiagnostics(idle);
+  peach_arm::ModelIdentity deny;
+  deny.target_id = "a";
+  EXPECT_TRUE(cache.updateGraspDecision(deny, false));
   quality = cache.qualitySnapshot();
   EXPECT_EQ(quality.reconstruction_state, "READY");
+  EXPECT_TRUE(quality.grasp_allowed);
   EXPECT_NEAR(quality.data_age_s, 0.0, 1e-12);
   EXPECT_FALSE(cache.updateRefinedPose(refinedPoseUpdate("a")));
 }

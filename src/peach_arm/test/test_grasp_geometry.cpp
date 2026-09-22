@@ -1,4 +1,4 @@
-// 功能：套入几何纯核护栏测试（对轴、滚转、预抓取、线段距离、工具×果实）。
+// 功能：套入几何纯核护栏测试（对轴、滚转、预抓取、套入终点、mode/profile、线段距离、工具×果实）。
 #include "peach_arm/grasp_geometry.hpp"
 
 #include <gtest/gtest.h>
@@ -6,6 +6,7 @@
 #include <Eigen/Geometry>
 
 #include <cmath>
+#include <cstddef>
 #include <vector>
 
 // 工具筒体尺寸（W5-6 起由 yaml tool.body_* 注入；测试用原硬编码默认值）。
@@ -155,6 +156,88 @@ TEST(GraspGeometry, PregraspFromEntryKeepRollAlignsCurrentAttitude)
   EXPECT_TRUE(aligned.translation().isApprox(
       Eigen::Vector3d(0.1, 0.2, 0.57), 1e-12));
   EXPECT_NEAR(aligned.linear().col(2).dot(Eigen::Vector3d::UnitZ()), 1.0, 1e-9);
+}
+
+TEST(GraspGeometry, SleeveAlongAxisAdvancesByTravel)
+{
+  Eigen::Isometry3d entry = Eigen::Isometry3d::Identity();
+  entry.translation() = Eigen::Vector3d(0.3, -0.2, 0.5);
+  const Eigen::Isometry3d sleeve = peach_arm::sleeveAlongAxis(
+    entry, Eigen::Vector3d::UnitZ(), 0.08);
+  EXPECT_TRUE(sleeve.translation().isApprox(
+      Eigen::Vector3d(0.3, -0.2, 0.58), 1e-12));
+  EXPECT_TRUE(sleeve.linear().isApprox(entry.linear()));
+  // 负行程不前插。
+  const Eigen::Isometry3d hold = peach_arm::sleeveAlongAxis(
+    entry, Eigen::Vector3d::UnitZ(), -0.5);
+  EXPECT_TRUE(hold.translation().isApprox(entry.translation(), 1e-12));
+  // 零轴：无法前插，原样返回。
+  const Eigen::Isometry3d unchanged = peach_arm::sleeveAlongAxis(
+    entry, Eigen::Vector3d::Zero(), 0.08);
+  EXPECT_TRUE(unchanged.translation().isApprox(entry.translation(), 1e-12));
+}
+
+TEST(GraspGeometry, SleeveFromEntryKeepRollMatchesPregraspAttitude)
+{
+  Eigen::Isometry3d entry = Eigen::Isometry3d::Identity();
+  entry.translation() = Eigen::Vector3d(0.1, 0.2, 0.6);
+  const Eigen::Matrix3d current_R =
+    (Eigen::AngleAxisd(0.25, Eigen::Vector3d::UnitZ()) *
+    Eigen::Matrix3d::Identity());
+  const Eigen::Isometry3d sleeve = peach_arm::sleeveFromEntryKeepRoll(
+    entry, current_R, 0.08);
+  EXPECT_TRUE(sleeve.translation().isApprox(
+      Eigen::Vector3d(0.1, 0.2, 0.68), 1e-12));
+  EXPECT_TRUE(sleeve.linear().isApprox(current_R, 1e-9));
+}
+
+TEST(GraspGeometry, ClampInsertionTravelUsesMinWhenUnset)
+{
+  EXPECT_NEAR(peach_arm::clampInsertionTravel(0.0, 0.02, 0.20), 0.02, 1e-12);
+  EXPECT_NEAR(peach_arm::clampInsertionTravel(0.08, 0.02, 0.20), 0.08, 1e-12);
+  EXPECT_NEAR(peach_arm::clampInsertionTravel(0.50, 0.02, 0.20), 0.20, 1e-12);
+  EXPECT_NEAR(peach_arm::clampInsertionTravel(-1.0, 0.02, 0.20), 0.02, 1e-12);
+}
+
+TEST(GraspGeometry, PregraspOnlyFromGoalModeFullWinsOverDefaultHold)
+{
+  using peach_arm::kExecuteFull;
+  using peach_arm::kExecuteObserveOnly;
+  using peach_arm::kExecutePregraspOnly;
+  using peach_arm::kExecutePreview;
+  using peach_arm::kProfileFull;
+  using peach_arm::kProfilePregraspHold;
+  using peach_arm::pregraspOnlyFromGoal;
+  // 旧客户端不填 profile（0=HOLD）：mode=FULL 仍须套入。
+  EXPECT_FALSE(pregraspOnlyFromGoal(kExecuteFull, kProfilePregraspHold));
+  EXPECT_TRUE(pregraspOnlyFromGoal(kExecutePregraspOnly, kProfilePregraspHold));
+  EXPECT_FALSE(pregraspOnlyFromGoal(kExecuteFull, kProfileFull));
+  EXPECT_FALSE(pregraspOnlyFromGoal(kExecutePregraspOnly, kProfileFull));
+  EXPECT_FALSE(pregraspOnlyFromGoal(kExecuteObserveOnly, kProfilePregraspHold));
+  EXPECT_FALSE(pregraspOnlyFromGoal(kExecutePreview, kProfilePregraspHold));
+}
+
+TEST(GraspGeometry, SleeveReachabilityCodePriority)
+{
+  using peach_arm::sleeveReachabilityCode;
+  EXPECT_STREQ(sleeveReachabilityCode(false, false, false), "no_ik");
+  EXPECT_STREQ(sleeveReachabilityCode(true, false, false), "sleeve_no_ik");
+  EXPECT_STREQ(sleeveReachabilityCode(true, true, false), "sleeve_no_cartesian");
+  EXPECT_STREQ(sleeveReachabilityCode(true, true, true), "");
+}
+
+TEST(GraspGeometry, LabOosSleeveIsFartherThanPregrasp)
+{
+  // 09-22 相机 FULL：袋底已近包络，套入终点再沿轴前插即超程。
+  Eigen::Isometry3d entry = Eigen::Isometry3d::Identity();
+  entry.translation() = Eigen::Vector3d(0.434, -0.611, 0.610);
+  const Eigen::Vector3d axis = Eigen::Vector3d(0.296, -0.521, 0.800).normalized();
+  entry.linear() = peach_arm::alignFrameZ(Eigen::Matrix3d::Identity(), axis);
+  const Eigen::Isometry3d pregrasp = peach_arm::pregraspAlongAxis(entry, axis, 0.03);
+  const Eigen::Isometry3d sleeve = peach_arm::sleeveAlongAxis(
+    entry, axis, peach_arm::clampInsertionTravel(0.08, 0.02, 0.20));
+  EXPECT_LT(pregrasp.translation().norm(), sleeve.translation().norm());
+  EXPECT_GT(sleeve.translation().norm(), 1.0);
 }
 
 // ---------- segmentSegmentDistance：平行/相交/一般位置手算对拍 ----------
@@ -335,4 +418,191 @@ TEST(GraspGeometry, ToolSweepHitsFruitAlongSweep)
     peach_arm::toolSweepHitsFruit(
       start, goal, disabled,
       kToolLen, kToolRad));
+}
+
+TEST(GraspGeometry, UsesImuFollowContactOnlyAdaptive)
+{
+  EXPECT_TRUE(peach_arm::usesImuFollowContact("adaptive_cylinder_v1"));
+  EXPECT_FALSE(peach_arm::usesImuFollowContact("hollow_cylinder_v1"));
+  EXPECT_FALSE(peach_arm::usesImuFollowContact(""));
+  EXPECT_FALSE(peach_arm::usesImuFollowContact("adaptive_cylinder_v2"));
+  EXPECT_NEAR(peach_arm::imuFollowTravelWaitS(0.06, 0.01), 6.5, 1e-9);
+  EXPECT_NEAR(peach_arm::imuFollowTravelWaitS(0.0, 0.01), 0.5, 1e-9);
+  EXPECT_LE(peach_arm::imuFollowTravelWaitS(10.0, 0.01), 25.0);
+}
+
+TEST(GraspGeometry, HarvestStowNamedHopsViaPhotoThenStow)
+{
+  const auto hops = peach_arm::harvestStowNamedHops(
+    "global_photo_pose", "harvest_stow");
+  ASSERT_EQ(hops.size(), 2U);
+  EXPECT_EQ(hops[0], "global_photo_pose");
+  EXPECT_EQ(hops[1], "harvest_stow");
+  const auto same = peach_arm::harvestStowNamedHops(
+    "global_photo_pose", "global_photo_pose");
+  ASSERT_EQ(same.size(), 1U);
+  EXPECT_EQ(same.front(), "global_photo_pose");
+  const auto empty_stow = peach_arm::harvestStowNamedHops(
+    "global_photo_pose", "");
+  ASSERT_EQ(empty_stow.size(), 1U);
+  EXPECT_EQ(empty_stow.front(), "global_photo_pose");
+}
+
+// 拍照位在果侧向、轴上方且已对轴：面内一跳斜插到轴上 staging（同时收侧向
+// 与轴向，不走落下+横收矩形），再沿轴升到预抓取。路点不许离开平面。
+TEST(GraspGeometry, PlanarApproachHopsAisleThenPerpendicular)
+{
+  Eigen::Isometry3d entry = Eigen::Isometry3d::Identity();
+  entry.translation() = Eigen::Vector3d(0.0, 0.0, 0.10);
+  const Eigen::Vector3d axis = Eigen::Vector3d::UnitZ();
+  Eigen::Isometry3d current = Eigen::Isometry3d::Identity();
+  current.translation() = Eigen::Vector3d(0.0, 0.40, 0.30);
+  const double along = 0.03;
+  const double standoff = 0.10;
+  const auto path = peach_arm::planarApproachHops(
+    current, entry, axis, along, standoff);
+  ASSERT_EQ(path.hops.size(), 2U);
+  EXPECT_EQ(path.hops[0].kind, peach_arm::PlanarApproachHop::Kind::InPlaneToAxis);
+  EXPECT_EQ(path.hops[1].kind, peach_arm::PlanarApproachHop::Kind::AlongAxis);
+  EXPECT_NEAR(path.lateral_m, 0.40, 1e-9);
+  EXPECT_NEAR(path.axial_to_plane_m, 0.33, 1e-9);
+
+  const Eigen::Vector3d diagonal =
+    path.hops[0].pose.translation() - current.translation();
+  EXPECT_NEAR(diagonal.dot(path.plane_normal), 0.0, 1e-9);
+  EXPECT_LT(diagonal.dot(axis), 0.0);
+  EXPECT_GT(diagonal.cross(axis).norm(), 0.05);
+  EXPECT_LT(diagonal.norm() + 1e-9, 0.40 + 0.33);
+  const Eigen::Vector3d insert =
+    path.hops[1].pose.translation() - path.hops[0].pose.translation();
+  EXPECT_NEAR(insert.cross(axis).norm(), 0.0, 1e-9);
+  EXPECT_GT(insert.dot(axis), 0.0);
+
+  const Eigen::Isometry3d pregrasp = peach_arm::pregraspAlongAxis(entry, axis, along);
+  EXPECT_TRUE(path.hops.back().pose.translation().isApprox(pregrasp.translation(), 1e-9));
+  EXPECT_TRUE(path.hops.back().pose.linear().isApprox(
+      peach_arm::alignFrameZ(current.linear(), axis), 1e-9));
+
+  const Eigen::Vector3d staging = path.hops[0].pose.translation();
+  for (const auto & hop : path.hops) {
+    const double out = (hop.pose.translation() - staging).dot(path.plane_normal);
+    EXPECT_NEAR(out, 0.0, 1e-9);
+  }
+  EXPECT_NEAR(
+    peach_arm::planarApproachMaxHopM(current, path),
+    std::hypot(0.40, 0.33), 1e-9);
+}
+
+TEST(GraspGeometry, PlanarApproachHopsOnAxisSkipsRadial)
+{
+  Eigen::Isometry3d entry = Eigen::Isometry3d::Identity();
+  entry.translation() = Eigen::Vector3d(0.0, 0.0, 0.10);
+  const Eigen::Vector3d axis = Eigen::Vector3d::UnitZ();
+  Eigen::Isometry3d current = Eigen::Isometry3d::Identity();
+  current.translation() = Eigen::Vector3d(0.0, 0.0, 0.40);
+  const auto path = peach_arm::planarApproachHops(
+    current, entry, axis, 0.03, 0.10);
+  ASSERT_EQ(path.hops.size(), 2U);
+  EXPECT_EQ(path.hops[0].kind, peach_arm::PlanarApproachHop::Kind::InPlaneToAxis);
+  EXPECT_EQ(path.hops[1].kind, peach_arm::PlanarApproachHop::Kind::AlongAxis);
+  EXPECT_NEAR(path.lateral_m, 0.0, 1e-9);
+}
+
+TEST(GraspGeometry, PlanarApproachHopsAlreadyAtPregraspEmpty)
+{
+  Eigen::Isometry3d entry = Eigen::Isometry3d::Identity();
+  entry.translation() = Eigen::Vector3d(0.2, -0.1, 0.4);
+  const Eigen::Vector3d axis = Eigen::Vector3d::UnitZ();
+  const Eigen::Isometry3d pregrasp = peach_arm::pregraspAlongAxis(entry, axis, 0.03);
+  const auto path = peach_arm::planarApproachHops(
+    pregrasp, entry, axis, 0.03, 0.10);
+  EXPECT_TRUE(path.hops.empty());
+}
+
+TEST(GraspGeometry, PlanarApproachHopsInvalidAxisEmpty)
+{
+  Eigen::Isometry3d entry = Eigen::Isometry3d::Identity();
+  Eigen::Isometry3d current = Eigen::Isometry3d::Identity();
+  current.translation() = Eigen::Vector3d(0.1, 0.1, 0.1);
+  EXPECT_TRUE(
+    peach_arm::planarApproachHops(
+      current, entry, Eigen::Vector3d::Zero(), 0.03, 0.10).hops.empty());
+  EXPECT_TRUE(
+    peach_arm::planarApproachHops(
+      current, entry, Eigen::Vector3d::UnitZ(), 0.03, 0.0).hops.empty());
+}
+
+TEST(GraspGeometry, PlanarApproachHopsTiltedAxisStaysInPlane)
+{
+  Eigen::Isometry3d entry = Eigen::Isometry3d::Identity();
+  entry.translation() = Eigen::Vector3d(0.30, -0.61, 0.54);
+  const Eigen::Vector3d axis = Eigen::Vector3d(0.05, 0.12, 0.99).normalized();
+  Eigen::Isometry3d current = Eigen::Isometry3d::Identity();
+  current.linear() = Eigen::AngleAxisd(
+    -EIGEN_PI / 2.0, Eigen::Vector3d::UnitX()).toRotationMatrix();
+  current.translation() = Eigen::Vector3d(0.30, -0.23, 0.71);
+  const auto path = peach_arm::planarApproachHops(
+    current, entry, axis, 0.03, 0.10);
+  ASSERT_EQ(path.hops.size(), 2U);
+  EXPECT_EQ(path.hops.front().kind, peach_arm::PlanarApproachHop::Kind::InPlaneToAxis);
+  EXPECT_GT(
+    (path.hops.front().pose.translation() - current.translation()).norm(),
+    peach_arm::kPlanarHopSkipM);
+  EXPECT_STREQ(
+    peach_arm::planarApproachHopName(path.hops.front().kind),
+    "lin in plane to bag axis");
+  EXPECT_EQ(path.hops.back().kind, peach_arm::PlanarApproachHop::Kind::AlongAxis);
+  for (const auto & hop : path.hops) {
+    EXPECT_NEAR(
+      (hop.pose.translation() - current.translation()).dot(path.plane_normal),
+      0.0, 1e-9);
+    EXPECT_TRUE(
+      hop.pose.linear().col(2).normalized().isApprox(axis, 1e-6));
+  }
+  EXPECT_LT(peach_arm::planarApproachMaxHopM(current, path), 0.80);
+}
+
+TEST(GraspGeometry, PlanarApproachHopsKeepsPhotoRollWhenZAlreadyNearAxis)
+{
+  // 模型：TCP Rx(-90°) 零位开口朝世界 +Z。SRDF global_photo_pose 的 TCP
+  // 四元数近单位阵（xyzw）；感知悬挂袋轴亦近 +Z。斜插不得再叠刀口滚转。
+  Eigen::Isometry3d current = Eigen::Isometry3d::Identity();
+  current.linear() = Eigen::Quaterniond(
+    0.999235, -0.005373, -0.009976, -0.037437).normalized().toRotationMatrix();
+  current.translation() = Eigen::Vector3d(0.302, -0.232, 0.708);
+  Eigen::Isometry3d entry = Eigen::Isometry3d::Identity();
+  entry.translation() = Eigen::Vector3d(0.3038, -0.6141, 0.5365);
+  const Eigen::Vector3d axis(0.04249, 0.13626, 0.98976);
+  const auto path = peach_arm::planarApproachHops(
+    current, entry, axis, 0.03, 0.10);
+  ASSERT_EQ(path.hops.size(), 2U);
+  EXPECT_LT(path.z_align_rad, peach_arm::kPlanarKeepCurrentOriRad);
+  EXPECT_NEAR(path.z_align_rad * 180.0 / EIGEN_PI, 8.0, 3.0);
+  const Eigen::Matrix3d aligned =
+    peach_arm::alignFrameZ(current.linear(), axis);
+  EXPECT_TRUE(path.hops[0].pose.linear().isApprox(aligned, 1e-9));
+  EXPECT_TRUE(path.hops[1].pose.linear().isApprox(aligned, 1e-9));
+  const Eigen::AngleAxisd delta(
+    Eigen::Quaterniond(current.linear()).inverse() *
+    Eigen::Quaterniond(aligned));
+  EXPECT_LT(delta.angle(), peach_arm::kPlanarKeepCurrentOriRad);
+  EXPECT_LT(std::abs(delta.axis().dot(current.linear().col(2))), 0.35);
+}
+
+TEST(GraspGeometry, PlanarHopLinScaleAlongAxisFasterThanInPlaneRetry)
+{
+  const auto in_fast = peach_arm::planarHopLinScale(
+    peach_arm::PlanarApproachHop::Kind::InPlaneToAxis, 0.20, 0.10, 0.25, 0.20);
+  EXPECT_NEAR(in_fast.velocity, 0.20, 1e-9);
+  EXPECT_NEAR(in_fast.acceleration, 0.10, 1e-9);
+  const auto in_slow = peach_arm::planarHopLinScale(
+    peach_arm::PlanarApproachHop::Kind::InPlaneToAxis, 0.10, 0.04, 0.25, 0.20);
+  EXPECT_NEAR(in_slow.velocity, 0.10, 1e-9);
+  EXPECT_NEAR(in_slow.acceleration, 0.04, 1e-9);
+  const auto along = peach_arm::planarHopLinScale(
+    peach_arm::PlanarApproachHop::Kind::AlongAxis, 0.10, 0.04, 0.25, 0.20);
+  EXPECT_NEAR(along.velocity, 0.25, 1e-9);
+  EXPECT_NEAR(along.acceleration, 0.20, 1e-9);
+  EXPECT_LT(in_slow.acceleration, in_fast.acceleration);
+  EXPECT_GT(along.acceleration, in_fast.acceleration);
 }

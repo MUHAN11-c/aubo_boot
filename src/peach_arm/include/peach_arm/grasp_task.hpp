@@ -2,8 +2,11 @@
 // 有限圆柱 vs 感知果实胶囊，仅接近段）+②从下方半空间（反爬锚定果底）
 // 在 grasp_geometry；③octomap 场景碰撞（臂/相机受查、工具链豁免）在
 // moveit 配置与 scene ACM；④近果低速档（本文件 solver 档位）与接触检测
-// （节点侧 contact_monitor，默认关）。接近主路径 = staging 转移；套入/
-// 撤退沿轴；返程倒放同一接近轨迹。G/under 单弦档已删。刀具 IO 不在此。
+// （节点侧 contact_monitor，默认关）。接近主路径 = 果平面折线 LIN
+// （面内斜插 keep-roll 对轴 + 沿轴垂直进入）；
+// 规划失败才 PTP staging 兜底。套入/撤退沿轴；返程倒放同一接近轨迹。
+// G/under 单弦档已删。
+// 刀具 IO 不在此。
 #ifndef PEACH_MANIPULATION__GRASP_TASK_HPP_
 #define PEACH_MANIPULATION__GRASP_TASK_HPP_
 
@@ -52,8 +55,8 @@ namespace peach_arm
 // tip 姿态不偏离 target_pose 超过 tol_deg 的三轴等宽容差约束集。
 // 只挂已齐 LIN（分档要求起点对轴，拦笛卡尔插值中途侧翻）。
 // 未齐第一段 LIN-align 不挂：Jazzy ValidateSolution 验每个路点含起点，
-// 起点相对目标 >20° 会 INVALID_MOTION_PLAN。staging 转移 PTP 不挂姿态门
-// （关节目标本体就是目标姿态的 IK 解）。
+// 起点相对目标 >20° 会 INVALID_MOTION_PLAN。果平面折线斜插段（未齐）
+// 不挂门；其后已齐沿轴 LIN 挂门。PTP staging 兜底不挂姿态门（关节目标即 IK 解）。
 inline moveit_msgs::msg::Constraints makeOrientationGate(
   const std::string & link_name, const std::string & frame_id,
   const Eigen::Isometry3d & target_pose, double tol_deg,
@@ -76,7 +79,7 @@ inline moveit_msgs::msg::Constraints makeOrientationGate(
 
 // 接近分档结论（只出结论，不规划）。同一 (config, entry, axis) 每条公共入口算一次，
 // 下游装配/预览复用，避免周期内重复 classifyApproach。
-// STAGING=主路径（预抓取下方 PTP + 轴向 LIN）；LIN/LIN_ALIGN_THEN_LIN=
+// STAGING=主路径（果平面折线 LIN，失败才 PTP staging）；LIN/LIN_ALIGN_THEN_LIN=
 // 已在袋底侧的直连短修正；G/under 单弦档已删（见文件头）。
 struct ApproachSplit
 {
@@ -87,7 +90,7 @@ struct ApproachSplit
     SKIP,                 ///< 已在入口，无需接近。
     LIN,                  ///< 已齐，直连 LIN。
     LIN_ALIGN_THEN_LIN,   ///< 先短 LIN 对轴再插入。
-    STAGING,              ///< 主路径：预抓取下方 PTP + 轴向 LIN。
+    STAGING,              ///< 主路径：果平面折线 LIN（失败才 PTP staging）。
     BLOCKED               ///< 无法接近。
   } kind{
     Kind::STAGING};
@@ -136,7 +139,7 @@ struct GraspTaskConfig
   double approach_staging_standoff_m{0.10};           ///< staging 相对预抓取再退 [m]。
   double approach_max_lateral_m{0.05};                ///< 小于此值视为已对轴 [m]。
   double approach_max_align_deg{20.0};                ///< 小于此值视为已齐 [deg]。
-  double approach_near_velocity_scaling{0.05};        ///< 近果低速档（staging PTP 不降）。
+  double approach_near_velocity_scaling{0.05};        ///< 近果低速档（仅套入/撤退）。
   // 工具档案（W5-6，GPL yaml tool.*；默认值=原三处硬编码）：
   std::vector<std::string> tool_links{
     "tool_axis", "cutting_plane", "tcp", "sleeve_mouth",
@@ -220,11 +223,13 @@ private:
     const std::function<bool(std::string &)> & execution_gate,
     bool guard_approach = false,
     std::size_t guard_skip_tail = 0,
-    bool staging_guard = false);
+    bool staging_guard = false,
+    bool cartesian_per_part = false);
   GraspTaskResult planTaskOnly(
     moveit::task_constructor::Task * active, bool guard_approach,
     std::size_t guard_skip_tail = 0, bool staging_guard = false,
-    std::size_t max_solutions = 0);  // 0 = config_.max_solutions；执行路径传 1
+    std::size_t max_solutions = 0,  // 0 = config_.max_solutions；执行路径传 1
+    bool cartesian_per_part = false);
   GraspTaskResult executeSolution(
     moveit::task_constructor::Task * active,
     const std::function<bool(std::string &)> & execution_gate);
@@ -241,7 +246,16 @@ private:
     const Eigen::Isometry3d & entry_tip_pose,
     const Eigen::Vector3d & insertion_axis,
     const ApproachSplit & split);
-  // staging 序列（PTP 到预抓取下方 + 轴向 LIN）；正式转移与预览共用。
+  // 果平面折线 LIN（主路径）；正式转移与预览共用。
+  // in_plane_* <0 = min(config, 斜插封顶)；沿轴跳另走 along 封顶。
+  std::unique_ptr<moveit::task_constructor::SerialContainer>
+  makePlanarApproachSequence(
+    const PlanarApproachPath & path, const std::string & label,
+    double in_plane_vel = -1.0, double in_plane_acc = -1.0) const;
+  std::unique_ptr<moveit::task_constructor::Task> makePlanarApproachTask(
+    const std::string & task_name, const PlanarApproachPath & path,
+    double in_plane_vel = -1.0, double in_plane_acc = -1.0);
+  // PTP staging 兜底（果平面 LIN 失败时）；正式转移与预览共用。
   std::unique_ptr<moveit::task_constructor::SerialContainer> makeStagingSequence(
     const Eigen::Isometry3d & pregrasp_tip_pose,
     const Eigen::Isometry3d & staging_tip_pose,
@@ -294,7 +308,8 @@ private:
     const Eigen::Isometry3d & target_tip_pose,
     const std::string & label,
     bool gate_orientation,
-    double velocity_scaling = -1.0) const;  // <0 = config_.velocity_scaling
+    double velocity_scaling = -1.0,       // <0 = config_.velocity_scaling
+    double acceleration_scaling = -1.0) const;  // <0 = min(1, vel*2)
   void appendApproachToPregrasp(
     moveit::task_constructor::SerialContainer & sequence,
     const Eigen::Isometry3d & entry_tip_pose,
@@ -345,7 +360,8 @@ private:
   std::shared_ptr<moveit::task_constructor::solvers::PipelinePlanner>
   makePilzSolver(
     const std::string & planner_id,
-    double velocity_scaling = -1.0) const;  // <0 = config_.velocity_scaling
+    double velocity_scaling = -1.0,       // <0 = config_.velocity_scaling
+    double acceleration_scaling = -1.0) const;  // <0 = min(1, vel*2)
   std::shared_ptr<moveit::task_constructor::solvers::PipelinePlanner>
   makePtpSolver() const;
   std::shared_ptr<moveit::task_constructor::solvers::CartesianPath>

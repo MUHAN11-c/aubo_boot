@@ -180,3 +180,20 @@ def test_select_bags_oldest_first_and_keep():
         'session_b', 'session_c']
     assert retention.select_bags_to_delete(entries, 0) == []
     assert retention.select_bags_to_delete(entries, 10 ** 9) == []
+
+
+def test_purge_analyzed_session_keeps_reports(tmp_path):
+    """分析后只删 bag/ MCAP，会话级 bag_report 与账本文本留下."""
+    session = tmp_path / 'session_20260922_100001'
+    bag = session / 'bag'
+    bag.mkdir(parents=True)
+    (bag / 'data.mcap').write_bytes(b'mcap')
+    (session / 'bag_report.md').write_text('# report\n', encoding='utf-8')
+    (session / 'bag_report.json').write_text('{}', encoding='utf-8')
+    (tmp_path / 'ledger.json').write_text('{}', encoding='utf-8')
+    deleted = retention.purge_analyzed_sessions(tmp_path, [session])
+    assert deleted == [bag]
+    assert not bag.exists()
+    assert (session / 'bag_report.md').is_file()
+    assert (session / 'bag_report.json').is_file()
+    assert (tmp_path / 'ledger.json').is_file()

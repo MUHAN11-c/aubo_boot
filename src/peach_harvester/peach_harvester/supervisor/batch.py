@@ -14,6 +14,11 @@ import time
 from peach_common.paths import runs_root as _runs_root
 from peach_common.paths import safe_component
 
+# 与 peach_arm.yaml grasp.minimum/maximum_travel_m 对齐；服务不可用时
+# 用同一夹紧估算套入终点半径（FULL 回退窗）。
+_SLEEVE_TRAVEL_MIN_M = 0.02
+_SLEEVE_TRAVEL_MAX_M = 0.20
+
 
 def pregrasp_pose_of(item):
     """
@@ -40,13 +45,56 @@ def pregrasp_pose_of(item):
     return (entry.x, entry.y, entry.z, q.x, q.y, q.z, q.w)
 
 
+def suggested_travel_of(item):
+    """候选 suggested_travel_m；缺失/非正则 0（服务端再用最小行程）."""
+    cand = getattr(item, 'candidate', None)
+    if cand is None:
+        return 0.0
+    return float(getattr(cand, 'suggested_travel_m', 0.0) or 0.0)
+
+
+def _quat_z_axis(qx, qy, qz, qw):
+    """四元数 → 工具/袋轴 Z（与入口姿态约定一致）."""
+    return (
+        2.0 * (qx * qz + qw * qy),
+        2.0 * (qy * qz - qw * qx),
+        1.0 - 2.0 * (qx * qx + qy * qy),
+    )
+
+
+def _clamp_sleeve_travel(suggested_m):
+    if suggested_m <= 1.0e-6:
+        return _SLEEVE_TRAVEL_MIN_M
+    return min(
+        _SLEEVE_TRAVEL_MAX_M,
+        max(_SLEEVE_TRAVEL_MIN_M, float(suggested_m)))
+
+
+def _sleeve_radius(item):
+    """套入终点半径（入口沿袋轴 + clamp(travel)）；几何缺失 None."""
+    pose = pregrasp_pose_of(item)
+    if pose is None:
+        return None
+    px, py, pz, qx, qy, qz, qw = pose
+    ax, ay, az = _quat_z_axis(qx, qy, qz, qw)
+    norm = (ax * ax + ay * ay + az * az) ** 0.5
+    if norm < 1.0e-9:
+        return None
+    travel = _clamp_sleeve_travel(suggested_travel_of(item))
+    sx = px + ax / norm * travel
+    sy = py + ay / norm * travel
+    sz = pz + az / norm * travel
+    return (sx * sx + sy * sy + sz * sz) ** 0.5
+
+
 def _eligible_locked_items(observations, claimed):
     """
     枚举锁定集内可执行候选：(target_id, item) 生成器.
 
     资格：锁定集内、target_id 非空、未入账、已确认、非裸果
     （unbagged_display_only / fruit 线不进执行候选）、非贴边
-    （bbox_edge：P1-A 贴边滑动噪声块不得被选；移入视野内旗标即消）。
+    （bbox_edge：P1-A 贴边滑动噪声块不得被选；移入视野内旗标即消；
+    tool_clearance_failed：单帧门硬拒，套筒过不去不得被选）。
     reach_queries 与 next_target 共用同一谓词，避免两份过滤条件漂移。
     """
     if observations is None:
@@ -62,14 +110,14 @@ def _eligible_locked_items(observations, claimed):
         cand = getattr(item, 'candidate', None)
         strat = str(getattr(cand, 'strategy_id', '') or '')
         if ('unbagged_display_only' in flags or 'fruit' in strat
-                or 'bbox_edge' in flags):
+                or 'bbox_edge' in flags or 'tool_clearance_failed' in flags):
             continue
         yield str(tid), item
 
 
 def reach_queries(observations, claimed, preferred=()):
     """
-    枚举待检目标与估计预抓取位姿：[(tid, pose7)]（纯函数，供 IK 预检）.
+    枚举待检目标：(tid, 入口 pose7, suggested_travel_m)（纯函数，供 IK 预检）.
 
     只含锁定集内已确认、未入账、非裸果且几何可构造的表项；
     preferred（goal 显式名单）不参与预检——直通不受窗限。
@@ -78,7 +126,7 @@ def reach_queries(observations, claimed, preferred=()):
     for tid, item in _eligible_locked_items(observations, claimed):
         pose = pregrasp_pose_of(item)
         if pose is not None:
-            out.append((tid, pose))
+            out.append((tid, pose, suggested_travel_of(item)))
     return out
 
 
@@ -93,14 +141,18 @@ def _pregrasp_radius(item):
 def next_target(
         observations, claimed, preferred=(),
         depth_range=(0.30, 1.60), ik_results=None,
-        fallback_reach_range=(0.15, 0.88)):
+        fallback_reach_range=(0.15, 0.88),
+        check_sleeve=False):
     """
     联合约束选果：有效深度窗 ∩ 可达性，返回 (target_id, filtered).
 
     可达性判定优先用 **TCP IK 预检结果**（ik_results: tid→(reachable, code)，
-    由技能 CheckReachability 把入口换成停位几何后以当前关节为种子求解）；
-    ik_results 为 None（服务不可用/mock）时回退**估计预抓取点半径窗**
+    由技能 CheckReachability 把入口换成停位几何后以当前关节为种子求解；
+    FULL 时服务端再检套入终点与沿轴笛卡尔，失败码 sleeve_no_ik /
+    sleeve_no_cartesian）；
+    ik_results 为 None（服务不可用/mock）时回退**估计入口半径窗**
     （fallback_reach_range，现场标定：成功 0.830–0.840 / MTC 0 解 ≥0.917）。
+    check_sleeve=True（非 execute_pregrasp_only）时回退窗另卡套入终点半径。
     goal.target_ids 显式名单直通（不受窗限）。深度距离窗用
     camera_distance_m（质量随距离退化；采集门 min_mask_depth_ratio 仍逐帧
     把关）。超窗目标记入 filtered（tid→reason）并由调用方发
@@ -131,6 +183,13 @@ def next_target(
                     fallback_reach_range[0] <= radius
                     <= fallback_reach_range[1]):
                 reasons.append(f'out_of_reach_window:{radius:.2f}m')
+            if check_sleeve:
+                sleeve_r = _sleeve_radius(item)
+                if sleeve_r is not None and not (
+                        fallback_reach_range[0] <= sleeve_r
+                        <= fallback_reach_range[1]):
+                    reasons.append(
+                        f'out_of_sleeve_reach_window:{sleeve_r:.2f}m')
         return reasons
 
     filtered = {}

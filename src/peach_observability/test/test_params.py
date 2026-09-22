@@ -34,7 +34,7 @@ def test_from_params_flattens_topics_and_endpoints():
         'record': {
             'enabled': True, 'root_dir': '', 'save_images': True,
             'save_clouds': True, 'rosout': True, 'level': 'std',
-            'max_total_bag_gb': 20.0, 'queue_depth': 64},
+            'max_total_bag_gb': 100.0, 'queue_depth': 64},
         'trajectory': {
             'enabled': True, 'base_frame': 'base_link', 'tip_frame': 'tcp',
             'period_s': 0.05, 'min_step_m': 0.003, 'max_points': 8000},

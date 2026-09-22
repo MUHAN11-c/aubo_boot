@@ -1,18 +1,25 @@
-# 选果级 TCP 可达性预检（深度窗之外的臂可达权威）。只答「能否 IK」，不规划、不动臂。
+# 选果级 TCP 可达性预检（深度窗之外的臂可达权威）。答「预抓取/套入终点能否 IK，
+# FULL 时沿轴笛卡尔能否走完」，不装配 MTC、不动臂。
 # 服务：/peach_arm/check_reachability
-# 服务端：peach_arm（MoveIt RobotState::setFromIK，种子=当前关节）
+# 服务端：peach_arm（MoveIt RobotState::setFromIK + CartesianInterpolator）
 # 客户端：peach_executor（SELECT 段批量查询）。服务不可用时调度回退半径窗。
 # tcp_poses：调度填感知入口（位置=袋底；姿态 Z=袋轴，滚转任意）。
-# 服务端换成与 MovePregrasp 同一停位再求解：位置沿 −Z 后撤 mtc_approach_along_axis_m
-# （grasp_standoffs.yaml 注入，现行 0.03 m）；姿态=alignFrameZ(当前 TCP, 袋轴)，不抄感知滚转。
-# 后撤为 0 则只改姿态、位置仍在入口。非 base_link 由服务端 TF 转换。
+# 服务端预抓取停位：沿 −Z 后撤 mtc_approach_along_axis_m（grasp_standoffs.yaml，
+# 现行 0.03 m）；姿态=alignFrameZ(当前 TCP, 袋轴)，不抄感知滚转。
+# require_sleeve=true（FULL / 非 execute_pregrasp_only）时再检套入终点：
+# 入口沿袋轴 + clamp(suggested_travel_m, grasp min/max）；同姿态滚转扫描；
+# 再从预抓取 IK 解沿轴 interpolate（步长/完成比与接触 LIN 同参）。
+# 空 suggested_travel_m 或长度不够用服务端 minimum_travel_m。
+# 后撤为 0 则预抓取只改姿态。非 base_link 由服务端 TF 转换。
 
 # === Request ===
 std_msgs/Header header                 # stamp 可空；frame_id 一般为 base_link
 geometry_msgs/PoseStamped[] tcp_poses  # 感知入口；服务端映射为预抓取停位后再 IK
 float64 timeout_s                      # 单位姿求解超时 [s]；≤0 用服务端默认 0.1
+bool require_sleeve                    # true=预抓取 IK + 套入终点 IK + 沿轴笛卡尔；false=只预抓取（默认，兼容旧客户端）
+float64[] suggested_travel_m           # 与 tcp_poses 并行；缺省或 ≤0 用服务端 minimum_travel_m
 ---
 # === Response ===
-bool[] reachable                       # 与请求 tcp_poses 等长；true=该入口对应停位有 IK
-string[] error_codes                   # 与请求等长；失败码 no_ik / invalid_frame / moveit_unavailable；成功可空串
+bool[] reachable                       # 与请求 tcp_poses 等长；true=停位（及套入 IK+笛卡尔，若要求）通过
+string[] error_codes                   # 与请求等长；失败码 no_ik / sleeve_no_ik / sleeve_no_cartesian / invalid_frame / moveit_unavailable；成功可空串
 string message                         # 整体说明（服务端异常时非空）

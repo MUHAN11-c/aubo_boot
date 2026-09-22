@@ -3,8 +3,9 @@
 订 `/imu/data`（serial_imu），把 enable 时刻起的 IMU 体轴姿态增量（死区 →
 符号映射 → 锥限幅 → 平滑）叠加到参考 TCP 姿态上（位置钉死参考点），经
 **MoveIt Servo**（官方实时方案，`motion.backend=servo` 默认）或 FJT 流式
-（真机透传备选）下发。不是 peach 包：不随 `harvest_system` 起、不进
-lifecycle、不改只读 bringup、不订 peach 话题。
+（真机透传备选）下发。不是 peach 包：不进 lifecycle、不改只读 bringup、
+不订 peach 话题。`harvest_system` **仅** `tool_profile:=adaptive_cylinder_v1`
+时 Include `imu_follow_servo.launch.py`；空心末端不起。
 
 ## 双后端
 
@@ -27,16 +28,16 @@ lifecycle、不改只读 bringup、不订 peach 话题。
   补一帧零速刹车、fjt 取消在途 goal（disable 后在途 IK 回包/goal 回执
   不补发、立即取消——停即彻底停）。节点退出后 servo 因指令超时自停。
 
-## 插入推进（自适应圆柱套入，2026-09-15）
+## 插入推进与回退（自适应圆柱套入）
 
 `~/insert_start` 在跟随会话内把位置目标从参考点沿 **insert_start 时刻工具
 开口方向（tip +Z，base 系锁定）** 按 `insert.speed_m_s`（0.01 m/s）低速推进、
-钳 `insert.max_travel_m`（0.20 m）行程；姿态照常跟 IMU（柔性筒偏斜→臂跟随），
-横向只剩死区+低速钳的温和定心。用于视觉袋轴/入口不够准时保证套入的**人工
-分段编排**：peach `execute_pregrasp_only=true` 停在预抓取 → 臂静止后
-`~/enable` → `~/insert_start` → 到位 `~/insert_stop` → 切刀/撤退走 peach Web
-单步。`~/insert_stop`/`~/disable`/断流/达行程上限都停推进。**勿在 peach MTC
-执行期间同时开门**（指令流在控制器层互踩，无仲裁）。
+钳 `insert.max_travel_m`（0.20 m）行程；姿态照常跟 IMU。`~/insert_stop` 停
+推进（跟随保持）。`~/insert_retract` 沿锁定开口把行程收回参考点。disable /
+断流 / 达行程上限都停推进。**peach** 仅对 `adaptive_cylinder_v1` FULL 在
+预抓取→套入→回预抓取窗内调这些服务；空心末端永不调用。未 enable 时
+pause servo，**勿与 peach MTC 同时写控制器**。peach 不自动
+`motion.enabled`（默认 false）。
 
 ## 前置
 
@@ -80,7 +81,7 @@ FJT 后端：`ros2 launch imu_follow imu_follow.launch.py` +
 | `/imu/data`（或假流） | 输入（订；勿与他源混流，双流会被平滑成中间值） |
 | `/joint_states` | 当前关节（订；新鲜度与 fjt 种子） |
 | `~/enable` / `~/disable` | `std_srvs/Trigger`：采参考开始（自动激活 servo）/ 停止 |
-| `~/insert_start` / `~/insert_stop` | `std_srvs/Trigger`：插入推进开始（锁工具开口方向，须先 enable）/ 停推进（跟随保持） |
+| `~/insert_start` / `~/insert_stop` / `~/insert_retract` | `std_srvs/Trigger`：插入推进开始 / 停推进 / 行程收回参考点 |
 | `~/target_pose` | `PoseStamped`（base_link）：平滑后 TCP 目标（位置=参考点或插入推进点） |
 | `~/command_twist` | `TwistStamped`（tcp 系）：P 控制输出（dry 镜像） |
 | `/moveit_servo/delta_twist_cmds` | servo 输入（BEST_EFFORT；开门时发） |

@@ -13,4 +13,6 @@ request_adapters:
   - default_planning_request_adapters/CheckStartStateCollision
 response_adapters:
   - default_planning_response_adapters/ValidateSolution
-  - default_planning_response_adapters/DisplayMotionPath
+  # 不挂 DisplayMotionPath：该 adapter 在每次 plan() 成功后立刻发
+  # /display_planned_path，含随后被果实胶囊/行程门拒掉的候选。Nav2 只发
+  # 正在跟随的 path；本仓执行轨迹看 observability TCP Path。

@@ -3,11 +3,13 @@
 
 与 ``replay_field_pregrasp.py``（Python 侧复刻 MoveIt 官方管线）不同，本脚本
 走**真实 C++ 节点**：向感知/重建话题注入 runs/ 账本记录的 entry/axis/底/颈几何，
-再对 ``/peach_arm/execute_target`` 发 ``PREGRASP_ONLY`` 周期
-（skip_observation，跳过扫描段），验证阶段执行器的完整接近轨迹设计——
+再对 ``/peach_arm/execute_target`` 发周期（默认 ``PREGRASP_ONLY``；
+``--mode full`` 为套入干跑：tool 保持关、须显式 ``PROFILE_FULL``，
+否则默认 profile=0 会盖成停预抓取），``skip_observation`` 跳过扫描段，
+验证阶段执行器的完整接近/接触设计——
 与正式接触段同一条 C++ 路径：``goToPhotoPose``（有记录的接近则原路返程，
 否则 Pilz PTP，失败才 OMPL）
-→ classifyApproach → staging PTP 或 LIN-align+LIN → 预抓取停位验证。脚本**不**再直连 JTC 绕零位复位：连开下一颗时臂停在
+→ classifyApproach → 果平面折线 LIN（面内斜插 keep-roll + 沿轴垂直进入；失败才 staging PTP）或 LIN-align+LIN → 预抓取停位验证。脚本**不**再直连 JTC 绕零位复位：连开下一颗时臂停在
 上一颗 Hold，由周期内 ``goToPhotoPose`` 回拍照位（与真机同一函数）。
 ``--random N`` 默认在现场典型包络内采感知合法位姿（上半球且
 ``axis_z≥0.70``、``|entry|≤1.02``、弦长 ≤ 笛卡尔上限）。感知算法允许水平袋；
@@ -24,6 +26,9 @@ camera_link→camera_depth_optical_frame 静态 TF。仅仿真使用，不碰真
   python3 scripts/sim_field_targets.py --list
   python3 scripts/sim_field_targets.py --case all      # targets_20260909 全部
   python3 scripts/sim_field_targets.py --case 1437_0 1639_1
+  python3 scripts/sim_field_targets.py --mode full --case 1757 --velocity 1.0
+  python3 scripts/sim_field_targets.py --grid --mode full --velocity 1.0
+  python3 scripts/sim_field_targets.py --random 16 --seed 20260910
   python3 scripts/sim_field_targets.py --random 16 --seed 20260910
   python3 scripts/sim_field_targets.py --random 100 --seed 20260910 --velocity 1.0
   python3 scripts/sim_field_targets.py --random 100 --envelope algorithm --seed 20260911 --velocity 1.0
@@ -46,6 +51,9 @@ import yaml
 CASES_PATH = (
     Path(__file__).resolve().parents[1] /
     'src/peach_arm/test/fixtures/field_pregrasp_cases.yaml')
+GRID_PATH = (
+    Path(__file__).resolve().parents[1] /
+    'src/peach_arm/test/fixtures/perception_constraint_grid.yaml')
 NODE = 'peach_arm'
 RESULTS_DIR = Path(__file__).resolve().parents[1] / 'runs'
 JOINT_ORDER = (
@@ -110,6 +118,50 @@ def load_casebook() -> dict:
 
 def load_cases() -> dict:
     return load_casebook()['targets_20260909']
+
+
+def load_grid_cases() -> dict:
+    """感知约束网格：带 expect 标签的在达/超臂展/资格门用例."""
+    raw = yaml.safe_load(GRID_PATH.read_text()) or {}
+    out = {}
+    for cid, case in (raw.get('cases') or {}).items():
+        entry = list(case['entry_xyz'])
+        axis = _norm(case['axis'])
+        travel = float(case.get('travel_m') or SIM_BAG_DIAMETER_M)
+        length = float(case.get('bag_length_m') or max(travel, 0.06))
+        bottom = list(case.get('bag_bottom') or entry)
+        neck = list(case.get('bag_neck') or _add(bottom, _scale(axis, length)))
+        out[str(cid)] = {
+            **case,
+            'run': case.get('run', f'grid_{cid}'),
+            'target_id': case.get('target_id', 'target_0'),
+            'entry_xyz': entry,
+            'axis': axis,
+            'bag_bottom': bottom,
+            'bag_neck': neck,
+            'travel_m': travel,
+            'bag_diameter_upper_m': float(
+                case.get('bag_diameter_upper_m') or SIM_BAG_DIAMETER_M),
+            'expect': str(case.get('expect') or 'succeed'),
+            'flags': list(case.get('flags') or []),
+        }
+    return out
+
+
+def _normalize_legacy_case(cid: str, raw: dict) -> dict:
+    """Fill bag_bottom/neck/travel for the 1757/1740 entry-only fixtures."""
+    axis = _norm(raw['axis'])
+    entry = [float(v) for v in raw['entry_xyz']]
+    travel = float(SIM_BAG_DIAMETER_M)
+    out = dict(raw)
+    out['run'] = raw.get('run') or raw.get('request_id') or cid
+    out['target_id'] = raw.get('target_id') or f'target_{cid}'
+    out['entry_xyz'] = entry
+    out['axis'] = axis
+    out['bag_bottom'] = [float(v) for v in raw.get('pregrasp_xyz', entry)]
+    out['bag_neck'] = _add(entry, _scale(axis, travel))
+    out['travel_m'] = travel
+    return out
 
 
 def _add(a, b):
@@ -404,7 +456,12 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         '--case', nargs='+', default=['all'],
-        help='targets_20260909 用例 id；all=全部（与 --random 互斥）')
+        help='targets_20260909 用例 id，或 cases 段 1757/1740；all=09-09 全部'
+             '（与 --random 互斥）')
+    parser.add_argument(
+        '--mode', choices=('pregrasp', 'full'), default='pregrasp',
+        help='pregrasp=ExecuteTarget PREGRASP_ONLY（默认）；'
+             'full=FULL 套入干跑（须 PROFILE_FULL；tool 保持关、不 SetIO）')
     parser.add_argument(
         '--random', type=int, default=0, metavar='N',
         help='在现场坐标包络内按感知约束采 N 个随机位姿（默认 typical）')
@@ -424,12 +481,26 @@ def main() -> int:
         help='只跑 --random 采样出的指定 id（如 rand_02 rand_39），'
              '用于失败例专项重测；采样与全量同 seed 确定性一致')
     parser.add_argument('--list', action='store_true')
+    parser.add_argument(
+        '--grid', action='store_true',
+        help='跑 perception_constraint_grid.yaml（多变在达点位 + 倾角/行程/贴边/超臂展）')
+    parser.add_argument(
+        '--tool-profile', default='adaptive_cylinder_v1',
+        choices=('hollow_cylinder_v1', 'adaptive_cylinder_v1'),
+        help='写入 ExecuteTarget.tool_profile_id；须与 launch tool_profile 一致')
     args = parser.parse_args()
 
     book = load_casebook()
     templates = book['targets_20260909']
+    legacy = {
+        cid: _normalize_legacy_case(cid, raw)
+        for cid, raw in (book.get('cases') or {}).items()}
+    catalog = {**legacy, **templates}
     photo_tcp = _photo_tcp(book)
-    if args.random > 0:
+    if args.grid:
+        cases = load_grid_cases()
+        selected = list(cases)
+    elif args.random > 0:
         cases = sample_random_cases(
             templates, args.random, args.seed, photo_tcp, args.envelope)
         selected = list(cases)
@@ -440,8 +511,12 @@ def main() -> int:
                 return 2
             selected = list(args.pick)
     else:
-        cases = templates
-        selected = list(cases) if args.case == ['all'] else args.case
+        if args.case == ['all']:
+            cases = templates
+            selected = list(cases)
+        else:
+            cases = catalog
+            selected = list(args.case)
         unknown = [c for c in selected if c not in cases]
         if unknown:
             print(f'未知用例: {unknown}', file=sys.stderr)
@@ -453,19 +528,23 @@ def main() -> int:
             extra = ''
             if case.get('sample_kind'):
                 extra = f" {case['sample_kind']}←{case.get('sampled_from')}"
+            if case.get('expect'):
+                extra += f" expect={case['expect']}"
             print(f"{cid}: entry=({e[0]:.3f},{e[1]:.3f},{e[2]:.3f}) "
                   f"axis_z={case['axis'][2]:.2f} run={case['run']}{extra}")
         return 0
 
     import rclpy
     from action_msgs.msg import GoalStatus
-    from geometry_msgs.msg import Point, Pose, Quaternion, TransformStamped, Vector3
+    from geometry_msgs.msg import (
+        Point, Pose, PoseStamped, Quaternion, TransformStamped, Vector3)
     from peach_interfaces.action import ExecuteTarget
     from peach_interfaces.msg import (
         BagFitting, BagFittingArray, BagGrasp2D, BagGraspCandidate,
         BagGraspCandidateArray, GraspDecision, PeachTargetObservation,
         PeachTargetObservationArray, ReconstructionStatus,
     )
+    from peach_interfaces.srv import CheckReachability
     from rclpy.action import ActionClient
     from rclpy.callback_groups import ReentrantCallbackGroup
     from rclpy.node import Node
@@ -502,6 +581,8 @@ def main() -> int:
 
     action_cli = ActionClient(node, ExecuteTarget, f'/{NODE}/execute_target')
     ack_cli = node.create_client(Trigger, f'/{NODE}/acknowledge_recovery')
+    reach_cli = node.create_client(
+        CheckReachability, f'/{NODE}/check_reachability')
 
     state = {'case': None, 'snapshot_id': 1000, 'capturing': False,
              'joint_samples': []}
@@ -523,9 +604,11 @@ def main() -> int:
         v.x, v.y, v.z = (float(v) for v in xyz)
         return v
 
-    def set_case(case):
+    def set_case(case, cid=None):
         with lock:
             state['case'] = case
+            if cid is not None:
+                state['cid'] = cid
             state['snapshot_id'] += 1
 
     def make_observation(case):
@@ -551,6 +634,7 @@ def main() -> int:
         obs.tracking_status = PeachTargetObservation.OBSERVED
         obs.camera_distance_m = 0.7
         obs.confidence = 0.9
+        obs.diagnostic_flags = list(case.get('flags') or [])
         cand = BagGraspCandidate()
         cand.header = header()
         cand.target_id = case['target_id']
@@ -559,10 +643,12 @@ def main() -> int:
         cand.bag_bottom = point(case['bag_bottom'])
         cand.bag_neck = point(case['bag_neck'])
         cand.translation_direction = vector(case['axis'])
-        cand.bag_diameter_upper_m = SIM_BAG_DIAMETER_M
+        cand.bag_diameter_upper_m = float(
+            case.get('bag_diameter_upper_m') or SIM_BAG_DIAMETER_M)
         cand.suggested_travel_m = float(case.get('travel_m') or 0.0)
         cand.confidence = 0.9
         cand.status = BagGraspCandidate.ACCEPT
+        cand.diagnostic_flags = list(case.get('flags') or [])
         obs.candidate = cand
         c2d = BagGrasp2D()
         c2d.target_id = case['target_id']
@@ -655,6 +741,7 @@ def main() -> int:
     def on_decision(_=None):
         with lock:
             case = state['case']
+            cid_now = state.get('cid')
         if case is None:
             return
         msg = GraspDecision()
@@ -662,8 +749,8 @@ def main() -> int:
         msg.harvest_run_id = f"sim_{case['run']}"
         msg.target_id = case['target_id']
         # 09-18 起非预览执行须带完整身份元组（ExecuteTarget.action 20-23 行）
-        msg.model_revision = f'sim-model-{cid}'  # 每案唯一：快照心跳不续签，同串复用会过期
-        msg.tool_profile_id = 'adaptive_cylinder_v1'
+        msg.model_revision = f"sim-model-{cid_now or case.get('run')}"
+        msg.tool_profile_id = args.tool_profile
         msg.calibration_revision = 'sim-calib-v1'
         msg.config_revision = 'sim-config-v1'
         msg.allowed = True
@@ -756,7 +843,8 @@ def main() -> int:
         """周期内 TCP 按静止 0.6s 切段（与 watchdog 同口径）。
 
         正式 ExecuteTarget：先 goToPhotoPose（接近原路返程，否则 PTP），停稳后再接近。
-        返回有运动的段列表；末段=接近，两段以上时首段=回拍照位。
+        返回有运动的段列表。调用方按是否靠近拍照位挑选接近段/回拍照段，
+        不要默认末段=接近（FULL 末段常是回 stow/拍照）。
         """
         from moveit_msgs.srv import GetPositionFK
         fk_cli = node.create_client(GetPositionFK, '/compute_fk')
@@ -874,22 +962,87 @@ def main() -> int:
               + (f" {case['sample_kind']}←{case['sampled_from']}"
                  if case.get('sample_kind') else '') +
               ' ===', flush=True)
-        set_case(case)
+        set_case(case, cid)
         time.sleep(1.5)  # 锁定集/精化锁存就位
         with lock:
             state['joint_samples'] = []
             state['capturing'] = True
         if not action_cli.wait_for_server(timeout_sec=10.0):
             return {'case': cid, 'error': 'execute_target action 不可用'}
+        expect = str(case.get('expect') or '')
+        if expect == 'skip_select':
+            return {
+                'case': cid, 'expect': expect, 'matched': True,
+                'outcome': 'skipped_select',
+                'reason': ','.join(case.get('flags') or []),
+            }
+
+        def probe_reach():
+            if not reach_cli.wait_for_service(timeout_sec=5.0):
+                return None, 'service_unavailable'
+            req = CheckReachability.Request()
+            req.require_sleeve = args.mode == 'full'
+            axis = _norm(case['axis'])
+            z = axis
+            ref = (0.0, 0.0, 1.0) if abs(z[2]) < 0.9 else (1.0, 0.0, 0.0)
+            x = _norm((ref[1] * z[2] - ref[2] * z[1],
+                       ref[2] * z[0] - ref[0] * z[2],
+                       ref[0] * z[1] - ref[1] * z[0]))
+            y = (z[1] * x[2] - z[2] * x[1], z[2] * x[0] - z[0] * x[2],
+                 z[0] * x[1] - z[1] * x[0])
+            q = _mat_to_quat(((x[0], y[0], z[0]), (x[1], y[1], z[1]),
+                              (x[2], y[2], z[2])))
+            stamped = PoseStamped()
+            stamped.header = header()
+            stamped.pose.position.x = float(case['entry_xyz'][0])
+            stamped.pose.position.y = float(case['entry_xyz'][1])
+            stamped.pose.position.z = float(case['entry_xyz'][2])
+            stamped.pose.orientation.x = q[0]
+            stamped.pose.orientation.y = q[1]
+            stamped.pose.orientation.z = q[2]
+            stamped.pose.orientation.w = q[3]
+            req.tcp_poses.append(stamped)
+            req.suggested_travel_m.append(float(case.get('travel_m') or 0.0))
+            fut = reach_cli.call_async(req)
+            resp = spin_until(fut, 8.0)
+            if resp is None:
+                return None, 'service_timeout'
+            ok = bool(resp.reachable and resp.reachable[0])
+            code = str(resp.error_codes[0] if resp.error_codes else '')
+            return ok, code
+
+        if expect in ('skip_ik', 'skip_cartesian') or args.grid:
+            ok, code = probe_reach()
+            row = {
+                'case': cid, 'expect': expect, 'reachable': ok,
+                'error_code': code,
+            }
+            if expect == 'skip_ik':
+                row['matched'] = (ok is False and code == 'no_ik')
+                return row
+            if expect == 'skip_cartesian':
+                row['matched'] = (ok is False and code == 'sleeve_no_cartesian')
+                return row
+            if ok is False:
+                row['matched'] = False
+                row['error'] = f'reachability 拒: {code}'
+                return row
         goal = ExecuteTarget.Goal()
         goal.request_id = f'sim_{cid}'
         goal.run_id = f'sim_{case["run"]}'
         goal.cycle_id = f'sim_{cid}:{case["target_id"]}'
         goal.target_id = case['target_id']
-        goal.mode = ExecuteTarget.Goal.PREGRASP_ONLY
+        # mode 是接触深度权威：FULL 不被默认 profile=0 盖成 HOLD。
+        # 仍显式 PROFILE_FULL，避免旧客户端/旧注释歧义。
+        if args.mode == 'full':
+            goal.mode = ExecuteTarget.Goal.FULL
+            goal.profile = ExecuteTarget.Goal.PROFILE_FULL
+        else:
+            goal.mode = ExecuteTarget.Goal.PREGRASP_ONLY
+            goal.profile = ExecuteTarget.Goal.PROFILE_PREGRASP_HOLD
         # 09-18 起身份元组不完整直接拒；与 GraspDecision 注入同串（每案唯一）
         goal.model_revision = f'sim-model-{cid}'
-        goal.tool_profile_id = 'adaptive_cylinder_v1'
+        goal.tool_profile_id = args.tool_profile
         goal.calibration_revision = 'sim-calib-v1'
         goal.config_revision = 'sim-config-v1'
         goal.skip_observation = True
@@ -907,11 +1060,54 @@ def main() -> int:
             return {'case': cid, 'error': 'goal 超时', 'elapsed_s': elapsed}
         res = result.result
         segments = measure_tcp_segments(samples) if samples else []
-        tcp_photo = segments[0] if len(segments) >= 2 else None
-        tcp = segments[-1] if segments else None
-        from_photo = bool(
-            tcp and tcp.get('start_xyz') and
-            math.dist(tcp['start_xyz'], photo_tcp) < 0.08)
+
+        def _near_photo(xyz):
+            return bool(xyz) and len(xyz) == 3 and math.dist(xyz, photo_tcp) < 0.08
+
+        def _split_photo_roundtrip(seg):
+            """FULL 周期常把「拍照→预抓取→回拍照」合成一段（弦≈0、路径长）。
+
+            静止切段在袋口停不稳时切不开，picker 会把 photo→photo 当接近。
+            按离拍照位最远的点拆成出程/返程。
+            """
+            xyz = seg.get('xyz') or []
+            if len(xyz) < 4:
+                return None, None
+            if not (
+                _near_photo(seg.get('start_xyz')) and
+                _near_photo(seg.get('end_xyz'))):
+                return None, None
+            if float(seg.get('path_m') or 0.0) < 0.20:
+                return None, None
+            far_i = max(
+                range(len(xyz)), key=lambda i: math.dist(xyz[i], photo_tcp))
+            if math.dist(xyz[far_i], photo_tcp) < 0.15:
+                return None, None
+            outbound = _tcp_metrics(xyz[:far_i + 1])
+            inbound = _tcp_metrics(xyz[far_i:])
+            return outbound, inbound
+
+        expanded = []
+        for seg in segments:
+            outbound, inbound = _split_photo_roundtrip(seg)
+            if outbound and inbound:
+                expanded.extend([outbound, inbound])
+            else:
+                expanded.append(seg)
+        segments = expanded
+
+        tcp_approach = None
+        tcp_return = None
+        for seg in segments:
+            if float(seg.get('chord_m') or 0.0) < 0.08:
+                continue
+            if tcp_approach is None and _near_photo(seg.get('start_xyz')):
+                tcp_approach = seg
+            if _near_photo(seg.get('end_xyz')):
+                tcp_return = seg
+        tcp_photo = tcp_return
+        tcp = tcp_approach or (segments[-1] if segments else None)
+        from_photo = bool(tcp and _near_photo(tcp.get('start_xyz')))
         detour, detour_detail = _keepout_hit(
             tcp, case['entry_xyz'], case['axis'])
         photo_detour, photo_detour_detail = False, ''
@@ -943,15 +1139,28 @@ def main() -> int:
             'sample_kind': case.get('sample_kind'),
             'sampled_from': case.get('sampled_from'),
             'envelope': case.get('envelope'),
+            'mode': args.mode,
+            'grasped': bool(res.harvest.grasped),
+            'harvest_commanded': bool(res.harvest.commanded),
+            'expect': expect,
         }
-        ack_cli.wait_for_service(timeout_sec=5.0)
-        ack = ack_cli.call_async(Trigger.Request())
-        spin_until(ack, 10.0)
+        if expect == 'succeed':
+            out['matched'] = (
+                int(res.outcome) == 0
+                and int(res.completion_level) >= 3
+                and not bool(res.harvest.grasped))
+        elif expect:
+            out['matched'] = False
+        if res.recovery_required:
+            ack_cli.wait_for_service(timeout_sec=5.0)
+            ack = ack_cli.call_async(Trigger.Request())
+            spin_until(ack, 10.0)
         return out
 
     wait_active()
     ensure_enabled(node, args.velocity)
     print(f'{NODE} Active；execution/grasp 已开（tool 保持关）'
+          f'；mode={args.mode}'
           + (f'；速度/加速度缩放={args.velocity:g}（仅仿真）'
              if args.velocity > 0.0 else ''))
     print('回拍照位走 ExecuteTarget 内 goToPhotoPose（接近原路返程，否则 PTP），'
@@ -968,10 +1177,12 @@ def main() -> int:
             outcomes.append(record)
             sink.write(json.dumps(record, ensure_ascii=False) + '\n')
             sink.flush()
+            reason = str(record.get('reason') or record.get('error') or '')
             print(f"  -> outcome={record.get('outcome')} "
                   f"completion={record.get('completion_level')} "
-                  f"pregrasp_passed={record.get('pregrasp_passed')} "
-                  f"reason={record.get('reason', record.get('error'))[:120]}",
+                  f"matched={record.get('matched')} "
+                  f"code={record.get('error_code', '')} "
+                  f"reason={reason[:120]}",
                   flush=True)
             if record.get('tcp_photo'):
                 tcp = record['tcp_photo']
@@ -995,16 +1206,33 @@ def main() -> int:
             time.sleep(0.05 if args.velocity > 0.0 else 0.5)
 
     print(f'\n结果已写入 {out_path}')
-    passed = sum(
-        1 for r in outcomes
-        if r.get('outcome') == ExecuteTarget.Result.SUCCEEDED)
-    keepout_hits = sum(1 for r in outcomes if r.get('detour_flag'))
-    photo_keepout = sum(
-        1 for r in outcomes
-        if r.get('from_photo') and r.get('detour_flag'))
-    print(
-        f'成功 {passed}/{len(outcomes)}；从拍照位果实胶囊后检 {photo_keepout}'
-        f'；含未从拍照位返程旗标 {keepout_hits}')
+    if args.grid:
+        matched = sum(1 for r in outcomes if r.get('matched'))
+        print(f'网格期望命中 {matched}/{len(outcomes)}')
+        if rclpy.ok():
+            rclpy.shutdown()
+        return 0 if matched == len(outcomes) else 1
+    if args.mode == 'full':
+        passed = sum(
+            1 for r in outcomes
+            if r.get('outcome') == ExecuteTarget.Result.SUCCEEDED
+            and r.get('completion_level', 0) >=
+            ExecuteTarget.Result.LEVEL_SLEEVE_COMPLETED
+            and not r.get('grasped'))
+        print(
+            f'FULL 干跑成功 {passed}/{len(outcomes)}'
+            f'（套入到位、grasped=false、tool 关）')
+    else:
+        passed = sum(
+            1 for r in outcomes
+            if r.get('outcome') == ExecuteTarget.Result.SUCCEEDED)
+        keepout_hits = sum(1 for r in outcomes if r.get('detour_flag'))
+        photo_keepout = sum(
+            1 for r in outcomes
+            if r.get('from_photo') and r.get('detour_flag'))
+        print(
+            f'成功 {passed}/{len(outcomes)}；从拍照位果实胶囊后检 {photo_keepout}'
+            f'；含未从拍照位返程旗标 {keepout_hits}')
     env_rows = [
         r for r in outcomes
         if r.get('entry_xyz') and r.get('axis') and
@@ -1015,7 +1243,8 @@ def main() -> int:
     print(
         f'现场典型包络 (|entry|≤{TYPICAL_ENTRY_NORM_M:g} ∧ '
         f'axis_z≥{TYPICAL_AXIS_Z_MIN:g}) {env_ok}/{len(env_rows)}')
-    rclpy.shutdown()
+    if rclpy.ok():
+        rclpy.shutdown()
     return 0
 
 

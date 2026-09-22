@@ -296,7 +296,9 @@ def build_tcp_marker_dicts(
     """
     末端轨迹 → Marker 字典列表（重建相机轨迹同一套：DELETEALL、LINE_LIST、SPHERE、ARROW）.
 
-    ns：tcp_path / tcp_chord / tcp_now / grasp. 网页与 RViz MarkerArray 都吃这份.
+    ns：tcp_path / tcp_now / grasp. 网页与 RViz MarkerArray 都吃这份.
+    只连相邻采样点；不画首末弦（那条线穿过未走到的空间）。
+    套入轴只画预抓取→入口，不按单位轴外推穿过未走到的空间。
     """
     frame_id = frame_id or 'base_link'
     markers = [{
@@ -334,11 +336,6 @@ def build_tcp_marker_dicts(
                 'tcp_path', 10 + int(phase), MARKER_LINE_LIST, frame_id,
                 points=chain, scale={'x': 0.006, 'y': 0.0, 'z': 0.0},
                 color=_color(*rgba)))
-        markers.append(_marker(
-            'tcp_chord', 1, MARKER_LINE_STRIP, frame_id,
-            points=[points[0], points[-1]],
-            scale={'x': 0.004, 'y': 0.0, 'z': 0.0},
-            color=_color(0.85, 0.90, 0.95, 0.9)))
     if points:
         markers.append(_marker(
             'tcp_now', 1, MARKER_SPHERE, frame_id, xyz=points[-1],
@@ -369,25 +366,15 @@ def build_tcp_marker_dicts(
             scale={'x': 0.0, 'y': 0.0, 'z': 0.03},
             color=_color(0.87, 0.90, 0.93, 1.0), text=label))
 
-    axis = landmarks.get('axis')
+    # 意图段 = 预抓取→入口（套入 LIN）。不要按单位轴外推穿过未走到的空间。
+    pregrasp = landmarks.get('grasp_pregrasp')
     entry = landmarks.get('grasp_entry')
-    if _finite3(axis) and _finite3(entry):
-        length = math.sqrt(axis[0] ** 2 + axis[1] ** 2 + axis[2] ** 2)
-        if length > 1.0e-6:
-            unit = [axis[0] / length, axis[1] / length, axis[2] / length]
-            start = [
-                entry[0] - 0.12 * unit[0],
-                entry[1] - 0.12 * unit[1],
-                entry[2] - 0.12 * unit[2]]
-            end = [
-                entry[0] + 0.22 * unit[0],
-                entry[1] + 0.22 * unit[1],
-                entry[2] + 0.22 * unit[2]]
-            markers.append(_marker(
-                'grasp_axis', 1, MARKER_ARROW, frame_id,
-                points=[start, end],
-                scale={'x': 0.006, 'y': 0.014, 'z': 0.014},
-                color=_color(0.2, 0.8, 0.95, 0.95)))
+    if _finite3(pregrasp) and _finite3(entry):
+        markers.append(_marker(
+            'grasp_axis', 1, MARKER_ARROW, frame_id,
+            points=[pregrasp, entry],
+            scale={'x': 0.006, 'y': 0.014, 'z': 0.014},
+            color=_color(0.2, 0.8, 0.95, 0.95)))
     return markers
 
 

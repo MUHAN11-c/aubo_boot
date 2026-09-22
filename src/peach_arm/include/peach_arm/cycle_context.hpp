@@ -197,6 +197,7 @@ struct CycleContext
   bool cut_command_accepted{false};  ///< SetIO 已 ACK（≠切断确认）。
   bool cut_confirmed{false};         ///< 剪切确认（现行预留）。
   bool retreat_confirmed{false};     ///< 撤退到位。
+  bool imu_follow_session{false};    ///< 自适应接触窗内已 ~/enable，终局须 disable。
   uint8_t completion_level{0};       ///< ExecuteTarget 完成度档。
   uint32_t failure_code{0};          ///< FailureCode.*；0=无失败。
   peach_interfaces::msg::PregraspVerification pregrasp_msg{};  ///< 预抓取验证消息。

@@ -52,6 +52,7 @@ class Recorder:
         self._drops = 0
         self._drop_warn_t = 0.0
         self._stop = threading.Event()
+        self._closed = threading.Event()
         self._session_dir: Path | None = None
         self._bag_dir: Path | None = None
         self._open_failed = False
@@ -107,6 +108,23 @@ class Recorder:
             pass
         self._note_drop()
 
+    def _put_control(self, item) -> bool:
+        """open/close 必须入队：满则丢最旧腾位，禁止阻塞 put（SIGINT 挂死源）."""
+        try:
+            self._queue.put_nowait(item)
+            return True
+        except queue.Full:
+            pass
+        try:
+            self._queue.get_nowait()
+            self._queue.task_done()
+            self._queue.put_nowait(item)
+            self._note_drop()
+            return True
+        except (queue.Empty, queue.Full):
+            self._log_warning('bag 控制任务未能入队（队列满且腾位失败）')
+            return False
+
     def _note_drop(self) -> None:
         """丢帧计数 + 10s 节流告警（持续掉队=盘速不足，值得看见）."""
         self._drops += 1
@@ -117,13 +135,16 @@ class Recorder:
                 f'bag 写队列掉队丢帧：累计 {self._drops}'
                 '（盘速不足，丢最旧保最新）')
 
-    def close(self) -> Path | None:
-        """排空队列并收尾 bag；返回 bag 目录（未启用/打开失败给 None）."""
+    def close(self, timeout_s: float = 8.0) -> Path | None:
+        """排空队列并收尾 bag；有界等待，避免 SIGINT 时 queue.join 永久挂死."""
+        budget = max(0.1, float(timeout_s))
         if self._enabled:
-            self._queue.put(('close',))
-            self._queue.join()
+            self._put_control(('close',))
+            if not self._closed.wait(timeout=budget):
+                self._log_warning(
+                    f'bag 收尾超时 {budget:.1f}s，强制停写线程')
         self._stop.set()
-        self._thread.join(timeout=10.0)
+        self._thread.join(timeout=min(2.0, budget))
         with self._lock:
             return self._bag_dir
 
@@ -150,12 +171,14 @@ class Recorder:
                 elif kind == 'close':
                     self._close_writer(writer)
                     writer = None
+                    self._closed.set()
             except Exception as error:  # 单任务失败只告警，线程不死
                 self._log_warning(f'bag 记录任务失败（跳过）: {error}')
             finally:
                 self._queue.task_done()
         if writer is not None:  # close 任务未达（异常路径）的兜底收尾
             self._close_writer(writer)
+        self._closed.set()
 
     def _open_bag(self, writer):
         """

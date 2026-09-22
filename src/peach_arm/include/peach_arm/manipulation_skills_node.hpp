@@ -324,7 +324,18 @@ private:
   bool stageReturnHarvestStow(CycleContext & ctx);
   bool stageVerifyHarvestOutcome(CycleContext & ctx);
   bool stageCompleteTarget(CycleContext & ctx);
+  /// 自适应档案才 true；空心末端永不走 imu_follow。
+  bool usesImuFollowContact() const;
+  /// 同步调 /imu_follow Trigger；服务缺失或失败写 why。
+  bool callImuFollowTrigger(
+    const rclcpp::Client<Trigger>::SharedPtr & client,
+    const char * name, std::string & why);
+  /// 按行程/速度睡等待插入或回退；取消或接触止损返回 false。
+  bool waitImuFollowTravel(double travel_m, std::string & why);
+  /// 最佳努力 ~/disable；幂等。MTC 回 stow 前必须先停 Servo。
+  void releaseImuFollowSession(CycleContext & ctx);
 
+  /// 只画已走到的视点；candidates 空则清场（未执行候选不发箭头）。
   void publishViewMarkers(
     const Eigen::Vector3d & target, const std::vector<ViewCandidate> & candidates);
   // 周期身份（target_id）经参数传入：预览/非周期调用不读周期上下文。
@@ -542,6 +553,12 @@ private:
   // executeAction 受理→终局同一 action 线程内写读，无需原子。
   std::uint32_t pending_accept_failure_code_{0};
   rclcpp::Client<aubo_msgs::srv::SetIO>::SharedPtr tool_io_client_;  ///< 刀具 SetIO 客户端（伴随节点侧）。
+  /// 自适应接触窗：仅 adaptive_cylinder_v1 FULL 调用；hollow 永不 send。
+  rclcpp::Client<Trigger>::SharedPtr imu_follow_enable_client_;
+  rclcpp::Client<Trigger>::SharedPtr imu_follow_disable_client_;
+  rclcpp::Client<Trigger>::SharedPtr imu_follow_insert_start_client_;
+  rclcpp::Client<Trigger>::SharedPtr imu_follow_insert_stop_client_;
+  rclcpp::Client<Trigger>::SharedPtr imu_follow_insert_retract_client_;
 };
 
 }  // namespace peach_arm

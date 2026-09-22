@@ -7,6 +7,7 @@
 #include "peach_arm/pregrasp_level.hpp"
 #include "peach_arm/pregrasp_residual.hpp"
 #include "peach_arm/acm_policy.hpp"
+#include "peach_arm/grasp_geometry.hpp"
 #include "peach_arm/reconfirm_policy.hpp"
 #include <algorithm>
 #include <chrono>
@@ -263,6 +264,73 @@ bool ManipulationSkillsNode::requireStageAuthority(
     ctx, label + "被拒绝（" + motionStageName(stage) + "）: " + why);
 }
 
+bool ManipulationSkillsNode::usesImuFollowContact() const
+{
+  return peach_arm::usesImuFollowContact(params_.tool.profile_id);
+}
+
+bool ManipulationSkillsNode::callImuFollowTrigger(
+  const rclcpp::Client<Trigger>::SharedPtr & client,
+  const char * name, std::string & why)
+{
+  if (!client) {
+    why = std::string(name) + " 客户端未建";
+    return false;
+  }
+  const double wait_s = std::max(8.0, params_.timeouts.service_s);
+  if (!client->wait_for_service(std::chrono::duration<double>(wait_s))) {
+    why = std::string(name) +
+      " 不可用（adaptive FULL 须 harvest_system Include imu_follow；"
+      "hollow 不得走到这里）";
+    return false;
+  }
+  auto future = client->async_send_request(std::make_shared<Trigger::Request>());
+  if (future.wait_for(std::chrono::duration<double>(params_.timeouts.service_s)) !=
+    std::future_status::ready)
+  {
+    why = std::string(name) + " 超时";
+    return false;
+  }
+  const auto resp = future.get();
+  if (!resp || !resp->success) {
+    why = std::string(name) + " 失败: " + (resp ? resp->message : "空响应");
+    return false;
+  }
+  return true;
+}
+
+bool ManipulationSkillsNode::waitImuFollowTravel(double travel_m, std::string & why)
+{
+  const double seconds = imuFollowTravelWaitS(
+    travel_m, kImuFollowInsertSpeedMps);
+  const auto deadline = std::chrono::steady_clock::now() +
+    std::chrono::duration<double>(seconds);
+  while (std::chrono::steady_clock::now() < deadline) {
+    if (cancel_requested_.load()) {
+      why = "周期已取消";
+      return false;
+    }
+    if (contactAbortSuspected()) {
+      why = "疑似硬接触（接触检测止损）";
+      return false;
+    }
+    std::this_thread::sleep_for(50ms);
+  }
+  return true;
+}
+
+void ManipulationSkillsNode::releaseImuFollowSession(CycleContext & ctx)
+{
+  if (!ctx.imu_follow_session) {
+    return;
+  }
+  std::string why;
+  if (!callImuFollowTrigger(imu_follow_disable_client_, "/imu_follow/disable", why)) {
+    RCLCPP_WARN(get_logger(), "imu_follow 会话收口失败: %s", why.c_str());
+  }
+  ctx.imu_follow_session = false;
+}
+
 // 阶段调用序列（与原 behavior_tree.xml 主树遍历严格同构；BT 节点→阶段函数
 // 映射见包内重构说明）：PrepareCycle →（IsPlanOnly→PlanObservationPreview |
 // （IsSkipObservation|ObserveScan）→ QualityValidate →（IsObserveOnly→
@@ -273,6 +341,7 @@ bool ManipulationSkillsNode::requireStageAuthority(
 void ManipulationSkillsNode::executeCycle(CycleContext & ctx)
 {
   const auto finish = [this, &ctx](CycleState state, const std::string & message) {
+      releaseImuFollowSession(ctx);
       execution_armed_.store(false);
       // 先落终态再解除 running：executeAction 以 running==false 作为周期结束信号，
       // 这样它读到的状态一定是终态而不是上一个中间态。
@@ -361,6 +430,7 @@ bool ManipulationSkillsNode::stagePrepareCycle(CycleContext & ctx)
   ctx.cut_command_accepted = false;
   ctx.cut_confirmed = false;
   ctx.retreat_confirmed = false;
+  ctx.imu_follow_session = false;
   ctx.completion_level = 0;
   ctx.failure_code = FailureCode::NONE;
   ctx.pregrasp_msg = peach_interfaces::msg::PregraspVerification();
@@ -392,7 +462,7 @@ bool ManipulationSkillsNode::stagePrepareCycle(CycleContext & ctx)
   }
   ctx.candidates = view_planner_->generate(
     makeViewContext(*ctx.target, base_from_camera->translation(), ctx.target_id));
-  publishViewMarkers(ctx.target->center, ctx.candidates);
+  publishViewMarkers(ctx.target->center, {});
   if (ctx.candidates.empty()) {
     return failStage(
       ctx, FailureCode::OBSERVE_FAILED, "没有生成可用观察视点");
@@ -484,7 +554,6 @@ bool ManipulationSkillsNode::stageAcquireViews(CycleContext & ctx)
     const Eigen::Vector3d scan_center = view_target.center;
     ctx.candidates = view_planner_->generate(
       makeViewContext(view_target, current_camera->translation(), ctx.target_id));
-    publishViewMarkers(scan_center, ctx.candidates);
     bool moved = false;
     for (const auto & candidate : ctx.candidates) {
       if (std::find(attempted.begin(), attempted.end(), candidate.label) != attempted.end()) {
@@ -527,6 +596,7 @@ bool ManipulationSkillsNode::stageAcquireViews(CycleContext & ctx)
       {
         continue;
       }
+      publishViewMarkers(scan_center, {candidate});
       ++moves;
       moved = true;
       // 先等到位后的新鲜目标观测：移动中途被重建接受的帧会让 waitForNewView
@@ -1001,7 +1071,22 @@ bool ManipulationSkillsNode::stagePlanSleeveAndReverseRetreat(CycleContext & ctx
     return false;
   }
   setState(CycleState::PREVIEW_CONTACT_PLANNING, "预规划套入与反向撤退", ctx.target_id);
-  if (!ctx.refined || !grasp_task_) {
+  if (!ctx.refined) {
+    return failStage(
+      ctx, FailureCode::DEGRADED_CONTACT_FORBIDDEN, "套入预规划无几何");
+  }
+  if (usesImuFollowContact()) {
+    // 自适应：套入/回预抓取由 imu_follow 接管，不装配 MTC CartesianPath
+    //（禁止与 Servo 同时写控制器）。SELECT 已做过沿轴笛卡尔预检。
+    ctx.sleeve_planned = true;
+    markCheckpoint(ExecuteTarget::Goal::CK_SLEEVE_PLANNED, "自适应接触窗：跳过 MTC 套入预规划");
+    RCLCPP_INFO(
+      get_logger(),
+      "adaptive IMU 跟随接管套入/回预抓取，跳过 MTC CartesianPath（profile=%s）",
+      params_.tool.profile_id.c_str());
+    return true;
+  }
+  if (!grasp_task_) {
     return failStage(
       ctx, FailureCode::DEGRADED_CONTACT_FORBIDDEN, "套入预规划无几何");
   }
@@ -1023,6 +1108,56 @@ bool ManipulationSkillsNode::stageSleeveLinear(CycleContext & ctx)
   // 套入执行前授权（CONTACT 级）：GraspDecision 复检不通过 → skipped_quality。
   if (!requireStageAuthority(ctx, MotionStage::CONTACT, "沿轴套入")) {
     return false;
+  }
+  if (usesImuFollowContact()) {
+    setState(CycleState::MTC_APPROACH_INSERT, "IMU 跟随沿轴套入", ctx.target_id);
+    if (!ctx.sleeve_planned || !ctx.refined) {
+      return failStage(
+        ctx, FailureCode::SLEEVE_PLAN_FAILED, "套入前未完成接触窗预规划");
+    }
+    startContactGuard();
+    std::string why;
+    if (!callImuFollowTrigger(
+        imu_follow_enable_client_, "/imu_follow/enable", why))
+    {
+      stopContactGuard();
+      return failStage(
+        ctx, FailureCode::SLEEVE_PLAN_FAILED,
+        "imu_follow enable 失败（须 /imu/data 与 servo）：" + why);
+    }
+    ctx.imu_follow_session = true;
+    if (!callImuFollowTrigger(
+        imu_follow_insert_start_client_, "/imu_follow/insert_start", why))
+    {
+      stopContactGuard();
+      contact_recovery_required_.store(true);
+      ctx.sleeve_partial = true;
+      return failStage(
+        ctx, FailureCode::SLEEVE_PLAN_FAILED, "imu_follow insert_start 失败: " + why);
+    }
+    contact_recovery_required_.store(true);
+    if (!waitImuFollowTravel(ctx.travel_m, why)) {
+      stopContactGuard();
+      pending_outcome_.store(ExecuteTarget::Result::FAILED);
+      ctx.failure_code = FailureCode::SLEEVE_PLAN_FAILED;
+      ctx.sleeve_partial = true;
+      return failStage(ctx, "IMU 跟随套入中止: " + why);
+    }
+    (void)callImuFollowTrigger(
+      imu_follow_insert_stop_client_, "/imu_follow/insert_stop", why);
+    stopContactGuard();
+    if (contactAbortSuspected()) {
+      pending_outcome_.store(ExecuteTarget::Result::FAILED);
+      ctx.failure_code = FailureCode::SLEEVE_PLAN_FAILED;
+      ctx.sleeve_partial = true;
+      return failStage(ctx, "疑似硬接触（接触检测止损）：套入已取消，须现场确认后 ACK");
+    }
+    ctx.sleeve_partial = false;
+    ctx.completion_level = std::max(
+      ctx.completion_level,
+      ExecuteTarget::Result::LEVEL_SLEEVE_COMPLETED);
+    markCheckpoint(ExecuteTarget::Goal::CK_SLEEVED, "IMU 跟随沿轴套入到位");
+    return true;
   }
   setState(CycleState::MTC_APPROACH_INSERT, "沿轴 LIN 套入", ctx.target_id);
   if (grasp_task_) {
@@ -1118,6 +1253,32 @@ bool ManipulationSkillsNode::stageVerifyCut(CycleContext & ctx)
 
 bool ManipulationSkillsNode::stageExecuteReservedReverseRetreat(CycleContext & ctx)
 {
+  if (usesImuFollowContact()) {
+    setState(CycleState::MTC_RETREAT, "IMU 跟随沿插入反方向回到预抓取", ctx.target_id);
+    if (!ctx.imu_follow_session) {
+      ctx.failure_code = FailureCode::RETREAT_FAILED;
+      return failStage(ctx, "自适应撤退前无 imu_follow 会话");
+    }
+    std::string why;
+    if (!callImuFollowTrigger(
+        imu_follow_insert_retract_client_, "/imu_follow/insert_retract", why))
+    {
+      ctx.failure_code = FailureCode::RETREAT_FAILED;
+      return failStage(ctx, "imu_follow insert_retract 失败: " + why);
+    }
+    if (!waitImuFollowTravel(ctx.travel_m, why)) {
+      ctx.failure_code = FailureCode::RETREAT_FAILED;
+      return failStage(ctx, "IMU 跟随回预抓取中止: " + why);
+    }
+    releaseImuFollowSession(ctx);
+    contact_recovery_required_.store(false);
+    ctx.retreat_confirmed = true;
+    ctx.completion_level = std::max(
+      ctx.completion_level,
+      ExecuteTarget::Result::LEVEL_RETREAT_CONFIRMED);
+    markCheckpoint(ExecuteTarget::Goal::CK_RETREATED, "IMU 跟随撤回预抓取");
+    return true;
+  }
   setState(CycleState::MTC_RETREAT, "MTC 沿插入反方向保持直线撤离", ctx.target_id);
   if (grasp_task_) {
     grasp_task_->setContactAcm(ctx.target_id, ContactAcmStage::Retreat);
@@ -1151,12 +1312,15 @@ bool ManipulationSkillsNode::stageReturnHarvestStow(CycleContext & ctx)
   if (!motion_) {
     return failStage(ctx, "MoveIt 尚未初始化");
   }
-  const std::string stow = params_.harvest_stow_named_target.empty() ?
-    params_.photo_pose_named_target : params_.harvest_stow_named_target;
   std::string message;
-  if (!motion_->goToPhotoPose(stow, execution_enabled_.load(), message)) {
-    return failStage(
-      ctx, FailureCode::RETREAT_FAILED, "返回 harvest_stow 失败: " + message);
+  const auto hops = peach_arm::harvestStowNamedHops(
+    params_.photo_pose_named_target, params_.harvest_stow_named_target);
+  for (const auto & named : hops) {
+    if (!motion_->goToPhotoPose(named, execution_enabled_.load(), message)) {
+      return failStage(
+        ctx, FailureCode::RETREAT_FAILED,
+        "返回 " + named + " 失败: " + message);
+    }
   }
   contact_recovery_required_.store(false);
   markCheckpoint(ExecuteTarget::Goal::CK_STOWED, "回收纳位");
@@ -1198,6 +1362,9 @@ void ManipulationSkillsNode::publishViewMarkers(
   const Eigen::Vector3d & target,
   const std::vector<ViewCandidate> & candidates)
 {
+  // 只画已走到的视点（调用方传 0 或 1 个）。Nav2 只发正在跟随的 path；
+  // MoveIt Visual Tools 在 execute 后再 publishTrajectoryLine。生成阶段的
+  // 全部候选会在未到达处画箭头。
   visualization_msgs::msg::MarkerArray array;
   visualization_msgs::msg::Marker clear;
   clear.action = visualization_msgs::msg::Marker::DELETEALL;

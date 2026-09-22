@@ -11,7 +11,7 @@ ros2 launch peach_bringup harvest_system.launch.py \
 
 bag 回放另加 `use_sim_time:=true`，并先 `ros2 bag play --clock`。
 
-`peach_harvester/launch/harvest_system.launch.py` 薄转发到本包。预检 `peach_bringup.preflight.running_stack_pids`（argv0 或 `.../lib/<pkg>/<node>`，不是 colcon 参数名）。参数走本包 `yaml_params.py`（与 harvester / vegetation 同文副本，不合并）。
+`peach_harvester/launch/harvest_system.launch.py` 薄转发到本包。预检 `peach_bringup.preflight.running_stack_pids`（argv0 或 `.../lib/<pkg>/<node>`，不是 colcon 参数名；RSP/rviz/MoveIt 等同名二进制须带 aubo/peach 标记，不拦同机其他机器人）。参数走本包 `yaml_params.py`（与 harvester / vegetation 同文副本，不合并）。
 
 ## 构建 / 测试 / 许可
 

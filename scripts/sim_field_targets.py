@@ -1166,6 +1166,12 @@ def main() -> int:
             state['capturing'] = False
             samples = list(state['joint_samples'])
         if result is None:
+            # 超时必须取消服务端 goal：否则动作一直 running，臂拒绝后续
+            # 所有 goal（2026-09-23 M1 tilt_1639_1 超时后级联 goal 被拒）。
+            try:
+                spin_until(gh.cancel_goal_async(), 10.0)
+            except Exception:  # noqa: BLE001
+                pass
             return {'case': cid, 'error': 'goal 超时', 'elapsed_s': elapsed}
         res = result.result
         segments = measure_tcp_segments(samples) if samples else []

@@ -18,6 +18,7 @@
 
 - 录屏增强（可选，本机缺，装了才能自动提窗）：`sudo apt install wmctrl xdotool`；未装时 `record_rviz_harvest.sh` 降级可用，需手动保持 RViz 在前台不遮挡。
 - 每轮启动前/后清进程（MUST）：`pgrep -af 'ros2 launch|component_container|extrinsics_publisher|ros2 run|bag record|collect|probe|ffmpeg'`。
+- **DDS 域隔离**：本战役栈统一走 `CAMPAIGN_DOMAIN`（默认 61，`campaign/scripts/launch_stack.sh`），与并发 agent 会话（曾见 33/46）隔离；preflight 是进程表级互斥，对面栈活着时本战役**等位不抢**（2026-09-22 曾误杀邻会话 RSP 一次，纪律：别人的活进程只报告不动手）。
 
 ## 标准启动命令（真相机 + mock 控制）
 

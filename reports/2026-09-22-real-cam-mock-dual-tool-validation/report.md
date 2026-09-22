@@ -449,3 +449,13 @@ python3 scripts/collect_round.py <request_id>
 ros2 run peach_observability peach_bag_report runs/session_*/bag
 python3 scripts/purge_analyzed_bags.py runs/session_<该轮>
 ```
+
+---
+
+## v1.1 变更记录（2026-09-22 用户「重新整理」裁定）
+
+1. **5 轮门（用户裁定，覆盖本文件 B3 门）**：真机验证前置 = `e2e_full_unrefined_` **≥5 轮**「真实相机感知→supervisor 选果→peach_arm FULL 干跑」（skip_reconstruction，用感知原结果），每轮 ≥3 目标、场景布置各不同（基线/遮挡/多目标/光照/异常注入），轮门 completion≥3 占比 ≥90%、失败 100% 有码、无 300s hang、`grasped=false`、tool 恒关。每轮同步：会话 bag（全量，100G 预算）+ rviz2 窗口录屏视频。
+2. **战役产物集中 `campaign/20260922_dual_tool/`**（README 轮次台账 / bags.md 索引 / analysis/ / scripts/ / videos/）；bag 本体仍走 runs/session_*/bag（observability 自动启停+回收+purge 工具链不变）。
+3. **P0 执行结果**（提交 9e4658a）：--tool-profile 接线+fail-fast 档案比对；GraspDecision 注入按档案 D_inner 复算径向预算；grid 10→20 例（新 expect=deny_decision）；BoundedWorker.dropped 暴露；moveit_campaign.rviz 定版；campaign 三脚本（run_round/run_m1_m5/per_round_summary/stability_metrics/m1_m5_report）。
+4. **A 级候选（P3 输入）**：axial_margin 在当前档案误差常数下结构性为负（blade_capture 0.008 < axial_safety 0.004 + blade_plane/robot/motion 固定误差 0.007 + neck95≥0），真实 refined 链同式同判 → cut capability 恒 INVALID。这是 skip_reconstruction 接触链成为实验室常态的深层原因之一。P3 须裁定：放宽 blade_capture/收缩误差项/或把 cut 从 allowed 派生中摘除（套袋工艺的剪切许可改走操作台确认）。
+5. **域隔离纪律**：本战役栈固定 DDS 域 61；同机并发 agent 会话（曾见 33/46）活动期间 preflight 等位不抢、不动对方活进程。

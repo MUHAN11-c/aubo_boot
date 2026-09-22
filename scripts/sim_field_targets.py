@@ -75,12 +75,78 @@ AABB_PAD_M = 0.05
 # ①层果实胶囊开关/回退，与 peach_arm.yaml mtc_approach_keepout_* 对齐。
 KEEP_R_M = 0.12
 KEEP_AXIAL_M = 0.12
+# 工具体几何默认值；main() 按 --tool-profile 从 aubo_description 档案覆盖
+# （单一事实源，两档案现同尺寸 0.200/0.060，未来分叉不再改这里）。
 TOOL_BODY_LENGTH_M = 0.200
 TOOL_BODY_RADIUS_M = 0.060
 FRUIT_INFLATION_M = 0.01
 FRUIT_RADIUS_FLOOR_M = 0.025
 # sim 注入的感知直径（米）；analytic 在 25–50 mm 采样。
 SIM_BAG_DIAMETER_M = 0.06
+# VerifyPregrasp 过门后假设的残差档（注入 GraspDecision 预算复算输入）：
+# 横向 5mm / 轴角 1.5° 对齐臂侧验证门，颈位 8mm 为 sim 名义值。
+SIM_LATERAL95_M = 0.005
+SIM_AXIS_ERR_DEG = 1.5
+SIM_NECK95_M = 0.008
+TOOL_ARCHIVE_DIR = (
+    Path(__file__).resolve().parents[1] /
+    'src/aubo_description/config')
+
+
+def load_tool_archive(profile_id: str) -> dict:
+    """读 aubo_description/config/<profile_id>.yaml 的几何/误差字段（纯核）."""
+    path = TOOL_ARCHIVE_DIR / f'{profile_id}.yaml'
+    if not path.is_file():
+        raise FileNotFoundError(f'工具档案不存在: {path}')
+    raw = yaml.safe_load(path.read_text()) or {}
+    geo = raw.get('geometry_m') or {}
+    err = raw.get('error_m') or {}
+    if str(raw.get('profile_id')) != profile_id:
+        raise ValueError(f'{path} profile_id 与文件名不一致')
+    return {
+        'd_inner': float(geo['D_inner']),
+        'd_outer': float(geo['D_outer']),
+        'l_insert': float(geo['L_insert']),
+        'wall_clearance': float(geo.get('wall_clearance') or 0.002),
+        'blade_capture_half_width': float(
+            geo.get('blade_capture_half_width') or 0.008),
+        'axial_safety_margin': float(geo.get('axial_safety_margin') or 0.004),
+        'tool_runout95': float(err.get('tool_runout95') or 0.001),
+        'tcp_calibration_error95': float(
+            err.get('tcp_calibration_error95') or 0.002),
+        'hand_eye_error95': float(err.get('hand_eye_error95') or 0.003),
+        'bag_deformation_margin95': float(
+            err.get('bag_deformation_margin95') or 0.002),
+        'blade_plane_calibration_error95': float(
+            err.get('blade_plane_calibration_error95') or 0.002),
+        'robot_axial_error95': float(err.get('robot_axial_error95') or 0.002),
+        'target_motion95': float(err.get('target_motion95') or 0.003),
+    }
+
+
+def decision_budget(archive: dict, d_bag95: float, length_m: float) -> dict:
+    """按档案 D_inner 复算套入/剪切预算（与感知 tool_budget 同一公式）.
+
+    返回 evaluate_sleeve_cut 同构 dict；tool_budget 从已 source 的 overlay
+    惰性导入（脚本运行前提是整栈已在 overlay 上）。
+    注意：当前档案误差常数下 axial_margin 结构性为负（blade_capture 8mm <
+    axial_safety 4mm + 固定误差合计 7mm），真实 refined 链同式同判——sim
+    的 allowed 只执行径向门（sleeve_ok）保持臂链可测；axial 口径问题进
+    P3 分析（A 级候选）。
+    """
+    from peach_harvester.vision.common.tool_budget import (  # noqa: PLC0415
+        ToolBudgetParams,
+        evaluate_sleeve_cut,
+    )
+    params = ToolBudgetParams(d_inner=archive['d_inner'])
+    return evaluate_sleeve_cut(
+        d_bag95=d_bag95,
+        length_m=length_m,
+        center_lateral95=SIM_LATERAL95_M,
+        axis_error_deg=SIM_AXIS_ERR_DEG,
+        neck_position95=SIM_NECK95_M,
+        cut_to_fruit_m=max(0.02, length_m),
+        params=params)
 
 
 def _in_typical_envelope(entry, axis) -> bool:
@@ -452,6 +518,26 @@ def wait_active(timeout_s: float = 120.0) -> None:
     raise RuntimeError(f'{NODE} 未在 {timeout_s}s 内 Active')
 
 
+def ensure_profile_match(expected: str) -> None:
+    """fail-fast：臂侧 tool.profile_id 必须与 --tool-profile 一致.
+
+    臂侧真实几何来自 launch（xacro + 档案注入），脚本注入的 profile 只是
+    标签；错配时 PregraspVerification 会带错档案标签入账，故启动即拒跑。
+    """
+    out = subprocess.run(
+        ['ros2', 'param', 'get', f'/{NODE}', 'tool.profile_id'],
+        capture_output=True, text=True, timeout=20)
+    # `ros2 param get` 输出形如 "Parameter value: hollow_cylinder_v1"
+    actual = out.stdout.strip().rsplit(' ', 1)[-1]
+    if out.returncode != 0 or not actual:
+        raise RuntimeError(
+            f'无法读取 /{NODE} tool.profile_id（栈未起或参数缺失）: {out.stderr.strip()}')
+    if actual != expected:
+        raise RuntimeError(
+            f'工具档案错配: launch 起的是 {actual}，--tool-profile 给了 {expected}；'
+            f'请用 tool_profile:={expected} 重启整栈（档案切换须重启生效）')
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
@@ -497,6 +583,12 @@ def main() -> int:
         for cid, raw in (book.get('cases') or {}).items()}
     catalog = {**legacy, **templates}
     photo_tcp = _photo_tcp(book)
+    # 工具档案单一事实源：工具体几何与 GraspDecision 预算都按 --tool-profile
+    # 从 aubo_description 档案取（--list 也校验，坏档案早失败）。
+    tool_archive = load_tool_archive(args.tool_profile)
+    global TOOL_BODY_LENGTH_M, TOOL_BODY_RADIUS_M
+    TOOL_BODY_LENGTH_M = tool_archive['l_insert']
+    TOOL_BODY_RADIUS_M = tool_archive['d_outer'] / 2.0
     if args.grid:
         cases = load_grid_cases()
         selected = list(cases)
@@ -744,6 +836,12 @@ def main() -> int:
             cid_now = state.get('cid')
         if case is None:
             return
+        # 按档案 D_inner × 注入袋径复算预算：不再无条件放行——超内径的
+        # 注入（如 hollow×0.10 袋）得到 allowed=False，臂侧 Finalize 拒接触。
+        # allowed 只取径向门（见 decision_budget 注释：axial 结构性为负）。
+        d95 = float(case.get('bag_diameter_upper_m') or SIM_BAG_DIAMETER_M)
+        budget = decision_budget(tool_archive, d95,
+                                 float(case.get('travel_m') or 0.06))
         msg = GraspDecision()
         msg.header = header()
         msg.harvest_run_id = f"sim_{case['run']}"
@@ -753,8 +851,19 @@ def main() -> int:
         msg.tool_profile_id = args.tool_profile
         msg.calibration_revision = 'sim-calib-v1'
         msg.config_revision = 'sim-config-v1'
-        msg.allowed = True
-        msg.reason = 'sim_full_budget'
+        msg.allowed = bool(budget['sleeve_ok'])
+        if msg.allowed:
+            msg.reason = 'sim_budget_accept'
+        elif budget['radial_available_m'] <= 0.0:
+            msg.reason = 'sim_budget_deny_tool'
+        else:
+            msg.reason = 'sim_budget_deny_radial'
+        msg.radial_margin_m = float(budget['radial_margin_m'])
+        msg.axial_margin_m = float(budget['axial_margin_m'])
+        msg.diameter_m = d95
+        msg.d95_m = d95
+        msg.travel_m = float(case.get('travel_m') or 0.0)
+        msg.corridor_clear = bool(msg.allowed)
         msg.valid_until = node.get_clock().now().to_msg()
         msg.valid_until.sec += 30  # 模型有效期窗（过期= model_not_executable）
         dec_pub.publish(msg)
@@ -1149,6 +1258,13 @@ def main() -> int:
                 int(res.outcome) == 0
                 and int(res.completion_level) >= 3
                 and not bool(res.harvest.grasped))
+        elif expect == 'deny_decision':
+            # 预算拒绝（如 hollow×0.10 袋）：臂侧在接触授权处拒，不得进套入段
+            # （LEVEL_SLEEVE_COMPLETED=3）；不锁具体 failure_code 整数。
+            out['matched'] = (
+                int(res.outcome) != 0
+                and int(res.completion_level) < 3
+                and not bool(res.harvest.grasped))
         elif expect:
             out['matched'] = False
         if res.recovery_required:
@@ -1158,6 +1274,7 @@ def main() -> int:
         return out
 
     wait_active()
+    ensure_profile_match(args.tool_profile)
     ensure_enabled(node, args.velocity)
     print(f'{NODE} Active；execution/grasp 已开（tool 保持关）'
           f'；mode={args.mode}'

@@ -98,6 +98,11 @@ python3 scripts/sim_field_targets.py --random 30 --seed 20260911 --velocity 1.0
 python3 scripts/sim_field_targets.py --random 100 --seed 20260910 --velocity 1.0
 # 感知算法包络压测（含近水平；seed 与 09-11 对照轮一致）
 python3 scripts/sim_field_targets.py --random 100 --envelope algorithm --seed 20260911 --velocity 1.0
+# 工具档案注入（2026-09-22 起）：--tool-profile 写 GraspDecision/ExecuteTarget 档案标签，
+# 启动时与 /peach_arm tool.profile_id 比对，错配即拒跑；GraspDecision 径向预算按档案
+# D_inner×注入袋径复算（超内径注入得到 allowed=False，网格 expect=deny_decision 验收）。
+# 两档案轴向余量在当前误差常数下结构性为负（blade_capture<固定误差+安全余量），见战役 analysis。
+python3 scripts/sim_field_targets.py --grid --mode full --tool-profile hollow_cylinder_v1 --velocity 1.0
 # 接近失败根因探针：G/预抓取/staging 逐滚转 IK + 直弦 fraction（只读诊断）
 python3 scripts/sim_approach_probe.py --random 100 --seed 20260910
 # 解析覆盖（不执臂）：感知包络 + TCP 测地线 + 果实胶囊；10000 分层位姿约 2 s

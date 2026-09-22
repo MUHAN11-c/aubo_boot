@@ -78,3 +78,78 @@ cases:
     axis: [0.828772, 0.489326, 0.271472]
     travel_m: 0.06
     bag_diameter_upper_m: 0.06
+  bag_d050_succeed:
+    expect: succeed
+    note: 小袋 0.05：径向预算宽松档
+    entry_xyz: [0.30384646154773753, -0.614107279028262, 0.5364744763197402]
+    axis: [0.042490284187384854, 0.13626269543201486, 0.9897611093507753]
+    travel_m: 0.06
+    bag_diameter_upper_m: 0.05
+  bag_d068_succeed:
+    expect: succeed
+    note: 袋 0.068（=lab_oos 同径但可达）：hollow 径向余量 +0.9mm 边缘档
+    entry_xyz: [0.239481, -0.698504, 0.596691]
+    axis: [-0.488274, 0.006125, 0.872669]
+    travel_m: 0.08
+    bag_diameter_upper_m: 0.068
+  bag_d100_denied:
+    expect: deny_decision
+    note: 袋 0.10 超 hollow D_inner 0.104 预算（径向-14.6mm）；须 FULL 模式跑，
+      注入 decision allowed=False 臂侧拒接触（completion<3）
+    entry_xyz: [0.30384646154773753, -0.614107279028262, 0.5364744763197402]
+    axis: [0.042490284187384854, 0.13626269543201486, 0.9897611093507753]
+    travel_m: 0.06
+    bag_diameter_upper_m: 0.10
+  short_bag_030:
+    expect: succeed
+    note: 短袋 bag_length 0.03 / 行程 0.03
+    entry_xyz: [0.30384646154773753, -0.614107279028262, 0.5364744763197402]
+    axis: [0.042490284187384854, 0.13626269543201486, 0.9897611093507753]
+    travel_m: 0.03
+    bag_diameter_upper_m: 0.06
+    bag_length_m: 0.03
+  long_bag_180:
+    expect: succeed
+    note: 长袋 bag_length 0.18 / 行程 0.12（套入终点仍在包络）
+    entry_xyz: [0.30384646154773753, -0.614107279028262, 0.5364744763197402]
+    axis: [0.042490284187384854, 0.13626269543201486, 0.9897611093507753]
+    travel_m: 0.12
+    bag_diameter_upper_m: 0.06
+    bag_length_m: 0.18
+  travel_clamp_024:
+    expect: succeed
+    note: 行程 0.24 超上限：臂侧夹紧 0.20 后仍应走完
+    entry_xyz: [0.30384646154773753, -0.614107279028262, 0.5364744763197402]
+    axis: [0.042490284187384854, 0.13626269543201486, 0.9897611093507753]
+    travel_m: 0.24
+    bag_diameter_upper_m: 0.06
+  occluded_flag_info:
+    expect: succeed
+    note: 信息类 occluded flag 不得挡选（真机遮挡由 confirmed=False 挡，sim 只验 flag 通路）
+    entry_xyz: [0.550477, -0.623546, 0.565096]
+    axis: [0.084859, -0.266797, 0.960009]
+    travel_m: 0.06
+    bag_diameter_upper_m: 0.06
+    flags: [occluded]
+  right_lane_tilt:
+    expect: succeed
+    note: 右巷 20° 斜轴另一簇（与 travel_max 方向不同）
+    entry_xyz: [0.550477, -0.623546, 0.565096]
+    axis: [0.295079, -0.196719, 0.934265]
+    travel_m: 0.06
+    bag_diameter_upper_m: 0.06
+  deep_left_low_axis:
+    expect: succeed
+    note: 深左簇 axis_z≈0.72（typical 下限附近）
+    entry_xyz: [0.247672, -0.769799, 0.589407]
+    axis: [-0.604388, 0.160770, 0.779568]
+    travel_m: 0.06
+    bag_diameter_upper_m: 0.06
+  mid_offset_2d_fallback:
+    expect: succeed
+    note: 中偏簇 + 2D 展程与检测框角点双 flag 并存不得挡
+    entry_xyz: [0.3921227612846128, -0.6051646253961457, 0.5455669524829958]
+    axis: [0.2596991442589875, 0.29188954610546747, 0.9205198787519016]
+    travel_m: 0.06
+    bag_diameter_upper_m: 0.06
+    flags: [length_extended_from_2d, bbox_corner_fallback]

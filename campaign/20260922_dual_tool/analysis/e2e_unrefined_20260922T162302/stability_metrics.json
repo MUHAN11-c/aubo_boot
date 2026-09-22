@@ -1,0 +1,39 @@
+{
+  "request_id": "e2e_unrefined_20260922T162302",
+  "frontend": "percipio",
+  "metrics": {
+    "frames": 2282,
+    "locks": 1,
+    "frame_skipped": 2479,
+    "target_dropped": 1,
+    "skip_reasons": {
+      "缓存帧龄期 2.52 s > max_frame_age_s=2.0（陈帧拒采）": 1,
+      "缺少所选 target_id 的同时间戳掩膜": 2465,
+      "缓存帧龄期 2.29 s > max_frame_age_s=2.0（陈帧拒采）": 1,
+      "缓存帧龄期 2.30 s > max_frame_age_s=2.0（陈帧拒采）": 2,
+      "缓存帧未更新（与上次采帧同帧），请等下一帧": 4,
+      "目标漂移 47.4 mm > 40.0 mm": 2,
+      "目标漂移 69.0 mm > 40.0 mm": 3,
+      "目标漂移 81.0 mm > 40.0 mm": 1
+    },
+    "lock_latency_s": -0.001,
+    "selected_id_switches": 2,
+    "max_frame_gap_s": 1.245,
+    "gaps_over_2s": 0
+  },
+  "gates": {
+    "lock_latency": {
+      "value_s": -0.001,
+      "limit_s": 8.0,
+      "pass": true
+    },
+    "no_id_switch": {
+      "value": 2,
+      "pass": false
+    },
+    "no_gap_over_2s": {
+      "value": 0,
+      "pass": true
+    }
+  }
+}

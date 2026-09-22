@@ -1,0 +1,27 @@
+{
+  "request_id": "e2e_unrefined_20260922T162302",
+  "round_kind": "pregrasp_or_survey",
+  "min_completion": 0,
+  "targets": 1,
+  "succeeded_completion_ge3": 1,
+  "pass_ratio": 1.0,
+  "failure_reasons": [],
+  "over_300s": 0,
+  "locks": 1,
+  "total_elapsed_s": 10.2,
+  "gate_targets_ge3": false,
+  "gate_ratio_ge_090": true,
+  "gate_no_hang": true,
+  "gate_all_failures_coded": true,
+  "outcomes": [
+    {
+      "target_id": "target_1",
+      "outcome": 0,
+      "reason": "PREGRASP_ONLY：停在预抓取，未套入未 SetIO；ACK 后再 Survey",
+      "completion_level": 2,
+      "failure_code": null,
+      "elapsed_s": 10.249,
+      "quality_score": 0.0
+    }
+  ]
+}

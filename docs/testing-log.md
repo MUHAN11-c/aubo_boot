@@ -840,3 +840,12 @@ SIGINT 旧栈后用 16:57 编的 `peach_manipulation` 重起；开批前在 `glo
 
 `runs/` 只留空心网格 `155057`、自适应网格 `161623`、live SURVEY `e2e_survey_20260922T162215`、live PREGRASP `e2e_unrefined_20260922T162302`、stowfix RViz 关键帧。历史 idle/session/harvest 目录、MCAP、被挡住的自适应录像、根目录自行车草稿已删。旧 `reports/`（09-17～09-20）与 `summary_2026-09-14` 归档 `_archive/`。`_archive/runs` 与 `_archive/caches` 清空。结论仍以本文件为准。
 
+
+## 2026-09-22 战役 P0 缺口修复（双末端验证战役准备轮）
+
+- `sim_field_targets.py`：`--tool-profile` 启动时与 `/peach_arm tool.profile_id` fail-fast 比对（档案切换须整栈重启，错配即拒跑）；注入 GraspDecision 按档案 D_inner×袋径复算径向预算（复用 `tool_budget.evaluate_sleeve_cut`，allowed=sleeve_ok），工具体常量从 aubo_description 档案装载。**发现 A 级候选：axial_margin 在当前档案误差常数下结构性为负**（blade_capture 8mm < axial_safety 4mm + blade_plane/robot/motion 固定误差 7mm），真实 refined 链同式同判——这正是 skip_reconstruction 接触链存在的原因之一；sim 决策只执行径向门保臂链可测，轴向口径待 P3 裁定。
+- `perception_constraint_grid.yaml` 10→20 例：袋径 0.05/0.068/0.10（0.10=hollow 预算拒）、短袋 0.03/长袋 0.18、行程 0.24 夹紧、occluded 信息类 flag、右巷斜轴/深左低轴簇；`expect` 新增 `deny_decision`（FULL 模式下注入 allowed=False，臂侧拒接触 completion<3）。test_constraint_grid 同轮扩矩阵覆盖断言。
+- `scene_perception_node`：P0-4 暴露 BoundedWorker.dropped（只在计数增长时 WARN；drop_oldest 下 submit 恒真，此前丢帧完全静默）。
+- rviz：`moveit_campaign.rviz` 战役定版副本（关键 Display 全开核对），防战役期间 GUI 改动污染基础配置。
+- 战役基建：`campaign/20260922_dual_tool/`（README 轮次台账/bags 索引/analysis/scripts/videos）+ 三脚本（run_round.sh 编排、per_round_summary.py 轮次门、stability_metrics.py P1 指标含 bag 回放 3σ）；e2e_unrefined_20260922T162302 实数据离线验证过。
+- 门：r0_gate 绿；peach_harvester/peach_arm colcon test 绿（lint 首轮抓出 docstring 格式 3 处，已清）。

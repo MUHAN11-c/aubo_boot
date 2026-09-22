@@ -1,0 +1,30 @@
+{
+  "request_id": "e2e_survey_20260922T162215",
+  "frontend": "percipio",
+  "metrics": {
+    "frames": 102,
+    "locks": 1,
+    "frame_skipped": 0,
+    "target_dropped": 0,
+    "skip_reasons": {},
+    "lock_latency_s": -0.001,
+    "selected_id_switches": 0,
+    "max_frame_gap_s": 0.609,
+    "gaps_over_2s": 0
+  },
+  "gates": {
+    "lock_latency": {
+      "value_s": -0.001,
+      "limit_s": 8.0,
+      "pass": true
+    },
+    "no_id_switch": {
+      "value": 0,
+      "pass": true
+    },
+    "no_gap_over_2s": {
+      "value": 0,
+      "pass": true
+    }
+  }
+}

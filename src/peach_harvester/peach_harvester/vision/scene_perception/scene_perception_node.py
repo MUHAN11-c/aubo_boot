@@ -195,6 +195,7 @@ class ScenePerceptionNode(LifecycleNode):
 
         self._frame_worker = BoundedWorker(
             self._process_rgbd, capacity=1, drop_oldest=True)
+        self._worker_dropped_reported = 0
         self.sync = message_filters.ApproximateTimeSynchronizer(
             [self._sub_rgb, self._sub_depth, self._sub_info],
             queue_size=10, slop=self.params.sync_slop_s)
@@ -576,6 +577,7 @@ class ScenePerceptionNode(LifecycleNode):
         """Decode RGB-D, run pipeline.process, then publish."""
         rgb_msg, depth_msg, info = frame
         t_total_start = self._clock.now()
+        self._report_worker_drops()
         self.get_logger().debug(
             f'RGB-D sync frame {rgb_msg.width}x{rgb_msg.height}')
         synced = self._decode_rgbd(rgb_msg, depth_msg, info)
@@ -588,6 +590,16 @@ class ScenePerceptionNode(LifecycleNode):
         self._publish_frame(synced, out)
         self.pipeline.timing.record(
             'total_ms', (self._clock.now() - t_total_start) * 1e3)
+
+    def _report_worker_drops(self) -> None:
+        # P0-4：drop_oldest 下 submit 恒真，丢帧只有这里能看见；只在计数
+        # 增长时打 WARN，不做周期刷屏。
+        dropped = self._frame_worker.dropped
+        if dropped != self._worker_dropped_reported:
+            self.get_logger().warning(
+                f'感知 worker 满队丢帧累计 {dropped}（处理跟不上到达率，'
+                '排查热路径耗时或降低到达率）')
+            self._worker_dropped_reported = dropped
 
     def _publish_debug_image(self, pub, image, header) -> None:
         """发布 debug 图（PF-3：按 debug_downscale 缩放，1.0 直通零开销）."""

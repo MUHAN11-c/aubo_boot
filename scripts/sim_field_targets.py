@@ -858,6 +858,15 @@ def main() -> int:
             msg.reason = 'sim_budget_deny_tool'
         else:
             msg.reason = 'sim_budget_deny_radial'
+        # 臂侧 allowed 从 capability 派生（GraspDecision.msg:21），不看
+        # msg.allowed——必须同源填 capability，否则 deny 例臂侧仍放行
+        # （2026-09-23 M1 bag_d100_denied 19/20 失配根因）。0=VALID/1=INVALID。
+        # cut 按 sim 径向门口径置 VALID（axial 结构性负是 A 级候选，P3
+        # 裁定后改真预算）。
+        msg.geometry_capability = 0
+        msg.pregrasp_capability = 0
+        msg.sleeve_capability = 0 if budget['sleeve_ok'] else 1
+        msg.cut_capability = 0
         msg.radial_margin_m = float(budget['radial_margin_m'])
         msg.axial_margin_m = float(budget['axial_margin_m'])
         msg.diameter_m = d95

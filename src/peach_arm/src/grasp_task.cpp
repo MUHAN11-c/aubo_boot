@@ -498,7 +498,7 @@ void GraspTask::appendApproachToPregrasp(
     appendLinToPose(sequence, pregrasp, "lin to on-axis pregrasp", true);
     return;
   }
-  // STAGING 档主路径走 tryStagingTransit（果平面折线 LIN，失败才 PTP）。
+  // STAGING 档主路径走 tryStagingTransit（v4：PTP+垂直入冠+沿轴）。
 }
 
 void GraspTask::appendAlongAxisMove(
@@ -715,27 +715,35 @@ bool GraspTask::tryStagingTransit(
     return false;
   }
   const Eigen::Vector3d axis = insertion_axis.normalized();
-  const Eigen::Isometry3d pregrasp = pregraspAlongAxis(
-    entry_tip_pose, axis, config_.approach_along_axis_m);
-  Eigen::Isometry3d mid = pregrasp;
-  mid.translation() -= axis * config_.approach_final_axial_m;
-  Eigen::Isometry3d staging = mid;
-  staging.translation() -= Eigen::Vector3d::UnitZ() *
-    config_.approach_canopy_entry_m;
-  staging.linear() = alignFrameZ(split.current_tip->linear(), axis);
-  mid.linear() = staging.linear();
-  const auto joints = config_.staging_ik(staging);
-  if (!joints) {
+  // 梯子先在 roll-0 几何上试 IK；命中滚转后用 stagingWaypoints 重建三
+  // 路点姿态（PTP 落点与两段 LIN 目标同滚转族，20° 门可过，审查 P1-2）。
+  const Eigen::Isometry3d probe_pose = [&] {
+      Eigen::Isometry3d p = pregraspAlongAxis(
+        entry_tip_pose, axis, config_.approach_along_axis_m);
+      p.translation() -= axis * config_.approach_final_axial_m;
+      p.translation() -= Eigen::Vector3d::UnitZ() *
+        config_.approach_canopy_entry_m;
+      p.linear() = alignFrameZ(split.current_tip->linear(), axis);
+      return p;
+    }();
+  const auto ik = config_.staging_ik(probe_pose);
+  if (!ik) {
     last.reason = "入冠落点滚转梯子 IK 无解";
     return false;
   }
+  const auto [joints, roll] = *ik;
+  const auto w = stagingWaypoints(
+    entry_tip_pose, axis, split.current_tip->linear(), roll,
+    config_.approach_along_axis_m, config_.approach_final_axial_m,
+    config_.approach_canopy_entry_m);
   RCLCPP_INFO(
     node_->get_logger(),
-    "PTP 接近（主路径）：关节空间到中段点正下方 + 垂直入冠 %.3fm + 沿轴 %.3fm",
-    config_.approach_canopy_entry_m, config_.approach_final_axial_m);
+    "PTP 接近（主路径）：关节空间到中段点正下方 + 垂直入冠 %.3fm + 沿轴 %.3fm（滚转 %.0f°）",
+    config_.approach_canopy_entry_m, config_.approach_final_axial_m,
+    roll * 180.0 / static_cast<double>(EIGEN_PI));
   auto result = planAndMaybeExecute(
     makeStagingTransitTask(
-      task_name + "_staging", pregrasp, mid, staging, *joints),
+      task_name + "_staging", w.pregrasp, w.mid, w.staging, joints),
     execute, config_.approach_execution_gate, true, 0U, true);
   if (result.success || result.execution_started) {
     last = result;
@@ -829,24 +837,26 @@ GraspTaskResult GraspTask::previewFullContact(
         return out;
       }
       const Eigen::Vector3d axis = insertion_axis.normalized();
-      const Eigen::Isometry3d pregrasp = pregraspAlongAxis(
+      Eigen::Isometry3d probe_pose = pregraspAlongAxis(
         entry_tip_pose, axis, config_.approach_along_axis_m);
-      Eigen::Isometry3d mid = pregrasp;
-      mid.translation() -= axis * config_.approach_final_axial_m;
-      Eigen::Isometry3d staging = mid;
-      staging.translation() -= Eigen::Vector3d::UnitZ() *
+      probe_pose.translation() -= axis * config_.approach_final_axial_m;
+      probe_pose.translation() -= Eigen::Vector3d::UnitZ() *
         config_.approach_canopy_entry_m;
-      staging.linear() = alignFrameZ(split.current_tip->linear(), axis);
-      mid.linear() = staging.linear();
-      const auto joints = config_.staging_ik(staging);
-      if (!joints) {
+      probe_pose.linear() = alignFrameZ(split.current_tip->linear(), axis);
+      const auto ik = config_.staging_ik(probe_pose);
+      if (!ik) {
         inspect_fruit_ = false;
         GraspTaskResult out;
         out.reason = "预览：入冠落点滚转梯子 IK 无解";
         return out;
       }
+      const auto [joints, roll] = *ik;
+      const auto w = stagingWaypoints(
+        entry_tip_pose, axis, split.current_tip->linear(), roll,
+        config_.approach_along_axis_m, config_.approach_final_axial_m,
+        config_.approach_canopy_entry_m);
       contact->add(makeStagingSequence(
-        pregrasp, mid, staging, *joints, "staging transit to pregrasp"));
+        w.pregrasp, w.mid, w.staging, joints, "staging transit to pregrasp"));
     } else {
       appendApproachToPregrasp(*contact, entry_tip_pose, insertion_axis, split);
     }

@@ -447,6 +447,3 @@ TEST(GraspGeometry, HarvestStowNamedHopsViaPhotoThenStow)
   ASSERT_EQ(empty_stow.size(), 1U);
   EXPECT_EQ(empty_stow.front(), "global_photo_pose");
 }
-
-// 拍照位在果侧向、轴上方且已对轴：面内一跳斜插到轴上 staging（同时收侧向
-// 与轴向，不走落下+横收矩形），再沿轴升到预抓取。路点不许离开平面。

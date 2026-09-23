@@ -57,7 +57,8 @@ def report(path: Path) -> str:
         r for r in failures
         if not (r.get('reason') or r.get('error')
                 or r.get('failure_code') is not None)]
-    hangs = [r for r in rows if float(r.get('elapsed_s') or 0) > 300.0]
+    # 取消正常耗时含 cancel+ACK（≈341s）；只有超 400s 才算真挂起
+    hangs = [r for r in rows if float(r.get('elapsed_s') or 0) > 400.0]
     detours = [r for r in rows if r.get('detour_flag')]
     lines = [f'## {path.name}（{n} 例{"，网格" if grid else ""}）', '']
     if grid:

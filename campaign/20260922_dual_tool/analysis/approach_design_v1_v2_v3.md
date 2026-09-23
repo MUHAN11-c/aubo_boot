@@ -34,3 +34,12 @@
 - 构造：PTP 落点改到**中段点正下方**（世界垂直线上、树冠外）→ 世界垂直 LIN 上行入冠（伸进果树里，`approach_canopy_entry_m` 0.05）到中段点 → 沿轴 LIN 对轴进入预抓取（`approach_final_axial_m` 0.05）。斜袋时垂直入冠与袋轴解耦：进冠永远铅垂，末段才顺袋轴。
 - 解析对照：三路点 57/80=71.3%（v3 两路点 56/80=70%）——入冠段对可达性几乎零代价（垂直下方点比轴上点还略易达）；语义收益（进冠方向恒定、枝叶阻力/挂钩最小）。
 - 参数替换：`approach_staging_standoff_m` 删除，新增 `approach_final_axial_m`/`approach_canopy_entry_m`（GPL+部署 yaml 同轮）。
+
+
+## v4 审查轮修复合集（2026-09-23 代码审查后）
+
+- **P1-2 滚转梯子与 LIN 姿态门矛盾（已修）**：staging_ik 改返回 {关节解, 命中滚转}；三路点经 `stagingWaypoints` 纯函数用**同一命中滚转**构造——PTP 落点与两段 LIN 目标同姿态族，±30°/±60° 档不再是死代码。
+- **P1-1/P1-3**：`getCurrentState()` 三处判空（断流即空返，不再 SIGSEGV）；boundedExecute 改 CAS 抢执行权（MoveTo 与周期动作不共享 running_ 的首次并发也拦）。
+- **P1-4 oracle**：replay_oracle 改 v4 三路点公式；analytic_constraints/sim_approach_probe 标注历史 v1 口径。
+- **P2-3 未设防风险（真机 KEEP 必读）**：staging = mid − ẑ·0.05 无条件下沉——近水平袋时落点/PTP 弧比接近线低 5 cm，若袋下方有枝干/桌面，垂直 LIN 段可能进入该区域；且工具链 × `<octomap>` 整图豁免默认开启（acm_policy），工具对枝干点云不做碰撞检查，果实胶囊审查只保果实。**真机验收前须人工确认袋下方 5 cm 无硬障碍，或给 staging 加工作空间下界检查**（下轮 P3 候选）。
+- **P2-2 已补**：`test_staging_waypoints`（垂直/斜袋解耦/滚转姿态/退化四例）。

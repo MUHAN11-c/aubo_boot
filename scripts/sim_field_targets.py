@@ -1205,11 +1205,13 @@ def main() -> int:
                 if (canceled is not None and
                         getattr(canceled.result, 'recovery_required', False)):
                     ack_cli.wait_for_service(timeout_sec=5.0)
-                    spin_until(ack_cli.call_async(Trigger.Request()), 10.0)
+                    ack = spin_until(ack_cli.call_async(Trigger.Request()), 10.0)
+                    ack_ok = bool(ack is not None and ack.result.success)
+                    print(f'  [取消后 ACK] success={ack_ok}', flush=True)
             except Exception:  # noqa: BLE001
                 pass
             return {'case': cid, 'error': 'goal 超时（已取消）',
-                    'elapsed_s': elapsed}
+                    'elapsed_s': elapsed, 'timeout_canceled': True}
         res = result.result
         segments = measure_tcp_segments(samples) if samples else []
 
@@ -1300,13 +1302,6 @@ def main() -> int:
             out['matched'] = (
                 int(res.outcome) == 0
                 and int(res.completion_level) >= 3
-                and not bool(res.harvest.grasped))
-        elif expect == 'deny_decision':
-            # 预算拒绝（如 hollow×0.10 袋）：臂侧在接触授权处拒，不得进套入段
-            # （LEVEL_SLEEVE_COMPLETED=3）；不锁具体 failure_code 整数。
-            out['matched'] = (
-                int(res.outcome) != 0
-                and int(res.completion_level) < 3
                 and not bool(res.harvest.grasped))
         elif expect:
             out['matched'] = False

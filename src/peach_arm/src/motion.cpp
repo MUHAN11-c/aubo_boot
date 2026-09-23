@@ -378,7 +378,15 @@ void ManipulationSkillsNode::onCheckReachability(
     }
     return;
   }
-  moveit::core::RobotState seed = *move_group_->getCurrentState();
+  const auto current_state = move_group_->getCurrentState();
+  if (!current_state) {
+    // 状态监视器断流时 getCurrentState 为空（审查 P1-1 同源存量）
+    for (auto & code : response->error_codes) {
+      code = "robot_state_unavailable";
+    }
+    return;
+  }
+  moveit::core::RobotState seed = *current_state;
   Eigen::Isometry3d current_tip = Eigen::Isometry3d::Identity();
   bool have_current_tip = false;
   if (robot_model->hasLinkModel(params_.frames.tip)) {
@@ -410,7 +418,7 @@ void ManipulationSkillsNode::onCheckReachability(
         target, current_tip.linear(), params_.moveit.mtc_approach_along_axis_m);
     }
     // 快速可行性 IK：当前种子 + 单次有界超时——单源常量在
-    // motion.hpp（kQuickIkProbeTimeoutS；原 staging 扫描同源常数
+    // motion.hpp（kQuickIkProbeTimeoutS；快速预检专用
     // 深搜档 kStagingIkSolveTimeoutS 区分，选果整链须早退）。
     const auto try_ik =
       [&](const Eigen::Isometry3d & pose, moveit::core::RobotState * out) {
@@ -583,14 +591,21 @@ moveit::core::MoveItErrorCode MoveItMotionInterface::boundedExecute(
   if (retiring_->size() > 0) {
     // 单飞不变量：MGI::execute 非线程安全，滞留 worker 仍占着 execute
     // 调用时并发再入会竞态（2026-09-23 M1r peach_arm SIGSEGV 根因）。
-    // 拒新 execute 按失败收口，直至滞留清零（通常须重启 move_group）。
     RCLCPP_WARN_THROTTLE(
       logger_, *clock_, 10000,
       "上一执行仍滞留 MGI（%zu 个），拒绝并发 execute（防竞态）",
       retiring_->size());
     return moveit::core::MoveItErrorCode::FAILURE;
   }
-  executing_.fetch_add(1);
+  // CAS 抢执行权：MoveTo 与周期动作不共享 running_，首个并发也要拦
+  // （审查 P1-3：MoveTo worker 不置 running_，可与其后受理的周期并发）。
+  int expected = 0;
+  if (!executing_.compare_exchange_strong(expected, 1)) {
+    RCLCPP_WARN_THROTTLE(
+      logger_, *clock_, 10000,
+      "另一执行在途（executing=%d），拒绝并发 execute", expected);
+    return moveit::core::MoveItErrorCode::FAILURE;
+  }
   struct Guard
   {
     std::atomic_int & counter;
@@ -922,7 +937,12 @@ bool MoveItMotionInterface::atNamedTarget(
     message = "photo_pose_mismatch: unknown_planning_group";
     return false;
   }
-  const moveit::core::RobotState current = *move_group_->getCurrentState();
+  const auto current_ptr = move_group_->getCurrentState();
+  if (!current_ptr) {
+    message = "photo_pose_mismatch: 当前关节态不可用（状态监视器断流）";
+    return false;
+  }
+  const moveit::core::RobotState current = *current_ptr;
   moveit::core::RobotState named = current;
   if (!named.setToDefaultValues(group, named_target)) {
     message = "photo_pose_mismatch: SRDF 中不存在命名状态: " + named_target;

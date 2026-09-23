@@ -39,8 +39,9 @@ FRUIT_RADIUS_FLOOR_M = 0.025
 SIM_BAG_DIAMETER_M = 0.06
 
 # --- 常量（sim_approach_probe.py 原值） ---
-STANDOFF_M = 0.03            # grasp_standoffs.yaml pregrasp_standoff_m
-STAGING_GAP_M = 0.10         # approach_staging_standoff_m
+STANDOFF_M = 0.03            # grasp_standoffs.yaml pregrasp_standoff_m（deploy 注入 0.0）
+FINAL_AXIAL_M = 0.05         # v4 approach_final_axial_m（审查 P1-4 更新）
+CANOPY_ENTRY_M = 0.05        # v4 approach_canopy_entry_m（世界垂直入冠段）
 
 # --- 常量（analyze_approach_envelope.py 原值） ---
 ROLLS_DEG = (0, 30, -30, 60, -60)
@@ -543,8 +544,9 @@ def evaluate(case, photo_xyz, photo_rot, photo_quat):
     axis = _norm(case['axis'])
     aligned = _align_z(photo_rot, axis)
     pregrasp = [entry[i] - STANDOFF_M * axis[i] for i in range(3)]
-    staging = [
-        entry[i] - (STANDOFF_M + STAGING_GAP_M) * axis[i] for i in range(3)]
+    # v4：mid=pregrasp−axis·final_axial；staging=mid−ẑ·canopy（世界垂直）
+    mid = [pregrasp[i] - FINAL_AXIAL_M * axis[i] for i in range(3)]
+    staging = [mid[0], mid[1], mid[2] - CANOPY_ENTRY_M]
     chord_entry = _dist(entry, photo_xyz)
     chord_pre = _dist(pregrasp, photo_xyz)
     chord_stg = _dist(staging, photo_xyz)

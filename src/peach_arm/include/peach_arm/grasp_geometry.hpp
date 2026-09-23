@@ -5,7 +5,6 @@
 #ifndef PEACH_MANIPULATION__GRASP_GEOMETRY_HPP_
 #define PEACH_MANIPULATION__GRASP_GEOMETRY_HPP_
 
-#include "peach_arm/math_utils.hpp"
 
 #include <Eigen/Geometry>
 
@@ -70,6 +69,41 @@ inline Eigen::Isometry3d pregraspAlongAxis(
   const double retreat = standoff_m > 0.0 ? standoff_m : 0.0;
   pose.translation() -= axis.normalized() * retreat;
   return pose;
+}
+
+/// v4 接近三路点（零 ROS，2026-09-23 定型）：pregrasp=entry−axis·along_m；
+/// mid=pregrasp−axis·final_axial_m（末段对轴起点）；staging=mid−ẑ·canopy_m
+/// （世界垂直线上、树冠外，PTP 落点）。三路点姿态统一
+/// alignFrameZRolled(current_R, axis, roll)——与 staging_ik 滚转梯子命中的
+/// roll 一致，PTP 落点与两段 LIN 目标同姿态族（20° 门可过，审查 P1-2）。
+struct StagingWaypoints
+{
+  Eigen::Isometry3d pregrasp{Eigen::Isometry3d::Identity()};
+  Eigen::Isometry3d mid{Eigen::Isometry3d::Identity()};
+  Eigen::Isometry3d staging{Eigen::Isometry3d::Identity()};
+};
+
+inline StagingWaypoints stagingWaypoints(
+  const Eigen::Isometry3d & entry, const Eigen::Vector3d & axis,
+  const Eigen::Matrix3d & current_R, double roll_rad,
+  double along_m, double final_axial_m, double canopy_m)
+{
+  const Eigen::Vector3d u =
+    (axis.allFinite() && axis.norm() > 1.0e-9) ? axis.normalized() :
+    Eigen::Vector3d::UnitZ();
+  const Eigen::Matrix3d R = alignFrameZRolled(current_R, u, roll_rad);
+  StagingWaypoints w;
+  w.pregrasp = entry;
+  w.pregrasp.translation() -= u * (along_m > 0.0 ? along_m : 0.0);
+  w.pregrasp.linear() = R;
+  w.mid = w.pregrasp;
+  w.mid.translation() -= u * (final_axial_m > 0.0 ? final_axial_m : 0.0);
+  w.mid.linear() = R;
+  w.staging = w.mid;
+  w.staging.translation() -= Eigen::Vector3d::UnitZ() *
+    (canopy_m > 0.0 ? canopy_m : 0.0);
+  w.staging.linear() = R;
+  return w;
 }
 
 inline constexpr char kHollowCylinderProfileId[] = "hollow_cylinder_v1";

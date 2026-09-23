@@ -27,7 +27,6 @@
 #include <vector>
 #include <moveit/move_group_interface/move_group_interface.hpp>
 #include <tf2/time.h>
-#include <moveit/robot_state/cartesian_interpolator.hpp>
 #include <moveit/collision_detection/collision_matrix.hpp>
 #include <moveit/collision_detection_fcl/collision_env_fcl.hpp>
 #include "peach_arm/eigen_conversions.hpp"
@@ -455,12 +454,16 @@ void ManipulationSkillsNode::rebuildGraspTask()
   // 提成功率（keep-roll 单发实测偏低后用户放开）。自碰交给 MoveIt PTP
   // 规划器在规划场景内校验。
   task_config.staging_ik = [this](const Eigen::Isometry3d & staging_pose)
-    -> std::optional<std::map<std::string, double>>
+    -> std::optional<std::pair<std::map<std::string, double>, double>>
     {
       if (!move_group_) {
         return std::nullopt;
       }
       const auto base = move_group_->getCurrentState();
+      if (!base) {
+        // 状态监视器断流/启动早期 getCurrentState 可为空（审查 P1-1）
+        return std::nullopt;
+      }
       const auto * group =
         base->getJointModelGroup(params_.moveit.planning_group);
       if (group == nullptr) {
@@ -473,10 +476,12 @@ void ManipulationSkillsNode::rebuildGraspTask()
       // 每滚转：当前种子 1 次 + 随机重启 ≤3 次（KDL 单种子会陷局部盆；
       // v1 候选链 86% 与 /compute_ik 单种子下界 63% 的差距即在此）。
       constexpr int kRandomRestarts = 3;
+      int attempts = 0;
       for (const double roll : toolRollsRad()) {
         Eigen::Isometry3d rolled = staging_pose;
         rolled.linear() = alignFrameZRolled(current_R, axis, roll);
         for (int attempt = 0; attempt <= kRandomRestarts; ++attempt) {
+          ++attempts;
           moveit::core::RobotState probe = *base;
           if (attempt > 0) {
             probe.setToRandomPositions(group);
@@ -496,9 +501,17 @@ void ManipulationSkillsNode::rebuildGraspTask()
           for (std::size_t i = 0; i < names.size(); ++i) {
             joints[names[i]] = values[i];
           }
-          return joints;
+          // 命中滚转/尝试数落日志（审查 P2-6：随机重启不可复现，田间
+          // 复盘须知道命中档位）。
+          RCLCPP_INFO(
+            get_logger(),
+            "staging IK 命中：滚转 %.0f°（第 %d 次尝试）",
+            roll * 180.0 / static_cast<double>(EIGEN_PI), attempts);
+          return std::make_pair(joints, roll);
         }
       }
+      RCLCPP_INFO(
+        get_logger(), "staging IK 梯子全灭（%d 次尝试）", attempts);
       return std::nullopt;
     };
   task_config.protected_zones = protected_zones_;

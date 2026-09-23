@@ -152,9 +152,11 @@ struct GraspTaskConfig
   double tool_body_length_m{0.200};  ///< 工具筒体长 [m]（①层审查，tcp.xacro 对齐）。
   double tool_body_radius_m{0.060};  ///< 工具筒体半径 [m]。
   std::function<std::optional<Eigen::Isometry3d>()> lookup_current_tip;  ///< 查当前 TCP。
-  /// staging 单次 IK（keep-roll 位姿 → 关节解；当前种子，出界/无解返回空。
-  /// 自碰由 MoveIt PTP 规划器在规划场景内校验，不再扫滚转）。
-  std::function<std::optional<std::map<std::string, double>>(
+  /// staging 滚转梯子 IK（位姿 → {关节解, 命中滚转 rad}；keep-roll 优先、
+  /// ±30°/±60° 兜到首个有解，每档当前种子+随机重启≤3；无解返回空。
+  /// 调用方用命中滚转构造三路点（stagingWaypoints），保证 PTP 落点与
+  /// LIN 目标同姿态族。自碰由 MoveIt PTP 规划器在规划场景内校验。
+  std::function<std::optional<std::pair<std::map<std::string, double>, double>>(
       const Eigen::Isometry3d & staging_pose)> staging_ik;
   std::vector<ProtectedZone> protected_zones;  // base 系 AABB → planning scene
   std::function<bool(std::string &)> approach_execution_gate;  // 下发接近轨迹前

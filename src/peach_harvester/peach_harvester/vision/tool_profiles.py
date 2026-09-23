@@ -132,3 +132,10 @@ def tool_profile_id_params(profile_id):
     from launch_ros.parameter_descriptions import ParameterValue
     value = _tool_profile_value_cls()(profile_id, 'profile_id')
     return {'tool.profile_id': ParameterValue(value, value_type=str)}
+
+
+def tool_profile_d_inner_params(profile_id):
+    """内径注入（peach_arm unrefined 袋径门，批次4）：按档案 D_inner 求值."""
+    from launch_ros.parameter_descriptions import ParameterValue
+    value = _tool_profile_value_cls()(profile_id, 'd_inner')
+    return {'tool.d_inner_m': ParameterValue(value, value_type=float)}

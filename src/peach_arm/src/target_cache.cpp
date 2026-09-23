@@ -493,6 +493,16 @@ bool TargetCache::promoteUnrefinedGeometry(const std::string & target_id)
     refined_ = CachedRefined();
     return false;
   }
+  // 批次4（A-P3-2 收口）：unrefined 自授权链的轻量径向门——袋径超过
+  // 工具内径即拒绝自授权（skip_reconstruction 批无 GraspDecision 预算，
+  // 这是该链唯一的臂侧径向防线；refined 链走能力三态不吃此门）。
+  if (tool_d_inner_m_ > 0.0 && refined_.bag_diameter_upper_m > 0.0 &&
+    refined_.bag_diameter_upper_m > tool_d_inner_m_)
+  {
+    refined_ = CachedRefined();
+    // 拒因由调用方日志补齐（纯核无 logger）：袋径超工具内径
+    return false;
+  }
   quality_.selected_target_id = target_id;
   quality_.refined_target_id = target_id;
   quality_.refined_accept = true;

@@ -903,3 +903,10 @@ SIGINT 旧栈后用 16:57 编的 `peach_manipulation` 重起；开批前在 `glo
 - **保守收口（L89）**：stageVerifyCut 有界等沿 2.0s（`tool.feedback_timeout_s` GPL），超时 CUT_UNCONFIRMED——不撤退/不重发/不 resume，FAILED 待人工；确认后 CK_CUT_CONFIRMED+LEVEL_CUT_CONFIRMED 可达（此前结构性不可达）。
 - **G3 最小闭环**：stageReleasePayload 在 harvest_stow 后开刀释放（commandToolOpen，TOOL 级授权同 close）；载荷真证据（光电/力）M0 后接，现 PAYLOAD_UNKNOWN 诚实态。
 - tool_actuator.cpp 移入 _core 纯核库；6 例 gtest（沿确认/卡高/开沿三轴/双门幂等/复位归 UNKNOWN/双证据）。
+
+### 09-23 续九：重构批次4（分级许可 P0-2 + A-P3-2 闭环）
+
+- **分级档位门**：authorizeStage 令牌路径 CONTACT 看 radial_margin>0、TOOL 看 axial_margin>0+pregrasp_verified；快照路径 refined 按 sleeve/cut 能力三态分档（unrefined 交袋径门）。单条 allowed 降汇总位（msg 注释同轮）。
+- **unrefined 袋径门**：promoteUnrefinedGeometry 拒绝袋径>工具内径的自授权（d_inner 档案 launch 注入：hollow 0.104/adaptive 0.116，`tool_profile_d_inner_params` 单源）——A-P3-2（unrefined 链全旁路预算）闭环。
+- **假门清理**：domain/budget ready_ok 恒 True → d95 证据派生。
+- **e2e 证据**：网格 18/20 保持；deny 例臂侧真实拦截（`快照套入能力非 VALID`→FAILED@CONTACT、completion=2 未进套入）；tool 开启负路径 SetIO 失败→TOOL_STATE_UNKNOWN（stages 无 retreat/stow，grasped=false，保持待人工）。DI 超时路径（CUT_UNCONFIRMED）因 mock set_io 拒收不可达，单测层覆盖。

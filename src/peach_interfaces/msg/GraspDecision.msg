@@ -18,7 +18,7 @@ uint8 geometry_capability
 uint8 pregrasp_capability
 uint8 sleeve_capability
 uint8 cut_capability
-bool allowed              # 只由 geometry∧sleeve∧cut VALID 派生；pregrasp 不进 allowed（不拦预抓取）；禁止第二条授权路径
+bool allowed              # 汇总位=geometry∧sleeve∧cut（历史语义）。批次4 起臂侧分档：CONTACT 看 sleeve/radial_margin，TOOL 看 cut/axial_margin+预备位残差；allowed 只作汇总展示与调度过滤，不再单条放行剪切
 string reason             # 许可/拒绝原因（稳定短语，不是自由散文）
 uint32 failure_code       # FailureCode.*；0=NONE 无失败
 

@@ -613,6 +613,13 @@ peach_arm:
       description: "工具筒体长 [m]（①层果实胶囊审查；与 tcp.xacro tool_body_link 对齐，改几何须同步）"
       validation:
         gt<>: [0.0]
+    d_inner_m:
+      type: double
+      default_value: 0.104
+      description: "工具内径 [m]（unrefined 链袋径门，批次4）；整栈由 tool_profile 档案注入（adaptive 0.116）"
+      validation:
+        gt<>: [0.0]
+        lt<>: [0.5]
     feedback_timeout_s:
       type: double
       default_value: 2.0

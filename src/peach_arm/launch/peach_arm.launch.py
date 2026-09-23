@@ -14,7 +14,10 @@ from lifecycle_msgs.msg import Transition
 from moveit_configs_utils import MoveItConfigsBuilder
 
 from peach_harvester.vision.grasp_standoffs import manipulation_overlay
-from peach_harvester.vision.tool_profiles import tool_profile_id_params
+from peach_harvester.vision.tool_profiles import (
+    tool_profile_d_inner_params,
+    tool_profile_id_params,
+)
 
 
 def _skills_moveit_params(tool_profile: str):
@@ -72,6 +75,7 @@ def launch_setup(context):
             ParameterFile(params_file, allow_substs=True),
             manipulation_overlay(),
             tool_profile_id_params(LaunchConfiguration('tool_profile')),
+            tool_profile_d_inner_params(LaunchConfiguration('tool_profile')),
             *_skills_moveit_params(tool_profile),
             {'execution.require_robot_status': require_robot_status},
             {'quality.allow_unrefined_geometry': allow_unrefined_geometry},

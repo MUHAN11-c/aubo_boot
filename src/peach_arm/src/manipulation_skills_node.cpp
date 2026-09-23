@@ -475,6 +475,9 @@ void ManipulationSkillsNode::rebuildGraspTask()
   // 梯子兜到首个有解。Z 滚转对回转对称筒刀是功能冗余，但换 IK 解多样性
   // 提成功率（keep-roll 单发实测偏低后用户放开）。自碰交给 MoveIt PTP
   // 规划器在规划场景内校验。
+  // 批次4：unrefined 链袋径门（档案内径注入；0=门关）
+  cache_.setToolInnerDiameter(params_.tool.d_inner_m);
+
   task_config.staging_ik = [this](const Eigen::Isometry3d & staging_pose)
     -> std::optional<std::pair<std::map<std::string, double>, double>>
     {

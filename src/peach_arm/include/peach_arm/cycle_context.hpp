@@ -184,6 +184,8 @@ struct CycleContext
   rclcpp::Time clearance_valid_until{0, 0, RCL_ROS_TIME};  ///< 过期后不得执行。
   rclcpp::Time clearance_model_stamp{0, 0, RCL_ROS_TIME};  ///< 模型新鲜度戳。
   double clearance_fresh_window_s{0.0};  ///< >0 时启用 stamp 新鲜度复检 [s]。
+  double clearance_radial_margin_m{0.0};  ///< 令牌径向余量（批次4：CONTACT 档位门）。
+  double clearance_axial_margin_m{0.0};  ///< 令牌轴向余量（批次4：TOOL 档位门）。
   std::optional<CachedTarget> target;    ///< 感知初始几何快照。
   std::optional<CachedRefined> refined;  ///< 重建精化几何快照。
   std::vector<ViewCandidate> candidates; ///< 本周期观察视点队列。

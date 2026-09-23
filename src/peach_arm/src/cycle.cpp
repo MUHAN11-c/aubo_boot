@@ -122,9 +122,30 @@ bool ManipulationSkillsNode::authorizeStage(
     }
     // 令牌只覆盖 allowed/绑定/有效期；档位门仍在（stages.cpp 另有兜底，
     // 此处前置保持授权矩阵单点）。
-    if (stage == MotionStage::TOOL && !tool_enabled_.load()) {
-      why = "tool.enabled=false";
+    // 批次4 分级许可（P0-2）：CONTACT 套入看径向余量，TOOL 剪切看轴向
+    // 余量 + 预抓取残差——单条 allowed 拆两道档位门，负余量目标在对应
+    // 阶段精确拒绝（此前负径向也在 TOOL 才暴露/负轴向挡住套入）。
+    if (stage == MotionStage::CONTACT &&
+      !(ctx.clearance_radial_margin_m > 0.0))
+    {
+      why = "套入径向余量非正（token radial_margin=" +
+        std::to_string(ctx.clearance_radial_margin_m) + "）";
       return false;
+    }
+    if (stage == MotionStage::TOOL) {
+      if (!(ctx.clearance_axial_margin_m > 0.0)) {
+        why = "剪切轴向余量非正（token axial_margin=" +
+          std::to_string(ctx.clearance_axial_margin_m) + "）";
+        return false;
+      }
+      if (!ctx.pregrasp_verified) {
+        why = "预备位残差未过门不得开刀（pregrasp_verified=false）";
+        return false;
+      }
+      if (!tool_enabled_.load()) {
+        why = "tool.enabled=false";
+        return false;
+      }
     }
     denial = StageDenial::ALLOWED;
     return true;
@@ -135,9 +156,31 @@ bool ManipulationSkillsNode::authorizeStage(
     why = "GraspDecision 复检未通过（allowed=false 或目标不符）";
     return false;
   }
-  if (stage == MotionStage::TOOL && !tool_enabled_.load()) {
-    why = "tool.enabled=false";
+  // 批次4 分级许可（快照路径）：refined 链按能力三态分档（sleeve/cut）；
+  // unrefined 自授权链（skip_reconstruction）无能力三态，径向由
+  // markUnrefinedHold 的袋径×D_inner 门兜（target_cache 批次4 同轮）。
+  const auto snapshot = cache_.modelSnapshot();
+  const bool refined_caps =
+    identityComplete(snapshot.identity) && snapshot.valid_until_s > 0.0;
+  if (stage == MotionStage::CONTACT && refined_caps &&
+    snapshot.sleeve != Capability::Valid)
+  {
+    why = "快照套入能力非 VALID（sleeve capability）";
     return false;
+  }
+  if (stage == MotionStage::TOOL) {
+    if (refined_caps && snapshot.cut != Capability::Valid) {
+      why = "快照剪切能力非 VALID（cut capability）";
+      return false;
+    }
+    if (!ctx.pregrasp_verified) {
+      why = "预备位残差未过门不得开刀（pregrasp_verified=false）";
+      return false;
+    }
+    if (!tool_enabled_.load()) {
+      why = "tool.enabled=false";
+      return false;
+    }
   }
   denial = StageDenial::ALLOWED;
   return true;
@@ -321,6 +364,8 @@ void ManipulationSkillsNode::executeAction(
         ctx->clearance_valid_until = rclcpp::Time(goal->clearance.valid_until);
         ctx->clearance_model_stamp = rclcpp::Time(goal->clearance.model_stamp);
         ctx->clearance_fresh_window_s = effectiveTargetMaxAgeS();
+        ctx->clearance_radial_margin_m = goal->clearance.radial_margin_m;
+        ctx->clearance_axial_margin_m = goal->clearance.axial_margin_m;
       }
       last_checkpoint_.store(0);
       cycle_ = ctx;

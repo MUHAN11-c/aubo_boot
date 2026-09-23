@@ -1095,20 +1095,10 @@ def main() -> int:
                 'reason': ','.join(case.get('flags') or []),
             }
         if expect == 'deny_decision':
-            # 决策层拒绝校验（不发 ExecuteTarget）：unrefined 接触链
-            # （skip_reconstruction，b121972）在臂侧不查 GraspDecision
-            # （target_cache.cpp markUnrefinedHold 无条件自授权），预算门
-            # 只存在于决策发布层——此处断言注入决策确为拒绝。
-            d95 = float(case.get('bag_diameter_upper_m') or SIM_BAG_DIAMETER_M)
-            budget = decision_budget(
-                tool_archive, d95, float(case.get('travel_m') or 0.06))
-            denied = (not budget['sleeve_ok']) and budget['radial_margin_m'] <= 0.0
-            return {
-                'case': cid, 'expect': expect, 'matched': denied,
-                'outcome': 'decision_denied' if denied else 'decision_leak',
-                'reason': budget['reason'],
-                'radial_margin_m': budget['radial_margin_m'],
-            }
+            # 臂侧拒绝校验（批次4 起恢复）：注入 GraspDecision 携
+            # sleeve INVALID → 快照路径 CONTACT 档位门拒（unrefined 自授权
+            # 被决策翻转覆盖）。仍发 goal；断言 outcome!=0 且未进套入段。
+            pass  # fallthrough 到正常 goal 流程
 
         def probe_reach():
             if not reach_cli.wait_for_service(timeout_sec=5.0):
@@ -1302,6 +1292,12 @@ def main() -> int:
             out['matched'] = (
                 int(res.outcome) == 0
                 and int(res.completion_level) >= 3
+                and not bool(res.harvest.grasped))
+        elif expect == 'deny_decision':
+            # 臂侧档位门拒：非 SUCCEEDED 且未到套入（LEVEL_SLEEVE_COMPLETED=3）
+            out['matched'] = (
+                int(res.outcome) != 0
+                and int(res.completion_level) < 3
                 and not bool(res.harvest.grasped))
         elif expect:
             out['matched'] = False

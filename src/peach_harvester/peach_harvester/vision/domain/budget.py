@@ -44,8 +44,6 @@ def evaluate_capabilities(
         'cut_feasible': cut == CAPABILITY_VALID,
         'sleeve_feasible': sleeve == CAPABILITY_VALID,
         'allowed': allowed,
-        # TODO(W13-A 占位)：ready_ok 恒 True 是占位语义——预算三态尚不
-        # 产出「就绪」判定（现由 allowed 单独承担门控）；引入真实就绪
-        # 条件（如标定/模型版本核对）前，消费方不得把 True 当校验结论。
-        'ready_ok': True,
+        # 批次4 假门清理：ready_ok 由证据派生（有 D95 尺度证据才 READY）。
+        'ready_ok': d_bag95 > 0.0,
     }

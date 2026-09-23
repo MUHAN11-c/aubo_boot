@@ -189,6 +189,9 @@ public:
   bool updateGraspDecision(const std::string & target_id, bool allowed);
   bool updateGraspDecision(
     const ModelIdentity & identity, bool allowed, double valid_until_s = 0.0);
+  // 批次4：unrefined 链袋径门注入（工具内径 [m]；0=门关——与参数缺席同义）。
+  void setToolInnerDiameter(double d_inner_m) {tool_d_inner_m_ = d_inner_m;}
+
   // 模型快照只在 finalize 路径写入；诊断心跳不得调用。
   void replaceModelSnapshot(const ModelSnapshot & snapshot);
   ModelSnapshot modelSnapshot() const;
@@ -275,6 +278,7 @@ private:
   ModelSnapshot model_;
   double model_generated_s_{0.0};
   bool unrefined_hold_{false};
+  double tool_d_inner_m_{0.0};  // 批次4 unrefined 袋径门（0=关）
 };
 
 }  // namespace peach_arm

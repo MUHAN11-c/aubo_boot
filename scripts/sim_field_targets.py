@@ -9,7 +9,7 @@
 验证阶段执行器的完整接近/接触设计——
 与正式接触段同一条 C++ 路径：``goToPhotoPose``（有记录的接近则原路返程，
 否则 Pilz PTP，失败才 OMPL）
-→ classifyApproach → 斜直线（面内一跳 keep-roll）+ 沿轴垂直进入（唯一兜底=同形降速重试；staging PTP 已删）或 LIN-align+LIN → 预抓取停位验证。脚本**不**再直连 JTC 绕零位复位：连开下一颗时臂停在
+→ classifyApproach → PTP 关节空间+垂直入冠 LIN+沿轴 LIN（v4，无候选扫描）或 LIN-align+LIN → 预抓取停位验证。脚本**不**再直连 JTC 绕零位复位：连开下一颗时臂停在
 上一颗 Hold，由周期内 ``goToPhotoPose`` 回拍照位（与真机同一函数）。
 ``--random N`` 默认在现场典型包络内采感知合法位姿（上半球且
 ``axis_z≥0.70``、``|entry|≤1.02``、弦长 ≤ 笛卡尔上限）。感知算法允许水平袋；

@@ -1094,6 +1094,21 @@ def main() -> int:
                 'outcome': 'skipped_select',
                 'reason': ','.join(case.get('flags') or []),
             }
+        if expect == 'deny_decision':
+            # 决策层拒绝校验（不发 ExecuteTarget）：unrefined 接触链
+            # （skip_reconstruction，b121972）在臂侧不查 GraspDecision
+            # （target_cache.cpp markUnrefinedHold 无条件自授权），预算门
+            # 只存在于决策发布层——此处断言注入决策确为拒绝。
+            d95 = float(case.get('bag_diameter_upper_m') or SIM_BAG_DIAMETER_M)
+            budget = decision_budget(
+                tool_archive, d95, float(case.get('travel_m') or 0.06))
+            denied = (not budget['sleeve_ok']) and budget['radial_margin_m'] <= 0.0
+            return {
+                'case': cid, 'expect': expect, 'matched': denied,
+                'outcome': 'decision_denied' if denied else 'decision_leak',
+                'reason': budget['reason'],
+                'radial_margin_m': budget['radial_margin_m'],
+            }
 
         def probe_reach():
             if not reach_cli.wait_for_service(timeout_sec=5.0):

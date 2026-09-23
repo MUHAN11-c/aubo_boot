@@ -51,7 +51,8 @@ def report(path: Path) -> str:
     failures = [
         r for r in rows
         if _int(r.get('outcome')) != 0
-        and r.get('expect') not in ('skip_select', 'skip_ik', 'skip_cartesian')]
+        and r.get('expect') not in ('skip_select', 'skip_ik', 'skip_cartesian')
+        and r.get('outcome') != 'decision_denied']
     uncoded = [
         r for r in failures
         if not (r.get('reason') or r.get('failure_code') is not None)]

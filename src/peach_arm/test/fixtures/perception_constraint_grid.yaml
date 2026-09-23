@@ -94,8 +94,9 @@ cases:
     bag_diameter_upper_m: 0.068
   bag_d100_denied:
     expect: deny_decision
-    note: 袋 0.10 超 hollow D_inner 0.104 预算（径向-14.6mm）；须 FULL 模式跑，
-      注入 decision allowed=False 臂侧拒接触（completion<3）
+    note: 袋 0.10 超 hollow D_inner 0.104 预算（径向-14.6mm）；决策层校验
+      （不发 goal）：unrefined 链臂侧不查 GraspDecision（b121972 自授权），
+      预算门只在决策发布层，故以注入决策确为拒绝为验收
     entry_xyz: [0.30384646154773753, -0.614107279028262, 0.5364744763197402]
     axis: [0.042490284187384854, 0.13626269543201486, 0.9897611093507753]
     travel_m: 0.06

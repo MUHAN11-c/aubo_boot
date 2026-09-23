@@ -60,6 +60,9 @@ L0 传感驱动层  相机/臂驱动/TF                 【数据出生·只读�
    /tf_static=world→base/table、wrist3→{camera_body,camera_link,tool_axis}、
    tool_axis→{tcp,sleeve_mouth,cutting_plane,tool_body}、camera_link→{color,depth}→各自 optical、
    camera_body→quick_changer（extrinsics_publisher 只发 wrist3→camera_link，其余 URDF）。
+   仿真（peach_sim）同帧契约：/tf_static 另有 world→platform_base_link（履带车，挂在 world 下
+   arm_mount_height、反向转台偏航）与 world→base_link 并列；关节状态来自 gz（/peach_sim/joint_states
+   经 ros_gz_bridge 出 /joint_states），RSP 树与真机同名同构，不另发静态 TF。
    历史污染源=多代 robot_state_publisher 残留（旧命名 link1/link2/tip 链）与多代 `extrinsics_publisher`（叠发 wrist3→camera_link），09-01 已入预检（含手眼发布器）。
 L1 感知算法层  检测→身份→重建→融合→许可        【事实生产】
    真相流（全量+confirmed 标记）/稳定流（confirmed-only 画布与点云）/模型流（GraspDecision 等）
@@ -414,7 +417,7 @@ colcon 工作区 = 采摘应用 8（含公共库 `peach_common`：参数/规则/
 
 ### 产品链（应用九包）
 
-colcon 工作区采摘应用 = `peach_interfaces` / `peach_harvester`（vision） / `peach_arm` / `peach_harvester`（supervisor） / `peach_common` / `peach_bringup` / `peach_observability` / `peach_vegetation` / `peach_system_tests`。能力四包作用不得串；跨包仍只走 IDL（`peach_common` 只装共享设施，不载业务契约）。`peach_vegetation` 独立 launch，不进 `harvest_system`。驱动九包给感知 TF / 技能 MoveIt 用，其中标「只读」的不得改。`serial_imu` 不是 peach 包，随 `harvest_system` 起、不进 lifecycle。`imu_follow` 仅 `adaptive_cylinder_v1` 随整栈。`peach_system_tests` 只进 `colcon test`，不进运行 launch。
+colcon 工作区采摘应用 = `peach_interfaces` / `peach_harvester`（vision） / `peach_arm` / `peach_harvester`（supervisor） / `peach_common` / `peach_bringup` / `peach_observability` / `peach_vegetation` / `peach_system_tests`（另有仿真场景包 `peach_sim`：只出 Gazebo Harmonic 果园场景与采摘工位模型 + 目标清单 GT，不是能力包、不进 `harvest_system` / lifecycle / 运行 launch）。能力四包作用不得串；跨包仍只走 IDL（`peach_common` 只装共享设施，不载业务契约）。`peach_vegetation` 独立 launch，不进 `harvest_system`。驱动九包给感知 TF / 技能 MoveIt 用，其中标「只读」的不得改。`serial_imu` 不是 peach 包，随 `harvest_system` 起、不进 lifecycle。`imu_follow` 仅 `adaptive_cylinder_v1` 随整栈。`peach_system_tests` 只进 `colcon test`，不进运行 launch。
 
 产品链：**契约 → 到位（预留，直通 NAV_OK）→ 场景里有哪些桃 → 这一颗的局部模型 → 臂怎么动。** 整栈入口 `ros2 launch peach_bringup harvest_system.launch.py`（`peach_harvester`（supervisor） 同名 launch 薄转发）。
 
@@ -429,6 +432,7 @@ colcon 工作区采摘应用 = `peach_interfaces` / `peach_harvester`（vision�
 | `peach_observability` | 观测 | 8090/JSONL + 独立 rosbag2 | 录制话题 |
 | `peach_vegetation` | 环境（影子） | GPU 枝/叶 2D 掩膜 | 分割阈值；不写场景 |
 | `peach_system_tests` | 测试 | isolated launch_testing / mock 矩阵 + 回放塔 + perf 基线 | 不进真机 |
+| `peach_sim` | 仿真场景 | Gazebo Harmonic 果园世界 + 采摘工位模型 + 目标清单 GT（口径见包 README） | 布局/几何参数；不进运行 launch |
 
 ```mermaid
 flowchart LR
@@ -1010,7 +1014,7 @@ flowchart TB
 | 臂 peach_arm | `outcome_record.target_id` | `target_id` / 七元组 / `plan_id` / `clearance` | 三张 ID 缓存索引（selected/locked/refined）+ 换 ID 清缓存调和；锁定集受理门（lockedTargetGateSample，未命中回退 selected 缓存） |
 | 账本 / observability | CanonicalEvent（`request_id` / `target_id`） | `HarvestState.run_id` | session bag 按 run_id 路由（R7 单根会话目录）；rework_list 同 request_id 落盘 |
 | 8090 调试 | — | FireStep PREVIEW | plan 绑定的唯一手动触发链（绑定链 C） |
-| 回放 / 仿真 | — | — | `replay_oracle.py` 是纯几何 oracle，不消费系统 ID；campaign 脚本（sim_field_targets / m1_m5_report）用本地 case id，与系统 ID 无耦合 |
+| 回放 / 仿真 | — | — | `replay_oracle.py` 是纯几何 oracle，不消费系统 ID；campaign 脚本（sim_field_targets / m1_m5_report）用本地 case id，与系统 ID 无耦合；`peach_sim` 场景清单（manifest）只出几何 GT（袋底/袋颈/轴/果心），同样不消费系统 ID |
 
 **五条关键联动链**：
 
@@ -1118,6 +1122,7 @@ yaml：仅上述 4 键仍为 `*.impl`（技能 yaml 无 `*.impl`）。检测/分
 | 0025 | 端到端审查修复轮（2026-09-20/21，报告 `reports/2026-09-20-e2e-code-review/`；G1/G3/G4 追记见 0022②与本表上方 observability/reconstruction 节）：**G2** 预览绑定只由 PREVIEW 模式 goal 写入（旧「observe 转记绑定」会让保守档 FULL 必拒且绑定无复位点），FULL/PREGRASP_ONLY 周期终局清复位、受理即拒不清（`plan_contract.hpp` `executePlanGate`：无绑定或 goal 无 plan_id 放行——fast 档不发 PREVIEW 是有意的）。**M1** 取消旗标收口：三动作（ExecuteTarget/Survey/MoveTo）终局各自 `clearCancelFlagIfIdle`，sticky 取消不再拒后续 MoveTo/观察。**M2** 周期 worker/survey/move_to 线程 packaged_task future 2s 有界回收、超时 WARN+detach（W13-B 同款扩展，默认互斥组裸 join 死锁拆除）。**M3a/M3b/M3c** 受理期 plan mismatch 以 PLAN_MISMATCH(20) 进 Result（纯核常量 static_assert 与 IDL 钉死）、`onStart` 拒绝落 RECOVERY_REQUIRED/OBSERVE_FAILED 码、`StageDenial` 拒因分级（EXPIRED→SKIPPED_QUALITY 可重派，DENIED→FAILED）。**G5** 预检名单补 brain exec 名 `peach_harvester`（brain 一进程三节点不传 name= 重映射，按节点名查会漏旧脑致双 supervisor 静默共存）与 `peach_lifecycle_flag_bridge`/`peach_autostart_client`/`stereo_camera_node`。**M11** GraspDecision dict 侧 allowed 与消息侧同源派生（`model_contract.allowed_from_decision` 单源；events.jsonl/diagnostics_debug 不再与类型化消息各执一词）。**M13** 观测落盘 `scene_snapshot` 订阅改 transient_local（单发闩锁，记录节点晚于发布启动不再永久丢快照）。驱动侧（非 aubo 只读面）：`percipio_camera/launch/parameters.xml` 调参残留 `DepthSgbmImageNumber=2` 清空——09-21 根因终章：该 XML 被 launch 无条件下发，18 图案 SGBM 被砍成 2 幅致设备深度大面积无效（testing-log 09-21）；纪律同步：percipio_camera=官方驱动+仅本机 IP/分辨率调整，调参实验值不留此文件。`peach_stereo` 参数档 hh4/`uniqueness_ratio`6/`median_ksize`3 落地（档案见该包 README 与 reports，工作区属用户不在此展开）。**追记（09-21 temporal_k 落地轮，详见 testing-log 09-21 续）**：`temporal_k` 滑窗时域中值（1/3/5 非法拒启；配准后彩色网格上 k 帧逐像素有效中值，每帧照常发布不除率——区别于 avg_k 批式；部署 yaml=3，live A/B：entry std z 0.41→0.21mm、袋半径 std 0.27→0.14mm（均 −48%）、覆盖 +0.4pp、13.7gps 无回归）；`depth_registered/points` 增 `confidence` FLOAT32 字段（point_step 16→24：rgb@16、confidence@20——初版 confidence@16 与 byString 的 rgb 槽重叠，线上实测颜色被置信度覆写后修正；temporal_k>1 时=窗内采样占比×取值一致性、与发布深度逐像素对齐，否则恒 1.0）——「话题与 percipio 同构」自此带此一例外，io.md 同轮标注。同轮修存量 bug：stereo yaml 顶层键 `peach_stereo_camera_node:` 与 namespaced 节点全名 `/camera/peach_stereo_camera_node` 从不匹配（所有 yaml 部署值此前从未生效、默认值碰巧一致），改 `/**:` 通配。零新 IDL（`DepositResult` 仅注释修订：预留零生产零消费，到期无人接线随下轮接口清理删除）。推翻：无。 |
 | 0026 | 自适应接触窗接 peach（2026-09-22）：`ExecuteTarget` FULL 在 `adaptive_cylinder_v1` 上于预抓取验证后开启 imu_follow（enable→insert_start→剪切→insert_retract→disable），回到预抓取才关窗，再 MTC 回 `harvest_stow`。空心末端仍走 MTC LIN，永不调 imu_follow，**也不建** `/imu_follow` Trigger 客户端（FastDDS 图上无这些服务名）。`harvest_system` 仅自适应 Include `imu_follow_servo`（`motion.enabled` 默认 false，peach 不自动开门）。未 enable 时 pause servo，禁止与 MTC 同时写 JTC。新增 `~/insert_retract`。推翻 0020「零 peach↔imu_follow 耦合 / PREGRASP_ONLY 后人工衔接」。 |
 | 0027 | 动作通道有界执行（2026-09-23）：M1 tilt_1639_1 300 s hang（96cdd79 sim 侧 goal 超时取消先行，hang 本身当时记 A 级候选）根因定位：move_group TEM 异常——`transit_max` 触发的 stop 事件风暴（8.2 万行不停）使同步 `execute` 永久阻塞且不理取消，动作通道一次即永久卡死。防线：新 GPL 参数 `moveit.execute_timeout_s`（默认 90 s，校验 >1；部署值 `config/peach_arm.yaml`）；`motion.cpp` 全部 execute 收口 `boundedExecute`（async 派发 + 等待环先到先收，取消探针命中或超时即 `stop()`，10 s 宽限后放弃等待——线程滞留一次换通道可用）；新公有 `stopExecution()`（MGI::stop 节点级停止服务，与发起执行的接口实例无关）；MTC `Task::execute` async 先到先收，`GraspTaskConfig.execution_stop` 由节点注入 `stopExecution()` 兜底，超时 reason=`MTC execution timeout (stop issued)`。附带：`TargetCache` refined 调和拒绝带 `reject_reason` 出参（`unrefined_hold`/`target_mismatch`），臂侧 WARN_THROTTLE 10 s（skip_reconstruction 批 latched 0.5 s 心跳常态，原无节流 WARN 单轮 8 万行）。零 IDL/话题/QoS 变化。推翻：无。 |
+| 0028 | **室外套袋桃果园场景包 `peach_sim`（2026-09-23，Gazebo Harmonic 场景层）**：① 新包 `peach_sim`（仿真场景，非能力包、不进 `harvest_system`/lifecycle）：`config/orchard.yaml` 全量场景参数（schema+校验 `peach_sim.params`：未知键/越界/袋体超工具余量/行距穿模一律拒绝生成）→ `peach_sim.scene` 纯核确定性产出 `worlds/peach_orchard.sdf`（5 行 × 7 株桃树 + 254 颗套袋果 + 立柱拉线 + 土壤行带/草带 + 太阳/天空/薄雾）与 `peach_orchard.manifest.yaml` 目标清单 GT（袋底=entry/袋颈/轴底→颈/果心/袋具尺寸/`reachable`）；随机流按 `seed\|实体 id` 派生与生成顺序无关，测试对账「入库产物 == 生成器输出」。② 袋具锚真机口径（`runs/field_pregrasp_*` 实测 + `aubo_description/config/adaptive_cylinder_v1.yaml`）：袋体 0.082–0.096 m（+2×5 mm 余量 ≤ 内径 0.116）、袋底→袋颈 0.09–0.12 m（实测 0.05–0.12，≤ 插入 0.2）、袋底离臂座 0.52–0.71 m；测试镜像对账工具档案，改档案不同步即红。③ 采摘工位 = 开源履带底盘改型（gazebosim/gz-sim 官方示例 `tracked_vehicle_simple.sdf` 的 `simple_tracked`，Apache-2.0：双履带箱体 + 两端圆柱、ODE mu 0.7 / mu2 150 / fdir1）+ AUBO E5 + 腕载相机 + 快换 + 套袋刀；整机 xacro 帧契约与真机同构（`world`→`base_link` 恒等、TCP 帧名冻结、零改只读面）。六关节由 `gz-sim-joint-position-controller-system` 钉真机拍照位 `photo_joints`，关节状态 `gz.msgs.Model`→`sensor_msgs/JointState` 桥出 `/joint_states`，RSP TF 与 gz 内几何同位姿；工位 spawn 位姿由同一份 yaml 推出（`scene.work_pose`），launch/清单/世界三处不会漂。④ `scene_preview` 正交投影预览（俯视 x–y + 侧视 x–z 作业切片）：gz GUI/ogre2 在无 OpenGL 环境直接 abort（实测 GLX BadValue），无 GL 也要能看场景、自检摆位。代价：工位被 URDF `world_joint` 锚在作业位（履带不可驾驶，可驾驶化须 `map→odom→base_link` + TrackedVehicle/TrackController 并解锚）；袋体碰撞为圆柱包络、无可分离袋果、无相机/深度出图；`gz_ros2_control` 未接（须授权动 `aubo_e5.ros2_control.xacro`）。被否：场景塞进 `aubo_description`/`peach_bringup`（跨职责混装）；袋具常数在多处复制（改为 schema 镜像 + 测试对账）；拿 gz GUI 截图当验收（无 GL 不可复现）。推翻：无。 |
 
 ---
 
@@ -1142,7 +1147,7 @@ yaml：仅上述 4 键仍为 `*.impl`（技能 yaml 无 `*.impl`）。检测/分
 | 套袋工具与数据 | URDF 工具帧已接线；TCP 为机械尺寸（`mechanical_dimension`）；标注集不进仓 | 通环、刀反馈、24/48h 损伤在现场；关键点网络可替换半径剖面 |
 | 关节名顺序 | URDF / `controllers.yaml` / 透传 goal 按 MUST 六关节序；`/joint_states` 由 `joint_state_broadcaster` 发布，name 数组常见字母序（`foreArm` 在 `shoulder` 前），消费者必须按名字对齐，禁止按下标当 MUST 序 | 透传点按下标拧腕；launch_testing 只断言六名存在 |
 | CI | `.github/workflows/jazzy.yaml`：`peach-core` 跑 `scripts/r0_gate.sh`（零 ROS + numpy 1.26.4）；`industrial_ci` 用 `ros-industrial/industrial_ci`、`ROS_DISTRO: jazzy` 编测驱动+peach（`COLCON_IGNORE` 旁路 IVG 三包、`imu_follow`、`percipio_camera`、`camera_calibration`，不进真机）。scipy 仍 venv-first KEEP；ICI 用 apt `python3-scipy` / `python3-pytest` / `python3-yaml`，不再 pip 钉 numpy（`ros:jazzy` 已 1.26.4；Docker 里 pip 曾无日志挂死）。本机 `ros:jazzy-ros-base` 已证明 `peach_interfaces`+`aubo_msgs`+numpy 1.26.4；单编 `peach_harvester` 不够：观测实现仍 `import aubo_msgs`；技能包 MoveIt 不在 ros-base。全量以 GitHub industrial_ci 为准 | PR 门仍不是田间验收 |
-| 物理仿真 | 无 Gazebo Harmonic / Isaac / `gz_ros2_control`。系统测现行是 `peach_system_tests` mock `harvest_system` + 手工 `scripts/sim_field_targets.py` | **UNWIND**；真机仍是套袋方向权威 |
+| 物理仿真 | 场景层已补 `peach_sim`（Gazebo Harmonic）：参数化果园世界 `worlds/peach_orchard.sdf`（树行/套袋果/立柱拉线/室外光照）+ 采摘工位（开源履带底盘改型 + AUBO E5 + 套袋刀，臂钉真机拍照位）+ 目标清单 GT（`peach_orchard.manifest.yaml`，袋底/袋颈/轴/果心/可达）。系统测仍以 `peach_system_tests` mock `harvest_system` + 手工 `scripts/sim_field_targets.py` 为主 | 场景建模 **KEEP**（真机仍是套袋方向权威）；`gz_ros2_control`、履带可驾驶（`map→odom→base_link` + TrackedVehicle/TrackController）、相机/深度桥仍 **UNWIND** 待补。工位被 URDF `world_joint` 锚在作业位（可驾驶化须一并解锚，见 `peach_sim` README） |
 | 切断确认 | SetIO ACK 只到 `CUT_COMMAND_ACCEPTED`；刀具 DI 预留 `/aubo_io_controller/io_states`，未接线。`tool.enabled=true` 未确认终局 `FAILED`/`CUT_FEEDBACK_TIMEOUT`。切断行程/电流常数未真机标定 | KEEP 田间；不得把 ACK 当切断 |
 | ID 身份联动 | 详见「ID 与身份确定（含模块联动）」缺口 ID-1~ID-5：request_id 空默认 `'harvest'` × ledger 断点恢复 × 重启后 target_id 重铸可致新批误跳过（链 A）；plan 契约三软点（FULL 缺 plan_id 放行 / 绑定先于预览成败 / 批流不发 PREVIEW 故契约 inert，链 C）；`approach_execution_gate` 读 `ModelSnapshot` 只查新鲜度不绑 `ctx.target_id`、`onDecision` 替换不比 run_id/标定/配置修订（链 ID-3）；臂 SurveyScene result 恒 0、臂不独立跟踪世代（链 B 断点）；`harvest_status` 对跳过目标报 'HARVESTED'（措辞级） | 均不破使能门/令牌门主链（fail-closed 兜底在）；修复另轮裁定 |
 

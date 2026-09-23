@@ -1,4 +1,5 @@
-"""``generate_orchard`` 入口：读场景参数 → 写世界 SDF 与目标清单。
+"""
+``generate_orchard`` 入口：读场景参数 → 写世界 SDF 与目标清单.
 
 文件 I/O 全在这里；布局与几何计算在纯核 ``peach_sim.scene``。
 """
@@ -16,7 +17,7 @@ from .scene import render_scene
 
 
 def default_share() -> Path:
-    """安装后取 share/peach_sim；源码树直接跑则取包根。"""
+    """安装后取 share/peach_sim；源码树直接跑则取包根."""
     try:
         from ament_index_python.packages import get_package_share_directory
         return Path(get_package_share_directory('peach_sim'))

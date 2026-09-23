@@ -1,0 +1,142 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+  <!-- 果园采摘工位履带底盘（低模）。
+    几何与履带摩擦参数改自 Gazebo Sim 官方示例 worlds/tracked_vehicle_simple.sdf
+    的 simple_tracked 模型（gazebosim/gz-sim，Apache-2.0）：双履带 = 箱体 +
+    两端圆柱，ODE 摩擦 mu 0.7 / mu2 150 / fdir1 0 1 0（横向高摩擦近似履带）。
+    默认尺寸即 config/orchard.yaml 的 platform.*（launch 按 yaml 注入，测试对账）。
+    帧约定：platform_base_link 在两履带中线、接地平面（z=0），+X 沿行行驶方向；
+    车体挂在臂座（parent，= base_link）下方 arm_mount_height、反向转台偏航。
+    本轮是场景建模：整车经 world_joint 锚在作业位（见 harvester_robot.urdf.xacro），
+    履带驱动（gz::sim::systems::TrackedVehicle + TrackController，见官方示例
+    ~L1060）与线控留待移动化那轮，届时一并把 world 锚点换成 map→odom→base_link。
+    数值入参一律字符串进、float() 出（xacro 属性默认是字符串，直接相加会拼接）。 -->
+  <xacro:macro name="peach_tracked_platform"
+               params="parent arm_mount_height arm_mount_yaw_deg body_x body_y body_z body_bottom track_length track_width track_height track_separation">
+    <xacro:property name="mount_h" value="${float(arm_mount_height)}"/>
+    <xacro:property name="mount_yaw" value="${-float(arm_mount_yaw_deg) * pi / 180.0}"/>
+    <xacro:property name="bx" value="${float(body_x)}"/>
+    <xacro:property name="by" value="${float(body_y)}"/>
+    <xacro:property name="bz" value="${float(body_z)}"/>
+    <xacro:property name="bb" value="${float(body_bottom)}"/>
+    <xacro:property name="tl" value="${float(track_length)}"/>
+    <xacro:property name="tw" value="${float(track_width)}"/>
+    <xacro:property name="th" value="${float(track_height)}"/>
+    <xacro:property name="ts" value="${float(track_separation)}"/>
+    <xacro:property name="deck_top" value="${bb + bz}"/>
+    <xacro:property name="body_cz" value="${bb + bz / 2.0}"/>
+    <xacro:property name="mount_cz" value="${(deck_top + mount_h) / 2.0}"/>
+    <xacro:property name="wheel_x" value="${tl / 2.0 - th / 2.0}"/>
+    <xacro:property name="wheel_r" value="${th / 2.0}"/>
+
+    <link name="platform_base_link">
+      <inertial>
+        <origin xyz="0 0 ${body_cz}" rpy="0 0 0"/>
+        <mass value="120.0"/>
+        <inertia ixx="4.05" ixy="0.0" ixz="0.0" iyy="12.05" iyz="0.0" izz="14.05"/>
+      </inertial>
+      <visual name="body_visual">
+        <origin xyz="0 0 ${body_cz}" rpy="0 0 0"/>
+        <geometry>
+          <box size="${bx} ${by} ${bz}"/>
+        </geometry>
+        <material name="platform_gray">
+          <color rgba="0.55 0.57 0.55 1.0"/>
+        </material>
+      </visual>
+      <collision name="body_collision">
+        <origin xyz="0 0 ${body_cz}" rpy="0 0 0"/>
+        <geometry>
+          <box size="${bx} ${by} ${bz}"/>
+        </geometry>
+      </collision>
+      <!-- 臂安装座（车体顶面 → base_link 离地高度） -->
+      <visual name="mount_visual">
+        <origin xyz="0 0 ${mount_cz}" rpy="0 0 0"/>
+        <geometry>
+          <box size="0.20 0.20 ${mount_h - deck_top}"/>
+        </geometry>
+        <material name="mount_gray">
+          <color rgba="0.45 0.45 0.48 1.0"/>
+        </material>
+      </visual>
+      <collision name="mount_collision">
+        <origin xyz="0 0 ${mount_cz}" rpy="0 0 0"/>
+        <geometry>
+          <box size="0.20 0.20 ${mount_h - deck_top}"/>
+        </geometry>
+      </collision>
+    </link>
+
+    <joint name="platform_mount" type="fixed">
+      <parent link="${parent}"/>
+      <child link="platform_base_link"/>
+      <origin xyz="0 0 ${-mount_h}" rpy="0 0 ${mount_yaw}"/>
+    </joint>
+
+    <xacro:macro name="track_unit" params="name side">
+      <link name="${name}">
+        <inertial>
+          <origin xyz="0 0 0" rpy="0 0 0"/>
+          <mass value="25.0"/>
+          <inertia ixx="0.30" ixy="0.0" ixz="0.0" iyy="1.60" iyz="0.0" izz="1.45"/>
+        </inertial>
+        <visual name="${name}_visual">
+          <origin xyz="0 0 0" rpy="${pi / 2.0} 0 ${pi / 2.0}"/>
+          <geometry>
+            <box size="${tw} ${th} ${tl}"/>
+          </geometry>
+          <material name="${name}_black">
+            <color rgba="0.16 0.16 0.16 1.0"/>
+          </material>
+        </visual>
+        <collision name="${name}_collision">
+          <origin xyz="0 0 0" rpy="${pi / 2.0} 0 ${pi / 2.0}"/>
+          <geometry>
+            <box size="${tw} ${th} ${tl}"/>
+          </geometry>
+        </collision>
+        <visual name="${name}_wheel_front">
+          <origin xyz="${wheel_x} 0 0" rpy="${pi / 2.0} 0 0"/>
+          <geometry>
+            <cylinder radius="${wheel_r}" length="${tw}"/>
+          </geometry>
+          <material name="${name}_black"/>
+        </visual>
+        <collision name="${name}_wheel_front_collision">
+          <origin xyz="${wheel_x} 0 0" rpy="${pi / 2.0} 0 0"/>
+          <geometry>
+            <cylinder radius="${wheel_r}" length="${tw}"/>
+          </geometry>
+        </collision>
+        <visual name="${name}_wheel_rear">
+          <origin xyz="${-wheel_x} 0 0" rpy="${pi / 2.0} 0 0"/>
+          <geometry>
+            <cylinder radius="${wheel_r}" length="${tw}"/>
+          </geometry>
+          <material name="${name}_black"/>
+        </visual>
+        <collision name="${name}_wheel_rear_collision">
+          <origin xyz="${-wheel_x} 0 0" rpy="${pi / 2.0} 0 0"/>
+          <geometry>
+            <cylinder radius="${wheel_r}" length="${tw}"/>
+          </geometry>
+        </collision>
+      </link>
+      <joint name="${name}_mount" type="fixed">
+        <parent link="platform_base_link"/>
+        <child link="${name}"/>
+        <origin xyz="0 ${side * ts / 2.0} ${th / 2.0}" rpy="0 0 0"/>
+      </joint>
+      <!-- 履带摩擦（官方示例口径）：横向高摩擦、纵向低摩擦近似履带推进 -->
+      <gazebo reference="${name}">
+        <mu1>0.7</mu1>
+        <mu2>150</mu2>
+        <fdir1>0 1 0</fdir1>
+      </gazebo>
+    </xacro:macro>
+
+    <xacro:track_unit name="left_track" side="1.0"/>
+    <xacro:track_unit name="right_track" side="-1.0"/>
+  </xacro:macro>
+</robot>

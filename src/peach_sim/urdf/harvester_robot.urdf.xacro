@@ -1,0 +1,85 @@
+<?xml version="1.0"?>
+<robot name="peach_harvester" xmlns:xacro="http://www.ros.org/wiki/xacro">
+  <!-- 采摘工位整机：开源履带底盘改型 + AUBO E5 + 腕载相机 + 快换 + 套袋刀。
+    帧契约：`world` 与 `base_link` 由 aubo_description/urdf/aubo_e5.urdf 恒等连接
+    （= 臂座，与真机栈 /tf_static world→base 同构）；履带车挂在 `world` 下方
+    arm_mount_height、反向转台偏航。gz 侧模型原点 = `world` = 臂座。
+    仿真站姿：六关节由 gz JointPositionController 钉在真机拍照位
+    （photo_joints，来源 src/peach_arm/test/fixtures/field_pregrasp_cases.yaml），
+    关节状态经 gz JointStatePublisher → ros_gz_bridge 进 /joint_states，
+    robot_state_publisher 出的 TF 与 gz 内几何一致。
+    不改 aubo_description 只读面（aubo_e5.ros2_control.xacro / bringup.launch.py）：
+    gz_ros2_control 接管关节属后续轮。 -->
+  <xacro:include filename="$(find aubo_description)/urdf/aubo_e5.urdf"/>
+  <xacro:include filename="$(find aubo_description)/urdf/components/camera.xacro"/>
+  <xacro:include filename="$(find aubo_description)/urdf/components/quick_changer.xacro"/>
+  <xacro:include filename="$(find aubo_description)/urdf/components/tcp_hollow_cylinder_v1.xacro"/>
+  <xacro:include filename="$(find aubo_description)/urdf/components/tcp_adaptive_cylinder_v1.xacro"/>
+  <xacro:include filename="tracked_platform.xacro"/>
+
+  <xacro:arg name="tool_profile" default="adaptive_cylinder_v1"/>
+  <xacro:arg name="arm_mount_height" default="0.75"/>
+  <xacro:arg name="arm_mount_yaw_deg" default="-32.0"/>
+  <xacro:arg name="body_x" default="1.05"/>
+  <xacro:arg name="body_y" default="0.55"/>
+  <xacro:arg name="body_z" default="0.32"/>
+  <xacro:arg name="body_bottom" default="0.22"/>
+  <xacro:arg name="track_length" default="0.85"/>
+  <xacro:arg name="track_width" default="0.15"/>
+  <xacro:arg name="track_height" default="0.26"/>
+  <xacro:arg name="track_separation" default="0.56"/>
+  <xacro:arg name="hold_arm" default="true"/>
+  <xacro:property name="tool_profile" value="$(arg tool_profile)"/>
+
+  <xacro:peach_tracked_platform
+    parent="world"
+    arm_mount_height="$(arg arm_mount_height)"
+    arm_mount_yaw_deg="$(arg arm_mount_yaw_deg)"
+    body_x="$(arg body_x)"
+    body_y="$(arg body_y)"
+    body_z="$(arg body_z)"
+    body_bottom="$(arg body_bottom)"
+    track_length="$(arg track_length)"
+    track_width="$(arg track_width)"
+    track_height="$(arg track_height)"
+    track_separation="$(arg track_separation)"/>
+
+  <xacro:aubo_e5_camera parent="wrist3_Link"/>
+  <xacro:aubo_e5_quick_changer parent="camera_body_link"/>
+  <!-- 两个独立 if（非 if/else）：未知 profile 名两支都不展开 → 缺 tcp 帧，启动即失败 -->
+  <xacro:if value="${tool_profile == 'hollow_cylinder_v1'}">
+    <xacro:aubo_e5_tcp_hollow_cylinder_v1 parent="wrist3_Link"/>
+  </xacro:if>
+  <xacro:if value="${tool_profile == 'adaptive_cylinder_v1'}">
+    <xacro:aubo_e5_tcp_adaptive_cylinder_v1 parent="wrist3_Link"/>
+  </xacro:if>
+
+  <!-- 仿真站姿：真机拍照位 photo_joints（field_pregrasp_cases.yaml） -->
+  <xacro:macro name="hold_joint" params="name value">
+    <gazebo>
+      <plugin name="gz::sim::systems::JointPositionController"
+              filename="gz-sim-joint-position-controller-system">
+        <joint_name>${name}</joint_name>
+        <initial_position>${value}</initial_position>
+        <use_velocity_commands>1</use_velocity_commands>
+        <cmd_max>1.5</cmd_max>
+      </plugin>
+    </gazebo>
+  </xacro:macro>
+  <xacro:if value="$(arg hold_arm)">
+    <xacro:hold_joint name="shoulder_joint" value="0.425083"/>
+    <xacro:hold_joint name="upperArm_joint" value="0.195177"/>
+    <xacro:hold_joint name="foreArm_joint" value="1.677740"/>
+    <xacro:hold_joint name="wrist1_joint" value="1.461739"/>
+    <xacro:hold_joint name="wrist2_joint" value="-0.500161"/>
+    <xacro:hold_joint name="wrist3_joint" value="0.038621"/>
+  </xacro:if>
+
+  <!-- 关节状态出 gz（ros_gz_bridge: gz.msgs.Model → sensor_msgs/JointState） -->
+  <gazebo>
+    <plugin name="gz::sim::systems::JointStatePublisher"
+          filename="gz-sim-joint-state-publisher-system">
+      <topic>/peach_sim/joint_states</topic>
+    </plugin>
+  </gazebo>
+</robot>

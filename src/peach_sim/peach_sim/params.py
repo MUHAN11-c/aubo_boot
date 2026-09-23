@@ -1,4 +1,5 @@
-"""果园场景参数 schema 与校验（零 ROS import）。
+"""
+果园场景参数 schema 与校验（零 ROS import）.
 
 ``config/orchard.yaml`` 是部署事实源（全量清单）；本模块是唯一 schema：
 ``params_from_dict`` 逐键构造不可变 dataclass，未知键与越界值一律收集进错误表，
@@ -24,7 +25,7 @@ _TOP_KEYS = (
 
 @dataclass(frozen=True)
 class Ground:
-    """地面与行带。"""
+    """地面与行带."""
 
     size_x: float
     size_y: float
@@ -36,7 +37,7 @@ class Ground:
 
 @dataclass(frozen=True)
 class Rows:
-    """树行布局：行沿世界 Y 延伸，行距沿 X。"""
+    """树行布局：行沿世界 Y 延伸，行距沿 X."""
 
     count: int
     spacing: float
@@ -46,7 +47,7 @@ class Rows:
 
 @dataclass(frozen=True)
 class Tree:
-    """桃树低模（主干 + 主枝 + 冠层球 + 果枝）。"""
+    """桃树低模（主干 + 主枝 + 冠层球 + 果枝）."""
 
     trunk_height: Range
     trunk_radius: Range
@@ -63,7 +64,7 @@ class Tree:
 
 @dataclass(frozen=True)
 class Bag:
-    """套袋桃（袋体 + 果 + 袋颈/扎口）。"""
+    """套袋桃（袋体 + 果 + 袋颈/扎口）."""
 
     fruit_diameter: Range
     body_diameter: Range
@@ -80,7 +81,7 @@ class Bag:
 
 @dataclass(frozen=True)
 class Tool:
-    """末端工具几何（镜像 aubo_description/config/<profile>.yaml，测试对账）。"""
+    """末端工具几何（镜像 aubo_description/config/<profile>.yaml，测试对账）."""
 
     profile_id: str
     d_inner: float
@@ -90,7 +91,7 @@ class Tool:
 
 @dataclass(frozen=True)
 class Platform:
-    """采摘工位：履带底盘 + AUBO E5 安装座。"""
+    """采摘工位：履带底盘 + AUBO E5 安装座."""
 
     face_row_index: int
     side: int
@@ -108,7 +109,7 @@ class Platform:
 
 @dataclass(frozen=True)
 class WorkZone:
-    """作业位可达性粗判（球形包络，非 IK）。"""
+    """作业位可达性粗判（球形包络，非 IK）."""
 
     reach_max_m: float
     y_span: float
@@ -116,7 +117,7 @@ class WorkZone:
 
 @dataclass(frozen=True)
 class Lighting:
-    """室外光照：太阳 + 天空 + 薄雾。"""
+    """室外光照：太阳 + 天空 + 薄雾."""
 
     sun_azimuth_deg: float
     sun_elevation_deg: float
@@ -128,7 +129,7 @@ class Lighting:
 
 @dataclass(frozen=True)
 class OrchardParams:
-    """场景全量参数。"""
+    """场景全量参数."""
 
     seed: int
     ground: Ground
@@ -142,23 +143,23 @@ class OrchardParams:
 
 
 class _Reader:
-    """按路径收集键级问题；一路读到底，不遇错即停。"""
+    """按路径收集键级问题；一路读到底，不遇错即停."""
 
-    def __init__(self, data: Mapping[str, Any], path: str = '') -> None:
+    def __init__(self, data: Mapping[str, Any], path: str = '',
+                 errors: list[str] | None = None,
+                 unknown: list[str] | None = None) -> None:
         self._data = data
         self._path = path
-        self.errors: list[str] = []
-        self.unknown: list[str] = []
+        # 与父共享同一张表：读键过程中产生的问题不会被创建期快照丢掉
+        self.errors = errors if errors is not None else []
+        self.unknown = unknown if unknown is not None else []
 
     def sub(self, key: str) -> '_Reader':
         value = self._data.get(key)
         if isinstance(value, Mapping):
-            child = _Reader(value, self._where(key))
-            self.errors.extend(child.errors)
-            self.unknown.extend(child.unknown)
-            return child
+            return _Reader(value, self._where(key), self.errors, self.unknown)
         self.errors.append(f'{self._where(key)}: 缺失或不是映射')
-        return _Reader({}, self._where(key))
+        return _Reader({}, self._where(key), self.errors, self.unknown)
 
     def _where(self, key: str) -> str:
         return f'{self._path}.{key}' if self._path else key
@@ -253,10 +254,9 @@ def _vec3(value: Any, where: str, errors: list[str], *, color: bool) -> Vec3:
 
 
 def params_from_dict(data: Mapping[str, Any]) -> tuple[OrchardParams, list[str]]:
-    """按 schema 构造参数；返回 (参数, 全部问题)。问题非空即不可用。"""
+    """按 schema 构造参数；返回 (参数, 全部问题)。问题非空即不可用."""
     top = _Reader(data)
     top.finish(_TOP_KEYS)
-    errors: list[str] = list(top.errors) + list(top.unknown)
 
     ground_r = top.sub('ground')
     ground_r.finish((
@@ -377,12 +377,11 @@ def params_from_dict(data: Mapping[str, Any]) -> tuple[OrchardParams, list[str]]
         ground=ground, rows=rows, tree=tree, bag=bag, tool=tool,
         platform=platform, work_zone=work_zone, lighting=lighting,
     )
-    errors.extend(top.errors)
-    return params, errors
+    return params, top.errors + top.unknown
 
 
 def check_params(params: OrchardParams) -> list[str]:
-    """跨键约束（袋具与工具余量、行间不穿模、工位几何）。"""
+    """跨键约束（袋具与工具余量、行间不穿模、工位几何）."""
     problems: list[str] = []
     bag, tool, tree, rows, platform = (
         params.bag, params.tool, params.tree, params.rows, params.platform,

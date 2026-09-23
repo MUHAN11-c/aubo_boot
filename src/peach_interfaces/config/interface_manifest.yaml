@@ -339,3 +339,11 @@ reserved_interfaces:
     qos: {reliability: reliable, durability: transient_local, depth: 1}
     producers: []
     consumers: []
+  # 仿真桥接线（peach_sim，决策 0028）：gz JointStatePublisher 的 gz 侧话题
+  # （gz.msgs.Model），ros_gz_bridge 在 launch 内 remap 成 /joint_states——
+  # 该名字本身不落 ROS 图，登记仅供反向扫描与名字清单一致，非跨包契约。
+  - name: /peach_sim/joint_states
+    kind: topic
+    type: sensor_msgs/msg/JointState
+    producers: []
+    consumers: []

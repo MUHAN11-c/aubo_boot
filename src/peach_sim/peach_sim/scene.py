@@ -1,4 +1,5 @@
-"""果园场景 SDF 与目标清单生成（零 ROS import）。
+"""
+果园场景 SDF 与目标清单生成（零 ROS import）.
 
 一次布局计算同时产出两件同源产物：
 
@@ -21,7 +22,7 @@ import math
 import random
 import xml.etree.ElementTree as ET
 
-from .params import OrchardParams, Vec3, check_params
+from .params import check_params, OrchardParams, Vec3
 
 SDF_VERSION = '1.11'
 WORLD_NAME = 'peach_orchard'
@@ -64,7 +65,8 @@ def _vec_dist(a: Vec3, b: Vec3) -> float:
 
 
 def aim_rpy(direction: Vec3) -> tuple[float, float, float]:
-    """把局部 +Z 对准 ``direction`` 的 (roll, pitch, yaw)。
+    """
+    把局部 +Z 对准 ``direction`` 的 (roll, pitch, yaw).
 
     roll 恒为 0：此时局部 +Y = (-sin yaw, cos yaw, 0) 自动水平，可直接当
     扁平袋体的厚向；圆柱绕轴无差别，同样适用。
@@ -91,7 +93,7 @@ def _count(rng: random.Random, span: tuple[float, float]) -> int:
 
 @dataclass(frozen=True)
 class BagTarget:
-    """一颗套袋桃：袋底（=入口）为局部原点，+Z = 轴（底→颈）。"""
+    """一颗套袋桃：袋底（=入口）为局部原点，+Z = 轴（底→颈）."""
 
     target_id: str
     tree_id: str
@@ -118,7 +120,7 @@ class BagTarget:
 
 @dataclass(frozen=True)
 class WorkPose:
-    """采摘工位：base_link（臂座）与车体在果园世界系的位姿。"""
+    """采摘工位：base_link（臂座）与车体在果园世界系的位姿."""
 
     mount: Vec3
     mount_yaw: float
@@ -128,14 +130,14 @@ class WorkPose:
 
 @dataclass(frozen=True)
 class Scene:
-    """同源产物对：世界 SDF 文本 + 目标清单。"""
+    """同源产物对：世界 SDF 文本 + 目标清单."""
 
     world_sdf: str
     manifest: dict
 
 
 def work_pose(params: OrchardParams) -> WorkPose:
-    """由 ``platform`` 参数推出工位位姿（行沿 Y，行距沿 X）。"""
+    """由 ``platform`` 参数推出工位位姿（行沿 Y，行距沿 X）."""
     rows, platform = params.rows, params.platform
     row_x = (platform.face_row_index - (rows.count - 1) / 2.0) * rows.spacing
     center = (row_x + platform.side * platform.row_gap, platform.y, 0.0)
@@ -149,7 +151,7 @@ def work_pose(params: OrchardParams) -> WorkPose:
 
 
 def tree_positions(params: OrchardParams) -> list[tuple[str, int, int, Vec3]]:
-    """全部树位：(树 id, 行号, 株号, 树干根部世界坐标)。"""
+    """全部树位：(树 id, 行号, 株号, 树干根部世界坐标)."""
     rows = params.rows
     out: list[tuple[str, int, int, Vec3]] = []
     for row in range(rows.count):
@@ -164,8 +166,8 @@ def tree_positions(params: OrchardParams) -> list[tuple[str, int, int, Vec3]]:
 
 
 def work_zone_tree_ids(params: OrchardParams) -> set[str]:
-    """作业位沿行覆盖到的树（参与可达断言）。"""
-    rows, platform, zone = params.rows, params.platform, params.work_zone
+    """作业位沿行覆盖到的树（参与可达断言）."""
+    platform, zone = params.platform, params.work_zone
     out: set[str] = set()
     for tree_id, row, _index, origin in tree_positions(params):
         if row != platform.face_row_index:
@@ -300,7 +302,7 @@ def _ground(params: OrchardParams, world: ET.Element) -> None:
 
 
 def _trellis(params: OrchardParams, world: ET.Element) -> None:
-    """果园立柱拉线：每行端柱/中柱 + 两道横线。"""
+    """果园立柱拉线：每行端柱/中柱 + 两道横线."""
     rows = params.rows
     row_length = (rows.trees_per_row - 1) * rows.tree_spacing
     post_height = 2.5
@@ -331,7 +333,7 @@ def _trellis(params: OrchardParams, world: ET.Element) -> None:
 
 def _bag_targets(params: OrchardParams, tree_id: str, origin: Vec3,
                  alley_dir: Vec3) -> list[BagTarget]:
-    """一株树的挂袋果：袋挂在作业道侧果枝末端，自然下垂（轴=底→颈）。"""
+    """一株树的挂袋果：袋挂在作业道侧果枝末端，自然下垂（轴=底→颈）."""
     bag = params.bag
     rng = _rng(params.seed, 'bag', tree_id)
     targets: list[BagTarget] = []
@@ -501,8 +503,9 @@ def _world_shell(params: OrchardParams, world: ET.Element) -> None:
     sky = _element(scene, 'sky')
     clouds = _element(sky, 'clouds')
     _element(clouds, 'speed', _fmt(4.0))
-    _element(clouds, 'cloud_size', _fmt(1.2))
+    _element(clouds, 'direction', _fmt(1.2))
     _element(clouds, 'humidity', _fmt(0.6))
+    _element(clouds, 'mean_size', _fmt(0.8))
     fog = _element(scene, 'fog')
     _element(fog, 'density', _fmt(light.fog_density))
     _element(fog, 'color', _fmt(0.85, 0.88, 0.92, 1.0))
@@ -581,7 +584,7 @@ def _manifest(params: OrchardParams, targets: list[BagTarget], work: WorkPose,
 
 
 def render_scene(params: OrchardParams) -> Scene:
-    """一次布局计算，产出世界 SDF 与目标清单（同源、确定性）。"""
+    """一次布局计算，产出世界 SDF 与目标清单（同源、确定性）."""
     problems = check_params(params)
     if problems:
         raise ValueError('场景参数不合法：\n- ' + '\n- '.join(problems))
@@ -613,10 +616,10 @@ def render_scene(params: OrchardParams) -> Scene:
 
 
 def build_world(params: OrchardParams) -> str:
-    """只取世界 SDF 文本。"""
+    """只取世界 SDF 文本."""
     return render_scene(params).world_sdf
 
 
 def build_manifest(params: OrchardParams) -> dict:
-    """只取目标清单。"""
+    """只取目标清单."""
     return render_scene(params).manifest

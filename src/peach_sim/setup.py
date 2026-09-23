@@ -39,6 +39,7 @@ setup(
     entry_points={
         'console_scripts': [
             'generate_orchard = peach_sim.cli:main',
+            'scene_preview = peach_sim.preview:main',
         ],
     },
     options={

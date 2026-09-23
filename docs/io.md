@@ -33,6 +33,7 @@
 | `peach_bringup` | 整栈 launch / 预检 | Include 只读 `aubo_e5_bringup` | 不自动 RunHarvest |
 | `peach_observability` | 8090 转发、独立 rosbag2 | 调度/技能只读话题 | 不发运动 |
 | `peach_vegetation` | `/peach/vegetation/{leaf_mask,branch_mask,overlay,status}` | 彩色图 `image`（remap） | 运动、PlanningScene、octomap、选果 |
+| `peach_sim` | 果园世界 `worlds/peach_orchard.sdf`、采摘工位 xacro、目标清单 GT（`peach_orchard.manifest.yaml`：袋底=entry/袋颈/轴/果心/`reachable`） | `config/orchard.yaml`（场景参数唯一事实源） | ROS 业务话题/动作/IDL；仅桥 `/clock` 与 `/joint_states`（gz `gz.msgs.Model`→`sensor_msgs/JointState`），不进 `harvest_system` |
 
 导航预留（`peach_navigation` 已归档 `_archive/parked_2026-09/`）：曾提供 `NavigateToWorksite` 与 `/peach/navigation/target_report` / `arm_status` / `vehicle_state`；现仅在 manifest `reserved_interfaces` 区留名，无生产方。调度是批次侧**唯一**动作客户端。技能不调重建 `reset`/`finalize` Trigger。到位一步无导航动作：`_cmd_navigate` 固定座直通 `NAV_OK`。`harvest_plan` 只做收齐窗口与锁定集，不选下一颗。
 

@@ -55,7 +55,8 @@ def report(path: Path) -> str:
         and r.get('outcome') != 'decision_denied']
     uncoded = [
         r for r in failures
-        if not (r.get('reason') or r.get('failure_code') is not None)]
+        if not (r.get('reason') or r.get('error')
+                or r.get('failure_code') is not None)]
     hangs = [r for r in rows if float(r.get('elapsed_s') or 0) > 300.0]
     detours = [r for r in rows if r.get('detour_flag')]
     lines = [f'## {path.name}（{n} 例{"，网格" if grid else ""}）', '']
@@ -87,7 +88,7 @@ def report(path: Path) -> str:
     ]
     reasons = {}
     for r in failures:
-        reasons[str(r.get('reason') or r.get('failure_code'))] = \
+        reasons[str(r.get('reason') or r.get('error') or r.get('failure_code'))] = \
             reasons.get(str(r.get('reason') or r.get('failure_code')), 0) + 1
     if reasons:
         lines.append(f"- 失败原因分布: {reasons}")

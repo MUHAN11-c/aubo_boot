@@ -15,7 +15,6 @@
 #include "peach_arm/motion.hpp"
 #include "peach_arm/quality_gate.hpp"
 #include "peach_arm/safety_gate.hpp"
-#include "peach_arm/staging_selector.hpp"
 #include "peach_arm/view_planner.hpp"
 
 namespace peach_arm
@@ -57,8 +56,8 @@ inline MoveItMotionConfig toMotionConfig(const Params & params)
   return config;
 }
 
-/// Params → GraspTaskConfig 值字段（select_goal_joints / lookup_current_tip /
-/// 执行门 / protected_zones 由节点在 toGraspTaskConfig 之后装配）。
+/// Params → GraspTaskConfig 值字段（lookup_current_tip / 执行门 /
+/// protected_zones 由节点在 toGraspTaskConfig 之后装配）。
 inline GraspTaskConfig toGraspTaskConfig(const Params & params)
 {
   GraspTaskConfig config;
@@ -106,17 +105,6 @@ inline GraspTaskConfig toGraspTaskConfig(const Params & params)
   config.contact_tool_links = params.tool.contact_links;
   config.tool_body_length_m = params.tool.body_length_m;
   config.tool_body_radius_m = params.tool.body_radius_m;
-  return config;
-}
-
-/// Params → staging 候选选择配置（W5-2；默认值=原节点硬编码）。
-inline StagingSelectorConfig toStagingSelectorConfig(const Params & params)
-{
-  StagingSelectorConfig config;
-  config.seeds = static_cast<int>(params.staging.seeds);
-  config.wrist_weight = params.staging.wrist_weight;
-  config.roll_penalty = params.staging.roll_penalty;
-  config.top_n = static_cast<int>(params.staging.top_n);
   return config;
 }
 

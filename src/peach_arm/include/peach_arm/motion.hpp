@@ -30,6 +30,10 @@ class MoveGroupInterface;
 namespace peach_arm
 {
 
+/// 选果预检（CheckReachability）单次 IK 探测超时 [s]（原 staging_selector
+/// 单源；staging 候选生态删除后迁此，2026-09-23）。
+inline constexpr double kQuickIkProbeTimeoutS = 0.05;
+
 class RetireBucket;  // execution_guard.hpp（src/ 私有头；指针成员避免安装头依赖）
 
 // MoveIt 运动接口的运行配置（默认值以 config/peach_arm.yaml 为权威源）。

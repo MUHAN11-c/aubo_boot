@@ -30,7 +30,6 @@
 #include "peach_arm/manipulation_skills_node.hpp"
 #include "peach_arm/eigen_conversions.hpp"
 #include "peach_arm/grasp_geometry.hpp"
-#include "peach_arm/staging_selector.hpp"
 #include "peach_arm/trajectory_guard.hpp"
 
 using namespace std::chrono_literals;
@@ -411,7 +410,7 @@ void ManipulationSkillsNode::onCheckReachability(
         target, current_tip.linear(), params_.moveit.mtc_approach_along_axis_m);
     }
     // 快速可行性 IK：当前种子 + 单次有界超时——单源常量在
-    // staging_selector.hpp（kQuickIkProbeTimeoutS；与 staging 扫描的
+    // motion.hpp（kQuickIkProbeTimeoutS；原 staging 扫描同源常数
     // 深搜档 kStagingIkSolveTimeoutS 区分，选果整链须早退）。
     const auto try_ik =
       [&](const Eigen::Isometry3d & pose, moveit::core::RobotState * out) {
@@ -580,6 +579,17 @@ moveit::core::MoveItErrorCode MoveItMotionInterface::boundedExecute(
   // 事件风暴，8.2 万行不停）时永久阻塞且不理取消。有界守卫先到先收；
   // 弃等线程移交 retiring_，闭包只持共享 MGI 与 Plan 拷贝（不引用 this），
   // MGI 生存期由 shared_ptr 维持，节点析构无 UAF（审查 P0-1/P1-1 修复）。
+  retiring_->reap();
+  if (retiring_->size() > 0) {
+    // 单飞不变量：MGI::execute 非线程安全，滞留 worker 仍占着 execute
+    // 调用时并发再入会竞态（2026-09-23 M1r peach_arm SIGSEGV 根因）。
+    // 拒新 execute 按失败收口，直至滞留清零（通常须重启 move_group）。
+    RCLCPP_WARN_THROTTLE(
+      logger_, *clock_, 10000,
+      "上一执行仍滞留 MGI（%zu 个），拒绝并发 execute（防竞态）",
+      retiring_->size());
+    return moveit::core::MoveItErrorCode::FAILURE;
+  }
   executing_.fetch_add(1);
   struct Guard
   {
@@ -589,7 +599,6 @@ moveit::core::MoveItErrorCode MoveItMotionInterface::boundedExecute(
       counter.fetch_sub(1);
     }
   } guard{executing_};
-  retiring_->reap();
   auto plan_copy =
     std::make_shared<moveit::planning_interface::MoveGroupInterface::Plan>(
       std::move(plan));

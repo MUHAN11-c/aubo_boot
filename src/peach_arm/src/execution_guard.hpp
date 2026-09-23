@@ -85,6 +85,17 @@ private:
   std::vector<Entry> retiring_;
 };
 
+/// 执行体抛异常时按 FAILURE 收口（不得让异常经有界执行逃逸到周期线程）。
+inline moveit::core::MoveItErrorCode settleResult(
+  std::shared_future<moveit::core::MoveItErrorCode> & future)
+{
+  try {
+    return future.get();
+  } catch (...) {
+    return moveit::core::MoveItErrorCode::FAILURE;
+  }
+}
+
 /// 有界执行：execute_fn 在独立线程运行并写入 promise；等待环 100ms 轮询，
 /// 取消探针或超时先到即 stop_fn() 并给 10s 宽限；宽限后仍未完结则弃等
 /// （线程移交 retiring，闭包只持有自己的捕获）。返回终态错误码；弃等
@@ -104,7 +115,13 @@ moveit::core::MoveItErrorCode runBoundedExecute(
     std::shared_future<moveit::core::MoveItErrorCode>(result->get_future());
   std::thread worker(
     [fn = std::forward<ExecFn>(execute_fn), result, finished]() mutable {
-      result->set_value(fn());
+      // 执行体异常不得逃逸线程入口（std::terminate）：捕获后经
+      // future 传递，按异常收口（审查 F2）。
+      try {
+        result->set_value(fn());
+      } catch (...) {
+        result->set_exception(std::current_exception());
+      }
       finished->store(true);
     });
   const auto deadline = std::chrono::steady_clock::now() +
@@ -122,7 +139,7 @@ moveit::core::MoveItErrorCode runBoundedExecute(
   }
   if (!triggered) {
     worker.join();
-    return shared_result.get();
+    return settleResult(shared_result);
   }
   if (stop_fn) {
     stop_fn();
@@ -131,7 +148,7 @@ moveit::core::MoveItErrorCode runBoundedExecute(
     std::future_status::ready)
   {
     worker.join();
-    return shared_result.get();
+    return settleResult(shared_result);
   }
   retiring.add(std::move(worker), finished);
   *abandoned = true;

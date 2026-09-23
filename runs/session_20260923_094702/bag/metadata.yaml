@@ -2,10 +2,10 @@ rosbag2_bagfile_information:
   version: 9
   storage_identifier: mcap
   duration:
-    nanoseconds: 18178473545874
+    nanoseconds: 3057224032563
   starting_time:
-    nanoseconds_since_epoch: 1790089012525793069
-  message_count: 6507339
+    nanoseconds_since_epoch: 1790128022937287307
+  message_count: 3097742
   topics_with_message_count:
     - topic_metadata:
         name: /execute_task_solution/_action/feedback
@@ -14,7 +14,7 @@ rosbag2_bagfile_information:
         offered_qos_profiles:
           []
         type_description_hash: ""
-      message_count: 10
+      message_count: 326
     - topic_metadata:
         name: /execute_task_solution/_action/status
         type: action_msgs/msg/GoalStatusArray
@@ -22,7 +22,7 @@ rosbag2_bagfile_information:
         offered_qos_profiles:
           []
         type_description_hash: ""
-      message_count: 8
+      message_count: 264
     - topic_metadata:
         name: /execute_trajectory/_action/status
         type: action_msgs/msg/GoalStatusArray
@@ -30,7 +30,7 @@ rosbag2_bagfile_information:
         offered_qos_profiles:
           []
         type_description_hash: ""
-      message_count: 8
+      message_count: 266
     - topic_metadata:
         name: /execute_trajectory/_action/feedback
         type: moveit_msgs/msg/ExecuteTrajectory_FeedbackMessage
@@ -38,7 +38,7 @@ rosbag2_bagfile_information:
         offered_qos_profiles:
           []
         type_description_hash: ""
-      message_count: 12
+      message_count: 399
     - topic_metadata:
         name: /peach_arm/planned_views
         type: visualization_msgs/msg/MarkerArray
@@ -46,7 +46,7 @@ rosbag2_bagfile_information:
         offered_qos_profiles:
           []
         type_description_hash: ""
-      message_count: 2
+      message_count: 66
     - topic_metadata:
         name: /peach_arm/execute_target/_action/status
         type: action_msgs/msg/GoalStatusArray
@@ -54,7 +54,7 @@ rosbag2_bagfile_information:
         offered_qos_profiles:
           []
         type_description_hash: ""
-      message_count: 3
+      message_count: 132
     - topic_metadata:
         name: /peach_arm/execute_target/_action/feedback
         type: peach_interfaces/msg/ExecuteTarget_FeedbackMessage
@@ -62,7 +62,7 @@ rosbag2_bagfile_information:
         offered_qos_profiles:
           []
         type_description_hash: ""
-      message_count: 27060
+      message_count: 6771
     - topic_metadata:
         name: /peach/manipulation/grasp_hypothesis
         type: peach_interfaces/msg/GraspHypothesis
@@ -70,7 +70,7 @@ rosbag2_bagfile_information:
         offered_qos_profiles:
           []
         type_description_hash: ""
-      message_count: 4
+      message_count: 132
     - topic_metadata:
         name: /aubo_io_controller/robot_status
         type: aubo_msgs/msg/RobotStatus
@@ -78,15 +78,15 @@ rosbag2_bagfile_information:
         offered_qos_profiles:
           []
         type_description_hash: ""
-      message_count: 6465
+      message_count: 30626
     - topic_metadata:
-        name: /peach/reconstruction/pregrasp_verification
-        type: peach_interfaces/msg/PregraspVerification
+        name: /monitored_planning_scene
+        type: moveit_msgs/msg/PlanningScene
         serialization_format: cdr
         offered_qos_profiles:
           []
         type_description_hash: ""
-      message_count: 18176
+      message_count: 16064
     - topic_metadata:
         name: /peach/reconstruction/diagnostics
         type: peach_interfaces/msg/ReconstructionStatus
@@ -94,7 +94,7 @@ rosbag2_bagfile_information:
         offered_qos_profiles:
           []
         type_description_hash: ""
-      message_count: 37486
+      message_count: 11400
     - topic_metadata:
         name: /peach_arm/status
         type: std_msgs/msg/String
@@ -102,7 +102,7 @@ rosbag2_bagfile_information:
         offered_qos_profiles:
           []
         type_description_hash: ""
-      message_count: 41
+      message_count: 1146
     - topic_metadata:
         name: /peach/reconstruction/refined_pose
         type: peach_interfaces/msg/BagGraspCandidateArray
@@ -110,15 +110,7 @@ rosbag2_bagfile_information:
         offered_qos_profiles:
           []
         type_description_hash: ""
-      message_count: 1426
-    - topic_metadata:
-        name: /peach_arm/transition_event
-        type: lifecycle_msgs/msg/TransitionEvent
-        serialization_format: cdr
-        offered_qos_profiles:
-          []
-        type_description_hash: ""
-      message_count: 4
+      message_count: 6055
     - topic_metadata:
         name: /diagnostics
         type: diagnostic_msgs/msg/DiagnosticArray
@@ -126,7 +118,7 @@ rosbag2_bagfile_information:
         offered_qos_profiles:
           []
         type_description_hash: ""
-      message_count: 58173
+      message_count: 9779
     - topic_metadata:
         name: /rosout
         type: rcl_interfaces/msg/Log
@@ -134,63 +126,7 @@ rosbag2_bagfile_information:
         offered_qos_profiles:
           []
         type_description_hash: ""
-      message_count: 1626
-    - topic_metadata:
-        name: /description
-        type: moveit_task_constructor_msgs/msg/TaskDescription
-        serialization_format: cdr
-        offered_qos_profiles:
-          []
-        type_description_hash: ""
-      message_count: 13
-    - topic_metadata:
-        name: /joint_trajectory_controller/follow_joint_trajectory/_action/feedback
-        type: control_msgs/msg/FollowJointTrajectory_FeedbackMessage
-        serialization_format: cdr
-        offered_qos_profiles:
-          []
-        type_description_hash: ""
-      message_count: 113
-    - topic_metadata:
-        name: /peach/observability/tcp_path
-        type: nav_msgs/msg/Path
-        serialization_format: cdr
-        offered_qos_profiles:
-          []
-        type_description_hash: ""
-      message_count: 84971
-    - topic_metadata:
-        name: /move_action/_action/status
-        type: action_msgs/msg/GoalStatusArray
-        serialization_format: cdr
-        offered_qos_profiles:
-          []
-        type_description_hash: ""
-      message_count: 6
-    - topic_metadata:
-        name: /tf_static
-        type: tf2_msgs/msg/TFMessage
-        serialization_format: cdr
-        offered_qos_profiles:
-          []
-        type_description_hash: ""
-      message_count: 4
-    - topic_metadata:
-        name: /bond
-        type: bond/msg/Status
-        serialization_format: cdr
-        offered_qos_profiles:
-          []
-        type_description_hash: ""
-      message_count: 10
-    - topic_metadata:
-        name: /tf
-        type: tf2_msgs/msg/TFMessage
-        serialization_format: cdr
-        offered_qos_profiles:
-          []
-        type_description_hash: ""
-      message_count: 642131
+      message_count: 5766
     - topic_metadata:
         name: /controller_manager/introspection_data/full
         type: pal_statistics_msgs/msg/Statistics
@@ -198,7 +134,47 @@ rosbag2_bagfile_information:
         offered_qos_profiles:
           []
         type_description_hash: ""
-      message_count: 658726
+      message_count: 347954
+    - topic_metadata:
+        name: /joint_trajectory_controller/follow_joint_trajectory/_action/feedback
+        type: control_msgs/msg/FollowJointTrajectory_FeedbackMessage
+        serialization_format: cdr
+        offered_qos_profiles:
+          []
+        type_description_hash: ""
+      message_count: 8206
+    - topic_metadata:
+        name: /peach/observability/tcp_path
+        type: nav_msgs/msg/Path
+        serialization_format: cdr
+        offered_qos_profiles:
+          []
+        type_description_hash: ""
+      message_count: 18752
+    - topic_metadata:
+        name: /move_action/_action/status
+        type: action_msgs/msg/GoalStatusArray
+        serialization_format: cdr
+        offered_qos_profiles:
+          []
+        type_description_hash: ""
+      message_count: 144
+    - topic_metadata:
+        name: /tf_static
+        type: tf2_msgs/msg/TFMessage
+        serialization_format: cdr
+        offered_qos_profiles:
+          []
+        type_description_hash: ""
+      message_count: 19
+    - topic_metadata:
+        name: /joint_states
+        type: sensor_msgs/msg/JointState
+        serialization_format: cdr
+        offered_qos_profiles:
+          []
+        type_description_hash: ""
+      message_count: 719146
     - topic_metadata:
         name: /peach/reconstruction/status
         type: std_msgs/msg/String
@@ -206,7 +182,7 @@ rosbag2_bagfile_information:
         offered_qos_profiles:
           []
         type_description_hash: ""
-      message_count: 36356
+      message_count: 6107
     - topic_metadata:
         name: /peach/observability/metrics
         type: std_msgs/msg/String
@@ -214,7 +190,7 @@ rosbag2_bagfile_information:
         offered_qos_profiles:
           []
         type_description_hash: ""
-      message_count: 19240
+      message_count: 3932
     - topic_metadata:
         name: /peach_observability/transition_event
         type: lifecycle_msgs/msg/TransitionEvent
@@ -224,21 +200,13 @@ rosbag2_bagfile_information:
         type_description_hash: ""
       message_count: 1
     - topic_metadata:
-        name: /joint_states
-        type: sensor_msgs/msg/JointState
-        serialization_format: cdr
-        offered_qos_profiles:
-          []
-        type_description_hash: ""
-      message_count: 1411241
-    - topic_metadata:
         name: /peach/observability/job
         type: std_msgs/msg/String
         serialization_format: cdr
         offered_qos_profiles:
           []
         type_description_hash: ""
-      message_count: 296
+      message_count: 5620
     - topic_metadata:
         name: /peach/reconstruction/tsdf_cloud
         type: sensor_msgs/msg/PointCloud2
@@ -254,7 +222,15 @@ rosbag2_bagfile_information:
         offered_qos_profiles:
           []
         type_description_hash: ""
-      message_count: 1426
+      message_count: 6054
+    - topic_metadata:
+        name: /trajectory_execution_event
+        type: std_msgs/msg/String
+        serialization_format: cdr
+        offered_qos_profiles:
+          []
+        type_description_hash: ""
+      message_count: 1912
     - topic_metadata:
         name: /peach/reconstruction/diagnostics_debug
         type: std_msgs/msg/String
@@ -262,7 +238,7 @@ rosbag2_bagfile_information:
         offered_qos_profiles:
           []
         type_description_hash: ""
-      message_count: 36356
+      message_count: 6107
     - topic_metadata:
         name: /controller_manager/introspection_data/values
         type: pal_statistics_msgs/msg/StatisticsValues
@@ -270,7 +246,7 @@ rosbag2_bagfile_information:
         offered_qos_profiles:
           []
         type_description_hash: ""
-      message_count: 652048
+      message_count: 345468
     - topic_metadata:
         name: /joint_trajectory_controller/follow_joint_trajectory/_action/status
         type: action_msgs/msg/GoalStatusArray
@@ -278,7 +254,7 @@ rosbag2_bagfile_information:
         offered_qos_profiles:
           []
         type_description_hash: ""
-      message_count: 20
+      message_count: 654
     - topic_metadata:
         name: /peach/observability/markers
         type: visualization_msgs/msg/MarkerArray
@@ -286,7 +262,7 @@ rosbag2_bagfile_information:
         offered_qos_profiles:
           []
         type_description_hash: ""
-      message_count: 84976
+      message_count: 18776
     - topic_metadata:
         name: /peach/reconstruction/refined_axis
         type: geometry_msgs/msg/Vector3Stamped
@@ -302,7 +278,7 @@ rosbag2_bagfile_information:
         offered_qos_profiles:
           []
         type_description_hash: ""
-      message_count: 6
+      message_count: 144
     - topic_metadata:
         name: /peach/perception/target_observations
         type: peach_interfaces/msg/PeachTargetObservationArray
@@ -310,7 +286,7 @@ rosbag2_bagfile_information:
         offered_qos_profiles:
           []
         type_description_hash: ""
-      message_count: 1780
+      message_count: 7585
     - topic_metadata:
         name: /dynamic_joint_states
         type: control_msgs/msg/DynamicJointState
@@ -318,7 +294,7 @@ rosbag2_bagfile_information:
         offered_qos_profiles:
           []
         type_description_hash: ""
-      message_count: 649419
+      message_count: 345220
     - topic_metadata:
         name: /peach_supervisor/state
         type: peach_interfaces/msg/HarvestState
@@ -334,15 +310,31 @@ rosbag2_bagfile_information:
         offered_qos_profiles:
           []
         type_description_hash: ""
-      message_count: 18178
+      message_count: 3057
     - topic_metadata:
-        name: /monitored_planning_scene
-        type: moveit_msgs/msg/PlanningScene
+        name: /display_contacts
+        type: visualization_msgs/msg/MarkerArray
         serialization_format: cdr
         offered_qos_profiles:
           []
         type_description_hash: ""
-      message_count: 72529
+      message_count: 9
+    - topic_metadata:
+        name: /tf
+        type: tf2_msgs/msg/TFMessage
+        serialization_format: cdr
+        offered_qos_profiles:
+          []
+        type_description_hash: ""
+      message_count: 112586
+    - topic_metadata:
+        name: /bond
+        type: bond/msg/Status
+        serialization_format: cdr
+        offered_qos_profiles:
+          []
+        type_description_hash: ""
+      message_count: 10
     - topic_metadata:
         name: /pipeline_state
         type: moveit_msgs/msg/PipelineState
@@ -350,7 +342,7 @@ rosbag2_bagfile_information:
         offered_qos_profiles:
           []
         type_description_hash: ""
-      message_count: 37
+      message_count: 1454
     - topic_metadata:
         name: /peach/reconstruction/grasp_decision
         type: peach_interfaces/msg/GraspDecision
@@ -358,7 +350,7 @@ rosbag2_bagfile_information:
         offered_qos_profiles:
           []
         type_description_hash: ""
-      message_count: 37487
+      message_count: 11395
     - topic_metadata:
         name: /controller_manager/statistics/full
         type: pal_statistics_msgs/msg/Statistics
@@ -366,7 +358,7 @@ rosbag2_bagfile_information:
         offered_qos_profiles:
           []
         type_description_hash: ""
-      message_count: 651445
+      message_count: 345324
     - topic_metadata:
         name: /controller_manager/statistics/values
         type: pal_statistics_msgs/msg/StatisticsValues
@@ -374,7 +366,7 @@ rosbag2_bagfile_information:
         offered_qos_profiles:
           []
         type_description_hash: ""
-      message_count: 649841
+      message_count: 344969
     - topic_metadata:
         name: /joint_trajectory_controller/controller_state
         type: control_msgs/msg/JointTrajectoryControllerState
@@ -382,7 +374,15 @@ rosbag2_bagfile_information:
         offered_qos_profiles:
           []
         type_description_hash: ""
-      message_count: 648173
+      message_count: 344885
+    - topic_metadata:
+        name: /peach/reconstruction/pregrasp_verification
+        type: peach_interfaces/msg/PregraspVerification
+        serialization_format: cdr
+        offered_qos_profiles:
+          []
+        type_description_hash: ""
+      message_count: 3054
   compression_format: ""
   compression_mode: ""
   relative_file_paths:
@@ -390,9 +390,9 @@ rosbag2_bagfile_information:
   files:
     - path: bag_0.mcap
       starting_time:
-        nanoseconds_since_epoch: 1790089012525793069
+        nanoseconds_since_epoch: 1790128022937287307
       duration:
-        nanoseconds: 18178473545874
-      message_count: 13014678
+        nanoseconds: 3057224032563
+      message_count: 6195484
   custom_data: ~
   ros_distro: jazzy

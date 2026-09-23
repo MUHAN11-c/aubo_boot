@@ -171,19 +171,19 @@ peach_arm:
     mtc_approach_transit_max_detour_ratio:
       type: double
       default_value: 2.6
-      description: "staging 转移绕行比门（同 09-18 标定）"
+      description: "接近转移绕行比门（同 09-18 标定）"
       validation:
         gt_eq<>: [0.0]
     mtc_approach_transit_max_chord_deviation_m:
       type: double
       default_value: 0.32
-      description: "staging 转移弦偏离门 [m]（同 09-18 标定）"
+      description: "接近转移弦偏离门 [m]（同 09-18 标定）"
       validation:
         gt_eq<>: [0.0]
     mtc_approach_transit_max_recede_m:
       type: double
       default_value: 0.12
-      description: "staging 转移回退门 [m]（同 09-18 标定）"
+      description: "接近转移回退门 [m]（同 09-18 标定）"
       validation:
         gt_eq<>: [0.0]
     mtc_approach_max_tcp_rotation_deg:
@@ -225,7 +225,7 @@ peach_arm:
     approach_staging_standoff_m:
       type: double
       default_value: 0.1
-      description: "预抓取下方轴上 staging 再后撤 [m]（面内斜插落点）"
+      description: "预抓取下方轴上斜直线落点再后撤 [m]（斜插终点）"
       validation:
         gt_eq<>: [0.0]
     approach_near_velocity_scaling:
@@ -396,31 +396,6 @@ peach_arm:
       description: "等帧超时回退 [s]"
       validation:
         gt<>: [0.0]
-  staging:
-    seeds:
-      type: int
-      default_value: 5
-      description: "staging 候选每 roll 的 IK 尝试数（1 当前种子 + N-1 随机）"
-      validation:
-        gt_eq<>: [1]
-    wrist_weight:
-      type: double
-      default_value: 2.5
-      description: "staging 候选关节距离中腕轴（名含 wrist）权重"
-      validation:
-        gt<>: [0.0]
-    roll_penalty:
-      type: double
-      default_value: 4.0
-      description: "staging 候选滚转惩罚系数（dist² += 本值·roll²）"
-      validation:
-        gt_eq<>: [0.0]
-    top_n:
-      type: int
-      default_value: 5
-      description: "staging 输出候选上限（按加权距离升序取前 N）"
-      validation:
-        gt_eq<>: [1]
   quality:
     minimum_views:
       type: int

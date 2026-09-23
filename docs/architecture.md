@@ -152,12 +152,12 @@ flowchart TB
   stages -->|"executeCycle 读"| ctx
   stages -->|"逐阶段授权"| cycle
   stages -->|"观察拍照"| mot
-  stages -->|"接触 果平面折线LIN 失败才PTP"| mtc
+  stages -->|"接触 斜直线LIN+沿轴垂直进入"| mtc
   stages -->|"评分与门"| core
   stages -->|"剪切"| tool
 ```
 
-**读图：** 一个进程、八个组件（`ExecutionAuthority` 授权矩阵编在 `cycle.cpp`，`CycleContext` 在 `cycle_context.hpp`）。外壳不规划；`cycle.cpp` 受理动作并按 `authorizeStage` 判定执行权；阶段执行器读上下文跑固定阶段序列；接近主路径 = 果平面折线 LIN（面内斜插到轴上 staging（keep-roll 对轴，不叠刀口滚转）+ 沿轴垂直进入；滚转在候选内采样；失败才 PTP staging）；PTP 另用于命名关节赶路（拍照位 / stow）；刀具不在 MTC 里。感知两容器的同缩放运行时图见 **图 3b（看一帧）/ 图 3c（建一颗）**；调度组件图按同样缩放另画，不要把那些模块塞进这一张。
+**读图：** 一个进程、八个组件（`ExecutionAuthority` 授权矩阵编在 `cycle.cpp`，`CycleContext` 在 `cycle_context.hpp`）。外壳不规划；`cycle.cpp` 受理动作并按 `authorizeStage` 判定执行权；阶段执行器读上下文跑固定阶段序列；接近主路径 = 斜直线（面内一跳到预抓取下方轴上，keep-roll 对轴）+ 沿轴垂直进入；唯一兜底=同形降速重试（斜插 0.20/0.10，腕轴超限再 0.10/0.04），不走 PTP 绕角/多级兜底（2026-09-23 用户定型，staging PTP 与候选扫描已删）；PTP 仅用于命名关节赶路（拍照位 / stow）；刀具不在 MTC 里。感知两容器的同缩放运行时图见 **图 3b（看一帧）/ 图 3c（建一颗）**；调度组件图按同样缩放另画，不要把那些模块塞进这一张。
 
 ### 图 0 — 预留层与采摘核
 
@@ -612,7 +612,7 @@ flowchart TB
   ctx["CycleContext 周期状态 单写者"]
   stages["stages.cpp executeCycle 阶段函数"]
   motion["motion.cpp 拍照位PTP 观察最近短移只LIN"]
-  mtc["grasp_task.cpp 拍照位再果平面折线LIN 沿轴套入撤退"]
+  mtc["grasp_task.cpp 拍照位再斜直线+垂直进入 沿轴套入撤退"]
   core["纯核 视点 质量门 安全门 目标缓存"]
   tool["tool_actuator.cpp SetIO ACK 不是切断确认"]
   node --> cycle
@@ -625,7 +625,7 @@ flowchart TB
   stages --> tool
 ```
 
-**读图：** 一个 Lifecycle 节点拆成几份源文件，不是多个进程。外壳接 ROS；`cycle.cpp` 受理动作目标并实现授权矩阵（`cycle_support.hpp` 的 `MotionStage` 是其单一事实源）；`CycleContext` 承载一次周期的全部可变状态；真正「观察 / 预抓取 / 套入」是 `stages.cpp` 的阶段函数。观察移位走最近短步（只 LIN，失败换候选）；预抓取先回拍照位（有记录的「拍照位→预抓取」则原路返程，否则 PTP，时限 `photo_ptp_planning_time_s` 0.5 s，失败再 OMPL `photo_planning_time_s` 3.0 s），再走接近主路径：**果平面折线 LIN**（面内斜插到轴上 staging（keep-roll 对轴，不叠刀口滚转）+ 沿轴垂直进入；`select_goal_joints` 各滚转并行 IK：keep-roll 及 ±30°/±60° × 当前+4随机种子、自碰过滤、最近 5 候选；折线 `plan()` 每趟至多两档（斜插 0.20/0.10，wrist1 超限再 0.10/0.04），再逐候选 PTP；KDL `setFromIK` 加锁；折线失败才 PTP staging 兜底）；已在袋底侧且直连不穿囊的短修正（预抓取残差修正等）走直连 LIN 兜底（已齐挂 tip 姿态 OrientationConstraint，容差 `mtc_approach_max_align_deg` 20°；未齐先 LIN 原地对齐再平移）。护栏拦绕腕、口侧穿囊（staging 首段 PTP 弧查圆柱穿越；其后 LIN 段另查反爬，锚定各段自身起点）。刀具 IO 只在阶段执行器里打，ACK 只表示柜侧收下命令。
+**读图：** 一个 Lifecycle 节点拆成几份源文件，不是多个进程。外壳接 ROS；`cycle.cpp` 受理动作目标并实现授权矩阵（`cycle_support.hpp` 的 `MotionStage` 是其单一事实源）；`CycleContext` 承载一次周期的全部可变状态；真正「观察 / 预抓取 / 套入」是 `stages.cpp` 的阶段函数。观察移位走最近短步（只 LIN，失败换候选）；预抓取先回拍照位（有记录的「拍照位→预抓取」则原路返程，否则 PTP，时限 `photo_ptp_planning_time_s` 0.5 s，失败再 OMPL `photo_planning_time_s` 3.0 s），再走接近主路径：**斜直线 + 沿轴垂直进入**（面内一跳到预抓取下方轴上，keep-roll 对轴；`plan()` 每趟至多两档（斜插 0.20/0.10，wrist1 超限再 0.10/0.04），降速重试是唯一兜底；staging PTP 候选扫描已删，2026-09-23 用户定型；不满足（无当前 TCP/跳长超限/扫掠触囊）即失败收口）；已在袋底侧且直连不穿囊的短修正（预抓取残差修正等）走直连 LIN 兜底（已齐挂 tip 姿态 OrientationConstraint，容差 `mtc_approach_max_align_deg` 20°；未齐先 LIN 原地对齐再平移）。护栏拦绕腕、口侧穿囊（staging 首段 PTP 弧查圆柱穿越；其后 LIN 段另查反爬，锚定各段自身起点）。刀具 IO 只在阶段执行器里打，ACK 只表示柜侧收下命令。
 
 **对外提供：**
 
@@ -634,7 +634,7 @@ flowchart TB
 | `SurveyScene` | `goToPhotoPose`（默认 SRDF `global_photo_pose`）：有「拍照位→预抓取」记录且当前关节在其终点则原路返程（不过 `transit_max_*`）；否则 PTP（`photo_ptp_planning_time_s` 0.5 s），失败回退 OMPL（`photo_planning_time_s` 3.0 s），超 `transit_max_*` 拒绝。成功出口 `atNamedTarget`（`execute=false` 仍核） |
 | `ExecuteTarget` PREVIEW | 只规划不执行（MTC 凑 `mtc_max_solutions` 5 解） |
 | `ExecuteTarget` OBSERVE_ONLY | 当前位采帧；基线未过最多两次最近短移（只 LIN，失败换候选），沿当前相机直线截到 `max_camera_step_m`（默认 0.15 m，~0.7 m 处一跨过 8°），评分以行程最短为主；朝检测框内分割更满的方向微偏。禁止对侧兜圈、OMPL、贴球面环绕、PTP 兜底。覆盖门 8°。**停准则：** 覆盖达标或 `maximum_moves` 用尽（Open3D TSDF / NBV：做完位姿序列，不用移动+等帧 EMA 预测收口）。到位后等**新机位**（`view_directions` 增加），同机位连帧不算覆盖 |
-| `ExecuteTarget` PREGRASP_ONLY | 再确认 → 回拍照位（有记录的接近则原路返程，否则 PTP 0.5 s / 失败 OMPL 3.0 s；观察 look-at 直接规划常无 IK）→ 接近主路径：**果平面折线 LIN**（面内斜插到轴上 staging（keep-roll 对轴，不叠刀口滚转）+ 沿轴垂直进入；`StagingCandidateSelector` 各滚转并行 IK：keep-roll 及 ±30°/±60° × 当前+N-1 随机种子、自碰过滤、按腕轴加权距离+滚转惩罚取最近 `staging.top_n` 候选；折线 `plan()` 每趟至多两档（斜插 0.20/0.10，wrist1 超限再 0.10/0.04），再逐候选 PTP；`staging.*` 参数化，默认 5 种子/5 候选；折线失败才 PTP staging 兜底）（已齐 LIN 挂相对目标 20° 姿态约束）。执行路径 MTC `plan(1)`，不凑满 5 解。staging 不可用且起点已在袋底侧、直连不穿囊时走直连 LIN 兜底（未齐先 LIN 原地对齐工具 Z；keep-roll 自碰换滚转）。不走 CIRC/STOMP/OMPL。失败 `skipped_unreachable`。拍照位失败则从当前位规划，仍失败再试拍照位 → 工具 TF 残差按最新精化快照重算 entry/pregrasp 增量修正（最多两次）→ 停在预抓取（`HoldPregrasp`，不回 `harvest_stow`）。残差未过门也停住，便于目视方向/定位。任何路径不 SetIO。不要求 `GraspDecision.allowed`。到位终局 `SUCCEEDED` + `recovery_required`（不是接触失败撤离）；ACK 前调度不 Survey / 不派下一颗 |
+| `ExecuteTarget` PREGRASP_ONLY | 再确认 → 回拍照位（有记录的接近则原路返程，否则 PTP 0.5 s / 失败 OMPL 3.0 s；观察 look-at 直接规划常无 IK）→ 接近主路径：**斜直线 + 沿轴垂直进入**（面内一跳到预抓取下方轴上，keep-roll 对轴；两档速度 0.20/0.10 → 0.10/0.04 是唯一兜底；staging PTP 候选与 `staging.*` 参数已删，2026-09-23 用户定型）（已齐 LIN 挂相对目标 20° 姿态约束）。执行路径 MTC `plan(1)`，不凑满 5 解。staging 不可用且起点已在袋底侧、直连不穿囊时走直连 LIN 兜底（未齐先 LIN 原地对齐工具 Z；keep-roll 自碰换滚转）。不走 CIRC/STOMP/OMPL。失败 `skipped_unreachable`。拍照位失败则从当前位规划，仍失败再试拍照位 → 工具 TF 残差按最新精化快照重算 entry/pregrasp 增量修正（最多两次）→ 停在预抓取（`HoldPregrasp`，不回 `harvest_stow`）。残差未过门也停住，便于目视方向/定位。任何路径不 SetIO。不要求 `GraspDecision.allowed`。到位终局 `SUCCEEDED` + `recovery_required`（不是接触失败撤离）；ACK 前调度不 Survey / 不派下一颗 |
 | `ExecuteTarget` FULL | `skip_observation`；再确认 → 预抓取验证 → `PlanSleeve`。**空心** `hollow_cylinder_v1`：MTC 规划套入与反向撤退 → 沿轴一段 LIN 套入 → `ToolActuator` → `VerifyCut` → 原路 LIN 撤到预抓取 → **先倒放回拍照位再短 PTP `harvest_stow`**（stow 与 `global_photo_pose` 已分叉，直达会跳过原路返程撞 `transit_max`）。**自适应** `adaptive_cylinder_v1`：跳过 MTC 套入/撤退；VerifyPregrasp 后 imu_follow `enable`→`insert_start`→剪切→`insert_retract`→`disable`（回到预抓取才关窗），再同样经拍照位到 `harvest_stow`。禁止与 MTC 同时写控制器。切断**且**撤退确认才 `harvest.grasped`。`tool.enabled=true` 未确认终局 `FAILED`/`CUT_FEEDBACK_TIMEOUT`。`tool.enabled=false` 时跳过 SetIO，周期可 SUCCEEDED 但不宣称采摘成功 |
 | `CheckReachability` | 选果预检：预抓取 IK；`require_sleeve`（FULL）再套入终点 IK **和**沿轴 `CartesianInterpolator`（步长/完成比与接触 LIN 同参，阈值 `mtc_cartesian_min_fraction` 0.95）。失败码 `no_ik` / `sleeve_no_ik` / `sleeve_no_cartesian`。不装配 MTC、不动臂。超臂展在 SELECT 跳过，不再派进接触再 Cartesian 0/1 |
 | 预览/使能/ACK 服务 | `preview_*`、`set_execution_armed`、`acknowledge_recovery` |
@@ -810,7 +810,7 @@ USB 串口 IMU（QinHeng USB 转串适配器：CH340 `1a86:7523`（旧，ttyUSB�
 | 技能动作与授权 | `cycle.cpp` | `ExecuteTarget` / `SurveyScene` 受理与取消；`authorizeStage` 授权矩阵 |
 | 周期状态 | `cycle_context.hpp`（`CycleContext` / `CycleState`） | 周期全部可变状态与状态枚举；action 受理创建、worker 单写者 |
 | 阶段执行器 | `stages.cpp` | `executeCycle(ctx)` 显式模式 switch；阶段函数 |
-| 接触 | `grasp_task.cpp` | 预抓取先 PTP 拍照位，再主路径果平面折线 LIN（面内斜插对轴，沿轴垂直进入；失败才 PTP staging）；套入沿轴直线；已齐 LIN 挂姿态约束；接触不用 CIRC/STOMP/OMPL；工具 IO 不在这里；MTC execute 有界（`execution_stop` 注入 stopExecution，超时判失败） |
+| 接触 | `grasp_task.cpp` | 预抓取先 PTP 拍照位，再主路径斜直线+垂直进入（原折线径斜直线+垂直进入 LIN（面内斜插对轴，沿轴垂直进入；失败才 PTP staging）；套入沿轴直线；已齐 LIN 挂姿态约束；接触不用 CIRC/STOMP/OMPL；工具 IO 不在这里；MTC execute 有界（`execution_stop` 注入 stopExecution，超时判失败） |
 | USB IMU | `serial_imu/{imu_node,protocol,frame}.py` | `/imu/data` 修正、`/imu/data_raw` 原始；`/diagnostics`；udev `/dev/imu`；随 harvest_system，不进 lifecycle |
 | IMU 跟随 | `imu_follow/{follow_node,follow_core}.py` | 订 `/imu/data`；enable 采参考；姿态误差 P 控制成 twist → MoveIt Servo（fjt 备选）；默认只算不发；peach 仅自适应 FULL 接触窗调用 |
 | 技能纯核 | `quality_gate.cpp` / `view_planner.cpp` / `safety_gate.cpp` / `target_cache.cpp` | 直接构造的唯一实现，零 ROS |

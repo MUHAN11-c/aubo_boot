@@ -2,7 +2,7 @@
 // 有限圆柱 vs 感知果实胶囊，仅接近段）+②从下方半空间（反爬锚定果底）
 // 在 grasp_geometry；③octomap 场景碰撞（臂/相机受查、工具链豁免）在
 // moveit 配置与 scene ACM；④近果低速档（本文件 solver 档位）与接触检测
-// （节点侧 contact_monitor，默认关）。接近主路径 = 果平面折线 LIN
+// （节点侧 contact_monitor，默认关）。接近主路径 = 斜直线（面内一跳）+
 // （面内斜插 keep-roll 对轴 + 沿轴垂直进入）；
 // 规划失败才 PTP staging 兜底。套入/撤退沿轴；返程倒放同一接近轨迹。
 // G/under 单弦档已删。
@@ -31,7 +31,6 @@
 #include "peach_arm/grasp_geometry.hpp"
 #include "peach_arm/math_utils.hpp"
 #include "peach_arm/protected_zones.hpp"
-#include "peach_arm/staging_selector.hpp"
 
 namespace moveit::task_constructor
 {
@@ -57,7 +56,7 @@ class RetireBucket;  // execution_guard.hpp（src/ 私有头）
 // tip 姿态不偏离 target_pose 超过 tol_deg 的三轴等宽容差约束集。
 // 只挂已齐 LIN（分档要求起点对轴，拦笛卡尔插值中途侧翻）。
 // 未齐第一段 LIN-align 不挂：Jazzy ValidateSolution 验每个路点含起点，
-// 起点相对目标 >20° 会 INVALID_MOTION_PLAN。果平面折线斜插段（未齐）
+// 起点相对目标 >20° 会 INVALID_MOTION_PLAN。斜直线斜插段（未齐）
 // 不挂门；其后已齐沿轴 LIN 挂门。PTP staging 兜底不挂姿态门（关节目标即 IK 解）。
 inline moveit_msgs::msg::Constraints makeOrientationGate(
   const std::string & link_name, const std::string & frame_id,
@@ -81,7 +80,7 @@ inline moveit_msgs::msg::Constraints makeOrientationGate(
 
 // 接近分档结论（只出结论，不规划）。同一 (config, entry, axis) 每条公共入口算一次，
 // 下游装配/预览复用，避免周期内重复 classifyApproach。
-// STAGING=主路径（果平面折线 LIN，失败才 PTP staging）；LIN/LIN_ALIGN_THEN_LIN=
+// STAGING=主路径（斜直线+沿轴垂直进入，唯一兜底=同形降速）；LIN/LIN_ALIGN_THEN_LIN=
 // 已在袋底侧的直连短修正；G/under 单弦档已删（见文件头）。
 struct ApproachSplit
 {
@@ -92,7 +91,7 @@ struct ApproachSplit
     SKIP,                 ///< 已在入口，无需接近。
     LIN,                  ///< 已齐，直连 LIN。
     LIN_ALIGN_THEN_LIN,   ///< 先短 LIN 对轴再插入。
-    STAGING,              ///< 主路径：果平面折线 LIN（失败才 PTP staging）。
+    STAGING,              ///< 主路径：斜直线 + 沿轴垂直进入（同形降速重试兜底）。
     BLOCKED               ///< 无法接近。
   } kind{
     Kind::STAGING};
@@ -152,13 +151,6 @@ struct GraspTaskConfig
   double tool_body_length_m{0.200};  ///< 工具筒体长 [m]（①层审查，tcp.xacro 对齐）。
   double tool_body_radius_m{0.060};  ///< 工具筒体半径 [m]。
   std::function<std::optional<Eigen::Isometry3d>()> lookup_current_tip;  ///< 查当前 TCP。
-  // staging 关节目标（主路径 PTP 落点）：候选编排（keep-roll 及 ±30°/±60° ×
-  // 当前+N-1 随机种子、腕轴加权距离+滚转惩罚排序、top_n 截断）在
-  // StagingCandidateSelector 纯核（staging_selector.hpp，W5-2）；转移逐候选
-  // 试规划，救弧穿袋囊与自碰构型。候选类型即纯核 StagingCandidate。
-  using StagingCandidate = peach_arm::StagingCandidate;
-  std::function<std::vector<StagingCandidate>(
-      const Eigen::Isometry3d & staging_pose)> select_goal_joints;
   std::vector<ProtectedZone> protected_zones;  // base 系 AABB → planning scene
   std::function<bool(std::string &)> approach_execution_gate;  // 下发接近轨迹前
   std::function<bool(std::string &)> retreat_execution_gate;   // 撤离不依赖视觉
@@ -252,7 +244,7 @@ private:
     const Eigen::Isometry3d & entry_tip_pose,
     const Eigen::Vector3d & insertion_axis,
     const ApproachSplit & split);
-  // 果平面折线 LIN（主路径）；正式转移与预览共用。
+  // 斜直线 + 沿轴垂直进入（主路径）；正式转移与预览共用。
   // in_plane_* <0 = min(config, 斜插封顶)；沿轴跳另走 along 封顶。
   std::unique_ptr<moveit::task_constructor::SerialContainer>
   makePlanarApproachSequence(
@@ -261,24 +253,6 @@ private:
   std::unique_ptr<moveit::task_constructor::Task> makePlanarApproachTask(
     const std::string & task_name, const PlanarApproachPath & path,
     double in_plane_vel = -1.0, double in_plane_acc = -1.0);
-  // PTP staging 兜底（果平面 LIN 失败时）；正式转移与预览共用。
-  std::unique_ptr<moveit::task_constructor::SerialContainer> makeStagingSequence(
-    const Eigen::Isometry3d & pregrasp_tip_pose,
-    const Eigen::Isometry3d & staging_tip_pose,
-    const std::map<std::string, double> & staging_joints,
-    const std::string & label) const;
-  std::unique_ptr<moveit::task_constructor::Task> makeStagingTransitTask(
-    const std::string & task_name,
-    const Eigen::Isometry3d & pregrasp_tip_pose,
-    const Eigen::Isometry3d & staging_tip_pose,
-    const std::map<std::string, double> & staging_joints);
-  // staging 候选（预抓取下方轴上，alignFrameZ keep-roll；滚转/种子/自碰
-  // 过滤由 config.select_goal_joints 完成，按距离升序）。空 = standoff
-  // 关闭 / 无当前 TCP / 无可行候选。
-  std::vector<GraspTaskConfig::StagingCandidate> stagingCandidate(
-    const Eigen::Isometry3d & entry_tip_pose,
-    const Eigen::Vector3d & insertion_axis,
-    const ApproachSplit & split) const;
   bool tryRolledApproach(
     const std::string & task_name,
     const Eigen::Isometry3d & entry_tip_pose,

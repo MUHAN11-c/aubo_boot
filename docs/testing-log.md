@@ -857,3 +857,10 @@ SIGINT 旧栈后用 16:57 编的 `peach_manipulation` 重起；开批前在 `glo
 - 防线：新 GPL 参数 `peach_arm moveit.execute_timeout_s`（默认 90 s，校验 >1；部署值 `config/peach_arm.yaml`）。`motion.cpp` 全部 execute 收口 `boundedExecute`：async 派发 + 等待环先到先收，取消探针（节点注入 `cancel_requested_`）命中或超时即 `move_group_->stop()`，10 s 宽限仍不返回则放弃等待（线程滞留一次换通道可用）。新公有 `MoveItMotionInterface::stopExecution()`（MGI::stop 打节点级停止服务，与发起执行的接口实例无关）。MTC 侧 `Task::execute` 同样 async 先到先收，`GraspTaskConfig.execution_stop` 由节点注入 `stopExecution()` 兜底，超时 reason=`MTC execution timeout (stop issued)`。
 - 附带日志归因：`TargetCache::updateRefinedPose/updateRefinedFitting` 增 `reject_reason` 出参（`unrefined_hold`/`target_mismatch`），臂侧 WARN_THROTTLE 10 s——unrefined_hold 是 skip_reconstruction 批的 latched 0.5 s 心跳常态，原无节流 WARN 单轮刷 8 万行淹没真信号。
 - 文档：architecture 决策 0027 + peach_arm 节点「执行有界等待」段同轮。零 IDL/话题/QoS 变化。无真机运动。
+
+### 09-23 续：接近轨迹定型「斜直线+垂直进入」，删 staging PTP 绕角与多级兜底（用户裁定）
+
+- **定型**：接近主路径 = 斜直线（面内一跳到预抓取下方轴上，keep-roll 对轴）+ 沿轴垂直进入预抓取；套取后原路撤退回来。**唯一兜底 = 同形降速重试**（斜插 0.20/0.10，腕轴超限再 0.10/0.04）。
+- **删除**：staging PTP 绕角（L 形矩形折线）及其 5 候选×滚转扫描、`StagingCandidateSelector` 纯核与 `staging.*` GPL 参数族（seeds/wrist_weight/roll_penalty/top_n）、`staging_ik_env_` 环境池、`makeStagingSequence/Task`、planToPregrasp 的 STAGING 多级兜底链（LIN 直连+滚转扫描对 STAGING 档不再触发）；`kQuickIkProbeTimeoutS` 迁 motion.hpp（选果预检仍用）。预览与执行同形（都斜直线）。
+- 语义：不满足（无当前 TCP / 跳长超限 / 扫掠触果囊）即失败收口 `skipped_unreachable`，不再绕行。`approach_staging_standoff_m` 保留（斜直线落点定义）。
+- 门：colcon build/test 绿、r0_gate 绿。**改动前基线已留档**（M1r 19/20、M3r 25/29、M4r 7/30，campaign/analysis/injection/），改动后须复跑注入矩阵对照。

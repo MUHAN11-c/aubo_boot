@@ -372,8 +372,6 @@ private:
   // staging IK 自碰环境池（W5-2）：每 roll 任务一个 CollisionEnvFCL（SRDF
   // ACM 构造、无跨调用状态），首次调用构造、跨调用复用；定义在
   // manipulation_skills_node.cpp（避免节点头引入 MoveIt 碰撞检测头）。
-  struct StagingIkEnvironment;
-  std::unique_ptr<StagingIkEnvironment> staging_ik_env_;
   // 刀具 GPIO 状态机（SetIO ACK ≠ 切断确认；confirmFeedback 预留）。
   ToolActuator tool_actuator_{};
 

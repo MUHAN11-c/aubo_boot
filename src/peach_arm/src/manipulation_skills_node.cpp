@@ -34,34 +34,10 @@
 #include "peach_arm/grasp_geometry.hpp"
 #include "peach_arm/model_contract.hpp"
 #include "peach_arm/params_bridge.hpp"
-#include "peach_arm/staging_selector.hpp"
 #include <peach_arm/arm_parameters.hpp>
 
 namespace peach_arm
 {
-
-// staging IK 自碰环境池（W5-2）：每 roll 任务一个 CollisionEnvFCL，从
-// RobotModel + SRDF 相邻豁免 ACM 构造（无跨调用状态），首次调用构造后
-// 跨调用复用；机器人模型变化时按模型指针重建。仅在周期规划路径串行访问。
-struct ManipulationSkillsNode::StagingIkEnvironment
-{
-  moveit::core::RobotModelConstPtr model;
-  collision_detection::AllowedCollisionMatrix acm;
-  std::vector<std::shared_ptr<collision_detection::CollisionEnvFCL>> envs;
-
-  void ensure(const moveit::core::RobotModelConstPtr & robot_model, std::size_t count)
-  {
-    if (model == robot_model && envs.size() == count && !envs.empty()) {
-      return;
-    }
-    model = robot_model;
-    acm = collision_detection::AllowedCollisionMatrix(*robot_model->getSRDF());
-    envs.assign(count, {});
-    for (auto & env : envs) {
-      env = std::make_shared<collision_detection::CollisionEnvFCL>(robot_model);
-    }
-  }
-};
 
 ManipulationSkillsNode::ManipulationSkillsNode(const rclcpp::NodeOptions & options)
 : LifecycleNode("peach_arm", options),
@@ -471,74 +447,6 @@ void ManipulationSkillsNode::rebuildGraspTask()
     return;
   }
   GraspTaskConfig task_config = toGraspTaskConfig(params_);
-  // 滚转扫描 + 多 IK 种子：圆筒刀口滚转是自由参数，但只扫 keep-roll 及
-  // ±30°/±60°。更大滚转会让 PTP 把 TCP 拧过 90°+。只把最近支位姿交给
-  // 笛卡尔接近当目标姿态，不用关节目标下发 PTP（1740 跨构型绕行）。
-  // 候选编排（权重/惩罚/top_n）在 StagingCandidateSelector 纯核
-  // （staging_selector.hpp，W5-2）；本回调只供给 MoveIt 侧 IK/自碰探测：
-  // KDL 互斥在回调内，每 roll 一个池内 CollisionEnvFCL（跨调用复用）。
-  const StagingSelectorConfig staging_config = toStagingSelectorConfig(params_);
-  task_config.select_goal_joints =
-    [this, staging_config](const Eigen::Isometry3d & keep_roll_pose)
-    -> std::vector<GraspTaskConfig::StagingCandidate>
-    {
-      if (!move_group_) {
-        return {};
-      }
-      const auto base = move_group_->getCurrentState();
-      const auto * group =
-        base->getJointModelGroup(params_.moveit.planning_group);
-      if (group == nullptr) {
-        return {};
-      }
-      const auto names = group->getActiveJointModelNames();
-      std::vector<double> current;
-      base->copyJointGroupPositions(group, current);
-      if (!staging_ik_env_) {
-        staging_ik_env_ = std::make_unique<StagingIkEnvironment>();
-      }
-      const auto rolls = toolRollsRad();
-      staging_ik_env_->ensure(base->getRobotModel(), rolls.size());
-      StagingIkEnvironment & env_pool = *staging_ik_env_;
-      std::mutex ik_mutex;
-      const StagingIkSolve solve =
-        [&](int roll_index, const Eigen::Isometry3d & pose, int attempt)
-        -> std::optional<std::vector<double>>
-        {
-          moveit::core::RobotState probe = *base;
-          if (attempt > 0) {
-            probe.setToRandomPositions(group);
-          }
-          bool ik_ok = false;
-          {
-            std::lock_guard<std::mutex> lock(ik_mutex);
-            // 深搜档单次超时（单源 staging_selector.hpp；选果预检的
-            // kQuickIkProbeTimeoutS 减半预算）。
-            ik_ok = probe.setFromIK(
-              group, pose, params_.frames.tip, kStagingIkSolveTimeoutS);
-          }
-          if (!ik_ok) {
-            return std::nullopt;
-          }
-          probe.update();
-          if (!probe.satisfiesBounds(group)) {
-            return std::nullopt;
-          }
-          collision_detection::CollisionRequest collision_request;
-          collision_detection::CollisionResult collision_result;
-          env_pool.envs[static_cast<std::size_t>(roll_index) %
-            env_pool.envs.size()]->checkSelfCollision(
-            collision_request, collision_result, probe, env_pool.acm);
-          if (collision_result.collision) {
-            return std::nullopt;
-          }
-          std::vector<double> sol;
-          probe.copyJointGroupPositions(group, sol);
-          return sol;
-        };
-      return selectStagingCandidates(
-        staging_config, keep_roll_pose, current, names, rolls, solve);
-    };
   task_config.lookup_current_tip = [this]() {
       return motion_->lookupTransform(params_.frames.base, params_.frames.tip);
     };

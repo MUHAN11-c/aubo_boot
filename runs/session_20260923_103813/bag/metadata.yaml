@@ -1,0 +1,446 @@
+rosbag2_bagfile_information:
+  version: 9
+  storage_identifier: mcap
+  duration:
+    nanoseconds: 1117971473715
+  starting_time:
+    nanoseconds_since_epoch: 1790131094147723822
+  message_count: 620562
+  topics_with_message_count:
+    - topic_metadata:
+        name: /controller_manager/activity
+        type: controller_manager_msgs/msg/ControllerManagerActivity
+        serialization_format: cdr
+        offered_qos_profiles:
+          []
+        type_description_hash: ""
+      message_count: 1
+    - topic_metadata:
+        name: /execute_task_solution/_action/feedback
+        type: moveit_task_constructor_msgs/msg/ExecuteTaskSolution_FeedbackMessage
+        serialization_format: cdr
+        offered_qos_profiles:
+          []
+        type_description_hash: ""
+      message_count: 17
+    - topic_metadata:
+        name: /execute_task_solution/_action/status
+        type: action_msgs/msg/GoalStatusArray
+        serialization_format: cdr
+        offered_qos_profiles:
+          []
+        type_description_hash: ""
+      message_count: 14
+    - topic_metadata:
+        name: /execute_trajectory/_action/status
+        type: action_msgs/msg/GoalStatusArray
+        serialization_format: cdr
+        offered_qos_profiles:
+          []
+        type_description_hash: ""
+      message_count: 14
+    - topic_metadata:
+        name: /execute_trajectory/_action/feedback
+        type: moveit_msgs/msg/ExecuteTrajectory_FeedbackMessage
+        serialization_format: cdr
+        offered_qos_profiles:
+          []
+        type_description_hash: ""
+      message_count: 21
+    - topic_metadata:
+        name: /peach_arm/planned_views
+        type: visualization_msgs/msg/MarkerArray
+        serialization_format: cdr
+        offered_qos_profiles:
+          []
+        type_description_hash: ""
+      message_count: 3
+    - topic_metadata:
+        name: /peach_arm/execute_target/_action/status
+        type: action_msgs/msg/GoalStatusArray
+        serialization_format: cdr
+        offered_qos_profiles:
+          []
+        type_description_hash: ""
+      message_count: 6
+    - topic_metadata:
+        name: /peach_arm/execute_target/_action/feedback
+        type: peach_interfaces/msg/ExecuteTarget_FeedbackMessage
+        serialization_format: cdr
+        offered_qos_profiles:
+          []
+        type_description_hash: ""
+      message_count: 1837
+    - topic_metadata:
+        name: /peach/manipulation/grasp_hypothesis
+        type: peach_interfaces/msg/GraspHypothesis
+        serialization_format: cdr
+        offered_qos_profiles:
+          []
+        type_description_hash: ""
+      message_count: 6
+    - topic_metadata:
+        name: /aubo_io_controller/robot_status
+        type: aubo_msgs/msg/RobotStatus
+        serialization_format: cdr
+        offered_qos_profiles:
+          []
+        type_description_hash: ""
+      message_count: 15344
+    - topic_metadata:
+        name: /joint_state_broadcaster/transition_event
+        type: lifecycle_msgs/msg/TransitionEvent
+        serialization_format: cdr
+        offered_qos_profiles:
+          []
+        type_description_hash: ""
+      message_count: 4
+    - topic_metadata:
+        name: /peach/reconstruction/pregrasp_verification
+        type: peach_interfaces/msg/PregraspVerification
+        serialization_format: cdr
+        offered_qos_profiles:
+          []
+        type_description_hash: ""
+      message_count: 1114
+    - topic_metadata:
+        name: /monitored_planning_scene
+        type: moveit_msgs/msg/PlanningScene
+        serialization_format: cdr
+        offered_qos_profiles:
+          []
+        type_description_hash: ""
+      message_count: 2362
+    - topic_metadata:
+        name: /peach/lifecycle/managed_nodes_activated
+        type: std_msgs/msg/Bool
+        serialization_format: cdr
+        offered_qos_profiles:
+          []
+        type_description_hash: ""
+      message_count: 1116
+    - topic_metadata:
+        name: /peach_supervisor/state
+        type: peach_interfaces/msg/HarvestState
+        serialization_format: cdr
+        offered_qos_profiles:
+          []
+        type_description_hash: ""
+      message_count: 2
+    - topic_metadata:
+        name: /move_action/_action/feedback
+        type: moveit_msgs/msg/MoveGroup_FeedbackMessage
+        serialization_format: cdr
+        offered_qos_profiles:
+          []
+        type_description_hash: ""
+      message_count: 10
+    - topic_metadata:
+        name: /peach/perception/target_observations
+        type: peach_interfaces/msg/PeachTargetObservationArray
+        serialization_format: cdr
+        offered_qos_profiles:
+          []
+        type_description_hash: ""
+      message_count: 2622
+    - topic_metadata:
+        name: /dynamic_joint_states
+        type: control_msgs/msg/DynamicJointState
+        serialization_format: cdr
+        offered_qos_profiles:
+          []
+        type_description_hash: ""
+      message_count: 67651
+    - topic_metadata:
+        name: /peach/reconstruction/refined_diagnostics
+        type: peach_interfaces/msg/BagFittingArray
+        serialization_format: cdr
+        offered_qos_profiles:
+          []
+        type_description_hash: ""
+      message_count: 2096
+    - topic_metadata:
+        name: /peach/reconstruction/tsdf_cloud
+        type: sensor_msgs/msg/PointCloud2
+        serialization_format: cdr
+        offered_qos_profiles:
+          []
+        type_description_hash: ""
+      message_count: 2
+    - topic_metadata:
+        name: /joint_trajectory_controller/transition_event
+        type: lifecycle_msgs/msg/TransitionEvent
+        serialization_format: cdr
+        offered_qos_profiles:
+          []
+        type_description_hash: ""
+      message_count: 4
+    - topic_metadata:
+        name: /bond
+        type: bond/msg/Status
+        serialization_format: cdr
+        offered_qos_profiles:
+          []
+        type_description_hash: ""
+      message_count: 10
+    - topic_metadata:
+        name: /tf
+        type: tf2_msgs/msg/TFMessage
+        serialization_format: cdr
+        offered_qos_profiles:
+          []
+        type_description_hash: ""
+      message_count: 16175
+    - topic_metadata:
+        name: /controller_manager/introspection_data/full
+        type: pal_statistics_msgs/msg/Statistics
+        serialization_format: cdr
+        offered_qos_profiles:
+          []
+        type_description_hash: ""
+      message_count: 68106
+    - topic_metadata:
+        name: /controller_manager/statistics/values
+        type: pal_statistics_msgs/msg/StatisticsValues
+        serialization_format: cdr
+        offered_qos_profiles:
+          []
+        type_description_hash: ""
+      message_count: 67610
+    - topic_metadata:
+        name: /joint_trajectory_controller/controller_state
+        type: control_msgs/msg/JointTrajectoryControllerState
+        serialization_format: cdr
+        offered_qos_profiles:
+          []
+        type_description_hash: ""
+      message_count: 67625
+    - topic_metadata:
+        name: /joint_trajectory_controller/follow_joint_trajectory/_action/feedback
+        type: control_msgs/msg/FollowJointTrajectory_FeedbackMessage
+        serialization_format: cdr
+        offered_qos_profiles:
+          []
+        type_description_hash: ""
+      message_count: 418
+    - topic_metadata:
+        name: /peach/observability/tcp_path
+        type: nav_msgs/msg/Path
+        serialization_format: cdr
+        offered_qos_profiles:
+          []
+        type_description_hash: ""
+      message_count: 5305
+    - topic_metadata:
+        name: /joint_trajectory_controller/follow_joint_trajectory/_action/status
+        type: action_msgs/msg/GoalStatusArray
+        serialization_format: cdr
+        offered_qos_profiles:
+          []
+        type_description_hash: ""
+      message_count: 34
+    - topic_metadata:
+        name: /peach/reconstruction/refined_axis
+        type: geometry_msgs/msg/Vector3Stamped
+        serialization_format: cdr
+        offered_qos_profiles:
+          []
+        type_description_hash: ""
+      message_count: 2
+    - topic_metadata:
+        name: /peach/observability/markers
+        type: visualization_msgs/msg/MarkerArray
+        serialization_format: cdr
+        offered_qos_profiles:
+          []
+        type_description_hash: ""
+      message_count: 5305
+    - topic_metadata:
+        name: /move_action/_action/status
+        type: action_msgs/msg/GoalStatusArray
+        serialization_format: cdr
+        offered_qos_profiles:
+          []
+        type_description_hash: ""
+      message_count: 10
+    - topic_metadata:
+        name: /tf_static
+        type: tf2_msgs/msg/TFMessage
+        serialization_format: cdr
+        offered_qos_profiles:
+          []
+        type_description_hash: ""
+      message_count: 9
+    - topic_metadata:
+        name: /peach_target_reconstruction_node/transition_event
+        type: lifecycle_msgs/msg/TransitionEvent
+        serialization_format: cdr
+        offered_qos_profiles:
+          []
+        type_description_hash: ""
+      message_count: 4
+    - topic_metadata:
+        name: /joint_states
+        type: sensor_msgs/msg/JointState
+        serialization_format: cdr
+        offered_qos_profiles:
+          []
+        type_description_hash: ""
+      message_count: 137948
+    - topic_metadata:
+        name: /peach_observability/transition_event
+        type: lifecycle_msgs/msg/TransitionEvent
+        serialization_format: cdr
+        offered_qos_profiles:
+          []
+        type_description_hash: ""
+      message_count: 1
+    - topic_metadata:
+        name: /pipeline_state
+        type: moveit_msgs/msg/PipelineState
+        serialization_format: cdr
+        offered_qos_profiles:
+          []
+        type_description_hash: ""
+      message_count: 71
+    - topic_metadata:
+        name: /controller_manager/statistics/full
+        type: pal_statistics_msgs/msg/Statistics
+        serialization_format: cdr
+        offered_qos_profiles:
+          []
+        type_description_hash: ""
+      message_count: 67676
+    - topic_metadata:
+        name: /peach/reconstruction/grasp_decision
+        type: peach_interfaces/msg/GraspDecision
+        serialization_format: cdr
+        offered_qos_profiles:
+          []
+        type_description_hash: ""
+      message_count: 4318
+    - topic_metadata:
+        name: /peach_scene_perception_node/transition_event
+        type: lifecycle_msgs/msg/TransitionEvent
+        serialization_format: cdr
+        offered_qos_profiles:
+          []
+        type_description_hash: ""
+      message_count: 4
+    - topic_metadata:
+        name: /diagnostics
+        type: diagnostic_msgs/msg/DiagnosticArray
+        serialization_format: cdr
+        offered_qos_profiles:
+          []
+        type_description_hash: ""
+      message_count: 2208
+    - topic_metadata:
+        name: /peach_arm/transition_event
+        type: lifecycle_msgs/msg/TransitionEvent
+        serialization_format: cdr
+        offered_qos_profiles:
+          []
+        type_description_hash: ""
+      message_count: 4
+    - topic_metadata:
+        name: /rosout
+        type: rcl_interfaces/msg/Log
+        serialization_format: cdr
+        offered_qos_profiles:
+          []
+        type_description_hash: ""
+      message_count: 578
+    - topic_metadata:
+        name: /peach_supervisor/transition_event
+        type: lifecycle_msgs/msg/TransitionEvent
+        serialization_format: cdr
+        offered_qos_profiles:
+          []
+        type_description_hash: ""
+      message_count: 4
+    - topic_metadata:
+        name: /peach/observability/metrics
+        type: std_msgs/msg/String
+        serialization_format: cdr
+        offered_qos_profiles:
+          []
+        type_description_hash: ""
+      message_count: 1894
+    - topic_metadata:
+        name: /peach/reconstruction/status
+        type: std_msgs/msg/String
+        serialization_format: cdr
+        offered_qos_profiles:
+          []
+        type_description_hash: ""
+      message_count: 2232
+    - topic_metadata:
+        name: /peach/reconstruction/refined_pose
+        type: peach_interfaces/msg/BagGraspCandidateArray
+        serialization_format: cdr
+        offered_qos_profiles:
+          []
+        type_description_hash: ""
+      message_count: 2096
+    - topic_metadata:
+        name: /peach/reconstruction/diagnostics
+        type: peach_interfaces/msg/ReconstructionStatus
+        serialization_format: cdr
+        offered_qos_profiles:
+          []
+        type_description_hash: ""
+      message_count: 4319
+    - topic_metadata:
+        name: /trajectory_execution_event
+        type: std_msgs/msg/String
+        serialization_format: cdr
+        offered_qos_profiles:
+          []
+        type_description_hash: ""
+      message_count: 221
+    - topic_metadata:
+        name: /controller_manager/introspection_data/values
+        type: pal_statistics_msgs/msg/StatisticsValues
+        serialization_format: cdr
+        offered_qos_profiles:
+          []
+        type_description_hash: ""
+      message_count: 67705
+    - topic_metadata:
+        name: /peach/reconstruction/diagnostics_debug
+        type: std_msgs/msg/String
+        serialization_format: cdr
+        offered_qos_profiles:
+          []
+        type_description_hash: ""
+      message_count: 2231
+    - topic_metadata:
+        name: /peach_arm/status
+        type: std_msgs/msg/String
+        serialization_format: cdr
+        offered_qos_profiles:
+          []
+        type_description_hash: ""
+      message_count: 61
+    - topic_metadata:
+        name: /peach/observability/job
+        type: std_msgs/msg/String
+        serialization_format: cdr
+        offered_qos_profiles:
+          []
+        type_description_hash: ""
+      message_count: 2132
+  compression_format: ""
+  compression_mode: ""
+  relative_file_paths:
+    - bag_0.mcap
+  files:
+    - path: bag_0.mcap
+      starting_time:
+        nanoseconds_since_epoch: 1790131094147723822
+      duration:
+        nanoseconds: 1117971473715
+      message_count: 1241124
+  custom_data: ~
+  ros_distro: jazzy

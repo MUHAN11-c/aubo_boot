@@ -1,0 +1,513 @@
+{
+  "summary": {
+    "n": 80,
+    "any_roll_success": 56,
+    "any_roll_rate": 0.7,
+    "per_roll_success": {
+      "0": 20,
+      "30": 25,
+      "-30": 27,
+      "60": 18,
+      "-60": 44
+    },
+    "grid_ok": 18,
+    "grid_n": 20,
+    "random_ok": 38,
+    "random_n": 60,
+    "params": {
+      "along_axis_m": 0.03,
+      "standoff_m": 0.1,
+      "rolls_deg": [
+        0,
+        30,
+        -30,
+        60,
+        -60
+      ],
+      "envelope": "typical",
+      "seed": 20260922
+    }
+  },
+  "rows": [
+    {
+      "case": "typical_1757",
+      "kind": "grid",
+      "ok": true,
+      "first_roll_deg": 0
+    },
+    {
+      "case": "tilt_1639_1",
+      "kind": "grid",
+      "ok": true,
+      "first_roll_deg": -60
+    },
+    {
+      "case": "travel_min",
+      "kind": "grid",
+      "ok": true,
+      "first_roll_deg": -60
+    },
+    {
+      "case": "travel_max",
+      "kind": "grid",
+      "ok": true,
+      "first_roll_deg": 0
+    },
+    {
+      "case": "info_length_extended",
+      "kind": "grid",
+      "ok": true,
+      "first_roll_deg": 60
+    },
+    {
+      "case": "lab_oos_20260922",
+      "kind": "grid",
+      "ok": true,
+      "first_roll_deg": 30
+    },
+    {
+      "case": "far_no_ik",
+      "kind": "grid",
+      "ok": false,
+      "first_roll_deg": null
+    },
+    {
+      "case": "bbox_edge",
+      "kind": "grid",
+      "ok": true,
+      "first_roll_deg": 0
+    },
+    {
+      "case": "tool_clearance_failed",
+      "kind": "grid",
+      "ok": true,
+      "first_roll_deg": 0
+    },
+    {
+      "case": "near_horizontal_1021_1",
+      "kind": "grid",
+      "ok": true,
+      "first_roll_deg": 0
+    },
+    {
+      "case": "bag_d050_succeed",
+      "kind": "grid",
+      "ok": true,
+      "first_roll_deg": 0
+    },
+    {
+      "case": "bag_d068_succeed",
+      "kind": "grid",
+      "ok": true,
+      "first_roll_deg": -60
+    },
+    {
+      "case": "bag_d100_denied",
+      "kind": "grid",
+      "ok": true,
+      "first_roll_deg": 0
+    },
+    {
+      "case": "short_bag_030",
+      "kind": "grid",
+      "ok": true,
+      "first_roll_deg": 0
+    },
+    {
+      "case": "long_bag_180",
+      "kind": "grid",
+      "ok": true,
+      "first_roll_deg": 0
+    },
+    {
+      "case": "travel_clamp_024",
+      "kind": "grid",
+      "ok": true,
+      "first_roll_deg": 0
+    },
+    {
+      "case": "occluded_flag_info",
+      "kind": "grid",
+      "ok": true,
+      "first_roll_deg": 60
+    },
+    {
+      "case": "right_lane_tilt",
+      "kind": "grid",
+      "ok": true,
+      "first_roll_deg": 30
+    },
+    {
+      "case": "deep_left_low_axis",
+      "kind": "grid",
+      "ok": false,
+      "first_roll_deg": null
+    },
+    {
+      "case": "mid_offset_2d_fallback",
+      "kind": "grid",
+      "ok": true,
+      "first_roll_deg": 0
+    },
+    {
+      "case": "rand_00",
+      "kind": "random",
+      "ok": true,
+      "first_roll_deg": 0
+    },
+    {
+      "case": "rand_01",
+      "kind": "random",
+      "ok": false,
+      "first_roll_deg": null
+    },
+    {
+      "case": "rand_02",
+      "kind": "random",
+      "ok": true,
+      "first_roll_deg": 60
+    },
+    {
+      "case": "rand_03",
+      "kind": "random",
+      "ok": false,
+      "first_roll_deg": null
+    },
+    {
+      "case": "rand_04",
+      "kind": "random",
+      "ok": true,
+      "first_roll_deg": 30
+    },
+    {
+      "case": "rand_05",
+      "kind": "random",
+      "ok": true,
+      "first_roll_deg": -30
+    },
+    {
+      "case": "rand_06",
+      "kind": "random",
+      "ok": true,
+      "first_roll_deg": -60
+    },
+    {
+      "case": "rand_07",
+      "kind": "random",
+      "ok": true,
+      "first_roll_deg": -60
+    },
+    {
+      "case": "rand_08",
+      "kind": "random",
+      "ok": true,
+      "first_roll_deg": -60
+    },
+    {
+      "case": "rand_09",
+      "kind": "random",
+      "ok": false,
+      "first_roll_deg": null
+    },
+    {
+      "case": "rand_10",
+      "kind": "random",
+      "ok": false,
+      "first_roll_deg": null
+    },
+    {
+      "case": "rand_11",
+      "kind": "random",
+      "ok": false,
+      "first_roll_deg": null
+    },
+    {
+      "case": "rand_12",
+      "kind": "random",
+      "ok": true,
+      "first_roll_deg": -60
+    },
+    {
+      "case": "rand_13",
+      "kind": "random",
+      "ok": true,
+      "first_roll_deg": -30
+    },
+    {
+      "case": "rand_14",
+      "kind": "random",
+      "ok": true,
+      "first_roll_deg": 0
+    },
+    {
+      "case": "rand_15",
+      "kind": "random",
+      "ok": true,
+      "first_roll_deg": 30
+    },
+    {
+      "case": "rand_16",
+      "kind": "random",
+      "ok": true,
+      "first_roll_deg": -60
+    },
+    {
+      "case": "rand_17",
+      "kind": "random",
+      "ok": false,
+      "first_roll_deg": null
+    },
+    {
+      "case": "rand_18",
+      "kind": "random",
+      "ok": true,
+      "first_roll_deg": -60
+    },
+    {
+      "case": "rand_19",
+      "kind": "random",
+      "ok": true,
+      "first_roll_deg": -60
+    },
+    {
+      "case": "rand_20",
+      "kind": "random",
+      "ok": true,
+      "first_roll_deg": 0
+    },
+    {
+      "case": "rand_21",
+      "kind": "random",
+      "ok": true,
+      "first_roll_deg": 0
+    },
+    {
+      "case": "rand_22",
+      "kind": "random",
+      "ok": true,
+      "first_roll_deg": 0
+    },
+    {
+      "case": "rand_23",
+      "kind": "random",
+      "ok": false,
+      "first_roll_deg": null
+    },
+    {
+      "case": "rand_24",
+      "kind": "random",
+      "ok": true,
+      "first_roll_deg": -60
+    },
+    {
+      "case": "rand_25",
+      "kind": "random",
+      "ok": true,
+      "first_roll_deg": -60
+    },
+    {
+      "case": "rand_26",
+      "kind": "random",
+      "ok": true,
+      "first_roll_deg": 0
+    },
+    {
+      "case": "rand_27",
+      "kind": "random",
+      "ok": false,
+      "first_roll_deg": null
+    },
+    {
+      "case": "rand_28",
+      "kind": "random",
+      "ok": true,
+      "first_roll_deg": -30
+    },
+    {
+      "case": "rand_29",
+      "kind": "random",
+      "ok": true,
+      "first_roll_deg": 60
+    },
+    {
+      "case": "rand_30",
+      "kind": "random",
+      "ok": false,
+      "first_roll_deg": null
+    },
+    {
+      "case": "rand_31",
+      "kind": "random",
+      "ok": true,
+      "first_roll_deg": 30
+    },
+    {
+      "case": "rand_32",
+      "kind": "random",
+      "ok": false,
+      "first_roll_deg": null
+    },
+    {
+      "case": "rand_33",
+      "kind": "random",
+      "ok": false,
+      "first_roll_deg": null
+    },
+    {
+      "case": "rand_34",
+      "kind": "random",
+      "ok": true,
+      "first_roll_deg": -60
+    },
+    {
+      "case": "rand_35",
+      "kind": "random",
+      "ok": true,
+      "first_roll_deg": -60
+    },
+    {
+      "case": "rand_36",
+      "kind": "random",
+      "ok": false,
+      "first_roll_deg": null
+    },
+    {
+      "case": "rand_37",
+      "kind": "random",
+      "ok": true,
+      "first_roll_deg": -60
+    },
+    {
+      "case": "rand_38",
+      "kind": "random",
+      "ok": true,
+      "first_roll_deg": -60
+    },
+    {
+      "case": "rand_39",
+      "kind": "random",
+      "ok": true,
+      "first_roll_deg": -60
+    },
+    {
+      "case": "rand_40",
+      "kind": "random",
+      "ok": true,
+      "first_roll_deg": -30
+    },
+    {
+      "case": "rand_41",
+      "kind": "random",
+      "ok": true,
+      "first_roll_deg": 0
+    },
+    {
+      "case": "rand_42",
+      "kind": "random",
+      "ok": true,
+      "first_roll_deg": -60
+    },
+    {
+      "case": "rand_43",
+      "kind": "random",
+      "ok": true,
+      "first_roll_deg": 0
+    },
+    {
+      "case": "rand_44",
+      "kind": "random",
+      "ok": true,
+      "first_roll_deg": 30
+    },
+    {
+      "case": "rand_45",
+      "kind": "random",
+      "ok": false,
+      "first_roll_deg": null
+    },
+    {
+      "case": "rand_46",
+      "kind": "random",
+      "ok": false,
+      "first_roll_deg": null
+    },
+    {
+      "case": "rand_47",
+      "kind": "random",
+      "ok": false,
+      "first_roll_deg": null
+    },
+    {
+      "case": "rand_48",
+      "kind": "random",
+      "ok": true,
+      "first_roll_deg": -60
+    },
+    {
+      "case": "rand_49",
+      "kind": "random",
+      "ok": false,
+      "first_roll_deg": null
+    },
+    {
+      "case": "rand_50",
+      "kind": "random",
+      "ok": false,
+      "first_roll_deg": null
+    },
+    {
+      "case": "rand_51",
+      "kind": "random",
+      "ok": false,
+      "first_roll_deg": null
+    },
+    {
+      "case": "rand_52",
+      "kind": "random",
+      "ok": true,
+      "first_roll_deg": -30
+    },
+    {
+      "case": "rand_53",
+      "kind": "random",
+      "ok": false,
+      "first_roll_deg": null
+    },
+    {
+      "case": "rand_54",
+      "kind": "random",
+      "ok": false,
+      "first_roll_deg": null
+    },
+    {
+      "case": "rand_55",
+      "kind": "random",
+      "ok": true,
+      "first_roll_deg": 0
+    },
+    {
+      "case": "rand_56",
+      "kind": "random",
+      "ok": true,
+      "first_roll_deg": -60
+    },
+    {
+      "case": "rand_57",
+      "kind": "random",
+      "ok": false,
+      "first_roll_deg": null
+    },
+    {
+      "case": "rand_58",
+      "kind": "random",
+      "ok": false,
+      "first_roll_deg": null
+    },
+    {
+      "case": "rand_59",
+      "kind": "random",
+      "ok": true,
+      "first_roll_deg": -30
+    }
+  ]
+}

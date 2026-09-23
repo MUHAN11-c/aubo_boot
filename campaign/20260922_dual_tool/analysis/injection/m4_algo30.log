@@ -3,88 +3,62 @@ peach_arm Active；execution/grasp 已开（tool 保持关）；mode=full；速�
 随机位姿 30 个 seed=20260922 envelope=algorithm
 
 === case rand_00 entry=[0.519, -0.794, 0.619] axis_z=0.64 aabb←1639_2 ===
-  -> outcome=2 completion=0 matched=None code= reason=到预抓取失败: staging 转移无可行 IK 候选（无接近解）
-  [接近] 从拍照位 点数=13 弦=0.055m 路径=0.055m 比=1.0 偏离=0.001m 回退=0.0m max_z=0.708 起=[0.302, -0.232, 0.708] 早段=[0.326, -0.232, 0.707] 终=[0.356, -0.23, 0.706]  ✓ 果实胶囊外
+  -> outcome=2 completion=0 matched=None code= reason=到预抓取失败: MTC planning failed: Failing stage(s):
+lin in plane to bag axis (0/1)
 
 === case rand_01 entry=[0.215, -0.638, 0.648] axis_z=0.76 aabb←1113_0 ===
-  -> outcome=0 completion=6 matched=None code= reason=周期完成；tool.enabled=false 或未宣称采摘成功
-  [回拍照] 弦=0.434m 路径=0.802m 比=1.85 偏离=0.156m 回退=0.0m 起=[0.231, -0.659, 0.677] 终=[0.302, -0.232, 0.708]
-  [接近] 从拍照位 点数=32 弦=0.429m 路径=0.678m 比=1.58 偏离=0.166m 回退=0.0m max_z=0.761 起=[0.356, -0.23, 0.706] 早段=[0.356, -0.23, 0.706] 终=[0.204, -0.623, 0.625]  ✓ 果实胶囊外
+  -> outcome=None completion=None matched=None code= reason=goal 超时（已取消）
 
 === case rand_02 entry=[0.46, -0.782, 0.627] axis_z=0.92 aabb←1639_1 ===
-  -> outcome=2 completion=2 matched=None code= reason=接触阶段取消或撤离未确认；保持停止，须现场人工撤离后确认恢复
-  [接近] 从拍照位 点数=34 弦=0.571m 路径=0.766m 比=1.34 偏离=0.138m 回退=0.0m max_z=0.709 起=[0.356, -0.23, 0.706] 早段=[0.356, -0.23, 0.706] 终=[0.472, -0.779, 0.599]  ✓ 果实胶囊外
+  -> outcome=None completion=None matched=None code= reason=goal 被拒
 
 === case rand_03 entry=[0.264, -0.587, 0.748] axis_z=0.35 aabb←1424_1 ===
-  -> outcome=2 completion=2 matched=None code= reason=接触阶段取消或撤离未确认；保持停止，须现场人工撤离后确认恢复
-  [回拍照] 弦=0.571m 路径=0.766m 比=1.34 偏离=0.139m 回退=0.024m 起=[0.472, -0.779, 0.599] 终=[0.356, -0.23, 0.706]
-  [接近] 从拍照位 点数=32 弦=0.346m 路径=0.693m 比=2.01 偏离=0.196m 回退=0.026m max_z=0.821 起=[0.356, -0.23, 0.706] 早段=[0.339, -0.217, 0.726] 终=[0.283, -0.566, 0.738]  ✓ 果实胶囊外
+  -> outcome=None completion=None matched=None code= reason=goal 被拒
 
 === case rand_04 entry=[0.238, -0.718, 0.616] axis_z=0.45 aabb←1149_0 ===
-  -> outcome=2 completion=0 matched=None code= reason=到预抓取失败: MTC planning failed: Failing stage(s):
-lin align tool z (0/1)
-  [回拍照] 弦=0.346m 路径=0.691m 比=2.0 偏离=0.199m 回退=0.0m 起=[0.283, -0.566, 0.738] 终=[0.356, -0.23, 0.706]
-  [接近] 未从拍照位 点数=33 弦=0.346m 路径=0.691m 比=2.0 偏离=0.199m 回退=0.0m max_z=0.822 起=[0.283, -0.566, 0.738] 早段=[0.283, -0.566, 0.738] 终=[0.356, -0.23, 0.706]  ✓ 果实胶囊外
+  -> outcome=None completion=None matched=None code= reason=goal 被拒
 
 === case rand_05 entry=[0.26, -0.718, 0.543] axis_z=0.99 perturb←1021_0 ===
-  -> outcome=0 completion=6 matched=None code= reason=周期完成；tool.enabled=false 或未宣称采摘成功
-  [回拍照] 弦=0.523m 路径=0.944m 比=1.8 偏离=0.146m 回退=0.037m 起=[0.264, -0.716, 0.513] 终=[0.302, -0.232, 0.708]
-  [接近] 从拍照位 点数=35 弦=0.531m 路径=0.718m 比=1.35 偏离=0.121m 回退=0.0m max_z=0.706 起=[0.356, -0.23, 0.706] 早段=[0.356, -0.23, 0.706] 终=[0.264, -0.716, 0.513]  ✓ 果实胶囊外
+  -> outcome=None completion=None matched=None code= reason=goal 被拒
 
 === case rand_06 entry=[0.478, -0.796, 0.631] axis_z=0.53 aabb←1510_2 ===
-  -> outcome=2 completion=0 matched=None code= reason=到预抓取失败: MTC short-path guard rejected: 工具筒体接触果实胶囊 s=0.115972m r=0.0905628m 间隙=-0.000584119m (果半径 0.04m)
-  [接近] 从拍照位 点数=17 弦=0.055m 路径=0.055m 比=1.0 偏离=0.001m 回退=0.0m max_z=0.708 起=[0.302, -0.232, 0.708] 早段=[0.302, -0.232, 0.708] 终=[0.356, -0.23, 0.706]  ✓ 果实胶囊外
+  -> outcome=None completion=None matched=None code= reason=goal 被拒
 
 === case rand_07 entry=[0.458, -0.679, 0.567] axis_z=0.97 aabb←1021_0 ===
-  -> outcome=0 completion=6 matched=None code= reason=周期完成；tool.enabled=false 或未宣称采摘成功
-  [回拍照] 弦=0.497m 路径=0.867m 比=1.74 偏离=0.107m 回退=0.021m 起=[0.453, -0.674, 0.538] 终=[0.302, -0.232, 0.708]
-  [接近] 从拍照位 点数=28 弦=0.484m 路径=0.643m 比=1.33 偏离=0.1m 回退=0.0m max_z=0.706 起=[0.356, -0.23, 0.706] 早段=[0.379, -0.247, 0.697] 终=[0.453, -0.674, 0.538]  ✓ 果实胶囊外
+  -> outcome=None completion=None matched=None code= reason=goal 被拒
 
 === case rand_08 entry=[0.636, -0.642, 0.568] axis_z=0.88 perturb←1149_0 ===
-  -> outcome=2 completion=2 matched=None code= reason=接触阶段取消或撤离未确认；保持停止，须现场人工撤离后确认恢复
-  [接近] 从拍照位 点数=33 弦=0.528m 路径=0.747m 比=1.42 偏离=0.134m 回退=0.0m max_z=0.713 起=[0.356, -0.23, 0.706] 早段=[0.356, -0.23, 0.706] 终=[0.649, -0.637, 0.541]  ✓ 果实胶囊外
+  -> outcome=None completion=None matched=None code= reason=goal 被拒
 
 === case rand_09 entry=[0.218, -0.727, 0.538] axis_z=0.97 perturb←1424_1 ===
-  -> outcome=0 completion=6 matched=None code= reason=周期完成；tool.enabled=false 或未宣称采摘成功
-  [回拍照] 弦=0.546m 路径=1.008m 比=1.85 偏离=0.16m 回退=0.06m 起=[0.22, -0.733, 0.509] 终=[0.302, -0.232, 0.708]
-  [接近] 从拍照位 点数=31 弦=0.558m 路径=0.78m 比=1.4 偏离=0.132m 回退=0.0m max_z=0.706 起=[0.356, -0.23, 0.706] 早段=[0.368, -0.243, 0.7] 终=[0.22, -0.733, 0.509]  ✓ 果实胶囊外
+  -> outcome=None completion=None matched=None code= reason=goal 被拒
 
 === case rand_10 entry=[0.49, -0.593, 0.531] axis_z=0.92 perturb←1424_0 ===
-  -> outcome=0 completion=6 matched=None code= reason=周期完成；tool.enabled=false 或未宣称采摘成功
-  [回拍照] 弦=0.458m 路径=0.863m 比=1.88 偏离=0.119m 回退=0.058m 起=[0.502, -0.59, 0.504] 终=[0.302, -0.232, 0.708]
-  [接近] 从拍照位 点数=28 弦=0.438m 路径=0.625m 比=1.43 偏离=0.099m 回退=0.0m max_z=0.706 起=[0.356, -0.23, 0.706] 早段=[0.38, -0.239, 0.696] 终=[0.502, -0.59, 0.504]  ✓ 果实胶囊外
+  -> outcome=None completion=None matched=None code= reason=goal 被拒
 
 === case rand_11 entry=[0.548, -0.734, 0.71] axis_z=0.96 aabb←1021_1 ===
-  -> outcome=2 completion=0 matched=None code= reason=到预抓取失败: MTC planning failed: Failing stage(s):
-lin to on-axis pregrasp (0/1)
-  [接近] 从拍照位 点数=14 弦=0.055m 路径=0.055m 比=1.0 偏离=0.001m 回退=0.0m max_z=0.708 起=[0.302, -0.232, 0.708] 早段=[0.311, -0.232, 0.708] 终=[0.356, -0.23, 0.706]  ✓ 果实胶囊外
+  -> outcome=None completion=None matched=None code= reason=goal 被拒
 
 === case rand_12 entry=[0.582, -0.61, 0.602] axis_z=0.70 aabb←1021_1 ===
-  -> outcome=2 completion=0 matched=None code= reason=到预抓取失败: MTC short-path guard rejected: 累计关节行程 12.8062rad > 12rad
+  -> outcome=None completion=None matched=None code= reason=goal 被拒
 
 === case rand_13 entry=[0.384, -0.606, 0.552] axis_z=0.52 aabb←1437_0 ===
-  -> outcome=0 completion=6 matched=None code= reason=周期完成；tool.enabled=false 或未宣称采摘成功
-  [回拍照] 弦=0.432m 路径=0.83m 比=1.92 偏离=0.149m 回退=0.07m 起=[0.408, -0.614, 0.536] 终=[0.302, -0.232, 0.708]
-  [接近] 从拍照位 点数=32 弦=0.423m 路径=0.636m 比=1.5 偏离=0.125m 回退=0.0m max_z=0.71 起=[0.356, -0.23, 0.706] 早段=[0.359, -0.231, 0.707] 终=[0.408, -0.614, 0.536]  ✓ 果实胶囊外
+  -> outcome=None completion=None matched=None code= reason=goal 被拒
 
 === case rand_14 entry=[0.541, -0.763, 0.524] axis_z=0.66 aabb←1113_0 ===
-  -> outcome=2 completion=0 matched=None code= reason=到预抓取失败: staging 转移无可行 IK 候选（无接近解）
-  [接近] 从拍照位 点数=14 弦=0.055m 路径=0.055m 比=1.0 偏离=0.001m 回退=0.0m max_z=0.708 起=[0.302, -0.232, 0.708] 早段=[0.32, -0.233, 0.708] 终=[0.356, -0.23, 0.706]  ✓ 果实胶囊外
+  -> outcome=None completion=None matched=None code= reason=goal 被拒
 
 === case rand_15 entry=[0.532, -0.675, 0.698] axis_z=0.55 aabb←1424_1 ===
-  -> outcome=2 completion=0 matched=None code= reason=到预抓取失败: staging 转移无可行 IK 候选（无接近解）
+  -> outcome=None completion=None matched=None code= reason=goal 被拒
 
 === case rand_16 entry=[0.559, -0.653, 0.729] axis_z=0.95 aabb←1424_1 ===
-  -> outcome=2 completion=2 matched=None code= reason=接触阶段取消或撤离未确认；保持停止，须现场人工撤离后确认恢复
-  [接近] 从拍照位 点数=33 弦=0.473m 路径=0.662m 比=1.4 偏离=0.1m 回退=0.0m max_z=0.707 起=[0.356, -0.23, 0.706] 早段=[0.37, -0.237, 0.707] 终=[0.553, -0.661, 0.7]  ✓ 果实胶囊外
+  -> outcome=None completion=None matched=None code= reason=goal 被拒
 
 === case rand_17 entry=[0.205, -0.731, 0.64] axis_z=0.88 perturb←1437_1 ===
-  -> outcome=0 completion=6 matched=None code= reason=周期完成；tool.enabled=false 或未宣称采摘成功
-  [回拍照] 弦=0.52m 路径=0.921m 比=1.77 偏离=0.168m 回退=0.035m 起=[0.218, -0.736, 0.614] 终=[0.302, -0.232, 0.708]
-  [接近] 从拍照位 点数=31 弦=0.533m 路径=0.723m 比=1.36 偏离=0.143m 回退=0.0m max_z=0.706 起=[0.356, -0.23, 0.706] 早段=[0.364, -0.239, 0.703] 终=[0.218, -0.736, 0.614]  ✓ 果实胶囊外
+  -> outcome=None completion=None matched=None code= reason=goal 被拒
 
 === case rand_18 entry=[0.457, -0.753, 0.642] axis_z=0.84 perturb←1510_2 ===
-  -> outcome=None completion=None matched=None code= reason=goal 超时（已取消）
+  -> outcome=None completion=None matched=None code= reason=goal 被拒
 
 === case rand_19 entry=[0.541, -0.729, 0.601] axis_z=0.88 perturb←1510_2 ===
   -> outcome=None completion=None matched=None code= reason=goal 被拒
@@ -119,6 +93,6 @@ lin to on-axis pregrasp (0/1)
 === case rand_29 entry=[0.622, -0.627, 0.532] axis_z=0.74 perturb←1437_0 ===
   -> outcome=None completion=None matched=None code= reason=goal 被拒
 
-结果已写入 /home/mu/Desktop/aubo_e5_jazzy_ws/runs/sim_field_targets_20260923_111235.jsonl
-FULL 干跑成功 7/30（套入到位、grasped=false、tool 关）
-现场典型包络 (|entry|≤1.02 ∧ axis_z≥0.7) 6/6
+结果已写入 /home/mu/Desktop/aubo_e5_jazzy_ws/runs/sim_field_targets_20260923_114236.jsonl
+FULL 干跑成功 0/30（套入到位、grasped=false、tool 关）
+现场典型包络 (|entry|≤1.02 ∧ axis_z≥0.7) 0/0

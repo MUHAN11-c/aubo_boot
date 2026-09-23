@@ -864,3 +864,10 @@ SIGINT 旧栈后用 16:57 编的 `peach_manipulation` 重起；开批前在 `glo
 - **删除**：staging PTP 绕角（L 形矩形折线）及其 5 候选×滚转扫描、`StagingCandidateSelector` 纯核与 `staging.*` GPL 参数族（seeds/wrist_weight/roll_penalty/top_n）、`staging_ik_env_` 环境池、`makeStagingSequence/Task`、planToPregrasp 的 STAGING 多级兜底链（LIN 直连+滚转扫描对 STAGING 档不再触发）；`kQuickIkProbeTimeoutS` 迁 motion.hpp（选果预检仍用）。预览与执行同形（都斜直线）。
 - 语义：不满足（无当前 TCP / 跳长超限 / 扫掠触果囊）即失败收口 `skipped_unreachable`，不再绕行。`approach_staging_standoff_m` 保留（斜直线落点定义）。
 - 门：colcon build/test 绿、r0_gate 绿。**改动前基线已留档**（M1r 19/20、M3r 25/29、M4r 7/30，campaign/analysis/injection/），改动后须复跑注入矩阵对照。
+
+### 09-23 续二：轨迹定型三版 v3「PTP 关节空间+垂直进入」，Z 滚转放开 ±60，仿真改解析迭代（用户裁定）
+
+- v2 斜直线-only 全链证伪（M2 2/30、M3 1/30、M4 0/30——keep-roll 斜插 LIN 腕限位大面积失败）。
+- v3 定型：PTP（Pilz 关节空间）→ 轴上 staging（alignFrameZ + 滚转梯子 {0,±30°,±60°}，每档当前种子+随机重启≤3）→ 沿轴垂直 LIN 预抓取 → 套入/撤退原路。无候选 zoo、无降速档。
+- Z 滚转分析修订：功能几何冗余（回转对称筒+圆环刀口）但 **IK 解多样性必要**（解析 0° 档 25% vs −60° 档 55%，用户放开正确）。
+- 解析评估工具 `campaign/.../analytic_roll_ladder.py`（/compute_ik 双路点、秒级、不起周期）：网格 18/20、typical 随机 63%（单种子下界）。仿真链太慢的裁定下，参数迭代走解析，最终率一轮短 mock 确认。

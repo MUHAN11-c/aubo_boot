@@ -450,6 +450,57 @@ void ManipulationSkillsNode::rebuildGraspTask()
   task_config.lookup_current_tip = [this]() {
       return motion_->lookupTransform(params_.frames.base, params_.frames.tip);
     };
+  // staging IK（2026-09-23 定型三版+滚转放开）：keep-roll 优先、±30°/±60°
+  // 梯子兜到首个有解。Z 滚转对回转对称筒刀是功能冗余，但换 IK 解多样性
+  // 提成功率（keep-roll 单发实测偏低后用户放开）。自碰交给 MoveIt PTP
+  // 规划器在规划场景内校验。
+  task_config.staging_ik = [this](const Eigen::Isometry3d & staging_pose)
+    -> std::optional<std::map<std::string, double>>
+    {
+      if (!move_group_) {
+        return std::nullopt;
+      }
+      const auto base = move_group_->getCurrentState();
+      const auto * group =
+        base->getJointModelGroup(params_.moveit.planning_group);
+      if (group == nullptr) {
+        return std::nullopt;
+      }
+      const auto names = group->getActiveJointModelNames();
+      const Eigen::Vector3d axis = staging_pose.linear().col(2);
+      const Eigen::Matrix3d current_R =
+        base->getGlobalLinkTransform(params_.frames.tip).linear();
+      // 每滚转：当前种子 1 次 + 随机重启 ≤3 次（KDL 单种子会陷局部盆；
+      // v1 候选链 86% 与 /compute_ik 单种子下界 63% 的差距即在此）。
+      constexpr int kRandomRestarts = 3;
+      for (const double roll : toolRollsRad()) {
+        Eigen::Isometry3d rolled = staging_pose;
+        rolled.linear() = alignFrameZRolled(current_R, axis, roll);
+        for (int attempt = 0; attempt <= kRandomRestarts; ++attempt) {
+          moveit::core::RobotState probe = *base;
+          if (attempt > 0) {
+            probe.setToRandomPositions(group);
+          }
+          if (!probe.setFromIK(
+              group, rolled, params_.frames.tip, 0.2))
+          {
+            continue;
+          }
+          probe.update();
+          if (!probe.satisfiesBounds(group)) {
+            continue;
+          }
+          std::map<std::string, double> joints;
+          std::vector<double> values;
+          probe.copyJointGroupPositions(group, values);
+          for (std::size_t i = 0; i < names.size(); ++i) {
+            joints[names[i]] = values[i];
+          }
+          return joints;
+        }
+      }
+      return std::nullopt;
+    };
   task_config.protected_zones = protected_zones_;
   // 执行边界 = 授权矩阵公共级 + execution + grasp（GraspTask 门内显式加查）；
   // 目标身份/新鲜度与 GraspDecision 复检由阶段执行器单点判定

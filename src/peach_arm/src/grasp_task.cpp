@@ -103,37 +103,7 @@ ApproachSplit withToolRoll(ApproachSplit split, double roll_rad)
   return split;
 }
 
-bool planarTransitReady(
-  const GraspTaskConfig & config,
-  const Eigen::Isometry3d & current,
-  const PlanarApproachPath & path,
-  const FruitCapsule & fruit)
-{
-  if (path.hops.empty()) {
-    return false;
-  }
-  if (config.approach_cartesian_max_distance_m > 0.0 &&
-    planarApproachMaxHopM(current, path) > config.approach_cartesian_max_distance_m)
-  {
-    return false;
-  }
-  if (fruitCapsuleDisabled(fruit)) {
-    return true;
-  }
-  Eigen::Isometry3d prev = current;
-  for (const auto & hop : path.hops) {
-    if (toolSweepHitsFruit(
-        prev, hop.pose, fruit, config.tool_body_length_m,
-        config.tool_body_radius_m))
-    {
-      return false;
-    }
-    prev = hop.pose;
-  }
-  return true;
-}
-
-// 接近分档：主路径 STAGING=斜直线（面内一跳）+沿轴垂直进入。SKIP=已对轴
+// 接近分档：主路径 STAGING=PTP 关节空间+沿轴垂直进入。SKIP=已对轴
 // 停在预抓取；LIN=已在果下方（s≤0）且直连工具扫掠不触果胶囊、弦长在限内
 // 的短修正（含预抓取残差修正这类小位移）。其余一律 STAGING；无当前 TCP
 // 才 BLOCKED。
@@ -601,44 +571,45 @@ std::unique_ptr<mtc::Task> GraspTask::makeApproachOnlyTask(
   return task;
 }
 
-std::unique_ptr<mtc::SerialContainer> GraspTask::makePlanarApproachSequence(
-  const PlanarApproachPath & path, const std::string & label,
-  double in_plane_vel, double in_plane_acc) const
+// 主路径序列本体：Pilz PTP（确定性关节插值，正常转移速度档）到预抓取
+// 下方轴上 staging（keep-roll 关节目标），再沿轴垂直 LIN（同
+// velocity_scaling）升到预抓取。PTP 弧与 LIN 段都过果实胶囊 FK 审查与
+// 关节行程护栏（staging_guard）。
+std::unique_ptr<mtc::SerialContainer> GraspTask::makeStagingSequence(
+  const Eigen::Isometry3d & pregrasp_tip_pose,
+  const Eigen::Isometry3d & staging_tip_pose,
+  const std::map<std::string, double> & staging_joints,
+  const std::string & label) const
 {
   auto sequence = std::make_unique<mtc::SerialContainer>(label);
-  const double cfg_vel = config_.velocity_scaling > 0.0 ?
-    config_.velocity_scaling : kPlanarLinVelCap;
-  const double cfg_acc = config_.acceleration_scaling > 0.0 ?
-    config_.acceleration_scaling : kPlanarLinAccelCap;
-  const double hop_in_vel = std::min(
-    kPlanarLinVelCap, in_plane_vel > 0.0 ? in_plane_vel : cfg_vel);
-  const double hop_in_acc = std::min(
-    kPlanarLinAccelCap, in_plane_acc > 0.0 ? in_plane_acc : cfg_acc);
-  const double along_vel = std::min(kPlanarAlongVelCap, cfg_vel);
-  const double along_acc = std::min(kPlanarAlongAccelCap, cfg_acc);
-  for (const auto & hop : path.hops) {
-    // 斜插段未齐不挂姿态门；沿轴跳已齐挂门。approach_near 只给套入/撤退。
-    const PlanarLinScale scale = planarHopLinScale(
-      hop.kind, hop_in_vel, hop_in_acc, along_vel, along_acc);
+  auto ptp = std::make_unique<mtc::stages::MoveTo>(
+    "ptp below pregrasp staging", makePtpSolver());
+  ptp->setGroup(config_.planning_group);
+  ptp->setIKFrame(config_.tip_frame);
+  ptp->setTimeout(config_.planning_time_s);
+  ptp->setGoal(staging_joints);
+  sequence->add(std::move(ptp));
+  if ((staging_tip_pose.translation() - pregrasp_tip_pose.translation()).norm() >
+    0.005)
+  {
     appendLinToPose(
-      *sequence, hop.pose, planarApproachHopName(hop.kind),
-      hop.kind == PlanarApproachHop::Kind::AlongAxis,
-      scale.velocity, scale.acceleration);
+      *sequence, pregrasp_tip_pose, "lin to on-axis pregrasp", true);
   }
   return sequence;
 }
 
-std::unique_ptr<mtc::Task> GraspTask::makePlanarApproachTask(
-  const std::string & task_name, const PlanarApproachPath & path,
-  double in_plane_vel, double in_plane_acc)
+std::unique_ptr<mtc::Task> GraspTask::makeStagingTransitTask(
+  const std::string & task_name,
+  const Eigen::Isometry3d & pregrasp_tip_pose,
+  const Eigen::Isometry3d & staging_tip_pose,
+  const std::map<std::string, double> & staging_joints)
 {
   auto task = makeTaskShell(task_name);
-  task->add(
-    makePlanarApproachSequence(
-      path, "planar approach to pregrasp", in_plane_vel, in_plane_acc));
+  task->add(makeStagingSequence(
+    pregrasp_tip_pose, staging_tip_pose, staging_joints,
+    "staging transit to pregrasp"));
   return task;
 }
-
 
 GraspTaskResult GraspTask::planToPregrasp(
   const std::string & task_name,
@@ -657,18 +628,17 @@ GraspTaskResult GraspTask::planToPregrasp(
     inspect_fruit_ = false;
     return last;
   }
-  // 主档：斜直线（面内一跳到预抓取下方轴上）+ 沿轴垂直进入。唯一兜底=
-  // 同形降速重试（在 tryStagingTransit 内）；不满足即失败收口，不再走
-  // PTP 绕角/多级兜底（2026-09-23 用户定型）。LIN 档起点已在果下方，走
-  // 短修正直连。
+  // 主档：PTP 关节空间到轴上 staging + 沿轴垂直直线进入（keep-roll 单次
+  // IK，无候选扫描/降速档）。不满足即失败收口（2026-09-23 定型三版）。
+  // LIN 档起点已在果下方，走短修正直连。
   if (tryStagingTransit(
       task_name, entry_tip_pose, insertion_axis, split, execute, last))
   {
     inspect_fruit_ = false;
     return last;
   }
-  // 兜底：已在果下方且直连工具扫掠不触果胶囊的短修正走 LIN（预抓取
-  // 残差修正等）。G/under 单弦档已删（文件头数据）。
+  // 已在果下方且直连工具扫掠不触果胶囊的短修正走 LIN（预抓取残差修正
+  // 等）——这是几何分档，不是兜底链。G/under 单弦档已删（文件头数据）。
   if (split.kind == ApproachSplit::Kind::LIN ||
     split.kind == ApproachSplit::Kind::LIN_ALIGN_THEN_LIN)
   {
@@ -728,43 +698,33 @@ bool GraspTask::tryStagingTransit(
   bool execute,
   GraspTaskResult & last)
 {
-  // 接近主路径（唯一路径）：斜直线（面内一跳到预抓取下方轴上，keep-roll
-  // 对轴）+ 沿轴垂直进入预抓取。唯一兜底 = 同形降速重试（斜插 0.20/0.10，
-  // 腕轴超限再 0.10/0.04）；不满足（无当前 TCP / 跳长超限 / 扫掠触果囊）
-  // 即失败收口。staging PTP 绕角与多候选扫描已删（2026-09-23 用户定型）。
-  if (!split.current_tip) {
-    last.reason = "斜直线接近不可用：无当前 TCP";
+  // 接近主路径（唯一路径，2026-09-23 定型三版）：Pilz PTP 关节空间到预抓取
+  // 下方轴上 staging（keep-roll 姿态单次 IK；Z 滚转对回转对称筒刀是冗余
+  // 自由度，不扫描），再沿轴垂直直线进入预抓取。PTP 弧过果实胶囊审查
+  // （staging_guard）。无候选扫描/降速档；IK 无解或规划失败即失败收口。
+  if (!split.current_tip || !config_.staging_ik) {
+    last.reason = "PTP 接近不可用：无当前 TCP 或 IK 钩子缺席";
     return false;
   }
   const Eigen::Vector3d axis = insertion_axis.normalized();
-  const PlanarApproachPath hops = planarApproachHops(
-    *split.current_tip, entry_tip_pose, axis, config_.approach_along_axis_m,
-    config_.approach_staging_standoff_m);
-  if (!planarTransitReady(config_, *split.current_tip, hops, pending_fruit_)) {
-    last.reason = "斜直线接近不满足（跳长超限或扫掠触果囊）";
+  const Eigen::Isometry3d pregrasp = pregraspAlongAxis(
+    entry_tip_pose, axis, config_.approach_along_axis_m);
+  Eigen::Isometry3d staging = pregrasp;
+  staging.translation() -= axis * config_.approach_staging_standoff_m;
+  staging.linear() = alignFrameZ(split.current_tip->linear(), axis);
+  const auto joints = config_.staging_ik(staging);
+  if (!joints) {
+    last.reason = "staging keep-roll 单次 IK 无解";
     return false;
   }
   RCLCPP_INFO(
     node_->get_logger(),
-    "斜直线接近（主路径）：面内 %.3fm + 沿轴 %.3fm（对轴 %.1f°，keep-roll）",
-    hops.lateral_m, hops.axial_to_plane_m,
-    hops.z_align_rad * 180.0 / static_cast<double>(EIGEN_PI));
+    "PTP 接近（主路径）：关节空间到轴上 staging（keep-roll）+ 沿轴垂直 %.3fm",
+    config_.approach_staging_standoff_m);
   auto result = planAndMaybeExecute(
-    makePlanarApproachTask(task_name + "_planar", hops),
-    execute, config_.approach_execution_gate, true, 0U, false, true);
-  if (result.success || result.execution_started) {
-    last = result;
-    return true;
-  }
-  last = result;
-  RCLCPP_INFO(
-    node_->get_logger(),
-    "斜直线腕轴超限，同形降速重试（vel %.2f acc %.2f）",
-    kPlanarLinVelRetry, kPlanarLinAccelRetry);
-  result = planAndMaybeExecute(
-    makePlanarApproachTask(
-      task_name + "_planar_slow", hops, kPlanarLinVelRetry, kPlanarLinAccelRetry),
-    execute, config_.approach_execution_gate, true, 0U, false, true);
+    makeStagingTransitTask(
+      task_name + "_staging", pregrasp, staging, *joints),
+    execute, config_.approach_execution_gate, true, 0U, true);
   if (result.success || result.execution_started) {
     last = result;
     return true;
@@ -847,29 +807,30 @@ GraspTaskResult GraspTask::previewFullContact(
   auto contact = std::make_unique<mtc::SerialContainer>("preview contact");
   pending_fruit_ = fruit;
   inspect_fruit_ = split.need_lin;
-  bool use_planar = false;
   if (split.need_lin) {
     if (split.kind == ApproachSplit::Kind::STAGING) {
-      // 预览与执行同一形状：斜直线 + 沿轴垂直进入（无 PTP 兜底）。
-      if (!split.current_tip) {
+      // 预览与执行同一形状：PTP 关节空间 + 沿轴垂直进入（keep-roll 单次 IK）。
+      if (!split.current_tip || !config_.staging_ik) {
         inspect_fruit_ = false;
         GraspTaskResult out;
-        out.reason = "预览：斜直线接近不可用（无当前 TCP）";
+        out.reason = "预览：PTP 接近不可用（无当前 TCP / IK 钩子缺席）";
         return out;
       }
       const Eigen::Vector3d axis = insertion_axis.normalized();
-      const PlanarApproachPath hops = planarApproachHops(
-        *split.current_tip, entry_tip_pose, axis, config_.approach_along_axis_m,
-        config_.approach_staging_standoff_m);
-      if (!planarTransitReady(config_, *split.current_tip, hops, fruit)) {
+      const Eigen::Isometry3d pregrasp = pregraspAlongAxis(
+        entry_tip_pose, axis, config_.approach_along_axis_m);
+      Eigen::Isometry3d staging = pregrasp;
+      staging.translation() -= axis * config_.approach_staging_standoff_m;
+      staging.linear() = alignFrameZ(split.current_tip->linear(), axis);
+      const auto joints = config_.staging_ik(staging);
+      if (!joints) {
         inspect_fruit_ = false;
         GraspTaskResult out;
-        out.reason = "预览：斜直线接近不满足（跳长超限或扫掠触果囊）";
+        out.reason = "预览：staging keep-roll 单次 IK 无解";
         return out;
       }
-      use_planar = true;
-      contact->add(
-        makePlanarApproachSequence(hops, "planar approach to pregrasp"));
+      contact->add(makeStagingSequence(
+        pregrasp, staging, *joints, "staging transit to pregrasp"));
     } else {
       appendApproachToPregrasp(*contact, entry_tip_pose, insertion_axis, split);
     }
@@ -890,8 +851,8 @@ GraspTaskResult GraspTask::previewFullContact(
   // 在 sleeveLinear/retreat 里各自过门。
   const std::size_t skip_tail = 2U;
   auto result = planAndMaybeExecute(
-    std::move(task), false, {}, split.need_lin, skip_tail, false,
-    use_planar);
+    std::move(task), false, {}, split.need_lin, skip_tail, true,
+    false);
   inspect_fruit_ = false;
   return result;
 }

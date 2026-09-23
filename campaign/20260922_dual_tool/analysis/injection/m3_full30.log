@@ -1,150 +1,131 @@
 peach_arm Active；execution/grasp 已开（tool 保持关）；mode=full；速度/加速度缩放=1（仅仿真）
 回拍照位走 ExecuteTarget 内 goToPhotoPose（接近原路返程，否则 PTP），不经脚本 JTC
-随机位姿 29 个 seed=20260922 envelope=typical
+随机位姿 30 个 seed=20260922 envelope=typical
 
 === case rand_00 entry=[0.215, -0.638, 0.648] axis_z=0.90 aabb←1113_0 ===
   -> outcome=0 completion=6 matched=None code= reason=周期完成；tool.enabled=false 或未宣称采摘成功
-  [回拍照] 弦=0.428m 路径=0.691m 比=1.61 偏离=0.165m 回退=0.0m 起=[0.226, -0.652, 0.683] 终=[0.302, -0.232, 0.708]
-  [接近] 从拍照位 点数=68 弦=0.428m 路径=0.69m 比=1.61 偏离=0.165m 回退=0.015m max_z=0.708 起=[0.302, -0.232, 0.708] 早段=[0.306, -0.232, 0.708] 终=[0.226, -0.652, 0.683]  ⚠ 果实胶囊: 工具筒体触果 s=0.002m r=0.000m R=0.040m
+  [回拍照] 弦=0.433m 路径=0.573m 比=1.32 偏离=0.07m 回退=0.009m 起=[0.208, -0.628, 0.621] 终=[0.356, -0.23, 0.706]
+  [接近] 从拍照位 点数=29 弦=0.433m 路径=0.433m 比=1.0 偏离=0.0m 回退=0.0m max_z=0.706 起=[0.356, -0.23, 0.706] 早段=[0.348, -0.252, 0.701] 终=[0.208, -0.628, 0.621]  ✓ 果实胶囊外
 
 === case rand_01 entry=[0.264, -0.587, 0.748] axis_z=0.73 aabb←1424_1 ===
-  -> outcome=0 completion=6 matched=None code= reason=周期完成；tool.enabled=false 或未宣称采摘成功
-  [回拍照] 弦=0.342m 路径=0.88m 比=2.58 偏离=0.131m 回退=0.056m 起=[0.278, -0.572, 0.726] 终=[0.302, -0.232, 0.708]
-  [接近] 从拍照位 点数=34 弦=0.351m 路径=0.654m 比=1.86 偏离=0.167m 回退=0.006m max_z=0.792 起=[0.356, -0.23, 0.706] 早段=[0.356, -0.23, 0.706] 终=[0.278, -0.572, 0.726]  ✓ 果实胶囊外
+  -> outcome=2 completion=0 matched=None code= reason=到预抓取失败: MTC planning failed: Failing stage(s):
+lin align tool z (0/1)
+  [接近] 从拍照位 点数=14 弦=0.055m 路径=0.055m 比=1.0 偏离=0.001m 回退=0.0m max_z=0.708 起=[0.302, -0.232, 0.708] 早段=[0.311, -0.232, 0.708] 终=[0.356, -0.23, 0.706]  ✓ 果实胶囊外
 
 === case rand_02 entry=[0.238, -0.718, 0.616] axis_z=0.77 aabb←1149_0 ===
-  -> outcome=0 completion=6 matched=None code= reason=周期完成；tool.enabled=false 或未宣称采摘成功
-  [回拍照] 弦=0.535m 路径=0.778m 比=1.45 偏离=0.163m 回退=0.0m 起=[0.239, -0.761, 0.669] 终=[0.302, -0.232, 0.708]
-  [接近] 从拍照位 点数=31 弦=0.497m 路径=0.624m 比=1.26 偏离=0.091m 回退=0.0m max_z=0.709 起=[0.356, -0.23, 0.706] 早段=[0.365, -0.244, 0.708] 终=[0.238, -0.699, 0.593]  ✓ 果实胶囊外
+  -> outcome=2 completion=0 matched=None code= reason=到预抓取失败: MTC planning failed: Failing stage(s):
+lin align tool z (0/1)
+
+=== case rand_03 entry=[0.26, -0.718, 0.543] axis_z=0.99 perturb←1021_0 ===
+  -> outcome=2 completion=0 matched=None code= reason=到预抓取失败: MTC planning failed: Failing stage(s):
+lin in plane to bag axis (0/1)
 
 === case rand_04 entry=[0.458, -0.679, 0.567] axis_z=0.99 aabb←1021_0 ===
-  -> outcome=0 completion=6 matched=None code= reason=周期完成；tool.enabled=false 或未宣称采摘成功
-  [回拍照] 弦=0.5m 路径=0.884m 比=1.77 偏离=0.114m 回退=0.028m 起=[0.455, -0.676, 0.538] 终=[0.302, -0.232, 0.708]
-  [接近] 从拍照位 点数=32 弦=0.487m 路径=0.66m 比=1.36 偏离=0.1m 回退=0.0m max_z=0.706 起=[0.356, -0.23, 0.706] 早段=[0.356, -0.23, 0.706] 终=[0.455, -0.676, 0.537]  ✓ 果实胶囊外
+  -> outcome=2 completion=0 matched=None code= reason=到预抓取失败: MTC planning failed: Failing stage(s):
+lin in plane to bag axis (0/1)
 
 === case rand_05 entry=[0.218, -0.727, 0.538] axis_z=0.97 perturb←1424_1 ===
-  -> outcome=0 completion=6 matched=None code= reason=周期完成；tool.enabled=false 或未宣称采摘成功
-  [回拍照] 弦=0.546m 路径=1.196m 比=2.19 偏离=0.289m 回退=0.06m 起=[0.22, -0.733, 0.509] 终=[0.302, -0.232, 0.708]
-  [接近] 从拍照位 点数=37 弦=0.558m 路径=0.968m 比=1.74 偏离=0.264m 回退=0.0m max_z=0.706 起=[0.356, -0.23, 0.706] 早段=[0.378, -0.242, 0.703] 终=[0.22, -0.733, 0.509]  ✓ 果实胶囊外
+  -> outcome=2 completion=0 matched=None code= reason=到预抓取失败: MTC planning failed: Failing stage(s):
+lin in plane to bag axis (0/1)
 
 === case rand_06 entry=[0.49, -0.593, 0.531] axis_z=0.92 perturb←1424_0 ===
-  -> outcome=0 completion=6 matched=None code= reason=周期完成；tool.enabled=false 或未宣称采摘成功
-  [回拍照] 弦=0.516m 路径=0.963m 比=1.86 偏离=0.146m 回退=0.0m 起=[0.54, -0.581, 0.412] 终=[0.302, -0.232, 0.708]
-  [接近] 从拍照位 点数=16 弦=0.494m 路径=0.526m 比=1.07 偏离=0.077m 回退=0.0m max_z=0.706 起=[0.356, -0.23, 0.706] 早段=[0.356, -0.23, 0.706] 终=[0.54, -0.581, 0.412]  ✓ 果实胶囊外
+  -> outcome=2 completion=0 matched=None code= reason=到预抓取失败: MTC planning failed: Failing stage(s):
+lin in plane to bag axis (0/1)
 
 === case rand_07 entry=[0.384, -0.606, 0.552] axis_z=0.80 aabb←1437_0 ===
-  -> outcome=0 completion=6 matched=None code= reason=周期完成；tool.enabled=false 或未宣称采摘成功
-  [回拍照] 弦=0.5m 路径=0.581m 比=1.16 偏离=0.113m 回退=0.0m 起=[0.457, -0.63, 0.448] 终=[0.302, -0.232, 0.708]
-  [接近] 从拍照位 点数=69 弦=0.487m 路径=0.865m 比=1.78 偏离=0.121m 回退=0.0m max_z=0.706 起=[0.356, -0.23, 0.706] 早段=[0.356, -0.23, 0.706] 终=[0.457, -0.63, 0.448]  ⚠ 果实胶囊: 工具筒体触果 s=0.006m r=0.000m R=0.040m
+  -> outcome=2 completion=0 matched=None code= reason=到预抓取失败: MTC planning failed: Failing stage(s):
+lin in plane to bag axis (0/1)
 
 === case rand_08 entry=[0.205, -0.731, 0.64] axis_z=0.88 perturb←1437_1 ===
-  -> outcome=0 completion=6 matched=None code= reason=周期完成；tool.enabled=false 或未宣称采摘成功
-  [回拍照] 弦=0.555m 路径=0.665m 比=1.2 偏离=0.129m 回退=0.0m 起=[0.262, -0.755, 0.526] 终=[0.302, -0.232, 0.708]
-  [接近] 从拍照位 点数=79 弦=0.555m 路径=1.008m 比=1.81 偏离=0.155m 回退=0.008m max_z=0.708 起=[0.302, -0.232, 0.708] 早段=[0.313, -0.232, 0.708] 终=[0.262, -0.755, 0.526]  ⚠ 果实胶囊: 工具筒体触果 s=0.007m r=0.000m R=0.040m
+  -> outcome=2 completion=0 matched=None code= reason=到预抓取失败: MTC planning failed: Failing stage(s):
+lin in plane to bag axis (0/1)
 
 === case rand_09 entry=[0.279, -0.731, 0.596] axis_z=0.87 perturb←1021_0 ===
-  -> outcome=0 completion=6 matched=None code= reason=周期完成；tool.enabled=false 或未宣称采摘成功
-  [回拍照] 弦=0.52m 路径=0.928m 比=1.79 偏离=0.146m 回退=0.035m 起=[0.293, -0.733, 0.57] 终=[0.302, -0.232, 0.708]
-  [接近] 从拍照位 点数=41 弦=0.52m 路径=0.757m 比=1.46 偏离=0.146m 回退=0.005m max_z=0.708 起=[0.302, -0.232, 0.708] 早段=[0.32, -0.233, 0.708] 终=[0.293, -0.733, 0.569]  ✓ 果实胶囊外
+  -> outcome=2 completion=0 matched=None code= reason=到预抓取失败: MTC planning failed: Failing stage(s):
+lin in plane to bag axis (0/1)
 
 === case rand_10 entry=[0.599, -0.619, 0.513] axis_z=0.90 perturb←1149_0 ===
-  -> outcome=0 completion=6 matched=None code= reason=周期完成；tool.enabled=false 或未宣称采摘成功
-  [回拍照] 弦=0.608m 路径=1.097m 比=1.8 偏离=0.144m 回退=0.0m 起=[0.655, -0.616, 0.395] 终=[0.302, -0.232, 0.708]
-  [接近] 从拍照位 点数=18 弦=0.578m 路径=0.645m 比=1.11 偏离=0.121m 回退=0.0m max_z=0.706 起=[0.356, -0.23, 0.706] 早段=[0.357, -0.23, 0.706] 终=[0.655, -0.616, 0.395]  ✓ 果实胶囊外
+  -> outcome=2 completion=0 matched=None code= reason=到预抓取失败: MTC planning failed: Failing stage(s):
+lin in plane to bag axis (0/1)
 
 === case rand_11 entry=[0.404, -0.729, 0.542] axis_z=0.97 aabb←1149_0 ===
-  -> outcome=0 completion=6 matched=None code= reason=周期完成；tool.enabled=false 或未宣称采摘成功
-  [回拍照] 弦=0.588m 路径=1.091m 比=1.86 偏离=0.172m 回退=0.0m 起=[0.434, -0.725, 0.416] 终=[0.302, -0.232, 0.708]
-  [接近] 从拍照位 点数=18 弦=0.579m 路径=0.637m 比=1.1 偏离=0.111m 回退=0.0m max_z=0.706 起=[0.356, -0.23, 0.706] 早段=[0.356, -0.23, 0.706] 终=[0.434, -0.725, 0.416]  ✓ 果实胶囊外
+  -> outcome=2 completion=0 matched=None code= reason=到预抓取失败: MTC planning failed: Failing stage(s):
+lin in plane to bag axis (0/1)
 
 === case rand_12 entry=[0.267, -0.729, 0.618] axis_z=0.90 perturb←1021_0 ===
-  -> outcome=0 completion=6 matched=None code= reason=周期完成；tool.enabled=false 或未宣称采摘成功
-  [回拍照] 弦=0.518m 路径=0.956m 比=1.85 偏离=0.166m 回退=0.047m 起=[0.278, -0.736, 0.591] 终=[0.302, -0.232, 0.708]
-  [接近] 从拍照位 点数=29 弦=0.524m 路径=0.731m 比=1.39 偏离=0.141m 回退=0.0m max_z=0.706 起=[0.357, -0.23, 0.706] 早段=[0.39, -0.265, 0.693] 终=[0.278, -0.736, 0.591]  ✓ 果实胶囊外
+  -> outcome=2 completion=0 matched=None code= reason=到预抓取失败: MTC planning failed: Failing stage(s):
+lin in plane to bag axis (0/1)
 
 === case rand_13 entry=[0.399, -0.587, 0.723] axis_z=0.90 aabb←1437_0 ===
-  -> outcome=0 completion=6 matched=None code= reason=周期完成；tool.enabled=false 或未宣称采摘成功
-  [回拍照] 弦=0.436m 路径=0.863m 比=1.98 偏离=0.132m 回退=0.0m 起=[0.426, -0.637, 0.607] 终=[0.302, -0.232, 0.708]
-  [接近] 从拍照位 点数=18 弦=0.425m 路径=0.471m 比=1.11 偏离=0.087m 回退=0.0m max_z=0.706 起=[0.356, -0.23, 0.706] 早段=[0.356, -0.23, 0.706] 终=[0.426, -0.637, 0.607]  ✓ 果实胶囊外
+  -> outcome=2 completion=0 matched=None code= reason=到预抓取失败: MTC planning failed: Failing stage(s):
+lin in plane to bag axis (0/1)
 
 === case rand_14 entry=[0.34, -0.587, 0.694] axis_z=0.70 aabb←1510_2 ===
-  -> outcome=0 completion=6 matched=None code= reason=周期完成；tool.enabled=false 或未宣称采摘成功
-  [回拍照] 弦=0.374m 路径=0.466m 比=1.25 偏离=0.089m 回退=0.0m 起=[0.248, -0.587, 0.603] 终=[0.302, -0.232, 0.708]
-  [接近] 从拍照位 点数=107 弦=0.374m 路径=0.831m 比=2.22 偏离=0.174m 回退=0.013m max_z=0.731 起=[0.302, -0.232, 0.708] 早段=[0.32, -0.233, 0.708] 终=[0.248, -0.587, 0.603]  ⚠ 果实胶囊: 袋底段上方绕行 s=0.020m > 上限 0.020m
+  -> outcome=2 completion=0 matched=None code= reason=到预抓取失败: MTC planning failed: Failing stage(s):
+lin in plane to bag axis (0/1)
 
 === case rand_15 entry=[0.395, -0.658, 0.661] axis_z=0.70 aabb←1639_1 ===
   -> outcome=2 completion=0 matched=None code= reason=到预抓取失败: MTC planning failed: Failing stage(s):
 lin to on-axis pregrasp (0/1)
-  [接近] 从拍照位 点数=16 弦=0.055m 路径=0.055m 比=1.0 偏离=0.001m 回退=0.0m max_z=0.708 起=[0.302, -0.232, 0.708] 早段=[0.302, -0.232, 0.708] 终=[0.356, -0.23, 0.706]  ✓ 果实胶囊外
 
 === case rand_16 entry=[0.323, -0.741, 0.553] axis_z=0.77 aabb←1424_1 ===
-  -> outcome=0 completion=6 matched=None code= reason=周期完成；tool.enabled=false 或未宣称采摘成功
-  [回拍照] 弦=0.549m 路径=1.024m 比=1.87 偏离=0.198m 回退=0.06m 起=[0.34, -0.749, 0.53] 终=[0.302, -0.232, 0.708]
-  [接近] 从拍照位 点数=33 弦=0.548m 路径=0.796m 比=1.45 偏离=0.172m 回退=0.0m max_z=0.706 起=[0.356, -0.23, 0.706] 早段=[0.356, -0.23, 0.706] 终=[0.34, -0.749, 0.53]  ✓ 果实胶囊外
+  -> outcome=2 completion=0 matched=None code= reason=到预抓取失败: MTC planning failed: Failing stage(s):
+lin in plane to bag axis (0/1)
 
 === case rand_17 entry=[0.203, -0.728, 0.614] axis_z=0.94 perturb←1424_1 ===
-  -> outcome=0 completion=6 matched=None code= reason=周期完成；tool.enabled=false 或未宣称采摘成功
-  [回拍照] 弦=0.513m 路径=0.946m 比=1.84 偏离=0.176m 回退=0.009m 起=[0.211, -0.722, 0.585] 终=[0.302, -0.232, 0.708]
-  [接近] 从拍照位 点数=33 弦=0.527m 路径=0.718m 比=1.36 偏离=0.152m 回退=0.0m max_z=0.706 起=[0.356, -0.23, 0.706] 早段=[0.378, -0.257, 0.696] 终=[0.211, -0.722, 0.585]  ✓ 果实胶囊外
+  -> outcome=2 completion=0 matched=None code= reason=到预抓取失败: MTC planning failed: Failing stage(s):
+lin align tool z (0/1)
 
 === case rand_18 entry=[0.212, -0.707, 0.647] axis_z=0.94 perturb←1424_1 ===
-  -> outcome=0 completion=6 matched=None code= reason=周期完成；tool.enabled=false 或未宣称采摘成功
-  [回拍照] 弦=0.494m 路径=0.91m 比=1.84 偏离=0.152m 回退=0.031m 起=[0.222, -0.711, 0.619] 终=[0.302, -0.232, 0.708]
-  [接近] 从拍照位 点数=44 弦=0.494m 路径=0.737m 比=1.49 偏离=0.152m 回退=0.013m max_z=0.708 起=[0.302, -0.232, 0.708] 早段=[0.307, -0.232, 0.708] 终=[0.222, -0.711, 0.619]  ✓ 果实胶囊外
+  -> outcome=2 completion=0 matched=None code= reason=到预抓取失败: MTC planning failed: Failing stage(s):
+lin in plane to bag axis (0/1)
 
 === case rand_19 entry=[0.28, -0.731, 0.539] axis_z=0.90 perturb←1021_0 ===
-  -> outcome=0 completion=6 matched=None code= reason=周期完成；tool.enabled=false 或未宣称采摘成功
-  [回拍照] 弦=0.538m 路径=0.957m 比=1.78 偏离=0.152m 回退=0.045m 起=[0.293, -0.732, 0.512] 终=[0.302, -0.232, 0.708]
-  [接近] 从拍照位 点数=42 弦=0.538m 路径=0.786m 比=1.46 偏离=0.151m 回退=0.005m max_z=0.708 起=[0.302, -0.232, 0.708] 早段=[0.315, -0.232, 0.708] 终=[0.293, -0.732, 0.512]  ✓ 果实胶囊外
+  -> outcome=2 completion=0 matched=None code= reason=到预抓取失败: MTC planning failed: Failing stage(s):
+lin in plane to bag axis (0/1)
 
 === case rand_20 entry=[0.424, -0.676, 0.497] axis_z=1.00 aabb←1639_2 ===
-  -> outcome=0 completion=6 matched=None code= reason=周期完成；tool.enabled=false 或未宣称采摘成功
-  [回拍照] 弦=0.578m 路径=1.051m 比=1.82 偏离=0.146m 回退=0.0m 起=[0.416, -0.685, 0.368] 终=[0.302, -0.232, 0.708]
-  [接近] 从拍照位 点数=28 弦=0.578m 路径=0.678m 比=1.17 偏离=0.137m 回退=0.0m max_z=0.708 起=[0.302, -0.232, 0.708] 早段=[0.307, -0.232, 0.708] 终=[0.416, -0.685, 0.368]  ✓ 果实胶囊外
+  -> outcome=2 completion=0 matched=None code= reason=到预抓取失败: MTC planning failed: Failing stage(s):
+lin in plane to bag axis (0/1)
 
 === case rand_21 entry=[0.303, -0.675, 0.697] axis_z=0.74 aabb←1437_0 ===
   -> outcome=2 completion=2 matched=None code= reason=接触阶段取消或撤离未确认；保持停止，须现场人工撤离后确认恢复
-  [接近] 从拍照位 点数=32 弦=0.437m 路径=0.437m 比=1.0 偏离=0.0m 回退=0.0m max_z=0.706 起=[0.356, -0.23, 0.706] 早段=[0.356, -0.23, 0.706] 终=[0.289, -0.66, 0.674]  ✓ 果实胶囊外
+  [接近] 从拍照位 点数=30 弦=0.437m 路径=0.437m 比=1.0 偏离=0.0m 回退=0.0m max_z=0.706 起=[0.356, -0.23, 0.706] 早段=[0.355, -0.237, 0.706] 终=[0.289, -0.66, 0.674]  ✓ 果实胶囊外
 
 === case rand_22 entry=[0.234, -0.656, 0.506] axis_z=0.94 aabb←1510_2 ===
-  -> outcome=0 completion=6 matched=None code= reason=周期完成；tool.enabled=false 或未宣称采摘成功
-  [回拍照] 弦=0.497m 路径=1.042m 比=2.1 偏离=0.201m 回退=0.078m 起=[0.23, -0.666, 0.478] 终=[0.302, -0.232, 0.708]
-  [接近] 从拍照位 点数=37 弦=0.508m 路径=0.822m 比=1.62 偏离=0.178m 回退=0.0m max_z=0.706 起=[0.356, -0.23, 0.706] 早段=[0.356, -0.23, 0.706] 终=[0.23, -0.666, 0.478]  ✓ 果实胶囊外
+  -> outcome=2 completion=0 matched=None code= reason=到预抓取失败: MTC planning failed: Failing stage(s):
+lin in plane to bag axis (0/1)
+  [回拍照] 弦=0.437m 路径=0.437m 比=1.0 偏离=0.0m 回退=0.0m 起=[0.289, -0.66, 0.674] 终=[0.356, -0.23, 0.706]
+  [接近] 未从拍照位 点数=31 弦=0.437m 路径=0.437m 比=1.0 偏离=0.0m 回退=0.0m max_z=0.706 起=[0.289, -0.66, 0.674] 早段=[0.29, -0.657, 0.675] 终=[0.356, -0.23, 0.706]  ⚠ 果实胶囊: 工具筒体触果 s=0.163m r=0.071m R=0.040m
 
 === case rand_23 entry=[0.59, -0.576, 0.568] axis_z=0.93 perturb←1113_0 ===
-  -> outcome=0 completion=6 matched=None code= reason=周期完成；tool.enabled=false 或未宣称采摘成功
-  [回拍照] 弦=0.471m 路径=0.79m 比=1.68 偏离=0.101m 回退=0.017m 起=[0.589, -0.565, 0.54] 终=[0.302, -0.232, 0.708]
-  [接近] 从拍照位 点数=27 弦=0.441m 路径=0.595m 比=1.35 偏离=0.1m 回退=0.0m max_z=0.706 起=[0.356, -0.23, 0.706] 早段=[0.402, -0.244, 0.7] 终=[0.589, -0.565, 0.54]  ✓ 果实胶囊外
+  -> outcome=2 completion=0 matched=None code= reason=到预抓取失败: MTC planning failed: Failing stage(s):
+lin to on-axis pregrasp (0/1)
 
 === case rand_24 entry=[0.566, -0.624, 0.534] axis_z=0.79 perturb←1503_0 ===
-  -> outcome=2 completion=0 matched=None code= reason=到预抓取失败: MTC short-path guard rejected: TCP 姿态行程 66.982deg > 57.0325deg
-  [接近] 从拍照位 点数=14 弦=0.055m 路径=0.055m 比=1.0 偏离=0.001m 回退=0.0m max_z=0.708 起=[0.302, -0.232, 0.708] 早段=[0.312, -0.232, 0.708] 终=[0.356, -0.23, 0.706]  ✓ 果实胶囊外
+  -> outcome=2 completion=0 matched=None code= reason=到预抓取失败: MTC planning failed: Failing stage(s):
+lin in plane to bag axis (0/1)
 
 === case rand_25 entry=[0.192, -0.592, 0.535] axis_z=0.73 aabb←1113_1 ===
-  -> outcome=0 completion=6 matched=None code= reason=周期完成；tool.enabled=false 或未宣称采摘成功
-  [回拍照] 弦=0.411m 路径=0.798m 比=1.94 偏离=0.133m 回退=0.016m 起=[0.21, -0.582, 0.513] 终=[0.302, -0.232, 0.708]
-  [接近] 从拍照位 点数=37 弦=0.427m 路径=0.574m 比=1.34 偏离=0.107m 回退=0.0m max_z=0.707 起=[0.356, -0.23, 0.706] 早段=[0.356, -0.23, 0.706] 终=[0.21, -0.582, 0.513]  ✓ 果实胶囊外
+  -> outcome=2 completion=0 matched=None code= reason=到预抓取失败: MTC planning failed: Failing stage(s):
+lin align tool z (0/1)
 
 === case rand_26 entry=[0.541, -0.608, 0.546] axis_z=0.90 aabb←1639_0 ===
   -> outcome=2 completion=0 matched=None code= reason=到预抓取失败: MTC planning failed: Failing stage(s):
-lin to on-axis pregrasp (0/1)
-  [接近] 从拍照位 点数=15 弦=0.055m 路径=0.055m 比=1.0 偏离=0.001m 回退=0.0m max_z=0.708 起=[0.302, -0.232, 0.708] 早段=[0.304, -0.232, 0.708] 终=[0.356, -0.23, 0.706]  ✓ 果实胶囊外
+lin in plane to bag axis (0/1)
 
 === case rand_27 entry=[0.496, -0.673, 0.541] axis_z=0.94 perturb←1113_0 ===
-  -> outcome=0 completion=6 matched=None code= reason=周期完成；tool.enabled=false 或未宣称采摘成功
-  [回拍照] 弦=0.515m 路径=0.856m 比=1.66 偏离=0.122m 回退=0.027m 起=[0.501, -0.665, 0.513] 终=[0.302, -0.232, 0.708]
-  [接近] 从拍照位 点数=28 弦=0.498m 路径=0.663m 比=1.33 偏离=0.1m 回退=0.0m max_z=0.706 起=[0.356, -0.23, 0.706] 早段=[0.394, -0.249, 0.695] 终=[0.501, -0.665, 0.513]  ✓ 果实胶囊外
+  -> outcome=2 completion=0 matched=None code= reason=到预抓取失败: MTC planning failed: Failing stage(s):
+lin in plane to bag axis (0/1)
 
 === case rand_28 entry=[0.253, -0.682, 0.586] axis_z=0.87 perturb←1437_1 ===
-  -> outcome=0 completion=6 matched=None code= reason=周期完成；tool.enabled=false 或未宣称采摘成功
-  [回拍照] 弦=0.487m 路径=1.059m 比=2.18 偏离=0.248m 回退=0.066m 起=[0.263, -0.694, 0.56] 终=[0.302, -0.232, 0.708]
-  [接近] 从拍照位 点数=41 弦=0.495m 路径=0.861m 比=1.74 偏离=0.22m 回退=0.001m max_z=0.735 起=[0.356, -0.23, 0.706] 早段=[0.356, -0.23, 0.706] 终=[0.263, -0.694, 0.56]  ✓ 果实胶囊外
+  -> outcome=2 completion=0 matched=None code= reason=到预抓取失败: MTC planning failed: Failing stage(s):
+lin in plane to bag axis (0/1)
 
 === case rand_29 entry=[0.226, -0.778, 0.54] axis_z=0.72 aabb←1113_0 ===
-  -> outcome=0 completion=6 matched=None code= reason=周期完成；tool.enabled=false 或未宣称采摘成功
-  [回拍照] 弦=0.596m 路径=1.007m 比=1.69 偏离=0.172m 回退=0.0m 起=[0.223, -0.806, 0.568] 终=[0.302, -0.232, 0.708]
-  [接近] 从拍照位 点数=34 弦=0.574m 路径=0.882m 比=1.54 偏离=0.217m 回退=0.001m max_z=0.772 起=[0.356, -0.23, 0.706] 早段=[0.356, -0.23, 0.706] 终=[0.228, -0.757, 0.518]  ✓ 果实胶囊外
+  -> outcome=2 completion=0 matched=None code= reason=到预抓取失败: MTC planning failed: Failing stage(s):
+lin align tool z (0/1)
 
-结果已写入 /home/mu/Desktop/aubo_e5_jazzy_ws/runs/sim_field_targets_20260923_110314.jsonl
-FULL 干跑成功 25/29（套入到位、grasped=false、tool 关）
-现场典型包络 (|entry|≤1.02 ∧ axis_z≥0.7) 25/29
+结果已写入 /home/mu/Desktop/aubo_e5_jazzy_ws/runs/sim_field_targets_20260923_113957.jsonl
+FULL 干跑成功 1/30（套入到位、grasped=false、tool 关）
+现场典型包络 (|entry|≤1.02 ∧ axis_z≥0.7) 1/30

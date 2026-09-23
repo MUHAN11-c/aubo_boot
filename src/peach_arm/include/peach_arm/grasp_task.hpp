@@ -137,7 +137,8 @@ struct GraspTaskConfig
   double fruit_inflation_m{0.01};                     ///< 感知半径外膨胀 [m]。
   double approach_cartesian_max_distance_m{0.80};     ///< 接触笛卡尔弦长上限 [m]。
   double approach_along_axis_m{0.0};                  ///< 预抓取相对入口沿 −axis 后撤 [m]。
-  double approach_staging_standoff_m{0.10};           ///< staging 相对预抓取再退 [m]。
+  double approach_final_axial_m{0.05};               ///< 末段：中段点→预抓取沿 −axis 后撤 [m]。
+  double approach_canopy_entry_m{0.05};               ///< 入冠段：世界垂直上行伸进果树 [m]（v4）。
   double approach_max_lateral_m{0.05};                ///< 小于此值视为已对轴 [m]。
   double approach_max_align_deg{20.0};                ///< 小于此值视为已齐 [deg]。
   double approach_near_velocity_scaling{0.05};        ///< 近果低速档（仅套入/撤退）。
@@ -248,16 +249,18 @@ private:
     const Eigen::Isometry3d & entry_tip_pose,
     const Eigen::Vector3d & insertion_axis,
     const ApproachSplit & split);
-  // 主路径：PTP 关节空间到预抓取下方轴上 staging（keep-roll 单次 IK 关节
-  // 目标）+ 沿轴垂直 LIN 到预抓取；正式转移与预览共用。
+  // 主路径：PTP 关节空间落到中段点正下方（垂直线上）+ 世界垂直 LIN 入冠
+  // 到中段点 + 沿轴 LIN 到预抓取；正式转移与预览共用（v4）。
   std::unique_ptr<moveit::task_constructor::SerialContainer> makeStagingSequence(
     const Eigen::Isometry3d & pregrasp_tip_pose,
+    const Eigen::Isometry3d & mid_tip_pose,
     const Eigen::Isometry3d & staging_tip_pose,
     const std::map<std::string, double> & staging_joints,
     const std::string & label) const;
   std::unique_ptr<moveit::task_constructor::Task> makeStagingTransitTask(
     const std::string & task_name,
     const Eigen::Isometry3d & pregrasp_tip_pose,
+    const Eigen::Isometry3d & mid_tip_pose,
     const Eigen::Isometry3d & staging_tip_pose,
     const std::map<std::string, double> & staging_joints);
   bool tryRolledApproach(

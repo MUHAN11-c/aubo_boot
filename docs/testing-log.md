@@ -871,3 +871,9 @@ SIGINT 旧栈后用 16:57 编的 `peach_manipulation` 重起；开批前在 `glo
 - v3 定型：PTP（Pilz 关节空间）→ 轴上 staging（alignFrameZ + 滚转梯子 {0,±30°,±60°}，每档当前种子+随机重启≤3）→ 沿轴垂直 LIN 预抓取 → 套入/撤退原路。无候选 zoo、无降速档。
 - Z 滚转分析修订：功能几何冗余（回转对称筒+圆环刀口）但 **IK 解多样性必要**（解析 0° 档 25% vs −60° 档 55%，用户放开正确）。
 - 解析评估工具 `campaign/.../analytic_roll_ladder.py`（/compute_ik 双路点、秒级、不起周期）：网格 18/20、typical 随机 63%（单种子下界）。仿真链太慢的裁定下，参数迭代走解析，最终率一轮短 mock 确认。
+
+### 09-23 续三：v4 入冠垂直段（用户裁定）
+
+- 接近序列改三段：PTP 关节空间→中段点正下方（树冠外）→ 世界垂直 LIN 入冠 0.05（伸进果树里）→ 沿轴 LIN 0.05 对轴到预抓取。斜袋时进冠铅垂、末段顺轴。
+- 参数：`approach_final_axial_m` 0.05 / `approach_canopy_entry_m` 0.05（替 `approach_staging_standoff_m`）。
+- 解析：57/80=71.3% vs v3 56/80=70%，入冠段零可达性代价。门：build/test/r0_gate 绿。

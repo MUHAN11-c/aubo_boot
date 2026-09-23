@@ -24,8 +24,9 @@ sys.path.insert(0, str(ROOT / 'scripts'))
 
 OUTER = ROOT / 'campaign/20260922_dual_tool/analysis/injection'
 
-ALONG_AXIS_M = 0.03   # peach_arm.yaml approach_along_axis_m
-STANDOFF_M = 0.10     # approach_staging_standoff_m
+ALONG_AXIS_M = 0.0    # 整栈由 grasp_standoffs 注入（deploy 0.0）
+FINAL_AXIAL_M = 0.05   # v4 末段沿轴（中段点→预抓取）
+CANOPY_ENTRY_M = 0.05  # v4 世界垂直入冠段（伸进果树里）
 ROLLS_DEG = (0, 30, -30, 60, -60)
 SEED_JITTER_RAD = 0.6   # 拍照位邻域随机重启（逃 KDL 局部盆）
 SEED_TRIES_PER_ROLL = 4  # 每滚转 1 拍照位 + 4 抖动种子（≈v1 的 5 种子/滚转）
@@ -143,15 +144,17 @@ def main() -> int:
         entry = case['entry_xyz']
         axis = case['axis']
         pregrasp = [entry[i] - axis[i] * ALONG_AXIS_M for i in range(3)]
-        staging = [pregrasp[i] - axis[i] * STANDOFF_M for i in range(3)]
+        mid = [pregrasp[i] - axis[i] * FINAL_AXIAL_M for i in range(3)]
+        staging = [mid[i] - (0.0, 0.0, CANOPY_ENTRY_M)[i] for i in range(3)]
         hit_any = False
         first_roll = None
         for roll in ROLLS_DEG:
             R = quat_from_axis_z(axis, roll)
             ok = False
             for try_i in range(SEED_TRIES_PER_ROLL + 1):
-                if ik_ok(staging, R, make_seed(try_i > 0)) and ik_ok(
-                    pregrasp, R, make_seed(try_i > 0)):
+                seed = make_seed(try_i > 0)
+                if (ik_ok(staging, R, seed) and ik_ok(mid, R, seed) and
+                        ik_ok(pregrasp, R, seed)):
                     ok = True
                     break
             if ok:
@@ -174,7 +177,9 @@ def main() -> int:
         'grid_n': sum(1 for r in rows if r['kind'] == 'grid'),
         'random_ok': sum(1 for r in rows if r['kind'] == 'random' and r['ok']),
         'random_n': sum(1 for r in rows if r['kind'] == 'random'),
-        'params': {'along_axis_m': ALONG_AXIS_M, 'standoff_m': STANDOFF_M,
+        'params': {'along_axis_m': ALONG_AXIS_M,
+                   'final_axial_m': FINAL_AXIAL_M,
+                   'canopy_entry_m': CANOPY_ENTRY_M,
                    'rolls_deg': ROLLS_DEG, 'envelope': args.envelope,
                    'seed': args.seed},
     }

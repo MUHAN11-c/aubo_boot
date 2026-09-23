@@ -222,10 +222,16 @@ peach_arm:
       description: "预抓取沿 −axis 后撤 [m]（grasp_standoffs 注入现行 0.03）"
       validation:
         gt_eq<>: [0.0]
-    approach_staging_standoff_m:
+    approach_final_axial_m:
       type: double
-      default_value: 0.1
-      description: "预抓取下方轴上斜直线落点再后撤 [m]（斜插终点）"
+      default_value: 0.05
+      description: "末段沿轴后撤 [m]：中段点→预抓取沿 −axis（v4）"
+      validation:
+        gt_eq<>: [0.0]
+    approach_canopy_entry_m:
+      type: double
+      default_value: 0.05
+      description: "入冠段 [m]：世界垂直上行伸进果树到中段点正上方（v4）"
       validation:
         gt_eq<>: [0.0]
     approach_near_velocity_scaling:

@@ -96,7 +96,8 @@ inline GraspTaskConfig toGraspTaskConfig(const Params & params)
   config.approach_cartesian_max_distance_m =
     moveit.mtc_approach_cartesian_max_distance_m;
   config.approach_along_axis_m = moveit.mtc_approach_along_axis_m;
-  config.approach_staging_standoff_m = moveit.approach_staging_standoff_m;
+  config.approach_final_axial_m = moveit.approach_final_axial_m;
+  config.approach_canopy_entry_m = moveit.approach_canopy_entry_m;
   config.approach_near_velocity_scaling = moveit.approach_near_velocity_scaling;
   config.approach_max_lateral_m = moveit.mtc_approach_max_lateral_m;
   config.approach_max_align_deg = moveit.mtc_approach_max_align_deg;

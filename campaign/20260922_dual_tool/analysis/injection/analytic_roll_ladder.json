@@ -1,22 +1,23 @@
 {
   "summary": {
     "n": 80,
-    "any_roll_success": 56,
-    "any_roll_rate": 0.7,
+    "any_roll_success": 57,
+    "any_roll_rate": 0.7125,
     "per_roll_success": {
-      "0": 20,
+      "0": 19,
       "30": 25,
-      "-30": 27,
+      "-30": 25,
       "60": 18,
       "-60": 44
     },
     "grid_ok": 18,
     "grid_n": 20,
-    "random_ok": 38,
+    "random_ok": 39,
     "random_n": 60,
     "params": {
-      "along_axis_m": 0.03,
-      "standoff_m": 0.1,
+      "along_axis_m": 0.0,
+      "final_axial_m": 0.05,
+      "canopy_entry_m": 0.05,
       "rolls_deg": [
         0,
         30,
@@ -279,7 +280,7 @@
       "case": "rand_21",
       "kind": "random",
       "ok": true,
-      "first_roll_deg": 0
+      "first_roll_deg": 30
     },
     {
       "case": "rand_22",
@@ -368,8 +369,8 @@
     {
       "case": "rand_36",
       "kind": "random",
-      "ok": false,
-      "first_roll_deg": null
+      "ok": true,
+      "first_roll_deg": -60
     },
     {
       "case": "rand_37",

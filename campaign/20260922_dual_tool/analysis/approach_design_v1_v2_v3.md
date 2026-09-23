@@ -28,3 +28,9 @@
 3. 套入沿轴 LIN → 撤退原路 → 回拍照位/stow
 - 无候选 zoo、无降速档（PTP 确定性）；失败即收口带码
 - PTP 弧过果实胶囊审查（staging_guard）；自碰由 MoveIt 规划场景校验
+
+## v4 追记（2026-09-23 用户裁定：入冠垂直段）
+
+- 构造：PTP 落点改到**中段点正下方**（世界垂直线上、树冠外）→ 世界垂直 LIN 上行入冠（伸进果树里，`approach_canopy_entry_m` 0.05）到中段点 → 沿轴 LIN 对轴进入预抓取（`approach_final_axial_m` 0.05）。斜袋时垂直入冠与袋轴解耦：进冠永远铅垂，末段才顺袋轴。
+- 解析对照：三路点 57/80=71.3%（v3 两路点 56/80=70%）——入冠段对可达性几乎零代价（垂直下方点比轴上点还略易达）；语义收益（进冠方向恒定、枝叶阻力/挂钩最小）。
+- 参数替换：`approach_staging_standoff_m` 删除，新增 `approach_final_axial_m`/`approach_canopy_entry_m`（GPL+部署 yaml 同轮）。

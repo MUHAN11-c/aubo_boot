@@ -571,25 +571,32 @@ std::unique_ptr<mtc::Task> GraspTask::makeApproachOnlyTask(
   return task;
 }
 
-// 主路径序列本体：Pilz PTP（确定性关节插值，正常转移速度档）到预抓取
-// 下方轴上 staging（keep-roll 关节目标），再沿轴垂直 LIN（同
-// velocity_scaling）升到预抓取。PTP 弧与 LIN 段都过果实胶囊 FK 审查与
-// 关节行程护栏（staging_guard）。
+// 主路径序列本体（v4）：Pilz PTP（确定性关节插值，正常转移速度档）落到
+// 中段点正下方（垂直线上、树冠外），世界垂直 LIN 上行入冠到中段点
+// （伸进果树里），再沿轴 LIN 对轴进入预抓取。PTP 弧与两段 LIN 都过
+// 果实胶囊 FK 审查与关节行程护栏（staging_guard）。
 std::unique_ptr<mtc::SerialContainer> GraspTask::makeStagingSequence(
   const Eigen::Isometry3d & pregrasp_tip_pose,
+  const Eigen::Isometry3d & mid_tip_pose,
   const Eigen::Isometry3d & staging_tip_pose,
   const std::map<std::string, double> & staging_joints,
   const std::string & label) const
 {
   auto sequence = std::make_unique<mtc::SerialContainer>(label);
   auto ptp = std::make_unique<mtc::stages::MoveTo>(
-    "ptp below pregrasp staging", makePtpSolver());
+    "ptp below canopy entry", makePtpSolver());
   ptp->setGroup(config_.planning_group);
   ptp->setIKFrame(config_.tip_frame);
   ptp->setTimeout(config_.planning_time_s);
   ptp->setGoal(staging_joints);
   sequence->add(std::move(ptp));
-  if ((staging_tip_pose.translation() - pregrasp_tip_pose.translation()).norm() >
+  if ((staging_tip_pose.translation() - mid_tip_pose.translation()).norm() >
+    0.005)
+  {
+    appendLinToPose(
+      *sequence, mid_tip_pose, "vertical canopy entry lin", true);
+  }
+  if ((mid_tip_pose.translation() - pregrasp_tip_pose.translation()).norm() >
     0.005)
   {
     appendLinToPose(
@@ -601,12 +608,13 @@ std::unique_ptr<mtc::SerialContainer> GraspTask::makeStagingSequence(
 std::unique_ptr<mtc::Task> GraspTask::makeStagingTransitTask(
   const std::string & task_name,
   const Eigen::Isometry3d & pregrasp_tip_pose,
+  const Eigen::Isometry3d & mid_tip_pose,
   const Eigen::Isometry3d & staging_tip_pose,
   const std::map<std::string, double> & staging_joints)
 {
   auto task = makeTaskShell(task_name);
   task->add(makeStagingSequence(
-    pregrasp_tip_pose, staging_tip_pose, staging_joints,
+    pregrasp_tip_pose, mid_tip_pose, staging_tip_pose, staging_joints,
     "staging transit to pregrasp"));
   return task;
 }
@@ -698,10 +706,10 @@ bool GraspTask::tryStagingTransit(
   bool execute,
   GraspTaskResult & last)
 {
-  // 接近主路径（唯一路径，2026-09-23 定型三版）：Pilz PTP 关节空间到预抓取
-  // 下方轴上 staging（keep-roll 姿态单次 IK；Z 滚转对回转对称筒刀是冗余
-  // 自由度，不扫描），再沿轴垂直直线进入预抓取。PTP 弧过果实胶囊审查
-  // （staging_guard）。无候选扫描/降速档；IK 无解或规划失败即失败收口。
+  // 接近主路径（唯一路径，2026-09-23 定型四版）：Pilz PTP 关节空间落到
+  // 中段点正下方（世界垂直线上、树冠外，滚转梯子 IK），世界垂直 LIN 上行
+  // 入冠到中段点（伸进果树里），再沿轴 LIN 对轴进入预抓取。PTP 弧过
+  // 果实胶囊审查（staging_guard）。无候选扫描/降速档；失败即收口带码。
   if (!split.current_tip || !config_.staging_ik) {
     last.reason = "PTP 接近不可用：无当前 TCP 或 IK 钩子缺席";
     return false;
@@ -709,21 +717,25 @@ bool GraspTask::tryStagingTransit(
   const Eigen::Vector3d axis = insertion_axis.normalized();
   const Eigen::Isometry3d pregrasp = pregraspAlongAxis(
     entry_tip_pose, axis, config_.approach_along_axis_m);
-  Eigen::Isometry3d staging = pregrasp;
-  staging.translation() -= axis * config_.approach_staging_standoff_m;
+  Eigen::Isometry3d mid = pregrasp;
+  mid.translation() -= axis * config_.approach_final_axial_m;
+  Eigen::Isometry3d staging = mid;
+  staging.translation() -= Eigen::Vector3d::UnitZ() *
+    config_.approach_canopy_entry_m;
   staging.linear() = alignFrameZ(split.current_tip->linear(), axis);
+  mid.linear() = staging.linear();
   const auto joints = config_.staging_ik(staging);
   if (!joints) {
-    last.reason = "staging keep-roll 单次 IK 无解";
+    last.reason = "入冠落点滚转梯子 IK 无解";
     return false;
   }
   RCLCPP_INFO(
     node_->get_logger(),
-    "PTP 接近（主路径）：关节空间到轴上 staging（keep-roll）+ 沿轴垂直 %.3fm",
-    config_.approach_staging_standoff_m);
+    "PTP 接近（主路径）：关节空间到中段点正下方 + 垂直入冠 %.3fm + 沿轴 %.3fm",
+    config_.approach_canopy_entry_m, config_.approach_final_axial_m);
   auto result = planAndMaybeExecute(
     makeStagingTransitTask(
-      task_name + "_staging", pregrasp, staging, *joints),
+      task_name + "_staging", pregrasp, mid, staging, *joints),
     execute, config_.approach_execution_gate, true, 0U, true);
   if (result.success || result.execution_started) {
     last = result;
@@ -819,18 +831,22 @@ GraspTaskResult GraspTask::previewFullContact(
       const Eigen::Vector3d axis = insertion_axis.normalized();
       const Eigen::Isometry3d pregrasp = pregraspAlongAxis(
         entry_tip_pose, axis, config_.approach_along_axis_m);
-      Eigen::Isometry3d staging = pregrasp;
-      staging.translation() -= axis * config_.approach_staging_standoff_m;
+      Eigen::Isometry3d mid = pregrasp;
+      mid.translation() -= axis * config_.approach_final_axial_m;
+      Eigen::Isometry3d staging = mid;
+      staging.translation() -= Eigen::Vector3d::UnitZ() *
+        config_.approach_canopy_entry_m;
       staging.linear() = alignFrameZ(split.current_tip->linear(), axis);
+      mid.linear() = staging.linear();
       const auto joints = config_.staging_ik(staging);
       if (!joints) {
         inspect_fruit_ = false;
         GraspTaskResult out;
-        out.reason = "预览：staging keep-roll 单次 IK 无解";
+        out.reason = "预览：入冠落点滚转梯子 IK 无解";
         return out;
       }
       contact->add(makeStagingSequence(
-        pregrasp, staging, *joints, "staging transit to pregrasp"));
+        pregrasp, mid, staging, *joints, "staging transit to pregrasp"));
     } else {
       appendApproachToPregrasp(*contact, entry_tip_pose, insertion_axis, split);
     }

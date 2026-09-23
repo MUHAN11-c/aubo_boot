@@ -43,7 +43,8 @@ peach_arm:
       mtc_approach_keepout_axial_m: 0.12  # ①+②层开关：>0 启用接近段果实胶囊/反爬审查。0=关闭。套入/撤退不审。
       mtc_approach_cartesian_max_distance_m: 0.8  # 直连 LIN 与果平面折线单跳弦长上限（米）。超限则该候选不走折线、改 PTP staging 兜底。0.80 覆盖拍照位到袋口（现场弦长约 0.44 m）。
       mtc_approach_along_axis_m: 0.0  # 预抓取点在入口沿检测轴反向后撤量（米）。0=与入口重合。整栈由 grasp_standoffs.yaml 注入；已对轴时 LIN 走这一段。
-      approach_staging_standoff_m: 0.1  # 斜直线落点 = 预抓取沿 −axis 再退本值（米）。果平面折线面内斜插落到此轴上点，再沿轴进入；0=关闭折线/staging 转移。
+      approach_final_axial_m: 0.05  # 末段沿轴后撤（米）：中段点→预抓取沿 −axis（v4，对轴进入段）。
+      approach_canopy_entry_m: 0.05  # 入冠段（米）：世界垂直上行伸进果树到中段点（v4，PTP 落点在中段点正下方）。
       approach_near_velocity_scaling: 0.05  # ④层近果低速档：只套入/撤退 LIN。果平面斜插封顶 0.20/0.10（失败再 0.10/0.04）；沿轴跳已对轴走更高档。PTP 兜底走 velocity_scaling 0.10。
       mtc_approach_max_lateral_m: 0.05  # 末端到抓取轴线的侧向偏差（米）。小于此值视为已对轴，LIN 是最短直线。
       mtc_approach_max_align_deg: 20.0  # 末端 Z 与检测轴夹角（度）。小于此值视为已齐，走 LIN 且挂同值姿态路径约束。未齐则先 LIN 原地对齐再平移。规划时另按 keep-roll 及 ±30°/±60° 扫描刀口滚转；接触不用 STOMP/OMPL。

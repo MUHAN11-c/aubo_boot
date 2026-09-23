@@ -676,6 +676,12 @@ void ManipulationSkillsNode::createSubscriptions()
     std::bind(&ManipulationSkillsNode::onIoState, this, std::placeholders::_1));
   tool_state_pub_ = create_publisher<peach_interfaces::msg::ToolState>(
     "/peach_arm/tool_state", latched);
+  // 批次5：imu_follow 插入进度（FK 不可用时的回退判据；目标积分）
+  imu_progress_sub_ = create_subscription<std_msgs::msg::Float64>(
+    "/imu_follow/insert_progress", 10,
+    [this](const std_msgs::msg::Float64::SharedPtr msg) {
+      imu_insert_travel_.store(msg->data);
+    });
   status_pub_ = create_publisher<std_msgs::msg::String>("~/status", latched);
   marker_pub_ = create_publisher<visualization_msgs::msg::MarkerArray>(
     "~/planned_views", latched);

@@ -910,3 +910,9 @@ SIGINT 旧栈后用 16:57 编的 `peach_manipulation` 重起；开批前在 `glo
 - **unrefined 袋径门**：promoteUnrefinedGeometry 拒绝袋径>工具内径的自授权（d_inner 档案 launch 注入：hollow 0.104/adaptive 0.116，`tool_profile_d_inner_params` 单源）——A-P3-2（unrefined 链全旁路预算）闭环。
 - **假门清理**：domain/budget ready_ok 恒 True → d95 证据派生。
 - **e2e 证据**：网格 18/20 保持；deny 例臂侧真实拦截（`快照套入能力非 VALID`→FAILED@CONTACT、completion=2 未进套入）；tool 开启负路径 SetIO 失败→TOOL_STATE_UNKNOWN（stages 无 retreat/stow，grasped=false，保持待人工）。DI 超时路径（CUT_UNCONFIRMED）因 mock set_io 拒收不可达，单测层覆盖。
+
+### 09-23 续十：重构批次5（套入实测行程判据）
+
+- `waitImuFollowTravel` 计时死等 → **FK 实测行程**：wait 起点 TCP 沿锁定轴向位移投影（推进正向/撤退反向），容差 5mm；FK 不可用回退 `/imu_follow/insert_progress`（imu_follow 同轮发布 `_insert_travel` 目标积分——弱一等，注明）；时间只作截止（名义+2s，§11.3 到位证明只能是实测）；停滞窗 3s 内增益 <1mm → UNKNOWN 收口。
+- `insert_progress.hpp` 纯核（DONE/CONTINUE/STALLED/DEADLINE 四态）+ 5 gtest（含"行程更小绝不得 DONE"反例）。
+- 撤退路径同判据（原路收回参考=反向投影归零）。

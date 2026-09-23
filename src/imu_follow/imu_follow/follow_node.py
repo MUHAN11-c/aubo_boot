@@ -47,6 +47,7 @@ from rclpy.qos import (
     QoSDurabilityPolicy, QoSProfile, QoSReliabilityPolicy)
 from rclpy.time import Time
 from sensor_msgs.msg import Imu, JointState
+from std_msgs.msg import Float64
 from std_srvs.srv import SetBool, Trigger
 from tf2_ros import Buffer, TransformException, TransformListener
 from trajectory_msgs.msg import JointTrajectory, JointTrajectoryPoint
@@ -97,6 +98,8 @@ class ImuFollowNode(Node):
         self.create_service(Trigger, '~/enable', self._on_enable)
         self.create_service(Trigger, '~/disable', self._on_disable)
         self.create_service(Trigger, '~/insert_start', self._on_insert_start)
+        self._insert_progress_pub = self.create_publisher(
+            Float64, '~/insert_progress', 10)
         self.create_service(Trigger, '~/insert_stop', self._on_insert_stop)
         self.create_service(Trigger, '~/insert_retract', self._on_insert_retract)
         self._ik_cli = self.create_client(
@@ -331,6 +334,8 @@ class ImuFollowNode(Node):
         if now - self._joints_t > self._p.safety.joint_states_timeout_s:
             self._disable(f'关节状态断流 {now - self._joints_t:.2f}s')
             return
+        if self._insert_retracting or self._insert_active:
+            self._insert_progress_pub.publish(Float64(data=self._insert_travel))
         if self._insert_retracting:
             dt = now - self._insert_last_t
             self._insert_last_t = now

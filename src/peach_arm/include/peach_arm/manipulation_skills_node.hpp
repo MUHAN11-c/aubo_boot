@@ -43,6 +43,7 @@
 #include <rclcpp_lifecycle/lifecycle_node.hpp>
 #include <rclcpp_lifecycle/lifecycle_publisher.hpp>
 #include <rcl_interfaces/msg/set_parameters_result.hpp>
+#include <std_msgs/msg/float64.hpp>
 #include <std_msgs/msg/string.hpp>
 #include <std_srvs/srv/set_bool.hpp>
 #include <std_srvs/srv/trigger.hpp>
@@ -337,7 +338,9 @@ private:
     const rclcpp::Client<Trigger>::SharedPtr & client,
     const char * name, std::string & why);
   /// 按行程/速度睡等待插入或回退；取消或接触止损返回 false。
-  bool waitImuFollowTravel(double travel_m, std::string & why);
+  bool waitImuFollowTravel(
+    double travel_m, const Eigen::Vector3d & axis, bool retract,
+    std::string & why);
   /// 最佳努力 ~/disable；幂等。MTC 回 stow 前必须先停 Servo。
   void releaseImuFollowSession(CycleContext & ctx);
 
@@ -382,6 +385,8 @@ private:
   ToolActuator tool_actuator_{};
   rclcpp::Subscription<aubo_msgs::msg::IOState>::SharedPtr io_state_sub_;
   rclcpp::Publisher<peach_interfaces::msg::ToolState>::SharedPtr tool_state_pub_;
+  rclcpp::Subscription<std_msgs::msg::Float64>::SharedPtr imu_progress_sub_;
+  std::atomic<double> imu_insert_travel_{0.0};  // 批次5 回退判据（目标积分）
 
   // MoveIt/MTC 伴随节点（声明在所有 MoveIt 资源之前，保证析构时最后释放）。
   rclcpp::Node::SharedPtr moveit_node_;

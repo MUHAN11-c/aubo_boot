@@ -2,6 +2,7 @@
 // 预抓取验证、套入、刀具、原路撤退。不写账本、不调重建 Trigger。接触走
 // GraspTask；刀具 IO 只在本文件。阶段调用序列与原 behavior_tree.xml 主树
 // 遍历严格同构（映射表见 executeCycle 注释）。
+#include "peach_arm/insert_progress.hpp"
 #include "peach_arm/manipulation_skills_node.hpp"
 #include "peach_arm/math_utils.hpp"
 #include "peach_arm/pregrasp_level.hpp"
@@ -299,13 +300,26 @@ bool ManipulationSkillsNode::callImuFollowTrigger(
   return true;
 }
 
-bool ManipulationSkillsNode::waitImuFollowTravel(double travel_m, std::string & why)
+bool ManipulationSkillsNode::waitImuFollowTravel(
+  double travel_m, const Eigen::Vector3d & axis, bool retract, std::string & why)
 {
+  // 批次5（2026-09-23 重构，§11.3）：实测行程判据替换计时——主判据=臂侧
+  // FK（wait 起点 TCP 沿锁定轴向的位移投影），回退=/imu_follow/insert_progress
+  // （目标积分）；时间只作截止，停滞窗（3s 增益 <1mm）收口 UNKNOWN。
+  const auto tip_start = motion_ ?
+    motion_->lookupTransform(params_.frames.base, params_.frames.tip) :
+    std::optional<Eigen::Isometry3d>{};
+  const auto t0 = std::chrono::steady_clock::now();
   const double seconds = imuFollowTravelWaitS(
-    travel_m, kImuFollowInsertSpeedMps);
-  const auto deadline = std::chrono::steady_clock::now() +
-    std::chrono::duration<double>(seconds);
-  while (std::chrono::steady_clock::now() < deadline) {
+    travel_m, kImuFollowInsertSpeedMps) + 2.0;  // 截止=名义+余量（非到位证明）
+  const auto deadline = t0 + std::chrono::duration<double>(seconds);
+  double measured = 0.0;
+  double last_gain_measured = 0.0;
+  auto last_gain_t = t0;
+  constexpr double kTolM = 0.005;
+  constexpr double kStallWindowS = 3.0;
+  constexpr double kMinGainM = 0.001;
+  while (true) {
     if (cancel_requested_.load()) {
       why = "周期已取消";
       return false;
@@ -314,9 +328,47 @@ bool ManipulationSkillsNode::waitImuFollowTravel(double travel_m, std::string & 
       why = "疑似硬接触（接触检测止损）";
       return false;
     }
+    // 实测行程：FK 投影（推进=正向位移；撤退=反向位移回参考）
+    if (tip_start.has_value()) {
+      const auto tip_now = motion_->lookupTransform(
+        params_.frames.base, params_.frames.tip);
+      if (tip_now.has_value()) {
+        const Eigen::Vector3d delta =
+          tip_now->translation() - tip_start->translation();
+        measured = retract ? std::max(0.0, -delta.dot(axis)) :
+          std::max(0.0, delta.dot(axis));
+      }
+    } else {
+      // FK 不可用回退：imu_follow 进度话题（目标积分，弱一等）
+      measured = imu_insert_travel_.load();
+    }
+    if (measured > last_gain_measured + kMinGainM) {
+      last_gain_measured = measured;
+      last_gain_t = std::chrono::steady_clock::now();
+    }
+    const double remain = std::chrono::duration<double>(
+      deadline - std::chrono::steady_clock::now()).count();
+    const double gain_since = std::chrono::duration<double>(
+      std::chrono::steady_clock::now() - last_gain_t).count();
+    const auto verdict = insertProgressDecision(
+      measured, travel_m, kTolM, gain_since, kStallWindowS, kMinGainM, remain);
+    if (verdict == InsertProgress::DONE) {
+      RCLCPP_INFO(
+        get_logger(), "IMU 跟随实测行程到位：%.3f/%.3f m（%s）",
+        measured, travel_m, retract ? "撤退" : "套入");
+      return true;
+    }
+    if (verdict == InsertProgress::STALLED) {
+      why = "IMU 跟随无进展（停滞窗内实测增益 <1mm），收口 UNKNOWN";
+      return false;
+    }
+    if (verdict == InsertProgress::DEADLINE) {
+      why = "IMU 跟随截止到（实测 " + std::to_string(measured) + "/" +
+        std::to_string(travel_m) + " m，未达目标按 UNKNOWN 收口）";
+      return false;
+    }
     std::this_thread::sleep_for(50ms);
   }
-  return true;
 }
 
 void ManipulationSkillsNode::releaseImuFollowSession(CycleContext & ctx)
@@ -1137,7 +1189,9 @@ bool ManipulationSkillsNode::stageSleeveLinear(CycleContext & ctx)
         ctx, FailureCode::SLEEVE_PLAN_FAILED, "imu_follow insert_start 失败: " + why);
     }
     contact_recovery_required_.store(true);
-    if (!waitImuFollowTravel(ctx.travel_m, why)) {
+    if (!waitImuFollowTravel(
+        ctx.travel_m, ctx.refined->axis, false, why))
+    {
       stopContactGuard();
       pending_outcome_.store(ExecuteTarget::Result::FAILED);
       ctx.failure_code = FailureCode::SLEEVE_PLAN_FAILED;
@@ -1311,7 +1365,9 @@ bool ManipulationSkillsNode::stageExecuteReservedReverseRetreat(CycleContext & c
       ctx.failure_code = FailureCode::RETREAT_FAILED;
       return failStage(ctx, "imu_follow insert_retract 失败: " + why);
     }
-    if (!waitImuFollowTravel(ctx.travel_m, why)) {
+    if (!waitImuFollowTravel(
+        ctx.travel_m, ctx.refined->axis, true, why))
+    {
       ctx.failure_code = FailureCode::RETREAT_FAILED;
       return failStage(ctx, "IMU 跟随回预抓取中止: " + why);
     }

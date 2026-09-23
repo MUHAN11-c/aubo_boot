@@ -75,6 +75,7 @@ class SupervisorParams:
     reconstruction_min_views: int
     """OBSERVE 成功后 Build 至少机位数."""
     skip_reconstruction: bool
+    reconstruct_in_trajectory: bool
     """True 时 DISPATCH 跳过 Build/观察，用场景观测几何进接触."""
     build_start_timeout_s: float
     """Build 进入 COLLECTING 的等待上限 [s]."""

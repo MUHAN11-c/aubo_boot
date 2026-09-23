@@ -191,6 +191,7 @@ class TaskExecutorNode(LifecycleNode):
         self._last_config_revision = ''
         self._recovery_batch = WAITING_READY
         self._in_flight = []
+        self._in_flight_build_handle = None  # 变体A：并行 Build 句柄
         self._build_feedback = {'view_count': 0, 'status': '', 'started_s': 0.0}
         self._run_goal_handle = None
         self._harvest_busy = False
@@ -1165,6 +1166,19 @@ class TaskExecutorNode(LifecycleNode):
                 reason='build_start_timeout: reconstruction not COLLECTING',
                 failure_code='build_start_timeout', dispatch_t0=dispatch_t0,
                 extra=build_details(self._build_feedback, dispatch_t0, None))
+        # 变体A 一期（批次6，reconstruct_in_trajectory，默认关）：Build 已
+        # COLLECTING 即派 FULL（skip_observation）——重建与接近并行，臂侧
+        # FinalizeAndValidate 有界等精化兜底；Build 句柄随周期收口取消。
+        if bool(getattr(self._params, 'reconstruct_in_trajectory', False)):
+            self.get_logger().info(
+                f'reconstruct_in_trajectory: Build 并行，立即派 FULL '
+                f'target={target_id}（skip_observation）')
+            self._cycle_plan_id = (
+                f'{request_id}:{target_id}:{self._action_generation}')
+            self._in_flight_build_handle = build_handle
+            reaction = self._react(Event.READY_FULL)
+            self._apply(reaction, request_id, target_id)
+            return reaction, True
         # 视点策略开关（3c-2c）：fast=supervisor 直驱补视（单视优先封顶
         # 3 视）；conservative=现行多视观察（arm OBSERVE_ONLY 原值路径）。
         # plan_id 两档共用（W13-A：fast 档不发 arm 观察动作，但
@@ -1453,6 +1467,14 @@ class TaskExecutorNode(LifecycleNode):
                     getattr(executed, 'recovery_required', False))
         started = self._cycle_dispatch_t0 or t0
         set_elapsed(outcome, time.monotonic() - started)
+        # 变体A（批次6）：并行 Build 句柄收口——FULL 结果已落，Build 无论
+        # 是否 finalize 都取消并等结束（单槽约束，08-28 E 教训同源）。
+        if self._in_flight_build_handle is not None:
+            handle, self._in_flight_build_handle = (
+                self._in_flight_build_handle, None)
+            self._cancel_handle(handle)
+            self._wait_result(
+                handle, 10.0, goal_handle=self._run_goal_handle)
         self._cycle_observe_extra = {}
         self._cycle_dispatch_t0 = 0.0
         self._push_outcome(outcome, extra)

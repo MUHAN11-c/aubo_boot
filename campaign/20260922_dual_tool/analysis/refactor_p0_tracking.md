@@ -8,7 +8,7 @@
 | 3 | ToolState.msg 三轴+manifest；ToolActuator 三轴投影+命令域新沿门（§12.2）+双门幂等；io_states 订阅→confirmFeedback 接线；VerifyCut 有界等沿（2.0s）+CUT_UNCONFIRMED 保守收口（不撤退不重发）；ReleasePayload@stow+commandToolOpen；6 gtest | ✅代码+单测 | 单测全绿；**mock 负路径 e2e（无 DI→不撤退）待批次4 网格轮顺带验证** | 本笔 |
 | 4 | 分级许可 CONTACT/TOOL；unrefined 袋径门 | ⬜ | 网格 ≥18/20 + deny 臂侧可验 | |
 | 5 | waitImuFollowTravel 重写：主判据=FK 沿轴实测行程（容差 5mm），回退=/imu_follow/insert_progress（目标积分，imu_follow 同轮暴露）；时间只作截止（名义+2s）；停滞窗 3s/<1mm 收口 UNKNOWN；撤退=反向投影同判据；insert_progress 纯核 5 测 | ✅代码+单测 | 纯核 5 测绿；I6 现场步需操作员 IMU enable（人工参考），待现场窗口 | 本笔 |
-| 6 | 变体A 轨迹内嵌重建；先导 bag 实验 | ⬜ | e2e 墙钟缩短+质量不降 | |
+| 6 | 变体A 一期落地：`reconstruct_in_trajectory`（默认关）——Build 启动即派 FULL（skip_observation 既有 true），并行不阻塞；周期收口取消 Build 句柄（单槽约束）。**先导 bag 实验数据前提缺失**（本地 session bag 均无深度流，近期全为无相机注入轮）——待 S3 真相机轮产出含运动+深度 bag 后定量 temporal_k 鬼影再定变体B 生死 | ✅一期（默认关） | harvester 217 测绿+r0_gate；e2e 墙钟对比待真相机轮；二期=冠口检查点分段记档 | 本笔 |
 | 7 | bond 开/join 有界化/ID-1+plan_id/文档收口 | ⬜ | 全门复绿 | |
 
 ## 前提更新（相对 FINAL_PLAN，2026-09-23 实况）

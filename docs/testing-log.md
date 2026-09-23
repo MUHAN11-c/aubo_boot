@@ -916,3 +916,9 @@ SIGINT 旧栈后用 16:57 编的 `peach_manipulation` 重起；开批前在 `glo
 - `waitImuFollowTravel` 计时死等 → **FK 实测行程**：wait 起点 TCP 沿锁定轴向位移投影（推进正向/撤退反向），容差 5mm；FK 不可用回退 `/imu_follow/insert_progress`（imu_follow 同轮发布 `_insert_travel` 目标积分——弱一等，注明）；时间只作截止（名义+2s，§11.3 到位证明只能是实测）；停滞窗 3s 内增益 <1mm → UNKNOWN 收口。
 - `insert_progress.hpp` 纯核（DONE/CONTINUE/STALLED/DEADLINE 四态）+ 5 gtest（含"行程更小绝不得 DONE"反例）。
 - 撤退路径同判据（原路收回参考=反向投影归零）。
+
+### 09-23 续十一：重构批次6（变体A 一期 + 先导实验前提勘定）
+
+- **一期（默认关）**：`peach_supervisor.reconstruct_in_trajectory` true 时 DISPATCH 启动 Build 进 COLLECTING 后不再阻塞 `_wait_build_after_observe`，立即派 FULL（FULL goal 既有 skip_observation=true）——重建与接近并行；臂侧 FinalizeAndValidate 有界等精化兜底；周期收口取消并等 Build 结束（单槽约束）。yaml 键/规则/参数三源同轮。
+- **先导 bag 实验勘定**：本地全部 session bag 无深度/stereo 话题（近期为无相机注入轮）——temporal_k 运动鬼影定量实验**数据前提缺失**，待 S3 真相机轮（含运动+深度）产出后执行，变体B（连续采集）生死据此判定。
+- **二期记档**：冠口检查点分段（MovePregrasp 拆 MoveToCanopy→Finalize→corridor，采集点=冠口静止位）为变体A 完整形态，待一期真相机数据后实施。

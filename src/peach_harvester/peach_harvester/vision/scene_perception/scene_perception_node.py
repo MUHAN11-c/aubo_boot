@@ -516,12 +516,11 @@ class ScenePerceptionNode(LifecycleNode):
                 f'stamp={stamp.sec}.{stamp.nanosec:09d}: {exc}')
             return None
         if rgb.shape[:2] != depth.shape[:2]:
-            # rclpy 的 throttle_duration_sec 实为毫秒：1000.0 = 1 s
             self.get_logger().warning(
                 f'RGB/深度分辨率不一致 {rgb.shape[:2]} vs {depth.shape[:2]} '
                 f'rgb_frame={rgb_msg.header.frame_id} '
                 f'depth_frame={depth_msg.header.frame_id}',
-                throttle_duration_sec=1000.0)
+                throttle_duration_sec=1.0)
             return None
         if info.width and info.height and (
                 int(info.width) != depth.shape[1]
@@ -529,7 +528,7 @@ class ScenePerceptionNode(LifecycleNode):
             self.get_logger().warning(
                 f'CameraInfo size {info.width}x{info.height} != depth '
                 f'{depth.shape[1]}x{depth.shape[0]}',
-                throttle_duration_sec=1000.0)
+                throttle_duration_sec=1.0)
             return None
         K = {
             'fx': float(info.k[0]), 'fy': float(info.k[4]),
@@ -668,8 +667,10 @@ class ScenePerceptionNode(LifecycleNode):
                 self.pub_norm_debug_raw, out.debug_raw, out.img_header)
 
     def destroy_node(self):
-        """停止推理 worker 后销毁 ROS 节点."""
-        self._frame_worker.close(drain=False)
+        """停止推理 worker 后销毁 ROS 节点（未 configure 过则无 worker）."""
+        worker = getattr(self, '_frame_worker', None)
+        if worker is not None:
+            worker.close(drain=False)
         return super().destroy_node()
 
 

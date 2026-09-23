@@ -678,7 +678,8 @@ class StrictMaskGate:
                  min_mask_depth_ratio: float = 0.35,
                  max_target_drift_m: float = 0.04,
                  min_neighbor_gap_m: float = 0.15,
-                 neighbor_gap_area_ratio: float = 2.0):
+                 neighbor_gap_area_ratio: float = 2.0,
+                 mask_stamp_tolerance_s: float = 0.08):
         """
         注入六道门配置（值与 capture.* 参数一致）.
 
@@ -705,6 +706,12 @@ class StrictMaskGate:
         self.max_target_drift_m = float(max_target_drift_m)
         self.min_neighbor_gap_m = float(min_neighbor_gap_m)
         self.neighbor_gap_area_ratio = float(neighbor_gap_area_ratio)
+        # F1（2026-09-23 重构批次1）：纳秒精确查表在 高帧深度源（stereo
+        # 13.6fps）≫ 掩膜源（感知 ~7.5fps）时近乎必失配——改为最近邻
+        # stamp 容差配对（修重建侧 intake，感知节奏不动；会话1 裁定）。
+        # 容差须 < 慢流周期之半（感知掩膜 ~133ms → 0.08s 安全）。
+        self.mask_stamp_tolerance_ns = int(
+            max(0.0, float(mask_stamp_tolerance_s)) * 1e9)
 
     def check(self, mask_ctx: MaskContext) -> GateResult:
         """
@@ -721,14 +728,21 @@ class StrictMaskGate:
         """
         if not self.require_target_mask:
             return GateResult(None, '')
-        # 已知缺陷（09-17 E2E 遗留，stereo 前端阻断项）：按纳秒精确 stamp 查表——
-        # 高帧源（peach_stereo 13.6gps 深度 ≫ 感知 ~7.5fps 掩膜）下缓存帧与掩膜
-        # stamp 近乎必失配，observe→build 链 missing_mask 主因（percipio 2.4fps
-        # 下两流节奏接近故真机可用）。修法=最近邻 stamp 容差配对或感知掩膜流
-        # 提频；修前 stereo 前端未真机闭环（见 test/analysis/peach_project_impact.md §3）
         entry = mask_ctx.masks.get(mask_ctx.stamp_ns)
+        if entry is None and self.mask_stamp_tolerance_ns > 0:
+            # F1：精确未中→最近邻容差配对（|Δstamp| ≤ 容差取最近一帧掩膜）
+            best_stamp = None
+            best_delta = None
+            for stamp_ns in mask_ctx.masks:
+                delta = abs(stamp_ns - mask_ctx.stamp_ns)
+                if delta <= self.mask_stamp_tolerance_ns and (
+                        best_delta is None or delta < best_delta):
+                    best_delta = delta
+                    best_stamp = stamp_ns
+            if best_stamp is not None:
+                entry = mask_ctx.masks[best_stamp]
         if entry is None:
-            return GateResult(None, '缺少所选 target_id 的同时间戳掩膜')
+            return GateResult(None, '缺少所选 target_id 的容差内掩膜')
         mask, center = entry
         pixels = int(np.count_nonzero(mask))
         if pixels < self.min_mask_pixels:

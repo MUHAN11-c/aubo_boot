@@ -3,7 +3,7 @@
 | 批次 | 内容 | 状态 | 门 | 提交 |
 |------|------|------|-----|------|
 | 0 | baseline-inventory 快照+schema 守卫；harvester 209 重封 | ✅ | system_tests/r0_gate 绿 | 本笔 |
-| 1 | F1 掩膜门松 intake；拒帧归因；D1-D4 小修 | ⬜ | harvester pytest+回放塔 | |
+| 1 | F1 掩膜门松 intake（容差 0.08s+yaml 键+校验+5 单测）；D3 节流单位×4；D2 destroy 守卫；D1 随批次6 | ✅ | harvester pytest 绿+r0_gate | 本笔 |
 | 2 | 轴向预算拆维度/常数迁 yaml/axial_structural/假门清理 | ⬜ | 纯核 pytest+回放塔 analytic 只升 | |
 | 3 | ToolState 三轴/DI 接线/保守收口/grip-hold-release（fake-tool） | ⬜ | mock FULL 到 LEVEL_RETREAT_CONFIRMED | |
 | 4 | 分级许可 CONTACT/TOOL；unrefined 袋径门 | ⬜ | 网格 ≥18/20 + deny 臂侧可验 | |

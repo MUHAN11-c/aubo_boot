@@ -211,7 +211,8 @@ class TargetReconstructionNode(
             min_mask_depth_ratio=p.capture.min_mask_depth_ratio,
             max_target_drift_m=p.capture.max_target_drift_m,
             min_neighbor_gap_m=p.capture.min_neighbor_gap_m,
-            neighbor_gap_area_ratio=p.capture.neighbor_gap_area_ratio)
+            neighbor_gap_area_ratio=p.capture.neighbor_gap_area_ratio,
+            mask_stamp_tolerance_s=p.capture.mask_stamp_tolerance_s)
         # E2 selected 切换防抖状态机（纯核 bind_holdoff.BindSwitchHoldoff，
         # 注入时钟 I3）：selected 变化须持续超过 bind.switch_holdoff_s 才
         # 放弃进行中会话重绑，holdoff 内切回原 ID 取消挂起

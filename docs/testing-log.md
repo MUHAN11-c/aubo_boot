@@ -883,3 +883,8 @@ SIGINT 旧栈后用 16:57 编的 `peach_manipulation` 重起；开批前在 `glo
 - 冠内两段 LIN（垂直入冠→沿轴对轴）改走 Pilz sequence（`/plan_sequence_path`，blend_radius 0.02）：corner 圆滑、速度连续一条轨迹到底；PTP 段保留冠口停点（树冠外安全观察位）；sequence 失败自动降级回未混合 MTC LIN（形状同）。
 - 两个根因修复：①`planAndMaybeExecute` 收尾 reset `active_task_` 后再取 `getRobotModel()` 的空指针 SIGSEGV（模型改在任务移交前取）；②**Pilz sequence 的逐 item 规划走 move_group 默认管线、不读 item.pipeline_id**——默认 ompl 时 LIN 退化为 OMPL 关节规划、端点不接、混合必拒；默认管线切 pilz（moveit.launch.py，MTC 各 stage 自带 pipeline 不受影响）。
 - 终验：网格 **18/20 与 v4c 持平**（失配同两例：near_horizontal 算法包络边缘例护栏正确拒 + deep_left 边界抖动），sequence 走廊 13 次全走通零降级，91 段轨迹全部执行完成。
+
+### 09-23 续六：重构批次0/1（P0 计划获批执行）
+
+- 批次0：baseline_inventory.json 快照（385 参数/54 接口/1324 函数）+ schema 守卫入 colcon；harvester 209 重封。
+- 批次1：**F1 收口**——StrictMaskGate 精确 ns 查表改最近邻容差配对（`capture.mask_stamp_tolerance_s` 0.08s，<掩膜流周期之半；stereo 13.6fps 前端解锁路径打通），5 单测覆盖窗内/窗外/零容差/多候选；D3 throttle 单位误解 4 处（1000.0→1.0s，rclpy 实为秒）；D2 未 configure 即 destroy 的 worker 空引用守卫。D1 BeginScene 线程项并入批次6 调度重构。

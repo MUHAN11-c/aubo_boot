@@ -1175,7 +1175,19 @@ class TargetReconstructionNode(
             pregrasp_standoff_m=float(self.params.refit.pregrasp_standoff_m),
             # 许可数学内径随当前工具档案（tool_profile launch 注入）
             budget_params=ToolBudgetParams(
-                d_inner=float(self.params.tool.budget.d_inner)),
+                d_inner=float(self.params.tool.budget.d_inner),
+                blade_capture_half_width=float(
+                    self.params.tool.budget.blade_capture_half_width),
+                axial_safety_margin=float(
+                    self.params.tool.budget.axial_safety_margin),
+                blade_plane_calibration_error95=float(
+                    self.params.tool.budget.blade_plane_calibration_error95),
+                robot_axial_error95=float(
+                    self.params.tool.budget.robot_axial_error95),
+                target_motion95=float(
+                    self.params.tool.budget.target_motion95),
+                axial_neck_floor_m=float(
+                    self.params.tool.budget.axial_neck_floor_m)),
             mark_final=mark_final,
             previous=previous,
             on_view=self._on_view_geometry)

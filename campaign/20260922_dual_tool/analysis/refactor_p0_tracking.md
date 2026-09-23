@@ -4,7 +4,7 @@
 |------|------|------|-----|------|
 | 0 | baseline-inventory 快照+schema 守卫；harvester 209 重封 | ✅ | system_tests/r0_gate 绿 | 本笔 |
 | 1 | F1 掩膜门松 intake（容差 0.08s+yaml 键+校验+5 单测）；D3 节流单位×4；D2 destroy 守卫；D1 随批次6 | ✅ | harvester pytest 绿+r0_gate | 本笔 |
-| 2 | 轴向预算拆维度/常数迁 yaml/axial_structural/假门清理 | ⬜ | 纯核 pytest+回放塔 analytic 只升 | |
+| 2 | 轴向预算：sig_p 双喂拆开（横向 6mm 下限只归径向，轴向独立 MAD+3mm 下限）；七常数迁 yaml 带 provenance；axial_safety 与 fruit_safety 去重（0 可恢复对拍）；axial_structural 旗+专用 reason；假门清理移批次4 | ✅ | 预算/跨域 15 测全绿+r0_gate | 本笔 |
 | 3 | ToolState 三轴/DI 接线/保守收口/grip-hold-release（fake-tool） | ⬜ | mock FULL 到 LEVEL_RETREAT_CONFIRMED | |
 | 4 | 分级许可 CONTACT/TOOL；unrefined 袋径门 | ⬜ | 网格 ≥18/20 + deny 臂侧可验 | |
 | 5 | 套入实测行程判据替换计时 | ⬜ | I6 过+停滞超时收口 | |

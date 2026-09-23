@@ -888,3 +888,10 @@ SIGINT 旧栈后用 16:57 编的 `peach_manipulation` 重起；开批前在 `glo
 
 - 批次0：baseline_inventory.json 快照（385 参数/54 接口/1324 函数）+ schema 守卫入 colcon；harvester 209 重封。
 - 批次1：**F1 收口**——StrictMaskGate 精确 ns 查表改最近邻容差配对（`capture.mask_stamp_tolerance_s` 0.08s，<掩膜流周期之半；stereo 13.6fps 前端解锁路径打通），5 单测覆盖窗内/窗外/零容差/多候选；D3 throttle 单位误解 4 处（1000.0→1.0s，rclpy 实为秒）；D2 未 configure 即 destroy 的 worker 空引用守卫。D1 BeginScene 线程项并入批次6 调度重构。
+
+### 09-23 续七：重构批次2（轴向预算 G1 收口）
+
+- **维度拆分**：refine.py sig_p 不再双喂——横向 6mm 下限只进径向；袋颈轴向误差独立（多视颈点轴向坐标 MAD + `axial_neck_floor_m` 3mm 下限）。
+- **常数治理**：七项预算常数迁 target_reconstruction.yaml `tool.budget.*` 带 provenance（M0 台架前保守包络）；`axial_safety_margin` 默认 0（与 fruit_safety_clearance 历史重复扣减，G1 根因③），旧值 0.004 可恢复对拍。
+- **新语义**：零感知误差轴向余量 +1mm（旧恒负为缺陷行为，契约测试重写）；默认常数态（颈下限 3mm）余量 −2mm → `axial_budget_structurally_unsatisfiable` 待 M0 标定（结构性旗=工具侧固定常数吞捕获带，与"袋不好"分辨）。
+- 反例测试落位：增大任一误差项不得提高许可。

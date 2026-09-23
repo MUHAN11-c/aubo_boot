@@ -34,7 +34,7 @@ def check_reach_window(min_m: float, max_m: float):
 
 
 def cut_capability_report(params: ToolBudgetParams | None = None,
-                          neck_position95: float = 0.0) -> dict:
+                          neck_position95: float | None = None) -> dict:
     """
     Report whether the default profile can claim cut_feasible.
 
@@ -42,6 +42,9 @@ def cut_capability_report(params: ToolBudgetParams | None = None,
     still reach READY.
     """
     cfg = params or ToolBudgetParams()
+    if neck_position95 is None:
+        # 默认取轴向下限（实链保守态）；显式 0 才是"完美感知"档
+        neck_position95 = cfg.axial_neck_floor_m
     raw = evaluate_sleeve_cut(
         d_bag95=0.08, length_m=0.15, center_lateral95=0.002,
         axis_error_deg=2.0, neck_position95=neck_position95,

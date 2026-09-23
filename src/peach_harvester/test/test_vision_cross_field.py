@@ -24,8 +24,12 @@ def test_enable_deps_tool_requires_grasp():
 
 
 def test_cut_capability_does_not_claim_cut():
+    # 默认（颈=轴向下限 3mm）：余量 8−7−3=−2 → 不宣称可剪
     report = cut_capability_report()
     assert report['ready_ok'] is True
     assert report['cut_feasible'] is False
     assert report['claim_cut'] is False
     assert report['axial_margin_m'] < 0.0
+    # 完美感知（颈 0）才有 +1mm 余量——批次2 维度拆分后新增档
+    perfect = cut_capability_report(neck_position95=0.0)
+    assert perfect['axial_margin_m'] > 0.0

@@ -1069,10 +1069,24 @@ def fuse_bag_views(
         bottom, neck, axis, np.array([0.0, 0.0, -1.0], dtype=np.float64))
     length = float(np.dot(neck - bottom, axis))
     view_sigma = float(np.median([item.sigma_position_m for item in items]))
+    # sig_p=横向位置散布（6mm 保守下限只属于这里）。批次2（G1 根因①）：
+    # 袋颈轴向误差独立计算——多视颈点的轴向坐标 MAD + 轴向下限，
+    # 不再把横向下限误喂轴向（FINAL_PLAN L335：袋底位置散布不得直接
+    # 代入袋颈轴向误差）。
     sig_p = max(
         view_sigma,
         median_absolute_deviation_m(bottoms, bottom),
         median_absolute_deviation_m(necks, neck), 0.006)
+    axis_u = _unit(axis) if axis is not None else None
+    axial_floor = getattr(cfg, 'axial_neck_floor_m', 0.003)
+    if axis_u is not None and len(necks) > 1:
+        neck_axial = np.asarray(
+            [float(np.dot(n - neck, axis_u)) for n in necks])
+        sig_axial = max(
+            float(np.median(np.abs(neck_axial - np.median(neck_axial)))),
+            axial_floor)
+    else:
+        sig_axial = axial_floor
     sig_a = float(np.median([item.sigma_axis_deg for item in items]))
     bottom_err = np.linalg.norm(bottoms - bottom, axis=1)
     neck_err = np.linalg.norm(necks - neck, axis=1)
@@ -1115,7 +1129,7 @@ def fuse_bag_views(
         budget = evaluate_capabilities(
             d_bag95=d95, length_m=max(length, 0.05),
             center_lateral95=sig_p, axis_error_deg=axis_error_deg,
-            neck_position95=sig_p,
+            neck_position95=sig_axial,
             cut_to_fruit_m=float(cut['cut_to_fruit_m']),
             params=cfg)
     raw_occlusion = next(

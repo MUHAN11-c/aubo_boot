@@ -7,7 +7,14 @@ import math
 
 @dataclass(frozen=True)
 class ToolBudgetParams:
-    """与 hollow_cylinder_v1 对齐的误差与净空项，单位米或无量纲."""
+    """
+    与工具档案对齐的误差与净空项，单位米或无量纲.
+
+    重构批次2（2026-09-23）：常数可由 target_reconstruction.yaml
+    `tool.budget.*` 覆盖（provenance 注释在 yaml）；台架标定（M0）前
+    保持保守包络。`axial_neck_floor_m` 是袋颈轴向散布下限（区别于
+    横向 6mm 下限——后者只许进径向预算，F-G1 维度混用修复）。
+    """
 
     d_inner: float = 0.104
     wall_clearance: float = 0.002
@@ -17,10 +24,14 @@ class ToolBudgetParams:
     hand_eye_error95: float = 0.003
     bag_deformation_margin95: float = 0.002
     blade_capture_half_width: float = 0.008
-    axial_safety_margin: float = 0.004
+    # 语义澄清（G1 根因③）：轴向安全余量与 fruit_safety_clearance 历史
+    # 上重复扣减。批次2 起 axial_safety_margin 默认 0（果距安全只走
+    # cut_to_fruit 门），yaml 可恢复旧值以对拍。
+    axial_safety_margin: float = 0.0
     blade_plane_calibration_error95: float = 0.002
     robot_axial_error95: float = 0.002
     target_motion95: float = 0.003
+    axial_neck_floor_m: float = 0.003
     fruit_safety_clearance: float = 0.012
     diagnostic_axis_deg: float = 35.0
 
@@ -80,6 +91,15 @@ def evaluate_sleeve_cut(
     cut_ok = axial_margin > 0.0 and fruit_ok
     reason = 'dynamic_budget_accept'
     failure_code = 0
+    # 结构性诊断（批次2）：零感知误差（neck_position95=0）下余量仍 ≤0 =
+    # 常数/工艺不成立，不是"这颗袋不好"——reason 一眼可辨，去 M0 台架
+    # 重标定（FINAL_PLAN §9.3：不得靠删安全项换正数）。
+    axial_fixed = (
+        cfg.blade_plane_calibration_error95 + cfg.robot_axial_error95 +
+        cfg.target_motion95 + cfg.axial_safety_margin)
+    # 结构性=工具/工艺侧固定常数吞掉捕获带（感知零误差也救不回）；
+    # 颈轴向下限属感知误差模型，不计入（批次2 语义澄清）。
+    axial_structural = (cfg.blade_capture_half_width - axial_fixed) <= 0.0
     if too_wide:
         reason = 'bag_d95_exceeds_tool'
         failure_code = 12
@@ -90,7 +110,9 @@ def evaluate_sleeve_cut(
         reason = 'cut_plane_fruit_clearance'
         failure_code = 16
     elif axial_margin <= 0.0:
-        reason = 'axial_budget_negative'
+        reason = (
+            'axial_budget_structurally_unsatisfiable' if axial_structural
+            else 'axial_budget_negative')
         failure_code = 12
     return {
         'sleeve_ok': bool(sleeve_ok),
@@ -100,6 +122,8 @@ def evaluate_sleeve_cut(
         'radial_margin_m': float(radial_margin),
         'axial_error95_m': float(ax_err),
         'axial_margin_m': float(axial_margin),
+        'axial_structural': bool(axial_structural),
+        'axial_fixed_budget_m': float(axial_fixed),
         'diagnostic_axis_mismatch': bool(diagnostic_mismatch),
         'reason': reason,
         'failure_code': int(failure_code),

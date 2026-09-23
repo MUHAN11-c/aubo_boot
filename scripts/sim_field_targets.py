@@ -1198,8 +1198,14 @@ def main() -> int:
                 spin_until(gh.cancel_goal_async(), 10.0)
                 # 等臂侧真到 CANCELED 终态再进下一例，否则周期收尾窗口
                 # 内下一例仍会被拒（goal 被拒级联残余）
-                spin_until(gh.get_result_async(), 30.0)
+                canceled = spin_until(gh.get_result_async(), 30.0)
                 time.sleep(1.5)
+                # 取消的周期常置 recovery_required（M3 rand_03 后 26 例全拒
+                # 的根因）：超时路径同样必须 ACK，否则臂滞留"恢复待确认"。
+                if (canceled is not None and
+                        getattr(canceled.result, 'recovery_required', False)):
+                    ack_cli.wait_for_service(timeout_sec=5.0)
+                    spin_until(ack_cli.call_async(Trigger.Request()), 10.0)
             except Exception:  # noqa: BLE001
                 pass
             return {'case': cid, 'error': 'goal 超时（已取消）',

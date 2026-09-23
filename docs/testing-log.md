@@ -895,3 +895,11 @@ SIGINT 旧栈后用 16:57 编的 `peach_manipulation` 重起；开批前在 `glo
 - **常数治理**：七项预算常数迁 target_reconstruction.yaml `tool.budget.*` 带 provenance（M0 台架前保守包络）；`axial_safety_margin` 默认 0（与 fruit_safety_clearance 历史重复扣减，G1 根因③），旧值 0.004 可恢复对拍。
 - **新语义**：零感知误差轴向余量 +1mm（旧恒负为缺陷行为，契约测试重写）；默认常数态（颈下限 3mm）余量 −2mm → `axial_budget_structurally_unsatisfiable` 待 M0 标定（结构性旗=工具侧固定常数吞捕获带，与"袋不好"分辨）。
 - 反例测试落位：增大任一误差项不得提高许可。
+
+### 09-23 续八：重构批次3（剪切证据链 G2/G3 软件闭环）
+
+- **ToolState.msg**：刀/保持/载荷三轴（各自 UNKNOWN 优先），/peach_arm/tool_state latched on-change；manifest 55 接口。
+- **新事件门（§12.2）**：ToolActuator.confirmFeedback 须见**本命令后闭合新上升沿**（早已卡高→`no_new_di_edge` 拒）——单测抓出并修复了"沿门只在回调层、执行器本体可被 hardware_ok=true 直通"的语义洞。
+- **保守收口（L89）**：stageVerifyCut 有界等沿 2.0s（`tool.feedback_timeout_s` GPL），超时 CUT_UNCONFIRMED——不撤退/不重发/不 resume，FAILED 待人工；确认后 CK_CUT_CONFIRMED+LEVEL_CUT_CONFIRMED 可达（此前结构性不可达）。
+- **G3 最小闭环**：stageReleasePayload 在 harvest_stow 后开刀释放（commandToolOpen，TOOL 级授权同 close）；载荷真证据（光电/力）M0 后接，现 PAYLOAD_UNKNOWN 诚实态。
+- tool_actuator.cpp 移入 _core 纯核库；6 例 gtest（沿确认/卡高/开沿三轴/双门幂等/复位归 UNKNOWN/双证据）。

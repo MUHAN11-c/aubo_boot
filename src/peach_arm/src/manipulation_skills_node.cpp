@@ -666,6 +666,13 @@ void ManipulationSkillsNode::createSubscriptions()
   joint_status_sub_ = create_subscription<aubo_msgs::msg::JointStatus>(
     "/aubo_io_controller/joint_status", 10,
     std::bind(&ManipulationSkillsNode::onJointStatus, this, std::placeholders::_1));
+  // 批次3：工具 DI（io_states.tool_io_states，pin0=刀闭合）。沿→三轴投影
+  // →confirmFeedback（仅 CUT_COMMAND_SENT 态消费）；早已卡高不算新沿。
+  io_state_sub_ = create_subscription<aubo_msgs::msg::IOState>(
+    "/aubo_io_controller/io_states", 10,
+    std::bind(&ManipulationSkillsNode::onIoState, this, std::placeholders::_1));
+  tool_state_pub_ = create_publisher<peach_interfaces::msg::ToolState>(
+    "/peach_arm/tool_state", latched);
   status_pub_ = create_publisher<std_msgs::msg::String>("~/status", latched);
   marker_pub_ = create_publisher<visualization_msgs::msg::MarkerArray>(
     "~/planned_views", latched);

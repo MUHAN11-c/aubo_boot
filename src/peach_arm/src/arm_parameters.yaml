@@ -613,6 +613,12 @@ peach_arm:
       description: "工具筒体长 [m]（①层果实胶囊审查；与 tcp.xacro tool_body_link 对齐，改几何须同步）"
       validation:
         gt<>: [0.0]
+    feedback_timeout_s:
+      type: double
+      default_value: 2.0
+      description: "切断反馈（工具 DI 新沿）有界等待 [s]；超时=CUT_UNCONFIRMED 保守收口（不撤退不重发，批次3）"
+      validation:
+        gt<>: [0.1]
     body_radius_m:
       type: double
       default_value: 0.06

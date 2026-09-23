@@ -186,6 +186,12 @@ interfaces:
     type: peach_interfaces/action/MoveTo
     producers: [peach_arm]
     consumers: []   # 阶段 3 起 peach_supervisor（观察循环/回拍照位/stow）
+  - name: /peach_arm/tool_state
+    kind: topic
+    type: peach_interfaces/msg/ToolState
+    qos: {reliability: reliable, durability: transient_local, depth: 1}
+    producers: [peach_arm]   # 批次3：三轴工具状态（刀/保持/载荷），on-change+1Hz
+    consumers: []   # 无显式订户（会话 bag catch-all 落证据；回写禁止）
   - name: /peach/batch/enables
     kind: topic
     type: peach_interfaces/msg/Enables

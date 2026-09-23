@@ -76,6 +76,52 @@ void ManipulationSkillsNode::onRobotStatus(
   robot_status_valid_ = true;
 }
 
+void ManipulationSkillsNode::onIoState(
+  const aubo_msgs::msg::IOState::SharedPtr message)
+{
+  // 批次3：工具 DI pin0（刀闭合电平）→沿检测→三轴投影→confirmFeedback。
+  bool pin_level = false;
+  bool pin_found = false;
+  for (const auto & d : message->tool_io_states) {
+    if (d.pin == 0) {
+      pin_level = d.state;
+      pin_found = true;
+      break;
+    }
+  }
+  if (!pin_found) {
+    return;  // 本帧无工具 DI（仿真早期/驱动未起）
+  }
+  std::string edge;
+  if (tool_actuator_.ingestToolDi(pin_level, edge)) {
+    RCLCPP_INFO(get_logger(), "工具 DI 沿：%s", edge.c_str());
+    if (edge.find("closed-rise") != std::string::npos) {
+      std::string reason;
+      if (tool_actuator_.confirmFeedback(true, reason)) {
+        RCLCPP_INFO(get_logger(), "切断反馈确认：%s", reason.c_str());
+      }
+    }
+    publishToolState(edge);
+  }
+}
+
+void ManipulationSkillsNode::publishToolState(const std::string & evidence)
+{
+  if (!tool_state_pub_) {
+    return;
+  }
+  peach_interfaces::msg::ToolState msg;
+  msg.header.stamp = now();
+  msg.header.frame_id = params_.frames.tip;
+  const auto axes = tool_actuator_.axes();
+  msg.blade_state = axes.blade;
+  msg.retention_state = axes.retention;
+  msg.payload_state = axes.payload;
+  msg.evidence_source = evidence;
+  msg.fault_code = axes.fault_code;
+  tool_state_pub_->publish(msg);
+}
+
 // 果实胶囊（①层）：感知直径+膨胀；无效直径回退保守半径并告警。
 FruitCapsule ManipulationSkillsNode::fruitCapsuleFor(
   const CachedRefined & refined) const
@@ -220,6 +266,41 @@ bool ManipulationSkillsNode::cycleTargetReady(
     !target_id.empty() ?
     cache_.lockedTargetGateSample(target_id) : cache_.targetGateSample();
   return safety_gate_->targetReady(sample, target_id, reason);
+}
+
+bool ManipulationSkillsNode::commandToolOpen()
+{
+  // 批次3（G3）：收集位释放。授权矩阵同 close（TOOL 级）——开刀也是
+  // 危险动作（松开=掉果风险），不降档。
+  CycleContext probe;
+  probe.target_id = tool_actuator_.context().target_id;
+  std::string why;
+  StageDenial denial = StageDenial::DENIED;
+  if (!authorizeStage(probe, MotionStage::TOOL, why, denial)) {
+    setState(CycleState::FAILED, "工具开刀被拒绝: " + why, probe.target_id);
+    return false;
+  }
+  if (!tool_io_client_->wait_for_service(
+      std::chrono::duration<double>(params_.timeouts.service_s)))
+  {
+    setState(CycleState::FAILED, "末端工具 set_io 服务不可用");
+    return false;
+  }
+  auto request = std::make_shared<aubo_msgs::srv::SetIO::Request>();
+  request->fun = static_cast<int8_t>(params_.tool.io_fun);
+  request->pin = static_cast<int8_t>(params_.tool.io_pin);
+  request->state = static_cast<float>(
+    params_.tool.close_state > 0.5f ? 0.0f : 1.0f);
+  auto future = tool_io_client_->async_send_request(request);
+  if (future.wait_for(std::chrono::duration<double>(
+      params_.timeouts.service_s)) != std::future_status::ready ||
+    !future.get()->success)
+  {
+    setState(CycleState::FAILED, "末端工具开刀 SetIO 失败");
+    return false;
+  }
+  RCLCPP_INFO(get_logger(), "末端工具开刀（收集位释放）受理");
+  return true;
 }
 
 bool ManipulationSkillsNode::commandToolClose()

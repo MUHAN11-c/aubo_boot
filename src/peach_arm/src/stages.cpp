@@ -383,6 +383,7 @@ void ManipulationSkillsNode::executeCycle(CycleContext & ctx)
                 if (ok) {ok = stageVerifyCut(ctx);}
                 if (ok) {ok = stageExecuteReservedReverseRetreat(ctx);}
                 if (ok) {ok = stageReturnHarvestStow(ctx);}
+                if (ok) {ok = stageReleasePayload(ctx);}
                 if (ok) {ok = stageVerifyHarvestOutcome(ctx);}
               }
               if (ok) {stageCompleteTarget(ctx);}
@@ -1230,9 +1231,8 @@ bool ManipulationSkillsNode::stageActuateCutter(CycleContext & ctx)
   ctx.completion_level = std::max(
     ctx.completion_level,
     ExecuteTarget::Result::LEVEL_CUT_COMMAND_ACCEPTED);
-  // 切断确认保持删除态：SetIO ACK ≠ 切断确认（confirmFeedback 预留，接
-  // /aubo_io_controller/io_states 工具 DI 后启用）；verifyHarvestOutcome 按
-  // tool∧grasp ∧未确认 → FAILED/CUT_FEEDBACK_TIMEOUT 保守判定。
+  // 批次3：cut_confirmed 由 stageVerifyCut 等工具 DI 新沿置位（SetIO ACK
+  // 仍 ≠ 切断确认；DI 沿=BLADE_CLOSED 层位证据，M0 后升级组合判别）。
   ctx.cut_confirmed = false;
   return true;
 }
@@ -1248,6 +1248,51 @@ bool ManipulationSkillsNode::stageVerifyCut(CycleContext & ctx)
       ctx, ExecuteTarget::Result::FAILED,
       FailureCode::CUT_COMMAND_FAILED, "无 CUT_COMMAND_ACCEPTED");
   }
+  // 批次3：有界等待工具 DI 新沿（onIoState→confirmFeedback 置
+  // CUT_FEEDBACK_CONFIRMED）。时间只作截止不作到位证明；超时=
+  // CUT_UNCONFIRMED 保守收口——不撤退、不重发、不 resume（FINAL_PLAN
+  // L89：未确认切断时果可能仍连枝，禁止正常撤离路径）。
+  const double timeout_s = params_.tool.feedback_timeout_s;
+  const auto deadline = std::chrono::steady_clock::now() +
+    std::chrono::duration<double>(timeout_s);
+  while (tool_actuator_.state() !=
+    ToolActuatorState::CUT_FEEDBACK_CONFIRMED)
+  {
+    if (cancel_requested_.load()) {
+      return failStage(
+        ctx, ExecuteTarget::Result::CANCELED,
+        FailureCode::CUT_COMMAND_FAILED, "等切断反馈中被取消");
+    }
+    if (std::chrono::steady_clock::now() >= deadline) {
+      tool_actuator_.markUnknown();
+      ctx.failure_code = FailureCode::CUT_FEEDBACK_TIMEOUT;
+      return failStage(
+        ctx, ExecuteTarget::Result::FAILED,
+        FailureCode::CUT_FEEDBACK_TIMEOUT,
+        "CUT_UNCONFIRMED：反馈窗口内无工具 DI 新沿（保持现状待人工，"
+        "不自动撤退不重发）");
+    }
+    std::this_thread::sleep_for(std::chrono::milliseconds(50));
+  }
+  ctx.cut_confirmed = true;
+  ctx.completion_level = std::max(
+    ctx.completion_level, ExecuteTarget::Result::LEVEL_CUT_CONFIRMED);
+  markCheckpoint(ExecuteTarget::Goal::CK_CUT_CONFIRMED, "工具 DI 新沿确认");
+  return true;
+}
+
+bool ManipulationSkillsNode::stageReleasePayload(CycleContext & ctx)
+{
+  // 批次3（G3）：收集位释放。未实际用刀（tool 关/PREGRASP）时直通。
+  if (!tool_enabled_.load() || !ctx.cut_command_accepted) {
+    return true;
+  }
+  if (!commandToolOpen()) {
+    return failStage(
+      ctx, ExecuteTarget::Result::FAILED,
+      FailureCode::TOOL_STATE_UNKNOWN, "收集位释放（开刀）失败");
+  }
+  publishToolState("cmd:open@stow");
   return true;
 }
 

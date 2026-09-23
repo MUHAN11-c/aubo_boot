@@ -34,6 +34,7 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/ReconstructionStatus.msg"
   "msg/SceneSnapshot.msg"
   "msg/ShapeHypothesis.msg"
+  "msg/ToolState.msg"
   "msg/TargetModel.msg"
   "msg/TargetOutcome.msg"
   "msg/TargetQuality.msg"

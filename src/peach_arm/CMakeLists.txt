@@ -48,6 +48,7 @@ add_library(${PROJECT_NAME}_core
   src/safety_gate.cpp
   src/view_planner.cpp
   src/target_cache.cpp
+  src/tool_actuator.cpp
 )
 target_include_directories(${PROJECT_NAME}_core PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
@@ -68,7 +69,6 @@ add_executable(peach_arm
   src/grasp_task.cpp
   src/main.cpp
   src/motion.cpp
-  src/tool_actuator.cpp
 )
 target_include_directories(peach_arm PRIVATE include)
 # 命名空间 target / ${pkg_TARGETS}（Jazzy 现代 CMake 惯例，替代
@@ -166,6 +166,13 @@ if(BUILD_TESTING)
     target_link_libraries(test_staging_waypoints ${PROJECT_NAME}_core)
   endif()
   ament_add_gtest(test_pregrasp_residual test/test_pregrasp_residual.cpp)
+  if(TARGET test_pregrasp_residual)
+    target_link_libraries(test_pregrasp_residual ${PROJECT_NAME}_core)
+  endif()
+  ament_add_gtest(test_tool_actuator test/test_tool_actuator.cpp)
+  if(TARGET test_tool_actuator)
+    target_link_libraries(test_tool_actuator ${PROJECT_NAME}_core)
+  endif()
   if(TARGET test_pregrasp_residual)
     target_link_libraries(test_pregrasp_residual ${PROJECT_NAME}_core)
   endif()

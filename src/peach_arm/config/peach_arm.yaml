@@ -115,6 +115,7 @@ peach_arm:
       io_fun: 3  # 工具 IO 功能号（SetIO 的 fun）。
       io_pin: 0  # 工具 IO 引脚号（SetIO 的 pin）。
       close_state: 1.0  # 工具闭合写入的 IO 电平值。
+      feedback_timeout_s: 2.0  # 切断反馈 DI 新沿有界等待（秒）；超时 CUT_UNCONFIRMED（不撤退不重发）。
       links: [tool_axis, cutting_plane, tcp, sleeve_mouth, tool_body_link, quick_changer_link]  # 工具链连杆（③层整图 octomap 豁免清单；W5 前为三处硬编码同值）。改工具须同步 URDF/tcp.xacro 连杆名。
       contact_links: [sleeve_mouth, tcp, tool_axis, cutting_plane]  # 接触阶段（套入/剪切）× 目标对象豁免的工具连杆（不含筒体/快换件——防撞主力保持受查）。
       body_length_m: 0.2  # 工具筒体长（米，①层果实胶囊审查用）；与 tcp.xacro tool_body_link 的 L 对齐，改几何须同步。

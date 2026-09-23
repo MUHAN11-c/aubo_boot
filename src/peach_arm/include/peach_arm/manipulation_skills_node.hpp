@@ -17,6 +17,7 @@
 #include <thread>
 #include <vector>
 
+#include <aubo_msgs/msg/io_state.hpp>
 #include <aubo_msgs/msg/joint_status.hpp>
 #include <aubo_msgs/msg/robot_status.hpp>
 #include <aubo_msgs/srv/set_io.hpp>
@@ -24,6 +25,7 @@
 #include <builtin_interfaces/msg/duration.hpp>
 #include <diagnostic_updater/diagnostic_updater.hpp>
 #include <nlohmann/json.hpp>
+#include <peach_interfaces/msg/tool_state.hpp>
 #include <peach_interfaces/msg/bag_fitting_array.hpp>
 #include <peach_interfaces/msg/bag_grasp_candidate_array.hpp>
 #include <peach_interfaces/msg/enables.hpp>
@@ -145,6 +147,8 @@ private:
     const peach_interfaces::msg::BagGraspCandidateArray::SharedPtr message);
   void onRefinedDiagnostics(
     const peach_interfaces::msg::BagFittingArray::SharedPtr message);
+  void onIoState(const aubo_msgs::msg::IOState::SharedPtr message);
+  void publishToolState(const std::string & evidence);
   void onRobotStatus(const aubo_msgs::msg::RobotStatus::SharedPtr message);
   void onJointStatus(const aubo_msgs::msg::JointStatus::SharedPtr message);
 
@@ -193,6 +197,7 @@ private:
   void rebuildMotionInterface();
   void rebuildGraspTask();
   bool commandToolClose();
+  bool commandToolOpen();
   void onPreviewApproachInsert(
     const Trigger::Request::SharedPtr, Trigger::Response::SharedPtr response);
   void onPreviewFullContact(
@@ -319,6 +324,7 @@ private:
   bool stagePlanSleeveAndReverseRetreat(CycleContext & ctx);
   bool stageSleeveLinear(CycleContext & ctx);
   bool stageActuateCutter(CycleContext & ctx);
+  bool stageReleasePayload(CycleContext & ctx);
   bool stageVerifyCut(CycleContext & ctx);
   bool stageExecuteReservedReverseRetreat(CycleContext & ctx);
   bool stageReturnHarvestStow(CycleContext & ctx);
@@ -374,6 +380,8 @@ private:
   // manipulation_skills_node.cpp（避免节点头引入 MoveIt 碰撞检测头）。
   // 刀具 GPIO 状态机（SetIO ACK ≠ 切断确认；confirmFeedback 预留）。
   ToolActuator tool_actuator_{};
+  rclcpp::Subscription<aubo_msgs::msg::IOState>::SharedPtr io_state_sub_;
+  rclcpp::Publisher<peach_interfaces::msg::ToolState>::SharedPtr tool_state_pub_;
 
   // MoveIt/MTC 伴随节点（声明在所有 MoveIt 资源之前，保证析构时最后释放）。
   rclcpp::Node::SharedPtr moveit_node_;

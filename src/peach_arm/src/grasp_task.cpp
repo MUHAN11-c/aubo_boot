@@ -29,6 +29,8 @@
 #include <cmath>
 #include <exception>
 #include <memory>
+#include <moveit_msgs/srv/get_motion_sequence.hpp>
+#include <moveit_msgs/action/execute_trajectory.hpp>
 #include <optional>
 #include <sstream>
 #include <string>
@@ -605,6 +607,175 @@ std::unique_ptr<mtc::SerialContainer> GraspTask::makeStagingSequence(
   return sequence;
 }
 
+GraspTaskResult GraspTask::executeBlendedCorridor(
+  const Eigen::Isometry3d & mid, const Eigen::Isometry3d & pregrasp,
+  bool execute, const moveit::core::RobotModelConstPtr & robot_model,
+  const std::function<bool(std::string &)> & execution_gate)
+{
+  // v4d 平滑连续（2026-09-23 用户裁定）：入冠 LIN 与沿轴 LIN 经 Pilz
+  // sequence（/plan_sequence_path）以 blend_radius 混合——corner 圆滑、
+  // 速度连续，冠内一段到底。守卫与现行 MTC 路径同一族原语。
+  GraspTaskResult output;
+  if (!execute) {
+    output.reason = "blended corridor: plan-only 不经 sequence";
+    return output;
+  }
+  rclcpp::Client<moveit_msgs::srv::GetMotionSequence>::SharedPtr cli =
+    node_->create_client<moveit_msgs::srv::GetMotionSequence>(
+      "/plan_sequence_path");
+  if (!cli->wait_for_service(std::chrono::duration<double>(2.0))) {
+    output.reason = "sequence 服务不可用";
+    return output;
+  }
+  auto req = std::make_shared<moveit_msgs::srv::GetMotionSequence::Request>();
+  auto lin_item = [this](const Eigen::Isometry3d & goal, double blend) {
+      moveit_msgs::msg::MotionSequenceItem item;
+      item.blend_radius = blend;
+      item.req.pipeline_id = "pilz_industrial_motion_planner";
+      item.req.planner_id = "LIN";
+      item.req.group_name = "manipulator_e5";
+      item.req.num_planning_attempts = 1;
+      item.req.allowed_planning_time = 1.5;
+      item.req.max_velocity_scaling_factor = config_.velocity_scaling;
+      item.req.max_acceleration_scaling_factor = config_.acceleration_scaling;
+      moveit_msgs::msg::Constraints goal_c;
+      goal_c.name = "lin_goal";
+      moveit_msgs::msg::PositionConstraint pos_c;
+      pos_c.header.frame_id = "world";
+      pos_c.link_name = "tcp";
+      shape_msgs::msg::SolidPrimitive box;
+      box.type = shape_msgs::msg::SolidPrimitive::BOX;
+      box.dimensions = {0.001, 0.001, 0.001};
+      pos_c.constraint_region.primitives.push_back(box);
+      geometry_msgs::msg::Pose center;
+      center.position.x = goal.translation().x();
+      center.position.y = goal.translation().y();
+      center.position.z = goal.translation().z();
+      center.orientation.w = 1.0;
+      pos_c.constraint_region.primitive_poses.push_back(center);
+      pos_c.weight = 1.0;
+      goal_c.position_constraints.push_back(pos_c);
+      moveit_msgs::msg::OrientationConstraint ori_c;
+      ori_c.header.frame_id = "world";
+      ori_c.link_name = "tcp";
+      Eigen::Quaterniond q(goal.linear());
+      ori_c.orientation.x = q.x();
+      ori_c.orientation.y = q.y();
+      ori_c.orientation.z = q.z();
+      ori_c.orientation.w = q.w();
+      ori_c.absolute_x_axis_tolerance = 0.01;
+      ori_c.absolute_y_axis_tolerance = 0.01;
+      ori_c.absolute_z_axis_tolerance = 0.01;
+      ori_c.weight = 1.0;
+      goal_c.orientation_constraints.push_back(ori_c);
+      item.req.goal_constraints.push_back(goal_c);
+      return item;
+    };
+  req->request.items.push_back(lin_item(mid, config_.approach_blend_radius_m));
+  req->request.items.push_back(lin_item(pregrasp, 0.0));
+  auto fut = cli->async_send_request(req);
+  if (fut.wait_for(std::chrono::duration<double>(10.0)) !=
+    std::future_status::ready)
+  {
+    output.reason = "sequence 规划超时";
+    return output;
+  }
+  const auto resp = fut.get();
+  if (resp->response.error_code.val != 1) {
+    output.reason = "sequence 规划失败 code=" +
+      std::to_string(resp->response.error_code.val);
+    return output;
+  }
+  std::vector<trajectory_msgs::msg::JointTrajectory> parts;
+  for (const auto & traj : resp->response.planned_trajectories) {
+    if (!traj.joint_trajectory.joint_names.empty() &&
+      !traj.joint_trajectory.points.empty())
+    {
+      parts.push_back(traj.joint_trajectory);
+    }
+  }
+  // 平滑性硬要求：混合成功时 sequence 返回单条合并轨迹；多段=未混合，
+  // 直接判失败让调用方降级回 MTC LIN（形状对但不平滑）。
+  if (parts.size() != 1U) {
+    output.reason = "sequence 未合并为单条轨迹（segments=" +
+      std::to_string(parts.size()) + "），降级";
+    return output;
+  }
+  // 守卫（同一族原语）：短路径三项 + 果实胶囊（全 LIN 段，反爬开）+
+  // 笛卡尔绕行（整条混合路径）。
+  const TrajectoryGuardLimits limits{
+    config_.approach_max_duration_s,
+    config_.approach_max_total_joint_travel_rad,
+    config_.approach_max_single_joint_travel_rad};
+  const auto report = inspectApproachTrajectories(parts, limits);
+  RCLCPP_INFO(
+    node_->get_logger(),
+    "sequence 冠内审查: segments=%zu allowed=%s points=%zu duration=%.3fs "
+    "joint_total=%.3frad (%s)",
+    parts.size(), report.allowed ? "true" : "false", report.point_count,
+    report.duration_s, report.total_joint_travel_rad, report.reason.c_str());
+  if (!report.allowed) {
+    output.reason = "sequence guard rejected: " + report.reason;
+    return output;
+  }
+  const auto tcp_per_part = tcpPathsFromJointsPerPart(
+    robot_model, config_.tip_frame, parts);
+  if (inspect_fruit_) {
+    for (std::size_t part = 0; part < parts.size(); ++part) {
+      const auto fruit_report = inspectToolVsFruit(
+        tcp_per_part[part], pending_fruit_, true,
+        config_.tool_body_length_m, config_.tool_body_radius_m);
+      if (!fruit_report.allowed) {
+        output.reason = "sequence guard rejected: " + fruit_report.reason;
+        return output;
+      }
+    }
+  }
+  // 执行：ExecuteTrajectory 有界（execution_guard + stop 钩子）。
+  if (execution_gate && !execution_gate(output.reason)) {
+    output.reason = "execution gate rejected: " + output.reason;
+    return output;
+  }
+  output.execution_started = true;
+  rclcpp_action::Client<moveit_msgs::action::ExecuteTrajectory>::SharedPtr
+    exec_cli = rclcpp_action::create_client<moveit_msgs::action::ExecuteTrajectory>(
+    node_, "/execute_trajectory");
+  if (!exec_cli->wait_for_action_server(std::chrono::duration<double>(2.0))) {
+    output.reason = "execute_trajectory 服务不可用";
+    return output;
+  }
+  moveit_msgs::action::ExecuteTrajectory::Goal goal;
+  goal.trajectory.joint_trajectory = parts.front();
+  auto goal_fut = exec_cli->async_send_goal(goal);
+  if (goal_fut.wait_for(std::chrono::duration<double>(5.0)) !=
+    std::future_status::ready)
+  {
+    output.reason = "execute_trajectory goal 超时";
+    return output;
+  }
+  const auto gh = goal_fut.get();
+  if (!gh) {
+    output.reason = "execute_trajectory goal 被拒";
+    return output;
+  }
+  auto result_future = exec_cli->async_get_result(gh);
+  retiring_->reap();
+  bool abandoned = false;
+  const auto rc = runBoundedExecute(
+    [&result_future]() -> moveit::core::MoveItErrorCode {
+      const auto wrapped = result_future.get();
+      return wrapped.code == rclcpp_action::ResultCode::SUCCEEDED ?
+             moveit::core::MoveItErrorCode::SUCCESS :
+             moveit::core::MoveItErrorCode::FAILURE;
+    },
+    config_.execution_stop, nullptr, config_.execute_timeout_s,
+    node_->get_logger(), *retiring_, &abandoned);
+  output.success = rc == moveit::core::MoveItErrorCode::SUCCESS && !abandoned;
+  output.reason = output.success ?
+    "blended corridor succeeded" : "blended corridor failed";
+  return output;
+}
+
 std::unique_ptr<mtc::Task> GraspTask::makeStagingTransitTask(
   const std::string & task_name,
   const Eigen::Isometry3d & pregrasp_tip_pose,
@@ -741,16 +912,56 @@ bool GraspTask::tryStagingTransit(
     "PTP 接近（主路径）：关节空间到中段点正下方 + 垂直入冠 %.3fm + 沿轴 %.3fm（滚转 %.0f°）",
     config_.approach_canopy_entry_m, config_.approach_final_axial_m,
     roll * 180.0 / static_cast<double>(EIGEN_PI));
+  // v4d：PTP 段走 MTC（守卫含 PTP 弧），冠内两段 LIN 优先走 sequence
+  // 混合（平滑连续）；sequence 失败降级回单任务 MTC LIN（形状同、不平滑）。
+  auto ptp_only = makeTaskShell(task_name + "_ptp");
+  {
+    auto seq = std::make_unique<mtc::SerialContainer>("ptp only");
+    auto ptp = std::make_unique<mtc::stages::MoveTo>(
+      "ptp below canopy entry", makePtpSolver());
+    ptp->setGroup(config_.planning_group);
+    ptp->setIKFrame(config_.tip_frame);
+    ptp->setTimeout(config_.planning_time_s);
+    ptp->setGoal(joints);
+    seq->add(std::move(ptp));
+    ptp_only->add(std::move(seq));
+  }
+  // 模型须在任务移交 planAndMaybeExecute 前取——其收尾会 reset active_task_
+  //（2026-09-23 v4d 首测 SIGSEGV 根因：事后取即空指针解引用）。
+  const moveit::core::RobotModelConstPtr robot_model =
+    ptp_only->getRobotModel();
   auto result = planAndMaybeExecute(
-    makeStagingTransitTask(
-      task_name + "_staging", w.pregrasp, w.mid, w.staging, joints),
-    execute, config_.approach_execution_gate, true, 0U, true);
-  if (result.success || result.execution_started) {
+    std::move(ptp_only), execute, config_.approach_execution_gate, true, 0U,
+    true);
+  if (!(result.success || result.execution_started)) {
+    last = result;
+    return false;
+  }
+  if (!execute) {
     last = result;
     return true;
   }
-  last = result;
-  return false;
+  const auto corridor = executeBlendedCorridor(
+    w.mid, w.pregrasp, true, robot_model,
+    config_.approach_execution_gate);
+  if (corridor.success || corridor.execution_started) {
+    last = corridor;
+    return true;
+  }
+  RCLCPP_WARN(
+    node_->get_logger(), "sequence 走廊不可用（%s），降级 MTC LIN",
+    corridor.reason.c_str());
+  auto lin_task = makeTaskShell(task_name + "_corridor_lin");
+  auto seq = std::make_unique<mtc::SerialContainer>("unblended corridor");
+  appendLinToPose(*seq, w.mid, "vertical canopy entry lin", true);
+  appendLinToPose(*seq, w.pregrasp, "lin to on-axis pregrasp", true);
+  lin_task->add(std::move(seq));
+  auto lin_result = planAndMaybeExecute(
+    std::move(lin_task), execute, config_.approach_execution_gate, true, 0U,
+    true);
+  last = (lin_result.success || lin_result.execution_started) ? lin_result :
+    lin_result;
+  return lin_result.success || lin_result.execution_started;
 }
 
 std::unique_ptr<mtc::Task> GraspTask::makeInsertOnlyTask(

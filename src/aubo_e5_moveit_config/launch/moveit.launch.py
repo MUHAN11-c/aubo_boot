@@ -66,9 +66,13 @@ def _moveit_configs(controllers_file: str, tool_profile: str):
         MoveItConfigsBuilder(
             'aubo_e5', package_name='aubo_e5_moveit_config')
         .robot_description(mappings={'tool_profile': tool_profile})
+        # 默认管线=pilz（2026-09-23 v4d）：Pilz sequence 能力（/plan_sequence_path）
+        # 的逐 item 规划走 move_group 默认管线、不读 item.pipeline_id——默认
+        # ompl 时 sequence LIN 退化为 OMPL 关节规划且端点不接、混合必拒。
+        # MTC 各 stage 自带 pipeline 属性，不受默认值影响。
         .planning_pipelines(
             pipelines=['ompl', 'pilz_industrial_motion_planner', 'stomp'],
-            default_planning_pipeline='ompl')
+            default_planning_pipeline='pilz_industrial_motion_planner')
         .trajectory_execution(
             file_path='config/' + controllers_file,
             moveit_manage_controllers=False)

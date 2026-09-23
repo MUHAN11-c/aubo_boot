@@ -877,3 +877,9 @@ SIGINT 旧栈后用 16:57 编的 `peach_manipulation` 重起；开批前在 `glo
 - 接近序列改三段：PTP 关节空间→中段点正下方（树冠外）→ 世界垂直 LIN 入冠 0.05（伸进果树里）→ 沿轴 LIN 0.05 对轴到预抓取。斜袋时进冠铅垂、末段顺轴。
 - 参数：`approach_final_axial_m` 0.05 / `approach_canopy_entry_m` 0.05（替 `approach_staging_standoff_m`）。
 - 解析：57/80=71.3% vs v3 56/80=70%，入冠段零可达性代价。门：build/test/r0_gate 绿。
+
+### 09-23 续五：v4d 平滑连续（sequence 混合），零成功率损失定版
+
+- 冠内两段 LIN（垂直入冠→沿轴对轴）改走 Pilz sequence（`/plan_sequence_path`，blend_radius 0.02）：corner 圆滑、速度连续一条轨迹到底；PTP 段保留冠口停点（树冠外安全观察位）；sequence 失败自动降级回未混合 MTC LIN（形状同）。
+- 两个根因修复：①`planAndMaybeExecute` 收尾 reset `active_task_` 后再取 `getRobotModel()` 的空指针 SIGSEGV（模型改在任务移交前取）；②**Pilz sequence 的逐 item 规划走 move_group 默认管线、不读 item.pipeline_id**——默认 ompl 时 LIN 退化为 OMPL 关节规划、端点不接、混合必拒；默认管线切 pilz（moveit.launch.py，MTC 各 stage 自带 pipeline 不受影响）。
+- 终验：网格 **18/20 与 v4c 持平**（失配同两例：near_horizontal 算法包络边缘例护栏正确拒 + deep_left 边界抖动），sequence 走廊 13 次全走通零降级，91 段轨迹全部执行完成。

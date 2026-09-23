@@ -139,6 +139,7 @@ struct GraspTaskConfig
   double approach_along_axis_m{0.0};                  ///< 预抓取相对入口沿 −axis 后撤 [m]。
   double approach_final_axial_m{0.05};               ///< 末段：中段点→预抓取沿 −axis 后撤 [m]。
   double approach_canopy_entry_m{0.05};               ///< 入冠段：世界垂直上行伸进果树 [m]（v4）。
+  double approach_blend_radius_m{0.02};               ///< 冠内角（垂直→沿轴）Pilz sequence 混合半径 [m]（v4d 平滑连续）。
   double approach_max_lateral_m{0.05};                ///< 小于此值视为已对轴 [m]。
   double approach_max_align_deg{20.0};                ///< 小于此值视为已齐 [deg]。
   double approach_near_velocity_scaling{0.05};        ///< 近果低速档（仅套入/撤退）。
@@ -259,6 +260,14 @@ private:
     const Eigen::Isometry3d & staging_tip_pose,
     const std::map<std::string, double> & staging_joints,
     const std::string & label) const;
+  /// 冠内平滑连续执行（v4d）：[LIN 入冠 → LIN 沿轴] 经 /plan_sequence_path
+  /// 以 blend_radius 圆滑混合成一条速度连续轨迹；同一守卫族审计后
+  /// ExecuteTrajectory 有界执行。sequence 规划失败返回 false（调用方降级
+  /// 回未混合 LIN 路径，形状不变仅不平滑）。
+  GraspTaskResult executeBlendedCorridor(
+    const Eigen::Isometry3d & mid, const Eigen::Isometry3d & pregrasp,
+    bool execute, const moveit::core::RobotModelConstPtr & robot_model,
+    const std::function<bool(std::string &)> & execution_gate);
   std::unique_ptr<moveit::task_constructor::Task> makeStagingTransitTask(
     const std::string & task_name,
     const Eigen::Isometry3d & pregrasp_tip_pose,

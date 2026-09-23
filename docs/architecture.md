@@ -982,6 +982,46 @@ flowchart TB
 
 接近：空心圆筒从袋底沿 −axis 套入（开口=TCP）。①+② 由 `inspectToolVsFruit` 逐段审查（半径随感知直径；开关键仍是冻结的 `mtc_approach_keepout_axial_m`）。套入/撤退故意进囊，不审。观察停在 look-at，从该姿态直接规划预抓取现场常无 IK，故 **先回拍照位**（有记录的「拍照位→预抓取」则倒放该轨迹；否则 PTP 命名关节）。**接近主路径 = 果平面折线 LIN**：在「当前位–袋轴」平面内 **一跳斜插**到预抓取下方轴上 staging（= 入口沿 −axis 后撤 `mtc_approach_along_axis_m + approach_staging_standoff_m`，现行 0.03+0.10 m；路程是落下+横收直角的斜边，不走矩形两段 LIN；斜插 keep-roll 对轴（模型开口已近世界 +Z，感知悬挂袋轴亦近 +Z，约 8°，不把 ±30/±60 刀口滚转叠进笛卡尔；小夹角也走长斜边，避免短沿轴再拧腕）——零位移 LIN 拧腕弦≈0，Pilz 会把 wrist1 打爆后改 PTP 抡枝），再 **沿轴 LIN 垂直进入预抓取**（斜插段不挂姿态门；沿轴跳已齐挂相对目标 20° OrientationConstraint；折线斜插 LIN 速度/加速度封顶 `min(velocity_scaling, 0.20)` / `min(acceleration_scaling, 0.10)`；wrist1 超限再降到 0.10/0.04 重试，沿轴跳已对轴走更高档（sim `--velocity 1.0` 斜插带着对轴时不得把 wrist1 打爆后改 PTP 抡枝）。笛卡尔折线两档都失败才 PTP staging 兜底。staging 关节目标由 【v4 已改：PTP+垂直入冠+沿轴，见 grasp_task.cpp】 产生：keep-roll 及 ±30°/±60° × 当前+4随机种子解过关节限位与**自碰过滤**（`CollisionEnvFCL` + SRDF ACM——camera_body×wrist1/foreArm 构型直接拒，不交给 PTP 失败），按关节距离（腕轴加权）+滚转惩罚升序取最近 **5 个候选**；折线 `plan()` 每趟接近至多两档（斜插 0.20/0.10，wrist1 超限再 0.10/0.04），再逐候选 PTP。各滚转并行求 IK（KDL 插件非线程安全，`setFromIK` 加锁；碰撞环境每线程一份）；仍扫完全部种子再排序。执行路径 MTC `plan(1)`（只下发第一条；PREVIEW 仍凑 `mtc_max_solutions` 5）。100 颗 `ExecuteTarget` 不得并发——单臂单周期。解析覆盖不执臂走 `scripts/analyze_approach_envelope.py`（感知包络 + TCP 测地线绝对 110° / 相对余量 20° + 轴向 LIN 果实胶囊；PTP 累计行程与弧绕行仍须规划或 mock）。果实审查**逐段**进行：果平面折线各跳查工具筒体与反爬；PTP staging 兜底的首段（关节弧）只查工具筒体接触——拍照位本就在袋口上方，锚定起点的反爬门会把关节弧 2–4 cm 自然拱高误判成绕行；其后各段（轴向 LIN/直连 LIN）另查反爬（s 不得超过本段起点 max(s,0)+2 cm，锚定各段自身起点）。staging 全候选失败、且起点已在袋底侧（s≤0）直连不穿囊时，兜底 **直连 LIN**（未齐先 LIN 原地对齐工具 Z 再平移——不得挂在未齐起点上，Jazzy `ValidateSolution` 验起点；keep-roll 直线若 `camera_body` 撞 `wrist1` 则换滚转，位置仍同一弦）。G/under 单弦档已删：photo→G 单弦笛卡尔 fraction 均值 0.77、≥0.95 仅 24%（2026-09-10 `sim_approach_probe` 100 随机位姿），同 seed 全链路基线 9/100 成功（72 挂 G 弦、19 挂对齐），staging 落点 100/100 至少一滚转 IK 可达。不走 CIRC/STOMP/OMPL。笛卡尔绕行比 1.8 / 偏离 0.25 m / 回退 0.08 m；TCP 姿态行程绝对 110°（相对起止余量 20°；0=不查）。09-11 mock typical 包络（seed 20260911）打开这些门后，从拍照位成功接近绕行比 ≤1.70、姿态 ≤71°，无 1740 式抬升；30 例 26 到位，其余为护栏拒发（不放宽 12 rad / 8 cm / 12 cm）。直连 LIN 弦长超过 `mtc_approach_cartesian_max_distance_m`（0.80 m）不适用（果平面折线单跳同限；PTP staging 兜底是关节空间转移）或规划失败则 **skipped_unreachable**，不进 OMPL。入口在拟合圆柱袋底（`tool.entry_d_tool`+`entry_d_s`=0）；预抓取相对入口沿 −axis 后撤 `mtc_approach_along_axis_m`（现行 0.03 m；SELECT IK 用同一停位：后撤 + `alignFrameZ`，不抄感知滚转）。拍照位失败则从当前位规划。套入/撤退沿轴笛卡尔直线；返程倒放同一接近轨迹（含 staging 段）。MTC 解显示默认关闭（`enableIntrospection(false)`）；Pilz/OMPL 不挂 `DisplayMotionPath`（每次 `plan()` 成功都会发 `/display_planned_path`，含随后被护栏拒掉的解）。轨迹可视化走 observability TCP Path（实际 TF）与 RobotState；`planned_views` 只画已走到的视点。**方向是否对、定位偏多少，以停在预抓取时的真机目视/测量为准**；动态预算、12° 包络否决、RMSE 不代替实测，也不拦 `PREGRASP_ONLY`。套入只在 `allowed=true` 后沿轴 LIN 到剪切参考；反向同轨迹回预抓取，再 PTP `harvest_stow`。侧向 ≤ 0.05 m、夹角 ≤ 20° 视为已对轴（规划分档，不是精度验收）。接触绕行护栏 **累计 12 rad / 单轴 6.1 rad**（6.1=URDF ±3.05 满行程；笛卡尔绕行比 1.8 / 偏离 0.25 m / 回退 0.08 m；TCP 姿态行程绝对 110°（相对起止余量 20°）；不按时长：时长随速度变；`mtc_approach_max_duration_s` 默认 0=关闭）。观察：1 s 规划、禁止 replanning，绕行看 4 rad / 单轴 1.5 rad（09-01 现场 0.15 m 观察 LIN 实测 2.63–3.70 rad，2.5 拒合法短移）；下一视点沿当前相机直线截到 `max_camera_step_m`（默认 0.15 m），评分以行程最短为主，只 LIN，失败换下一候选，不改 PTP。覆盖达标或 `maximum_moves` 用尽才停，不按移动+等帧 EMA 预测收口。`goToPhotoPose`：当前在上一趟接近终点且命名目标对上轨迹起点（拍照位，不是 `harvest_stow`）时原路返程，不过 `transit_max_*`；否则先 Pilz PTP（时限 `photo_ptp_planning_time_s` 0.5 s），失败才 OMPL（`photo_planning_time_s` 3.0 s），行程门 6 rad / 2.5 rad。接触自由空间与接近折线速度 0.10；套入/撤退 0.05。
 
+### ID 与身份确定（含模块联动）
+
+四层身份正交，各有独立铸造点与失效边界：**几何身份** `target_id`（感知世界系身份表）→ **批次事务身份** `request_id → run_id → cycle_id` → **计划绑定身份** `plan_id + 模型七元组` → **许可绑定身份** `clearance`（复用 `target_id`，不铸新 ID）。许可层无独立身份——绑目标语义即其身份。
+
+各 ID 怎么确定（铸造点 / 唯一性 / 失效边界；纯核实现均在 `identity.py` / `plan_contract.hpp` / `model_contract.hpp`）：
+
+| ID | 铸造点 | 唯一性与失效边界 |
+|----|--------|------------------|
+| `target_id` | `TargetRegistry._commit_match` 注册新目标发 `target_{N}`。归属判定 = χ²≤9（约 3σ/3 自由度）+ 匈牙利 1-1 + 类别一致 + 歧义比 1.2（次优落在最优 1.2× 内不分配，含已占用列防交叉漏检） | `_next_index` 进程内单调、`clear()`（BeginScene 换场）**不复位**——防清场后新 ID 与已下发下游的旧 ID 撞号。`confirm_frames` 转正（贴边帧不攒确认）；tentative TTL 按帧 + `max_age_s` 墙钟双淘汰 |
+| 匿名档 | `ambiguous_{seq}` / `overflow_{seq}` 全局单调计数；`untracked_{i}` 每帧按序临时 | 歧义不入表；untracked 跨帧同名但恒无锚点 → 技能缓存 `valid=false` → 门拒（fail-safe） |
+| `snapshot_id` | `GlobalHarvestPlan._lock_now` 收齐窗关闭一次性锁定时 +1 | `reset()` 不清零（锁定世代进程内单调）；跨进程重启重置可接受——target_id 同步重铸 |
+| `scene_epoch` | 感知 `BeginScene` 每次 +1（节点持计数） | 调度 `_lock_set_ready` 要求观测世代 == 自身值且 >0 才可选果；goal 携带进七元组与 plan 契约比对。缺口 ID-4：技能侧 SurveyScene result 恒填 0（cycle.cpp 自述），臂不独立跟踪、只回显 goal 值 |
+| `request_id` | 人在 `RunHarvest.goal` 给定 | 空 → `run_id='harvest'`（executor_node）。缺口 ID-1：跨批 ledger 恢复碰撞通道（联动链 A） |
+| `run_id` / `cycle_id` | `run_id = request_id or 'harvest'`；`cycle_id = f'{run_id}:{target_id}'` | 感知侧 `harvest_run_id = harvest_<µs时间戳>_s<snapshot_id>`（runtime.py）每轮锁定重生成，是技能 `TargetCache::locked_run_id_` 的生命周期边界（轮次链 E） |
+| `plan_id` | 调度发 `f'{request_id}:{target_id}:{generation}'`（unrefined 档加 `:unrefined` 后缀）。`generation` = reducer 每接受事件 +1（旧世代事件在 reducer 丢弃）、每批复位为 0 | 技能侧仅 PREVIEW 档 goal 写绑定；FULL 比对 plan_id+scene_epoch+七元组+起始关节 0.05 rad 容差；FULL/PREGRASP_ONLY 终局清绑定。缺口 ID-2：绑定存在而 FULL 缺 plan_id 时放行、绑定写入先于预览成败（联动链 C） |
+| 模型七元组 | `run_id / scene_epoch / target_id / model_revision / tool_profile_id / calibration_revision / config_revision`；revision 由 `BuildTargetModel` 回传，unrefined 档 `unrefined:{epoch}:{target_id}` | 受理门 `identityComplete` 只查非空（presence-check）；与决策/快照的一致性由 plan 契约或令牌绑定补，goal 自带 revision 在批流不做交叉验证 |
+| `clearance` | 不铸新 ID | 复用 `target_id` 绑定 + `valid_until` 冻结不续签 + `model_stamp` 双窗（cycle.cpp `authorizeStage`）；装配侧 decision 目标不符整体不装（无缺口） |
+
+**模块联动矩阵**（谁生产、谁消费、联动要点）：
+
+| 模块 | 生产 | 消费 | 联动要点 |
+|------|------|------|----------|
+| 感知 scene_perception | `target_id` / `snapshot_id` / `scene_epoch` / `harvest_run_id` | `HarvestState.target_id` | 执行器目标反哺覆盖感知 selected；换目标即 `mark_completed(old)`（完成/跳过合并，反哺链 D） |
+| 重建 target_reconstruction | `model_revision` / GraspDecision 七元组 | `target_id`（Build 绑定、收帧对齐） | `refined_*` 按 ID 对齐；技能 `waitForRefined` 谓词钉 ID，`refined_.valid ∧ id==target` 才算就绪 |
+| 调度 supervisor | `run_id` / `cycle_id` / `plan_id` / `generation` / `transaction_id` | 全部 | `_lock_set_ready` 世代对齐；ledger claimed/outcomes 按 `request_id` 断点恢复（批次链 A）；`_action_generation` 随 reducer 世代回写 |
+| 臂 peach_arm | `outcome_record.target_id` | `target_id` / 七元组 / `plan_id` / `clearance` | 三张 ID 缓存索引（selected/locked/refined）+ 换 ID 清缓存调和；锁定集受理门（lockedTargetGateSample，未命中回退 selected 缓存） |
+| 账本 / observability | CanonicalEvent（`request_id` / `target_id`） | `HarvestState.run_id` | session bag 按 run_id 路由（R7 单根会话目录）；rework_list 同 request_id 落盘 |
+| 8090 调试 | — | FireStep PREVIEW | plan 绑定的唯一手动触发链（绑定链 C） |
+| 回放 / 仿真 | — | — | `replay_oracle.py` 是纯几何 oracle，不消费系统 ID；campaign 脚本（sim_field_targets / m1_m5_report）用本地 case id，与系统 ID 无耦合 |
+
+**五条关键联动链**：
+
+- **A 批次链**：`RunHarvest.request_id → run_id → runs/<request_id>/ledger.json → 断点恢复 claimed/outcomes → 选果跳过`。空 request_id 默认 `'harvest'`：两次空名批次跨栈重启后 target_id 重铸（感知进程重启计数器归零），旧批 claimed 会让新批误跳过同名新目标——调度↔账本↔感知三方联动缺口（ID-1）。
+- **B 世代链**：`BeginScene++ scene_epoch → 调度对齐校验（相等且>0）→ goal 携带 → 臂七元组/plan 契约比对`。批级链路是通的；断点在臂自身（SurveyScene result 恒 0、不独立跟踪，ID-4）——跨世代防护实际依赖调度正确携带。
+- **C 绑定链**：`PREVIEW（仅手动 FireStep；批流不发）→ 臂 last_preview_plan_ → FULL 全字段比对 → 终局清绑定`。supervisor 批流不发 PREVIEW → plan 契约在批流 inert（设计事实）；绑定链三软点：FULL 缺 plan_id 放行、绑定先于预览成败写入、预览失败后同 plan_id 的 FULL 仍过比对（ID-2）。
+- **D 反哺链**：`HarvestState.target_id → 感知 _on_executor_state 覆盖 selected + mark_completed(old)`。完成/跳过/失败一律 completed → 本轮不再重选，补采走 rework_list；`harvest_status()` 对跳过目标报 'HARVESTED' 属措辞级失真（ID-5，轻微）。
+- **E 轮次链**：`感知每轮 lock → harvest_run_id（µs 时间戳+snapshot_id）→ 臂 locked_run_id_ 边界清锁定缓存 → 受理门按新锁定集/selected 回退重建`。跨轮/跨批陈旧锚点有界；感知多轮 lock 不会在臂侧累积陈旧缓存。
+
+**合理性结论**：合理处——单调不复用（clear 不复位计数器）、锁定排序确定性 tie-break（target_id 字符串垫底）、`valid_until` 冻结不续签、令牌绑目标、世代号防事件回放（链 B 批级已通）、四层身份正交且各层有 fail-closed 门兜底（untracked 无锚点门拒 / 令牌目标不符拒 / 七元组缺位拒受理）。联动缺口集中四处，均不破安全主链（使能门/令牌门不受影响），修复另轮裁定：**ID-1** request_id 空默认 × ledger 恢复 × 重启重铸（链 A）；**ID-2** plan 契约三软点 × 仅手动链路（链 C）；**ID-3** ModelSnapshot 消费侧（approach_execution_gate）只查新鲜度不绑 `ctx.target_id`，`onDecision` 替换条件只比 revision/target 不比 run_id/标定/配置修订——身份正确性现依赖令牌/决策绑定层；**ID-4** 臂 SurveyScene result 恒 0、臂不独立跟踪世代（链 B 断点）。**ID-5** 措辞级（链 D）。回放塔不消费系统 ID 是设计事实，非缺口。
+
 ### 透传（real）
 
 ```
@@ -1104,6 +1144,7 @@ yaml：仅上述 4 键仍为 `*.impl`（技能 yaml 无 `*.impl`）。检测/分
 | CI | `.github/workflows/jazzy.yaml`：`peach-core` 跑 `scripts/r0_gate.sh`（零 ROS + numpy 1.26.4）；`industrial_ci` 用 `ros-industrial/industrial_ci`、`ROS_DISTRO: jazzy` 编测驱动+peach（`COLCON_IGNORE` 旁路 IVG 三包、`imu_follow`、`percipio_camera`、`camera_calibration`，不进真机）。scipy 仍 venv-first KEEP；ICI 用 apt `python3-scipy` / `python3-pytest` / `python3-yaml`，不再 pip 钉 numpy（`ros:jazzy` 已 1.26.4；Docker 里 pip 曾无日志挂死）。本机 `ros:jazzy-ros-base` 已证明 `peach_interfaces`+`aubo_msgs`+numpy 1.26.4；单编 `peach_harvester` 不够：观测实现仍 `import aubo_msgs`；技能包 MoveIt 不在 ros-base。全量以 GitHub industrial_ci 为准 | PR 门仍不是田间验收 |
 | 物理仿真 | 无 Gazebo Harmonic / Isaac / `gz_ros2_control`。系统测现行是 `peach_system_tests` mock `harvest_system` + 手工 `scripts/sim_field_targets.py` | **UNWIND**；真机仍是套袋方向权威 |
 | 切断确认 | SetIO ACK 只到 `CUT_COMMAND_ACCEPTED`；刀具 DI 预留 `/aubo_io_controller/io_states`，未接线。`tool.enabled=true` 未确认终局 `FAILED`/`CUT_FEEDBACK_TIMEOUT`。切断行程/电流常数未真机标定 | KEEP 田间；不得把 ACK 当切断 |
+| ID 身份联动 | 详见「ID 与身份确定（含模块联动）」缺口 ID-1~ID-5：request_id 空默认 `'harvest'` × ledger 断点恢复 × 重启后 target_id 重铸可致新批误跳过（链 A）；plan 契约三软点（FULL 缺 plan_id 放行 / 绑定先于预览成败 / 批流不发 PREVIEW 故契约 inert，链 C）；`approach_execution_gate` 读 `ModelSnapshot` 只查新鲜度不绑 `ctx.target_id`、`onDecision` 替换不比 run_id/标定/配置修订（链 ID-3）；臂 SurveyScene result 恒 0、臂不独立跟踪世代（链 B 断点）；`harvest_status` 对跳过目标报 'HARVESTED'（措辞级） | 均不破使能门/令牌门主链（fail-closed 兜底在）；修复另轮裁定 |
 
 怎么跑与验收门：[testing.md](testing.md)。量化复算与归档数字：[testing-log.md](testing-log.md)。
 

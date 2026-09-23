@@ -35,8 +35,30 @@
 #include "peach_arm/params_bridge.hpp"
 #include <peach_arm/arm_parameters.hpp>
 
+
 namespace peach_arm
 {
+
+// staging IK 自碰环境（v1 StagingIkEnvironment 精简复刻：单 FCL 环境 +
+// SRDF 相邻豁免 ACM；模型变更重建）。随机重启/滚转候选先过自碰再择优
+// （2026-09-23 v4 实测 10/20：0° 首解构型过不了 PTP ValidateSolution，
+// v1 的择优机制是 86% 的真正来源）。
+struct ManipulationSkillsNode::StagingIkEnvironment
+{
+  moveit::core::RobotModelConstPtr model;
+  collision_detection::AllowedCollisionMatrix acm;
+  std::shared_ptr<collision_detection::CollisionEnvFCL> env;
+
+  void ensure(const moveit::core::RobotModelConstPtr & robot_model)
+  {
+    if (model == robot_model && env) {
+      return;
+    }
+    model = robot_model;
+    acm = collision_detection::AllowedCollisionMatrix(*robot_model->getSRDF());
+    env = std::make_shared<collision_detection::CollisionEnvFCL>(robot_model);
+  }
+};
 
 ManipulationSkillsNode::ManipulationSkillsNode(const rclcpp::NodeOptions & options)
 : LifecycleNode("peach_arm", options),
@@ -473,10 +495,22 @@ void ManipulationSkillsNode::rebuildGraspTask()
       const Eigen::Vector3d axis = staging_pose.linear().col(2);
       const Eigen::Matrix3d current_R =
         base->getGlobalLinkTransform(params_.frames.tip).linear();
-      // 每滚转：当前种子 1 次 + 随机重启 ≤3 次（KDL 单种子会陷局部盆；
-      // v1 候选链 86% 与 /compute_ik 单种子下界 63% 的差距即在此）。
+      std::vector<double> current_joints;
+      base->copyJointGroupPositions(group, current_joints);
+      if (!staging_ik_env_) {
+        staging_ik_env_ = std::make_unique<StagingIkEnvironment>();
+      }
+      staging_ik_env_->ensure(base->getRobotModel());
+      // 收集-择优（v1 selector 精简复刻）：滚转梯子 × (当前种子+随机重启
+      // ≤3) 全部候选 → 自碰过滤 → 腕轴加权关节距离最近者胜出。0° 首解
+      // 不再直接采用（其构型可能过不了 PTP ValidateSolution）。
       constexpr int kRandomRestarts = 3;
+      constexpr double kWristWeight = 2.5;
       int attempts = 0;
+      double best_score = std::numeric_limits<double>::max();
+      std::map<std::string, double> best_joints;
+      double best_roll = 0.0;
+      bool have_best = false;
       for (const double roll : toolRollsRad()) {
         Eigen::Isometry3d rolled = staging_pose;
         rolled.linear() = alignFrameZRolled(current_R, axis, roll);
@@ -495,24 +529,44 @@ void ManipulationSkillsNode::rebuildGraspTask()
           if (!probe.satisfiesBounds(group)) {
             continue;
           }
-          std::map<std::string, double> joints;
+          collision_detection::CollisionRequest collision_request;
+          collision_detection::CollisionResult collision_result;
+          staging_ik_env_->env->checkSelfCollision(
+            collision_request, collision_result, probe, staging_ik_env_->acm);
+          if (collision_result.collision) {
+            continue;
+          }
           std::vector<double> values;
           probe.copyJointGroupPositions(group, values);
+          double score = 0.0;
           for (std::size_t i = 0; i < names.size(); ++i) {
-            joints[names[i]] = values[i];
+            const double delta = values[i] - current_joints[i];
+            const double weight =
+              names[i].find("wrist") != std::string::npos ? kWristWeight : 1.0;
+            score += weight * delta * delta;
           }
-          // 命中滚转/尝试数落日志（审查 P2-6：随机重启不可复现，田间
-          // 复盘须知道命中档位）。
-          RCLCPP_INFO(
-            get_logger(),
-            "staging IK 命中：滚转 %.0f°（第 %d 次尝试）",
-            roll * 180.0 / static_cast<double>(EIGEN_PI), attempts);
-          return std::make_pair(joints, roll);
+          if (score < best_score) {
+            best_score = score;
+            best_joints.clear();
+            for (std::size_t i = 0; i < names.size(); ++i) {
+              best_joints[names[i]] = values[i];
+            }
+            best_roll = roll;
+            have_best = true;
+          }
         }
       }
+      if (!have_best) {
+        RCLCPP_INFO(
+          get_logger(), "staging IK 梯子全灭（%d 次尝试）", attempts);
+        return std::nullopt;
+      }
       RCLCPP_INFO(
-        get_logger(), "staging IK 梯子全灭（%d 次尝试）", attempts);
-      return std::nullopt;
+        get_logger(),
+        "staging IK 择优：滚转 %.0f°（%d 候选，腕轴加权距离² %.3f）",
+        best_roll * 180.0 / static_cast<double>(EIGEN_PI), attempts,
+        best_score);
+      return std::make_pair(best_joints, best_roll);
     };
   task_config.protected_zones = protected_zones_;
   // 执行边界 = 授权矩阵公共级 + execution + grasp（GraspTask 门内显式加查）；

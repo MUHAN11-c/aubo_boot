@@ -415,6 +415,8 @@ private:
   std::shared_ptr<CycleContext> cycle_;
   std::atomic_bool running_{false};
   std::atomic_bool cancel_requested_{false};
+  struct StagingIkEnvironment;
+  std::unique_ptr<StagingIkEnvironment> staging_ik_env_;  // staging IK 自碰环境（收集-择优用）
   std::atomic_bool execution_armed_{false};
   std::atomic_bool contact_recovery_required_{false};
   // abort 路径的终局分级（ExecuteTarget::Result 常量），由阶段失败点按需覆盖。

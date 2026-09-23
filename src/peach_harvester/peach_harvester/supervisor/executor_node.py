@@ -824,7 +824,11 @@ class TaskExecutorNode(LifecycleNode):
         with self._lock:
             self._cancel = False
             self._skip_target = False
-            self._run_id = goal.request_id or 'harvest'
+            # ID-1（批次7）：空 request_id 不再落 'harvest' 固定名（断点
+            # 恢复/重启后 target_id 重铸=误跳过）；时间戳兜底，账本不复用。
+            self._run_id = (
+                goal.request_id or
+                f'auto_{time.strftime("%Y%m%dT%H%M%S")}')
             self._cycle_id = self._run_id
             self._outcomes = []
             self._outcome_details = []

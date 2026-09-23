@@ -1,0 +1,82 @@
+# 室外套袋桃果园场景参数（非 ROS 配置；全量清单 = 部署事实源）。
+# schema 与校验：peach_sim/params.py（未知键/越界值拒绝生成）。
+# 生成器 peach_sim/scene.py 由本文件确定性生成 worlds/peach_orchard.sdf 与
+# worlds/peach_orchard.manifest.yaml（seed 固定 → 同参数同产物，测试对账）。
+# 几何口径来源：aubo_description/config/adaptive_cylinder_v1.yaml（工具）与
+# runs/field_pregrasp_*/（现场袋底/袋颈/entry 实测包络）。
+# 长度单位米、角度单位度；区间键 [lo, hi] 生成期均匀采样。
+seed: 20260923
+
+ground:
+  size_x: 32.0             # [m] 地面 X 向尺寸
+  size_y: 22.0             # [m] 地面 Y 向尺寸
+  alley_grass_width: 1.7   # [m] 行间草带（作业道）宽
+  row_strip_width: 1.1     # [m] 树行下除草带（裸土）宽
+  soil_rgb: [0.36, 0.29, 0.21]   # 土色
+  grass_rgb: [0.30, 0.40, 0.19]  # 草色
+
+rows:
+  count: 5             # 树行数（行沿世界 Y）
+  spacing: 4.0         # [m] 行距（X）
+  trees_per_row: 7
+  tree_spacing: 2.2    # [m] 株距（Y）
+
+tree:
+  trunk_height: [0.45, 0.60]      # [m] 主干高（地面→第一主枝）
+  trunk_radius: [0.045, 0.060]    # [m] 主干半径
+  scaffold_count: [3, 5]          # 主枝数（开心形低模）
+  scaffold_length: [0.55, 0.95]   # [m] 主枝长
+  scaffold_radius: 0.022          # [m] 主枝半径
+  scaffold_tilt_deg: [30, 60]     # [deg] 主枝与竖直方向夹角
+  twig_radius: 0.007              # [m] 挂袋果枝半径
+  canopy_count: [5, 8]            # 冠层球数
+  canopy_radius: [0.26, 0.42]     # [m] 冠层球半径
+  canopy_height: [1.15, 2.10]     # [m] 冠层球心高度
+  height_max: 2.5                 # [m] 树高上限（冠层/袋颈不得超出）
+
+bag: # 套袋桃（袋体 + 果 + 袋颈扎口）；尺寸受 tool 余量约束
+  fruit_diameter: [0.070, 0.082]      # [m] 桃果直径
+  body_diameter: [0.082, 0.096]       # [m] 袋体横向最大径（含纸）
+  body_thickness_ratio: [0.58, 0.68]  # 扁平袋厚/径比
+  bottom_to_neck: [0.090, 0.120]      # [m] 袋底→袋颈（现场实测 0.05–0.12）
+  neck_diameter: 0.032                # [m] 袋颈（扎口）直径
+  neck_length: 0.030                  # [m] 袋颈长
+  per_tree: [5, 9]                    # 每树挂袋数
+  bottom_height: [1.20, 1.45]         # [m] 袋底离地（现场 base_link+0.52~0.71、底座 0.75）
+  tilt_max_deg: 25                    # [deg] 袋轴相对竖直最大倾角
+  row_spread: 0.45                    # [m] 挂果沿行方向最大横向散布
+  alley_side_ratio: 0.7               # 挂在作业道一侧（可接近侧）的果占比
+
+tool: # 工具几何镜像（单一事实源 aubo_description/config/adaptive_cylinder_v1.yaml，测试对账）
+  profile_id: adaptive_cylinder_v1
+  d_inner: 0.116        # [m] 工具内径：袋体必须能通过
+  l_insert: 0.200       # [m] 最大插入深度：袋底→袋颈不得超出
+  clearance_min: 0.005  # [m] 袋体与内壁最小径向余量
+
+platform: # 采摘工位：开源履带底盘改型 + AUBO E5（安装座在车体中线）
+  face_row_index: 2       # 作业树行（rows 行索引）
+  side: 1                 # 停在该行的 +x 侧（-1 = -x 侧）
+  row_gap: 0.80           # [m] 车体中心到树行中心线横向距离
+  y: -2.2                 # [m] 车体中心世界 y（沿行方向，宜对准某株树）
+  arm_mount_height: 0.75  # [m] base_link 离地（现场台面高度口径）
+  arm_mount_yaw_deg: -32.0  # [deg] 臂座偏航：现场作业扇区方位角 -58° 对准树行
+  body_size: [1.05, 0.55, 0.32]  # [m] 车体箱体（沿行长 × 横向宽 × 高）
+  body_bottom: 0.22              # [m] 车体底面离地
+  track_length: 0.85             # [m] 履带长
+  track_width: 0.15              # [m] 履带宽
+  track_height: 0.26             # [m] 履带高
+  track_separation: 0.56         # [m] 左右履带中心距
+
+work_zone:
+  # base_link→袋颈球形包络（粗判）：臂展 0.95 m 到腕心 + 套袋刀 TCP 延伸 0.17 m，
+  # 与现场 |entry|≤1.02 m 实测同量级；真 IK/关节限位归 analytic_reachability / MoveIt。
+  reach_max_m: 1.05
+  y_span: 1.2                    # [m] 作业位沿行覆盖半宽（参与可达断言的树）
+
+lighting:
+  sun_azimuth_deg: 135.0          # 太阳方位角（0=+X，逆时针）
+  sun_elevation_deg: 38.0         # 太阳高度角
+  ambient: [0.55, 0.55, 0.50]
+  background: [0.53, 0.67, 0.88]  # 天空色
+  fog_density: 0.002              # [1/m] 清晨薄雾
+  shadows: true

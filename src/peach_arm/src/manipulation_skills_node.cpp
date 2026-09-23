@@ -279,18 +279,30 @@ void ManipulationSkillsNode::closeMotionOutputAndCancel()
   // 先回收 worker（executeCycle 落定终态），再回收 action 线程——
   // executeAction 以 running==false 为周期结束信号读终态上报，反向回收会让
   // 它读到覆盖后的状态。
-  if (worker_.joinable()) {
-    worker_.join();
-  }
-  if (action_thread_.joinable()) {
-    action_thread_.join();
-  }
-  if (survey_thread_.joinable()) {
-    survey_thread_.join();
-  }
-  if (move_to_thread_.joinable()) {
-    move_to_thread_.join();
-  }
+  // 批次7：deactivate 收口的有界回收——2s 内不落即 detach（TEM 风暴等
+  // 挂死场景不得卡死 lifecycle；与 cycle.cpp 入口线程同语义）。顺序保持：
+  // worker → action → survey → move_to。
+  auto bound_join = [](std::thread & th, const char * name) {
+      if (!th.joinable()) {
+        return;
+      }
+      // std::thread 无 join_for（Linux-only 栈用 pthread_timedjoin_np）
+      timespec ts{2, 0};
+      const int rc = pthread_timedjoin_np(
+        th.native_handle(), nullptr, &ts);
+      if (rc == 0) {
+        return;
+      }
+      RCLCPP_WARN(
+        rclcpp::get_logger("peach_arm"),
+        "deactivate 收口：线程 %s 2s 未落（rc=%d），detach（挂死不卡 lifecycle）",
+        name, rc);
+      th.detach();
+    };
+  bound_join(worker_, "worker");
+  bound_join(action_thread_, "action");
+  bound_join(survey_thread_, "survey");
+  bound_join(move_to_thread_, "move_to");
 }
 
 void ManipulationSkillsNode::startBond()

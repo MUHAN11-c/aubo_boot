@@ -9,7 +9,7 @@
 | 4 | 分级许可 CONTACT/TOOL；unrefined 袋径门 | ⬜ | 网格 ≥18/20 + deny 臂侧可验 | |
 | 5 | waitImuFollowTravel 重写：主判据=FK 沿轴实测行程（容差 5mm），回退=/imu_follow/insert_progress（目标积分，imu_follow 同轮暴露）；时间只作截止（名义+2s）；停滞窗 3s/<1mm 收口 UNKNOWN；撤退=反向投影同判据；insert_progress 纯核 5 测 | ✅代码+单测 | 纯核 5 测绿；I6 现场步需操作员 IMU enable（人工参考），待现场窗口 | 本笔 |
 | 6 | 变体A 一期落地：`reconstruct_in_trajectory`（默认关）——Build 启动即派 FULL（skip_observation 既有 true），并行不阻塞；周期收口取消 Build 句柄（单槽约束）。**先导 bag 实验数据前提缺失**（本地 session bag 均无深度流，近期全为无相机注入轮）——待 S3 真相机轮产出含运动+深度 bag 后定量 temporal_k 鬼影再定变体B 生死 | ✅一期（默认关） | harvester 217 测绿+r0_gate；e2e 墙钟对比待真相机轮；二期=冠口检查点分段记档 | 本笔 |
-| 7 | bond 开/join 有界化/ID-1+plan_id/文档收口 | ⬜ | 全门复绿 | |
+| 7 | deactivate 四线程收口 2s 有界（pthread_timedjoin_np，超时 detach 不卡 lifecycle）；ID-1 request_id 空默认改时间戳兜底（不复用 'harvest' 账本名）；**bond 勘定：本机缺 ros-jazzy-bondpy（实测），默认维持 0.0，apt 安装后置 8.0 即开**（默认 8.0 会拆栈已实测）；三活文档同轮 | ✅（bond 待 apt 前置） | 三包全测+r0_gate 绿 | 本笔 |
 
 ## 前提更新（相对 FINAL_PLAN，2026-09-23 实况）
 

@@ -123,8 +123,9 @@ def generate_launch_description():
                         '真机必须 false'),
         DeclareLaunchArgument(
             'bond_timeout', default_value='0.0',
-            description='nav2_lm 进程死检窗口 [s]；0=关（现行）。开启（建议'
-                        ' 8.0）前先 sudo apt install ros-jazzy-bondpy 并重启'
+            description='nav2_lm 进程死检窗口 [s]；0=关（现行）。批次7 勘定：'
+                        '本机缺 ros-jazzy-bondpy（实测 WARN、默认 8.0 会拆栈）——'
+                        '先 sudo apt install ros-jazzy-bondpy 并重启'
                         '栈——Python 托管节点的心跳由 bondpy 提供，缺失时节点'
                         '守卫降级不起 bond，lm 会误报节点崩溃；peach_arm'
                         '（bondcpp）不受影响'),

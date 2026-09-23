@@ -230,7 +230,8 @@ def _range(value: Any, where: str, errors: list[str]) -> Range:
     if isinstance(value, (int, float)) and not isinstance(value, bool):
         out = (float(value), float(value))
     elif isinstance(value, (list, tuple)) and len(value) == 2:
-        out = (_number(value[0], where, errors), _number(value[1], where, errors))
+        out = (_number(value[0], where, errors, lo=None, hi=None),
+               _number(value[1], where, errors, lo=None, hi=None))
     else:
         errors.append(f'{where}: 需要标量或 [lo, hi]，得到 {value!r}')
         return (0.0, 0.0)
@@ -403,9 +404,9 @@ def check_params(params: OrchardParams) -> list[str]:
         problems.append(
             'bag.body_diameter 下限小于 fruit_diameter 下限：袋体包不住果'
         )
-    if bag.bottom_to_neck[0] <= bag.fruit_diameter[1]:
+    if bag.bottom_to_neck[0] < bag.fruit_diameter[0]:
         problems.append(
-            'bag.bottom_to_neck 下限不超过 fruit_diameter 上限：袋底→袋颈装不下果'
+            'bag.bottom_to_neck 下限小于 fruit_diameter 下限：袋底→袋颈装不下果'
         )
 
     canopy_half_x = 0.30 + tree.canopy_radius[1]

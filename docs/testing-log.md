@@ -922,3 +922,10 @@ SIGINT 旧栈后用 16:57 编的 `peach_manipulation` 重起；开批前在 `glo
 - **一期（默认关）**：`peach_supervisor.reconstruct_in_trajectory` true 时 DISPATCH 启动 Build 进 COLLECTING 后不再阻塞 `_wait_build_after_observe`，立即派 FULL（FULL goal 既有 skip_observation=true）——重建与接近并行；臂侧 FinalizeAndValidate 有界等精化兜底；周期收口取消并等 Build 结束（单槽约束）。yaml 键/规则/参数三源同轮。
 - **先导 bag 实验勘定**：本地全部 session bag 无深度/stereo 话题（近期为无相机注入轮）——temporal_k 运动鬼影定量实验**数据前提缺失**，待 S3 真相机轮（含运动+深度）产出后执行，变体B（连续采集）生死据此判定。
 - **二期记档**：冠口检查点分段（MovePregrasp 拆 MoveToCanopy→Finalize→corridor，采集点=冠口静止位）为变体A 完整形态，待一期真相机数据后实施。
+
+### 09-23 续十二：重构批次7（收口批）
+
+- deactivate 收口四线程（worker/action/survey/move_to）无限 join → **2s 有界**（pthread_timedjoin_np，超时 detach + WARN）——TEM 风暴等挂死不再卡 lifecycle。
+- ID-1：空 request_id 兜底 'harvest' → `auto_<时间戳>`（账本目录不复用，断点恢复误跳过收口）。
+- **bond 勘定**：launch 实测 `缺 ros-jazzy-bondpy` WARN（此前"已装"记录不实）——默认维持 0.0；默认 8.0 实测会因 Python 节点无心跳拆栈。**前置：sudo apt install ros-jazzy-bondpy 后 bond_timeout:=8.0 即开**。
+- P0 八批次全数收口；先导 bag 实验（变体B 判定）与 I6 现场步、M0 台架标定为待现场窗口项（均已记前置条件）。

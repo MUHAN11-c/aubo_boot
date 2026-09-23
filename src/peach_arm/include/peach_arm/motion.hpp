@@ -5,6 +5,9 @@
 #define PEACH_MANIPULATION__MOTION_HPP_
 
 #include <Eigen/Geometry>
+#include <atomic>
+#include <moveit/move_group_interface/move_group_interface.hpp>
+#include <moveit/utils/moveit_error_code.hpp>
 #include <tf2_ros/buffer.h>
 
 #include <functional>
@@ -26,6 +29,8 @@ class MoveGroupInterface;
 
 namespace peach_arm
 {
+
+class RetireBucket;  // execution_guard.hpp（src/ 私有头；指针成员避免安装头依赖）
 
 // MoveIt 运动接口的运行配置（默认值以 config/peach_arm.yaml 为权威源）。
 struct MoveItMotionConfig
@@ -56,6 +61,9 @@ struct MoveItMotionConfig
   // goToPhotoPose 成功出口复核：当前关节须在命名状态且静止。
   double photo_pose_joint_tolerance_rad{0.05};    ///< 出口每轴 |Δq| 容差 [rad]（execute=false 仍核）。
   double photo_pose_max_joint_vel_rad_s{0.05};    ///< 出口任一轴 |qdot| 上限 [rad/s]（未静止即 mismatch）。
+  // 执行有界等待：move_group TEM 异常（2026-09-23 travel_max 的 stop 事件
+  // 风暴）会让同步 execute 永久阻塞且不理取消，一次即永久卡死动作通道。
+  double execute_timeout_s{90.0};  ///< 单条轨迹执行有界等待 [s]；超时 stop() 并判失败。
 };
 
 // MoveIt 运动接口：tip/camera 位姿规划执行、TF 查询、拍照位往返。
@@ -68,13 +76,23 @@ class MoveItMotionInterface
 {
 public:
   MoveItMotionInterface(
-    moveit::planning_interface::MoveGroupInterface * move_group,
+    std::shared_ptr<moveit::planning_interface::MoveGroupInterface> move_group,
     tf2_ros::Buffer * tf_buffer,
     rclcpp::Logger logger,
     rclcpp::Clock::SharedPtr clock,
     MoveItMotionConfig config,
     std::function<bool(std::string &)> safety_gate,
-    std::function<void(const std::string &)> safety_block_hook);
+    std::function<void(const std::string &)> safety_block_hook,
+    std::function<bool()> cancel_probe = {});
+  ~MoveItMotionInterface();  // 弃等线程 dispose（完结的 join，滞留的 detach）
+
+  // 停止 move_group 当前轨迹执行（MGI::stop 发 move_group 级停止事件，
+  // 与哪个接口实例发起执行无关；供 MTC 等不暴露 stop 的路径共用）。
+  void stopExecution();
+
+  // 有界执行在途（含弃等滞留）时为 false；节点空闲改参重建 motion_ 前必须
+  // 查它，避免销毁正被 MoveTo/周期线程使用的实例（审查 P1-1）。
+  bool executionIdle() const;
 
   // 查询 target<-source 的最新变换；失败返回 nullopt（实现记录原因日志）。
   std::optional<Eigen::Isometry3d> lookupTransform(
@@ -116,6 +134,11 @@ private:
     const std::vector<double> & positions) const;
   bool reverseLastApproachToPhoto(
     const std::string & named_target, std::string & message);
+  // 有界执行：见 src/execution_guard.hpp（弃等线程移交 retiring_，闭包只
+  // 持共享 MGI 与 Plan 拷贝，绝不引用 this）。
+  moveit::core::MoveItErrorCode boundedExecute(
+    moveit::planning_interface::MoveGroupInterface::Plan & plan);
+  std::shared_ptr<moveit::planning_interface::MoveGroupInterface> move_group_shared_;
   moveit::planning_interface::MoveGroupInterface * move_group_;
   tf2_ros::Buffer * tf_buffer_;
   rclcpp::Logger logger_;
@@ -123,6 +146,9 @@ private:
   MoveItMotionConfig config_;
   std::function<bool(std::string &)> safety_gate_;
   std::function<void(const std::string &)> safety_block_hook_;
+  std::function<bool()> cancel_probe_;
+  std::unique_ptr<RetireBucket> retiring_;  // 弃等线程桶（execution_guard.hpp，src/ 私有头）
+  std::atomic_int executing_{0};  // 有界执行在途计数（0=可安全重建 motion_）
   std::optional<trajectory_msgs::msg::JointTrajectory> last_photo_approach_;
 };
 

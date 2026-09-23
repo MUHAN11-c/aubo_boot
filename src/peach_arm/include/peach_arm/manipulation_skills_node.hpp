@@ -390,7 +390,7 @@ private:
   std::unique_ptr<QualityGate> quality_gate_;
   std::unique_ptr<SafetyGate> safety_gate_;
   std::unique_ptr<MoveItMotionInterface> motion_;
-  std::unique_ptr<moveit::planning_interface::MoveGroupInterface> move_group_;
+  std::shared_ptr<moveit::planning_interface::MoveGroupInterface> move_group_;  // shared：弃等执行线程经闭包持有（审查 P0-1）
   std::unique_ptr<GraspTask> grasp_task_;
   tf2_ros::Buffer tf_buffer_;          ///< TF 缓冲（精确 stamp 查询；含静态外参）。
   tf2_ros::TransformListener tf_listener_;  ///< tf_buffer_ 的订阅填充器（节点生命周期内常驻）。

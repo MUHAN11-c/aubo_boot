@@ -1158,7 +1158,9 @@ def main() -> int:
         t0 = time.time()
         send = action_cli.send_goal_async(goal)
         gh = spin_until(send, 15.0)
-        if gh is None or not gh.accepted:
+        if gh is None:
+            return {'case': cid, 'error': 'goal 响应超时'}
+        if not gh.accepted:
             return {'case': cid, 'error': 'goal 被拒'}
         result = spin_until(gh.get_result_async(), GOAL_TIMEOUT_S)
         elapsed = time.time() - t0
@@ -1170,9 +1172,14 @@ def main() -> int:
             # 所有 goal（2026-09-23 M1 tilt_1639_1 超时后级联 goal 被拒）。
             try:
                 spin_until(gh.cancel_goal_async(), 10.0)
+                # 等臂侧真到 CANCELED 终态再进下一例，否则周期收尾窗口
+                # 内下一例仍会被拒（goal 被拒级联残余）
+                spin_until(gh.get_result_async(), 30.0)
+                time.sleep(1.5)
             except Exception:  # noqa: BLE001
                 pass
-            return {'case': cid, 'error': 'goal 超时', 'elapsed_s': elapsed}
+            return {'case': cid, 'error': 'goal 超时（已取消）',
+                    'elapsed_s': elapsed}
         res = result.result
         segments = measure_tcp_segments(samples) if samples else []
 

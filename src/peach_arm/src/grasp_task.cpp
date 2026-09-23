@@ -5,6 +5,7 @@
 // G/under 单弦档已删（photo→G 弦 fraction 0.41–0.73，2026-09-10）。
 // 刀具 IO 不在此文件。
 #include "peach_arm/grasp_task.hpp"
+#include "execution_guard.hpp"
 #include "peach_arm/acm_policy.hpp"
 #include "peach_arm/grasp_geometry.hpp"
 
@@ -24,6 +25,7 @@
 #include <algorithm>
 #include <atomic>
 #include <chrono>
+#include <future>
 #include <cmath>
 #include <exception>
 #include <memory>
@@ -256,11 +258,15 @@ std::vector<std::vector<CartesianWaypoint>> tcpPathsFromJointsPerPart(
 }  // namespace
 
 GraspTask::GraspTask(rclcpp::Node::SharedPtr node, GraspTaskConfig config)
-: node_(std::move(node)), config_(std::move(config))
+: node_(std::move(node)), config_(std::move(config)),
+  retiring_(std::make_unique<RetireBucket>())
 {
 }
 
-GraspTask::~GraspTask() = default;
+GraspTask::~GraspTask()
+{
+  retiring_->dispose();
+}
 
 void GraspTask::setContactAcm(const std::string & target_id, ContactAcmStage stage)
 {
@@ -1255,7 +1261,25 @@ GraspTaskResult GraspTask::executeSolution(
     return output;
   }
   output.execution_started = true;
-  const auto execute_result = active->execute(*active->solutions().front());
+  // MTC Task::execute 同步阻塞且不暴露 stop：move_group TEM 异常时永久堵
+  // 死动作通道。有界守卫先到先收；超时经 execution_stop（节点侧 MGI::stop）
+  // 兜底，弃等线程移交 retiring_。闭包只持任务裸指针——弃等时由调用方
+  // （planAndMaybeExecute）把 active_task_ release() 泄漏给线程，正常收口
+  // 则线程已 join、reset 安全（审查 P0-1 修复）。
+  retiring_->reap();
+  auto task_raw = active;
+  auto stop_fn = config_.execution_stop;
+  auto timeout_s = config_.execute_timeout_s;
+  auto logger = node_->get_logger();
+  bool abandoned = false;
+  const auto execute_result = runBoundedExecute(
+    [task_raw] {return task_raw->execute(*task_raw->solutions().front());},
+    stop_fn, nullptr, timeout_s, logger, *retiring_, &abandoned);
+  if (abandoned) {
+    task_abandoned_ = true;
+    output.reason = "MTC execution timeout (stop issued; task handed off)";
+    return output;
+  }
   if (execute_result == moveit::core::MoveItErrorCode::SUCCESS) {
     output.success = true;
     output.reason = "MTC execution succeeded";
@@ -1303,7 +1327,14 @@ GraspTaskResult GraspTask::planAndMaybeExecute(
   }
   {
     std::lock_guard<std::mutex> lock(task_mutex_);
-    active_task_.reset();
+    if (task_abandoned_) {
+      // 弃等线程仍在执行该任务：release() 移交所有权（进程生命周期泄漏
+      // 一例换通道可用），不得 reset 双删（审查 P0-1）。
+      static_cast<void>(active_task_.release());
+      task_abandoned_ = false;
+    } else {
+      active_task_.reset();
+    }
   }
   return output;
 }

@@ -19,6 +19,7 @@ peach_arm:
       acceleration_scaling: 0.1  # 接触段加速度缩放。果平面斜插 LIN 另封顶 0.20/0.10，wrist1 超限再降到 0.10/0.04（sim --velocity 1.0 不得把 wrist1 打爆后 PTP 抡枝）。
       transit_velocity_scaling: 0.1  # 自由空间转移速度缩放（环绕视点/拍照位姿往返）；高速度缩短高重力矩姿态持续时间，反而降低过流风险；真机初始验证不得高于 0.1。
       transit_acceleration_scaling: 0.1  # 自由空间转移加速度缩放（同 transit_velocity_scaling 的档位约束）。
+      execute_timeout_s: 90.0  # 单条轨迹/MTC 解执行有界等待（秒）；超时下发 stop 并判失败。move_group TEM 异常（stop 事件风暴，2026-09-23）时防动作通道永久堵死。
       pilz_pipeline: pilz_industrial_motion_planner  # Pilz 规划管线名（PTP/LIN）。
       fallback_pipeline: ompl  # Pilz 失败后的兜底规划管线。
       mtc_free_space_pipeline: pilz_industrial_motion_planner  # MTC 到预抓取的 Pilz 管线。接近主路径 = 果平面折线 LIN（面内斜插到轴上 staging + 沿轴垂直进入）。斜插 keep-roll 对轴（开口已近 +Z，感知袋轴亦近 +Z，约 8°），不把 ±30/±60 刀口滚转叠进笛卡尔。斜插 0.20/0.10，腕轴超限再 0.10/0.04，两档失败才 PTP staging。

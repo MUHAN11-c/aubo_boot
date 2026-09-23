@@ -365,7 +365,7 @@ void ManipulationSkillsNode::initializeMoveIt()
   // wait_for_servers 有界化（A8）：默认 -1 为无限等待 move_group 服务器，
   // 会把 on_configure 卡死在生命周期转换回调里；有界等待只影响启动同步
   // （返回值被 MGI 忽略），规划/执行调用自身在服务器缺席时快速失败并报错。
-  move_group_ = std::make_unique<moveit::planning_interface::MoveGroupInterface>(
+  move_group_ = std::make_shared<moveit::planning_interface::MoveGroupInterface>(
     moveit_node_, params_.moveit.planning_group, std::shared_ptr<tf2_ros::Buffer>(),
     rclcpp::Duration::from_seconds(5.0));
   move_group_->setPoseReferenceFrame(params_.frames.base);
@@ -447,15 +447,22 @@ void ManipulationSkillsNode::rebuildMotionInterface()
   // 不得旁路；plan-only 路径不经其执行段）；safety_block_hook 保持原
   // planOrMoveTip 被拦下时的 FAILED 状态投影。CONTACT/TOOL 级在阶段函数
   // （stages.cpp）与 GraspTask 门显式加查。
+  if (motion_ && !motion_->executionIdle()) {
+    // 运动在途（MoveTo 不置 running_）：销毁 motion_ 会 UAF 等待环（P1-1），
+    // 放弃本次改参重建，下次空闲改参再生效。
+    RCLCPP_WARN(get_logger(), "运动在途，跳过 motion 接口重建（改参待空闲生效）");
+    return;
+  }
   motion_ = std::make_unique<MoveItMotionInterface>(
-    move_group_.get(), &tf_buffer_, get_logger(), get_clock(),
+    move_group_, &tf_buffer_, get_logger(), get_clock(),
     toMotionConfig(params_),
     [this](std::string & reason) {
       return motionOutputAllowed(reason) && safetyReady(reason);
     },
     [this](const std::string & message) {
       setState(CycleState::FAILED, message);
-    });
+    },
+    [this] {return cancel_requested_.load();});
 }
 
 void ManipulationSkillsNode::rebuildGraspTask()
@@ -558,6 +565,9 @@ void ManipulationSkillsNode::rebuildGraspTask()
       return true;
     };
   task_config.retreat_execution_gate = task_config.approach_execution_gate;
+  // MTC 执行超时兜底：MGI::stop 打 move_group 节点级停止服务，不依赖
+  // MTC 自己的接口实例。
+  task_config.execution_stop = [this] {motion_->stopExecution();};
   grasp_task_ = std::make_unique<GraspTask>(moveit_node_, task_config);
 }
 
@@ -947,9 +957,13 @@ void ManipulationSkillsNode::onRefinedPose(
   update.suggested_travel_m = candidate.suggested_travel_m;
   update.bag_diameter_upper_m = candidate.bag_diameter_upper_m;
   update.accepted = candidate.status == peach_interfaces::msg::BagGraspCandidate::ACCEPT;
-  if (!cache_.updateRefinedPose(update)) {
-    RCLCPP_WARN(
-      get_logger(), "忽略非当前目标的 refined pose: expected=%s actual=%s",
+  std::string reject_reason;
+  if (!cache_.updateRefinedPose(update, &reject_reason)) {
+    // unrefined_hold 是 skip_reconstruction 批的常态（latched 发布 0.5s
+    // 心跳），不节流会把日志刷爆并淹没真信号（2026-09-23 单轮 8 万行）。
+    RCLCPP_WARN_THROTTLE(
+      get_logger(), *get_clock(), 10000,
+      "忽略 refined pose（%s）: gate=%s actual=%s", reject_reason.c_str(),
       cache_.targetGateSample().id.c_str(), candidate.target_id.c_str());
   }
 }
@@ -972,10 +986,13 @@ void ManipulationSkillsNode::onRefinedDiagnostics(
   update.cylinder_rms_m = fitting.cylinder_rms_m;
   update.cylinder_inlier_ratio = fitting.cylinder_inlier_ratio;
   update.accepted = fitting.status == peach_interfaces::msg::BagFitting::ACCEPT;
-  if (!cache_.updateRefinedFitting(update)) {
-    RCLCPP_WARN(
-      get_logger(), "忽略非当前目标的 refined diagnostics: expected=%s actual=%s",
-      cache_.expectedFittingTargetId().c_str(), fitting.target_id.c_str());
+  std::string reject_reason;
+  if (!cache_.updateRefinedFitting(update, &reject_reason)) {
+    RCLCPP_WARN_THROTTLE(
+      get_logger(), *get_clock(), 10000,
+      "忽略 refined diagnostics（%s）: expected=%s actual=%s",
+      reject_reason.c_str(), cache_.expectedFittingTargetId().c_str(),
+      fitting.target_id.c_str());
   }
 }
 

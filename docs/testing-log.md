@@ -849,3 +849,11 @@ SIGINT 旧栈后用 16:57 编的 `peach_manipulation` 重起；开批前在 `glo
 - rviz：`moveit_campaign.rviz` 战役定版副本（关键 Display 全开核对），防战役期间 GUI 改动污染基础配置。
 - 战役基建：`campaign/20260922_dual_tool/`（README 轮次台账/bags 索引/analysis/scripts/videos）+ 三脚本（run_round.sh 编排、per_round_summary.py 轮次门、stability_metrics.py P1 指标含 bag 回放 3σ）；e2e_unrefined_20260922T162302 实数据离线验证过。
 - 门：r0_gate 绿；peach_harvester/peach_arm colcon test 绿（lint 首轮抓出 docstring 格式 3 处，已清）。
+
+
+## 2026-09-23 动作通道有界执行防线（TEM stop 事件风暴根因落地）
+
+- M1 tilt_1639_1 300 s hang（96cdd79 记 A 级候选；sim 侧 goal 超时取消已先行修复，污染 jsonl 留证）当日根因定位：move_group TEM 异常——`transit_max` 触发的 stop 事件风暴（8.2 万行日志不停）使同步 `execute` 永久阻塞且不理取消，动作通道一次即永久卡死，后续目标级联失败。
+- 防线：新 GPL 参数 `peach_arm moveit.execute_timeout_s`（默认 90 s，校验 >1；部署值 `config/peach_arm.yaml`）。`motion.cpp` 全部 execute 收口 `boundedExecute`：async 派发 + 等待环先到先收，取消探针（节点注入 `cancel_requested_`）命中或超时即 `move_group_->stop()`，10 s 宽限仍不返回则放弃等待（线程滞留一次换通道可用）。新公有 `MoveItMotionInterface::stopExecution()`（MGI::stop 打节点级停止服务，与发起执行的接口实例无关）。MTC 侧 `Task::execute` 同样 async 先到先收，`GraspTaskConfig.execution_stop` 由节点注入 `stopExecution()` 兜底，超时 reason=`MTC execution timeout (stop issued)`。
+- 附带日志归因：`TargetCache::updateRefinedPose/updateRefinedFitting` 增 `reject_reason` 出参（`unrefined_hold`/`target_mismatch`），臂侧 WARN_THROTTLE 10 s——unrefined_hold 是 skip_reconstruction 批的 latched 0.5 s 心跳常态，原无节流 WARN 单轮刷 8 万行淹没真信号。
+- 文档：architecture 决策 0027 + peach_arm 节点「执行有界等待」段同轮。零 IDL/话题/QoS 变化。无真机运动。

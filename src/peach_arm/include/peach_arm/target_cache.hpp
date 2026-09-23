@@ -192,10 +192,13 @@ public:
   // 模型快照只在 finalize 路径写入；诊断心跳不得调用。
   void replaceModelSnapshot(const ModelSnapshot & snapshot);
   ModelSnapshot modelSnapshot() const;
-  // 精化位姿调和；返回 false 表示非当前目标被忽略。
-  bool updateRefinedPose(const RefinedPoseUpdate & update);
-  // 精化拟合指标调和；返回 false 表示非期望目标被忽略。
-  bool updateRefinedFitting(const RefinedFittingUpdate & update);
+  // 精化位姿调和；返回 false 表示被拒（reject_reason 给出
+  // "unrefined_hold" / "target_mismatch"，供日志如实归因）。
+  bool updateRefinedPose(
+    const RefinedPoseUpdate & update, std::string * reject_reason = nullptr);
+  // 精化拟合指标调和；返回 false 语义同上。
+  bool updateRefinedFitting(
+    const RefinedFittingUpdate & update, std::string * reject_reason = nullptr);
 
   std::optional<CachedTarget> targetSnapshot() const;
   // 锁定集锚点快照（OBSERVE_ONLY 残局抬质量周期的受理与执行数据源）：

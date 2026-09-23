@@ -34,6 +34,7 @@ inline MoveItMotionConfig toMotionConfig(const Params & params)
   config.fallback_pipeline = moveit.fallback_pipeline;
   config.transit_velocity_scaling = moveit.transit_velocity_scaling;
   config.transit_acceleration_scaling = moveit.transit_acceleration_scaling;
+  config.execute_timeout_s = moveit.execute_timeout_s;
   config.transit_max_duration_s = moveit.transit_max_duration_s;
   config.transit_max_total_joint_travel_rad =
     moveit.transit_max_total_joint_travel_rad;
@@ -70,6 +71,7 @@ inline GraspTaskConfig toGraspTaskConfig(const Params & params)
   config.planning_time_s = moveit.planning_time_s;
   config.velocity_scaling = moveit.velocity_scaling;
   config.acceleration_scaling = moveit.acceleration_scaling;
+  config.execute_timeout_s = moveit.execute_timeout_s;
   config.cartesian_step_m = moveit.mtc_cartesian_step_m;
   config.cartesian_min_fraction = moveit.mtc_cartesian_min_fraction;
   config.cartesian_precision_m = moveit.mtc_cartesian_precision_m;

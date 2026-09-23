@@ -2,11 +2,13 @@
 // 预览接近/接触服务、tip/camera 规划执行、TF 查询）。真实下发前过注入的安全门
 // （TRANSIT 级底座；CONTACT/TOOL 级在阶段函数与 GraspTask 门加查）。
 #include "peach_arm/motion.hpp"
+#include "execution_guard.hpp"
 
 #include <algorithm>
 #include <chrono>
 #include <cmath>
 #include <cstddef>
+#include <future>
 #include <memory>
 #include <mutex>
 #include <optional>
@@ -533,21 +535,77 @@ void ManipulationSkillsNode::onGoToPhotoPose(
 }
 
 MoveItMotionInterface::MoveItMotionInterface(
-  moveit::planning_interface::MoveGroupInterface * move_group,
+  std::shared_ptr<moveit::planning_interface::MoveGroupInterface> move_group,
   tf2_ros::Buffer * tf_buffer,
   rclcpp::Logger logger,
   rclcpp::Clock::SharedPtr clock,
   MoveItMotionConfig config,
   std::function<bool(std::string &)> safety_gate,
-  std::function<void(const std::string &)> safety_block_hook)
-: move_group_(move_group),
+  std::function<void(const std::string &)> safety_block_hook,
+  std::function<bool()> cancel_probe)
+: move_group_shared_(std::move(move_group)),
+  move_group_(move_group_shared_.get()),
   tf_buffer_(tf_buffer),
   logger_(std::move(logger)),
   clock_(std::move(clock)),
   config_(std::move(config)),
   safety_gate_(std::move(safety_gate)),
-  safety_block_hook_(std::move(safety_block_hook))
+  safety_block_hook_(std::move(safety_block_hook)),
+  cancel_probe_(std::move(cancel_probe)),
+  retiring_(std::make_unique<RetireBucket>())
 {
+}
+
+MoveItMotionInterface::~MoveItMotionInterface()
+{
+  retiring_->dispose();
+}
+
+bool MoveItMotionInterface::executionIdle() const
+{
+  return executing_.load() == 0;
+}
+
+void MoveItMotionInterface::stopExecution()
+{
+  // MGI::stop 发 move_group 级停止事件（trajectory_execution_event 话题），
+  // 与哪个接口实例发起执行无关；供 MTC 等不暴露 stop 的路径共用。
+  move_group_->stop();
+}
+
+moveit::core::MoveItErrorCode MoveItMotionInterface::boundedExecute(
+  moveit::planning_interface::MoveGroupInterface::Plan & plan)
+{
+  // 同步 execute 在 move_group TEM 异常（2026-09-23 travel_max 起的 stop
+  // 事件风暴，8.2 万行不停）时永久阻塞且不理取消。有界守卫先到先收；
+  // 弃等线程移交 retiring_，闭包只持共享 MGI 与 Plan 拷贝（不引用 this），
+  // MGI 生存期由 shared_ptr 维持，节点析构无 UAF（审查 P0-1/P1-1 修复）。
+  executing_.fetch_add(1);
+  struct Guard
+  {
+    std::atomic_int & counter;
+    ~Guard()
+    {
+      counter.fetch_sub(1);
+    }
+  } guard{executing_};
+  retiring_->reap();
+  auto plan_copy =
+    std::make_shared<moveit::planning_interface::MoveGroupInterface::Plan>(
+      std::move(plan));
+  auto mgi = move_group_shared_;
+  auto logger = logger_;
+  bool abandoned = false;
+  const auto rc = runBoundedExecute(
+    [mgi, plan_copy] {return mgi->execute(*plan_copy);},
+    [mgi] {mgi->stop();}, cancel_probe_, config_.execute_timeout_s,
+    logger, *retiring_, &abandoned);
+  if (abandoned) {
+    RCLCPP_ERROR(
+      logger_, "执行 stop 后未在宽限内返回：线程移交后台（滞留 %zu），动作通道已释放",
+      retiring_->size());
+  }
+  return rc;
 }
 
 std::optional<Eigen::Isometry3d> MoveItMotionInterface::lookupTransform(
@@ -629,7 +687,7 @@ bool MoveItMotionInterface::planOrMoveTip(
   }
   // 目标身份/新鲜度不在运动层判定：由阶段执行器 + SafetyGate 单点决策，
   // 避免与再确认的 stale 放行/记忆锚点获取性移动策略互相否决。
-  return move_group_->execute(plan) == moveit::core::MoveItErrorCode::SUCCESS;
+  return boundedExecute(plan) == moveit::core::MoveItErrorCode::SUCCESS;
 }
 
 bool MoveItMotionInterface::planOrMoveCamera(
@@ -733,7 +791,7 @@ bool MoveItMotionInterface::goToPhotoPose(
     message = "拍照位姿执行前安全门失败: " + reason;
     return false;
   }
-  result = move_group_->execute(plan);
+  result = boundedExecute(plan);
   if (result != moveit::core::MoveItErrorCode::SUCCESS) {
     message = "拍照位姿执行失败: " + moveit::core::errorCodeToString(result);
     return false;
@@ -829,7 +887,7 @@ bool MoveItMotionInterface::reverseLastApproachToPhoto(
     moveit::core::robotStateToRobotStateMsg(*current, plan.start_state);
   }
   plan.trajectory.joint_trajectory = std::move(reversed);
-  const auto result = move_group_->execute(plan);
+  const auto result = boundedExecute(plan);
   if (result != moveit::core::MoveItErrorCode::SUCCESS) {
     message = "拍照位姿原路返程执行失败: " +
       moveit::core::errorCodeToString(result);

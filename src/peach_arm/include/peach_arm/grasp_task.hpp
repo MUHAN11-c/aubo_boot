@@ -52,6 +52,8 @@ class SerialContainer;
 namespace peach_arm
 {
 
+class RetireBucket;  // execution_guard.hpp（src/ 私有头）
+
 // tip 姿态不偏离 target_pose 超过 tol_deg 的三轴等宽容差约束集。
 // 只挂已齐 LIN（分档要求起点对轴，拦笛卡尔插值中途侧翻）。
 // 未齐第一段 LIN-align 不挂：Jazzy ValidateSolution 验每个路点含起点，
@@ -160,6 +162,10 @@ struct GraspTaskConfig
   std::vector<ProtectedZone> protected_zones;  // base 系 AABB → planning scene
   std::function<bool(std::string &)> approach_execution_gate;  // 下发接近轨迹前
   std::function<bool(std::string &)> retreat_execution_gate;   // 撤离不依赖视觉
+  // MTC 执行有界等待：MTC Task 不暴露 stop，超时/取消经 execution_stop
+  // （节点注入 move_group_->stop()，MGI stop 打节点级停止服务）兜底。
+  std::function<void()> execution_stop;
+  double execute_timeout_s{90.0};  ///< MTC 解执行有界等待 [s]。
 };
 
 struct GraspTaskResult
@@ -379,6 +385,8 @@ private:
   GraspTaskConfig config_;
   std::mutex task_mutex_;
   std::unique_ptr<moveit::task_constructor::Task> active_task_;
+  std::atomic_bool task_abandoned_{false};  // 弃等线程已接管任务（reset 前须 release）
+  std::unique_ptr<peach_arm::RetireBucket> retiring_;  // 弃等线程桶（execution_guard.hpp）
   FruitCapsule pending_fruit_;
   bool inspect_fruit_{false};
   std::string pending_acm_target_id_;

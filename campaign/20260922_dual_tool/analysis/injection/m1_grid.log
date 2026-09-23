@@ -3,7 +3,69 @@ peach_arm Active；execution/grasp 已开（tool 保持关）；mode=full；速�
 
 === case typical_1757 entry=[0.304, -0.614, 0.536] axis_z=0.99 ===
   -> outcome=0 completion=6 matched=True code= reason=周期完成；tool.enabled=false 或未宣称采摘成功
-  [回拍照] 弦=0.391m 路径=0.796m 比=2.04 偏离=0.19m 回退=0.109m 起=[0.306, -0.606, 0.595] 终=[0.302, -0.232, 0.708]
-  [接近] 从拍照位 点数=32 弦=0.44m 路径=0.652m 比=1.48 偏离=0.105m 回退=0.0m max_z=0.706 起=[0.356, -0.23, 0.706] 早段=[0.357, -0.231, 0.706] 终=[0.303, -0.618, 0.507]  ✓ 果实胶囊外
+  [回拍照] 弦=0.391m 路径=0.783m 比=2.0 偏离=0.19m 回退=0.109m 起=[0.306, -0.606, 0.596] 终=[0.302, -0.232, 0.708]
+  [接近] 从拍照位 点数=34 弦=0.44m 路径=0.639m 比=1.45 偏离=0.1m 回退=0.0m max_z=0.706 起=[0.356, -0.23, 0.706] 早段=[0.356, -0.23, 0.706] 终=[0.303, -0.618, 0.507]  ✓ 果实胶囊外
 
 === case tilt_1639_1 entry=[0.248, -0.77, 0.589] axis_z=0.84 ===
+  -> outcome=0 completion=6 matched=True code= reason=周期完成；tool.enabled=false 或未宣称采摘成功
+  [回拍照] 弦=0.527m 路径=0.971m 比=1.84 偏离=0.23m 回退=0.084m 起=[0.199, -0.748, 0.674] 终=[0.302, -0.232, 0.708]
+  [接近] 从拍照位 点数=35 弦=0.572m 路径=0.788m 比=1.38 偏离=0.15m 回退=0.0m max_z=0.708 起=[0.356, -0.23, 0.706] 早段=[0.356, -0.23, 0.706] 终=[0.262, -0.776, 0.564]  ✓ 果实胶囊外
+
+=== case travel_min entry=[0.239, -0.699, 0.597] axis_z=0.87 ===
+  -> outcome=0 completion=6 matched=True code= reason=周期完成；tool.enabled=false 或未宣称采摘成功
+  [回拍照] 弦=0.481m 路径=0.763m 比=1.59 偏离=0.154m 回退=0.037m 起=[0.23, -0.698, 0.614] 终=[0.302, -0.232, 0.708]
+  [接近] 从拍照位 点数=34 弦=0.499m 路径=0.659m 比=1.32 偏离=0.11m 回退=0.0m max_z=0.706 起=[0.356, -0.23, 0.706] 早段=[0.356, -0.23, 0.706] 终=[0.254, -0.699, 0.571]  ✓ 果实胶囊外
+
+=== case travel_max entry=[0.392, -0.605, 0.546] axis_z=0.92 ===
+  -> outcome=None completion=None matched=None code= reason=goal 超时
+
+=== case info_length_extended entry=[0.55, -0.624, 0.565] axis_z=0.96 ===
+  -> outcome=None completion=None matched=None code= reason=goal 被拒
+
+=== case lab_oos_20260922 entry=[0.434, -0.611, 0.61] axis_z=0.80 ===
+  -> outcome=None completion=None matched=False code= reason=
+
+=== case far_no_ik entry=[1.2, -0.4, 0.5] axis_z=1.00 ===
+  -> outcome=None completion=None matched=True code=no_ik reason=
+
+=== case bbox_edge entry=[0.304, -0.614, 0.536] axis_z=0.99 ===
+  -> outcome=skipped_select completion=None matched=True code= reason=bbox_edge
+
+=== case tool_clearance_failed entry=[0.304, -0.614, 0.536] axis_z=0.99 ===
+  -> outcome=skipped_select completion=None matched=True code= reason=tool_clearance_failed
+
+=== case near_horizontal_1021_1 entry=[0.518, -0.695, 0.521] axis_z=0.27 ===
+  -> outcome=None completion=None matched=None code= reason=goal 被拒
+
+=== case bag_d050_succeed entry=[0.304, -0.614, 0.536] axis_z=0.99 ===
+  -> outcome=None completion=None matched=None code= reason=goal 被拒
+
+=== case bag_d068_succeed entry=[0.239, -0.699, 0.597] axis_z=0.87 ===
+  -> outcome=None completion=None matched=None code= reason=goal 被拒
+
+=== case bag_d100_denied entry=[0.304, -0.614, 0.536] axis_z=0.99 ===
+  -> outcome=None completion=None matched=None code= reason=goal 被拒
+
+=== case short_bag_030 entry=[0.304, -0.614, 0.536] axis_z=0.99 ===
+  -> outcome=None completion=None matched=None code= reason=goal 被拒
+
+=== case long_bag_180 entry=[0.304, -0.614, 0.536] axis_z=0.99 ===
+  -> outcome=None completion=None matched=None code= reason=goal 被拒
+
+=== case travel_clamp_024 entry=[0.304, -0.614, 0.536] axis_z=0.99 ===
+  -> outcome=None completion=None matched=None code= reason=goal 被拒
+
+=== case occluded_flag_info entry=[0.55, -0.624, 0.565] axis_z=0.96 ===
+  -> outcome=None completion=None matched=None code= reason=goal 被拒
+
+=== case right_lane_tilt entry=[0.55, -0.624, 0.565] axis_z=0.93 ===
+  -> outcome=None completion=None matched=None code= reason=goal 被拒
+
+=== case deep_left_low_axis entry=[0.248, -0.77, 0.589] axis_z=0.78 ===
+  -> outcome=None completion=None matched=None code= reason=goal 被拒
+
+=== case mid_offset_2d_fallback entry=[0.392, -0.605, 0.546] axis_z=0.92 ===
+  -> outcome=None completion=None matched=None code= reason=goal 被拒
+
+结果已写入 /home/mu/Desktop/aubo_e5_jazzy_ws/runs/sim_field_targets_20260923_040050.jsonl
+网格期望命中 6/20

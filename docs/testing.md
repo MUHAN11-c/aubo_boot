@@ -98,6 +98,7 @@ python3 scripts/sim_field_targets.py --random 30 --seed 20260911 --velocity 1.0
 python3 scripts/sim_field_targets.py --random 100 --seed 20260910 --velocity 1.0
 # 感知算法包络压测（含近水平；seed 与 09-11 对照轮一致）
 python3 scripts/sim_field_targets.py --random 100 --envelope algorithm --seed 20260911 --velocity 1.0
+# 执行超时护栏（2026-09-23）：`execute_timeout_s`（默认 90s）内单条轨迹/MTC 解未收口即下发 stop 并按失败记；`MTC execution timeout` / 「执行超时」一律按失败收口，不 resume 原轨迹（UR Driver 红线）。
 # 工具档案注入（2026-09-22 起）：--tool-profile 写 GraspDecision/ExecuteTarget 档案标签，
 # 启动时与 /peach_arm tool.profile_id 比对，错配即拒跑；GraspDecision 径向预算按档案
 # D_inner×注入袋径复算（超内径注入得到 allowed=False，网格 expect=deny_decision 验收）。

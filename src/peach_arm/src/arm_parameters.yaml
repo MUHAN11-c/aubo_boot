@@ -85,6 +85,12 @@ peach_arm:
       validation:
         gt<>: [0.0]
         lt_eq<>: [1.0]
+    execute_timeout_s:
+      type: double
+      default_value: 90.0
+      description: "单条轨迹/MTC 解执行有界等待 [s]；超时下发 stop 并判失败（move_group TEM 异常防线，2026-09-23 stop 事件风暴）"
+      validation:
+        gt<>: [1.0]
     pilz_pipeline:
       type: string
       default_value: pilz_industrial_motion_planner

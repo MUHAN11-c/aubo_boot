@@ -237,10 +237,14 @@ ModelSnapshot TargetCache::modelSnapshot() const
   return model_;
 }
 
-bool TargetCache::updateRefinedPose(const RefinedPoseUpdate & update)
+bool TargetCache::updateRefinedPose(
+  const RefinedPoseUpdate & update, std::string * reject_reason)
 {
   std::lock_guard<std::mutex> lock(mutex_);
   if (unrefined_hold_ && !update.clear) {
+    if (reject_reason) {
+      *reject_reason = "unrefined_hold";
+    }
     return false;
   }
   if (update.clear) {
@@ -249,6 +253,9 @@ bool TargetCache::updateRefinedPose(const RefinedPoseUpdate & update)
     return true;
   }
   if (!target_.id.empty() && update.target_id != target_.id) {
+    if (reject_reason) {
+      *reject_reason = "target_mismatch";
+    }
     return false;
   }
   refined_ = CachedRefined();
@@ -266,10 +273,14 @@ bool TargetCache::updateRefinedPose(const RefinedPoseUpdate & update)
   return true;
 }
 
-bool TargetCache::updateRefinedFitting(const RefinedFittingUpdate & update)
+bool TargetCache::updateRefinedFitting(
+  const RefinedFittingUpdate & update, std::string * reject_reason)
 {
   std::lock_guard<std::mutex> lock(mutex_);
   if (unrefined_hold_ && !update.clear) {
+    if (reject_reason) {
+      *reject_reason = "unrefined_hold";
+    }
     return false;
   }
   if (update.clear) {
@@ -286,6 +297,9 @@ bool TargetCache::updateRefinedFitting(const RefinedFittingUpdate & update)
   }
   const std::string expected_id = refined_.id.empty() ? target_.id : refined_.id;
   if (!expected_id.empty() && update.target_id != expected_id) {
+    if (reject_reason) {
+      *reject_reason = "target_mismatch";
+    }
     return false;
   }
   // 节点刚启动时可能尚未收到 volatile 目标观测。先按 target_id 缓存锁存的

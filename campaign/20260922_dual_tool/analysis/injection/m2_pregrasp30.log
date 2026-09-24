@@ -3,95 +3,135 @@ peach_arm Active；execution/grasp 已开（tool 保持关）；mode=pregrasp；
 随机位姿 30 个 seed=20260922 envelope=typical
 
 === case rand_00 entry=[0.215, -0.638, 0.648] axis_z=0.90 aabb←1113_0 ===
-  -> outcome=None completion=None matched=None code= reason=goal 超时（已取消）
+  -> outcome=0 completion=2 matched=None code= reason=PREGRASP_ONLY：停在预抓取，未套入未 SetIO；ACK 后再 Survey
+  [接近] 从拍照位 点数=39 弦=0.416m 路径=0.626m 比=1.5 偏离=0.097m 回退=0.017m max_z=0.708 起=[0.302, -0.232, 0.708] 早段=[0.305, -0.232, 0.708] 终=[0.208, -0.628, 0.621]  ✓ 果实胶囊外
 
 === case rand_01 entry=[0.264, -0.587, 0.748] axis_z=0.73 aabb←1424_1 ===
-  -> outcome=0 completion=0 matched=None code= reason=只规划预览成功；未发送任何运动
+  -> outcome=0 completion=2 matched=None code= reason=PREGRASP_ONLY：停在预抓取，未套入未 SetIO；ACK 后再 Survey
+  [回拍照] 弦=0.433m 路径=0.456m 比=1.05 偏离=0.059m 回退=0.0m 起=[0.208, -0.628, 0.621] 终=[0.356, -0.23, 0.706]
+  [接近] 从拍照位 点数=33 弦=0.351m 路径=0.462m 比=1.32 偏离=0.086m 回退=0.0m max_z=0.726 起=[0.356, -0.23, 0.706] 早段=[0.356, -0.23, 0.706] 终=[0.278, -0.572, 0.726]  ✓ 果实胶囊外
 
 === case rand_02 entry=[0.238, -0.718, 0.616] axis_z=0.77 aabb←1149_0 ===
-  -> outcome=0 completion=0 matched=None code= reason=只规划预览成功；未发送任何运动
+  -> outcome=0 completion=2 matched=None code= reason=PREGRASP_ONLY：停在预抓取，未套入未 SetIO；ACK 后再 Survey
+  [接近] 未从拍照位 点数=49 弦=0.188m 路径=1.206m 比=6.4 偏离=0.351m 回退=0.308m max_z=0.781 起=[0.278, -0.572, 0.726] 早段=[0.279, -0.572, 0.727] 终=[0.238, -0.699, 0.593]  ✓ 果实胶囊外
 
 === case rand_03 entry=[0.26, -0.718, 0.543] axis_z=0.99 perturb←1021_0 ===
-  -> outcome=0 completion=0 matched=None code= reason=只规划预览成功；未发送任何运动
+  -> outcome=0 completion=2 matched=None code= reason=PREGRASP_ONLY：停在预抓取，未套入未 SetIO；ACK 后再 Survey
+  [接近] 未从拍照位 点数=49 弦=0.085m 路径=1.442m 比=16.89 偏离=0.499m 回退=0.458m max_z=0.816 起=[0.238, -0.699, 0.593] 早段=[0.238, -0.699, 0.593] 终=[0.264, -0.716, 0.513]  ⚠ 果实胶囊: 工具筒体触果 s=0.051m r=0.028m R=0.040m
 
 === case rand_04 entry=[0.458, -0.679, 0.567] axis_z=0.99 aabb←1021_0 ===
-  -> outcome=0 completion=0 matched=None code= reason=只规划预览成功；未发送任何运动
+  -> outcome=0 completion=2 matched=None code= reason=PREGRASP_ONLY：停在预抓取，未套入未 SetIO；ACK 后再 Survey
+  [回拍照] 弦=0.531m 路径=0.576m 比=1.08 偏离=0.095m 回退=0.0m 起=[0.264, -0.716, 0.513] 终=[0.356, -0.23, 0.706]
+  [接近] 从拍照位 点数=29 弦=0.487m 路径=0.668m 比=1.37 偏离=0.1m 回退=0.0m max_z=0.706 起=[0.356, -0.23, 0.706] 早段=[0.357, -0.23, 0.706] 终=[0.455, -0.676, 0.537]  ✓ 果实胶囊外
 
 === case rand_05 entry=[0.218, -0.727, 0.538] axis_z=0.97 perturb←1424_1 ===
-  -> outcome=0 completion=0 matched=None code= reason=只规划预览成功；未发送任何运动
+  -> outcome=0 completion=2 matched=None code= reason=PREGRASP_ONLY：停在预抓取，未套入未 SetIO；ACK 后再 Survey
+  [接近] 未从拍照位 点数=45 弦=0.243m 路径=1.299m 比=5.34 偏离=0.487m 回退=0.315m max_z=0.709 起=[0.455, -0.676, 0.537] 早段=[0.461, -0.662, 0.546] 终=[0.22, -0.733, 0.509]  ⚠ 果实胶囊: 袋底段上方绕行 s=0.025m > 上限 0.020m
 
 === case rand_06 entry=[0.49, -0.593, 0.531] axis_z=0.92 perturb←1424_0 ===
-  -> outcome=0 completion=0 matched=None code= reason=只规划预览成功；未发送任何运动
+  -> outcome=0 completion=2 matched=None code= reason=PREGRASP_ONLY：停在预抓取，未套入未 SetIO；ACK 后再 Survey
+  [回拍照] 弦=0.558m 路径=0.607m 比=1.09 偏离=0.1m 回退=0.0m 起=[0.22, -0.733, 0.509] 终=[0.356, -0.23, 0.706]
+  [接近] 从拍照位 点数=30 弦=0.438m 路径=0.624m 比=1.43 偏离=0.098m 回退=0.0m max_z=0.706 起=[0.356, -0.23, 0.706] 早段=[0.356, -0.23, 0.706] 终=[0.502, -0.59, 0.504]  ✓ 果实胶囊外
 
 === case rand_07 entry=[0.384, -0.606, 0.552] axis_z=0.80 aabb←1437_0 ===
-  -> outcome=0 completion=0 matched=None code= reason=只规划预览成功；未发送任何运动
+  -> outcome=0 completion=2 matched=None code= reason=PREGRASP_ONLY：停在预抓取，未套入未 SetIO；ACK 后再 Survey
+  [接近] 未从拍照位 点数=44 弦=0.106m 路径=1.077m 比=10.17 偏离=0.423m 回退=0.317m max_z=0.706 起=[0.502, -0.59, 0.504] 早段=[0.502, -0.587, 0.506] 终=[0.401, -0.611, 0.528]  ⚠ 果实胶囊: 袋底段上方绕行 s=0.063m > 上限 0.020m
 
 === case rand_08 entry=[0.205, -0.731, 0.64] axis_z=0.88 perturb←1437_1 ===
-  -> outcome=0 completion=0 matched=None code= reason=只规划预览成功；未发送任何运动
+  -> outcome=0 completion=2 matched=None code= reason=PREGRASP_ONLY：停在预抓取，未套入未 SetIO；ACK 后再 Survey
+  [接近] 未从拍照位 点数=48 弦=0.237m 路径=1.17m 比=4.93 偏离=0.423m 回退=0.295m max_z=0.706 起=[0.401, -0.611, 0.528] 早段=[0.401, -0.611, 0.528] 终=[0.218, -0.736, 0.614]  ⚠ 果实胶囊: 袋底段上方绕行 s=0.033m > 上限 0.020m
 
 === case rand_09 entry=[0.279, -0.731, 0.596] axis_z=0.87 perturb←1021_0 ===
-  -> outcome=0 completion=0 matched=None code= reason=只规划预览成功；未发送任何运动
+  -> outcome=0 completion=2 matched=None code= reason=PREGRASP_ONLY：停在预抓取，未套入未 SetIO；ACK 后再 Survey
+  [接近] 未从拍照位 点数=47 弦=0.088m 路径=1.286m 比=14.68 偏离=0.525m 回退=0.437m max_z=0.706 起=[0.218, -0.736, 0.614] 早段=[0.218, -0.736, 0.614] 终=[0.293, -0.733, 0.569]  ⚠ 果实胶囊: 工具筒体触果 s=0.045m r=0.045m R=0.040m
 
 === case rand_10 entry=[0.599, -0.619, 0.513] axis_z=0.90 perturb←1149_0 ===
-  -> outcome=0 completion=0 matched=None code= reason=只规划预览成功；未发送任何运动
+  -> outcome=0 completion=2 matched=None code= reason=PREGRASP_ONLY：停在预抓取，未套入未 SetIO；ACK 后再 Survey
+  [回拍照] 弦=0.525m 路径=0.567m 比=1.08 偏离=0.089m 回退=0.0m 起=[0.293, -0.733, 0.569] 终=[0.356, -0.23, 0.706]
+  [接近] 从拍照位 点数=33 弦=0.515m 路径=0.73m 比=1.42 偏离=0.112m 回退=0.0m max_z=0.706 起=[0.356, -0.23, 0.706] 早段=[0.356, -0.23, 0.706] 终=[0.612, -0.618, 0.486]  ✓ 果实胶囊外
 
 === case rand_11 entry=[0.404, -0.729, 0.542] axis_z=0.97 aabb←1149_0 ===
-  -> outcome=0 completion=0 matched=None code= reason=只规划预览成功；未发送任何运动
+  -> outcome=0 completion=2 matched=None code= reason=PREGRASP_ONLY：停在预抓取，未套入未 SetIO；ACK 后再 Survey
+  [回拍照] 弦=0.515m 路径=0.565m 比=1.1 偏离=0.099m 回退=0.0m 起=[0.612, -0.618, 0.486] 终=[0.356, -0.23, 0.706]
+  [接近] 从拍照位 点数=32 弦=0.537m 路径=0.737m 比=1.37 偏离=0.112m 回退=0.0m max_z=0.706 起=[0.356, -0.23, 0.706] 早段=[0.356, -0.23, 0.706] 终=[0.411, -0.728, 0.513]  ✓ 果实胶囊外
 
 === case rand_12 entry=[0.267, -0.729, 0.618] axis_z=0.90 perturb←1021_0 ===
-  -> outcome=0 completion=0 matched=None code= reason=只规划预览成功；未发送任何运动
+  -> outcome=0 completion=2 matched=None code= reason=PREGRASP_ONLY：停在预抓取，未套入未 SetIO；ACK 后再 Survey
+  [接近] 未从拍照位 点数=53 弦=0.154m 路径=1.499m 比=9.73 偏离=0.524m 回退=0.373m max_z=0.76 起=[0.411, -0.728, 0.513] 早段=[0.411, -0.728, 0.513] 终=[0.278, -0.736, 0.591]  ⚠ 果实胶囊: 袋底段上方绕行 s=0.028m > 上限 0.020m
 
 === case rand_13 entry=[0.399, -0.587, 0.723] axis_z=0.90 aabb←1437_0 ===
-  -> outcome=0 completion=0 matched=None code= reason=只规划预览成功；未发送任何运动
+  -> outcome=0 completion=2 matched=None code= reason=PREGRASP_ONLY：停在预抓取，未套入未 SetIO；ACK 后再 Survey
+  [接近] 未从拍照位 点数=31 弦=0.215m 路径=0.286m 比=1.33 偏离=0.082m 回退=0.0m max_z=0.696 起=[0.278, -0.736, 0.591] 早段=[0.278, -0.736, 0.591] 终=[0.405, -0.598, 0.696]  ✓ 果实胶囊外
 
 === case rand_14 entry=[0.34, -0.587, 0.694] axis_z=0.70 aabb←1510_2 ===
-  -> outcome=0 completion=0 matched=None code= reason=只规划预览成功；未发送任何运动
+  -> outcome=2 completion=0 matched=None code= reason=到预抓取失败: MTC short-path guard rejected: 工具筒体接触果实胶囊 s=0.0474753m r=0.0459084m 间隙=-0.0540918m (果半径 0.04m)
 
 === case rand_15 entry=[0.395, -0.658, 0.661] axis_z=0.70 aabb←1639_1 ===
-  -> outcome=0 completion=0 matched=None code= reason=只规划预览成功；未发送任何运动
+  -> outcome=2 completion=0 matched=None code= reason=到预抓取失败: MTC planning failed: Failing stage(s):
+lin align tool z (0/1)
+  [接近] 未从拍照位 点数=24 弦=0.151m 路径=0.192m 比=1.27 偏离=0.041m 回退=0.0m max_z=0.696 起=[0.405, -0.598, 0.696] 早段=[0.405, -0.598, 0.696] 终=[0.356, -0.617, 0.555]  ✓ 果实胶囊外
 
 === case rand_16 entry=[0.323, -0.741, 0.553] axis_z=0.77 aabb←1424_1 ===
-  -> outcome=0 completion=0 matched=None code= reason=只规划预览成功；未发送任何运动
+  -> outcome=0 completion=2 matched=None code= reason=PREGRASP_ONLY：停在预抓取，未套入未 SetIO；ACK 后再 Survey
+  [接近] 未从拍照位 点数=29 弦=0.135m 路径=0.285m 比=2.11 偏离=0.094m 回退=0.0m max_z=0.555 起=[0.356, -0.617, 0.555] 早段=[0.355, -0.642, 0.532] 终=[0.34, -0.749, 0.53]  ✓ 果实胶囊外
 
 === case rand_17 entry=[0.203, -0.728, 0.614] axis_z=0.94 perturb←1424_1 ===
-  -> outcome=0 completion=0 matched=None code= reason=只规划预览成功；未发送任何运动
+  -> outcome=0 completion=2 matched=None code= reason=PREGRASP_ONLY：停在预抓取，未套入未 SetIO；ACK 后再 Survey
+  [接近] 未从拍照位 点数=40 弦=0.144m 路径=0.397m 比=2.76 偏离=0.087m 回退=0.052m max_z=0.585 起=[0.34, -0.749, 0.53] 早段=[0.34, -0.749, 0.53] 终=[0.211, -0.722, 0.585]  ✓ 果实胶囊外
 
 === case rand_18 entry=[0.212, -0.707, 0.647] axis_z=0.94 perturb←1424_1 ===
-  -> outcome=0 completion=0 matched=None code= reason=只规划预览成功；未发送任何运动
+  -> outcome=0 completion=2 matched=None code= reason=PREGRASP_ONLY：停在预抓取，未套入未 SetIO；ACK 后再 Survey
+  [接近] 未从拍照位 点数=49 弦=0.037m 路径=1.251m 比=33.52 偏离=0.507m 回退=0.469m max_z=0.718 起=[0.211, -0.722, 0.585] 早段=[0.211, -0.722, 0.585] 终=[0.222, -0.711, 0.619]  ⚠ 果实胶囊: 袋底段上方绕行 s=0.035m > 上限 0.020m
 
 === case rand_19 entry=[0.28, -0.731, 0.539] axis_z=0.90 perturb←1021_0 ===
-  -> outcome=0 completion=0 matched=None code= reason=只规划预览成功；未发送任何运动
+  -> outcome=0 completion=2 matched=None code= reason=PREGRASP_ONLY：停在预抓取，未套入未 SetIO；ACK 后再 Survey
+  [接近] 未从拍照位 点数=45 弦=0.13m 路径=1.27m 比=9.73 偏离=0.507m 回退=0.412m max_z=0.707 起=[0.222, -0.711, 0.619] 早段=[0.254, -0.678, 0.631] 终=[0.293, -0.732, 0.512]  ⚠ 果实胶囊: 工具筒体触果 s=0.099m r=0.022m R=0.040m
 
 === case rand_20 entry=[0.424, -0.676, 0.497] axis_z=1.00 aabb←1639_2 ===
-  -> outcome=0 completion=0 matched=None code= reason=只规划预览成功；未发送任何运动
+  -> outcome=2 completion=0 matched=None code= reason=到预抓取失败: MTC planning failed: Failing stage(s):
+vertical canopy entry lin (0/1)
+  [接近] 未从拍照位 点数=40 弦=0.199m 路径=1.25m 比=6.29 偏离=0.542m 回退=0.369m max_z=0.71 起=[0.293, -0.732, 0.512] 早段=[0.293, -0.732, 0.512] 终=[0.42, -0.681, 0.367]  ⚠ 果实胶囊: 工具筒体触果 s=0.058m r=0.079m R=0.040m
 
 === case rand_21 entry=[0.303, -0.675, 0.697] axis_z=0.74 aabb←1437_0 ===
-  -> outcome=0 completion=0 matched=None code= reason=只规划预览成功；未发送任何运动
+  -> outcome=2 completion=0 matched=None code= reason=到预抓取失败: MTC planning failed: Failing stage(s):
+lin align tool z (0/1)
+  [接近] 未从拍照位 点数=42 弦=0.272m 路径=1.151m 比=4.24 偏离=0.432m 回退=0.161m max_z=0.719 起=[0.42, -0.681, 0.367] 早段=[0.42, -0.681, 0.367] 终=[0.267, -0.636, 0.587]  ✓ 果实胶囊外
 
 === case rand_22 entry=[0.234, -0.656, 0.506] axis_z=0.94 aabb←1510_2 ===
-  -> outcome=0 completion=0 matched=None code= reason=只规划预览成功；未发送任何运动
+  -> outcome=0 completion=2 matched=None code= reason=PREGRASP_ONLY：停在预抓取，未套入未 SetIO；ACK 后再 Survey
+  [接近] 未从拍照位 点数=45 弦=0.119m 路径=1.2m 比=10.07 偏离=0.432m 回退=0.389m max_z=0.719 起=[0.267, -0.636, 0.587] 早段=[0.302, -0.606, 0.609] 终=[0.23, -0.666, 0.478]  ⚠ 果实胶囊: 工具筒体触果 s=0.087m r=0.024m R=0.040m
 
 === case rand_23 entry=[0.59, -0.576, 0.568] axis_z=0.93 perturb←1113_0 ===
-  -> outcome=0 completion=0 matched=None code= reason=只规划预览成功；未发送任何运动
+  -> outcome=0 completion=2 matched=None code= reason=PREGRASP_ONLY：停在预抓取，未套入未 SetIO；ACK 后再 Survey
+  [回拍照] 弦=0.508m 路径=0.538m 比=1.06 偏离=0.074m 回退=0.0m 起=[0.23, -0.666, 0.478] 终=[0.356, -0.23, 0.706]
+  [接近] 从拍照位 点数=37 弦=0.441m 路径=0.635m 比=1.44 偏离=0.1m 回退=0.0m max_z=0.706 起=[0.356, -0.23, 0.706] 早段=[0.356, -0.23, 0.706] 终=[0.589, -0.565, 0.54]  ✓ 果实胶囊外
 
 === case rand_24 entry=[0.566, -0.624, 0.534] axis_z=0.79 perturb←1503_0 ===
-  -> outcome=0 completion=0 matched=None code= reason=只规划预览成功；未发送任何运动
+  -> outcome=0 completion=2 matched=None code= reason=PREGRASP_ONLY：停在预抓取，未套入未 SetIO；ACK 后再 Survey
+  [回拍照] 弦=0.441m 路径=0.503m 比=1.14 偏离=0.102m 回退=0.0m 起=[0.589, -0.565, 0.54] 终=[0.356, -0.23, 0.706]
+  [接近] 从拍照位 点数=34 弦=0.499m 路径=0.752m 比=1.51 偏离=0.145m 回退=0.0m max_z=0.706 起=[0.356, -0.23, 0.706] 早段=[0.356, -0.23, 0.706] 终=[0.584, -0.628, 0.51]  ✓ 果实胶囊外
 
 === case rand_25 entry=[0.192, -0.592, 0.535] axis_z=0.73 aabb←1113_1 ===
-  -> outcome=0 completion=0 matched=None code= reason=只规划预览成功；未发送任何运动
+  -> outcome=0 completion=2 matched=None code= reason=PREGRASP_ONLY：停在预抓取，未套入未 SetIO；ACK 后再 Survey
+  [接近] 未从拍照位 点数=47 弦=0.377m 路径=1.148m 比=3.04 偏离=0.415m 回退=0.06m max_z=0.706 起=[0.584, -0.628, 0.51] 早段=[0.592, -0.613, 0.523] 终=[0.21, -0.582, 0.513]  ✓ 果实胶囊外
 
 === case rand_26 entry=[0.541, -0.608, 0.546] axis_z=0.90 aabb←1639_0 ===
-  -> outcome=0 completion=0 matched=None code= reason=只规划预览成功；未发送任何运动
+  -> outcome=2 completion=0 matched=None code= reason=到预抓取失败: MTC short-path guard rejected: 工具筒体接触果实胶囊 s=0.00801022m r=0.08918m 间隙=-0.01082m (果半径 0.04m)
+  [回拍照] 弦=0.427m 路径=0.453m 比=1.06 偏离=0.065m 回退=0.0m 起=[0.21, -0.582, 0.513] 终=[0.356, -0.23, 0.706]
+  [接近] 未从拍照位 点数=18 弦=0.427m 路径=0.453m 比=1.06 偏离=0.065m 回退=0.0m max_z=0.706 起=[0.21, -0.582, 0.513] 早段=[0.221, -0.574, 0.522] 终=[0.356, -0.23, 0.706]  ⚠ 果实胶囊: 袋底段上方绕行 s=0.051m > 上限 0.020m
 
 === case rand_27 entry=[0.496, -0.673, 0.541] axis_z=0.94 perturb←1113_0 ===
-  -> outcome=0 completion=0 matched=None code= reason=只规划预览成功；未发送任何运动
+  -> outcome=0 completion=2 matched=None code= reason=PREGRASP_ONLY：停在预抓取，未套入未 SetIO；ACK 后再 Survey
+  [接近] 从拍照位 点数=36 弦=0.498m 路径=0.685m 比=1.38 偏离=0.109m 回退=0.0m max_z=0.706 起=[0.356, -0.23, 0.706] 早段=[0.356, -0.23, 0.706] 终=[0.501, -0.665, 0.513]  ✓ 果实胶囊外
 
 === case rand_28 entry=[0.253, -0.682, 0.586] axis_z=0.87 perturb←1437_1 ===
-  -> outcome=0 completion=0 matched=None code= reason=只规划预览成功；未发送任何运动
+  -> outcome=0 completion=2 matched=None code= reason=PREGRASP_ONLY：停在预抓取，未套入未 SetIO；ACK 后再 Survey
+  [接近] 未从拍照位 点数=51 弦=0.245m 路径=1.264m 比=5.16 偏离=0.481m 回退=0.25m max_z=0.706 起=[0.501, -0.665, 0.513] 早段=[0.501, -0.665, 0.513] 终=[0.263, -0.694, 0.56]  ⚠ 果实胶囊: 袋底段上方绕行 s=0.042m > 上限 0.020m
 
 === case rand_29 entry=[0.226, -0.778, 0.54] axis_z=0.72 aabb←1113_0 ===
-  -> outcome=0 completion=0 matched=None code= reason=只规划预览成功；未发送任何运动
+  -> outcome=0 completion=2 matched=None code= reason=PREGRASP_ONLY：停在预抓取，未套入未 SetIO；ACK 后再 Survey
+  [接近] 未从拍照位 点数=49 弦=0.084m 路径=1.488m 比=17.75 偏离=0.497m 回退=0.492m max_z=0.78 起=[0.263, -0.694, 0.56] 早段=[0.271, -0.688, 0.564] 终=[0.228, -0.757, 0.518]  ✓ 果实胶囊外
 
-结果已写入 /home/mu/Desktop/aubo_e5_jazzy_ws/runs/sim_field_targets_20260923_115524.jsonl
-成功 29/30；从拍照位果实胶囊后检 0；含未从拍照位返程旗标 0
-现场典型包络 (|entry|≤1.02 ∧ axis_z≥0.7) 29/29
+结果已写入 /home/mu/Desktop/aubo_e5_jazzy_ws/runs/sim_field_targets_20260924_110326.jsonl
+成功 25/30；从拍照位果实胶囊后检 0；含未从拍照位返程旗标 12
+现场典型包络 (|entry|≤1.02 ∧ axis_z≥0.7) 25/30

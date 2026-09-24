@@ -44,21 +44,46 @@ corpora:
       live: "sim_field_targets --random 100 --seed 20260910"
       replay: replay_oracle.sample_random_cases(100, 20260910, ...)
 
+  m2_pregrasp_30:
+    type: random                # M2 PREGRASP 档（run_m1_m5.sh m2）
+    seed: 20260922
+    size: 30
+    envelope: typical
+    expect_from: M2 门（PREGRASP≥95%）
+    note: seed 20260922 与 ladder_random_60 同源（前 30 例）——M2 可直接对梯子先验互证。
+    drivers:
+      live: "sim_field_targets --random 30 --seed 20260922 --mode pregrasp"
+      analytic: analytic_roll_ladder random 档（seed 20260922，60 例取前 30）
+
+  m3_full_30:
+    type: random                # M3 FULL 档（run_m1_m5.sh m3；M5 失败重测同 seed）
+    seed: 20260922
+    size: 30
+    envelope: typical
+    expect_from: M3 门（FULL≥90%、completion≥6、绕行比≤1.70）
+    note: 同 m2 同源说明。
+    drivers:
+      live: "sim_field_targets --random 30 --seed 20260922 --mode full"
+      analytic: 同上
+
   m4_algo_30:
     type: random                # M4 算法包络压测（near_horizontal 边缘域）
-    seed: 20260911
+    seed: 20260922
     size: 30
     envelope: algorithm
     expect_from: 无门（分布数据，M4 非硬门）
+    note: 同 seed 不同 envelope——采样域不同，与梯子 typical 先验不可逐例对（envelope
+      不同即案例集不同）；互证仅聚合参考。
     drivers:
-      live: "sim_field_targets --random 30 --envelope algorithm --seed 20260911"
+      live: "run_m1_m5.sh m4"
 
   ladder_random_60:
-    type: random                # ⚠ 历史遗留：仅解析梯子 09-22 轮使用
+    type: random                # 解析梯子 random 案册（09-22 轮）
     seed: 20260922
     size: 60
     envelope: typical
-    note: 与 canonical random_100（20260910）不同源——random 档互证前须以
-      canonical seed 重新生成先验；grid 档不受影响（无 seed）。
+    note: seed 20260922 与 M2/M3 实跑同源（前 30 例逐例可对）；与回放塔
+      random_100（seed 20260910）不同源——回放塔 random 档互证须重生成先验
+      （grid/field/stratified 档不受影响）。
     drivers:
       analytic: analytic_roll_ladder 09-22 轮（analysis/injection/analytic_roll_ladder.json）

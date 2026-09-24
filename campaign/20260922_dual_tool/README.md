@@ -36,6 +36,8 @@ ros2 launch peach_bringup harvest_system.launch.py hardware_mode:=mock \
 
 | # | request_id | 类型 | 工具 | 场景 | 门结果 | 产物 |
 |---|-----------|------|------|------|--------|------|
+| — | sim_20260924_1038/1049/1055 | M1 网格×3 轮 | hollow | mock 无相机 | 最好 19/20（tilt/deep_left 逐轮翻转=边界非确定性；near_horizontal 新词表三轮全 matched；无 hang 无码 0） | jsonl×3 + m1_grid.log |
+| — | sim_20260924_1103/1107/1116 | M2/M3/M4 | hollow | mock 无相机 | M2 83%、M3 67%、M4 37%（无码 0/挂起 0/绕行比过；失败全归因三族边界） | m1_m5_report_20260924.md + cross_validation_20260924_rerun.md（互证门✅） |
 | — | （待填，逐轮追加） | | | | | |
 
 轮次类型：`e2e_survey_`（只扫）/ `e2e_unrefined_`（PREGRASP）/ `e2e_full_unrefined_`（FULL 干跑）+ 时间戳；`request_id` 不复用。

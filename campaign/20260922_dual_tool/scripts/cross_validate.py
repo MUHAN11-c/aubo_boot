@@ -39,6 +39,7 @@ VERDICTS = {
     4: '#4 一致失败',
     5: '#5 无码失败',
     6: '门内一致（资格跳过）',   # skip_select 预期行为，不入门（matched 为准）
+    7: '可达翻转（expect 模型缺口）',  # skip_* 期望案当轮变可达：边界非确定性，非系统失败
 }
 
 
@@ -67,6 +68,11 @@ def classify(prior_ok: bool | None, row: dict) -> int:
     # skip_select：调度资格门预期跳过（不发 ExecuteTarget），matched 即门内一致
     if outcome == 'skipped_select' or row.get('expect') == 'skip_select':
         return 6 if row.get('matched') else 3
+    # skip_*（不可达类期望）当轮翻转可达：sim 不再执行（expect 停在 reachability），
+    # 行内无 outcome 无码——边界非确定性，不是系统无码失败
+    if (row.get('expect') in ('skip_cartesian', 'skip_ik')
+            and row.get('reachable') is True and outcome is None):
+        return 7
     live_success = outcome == 0
     coded = row_coded(row)
     if not live_success and not coded:
@@ -110,7 +116,7 @@ def main() -> int:
             live[row.get('case', '')] = row
 
     resolved = {x.strip() for x in args.resolved.split(',') if x.strip()}
-    counts = {k: 0 for k in (1, 2, 3, 4, 5, 6)}
+    counts = {k: 0 for k in (1, 2, 3, 4, 5, 6, 7)}
     lines = [
         '# 三方互证 C1 对照（解析 ↔ 在线）',
         '',

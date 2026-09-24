@@ -952,3 +952,13 @@ SIGINT 旧栈后用 16:57 编的 `peach_manipulation` 重起；开批前在 `glo
 - **首份互证产物** `analysis/injection/cross_validation_20260924.md`（09-23 两轮 grid 数据 vs 解析梯子 seed 20260922）：20 例= #1×13 / #3×3（**全部归因关闭**：near_horizontal=护栏正确拒、bag_d100_denied=梯子不建模袋径×D_inner 决策门（设计内拦截）、lab_oos=any-roll 口径差）/ #4×2（deep_left expect 过期、far_no_ik 预期 skip_ik）/ #5×0 / 资格跳过×2——**门 ✅ 过**。互证法首次端到端运转即把两个人工定性项制度化为产出（方案 §4.3 预演结论兑现）。
 - **边界例裁定落地（夹具+词表）**：`deep_left_low_axis` expect succeed→**skip_cartesian**（双败一致，sleeve_no_cartesian 码两轮一致）；`near_horizontal_1021_1` expect succeed→**deny_guardrail**（新词表档：MTC short-path 护栏拒，类型化判据=failure_code SLEEVE_PLAN_FAILED=5，不串匹配 reason）——sim_field_targets matched 分支、夹具头注释、test_constraint_grid 词表断言三处同轮；夹具 4 测绿。M1 分母随裁定更新（20 例口径不变，期望分类重封）。
 - **待机器空闲（panda_sort_gazebo 外项目栈仍占，等位不抢）**：阶段一遗留 `colcon test --packages-select peach_system_tests --ctest-args -R test_mock_launch`；阶段二 B 段=M1 网格复跑（TEM off+新词表，预期 20/20）→ M2–M4 → cross_validate 复收口 + 基线重封。
+
+### 09-24 E2E 阶段二 B/C 段：M1–M4 复跑（TEM off 栈）+ 互证复收口 + 基线重封
+
+- **阶段一遗留闭环**：机器空闲（panda_sort_gazebo 退场）后 `test_mock_launch` 隔离域（ROS_DOMAIN_ID=89）完整绿跑——rc=0、34 测 0 失败、收尾 pgrep 无残留。阶段一验收门全闭。
+- **可视化**：战役栈 `launch_stack.sh` 的 `DISPLAY=:0` 假定与本机 X server（`:1`）不符——栈内 RViz 曾静默夭折；按用户要求开观察面：`moveit_campaign.rviz` 于 `:1`（域 61）+ 8090 过程页（HTTP 200）。**勘定：战役脚本 DISPLAY 假定需随会话核**（未改脚本，运行时覆盖）。
+- **M1 三轮（TEM off + deny_guardrail 词表）**：19/20、19/20、19/20——**失配例逐轮漂移**：R1 tilt_1639_1（折线↔兜底绕行翻转，绕行后返程行程 7.10 rad 超 6 rad 门，code=8）、R2/R3 deep_left_low_axis（sleeve 笛卡尔可达性随 IK 种子翻转：09-23 两轮+R1 不可达 / R2 R3 可达，同栈内翻转=非确定性实证）。near_horizontal_1021_1 新裁定三轮全 matched（deny_guardrail 判据=failure_code 5 稳定）。**TEM off 无不良**：无 hang（历史 tilt 300s hang 案干净收口）、失败 100% 有码。
+- **M2/M3/M4（seed 20260922 与梯子同源——corpora.yaml 已修正 m2/m3/m4 条目）**：M2 25/30=83%（门 95% 未过；3 例新失败=护栏/入冠 LIN/对轴 LIN 规划边界，1 例翻好）、M3 20/30=67%（门 90% 未过；4 例返程行程门 code=8 completion=6 + 6 例接近段护栏/规划失败）、M4 11/30（压测升，护栏拒主导+滚转梯子 IK 无解 4 例）。全部失败有码、零挂起、绕行比 0.23–0.40 远低于 1.70。
+- **互证复收口门 ✅**（cross_validation_20260924_rerun.md，50 例=M1 最好轮+M3 对梯子先验）：#1×27 / #2×6 / #3×11 **全部族级归因**（F1 护栏预算 6 例、F2 返程行程门 4+tilt、F3 决策/滚转口径 2）/ #4×3 / #5×0 / 资格跳过×2 / **可达翻转×1（新判定档：skip 期望案当轮变可达=expect 模型缺口，非系统失败）**。结论：全部分歧可归因到解析先验职责外三族，无未解释失败。
+- **基线重封**：`m1_m5_report_20260924.md`（M1 95%→门 100% 未过、M2 83%、M3 67%；无码 0/挂起 0 过）；m*_*.log 覆写为今日轮（旧版在 git 历史）。
+- **门语义遗留（待用户裁定，未放宽任何门）**：tilt/deep_left 与 M2/M3 边界族为逐轮翻转非确定性案——单轮二值门需要口径修订（双分支 expect / 多数轮 / N 轮统计），候选已在报告与 cross_validation 产物记档。

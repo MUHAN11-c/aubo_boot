@@ -1299,6 +1299,13 @@ def main() -> int:
                 int(res.outcome) != 0
                 and int(res.completion_level) < 3
                 and not bool(res.harvest.grasped))
+        elif expect == 'deny_guardrail':
+            # MTC short-path 护栏拒（09-24 词表新增，E2E 阶段二裁定）：
+            # 类型化判据=SLEEVE_PLAN_FAILED(5)，不串匹配 reason。
+            out['matched'] = (
+                int(res.outcome) != 0
+                and int(getattr(res, 'failure_code', 0) or 0) == 5
+                and not bool(res.harvest.grasped))
         elif expect:
             out['matched'] = False
         if res.recovery_required:

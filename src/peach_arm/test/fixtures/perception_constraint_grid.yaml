@@ -1,8 +1,10 @@
 # 感知约束网格：mock FULL 干跑 / SELECT 期望（base_link，米）。
-# expect: succeed | skip_ik | skip_cartesian | skip_select
+# expect: succeed | skip_ik | skip_cartesian | skip_select | deny_decision | deny_guardrail
 # skip_select 只验证调度资格谓词（bbox_edge / tool_clearance_failed），不发 ExecuteTarget。
 # skip_ik / skip_cartesian 只打 CheckReachability，不发接触。
 # succeed 发 ExecuteTarget FULL（须 PROFILE_FULL；tool 关）。
+# deny_decision：注入 decision 预算门拒（FULL 模式）；deny_guardrail：MTC
+# short-path 护栏拒（SLEEVE_PLAN_FAILED=5，执行期，09-24 词表新增）。
 # 在达点位取 09-09 现场不同簇（中/深左斜/近左/右巷/中偏/近水平），禁止同一入口
 # 重复跑接近——矩形折线效率与方向都要在多变几何上验。
 cases:
@@ -72,8 +74,10 @@ cases:
     bag_diameter_upper_m: 0.13
     flags: [tool_clearance_failed]
   near_horizontal_1021_1:
-    expect: succeed
-    note: 感知允许近水平；轨迹若笛卡尔拒则记 skip_cartesian 为回归
+    expect: deny_guardrail
+    note: 09-24 裁定（E2E 阶段二）：算法包络边缘例，MTC short-path 护栏正确拒
+      （SLEEVE_PLAN_FAILED=5，09-23 两轮一致：工具筒体×果胶囊间隙 -0.031）；
+      解析梯子判可行属 #3 口径差（护栏含解析未建模的胶囊间隙），互证已归因。
     entry_xyz: [0.518222, -0.694595, 0.521454]
     axis: [0.828772, 0.489326, 0.271472]
     travel_m: 0.06
@@ -140,8 +144,9 @@ cases:
     travel_m: 0.06
     bag_diameter_upper_m: 0.06
   deep_left_low_axis:
-    expect: succeed
-    note: 深左簇 axis_z≈0.72（typical 下限附近）
+    expect: skip_cartesian
+    note: 09-24 裁定（E2E 阶段二）：解析梯子与实跑双败一致（#4）——CheckReachability
+      sleeve_no_cartesian 码（09-23 两轮一致），原 expect=succeed 属案册过期。
     entry_xyz: [0.247672, -0.769799, 0.589407]
     axis: [-0.604388, 0.160770, 0.779568]
     travel_m: 0.06

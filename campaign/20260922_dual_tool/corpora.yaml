@@ -1,0 +1,64 @@
+# 案册注册表（E2E 方案 v2.2 阶段二 · 决策 0029 后续）
+# 单一事实源：解析驱动（analytic_roll_ladder / replay_oracle）与实跑驱动
+# （sim_field_targets）的 seed/规模/expect 来源以本表为准，禁止各自散落。
+# 消费方：scripts/cross_validate.py（互证对照时按本表校验 run↔prior 同源）。
+# 纪律：新增/改案册先改本表；重封回放塔基线或改动 expect 词表须同轮记
+# docs/testing-log.md。
+corpora:
+
+  grid:
+    type: grid                  # 固定案册（无 seed，确定性）
+    size: 20
+    source: src/peach_arm/test/fixtures/perception_constraint_grid.yaml
+    expect_from: fixture        # expect 词表: succeed|skip_ik|skip_cartesian|skip_select|deny_decision|deny_guardrail
+    drivers:
+      live: "sim_field_targets --grid"
+      analytic: "analytic_roll_ladder（kind=grid，随 roll 梯跑）"
+      replay: replay_oracle（field+stratified+random 三层，grid 不入塔）
+
+  field_pregrasp:
+    type: field                 # 现场真袋案册（回放塔第一层）
+    size: 14
+    source: src/peach_arm/test/fixtures/field_pregrasp_cases.yaml#targets_20260909
+    expect_from: replay_baselines.json（冻结基线，analytic_ok 只升不降）
+    drivers:
+      replay: replay_oracle.field_cases
+      live: sim_field_targets --case <id>（按 id 取用）
+
+  stratified_200:
+    type: stratified            # 分层合成（09-11 mock typical 同源）
+    seed: 20260911
+    size: 200
+    strata: {typical: 0.40, mid_tilt: 0.20, horizontal: 0.20, far_entry: 0.10, long_chord: 0.10}
+    expect_from: replay_baselines.json
+    drivers:
+      replay: replay_oracle.sample_stratified(200, 20260911, ...)
+
+  random_100:
+    type: random                # 典型包络随机（09-10 接近重写同 seed）
+    seed: 20260910
+    size: 100
+    envelope: typical
+    expect_from: replay_baselines.json
+    drivers:
+      live: "sim_field_targets --random 100 --seed 20260910"
+      replay: replay_oracle.sample_random_cases(100, 20260910, ...)
+
+  m4_algo_30:
+    type: random                # M4 算法包络压测（near_horizontal 边缘域）
+    seed: 20260911
+    size: 30
+    envelope: algorithm
+    expect_from: 无门（分布数据，M4 非硬门）
+    drivers:
+      live: "sim_field_targets --random 30 --envelope algorithm --seed 20260911"
+
+  ladder_random_60:
+    type: random                # ⚠ 历史遗留：仅解析梯子 09-22 轮使用
+    seed: 20260922
+    size: 60
+    envelope: typical
+    note: 与 canonical random_100（20260910）不同源——random 档互证前须以
+      canonical seed 重新生成先验；grid 档不受影响（无 seed）。
+    drivers:
+      analytic: analytic_roll_ladder 09-22 轮（analysis/injection/analytic_roll_ladder.json）

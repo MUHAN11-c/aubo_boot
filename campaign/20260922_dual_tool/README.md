@@ -9,6 +9,7 @@
 | 路径 | 内容 | 入库 |
 |------|------|------|
 | `README.md` | 本台账：轮次表 + 门结论 + 真机前置清单 | 是 |
+| `corpora.yaml` | 案册注册表（E2E 阶段二）：seed/规模/expect 来源单源，解析与实跑驱动对表 | 是 |
 | `bags.md` | bag↔轮次↔分析结论↔purge 记录索引（bag 本体在 `runs/session_*/bag`） | 是 |
 | `analysis/` | 每轮指标（`<rid>/`：per_round_summary.md/json、stability json 等） | 是 |
 | `scripts/` | 战役专用脚本（run_round.sh / per_round_summary.py / stability_metrics.py） | 是 |
@@ -43,6 +44,7 @@ ros2 launch peach_bringup harvest_system.launch.py hardware_mode:=mock \
 
 - **P1 感知稳定**：锁定时延 percipio≤8s / stereo≤2s；3σ 抖动 entry/bottom/neck≤5mm、轴角≤1.5°、袋长≤8mm；10min 零 ID 切换；tf_stale<1%；无>2s 帧缺口；low_quality 恢复≤10s。
 - **注入矩阵**：M1 网格期望分类 100% 一致；M2 PREGRASP≥95%；M3 FULL≥90% completion_level≥6、绕行比≤1.70；失败 100% 有 failure_code。
+- **互证门（E2E 阶段二，2026-09-24 起）**：`scripts/cross_validate.py` 对照解析先验↔实跑，#3（解析成/实跑败）全部归因关闭、#5（无码失败）为零；案册同源按 `corpora.yaml`。grid 20 例首份产物 `analysis/injection/cross_validation_20260924.md`（✅ 过，三例 #3 已归因）。expect 词表新增 `deny_guardrail`（护栏拒=SLEEVE_PLAN_FAILED 5），M1 分母随 deep_left→skip_cartesian、near_horizontal→deny_guardrail 裁定更新。
 - **5 轮完整抓取（核心门）**：`e2e_full_unrefined_` ≥5 轮，每轮 ≥3 目标；SUCCEEDED 且 completion_level≥6 占比 ≥90%；无 300s hang；`harvest.grasped=false`；tool 恒关。
 - **P2-IMU（adaptive）**：I1–I7 七步全过，servo status=0。
 - **真机前置**：对照 docs/testing.md 真机授权前检查清单；全部门过 + A 级问题清零 + 分支推 Gitee 后才申请授权。

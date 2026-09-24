@@ -981,3 +981,10 @@ SIGINT 旧栈后用 16:57 编的 `peach_manipulation` 重起；开批前在 `glo
 - **方案校对（reports/2026-09-24-e2e-test-plan v2.2→v2.3）**：bondpy 口径勘正（置 8.0 会拆栈，真修=from bondpy.bondpy import Bond）；隔离宏勘正（Jazzy 无 add_ros_isolated_launch_test，ENV 等效实现）；S0 标已定论；附录 A 补新词表与使能前置；新增 §1.4 执行状态节（各阶段快照+待裁定两项）；风险表 +2（bondpy/抖动族宽于预期）。
 - **C03 PREGRASP 停驻 PASS（五次迭代，每轮钉死一条注入契约）**：① Survey=TRANSIT 需 execution 使能（SetEnables 单旋钮，前轮已勘）；② 相机关时臂侧取相机位姿需 **camera_link→camera_depth_optical_frame 静态 TF 桥**（sim_field_targets 同款，注入器已补——缺它 reason=无法取得当前相机位姿）；③ **PREGRASP 属接触规划类还需 grasp 使能**（只开 execution 会「未执行接触动作」空成功 completion=0）；④ 合成几何会撞 MTC short-path 护栏——注入目标必须用 **grid 夹具 known-good 例**（typical_1757）；⑤ **袋方向约定：bag_bottom=entry、bag_neck=entry+axis·length**（sim_field_targets.load_grid_cases 同源；entry 在袋中段则工具起点压果胶囊，护栏间隙 -0.1）。
 - **E1 一期进度**：C01 PASS（稳定）+ C03 PASS（停驻语义全断言：RECOVERY_REQUIRED(7) 保持 5s 无 ACK 不回 DISCOVERY、completion=2、无 cut 段、账本对齐）；C02 skip（F-E1-2 待裁定）；exit_codes 红=F-E1-1（peach_arm 批次后停栈 SIGABRT，真缺陷待修）。C04/C05/C10–C13 待做（注入器契约已齐，后续用例纯增量）。
+
+### 09-24 S3 真相机轮（裁定⑦ 首落地）：完全感知抓取链真机级首通 + 监测基建
+
+- **执行**：真相机 peach_stereo（169.254.10.110 在线）+mock 控制+bag all+RViz(:1)+视频随轮+45s 定时截图+日志告警监测器；域 61。纪律：臂不留停驻（ACK 即续）/停止即全拆/50G 预算/内存守门。
+- **全链首通**：拍照位自洽 Survey SUCCEEDED 16.9s（首发 survey_failed→SetEnables 契约 live 复现）→主轮 e2e_full_unrefined_20260924T1451：真实锁定 target_1（YOLO 0.84+掩膜+拟合轴）→派发→接近→停驻 RECOVERY_REQUIRED(7)→ACK→**COMPLETED**；周期 **9.4s**（reconfirm→approach_insert、completion=2、无 SetIO）。debug_image/RViz 点云/三维标记全程可视。
+- **发现与优化项**（详见 campaign/20260922_dual_tool/analysis/s3_live_20260924/report.md）：①点云按需发布（:624 无订阅者跳过——监测须先订阅，首测 0Hz 误判）；②深度 0.37Hz vs 设计 2.43 + color 9.6s 缺口（O1：observability all 档 83.7% 单核嫌疑，下轮 all vs std A/B）；③感知丢帧 3041（drop_oldest 设计预期）；④CM Overrun×6；⑤observability 停栈挂死再现（-9 清，bag_report 离线补跑中）；⑥孤儿 lifecycle_manager 挡预检（强清）；⑦RViz 前台争夺（无 wmctrl，杀-重启提窗）。
+- **50G 预算**：runs/ 87G→26G（旧分析 session 全删，证据在已提交 jsonl）；主袋 26G 待 bag_report 出报告后删，仅留报告+shots 4 张+ledger+perception_data+mp4×2。内存守门：峰值 1.04GB、可用 21G，无 OOM。

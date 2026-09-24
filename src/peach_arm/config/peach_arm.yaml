@@ -16,7 +16,7 @@ peach_arm:
       planning_time_s: 1.5  # MTC/默认单次规划时间上限（秒）。观察另用 observe_planning_time_s。
       planning_attempts: 1  # 默认规划尝试次数。观察另用 observe_planning_attempts。
       velocity_scaling: 0.1  # 接触段速度缩放（MTC 靠近/插入/撤离）。0.05 时接近段常被参数化到 40s 而护栏拒发；真机初始验证不得高于 0.1。
-      acceleration_scaling: 0.1  # 接触段加速度缩放。果平面斜插 LIN 另封顶 0.20/0.10，wrist1 超限再降到 0.10/0.04（sim --velocity 1.0 不得把 wrist1 打爆后 PTP 抡枝）。
+      acceleration_scaling: 0.1  # 接触段加速度缩放（接近 LIN 段档位；v4 已无降速重试档）。
       transit_velocity_scaling: 0.1  # 自由空间转移速度缩放（环绕视点/拍照位姿往返）；高速度缩短高重力矩姿态持续时间，反而降低过流风险；真机初始验证不得高于 0.1。
       transit_acceleration_scaling: 0.1  # 自由空间转移加速度缩放（同 transit_velocity_scaling 的档位约束）。
       execute_timeout_s: 90.0  # 单条轨迹/MTC 解执行有界等待（秒）；超时下发 stop 并判失败。move_group TEM 异常（stop 事件风暴，2026-09-23）时防动作通道永久堵死。
@@ -34,8 +34,8 @@ peach_arm:
       mtc_approach_max_detour_ratio: 2.6  # 接近 TCP 路径长/弦长上限。0=不查。2026-09-18 标定：合法 staging 绕行簇 max 1.90（30 例无门实测），游荡簇 min 4.37；旧 1.8 压在合法簇边上致 1/30。
       mtc_approach_max_chord_deviation_m: 0.32  # 接近 TCP 相对起止弦最大偏离（米）。0=不查。2026-09-18 标定：合法簇 max 0.258，游荡簇 min 0.42。
       mtc_approach_max_recede_m: 0.12  # 接近中途相对起点更远离目标的最大回退（米）。0=不查。2026-09-18 标定：合法簇 max 0.075，游荡簇 min 0.17。
-      mtc_approach_transit_max_detour_ratio: 2.6  # PTP staging 兜底的 TCP 路径长/弦长上限。0=不查。果平面折线逐段审（每跳直线比≈1）。须 >0 才会审 PTP 弧。同 09-18 标定。
-      mtc_approach_transit_max_chord_deviation_m: 0.32  # staging 转移级 TCP 相对起止弦最大偏离（米）。0=不查。同 09-18 标定。
+      mtc_approach_transit_max_detour_ratio: 2.6  # 接近主路径 PTP 段（关节弧）的 TCP 路径长/弦长上限。0=不查。须 >0 才会审 PTP 弧。同 09-18 标定。
+      mtc_approach_transit_max_chord_deviation_m: 0.32  # 接近主路径 PTP 段 TCP 相对起止弦最大偏离（米）。0=不查。同 09-18 标定。
       mtc_approach_transit_max_recede_m: 0.12  # staging 转移级中途相对起点更远离目标的最大回退（米）。0=不查。同 09-18 标定。
       mtc_approach_max_tcp_rotation_deg: 110.0  # 接近段相对起点 TCP 姿态测地线绝对上限（度）。0=不查。感知允许水平袋：keep-roll γ≈90°，±60° 滚转闭式 γ(90,60)≈105°；仍拦 180° 拧腕。
       mtc_approach_tcp_rotation_slack_deg: 20.0  # 相对本段起止测地线的路径余量（度）。0=只看绝对上限。拦对轴只需 ~20° 却中途拧到 90°+ 的 PTP（09-11 的 108°）。

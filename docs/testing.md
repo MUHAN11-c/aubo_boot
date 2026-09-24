@@ -124,12 +124,13 @@ python3 scripts/sim_approach_probe.py --random 100 --seed 20260910
 # 解析覆盖（不执臂）：感知包络 + TCP 测地线 + 果实胶囊；10000 分层位姿约 2 s
 python3 scripts/analyze_approach_envelope.py --n 10000 --seed 20260911
 # 解析约束不变量验证（不执臂）：I1–I5（果实胶囊有限圆柱）+ 姿态门闭式 + 拒发结合度
+# （历史 v1 口径：2026-09-23 ddd9136 起仅作基线复盘，不对照现行系统；现行解析覆盖走回放塔与 analyze_approach_envelope.py）
 python3 scripts/analytic_constraints.py --n 10000 --seed 20260911
 # 只读可达性验证（不执臂、不开周期）：同批位姿在 staging/预抓取逐档查 /compute_ik
 python3 scripts/analytic_reachability.py --n 10000 --seed 20260911
-# 实时轨迹 watchdog：执行中 FK 监测；默认只记录。技能节点笛卡尔门 1.8/0.25/0.08
+# 实时轨迹 watchdog：执行中 FK 监测；默认只记录（默认 0=门关）。技能节点现行笛卡尔门 2.6/0.32/0.12
 python3 scripts/trajectory_watchdog.py            # 只记录，不停轨
-python3 scripts/trajectory_watchdog.py --ratio 1.8 --dev 0.25 --recede 0.08
+python3 scripts/trajectory_watchdog.py --ratio 2.6 --dev 0.32 --recede 0.12
 
 # 真机（须显式 real；示教器上电；bringup 不起 aubo_dashboard）
 ros2 launch peach_bringup harvest_system.launch.py \
@@ -486,7 +487,7 @@ Fixed Frame 用 **`base_link`**，不要用未接上的 `world`。改显示配�
 - 观察：覆盖达标或 `maximum_moves` 用尽才停（不做完位姿序列不收口）；不做墙钟预算/移动+等帧 EMA 预测收口（`time_budget_s` 键已随死分支删除，2026-09-20 W5）。拍照位 + 当前位采帧；下一视点沿当前相机直线截到 `max_camera_step_m`（默认 0.15 m，~0.7 m 处一跨过 8°），只 LIN，失败换候选（绕行看 4.0 rad / 单轴 1.5 rad，不按时长）。到位后等新机位再判覆盖，同机位连帧不算。时长随 ~2.5 FPS 等帧浮动。
 - 机位数 `view_count >= capture.min_views`（默认 2），基线/深度/RMSE/内点率过门。`captured_views` 是积分帧数。
 - 无精化不得宣称方向准确。
-- MTC 接近、直线套入、同轴撤离均须 goal-hold。预抓取先回拍照位（有记录的接近则原路返程，否则 PTP 0.5 s / 失败 OMPL 3.0 s），再走接近主路径：**PTP 关节空间到中段点正下方（树冠外，滚转梯子 {0,±30°,±60°}+随机重启 IK）+ 世界垂直 LIN 入冠（伸进果树里）+ 沿轴 LIN 对轴进入预抓取**（`staging.*` 已删；不满足即失败收口带码）（已齐 LIN 段加相对目标 20° 姿态约束）；执行路径 MTC `plan(1)`，不凑满 `mtc_max_solutions`。起点已在袋底侧、直连不穿囊的短修正走直连 LIN（未齐先 LIN 原地对齐工具 Z；keep-roll 自碰换滚转）。G/under 单弦档已删（2026-09-10：photo→G 弦 fraction 均值 0.77、同 seed 100 随机位姿基线 9/100；`sim_approach_probe.py` 复核）。解析覆盖不执臂：`python3 scripts/analyze_approach_envelope.py --n 10000 --seed 20260911`（感知包络 + TCP 测地线 + 果实胶囊；PTP 行程/弧绕行仍须规划）。不走 CIRC/STOMP/OMPL。失败 `skipped_unreachable`，不进 OMPL。再一段沿轴 LIN；反向同轨迹（含 staging 段）回预抓取后**先倒放回拍照位再短 PTP `harvest_stow`**。接近绕腕护栏 **累计 12 rad / 单轴 6.1 rad**；口侧/上方看果实胶囊，逐段审查（工具有限圆柱 vs 感知胶囊；反爬 s ≤ 本段起点 max(s,0)+2 cm，果平面折线各跳都查；PTP staging 兜底首段只查筒体接触）；笛卡尔绕行比 2.6 / 偏离 0.32 m / 回退 0.12 m（2026-09-18 标定：三门旧值 1.8/0.25/0.08 压在合法 staging 绕行簇边缘，同 seed 30 例从 26/30 崩至 1/30；无门实测合法簇 max 比 1.90/偏 0.258/退 0.075，游荡簇 min 比 4.37/偏 0.42/退 0.17，取分离带内余量；标定后 30/30）；TCP 姿态行程绝对 110°（相对起止余量 20°；0=不查）。不按时长；近果 LIN 0.05、自由空间 0.10。mock 回放：`python3 scripts/replay_field_pregrasp.py --case 1757`（现场坐标，不开批）；全链路逐目标回放 `python3 scripts/sim_field_targets.py --case all`（回拍照位走周期内 `goToPhotoPose`，与正式接触段同一函数）；包络内随机位姿 `python3 scripts/sim_field_targets.py --random 16 --seed 20260910`（默认 typical：`axis_z≥0.70` 且 `|entry|≤1.02`，与现场多数袋一致；感知算法允许水平，压测加 `--envelope algorithm`；轨迹形状对照 `--random 30 --seed 20260911 --velocity 1.0`，仅 mock；`--velocity > 0` 时用例间隔 0.05 s）；实时记录 `python3 scripts/trajectory_watchdog.py`（默认不按绕行比停轨）。接近轨迹形状以 mock 为准（下节）；方向/定位仍以真机目视。
+- MTC 接近、直线套入、同轴撤离均须 goal-hold。预抓取先回拍照位（有记录的接近则原路返程，否则 PTP 0.5 s / 失败 OMPL 3.0 s），再走接近主路径：**PTP 关节空间到中段点正下方（树冠外，滚转梯子 {0,±30°,±60°}+随机重启 IK）+ 世界垂直 LIN 入冠（伸进果树里）+ 沿轴 LIN 对轴进入预抓取**（`staging.*` 已删；不满足即失败收口带码）（已齐 LIN 段加相对目标 20° 姿态约束）；执行路径 MTC `plan(1)`，不凑满 `mtc_max_solutions`。起点已在袋底侧、直连不穿囊的短修正走直连 LIN 几何分档（未齐先 LIN 原地对齐工具 Z；滚转梯子逐档换）。G/under 单弦档已删（2026-09-10：photo→G 弦 fraction 均值 0.77、同 seed 100 随机位姿基线 9/100；`sim_approach_probe.py` 复核）。解析覆盖不执臂：回放塔（下节，oracle=v4 三路点）与 `python3 scripts/analyze_approach_envelope.py --n 10000 --seed 20260911`（现行 v4 闭式复刻，感知包络 + TCP 测地线 + 果实胶囊；PTP 行程/弧绕行仍须规划）。不走 CIRC/STOMP/OMPL。失败 `skipped_unreachable`，不进 OMPL。反向同轨迹（含主路径各段）回预抓取后**先倒放回拍照位再短 PTP `harvest_stow`**。接近绕腕护栏 **累计 12 rad / 单轴 6.1 rad**；口侧/上方看果实胶囊，逐段审查（工具有限圆柱 vs 感知胶囊；反爬 s ≤ 本段起点 max(s,0)+2 cm，各 LIN 段都查；主路径 PTP 段（关节弧）只查筒体接触）；笛卡尔绕行比 2.6 / 偏离 0.32 m / 回退 0.12 m（2026-09-18 标定：三门旧值 1.8/0.25/0.08 压在合法 staging 绕行簇边缘，同 seed 30 例从 26/30 崩至 1/30；无门实测合法簇 max 比 1.90/偏 0.258/退 0.075，游荡簇 min 比 4.37/偏 0.42/退 0.17，取分离带内余量；标定后 30/30）；TCP 姿态行程绝对 110°（相对起止余量 20°；0=不查）。不按时长；近果 LIN 0.05、自由空间 0.10。mock 回放：`python3 scripts/replay_field_pregrasp.py --case 1757`（现场坐标，不开批）；全链路逐目标回放 `python3 scripts/sim_field_targets.py --case all`（回拍照位走周期内 `goToPhotoPose`，与正式接触段同一函数）；包络内随机位姿 `python3 scripts/sim_field_targets.py --random 16 --seed 20260910`（默认 typical：`axis_z≥0.70` 且 `|entry|≤1.02`，与现场多数袋一致；感知算法允许水平，压测加 `--envelope algorithm`；轨迹形状对照 `--random 30 --seed 20260911 --velocity 1.0`，仅 mock；`--velocity > 0` 时用例间隔 0.05 s）；实时记录 `python3 scripts/trajectory_watchdog.py`（默认不按绕行比停轨）。接近轨迹形状以 mock 为准（下节）；方向/定位仍以真机目视。
 - 日志不得出现 SetIO。`harvest.grasped=false`（未开工具不得宣称采摘成功）。
 - 单目标目标 45–60 s；失败必须有 `failure_code`，不得停在 `RUNNING + action_active=false`。
 
@@ -519,7 +520,7 @@ python3 src/peach_interfaces/scripts/check_interface_manifest.py
 
 ### 回放塔（解析回归门；改接近/融合/护栏/包络必跑）
 
-`colcon test --packages-select peach_system_tests` 的 `test_replay_approach`：零 ROS 纯几何，确定性语料三层（现场真袋 14 例（案册 `src/peach_arm/test/fixtures/field_pregrasp_cases.yaml`，W0 迁入并随包安装）；分层 200 例 seed 20260911；随机 100 例 seed 20260910）对照 `test/replay_baselines.json` 冻结基线（基线 a955cea，与 `scripts/analyze_approach_envelope.py --n 200 --seed 20260911` 输出逐数核对一致）。判定语义：`analytic_ok` 只许升不许降（全链路 66/100、26/30 属 mock 栈指标，本层是其下界——joint_travel/PTP 绕行/IK 自碰不在此层观测）；`lin_chord_fail` 双侧容差 1（降=护栏变松，升=变紧）；分母精确断言，采样器或案册漂移须显式重封基线。护栏数学为 `replay_oracle.py`（scripts 逐字移植）；阶段 2 起 `peach_arm` 以同一案册喂真实纯核 gtest 交叉对账。旧 bag 回放兼容：`peach_observability/bag_reader.py` 的 `LEGACY_TYPE_ALIASES`/`LEGACY_TOPIC_ALIASES`（重写轮每改名/删型登记一行）。
+`colcon test --packages-select peach_system_tests` 的 `test_replay_approach`：零 ROS 纯几何，确定性语料三层（现场真袋 14 例（案册 `src/peach_arm/test/fixtures/field_pregrasp_cases.yaml`，W0 迁入并随包安装）；分层 200 例 seed 20260911；随机 100 例 seed 20260910）对照 `test/replay_baselines.json` 冻结基线（`baseline_commit` a955cea 封定；2026-09-20 复核 `_mat_to_quat` 移植笔误、零数值变化；**2026-09-23 v4 三路点重封**：staging 从纯轴向 0.13 改为 mid−ẑ·0.05 世界垂直构造、`replay_oracle` 同轮换 v4 公式，stratified `lin_chord_fail` 49→51、random_100 8→6，json `revised` 字段记录全程；基线逐数权威是 json 自身 provenance/reverified/revised 链，`scripts/analytic_constraints.py` 与 `sim_approach_probe.py` 已标历史 v1 口径、不作现行对照源）。判定语义：`analytic_ok` 只许升不许降（全链路 66/100、26/30 属 mock 栈指标，本层是其下界——joint_travel/PTP 绕行/IK 自碰不在此层观测）；`lin_chord_fail` 双侧容差 1（降=护栏变松，升=变紧）；分母精确断言，采样器或案册漂移须显式重封基线。护栏数学为 `replay_oracle.py`（scripts 移植起源，公式已随 v4 重封同轮更新）；阶段 2 起 `peach_arm` 以同一案册喂真实纯核 gtest 交叉对账。旧 bag 回放兼容：`peach_observability/bag_reader.py` 的 `LEGACY_TYPE_ALIASES`/`LEGACY_TOPIC_ALIASES`（重写轮每改名/删型登记一行）。
 
 ### 清洁重写轮功能清单（F1–F13，验收锚点）
 
@@ -531,7 +532,7 @@ python3 src/peach_interfaces/scripts/check_interface_manifest.py
 | F2 | 停走感知链（检测/分割/半径剖面/身份/锁定/TF 三态） | 纯核单测 + 相机语料回放 |
 | F3 | 单目标建模（五门/精确 stamp TSDF/有界 ICP/Huber 融合/预算；融合失败不回滚体积） | 单测 + 回放 |
 | F4 | 观察循环两档（fast 单视优先封顶 3 视 / conservative 现行多视原值） | 回放塔两档对照 |
-| F5 | 接触周期 + 检查点（staging PTP+轴向 LIN+四层护栏；AT_STAGING→…→CUT_CONFIRMED→RETAINED→RETREATED→STOWED） | 回放塔 + mock 全链路基线（66/100、39/41、26/30、绕行比≤1.70） |
+| F5 | 接触周期 + 检查点（主路径 PTP+垂直入冠+沿轴 LIN+四层护栏；AT_STAGING→…→CUT_CONFIRMED→RETAINED→RETREATED→STOWED） | 回放塔 + mock 全链路基线（66/100、39/41、26/30、绕行比≤1.70） |
 | F6 | 命令门单点强制（使能×clearance×robotReady×¬cancel；旁路=0） | gtest + 单测 + 冒烟 |
 | F7 | 批次状态机 + 选果 + 账本 + 批次策略参数（采收率/单果时限/扇区时限/视点档）+ 补采清单 | 纯核单测 + 冒烟 |
 | F8 | 操作台四栏（监控/排程/单步/回放分析+审计）+ 只读记录器闭环 | 冒烟闭环 |

@@ -929,3 +929,9 @@ SIGINT 旧栈后用 16:57 编的 `peach_manipulation` 重起；开批前在 `glo
 - ID-1：空 request_id 兜底 'harvest' → `auto_<时间戳>`（账本目录不复用，断点恢复误跳过收口）。
 - **bond 勘定**：launch 实测 `缺 ros-jazzy-bondpy` WARN（此前"已装"记录不实）——默认维持 0.0；默认 8.0 实测会因 Python 节点无心跳拆栈。**前置：sudo apt install ros-jazzy-bondpy 后 bond_timeout:=8.0 即开**。
 - P0 八批次全数收口；先导 bag 实验（变体B 判定）与 I6 现场步、M0 台架标定为待现场窗口项（均已记前置条件）。
+
+### 09-24 文档同步：回放塔 v4 重封口径追平（43be561 欠账）
+
+- 43be561（09-23）重封 `replay_baselines.json`：v4 三路点构造（staging 纯轴向 0.13 → mid−ẑ·0.05 世界垂直，replay_oracle 同轮换公式）；stratified `lin_chord_fail` 49→51、random_100 8→6；json 增 `revised` 字段。当时未留 testing-log 条目，本条补记。
+- ddd9136 标**历史 v1 口径**的两脚本是 `scripts/analytic_constraints.py` 与 `scripts/sim_approach_probe.py`（`analyze_approach_envelope.py` 仍现行，v4 docstring）；testing.md 回放塔节不再写「与 scripts 逐数一致」，逐数权威=基线 json 的 provenance/reverified/revised 链。
+- 同轮：architecture/io/testing 追平批次 4–7（档位门/行程判据/reconstruct_in_trajectory/deactivate 2s/ID-1 兜底）与 v4d（sequence blend、move_group 默认 pilz）措辞；护栏现行值统一 2.6/0.32/0.12。

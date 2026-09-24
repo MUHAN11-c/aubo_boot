@@ -975,3 +975,9 @@ SIGINT 旧栈后用 16:57 编的 `peach_manipulation` 重起；开批前在 `glo
 - **F-E1-2（语义发现，C02 转 skip 待裁定）**：批中 param 关 `execution_enabled` **不拦派发**（受理期开→Begin 后、锁定前关→仍 RUNNING 派发）。EXECUTION_DISABLED-at-SELECT 的真实可达路径待产品裁定（受理期即关会挡 Survey；或 enables 应改选择期活查）。
 - **observability 停栈挂死再现**：战役栈拆除后 observability 孤儿进程卡 SIGTERM 窗不退（需 kill -9）——09-22 起根因未明案例再现一次，E1 预检两次被它挡。
 - 机器状态：战役栈/E1 栈均拆净（pgrep 复核无残留）。
+
+### 09-24 方案校对 v2.3 + E1 C03 打通：注入协议五契约钉死
+
+- **方案校对（reports/2026-09-24-e2e-test-plan v2.2→v2.3）**：bondpy 口径勘正（置 8.0 会拆栈，真修=from bondpy.bondpy import Bond）；隔离宏勘正（Jazzy 无 add_ros_isolated_launch_test，ENV 等效实现）；S0 标已定论；附录 A 补新词表与使能前置；新增 §1.4 执行状态节（各阶段快照+待裁定两项）；风险表 +2（bondpy/抖动族宽于预期）。
+- **C03 PREGRASP 停驻 PASS（五次迭代，每轮钉死一条注入契约）**：① Survey=TRANSIT 需 execution 使能（SetEnables 单旋钮，前轮已勘）；② 相机关时臂侧取相机位姿需 **camera_link→camera_depth_optical_frame 静态 TF 桥**（sim_field_targets 同款，注入器已补——缺它 reason=无法取得当前相机位姿）；③ **PREGRASP 属接触规划类还需 grasp 使能**（只开 execution 会「未执行接触动作」空成功 completion=0）；④ 合成几何会撞 MTC short-path 护栏——注入目标必须用 **grid 夹具 known-good 例**（typical_1757）；⑤ **袋方向约定：bag_bottom=entry、bag_neck=entry+axis·length**（sim_field_targets.load_grid_cases 同源；entry 在袋中段则工具起点压果胶囊，护栏间隙 -0.1）。
+- **E1 一期进度**：C01 PASS（稳定）+ C03 PASS（停驻语义全断言：RECOVERY_REQUIRED(7) 保持 5s 无 ACK 不回 DISCOVERY、completion=2、无 cut 段、账本对齐）；C02 skip（F-E1-2 待裁定）；exit_codes 红=F-E1-1（peach_arm 批次后停栈 SIGABRT，真缺陷待修）。C04/C05/C10–C13 待做（注入器契约已齐，后续用例纯增量）。

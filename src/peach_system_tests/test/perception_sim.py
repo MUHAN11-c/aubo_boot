@@ -31,6 +31,8 @@ class SimTarget:
     axis: tuple
     camera_distance_m: float = 0.85
     confidence: float = 0.95
+    bag_diameter_m: float = 0.06
+    travel_m: float = 0.06
 
 
 @dataclass
@@ -67,6 +69,8 @@ def observe_at(scenario: Scenario, t0: float, now: float, epoch: int,
                     'axis': t.axis,
                     'camera_distance_m': t.camera_distance_m,
                     'confidence': t.confidence,
+                    'bag_diameter_m': t.bag_diameter_m,
+                    'travel_m': t.travel_m,
                 } for t in scenario.targets],
             'snapshot_id': snapshot_id,
             'epoch': epoch,
@@ -121,6 +125,25 @@ class PerceptionSim:
         from peach_interfaces.srv import SetEnables
         self.enables_client = node.create_client(
             SetEnables, '/peach_supervisor/set_enables')
+
+        # 相机链补桥（sim_field_targets 同款）：相机关时 camera xacro 不在，
+        # 臂侧取当前相机位姿需要 camera_link→camera_depth_optical_frame
+        # （REP-103 link→optical 固定旋转；wrist3→camera_link 由
+        # extrinsics_publisher 提供，extrinsics_enabled:=true 时在）。
+        import math
+        from geometry_msgs.msg import TransformStamped
+        from tf2_ros import StaticTransformBroadcaster
+        tf = TransformStamped()
+        tf.header.stamp = node.get_clock().now().to_msg()
+        tf.header.frame_id = 'camera_link'
+        tf.child_frame_id = 'camera_depth_optical_frame'
+        m = ((0.0, 0.0, 1.0), (-1.0, 0.0, 0.0), (0.0, -1.0, 0.0))
+        s = math.sqrt(m[0][0] + m[1][1] + m[2][2] + 1.0) * 2.0
+        tf.transform.rotation.x = (m[2][1] - m[1][2]) / s
+        tf.transform.rotation.y = (m[0][2] - m[2][0]) / s
+        tf.transform.rotation.z = (m[1][0] - m[0][1]) / s
+        tf.transform.rotation.w = 0.25 * s
+        StaticTransformBroadcaster(node).sendTransform(tf)
         node.create_timer(0.1, self._on_rs_tick)
         node.create_timer(0.5, self._on_obs_tick)
 
@@ -238,9 +261,10 @@ def _msg(name):
 
 
 def _observation_msg(item: dict):
-    """单条观测：几何按 BagGraspCandidate 契约（entry_pose=Pose、
-    bottom/neck Point、translation_direction=bottom→neck 单位向量）."""
-    from geometry_msgs.msg import Point, Pose
+    """单条观测：几何按 BagGraspCandidate 契约。袋方向约定与
+    sim_field_targets.load_grid_cases 一致——**bag_bottom=entry**（入口即
+    袋底/插入起点）、bag_neck=entry+axis·length（袋沿 +axis 延伸）。"""
+    from geometry_msgs.msg import Point
 
     obs = _msg('PeachTargetObservation')()
     obs.target_id = item['target_id']
@@ -253,18 +277,18 @@ def _observation_msg(item: dict):
     cand.status = 0                  # ACCEPT（=0；REOBSERVE=1 勿写反）
     ex, ey, ez = item['entry_xyz']
     ax, ay, az = item['axis']
+    length = max(float(item.get('travel_m', 0.06)), 0.06)
     cand.entry_pose.position.x = ex
     cand.entry_pose.position.y = ey
     cand.entry_pose.position.z = ez
-    # 袋底=入口沿 −axis 半袋长；袋颈=入口沿 +axis（axis 为袋底→袋口方向）
-    half = 0.05
-    cand.bag_bottom = Point(x=ex - ax * half, y=ey - ay * half, z=ez - az * half)
-    cand.bag_neck = Point(x=ex + ax * half, y=ey + ay * half, z=ez + az * half)
+    cand.bag_bottom = Point(x=ex, y=ey, z=ez)
+    cand.bag_neck = Point(
+        x=ex + ax * length, y=ey + ay * length, z=ez + az * length)
     cand.translation_direction.x = ax
     cand.translation_direction.y = ay
     cand.translation_direction.z = az
-    cand.bag_diameter_upper_m = 0.06
-    cand.suggested_travel_m = 0.10
+    cand.bag_diameter_upper_m = float(item.get('bag_diameter_m', 0.06))
+    cand.suggested_travel_m = float(item.get('travel_m', 0.06))
     cand.confidence = item['confidence']
     obs.candidate = cand
     return obs

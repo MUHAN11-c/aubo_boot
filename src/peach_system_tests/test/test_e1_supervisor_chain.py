@@ -39,14 +39,27 @@ _LATCHED = QoSProfile(
     depth=1, reliability=ReliabilityPolicy.RELIABLE,
     durability=DurabilityPolicy.TRANSIENT_LOCAL)
 
-# 现场典型几何（base 系；深度窗 0.30–1.60m 内）
+# 几何取 grid 夹具 known-good 例（typical_1757：巷中/轴近竖/现行在达对照，
+# 过护栏；合成几何实测会撞 MTC short-path 护栏——果胶囊间隙模型不显然）。
+import yaml as _yaml
+_GRID = _yaml.safe_load(
+    (Path(__file__).resolve().parents[2] / 'peach_arm' / 'test' / 'fixtures'
+     / 'perception_constraint_grid.yaml').read_text())
+
+
+def _grid_target(cid, target_id):
+    c = _GRID['cases'][cid]
+    return psim.SimTarget(
+        target_id=target_id,
+        entry_xyz=tuple(c['entry_xyz']),
+        axis=tuple(c['axis']),
+        bag_diameter_m=float(c.get('bag_diameter_upper_m', 0.06)),
+        travel_m=float(c.get('travel_m', 0.06)))
+
+
 _TWO_TARGETS = [
-    psim.SimTarget(
-        target_id='e1_typical_a',
-        entry_xyz=(0.40, -0.60, 0.55), axis=(0.0, 0.0, 1.0)),
-    psim.SimTarget(
-        target_id='e1_typical_b',
-        entry_xyz=(0.35, -0.45, 0.60), axis=(0.1, 0.0, 0.995)),
+    _grid_target('typical_1757', 'e1_typical_a'),
+    _grid_target('right_lane_tilt', 'e1_typical_b'),
 ]
 
 _RID_RE = re.compile(r'^[A-Za-z0-9_.:-]+$')
@@ -234,6 +247,49 @@ class TestE1SupervisorChain(unittest.TestCase):
             'C02 出现 RUNNING=使能关仍派发目标')
         self._assert_ledger(rid)
 
+    # -- C03 ---------------------------------------------------------------
+    def test_c03_pregrasp_park_requires_ack(self):
+        """PREGRASP_ONLY 停驻：SUCCEEDED+recovery_required+completion=2，
+        批次停 RECOVERY_REQUIRED(7) 且无 ACK 不得回 DISCOVERY。
+        使能=execution+grasp（PREGRASP 属接触规划类，E1 二跑勘定），tool 恒关。"""
+        sim = INJECTOR.sim
+        self.assertTrue(sim.set_enables(execution=True, grasp=True))
+        rid = f'e1_c03_{uuid.uuid4().hex[:8]}'
+        mark = len(INJECTOR.states)
+        goal_future = sim.send_harvest(rid, intent=0)
+        handle = self._wait_goal(goal_future, 30.0)
+        self.assertIsNotNone(handle, 'RunHarvest goal 未被受理')
+        sim.start(psim.Scenario(
+            targets=[_TWO_TARGETS[0]], progress_s=1.0))
+        ok = INJECTOR.wait_state(
+            lambda tail: any(s == 7 for _, s in tail),
+            timeout=300.0, mark=mark)
+        tail_states = [s for _, s in INJECTOR.states[mark:]]
+        self.assertTrue(ok, 'C03 未到 RECOVERY_REQUIRED；states=%s' % tail_states)
+        self.assertTrue(
+            any(s == 2 for _, s in INJECTOR.states[mark:]),
+            'C03 未出现 RUNNING（PREGRASP 派发未发生）')
+        # 停驻语义：无 ACK 不得离开 7（观测 5s 稳定窗）
+        time.sleep(5.0)
+        self.assertEqual(
+            sim.batch_state, 7,
+            'RECOVERY_REQUIRED 未保持（当前=%s，ACK 前不得回 DISCOVERY）'
+            % sim.batch_state)
+        self.assertTrue(
+            bool(sim.state.recovery_required), 'recovery_required 未置位')
+        ledger = self._read_ledger(rid)
+        outcomes = ledger.get('outcomes') or []
+        self.assertTrue(outcomes, 'C03 账本无 outcomes')
+        o = outcomes[0]
+        self.assertEqual(int(o.get('outcome', -1)), 0, 'C03 非 SUCCEEDED')
+        self.assertEqual(
+            int(o.get('completion_level', -1)), 2,
+            'PREGRASP 停驻 completion_level 应=2（got %s）'
+            % o.get('completion_level'))
+        stages = ' '.join(o.get('stage_names') or [])
+        self.assertNotIn(
+            'cut', stages.lower(), 'PREGRASP_ONLY 不得有剪切段')
+
     # -- 帮助 ---------------------------------------------------------------
     def _wait_goal(self, future, timeout):
         deadline = time.monotonic() + timeout
@@ -244,11 +300,14 @@ class TestE1SupervisorChain(unittest.TestCase):
         return None
 
     def _assert_ledger(self, rid):
-        path = _ledger_path(rid)
-        self.assertTrue(os.path.exists(path), '账本缺失: %s' % path)
-        ledger = json.loads(open(path).read())
+        ledger = self._read_ledger(rid)
         self.assertIn('claimed', ledger)
         self.assertIn('outcomes', ledger)
+
+    def _read_ledger(self, rid) -> dict:
+        path = _ledger_path(rid)
+        self.assertTrue(os.path.exists(path), '账本缺失: %s' % path)
+        return json.loads(open(path).read())
 
 
 @launch_testing.post_shutdown_test()

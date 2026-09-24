@@ -1,11 +1,12 @@
-# peach 端到端（E2E）测试方案 v2.2（按阶段组织）
+# peach 端到端（E2E）测试方案 v2.3（按阶段组织）
 
 日期：2026-09-24　分支：`test/20260909-field-traj`（tip=be79ca2，行号以当日磁盘为准）
-性质：**方案文档**（本轮只做全面审查 + 方案规划，不动代码、不启栈、不跑轮次；实施分后续轮）。
+性质：**方案文档 + 执行跟踪**（v2.3 起含执行状态节 §1.4；实施记录权威=docs/testing-log.md）。
 依据：peach 全仓探读（架构 / 测试基建 / 战役现状三路，关键结论带 file:line）+ 三份活文档当轮核对 + runs/ 与 campaign/analysis/ 磁盘证据复核。
 
 **本轮七项用户裁定**：① 仅规划文档，评审通过后下一轮实施；② 自动化 E2E 场景深度=**全矩阵含故障注入**（分两期落地）；③ A-P3-1 move_group TEM stop 风暴=**关 TEM 重定基线**（根因另行跟）；④ peach_sim Gazebo 物理闭环**不纳入**（维持决策 0028「只做场景建模与摆位」）；⑤ 分阶段测试的内在结构 = **解析法先验 → 程序实跑（全程录制）→ 三者互相验证**——三方=解析法 / 实跑在线结果 / 录制全量数据（session bag）+ rviz2 窗口视频（详细分析），贯穿各阶段；⑥ **每个模块和功能都在考虑真实场景后设计测试**，并**必须覆盖检测框闪烁与突然消失工况**（v2.1 新增，§2.3 + C25–C28）；⑦ **硬件启用顺序：真实相机先行，真机臂在完整测试通过后才开启**（v2.2 新增）——真相机在阶段五（可与阶段三/四并行）启用且全程 mock 控制；真机臂开启条件=阶段一～五全部门过 + 阶段六清单 + 人工授权，完整测试通过前真机臂保持关闭。
 
+> **v2.3 变更记录**（2026-09-24 校对轮，按执行实况勘正）：① bondpy 口径修正——**置 8.0 会拆栈**（包 `__init__` 0 字节，`from bondpy import Bond` 仍 ImportError；真修=守卫改 `from bondpy.bondpy import Bond`，决策 0029④ 修正版/审计 F4）；② 隔离宏勘正——Jazzy 无 `add_ros_isolated_launch_test`，实为 `add_launch_test(... ENV ROS_DOMAIN_ID=89/90)` 等效实现；③ S0 四问已定论（决策 0029⑤）；④ expect 词表新增 `deny_guardrail`/`flaky_cartesian`/`flaky_transit`（方案 A 双分支裁定）；⑤ 新增执行状态节 §1.4 与 E1 两发现（F-E1-1/F-E1-2）；⑥ 阶段五补 DISPLAY=:1 勘定。
 > **v2.2 变更记录**（2026-09-24）：新增裁定 ⑦ 硬件启用顺序（真相机先行/真机臂后置于完整测试）；阶段五标注可与阶段三/四并行 + 真相机启用操作要点；阶段六真机臂开启条件显式化。
 > **v2.1 变更记录**（2026-09-24）：新增 §2.3 真实场景驱动原则（案册优先级阶梯 + 噪声档=P1 实测 3σ + 模块×真实工况映射表）；注入器增**目标时间线脚本**能力（flicker/lost/occluded/depth_void/jitter）；阶段四新增 **C25–C28 检测框闪烁与突然消失 4 用例**（二期 6→10 例、全矩阵 15→19 例）；S0 尖峰扩项（核实 selected 目标丢失/决策过期的现行收口分支）；E3 P1 门自然覆盖闪烁工况标注。
 > **v2.0**：结构重组为按阶段组织（阶段一～六，每阶段自含闭环）。**v1.2**：互证扩三方。**v1.1**：互证方法论。**v1.0**：初版（一期/二期用例计数 v2.0 修正为 9+6）。
@@ -56,6 +57,20 @@
 | 8 | FSM 纯核零 ROS 可直接进测试进程：`react(batch_state, event)→Reaction`；`event_for_outcome:404`（1/2→SKIPPED、3→FAILED、4→CANCELED）；`permissions_for:396-400` RECOVERY 态仅 CANCEL+ACK | `harvest_fsm.py` |
 | 9 | M1 磁盘真相=18/20：`runs/sim_field_targets_20260923_{153659,173249}.jsonl` 两轮 matched 均 18/20；失配=near_horizontal_1021_1（护栏正确拒，expect 仍 succeed）+ deep_left_low_axis（边界抖动 None）。记忆「复跑 20/20」是 deny 修复前「无 hang」口径（该轮 bag_d100_denied 本身 matched=False），勿混用 | 本轮 python 复核 |
 | 10 | 战役门数字（沿用不改）：M1 100%、M2 PREGRASP≥95%、M3 FULL≥90% completion≥6 绕行比≤1.70、5 轮 FULL≥90% 无 300s hang、P1 3σ 门（entry/bottom/neck≤5mm/轴角≤1.5°/袋长≤8mm） | campaign README；2026-09-22 方案 |
+
+### 1.4 执行状态（v2.3 快照；过程记录权威=docs/testing-log.md 09-24 系列）
+
+| 阶段 | 状态 | 关键证据 |
+|------|------|----------|
+| 一 地基与缓解 | ✅ 完成 | d60d24f：TEM off（决策 0029）/r0_gate +13/隔离域 ENV 实现/mock_launch 隔离域完整绿跑 rc=0/S0 四问定论（0029⑤） |
+| 二 A 段（免起栈） | ✅ 完成 | ada208a：corpora.yaml/cross_validate.py/首份互证产物门✅/边界例裁定三处同轮 |
+| 二 B/C 段（M 矩阵） | ⚠ 已执行、门未过待裁定 | M1 五轮证据（19×3→马拉松栈劣化 8/20 级联→净栈 17/20；travel_min/max/info_length 亦翻转族）；双分支词表落地；M2 83%/M3 67% 未过门（失败全有码零挂起、三族归因）；**推荐 N 轮统计口径待用户裁定** |
+| 三 E1 一期 | 🔶 kickoff | 3d1f129：**C01 稳定 PASS**（全链+账本+零派发）；C02 转 skip（F-E1-2）；**F-E1-1 新缺陷**=批次后 peach_arm 停栈 SIGABRT（exit 门红，疑审计 F3 同族）；C03–C13 待做 |
+| 四/五/六 | 未开始 | 阶段五勘定：本机 X server 实为 `:1`（战役脚本 `:0` 假定过时，栈内 RViz 曾静默夭折；起观察 RViz 须 `:1`） |
+
+**E1 两发现**：F-E1-1 批次后 peach_arm 停栈 SIGABRT(-6)（mock 空跑不复现）；F-E1-2 批中 param 关 execution_enabled 不拦派发（EXECUTION_DISABLED 可达路径待产品裁定）。**另**：战役栈勿马拉松（返程拒留臂离拍照位→级联塌方，每轮重启栈）；observability 停栈挂死再现（kill -9 才清）。
+
+**待用户裁定两项**：① M 门 N 轮统计口径；② F-E1-2 使能语义。
 
 ---
 
@@ -156,14 +171,14 @@ C 三方互证收口（对照报告，阶段门）
 ## 3. 阶段一：地基与缓解（先行小改动轮）
 
 **目标**：清掉阻断后续阶段的四个地基项，产出可评审的小 PR 面。
-**前置**：无（本轮即第一轮）。
+**前置**：无（本轮即第一轮）。**v2.3 状态：✅ 已完成**（d60d24f；mock_launch 隔离域完整绿跑补验后全闭）。
 
 **测试内容**：
-1. **TEM 关闭**：`aubo_e5_moveit_config/config/controllers.yaml:5` 与 `controllers_mock.yaml:5` 的 `trajectory_execution` 段加 `execution_duration_monitoring: false`（参数名以 MoveIt 2 Jazzy 文档核定；UR Driver 主流做法）。**关 ≠ 修**：A-P3-1 根因另行跟，TEM off 后 `boundedExecute`（execute_timeout_s=90s）仍是超时防线。同轮改 architecture/testing 活文档。
-2. **r0_gate.sh 清单补齐**：按 testing-log.md:564 记档全量 diff 门清单 vs 各包 test/ 目录，使 CI 门 ≥ colcon test 收集集。
-3. **launch_testing 隔离切换**：`peach_system_tests/CMakeLists.txt` 的 `add_launch_test` → `add_ros_isolated_launch_test`（自动独立 ROS_DOMAIN_ID）；`test_mock_launch.py` 复跑绿。
-4. **S0 注入契约尖峰**（半天出结论）：相机关时感知节点是否在 `/peach/perception/target_observations` 静默；`harvest_run_id` 严格度与 `selected_target_id` 调和语义；C22 survey 失败注入手段勘定（photo pose 不可达 / moveit_enabled:=false 变体）；**v2.1 扩项**——核实 selected 目标执行期观测丢失/LOST 与决策令牌过期（EXPIRED→SKIPPED_QUALITY）的现行收口分支（C26/C27/C28 的预期断言以此为准，读 executor_node/stages 现行代码落档）。降级路径：双发→注入器高频占优（锁边沿触发 `executor_node.py:998-1016`）→ 感知发布抑制参数。
-5. bondpy 前置记档（`sudo apt install ros-jazzy-bondpy`；装后 bond_timeout:=8.0 才可开 Python 死检；各阶段均不依赖）。
+1. **TEM 关闭**（✅ 已执行，决策 0029）：`aubo_e5_moveit_config/config/controllers.yaml:5` 与 `controllers_mock.yaml:5` 的 `trajectory_execution` 段加 `execution_duration_monitoring: false`（参数名以 MoveIt 2 Jazzy 文档核定；UR Driver 主流做法）。**关 ≠ 修**：A-P3-1 根因另行跟，TEM off 后 `boundedExecute`（execute_timeout_s=90s）仍是超时防线。同轮改 architecture/testing 活文档。
+2. **r0_gate.sh 清单补齐**（✅ 已执行：+13 文件、3 个非零 ROS 有据排除；:564 对 `test_reconstruction_decision_validity` 的漂移暗示系误报）。
+3. **launch_testing 隔离切换**（✅ 已执行，v2.3 勘正：Jazzy 的 launch_testing_ament_cmake **无** `add_ros_isolated_launch_test` 宏（Kilted+ 才有），实为 `add_launch_test(... ENV "ROS_DOMAIN_ID=89" "ROS_LOCALHOST_ONLY=1")` 等效实现；E1 用例域 90；`test_mock_launch` 完整绿跑 rc=0）。
+4. **S0 注入契约尖峰**（✅ 已定论，决策 0029⑤）：相机关时感知**静默**（纯帧驱动无 timer→单发布者成立）；锁判定只查 epoch∧locked **不查 run_id**（`executor_node.py:1659-1667`）；C22 注入手段=**`moveit_enabled:=false` 变体**（MGI 有界构造 5s、规划缺席快速失败）；C26–C28 断言口径=`_wait_target_in_locked_set(2.5s)`→observe_failed 码 + 臂侧 observed 三条件（OBSERVED∧¬REJECT∧¬anchor_from_memory）+ safety_gate 观测超龄。
+5. bondpy 前置记档（**v2.3 勘正（审计 F4）**：dpkg 4.2.0 在装但包 `__init__` 为 0 字节，守卫用的 `from bondpy import Bond`（lifecycle.py:39）仍 ImportError——**置 bond_timeout:=8.0 会因 Python 三节点无心跳被 nav2_lm 拆栈，禁止照做**；真修=守卫改 `from bondpy.bondpy import Bond`（实测可用）后再置 8.0；各阶段均不依赖）。
 
 **三方互证执行**：本轮无互证（纯地基）；TEM off 后可选手动一轮网格冒烟确认无回归。
 **录制档位**：无（不起正式轮）。
@@ -340,7 +355,7 @@ S4（survey/pregrasp 批链冒烟）已被 09-22 两次 live 轮覆盖，台账�
 | 4 | A-P3-3 周期级预算缺失 | hang 仅 GOAL_TIMEOUT 兜底 | 独立事项，不阻塞本方案 |
 | 5 | E1 用例时长×CI 预算 | industrial_ci 超时 | 一文件一组共享栈+分组 TIMEOUT；必要时 CI 只跑子集 |
 | 6 | 感知侧 A 级问题（A1/A2/A3…） | S6 稳定性 | C20 锁调度侧表现；修复另行立项 |
-| 7 | bondpy 缺失争议（dpkg 已装 vs 批次7 勘定） | Python 死检开启 | 各阶段不依赖；开启前实测一次 |
+| 7 | bondpy 缺失争议（v2.3 勘正：包在装但 from-import 坏） | **置 8.0 会拆栈（勿做）** | 真修=守卫改 `from bondpy.bondpy import Bond`；修后才可开死检；各阶段不依赖 |
 | 8 | mock 开 tool 必挂（C 级红线） | — | E1 全用例 tool 恒 false，禁试 |
 | 9 | 案册 seed 三处不同源 | 互证无法逐例 | 阶段二注册表落地前只做 grid 20 例同源子集 |
 | 10 | Python oracle 与 C++ 纯核逆移植漂移 | 解析先验失真 | 阶段三 B1 对账接线后有 C++ 真核背书；漂移进 #2/#3 归因 |
@@ -348,12 +363,16 @@ S4（survey/pregrasp 批链冒烟）已被 09-22 两次 live 轮覆盖，台账�
 | 12 | 录制磁盘预算与残留 | 100G 占满/违反 MUST | purge 纪律+录屏脚本自带 cleanup+pgrep 复核含 ffmpeg |
 | 13 | 录制对实时性扰动 | 主链节拍 | 只读订阅已按会话 bag 设计；std/all 分级；C2 异常时降档对照复跑 |
 | 14 | C26/C27/C28 预期行为依赖现行契约核实（selected 丢失/决策过期收口分支） | 闪烁/消失用例断言口径 | 阶段一 S0 扩项先读现行代码落档；若现行行为未定义/不合理 → 按互证 #3 记发现并修复后重封用例，不为过门放宽断言 |
+| 15 | bondpy（v2.3 勘正：包在装但 `from bondpy import Bond` 坏，`__init__` 0 字节） | **置 bond_timeout:=8.0 会拆栈（勿做）** | 真修=守卫改 `from bondpy.bondpy import Bond`（实测可用）；修后才可开死检；各阶段不依赖 |
+| 16 | M 矩阵抖动族比预想宽（travel_min/max/info_length 亦翻转；马拉松栈级联劣化） | 单轮门不可判 | 勿马拉松（每轮重启栈）；门口径待裁定（推荐 N 轮统计）；双分支词表已尽裁定权边界不再扩 |
 
 每轮收尾照 MUST：停栈 + pgrep 复核 + 攒批提交纪律（里程碑才 commit+push）。
 
 ---
 
 ### 附录 A：E1 用例注入参数速查（阶段三/四）
+
+v2.3 执行注记：① 夹具 expect 词表已扩 `deny_guardrail`/`flaky_cartesian`/`flaky_transit`（边界例裁定+方案 A 双分支，M1 分母语义随裁定）；② 所有需 Survey 的用例须先 `SetEnables(execution=true)`（Survey=TRANSIT 运动，E1 首跑勘定）；③ C02 现状=skip（F-E1-2 待裁定）。
 
 | 用例 | intent | execute_pregrasp_only | skip_reconstruction | 夹具 | 注入器行为 | ControlTask |
 |------|--------|----------------------|--------------------|------|-----------|-------------|

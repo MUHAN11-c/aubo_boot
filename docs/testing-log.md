@@ -962,3 +962,7 @@ SIGINT 旧栈后用 16:57 编的 `peach_manipulation` 重起；开批前在 `glo
 - **互证复收口门 ✅**（cross_validation_20260924_rerun.md，50 例=M1 最好轮+M3 对梯子先验）：#1×27 / #2×6 / #3×11 **全部族级归因**（F1 护栏预算 6 例、F2 返程行程门 4+tilt、F3 决策/滚转口径 2）/ #4×3 / #5×0 / 资格跳过×2 / **可达翻转×1（新判定档：skip 期望案当轮变可达=expect 模型缺口，非系统失败）**。结论：全部分歧可归因到解析先验职责外三族，无未解释失败。
 - **基线重封**：`m1_m5_report_20260924.md`（M1 95%→门 100% 未过、M2 83%、M3 67%；无码 0/挂起 0 过）；m*_*.log 覆写为今日轮（旧版在 git 历史）。
 - **门语义遗留（待用户裁定，未放宽任何门）**：tilt/deep_left 与 M2/M3 边界族为逐轮翻转非确定性案——单轮二值门需要口径修订（双分支 expect / 多数轮 / N 轮统计），候选已在报告与 cross_validation 产物记档。
+
+### 09-24 勘正：阶段一 bondpy 结论不完整（审计 F4 采纳）
+
+- 本文件 09-24 阶段一条目④「裸 `import bondpy` 成功→只差置 bond_timeout:=8.0」**不成立**：包 `__init__` 为 0 字节，守卫实际用的 `from bondpy import Bond`（`lifecycle.py:39`）仍 ImportError——**置 8.0 会因 Python 三节点无心跳被 nav2_lm 拆栈，勿照做**。裸 import 成功只是误导性部分证据。真修=守卫改 `from bondpy.bondpy import Bond`（实测可用）后再置 8.0。决策 0029④ 已同轮改为修正版口径。

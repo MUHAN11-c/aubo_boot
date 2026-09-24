@@ -966,3 +966,12 @@ SIGINT 旧栈后用 16:57 编的 `peach_manipulation` 重起；开批前在 `glo
 ### 09-24 勘正：阶段一 bondpy 结论不完整（审计 F4 采纳）
 
 - 本文件 09-24 阶段一条目④「裸 `import bondpy` 成功→只差置 bond_timeout:=8.0」**不成立**：包 `__init__` 为 0 字节，守卫实际用的 `from bondpy import Bond`（`lifecycle.py:39`）仍 ImportError——**置 8.0 会因 Python 三节点无心跳被 nav2_lm 拆栈，勿照做**。裸 import 成功只是误导性部分证据。真修=守卫改 `from bondpy.bondpy import Bond`（实测可用）后再置 8.0。决策 0029④ 已同轮改为修正版口径。
+
+### 09-24 E2E 阶段二收尾+阶段三 kickoff：M1 双分支词表 + E1 注入链首例打通
+
+- **M1 双分支词表（方案 A 落地）**：`flaky_cartesian`（deep_left：不可达∧sleeve_no_cartesian 或 可达∧执行成功）/`flaky_transit`（tilt：全程成功 或 RETREAT_FAILED=8∧completion≥6 有码收工）——夹具/sim matched/schema 测三处同轮；`test_succeed_entries_are_spread` 守卫改按执行族计（succeed∪flaky_*∪deny_guardrail，唯一点 6/x 跨 0.311 守卫保持）。**验证轮结论**：马拉松栈（连跑 7 轮）8/20 塌方=返程拒把臂留在非拍照位→后续级联（rand_03 级联族实证）；净栈重启 17/20——**travel_min/travel_max/info_length 也是翻转族**（09-22 日志早记 travel 类兜底）。双分支不再扩：更宽的抖动族属门语义裁定（推荐 N 轮统计口径），今日 5 轮 M1 证据链完整（19/19/19/8[劣化]/17）。
+- **E1 注入链首例打通（阶段三）**：`perception_sim` 注入器（S0 契约：单发布者/epoch 对齐/两段式锁定/SetEnables）+ `test_e1_supervisor_chain.py`（launch_testing，域 90，CMake ENV 隔离）。**C01 SURVEY_ONLY 全链 PASS 且稳定复现**（RunHarvest→Survey→Begin→注入进度→锁定→COMPLETED 结算→账本 claimed 校验→零 RUNNING 派发）。迭代勘定：①注入器状态轨迹订阅漏接线（首版 states 恒空）；②**Survey=TRANSIT 类运动需 execution 使能**（SetEnables 单旋钮同时置调度 execution_enabled——操作台契约实测确认）；③brain 激活即装 YOLO/SAM，自动化直发首批撞模型加载（稳定窗 12s 缓解）。
+- **F-E1-1（新缺陷，exit 门红）**：跑过批次后 `peach_arm` 停栈 **SIGABRT(-6)**——mock_launch 空跑不复现；与 09-24 审计 F3（批次7 detach 后 releaseResources UAF 窗）同族嫌疑，待对账。
+- **F-E1-2（语义发现，C02 转 skip 待裁定）**：批中 param 关 `execution_enabled` **不拦派发**（受理期开→Begin 后、锁定前关→仍 RUNNING 派发）。EXECUTION_DISABLED-at-SELECT 的真实可达路径待产品裁定（受理期即关会挡 Survey；或 enables 应改选择期活查）。
+- **observability 停栈挂死再现**：战役栈拆除后 observability 孤儿进程卡 SIGTERM 窗不退（需 kill -9）——09-22 起根因未明案例再现一次，E1 预检两次被它挡。
+- 机器状态：战役栈/E1 栈均拆净（pgrep 复核无残留）。

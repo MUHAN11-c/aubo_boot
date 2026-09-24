@@ -18,6 +18,9 @@ def test_grid_cases_have_expect_and_geometry():
     assert 'skip_select' in expects
     # 09-24 词表新增：deny_guardrail（MTC short-path 护栏拒，SLEEVE_PLAN_FAILED=5）
     assert 'deny_guardrail' in expects, 'near_horizontal 裁定后必须在册'
+    # 09-24 方案 A 双分支（逐轮翻转非确定性案，两分支均可验证）
+    assert 'flaky_cartesian' in expects, 'deep_left 裁定后必须在册'
+    assert 'flaky_transit' in expects, 'tilt_1639 裁定后必须在册'
     assert 'travel_max' in cases
     assert cases['travel_max']['travel_m'] == 0.20
     for cid, case in cases.items():
@@ -25,7 +28,8 @@ def test_grid_cases_have_expect_and_geometry():
         assert case.get('axis') and len(case['axis']) == 3, cid
         assert case['expect'] in {
             'succeed', 'skip_ik', 'skip_cartesian', 'skip_select',
-            'deny_decision', 'deny_guardrail'}, cid
+            'deny_decision', 'deny_guardrail',
+            'flaky_cartesian', 'flaky_transit'}, cid
         # deny_decision 依赖注入 decision 的预算门，只在 FULL 模式成立
         if case['expect'] == 'deny_decision':
             assert float(case.get('bag_diameter_upper_m') or 0) >= 0.08, cid
@@ -52,9 +56,12 @@ def test_grid_covers_p0_matrix():
 
 def test_succeed_entries_are_spread():
     book = yaml.safe_load(GRID.read_text())
+    # 空间分散守卫按「执行族」计（09-24 方案 A 后 tilt/deep_left 移入 flaky_*，
+    # 仍是走 ExecuteTarget 的全周期案例；skip_* 只打资格/可达不执行）。
+    exec_family = {'succeed', 'flaky_transit', 'flaky_cartesian', 'deny_guardrail'}
     pts = [
         tuple(case['entry_xyz'])
-        for case in book['cases'].values() if case['expect'] == 'succeed']
+        for case in book['cases'].values() if case['expect'] in exec_family]
     unique = {tuple(round(v, 3) for v in pt) for pt in pts}
     assert len(unique) >= 5
     xs = [pt[0] for pt in pts]

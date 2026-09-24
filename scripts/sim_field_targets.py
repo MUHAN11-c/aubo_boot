@@ -1146,6 +1146,13 @@ def main() -> int:
             if expect == 'skip_cartesian':
                 row['matched'] = (ok is False and code == 'sleeve_no_cartesian')
                 return row
+            if expect == 'flaky_cartesian':
+                # 双分支（09-24 方案 A）：不可达∧sleeve_no_cartesian 码＝分支①；
+                # 可达＝落入下方 ExecuteTarget，执行成功才算分支② matched。
+                if ok is False:
+                    row['matched'] = (code == 'sleeve_no_cartesian')
+                    return row
+                # 可达：继续执行（不 return），matched 由 outcome 分支判定
             if ok is False:
                 row['matched'] = False
                 row['error'] = f'reachability 拒: {code}'
@@ -1305,6 +1312,23 @@ def main() -> int:
             out['matched'] = (
                 int(res.outcome) != 0
                 and int(getattr(res, 'failure_code', 0) or 0) == 5
+                and not bool(res.harvest.grasped))
+        elif expect == 'flaky_transit':
+            # 双分支（09-24 方案 A）：折线全程成功，或兜底绕行后返程行程门拒
+            # （RETREAT_FAILED=8、周期本体完成 completion≥6、有码无 hang）。
+            out['matched'] = (
+                (int(res.outcome) == 0
+                 and int(res.completion_level) >= 3
+                 and not bool(res.harvest.grasped))
+                or (int(res.outcome) != 0
+                    and int(getattr(res, 'failure_code', 0) or 0) == 8
+                    and int(res.completion_level) >= 6
+                    and not bool(res.harvest.grasped)))
+        elif expect == 'flaky_cartesian':
+            # 分支②（可达路径）：执行须成功才算 matched（分支①在 reachability 段）
+            out['matched'] = (
+                int(res.outcome) == 0
+                and int(res.completion_level) >= 3
                 and not bool(res.harvest.grasped))
         elif expect:
             out['matched'] = False

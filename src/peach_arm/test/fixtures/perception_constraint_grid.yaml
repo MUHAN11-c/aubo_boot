@@ -5,6 +5,8 @@
 # succeed 发 ExecuteTarget FULL（须 PROFILE_FULL；tool 关）。
 # deny_decision：注入 decision 预算门拒（FULL 模式）；deny_guardrail：MTC
 # short-path 护栏拒（SLEEVE_PLAN_FAILED=5，执行期，09-24 词表新增）。
+# flaky_cartesian / flaky_transit（09-24 方案 A 双分支）：逐轮翻转非确定性案
+# ——两分支均为可验证行为（详见各案 note），单轮门继续有效。
 # 在达点位取 09-09 现场不同簇（中/深左斜/近左/右巷/中偏/近水平），禁止同一入口
 # 重复跑接近——矩形折线效率与方向都要在多变几何上验。
 cases:
@@ -16,8 +18,12 @@ cases:
     travel_m: 0.06
     bag_diameter_upper_m: 0.06
   tilt_1639_1:
-    expect: succeed
-    note: 深左斜袋 axis_z≈0.84
+    expect: flaky_transit
+    note: 09-24 双分支裁定（方案 A）：接近规划逐轮翻转（折线全程成功 / 兜底
+      绕行后返程累计行程超 6 rad 门拒，code=8、completion=6 周期本体完成、
+      有码无 hang——09-24 三轮实证）——分支①outcome=0、分支②code=8∧
+      completion≥6∧未宣称抓取，均 matched。历史 300s hang 案（A-P3-1），
+      TEM off 后干净收口。
     entry_xyz: [0.247672, -0.769799, 0.589407]
     axis: [-0.487632, 0.222493, 0.844223]
     travel_m: 0.10
@@ -144,9 +150,10 @@ cases:
     travel_m: 0.06
     bag_diameter_upper_m: 0.06
   deep_left_low_axis:
-    expect: skip_cartesian
-    note: 09-24 裁定（E2E 阶段二）：解析梯子与实跑双败一致（#4）——CheckReachability
-      sleeve_no_cartesian 码（09-23 两轮一致），原 expect=succeed 属案册过期。
+    expect: flaky_cartesian
+    note: 09-24 双分支裁定（方案 A）：sleeve 笛卡尔可达性随 IK 种子逐轮翻转
+      （09-23 两轮+09-24 R1 不可达 / R2 R3 可达，同栈内实证）——分支①不可达∧
+      sleeve_no_cartesian 码、分支②可达∧ExecuteTarget 执行成功，均 matched。
     entry_xyz: [0.247672, -0.769799, 0.589407]
     axis: [-0.604388, 0.160770, 0.779568]
     travel_m: 0.06

@@ -55,6 +55,9 @@ class Tree:
     scaffold_length: Range
     scaffold_radius: float
     scaffold_tilt_deg: Range
+    branchlet_count: Range
+    branchlet_length: Range
+    branchlet_radius: float
     twig_radius: float
     canopy_count: Range
     canopy_radius: Range
@@ -73,6 +76,9 @@ class Bag:
     neck_diameter: float
     neck_length: float
     per_tree: Range
+    cluster_count: Range
+    cluster_radius: Range
+    cluster_gap: float
     bottom_height: Range
     tilt_max_deg: float
     row_spread: float
@@ -284,7 +290,8 @@ def params_from_dict(data: Mapping[str, Any]) -> tuple[OrchardParams, list[str]]
     tree_r = top.sub('tree')
     tree_r.finish((
         'trunk_height', 'trunk_radius', 'scaffold_count', 'scaffold_length',
-        'scaffold_radius', 'scaffold_tilt_deg', 'twig_radius', 'canopy_count',
+        'scaffold_radius', 'scaffold_tilt_deg', 'branchlet_count',
+        'branchlet_length', 'branchlet_radius', 'twig_radius', 'canopy_count',
         'canopy_radius', 'canopy_height', 'height_max',
     ))
     tree = Tree(
@@ -294,6 +301,9 @@ def params_from_dict(data: Mapping[str, Any]) -> tuple[OrchardParams, list[str]]
         scaffold_length=tree_r.rng('scaffold_length'),
         scaffold_radius=tree_r.number('scaffold_radius', lo=0.0),
         scaffold_tilt_deg=tree_r.rng('scaffold_tilt_deg'),
+        branchlet_count=tree_r.rng('branchlet_count'),
+        branchlet_length=tree_r.rng('branchlet_length'),
+        branchlet_radius=tree_r.number('branchlet_radius', lo=0.0),
         twig_radius=tree_r.number('twig_radius', lo=0.0),
         canopy_count=tree_r.rng('canopy_count'),
         canopy_radius=tree_r.rng('canopy_radius'),
@@ -305,7 +315,9 @@ def params_from_dict(data: Mapping[str, Any]) -> tuple[OrchardParams, list[str]]
     bag_r.finish((
         'fruit_diameter', 'body_diameter', 'body_thickness_ratio',
         'bottom_to_neck', 'neck_diameter', 'neck_length', 'per_tree',
-        'bottom_height', 'tilt_max_deg', 'row_spread', 'alley_side_ratio',
+        'cluster_count', 'cluster_radius', 'cluster_gap', 'bottom_height',
+        'tilt_max_deg',
+        'row_spread', 'alley_side_ratio',
     ))
     bag = Bag(
         fruit_diameter=bag_r.rng('fruit_diameter'),
@@ -315,6 +327,9 @@ def params_from_dict(data: Mapping[str, Any]) -> tuple[OrchardParams, list[str]]
         neck_diameter=bag_r.number('neck_diameter', lo=0.0),
         neck_length=bag_r.number('neck_length', lo=0.0),
         per_tree=bag_r.rng('per_tree'),
+        cluster_count=bag_r.rng('cluster_count'),
+        cluster_radius=bag_r.rng('cluster_radius'),
+        cluster_gap=bag_r.number('cluster_gap', lo=0.0),
         bottom_height=bag_r.rng('bottom_height'),
         tilt_max_deg=bag_r.number('tilt_max_deg', lo=0.0, hi=80.0),
         row_spread=bag_r.number('row_spread', lo=0.0),

@@ -1,5 +1,7 @@
 # 测试流程与命名
 
+> 2026-09-24 果园外观重建：当前 Blender 入口为 `src/peach_sim/reconstruction/`，不复用旧模型/贴图/随机布局。RGB-D 约束局部可见袋面；整树、遮挡部分与树行是标注清楚的推断。旧 Gazebo SDF/GT 仍属旧管线，尚未接入此次新场景；无 ROS IDL、运动或驱动变更。数据口径、离线命令与验收边界见 [peach_sim README](../src/peach_sim/README.md)。
+
 现行系统（SNAPSHOT）：源码。与 [architecture.md](architecture.md)、[io.md](io.md) 构成仅有的三份活文档；**源码与本文互相更新，改启动/验收口径或改本文须同一轮改另一边**。**如何演化**以 [AGENTS.md](../AGENTS.md) 为准：非完美适配当前真机/产品则跟 ROS 2 / 优秀 GitHub 主流。
 
 真机轮次、量化基线、审查记录写在 [testing-log.md](testing-log.md)；工程整理过程写在 [REFACTORING.md](REFACTORING.md)（二者都是过程记录，不驱动现行设计）。改行为只改本文 + 源码；补一条实测时追加 testing-log，不把轮次散文写回本文。
@@ -69,7 +71,7 @@ ros2 launch peach_sim orchard_sim.launch.py    # gz sim + 采摘工位生成 + /
 pgrep -af 'ros2 launch|gz sim|robot_state_publisher|parameter_bridge'   # 测完必须空
 ```
 
-口径与门：袋具几何受工具余量（`aubo_description/config/adaptive_cylinder_v1.yaml` 镜像对账）与现场包络（`runs/field_pregrasp_*`：袋底→袋颈 0.05–0.12 m、袋底离臂座 0.52–0.71 m）双重约束，`peach_sim/test/{test_params,test_scene}.py` 覆盖；入库 `worlds/peach_orchard.sdf` 与生成器输出逐字节对账（防漂移）。**边界**：工位被 URDF `world_joint` 锚在作业位（履带不可驾驶），六关节钉真机拍照位 `photo_joints`；`gz_ros2_control` / 履带驱动 / 相机深度桥未接（见 `peach_sim` README「本轮边界」）。gz GUI / ogre2 需要 OpenGL，无 GL 环境 GUI 会 abort——看 `scene_preview` 正交预览（俯视 + 作业切片侧视，红=可达目标、红圈=可达包络）。
+口径与门：袋具几何受工具余量（`aubo_description/config/adaptive_cylinder_v1.yaml` 镜像对账）与现场包络（`runs/field_pregrasp_*`：袋底→袋颈 0.05–0.12 m、袋底离臂座 0.52–0.71 m）双重约束，`peach_sim/test/{test_params,test_scene,test_textures}.py` 覆盖（含袋体比例/吊挂角锚数据集、SDF 颜色值域守卫）；入库 `worlds/peach_orchard.sdf` 与生成器输出逐字节对账（防漂移）。**边界**：工位被 URDF `world_joint` 锚在作业位（履带不可驾驶），六关节钉真机拍照位 `photo_joints`；`gz_ros2_control` / 履带驱动 / 相机深度桥未接（见 `peach_sim` README「本轮边界」）。gz GUI / ogre2 需要 OpenGL，无 GL 环境 GUI 会 abort——看 `scene_preview` 正交预览（俯视 + 作业切片侧视，红=可达目标、红圈=可达包络）。
 
 全新机器 / 新环境自检与部署：`scripts/env_bootstrap.sh check|install|all`（幂等；check 零改动、退出码=缺失项数，`SMOKE=1` 追加 mock 冒烟）。脚本内 apt/venv/udev 清单是依赖事实源之一，变更依赖须四处同步：package.xml、requirements.txt、脚本清单、本节。
 

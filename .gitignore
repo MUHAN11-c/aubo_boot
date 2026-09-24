@@ -103,3 +103,10 @@ campaign/**/*.png
 
 # 场景预览图（ros2 run peach_sim scene_preview 生成，可复现，不入库）
 src/peach_sim/worlds/*.preview.png
+
+# Blender 独立包（仅生成网格用，不入仓；colcon 用 COLCON_IGNORE 忽略）
+_tools/
+
+# Blender 场景工程与自动备份（151–205MB 超 100MB 推送上限，可由 tools/ 脚本重建）
+*.blend
+*.blend1

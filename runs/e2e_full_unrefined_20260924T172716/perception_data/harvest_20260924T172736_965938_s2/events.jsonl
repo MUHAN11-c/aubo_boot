@@ -1,0 +1,380 @@
+{"source": "perception", "event": "global_targets_locked", "target_count": 1, "selected_target_id": "target_1", "recorded_at": "2026-09-24T09:27:36.967345+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1790242056093706000, "observed_target_ids": ["target_1"], "selected_target_id": "", "recorded_at": "2026-09-24T09:27:36.969371+00:00"}
+{"source": "reconstruction", "event": "reconstruction_linked", "recorded_at": "2026-09-24T09:27:36.972512+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1790242056427299000, "observed_target_ids": ["target_1"], "selected_target_id": "target_1", "recorded_at": "2026-09-24T09:27:37.280771+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1790242056894328000, "observed_target_ids": ["target_1"], "selected_target_id": "target_1", "recorded_at": "2026-09-24T09:27:38.221667+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1790242057694280000, "observed_target_ids": ["target_1"], "selected_target_id": "target_1", "recorded_at": "2026-09-24T09:27:38.738326+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "stale_frame", "reason": "缓存帧龄期 2.45 s > max_frame_age_s=2.0（陈帧拒采）", "recorded_at": "2026-09-24T09:27:38.880177+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:38.916588+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:38.937445+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:38.947665+00:00"}
+{"source": "reconstruction", "event": "frame_accepted", "target_id": "target_1", "stamp_ns": 1790242057694279936, "view_index": 1, "mask_depth_ratio": 1.0, "registration": {"mode": "fk", "reason": "model_warmup", "fitness": -1.0, "rmse_m": -1.0, "translation_m": 0.0, "rotation_deg": 0.0}, "recorded_at": "2026-09-24T09:27:39.065307+00:00"}
+{"source": "reconstruction", "event": "frame_accepted", "target_id": "target_1", "stamp_ns": 1790242057694279936, "view_index": 2, "mask_depth_ratio": 1.0, "registration": {"mode": "fk", "reason": "model_warmup", "fitness": -1.0, "rmse_m": -1.0, "translation_m": 0.0, "rotation_deg": 0.0}, "recorded_at": "2026-09-24T09:27:39.071817+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "same_stamp", "reason": "缓存帧未更新（与上次采帧同帧），请等下一帧", "recorded_at": "2026-09-24T09:27:39.097323+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "same_stamp", "reason": "缓存帧未更新（与上次采帧同帧），请等下一帧", "recorded_at": "2026-09-24T09:27:39.123797+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:39.131923+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:39.181726+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:39.206155+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:39.242467+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:39.256597+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:39.266890+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:39.357304+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1790242058294747000, "observed_target_ids": ["target_1"], "selected_target_id": "target_1", "recorded_at": "2026-09-24T09:27:39.402823+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "icp_reject", "reason": "配准拒帧：icp_out_of_bounds，fitness=0.999 rmse=1.2mm，修正=26.3mm/3.43deg", "recorded_at": "2026-09-24T09:27:39.441458+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:39.463697+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:39.517606+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:39.594668+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:39.677327+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:39.762203+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1790242058895213000, "observed_target_ids": [], "selected_target_id": "target_1", "recorded_at": "2026-09-24T09:27:39.813935+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1790242059295526000, "observed_target_ids": [], "selected_target_id": "target_1", "recorded_at": "2026-09-24T09:27:39.868002+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:39.947497+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:39.954512+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1790242059428963000, "observed_target_ids": [], "selected_target_id": "target_1", "recorded_at": "2026-09-24T09:27:39.996697+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1790242059495682000, "observed_target_ids": [], "selected_target_id": "target_1", "recorded_at": "2026-09-24T09:27:40.063235+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:40.291173+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:40.315125+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:40.321258+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:40.323760+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:40.340822+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1790242059629119000, "observed_target_ids": [], "selected_target_id": "target_1", "recorded_at": "2026-09-24T09:27:40.347403+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1790242059895993000, "observed_target_ids": [], "selected_target_id": "target_1", "recorded_at": "2026-09-24T09:27:40.398349+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:40.429700+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1790242059962711000, "observed_target_ids": [], "selected_target_id": "target_1", "recorded_at": "2026-09-24T09:27:40.484282+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:40.517476+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1790242060029430000, "observed_target_ids": [], "selected_target_id": "target_1", "recorded_at": "2026-09-24T09:27:40.556140+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:40.602996+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1790242060096148000, "observed_target_ids": [], "selected_target_id": "target_1", "recorded_at": "2026-09-24T09:27:40.644592+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:40.672560+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1790242060162867000, "observed_target_ids": [], "selected_target_id": "target_1", "recorded_at": "2026-09-24T09:27:40.727158+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:40.746750+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1790242060296304000, "observed_target_ids": [], "selected_target_id": "target_1", "recorded_at": "2026-09-24T09:27:40.762705+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:40.854279+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1790242060429741000, "observed_target_ids": [], "selected_target_id": "target_1", "recorded_at": "2026-09-24T09:27:40.888001+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:40.921156+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1790242060496459000, "observed_target_ids": [], "selected_target_id": "target_1", "recorded_at": "2026-09-24T09:27:40.946990+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:40.997527+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1790242060563178000, "observed_target_ids": [], "selected_target_id": "target_1", "recorded_at": "2026-09-24T09:27:41.038145+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:41.060900+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1790242060629896000, "observed_target_ids": [], "selected_target_id": "target_1", "recorded_at": "2026-09-24T09:27:41.126296+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:41.144452+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1790242060696615000, "observed_target_ids": [], "selected_target_id": "target_1", "recorded_at": "2026-09-24T09:27:41.203616+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:41.237839+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1790242060763333000, "observed_target_ids": [], "selected_target_id": "target_1", "recorded_at": "2026-09-24T09:27:41.272253+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:41.327716+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1790242060963493000, "observed_target_ids": [], "selected_target_id": "target_1", "recorded_at": "2026-09-24T09:27:41.371607+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:41.407779+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1790242061030211000, "observed_target_ids": [], "selected_target_id": "target_1", "recorded_at": "2026-09-24T09:27:41.418039+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:41.517080+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1790242061096930000, "observed_target_ids": [], "selected_target_id": "target_1", "recorded_at": "2026-09-24T09:27:41.537629+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:41.560666+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1790242061163653000, "observed_target_ids": [], "selected_target_id": "target_1", "recorded_at": "2026-09-24T09:27:41.610406+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:41.638148+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1790242061230371000, "observed_target_ids": [], "selected_target_id": "target_1", "recorded_at": "2026-09-24T09:27:41.650176+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:41.762173+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1790242061297089000, "observed_target_ids": [], "selected_target_id": "target_1", "recorded_at": "2026-09-24T09:27:41.802992+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:41.844894+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1790242061430527000, "observed_target_ids": [], "selected_target_id": "target_1", "recorded_at": "2026-09-24T09:27:41.849275+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:41.918728+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1790242061497245000, "observed_target_ids": [], "selected_target_id": "target_1", "recorded_at": "2026-09-24T09:27:41.941630+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:42.079683+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:42.131052+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1790242061563964000, "observed_target_ids": [], "selected_target_id": "target_1", "recorded_at": "2026-09-24T09:27:42.151335+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1790242061630682000, "observed_target_ids": [], "selected_target_id": "target_1", "recorded_at": "2026-09-24T09:27:42.207062+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:42.206700+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1790242061764119000, "observed_target_ids": [], "selected_target_id": "target_1", "recorded_at": "2026-09-24T09:27:42.262370+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:42.292859+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1790242061830838000, "observed_target_ids": [], "selected_target_id": "target_1", "recorded_at": "2026-09-24T09:27:42.340386+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:42.362031+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1790242061964275000, "observed_target_ids": [], "selected_target_id": "target_1", "recorded_at": "2026-09-24T09:27:42.433497+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:42.542416+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:42.545125+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1790242062030993000, "observed_target_ids": [], "selected_target_id": "target_1", "recorded_at": "2026-09-24T09:27:42.597307+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:42.616852+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1790242062097711000, "observed_target_ids": [], "selected_target_id": "target_1", "recorded_at": "2026-09-24T09:27:42.640373+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1790242062231149000, "observed_target_ids": [], "selected_target_id": "target_1", "recorded_at": "2026-09-24T09:27:42.672089+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:42.692676+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1790242062297867000, "observed_target_ids": [], "selected_target_id": "target_1", "recorded_at": "2026-09-24T09:27:42.737304+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:42.788666+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1790242062364585000, "observed_target_ids": [], "selected_target_id": "target_1", "recorded_at": "2026-09-24T09:27:42.812932+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:42.840647+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1790242062431304000, "observed_target_ids": [], "selected_target_id": "target_1", "recorded_at": "2026-09-24T09:27:42.861742+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:42.997486+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:43.012730+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1790242062564741000, "observed_target_ids": [], "selected_target_id": "target_1", "recorded_at": "2026-09-24T09:27:43.036594+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:43.066285+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1790242062631460000, "observed_target_ids": [], "selected_target_id": "target_1", "recorded_at": "2026-09-24T09:27:43.103568+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:43.138549+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1790242062698178000, "observed_target_ids": [], "selected_target_id": "target_1", "recorded_at": "2026-09-24T09:27:43.170734+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:43.207870+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1790242062831615000, "observed_target_ids": [], "selected_target_id": "target_1", "recorded_at": "2026-09-24T09:27:43.281000+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:43.298277+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1790242062898334000, "observed_target_ids": [], "selected_target_id": "target_1", "recorded_at": "2026-09-24T09:27:43.343404+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:43.416881+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1790242062965052000, "observed_target_ids": [], "selected_target_id": "target_1", "recorded_at": "2026-09-24T09:27:43.447666+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:43.492266+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1790242063031771000, "observed_target_ids": [], "selected_target_id": "target_1", "recorded_at": "2026-09-24T09:27:43.531558+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:43.571577+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1790242063165449000, "observed_target_ids": [], "selected_target_id": "target_1", "recorded_at": "2026-09-24T09:27:43.609619+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:43.668115+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1790242063232168000, "observed_target_ids": [], "selected_target_id": "target_1", "recorded_at": "2026-09-24T09:27:43.706826+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:43.757633+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1790242063298887000, "observed_target_ids": [], "selected_target_id": "target_1", "recorded_at": "2026-09-24T09:27:43.794058+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:43.830279+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1790242063365605000, "observed_target_ids": [], "selected_target_id": "target_1", "recorded_at": "2026-09-24T09:27:43.851640+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:43.900498+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1790242063432323000, "observed_target_ids": [], "selected_target_id": "target_1", "recorded_at": "2026-09-24T09:27:43.909071+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:43.978162+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1790242063499042000, "observed_target_ids": [], "selected_target_id": "target_1", "recorded_at": "2026-09-24T09:27:43.997474+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:44.052372+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1790242063699198000, "observed_target_ids": [], "selected_target_id": "target_1", "recorded_at": "2026-09-24T09:27:44.079876+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:44.122970+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1790242063765916000, "observed_target_ids": [], "selected_target_id": "target_1", "recorded_at": "2026-09-24T09:27:44.163768+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:44.217226+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1790242063832634000, "observed_target_ids": [], "selected_target_id": "target_1", "recorded_at": "2026-09-24T09:27:44.255687+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:44.270792+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1790242063899353000, "observed_target_ids": [], "selected_target_id": "target_1", "recorded_at": "2026-09-24T09:27:44.280764+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:44.346103+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1790242063966072000, "observed_target_ids": [], "selected_target_id": "target_1", "recorded_at": "2026-09-24T09:27:44.357005+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:44.421009+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1790242064032790000, "observed_target_ids": [], "selected_target_id": "target_1", "recorded_at": "2026-09-24T09:27:44.461436+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:44.496051+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1790242064099509000, "observed_target_ids": [], "selected_target_id": "target_1", "recorded_at": "2026-09-24T09:27:44.541560+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:44.567496+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1790242064166227000, "observed_target_ids": [], "selected_target_id": "target_1", "recorded_at": "2026-09-24T09:27:44.586189+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:44.642264+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1790242064232945000, "observed_target_ids": [], "selected_target_id": "target_1", "recorded_at": "2026-09-24T09:27:44.663515+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:44.717355+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1790242064299664000, "observed_target_ids": [], "selected_target_id": "target_1", "recorded_at": "2026-09-24T09:27:44.745108+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:44.787136+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1790242064366383000, "observed_target_ids": [], "selected_target_id": "target_1", "recorded_at": "2026-09-24T09:27:44.796247+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:44.874036+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1790242064433101000, "observed_target_ids": [], "selected_target_id": "target_1", "recorded_at": "2026-09-24T09:27:44.903089+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:44.947686+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1790242064499820000, "observed_target_ids": [], "selected_target_id": "target_1", "recorded_at": "2026-09-24T09:27:45.005956+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:45.101406+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:45.114721+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1790242064566538000, "observed_target_ids": [], "selected_target_id": "target_1", "recorded_at": "2026-09-24T09:27:45.120556+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1790242064633257000, "observed_target_ids": [], "selected_target_id": "target_1", "recorded_at": "2026-09-24T09:27:45.162441+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:45.207183+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1790242064766694000, "observed_target_ids": [], "selected_target_id": "target_1", "recorded_at": "2026-09-24T09:27:45.282337+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:45.302984+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1790242064900130000, "observed_target_ids": [], "selected_target_id": "target_1", "recorded_at": "2026-09-24T09:27:45.317960+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:45.494666+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:45.503184+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1790242064966849000, "observed_target_ids": [], "selected_target_id": "target_1", "recorded_at": "2026-09-24T09:27:45.523592+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:45.559042+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1790242065100286000, "observed_target_ids": [], "selected_target_id": "target_1", "recorded_at": "2026-09-24T09:27:45.606530+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:46.339616+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:46.370408+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:46.372267+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:46.382218+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:46.392850+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:46.395896+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:46.410156+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:46.422328+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1790242065167007000, "observed_target_ids": [], "selected_target_id": "target_1", "recorded_at": "2026-09-24T09:27:46.461524+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1790242066034347000, "observed_target_ids": [], "selected_target_id": "target_1", "recorded_at": "2026-09-24T09:27:46.559717+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:46.678249+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:46.679092+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:46.707845+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1790242066101066000, "observed_target_ids": [], "selected_target_id": "target_1", "recorded_at": "2026-09-24T09:27:46.720082+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:46.742721+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1790242066234503000, "observed_target_ids": [], "selected_target_id": "target_1", "recorded_at": "2026-09-24T09:27:46.780723+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:46.851365+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1790242066301221000, "observed_target_ids": [], "selected_target_id": "target_1", "recorded_at": "2026-09-24T09:27:46.875980+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:46.922430+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1790242066367939000, "observed_target_ids": [], "selected_target_id": "target_1", "recorded_at": "2026-09-24T09:27:46.947781+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:46.999755+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1790242066501377000, "observed_target_ids": [], "selected_target_id": "target_1", "recorded_at": "2026-09-24T09:27:47.019018+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1790242066568095000, "observed_target_ids": [], "selected_target_id": "target_1", "recorded_at": "2026-09-24T09:27:47.061099+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:47.073805+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1790242066634813000, "observed_target_ids": [], "selected_target_id": "target_1", "recorded_at": "2026-09-24T09:27:47.132468+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:47.170354+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1790242066701532000, "observed_target_ids": [], "selected_target_id": "target_1", "recorded_at": "2026-09-24T09:27:47.202712+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:47.261047+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1790242066768251000, "observed_target_ids": [], "selected_target_id": "target_1", "recorded_at": "2026-09-24T09:27:47.305731+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:47.453472+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:47.457472+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1790242066901688000, "observed_target_ids": [], "selected_target_id": "target_1", "recorded_at": "2026-09-24T09:27:47.507008+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:47.539854+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1790242067035124000, "observed_target_ids": [], "selected_target_id": "target_1", "recorded_at": "2026-09-24T09:27:47.577772+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:47.615870+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1790242067101843000, "observed_target_ids": [], "selected_target_id": "target_1", "recorded_at": "2026-09-24T09:27:47.637226+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:47.720671+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1790242067168562000, "observed_target_ids": [], "selected_target_id": "target_1", "recorded_at": "2026-09-24T09:27:47.747928+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:47.775567+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1790242067235280000, "observed_target_ids": [], "selected_target_id": "target_1", "recorded_at": "2026-09-24T09:27:47.786665+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1790242067368717000, "observed_target_ids": [], "selected_target_id": "target_1", "recorded_at": "2026-09-24T09:27:47.822270+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:47.870004+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1790242067435435000, "observed_target_ids": [], "selected_target_id": "target_1", "recorded_at": "2026-09-24T09:27:47.910199+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:48.044928+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:48.045999+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1790242067502154000, "observed_target_ids": [], "selected_target_id": "target_1", "recorded_at": "2026-09-24T09:27:48.087415+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:48.113977+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1790242067568873000, "observed_target_ids": [], "selected_target_id": "target_1", "recorded_at": "2026-09-24T09:27:48.146757+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:48.177019+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1790242067635591000, "observed_target_ids": [], "selected_target_id": "target_1", "recorded_at": "2026-09-24T09:27:48.190406+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1790242067702309000, "observed_target_ids": [], "selected_target_id": "target_1", "recorded_at": "2026-09-24T09:27:48.280929+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:48.295978+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1790242067769028000, "observed_target_ids": [], "selected_target_id": "target_1", "recorded_at": "2026-09-24T09:27:48.348094+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:48.381114+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1790242067969184000, "observed_target_ids": [], "selected_target_id": "target_1", "recorded_at": "2026-09-24T09:27:48.421995+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:48.456789+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1790242068035902000, "observed_target_ids": [], "selected_target_id": "target_1", "recorded_at": "2026-09-24T09:27:48.501898+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:48.572323+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1790242068102620000, "observed_target_ids": [], "selected_target_id": "target_1", "recorded_at": "2026-09-24T09:27:48.587126+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:48.642531+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1790242068236058000, "observed_target_ids": [], "selected_target_id": "target_1", "recorded_at": "2026-09-24T09:27:48.675500+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:48.837723+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:48.841720+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1790242068302776000, "observed_target_ids": [], "selected_target_id": "target_1", "recorded_at": "2026-09-24T09:27:48.857496+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:48.870292+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1790242068369495000, "observed_target_ids": [], "selected_target_id": "target_1", "recorded_at": "2026-09-24T09:27:48.883018+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1790242068436213000, "observed_target_ids": [], "selected_target_id": "target_1", "recorded_at": "2026-09-24T09:27:48.938706+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:48.958778+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1790242068502931000, "observed_target_ids": [], "selected_target_id": "target_1", "recorded_at": "2026-09-24T09:27:49.010899+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:49.021255+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1790242068636369000, "observed_target_ids": [], "selected_target_id": "target_1", "recorded_at": "2026-09-24T09:27:49.054824+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:49.117791+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1790242068703087000, "observed_target_ids": [], "selected_target_id": "target_1", "recorded_at": "2026-09-24T09:27:49.154285+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:49.267126+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:49.270246+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1790242068769805000, "observed_target_ids": [], "selected_target_id": "target_1", "recorded_at": "2026-09-24T09:27:49.288288+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1790242068836524000, "observed_target_ids": [], "selected_target_id": "target_1", "recorded_at": "2026-09-24T09:27:49.320615+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:49.344920+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1790242068903243000, "observed_target_ids": [], "selected_target_id": "target_1", "recorded_at": "2026-09-24T09:27:49.435298+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:49.442074+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1790242068969961000, "observed_target_ids": [], "selected_target_id": "target_1", "recorded_at": "2026-09-24T09:27:49.460755+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:49.515958+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1790242069103398000, "observed_target_ids": [], "selected_target_id": "target_1", "recorded_at": "2026-09-24T09:27:49.541311+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:49.595930+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1790242069169745000, "observed_target_ids": [], "selected_target_id": "target_1", "recorded_at": "2026-09-24T09:27:49.624308+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:49.682063+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1790242069236464000, "observed_target_ids": [], "selected_target_id": "target_1", "recorded_at": "2026-09-24T09:27:49.704414+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:49.763142+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1790242069303183000, "observed_target_ids": [], "selected_target_id": "target_1", "recorded_at": "2026-09-24T09:27:49.803119+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:49.826653+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1790242069369901000, "observed_target_ids": [], "selected_target_id": "target_1", "recorded_at": "2026-09-24T09:27:49.850952+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:50.011096+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:50.012930+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1790242069570056000, "observed_target_ids": [], "selected_target_id": "target_1", "recorded_at": "2026-09-24T09:27:50.025095+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:50.092265+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1790242069703494000, "observed_target_ids": [], "selected_target_id": "target_1", "recorded_at": "2026-09-24T09:27:50.116661+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:50.209842+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1790242069770212000, "observed_target_ids": [], "selected_target_id": "target_1", "recorded_at": "2026-09-24T09:27:50.246771+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:50.261027+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1790242069836930000, "observed_target_ids": [], "selected_target_id": "target_1", "recorded_at": "2026-09-24T09:27:50.273422+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:50.347441+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1790242069903649000, "observed_target_ids": [], "selected_target_id": "target_1", "recorded_at": "2026-09-24T09:27:50.389573+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:50.421547+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1790242069970368000, "observed_target_ids": [], "selected_target_id": "target_1", "recorded_at": "2026-09-24T09:27:50.478042+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:50.621174+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:50.633982+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1790242070037086000, "observed_target_ids": [], "selected_target_id": "target_1", "recorded_at": "2026-09-24T09:27:50.662495+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:50.704488+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1790242070103805000, "observed_target_ids": [], "selected_target_id": "target_1", "recorded_at": "2026-09-24T09:27:50.771428+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:50.779288+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1790242070370679000, "observed_target_ids": [], "selected_target_id": "target_1", "recorded_at": "2026-09-24T09:27:50.818626+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:50.849447+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1790242070437397000, "observed_target_ids": [], "selected_target_id": "target_1", "recorded_at": "2026-09-24T09:27:50.881672+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:50.931672+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1790242070504116000, "observed_target_ids": [], "selected_target_id": "target_1", "recorded_at": "2026-09-24T09:27:50.969144+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:51.032904+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1790242070570834000, "observed_target_ids": [], "selected_target_id": "target_1", "recorded_at": "2026-09-24T09:27:51.048495+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:51.112254+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1790242070704271000, "observed_target_ids": [], "selected_target_id": "target_1", "recorded_at": "2026-09-24T09:27:51.163229+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:51.307939+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:51.316417+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1790242070837708000, "observed_target_ids": [], "selected_target_id": "target_1", "recorded_at": "2026-09-24T09:27:51.336348+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:51.352040+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1790242070904427000, "observed_target_ids": [], "selected_target_id": "target_1", "recorded_at": "2026-09-24T09:27:51.366805+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:51.430544+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1790242070971145000, "observed_target_ids": [], "selected_target_id": "target_1", "recorded_at": "2026-09-24T09:27:51.445578+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:51.597218+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:51.607981+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1790242071037864000, "observed_target_ids": [], "selected_target_id": "target_1", "recorded_at": "2026-09-24T09:27:51.658634+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:51.674045+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1790242071304739000, "observed_target_ids": [], "selected_target_id": "target_1", "recorded_at": "2026-09-24T09:27:51.698835+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:51.743474+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1790242071371458000, "observed_target_ids": [], "selected_target_id": "target_1", "recorded_at": "2026-09-24T09:27:51.766678+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:51.930366+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:51.937532+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1790242071504895000, "observed_target_ids": [], "selected_target_id": "target_1", "recorded_at": "2026-09-24T09:27:51.963836+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:51.991952+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1790242071571614000, "observed_target_ids": [], "selected_target_id": "target_1", "recorded_at": "2026-09-24T09:27:52.073372+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:52.091916+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1790242071638332000, "observed_target_ids": [], "selected_target_id": "target_1", "recorded_at": "2026-09-24T09:27:52.128663+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:52.180353+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1790242071771769000, "observed_target_ids": [], "selected_target_id": "target_1", "recorded_at": "2026-09-24T09:27:52.192392+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:52.269376+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1790242071838488000, "observed_target_ids": [], "selected_target_id": "target_1", "recorded_at": "2026-09-24T09:27:52.295804+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:52.483606+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:52.491522+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1790242072038643000, "observed_target_ids": [], "selected_target_id": "target_1", "recorded_at": "2026-09-24T09:27:52.513771+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:52.555469+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1790242072105362000, "observed_target_ids": [], "selected_target_id": "target_1", "recorded_at": "2026-09-24T09:27:52.577854+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:52.631363+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1790242072172080000, "observed_target_ids": [], "selected_target_id": "target_1", "recorded_at": "2026-09-24T09:27:52.671690+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:52.702313+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1790242072238799000, "observed_target_ids": [], "selected_target_id": "target_1", "recorded_at": "2026-09-24T09:27:52.748300+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:52.802840+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1790242072305517000, "observed_target_ids": [], "selected_target_id": "target_1", "recorded_at": "2026-09-24T09:27:52.823478+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:52.863128+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:52.947898+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:53.037607+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:53.136063+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1790242072372235000, "observed_target_ids": [], "selected_target_id": "target_1", "recorded_at": "2026-09-24T09:27:53.218803+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:53.231548+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:53.645923+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:53.668047+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:53.672806+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:53.686932+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1790242072705828000, "observed_target_ids": [], "selected_target_id": "target_1", "recorded_at": "2026-09-24T09:27:53.695540+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:53.725955+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:53.831221+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:53.832566+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:53.920755+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:53.987231+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1790242073239581000, "observed_target_ids": ["target_1"], "selected_target_id": "target_1", "recorded_at": "2026-09-24T09:27:54.062358+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:54.081248+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "frame_changed", "reason": "TF 查询期间缓存帧已更新，请等下一帧重试", "recorded_at": "2026-09-24T09:27:54.093247+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:54.162502+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:54.247652+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:54.334144+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:54.441676+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1790242073639892000, "observed_target_ids": ["target_1"], "selected_target_id": "target_1", "recorded_at": "2026-09-24T09:27:54.453979+00:00"}
+{"source": "reconstruction", "event": "frame_accepted", "target_id": "target_1", "stamp_ns": 1790242073639892224, "view_index": 3, "mask_depth_ratio": 1.0, "registration": {"mode": "icp", "reason": "accepted", "fitness": 0.998176291793313, "rmse_m": 0.0012185202358759451, "translation_m": 0.004832276149625368, "rotation_deg": 0.6789052155823406}, "recorded_at": "2026-09-24T09:27:54.745930+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:54.773405+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:54.790096+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:54.811466+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:54.854752+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:54.935431+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:55.016274+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1790242073973485000, "observed_target_ids": ["target_1"], "selected_target_id": "target_1", "recorded_at": "2026-09-24T09:27:55.033692+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:55.063106+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:55.148667+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:55.270488+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:55.434083+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:55.490207+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1790242074573951000, "observed_target_ids": ["target_1"], "selected_target_id": "target_1", "recorded_at": "2026-09-24T09:27:55.492731+00:00"}
+{"source": "reconstruction", "event": "frame_accepted", "target_id": "target_1", "stamp_ns": 1790242074573950976, "view_index": 4, "mask_depth_ratio": 1.0, "registration": {"mode": "icp", "reason": "accepted", "fitness": 0.9548387096774194, "rmse_m": 0.0017848581397276488, "translation_m": 0.0016138569816394673, "rotation_deg": 0.13553293753481765}, "recorded_at": "2026-09-24T09:27:55.561014+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:55.592144+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:55.671396+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1790242075040981000, "observed_target_ids": ["target_1"], "selected_target_id": "target_1", "recorded_at": "2026-09-24T09:27:55.799700+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:55.803797+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "near_duplicate", "reason": "近重复视角不积分：平移 1.7 mm / 旋转 0.14 deg", "recorded_at": "2026-09-24T09:27:55.805744+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "near_duplicate", "reason": "近重复视角不积分：平移 1.7 mm / 旋转 0.14 deg", "recorded_at": "2026-09-24T09:27:55.877342+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:55.966945+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:56.037293+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:56.128959+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1790242075374794000, "observed_target_ids": ["target_1"], "selected_target_id": "target_1", "recorded_at": "2026-09-24T09:27:56.132584+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "near_duplicate", "reason": "近重复视角不积分：平移 1.7 mm / 旋转 0.14 deg", "recorded_at": "2026-09-24T09:27:56.154062+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:56.204922+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:56.291709+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:56.356555+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:56.469421+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:56.556518+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:56.703979+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:56.741800+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_1", "code": "other", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-09-24T09:27:56.796459+00:00"}

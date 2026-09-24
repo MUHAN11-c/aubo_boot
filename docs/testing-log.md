@@ -988,3 +988,11 @@ SIGINT 旧栈后用 16:57 编的 `peach_manipulation` 重起；开批前在 `glo
 - **全链首通**：拍照位自洽 Survey SUCCEEDED 16.9s（首发 survey_failed→SetEnables 契约 live 复现）→主轮 e2e_full_unrefined_20260924T1451：真实锁定 target_1（YOLO 0.84+掩膜+拟合轴）→派发→接近→停驻 RECOVERY_REQUIRED(7)→ACK→**COMPLETED**；周期 **9.4s**（reconfirm→approach_insert、completion=2、无 SetIO）。debug_image/RViz 点云/三维标记全程可视。
 - **发现与优化项**（详见 campaign/20260922_dual_tool/analysis/s3_live_20260924/report.md）：①点云按需发布（:624 无订阅者跳过——监测须先订阅，首测 0Hz 误判）；②深度 0.37Hz vs 设计 2.43 + color 9.6s 缺口（O1：observability all 档 83.7% 单核嫌疑，下轮 all vs std A/B）；③感知丢帧 3041（drop_oldest 设计预期）；④CM Overrun×6；⑤observability 停栈挂死再现（-9 清，bag_report 离线补跑中）；⑥孤儿 lifecycle_manager 挡预检（强清）；⑦RViz 前台争夺（无 wmctrl，杀-重启提窗）。
 - **50G 预算**：runs/ 87G→26G（旧分析 session 全删，证据在已提交 jsonl）；主袋 26G 待 bag_report 出报告后删，仅留报告+shots 4 张+ledger+perception_data+mp4×2。内存守门：峰值 1.04GB、可用 21G，无 OOM。
+
+### 09-24 S4 完整流程轮（真相机 stereo+mock，FULL 链到接触前停驻）
+
+- **执行**：同 S3 栈型（域 61）+FULL 档（运行期 `execute_pregrasp_only=false`+SetEnables(execution+grasp)）；6 轮 RunHarvest；监测三件套（数据流/停驻/内存+45s 截图+日志巡检）。
+- **结果**：①两轮 empty_limit 零派发——`targets_filtered: sleeve_no_ik/sleeve_no_cartesian`（**物理袋口 |p|=1.079m 处于 E5 套入终点可达边界**；原样位姿探测：travel≥0.08 0/6 败、≤0.05 6/6 过、袋口径向近 5cm 满行程全过）；②三轮 **FULL 派发成功**：reconfirm+approach_insert 9.3s 到位→**接触前停驻等 ControlTask 命令 6 放行**（transaction 5:ready_full、permissions[4,6]）——未收口均为驱动在 ACK 前被外部取消；③终局补发被 **406 个 fastrtps SHM 残留段**锁死（kill -9 后遗症，清 /dev/shm/fastrtps_* 恢复）。
+- **修复（工作区未提交）**：F2 UAF（grasp_task.cpp:767 按值捕获）；录制节食三轮（recorder.py：控制流族补 statistics/controller_state/dynamic_joint_states@20Hz、PlanningScene@1Hz、感知派生 debug_image/raw/masks/target_observations@2Hz——实测 12min 8.96G 中派生流占 79%）；pipeline.py D213；包测 41 绿。
+- **体积**：runs/ 14.1G→73M（6 session mcap 清、证据=各轮 ledger/perception_data/rvizwin.mp4+报告+shots×4）。
+- **详见** campaign/20260922_dual_tool/analysis/s4_full_20260924/report.md。收口待办：热_ACK 驱动一轮（<4min）；满行程需现场袋口近 ~5cm。

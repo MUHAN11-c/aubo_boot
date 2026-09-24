@@ -761,8 +761,10 @@ GraspTaskResult GraspTask::executeBlendedCorridor(
   auto result_future = exec_cli->async_get_result(gh);
   retiring_->reap();
   bool abandoned = false;
+  // 按值捕获 shared_future（审查 F2）：弃等时线程移交 retiring_ 后仍会
+  // 调用闭包，按引用捕获调用方栈上的 result_future 即悬垂。
   const auto rc = runBoundedExecute(
-    [&result_future]() -> moveit::core::MoveItErrorCode {
+    [result_future]() -> moveit::core::MoveItErrorCode {
       const auto wrapped = result_future.get();
       return wrapped.code == rclcpp_action::ResultCode::SUCCEEDED ?
              moveit::core::MoveItErrorCode::SUCCESS :

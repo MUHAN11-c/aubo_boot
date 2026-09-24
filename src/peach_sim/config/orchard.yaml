@@ -21,29 +21,38 @@ rows:
   trees_per_row: 7
   tree_spacing: 2.2    # [m] 株距（Y）
 
-tree:
-  trunk_height: [0.45, 0.60]      # [m] 主干高（地面→第一主枝）
-  trunk_radius: [0.045, 0.060]    # [m] 主干半径
-  scaffold_count: [3, 5]          # 主枝数（开心形低模）
-  scaffold_length: [0.55, 0.95]   # [m] 主枝长
+tree: # 开心形桃树（规范口径：干高 0.6、2–3 主枝开角 45–60°、枝组夹角 ≥75°、树高 ≤2.5）
+  trunk_height: [0.50, 0.65]      # [m] 主干高（地面→第一主枝；规范干高 60cm，瘠薄地略矮）
+  trunk_radius: [0.045, 0.060]    # [m] 主干半径（生成时分两段收分 + 根颈外扩）
+  scaffold_count: [2, 3]          # 主枝数（两主枝/三主枝开心形）
+  scaffold_length: [0.60, 0.95]   # [m] 主枝长
   scaffold_radius: 0.022          # [m] 主枝半径
-  scaffold_tilt_deg: [30, 60]     # [deg] 主枝与竖直方向夹角
+  scaffold_tilt_deg: [45, 60]     # [deg] 主枝开角（规范：采果前 45–60°）
+  branchlet_count: [2, 3]         # 每主枝枝组数
+  branchlet_length: [0.20, 0.35]  # [m] 枝组长
+  branchlet_radius: 0.012         # [m] 枝组半径
   twig_radius: 0.007              # [m] 挂袋果枝半径
-  canopy_count: [5, 8]            # 冠层球数
-  canopy_radius: [0.26, 0.42]     # [m] 冠层球半径
-  canopy_height: [1.15, 2.10]     # [m] 冠层球心高度
+  canopy_count: [8, 12]           # 叶幕球数（冠层更密）
+  canopy_radius: [0.18, 0.32]     # [m] 叶幕球半径（更小更碎）
+  canopy_height: [1.55, 2.15]     # [m] 叶幕球心高度（袋在 1.3–1.45 外侧受光，不进深阴影）
   height_max: 2.5                 # [m] 树高上限（冠层/袋颈不得超出）
 
 bag: # 套袋桃（袋体 + 果 + 袋颈扎口）；尺寸受 tool 余量约束
-  fruit_diameter: [0.070, 0.082]      # [m] 桃果直径
-  body_diameter: [0.082, 0.096]       # [m] 袋体横向最大径（含纸）
-  body_thickness_ratio: [0.58, 0.68]  # 扁平袋厚/径比
-  bottom_to_neck: [0.090, 0.120]      # [m] 袋底→袋颈（现场实测 0.05–0.12）
-  neck_diameter: 0.032                # [m] 袋颈（扎口）直径
-  neck_length: 0.030                  # [m] 袋颈长
-  per_tree: [5, 9]                    # 每树挂袋数
-  bottom_height: [1.27, 1.46]         # [m] 袋底离地（现场 base_link+0.52~0.71、底座 0.75）
-  tilt_max_deg: 25                    # [deg] 袋轴相对竖直最大倾角
+  # 尺寸锚 /home/mu/Downloads/PeachDataSet 深度(mm)+VOC（n=4077 真袋）：
+  # 袋体 77x81mm（高宽比 1.03 近方形）、裸桃果径 52mm、同帧袋间距 79mm、
+  # 同帧实例数中位 10（成串）；详见包 README「真实数据校准」
+  fruit_diameter: [0.046, 0.056]      # [m] 桃果直径（裸桃实测 52mm）
+  body_diameter: [0.068, 0.082]       # [m] 袋体宽（实测 77mm p10 48/p90 107）
+  body_thickness_ratio: [0.74, 0.86]  # 袋厚/径比（被果撑起的鼓胀枕形，果 52mm 须包在袋内）
+  bottom_to_neck: [0.058, 0.082]      # [m] 袋底→袋颈（实测袋高 81mm；现场 0.05–0.12）
+  neck_diameter: 0.026                # [m] 袋颈（扎口）直径
+  neck_length: 0.018                  # [m] 袋颈长（收拢到铁丝扎口）
+  per_tree: [6, 12]                   # 每树挂袋数（成簇，见 cluster_*）
+  cluster_count: [2, 3]               # 每树袋簇数（真数据：一簇约 10 颗成串）
+  cluster_radius: [0.08, 0.15]        # [m] 簇内散布半径（3D 袋间距实测中位 110mm/p90 249）
+  cluster_gap: 0.055                  # [m] 簇内袋间最小间距（3D 实测中位 110mm/p10 10mm：总体疏、局部可贴）
+  bottom_height: [1.30, 1.42]         # [m] 袋底离地（现场 base_link+0.52~0.71、底座 0.75；簇内 z 抖动 ±cluster_radius 后仍在窗内）
+  tilt_max_deg: 46                    # [deg] 袋轴倾角上限=实测 p90（46.4°）；分布 θ=cap·u^1.9 对齐中位 13°
   row_spread: 0.45                    # [m] 挂果沿行方向最大横向散布
   alley_side_ratio: 0.7               # 挂在作业道一侧（可接近侧）的果占比
 
@@ -56,7 +65,7 @@ tool: # 工具几何镜像（单一事实源 aubo_description/config/adaptive_cy
 platform: # 采摘工位：开源履带底盘改型 + AUBO E5（安装座在车体中线）
   face_row_index: 2       # 作业树行（rows 行索引）
   side: 1                 # 停在该行的 +x 侧（-1 = -x 侧）
-  row_gap: 0.80           # [m] 车体中心到树行中心线横向距离
+  row_gap: 0.95           # [m] 车体中心到树行中心线横向距离（离冠层 0.4m 不碰挂袋）
   y: -2.2                 # [m] 车体中心世界 y（沿行方向，宜对准某株树）
   arm_mount_height: 0.75  # [m] base_link 离地（现场台面高度口径）
   arm_mount_yaw_deg: -32.0  # [deg] 臂座偏航：现场作业扇区方位角 -58° 对准树行
@@ -76,7 +85,7 @@ work_zone:
 lighting:
   sun_azimuth_deg: 135.0          # 太阳方位角（0=+X，逆时针）
   sun_elevation_deg: 38.0         # 太阳高度角
-  ambient: [0.55, 0.55, 0.50]
+  ambient: [0.78, 0.76, 0.78]   # 柔光：抬环境光补阴影（真图袋/区域比 0.84）
   background: [0.53, 0.67, 0.88]  # 天空色
   fog_density: 0.002              # [1/m] 清晨薄雾
   shadows: true

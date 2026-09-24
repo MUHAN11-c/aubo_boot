@@ -383,6 +383,11 @@ private:
   // manipulation_skills_node.cpp（避免节点头引入 MoveIt 碰撞检测头）。
   // 刀具 GPIO 状态机（SetIO ACK ≠ 切断确认；confirmFeedback 预留）。
   ToolActuator tool_actuator_{};
+  // TOOL 级 IO 复检的授权快照：ACTUATE_TOOL 阶段门（requireStageAuthority）
+  // 通过后的真实周期上下文。commandToolClose/Open 必须用它做 probe——
+  // 裸构造 CycleContext 的 pregrasp_verified 恒 false，会把剪切链恒拒死。
+  // 仅周期 worker 线程写（arm 前快照），同线程 IO 回调读，无锁。
+  CycleContext tool_authority_ctx_{};
   rclcpp::Subscription<aubo_msgs::msg::IOState>::SharedPtr io_state_sub_;
   rclcpp::Publisher<peach_interfaces::msg::ToolState>::SharedPtr tool_state_pub_;
   rclcpp::Subscription<std_msgs::msg::Float64>::SharedPtr imu_progress_sub_;

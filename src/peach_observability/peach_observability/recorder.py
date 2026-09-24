@@ -30,6 +30,36 @@ def message_type_name(message) -> str:
     return f'{cls.__module__.split(".")[0]}/msg/{cls.__name__}'
 
 
+# O1（2026-09-24 S3 真相机轮勘定：26G bag 构成=高频控制流族非相机）：
+# 关节/动态 TF/CM introspection/关节状态高频不减信息量地撑大 bag，按话题
+# 统一限 20Hz（首帧必录）——周期节拍与 TCP 轨迹离线重算足够分辨；
+# /tf_static 例外（启动期一批互不相同的静态变换，限速会丢 child frame）。
+# S4 轮（2026-09-24）实测补齐漏网：statistics/values 两族 20 万条、
+# dynamic_joint_states 与 JTC controller_state 各 10 万条、moveit_servo
+# 周期性重发 PlanningScene 1.7 万条——全部归入限速族。
+CONTROL_FLOW_TOPICS = {
+    '/joint_states', '/tf', '/diagnostics', '/dynamic_joint_states',
+}
+CONTROL_FLOW_SUBSTRINGS = (
+    'introspection', 'joint_status', 'io_states', 'statistics',
+    'controller_state',
+)
+CONTROL_FLOW_MIN_INTERVAL_S = 0.05
+# PlanningScene 族（moveit_servo 24Hz 重发 + monitored 3.8Hz）：有界世界
+# 状态非节拍流，20Hz 限速几乎不减量——单独 1Hz 档（首帧必录）。
+PLANNING_SCENE_TOPICS = {
+    '/moveit_servo/publish_planning_scene', '/monitored_planning_scene',
+}
+PLANNING_SCENE_MIN_INTERVAL_S = 1.0
+# 感知派生诊断族（S4 轮实测占袋 79%：debug_image 3.0G+raw 1.9G+
+# target_observations 1.2G+masks 0.9G / 12min）：进袋 2Hz 已足够复盘相变
+# （密集视觉证据另有 45s 截图与 RViz 视频）；实时流不受影响，仅限进袋。
+DERIVED_STREAM_SUBSTRINGS = (
+    'debug_image', 'masks', 'target_observations',
+)
+DERIVED_STREAM_MIN_INTERVAL_S = 0.5
+
+
 class Recorder:
     """会话 bag 写入器：回调只入队，唯一执行盘写的是守护写线程."""
 
@@ -51,6 +81,7 @@ class Recorder:
             maxsize=max(1, int(queue_depth)))
         self._drops = 0
         self._drop_warn_t = 0.0
+        self._throttle_ts: dict[str, float] = {}  # O1 控制流族限速时间戳
         self._stop = threading.Event()
         self._closed = threading.Event()
         self._session_dir: Path | None = None
@@ -88,9 +119,32 @@ class Recorder:
         """原始消息入队写 bag；未启用或打开失败时静默丢弃（监控优先）."""
         if not self._enabled or self._open_failed:
             return
+        topic = str(topic)
+        if self._control_flow_throttled(topic):
+            return
         self._enqueue((
-            'msg', str(topic), message,
+            'msg', topic, message,
             int(timestamp_ns if timestamp_ns is not None else time.time_ns())))
+
+    def _control_flow_throttled(self, topic: str) -> bool:
+        """限速族：控制流 20Hz / 派生诊断 2Hz / PlanningScene 1Hz；其余全量."""
+        if topic == '/tf_static':
+            return False
+        if topic in PLANNING_SCENE_TOPICS:
+            min_interval = PLANNING_SCENE_MIN_INTERVAL_S
+        elif any(s in topic for s in DERIVED_STREAM_SUBSTRINGS):
+            min_interval = DERIVED_STREAM_MIN_INTERVAL_S
+        elif topic in CONTROL_FLOW_TOPICS or any(
+            s in topic for s in CONTROL_FLOW_SUBSTRINGS
+        ):
+            min_interval = CONTROL_FLOW_MIN_INTERVAL_S
+        else:
+            return False
+        now = time.monotonic()
+        if now - self._throttle_ts.get(topic, 0.0) < min_interval:
+            return True
+        self._throttle_ts[topic] = now
+        return False
 
     def _enqueue(self, item) -> None:
         """有界入队：满时丢最旧保最新（宁丢旧帧不撑内存）."""

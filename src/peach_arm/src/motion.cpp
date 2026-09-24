@@ -272,7 +272,10 @@ bool ManipulationSkillsNode::commandToolOpen()
 {
   // 批次3（G3）：收集位释放。授权矩阵同 close（TOOL 级）——开刀也是
   // 危险动作（松开=掉果风险），不降档。
-  CycleContext probe;
+  // 授权凭据取阶段门通过后的真实周期快照（tool_authority_ctx_）：
+  // 裸构造 CycleContext 的 pregrasp_verified 恒 false，会恒拒死剪切链
+  //（2026-09-24 审计 F1）。目标不符事务仍拒绝。
+  CycleContext probe = tool_authority_ctx_;
   probe.target_id = tool_actuator_.context().target_id;
   std::string why;
   StageDenial denial = StageDenial::DENIED;
@@ -308,7 +311,8 @@ bool ManipulationSkillsNode::commandToolClose()
   // 工具 IO 收敛到授权矩阵 TOOL 级（Active ∧ robotReady ∧ !cancel ∧
   // execution ∧ grasp ∧ GraspDecision 复检 ∧ tool.enabled）。周期身份取自
   // ToolActuator 当前事务（arm 在 sendCut 前已写入周期 goal 目标）。
-  CycleContext probe;
+  // 授权凭据取阶段门通过后的真实周期快照（2026-09-24 审计 F1 同修）。
+  CycleContext probe = tool_authority_ctx_;
   probe.target_id = tool_actuator_.context().target_id;
   std::string why;
   StageDenial denial = StageDenial::DENIED;

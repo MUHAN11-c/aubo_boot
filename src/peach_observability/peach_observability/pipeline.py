@@ -40,7 +40,8 @@ def sanitize_request_id(request_id: str) -> str | None:
 
 
 def merge_job_landmarks(traj_landmarks: dict, job: dict) -> dict:
-    """作业票坐标优先，重建许可镜像补缺（入口/预抓取/轴）.
+    """
+    作业票坐标优先，重建许可镜像补缺（入口/预抓取/轴）.
 
     作业票换成另一颗果时丢掉上一颗的 xyz，避免 RViz 把未派发入口画成
     当前轨迹终点。

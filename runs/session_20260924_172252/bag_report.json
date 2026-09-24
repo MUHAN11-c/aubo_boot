@@ -1,0 +1,422 @@
+{
+  "session": {
+    "bag": "/home/mu/Desktop/aubo_e5_jazzy_ws/runs/session_20260924_172252/bag",
+    "session_dir": "/home/mu/Desktop/aubo_e5_jazzy_ws/runs/session_20260924_172252",
+    "started_at": 1790241772.7251413,
+    "ended_at": 1790241948.3195329,
+    "duration_s": 175.6
+  },
+  "requests": [
+    {
+      "request_id": "e2e_full_unrefined_20260924T172313",
+      "started_at": 1790241804.265,
+      "ended_at": 1790241824.587,
+      "batch_state": "RECOVERY_REQUIRED",
+      "terminal": false,
+      "outcome_counts": {
+        "failed": 1
+      },
+      "targets": [
+        {
+          "target_id": "target_1",
+          "priority": 1,
+          "outcome": "failed",
+          "reason": "full_failed",
+          "dispatched_at": 1790241814.744715,
+          "finished_at": 1790241824.5713499,
+          "duration_s": 9.83
+        }
+      ],
+      "ledger": "/home/mu/Desktop/aubo_e5_jazzy_ws/runs/e2e_full_unrefined_20260924T172313/ledger.json"
+    }
+  ],
+  "gates": {
+    "rows": [
+      [
+        "感知帧率 FPS",
+        1.87,
+        "≥ 2.0",
+        "✗"
+      ],
+      [
+        "重建 TF 失败次数",
+        0,
+        "= 0",
+        "✓"
+      ],
+      [
+        "到预抓取停住（succeeded）",
+        0,
+        "≥1（有派发目标时）",
+        "✗"
+      ]
+    ],
+    "fps": 1.87,
+    "tf_failures": 0,
+    "succeeded": 0
+  },
+  "targets": [
+    {
+      "target_id": "target_1",
+      "priority": 1,
+      "outcome": "failed",
+      "reason": "full_failed",
+      "dispatched_at": 1790241814.744715,
+      "finished_at": 1790241824.5713499,
+      "duration_s": 9.83
+    }
+  ],
+  "phase_durations": [
+    {
+      "cycle_id": "e2e_full_unrefined_20260924T172313",
+      "target_id": "",
+      "phases": {
+        "SELECTING": 0.22
+      },
+      "total_s": 0.22
+    },
+    {
+      "cycle_id": "e2e_full_unrefined_20260924T172313:target_1",
+      "target_id": "target_1",
+      "phases": {
+        "APPROACHING": 9.36,
+        "VALIDATING": 0.2
+      },
+      "total_s": 9.56
+    }
+  ],
+  "events": {
+    "total": 14,
+    "by_code": {
+      "enables_changed": 4,
+      "photo_pose_reached": 2,
+      "round_locked": 2,
+      "target_dispatched": 2,
+      "target_failed": 2,
+      "recovery_required": 2
+    },
+    "by_severity": {
+      "INFO": 10,
+      "ERROR": 2,
+      "AUDIT": 2
+    }
+  },
+  "perception": {
+    "frames": 291,
+    "median_interval_s": 0.534,
+    "fps": 1.87,
+    "target_count_min": 0,
+    "target_count_max": 1
+  },
+  "reconstruction": {
+    "state": "COLLECTING",
+    "target_id": "target_1",
+    "captured_views": 2,
+    "rejected_views": 1726,
+    "tf_failures": 0,
+    "tf_latency_ms": 0.10251998901367188,
+    "max_baseline_deg": 0.0,
+    "mean_nearest_baseline_deg": 0.0,
+    "grasp_allowed": false,
+    "grasp_reason": "reconstruction_not_ready"
+  },
+  "reconstruction_per_target": [
+    {
+      "target_id": "target_1",
+      "captured_views_max": 2,
+      "skipped_views_max": 0,
+      "skip_reasons": {},
+      "last_state": "COLLECTING"
+    }
+  ],
+  "jobs": [
+    {
+      "target_id": "target_0",
+      "cycle_id": "e2e_full_unrefined_20260924T172313",
+      "batch_state": 1,
+      "target_phase": 0,
+      "active_id": "lock",
+      "why": "接触未许可（reconstruction_not_ready）；有几何则可去预抓取",
+      "flags": {
+        "execution_enabled": true,
+        "grasp_enabled": false,
+        "tool_enabled": false,
+        "skill_grasp_enabled": false,
+        "skill_execution_enabled": false
+      },
+      "stages": [
+        {
+          "id": "discover",
+          "label": "发现",
+          "status": "done",
+          "detail": ""
+        },
+        {
+          "id": "photo",
+          "label": "拍照",
+          "status": "done",
+          "detail": ""
+        },
+        {
+          "id": "lock",
+          "label": "锁定",
+          "status": "active",
+          "detail": ""
+        },
+        {
+          "id": "observe",
+          "label": "观察",
+          "status": "pending",
+          "detail": "IDLE"
+        },
+        {
+          "id": "permit",
+          "label": "许可",
+          "status": "pending",
+          "detail": "reconstruction_not_ready"
+        },
+        {
+          "id": "approach",
+          "label": "靠近",
+          "status": "gated",
+          "detail": "抓取档关闭，本轮不接触"
+        },
+        {
+          "id": "tool",
+          "label": "工具",
+          "status": "gated",
+          "detail": "工具档关闭，不打 SetIO"
+        },
+        {
+          "id": "retreat",
+          "label": "撤离",
+          "status": "pending",
+          "detail": ""
+        },
+        {
+          "id": "done",
+          "label": "完成",
+          "status": "pending",
+          "detail": ""
+        }
+      ],
+      "coords": {
+        "frame_id": "base_link",
+        "perception_entry": [
+          0.409186009097104,
+          -0.7752301512919499,
+          0.5466124998470892
+        ],
+        "perception_bottom": [
+          0.409186009097104,
+          -0.7752301512919499,
+          0.5466124998470892
+        ],
+        "perception_neck": [
+          0.48542841765757205,
+          -0.7728235046469176,
+          0.6381725286780768
+        ],
+        "reconstruction_center": null,
+        "refined_axis": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "grasp_entry": null,
+        "grasp_pregrasp": null,
+        "hypothesis_entry": null,
+        "hypothesis_travel_m": null,
+        "camera_distance_m": 0.7163493633270264
+      },
+      "grasp": {
+        "allowed": false,
+        "reason": "reconstruction_not_ready",
+        "target_id": "",
+        "entry": null,
+        "pregrasp": null,
+        "axis": null,
+        "cut_pose": null,
+        "diameter_m": null,
+        "rmse_m": null,
+        "inlier_ratio": null
+      },
+      "motion": {
+        "state": "IDLE",
+        "message": "已配置；activate 后才开放运动输出权限",
+        "running": false
+      },
+      "reconstruction": {
+        "state": "IDLE",
+        "captured_views": 0,
+        "rejected_views": 0,
+        "max_baseline_deg": 0.0,
+        "mean_nearest_baseline_deg": null
+      },
+      "perception": {
+        "locked": true,
+        "target_count": 1,
+        "harvest_status": "PLANNED",
+        "tracking_status": "OBSERVED",
+        "confidence": 0.8607594966888428
+      }
+    },
+    {
+      "target_id": "target_1",
+      "cycle_id": "e2e_full_unrefined_20260924T172313:target_1",
+      "batch_state": 7,
+      "target_phase": 11,
+      "active_id": "approach",
+      "why": "接触恢复未确认，不派下一颗",
+      "flags": {
+        "execution_enabled": false,
+        "grasp_enabled": true,
+        "tool_enabled": false,
+        "skill_grasp_enabled": true,
+        "skill_execution_enabled": true
+      },
+      "stages": [
+        {
+          "id": "discover",
+          "label": "发现",
+          "status": "done",
+          "detail": ""
+        },
+        {
+          "id": "photo",
+          "label": "拍照",
+          "status": "done",
+          "detail": ""
+        },
+        {
+          "id": "lock",
+          "label": "锁定",
+          "status": "done",
+          "detail": ""
+        },
+        {
+          "id": "observe",
+          "label": "观察",
+          "status": "done",
+          "detail": "RECOVERY_REQUIRED"
+        },
+        {
+          "id": "permit",
+          "label": "许可",
+          "status": "done",
+          "detail": "reconstruction_not_ready"
+        },
+        {
+          "id": "approach",
+          "label": "靠近",
+          "status": "active",
+          "detail": ""
+        },
+        {
+          "id": "tool",
+          "label": "工具",
+          "status": "gated",
+          "detail": "工具档关闭，不打 SetIO"
+        },
+        {
+          "id": "retreat",
+          "label": "撤离",
+          "status": "pending",
+          "detail": ""
+        },
+        {
+          "id": "done",
+          "label": "完成",
+          "status": "pending",
+          "detail": ""
+        }
+      ],
+      "coords": {
+        "frame_id": "base_link",
+        "perception_entry": null,
+        "perception_bottom": null,
+        "perception_neck": null,
+        "reconstruction_center": [
+          0.6158736420016457,
+          -0.7259013582053163,
+          0.5881364818932696
+        ],
+        "refined_axis": [
+          0.11313511003272612,
+          0.8883440115356914,
+          0.4450228803629745
+        ],
+        "grasp_entry": null,
+        "grasp_pregrasp": null,
+        "hypothesis_entry": [
+          0.5788650717461248,
+          -0.732606311603944,
+          0.5442731088309709
+        ],
+        "hypothesis_travel_m": 0.05000000074505806,
+        "camera_distance_m": null
+      },
+      "grasp": {
+        "allowed": false,
+        "reason": "reconstruction_not_ready",
+        "target_id": "target_1",
+        "entry": null,
+        "pregrasp": null,
+        "axis": null,
+        "cut_pose": null,
+        "diameter_m": null,
+        "rmse_m": null,
+        "inlier_ratio": null
+      },
+      "motion": {
+        "state": "RECOVERY_REQUIRED",
+        "message": "接触阶段取消或撤离未确认；保持停止，须现场人工撤离后确认恢复",
+        "running": false
+      },
+      "reconstruction": {
+        "state": "COLLECTING",
+        "captured_views": 2,
+        "rejected_views": 1726,
+        "max_baseline_deg": 0.0,
+        "mean_nearest_baseline_deg": 0.0
+      },
+      "perception": {
+        "locked": true,
+        "target_count": 0,
+        "harvest_status": null,
+        "tracking_status": null,
+        "confidence": null
+      }
+    }
+  ],
+  "metrics": {
+    "samples": 212,
+    "cpu_percent": {
+      "mean": 60.1,
+      "max": 91.1
+    },
+    "memory_percent": {
+      "mean": 61.29,
+      "max": 70.2
+    },
+    "gpu_utilization_percent": {
+      "mean": 23.74,
+      "max": 50.0
+    },
+    "gpu_memory_used_mb": {
+      "mean": 2210.69,
+      "max": 2598.0
+    }
+  },
+  "tcp": {
+    "count": 101,
+    "path_length_m": 0.806,
+    "chord_m": 0.582,
+    "detour_ratio": 1.385,
+    "max_dev_m": 0.1286,
+    "z_min_m": 0.4336,
+    "z_max_m": 0.7075,
+    "dz_m": -0.1871,
+    "samples": 101
+  }
+}

@@ -16,6 +16,12 @@ def _resolve_python():
     return sys.executable
 
 
+def _files(directory: str) -> list:
+    """目录下的一级文件（跳过子目录，setuptools 只拷普通文件）."""
+    return [str(path) for path in sorted(Path(directory).glob('*'))
+            if path.is_file()]
+
+
 setup(
     name=package_name,
     version='0.1.0',
@@ -26,8 +32,11 @@ setup(
         (os.path.join('share', package_name), ['package.xml', 'LICENSE']),
         (os.path.join('share', package_name, 'launch'), glob('launch/*.launch.py')),
         (os.path.join('share', package_name, 'config'), glob('config/*.yaml')),
-        (os.path.join('share', package_name, 'worlds'), glob('worlds/*')),
-        (os.path.join('share', package_name, 'urdf'), glob('urdf/*')),
+        (os.path.join('share', package_name, 'worlds'), _files('worlds')),
+        (os.path.join('share', package_name, 'worlds', 'textures'),
+         _files('worlds/textures')),
+        (os.path.join('share', package_name, 'urdf'), _files('urdf')),
+        (os.path.join('share', package_name, 'meshes'), _files('meshes')),
     ],
     install_requires=['setuptools'],
     extras_require={'test': ['pytest']},

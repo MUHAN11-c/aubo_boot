@@ -101,6 +101,20 @@ def _shape_of(visual: ET.Element, link_pose) -> Shape | None:
     kind = geometry[0].tag
     shape = geometry[0]
     rgb = _color(visual.findtext('material/ambient'))
+    if kind == 'mesh':
+        # Blender 网格按名义包络画框（预览只看摆位，不渲网格面）
+        uri = shape.findtext('uri', '')
+        scale = [float(item) for item in
+                 (shape.findtext('scale') or '1 1 1').split()]
+        nominal = ((0.0825, 0.052, 0.130) if 'bagged_peach' in uri
+                   else (1.0, 1.0, 2.3))
+        rgb = (90, 70, 55) if 'tree' in uri else (152, 99, 85)
+        center = (link_pose[0][0] + center[0], link_pose[0][1] + center[1],
+                  link_pose[0][2] + center[2])
+        return Shape(
+            kind='box', center=center,
+            sizes=tuple(nominal[i] * scale[i] for i in range(3)),
+            direction=(0.0, 0.0, 1.0), rgb=rgb)
     if kind == 'sphere':
         radius = float(shape.findtext('radius', '0.05'))
         sizes = (radius,)

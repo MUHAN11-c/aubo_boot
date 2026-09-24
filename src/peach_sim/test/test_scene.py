@@ -150,6 +150,62 @@ def test_targets_never_touch_ground_or_platform():
         assert horizontal > half_width, f'{entry["id"]} 落进车体投影'
 
 
+def test_sdf_colors_are_normalized():
+    """SDF 材质色分量必须 ∈ [0,1]（0–255 调色板误入会把世界打回非法）."""
+    _params, scene = _scene()
+    root = ET.fromstring(scene.world_sdf)
+    for parent_tag in ('material', 'light', 'scene'):
+        for parent in root.iter(parent_tag):
+            for tag in ('ambient', 'diffuse', 'specular', 'background'):
+                node = parent.find(tag)
+                if node is None or not node.text:
+                    continue
+                values = [float(item) for item in node.text.split()]
+                assert all(0.0 <= item <= 1.0 for item in values), (
+                    f'{parent_tag}/{tag} 越界 {values}')
+                assert len(values) == 4, f'{parent_tag}/{tag} 应为 RGBA'
+
+
+def test_bag_aspect_matches_dataset():
+    """袋体高宽比锚 PeachDataSet 深度实测（77x81mm → 1.03，p90 1.23）."""
+    _params, scene = _scene()
+    for entry in scene.manifest['targets']:
+        paper_length = entry['bottom_to_neck'] + entry['neck_diameter'] * 0.0
+        paper_length = entry['bottom_to_neck'] + 0.018  # 含扎口上方收拢纸
+        ratio = paper_length / entry['body_diameter']
+        assert 0.85 <= ratio <= 1.6, f'{entry["id"]} 高宽比 {ratio:.2f}'
+
+
+def test_bag_tilt_matches_dataset():
+    """袋轴吊挂偏角在实测 p90（46°）内，中位附近更密."""
+    _params, scene = _scene()
+    tilts = sorted(abs(math.degrees(math.acos(max(-1.0, min(1.0, entry['axis'][2])))))
+                   for entry in scene.manifest['targets'])
+    assert tilts[len(tilts) // 2] <= 20.0, f'中位倾角 {tilts[len(tilts)//2]:.1f}°'
+    assert tilts[-1] <= 46.0, f'最大倾角 {tilts[-1]:.1f}°'
+
+
+def test_bags_cluster_like_field():
+    """挂袋成簇：同树最近袋间距锚实测 79mm（p90 151mm），且不成散挂."""
+    _params, scene = _scene()
+    by_tree: dict[str, list[tuple[float, float, float]]] = {}
+    for entry in scene.manifest['targets']:
+        by_tree.setdefault(entry['tree'], []).append(tuple(entry['bag_bottom']))
+    gaps = []
+    for points in by_tree.values():
+        for index, point in enumerate(points):
+            nearest = min(
+                math.dist(point, other)
+                for j, other in enumerate(points) if j != index)
+            gaps.append(nearest * 1000.0)
+    gaps.sort()
+    median = gaps[len(gaps) // 2]
+    assert 85.0 <= median <= 155.0, f'同树最近袋间距中位 {median:.0f}mm（实测 111mm）'
+    assert gaps[int(len(gaps) * 0.15)] <= 60.0, '实测 14% 贴袋对（p10=3mm）'
+    assert gaps[int(len(gaps) * 0.9)] >= 150.0, '实测 p90=252mm 长尾'
+    assert gaps[-1] <= 450.0, f'最远同树袋间距 {gaps[-1]:.0f}mm（应成簇而非散挂）""'
+
+
 def test_tree_grid_is_symmetric():
     """树位网格对称（行沿 Y、行距沿 X），共 rows×trees_per_row 株."""
     raw = yaml.safe_load(CONFIG.read_text(encoding='utf-8'))

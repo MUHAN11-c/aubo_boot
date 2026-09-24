@@ -14,6 +14,7 @@ import yaml
 
 from .params import check_params, params_from_dict
 from .scene import render_scene
+from .textures import generate_all
 
 
 def default_share() -> Path:
@@ -64,6 +65,8 @@ def main(argv: list[str] | None = None) -> int:
     world_path = args.out_dir / 'peach_orchard.sdf'
     manifest_path = args.out_dir / 'peach_orchard.manifest.yaml'
     world_path.write_text(scene.world_sdf, encoding='utf-8')
+    textures = generate_all(args.out_dir / 'textures', params.seed)
+    print(f'已写 {len(textures) * 2} 张贴图 → {args.out_dir / "textures"}')
     manifest_path.write_text(
         yaml.safe_dump(
             scene.manifest, allow_unicode=True, sort_keys=False,

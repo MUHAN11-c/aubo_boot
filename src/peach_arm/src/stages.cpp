@@ -478,6 +478,8 @@ bool ManipulationSkillsNode::stagePrepareCycle(CycleContext & ctx)
   ctx.target = cycleTargetSnapshot(ctx.target_id);
   ctx.refined.reset();
   ctx.candidates.clear();
+  // TOOL IO 授权快照随周期重置：防上一目标的令牌/verified 残留越周期。
+  tool_authority_ctx_ = CycleContext{};
   ctx.pregrasp_verified = false;
   ctx.sleeve_planned = false;
   ctx.cut_command_accepted = false;
@@ -1264,10 +1266,13 @@ bool ManipulationSkillsNode::stageActuateCutter(CycleContext & ctx)
     return true;
   }
   // 剪切授权（TOOL 级）：GraspDecision 复检不通过 → skipped_quality；
-  // SetIO 下发前的再兜底在 commandToolClose（同一授权矩阵）。
+  // SetIO 下发前的再兜底在 commandToolClose（同一授权矩阵，凭本快照）。
   if (!requireStageAuthority(ctx, MotionStage::TOOL, "末端工具剪切")) {
     return false;
   }
+  // 授权快照：commandToolClose 的 TOOL 复检必须带真实上下文
+  //（令牌/pregrasp_verified），否则裸 probe 恒拒死剪切链。
+  tool_authority_ctx_ = ctx;
   setState(CycleState::ACTUATE_TOOL, "触发末端工具剪切", ctx.target_id);
   std::string reason;
   ToolCommandContext command;
@@ -1341,6 +1346,8 @@ bool ManipulationSkillsNode::stageReleasePayload(CycleContext & ctx)
   if (!tool_enabled_.load() || !ctx.cut_command_accepted) {
     return true;
   }
+  // 同一周期目标的释放继承 ACTUATE_TOOL 的授权快照（worker 同线程覆盖）。
+  tool_authority_ctx_ = ctx;
   if (!commandToolOpen()) {
     return failStage(
       ctx, ExecuteTarget::Result::FAILED,

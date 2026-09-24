@@ -338,7 +338,7 @@ pluginlib 最小形态（新缝用这个，不要再加 yaml dict）：`PLUGINLI
 - mock 用标准 `joint_trajectory_controller`；真机用厂商透传 / scaled 控制器
 - 工业直线 / 关节：Pilz `PTP` / `LIN` / `CIRC`（Pilz **不避障，碰了整条拒**）；自由空间避障：OMPL。不要用 OMPL 兜底“贴球面环绕”
 - MTC：stage 序列；`plan(1)` 只下发第一条；碰撞以当前 PlanningScene 为准。场景里没有的障碍，规划器看不见
-- 执行监测：MoveIt TEM 与 scaled / 透传控制器可能打架（UR 文档常关 TEM）。改护栏前先读现行 `trajectory_execution.allowed_execution_duration_scaling`（本仓 5.0；未声明 `execution_duration_monitoring`）
+- 执行监测：MoveIt TEM 与 scaled / 透传控制器可能打架（UR 文档常关 TEM）。本仓 2026-09-24 起已声明 `trajectory_execution.execution_duration_monitoring: false`（决策 0029）；`allowed_execution_duration_scaling` 5.0 保留，超时防线=`moveit.execute_timeout_s` boundedExecute
 - Servo 独立配置（MoveIt Servo 不与接触 LIN 混成一条规划链）。Servo 话题 QoS 常是 BEST_EFFORT；可靠发布对不上会静默收不到
 
 ### 仿真与真机同一管线

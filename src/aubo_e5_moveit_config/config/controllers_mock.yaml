@@ -5,6 +5,9 @@ moveit_controller_manager: moveit_simple_controller_manager/MoveItSimpleControll
 trajectory_execution.allowed_execution_duration_scaling: 5.0
 trajectory_execution.allowed_goal_duration_margin: 10.0
 trajectory_execution.allowed_start_tolerance: 0.15
+# TEM 关（与 real 同口径；UR Driver 主流）；A-P3-1 stop 风暴缓解。
+# 超时防线仍在：peach_arm execution_guard boundedExecute（moveit.execute_timeout_s 90s）。
+trajectory_execution.execution_duration_monitoring: false
 moveit_simple_controller_manager:
   controller_names:
     - joint_trajectory_controller

@@ -10,7 +10,11 @@ if(BUILD_TESTING)
   ament_add_pytest_test(test_replay_approach test/test_replay_approach.py)
   ament_add_pytest_test(test_perf_baseline test/test_perf_baseline.py)
   ament_add_pytest_test(test_baseline_inventory test/test_baseline_inventory.py)
-  add_launch_test(test/test_mock_launch.py TIMEOUT 420)
+  # Jazzy 的 launch_testing_ament_cmake 无 add_ros_isolated_launch_test
+  # （Kilted+ 新增宏）；用 add_launch_test 的 ENV 注入实现等效隔离域。
+  # 域 89：避开战役栈 61 与并发会话曾用 33/46/77；LOCALHOST 防跨机泄漏。
+  add_launch_test(test/test_mock_launch.py TIMEOUT 420
+    ENV "ROS_DOMAIN_ID=89" "ROS_LOCALHOST_ONLY=1")
 endif()
 
 ament_package()

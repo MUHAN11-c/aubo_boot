@@ -41,3 +41,9 @@ runs/ 87G→**26G**（删除 09-22/09-23/09-24 注入矩阵已分析 session，�
 - O3 observability 挂死根因（附 watchdog）
 - S3 数据支撑 E1 二期：C25–C28 闪烁/消失用例的真实参数标定（本轮 debug_image 已见真实检测帧序列）
 - 真机门前置：本轮全部 mock 控制、tool 恒关，无授权运动
+
+## 6. 50G 预算执行结果（v2 补记）
+
+- runs/ 87G→26G→**33MB**：旧 session 全删→bag_report **两次尝试均失败**（第一次脚本 500s 超时误杀；第二次按用户报告**内存占满闪退**——26G 全量袋全反序列化超出 bag_report 设计，**O6：bag_report 需流式/分块重设计，>几 GB 的袋禁跑**）。
+- 替代：`ros2 bag info` 元数据提取（零反序列化秒出）→ `bag_info.txt`（26G 构成=joint_states 413,297 条+CM introspection/statistics ~20 万条×3+dynamic_joint_states 199,801 条+相机 raw——高频控制流主导，非感知数据）。
+- 保留：bag_info.txt / report.md / shots×4 / ledger×2 / perception_data(7076 事件) / mp4×2。**O1 修正**：all 档 26G 大头是控制流高频话题而非相机——录制优化应从「control/CM introspection 高频族限频或隔离」入手，而非只限相机。

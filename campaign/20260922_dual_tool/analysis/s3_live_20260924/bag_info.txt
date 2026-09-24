@@ -1,0 +1,83 @@
+
+Files:             bag_0.mcap
+Bag size:          25.3 GiB
+Storage id:        mcap
+ROS Distro:        jazzy
+Duration:          1320.743454979s
+Start:             Sep 24 2026 14:36:50.589063647 (1790231810.589063647)
+End:               Sep 24 2026 14:58:51.332518626 (1790233131.332518626)
+Messages:          1806712
+Topic information: Topic: /bond | Type: bond/msg/Status | Count: 9 | Serialization Format: cdr
+                   Topic: /camera/color/camera_info | Type: sensor_msgs/msg/CameraInfo | Count: 16285 | Serialization Format: cdr
+                   Topic: /camera/color/image_raw | Type: sensor_msgs/msg/Image | Count: 405 | Serialization Format: cdr
+                   Topic: /camera/depth/camera_info | Type: sensor_msgs/msg/CameraInfo | Count: 1265 | Serialization Format: cdr
+                   Topic: /camera/depth/image_raw | Type: sensor_msgs/msg/Image | Count: 957 | Serialization Format: cdr
+                   Topic: /camera/depth_registered/points | Type: sensor_msgs/msg/PointCloud2 | Count: 679 | Serialization Format: cdr
+                   Topic: /controller_manager/activity | Type: controller_manager_msgs/msg/ControllerManagerActivity | Count: 3 | Serialization Format: cdr
+                   Topic: /controller_manager/introspection_data/full | Type: pal_statistics_msgs/msg/Statistics | Count: 203166 | Serialization Format: cdr
+                   Topic: /controller_manager/introspection_data/names | Type: pal_statistics_msgs/msg/StatisticsNames | Count: 2 | Serialization Format: cdr
+                   Topic: /controller_manager/introspection_data/values | Type: pal_statistics_msgs/msg/StatisticsValues | Count: 201686 | Serialization Format: cdr
+                   Topic: /controller_manager/statistics/full | Type: pal_statistics_msgs/msg/Statistics | Count: 201552 | Serialization Format: cdr
+                   Topic: /controller_manager/statistics/names | Type: pal_statistics_msgs/msg/StatisticsNames | Count: 1 | Serialization Format: cdr
+                   Topic: /controller_manager/statistics/values | Type: pal_statistics_msgs/msg/StatisticsValues | Count: 201264 | Serialization Format: cdr
+                   Topic: /diagnostics | Type: diagnostic_msgs/msg/DiagnosticArray | Count: 4231 | Serialization Format: cdr
+                   Topic: /dynamic_joint_states | Type: control_msgs/msg/DynamicJointState | Count: 199801 | Serialization Format: cdr
+                   Topic: /execute_task_solution/_action/feedback | Type: moveit_task_constructor_msgs/msg/ExecuteTaskSolution_FeedbackMessage | Count: 2 | Serialization Format: cdr
+                   Topic: /execute_task_solution/_action/status | Type: action_msgs/msg/GoalStatusArray | Count: 2 | Serialization Format: cdr
+                   Topic: /execute_trajectory/_action/feedback | Type: moveit_msgs/msg/ExecuteTrajectory_FeedbackMessage | Count: 9 | Serialization Format: cdr
+                   Topic: /execute_trajectory/_action/status | Type: action_msgs/msg/GoalStatusArray | Count: 6 | Serialization Format: cdr
+                   Topic: /joint_states | Type: sensor_msgs/msg/JointState | Count: 413297 | Serialization Format: cdr
+                   Topic: /joint_trajectory_controller/controller_state | Type: control_msgs/msg/JointTrajectoryControllerState | Count: 201066 | Serialization Format: cdr
+                   Topic: /joint_trajectory_controller/follow_joint_trajectory/_action/feedback | Type: control_msgs/msg/FollowJointTrajectory_FeedbackMessage | Count: 302 | Serialization Format: cdr
+                   Topic: /joint_trajectory_controller/follow_joint_trajectory/_action/status | Type: action_msgs/msg/GoalStatusArray | Count: 8 | Serialization Format: cdr
+                   Topic: /monitored_planning_scene | Type: moveit_msgs/msg/PlanningScene | Count: 2086 | Serialization Format: cdr
+                   Topic: /move_action/_action/feedback | Type: moveit_msgs/msg/MoveGroup_FeedbackMessage | Count: 6 | Serialization Format: cdr
+                   Topic: /move_action/_action/status | Type: action_msgs/msg/GoalStatusArray | Count: 6 | Serialization Format: cdr
+                   Topic: /peach/batch/enables | Type: peach_interfaces/msg/Enables | Count: 560 | Serialization Format: cdr
+                   Topic: /peach/lifecycle/managed_nodes_activated | Type: std_msgs/msg/Bool | Count: 1319 | Serialization Format: cdr
+                   Topic: /peach/manipulation/grasp_hypothesis | Type: peach_interfaces/msg/GraspHypothesis | Count: 2 | Serialization Format: cdr
+                   Topic: /peach/observability/job | Type: std_msgs/msg/String | Count: 50 | Serialization Format: cdr
+                   Topic: /peach/observability/markers | Type: visualization_msgs/msg/MarkerArray | Count: 6553 | Serialization Format: cdr
+                   Topic: /peach/observability/metrics | Type: std_msgs/msg/String | Count: 1540 | Serialization Format: cdr
+                   Topic: /peach/observability/tcp_path | Type: nav_msgs/msg/Path | Count: 6553 | Serialization Format: cdr
+                   Topic: /peach/perception/axis | Type: geometry_msgs/msg/Vector3Stamped | Count: 2751 | Serialization Format: cdr
+                   Topic: /peach/perception/debug_image | Type: sensor_msgs/msg/Image | Count: 9191 | Serialization Format: cdr
+                   Topic: /peach/perception/debug_image_raw | Type: sensor_msgs/msg/Image | Count: 6612 | Serialization Format: cdr
+                   Topic: /peach/perception/detections | Type: vision_msgs/msg/Detection2DArray | Count: 6190 | Serialization Format: cdr
+                   Topic: /peach/perception/diagnostics | Type: peach_interfaces/msg/BagFittingArray | Count: 6151 | Serialization Format: cdr
+                   Topic: /peach/perception/harvest_state | Type: std_msgs/msg/String | Count: 12315 | Serialization Format: cdr
+                   Topic: /peach/perception/initial_pose | Type: peach_interfaces/msg/BagGraspCandidateArray | Count: 6156 | Serialization Format: cdr
+                   Topic: /peach/perception/markers | Type: visualization_msgs/msg/MarkerArray | Count: 6147 | Serialization Format: cdr
+                   Topic: /peach/perception/masks | Type: sensor_msgs/msg/Image | Count: 4260 | Serialization Format: cdr
+                   Topic: /peach/perception/single_cloud | Type: sensor_msgs/msg/PointCloud2 | Count: 2445 | Serialization Format: cdr
+                   Topic: /peach/perception/target_observations | Type: peach_interfaces/msg/PeachTargetObservationArray | Count: 12415 | Serialization Format: cdr
+                   Topic: /peach/reconstruction/diagnostics | Type: peach_interfaces/msg/ReconstructionStatus | Count: 2646 | Serialization Format: cdr
+                   Topic: /peach/reconstruction/diagnostics_debug | Type: std_msgs/msg/String | Count: 2646 | Serialization Format: cdr
+                   Topic: /peach/reconstruction/grasp_decision | Type: peach_interfaces/msg/GraspDecision | Count: 2646 | Serialization Format: cdr
+                   Topic: /peach/reconstruction/local_cloud | Type: sensor_msgs/msg/PointCloud2 | Count: 2 | Serialization Format: cdr
+                   Topic: /peach/reconstruction/markers | Type: visualization_msgs/msg/MarkerArray | Count: 2 | Serialization Format: cdr
+                   Topic: /peach/reconstruction/pregrasp_verification | Type: peach_interfaces/msg/PregraspVerification | Count: 1321 | Serialization Format: cdr
+                   Topic: /peach/reconstruction/refined_axis | Type: geometry_msgs/msg/Vector3Stamped | Count: 6 | Serialization Format: cdr
+                   Topic: /peach/reconstruction/refined_diagnostics | Type: peach_interfaces/msg/BagFittingArray | Count: 6 | Serialization Format: cdr
+                   Topic: /peach/reconstruction/refined_pose | Type: peach_interfaces/msg/BagGraspCandidateArray | Count: 6 | Serialization Format: cdr
+                   Topic: /peach/reconstruction/shape_hypothesis | Type: peach_interfaces/msg/ShapeHypothesis | Count: 2 | Serialization Format: cdr
+                   Topic: /peach/reconstruction/status | Type: std_msgs/msg/String | Count: 2646 | Serialization Format: cdr
+                   Topic: /peach/reconstruction/tsdf_cloud | Type: sensor_msgs/msg/PointCloud2 | Count: 6 | Serialization Format: cdr
+                   Topic: /peach_arm/execute_target/_action/feedback | Type: peach_interfaces/msg/ExecuteTarget_FeedbackMessage | Count: 47 | Serialization Format: cdr
+                   Topic: /peach_arm/execute_target/_action/status | Type: action_msgs/msg/GoalStatusArray | Count: 2 | Serialization Format: cdr
+                   Topic: /peach_arm/planned_views | Type: visualization_msgs/msg/MarkerArray | Count: 1 | Serialization Format: cdr
+                   Topic: /peach_arm/status | Type: std_msgs/msg/String | Count: 1149 | Serialization Format: cdr
+                   Topic: /peach_arm/survey_scene/_action/status | Type: action_msgs/msg/GoalStatusArray | Count: 10 | Serialization Format: cdr
+                   Topic: /peach_observability/transition_event | Type: lifecycle_msgs/msg/TransitionEvent | Count: 1 | Serialization Format: cdr
+                   Topic: /peach_scene_perception_node/transition_event | Type: lifecycle_msgs/msg/TransitionEvent | Count: 4 | Serialization Format: cdr
+                   Topic: /peach_supervisor/events | Type: peach_interfaces/msg/CanonicalEvent | Count: 26 | Serialization Format: cdr
+                   Topic: /peach_supervisor/run_harvest/_action/feedback | Type: peach_interfaces/msg/RunHarvest_FeedbackMessage | Count: 58 | Serialization Format: cdr
+                   Topic: /peach_supervisor/run_harvest/_action/status | Type: action_msgs/msg/GoalStatusArray | Count: 9 | Serialization Format: cdr
+                   Topic: /peach_supervisor/scene_snapshot | Type: peach_interfaces/msg/SceneSnapshot | Count: 8 | Serialization Format: cdr
+                   Topic: /peach_supervisor/state | Type: peach_interfaces/msg/HarvestState | Count: 130 | Serialization Format: cdr
+                   Topic: /pipeline_state | Type: moveit_msgs/msg/PipelineState | Count: 27 | Serialization Format: cdr
+                   Topic: /rosout | Type: rcl_interfaces/msg/Log | Count: 4095 | Serialization Format: cdr
+                   Topic: /tf | Type: tf2_msgs/msg/TFMessage | Count: 49898 | Serialization Format: cdr
+                   Topic: /tf_static | Type: tf2_msgs/msg/TFMessage | Count: 6 | Serialization Format: cdr
+Service:           0
+Service information: 

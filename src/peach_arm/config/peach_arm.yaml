@@ -119,7 +119,7 @@ peach_arm:
       feedback_timeout_s: 2.0  # 切断反馈 DI 新沿有界等待（秒）；超时 CUT_UNCONFIRMED（不撤退不重发）。
       links: [tool_axis, cutting_plane, tcp, sleeve_mouth, tool_body_link, quick_changer_link]  # 工具链连杆（③层整图 octomap 豁免清单；帧名冻结）。改工具须同步 URDF/tcp.xacro 连杆名。
       contact_links: [sleeve_mouth, tcp, tool_axis, cutting_plane]  # 接触阶段（套入/剪切）× 目标对象豁免的工具连杆（不含筒体/快换件——防撞主力保持受查）。
-      body_length_m: 0.09  # 工具包络长（米，①层果实胶囊审查用）；与档案 geometry_m.body_length 对齐，整栈按档案注入。
+      body_length_m: 0.14  # 工具包络长（米，①层果实胶囊审查用）；与档案 geometry_m.body_length 对齐，整栈按档案注入。
       body_radius_m: 0.11  # 工具包络半径（米）；半径只径向、不含端球（端球会吃掉预抓取轴向余量）；整栈按档案注入。
       profile_id: adaptive_shear_v1  # 当前末端工具档案标签（PregraspVerification.tool_profile_id）。基础值=自适应剪切手；整栈由 launch tool_profile 档案注入覆盖。
     timeouts:

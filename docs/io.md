@@ -623,8 +623,8 @@ base_link → 臂链 → wrist3_Link
      → camera_depth_frame → camera_depth_optical_frame（深度 header、技能 yaml）
   → tool_axis → cutting_plane / tcp / sleeve_mouth / tool_body_link
      （按 launch tool_profile 选档案，帧名共用：shear_v1 TCP (−26.5, 53, 176) mm Rx(−90°) /
-      bite_shear_v1 TCP (0, −7, 165.5) mm / adaptive_shear_v1 TCP (0, −50, 170) mm Rx(+90°)；
-      Z=开口，XY=刀口；TCP=刀口工作点（preliminary_cad）；tool_body_link 挂 wrist3_Link 载 CAD 网格）
+      bite_shear_v1 TCP (0, 30.24, 165.5) mm / adaptive_shear_v1 TCP (0, 47, 168.66) mm Rx(−90°)；
+      Z=开口，XY=刀口；TCP=刀口/工作口设计基准（adaptive 与旧圆柱同基准、bite 总装测量点；shear_v1 为 CAD 推导）；tool_body_link 挂 wrist3_Link 载 CAD 网格）
 ```
 
 无 `active.yaml` 时名义 TF：`wrist3_Link→camera_link` 平移 2 cm、单位四元数。现场标定约 `[0.045, 0.108, 0.002]`。驱动两光学系相对 `camera_link` 平移为 0（源码如此；未 live echo 不改名）。

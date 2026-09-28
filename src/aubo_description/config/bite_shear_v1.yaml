@@ -1,25 +1,27 @@
 # 咬合式剪切手档案（bite_shear_v1）。
-# 双刀口对夹剪断果柄；喉道导轨（220mm）引导果枝进入，开口朝法兰 −Y（Rx(+90°)）。
-# TCP 原点为 CAD preliminary（刀口对夹中点），待真机标定。改几何只改本文件与
+# 双刀口对夹剪断果柄；喉道导轨（220mm）引导果枝进入，开口朝法兰 +Y（Rx(−90°)，果侧进枝）。
+# TCP=刀口区设计参考点 (0, 30.24, 165.5) mm（总装系测量核定：ΔY 30.24/ΔZ 165.5/
+# 距离 168.24，2026-09-28 用户核定）。改几何只改本文件与
 # urdf/components/tcp_bite_shear_v1.xacro。
 # 本档案由 peach_harvester/peach_harvester/vision/tool_profiles.py 在 launch 期装载注入。
 profile_id: bite_shear_v1
-calibration_status: preliminary_cad
-source: "STEP 总装 audo-i5机器人总装-咬合式剪切手.STEP；scripts/step_extract_tool.py 法兰系提取"
+calibration_status: cad_reference_point
+source: "STEP 总装 audo-i5机器人总装-咬合式剪切手.STEP；TCP=总装测量核定刀口区参考点"
 frames:
   parent: wrist3_Link
-  # 原点 = 剪切刀口1/2 对夹中点（CAD 测）；rpy Rx(+90°) → TCP Z // 法兰 −Y（开口）
-  tool_axis: {xyz: [0.0, -0.007, 0.1655], rpy: [1.5708, 0.0, 0.0]}
+  # 原点 = 刀口区参考点（总装测量）；rpy Rx(−90°) → TCP Z // 法兰 +Y（开口，果侧进枝）
+  tool_axis: {xyz: [0.0, 0.03024, 0.1655], rpy: [-1.5708, 0.0, 0.0]}
   cutting_plane: {xyz: [0.0, 0.0, 0.0], rpy: [0.0, 0.0, 0.0]}
   tcp: {xyz: [0.0, 0.0, 0.0], rpy: [0.0, 0.0, 0.0]}
-  # 喉道入口（导轨 −Y 端），TCP 系 +Z：果枝由此进入至刀口
-  sleeve_mouth: {xyz: [0.0, 0.0, 0.223], rpy: [0.0, 0.0, 0.0]}
+  # 进枝口即 TCP（刀区前方）
+  sleeve_mouth: {xyz: [0.0, 0.0, 0.0], rpy: [0.0, 0.0, 0.0]}
 geometry_m:
-  # D_inner 登记 = 喉道/刀口开口径（CAD 单一姿态估计，待机构规格确认）
+  # D_inner 登记 = 刀口/喉道开口（CAD 单一姿态估计，待机构规格确认）
   D_inner: 0.030
   D_outer: 0.180
-  L_insert: 0.223
-  L_blade: 0.039
+  L_insert: 0.030
+  # TCP（y=+30.24）到刀口区中心（y≈−7）的轴向距离
+  L_blade: 0.037
   # 机械档案字段（套袋时代沿用口径，剪切手待标定，先保守登记）
   entry_d_tool: 0.030
   entry_d_s: 0.040
@@ -30,8 +32,8 @@ geometry_m:
   blade_capture_half_width: 0.008
   fruit_safety_clearance: 0.012
   axial_safety_margin: 0.004
-  # ①层果实胶囊审查的保守包络（tool_body_length_m / tool_body_radius_m 注入源）
-  body_length: 0.100
+  # ①层果实胶囊审查的保守包络：TCP 到喉道末端（y=−229.5）全长 0.26；半径取挡板/刀架半宽
+  body_length: 0.260
   body_radius: 0.090
 error_m:
   tool_runout95: 0.001
@@ -48,4 +50,4 @@ io:
   pulse: false
   feedback_timeout_s: 1.5
   notes: "SetIO ACK 只算 CUT_COMMAND_ACCEPTED，不能单独确认切断；BST-YF 推杆通道待真机核"
-version: "1.0-preliminary"
+version: "1.2"

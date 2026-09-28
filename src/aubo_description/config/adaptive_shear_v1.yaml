@@ -1,27 +1,30 @@
 # 自适应剪切手档案（adaptive_shear_v1，桃子采摘末端执行器）。
 # Ø136 圆盘+拉钩弹簧组被动自适应贴果，MPU6050 挂壳体（serial_imu 随栈起，
-# tf_parent_frame:=tcp + align_to_parent）；开口朝法兰 −Y（Rx(+90°)）。
-# 套入期间臂姿态经 imu_follow 跟随 IMU 弥补视觉误差（usesImuFollowContact 名单含本 profile）。
-# TCP 原点为 CAD preliminary（圆盘工作面前缘），待真机标定。改几何只改本文件与
-# urdf/components/tcp_adaptive_shear_v1.xacro。
+# tf_parent_frame:=tcp + align_to_parent）；套入期间臂姿态经 imu_follow 跟随 IMU
+# 弥补视觉误差（usesImuFollowContact 名单含本 profile）。
+# TCP=采摘手外壳工作口圆心 (0, 47, 168.66) mm（总装系测量核定：ΔY 47.00/ΔZ 168.66/
+# 中心距 175.09，2026-09-28 用户核定）——与旧 adaptive_cylinder_v1 设计基准完全一致，
+# 感知/预抓取/手眼标定链几何零漂移；开口 +Y（Rx(−90°) 传承）。
+# 改几何只改本文件与 urdf/components/tcp_adaptive_shear_v1.xacro。
 # 本档案由 peach_harvester/peach_harvester/vision/tool_profiles.py 在 launch 期装载注入。
 profile_id: adaptive_shear_v1
-calibration_status: preliminary_cad
-source: "STEP 总装 audo-i5机器人总装-自适应剪切手.STEP；scripts/step_extract_tool.py 法兰系提取"
+calibration_status: design_reference
+source: "STEP 总装 audo-i5机器人总装-自适应剪切手.STEP；TCP=总装测量核定工作口圆心（与旧圆柱同基准）"
 frames:
   parent: wrist3_Link
-  # 原点 = 圆盘工作面前缘（CAD 测）；rpy Rx(+90°) → TCP Z // 法兰 −Y（开口）
-  tool_axis: {xyz: [0.0, -0.05, 0.17], rpy: [1.5708, 0.0, 0.0]}
+  # 原点 = 工作口圆心（设计基准）；rpy Rx(−90°) → TCP Z // 法兰 +Y（开口）
+  tool_axis: {xyz: [0.0, 0.047, 0.16866], rpy: [-1.5708, 0.0, 0.0]}
   cutting_plane: {xyz: [0.0, 0.0, 0.0], rpy: [0.0, 0.0, 0.0]}
   tcp: {xyz: [0.0, 0.0, 0.0], rpy: [0.0, 0.0, 0.0]}
-  # 贴果入口 ≈ 拉钩外缘（TCP 系 +Z 0.02）
-  sleeve_mouth: {xyz: [0.0, 0.0, 0.02], rpy: [0.0, 0.0, 0.0]}
+  # 工作口即 TCP（开口）
+  sleeve_mouth: {xyz: [0.0, 0.0, 0.0], rpy: [0.0, 0.0, 0.0]}
 geometry_m:
   # D_inner 登记 = 贴果开口（圆盘Ø0.136，CAD 单一姿态估计，待机构规格确认）
   D_inner: 0.120
   D_outer: 0.215
   L_insert: 0.090
-  L_blade: 0.020
+  # TCP（工作口 y=+47）到圆盘剪切面（y≈−32）的轴向距离
+  L_blade: 0.079
   # 机械档案字段（套袋时代沿用口径，剪切手待标定，先保守登记）
   entry_d_tool: 0.030
   entry_d_s: 0.040
@@ -33,7 +36,7 @@ geometry_m:
   fruit_safety_clearance: 0.012
   axial_safety_margin: 0.004
   # ①层果实胶囊审查的保守包络（tool_body_length_m / tool_body_radius_m 注入源）
-  body_length: 0.090
+  body_length: 0.140
   body_radius: 0.110
 error_m:
   tool_runout95: 0.001
@@ -50,4 +53,4 @@ io:
   pulse: false
   feedback_timeout_s: 1.5
   notes: "SetIO ACK 只算 CUT_COMMAND_ACCEPTED，不能单独确认切断；JGB37 通道待真机核"
-version: "1.0-preliminary"
+version: "1.2"

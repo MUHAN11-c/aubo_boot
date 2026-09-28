@@ -1011,3 +1011,9 @@ SIGINT 旧栈后用 16:57 编的 `peach_manipulation` 重起；开批前在 `glo
 - **验证**：xacro×3+check_urdf 绿；colcon build 10 包绿；colcon test：peach_harvester 219 全绿、aubo_description 绿（copyright 走 AMENT_LINT_AUTO_EXCLUDE——**本机 CMake 3.28 上 `_FOUND TRUE` 短路实测失效**，五包旧写法属幸存而非生效）；r0_gate 纯核 119 过。mock 冒烟三 profile（域 91）：`tf2_echo wrist3_Link→tcp` 数值=档案 tool_axis（shear (−0.0265,0.053,0.176) / bite (0,−0.007,0.1655) / adaptive (0,−0.05,0.17)），停栈 pgrep 无残留。
 - **已知红（非本轮引入则记档）**：① E1 `test_e1_supervisor_chain` exit -6 = 先在 F-E1-1（SIGABRT）；② **C03 由 09-24 绿转红**——工具几何换代（TCP 移位+开口方向 adaptive 翻 −Y）致 E1 注入器 known-good 目标失配，300s 未到 RECOVERY；待 E1 轮按新工具重标夹具（本轮不夹带改）；③ r0_gate 的 interface manifest 红 `/peach_supervisor/set_parameters` 字面量出自 09-24 c53b177 的 perception_sim.py，先在于本轮。
 - **坑入册**：Blender 4.5 无头渲染 EEVEE 自建相机对象/WORKBENCH 均出空帧，须 orchard 同款 `camera_add`+track 四元数+世界+太阳灯管线；FreeCAD snap 输出不能走 /tmp（私有命名空间）；SystemExit 消息被 freecadcmd 吞（诊断须 print+flush）；装配根识别不能按孩子数（末端子装配孩子多于总装根）。
+
+### 09-28 续：TCP 按总装测量核定（bite/adaptive；勘正视觉误读）
+
+- **用户提供 SolidWorks 截图两份**（总装系测量）。**勘正**：第一轮用视觉模型读小字得出 bite (0,0,173)/adaptive (0,−45,170) 系**幻觉误读**，用户指出后重析——以数值自洽校验为准：咬合式 ΔY 30.24/ΔZ 165.5/距离 168.24（√(30.24²+165.5²)=168.24 ✓）→ TCP **(0, 30.24, 165.5) mm**；自适应 ΔY 47.00/ΔZ 168.66/中心距 175.09（√(47²+168.66²)=175.09 ✓）→ 工作口圆心 **(0, 47, 168.66) mm**，与旧 adaptive_cylinder_v1 TCP **完全同值**——新工具按旧圆柱基准替换设计，感知/预抓取/手眼标定链几何零漂移。教训：毫米级标定值禁止走视觉模型转述，必须数值自洽校验或用户直读。
+- **落定**：adaptive `design_reference`（传承基准）/ bite `cad_reference_point`，均 v1.2，开口 +Y（Rx(−90°)，回归全工具族同向）；bite body_length 0.26（TCP→喉道末端全长）/ radius 0.09，adaptive 0.14/0.11；并发会话的 +47/168.66 版本被证实正确、恢复之。STEP 无 POINT 实体（导出未勾参考几何体）；.SLDASM/.SLDPRT 原生件 Linux 无解，ZIP 归档备查。
+- **复核**：xacro×3+check_urdf 绿；三审查 RViz 窗口热更后 `tf2_echo wrist3_Link→tcp` = (0,0.047,0.169)/(0,0.030,0.166) 精确对档案。

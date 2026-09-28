@@ -12,16 +12,46 @@ import bpy
 import numpy as np
 from mathutils import Vector
 from mathutils.geometry import intersect_point_line
+from mathutils.bvhtree import BVHTree
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 from materials import create  # noqa: E402
-from geometry import Leaves, bag_rings, mesh, paper_bag, tube  # noqa: E402
+from geometry import Leaves, bag_rings, crease, mesh, paper_bag, tube  # noqa: E402
+import lighting as lighting_mod  # noqa: E402
+from lighting_apply import apply_lighting  # noqa: E402
+import occlusion  # noqa: E402
+from distributions import sample_percentile, sample_width_height  # noqa: E402
 
 RNG = random.Random(240924)
 TARGETS = []
-BAG_SHAPES = []
 CONNECTIONS = []
+RENDER_BACKEND = 'CPU'
+
+# Controlled-occlusion viewing side: the alley/camera side is -Y in this
+# scene layout; foreground leaves and blocking branches are placed between
+# bags and this direction (recorded in the manifest).
+VIEW_DIR = (0.0, -1.0, 0.0)
+CORRIDOR_PROB = .15
+
+_PRIORS = json.loads((HERE / 'evidence' / 'priors.json').read_text())
+BAG_STATS = _PRIORS['splits']['Peach_bag']['classes']['0']
+TILT_STATS = _PRIORS['field_20260909']['axis_tilt_from_up_deg']
+
+SCALES = {
+    'validation': {
+        'origins': [(-.3, 2, 0), (-2, 2, 0), (1.3, 3, 0), (-2, 5.5, 0),
+                    (1.3, 6.5, 0), (-5.3, 2, 0), (-5.3, 5.5, 0),
+                    (4.6, 3, 0), (4.6, 6.5, 0)],
+        'grass': {'x_range': (-7, 7), 'y_range': (-5, 13), 'path_x': (1.8,)}},
+    'field': {
+        'origins': [(x, 1.5 + j * 3.0, 0)
+                    for x in (-5.5, -.5, 4.5) for j in range(8)],
+        'grass': {'x_range': (-7.5, 7.5), 'y_range': (-1, 24.5),
+                  'path_x': (-3.0, 2.0)}},
+}
+"""validation = 现行 ~10 树验证场（矩阵用）；field = 3 行×8 株锚定场
+（仅正午整园一图 + 完整 manifest，为导航轮铺路，不进矩阵）。"""
 
 
 def sphere(name, center, radius, mat):
@@ -50,9 +80,15 @@ def attach(name, points, radii, mat, parent_point=None):
     return tube(name, points, radii, mat)
 
 
-def add_bag(name, neck, width, height, mats, seed=1, tilt=.1, angle=0):
-    rings = bag_rings(width, height, min(width * .53, .067), seed)
+def add_bag(name, neck, width, height, mats, seed=1, tilt=.1, angle=0,
+            tilt_from_up_deg=None):
+    thickness = min(width * .53, .067)
+    rings = bag_rings(width, height, thickness, seed)
     obj = paper_bag(name, rings, mats[f'paper{seed % 3}'], seed)
+    # Inferred-tree bags carry blended-orchard paper folds so creases catch
+    # light; measurement-derived reference bags stay crease-free to keep the
+    # depth-comparison anchor unperturbed.
+    crease(obj, thickness)
     # End of stem = gathered neck; bag hangs below, with restrained natural
     # tilt.
     obj.rotation_euler = (tilt, tilt * .2, angle)
@@ -61,21 +97,44 @@ def add_bag(name, neck, width, height, mats, seed=1, tilt=.1, angle=0):
     obj.location = Vector(neck) - rot @ local_neck
     obj.pass_index = len(TARGETS) + 1
     obj['attachment_world'] = list(neck)
-    TARGETS.append({'id': obj.pass_index,
-                    'name': name,
-                    'neck': list(neck),
-                    'width_m': width,
-                    'height_m': height,
-                    'source': 'distribution of selected RGB-D samples; placement inferred'})
+    target = {'id': obj.pass_index,
+              'name': name,
+              'neck': list(neck),
+              'width_m': width,
+              'height_m': height,
+              'source': 'distribution of Peach_bag priors; placement inferred'}
+    # World frame recorded for occlusion dressing and viewpoint planning.
+    target['center_world'] = list(
+        obj.location + rot @ Vector((0, 0, height * .45)))
+    target['bottom_world'] = list(obj.location)
+    target['axis_world'] = list(
+        (rot @ Vector((0, 0, 1))).normalized())
+    if tilt_from_up_deg is not None:
+        target['tilt_from_up_deg'] = round(tilt_from_up_deg, 2)
+    TARGETS.append(target)
     # Hidden fruit stays comfortably inside; not used as external geometry
-    # evidence.
+    # evidence. Generation-time containment check mirrors validate_geometry:
+    # shrink until the sphere keeps >=0.5 mm to the paper, then record the
+    # achieved clearance so the offline gate is never the first detector.
+    local_center = Vector((0, 0, height * .40))
+    bvh = BVHTree.FromPolygons([v.co for v in obj.data.vertices],
+                               [p.vertices[:] for p in obj.data.polygons])
+    nearest = bvh.find_nearest(local_center)
+    natural = min(width * .19, height * .18)
+    radius = natural
+    if nearest[3] is not None:
+        radius = min(radius, nearest[3] - .0005)
+    if radius <= max(.0008, natural * .3):
+        raise ValueError(f'{name}: enclosed fruit cannot clear paper '
+                         f'(nearest surface {nearest[3]} m, kept radius '
+                         f'{radius:.4f} m)')
     fruit = sphere(name + '/enclosed peach',
-                   obj.location + rot @ Vector((0,
-                                                0,
-                                                height * .40)),
-                   min(width * .19,
-                       height * .18),
+                   obj.location + rot @ local_center,
+                   radius,
                    mats['fruit'])
+    target['fruit_radius_m'] = radius
+    target['fruit_clearance_m'] = (nearest[3] - radius
+                                   if nearest[3] is not None else None)
     fruit.pass_index = obj.pass_index
     wirepoints = []
     for j in range(45):
@@ -91,6 +150,52 @@ def add_bag(name, neck, width, height, mats, seed=1, tilt=.1, angle=0):
         mats['wire'],
         5)
     return obj
+
+
+def dress_occlusion(name, anchor, neck, target, mats, leaves, rng):
+    """Controlled leaf occlusion + branch interference for one bag (M2).
+
+    Plans come from occlusion.assign_levels; foreground leaves physically
+    hang off the fruit stem (result shoots carry leaves near fruit), and
+    interfering branches grow from the same anchor so the connection graph
+    stays exact.
+    """
+    plan = occlusion.assign_levels(rng, 1)[0]
+    corridor = rng.random() < CORRIDOR_PROB
+    frame = occlusion.BagFrame(
+        neck=Vector(neck),
+        center=Vector(target['center_world']),
+        bottom=Vector(target['bottom_world']),
+        face_dir=VIEW_DIR,
+        width=target['width_m'],
+        height=target['height_m'])
+    slots = occlusion.foreground_leaf_slots(frame, plan, rng, VIEW_DIR)
+    for k, (root, tip) in enumerate(slots):
+        root = Vector(root)
+        attach(f'{name}/occluder stem{k}',
+               [neck, neck.lerp(root, .5) + Vector((0, .004, .005)), root],
+               [.0016, .0011, .0006], mats['twig'], neck)
+        leaves.add(root, Vector(tip), width=rng.uniform(.031, .045))
+    if plan.branch_front:
+        p0, p1, radius = occlusion.front_branch_segment(frame, rng)
+        attach(f'{name}/blocking branch',
+               [anchor, Vector(p0), Vector(p1)],
+               [radius, radius * .75, radius * .45], mats['twig'], anchor)
+    if corridor:
+        approach = (Vector(target['bottom_world']) -
+                    Vector(neck)).normalized()
+        p0, p1, radius = occlusion.corridor_branch_segment(
+            frame, rng, approach)
+        attach(f'{name}/corridor branch',
+               [anchor, Vector(p0), Vector(p1)],
+               [radius, radius * .8, radius * .5], mats['twig'], anchor)
+    target['occlusion'] = {
+        'level': plan.level,
+        'nominal_coverage': plan.nominal_coverage,
+        'leaves': len(slots),
+        'branch_front': plan.branch_front,
+        'branch_corridor': corridor,
+    }
 
 
 def shoot(name, start, direction, length, mats, leaves, seed, bags=False):
@@ -118,10 +223,25 @@ def shoot(name, start, direction, length, mats, leaves, seed, bags=False):
         neck = anchor + Vector((0, 0, -.012))
         attach(name + '/fruit stem', [anchor, neck],
                [.0018, .0015], mats['twig'], anchor)
-        sample=rng.choice(BAG_SHAPES)
-        add_bag(name + '/bag', neck, sample['width'], sample['height'],
-                mats, seed, rng.uniform(-.22, .22), rng.uniform(-.8, .8))
-        TARGETS[-1]['dimension_source']=sample['source']
+        sample = None
+        for _ in range(8):
+            sample = sample_width_height(BAG_STATS, rng)
+            if (.055 <= sample['width_m'] <= .22
+                    and .065 <= sample['height_m'] <= .24):
+                break
+        else:
+            raise ValueError('priors sampling outside guard band')
+        tilt_deg, tilt_u = sample_percentile(TILT_STATS, rng.random())
+        add_bag(name + '/bag', neck, sample['width_m'], sample['height_m'],
+                mats, seed, math.radians(tilt_deg),
+                rng.uniform(-math.pi, math.pi), tilt_from_up_deg=tilt_deg)
+        TARGETS[-1]['dimension_source'] = sample['source']
+        TARGETS[-1]['width_source_percentile'] = sample[
+            'width_source_percentile']
+        TARGETS[-1]['aspect_source_percentile'] = sample[
+            'aspect_source_percentile']
+        TARGETS[-1]['tilt_source_percentile'] = round(tilt_u, 4)
+        dress_occlusion(name, anchor, neck, TARGETS[-1], mats, leaves, rng)
 
 
 def tree(name, origin, mats, seed):
@@ -317,17 +437,18 @@ def local_reference(mats, report):
     return trunk
 
 
-def ground(mats):
+def ground(mats, x_range=(-7, 7), y_range=(-5, 13), path_x=(1.8,)):
     bpy.ops.mesh.primitive_plane_add(size=200)
     bpy.context.object.name = 'Orchard ground'
     bpy.context.object.data.materials.append(mats['soil'])
     verts = []
     faces = []
     for i in range(150000):
-        x = RNG.uniform(-7, 7)
-        y = RNG.uniform(-5, 13)
-        # Mown path and taller groundcover under tree rows.
-        height = RNG.uniform(.025, .10) * (.35 if abs(x - 1.8) < .55 else 1)
+        x = RNG.uniform(*x_range)
+        y = RNG.uniform(*y_range)
+        # Mown alleys under the row paths, taller groundcover elsewhere.
+        height = RNG.uniform(.025, .10) * (
+            .35 if min(abs(x - p) for p in path_x) < .55 else 1)
         a = RNG.uniform(0, math.tau)
         w = .005
         idx = len(verts)
@@ -355,10 +476,38 @@ def camera(name, location, target, lens):
     return obj
 
 
-def setup_render(out, samples):
+def _enable_gpu():
+    """Prefer OptiX/CUDA over CPU rendering; return the compute backend used."""
+    try:
+        prefs = bpy.context.preferences.addons['cycles'].preferences
+        for backend in ('OPTIX', 'CUDA', 'HIP'):
+            try:
+                prefs.compute_device_type = backend
+                prefs.get_devices()
+            except Exception:
+                continue
+            gpus = [d for d in prefs.devices if d.type != 'CPU']
+            if not gpus:
+                continue
+            for d in prefs.devices:
+                d.use = d.type != 'CPU'
+            print('CYCLES DEVICE', backend,
+                  [d.name for d in gpus], flush=True)
+            return backend
+    except Exception as exc:  # GPU optional: fall back silently to CPU.
+        print('CYCLES DEVICE fallback CPU:', exc, flush=True)
+    print('CYCLES DEVICE CPU', flush=True)
+    return 'CPU'
+
+
+def setup_render(out, samples, lighting_name='noon'):
+    preset = lighting_mod.get(lighting_name)
     s = bpy.context.scene
     s.render.engine = 'CYCLES'
-    s.cycles.device = 'CPU'
+    backend = _enable_gpu()
+    global RENDER_BACKEND
+    RENDER_BACKEND = backend
+    s.cycles.device = 'GPU' if backend != 'CPU' else 'CPU'
     s.cycles.samples = samples
     s.cycles.use_denoising = True
     s.cycles.max_bounces = 7
@@ -372,22 +521,7 @@ def setup_render(out, samples):
     s.view_settings.look = 'AgX - Medium High Contrast'
     s.view_settings.exposure = -.55
     s.world.use_nodes = True
-    n = s.world.node_tree.nodes
-    l = s.world.node_tree.links
-    sky = n.new('ShaderNodeTexSky')
-    sky.sky_type = 'NISHITA'
-    sky.sun_elevation = math.radians(38)
-    sky.sun_rotation = math.radians(125)
-    sky.sun_disc = True
-    sky.sun_size = math.radians(2)
-    l.new(sky.outputs[0], n.get('Background').inputs[0])
-    n.get('Background').inputs[1].default_value = .11
-    light = bpy.data.lights.new('Sun through canopy', 'SUN')
-    light.energy = .75
-    light.angle = .06
-    obj = bpy.data.objects.new('Sun through canopy', light)
-    bpy.context.collection.objects.link(obj)
-    obj.rotation_euler = (.5, -.6, -.6)
+    apply_lighting(s, preset)
     # Full floating-point world position is unambiguous for optical Z
     # conversion.
     layer = s.view_layers[0]
@@ -433,36 +567,35 @@ def main():
     p.add_argument('--samples', type=int, default=32)
     p.add_argument('--width', type=int, default=1280)
     p.add_argument('--build-only', action='store_true')
+    p.add_argument('--lighting', default='noon',
+                   choices=sorted(lighting_mod.PRESETS),
+                   help='outdoor lighting preset (lighting.py)')
+    p.add_argument('--scale', default='validation',
+                   choices=sorted(SCALES),
+                   help='validation = matrix scene; field = anchor render only')
+    p.add_argument('--out', default='',
+                   help='alternate output dir (e.g. field anchor renders); '
+                        'default output/ holds the validation-scene contract')
     args = p.parse_args(sys.argv[sys.argv.index(
         '--') + 1:] if '--' in sys.argv else [])
     bpy.ops.object.select_all(action='SELECT')
     bpy.ops.object.delete(use_global=False)
-    out = HERE / 'output'
-    out.mkdir(exist_ok=True)
+    out = Path(args.out) if args.out else HERE / 'output'
+    out.mkdir(parents=True, exist_ok=True)
     mats = create()
     report = json.loads(
         (HERE / 'evidence/reference_measurements.json').read_text())
-    for fid,frame in report['frames'].items():
-        seen=set()
-        for item in frame['objects']:
-            box=tuple(item['box'])
-            if box in seen:continue
-            seen.add(box)
-            w,h=item['visible_width_m'],item['visible_height_m']
-            if not item['truncated'] and item['valid_fraction']>=.8 and .055<w<.19 and .065<h<.24:
-                BAG_SHAPES.append({'width':w,'height':h,'source':f'Peach_bag/{fid} instance {item["id"]}; visible extents, FOV approximation'})
-    if not BAG_SHAPES:raise ValueError('No measured bag dimensions')
     local_reference(mats, report)
     # Whole orchard is an explicit extrapolation, not claimed as surveyed
     # geometry.
-    for i, origin in enumerate([(-.3, 2, 0), (-2, 2, 0), (1.3, 3, 0), (-2, 5.5, 0),
-                               (1.3, 6.5, 0), (-5.3, 2, 0), (-5.3, 5.5, 0), (4.6, 3, 0), (4.6, 6.5, 0)]):
+    scale = SCALES[args.scale]
+    for i, origin in enumerate(scale['origins']):
         tree(f'Tree{i:02d}', origin, mats, 80 + i)
-    ground(mats)
+    ground(mats, **scale['grass'])
     cams = {'reference': camera('Reference 1200 / approximate 90deg', (0, 0, 1.6), (0, 1, 1.6), 18),
             'detail': camera('Fruit branch / oblique', (-.36, -.12, 1.66), (-.02, .46, 1.58), 27),
             'orchard': camera('Orchard / aisle overview', (5, -6, 2.25), (-.7, 3.7, 1.12), 36)}
-    f = setup_render(out, args.samples)
+    f = setup_render(out, args.samples, args.lighting)
     s = bpy.context.scene
     s.camera = cams['reference']
     s.render.resolution_x = args.width
@@ -475,11 +608,16 @@ def main():
         'targets': TARGETS,
         'connections': CONNECTIONS,
         'reference_intrinsics': report['intrinsics'],
+        'render_backend': RENDER_BACKEND,
+        'lighting': lighting_mod.manifest_entry(args.lighting),
+        'scale': args.scale,
+        'occlusion_view_dir': list(VIEW_DIR),
         'cameras': {},
         'notes': [
             'Reference visible geometry is approximate RGB-D reconstruction.',
             'Hidden branches, leaf orientations, bag thickness and whole orchard are inferred.',
-            'No legacy geometry, textures or distributions imported.']}
+            'Controlled occlusion: per-target occlusion.level (none/light/heavy), nominal coverage vs depth-measured actual.',
+            'Bag dimensions sampled from Peach_bag priors percentiles (n=722); tilt from field 20260909.']}
     bpy.context.view_layer.update()
     for key, cam in cams.items():
         manifest['cameras'][key] = {
@@ -500,7 +638,12 @@ def main():
         out / 'bagged_peach_orchard.blend'))
     if args.build_only:
         return
-    for view in (cams if args.view == 'all' else [args.view]):
+    views = list(cams) if args.view == 'all' else [args.view]
+    if args.scale == 'field':
+        # Field scale is the navigation-round anchor: one overview render.
+        views = ['orchard']
+        print('field scale: rendering orchard anchor view only', flush=True)
+    for view in views:
         s.camera = cams[view]
         s.render.filepath = str(out / f'{view}.png')
         for slot, key in zip(f.file_slots, ['Depth', 'IndexOB', 'Position']):

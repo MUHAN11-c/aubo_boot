@@ -2,16 +2,20 @@
 <robot xmlns:xacro="http://www.ros.org/wiki/xacro">
   <!-- 末端 TCP 共享底座：帧名冻结（tool_axis/cutting_plane/tcp/sleeve_mouth/tool_body_link），
        SRDF 链 tip、ACM×octomap 豁免名单、技能/重建的三点 TF 验证均按名消费，不得改名。
-       2026-09-28 起三把剪切手共用（shear_v1 / bite_shear_v1 / adaptive_shear_v1，替换两把套袋圆柱）：
+       2026-09-28 起三把剪切手共用（shear_v1 / bite_shear_v1 / adaptive_shear_v1）：
        tool_axis 原点/姿态、sleeve_mouth 偏移、网格名由各 wrapper（tcp_<profile>.xacro）传入；
        几何档案：aubo_description/config/<profile>.yaml（改几何改 wrapper 与档案两处）。
        TCP 姿态：Z = 开口方向，XY = 刀口平面。
        cutting_plane / tcp 与 tool_axis 同点（刀口深度登记在档案 geometry_m.L_blade）。
        tool_body_link 直接挂 parent：网格在法兰系（=parent 系）下建模，identity 落位；
-       CAD 原点 = wrist3_Link 原点已数值验证（link6 Ø75 法兰 + STW 快换盘 + 相机族三方叠对）。
+       CAD 原点 = wrist3_Link 原点已数值验证（link6 Ø75 法兰叠对，ros2_qws ICP 复核）。
+       2026-09-28 一次导出方式（ros2_qws 同构）：tool_body_link 同时承载本 profile 总装的
+       快换盘对（changer_stem）与等高垫块圆柱（spacer_len）——每工具栈自洽无跨装配错位；
+       法兰-主盘间隙的垫块未建模（全部 STEP 同），以圆柱代理，真机测绘后替换。
+       quick_changer_link / camera_body_link 保留为帧（名冻结），几何已并入本链接与相机链接。
        STEP→网格管线：scripts/step_extract_tool.py + scripts/decimate_export.py。
        不得再用 static_transform_publisher 补发 wrist3_Link→tcp。 -->
-  <xacro:macro name="aubo_e5_tcp" params="parent:=wrist3_Link tcp_xyz:='0 0 0' tcp_rpy:='-1.5708 0 0' sleeve_mouth_z:=0.0 mesh_stem:=shear_v1 body_rgba:='0.55 0.58 0.62 1.0'">
+  <xacro:macro name="aubo_e5_tcp" params="parent:=wrist3_Link tcp_xyz:='0 0 0' tcp_rpy:='-1.5708 0 0' sleeve_mouth_z:=0.0 mesh_stem:=shear_v1 body_rgba:='0.55 0.58 0.62 1.0' changer_stem:='quick_changer' spacer_len:=0.0147">
     <link name="tool_axis"/>
     <joint name="tool_axis_joint" type="fixed">
       <parent link="${parent}"/>
@@ -41,7 +45,7 @@
     </joint>
 
     <link name="tool_body_link">
-      <!-- 网格在法兰系（parent 系）下建模：identity 挂 parent 即正确落位 -->
+      <!-- 工具网格（法兰系建模，identity 落位） -->
       <visual>
         <geometry>
           <mesh filename="package://aubo_description/meshes/visual/tools/${mesh_stem}.stl"/>
@@ -53,6 +57,36 @@
       <collision>
         <geometry>
           <mesh filename="package://aubo_description/meshes/collision/tools/${mesh_stem}.stl"/>
+        </geometry>
+      </collision>
+      <!-- 本 profile 总装的 STW 主盘+付盘锁定对（z 上沿=该装配付盘顶） -->
+      <visual>
+        <geometry>
+          <mesh filename="package://aubo_description/meshes/visual/tools/${changer_stem}.stl"/>
+        </geometry>
+        <material name="tool_body_mat">
+          <color rgba="${body_rgba}"/>
+        </material>
+      </visual>
+      <collision>
+        <geometry>
+          <mesh filename="package://aubo_description/meshes/collision/tools/${changer_stem}.stl"/>
+        </geometry>
+      </collision>
+      <!-- 法兰→主盘底等高垫块（CAD 未建模，圆柱代理） -->
+      <visual>
+        <origin xyz="0 0 ${spacer_len / 2}" rpy="0 0 0"/>
+        <geometry>
+          <cylinder radius="0.0495" length="${spacer_len}"/>
+        </geometry>
+        <material name="tool_body_mat">
+          <color rgba="${body_rgba}"/>
+        </material>
+      </visual>
+      <collision>
+        <origin xyz="0 0 ${spacer_len / 2}" rpy="0 0 0"/>
+        <geometry>
+          <cylinder radius="0.0495" length="${spacer_len}"/>
         </geometry>
       </collision>
     </link>

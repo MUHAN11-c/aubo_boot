@@ -2,14 +2,16 @@
 # Ø136 圆盘+拉钩弹簧组被动自适应贴果，MPU6050 挂壳体（serial_imu 随栈起，
 # tf_parent_frame:=tcp + align_to_parent）；套入期间臂姿态经 imu_follow 跟随 IMU
 # 弥补视觉误差（usesImuFollowContact 名单含本 profile）。
-# TCP=采摘手外壳工作口圆心 (0, 47, 168.66) mm（总装系测量核定：ΔY 47.00/ΔZ 168.66/
-# 中心距 175.09，2026-09-28 用户核定）——与旧 adaptive_cylinder_v1 设计基准完全一致，
-# 感知/预抓取/手眼标定链几何零漂移；开口 +Y（Rx(−90°) 传承）。
+# TCP=采摘手外壳工作口圆心 (0, 47, 168.66) mm（总装测量核定：ΔY 47.00/ΔZ 168.66/
+# 中心距 175.09 自洽，2026-09-28 用户核定）——与旧 adaptive_cylinder_v1 设计基准
+# 完全一致，感知/预抓取/手眼标定链几何零漂移；开口 +Y（Rx(−90°) 传承）。
+# 注：曾按快换主盘 z 差做过 +8mm 装配差修正（TCP/网格），2026-09-28 用户复审裁定
+# 撤销——三把工具为独立设计，总装快照即设计位。
 # 改几何只改本文件与 urdf/components/tcp_adaptive_shear_v1.xacro。
 # 本档案由 peach_harvester/peach_harvester/vision/tool_profiles.py 在 launch 期装载注入。
 profile_id: adaptive_shear_v1
 calibration_status: design_reference
-source: "STEP 总装 audo-i5机器人总装-自适应剪切手.STEP；TCP=总装测量核定工作口圆心（与旧圆柱同基准）"
+source: "STEP 总装 audo-i5机器人总装-自适应剪切手.STEP；TCP=总装测量核定工作口圆心（与旧圆柱同基准，+8mm 修正已撤销）"
 frames:
   parent: wrist3_Link
   # 原点 = 工作口圆心（设计基准）；rpy Rx(−90°) → TCP Z // 法兰 +Y（开口）
@@ -53,4 +55,4 @@ io:
   pulse: false
   feedback_timeout_s: 1.5
   notes: "SetIO ACK 只算 CUT_COMMAND_ACCEPTED，不能单独确认切断；JGB37 通道待真机核"
-version: "1.2"
+version: "1.4"

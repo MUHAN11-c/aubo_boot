@@ -1,0 +1,125 @@
+{
+ "conf_levels": [
+  0.25,
+  0.35
+ ],
+ "box_iou": 0.5,
+ "lightings": [
+  "late_afternoon",
+  "morning",
+  "noon",
+  "overcast"
+ ],
+ "near_view_rows": 828,
+ "far_view_rows": 24,
+ "cells": {
+  "recall@0.25|late_afternoon|primary": 0.2693,
+  "recall@0.25|late_afternoon|supplemental": 0.2751,
+  "recall@0.25|late_afternoon|alley_stop": 0.2346,
+  "recall@0.25|morning|primary": 0.286,
+  "recall@0.25|morning|supplemental": 0.2817,
+  "recall@0.25|morning|alley_stop": 0.2593,
+  "recall@0.25|noon|primary": 0.2839,
+  "recall@0.25|noon|supplemental": 0.2904,
+  "recall@0.25|noon|alley_stop": 0.321,
+  "recall@0.25|overcast|primary": 0.2547,
+  "recall@0.25|overcast|supplemental": 0.2511,
+  "recall@0.25|overcast|alley_stop": 0.1481,
+  "recall@0.35|late_afternoon|primary": 0.2547,
+  "recall@0.35|late_afternoon|supplemental": 0.262,
+  "recall@0.35|late_afternoon|alley_stop": 0.2346,
+  "recall@0.35|morning|primary": 0.2651,
+  "recall@0.35|morning|supplemental": 0.2631,
+  "recall@0.35|morning|alley_stop": 0.2593,
+  "recall@0.35|noon|primary": 0.2714,
+  "recall@0.35|noon|supplemental": 0.2729,
+  "recall@0.35|noon|alley_stop": 0.2963,
+  "recall@0.35|overcast|primary": 0.238,
+  "recall@0.35|overcast|supplemental": 0.2314,
+  "recall@0.35|overcast|alley_stop": 0.1358,
+  "recall@0.35|late_afternoon|level=none": 0.1733,
+  "recall@0.35|late_afternoon|level=light": 0.2647,
+  "recall@0.35|late_afternoon|level=heavy": 0.1087,
+  "recall@0.35|late_afternoon|level=reference": 0.7163,
+  "recall@0.35|late_afternoon|cov=low": 0.5556,
+  "recall@0.35|late_afternoon|cov=mid": 0.2751,
+  "recall@0.35|late_afternoon|cov=high": 0.0335,
+  "recall@0.35|morning|level=none": 0.1775,
+  "recall@0.35|morning|level=light": 0.2853,
+  "recall@0.35|morning|level=heavy": 0.106,
+  "recall@0.35|morning|level=reference": 0.7067,
+  "recall@0.35|morning|cov=low": 0.5694,
+  "recall@0.35|morning|cov=mid": 0.2751,
+  "recall@0.35|morning|cov=high": 0.0354,
+  "recall@0.35|noon|level=none": 0.1754,
+  "recall@0.35|noon|level=light": 0.2824,
+  "recall@0.35|noon|level=heavy": 0.1304,
+  "recall@0.35|noon|level=reference": 0.7308,
+  "recall@0.35|noon|cov=low": 0.5917,
+  "recall@0.35|noon|cov=mid": 0.2846,
+  "recall@0.35|noon|cov=high": 0.0335,
+  "recall@0.35|overcast|level=none": 0.142,
+  "recall@0.35|overcast|level=light": 0.2324,
+  "recall@0.35|overcast|level=heavy": 0.0897,
+  "recall@0.35|overcast|level=reference": 0.7019,
+  "recall@0.35|overcast|cov=low": 0.5389,
+  "recall@0.35|overcast|cov=mid": 0.2391,
+  "recall@0.35|overcast|cov=high": 0.0118
+ },
+ "multi_view": {
+  "any_view|level=none": 0.825,
+  "any_view|level=light": 0.775,
+  "any_view|level=heavy": 0.5375,
+  "any_view|level=reference": 0.9444,
+  "two_views|level=none": 0.7875,
+  "two_views|level=light": 0.6625,
+  "two_views|level=heavy": 0.4875,
+  "two_views|level=reference": 0.9167
+ },
+ "occlusion_calibration": {
+  "none": {
+   "n": 1916,
+   "mean_measured_coverage": 0.4163,
+   "p90": 0.8047
+  },
+  "light": {
+   "n": 1360,
+   "mean_measured_coverage": 0.3992,
+   "p90": 0.7161
+  },
+  "heavy": {
+   "n": 1472,
+   "mean_measured_coverage": 0.5161,
+   "p90": 0.7923
+  },
+  "reference": {
+   "n": 832,
+   "mean_measured_coverage": 0.1478,
+   "p90": 0.369
+  }
+ },
+ "prompted_sam_by_level": {
+  "reference": {
+   "n": 300,
+   "mean_iou": 0.834
+  },
+  "heavy": {
+   "n": 484,
+   "mean_iou": 0.4898
+  },
+  "light": {
+   "n": 444,
+   "mean_iou": 0.6449
+  },
+  "none": {
+   "n": 656,
+   "mean_iou": 0.581
+  }
+ },
+ "notes": [
+  "SAM GT-box prompted on primary views only; not detector recall.",
+  "Depth is ideal render (no noise model); depth_mm.png per view.",
+  "alley_stop rows are out-of-distribution far survey views.",
+  "multi_view aggregates each target 3-view sequence per lighting."
+ ]
+}

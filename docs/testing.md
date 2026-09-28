@@ -1,6 +1,6 @@
 # 测试流程与命名
 
-> 2026-09-24 果园外观重建：当前 Blender 入口为 `src/peach_sim/reconstruction/`，不复用旧模型/贴图/随机布局。RGB-D 约束局部可见袋面；整树、遮挡部分与树行是标注清楚的推断。旧 Gazebo SDF/GT 仍属旧管线，尚未接入此次新场景；无 ROS IDL、运动或驱动变更。数据口径、离线命令与验收边界见 [peach_sim README](../src/peach_sim/README.md)。另有根目录 `blender_orchard/` 纯 Blender 目视预览链（布局/袋具锚 `peach_sim/config/orchard.yaml` 与 `reconstruction/geometry.py`；不进 colcon、确认前不导出 Gazebo/glTF，事实源为其 README）。
+> 2026-09-24 果园外观重建：当前 Blender 入口为 `src/peach_sim/reconstruction/`，不复用旧模型/贴图/随机布局。RGB-D 约束局部可见袋面；整树、遮挡部分与树行是标注清楚的推断。旧 Gazebo SDF/GT 仍属旧管线，尚未接入此次新场景；无 ROS IDL、运动或驱动变更。数据口径、离线命令与验收边界见 [peach_sim README](../src/peach_sim/README.md)。根目录 `blender_orchard/` 观感预览链已于 2026-09-28 并入 `src/peach_sim/reconstruction/`（袋面折痕、程序贴图、PeachDataSet 先验统计迁入；数据口径以 priors 分位为准），果园外观建模收敛为单管线。
 
 现行系统（SNAPSHOT）：源码。与 [architecture.md](architecture.md)、[io.md](io.md) 构成仅有的三份活文档；**源码与本文互相更新，改启动/验收口径或改本文须同一轮改另一边**。**如何演化**以 [AGENTS.md](../AGENTS.md) 为准：非完美适配当前真机/产品则跟 ROS 2 / 优秀 GitHub 主流。
 
@@ -58,9 +58,20 @@ bash scripts/r0_gate.sh
 
 `r0_gate.sh` 现行测试组：harvester vision 组（含 W3 `test_vision_plan_updater`、W4 `test_reconstruction_{session,refine_result,session_recorder,icp_cache}` / `test_refit_orchestrator`）、supervisor 组（含 W2/S3 `test_supervisor_param_rules` 使能依赖全组合）、**peach_common 组（W1 新增：`test_yaml_params` / `test_param_rules` / `test_paths` / `test_qos` 四文件，`PYTHONPATH` 前置 `src/peach_common`）**、cycle_core 视点/批次策略组、observability / vegetation / system_tests preflight 组，末尾跑接口清单核对。现行纯核另含：`param_rules` / `identity` / `tool_budget` / `harvest_fsm`（EventHold） / `idl_constants`（HarvestState/ControlTask/ManageLifecycleNodes 数值对账） / `path_metrics` / `domain`（reducer、model_contract、evidence；supervisor 侧 ledger/watchdog 死码已删，W6-B） / `pregrasp_level` gtest。`peach_arm` gtest 十套（`test_pregrasp_level` / `test_grasp_geometry` / `test_trajectory_guard` / `test_view_planner` / `test_gates` / `test_reconfirm_policy` / `test_target_cache`（W0 六套 54 例）+ `test_frame_timeouts` / `test_pregrasp_residual`（W5）+ `test_staging_waypoints`（v4 三路点构造，2026-09-23；staging_selector 已删））：纯核链 `${PROJECT_NAME}_core`，现场案册夹具 `test/fixtures/field_pregrasp_cases.yaml`（W0 自 config 迁入，并安装到 `share/peach_arm/test/fixtures` 供系统测消费）；`peach_system_tests` 另有 `test_perf_baseline.py` 守卫 `perf_baseline.json`（性能对拍锚点：仓内实测数字带 `_provenance` 来源，供优化前后对照，只锁 schema 与量纲不锁数值）。Python 键名冻结测试对照 yaml（感知两节点 + 调度/观测/lifecycle）；C++ 新合同字段走 generate_parameter_library。`.github/workflows/jazzy.yaml`：`peach-core` 跑同一纯核门 + numpy 1.26.4；`industrial_ci` 在 Docker 里 `colcon` 编测驱动与 peach（`COLCON_IGNORE` IVG 三包、`imu_follow`、`percipio_camera`、`camera_calibration`，无真机 job）。scipy 不进 `package.xml`（venv-first KEEP）；ICI 用 apt `python3-scipy` / `python3-pytest` / `python3-yaml`（`ros:jazzy` numpy 已 1.26.4，不再 Docker 内 pip）。`peach_system_tests` isolated launch_testing 起 mock `harvest_system`（`camera_enabled:=false` `imu_enabled:=false`，`QT_QPA_PLATFORM=offscreen`，`AUBO_RUNS_DIR` 指临时目录），断言 `/joint_states` 含 MUST 六关节名（JSB 的 name 数组常为字母序，按下标当 MUST 序会拧腕）与 lifecycle Active，**不**发 `RunHarvest`。headless 下 `move_group`/`rviz2` 退出码不纳入 peach 进程门。本机已有栈残留时预检拒测（只认节点 argv0 或 `.../lib/<pkg>/<node>`，不认 colcon 包名参数）。**2026-09-24 阶段一更新（决策 0029）**：① `r0_gate.sh` 清单全量 diff 补齐 +13 文件（vision `test_vision_{gating,ransac,sam_fallback,scene_params}` / `test_reconstruction_mask_gate_f1` / harvester `test_yaml_params` / common `test_lifecycle` / observability `test_{params,pipeline}` / system_tests `test_{perf_baseline,baseline_inventory,replay_approach}` / bringup `test_params` + 新增 peach_sim 组 `test_{params,scene}`），有据排除 3 个非零 ROS 文件（`test_vision_estimator`/`test_tcp_trajectory`/`test_hotpaths`，仍由 colcon test 覆盖）；② launch_testing 加 **ENV 隔离域 `ROS_DOMAIN_ID=89` + `ROS_LOCALHOST_ONLY=1`**（Jazzy 无 `add_ros_isolated_launch_test` 宏，等效实现）；③ TEM 关闭：`aubo_e5_moveit_config` 双 `controllers*.yaml` 声明 `execution_duration_monitoring: false`——M1–M5 注入矩阵复跑重定基线（E2E 方案阶段二）前须带着此变更重封基线。
 
-### 果园场景仿真（`peach_sim`；非验收门）
+### 果园场景仿真（`peach_sim`）
 
-场景层（Gazebo Harmonic / gz-sim 8）：改 `src/peach_sim/config/orchard.yaml`（树行 / 挂果 / 袋具 / 工位 / 光照）后先重生成，再起场景；前清后清照旧：
+**A. Blender 数据驱动重建 + 感知验证矩阵（现行外观/感知入口，离线门）**：
+`src/peach_sim/reconstruction/` 单管线（2026-09-28 合并根目录 blender_orchard
+后）。三道离线门 + 一道回归门：几何门（`validate_geometry.py`，errors 非空
+exit≠0）、三锚定机位感知门（`validate_perception.py`，YOLO/SAM 对 IndexOB
+实例 GT + 1200 帧深度 MAE）、**感知验证矩阵门**（`run_matrix.py` 渲染
+光照 4 档 × 停走轨迹视角 → `evaluate_matrix.py --gate` 对冻结基线
+`reconstruction/baselines/perception_matrix_baseline.json`，分层 recall
+回退超容差 exit≠0；建模改动后重跑矩阵对基线，防静默回归）。GPU 渲染作业
+必须串行（双 Blender 并发抢 3090 会 OOM）；矩阵帧不入 git，报告与轨迹以
+`output/matrix_*` 入库。命令与分层口径见 `peach_sim` README。
+
+**B. 场景层（Gazebo Harmonic / gz-sim 8；非验收门）**：改 `src/peach_sim/config/orchard.yaml`（树行 / 挂果 / 袋具 / 工位 / 光照）后先重生成，再起场景；前清后清照旧：
 
 ```bash
 pgrep -af 'ros2 launch|gz sim|robot_state_publisher|parameter_bridge'
@@ -505,7 +516,7 @@ mock 接近轨迹形状（不开批、不代替真机方向验收）：`hardware
 
 | 门 | 怎么验 | 现行 |
 |----|--------|------|
-| P0 可构建 + 工具帧 | 干净 `build/install/log` 后 colcon；URDF 有 `tool_axis` / `sleeve_mouth` / `cutting_plane` / `tool_body_link` | TCP=刀口工作点（preliminary_cad），**按当前 `tool_profile`**：shear_v1 `(−26.5, 53, 176) mm` Rx(−90°) / bite_shear_v1 `(0, 30.24, 165.5) mm` / adaptive_shear_v1 `(0, 47, 168.66) mm` Rx(−90°)：Z=开口、XY=刀口；tool_body_link 载 CAD 网格挂 wrist3_Link。**工具帧展开门**：三 profile 各 `xacro src/aubo_description/urdf/aubo_e5.urdf.xacro hardware_mode:=mock tool_profile:=<p>` 展开须含全部冻结帧 + 对应 tools/<p>.stl 引用；`ros2 param get /peach_target_reconstruction_node tool.profile_id` 须与 launch `tool_profile` 一致 |
+| P0 可构建 + 工具帧 | 干净 `build/install/log` 后 colcon；URDF 有 `tool_axis` / `sleeve_mouth` / `cutting_plane` / `tool_body_link` | TCP=刀口工作点（preliminary_cad），**按当前 `tool_profile`**：shear_v1 `(0, 47.90, 151.07) mm` Rx(−90°)（传承旧 hollow 基准）/ bite_shear_v1 `(0, 30.24, 165.5) mm` / adaptive_shear_v1 `(0, 47, 168.66) mm` Rx(−90°)（与旧圆柱同基准）：Z=开口、XY=刀口；tool_body_link 载 CAD 网格挂 wrist3_Link。**工具帧展开门**：三 profile 各 `xacro src/aubo_description/urdf/aubo_e5.urdf.xacro hardware_mode:=mock tool_profile:=<p>` 展开须含全部冻结帧 + 对应 tools/<p>.stl 引用；`ros2 param get /peach_target_reconstruction_node tool.profile_id` 须与 launch `tool_profile` 一致 |
 | P1 几何基线 | `runs/` 写 `geometry.jsonl`；复算脚本已归档（需要时 `_archive/offline_2026-09/` 下以模块方式运行） | 离线脚本已归档 |
 | P2 袋模型 | 观测 `occlusion_class`；球 marker ns=`prior`；裸果不入 `next_target_id`（`enable_fruit=False`，`class_id=1` 不入管线）；`branch_blocked`/`neighbor_overlap`/`damaged_or_wet` 不得 `allowed` | 沿袋长轴半径剖面，窄头为口、宽头为底，箭头袋底→袋口；斜袋保持长轴不对成竖轴；袋底→袋口只许上半球（从下往上，左右最多水平，禁止朝下）；分割两端比沿轴朝外框边贴合，更贴边的一端为口（竖缝贴左边）；剪切参考在袋口/分割贴框极限，果距不足只否决 `allowed` 不挪刀；两端贴合差不够才用 3D 窄头/逆重力 |
 | P3 重建权威 | `allowed` 须袋融合预算才套入；无 budget 不得接触；圆柱/TSDF 不定轴；包络轴只否决，扁袋不打 12°；35° 只诊断 | FULL 时 `allowed=false` → `SKIPPED_QUALITY`；`PREGRASP_ONLY` 不要求 `allowed` |

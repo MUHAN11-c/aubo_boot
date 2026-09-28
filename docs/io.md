@@ -1,6 +1,6 @@
 # 输入输出
 
-> 2026-09-24 果园外观重建：当前 Blender 入口为 `src/peach_sim/reconstruction/`，不复用旧模型/贴图/随机布局。RGB-D 约束局部可见袋面；整树、遮挡部分与树行是标注清楚的推断。旧 Gazebo SDF/GT 仍属旧管线，尚未接入此次新场景；无 ROS IDL、运动或驱动变更。数据口径、离线命令与验收边界见 [peach_sim README](../src/peach_sim/README.md)。另有根目录 `blender_orchard/` 纯 Blender 目视预览链（布局/袋具锚 `peach_sim/config/orchard.yaml` 与 `reconstruction/geometry.py`；不进 colcon、确认前不导出 Gazebo/glTF，事实源为其 README）。
+> 2026-09-24 果园外观重建：当前 Blender 入口为 `src/peach_sim/reconstruction/`，不复用旧模型/贴图/随机布局。RGB-D 约束局部可见袋面；整树、遮挡部分与树行是标注清楚的推断。旧 Gazebo SDF/GT 仍属旧管线，尚未接入此次新场景；无 ROS IDL、运动或驱动变更。数据口径、离线命令与验收边界见 [peach_sim README](../src/peach_sim/README.md)。根目录 `blender_orchard/` 观感预览链已于 2026-09-28 并入 `src/peach_sim/reconstruction/`（袋面折痕、程序贴图、PeachDataSet 先验统计迁入；数据口径以 priors 分位为准），果园外观建模收敛为单管线；光照/叶遮挡/枝干扰为受控变量，多视角感知验证矩阵与基线回归门见 README。
 
 现行系统（SNAPSHOT）：源码、各包 `config/*.yaml`、[`peach_interfaces/config/interface_manifest.yaml`](../src/peach_interfaces/config/interface_manifest.yaml)。字段级目录：[peach_interfaces/README.md](../src/peach_interfaces/README.md)。清单漂移：`python3 src/peach_interfaces/scripts/check_interface_manifest.py`。与 [architecture.md](architecture.md)、[testing.md](testing.md) 构成仅有的三份活文档；**源码与本文互相更新，改接口/话题/TF 或改本文须同一轮改另一边**。**如何演化**以 [AGENTS.md](../AGENTS.md) 为准：非完美适配当前真机/产品则跟 ROS 2 / 优秀 GitHub 主流（标准 msg、QoS、相对名+remap）。真机轮次：[testing-log.md](testing-log.md)。工程整理过程：[REFACTORING.md](REFACTORING.md)（不驱动现行设计）。
 
@@ -622,7 +622,7 @@ base_link → 臂链 → wrist3_Link
      → camera_color_frame → camera_color_optical_frame（感知 yaml）
      → camera_depth_frame → camera_depth_optical_frame（深度 header、技能 yaml）
   → tool_axis → cutting_plane / tcp / sleeve_mouth / tool_body_link
-     （按 launch tool_profile 选档案，帧名共用：shear_v1 TCP (−26.5, 53, 176) mm Rx(−90°) /
+     （按 launch tool_profile 选档案，帧名共用：shear_v1 TCP (0, 47.90, 151.07) mm Rx(−90°)（传承旧 hollow 基准）/
       bite_shear_v1 TCP (0, 30.24, 165.5) mm / adaptive_shear_v1 TCP (0, 47, 168.66) mm Rx(−90°)；
       Z=开口，XY=刀口；TCP=刀口/工作口设计基准（adaptive 与旧圆柱同基准、bite 总装测量点；shear_v1 为 CAD 推导）；tool_body_link 挂 wrist3_Link 载 CAD 网格）
 ```

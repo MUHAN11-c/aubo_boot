@@ -9,7 +9,7 @@
   + camera（z=0.020），位姿照 aubo_e5.urdf.xacro 组件链。
 - CAD 侧：wrist_ref.stl（i5-末端+主盘+相机族，法兰系=全局系）半透明红。
 - 两者若重合 → CAD 原点即 wrist3_Link（映射恒等）成立；出 top/side/front 三图。
-- 渲染管线同 blender_orchard（EEVEE_NEXT + 世界 + 太阳灯 + camera_add）。
+- 渲染管线同 peach_sim/reconstruction（EEVEE_NEXT + 世界 + 太阳灯 + camera_add）。
 """
 
 import math

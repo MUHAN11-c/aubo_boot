@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <robot xmlns:xacro="http://www.ros.org/wiki/xacro">
   <!-- 自适应剪切手（adaptive_shear_v1，桃子采摘末端执行器）包装：Ø136 圆盘+拉钩组+MPU6050
-       被动自适应贴果；TCP=采摘手外壳工作口圆心 (0, 47, 168.66) mm（总装系测量核定：
+       被动自适应贴果；TCP=采摘手外壳工作口圆心 (0, 47, 168.66) mm（总装测量核定：
        ΔY 47.00 / ΔZ 168.66 / 中心距 175.09，2026-09-28 用户核定）——设计基准与旧
        adaptive_cylinder_v1 完全一致，感知/预抓取/手眼标定链几何零漂移；开口 +Y（Rx(−90°) 传承）。
        挂增量 IMU（serial_imu 随栈起，tf_parent_frame:=tcp + align_to_parent），
@@ -9,9 +9,12 @@
        档案：config/adaptive_shear_v1.yaml；网格 meshes/{visual,collision}/tools/adaptive_shear_v1.stl。 -->
   <xacro:include filename="tcp.xacro"/>
   <xacro:macro name="aubo_e5_tcp_adaptive_shear_v1" params="parent:=wrist3_Link">
+    <!-- changer_stem/spacer_len：自适应总装自己的盘对（主盘 [6.7,54.3]/付盘顶 54.5，2026-09-28）；
+         该装配快换栈整体比 shear/bite 两装低 8mm，属 STEP 原装——一次导出方式下各栈自洽。 -->
     <xacro:aubo_e5_tcp parent="${parent}"
         tcp_xyz="0 0.047 0.16866" tcp_rpy="-1.5708 0 0"
         sleeve_mouth_z="0.0" mesh_stem="adaptive_shear_v1"
+        changer_stem="quick_changer_adaptive" spacer_len="0.0067"
         body_rgba="0.60 0.62 0.66 1.0"/>
   </xacro:macro>
 </robot>

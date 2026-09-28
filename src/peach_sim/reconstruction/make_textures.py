@@ -1,17 +1,21 @@
-"""程序化桃叶 / 纸袋 / 树皮贴图。颜色锚 Peach_bag 框内中位 (101, 60, 55)。"""
+"""程序化桃叶 / 纸袋 / 树皮贴图。颜色锚 Peach_bag 框内中位 (101, 60, 55).
+
+自 blender_orchard/tools/make_textures.py 迁入（2026-09-28 管线合并），
+生成逻辑不变，输出位置改为本包 textures/；确定性 seed 保证逐字节可重建。
+"""
 
 from __future__ import annotations
 
 import os
 
-import numpy as np
 from PIL import Image
+import numpy as np
 
-OUT = os.path.join(os.path.dirname(__file__), '..', 'textures')
+OUT = os.path.join(os.path.dirname(__file__), 'textures')
 
 
 def _leaf_surface(path: str) -> None:
-    """不透明叶面：中脉 + 侧脉，铺在披针网格上。"""
+    """不透明叶面：中脉 + 侧脉，铺在披针网格上."""
     rng = np.random.default_rng(5)
     height, width = 256, 128
     yy = np.linspace(0, 1, height, dtype=np.float32)[:, None]

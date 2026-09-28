@@ -89,6 +89,38 @@ class Leaves:
                 for i, (v, f, uv) in enumerate(self.groups) if v]
 
 
+def crease(obj, thickness=.045):
+    """Thickness-direction paper folds, ported from blender_orchard (f04beda).
+
+    Grooves slant with height, a low-frequency crumple and diagonal fold lines
+    ride on top; displacement is along local Y (bag thickness) only, so the
+    measured outer silhouette is untouched. Call before any object transform,
+    on the raw local mesh. Amplitudes were tuned for ~45 mm thick bags and are
+    scaled by thickness/45 mm so narrow priors-sampled bags keep a cavity
+    (unscaled creases nearly close a 27 mm bag: fruit clearance hit 0.3 mm).
+    """
+    amp = min(max(thickness / .045, .3), 1.0)
+    for vert in obj.data.vertices:
+        if abs(vert.co.y) < 1e-6:
+            continue
+        groove = 0.0
+        slant = 0.02 * (vert.co.z - 0.08)
+        for center in (-0.032, 0.0, 0.028):
+            groove += math.exp(-((vert.co.x - center - slant) / 0.014) ** 2)
+        wave = math.sin(vert.co.z * 28.0 + vert.co.x * 16.0)
+        wave *= math.sin(vert.co.z * 9.0)
+        diagonal = 0.0
+        for slope, offset in ((2.4, 0.04), (-1.7, 0.10), (0.6, 0.02)):
+            dist = abs((vert.co.z - offset) - slope * vert.co.x)
+            diagonal += math.exp(-((dist / 0.012) ** 2))
+        pinch = amp * (0.006 * groove + 0.0022 * max(0.0, wave)
+                       + 0.003 * diagonal)
+        warp = amp * 0.005 * math.sin(vert.co.x * 55.0 + vert.co.z * 31.0)
+        warp *= math.sin(vert.co.z * 22.0 + 0.7)
+        vert.co.y += warp - math.copysign(pinch, vert.co.y)
+    obj.data.update()
+
+
 def paper_bag(name, rings, mat, seed=1):
     """Closed paper envelope. Rings are (z, center_x, half_width, front_y, thickness)."""
     rng = random.Random(seed)

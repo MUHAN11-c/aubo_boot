@@ -22,12 +22,31 @@
           <mesh filename="package://aubo_description/meshes/collision/sensors/camera.stl"/>
         </geometry>
       </collision>
+      <!-- 2026-09-28 补托架：本版 STEP「相机安装板」为空组（FreeCAD 提不出），
+           几何取自 ros2_qws 同源逐件导出（自适应总装 相机安装板2，wrist3 系建模）。
+           安装板随工具总装而异（咬合装=安装板1 y[-31,90]），单资产先随默认 adaptive。 -->
+      <visual>
+        <geometry>
+          <mesh filename="package://aubo_description/meshes/visual/sensors/camera_bracket.stl"/>
+        </geometry>
+        <material name="camera_gray">
+          <color rgba="0.82 0.82 0.82 1.0"/>
+        </material>
+      </visual>
+      <collision>
+        <geometry>
+          <mesh filename="package://aubo_description/meshes/collision/sensors/camera_bracket.stl"/>
+        </geometry>
+      </collision>
     </link>
 
     <joint name="camera_mount_joint" type="fixed">
       <parent link="${parent}"/>
       <child link="camera_body_link"/>
-      <origin xyz="0 0 0.020" rpy="0 0 0"/>
+      <!-- 2026-09-28：网格自 STEP 总装重提（PS800-E1相机005，y[90,137] z[-50,20]mm，
+           wrist3 系建模；该版 STEP 相机安装板为空组未建托架），原点随网格系归零。
+           手眼外参链锚 wrist3_Link→camera_link 不经本帧，位姿变更零影响。 -->
+      <origin xyz="0 0 0" rpy="0 0 0"/>
     </joint>
 
   </xacro:macro>

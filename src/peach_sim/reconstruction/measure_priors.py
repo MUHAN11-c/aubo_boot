@@ -1,4 +1,7 @@
-"""从 PeachDataSet 与现场抓取记录统计套袋几何，供 Blender 场景使用。
+"""从 PeachDataSet 与现场抓取记录统计套袋几何，供 Blender 场景使用.
+
+自 blender_orchard/tools/measure_priors.py 迁入（2026-09-28 管线合并），
+统计逻辑不变，输出位置改为本包 evidence/priors.json（真实数据派生证据）。
 
 Azure Kinect 彩色 RES_720P 视场 90°×59°（中国科学数据 2022, 7(4)），
 深度已对齐到 1280×720，单位毫米，拍摄距离约 0.5 m。
@@ -6,19 +9,24 @@ Azure Kinect 彩色 RES_720P 视场 90°×59°（中国科学数据 2022, 7(4)�
 
 from __future__ import annotations
 
-import json
-import os
-import xml.etree.ElementTree as ET
 from collections import defaultdict
+import json
+from pathlib import Path
+import xml.etree.ElementTree as ET
 
 import numpy as np
 from PIL import Image
 
-DATASET = '/home/mu/Downloads/PeachDataSet'
-FIELD = (
+# 输出路径只从脚本自身位置派生，并显式约束在包内，不接受外部注入。
+HERE = Path(__file__).resolve().parent
+OUT = HERE / 'evidence' / 'priors.json'
+if not OUT.resolve().is_relative_to(HERE):
+    raise ValueError(f'output escapes package dir: {OUT}')
+
+DATASET = Path('/home/mu/Downloads/PeachDataSet')
+FIELD = Path(
     '/home/mu/Desktop/aubo_e5_jazzy_ws/src/peach_arm/test/fixtures/'
     'field_pregrasp_cases.yaml')
-OUT = os.path.join(os.path.dirname(__file__), '..', 'data', 'priors.json')
 
 W, H = 1280, 720
 HFOV, VFOV = np.deg2rad(90.0), np.deg2rad(59.0)
@@ -64,24 +72,24 @@ def _unproject(u, v, z_m):
 
 
 def measure_split(split, limit=250):
-    rgb_dir = os.path.join(DATASET, split, 'RGB')
-    depth_dir = os.path.join(DATASET, split, 'Depth')
-    ann_dir = os.path.join(DATASET, split, 'Annotations_VOC', 'VOC_4label')
-    names = sorted(f for f in os.listdir(ann_dir) if f.endswith('.xml'))
+    rgb_dir = DATASET / split / 'RGB'
+    depth_dir = DATASET / split / 'Depth'
+    ann_dir = DATASET / split / 'Annotations_VOC' / 'VOC_4label'
+    names = sorted(p.name for p in ann_dir.iterdir() if p.name.endswith('.xml'))
     step = max(1, len(names) // limit)
     names = names[::step][:limit]
     by_class = defaultdict(lambda: defaultdict(list))
     gaps = []
     for name in names:
-        stem = os.path.splitext(name)[0]
-        rgb_path = os.path.join(rgb_dir, stem + '.png')
-        depth_path = os.path.join(depth_dir, stem + '.png')
-        if not (os.path.exists(rgb_path) and os.path.exists(depth_path)):
+        stem = name[:-4]
+        rgb_path = rgb_dir / f'{stem}.png'
+        depth_path = depth_dir / f'{stem}.png'
+        if not (rgb_path.exists() and depth_path.exists()):
             continue
         rgb = np.asarray(Image.open(rgb_path).convert('RGB'))
         depth = np.asarray(Image.open(depth_path))
         points = []
-        for cls, x1, y1, x2, y2 in _boxes(os.path.join(ann_dir, name)):
+        for cls, x1, y1, x2, y2 in _boxes(ann_dir / name):
             x1, y1 = max(0, x1), max(0, y1)
             x2, y2 = min(W - 1, x2), min(H - 1, y2)
             if x2 - x1 < 8 or y2 - y1 < 8:
@@ -132,7 +140,7 @@ def measure_split(split, limit=250):
 
 def measure_field():
     import yaml
-    with open(FIELD, encoding='utf-8') as handle:
+    with FIELD.open(encoding='utf-8') as handle:
         doc = yaml.safe_load(handle)
     lengths, tilts = [], []
     for item in doc['targets_20260909'].values():
@@ -175,8 +183,8 @@ def main():
         },
         'field_20260909': measure_field(),
     }
-    os.makedirs(os.path.dirname(OUT), exist_ok=True)
-    with open(OUT, 'w', encoding='utf-8') as handle:
+    OUT.parent.mkdir(parents=True, exist_ok=True)
+    with OUT.open('w', encoding='utf-8') as handle:
         json.dump(priors, handle, ensure_ascii=False, indent=2)
     print(json.dumps(priors, ensure_ascii=False, indent=2))
 

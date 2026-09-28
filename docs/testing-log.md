@@ -1017,3 +1017,33 @@ SIGINT 旧栈后用 16:57 编的 `peach_manipulation` 重起；开批前在 `glo
 - **用户提供 SolidWorks 截图两份**（总装系测量）。**勘正**：第一轮用视觉模型读小字得出 bite (0,0,173)/adaptive (0,−45,170) 系**幻觉误读**，用户指出后重析——以数值自洽校验为准：咬合式 ΔY 30.24/ΔZ 165.5/距离 168.24（√(30.24²+165.5²)=168.24 ✓）→ TCP **(0, 30.24, 165.5) mm**；自适应 ΔY 47.00/ΔZ 168.66/中心距 175.09（√(47²+168.66²)=175.09 ✓）→ 工作口圆心 **(0, 47, 168.66) mm**，与旧 adaptive_cylinder_v1 TCP **完全同值**——新工具按旧圆柱基准替换设计，感知/预抓取/手眼标定链几何零漂移。教训：毫米级标定值禁止走视觉模型转述，必须数值自洽校验或用户直读。
 - **落定**：adaptive `design_reference`（传承基准）/ bite `cad_reference_point`，均 v1.2，开口 +Y（Rx(−90°)，回归全工具族同向）；bite body_length 0.26（TCP→喉道末端全长）/ radius 0.09，adaptive 0.14/0.11；并发会话的 +47/168.66 版本被证实正确、恢复之。STEP 无 POINT 实体（导出未勾参考几何体）；.SLDASM/.SLDPRT 原生件 Linux 无解，ZIP 归档备查。
 - **复核**：xacro×3+check_urdf 绿；三审查 RViz 窗口热更后 `tf2_echo wrist3_Link→tcp` = (0,0.047,0.169)/(0,0.030,0.166) 精确对档案。
+
+### 2026-09-28 peach_sim reconstruction 轮：lint 债归属核实（非本轮引入）
+
+worktree 在 HEAD（1aa50d0）复跑 `test_flake8`：**233 个错误**，其中
+`reconstruction/{analyze_reference,audit_sources,build_scene,render_saved,validate_*,test_measurement}.py`
+等 09-24 建链即入库的文件占绝大多数（I100/I201/E501/D1xx 紧凑风格）——
+`peach_sim` 的 flake8/pep257 在本分支 HEAD 上本就红。本轮（管线合并 +
+条件矩阵）新增文件按同风格书写：真缺陷（E741 歧义变量、F401 未用导入、
+Q000 引号、D400/D403 docstring）已当场修复；import 分组类 I100/I201 与
+存量同性质且 flake8-import-order 对未安装第三方（PIL 等）分组判定不稳，
+记为存量债，留专项 lint 轮统一清偿（同 09-18 harvester lint 清债先例），
+不在本轮对仍在迭代的建模脚本做纯风格重排。纯核单测
+`test_reconstruction_core.py` 19 例全绿（含与 view_policy 补视几何 1e-9
+对拍）。
+
+另：矩阵渲染期实测**双 Blender 并发抢 RTX 3090 会 GPU OOM**（矩阵 45 帧
+处失败，独占重跑恢复）——GPU 渲染作业串行执行，已写入 testing.md
+peach_sim 节。
+
+### 2026-09-28 peach_sim 感知验证矩阵首轮实跑（852 帧，基线冻结）
+
+`run_matrix.py`（24 samples，OptiX 独占 57 min）→ `evaluate_matrix.py
+--write-baseline --gate`（4m54s，GATE PASS）。核心数字：近距单视
+recall@0.35 ≈ 0.24–0.27；3 视序列 any_view 无/轻遮挡 0.78–0.83、重遮挡
+0.54、参考袋 0.94；覆盖率桶单调（low .59 / mid .28 / high .03）；
+overcast 全档低 8–15%。裁定：名义遮挡档被自然本底淹没（none 实测 0.42 ≈
+light 0.40），主分层=深度反测覆盖率桶。产物：`output/matrix_*.json/md`
+入库、帧本体 8.1 GB gitignore 可重现、基线
+`reconstruction/baselines/perception_matrix_baseline.json`。field 锚定
+（393 袋）与外观对照板同轮产出。全部离线前台，结束 pgrep 复核无残留。

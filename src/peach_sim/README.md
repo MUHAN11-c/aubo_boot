@@ -1,71 +1,116 @@
-# peach_sim — Blender 数据驱动果园重建
+# peach_sim — Blender 数据驱动果园重建 + 多视角感知验证矩阵
 
-当前外观建模入口是 **`reconstruction/`**（2026-09-24 重建）。旧 Blender 资产、程序化贴图、随机摆袋和历史外观结论不作为本次输入；旧 Gazebo 入口仍在仓库中，但不是本次重建场景，也不代表通过真实感验收。
+外观建模与感知验证的唯一入口是 **`reconstruction/`**（2026-09-24 重建，
+2026-09-28 合并根目录 `blender_orchard/` 观感链并升级为受控条件矩阵）。
+旧 Gazebo 入口仍在仓库中，但不是本次重建场景，也不代表通过真实感验收。
 
-## 打开结果
+## 工具链（全部离线前台，完成即退出，不跑 ROS、不动真机）
 
-- `reconstruction/output/bagged_peach_orchard.blend`：完整可编辑场景，米制单位，三台固定相机；材质为 Blender 节点，无外链纹理依赖。
-- `reconstruction/output/reference.png`：与 PeachDataSet/Peach_bag/RGB/1200.png 对照的机位。
-- `reconstruction/output/detail.png`：局部斜视，检查连接和立体形状。
-- `reconstruction/output/orchard.png`：整树与树行环境。
-- `reconstruction/output/perception_validation.json`：实际渲染实例 GT 对 YOLO／MobileSAM，以及原始深度的对照。
-- `reconstruction/output/geometry_validation.json`：袋网格闭合、有限坐标及推断果实包容检查。
+| 脚本 | 职责 | 主要产物 |
+|------|------|----------|
+| `measure_priors.py` | PeachDataSet 分位统计 + 现场袋轴实测 | `evidence/priors.json` |
+| `make_textures.py` | 程序化贴图（纸/叶/皮/土/草，确定性 seed） | `textures/*.png` |
+| `audit_sources.py` / `analyze_reference.py` | 数据集审计 + 6 帧逐袋测量 | `evidence/*` |
+| `build_scene.py` | 建场（参考重建 + 推断果园 + 受控遮挡），渲三锚定机位 | `output/*.png`、EXR、`scene_manifest.json`、`.blend` |
+| `validate_geometry.py` | 几何门：袋闭合 + 果包容（errors 非空即 raise） | `output/geometry_validation.json` |
+| `validate_perception.py` | 三锚定机位感知门：YOLO/SAM 对实例 GT + 1200 帧深度对照 | `output/perception_validation.json` |
+| `viewpoints.py` | 停走轨迹纯核：survey 停靠 + 每目标近距拍照位 + 补视链 | 被 `run_matrix.py` 消费 |
+| `run_matrix.py` | 矩阵渲染：已建 `.blend` × 光照预设 × 轨迹视角（含 ray_cast 冠外取景修正） | `output/matrix/<光照>/<视>/` |
+| `evaluate_matrix.py` | 矩阵评测：分层聚合 + 深度合成 `depth_mm.png` + 基线回归门 | `output/matrix/{summary.json,report.md}` |
+| `make_appearance_board.py` | 真实数据 vs 渲染对照板（人工 QA） | `output/appearance_board.jpg` |
+| `lighting.py` / `occlusion.py` / `distributions.py` / `depth_io.py` | 纯核：光照预设 / 受控遮挡 / 分位采样 / 深度量化 | — |
 
-打开 Blender 文件后，在相机列表选择 `Reference 1200 / approximate 90deg`、`Fruit branch / oblique` 或 `Orchard / aisle overview`。参考相机为启动视图；NumPad 0 进入相机。场景对象以 `Reference/`、`TreeXX/` 命名，可直接编辑。
+纯核单测：`test_reconstruction_core.py`（含与
+`peach_harvester/cycle_core/view_policy.py` 的补视几何对拍）、`test_measurement.py`。
 
-## 数据依据与可信边界
-
-`/home/mu/Downloads/PeachDataSet`：2,050 组套袋桃、577 组裸桃、1,000 组幼桃。`audit_sources.py` 对每类分层抽取 24 组 RGB／Depth／Infrared；`analyze_reference.py` 用项目的 `best.pt` 和 `mobile_sam.pt` 分析 6 帧套袋桃。原始图只用于分析，不作为带水印纹理贴到模型上。
-
-局部 1200 帧：9 个去重后的袋实例，SAM 轮廓与行带有效深度约束可见表面。零深度不当成表面；少量缺失行带插值并记录有效行数，五行滑动平均抑制波动。画面截断的袋端向画外推断延伸，不把图像边界当成袋口。
-
-相机使用作者公开的 **RGB 90° 水平视场**与方形像素近似（fx=fy=640，1280×720）。不是逐机标定，也未恢复相机真实重力姿态，不能宣称毫米级实景复刻。深度采用 Azure Kinect 毫米惯例，原文件不附独立标定。枝条遮挡部分、叶片方向、袋背厚度、整园树形和树距都是明确的建模推断。参考袋内果实不可见，因此不虚构其表面；扩展果园中内果才是合成几何。
-
-树行实例的袋宽高从高深度支持、未截断的测量样本抽取，每个实例记录尺寸来源。树形采用开心形主枝、侧枝、结果枝和独立叶片；挂果接在枝上。室内历史数据 `src/peach_stereo/test/data/{percipio2,hh4}_frames.jsonl` 独立统计，不混入户外尺度分布。
-
-外部依据：
-
-- [数据集作者说明](https://github.com/tsing-luo/Multi-class-peach-RGB-D-dataset)：模态对齐、分辨率与相机视场。
-- [eOrganic 套袋流程及实拍](https://eorganic.org/node/25727)：袋口跨枝、收拢、扎丝。
-- [UGA 果树修剪](https://extension.uga.edu/publications/detail.html?number=C1087)：开心形树冠与主枝结构。
-- [Blender 4.5 渲染通道](https://docs.blender.org/manual/en/4.5/render/layers/passes.html)：深度与实例通道；本项目另外输出 RGB 编码的世界 Position，避免把射线距离误当光轴深度。
-
-## 重现
-
-在工作区根目录执行，使用独立 Blender 4.5.14，不向项目 venv 安装 Blender，也不改变 numpy 1.26.4：
+## 重现（工作区根目录，独立 Blender 4.5.14，venv `aubo_py3.12`）
 
 ```bash
-source /opt/ros/jazzy/setup.bash
-source install/setup.bash
+source /opt/ros/jazzy/setup.bash && source install/setup.bash
 
-aubo_py3.12/bin/python src/peach_sim/reconstruction/audit_sources.py
-aubo_py3.12/bin/python src/peach_sim/reconstruction/analyze_reference.py
-aubo_py3.12/bin/python src/peach_sim/reconstruction/test_measurement.py
+aubo_py3.12/bin/python src/peach_sim/reconstruction/measure_priors.py     # 数据变了才需要
+aubo_py3.12/bin/python src/peach_sim/reconstruction/make_textures.py      # 贴图确定性重建
+aubo_py3.12/bin/python -m pytest src/peach_sim/reconstruction/ -q         # 纯核单测
 
 _tools/blender-4.5.14-linux-x64/blender -b -t 8 --python-exit-code 1 \
   -P src/peach_sim/reconstruction/build_scene.py -- --view all --samples 48 --width 1280
-
 _tools/blender-4.5.14-linux-x64/blender -b \
   src/peach_sim/reconstruction/output/bagged_peach_orchard.blend -t 4 \
   --python-exit-code 1 -P src/peach_sim/reconstruction/validate_geometry.py
-
 aubo_py3.12/bin/python src/peach_sim/reconstruction/validate_perception.py
+
+# 多视角感知验证矩阵（约 1 小时，RTX 3090 OptiX）
+_tools/blender-4.5.14-linux-x64/blender -b -t 8 --python-exit-code 1 \
+  -P src/peach_sim/reconstruction/run_matrix.py -- --samples 24 --subset-per-level 20
+aubo_py3.12/bin/python src/peach_sim/reconstruction/evaluate_matrix.py \
+  --matrix src/peach_sim/reconstruction/output/matrix --gate     # 或 --write-baseline 冻结
+
+# 导航轮铺路：field 规模锚定图（3 行×8 株，仅整园一图 + 完整 manifest）
+_tools/blender-4.5.14-linux-x64/blender -b -t 8 --python-exit-code 1 \
+  -P src/peach_sim/reconstruction/build_scene.py -- --scale field --view orchard \
+  --samples 48 --width 1280 --out src/peach_sim/reconstruction/output/field_anchor
 ```
 
-快速看外观可以 `--samples 16 --width 960`；原图深度对照必须重新生成 1280×720。只改相机和采样可用 `render_saved.py -- --view detail --samples 48 --width 1280`，无需重建全部几何。
+`output/` 是验证场契约（三锚定机位 + manifest + 双门产物）；矩阵帧在
+`output/matrix/`（gitignore，可重现，`summary.json`/`report.md`/
+`trajectory.json` 拷贝为 `output/matrix_*` 入库）；field 锚定在
+`output/field_anchor/`。只改相机与采样可用 `render_saved.py`，无需重建几何。
 
-全部任务为离线前台程序，完成即退出，不运行 ROS 节点、不动真机。保存的 `.blend` 是建模源产物；尚未替换 Gazebo SDF／碰撞体、未接 ROS 相机桥。
+## 数据依据与可信边界
 
-## 验收口径
+`/home/mu/Downloads/PeachDataSet`：2,050 组套袋 / 577 裸桃 / 1,000 幼桃。
+`evidence/priors.json` 为袋宽/高/高宽比/深度/最近距的 p10–p90 分位摘要
+（n=722）与现场 14 袋轴实测（倾角 p50 23.8°、袋底世界高 ~1.34 m）。推断树
+的袋尺寸/倾角按分位逆采样，逐袋记录 `source_percentile`；纸色中位
+(101,60,55)。原始图只做统计与对照，**不作为贴图**。
 
-检测与分割仅是辅助证据，不是照片级真实性证明。YOLO 用可见实例包围框进行**一对一**匹配；SAM 单独使用 GT 框提示，与真实渲染实例掩膜比较，不能冒充端到端分割召回。远景的像素阈值和全部检出均落在 JSON 中。
+局部 1200 帧：9 个实测参考袋（SAM 轮廓 + 行带有效深度约束可见表面，零深
+度不当表面）；参考袋不虚构内果、不加折痕（保持深度对照锚纯净）。相机为
+作者公开的 RGB 90° 水平视场近似（fx=fy=640，1280×720），非逐机标定；
+枝条遮挡部分、袋背厚度、整园树形与树距是标注清楚的推断。
 
-几何门检查袋面闭合及推断果实是否包容，不代表全部枝叶/袋间无碰撞，也不是机器人接触或安全验收。详细实跑结论见 `reconstruction/RESULTS.md`。
+外部依据：[数据集作者](https://github.com/tsing-luo/Multi-class-peach-RGB-D-dataset)、
+[eOrganic 套袋流程](https://eorganic.org/node/25727)、[UGA 修剪](https://extension.uga.edu/publications/detail.html?number=C1087)、
+湖南省林业局/DB41/T 1317-2016 树形规范、
+[Blender 4.5 渲染通道](https://docs.blender.org/manual/en/4.5/render/layers/passes.html)。
+
+## 受控条件与分层口径
+
+- **光照**（`lighting.py`，Nishita 天空，只换 world 不动几何）：
+  `noon`（合并轮基线锚）/ `morning`（低角暖光，顺光侧——逆光方位会把袋
+  拍成剪影，冒烟轮实测剔除）/ `late_afternoon`（西向侧光）/
+  `overcast`（高浑浊度漫射软影）。参数落 manifest。
+- **遮挡与枝干扰**（`occlusion.py`，逐袋 manifest 记录）：名义档
+  none/light/heavy（0/2/4 片受控前景叶，heavy 附袋前横枝；走廊枝 ~15%
+  独立概率，口径对齐 adaptive_shear L_insert 0.090）。**名义档会被自然
+  冠层本底淹没**（实测 none≈0.38、light≈0.14 倒挂），评测主分层用渲染深
+  度反测的连续覆盖率桶（low<0.2 / mid / high>0.5）。
+- **视角轨迹**（`viewpoints.py`，复刻产线停走节拍）：每目标 = 近距拍照位
+  （0.55–0.75 m，对齐数据集深度分布 p50 0.61 m）+ 补视链（0.15 m 直线
+  截距 / 绕袋轴 ±30° 两候行程短者，总视数 ≤3，常数与 `view_policy.py`
+  原值对拍防漂移）；`run_matrix.py` 用 ray_cast 做"冠外取景"修正（被挡
+  则沿作业道后退）。作业道停靠（6 站远眺）仅作 survey 分层，不进每目标
+  聚合门。内参 fx=fy=640 @1280×720 = Blender 36 mm 传感器 + 18 mm 镜头。
+
+## 验收口径（三道门 + 矩阵基线门）
+
+1. **几何门**：袋网格闭合、果球包容（生成期间隙 ≥0.5 mm 入 manifest）；
+   errors 非空即 raise。不代表全部枝叶/袋间无碰撞。
+2. **三锚定机位感知门**：YOLO 一对一 IoU.5 对 IndexOB 实例 GT；SAM 是
+   GT 框提示，不冒充端到端分割召回；reference 机位另有对 1200 实深的
+   逐袋 MAE。检出与分割是辅助证据，不是照片级真实性证明。
+3. **矩阵基线门**（`baselines/perception_matrix_baseline.json`）：分层
+   recall（光照 × 视角类型 × 遮档/覆盖率桶）+ 袋级多视聚合（单光照内
+   3 视序列 ≥1/≥2 检出）不低于冻结基线 −0.05，防建模改动造成静默回
+   归；深度为理想渲染值（无噪声模型）。逐轮结论追加 `reconstruction/RESULTS.md`。
 
 ## 旧 ROS 场景
 
-原 `peach_sim.params/scene/cli`、`config/orchard.yaml`、`worlds/peach_orchard.sdf` 仍是旧 Gazebo 管线；新建模不消费它们，二者不是同一份 GT。保留既有包接口避免本轮改变 ROS 运行栈；切换仿真资产需另做坐标与碰撞对账。
+`peach_sim.params/scene/cli`、`config/orchard.yaml`、`worlds/peach_orchard.sdf`
+仍是旧 Gazebo 管线；新建模不消费它们，二者不是同一份 GT。保留既有包接口
+避免本轮改变 ROS 运行栈；切换仿真资产需另做坐标与碰撞对账。
 
 ## 许可
 
-包源码 BSD-3-Clause，见 LICENSE。真实数据集与模型权重保持各自原许可，未重新分发。
+包源码 BSD-3-Clause，见 LICENSE。真实数据集与模型权重保持各自原许可，
+未重新分发。

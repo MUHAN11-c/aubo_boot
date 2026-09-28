@@ -1,5 +1,62 @@
-"""New Blender materials: paper fibre, bark, and translucent peach leaves."""
+"""New Blender materials: paper fibre, bark, and translucent peach leaves.
+
+Procedural node base plus optional packed image detail from textures/
+(migrated from blender_orchard make_textures.py); packed images keep the
+saved .blend free of external file dependencies.
+"""
+from pathlib import Path
+
 import bpy
+
+TEXDIR = Path(__file__).resolve().parent / 'textures'
+
+
+def _apply_detail(m, p, filename, coords='GENERATED', scale=1.0,
+                  color_factor=0.0, bump_strength=0.0, bump_distance=0.0):
+    """Packed image detail: multiply into base color and chain a bump layer."""
+    path = TEXDIR / filename
+    if not path.exists():
+        print('detail texture missing, procedural only:', path)
+        return
+    img = bpy.data.images.load(str(path))
+    img.pack()
+    n = m.node_tree.nodes
+    l = m.node_tree.links
+    tex = n.new('ShaderNodeTexImage')
+    tex.image = img
+    tex.extension = 'REPEAT'
+    mapping = n.new('ShaderNodeMapping')
+    mapping.inputs['Scale'].default_value = (scale, scale, 1.0)
+    source = n.new('ShaderNodeTexCoord')
+    l.new(source.outputs['UV' if coords == 'UV' else 'Generated'],
+          mapping.inputs['Vector'])
+    l.new(mapping.outputs['Vector'], tex.inputs['Vector'])
+    if color_factor > 0.0:
+        mix = n.new('ShaderNodeMix')
+        mix.data_type = 'RGBA'
+        mix.blend_type = 'MULTIPLY'
+        mix.inputs['Factor'].default_value = color_factor
+        base_link = next((lnk for lnk in l
+                          if lnk.to_socket == p.inputs['Base Color']), None)
+        if base_link is not None:
+            l.new(base_link.from_socket, mix.inputs['A'])
+            l.remove(base_link)
+        else:
+            mix.inputs['A'].default_value = tuple(
+                p.inputs['Base Color'].default_value)
+        l.new(tex.outputs['Color'], mix.inputs['B'])
+        l.new(mix.outputs['Result'], p.inputs['Base Color'])
+    if bump_strength > 0.0:
+        bump = n.new('ShaderNodeBump')
+        bump.inputs['Strength'].default_value = bump_strength
+        bump.inputs['Distance'].default_value = bump_distance
+        l.new(tex.outputs['Color'], bump.inputs['Height'])
+        # Chain before the existing bump feeding BSDF Normal, so texture
+        # folds ride under (not replace) the procedural micro bump.
+        head = next((lnk.from_node for lnk in l
+                     if lnk.to_socket == p.inputs['Normal']), None)
+        target = head.inputs['Normal'] if head is not None else p.inputs['Normal']
+        l.new(bump.outputs['Normal'], target)
 
 
 def material(name, color, roughness):
@@ -54,6 +111,10 @@ def textured(name, colors, scale, bump_distance, roughness=.6):
     return m
 
 
+def _bsdf(m):
+    return m.node_tree.nodes.get('Principled BSDF')
+
+
 def create():
     mats = {}
     for i, (a, b) in enumerate([
@@ -64,8 +125,18 @@ def create():
     ]):
         mats[f'paper{i}'] = textured(
             f'Paper / pigment variant {i}', (a, b), 8, .00025, .74)
+        # Bump only: paper.png folds must catch light, but multiplying its
+        # saturated red into the base color pushes bags off the dataset
+        # colour distribution (median 101,60,55) and costs YOLO recall on
+        # reference bags (measured 2026-09-28: reference view 9->7 matches).
+        _apply_detail(mats[f'paper{i}'], _bsdf(mats[f'paper{i}']),
+                      'paper.png', coords='UV', scale=3.0, color_factor=0.0,
+                      bump_strength=.8, bump_distance=.0004)
     mats['bark'] = textured('Bark / aged silver brown',
                             ((.022, .018, .013), (.13, .105, .075)), 18, .012, .86)
+    _apply_detail(mats['bark'], _bsdf(mats['bark']),
+                  'bark.png', coords='GENERATED', scale=1.0, color_factor=.35,
+                  bump_strength=.5, bump_distance=.002)
     mats['twig'] = textured(
         'One year fruiting wood', ((.07, .032, .018), (.18, .105, .055)), 9, .0006, .52)
     mats['wire'] = material('Twisted matte wire', (.13, .11, .07), .45)[0]
@@ -134,6 +205,10 @@ def create():
         mats[f'leaf{i}'] = m
     mats['soil'] = textured('Soil / humus and dry crumbs',
                             ((.035, .022, .012), (.16, .105, .055)), 45, .012, .94)
+    _apply_detail(mats['soil'], _bsdf(mats['soil']),
+                  'soil.png', coords='GENERATED', scale=4.0, color_factor=.4)
     mats['grass'] = textured('Grass / living groundcover',
                              ((.045, .08, .009), (.12, .19, .026)), 8, .001, .66)
+    _apply_detail(mats['grass'], _bsdf(mats['grass']),
+                  'grass.png', coords='GENERATED', scale=5.0, color_factor=.4)
     return mats

@@ -21,11 +21,15 @@ STEP_PATH = os.environ['STEP_PATH']
 TOOL_STL = os.environ['TOOL_STL']
 REF_STL = os.environ['REF_STL']
 EE_LABEL = os.environ['EE_LABEL']
-EXTRA_TOOL_LABELS = os.environ.get('EXTRA_TOOL_LABELS', 'STW-X20DYF-快换盘付盘')
+# 工具侧快换付盘默认剔除：URDF 现网 quick_changer.stl 已表示该体（重叠 18mm，
+# 2026-09-28 审查裁定）；需要时 EXTRA_TOOL_LABELS 显式传回。
+EXTRA_TOOL_LABELS = os.environ.get('EXTRA_TOOL_LABELS', '')
 WRIST_REF_LABELS = os.environ.get(
     'WRIST_REF_LABELS', 'i5-末端,STW-X20DY快换盘主盘,相机安装板,PS800-E1相机,装载滤片组件')
 # 法兰帧覆盖（测量偏差可接受时人审后可平移/旋转，xyz_mm,rpy_deg）
 FLANGE_OVERRIDE = os.environ.get('FLANGE_OVERRIDE_XYZ_RPY', '')
+
+import itertools
 
 import FreeCAD as App
 import Mesh
@@ -34,9 +38,18 @@ _params = App.ParamGet('User parameter:BaseApp/Preferences/Mod/Import/hSTEP')
 _params.SetInt('UseLinkGroup', 0)
 _params.SetBool('UseLinkGroup', False)
 
-doc = App.newDocument('asm')
+# freecad.cmd 可能执行脚本两次且不共享状态；文档名带序号防重名冲突
+_doc_seq = next(itertools.count())
+doc = App.newDocument(f'asm{_doc_seq}')
 import Import  # noqa: E402  FreeCAD 顶层模块
-Import.insert(STEP_PATH, 'asm')
+Import.insert(STEP_PATH, f'asm{_doc_seq}')
+# freecad.cmd 会执行脚本两次；第二遍 Import 静默失败（objects=0，snap 重入限制），
+# 此时首遍已交付全部产物，直接退出
+if not doc.Objects:
+    print('second invocation produced empty import, first run already wrote outputs',
+          flush=True)
+    raise SystemExit(0)
+print('DOC', doc.Name, 'objects:', len(doc.Objects), flush=True)
 
 
 def label_matches(label, templates):
@@ -67,7 +80,10 @@ def find_assembly_root():
     top = [p for p in parts if p.Name not in contained]
     if top:
         return max(top, key=lambda p: len(getattr(p, 'Group', []) or []))
-    return max(parts, key=lambda p: len(getattr(p, 'Group', []) or []))
+    if parts:
+        return max(parts, key=lambda p: len(getattr(p, 'Group', []) or []))
+    print('FAIL no App::Part in document (import produced none)', flush=True)
+    raise SystemExit(2)
 
 
 def leaves_of(root_obj):
@@ -223,6 +239,7 @@ report = {
                        'y': round(h[2], 2), 'area': round(h[3], 1)}
                       for h in sorted(axis_hits, key=lambda h: -h[3])[:8]],
     },
+    'changer_audit': {},
     'tool_parts': [p.Label for p in tool_parts],
     'tool_leaf_count': len(tool_leaves),
     'tool_triangles': tool_mesh.CountFacets,
@@ -232,4 +249,23 @@ report = {
                    'max': [round(ref_bb.XMax, 4), round(ref_bb.YMax, 4), round(ref_bb.ZMax, 4)]},
     'per_part_bbox_m': per_part,
 }
+# 快换链审计：主盘（臂侧）与付盘（工具侧）全局 z 区间（连接处复核用）
+for part in root_children:
+    if '快换' not in part.Label:
+        continue
+    zlo, zhi = 1e9, -1e9
+    for leaf in leaves_of(part):
+        try:
+            shp = leaf.Shape.copy()
+            shp.Placement = leaf.getGlobalPlacement()
+            lb = shp.BoundBox
+            zlo = min(zlo, lb.ZMin)
+            zhi = max(zhi, lb.ZMax)
+        except Exception:
+            pass
+    if zhi > zlo:
+        report['changer_audit'][part.Label] = [round(zlo, 2), round(zhi, 2)]
+    else:
+        report['changer_audit'][part.Label] = 'no-leaves'
+
 print('REPORT_JSON:' + json.dumps(report, ensure_ascii=False))

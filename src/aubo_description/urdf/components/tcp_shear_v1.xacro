@@ -1,12 +1,13 @@
 <?xml version="1.0"?>
 <robot xmlns:xacro="http://www.ros.org/wiki/xacro">
   <!-- 剪切手（shear_v1，桃子采摘手-相机位置试验版本）包装：连杆切刀在法兰 +Y 侧，
-       开口朝 +Y（Rx(-90°)，与旧套袋圆柱同向）。TCP=连杆切刀对切区中点（CAD preliminary）。
+       开口朝 +Y（Rx(−90°)，与旧套袋圆柱同向）。TCP=传承旧 hollow_cylinder_v1 基准
+       (0, 47.90, 151.07) mm（git 历史核定，2026-09-28 用户裁定）。
        档案：config/shear_v1.yaml；网格 meshes/{visual,collision}/tools/shear_v1.stl。 -->
   <xacro:include filename="tcp.xacro"/>
   <xacro:macro name="aubo_e5_tcp_shear_v1" params="parent:=wrist3_Link">
     <xacro:aubo_e5_tcp parent="${parent}"
-        tcp_xyz="-0.0265 0.053 0.176" tcp_rpy="-1.5708 0 0"
+        tcp_xyz="0 0.0479 0.15107" tcp_rpy="-1.5708 0 0"
         sleeve_mouth_z="0.0" mesh_stem="shear_v1"
         body_rgba="0.55 0.58 0.62 1.0"/>
   </xacro:macro>

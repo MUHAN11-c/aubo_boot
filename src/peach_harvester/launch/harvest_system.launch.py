@@ -9,7 +9,7 @@ from launch_ros.substitutions import FindPackageShare
 _FORWARD = (
     ('hardware_mode', 'mock'),
     ('robot_ip', '169.254.10.98'),
-    ('tool_profile', 'adaptive_cylinder_v1'),
+    ('tool_profile', 'adaptive_shear_v1'),
     ('moveit_enabled', 'true'),
     ('camera_enabled', 'false'),
     ('extrinsics_enabled', 'true'),

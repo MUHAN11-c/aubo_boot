@@ -106,15 +106,16 @@ inline StagingWaypoints stagingWaypoints(
   return w;
 }
 
-inline constexpr char kHollowCylinderProfileId[] = "hollow_cylinder_v1";
-inline constexpr char kAdaptiveCylinderProfileId[] = "adaptive_cylinder_v1";
+inline constexpr char kShearProfileId[] = "shear_v1";
+inline constexpr char kBiteShearProfileId[] = "bite_shear_v1";
+inline constexpr char kAdaptiveShearProfileId[] = "adaptive_shear_v1";
 /// imu_follow insert.speed_m_s 部署默认；peach 用它估等待，不读对方参数。
 inline constexpr double kImuFollowInsertSpeedMps = 0.01;
 
-/// 仅自适应圆柱在预抓取→套入→回预抓取窗内走 imu_follow；空心末端永远 false。
+/// 仅自适应剪切手在预抓取→套入→回预抓取窗内走 imu_follow；其余末端永远 false。
 inline bool usesImuFollowContact(const std::string & profile_id)
 {
-  return profile_id == kAdaptiveCylinderProfileId;
+  return profile_id == kAdaptiveShearProfileId;
 }
 
 /// FULL 回收纳命名目标序列：先拍照位（可倒放已过门的接近，不过 transit_max），

@@ -106,7 +106,7 @@ def test_bringup_launch_does_not_auto_run_harvest():
     assert 'send_goal(' not in text
     assert "'imu_follow'" in text
     assert "imu_follow_servo.launch.py" in text
-    assert "adaptive_cylinder_v1" in text
+    assert "adaptive_shear_v1" in text
     assert "'motion_enabled': 'false'" in text
 
 

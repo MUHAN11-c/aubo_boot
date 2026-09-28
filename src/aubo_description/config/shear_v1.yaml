@@ -1,0 +1,51 @@
+# 剪切手档案（shear_v1，桃子采摘手-相机位置试验版本）。
+# 连杆切刀对切果柄，刀组在法兰 +Y 侧（相机同侧，试验拍摄位）；
+# 开口朝 +Y（Rx(-90°)，与旧套袋圆柱同向）。TCP 原点为 CAD preliminary（刀组对切区中点），
+# 待真机标定。改几何只改本文件与 urdf/components/tcp_shear_v1.xacro。
+# 本档案由 peach_harvester/peach_harvester/vision/tool_profiles.py 在 launch 期装载注入。
+profile_id: shear_v1
+calibration_status: preliminary_cad
+source: "STEP 总装 audo-i5机器人总装-剪切手.STEP；scripts/step_extract_tool.py 法兰系提取"
+frames:
+  parent: wrist3_Link
+  # 原点 = 连杆切刀1/2 对切区中点（CAD 测）；rpy Rx(-90°) → TCP Z // 法兰 +Y（开口）
+  tool_axis: {xyz: [-0.0265, 0.053, 0.176], rpy: [-1.5708, 0.0, 0.0]}
+  cutting_plane: {xyz: [0.0, 0.0, 0.0], rpy: [0.0, 0.0, 0.0]}
+  tcp: {xyz: [0.0, 0.0, 0.0], rpy: [0.0, 0.0, 0.0]}
+  # 开口即 TCP（无喉道）
+  sleeve_mouth: {xyz: [0.0, 0.0, 0.0], rpy: [0.0, 0.0, 0.0]}
+geometry_m:
+  # D_inner 登记 = 刀组张口（CAD 单一姿态估计，待机构规格确认）
+  D_inner: 0.080
+  D_outer: 0.191
+  L_insert: 0.030
+  L_blade: 0.030
+  # 机械档案字段（套袋时代沿用口径，剪切手待标定，先保守登记）
+  entry_d_tool: 0.030
+  entry_d_s: 0.040
+  clearance_min: 0.005
+  margin_neck: 0.015
+  wall_clearance: 0.002
+  blade_thickness: 0.006
+  blade_capture_half_width: 0.008
+  fruit_safety_clearance: 0.012
+  axial_safety_margin: 0.004
+  # ①层果实胶囊审查的保守包络（tool_body_length_m / tool_body_radius_m 注入源）
+  body_length: 0.120
+  body_radius: 0.100
+error_m:
+  tool_runout95: 0.001
+  tcp_calibration_error95: 0.005
+  hand_eye_error95: 0.003
+  bag_deformation_margin95: 0.002
+  blade_plane_calibration_error95: 0.003
+  robot_axial_error95: 0.002
+  target_motion95: 0.003
+io:
+  fun: 3
+  pin: 0
+  close_state: 1.0
+  pulse: false
+  feedback_timeout_s: 1.5
+  notes: "SetIO ACK 只算 CUT_COMMAND_ACCEPTED，不能单独确认切断；剪切手通道待真机核"
+version: "1.0-preliminary"

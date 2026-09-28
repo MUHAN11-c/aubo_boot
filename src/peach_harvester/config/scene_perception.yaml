@@ -43,9 +43,9 @@ peach_scene_perception_node:
       min_points: 100  # 位姿管线有效前景点数下限，不足直接 REJECT
       locked_only_segmentation: true  # 锁定后 SAM 只对锁定集目标的检测框推理（2.13-E1）：分割前尚无本帧 target_id，用锁定目标世界系记忆锚点经 TF 反投影到本帧像素，落进外扩 10% 的检测框就分割；锁定前/开关关/TF 不可用帧回退全量分割（旧行为），锁定目标全部不可见时本帧 SAM 零推理
     tool:
-      D_inner: 0.104  # 工具圆柱内径 (m)，袋子必须能通过。基础值=固定圆柱；整栈由 launch tool_profile 档案注入覆盖（自适应圆柱 0.116）
-      L_insert: 0.2  # 最大插入深度 (m)
-      L_blade: 0.0  # TCP 到剪切平面的轴向距离 (m)；当前二者重合为 0
+      D_inner: 0.120  # 工具开口径 (m)。基础值=自适应剪切手；整栈由 launch tool_profile 档案注入覆盖（三把剪切手 0.030/0.080/0.120）
+      L_insert: 0.09  # 最大插入深度 (m)；自适应剪切手档案 L_insert
+      L_blade: 0.02  # TCP 到剪切平面的轴向距离 (m)；档案 geometry_m.L_blade
       entry_d_tool: 0.0  # 入口相对袋底的工具分量 (m)。整栈由 grasp_standoffs.yaml 注入。
       entry_d_s: 0.0  # 入口相对袋底的附加安全距离 (m)。整栈注入时为 0，总和=grasp_standoffs entry_standoff_m。
       clearance_min: 0.005  # 袋体与工具内壁的最小径向余量 (m)

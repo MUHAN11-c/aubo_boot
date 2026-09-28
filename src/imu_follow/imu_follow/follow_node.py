@@ -2,8 +2,8 @@
 imu_follow 节点：IMU 姿态增量 → TCP 姿态实时跟随（servo / fjt 双后端）.
 
 独立工具包（不进 lifecycle、不改只读 bringup、不订 peach 话题）。
-`harvest_system` 仅在 `tool_profile:=adaptive_cylinder_v1` 时 Include
-`imu_follow_servo.launch.py`；空心末端不起本节点。`~/enable` 采两组
+`harvest_system` 仅在 `tool_profile:=adaptive_shear_v1` 时 Include
+`imu_follow_servo.launch.py`；非 IMU 末端不起本节点。`~/enable` 采两组
 参考（TF base→tip 当前位姿 + 当前 IMU 四元数），此后每节拍把 IMU 体轴
 姿态增量经死区/符号映射/锥限幅/平滑叠加到参考 TCP 姿态上（位置钉死
 参考点，只跟姿态；插入/回退时位置沿锁定开口方向移动）。
@@ -28,7 +28,7 @@ follow_core（零 ROS，纯核表驱动测试）。
 `insert.speed_m_s` 低速推进、钳 `insert.max_travel_m` 行程；姿态照常跟
 IMU。`~/insert_stop` 停推进；`~/insert_retract` 沿锁定开口把行程收回
 参考点（跟随保持）。disable / 断流 / 达行程上限亦停推进。peach 仅对
-`adaptive_cylinder_v1` FULL 在预抓取→套入→回预抓取窗内调这些服务。
+`adaptive_shear_v1` FULL 在预抓取→套入→回预抓取窗内调这些服务。
 """
 
 from action_msgs.msg import GoalStatus

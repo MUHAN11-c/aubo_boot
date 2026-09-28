@@ -83,8 +83,8 @@ def generate_launch_description():
             'imu_topic', default_value='/imu/data',
             description='IMU 输入话题；无真 IMU 的受控演示可指假流话题'),
         DeclareLaunchArgument(
-            'tool_profile', default_value='adaptive_cylinder_v1',
-            choices=['hollow_cylinder_v1', 'adaptive_cylinder_v1'],
+            'tool_profile', default_value='adaptive_shear_v1',
+            choices=['shear_v1', 'bite_shear_v1', 'adaptive_shear_v1'],
             description='末端工具档案（servo 模型 TCP 随档案；须与整栈同值）'),
         OpaqueFunction(function=launch_setup),
     ])

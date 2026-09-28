@@ -133,8 +133,8 @@ def generate_launch_description():
             'controllers_file', default_value='controllers.yaml',
             description='config/ 下的 MoveIt 控制器映射（mock 用 controllers_mock.yaml）'),
         DeclareLaunchArgument(
-            'tool_profile', default_value='adaptive_cylinder_v1',
-            choices=['hollow_cylinder_v1', 'adaptive_cylinder_v1'],
+            'tool_profile', default_value='adaptive_shear_v1',
+            choices=['shear_v1', 'bite_shear_v1', 'adaptive_shear_v1'],
             description='末端工具档案（须与 bringup 同值，防模型/TF 分叉）'),
         OpaqueFunction(function=launch_setup),
     ])

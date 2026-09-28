@@ -1,0 +1,14 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+  <!-- 咬合式剪切手（bite_shear_v1）包装：双刀口对夹剪断果柄，喉道导轨引导果枝进入；
+       开口朝法兰 −Y（Rx(+90°)）。TCP=刀口对夹中点（CAD preliminary），
+       sleeve_mouth=喉道入口（TCP 系 +Z 0.223）。
+       档案：config/bite_shear_v1.yaml；网格 meshes/{visual,collision}/tools/bite_shear_v1.stl。 -->
+  <xacro:include filename="tcp.xacro"/>
+  <xacro:macro name="aubo_e5_tcp_bite_shear_v1" params="parent:=wrist3_Link">
+    <xacro:aubo_e5_tcp parent="${parent}"
+        tcp_xyz="0 -0.007 0.1655" tcp_rpy="1.5708 0 0"
+        sleeve_mouth_z="0.223" mesh_stem="bite_shear_v1"
+        body_rgba="0.62 0.65 0.68 1.0"/>
+  </xacro:macro>
+</robot>

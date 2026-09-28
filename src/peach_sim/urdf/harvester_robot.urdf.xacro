@@ -13,11 +13,12 @@
   <xacro:include filename="$(find aubo_description)/urdf/aubo_e5.urdf"/>
   <xacro:include filename="$(find aubo_description)/urdf/components/camera.xacro"/>
   <xacro:include filename="$(find aubo_description)/urdf/components/quick_changer.xacro"/>
-  <xacro:include filename="$(find aubo_description)/urdf/components/tcp_hollow_cylinder_v1.xacro"/>
-  <xacro:include filename="$(find aubo_description)/urdf/components/tcp_adaptive_cylinder_v1.xacro"/>
+  <xacro:include filename="$(find aubo_description)/urdf/components/tcp_shear_v1.xacro"/>
+  <xacro:include filename="$(find aubo_description)/urdf/components/tcp_bite_shear_v1.xacro"/>
+  <xacro:include filename="$(find aubo_description)/urdf/components/tcp_adaptive_shear_v1.xacro"/>
   <xacro:include filename="tracked_platform.xacro"/>
 
-  <xacro:arg name="tool_profile" default="adaptive_cylinder_v1"/>
+  <xacro:arg name="tool_profile" default="adaptive_shear_v1"/>
   <xacro:arg name="arm_mount_height" default="0.75"/>
   <xacro:arg name="arm_mount_yaw_deg" default="-32.0"/>
   <xacro:arg name="body_x" default="1.05"/>
@@ -46,12 +47,15 @@
 
   <xacro:aubo_e5_camera parent="wrist3_Link"/>
   <xacro:aubo_e5_quick_changer parent="camera_body_link"/>
-  <!-- 两个独立 if（非 if/else）：未知 profile 名两支都不展开 → 缺 tcp 帧，启动即失败 -->
-  <xacro:if value="${tool_profile == 'hollow_cylinder_v1'}">
-    <xacro:aubo_e5_tcp_hollow_cylinder_v1 parent="wrist3_Link"/>
+  <!-- 三个独立 if（非 if/else）：未知 profile 名三支都不展开 → 缺 tcp 帧，启动即失败 -->
+  <xacro:if value="${tool_profile == 'shear_v1'}">
+    <xacro:aubo_e5_tcp_shear_v1 parent="wrist3_Link"/>
   </xacro:if>
-  <xacro:if value="${tool_profile == 'adaptive_cylinder_v1'}">
-    <xacro:aubo_e5_tcp_adaptive_cylinder_v1 parent="wrist3_Link"/>
+  <xacro:if value="${tool_profile == 'bite_shear_v1'}">
+    <xacro:aubo_e5_tcp_bite_shear_v1 parent="wrist3_Link"/>
+  </xacro:if>
+  <xacro:if value="${tool_profile == 'adaptive_shear_v1'}">
+    <xacro:aubo_e5_tcp_adaptive_shear_v1 parent="wrist3_Link"/>
   </xacro:if>
 
   <!-- 仿真站姿：真机拍照位 photo_joints（field_pregrasp_cases.yaml） -->

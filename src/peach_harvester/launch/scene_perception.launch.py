@@ -56,8 +56,8 @@ def generate_launch_description():
             'autostart', default_value='true',
             description='false 时由 peach_lifecycle_manager 有序 configure/activate'),
         DeclareLaunchArgument(
-            'tool_profile', default_value='adaptive_cylinder_v1',
-            choices=['hollow_cylinder_v1', 'adaptive_cylinder_v1'],
+            'tool_profile', default_value='adaptive_shear_v1',
+            choices=['shear_v1', 'bite_shear_v1', 'adaptive_shear_v1'],
             description='末端工具档案（tool.D_inner 随档案注入）'),
         activate, node, configure,
     ])

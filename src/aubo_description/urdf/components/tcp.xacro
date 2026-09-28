@@ -2,19 +2,21 @@
 <robot xmlns:xacro="http://www.ros.org/wiki/xacro">
   <!-- 末端 TCP 共享底座：帧名冻结（tool_axis/cutting_plane/tcp/sleeve_mouth/tool_body_link），
        SRDF 链 tip、ACM×octomap 豁免名单、技能/重建的三点 TF 验证均按名消费，不得改名。
-       两把工具仅 tool_axis 原点不同，常量由各 wrapper（tcp_<profile>.xacro）持有；
+       2026-09-28 起三把剪切手共用（shear_v1 / bite_shear_v1 / adaptive_shear_v1，替换两把套袋圆柱）：
+       tool_axis 原点/姿态、sleeve_mouth 偏移、网格名由各 wrapper（tcp_<profile>.xacro）传入；
        几何档案：aubo_description/config/<profile>.yaml（改几何改 wrapper 与档案两处）。
-       TCP 姿态：Z = 开口方向，XY = 刀口平面（剪切在该水平面上）。
-       相对法兰 Rx(-90°)，零位开口朝世界 +Z。
-       L_blade=0 → cutting_plane / tcp / sleeve_mouth 同点（顶部）；
-       筒体沿 TCP −Z 长 L_insert=200mm。
+       TCP 姿态：Z = 开口方向，XY = 刀口平面。
+       cutting_plane / tcp 与 tool_axis 同点（刀口深度登记在档案 geometry_m.L_blade）。
+       tool_body_link 直接挂 parent：网格在法兰系（=parent 系）下建模，identity 落位；
+       CAD 原点 = wrist3_Link 原点已数值验证（link6 Ø75 法兰 + STW 快换盘 + 相机族三方叠对）。
+       STEP→网格管线：scripts/step_extract_tool.py + scripts/decimate_export.py。
        不得再用 static_transform_publisher 补发 wrist3_Link→tcp。 -->
-  <xacro:macro name="aubo_e5_tcp" params="parent:=wrist3_Link tcp_xyz:='0 0.0479 0.15107'">
+  <xacro:macro name="aubo_e5_tcp" params="parent:=wrist3_Link tcp_xyz:='0 0 0' tcp_rpy:='-1.5708 0 0' sleeve_mouth_z:=0.0 mesh_stem:=shear_v1 body_rgba:='0.55 0.58 0.62 1.0'">
     <link name="tool_axis"/>
     <joint name="tool_axis_joint" type="fixed">
       <parent link="${parent}"/>
       <child link="tool_axis"/>
-      <origin xyz="${tcp_xyz}" rpy="-1.5708 0 0"/>
+      <origin xyz="${tcp_xyz}" rpy="${tcp_rpy}"/>
     </joint>
 
     <link name="cutting_plane"/>
@@ -35,45 +37,27 @@
     <joint name="sleeve_mouth_joint" type="fixed">
       <parent link="tool_axis"/>
       <child link="sleeve_mouth"/>
-      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <origin xyz="0 0 ${sleeve_mouth_z}" rpy="0 0 0"/>
     </joint>
 
     <link name="tool_body_link">
-      <!-- 筒在 TCP 下方，沿 −Z；顶部 = TCP -->
+      <!-- 网格在法兰系（parent 系）下建模：identity 挂 parent 即正确落位 -->
       <visual>
-        <origin xyz="0 0 -0.100" rpy="0 0 0"/>
         <geometry>
-          <cylinder radius="0.060" length="0.200"/>
+          <mesh filename="package://aubo_description/meshes/visual/tools/${mesh_stem}.stl"/>
         </geometry>
-        <material name="hollow_cylinder_steel">
-          <color rgba="0.55 0.58 0.62 0.55"/>
-        </material>
-      </visual>
-      <!-- 刀口 / 开口：TCP XY 水平面（圆柱顶部） -->
-      <visual>
-        <origin xyz="0 0 0" rpy="0 0 0"/>
-        <geometry>
-          <cylinder radius="0.060" length="0.003"/>
-        </geometry>
-        <material name="hollow_cylinder_blade">
-          <color rgba="0.75 0.15 0.12 1.0"/>
+        <material name="tool_body_mat">
+          <color rgba="${body_rgba}"/>
         </material>
       </visual>
       <collision>
-        <origin xyz="0 0 -0.100" rpy="0 0 0"/>
         <geometry>
-          <cylinder radius="0.060" length="0.200"/>
-        </geometry>
-      </collision>
-      <collision>
-        <origin xyz="0 0 0" rpy="0 0 0"/>
-        <geometry>
-          <cylinder radius="0.056" length="0.003"/>
+          <mesh filename="package://aubo_description/meshes/collision/tools/${mesh_stem}.stl"/>
         </geometry>
       </collision>
     </link>
     <joint name="tool_body_joint" type="fixed">
-      <parent link="tool_axis"/>
+      <parent link="${parent}"/>
       <child link="tool_body_link"/>
       <origin xyz="0 0 0" rpy="0 0 0"/>
     </joint>

@@ -248,4 +248,4 @@ RViz **TF** 显示默认会画出当前图里**所有** `/tf`。本配置白名�
 
 ## 8. 不负责
 
-采摘调度、MoveIt、底盘 `/scan`、生命周期名单。不替代预留的底盘 IMU。不做自适应工具偏移（`tcp_actual` 臂侧缝仍预留、未实现；2026-09-15 起自适应圆柱 `adaptive_cylinder_v1` 的柔性偏斜由 imu_follow 姿态跟随消化，`tcp_actual` 仍是未来刚性偏移量的缝）。
+采摘调度、MoveIt、底盘 `/scan`、生命周期名单。不替代预留的底盘 IMU。不做自适应工具偏移（`tcp_actual` 臂侧缝仍预留、未实现；自适应末端的柔性偏斜由 imu_follow 姿态跟随消化（2026-09-15 起接 `adaptive_cylinder_v1`，2026-09-28 起随工具换代为 `adaptive_shear_v1`），`tcp_actual` 仍是未来刚性偏移量的缝）。

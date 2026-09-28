@@ -16,7 +16,7 @@ from peach_harvester.vision.domain.model_contract import (
 def _full(**overrides):
     data = {
         'run_id': 'run-a', 'scene_epoch': 1, 'target_id': 't1',
-        'model_revision': 'm1', 'tool_profile_id': 'hollow_cylinder_v1',
+        'model_revision': 'm1', 'tool_profile_id': 'shear_v1',
         'calibration_revision': 'cal-1', 'config_revision': 'cfg-1'}
     data.update(overrides)
     return ModelIdentity(**data)

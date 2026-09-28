@@ -140,7 +140,7 @@ def generate_launch_description() -> LaunchDescription:
             'gui', default_value='true',
             description='false=无头 gz sim -s（CI/远程）'),
         DeclareLaunchArgument(
-            'tool_profile', default_value='adaptive_cylinder_v1',
+            'tool_profile', default_value='adaptive_shear_v1',
             description='末端工具档案（同整栈 tool_profile 语义）'),
         OpaqueFunction(function=_setup),
     ])

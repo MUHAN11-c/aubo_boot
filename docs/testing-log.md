@@ -996,3 +996,18 @@ SIGINT 旧栈后用 16:57 编的 `peach_manipulation` 重起；开批前在 `glo
 - **修复（工作区未提交）**：F2 UAF（grasp_task.cpp:767 按值捕获）；录制节食三轮（recorder.py：控制流族补 statistics/controller_state/dynamic_joint_states@20Hz、PlanningScene@1Hz、感知派生 debug_image/raw/masks/target_observations@2Hz——实测 12min 8.96G 中派生流占 79%）；pipeline.py D213；包测 41 绿。
 - **体积**：runs/ 14.1G→73M（6 session mcap 清、证据=各轮 ledger/perception_data/rvizwin.mp4+报告+shots×4）。
 - **详见** campaign/20260922_dual_tool/analysis/s4_full_20260924/report.md。收口待办：热_ACK 驱动一轮（<4min）；满行程需现场袋口近 ~5cm。
+
+### 09-24 S4 收口补记（快照 3687172 入库）
+
+- **更正上节**：「修复（工作区未提交）」三项（F2 UAF、录制节食、pipeline.py D213）已随 3687172 入库，不再是工作区态。
+- **补记同轮入库的 F1 修复**（上节漏记；09-24 审计 F1 高危）：`commandToolOpen`/`commandToolClose` 授权 probe 由裸构造 `CycleContext` 改取 `tool_authority_ctx_` 周期快照（`stages.cpp`：`stagePrepareCycle` 清零防跨周期令牌/verified 残留、`stageActuateCutter` 过门后写入、`stageReleasePayload` 同周期目标继承；`motion.cpp` 两处消费）——裸 probe `pregrasp_verified` 恒 false 曾把剪切链恒拒死在 ACK 前，e2e 负路径掩盖。授权矩阵各级条件不变，只改凭据来源（决策 0032）。
+- **录制节食定档**：`recorder.py` 三档限速进袋（控制流族 20 Hz／PlanningScene 族 1 Hz／感知派生族 2 Hz，各族首帧必录、`/tf_static` 豁免，只限进袋不影响实时流）——决策 0031 入册；architecture/io/testing 三文档「全流」措辞同轮改限速口径。
+
+### 09-28 三把剪切手 STEP→URDF 接入轮（替换两把套袋圆柱）
+
+- **输入**：用户三份 SolidWorks 总装 STEP（各含 i5 整机 + STW-X20DY 快换盘 + PS800 相机族 + 末端子装配）；转换管线入库 `aubo_description/scripts/`（FreeCAD 1.1 snap 无头提取 + Blender 4.5 无头减面/渲染），工具网格=末端子树+快换付盘、法兰系=CAD 全局系。
+- **对齐验收（双重）**：数值——CAD 法兰圆柱 r=37.5/31.5/15.75 轴心实测 (0,0)，URDF link6 collision（Ø75、z∈[−0.0395,0]）/quick_changer 落位 z[0.0147,0.0745]/camera.stl x-y 尺寸三方叠对，恒等映射成立（i5 总装 CAD 与 E5 URDF 法兰接口一致）；渲染——三把工具 top/side 叠图（_tools/shear_pipeline/align/，视觉模型复核俯视轴心 <1cm、侧视 Z 向 <5mm、无穿插）。
+- **改动面**：新档案 `shear_v1`/`bite_shear_v1`/`adaptive_shear_v1`（默认，接 imu_follow）替换 hollow/adaptive 圆柱；`tcp.xacro` 参数化（帧名冻结、SRDF 零改、tool_body_link 挂 parent 载 CAD 网格 visual 5.5 万 tri / collision 4.5k tri）；launch choices×9、`usesImuFollowContact`、peach_sim 镜像+世界重生成、`insert.max_travel_m` 0.20→0.09（修掉手抄不随档案旧债）；tool_profiles 注入面扩 body_length/body_radius；bringup tool_profile 去 choices 变纯透传。TCP/张口/包络=**preliminary_cad**（CAD 包围盒推导），真机标定与剪切预算语义留后续。
+- **验证**：xacro×3+check_urdf 绿；colcon build 10 包绿；colcon test：peach_harvester 219 全绿、aubo_description 绿（copyright 走 AMENT_LINT_AUTO_EXCLUDE——**本机 CMake 3.28 上 `_FOUND TRUE` 短路实测失效**，五包旧写法属幸存而非生效）；r0_gate 纯核 119 过。mock 冒烟三 profile（域 91）：`tf2_echo wrist3_Link→tcp` 数值=档案 tool_axis（shear (−0.0265,0.053,0.176) / bite (0,−0.007,0.1655) / adaptive (0,−0.05,0.17)），停栈 pgrep 无残留。
+- **已知红（非本轮引入则记档）**：① E1 `test_e1_supervisor_chain` exit -6 = 先在 F-E1-1（SIGABRT）；② **C03 由 09-24 绿转红**——工具几何换代（TCP 移位+开口方向 adaptive 翻 −Y）致 E1 注入器 known-good 目标失配，300s 未到 RECOVERY；待 E1 轮按新工具重标夹具（本轮不夹带改）；③ r0_gate 的 interface manifest 红 `/peach_supervisor/set_parameters` 字面量出自 09-24 c53b177 的 perception_sim.py，先在于本轮。
+- **坑入册**：Blender 4.5 无头渲染 EEVEE 自建相机对象/WORKBENCH 均出空帧，须 orchard 同款 `camera_add`+track 四元数+世界+太阳灯管线；FreeCAD snap 输出不能走 /tmp（私有命名空间）；SystemExit 消息被 freecadcmd 吞（诊断须 print+flush）；装配根识别不能按孩子数（末端子装配孩子多于总装根）。

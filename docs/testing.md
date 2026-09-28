@@ -1,6 +1,6 @@
 # 测试流程与命名
 
-> 2026-09-24 果园外观重建：当前 Blender 入口为 `src/peach_sim/reconstruction/`，不复用旧模型/贴图/随机布局。RGB-D 约束局部可见袋面；整树、遮挡部分与树行是标注清楚的推断。旧 Gazebo SDF/GT 仍属旧管线，尚未接入此次新场景；无 ROS IDL、运动或驱动变更。数据口径、离线命令与验收边界见 [peach_sim README](../src/peach_sim/README.md)。
+> 2026-09-24 果园外观重建：当前 Blender 入口为 `src/peach_sim/reconstruction/`，不复用旧模型/贴图/随机布局。RGB-D 约束局部可见袋面；整树、遮挡部分与树行是标注清楚的推断。旧 Gazebo SDF/GT 仍属旧管线，尚未接入此次新场景；无 ROS IDL、运动或驱动变更。数据口径、离线命令与验收边界见 [peach_sim README](../src/peach_sim/README.md)。另有根目录 `blender_orchard/` 纯 Blender 目视预览链（布局/袋具锚 `peach_sim/config/orchard.yaml` 与 `reconstruction/geometry.py`；不进 colcon、确认前不导出 Gazebo/glTF，事实源为其 README）。
 
 现行系统（SNAPSHOT）：源码。与 [architecture.md](architecture.md)、[io.md](io.md) 构成仅有的三份活文档；**源码与本文互相更新，改启动/验收口径或改本文须同一轮改另一边**。**如何演化**以 [AGENTS.md](../AGENTS.md) 为准：非完美适配当前真机/产品则跟 ROS 2 / 优秀 GitHub 主流。
 
@@ -33,7 +33,7 @@
 
 **单轮复盘完备集（2026-09-17 起）**：① 会话 bag 录 `/rosout` 全量节点日志（`record.rosout` 默认开，stamp/level/logger 可回放：`ros2 bag play` 后 `ros2 topic echo /rosout`）；② ros2 自动日志在 `~/.ros/log/<launch 时间戳>/launch.log`（含全部进程 stdout，目录时间戳=起栈时刻）；③ `runs/<request_id>/` 账本与事件流。三者按运行窗口归集：`python3 scripts/collect_round.py <request_id>` → 生成 `runs/<rid>/round_report.md`（逐目标 outcome 表 + 感知/重建时间轴 + 自动日志关键行 + bag 互链）。
 
-**全量录制（`record.level`，2026-09-17 起）**：`std`（默认长跑）=计算图通配发现订阅域内全部话题自动进会话 bag（新话题无需改代码即被录），相机 raw 大流限 1Hz；`all`=同上但大流不限速（失败短抓 / 仿真复现；stereo 前端约 50MB/s，100 GB 预算约 30+ 分钟，超 `max_total_bag_gb` 靠 retention 回收）；`core`=仅固定订阅集（镜像订阅+派生 job/metrics；2026-09-20 起 `bag_topics` 键已删）。运行时切档：改 `observability.yaml` 后重启，或 `ros2 param set /peach_observability record.level all` 再重启节点生效（订阅在 activate 期建立）。harvest RViz 窗录像：`scripts/record_rviz_harvest.sh <request_id> [duration_s]`（产物 `runs/<request_id>/rvizwin.mp4`；录前把 MoveIt RViz 提到前台，x11grab 录屏幕像素，挡住会进别的窗）。停栈须出 `bag_report`：SIGINT 先停通配订阅再有界关 bag（不再 `queue.join` 永久挂死）。
+**全量录制（`record.level`，2026-09-17 起）**：`std`（默认长跑）=计算图通配发现订阅域内全部话题自动进会话 bag（新话题无需改代码即被录），相机 raw 大流限 1Hz；`all`=同上但相机大流不限速（失败短抓 / 仿真复现；stereo 前端约 50MB/s，100 GB 预算约 30+ 分钟，超 `max_total_bag_gb` 靠 retention 回收）；`core`=仅固定订阅集（镜像订阅+派生 job/metrics；2026-09-20 起 `bag_topics` 键已删）。运行时切档：改 `observability.yaml` 后重启，或 `ros2 param set /peach_observability record.level all` 再重启节点生效（订阅在 activate 期建立）。**2026-09-24 起进袋另叠三档限速（决策 0031，只限进袋不影响实时流）**：控制流族（`/joint_states`、`/tf`、`/diagnostics`、`/dynamic_joint_states` 及含 `introspection`/`joint_status`/`io_states`/`statistics`/`controller_state` 子串的话题）20 Hz；PlanningScene 族 1 Hz；感知派生族（含 `debug_image`/`masks`/`target_observations` 子串）2 Hz；各族首帧必录、`/tf_static` 豁免——`all` 档不再等于大流全量，复盘密集视觉证据另靠 45 s 截图与 RViz 录像。harvest RViz 窗录像：`scripts/record_rviz_harvest.sh <request_id> [duration_s]`（产物 `runs/<request_id>/rvizwin.mp4`；录前把 MoveIt RViz 提到前台，x11grab 录屏幕像素，挡住会进别的窗）。停栈须出 `bag_report`：SIGINT 先停通配订阅再有界关 bag（不再 `queue.join` 永久挂死）。
 
 ---
 
@@ -71,7 +71,7 @@ ros2 launch peach_sim orchard_sim.launch.py    # gz sim + 采摘工位生成 + /
 pgrep -af 'ros2 launch|gz sim|robot_state_publisher|parameter_bridge'   # 测完必须空
 ```
 
-口径与门：袋具几何受工具余量（`aubo_description/config/adaptive_cylinder_v1.yaml` 镜像对账）与现场包络（`runs/field_pregrasp_*`：袋底→袋颈 0.05–0.12 m、袋底离臂座 0.52–0.71 m）双重约束，`peach_sim/test/{test_params,test_scene,test_textures}.py` 覆盖（含袋体比例/吊挂角锚数据集、SDF 颜色值域守卫）；入库 `worlds/peach_orchard.sdf` 与生成器输出逐字节对账（防漂移）。**边界**：工位被 URDF `world_joint` 锚在作业位（履带不可驾驶），六关节钉真机拍照位 `photo_joints`；`gz_ros2_control` / 履带驱动 / 相机深度桥未接（见 `peach_sim` README「本轮边界」）。gz GUI / ogre2 需要 OpenGL，无 GL 环境 GUI 会 abort——看 `scene_preview` 正交预览（俯视 + 作业切片侧视，红=可达目标、红圈=可达包络）。
+口径与门：袋具几何受工具余量（`aubo_description/config/adaptive_shear_v1.yaml` 镜像对账）与现场包络（`runs/field_pregrasp_*`：袋底→袋颈 0.05–0.12 m、袋底离臂座 0.52–0.71 m）双重约束，`peach_sim/test/{test_params,test_scene,test_textures}.py` 覆盖（含袋体比例/吊挂角锚数据集、SDF 颜色值域守卫）；入库 `worlds/peach_orchard.sdf` 与生成器输出逐字节对账（防漂移）。**边界**：工位被 URDF `world_joint` 锚在作业位（履带不可驾驶），六关节钉真机拍照位 `photo_joints`；`gz_ros2_control` / 履带驱动 / 相机深度桥未接（见 `peach_sim` README「本轮边界」）。gz GUI / ogre2 需要 OpenGL，无 GL 环境 GUI 会 abort——看 `scene_preview` 正交预览（俯视 + 作业切片侧视，红=可达目标、红圈=可达包络）。
 
 全新机器 / 新环境自检与部署：`scripts/env_bootstrap.sh check|install|all`（幂等；check 零改动、退出码=缺失项数，`SMOKE=1` 追加 mock 冒烟）。脚本内 apt/venv/udev 清单是依赖事实源之一，变更依赖须四处同步：package.xml、requirements.txt、脚本清单、本节。
 
@@ -120,7 +120,7 @@ python3 scripts/sim_field_targets.py --random 100 --envelope algorithm --seed 20
 # 启动时与 /peach_arm tool.profile_id 比对，错配即拒跑；GraspDecision 径向预算按档案
 # D_inner×注入袋径复算（超内径注入得到 allowed=False，网格 expect=deny_decision 验收）。
 # 两档案轴向余量在当前误差常数下结构性为负（blade_capture<固定误差+安全余量），见战役 analysis。
-python3 scripts/sim_field_targets.py --grid --mode full --tool-profile hollow_cylinder_v1 --velocity 1.0
+python3 scripts/sim_field_targets.py --grid --mode full --tool-profile shear_v1 --velocity 1.0
 # 接近失败根因探针：G/预抓取/staging 逐滚转 IK + 直弦 fraction（只读诊断）
 python3 scripts/sim_approach_probe.py --random 100 --seed 20260910
 # 解析覆盖（不执臂）：感知包络 + TCP 测地线 + 果实胶囊；10000 分层位姿约 2 s
@@ -174,7 +174,7 @@ Tab「调试」＝向**既有**动作/服务发请求的纯客户端，页面只
 |------|------|------|
 | `hardware_mode` | mock | mock / real |
 | `robot_ip` | 169.254.10.98 | 仅 real |
-| `tool_profile` | adaptive_cylinder_v1 | 末端工具档案（URDF TCP、感知许可内径、消息标签统一随档案切换）；固定圆柱显式 `tool_profile:=hollow_cylinder_v1`。切换须整栈重启，RSP 与 move_group 同 arg |
+| `tool_profile` | adaptive_shear_v1 | 末端工具档案（URDF TCP、感知许可内径、消息标签统一随档案切换）；`shear_v1` / `bite_shear_v1` 显式指定。切换须整栈重启，RSP 与 move_group 同 arg（bringup 侧纯透传无 choices，未知名 xacro fail-fast） |
 | `camera_enabled` | false | 有相机时设 true |
 | `camera_frontend` | percipio | `percipio` / `stereo`；stereo 时 harvest_system 直起 peach_stereo，压掉 bringup 内 percipio |
 | `imu_enabled` | true | USB IMU；挂 tcp 并对齐。无设备时节点重试。关掉：`false` |
@@ -367,11 +367,11 @@ ros2 action send_goal -f /peach_supervisor/run_harvest peach_interfaces/action/R
 
 ### 感知稳定 + 两种末端（实验室战役，不开刀、不经 ROS 动真机）
 
-物理臂用示教器停在 `global_photo_pose` 并保持。mock 先 Survey 到同位，锁定 + Reconfirm 才与真相机 3D 对齐；mock 离位后直播 3D 作废，接触只用钉住的场景几何（`skip_reconstruction:=true`）。重建多视本战役不评。两种末端必须**整栈隔离重启**切换 `tool_profile`，禁止混跑。launch 默认仍是 adaptive，空心必须显式 `tool_profile:=hollow_cylinder_v1`（忘传会起跟随）。
+物理臂用示教器停在 `global_photo_pose` 并保持。mock 先 Survey 到同位，锁定 + Reconfirm 才与真相机 3D 对齐；mock 离位后直播 3D 作废，接触只用钉住的场景几何（`skip_reconstruction:=true`）。重建多视本战役不评。不同末端必须**整栈隔离重启**切换 `tool_profile`，禁止混跑。launch 默认 `adaptive_shear_v1`（自适应剪切手，会 Include imu_follow）；`shear_v1` / `bite_shear_v1` 必须显式传（忘传会起跟随）。
 
-1. **空心网格（无相机）**：`hardware_mode:=mock camera_enabled:=false skip_reconstruction:=true tool_profile:=hollow_cylinder_v1 imu_enabled:=false` + `python3 scripts/sim_field_targets.py --grid --mode full --velocity 1.0 --tool-profile hollow_cylinder_v1`。核 `/peach_arm tool.profile_id`、无 `imu_follow` 节点、`ros2 service list` 无 `/imu_follow/*`。在达 `succeed` 须 outcome=0、`completion_level≥3`、`grasped=false`；`lab_oos_20260922` 须 `sleeve_no_cartesian`；贴边/`tool_clearance_failed` 须 skip_select。
-2. **真相机 stereo（空心）**：`camera_enabled:=true camera_frontend:=stereo skip_reconstruction:=true tool_profile:=hollow_cylinder_v1 imu_enabled:=false`。SURVEY_ONLY → 锁集稳定（确认、ID 不闪、debug 叠加、FPS≥2）→ PREGRASP（Hold 后才 `ControlTask` 命令 6；周期未结束 ACK 会被拒）→ 仅 cartesian 放行时 live FULL。
-3. **自适应网格（无相机，与空心隔离）**：换栈 `tool_profile:=adaptive_cylinder_v1`（`imu_follow` 随档案 Include）。同一 `--grid --mode full --tool-profile adaptive_cylinder_v1`。套入走 IMU 接触窗；无 USB 时 `waitImuFollowTravel` 只是墙钟等待，不证明跟随位移。核 `tf2_echo tcp imu_link` 与 `/imu/data` 才算跟随链。FULL 接触窗 = 预抓取→insert→回预抓取。mock 下 `motion.enabled` 默认关，peach 不自动开门。
+1. **基础剪切手网格（无相机，非 IMU）**：`hardware_mode:=mock camera_enabled:=false skip_reconstruction:=true tool_profile:=shear_v1 imu_enabled:=false` + `python3 scripts/sim_field_targets.py --grid --mode full --velocity 1.0 --tool-profile shear_v1`。核 `/peach_arm tool.profile_id`、无 `imu_follow` 节点、`ros2 service list` 无 `/imu_follow/*`。在达 `succeed` 须 outcome=0、`completion_level≥3`、`grasped=false`；`lab_oos_20260922` 须 `sleeve_no_cartesian`；贴边/`tool_clearance_failed` 须 skip_select。
+2. **真相机 stereo（非 IMU）**：`camera_enabled:=true camera_frontend:=stereo skip_reconstruction:=true tool_profile:=shear_v1 imu_enabled:=false`。SURVEY_ONLY → 锁集稳定（确认、ID 不闪、debug 叠加、FPS≥2）→ PREGRASP（Hold 后才 `ControlTask` 命令 6；周期未结束 ACK 会被拒）→ 仅 cartesian 放行时 live FULL。
+3. **自适应剪切手网格（无相机，与非 IMU 隔离）**：换栈 `tool_profile:=adaptive_shear_v1`（`imu_follow` 随档案 Include）。同一 `--grid --mode full --tool-profile adaptive_shear_v1`。套入走 IMU 接触窗；无 USB 时 `waitImuFollowTravel` 只是墙钟等待，不证明跟随位移。核 `tf2_echo tcp imu_link` 与 `/imu/data` 才算跟随链。FULL 接触窗 = 预抓取→insert→回预抓取。mock 下 `motion.enabled` 默认关，peach 不自动开门。
 4. **Percipio**：同门换 `camera_frontend:=percipio`（量程 0.4–0.8 m）。不放宽 `min_views`。
 5. **取证**：失败短抓 `record.level:=all`；RViz `scripts/record_rviz_harvest.sh <request_id>`；分析后 `python3 scripts/purge_analyzed_bags.py runs/session_*`。助手：`scripts/lab_perception_grasp_campaign.sh preflight`。
 
@@ -505,7 +505,7 @@ mock 接近轨迹形状（不开批、不代替真机方向验收）：`hardware
 
 | 门 | 怎么验 | 现行 |
 |----|--------|------|
-| P0 可构建 + 工具帧 | 干净 `build/install/log` 后 colcon；URDF 有 `tool_axis` / `sleeve_mouth` / `cutting_plane` / `tool_body_link` | TCP 在圆柱顶部，**按当前 `tool_profile`**：hollow_cylinder_v1 `(0, 47.90, 151.07) mm` / adaptive_cylinder_v1 `(0, 47, 168.66) mm`，`Rx(-90°)`：Z=开口、XY=刀口；筒沿 −Z 200 mm。**固定圆柱等价门**：改 `aubo_description` 后 `xacro src/aubo_description/urdf/aubo_e5.urdf.xacro hardware_mode:=mock tool_profile:=hollow_cylinder_v1` 输出与改动前 diff 须为空；`ros2 param get /peach_target_reconstruction_node tool.profile_id` 须与 launch `tool_profile` 一致 |
+| P0 可构建 + 工具帧 | 干净 `build/install/log` 后 colcon；URDF 有 `tool_axis` / `sleeve_mouth` / `cutting_plane` / `tool_body_link` | TCP=刀口工作点（preliminary_cad），**按当前 `tool_profile`**：shear_v1 `(−26.5, 53, 176) mm` Rx(−90°) / bite_shear_v1 `(0, −7, 165.5) mm` / adaptive_shear_v1 `(0, −50, 170) mm` Rx(+90°)：Z=开口、XY=刀口；tool_body_link 载 CAD 网格挂 wrist3_Link。**工具帧展开门**：三 profile 各 `xacro src/aubo_description/urdf/aubo_e5.urdf.xacro hardware_mode:=mock tool_profile:=<p>` 展开须含全部冻结帧 + 对应 tools/<p>.stl 引用；`ros2 param get /peach_target_reconstruction_node tool.profile_id` 须与 launch `tool_profile` 一致 |
 | P1 几何基线 | `runs/` 写 `geometry.jsonl`；复算脚本已归档（需要时 `_archive/offline_2026-09/` 下以模块方式运行） | 离线脚本已归档 |
 | P2 袋模型 | 观测 `occlusion_class`；球 marker ns=`prior`；裸果不入 `next_target_id`（`enable_fruit=False`，`class_id=1` 不入管线）；`branch_blocked`/`neighbor_overlap`/`damaged_or_wet` 不得 `allowed` | 沿袋长轴半径剖面，窄头为口、宽头为底，箭头袋底→袋口；斜袋保持长轴不对成竖轴；袋底→袋口只许上半球（从下往上，左右最多水平，禁止朝下）；分割两端比沿轴朝外框边贴合，更贴边的一端为口（竖缝贴左边）；剪切参考在袋口/分割贴框极限，果距不足只否决 `allowed` 不挪刀；两端贴合差不够才用 3D 窄头/逆重力 |
 | P3 重建权威 | `allowed` 须袋融合预算才套入；无 budget 不得接触；圆柱/TSDF 不定轴；包络轴只否决，扁袋不打 12°；35° 只诊断 | FULL 时 `allowed=false` → `SKIPPED_QUALITY`；`PREGRASP_ONLY` 不要求 `allowed` |

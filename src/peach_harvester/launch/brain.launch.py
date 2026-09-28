@@ -89,8 +89,8 @@ def generate_launch_description():
             'skip_reconstruction', default_value='false',
             description='true 时 DISPATCH 跳过 Build/补视，用场景观测进接触'),
         DeclareLaunchArgument(
-            'tool_profile', default_value='adaptive_cylinder_v1',
-            choices=['hollow_cylinder_v1', 'adaptive_cylinder_v1'],
+            'tool_profile', default_value='adaptive_shear_v1',
+            choices=['shear_v1', 'bite_shear_v1', 'adaptive_shear_v1'],
             description='末端工具档案（URDF/许可内径/标签统一注入）'),
         OpaqueFunction(function=launch_setup),
     ])

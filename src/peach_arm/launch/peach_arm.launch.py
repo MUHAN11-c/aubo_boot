@@ -15,6 +15,7 @@ from moveit_configs_utils import MoveItConfigsBuilder
 
 from peach_harvester.vision.grasp_standoffs import manipulation_overlay
 from peach_harvester.vision.tool_profiles import (
+    tool_profile_body_params,
     tool_profile_d_inner_params,
     tool_profile_id_params,
 )
@@ -76,6 +77,7 @@ def launch_setup(context):
             manipulation_overlay(),
             tool_profile_id_params(LaunchConfiguration('tool_profile')),
             tool_profile_d_inner_params(LaunchConfiguration('tool_profile')),
+            tool_profile_body_params(LaunchConfiguration('tool_profile')),
             *_skills_moveit_params(tool_profile),
             {'execution.require_robot_status': require_robot_status},
             {'quality.allow_unrefined_geometry': allow_unrefined_geometry},
@@ -113,8 +115,8 @@ def generate_launch_description():
             'autostart', default_value='true',
             description='true 时本 launch 自行 configure/activate'),
         DeclareLaunchArgument(
-            'tool_profile', default_value='adaptive_cylinder_v1',
-            choices=['hollow_cylinder_v1', 'adaptive_cylinder_v1'],
+            'tool_profile', default_value='adaptive_shear_v1',
+            choices=['shear_v1', 'bite_shear_v1', 'adaptive_shear_v1'],
             description='末端工具档案（URDF/标签随档案切换）'),
         DeclareLaunchArgument(
             'require_robot_status', default_value='true',

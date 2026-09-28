@@ -44,17 +44,17 @@ imu_tf() {
     echo "  timeout 5 ros2 topic echo --once /imu/data"
   fi
   echo "FULL 接触窗由 peach 调 /imu_follow/enable…insert_retract…disable；"
-  echo "  空心末端不起 imu_follow。peach 不自动 motion.enabled。"
+  echo "  非 IMU 末端不起 imu_follow。peach 不自动 motion.enabled。"
   echo "  mock 跟随：ros2 param set /imu_follow motion.enabled true  # 真机须另授权"
 }
 
 grid_cmd() {
-  local profile=${2:-hollow_cylinder_v1}
+  local profile=${2:-shear_v1}
   local imu=false
-  if [ "${profile}" = "adaptive_cylinder_v1" ]; then
+  if [ "${profile}" = "adaptive_shear_v1" ]; then
     imu=true
   fi
-  echo "mock 无相机网格 FULL（先 hollow 再 adaptive；须与 launch tool_profile 一致）："
+  echo "mock 无相机网格 FULL（先基础剪切手再 adaptive；须与 launch tool_profile 一致）："
   cat <<EOF
 ros2 launch peach_bringup harvest_system.launch.py \\
   hardware_mode:=mock camera_enabled:=false skip_reconstruction:=true \\
@@ -70,12 +70,12 @@ EOF
 
 live_cmd() {
   local frontend=${2:-stereo}
-  local profile=${3:-hollow_cylinder_v1}
+  local profile=${3:-shear_v1}
   local imu=false
-  if [ "${profile}" = "adaptive_cylinder_v1" ]; then
+  if [ "${profile}" = "adaptive_shear_v1" ]; then
     imu=true
   fi
-  echo "真相机 skip-recon（示教器已停拍照位；mock 先 Survey 同位；本轮 hollow 不开 IMU）："
+  echo "真相机 skip-recon（示教器已停拍照位；mock 先 Survey 同位；非 IMU 档不开 IMU）："
   cat <<EOF
 ros2 launch peach_bringup harvest_system.launch.py \\
   hardware_mode:=mock camera_enabled:=true camera_frontend:=${frontend} \\

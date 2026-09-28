@@ -1,6 +1,6 @@
 # 输入输出
 
-> 2026-09-24 果园外观重建：当前 Blender 入口为 `src/peach_sim/reconstruction/`，不复用旧模型/贴图/随机布局。RGB-D 约束局部可见袋面；整树、遮挡部分与树行是标注清楚的推断。旧 Gazebo SDF/GT 仍属旧管线，尚未接入此次新场景；无 ROS IDL、运动或驱动变更。数据口径、离线命令与验收边界见 [peach_sim README](../src/peach_sim/README.md)。
+> 2026-09-24 果园外观重建：当前 Blender 入口为 `src/peach_sim/reconstruction/`，不复用旧模型/贴图/随机布局。RGB-D 约束局部可见袋面；整树、遮挡部分与树行是标注清楚的推断。旧 Gazebo SDF/GT 仍属旧管线，尚未接入此次新场景；无 ROS IDL、运动或驱动变更。数据口径、离线命令与验收边界见 [peach_sim README](../src/peach_sim/README.md)。另有根目录 `blender_orchard/` 纯 Blender 目视预览链（布局/袋具锚 `peach_sim/config/orchard.yaml` 与 `reconstruction/geometry.py`；不进 colcon、确认前不导出 Gazebo/glTF，事实源为其 README）。
 
 现行系统（SNAPSHOT）：源码、各包 `config/*.yaml`、[`peach_interfaces/config/interface_manifest.yaml`](../src/peach_interfaces/config/interface_manifest.yaml)。字段级目录：[peach_interfaces/README.md](../src/peach_interfaces/README.md)。清单漂移：`python3 src/peach_interfaces/scripts/check_interface_manifest.py`。与 [architecture.md](architecture.md)、[testing.md](testing.md) 构成仅有的三份活文档；**源码与本文互相更新，改接口/话题/TF 或改本文须同一轮改另一边**。**如何演化**以 [AGENTS.md](../AGENTS.md) 为准：非完美适配当前真机/产品则跟 ROS 2 / 优秀 GitHub 主流（标准 msg、QoS、相对名+remap）。真机轮次：[testing-log.md](testing-log.md)。工程整理过程：[REFACTORING.md](REFACTORING.md)（不驱动现行设计）。
 
@@ -562,7 +562,7 @@ flowchart TB
 flowchart LR
   sub["订阅各包状态 / 观测 / GraspDecision / TF / joint_states / joint_status"] --> st["ObservabilityState"]
   st --> http["HTTP GET /api/state /api/trajectory"]
-  st --> rec["会话 bag：随节点启停开合 runs/session_*/bag（MCAP 全流）"]
+  st --> rec["会话 bag：随节点启停开合 runs/session_*/bag（MCAP 限速进袋，决策 0031）"]
   rec --> rep["栈停自动出 bag_report.md/json + 体积预算回收"]
   st --> viz["/peach/observability/tcp_path + markers"]
   st --> jobpub["/peach/observability/job + metrics（String JSON，随 bag 录制）"]
@@ -579,13 +579,13 @@ flowchart LR
 | `/peach/observability/job` | topic | 作业票 String JSON（指纹变化发布） | peach_observability | 会话 bag（`peach_bag_report` 离线消费） |
 | `/peach/observability/metrics` | topic | 性能采样 String JSON（1s） | peach_observability | 会话 bag（同上） |
 
-监控+调试 HTTP（默认 `127.0.0.1:8090`）+ 会话 bag 录制（随栈启停开合）。过程页只订不发；调试 POST 无令牌。`debug.enabled` 默认 true（false→503）；运动类另需 `debug.motion_enabled`（默认 false→423）。健康走 `/diagnostics`（W15 双轨：`session_recorder` 队列/丢帧、`ingest_liveness` 摄入活度）。
+监控+调试 HTTP（默认 `127.0.0.1:8090`）+ 会话 bag 录制（随栈启停开合；2026-09-24 起进袋限速三族：控制流 20 Hz／PlanningScene 1 Hz／感知派生 2 Hz，决策 0031，只限进袋不影响实时流）。过程页只订不发；调试 POST 无令牌。`debug.enabled` 默认 true（false→503）；运动类另需 `debug.motion_enabled`（默认 false→423）。健康走 `/diagnostics`（W15 双轨：`session_recorder` 队列/丢帧、`ingest_liveness` 摄入活度）。
 
 | 参数 | 含义 |
 |------|------|
 | `host` / `port` | HTTP 监听；默认回环 8090。局域网须显式 `0.0.0.0` |
 | `record.enabled` | 会话 bag 录制总开关（默认 true；关则不建录制订阅） |
-| `record.level` | 录制档：`std`=通配发现全话题+相机 raw 限 1Hz（默认）；`all`=不限速；`core`=仅固定订阅集（镜像订阅+派生 job/metrics） |
+| `record.level` | 录制档：`std`=通配发现全话题+相机 raw 限 1Hz（默认）；`all`=相机 raw 不限速（限速族仍生效，决策 0031）；`core`=仅固定订阅集（镜像订阅+派生 job/metrics） |
 | `record.max_total_bag_gb` | bag 二进制总量预算（GB，默认 100；0=禁用回收）：超限从最旧删 `session_*/bag` 与旧 `mcap_*`，报告/账本/文本永不删，逐条审计。分析完成后 `scripts/purge_analyzed_bags.py` 删 MCAP 留 `bag_report` |
 | `record.queue_depth` | bag 写队列深度上限（默认 512）：盘速掉队时丢最旧保最新，丢帧计数进 `/api/state` 的 `record.info.drops` |
 | `record.save_images` / `record.save_clouds` | 调试图/TSDF 点云进 bag 的门控（键名沿用，语义已从「落 jpg/ply 文件」改为「进 bag」） |
@@ -622,8 +622,9 @@ base_link → 臂链 → wrist3_Link
      → camera_color_frame → camera_color_optical_frame（感知 yaml）
      → camera_depth_frame → camera_depth_optical_frame（深度 header、技能 yaml）
   → tool_axis → cutting_plane / tcp / sleeve_mouth / tool_body_link
-     （按 launch tool_profile 选档案，帧名共用：hollow_cylinder_v1 TCP (0, 47.90, 151.07) mm /
-      adaptive_cylinder_v1 TCP (0, 47, 168.66) mm；Rx(-90°)：Z=开口，XY=刀口；筒沿 −Z 200 mm）
+     （按 launch tool_profile 选档案，帧名共用：shear_v1 TCP (−26.5, 53, 176) mm Rx(−90°) /
+      bite_shear_v1 TCP (0, −7, 165.5) mm / adaptive_shear_v1 TCP (0, −50, 170) mm Rx(+90°)；
+      Z=开口，XY=刀口；TCP=刀口工作点（preliminary_cad）；tool_body_link 挂 wrist3_Link 载 CAD 网格）
 ```
 
 无 `active.yaml` 时名义 TF：`wrist3_Link→camera_link` 平移 2 cm、单位四元数。现场标定约 `[0.045, 0.108, 0.002]`。驱动两光学系相对 `camera_link` 平移为 0（源码如此；未 live echo 不改名）。
@@ -758,9 +759,9 @@ flowchart LR
 
 ## 9. `imu_follow`（可选；仅自适应档案随整栈）
 
-不在 peach 清单、不进 lifecycle。`harvest_system` **仅** `tool_profile:=adaptive_cylinder_v1` 时 Include `imu_follow_servo.launch.py`（含 moveit_servo）；空心末端不起。独立 launch 仍可用于人工调试。`motion.enabled` 默认 false 只算不发；**peach 不自动开门**。mock 下发用 `ros2 param set /imu_follow motion.enabled true`。真机换 fjt 后端（透传只有 FJT 动作口）并另行人工授权。
+不在 peach 清单、不进 lifecycle。`harvest_system` **仅** `tool_profile:=adaptive_shear_v1` 时 Include `imu_follow_servo.launch.py`（含 moveit_servo）；非 IMU 末端不起。独立 launch 仍可用于人工调试。`motion.enabled` 默认 false 只算不发；**peach 不自动开门**。mock 下发用 `ros2 param set /imu_follow motion.enabled true`。真机换 fjt 后端（透传只有 FJT 动作口）并另行人工授权。
 
-peach `ExecuteTarget` FULL 在自适应档案上于预抓取验证后调用下列服务（空心末端永不调用、**也不建**这些 Trigger 客户端——空心栈 `ros2 service list` 不得出现 `/imu_follow/*`）：`/imu_follow/enable` → `/imu_follow/insert_start` →（剪切）→ `/imu_follow/insert_retract` → `/imu_follow/disable`。回到预抓取才关窗，再 MTC 回 `harvest_stow`。未 enable 时 follow_node pause servo，禁止与 MTC 同时写 JTC。follow_node 另发 `~/insert_progress`（`/imu_follow/insert_progress`，Float64，on-change；插入行程进度目标积分）——peach 侧套入/撤退行程判据的回退源（批次5：主判据 FK 沿轴投影，见 §5 周期）。
+peach `ExecuteTarget` FULL 在自适应档案上于预抓取验证后调用下列服务（非 IMU 末端永不调用、**也不建**这些 Trigger 客户端——非 IMU 栈 `ros2 service list` 不得出现 `/imu_follow/*`）：`/imu_follow/enable` → `/imu_follow/insert_start` →（剪切）→ `/imu_follow/insert_retract` → `/imu_follow/disable`。回到预抓取才关窗，再 MTC 回 `harvest_stow`。未 enable 时 follow_node pause servo，禁止与 MTC 同时写 JTC。follow_node 另发 `~/insert_progress`（`/imu_follow/insert_progress`，Float64，on-change；插入行程进度目标积分）——peach 侧套入/撤退行程判据的回退源（批次5：主判据 FK 沿轴投影，见 §5 周期）。
 
 | 名字 | 含义 |
 |------|------|

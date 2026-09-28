@@ -92,7 +92,7 @@ def _params(validity_s=None) -> TargetReconstructionParams:
         'session': {'root_dir': ''},
         'local_volume': {'size_x': 0.3, 'size_y': 0.3, 'size_z': 0.4},
         'refit': {'max_axis_angle_deg': 35.0},
-        'tool': {'profile_id': 'hollow_cylinder_v1'},
+        'tool': {'profile_id': 'shear_v1'},
     }
     if validity_s is not None:
         spec['decision'] = {'validity_s': validity_s}

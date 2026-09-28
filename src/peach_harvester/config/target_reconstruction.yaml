@@ -85,11 +85,11 @@ peach_target_reconstruction_node:
       root_dir: ''  # session 落盘根；空=工作区 runs/（与账本、观测 JSONL 同一根）
     tool:
       budget:
-        d_inner: 0.104  # [m] GraspDecision 动态预算许可的工具内径。基础值=固定圆柱；整栈由 launch tool_profile 档案注入覆盖（自适应圆柱 0.116）
+        d_inner: 0.120  # [m] GraspDecision 动态预算许可的工具开口径。基础值=自适应剪切手；整栈由 launch tool_profile 档案注入覆盖（三把剪切手 0.030/0.080/0.120）
         blade_capture_half_width: 0.008  # [m] 刀口捕获半宽。provenance=档案名义值；M0 台架按柄径×倾角×袋材扫描后重标定（±20mm 轴向偏移取 95% 捕获半宽）
         axial_safety_margin: 0.0  # [m] 轴向安全余量。批次2 起 0（与 fruit_safety_clearance 历史重复扣减，G1 根因③）；旧值 0.004 可临时恢复对拍
         blade_plane_calibration_error95: 0.002  # [m] 刀平面标定残差。provenance=逐工具 TCP↔刀口面标定（待 M0）
         robot_axial_error95: 0.002  # [m] 沿轴 LIN 重复精度。provenance=trajectory_watchdog 台架采集（待 M0）
         target_motion95: 0.003  # [m] 目标运动（风动）。provenance=identity swing 统计回灌（P1-3 后动态化；现为保守常数）
         axial_neck_floor_m: 0.003  # [m] 袋颈轴向散布下限（区别于横向 6mm 下限；G1 维度拆分）
-      profile_id: hollow_cylinder_v1  # 当前末端工具档案标签（消息 tool_profile_id）。整栈由 launch tool_profile 档案注入覆盖
+      profile_id: adaptive_shear_v1  # 当前末端工具档案标签（消息 tool_profile_id）。整栈由 launch tool_profile 档案注入覆盖

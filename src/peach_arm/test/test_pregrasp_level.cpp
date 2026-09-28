@@ -64,7 +64,7 @@ TEST(PlanContract, PreviewMustMatchExecute)
   preview.model.run_id = "run";
   preview.model.target_id = "t1";
   preview.model.model_revision = "m1";
-  preview.model.tool_profile_id = "hollow_cylinder_v1";
+  preview.model.tool_profile_id = "shear_v1";
   preview.model.calibration_revision = "cal";
   preview.model.config_revision = "cfg";
   preview.start_joints = {0.0, 0.1, 0.2, 0.3, 0.4, 0.5};
@@ -86,7 +86,7 @@ TEST(PlanContract, ObserveBindingSkipsJoints)
   observe.model.run_id = "run";
   observe.model.target_id = "t1";
   observe.model.model_revision = "m1";
-  observe.model.tool_profile_id = "hollow_cylinder_v1";
+  observe.model.tool_profile_id = "shear_v1";
   observe.model.calibration_revision = "cal";
   observe.model.config_revision = "cfg";
   peach_arm::ContactPlan execute = observe;
@@ -107,7 +107,7 @@ TEST(PlanContract, ObserveOnlyLeavesNoPreviewBindingSoFullPasses)
   execute.model.run_id = "run";
   execute.model.target_id = "t1";
   execute.model.model_revision = "t0:3";
-  execute.model.tool_profile_id = "hollow_cylinder_v1";
+  execute.model.tool_profile_id = "shear_v1";
   execute.model.calibration_revision = "cal";
   execute.model.config_revision = "cfg";
   const auto gate = peach_arm::executePlanGate(
@@ -128,7 +128,7 @@ TEST(PlanContract, PreviewBindingRejectsIdentityChangedFull)
   preview.model.run_id = "run";
   preview.model.target_id = "t1";
   preview.model.model_revision = "t0:3";
-  preview.model.tool_profile_id = "hollow_cylinder_v1";
+  preview.model.tool_profile_id = "shear_v1";
   preview.model.calibration_revision = "cal";
   preview.model.config_revision = "cfg";
   peach_arm::ContactPlan execute = preview;

@@ -571,7 +571,7 @@ private:
   // executeAction 受理→终局同一 action 线程内写读，无需原子。
   std::uint32_t pending_accept_failure_code_{0};
   rclcpp::Client<aubo_msgs::srv::SetIO>::SharedPtr tool_io_client_;  ///< 刀具 SetIO 客户端（伴随节点侧）。
-  /// 自适应接触窗：仅 adaptive_cylinder_v1 FULL 调用；hollow 永不 send。
+  /// 自适应接触窗：仅 adaptive_shear_v1 FULL 调用；其余末端永不 send。
   rclcpp::Client<Trigger>::SharedPtr imu_follow_enable_client_;
   rclcpp::Client<Trigger>::SharedPtr imu_follow_disable_client_;
   rclcpp::Client<Trigger>::SharedPtr imu_follow_insert_start_client_;

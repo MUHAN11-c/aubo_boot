@@ -173,10 +173,10 @@ def generate_launch_description():
             'robot_ip', default_value='169.254.10.98',
             description='真机控制器 IP；mock 不用'),
         DeclareLaunchArgument(
-            'tool_profile', default_value='adaptive_cylinder_v1',
-            choices=['hollow_cylinder_v1', 'adaptive_cylinder_v1'],
-            description='末端工具档案（URDF TCP 与整栈标签）；'
-                        '未知名 xacro 不展开 tcp 帧即失败'),
+            'tool_profile', default_value='adaptive_shear_v1',
+            description='末端工具档案（URDF TCP 与整栈标签）；纯透传给 xacro，'
+                        '未知名 xacro 不展开 tcp 帧即失败（fail-fast），'
+                        '白名单由各应用层 launch/档案持有'),
         DeclareLaunchArgument(
             'moveit_enabled', default_value='true',
             description='MoveIt move_group + rviz2；false 关闭'),

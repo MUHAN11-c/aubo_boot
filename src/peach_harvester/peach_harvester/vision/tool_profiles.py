@@ -6,6 +6,7 @@ launch 期按 tool_profile 参数装载注入各包（模式同 grasp_standoffs 
   - scene:        tool.D_inner（径向走廊门）
   - reconstruction: tool.budget.d_inner（GraspDecision 许可数学）+ tool.profile_id（标签）
   - manipulation / executor: tool.profile_id（标签）
+  - manipulation:  tool.d_inner_m / tool.body_length_m / tool.body_radius_m（袋径门+①层胶囊审查包络）
 档案里其余字段（error_m、io 等登记项）运行期不注入。
 
 新增工具：aubo_description 加档案 yaml + tcp_<profile>.xacro wrapper + 主 xacro
@@ -20,15 +21,16 @@ import os
 import yaml
 
 # 运行期有消费的档案字段（缺失即档案不完整，launch 期抛错）
-_REQUIRED_FIELDS = ('profile_id', 'd_inner')
+_REQUIRED_FIELDS = ('profile_id', 'd_inner', 'body_length', 'body_radius')
 
 
 def parse_tool_profile(data, profile_id):
     """
     Validate archive dict and extract consumed fields (pure core, no ROS).
 
-    Returns {'profile_id': str, 'd_inner': float}；档案缺字段或 profile_id
-    与文件名不一致时抛 ValueError（launch 期 fail-fast，纯核测试同款入口）。
+    Returns {'profile_id': str, 'd_inner': float, 'body_length': float,
+    'body_radius': float}；档案缺字段或 profile_id 与文件名不一致时抛
+    ValueError（launch 期 fail-fast，纯核测试同款入口）。
     """
     if not isinstance(data, dict):
         raise ValueError(f'tool profile archive must be a mapping, got {type(data)}')
@@ -44,7 +46,19 @@ def parse_tool_profile(data, profile_id):
             f'tool profile {profile_id!r}: geometry_m.D_inner missing/invalid') from exc
     if not 0.0 < d_inner < 0.5:
         raise ValueError(f'tool profile {profile_id!r}: D_inner {d_inner} out of range')
-    return {'profile_id': declared, 'd_inner': d_inner}
+    try:
+        body_length = float(geometry['body_length'])
+        body_radius = float(geometry['body_radius'])
+    except (KeyError, TypeError, ValueError) as exc:
+        raise ValueError(
+            f'tool profile {profile_id!r}: geometry_m.body_length/body_radius '
+            'missing/invalid (①层胶囊审查包络)') from exc
+    if not 0.0 < body_length < 1.0 or not 0.0 < body_radius < 0.5:
+        raise ValueError(
+            f'tool profile {profile_id!r}: body envelope '
+            f'{body_length}x{body_radius} out of range')
+    return {'profile_id': declared, 'd_inner': d_inner,
+            'body_length': body_length, 'body_radius': body_radius}
 
 
 _CACHE = {}
@@ -61,7 +75,7 @@ def load_tool_profile(profile_id: str):
     if not os.path.isfile(path):
         raise RuntimeError(
             f'unknown tool_profile {profile_id!r}: no archive at {path} '
-            f'(known: hollow_cylinder_v1, adaptive_cylinder_v1)')
+            f'(known: shear_v1, bite_shear_v1, adaptive_shear_v1)')
     with open(path, encoding='utf-8') as stream:
         data = yaml.safe_load(stream) or {}
     parsed = parse_tool_profile(data, profile_id)
@@ -139,3 +153,15 @@ def tool_profile_d_inner_params(profile_id):
     from launch_ros.parameter_descriptions import ParameterValue
     value = _tool_profile_value_cls()(profile_id, 'd_inner')
     return {'tool.d_inner_m': ParameterValue(value, value_type=float)}
+
+
+def tool_profile_body_params(profile_id):
+    """包络注入（peach_arm ①层果实胶囊审查）：按档案 body_length/body_radius 求值."""
+    from launch_ros.parameter_descriptions import ParameterValue
+    cls = _tool_profile_value_cls()
+    return {
+        'tool.body_length_m': ParameterValue(
+            cls(profile_id, 'body_length'), value_type=float),
+        'tool.body_radius_m': ParameterValue(
+            cls(profile_id, 'body_radius'), value_type=float),
+    }

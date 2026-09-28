@@ -115,13 +115,13 @@ peach_arm:
       io_fun: 3  # 工具 IO 功能号（SetIO 的 fun）。
       io_pin: 0  # 工具 IO 引脚号（SetIO 的 pin）。
       close_state: 1.0  # 工具闭合写入的 IO 电平值。
-      d_inner_m: 0.104  # 工具内径（米）：unrefined 链袋径门；整栈按 tool_profile 注入（adaptive 0.116）。
+      d_inner_m: 0.120  # 工具开口径（米）：unrefined 链袋径门；整栈按 tool_profile 注入（三把剪切手 0.030/0.080/0.120）。
       feedback_timeout_s: 2.0  # 切断反馈 DI 新沿有界等待（秒）；超时 CUT_UNCONFIRMED（不撤退不重发）。
-      links: [tool_axis, cutting_plane, tcp, sleeve_mouth, tool_body_link, quick_changer_link]  # 工具链连杆（③层整图 octomap 豁免清单；W5 前为三处硬编码同值）。改工具须同步 URDF/tcp.xacro 连杆名。
+      links: [tool_axis, cutting_plane, tcp, sleeve_mouth, tool_body_link, quick_changer_link]  # 工具链连杆（③层整图 octomap 豁免清单；帧名冻结）。改工具须同步 URDF/tcp.xacro 连杆名。
       contact_links: [sleeve_mouth, tcp, tool_axis, cutting_plane]  # 接触阶段（套入/剪切）× 目标对象豁免的工具连杆（不含筒体/快换件——防撞主力保持受查）。
-      body_length_m: 0.2  # 工具筒体长（米，①层果实胶囊审查用）；与 tcp.xacro tool_body_link 的 L 对齐，改几何须同步。
-      body_radius_m: 0.06  # 工具筒体半径（米）；半径只径向、不含端球（端球会吃掉预抓取轴向余量）。
-      profile_id: hollow_cylinder_v1  # 当前末端工具档案标签（PregraspVerification.tool_profile_id）。基础值=固定圆柱；整栈由 launch tool_profile 档案注入覆盖。
+      body_length_m: 0.09  # 工具包络长（米，①层果实胶囊审查用）；与档案 geometry_m.body_length 对齐，整栈按档案注入。
+      body_radius_m: 0.11  # 工具包络半径（米）；半径只径向、不含端球（端球会吃掉预抓取轴向余量）；整栈按档案注入。
+      profile_id: adaptive_shear_v1  # 当前末端工具档案标签（PregraspVerification.tool_profile_id）。基础值=自适应剪切手；整栈由 launch tool_profile 档案注入覆盖。
     timeouts:
       service_s: 3.0  # 普通服务调用超时（秒）。
       refined_s: 30.0  # 等待精化结果的超时上限（秒）：须覆盖 BuildTargetModel 最终 TSDF 提取+refit。实测帧间隔 EMA 自适应，本值为未测得帧率时的回退值与上限。

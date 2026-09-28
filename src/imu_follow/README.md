@@ -4,8 +4,8 @@
 符号映射 → 锥限幅 → 平滑）叠加到参考 TCP 姿态上（位置钉死参考点），经
 **MoveIt Servo**（官方实时方案，`motion.backend=servo` 默认）或 FJT 流式
 （真机透传备选）下发。不是 peach 包：不进 lifecycle、不改只读 bringup、
-不订 peach 话题。`harvest_system` **仅** `tool_profile:=adaptive_cylinder_v1`
-时 Include `imu_follow_servo.launch.py`；空心末端不起。
+不订 peach 话题。`harvest_system` **仅** `tool_profile:=adaptive_shear_v1`
+时 Include `imu_follow_servo.launch.py`；非 IMU 末端不起。
 
 ## 双后端
 
@@ -32,10 +32,10 @@
 
 `~/insert_start` 在跟随会话内把位置目标从参考点沿 **insert_start 时刻工具
 开口方向（tip +Z，base 系锁定）** 按 `insert.speed_m_s`（0.01 m/s）低速推进、
-钳 `insert.max_travel_m`（0.20 m）行程；姿态照常跟 IMU。`~/insert_stop` 停
+钳 `insert.max_travel_m`（0.09 m）行程；姿态照常跟 IMU。`~/insert_stop` 停
 推进（跟随保持）。`~/insert_retract` 沿锁定开口把行程收回参考点。disable /
-断流 / 达行程上限都停推进。**peach** 仅对 `adaptive_cylinder_v1` FULL 在
-预抓取→套入→回预抓取窗内调这些服务；空心末端永不调用。未 enable 时
+断流 / 达行程上限都停推进。**peach** 仅对 `adaptive_shear_v1` FULL 在
+预抓取→套入→回预抓取窗内调这些服务；其余末端永不调用。未 enable 时
 pause servo，**勿与 peach MTC 同时写控制器**。peach 不自动
 `motion.enabled`（默认 false）。
 

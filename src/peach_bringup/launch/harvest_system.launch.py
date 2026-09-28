@@ -82,8 +82,8 @@ def generate_launch_description():
             'robot_ip', default_value='169.254.10.98',
             description='AUBO 控制器 IP；mock 模式不使用'),
         DeclareLaunchArgument(
-            'tool_profile', default_value='adaptive_cylinder_v1',
-            choices=['hollow_cylinder_v1', 'adaptive_cylinder_v1'],
+            'tool_profile', default_value='adaptive_shear_v1',
+            choices=['shear_v1', 'bite_shear_v1', 'adaptive_shear_v1'],
             description='末端工具档案'),
         DeclareLaunchArgument(
             'autostart', default_value='false',
@@ -169,7 +169,7 @@ def generate_launch_description():
             },
             condition=IfCondition(LaunchConfiguration('imu_enabled'))),
         # 自适应末端接触窗：预抓取→套入→回预抓取走 imu_follow+Servo。
-        # 空心末端不起本 Include（进程隔离）；peach 永不自动 motion.enabled。
+        # 非 IMU 工具不起本 Include（进程隔离）；peach 永不自动 motion.enabled。
         # 未 enable 时 follow_node pause servo，避免与 Survey/MovePregrasp MTC
         # 同时写 JTC。
         _include(
@@ -178,7 +178,7 @@ def generate_launch_description():
                 'motion_enabled': 'false',
             },
             condition=IfCondition(PythonExpression(
-                ["'", tool_profile, "' == 'adaptive_cylinder_v1'"]))),
+                ["'", tool_profile, "' == 'adaptive_shear_v1'"]))),
         _include(
             'peach_harvester', 'brain.launch.py',
             {

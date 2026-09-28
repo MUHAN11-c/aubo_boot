@@ -2,7 +2,7 @@
 # schema 与校验：peach_sim/params.py（未知键/越界值拒绝生成）。
 # 生成器 peach_sim/scene.py 由本文件确定性生成 worlds/peach_orchard.sdf 与
 # worlds/peach_orchard.manifest.yaml（seed 固定 → 同参数同产物，测试对账）。
-# 几何口径来源：aubo_description/config/adaptive_cylinder_v1.yaml（工具）与
+# 几何口径来源：aubo_description/config/adaptive_shear_v1.yaml（工具）与
 # runs/field_pregrasp_*/（现场袋底/袋颈/entry 实测包络）。
 # 长度单位米、角度单位度；区间键 [lo, hi] 生成期均匀采样。
 seed: 20260923
@@ -56,11 +56,11 @@ bag: # 套袋桃（袋体 + 果 + 袋颈扎口）；尺寸受 tool 余量约束
   row_spread: 0.45                    # [m] 挂果沿行方向最大横向散布
   alley_side_ratio: 0.7               # 挂在作业道一侧（可接近侧）的果占比
 
-tool: # 工具几何镜像（单一事实源 aubo_description/config/adaptive_cylinder_v1.yaml，测试对账）
-  profile_id: adaptive_cylinder_v1
-  d_inner: 0.116        # [m] 工具内径：袋体必须能通过
-  l_insert: 0.200       # [m] 最大插入深度：袋底→袋颈不得超出
-  clearance_min: 0.005  # [m] 袋体与内壁最小径向余量
+tool: # 工具几何镜像（单一事实源 aubo_description/config/adaptive_shear_v1.yaml，测试对账）
+  profile_id: adaptive_shear_v1
+  d_inner: 0.120        # [m] 工具开口径：目标须能进入
+  l_insert: 0.090       # [m] 最大插入深度：贴果行程不得超出
+  clearance_min: 0.005  # [m] 目标与开口最小径向余量
 
 platform: # 采摘工位：开源履带底盘改型 + AUBO E5（安装座在车体中线）
   face_row_index: 2       # 作业树行（rows 行索引）

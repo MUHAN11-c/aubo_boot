@@ -527,7 +527,7 @@ def ensure_profile_match(expected: str) -> None:
     out = subprocess.run(
         ['ros2', 'param', 'get', f'/{NODE}', 'tool.profile_id'],
         capture_output=True, text=True, timeout=20)
-    # `ros2 param get` 输出形如 "Parameter value: hollow_cylinder_v1"
+    # `ros2 param get` 输出形如 "Parameter value: shear_v1"
     actual = out.stdout.strip().rsplit(' ', 1)[-1]
     if out.returncode != 0 or not actual:
         raise RuntimeError(
@@ -571,8 +571,8 @@ def main() -> int:
         '--grid', action='store_true',
         help='跑 perception_constraint_grid.yaml（多变在达点位 + 倾角/行程/贴边/超臂展）')
     parser.add_argument(
-        '--tool-profile', default='adaptive_cylinder_v1',
-        choices=('hollow_cylinder_v1', 'adaptive_cylinder_v1'),
+        '--tool-profile', default='adaptive_shear_v1',
+        choices=('shear_v1', 'bite_shear_v1', 'adaptive_shear_v1'),
         help='写入 ExecuteTarget.tool_profile_id；须与 launch tool_profile 一致')
     args = parser.parse_args()
 

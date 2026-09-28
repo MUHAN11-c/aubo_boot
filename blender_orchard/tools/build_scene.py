@@ -175,7 +175,7 @@ def _crease(obj):
             dist = abs((vert.co.z - offset) - slope * vert.co.x)
             diagonal += math.exp(-((dist / 0.012) ** 2))
         pinch = 0.006 * groove + 0.0022 * max(0.0, wave) + 0.003 * diagonal
-        warp = 0.0024 * math.sin(vert.co.x * 55.0 + vert.co.z * 31.0)
+        warp = 0.005 * math.sin(vert.co.x * 55.0 + vert.co.z * 31.0)
         warp *= math.sin(vert.co.z * 22.0 + 0.7)
         vert.co.y += warp - math.copysign(pinch, vert.co.y)
     obj.data.update()

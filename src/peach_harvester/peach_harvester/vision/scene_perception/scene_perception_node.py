@@ -8,15 +8,19 @@ msg_builders，像素绘制在 debug_draw；节点只持锁、发消息、落盘
 from __future__ import annotations
 
 import json
+import time
 from typing import Optional, Tuple
 
 import cv2
 from cv_bridge import CvBridge
+from diagnostic_msgs.msg import DiagnosticStatus
+import diagnostic_updater
 from geometry_msgs.msg import Vector3, Vector3Stamped
 import message_filters
 import numpy as np
 from peach_common.lifecycle import break_bond, create_bond
 from peach_common.qos import latched, stream
+from peach_common.ros_log_bridge import bridge_module_loggers
 from peach_harvester.vision.common.geometry import (
     gravity_camera_from_R,
     normalize_depth_to_uint16_mm,
@@ -97,9 +101,21 @@ class ScenePerceptionNode(LifecycleNode):
     def __init__(self):
         """建节点：参数层装载 → 模型与管线 → 发布者、RGB-D 同步订阅与 TF 监听."""
         super().__init__('peach_scene_perception_node')
+        # 纯核 stdlib 日志桥接 /rosout（P0 观测性）：BoundedWorker/推理
+        # 引擎/写线程异常自此进 /rosout 与会话 bag，不再只落 stderr
+        bridge_module_loggers(self, [
+            'peach_harvester.vision.common.runtime',
+            'peach_harvester.vision.scene_perception.inference',
+            'peach_harvester.vision.scene_perception.identity',
+            'peach_harvester.vision.scene_perception.pose_pipelines',
+        ])
         self.bridge = CvBridge()
         # W14：nav2_lm 进程死检心跳句柄（configure 建 / deactivate-cleanup 断）
         self._bond = None
+        # /diagnostics 周期任务句柄（configure 建 / cleanup 释放）
+        self._diag = None
+        # 帧流活性（_on_rgbd 刷新；诊断投影用）
+        self._last_frame_mono = 0.0
         # 参数层一行接入：yaml 声明 + on-set 动态刷新（见 params.py）。
         self.params = ScenePerceptionParams.attach(self)
         self.tf_timeout = Duration(seconds=self.params.tf_timeout_sec)
@@ -107,12 +123,15 @@ class ScenePerceptionNode(LifecycleNode):
             seconds=self.params.tf_fallback_timeout_sec)
         self.get_logger().info(f'YOLO={self.params.yolo_model_path}')
         self.get_logger().info(f'SAM={self.params.sam_model_path}')
-        self._clock = RclpyClockAdapter(self.get_clock())
+        # 纯核时钟适配器：命名避开 rclpy 私有 _clock 槽位（覆盖会让
+        # 运行期 declare_parameter 的 parameter_event 打包取到 float 适配器
+        # 而崩——2026-09-29 E2E 冒烟实锤，诊断 Updater 声明期触发）
+        self._algo_clock = RclpyClockAdapter(self.get_clock())
         self.pipeline = PerceptionPipeline.from_params(
-            self.params, self._clock, logger=self.get_logger(),
+            self.params, self._algo_clock, logger=self.get_logger(),
             enable_fruit=False)
         self.plan_updater = PlanUpdater(
-            self.pipeline, self.params, self._clock)
+            self.pipeline, self.params, self._algo_clock)
         self.harvest_data = HarvestDataStore()
         self.get_logger().info(
             f'Subscribed color={self.params.color_topic} depth={self.params.depth_topic} '
@@ -255,7 +274,32 @@ class ScenePerceptionNode(LifecycleNode):
             return TransitionCallbackReturn.ERROR
         # W14：nav2_lm 进程死检心跳（缺 ros-jazzy-bondpy 时守卫降级为 WARN）
         self._bond = create_bond(self, self.get_name())
+        # /diagnostics 周期健康（P1：对齐 peach_arm W5 / observability W15）
+        self._diag = diagnostic_updater.Updater(self, period=5.0)
+        self._diag.setHardwareID(self.get_name())
+        self._diag.add('perception_health', self._diag_health)
         return TransitionCallbackReturn.SUCCESS
+
+    def _diag_health(self, stat):
+        """感知健康投影：帧流/worker 丢弃/开批前事件丢弃（只读）."""
+        now = time.monotonic()
+        age = (now - self._last_frame_mono) if self._last_frame_mono else None
+        dropped = getattr(self._frame_worker, 'dropped', 0)
+        pre_run = getattr(self.harvest_data, 'dropped_before_run', 0)
+        if self._lifecycle_active and age is None:
+            stat.summary(DiagnosticStatus.WARN, 'active 但从未收到 RGB-D 帧')
+        elif self._lifecycle_active and age is not None and age > 10.0:
+            stat.summary(
+                DiagnosticStatus.WARN, f'帧流陈旧 {age:.1f}s')
+        elif dropped > 0 or pre_run > 0:
+            stat.summary(DiagnosticStatus.WARN, '有丢弃（见字段）')
+        else:
+            stat.summary(DiagnosticStatus.OK, 'perception healthy')
+        stat.add('active', str(self._lifecycle_active))
+        stat.add('last_frame_age_s', '-' if age is None else f'{age:.1f}')
+        stat.add('worker_dropped', str(dropped))
+        stat.add('pre_run_dropped_events', str(pre_run))
+        return stat
 
     def on_activate(self, state):
         result = super().on_activate(state)
@@ -275,6 +319,7 @@ class ScenePerceptionNode(LifecycleNode):
         self._lifecycle_active = False
         break_bond(self._bond)
         self._bond = None
+        self._diag = None
         self._unwire_ros()
         return super().on_cleanup(state)
 
@@ -481,6 +526,7 @@ class ScenePerceptionNode(LifecycleNode):
 
     def _on_rgbd(self, rgb_msg: Image, depth_msg: Image, info: CameraInfo):
         """将最新同步帧交给容量一推理 worker."""
+        self._last_frame_mono = time.monotonic()
         if not self._lifecycle_active:
             return
         if not self._frame_worker.submit((rgb_msg, depth_msg, info)):
@@ -575,7 +621,7 @@ class ScenePerceptionNode(LifecycleNode):
     def _process_rgbd(self, frame):
         """Decode RGB-D, run pipeline.process, then publish."""
         rgb_msg, depth_msg, info = frame
-        t_total_start = self._clock.now()
+        t_total_start = self._algo_clock.now()
         self._report_worker_drops()
         self.get_logger().debug(
             f'RGB-D sync frame {rgb_msg.width}x{rgb_msg.height}')
@@ -588,7 +634,7 @@ class ScenePerceptionNode(LifecycleNode):
             return
         self._publish_frame(synced, out)
         self.pipeline.timing.record(
-            'total_ms', (self._clock.now() - t_total_start) * 1e3)
+            'total_ms', (self._algo_clock.now() - t_total_start) * 1e3)
 
     def _report_worker_drops(self) -> None:
         # P0-4：drop_oldest 下 submit 恒真，丢帧只有这里能看见；只在计数

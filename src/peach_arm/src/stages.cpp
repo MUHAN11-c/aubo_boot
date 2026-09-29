@@ -152,17 +152,32 @@ bool ManipulationSkillsNode::waitForFreshCycleTarget(
 bool ManipulationSkillsNode::waitForRefined(const std::string & target_id)
 {
   if (params_.quality.allow_unrefined_geometry) {
-    if (cache_.promoteUnrefinedGeometry(target_id)) {
-      RCLCPP_WARN(
-        get_logger(),
-        "quality.allow_unrefined_geometry: 用场景观测几何代替重建精化 target=%s",
-        target_id.c_str());
-      return true;
+    // 未精化锚点随观测流进缓存：感知在派发后的下一帧才标记 selected/锁定，
+    // 一次性判定会与派发竞态（09-29 真相机轮实锤：supervisor 派发 2ms 后
+    // 即判「无有效场景几何」，随后观测流带着非零锚点到达）。短窗轮询，
+    // 期间可取消；窗口后仍无锚点才落到精化等待（skip 模式下即失败收口）。
+    const double window_s = std::min(effectiveRefinedWaitS(), 3.0);
+    const auto deadline = now() + rclcpp::Duration::from_seconds(window_s);
+    std::string last_reject = "no_cached_anchor";
+    while (rclcpp::ok() && !cancel_requested_ && now() < deadline) {
+      std::string reject_reason;
+      if (cache_.promoteUnrefinedGeometry(target_id, &reject_reason)) {
+        RCLCPP_WARN(
+          get_logger(),
+          "quality.allow_unrefined_geometry: 用场景观测几何代替重建精化 target=%s",
+          target_id.c_str());
+        return true;
+      }
+      if (!reject_reason.empty()) {
+        last_reject = reject_reason;
+      }
+      std::this_thread::sleep_for(100ms);
     }
     RCLCPP_WARN(
       get_logger(),
-      "quality.allow_unrefined_geometry 但无有效场景几何 target=%s",
-      target_id.c_str());
+      "quality.allow_unrefined_geometry 但 %.1fs 内无有效场景几何 target=%s"
+      "（拒因=%s）",
+      window_s, target_id.c_str(), last_reject.c_str());
   }
   return cache_.waitForRefined(target_id, effectiveRefinedWaitS(), cancel_requested_);
 }
@@ -508,6 +523,8 @@ bool ManipulationSkillsNode::stagePrepareCycle(CycleContext & ctx)
       " 当前 selected=" + ctx.target->id);
   }
   ctx.target_id = ctx.target->id;
+  // 接触段日志上下文（P0 观测性）：GraspTask 内部日志自此可归属到目标
+  grasp_task_->setTargetContext(ctx.target_id);
   setState(CycleState::PLAN_OBSERVATION, "生成目标导向主动视点", ctx.target_id);
   const auto base_from_camera = motion_->lookupTransform(params_.frames.base,
       params_.frames.camera);

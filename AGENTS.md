@@ -177,7 +177,7 @@ ISO 10218 要求独立的正常停止、保护停止、急停，且急停优先�
 
 **KEEP：** 示教器上电与抱闸；不起 dashboard、不远程上电；`ExecutionAuthority`；使能默认关；launch 不自动接触；停轨 = 透传 abort + `RobotMoveStop`（失败再 `robotMoveFastStop`）；`robot_status` 给安全门看抱闸 / `motion_possible` / 急停**状态**（观测，不是急停通道）；刀默认关。
 
-**UNWIND / 缺口：** lifecycle bond 已接线（2026-09-20 W14：`peach_arm` bondcpp 生效、Python 三节点守卫式 bondpy——本机缺 `ros-jazzy-bondpy` 时降级 WARN，apt 装上并把 launch `bond_timeout` 置 8.0 即开 nav2_lm 进程死检；未开启期死检仍由 supervisor HeartbeatWatchdog 承担）；`diagnostic_updater` 已上 `peach_arm`（W5 双轨）、`peach_observability`（W15 双轨）、`serial_imu`，感知/重建/调度仍未用；腕轴 `ContactMonitor` 已有、默认关（须真机标定），不是 Nav2 Collision Monitor，**不能**代替柜急停；`imu_follow` 开运动时不经 `authorizeStage`（默认 `motion.enabled=false`；Servo 已有 `incoming_command_timeout`）。
+**UNWIND / 缺口：** lifecycle bond 已接线（2026-09-20 W14：`peach_arm` bondcpp 生效、Python 三节点守卫式 bondpy——本机缺 `ros-jazzy-bondpy` 时降级 WARN，apt 装上并把 launch `bond_timeout` 置 8.0 即开 nav2_lm 进程死检；未开启期死检仍由 supervisor HeartbeatWatchdog 承担）；`diagnostic_updater` 2026-09-29 观测性轮起**全节点覆盖**（`peach_arm` 9 任务、感知/重建/调度/lifecycle_manager/scene_obstacles/observability/vegetation/stereo/serial_imu；`/diagnostics` 由 observability 订阅聚合进 8090）；腕轴 `ContactMonitor` 已有、默认关（须真机标定），不是 Nav2 Collision Monitor，**不能**代替柜急停；`imu_follow` 开运动时不经 `authorizeStage`（默认 `motion.enabled=false`；Servo 已有 `incoming_command_timeout`）。
 
 ### 真机操作纪律
 
@@ -383,7 +383,7 @@ TurtleBot 4 / Stretch / UR 的做法：同一套控制器与 MoveIt，只换硬�
 - 相对名可随 namespace 搬迁；绝对 `/` 名谨慎（多机/多臂会撞）
 - 改字段：IDL → 接口 README / manifest → [docs/io.md](docs/io.md) → 各端 pub/sub → **先编接口包再编下游**
 - 核对：`python3 src/peach_interfaces/scripts/check_interface_manifest.py`（Autoware 同类：manifest 与实现对齐，漂移即失败）
-- 消费者列必须对上真实订阅：调度只订 `target_observations` 与 `managed_nodes_activated`，不要把 `initial_pose` / `grasp_decision` 写成调度订阅（KEEP：这是契约正确性，不是禁 pluginlib）
+- 消费者列必须对上真实订阅：调度订 `target_observations`、`grasp_decision`（闩锁许可令牌缓存，3c-2a，非选果输入）与 `managed_nodes_activated`；`initial_pose` 只进重建，不是调度订阅（KEEP：这是契约正确性，不是禁 pluginlib）
 - 预留 IDL（导航等）放 manifest `reserved_interfaces`，无生产方；不要假装有节点在发
 
 ### C++ / Python 公有 API
@@ -645,7 +645,7 @@ gtest 放本包 `test/`，链到纯核静态库，不 `spin` 整个技能节点�
 
 只记录现在跑什么。没有 KEEP 理由的条目见第 12 章，标 UNWIND。细节链到三份活文档，不把 architecture 复制进来。
 
-产品：固定座 AUBO E5 + Percipio RGB-D；愿景含底盘。`peach_navigation` 已归档 `_archive/parked_2026-09/`。IVG 三包不是 peach，不进 `harvest_system` / lifecycle（产品范围 KEEP）。`imu_follow` 不是 peach、不进 lifecycle；仅 `adaptive_cylinder_v1` 随 `harvest_system` Include（空心末端不起）。`imu_follow` 开运动时不经 `authorizeStage`（peach 接触窗只调 Trigger；`motion.enabled` 默认 false），真机须另授权。
+产品：固定座 AUBO E5 + Percipio RGB-D；愿景含底盘。`peach_navigation` 已归档 `_archive/parked_2026-09/`。IVG 三包不是 peach，不进 `harvest_system` / lifecycle（产品范围 KEEP）。`imu_follow` 不是 peach、不进 lifecycle；仅 `adaptive_shear_v1` 随 `harvest_system` Include（shear/bite 两档不起）。`imu_follow` 开运动时不经 `authorizeStage`（peach 接触窗只调 Trigger；`motion.enabled` 默认 false），真机须另授权。
 
 ### KEEP（完美适配当前实现）
 
@@ -656,9 +656,9 @@ gtest 放本包 `test/`，链到纯核静态库，不 `spin` 整个技能节点�
 - mock = `mock_components/GenericSystem` + 标准 JTC（与 UR 主流一致，这是主流不是特例）
 - 重建积分精确 stamp TF（tf2 主流）
 - 采摘能力包跨包只走 `peach_interfaces` + manifest 核对（Autoware 同类）；柜侧 `RobotStatus` / `SetIO` 走 `aubo_msgs`
-- 套袋工艺：`GraspDecision.allowed` 只授权套入 / 剪切；`PREGRASP_ONLY` 不要求 `allowed`；停走式相机节拍（产品相机模型，不是 5 Hz 连续积分）
+- 套袋工艺：`GraspDecision` 许可令牌族只授权套入 / 剪切（`allowed` 为汇总位，臂侧 CONTACT/TOOL 各查 radial/axial 余量——批次4 分档）；`PREGRASP_ONLY` 不要求许可；停走式相机节拍（产品相机模型，不是 5 Hz 连续积分）
 - `harvest_fsm.react` 纯核；节点禁止手写 `batch_state`
-- 调度只订 `target_observations` 与 `managed_nodes_activated`，不要把 `initial_pose` / `grasp_decision` 写成调度订阅
+- 调度订 `target_observations`、`grasp_decision`（闩锁许可令牌缓存，非选果输入）与 `managed_nodes_activated`；`initial_pose` 只进重建
 - 感知不发运动、不选下一颗、不写 `ledger.json`（可写 `perception_data` 事件）；技能不写 `ledger.json`、不调重建 Trigger
 - LifecyclePublisher（如 `grasp_hypothesis`）须 `on_activate`
 - 8090 作为**纯调试客户端**（无令牌；运动另需 `debug.motion_enabled`）可 KEEP；不得做成第二控制面或产品前端
@@ -674,7 +674,7 @@ gtest 放本包 `test/`，链到纯核静态库，不 `spin` 整个技能节点�
 |----|----------|----------|
 | `peach_interfaces` | 唯一 IDL + manifest 双向核对 | 不跑节点 |
 | `peach_common` | Python 共享库（对齐 nav2_common）：yaml_params/param_rules/qos/paths 单源（W1 起，各包旧路径留 shim） | 不跑节点、不进 launch |
-| `peach_harvester` | 大脑一进程三节点：`vision`（场景观测+目标重建）+ `supervisor`（批次 FSM/选果/视点两档/批次策略/操作台服务/账本+补采清单）；台架独立入口保留 | 不发关节命令、不做 IK（问臂） |
+| `peach_harvester` | 大脑一进程三节点：`vision`（场景观测+目标重建）+ `supervisor`（批次 FSM/选果/视点两档/批次策略/操作台服务/账本+补采清单）+ `peach_scene_obstacles` 场景障碍快照独立进程（0035，Survey 触发护相机）；台架独立入口保留 | 不发关节命令、不做 IK（问臂） |
 | `peach_arm` | `MoveTo` / 接触 `ExecuteTarget`（检查点+令牌双路）/ `CheckReachability`；命令门=enables×clearance×robotReady×¬cancel；GPL 参数单源 | 不写 `ledger.json`、不选目标 |
 | `peach_bringup` | 整栈入口、预检、nav2_lm 托管、autostart 客户端、生命周期桥 | 不含业务 |
 | `peach_observability` | 8090 / 会话 bag / `peach_bag_report` | 不发运动 |
@@ -691,7 +691,7 @@ lifecycle 名单现行（nav2_lm 承载，`bond_timeout` launch 参数默认 0�
 - peach 节点不用 composition（已核实平台阻断：Python 无组件容器；LifecycleNode 不入 ComponentManager，证据见 architecture 偏离表——进程隔离+bond 是当前可达上限）
 - 禁止 gtest / launch_testing / 采摘仿真测（决策 0006）
 - 无 Gazebo / Isaac 系统测；industrial_ci 已进 workflow（忽略 IVG / `imu_follow` / `percipio_camera` / `camera_calibration`）
-- diagnostic_updater 仅 `peach_arm`/`peach_observability`/`serial_imu` 在用（感知/重建/调度仍缺口）
+- ~~diagnostic_updater 仅三包在用~~ 已收口（2026-09-29 观测性轮：全节点 + `/diagnostics` 消费闭环进 8090；peach_stereo 包 lint 预存红未修）
 - 8090 若越权成第二控制面（纯调试客户端仍 KEEP）
 - 腕轴 `ContactMonitor` 默认关；无 Nav2 Collision Monitor 同类独立监视（**不能**代替柜急停）
 - `imu_follow` 开运动时旁路 `authorizeStage`（默认门关；Servo 已有命令超时）

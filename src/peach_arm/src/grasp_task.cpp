@@ -31,6 +31,7 @@
 #include <memory>
 #include <moveit_msgs/srv/get_motion_sequence.hpp>
 #include <moveit_msgs/action/execute_trajectory.hpp>
+#include <moveit/utils/moveit_error_code.hpp>
 #include <optional>
 #include <sstream>
 #include <string>
@@ -246,6 +247,18 @@ void GraspTask::setContactAcm(const std::string & target_id, ContactAcmStage sta
   pending_acm_stage_ = stage;
 }
 
+void GraspTask::setTargetContext(const std::string & target_id)
+{
+  target_context_ = target_id;
+}
+
+std::string GraspTask::tctx() const
+{
+  return target_context_.empty() ?
+         std::string() :
+         "[" + target_context_ + "] ";
+}
+
 std::shared_ptr<mtc::solvers::PipelinePlanner> GraspTask::makePilzSolver(
   const std::string & planner_id,
   double velocity_scaling,
@@ -360,7 +373,9 @@ void GraspTask::syncKeepoutCollisionObjects() const
 }
 
 // ③层工具豁免合并实现（W5-5，原整图/轮内两份 90% 重复）：
-//   - 整图：工具链（tool.links 档案）× <octomap> = allowed；
+//   - 整图：场景障碍豁免条目（acm_policy::obstacleExemptionEntries，
+//     2026-09-29 避障只为保护相机：豁免清单×{<octomap>}∪obstacle_object_ids，
+//     guard 开关控制相机连杆是否受查）；
 //   - per_target_id 非空（PerTarget 策略）：接触阶段 指定目标对象 × 接触
 //     连杆（tool.contact_links 档案，经 acmAllows 阶段策略过滤）。
 // MoveIt setPlanningSceneDiffMsg 在 ACM entry_names 非空时用消息矩阵
@@ -372,6 +387,7 @@ void GraspTask::applyOctomapExemptionImpl(
   const rclcpp::Logger & logger,
   moveit::planning_interface::PlanningSceneInterface & scene,
   const std::vector<std::string> & tool_links,
+  const ObstacleExemptionSpec & obstacle_spec,
   const std::vector<std::string> & contact_tool_links,
   const std::string & per_target_id,
   ContactAcmStage per_target_stage)
@@ -384,7 +400,7 @@ void GraspTask::applyOctomapExemptionImpl(
     "/get_planning_scene");
   if (!client->wait_for_service(std::chrono::seconds(2))) {
     RCLCPP_WARN(
-      logger, "get_planning_scene 不可用，跳过工具×octomap ACM 豁免");
+      logger, "get_planning_scene 不可用，跳过场景障碍 ACM 豁免");
     return;
   }
   auto request = std::make_shared<moveit_msgs::srv::GetPlanningScene::Request>();
@@ -395,20 +411,20 @@ void GraspTask::applyOctomapExemptionImpl(
     helper, future, std::chrono::seconds(2));
   if (spin_rc != rclcpp::FutureReturnCode::SUCCESS) {
     RCLCPP_WARN(
-      logger, "读取现行 ACM 超时，跳过工具×octomap 豁免（避免整表替换）");
+      logger, "读取现行 ACM 超时，跳过场景障碍豁免（避免整表替换）");
     return;
   }
   const auto response = future.get();
   if (!response || response->scene.allowed_collision_matrix.entry_names.empty()) {
     RCLCPP_WARN(
-      logger, "现行 ACM 为空，跳过工具×octomap 豁免（避免冲掉 SRDF）");
+      logger, "现行 ACM 为空，跳过场景障碍豁免（避免冲掉 SRDF）");
     return;
   }
   collision_detection::AllowedCollisionMatrix acm(
     response->scene.allowed_collision_matrix);
   if (allowToolVersusWholeOctomap()) {
-    for (const auto & link : tool_links) {
-      acm.setEntry(link, "<octomap>", true);
+    for (const auto & [link, object] : obstacleExemptionEntries(obstacle_spec)) {
+      acm.setEntry(link, object, true);
     }
   }
   // 接触阶段只对接触连杆 × 指定目标对象放行；默认不豁免整张 octomap。
@@ -423,16 +439,31 @@ void GraspTask::applyOctomapExemptionImpl(
   diff.is_diff = true;
   diff.robot_state.is_diff = true;
   acm.getMessage(diff.allowed_collision_matrix);
-  scene.applyPlanningScene(diff);
+  const bool applied = scene.applyPlanningScene(diff);
+  // 09-29 真相机轮勘定：成功必须留痕——此前静默成功/静默失败都无日志，
+  // 起点碰撞排查时无法区分「条目没写」与「写了被覆盖」。
+  const size_t obstacle_entries = allowToolVersusWholeOctomap() ?
+    obstacleExemptionEntries(obstacle_spec).size() : 0U;
+  if (applied) {
+    RCLCPP_INFO(
+      logger, "场景障碍 ACM 豁免已应用: %zu 条（含 <octomap> 保留名）",
+      obstacle_entries);
+  } else {
+    RCLCPP_WARN(
+      logger, "场景障碍 ACM 豁免写入失败（applyPlanningScene 返回 false）");
+  }
 }
 
 void GraspTask::applyWholeOctomapToolExemption(
   const rclcpp::Logger & logger,
   moveit::planning_interface::PlanningSceneInterface & scene,
-  const std::vector<std::string> & tool_links)
+  const std::vector<std::string> & tool_links,
+  const ObstacleExemptionSpec & obstacle_spec)
 {
+  ObstacleExemptionSpec spec = obstacle_spec;
+  spec.exempt_links = tool_links;
   applyOctomapExemptionImpl(
-    logger, scene, tool_links, {}, std::string(), ContactAcmStage::Transit);
+    logger, scene, tool_links, spec, {}, std::string(), ContactAcmStage::Transit);
 }
 
 void GraspTask::applyToolOctomapExemption(
@@ -441,7 +472,11 @@ void GraspTask::applyToolOctomapExemption(
 {
   applyOctomapExemptionImpl(
     node_ ? node_->get_logger() : rclcpp::get_logger("peach_arm"), scene,
-    config_.tool_links, config_.contact_tool_links,
+    config_.tool_links,
+    ObstacleExemptionSpec{
+      config_.tool_links, config_.obstacle_guard_links,
+      config_.obstacle_object_ids, config_.obstacle_guard_enabled},
+    config_.contact_tool_links,
     policy == OctomapExemptionPolicy::PerTarget ? pending_acm_target_id_ :
     std::string(), pending_acm_stage_);
 }
@@ -775,6 +810,11 @@ GraspTaskResult GraspTask::executeBlendedCorridor(
   output.success = rc == moveit::core::MoveItErrorCode::SUCCESS && !abandoned;
   output.reason = output.success ?
     "blended corridor succeeded" : "blended corridor failed";
+  if (!output.success) {
+    RCLCPP_WARN(
+      node_->get_logger(), "%s混成走廊执行失败（弃等=%d）",
+      tctx().c_str(), abandoned ? 1 : 0);
+  }
   return output;
 }
 
@@ -951,8 +991,8 @@ bool GraspTask::tryStagingTransit(
     return true;
   }
   RCLCPP_WARN(
-    node_->get_logger(), "sequence 走廊不可用（%s），降级 MTC LIN",
-    corridor.reason.c_str());
+    node_->get_logger(), "%ssequence 走廊不可用（%s），降级 MTC LIN",
+    tctx().c_str(), corridor.reason.c_str());
   auto lin_task = makeTaskShell(task_name + "_corridor_lin");
   auto seq = std::make_unique<mtc::SerialContainer>("unblended corridor");
   appendLinToPose(*seq, w.mid, "vertical canopy entry lin", true);
@@ -1373,6 +1413,9 @@ GraspTaskResult GraspTask::executeSolution(
     output.reason = "MTC execution succeeded";
   } else {
     output.reason = "MTC execution failed";
+    RCLCPP_WARN(
+      node_->get_logger(), "%sMTC 执行失败: %s", tctx().c_str(),
+      moveit::core::errorCodeToString(execute_result).c_str());
   }
   return output;
 }

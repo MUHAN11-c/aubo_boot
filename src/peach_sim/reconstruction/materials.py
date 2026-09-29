@@ -12,13 +12,15 @@ TEXDIR = Path(__file__).resolve().parent / 'textures'
 
 
 def _apply_detail(m, p, filename, coords='GENERATED', scale=1.0,
-                  color_factor=0.0, bump_strength=0.0, bump_distance=0.0):
+                  color_factor=0.0, bump_strength=0.0, bump_distance=0.0, is_data=False):
     """Packed image detail: multiply into base color and chain a bump layer."""
     path = TEXDIR / filename
     if not path.exists():
         print('detail texture missing, procedural only:', path)
         return
     img = bpy.data.images.load(str(path))
+    if is_data:
+        img.colorspace_settings.is_data = True
     img.pack()
     n = m.node_tree.nodes
     l = m.node_tree.links
@@ -28,7 +30,8 @@ def _apply_detail(m, p, filename, coords='GENERATED', scale=1.0,
     mapping = n.new('ShaderNodeMapping')
     mapping.inputs['Scale'].default_value = (scale, scale, 1.0)
     source = n.new('ShaderNodeTexCoord')
-    l.new(source.outputs['UV' if coords == 'UV' else 'Generated'],
+    coordinate = {'UV': 'UV', 'OBJECT': 'Object', 'GENERATED': 'Generated'}[coords]
+    l.new(source.outputs[coordinate],
           mapping.inputs['Vector'])
     l.new(mapping.outputs['Vector'], tex.inputs['Vector'])
     if color_factor > 0.0:
@@ -59,11 +62,18 @@ def _apply_detail(m, p, filename, coords='GENERATED', scale=1.0,
         l.new(bump.outputs['Normal'], target)
 
 
+def _principled(m):
+    """Type-based lookup: node names follow the UI language when the
+    'translate new data' preference is on (Chinese UI renames it
+    原理化BSDF), so never fetch the Principled BSDF by name."""
+    return next(n for n in m.node_tree.nodes if n.type == 'BSDF_PRINCIPLED')
+
+
 def material(name, color, roughness):
     m = bpy.data.materials.new(name)
     m.diffuse_color = (*color, 1)
     m.use_nodes = True
-    p = m.node_tree.nodes.get('Principled BSDF')
+    p = _principled(m)
     p.inputs['Base Color'].default_value = (*color, 1)
     p.inputs['Roughness'].default_value = roughness
     p.inputs['Specular IOR Level'].default_value = .18
@@ -92,6 +102,11 @@ def textured(name, colors, scale, bump_distance, roughness=.6):
     bump.inputs['Distance'].default_value = bump_distance
     l.new(fine.outputs['Fac'], bump.inputs['Height'])
     l.new(bump.outputs['Normal'], p.inputs['Normal'])
+    if name.startswith(('Soil', 'Grass')):
+        # A 200 m plane must not stretch one texture over the whole orchard.
+        coords = n.new('ShaderNodeTexCoord')
+        l.new(coords.outputs['Object'], tex.inputs['Vector'])
+        l.new(coords.outputs['Object'], fine.inputs['Vector'])
     if 'Bark' in name:
         coords = n.new('ShaderNodeTexCoord')
         mapping = n.new('ShaderNodeVectorMath')
@@ -112,28 +127,26 @@ def textured(name, colors, scale, bump_distance, roughness=.6):
 
 
 def _bsdf(m):
-    return m.node_tree.nodes.get('Principled BSDF')
+    return _principled(m)
 
 
 def create():
     mats = {}
     for i, (a, b) in enumerate([
-        ((.18, .022, .025), (.32, .058, .047)),
-        ((.25, .033, .025), (.39, .075, .047)),
-        ((.19, .030, .025), (.32, .065, .047)),
+        ((.20, .032, .037), (.28, .054, .051)),
+        ((.25, .043, .038), (.34, .072, .061)),
+        ((.21, .038, .036), (.29, .065, .055)),
         ((.36, .195, .072), (.53, .31, .13)),
     ]):
         mats[f'paper{i}'] = textured(
-            f'Paper / pigment variant {i}', (a, b), 8, .00025, .74)
-        # Bump only: paper.png folds must catch light, but multiplying its
-        # saturated red into the base color pushes bags off the dataset
-        # colour distribution (median 101,60,55) and costs YOLO recall on
-        # reference bags (measured 2026-09-28: reference view 9->7 matches).
+            f'Paper / pigment variant {i}', (a, b), 8, .00025, .86)
+        # Scalar height map: no pigment multiplication and no colour transform.
         _apply_detail(mats[f'paper{i}'], _bsdf(mats[f'paper{i}']),
-                      'paper.png', coords='UV', scale=3.0, color_factor=0.0,
-                      bump_strength=.8, bump_distance=.0004)
+                      'paper_height.png', coords='UV', scale=1.0,
+                      bump_strength=.7, bump_distance=.0025, is_data=True)
+        _bsdf(mats[f'paper{i}']).inputs['Roughness'].default_value = .78
     mats['bark'] = textured('Bark / aged silver brown',
-                            ((.022, .018, .013), (.13, .105, .075)), 18, .012, .86)
+                            ((.075, .064, .052), (.24, .20, .16)), 18, .0015, .86)
     _apply_detail(mats['bark'], _bsdf(mats['bark']),
                   'bark.png', coords='GENERATED', scale=1.0, color_factor=.35,
                   bump_strength=.5, bump_distance=.002)
@@ -155,14 +168,25 @@ def create():
         ramp = n.new('ShaderNodeValToRGB')
         r = ramp.color_ramp
         r.elements[0].position = .0
-        r.elements[0].color = (.009, .036, .004, 1)
+        # v4 anchor renders measured foliage (50,79,39). This lift aims at
+        # PeachDataSet RGB foliage (n=60): median (72,98,62), chroma 0.36.
+        r.elements[0].color = (.078, .140, .047, 1)
         r.elements[1].position = 1.
-        r.elements[1].color = (.011, .042, .004, 1)
-        for pos, c in [(.43, (.022 + i * .003, .072 + i * .006, .012, 1)), (.493,
-                                                                            (.07, .12, .024, 1)), (.507, (.07, .12, .024, 1)), (.57, (.030, .082, .016, 1))]:
+        r.elements[1].color = (.084, .150, .050, 1)
+        for pos, c in [(.43, (.102 + i * .008, .188 + i * .014, .065, 1)),
+                       (.496, (.135, .219, .090, 1)),
+                       (.504, (.135, .219, .090, 1)),
+                       (.57, (.112, .206, .072, 1))]:
             r.elements.new(pos).color = c
         l.new(sep.outputs['Y'], ramp.inputs[0])
-        l.new(ramp.outputs[0], p.inputs['Base Color'])
+        # A paler lower epidermis, visible when leaves roll or droop.
+        back = n.new('ShaderNodeNewGeometry')
+        underside = n.new('ShaderNodeMixRGB')
+        underside.blend_type = 'MULTIPLY'
+        underside.inputs[2].default_value = (1.6, 1.4, 1.7, 1)
+        l.new(back.outputs['Backfacing'], underside.inputs[0])
+        l.new(ramp.outputs[0], underside.inputs[1])
+        l.new(underside.outputs[0], p.inputs['Base Color'])
         # Repeated oblique secondary veins, mirrored on both sides of the
         # midrib.
 
@@ -186,29 +210,57 @@ def create():
             'SUBTRACT', mathnode(
                 'MULTIPLY', sep.outputs['X'], 15), mathnode(
                 'MULTIPLY', across, 3.5))
-        vein = mathnode('LESS_THAN', mathnode('FRACT', phase), .075)
+        vein = mathnode('LESS_THAN', mathnode('FRACT', phase), .045)
+        vein_color = n.new('ShaderNodeMixRGB')
+        vein_color.blend_type = 'MULTIPLY'
+        l.new(vein, vein_color.inputs[0])
+        l.new(underside.outputs[0], vein_color.inputs[1])
+        vein_color.inputs[2].default_value = (1.13, 1.10, .98, 1)
+        pigment = n.new('ShaderNodeTexNoise')
+        pigment.inputs['Scale'].default_value = 18
+        pigment.inputs['Detail'].default_value = 3
+        l.new(uv.outputs['UV'], pigment.inputs['Vector'])
+        mottling = n.new('ShaderNodeMixRGB')
+        mottling.blend_type = 'MULTIPLY'
+        mottling.inputs[0].default_value = .16
+        l.new(vein_color.outputs[0], mottling.inputs[1])
+        l.new(pigment.outputs['Fac'], mottling.inputs[2])
+        l.new(mottling.outputs[0], p.inputs['Base Color'])
         bump = n.new('ShaderNodeBump')
         bump.inputs['Distance'].default_value = .00015
         bump.inputs['Strength'].default_value = .55
         l.new(vein, bump.inputs['Height'])
-        l.new(bump.outputs[0], p.inputs['Normal'])
+        micro = n.new('ShaderNodeTexNoise')
+        micro.inputs['Scale'].default_value = 85
+        micro.inputs['Detail'].default_value = 2
+        l.new(uv.outputs['UV'], micro.inputs['Vector'])
+        epidermis = n.new('ShaderNodeBump')
+        epidermis.inputs['Distance'].default_value = .00006
+        epidermis.inputs['Strength'].default_value = .18
+        l.new(micro.outputs['Fac'], epidermis.inputs['Height'])
+        l.new(bump.outputs[0], epidermis.inputs['Normal'])
+        l.new(epidermis.outputs[0], p.inputs['Normal'])
         p.inputs['Subsurface Weight'].default_value = .045
-        p.inputs['Roughness'].default_value = .48 + i * .035
-        p.inputs['Specular IOR Level'].default_value = .22
+        p.inputs['Roughness'].default_value = .30 + i * .035
+        p.inputs['Specular IOR Level'].default_value = .45
         trans = n.new('ShaderNodeBsdfTranslucent')
-        l.new(ramp.outputs[0], trans.inputs[0])
+        l.new(underside.outputs[0], trans.inputs[0])
         mix = n.new('ShaderNodeMixShader')
-        mix.inputs[0].default_value = .22
+        mix.inputs[0].default_value = .28
         l.new(p.outputs[0], mix.inputs[1])
         l.new(trans.outputs[0], mix.inputs[2])
-        l.new(mix.outputs[0], n.get('Material Output').inputs['Surface'])
+        output = next((o for o in n if o.type == 'OUTPUT_MATERIAL'), None)
+        if output is not None:
+            l.new(mix.outputs[0], output.inputs['Surface'])
         mats[f'leaf{i}'] = m
     mats['soil'] = textured('Soil / humus and dry crumbs',
-                            ((.035, .022, .012), (.16, .105, .055)), 45, .012, .94)
+                            ((.11, .08, .05), (.27, .20, .13)), 1.4, .003, .94)
     _apply_detail(mats['soil'], _bsdf(mats['soil']),
-                  'soil.png', coords='GENERATED', scale=4.0, color_factor=.4)
+                  'soil.png', coords='OBJECT', scale=.8, color_factor=.25)
     mats['grass'] = textured('Grass / living groundcover',
-                             ((.045, .08, .009), (.12, .19, .026)), 8, .001, .66)
+                             ((.065, .13, .02), (.20, .32, .06)), 8, .001, .66)
     _apply_detail(mats['grass'], _bsdf(mats['grass']),
-                  'grass.png', coords='GENERATED', scale=5.0, color_factor=.4)
+                  'grass.png', coords='OBJECT', scale=1.5, color_factor=.25)
+    mats['litter'] = textured('Dry fallen peach leaves',
+                               ((.055, .028, .009), (.20, .12, .035)), 5, .0002, .95)
     return mats

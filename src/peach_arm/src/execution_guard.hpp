@@ -127,6 +127,7 @@ moveit::core::MoveItErrorCode runBoundedExecute(
   const auto deadline = std::chrono::steady_clock::now() +
     std::chrono::duration<double>(timeout_s);
   bool triggered = false;
+  bool by_timeout = false;
   while (!triggered &&
     shared_result.wait_for(std::chrono::milliseconds(100)) !=
     std::future_status::ready)
@@ -135,11 +136,19 @@ moveit::core::MoveItErrorCode runBoundedExecute(
       triggered = true;
     } else if (std::chrono::steady_clock::now() >= deadline) {
       triggered = true;
+      by_timeout = true;
     }
   }
   if (!triggered) {
     worker.join();
     return settleResult(shared_result);
+  }
+  // 触发点留痕（P0 观测性）：此前超时移交只体现为调用方的失败 reason
+  if (by_timeout) {
+    RCLCPP_WARN(
+      logger, "有界执行超时（%.1fs），已发起停止并进入 10s 宽限", timeout_s);
+  } else {
+    RCLCPP_INFO(logger, "有界执行收到取消，已发起停止并进入 10s 宽限");
   }
   if (stop_fn) {
     stop_fn();
@@ -152,6 +161,10 @@ moveit::core::MoveItErrorCode runBoundedExecute(
   }
   retiring.add(std::move(worker), finished);
   *abandoned = true;
+  RCLCPP_WARN(
+    logger,
+    "有界执行弃等：10s 宽限后执行线程未完结，移交 retire 桶（%s）",
+    by_timeout ? "超时" : "取消");
   return moveit::core::MoveItErrorCode::FAILURE;
 }
 

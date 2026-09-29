@@ -1,6 +1,6 @@
 # 人工控制批次（暂停/恢复/取消/跳过/ACK）。监控 Web 默认不发（debug 三重门）。
-# 服务：/peach_executor/control
-# 服务端：peach_executor    客户端：人工或调试操作面
+# 服务：/peach_supervisor/control
+# 服务端：peach_supervisor    客户端：人工或调试操作面
 # expected_state_seq 须等于当前 HarvestState.state_seq（0=不检查），防过期点击。
 # command 还须出现在 HarvestState.permissions 中。
 

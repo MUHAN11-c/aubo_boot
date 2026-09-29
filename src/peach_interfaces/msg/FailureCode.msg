@@ -22,6 +22,9 @@ uint32 MODEL_IDENTITY_INCOMPLETE=17 # 身份元组缺版本，拒执行
 uint32 MODEL_EXPIRED=18             # valid_until 已过
 uint32 TOOL_STATE_UNKNOWN=19        # SetIO 超时/无反馈；不自动撤退/重发
 uint32 PLAN_MISMATCH=20             # 预览与执行 plan_id / 模型元组不一致
+uint32 TRANSIT_FAILED=21            # MoveTo 转移移动失败（不再挪用套入码）
+uint32 START_NOT_READY=22           # 周期启动门拒绝（MoveIt 未初始化/占用/未 arm）
+uint32 CANCELED=23                  # 动作被取消（BuildTargetModel 等取消终局）
 
 uint32 code                         # 上列常量之一
 string name                         # 常量名（如 BUILD_FAILED）；可空，以 code 为准

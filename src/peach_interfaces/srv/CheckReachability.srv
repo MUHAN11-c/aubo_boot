@@ -2,7 +2,7 @@
 # FULL 时沿轴笛卡尔能否走完」，不装配 MTC、不动臂。
 # 服务：/peach_arm/check_reachability
 # 服务端：peach_arm（MoveIt RobotState::setFromIK + CartesianInterpolator）
-# 客户端：peach_executor（SELECT 段批量查询）。服务不可用时调度回退半径窗。
+# 客户端：peach_supervisor（SELECT 段批量查询）。服务不可用时调度回退半径窗。
 # tcp_poses：调度填感知入口（位置=袋底；姿态 Z=袋轴，滚转任意）。
 # 服务端预抓取停位：沿 −Z 后撤 mtc_approach_along_axis_m（grasp_standoffs.yaml，
 # 现行 0.03 m）；姿态=alignFrameZ(当前 TCP, 袋轴)，不抄感知滚转。

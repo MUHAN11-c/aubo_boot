@@ -457,10 +457,17 @@ bool TargetCache::waitForRefined(
     }) && !cancel.load();
 }
 
-bool TargetCache::promoteUnrefinedGeometry(const std::string & target_id)
+bool TargetCache::promoteUnrefinedGeometry(
+  const std::string & target_id, std::string * reject_reason)
 {
+  const auto set_reason = [reject_reason](const char * text) {
+      if (reject_reason != nullptr) {
+        *reject_reason = text;
+      }
+    };
   std::lock_guard<std::mutex> lock(mutex_);
   if (target_id.empty()) {
+    set_reason("empty_target_id");
     return false;
   }
   const CachedTarget * src = nullptr;
@@ -471,6 +478,7 @@ bool TargetCache::promoteUnrefinedGeometry(const std::string & target_id)
     src = &target_;
   }
   if (src == nullptr || !nonzeroFinite(src->initial_axis)) {
+    set_reason(src == nullptr ? "no_cached_anchor" : "invalid_initial_axis");
     return false;
   }
   Eigen::Vector3d entry = src->initial_pose.translation();
@@ -500,7 +508,7 @@ bool TargetCache::promoteUnrefinedGeometry(const std::string & target_id)
     refined_.bag_diameter_upper_m > tool_d_inner_m_)
   {
     refined_ = CachedRefined();
-    // 拒因由调用方日志补齐（纯核无 logger）：袋径超工具内径
+    set_reason("bag_over_tool_inner_diameter");
     return false;
   }
   quality_.selected_target_id = target_id;

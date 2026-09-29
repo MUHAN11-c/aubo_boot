@@ -2,18 +2,25 @@
 
 USB 串口 IMU（QinHeng USB 转串适配器：CH340 `1a86:7523`（旧）或 CH343 `1a86:55d3`（现行），模组走 0xA4 寄存器协议）。**不是**采摘五包，lifecycle 不管。随 `harvest_system` 起（`imu_enabled` 默认 true），不进只读 bringup。
 
+同包还有咬合末端 5 点力传感器（0xA5 帧，100Hz，见第 8 节）：**与 IMU 帧共用 `/dev/imu` 同一条串口**（2026-09-29 实测），本节点内建分流发 `/force/points`；独立节点 `serial_force_node` 是"只看力"的用法，不进 `harvest_system`。
+
 现行行为以源码为准。栈内摘要：[architecture.md](../../docs/architecture.md) §3 `serial_imu`、[io.md](../../docs/io.md)、[testing.md](../../docs/testing.md)（怎么跑）。本文件是本包现场手册。
 
 ```
 serial_imu/
-  serial_imu/imu_node.py      # 节点：串口、原始/修正两路、TF、/diagnostics
-  serial_imu/protocol.py      # 无 ROS：切帧、校验、缩放、协方差对角
-  serial_imu/frame.py         # 无 ROS：坐标系修正（倒装 Rx）+ parent 对齐
+  serial_imu/imu_node.py       # 节点：串口、原始/修正两路、TF、/diagnostics
+  serial_imu/protocol.py       # 无 ROS：切帧、校验、缩放、协方差对角
+  serial_imu/frame.py          # 无 ROS：坐标系修正（倒装 Rx）+ parent 对齐
+  serial_imu/force_node.py     # 节点：5 点力串口、逐帧打印 kgf、牛顿话题
+  serial_imu/force_protocol.py # 无 ROS：0xA5 力帧切帧、校验、kgf 缩放
   config/serial_imu.yaml
+  config/serial_force.yaml
   launch/serial_imu.launch.py
+  launch/serial_force.launch.py
   rviz/serial_imu.rviz
   test/test_protocol.py
   test/test_frame.py
+  test/test_force_protocol.py
   udev/99-imu-usb-serial.rules
 ```
 
@@ -122,6 +129,7 @@ groups                  # 须含 dialout
 | `/imu/data` | `sensor_msgs/Imu` | **修正**：`frame_rpy_deg`（默认 Rx(180°)）+ 可选 `align_to_parent`。RViz Imu 插件订这个 |
 | `/imu/mag` | `sensor_msgs/MagneticField` | 特斯拉，已随修正转到 `imu_link` |
 | `/imu/temp` | `sensor_msgs/Temperature` | °C |
+| `/force/points` | `std_msgs/Float64MultiArray` | 5 点力，**牛顿**（REP-103），顺序通道 1/2/3/5/7；同口 A5 帧分流（第 8 节） |
 | `/diagnostics` | `diagnostic_msgs/DiagnosticArray` | 串口 + 帧率 |
 | TF `parent→imu_link` | 静态 | 安装位，单位姿态。默认 parent=`world` |
 | 服务 `imu/align_to_parent` | `std_srvs/Trigger` | 把当前 IMU↔parent 差当误差清掉；叠 TCP 时用 |
@@ -146,7 +154,7 @@ cd /home/mu/Desktop/aubo_e5_jazzy_ws
 source install/setup.bash
 sudo usermod -aG dialout $USER
 newgrp dialout
-ros2 launch peach_executor harvest_system.launch.py \
+ros2 launch peach_harvester harvest_system.launch.py \
   hardware_mode:=mock camera_enabled:=false
 # 真机：hardware_mode:=real camera_enabled:=true robot_ip:=169.254.10.98
 # 关掉 IMU：imu_enabled:=false
@@ -193,7 +201,7 @@ Fixed Frame 用 `base_link`。RViz Imu 插件 `fixed_frame_orientation=true`：�
 纯核（零 ROS）：
 
 ```bash
-PYTHONPATH=src/serial_imu pytest src/serial_imu/test/test_protocol.py src/serial_imu/test/test_frame.py
+PYTHONPATH=src/serial_imu pytest src/serial_imu/test/test_protocol.py src/serial_imu/test/test_frame.py src/serial_imu/test/test_force_protocol.py
 ```
 
 ---
@@ -243,9 +251,92 @@ RViz **TF** 显示默认会画出当前图里**所有** `/tf`。本配置白名�
 | `orientation_variance` | 0 | 融合姿态对角方差；0=未知 |
 | `magnetic_field_variance` | 0 | 磁场对角方差；0=未知 |
 | `expected_rate_hz` | 75 | `/diagnostics` 帧率期望 |
+| `force_print` | false | 同口 A5 力帧逐帧打印 kgf（≈100Hz；整栈默认关防刷屏） |
+| `force_print_decimate` | 1 | 力打印抽稀：每 N 帧一条 |
+| `force_channel_labels` | 见 yaml | 力通道 1/2/3/5/7 点位标签（第 8 节） |
 
 ---
 
-## 8. 不负责
+## 8. 5 点力传感器（咬合末端，`serial_force_node`）
+
+咬合式末端盘面均布 5 点力传感器，采集板（定制固件）100Hz 主动上报。**2026-09-29 实测：A5 力帧与 A4 IMU 帧共用同一条 CH343 串口（`/dev/imu`→ttyACM0）交错到达**（力 ≈100Hz + IMU ≈75Hz），没有独立力口。因此一个口只有一个拥有者，两种用法**不许同时**：
+
+1. **随 IMU 一起（推荐）**：`serial_imu_node` 内建同口分流（`feed_mux`），解析两类帧、发布 `/imu/*` 与 `/force/points`，`force_print:=true` 时另打 kgf 流。随 `harvest_system` 也是这条路径（打印默认关）。
+2. **只看力**：独立节点 `serial_force_node` 开同一条口只解 A5 帧（A4 帧当噪声跳过）。`imu_enabled:=false` 的整栈旁可用。
+
+传感器型号 IMS-C04A（小量程）：感应区直径 4mm，灵敏度范围 50g–2kg。
+
+### 协议（17 字节定长帧）
+
+| 偏移 | 字节 | 含义 |
+|------|------|------|
+| 0 | `A5` | 帧头，整帧只出现一次 |
+| 1+3i | `01 02 03 05 07` | 5 组通道号（采集板输入 0/1/2/4/7 → 输出重编号） |
+| 2+3i | int16 小端 ×100 | 该通道力值，kgf（0.01 kgf 分辨率，有符号） |
+| 16 | uint8 | 校验 = 前 16 字节累加和低 8 位（与 IMU 帧同规则） |
+
+文档回归样例（`test/test_force_protocol.py` 固化）：
+
+- 全零：`A5 01 00 00 02 00 00 03 00 00 05 00 00 07 00 00 B7`
+- 五点 0.20/1.00/2.10/0.55/1.99 kgf：`A5 01 14 00 02 64 00 03 D2 00 05 37 00 07 C7 00 FF`
+
+解析在 `serial_imu/force_protocol.py`（零 ROS）：找 `A5` → 17 字节窗口校验通道号+累加和 → 解码；假帧头（载荷里也会出现 `A5`）跳一字节重扫。
+
+### 通道 → 咬合末端点位
+
+从 CAD 截图读出（图分辨率有限，**2/5 与 3/7 两组有误读可能**）。现场逐点按压打印流核对，错了改 `channel_labels` 参数，不动代码：
+
+| 通道 | 圆盘点位（面对安装板） |
+|------|------------------------|
+| 1 | 左中（≈9 点钟） |
+| 2 | 左下（≈7 点钟） |
+| 3 | 右下（≈5 点钟） |
+| 5 | 右上（≈1–2 点钟） |
+| 7 | 左上（≈11–12 点钟） |
+
+### 启动与输出
+
+```bash
+colcon build --packages-select serial_imu
+source install/setup.bash
+
+# 用法一：随 IMU 节点分流（force_print_decimate 抽稀打印）：
+ros2 launch serial_imu serial_imu.launch.py use_rviz:=false force_print:=true
+# 整栈里等价于 imu_enabled:=true + force_print（launch 参数默认 false）
+
+# 用法二：只看力（勿与整栈/serial_imu 并行，抢同一口）：
+ros2 launch serial_imu serial_force.launch.py
+```
+
+打印每帧一行（100Hz；`print_decimate` / `force_print_decimate` 每 N 帧打一条）。用法一前缀 `#F`，用法二前缀 `#`：
+
+```
+#F123 F1[左中(9点)]=+0.00 F2[左下(7点)]=+0.20 F3[右下(5点)]=+2.10 F5[右上(1-2点)]=+0.55 F7[左上(11-12点)]=+1.99 kgf
+```
+
+两种用法都发话题 `/force/points`（`std_msgs/Float64MultiArray`，Reliable+Volatile）——按 **REP-103 SI 牛顿**发 5 值，顺序同通道 1/2/3/5/7；`ros2 topic hz /force/points` 验 100Hz。打印用协议原生 **kgf**（与量程 50g–2kg 同单位），换算 N ×9.80665。`/diagnostics`：串口开闭 + 帧率（用法二期望 100Hz，窗 0.6×–1.4×）。
+
+无输出时依次核对：波特率（默认 115200，厂家不同就改参数）、口是否已被另一个节点占用（`/dev/imu` 只能开一份）、采集板供电与 Tx/Rx。2026-09-29 实测空载全零（956 帧/10s 全过校验）。
+
+### 参数（`config/serial_force.yaml`，用法二）
+
+| 参数 | 默认 | 作用 |
+|------|------|------|
+| `port` | `/dev/imu` | 与 IMU 同口（实测共用）；独立力口出现后再改 |
+| `port_fallbacks` | `ttyUSB1`、`ttyACM1` | 依次试 |
+| `baudrate` | 115200 | |
+| `read_period_s` | 0.005 | 读串口定时器 |
+| `expected_rate_hz` | 100 | `/diagnostics` 帧率期望 |
+| `print_data` | true | 逐帧打印（kgf） |
+| `print_decimate` | 1 | 每 N 帧打一条；1=全部 ≈100Hz |
+| `channel_labels` | 见 yaml | 通道→点位标签，现场校对后改这里 |
+
+用法一的对应参数在 `config/serial_imu.yaml`：`force_print`（默认 false）、`force_print_decimate`、`force_channel_labels`（同表语义）。
+
+---
+
+## 9. 不负责
 
 采摘调度、MoveIt、底盘 `/scan`、生命周期名单。不替代预留的底盘 IMU。不做自适应工具偏移（`tcp_actual` 臂侧缝仍预留、未实现；自适应末端的柔性偏斜由 imu_follow 姿态跟随消化（2026-09-15 起接 `adaptive_cylinder_v1`，2026-09-28 起随工具换代为 `adaptive_shear_v1`），`tcp_actual` 仍是未来刚性偏移量的缝）。
+
+5 点力节点另不负责：力控/接触检测判据（只打印与发布原始值）、进 `harvest_system`、写 PlanningScene。点位标签以现场按压校对为准。

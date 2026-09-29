@@ -1,6 +1,6 @@
 # 一场扫描结束后的锁定集快照。
-# 话题：/peach_executor/scene_snapshot（reliable, transient_local, depth 1）
-# 生产：peach_executor    消费：核内无订阅（清单 consumers 空；监控未订）
+# 话题：/peach_supervisor/scene_snapshot（reliable, transient_local, depth 1）
+# 生产：peach_supervisor    消费：核内无订阅（清单 consumers 空；监控未订）
 # WAIT_LOCK 结束或回访 dwell 后由调度发布。scene_epoch 须为 Begin 之后的值。
 
 std_msgs/Header header           # stamp=快照时刻

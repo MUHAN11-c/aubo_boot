@@ -13,8 +13,18 @@ HeartbeatWatchdog 承担）+ lifecycle_flag_bridge 把 is_active 桥接为闩锁
 在栈就绪后自动发 RunHarvest——原「launch 绝不自动开批」红线已按用户核定
 删除（2026-09-16），授权语义=操作员发起 launch（红线 3）；默认关，部署
 档自开。
+
+观测性轮（P0）：展开期采集启动事实（配置 + git 版本 + 域 ID）注入
+peach_observability——落 runs/session_*/startup.json、驱动启动自检
+（软门 + autostart 硬等 selfcheck_passed）。
 """
 
+import datetime
+import json
+import math
+import os
+
+from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
 from launch.actions import (
     DeclareLaunchArgument,
@@ -31,7 +41,9 @@ from launch_ros.actions import Node, SetParameter
 from launch_ros.parameter_descriptions import ParameterValue
 from launch_ros.substitutions import FindPackageShare
 
-from peach_bringup.preflight import running_stack_pids
+from peach_bringup.preflight import check_disk_free, running_stack_pids
+
+import yaml
 
 
 def _include(package, launch_file, launch_arguments=None, condition=None):
@@ -48,8 +60,14 @@ def _include(package, launch_file, launch_arguments=None, condition=None):
 
 
 def _preflight(context):
-    """Launch 展开期前置检查：发现旧实例则打印 PID 并拒绝启动."""
+    """Launch 展开期前置检查：旧实例拒启 + 磁盘余量 + 域 ID 提示."""
     del context
+    domain = os.environ.get('ROS_DOMAIN_ID', '')
+    print(f'[preflight] ROS_DOMAIN_ID={domain or "(默认0)"}', flush=True)
+    disk_problem = check_disk_free(10.0)
+    if disk_problem:
+        print(f'\n[preflight] {disk_problem}\n', flush=True)
+        raise RuntimeError(disk_problem)
     stale = running_stack_pids()
     if stale:
         lines = ['检测到旧实例仍在运行，拒绝重复启动；先清理：']
@@ -57,6 +75,89 @@ def _preflight(context):
         text = '\n'.join(lines)
         print(f'\n[preflight] {text}\n', flush=True)
         raise RuntimeError(text)
+    return []
+
+
+def _workspace_root() -> str:
+    """本文件向上找含 .git 的目录（源树 4 级；install 树找不到给空串）."""
+    directory = os.path.abspath(__file__)
+    for _ in range(6):
+        directory = os.path.dirname(directory)
+        if os.path.isdir(os.path.join(directory, '.git')):
+            return directory
+    return ''
+
+
+def _git_facts() -> dict:
+    """Git 身份经纯文件读取（无子进程）：HEAD ref + commit sha."""
+    root = _workspace_root()
+    if not root:
+        return {'root': 'unknown', 'branch': 'unknown', 'commit': 'unknown'}
+    head_path = os.path.join(root, '.git', 'HEAD')
+    try:
+        with open(head_path, encoding='utf-8') as stream:
+            head = stream.read().strip()
+    except OSError:
+        head = ''
+    if head.startswith('ref: '):
+        ref = head[5:]
+        branch = ref.rsplit('/', 1)[-1]
+        commit = 'unknown'
+        try:
+            with open(os.path.join(root, '.git', ref),
+                      encoding='utf-8') as stream:
+                commit = stream.read().strip()[:12]
+        except OSError:
+            pass
+    else:  # detached HEAD：内容即 commit sha
+        ref = ''
+        branch = '(detached)'
+        commit = head[:12]
+    return {'root': root, 'branch': branch, 'commit': commit}
+
+
+def _expected_tcp_norm_m(tool_profile: str) -> float:
+    """从 aubo_description 工具档案算 |wrist3_Link→tcp|（文件读，不跨包 import）."""
+    try:
+        archive = os.path.join(
+            get_package_share_directory('aubo_description'), 'config',
+            f'{tool_profile}.yaml')
+        with open(archive, encoding='utf-8') as stream:
+            data = yaml.safe_load(stream)
+        xyz = data['frames']['tool_axis']['xyz']
+        return float(math.sqrt(sum(float(v) ** 2 for v in xyz)))
+    except (OSError, KeyError, TypeError, ValueError):
+        return -1.0
+
+
+def _collect_startup_facts(context):
+    """启动事实采集（展开期一次）：配置 + git + 域 ID → observability 注入."""
+    cfg = context.launch_configurations
+    hardware_mode = cfg.get('hardware_mode', 'mock')
+    facts = {
+        'launched_at': datetime.datetime.now().isoformat(timespec='seconds'),
+        'hardware_mode': hardware_mode,
+        'robot_ip': cfg.get('robot_ip', ''),
+        'tool_profile': cfg.get('tool_profile', ''),
+        'moveit_enabled': cfg.get('moveit_enabled', 'true'),
+        'camera_enabled': cfg.get('camera_enabled', 'false'),
+        'camera_frontend': cfg.get('camera_frontend', 'stereo'),
+        'camera_ip': cfg.get('camera_ip', ''),
+        'extrinsics_enabled': cfg.get('extrinsics_enabled', 'true'),
+        'imu_enabled': cfg.get('imu_enabled', 'true'),
+        'bond_timeout': cfg.get('bond_timeout', '0.0'),
+        'use_sim_time': cfg.get('use_sim_time', 'false'),
+        'skip_reconstruction': cfg.get('skip_reconstruction', 'false'),
+        'autostart': cfg.get('autostart', 'false'),
+        'require_robot_status':
+            'false' if hardware_mode == 'mock' else 'true',
+        'expected_tcp_norm_m': _expected_tcp_norm_m(
+            cfg.get('tool_profile', '')),
+        'ros_domain_id': os.environ.get('ROS_DOMAIN_ID', ''),
+        'git': _git_facts(),
+    }
+    context.launch_configurations['peach_startup_facts'] = json.dumps(
+        facts, ensure_ascii=False)
     return []
 
 
@@ -96,12 +197,13 @@ def generate_launch_description():
             'camera_enabled', default_value='false',
             description='启动相机（前端由 camera_frontend 决定）'),
         DeclareLaunchArgument(
-            'camera_frontend', default_value='percipio',
+            'camera_frontend', default_value='stereo',
             choices=['percipio', 'stereo'],
-            description='相机前端：percipio=设备端 18 图案深度（2.43fps，'
-                        '额定量程 0.4-0.8m）；stereo=peach_stereo 主机单图案'
-                        '立体（~13.5fps，话题同构，09-17 A/B：感知锁定 2.8s '
-                        'vs 48s）。两者互斥（相机连接独占）'),
+            description='相机前端（2026-09-29 用户裁定默认 stereo）：'
+                        'stereo=peach_stereo 主机单图案立体（~13.5fps，'
+                        '话题同构，09-17 A/B：感知锁定 2.8s vs 48s）；'
+                        'percipio=设备端 18 图案深度（2.43fps，额定量程 '
+                        '0.4-0.8m）。两者互斥（相机连接独占）'),
         DeclareLaunchArgument(
             'camera_ip', default_value='169.254.10.110',
             description='相机 IP（peach_stereo 前端使用）'),
@@ -135,6 +237,9 @@ def generate_launch_description():
                         '默认关。mock+相机不跟随可开；真机 KEEP false'),
         # 须在所有 Node / Include 之前：included launch 里的节点同样吃到
         SetParameter(name='use_sim_time', value=LaunchConfiguration('use_sim_time')),
+        # 启动事实采集（须在全部 DeclareLaunchArgument 之后；结果进
+        # peach_startup_facts 配置，供 observability include 读取）
+        OpaqueFunction(function=_collect_startup_facts),
         # stereo include 必须位于 aubo bringup include 之前：jazzy launch 的
         # IncludeLaunchDescription 会把 launch_arguments 落成全局
         # SetLaunchConfiguration 且不回滚——aubo include 传入的 camera_enabled
@@ -146,6 +251,18 @@ def generate_launch_description():
             condition=IfCondition(PythonExpression(
                 ["'", camera_enabled, "' == 'true' and '",
                  camera_frontend, "' == 'stereo'"]))),
+        # 场景障碍快照节点（2026-09-29 避障只为保护相机）：Survey 完成触发后
+        # 把最近一帧点云转 PlanningScene 碰撞对象（peach_scene_obstacles），
+        # 作业期冻结。须位于 aubo include 之前（同 stereo 的 camera_enabled
+        # 参数泄漏坑）；两前端话题/帧同构，percipio/stereo 通用。
+        # 不进 lifecycle 名单（无状态快照服务）；mock camera_enabled:=false
+        # 不起，零副作用。
+        Node(
+            package='peach_harvester',
+            executable='peach_scene_obstacles',
+            output='screen',
+            condition=IfCondition(camera_enabled),
+        ),
         # stereo 前端时压掉 aubo bringup 内的 percipio 相机（该文件只读，
         # 相机独占连接，由本文件改起 peach_stereo；percipio 前端保持原链路）
         _include(
@@ -200,7 +317,10 @@ def generate_launch_description():
                 'allow_unrefined_geometry': LaunchConfiguration(
                     'skip_reconstruction'),
             }),
-        _include('peach_observability', 'observability.launch.py'),
+        _include('peach_observability', 'observability.launch.py', {
+            # 启动事实注入（startup.json 工件 + 自检 facts 单通道推导）
+            'startup_facts': LaunchConfiguration('peach_startup_facts'),
+        }),
         # 阶段 5：nav2_lifecycle_manager 替自研件（bond_timeout 参数化，
         # 默认 0 关；名单顺序=场景→重建→技能→调度；进程死检=watchdog/bond）
         Node(

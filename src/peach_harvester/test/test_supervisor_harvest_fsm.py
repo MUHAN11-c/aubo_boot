@@ -104,3 +104,37 @@ def test_permissions_resume_when_paused_keeps_running_phase():
     live = permissions_for(RUNNING, recovery_required=False, paused=False)
     assert CMD_PAUSE in live
     assert CMD_RESUME not in live
+
+
+def test_blockers_for_vocabulary():
+    """P1 软门：blockers 词表机读口径（HarvestState.blockers 填充源）."""
+    from peach_harvester.supervisor.harvest_fsm import (
+        BLOCKER_LEDGER_WRITE_FAILED,
+        BLOCKER_MODE_MAINTENANCE,
+        BLOCKER_MODE_PAUSED,
+        BLOCKER_RECOVERY_REQUIRED,
+        BLOCKER_STACK_NOT_READY,
+        MODE_AUTO,
+        MODE_MAINTENANCE,
+        MODE_PAUSED,
+        blockers_for,
+    )
+    assert blockers_for(
+        operation_mode=MODE_AUTO, recovery_required=False) == []
+    assert blockers_for(
+        operation_mode=MODE_AUTO, recovery_required=False,
+        stack_ready=False) == [BLOCKER_STACK_NOT_READY]
+    assert blockers_for(
+        operation_mode=MODE_AUTO, recovery_required=False,
+        stack_ready=True) == []
+    # stack_ready=None 表示不要求托管栈，不算阻塞
+    assert blockers_for(
+        operation_mode=MODE_AUTO, recovery_required=False,
+        stack_ready=None) == []
+    assert blockers_for(
+        operation_mode=MODE_PAUSED, recovery_required=True) == [
+        BLOCKER_RECOVERY_REQUIRED, BLOCKER_MODE_PAUSED]
+    assert blockers_for(
+        operation_mode=MODE_MAINTENANCE, recovery_required=False,
+        ledger_write_failures=2) == [
+        BLOCKER_MODE_MAINTENANCE, BLOCKER_LEDGER_WRITE_FAILED]

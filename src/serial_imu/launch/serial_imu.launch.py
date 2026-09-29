@@ -46,6 +46,10 @@ def generate_launch_description():
             'align_to_parent', default_value='false',
             description='true=把 IMU 相对 parent 的当前姿态差当误差清掉，'
                         '使 /imu/data 与 TCP 对齐（无磁 yaw 每次上电要采）'),
+        DeclareLaunchArgument(
+            'force_print', default_value='false',
+            description='true=同口 A5 力帧逐帧打印 kgf（咬合末端 5 点，'
+                        '≈100Hz；force_print_decimate 可抽稀）'),
         OpaqueFunction(function=_warn_missing_imu_plugin),
         Node(
             package='serial_imu',
@@ -58,7 +62,8 @@ def generate_launch_description():
                     LaunchConfiguration('serial_imu_params_file'),
                     allow_substs=True),
                 {'tf_parent_frame': LaunchConfiguration('tf_parent_frame'),
-                 'align_to_parent': LaunchConfiguration('align_to_parent')},
+                 'align_to_parent': LaunchConfiguration('align_to_parent'),
+                 'force_print': LaunchConfiguration('force_print')},
             ],
         ),
         Node(

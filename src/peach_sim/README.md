@@ -18,10 +18,15 @@
 | `run_matrix.py` | 矩阵渲染：已建 `.blend` × 光照预设 × 轨迹视角（含 ray_cast 冠外取景修正） | `output/matrix/<光照>/<视>/` |
 | `evaluate_matrix.py` | 矩阵评测：分层聚合 + 深度合成 `depth_mm.png` + 基线回归门 | `output/matrix/{summary.json,report.md}` |
 | `make_appearance_board.py` | 真实数据 vs 渲染对照板（人工 QA） | `output/appearance_board.jpg` |
+| `make_modeling_board.py` | 同版五光照与修改前后对照，生成前核验逐视角来源 | `output/modeling_20260929/{before_after,lighting_comparison}.jpg` |
+| `render_evidence.py` | 每视角记录模型/光照/采样上下文及 RGB、三种 EXR 哈希，拒绝混用旧图 | `scene_manifest.json` 的 `rendered_views` |
+| `make_review_boards.py` | 矩阵帧人工复核板：同停靠视角全光照对比（2 列网格，档单源读 trajectory）+ 四遮挡档各一 primary 近距（1×N，noon） | `output/matrix_{lighting,occlusion}_board.jpg` |
+| `check_modeling_blender.py` | Blender 无渲染几何回归（`blender -b --python-exit-code 1 -P`）：叶尖收口、冠梢根点贴父轴中心线、overcast 无直射太阳 | stdout（失败非零退出） |
 | `lighting.py` / `occlusion.py` / `distributions.py` / `depth_io.py` | 纯核：光照预设 / 受控遮挡 / 分位采样 / 深度量化 | — |
 
 纯核单测：`test_reconstruction_core.py`（含与
-`peach_harvester/cycle_core/view_policy.py` 的补视几何对拍）、`test_measurement.py`。
+`peach_harvester/cycle_core/view_policy.py` 的补视几何对拍）、`test_measurement.py`、
+`test_render_evidence.py`。
 
 ## 重现（工作区根目录，独立 Blender 4.5.14，venv `aubo_py3.12`）
 
@@ -45,16 +50,30 @@ _tools/blender-4.5.14-linux-x64/blender -b -t 8 --python-exit-code 1 \
 aubo_py3.12/bin/python src/peach_sim/reconstruction/evaluate_matrix.py \
   --matrix src/peach_sim/reconstruction/output/matrix --gate     # 或 --write-baseline 冻结
 
-# 导航轮铺路：field 规模锚定图（3 行×8 株，仅整园一图 + 完整 manifest）
+# 导航轮铺路：field 规模锚定（3 行×8 株成熟冠 + 远景行列；整园 + 作业道两图）
 _tools/blender-4.5.14-linux-x64/blender -b -t 8 --python-exit-code 1 \
-  -P src/peach_sim/reconstruction/build_scene.py -- --scale field --view orchard \
+  -P src/peach_sim/reconstruction/build_scene.py -- --scale field \
   --samples 48 --width 1280 --out src/peach_sim/reconstruction/output/field_anchor
+aubo_py3.12/bin/python src/peach_sim/reconstruction/validate_perception.py \
+  --out src/peach_sim/reconstruction/output/field_anchor --views orchard,aisle
 ```
 
 `output/` 是验证场契约（三锚定机位 + manifest + 双门产物）；矩阵帧在
 `output/matrix/`（gitignore，可重现，`summary.json`/`report.md`/
 `trajectory.json` 拷贝为 `output/matrix_*` 入库）；field 锚定在
 `output/field_anchor/`。只改相机与采样可用 `render_saved.py`，无需重建几何。
+`field` 场景只含 3 行×8 株推断桃树，不插入实拍对齐的局部树干；该参考局部
+仅保留在 `validation` 场景。field 树用成熟冠幅（`SCALES['field']['crown']=1.5`，
+株距 3 m 下行内冠层交接成树篱，树高仍 ≤2.5 m），并以无袋集合实例把行列
+延到地平线（远景不含 IndexOB 目标）；validation 冠幅 1.0 与矩阵基线同构。
+推断树上的袋内果取裸桃框宽的成熟段（p50–p90，约 6.7–8.1 cm），
+袋是围着果的圆截面水滴形，袋口收拢扎丝；9 个实拍参考袋仍是空袋。
+叶片是 20 个共享网格的几何节点实例。field `.blend` 约 280 MB / 260 万顶点。
+地表新增成簇弯曲草叶、枯叶与低矮土块，基础地面仍平坦，不能作为实测地形
+或已验证的物理碰撞模型。
+`render_saved.py --view all --lighting backlit --out <独立目录>` 可比较相同模型
+的光照；每次都重新应用声明的光照预设。旧图没有逐视角哈希时须重新渲染，
+`validate_perception.py --out <目录>` 会拒绝缺失或混版图像。
 
 ## 数据依据与可信边界
 
@@ -76,10 +95,10 @@ _tools/blender-4.5.14-linux-x64/blender -b -t 8 --python-exit-code 1 \
 
 ## 受控条件与分层口径
 
-- **光照**（`lighting.py`，Nishita 天空，只换 world 不动几何）：
-  `noon`（合并轮基线锚）/ `morning`（低角暖光，顺光侧——逆光方位会把袋
-  拍成剪影，冒烟轮实测剔除）/ `late_afternoon`（西向侧光）/
-  `overcast`（高浑浊度漫射软影）。参数落 manifest。
+- **光照**（`lighting.py`，Nishita 天空 + 单个 SUN，不动几何）：
+  `noon` / `morning` / `late_afternoon` / `backlit`（保留逆光困难组）/
+  `overcast`（均匀漫射天空近似，关闭直射太阳）。空气与尘埃密度分开配置，
+  不用高浑浊度代替阴天；曝光由预设指定。参数落 manifest，尚非现场辐照度标定。
 - **遮挡与枝干扰**（`occlusion.py`，逐袋 manifest 记录）：名义档
   none/light/heavy（0/2/4 片受控前景叶，heavy 附袋前横枝；走廊枝 ~15%
   独立概率，口径对齐 adaptive_shear L_insert 0.090）。**名义档会被自然

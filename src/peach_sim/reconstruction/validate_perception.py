@@ -3,12 +3,14 @@ from PIL import Image, ImageDraw, ImageOps
 import numpy as np
 import json
 import argparse
+import hashlib
 from pathlib import Path
 import os
 os.environ['OPENCV_IO_ENABLE_OPENEXR'] = '1'
 import cv2  # noqa: E402
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parents[2]
+from render_evidence import validate_render_set  # noqa: E402
 
 
 def iou(a, b):
@@ -20,33 +22,48 @@ def iou(a, b):
 
 
 def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--out', type=Path, default=HERE / 'output',
+                        help='Directory containing same-scene renders and manifest')
+    parser.add_argument('--views', default='reference,detail,orchard',
+                        help='comma list; field scale renders orchard,aisle')
+    args = parser.parse_args()
+    out = args.out
+    views = tuple(args.views.split(','))
+    manifest_path = out / 'scene_manifest.json'
+    manifest = json.loads(manifest_path.read_text())
+    validate_render_set(out, manifest, views)
     import torch
     torch.set_num_threads(6)
     from ultralytics import SAM, YOLO
     det = YOLO(str(ROOT / 'src/peach_harvester/model/best.pt'))
     sam = SAM(str(ROOT / 'src/peach_harvester/model/mobile_sam.pt'))
-    manifest = json.loads((HERE / 'output/scene_manifest.json').read_text())
     measure = json.loads(
         (HERE / 'evidence/reference_measurements.json').read_text())
     result = {
         'model_classes': det.names,
         'confidence_threshold': .25,
         'box_iou_threshold': .5,
+        'scene_manifest_sha256': hashlib.sha256(manifest_path.read_bytes()).hexdigest(),
+        'lighting': manifest.get('lighting'),
+        'model_sha256': hashlib.sha256(
+            (ROOT / 'src/peach_harvester/model/best.pt').read_bytes()).hexdigest(),
+        'sam_model_sha256': hashlib.sha256(
+            (ROOT / 'src/peach_harvester/model/mobile_sam.pt').read_bytes()).hexdigest(),
         'views': {},
         'notes': [
             'SAM is GT-box prompted here; mask score is not detector recall.',
-            'Depth residual uses world Position pass optical Y for reference, not ray-distance Z pass.',
+            'Reference optical depth is independently derived from world Position Y.',
             'Source SAM masks are estimated labels, not manual ground truth.']}
-    for view in ['reference', 'detail', 'orchard']:
-        path = HERE / 'output' / f'{view}.png'
+    for view in views:
+        path = out / f'{view}.png'
         rgb = Image.open(path).convert('RGB')
         width, height = rgb.size
         if view=="reference" and (width,height)!=(1280,720):
             raise ValueError("Reference depth comparison requires native 1280x720 rendering")
         ids = cv2.imread(
             str(
-                HERE /
-                'output' /
+                out /
                 f'{view}_IndexOB_0001.exr'),
             cv2.IMREAD_UNCHANGED)[
             :,
@@ -67,7 +84,7 @@ def main():
             gt.append({'id': t['id'], 'box': box,
                       'pixels': len(xs), 'name': t['name']})
         pred = det(str(path), conf=.25, device='cpu', verbose=False)[0]
-        pred.save(filename=str(HERE / 'output' / f'{view}_detection.jpg'))
+        pred.save(filename=str(out / f'{view}_detection.jpg'))
         detections = [{'box': b.xyxy[0].tolist(), 'confidence': float(
             b.conf[0]), 'class': int(b.cls[0])} for b in pred.boxes]
         bag_ids = {int(k) for k, v in det.names.items()
@@ -118,12 +135,12 @@ def main():
                         g['id']} SAM {
                         score:.2f}", fill=(
                         255, 255, 0))
-        overlay.save(HERE / 'output' / f'{view}_segmentation.jpg')
+        overlay.save(out / f'{view}_segmentation.jpg')
         entry = {'visible_gt': gt, 'detections': detections, 'matches': matches, 'recall_iou50': len(matches) / max(1, len(gt)),
                  'precision_iou50': len(matches) / max(1, sum(d['class'] in bag_ids for d in detections)), 'prompted_sam': mask_scores}
         if view == 'reference':
             depth = cv2.imread(
-                str(HERE / 'output/reference_Position_0001.exr'), cv2.IMREAD_UNCHANGED)[:, :, 1]
+                str(out / 'reference_Position_0001.exr'), cv2.IMREAD_UNCHANGED)[:, :, 1]
             real = np.load(
                 HERE / 'evidence/1200_depth.npy').astype(float) * .001
             masks = np.load(HERE / 'evidence/1200_masks.npz')['masks']
@@ -157,7 +174,7 @@ def main():
                 0).astype(
                 np.uint16)
             Image.fromarray(depth_mm).save(
-                HERE / 'output/reference_depth_mm.png')
+                out / 'reference_depth_mm.png')
         result['views'][view] = entry
         print(
             view,
@@ -168,7 +185,7 @@ def main():
             'matches',
             len(matches),
             flush=True)
-    (HERE / 'output/perception_validation.json').write_text(json.dumps(result, indent=2))
+    (out / 'perception_validation.json').write_text(json.dumps(result, indent=2))
 
 
 if __name__ == '__main__':

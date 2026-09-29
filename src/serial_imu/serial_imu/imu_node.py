@@ -16,8 +16,10 @@ from rclpy.qos import (
 from rclpy.time import Time
 from sensor_msgs.msg import Imu, MagneticField, Temperature
 import serial
+from serial_imu.force_protocol import feed_mux, FORCE_CHANNELS, KGF_TO_N
 from serial_imu.frame import FramePipeline
-from serial_imu.protocol import covariance_diag, feed
+from serial_imu.protocol import covariance_diag
+from std_msgs.msg import Float64MultiArray
 from std_srvs.srv import Trigger
 from tf2_ros import Buffer, StaticTransformBroadcaster, TransformListener
 from tf2_ros import TransformException as Tf2Exception
@@ -35,7 +37,12 @@ IMU_QOS = QoSProfile(
 
 
 class SerialImuNode(Node):
-    """打开固定串口，解析 0xA4 主动上报，发原始/修正两路."""
+    """
+    打开固定串口，解析 0xA4 主动上报，发原始/修正两路.
+
+    同一条串口上还交错 A5 力帧（咬合末端 5 点，2026-09-29 实测同口）：
+    一并分流，发布 `/force/points`（牛顿），`force_print` 时逐帧打印 kgf。
+    """
 
     def __init__(self):
         """声明参数、话题、对齐服务与读串口定时器."""
@@ -60,6 +67,15 @@ class SerialImuNode(Node):
             self.get_parameter('align_on_start').value)
         self._align_ref = str(
             self.get_parameter('align_reference_frame').value)
+        self._force_print = bool(self.get_parameter('force_print').value)
+        self._force_decimate = max(
+            1, int(self.get_parameter('force_print_decimate').value))
+        self._force_labels = [str(v) for v in
+                              self.get_parameter('force_channel_labels').value]
+        if len(self._force_labels) != len(FORCE_CHANNELS):
+            raise ValueError(
+                f'force_channel_labels 须 {len(FORCE_CHANNELS)} 项（通道 '
+                f'{FORCE_CHANNELS}），当前 {len(self._force_labels)} 项')
         self._pipe = FramePipeline(
             [float(v) for v in self.get_parameter('frame_rpy_deg').value])
         self._pub_data = self.create_publisher(Imu, 'imu/data', IMU_QOS)
@@ -67,6 +83,8 @@ class SerialImuNode(Node):
         self._pub_mag = self.create_publisher(
             MagneticField, 'imu/mag', IMU_QOS)
         self._pub_temp = self.create_publisher(Temperature, 'imu/temp', IMU_QOS)
+        self._pub_force = self.create_publisher(
+            Float64MultiArray, 'force/points', IMU_QOS)
         self._static_tf = StaticTransformBroadcaster(self)
         self._tf_buffer = Buffer()
         self._tf_listener = TransformListener(self._tf_buffer, self)
@@ -76,6 +94,7 @@ class SerialImuNode(Node):
         self._logged_serial_fail = False
         self._last_sample = None
         self._pending_align = False
+        self._force_count = 0
         self._setup_diagnostics()
         if self._align_to_parent:
             self.create_service(
@@ -122,6 +141,17 @@ class SerialImuNode(Node):
         self._p('orientation_variance', 0.0, '融合姿态对角方差')
         self._p('magnetic_field_variance', 0.0, '磁场对角方差')
         self._p('expected_rate_hz', 75.0, '/diagnostics 帧率期望')
+        self._p(
+            'force_print', False,
+            '同口 A5 力帧逐帧打印 kgf（咬合末端 5 点，≈100Hz；'
+            '整栈默认关防刷屏）')
+        self._p('force_print_decimate', 1, '力打印抽稀：每 N 帧一条')
+        self._p(
+            'force_channel_labels',
+            ['左中(9点)', '左下(7点)', '右下(5点)', '右上(1-2点)',
+             '左上(11-12点)'],
+            '力通道 1/2/3/5/7 对应咬合末端圆盘点位（CAD 截图读出，'
+            '现场按压校对后改这里）')
 
     def _setup_diagnostics(self):
         self._updater = Updater(self)
@@ -246,8 +276,25 @@ class SerialImuNode(Node):
         if not chunk:
             return
         self._buf.extend(chunk)
-        for sample in feed(self._buf):
+        imu_samples, force_samples = feed_mux(self._buf)
+        for sample in imu_samples:
             self._publish_sample(sample)
+        for sample in force_samples:
+            self._publish_force(sample)
+
+    def _publish_force(self, sample):
+        self._force_count += 1
+        msg = Float64MultiArray()
+        msg.data = [v * KGF_TO_N for v in sample.kgf]
+        self._pub_force.publish(msg)
+        if (not self._force_print
+                or self._force_count % self._force_decimate != 0):
+            return
+        parts = ' '.join(
+            f'F{ch}[{label}]={v:+.2f}'
+            for ch, label, v in zip(FORCE_CHANNELS, self._force_labels,
+                                    sample.kgf))
+        print(f'#F{self._force_count} {parts} kgf', flush=True)
 
     def _publish_sample(self, sample):
         self._last_sample = sample

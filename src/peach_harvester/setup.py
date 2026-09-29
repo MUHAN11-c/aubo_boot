@@ -55,6 +55,8 @@ setup(
             'peach_harvester.supervisor.executor_node:main',
             'peach_lifecycle_manager = '
             'peach_harvester.supervisor.lifecycle_manager:main',
+            'peach_scene_obstacles = '
+            'peach_harvester.vision.scene_obstacles.node:main',
         ],
     },
     options={'build_scripts': {'executable': _venv_python()}},

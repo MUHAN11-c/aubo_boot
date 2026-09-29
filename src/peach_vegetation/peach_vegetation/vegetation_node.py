@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import json
 import threading
+import time
 
 from cv_bridge import CvBridge
 from diagnostic_msgs.msg import DiagnosticStatus
@@ -67,6 +68,7 @@ class VegetationNode(LifecycleNode):
         self._updater = None
         self._dropped = 0
         self._last_infer_ms = -1.0
+        self._last_frame_mono = 0.0
         self._last_leaf_frac = 0.0
         self._last_branch_frac = 0.0
         self._last_device = ''
@@ -151,23 +153,37 @@ class VegetationNode(LifecycleNode):
         self._updater = None
 
     def _diag(self, stat):
-        """diagnostic_updater 回调：延迟 / 丢帧 / 设备."""
+        """diagnostic_updater 回调：延迟 / 丢帧 / 设备 / 末帧新鲜度."""
         if not self._active:
             stat.summary(DiagnosticStatus.STALE, 'inactive')
         elif self._last_infer_ms < 0.0:
             stat.summary(DiagnosticStatus.WARN, 'no frames')
         else:
-            stat.summary(
-                DiagnosticStatus.OK,
-                f'{self._last_infer_ms:.1f} ms {self._last_device}')
+            # 末帧新鲜度：订阅楔死（相机重启后收流不吐掩膜，09-21 实测）
+            # 靠这里可见——旧延迟值持续假绿是诊断盲区
+            age = time.monotonic() - self._last_frame_mono \
+                if self._last_frame_mono else None
+            if age is not None and age > 30.0:
+                stat.summary(
+                    DiagnosticStatus.STALE,
+                    f'末帧 {age:.0f}s 前（疑似订阅楔死，须重启本节点）')
+            else:
+                stat.summary(
+                    DiagnosticStatus.OK,
+                    f'{self._last_infer_ms:.1f} ms {self._last_device}')
         stat.add('device', self._last_device)
         stat.add('dropped', str(self._dropped))
         stat.add('leaf_frac', f'{self._last_leaf_frac:.4f}')
         stat.add('branch_frac', f'{self._last_branch_frac:.4f}')
+        if self._last_frame_mono:
+            stat.add(
+                'last_frame_age_s',
+                f'{time.monotonic() - self._last_frame_mono:.1f}')
         return stat
 
     def _on_image(self, msg: Image) -> None:
         """Active 且空闲才分割；否则丢这一帧."""
+        self._last_frame_mono = time.monotonic()
         if not self._active or self._splitter is None:
             return
         if not self._busy.acquire(blocking=False):

@@ -1,5 +1,5 @@
 """
-imu_follow 手写参数模块（决策 0017 口径，仿 peach_executor/params.py）.
+imu_follow 手写参数模块（决策 0017 口径，与 peach 各包 params 模块同款写法）.
 
 声明/兜底默认/校验/快照集中于本文件；部署值与中文描述的事实源是
 config/imu_follow.yaml（nav2 式全量清单），launch 以 ParameterFile 装入。
@@ -100,7 +100,7 @@ class imu_follow:
         'follow.invert_pitch': ('bool', False),
         'follow.invert_yaw': ('bool', False),
         'insert.speed_m_s': ('double', 0.01),
-        'insert.max_travel_m': ('double', 0.20),
+        'insert.max_travel_m': ('double', 0.20),  # 兜底=旧圆柱行程；事实源=部署 yaml 0.09（=档案 L_insert）
         'safety.imu_timeout_s': ('double', 0.5),
         'safety.joint_states_timeout_s': ('double', 1.0),
         'safety.max_ik_failures': ('int', 10),

@@ -424,6 +424,27 @@ function renderSystem(state) {
       return `<div class="param-node"><h3>${safe(node)}</h3>${rows}</div>`;
     }).join("")
     : '<p class="empty">等待参数轮询</p>';
+
+  const report = state.selfcheck?.report;
+  const selfcheckRows = report
+    ? `<div class="param-node"><h3>${safe(report.status || "—")} · ${safe(report.checked_at || "")}</h3>` +
+      `<div class="node-row"><span>结论</span><b>${safe(report.summary || "")}</b></div>` +
+      (report.checks || []).map((c) =>
+        `<div class="node-row"><span>${safe(c.name)}</span>` +
+        `<b class="${pillClass(c.status)}">${safe(c.status)}${c.detail ? " · " + safe(c.detail) : ""}</b></div>`).join("") +
+      `</div>`
+    : "";
+  $("selfcheck-panel").innerHTML = selfcheckRows || '<p class="empty">等待首次自检</p>';
+
+  const diagNodes = state.diagnostics?.nodes || {};
+  const levelText = {0: "OK", 1: "WARN", 2: "ERROR", 3: "STALE"};
+  const diagRows = Object.entries(diagNodes).map(([node, entry]) =>
+    `<div class="param-node"><h3 class="${pillClass(levelText[entry.level] || "")}">${safe(node)}</h3>` +
+    Object.entries(entry.tasks || {}).map(([name, task]) =>
+      `<div class="node-row"><span>${safe(name)}</span>` +
+      `<b class="${pillClass(levelText[task.level] || "")}">${safe(levelText[task.level] || task.level)} · ${safe(task.message || "")}</b></div>`).join("") +
+    `</div>`).join("");
+  $("diagnostics-panel").innerHTML = diagRows || '<p class="empty">等待诊断聚合</p>';
 }
 
 function freshnessHtml(age) {

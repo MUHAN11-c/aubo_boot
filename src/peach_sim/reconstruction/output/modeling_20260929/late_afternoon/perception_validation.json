@@ -1,0 +1,1144 @@
+{
+  "model_classes": {
+    "0": "peach_bag",
+    "1": "peach_nobag"
+  },
+  "confidence_threshold": 0.25,
+  "box_iou_threshold": 0.5,
+  "scene_manifest_sha256": "acf08e623e60121636f543979745cbb5bb945ba1c118d457599e502d1a74524f",
+  "lighting": {
+    "preset": "late_afternoon",
+    "name": "late_afternoon",
+    "sun_elevation_deg": 22.0,
+    "sun_azimuth_deg": 235.0,
+    "air_density": 1.0,
+    "sun_size_deg": 0.53,
+    "sky_strength": 0.3,
+    "fill_energy": 2.5,
+    "fill_spread_deg": 0.8,
+    "note": "\u5348\u540e\u4fa7\u5149\u3001\u957f\u5f71\u4e0e\u5c40\u90e8\u53f6\u5f71",
+    "dust_density": 0.65,
+    "cloud_cover": 0.0,
+    "exposure_ev": 0.5
+  },
+  "model_sha256": "6981750db67a726eef206353a3d777671f9c9411491c1eaa1914185e203e765e",
+  "sam_model_sha256": "6dbb90523a35330fedd7f1d3dfc66f995213d81b29a5ca8108dbcdd4e37d6c2f",
+  "views": {
+    "reference": {
+      "visible_gt": [
+        {
+          "id": 1,
+          "box": [
+            552,
+            19,
+            674,
+            179
+          ],
+          "pixels": 5996,
+          "name": "Reference/bag_0"
+        },
+        {
+          "id": 2,
+          "box": [
+            610,
+            577,
+            796,
+            720
+          ],
+          "pixels": 16881,
+          "name": "Reference/bag_1"
+        },
+        {
+          "id": 3,
+          "box": [
+            234,
+            188,
+            369,
+            398
+          ],
+          "pixels": 16416,
+          "name": "Reference/bag_2"
+        },
+        {
+          "id": 4,
+          "box": [
+            874,
+            0,
+            1202,
+            216
+          ],
+          "pixels": 30134,
+          "name": "Reference/bag_3"
+        },
+        {
+          "id": 5,
+          "box": [
+            754,
+            205,
+            834,
+            298
+          ],
+          "pixels": 1672,
+          "name": "Reference/bag_4"
+        },
+        {
+          "id": 6,
+          "box": [
+            257,
+            516,
+            401,
+            612
+          ],
+          "pixels": 7260,
+          "name": "Reference/bag_5"
+        },
+        {
+          "id": 7,
+          "box": [
+            895,
+            263,
+            1047,
+            393
+          ],
+          "pixels": 10262,
+          "name": "Reference/bag_6"
+        },
+        {
+          "id": 8,
+          "box": [
+            251,
+            319,
+            491,
+            516
+          ],
+          "pixels": 29546,
+          "name": "Reference/bag_8"
+        },
+        {
+          "id": 9,
+          "box": [
+            672,
+            454,
+            864,
+            687
+          ],
+          "pixels": 19700,
+          "name": "Reference/bag_9"
+        },
+        {
+          "id": 18,
+          "box": [
+            451,
+            703,
+            481,
+            720
+          ],
+          "pixels": 198,
+          "name": "Tree00/shoot2_2_1/bag"
+        },
+        {
+          "id": 19,
+          "box": [
+            477,
+            613,
+            509,
+            661
+          ],
+          "pixels": 158,
+          "name": "Tree00/shoot2_4_1/bag"
+        },
+        {
+          "id": 20,
+          "box": [
+            402,
+            590,
+            436,
+            634
+          ],
+          "pixels": 293,
+          "name": "Tree00/shoot2_6_1/bag"
+        },
+        {
+          "id": 21,
+          "box": [
+            387,
+            501,
+            471,
+            598
+          ],
+          "pixels": 1303,
+          "name": "Tree00/shoot2_8_1/bag"
+        },
+        {
+          "id": 26,
+          "box": [
+            78,
+            598,
+            124,
+            635
+          ],
+          "pixels": 317,
+          "name": "Tree01/shoot1_2_1/bag"
+        },
+        {
+          "id": 27,
+          "box": [
+            158,
+            567,
+            200,
+            604
+          ],
+          "pixels": 266,
+          "name": "Tree01/shoot1_4_1/bag"
+        },
+        {
+          "id": 28,
+          "box": [
+            198,
+            512,
+            251,
+            551
+          ],
+          "pixels": 705,
+          "name": "Tree01/shoot1_6_1/bag"
+        },
+        {
+          "id": 41,
+          "box": [
+            900,
+            429,
+            925,
+            458
+          ],
+          "pixels": 123,
+          "name": "Tree02/shoot0_8_1/bag"
+        },
+        {
+          "id": 43,
+          "box": [
+            823,
+            480,
+            864,
+            532
+          ],
+          "pixels": 681,
+          "name": "Tree02/shoot1_4_1/bag"
+        }
+      ],
+      "detections": [
+        {
+          "box": [
+            249.0283203125,
+            316.2088623046875,
+            493.9368896484375,
+            517.5935668945312
+          ],
+          "confidence": 0.8878872990608215,
+          "class": 0
+        },
+        {
+          "box": [
+            230.005859375,
+            187.77703857421875,
+            372.0020751953125,
+            399.217041015625
+          ],
+          "confidence": 0.8742561936378479,
+          "class": 0
+        },
+        {
+          "box": [
+            894.0740966796875,
+            259.68695068359375,
+            1056.7923583984375,
+            398.90411376953125
+          ],
+          "confidence": 0.8700933456420898,
+          "class": 0
+        },
+        {
+          "box": [
+            669.9251708984375,
+            450.620849609375,
+            863.9727783203125,
+            683.893798828125
+          ],
+          "confidence": 0.8641684651374817,
+          "class": 0
+        },
+        {
+          "box": [
+            608.626708984375,
+            577.2060546875,
+            798.2596435546875,
+            720.0
+          ],
+          "confidence": 0.8542734980583191,
+          "class": 0
+        },
+        {
+          "box": [
+            550.677978515625,
+            19.162734985351562,
+            678.3394775390625,
+            178.3976287841797
+          ],
+          "confidence": 0.8313685059547424,
+          "class": 0
+        },
+        {
+          "box": [
+            886.6959838867188,
+            1.918975830078125,
+            1206.500732421875,
+            177.329833984375
+          ],
+          "confidence": 0.8207972645759583,
+          "class": 0
+        },
+        {
+          "box": [
+            254.36563110351562,
+            511.6280517578125,
+            413.5552062988281,
+            613.7933349609375
+          ],
+          "confidence": 0.800683856010437,
+          "class": 0
+        }
+      ],
+      "matches": [
+        {
+          "gt_id": 2,
+          "detection_index": 4,
+          "box_iou": 0.9794559818190632
+        },
+        {
+          "gt_id": 9,
+          "detection_index": 3,
+          "box_iou": 0.9621669052970168
+        },
+        {
+          "gt_id": 8,
+          "detection_index": 0,
+          "box_iou": 0.9586211448972695
+        },
+        {
+          "gt_id": 1,
+          "detection_index": 5,
+          "box_iou": 0.9512841489107169
+        },
+        {
+          "gt_id": 3,
+          "detection_index": 1,
+          "box_iou": 0.9442546614049607
+        },
+        {
+          "gt_id": 7,
+          "detection_index": 2,
+          "box_iou": 0.8722839157418131
+        },
+        {
+          "gt_id": 6,
+          "detection_index": 7,
+          "box_iou": 0.8499938004135406
+        },
+        {
+          "gt_id": 4,
+          "detection_index": 6,
+          "box_iou": 0.7720504699820067
+        }
+      ],
+      "recall_iou50": 0.4444444444444444,
+      "precision_iou50": 1.0,
+      "prompted_sam": [
+        {
+          "id": 1,
+          "prompted_sam_iou": 0.8414766558089034
+        },
+        {
+          "id": 2,
+          "prompted_sam_iou": 0.9344484363036692
+        },
+        {
+          "id": 3,
+          "prompted_sam_iou": 0.9518006876998251
+        },
+        {
+          "id": 4,
+          "prompted_sam_iou": 0.9815317402528629
+        },
+        {
+          "id": 5,
+          "prompted_sam_iou": 0.39345063538611924
+        },
+        {
+          "id": 6,
+          "prompted_sam_iou": 0.8609831985065339
+        },
+        {
+          "id": 7,
+          "prompted_sam_iou": 0.8303518440016956
+        },
+        {
+          "id": 8,
+          "prompted_sam_iou": 0.9783709002564449
+        },
+        {
+          "id": 9,
+          "prompted_sam_iou": 0.9537739616613419
+        },
+        {
+          "id": 18,
+          "prompted_sam_iou": 0.5685131195335277
+        },
+        {
+          "id": 19,
+          "prompted_sam_iou": 0.08916666666666667
+        },
+        {
+          "id": 20,
+          "prompted_sam_iou": 0.22634271099744246
+        },
+        {
+          "id": 21,
+          "prompted_sam_iou": 0.0989433237271854
+        },
+        {
+          "id": 26,
+          "prompted_sam_iou": 0.11717352415026834
+        },
+        {
+          "id": 27,
+          "prompted_sam_iou": 0.33534743202416917
+        },
+        {
+          "id": 28,
+          "prompted_sam_iou": 0.5064814814814815
+        }
+      ],
+      "reference_comparison": [
+        {
+          "id": 1,
+          "source_mask_iou": 0.5598236045027272,
+          "overlap_valid_pixels": 4693,
+          "depth_mae_m": 0.014043339637965249
+        },
+        {
+          "id": 2,
+          "source_mask_iou": 0.7846171613350271,
+          "overlap_valid_pixels": 13449,
+          "depth_mae_m": 0.0090043134450363
+        },
+        {
+          "id": 3,
+          "source_mask_iou": 0.7577559310060634,
+          "overlap_valid_pixels": 12589,
+          "depth_mae_m": 0.02559910266182915
+        },
+        {
+          "id": 4,
+          "source_mask_iou": 0.5907363210465836,
+          "overlap_valid_pixels": 19540,
+          "depth_mae_m": 0.0114582694950953
+        },
+        {
+          "id": 5,
+          "source_mask_iou": 0.21108365690081185,
+          "overlap_valid_pixels": 510,
+          "depth_mae_m": 0.009711129601796452
+        },
+        {
+          "id": 6,
+          "source_mask_iou": 0.6362151440905378,
+          "overlap_valid_pixels": 5249,
+          "depth_mae_m": 0.014200668588414078
+        },
+        {
+          "id": 7,
+          "source_mask_iou": 0.6445148456494512,
+          "overlap_valid_pixels": 8465,
+          "depth_mae_m": 0.006725290631431131
+        },
+        {
+          "id": 8,
+          "source_mask_iou": 0.8423457233299612,
+          "overlap_valid_pixels": 25433,
+          "depth_mae_m": 0.015496576663208767
+        },
+        {
+          "id": 9,
+          "source_mask_iou": 0.7826167445735178,
+          "overlap_valid_pixels": 16389,
+          "depth_mae_m": 0.01948442711276754
+        }
+      ]
+    },
+    "detail": {
+      "visible_gt": [
+        {
+          "id": 1,
+          "box": [
+            557,
+            0,
+            668,
+            122
+          ],
+          "pixels": 7511,
+          "name": "Reference/bag_0"
+        },
+        {
+          "id": 2,
+          "box": [
+            566,
+            542,
+            749,
+            720
+          ],
+          "pixels": 21080,
+          "name": "Reference/bag_1"
+        },
+        {
+          "id": 3,
+          "box": [
+            205,
+            141,
+            435,
+            399
+          ],
+          "pixels": 20846,
+          "name": "Reference/bag_2"
+        },
+        {
+          "id": 4,
+          "box": [
+            852,
+            0,
+            1107,
+            193
+          ],
+          "pixels": 17778,
+          "name": "Reference/bag_3"
+        },
+        {
+          "id": 5,
+          "box": [
+            695,
+            163,
+            777,
+            248
+          ],
+          "pixels": 1173,
+          "name": "Reference/bag_4"
+        },
+        {
+          "id": 6,
+          "box": [
+            105,
+            537,
+            302,
+            675
+          ],
+          "pixels": 10268,
+          "name": "Reference/bag_5"
+        },
+        {
+          "id": 7,
+          "box": [
+            815,
+            224,
+            954,
+            343
+          ],
+          "pixels": 10283,
+          "name": "Reference/bag_6"
+        },
+        {
+          "id": 8,
+          "box": [
+            284,
+            299,
+            544,
+            512
+          ],
+          "pixels": 34621,
+          "name": "Reference/bag_8"
+        },
+        {
+          "id": 9,
+          "box": [
+            697,
+            416,
+            874,
+            598
+          ],
+          "pixels": 15305,
+          "name": "Reference/bag_9"
+        },
+        {
+          "id": 11,
+          "box": [
+            302,
+            540,
+            326,
+            573
+          ],
+          "pixels": 142,
+          "name": "Tree00/shoot0_4_1/bag"
+        },
+        {
+          "id": 20,
+          "box": [
+            0,
+            667,
+            23,
+            720
+          ],
+          "pixels": 600,
+          "name": "Tree00/shoot2_6_1/bag"
+        },
+        {
+          "id": 21,
+          "box": [
+            0,
+            543,
+            129,
+            673
+          ],
+          "pixels": 3541,
+          "name": "Tree00/shoot2_8_1/bag"
+        },
+        {
+          "id": 43,
+          "box": [
+            514,
+            444,
+            541,
+            488
+          ],
+          "pixels": 393,
+          "name": "Tree02/shoot1_4_1/bag"
+        },
+        {
+          "id": 64,
+          "box": [
+            241,
+            315,
+            256,
+            336
+          ],
+          "pixels": 139,
+          "name": "Tree04/shoot0_6_1/bag"
+        },
+        {
+          "id": 98,
+          "box": [
+            1196,
+            417,
+            1223,
+            436
+          ],
+          "pixels": 298,
+          "name": "Tree07/shoot0_2_1/bag"
+        },
+        {
+          "id": 106,
+          "box": [
+            1140,
+            424,
+            1182,
+            452
+          ],
+          "pixels": 531,
+          "name": "Tree07/shoot2_2_1/bag"
+        },
+        {
+          "id": 107,
+          "box": [
+            1142,
+            408,
+            1166,
+            444
+          ],
+          "pixels": 440,
+          "name": "Tree07/shoot2_4_1/bag"
+        },
+        {
+          "id": 108,
+          "box": [
+            1160,
+            382,
+            1192,
+            420
+          ],
+          "pixels": 658,
+          "name": "Tree07/shoot2_6_1/bag"
+        }
+      ],
+      "detections": [
+        {
+          "box": [
+            282.5623779296875,
+            293.13043212890625,
+            544.216064453125,
+            511.91107177734375
+          ],
+          "confidence": 0.8942150473594666,
+          "class": 0
+        },
+        {
+          "box": [
+            703.2408447265625,
+            413.7515563964844,
+            875.923583984375,
+            593.6063232421875
+          ],
+          "confidence": 0.8598951101303101,
+          "class": 0
+        },
+        {
+          "box": [
+            551.1424560546875,
+            0.4304351806640625,
+            681.9541015625,
+            97.838623046875
+          ],
+          "confidence": 0.8382453322410583,
+          "class": 0
+        },
+        {
+          "box": [
+            823.5137939453125,
+            221.23150634765625,
+            950.5162353515625,
+            353.6055908203125
+          ],
+          "confidence": 0.8336867094039917,
+          "class": 0
+        },
+        {
+          "box": [
+            574.5657348632812,
+            545.243408203125,
+            750.9509887695312,
+            720.0
+          ],
+          "confidence": 0.816801905632019,
+          "class": 0
+        },
+        {
+          "box": [
+            847.825439453125,
+            1.5139007568359375,
+            1110.1220703125,
+            193.9183349609375
+          ],
+          "confidence": 0.7114056348800659,
+          "class": 0
+        },
+        {
+          "box": [
+            103.25457763671875,
+            533.7943115234375,
+            302.18707275390625,
+            677.9329833984375
+          ],
+          "confidence": 0.5621519684791565,
+          "class": 0
+        },
+        {
+          "box": [
+            1137.383544921875,
+            410.8499755859375,
+            1184.679443359375,
+            454.3609619140625
+          ],
+          "confidence": 0.5486220121383667,
+          "class": 0
+        },
+        {
+          "box": [
+            264.4281005859375,
+            136.05177307128906,
+            436.312744140625,
+            360.9932861328125
+          ],
+          "confidence": 0.4599274694919586,
+          "class": 0
+        },
+        {
+          "box": [
+            1154.4593505859375,
+            382.52642822265625,
+            1193.6922607421875,
+            421.96160888671875
+          ],
+          "confidence": 0.3124869167804718,
+          "class": 0
+        }
+      ],
+      "matches": [
+        {
+          "gt_id": 8,
+          "detection_index": 0,
+          "box_iou": 0.9666304479065614
+        },
+        {
+          "gt_id": 4,
+          "detection_index": 5,
+          "box_iou": 0.9601966241149585
+        },
+        {
+          "gt_id": 6,
+          "detection_index": 6,
+          "box_iou": 0.9481107410593033
+        },
+        {
+          "gt_id": 2,
+          "detection_index": 4,
+          "box_iou": 0.926130508570776
+        },
+        {
+          "gt_id": 9,
+          "detection_index": 1,
+          "box_iou": 0.9205922277020241
+        },
+        {
+          "gt_id": 7,
+          "detection_index": 3,
+          "box_iou": 0.8286003585729719
+        },
+        {
+          "gt_id": 108,
+          "detection_index": 9,
+          "box_iou": 0.7667214200844019
+        },
+        {
+          "gt_id": 1,
+          "detection_index": 2,
+          "box_iou": 0.698839005868531
+        },
+        {
+          "gt_id": 3,
+          "detection_index": 8,
+          "box_iou": 0.620454615238748
+        },
+        {
+          "gt_id": 106,
+          "detection_index": 7,
+          "box_iou": 0.5714587853568774
+        }
+      ],
+      "recall_iou50": 0.5555555555555556,
+      "precision_iou50": 1.0,
+      "prompted_sam": [
+        {
+          "id": 1,
+          "prompted_sam_iou": 0.7612712490761271
+        },
+        {
+          "id": 2,
+          "prompted_sam_iou": 0.9744377244377245
+        },
+        {
+          "id": 3,
+          "prompted_sam_iou": 0.9318000469373386
+        },
+        {
+          "id": 4,
+          "prompted_sam_iou": 0.9760134190662566
+        },
+        {
+          "id": 5,
+          "prompted_sam_iou": 0.18299319727891156
+        },
+        {
+          "id": 6,
+          "prompted_sam_iou": 0.6826347305389222
+        },
+        {
+          "id": 7,
+          "prompted_sam_iou": 0.9031212373807539
+        },
+        {
+          "id": 8,
+          "prompted_sam_iou": 0.9753555593942534
+        },
+        {
+          "id": 9,
+          "prompted_sam_iou": 0.951346091469348
+        },
+        {
+          "id": 11,
+          "prompted_sam_iou": 0.10835214446952596
+        },
+        {
+          "id": 20,
+          "prompted_sam_iou": 0.5394736842105263
+        },
+        {
+          "id": 21,
+          "prompted_sam_iou": 0.6040152963671128
+        },
+        {
+          "id": 43,
+          "prompted_sam_iou": 0.36635006784260515
+        },
+        {
+          "id": 64,
+          "prompted_sam_iou": 0.37317784256559766
+        },
+        {
+          "id": 98,
+          "prompted_sam_iou": 0.6603260869565217
+        },
+        {
+          "id": 106,
+          "prompted_sam_iou": 0.5347533632286996
+        }
+      ]
+    },
+    "orchard": {
+      "visible_gt": [
+        {
+          "id": 2,
+          "box": [
+            482,
+            365,
+            503,
+            389
+          ],
+          "pixels": 369,
+          "name": "Reference/bag_1"
+        },
+        {
+          "id": 3,
+          "box": [
+            439,
+            314,
+            451,
+            337
+          ],
+          "pixels": 150,
+          "name": "Reference/bag_2"
+        },
+        {
+          "id": 4,
+          "box": [
+            485,
+            300,
+            501,
+            320
+          ],
+          "pixels": 165,
+          "name": "Reference/bag_3"
+        },
+        {
+          "id": 8,
+          "box": [
+            441,
+            328,
+            465,
+            351
+          ],
+          "pixels": 339,
+          "name": "Reference/bag_8"
+        },
+        {
+          "id": 9,
+          "box": [
+            471,
+            346,
+            495,
+            369
+          ],
+          "pixels": 229,
+          "name": "Reference/bag_9"
+        },
+        {
+          "id": 13,
+          "box": [
+            660,
+            363,
+            684,
+            380
+          ],
+          "pixels": 169,
+          "name": "Tree00/shoot0_8_1/bag"
+        },
+        {
+          "id": 21,
+          "box": [
+            495,
+            361,
+            518,
+            386
+          ],
+          "pixels": 122,
+          "name": "Tree00/shoot2_8_1/bag"
+        },
+        {
+          "id": 23,
+          "box": [
+            335,
+            397,
+            357,
+            417
+          ],
+          "pixels": 242,
+          "name": "Tree01/shoot0_4_1/bag"
+        },
+        {
+          "id": 25,
+          "box": [
+            308,
+            366,
+            321,
+            388
+          ],
+          "pixels": 130,
+          "name": "Tree01/shoot0_8_1/bag"
+        },
+        {
+          "id": 42,
+          "box": [
+            768,
+            417,
+            790,
+            437
+          ],
+          "pixels": 245,
+          "name": "Tree02/shoot1_2_1/bag"
+        },
+        {
+          "id": 43,
+          "box": [
+            754,
+            395,
+            775,
+            418
+          ],
+          "pixels": 203,
+          "name": "Tree02/shoot1_4_1/bag"
+        },
+        {
+          "id": 106,
+          "box": [
+            1252,
+            473,
+            1277,
+            499
+          ],
+          "pixels": 370,
+          "name": "Tree07/shoot2_2_1/bag"
+        },
+        {
+          "id": 107,
+          "box": [
+            1233,
+            459,
+            1262,
+            486
+          ],
+          "pixels": 375,
+          "name": "Tree07/shoot2_4_1/bag"
+        },
+        {
+          "id": 108,
+          "box": [
+            1214,
+            441,
+            1237,
+            464
+          ],
+          "pixels": 162,
+          "name": "Tree07/shoot2_6_1/bag"
+        }
+      ],
+      "detections": [
+        {
+          "box": [
+            438.4139404296875,
+            317.4504089355469,
+            467.491943359375,
+            350.2460632324219
+          ],
+          "confidence": 0.2949613630771637,
+          "class": 0
+        }
+      ],
+      "matches": [
+        {
+          "gt_id": 8,
+          "detection_index": 0,
+          "box_iou": 0.5494400480597765
+        }
+      ],
+      "recall_iou50": 0.07142857142857142,
+      "precision_iou50": 1.0,
+      "prompted_sam": [
+        {
+          "id": 2,
+          "prompted_sam_iou": 0.7780269058295964
+        },
+        {
+          "id": 3,
+          "prompted_sam_iou": 0.5607476635514018
+        },
+        {
+          "id": 4,
+          "prompted_sam_iou": 0.5806451612903226
+        },
+        {
+          "id": 8,
+          "prompted_sam_iou": 0.5766738660907127
+        },
+        {
+          "id": 9,
+          "prompted_sam_iou": 0.6019417475728155
+        },
+        {
+          "id": 13,
+          "prompted_sam_iou": 0.5810276679841897
+        },
+        {
+          "id": 21,
+          "prompted_sam_iou": 0.41596638655462187
+        },
+        {
+          "id": 23,
+          "prompted_sam_iou": 0.6750788643533123
+        },
+        {
+          "id": 25,
+          "prompted_sam_iou": 0.5945945945945946
+        },
+        {
+          "id": 42,
+          "prompted_sam_iou": 0.7547770700636943
+        },
+        {
+          "id": 43,
+          "prompted_sam_iou": 0.6118421052631579
+        },
+        {
+          "id": 106,
+          "prompted_sam_iou": 0.7953488372093023
+        },
+        {
+          "id": 107,
+          "prompted_sam_iou": 0.5727272727272728
+        },
+        {
+          "id": 108,
+          "prompted_sam_iou": 0.5655737704918032
+        }
+      ]
+    }
+  },
+  "notes": [
+    "SAM is GT-box prompted here; mask score is not detector recall.",
+    "Reference optical depth is independently derived from world Position Y.",
+    "Source SAM masks are estimated labels, not manual ground truth."
+  ]
+}

@@ -31,6 +31,8 @@ def test_from_params_flattens_topics_and_endpoints():
         'event_buffer_size': 100,
         'metrics_period_s': 1.0,
         'metrics_process_patterns': ['peach_arm'],
+        'startup_facts': '',
+        'robot_status_probe_enabled': False,
         'record': {
             'enabled': True, 'root_dir': '', 'save_images': True,
             'save_clouds': True, 'rosout': True, 'level': 'std',
@@ -42,6 +44,18 @@ def test_from_params_flattens_topics_and_endpoints():
             'enabled': True, 'motion_enabled': False,
             'action_timeout_s': 180.0, 'audit_enabled': True,
             'endpoints': {name: '/x' for name in DEBUG_ENDPOINTS}},
+        'selfcheck': {
+            'enabled': True, 'period_s': 30.0, 'initial_settle_s': 10.0,
+            'initial_timeout_s': 90.0, 'rate_window_s': 5.0,
+            'camera_probe_enabled': False, 'camera_min_hz': 2.0,
+            'disk_min_gb': 10.0,
+            'expected_joints': ['shoulder_joint', 'upperArm_joint',
+                                'foreArm_joint', 'wrist1_joint',
+                                'wrist2_joint', 'wrist3_joint'],
+            'expected_tcp_norm_m': -1.0, 'moveit_expected': True,
+            'imu_expected': True, 'model_paths': '',
+            'color_image_topic': '/camera/color/image_raw',
+            'depth_image_topic': '/camera/depth/image_raw'},
     }
     spec.update({name: '/t' for name in TOPIC_NAMES})
     snapshot = from_params(dict_to_ns(spec))
@@ -50,3 +64,14 @@ def test_from_params_flattens_topics_and_endpoints():
     assert snapshot.record_queue_depth == 64
     assert snapshot.topics['target_observations_topic'] == '/t'
     assert snapshot.debug_endpoints['run_harvest_action'] == '/x'
+    assert snapshot.selfcheck_period_s == 30.0
+    assert snapshot.selfcheck_expected_joints[0] == 'shoulder_joint'
+    assert snapshot.selfcheck_expected_tcp_norm_m == -1.0
+    assert snapshot.robot_status_probe_enabled is False
+
+
+def test_deploy_yaml_carries_selfcheck_group():
+    keys = leaf_keys(DEPLOY, 'peach_observability')
+    assert 'selfcheck.period_s' in keys
+    assert 'selfcheck.expected_joints' in keys
+    assert 'startup_facts' in keys

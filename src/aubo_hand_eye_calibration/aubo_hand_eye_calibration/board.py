@@ -9,6 +9,8 @@ import numpy as np
 class Checkerboard:
     """Inner-corner grid of a planar checkerboard target."""
 
+    # 运行时事实源是 config/calibration.yaml (server) 与内参标定 launch;
+    # 此处默认值仅作纯核构造兜底 (单测依赖), 换板改 yaml 不改这里
     columns: int = 11
     rows: int = 8
     square_size_m: float = 0.020

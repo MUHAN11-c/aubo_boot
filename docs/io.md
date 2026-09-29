@@ -60,7 +60,7 @@ flowchart LR
   Rec --> Obs
 ```
 
-**读图：** 左到右是一次开批谁叫谁。粗箭头是动作/服务（只有调度发出）。细回流是观测和许可话题：调度只订 `target_observations` 选果；`initial_pose` 只进重建。监控在最右，只收不发。`NavigateToWorksite` 预留（图上无导航节点）；`ExecuteTarget` 干跑走 `PREGRASP_ONLY`，不是图上三种同时发。
+**读图：** 左到右是一次开批谁叫谁。粗箭头是动作/服务（只有调度发出）。细回流是观测和许可话题：调度订 `target_observations` 选果、`grasp_decision`（闩锁许可令牌缓存，非选果输入）；`initial_pose` 只进重建。监控在最右，只收不发。`NavigateToWorksite` 预留（图上无导航节点）；`ExecuteTarget` 干跑走 `PREGRASP_ONLY`，不是图上三种同时发。
 
 | 调用 | 服务端 | 发起方 | 何时 |
 |------|--------|--------|------|
@@ -81,7 +81,7 @@ flowchart LR
 
 ## 2. `peach_interfaces`
 
-无节点、无 launch、无运行参数。跨包唯一 IDL；清单 54 active + 4 reserved，脚本双向核对。每根管子与每个字段的含义写在 [peach_interfaces/README.md](../src/peach_interfaces/README.md)。改字段只改本包，先编本包再编下游；同轮改 README、manifest 与本文。
+无节点、无 launch、无运行参数。跨包唯一 IDL；清单 56 active + 5 reserved（预留=四个导航 IDL + `peach_sim/joint_states` gz 桥登记），脚本双向核对。每根管子与每个字段的含义写在 [peach_interfaces/README.md](../src/peach_interfaces/README.md)。改字段只改本包，先编本包再编下游；同轮改 README、manifest 与本文。
 
 | 动作 | 服务端所在包 | 含义 |
 |------|--------------|------|
@@ -89,7 +89,7 @@ flowchart LR
 | `NavigateToWorksite` | （预留，导航包已归档） | **走到作业位。** 固定座调度直通 `NAV_OK`，不发动作、无服务端 |
 | `SurveyScene` | `peach_arm` | **去全局拍照位并复核关节已静止。** 给感知准备发现 FOV。PAUSE 会取消，恢复后重试。失败整批 `survey_failed`，不 Begin |
 | `BuildTargetModel` | `peach_harvester`（vision） | **绑一颗、收合格机位后 finalize。** 与 OBSERVE_ONLY 并行。积分只用精确 stamp TF。反馈 `view_count` 是机位数 |
-| `ExecuteTarget` | `peach_arm` | **对当前 `target_id` 跑一周期。** `PREVIEW` 只规划；`OBSERVE_ONLY` 只补视角；`PREGRASP_ONLY` 停预抓取不 SetIO（默认干跑）；`FULL` 套入/刀/撤退（空心 MTC LIN；自适应 imu_follow 窗：预抓取→insert→回预抓取）。终局 `SUCCEEDED` / `SKIPPED_*` / `FAILED` / `CANCELED`。`harvest.grasped` 仅切断且撤退确认 |
+| `ExecuteTarget` | `peach_arm` | **对当前 `target_id` 跑一周期。** `PREVIEW` 只规划；`OBSERVE_ONLY` 只补视角；`PREGRASP_ONLY` 停预抓取不 SetIO（默认干跑）；`FULL` 套入/刀/撤退（shear/bite MTC LIN；adaptive_shear_v1 imu_follow 窗：预抓取→insert→回预抓取）。终局 `SUCCEEDED` / `SKIPPED_*` / `FAILED` / `CANCELED`。`harvest.grasped` 仅切断且撤退确认 |
 
 | 服务 | 服务端所在包 | 含义 |
 |------|--------------|------|
@@ -102,19 +102,19 @@ flowchart LR
 |------|------|
 | `PeachTargetObservation*` | **场景里有哪些桃。** 稳定 `target_id`、跟踪态、掩膜、单帧几何；数组带 `scene_epoch`。调度据此选果（须世代对齐且已锁定）；重建据此对齐掩膜 |
 | `BagGraspCandidate` / `BagFitting` | **单帧袋/果几何与拟合诊断。** `status` ACCEPT/REOBSERVE/REJECT 只当初值与画面，不发运动 |
-| `HarvestState` | **批次唯一快照。** `target_id` 是感知/重建作业绑定；`batch_state` / `target_phase` 只由 FSM 推导 |
+| `HarvestState` | **批次唯一快照。** `target_id` 是感知/重建作业绑定；`batch_state` / `target_phase` 只由 FSM 推导；`blockers` 自 2026-09-29 起填充（软门机读口径，词表：`stack_not_ready` / `recovery_required` / `mode_paused` / `mode_maintenance` / `ledger_write_failed`，源 `harvest_fsm.blockers_for`） |
 | `HarvestSummary` / `TargetOutcome` | 一批结算与单颗入账结果 |
-| `CanonicalEvent` | **可检索事件流。** 派发/成功/跳过/失败/暂停/ACK；终局 `message` 带 `failure_code` |
+| `CanonicalEvent` | **可检索事件流。** 派发/成功/跳过/失败/暂停/ACK；终局 `message` 带 `failure_code`；severity 四档（2026-09-29 起全码表映射） |
 | `SceneSnapshot` | WAIT_LOCK 结束或回访 dwell 后的锁定集快照；`scene_epoch` 须为 Begin 之后 |
 | `ReconstructionStatus` | **重建心跳。** 绑定目标、机位数、基线、TF 失败次数。技能看覆盖 |
 | `GraspDecision` | **融合几何 + 套入许可。** 身份元组 + 能力三态；`allowed` 只由 geometry∧sleeve∧cut VALID 派生（pregrasp 不进，以免拦 PREGRASP_ONLY；dict 诊断侧同源派生，M11），只拦套入/剪切；`valid_until` 心跳不得续签（窗口 2026-09-20 参数化 `decision.validity_s` 默认 120s——G1：原 5s 与接近链时长错配）；`model_revision` 含单调 finalize 计数（G3，消费方按不透明字符串比较） |
 | `PregraspVerification` | 重建侧预抓取残差观测；技能 VerifyPregrasp **未订**本话题，用工具 TF |
 | `TargetModel` / `TargetQuality` | Build 结果模型与质量档；含 `run_id` / 修订 / `generated_at` / `valid_until` / 能力三态 |
-| `FailureCode` | 失败码枚举 |
+| `FailureCode` | 失败码枚举（0-23；21-23 为 2026-09-29 观测性轮新增：`TRANSIT_FAILED` / `START_NOT_READY` / `CANCELED`） |
 | `ShapeHypothesis` | 契约预留形状假说；重建发，尚未当批次门 |
 | `GraspHypothesis` | 技能本周期抓取假说；监控订阅，尚未当批次门 |
 
-事件码：`target_dispatched` / `target_succeeded` / `target_skipped` / `target_failed` / `target_canceled` / `target_operator_skipped` / `photo_pose_reached` / `round_locked` / `survey_failed`；人工操作审计码：`batch_paused` / `batch_resumed`（含 from/to 态）、`recovery_required`（真运动后停驻）、`recovery_acknowledged`（人工 ACK 完成）——审计码 details 带 ControlTask `reason`（请求填了才写）；选果过滤码：`targets_filtered`（details 列出超窗目标与原因 `out_of_reach_window` / `out_of_depth_window` / `ik_no_solution`）。终局目标事件的 `message` JSON 并入 outcome 细节（`failure_code` 等），summary「原因」列取之。轨道身份歧义/占用在感知 `identity.py` 用分配代价比值判定（无 IDL；`JobIntent` / `HarvestEvent` / `MatchStatus` 已随 e2f37ff 删除，`intent` 常量以 `RunHarvest.action` 的 `INTENT_*` 为唯一权威）。
+事件码：`target_dispatched` / `target_succeeded` / `target_skipped` / `target_failed` / `target_canceled` / `target_operator_skipped` / `photo_pose_reached` / `round_locked` / `survey_failed` / `begin_scene_failed` / `navigate_failed`（后两码 2026-09-29 补齐——此前 FSM `event_code` 为空，批次中断只体现在 `termination_reason`，事件时间线无归因）；单果时限码 `target_timeout`（WARNING 级）。人工操作审计码：`batch_paused` / `batch_resumed`（含 from/to 态）、`recovery_required`（真运动后停驻）、`recovery_acknowledged`（人工 ACK 完成）、`enables_changed` / `batch_policy_updated` / `fire_step` / `ledger_restored`——审计码 details 带 ControlTask `reason`（请求填了才写）；选果过滤码：`targets_filtered`（details 列出超窗目标与原因 `out_of_reach_window` / `out_of_depth_window` / `ik_no_solution`）。终局目标事件的 `message` JSON 并入 outcome 细节（`failure_code` 等），summary「原因」列取之。轨道身份歧义/占用在感知 `identity.py` 用分配代价比值判定（无 IDL；`JobIntent` / `HarvestEvent` / `MatchStatus` 已随 e2f37ff 删除，`intent` 常量以 `RunHarvest.action` 的 `INTENT_*` 为唯一权威）。
 
 导航预留（manifest `reserved_interfaces`，无生产方；调度 NAV 直通）：
 
@@ -156,7 +156,7 @@ flowchart LR
 | `/camera/depth/camera_info` | 深度内参（配准后与彩色同 K；stereo 前端同发） |
 | `/camera/depth_registered/points` | 配准彩色点云（percipio 默认开；stereo 同名，点云多一个 `confidence` 字段，见下） |
 
-**相机前端（2026-09-17 起，harvest_system `camera_frontend:=percipio|stereo`，默认 percipio）**：percipio=设备端 18 图案深度（~2.43 fps，额定量程 0.4–0.8 m；09-21 修复 `parameters.xml` 调参残留下发致深度大面积无效——该 XML 是无条件下发通道，实验值勿残留）；stereo=`peach_stereo` 主机单图案立体（~13.7 fps，hh4 档；话题与 percipio 同构：`color/image_raw`、`depth/image_raw`、`{color,depth}/camera_info`、`depth_registered/points`——stereo 点云比 percipio 多一个 `confidence` FLOAT32 字段（point_step 24=xyz12+pad4+rgb4+confidence4——confidence 在 rgb 槽之后，勿与 rgb@16 重叠；`temporal_k>1` 时=窗内采样占比×取值一致性、与发布深度逐像素对齐，`=1` 时恒 1.0；消费方按字段名读，octomap/RViz/PCL 兼容）；深度口径 uint16×0.25 mm；只发 raw Image + 点云，不用 image_transport；静态 TF 同名链；激光满功率点亮、停栈自动复位；与 percipio 相机连接互斥；SGBM 档 `sgbm.mode`/`sgbm.uniqueness_ratio`/`median_ksize` + 配准后滑窗时域中值 `temporal_k`（1=关/3/5 非法拒启；逐像素有效中值、每帧照常发布不除率；部署 yaml=3，09-21 live A/B：entry std z 0.41→0.21mm、袋半径 std 0.27→0.14mm、覆盖 +0.4pp、13.7gps 无回归），参数依据见该包 README 与 yaml 注释）。规格档案与实测数据见 `src/peach_stereo/README.md`。感知/重建订阅零改动。
+**相机前端（2026-09-17 起，harvest_system `camera_frontend:=percipio|stereo`；**默认 stereo**，2026-09-29 用户裁定；percipio 显式传参仍可用）**：percipio=设备端 18 图案深度（~2.43 fps，额定量程 0.4–0.8 m；09-21 修复 `parameters.xml` 调参残留下发致深度大面积无效——该 XML 是无条件下发通道，实验值勿残留）；stereo=`peach_stereo` 主机单图案立体（~13.7 fps，hh4 档；话题与 percipio 同构：`color/image_raw`、`depth/image_raw`、`{color,depth}/camera_info`、`depth_registered/points`——stereo 点云比 percipio 多一个 `confidence` FLOAT32 字段（point_step 24=xyz12+pad4+rgb4+confidence4——confidence 在 rgb 槽之后，勿与 rgb@16 重叠；`temporal_k>1` 时=窗内采样占比×取值一致性、与发布深度逐像素对齐，`=1` 时恒 1.0；消费方按字段名读，octomap/RViz/PCL 兼容）；深度口径 uint16×0.25 mm；只发 raw Image + 点云，不用 image_transport；静态 TF 同名链；激光满功率点亮、停栈自动复位；与 percipio 相机连接互斥；SGBM 档 `sgbm.mode`/`sgbm.uniqueness_ratio`/`median_ksize` + 配准后滑窗时域中值 `temporal_k`（1=关/3/5 非法拒启；逐像素有效中值、每帧照常发布不除率；部署 yaml=3，09-21 live A/B：entry std z 0.41→0.21mm、袋半径 std 0.27→0.14mm、覆盖 +0.4pp、13.7gps 无回归），参数依据见该包 README 与 yaml 注释）。规格档案与实测数据见 `src/peach_stereo/README.md`。感知/重建订阅零改动。
 
 感知/重建 ApproximateTime slop **0.05 s**。驱动 QoS 字符串 `default`（RELIABLE）；订户手写 RELIABLE、depth=10。跨包轴向后撤只改 `src/peach_harvester/config/grasp_standoffs.yaml` 两行（`entry_standoff_m` / `pregrasp_standoff_m`），launch 注入各节点已声明参数。
 
@@ -244,7 +244,8 @@ flowchart TB
 | `depth_scale_unit` | uint16：raw × 本值 = 毫米（Percipio 0.25） |
 | `sync_slop_s` | RGB-D 近似同步允差（0.05 s） |
 | `tool.entry_d_tool` / `entry_d_s` | 入口相对袋底。由 `grasp_standoffs.yaml` 注入，勿只改这里 |
-| `tool.D_inner` | 工具内径（径向走廊门）。整栈由 launch `tool_profile` 档案注入覆盖（`aubo_description/config/<profile>.yaml` 单一事实源），基础值=固定圆柱 0.104 |
+| `tool.D_inner` | 工具内径（径向走廊门）。整栈由 launch `tool_profile` 档案注入覆盖（`aubo_description/config/<profile>.yaml` 单一事实源；三把剪切手 0.030/0.080/0.120，基础值=adaptive_shear_v1 0.120） |
+| `tool.L_insert` / `tool.L_blade` | 最大插入深度 / TCP 到剪切平面轴向距离。整栈由档案注入覆盖（三把 0.030/0.030/0.090 与 0.037/0.030/0.079，基础值=adaptive 档案；2026-09-29 扩注入面） |
 
 ### 3.2 `peach_target_reconstruction_node`（建）
 
@@ -277,9 +278,10 @@ flowchart TB
 | `/peach/reconstruction/diagnostics` | topic | 结构化心跳：绑定态、机位数、基线、TF 失败 | peach_target_reconstruction | peach_arm, peach_observability |
 | `/peach/reconstruction/diagnostics_debug` | topic | 调试 JSON 明细（TSDF/ICP/逐机位），不进决策 | peach_target_reconstruction | peach_observability |
 | `/peach/reconstruction/status` | topic | 短状态 String（MCAP 白名单用这个，不是 diagnostics） | peach_target_reconstruction | peach_observability |
-| `/peach/reconstruction/grasp_decision` | topic | 融合入口/轴/预抓取/剪切 + `allowed`（只拦套入） | peach_target_reconstruction | peach_arm, peach_observability |
+| `/peach/reconstruction/grasp_decision` | topic | 融合入口/轴/预抓取/剪切 + `allowed` 汇总位（分档复检语义见 §5 `GraspDecision` 行） | peach_target_reconstruction | peach_arm, peach_supervisor（闩锁令牌缓存）, peach_observability |
 | `/peach/reconstruction/pregrasp_verification` | topic | 重建侧残差观测；技能 VerifyPregrasp 用工具 TF，未订本话题 | peach_target_reconstruction | （观测） |
-| `/peach/reconstruction/refined_pose` | topic | 融合后袋位姿（精化候选） | peach_target_reconstruction | peach_arm, peach_observability |
+| `/peach/reconstruction/refined_pose` | topic | 融合后袋位姿（精化候选） | peach_target_reconstruction | peach_arm, peach_scene_obstacles, peach_observability |
+| `/peach/scene/obstacles_refresh` | topic | Survey 快照建图触发（Empty，transient_local；Survey 成功=拍照位刚拍完，此刻点云帧即障碍快照源，0035） | peach_supervisor | peach_scene_obstacles |
 | `/peach/reconstruction/refined_axis` | topic | 融合袋轴，给监控三维 | peach_target_reconstruction | peach_observability |
 | `/peach/reconstruction/refined_diagnostics` | topic | 精化拟合诊断 | peach_target_reconstruction | peach_arm, peach_observability |
 | `/peach/reconstruction/tsdf_cloud` | topic | 绑定目标 TSDF 表面（批次结束会复位变空） | peach_target_reconstruction | peach_observability |
@@ -330,7 +332,7 @@ flowchart TB
 | `capture.min_neighbor_gap_m` / `neighbor_gap_area_ratio` | 邻锚过近拒帧；小框面积比豁免，近距双检不互锁 |
 | `tf_timeout_sec` | 按深度 stamp 精确查 TF；失败跳帧，禁止 latest |
 | `refit.entry_standoff_m` / `refit.pregrasp_standoff_m` | 入口相对袋底、预抓取相对入口。只改 `grasp_standoffs.yaml` |
-| `tool.budget.d_inner` | GraspDecision 动态预算许可的工具内径。整栈由 launch `tool_profile` 档案注入覆盖（固定圆柱 0.104 / 自适应 0.116） |
+| `tool.budget.d_inner` | GraspDecision 动态预算许可的工具内径。整栈由 launch `tool_profile` 档案注入覆盖（三把剪切手 0.030/0.080/0.120，基础值=adaptive 0.120） |
 | `tool.profile_id` | 档案标签（`GraspDecision`/`PregraspVerification`/`TargetModel` 的 `tool_profile_id`）。整栈由 launch `tool_profile` 档案注入 |
 | `refitter.cylinder_impl` / `sphere_impl` | 柱/球精化映射名（`REFITTERS_BY_IMPL`）；其余算法直接构造 |
 
@@ -354,7 +356,7 @@ flowchart LR
 | `/peach/vegetation/leaf_mask` | topic | 叶掩膜 mono8（255=叶） | peach_vegetation | （核内无订） |
 | `/peach/vegetation/branch_mask` | topic | 木质脊掩膜 mono8（细枝为主，非直径分类） | peach_vegetation | （核内无订） |
 | `/peach/vegetation/overlay` | topic | 绿叶红枝叠加 bgr8 | peach_vegetation | （核内无订） |
-| `/peach/vegetation/status` | topic | JSON：infer_ms / 覆盖率 / dropped | peach_vegetation | （核内无订） |
+| `/peach/vegetation/status` | topic | JSON：infer_ms / 覆盖率 / dropped | peach_vegetation | peach_observability（自检新鲜度探针，2026-09-29 起；在图才查） |
 
 作业参数（部署值 `peach_vegetation/config/vegetation.yaml`；`peach_vegetation.attach`）：
 
@@ -410,7 +412,7 @@ flowchart TB
 | `/peach_arm/acknowledge_recovery` | service | 技能确认停驻已看过；调度 ACK 会调它，成功才消耗 `state_seq` | peach_arm | peach_supervisor |
 | `/peach/manipulation/grasp_hypothesis` | topic | 本周期抓取假说（监控三维；未当批次门） | peach_arm | peach_observability |
 | `/peach_arm/status` | topic | 技能短状态 JSON，作业票「靠近/工具」用 | peach_arm | peach_observability |
-| `/diagnostics` | topic | 技能节点诊断双轨（W5-10，diagnostic_updater 1Hz：观测流/TF 新鲜度、目标缓存、回调耗时 TopN、接触电流特征、使能心跳）。不进接口清单：核对器只扫 `/peach` 前缀绝对名字面量，`/diagnostics` 属 ROS 标准诊断面（同 `serial_imu` 先例，W5 验证不登记也绿）；生产方 `peach_arm` + `serial_imu`（+ `peach_vegetation`），消费端为通用诊断工具（`ros2 topic echo /diagnostics` / diagnostics 聚合器），非跨包数据通道 | peach_arm | 通用诊断面（无 peach 内消费方） |
+| `/diagnostics` | topic | 节点诊断标准面（diagnostic_updater 周期任务；2026-09-29 观测性轮起全覆盖）：`peach_arm`（9 任务：观测流/TF、目标缓存、回调耗时、接触电流、使能、**robot_status 断流、工具链、move_group 在场、最近拒因锁存**）、`peach_scene_perception_node` / `peach_target_reconstruction_node` / `peach_supervisor` / `peach_lifecycle_manager`（watchdog）/ `peach_scene_obstacles`（快照结局）/ `peach_observability`（bag 队列、摄入活度、**selfcheck 裁决**）/ `peach_vegetation` / `peach_stereo`（帧率/丢弃/激光配置）/ `serial_imu`。不进接口清单：核对器只扫 `/peach` 前缀绝对名字面量，`/diagnostics` 属 ROS 标准诊断面（同 `serial_imu` 先例，W5 验证不登记也绿）。**消费端**：`peach_observability` 订阅聚合进 `/api/state` `diagnostics` 分区与 8090 面板（此前全栈无消费方）+ 会话 bag | peach_arm 等 | peach_observability（聚合）+ 通用诊断工具 |
 
 另有 Trigger（已进清单；8090 调试面调用，调度主路径走动作 cancel）：
 
@@ -423,18 +425,23 @@ flowchart TB
 
 订阅：感知观测；重建 `grasp_decision` / `refined_*` / `diagnostics`。柜侧：`RobotStatus` 做安全门；`/aubo_io_controller/joint_status` 电流环形缓存给 ④层接触检测（默认关，只缓存不判定）；工具闭合调 `/aubo_io_controller/set_io`。TF：`tf2::TimePointZero`（规划下一视点，不是积分旧深度）。
 
-`stages.cpp` 的 `executeCycle(ctx)` 显式模式 switch，周期状态全在 `CycleContext`（action 受理时创建、worker 单写者）：PrepareCycle →（`execution_enabled` 关则 PlanPreview 终结）→（未 `skip_observation` 则 AcquireViews）→ FinalizeAndValidate →（OBSERVE_ONLY → Report / `grasp_enabled` 关 → ReportReady / Reconfirm → MovePregrasp → VerifyPregrasp →（PREGRASP_ONLY 则 `HoldPregrasp` 停住 | PlanSleeve → SleeveLinear → ActuateCutter → VerifyCut → ReverseRetreat → ReturnStow → VerifyHarvestOutcome））→ CompleteTarget。FULL 套入/撤退：空心走 MTC LIN；自适应 FULL 在预抓取验证后开 imu_follow 窗（enable→insert_start→剪切→insert_retract→disable），回到预抓取才关窗，**先倒放回拍照位再短 PTP `harvest_stow`**；套入/撤退用实测行程判据（批次5）：进度主判据 FK（等待起点 TCP 沿锁定轴向的位移投影），回退订 `/imu_follow/insert_progress`（目标积分），时间只作截止，停滞窗（3 s 实测增益 <1 mm）进度收口 UNKNOWN。空心末端走 MTC LIN，永不调、不建 `/imu_follow` 客户端。未 enable 时 follow_node pause servo，禁止与 MTC 同时写 JTC。运动/IO 入口逐阶段过 `ExecutionAuthority`（套入/剪切前复检 `GraspDecision.allowed`；撤离 TRANSIT 级不做决策复检）。
+`stages.cpp` 的 `executeCycle(ctx)` 显式模式 switch，周期状态全在 `CycleContext`（action 受理时创建、worker 单写者）：PrepareCycle →（`execution_enabled` 关则 PlanPreview 终结）→（未 `skip_observation` 则 AcquireViews）→ FinalizeAndValidate →（OBSERVE_ONLY → Report / `grasp_enabled` 关 → ReportReady / Reconfirm → MovePregrasp → VerifyPregrasp →（PREGRASP_ONLY 则 `HoldPregrasp` 停住 | PlanSleeve → SleeveLinear → ActuateCutter → VerifyCut → ReverseRetreat → ReturnStow → VerifyHarvestOutcome））→ CompleteTarget。FULL 套入/撤退：shear/bite 走 MTC LIN；adaptive_shear_v1 FULL 在预抓取验证后开 imu_follow 窗（enable→insert_start→剪切→insert_retract→disable），回到预抓取才关窗，**先倒放回拍照位再短 PTP `harvest_stow`**；套入/撤退用实测行程判据（批次5）：进度主判据 FK（等待起点 TCP 沿锁定轴向的位移投影），回退订 `/imu_follow/insert_progress`（目标积分），时间只作截止，停滞窗（3 s 实测增益 <1 mm）进度收口 UNKNOWN。shear/bite 两档走 MTC LIN，永不调、不建 `/imu_follow` 客户端。未 enable 时 follow_node pause servo，禁止与 MTC 同时写 JTC。运动/IO 入口逐阶段过 `ExecutionAuthority`（套入/剪切前复检 `GraspDecision.allowed`；撤离 TRANSIT 级不做决策复检）。
 
 - OBSERVE_ONLY：当前位先采帧；基线未过最多两次最近短移（只 LIN，失败换候选），沿当前相机直线截到 `max_camera_step_m`（默认 0.15 m），评分以行程最短为主；朝当前目标检测框内分割更满的方向微偏。禁止 OMPL、对侧兜圈、贴 0.40 m 球面环绕、PTP 兜底。覆盖门 `minimum_baseline_deg: 8`。停准则：覆盖达标或 `maximum_moves` 用尽；不做墙钟预算/移动+等帧 EMA 预测收口（`time_budget_s` 键已随死分支删除，2026-09-20 W5）。到位后等新机位（`view_directions` 增加），同机位连帧不加覆盖。成功：重建已绑定、独立机位已满 `min_views`、TSDF/精化已发布。观察成功但 Build `view_count`（机位数）`< min_views` → `observe_build_view_race`。`captured_views` 仍是积分帧数。
 - PREGRASP_ONLY：有融合几何即去预抓取（入口在拟合袋底，预抓取相对入口后撤 0.03 m）；先回拍照位（有记录的接近则原路返程，否则 PTP 0.5 s / 失败 OMPL 3.0 s），再走接近主路径：**PTP 关节空间到中段点正下方（树冠外，滚转梯子 {0,±30°,±60°}+随机重启 IK）+ 世界垂直 LIN 入冠（伸进果树里）+ 沿轴 LIN 对轴进入预抓取**（`staging.*` 已删；不满足即失败收口）（已齐 LIN 挂相对目标 20° 姿态路径约束）。执行路径 MTC `plan(1)`。起点已在袋底侧、直连不穿囊的短修正走直连 LIN（未齐先 LIN 原地对齐工具 Z；keep-roll 自碰则换滚转）。不走 CIRC/STOMP/OMPL。拍照位失败则从当前位规划。不要求 `allowed`。工具 TF 残差超门则按**最新精化快照**重算 entry/pregrasp 做增量修正（最多两次）；残差未过门也停在预抓取（不回 `harvest_stow`），`pregrasp.passed=false` 且 `completion_level=LEVEL_PREGRASP_REACHED`（不得抬到 `LEVEL_PREGRASP_VERIFIED`；`passed` 与 `completion_level` 不得互相抬级）。任何路径不 SetIO。到位终局 `SUCCEEDED` 且 `recovery_required`，ACK 前调度不 Survey。现行不是两帧精确 TF RGB-D 重估。
-- FULL：`skip_observation`。空心沿轴 MTC LIN 套入/原路撤退；自适应在预抓取验证后开 imu_follow 窗（`enable`→`insert_start`→剪切→`insert_retract`→`disable`），回到预抓取才关窗，**先倒放回拍照位再短 PTP `harvest_stow`**（stow 与 photo 已分叉，直达会跳过原路返程撞 `transit_max`）。结果填 `HarvestResult` / `Verification` / `PregraspVerification` / `outcome_record`；W7 起顶层 bool 镜像与 `DepositResult` 字段已删（cut/retreat/harvest 证据单源 harvest/verification 块；`DepositResult` 消息保留卸果站预留，不随 Result 携带）。`harvest.grasped` 仅切断证据∧撤退证据。SetIO 超时 → 工具 UNKNOWN，不自动重发、不自动撤退。SetIO ACK 只产生 `CUT_COMMAND_ACCEPTED`；切断确认已接 `/aubo_io_controller/io_states`（批次3：`tool_io_states[pin0]` **本命令后新上升沿**，早已卡高不算），`stageVerifyCut` 有界等沿 2 s（`tool.feedback_timeout_s`）超时 `CUT_UNCONFIRMED` 保守收口——不撤退不重发，终局 `FAILED`/`CUT_FEEDBACK_TIMEOUT` 待人工（详见下「工具三轴状态」行）。
-- 接触 ACM：默认不豁免工具链对整张 `<octomap>`；只对指定目标对象 × 指定工具链接 × 套入/剪切阶段放行。
+- FULL：`skip_observation`。shear/bite 沿轴 MTC LIN 套入/原路撤退；adaptive_shear_v1 在预抓取验证后开 imu_follow 窗（`enable`→`insert_start`→剪切→`insert_retract`→`disable`），回到预抓取才关窗，**先倒放回拍照位再短 PTP `harvest_stow`**（stow 与 photo 已分叉，直达会跳过原路返程撞 `transit_max`）。结果填 `HarvestResult` / `Verification` / `PregraspVerification` / `outcome_record`；W7 起顶层 bool 镜像与 `DepositResult` 字段已删（cut/retreat/harvest 证据单源 harvest/verification 块；`DepositResult` 消息保留卸果站预留，不随 Result 携带）。`harvest.grasped` 仅切断证据∧撤退证据。SetIO 超时 → 工具 UNKNOWN，不自动重发、不自动撤退。SetIO ACK 只产生 `CUT_COMMAND_ACCEPTED`；切断确认已接 `/aubo_io_controller/io_states`（批次3：`tool_io_states[pin0]` **本命令后新上升沿**，早已卡高不算），`stageVerifyCut` 有界等沿 2 s（`tool.feedback_timeout_s`）超时 `CUT_UNCONFIRMED` 保守收口——不撤退不重发，终局 `FAILED`/`CUT_FEEDBACK_TIMEOUT` 待人工（详见下「工具三轴状态」行）。
+- 接触 ACM：只对指定目标对象 × 指定工具链接 × 套入/剪切阶段放行（场景障碍豁免见下条，0035 起为独立面）。
+- 场景障碍 ACM（0035，2026-09-29 起现行）：避障目的=**保护相机**（臂/末端轻微碰撞用户已接受）。`tool.links` 部署值=全机器人连杆−`camera_body_link`，豁免×`{<octomap>, peach_scene_obstacles}`；唯一受查对=相机×障碍。开关 `moveit.obstacle_guard_enabled`（默认 true；false=相机一并豁免恢复可达性，对象保留场景，重开即恢复保护；空闲 `ros2 param set` 生效，运动中拒改，下个规划前重写 ACM）。豁免条目组装纯核=`acm_policy::obstacleExemptionEntries`。**PlanningScene 写域分域**：`peach_scene_obstacles` 节点只写 world.collision_objects（快照对象）、`peach_arm` 只写 ACM diff，双写者互不覆盖。
 - ExecuteTarget FULL/PREGRASP_ONLY 要求完整模型身份元组；空版本拒执行（PREVIEW / OBSERVE_ONLY 除外）。`plan_id` 绑定（2026-09-20 修复轮收紧口径）：**只有 PREVIEW 档 goal 记 preview 绑定**，FULL **在自身携带 plan_id 时**与其全字段比对（mismatch → `failure_code=PLAN_MISMATCH(20)`）；绑定存在而 FULL 缺 plan_id 时比对不生效、直接放行（ID-2 缺口，architecture「ID 与身份确定」链 C；绑定写入亦先于预览成败）。OBSERVE_ONLY 只携带 plan_id+身份（观察会动臂、不构成计划预览，模型建好前本就带不了三修订）；FULL/PREGRASP_ONLY 周期终局清绑定。授权拒绝分级：许可过期（valid_until / model_stamp 超窗）→ SKIPPED_QUALITY（可重派），明确不允许 → FAILED。
 - 新鲜度门：`SafetyGate` 比较 `clock - freshnessStamp`。OBSERVED 且 `updated_s` 更新时用 `updated_s`，否则末次有效观测 `received_s`。门限 `effectiveTargetMaxAgeS()`：未测得 EMA 用 yaml 3.0 s，测得后只放宽。`assumed_frame_interval_s: 0.4` 只估等待窗口，不预填 EMA。
 - 工具三轴状态（批次3，2026-09-23）：`/peach_arm/tool_state`（ToolState.msg，latched，on-change）——刀/保持/载荷三轴各自 UNKNOWN 优先；刀闭合证据=`/aubo_io_controller/io_states` 的 `tool_io_states[pin0]` **本命令后新上升沿**（早已卡高不算，§12.2 新事件门在 ToolActuator 内强制）；闭合≠分离（M0 台架后升级组合判别）。`stageVerifyCut` 有界等沿（`tool.feedback_timeout_s` 2.0s），超时=`CUT_UNCONFIRMED` 保守收口：**不撤退、不重发、不 resume**，FAILED+CUT_FEEDBACK_TIMEOUT 待人工；`stageReleasePayload` 在 harvest_stow 后开刀释放（授权矩阵同 TOOL 级）。SetIO ACK 仍≠任何确认。
-- 接触护栏（yaml）：绕腕看累计 12 rad、单轴 6.1 rad（URDF ±3.05 满行程）；段间接缝计入 `|Δq|`。口侧/上方看①②层果实胶囊，**逐段审查**（工具有限圆柱 vs 感知胶囊；反爬 s 不得超过本段起点 max(s,0)+2 cm——v4 两段 LIN 逐跳都查；PTP 首段只查筒体接触，不查反爬；套入/撤退不审）。笛卡尔绕行比 2.6 / 偏离 0.32 m / 回退 0.12 m（09-18 标定；接近与转移段同值，逐段审；0=不查）；TCP 姿态行程绝对 110°（相对起止余量 20°，0=不查）。09-11 mock typical 打开默认门后，从拍照位成功接近绕行比 ≤1.70、姿态 ≤71°；超门拒发见 testing-log。不按时长（`mtc_approach_max_duration_s` 默认 0）。预抓取先回拍照位（有记录的接近则原路返程，否则 PTP 0.5 s / 失败 OMPL 3.0 s），再主路径 PTP+垂直入冠+沿轴到预抓取，再一段沿轴 LIN 套入；反向同轨迹（含入冠/沿轴段）回预抓取。已齐 LIN 加 tip 姿态 OrientationConstraint（对目标姿态，容差 `mtc_approach_max_align_deg` 20°）。主路径未齐先 LIN 原地对齐再平移（对齐跳不挂门）；兜底直连 LIN 同样。直连 LIN 弦长/弧长上限 0.80 m（v4 两段 LIN 同限；PTP 不受此限）。观察短移：只 LIN；行程 `observe_max_*` 4.0 rad / 1.5 rad（09-01 现场把 2.5 会拒的合法短移固化进 yaml）。`goToPhotoPose`：原路返程不过 `transit_max_*`；新规划先 PTP（`photo_ptp_planning_time_s` 0.5 s）失败再 OMPL（`photo_planning_time_s` 3.0 s），行程门 6 rad / 2.5 rad。成功出口核当前关节（`photo_pose_joint_tolerance_rad` / `photo_pose_max_joint_vel_rad_s`，`execute=false` 仍核）。超行程或不在拍照位不报成功。③层 octomap 由 `aubo_e5_moveit_config/config/sensors_3d.yaml` 注入 move_group（pluginlib 名 `occupancy_map_monitor/PointCloudOctomapUpdater`，顶层 `octomap_resolution` 0.04 m；地图系=规划系 `world`）；技能**不再**把工具链 × `<octomap>` 整表豁免（F10）。④层近果速度档只套入/撤退 0.05（接近折线走 `velocity_scaling` 0.10）；接触检测订 `joint_status`，默认关。
+- 接触护栏（yaml）：绕腕看累计 12 rad、单轴 6.1 rad（URDF ±3.05 满行程）；段间接缝计入 `|Δq|`。口侧/上方看①②层果实胶囊，**逐段审查**（工具有限圆柱 vs 感知胶囊；反爬 s 不得超过本段起点 max(s,0)+2 cm——v4 两段 LIN 逐跳都查；PTP 首段只查筒体接触，不查反爬；套入/撤退不审）。笛卡尔绕行比 2.6 / 偏离 0.32 m / 回退 0.12 m（09-18 标定；接近与转移段同值，逐段审；0=不查）；TCP 姿态行程绝对 110°（相对起止余量 20°，0=不查）。09-11 mock typical 打开默认门后，从拍照位成功接近绕行比 ≤1.70、姿态 ≤71°；超门拒发见 testing-log。不按时长（`mtc_approach_max_duration_s` 默认 0）。预抓取先回拍照位（有记录的接近则原路返程，否则 PTP 0.5 s / 失败 OMPL 3.0 s），再主路径 PTP+垂直入冠+沿轴到预抓取，再一段沿轴 LIN 套入；反向同轨迹（含入冠/沿轴段）回预抓取。已齐 LIN 加 tip 姿态 OrientationConstraint（对目标姿态，容差 `mtc_approach_max_align_deg` 20°）。主路径未齐先 LIN 原地对齐再平移（对齐跳不挂门）；兜底直连 LIN 同样。直连 LIN 弦长/弧长上限 0.80 m（v4 两段 LIN 同限；PTP 不受此限）。观察短移：只 LIN；行程 `observe_max_*` 4.0 rad / 1.5 rad（09-01 现场把 2.5 会拒的合法短移固化进 yaml）。`goToPhotoPose`：原路返程不过 `transit_max_*`；新规划先 PTP（`photo_ptp_planning_time_s` 0.5 s）失败再 OMPL（`photo_planning_time_s` 3.0 s），行程门 6 rad / 2.5 rad。成功出口核当前关节（`photo_pose_joint_tolerance_rad` / `photo_pose_max_joint_vel_rad_s`，`execute=false` 仍核）。超行程或不在拍照位不报成功。③层场景障碍=Survey 快照对象（0035）：`sensors_3d.yaml` 保持 `sensors: []`（不用 octomap updater，两轮翻车教训见该文件注释）；障碍由 `peach_scene_obstacles` 节点写入（见下节），受查面与开关见上「场景障碍 ACM」。④层近果速度档只套入/撤退 0.05（接近折线走 `velocity_scaling` 0.10）；接触检测订 `joint_status`，默认关。
 
 默认 `execution/grasp/tool=false`：只规划、不接触、不 SetIO。
+
+### peach_scene_obstacles（场景障碍快照，0035）
+
+独立进程（`peach_harvester` 包 console_script，不进 lifecycle 名单、不随 brain 进程）；`harvest_system` 在 `camera_enabled:=true` 时拉起（须位于 aubo include 之前，stereo 分支参数泄漏坑同见 launch 注释）。无状态快照服务：订阅 `/camera/depth_registered/points`（**RELIABLE** VOLATILE depth 5——两前端发布端均 RELIABLE，BE 订户大帧假性丢包（09-29 勘定），缓存最近一帧）、`/peach/reconstruction/refined_pose`（latched，累积已精化目标胶囊）、`/joint_states`+`/robot_description`（自身滤除 FK/mesh）、`/peach/scene/obstacles_refresh`（触发）；经 `/apply_planning_scene` 写 BOX 对象 `peach_scene_obstacles`（首写 ADD、此后同请求 REMOVE+ADD 原子替换）。参数 `config/scene_obstacles.yaml`（0024 直读 attach：体素 0.06、自身余量 0.05、胶囊余量 0.10/0.10、半径 1.5、上限 3000、帧龄门 2s；**滤除在体素中心上做，阈值=余量+体素半对角**——保证方块含角点不切机器人表面，0036）。触发后处理链在工作线程单飞（Open3D 突发不占 executor）；新目标精化后同帧重写；作业期冻结。**只写 world.collision_objects，不碰 ACM**（ACM 归 peach_arm，分域防覆盖；peach_arm 激活即 3 次幂等重试应用 26 条豁免并打 INFO）。纯核 `vision/scene_obstacles/core.py`（零 ROS，pytest 19 例）。
 
 作业参数（部署值 `config/peach_arm.yaml`；默认/校验/描述权威 = GPL `peach_arm/src/arm_parameters.yaml` 单源生成 `include/peach_arm/arm_parameters.hpp`，清洁重写轮 2c 回迁）：
 
@@ -512,7 +519,7 @@ flowchart TB
 
 客户端（仅本节点）：`BeginScene`、`SurveyScene`、`BuildTargetModel`（与 OBSERVE_ONLY 并行）、`ExecuteTarget`、`CheckReachability`。批次6 `reconstruct_in_trajectory`（默认关）：true 时 DISPATCH 起 Build 后不再阻塞等 Build 完成，立即派 FULL（goal 自带 `skip_observation=true`）——重建与接近并行，臂侧 FinalizeAndValidate 有界等精化兜底，周期收口取消并等 Build 结束（单槽约束）。账本：`runs/<request_id>/ledger.json`。
 
-作业参数（部署值 `config/peach_supervisor.yaml`；`peach_supervisor.attach`。`tool.profile_id` 基础值是固定圆柱标签，整栈由 launch `tool_profile` 注入覆盖）：
+作业参数（部署值 `config/peach_supervisor.yaml`；`peach_supervisor.attach`。`tool.profile_id` 基础值是 adaptive_shear_v1 标签，整栈由 launch `tool_profile` 注入覆盖）：
 
 | 参数 | 含义 |
 |------|------|
@@ -578,8 +585,9 @@ flowchart LR
 | `/peach/observability/markers` | topic | TCP 已采样路径/当前点/预抓取→入口轴，与网页主平面同源；不画未走到的首末弦 | peach_observability | （RViz） |
 | `/peach/observability/job` | topic | 作业票 String JSON（指纹变化发布） | peach_observability | 会话 bag（`peach_bag_report` 离线消费） |
 | `/peach/observability/metrics` | topic | 性能采样 String JSON（1s） | peach_observability | 会话 bag（同上） |
+| `/peach/observability/selfcheck_passed` | topic | **启动自检裁决闩锁**（Bool，TL d1；P0 观测性轮新增）。初次（托管栈激活+静置后）与每 30s 周期复检，或 8090 `POST /api/debug/selfcheck` 手动触发；无 FAIL 即 true。检查项全只读：生命周期/控制器/关节序/TF 对档案/相机帧率/move_group/四动作服务端/robot_status（真机）/IMU/磁盘/权重文件/参数一致性 | peach_observability | peach_bringup（autostart 硬等） |
 
-监控+调试 HTTP（默认 `127.0.0.1:8090`）+ 会话 bag 录制（随栈启停开合；2026-09-24 起进袋限速三族：控制流 20 Hz／PlanningScene 1 Hz／感知派生 2 Hz，决策 0031，只限进袋不影响实时流）。过程页只订不发；调试 POST 无令牌。`debug.enabled` 默认 true（false→503）；运动类另需 `debug.motion_enabled`（默认 false→423）。健康走 `/diagnostics`（W15 双轨：`session_recorder` 队列/丢帧、`ingest_liveness` 摄入活度）。
+监控+调试 HTTP（默认 `127.0.0.1:8090`）+ 会话 bag 录制（随栈启停开合；2026-09-24 起进袋限速三族：控制流 20 Hz／PlanningScene 1 Hz／感知派生 2 Hz，决策 0031，只限进袋不影响实时流）。过程页只订不发；调试 POST 无令牌。`debug.enabled` 默认 true（false→503）；运动类另需 `debug.motion_enabled`（默认 false→423）。健康走 `/diagnostics`（W15 双轨 + 2026-09-29 扩充：`session_recorder` 队列/丢帧、`ingest_liveness` 摄入活度、`selfcheck` 裁决；`/diagnostics` 全栈订阅聚合进 `/api/state`）。会话工件（2026-09-29 新增）：`runs/session_*/startup.json`（launch 注入的启动事实：模式/档案/相机/git 提交/域 ID——离线排障回答"当时跑的什么配置"）、`selfcheck.json` + `selfcheck_history.jsonl`（历次自检报告）。
 
 | 参数 | 含义 |
 |------|------|
@@ -596,7 +604,7 @@ flowchart LR
 | `debug.audit_enabled` | 审计落盘 `runs/debug_audit/`；默认开（含被拒，含 `enabled=false` 的 503） |
 | `debug.endpoints.*` | 调试桥目标（18 个既有动作/服务名，params.py 默认=现行契约名） |
 
-HTTP `/api/state` 区段：`perception` / `reconstruction` / `refined` / `manipulation` / `task_executor`（含 `state_seq`/`scene_epoch` 镜像）/ `robot`（含 `tcp` 摘要与 `joints` 六轴）/ `metrics` / `record` / `params` / **`pipeline`**（全流程阶段时序：调度 FSM 与技能周期各一条服务器侧时间线，每次状态转移记一条、段时长=到下一转移的间隔，页面刷新不丢）/ **`ledger`**（批次账本直播：`runs/<request_id>/ledger.json` 按 mtime 增量重读，per-target 结果/原因/失败码/耗时/阶段耗时与总计；`run_id` 即账本目录名）/ **`job`**（当前果实作业票：过程线状态、档位、`why`、感知入口/重建中心/预抓取/抓取进入点，`base_link` 米）/ **`debug`**（`enabled` / `motion_enabled` + 最近操作环形缓冲）。`reconstruction.grasp_decision` 镜像含 `valid_until`/`model_revision`/`failure_code`（许可有效期倒计时，心跳不续签）。`GET /api/trajectory` 给俯视页：TCP 点列、起止弦、路标、Marker 字典（绕行比、Δz）。过程页首屏按作业票展示；抓取档关闭时靠近/工具为 gated，不是已完成；其后为阶段时序（FSM/技能两列）、批次账本表（阶段耗时可展开）、感知节拍（fps/检测/分割/几何耗时、掉锚/陈旧锚）与重建进度（机位/拒帧/TF 失败/基线/许可倒计时）、系统负载与参数镜像（折叠）。机械臂硬件表订 `/joint_states`（角/速度）与 `/aubo_io_controller/joint_status`（电流 SDK 原单位/温度/跟随误差），镜像只在 Web、原始话题随 bag 录制。`POST /api/debug/<action>`：`enabled=false→503`、运动类未放行→`423`、未知端点→`404`、未知 mode/intent/command→`400`。无令牌、无 401。运动类 = RunHarvest 全部档位（含 `SURVEY_ONLY`——会 Survey 移到拍照位，09-18 收紧）、Survey、Execute 非 `PREVIEW`（`OBSERVE_ONLY` 算运动）、`go_to_photo_pose`、arm、ControlTask 的 `RESUME`/`EXIT_MAINTENANCE`。页面只暴露本管线按钮：批次 ControlTask 含 PAUSE/RESUME/SKIP_TARGET/ACK 恢复/CANCEL_NOW（PAUSE 与 CANCEL_NOW 带 `expected_state_seq=0` 不做过期拦截，其余带最新镜像 `state_seq`，过期由调度拒）；ExecuteTarget 组含 `set_execution_armed` 武装/解除（属运动类，照常 423 门）；后端端点清单见 `config/observability.yaml` 的 `debug.endpoints.*`。
+HTTP `/api/state` 区段：`perception` / `reconstruction` / `refined` / `manipulation` / `task_executor`（含 `state_seq`/`scene_epoch` 镜像）/ `robot`（含 `tcp` 摘要与 `joints` 六轴）/ `metrics` / `record` / `params` / **`pipeline`**（全流程阶段时序：调度 FSM 与技能周期各一条服务器侧时间线，每次状态转移记一条、段时长=到下一转移的间隔，页面刷新不丢）/ **`ledger`**（批次账本直播：`runs/<request_id>/ledger.json` 按 mtime 增量重读，per-target 结果/原因/失败码/耗时/阶段耗时与总计；`run_id` 即账本目录名）/ **`job`**（当前果实作业票：过程线状态、档位、`why`、感知入口/重建中心/预抓取/抓取进入点，`base_link` 米）/ **`startup`**（启动事实镜像，2026-09-29 起）/ **`selfcheck`**（最近一次自检报告：逐项 pass/warn/fail/skip + 汇总）/ **`diagnostics`**（`/diagnostics` 聚合：按 hardware_id 归组的任务级状态，2026-09-29 起）/ **`debug`**（`enabled` / `motion_enabled` + 最近操作环形缓冲）。`reconstruction.grasp_decision` 镜像含 `valid_until`/`model_revision`/`failure_code`（许可有效期倒计时，心跳不续签）。`GET /api/trajectory` 给俯视页：TCP 点列、起止弦、路标、Marker 字典（绕行比、Δz）。过程页首屏按作业票展示；抓取档关闭时靠近/工具为 gated，不是已完成；其后为阶段时序（FSM/技能两列）、批次账本表（阶段耗时可展开）、感知节拍（fps/检测/分割/几何耗时、掉锚/陈旧锚）与重建进度（机位/拒帧/TF 失败/基线/许可倒计时）、系统负载与参数镜像（折叠）。机械臂硬件表订 `/joint_states`（角/速度）与 `/aubo_io_controller/joint_status`（电流 SDK 原单位/温度/跟随误差），镜像只在 Web、原始话题随 bag 录制。`POST /api/debug/<action>`：`enabled=false→503`、运动类未放行→`423`、未知端点→`404`、未知 mode/intent/command→`400`。无令牌、无 401。运动类 = RunHarvest 全部档位（含 `SURVEY_ONLY`——会 Survey 移到拍照位，09-18 收紧）、Survey、Execute 非 `PREVIEW`（`OBSERVE_ONLY` 算运动）、`go_to_photo_pose`、arm、ControlTask 的 `RESUME`/`EXIT_MAINTENANCE`。页面只暴露本管线按钮：批次 ControlTask 含 PAUSE/RESUME/SKIP_TARGET/ACK 恢复/CANCEL_NOW（PAUSE 与 CANCEL_NOW 带 `expected_state_seq=0` 不做过期拦截，其余带最新镜像 `state_seq`，过期由调度拒）；ExecuteTarget 组含 `set_execution_armed` 武装/解除（属运动类，照常 423 门）；后端端点清单见 `config/observability.yaml` 的 `debug.endpoints.*`。
 
 | 产物 | 路径 |
 |------|------|
@@ -695,10 +703,20 @@ flowchart TB
 | `/imu/data_raw` | **原始** IMU：模组体轴，协议原样（含姿态）；陀螺协方差同 `data` |
 | `/imu/mag` | 磁力计（特斯拉；已随修正转到 `imu_link`；未知方差全 0） |
 | `/imu/temp` | 温度 |
+| `/force/points` | 5 点力（`std_msgs/Float64MultiArray`，Reliable+Volatile）：**牛顿**（REP-103），顺序通道 1/2/3/5/7；2026-09-29 实测 A5 力帧与 A4 IMU 帧共用 `/dev/imu` 同口，本节点 `feed_mux` 分流 |
 | `/diagnostics` | `diagnostic_updater`：串口开闭 + `imu/data` 帧率（不进采摘 observability） |
 | `imu/align_to_parent` 服务 | `std_srvs/Trigger`：把当前 IMU↔parent（tcp）姿态差当误差清掉；`align_to_parent` 时提供 |
 
 静态 TF `world`（或 `base_link` / `tcp`）→`imu_link`（单位姿态，不把融合四元数写进此帧）。不并进臂链，除非 `tf_parent_frame:=base_link` 或 `tcp`。坐标系修正与对齐在 `frame.py`（零 ROS）：倒装 Rx(180°) 与 parent 误差清零分开；贴歪/无磁 yaw 不要写进 `frame_rpy_deg`。叠 TCP 时 `align_to_parent:=true`（启动自动采，或调 `imu/align_to_parent`）。不做自适应工具偏移。手册：[src/serial_imu/README.md](../src/serial_imu/README.md)。
+
+### `serial_force_node`（咬合末端 5 点力，只看力时的独立用法）
+
+咬合末端盘面 5 点力传感器 IMS-C04A（量程 50g–2kg），采集板 0xA5 定长帧（17B：通道号 1/2/3/5/7 + int16 小端 kgf×100 + 累加和）100Hz 主动上报。**与 IMU 帧共用 `/dev/imu` 同一条串口（2026-09-29 实测）**：默认由 `serial_imu_node` 分流发 `/force/points`（上表）；本节点是"只看力"的独立用法，开同一条口、逐帧打印 kgf（点位标签 `channel_labels` 从 CAD 截图读出，现场按压校对）。**勿与整栈/`serial_imu` 节点并行**（抢同一口）。不进 `harvest_system` / lifecycle / peach 清单。
+
+| 名字 | 含义 |
+|------|------|
+| `/force/points` | `std_msgs/Float64MultiArray`（Reliable+Volatile）：5 值 **牛顿**（REP-103），顺序同通道 1/2/3/5/7 |
+| `/diagnostics` | `diagnostic_updater`：串口开闭 + `/force/points` 帧率（期望 100Hz，窗 0.6×–1.4×） |
 
 ---
 
@@ -708,7 +726,7 @@ flowchart TB
 
 ### `ivg_pose_estimation`
 
-节点名 `ivg_pose_estimation`。Web 另进程，默认 `http://127.0.0.1:8088/`。软触发发 `std_msgs/String` 到 `/camera/soft_trigger`（与 `percipio_camera` 一致）；无订阅者时不阻断，依赖自由出流缓存帧。`T_B_C` 优先查 `base_link` ← `camera_color_optical_frame`。Web 上 `/api/get_robot_status`、`/api/set_robot_pose`、`/api/set_robot_io`、`/api/execute_pose_sequence` 与抓取/快换路由一律 **501**（运动走 harvest 8090 调试操作面或 `ivg_graspnet`）。
+节点名 `ivg_pose_estimation`。Web 另进程，默认 `http://127.0.0.1:8089/`（与手眼标定网关 8088 错开）。**写端点认证**：`/exit`、`/api/save_template_pose`、`/api/standardize_template`、`/api/debug/update_params`、`/api/debug/save_thresholds` 需 `vpe_auth` SameSite=Strict cookie（同源 UI 自动携带）或 `X-Auth-Token` 头（token 见启动日志；`VPE_WEB_TOKEN` 环境变量可固定）；CORS 已收紧为同源。流水线分段（2026-09-29 前沿化轮）：Segmenter（`depth_band` 默认/`rembg_u2net`/`mobile_sam`）→ Matcher（`geometric` 默认/`dinov2_template`）→ pose 求解；配置单源 `config/pose_estimation.yaml`。软触发发 `std_msgs/String` 到 `/camera/soft_trigger`（与 `percipio_camera` 一致）；无订阅者时不阻断。`T_B_C` 优先查 `base_link` ← `camera_color_optical_frame`（按图像 stamp，失败回退 latest+WARN）。Web 上 `/api/get_robot_status`、`/api/set_robot_pose`、`/api/set_robot_io`、`/api/execute_pose_sequence` 与抓取/快换路由一律 **501**（运动走 harvest 8090 调试操作面或 `ivg_graspnet`）。
 
 ```mermaid
 flowchart LR
@@ -720,7 +738,7 @@ flowchart LR
 
 | 名字 | 含义 |
 |------|------|
-| `~/estimate_pose` | 深度(+可选彩色) → 6D 与抓取/放置笛卡尔位（响应含 `message` 状态/失败原因字段） |
+| `estimate_pose`（根命名空间，非私有） | 深度(+可选彩色) → 6D 与抓取/放置笛卡尔位（米）；请求/响应带 `std_msgs/Header`，响应 stamp=图像采集时刻、frame=`base_link`；响应含 `message` 状态/失败原因字段 |
 | `~/estimate_pose_2d` | RGB → 像素中心与转角 |
 | `~/list_templates` | 列出模板库 |
 | `~/standardize_template` | 标准化某工件模板 |
@@ -733,7 +751,7 @@ flowchart LR
 
 ### `ivg_graspnet`
 
-检测节点 `graspnet_demo_points_node`；执行客户端 `publish_grasps_client`（须外部 `move_group`，规划组 `manipulator_e5`、末端 `tcp`）。推理纯核 `GraspNetInference.get_grasp` 无 rclpy。采集默认待命。
+检测节点 `graspnet_demo_points_node`；执行客户端 `publish_grasps_client`（须外部 `move_group`，规划组 `manipulator_e5`、末端 `tcp`）。**双后端**（`backend` 参数 / 注册表 `backends/`）：`graspnet_torch`（默认；前向+解码）与 `contact_graspnet`（vendored）；碰撞/NMS/topK 在模型无关的 `postprocess.py`；耦合超参随 `models/checkpoint-rs.yaml` manifest。`publish_grasps_client` 有 opt-in 使能门 `require_enable`（默认 false）与 `apply_grasp_z_flip`（对齐后端 `approach_flip_z180`；graspnet_torch=true、contact_graspnet=false 待真机核验）；MoveIt 超时自动 `cancel_goal`。采集默认待命。
 
 ```mermaid
 flowchart LR

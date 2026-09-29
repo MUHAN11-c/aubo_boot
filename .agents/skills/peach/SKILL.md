@@ -43,7 +43,7 @@ description: >-
 harvest_system
   aubo_e5_bringup          # 驱动只读；mock=GenericSystem+JTC
   serial_imu               # 不进 lifecycle
-  imu_follow_servo         # 仅 tool_profile=adaptive_cylinder_v1
+  imu_follow_servo         # 仅 tool_profile=adaptive_shear_v1（shear/bite 不起）
   peach_harvester.brain    # 一进程三节点（图名不变）
       peach_scene_perception_node
       peach_target_reconstruction_node
@@ -90,7 +90,7 @@ RGB-D → 感知(事实) → 观测/初值
 - Python：`peach_common.yaml_params.attach` + `config/<节点>.yaml`
 - C++ `peach_arm`：GPL `peach_arm.yaml`
 - 停位几何：`grasp_standoffs.yaml` 注入 scene/recon
-- 工具档案：`tool_profiles.py`（`hollow_cylinder_v1` / `adaptive_cylinder_v1`）
+- 工具档案：`tool_profiles.py`（三把剪切手 `shear_v1` / `bite_shear_v1` / `adaptive_shear_v1`，默认 adaptive；单一事实源 `aubo_description/config/<profile_id>.yaml`）
 
 ## 验证
 

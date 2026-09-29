@@ -35,13 +35,17 @@ from __future__ import annotations
 import json
 from pathlib import Path
 import threading
+import time
 from typing import Optional, Tuple
 
 import cv_bridge
+from diagnostic_msgs.msg import DiagnosticStatus
+import diagnostic_updater
 from geometry_msgs.msg import Vector3Stamped
 import message_filters
 import numpy as np
 from peach_common.lifecycle import break_bond, create_bond
+from peach_common.ros_log_bridge import bridge_module_loggers
 from peach_harvester.vision.common.geometry import (
     transform_msg_to_matrix,
     transform_points,
@@ -111,6 +115,7 @@ from peach_interfaces.action import BuildTargetModel
 from peach_interfaces.msg import (
     BagFittingArray,
     BagGraspCandidateArray,
+    FailureCode,
     GraspDecision,
     HarvestState,
     PeachTargetObservationArray,
@@ -162,6 +167,17 @@ class TargetReconstructionNode(
         # Mixin 薄壳与 Core 都不提供 LifecycleNode.__init__ 兼容签名，
         # 显式初始化 ROS 基类（W4；行为与旧 super().__init__ 一致）
         LifecycleNode.__init__(self, 'peach_target_reconstruction_node')
+        # 纯核 stdlib 日志桥接 /rosout（P0 观测性）：runtime 写线程与
+        # session_recorder 落盘异常自此进 /rosout 与会话 bag
+        bridge_module_loggers(self, [
+            'peach_harvester.vision.common.runtime',
+            'peach_harvester.vision.target_reconstruction.session_recorder',
+            'peach_harvester.vision.target_reconstruction.integrate',
+        ])
+        # /diagnostics 周期任务句柄（configure 建 / cleanup 释放）
+        self._diag = None
+        # 帧流活性（_on_rgbd 刷新；诊断投影用）
+        self._last_frame_mono = 0.0
         self.bridge = cv_bridge.CvBridge()
         # W14：nav2_lm 进程死检心跳句柄（configure 建 / deactivate-cleanup 断）
         self._bond = None
@@ -478,7 +494,29 @@ class TargetReconstructionNode(
             return TransitionCallbackReturn.ERROR
         # W14：nav2_lm 进程死检心跳（缺 ros-jazzy-bondpy 时守卫降级为 WARN）
         self._bond = create_bond(self, self.get_name())
+        # /diagnostics 周期健康（P1）：帧流/队列丢弃/Build 占用（只读）
+        self._diag = diagnostic_updater.Updater(self, period=5.0)
+        self._diag.setHardwareID(self.get_name())
+        self._diag.add('reconstruction_health', self._diag_health)
         return TransitionCallbackReturn.SUCCESS
+
+    def _diag_health(self, stat):
+        """重建健康投影：帧流年龄/worker 丢弃/Build 单槽占用."""
+        now = time.monotonic()
+        age = (now - self._last_frame_mono) if self._last_frame_mono else None
+        dropped = getattr(self._frame_worker, 'dropped', 0)
+        if self._lifecycle_active and age is not None and age > 10.0:
+            stat.summary(DiagnosticStatus.WARN, f'帧流陈旧 {age:.1f}s')
+        elif dropped > 0:
+            stat.summary(DiagnosticStatus.WARN, f'队列拒绝 {dropped} 帧')
+        else:
+            stat.summary(DiagnosticStatus.OK, 'reconstruction healthy')
+        stat.add('active', str(self._lifecycle_active))
+        stat.add(
+            'last_frame_age_s', '-' if age is None else f'{age:.1f}')
+        stat.add('worker_dropped', str(dropped))
+        stat.add('build_goal_active', str(self._build_goal_active))
+        return stat
 
     def on_activate(self, state):
         result = LifecycleNode.on_activate(self, state)
@@ -500,6 +538,7 @@ class TargetReconstructionNode(
         self._lifecycle_active = False
         break_bond(self._bond)
         self._bond = None
+        self._diag = None
         self._unwire_ros()
         return LifecycleNode.on_cleanup(self, state)
 
@@ -536,6 +575,7 @@ class TargetReconstructionNode(
     # ------------------------------------------------------------------
     def _on_rgbd(self, rgb_msg: Image, depth_msg: Image, info: CameraInfo):
         """将同步帧交给 TSDF 单写者队列，满队列拒绝新帧."""
+        self._last_frame_mono = time.monotonic()
         if not self._lifecycle_active:
             return
         if not self._frame_worker.submit((rgb_msg, depth_msg, info)):
@@ -1295,6 +1335,7 @@ class TargetReconstructionNode(
             result = BuildTargetModel.Result()
             result.success = False
             result.message = 'empty_target_id'
+            result.failure_code = FailureCode.BUILD_FAILED
             result.quality_level = TargetQuality.LOW
             model = TargetModel()
             model.accepted = False
@@ -1334,6 +1375,9 @@ class TargetReconstructionNode(
             result = BuildTargetModel.Result()
             result.success = False
             result.message = status
+            result.failure_code = (
+                FailureCode.CANCELED if status == 'canceled'
+                else FailureCode.BUILD_FAILED)
             result.quality_level = TargetQuality.LOW
             model = TargetModel()
             model.target_id = goal.target_id
@@ -1353,6 +1397,8 @@ class TargetReconstructionNode(
         result = BuildTargetModel.Result()
         result.success = bool(ok)
         result.message = message
+        result.failure_code = FailureCode.NONE if ok \
+            else FailureCode.BUILD_FAILED
         result.quality_level = (
             TargetQuality.HIGH if ok else TargetQuality.LOW)
         model = TargetModel()

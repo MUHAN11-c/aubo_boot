@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace peach_arm
@@ -47,6 +48,47 @@ inline bool acmAllows(
   return std::find(
     contact_tool_links.begin(), contact_tool_links.end(),
     tool_link) != contact_tool_links.end();
+}
+
+/// 场景障碍豁免描述（GPL moveit.obstacle_* 参数的纯核载体）。
+struct ObstacleExemptionSpec
+{
+  std::vector<std::string> exempt_links;      ///< 豁免连杆（tool.links 部署值）。
+  std::vector<std::string> guard_links;       ///< guard 开时唯一受查连杆。
+  std::vector<std::string> obstacle_object_ids;  ///< 场景障碍对象 id。
+  bool guard_enabled{true};                   ///< false=相机一并豁免。
+};
+
+/// 场景障碍豁免条目（2026-09-29 避障只为保护相机）：返回应写 ACM
+/// allowed=true 的 (link, object) 对——exempt_links × ({保留名 <octomap>} ∪
+/// obstacle_object_ids)；guard_enabled=false 时 guard_links（相机）一并
+/// 豁免（全机器人×障碍放行，障碍拦路到不了位时恢复可达性）。纯核可测。
+inline std::vector<std::pair<std::string, std::string>>
+obstacleExemptionEntries(const ObstacleExemptionSpec & spec)
+{
+  std::vector<std::string> objects;
+  objects.reserve(spec.obstacle_object_ids.size() + 1U);
+  objects.push_back("<octomap>");  // 保留名；updater 关闭时该条目无害
+  for (const auto & id : spec.obstacle_object_ids) {
+    if (!id.empty()) {
+      objects.push_back(id);
+    }
+  }
+  std::vector<std::string> links = spec.exempt_links;
+  if (!spec.guard_enabled) {
+    links.insert(links.end(), spec.guard_links.begin(), spec.guard_links.end());
+  }
+  std::vector<std::pair<std::string, std::string>> entries;
+  entries.reserve(links.size() * objects.size());
+  for (const auto & link : links) {
+    if (link.empty()) {
+      continue;
+    }
+    for (const auto & object : objects) {
+      entries.emplace_back(link, object);
+    }
+  }
+  return entries;
 }
 
 }  // namespace peach_arm

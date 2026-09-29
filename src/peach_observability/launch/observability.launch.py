@@ -1,32 +1,38 @@
-"""只读监控节点 + 可选独立 rosbag2。核心调度不依赖本 launch."""
+"""
+只读监控节点 + 可选独立 rosbag2。核心调度不依赖本 launch.
+
+2026-09-29 观测性轮修复：launch 不再发 configure/activate 事件——节点
+main() 的 ensure_active() 是唯一转换源（与 vegetation.launch 同款修法；
+此前 launch EmitEvent 与 main 自激活存在竞态，对已 active 节点再发转换
+会以「Transition is not registered」打死进程——全栈内靠启动时序侥幸
+存活，独立起栈必现）。
+"""
 
 from launch import LaunchDescription
 from launch.actions import (
-    DeclareLaunchArgument, EmitEvent, IncludeLaunchDescription,
-    OpaqueFunction, RegisterEventHandler)
+    DeclareLaunchArgument, IncludeLaunchDescription, OpaqueFunction)
 from launch.conditions import IfCondition
-from launch.events import matches_action
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
 from launch_ros.actions import LifecycleNode
-from launch_ros.event_handlers import OnStateTransition
-from launch_ros.events.lifecycle import ChangeState
 from launch_ros.parameter_descriptions import ParameterFile
 from launch_ros.substitutions import FindPackageShare
-from lifecycle_msgs.msg import Transition
 
 
 def _launch_node(context):
-    """仅在用户显式给出 host/port 时覆盖 YAML；默认自行 configure/activate."""
+    """仅在用户显式给出 host/port/startup_facts 时覆盖 YAML；节点 main 自激活."""
     parameters = [ParameterFile(
         LaunchConfiguration('params_file'), allow_substs=True)]
     overrides = {}
     host = LaunchConfiguration('host').perform(context)
     port = int(LaunchConfiguration('port').perform(context))
+    startup_facts = LaunchConfiguration('startup_facts').perform(context)
     if host:
         overrides['host'] = host
     if port:
         overrides['port'] = port
+    if startup_facts:
+        overrides['startup_facts'] = startup_facts
     if overrides:
         parameters.append(overrides)
     node = LifecycleNode(
@@ -43,22 +49,7 @@ def _launch_node(context):
         # 'float' object is not iterable（09-21 E2E 实测修复）
         sigterm_timeout='60',
     )
-    autostart = LaunchConfiguration('autostart')
-    configure = EmitEvent(
-        event=ChangeState(
-            lifecycle_node_matcher=matches_action(node),
-            transition_id=Transition.TRANSITION_CONFIGURE),
-        condition=IfCondition(autostart))
-    activate = RegisterEventHandler(
-        OnStateTransition(
-            target_lifecycle_node=node,
-            goal_state='inactive',
-            entities=[EmitEvent(event=ChangeState(
-                lifecycle_node_matcher=matches_action(node),
-                transition_id=Transition.TRANSITION_ACTIVATE))],
-        ),
-        condition=IfCondition(autostart))
-    return [activate, node, configure]
+    return [node]
 
 
 def generate_launch_description():
@@ -80,8 +71,14 @@ def generate_launch_description():
             'port', default_value='0',
             description='覆盖监听端口；0 使用 YAML'),
         DeclareLaunchArgument(
+            'startup_facts', default_value='',
+            description='harvest_system 注入的启动事实 JSON（自检/工件用）；'
+                        '空=独立起栈'),
+        DeclareLaunchArgument(
             'autostart', default_value='true',
-            description='false 时保持 Unconfigured，须外部 configure/activate'),
+            description='兼容保留参数：节点 main() 恒自激活（ensure_active），'
+                        'launch 不发转换事件（2026-09-29 互杀修复，'
+                        '见文件头）'),
         OpaqueFunction(function=_launch_node),
         IncludeLaunchDescription(
             PythonLaunchDescriptionSource(

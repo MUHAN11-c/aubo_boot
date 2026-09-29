@@ -38,6 +38,12 @@ from peach_bringup.preflight import running_stack_pids  # noqa: E402
 _LATCHED = QoSProfile(
     depth=1, reliability=ReliabilityPolicy.RELIABLE,
     durability=DurabilityPolicy.TRANSIENT_LOCAL)
+# 事件流订阅专用：depth=50 对齐发布端（2026-09-29 E2E 勘定 B2——depth=1
+# 的 KEEP_LAST 在 dispatched→timeout→skipped 类三连发时挤掉中间消息，
+# 受控实验 depth50 收 111 条全量 vs depth1 收 29 条且中间消息 0 条）
+_EVENTS = QoSProfile(
+    depth=50, reliability=ReliabilityPolicy.RELIABLE,
+    durability=DurabilityPolicy.TRANSIENT_LOCAL)
 
 # 几何取 grid 夹具 known-good 例（typical_1757：巷中/轴近竖/现行在达对照，
 # 过护栏；合成几何实测会撞 MTC short-path 护栏——果胶囊间隙模型不显然）。

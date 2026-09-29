@@ -490,6 +490,10 @@ def build_details(build_feedback: dict, dispatch_t0: float, built) -> dict:
         status = str(getattr(built, 'message', '') or '')
         if status:
             details['build_status'] = status
+        # P2 反馈补齐：BuildTargetModel.Result.failure_code 数值码透传进账本
+        code = int(getattr(built, 'failure_code', 0) or 0)
+        if code:
+            details['build_failure_code'] = code
     return details
 
 

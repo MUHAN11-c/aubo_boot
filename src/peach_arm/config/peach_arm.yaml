@@ -20,6 +20,9 @@ peach_arm:
       transit_velocity_scaling: 0.1  # 自由空间转移速度缩放（环绕视点/拍照位姿往返）；高速度缩短高重力矩姿态持续时间，反而降低过流风险；真机初始验证不得高于 0.1。
       transit_acceleration_scaling: 0.1  # 自由空间转移加速度缩放（同 transit_velocity_scaling 的档位约束）。
       execute_timeout_s: 90.0  # 单条轨迹/MTC 解执行有界等待（秒）；超时下发 stop 并判失败。move_group TEM 异常（stop 事件风暴，2026-09-23）时防动作通道永久堵死。
+      obstacle_guard_enabled: true  # 场景障碍受查开关（避障只为保护相机）：true=仅相机×障碍受查；false=相机一并豁免（障碍拦路到不了位时恢复可达性，对象保留场景、重开即恢复）。空闲 param set 生效
+      obstacle_guard_links: [camera_body_link]  # guard 开时唯一受查连杆（避障目标=保护相机）
+      obstacle_object_ids: [peach_scene_obstacles]  # 场景障碍对象 id（peach_scene_obstacles 快照节点写入）；豁免=tool.links×这些对象+<octomap>
       pilz_pipeline: pilz_industrial_motion_planner  # Pilz 规划管线名（PTP/LIN）。
       fallback_pipeline: ompl  # Pilz 失败后的兜底规划管线。
       mtc_free_space_pipeline: pilz_industrial_motion_planner  # MTC 转移管线。接近主路径（v4）= PTP 关节空间到中段点正下方 + 世界垂直 LIN 入冠 + 沿轴 LIN 对轴进入预抓取。
@@ -117,7 +120,7 @@ peach_arm:
       close_state: 1.0  # 工具闭合写入的 IO 电平值。
       d_inner_m: 0.120  # 工具开口径（米）：unrefined 链袋径门；整栈按 tool_profile 注入（三把剪切手 0.030/0.080/0.120）。
       feedback_timeout_s: 2.0  # 切断反馈 DI 新沿有界等待（秒）；超时 CUT_UNCONFIRMED（不撤退不重发）。
-      links: [tool_axis, cutting_plane, tcp, sleeve_mouth, tool_body_link, quick_changer_link]  # 工具链连杆（③层整图 octomap 豁免清单；帧名冻结）。改工具须同步 URDF/tcp.xacro 连杆名。
+      links: [base_link, shoulder_Link, upperArm_Link, foreArm_Link, wrist1_Link, wrist2_Link, wrist3_Link, tool_axis, cutting_plane, tcp, sleeve_mouth, tool_body_link, quick_changer_link]  # 场景障碍豁免连杆（③层；2026-09-29 避障只为保护相机后=全机器人−camera_body_link，臂/末端轻微碰撞可接受）。防呆：不得加入 camera_body_link（避障目标静默失效）。改工具须同步 URDF/tcp.xacro 连杆名。
       contact_links: [sleeve_mouth, tcp, tool_axis, cutting_plane]  # 接触阶段（套入/剪切）× 目标对象豁免的工具连杆（不含筒体/快换件——防撞主力保持受查）。
       body_length_m: 0.14  # 工具包络长（米，①层果实胶囊审查用）；与档案 geometry_m.body_length 对齐，整栈按档案注入。
       body_radius_m: 0.11  # 工具包络半径（米）；半径只径向、不含端球（端球会吃掉预抓取轴向余量）；整栈按档案注入。

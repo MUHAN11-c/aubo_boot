@@ -18,7 +18,7 @@ import time
 
 from ament_index_python.packages import get_package_share_directory
 from aubo_msgs.msg import JointStatus, RobotStatus
-from diagnostic_msgs.msg import DiagnosticStatus
+from diagnostic_msgs.msg import DiagnosticArray, DiagnosticStatus
 from diagnostic_updater import Updater
 from geometry_msgs.msg import Vector3Stamped
 from nav_msgs.msg import Path as NavPath
@@ -59,6 +59,12 @@ from .catch_all_recorder import CatchAllRecorder
 from .debug_actions import DebugAudit, DebugBridge, is_motion
 from .params import ObservabilityParams
 from .recorder import Recorder
+from .selfcheck.runner import SelfCheckRunner
+from .startup_facts import (
+    facts_valid,
+    normalize_facts,
+    selfcheck_overrides_from_facts,
+)
 from .state import (
     merge_joint_hardware,
     MetricsSampler,
@@ -138,6 +144,18 @@ def _parameter_scalar(value) -> object:
     if kind == 9:
         return [str(item) for item in value.string_array_value]
     return None
+
+
+def _parse_facts_json(raw: str) -> dict:
+    """startup_facts 参数（JSON 串）→ dict；空/坏输入给空表."""
+    raw = (raw or '').strip()
+    if not raw:
+        return {}
+    try:
+        parsed = json.loads(raw)
+        return parsed if isinstance(parsed, dict) else {}
+    except ValueError:
+        return {}
 
 
 # 核心订阅表（镜像 + 落盘）：(消息类型, 话题参数名, 回调属性名, QoS 档名)。
@@ -256,6 +274,12 @@ class ObservabilityNode(LifecycleNode):
         self._ledger_request_id = ''
         # /diagnostics 双轨（W15：对齐 peach_arm W5 / vegetation 的做法）
         self._diag: Updater | None = None
+        # /diagnostics 聚合防御计数（畸形条目跳过；节流告警）
+        self._diag_malformed_count = 0
+        self._diag_malformed_last_s = 0.0
+        # 启动自检（P0）：探针 + 周期检查 + 闩锁 selfcheck_passed + 会话工件
+        self._selfcheck: SelfCheckRunner | None = None
+        self._startup_thread: threading.Thread | None = None
 
     def on_configure(self, state):
         del state
@@ -281,6 +305,13 @@ class ObservabilityNode(LifecycleNode):
             queue_depth=self._params.record_queue_depth,
             on_info=lambda info: self._state.update('record', 'info', info),
             log_warning=lambda msg: self.get_logger().warning(msg))
+        self._spawn_startup_facts_writer(runs_root)
+        if self._params.selfcheck_enabled:
+            self._selfcheck = SelfCheckRunner(
+                self, self._params, runs_root,
+                session_dir_of=lambda: (
+                    self._recorder.session_dir
+                    if self._recorder is not None else None))
         self._job_pub = self.create_publisher(
             String, self._topic('job_topic'), 10)
         self._metrics_pub = self.create_publisher(
@@ -296,6 +327,8 @@ class ObservabilityNode(LifecycleNode):
     def on_activate(self, state):
         result = super().on_activate(state)
         self.start_http()
+        if self._selfcheck is not None:
+            self._selfcheck.start()
         # 全量录制（record.level 门控）：activate 后计算图已可见，通配
         # 发现订阅域内全部话题自动进会话 bag；仿真复现/问题分析用
         if (self._recorder is not None and self._recorder.enabled
@@ -309,6 +342,8 @@ class ObservabilityNode(LifecycleNode):
         if self._catch_all is not None:
             self._catch_all.stop()
             self._catch_all = None
+        if self._selfcheck is not None:
+            self._selfcheck.stop()
         self._stop_runtime()
         return super().on_deactivate(state)
 
@@ -375,6 +410,14 @@ class ObservabilityNode(LifecycleNode):
             self._subscribe(
                 msg_type, self._topic(param),
                 getattr(self, callback_name), profiles[profile])
+        # /diagnostics 聚合订阅（L3 消费闭环：各节点诊断任务 → /api/state）。
+        # QoS 取传感档（BEST_EFFORT）：栈内诊断发布端（ros2_control/Nav2/
+        # peach_arm 等 C++ updater 实测 BEST_EFFORT），RELIABLE 订户收不到
+        # （E2E 五轮实锤：catch-all BE 全收、RELIABLE 镜像零帧）——BE 订户
+        # 与 BE/RELIABLE 发布端均兼容，诊断本就允许丢帧。
+        self._subscribe(
+            DiagnosticArray, '/diagnostics', self._diagnostics_callback,
+            qos_profile_sensor_data)
         # 记录器图像/点云订阅：只在对应开关开启时建立（省带宽），直接进 bag
         if not self._params.record_enabled:
             return
@@ -397,6 +440,56 @@ class ObservabilityNode(LifecycleNode):
         self._traj_ctx['moving'] = bool(message.in_motion)
         self._state.update('robot', 'status', to_robot_status(message))
         self._record_raw('robot_status_topic', message)
+
+    def _diagnostics_callback(self, message: DiagnosticArray) -> None:
+        """
+        /diagnostics 聚合：按 hardware_id 归组为 {节点: {level, tasks}}.
+
+        防御式（2026-09-29 E2E 实锤）：本进程镜像订阅上 status.level 曾
+        整体反序列化为 bytes（bag 侧同字节正常；疑 venv/系统 python 类型
+        支持混布，根因挂账）——按 bytes/int 双形态容错解码，坏条目跳过并
+        节流告警，聚合器绝不炸节点。
+        """
+        def as_int(raw):
+            if isinstance(raw, (bytes, bytearray)):
+                return int.from_bytes(raw, 'little')
+            return int(raw)
+
+        def as_text(raw):
+            if isinstance(raw, (bytes, bytearray)):
+                return raw.decode('utf-8', 'replace')
+            return str(raw)
+
+        stamp_s = message.header.stamp.sec
+        nodes: dict = {}
+        for status in message.status:
+            try:
+                level = as_int(status.level)
+                node = as_text(status.hardware_id) or 'unknown'
+                tasks_values = {
+                    as_text(item.key): as_text(item.value)
+                    for item in status.values}
+                name = as_text(status.name)
+                text = as_text(status.message)
+            except (TypeError, ValueError, AttributeError) as exc:
+                now = time.monotonic()
+                if now - self._diag_malformed_last_s > 60.0:
+                    self._diag_malformed_last_s = now
+                    self.get_logger().warning(
+                        f'/diagnostics 畸形条目已跳过（累计 '
+                        f'{self._diag_malformed_count + 1} 条）: {exc}')
+                self._diag_malformed_count += 1
+                continue
+            entry = nodes.setdefault(
+                node, {'level': 0, 'tasks': {}, 'stamp': stamp_s})
+            entry['level'] = max(entry['level'], level)
+            entry['tasks'][name] = {
+                'level': level,
+                'message': text,
+                'values': tasks_values,
+            }
+        if nodes:
+            self._state.update_diagnostics(nodes)
 
     def _joint_state_callback(self, message: JointState) -> None:
         """实际关节角/速度；与 joint_status 合成硬件表（约 10 Hz 推镜像）."""
@@ -810,12 +903,74 @@ class ObservabilityNode(LifecycleNode):
         return build_selection_marker_dicts(
             observations, selected_id, filtered, frame_id)
 
+    def _spawn_startup_facts_writer(self, runs_root: Path) -> None:
+        """启动事实落盘 runs/session_*/startup.json（离线排障回答"当时跑的什么配置"）."""
+        facts = normalize_facts(_parse_facts_json(self._params.startup_facts))
+        self._state.update('startup', 'facts', facts)
+        # facts 单通道推导自检开关（camera/robot_status/moveit/imu/tcp 档案）
+        for key, value in selfcheck_overrides_from_facts(facts).items():
+            setattr(self._params, key, value)
+        if not facts_valid(facts):
+            self.get_logger().info(
+                '无启动事实注入（独立起栈）；startup.json 不落盘')
+            return
+
+        def _write() -> None:
+            # 会话目录由 bag 写线程在 'open' 后命名，短轮询等它出现
+            deadline = time.monotonic() + 30.0
+            session = None
+            while time.monotonic() < deadline:
+                recorder = self._recorder
+                if recorder is not None and recorder.session_dir is not None:
+                    session = Path(recorder.session_dir)
+                    break
+                time.sleep(0.2)
+            if session is None:
+                self.get_logger().warning(
+                    '30s 内未获得会话目录，startup.json 未落盘')
+                return
+            try:
+                payload = json.dumps(facts, ensure_ascii=False, indent=2)
+                tmp = session / 'startup.json.tmp'
+                tmp.write_text(payload, encoding='utf-8')
+                tmp.replace(session / 'startup.json')
+            except OSError as exc:
+                self.get_logger().warning(f'startup.json 落盘失败: {exc}')
+
+        self._startup_thread = threading.Thread(
+            target=_write, name='peach-startup-facts', daemon=True)
+        self._startup_thread.start()
+
     def _create_diagnostics(self) -> None:
-        """建 /diagnostics 周期任务：录制队列健康 + 订阅摄入活度."""
+        """建 /diagnostics 周期任务：录制队列健康 + 订阅摄入活度 + 自检."""
         self._diag = Updater(self, period=5.0)
         self._diag.setHardwareID('peach_observability')
         self._diag.add('session_recorder', self._diag_recorder)
         self._diag.add('ingest_liveness', self._diag_ingest)
+        if self._selfcheck is not None:
+            self._diag.add('selfcheck', self._diag_selfcheck)
+
+    def _diag_selfcheck(self, stat) -> object:
+        """自检裁决投影：fail→ERROR / warn→WARN / pass→OK；未跑过→WARN."""
+        report = self._selfcheck.last_report if self._selfcheck else {}
+        if not report:
+            stat.summary(DiagnosticStatus.WARN, 'selfcheck not run yet')
+            return stat
+        level = {'pass': DiagnosticStatus.OK,
+                 'warn': DiagnosticStatus.WARN,
+                 'fail': DiagnosticStatus.ERROR}.get(
+                     report.get('status'), DiagnosticStatus.WARN)
+        stat.summary(level, str(report.get('summary', '')))
+        stat.add('checked_at', str(report.get('checked_at')))
+        stat.add('trigger', str(report.get('trigger')))
+        stat.add('failed', ','.join(report.get('failed', [])))
+        stat.add('warned', ','.join(report.get('warned', [])))
+        controllers = self._selfcheck.controller_states() \
+            if self._selfcheck else None
+        stat.add('controllers',
+                 json.dumps(controllers, ensure_ascii=False)
+                 if controllers else 'n/a')
+        return stat
 
     def _diag_recorder(self, stat) -> object:
         """会话录制健康：丢帧>0 报 WARN（盘速掉队），否则 OK."""
@@ -910,6 +1065,18 @@ class ObservabilityNode(LifecycleNode):
             if self._debug_audit is not None:
                 self._debug_audit.record(row)
             return status, {'accepted': accepted, 'message': message}
+
+        # 自检触发（非运动类）：立即复检并回报告；不进动作/服务桥
+        if action == 'selfcheck':
+            if self._selfcheck is None:
+                return audit(False, 503, '自检未启用（selfcheck.enabled=false）')
+            report = self._selfcheck.run('manual')
+            row.update({'accepted': True, 'status': 200,
+                        'result': report.get('summary')})
+            if self._debug_audit is not None:
+                self._debug_audit.record(row)
+            return 200, {'accepted': True, 'message': report.get('summary', ''),
+                         'result': report}
 
         if self._debug_bridge is None or self._params is None:
             return audit(False, 503, '调试操作面未启用（debug.enabled=false）')
@@ -1062,6 +1229,12 @@ class ObservabilityNode(LifecycleNode):
         if self._sweep_thread is not None:
             self._sweep_thread.join(timeout=5.0)
             self._sweep_thread = None
+        if self._startup_thread is not None:
+            self._startup_thread.join(timeout=5.0)
+            self._startup_thread = None
+        if self._selfcheck is not None:
+            self._selfcheck.destroy()
+            self._selfcheck = None
         if self._traj_timer is not None:
             self.destroy_timer(self._traj_timer)
             self._traj_timer = None

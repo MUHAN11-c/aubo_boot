@@ -30,6 +30,8 @@ class OrchestratorState:
     transaction_id: str = ''
     session_id: str = ''
     settled_transaction: str = ''
+    dropped_stale_events: int = 0
+    """迟到/重复/跨世代事件丢弃计数（观测性：丢弃不可静默）."""
 
 
 @dataclass(frozen=True)
@@ -76,7 +78,10 @@ def reduce_event(
         )
         return nxt, [Effect(hit.command, hit.event_code, hit.message)]
     if _stale(state, event):
-        return state, []
+        # 迟到/重复/跨世代事件丢弃必须可观测：计数进状态，节点侧投影诊断
+        return replace(
+            state,
+            dropped_stale_events=state.dropped_stale_events + 1), []
     paused = state.operation_mode == MODE_PAUSED
     hit = apply_event(state.batch_state, event.name, paused=paused)
     if hit.batch_state == PAUSE_PENDING:

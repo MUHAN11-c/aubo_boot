@@ -105,7 +105,9 @@ def camera_position(lookup_exact, lookup_latest, now_s: float, warn,
                 warn(f'latest TF 回退已陈旧（{now_s - stamp_s:.2f}s > '
                      f'{stale_limit_s}s），fast 补视按几何缺失收口')
                 return None
-        except Exception:  # noqa: BLE001 链路缺失
+        except Exception as exc:  # noqa: BLE001 链路缺失
+            warn(f'相机 TF 链路缺失（{target}←{source}），'
+                 f'fast 补视按几何缺失收口: {exc}')
             return None
     tr = tf.transform.translation
     return [float(tr.x), float(tr.y), float(tr.z)]

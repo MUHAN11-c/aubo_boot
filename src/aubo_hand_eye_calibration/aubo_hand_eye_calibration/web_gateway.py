@@ -36,6 +36,7 @@ from .defaults import (
     DEFAULT_WRIST_FRAME,
 )
 from .storage import default_storage_directory, load_candidate
+from .web_goal import goal_params_from_body
 
 
 # 权威关节顺序 (与 ros2_control xacro / io 控制器 joint_status 数组一致)
@@ -333,10 +334,17 @@ class WebGateway(Node):
     # ------------------------------------------------------------------
     # Action 桥接
     # ------------------------------------------------------------------
-    def start(self, plan_only=False, return_to_start=True, method=''):
+    def start(self, plan_only=False, return_to_start=True, method='',
+              pose_source='', solve_target=''):
         if not self._action.server_is_ready():
             if not self._action.wait_for_server(timeout_sec=2.0):
                 raise RuntimeError('calibration action server unavailable')
+        # 非法档位值在此抛 ValueError, HTTP 层转 400 (服务端另有二次校验)
+        params = goal_params_from_body({
+            'method': method,
+            'pose_source': pose_source,
+            'solve_target': solve_target,
+        })
         with self._lock:
             # 占位在锁内同步完成, 杜绝连点造成重复 goal
             if self._goal_pending or self._goal_handle is not None:
@@ -345,8 +353,10 @@ class WebGateway(Node):
         goal = RunHandEyeCalibration.Goal()
         goal.plan_only = bool(plan_only)
         goal.return_to_start = bool(return_to_start)
-        # 空串 = 服务端 solver_method 参数 (默认 auto)
-        goal.method = str(method or '')
+        # 空串 = 服务端对应参数默认 (solver_method/pose_source/solve_target)
+        goal.method = params['method']
+        goal.pose_source = params['pose_source']
+        goal.solve_target = params['solve_target']
         future = self._action.send_goal_async(goal)
         future.add_done_callback(self._goal_response)
 
@@ -378,18 +388,23 @@ class WebGateway(Node):
                 stage = None
             else:
                 stage = 'complete' if result.success else 'failed'
+            metrics = {
+                'accepted_samples': result.accepted_samples,
+                'rejected_samples': result.rejected_samples,
+                'translation_rms_m': result.translation_rms_m,
+                'rotation_rms_deg': result.rotation_rms_deg,
+                'reprojection_rms_px': result.reprojection_rms_px,
+            }
+            # joint 联合档才有非零 joint RMS (server 默认 0.0)
+            if result.joint_reprojection_rms_px > 0.0:
+                metrics['joint_reprojection_rms_px'] = (
+                    result.joint_reprojection_rms_px)
             status = {
                 'stage': stage,
                 'detail': result.message,
                 'candidate_id': result.candidate_id,
                 'result_file': result.result_file,
-                'metrics': {
-                    'accepted_samples': result.accepted_samples,
-                    'rejected_samples': result.rejected_samples,
-                    'translation_rms_m': result.translation_rms_m,
-                    'rotation_rms_deg': result.rotation_rms_deg,
-                    'reprojection_rms_px': result.reprojection_rms_px,
-                },
+                'metrics': metrics,
             }
         except Exception as error:
             status = {'stage': 'failed', 'detail': str(error)}
@@ -624,6 +639,8 @@ class WebGateway(Node):
                         gateway.start(
                             plan_only=True,
                             method=body.get('method', ''),
+                            pose_source=body.get('pose_source', ''),
+                            solve_target=body.get('solve_target', ''),
                         )
                         result = {'success': True, 'message': 'plan requested'}
                     elif path == '/api/run':
@@ -631,6 +648,8 @@ class WebGateway(Node):
                             plan_only=False,
                             return_to_start=body.get('return_to_start', True),
                             method=body.get('method', ''),
+                            pose_source=body.get('pose_source', ''),
+                            solve_target=body.get('solve_target', ''),
                         )
                         result = {
                             'success': True,

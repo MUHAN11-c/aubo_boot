@@ -2,6 +2,8 @@
 
 from pathlib import Path
 
+from diagnostic_msgs.msg import DiagnosticStatus
+from diagnostic_updater import Updater
 from geometry_msgs.msg import TransformStamped
 from rcl_interfaces.msg import ParameterDescriptor
 import rclpy
@@ -49,6 +51,16 @@ class ExtrinsicsPublisher(Node):
         )
         self._reload_service = self.create_service(
             Trigger, '~/reload', self._reload)
+        # 外参来源上 /diagnostics: nominal 回退不再是只在日志里的静默行为,
+        # 标定 Web 台的诊断卡与其他诊断消费者都能看到
+        self._diagnostic_state = {
+            'level': DiagnosticStatus.WARN,
+            'message': 'extrinsic not published yet',
+            'source': '',
+        }
+        self._diagnostics = Updater(self, period=5.0)
+        self._diagnostics.hwid = 'hand_eye_extrinsics_publisher'
+        self._diagnostics.add('extrinsics_source', self._diagnose)
         try:
             self._publish()
         except (OSError, KeyError, IndexError, TypeError, ValueError,
@@ -59,14 +71,43 @@ class ExtrinsicsPublisher(Node):
             self.get_logger().error(
                 f'failed to load active calibration ({error}); '
                 'falling back to nominal extrinsic')
-            self._publish_nominal()
+            self._publish_nominal(reason=str(error))
 
-    def _publish_nominal(self):
+    def _publish_nominal(self, reason=''):
         xyz = self.get_parameter('nominal_xyz_m').value
         quaternion = self.get_parameter('nominal_quaternion_xyzw').value
         self._send(xyz, quaternion)
-        self.get_logger().warning(
-            'No active hand-eye result; publishing nominal camera extrinsic')
+        self._mark_nominal(reason)
+
+    def _mark_nominal(self, reason=''):
+        if reason:
+            # active.yaml 存在但不可用: 异常态
+            self._diagnostic_state = {
+                'level': DiagnosticStatus.ERROR,
+                'message': (
+                    f'active calibration unusable ({reason}); '
+                    'nominal fallback, optical frame offset ~10cm'),
+                'source': str(self._active_path()),
+            }
+        else:
+            # 无 active.yaml: 新机器预期路径, 提醒而非报错
+            self._diagnostic_state = {
+                'level': DiagnosticStatus.WARN,
+                'message': (
+                    'no active hand-eye result; publishing nominal camera '
+                    'extrinsic (optical frame offset ~10cm)'),
+                'source': 'nominal',
+            }
+            self.get_logger().warning(
+                'No active hand-eye result; publishing nominal camera extrinsic')
+
+    def _diagnose(self, stat):
+        state = self._diagnostic_state
+        stat.summary(state['level'], state['message'])
+        stat.add('source', state['source'])
+        stat.add('parent_frame', self.get_parameter('parent_frame').value)
+        stat.add('child_frame', self.get_parameter('child_frame').value)
+        return stat
 
     def _active_path(self):
         configured = self.get_parameter('active_file').value
@@ -111,9 +152,13 @@ class ExtrinsicsPublisher(Node):
         xyz, quaternion, nominal = self._load_transform()
         self._send(xyz, quaternion)
         if nominal:
-            self.get_logger().warning(
-                'No active hand-eye result; publishing nominal camera extrinsic')
+            self._mark_nominal()
         else:
+            self._diagnostic_state = {
+                'level': DiagnosticStatus.OK,
+                'message': f'active calibration from {self._active_path()}',
+                'source': str(self._active_path()),
+            }
             self.get_logger().info(
                 f'Published active camera extrinsic from {self._active_path()}'
                 f': xyz_m={[round(float(v), 6) for v in xyz]}'

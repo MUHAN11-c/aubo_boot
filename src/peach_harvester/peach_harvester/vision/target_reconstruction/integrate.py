@@ -2,10 +2,12 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import logging
 import time
 from typing import Callable, List, Optional, Tuple
 
 import numpy as np
+from peach_common.event_meter import EventMeter
 from peach_harvester.vision.common.geometry import (
     angle_between_deg,
     invert_transform,
@@ -14,6 +16,11 @@ from peach_harvester.vision.common.geometry import (
 )
 from peach_harvester.vision.common.runtime import ScalarEma
 from scipy.spatial import cKDTree
+
+_logger = logging.getLogger(__name__)
+# P1 纯核决策点观测：ICP 回退/拒绝此前零日志（经 ros_log_bridge 进 /rosout）
+_icp_fallback_meter = EventMeter(_logger, 'ICP 回退 FK', every=20)
+_icp_reject_meter = EventMeter(_logger, 'ICP 帧拒绝', every=20)
 
 
 _O3D = None  # 懒加载缓存（无 open3d 的环境仍可 import 本模块）
@@ -942,11 +949,13 @@ class BoundedIcp:
                 float(initial.fitness), float(initial.inlier_rmse),
                 self.config):
             reason = 'icp_out_of_bounds' if not bounded else 'icp_low_quality'
+            _icp_fallback_meter.hit(reason)
             return IcpResult(
                 'fk', identity, float(initial.fitness),
                 float(initial.inlier_rmse), 0.0, 0.0, reason)
 
         reason = 'icp_out_of_bounds' if not bounded else 'low_overlap'
+        _icp_reject_meter.hit(reason)
         return IcpResult(
             'reject', correction, float(final.fitness),
             float(final.inlier_rmse), translation, rotation, reason)

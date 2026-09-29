@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import logging
 import math
 import time
 from typing import (
@@ -13,6 +14,7 @@ from typing import (
 )
 
 import numpy as np
+from peach_common.event_meter import EventMeter
 from peach_harvester.vision.common.geometry import (
     grasp_frame_from_axis,
     rotation_to_quat,
@@ -20,6 +22,12 @@ from peach_harvester.vision.common.geometry import (
 from scipy.optimize import linear_sum_assignment
 
 from .contracts import compute_entry_start, LockEvent, MatchResult
+
+_logger = logging.getLogger(__name__)
+# P1 纯核决策点观测：注册表新增/逐出此前零日志（经 ros_log_bridge 进 /rosout）
+_register_meter = EventMeter(
+    _logger, '目标注册', every=1, level=logging.INFO)
+_evict_meter = EventMeter(_logger, '注册表逐出（满）', every=1)
 
 
 # 3 自由度约 3σ（χ²₀.₉₉₇ ≈ 11.3；取 9 ≈ 3σ 实用门）
@@ -1056,6 +1064,7 @@ class TargetRegistry:
             oldest = min(
                 candidates, key=lambda tid: self._targets[tid]['last_seen'])
             del self._targets[oldest]
+            _evict_meter.hit(f'逐出 {oldest}（满 {self.max_targets}）')
         tid = f'target_{self._next_index}'
         self._next_index += 1
         obs_count = 0 if at_edge else 1
@@ -1082,6 +1091,7 @@ class TargetRegistry:
         }
         self._frame_used.add(tid)
         self._n_registered += 1
+        _register_meter.hit(f'{tid} cls={class_id} 累计表规模 {len(self._targets)}')
         return tid, True
 
     def clear(self) -> int:

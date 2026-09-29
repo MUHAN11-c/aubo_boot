@@ -63,9 +63,9 @@ CONTACT / TOOL：
 2. 世界垂直 LIN 入冠（`approach_canopy_entry_m`）
 3. 沿轴 LIN 进预抓取（`approach_final_axial_m`；对轴 20° OrientationConstraint）
 
-冠内 LIN 优先 Pilz sequence blend；失败降级单任务 MTC LIN。护栏：果实胶囊（仅接近段）、反爬、octomap、绕行累计 12 rad / 单轴 6.1 rad。套入/撤退豁免胶囊（故意进囊）。不走 CIRC/STOMP/OMPL 兜底接触。
+冠内 LIN 优先 Pilz sequence blend；失败降级单任务 MTC LIN。护栏：果实胶囊（仅接近段）、反爬、场景障碍（③层=Survey 快照对象 `peach_scene_obstacles`，仅 `camera_body_link` 受查、`moveit.obstacle_guard_enabled` 可关；滤除在体素中心上做=余量+半对角（0036，防方块切工具致起点碰撞）、ACM 激活即 3 次幂等重试应用（0035/0036)）、绕行累计 12 rad / 单轴 6.1 rad。套入/撤退豁免胶囊（故意进囊）。不走 CIRC/STOMP/OMPL 兜底接触。
 
-套入：空心 = MTC 沿轴 LIN；自适应 = `imu_follow` enable→insert→cut→retract→disable，**禁止与 MTC 同时写 JTC**。
+套入：shear/bite（非 IMU 档）= MTC 沿轴 LIN；adaptive_shear_v1 = `imu_follow` enable→insert→cut→retract→disable，**禁止与 MTC 同时写 JTC**。
 
 `ContactMonitor` 腕轴电流默认 **关**，不是柜急停。
 

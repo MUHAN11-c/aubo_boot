@@ -114,8 +114,11 @@ def main():
 
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
-    bpy.ops.wm.open_mainfile(filepath=args.blend)
-    manifest = json.loads((HERE / 'output/scene_manifest.json').read_text())
+    blend = Path(args.blend)
+    bpy.ops.wm.open_mainfile(filepath=str(blend))
+    # The manifest must describe this blend. output/scene_manifest.json is a
+    # different scene once renders are kept beside a revision directory.
+    manifest = json.loads((blend.parent / 'scene_manifest.json').read_text())
     stops = alley_stops(-5.0, 4.5, 6, -0.5, 1.45, (0, 2.8, 1.35))
     traj = build_trajectory(manifest['targets'], stops)
     traj['lighting_applied'] = (sorted(lighting_mod.PRESETS)

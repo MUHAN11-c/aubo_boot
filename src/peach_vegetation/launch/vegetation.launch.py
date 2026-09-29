@@ -1,20 +1,22 @@
-"""独立起 GPU 枝/叶分割节点；不进 harvest_system / lifecycle 名单."""
+"""
+独立起 GPU 枝/叶分割节点；不进 harvest_system / lifecycle 名单.
+
+2026-09-29 观测性轮修复：launch 不再发 configure/activate 事件——节点
+main() 的 ensure_active() 是唯一转换源。此前 launch EmitEvent 与 main 自激活
+确定性互杀（对已 active 节点再发 activate 会打死进程，09-21 实测），导致
+launch 路径不可用、只能 ros2 run 直起；现两条路径均可用。
+"""
 
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, EmitEvent, RegisterEventHandler
-from launch.conditions import IfCondition
-from launch.events import matches_action
+from launch.actions import DeclareLaunchArgument
 from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
 from launch_ros.actions import LifecycleNode
-from launch_ros.event_handlers import OnStateTransition
-from launch_ros.events.lifecycle import ChangeState
 from launch_ros.parameter_descriptions import ParameterFile
 from launch_ros.substitutions import FindPackageShare
-from lifecycle_msgs.msg import Transition
 
 
 def generate_launch_description():
-    """配置并可选激活 peach_vegetation；输入图走 remap 而非话题名参数."""
+    """起 peach_vegetation；生命周期转换由节点 main() 自激活完成."""
     config = PathJoinSubstitution([
         FindPackageShare('peach_vegetation'),
         'config', 'vegetation.yaml'])
@@ -27,31 +29,14 @@ def generate_launch_description():
         remappings=[('image', LaunchConfiguration('image'))],
         output='screen',
     )
-    autostart = LaunchConfiguration('autostart')
-    configure = EmitEvent(
-        event=ChangeState(
-            lifecycle_node_matcher=matches_action(node),
-            transition_id=Transition.TRANSITION_CONFIGURE),
-        condition=IfCondition(autostart))
-    activate = RegisterEventHandler(
-        OnStateTransition(
-            target_lifecycle_node=node,
-            start_state='configuring',
-            goal_state='inactive',
-            entities=[EmitEvent(event=ChangeState(
-                lifecycle_node_matcher=matches_action(node),
-                transition_id=Transition.TRANSITION_ACTIVATE))],
-        ),
-        condition=IfCondition(autostart))
     return LaunchDescription([
         DeclareLaunchArgument(
             'image', default_value='/camera/color/image_raw',
             description='彩色图话题（remap 到节点相对名 image）'),
         DeclareLaunchArgument(
             'autostart', default_value='true',
-            description='false 时保持 Unconfigured，须外部 configure/activate。'
-                        '注意：节点 main() 已自激活（ensure_active），本参数 true 时'
-                        'activate 事件会打到已 active 节点并将其打死（09-21 实测确定性'
-                        '互杀）——launch 路径暂不可用，用 ros2 run 直起'),
-        activate, node, configure,
+            description='兼容保留参数：生命周期转换恒由节点 main() 自激活'
+                        '（ensure_active），launch 不发转换事件（09-21 互杀'
+                        '修复，09-29 观测性轮）'),
+        node,
     ])

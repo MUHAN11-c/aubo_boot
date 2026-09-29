@@ -150,6 +150,13 @@ struct GraspTaskConfig
   std::vector<std::string> contact_tool_links{
     "sleeve_mouth", "tcp", "tool_axis",
     "cutting_plane"};  ///< 接触阶段 × 目标对象豁免的连杆。
+  // 场景障碍豁免（2026-09-29 避障只为保护相机；条目组装见
+  // acm_policy::obstacleExemptionEntries，纯核可测）：
+  std::vector<std::string> obstacle_object_ids{"peach_scene_obstacles"};
+  ///< 场景障碍对象 id（快照节点写入）；豁免连杆 × 这些对象 + <octomap>。
+  std::vector<std::string> obstacle_guard_links{"camera_body_link"};
+  ///< guard 开时唯一受查连杆（避障目标=保护相机）。
+  bool obstacle_guard_enabled{true};  ///< false=相机一并豁免（恢复可达性）。
   double tool_body_length_m{0.200};  ///< 工具筒体长 [m]（①层审查，tcp.xacro 对齐）。
   double tool_body_radius_m{0.060};  ///< 工具筒体半径 [m]。
   std::function<std::optional<Eigen::Isometry3d>()> lookup_current_tip;  ///< 查当前 TCP。
@@ -184,6 +191,9 @@ public:
   ~GraspTask();
 
   void setContactAcm(const std::string & target_id, ContactAcmStage stage);
+
+  // 观测性（P0）：接触段日志的 target 上下文；周期入口刷新，空=非周期调用
+  void setTargetContext(const std::string & target_id);
 
   // 只规划（PREVIEW / preview Trigger）：接近分档 + 到预抓取 + 沿轴插入
   // 整链一次装配预览，不下发。执行的接触走 moveToPregrasp / sleeveLinear。
@@ -337,11 +347,13 @@ public:
     PerTarget
   };
 
-  // 整图豁免 static 入口（无对象依赖）：tool_links 来自调用方参数档案。
+  // 整图豁免 static 入口（无对象依赖）：tool_links 来自调用方参数档案；
+  // obstacle_spec 含相机 guard 开关（2026-09-29 避障只为保护相机）。
   static void applyWholeOctomapToolExemption(
     const rclcpp::Logger & logger,
     moveit::planning_interface::PlanningSceneInterface & scene,
-    const std::vector<std::string> & tool_links);
+    const std::vector<std::string> & tool_links,
+    const ObstacleExemptionSpec & obstacle_spec);
   // 接触轮内版本：策略默认 PerTarget（整图豁免 + 接触阶段目标对象豁免）。
   void applyToolOctomapExemption(
     moveit::planning_interface::PlanningSceneInterface & scene,
@@ -354,6 +366,7 @@ private:
     const rclcpp::Logger & logger,
     moveit::planning_interface::PlanningSceneInterface & scene,
     const std::vector<std::string> & tool_links,
+    const ObstacleExemptionSpec & obstacle_spec,
     const std::vector<std::string> & contact_tool_links,
     const std::string & per_target_id,
     ContactAcmStage per_target_stage);
@@ -386,6 +399,8 @@ private:
   bool inspect_fruit_{false};
   std::string pending_acm_target_id_;
   ContactAcmStage pending_acm_stage_{ContactAcmStage::Transit};
+  std::string target_context_;  ///< 当前周期 target_id（仅日志上下文，不参与判定）
+  std::string tctx() const;  ///< 日志前缀 "[target_id] "；无周期上下文为空串
   mutable std::vector<std::string> published_keepout_ids_;  // 上次写入 scene 的 id
   std::vector<trajectory_msgs::msg::JointTrajectory> planned_approach_parts_;
   std::vector<trajectory_msgs::msg::JointTrajectory> last_approach_parts_;

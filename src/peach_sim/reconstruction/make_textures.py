@@ -62,6 +62,26 @@ def _paper(path: str) -> None:
     Image.fromarray(image, 'RGB').save(path)
 
 
+def _paper_height(path: str) -> None:
+    """Generate sparse paper folds as height data, without pigments or watermarks."""
+    rng = np.random.default_rng(29)
+    yy, xx = np.mgrid[0:1024, 0:1024].astype(np.float32) / 1023
+    height = np.full((1024, 1024), .5, dtype=np.float32)
+    for i in range(100):
+        cx, cy = rng.random(2)
+        angle = rng.uniform(0, np.pi)
+        along = (xx - cx) * np.cos(angle) + (yy - cy) * np.sin(angle)
+        across = -(xx - cx) * np.sin(angle) + (yy - cy) * np.cos(angle)
+        length = rng.uniform(.035, .16) if i < 90 else rng.uniform(.2, .4)
+        width = rng.uniform(.0015, .004)
+        # Paired ridge and valley with tapered ends: a fold, not a crack network.
+        ridge = np.exp(-(across / width)**2)
+        valley = np.exp(-((across - width * 2) / (width * 1.5))**2)
+        height += rng.uniform(.08, .2) * (ridge - .55 * valley) * np.exp(-(along / length)**4)
+    height += rng.normal(0, .003, height.shape).astype(np.float32)
+    Image.fromarray(np.uint8(np.clip(height, 0, 1) * 255)).save(path)
+
+
 def _bark(path: str) -> None:
     rng = np.random.default_rng(3)
     height, width = 512, 256
@@ -109,6 +129,7 @@ def main() -> None:
     os.makedirs(OUT, exist_ok=True)
     _leaf_surface(os.path.join(OUT, 'leaf_surface.png'))
     _paper(os.path.join(OUT, 'paper.png'))
+    _paper_height(os.path.join(OUT, 'paper_height.png'))
     _bark(os.path.join(OUT, 'bark.png'))
     _grass(os.path.join(OUT, 'grass.png'))
     _soil(os.path.join(OUT, 'soil.png'))

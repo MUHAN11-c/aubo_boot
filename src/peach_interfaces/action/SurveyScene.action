@@ -1,6 +1,6 @@
 # 去全局拍照位并复核当前关节已在命名状态（给感知准备发现 FOV）。
 # 动作：/peach_arm/survey_scene
-# 服务端：peach_arm    客户端：peach_executor
+# 服务端：peach_arm    客户端：peach_supervisor
 # 调度 DISCOVERY 首巡在 BeginScene 之前调用；回访只 Survey、不再 Begin。
 # 成功须 GoalStatus 成功且当前关节过 atNamedTarget。PAUSE 会取消，恢复后重试。
 # 失败整批 survey_failed，不 Begin。

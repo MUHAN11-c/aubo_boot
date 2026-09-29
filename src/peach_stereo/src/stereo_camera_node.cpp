@@ -44,6 +44,7 @@
 #include <sensor_msgs/point_cloud2_iterator.hpp>
 
 #include <cv_bridge/cv_bridge.hpp>
+#include <diagnostic_updater/diagnostic_updater.hpp>
 #include <sensor_msgs/image_encodings.hpp>
 #include <camera_calibration_parsers/parse.hpp>
 #include <tf2/LinearMath/Quaternion.hpp>
@@ -130,6 +131,10 @@ class StereoCameraNode : public rclcpp::Node {
     points_pub_ = create_publisher<sensor_msgs::msg::PointCloud2>(
         "depth_registered/points", 10);
     static_tf_ = std::make_shared<tf2_ros::StaticTransformBroadcaster>(this);
+    // /diagnostics 周期健康（P1）：帧率/丢弃/激光配置——此前零健康信号
+    diag_ = std::make_unique<diagnostic_updater::Updater>(this, 1.0);
+    diag_->setHardwareID("peach_stereo_camera");
+    diag_->add("stereo_health", this, &StereoCameraNode::diagHealth);
 
     if (!openDevice()) {
       RCLCPP_FATAL(get_logger(), "open device %s failed", device_ip_.c_str());
@@ -143,6 +148,30 @@ class StereoCameraNode : public rclcpp::Node {
     running_.store(false);
     if (capture_thread_.joinable()) capture_thread_.join();
     closeDevice();
+  }
+
+  void diagHealth(diagnostic_updater::DiagnosticStatusWrapper & stat) {
+    const double dt = std::chrono::duration<double>(
+        std::chrono::steady_clock::now() - started_at_).count();
+    const double rate = dt > 1.0 ? groups_.load() / dt : 0.0;
+    if (!device_open_.load()) {
+      stat.summary(stat.ERROR, "device not open");
+    } else if (!laser_config_ok_.load()) {
+      stat.summary(stat.ERROR, "laser/exposure config not applied");
+    } else if (dt > 10.0 && rate < 1.0) {
+      stat.summaryf(stat.WARN, "frame rate low %.2f gps", rate);
+    } else {
+      stat.summaryf(stat.OK, "streaming %.1f gps", rate);
+    }
+    stat.add("device_open", device_open_.load() ? "true" : "false");
+    stat.add("rate_gps", rate);
+    stat.add("groups", groups_.load());
+    stat.add("published", published_.load());
+    stat.add("drop_stream_status", drop_stream_.load());
+    stat.add("drop_incomplete", drop_incomplete_.load());
+    stat.add("drop_no_stamp", drop_nostamp_.load());
+    stat.add("drop_depth", drop_depth_.load());
+    stat.add("laser_config_ok", laser_config_ok_.load() ? "true" : "false");
   }
 
  private:
@@ -208,24 +237,56 @@ class StereoCameraNode : public rclcpp::Node {
     }
     if (dev_ == nullptr) return false;
 
-    // 设备时钟同步到宿主：时间戳=纪元微秒，直接作 ROS 时间发布
-    TYSetEnum(dev_, TY_COMPONENT_DEVICE, TY_ENUM_TIME_SYNC_TYPE, TY_TIME_SYNC_TYPE_HOST);
+    // 设备时钟同步到宿主：时间戳=纪元微秒，直接作 ROS 时间发布。
+    // 写失败仅告警降级（时间戳可能回退设备时钟），不拒启
+    if (TY_STATUS_OK != TYSetEnum(dev_, TY_COMPONENT_DEVICE,
+                                  TY_ENUM_TIME_SYNC_TYPE,
+                                  TY_TIME_SYNC_TYPE_HOST))
+    {
+      RCLCPP_WARN(get_logger(),
+                  "TIME_SYNC 写入失败：帧时间戳可能未同步到宿主时钟");
+    }
 
-    // 标定：左 IR（深度参考系）/右 IR/彩色；右 IR 与彩色外参均为相对左 IR
-    TYGetStruct(dev_, TY_COMPONENT_IR_CAM_LEFT, TY_STRUCT_CAM_CALIB_DATA, &calib_l_, sizeof(calib_l_));
-    TYGetStruct(dev_, TY_COMPONENT_IR_CAM_RIGHT, TY_STRUCT_CAM_CALIB_DATA, &calib_r_, sizeof(calib_r_));
-    TYGetStruct(dev_, TY_COMPONENT_RGB_CAM, TY_STRUCT_CAM_CALIB_DATA, &calib_c_, sizeof(calib_c_));
+    // 标定：左 IR（深度参考系）/右 IR/彩色；右 IR 与彩色外参均为相对左 IR。
+    // 读取失败=深度/配准必然错误（静默劣化最危险路径），拒启不带病运行
+    if (TY_STATUS_OK != TYGetStruct(dev_, TY_COMPONENT_IR_CAM_LEFT,
+                                    TY_STRUCT_CAM_CALIB_DATA, &calib_l_,
+                                    sizeof(calib_l_)) ||
+      TY_STATUS_OK != TYGetStruct(dev_, TY_COMPONENT_IR_CAM_RIGHT,
+                                  TY_STRUCT_CAM_CALIB_DATA, &calib_r_,
+                                  sizeof(calib_r_)) ||
+      TY_STATUS_OK != TYGetStruct(dev_, TY_COMPONENT_RGB_CAM,
+                                  TY_STRUCT_CAM_CALIB_DATA, &calib_c_,
+                                  sizeof(calib_c_)))
+    {
+      RCLCPP_ERROR(get_logger(),
+                   "标定结构读取失败：深度/配准将不可信，拒启");
+      return false;
+    }
 
     setupRectification();
     if (!setupColorMode()) {
       return false;
     }
 
-    // 解锁激光（独立 IR 模式下投射器自动控制不点亮——09-16 三续结论）
-    TYSetBool(dev_, TY_COMPONENT_LASER, TY_BOOL_LASER_AUTO_CTRL, false);
-    TYSetInt(dev_, TY_COMPONENT_LASER, TY_INT_LASER_POWER, laser_power_);
-    TYSetInt(dev_, TY_COMPONENT_IR_CAM_LEFT, TY_INT_EXPOSURE_TIME, ir_exposure_);
-    TYSetInt(dev_, TY_COMPONENT_IR_CAM_RIGHT, TY_INT_EXPOSURE_TIME, ir_exposure_);
+    // 解锁激光（独立 IR 模式下投射器自动控制不点亮——09-16 三续结论）。
+    // 激光/曝光写入失败=深度静默劣化且零报错，必须拒启而非带病运行
+    if (TY_STATUS_OK != TYSetBool(dev_, TY_COMPONENT_LASER,
+                                  TY_BOOL_LASER_AUTO_CTRL, false) ||
+      TY_STATUS_OK != TYSetInt(dev_, TY_COMPONENT_LASER,
+                               TY_INT_LASER_POWER, laser_power_) ||
+      TY_STATUS_OK != TYSetInt(dev_, TY_COMPONENT_IR_CAM_LEFT,
+                               TY_INT_EXPOSURE_TIME, ir_exposure_) ||
+      TY_STATUS_OK != TYSetInt(dev_, TY_COMPONENT_IR_CAM_RIGHT,
+                               TY_INT_EXPOSURE_TIME, ir_exposure_))
+    {
+      RCLCPP_ERROR(
+        get_logger(),
+        "激光/IR 曝光参数写入失败（power=%d exposure=%dms）：深度将静默劣化，拒启",
+        laser_power_, ir_exposure_);
+      return false;
+    }
+    laser_config_ok_.store(true);
 
     if (TYEnableComponents(dev_, TY_COMPONENT_RGB_CAM |
                                    TY_COMPONENT_IR_CAM_LEFT |
@@ -245,11 +306,13 @@ class StereoCameraNode : public rclcpp::Node {
       return false;
     }
     publishStaticTf();
+    device_open_.store(true);
     return true;
   }
 
   void closeDevice() {
     if (dev_ == nullptr) return;
+    device_open_.store(false);
     TYStopCapture(dev_);
     TYClearBufferQueue(dev_);
     // 礼貌复位（连接关闭本也会自动复位，双保险）
@@ -402,6 +465,7 @@ class StereoCameraNode : public rclcpp::Node {
 
   void captureLoop() {
     auto t_start = std::chrono::steady_clock::now();
+    started_at_ = t_start;
     int groups = 0, published = 0;
     int acc_frames = 0;
     cv::Mat z_sum, z_cnt;
@@ -420,7 +484,10 @@ class StereoCameraNode : public rclcpp::Node {
       int cw = 0, ch = 0;
       uint64_t ts_us = 0;
       for (int k = 0; k < frame.validCount; k++) {
-        if (frame.image[k].status != TY_STATUS_OK) continue;
+        if (frame.image[k].status != TY_STATUS_OK) {
+          drop_stream_++;
+          continue;
+        }
         const auto& img = frame.image[k];
         if (img.componentID == TY_COMPONENT_RGB_CAM) {
           color = static_cast<const uint8_t*>(img.buffer);
@@ -433,21 +500,33 @@ class StereoCameraNode : public rclcpp::Node {
           ir_r = static_cast<const uint8_t*>(img.buffer);
         }
       }
-      if (color && ir_l && ir_r && ts_us) {
+      if (!(color && ir_l && ir_r)) {
+        drop_incomplete_++;
+      } else if (!ts_us) {
+        drop_nostamp_++;
+      } else {
         rclcpp::Time stamp(static_cast<int64_t>(ts_us) * 1000);
         cv::Mat z;
         if (computeDepth(ir_l, ir_r, z_sum, z_cnt, acc_frames, z)) {
           publishGroup(stamp, color, cw, ch, z);
           published++;
+        } else {
+          drop_depth_++;
         }
       }
       TYEnqueueBuffer(dev_, frame.userBuffer, frame.bufferSize);
+      groups_.store(groups);
+      published_.store(published);
 
       if (groups % 100 == 0) {
         double dt = std::chrono::duration<double>(
             std::chrono::steady_clock::now() - t_start).count();
-        RCLCPP_INFO(get_logger(), "groups=%d published=%d rate=%.1f gps", groups, published,
-                    groups / dt);
+        RCLCPP_INFO(get_logger(),
+                    "groups=%d published=%d rate=%.1f gps "
+                    "drop(stream=%d incomplete=%d nostamp=%d depth=%d)",
+                    groups, published, groups / dt,
+                    drop_stream_.load(), drop_incomplete_.load(),
+                    drop_nostamp_.load(), drop_depth_.load());
       }
     }
   }
@@ -718,6 +797,17 @@ class StereoCameraNode : public rclcpp::Node {
   std::vector<uint8_t> buf_[2];
   std::atomic<bool> running_{false};
   std::thread capture_thread_;
+  // 观测计数（P0/P1）：帧组/发布/分类丢弃 + 设备与配置状态（诊断任务读）
+  std::atomic<int> groups_{0};
+  std::atomic<int> published_{0};
+  std::atomic<int> drop_stream_{0};
+  std::atomic<int> drop_incomplete_{0};
+  std::atomic<int> drop_nostamp_{0};
+  std::atomic<int> drop_depth_{0};
+  std::atomic<bool> device_open_{false};
+  std::atomic<bool> laser_config_ok_{false};
+  std::chrono::steady_clock::time_point started_at_{};
+  std::unique_ptr<diagnostic_updater::Updater> diag_;
 
   rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr color_pub_;
   rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr depth_pub_;

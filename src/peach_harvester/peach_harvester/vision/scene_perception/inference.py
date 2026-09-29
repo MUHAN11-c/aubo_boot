@@ -129,8 +129,11 @@ class UltralyticsYolo:
                 # 权重迁到目标设备；后续 predict 显式传 device，避免默认漂到 CPU
                 try:
                     self._yolo.to(self._device)
-                except Exception:
-                    pass
+                except Exception as exc:
+                    # 迁移失败不可静默：推理会漂到 CPU，帧率腰斩且难归因
+                    _logger.warning(
+                        'YOLO 权重迁移到 %s 失败（predict 仍显式传 device，'
+                        '可能回退 CPU）: %s', self._device, exc)
                 self._warmup()
 
             results = self._yolo(
@@ -226,8 +229,11 @@ class MobileSam:
                 self._sam = SAM(self._sam_model_name)
                 try:
                     self._sam.to(self._device)
-                except Exception:
-                    pass
+                except Exception as exc:
+                    # 迁移失败不可静默：分割会漂到 CPU，耗时激增且难归因
+                    _logger.warning(
+                        'SAM 权重迁移到 %s 失败（segment 仍显式传 device，'
+                        '可能回退 CPU）: %s', self._device, exc)
 
             # 限制 bbox 数量: SAM 批量推理显存与耗时随 N 增长
             if len(bboxes) > self._sam_max_bboxes:

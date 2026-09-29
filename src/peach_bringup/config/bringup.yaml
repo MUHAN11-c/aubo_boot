@@ -11,3 +11,4 @@ peach_autostart_client:
     scene_key: default  # 自动开批 RunHarvest 的 scene_key
     intent: 0  # RunHarvest intent（0=INTENT_PICK_ALL）
     wait_stack_timeout_s: 90.0  # 等托管栈就绪超时 (s)，超时放弃自动开批
+    require_selfcheck: true  # 自动开批硬等自检绿（/peach/observability/selfcheck_passed 闩锁）；false=不等（手动 RunHarvest 恒不受限）

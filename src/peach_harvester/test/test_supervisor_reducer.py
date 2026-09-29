@@ -129,3 +129,31 @@ def test_event_scoped_txn_still_dedups_same_event_redelivery():
             generation=4, session_id='s'))
     assert effects == []
     assert state.batch_state == RUNNING
+
+
+def test_stale_drop_counted():
+    """迟到/重复事件丢弃必须计数可见（P0 观测性）."""
+    state = OrchestratorState(
+        batch_state=RUNNING, target_phase=2, session_id='s')
+    state, effects = reduce_event(
+        state,
+        BatchEvent(
+            Event.FULL_SUCCEEDED, transaction_id='1:FULL_SUCCEEDED',
+            generation=1, session_id='other'))
+    assert effects == []
+    assert state.dropped_stale_events == 1
+    state, effects = reduce_event(
+        state,
+        BatchEvent(
+            Event.FULL_SUCCEEDED, transaction_id='1:FULL_SUCCEEDED',
+            generation=1, session_id='other'))
+    assert state.dropped_stale_events == 2
+
+
+def test_fresh_event_keeps_zero_counter():
+    state = OrchestratorState(
+        batch_state=DISCOVERY, target_phase=1, session_id='s')
+    state, effects = reduce_event(
+        state, BatchEvent(Event.NAV_OK, session_id='s'))
+    assert effects
+    assert state.dropped_stale_events == 0

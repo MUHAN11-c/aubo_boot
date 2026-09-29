@@ -197,7 +197,7 @@ void ManipulationSkillsNode::startContactGuard()
           report.reason.c_str(), report.joint_index,
           report.max_wrist_deviation);
         contact_abort_suspected_.store(true);
-        requestCancelAll();
+        requestCancelAll("疑似硬接触止损");
       }
     });
 }
@@ -770,6 +770,10 @@ bool MoveItMotionInterface::planOrMoveTip(
   move_group_->setNumPlanningAttempts(config_.default_planning_attempts);
   move_group_->allowReplanning(true);
   if (result != moveit::core::MoveItErrorCode::SUCCESS) {
+    // 最终规划失败必须带错误码落日志（P0）：MoveTo 失败文案指向"节点日志"
+    RCLCPP_WARN(
+      logger_, "%s 规划最终失败（planner=%s）: %s", label.c_str(),
+      planner_id.c_str(), moveit::core::errorCodeToString(result).c_str());
     return false;
   }
   // 观察禁止大关节绕行（看行程，不按时长）。接触/观察短移不走 PTP 兜底。
@@ -796,7 +800,13 @@ bool MoveItMotionInterface::planOrMoveTip(
   }
   // 目标身份/新鲜度不在运动层判定：由阶段执行器 + SafetyGate 单点决策，
   // 避免与再确认的 stale 放行/记忆锚点获取性移动策略互相否决。
-  return boundedExecute(plan) == moveit::core::MoveItErrorCode::SUCCESS;
+  const auto execute_result = boundedExecute(plan);
+  if (execute_result != moveit::core::MoveItErrorCode::SUCCESS) {
+    RCLCPP_WARN(
+      logger_, "%s 轨迹执行失败: %s", label.c_str(),
+      moveit::core::errorCodeToString(execute_result).c_str());
+  }
+  return execute_result == moveit::core::MoveItErrorCode::SUCCESS;
 }
 
 bool MoveItMotionInterface::planOrMoveCamera(
@@ -808,6 +818,9 @@ bool MoveItMotionInterface::planOrMoveCamera(
 {
   const auto tip_from_camera = lookupTransform(config_.tip_frame, config_.camera_frame);
   if (!tip_from_camera) {
+    RCLCPP_WARN(
+      logger_, "%s 换系失败：TF %s←%s 不可用", label.c_str(),
+      config_.tip_frame.c_str(), config_.camera_frame.c_str());
     return false;
   }
   const Eigen::Isometry3d tip_pose = camera_pose * tip_from_camera->inverse();

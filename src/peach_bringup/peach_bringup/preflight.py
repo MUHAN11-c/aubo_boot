@@ -84,3 +84,26 @@ def running_stack_pids(proc_root: str = '/proc'):
             display = ' '.join(part for part in cmdline.split('\x00') if part)
             found.append((int(entry), display[:200]))
     return found
+
+
+def runs_disk_free_gb(runs_root: str) -> float | None:
+    """返回 runs 根所在盘剩余空间 [GB]；不可得给 None（不阻断）."""
+    target = os.path.abspath(runs_root or 'runs')
+    probe = target if os.path.isdir(target) else os.path.dirname(target)
+    try:
+        st = os.statvfs(probe)
+    except OSError:
+        return None
+    return st.f_bavail * st.f_frsize / (1 << 30)
+
+
+def check_disk_free(min_free_gb: float, runs_root: str = 'runs') -> str | None:
+    """磁盘余量预检：低于阈值返回拒绝理由，否则 None（bag 预算安全垫）."""
+    free = runs_disk_free_gb(runs_root)
+    if free is None:
+        return None
+    if free < min_free_gb:
+        return (
+            f'runs 根所在盘剩余 {free:.1f}GB < {min_free_gb:.1f}GB'
+            '（会话 bag 无落地空间，先清理或改 record.root_dir）')
+    return None

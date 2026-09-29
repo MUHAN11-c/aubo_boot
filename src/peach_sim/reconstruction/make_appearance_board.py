@@ -1,12 +1,13 @@
 """外观对照板：真实数据集抽样 vs 本管线渲染，供人工观感 QA.
 
 上行 = PeachDataSet/Peach_bag 确定性抽样 4 帧（真实参考，只做对照不
-做贴图）；下行 = 本管线代表渲染（reference/detail/orchard + 一张矩阵
-primary 近视）。输出 output/appearance_board.jpg。定性工具，不产生门。
+做贴图）；下行 = 本管线代表渲染（reference/detail/orchard + 同版整园
+总览）。输出 output/appearance_board.jpg。定性工具，不产生门。
 """
 
 from pathlib import Path
 import random
+import json
 
 from PIL import Image, ImageDraw
 
@@ -44,11 +45,14 @@ def main():
         path = HERE / 'output' / filename
         if path.exists():
             render_row.append((path, f'render {label}'))
-    matrix_prim = sorted((HERE / 'output/matrix/noon').glob(
-        'tgt*_v0/rgb.png'))
-    if matrix_prim:
-        pick = matrix_prim[len(matrix_prim) // 2]
-        render_row.append((pick, 'render matrix primary (noon)'))
+    # Never silently mix a previous matrix/field geometry into this review.
+    scene = json.loads((HERE / 'output/scene_manifest.json').read_text())
+    field_dir = HERE / 'output/field_anchor'
+    field_manifest = field_dir / 'scene_manifest.json'
+    if field_manifest.exists():
+        field = json.loads(field_manifest.read_text())
+        if scene.get('source_sha256') and scene['source_sha256'] == field.get('source_sha256'):
+            render_row.append((field_dir / 'orchard.png', 'render full orchard (same revision)'))
     rows.append(render_row[:4])
 
     width = THUMB[0] * 4 + 50

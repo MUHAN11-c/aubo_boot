@@ -3,7 +3,7 @@ Load tool profile archives from aubo_description (plain keys, not ROS ParameterF
 
 工具档案单一事实源：aubo_description/config/<profile_id>.yaml。
 launch 期按 tool_profile 参数装载注入各包（模式同 grasp_standoffs 的 overlay 注入）：
-  - scene:        tool.D_inner（径向走廊门）
+  - scene:        tool.D_inner（径向走廊门）+ tool.L_insert/tool.L_blade（行程/刀口轴向）
   - reconstruction: tool.budget.d_inner（GraspDecision 许可数学）+ tool.profile_id（标签）
   - manipulation / executor: tool.profile_id（标签）
   - manipulation:  tool.d_inner_m / tool.body_length_m / tool.body_radius_m（袋径门+①层胶囊审查包络）
@@ -21,15 +21,16 @@ import os
 import yaml
 
 # 运行期有消费的档案字段（缺失即档案不完整，launch 期抛错）
-_REQUIRED_FIELDS = ('profile_id', 'd_inner', 'body_length', 'body_radius')
+_REQUIRED_FIELDS = (
+    'profile_id', 'd_inner', 'l_insert', 'l_blade', 'body_length', 'body_radius')
 
 
 def parse_tool_profile(data, profile_id):
     """
     Validate archive dict and extract consumed fields (pure core, no ROS).
 
-    Returns {'profile_id': str, 'd_inner': float, 'body_length': float,
-    'body_radius': float}；档案缺字段或 profile_id 与文件名不一致时抛
+    Returns {'profile_id': str, 'd_inner': float, 'l_insert': float,
+    'l_blade': float, 'body_length': float, 'body_radius': float}；档案缺字段或 profile_id 与文件名不一致时抛
     ValueError（launch 期 fail-fast，纯核测试同款入口）。
     """
     if not isinstance(data, dict):
@@ -47,6 +48,19 @@ def parse_tool_profile(data, profile_id):
     if not 0.0 < d_inner < 0.5:
         raise ValueError(f'tool profile {profile_id!r}: D_inner {d_inner} out of range')
     try:
+        l_insert = float(geometry['L_insert'])
+        l_blade = float(geometry['L_blade'])
+    except (KeyError, TypeError, ValueError) as exc:
+        raise ValueError(
+            f'tool profile {profile_id!r}: geometry_m.L_insert/L_blade '
+            'missing/invalid (scene 行程上限 s_max 与刀口轴向随档案)') from exc
+    if not 0.0 < l_insert < 0.5:
+        raise ValueError(
+            f'tool profile {profile_id!r}: L_insert {l_insert} out of range')
+    if not 0.0 <= l_blade < 0.5:
+        raise ValueError(
+            f'tool profile {profile_id!r}: L_blade {l_blade} out of range')
+    try:
         body_length = float(geometry['body_length'])
         body_radius = float(geometry['body_radius'])
     except (KeyError, TypeError, ValueError) as exc:
@@ -58,6 +72,7 @@ def parse_tool_profile(data, profile_id):
             f'tool profile {profile_id!r}: body envelope '
             f'{body_length}x{body_radius} out of range')
     return {'profile_id': declared, 'd_inner': d_inner,
+            'l_insert': l_insert, 'l_blade': l_blade,
             'body_length': body_length, 'body_radius': body_radius}
 
 
@@ -123,10 +138,14 @@ _tool_profile_value_cls.cache = None
 
 
 def scene_tool_params(profile_id):
-    """场景感知注入：径向走廊门的工具内径."""
+    """场景感知注入：径向走廊门内径 + 行程/刀口轴向（随档案）."""
     from launch_ros.parameter_descriptions import ParameterValue
-    value = _tool_profile_value_cls()(profile_id, 'd_inner')
-    return {'tool.D_inner': ParameterValue(value, value_type=float)}
+    cls = _tool_profile_value_cls()
+    return {
+        'tool.D_inner': ParameterValue(cls(profile_id, 'd_inner'), value_type=float),
+        'tool.L_insert': ParameterValue(cls(profile_id, 'l_insert'), value_type=float),
+        'tool.L_blade': ParameterValue(cls(profile_id, 'l_blade'), value_type=float),
+    }
 
 
 def reconstruction_tool_params(profile_id):

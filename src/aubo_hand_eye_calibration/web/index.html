@@ -411,6 +411,18 @@ details summary{cursor:pointer;font-size:12.5px;color:var(--brand-ink);font-weig
               <option value="daniilidis">daniilidis · 对偶四元数</option>
             </select>
           </label>
+          <label class="method-sel" title="poses=按示教位姿表逐点采集; auto=由当前画面定位棋盘、自动生成保持视野的环绕视点(需已有激活外参)">位姿来源
+            <select id="sel-pose-source">
+              <option value="poses" selected>poses · 示教位姿</option>
+              <option value="auto">auto · 自动视点</option>
+            </select>
+          </label>
+          <label class="method-sel" title="hand_eye=仅求外参(内参取自现用 camera_info); joint=内参+外参 20 参数联合求解">求解目标
+            <select id="sel-solve-target">
+              <option value="hand_eye" selected>hand_eye · 仅外参</option>
+              <option value="joint">joint · 内外参联合</option>
+            </select>
+          </label>
           <button class="btn-primary" id="btn-plan">① 预检并规划</button>
           <button class="btn-primary" id="btn-run" disabled>② 执行自动标定</button>
           <button class="btn-danger" id="btn-cancel" disabled>取消</button>
@@ -469,6 +481,16 @@ details summary{cursor:pointer;font-size:12.5px;color:var(--brand-ink);font-weig
           <h3>标定板基座系估计 base_from_target</h3>
           <div id="btt-wrap"></div>
         </div>
+        <div class="solve-sec" id="intr-sec" style="display:none">
+          <h3>联合求解内参 (joint 档)</h3>
+          <div id="intr-wrap"></div>
+        </div>
+      </div>
+
+      <div class="card" id="active-card" style="display:none">
+        <div class="card-h"><span class="ticks"></span><h2>当前激活外参</h2><div class="spacer"></div>
+          <span id="active-source-tag"></span></div>
+        <div id="active-body"></div>
       </div>
 
       <div class="card">
@@ -529,6 +551,7 @@ const JOINT_FERR_WARN_RAD=0.05;  // 关节跟随误差绝对值超过该值标�
 const REPROJ_GATE_PX=1.0;        // 重投影 RMS 时序图门限虚线 (px)
 const SAMPLE_T_GATE_MM=3.0;      // 逐样本平移残差柱状图门限线 (mm)
 const SAMPLE_R_GATE_DEG=0.5;     // 逐样本旋转残差柱状图门限线 (deg)
+const JOINT_RMS_GATE_PX=0.8;     // joint 联合档总重投影 RMS 标红门限 (与 joint_max_reprojection_rms_px 默认一致)
 const MODE_CN={1:'手动',2:'自动','-1':'未知'};   // RobotStatus.mode 取值含义
 const DIAG_TAG=['ok','warn','bad','bad'];        // diagnostics level 0/1/2/3 → 徽标色
 const DIAG_CN=['正常','警告','错误','停滞'];
@@ -727,20 +750,24 @@ function renderResult(s){
   if(s.quality_passed){v.textContent='✓ 质量门通过,可启用';v.className='verdict ok'}
   else{v.textContent='✗ 质量门未通过';v.className='verdict bad'}
   $('#method-tag').textContent=(s.method?'solver: '+s.method:'')+(s.candidate_id?'  ·  '+s.candidate_id:'');
-  $('#metric-grid').innerHTML=[
-    metricCard('接受样本',m.accepted_samples??'—','',`≥ ${g.min_samples??'—'}`,g.min_samples!==undefined?(m.accepted_samples>=g.min_samples):null),
-    metricCard('平移 RMS',num(m.translation_rms_m*1000,2),'mm',`≤ ${num((g.max_translation_rms_m??0)*1000,1)} mm`,g.max_translation_rms_m!==undefined?(m.translation_rms_m<=g.max_translation_rms_m):null),
-    metricCard('旋转 RMS',num(m.rotation_rms_deg,3),'°',`≤ ${num(g.max_rotation_rms_deg,1)}°`,g.max_rotation_rms_deg!==undefined?(m.rotation_rms_deg<=g.max_rotation_rms_deg):null),
-    metricCard('重投影 RMS',num(m.reprojection_rms_px,2),'px',`≤ ${num(g.max_reprojection_rms_px,1)} px`,g.max_reprojection_rms_px!==undefined?(m.reprojection_rms_px<=g.max_reprojection_rms_px):null),
-    metricCard('旋转跨度',num(m.rotation_span_deg,1),'°',`≥ ${num(g.min_rotation_span_deg,0)}°`,g.min_rotation_span_deg!==undefined?(m.rotation_span_deg>=g.min_rotation_span_deg):null),
-    metricCard('拒绝样本',m.rejected_samples??'—','','',null),
-  ].join('');
   const e=(s.extrinsics||{}).wrist_from_camera_optical;
   if(e){
     currentExtr=e;$('#extr-wrap').style.display='block';
     $('#extr').innerHTML=`<b>wrist → camera_optical</b><br>xyz&nbsp;&nbsp;[${e.xyz_m.map(v=>num(v,4)).join(', ')}] m<br>quat [${e.quaternion_xyzw.map(v=>num(v,4)).join(', ')}] xyzw`;
     renderDiff();
   }
+  /* joint 联合档才有 joint 总 RMS (server 只在 joint 档填该字段) */
+  const cards=[
+    metricCard('接受样本',m.accepted_samples??'—','',`≥ ${g.min_samples??'—'}`,g.min_samples!==undefined?(m.accepted_samples>=g.min_samples):null),
+    metricCard('平移 RMS',num(m.translation_rms_m*1000,2),'mm',`≤ ${num((g.max_translation_rms_m??0)*1000,1)} mm`,g.max_translation_rms_m!==undefined?(m.translation_rms_m<=g.max_translation_rms_m):null),
+    metricCard('旋转 RMS',num(m.rotation_rms_deg,3),'°',`≤ ${num(g.max_rotation_rms_deg,1)}°`,g.max_rotation_rms_deg!==undefined?(m.rotation_rms_deg<=g.max_rotation_rms_deg):null),
+    metricCard('重投影 RMS',num(m.reprojection_rms_px,2),'px',`≤ ${num(g.max_reprojection_rms_px,1)} px`,g.max_reprojection_rms_px!==undefined?(m.reprojection_rms_px<=g.max_reprojection_rms_px):null),
+    metricCard('旋转跨度',num(m.rotation_span_deg,1),'°',`≥ ${num(g.min_rotation_span_deg,0)}°`,g.min_rotation_span_deg!==undefined?(m.rotation_span_deg>=g.min_rotation_span_deg):null),
+    metricCard('拒绝样本',m.rejected_samples??'—','','',null),
+  ];
+  if(m.joint_reprojection_rms_px!==undefined&&m.joint_reprojection_rms_px!==null)
+    cards.push(metricCard('joint 总 RMS',num(m.joint_reprojection_rms_px,3),'px',`≤ ${JOINT_RMS_GATE_PX} px`,m.joint_reprojection_rms_px<=JOINT_RMS_GATE_PX));
+  $('#metric-grid').innerHTML=cards.join('');
 }
 function renderDiff(){
   const badge=$('#diff-badge');
@@ -768,6 +795,7 @@ function adaptCandidateResult(doc){
     sample_errors:doc.sample_errors??null,
     refine_stats:doc.refine_stats??null,
     base_from_target:bt.xyz_m?{xyz:bt.xyz_m,quat_xyzw:bt.quaternion_xyzw}:null,
+    intrinsics:doc.intrinsics??null,
   };
 }
 const NO_DATA='<div class="no-data">该结果无此数据</div>';
@@ -822,6 +850,18 @@ function renderSolvePanel(r,sourceId){
     const rpy=quatToRpyDeg(bt.quat_xyzw);
     $('#btt-wrap').innerHTML=`<div class="extr" style="margin-top:0">
       xyz&nbsp;&nbsp;<b>[${bt.xyz.map(v=>num(v,4)).join(', ')}]</b> m<br>rpy&nbsp;&nbsp;<b>[${rpy.map(v=>num(v,2)).join(', ')}]</b> °</div>`;
+  }
+  /* 联合求解内参 (仅 joint 档候选有): camera_matrix 行主序 9 元 */
+  const intra=r.intrinsics;
+  if(intra&&Array.isArray(intra.camera_matrix)&&intra.camera_matrix.length===9){
+    const K=intra.camera_matrix,D=intra.distortion||[],size=intra.image_size||[];
+    $('#intr-sec').style.display='block';
+    $('#intr-wrap').innerHTML=`<div class="extr" style="margin-top:0">
+      fx <b>${num(K[0],2)}</b> · fy <b>${num(K[4],2)}</b> · cx <b>${num(K[2],1)}</b> · cy <b>${num(K[5],1)}</b><br>
+      畸变 [${D.map(v=>num(v,5)).join(', ')}] (${intra.distortion_model||'plumb_bob'})<br>
+      图像 ${size[0]??'—'}×${size[1]??'—'} px</div>`;
+  }else{
+    $('#intr-sec').style.display='none';
   }
 }
 /* live result 渲染: 内容未变时跳过, 避免 10Hz 快照反复重绘 canvas */
@@ -951,7 +991,23 @@ async function showCandidateDetail(id){
   }catch(e){toast('候选详情加载失败: '+e.message,'error')}
 }
 async function refreshActive(){
-  try{const d=await (await fetch('/api/active')).json();activeDoc=d.active;renderDiff()}catch(e){}
+  try{const d=await (await fetch('/api/active')).json();activeDoc=d.active;renderDiff();renderActiveCard()}catch(e){}
+}
+/* 当前激活外参卡: 让"当前外参是否本机标定产物"一眼可见 */
+function renderActiveCard(){
+  const card=$('#active-card'),tag=$('#active-source-tag');
+  if(!activeDoc){card.style.display='none';return}
+  card.style.display='block';
+  const t=(activeDoc.transforms||{}).wrist_from_camera_optical||{};
+  const m=activeDoc.metrics||{};
+  const imported=String(activeDoc.method||'').startsWith('import:');
+  const date=(activeDoc.created_at||'').replace('T',' ').slice(0,19);
+  tag.innerHTML=imported
+    ?'<span class="tag warn">外部导入 · 非本机标定产物</span>'
+    :'<span class="tag ok">本机标定</span>';
+  $('#active-body').innerHTML=`<div class="extr" style="margin-top:0">
+    来源 <b>${activeDoc.method||'—'}</b> · 落盘 ${date||'—'} · 采样 ${m.accepted_samples??'—'}<br>
+    ${t.xyz_m?`wrist → camera_optical<br>xyz&nbsp;&nbsp;[${t.xyz_m.map(v=>num(v,4)).join(', ')}] m<br>quat [${t.quaternion_xyzw.map(v=>num(v,4)).join(', ')}] xyzw`:''}</div>`;
 }
 function activate(id){
   post('/api/activate',{candidate_id:id})
@@ -1007,10 +1063,36 @@ function update(s){
 
 /* ── 操作 ── */
 const selMethod=()=>$('#sel-method').value;
-$('#btn-plan').onclick=()=>post('/api/plan',{method:selMethod()}).then(()=>toast('预检规划已启动(机器人不会动)','ok')).catch(e=>toast(e.message,'error'));
+/* 档位三参数: 空串=服务端参数默认; 传给 /api/plan 与 /api/run 保持一致 */
+const goalParams=()=>({method:selMethod(),pose_source:$('#sel-pose-source').value,solve_target:$('#sel-solve-target').value});
+/* plan 时的档位快照: run 前比对, 变更则提醒重新预检 (服务端 stage 不会回退) */
+let planParams=null;
+const paramsChanged=p=>planParams&&(p.method!==planParams.method||p.pose_source!==planParams.pose_source||p.solve_target!==planParams.solve_target);
+/* auto 档守卫: 需已有激活外参作初始值 (active.yaml 缺失时 server 明确报错) */
+function guardAuto(p){
+  if(p.pose_source==='auto'&&!activeDoc){
+    toast('自动视点(auto)需先有激活外参 active.yaml, 当前不可用 — 请用 poses 示教位姿档','error');
+    return false;
+  }
+  return true;
+}
+$('#sel-pose-source').onchange=()=>{
+  const p=goalParams();
+  if(p.pose_source==='auto'&&!activeDoc)toast('提示: 当前无激活外参, auto 档会被服务端拒绝','');
+};
+$('#btn-plan').onclick=()=>{
+  const p=goalParams();
+  if(!guardAuto(p))return;
+  post('/api/plan',p).then(()=>{planParams=p;toast('预检规划已启动(机器人不会动)','ok')}).catch(e=>toast(e.message,'error'));
+};
 $('#btn-run').onclick=()=>{
-  if(confirm('机器人将连续自动运动完成全部位姿采样,预计数分钟。\n请确认:工作空间已清空 · 急停可用 · 棋盘固定不动。\n\n开始执行?'))
-    post('/api/run',{method:selMethod()}).then(()=>toast('自动标定已启动,请远离工作空间','ok')).catch(e=>toast(e.message,'error'));
+  const p=goalParams();
+  const changed=paramsChanged(p);
+  const msg='机器人将连续自动运动完成全部位姿采样,预计数分钟。\n请确认:工作空间已清空 · 急停可用 · 棋盘固定不动。'
+    +(changed?'\n\n⚠ 档位与预检时不一致(算法/位姿来源/求解目标), 建议取消并重新预检。':'')
+    +'\n\n开始执行?';
+  if(confirm(msg))
+    post('/api/run',p).then(()=>toast('自动标定已启动,请远离工作空间','ok')).catch(e=>toast(e.message,'error'));
 };
 $('#btn-cancel').onclick=()=>post('/api/cancel').then(()=>toast('已请求取消')).catch(e=>toast(e.message,'error'));
 $('#btn-activate').onclick=()=>{

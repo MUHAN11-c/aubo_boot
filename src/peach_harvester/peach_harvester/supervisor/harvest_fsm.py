@@ -196,7 +196,8 @@ _TABLE: dict[tuple, Reaction] = {
     (WAITING_READY, Event.RUN_REQUESTED): Reaction(
         DISCOVERY, TARGET_IDLE, Command.NAVIGATE, '', 'preparing'),
     (DISCOVERY, Event.NAV_FAILED): Reaction(
-        INTERRUPTED, TARGET_IDLE, Command.ABORT, '', 'navigate_failed'),
+        INTERRUPTED, TARGET_IDLE, Command.ABORT, 'navigate_failed',
+        'navigate_failed'),
     (DISCOVERY, Event.NAV_OK): Reaction(
         DISCOVERY, TARGET_IDLE, Command.SURVEY, '', 'surveying'),
     (DISCOVERY, Event.SURVEY_FAILED): Reaction(
@@ -205,7 +206,8 @@ _TABLE: dict[tuple, Reaction] = {
     (DISCOVERY, Event.SURVEY_AT_POSE): Reaction(
         DISCOVERY, TARGET_IDLE, Command.BEGIN_SCENE, '', 'preparing'),
     (DISCOVERY, Event.BEGIN_FAILED): Reaction(
-        INTERRUPTED, TARGET_IDLE, Command.ABORT, '', 'begin_scene_failed'),
+        INTERRUPTED, TARGET_IDLE, Command.ABORT, 'begin_scene_failed',
+        'begin_scene_failed'),
     (DISCOVERY, Event.BEGIN_OK): Reaction(
         DISCOVERY, TARGET_IDLE, Command.WAIT_LOCK, '', 'collecting'),
     (DISCOVERY, Event.LOCK_READY): Reaction(
@@ -399,6 +401,37 @@ def permissions_for(batch_state: int, recovery_required: bool,
     if recovery_required and CMD_ACKNOWLEDGE_RECOVERY not in allowed:
         allowed.append(CMD_ACKNOWLEDGE_RECOVERY)
     return allowed
+
+
+# blockers 词表（HarvestState.blockers，软门机读口径；写进 docs/io.md）：
+BLOCKER_STACK_NOT_READY = 'stack_not_ready'
+BLOCKER_RECOVERY_REQUIRED = 'recovery_required'
+BLOCKER_MODE_PAUSED = 'mode_paused'
+BLOCKER_MODE_MAINTENANCE = 'mode_maintenance'
+BLOCKER_LEDGER_WRITE_FAILED = 'ledger_write_failed'
+
+
+def blockers_for(*, operation_mode: int, recovery_required: bool,
+                 stack_ready: bool | None = None,
+                 ledger_write_failures: int = 0) -> list:
+    """
+    批次阻塞原因列表（P1 软门：msg.blockers 从恒空到机读可判）.
+
+    ``stack_ready`` 传 None 表示本部署不要求托管栈（require_managed_stack
+    =false），不作为阻塞项。词表见上方 BLOCKER_* 常量。
+    """
+    blockers = []
+    if stack_ready is False:
+        blockers.append(BLOCKER_STACK_NOT_READY)
+    if recovery_required:
+        blockers.append(BLOCKER_RECOVERY_REQUIRED)
+    if operation_mode == MODE_PAUSED:
+        blockers.append(BLOCKER_MODE_PAUSED)
+    elif operation_mode == MODE_MAINTENANCE:
+        blockers.append(BLOCKER_MODE_MAINTENANCE)
+    if ledger_write_failures > 0:
+        blockers.append(BLOCKER_LEDGER_WRITE_FAILED)
+    return blockers
 
 
 def event_for_outcome(outcome: int, operator_skip: bool = False) -> str:

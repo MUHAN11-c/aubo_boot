@@ -44,6 +44,8 @@ class AutostartClientParams:
     """autostart 意图（部署参数，默认关）."""
     wait_stack_timeout_s: float
     """等栈 Active 超时 [s]；须 >0."""
+    require_selfcheck: bool
+    """自动开批硬等自检绿（软门+autostart 硬等，用户裁定 2026-09-29）."""
 
 
 def attach_flag_bridge(node) -> FlagBridgeParams:

@@ -7,9 +7,11 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import logging
 from typing import Optional, Tuple
 
 import numpy as np
+from peach_common.event_meter import EventMeter
 from peach_harvester.vision.common.bag_landmarks import (
     clamp_upper_hemisphere,
     enforce_wide_bottom,
@@ -38,6 +40,10 @@ from .contracts import (
 )
 from .identity import estimate_pose_covariance
 from .image_gates import clip_bbox, foreground_mask, valid_depth_mask
+
+_logger = logging.getLogger(__name__)
+# P1 纯核决策点观测：拟合拒绝计数（经 ros_log_bridge 进 /rosout）
+_fit_reject_meter = EventMeter(_logger, '位姿拟合拒绝', every=20)
 
 # W3 迁移兼容 re-export：grasp_frame_from_axis 已迁 common.geometry
 # （identity.memory_grasp 与本模块共用；迁出消除 identity↔pose_pipelines
@@ -640,6 +646,9 @@ class RobustBagPosePipeline:
         """
         grasp_2d.status = 'REJECT'
         grasp_2d.diagnostic_flags = [reason]
+        # P1 纯核决策点观测：拟合拒绝此前只在 diagnostic_flags（经
+        # ros_log_bridge 进 /rosout；计数+周期摘要防刷屏）
+        _fit_reject_meter.hit(f'{self.kind} {target_id or "-"}: {reason}')
         grasp_3d = BagGraspReference3D(
             status='REJECT', diagnostic_flags=[reason],
             strategy_id=f'robust_{self.kind}_pose',

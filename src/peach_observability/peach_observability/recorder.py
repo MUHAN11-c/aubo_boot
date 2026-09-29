@@ -99,6 +99,12 @@ class Recorder:
         """录制总开关（on_activate 全量录制门控读用）."""
         return self._enabled
 
+    @property
+    def session_dir(self) -> Path | None:
+        """当前会话目录（startup.json/selfcheck.json 等会话工件写于此）."""
+        with self._lock:
+            return self._session_dir
+
     # ------------------------------------------------------------------
     # observability 回调入口（只入队，绝不阻塞）
     # ------------------------------------------------------------------

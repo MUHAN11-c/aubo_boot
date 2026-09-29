@@ -1,7 +1,7 @@
 # 场景里有哪些桃。调度选果的唯一观测入口（须 scene_epoch 对齐且 target_set_locked）。
 # 话题：/peach/perception/target_observations（reliable, volatile, depth 10）
 # 生产：peach_scene_perception
-# 消费：peach_executor（选果）、重建（对齐掩膜）、技能（新鲜度）、监控
+# 消费：peach_supervisor（选果）、重建（对齐掩膜）、技能（新鲜度）、监控
 # 锁定前 observations 恒空，只发 collecting_count / pending_count 进度摘要。
 
 std_msgs/Header header            # stamp=本帧图像时刻

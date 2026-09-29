@@ -38,6 +38,7 @@ setup(
     entry_points={
         'console_scripts': [
             'serial_imu_node = serial_imu.imu_node:main',
+            'serial_force_node = serial_imu.force_node:main',
         ],
     },
     options={

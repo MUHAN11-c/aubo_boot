@@ -30,6 +30,7 @@
 #include <moveit/collision_detection/collision_matrix.hpp>
 #include <moveit/collision_detection_fcl/collision_env_fcl.hpp>
 #include "peach_arm/eigen_conversions.hpp"
+#include "peach_arm/acm_policy.hpp"
 #include "peach_arm/grasp_geometry.hpp"
 #include "peach_arm/model_contract.hpp"
 #include "peach_arm/params_bridge.hpp"
@@ -161,6 +162,26 @@ CallbackReturn ManipulationSkillsNode::on_configure(const rclcpp_lifecycle::Stat
       [this](diagnostic_updater::DiagnosticStatusWrapper & st) {
         reportEnablesDiagnostics(st);
       });
+    diagnostics_->add(
+      "robot_status",
+      [this](diagnostic_updater::DiagnosticStatusWrapper & st) {
+        reportRobotStatusDiagnostics(st);
+      });
+    diagnostics_->add(
+      "tool_chain",
+      [this](diagnostic_updater::DiagnosticStatusWrapper & st) {
+        reportToolChainDiagnostics(st);
+      });
+    diagnostics_->add(
+      "moveit_availability",
+      [this](diagnostic_updater::DiagnosticStatusWrapper & st) {
+        reportMoveItAvailabilityDiagnostics(st);
+      });
+    diagnostics_->add(
+      "last_denial",
+      [this](diagnostic_updater::DiagnosticStatusWrapper & st) {
+        reportLastDenialDiagnostics(st);
+      });
     // MoveIt/MTC 资源分配放 configure（activate 只做快速切换）；
     // 机器人模型缺失/规划组不存在等在此抛异常 → FAILURE。
     initializeMoveIt();
@@ -182,17 +203,32 @@ CallbackReturn ManipulationSkillsNode::on_activate(const rclcpp_lifecycle::State
   marker_pub_->on_activate();
   grasp_hyp_pub_->on_activate();
   startBond();
-  // ③层工具×octomap ACM 豁免：后台线程一次应用（含最多 4s 服务等待，
+  // ③层场景障碍 ACM 豁免：后台线程一次应用（含最多 4s 服务等待，
   // 不得占激活回调；static 入口无对象生命周期依赖）。Survey/观察/接近
-  // 全程生效——09-17 真机实锤：不豁免则眼在手上 self-filter 漏收的工具
-  // 点云会让臂停在任意视点位后所有规划自碰死锁。豁免清单=工具档案
-  // tool.links（W5-6 参数化）。
+  // 全程生效。2026-09-29 起避障只为保护相机：豁免清单=tool.links 部署值
+  // （全机器人−camera_body_link），唯一受查对=guard_links×障碍对象；
+  // 09-17 眼在手上 self-filter 漏收工具点云的死锁由豁免+快照节点自身
+  // 滤除双保险。guard 开关（moveit.obstacle_guard_enabled）改参后空闲时
+  // 经 rebuildGraspTask 生效、下次规划前重写 ACM。
   {
     const auto logger = get_logger();
     const std::vector<std::string> tool_links = params_.tool.links;
-    std::thread([logger, tool_links]() {
+    const ObstacleExemptionSpec obstacle_spec{
+      params_.tool.links, params_.moveit.obstacle_guard_links,
+      params_.moveit.obstacle_object_ids,
+      params_.moveit.obstacle_guard_enabled};
+    std::thread([logger, tool_links, obstacle_spec]() {
         moveit::planning_interface::PlanningSceneInterface scene;
-        GraspTask::applyWholeOctomapToolExemption(logger, scene, tool_links);
+        // 09-29 真相机轮勘定：激活早期服务竞态会让 apply 静默落空（ACM
+        // 无条目、无 WARN），观察/接近规划起点即撞。重试 3 次——每次都
+        // 先读现行 ACM 再整表合并（幂等，不会冲掉别处已写的条目）。
+        for (int attempt = 1; attempt <= 3; ++attempt) {
+          GraspTask::applyWholeOctomapToolExemption(
+            logger, scene, tool_links, obstacle_spec);
+          if (attempt < 3) {
+            std::this_thread::sleep_for(std::chrono::seconds(3));
+          }
+        }
       }).detach();
   }
   RCLCPP_INFO(get_logger(), "节点已激活：运动输出权限开放");
@@ -245,8 +281,12 @@ bool ManipulationSkillsNode::motionOutputAllowed(std::string & why) const
   return true;
 }
 
-void ManipulationSkillsNode::requestCancelAll()
+void ManipulationSkillsNode::requestCancelAll(const std::string & reason)
 {
+  // 取消发起必须留痕（P0 观测性）：此前只能从 CANCELED 终局反推谁触发
+  RCLCPP_INFO(
+    get_logger(), "requestCancelAll: 停止当前执行（来源：%s）",
+    reason.empty() ? "未注明" : reason.c_str());
   cancel_requested_.store(true);
   if (move_group_) {
     move_group_->stop();
@@ -275,7 +315,7 @@ void ManipulationSkillsNode::closeMotionOutputAndCancel()
   // 顺序即语义：先关权限/撤 arm（拒新入口），再取消活动周期并唤醒所有等待。
   motion_output_permitted_.store(false);
   execution_armed_.store(false);
-  requestCancelAll();
+  requestCancelAll("deactivate 收口");
   // 先回收 worker（executeCycle 落定终态），再回收 action 线程——
   // executeAction 以 running==false 为周期结束信号读终态上报，反向回收会让
   // 它读到覆盖后的状态。
@@ -360,6 +400,7 @@ void ManipulationSkillsNode::releaseResources()
   grasp_task_.reset();
   motion_.reset();
   move_group_.reset();
+  planning_scene_client_.reset();
 }
 
 ManipulationSkillsNode::~ManipulationSkillsNode()
@@ -688,6 +729,9 @@ void ManipulationSkillsNode::createSubscriptions()
     std::bind(&ManipulationSkillsNode::onIoState, this, std::placeholders::_1));
   tool_state_pub_ = create_publisher<peach_interfaces::msg::ToolState>(
     "/peach_arm/tool_state", latched);
+  // move_group 可用性探针（诊断只读；不做规划请求）
+  planning_scene_client_ = create_client<moveit_msgs::srv::GetPlanningScene>(
+    "/get_planning_scene");
   // 批次5：imu_follow 插入进度（FK 不可用时的回退判据；目标积分）
   imu_progress_sub_ = create_subscription<std_msgs::msg::Float64>(
     "/imu_follow/insert_progress", 10,
@@ -1086,7 +1130,23 @@ void ManipulationSkillsNode::setState(
     };
   }
   publishState();
-  RCLCPP_INFO(get_logger(), "[%s] %s", toString(state).c_str(), message.c_str());
+  // 失败拒因锁存（P1 观测性）：瞬时 reason 此前只在日志，诊断现在可查
+  if (state == CycleState::FAILED || state == CycleState::PREVIEW_FAILED) {
+    std::lock_guard<std::mutex> denial_lock(last_denial_mutex_);
+    last_denial_ = message;
+    last_denial_mono_s_ = std::chrono::duration<double>(
+      std::chrono::steady_clock::now().time_since_epoch()).count();
+  }
+  // 失败/须人确认的状态必须以 WARN 起步（P0）：INFO 过滤器下业务失败不可见
+  if (state == CycleState::FAILED || state == CycleState::PREVIEW_FAILED ||
+    state == CycleState::RECOVERY_REQUIRED)
+  {
+    RCLCPP_WARN(
+      get_logger(), "[%s] %s", toString(state).c_str(), message.c_str());
+  } else {
+    RCLCPP_INFO(
+      get_logger(), "[%s] %s", toString(state).c_str(), message.c_str());
+  }
 }
 
 void ManipulationSkillsNode::publishState()
@@ -1256,6 +1316,99 @@ void ManipulationSkillsNode::reportEnablesDiagnostics(
     return;
   }
   status.summary(Status::OK, std::string("使能正常（源=") + source + "）");
+}
+
+// ---- 观测性 P1 增补任务 ----
+// robot_status / tool_chain / moveit_availability / last_denial：补齐
+// 「柜侧流健康、工具链、move_group 在场、最近拒因」四个只读投影。
+
+void ManipulationSkillsNode::reportRobotStatusDiagnostics(
+  diagnostic_updater::DiagnosticStatusWrapper & status)
+{
+  using Status = diagnostic_msgs::msg::DiagnosticStatus;
+  const bool required = params_.execution.require_robot_status;
+  double age_s = -1.0;
+  {
+    std::lock_guard<std::mutex> lock(robot_mutex_);
+    if (robot_status_mono_s_ > 0.0) {
+      age_s = std::chrono::duration<double>(
+        std::chrono::steady_clock::now().time_since_epoch()).count() -
+        robot_status_mono_s_;
+    }
+  }
+  status.add("required", required ? 1 : 0);
+  status.add("valid", robot_status_valid_ ? 1 : 0);
+  status.add("age_s", age_s);
+  status.add("contract_timeout_s", robot_status_contract_timeout_s_);
+  if (!required) {
+    status.summary(Status::OK, "mock：不要求 robot_status");
+  } else if (!robot_status_valid_) {
+    status.summary(Status::ERROR, "从未收到 robot_status（真机要求在线）");
+  } else if (age_s > robot_status_contract_timeout_s_) {
+    status.summaryf(
+      Status::ERROR, "robot_status 断流 %.1fs > %.1fs", age_s,
+      robot_status_contract_timeout_s_);
+  } else {
+    status.summary(Status::OK, "robot_status 新鲜");
+  }
+}
+
+void ManipulationSkillsNode::reportToolChainDiagnostics(
+  diagnostic_updater::DiagnosticStatusWrapper & status)
+{
+  using Status = diagnostic_msgs::msg::DiagnosticStatus;
+  const ToolAxes axes = tool_actuator_.axes();
+  const auto state = tool_actuator_.state();
+  status.add("state", static_cast<int>(state));
+  status.add("blade", static_cast<int>(axes.blade));
+  status.add("retention", static_cast<int>(axes.retention));
+  status.add("payload", static_cast<int>(axes.payload));
+  status.add("evidence_source", axes.evidence_source);
+  status.add("fault_code", axes.fault_code);
+  status.add("tool_enabled", tool_enabled_.load() ? 1 : 0);
+  if (!axes.fault_code.empty()) {
+    status.summary(Status::WARN, "工具链异常: " + axes.fault_code);
+  } else {
+    status.summary(Status::OK, "工具状态机正常");
+  }
+}
+
+void ManipulationSkillsNode::reportMoveItAvailabilityDiagnostics(
+  diagnostic_updater::DiagnosticStatusWrapper & status)
+{
+  using Status = diagnostic_msgs::msg::DiagnosticStatus;
+  const bool mgi_ready = move_group_ != nullptr;
+  const bool service_ready = planning_scene_client_ != nullptr &&
+    planning_scene_client_->service_is_ready();
+  status.add("mgi_initialized", mgi_ready ? 1 : 0);
+  status.add("get_planning_scene_ready", service_ready ? 1 : 0);
+  if (!mgi_ready) {
+    status.summary(Status::ERROR, "MoveGroupInterface 未初始化");
+  } else if (!service_ready) {
+    status.summary(Status::WARN, "move_group 服务未就绪（仍在启动或已退出）");
+  } else {
+    status.summary(Status::OK, "move_group 在场");
+  }
+}
+
+void ManipulationSkillsNode::reportLastDenialDiagnostics(
+  diagnostic_updater::DiagnosticStatusWrapper & status)
+{
+  using Status = diagnostic_msgs::msg::DiagnosticStatus;
+  std::lock_guard<std::mutex> lock(last_denial_mutex_);
+  status.add("last_denial", last_denial_);
+  if (last_denial_.empty()) {
+    status.summary(Status::OK, "无失败记录");
+    return;
+  }
+  double age_s = -1.0;
+  if (last_denial_mono_s_ > 0.0) {
+    age_s = std::chrono::duration<double>(
+      std::chrono::steady_clock::now().time_since_epoch()).count() -
+      last_denial_mono_s_;
+  }
+  status.add("age_s", age_s);
+  status.summary(Status::WARN, "最近失败: " + last_denial_);
 }
 
 void ManipulationSkillsNode::startCycleTiming()

@@ -186,6 +186,8 @@ class HarvestDataStore:
         self.base_dir = Path(base_dir) if base_dir else None
         self.run_dir = None
         self.latest_state = {}
+        # 未开批（run_dir=None）期间被丢弃的事件计数（观测性：丢弃不静默）
+        self.dropped_before_run = 0
         # target_id → 上次掩膜落盘的 time.monotonic() 时刻（save_mask 节流用）
         self._mask_last_saved = {}
         # V4：单后台写线程（daemon；close() 排空收口）
@@ -335,6 +337,12 @@ class HarvestDataStore:
         完成后刷新，query() 可能滞后一条（诊断通道，可接受）。
         """
         if self.run_dir is None:
+            # 开批前事件无处可落：计数并低频提示，不再完全静默
+            self.dropped_before_run += 1
+            if self.dropped_before_run == 1 or self.dropped_before_run % 100 == 0:
+                _logger.warning(
+                    '事件在开批前（无 run_dir）被丢弃：累计 %d 条',
+                    self.dropped_before_run)
             return
         record = dict(event)
         record.setdefault(

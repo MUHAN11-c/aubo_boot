@@ -48,4 +48,4 @@ BeginScene：Active 才受理；`scene_epoch++`；换 `scene_key` 清身份表�
 
 ## 工具档案
 
-`tool_profiles.py`：`hollow_cylinder_v1`（MTC 沿轴 LIN 套入）/ `adaptive_cylinder_v1`（预抓取后 `imu_follow` 窗，禁止与 MTC 同时写控制器）。停位：`grasp_standoffs.yaml`（预抓取沿 −axis 后撤，现行 0.03 m）。
+`tool_profiles.py`：三把剪切手 `shear_v1` / `bite_shear_v1`（MTC 沿轴 LIN 套入）/ `adaptive_shear_v1`（默认；预抓取后 `imu_follow` 窗，禁止与 MTC 同时写控制器）。单一事实源 `aubo_description/config/<profile_id>.yaml`；launch 期注入 scene `tool.D_inner` / `tool.L_insert` / `tool.L_blade`（径向走廊门 + 行程/刀口轴向，2026-09-29 扩）、recon `tool.budget.d_inner` + `tool.profile_id`。停位：`grasp_standoffs.yaml`（预抓取沿 −axis 后撤，现行 0.03 m）。

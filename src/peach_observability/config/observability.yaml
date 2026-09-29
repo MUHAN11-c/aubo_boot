@@ -5,6 +5,24 @@ peach_observability:
   ros__parameters:
     host: 127.0.0.1  # HTTP 监听地址；局域网访问显式设 0.0.0.0
     port: 8090  # HTTP 监听端口
+    startup_facts: ''  # harvest_system 注入的启动事实 JSON（含 hardware_mode/git 等；空=独立起栈，自检参数一致性项降级）
+    robot_status_probe_enabled: false  # 自检 robot_status 新鲜度探针（真机 launch 置 true；mock 不要求）
+    selfcheck:
+      enabled: true  # 启动自检总开关：探针+周期检查+闩锁 selfcheck_passed+会话工件
+      period_s: 30.0  # 周期复检间隔（秒）；0=只跑初次+8090 手动
+      initial_settle_s: 10.0  # managed 旗标置位后静置等待（模型加载/MoveIt 就绪）
+      initial_timeout_s: 90.0  # 旗标未到的初次检查兜底超时（秒）
+      rate_window_s: 5.0  # 帧率探针滑动窗（秒）
+      camera_probe_enabled: false  # 相机帧率探针（camera_enabled 时 launch 置 true）
+      camera_min_hz: 2.0  # 相机 color/depth 最低帧率（stereo 实测约 13.5gps；2.0 为停走节拍下限）
+      disk_min_gb: 10.0  # runs 根所在盘最低剩余（GB；bag 预算 100G 的安全垫）
+      expected_joints: [shoulder_joint, upperArm_joint, foreArm_joint, wrist1_joint, wrist2_joint, wrist3_joint]  # MUST 冻结序（AGENTS 第 1 章）
+      expected_tcp_norm_m: -1.0  # wrist3_Link→tcp 平移模长期望（米）；-1=跳过；harvest_system 从 aubo_description 工具档案算好注入
+      moveit_expected: true  # 是否要求 move_group 在场（launch 按 moveit_enabled 注入）
+      imu_expected: true  # 是否要求 IMU 话题在场（launch 按 imu_enabled 注入）
+      model_paths: ''  # 启动期须在位的模型权重路径（逗号分隔；空=SKIP；部署档可填 yolo/sam 权重绝对路径）
+      color_image_topic: /camera/color/image_raw  # 相机帧率探针 color 话题
+      depth_image_topic: /camera/depth/image_raw  # 相机帧率探针 depth 话题
     param_poll_period_s: 3.0  # 各节点当前参数只读镜像的轮询周期（秒）
     target_observations_topic: /peach/perception/target_observations  # 全局目标快照话题
     harvest_state_topic: /peach/perception/harvest_state  # 采摘计划 JSON 话题

@@ -28,7 +28,7 @@ def generate_launch_description():
         parameters=[
             ParameterFile(config, allow_substs=True),
             scene_overlay(),
-            # 工具档案注入：径向走廊门内径随 tool_profile 覆盖 yaml 基础值
+            # 工具档案注入：径向走廊门内径 + 行程/刀口轴向随 tool_profile 覆盖 yaml 基础值
             scene_tool_params(LaunchConfiguration('tool_profile')),
         ],
         output='screen',
@@ -58,6 +58,6 @@ def generate_launch_description():
         DeclareLaunchArgument(
             'tool_profile', default_value='adaptive_shear_v1',
             choices=['shear_v1', 'bite_shear_v1', 'adaptive_shear_v1'],
-            description='末端工具档案（tool.D_inner 随档案注入）'),
+            description='末端工具档案（tool.D_inner/L_insert/L_blade 随档案注入）'),
         activate, node, configure,
     ])

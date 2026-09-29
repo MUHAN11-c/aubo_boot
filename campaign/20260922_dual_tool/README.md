@@ -1,5 +1,7 @@
 # 双末端感知→抓取验证战役（2026-09-22）
 
+> **档案换代注记（2026-09-28/29）**：决策 0033 起两把圆柱档案（`hollow_cylinder_v1` / `adaptive_cylinder_v1`）已删除，换三把剪切手（`shear_v1` / `bite_shear_v1` / `adaptive_shear_v1`）。本台账与 `scripts/run_*.sh`、`imu_steps.sh` 中的旧档案名是**当时的历史记录，直接复跑会在 `ensure_profile_match` 处 fail-fast 拒跑**；新轮次请用 `campaign/20260928_bite_shear/`（参数化脚本）或换名后按 [docs/testing.md](../../docs/testing.md) §「感知稳定 + 三种末端」跑。`launch_stack.sh` 本身已参数化可直接复用。
+
 **口径（用户裁定）**：≥5 轮「真实相机感知 → supervisor 选果 → peach_arm 完整抓取 FULL 干跑」（`skip_reconstruction:=true`，用感知原结果；重建仅后续精化件）。每轮同步录制全量 bag（observability 会话 bag，100G 预算）+ rviz2 窗口视频。全程 mock 控制：不动真机、不 SetIO、`tool.enabled` 恒 false。
 
 方案依据：[reports/2026-09-22-real-cam-mock-dual-tool-validation/report.md](../../reports/2026-09-22-real-cam-mock-dual-tool-validation/report.md)（v1.0；本轮差异：B3 门升级为 ≥5 轮 FULL、战役产物集中本目录）。

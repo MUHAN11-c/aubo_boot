@@ -27,6 +27,10 @@ def generate_launch_description():
             name='peach_stereo_camera_node',
             namespace='camera',
             output='screen',
+            # 掉线/连接失败会进程退出（FATAL）；respawn 自动重连相机，
+            # 栈不再带着死相机静默跑（行为变更 2026-09-29 观测性轮）
+            respawn=True,
+            respawn_delay=3.0,
             parameters=[
                 ParameterFile(PathJoinSubstitution([
                     FindPackageShare('peach_stereo'), 'config', 'stereo_camera.yaml'])),

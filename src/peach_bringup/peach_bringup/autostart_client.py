@@ -42,10 +42,14 @@ class AutostartClient(Node):
             durability=DurabilityPolicy.TRANSIENT_LOCAL,
         )
         self._stack_ready = False
+        self._selfcheck_passed = not bool(self._params.require_selfcheck)
         self._sent = False
         self._sub = self.create_subscription(
             Bool, '/peach/lifecycle/managed_nodes_activated',
             self._on_flag, latched)
+        self._selfcheck_sub = self.create_subscription(
+            Bool, '/peach/observability/selfcheck_passed',
+            self._on_selfcheck, latched)
         self._client = ActionClient(
             self, RunHarvest, '/peach_supervisor/run_harvest')
         self._deadline = time.monotonic() + float(
@@ -56,11 +60,28 @@ class AutostartClient(Node):
         if bool(msg.data):
             self._stack_ready = True
 
+    def _on_selfcheck(self, msg: Bool) -> None:
+        # 软门+autostart 硬等（用户裁定）：自动批须等自检绿；手动批不受限
+        if bool(msg.data):
+            self._selfcheck_passed = True
+        else:
+            self._selfcheck_passed = False
+            if self._sent:
+                return
+            self.get_logger().warning(
+                'autostart：自检转红，暂缓自动开批（等待下一轮自检通过）')
+
     def _tick(self) -> None:
-        if self._sent or not self._stack_ready:
+        if self._sent or not self._stack_ready or not self._selfcheck_passed:
             if not self._stack_ready and time.monotonic() > self._deadline:
                 self.get_logger().error(
                     'autostart：等待托管栈就绪超时，放弃自动开批')
+                self._timer.cancel()
+            elif (self._stack_ready and not self._selfcheck_passed
+                    and time.monotonic() > self._deadline):
+                self.get_logger().error(
+                    'autostart：托管栈就绪但自检未通过，放弃自动开批'
+                    '（require_selfcheck=true；手动 RunHarvest 不受限）')
                 self._timer.cancel()
             return
         if not self._client.wait_for_server(timeout_sec=0.0):

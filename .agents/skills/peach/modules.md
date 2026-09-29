@@ -112,7 +112,7 @@ Gazebo/外观重建离线场景，**不进 harvest_system**。只桥 `/clock` �
 
 ## peach_system_tests
 
-isolated mock launch_testing + 接近回放塔（`replay_oracle.py` 纯几何，不消费系统 ID）。`test_e1_supervisor_chain.py` 调度链。
+isolated mock launch_testing + 接近回放塔（`replay_oracle.py` 纯几何，不消费系统 ID）。`test_e1_supervisor_chain.py` 调度链；`test_tool_profile_smoke.py` 三把末端逐档冒烟（`PEACH_LT_TOOL_PROFILE` 三注册，域 91/92/93：TF `wrist3_Link→tcp`==档案 ±2 mm、`/peach_arm tool.profile_id` 对齐、imu_follow 按名单起/不起）。
 
 ## 驱动（MUST 只读）
 
@@ -120,4 +120,4 @@ isolated mock launch_testing + 接近回放塔（`replay_oracle.py` 纯几何，
 
 ## 非 peach、勿混进核
 
-IVG 三包、`imu_follow`（仅自适应末端 Include）、`peach_navigation`（已归档）。`blender_orchard/` 是外观实验目录，不是能力包。
+IVG 三包、`imu_follow`（仅 `adaptive_shear_v1` Include）、`peach_navigation`（已归档）。`blender_orchard/` 已并入 `peach_sim/reconstruction/`（2026-09-28，4ba0631），不再独立存在。

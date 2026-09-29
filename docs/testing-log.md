@@ -1047,3 +1047,443 @@ light 0.40），主分层=深度反测覆盖率桶。产物：`output/matrix_*.j
 入库、帧本体 8.1 GB gitignore 可重现、基线
 `reconstruction/baselines/perception_matrix_baseline.json`。field 锚定
 （393 袋）与外观对照板同轮产出。全部离线前台，结束 pgrep 复核无残留。
+
+### 2026-09-29 三末端测试结构收编·bite 主测轮（决策 0034）
+
+背景：三把剪切手（决策 0033）测试面完整化，当前主测档切到
+`bite_shear_v1`；全链默认值不动（仍 adaptive_shear_v1，bite 显式传）。
+
+做了什么：① `peach_system_tests` 新增 `test_tool_profile_smoke.py`
+三注册（域 91/92/93=shear/bite/adaptive）：起 mock `harvest_system`
+断言 TF `wrist3_Link→tcp`==档案 `tool_axis.xyz` ±2 mm（期望值运行期
+读 install 档案单源）、`/peach_arm tool.profile_id` 对齐、`/imu_follow/*`
+仅 adaptive 在图——收编 09-28 手工 `_tools/smoke_shear.sh`。②
+`tool_profiles.py` 注入面再扩：`l_insert`/`l_blade` 提取校验 +
+`scene_tool_params` 注入 `tool.L_insert`/`tool.L_blade`（此前 scene
+基础值 0.09/0.02 手抄不随档案，bite 实际 0.030/0.037 感知行程上限偏宽
+3 倍；L_blade 基础值同步对齐 adaptive 档案 0.079）。③
+`sim_field_targets.py` 审查胶囊改读档案 `body_length`/`body_radius`
+（旧 `l_insert`/`d_outer` 口径把 bite 0.260 长包络低估成 0.030、松
+8.6 倍）。④ testing.md 战役节「两种末端」→「三种末端（bite 主测）」，
+bite 完整步骤+专属预期；architecture/io 同轮勘正（bite sleeve_mouth
++Z 0.223→identity、preliminary_cad→design_reference/
+cad_reference_point、圆柱 0.104/0.116 基础值）。⑤
+`campaign/20260928_bite_shear/` 参数化脚手架；旧 dual_tool 台账加换代
+注记（脚本硬编码旧圆柱名仅历史）。
+
+验证：peach_harvester 222 测 0 失败（+3 新用例：shear 基线/L_insert
+缺失去拒/L_insert·L_blade 越界拒）；system_tests 四 pytest 套件绿
+（preflight 21/21）；三档 launch_testing 实跑全过（bite 7.33 s /
+shear 6.83 s / adaptive 4.52 s，非 adaptive 档含 6 s imu_follow
+缺席宽限、adaptive 服务出现即断，时长与断言节奏自洽）；xacro 三档
+展开 + check_urdf 全过（每档 tools/<p>.stl visual+collision 双引用）；
+结束时 pgrep 无残留。坑：ctest 直跑 launch_testing 缺工作区 overlay
+（`No module named 'peach_bringup'`），须 `colcon test --ctest-args
+-R <target>` 走 colcon 环境；直接跑栈脚本（`source install/... &&
+python3 scripts/*.py`）会被本机安全 hook 拦，campaign 入口 .sh 不受
+影响。
+
+已知红沿用：E1 C03 夹具按旧圆柱 TCP 标定（09-28 记档），重标前跑 E1
+预期红，本轮未动。
+
+### 2026-09-29 Blender 中文界面"翻译新建数据"坑（树随机化轮踩到）
+
+用户 GUI 切中文后，headless `build_scene.py` 崩
+`AttributeError: 'NoneType' object has no attribute 'inputs'`——根因是
+偏好里"翻译新建数据"让**新建**材质/世界节点起中文名，脚本按英文名
+`nodes.get('Principled BSDF')` 取到 None。修复：reconstruction 全链
+（materials/lighting_apply）改按 **node.type** 查找（BSDF_PRINCIPLED /
+BACKGROUND / OUTPUT_MATERIAL），语言偏好不再影响管线；顺带核定
+4.5 的 `PreferencesView` 无 `translate_new_data` 属性（别再试这条路）。
+树结构去克隆（121 袋）重建 + 几何门 0 errors；GPU 用户配置
+`compute_device_type=NONE` 曾致 GUI 默开黑屏（CPU 慢收敛），已写
+OptiX 进 userpref。
+
+### 2026-09-29 项目设计书入驻 docs/（V6.0 大方向主本）
+
+用户裁定：完整项目设计书放 `docs/design.md` 作为**大方向设计**，
+具体细节留在其余文档。落地：以归档 V5.0（09-21 定稿，`_archive/`
+gitignore 本地单副本）为底本滚动修订为 V6.0——按决策 0026–0034
+更新（三剪切手族替换双圆柱、adaptive 接触窗自动衔接、boundedExecute/
+TEM 关、peach_sim 矩阵、bag 三档限速、E2E 六阶段、bite 主测档），
+参数级细节全面下放三活文档并逐节链接；三档案 TCP/开口/包络值经
+`aubo_description/config/*.yaml` 现值核对（bite (0,30.24,165.5) /
+adaptive (0,47,168.66) / shear 旧基准；manifest 现行 55 active +
+5 reserved）。定位声明：design.md **不是第四份活文档**（快照职责仍
+在三活文档；与活文档冲突以活文档为准并回改）；AGENTS.md 第 8 章文
+档表当时正被 0034 在途批持有未代改，待该批落地后补一行链接。同轮
+补定硬件：**现场主控=Jetson Orin NX 16GB**（整机栈暂全部在 NX 处
+理部署；RK3588 前端采集/预处理为预留未实装），开发/仿真留开发工
+控机；design.md §2.5/§2.2（锚点标注开发机实测）/§6（设备表+网络
+拓扑）/§10（新增 NX 部署验证遗留项：Jazzy 容器化或源编、推理节拍、
+numpy ABI、落盘 I/O）同轮。纯文档轮，无代码/接口变化，未跑测试。
+
+## 2026-09-29 树枝避障终稿：Survey 快照→场景障碍对象（决策 0035）
+
+用户五项裁定（连续多轮收敛）：避障目的=**保护相机**（臂/末端轻微碰撞
+可接受）；不用 octomap updater（09-17 幽灵死锁/09-18 枝叶拦路两轮翻车，
+sensors_3d 保持 sensors 空表）；障碍=场景碰撞对象；SLAM 式建图/作业分
+离（Survey 快照）；保留开关防「开避障后到不了位」。
+
+落地：peach_harvester 新增 peach_scene_obstacles 节点（Survey 成功触
+发→最近一帧点云「滤自身(Open3D 占位,0.05)→滤已精化目标袋膨胀胶囊
+(0.10/0.10)→体素化 0.06+半径 1.5 裁剪+3000 上限」→BOX 对象经
+/apply_planning_scene 原子写入 REMOVE+ADD）；peach_arm tool.links 部署
+值扩为全机器人−camera_body_link（零代码），新参数
+moveit.obstacle_guard_enabled（默认 true，false=相机一并豁免恢复可达
+性，空闲 param set 生效）；ACM 条目组装提取纯核
+acm_policy::obstacleExemptionEntries。写域分域：快照节点只写 world、
+peach_arm 只写 ACM diff。
+
+验证（全绿）：纯核 pytest 19 例（venv；open3d 缺席环境逐测跳过，沿
+icp_cache 惯例）；peach_arm 260 测 0 失败（含新 gtest 两态）；
+peach_harvester 241 测 0 失败+lint 双 0；launch_testing 域 94 实跑通过
+（合成点云断言：障碍成 box/目标邻域空洞/贴机器人滤除/超半径裁剪/
+REMOVE+ADD 原子替换/进程干净退出）；mock 冒烟（camera off 节点不起、
+lifecycle Active、参数装载 true/[camera_body_link]、pgrep 前后清）。
+e1_supervisor_chain 失败为已知遗留（peach_arm exit -6，09-28 档案
+「E1 C03 注入向量随工具几何失配待重标」），非本轮引入；manifest
+checker 另报两条参数服务字面量未登记，来源为既有 0034/bite 轮测试
+文件（注入器与三档冒烟），非本轮引入，登记/豁免留该债主。
+
+launch_testing 调试实录（四个真 bug，均集成测抓出后修）：rclpy Time
+与消息 stamp 不可直减（Time.from_msg）；Open3D mesh.triangles 索引
+数组 asarray 须显式 int64（float 索引报 arrays used as indices）；
+peach_common attach() 返回 SimpleNamespace 非 params 类（需轻包装代
+理）；rclpy Future.result() 无 timeout 参数（改 done() 轮询）。测试
+数据自坑一处：目标 2 胶囊膨胀半径把唯一障碍点吞掉致快照空（REMOVE-
+only），挪远后过。colcon 跑 launch_testing 的坑：ctest-args -R 对
+add_launch_test 生成名不过滤（全量跑）；直跑 launch_testing.launch_
+test 需手拼 AMENT_PREFIX_PATH/PYTHONPATH/LD_LIBRARY_PATH（rosidl .so
+找不到=ImportError libpeach_interfaces）。安全 hook 误拦 source/cp
+组合命令时改走 Write 脚本通道执行。
+
+真机/带相机验证遗留（下轮，须授权）：快照形态 RViz 复核、1039 目标
+复测可接近、开关切换实测、带障碍规划耗时。调研记录入决策 0035（官方
+canonical=octomap updater；点云→boxes 无现成包；MSU 苹果收获四代均不
+做显式避障；pymoveit2/nvblox 评估不引入）。
+
+### 2026-09-29 矩阵复测补完轮（树随机化轮收尾）
+
+背景：同日树随机化轮的矩阵重跑在 10:15 中断（旧 blend 残帧 271 张，
+2/4 光照档），PLAN 所记"矩阵全量重跑+--gate"未落实；且光照预设体系
+已重做（turbidity→air/dust+cloud_cover+exposure_ev，新增 backlit），
+09-28 冻结基线对当前管线不可比。
+
+做了什么：① 清残帧后全量重跑 `run_matrix.py --samples 24
+--subset-per-level 20`：5 光照 × 213 视 = 1065 帧，OptiX 74.2 min（均
+4.18 s/帧，独占 GPU 串行）。② 评测对旧基线 --gate FAIL（失败格全部在
+名义 level=light 与多视聚合；主分层覆盖率桶与单视 kind 全面改善，
+reference any_view 0.944→1.0）——裁定为场景刻意加难（标定 none 档实
+测覆盖率均值 0.54）+光照语义变更，`--write-baseline` 重冻结 50 格
+（含 backlit 首轮），与当轮 summary 逐格核对一致。③ `matrix_{summary,
+report,trajectory,render_times}` 拷贝入库位；评审板重生成，
+`make_review_boards.py` 光照列表改从 trajectory 单源读取（backlit
+自动入板）。④ `check_modeling_blender.py`（叶尖收口/冠根贴轴/
+overcast 无直射太阳）3/3 过并接线进 peach_sim README。⑤ PLAN.md 勘正
+（冠梢 20–32、连接 2760、补记捆绑外观/日光重调与基线不可比原因）；
+RESULTS.md 当轮条目补全。
+
+验证：渲染 exit 0；评测两轮（gate/write-baseline）；基线 50 格与
+summary 零失配；几何门沿用 0 errors。坑：`evaluate_matrix.py
+--gate --write-baseline` 连用会先写后读同一基线（恒 PASS 假绿），
+两标志必须分两次跑；直跑 pytest 的 flake8 RecursionError 是
+pytest-flake8 插件环境问题（ament_flake8 门下新改文件 0 错），另
+peach_sim reconstruction 存量脚本有 218 条 ament_flake8 旧债
+（build_scene 144 等）+ 嵌套 build/ 干扰扫描，非本轮引入，待还。
+
+全程离线前台+后台渲染，结束 pgrep 复核无残留。
+
+### 2026-09-29 设计书 V6.1 源码对账轮（design.md）
+
+用户裁定「基于源码重新更新计划书」。四个只读探查分包核证（harvester /
+arm / bringup+observability+imu+sim / interfaces+tests+CI），漂移回改
+docs/design.md → V6.1：① 新收录 `peach_scene_obstacles` 场景障碍快照
+（Survey 后 latched obstacles_refresh 触发、BOX 入 PlanningScene world、
+受查对仅相机×障碍、与臂侧 ACM 分域双写、不进 lifecycle、launch_testing
+域 94），8.4③ 避障口径由「octomap 临时关闭」改写为「点云源空+快照障碍
+护相机」；② 许可口径精化：批次4 起 `allowed`=汇总位（geometry∧sleeve∧
+cut），臂侧 CONTACT 查 radial 余量、TOOL 查 axial 余量∧pregrasp_verified，
+字段名 valid_until/model_revision（非 validity_s/model_stamp）；③ peach_arm
+动作面勘正=3 action+服务面（CheckReachability 是 srv）；FULL 阶段序补
+ReleasePayload（收集位开刀 TOOL 级）；HoldPregrasp 不阻塞、ACK 走
+~/acknowledge_recovery；CK_AT_STAGING/CK_RETAINED 是 IDL 死常量未上报
+（实际发射 7 档）；接触窗补 insert_stop；④ manifest 磁盘 56+5（新
+obstacles_refresh 未提交；reserved 第五个=/peach_sim/joint_states gz 桥
+登记非导航）；⑤ bag 预算 20→100 GB（战役上限）；⑥ peach_sim manifest
+现值 326 袋/作业面 11（254 是旧 GT）；⑦ dsh_system_monitor=非 ROS 宿主
+GUI 插件（COLCON_IGNORE）显式排除出包清单；⑧ 调度补批次变体
+（skip_observation/skip_reconstruction 默认关）。
+
+**留给活文档 owner 的三笔（在途批持有，未代改）**：AGENTS/architecture
+「调度只订 target_observations 与 managed_nodes_activated」已被第三订阅
+（latched grasp_decision 令牌缓存 3c-2a）突破；peach_interfaces 数个 IDL
+头注释仍写旧节点名 peach_executor/无后缀名（实际 peach_supervisor/
+*_node）；imu_follow insert.max_travel 裸节点兜底 0.20 vs 部署 0.09
+（档案 L_insert 才是事实源）。纯文档轮，未跑测试。
+
+## 2026-09-29 真相机轨迹轮：起点碰撞双根因修复 + stereo 默认（决策 0036）
+
+0035 首轮真相机（stereo 前端、bite_shear_v1、mock 臂、域 77）跑挂：
+用户 RViz 目视「机械臂前面全是障碍物」。实锤两根因，均修复后复测。
+
+**根因 1（几何）**：快照滤除在原始点上做（margin 0.05）再体素化 0.06，
+幸存点中心距工具 5.0–5.2 cm 时 6 cm 方块角切进工具网格 ~2 mm——FCL
+起点接触，`CheckStartStateCollision` 全拒（`peach_scene_obstacles -
+tool_body_link`，观察视点两次 `MoveGroupInterface::plan()` abort，两目标
+`observe_build_view_race views=1<2` 全灭入补采清单）。修复：
+`build_snapshot` 体素中心先行，自身/胶囊滤除阈值=配置余量+体素半对角
+（√3/2·0.06≈0.052），几何上保证方块含角点不切任何连杆（含受查的
+camera_body_link）；顺带滤除样本量 17 万→~2000。
+
+**根因 2（ACM）**：GetPlanningScene 亲证 `peach_scene_obstacles`
+NOT-IN-ACM、全程零 WARN——peach_arm 激活时的一次性豁免线程在服务竞态
+下静默落空（成功也不打日志，排查盲区）。修复：3 次幂等重试（每次先读
+现行 ACM 再整表合并，不冲别处条目）+ 成功 INFO。复测 26 条=13 连杆×
+{<octomap>, peach_scene_obstacles} 落位。
+
+**裁定落地**：相机前端默认 stereo（用户；percipio 显式传参仍可用；stereo
+发布端同为 RELIABLE 默认 QoS，scene_obstacles RELIABLE 订阅两前端通用，
+域 94 harness 发布端同步改 RELIABLE）；测试驱动收编 `peach_system_tests/
+scripts/`（drive_harvest / probe_topics / check_planning_scene，
+`ros2 run` 可用）。
+
+**复测结果（stereo 13.8 fps、真实植物场景）**：Survey 拍照轨迹 + 观察
+视点轨迹带 575–754 真实障碍 box 规划执行全过——CheckStartStateCollision
+4 次 0 拒（修前同位姿必挂）；RViz 复核方块只覆盖植物/背景、机器人本体
+与工具周围留出清晰间隙。测试全绿：peach_harvester 241 测 / peach_arm
+260 测 / 域 94 launch_testing 2 例 / bringup 4 测，0 失败（D213 文档串
+修一轮；shim 陈段 fastrtps_* 230 个清后 port7000 复通）。
+
+**遗留（感知轮议题，非轨迹系统）**：stereo 13.8 Hz 下观察第二视角集不
+上——① ICP 拒帧（修正 27.3 mm>界，fitness 0.97/rmse 1.7 mm——疑 FK/图
+像时序或手眼残差，非噪声级）② 新视点目标漂移 99→431 mm 单调增长（臂
+在动、检测在新视点定位崩坏或换目标）③ 重建 worker（capacity 3
+reject-new）持续满队。`skip_reconstruction` 真感知下不可用：未精化候选
+`bag_diameter_upper_m=0` 非 ACCEPT，技能侧判「无有效场景几何」（该路径
+只适配 mock 注入器完整候选）。预抓取接近轨迹因此未在本轮真感知下跑
+到——须先解决视角收集（ICP 界标定/漂移溯源/worker 节流，下一轮）。
+
+坑：停栈残留在 stop 脚本 pattern 之外的分进程（controller_manager/
+rviz2/RSP/observability/lifecycle 四件）——用 bringup 自带
+`running_stack_pids` 权威清单清；并发会话 cursorsandbox 的 pgrep 命令
+文本会假阳性触发自研预检（起栈脚本预检已换权威清单）；xwd→ffmpeg 须
+先落盘再转（管道 stdin 报 Unknown input format）。本轮全部改动未提交
+（批量纪律攒批中）。
+
+### 2026-09-29 全仓文档/注释源码对账轮（goal：避免误读）
+
+用户裁定「基于源码更新丰富所有相关文档和注释，避免误读」。以磁盘现状
+为准（并发批已推到决策 0036：相机前端默认 stereo、场景障碍快照真相机
+验证），逐类勘正：**① 旧包名 `peach_executor`→`peach_supervisor`**：
+11 个 IDL 头注释（BeginScene/ControlTask/RunHarvest×3/ExecuteTarget/
+SurveyScene/BuildTargetModel/CheckReachability/CanonicalEvent×2/
+HarvestState×2/SceneSnapshot×2/PeachTargetObservationArray）+ 接口
+README 五行 `/peach_executor/*` 路径 + serial_imu/aubo_e5_bringup
+README 启动命令指路（→peach_harvester 薄转发）；保留项=bag_reader 旧
+bag 别名表、核对脚本 EXEMPT_LEGACY_ALIASES、launch 文件名
+`peach_executor.launch.py` 本体（supervisor 独立入口历史名，文档已注
+明）。**② 调度订阅面勘正**：AGENTS×2 + io 读图段「只订两个」→三个
+（新增 grasp_decision 闩锁令牌缓存 3c-2a，非选果输入）；manifest
+grasp_decision consumers 补 peach_supervisor（带注释）。**③ 许可语义
+对齐批次4 分档**：AGENTS 工艺行、io grasp_decision 行（allowed=汇总
+位）、ExecuteTarget.action 头注释。**④ manifest 计数 54+4→56+5**：
+io/architecture 三处 + manifest 头注释旧栈名清单（peach_perception→
+现行九包）；README「采摘四包」→各能力包。**⑤ 前端默认 stereo**
+（0036）：architecture 感知原则段（「默认仍 percipio」与停走式 ~2.5
+FPS 口径改双前端节拍）+ 整栈默认值句补 `camera_frontend:=stereo`；
+design.md V6.2 同步。**⑥ imu_follow 注释**：params.py max_travel 裸
+兜底 0.20 加事实源注释（部署 0.09=档案 L_insert）、docstring 死引用
+清理。
+
+验证：check_interface_manifest.py exit 0（参数服务两条提示为存量信息
+级）；params.py py_compile 过、新注释 E501 已修短（存量 I201/D107 非
+本轮引入且包不在 CI 门）；残留 grep 收口（仅合法别名/历史日志/launch
+文件名）。纯文档/注释轮，无行为变化，未跑测试；全部改动未提交（攒批）。
+
+---
+
+## 2026-09-29 观测性四层补齐 + 启动自检（决策 0037，未提交攒批）
+
+范围：全部 peach 包（interfaces/common/harvester/arm/bringup/observability/
+system_tests/stereo/vegetation）。四层模型与改动清单见 architecture 决策
+0037；mock 冒烟新步骤见 testing.md「启动自检（0037）」与排障路径表。
+
+**已验证**（本轮本机实测）：
+- `colcon build` 九包全过（peach_arm 2m31s 带四新诊断任务；peach_stereo
+  带诊断任务+拒启检查+respawn）。
+- `colcon test` 绿：peach_common / peach_bringup / peach_observability /
+  peach_vegetation / peach_harvester（244 测，本轮新增 reducer 丢弃计数、
+  blockers 词表、FSM 新事件码等断言）/ peach_arm（gtest）。本轮引入的
+  lint 问题已全部修平（flake8 I100/I101/D40x 若干：中文 docstring 首词
+  须动词开头/首行 ASCII 句号/摘要在第二行）。
+- 纯核新测试：ros_log_bridge(5)、event_meter(2)、selfcheck checks(8)、
+  startup_facts(4)、observability test_params 扩 2 断言。
+- 启动事实采集干跑：`_collect_startup_facts` 产出 JSON 含
+  `expected_tcp_norm_m=0.17509`（=adaptive_shear_v1 档案 175.09mm，
+  launch 文件读 aubo_description/config 对拍）与 git HEAD（纯文件读
+  `.git/HEAD`，无子进程——Mimosa 拦 subprocess 的替代实现）。
+- manifest 核对：本轮新名（`/peach/observability/selfcheck_passed`、
+  vegetation/status 消费方=observability）收口；仍报两条**预存**未登记
+  字面量 `/peach_arm/get_parameters`、`/peach_supervisor/set_parameters`
+  （并发会话 0034 在途的 test_tool_profile_smoke/perception_sim 引入，
+  非本轮、按纪律不代改）。peach_stereo 整包 lint 预存红（12 文件无版权
+  头 + 全文件风格分歧）与 peach_sim 238 条同属预存，未动。
+
+**独立冒烟（已跑，隔离域 98 + 端口 8091 单起 observability.launch）**：
+端到端全通——HTTP 200；`POST /api/debug/selfcheck` 返回 18 项报告且语义
+正确（隔离域无栈：joint_states/move_group/四动作/imu=FAIL，相机/
+robot_status=SKIP，controllers=WARN 未返回，disk/param_consistency=PASS，
+`passed=false` 闩锁语义正确）；`selfcheck.json`+`selfcheck_history.jsonl`
+落会话目录；WARN 汇总日志在册；停栈清场干净。**冒烟实锤并当场修复三 bug**：
+① `selfcheck.model_paths: []` 空列表叶声明期类型不定→改逗号分隔字符串；
+② runner 引用 `params.joint_states_topic` 平铺属性（实在 `topics` 映射）
+与悬空方法名 `_on_vegetation_status`；③ `/diagnostics` 聚合回调两炸：
+`DiagnosticStatus` 无 header 字段（stamp 须取数组层）+ 畸形帧 level 反序列化
+为 bytes——回调改防御式（坏条目跳过+节流告警，绝不炸执行器）。
+
+**仍排队**（并发会话栈占机：bite 档 mock+camera 在跑、8090 被占，「等位
+不抢」）：整栈 mock 冒烟（自检在真栈上应转 PASS+selfcheckPassed 闩锁
+true+startup.json 注入落盘）；`test_mock_launch.py` 新增
+`test_selfcheck_passes_and_artifacts_written` 待栈空闲后首跑。
+
+**顺带修复（冒烟暴露的预存竞态）**：`observability.launch.py` 的
+EmitEvent 转换链与节点 main() `ensure_active()` 互杀——独立起栈必现
+「Transition is not registered」打死进程（全栈内靠时序侥幸），按
+vegetation 同款修法删事件链（main 自激活为唯一转换源）。
+
+**坑**：Mimosa 拦 `cat >>`、source+install 同命令、subprocess 拼参
+（launch 采集 git 改纯文件读 `.git/HEAD` 绕行；env 经 /tmp 脚本）；
+JointState 在 sensor_msgs 不在 std_msgs；observability state 分区是预声明
+dict——新增分区漏声明会 KeyError；curl 本机 8090/8091 须 `--noproxy '*'`
+（代理环境变量否则回 502/000 假阴性）；`ros2 run` 的子进程须 pkill -f
+清理（kill CLI 不传递）。stereo respawn/激光拒启属行为变更，真机首跑
+留意相机重启风暴=链路问题的口径（testing.md 已注明）。
+
+---
+
+## 2026-09-29 E2E 仿真逐项验证：日志与反馈六十四项全绿（决策 0037 续轮）
+
+**目标**：mock 仿真栈端到端验证观测性四层（L1 日志/L2 事件与状态/L3 诊断/
+L4 工件）每个细节。**方法**：并发会话栈（bite 档+真 stereo 相机）占着
+harvest_system 入口与 8090，改在隔离域 95 自组同构栈（aubo bringup mock
++ brain + arm + observability:8091 + nav2_lm + flag_bridge，E1 注入器
+perception_sim 合成感知），驱动五阶段批次，62→64 项机器审计。
+六轮迭代（compose/audit/driver 脚本在 /tmp/peach_e2e/，工件 runs 留
+/tmp/peach_e2e/runs/）。
+
+**最终一轮 64/64 全绿**，覆盖：
+- L4：startup.json（mock/git commit 2d410ff/域 95/TCP 期望 0.17509）；
+  selfcheck status=pass（controllers/moveit/joint 流/四动作服务端全过，
+  相机/robot_status/imu 按部署 SKIP，tcp 对档案过）；bag_report.md 自动
+  生成；bag 内 /rosout、events、state、/diagnostics 全部有消息。
+- L3：/api/state 三新分区（startup/selfcheck/diagnostics）；bag 内
+  /diagnostics 生产方≥5（peach_arm/perception/supervisor/observability/
+  Nav2/ros2_control）；peach_arm 四新任务名在册。
+- L2：五阶段批次全部真实跑通——P1 SURVEY_ONLY 结算（photo_pose_reached）；
+  P2 护栏跳过三通道（ledger outcome=2/failure_code_n=5/阶段耗时数组/
+  「MTC short-path guard rejected 工具筒体接触果实胶囊 间隙=-4.9mm」
+  拒因全文 + target_skipped 事件）；P3 RUNNING 中取消（INTERRUPTED+
+  ledger failure_code）；P4 操作员跳过+暂停/恢复（**blockers=mode_paused
+  实测出现**+target_operator_skipped）+ACK；P5 派发窗即取消
+  （target_dispatched→211ms→target_canceled severity=ERROR）。
+  HarvestState 轨迹含 transaction_id/cycle_id 对齐样本。
+- L1：supervisor「Survey 进行中」反馈回调日志；arm
+  「requestCancelAll: 停止当前执行（来源：…）」；阶段投影与护栏
+  FAILED WARN；obs「自检[manual/initial]」汇总；lm 启动链。
+
+**六轮迭代修掉的真问题（均已改源码+回归测试绿）**：
+① 感知节点 `self._clock` 遮蔽 rclpy 私有时钟槽——运行期任何
+declare_parameter（diagnostic_updater 声明 period）打包 parameter_event
+时取到 float 适配器即崩 → nav2_lm「Failed to change state」拒启（根因
+藏了两轮：第一轮 compose 用 lm 日志定位，直接调 on_configure 抓栈）。
+改名 `_algo_clock`（重建节点同款命名）修复。
+② selfcheck joint_order 语义错：JSB 发布按字母序（CI 同口径=集合判定），
+严格前缀序判 FAIL → 改集合语义+测试扩字母序/缺/多用例。
+③ /diagnostics 聚合订阅 QoS：RELIABLE 镜像对 ros2_control/Nav2/peach_arm
+等 BE 发布端零帧（bag catch-all BE 全收的对照实锤）→ 改传感档。
+④ /diagnostics status.level 在本机反序列化为 bytes（bag 回读同为 bytes，
+venv/系统 python 生成类混布疑因，**根因开放**）→ 聚合解码按 bytes/int
+双形态容错 + name/message/values 同口径。
+⑤ observability.launch 与 main ensure_active 的转换事件互杀（同
+vegetation 病，前轮已修，本轮全栈确认无复发）。
+⑥ MTC 护栏边界案例双态（round5 停驻 ACK 链全通 / round6 护栏跳过链全
+通）——驱动改双分支断言，两态各自的 ledger/事件断言均已实测取证。
+
+**开放项**：A) /diagnostics 直播镜像多生产方只见部分硬件（Nav2 或
+obs-self，QoS 无关——疑本机 venv(`/aubo_py3.12`)与系统 python 的生成
+消息类型对象混布致 FastDDS 按类型哈希分片匹配；bag 侧全量在场，L3 证据
+链以 bag 为准；根治方向=统一运行 python 或审计两边 type hash）。
+B) `_fail_dispatch`「派发失败」WARN 的外部触发窗仅毫秒级（派发内部
+中止），本轮不可确定性命中；同族失败三通道已由 P2（护栏跳过）与 P5
+（派发窗取消）确定性覆盖，WARN 在位由 install 产物核对。建议后续给
+per_target_timeout 加 mock 注入触发器。C) `ros2 bag info` 输出格式
+「Topic: X | … | Count: N」多行竖线分隔——按行解析勿用 `topic: N` 正则。
+D) 并发栈仍在跑（bite 档），test_mock_launch 新用例仍待其让位后首跑。
+
+**教训**：kill 并发残留绝不 pkill -f 模式（上一轮我因此误杀并发会话的
+peach_observability 275712——本轮全程记录 PID/setsid 进程组精确清理，
+零新误伤）；自组栈不用 harvest_system 入口绕过 preflight 属测试便利，
+正式口径仍以 harvest_system 冒烟为准（test_mock_launch 用例已备）。
+
+---
+
+## 2026-09-29 P6 补验：「派发失败」WARN 真实日志实证 + _cmd_full 三通道统一
+
+**注入配方（零源码侵入即可触发）**：`RunHarvest.goal.per_target_timeout_s
+=0.001` 极短档——单目标批首轮 SELECT 建 deadline（elapsed<1ms 不触发），
+dispatch 进入 skip_reconstruction 流程组 FULL goal，`_cmd_full` 入口
+检查必超时。
+
+**首次 P6 实锤第五个真 bug**：`_cmd_full` 的超时收尾是裸 `_react+_apply`，
+**绕开 `_fail_dispatch`**——P0 轮「失败三通道对齐」漏统一的一处（三条
+超时收尾路径只对齐了 dispatch 入口版）。timeline 取证：897.372
+`skip_reconstruction` WARN → 897.373「单果时限超限」WARN + ledger
+timeout 行 → 897.374 target_skipped 事件，链上无「派发失败」。
+
+**修复**：`_cmd_full` 超时分支统一走 `_fail_dispatch`（无 outcome 版——
+时限函数自身已 record_skip，带参会双记账；与 dispatch 入口同款）。
+复跑 P6 审计 7/7 全绿，**真实日志实证原文**：
+`[WARN] 派发失败 request_id=e2e_s6_274e35 target_id=e2e_to
+failure_code=- reason=-`（无参版码为 `-`；超时语义数值码由 ledger 行
+`failure_code=timeout` 同轮实证——两通道合计完整证据）。harvester
+colcon test 回归绿。工件 /tmp/peach_e2e_p6/。
+
+**开放项 B2（新增）**：`target_timeout` 事件两轮「emit 已执行（同函数
+WARN 与 ledger 均在册）但订阅端未收」——与 /diagnostics 直播镜像同族的
+本机 DDS/类型层怪象清单 +1，待统一运行 python 环境后一并复查。
+
+**test_mock_launch 首跑**：bite 并发栈（275682）仍占 preflight 名单且
+stereo+brain 各 74% CPU 持续 4h（相机流+逐帧推理活着、runs 4h 无写入、
+其 observability 已死 2.5h 无人重启——形态即「跑完忘拆」但按纪律不动
+别人活进程）。已设 25 分钟周期接力自动化（automation-73107527，跑完
+自删）：栈让位即自动 `colcon test --packages-select peach_system_tests`
+并报告 `test_selfcheck_passes_and_artifacts_written` 结果。
+
+---
+
+## 2026-09-29 开放项 A/B2 根因收口（受控实验，域 97）
+
+**B2（target_timeout 事件丢失）——收口为已修复**：根因不是 DDS/类型层
+怪象，是 **P6 驱动订阅 QoS depth=1 的 KEEP_LAST 挤压**：dispatched→
+timeout→skipped 微秒级三连发，depth=1 未读队列只留最后一条。受控实验
+（venv 发布三连发 ×24 轮，系统 python 双订对照）：depth=50 收 111 条
+（37 条中间消息全在）、depth=1 只收 29 条且中间消息 0 条。驱动修为
+depth=50 后 P6 三跑 **8/8 全绿**——target_timeout 事件成功收到，超时链
+三通道（WARN 日志+事件+ledger）全部实证。（主 E2E 驱动本就是 depth=50，
+故六轮主审计未受此坑影响。）**固化**：`test_e1_supervisor_chain.py` 补
+`_EVENTS`（depth=50）规范常量+注释备事件断言接线（E1 现行未订事件流，
+`ledger_events` 为未接线占位——无实际坑；test_preflight 21 测+编译绿）。
+
+**A（/diagnostics 直播镜像）——根因三层实锤，修复方向定案**：受控实验
+中 venv（aubo_py3.12）python 发布 DiagnosticArray 时 rosidl C 扩展直接
+断言崩：`_diagnostic_status_s.c: PyBytes_Check(field)' failed`——venv
+的消息生成层与 C 层对 string/uint8 的 python 表示不一致。三层互证：
+①发布侧 assert 崩（本实验）；②线上 venv 端（brain/obs）发布的消息
+进 bag 后 level 反序列化为 bytes；③直播镜像（venv 订阅）收不到其他
+运行时的 /diagnostics 发布端（类型哈希断裂），bag catch-all（字节透传）
+全量在场。venv site-packages 无重复 ROS 件但 `sys.path` 含
+`~/.local/lib/python3.12/site-packages`（用户级 pip 目录混入为嫌疑源）。
+**修复方向（挂账，部署面）**：统一各节点运行 python 环境（排查 ~/.local
+混布或改用系统 python 跑 ROS 节点）；bag 证据链不受影响，作为 L3 权威
+口径继续有效。

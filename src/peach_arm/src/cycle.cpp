@@ -253,7 +253,7 @@ rclcpp_action::CancelResponse ManipulationSkillsNode::onActionCancel(
   const std::shared_ptr<RunTargetGoalHandle>)
 {
   const ScopedTimer timer(get_logger(), "action_cancel", &callback_timing_);
-  requestCancelAll();
+  requestCancelAll("ExecuteTarget 客户端取消");
   return rclcpp_action::CancelResponse::ACCEPT;
 }
 
@@ -388,10 +388,13 @@ void ManipulationSkillsNode::executeAction(
 
   while (rclcpp::ok() && running_.load()) {
     if (goal_handle->is_canceling()) {
-      requestCancelAll();
+      requestCancelAll("ExecuteTarget is_canceling");
     }
     auto feedback = std::make_shared<ExecuteTarget::Feedback>();
     feedback->state.target_id = goal->target_id;
+    // P1 反馈补齐：run/cycle 身份此前不填，反馈流无法与批次对账
+    feedback->state.run_id = goal->run_id;
+    feedback->state.cycle_id = goal->cycle_id;
     feedback->state.action_active = running_.load();
     feedback->state.execution_enabled = execution_enabled_.load();
     feedback->state.grasp_enabled = grasp_enabled_.load();
@@ -482,19 +485,23 @@ void ManipulationSkillsNode::onStart(const Trigger::Response::SharedPtr & respon
     };
   std::string motion_reason;
   if (!motionOutputAllowed(motion_reason)) {
+    RCLCPP_WARN(get_logger(), "onStart 拒绝: %s", motion_reason.c_str());
     response->success = false;
     response->message = motion_reason;
     return;
   }
   if (!move_group_) {
-    // M3b：词表无对应码（MoveIt 未初始化 / 周期占用 / 未 arm 三支同此），
-    // 保持 failure_code=0 由 reason 传达；新增枚举值须动 IDL，本轮不做
-    // （TODO：FailureCode 词表扩充轮补 NOT_ARMED / MOVEIT_UNAVAILABLE 类码）。
+    // P2 词表收口：启动门拒绝三支有了稳定码（原恒 0 由 reason 传达）
+    RCLCPP_WARN(get_logger(), "onStart 拒绝: MoveIt 尚未初始化");
+    set_failure(FailureCode::START_NOT_READY);
     response->success = false;
     response->message = "MoveIt 尚未初始化";
     return;
   }
   if (contact_recovery_required_.load()) {
+    RCLCPP_WARN(
+      get_logger(),
+      "onStart 拒绝: 上一周期可能停在接触区，等待 acknowledge_recovery");
     response->success = false;
     response->message =
       "上一周期可能停在接触区；现场人工撤离并确认后调用 acknowledge_recovery";
@@ -503,12 +510,17 @@ void ManipulationSkillsNode::onStart(const Trigger::Response::SharedPtr & respon
   }
   bool expected = false;
   if (!running_.compare_exchange_strong(expected, true)) {
+    RCLCPP_WARN(get_logger(), "onStart 拒绝: 已有靠近/抓取周期正在运行");
+    set_failure(FailureCode::START_NOT_READY);
     response->success = false;
     response->message = "已有靠近/抓取周期正在运行";
     return;
   }
   if (execution_enabled_.load() && !execution_armed_.load()) {
     running_.store(false);
+    RCLCPP_WARN(
+      get_logger(), "onStart 拒绝: execution.enabled=true 但尚未人工 arm");
+    set_failure(FailureCode::START_NOT_READY);
     response->success = false;
     response->message = "execution.enabled=true 但尚未人工 arm";
     return;
@@ -523,6 +535,9 @@ void ManipulationSkillsNode::onStart(const Trigger::Response::SharedPtr & respon
     const auto target = cycleTargetSnapshot(cycle_->target_id);
     if (!target || target->id.empty()) {
       running_.store(false);
+      RCLCPP_WARN(
+        get_logger(), "onStart 拒绝: 无有效目标锚点 target=%s",
+        cycle_->target_id.c_str());
       response->success = false;
       response->message = observe_only ?
         "goal 目标在锁定集锚点缓存中无有效锚点（受理后已解锁/换批次）" :
@@ -569,7 +584,7 @@ void ManipulationSkillsNode::onCancel(
   const Trigger::Request::SharedPtr, Trigger::Response::SharedPtr response)
 {
   const ScopedTimer timer(get_logger(), "cancel_cycle", &callback_timing_);
-  requestCancelAll();
+  requestCancelAll("cancel_cycle 服务");
   response->success = true;
   response->message = "已请求取消；当前 MoveIt 执行将停止";
 }
@@ -633,7 +648,7 @@ rclcpp_action::CancelResponse ManipulationSkillsNode::onSurveyCancel(
 {
   // 取消与 ExecuteTarget 同纪律：除置取消标志外，停 MoveIt/MTC 当前执行并
   // 唤醒等待（否则拍照位运动会继续走完，周期侧等待也不退场）。
-  requestCancelAll();
+  requestCancelAll("Survey 客户端取消");
   return rclcpp_action::CancelResponse::ACCEPT;
 }
 
@@ -668,6 +683,17 @@ void ManipulationSkillsNode::executeSurvey(
 {
   auto result = std::make_shared<SurveyScene::Result>();
   auto response = std::make_shared<Trigger::Response>();
+  // P1 反馈补齐：SurveyScene.feedback（observation_count/status）此前从不
+  // 发布，IDL 反馈通道空置
+  const auto send_feedback = [this, &goal_handle](const char * status) {
+      auto feedback = std::make_shared<SurveyScene::Feedback>();
+      feedback->status = status;
+      {
+        std::lock_guard<std::mutex> lock(snapshot_mutex_);
+        feedback->observation_count = last_observation_count_;
+      }
+      goal_handle->publish_feedback(feedback);
+    };
   // 动作入口与 ExecuteTarget 一致：execution.enabled 时自动一次性 arm。
   if (execution_enabled_.load()) {execution_armed_.store(true);}
   std::string snapshot_before;
@@ -675,9 +701,11 @@ void ManipulationSkillsNode::executeSurvey(
     std::lock_guard<std::mutex> lock(snapshot_mutex_);
     snapshot_before = last_snapshot_id_;
   }
+  send_feedback("moving_to_photo_pose");
   onGoToPhotoPose(std::make_shared<Trigger::Request>(), response);
   execution_armed_.store(false);
   if (response->success && execution_enabled_.load()) {
+    send_feedback("waiting_snapshot");
     // 到位后等一帧新快照再填 result：到位瞬间读到的常是移动前的旧帧
     // （snapshot_id 未变）。窗口有界 2×等帧超时，超时即用旧值；50ms 切片
     // 轮询，取消/关停立即退场（沿用 cache_ 等待纪律）。

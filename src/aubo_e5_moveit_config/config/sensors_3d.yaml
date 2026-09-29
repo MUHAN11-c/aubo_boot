@@ -1,22 +1,23 @@
-# ③层场景碰撞（2026-09-14 约束重设计）：点云 octomap 保护臂/相机连杆。
-# 工具链对 octomap 的豁免由 peach_arm 在 planning scene ACM
-# 写入（对象名是 MoveIt 保留名 <octomap>，不是 "octomap"）。
-# occupancy_map_monitor 读的是节点顶层参数：
-#   sensors: [名字]
-#   <名字>.sensor_plugin 必须是 pluginlib 名（斜杠，不是 C++ ::）
-#   octomap_resolution 必须在 yaml 顶层，否则分辨率回退 0.1。
-#   octomap_frame 仅在 OccupancyMapMonitor 构造未传入规划系时生效；
-#   现行 PlanningSceneMonitor 传 scene->getPlanningFrame()（本机 URDF
-#   world→base_link 固定，所以 updater 目标系是 world，不是本键）。
-# PointCloudOctomapUpdater::setParams 七键全是必填，缺一拒载。
-# self-filter 由 updater 内 ShapeMask 默认开（无独立 yaml 开关）。
-# 近端裁 0.3 是 DepthImageOctomapUpdater 的键；点云 updater 用 0→max_range。
-# mock 无点云 = 空地图，与未开 octomap 行为一致。
-# 临时态（2026-09-18 真机预抓取轮，用户指令「碰撞先不开」）：
-# sensors 置空=move_group 空地图（见下行注释「mock 无点云=空地图，与未开
-# octomap 行为一致」）。阻塞证据：octomap×wrist2 真实碰撞（袋上方 z0.70-1.01
-# 有真实枝叶回波，相机距≈0.55m 非 1.01/2.02 鬼影带）。恢复=把 camera_pointcloud
-# 加回 sensors 列表。
+# ③层场景碰撞现行方案（2026-09-29 裁定：避障只为保护相机）：不用 octomap
+# updater，场景障碍 = Survey 快照式碰撞对象——peach_harvester 的
+# peach_scene_obstacles 节点在 Survey 完成触发（/peach/scene/obstacles_refresh）
+# 后，把最近一帧点云经「滤自身（mesh 占位查询）→滤已精化目标袋邻域（套袋
+# 必经区）→体素化 0.06m」转成 BOX 对象 peach_scene_obstacles，经
+# /apply_planning_scene 原子写入 PlanningScene；作业期图冻结，新批次重建。
+# 受查对仅 camera_body_link×障碍（peach_arm ACM：tool.links 部署值=全机器人
+# −相机；开关 moveit.obstacle_guard_enabled=false 时相机一并豁免，用于障碍
+# 拦路到不了位时恢复可达性）。机制细节见 docs/architecture.md ③层。
+#
+# 历史教训（octomap 路线两轮翻车，保留备忘）：
+#   09-17：眼在手上 self-filter（ShapeMask）漏收工具点云 → 工具×<octomap>
+#          幽灵体素死锁，全规划拒（当时靠 ACM 整图豁免兜底）。
+#   09-18：1039 批 <octomap>×wrist2 真实枝叶回波拦接近段（袋上方 15cm 走廊
+#          ~1.8k 真实点），当时用户裁定「碰撞先不开」→ sensors 置空至今。
+#   另：padding_offset 当时配 0.01（官方教程 0.1，语义=self-filter 自体滤除
+#   余量）——若将来恢复 updater 按官方值起步。快照方案不再依赖 ShapeMask
+#   （自身滤除在快照节点内用 Open3D 对 collision mesh 做占位查询，margin
+#   由 scene_obstacles.yaml 的 self_filter_margin_m 控制）。
+# mock 无点云=无快照；camera_enabled:=false 时快照节点不起，零副作用。
 octomap_resolution: 0.04
 octomap_frame: world
 sensors: []
@@ -24,7 +25,7 @@ camera_pointcloud:
   sensor_plugin: occupancy_map_monitor/PointCloudOctomapUpdater
   point_cloud_topic: /camera/depth_registered/points
   max_range: 2.0
-  padding_offset: 0.01
+  padding_offset: 0.1
   padding_scale: 1.0
   point_subsample: 2
   max_update_rate: 2.0

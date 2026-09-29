@@ -1,7 +1,7 @@
 # 批次唯一状态快照。能力包作业目标只认本消息的 target_id
 # （感知 SAM 焦点、重建绑定、观测 selected 都须与此调和）。
-# 话题：/peach_executor/state（reliable, transient_local, depth 1）
-# 生产：peach_executor    消费：感知、重建、监控；调度自订
+# 话题：/peach_supervisor/state（reliable, transient_local, depth 1）
+# 生产：peach_supervisor    消费：感知、重建、监控；调度自订
 # batch_state / target_phase 只由 harvest_fsm.react 推导，禁止节点手写。
 
 # operation_mode：人机模式（与 batch_state 正交）

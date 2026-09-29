@@ -76,7 +76,8 @@ AABB_PAD_M = 0.05
 KEEP_R_M = 0.12
 KEEP_AXIAL_M = 0.12
 # 工具体几何默认值；main() 按 --tool-profile 从 aubo_description 档案覆盖
-# （单一事实源，两档案现同尺寸 0.200/0.060，未来分叉不再改这里）。
+# （单一事实源；口径=档案 geometry_m.body_length/body_radius，与臂侧
+# ①层胶囊审查注入 tool.body_length_m/tool.body_radius_m 同源同值）。
 TOOL_BODY_LENGTH_M = 0.200
 TOOL_BODY_RADIUS_M = 0.060
 FRUIT_INFLATION_M = 0.01
@@ -107,6 +108,8 @@ def load_tool_archive(profile_id: str) -> dict:
         'd_inner': float(geo['D_inner']),
         'd_outer': float(geo['D_outer']),
         'l_insert': float(geo['L_insert']),
+        'body_length': float(geo['body_length']),
+        'body_radius': float(geo['body_radius']),
         'wall_clearance': float(geo.get('wall_clearance') or 0.002),
         'blade_capture_half_width': float(
             geo.get('blade_capture_half_width') or 0.008),
@@ -587,8 +590,10 @@ def main() -> int:
     # 从 aubo_description 档案取（--list 也校验，坏档案早失败）。
     tool_archive = load_tool_archive(args.tool_profile)
     global TOOL_BODY_LENGTH_M, TOOL_BODY_RADIUS_M
-    TOOL_BODY_LENGTH_M = tool_archive['l_insert']
-    TOOL_BODY_RADIUS_M = tool_archive['d_outer'] / 2.0
+    # 审查胶囊=档案 body_length/body_radius（臂侧①层同源；旧口径 l_insert/
+    # d_outer 会把 bite 的 0.260 长包络低估成 0.030，sim 审查偏松 8.6 倍）
+    TOOL_BODY_LENGTH_M = tool_archive['body_length']
+    TOOL_BODY_RADIUS_M = tool_archive['body_radius']
     if args.grid:
         cases = load_grid_cases()
         selected = list(cases)

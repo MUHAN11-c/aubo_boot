@@ -128,6 +128,11 @@ if(BUILD_TESTING)
   if(TARGET test_pregrasp_level)
     target_include_directories(test_pregrasp_level PRIVATE include)
   endif()
+  # 2026-09-29 场景障碍豁免条目纯核（避障只为保护相机，两态组装）。
+  ament_add_gtest(test_acm_policy test/test_acm_policy.cpp)
+  if(TARGET test_acm_policy)
+    target_link_libraries(test_acm_policy ${PROJECT_NAME}_core)
+  endif()
   # W0 安全网：纯核 gtest（重构方案 2026-09-20）。统一链 ${PROJECT_NAME}_core
   # （Eigen/Threads/公共头经 PUBLIC 传递）；trajectory_guard 公共头带
   # trajectory_msgs 依赖，另链消息目标。

@@ -38,6 +38,7 @@
 #include <peach_interfaces/msg/grasp_hypothesis.hpp>
 #include <peach_interfaces/msg/pregrasp_verification.hpp>
 #include <peach_interfaces/msg/reconstruction_status.hpp>
+#include <moveit_msgs/srv/get_planning_scene.hpp>
 #include <rclcpp/rclcpp.hpp>
 #include <rclcpp_action/rclcpp_action.hpp>
 #include <rclcpp_lifecycle/lifecycle_node.hpp>
@@ -118,7 +119,7 @@ private:
   // 取消级联公共段：置取消标志 → 停 MoveIt 当前执行 → 取消 MTC → 唤醒
   // 缓存等待（各取消入口与 closeMotionOutputAndCancel 共用；后者在级联
   // 前先关权限、级联后回收线程，顺序即语义，不得并入本函数）。
-  void requestCancelAll();
+  void requestCancelAll(const std::string & reason = std::string());
   // 关闭输出权限并按 CANCEL_NOW 等价路径取消活动周期（撤 arm、置取消标志、
   // stop MoveIt/MTC、唤醒等待、回收 worker/action 线程）。
   void closeMotionOutputAndCancel();
@@ -419,6 +420,12 @@ private:
   rclcpp::Time robot_status_received_{0, 0, RCL_ROS_TIME};
   double robot_status_mono_s_{0.0};   ///< 收包时刻（单调秒，安全门超龄判据；ROS 时间会随回拨跳变）。
   bool robot_status_valid_{false};    ///< 最近一帧是否已解析可用。
+  /// move_group 可用性探针（只读查询，不做规划）。
+  rclcpp::Client<moveit_msgs::srv::GetPlanningScene>::SharedPtr planning_scene_client_;
+  /// 最近一次 FAILED 状态的拒因锁存（诊断可见；瞬时 reason 此前无处可查）。
+  mutable std::mutex last_denial_mutex_;
+  std::string last_denial_;
+  double last_denial_mono_s_{0.0};
 
   std::mutex state_mutex_;
   json state_json_;                   ///< ~/status 的 JSON 投影（current_state_ 的发布层快照）。
@@ -504,6 +511,14 @@ private:
   void reportContactMonitorDiagnostics(
     diagnostic_updater::DiagnosticStatusWrapper & status);
   void reportEnablesDiagnostics(
+    diagnostic_updater::DiagnosticStatusWrapper & status);
+  void reportRobotStatusDiagnostics(
+    diagnostic_updater::DiagnosticStatusWrapper & status);
+  void reportToolChainDiagnostics(
+    diagnostic_updater::DiagnosticStatusWrapper & status);
+  void reportMoveItAvailabilityDiagnostics(
+    diagnostic_updater::DiagnosticStatusWrapper & status);
+  void reportLastDenialDiagnostics(
     diagnostic_updater::DiagnosticStatusWrapper & status);
   /// 视点候选 marker（RViz 调试面；Active 才发）。
   rclcpp_lifecycle::LifecyclePublisher<visualization_msgs::msg::MarkerArray>::SharedPtr

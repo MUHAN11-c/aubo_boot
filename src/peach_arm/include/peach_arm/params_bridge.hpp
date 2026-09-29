@@ -104,6 +104,11 @@ inline GraspTaskConfig toGraspTaskConfig(const Params & params)
   config.fruit_inflation_m = params.grasp.fruit_inflation_m;
   config.tool_links = params.tool.links;
   config.contact_tool_links = params.tool.contact_links;
+  // 场景障碍豁免（2026-09-29 避障只为保护相机；ACM 条目组装在
+  // acm_policy::obstacleExemptionEntries，纯核可测）
+  config.obstacle_object_ids = params.moveit.obstacle_object_ids;
+  config.obstacle_guard_links = params.moveit.obstacle_guard_links;
+  config.obstacle_guard_enabled = params.moveit.obstacle_guard_enabled;
   config.tool_body_length_m = params.tool.body_length_m;
   config.tool_body_radius_m = params.tool.body_radius_m;
   return config;

@@ -4,6 +4,8 @@ from __future__ import annotations
 import threading
 import time
 
+from diagnostic_msgs.msg import DiagnosticStatus
+import diagnostic_updater
 from lifecycle_msgs.msg import State, Transition
 from lifecycle_msgs.srv import ChangeState, GetState
 from peach_harvester.supervisor.domain.lifecycle import (
@@ -47,6 +49,12 @@ class LifecycleManagerNode(Node):
         self._state_clients = {}
         self._watch = HeartbeatWatchdog(timeout_s=4.0)
         self._watch_armed = False
+        self._watch_missing_last: list = []  # 沿触发去重 + 30s 周期提醒
+        self._watch_missing_warned_at = 0.0
+        # /diagnostics：watchdog 状态投影（缺失集经 ERROR 级可见）
+        self._diag = diagnostic_updater.Updater(self, period=5.0)
+        self._diag.setHardwareID(self.get_name())
+        self._diag.add('lifecycle_watchdog', self._diag_watchdog)
         self.create_service(
             ManageLifecycleNodes, '~/manage_nodes', self._on_manage,
             callback_group=self._cb)
@@ -73,9 +81,28 @@ class LifecycleManagerNode(Node):
             if self._get_state(name, 0.4) is not None:
                 self._watch.beat(name, now)
         lost = self._watch.missing(names, now)
-        if lost:
+        # 沿触发打日志：集合变化必打，持续缺失每 30s 提醒（防 1Hz 刷屏）
+        if lost and (lost != self._watch_missing_last or
+                     now - self._watch_missing_warned_at >= 30.0):
+            self._watch_missing_warned_at = now
             self.get_logger().error(
                 f'lifecycle watchdog missing (not e-stop): {lost}')
+        self._watch_missing_last = list(lost)
+
+    def _diag_watchdog(self, stat):
+        """/diagnostics 投影：armed/缺失名单（只读，不做控制）."""
+        missing = self._watch_missing_last
+        if not self._watch_armed:
+            stat.summary(DiagnosticStatus.OK, 'watchdog 未武装（启动/暂停期）')
+        elif missing:
+            stat.summary(
+                DiagnosticStatus.ERROR, f'心跳缺失: {missing}')
+        else:
+            stat.summary(DiagnosticStatus.OK, '全部托管节点心跳在位')
+        stat.add('armed', str(self._watch_armed))
+        stat.add('node_names', ','.join(self._snapshot().node_names))
+        stat.add('missing', ','.join(missing))
+        return stat
 
     def _on_manage(self, request, response):
         """整栈生命周期命令；与批次 ControlTask 不是同一层."""

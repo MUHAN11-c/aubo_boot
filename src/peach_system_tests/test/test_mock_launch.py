@@ -121,6 +121,45 @@ class TestMockHarvestSystem(unittest.TestCase):
         finally:
             waiter.shutdown()
 
+    def test_selfcheck_passes_and_artifacts_written(self):
+        """P0 启动自检：mock 栈（相机/robot_status=SKIP）应自检通过并落工件."""
+        import json as _json
+        from pathlib import Path
+        waiter = WaitForTopics(
+            [('/peach/observability/selfcheck_passed', Bool)],
+            timeout=150.0, qos_profile=_LATCHED)
+        try:
+            self.assertTrue(
+                waiter.wait(),
+                'no selfcheck verdict: %s' % waiter.topics_not_received())
+            verdicts = waiter.received_messages(
+                '/peach/observability/selfcheck_passed')
+            self.assertTrue(
+                any(message.data for message in verdicts),
+                'selfcheck never passed; verdicts=%s' % verdicts)
+        finally:
+            waiter.shutdown()
+        runs = os.environ.get('AUBO_RUNS_DIR', '')
+        self.assertTrue(runs, 'AUBO_RUNS_DIR not set in test env')
+        root = Path(runs).resolve()
+        sessions = sorted(
+            entry for entry in root.iterdir()
+            if entry.is_dir() and entry.name.startswith('session_'))
+        self.assertTrue(sessions, 'no session dir under %s' % root)
+        session = sessions[-1]
+        # 路径 containment 校验：工件只允许位于本测试的 runs 根内
+        for name in ('selfcheck.json', 'startup.json'):
+            path = (session / name).resolve()
+            self.assertTrue(
+                path.is_relative_to(root) and path.is_file(),
+                'missing %s (session=%s)' % (name, session))
+        with (session / 'selfcheck.json').open(encoding='utf-8') as stream:
+            report = _json.load(stream)
+        self.assertEqual(report.get('status'), 'pass')
+        self.assertEqual(report.get('facts', {}).get('hardware_mode'), 'mock')
+        with (session / 'startup.json').open(encoding='utf-8') as stream:
+            self.assertIn('hardware_mode', stream.read())
+
     def test_arm_bond_heartbeats(self):
         """W14：peach_arm（bondcpp）激活后有 1Hz bond 心跳（约 10s 爆发）.
 

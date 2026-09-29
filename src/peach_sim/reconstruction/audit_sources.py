@@ -85,12 +85,15 @@ g = (im[:, :, 1] > im[:, :, 0] * 1.10) & (im[:, :, 1] > im[:, :, 2] *
                                           1.06) & (im[:, :, 1] > 28) & (im[:, :, 1] < 205) & (d > 220) & (d < 850)
 rng = np.random.default_rng(24)
 support = []
-for v in range(35, 700, 47):
-    for u in range(30, 1260, 53):
+for v in range(25, 700, 29):
+    for u in range(25, 1260, 31):
         patch = g[v - 12:v + 13, u - 12:u + 13]
         if patch.mean() < .42:
             continue
         z = float(np.median(d[v - 12:v + 13, u - 12:u + 13][patch])) * .001
         support.append({'u': u, 'v': v, 'depth_m': z, 'length_m': float(
-            rng.uniform(.052, .104)), 'angle_rad': float(rng.uniform(-.7, .7))})
+            rng.uniform(.07, .14)), 'angle_rad': float(rng.uniform(-1.2, 1.2)),
+            'source': '1200 RGB green support + valid depth; not a leaf instance mask',
+            'inferred': ['length_m', 'angle_rad', 'hidden_attachment'],
+            'green_support_fraction': float(patch.mean())})
 (HERE / 'evidence/foliage_support.json').write_text(json.dumps(support, indent=2))

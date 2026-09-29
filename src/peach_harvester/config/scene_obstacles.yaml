@@ -1,0 +1,16 @@
+# peach_scene_obstacles 全量参数（决策 0024：yaml 直读 attach，本文件即部署事实源）。
+# 节点为无状态快照服务（不进 lifecycle 名单）；改参重启生效。
+# 机制见 vision/scene_obstacles/core.py 头注释：Survey 快照式建图（2026-09-29
+# 裁定：不用 octomap、障碍=场景碰撞对象、建图/作业分离、避障只为保护相机）。
+peach_scene_obstacles:
+  ros__parameters:
+    object_id: peach_scene_obstacles  # PlanningScene 碰撞对象 id；peach_arm ACM 豁免清单同名引用，改名须同轮改两处
+    base_frame: base_link  # 快照/胶囊坐标系（refined_pose 同系）
+    voxel_size_m: 0.06  # 体素化边长 [m]。受查仅相机×障碍一对（FCL broadphase），0.06+3000 上限余量充足；真机嫌拦得粗可降到 0.04
+    self_filter_margin_m: 0.05  # 自身滤除余量 [m]：点距机器人 collision mesh 表面 <= 本值剔除。对齐官方 octomap padding 语义（官方教程 0.1、本仓旧值 0.01 偏小）；双刃：贴机器人表面的真枝叶也会被滤掉
+    capsule_radial_margin_m: 0.10  # 目标袋胶囊径向余量 [m]（R=袋径/2+本值）；袋邻域=套袋必经区不算障碍
+    capsule_axial_margin_m: 0.10  # 目标袋胶囊轴向两端延伸 [m]（袋口端同样延伸；延伸过大吃掉接近走廊）
+    workspace_radius_m: 1.5  # 距 base 原点 3D 裁剪半径 [m]（E5 标称可达约 0.8m，取保守全景）
+    max_boxes: 3000  # 快照 BOX 数量上限；超限截断并 WARN（不炸节点）
+    cloud_max_age_s: 2.0  # 触发时缓存点云帧龄上限 [s]；超龄仍用但 WARN（相机 2.43fps，Survey 结束触发时正常 <0.5s）
+    apply_service_timeout_s: 5.0  # ApplyPlanningScene 服务等待上限 [s]

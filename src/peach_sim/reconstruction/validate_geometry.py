@@ -1,18 +1,25 @@
 """Validate saved Blender geometry: closed bags, fruit containment, finite meshes."""
-from pathlib import Path
+import hashlib
 import json
 import math
-import bpy
+from pathlib import Path
+
 import bmesh
+import bpy
 from mathutils.bvhtree import BVHTree
-from mathutils import Vector
-HERE = Path(__file__).resolve().parent
-report = {'bags': [], 'errors': []}
+
+source = Path(bpy.data.filepath)
+report = {'bags': [], 'errors': [],
+          'source_blend_sha256': hashlib.sha256(source.read_bytes()).hexdigest(),
+          'limits': ['No exhaustive leaf/bag/branch intersection test.',
+                     'Contained fruits are inferred proxies, not measured orchard fruit.']}
 for obj in bpy.data.objects:
-    if obj.type != 'MESH' or 'geometry' not in obj:
+    if obj.type != 'MESH':
         continue
     if any(not math.isfinite(c) for v in obj.data.vertices for c in v.co):
         report['errors'].append(obj.name+': nonfinite vertex')
+    if 'geometry' not in obj:
+        continue
     bm = bmesh.new()
     bm.from_mesh(obj.data)
     bad = sum(not e.is_manifold for e in bm.edges)
@@ -45,7 +52,7 @@ for obj in bpy.data.objects:
 report['mesh_objects'] = sum(o.type == 'MESH' for o in bpy.data.objects)
 report['vertices'] = sum(len(o.data.vertices)
                          for o in bpy.data.objects if o.type == 'MESH')
-(HERE / 'output/geometry_validation.json').write_text(json.dumps(report, indent=2))
+(source.parent / 'geometry_validation.json').write_text(json.dumps(report, indent=2))
 print(json.dumps({'bags': len(report['bags']),
                   'errors': report['errors'],
                   'vertices': report['vertices']}),

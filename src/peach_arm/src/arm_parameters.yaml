@@ -91,6 +91,18 @@ peach_arm:
       description: "单条轨迹/MTC 解执行有界等待 [s]；超时下发 stop 并判失败（move_group TEM 异常防线，2026-09-23 stop 事件风暴）"
       validation:
         gt<>: [1.0]
+    obstacle_guard_enabled:
+      type: bool
+      default_value: true
+      description: "场景障碍受查开关（2026-09-29 避障只为保护相机）：true=仅 obstacle_guard_links（相机）×障碍受查，tool.links 清单连杆全豁免；false=相机一并豁免（全机器人×障碍放行，用于障碍拦路到不了位时恢复可达性；障碍对象保留在场景，重开即恢复保护）。空闲时 param set 生效（运动中拒改），下个规划周期重写 ACM"
+    obstacle_guard_links:
+      type: string_array
+      default_value: ["camera_body_link"]
+      description: "obstacle_guard_enabled=true 时唯一受查的连杆清单（避障目标=保护相机）"
+    obstacle_object_ids:
+      type: string_array
+      default_value: ["peach_scene_obstacles"]
+      description: "场景障碍碰撞对象 id 清单（peach_scene_obstacles 快照节点写入）；豁免连杆×这些对象 + 保留名 <octomap>（updater 关闭时该条目无害）"
     pilz_pipeline:
       type: string
       default_value: pilz_industrial_motion_planner
@@ -601,8 +613,8 @@ peach_arm:
       description: "闭合电平"
     links:
       type: string_array
-      default_value: ["tool_axis", "cutting_plane", "tcp", "sleeve_mouth", "tool_body_link", "quick_changer_link"]
-      description: "工具链连杆（③层整图 octomap 豁免清单；连杆名须与 URDF/tcp.xacro 一致）"
+      default_value: ["base_link", "shoulder_Link", "upperArm_Link", "foreArm_Link", "wrist1_Link", "wrist2_Link", "wrist3_Link", "tool_axis", "cutting_plane", "tcp", "sleeve_mouth", "tool_body_link", "quick_changer_link"]
+      description: "场景障碍豁免连杆清单（③层；2026-09-29 避障只为保护相机后扩为全机器人−camera_body_link——臂/末端轻微碰撞可接受，唯一受查对=obstacle_guard_links×障碍）。连杆名须与 URDF 一致"
     contact_links:
       type: string_array
       default_value: ["sleeve_mouth", "tcp", "tool_axis", "cutting_plane"]

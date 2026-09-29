@@ -20,11 +20,11 @@
 
 ## 节点与工具
 
-- `extrinsics_publisher`：读 `hand_eye/active.yaml`，发静态 TF `wrist3_Link→camera_link`；可 `reload`
+- `extrinsics_publisher`：读 `hand_eye/active.yaml`，发静态 TF `wrist3_Link→camera_link`；可 `reload`。外参来源上 `/diagnostics`（`extrinsics_source`：active=OK、无文件回退名义=WARN、active 损坏/帧名不匹配=ERROR）
 - `calibration_server`：动作/服务跑采集与求解（17 位姿自动采集 + OpenCV 五方法竞赛 + Huber 精化 + 质量门）
-- `web_gateway`：`http://127.0.0.1:8088` 调试界面（仅回环）
+- `web_gateway`：`http://127.0.0.1:8088` 调试界面（仅回环；2026-09-29 起界面可选 `pose_source`（poses/auto）与 `solve_target`（hand_eye/joint）档位，非法值 400；显示当前激活外参卡——`import:` 来源标「外部导入 · 非本机标定产物」）
 - `apply_intrinsics`：校验 `cameracalibrator` SAVE 产物并原子写入内参事实源
-- `intrinsics_calibration.launch.py`：拉起 vendored `cameracalibrator`（交互式 GUI）
+- `intrinsics_calibration.launch.py`：拉起 vendored `cameracalibrator`（交互式 GUI；板参数默认值运行时取自 `config/calibration.yaml` 单源，launch args 可覆盖）
 
 bringup 默认可开外参发布。全标定流程单独 launch，不要在日常采摘里自动跑。无 `active.yaml` 时发名义 TF（平移 2 cm、单位四元数），光学系会偏。`_archive/runs/hand_eye/` 是历史归档，不被读取。
 
@@ -44,6 +44,8 @@ bringup 默认可开外参发布。全标定流程单独 launch，不要在日�
 **相机无关**：所有几何量运行时取自活的 `/camera/color/camera_info`（K/D/宽高）；视点距离按「板宽画面占比」反推（适配任意焦距），不写死 FOV/型号常量。
 
 前置：棋盘格**固定摆放**在臂可达处且当前画面可见；`hand_eye/active.yaml` 存在（初始外参用于定位板，缺失明确报错，不做名义回退）。
+
+入口二选一（2026-09-29 起 Web 与 CLI 等价）：Web 界面「标定流程」卡选 **位姿来源=auto · 自动视点**、**求解目标=joint · 内外参联合** 后按 ①②③ 走；或 CLI：
 
 ```bash
 ros2 action send_goal /hand_eye_calibration_server/run \
@@ -71,7 +73,7 @@ ros2 action send_goal /hand_eye_calibration_server/run \
 
 ## 测试
 
-纯核单测（零 rclpy）：`test/test_{transforms,stats,solver,detector,storage,intrinsics,viewpoints,joint_calib}.py`——合成 AX=XB 位姿恢复与离群剔除、合成棋盘格渲染→检测→PnP 恢复、候选/激活落盘链、内参产物解析校验、FOV 掩码/视点生成/多样性选择、联合内外参求解合成恢复（观测场景由 viewpoints 模块自生成闭环）。
+纯核单测（零 rclpy）：`test/test_{transforms,stats,solver,detector,storage,intrinsics,viewpoints,joint_calib,web_goal}.py`——合成 AX=XB 位姿恢复与离群剔除、合成棋盘格渲染→检测→PnP 恢复、候选/激活落盘链、内参产物解析校验、FOV 掩码/视点生成/多样性选择、联合内外参求解合成恢复（观测场景由 viewpoints 模块自生成闭环）、Web 档位参数校验与空串回退。
 
 ```bash
 colcon build --packages-select aubo_hand_eye_calibration

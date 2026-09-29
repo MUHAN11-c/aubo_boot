@@ -1,6 +1,6 @@
 # peach_interfaces
 
-采摘四包之间**唯一允许互发的类型**。无节点、无 launch、**无 ROS 运行参数**。感知 / 重建 / 技能 / 调度 / 监控只依赖本包消息，禁止互相 import 业务结构体。
+采摘各能力包之间**唯一允许互发的类型**。无节点、无 launch、**无 ROS 运行参数**。感知 / 重建 / 技能 / 调度 / 监控只依赖本包消息，禁止互相 import 业务结构体。
 
 | 你要查的 | 在哪 |
 |----------|------|
@@ -32,7 +32,7 @@ python3 src/peach_interfaces/scripts/check_interface_manifest.py
 | `peach_arm/src/arm_parameters.yaml` | 执行合同（GPL 单源，2c 回迁） |
 | `peach_harvester/config/peach_supervisor.yaml` | 批次、选果、`execute_pregrasp_only` |
 | `peach_harvester/config/lifecycle_manager.yaml` | lifecycle 名单与顺序 |
-| `peach_harvester/config/observability.yaml` | 监控 Web；`debug.motion_enabled` 默认关 |
+| `peach_observability/config/observability.yaml` | 监控 Web + 启动自检；`debug.motion_enabled` 默认关（W11 起随包走） |
 
 ---
 
@@ -46,11 +46,11 @@ QoS 缩写：`R` reliable；`TL` transient_local（晚订户仍拿得到最后�
 
 | 名字 | 种类 | 类型 | 含义 | 发 | 订 | QoS |
 |------|------|------|------|----|----|-----|
-| `/peach_executor/run_harvest` | action | `RunHarvest` | **唯一开批开关。** launch 绝不自动发。至少成功一颗才 `success` | 调度 | （人工/客户端） | — |
-| `/peach_executor/control` | service | `ControlTask` | 暂停/恢复/取消/跳过/ACK 恢复。`expected_state_seq` 须对上当前快照 | 调度 | （人工；监控默认不发） | — |
-| `/peach_executor/state` | topic | `HarvestState` | **批次唯一快照。** 能力包只认其中的 `target_id` 当当前作业 | 调度 | 感知、重建、监控；调度自订 | R/TL/1 |
-| `/peach_executor/events` | topic | `CanonicalEvent` | 可检索事件流（派发/成功/失败/暂停/ACK/过滤） | 调度 | 监控 | R/TL/50 |
-| `/peach_executor/scene_snapshot` | topic | `SceneSnapshot` | WAIT_LOCK 结束或回访后的锁定集快照 | 调度 | （核内无订） | R/TL/1 |
+| `/peach_supervisor/run_harvest` | action | `RunHarvest` | **唯一开批开关。** 至少成功一颗才 `success`；autostart 部署参数可自动发（默认关，且硬等 `/peach/observability/selfcheck_passed`） | 调度 | （人工/客户端/autostart） | — |
+| `/peach_supervisor/control` | service | `ControlTask` | 暂停/恢复/取消/跳过/ACK 恢复。`expected_state_seq` 须对上当前快照 | 调度 | （人工；监控默认不发） | — |
+| `/peach_supervisor/state` | topic | `HarvestState` | **批次唯一快照。** 能力包只认其中的 `target_id` 当当前作业 | 调度 | 感知、重建、监控；调度自订 | R/TL/1 |
+| `/peach_supervisor/events` | topic | `CanonicalEvent` | 可检索事件流（派发/成功/失败/暂停/ACK/过滤） | 调度 | 监控 | R/TL/50 |
+| `/peach_supervisor/scene_snapshot` | topic | `SceneSnapshot` | WAIT_LOCK 结束或回访后的锁定集快照 | 调度 | （核内无订） | R/TL/1 |
 
 ### 生命周期
 
@@ -363,6 +363,13 @@ Goal：`pose`、`site_id`。现行固定座调度直通 `NAV_OK`，**不发送**
 | 14 | `DEGRADED_CONTACT_FORBIDDEN` | 禁止降级接触 |
 | 15 | `MODEL_STALE` | 模型过期 |
 | 16 | `CORRIDOR_BLOCKED` | 走廊被挡 |
+| 17 | `MODEL_IDENTITY_INCOMPLETE` | 身份元组缺版本 |
+| 18 | `MODEL_EXPIRED` | `valid_until` 已过 |
+| 19 | `TOOL_STATE_UNKNOWN` | SetIO 超时/无反馈 |
+| 20 | `PLAN_MISMATCH` | 预览/执行计划不一致 |
+| 21 | `TRANSIT_FAILED` | MoveTo 转移移动失败（2026-09-29 补，不再挪用 5） |
+| 22 | `START_NOT_READY` | 周期启动门拒绝（MoveIt 未初始化/占用/未 arm） |
+| 23 | `CANCELED` | 动作取消终局（BuildTargetModel 等） |
 
 ---
 

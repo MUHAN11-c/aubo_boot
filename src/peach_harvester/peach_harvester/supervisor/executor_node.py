@@ -12,6 +12,8 @@ import time
 from typing import Optional
 
 from action_msgs.msg import GoalStatus
+from diagnostic_msgs.msg import DiagnosticStatus
+import diagnostic_updater
 import geometry_msgs.msg
 from peach_common.lifecycle import break_bond, create_bond
 
@@ -43,7 +45,7 @@ from rclpy.qos import (
     QoSProfile,
     ReliabilityPolicy,
 )
-from std_msgs.msg import Bool
+from std_msgs.msg import Bool, Empty
 from std_srvs.srv import Trigger
 import tf2_ros
 
@@ -68,6 +70,7 @@ from .domain.reducer import BatchEvent, OrchestratorState, reduce_event
 from .harvest_fsm import (
     apply_recovery_ack,
     BATCH_NAMES,
+    blockers_for,
     canonical_code_for_outcome,
     Command,
     DISCOVERY,
@@ -239,9 +242,46 @@ class TaskExecutorNode(LifecycleNode):
             return TransitionCallbackReturn.ERROR
         # W14：nav2_lm 进程死检心跳（缺 ros-jazzy-bondpy 时守卫降级为 WARN）
         self._bond = create_bond(self, self.get_name())
+        # /diagnostics 周期健康（P1：批次态/抑制计数/客户端就绪）
+        self._diag = diagnostic_updater.Updater(self, period=5.0)
+        self._diag.setHardwareID(self.get_name())
+        self._diag.add('supervisor_health', self._diag_health)
         self.get_logger().info(
             'task executor configured; will not auto-start harvest')
         return super().on_configure(state)
+
+    def _diag_health(self, stat):
+        """调度健康投影（只读）：批次态/状态发布活性/抑制与失败计数."""
+        clients = {
+            name: getattr(self, attr).wait_for_server(timeout_sec=0.0)
+            for name, attr in (
+                ('survey', '_survey'), ('execute', '_exec'),
+                ('build', '_build'), ('move_to', '_move_to'))}
+        now = time.monotonic()
+        publish_age = (now - self._state_published_mono
+                       if self._state_published_mono else None)
+        if self._ledger_write_failures > 0:
+            stat.summary(
+                DiagnosticStatus.ERROR,
+                f'账本写失败 {self._ledger_write_failures} 次')
+        elif not all(clients.values()):
+            missing = [k for k, ok in clients.items() if not ok]
+            stat.summary(
+                DiagnosticStatus.WARN, f'动作客户端未就绪: {missing}')
+        else:
+            stat.summary(DiagnosticStatus.OK, 'supervisor healthy')
+        stat.add('batch_state', BATCH_NAMES.get(
+            self._batch_state, str(self._batch_state)))
+        stat.add('run_id', self._run_id or '-')
+        stat.add(
+            'state_publish_age_s',
+            '-' if publish_age is None else f'{publish_age:.1f}')
+        stat.add('state_suppressed', str(self._state_suppressed))
+        stat.add('feedback_failures', str(self._feedback_failures))
+        stat.add('ledger_write_failures', str(self._ledger_write_failures))
+        for name, ready in clients.items():
+            stat.add(f'client_{name}', 'ready' if ready else 'waiting')
+        return stat
 
     def _configure_ros(self) -> None:
         """集中创建 ROS 实体（发布器/订阅/客户端/动作/服务）."""
@@ -263,6 +303,11 @@ class TaskExecutorNode(LifecycleNode):
             CanonicalEvent, '~/events', event_qos)
         self._pub_snapshot = self.create_lifecycle_publisher(
             SceneSnapshot, '~/scene_snapshot', latched)
+        # 场景障碍快照触发（2026-09-29 快照式建图）：Survey 完成（拍照位、
+        # 停走节拍）通知 peach_scene_obstacles 用最近一帧点云重建障碍对象。
+        # latched：障碍节点晚启动也能补到最近一次触发。
+        self._pub_obstacles_refresh = self.create_lifecycle_publisher(
+            Empty, '/peach/scene/obstacles_refresh', latched)
         self._sub_obs = self.create_subscription(
             PeachTargetObservationArray,
             '/peach/perception/target_observations',
@@ -396,6 +441,7 @@ class TaskExecutorNode(LifecycleNode):
         self._active = False
         break_bond(self._bond)
         self._bond = None
+        self._diag = None
         self._unconfigure_ros()
         return super().on_cleanup(state)
 
@@ -993,6 +1039,10 @@ class TaskExecutorNode(LifecycleNode):
             self._ledger_loaded = True
         if self._cancel:
             return reaction, False
+        if survey_ok:
+            # Survey 成功=臂在拍照位刚拍完全场景：此刻点云帧即障碍快照源
+            # （建图/作业分离；新批次 Survey 自动重建）。
+            self._pub_obstacles_refresh.publish(Empty())
         if not survey_ok:
             reaction = self._react(Event.SURVEY_FAILED)
         elif self._scene_epoch == 0:
@@ -1099,6 +1149,11 @@ class TaskExecutorNode(LifecycleNode):
         begin.scene_key = goal.scene_key
         resp = self._call_service(self._begin, begin)
         if resp is None or not bool(getattr(resp, 'accepted', False)):
+            reason = (
+                getattr(resp, 'message', '') if resp is not None
+                else '服务无响应')
+            self.get_logger().warning(
+                f'BeginScene 失败 request_id={goal.request_id}: {reason}')
             reaction = self._react(Event.BEGIN_FAILED)
             self._apply(reaction, goal.request_id)
             return reaction, True
@@ -1311,6 +1366,10 @@ class TaskExecutorNode(LifecycleNode):
                 failure_code=failure_code,
                 elapsed_s=time.monotonic() - dispatch_t0,
                 extra=extra)
+        # 失败三通道对齐（P0）：派发失败此前只落 ledger/事件，值班日志看不到
+        self.get_logger().warning(
+            f'派发失败 request_id={request_id} target_id={target_id or "-"} '
+            f'failure_code={failure_code or "-"} reason={reason or "-"}')
         self._apply(reaction, request_id, target_id)
         return reaction, True
 
@@ -1373,10 +1432,13 @@ class TaskExecutorNode(LifecycleNode):
         """EXECUTE_FULL 分支（原循环分支逐字搬运）：时限门 + 接触执行入账."""
         request_id = goal.request_id
         if self._target_deadline_exceeded(request_id):
-            reaction = self._react(
-                event_for_outcome(TargetOutcome.SKIPPED_QUALITY, False))
-            self._apply(reaction, request_id, self._current_target_id)
-            return reaction, True
+            # 时限门统一走 _fail_dispatch（P0 三通道对齐勘定：此处原为
+            # 裸 _apply，缺「派发失败」WARN；outcome 不传——时限函数自身
+            # 已 record_skip，双传会二次落账，与 dispatch 入口同款）
+            return self._fail_dispatch(
+                self._react(
+                    event_for_outcome(TargetOutcome.SKIPPED_QUALITY, False)),
+                request_id, self._current_target_id)
         timeout = float(self._params.action_timeout_s)
         target_id = self._current_target_id
         t0 = time.monotonic()
@@ -1574,6 +1636,9 @@ class TaskExecutorNode(LifecycleNode):
                 or not self._target_deadline.exceeded()):
             return False
         target_id = self._current_target_id
+        self.get_logger().warning(
+            f'单果时限超限 target_id={target_id} '
+            f'per_target_timeout_s={self._batch_policy.per_target_timeout_s}')
         self._emit(
             'target_timeout', request_id, target_id,
             details={'per_target_timeout_s':
@@ -1675,6 +1740,9 @@ class TaskExecutorNode(LifecycleNode):
             if self._lock_set_ready():
                 return
             self._idle(0.1)
+        if not self._cancel and not self._lock_set_ready():
+            self.get_logger().warning(
+                f'WAIT_LOCK 超时({wait_s}s)：本世代未锁定，快照将以 degraded 收口')
 
     def _publish_scene_snapshot(self, scene_key: str) -> None:
         """WAIT_LOCK 结束或回访 dwell 后发布；scene_epoch 须为 Begin 之后."""
@@ -1709,7 +1777,8 @@ class TaskExecutorNode(LifecycleNode):
         while not self._cancel:
             result, status = self._send_action(
                 self._survey, goal, timeout, interrupt_on_pause=True,
-                goal_handle=self._run_goal_handle, want_status=True)
+                goal_handle=self._run_goal_handle, want_status=True,
+                feedback_cb=self._on_survey_feedback)
             if self._paused and not self._cancel:
                 self._wait_pause()
                 continue
@@ -1915,10 +1984,12 @@ class TaskExecutorNode(LifecycleNode):
 
     def _send_action(self, client, goal_msg, timeout_s: float,
                      feedback: bool = False, interrupt_on_pause: bool = False,
-                     goal_handle=None, want_status: bool = False):
+                     goal_handle=None, want_status: bool = False,
+                     feedback_cb=None):
         """一站式动作调用：_send_goal + _wait_result + 清 in-flight."""
         handle = self._send_goal(
-            client, goal_msg, timeout_s, feedback=feedback)
+            client, goal_msg, timeout_s, feedback=feedback,
+            feedback_cb=feedback_cb)
         if handle is not None:
             self._in_flight.append(handle)
         result = self._wait_result(
@@ -1935,6 +2006,13 @@ class TaskExecutorNode(LifecycleNode):
             handle.cancel_goal_async()
         except Exception as exc:  # noqa: BLE001
             self.get_logger().warning(f'cancel goal failed: {exc}')
+
+    def _on_survey_feedback(self, feedback_msg) -> None:
+        """记录 SurveyScene 进度反馈（P1 通道启用）：状态沿变化打一行日志."""
+        status = str(getattr(feedback_msg.feedback, 'status', '') or '')
+        if status and status != self._survey_feedback_seen:
+            self._survey_feedback_seen = status
+            self.get_logger().info(f'Survey 进行中: {status}')
 
     def _cancel_inflight(self) -> None:
         """取消全部在途 action 并清表."""
@@ -1989,6 +2067,7 @@ class TaskExecutorNode(LifecycleNode):
                 self._ledger_path(), claimed, self._outcomes,
                 self._outcome_details)
         except OSError as exc:
+            self._ledger_write_failures += 1
             self.get_logger().warning(f'ledger write failed: {exc}')
 
     def _call_service(self, client, request):
@@ -2121,7 +2200,14 @@ class TaskExecutorNode(LifecycleNode):
             msg.message = self._fsm_message
         if self._batch_state == RUNNING and self._cycle_message:
             msg.message = self._cycle_message
-        # blockers 字段保持消息默认空表（无写入方）
+        # blockers（P1 软门）：机读阻塞原因，词表见 harvest_fsm.BLOCKER_*
+        msg.blockers = blockers_for(
+            operation_mode=self._operation_mode,
+            recovery_required=self._recovery_required,
+            stack_ready=(
+                bool(self._stack_ready)
+                if bool(self._params.require_managed_stack) else None),
+            ledger_write_failures=self._ledger_write_failures)
         msg.permissions = permissions_for(
             self._batch_state, self._recovery_required, paused=self._paused)
         msg.action_generation = int(getattr(self, '_action_generation', 0) or 0)
@@ -2135,6 +2221,16 @@ class TaskExecutorNode(LifecycleNode):
     # latched，晚订户仍取最后值，web 轮询不受影响；被节流的调用仍返回
     # 最新 _make_state（服务响应携带新 seq）。
     _STATE_PUBLISH_MIN_INTERVAL_S = 0.1
+    # 反馈通道故障节流（P0）：异常每 60s 至少可见一次
+    _FEEDBACK_FAIL_LOG_INTERVAL_S = 60.0
+    _feedback_fail_last_s = 0.0
+    # 观测计数器（诊断投影）：状态限频抑制 / 反馈失败 / 账本写失败
+    _state_suppressed = 0
+    _feedback_failures = 0
+    _ledger_write_failures = 0
+    _state_published_mono = 0.0
+    _command_loop_mono = 0.0
+    _survey_feedback_seen = ''
 
     def _publish_state(self, bump: bool = True, force: bool = False):
         """发布（限频）HarvestState 并回传；goal 活跃时同步发 RunHarvest 反馈."""
@@ -2152,8 +2248,10 @@ class TaskExecutorNode(LifecycleNode):
             if not throttled:
                 self._state_last_publish_s = now
         if throttled:
+            self._state_suppressed += 1
             return self._make_state()
         state = self._make_state()
+        self._state_published_mono = time.monotonic()
         self._pub_state.publish(state)
         handle = self._run_goal_handle
         is_active = getattr(handle, 'is_active', False) if handle else False
@@ -2164,8 +2262,15 @@ class TaskExecutorNode(LifecycleNode):
                 feedback = RunHarvest.Feedback()
                 feedback.state = state
                 handle.publish_feedback(feedback)
-            except Exception:  # noqa: BLE001
-                pass
+            except Exception as exc:  # noqa: BLE001
+                # 反馈通道故障不能静默（结果仍经 latched 话题可达）
+                now = time.monotonic()
+                self._feedback_failures += 1
+                if now - self._feedback_fail_last_s \
+                        >= self._FEEDBACK_FAIL_LOG_INTERVAL_S:
+                    self._feedback_fail_last_s = now
+                    self.get_logger().warning(
+                        f'RunHarvest 反馈发布失败: {exc}')
         return state
 
     def _emit(self, code: str, request_id: str, target_id: str = '',
@@ -2191,16 +2296,20 @@ class TaskExecutorNode(LifecycleNode):
         if details:
             payload.update(details)
         event.message = json.dumps(payload, ensure_ascii=False)
-        # severity 对齐 CanonicalEvent.msg 契约：AUDIT=人工操作审计，
+        # severity 对齐 CanonicalEvent.msg 契约：AUDIT=人工操作/审计，
         # ERROR=失败/中断，WARNING=可恢复告警，其余 INFO。
         if code in {
-            'batch_paused', 'batch_resumed',
-            'recovery_required', 'recovery_acknowledged',
+            'batch_paused', 'batch_resumed', 'recovery_required',
+            'recovery_acknowledged', 'enables_changed',
+            'batch_policy_updated', 'fire_step', 'ledger_restored',
         }:
             event.severity = CanonicalEvent.AUDIT
-        elif code in {'survey_failed', 'target_failed', 'target_canceled'}:
+        elif code in {
+            'survey_failed', 'target_failed', 'target_canceled',
+            'begin_scene_failed', 'navigate_failed',
+        }:
             event.severity = CanonicalEvent.ERROR
-        elif code == 'observe_build_view_race':
+        elif code in {'observe_build_view_race', 'target_timeout'}:
             event.severity = CanonicalEvent.WARNING
         if hasattr(self, '_pub_event'):
             self._pub_event.publish(event)

@@ -1,0 +1,16 @@
+serial_force:
+  ros__parameters:
+    # 2026-09-29 实测：力帧与 IMU 帧共用同一条 CH343 串口（/dev/imu→ttyACM0）。
+    # 本节点单独看力时用；勿与整栈/serial_imu 节点并行（抢同一口）。
+    # 将来力板换独立串口再改这里。
+    port: /dev/imu
+    port_fallbacks:
+      - /dev/ttyUSB1
+      - /dev/ttyACM1
+    baudrate: 115200
+    read_period_s: 0.005
+    expected_rate_hz: 100.0  # 力板 100Hz 主动上报；诊断窗 0.6×–1.4×
+    print_data: true
+    print_decimate: 1
+    # 通道 1/2/3/5/7 在咬合末端圆盘上的点位（CAD 截图读出，2/5 与 3/7 有误读可能，现场按压校对后改）。
+    channel_labels: [左中(9点), 左下(7点), 右下(5点), 右上(1-2点), 左上(11-12点)]

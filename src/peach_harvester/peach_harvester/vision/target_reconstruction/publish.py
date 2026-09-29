@@ -68,6 +68,9 @@ class PublishThrottle:
         # 每话题最近一次「实际发布」的版本 key 与时刻；未发布过无记录
         self._published_key: Dict[str, Hashable] = {}
         self._published_at: Dict[str, float] = {}
+        # 抑制计数（观测性 P1：被吞掉的发布次数此前不可见）
+        self.suppressed_total = 0
+        self.suppressed_by_topic: Dict[str, int] = {}
 
     def should_publish(self, topic: str, key: Hashable,
                        force: bool = False) -> bool:
@@ -90,13 +93,21 @@ class PublishThrottle:
         if not force:
             if topic in self._published_key \
                     and self._published_key[topic] == key:
+                self._count_suppressed(topic)
                 return False  # 零变化：抑制（闩锁保留最后一帧）
             last = self._published_at.get(topic)
             if last is not None and self._now() - last < self._min_interval:
+                self._count_suppressed(topic)
                 return False  # 间隔内抑制：不记 key，下次调用仍判为已变化
         self._published_key[topic] = key
         self._published_at[topic] = self._now()
         return True
+
+    def _count_suppressed(self, topic: str) -> None:
+        """抑制计数（诊断口径：丢了多少条发布一目了然）."""
+        self.suppressed_total += 1
+        self.suppressed_by_topic[topic] = \
+            self.suppressed_by_topic.get(topic, 0) + 1
 
     def reset(self) -> None:
         """清空全部记账（节点复位/测试隔离用；现状无调用方，接口备用）."""

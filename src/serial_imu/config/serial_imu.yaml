@@ -28,3 +28,9 @@ serial_imu:
     orientation_variance: 0.0
     magnetic_field_variance: 0.0
     expected_rate_hz: 75.0  # 现场 ≈74.7；诊断窗 0.6×–1.4×
+    # 同口分流（2026-09-29 实测）：A5 力帧（咬合末端 5 点，≈100Hz）与 A4 IMU 帧
+    # 共用 /dev/imu。本节点一并解析并发 /force/points（牛顿）；打印默认关防刷屏，
+    # 调试时 launch 传 force_print:=true。
+    force_print: false
+    force_print_decimate: 1
+    force_channel_labels: [左中(9点), 左下(7点), 右下(5点), 右上(1-2点), 左上(11-12点)]

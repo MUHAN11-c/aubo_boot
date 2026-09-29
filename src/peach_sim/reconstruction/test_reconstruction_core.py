@@ -19,7 +19,8 @@ ROOT = HERE.parents[2]
 sys.path.insert(0, str(HERE))
 
 import depth_io  # noqa: E402
-from distributions import sample_percentile, sample_width_height  # noqa: E402
+from distributions import (sample_bag_for_fruit, sample_mature_fruit,  # noqa: E402
+                           sample_percentile, sample_width_height)
 import lighting  # noqa: E402
 import occlusion  # noqa: E402
 from viewpoints import (alley_stops, build_trajectory,  # noqa: E402
@@ -40,7 +41,7 @@ class LightingTests(unittest.TestCase):
     def test_presets_cover_day_and_validate(self):
         self.assertEqual(
             sorted(lighting.PRESETS),
-            ['late_afternoon', 'morning', 'noon', 'overcast'])
+            ['backlit', 'late_afternoon', 'morning', 'noon', 'overcast'])
         for preset in lighting.PRESETS.values():
             lighting.validate(preset)
 
@@ -79,6 +80,29 @@ class DistributionTests(unittest.TestCase):
         # recorded percentile is rounded to 4 decimals for the manifest
         self.assertAlmostEqual(
             a['height_m'], a['width_m'] * aspect, places=4)
+
+    def test_mature_fruit_is_the_upper_half(self):
+        stats = {'width_m': {'p10': .047, 'p50': .066, 'p90': .083},
+                 'aspect_h_over_w': {'p10': .79, 'p50': .95, 'p90': 1.11}}
+        draws = [sample_mature_fruit(stats, random.Random(i))
+                 for i in range(40)]
+        self.assertTrue(all(.066 - 1e-9 <= d['diameter_m'] <= .083 + 1e-9
+                            for d in draws))
+        self.assertTrue(all(.85 <= d['aspect'] <= 1. for d in draws))
+        self.assertGreater(draws[0]['mass_kg'], .05)
+        again = sample_mature_fruit(stats, random.Random(0))
+        self.assertEqual(draws[0], again)
+
+    def test_bag_encloses_the_fruit(self):
+        bag = {'width_m': {'p10': .05, 'p50': .11, 'p90': .21},
+               'aspect_h_over_w': {'p10': .65, 'p50': 1.03, 'p90': 1.6}}
+        fruit = {'diameter_m': .08}
+        for i in range(30):
+            sample = sample_bag_for_fruit(bag, fruit, random.Random(i))
+            self.assertGreaterEqual(sample['width_m'], .095 - 1e-9)
+            self.assertGreaterEqual(sample['height_m'], .115 - 1e-9)
+            self.assertIn(sample['dimension_fit'],
+                          ('resampled', 'height_clamped', 'clamped'))
 
 
 class OcclusionTests(unittest.TestCase):

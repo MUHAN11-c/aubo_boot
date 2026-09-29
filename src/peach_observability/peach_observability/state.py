@@ -619,10 +619,30 @@ class ObservabilityState:
             'record': {
                 'info': {},
             },
+            # 启动事实（harvest_system 注入；startup.json 同源）
+            'startup': {
+                'facts': {},
+            },
+            # 启动自检（selfcheck runner 最近一次报告）
+            'selfcheck': {
+                'report': {},
+            },
+            # /diagnostics 聚合：{硬件ID: {'level','tasks':{任务名:{level,message}}}}
+            'diagnostics': {
+                'nodes': {},
+            },
             # 各节点当前参数只读镜像：{节点名: {参数名: 标量值}}
             'params': {},
         }
         self._updated = {}
+
+    def update_diagnostics(self, nodes: dict) -> None:
+        """整体替换 /diagnostics 聚合并刷新时间戳（回调线程调用）."""
+        now = time.time()
+        with self._lock:
+            self._values['diagnostics']['nodes'] = finite_or_none(nodes)
+            self._updated['diagnostics.nodes'] = now
+            self._revision += 1
 
     def update(self, section: str, key: str, value) -> None:
         """更新一个结构化状态区段."""

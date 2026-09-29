@@ -1,16 +1,21 @@
 # 编排器过程/审计事件。线上唯一事件流（唯一事件流）。
-# 话题：/peach_executor/events（reliable, transient_local, depth 50）
-# 生产：peach_executor    消费：peach_observability
+# 话题：/peach_supervisor/events（reliable, transient_local, depth 50）
+# 生产：peach_supervisor    消费：peach_observability
 # 监控与 JSONL 按 code 聚合，不要只解析 message。
 
 # 现行 code 全集：
 #   终局目标：target_dispatched / target_succeeded / target_skipped /
 #     target_failed / target_canceled / target_operator_skipped
-#   过程：photo_pose_reached / round_locked / survey_failed
+#   批次中断：survey_failed / begin_scene_failed / navigate_failed
+#     （2026-09-29 补齐：后两码此前 FSM event_code 为空，失败只体现在
+#     RunHarvest.termination_reason，事件时间线无归因）
+#   过程：photo_pose_reached / round_locked
+#   单果时限：target_timeout（details 带 per_target_timeout_s）
 #   选果过滤：targets_filtered（details 列超窗目标与原因
 #     out_of_reach_window / out_of_depth_window / ik_no_solution）
 #   人工审计：batch_paused / batch_resumed / recovery_required /
-#     recovery_acknowledged（details 可带 ControlTask reason）
+#     recovery_acknowledged / enables_changed / batch_policy_updated /
+#     fire_step / ledger_restored（details 可带 ControlTask reason）
 #   派发异常：observe_build_view_race（观察成功但 Build 机位数不足）
 
 std_msgs/Header header    # stamp=事件时刻，frame_id 一般为空或 base_link

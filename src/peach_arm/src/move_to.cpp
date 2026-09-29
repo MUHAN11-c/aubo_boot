@@ -145,7 +145,7 @@ rclcpp_action::CancelResponse ManipulationSkillsNode::onMoveToCancel(
   const std::shared_ptr<MoveToGoalHandle>)
 {
   // 与 ExecuteTarget/Survey 同纪律：停 MoveIt 当前执行并唤醒等待。
-  requestCancelAll();
+  requestCancelAll("MoveTo 客户端取消");
   return rclcpp_action::CancelResponse::ACCEPT;
 }
 
@@ -278,7 +278,8 @@ void ManipulationSkillsNode::executeMoveTo(
   feedback->phase = MoveToAction::Feedback::PHASE_SETTLING;
   publish_feedback();
   result->arrived = ok;
-  result->failure_code = ok ? FailureCode::NONE : FailureCode::SLEEVE_PLAN_FAILED;
+  // P2 词表收口：转移失败不再挪用套入规划码（SLEEVE_PLAN_FAILED）
+  result->failure_code = ok ? FailureCode::NONE : FailureCode::TRANSIT_FAILED;
   result->detail = message;
   // M1：MoveTo 终局收口取消旗标（谁最后结束谁清）。
   clearCancelFlagIfIdle();

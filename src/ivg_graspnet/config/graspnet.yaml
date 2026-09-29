@@ -12,7 +12,9 @@ graspnet_demo_points_node:
     compute_interval_sec: 1.0
     capture_groups_target: 3
     capture_control_service: /graspnet_capture_control
-    # 推理（详见 ivg_graspnet.grasp_core.GraspNetConfig）
+    # 后端选型（backends/registry 注册名；graspnet_torch 为默认纯 torch 后端）
+    backend: graspnet_torch
+    # 推理（详见后端 config 与 postprocess.PostprocessConfig）
     device: auto                  # auto | cuda:0 | cpu
     num_point: 20000
     collision_thresh: 0.01
@@ -36,3 +38,8 @@ publish_grasps_client:
     planning_group: manipulator_e5
     base_frame: base_link
     ee_link: tcp
+    # 运动前置门（默认关=保持旧操作流程；true 须先调 ~/enable_grasp_motion）
+    require_enable: false
+    # GraspNet 家族后端输出姿态执行前需绕 approach 轴 180° 修正（对齐后端
+    # BackendInfo.approach_flip_z180）；换输出已符合末端约定的后端时置 false
+    apply_grasp_z_flip: true

@@ -1,0 +1,58 @@
+# =============================================================================
+# ivg_pose_estimation 算法配置单一事实源
+# 解析顺序（config.ConfigReader）：本文件（源码树 config/）→ ament share →
+# 旧路径 web_ui/configs/default_config.yaml（兼容回退）。
+# Web 调试面板的临时调参经 /update_params+params_json 覆盖本文件值（不落盘），
+# 「保存阈值」经 ParamsManager 写 debug_thresholds.json（优先级最高）。
+# 后端选型见 ivg_pose_estimation/pipeline/（Segmenter/Matcher 注册表）。
+# =============================================================================
+
+camera:
+  depth_scale: 0.00025        # Percipio 深度原始值 × 该系数 = 米（0.25 mm/LSB）
+
+calibration:
+  translation_unit: auto      # T_C_E 手眼平移单位裁定：mm | m | auto（数值启发式+WARN）
+
+segmenter:
+  backend: depth_band         # depth_band | rembg_u2net | mobile_sam
+  # rembg_u2net 档参数：
+  # model: u2net
+  # prefer_cuda: true
+  # mobile_sam 档参数：
+  # weights: mobile_sam.pt    # 相对包 models/ 目录或绝对路径
+  # device: auto
+
+matcher:
+  backend: geometric          # geometric | dinov2_template
+  mode: auto                  # geometric 档：auto | brute_force | distance
+  # dinov2_template 档参数：
+  # model: vit_s14
+  # top_k: 3
+
+preprocessor:
+  binary_threshold_min: 1818  # 深度带下阈（原始值；随相机距离标定）
+  binary_threshold_max: 2045  # 深度带上阈
+
+feature_extractor:
+  component_min_area: 0
+  component_max_area: 1546
+  component_min_aspect_ratio: 0.3
+  component_max_aspect_ratio: 8.9
+  component_min_width: 32
+  component_min_height: 47
+  component_max_count: 1
+
+pose_estimator:
+  brute_force_matching_enabled: false
+  brute_force_angle_step_deg: 1.0
+  brute_force_max_threads: 4
+  brute_force_rejection_threshold: 0.2
+  brute_force_acceptance_threshold: 0.7
+  brute_force_angle_matching_scale: 1.0
+
+rembg:
+  enabled: false              # Web 调试面板 use_rembg 开关的本底值
+
+ros2: {}
+template: {}
+debug: {}

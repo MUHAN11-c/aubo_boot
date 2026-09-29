@@ -78,6 +78,9 @@ class PoseEstimator:
         self.feature_extractor = feature_extractor
         self.templates = []
         self.calib_file_path = None  # 手眼标定文件路径（用于日志输出）
+        # 深度原始值→米（Percipio 0.25mm/LSB 默认；由节点从
+        # camera.depth_scale 配置注入，见 pipeline/pose_solver.py）
+        self.depth_scale = 0.00025
 
         # 暴力匹配参数（默认值，可通过set_parameters设置）
         self.brute_force_matching_enabled = False
@@ -1025,7 +1028,7 @@ class PoseEstimator:
                 int(target_center_u),
                 int(target_center_v),
                 search_radius=3,
-                depth_scale=0.00025
+                depth_scale=self.depth_scale
             )
 
         # 模板中心位置的深度：如果拍照姿态相同（T_B_C == T_B_C_template），

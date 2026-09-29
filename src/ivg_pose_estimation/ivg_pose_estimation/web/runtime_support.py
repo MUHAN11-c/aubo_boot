@@ -25,6 +25,7 @@ except ImportError:
     REMBG_AVAILABLE = False
 
 _REMBG_PROCESSOR = None
+_REMBG_SEGMENTER = None
 
 
 def get_rembg_processor():
@@ -33,6 +34,16 @@ def get_rembg_processor():
     if _REMBG_PROCESSOR is None and REMBG_AVAILABLE:
         _REMBG_PROCESSOR = RemBGProcessor(prefer_cuda=True)
     return _REMBG_PROCESSOR
+
+
+def get_rembg_segmenter():
+    """进程内 rembg_u2net 分割档单例（与 ROS 节点同一实现，见 pipeline/）."""
+    global _REMBG_SEGMENTER
+    if _REMBG_SEGMENTER is None and REMBG_AVAILABLE:
+        from ..pipeline.segmenters.rembg_u2net import RembgU2NetSegmenter
+
+        _REMBG_SEGMENTER = RembgU2NetSegmenter()
+    return _REMBG_SEGMENTER
 
 
 def quaternion_to_euler_rpy(x: float, y: float, z: float, w: float) -> list[float]:

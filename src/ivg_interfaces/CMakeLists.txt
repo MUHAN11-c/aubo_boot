@@ -9,6 +9,7 @@ find_package(ament_cmake REQUIRED)
 find_package(rosidl_default_generators REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(sensor_msgs REQUIRED)
+find_package(std_msgs REQUIRED)
 
 # 旁路估姿 IDL：仅 visual_pose_estimation_python 使用。
 rosidl_generate_interfaces(${PROJECT_NAME}
@@ -21,6 +22,7 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   DEPENDENCIES
     geometry_msgs
     sensor_msgs
+    std_msgs
 )
 
 ament_export_dependencies(rosidl_default_runtime)

@@ -8,9 +8,8 @@
 
 from __future__ import annotations
 
-from ivg_graspnet.grasp_core import (
-    GRASP_ARRAY_LEN,
-    GraspList,
+from ivg_graspnet.grasp_core import GRASP_ARRAY_LEN, GraspList
+from ivg_graspnet.postprocess import (
     ModelFreeCollisionDetector,
     voxel_down_sample,
 )

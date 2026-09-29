@@ -31,6 +31,9 @@ class AppConfig:
     """应用统一配置——YAML 文件的直接映射"""
 
     camera: Dict[str, Any] = field(default_factory=dict)
+    calibration: Dict[str, Any] = field(default_factory=dict)
+    segmenter: Dict[str, Any] = field(default_factory=dict)
+    matcher: Dict[str, Any] = field(default_factory=dict)
     ros2: Dict[str, Any] = field(default_factory=dict)
     preprocessor: Dict[str, Any] = field(default_factory=dict)
     feature_extractor: Dict[str, Any] = field(default_factory=dict)
@@ -89,18 +92,36 @@ def load_config(yaml_path: Optional[str] = None) -> AppConfig:
     global _config_instance
 
     if yaml_path is None:
+        # 解析链：包 config/pose_estimation.yaml（源码树）→ ament share →
+        # 旧路径 web_ui/configs/default_config.yaml（兼容回退）
+        pkg_root = Path(__file__).resolve().parent.parent
+        candidates = [
+            pkg_root / "config" / "pose_estimation.yaml",
+        ]
+        try:
+            from ament_index_python.packages import get_package_share_directory
+
+            candidates.append(
+                Path(get_package_share_directory("ivg_pose_estimation"))
+                / "config" / "pose_estimation.yaml"
+            )
+        except Exception:  # noqa: BLE001 - 无 ament 环境（纯 pytest）时跳过
+            pass
         web_paths = resolve_web_paths()
-        yaml_path = str(web_paths.configs_dir / "default_config.yaml")
-        if not Path(yaml_path).exists():
-            # 回退：尝试包源码目录
-            this_dir = Path(__file__).resolve().parent
-            alt = this_dir / "web_ui" / "configs" / "default_config.yaml"
-            if alt.exists():
-                yaml_path = str(alt)
+        candidates.append(web_paths.configs_dir / "default_config.yaml")
+        for candidate in candidates:
+            if candidate.exists():
+                yaml_path = str(candidate)
+                break
+        if yaml_path is None:
+            yaml_path = str(candidates[0])
 
     cfg = _load_yaml_file(yaml_path)
     _config_instance = AppConfig(
         camera=cfg.get("camera", {}),
+        calibration=cfg.get("calibration", {}),
+        segmenter=cfg.get("segmenter", {}),
+        matcher=cfg.get("matcher", {}),
         ros2=cfg.get("ros2", {}),
         preprocessor=cfg.get("preprocessor", {}),
         feature_extractor=cfg.get("feature_extractor", {}),
@@ -135,6 +156,36 @@ def update_section(section: str, params: Dict[str, Any]) -> None:
         target.update(params)
     else:
         _logger.warning(f"未知的配置段: {section}")
+
+
+# 连通域筛选键同时属于 preprocessor 与 feature_extractor 两段
+_FEATURE_KEYS = {
+    "component_min_area",
+    "component_max_area",
+    "component_min_aspect_ratio",
+    "component_max_aspect_ratio",
+    "component_min_width",
+    "component_min_height",
+}
+
+
+def apply_debug_param(key: str, value: Any) -> list:
+    """
+    把单个调试键路由到所属配置段并应用（节点 /update_params 与
+    Web debug_update_params 共用，修历史 bug：所有键曾一律写入 preprocessor）.
+    
+    Returns:
+        实际应用的段名列表。
+    """
+    if key == "use_rembg":
+        update_section("rembg", {"enabled": bool(value)})
+        return ["rembg"]
+    sections = ["preprocessor"]
+    if key in _FEATURE_KEYS:
+        sections.append("feature_extractor")
+    for section in sections:
+        update_section(section, {key: value})
+    return sections
 
 
 def _load_yaml_file(path: str) -> Dict[str, Any]:

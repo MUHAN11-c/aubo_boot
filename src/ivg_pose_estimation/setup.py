@@ -41,6 +41,7 @@ setup(
                 glob("web_ui/*.html") + glob("web_ui/*.md"),
             ),
         ]
+        + package_files("config", ["*.yaml"])
         + package_files("web_ui/configs", ["*.json", "*.yaml", "*.xml", "*.md"])
         + package_files("web_ui/scripts", ["*.js"])
         + package_files("web_ui/static", ["*.html", "*.css", "*.js"])

@@ -34,8 +34,8 @@ def generate_launch_description():
 
     port_arg = DeclareLaunchArgument(
         "port",
-        default_value="8088",
-        description="FastAPI bind port",
+        default_value="8089",
+        description="FastAPI bind port（8089：与 aubo_hand_eye_calibration 网关 8088 错开）",
     )
 
     reload_arg = DeclareLaunchArgument(

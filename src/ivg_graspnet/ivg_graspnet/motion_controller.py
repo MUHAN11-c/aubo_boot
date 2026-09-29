@@ -80,6 +80,19 @@ class GraspMotionController(Node):
         self._tf_listener = TransformListener(self._tf_buffer, self)
 
     # ------------------------------------------------------------------
+    def _cancel_goal(self, goal_handle, tag: str) -> None:
+        """超时后向服务端发取消并短窗确认（防客户端已判败、臂仍在执行）."""
+        logger = self.get_logger()
+        try:
+            cancel_future = goal_handle.cancel_goal_async()
+        except Exception as e:  # noqa: BLE001 - 取消失败不能盖过原超时错误
+            logger.error(f'{tag}: 发送取消失败: {e}')
+            return
+        if wait_future(cancel_future, timeout_sec=2.0) is None:
+            logger.warn(f'{tag}: 超时后已发取消，但 2 s 内未获服务端确认，goal 可能仍在执行')
+        else:
+            logger.warn(f'{tag}: 超时后已取消 goal（服务端确认）')
+
     def move_to_pose(
         self,
         target_pose: Pose,
@@ -129,6 +142,7 @@ class GraspMotionController(Node):
         result = wait_future(goal_handle.get_result_async(), timeout_sec=60.0)
         if result is None:
             logger.error('MoveGroup 执行超时 (60 s)')
+            self._cancel_goal(goal_handle, 'MoveGroup')
             return False
         if result.result.error_code.val != 1:
             logger.error(f'关节空间到位姿失败: error_code={result.result.error_code.val}')
@@ -143,14 +157,19 @@ class GraspMotionController(Node):
         height_above: float = 0.05,
         velocity_scaling: float = 0.15,
         acceleration_scaling: float = 0.1,
+        apply_z_flip: bool = True,
     ) -> bool:
         """
         抓取接近：当前 → 目标XY+安全高度（保持姿态）→ 切换抓取姿态 → Z 下降.
 
-        笛卡尔规划前对 GraspNet 姿态做局部 Z 轴 180° 修正；回退关节空间时撤销。
+        apply_z_flip=True 时先做局部 Z 轴 180° 修正——这是 GraspNet 家族后端
+        的约定补丁（后端 BackendInfo.approach_flip_z180=true）；输出已符合末端
+        约定的后端传 False。回退关节空间时撤销已做的翻转。
         """
         logger = self.get_logger()
-        pose_for_plan = _apply_grasp_z_flip_180(pose_ee)
+        pose_for_plan = (
+            _apply_grasp_z_flip_180(pose_ee) if apply_z_flip else _copy_pose_msg(pose_ee)
+        )
         current_pose = self._get_current_ee_pose()
         gx, gy, gz = pose_for_plan.position.x, pose_for_plan.position.y, pose_for_plan.position.z
         z_above = gz + height_above
@@ -192,7 +211,9 @@ class GraspMotionController(Node):
                 f'笛卡尔路径未达 100%, fraction={resp.fraction:.2f}；'
                 f'截断发生在第 {segment_idx + 1} 段: {segment_descriptions[segment_idx]}'
             )
-            target_pose = _pose_unflip_if_needed(p3)
+            target_pose = (
+                _pose_unflip_if_needed(p3) if apply_z_flip else _copy_pose_msg(p3)
+            )
             return self.move_to_pose(
                 target_pose,
                 velocity_scaling=velocity_scaling,
@@ -207,7 +228,9 @@ class GraspMotionController(Node):
                 f'笛卡尔轨迹点数过多 ({num_points} > {CARTESIAN_MAX_POINTS_FOR_EXECUTION})，'
                 '改用关节空间到位姿目标'
             )
-            target_pose = _pose_unflip_if_needed(p3)
+            target_pose = (
+                _pose_unflip_if_needed(p3) if apply_z_flip else _copy_pose_msg(p3)
+            )
             return self.move_to_pose(
                 target_pose,
                 velocity_scaling=velocity_scaling,
@@ -297,6 +320,7 @@ class GraspMotionController(Node):
         result = wait_future(goal_handle.get_result_async(), timeout_sec=60.0)
         if result is None:
             logger.error('ExecuteTrajectory 执行超时 (60 s)')
+            self._cancel_goal(goal_handle, 'ExecuteTrajectory')
             return False
         if result.result.error_code.val != 1:
             logger.error(f'ExecuteTrajectory 失败: error_code={result.result.error_code.val}')
@@ -335,6 +359,19 @@ def _quat_same_hemisphere(q_ref, q):
 def _quat_mul(q1, q2):
     """四元数乘法 q1 * q2（局部系下施加 q2），(qx,qy,qz,qw)."""
     return tuple((Rotation.from_quat(q1) * Rotation.from_quat(q2)).as_quat())
+
+
+def _copy_pose_msg(pose: Pose) -> Pose:
+    """Pose 深拷贝（位置 + 姿态）."""
+    out = Pose()
+    out.position.x = pose.position.x
+    out.position.y = pose.position.y
+    out.position.z = pose.position.z
+    out.orientation.x = pose.orientation.x
+    out.orientation.y = pose.orientation.y
+    out.orientation.z = pose.orientation.z
+    out.orientation.w = pose.orientation.w
+    return out
 
 
 def _apply_grasp_z_flip_180(pose: Pose) -> Pose:

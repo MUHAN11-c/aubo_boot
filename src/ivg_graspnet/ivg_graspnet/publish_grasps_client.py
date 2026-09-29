@@ -25,6 +25,7 @@ import numpy as np
 import rclpy
 from rclpy.executors import MultiThreadedExecutor
 from scipy.spatial.transform import Rotation as R
+from std_srvs.srv import SetBool
 
 
 class PublishGraspsClient(GraspMotionController):
@@ -42,6 +43,13 @@ class PublishGraspsClient(GraspMotionController):
         self.declare_parameter('wait_poses_timeout_sec', 30.0)
         self.declare_parameter('grasp_window_size', 5)
         self.declare_parameter('min_groups_before_pick', 3)
+        # 运动前置门（OSU apple-harvest enable_* 模式，自包含无 peach 依赖）：
+        # require_enable=true 时须先调 ~/enable_grasp_motion (SetBool) 置 true
+        # 才会下发运动 goal；默认 false 保持旧操作流程。
+        self.declare_parameter('require_enable', False)
+        # 执行前是否绕 approach 轴 180° 修正（GraspNet 家族后端=true；对齐
+        # 后端 BackendInfo.approach_flip_z180）
+        self.declare_parameter('apply_grasp_z_flip', True)
 
         self.prefer_vertical = bool(self.get_parameter('prefer_vertical').value)
         self.grasp_z_offset = float(self.get_parameter('grasp_z_offset').value)
@@ -60,11 +68,31 @@ class PublishGraspsClient(GraspMotionController):
         self.min_groups_before_pick = int(
             self.get_parameter('min_groups_before_pick').value
         )
+        self.require_enable = bool(self.get_parameter('require_enable').value)
+        self.apply_grasp_z_flip = bool(self.get_parameter('apply_grasp_z_flip').value)
+
+        self._motion_enabled = not self.require_enable
+        if self.require_enable:
+            self.create_service(
+                SetBool, '~/enable_grasp_motion', self._enable_grasp_motion_callback
+            )
+            self.get_logger().info(
+                '运动使能门已开启：先调 ~/enable_grasp_motion (SetBool true) 才会执行'
+            )
 
         self._latest_grasp_poses: Optional[PoseArray] = None
         self._grasp_groups_window: deque = deque(maxlen=self.grasp_window_size)
         self.create_subscription(PoseArray, self.grasp_poses_topic, self._grasp_poses_callback, 10)
         self.get_logger().info(f'订阅抓取位姿话题: {self.grasp_poses_topic}')
+
+    def _enable_grasp_motion_callback(
+        self, request: SetBool.Request, response: SetBool.Response
+    ):
+        self._motion_enabled = bool(request.data)
+        response.success = True
+        response.message = f'抓取运动使能: {self._motion_enabled}'
+        self.get_logger().info(response.message)
+        return response
 
     def _grasp_poses_callback(self, msg: PoseArray):
         if len(msg.poses) == 0:
@@ -138,6 +166,12 @@ class PublishGraspsClient(GraspMotionController):
 
     def run(self) -> bool:
         """等待窗口 → 选优 → TCP 补偿 → 抓取接近运动."""
+        if self.require_enable and not self._motion_enabled:
+            self.get_logger().error(
+                '运动使能门未开：先调 ~/enable_grasp_motion (SetBool true) 再执行'
+            )
+            return False
+
         self.get_logger().info('步骤 1: 等待抓取位姿窗口')
         if not self.wait_for_grasp_window_ready():
             return False
@@ -170,6 +204,7 @@ class PublishGraspsClient(GraspMotionController):
             height_above=self.height_above,
             velocity_scaling=self.joint_velocity_scaling,
             acceleration_scaling=self.joint_acceleration_scaling,
+            apply_z_flip=self.apply_grasp_z_flip,
         ):
             return False
 

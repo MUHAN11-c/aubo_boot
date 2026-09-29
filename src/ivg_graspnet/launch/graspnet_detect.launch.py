@@ -37,6 +37,10 @@ def generate_launch_description():
             description='GraspNet 权重路径',
         ),
         DeclareLaunchArgument(
+            'backend', default_value='graspnet_torch',
+            description='抓取检测后端（backends 注册名，如 graspnet_torch）',
+        ),
+        DeclareLaunchArgument(
             'workspace', default_value='',
             description="工作区盒 'xmin,xmax,ymin,ymax,zmin,zmax'（点云系，米），空=不过滤",
         ),
@@ -49,6 +53,7 @@ def generate_launch_description():
         output='screen',
         parameters=[os.path.join(pkg_share, 'config', 'graspnet.yaml'), {
             'model_path': LaunchConfiguration('model_path'),
+            'backend': LaunchConfiguration('backend'),
             'workspace': LaunchConfiguration('workspace'),
         }],
     )

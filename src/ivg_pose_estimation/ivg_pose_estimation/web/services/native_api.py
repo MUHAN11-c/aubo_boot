@@ -11,13 +11,12 @@ from pathlib import Path
 from typing import Any
 
 import cv2
-import numpy as np
 from fastapi import HTTPException
 
 from ivg_pose_estimation.debug_visualizer import DebugVisualizer
 
 from ..ros_bridge import RosBridgeManager
-from ..runtime_support import CAMERA_POSE_FIXED_ORIENTATION, REMBG_AVAILABLE, get_rembg_processor, normalize_pose_rotation
+from ..runtime_support import CAMERA_POSE_FIXED_ORIENTATION, REMBG_AVAILABLE, normalize_pose_rotation
 
 
 LOGGER = logging.getLogger(__name__)
@@ -435,35 +434,29 @@ class NativeWebService:
         use_rembg = bool(params.get("use_rembg", False)) and params.get("use_rembg") != 0
         if use_rembg and REMBG_AVAILABLE and preprocessed_color is not None:
             try:
-                processor = get_rembg_processor()
-                if processor is not None:
-                    bbox = None
+                # 与 ROS 节点同一分割档实现（pipeline/segmenters/rembg_u2net），
+                # 消除 Web 进程的第二套 bbox+rembg 逻辑
+                from types import SimpleNamespace
+
+                from ..runtime_support import get_rembg_segmenter
+
+                segmenter = get_rembg_segmenter()
+                if segmenter is not None:
+                    feature_hint = None
                     if features:
                         wp_center = features[0].get("workpiece_center")
                         wp_radius = features[0].get("workpiece_radius")
                         if wp_center and wp_radius:
-                            cx, cy = wp_center
-                            radius = wp_radius
-                            bbox = (
-                                int(round(cx - radius)),
-                                int(round(cy - radius)),
-                                int(round(radius * 2)),
-                                int(round(radius * 2)),
+                            feature_hint = SimpleNamespace(
+                                workpiece_center=wp_center,
+                                workpiece_radius=wp_radius,
                             )
-                    if bbox is None and components:
-                        ys, xs = np.where(components[0] > 0)
-                        if ys.size and xs.size:
-                            x0 = int(xs.min())
-                            x1 = int(xs.max())
-                            y0 = int(ys.min())
-                            y1 = int(ys.max())
-                            bbox = (x0, y0, x1 - x0 + 1, y1 - y0 + 1)
-                    if bbox is not None:
-                        rembg_mask, rembg_cutout = processor.process_roi(color_image, bbox)
-                        if rembg_cutout is not None:
-                            preprocessed_color = rembg_cutout
-                            if rembg_mask is not None and len(components) > 0:
-                                components[0] = rembg_mask
+                    component_hint = components[0] if components else None
+                    refine = segmenter.refine(color_image, component_hint, feature=feature_hint)
+                    if refine.cutout is not None:
+                        preprocessed_color = refine.cutout
+                        if refine.mask is not None and len(components) > 0:
+                            components[0] = refine.mask
             except Exception:
                 LOGGER.exception("Rembg处理失败")
 
@@ -521,15 +514,10 @@ class NativeWebService:
             "use_rembg": "use_rembg",
         }
         target_key = key_map.get(normalized_key, normalized_key)
-        # 1. 更新 web 进程内 config 单例 (debug_get_images 即时生效)
-        from ivg_pose_estimation.config import update_section
-        update_section("preprocessor", {target_key: value})
-        if target_key in ("component_min_area", "component_max_area",
-                          "component_min_aspect_ratio", "component_max_aspect_ratio",
-                          "component_min_width", "component_min_height"):
-            update_section("feature_extractor", {target_key: value})
-        if target_key == "use_rembg":
-            update_section("rembg", {"enabled": value})
+        # 1. 更新 web 进程内 config 单例 (debug_get_images 即时生效)；
+        #    路由逻辑与 ROS 节点 /update_params 共用（config.apply_debug_param）
+        from ivg_pose_estimation.config import apply_debug_param
+        apply_debug_param(target_key, value)
         # 2. 保存到磁盘 (持久化)
         node.params_manager.update(target_key, value)
         node.params_manager.save()

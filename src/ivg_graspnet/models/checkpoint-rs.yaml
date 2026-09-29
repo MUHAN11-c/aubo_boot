@@ -1,0 +1,14 @@
+# checkpoint manifest：与本 .tar 权重耦合的网络结构超参单一事实源。
+# 后端 graspnet_torch 加载权重时自动发现同名 .yaml 并以本清单覆盖默认值
+# ——换 checkpoint 只换（权重 + manifest），零改代码。
+backend: graspnet_torch
+num_point: 20000        # 前向固定输入点数
+num_view: 300           # ApproachNet 视角数
+num_angle: 12           # OperationNet 角度bin数
+num_depth: 4            # 深度bin数
+cylinder_radius: 0.05   # CloudCrop 圆柱半径（米）
+hmin: -0.02             # 圆柱裁剪下界（米）
+hmax_list: [0.01, 0.02, 0.03, 0.04]  # 各深度档上界（米）
+# 说明：pred_decode 的解码常数（深度步距 0.01 m、指高 0.02 m、开口×1.2）
+# 内嵌于 vendored graspnet_lib/graspnet_lib.py，随本权重族固定；
+# 不同解码约定的权重族应做成独立后端而非改本清单。

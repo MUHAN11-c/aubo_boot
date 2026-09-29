@@ -10,12 +10,13 @@ from __future__ import annotations
 import argparse
 import logging
 import os
+import secrets
 from contextlib import asynccontextmanager
 
 import uvicorn
 from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from starlette.types import ASGIApp, Receive, Scope, Send
 
 from ..path_resolver import resolve_web_paths
 from .ros_bridge import RosBridgeManager
@@ -24,12 +25,54 @@ from .services import NativeWebService
 
 LOGGER = logging.getLogger(__name__)
 
+AUTH_COOKIE = "vpe_auth"
+
+
+class AuthCookieMiddleware:
+    """
+    给每个响应种 SameSite=Strict 会话 cookie（写端点守卫的凭证）.
+
+    UI 与 API 同源，浏览器自动携带 cookie；SameSite=Strict 阻断跨站
+    CSRF（攻击页无法为我们的源种/带此 cookie）。curl 等本地客户端改用
+    启动日志打印的 X-Auth-Token 头。
+    """
+
+    def __init__(self, app: ASGIApp, token: str) -> None:
+        self.app = app
+        self.token = token
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+
+        async def send_with_cookie(message):
+            if message["type"] == "http.response.start":
+                headers = message.setdefault("headers", [])
+                headers.append(
+                    (
+                        b"set-cookie",
+                        f"{AUTH_COOKIE}={self.token}; Path=/; SameSite=Strict".encode(),
+                    )
+                )
+            await send(message)
+
+        await self.app(scope, receive, send_with_cookie)
+
 
 def create_app() -> FastAPI:
     """构建应用实例（Uvicorn factory 模式）；每次调用返回新实例."""
     paths = resolve_web_paths()
     ros_bridge = RosBridgeManager(paths)
     native_service = NativeWebService(ros_bridge)
+
+    # 写端点守卫 token：环境变量覆盖（操作员固定口令），否则每次启动随机
+    auth_token = os.environ.get("VPE_WEB_TOKEN") or secrets.token_urlsafe(24)
+    LOGGER.info(
+        "Web 写端点 token：%s（curl 用 -H 'X-Auth-Token: <token>'；"
+        "同源 UI 走 vpe_auth cookie 免填；可用环境变量 VPE_WEB_TOKEN 固定）",
+        auth_token,
+    )
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
@@ -48,15 +91,11 @@ def create_app() -> FastAPI:
     app.state.paths = paths
     app.state.ros_bridge = ros_bridge
     app.state.native_service = native_service
+    app.state.auth_token = auth_token
+    app.add_middleware(AuthCookieMiddleware, token=auth_token)
 
-    # 浏览器直连或跨端口调试时允许跨域（通配源与 credentials 互斥，现场部署可按需收紧 allow_origins）
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=["*"],
-        allow_credentials=False,
-        allow_methods=["*"],
-        allow_headers=["*"],
-    )
+    # UI 与 API 同源，不开跨域（历史通配 CORS 已移除：跨站页可发匿名
+    # POST 打挂 /exit 与调试写端点；写端点现由 token 守卫兜底）
 
     if paths.static_dir.exists():
         app.mount("/static", StaticFiles(directory=str(paths.static_dir)), name="static")
@@ -76,7 +115,8 @@ def create_app() -> FastAPI:
 def main() -> None:
     parser = argparse.ArgumentParser(description="Run the FastAPI web service")
     parser.add_argument("--host", default="127.0.0.1", help="Bind host")
-    parser.add_argument("--port", type=int, default=8088, help="Bind port")
+    # 8089：与 aubo_hand_eye_calibration 网关（8088）错开，两者可同时运行
+    parser.add_argument("--port", type=int, default=8089, help="Bind port")
     parser.add_argument("--reload", action="store_true", help="Enable auto reload")
     args, _unknown_args = parser.parse_known_args()
     os.environ["VPE_WEB_HOST"] = args.host

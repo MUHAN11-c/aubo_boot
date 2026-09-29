@@ -36,7 +36,6 @@ from .feature_extractor import FeatureExtractor, ComponentFeature
 from .template_standardizer import TemplateStandardizer
 from .config import ConfigReader
 from .pose_estimator import PoseEstimator, TemplateItem
-from .rembg_processor import RemBGProcessor
 from scipy.spatial.transform import Rotation
 from .path_resolver import (
     resolve_camera_intrinsics_candidates,
@@ -67,9 +66,8 @@ class ROS2Communication:
         self.template_standardizer = None
         self.config_reader = None
         self.pose_estimator = None
-        self.rembg_processor = None
-        self._rembg_mask_cache: Dict[int, np.ndarray] = {}
-        self._rembg_cutout_cache: Dict[int, np.ndarray] = {}
+        self.pipeline = None  # PosePipeline（segmenter/matcher 分段门面）
+        self._last_capture_stamp = None  # 最近一次请求实际采用的图像采集时刻
 
         # 配置
         self.template_root = ""
@@ -96,6 +94,8 @@ class ROS2Communication:
         self.current_depth_image = None  # 当前深度图
         self.color_image_timestamp = 0.0  # 彩色图接收时间戳
         self.depth_image_timestamp = 0.0  # 深度图接收时间戳
+        self.depth_image_stamp = None     # 深度图 header.stamp（TF 同步查询用）
+        self.color_image_stamp = None     # 彩色图 header.stamp
         self.image_lock = threading.Lock()
         self._sw_trigger_pub = None
         self._tf_buffer = None
@@ -151,6 +151,16 @@ class ROS2Communication:
             # 设置姿态估计器参数（包括暴力匹配参数）
             pose_estimator_params = config_reader.get_section('pose_estimator')
             self.pose_estimator.set_parameters(pose_estimator_params)
+
+            # 深度单位单源：camera.depth_scale（Percipio 0.00025 默认），
+            # 禁止算法层散落硬编码（见 pipeline/pose_solver.py）
+            from .pipeline import PosePipeline
+            self.pose_estimator.depth_scale = PosePipeline.depth_scale(config_reader)
+
+            # 分段流水线（segmenter/matcher 按配置选型；替换旧的
+            # rembg 缓存 + brute_force 属性直捣）
+            self.pipeline = PosePipeline.from_config(config_reader, self.pose_estimator)
+            self.logger.info(f'流水线后端: {self.pipeline.describe()}')
 
             # 加载手眼标定（优先使用指定的calib_file，否则尝试从标准位置加载）
             calib_loaded = False
@@ -439,6 +449,7 @@ class ROS2Communication:
             with self.image_lock:
                 self.current_depth_image = cv_image
                 self.depth_image_timestamp = time.time()
+                self.depth_image_stamp = msg.header.stamp
 
         except Exception as e:
             self.logger.error(f'深度图回调失败: {e}')
@@ -458,6 +469,7 @@ class ROS2Communication:
                 with self.image_lock:
                     self.current_color_image = image
                     self.color_image_timestamp = time.time()
+                    self.color_image_stamp = msg.header.stamp
             else:
                 self.logger.warning('⚠️ 彩色图转换结果为None')
 
@@ -550,13 +562,31 @@ class ROS2Communication:
             if T_C_E_data:
                 T_C_E = np.array(T_C_E_data, dtype=np.float64).reshape(4, 4)
 
-                # 统一单位为米：
-                # 手眼标定文件中的translation_vector单位通常是毫米（mm）
-                # 而机器人姿态JSON中的位置单位是米（m），需要统一为米
-                # 检查平移向量的数值范围来判断单位
+                # 单位裁定优先级：标定文件显式 translation_unit/unit 键
+                # > 配置 calibration.translation_unit（mm|m|auto）> 数值范围启发式。
+                # 本区 aubo_hand_eye_calibration/active.yaml 走 transforms 分支（米），
+                # 这里只处理 T_C_E/T_E_C 风格文件。
+                explicit_unit = (
+                    calib_data.get('translation_unit') or calib_data.get('unit')
+                )
+                cfg_unit = 'auto'
+                if self.config_reader is not None:
+                    cfg_unit = str(
+                        self.config_reader.get_section('calibration').get(
+                            'translation_unit', 'auto'
+                        )
+                    )
+                unit = explicit_unit if explicit_unit in ('mm', 'm') else (
+                    cfg_unit if cfg_unit in ('mm', 'm') else None
+                )
                 translation_norm = np.linalg.norm(T_C_E[:3, 3])
-                if translation_norm > 100:  # 如果平移向量模长>100，很可能是毫米单位
-                    # 将平移向量从毫米转换为米（除以1000）
+                if unit == 'mm' or (unit is None and translation_norm > 100):
+                    if unit is None:
+                        self.logger.warning(
+                            f'T_C_E 平移模长 {translation_norm:.1f} 疑似毫米单位（启发式裁定）；'
+                            '建议标定文件加 translation_unit: mm|m 或配置 '
+                            'calibration.translation_unit 显式声明'
+                        )
                     T_C_E[:3, 3] = T_C_E[:3, 3] / 1000.0
 
                 self.T_E_C = np.linalg.inv(T_C_E)
@@ -702,16 +732,25 @@ class ROS2Communication:
             self.logger.warning(f'从JSON加载姿态失败: {e}')
             return None
 
-    def _lookup_tf_matrix(self, parent: str, child: str, timeout_sec: float = 0.5) -> Optional[np.ndarray]:
-        """查 parent←child 的 4x4（米）；失败返回 None."""
+    def _lookup_tf_matrix(
+        self,
+        parent: str,
+        child: str,
+        timeout_sec: float = 0.5,
+        stamp=None,
+    ) -> Optional[np.ndarray]:
+        """
+        查 parent←child 的 4x4（米）；失败返回 None.
+
+        给 stamp 时按该时刻查询（图像-TF 同步）；查不到回退 latest 并打 WARN
+        （静默用 latest 会把旧外参叠到新帧上）。
+        """
         if self._tf_buffer is None or not parent or not child:
             return None
-        try:
-            tf = self._tf_buffer.lookup_transform(
-                parent, child, rclpy.time.Time(), timeout=Duration(seconds=timeout_sec)
-            )
-            t = tf.transform.translation
-            r = tf.transform.rotation
+
+        def _to_matrix(tf_msg) -> np.ndarray:
+            t = tf_msg.transform.translation
+            r = tf_msg.transform.rotation
             T = np.eye(4, dtype=np.float64)
             T[0, 3] = float(t.x)
             T[1, 3] = float(t.y)
@@ -720,6 +759,22 @@ class ROS2Communication:
                 [float(r.x), float(r.y), float(r.z), float(r.w)]
             ).as_matrix()
             return T
+
+        if stamp is not None:
+            try:
+                tf = self._tf_buffer.lookup_transform(
+                    parent, child, stamp, timeout=Duration(seconds=timeout_sec)
+                )
+                return _to_matrix(tf)
+            except Exception as e:
+                self.logger.warn(
+                    f'TF {parent} <- {child} @stamp 查询失败，回退 latest: {e}'
+                )
+        try:
+            tf = self._tf_buffer.lookup_transform(
+                parent, child, rclpy.time.Time(), timeout=Duration(seconds=timeout_sec)
+            )
+            return _to_matrix(tf)
         except Exception as e:
             self.logger.debug(f'TF {parent} <- {child} 失败: {e}')
             return None
@@ -762,12 +817,17 @@ class ROS2Communication:
         start_time = time.time()
 
         try:
-            self._rembg_mask_cache.clear()
-            self._rembg_cutout_cache.clear()
+            self.pipeline.begin_request()
             self.logger.info(f'姿态估计请求: 工件ID={request.object_id}')
 
             # 1. 获取深度图和彩色图
             depth_image, color_image = self._get_images_from_request(request)
+
+            # 响应 Header：stamp=实际采用的采集时刻，frame=输出参考系（IDL 契约）
+            response.header.stamp = self._last_capture_stamp or self.node.get_clock().now().to_msg()
+            response.header.frame_id = str(
+                self.node.get_parameter('base_frame').value or 'base_link'
+            )
 
             # 1.2 验证图像完整性
             if not self._validate_images(depth_image, color_image, response):
@@ -838,8 +898,7 @@ class ROS2Communication:
         区别仅在于：输入仅需RGB图（深度从缓存取），输出仅填2D字段。
         """
         try:
-            self._rembg_mask_cache.clear()
-            self._rembg_cutout_cache.clear()
+            self.pipeline.begin_request()
             self.logger.info(f'2D姿态估计请求: 工件ID={request.object_id}')
 
             # 1. 获取图像 —— 与 /estimate_pose 对应，仅RGB从请求取，深度从缓存取
@@ -1008,45 +1067,6 @@ class ROS2Communication:
         value = params.get("use_rembg", False)
         return bool(value) and value != 0
 
-    def _get_rembg_processor(self):
-        """获取 RemBG 处理器（进程内；venv 已装 rembg/onnxruntime，无子进程回退）."""
-        if self.rembg_processor is not None:
-            return self.rembg_processor
-
-        import onnxruntime  # type: ignore  # noqa: F401
-        import rembg  # type: ignore  # noqa: F401
-
-        self.rembg_processor = RemBGProcessor(prefer_cuda=True)
-        return self.rembg_processor
-
-    def _resolve_rembg_bbox(
-        self,
-        feature: Optional[ComponentFeature],
-        component_mask: Optional[np.ndarray],
-        image_shape: Tuple[int, int]
-    ) -> Optional[Tuple[int, int, int, int]]:
-        if feature and feature.workpiece_center and feature.workpiece_radius > 0:
-            cx, cy = feature.workpiece_center
-            radius = feature.workpiece_radius
-            x = int(round(cx - radius))
-            y = int(round(cy - radius))
-            w = int(round(radius * 2))
-            h = int(round(radius * 2))
-            return (x, y, w, h)
-
-        if component_mask is None or component_mask.size == 0:
-            return None
-
-        ys, xs = np.where(component_mask > 0)
-        if ys.size == 0 or xs.size == 0:
-            return None
-
-        x0 = int(xs.min())
-        x1 = int(xs.max())
-        y0 = int(ys.min())
-        y1 = int(ys.max())
-        return (x0, y0, x1 - x0 + 1, y1 - y0 + 1)
-
     def _get_rembg_outputs(
         self,
         idx: int,
@@ -1054,30 +1074,23 @@ class ROS2Communication:
         feature: Optional[ComponentFeature] = None,
         component_mask: Optional[np.ndarray] = None
     ) -> Tuple[Optional[np.ndarray], Optional[np.ndarray]]:
-        if idx in self._rembg_mask_cache and idx in self._rembg_cutout_cache:
-            return self._rembg_mask_cache[idx], self._rembg_cutout_cache[idx]
+        """
+        经流水线 rembg_u2net 分割档取 (mask, cutout)；不可用优雅降级 (None, None).
 
-        bbox = self._resolve_rembg_bbox(
-            feature,
-            component_mask,
-            color_image.shape[:2]
+        供 estimate_pose 与模板标准化流程共用；缓存语义在分割档内（按 idx）。
+        """
+        if self.pipeline is None:
+            return None, None
+        segmenter = self.pipeline.select_segmenter(use_rembg=True)
+        result = segmenter.refine(
+            color_image, component_mask, feature=feature, key=idx
         )
-        if bbox is None:
-            return None, None
-
-        processor = self._get_rembg_processor()
-        mask, cutout = processor.process_roi(color_image, bbox)
-        if mask is None or cutout is None:
-            return None, None
-
-        self._rembg_mask_cache[idx] = mask
-        self._rembg_cutout_cache[idx] = cutout
-        return mask, cutout
+        return result.mask, result.cutout
 
     def _clear_rembg_cache(self) -> None:
         """清空 RemBG 结果缓存，避免跨模板 / 跨姿态复用错误的掩模."""
-        self._rembg_mask_cache.clear()
-        self._rembg_cutout_cache.clear()
+        if self.pipeline is not None:
+            self.pipeline.begin_request()
 
     def _preprocess_images(
         self,
@@ -1277,33 +1290,30 @@ class ROS2Communication:
             目标掩膜，如果获取失败则返回None
         """
         target_mask = None
-        use_rembg = self._should_use_rembg()
-        if use_rembg:
-            rembg_mask, rembg_cutout = self._get_rembg_outputs(
-                idx,
-                color_image,
-                feature=feature,
-                component_mask=components[idx] if idx < len(components) else None
-            )
-            if rembg_mask is not None:
-                target_mask = rembg_mask
-                feature.component_mask = rembg_mask
-                if rembg_cutout is not None:
-                    feature.color_image = rembg_cutout
-        if target_mask is None and idx < len(components):
-            target_mask = components[idx].copy()
-            original_mask_shape = target_mask.shape[:2]
-            self.logger.info(f'    [5.{idx+1}.0] 获取目标掩膜 - 原始尺寸: {original_mask_shape[1]}x{original_mask_shape[0]}')
-
-            # 确保目标掩膜与输入图像尺寸一致
-            if target_mask.shape[:2] != color_image.shape[:2]:
-                target_mask = cv2.resize(target_mask, (color_image.shape[1], color_image.shape[0]))
-                self.logger.info(f'      掩膜尺寸调整: {original_mask_shape[1]}x{original_mask_shape[0]} -> {color_image.shape[1]}x{color_image.shape[0]}')
-            else:
-                self.logger.info(f'      掩膜尺寸与图像一致，无需调整')
+        segmenter = self.pipeline.select_segmenter(use_rembg=self._should_use_rembg())
+        component_mask = components[idx] if idx < len(components) else None
+        result = segmenter.refine(
+            color_image, component_mask, feature=feature, key=idx
+        )
+        if result.mask is not None:
+            target_mask = result.mask
+            feature.component_mask = result.mask
+            if result.cutout is not None:
+                feature.color_image = result.cutout
+        elif component_mask is not None:
+            target_mask = component_mask.copy()
         else:
             self.logger.warning(f'    [5.{idx+1}.0] 目标掩膜获取失败 - 索引 {idx} 超出组件列表范围 (共 {len(components)} 个组件)')
+            return None
 
+        # 尺寸归一（分割档输出应为全图尺寸；连通域掩膜兜底时需对齐）
+        if target_mask.shape[:2] != color_image.shape[:2]:
+            original_shape = target_mask.shape[:2]
+            target_mask = cv2.resize(target_mask, (color_image.shape[1], color_image.shape[0]))
+            self.logger.info(
+                f'    [5.{idx+1}.0] 掩膜尺寸调整: '
+                f'{original_shape[1]}x{original_shape[0]} -> {color_image.shape[1]}x{color_image.shape[0]}'
+            )
         return target_mask
 
     def _match_template(
@@ -1329,32 +1339,37 @@ class ROS2Communication:
         workpiece_template_dir = str(Path(self.template_root) / object_id)
         self.logger.info(f'      模板目录: {workpiece_template_dir}')
         self.logger.info(f'      目标掩膜: {"提供" if target_mask is not None else "未提供"}')
-        self.logger.info(f'      暴力匹配: {"启用" if self.pose_estimator.brute_force_matching_enabled else "禁用"}')
+        self.logger.info(f'      匹配档: {self.pipeline.matcher.mode_label}')
 
         match_start = time.time()
-        result_tuple = self.pose_estimator.select_best_template(
+        outcome = self.pipeline.matcher.match(
             feature,
             target_mask=target_mask,
-            workpiece_template_dir=workpiece_template_dir
+            templates=self.pose_estimator.templates,
+            workpiece_template_dir=workpiece_template_dir,
         )
         match_time = time.time() - match_start
 
-        best_idx, distance, confidence, best_angle_deg, best_aligned_mask = result_tuple
-
-        if best_idx < 0:
+        if outcome.best_idx < 0:
             self.logger.warning(f'    ✗ 特征 {idx} 未找到匹配模板')
             return None
 
-        best_template = self.pose_estimator.templates[best_idx]
+        best_template = self.pose_estimator.templates[outcome.best_idx]
         self.logger.info(f'    ✓ 模板匹配完成，耗时: {match_time:.3f}秒')
 
         # 记录匹配信息
-        if self.pose_estimator.brute_force_matching_enabled and confidence is not None:
-            self.logger.info(f'模板匹配: 模板={best_template.id}, 置信度={confidence:.4f}, 角度={best_angle_deg:.2f}°')
+        if outcome.confidence is not None:
+            self.logger.info(
+                f'模板匹配: 模板={best_template.id}, 置信度={outcome.confidence:.4f}, '
+                f'角度={outcome.best_angle_deg:.2f}°'
+            )
         else:
-            self.logger.info(f'模板匹配: 模板={best_template.id}, 距离={distance:.4f}')
+            self.logger.info(f'模板匹配: 模板={best_template.id}, 距离={outcome.distance:.4f}')
 
-        return result_tuple
+        return (
+            outcome.best_idx, outcome.distance, outcome.confidence,
+            outcome.best_angle_deg, outcome.best_aligned_mask,
+        )
 
     def _load_camera_pose(
         self,
@@ -1377,7 +1392,9 @@ class ROS2Communication:
         cam_frame = str(
             self.node.get_parameter('camera_optical_frame').value or 'camera_color_optical_frame'
         )
-        T_B_C = self._lookup_tf_matrix(base, cam_frame)
+        T_B_C = self._lookup_tf_matrix(
+            base, cam_frame, stamp=self._last_capture_stamp
+        )
         if T_B_C is not None:
             pos = T_B_C[:3, 3]
             self.logger.info(
@@ -1438,7 +1455,8 @@ class ROS2Communication:
         Returns:
             角度差（弧度），如果不需要则返回None
         """
-        if self.pose_estimator.brute_force_matching_enabled and best_angle_deg is not None:
+        # 有置信度的匹配档（暴力 IoU / 嵌入检索）才带面内旋转角
+        if confidence is not None and best_angle_deg is not None:
             dtheta_rad = np.deg2rad(best_angle_deg)
             # 归一化到 [-π, π]
             return float(np.arctan2(np.sin(dtheta_rad), np.cos(dtheta_rad)))
@@ -1659,15 +1677,17 @@ class ROS2Communication:
         """
         depth_image = None
         color_image = None
+        capture_stamp = None  # 本次实际采用的采集时刻（header.stamp）
 
         # 检查请求中的图像
         has_depth_in_request = bool(getattr(request, "image", None) and getattr(request.image, "data", None))
-        has_color_in_request = bool(getattr(request, "color_image", None) and getattr(request.color_image, "data", None))
+        has_color_in_request = bool(getattr(request.color_image, "data", None))
 
         # 1.1 尝试从请求中获取深度图
         if has_depth_in_request:
             try:
                 depth_image = self.cv_bridge.imgmsg_to_cv2(request.image, desired_encoding='passthrough')
+                capture_stamp = request.image.header.stamp
             except Exception as e:
                 self.logger.warning(f'深度图像转换失败: {e}')
 
@@ -1687,6 +1707,7 @@ class ROS2Communication:
                     depth_age = (now_ts - self.depth_image_timestamp) if self.depth_image_timestamp > 0 else float('inf')
                     if depth_age <= max_age:
                         depth_image = self.current_depth_image.copy()
+                        capture_stamp = self.depth_image_stamp or capture_stamp
                 if color_image is None and self.current_color_image is not None:
                     color_age = (now_ts - self.color_image_timestamp) if self.color_image_timestamp > 0 else float('inf')
                     if color_age <= max_age:
@@ -1699,6 +1720,8 @@ class ROS2Communication:
             if depth_image is None:
                 if latest_depth is not None:
                     depth_image = latest_depth
+                    with self.image_lock:
+                        capture_stamp = self.depth_image_stamp or capture_stamp
                 else:
                     self.logger.error(f'未获取到深度图')
 
@@ -1708,6 +1731,8 @@ class ROS2Communication:
                 else:
                     self.logger.error(f'未获取到彩色图')
 
+        # 采集时刻：请求图像 stamp > 缓存帧 stamp > 请求 header.stamp（可为 0）
+        self._last_capture_stamp = capture_stamp or getattr(request.header, 'stamp', None)
         return depth_image, color_image
 
     def _handle_list_templates(
@@ -1789,10 +1814,14 @@ class ROS2Communication:
             if request.params_json:
                 try:
                     direct_params = json.loads(request.params_json)
-                    from .config import update_section
+                    from .config import apply_debug_param
+                    applied = set()
                     for key, value in direct_params.items():
-                        update_section("preprocessor", {key: value})
-                    self.logger.info(f'从 params_json 应用了 {len(direct_params)} 个参数')
+                        applied.update(apply_debug_param(key, value))
+                    self.logger.info(
+                        f'从 params_json 应用了 {len(direct_params)} 个参数'
+                        f'（段: {sorted(applied)}）'
+                    )
                 except Exception as e:
                     self.logger.warning(f'解析 params_json 失败: {e}')
 

@@ -7,11 +7,17 @@
 # 说明：通过模板匹配算法估计目标物体的 6D 位姿，支持多物体检测，
 #       返回每个检测结果的位置、置信度和对应的抓取/放置位姿。
 #       返回的抓取位置坐标经过了 GraspNet Z 轴 180° 翻转修正（applyGraspZFlip180）。
+# 时间语义：请求 header 可为空（以图像自带 stamp 为准）；响应 header.stamp =
+#       实际采用的图像采集时刻、frame_id = 输出位姿的参考系（base_link）。
+#       服务端 TF 查询使用同一 stamp（查询失败回退 latest 并打 WARN）。
 # =============================================================================
 
 # ======================== 请求字段 ========================
+std_msgs/Header header          # 可选：期望采用的采集时刻（空则取图像 stamp）
 sensor_msgs/Image image         # 输入深度图像（必要），用于 3D 点云生成和物体位姿估计，
-                                # 编码类型通常为 "16UC1" 或 "32FC1"，单位：毫米（mm）
+                                # 编码类型通常为 "16UC1" 或 "32FC1"；单位以相机
+                                # depth_scale 为准（本区 Percipio 原始值 ×0.00025 = 米），
+                                # 服务端在边界处统一换算为米
 sensor_msgs/Image color_image   # 输入彩色图像（可选），用于特征检测和可视化叠加，
                                 # 编码类型通常为 "rgb8" 或 "bgr8"
 string object_id                # 目标工件 ID，用于指定要识别的物体类型和对应的模板库，
@@ -19,18 +25,21 @@ string object_id                # 目标工件 ID，用于指定要识别的物�
 
 ---
 # ======================== 响应字段 ========================
+std_msgs/Header header                        # stamp=采用的图像采集时刻，
+                                             # frame_id=输出位姿参考系（base_link）
 int32 success_num                          # 成功检测到的物体数量，0=未检测到任何目标
 float64[] confidence                       # 每个检测结果的置信度，范围：[0, 1.0]，
                                            # 值越接近 1.0 表示匹配越可靠
-geometry_msgs/Point[] position             # 每个检测结果在图像坐标系中的 2D 中心点 (x, y, z)，
-                                           # 单位：像素（px），z 值为深度（mm）
-ivg_interfaces/CartesianPosition[] preparation_position  # 每个检测结果对应的接近位置（笛卡尔坐标），
+geometry_msgs/Point[] position             # 每个检测结果在图像坐标系中的 2D 中心点，
+                                           # 单位：像素（px）；z 恒为 0.0（仅占位，
+                                           # 深度信息在 CartesianPosition 里以米给出）
+ivg_interfaces/CartesianPosition[] preparation_position  # 每个检测结果对应的接近位置（笛卡尔坐标，米），
                                                         # 即抓取前 TCP 应到达的准备位置（沿抓取方向偏移一定距离）
-ivg_interfaces/CartesianPosition[] grab_position          # 每个检测结果对应的抓取位置（笛卡尔坐标），
+ivg_interfaces/CartesianPosition[] grab_position          # 每个检测结果对应的抓取位置（笛卡尔坐标，米），
                                                         # TCP 在此位置闭合夹爪拾取物体
-ivg_interfaces/CartesianPosition[] preplace_position      # 每个检测结果对应的预放置位置（笛卡尔坐标），
+ivg_interfaces/CartesianPosition[] preplace_position      # 每个检测结果对应的预放置位置（笛卡尔坐标，米），
                                                         # 即放置前 TCP 应到达的准备位置
-ivg_interfaces/CartesianPosition[] place_position         # 每个检测结果对应的放置位置（笛卡尔坐标），
+ivg_interfaces/CartesianPosition[] place_position         # 每个检测结果对应的放置位置（笛卡尔坐标，米），
                                                         # TCP 在此位置释放物体
 string[] matched_pose_ids               # 每个检测结果对应的匹配模板姿态 ID，
                                         # 如 "pose_1", "pose_2"，用于追溯匹配到的模板姿态

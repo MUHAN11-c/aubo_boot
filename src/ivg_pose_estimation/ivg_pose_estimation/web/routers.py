@@ -15,7 +15,7 @@ import threading
 import time
 from typing import Optional
 
-from fastapi import APIRouter, Body, Depends, Query, Request
+from fastapi import APIRouter, Body, Depends, Header, HTTPException, Query, Request
 from fastapi.responses import JSONResponse, RedirectResponse, Response
 
 from .ros_bridge import RosBridgeManager
@@ -34,6 +34,28 @@ def get_ros_bridge(request: Request) -> RosBridgeManager:
 
 def get_native_service(request: Request) -> NativeWebService:
     return request.app.state.native_service
+
+
+def require_write_auth(
+    request: Request,
+    x_auth_token: Optional[str] = Header(default=None),
+) -> None:
+    """
+    写端点守卫：vpe_auth cookie（同源 UI 自动携带）或 X-Auth-Token 头.
+
+    SameSite=Strict cookie 阻断跨站 CSRF；token 值见启动日志
+    （环境变量 VPE_WEB_TOKEN 可固定）。
+    """
+    expected = getattr(request.app.state, "auth_token", None)
+    if not expected:
+        return  # 无 token 状态（异常配置）放行只读桥，写端点由服务层兜底
+    provided = request.cookies.get("vpe_auth") or x_auth_token
+    if provided != expected:
+        raise HTTPException(
+            status_code=401,
+            detail="写操作需要认证：同源 UI 自动携带 cookie，"
+                   "curl 请带 -H 'X-Auth-Token: <启动日志中的 token>'",
+        )
 
 
 # ---------- system ----------
@@ -89,7 +111,7 @@ def health(ros_bridge: RosBridgeManager = Depends(get_ros_bridge)):
 
 
 @router.post("/exit")
-async def exit_service():
+async def exit_service(_: None = Depends(require_write_auth)):
     schedule_exit()
     return JSONResponse({"status": "success", "message": "服务正在退出..."})
 
@@ -133,6 +155,7 @@ def estimate_pose_2d(
 def save_template_pose(
     payload: dict = Body(...),
     service: NativeWebService = Depends(get_native_service),
+    _: None = Depends(require_write_auth),
 ):
     return service.save_template_pose(payload)
 
@@ -164,6 +187,7 @@ def read_template_pose(
 def standardize_template(
     payload: dict = Body(...),
     service: NativeWebService = Depends(get_native_service),
+    _: None = Depends(require_write_auth),
 ):
     return service.standardize_template(payload)
 
@@ -261,6 +285,7 @@ def debug_get_images(service: NativeWebService = Depends(get_native_service)):
 def debug_update_params(
     payload: dict = Body(...),
     service: NativeWebService = Depends(get_native_service),
+    _: None = Depends(require_write_auth),
 ):
     return service.debug_update_params(payload)
 
@@ -271,5 +296,8 @@ def debug_get_params(service: NativeWebService = Depends(get_native_service)):
 
 
 @api_router.post("/debug/save_thresholds")
-def debug_save_thresholds(service: NativeWebService = Depends(get_native_service)):
+def debug_save_thresholds(
+    service: NativeWebService = Depends(get_native_service),
+    _: None = Depends(require_write_auth),
+):
     return service.debug_save_thresholds()

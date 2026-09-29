@@ -13,8 +13,9 @@ setup(
         ('share/' + package_name, ['package.xml']),
         ('share/' + package_name + '/launch', glob('launch/*.launch.py')),
         ('share/' + package_name + '/config', glob('config/*.yaml')),
-        # 模型权重（12MB，GraspNet-baseline checkpoint）安装到 share 供节点默认加载
+        # 模型权重（12MB，GraspNet-baseline checkpoint）与其 manifest 安装到 share
         ('share/' + package_name + '/models', glob('models/*.tar')),
+        ('share/' + package_name + '/models', glob('models/*.yaml')),
     ],
     install_requires=['setuptools'],
     extras_require={'test': ['pytest']},

@@ -3,31 +3,38 @@
 """
 GraspNet 抓取检测节点（点云版）.
 
-订阅 PointCloud2 → 工作区过滤 → GraspNet 推理 → 碰撞/NMS/topK →
-发布 MarkerArray（相机系）+ 动态 TF（grasp_pose_i）+ PoseArray（base 系）。
+订阅 PointCloud2 → 工作区过滤 → 后端推理（backend 参数选型）→
+碰撞/NMS/topK（postprocess）→ 发布 MarkerArray（相机系）+ 动态 TF
+（grasp_pose_i）+ PoseArray（base 系）。
 
 采集节奏与旧栈兼容：默认待命；调 /graspnet_capture_control (std_srvs/SetBool)
 True 开始一个采集会话，累计 capture_groups_target 组有效结果后自动停止。
 
-推理核心在 ivg_graspnet.grasp_core（无 rclpy 依赖，纯 torch 后端），
-节点只负责 IO/参数/发布，与 anygrasp_with_ros 的「采集-推理-发布」分层一致。
+分层：检测算法在 backends/（按 backend 参数工厂选用，graspnet_torch 为
+默认），模型无关后处理在 postprocess.py，节点只负责 IO/参数/发布。推理在
+独立回调组的 timer 中执行，不阻塞采集控制服务与点云订阅。
 """
 
 from __future__ import annotations
 
 import os
+import threading
 from typing import Optional
 
 from builtin_interfaces.msg import Duration
 from geometry_msgs.msg import Pose, PoseArray, TransformStamped
-from ivg_graspnet.grasp_core import (
-    GraspList,
-    graspnet_to_ros_rotation,
-    GraspNetConfig,
-    GraspNetInference,
+from ivg_graspnet.backends import available_backends, create_grasp_backend
+from ivg_graspnet.grasp_core import GraspList, graspnet_to_ros_rotation
+from ivg_graspnet.postprocess import (
+    crop_workspace,
+    GripperGeometry,
+    PostprocessConfig,
+    run_postprocess,
 )
 import numpy as np
 import rclpy
+from rclpy.callback_groups import MutuallyExclusiveCallbackGroup
+from rclpy.executors import MultiThreadedExecutor
 from rclpy.node import Node
 from scipy.spatial.transform import Rotation
 from sensor_msgs.msg import PointCloud2
@@ -35,6 +42,8 @@ from sensor_msgs_py import point_cloud2 as pc2
 from std_srvs.srv import SetBool
 from tf2_ros import Buffer, TransformBroadcaster, TransformListener
 from visualization_msgs.msg import Marker, MarkerArray
+
+DEFAULT_BACKEND = 'graspnet_torch'
 
 
 def _default_model_path() -> str:
@@ -96,6 +105,7 @@ class GraspNetDemoPointsNode(Node):
         super().__init__('graspnet_demo_points_node')
 
         # ---------- 参数 ----------
+        self.declare_parameter('backend', DEFAULT_BACKEND)
         self.declare_parameter('model_path', _default_model_path())
         self.declare_parameter('input_pointcloud_topic', '/camera/depth_registered/points')
         self.declare_parameter('marker_topic', 'grasp_markers')
@@ -105,7 +115,7 @@ class GraspNetDemoPointsNode(Node):
         self.declare_parameter('capture_control_service', '/graspnet_capture_control')
         self.declare_parameter('base_frame', 'base_link')
         self.declare_parameter('grasp_poses_topic', 'grasp_poses_base')
-        # 推理数值参数（透传 GraspNetConfig）
+        # 推理数值参数（透传后端与后处理配置）
         self.declare_parameter('device', 'auto')
         self.declare_parameter('num_point', 20000)
         self.declare_parameter('collision_thresh', 0.01)
@@ -115,19 +125,17 @@ class GraspNetDemoPointsNode(Node):
         self.declare_parameter('max_grasps_num', 5)
         self.declare_parameter('workspace', '')  # 'xmin,xmax,ymin,ymax,zmin,zmax'，空=不过滤
 
+        backend_name = self.get_parameter('backend').value
         model_path = self.get_parameter('model_path').value
-        workspace = _parse_workspace(self.get_parameter('workspace').value)
-        config = GraspNetConfig(
-            checkpoint_path=model_path,
-            device=self.get_parameter('device').value,
-            num_point=int(self.get_parameter('num_point').value),
+        self.workspace = _parse_workspace(self.get_parameter('workspace').value)
+        self.postprocess_config = PostprocessConfig(
             collision_thresh=float(self.get_parameter('collision_thresh').value),
             voxel_size=float(self.get_parameter('voxel_size').value),
             approach_dist=float(self.get_parameter('approach_dist').value),
             max_gripper_width=float(self.get_parameter('max_gripper_width').value),
             max_grasps=int(self.get_parameter('max_grasps_num').value),
-            workspace=workspace,
         )
+        self.gripper_geometry = GripperGeometry()
 
         self.input_topic = self.get_parameter('input_pointcloud_topic').value
         self.marker_topic = self.get_parameter('marker_topic').value
@@ -138,10 +146,22 @@ class GraspNetDemoPointsNode(Node):
         self.base_frame = self.get_parameter('base_frame').value
         self.grasp_poses_topic = self.get_parameter('grasp_poses_topic').value
 
-        # ---------- 推理核心 ----------
-        self.get_logger().info(f'加载 GraspNet 权重: {model_path}')
-        self.inference = GraspNetInference(config)
-        self.get_logger().info(f'推理设备: {self.inference.device}')
+        # ---------- 推理后端 ----------
+        self.get_logger().info(
+            f'加载抓取后端 {backend_name}（可用: {available_backends()}），'
+            f'权重: {model_path}'
+        )
+        self.backend = create_grasp_backend(backend_name, {
+            'model_path': model_path,
+            'device': self.get_parameter('device').value,
+            'num_point': int(self.get_parameter('num_point').value),
+        })
+        self.get_logger().info(f'推理会话: {self.backend.session.summary()}')
+        if self.backend.info.approach_flip_z180:
+            self.get_logger().info(
+                '后端约定: 执行前需绕 approach 轴 180° 修正'
+                '（publish_grasps_client 的 apply_grasp_z_flip 应保持 true）'
+            )
 
         # ---------- ROS 通信 ----------
         self.marker_pub = self.create_publisher(MarkerArray, self.marker_topic, 10)
@@ -150,10 +170,16 @@ class GraspNetDemoPointsNode(Node):
         self.tf_buffer = Buffer()
         self.tf_listener = TransformListener(self.tf_buffer, self)
         self.create_subscription(PointCloud2, self.input_topic, self._pc_callback, 10)
-        self.create_timer(self.compute_interval_sec, self._timer_callback)
+        # 推理定时器独立回调组：长前向不阻塞默认组里的服务/订阅回调
+        self._compute_group = MutuallyExclusiveCallbackGroup()
+        self.create_timer(
+            self.compute_interval_sec, self._timer_callback,
+            callback_group=self._compute_group,
+        )
         self.create_service(SetBool, self.capture_control_service, self._capture_control_callback)
 
         # ---------- 会话状态 ----------
+        self._pc_lock = threading.Lock()
         self._latest_pc_msg: Optional[PointCloud2] = None
         self._latest_pc_stamp = self.get_clock().now().to_msg()
         self.processed_grasps: Optional[GraspList] = None
@@ -168,7 +194,7 @@ class GraspNetDemoPointsNode(Node):
             f'MarkerArray → {self.marker_topic}，'
             f'PoseArray → {self.grasp_poses_topic}（{self.base_frame}）；'
             f'服务 {self.capture_control_service}（True=开始，'
-            f'目标 {self.capture_groups_target} 组）；workspace={workspace}'
+            f'目标 {self.capture_groups_target} 组）；workspace={self.workspace}'
         )
 
     # ---------- 采集控制 ----------
@@ -178,7 +204,8 @@ class GraspNetDemoPointsNode(Node):
             self.collect_enabled = True
             self.target_groups = max(1, self.capture_groups_target)
             self.collected_groups = 0
-            self._latest_pc_msg = None
+            with self._pc_lock:
+                self._latest_pc_msg = None
             self.processed_grasps = None
             response.success = True
             response.message = f'已开始采集: session={self.session_id}, 目标组数={self.target_groups}'
@@ -194,14 +221,19 @@ class GraspNetDemoPointsNode(Node):
 
     # ---------- 点云订阅 ----------
     def _pc_callback(self, msg: PointCloud2):
-        self._latest_pc_msg = msg
+        with self._pc_lock:
+            self._latest_pc_msg = msg
 
     # ---------- 定时推理 ----------
     def _timer_callback(self):
-        if not self.collect_enabled or self._latest_pc_msg is None:
+        if not self.collect_enabled:
+            return
+        with self._pc_lock:
+            pc_msg = self._latest_pc_msg
+        if pc_msg is None:
             return
         try:
-            self._compute_grasps(self._latest_pc_msg)
+            self._compute_grasps(pc_msg)
             if self.processed_grasps is not None and self._publish_results(self.processed_grasps):
                 self.collected_groups += 1
                 self.get_logger().info(
@@ -233,10 +265,16 @@ class GraspNetDemoPointsNode(Node):
         if points.shape[0] == 0:
             raise RuntimeError('输入点云为空（或全部为 NaN）')
 
-        self.processed_grasps = self.inference.get_grasp(points)
+        # 工作区过滤（模型无关，后端与碰撞检测共用同一份过滤后点云）
+        cropped = crop_workspace(points, self.workspace)
+        raw = self.backend.detect(cropped)
+        self.processed_grasps = run_postprocess(
+            raw, cropped, self.postprocess_config, self.gripper_geometry
+        )
         self.processed_frame_id = (pc_msg.header.frame_id or '').strip() or self.default_frame_id
         self.get_logger().info(
-            f'抓取计算完成: {len(self.processed_grasps)} 个（frame={self.processed_frame_id}）'
+            f'抓取计算完成: {len(self.processed_grasps)} 个（frame={self.processed_frame_id}，'
+            f'backend={self.backend.info.name}）'
         )
 
     # ---------- 发布 ----------
@@ -322,20 +360,21 @@ class GraspNetDemoPointsNode(Node):
         t.transform.rotation.w = float(quat[3])
         self.tf_broadcaster.sendTransform(t)
 
-    # ---------- Marker 几何 ----------
-    def _create_grasp_markers(self, grasp, rgba, id_start: int, stamp, frame_id: str):
-        """单抓取 4 圆柱（左指/右指/手腕/手掌），几何与旧栈一致."""
+    # ---------- Marker 几何（与碰撞检测同源：GripperGeometry） ----------
+    def _create_grasp_markers(self, grasp, rgba, id_start: int, stamp, frame_id):
+        """单抓取 4 圆柱（左指/右指/手腕/手掌），几何取 GripperGeometry 单源."""
         pose_mat = np.eye(4, dtype=np.float32)
         pose_mat[:3, 3] = grasp.translation.astype(np.float32)
         rot = grasp.rotation_matrix.astype(np.float32)
         pose_mat[:3, :3] = rot
 
+        geom = self.gripper_geometry
         w = float(grasp.width)
         d = float(grasp.depth)
-        radius = 0.005
-        finger_width = 0.004
-        depth_base = 0.02
-        tail_length = 0.04
+        radius = geom.visual_radius
+        finger_width = geom.finger_width
+        depth_base = geom.visual_depth_base
+        tail_length = geom.visual_tail_length
         finger_length = d + (depth_base + finger_width)
         finger_center_x = d / 2 - (depth_base + finger_width) / 2
 
@@ -397,15 +436,25 @@ class GraspNetDemoPointsNode(Node):
         marker.color.a = float(color[3])
         return marker
 
+    def destroy_node(self) -> bool:
+        try:
+            self.backend.close()
+        except Exception:  # noqa: BLE001 - 拆栈期尽力释放
+            pass
+        return super().destroy_node()
+
 
 def main(args=None):
     rclpy.init(args=args)
     node = GraspNetDemoPointsNode()
+    executor = MultiThreadedExecutor(num_threads=2)
+    executor.add_node(node)
     try:
-        rclpy.spin(node)
+        executor.spin()
     except KeyboardInterrupt:
         pass
     finally:
+        executor.remove_node(node)
         node.destroy_node()
         rclpy.shutdown()
 

@@ -1,0 +1,29 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>ivg_sim</name>
+  <version>0.1.0</version>
+  <description>
+    IVG 抓取验证 Gazebo Harmonic 场景：桌台 + YCB 对象杂乱摆位 + 俯视 rgbd 相机，
+    点云经光学系中继喂 ivg_graspnet 双后端，评分工具对 GT 对象位姿核验抓取。
+    场景几何唯一事实源 config/table_layout.yaml（generate_table_world 重生成 SDF）。
+  </description>
+  <maintainer email="2155413529@qq.com">mu</maintainer>
+  <license>Apache License 2.0</license>
+
+  <exec_depend>rclpy</exec_depend>
+  <exec_depend>sensor_msgs</exec_depend>
+  <exec_depend>geometry_msgs</exec_depend>
+  <exec_depend>ros_gz_sim</exec_depend>
+  <exec_depend>ros_gz_bridge</exec_depend>
+  <exec_depend>tf2_ros</exec_depend>
+  <exec_depend>ivg_graspnet</exec_depend>
+
+  <test_depend>ament_lint_auto</test_depend>
+  <test_depend>ament_lint_common</test_depend>
+  <test_depend>python3-pytest</test_depend>
+
+  <export>
+    <build_type>ament_python</build_type>
+  </export>
+</package>

@@ -1,0 +1,44 @@
+# =============================================================================
+# IVG 抓取验证桌面场景唯一事实源（generate_table_world.py 据此产 worlds/ivg_table.sdf）
+# 坐标系：世界 z 向上，桌面中心在 (0,0)；单位米/度。
+# radius = 对象 XY 近似包围半径（评分命中半径 = radius + 0.02m）。
+# 随机扰动：generate_table_world --jitter --seed N（同 seed 同布局，写入 manifest）。
+# =============================================================================
+
+world:
+  name: ivg_table
+  physics_step: 0.004
+  ambient: [0.78, 0.76, 0.78]
+
+table:
+  top_z: 0.75            # 桌面高度（世界 z）
+  size: [0.9, 0.7, 0.05] # 桌面板 x/y/z
+  color: [0.55, 0.45, 0.35]
+
+camera:
+  # rgbd 相机：tilt_deg=0 正竖直俯视；>0 光轴朝 +X 倾斜（对准桌面中心，
+  # 视距仍为 height_above_table）。斜视更接近真实腕部拍摄角度，且能露出
+  # 对象侧面（正视俯视时扁平/小物件难出抓取提案）。
+  height_above_table: 0.75
+  xy: [0.0, 0.0]
+  tilt_deg: 35.0
+  fov_deg: 60.0
+  update_rate: 10.0
+  image: [640, 480]
+  clip: [0.05, 2.5]
+  # 光学系名（中继发布 PointCloud2 的 frame_id；TF 静态发布 base_link←此系）
+  optical_frame: camera_depth_optical_frame
+
+objects:
+  # 对象：model 名（models/ 目录）+ 桌面 xy（米）+ yaw（度）+ radius（米）
+  # 原点约定：本仓 YCB SDF 原点在对象底面中心 → z 直接取桌面高度
+  - {model: mustard_bottle,  xy: [-0.18,  0.10], yaw: 20,  radius: 0.10}
+  - {model: potted_meat_can, xy: [-0.05, -0.12], yaw: 0,   radius: 0.05}
+  - {model: pudding_box,     xy: [ 0.08,  0.14], yaw: -15, radius: 0.05}
+  - {model: gelatin_box,     xy: [ 0.17, -0.02], yaw: 40,  radius: 0.04}
+  - {model: banana,          xy: [-0.12, -0.18], yaw: 65,  radius: 0.09}
+  - {model: apple,           xy: [ 0.05,  0.02], yaw: 0,   radius: 0.045}
+  - {model: cracker_box,     xy: [ 0.28,  0.18], yaw: 10,  radius: 0.09}
+  - {model: sugar_box,       xy: [-0.28, -0.05], yaw: -30, radius: 0.08}
+  - {model: master_chef_can, xy: [ 0.20, -0.16], yaw: 0,   radius: 0.05}
+  - {model: chips_can,       xy: [-0.02,  0.24], yaw: 90,  radius: 0.05}

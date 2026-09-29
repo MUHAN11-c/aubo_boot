@@ -1,0 +1,18 @@
+# ivg_sim 检测节点参数覆盖（仅仿真用；不触碰 ivg_graspnet 包内配置）。
+# 坐标系：点云在相机传感器体系（x=视轴/深度、y 左、z 上，
+# 见 layout.GZ_OPTICAL_CONVENTION='body'）→ workspace 按 xyz 轴写。
+graspnet_demo_points_node:
+  ros__parameters:
+    input_pointcloud_topic: /camera/depth_registered/points
+    frame_id: camera_depth_optical_frame
+    base_frame: base_link
+    # 工作区裁剪（云系=传感器体系：x 深度、y=世界Y、z=世界X）：
+    # 深度 0.5–0.95、世界Y ±0.30（桌沿 ±0.35 有侧棱假抓取带，必须排除）、
+    # 世界X ±0.40（覆盖全部对象摆位）
+    workspace: '0.5,0.95,-0.30,0.30,-0.40,0.40'
+    capture_groups_target: 1
+    compute_interval_sec: 1.0
+    use_sim_time: true
+    device: auto
+    # 评分场景 10 对象 → topK 放宽到 40（默认 5 会人为封顶覆盖率）
+    max_grasps_num: 40

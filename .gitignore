@@ -37,6 +37,8 @@ src/ivg_pose_estimation/models/*.onnx
 src/ivg_pose_estimation/models/*.pt
 # DINOv2 模板嵌入索引：由 template_index 按模板 mtime 重建的可再生产物
 src/ivg_pose_estimation/templates/*/.dinov2_index.npz
+# ivg_sim YCB meshes（全库约 118MB，models/fetch_ycb.sh 恢复；sdf/config 入库）
+src/ivg_sim/models/*/meshes/
 src/visual_pose_estimation/visual_pose_estimation_python/models/*.onnx
 # MobileCLIP2 权重约 243MB，同样超单文件配额，本机保留
 /mobileclip2_b.ts

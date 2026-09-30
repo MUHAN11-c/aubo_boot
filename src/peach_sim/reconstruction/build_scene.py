@@ -554,45 +554,32 @@ def local_reference(mats, report):
         d = (neck - parent).normalized() + Vector((0, .1, .35))
         attach(f'Reference/fruit shoot{i}', [neck, neck +
                d * .07], [.0014, .0004], mats['twig'], neck)
-    # Additional observed foliage: front/back support follows valid depth, but leaf
-    # orientations and hidden petioles remain inferred. All attach to branch
-    # graph.
-    support = json.loads((HERE / 'evidence/foliage_support.json').read_text())
-    for i, item in enumerate(support):
-        center = pixel_point(item['u'], item['v'], item['depth_m'])
-        a = item['angle_rad']
-        length = item['length_m']
-        direction = Vector((math.sin(a), 0., -math.cos(a)))
-        root = center - direction * length * .5
-        tip = center + direction * length * .5
-        parent=nearest_branch(root)
-        if (parent-root).length>.20:
-            continue
-        if (parent-root).length>.025:
-            # A shared woody shoot, not a separate long petiole for every leaf.
-            end=parent.lerp(root,.90)
-            midpoint=parent.lerp(end,.5)+Vector((0,.005,.006))
-            attach(f'Reference/inferred shared shoot{i}',[parent,midpoint,end],[.0022,.0016,.0009],mats['twig'],parent)
-            branch_segments.extend([(parent,midpoint),(midpoint,end)])
-            parent=end
-        # Stem skeleton hidden by foliage is inferred, but always physically
-        # connected.
-        attach(f'Reference/inferred petiole{i}', [parent, parent.lerp(
-            root, .6), root], [.0018, .0011, .0005], mats['twig'], parent)
-        # Observed front surfaces below replace guessed leaf silhouettes.
-        # Keep inferred woody connections, but do not add a second front leaf.
+    # Visible mask outlines are constrained by the source image. Per-leaf
+    # curved depth completion and hidden attachments remain explicit inference.
+    observed = np.load(HERE / 'evidence/observed_foliage.npz')
+    surface = mesh('Reference/observed foliage surface', observed['vertices'].tolist(),
+                   observed['faces'].tolist(), mats['leaf0'], observed['uv'].tolist())
+    for index in range(1, 5):
+        surface.data.materials.append(mats[f'leaf{index}'])
+    for polygon, index in zip(surface.data.polygons, observed['materials']):
+        polygon.material_index = int(index)
+    surface['source'] = '1200 estimated leaf masks and median valid depth; no photo texture'
+    surface['surface_status'] = 'visible silhouettes; curved sheets and hidden backs inferred'
+    surface['source_triangles'] = len(observed['faces'])
+    measured = json.loads((HERE / 'evidence/observed_foliage.json').read_text())
+    surface['patch_count'] = len(measured['patches'])
+    for index, patch in enumerate(measured['patches']):
+        ends = [Vector(p) for p in patch['endpoints']]
+        root = min(ends, key=lambda p: (nearest_branch(p) - p).length)
+        parent = nearest_branch(root)
+        midpoint = parent.lerp(root, .65)
+        attach(f'Reference/inferred leaf support{index}', [parent, midpoint, root],
+               [.0015, .001, .0004], mats['twig'], parent)
     # Continue the partial foreground trunk to soil only for the orchard
     # overview.
     lower = trunk[0]
     tube('Reference/inferred lower trunk', [(lower.x - .06, lower.y + .04, 0),
          (lower.x - .03, lower.y + .02, .65), lower], [.055, .035, .018], mats['bark'], 14)
-    observed = np.load(HERE / 'evidence/observed_foliage.npz')
-    surface = mesh('Reference/observed foliage surface', observed['vertices'].tolist(),
-                   observed['faces'].tolist(), mats['leaf2'])
-    surface['source'] = '1200 valid RGB-D green surfaces; no photo texture'
-    surface['surface_status'] = 'partial observed leaf fronts; not closed leaf instances'
-    surface['source_triangles'] = len(observed['faces'])
-    leaves.finish('Reference')
     return trunk
 
 
@@ -892,8 +879,10 @@ def main():
                          'distributions.py', 'make_textures.py', 'textures/paper_height.png',
                          'evidence/priors.json',
                          'evidence/reference_measurements.json',
-                         'evidence/foliage_support.json', 'measure_foliage.py',
-                         'evidence/foliage_measurement.json', 'observed_foliage.py',
+                         'measure_reference_leaves.py', 'observed_foliage.py',
+                         'evidence/reference_leaf_prompts.json',
+                         'evidence/reference_leaf_masks.npz',
+                         'evidence/reference_leaf_measurement.json',
                          'evidence/observed_foliage.npz',
                          'evidence/observed_foliage.json')},
         'render_settings': {'samples': args.samples, 'width': args.width,

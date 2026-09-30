@@ -512,7 +512,7 @@ Lint → 纯核 pytest/gtest → `peach_system_tests` 三档工具冒烟（域 9
 **时限：** 从 ExecuteTarget 发 goal 到结果返回 **≤ 120 s**。超时 SIGINT 取消，记失败。  
 **同时核：** 相机 ping 与 `topic hz`；`tool.profile_id`；TF 对档案；imu_follow 服务仅 adaptive 在图；无 SetIO。
 
-脚本：`plans/v1_三末端混合测试/run_hil.py`。记录：同目录 `results/`。
+脚本：`plans/v1_三末端混合测试/run_hil.py`。结论：[测试报告.md](v1_三末端混合测试/测试报告.md)；原始记录同目录 `results/`。
 
 ### 11.3 不测什么
 
@@ -536,7 +536,7 @@ Lint → 纯核 pytest/gtest → `peach_system_tests` 三档工具冒烟（域 9
 
 ## 13 结论与建议
 
-v1 固定座采摘核结构完整、安全分层正确、三末端可切换，满足方案评审与详细设计。HIL 用真相机证明前端活着，用 mock FULL 在 120 s 内证明三把档案的接触链可闭合。产品节拍与剪切正确性交给 v2 重构，不在 v1 上继续叠令牌与豁免。
+v1 固定座采摘核结构完整、安全分层正确、三末端可切换，满足方案评审与详细设计。HIL 用真相机证明前端活着；mock FULL 墙钟三档均 **≤ 120 s**。套入闭环在夹具 1757 上仅 `bite_shear_v1` 闭合（`shear_v1` 径向预算为负，`adaptive_shear_v1` 筒体胶囊间隙为负）。产品节拍与剪切正确性交给 v2 重构，不在 v1 上继续叠令牌与豁免。
 
 建议：详细设计继续以三活文档为运行权威；本设计书作为 v1 代次基线入库 `plans/`。
 
@@ -554,10 +554,14 @@ v1 固定座采摘核结构完整、安全分层正确、三末端可切换，�
 
 ## 附录 B 三末端混合测试记录
 
-试验程序、原始日志与 `summary.json` 见 [v1_三末端混合测试](v1_三末端混合测试/)。正文表在试验结束后写入该目录 `results/summary.json`，并在同目录 README 做门结论。
+完整报告：[v1_三末端混合测试/测试报告.md](v1_三末端混合测试/测试报告.md)。试验日 2026-09-30，夹具 1757，mock 臂，刀具关。
 
-| 档案 | 相机在环 | 用例 | 抓取墙钟 (s) | ≤120 s | 门 |
-|------|----------|------|--------------|--------|----|
-| shear_v1 | stereo mock | 1757 FULL | （见 results） | | |
-| bite_shear_v1 | stereo mock | 1757 FULL | （见 results） | | |
-| adaptive_shear_v1 | stereo mock | 1757 FULL | （见 results） | | |
+主试验（真相机 stereo 在环，墙钟含脚本使能）：
+
+| 档案 | 相机 | 墙钟 (s) | ≤120 s | FULL 干跑 1/1 | outcome | completion | 说明 |
+|------|------|----------|--------|---------------|---------|------------|------|
+| shear_v1 | 是 | 16.20 | 是 | 否 | 3 | 2 | 预抓取过；sleeve 能力非 VALID |
+| bite_shear_v1 | 是 | 21.46 | 是 | **是** | 0 | 6 | 周期内 10.63 s，grasped=false |
+| adaptive_shear_v1 | 是 | 17.30 | 是 | 否 | 3 | 2 | 预抓取过；接触窗未走完 |
+
+无相机复跑：咬合仍 21.09 s / 1/1；连杆剪、自适应失败原因不变。解析：shear `D_inner` 80 mm 径向余量 −6.6 mm；adaptive 筒半径 110 mm 对果胶囊间隙 −5.4 mm。

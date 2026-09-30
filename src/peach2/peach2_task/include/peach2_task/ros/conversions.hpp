@@ -4,6 +4,7 @@
 
 #include <builtin_interfaces/msg/time.hpp>
 #include <peach2_interfaces/action/harvest_target.hpp>
+#include <peach2_interfaces/action/move_to.hpp>
 #include <peach2_interfaces/action/observe_target.hpp>
 #include <peach2_interfaces/msg/batch_state.hpp>
 #include <peach2_interfaces/msg/grasp_decision.hpp>
@@ -39,6 +40,13 @@ peach2_interfaces::msg::HarvestResult to_msg(const core::HarvestOutcome & outcom
 
 peach2_interfaces::msg::BatchState to_msg(
   const core::StateSnapshot & snapshot, const builtin_interfaces::msg::Time & stamp);
+
+enum class MoveVerdict { MOVED, GATE_CLOSED, FAILED };
+
+/// `result.success` is authoritative, including an empty motion (already at the target).
+/// SAFETY_GATE_CLOSED means manipulation only planned (enables dropped after admission).
+MoveVerdict move_verdict(
+  bool canceled, const peach2_interfaces::action::MoveTo::Result & result);
 
 uint8_t harvest_mode_for(core::Intent intent);
 uint8_t reachability_mode_for(core::Intent intent);

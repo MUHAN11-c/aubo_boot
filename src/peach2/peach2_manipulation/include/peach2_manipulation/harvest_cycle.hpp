@@ -47,6 +47,8 @@ enum class CycleMode : uint8_t {PREGRASP_ONLY = 0, FULL = 1};
 
 /// Same numeric values as peach2_interfaces/msg/HarvestResult.
 enum class Outcome : uint8_t {SUCCEEDED = 0, SKIPPED = 1, FAILED = 2, CANCELED = 3};
+/// Ordered progress (RETREATED implies the cut). PREGRASP_ONLY never goes past PREGRASP: its
+/// optional exit shows up in stage_names / stage_times_s and, on failure, RETREAT_FAILED.
 enum class Reached : uint8_t
 {
   NONE = 0, PREGRASP = 1, INSERTED = 2, CUT_CONFIRMED = 3, RETREATED = 4, RELEASED = 5,
@@ -122,6 +124,9 @@ struct CycleDeps
 /// PREPARE_TOOL -> TRANSIT_STAGING -> APPROACH_PREGRASP -> VERIFY_PREGRASP -> [PREGRASP_ONLY]
 /// -> INSERT -> CUT -> CONFIRM -> RETREAT -> TRANSIT_RELEASE -> RELEASE -> DONE.
 ///
+/// A segment planned as a null motion (start already at goal, see PlanResult) is reported
+/// reached without being sent and never enters the canopy exit path.
+///
 /// Scene: APPROACH before anything is planned, CONTACT before the insert is planned; a scene
 /// update failure is DEPENDENCY_UNAVAILABLE.
 ///
@@ -151,6 +156,7 @@ private:
     Run & run, JointTrajectory trajectory, std::optional<PlanRequest> replan, GateStage stage,
     bool into_canopy);
   bool retreat(Run & run, std::string & why, uint32_t & stop_code);
+  void mark_retreated(Run & run);
   CycleResult fail_in_canopy(Run & run, Outcome outcome, uint32_t code, const std::string & reason);
   std::optional<DecisionView> requery(
     Run & run, const DecisionView & previous, uint32_t & code, std::string & reason);

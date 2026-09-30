@@ -31,6 +31,7 @@ struct MoveItBackendConfig
   double wait_for_servers_s{30.0};
   double stop_grace_s{5.0};
   int validate_stride{5};
+  double at_goal_tolerance_rad{0.002};
 };
 
 /// MotionBackend over move_group. Planning goes through MoveGroupInterface; execution goes

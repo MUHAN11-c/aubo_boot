@@ -303,6 +303,10 @@ std::string TaskNode::check_goal(const RunBatch::Goal & goal, core::BatchLimits 
   if (!core::intent_from_uint(goal.intent, &intent)) {
     return "invalid intent " + std::to_string(goal.intent);
   }
+  const std::string enables_error = core::admission_error(enables_, intent);
+  if (!enables_error.empty()) {
+    return enables_error;
+  }
   if (!goal.request_id.empty()) {
     if (!core::is_safe_request_id(goal.request_id)) {
       return "request_id '" + goal.request_id + "' is not a safe directory name";

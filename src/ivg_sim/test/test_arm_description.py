@@ -4,7 +4,8 @@ import pytest
 
 from ivg_sim.arm_description import (
     ARM_JOINTS,
-    FINGER_OPEN,
+    FINGER_GRASP_POSE,
+    FINGER_OPEN_POSE,
     SPAWN_XYZ,
     strip_world,
 )
@@ -40,16 +41,14 @@ def test_strip_world_noop_without_world():
 
 def test_constants():
     assert len(ARM_JOINTS) == 6
-    assert 0.0 < FINGER_OPEN <= 0.06  # 四指行程 0.055 内，开口 119×138mm
+    assert len(FINGER_OPEN_POSE) == 16   # Allegro 四指×4 关节
+    assert len(FINGER_GRASP_POSE) == 16
+    # 抓取位形各关节非退化（确有弯曲）
+    assert any(v > 0.5 for v in FINGER_GRASP_POSE)
     assert len(SPAWN_XYZ) == 3
     assert SPAWN_XYZ[0] < -0.4  # 基座在桌沿外（桌半宽 0.45）
 
 
-@pytest.mark.skipif(
-    pytest.importorskip('xacro', reason='xacro 需要 ROS 环境'),
-    condition=False,
-    reason='无 ROS 环境',
-)
 def test_build_arm_urdf_contains_gz_pieces():
     from ivg_sim.arm_description import build_arm_urdf
 
@@ -60,9 +59,9 @@ def test_build_arm_urdf_contains_gz_pieces():
     assert not re.search(r'<joint\b[^>]*\bname="(?:world_joint|fixed_base)"',
                          urdf)
     assert 'gz_ros2_control/GazeboSimSystem' in urdf
-    for j in ARM_JOINTS + tuple(
-            f'finger_{s}_joint' for s in ('xp', 'xn', 'yp', 'yn')):
+    for j in ARM_JOINTS + tuple(f'joint_{i}' for i in range(16)):
         assert f'name="{j}"' in urdf
     assert 'name="tcp"' in urdf
-    assert 'name="g2_base_link"' in urdf
-    assert 'g2_base.stl' in urdf
+    assert 'name="palm_link"' in urdf
+    assert 'meshes/allegro/' in urdf
+    assert 'allegro_mount_joint' in urdf

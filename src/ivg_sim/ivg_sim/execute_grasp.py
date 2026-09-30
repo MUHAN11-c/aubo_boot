@@ -44,9 +44,8 @@ from trajectory_msgs.msg import JointTrajectory, JointTrajectoryPoint
 
 from ivg_sim.arm_description import (
     ARM_JOINTS,
-    FINGER_CLOSED,
-    FINGER_JOINTS,
-    FINGER_OPEN,
+    FINGER_GRASP_POSE,
+    FINGER_OPEN_POSE,
     SPAWN_XYZ,
     worlds_dir,
 )
@@ -535,7 +534,7 @@ def main() -> int:
         print(f'[execute][WARN] 场景注入失败（transit 无障碍退化）：{exc}')
 
     open_msg = Float64MultiArray()
-    open_msg.data = [FINGER_OPEN]
+    open_msg.data = list(FINGER_OPEN_POSE)
     node.gripper.publish(open_msg)
 
     # 1) transit：两段（高位扫到 hover 正上方 → 纯竖直下行到 hover；
@@ -597,23 +596,20 @@ def main() -> int:
     q_grasp = descend[-1]
     print('[execute] descend 完成（TCP 至抓取点）')
 
-    # 3) close（v3 mimic 联动：单值主指令，y 对由 multiplier 0.75 跟随；
-    #    先触= x 对 @ 主值 r−9.6mm，物理耦合下先触即整组停——无单侧推通道）
-    r_obj = float(obj['radius_m'])
-    cmd_master = max(0.0, r_obj - 0.0096)      # x 对贴面（首触）
+    # 3) close（Allegro 四指包络：两段插值闭合——先 65% 缓合到位形，
+    #    停 2s 让指节逐个接触（自锁 friction 不回弹），再全位形轻夹。
+    #    原包 effort 15N/关节限力，接触即停）
+    near = [o + (c - o) * 0.65
+            for o, c in zip(FINGER_OPEN_POSE, FINGER_GRASP_POSE)]
     near_msg = Float64MultiArray()
-    near_msg.data = [cmd_master + 0.005]
+    near_msg.data = near
     node.gripper.publish(near_msg)
-    time.sleep(2.0)
+    time.sleep(2.5)
     close_msg = Float64MultiArray()
-    close_msg.data = [cmd_master]
+    close_msg.data = list(FINGER_GRASP_POSE)
     node.gripper.publish(close_msg)
-    time.sleep(1.5)
-    # 轻夹追一步（主值再进 1.5mm，effort 40N 兜底形成夹持力）
-    close_msg.data = [max(0.0, cmd_master - 0.0015)]
-    node.gripper.publish(close_msg)
-    time.sleep(1.5)
-    print(f'[execute] 夹爪闭合（主指令 {cmd_master:.3f}，y 对 0.75 跟随）')
+    time.sleep(2.0)
+    print('[execute] 四指包络闭合完成')
 
     # 4) lift：world +z（base 姿态恒等，z 向同向）
     lift_b = make_pose(
@@ -646,7 +642,7 @@ def main() -> int:
 
     if not args.keep:
         node.gripper.publish(open_msg)
-        time.sleep(1.0)
+        time.sleep(1.5)
     node.destroy_node()
     rclpy.shutdown()
     print('JSON: ' + json.dumps({

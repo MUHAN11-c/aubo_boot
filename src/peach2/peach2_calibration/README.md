@@ -5,6 +5,7 @@ Peach v2 每把刀的**误差常数单源**：`results/<tool_id>.yaml`，安装�
 刀具**几何**（D_inner / D_outer / L_insert / L_blade）不在这里，只读 `aubo_description/config/<tool_id>.yaml`。
 
 本包现阶段是空壳（ament_python，无节点）：M0 台架工具以后放进 `peach2_calibration/`。
+**2026-09-30：** M1 软件骨架已过退出门；本包三份 yaml 仍是 `design_reference`，M0 退出门未过。
 
 ## 结果文件
 

@@ -14,12 +14,12 @@ Peach v2 运动能力：所有轨迹与刀具 SetIO 的**单一命令门**、单
 | 头文件 | 内容 |
 |--------|------|
 | `command_gate.hpp` | `CommandGate`：`Active ∧ robot_status 持续条件（drives ∧ ¬e_stop ∧ ¬in_error ∧ 年龄<0.3 s）∧ 新轨迹前 motion_possible ∧ enables 链 tool⇒grasp⇒execution ∧ 心跳未超时 ∧ ¬cancel ∧ 阶段许可`；`GateStage`（TRANSIT/APPROACH/CONTACT/TOOL/RETREAT/RELEASE/TOOL_SAFE）；`ClosedEdge` |
-| `trajectory_reverse.hpp` | `reverse_trajectory`（位置倒序、速度取反、**加速度不变号**）、`reverse_path`（多段逆序拼接去重）、`joint_path_length`、`max_joint_deviation` |
+| `trajectory_reverse.hpp` | `reverse_trajectory`（位置倒序、速度取反、**加速度不变号**）、`reverse_path`（多段逆序拼接去重）、`joint_path_length`、`max_joint_deviation`、`is_null_motion`（单点 = 起点已在目标） |
 | `staging_geometry.hpp` | `staging_pose`（袋底沿 −axis 0.15–0.25 m，冠外）、`tcp_for_blade`、`pose_with_roll`、`pregrasp_residual`（横向/轴向/倾角，roll 不计）、`insert_geometry` |
 | `harvest_cycle.hpp` | `HarvestCycle::run(CycleRequest)` → `CycleResult`（分阶段耗时、reached、failure_code、recovery_required、plan_only）；`ScenePhase`（APPROACH / CONTACT）与 `CycleDeps::scene` 钩子 |
 | `bag_obstacles.hpp` | 邻袋碰撞对象纯核：`bag_capsule` / `desired_bag_capsules`（id `peach_bag_<target_id>`，底→颈圆柱，R = d95/2 + `bag_margin_m`）、`BagObstacleSet`（与场景现状求原子 diff：ADD/替换/REMOVE，`adopt` 接管遗留对象，`clear_all`） |
 | `move_to.hpp` | `run_move_to`（OMPL 全臂受查；执行关时 plan-only；`MoveToDeps::scene` 规划前写全部邻袋） |
-| `motion_backend.hpp` | `MotionBackend` 缝（plan / execute / validate / current_joints / current_tcp / stop） |
+| `motion_backend.hpp` | `MotionBackend` 缝（plan / execute / validate / current_joints / current_tcp / stop）；`finalize_plan`（规划结果收口：赶路段 `at_goal_tolerance_rad` 内塌缩为空运动，残差修正不塌缩，否则 < 2 点为规划失败） |
 | `decision_client.hpp` | `DecisionClient`（同步 GetDecision，**不缓存**）、`TargetSource`、`DecisionView` |
 | `conversions.hpp` | IDL ↔ 纯核转换（库 `peach2_manipulation_conversions`；含 FailureCode / ToolState / Outcome 数值 static_assert） |
 
@@ -57,6 +57,14 @@ RETREAT → TRANSIT_RELEASE → RELEASE → DONE`
   撤退 / 开刀 / 放果只要求 `Active ∧ robotReady ∧ ¬e_stop`（+ 执行链或本周期自己关过刀），**不**依赖感知许可。
 - 每段执行前：过门（新轨迹检查 motion_possible）、起点偏差 > `start_tolerance_rad`（0.02 rad）重规划一次；执行中每 20 ms 查门与取消，
   关门 / 取消 / 超时即停。
+- **空运动（起点已在目标）：** 赶路 / MoveTo / 冠外段规划出的每个点与起点关节差都 < `at_goal_tolerance_rad`（0.002 rad，
+  约 1.6 mm @ 0.8 m）时（Pilz 同点返回单点、时间参数化塌缩等），后端返回成功的单点轨迹（`reason=<label>:at_goal`），
+  不报 `empty_trajectory`。MoveTo 与周期各段照常过门与起点校验后直接视为到达（MoveTo `message=at_goal`），**不下发轨迹**、
+  不记入冠内撤出路径。规划返回 0 点仍是规划失败（无法证明目标即起点）。**残差修正 LIN**（`pregrasp_correction`）
+  `collapse_at_goal=false`：3 mm 残差门小于 0.005 rad 级关节带，修正段不做空运动判定。
+- `reached` 是有序进度（`RETREATED` 暗示已剪切）：FULL 语义不变；PREGRASP_ONLY 最多到 `PREGRASP`，即使随后按
+  `pregrasp_only_retreat` 撤回——撤回是否成功只看 `stage_names`/`stage_times_s`（含 `RETREAT`）与 `failure_code`
+  （撤回失败仍 `RETREAT_FAILED` + recovery）；未到 pregrasp 就失败撤出则保持 `NONE`。
 - 冠内失败且撤不出 → `RETREAT_FAILED` + `recovery_required`；关门 / 机器人未就绪时不再尝试运动（只开刀）。
 
 ## 图接口（固定名，不是参数）
@@ -88,7 +96,7 @@ RETREAT → TRANSIT_RELEASE → RELEASE → DONE`
 声明与校验：`params/peach2_manipulation_parameters.yaml`（generate_parameter_library）；部署值：`config/manipulation.yaml`。
 要点：`tool_id`、`plugin_tool_ids`/`plugin_classes`（tool_id → pluginlib 类名）、`io_backend`（aubo|mock）、`io.cmd_pin`/`io.feedback_pin`
 （必须不同）、`require_robot_status`（仅 mock 为 false）、`robot_status_max_age_s` 0.3、`enables_timeout_s` 3.0、`moveit.*`、`speed.*`
-（transit 0.1、接近 0.05 m/s、撤出 0.03 m/s）、`timeouts.*`、`staging.distance_m` 0.20（0.15–0.25）、`pregrasp.*`、`start_tolerance_rad` 0.02、
+（transit 0.1、接近 0.05 m/s、撤出 0.03 m/s）、`timeouts.*`、`staging.distance_m` 0.20（0.15–0.25）、`pregrasp.*`、`start_tolerance_rad` 0.02、`at_goal_tolerance_rad` 0.002（0.0001–0.05，只读；残差修正 LIN 不塌缩）、
 `release_named_target` harvest_stow、`cut_retry_max` 1、`bond_heartbeat_timeout_s` 4.0、`bag_margin_m` 0.02（0–0.10）、
 `timeouts.scene_s` 2.0。执行 / 抓取 / 刀具许可**不是参数**，只来自 `/peach/enables`。
 
@@ -114,7 +122,9 @@ colcon test-result --test-result-base build/v2/peach2_manipulation --verbose
 gtest（零 ROS 运行时）：`test_bag_obstacles`（胶囊几何、排除当前目标、diff 增/改/删、APPROACH→CONTACT→恢复序列、未提交重试、
 遗留接管）、`test_command_gate`、`test_trajectory_reverse`、`test_staging_geometry`、`test_harvest_cycle`（假 MotionBackend /
 DecisionClient + 真 AdaptiveShearV1 on MockIoBackend，覆盖 plan-only 标志、场景相位与每段规划的对应、场景失败、受理、全流程、残差、
-两次重查、刀具故障、关门/取消、撤退回退、起点重规划）、`test_move_to`、`test_conversions`（反馈三态、plan_only、枝方向）。lint 跳过 cpplint / copyright（spec）。节点与 MoveIt 后端的集成测试（launch_testing + mock_components）是 M1 缺口。
+两次重查、刀具故障、关门/取消、撤退回退、起点重规划、空运动段不下发、PREGRASP_ONLY 的 reached 不越过 PREGRASP）、
+`test_motion_backend`（`finalize_plan`：静止多点 / 单点塌缩为空运动、残差修正不做塌缩、单点偏离起点 / 0 点 / 关节数不符按规划失败）、
+`test_move_to`（含已在目标：成功不下发、仍过门）、`test_conversions`（反馈三态、plan_only、枝方向）。lint 跳过 cpplint / copyright（spec）。节点与 MoveIt 后端的集成测试（launch_testing + mock_components）是 M1 缺口。
 
 ## 接口需求（不改 IDL，记录给接口 owner）
 
@@ -133,8 +143,10 @@ DecisionClient + 真 AdaptiveShearV1 on MockIoBackend，覆盖 plan-only 标志�
 - TODO(M0)：刃面约定、L_insert 含义、刀反馈独立性（P0-3）台架核对；`execute_trajectory` 取消后驱动是否确实 `RobotMoveStop` 真机确认；
   `motion_possible` 在执行中为 0 的语义按 spec，真机复核。
 - TODO(M0)：Pilz `cartesian_limits.max_trans_vel`（0.25）若在 moveit_config 改动，同步 `moveit.cartesian_max_trans_vel_mps`。
-- TODO(M1)：launch_testing（isolated domain + mock_components）：lifecycle Active、bond、QoS、PREGRASP 链、取消路径、关门即停；
-  `peach_bag_*` 经 move_group 的实际增删（本轮只有纯核与周期钩子的 gtest）、`recovery_required` 锁定 / ACK 边沿、ACK 幂等。
+- **M1 系统测（2026-09-30 已过）：** `peach2_system_tests` 33/33：lifecycle Active、bond（C++ 硬断言；Python 无 bondpy 则 skip）、
+  plan-only REJECT、mock PREGRASP 执行、`reached=PREGRASP`、拍照位空运动。残差 LIN 不 at-goal 塌缩
+  （`collapse_at_goal=false`，默认 `at_goal_tolerance_rad=0.002`）。仍未覆盖：`peach_bag_*` 经 move_group
+  的实际增删（现有纯核 + 周期钩子 gtest）、取消路径 / 关门即停、`recovery_required` 锁定边沿的独立用例、mock FULL。
 - TODO(M4)：腕部力传感 → adaptive 导纳套入与接触中止（`has_force_sensing()` 现为 false，走 LIN 回退）；bite 喉部接触判据。
 - 急停 / 保护停止沿（`e_stopped` / `in_error` 0→1）：取消在途 goal、刀标 UNKNOWN、锁 recovery；须人工复位示教器后调
   `acknowledge_recovery`，下一周期 PREPARE_TOOL 重新确认张开。本包从不自动复位、不 resume 原轨迹。

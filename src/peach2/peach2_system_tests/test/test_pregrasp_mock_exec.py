@@ -55,6 +55,8 @@ class TestPregraspMockExec(unittest.TestCase):
     def test_0_stack_active(self):
         for name in MANAGED:
             self.assertTrue(self.node.wait_active(name, 180.0), f'{name} not active')
+        self.assertTrue(self.node.wait_controllers(h.MOCK_CONTROLLERS, 60.0),
+                        f'controllers active: {self.node.active_controllers()}')
         self.assertTrue(h.wait_until(lambda: self.node.joints() is not None, 30.0))
         type(self).joints0 = self.node.joints()
 
@@ -137,7 +139,7 @@ class TestPregraspMockExec(unittest.TestCase):
         type(self).harvest_result = r
         self.assertEqual(r.outcome, HarvestResult.OUTCOME_SUCCEEDED, r.reason)
         self.assertFalse(r.plan_only)
-        self.assertIn(r.reached, (HarvestResult.REACHED_PREGRASP, HarvestResult.REACHED_RETREATED))
+        self.assertEqual(r.reached, HarvestResult.REACHED_PREGRASP)
         self.assertEqual(result.succeeded, 1)
         self.assertTrue(h.wait_until(
             lambda: n.batch_state is not None and n.batch_state.phase == BatchState.COMPLETED,
@@ -147,12 +149,7 @@ class TestPregraspMockExec(unittest.TestCase):
     def test_4b_reached_is_pregrasp(self):
         r = getattr(type(self), 'harvest_result', None)
         self.assertIsNotNone(r, 'no harvest result from test_4')
-
-        def check():
-            self.assertEqual(r.reached, HarvestResult.REACHED_PREGRASP)
-
-        h.xfail(self, 'README 已知失败 #4: with pregrasp_only_retreat=true the retreat raises '
-                'reached from PREGRASP to RETREATED', check)
+        self.assertEqual(r.reached, HarvestResult.REACHED_PREGRASP)
 
     def test_5_resurvey_when_no_target(self):
         n = self.node
@@ -171,13 +168,8 @@ class TestPregraspMockExec(unittest.TestCase):
         print(f'[lt] RunBatch no-target: termination={result.termination_reason!r}', flush=True)
         self.assertEqual(len(result.results), 0)
         self.assertEqual(n.set_io_calls, 0, 'SetIO was called')
-
-        def check():
-            self.assertFalse(result.termination_reason.startswith('survey_failed'),
-                             result.termination_reason)
-
-        h.xfail(self, 'README 已知失败 #3: Resurvey MoveTo to the photo pose the arm already '
-                'holds returns PLAN_FAILED empty_trajectory and aborts the batch', check)
+        self.assertFalse(result.termination_reason.startswith('survey_failed'),
+                         result.termination_reason)
 
     def test_6_disable_execution(self):
         response = self.node.set_enables(False, False, False)

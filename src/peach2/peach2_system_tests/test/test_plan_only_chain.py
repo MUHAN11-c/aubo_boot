@@ -2,8 +2,9 @@
 Isolated launch_testing: plan-only chain on the mock stack (execution disabled).
 
 The test process publishes synthetic observations of two bags, waits for converged target models,
-then sends RunBatch(PREGRASP_ONLY) with enables all false. Nothing may move and SetIO may never be
-called. A direct HarvestTarget(PREGRASP_ONLY) checks the manipulation plan-only chain on its own.
+then sends RunBatch(PREGRASP_ONLY) with enables all false: the goal is rejected at admission
+(stop-and-go survey has to move the arm). Nothing may move and SetIO may never be called.
+A direct HarvestTarget(PREGRASP_ONLY) checks the manipulation plan-only chain on its own.
 """
 from pathlib import Path
 import sys
@@ -12,7 +13,7 @@ import unittest
 
 from launch_testing import post_shutdown_test
 from peach2_interfaces.action import HarvestTarget, RunBatch
-from peach2_interfaces.msg import FailureCode, HarvestResult
+from peach2_interfaces.msg import BatchState, FailureCode, HarvestResult
 import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -20,11 +21,6 @@ import peach2_harness as h  # noqa: E402, I100
 
 MANAGED = ('peach2_target_model', 'peach2_manipulation', 'peach2_task')
 STILL_RAD = 1e-3
-# Batch-level plan-only outcomes that are acceptable when execution is disabled.
-PLAN_ONLY_CODES = (
-    FailureCode.NONE, FailureCode.SAFETY_GATE_CLOSED, FailureCode.PLAN_NO_IK,
-    FailureCode.PLAN_COLLISION, FailureCode.PLAN_FAILED, FailureCode.PLAN_CARTESIAN_INCOMPLETE,
-)
 
 
 @pytest.mark.launch_test
@@ -34,7 +30,6 @@ def generate_test_description():
 
 class TestPlanOnlyChain(unittest.TestCase):
 
-    batch_result = None
     joints0 = None
 
     @classmethod
@@ -68,7 +63,7 @@ class TestPlanOnlyChain(unittest.TestCase):
         self.assertTrue(response.decision.approach_allowed,
                         f'approach not allowed: {response.decision.reason}')
 
-    def test_2_run_batch_execution_disabled(self):
+    def test_2_run_batch_execution_disabled_rejected(self):
         n = self.node
         self.assertTrue(h.wait_until(lambda: n.enables is not None, 10.0))
         self.assertFalse(n.enables.execution, 'execution must be disabled for this test')
@@ -80,33 +75,23 @@ class TestPlanOnlyChain(unittest.TestCase):
         goal.max_targets = 1
         goal.per_target_timeout_s = 120.0
         handle = n.send_goal(n.run_batch, goal)
-        self.assertIsNotNone(handle, 'RunBatch rejected or server missing')
-        wrapped = h.wait_future(handle.get_result_async(), 300.0)
-        self.assertIsNotNone(wrapped, 'RunBatch did not finish')
-        result = wrapped.result
-        type(self).batch_result = result
-        summary = [(r.target_id, r.outcome, r.failure_code, r.reason, r.plan_only)
-                   for r in result.results]
-        print(f'[lt] RunBatch plan-only: termination={result.termination_reason!r} '
-              f'results={summary}', flush=True)
-        self.assertTrue(result.termination_reason, 'empty termination_reason')
-        for r in result.results:
-            self.assertIn(r.failure_code, PLAN_ONLY_CODES, f'unexpected failure: {r.reason}')
-            self.assertEqual(r.reached, HarvestResult.REACHED_NONE)
+        self.assertIsNone(handle, 'RunBatch must reject when execution is disabled')
+        self.assertTrue(
+            h.wait_until(
+                lambda: n.batch_state is not None and
+                'execution_disabled' in n.batch_state.message,
+                5.0),
+            f'batch message {None if n.batch_state is None else n.batch_state.message}')
+        print(f'[lt] RunBatch rejected: {n.batch_state.message!r}', flush=True)
         self.assert_still()
 
-    def test_3_run_batch_reports_plan_only(self):
-        result = type(self).batch_result
-        self.assertIsNotNone(result, 'no RunBatch result from test_2')
-
-        def check():
-            self.assertFalse(result.termination_reason.startswith('safety:'),
-                             result.termination_reason)
-            self.assertTrue(result.results, 'no per-target results')
-            self.assertTrue(result.results[0].plan_only)
-
-        h.xfail(self, 'README 已知失败 #2: peach2_task requires execution for PREGRASP_ONLY, '
-                'batch aborts at CheckSafety before any plan-only result', check)
+    def test_3_run_batch_stayed_idle(self):
+        n = self.node
+        self.assertIsNotNone(n.batch_state, 'no /peach/task/state')
+        self.assertEqual(
+            n.batch_state.phase, BatchState.IDLE, f'batch phase {n.batch_state.phase}')
+        self.assertEqual(n.batch_state.request_id, '')
+        self.assert_still()
 
     def test_4_harvest_target_plan_only(self):
         n = self.node

@@ -20,6 +20,7 @@
 #include "peach2_task/bt/logic_nodes.hpp"
 #include "peach2_task/bt/ports.hpp"
 #include "peach2_task/core/batch_session.hpp"
+#include "peach2_task/core/safety_gate.hpp"
 
 namespace core = peach2_task::core;
 namespace fc = peach2_task::core::fc;
@@ -46,7 +47,7 @@ struct World
   std::map<std::string, std::deque<core::HarvestOutcome>> harvest;
   std::set<std::string> observe_hangs;
   int harvest_running_ticks = 2;
-  bool safety_ok = true;
+  core::Enables enables{true, true, true};  ///< operator enables seen by the real safety gate
   bool begin_scene_accepts = true;
   bool plan_only = false;  ///< default HarvestTarget results are plan-only
   std::function<void(const std::string &)> on_observe;  ///< runs at every ObserveTarget start
@@ -225,13 +226,22 @@ public:
   MockSafety(const std::string & name, const BT::NodeConfig & config, World * world)
   : BT::ConditionNode(name, config), w_(world) {}
 
+  /// Same verdict path as the ROS CheckSafety leaf, minus robot_status (mock hardware).
   NodeStatus tick() override
   {
-    if (w_->safety_ok) {
+    core::SafetyConfig cfg;
+    cfg.require_robot_status = false;
+    core::SafetyInputs in;
+    in.enables = w_->enables;
+    in.intent = w_->session->request().intent;
+    const auto verdict = core::evaluate_safety(cfg, in);
+    w_->session->set_safety_blockers(verdict.blockers);
+    if (verdict.ok) {
       return NodeStatus::SUCCESS;
     }
-    w_->session->set_failure(core::Failure{fc::SAFETY_GATE_CLOSED, "safety:test", false, {}, {}});
-    w_->session->abort("safety:enable_missing:execution");
+    const std::string reason = "safety:" + verdict.reason();
+    w_->session->set_failure(core::Failure{verdict.failure_code, reason, false, {}, {}});
+    w_->session->abort(reason);
     return NodeStatus::FAILURE;
   }
 
@@ -545,12 +555,52 @@ TEST_F(TreeTest, SafetyLossHaltsInFlightHarvest)
   start(Intent::FULL);
   NodeStatus st = run(5000, [this] {return !world_.harvested.empty();});
   ASSERT_EQ(st, NodeStatus::RUNNING);
-  world_.safety_ok = false;
+  world_.enables = core::Enables{};
   st = run(5);
   ASSERT_EQ(st, NodeStatus::FAILURE);
   EXPECT_EQ(world_.harvest_halts, 1);
-  EXPECT_EQ(finish(st), "safety:enable_missing:execution");
+  EXPECT_EQ(finish(st), "safety:enable_missing:execution,enable_missing:grasp,enable_missing:tool");
   EXPECT_EQ(world_.session->results()[0].outcome, core::outcome::FAILED);
+  EXPECT_EQ(world_.session->results()[0].failure_code, fc::SAFETY_GATE_CLOSED);
+}
+
+TEST_F(TreeTest, PregraspLosingExecutionMidObserveHalts)
+{
+  world_.enables = core::Enables{true, false, false};
+  world_.observe_hangs.insert("t_low");
+  start(Intent::PREGRASP_ONLY);
+  NodeStatus st = run(5000, [this] {return world_.observe_calls > 0;});
+  ASSERT_EQ(st, NodeStatus::RUNNING);
+  world_.enables.execution = false;
+  st = run(5);
+  ASSERT_EQ(st, NodeStatus::FAILURE);
+  EXPECT_EQ(world_.observe_halts, 1);
+  EXPECT_TRUE(world_.harvested.empty());
+  EXPECT_EQ(finish(st), "safety:enable_missing:execution");
+  EXPECT_EQ(world_.session->phase(), core::Phase::ABORTED);
+}
+
+TEST_F(TreeTest, FullLosingToolMidHarvestHalts)
+{
+  world_.harvest_running_ticks = 1000;
+  start(Intent::FULL);
+  NodeStatus st = run(5000, [this] {return !world_.harvested.empty();});
+  ASSERT_EQ(st, NodeStatus::RUNNING);
+  world_.enables.tool = false;
+  st = run(5);
+  ASSERT_EQ(st, NodeStatus::FAILURE);
+  EXPECT_EQ(world_.harvest_halts, 1);
+  EXPECT_EQ(finish(st), "safety:enable_missing:tool");
+}
+
+TEST_F(TreeTest, PregraspRunsWithExecutionOnly)
+{
+  config_.ack_each_pregrasp = false;
+  world_.enables = core::Enables{true, false, false};
+  start(Intent::PREGRASP_ONLY);
+  const NodeStatus st = run();
+  ASSERT_EQ(st, NodeStatus::SUCCESS);
+  EXPECT_EQ(world_.harvested.size(), 3U);
 }
 
 TEST_F(TreeTest, EmptySurveyLimitSettles)

@@ -484,8 +484,8 @@ def local_reference(mats, report):
         row_depth=np.convolve(np.pad(row_depth,2,mode='edge'),np.ones(5)/5,mode='valid')
         rings=[]
         for (row,left,right,_),front in zip(profile,row_depth):
-            w=max(.001,(right-left)*(front+thickness*.5)/1280)
-            x=((right+left)/2-640)*(front+thickness*.5)/640
+            w=max(.001,(right-left)*front/1280)
+            x=((right+left)/2-640)*front/640
             z=1.6+(360-row)*front/640
             rings.append((z,x,w,float(front),thickness))
         # Complete beyond the image crop, never identify the crop edge as a neck.
@@ -562,7 +562,7 @@ def local_reference(mats, report):
         center = pixel_point(item['u'], item['v'], item['depth_m'])
         a = item['angle_rad']
         length = item['length_m']
-        direction = Vector((math.sin(a), RNG.uniform(-.25, .25), -math.cos(a)))
+        direction = Vector((math.sin(a), 0., -math.cos(a)))
         root = center - direction * length * .5
         tip = center + direction * length * .5
         parent=nearest_branch(root)
@@ -579,12 +579,19 @@ def local_reference(mats, report):
         # connected.
         attach(f'Reference/inferred petiole{i}', [parent, parent.lerp(
             root, .6), root], [.0018, .0011, .0005], mats['twig'], parent)
-        leaves.add(root, tip, length * RNG.uniform(.22, .32))
+        # Observed front surfaces below replace guessed leaf silhouettes.
+        # Keep inferred woody connections, but do not add a second front leaf.
     # Continue the partial foreground trunk to soil only for the orchard
     # overview.
     lower = trunk[0]
     tube('Reference/inferred lower trunk', [(lower.x - .06, lower.y + .04, 0),
          (lower.x - .03, lower.y + .02, .65), lower], [.055, .035, .018], mats['bark'], 14)
+    observed = np.load(HERE / 'evidence/observed_foliage.npz')
+    surface = mesh('Reference/observed foliage surface', observed['vertices'].tolist(),
+                   observed['faces'].tolist(), mats['leaf2'])
+    surface['source'] = '1200 valid RGB-D green surfaces; no photo texture'
+    surface['surface_status'] = 'partial observed leaf fronts; not closed leaf instances'
+    surface['source_triangles'] = len(observed['faces'])
     leaves.finish('Reference')
     return trunk
 
@@ -877,7 +884,7 @@ def main():
     s.unit_settings.system = 'METRIC'
     # Save manifest before rendering for crash-safe evidence.
     manifest = {
-        'modeling_revision': '2026-09-30-bag-paper-v9',
+        'modeling_revision': '2026-09-30-reference-scene-v11',
         'source_sha256': {
             name: hashlib.sha256((HERE / name).read_bytes()).hexdigest()
             for name in ('build_scene.py', 'geometry.py', 'materials.py',
@@ -885,7 +892,10 @@ def main():
                          'distributions.py', 'make_textures.py', 'textures/paper_height.png',
                          'evidence/priors.json',
                          'evidence/reference_measurements.json',
-                         'evidence/foliage_support.json')},
+                         'evidence/foliage_support.json', 'measure_foliage.py',
+                         'evidence/foliage_measurement.json', 'observed_foliage.py',
+                         'evidence/observed_foliage.npz',
+                         'evidence/observed_foliage.json')},
         'render_settings': {'samples': args.samples, 'width': args.width,
                             'height': s.render.resolution_y,
                             'exposure_ev': s.view_settings.exposure,

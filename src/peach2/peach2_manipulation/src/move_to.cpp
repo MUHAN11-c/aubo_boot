@@ -69,6 +69,12 @@ MoveToResult run_move_to(
     out.message = "start_state_mismatch";
     return out;
   }
+  if (is_null_motion(p.trajectory)) {
+    out.success = true;
+    out.failure_code = failure::NONE;
+    out.message = "at_goal";
+    return out;
+  }
   ExecOptions options;
   options.timeout_s = p.trajectory.duration_s() * config.execute_timeout_scale +
     config.execute_timeout_margin_s;

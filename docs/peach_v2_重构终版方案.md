@@ -580,7 +580,35 @@ public:
 | **M6.5 感知升级 v2.1（关键点）** | 3 周（与 M6 并行起步） | 用 M2–M6 飞轮积累的伪标签（≥ 3000 张）+ 人工抽检，训练 YOLO11-seg + 三关键点并替换 perception_infer；接口不变 | 同一离线评测集上：袋颈轴向误差比 v2.0 降 ≥ 40%，检测召回不降；果园 A/B 剪断成功率不降 |
 | **M7 提速与上底盘准备** | 持续 | 物流优化、视点复用、双果并行规划、底盘接口（REP-105） | 每果 ≤ 15 s |
 
-**迁移策略：** 新旧栈不并存运行；M1 起在新分支重建，旧栈只作为对照（离线回放同一 bag，比较定位与许可结果）。现行可复用资产：URDF/meshes、手眼标定、立体前端 C++ 主体、TSDF/ICP 实现、`peach_sim` 场景、`harvest_fsm` 的测试用例（改写成 BT 测试）、账本格式。
+**迁移策略：** 方案原文写「新旧栈不并存运行」。现行落地是**同仓并存、不同 launch**：生产入口仍是 `peach_bringup/harvest_system.launch.py`（旧 `peach_*`）；v2 在 `src/peach2/`，入口 `peach2_bringup/peach2_system.launch.py`，不进 harvest_system / 现行 lifecycle。旧栈作对照（离线回放同一 bag）。可复用资产：URDF/meshes、手眼标定、立体前端 C++ 主体、TSDF/ICP 实现、`peach_sim` 场景、`harvest_fsm` 测试用例（改写成 BT 测试）、账本格式。
+
+### 现行进度（2026-09-30 晚）
+
+**这一轮要收口的软件任务已完成（M1 退出门）。方案 §1 产品验收（果园套袋+剪断）未完成。**
+
+| 阶段 | 状态 | 说明 |
+|------|------|------|
+| **M0 实测与台架** | 未过退出门 | `peach2_calibration/results/*.yaml` 仍是 `design_reference`（照抄 profile，不是台架测量）。`cut_allowed` 因此恒 false。果园袋几何统计、IO 反证、刀具独立反馈未做 |
+| **M1 骨架** | **退出门已过** | 十二包在 `src/peach2/`；lifecycle+bond、命令门、EndEffector 三插件 + mock IO、BT 主树。launch_testing 全绿；mock PREGRASP 链通 |
+| **M2 感知 v2.0** | 代码有、退出门未过 | 仍走现有检测/分割，未做 TensorRT 热路径；果园离线召回/袋底/袋颈门未评 |
+| **M3 建模与预算** | 代码有、退出门未过 | RSS / GetDecision 已接线；台架 σ 达标率未测。`require_known_swing` 默认 true |
+| **M4 运动与避障** | 代码有、退出门未过 | MoveIt 后端 + 邻袋胶囊 + 残差 LIN。仿真 FULL ≥80%、台架 PREGRASP ≤3 mm 未测。系统测尚无 mock FULL（套入/剪切） |
+| **M5 三末端接入** | 未过 | 插件空实现 + mock IO；adaptive 导纳/Servo 真机通路、剪断第二判据未接 |
+| **M6 / M6.5 / M7** | 未过 | 果园试运行、YOLO11-seg+三关键点（v2.1）、底盘接口 |
+
+**M1 当日验收（mock，禁止真机 SetIO）：**
+
+| 项 | 结果 |
+|----|------|
+| `peach2_manipulation` gtest | 191 tests，0 fail，31 skip（cppcheck） |
+| `peach2_system_tests` launch_testing | 33 tests，0 error / 0 fail / 0 skip；域 95–97 |
+| `RunBatch` `execution=false` | goal REJECT，`execution_disabled`；plan-only 走 `HarvestTarget` / `CheckReachability` |
+| `HarvestTarget` plan-only | `SKIPPED/NONE/planned`，`plan_only=true`，`reached=NONE` |
+| mock PREGRASP 执行 | `SetEnables(execution=true)` 后 TCP 到 `pregrasp_tcp`（min_dist=0.0000），`reached=PREGRASP`；无目标批次 `no_targets` |
+| 残差 LIN | `collapse_at_goal=false`；默认 `at_goal_tolerance_rad=0.002`（0.005 rad ≈4 mm，会把 3 mm 残差当已到位） |
+| 四处原 xfail | 已改为硬断言（bondpy 路径、RunBatch 拒执行关、拍照位空运动、PREGRASP 不抬到 RETREATED） |
+
+系统测命令与四项关闭说明见 `src/peach2/peach2_system_tests/README.md`。下一步有意义的两件：M0 台架标定，或把 mock FULL（仍禁止真机 SetIO）补进系统测。
 
 ---
 

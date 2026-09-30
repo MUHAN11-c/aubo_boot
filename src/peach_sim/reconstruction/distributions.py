@@ -12,7 +12,7 @@ from typing import Dict, Tuple
 # VOC 0=无遮挡；尺寸上半段作为成熟内果是假设，不是成熟度标签。
 MATURE_U_MIN = 0.5
 # 纸贴果：径向间隙 5–9 mm。现场袋底到袋口 p50 7.0 cm，约等于果径。
-FRUIT_SEAT_M = 0.005
+FRUIT_SEAT_M = 0.022
 PAPER_GAP_M = 0.005
 PAPER_SLACK_M = (0.005, 0.009)
 NECK_ABOVE_FRUIT_M = (0.010, 0.018)
@@ -133,7 +133,7 @@ def sample_bag_for_fruit(stats: Dict, fruit: Dict, rng, attempts: int = 12) -> D
     observed = sample_width_height(stats, rng)
     diameter = fruit['diameter_m']
     width = min(max(observed['width_m'], diameter * 1.25), diameter * 1.65)
-    height = min(max(observed['height_m'], diameter + .03), diameter + .06)
+    height = min(max(observed['height_m'], diameter + .055), diameter + .08)
     return {
         'width_m': width,
         'height_m': height,

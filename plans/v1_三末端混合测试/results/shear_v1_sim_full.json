@@ -1,0 +1,22 @@
+{
+  "profile": "shear_v1",
+  "camera_enabled": false,
+  "lifecycle": {
+    "peach_scene_perception_node": "active [3] [WARN] [1790761477.927772814] [rcl]: ROS_LOCALHOST_ONLY is deprecated but still honored if it is enabled. Use",
+    "peach_target_reconstruction_node": "active [3] [WARN] [1790761479.183615321] [rcl]: ROS_LOCALHOST_ONLY is deprecated but still honored if it is enabled. Use",
+    "peach_supervisor": "active [3] [WARN] [1790761480.435562764] [rcl]: ROS_LOCALHOST_ONLY is deprecated but still honored if it is enabled. Use",
+    "peach_arm": "active [3] [WARN] [1790761481.695178392] [rcl]: ROS_LOCALHOST_ONLY is deprecated but still honored if it is enabled. Use"
+  },
+  "tool_profile_id": "String value is: shear_v1\n[WARN] [1790761492.853764478] [rcl]: ROS_LOCALHOST_ONLY is deprecated but still honored if it is enabled. Use ROS_AUTOMATIC_DISCOVERY_RANGE and ROS_STATIC_PEERS instead.\n[WAR",
+  "grasp": {
+    "elapsed_s": 13.72,
+    "limit_s": 120.0,
+    "returncode": 0,
+    "within_2min": true,
+    "log": "/home/mu/Desktop/aubo_e5_jazzy_ws/plans/v1_三末端混合测试/results/shear_v1_sim_full_grasp_1757.txt",
+    "tail": "peach_arm Active；execution/grasp 已开（tool 保持关）；mode=full；速度/加速度缩放=1（仅仿真）\n回拍照位走 ExecuteTarget 内 goToPhotoPose（接近原路返程，否则 PTP），不经脚本 JTC\n\n=== case 1757 entry=[0.304, -0.614, 0.536] axis_z=0.99 ===\n  -> outcome=3 completion=2 matched=None code= reason=接触阶段取消或撤离未确认；保持停止，须现场人工撤离后确认恢复\n  [接近] 从拍照位 点数=42 弦=0.436m 路径=0.689m 比=1.58 偏离=0.117m 回退=0.004m max_z=0.708 起=[0.302, -0.232, 0.708] 早段=[0.302, -0.232, 0.708] 终=[0.303, -0.618, 0.507]  ✓ 果实胶囊外\n\n结果已写入 /home/mu/Desktop/aubo_e5_jazzy_ws/runs/sim_field_targets_20260930_174459.jsonl\nFULL 干跑成功 0/1（套入到位、grasped=false、tool 关）\n现场典型包络 (|entry|≤1.02 ∧ axis_z≥0.7) 0/1\n\n[WARN] [1790761494.037889500] [rcl]: ROS_LOCALHOST_ONLY is deprecated but still honored if it is enabled. Use ROS_AUTOMATIC_DISCOVERY_RANGE and ROS_STATIC_PEERS instead.\n[WARN] [1790761494.037896151] [rcl]: 'localhost_only' is disabled, 'automatic_discovery_range' and 'static_peers' will be used.",
+    "passed_gate": false
+  },
+  "launch_exit": 0,
+  "leftover": []
+}

@@ -187,7 +187,7 @@ class TargetModelNode(LifecycleNode):
 
     def _create_bond(self):
         try:
-            from bondpy import Bond
+            from bondpy.bondpy import Bond
         except ImportError:
             self.get_logger().warning('bondpy not available: lifecycle_manager bond disabled')
             return None

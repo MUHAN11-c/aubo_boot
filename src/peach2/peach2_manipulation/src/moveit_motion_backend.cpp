@@ -175,15 +175,22 @@ PlanResult MoveItMotionBackend::plan(const PlanRequest & request)
     result.reason = request.label + ":" + moveit::core::errorCodeToString(rc);
     return result;
   }
-  result.trajectory = from_msg(plan.trajectory.joint_trajectory);
-  if (result.trajectory.points.size() < 2U) {
-    result.failure_code = request.kind == PlanKind::LINEAR ?
-      failure::PLAN_CARTESIAN_INCOMPLETE : failure::PLAN_FAILED;
-    result.reason = request.label + ":empty_trajectory";
-    return result;
+  JointTrajectory trajectory = from_msg(plan.trajectory.joint_trajectory);
+  std::optional<std::vector<double>> start = request.start_joints;
+  if (!start && trajectory.points.size() < 2U) {
+    // Pilz / time parameterization collapse start == goal to one point; check it against the
+    // real start instead of trusting the point alone.
+    if (auto current = group.getCurrentState(1.0)) {
+      if (const auto * jmg = current->getJointModelGroup(config_.group)) {
+        std::vector<double> q;
+        current->copyJointGroupPositions(jmg, q);
+        start = std::move(q);
+      }
+    }
   }
-  result.ok = true;
-  return result;
+  return finalize_plan(
+    std::move(trajectory), start, request.kind, request.label, config_.at_goal_tolerance_rad,
+    request.collapse_at_goal);
 }
 
 ExecResult MoveItMotionBackend::execute(

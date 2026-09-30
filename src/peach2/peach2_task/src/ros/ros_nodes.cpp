@@ -131,12 +131,21 @@ NodeStatus MoveToNamed::on_result(const WrappedResult & result)
     on_error(LeafError::NO_RESULT, "");
     return NodeStatus::FAILURE;
   }
-  if (result.code == rclcpp_action::ResultCode::SUCCEEDED && result.result->success) {
+  const bool canceled = result.code == rclcpp_action::ResultCode::CANCELED;
+  const MoveVerdict verdict = move_verdict(canceled, *result.result);
+  if (verdict == MoveVerdict::MOVED) {
     return NodeStatus::SUCCESS;
+  }
+  if (verdict == MoveVerdict::GATE_CLOSED) {
+    const std::string reason = "safety:move_to " + target_ + ":" + result.result->message;
+    RCLCPP_WARN(ctx_->logger, "MoveTo only planned, aborting batch: %s", reason.c_str());
+    session_->set_failure(core::Failure{fc::SAFETY_GATE_CLOSED, reason, false, {}, {}});
+    session_->abort(reason);
+    return NodeStatus::FAILURE;
   }
   uint32_t code = result.result->failure_code;
   if (code == fc::NONE) {
-    code = result.code == rclcpp_action::ResultCode::CANCELED ? fc::CANCELED : fc::EXEC_FAILED;
+    code = canceled ? fc::CANCELED : fc::EXEC_FAILED;
   }
   const std::string reason =
     "move_to " + target_ + ":" + core::failure_name(code) + ":" + result.result->message;

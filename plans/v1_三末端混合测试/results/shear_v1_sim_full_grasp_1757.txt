@@ -1,0 +1,13 @@
+peach_arm Active；execution/grasp 已开（tool 保持关）；mode=full；速度/加速度缩放=1（仅仿真）
+回拍照位走 ExecuteTarget 内 goToPhotoPose（接近原路返程，否则 PTP），不经脚本 JTC
+
+=== case 1757 entry=[0.304, -0.614, 0.536] axis_z=0.99 ===
+  -> outcome=3 completion=2 matched=None code= reason=接触阶段取消或撤离未确认；保持停止，须现场人工撤离后确认恢复
+  [接近] 从拍照位 点数=42 弦=0.436m 路径=0.689m 比=1.58 偏离=0.117m 回退=0.004m max_z=0.708 起=[0.302, -0.232, 0.708] 早段=[0.302, -0.232, 0.708] 终=[0.303, -0.618, 0.507]  ✓ 果实胶囊外
+
+结果已写入 /home/mu/Desktop/aubo_e5_jazzy_ws/runs/sim_field_targets_20260930_174459.jsonl
+FULL 干跑成功 0/1（套入到位、grasped=false、tool 关）
+现场典型包络 (|entry|≤1.02 ∧ axis_z≥0.7) 0/1
+
+[WARN] [1790761494.037889500] [rcl]: ROS_LOCALHOST_ONLY is deprecated but still honored if it is enabled. Use ROS_AUTOMATIC_DISCOVERY_RANGE and ROS_STATIC_PEERS instead.
+[WARN] [1790761494.037896151] [rcl]: 'localhost_only' is disabled, 'automatic_discovery_range' and 'static_peers' will be used.

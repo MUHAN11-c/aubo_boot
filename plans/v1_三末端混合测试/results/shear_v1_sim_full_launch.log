@@ -1,0 +1,743 @@
+[INFO] [launch]: All log files can be found below /home/mu/.ros/log/2026-09-30-17-44-31-991307-mu-MS-7E34-1304608
+[INFO] [launch]: Default logging verbosity is set to INFO
+[preflight] ROS_DOMAIN_ID=71
+[WARN] [1790761472.321333409] [rcl]: ROS_LOCALHOST_ONLY is deprecated but still honored if it is enabled. Use ROS_AUTOMATIC_DISCOVERY_RANGE and ROS_STATIC_PEERS instead.
+[WARN] [1790761472.321350008] [rcl]: 'localhost_only' is disabled, 'automatic_discovery_range' and 'static_peers' will be used.
+[INFO] [robot_state_publisher-1]: process started with pid [1304698]
+[INFO] [ros2_control_node-2]: process started with pid [1304699]
+[INFO] [spawner-3]: process started with pid [1304700]
+[INFO] [spawner-4]: process started with pid [1304701]
+[INFO] [move_group-5]: process started with pid [1304702]
+[INFO] [rviz2-6]: process started with pid [1304703]
+[INFO] [extrinsics_publisher-7]: process started with pid [1304704]
+[INFO] [peach_harvester-8]: process started with pid [1304705]
+[INFO] [peach_arm-9]: process started with pid [1304706]
+[INFO] [peach_observability-10]: process started with pid [1304707]
+[INFO] [lifecycle_manager-11]: process started with pid [1304708]
+[INFO] [peach_lifecycle_flag_bridge-12]: process started with pid [1304709]
+[robot_state_publisher-1] [WARN] [1790761472.450905700] [rcl]: ROS_LOCALHOST_ONLY is deprecated but still honored if it is enabled. Use ROS_AUTOMATIC_DISCOVERY_RANGE and ROS_STATIC_PEERS instead.
+[robot_state_publisher-1] [WARN] [1790761472.450914115] [rcl]: 'localhost_only' is disabled, 'automatic_discovery_range' and 'static_peers' will be used.
+[ros2_control_node-2] [WARN] [1790761472.456606691] [rcl]: ROS_LOCALHOST_ONLY is deprecated but still honored if it is enabled. Use ROS_AUTOMATIC_DISCOVERY_RANGE and ROS_STATIC_PEERS instead.
+[ros2_control_node-2] [WARN] [1790761472.456615720] [rcl]: 'localhost_only' is disabled, 'automatic_discovery_range' and 'static_peers' will be used.
+[lifecycle_manager-11] [WARN] [1790761472.466632407] [rcl]: ROS_LOCALHOST_ONLY is deprecated but still honored if it is enabled. Use ROS_AUTOMATIC_DISCOVERY_RANGE and ROS_STATIC_PEERS instead.
+[lifecycle_manager-11] [WARN] [1790761472.466643458] [rcl]: 'localhost_only' is disabled, 'automatic_discovery_range' and 'static_peers' will be used.
+[move_group-5] [WARN] [1790761472.478936342] [rcl]: ROS_LOCALHOST_ONLY is deprecated but still honored if it is enabled. Use ROS_AUTOMATIC_DISCOVERY_RANGE and ROS_STATIC_PEERS instead.
+[move_group-5] [WARN] [1790761472.478946682] [rcl]: 'localhost_only' is disabled, 'automatic_discovery_range' and 'static_peers' will be used.
+[robot_state_publisher-1] [INFO] [1790761472.479175889] [robot_state_publisher]: Robot initialized
+[ros2_control_node-2] [INFO] [1790761472.479459645] [controller_manager]: Using Steady (Monotonic) clock for triggering controller manager cycles.
+[lifecycle_manager-11] [INFO] [1790761472.481531394] [peach_lifecycle_manager]: Creating
+[ros2_control_node-2] [INFO] [1790761472.483432137] [controller_manager]: Subscribing to '/robot_description' topic for robot description.
+[ros2_control_node-2] [INFO] [1790761472.483481005] [controller_manager]: update rate is 200 Hz
+[ros2_control_node-2] [INFO] [1790761472.483484134] [controller_manager]: Overruns handling is : enabled
+[ros2_control_node-2] [INFO] [1790761472.483486516] [controller_manager]: Spawning controller_manager RT thread with scheduler priority: 50
+[ros2_control_node-2] [INFO] [1790761472.483537017] [controller_manager]: Successful set up FIFO RT scheduling policy with priority 50.
+[lifecycle_manager-11] [INFO] [1790761472.484472545] [peach_lifecycle_manager]: [34m[1mCreating and initializing lifecycle service clients[0m[0m
+[rviz2-6] [WARN] [1790761472.485524970] [rcl]: ROS_LOCALHOST_ONLY is deprecated but still honored if it is enabled. Use ROS_AUTOMATIC_DISCOVERY_RANGE and ROS_STATIC_PEERS instead.
+[rviz2-6] [WARN] [1790761472.485534605] [rcl]: 'localhost_only' is disabled, 'automatic_discovery_range' and 'static_peers' will be used.
+[peach_arm-9] [WARN] [1790761472.487473531] [rcl]: ROS_LOCALHOST_ONLY is deprecated but still honored if it is enabled. Use ROS_AUTOMATIC_DISCOVERY_RANGE and ROS_STATIC_PEERS instead.
+[peach_arm-9] [WARN] [1790761472.487482981] [rcl]: 'localhost_only' is disabled, 'automatic_discovery_range' and 'static_peers' will be used.
+[move_group-5] [INFO] [1790761472.499564629] [move_group.moveit.moveit.ros.rdf_loader]: Loaded robot model in 0.00214986 seconds
+[move_group-5] [INFO] [1790761472.499687968] [move_group.moveit.moveit.core.robot_model]: Loading robot model 'aubo_e5'...
+[move_group-5] [INFO] [1790761472.499696210] [move_group.moveit.moveit.core.robot_model]: No root/virtual joint specified in SRDF. Assuming fixed joint
+[peach_arm-9] [WARN] [1790761472.504156931] [rcl.logging_rosout]: Publisher already registered for node name: 'peach_arm'. If this is due to multiple nodes with the same name then all logs for the logger named 'peach_arm' will go out over the existing publisher. As soon as any node with that name is destructed it will unregister the publisher, preventing any further logs for that name from being published on the rosout topic.
+[peach_arm-9] [WARN] [1790761472.506076977] [peach_arm]: scan.protected_zones 丢弃畸形盒: 盒#0 存在 min>=max 的轴（空盒/退化盒），已丢弃
+[move_group-5] [INFO] [1790761472.521134786] [move_group.moveit.moveit.kinematics.kdl_kinematics_plugin]: Joint weights for group 'manipulator_e5': 1 1 1 1 1 1
+[ros2_control_node-2] [INFO] [1790761472.591236787] [controller_manager]: Received robot description from topic.
+[ros2_control_node-2] [INFO] [1790761472.591284435] [controller_manager]: Enforcing command limits is disabled. Command limits from URDF will be ignored.
+[ros2_control_node-2] [INFO] [1790761472.593884494] [controller_manager]: Loading hardware 'AuboE5System' 
+[ros2_control_node-2] [INFO] [1790761472.594506535] [controller_manager]: Loaded hardware 'AuboE5System' from plugin 'mock_components/GenericSystem'
+[ros2_control_node-2] [INFO] [1790761472.594592269] [controller_manager]: Initialize hardware 'AuboE5System' 
+[move_group-5] [INFO] [1790761472.597586923] [move_group.moveit.moveit.ros.planning_scene_monitor]: Publishing maintained planning scene on 'monitored_planning_scene'
+[move_group-5] [INFO] [1790761472.597707827] [move_group.moveit.moveit.ros.moveit_cpp]: Listening to 'joint_states' for joint states
+[move_group-5] [INFO] [1790761472.598395249] [move_group.moveit.moveit.ros.current_state_monitor]: Listening to joint states on topic 'joint_states'
+[move_group-5] [INFO] [1790761472.598669025] [move_group.moveit.moveit.ros.planning_scene_monitor]: Listening to '/attached_collision_object' for attached collision objects
+[move_group-5] [INFO] [1790761472.598711667] [move_group.moveit.moveit.ros.planning_scene_monitor]: Stopping existing planning scene publisher.
+[move_group-5] [INFO] [1790761472.598779387] [move_group.moveit.moveit.ros.planning_scene_monitor]: Stopped publishing maintained planning scene.
+[move_group-5] [INFO] [1790761472.598944999] [move_group.moveit.moveit.ros.planning_scene_monitor]: Publishing maintained planning scene on 'monitored_planning_scene'
+[move_group-5] [INFO] [1790761472.598991068] [move_group.moveit.moveit.ros.planning_scene_monitor]: Starting planning scene monitor
+[ros2_control_node-2] [INFO] [1790761472.599423024] [controller_manager]: Successful initialization of hardware 'AuboE5System'
+[move_group-5] [INFO] [1790761472.599585126] [move_group.moveit.moveit.ros.planning_scene_monitor]: Listening to '/planning_scene'
+[move_group-5] [INFO] [1790761472.599596479] [move_group.moveit.moveit.ros.planning_scene_monitor]: Starting world geometry update monitor for collision objects, attached objects, octomap updates.
+[ros2_control_node-2] [INFO] [1790761472.599985223] [controller_manager]: Activating component 'AuboE5System'.
+[ros2_control_node-2] [INFO] [1790761472.600019734] [resource_manager]: 'configure' hardware 'AuboE5System' 
+[ros2_control_node-2] [INFO] [1790761472.600031841] [resource_manager]: Successful 'configure' of hardware 'AuboE5System'
+[ros2_control_node-2] [INFO] [1790761472.600046165] [resource_manager]: 'activate' hardware 'AuboE5System' 
+[ros2_control_node-2] [INFO] [1790761472.600052641] [resource_manager]: Successful 'activate' of hardware 'AuboE5System'
+[ros2_control_node-2] [INFO] [1790761472.600109836] [controller_manager]: Registering statistics for : AuboE5System
+[ros2_control_node-2] [INFO] [1790761472.600143779] [controller_manager]: Resource Manager has been successfully initialized. Starting Controller Manager services...
+[move_group-5] [INFO] [1790761472.600018540] [move_group.moveit.moveit.ros.planning_scene_monitor]: Listening to 'collision_object'
+[move_group-5] [INFO] [1790761472.600232291] [move_group.moveit.moveit.ros.planning_scene_monitor]: Listening to 'planning_scene_world' for planning scene world geometry
+[move_group-5] [WARN] [1790761472.600971518] [move_group.moveit.moveit.ros.occupancy_map_monitor]: Resolution not specified for Octomap. Assuming resolution = 0.1 instead
+[move_group-5] [ERROR] [1790761472.600984422] [move_group.moveit.moveit.ros.occupancy_map_monitor]: No 3D sensor plugin(s) defined for octomap updates
+[spawner-3] [WARN] [1790761472.637511899] [rcl]: ROS_LOCALHOST_ONLY is deprecated but still honored if it is enabled. Use ROS_AUTOMATIC_DISCOVERY_RANGE and ROS_STATIC_PEERS instead.
+[spawner-3] [WARN] [1790761472.637519934] [rcl]: 'localhost_only' is disabled, 'automatic_discovery_range' and 'static_peers' will be used.
+[move_group-5] [INFO] [1790761472.643613167] [move_group.moveit.moveit.ros.planning_pipeline]: Successfully loaded planner 'OMPL'
+[peach_lifecycle_flag_bridge-12] [WARN] [1790761472.643738509] [rcl]: ROS_LOCALHOST_ONLY is deprecated but still honored if it is enabled. Use ROS_AUTOMATIC_DISCOVERY_RANGE and ROS_STATIC_PEERS instead.
+[peach_lifecycle_flag_bridge-12] [WARN] [1790761472.643744340] [rcl]: 'localhost_only' is disabled, 'automatic_discovery_range' and 'static_peers' will be used.
+[move_group-5] [INFO] [1790761472.644727923] [move_group]: Try loading adapter 'default_planning_request_adapters/ResolveConstraintFrames'
+[move_group-5] [INFO] [1790761472.645371019] [move_group]: Loaded adapter 'default_planning_request_adapters/ResolveConstraintFrames'
+[move_group-5] [INFO] [1790761472.645381355] [move_group]: Try loading adapter 'default_planning_request_adapters/ValidateWorkspaceBounds'
+[move_group-5] [INFO] [1790761472.645915550] [move_group]: Loaded adapter 'default_planning_request_adapters/ValidateWorkspaceBounds'
+[move_group-5] [INFO] [1790761472.645921709] [move_group]: Try loading adapter 'default_planning_request_adapters/CheckStartStateBounds'
+[move_group-5] [INFO] [1790761472.645935539] [move_group]: Loaded adapter 'default_planning_request_adapters/CheckStartStateBounds'
+[move_group-5] [INFO] [1790761472.645937775] [move_group]: Try loading adapter 'default_planning_request_adapters/CheckStartStateCollision'
+[move_group-5] [INFO] [1790761472.645942259] [move_group]: Loaded adapter 'default_planning_request_adapters/CheckStartStateCollision'
+[move_group-5] [INFO] [1790761472.646713622] [move_group]: Try loading adapter 'default_planning_response_adapters/AddTimeOptimalParameterization'
+[move_group-5] [INFO] [1790761472.648175000] [move_group]: Loaded adapter 'default_planning_response_adapters/AddTimeOptimalParameterization'
+[move_group-5] [INFO] [1790761472.648184091] [move_group]: Try loading adapter 'default_planning_response_adapters/AddRuckigTrajectorySmoothing'
+[move_group-5] [INFO] [1790761472.648191791] [move_group]: Loaded adapter 'default_planning_response_adapters/AddRuckigTrajectorySmoothing'
+[move_group-5] [INFO] [1790761472.648193561] [move_group]: Try loading adapter 'default_planning_response_adapters/ValidateSolution'
+[move_group-5] [INFO] [1790761472.649345708] [move_group]: Loaded adapter 'default_planning_response_adapters/ValidateSolution'
+[move_group-5] [INFO] [1790761472.651099917] [move_group.moveit.moveit.planners.pilz.joint_limits_aggregator]: Reading limits from namespace robot_description_planning
+[move_group-5] [INFO] [1790761472.652337013] [move_group.moveit.moveit.planners.pilz.command_planner]: Available plugins: pilz_industrial_motion_planner/PlanningContextLoaderCIRC pilz_industrial_motion_planner/PlanningContextLoaderLIN pilz_industrial_motion_planner/PlanningContextLoaderPTP 
+[move_group-5] [INFO] [1790761472.652347159] [move_group.moveit.moveit.planners.pilz.command_planner]: About to load: pilz_industrial_motion_planner/PlanningContextLoaderCIRC
+[move_group-5] [INFO] [1790761472.653004680] [move_group.moveit.moveit.planners.pilz.command_planner]: Registered Algorithm [CIRC]
+[move_group-5] [INFO] [1790761472.653012725] [move_group.moveit.moveit.planners.pilz.command_planner]: About to load: pilz_industrial_motion_planner/PlanningContextLoaderLIN
+[move_group-5] [INFO] [1790761472.653424772] [move_group.moveit.moveit.planners.pilz.command_planner]: Registered Algorithm [LIN]
+[move_group-5] [INFO] [1790761472.653430389] [move_group.moveit.moveit.planners.pilz.command_planner]: About to load: pilz_industrial_motion_planner/PlanningContextLoaderPTP
+[move_group-5] [INFO] [1790761472.653817111] [move_group.moveit.moveit.planners.pilz.command_planner]: Registered Algorithm [PTP]
+[move_group-5] [INFO] [1790761472.653822591] [move_group.moveit.moveit.ros.planning_pipeline]: Successfully loaded planner 'Pilz Industrial Motion Planner'
+[move_group-5] [INFO] [1790761472.654591633] [move_group]: Try loading adapter 'default_planning_request_adapters/ResolveConstraintFrames'
+[move_group-5] [INFO] [1790761472.654676045] [move_group]: Loaded adapter 'default_planning_request_adapters/ResolveConstraintFrames'
+[move_group-5] [INFO] [1790761472.654678386] [move_group]: Try loading adapter 'default_planning_request_adapters/ValidateWorkspaceBounds'
+[move_group-5] [INFO] [1790761472.654776910] [move_group]: Loaded adapter 'default_planning_request_adapters/ValidateWorkspaceBounds'
+[move_group-5] [INFO] [1790761472.654779653] [move_group]: Try loading adapter 'default_planning_request_adapters/CheckStartStateBounds'
+[move_group-5] [INFO] [1790761472.654787017] [move_group]: Loaded adapter 'default_planning_request_adapters/CheckStartStateBounds'
+[move_group-5] [INFO] [1790761472.654789033] [move_group]: Try loading adapter 'default_planning_request_adapters/CheckStartStateCollision'
+[move_group-5] [INFO] [1790761472.654794467] [move_group]: Loaded adapter 'default_planning_request_adapters/CheckStartStateCollision'
+[move_group-5] [INFO] [1790761472.655468009] [move_group]: Try loading adapter 'default_planning_response_adapters/ValidateSolution'
+[move_group-5] [INFO] [1790761472.655965744] [move_group]: Loaded adapter 'default_planning_response_adapters/ValidateSolution'
+[move_group-5] [INFO] [1790761472.657905144] [move_group.moveit.moveit.ros.planning_pipeline]: Successfully loaded planner 'STOMP'
+[move_group-5] [INFO] [1790761472.658576219] [move_group]: Try loading adapter 'default_planning_request_adapters/ResolveConstraintFrames'
+[move_group-5] [INFO] [1790761472.658646561] [move_group]: Loaded adapter 'default_planning_request_adapters/ResolveConstraintFrames'
+[move_group-5] [INFO] [1790761472.658648913] [move_group]: Try loading adapter 'default_planning_request_adapters/ValidateWorkspaceBounds'
+[move_group-5] [INFO] [1790761472.658707852] [move_group]: Loaded adapter 'default_planning_request_adapters/ValidateWorkspaceBounds'
+[move_group-5] [INFO] [1790761472.658710199] [move_group]: Try loading adapter 'default_planning_request_adapters/CheckStartStateBounds'
+[move_group-5] [INFO] [1790761472.658716737] [move_group]: Loaded adapter 'default_planning_request_adapters/CheckStartStateBounds'
+[move_group-5] [INFO] [1790761472.658718330] [move_group]: Try loading adapter 'default_planning_request_adapters/CheckStartStateCollision'
+[move_group-5] [INFO] [1790761472.658722862] [move_group]: Loaded adapter 'default_planning_request_adapters/CheckStartStateCollision'
+[move_group-5] [INFO] [1790761472.659367550] [move_group]: Try loading adapter 'default_planning_response_adapters/AddTimeOptimalParameterization'
+[move_group-5] [INFO] [1790761472.659542702] [move_group]: Loaded adapter 'default_planning_response_adapters/AddTimeOptimalParameterization'
+[move_group-5] [INFO] [1790761472.659545090] [move_group]: Try loading adapter 'default_planning_response_adapters/ValidateSolution'
+[move_group-5] [INFO] [1790761472.659896462] [move_group]: Loaded adapter 'default_planning_response_adapters/ValidateSolution'
+[move_group-5] [INFO] [1790761472.659902813] [move_group]: Try loading adapter 'default_planning_response_adapters/DisplayMotionPath'
+[move_group-5] [INFO] [1790761472.660575607] [move_group]: Loaded adapter 'default_planning_response_adapters/DisplayMotionPath'
+[spawner-4] [WARN] [1790761472.664225137] [rcl]: ROS_LOCALHOST_ONLY is deprecated but still honored if it is enabled. Use ROS_AUTOMATIC_DISCOVERY_RANGE and ROS_STATIC_PEERS instead.
+[spawner-4] [WARN] [1790761472.664232415] [rcl]: 'localhost_only' is disabled, 'automatic_discovery_range' and 'static_peers' will be used.
+[move_group-5] [INFO] [1790761472.680919363] [move_group.moveit.moveit.plugins.simple_controller_manager]: Added FollowJointTrajectory controller for joint_trajectory_controller
+[move_group-5] [INFO] [1790761472.681069506] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[move_group-5] [INFO] [1790761472.681084422] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[move_group-5] [INFO] [1790761472.681418200] [move_group.moveit.moveit.ros.trajectory_execution_manager]: Trajectory execution is not managing controllers
+[move_group-5] [INFO] [1790761472.681428118] [move_group]: MoveGroup debug mode is ON
+[spawner-3] [INFO] [1790761472.695124952] [spawner_joint_state_broadcaster]: waiting for service /controller_manager/list_controllers to become available...
+[move_group-5] [INFO] [1790761472.696922146] [move_group.moveit.moveit.planners.pilz.move_group_sequence_action]: initialize move group sequence action
+[move_group-5] [INFO] [1790761472.698806600] [move_group.moveit.moveit.planners.pilz.joint_limits_aggregator]: Reading limits from namespace robot_description_planning
+[move_group-5] [INFO] [1790761472.699128260] [move_group.moveit.moveit.planners.pilz.joint_limits_aggregator]: Reading limits from namespace robot_description_planning
+[move_group-5] [INFO] [1790761472.699657744] [move_group.moveit.moveit.ros.move_group.executable]: 
+[move_group-5] 
+[move_group-5] ********************************************************
+[move_group-5] * MoveGroup using: 
+[move_group-5] *     - apply_planning_scene_service
+[move_group-5] *     - clear_octomap_service
+[move_group-5] *     - ExecuteTaskSolution
+[move_group-5] *     - get_group_urdf
+[move_group-5] *     - load_geometry_from_file
+[move_group-5] *     - CartesianPathService
+[move_group-5] *     - execute_trajectory_action
+[move_group-5] *     - get_planning_scene_service
+[move_group-5] *     - kinematics_service
+[move_group-5] *     - move_action
+[move_group-5] *     - motion_plan_service
+[move_group-5] *     - query_planners_service
+[move_group-5] *     - state_validation_service
+[move_group-5] *     - save_geometry_to_file
+[move_group-5] *     - SequenceAction
+[move_group-5] *     - SequenceService
+[move_group-5] ********************************************************
+[move_group-5] 
+[move_group-5] [INFO] [1790761472.699827581] [move_group.moveit.moveit.ros.move_group.context]: MoveGroup context using pipeline pilz_industrial_motion_planner
+[move_group-5] [INFO] [1790761472.699833679] [move_group.moveit.moveit.ros.move_group.context]: MoveGroup context initialization complete
+[move_group-5] [96mLoading 'move_group/ApplyPlanningSceneService'...[0m
+[move_group-5] [96mLoading 'move_group/ClearOctomapService'...[0m
+[move_group-5] [96mLoading 'move_group/ExecuteTaskSolutionCapability'...[0m
+[move_group-5] [96mLoading 'move_group/GetUrdfService'...[0m
+[move_group-5] [96mLoading 'move_group/LoadGeometryFromFileService'...[0m
+[move_group-5] [96mLoading 'move_group/MoveGroupCartesianPathService'...[0m
+[move_group-5] [96mLoading 'move_group/MoveGroupExecuteTrajectoryAction'...[0m
+[move_group-5] [96mLoading 'move_group/MoveGroupGetPlanningSceneService'...[0m
+[move_group-5] [96mLoading 'move_group/MoveGroupKinematicsService'...[0m
+[move_group-5] [96mLoading 'move_group/MoveGroupMoveAction'...[0m
+[move_group-5] [96mLoading 'move_group/MoveGroupPlanService'...[0m
+[move_group-5] [96mLoading 'move_group/MoveGroupQueryPlannersService'...[0m
+[move_group-5] [96mLoading 'move_group/MoveGroupStateValidationService'...[0m
+[move_group-5] [96mLoading 'move_group/SaveGeometryToFileService'...[0m
+[move_group-5] [96mLoading 'pilz_industrial_motion_planner/MoveGroupSequenceAction'...[0m
+[move_group-5] [96mLoading 'pilz_industrial_motion_planner/MoveGroupSequenceService'...[0m
+[move_group-5] 
+[move_group-5] [92mYou can start planning now![0m
+[move_group-5] 
+[extrinsics_publisher-7] [WARN] [1790761472.867739429] [rcl]: ROS_LOCALHOST_ONLY is deprecated but still honored if it is enabled. Use ROS_AUTOMATIC_DISCOVERY_RANGE and ROS_STATIC_PEERS instead.
+[extrinsics_publisher-7] [WARN] [1790761472.867746678] [rcl]: 'localhost_only' is disabled, 'automatic_discovery_range' and 'static_peers' will be used.
+[peach_observability-10] [WARN] [1790761472.917377476] [rcl]: ROS_LOCALHOST_ONLY is deprecated but still honored if it is enabled. Use ROS_AUTOMATIC_DISCOVERY_RANGE and ROS_STATIC_PEERS instead.
+[peach_observability-10] [WARN] [1790761472.917384731] [rcl]: 'localhost_only' is disabled, 'automatic_discovery_range' and 'static_peers' will be used.
+[peach_harvester-8] [WARN] [1790761472.932781328] [rcl]: ROS_LOCALHOST_ONLY is deprecated but still honored if it is enabled. Use ROS_AUTOMATIC_DISCOVERY_RANGE and ROS_STATIC_PEERS instead.
+[peach_harvester-8] [WARN] [1790761472.932788244] [rcl]: 'localhost_only' is disabled, 'automatic_discovery_range' and 'static_peers' will be used.
+[extrinsics_publisher-7] [INFO] [1790761472.960376865] [hand_eye_extrinsics_publisher]: Published active camera extrinsic from /home/mu/Desktop/aubo_e5_jazzy_ws/src/aubo_hand_eye_calibration/hand_eye/active.yaml: xyz_m=[0.044852, 0.108401, 0.001697] quat_xyzw=[0.502841, 0.496407, 0.508405, -0.492194]
+[peach_harvester-8] [INFO] [1790761472.997525706] [peach_scene_perception_node]: YOLO=/home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_harvester/share/peach_harvester/model/best.pt
+[peach_harvester-8] [INFO] [1790761472.997699081] [peach_scene_perception_node]: SAM=/home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_harvester/share/peach_harvester/model/mobile_sam.pt
+[ros2_control_node-2] [INFO] [1790761473.032262582] [controller_manager]: Loading controller : 'joint_state_broadcaster' of type 'joint_state_broadcaster/JointStateBroadcaster'
+[ros2_control_node-2] [INFO] [1790761473.032296140] [controller_manager]: Loading controller 'joint_state_broadcaster'
+[ros2_control_node-2] [INFO] [1790761473.034199552] [controller_manager]: Controller 'joint_state_broadcaster' node arguments: --ros-args -p use_sim_time:=False --params-file /tmp/launch_params_u1qtrqb5 --params-file /home/mu/Desktop/aubo_e5_jazzy_ws/install/aubo_e5_bringup/share/aubo_e5_bringup/config/controllers.yaml 
+[spawner-3] [INFO] [1790761473.044447953] [spawner_joint_state_broadcaster]: Loaded joint_state_broadcaster
+[ros2_control_node-2] [INFO] [1790761473.045117021] [controller_manager]: Configuring controller: 'joint_state_broadcaster'
+[ros2_control_node-2] [INFO] [1790761473.045196065] [joint_state_broadcaster]: 'joints' or 'interfaces' parameter is empty. All available state interfaces will be published
+[ros2_control_node-2] [INFO] [1790761473.059642510] [controller_manager]: Activating controllers: [ joint_state_broadcaster ]
+[ros2_control_node-2] [INFO] [1790761473.063783976] [controller_manager]: Successfully switched controllers!
+[spawner-3] [INFO] [1790761473.069312688] [spawner_joint_state_broadcaster]: Configured and activated joint_state_broadcaster
+[peach_observability-10] [WARN] [1790761473.087891230] [peach_observability]: *** 调试操作面已启用：运动类操作=默认拒绝。技能侧既有安全门照常生效；请保持 HTTP 回环绑定 ***
+[peach_observability-10] [INFO] [1790761473.090337394] [peach_observability]: 感知抓取过程页（过程监控+单步调试）: http://127.0.0.1:8090
+[peach_observability-10] [INFO] [1790761473.092550315] [peach_observability]: 全量录制订阅: /aubo_io_controller/joint_status [aubo_msgs/msg/JointStatus]
+[peach_observability-10] [INFO] [1790761473.093221841] [peach_observability]: 全量录制订阅: /aubo_io_controller/robot_status [aubo_msgs/msg/RobotStatus]
+[peach_observability-10] [INFO] [1790761473.093601567] [peach_observability]: 全量录制订阅: /diagnostics [diagnostic_msgs/msg/DiagnosticArray]
+[peach_observability-10] [INFO] [1790761473.093988340] [peach_observability]: 全量录制订阅: /joint_states [sensor_msgs/msg/JointState]
+[peach_observability-10] [INFO] [1790761473.094343135] [peach_observability]: 全量录制订阅: /peach/lifecycle/managed_nodes_activated [std_msgs/msg/Bool]
+[peach_observability-10] [INFO] [1790761473.094701224] [peach_observability]: 全量录制订阅: /peach/manipulation/grasp_hypothesis [peach_interfaces/msg/GraspHypothesis]
+[peach_observability-10] [INFO] [1790761473.095061784] [peach_observability]: 全量录制订阅: /peach/observability/job [std_msgs/msg/String]
+[peach_observability-10] [INFO] [1790761473.095425663] [peach_observability]: 全量录制订阅: /peach/observability/markers [visualization_msgs/msg/MarkerArray]
+[peach_observability-10] [INFO] [1790761473.095780143] [peach_observability]: 全量录制订阅: /peach/observability/metrics [std_msgs/msg/String]
+[peach_observability-10] [INFO] [1790761473.096137532] [peach_observability]: 全量录制订阅: /peach/observability/selfcheck_passed [std_msgs/msg/Bool]
+[peach_observability-10] [INFO] [1790761473.096487080] [peach_observability]: 全量录制订阅: /peach/observability/tcp_path [nav_msgs/msg/Path]
+[peach_observability-10] [INFO] [1790761473.096936661] [peach_observability]: 全量录制订阅: /peach/perception/debug_image [sensor_msgs/msg/Image]
+[peach_observability-10] [INFO] [1790761473.097275314] [peach_observability]: 全量录制订阅: /peach/perception/debug_image_raw [sensor_msgs/msg/Image]
+[peach_observability-10] [INFO] [1790761473.097604900] [peach_observability]: 全量录制订阅: /peach/perception/harvest_state [std_msgs/msg/String]
+[peach_observability-10] [INFO] [1790761473.097952806] [peach_observability]: 全量录制订阅: /peach/perception/target_observations [peach_interfaces/msg/PeachTargetObservationArray]
+[peach_observability-10] [INFO] [1790761473.098285061] [peach_observability]: 全量录制订阅: /peach/reconstruction/diagnostics [peach_interfaces/msg/ReconstructionStatus]
+[peach_observability-10] [INFO] [1790761473.098616715] [peach_observability]: 全量录制订阅: /peach/reconstruction/diagnostics_debug [std_msgs/msg/String]
+[peach_observability-10] [INFO] [1790761473.098958645] [peach_observability]: 全量录制订阅: /peach/reconstruction/grasp_decision [peach_interfaces/msg/GraspDecision]
+[peach_observability-10] [INFO] [1790761473.099291291] [peach_observability]: 全量录制订阅: /peach/reconstruction/refined_axis [geometry_msgs/msg/Vector3Stamped]
+[peach_observability-10] [INFO] [1790761473.099608360] [peach_observability]: 全量录制订阅: /peach/reconstruction/refined_diagnostics [peach_interfaces/msg/BagFittingArray]
+[peach_observability-10] [INFO] [1790761473.099936577] [peach_observability]: 全量录制订阅: /peach/reconstruction/refined_pose [peach_interfaces/msg/BagGraspCandidateArray]
+[peach_observability-10] [INFO] [1790761473.100259956] [peach_observability]: 全量录制订阅: /peach/reconstruction/status [std_msgs/msg/String]
+[peach_observability-10] [INFO] [1790761473.100591057] [peach_observability]: 全量录制订阅: /peach/reconstruction/tsdf_cloud [sensor_msgs/msg/PointCloud2]
+[peach_observability-10] [INFO] [1790761473.100924704] [peach_observability]: 全量录制订阅: /peach/vegetation/status [std_msgs/msg/String]
+[peach_observability-10] [INFO] [1790761473.101272515] [peach_observability]: 全量录制订阅: /peach_arm/execute_target/_action/feedback [peach_interfaces/action/ExecuteTarget_FeedbackMessage]
+[peach_observability-10] [INFO] [1790761473.101648785] [peach_observability]: 全量录制订阅: /peach_arm/execute_target/_action/status [action_msgs/msg/GoalStatusArray]
+[peach_observability-10] [INFO] [1790761473.102016035] [peach_observability]: 全量录制订阅: /peach_arm/status [std_msgs/msg/String]
+[peach_observability-10] [INFO] [1790761473.102360219] [peach_observability]: 全量录制订阅: /peach_arm/survey_scene/_action/feedback [peach_interfaces/action/SurveyScene_FeedbackMessage]
+[peach_observability-10] [INFO] [1790761473.102723888] [peach_observability]: 全量录制订阅: /peach_arm/survey_scene/_action/status [action_msgs/msg/GoalStatusArray]
+[peach_observability-10] [INFO] [1790761473.103099264] [peach_observability]: 全量录制订阅: /peach_arm/transition_event [lifecycle_msgs/msg/TransitionEvent]
+[peach_observability-10] [INFO] [1790761473.103440615] [peach_observability]: 全量录制订阅: /peach_observability/transition_event [lifecycle_msgs/msg/TransitionEvent]
+[peach_observability-10] [INFO] [1790761473.103776188] [peach_observability]: 全量录制订阅: /peach_scene_perception_node/transition_event [lifecycle_msgs/msg/TransitionEvent]
+[peach_observability-10] [INFO] [1790761473.104128136] [peach_observability]: 全量录制订阅: /peach_supervisor/events [peach_interfaces/msg/CanonicalEvent]
+[peach_observability-10] [INFO] [1790761473.104470227] [peach_observability]: 全量录制订阅: /peach_supervisor/run_harvest/_action/feedback [peach_interfaces/action/RunHarvest_FeedbackMessage]
+[peach_observability-10] [INFO] [1790761473.104792869] [peach_observability]: 全量录制订阅: /peach_supervisor/run_harvest/_action/status [action_msgs/msg/GoalStatusArray]
+[peach_observability-10] [INFO] [1790761473.105124692] [peach_observability]: 全量录制订阅: /peach_supervisor/scene_snapshot [peach_interfaces/msg/SceneSnapshot]
+[peach_observability-10] [INFO] [1790761473.105451097] [peach_observability]: 全量录制订阅: /peach_supervisor/state [peach_interfaces/msg/HarvestState]
+[peach_observability-10] [INFO] [1790761473.105787633] [peach_observability]: 全量录制订阅: /peach_target_reconstruction_node/build_target_model/_action/feedback [peach_interfaces/action/BuildTargetModel_FeedbackMessage]
+[peach_observability-10] [INFO] [1790761473.106115965] [peach_observability]: 全量录制订阅: /peach_target_reconstruction_node/build_target_model/_action/status [action_msgs/msg/GoalStatusArray]
+[peach_observability-10] [INFO] [1790761473.106460657] [peach_observability]: 全量录制订阅: /robot_description [std_msgs/msg/String]
+[peach_observability-10] [INFO] [1790761473.106816767] [peach_observability]: 全量录制订阅: /tf [tf2_msgs/msg/TFMessage]
+[peach_observability-10] [INFO] [1790761473.107148562] [peach_observability]: 全量录制订阅: /tf_static [tf2_msgs/msg/TFMessage]
+[spawner-4] [INFO] [1790761473.175482382] [spawner_joint_trajectory_controller]: waiting for service /controller_manager/list_controllers to become available...
+[INFO] [spawner-3]: process has finished cleanly [pid 1304700]
+[rviz2-6] [INFO] [1790761473.279317469] [rviz2]: Stereo is NOT SUPPORTED
+[rviz2-6] [INFO] [1790761473.279366551] [rviz2]: OpenGl version: 4.6 (GLSL 4.6)
+[rviz2-6] [ERROR] [1790761473.294244419] [rviz2]: rviz::RenderSystem: error creating render window: RenderingAPIException: Invalid parentWindowHandle (wrong server or screen) in GLXWindow::create at ./.obj-x86_64-linux-gnu/ogre_vendor-prefix/src/ogre_vendor/RenderSystems/GLSupport/src/GLX/OgreGLXWindow.cpp (line 246)
+[rviz2-6] [ERROR] [1790761473.294534352] [rviz2]: rviz::RenderSystem: error creating render window: RenderingAPIException: Invalid parentWindowHandle (wrong server or screen) in GLXWindow::create at ./.obj-x86_64-linux-gnu/ogre_vendor-prefix/src/ogre_vendor/RenderSystems/GLSupport/src/GLX/OgreGLXWindow.cpp (line 246)
+[rviz2-6] [ERROR] [1790761473.294550642] [rviz2]: rviz::RenderSystem: error creating render window: RenderingAPIException: Invalid parentWindowHandle (wrong server or screen) in GLXWindow::create at ./.obj-x86_64-linux-gnu/ogre_vendor-prefix/src/ogre_vendor/RenderSystems/GLSupport/src/GLX/OgreGLXWindow.cpp (line 246)
+[rviz2-6] [ERROR] [1790761473.295214618] [rviz2]: rviz::RenderSystem: error creating render window: RenderingAPIException: Invalid parentWindowHandle (wrong server or screen) in GLXWindow::create at ./.obj-x86_64-linux-gnu/ogre_vendor-prefix/src/ogre_vendor/RenderSystems/GLSupport/src/GLX/OgreGLXWindow.cpp (line 246)
+[rviz2-6] [ERROR] [1790761473.295272303] [rviz2]: rviz::RenderSystem: error creating render window: RenderingAPIException: Invalid parentWindowHandle (wrong server or screen) in GLXWindow::create at ./.obj-x86_64-linux-gnu/ogre_vendor-prefix/src/ogre_vendor/RenderSystems/GLSupport/src/GLX/OgreGLXWindow.cpp (line 246)
+[rviz2-6] [ERROR] [1790761473.295287835] [rviz2]: rviz::RenderSystem: error creating render window: RenderingAPIException: Invalid parentWindowHandle (wrong server or screen) in GLXWindow::create at ./.obj-x86_64-linux-gnu/ogre_vendor-prefix/src/ogre_vendor/RenderSystems/GLSupport/src/GLX/OgreGLXWindow.cpp (line 246)
+[rviz2-6] [ERROR] [1790761473.295299934] [rviz2]: rviz::RenderSystem: error creating render window: RenderingAPIException: Invalid parentWindowHandle (wrong server or screen) in GLXWindow::create at ./.obj-x86_64-linux-gnu/ogre_vendor-prefix/src/ogre_vendor/RenderSystems/GLSupport/src/GLX/OgreGLXWindow.cpp (line 246)
+[rviz2-6] [ERROR] [1790761473.295310807] [rviz2]: rviz::RenderSystem: error creating render window: RenderingAPIException: Invalid parentWindowHandle (wrong server or screen) in GLXWindow::create at ./.obj-x86_64-linux-gnu/ogre_vendor-prefix/src/ogre_vendor/RenderSystems/GLSupport/src/GLX/OgreGLXWindow.cpp (line 246)
+[rviz2-6] [ERROR] [1790761473.295321750] [rviz2]: rviz::RenderSystem: error creating render window: RenderingAPIException: Invalid parentWindowHandle (wrong server or screen) in GLXWindow::create at ./.obj-x86_64-linux-gnu/ogre_vendor-prefix/src/ogre_vendor/RenderSystems/GLSupport/src/GLX/OgreGLXWindow.cpp (line 246)
+[rviz2-6] [ERROR] [1790761473.295332668] [rviz2]: rviz::RenderSystem: error creating render window: RenderingAPIException: Invalid parentWindowHandle (wrong server or screen) in GLXWindow::create at ./.obj-x86_64-linux-gnu/ogre_vendor-prefix/src/ogre_vendor/RenderSystems/GLSupport/src/GLX/OgreGLXWindow.cpp (line 246)
+[rviz2-6] [ERROR] [1790761473.295346328] [rviz2]: rviz::RenderSystem: error creating render window: RenderingAPIException: Invalid parentWindowHandle (wrong server or screen) in GLXWindow::create at ./.obj-x86_64-linux-gnu/ogre_vendor-prefix/src/ogre_vendor/RenderSystems/GLSupport/src/GLX/OgreGLXWindow.cpp (line 246)
+[rviz2-6] [ERROR] [1790761473.295458635] [rviz2]: rviz::RenderSystem: error creating render window: RenderingAPIException: Invalid parentWindowHandle (wrong server or screen) in GLXWindow::create at ./.obj-x86_64-linux-gnu/ogre_vendor-prefix/src/ogre_vendor/RenderSystems/GLSupport/src/GLX/OgreGLXWindow.cpp (line 246)
+[rviz2-6] [ERROR] [1790761473.295471930] [rviz2]: rviz::RenderSystem: error creating render window: RenderingAPIException: Invalid parentWindowHandle (wrong server or screen) in GLXWindow::create at ./.obj-x86_64-linux-gnu/ogre_vendor-prefix/src/ogre_vendor/RenderSystems/GLSupport/src/GLX/OgreGLXWindow.cpp (line 246)
+[rviz2-6] [ERROR] [1790761473.295544963] [rviz2]: rviz::RenderSystem: error creating render window: RenderingAPIException: Invalid parentWindowHandle (wrong server or screen) in GLXWindow::create at ./.obj-x86_64-linux-gnu/ogre_vendor-prefix/src/ogre_vendor/RenderSystems/GLSupport/src/GLX/OgreGLXWindow.cpp (line 246)
+[rviz2-6] [ERROR] [1790761473.295566815] [rviz2]: rviz::RenderSystem: error creating render window: RenderingAPIException: Invalid parentWindowHandle (wrong server or screen) in GLXWindow::create at ./.obj-x86_64-linux-gnu/ogre_vendor-prefix/src/ogre_vendor/RenderSystems/GLSupport/src/GLX/OgreGLXWindow.cpp (line 246)
+[rviz2-6] [ERROR] [1790761473.295795961] [rviz2]: rviz::RenderSystem: error creating render window: RenderingAPIException: Invalid parentWindowHandle (wrong server or screen) in GLXWindow::create at ./.obj-x86_64-linux-gnu/ogre_vendor-prefix/src/ogre_vendor/RenderSystems/GLSupport/src/GLX/OgreGLXWindow.cpp (line 246)
+[rviz2-6] [ERROR] [1790761473.295816998] [rviz2]: rviz::RenderSystem: error creating render window: RenderingAPIException: Invalid parentWindowHandle (wrong server or screen) in GLXWindow::create at ./.obj-x86_64-linux-gnu/ogre_vendor-prefix/src/ogre_vendor/RenderSystems/GLSupport/src/GLX/OgreGLXWindow.cpp (line 246)
+[rviz2-6] [ERROR] [1790761473.295829311] [rviz2]: rviz::RenderSystem: error creating render window: RenderingAPIException: Invalid parentWindowHandle (wrong server or screen) in GLXWindow::create at ./.obj-x86_64-linux-gnu/ogre_vendor-prefix/src/ogre_vendor/RenderSystems/GLSupport/src/GLX/OgreGLXWindow.cpp (line 246)
+[rviz2-6] [ERROR] [1790761473.295840192] [rviz2]: rviz::RenderSystem: error creating render window: RenderingAPIException: Invalid parentWindowHandle (wrong server or screen) in GLXWindow::create at ./.obj-x86_64-linux-gnu/ogre_vendor-prefix/src/ogre_vendor/RenderSystems/GLSupport/src/GLX/OgreGLXWindow.cpp (line 246)
+[rviz2-6] [ERROR] [1790761473.295850834] [rviz2]: rviz::RenderSystem: error creating render window: RenderingAPIException: Invalid parentWindowHandle (wrong server or screen) in GLXWindow::create at ./.obj-x86_64-linux-gnu/ogre_vendor-prefix/src/ogre_vendor/RenderSystems/GLSupport/src/GLX/OgreGLXWindow.cpp (line 246)
+[rviz2-6] [ERROR] [1790761473.295861814] [rviz2]: rviz::RenderSystem: error creating render window: RenderingAPIException: Invalid parentWindowHandle (wrong server or screen) in GLXWindow::create at ./.obj-x86_64-linux-gnu/ogre_vendor-prefix/src/ogre_vendor/RenderSystems/GLSupport/src/GLX/OgreGLXWindow.cpp (line 246)
+[rviz2-6] [ERROR] [1790761473.295873773] [rviz2]: rviz::RenderSystem: error creating render window: RenderingAPIException: Invalid parentWindowHandle (wrong server or screen) in GLXWindow::create at ./.obj-x86_64-linux-gnu/ogre_vendor-prefix/src/ogre_vendor/RenderSystems/GLSupport/src/GLX/OgreGLXWindow.cpp (line 246)
+[rviz2-6] [ERROR] [1790761473.295884543] [rviz2]: rviz::RenderSystem: error creating render window: RenderingAPIException: Invalid parentWindowHandle (wrong server or screen) in GLXWindow::create at ./.obj-x86_64-linux-gnu/ogre_vendor-prefix/src/ogre_vendor/RenderSystems/GLSupport/src/GLX/OgreGLXWindow.cpp (line 246)
+[rviz2-6] [ERROR] [1790761473.295895232] [rviz2]: rviz::RenderSystem: error creating render window: RenderingAPIException: Invalid parentWindowHandle (wrong server or screen) in GLXWindow::create at ./.obj-x86_64-linux-gnu/ogre_vendor-prefix/src/ogre_vendor/RenderSystems/GLSupport/src/GLX/OgreGLXWindow.cpp (line 246)
+[rviz2-6] [ERROR] [1790761473.295906023] [rviz2]: rviz::RenderSystem: error creating render window: RenderingAPIException: Invalid parentWindowHandle (wrong server or screen) in GLXWindow::create at ./.obj-x86_64-linux-gnu/ogre_vendor-prefix/src/ogre_vendor/RenderSystems/GLSupport/src/GLX/OgreGLXWindow.cpp (line 246)
+[rviz2-6] [ERROR] [1790761473.295916590] [rviz2]: rviz::RenderSystem: error creating render window: RenderingAPIException: Invalid parentWindowHandle (wrong server or screen) in GLXWindow::create at ./.obj-x86_64-linux-gnu/ogre_vendor-prefix/src/ogre_vendor/RenderSystems/GLSupport/src/GLX/OgreGLXWindow.cpp (line 246)
+[rviz2-6] [ERROR] [1790761473.296023869] [rviz2]: rviz::RenderSystem: error creating render window: RenderingAPIException: Invalid parentWindowHandle (wrong server or screen) in GLXWindow::create at ./.obj-x86_64-linux-gnu/ogre_vendor-prefix/src/ogre_vendor/RenderSystems/GLSupport/src/GLX/OgreGLXWindow.cpp (line 246)
+[rviz2-6] [ERROR] [1790761473.296049493] [rviz2]: rviz::RenderSystem: error creating render window: RenderingAPIException: Invalid parentWindowHandle (wrong server or screen) in GLXWindow::create at ./.obj-x86_64-linux-gnu/ogre_vendor-prefix/src/ogre_vendor/RenderSystems/GLSupport/src/GLX/OgreGLXWindow.cpp (line 246)
+[rviz2-6] [ERROR] [1790761473.296062421] [rviz2]: rviz::RenderSystem: error creating render window: RenderingAPIException: Invalid parentWindowHandle (wrong server or screen) in GLXWindow::create at ./.obj-x86_64-linux-gnu/ogre_vendor-prefix/src/ogre_vendor/RenderSystems/GLSupport/src/GLX/OgreGLXWindow.cpp (line 246)
+[rviz2-6] [ERROR] [1790761473.296074296] [rviz2]: rviz::RenderSystem: error creating render window: RenderingAPIException: Invalid parentWindowHandle (wrong server or screen) in GLXWindow::create at ./.obj-x86_64-linux-gnu/ogre_vendor-prefix/src/ogre_vendor/RenderSystems/GLSupport/src/GLX/OgreGLXWindow.cpp (line 246)
+[rviz2-6] [ERROR] [1790761473.296090202] [rviz2]: rviz::RenderSystem: error creating render window: RenderingAPIException: Invalid parentWindowHandle (wrong server or screen) in GLXWindow::create at ./.obj-x86_64-linux-gnu/ogre_vendor-prefix/src/ogre_vendor/RenderSystems/GLSupport/src/GLX/OgreGLXWindow.cpp (line 246)
+[rviz2-6] [ERROR] [1790761473.296101562] [rviz2]: rviz::RenderSystem: error creating render window: RenderingAPIException: Invalid parentWindowHandle (wrong server or screen) in GLXWindow::create at ./.obj-x86_64-linux-gnu/ogre_vendor-prefix/src/ogre_vendor/RenderSystems/GLSupport/src/GLX/OgreGLXWindow.cpp (line 246)
+[rviz2-6] [ERROR] [1790761473.296112353] [rviz2]: rviz::RenderSystem: error creating render window: RenderingAPIException: Invalid parentWindowHandle (wrong server or screen) in GLXWindow::create at ./.obj-x86_64-linux-gnu/ogre_vendor-prefix/src/ogre_vendor/RenderSystems/GLSupport/src/GLX/OgreGLXWindow.cpp (line 246)
+[rviz2-6] [ERROR] [1790761473.296122845] [rviz2]: rviz::RenderSystem: error creating render window: RenderingAPIException: Invalid parentWindowHandle (wrong server or screen) in GLXWindow::create at ./.obj-x86_64-linux-gnu/ogre_vendor-prefix/src/ogre_vendor/RenderSystems/GLSupport/src/GLX/OgreGLXWindow.cpp (line 246)
+[rviz2-6] [ERROR] [1790761473.296133341] [rviz2]: rviz::RenderSystem: error creating render window: RenderingAPIException: Invalid parentWindowHandle (wrong server or screen) in GLXWindow::create at ./.obj-x86_64-linux-gnu/ogre_vendor-prefix/src/ogre_vendor/RenderSystems/GLSupport/src/GLX/OgreGLXWindow.cpp (line 246)
+[rviz2-6] [ERROR] [1790761473.296143824] [rviz2]: rviz::RenderSystem: error creating render window: RenderingAPIException: Invalid parentWindowHandle (wrong server or screen) in GLXWindow::create at ./.obj-x86_64-linux-gnu/ogre_vendor-prefix/src/ogre_vendor/RenderSystems/GLSupport/src/GLX/OgreGLXWindow.cpp (line 246)
+[rviz2-6] [ERROR] [1790761473.296154332] [rviz2]: rviz::RenderSystem: error creating render window: RenderingAPIException: Invalid parentWindowHandle (wrong server or screen) in GLXWindow::create at ./.obj-x86_64-linux-gnu/ogre_vendor-prefix/src/ogre_vendor/RenderSystems/GLSupport/src/GLX/OgreGLXWindow.cpp (line 246)
+[rviz2-6] [ERROR] [1790761473.296164891] [rviz2]: rviz::RenderSystem: error creating render window: RenderingAPIException: Invalid parentWindowHandle (wrong server or screen) in GLXWindow::create at ./.obj-x86_64-linux-gnu/ogre_vendor-prefix/src/ogre_vendor/RenderSystems/GLSupport/src/GLX/OgreGLXWindow.cpp (line 246)
+[rviz2-6] [ERROR] [1790761473.296175642] [rviz2]: rviz::RenderSystem: error creating render window: RenderingAPIException: Invalid parentWindowHandle (wrong server or screen) in GLXWindow::create at ./.obj-x86_64-linux-gnu/ogre_vendor-prefix/src/ogre_vendor/RenderSystems/GLSupport/src/GLX/OgreGLXWindow.cpp (line 246)
+[rviz2-6] [ERROR] [1790761473.296441426] [rviz2]: rviz::RenderSystem: error creating render window: RenderingAPIException: Invalid parentWindowHandle (wrong server or screen) in GLXWindow::create at ./.obj-x86_64-linux-gnu/ogre_vendor-prefix/src/ogre_vendor/RenderSystems/GLSupport/src/GLX/OgreGLXWindow.cpp (line 246)
+[rviz2-6] [ERROR] [1790761473.296461193] [rviz2]: rviz::RenderSystem: error creating render window: RenderingAPIException: Invalid parentWindowHandle (wrong server or screen) in GLXWindow::create at ./.obj-x86_64-linux-gnu/ogre_vendor-prefix/src/ogre_vendor/RenderSystems/GLSupport/src/GLX/OgreGLXWindow.cpp (line 246)
+[rviz2-6] [ERROR] [1790761473.296472669] [rviz2]: rviz::RenderSystem: error creating render window: RenderingAPIException: Invalid parentWindowHandle (wrong server or screen) in GLXWindow::create at ./.obj-x86_64-linux-gnu/ogre_vendor-prefix/src/ogre_vendor/RenderSystems/GLSupport/src/GLX/OgreGLXWindow.cpp (line 246)
+[rviz2-6] [ERROR] [1790761473.296483479] [rviz2]: rviz::RenderSystem: error creating render window: RenderingAPIException: Invalid parentWindowHandle (wrong server or screen) in GLXWindow::create at ./.obj-x86_64-linux-gnu/ogre_vendor-prefix/src/ogre_vendor/RenderSystems/GLSupport/src/GLX/OgreGLXWindow.cpp (line 246)
+[rviz2-6] [ERROR] [1790761473.296494290] [rviz2]: rviz::RenderSystem: error creating render window: RenderingAPIException: Invalid parentWindowHandle (wrong server or screen) in GLXWindow::create at ./.obj-x86_64-linux-gnu/ogre_vendor-prefix/src/ogre_vendor/RenderSystems/GLSupport/src/GLX/OgreGLXWindow.cpp (line 246)
+[rviz2-6] [ERROR] [1790761473.296504948] [rviz2]: rviz::RenderSystem: error creating render window: RenderingAPIException: Invalid parentWindowHandle (wrong server or screen) in GLXWindow::create at ./.obj-x86_64-linux-gnu/ogre_vendor-prefix/src/ogre_vendor/RenderSystems/GLSupport/src/GLX/OgreGLXWindow.cpp (line 246)
+[rviz2-6] [ERROR] [1790761473.296515829] [rviz2]: rviz::RenderSystem: error creating render window: RenderingAPIException: Invalid parentWindowHandle (wrong server or screen) in GLXWindow::create at ./.obj-x86_64-linux-gnu/ogre_vendor-prefix/src/ogre_vendor/RenderSystems/GLSupport/src/GLX/OgreGLXWindow.cpp (line 246)
+[rviz2-6] [ERROR] [1790761473.296526890] [rviz2]: rviz::RenderSystem: error creating render window: RenderingAPIException: Invalid parentWindowHandle (wrong server or screen) in GLXWindow::create at ./.obj-x86_64-linux-gnu/ogre_vendor-prefix/src/ogre_vendor/RenderSystems/GLSupport/src/GLX/OgreGLXWindow.cpp (line 246)
+[rviz2-6] [ERROR] [1790761473.296537992] [rviz2]: rviz::RenderSystem: error creating render window: RenderingAPIException: Invalid parentWindowHandle (wrong server or screen) in GLXWindow::create at ./.obj-x86_64-linux-gnu/ogre_vendor-prefix/src/ogre_vendor/RenderSystems/GLSupport/src/GLX/OgreGLXWindow.cpp (line 246)
+[rviz2-6] [ERROR] [1790761473.296548926] [rviz2]: rviz::RenderSystem: error creating render window: RenderingAPIException: Invalid parentWindowHandle (wrong server or screen) in GLXWindow::create at ./.obj-x86_64-linux-gnu/ogre_vendor-prefix/src/ogre_vendor/RenderSystems/GLSupport/src/GLX/OgreGLXWindow.cpp (line 246)
+[rviz2-6] [ERROR] [1790761473.296559864] [rviz2]: rviz::RenderSystem: error creating render window: RenderingAPIException: Invalid parentWindowHandle (wrong server or screen) in GLXWindow::create at ./.obj-x86_64-linux-gnu/ogre_vendor-prefix/src/ogre_vendor/RenderSystems/GLSupport/src/GLX/OgreGLXWindow.cpp (line 246)
+[rviz2-6] [ERROR] [1790761473.296570461] [rviz2]: rviz::RenderSystem: error creating render window: RenderingAPIException: Invalid parentWindowHandle (wrong server or screen) in GLXWindow::create at ./.obj-x86_64-linux-gnu/ogre_vendor-prefix/src/ogre_vendor/RenderSystems/GLSupport/src/GLX/OgreGLXWindow.cpp (line 246)
+[rviz2-6] [ERROR] [1790761473.296581207] [rviz2]: rviz::RenderSystem: error creating render window: RenderingAPIException: Invalid parentWindowHandle (wrong server or screen) in GLXWindow::create at ./.obj-x86_64-linux-gnu/ogre_vendor-prefix/src/ogre_vendor/RenderSystems/GLSupport/src/GLX/OgreGLXWindow.cpp (line 246)
+[rviz2-6] [ERROR] [1790761473.296591761] [rviz2]: rviz::RenderSystem: error creating render window: RenderingAPIException: Invalid parentWindowHandle (wrong server or screen) in GLXWindow::create at ./.obj-x86_64-linux-gnu/ogre_vendor-prefix/src/ogre_vendor/RenderSystems/GLSupport/src/GLX/OgreGLXWindow.cpp (line 246)
+[rviz2-6] [ERROR] [1790761473.296603868] [rviz2]: rviz::RenderSystem: error creating render window: RenderingAPIException: Invalid parentWindowHandle (wrong server or screen) in GLXWindow::create at ./.obj-x86_64-linux-gnu/ogre_vendor-prefix/src/ogre_vendor/RenderSystems/GLSupport/src/GLX/OgreGLXWindow.cpp (line 246)
+[rviz2-6] [ERROR] [1790761473.296615653] [rviz2]: rviz::RenderSystem: error creating render window: RenderingAPIException: Invalid parentWindowHandle (wrong server or screen) in GLXWindow::create at ./.obj-x86_64-linux-gnu/ogre_vendor-prefix/src/ogre_vendor/RenderSystems/GLSupport/src/GLX/OgreGLXWindow.cpp (line 246)
+[rviz2-6] [ERROR] [1790761473.296628219] [rviz2]: rviz::RenderSystem: error creating render window: RenderingAPIException: Invalid parentWindowHandle (wrong server or screen) in GLXWindow::create at ./.obj-x86_64-linux-gnu/ogre_vendor-prefix/src/ogre_vendor/RenderSystems/GLSupport/src/GLX/OgreGLXWindow.cpp (line 246)
+[rviz2-6] [ERROR] [1790761473.296639314] [rviz2]: rviz::RenderSystem: error creating render window: RenderingAPIException: Invalid parentWindowHandle (wrong server or screen) in GLXWindow::create at ./.obj-x86_64-linux-gnu/ogre_vendor-prefix/src/ogre_vendor/RenderSystems/GLSupport/src/GLX/OgreGLXWindow.cpp (line 246)
+[rviz2-6] [ERROR] [1790761473.296649873] [rviz2]: rviz::RenderSystem: error creating render window: RenderingAPIException: Invalid parentWindowHandle (wrong server or screen) in GLXWindow::create at ./.obj-x86_64-linux-gnu/ogre_vendor-prefix/src/ogre_vendor/RenderSystems/GLSupport/src/GLX/OgreGLXWindow.cpp (line 246)
+[rviz2-6] [ERROR] [1790761473.296660577] [rviz2]: rviz::RenderSystem: error creating render window: RenderingAPIException: Invalid parentWindowHandle (wrong server or screen) in GLXWindow::create at ./.obj-x86_64-linux-gnu/ogre_vendor-prefix/src/ogre_vendor/RenderSystems/GLSupport/src/GLX/OgreGLXWindow.cpp (line 246)
+[rviz2-6] [ERROR] [1790761473.296671123] [rviz2]: rviz::RenderSystem: error creating render window: RenderingAPIException: Invalid parentWindowHandle (wrong server or screen) in GLXWindow::create at ./.obj-x86_64-linux-gnu/ogre_vendor-prefix/src/ogre_vendor/RenderSystems/GLSupport/src/GLX/OgreGLXWindow.cpp (line 246)
+[rviz2-6] [ERROR] [1790761473.296681631] [rviz2]: rviz::RenderSystem: error creating render window: RenderingAPIException: Invalid parentWindowHandle (wrong server or screen) in GLXWindow::create at ./.obj-x86_64-linux-gnu/ogre_vendor-prefix/src/ogre_vendor/RenderSystems/GLSupport/src/GLX/OgreGLXWindow.cpp (line 246)
+[rviz2-6] [ERROR] [1790761473.296693245] [rviz2]: rviz::RenderSystem: error creating render window: RenderingAPIException: Invalid parentWindowHandle (wrong server or screen) in GLXWindow::create at ./.obj-x86_64-linux-gnu/ogre_vendor-prefix/src/ogre_vendor/RenderSystems/GLSupport/src/GLX/OgreGLXWindow.cpp (line 246)
+[rviz2-6] [ERROR] [1790761473.296703820] [rviz2]: rviz::RenderSystem: error creating render window: RenderingAPIException: Invalid parentWindowHandle (wrong server or screen) in GLXWindow::create at ./.obj-x86_64-linux-gnu/ogre_vendor-prefix/src/ogre_vendor/RenderSystems/GLSupport/src/GLX/OgreGLXWindow.cpp (line 246)
+[rviz2-6] [ERROR] [1790761473.296714287] [rviz2]: rviz::RenderSystem: error creating render window: RenderingAPIException: Invalid parentWindowHandle (wrong server or screen) in GLXWindow::create at ./.obj-x86_64-linux-gnu/ogre_vendor-prefix/src/ogre_vendor/RenderSystems/GLSupport/src/GLX/OgreGLXWindow.cpp (line 246)
+[rviz2-6] [ERROR] [1790761473.296724730] [rviz2]: rviz::RenderSystem: error creating render window: RenderingAPIException: Invalid parentWindowHandle (wrong server or screen) in GLXWindow::create at ./.obj-x86_64-linux-gnu/ogre_vendor-prefix/src/ogre_vendor/RenderSystems/GLSupport/src/GLX/OgreGLXWindow.cpp (line 246)
+[rviz2-6] [ERROR] [1790761473.296735163] [rviz2]: rviz::RenderSystem: error creating render window: RenderingAPIException: Invalid parentWindowHandle (wrong server or screen) in GLXWindow::create at ./.obj-x86_64-linux-gnu/ogre_vendor-prefix/src/ogre_vendor/RenderSystems/GLSupport/src/GLX/OgreGLXWindow.cpp (line 246)
+[rviz2-6] [ERROR] [1790761473.297027670] [rviz2]: rviz::RenderSystem: error creating render window: RenderingAPIException: Invalid parentWindowHandle (wrong server or screen) in GLXWindow::create at ./.obj-x86_64-linux-gnu/ogre_vendor-prefix/src/ogre_vendor/RenderSystems/GLSupport/src/GLX/OgreGLXWindow.cpp (line 246)
+[rviz2-6] [ERROR] [1790761473.297040704] [rviz2]: rviz::RenderSystem: error creating render window: RenderingAPIException: Invalid parentWindowHandle (wrong server or screen) in GLXWindow::create at ./.obj-x86_64-linux-gnu/ogre_vendor-prefix/src/ogre_vendor/RenderSystems/GLSupport/src/GLX/OgreGLXWindow.cpp (line 246)
+[rviz2-6] [ERROR] [1790761473.297051524] [rviz2]: rviz::RenderSystem: error creating render window: RenderingAPIException: Invalid parentWindowHandle (wrong server or screen) in GLXWindow::create at ./.obj-x86_64-linux-gnu/ogre_vendor-prefix/src/ogre_vendor/RenderSystems/GLSupport/src/GLX/OgreGLXWindow.cpp (line 246)
+[rviz2-6] [ERROR] [1790761473.297069668] [rviz2]: rviz::RenderSystem: error creating render window: RenderingAPIException: Invalid parentWindowHandle (wrong server or screen) in GLXWindow::create at ./.obj-x86_64-linux-gnu/ogre_vendor-prefix/src/ogre_vendor/RenderSystems/GLSupport/src/GLX/OgreGLXWindow.cpp (line 246)
+[rviz2-6] [ERROR] [1790761473.297091068] [rviz2]: rviz::RenderSystem: error creating render window: RenderingAPIException: Invalid parentWindowHandle (wrong server or screen) in GLXWindow::create at ./.obj-x86_64-linux-gnu/ogre_vendor-prefix/src/ogre_vendor/RenderSystems/GLSupport/src/GLX/OgreGLXWindow.cpp (line 246)
+[rviz2-6] [ERROR] [1790761473.297112431] [rviz2]: rviz::RenderSystem: error creating render window: RenderingAPIException: Invalid parentWindowHandle (wrong server or screen) in GLXWindow::create at ./.obj-x86_64-linux-gnu/ogre_vendor-prefix/src/ogre_vendor/RenderSystems/GLSupport/src/GLX/OgreGLXWindow.cpp (line 246)
+[rviz2-6] [ERROR] [1790761473.297128158] [rviz2]: rviz::RenderSystem: error creating render window: RenderingAPIException: Invalid parentWindowHandle (wrong server or screen) in GLXWindow::create at ./.obj-x86_64-linux-gnu/ogre_vendor-prefix/src/ogre_vendor/RenderSystems/GLSupport/src/GLX/OgreGLXWindow.cpp (line 246)
+[rviz2-6] [ERROR] [1790761473.297226692] [rviz2]: rviz::RenderSystem: error creating render window: RenderingAPIException: Invalid parentWindowHandle (wrong server or screen) in GLXWindow::create at ./.obj-x86_64-linux-gnu/ogre_vendor-prefix/src/ogre_vendor/RenderSystems/GLSupport/src/GLX/OgreGLXWindow.cpp (line 246)
+[rviz2-6] [ERROR] [1790761473.297277169] [rviz2]: rviz::RenderSystem: error creating render window: RenderingAPIException: Invalid parentWindowHandle (wrong server or screen) in GLXWindow::create at ./.obj-x86_64-linux-gnu/ogre_vendor-prefix/src/ogre_vendor/RenderSystems/GLSupport/src/GLX/OgreGLXWindow.cpp (line 246)
+[rviz2-6] [ERROR] [1790761473.297724786] [rviz2]: rviz::RenderSystem: error creating render window: RenderingAPIException: Invalid parentWindowHandle (wrong server or screen) in GLXWindow::create at ./.obj-x86_64-linux-gnu/ogre_vendor-prefix/src/ogre_vendor/RenderSystems/GLSupport/src/GLX/OgreGLXWindow.cpp (line 246)
+[rviz2-6] [ERROR] [1790761473.297744253] [rviz2]: rviz::RenderSystem: error creating render window: RenderingAPIException: Invalid parentWindowHandle (wrong server or screen) in GLXWindow::create at ./.obj-x86_64-linux-gnu/ogre_vendor-prefix/src/ogre_vendor/RenderSystems/GLSupport/src/GLX/OgreGLXWindow.cpp (line 246)
+[rviz2-6] [ERROR] [1790761473.297755508] [rviz2]: rviz::RenderSystem: error creating render window: RenderingAPIException: Invalid parentWindowHandle (wrong server or screen) in GLXWindow::create at ./.obj-x86_64-linux-gnu/ogre_vendor-prefix/src/ogre_vendor/RenderSystems/GLSupport/src/GLX/OgreGLXWindow.cpp (line 246)
+[rviz2-6] [ERROR] [1790761473.297766263] [rviz2]: rviz::RenderSystem: error creating render window: RenderingAPIException: Invalid parentWindowHandle (wrong server or screen) in GLXWindow::create at ./.obj-x86_64-linux-gnu/ogre_vendor-prefix/src/ogre_vendor/RenderSystems/GLSupport/src/GLX/OgreGLXWindow.cpp (line 246)
+[rviz2-6] [ERROR] [1790761473.297776861] [rviz2]: rviz::RenderSystem: error creating render window: RenderingAPIException: Invalid parentWindowHandle (wrong server or screen) in GLXWindow::create at ./.obj-x86_64-linux-gnu/ogre_vendor-prefix/src/ogre_vendor/RenderSystems/GLSupport/src/GLX/OgreGLXWindow.cpp (line 246)
+[rviz2-6] [ERROR] [1790761473.297789477] [rviz2]: rviz::RenderSystem: error creating render window: RenderingAPIException: Invalid parentWindowHandle (wrong server or screen) in GLXWindow::create at ./.obj-x86_64-linux-gnu/ogre_vendor-prefix/src/ogre_vendor/RenderSystems/GLSupport/src/GLX/OgreGLXWindow.cpp (line 246)
+[rviz2-6] [ERROR] [1790761473.297800862] [rviz2]: rviz::RenderSystem: error creating render window: RenderingAPIException: Invalid parentWindowHandle (wrong server or screen) in GLXWindow::create at ./.obj-x86_64-linux-gnu/ogre_vendor-prefix/src/ogre_vendor/RenderSystems/GLSupport/src/GLX/OgreGLXWindow.cpp (line 246)
+[rviz2-6] [ERROR] [1790761473.297814607] [rviz2]: rviz::RenderSystem: error creating render window: RenderingAPIException: Invalid parentWindowHandle (wrong server or screen) in GLXWindow::create at ./.obj-x86_64-linux-gnu/ogre_vendor-prefix/src/ogre_vendor/RenderSystems/GLSupport/src/GLX/OgreGLXWindow.cpp (line 246)
+[rviz2-6] [ERROR] [1790761473.297826093] [rviz2]: rviz::RenderSystem: error creating render window: RenderingAPIException: Invalid parentWindowHandle (wrong server or screen) in GLXWindow::create at ./.obj-x86_64-linux-gnu/ogre_vendor-prefix/src/ogre_vendor/RenderSystems/GLSupport/src/GLX/OgreGLXWindow.cpp (line 246)
+[rviz2-6] [ERROR] [1790761473.297836863] [rviz2]: rviz::RenderSystem: error creating render window: RenderingAPIException: Invalid parentWindowHandle (wrong server or screen) in GLXWindow::create at ./.obj-x86_64-linux-gnu/ogre_vendor-prefix/src/ogre_vendor/RenderSystems/GLSupport/src/GLX/OgreGLXWindow.cpp (line 246)
+[rviz2-6] [ERROR] [1790761473.297847616] [rviz2]: rviz::RenderSystem: error creating render window: RenderingAPIException: Invalid parentWindowHandle (wrong server or screen) in GLXWindow::create at ./.obj-x86_64-linux-gnu/ogre_vendor-prefix/src/ogre_vendor/RenderSystems/GLSupport/src/GLX/OgreGLXWindow.cpp (line 246)
+[rviz2-6] [ERROR] [1790761473.297858043] [rviz2]: rviz::RenderSystem: error creating render window: RenderingAPIException: Invalid parentWindowHandle (wrong server or screen) in GLXWindow::create at ./.obj-x86_64-linux-gnu/ogre_vendor-prefix/src/ogre_vendor/RenderSystems/GLSupport/src/GLX/OgreGLXWindow.cpp (line 246)
+[rviz2-6] [ERROR] [1790761473.297868485] [rviz2]: rviz::RenderSystem: error creating render window: RenderingAPIException: Invalid parentWindowHandle (wrong server or screen) in GLXWindow::create at ./.obj-x86_64-linux-gnu/ogre_vendor-prefix/src/ogre_vendor/RenderSystems/GLSupport/src/GLX/OgreGLXWindow.cpp (line 246)
+[rviz2-6] [ERROR] [1790761473.297879116] [rviz2]: rviz::RenderSystem: error creating render window: RenderingAPIException: Invalid parentWindowHandle (wrong server or screen) in GLXWindow::create at ./.obj-x86_64-linux-gnu/ogre_vendor-prefix/src/ogre_vendor/RenderSystems/GLSupport/src/GLX/OgreGLXWindow.cpp (line 246)
+[rviz2-6] [ERROR] [1790761473.297890304] [rviz2]: rviz::RenderSystem: error creating render window: RenderingAPIException: Invalid parentWindowHandle (wrong server or screen) in GLXWindow::create at ./.obj-x86_64-linux-gnu/ogre_vendor-prefix/src/ogre_vendor/RenderSystems/GLSupport/src/GLX/OgreGLXWindow.cpp (line 246)
+[rviz2-6] [ERROR] [1790761473.297900892] [rviz2]: rviz::RenderSystem: error creating render window: RenderingAPIException: Invalid parentWindowHandle (wrong server or screen) in GLXWindow::create at ./.obj-x86_64-linux-gnu/ogre_vendor-prefix/src/ogre_vendor/RenderSystems/GLSupport/src/GLX/OgreGLXWindow.cpp (line 246)
+[rviz2-6] [ERROR] [1790761473.297911426] [rviz2]: rviz::RenderSystem: error creating render window: RenderingAPIException: Invalid parentWindowHandle (wrong server or screen) in GLXWindow::create at ./.obj-x86_64-linux-gnu/ogre_vendor-prefix/src/ogre_vendor/RenderSystems/GLSupport/src/GLX/OgreGLXWindow.cpp (line 246)
+[rviz2-6] [ERROR] [1790761473.297921789] [rviz2]: rviz::RenderSystem: error creating render window: RenderingAPIException: Invalid parentWindowHandle (wrong server or screen) in GLXWindow::create at ./.obj-x86_64-linux-gnu/ogre_vendor-prefix/src/ogre_vendor/RenderSystems/GLSupport/src/GLX/OgreGLXWindow.cpp (line 246)
+[rviz2-6] [ERROR] [1790761473.297933688] [rviz2]: rviz::RenderSystem: error creating render window: RenderingAPIException: Invalid parentWindowHandle (wrong server or screen) in GLXWindow::create at ./.obj-x86_64-linux-gnu/ogre_vendor-prefix/src/ogre_vendor/RenderSystems/GLSupport/src/GLX/OgreGLXWindow.cpp (line 246)
+[rviz2-6] [ERROR] [1790761473.297944199] [rviz2]: rviz::RenderSystem: error creating render window: RenderingAPIException: Invalid parentWindowHandle (wrong server or screen) in GLXWindow::create at ./.obj-x86_64-linux-gnu/ogre_vendor-prefix/src/ogre_vendor/RenderSystems/GLSupport/src/GLX/OgreGLXWindow.cpp (line 246)
+[rviz2-6] [ERROR] [1790761473.297954792] [rviz2]: rviz::RenderSystem: error creating render window: RenderingAPIException: Invalid parentWindowHandle (wrong server or screen) in GLXWindow::create at ./.obj-x86_64-linux-gnu/ogre_vendor-prefix/src/ogre_vendor/RenderSystems/GLSupport/src/GLX/OgreGLXWindow.cpp (line 246)
+[rviz2-6] [ERROR] [1790761473.297965409] [rviz2]: rviz::RenderSystem: error creating render window: RenderingAPIException: Invalid parentWindowHandle (wrong server or screen) in GLXWindow::create at ./.obj-x86_64-linux-gnu/ogre_vendor-prefix/src/ogre_vendor/RenderSystems/GLSupport/src/GLX/OgreGLXWindow.cpp (line 246)
+[rviz2-6] [ERROR] [1790761473.297976406] [rviz2]: rviz::RenderSystem: error creating render window: RenderingAPIException: Invalid parentWindowHandle (wrong server or screen) in GLXWindow::create at ./.obj-x86_64-linux-gnu/ogre_vendor-prefix/src/ogre_vendor/RenderSystems/GLSupport/src/GLX/OgreGLXWindow.cpp (line 246)
+[rviz2-6] [ERROR] [1790761473.297986829] [rviz2]: rviz::RenderSystem: error creating render window: RenderingAPIException: Invalid parentWindowHandle (wrong server or screen) in GLXWindow::create at ./.obj-x86_64-linux-gnu/ogre_vendor-prefix/src/ogre_vendor/RenderSystems/GLSupport/src/GLX/OgreGLXWindow.cpp (line 246)
+[rviz2-6] [ERROR] [1790761473.297997584] [rviz2]: rviz::RenderSystem: error creating render window: RenderingAPIException: Invalid parentWindowHandle (wrong server or screen) in GLXWindow::create at ./.obj-x86_64-linux-gnu/ogre_vendor-prefix/src/ogre_vendor/RenderSystems/GLSupport/src/GLX/OgreGLXWindow.cpp (line 246)
+[rviz2-6] [ERROR] [1790761473.297999323] [rviz2]: Unable to create the rendering window after 100 tries
+[rviz2-6] terminate called after throwing an instance of 'std::runtime_error'
+[rviz2-6]   what():  Unable to create the rendering window after 100 tries
+[peach_harvester-8] [INFO] [1790761473.697440841] [peach_scene_perception_node]: Subscribed color=/camera/color/image_raw depth=/camera/depth/image_raw info=/camera/color/camera_info slop=0.05s optical=camera_color_optical_frame output=base_link depth_scale_unit=0.25 gravity_mode=tf calib=percipio-640x480-chessboard|hand_eye:import_humble_20260128T114006
+[peach_harvester-8] [INFO] [1790761473.697680715] [peach_scene_perception_node]: 目标身份记忆已启用：match_radius=0.06 m, max_targets=50, ema=0.3
+[peach_harvester-8] [INFO] [1790761473.708442646] [peach_target_reconstruction_node]: peach_target_reconstruction_node ready: base=base_link color=/camera/color/image_raw depth=/camera/depth/image_raw slop=0.05s depth_scale_unit=0.25 views(min/rec/max)=2/5/24 require_static=True auto_mode=True session_root=/home/mu/Desktop/aubo_e5_jazzy_ws/plans/v1_三末端混合测试/results/runs
+[lifecycle_manager-11] [INFO] [1790761473.782946747] [peach_lifecycle_manager]: [34m[1mStarting managed nodes bringup...[0m[0m
+[lifecycle_manager-11] [INFO] [1790761473.782988889] [peach_lifecycle_manager]: [34m[1mConfiguring peach_scene_perception_node[0m[0m
+[peach_harvester-8] [WARN] [1790761473.816092060] [peach_scene_perception_node]: bond 未生效：缺 ros-jazzy-bondpy（sudo apt install 后重启节点即接入 nav2_lm 心跳监测）
+[lifecycle_manager-11] [INFO] [1790761473.818416449] [peach_lifecycle_manager]: [34m[1mConfiguring peach_target_reconstruction_node[0m[0m
+[peach_harvester-8] [WARN] [1790761473.830614630] [peach_target_reconstruction_node]: bond 未生效：缺 ros-jazzy-bondpy（sudo apt install 后重启节点即接入 nav2_lm 心跳监测）
+[lifecycle_manager-11] [INFO] [1790761473.832051013] [peach_lifecycle_manager]: [34m[1mConfiguring peach_arm[0m[0m
+[peach_arm-9] [WARN] [1790761473.832593157] [peach_arm]: scan.protected_zones 丢弃畸形盒: 盒#0 存在 min>=max 的轴（空盒/退化盒），已丢弃
+[peach_arm-9] [WARN] [1790761473.850366760] [peach_arm]: scan.protected_zones 丢弃畸形盒: 盒#0 存在 min>=max 的轴（空盒/退化盒），已丢弃
+[peach_arm-9] [WARN] [1790761473.850460399] [peach_arm]: scan.protected_zones 丢弃畸形盒: 盒#0 存在 min>=max 的轴（空盒/退化盒），已丢弃
+[peach_arm-9] [WARN] [1790761473.852019005] [rcl.logging_rosout]: Publisher already registered for node name: 'peach_arm'. If this is due to multiple nodes with the same name then all logs for the logger named 'peach_arm' will go out over the existing publisher. As soon as any node with that name is destructed it will unregister the publisher, preventing any further logs for that name from being published on the rosout topic.
+[peach_arm-9] [INFO] [1790761473.856945969] [peach_arm.moveit.ros.rdf_loader]: Loaded robot model in 0.00187212 seconds
+[peach_arm-9] [INFO] [1790761473.856991937] [peach_arm.moveit.core.robot_model]: Loading robot model 'aubo_e5'...
+[peach_arm-9] [INFO] [1790761473.857000487] [peach_arm.moveit.core.robot_model]: No root/virtual joint specified in SRDF. Assuming fixed joint
+[peach_arm-9] [INFO] [1790761473.876816205] [peach_arm.moveit.kinematics.kdl_kinematics_plugin]: Joint weights for group 'manipulator_e5': 1 1 1 1 1 1
+[peach_arm-9] [INFO] [1790761473.884190538] [peach_arm.moveit.ros.move_group_interface]: Ready to take commands for planning group manipulator_e5.
+[peach_arm-9] [INFO] [1790761473.884238080] [peach_arm]: 主动视觉靠近节点 ready: group=manipulator_e5 base=base_link tip=tcp camera=camera_depth_optical_frame execution=plan_only grasp=disabled
+[peach_arm-9] [INFO] [1790761473.884257717] [peach_arm]: [IDLE] 已配置；activate 后才开放运动输出权限
+[lifecycle_manager-11] [INFO] [1790761473.884657210] [peach_lifecycle_manager]: [34m[1mConfiguring peach_supervisor[0m[0m
+[peach_harvester-8] [WARN] [1790761473.903546173] [peach_supervisor]: bond 未生效：缺 ros-jazzy-bondpy（sudo apt install 后重启节点即接入 nav2_lm 心跳监测）
+[peach_harvester-8] [INFO] [1790761473.906998836] [peach_supervisor]: task executor configured; will not auto-start harvest
+[lifecycle_manager-11] [INFO] [1790761473.907885149] [peach_lifecycle_manager]: [34m[1mActivating peach_scene_perception_node[0m[0m
+[peach_harvester-8] [WARN] [1790761473.908845598] [peach_scene_perception_node]: bond 未生效：缺 ros-jazzy-bondpy（sudo apt install 后重启节点即接入 nav2_lm 心跳监测）
+[peach_harvester-8] [INFO] [1790761473.910114468] [peach_scene_perception_node]: perception Active：开始处理 RGB-D
+[lifecycle_manager-11] [INFO] [1790761473.911446687] [peach_lifecycle_manager]: [34m[1mActivating peach_target_reconstruction_node[0m[0m
+[peach_harvester-8] [WARN] [1790761473.912969493] [peach_target_reconstruction_node]: bond 未生效：缺 ros-jazzy-bondpy（sudo apt install 后重启节点即接入 nav2_lm 心跳监测）
+[peach_harvester-8] [INFO] [1790761473.915444190] [peach_target_reconstruction_node]: reconstruction Active：开始积分
+[lifecycle_manager-11] [INFO] [1790761473.917165580] [peach_lifecycle_manager]: [34m[1mActivating peach_arm[0m[0m
+[peach_arm-9] [WARN] [1790761473.917503818] [peach_arm]: scan.protected_zones 丢弃畸形盒: 盒#0 存在 min>=max 的轴（空盒/退化盒），已丢弃
+[peach_arm-9] [INFO] [1790761473.919193207] [peach_arm]: 节点已激活：运动输出权限开放
+[lifecycle_manager-11] [INFO] [1790761473.919624926] [peach_lifecycle_manager]: [34m[1mActivating peach_supervisor[0m[0m
+[peach_arm-9] [WARN] [1790761473.922415283] [rcl.logging_rosout]: Publisher already registered for node name: 'peach_arm'. If this is due to multiple nodes with the same name then all logs for the logger named 'peach_arm' will go out over the existing publisher. As soon as any node with that name is destructed it will unregister the publisher, preventing any further logs for that name from being published on the rosout topic.
+[peach_harvester-8] [WARN] [1790761473.923057529] [peach_supervisor]: bond 未生效：缺 ros-jazzy-bondpy（sudo apt install 后重启节点即接入 nav2_lm 心跳监测）
+[lifecycle_manager-11] [INFO] [1790761473.925810692] [peach_lifecycle_manager]: [34m[1mManaged nodes are active[0m[0m
+[peach_arm-9] [WARN] [1790761473.927495530] [rcl.logging_rosout]: Publisher already registered for node name: 'peach_arm'. If this is due to multiple nodes with the same name then all logs for the logger named 'peach_arm' will go out over the existing publisher. As soon as any node with that name is destructed it will unregister the publisher, preventing any further logs for that name from being published on the rosout topic.
+[ros2_control_node-2] [INFO] [1790761473.928745677] [controller_manager]: Loading controller : 'joint_trajectory_controller' of type 'joint_trajectory_controller/JointTrajectoryController'
+[ros2_control_node-2] [INFO] [1790761473.928777633] [controller_manager]: Loading controller 'joint_trajectory_controller'
+[ros2_control_node-2] [INFO] [1790761473.930748899] [controller_manager]: Controller 'joint_trajectory_controller' node arguments: --ros-args -p use_sim_time:=False --params-file /tmp/launch_params_u1qtrqb5 --params-file /home/mu/Desktop/aubo_e5_jazzy_ws/install/aubo_e5_bringup/share/aubo_e5_bringup/config/controllers.yaml 
+[peach_lifecycle_flag_bridge-12] [INFO] [1790761473.931596024] [peach_lifecycle_flag_bridge]: 托管栈 Active=True（桥自 nav2_lm is_active）
+[peach_arm-9] [INFO] [1790761473.933407967] [peach_arm]: 场景障碍 ACM 豁免已应用: 26 条（含 <octomap> 保留名）
+[spawner-4] [INFO] [1790761473.944557326] [spawner_joint_trajectory_controller]: Loaded joint_trajectory_controller
+[ros2_control_node-2] [INFO] [1790761473.945592705] [controller_manager]: Configuring controller: 'joint_trajectory_controller'
+[ros2_control_node-2] [INFO] [1790761473.945733864] [joint_trajectory_controller]: No specific joint names are used for command interfaces. Using 'joints' parameter.
+[ros2_control_node-2] [INFO] [1790761473.945756980] [joint_trajectory_controller]: Command interfaces are [position] and state interfaces are [position velocity].
+[ros2_control_node-2] [INFO] [1790761473.945777245] [joint_trajectory_controller]: Using 'splines' interpolation method.
+[ros2_control_node-2] [INFO] [1790761473.947475917] [joint_trajectory_controller]: Action status changes will be monitored at 20.00 Hz.
+[ros2_control_node-2] [INFO] [1790761473.950344436] [joint_trajectory_controller]: Setting initial scaling factor to 1.000000
+[ros2_control_node-2] [INFO] [1790761473.950362323] [joint_trajectory_controller]: No scaling interface set. This controller will not read speed scaling from the hardware.
+[ros2_control_node-2] [INFO] [1790761474.034996017] [controller_manager]: Activating controllers: [ joint_trajectory_controller ]
+[ros2_control_node-2] [INFO] [1790761474.038793508] [controller_manager]: Successfully switched controllers!
+[spawner-4] [INFO] [1790761474.044305241] [spawner_joint_trajectory_controller]: Configured and activated joint_trajectory_controller
+[INFO] [spawner-4]: process has finished cleanly [pid 1304701]
+[ERROR] [rviz2-6]: process has died [pid 1304703, exit code -6, cmd '/opt/ros/jazzy/lib/rviz2/rviz2 -d /home/mu/Desktop/aubo_e5_jazzy_ws/install/aubo_e5_moveit_config/share/aubo_e5_moveit_config/rviz/moveit.rviz --ros-args -p use_sim_time:=False --params-file /tmp/launch_params_oth7uxeg'].
+[peach_observability-10] [INFO] [1790761475.115409941] [peach_observability]: 全量录制订阅: /attached_collision_object [moveit_msgs/msg/AttachedCollisionObject]
+[peach_observability-10] [INFO] [1790761475.116662202] [peach_observability]: 全量录制订阅: /aubo_io_controller/io_states [aubo_msgs/msg/IOState]
+[peach_observability-10] [INFO] [1790761475.120799703] [peach_observability]: 全量录制订阅: /bond [bond/msg/Status]
+[peach_observability-10] [INFO] [1790761475.121865437] [peach_observability]: 全量录制订阅: /camera/color/camera_info [sensor_msgs/msg/CameraInfo]
+[peach_observability-10] [INFO] [1790761475.122578112] [peach_observability]: 全量录制订阅: /camera/color/image_raw [sensor_msgs/msg/Image]
+[peach_observability-10] [INFO] [1790761475.123278751] [peach_observability]: 全量录制订阅: /camera/depth/image_raw [sensor_msgs/msg/Image]
+[peach_observability-10] [INFO] [1790761475.124131390] [peach_observability]: 全量录制订阅: /collision_object [moveit_msgs/msg/CollisionObject]
+[peach_observability-10] [INFO] [1790761475.125271274] [peach_observability]: 全量录制订阅: /controller_manager/activity [controller_manager_msgs/msg/ControllerManagerActivity]
+[peach_observability-10] [INFO] [1790761475.131185183] [peach_observability]: 全量录制订阅: /controller_manager/introspection_data/full [pal_statistics_msgs/msg/Statistics]
+[peach_observability-10] [INFO] [1790761475.132133817] [peach_observability]: 全量录制订阅: /controller_manager/introspection_data/names [pal_statistics_msgs/msg/StatisticsNames]
+[peach_observability-10] [INFO] [1790761475.132894857] [peach_observability]: 全量录制订阅: /controller_manager/introspection_data/values [pal_statistics_msgs/msg/StatisticsValues]
+[peach_observability-10] [INFO] [1790761475.133756690] [peach_observability]: 全量录制订阅: /controller_manager/statistics/full [pal_statistics_msgs/msg/Statistics]
+[peach_observability-10] [INFO] [1790761475.134434487] [peach_observability]: 全量录制订阅: /controller_manager/statistics/names [pal_statistics_msgs/msg/StatisticsNames]
+[peach_observability-10] [INFO] [1790761475.135370644] [peach_observability]: 全量录制订阅: /controller_manager/statistics/values [pal_statistics_msgs/msg/StatisticsValues]
+[peach_observability-10] [INFO] [1790761475.136142912] [peach_observability]: 全量录制订阅: /display_contacts [visualization_msgs/msg/MarkerArray]
+[peach_observability-10] [INFO] [1790761475.137388172] [peach_observability]: 全量录制订阅: /display_planned_path [moveit_msgs/msg/DisplayTrajectory]
+[peach_observability-10] [INFO] [1790761475.161597497] [peach_observability]: 全量录制订阅: /dynamic_joint_states [control_msgs/msg/DynamicJointState]
+[peach_observability-10] [INFO] [1790761475.175653613] [peach_observability]: 全量录制订阅: /execute_task_solution/_action/feedback [moveit_task_constructor_msgs/action/ExecuteTaskSolution_FeedbackMessage]
+[peach_observability-10] [INFO] [1790761475.176667585] [peach_observability]: 全量录制订阅: /execute_task_solution/_action/status [action_msgs/msg/GoalStatusArray]
+[peach_observability-10] [INFO] [1790761475.221197249] [peach_observability]: 全量录制订阅: /execute_trajectory/_action/feedback [moveit_msgs/action/ExecuteTrajectory_FeedbackMessage]
+[peach_observability-10] [INFO] [1790761475.222190275] [peach_observability]: 全量录制订阅: /execute_trajectory/_action/status [action_msgs/msg/GoalStatusArray]
+[peach_observability-10] [INFO] [1790761475.223048443] [peach_observability]: 全量录制订阅: /imu_follow/insert_progress [std_msgs/msg/Float64]
+[peach_observability-10] [INFO] [1790761475.224495784] [peach_observability]: 全量录制订阅: /joint_state_broadcaster/transition_event [lifecycle_msgs/msg/TransitionEvent]
+[peach_observability-10] [INFO] [1790761475.225834675] [peach_observability]: 全量录制订阅: /joint_trajectory_controller/controller_state [control_msgs/msg/JointTrajectoryControllerState]
+[peach_observability-10] [INFO] [1790761475.264081994] [peach_observability]: 全量录制订阅: /joint_trajectory_controller/follow_joint_trajectory/_action/feedback [control_msgs/action/FollowJointTrajectory_FeedbackMessage]
+[peach_observability-10] [INFO] [1790761475.265040871] [peach_observability]: 全量录制订阅: /joint_trajectory_controller/follow_joint_trajectory/_action/status [action_msgs/msg/GoalStatusArray]
+[peach_observability-10] [INFO] [1790761475.265983400] [peach_observability]: 全量录制订阅: /joint_trajectory_controller/joint_trajectory [trajectory_msgs/msg/JointTrajectory]
+[peach_observability-10] [INFO] [1790761475.266792672] [peach_observability]: 全量录制订阅: /joint_trajectory_controller/speed_scaling_input [control_msgs/msg/SpeedScalingFactor]
+[peach_observability-10] [INFO] [1790761475.268167777] [peach_observability]: 全量录制订阅: /joint_trajectory_controller/transition_event [lifecycle_msgs/msg/TransitionEvent]
+[peach_observability-10] [INFO] [1790761475.270880589] [peach_observability]: 全量录制订阅: /monitored_planning_scene [moveit_msgs/msg/PlanningScene]
+[peach_observability-10] [INFO] [1790761475.271865287] [peach_observability]: 全量录制订阅: /move_action/_action/feedback [moveit_msgs/action/MoveGroup_FeedbackMessage]
+[peach_observability-10] [INFO] [1790761475.272706930] [peach_observability]: 全量录制订阅: /move_action/_action/status [action_msgs/msg/GoalStatusArray]
+[peach_observability-10] [INFO] [1790761475.273622854] [peach_observability]: 全量录制订阅: /peach/batch/enables [peach_interfaces/msg/Enables]
+[peach_observability-10] [INFO] [1790761475.315880778] [peach_observability]: 全量录制订阅: /peach/perception/axis [geometry_msgs/msg/Vector3Stamped]
+[peach_observability-10] [INFO] [1790761475.334082453] [peach_observability]: 全量录制订阅: /peach/perception/detections [vision_msgs/msg/Detection2DArray]
+[peach_observability-10] [INFO] [1790761475.335212975] [peach_observability]: 全量录制订阅: /peach/perception/diagnostics [peach_interfaces/msg/BagFittingArray]
+[peach_observability-10] [INFO] [1790761475.336077403] [peach_observability]: 全量录制订阅: /peach/perception/initial_pose [peach_interfaces/msg/BagGraspCandidateArray]
+[peach_observability-10] [INFO] [1790761475.336989642] [peach_observability]: 全量录制订阅: /peach/perception/markers [visualization_msgs/msg/MarkerArray]
+[peach_observability-10] [INFO] [1790761475.337756694] [peach_observability]: 全量录制订阅: /peach/perception/masks [sensor_msgs/msg/Image]
+[peach_observability-10] [INFO] [1790761475.338605904] [peach_observability]: 全量录制订阅: /peach/perception/single_cloud [sensor_msgs/msg/PointCloud2]
+[peach_observability-10] [INFO] [1790761475.339431069] [peach_observability]: 全量录制订阅: /peach/reconstruction/local_cloud [sensor_msgs/msg/PointCloud2]
+[peach_observability-10] [INFO] [1790761475.340268060] [peach_observability]: 全量录制订阅: /peach/reconstruction/markers [visualization_msgs/msg/MarkerArray]
+[peach_observability-10] [INFO] [1790761475.341257244] [peach_observability]: 全量录制订阅: /peach/reconstruction/pregrasp_verification [peach_interfaces/msg/PregraspVerification]
+[peach_observability-10] [INFO] [1790761475.342192754] [peach_observability]: 全量录制订阅: /peach/reconstruction/shape_hypothesis [peach_interfaces/msg/ShapeHypothesis]
+[peach_observability-10] [INFO] [1790761475.343032852] [peach_observability]: 全量录制订阅: /peach/scene/obstacles_refresh [std_msgs/msg/Empty]
+[peach_observability-10] [INFO] [1790761475.343978168] [peach_observability]: 全量录制订阅: /peach_arm/move_to/_action/feedback [peach_interfaces/action/MoveTo_FeedbackMessage]
+[peach_observability-10] [INFO] [1790761475.344860146] [peach_observability]: 全量录制订阅: /peach_arm/move_to/_action/status [action_msgs/msg/GoalStatusArray]
+[peach_observability-10] [INFO] [1790761475.345724910] [peach_observability]: 全量录制订阅: /peach_arm/planned_views [visualization_msgs/msg/MarkerArray]
+[peach_observability-10] [INFO] [1790761475.346915697] [peach_observability]: 全量录制订阅: /peach_arm/tool_state [peach_interfaces/msg/ToolState]
+[peach_observability-10] [INFO] [1790761475.348012559] [peach_observability]: 全量录制订阅: /peach_supervisor/transition_event [lifecycle_msgs/msg/TransitionEvent]
+[peach_observability-10] [INFO] [1790761475.348878016] [peach_observability]: 全量录制订阅: /peach_target_reconstruction_node/transition_event [lifecycle_msgs/msg/TransitionEvent]
+[peach_observability-10] [INFO] [1790761475.350586674] [peach_observability]: 全量录制订阅: /pipeline_state [moveit_msgs/msg/PipelineState]
+[peach_observability-10] [INFO] [1790761475.351448742] [peach_observability]: 全量录制订阅: /planning_scene [moveit_msgs/msg/PlanningScene]
+[peach_observability-10] [INFO] [1790761475.352365269] [peach_observability]: 全量录制订阅: /planning_scene_world [moveit_msgs/msg/PlanningSceneWorld]
+[peach_observability-10] [INFO] [1790761475.353367400] [peach_observability]: 全量录制订阅: /sequence_move_group/_action/feedback [moveit_msgs/action/MoveGroupSequence_FeedbackMessage]
+[peach_observability-10] [INFO] [1790761475.354218298] [peach_observability]: 全量录制订阅: /sequence_move_group/_action/status [action_msgs/msg/GoalStatusArray]
+[peach_observability-10] [INFO] [1790761475.355095287] [peach_observability]: 全量录制订阅: /trajectory_execution_event [std_msgs/msg/String]
+[peach_arm-9] [INFO] [1790761476.945232312] [peach_arm]: 场景障碍 ACM 豁免已应用: 26 条（含 <octomap> 保留名）
+[extrinsics_publisher-7] [WARN] [1790761477.948926972] [hand_eye_extrinsics_publisher]: diagnostic_updater: No HW_ID was set. This is probably                a bug. Please report it. For devices that do not have a                HW_ID, set this value to none. This warning only occurs                once all diagnostics are OK so it is okay to wait until                the device is open before calling setHardwareID.
+[peach_arm-9] [INFO] [1790761479.959977692] [peach_arm]: 场景障碍 ACM 豁免已应用: 26 条（含 <octomap> 保留名）
+[peach_observability-10] [INFO] [1790761483.094569422] [peach_observability]: 自检[initial] 12/18 通过，跳过: camera_color_rate, camera_depth_rate, robot_status, imu_topic, model_files, vegetation_status
+[peach_arm-9] [WARN] [1790761498.935003510] [peach_arm]: scan.protected_zones 丢弃畸形盒: 盒#0 存在 min>=max 的轴（空盒/退化盒），已丢弃
+[peach_arm-9] [WARN] [1790761498.935135597] [peach_arm]: scan.protected_zones 丢弃畸形盒: 盒#0 存在 min>=max 的轴（空盒/退化盒），已丢弃
+[peach_arm-9] [WARN] [1790761498.985547805] [peach_arm]: scan.protected_zones 丢弃畸形盒: 盒#0 存在 min>=max 的轴（空盒/退化盒），已丢弃
+[peach_arm-9] [WARN] [1790761498.985702736] [peach_arm]: scan.protected_zones 丢弃畸形盒: 盒#0 存在 min>=max 的轴（空盒/退化盒），已丢弃
+[peach_arm-9] [WARN] [1790761498.985763186] [peach_arm]: scan.protected_zones 丢弃畸形盒: 盒#0 存在 min>=max 的轴（空盒/退化盒），已丢弃
+[peach_arm-9] [WARN] [1790761498.985815244] [peach_arm]: scan.protected_zones 丢弃畸形盒: 盒#0 存在 min>=max 的轴（空盒/退化盒），已丢弃
+[peach_harvester-8] [WARN] [1790761499.292398790] [peach_scene_perception_node]: peach_harvester.vision.common.runtime: 事件在开批前（无 run_dir）被丢弃：累计 1 条
+[peach_arm-9] [INFO] [1790761500.537032627] [peach_arm]: [PLAN_OBSERVATION] 生成目标导向主动视点
+[peach_arm-9] [INFO] [1790761500.537205170] [peach_arm]: [FINALIZE] 等待重建精化几何（BuildTargetModel）
+[peach_arm-9] [WARN] [1790761500.537210284] [peach_arm]: quality.allow_unrefined_geometry: 用场景观测几何代替重建精化 target=target_1
+[peach_arm-9] [INFO] [1790761500.537222790] [peach_arm]: 接触几何（核对方向） target=target_1 entry=[0.304 -0.614 0.536] axis=[0.042 0.136 0.990] travel=0.060m axis_angle_deg=0.00
+[peach_arm-9] [INFO] [1790761500.537258744] [peach_arm]: [RECONFIRM] 抓取前再确认：等待新鲜观测复核身份/锚点漂移/摆动平息
+[peach_observability-10] [WARN] [1790761500.560883279] [rosbag2_cpp]: Message definition for topic '/peach_arm/execute_target/_action/feedback' with type 'peach_interfaces/msg/ExecuteTarget_FeedbackMessage' not found. Message definition will be left empty in bag.
+[peach_observability-10] [WARN] [1790761500.560972401] [rosbag2_cpp]: Message definition for topic '/peach_arm/execute_target/_action/status' with type 'action_msgs/msg/GoalStatusArray' not found. Message definition will be left empty in bag.
+[peach_arm-9] [WARN] [1790761500.590348884] [peach_arm]: 忽略 refined diagnostics（unrefined_hold）: expected=target_1 actual=target_1
+[peach_arm-9] [WARN] [1790761500.590448370] [peach_arm]: 忽略 refined pose（unrefined_hold）: gate=target_1 actual=target_1
+[peach_arm-9] [INFO] [1790761500.890544573] [peach_arm]: [MTC_APPROACH_INSERT] 拍照位再最短路径到预抓取
+[peach_arm-9] [INFO] [1790761500.891473281] [peach_arm.moveit.ros.current_state_monitor]: Listening to joint states on topic 'joint_states'
+[peach_arm-9] [INFO] [1790761500.894256010] [peach_arm.moveit.ros.move_group_interface]: MoveGroup action client/server ready
+[move_group-5] [INFO] [1790761500.894665325] [move_group.moveit.moveit.ros.move_group.move_action]: MoveGroupMoveAction: Received request
+[peach_arm-9] [INFO] [1790761500.894774469] [peach_arm.moveit.ros.move_group_interface]: Planning request accepted
+[move_group-5] [INFO] [1790761500.895020782] [move_group.moveit.moveit.ros.move_group.move_action]: executing..
+[peach_observability-10] [WARN] [1790761500.898872454] [rosbag2_cpp]: Message definition for topic '/move_action/_action/feedback' with type 'moveit_msgs/msg/MoveGroup_FeedbackMessage' not found. Message definition will be left empty in bag.
+[move_group-5] [INFO] [1790761500.898923825] [move_group.moveit.moveit.ros.move_group.move_action]: Planning request received for MoveGroup action. Forwarding to planning pipeline.
+[move_group-5] [INFO] [1790761500.898950710] [move_group.moveit.moveit.ros.move_group.capability]: Using planning pipeline 'pilz_industrial_motion_planner'
+[peach_observability-10] [WARN] [1790761500.898948727] [rosbag2_cpp]: Message definition for topic '/move_action/_action/status' with type 'action_msgs/msg/GoalStatusArray' not found. Message definition will be left empty in bag.
+[move_group-5] [INFO] [1790761500.899078288] [move_group]: Calling PlanningRequestAdapter 'ResolveConstraintFrames'
+[move_group-5] [INFO] [1790761500.899099602] [move_group]: Calling PlanningRequestAdapter 'ValidateWorkspaceBounds'
+[move_group-5] [WARN] [1790761500.899106982] [move_group.moveit.moveit.ros.validate_workspace_bounds]: It looks like the planning volume was not specified. Using default values.
+[move_group-5] [INFO] [1790761500.899115910] [move_group]: Calling PlanningRequestAdapter 'CheckStartStateBounds'
+[move_group-5] [INFO] [1790761500.899133653] [move_group]: Calling PlanningRequestAdapter 'CheckStartStateCollision'
+[move_group-5] [INFO] [1790761500.899292251] [move_group.moveit.moveit.planners.pilz.trajectory_generator.ptp]: Initialized Point-to-Point Trajectory Generator.
+[move_group-5] [INFO] [1790761500.899308729] [move_group]: Calling Planner 'Pilz Industrial Motion Planner'
+[move_group-5] [INFO] [1790761500.899328941] [move_group.moveit.moveit.planners.pilz.trajectory_generator]: Generating PTP trajectory...
+[move_group-5] [INFO] [1790761500.899490098] [move_group]: Calling PlanningResponseAdapter 'ValidateSolution'
+[move_group-5] [INFO] [1790761500.899653841] [move_group.moveit.moveit.ros.move_group.move_action]: Motion plan was computed successfully.
+[peach_arm-9] [INFO] [1790761500.899874772] [peach_arm.moveit.ros.move_group_interface]: Planning request complete!
+[peach_arm-9] [INFO] [1790761500.900044737] [peach_arm.moveit.ros.move_group_interface]: time taken to generate plan: 0.000115507 seconds
+[move_group-5] [INFO] [1790761500.900603263] [move_group.moveit.moveit.ros.move_group.clear_octomap_service]: Execution request received
+[peach_arm-9] [INFO] [1790761500.900616988] [peach_arm.moveit.ros.move_group_interface]: Execute request accepted
+[move_group-5] [INFO] [1790761500.900637133] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[move_group-5] [INFO] [1790761500.900654935] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[move_group-5] [INFO] [1790761500.900714751] [move_group.moveit.moveit.ros.trajectory_execution_manager]: Validating trajectory with allowed_start_tolerance 0.15
+[move_group-5] [INFO] [1790761500.903804801] [move_group.moveit.moveit.ros.trajectory_execution_manager]: Starting trajectory execution ...
+[move_group-5] [INFO] [1790761500.903846566] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[move_group-5] [INFO] [1790761500.903864930] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[move_group-5] [INFO] [1790761500.904051527] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: sending trajectory to joint_trajectory_controller
+[ros2_control_node-2] [INFO] [1790761500.904384755] [joint_trajectory_controller]: Received new action goal
+[ros2_control_node-2] [INFO] [1790761500.904423918] [joint_trajectory_controller]: Accepted new action goal
+[move_group-5] [INFO] [1790761500.904534524] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: joint_trajectory_controller started execution
+[move_group-5] [INFO] [1790761500.904546022] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: Goal request accepted!
+[peach_observability-10] [WARN] [1790761500.910038641] [rosbag2_cpp]: Message definition for topic '/execute_trajectory/_action/status' with type 'action_msgs/msg/GoalStatusArray' not found. Message definition will be left empty in bag.
+[peach_observability-10] [WARN] [1790761500.910512534] [rosbag2_cpp]: Message definition for topic '/execute_trajectory/_action/feedback' with type 'moveit_msgs/msg/ExecuteTrajectory_FeedbackMessage' not found. Message definition will be left empty in bag.
+[peach_observability-10] [WARN] [1790761500.910553624] [rosbag2_cpp]: Message definition for topic '/joint_trajectory_controller/follow_joint_trajectory/_action/status' with type 'action_msgs/msg/GoalStatusArray' not found. Message definition will be left empty in bag.
+[peach_observability-10] [WARN] [1790761500.958663001] [rosbag2_cpp]: Message definition for topic '/joint_trajectory_controller/follow_joint_trajectory/_action/feedback' with type 'control_msgs/msg/FollowJointTrajectory_FeedbackMessage' not found. Message definition will be left empty in bag.
+[ros2_control_node-2] [INFO] [1790761501.498628427] [joint_trajectory_controller]: Goal reached, success!
+[move_group-5] [INFO] [1790761501.504923017] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: Controller 'joint_trajectory_controller' successfully finished
+[move_group-5] [INFO] [1790761501.519577282] [move_group.moveit.moveit.ros.trajectory_execution_manager]: Completed trajectory execution with status SUCCEEDED ...
+[move_group-5] [INFO] [1790761501.519673260] [move_group.moveit.moveit.ros.move_group.clear_octomap_service]: Execution completed: SUCCEEDED
+[peach_arm-9] [INFO] [1790761501.519862957] [peach_arm.moveit.ros.move_group_interface]: Execute request success!
+[peach_arm-9] [INFO] [1790761501.523824177] [peach_arm]: 预抓取从拍照位出发: 已到达全局拍照位姿
+[peach_arm-9] [INFO] [1790761501.523863926] [peach_arm]: 接近：距入口 0.423m 轴向 -0.223m 侧向 0.360m 夹角 8.4° 扫角 121.7° 半径 0.423m 沿轴LIN 0.030m 刀口滚转 0° 原语 staging
+[peach_arm-9] [INFO] [1790761501.641339083] [peach_arm]: staging IK 择优：滚转 -30°（20 候选，腕轴加权距离² 7.389）
+[peach_arm-9] [INFO] [1790761501.641361434] [peach_arm]: PTP 接近（主路径）：关节空间到中段点正下方 + 垂直入冠 0.050m + 沿轴 0.050m（滚转 -30°）
+[peach_arm-9] [INFO] [1790761501.651479621] [peach_arm.moveit.ros.rdf_loader]: Loaded robot model in 0.000892943 seconds
+[peach_arm-9] [INFO] [1790761501.651493811] [peach_arm.moveit.core.robot_model]: Loading robot model 'aubo_e5'...
+[peach_arm-9] [INFO] [1790761501.651496375] [peach_arm.moveit.core.robot_model]: No root/virtual joint specified in SRDF. Assuming fixed joint
+[peach_arm-9] [INFO] [1790761501.669167454] [peach_arm.moveit.kinematics.kdl_kinematics_plugin]: Joint weights for group 'manipulator_e5': 1 1 1 1 1 1
+[peach_arm-9] [INFO] [1790761501.675937434] [peach_arm]: 场景障碍 ACM 豁免已应用: 26 条（含 <octomap> 保留名）
+[peach_arm-9] [INFO] [1790761501.684036568] [peach_arm.moveit.planners.pilz.joint_limits_aggregator]: Reading limits from namespace robot_description_planning
+[peach_arm-9] [INFO] [1790761501.684463860] [peach_arm.moveit.planners.pilz.command_planner]: Available plugins: pilz_industrial_motion_planner/PlanningContextLoaderCIRC pilz_industrial_motion_planner/PlanningContextLoaderLIN pilz_industrial_motion_planner/PlanningContextLoaderPTP 
+[peach_arm-9] [INFO] [1790761501.684484952] [peach_arm.moveit.planners.pilz.command_planner]: About to load: pilz_industrial_motion_planner/PlanningContextLoaderCIRC
+[peach_arm-9] [INFO] [1790761501.685208200] [peach_arm.moveit.planners.pilz.command_planner]: Registered Algorithm [CIRC]
+[peach_arm-9] [INFO] [1790761501.685211955] [peach_arm.moveit.planners.pilz.command_planner]: About to load: pilz_industrial_motion_planner/PlanningContextLoaderLIN
+[peach_arm-9] [INFO] [1790761501.685718379] [peach_arm.moveit.planners.pilz.command_planner]: Registered Algorithm [LIN]
+[peach_arm-9] [INFO] [1790761501.685721140] [peach_arm.moveit.planners.pilz.command_planner]: About to load: pilz_industrial_motion_planner/PlanningContextLoaderPTP
+[peach_arm-9] [INFO] [1790761501.686204858] [peach_arm.moveit.planners.pilz.command_planner]: Registered Algorithm [PTP]
+[peach_arm-9] [INFO] [1790761501.686208544] [peach_arm.moveit.ros.planning_pipeline]: Successfully loaded planner 'Pilz Industrial Motion Planner'
+[peach_arm-9] [INFO] [1790761501.686871938] [peach_arm]: Try loading adapter 'default_planning_request_adapters/ResolveConstraintFrames'
+[peach_arm-9] [INFO] [1790761501.687364514] [peach_arm]: Loaded adapter 'default_planning_request_adapters/ResolveConstraintFrames'
+[peach_arm-9] [INFO] [1790761501.687366415] [peach_arm]: Try loading adapter 'default_planning_request_adapters/ValidateWorkspaceBounds'
+[peach_arm-9] [INFO] [1790761501.687399490] [peach_arm]: Loaded adapter 'default_planning_request_adapters/ValidateWorkspaceBounds'
+[peach_arm-9] [INFO] [1790761501.687400828] [peach_arm]: Try loading adapter 'default_planning_request_adapters/CheckStartStateBounds'
+[peach_arm-9] [INFO] [1790761501.687406049] [peach_arm]: Loaded adapter 'default_planning_request_adapters/CheckStartStateBounds'
+[peach_arm-9] [INFO] [1790761501.687406847] [peach_arm]: Try loading adapter 'default_planning_request_adapters/CheckStartStateCollision'
+[peach_arm-9] [INFO] [1790761501.687410048] [peach_arm]: Loaded adapter 'default_planning_request_adapters/CheckStartStateCollision'
+[peach_arm-9] [INFO] [1790761501.688035339] [peach_arm]: Try loading adapter 'default_planning_response_adapters/ValidateSolution'
+[peach_arm-9] [INFO] [1790761501.689134297] [peach_arm]: Loaded adapter 'default_planning_response_adapters/ValidateSolution'
+[peach_arm-9] [INFO] [1790761501.753943919] [peach_arm]: Calling PlanningRequestAdapter 'ResolveConstraintFrames'
+[peach_arm-9] [INFO] [1790761501.754066977] [peach_arm]: Calling PlanningRequestAdapter 'ValidateWorkspaceBounds'
+[peach_arm-9] [WARN] [1790761501.754070396] [peach_arm.moveit.ros.validate_workspace_bounds]: It looks like the planning volume was not specified. Using default values.
+[peach_arm-9] [INFO] [1790761501.754078882] [peach_arm]: Calling PlanningRequestAdapter 'CheckStartStateBounds'
+[peach_arm-9] [INFO] [1790761501.754095230] [peach_arm]: Calling PlanningRequestAdapter 'CheckStartStateCollision'
+[peach_arm-9] [INFO] [1790761501.754204733] [peach_arm.moveit.planners.pilz.trajectory_generator.ptp]: Initialized Point-to-Point Trajectory Generator.
+[peach_arm-9] [INFO] [1790761501.754215829] [peach_arm]: Calling Planner 'Pilz Industrial Motion Planner'
+[peach_arm-9] [INFO] [1790761501.754236317] [peach_arm.moveit.planners.pilz.trajectory_generator]: Generating PTP trajectory...
+[peach_arm-9] [INFO] [1790761501.754450844] [peach_arm]: Calling PlanningResponseAdapter 'ValidateSolution'
+[peach_arm-9] [INFO] [1790761501.754830347] [peach_arm]: MTC 接近短路径审查: segments=1 allowed=true points=15 duration=1.394s joint_total=4.676rad joint_max=1.214rad (短路径门通过)
+[peach_arm-9] [INFO] [1790761501.754854032] [peach_arm]: MTC 接近果实胶囊审查(seg0 转移): allowed=true min_clearance=0.037m (果实胶囊审查通过)
+[peach_arm-9] [INFO] [1790761501.754857436] [peach_arm]: MTC 接近笛卡尔审查: allowed=true path=0.535m chord=0.499m ratio=1.07 max_dev=0.081m recede=0.000m (笛卡尔短路径门通过)
+[peach_arm-9] [INFO] [1790761501.754861059] [peach_arm]: MTC 接近姿态审查: allowed=true max_from_start=31.1deg (TCP 姿态行程通过)
+[move_group-5] [WARN] [1790761501.763817323] [moveit_task_constructor_visualization.execute_task_solution]: The trajectory of stage '0' from task '' does not have any controllers specified for trajectory execution. This might lead to unexpected controller selection.
+[move_group-5] [INFO] [1790761501.763837776] [moveit_task_constructor_visualization.execute_task_solution]: Executing TaskSolution
+[move_group-5] [INFO] [1790761501.763868284] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[move_group-5] [INFO] [1790761501.763899811] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[move_group-5] [INFO] [1790761501.763934881] [move_group.moveit.moveit.ros.trajectory_execution_manager]: Validating trajectory with allowed_start_tolerance 0.15
+[peach_observability-10] [WARN] [1790761501.767324090] [rosbag2_cpp]: Message definition for topic '/execute_task_solution/_action/status' with type 'action_msgs/msg/GoalStatusArray' not found. Message definition will be left empty in bag.
+[move_group-5] [INFO] [1790761501.769080151] [move_group.moveit.moveit.ros.trajectory_execution_manager]: Starting trajectory execution ...
+[move_group-5] [INFO] [1790761501.769175560] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[move_group-5] [INFO] [1790761501.769193520] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[move_group-5] [INFO] [1790761501.769623181] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[move_group-5] [INFO] [1790761501.769647861] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[move_group-5] [INFO] [1790761501.769814723] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: sending trajectory to joint_trajectory_controller
+[ros2_control_node-2] [INFO] [1790761501.769922334] [joint_trajectory_controller]: Received new action goal
+[ros2_control_node-2] [INFO] [1790761501.769947890] [joint_trajectory_controller]: Accepted new action goal
+[move_group-5] [INFO] [1790761501.770027014] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: joint_trajectory_controller started execution
+[move_group-5] [INFO] [1790761501.770033308] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: Goal request accepted!
+[peach_observability-10] [WARN] [1790761501.772656124] [rosbag2_cpp]: Message definition for topic '/execute_task_solution/_action/feedback' with type 'moveit_task_constructor_msgs/msg/ExecuteTaskSolution_FeedbackMessage' not found. Message definition will be left empty in bag.
+[peach_arm-9] [WARN] [1790761503.065087337] [rclcpp]: Failed to get parameters: moveit.velocity_scaling
+[peach_observability-10] [INFO] [1790761503.098822550] [peach_observability]: 自检[periodic] 12/18 通过，跳过: camera_color_rate, camera_depth_rate, robot_status, imu_topic, model_files, vegetation_status
+[ros2_control_node-2] [INFO] [1790761503.163721118] [joint_trajectory_controller]: Goal reached, success!
+[move_group-5] [INFO] [1790761503.170230449] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: Controller 'joint_trajectory_controller' successfully finished
+[move_group-5] [INFO] [1790761503.184053864] [move_group.moveit.moveit.ros.trajectory_execution_manager]: Completed trajectory execution with status SUCCEEDED ...
+[peach_arm-9] Warning: class_loader.ClassLoader: SEVERE WARNING!!! Attempting to unload library while objects created by this loader exist in the heap! You should delete your objects before attempting to unload the library or destroying the ClassLoader. The library will NOT be unloaded.
+[peach_arm-9]          at line 127 in ./src/class_loader.cpp
+[move_group-5] [INFO] [1790761503.213136408] [move_group.moveit.moveit.ros.move_group.capability]: Using planning pipeline 'pilz_industrial_motion_planner'
+[move_group-5] [INFO] [1790761503.213263255] [move_group]: Calling PlanningRequestAdapter 'ResolveConstraintFrames'
+[move_group-5] [INFO] [1790761503.213336056] [move_group]: Calling PlanningRequestAdapter 'ValidateWorkspaceBounds'
+[move_group-5] [WARN] [1790761503.213342784] [move_group.moveit.moveit.ros.validate_workspace_bounds]: It looks like the planning volume was not specified. Using default values.
+[move_group-5] [INFO] [1790761503.213354995] [move_group]: Calling PlanningRequestAdapter 'CheckStartStateBounds'
+[move_group-5] [ERROR] [1790761503.213374077] [move_group.moveit.moveit.core.conversions]: Found empty JointState message
+[move_group-5] [INFO] [1790761503.213413241] [move_group]: Calling PlanningRequestAdapter 'CheckStartStateCollision'
+[move_group-5] [ERROR] [1790761503.213421393] [move_group.moveit.moveit.core.conversions]: Found empty JointState message
+[move_group-5] [INFO] [1790761503.213538430] [move_group]: Calling Planner 'Pilz Industrial Motion Planner'
+[move_group-5] [INFO] [1790761503.213552252] [move_group.moveit.moveit.planners.pilz.trajectory_generator]: Generating LIN trajectory...
+[move_group-5] [ERROR] [1790761503.213588038] [move_group.moveit.moveit.core.conversions]: Found empty JointState message
+[move_group-5] [INFO] [1790761503.214200473] [move_group]: Calling PlanningResponseAdapter 'ValidateSolution'
+[move_group-5] [INFO] [1790761503.214391429] [move_group]: Calling PlanningRequestAdapter 'ResolveConstraintFrames'
+[move_group-5] [INFO] [1790761503.214407549] [move_group]: Calling PlanningRequestAdapter 'ValidateWorkspaceBounds'
+[move_group-5] [WARN] [1790761503.214413961] [move_group.moveit.moveit.ros.validate_workspace_bounds]: It looks like the planning volume was not specified. Using default values.
+[move_group-5] [INFO] [1790761503.214427714] [move_group]: Calling PlanningRequestAdapter 'CheckStartStateBounds'
+[move_group-5] [INFO] [1790761503.214446488] [move_group]: Calling PlanningRequestAdapter 'CheckStartStateCollision'
+[move_group-5] [INFO] [1790761503.214487973] [move_group]: Calling Planner 'Pilz Industrial Motion Planner'
+[move_group-5] [INFO] [1790761503.214505936] [move_group.moveit.moveit.planners.pilz.trajectory_generator]: Generating LIN trajectory...
+[move_group-5] [INFO] [1790761503.215004037] [move_group]: Calling PlanningResponseAdapter 'ValidateSolution'
+[move_group-5] [INFO] [1790761503.215189554] [move_group.moveit.moveit.planners.pilz.trajectory_blender_transition_window]: Start trajectory blending using transition window.
+[move_group-5] [INFO] [1790761503.215210122] [move_group.moveit.moveit.planners.pilz.trajectory_blender_transition_window]: Search for start and end point of blending trajectory.
+[move_group-5] [INFO] [1790761503.215222529] [move_group.moveit.moveit.planners.pilz.trajectory_blender_transition_window]: Intersection point of first trajectory found, index: 4
+[move_group-5] [INFO] [1790761503.215229943] [move_group.moveit.moveit.planners.pilz.trajectory_blender_transition_window]: Intersection point of second trajectory found, index: 2
+[peach_arm-9] [INFO] [1790761503.215609274] [peach_arm]: sequence 冠内审查: segments=1 allowed=true points=13 duration=1.132s joint_total=0.453rad (短路径门通过)
+[move_group-5] [INFO] [1790761503.217057756] [move_group.moveit.moveit.ros.move_group.clear_octomap_service]: Execution request received
+[move_group-5] [INFO] [1790761503.217084832] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[move_group-5] [INFO] [1790761503.217097680] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[move_group-5] [INFO] [1790761503.217128576] [move_group.moveit.moveit.ros.trajectory_execution_manager]: Validating trajectory with allowed_start_tolerance 0.15
+[move_group-5] [INFO] [1790761503.218781034] [move_group.moveit.moveit.ros.trajectory_execution_manager]: Starting trajectory execution ...
+[move_group-5] [INFO] [1790761503.218829792] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[move_group-5] [INFO] [1790761503.218847522] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[move_group-5] [INFO] [1790761503.219021494] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: sending trajectory to joint_trajectory_controller
+[ros2_control_node-2] [INFO] [1790761503.219210247] [joint_trajectory_controller]: Received new action goal
+[ros2_control_node-2] [INFO] [1790761503.219241883] [joint_trajectory_controller]: Accepted new action goal
+[move_group-5] [INFO] [1790761503.219331289] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: joint_trajectory_controller started execution
+[move_group-5] [INFO] [1790761503.219336589] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: Goal request accepted!
+[ros2_control_node-2] [INFO] [1790761504.353630720] [joint_trajectory_controller]: Goal reached, success!
+[move_group-5] [INFO] [1790761504.369614609] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: Controller 'joint_trajectory_controller' successfully finished
+[move_group-5] [INFO] [1790761504.383883864] [move_group.moveit.moveit.ros.trajectory_execution_manager]: Completed trajectory execution with status SUCCEEDED ...
+[move_group-5] [INFO] [1790761504.383982668] [move_group.moveit.moveit.ros.move_group.clear_octomap_service]: Execution completed: SUCCEEDED
+[peach_arm-9] [INFO] [1790761504.384710420] [peach_arm]: 检查点 2（到预抓取）
+[peach_arm-9] [INFO] [1790761504.384780036] [peach_arm]: [RECONFIRM] 预抓取停稳验证（不 SetIO）
+[peach_arm-9] [WARN] [1790761504.585052974] [peach_arm]: [FAILED] 套入预规划被拒绝（CONTACT）: 快照套入能力非 VALID（sleeve capability）
+[peach_arm-9] [WARN] [1790761504.585090236] [peach_arm]: [RECOVERY_REQUIRED] 接触阶段取消或撤离未确认；保持停止，须现场人工撤离后确认恢复
+[peach_arm-9] [INFO] [1790761507.014568585] [peach_arm]: [IDLE] 已记录现场人工撤离确认；本服务不发送任何运动命令
+[WARNING] [launch]: user interrupted with ctrl-c (SIGINT)
+[INFO] [peach_lifecycle_flag_bridge-12]: sending signal 'SIGINT' to process[peach_lifecycle_flag_bridge-12]
+[ERROR] [peach_lifecycle_flag_bridge-12]: process has died [pid 1304709, exit code -2, cmd '/home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_bringup/lib/peach_bringup/peach_lifecycle_flag_bridge --ros-args -r __node:=peach_lifecycle_flag_bridge -p use_sim_time:=False'].
+[INFO] [robot_state_publisher-1]: process has finished cleanly [pid 1304698]
+[INFO] [lifecycle_manager-11]: process has finished cleanly [pid 1304708]
+[INFO] [ros2_control_node-2]: process has finished cleanly [pid 1304699]
+[INFO] [extrinsics_publisher-7]: process has finished cleanly [pid 1304704]
+[ERROR] [peach_harvester-8]: process has died [pid 1304705, exit code -2, cmd '/home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_harvester/lib/peach_harvester/peach_harvester --ros-args -r __ns:=/ -p use_sim_time:=False --params-file /tmp/launch_params_ib40u3d0 --params-file /tmp/launch_params_zrd0p_te --params-file /tmp/launch_params_ycj2wje9 --params-file /tmp/peach_brain_overlay_a7lx6rem.yaml'].
+[INFO] [peach_observability-10]: sending signal 'SIGINT' to process[peach_observability-10]
+[INFO] [peach_arm-9]: sending signal 'SIGINT' to process[peach_arm-9]
+[INFO] [move_group-5]: sending signal 'SIGINT' to process[move_group-5]
+[lifecycle_manager-11] [INFO] [1790761507.256386118] [rclcpp]: signal_handler(SIGINT/SIGTERM)
+[lifecycle_manager-11] [INFO] [1790761507.256455146] [peach_lifecycle_manager]: Running Nav2 LifecycleManager rcl preshutdown (peach_lifecycle_manager)
+[robot_state_publisher-1] [INFO] [1790761507.256462331] [rclcpp]: signal_handler(SIGINT/SIGTERM)
+[ros2_control_node-2] [INFO] [1790761507.256555836] [rclcpp]: signal_handler(SIGINT/SIGTERM)
+[ros2_control_node-2] [INFO] [1790761507.256648767] [controller_manager]: Shutdown request received....
+[ros2_control_node-2] [INFO] [1790761507.256704726] [controller_manager]: Shutting down all controllers in the controller manager.
+[ros2_control_node-2] [INFO] [1790761507.256729739] [controller_manager]: Deactivating controller 'joint_trajectory_controller'
+[ros2_control_node-2] [INFO] [1790761507.256778574] [controller_manager]: Shutting down controller 'joint_trajectory_controller'
+[ros2_control_node-2] [INFO] [1790761507.256872627] [controller_manager]: Deactivating controller 'joint_state_broadcaster'
+[ros2_control_node-2] [INFO] [1790761507.256893220] [controller_manager]: Shutting down controller 'joint_state_broadcaster'
+[ros2_control_node-2] [INFO] [1790761507.256915609] [resource_manager]: 'deactivate' hardware 'AuboE5System' 
+[ros2_control_node-2] [INFO] [1790761507.256922146] [resource_manager]: Successful 'deactivate' of hardware 'AuboE5System'
+[ros2_control_node-2] [INFO] [1790761507.256923365] [resource_manager]: 'shutdown' hardware 'AuboE5System' 
+[ros2_control_node-2] [INFO] [1790761507.256924502] [resource_manager]: Successful 'shutdown' of hardware 'AuboE5System'
+[ros2_control_node-2] [INFO] [1790761507.256961642] [controller_manager]: Shutting down the controller manager.
+[ros2_control_node-2] [ERROR] [1790761507.257043559] [controller_manager.pal_statistics]: Exception in publisher thread: context cannot be slept with because it's invalid!. Aborting!
+[ros2_control_node-2] [ERROR] [1790761507.257155303] [controller_manager.pal_statistics]: Exception in publisher thread: context cannot be slept with because it's invalid!. Aborting!
+[ros2_control_node-2] [INFO] [1790761507.258710655] [controller_manager.pal_statistics]: Async messages lost 0
+[ros2_control_node-2] [INFO] [1790761507.258719889] [controller_manager.pal_statistics]: publish_async_failures_ 0
+[ros2_control_node-2] [INFO] [1790761507.260039902] [controller_manager.pal_statistics]: Async messages lost 0
+[ros2_control_node-2] [INFO] [1790761507.260046084] [controller_manager.pal_statistics]: publish_async_failures_ 0
+[peach_arm-9] [INFO] [1790761507.256727821] [rclcpp]: signal_handler(SIGINT/SIGTERM)
+[peach_arm-9] [INFO] [1790761507.257539373] [peach_arm]: requestCancelAll: 停止当前执行（来源：deactivate 收口）
+[peach_arm-9] terminate called without an active exception
+[move_group-5] [INFO] [1790761507.256784876] [rclcpp]: signal_handler(SIGINT/SIGTERM)
+[move_group-5] Stack trace (most recent call last):
+[move_group-5] #6    Object "", at 0xffffffffffffffff, in 
+[lifecycle_manager-11] [INFO] [1790761507.261991746] [peach_lifecycle_manager]: Destroying peach_lifecycle_manager
+[peach_lifecycle_flag_bridge-12] Traceback (most recent call last):
+[peach_lifecycle_flag_bridge-12]   File "/home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_bringup/lib/peach_bringup/peach_lifecycle_flag_bridge", line 33, in <module>
+[peach_lifecycle_flag_bridge-12]     sys.exit(load_entry_point('peach-bringup==0.1.0', 'console_scripts', 'peach_lifecycle_flag_bridge')())
+[peach_lifecycle_flag_bridge-12]              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[peach_lifecycle_flag_bridge-12]   File "/home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_bringup/lib/python3.12/site-packages/peach_bringup/lifecycle_flag_bridge.py", line 79, in main
+[peach_lifecycle_flag_bridge-12]     rclpy.spin(node)
+[peach_lifecycle_flag_bridge-12]   File "/opt/ros/jazzy/lib/python3.12/site-packages/rclpy/__init__.py", line 247, in spin
+[peach_lifecycle_flag_bridge-12]     executor.spin_once()
+[peach_lifecycle_flag_bridge-12]   File "/opt/ros/jazzy/lib/python3.12/site-packages/rclpy/executors.py", line 926, in spin_once
+[peach_lifecycle_flag_bridge-12]     self._spin_once_impl(timeout_sec)
+[peach_lifecycle_flag_bridge-12]   File "/opt/ros/jazzy/lib/python3.12/site-packages/rclpy/executors.py", line 907, in _spin_once_impl
+[peach_lifecycle_flag_bridge-12]     handler, entity, node = self.wait_for_ready_callbacks(
+[peach_lifecycle_flag_bridge-12]                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[peach_lifecycle_flag_bridge-12]   File "/opt/ros/jazzy/lib/python3.12/site-packages/rclpy/executors.py", line 877, in wait_for_ready_callbacks
+[peach_lifecycle_flag_bridge-12]     return next(self._cb_iter)
+[peach_lifecycle_flag_bridge-12]            ^^^^^^^^^^^^^^^^^^^
+[peach_lifecycle_flag_bridge-12]   File "/opt/ros/jazzy/lib/python3.12/site-packages/rclpy/executors.py", line 781, in _wait_for_ready_callbacks
+[peach_lifecycle_flag_bridge-12]     wait_set.wait(timeout_nsec)
+[peach_lifecycle_flag_bridge-12] KeyboardInterrupt
+[peach_harvester-8] Traceback (most recent call last):
+[peach_harvester-8]   File "/home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_harvester/lib/peach_harvester/peach_harvester", line 33, in <module>
+[peach_harvester-8]     sys.exit(load_entry_point('peach-harvester==0.1.0', 'console_scripts', 'peach_harvester')())
+[peach_harvester-8]              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[peach_harvester-8]   File "/home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_harvester/lib/python3.12/site-packages/peach_harvester/brain.py", line 36, in main
+[peach_harvester-8]     executor.spin()
+[peach_harvester-8]   File "/opt/ros/jazzy/lib/python3.12/site-packages/rclpy/executors.py", line 359, in spin
+[peach_harvester-8]     self._spin_once_impl()
+[peach_harvester-8]   File "/opt/ros/jazzy/lib/python3.12/site-packages/rclpy/executors.py", line 991, in _spin_once_impl
+[peach_harvester-8]     handler, entity, node = self.wait_for_ready_callbacks(
+[peach_harvester-8]                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[peach_harvester-8]   File "/opt/ros/jazzy/lib/python3.12/site-packages/rclpy/executors.py", line 877, in wait_for_ready_callbacks
+[peach_harvester-8]     return next(self._cb_iter)
+[peach_harvester-8]            ^^^^^^^^^^^^^^^^^^^
+[peach_harvester-8]   File "/opt/ros/jazzy/lib/python3.12/site-packages/rclpy/executors.py", line 781, in _wait_for_ready_callbacks
+[peach_harvester-8]     wait_set.wait(timeout_nsec)
+[peach_harvester-8] KeyboardInterrupt
+[peach_observability-10] Traceback (most recent call last):
+[peach_observability-10]   File "/home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_observability/lib/peach_observability/peach_observability", line 33, in <module>
+[peach_observability-10]     sys.exit(load_entry_point('peach-observability==0.1.0', 'console_scripts', 'peach_observability')())
+[peach_observability-10]              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[peach_observability-10]   File "/home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_observability/lib/python3.12/site-packages/peach_observability/observability_node.py", line 1347, in main
+[peach_observability-10]     node.destroy_node()
+[peach_observability-10]   File "/home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_observability/lib/python3.12/site-packages/peach_observability/observability_node.py", line 1330, in destroy_node
+[peach_observability-10]     self._stop_recording()
+[peach_observability-10]   File "/home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_observability/lib/python3.12/site-packages/peach_observability/observability_node.py", line 1281, in _stop_recording
+[peach_observability-10]     self._spawn_report(self._close_recorder())
+[peach_observability-10]                        ^^^^^^^^^^^^^^^^^^^^^^
+[peach_observability-10]   File "/home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_observability/lib/python3.12/site-packages/peach_observability/observability_node.py", line 1288, in _close_recorder
+[peach_observability-10]     return recorder.close()
+[peach_observability-10]            ^^^^^^^^^^^^^^^^
+[peach_observability-10]   File "/home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_observability/lib/python3.12/site-packages/peach_observability/recorder.py", line 207, in close
+[peach_observability-10]     self._thread.join(timeout=min(2.0, budget))
+[peach_observability-10]   File "/usr/lib/python3.12/threading.py", line 1151, in join
+[peach_observability-10]     self._wait_for_tstate_lock(timeout=max(timeout, 0))
+[peach_observability-10]   File "/usr/lib/python3.12/threading.py", line 1167, in _wait_for_tstate_lock
+[peach_observability-10]     if lock.acquire(block, timeout):
+[peach_observability-10]        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[peach_observability-10] KeyboardInterrupt
+[ERROR] [move_group-5]: process has died [pid 1304702, exit code -2, cmd '/opt/ros/jazzy/lib/moveit_ros_move_group/move_group --ros-args -p use_sim_time:=False --params-file /tmp/launch_params_2nxa_5pp --params-file /tmp/launch_params__upp1ael'].
+[peach_observability-10] The following exception was never retrieved: cannot use Destroyable because destruction was requested
+[peach_observability-10] The following exception was never retrieved: cannot use Destroyable because destruction was requested
+[peach_observability-10] The following exception was never retrieved: cannot use Destroyable because destruction was requested
+[peach_observability-10] The following exception was never retrieved: cannot use Destroyable because destruction was requested
+[peach_observability-10] The following exception was never retrieved: cannot use Destroyable because destruction was requested
+[peach_observability-10] The following exception was never retrieved: cannot use Destroyable because destruction was requested
+[peach_observability-10] The following exception was never retrieved: cannot use Destroyable because destruction was requested
+[peach_observability-10] The following exception was never retrieved: cannot use Destroyable because destruction was requested
+[peach_observability-10] The following exception was never retrieved: cannot use Destroyable because destruction was requested
+[ERROR] [peach_observability-10]: process has died [pid 1304707, exit code -2, cmd '/home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_observability/lib/peach_observability/peach_observability --ros-args -r __node:=peach_observability -r __ns:=/ -p use_sim_time:=False --params-file /tmp/launch_params_im0hzs_p --params-file /tmp/launch_params_tqdotglt'].
+[ERROR] [peach_arm-9]: process has died [pid 1304706, exit code -6, cmd '/home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_arm/lib/peach_arm/peach_arm --ros-args -r __node:=peach_arm -r __ns:=/ -p use_sim_time:=False --params-file /tmp/launch_params_o003iw51 --params-file /tmp/launch_params_g553zm9u --params-file /tmp/launch_params_9tbucvua --params-file /tmp/launch_params_7y1xp93t --params-file /tmp/launch_params_ujsefu4t --params-file /tmp/launch_params_1m1n3azy --params-file /tmp/launch_params_y7126cq3 --params-file /tmp/launch_params_9ud7slbz --params-file /tmp/launch_params_6xnl9fqe --params-file /tmp/launch_params_e843w_ae --params-file /tmp/launch_params_z9fjdcwx --params-file /tmp/launch_params_90oazml3'].

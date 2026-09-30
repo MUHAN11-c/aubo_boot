@@ -716,3 +716,15 @@ colcon build/test 三包全绿（222 tests 0 failures）；venv 回归 test_web_
 
 0024 落地时 attach 未挂校验，0017 的数值规则防线丢失——本轮补回并推广到全部 peach Python 节点：各 params 模块持 `_RULES` 规则表经 `validate=` 进 attach（越界/白名单启动期拒启、运行期非法 set 即拒；scene 完整 33 键含空模型路径、重建 48 键、supervisor 8 键、observability 9 键、vegetation 12 键、lifecycle 1 键），跨字段窗经 `preview=`（scene `min_depth<max_depth`、supervisor 选果 reach/depth 双窗、vegetation `leaf.h_min<h_max`：整批拒绝、保持当前一致快照）。`peach_bringup` 两小组件（lifecycle_flag_bridge / autostart_client）从内联 declare 迁入 `config/bringup.yaml` + `peach_bringup.params` attach（下限规则；autostart 的 scene_key/intent 发批时热读）；setup.py 装 config。接口清单核对器 `_CONSUMER_PATHS` 补 `peach_bringup/config`（服务名字面量随参数迁 yaml 后反向扫描失配）。测试：各包新增「规则键⊆部署清单键」对账 + vegetation/observability/bringup validate 单测；r0_gate 四包 + 清单全绿；隔离域真 rclpy 冒烟（规则拒非法、跨字段拒、热更新、派生重建）全过。三份 `yaml_params` 副本（harvester/vegetation/bringup）byte 级一致并加 vendoring 注记（与 param_rules 同款每包自持模式）。AGENTS 残留 GPL 措辞清一致性（缝位/偏离表/反模式/新节点流程）。
 
+---
+
+## 2026-09-30 peach2 M1 骨架退出门
+
+隔离重写 `src/peach2/`（不进 `harvest_system`）。方案 §14 M1 退出门关闭：launch_testing 全绿 + mock PREGRASP 链。生产入口仍是旧 `peach_*`。
+
+验收数字：`peach2_system_tests` 33/33（域 95–97）；`peach2_manipulation` gtest 191/0 fail。四处系统测 xfail 收口为硬断言：`from bondpy.bondpy import Bond`；`RunBatch(execution=false)` goal REJECT（`execution_disabled`）；拍照位 MoveTo `at_goal` 空运动；PREGRASP_ONLY `reached` 停在 PREGRASP。残差 LIN `collapse_at_goal=false`，默认 `at_goal_tolerance_rad=0.002`。
+
+未过：M0 台架（标定文件仍 `design_reference` → `cut_allowed` 恒 false）、mock FULL、果园指标、YOLO11 v2.1、TensorRT、腕力。下一步：M0 或 mock FULL 系统测（仍禁止真机 SetIO）。
+
+活文档：architecture 产品定位补 peach2 隔离条；testing §1 补系统测入口；方案两份（`docs/` 与 `.cursor/plans/`）§14 现行进度。包 README：`peach2_system_tests` / `peach2_bringup` / `peach2_calibration` / `peach2_manipulation`。未新开第四份活文档。
+

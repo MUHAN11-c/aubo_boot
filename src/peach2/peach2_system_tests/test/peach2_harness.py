@@ -19,6 +19,7 @@ from typing import Callable
 from ament_index_python.packages import get_package_share_directory
 from aubo_msgs.srv import SetIO
 from bond.msg import Status as BondStatus
+from controller_manager_msgs.srv import ListControllers
 from geometry_msgs.msg import Point, Pose, Vector3
 import launch
 from launch.actions import IncludeLaunchDescription, SetEnvironmentVariable, TimerAction
@@ -58,6 +59,7 @@ import tf2_ros
 JOINTS = ('shoulder_joint', 'upperArm_joint', 'foreArm_joint',
           'wrist1_joint', 'wrist2_joint', 'wrist3_joint')
 TOOL_ID = 'adaptive_shear_v1'
+MOCK_CONTROLLERS = ('joint_state_broadcaster', 'joint_trajectory_controller')
 MANAGER = 'peach2_lifecycle_manager'
 EXPECTED_EXIT_CODES = (0, -2, -9, -15, 130, 137, 143)
 # rviz2 (offscreen) and move_group may die noisily on SIGINT; not part of the peach2 contract.
@@ -160,6 +162,7 @@ class Harness(Node):
         self.bond_ids: set[str] = set()
         self._obs_count = 0
         self._state_clients: dict[str, object] = {}
+        self._list_controllers = None
 
         g = self._group
         self.create_subscription(Enables, '/peach/enables', self._on_enables, LATCHED,
@@ -326,6 +329,21 @@ class Harness(Node):
         return wait_until(
             lambda: self.lifecycle_state(node_name, 2.0) == LifecycleState.PRIMARY_STATE_ACTIVE,
             timeout_s, 1.0)
+
+    def active_controllers(self) -> set[str]:
+        with self._lock:
+            if self._list_controllers is None:
+                self._list_controllers = self.create_client(
+                    ListControllers, '/controller_manager/list_controllers',
+                    callback_group=self._group)
+        response = self.call(self._list_controllers, ListControllers.Request(), 2.0)
+        if response is None:
+            return set()
+        return {c.name for c in response.controller if c.state == 'active'}
+
+    def wait_controllers(self, names: tuple[str, ...], timeout_s: float) -> bool:
+        """Wait until every controller in `names` is active (not implied by lifecycle)."""
+        return wait_until(lambda: set(names) <= self.active_controllers(), timeout_s, 0.5)
 
     def model(self, target_id: str):
         msg = self.models

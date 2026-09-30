@@ -68,6 +68,34 @@ TEST(MoveTo, NamedTargetExecutes)
   EXPECT_EQ(rig.motion.executed.size(), 1U);
 }
 
+TEST(MoveTo, AlreadyAtTargetSucceedsWithoutSending)
+{
+  MoveRig rig;
+  rig.motion.at_goal.insert("move_to");
+  const std::vector<double> before = rig.motion.joints;
+  pm::MoveToRequest req;
+  req.named_target = "global_photo_pose";
+  const auto r = rig.run(req);
+  EXPECT_TRUE(r.success) << r.message;
+  EXPECT_EQ(r.failure_code, failure::NONE);
+  EXPECT_EQ(r.message, "at_goal");
+  EXPECT_TRUE(rig.motion.executed.empty());
+  EXPECT_EQ(rig.motion.joints, before);
+}
+
+TEST(MoveTo, AlreadyAtTargetStillNeedsTheGate)
+{
+  MoveRig rig;
+  rig.motion.at_goal.insert("move_to");
+  rig.cancel = true;
+  pm::MoveToRequest req;
+  req.named_target = "home";
+  const auto r = rig.run(req);
+  EXPECT_FALSE(r.success);
+  EXPECT_NE(r.failure_code, failure::NONE);
+  EXPECT_TRUE(rig.motion.executed.empty());
+}
+
 TEST(MoveTo, PoseTargetUsesFreePlanner)
 {
   MoveRig rig;

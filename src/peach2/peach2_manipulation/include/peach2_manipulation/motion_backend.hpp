@@ -31,8 +31,13 @@ struct PlanRequest
   /// Plan from these joints instead of the current state (chained segments).
   std::optional<std::vector<double>> start_joints;
   std::string label;
+  /// Residual-correction LINs set this false: a 3 mm TCP residual is ~0.004 rad at 0.8 m,
+  /// inside the transit at-goal band, but must still be sent.
+  bool collapse_at_goal{true};
 };
 
+/// `ok` with a single-point trajectory is a null motion (see is_null_motion): the start already
+/// satisfies the goal, nothing is sent to the controller and the segment counts as reached.
 struct PlanResult
 {
   bool ok{false};
@@ -40,6 +45,16 @@ struct PlanResult
   std::string reason;
   JointTrajectory trajectory;
 };
+
+/// Planner output -> PlanResult. When `collapse_at_goal` is true, a trajectory whose every point
+/// lies within `at_goal_tolerance_rad` (max |dq|) of `start` (the first point when absent)
+/// collapses to a null motion at `start`. Residual-correction LINs pass false so a TCP residual
+/// smaller than the joint at-goal band is still executed. Otherwise fewer than two points is a
+/// failure (PLAN_CARTESIAN_INCOMPLETE for LINEAR, PLAN_FAILED otherwise, reason
+/// `<label>:empty_trajectory`): an empty trajectory cannot prove the goal is the start.
+PlanResult finalize_plan(
+  JointTrajectory trajectory, const std::optional<std::vector<double>> & start, PlanKind kind,
+  const std::string & label, double at_goal_tolerance_rad, bool collapse_at_goal = true);
 
 struct Abort
 {

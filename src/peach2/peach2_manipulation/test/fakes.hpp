@@ -7,6 +7,7 @@
 #include <map>
 #include <memory>
 #include <optional>
+#include <set>
 #include <string>
 #include <utility>
 #include <vector>
@@ -44,6 +45,8 @@ public:
   std::map<std::string, uint32_t> plan_fail;          ///< label -> failure code (always)
   std::map<std::string, pm::ExecResult> exec_fail;    ///< label -> result (first time only)
   std::map<std::string, Eigen::Vector3d> tcp_error;   ///< label -> TCP offset after execute
+  std::set<std::string> at_goal;                       ///< label -> start already is the goal
+  double at_goal_tolerance_rad{0.002};
   bool validate_ok{true};
   bool force_sensing{false};
   int stop_calls{0};
@@ -72,6 +75,9 @@ public:
       goal = joints_of(r.tcp_goal);
       goal_pose = r.tcp_goal;
     }
+    if (at_goal.count(r.label) != 0U) {
+      goal = start;
+    }
     pm::JointTrajectory t;
     t.joint_names = {"shoulder_joint", "upperArm_joint", "foreArm_joint", "wrist1_joint",
       "wrist2_joint", "wrist3_joint"};
@@ -87,11 +93,17 @@ public:
     }
     poses_.push_back({goal, goal_pose});
     plans_.push_back({start, goal, r.label});
-    return {true, 0U, "ok", t};
+    return pm::finalize_plan(
+      t, start, r.kind, r.label, at_goal_tolerance_rad, r.collapse_at_goal);
   }
 
   pm::ExecResult execute(const pm::JointTrajectory & t, const pm::ExecOptions & o) override
   {
+    if (t.points.size() < 2U) {
+      // Same as MoveItMotionBackend: execute_trajectory rejects a single-point goal.
+      executed.push_back("null_motion");
+      return {false, ee::failure::EXEC_FAILED, "empty_trajectory"};
+    }
     const std::string label = label_of(t);
     executed.push_back(label);
     if (during_execute) {
@@ -115,6 +127,10 @@ public:
     auto err = tcp_error.find(label);
     if (err != tcp_error.end()) {
       tcp.translation() += err->second;
+      // A TCP residual is a joint residual (joints_of: translation -> first three joints).
+      for (int i = 0; i < 3; ++i) {
+        joints[static_cast<size_t>(i)] += err->second[i];
+      }
       // Correction plans start from the real (offset) pose.
       poses_.push_back({joints, tcp});
     }

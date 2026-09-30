@@ -48,153 +48,19 @@
     <origin xyz="0 0 -0.375" rpy="0 0 0"/>
   </joint>
 
-  <!-- ======================= 四指夹爪（原装完整链 + 剖分四指） =======================
-       链路与件均还原 tool_changer 原装（用户参照"移植前完整模型"）：
-         wrist3 →(0,0,0.020) camera_Link（相机支架件）
-                →(0,0,0.0215,Rzπ) kuaihuan_Link（快换盘件）
-                →(0,0,0.020,Rxπ) g2_base（剖分基座；Rx π=指朝 -z 远离
-                  法兰——网格建模 +z 朝法兰，不翻则指端朝天，2026-09-30
-                  用户截图实锤）
-       网格引用 package://tool_changer（本仓已装包，模型单源）。
-       四指=gripper2 剖分（scripts/split_gripper2.py）：径向 prismatic
-       同步开合，行程 55mm → 开口 119×138mm；四向同步闭合自定心。 -->
-  <xacro:property name="finger_travel_max" value="0.055"/>
-  <xacro:property name="finger_travel_min" value="0.0"/>
-  <xacro:property name="finger_effort" value="40.0"/>
+  <!-- ======================= Allegro Hand（社区常用四指手，仅仿真） =======================
+       源：felixduvallet/allegro-hand-ros allegro_hand_description（右手，
+       vendor 于 urdf/allegro_hand.xacro + meshes/allegro/）；16 revolute
+       关节（四指×4：外展/近/中/远节），自带 damping/friction（断电自锁）。
+       用户裁定（2026-09-30）：换社区常用四指夹爪（Robotiq 2F-140 两指
+       与 gripper2 剖分爪先后退场）。挂 wrist3，手指沿 +z（工具方向）。 -->
+  <xacro:include filename="$(find ivg_sim)/urdf/allegro_hand.xacro"/>
 
-  <link name="camera_Link">
-    <inertial>
-      <origin xyz="0 0 0.01" rpy="0 0 0"/>
-      <mass value="0.3"/>
-      <inertia ixx="3e-4" ixy="0" ixz="0" iyy="3e-4" iyz="0" izz="3e-4"/>
-    </inertial>
-    <visual>
-      <origin xyz="0 0 0" rpy="0 0 0"/>
-      <geometry><mesh filename="package://tool_changer/meshes/visual/camera_link.stl"/></geometry>
-    </visual>
-    <collision>
-      <origin xyz="0 0 0" rpy="0 0 0"/>
-      <geometry><mesh filename="package://tool_changer/meshes/collision/camera_link.stl"/></geometry>
-    </collision>
-  </link>
-  <joint name="camera_joint" type="fixed">
+  <joint name="allegro_mount_joint" type="fixed">
     <parent link="wrist3_Link"/>
-    <child link="camera_Link"/>
-    <origin xyz="0 0 0.020" rpy="0 0 0"/>
+    <child link="hand_root"/>
+    <origin xyz="0 0 0.02" rpy="0 0 0"/>
   </joint>
-
-  <link name="kuaihuan_Link">
-    <inertial>
-      <origin xyz="0 0 0.005" rpy="0 0 0"/>
-      <mass value="0.3"/>
-      <inertia ixx="4e-4" ixy="0" ixz="0" iyy="4e-4" iyz="0" izz="4e-4"/>
-    </inertial>
-    <visual>
-      <origin xyz="0 0 0" rpy="0 0 0"/>
-      <geometry><mesh filename="package://tool_changer/meshes/visual/kuaihuan_link.stl"/></geometry>
-    </visual>
-    <collision>
-      <origin xyz="0 0 0" rpy="0 0 0"/>
-      <geometry><mesh filename="package://tool_changer/meshes/collision/kuaihuan_link.stl"/></geometry>
-    </collision>
-  </link>
-  <joint name="kuaihuan_joint" type="fixed">
-    <parent link="camera_Link"/>
-    <child link="kuaihuan_Link"/>
-    <origin xyz="0 0 0.0215" rpy="0 0 3.1416"/>
-  </joint>
-
-  <link name="g2_base_link">
-    <inertial>
-      <origin xyz="0 0 0.045" rpy="0 0 0"/>
-      <mass value="0.9"/>
-      <inertia ixx="0.0016" ixy="0" ixz="0" iyy="0.0019" iyz="0" izz="0.0024"/>
-    </inertial>
-    <visual>
-      <origin xyz="0 0 0" rpy="0 0 0"/>
-      <geometry><mesh filename="package://ivg_sim/meshes/visual/g2_base.stl"/></geometry>
-      <material name="g2_body"><color rgba="0.25 0.26 0.28 1"/></material>
-    </visual>
-    <collision>
-      <origin xyz="0 0 0" rpy="0 0 0"/>
-      <geometry><mesh filename="package://ivg_sim/meshes/collision/g2_base.stl"/></geometry>
-    </collision>
-  </link>
-  <!-- 与原版一致（kuaihuan_to_gripper2）+ Rz 90°：用户指定的安装朝向
-       （宽指对水平「横着」；原装物理垫高不变）。 -->
-  <joint name="g2_base_joint" type="fixed">
-    <parent link="kuaihuan_Link"/>
-    <child link="g2_base_link"/>
-    <origin xyz="0 0 0.02" rpy="0 0 1.5708"/>
-  </joint>
-
-  <!-- mimic 联动（官方 gz_ros2_control 机制，dartsim 前提）：xp 主驱动，
-       其余三指物理耦合锁死行程比——先触即整组停，根治独立伺服先触指
-       单侧推飞（2026-09-30 蒙太奇实锤）。multiplier 0.75：主指令
-       0.040 → y 指 0.030，恰为罐半径 50mm 的对称贴面。
-       指自锁 friction/damping：真电动爪丝杠断电不滑。 -->
-  <xacro:macro name="g2_finger_master" params="name axis_x axis_y mesh">
-    <link name="finger_${name}_link">
-      <inertial>
-        <origin xyz="0 0 0.05" rpy="0 0 0"/>
-        <mass value="0.10"/>
-        <inertia ixx="4e-4" ixy="0" ixz="0" iyy="4e-4" iyz="0" izz="2e-4"/>
-      </inertial>
-      <visual>
-        <origin xyz="0 0 0" rpy="0 0 0"/>
-        <geometry><mesh filename="package://ivg_sim/meshes/visual/g2_${mesh}.stl"/></geometry>
-        <material name="g2_dark"><color rgba="0.25 0.26 0.28 1"/></material>
-      </visual>
-      <collision>
-        <origin xyz="0 0 0" rpy="0 0 0"/>
-        <geometry><mesh filename="package://ivg_sim/meshes/collision/g2_${mesh}.stl"/></geometry>
-      </collision>
-    </link>
-    <joint name="finger_${name}_joint" type="prismatic">
-      <parent link="g2_base_link"/>
-      <child link="finger_${name}_link"/>
-      <origin xyz="0 0 0.078" rpy="0 0 0"/>
-      <axis xyz="${axis_x} ${axis_y} 0"/>
-      <dynamics damping="0.5" friction="2.0"/>
-      <limit lower="${finger_travel_min}" upper="${finger_travel_max}"
-             effort="${finger_effort}" velocity="0.03"/>
-    </joint>
-  </xacro:macro>
-
-  <xacro:macro name="g2_finger_mimic" params="name axis_x axis_y mesh multiplier">
-    <link name="finger_${name}_link">
-      <inertial>
-        <origin xyz="0 0 0.05" rpy="0 0 0"/>
-        <mass value="0.10"/>
-        <inertia ixx="4e-4" ixy="0" ixz="0" iyy="4e-4" iyz="0" izz="2e-4"/>
-      </inertial>
-      <visual>
-        <origin xyz="0 0 0" rpy="0 0 0"/>
-        <geometry><mesh filename="package://ivg_sim/meshes/visual/g2_${mesh}.stl"/></geometry>
-        <material name="g2_dark"><color rgba="0.25 0.26 0.28 1"/></material>
-      </visual>
-      <collision>
-        <origin xyz="0 0 0" rpy="0 0 0"/>
-        <geometry><mesh filename="package://ivg_sim/meshes/collision/g2_${mesh}.stl"/></geometry>
-      </collision>
-    </link>
-    <joint name="finger_${name}_joint" type="prismatic">
-      <parent link="g2_base_link"/>
-      <child link="finger_${name}_link"/>
-      <origin xyz="0 0 0.078" rpy="0 0 0"/>
-      <axis xyz="${axis_x} ${axis_y} 0"/>
-      <mimic joint="finger_xp_joint" multiplier="${multiplier}" offset="0"/>
-      <dynamics damping="0.5" friction="2.0"/>
-      <limit lower="${finger_travel_min}" upper="${finger_travel_max}"
-             effort="${finger_effort}" velocity="0.03"/>
-    </joint>
-  </xacro:macro>
-
-  <xacro:g2_finger_master name="xp" axis_x="1" axis_y="0" mesh="xp"/>
-  <xacro:g2_finger_mimic name="xn" axis_x="-1" axis_y="0" mesh="xn" multiplier="1"/>
-  <xacro:g2_finger_mimic name="yp" axis_x="0" axis_y="1" mesh="yp" multiplier="0.75"/>
-  <xacro:g2_finger_mimic name="yn" axis_x="0" axis_y="-1" mesh="yn" multiplier="0.75"/>
-
   <!-- ======================= 腕上相机（eye-in-hand，标定外参+内参） =======================
        外参：aubo_hand_eye_calibration/hand_eye/active.yaml（已激活，
        eye_in_hand，RMS 3.19mm）。光学帧 wrist3 直挂（scipy 核定 rpy）。
@@ -245,8 +111,9 @@
     </sensor>
   </gazebo>
 
-  <!-- TCP：指端包络腔心（翻转后指沿 -z：法兰下 0.0615+0.175=0.2365），
-       姿态与 wrist3_Link 恒等 -->
+  <!-- TCP：Allegro 抓取腔心。掌面 hand_root+0.095，指全长 ~0.148
+       （tip ~0.243）；抓取腔心取 hand_root+0.203（≈指尖下 4cm，
+       对象上部包络区；spawn 后 TF 校核微调）。姿态与 wrist3 恒等。 -->
   <link name="tcp">
     <inertial>
       <origin xyz="0 0 0" rpy="0 0 0"/>
@@ -255,9 +122,9 @@
     </inertial>
   </link>
   <joint name="tcp_joint" type="fixed">
-    <parent link="wrist3_Link"/>
+    <parent link="hand_root"/>
     <child link="tcp"/>
-    <origin xyz="0 0 0.2365" rpy="0 0 0"/>
+    <origin xyz="0 0 0.203" rpy="0 0 0"/>
   </joint>
 
   <!-- ======================= gz_ros2_control（本包自有声明） ======================= -->
@@ -295,24 +162,118 @@
       <state_interface name="position"/>
       <state_interface name="velocity"/>
     </joint>
-    <joint name="finger_xp_joint">
+    <!-- Allegro 16 关节（四指×4）：全部 position 命令位；initial_value
+         = 张开位（断电自锁由原包 damping/friction 保证） -->
+    <joint name="joint_0">
       <command_interface name="position"/>
       <state_interface name="position">
-        <param name="initial_value">0.05</param>
+        <param name="initial_value">0.0</param>
       </state_interface>
       <state_interface name="velocity"/>
     </joint>
-    <!-- mimic 关节只配 state_interface（官方要求：不得有 command） -->
-    <joint name="finger_xn_joint">
-      <state_interface name="position"/>
+    <joint name="joint_1">
+      <command_interface name="position"/>
+      <state_interface name="position">
+        <param name="initial_value">0.0</param>
+      </state_interface>
       <state_interface name="velocity"/>
     </joint>
-    <joint name="finger_yp_joint">
-      <state_interface name="position"/>
+    <joint name="joint_2">
+      <command_interface name="position"/>
+      <state_interface name="position">
+        <param name="initial_value">0.0</param>
+      </state_interface>
       <state_interface name="velocity"/>
     </joint>
-    <joint name="finger_yn_joint">
-      <state_interface name="position"/>
+    <joint name="joint_3">
+      <command_interface name="position"/>
+      <state_interface name="position">
+        <param name="initial_value">0.0</param>
+      </state_interface>
+      <state_interface name="velocity"/>
+    </joint>
+    <joint name="joint_4">
+      <command_interface name="position"/>
+      <state_interface name="position">
+        <param name="initial_value">0.0</param>
+      </state_interface>
+      <state_interface name="velocity"/>
+    </joint>
+    <joint name="joint_5">
+      <command_interface name="position"/>
+      <state_interface name="position">
+        <param name="initial_value">0.0</param>
+      </state_interface>
+      <state_interface name="velocity"/>
+    </joint>
+    <joint name="joint_6">
+      <command_interface name="position"/>
+      <state_interface name="position">
+        <param name="initial_value">0.0</param>
+      </state_interface>
+      <state_interface name="velocity"/>
+    </joint>
+    <joint name="joint_7">
+      <command_interface name="position"/>
+      <state_interface name="position">
+        <param name="initial_value">0.0</param>
+      </state_interface>
+      <state_interface name="velocity"/>
+    </joint>
+    <joint name="joint_8">
+      <command_interface name="position"/>
+      <state_interface name="position">
+        <param name="initial_value">0.0</param>
+      </state_interface>
+      <state_interface name="velocity"/>
+    </joint>
+    <joint name="joint_9">
+      <command_interface name="position"/>
+      <state_interface name="position">
+        <param name="initial_value">0.0</param>
+      </state_interface>
+      <state_interface name="velocity"/>
+    </joint>
+    <joint name="joint_10">
+      <command_interface name="position"/>
+      <state_interface name="position">
+        <param name="initial_value">0.0</param>
+      </state_interface>
+      <state_interface name="velocity"/>
+    </joint>
+    <joint name="joint_11">
+      <command_interface name="position"/>
+      <state_interface name="position">
+        <param name="initial_value">0.0</param>
+      </state_interface>
+      <state_interface name="velocity"/>
+    </joint>
+    <joint name="joint_12">
+      <command_interface name="position"/>
+      <state_interface name="position">
+        <param name="initial_value">0.3</param>
+      </state_interface>
+      <state_interface name="velocity"/>
+    </joint>
+    <joint name="joint_13">
+      <command_interface name="position"/>
+      <state_interface name="position">
+        <param name="initial_value">0.0</param>
+      </state_interface>
+      <state_interface name="velocity"/>
+    </joint>
+    <joint name="joint_14">
+      <command_interface name="position"/>
+      <state_interface name="position">
+        <param name="initial_value">0.0</param>
+      </state_interface>
+      <state_interface name="velocity"/>
+    </joint>
+    <joint name="joint_15">
+      <command_interface name="position"/>
+      <state_interface name="position">
+        <param name="initial_value">0.0</param>
+      </state_interface>
       <state_interface name="velocity"/>
     </joint>
   </ros2_control>

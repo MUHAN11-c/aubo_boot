@@ -313,6 +313,10 @@ ExecResult HarvestCycle::exec_segment(
       return {false, failure::EXEC_FAILED, "start_state_mismatch"};
     }
   }
+  if (is_null_motion(trajectory)) {
+    // Nothing moves, so nothing to back out of the canopy either.
+    return {true, failure::NONE, "at_goal"};
+  }
   ExecOptions options;
   options.timeout_s = trajectory.duration_s() * config_.execute_timeout_scale +
     config_.execute_timeout_margin_s;
@@ -346,7 +350,7 @@ bool HarvestCycle::retreat(Run & run, std::string & why, uint32_t & stop_code)
     const ExecResult r = exec_segment(run, reverse, std::nullopt, GateStage::RETREAT, false);
     if (r.ok) {
       run.canopy.clear();
-      run.result.reached = max_reached(run.result.reached, Reached::RETREATED);
+      mark_retreated(run);
       return true;
     }
     if (is_stop_code(r.failure_code)) {
@@ -378,8 +382,17 @@ bool HarvestCycle::retreat(Run & run, std::string & why, uint32_t & stop_code)
     return false;
   }
   run.canopy.clear();
-  run.result.reached = max_reached(run.result.reached, Reached::RETREATED);
+  mark_retreated(run);
   return true;
+}
+
+void HarvestCycle::mark_retreated(Run & run)
+{
+  // reached is ordered progress and RETREATED implies the cut; a pregrasp-only exit is visible
+  // in stage_names / failure_code instead.
+  if (run.request.mode == CycleMode::FULL) {
+    run.result.reached = max_reached(run.result.reached, Reached::RETREATED);
+  }
 }
 
 CycleResult HarvestCycle::fail_in_canopy(
@@ -564,6 +577,7 @@ CycleResult HarvestCycle::run(const CycleRequest & request)
     PlanRequest fix = sel->approach_request;
     fix.start_joints.reset();
     fix.label = "pregrasp_correction";
+    fix.collapse_at_goal = false;
     const PlanResult p = deps_.motion->plan(fix);
     if (!p.ok) {
       return fail_in_canopy(run, Outcome::FAILED, p.failure_code, "correction:" + p.reason);
@@ -636,7 +650,9 @@ CycleResult HarvestCycle::run(const CycleRequest & request)
     if (!pi.ok) {
       return fail_in_canopy(run, Outcome::FAILED, pi.failure_code, "insert:" + pi.reason);
     }
+    const std::size_t canopy_before = run.canopy.size();
     r = exec_segment(run, pi.trajectory, ins, GateStage::CONTACT, true);
+    const bool insert_moved = run.canopy.size() > canopy_before;
     if (!r.ok) {
       return fail_in_canopy(run, Outcome::FAILED, r.failure_code, "insert:" + r.reason);
     }
@@ -685,14 +701,16 @@ CycleResult HarvestCycle::run(const CycleRequest & request)
       attempt < config_.cut_retry_max)
     {
       // Back out of the bag along the insert, then re-insert with a fresh decision.
-      JointTrajectory insert_segment = run.canopy.back();
-      const ExecResult back = exec_segment(
-        run, reverse_trajectory(insert_segment), std::nullopt, GateStage::RETREAT, false);
-      if (!back.ok) {
-        return fail_in_canopy(
-          run, Outcome::FAILED, back.failure_code, "cut_retry_backout:" + back.reason);
+      if (insert_moved) {
+        JointTrajectory insert_segment = run.canopy.back();
+        const ExecResult back = exec_segment(
+          run, reverse_trajectory(insert_segment), std::nullopt, GateStage::RETREAT, false);
+        if (!back.ok) {
+          return fail_in_canopy(
+            run, Outcome::FAILED, back.failure_code, "cut_retry_backout:" + back.reason);
+        }
+        run.canopy.pop_back();
       }
-      run.canopy.pop_back();
       log("cut not confirmed (" + verdict.reason + "), retrying");
       continue;
     }

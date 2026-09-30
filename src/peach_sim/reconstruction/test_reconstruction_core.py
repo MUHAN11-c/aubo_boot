@@ -104,8 +104,8 @@ class DistributionTests(unittest.TestCase):
             widths.append(sample['width_m'])
             self.assertGreaterEqual(sample['width_m'], .08 * 1.25)
             self.assertLessEqual(sample['width_m'], .08 * 1.65)
-            self.assertGreaterEqual(sample['height_m'], .08 + .03)
-            self.assertLessEqual(sample['height_m'], .08 + .06)
+            self.assertGreaterEqual(sample['height_m'], .08 + .055)
+            self.assertLessEqual(sample['height_m'], .08 + .08)
             self.assertIsNotNone(sample['width_source_percentile'])
             self.assertEqual(sample['dimension_fit'], 'fruit_supported_paper')
         self.assertGreater(max(widths) - min(widths), .02)
@@ -114,7 +114,7 @@ class DistributionTests(unittest.TestCase):
         for diameter in (.066, .073, .081):
             fruit_r = diameter / 2
             width = diameter + .012
-            height = diameter + .005 + .022
+            height = diameter + .022 + .022
             wrap_r = wrap_radius(fruit_r, width)
             z_c = fruit_center_z(diameter)
             for i in range(49):

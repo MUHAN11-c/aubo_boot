@@ -74,4 +74,24 @@ std::vector<std::string> missing_for(const Enables & enables, Intent intent)
   return missing;
 }
 
+std::string admission_error(const Enables & enables, Intent intent)
+{
+  if (!enables.execution) {
+    return "execution_disabled: use CheckReachability or HarvestTarget for plan-only";
+  }
+  const std::string chain = validate_chain(enables);
+  if (!chain.empty()) {
+    return "enables_chain_invalid: " + chain;
+  }
+  const auto missing = missing_for(enables, intent);
+  if (missing.empty()) {
+    return "";
+  }
+  std::string names;
+  for (const auto & name : missing) {
+    names += (names.empty() ? "" : ",") + name;
+  }
+  return std::string("enables_missing_for_") + intent_name(intent) + ": " + names;
+}
+
 }  // namespace peach2_task::core

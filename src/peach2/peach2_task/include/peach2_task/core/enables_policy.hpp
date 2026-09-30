@@ -41,4 +41,11 @@ Enables required_for(Intent intent);
 /// Names of enables that `required_for(intent)` needs but `enables` lacks.
 std::vector<std::string> missing_for(const Enables & enables, Intent intent);
 
+/// RunBatch admission: empty when a batch of `intent` may start with `enables`.
+/// Stop-and-go perception has to move the arm to survey, so no intent runs without execution
+/// (plan-only goes through CheckReachability / HarvestTarget directly, not a batch). FULL also
+/// needs grasp and tool: manipulation refuses MODE_FULL without both before moving, so admitting
+/// would only defer the same rejection past the survey.
+std::string admission_error(const Enables & enables, Intent intent);
+
 }  // namespace peach2_task::core

@@ -1,6 +1,6 @@
 # 软件项目设计架构
 
-> 2026-09-30 离线模型 v9：按套袋观感反馈恢复有余量的宽面/折角纸袋，重新使用实拍袋尺寸分位，保留原内果尺寸并降低纸面凹凸。主展示和真实对照仅套袋，另导出三种完整套袋资产。树枝/叶结构沿用已核验的 v8；参考袋内部未知。完整矩阵基线仍属 v5、总体深度对照仍属 v6，不能作为 v9 验收。范围与证据见 [peach_sim README](../src/peach_sim/README.md)。
+> 2026-09-30 套袋专项 v10：纠正 v9 厚盒底和撑满侧壁，改为薄封边、内果局部鼓起和下部余纸，独立三袋模型含原尺寸内果/果梗/扎丝；新增正侧面检查。仅套袋资产更新，既有整园/field/五光照仍属 v9 历史结果，不是 v10 验收。命令与证据见 [peach_sim README](../src/peach_sim/README.md)。
 
 > 2026-09-24 果园外观重建：当前 Blender 入口为 `src/peach_sim/reconstruction/`，不复用旧模型/贴图/随机布局。RGB-D 约束局部可见袋面；整树、遮挡部分与树行是标注清楚的推断。旧 Gazebo SDF/GT 仍属旧管线，尚未接入此次新场景；无 ROS IDL、运动或驱动变更。数据口径、离线命令与验收边界见 [peach_sim README](../src/peach_sim/README.md)。根目录 `blender_orchard/` 观感预览链已于 2026-09-28 并入 `src/peach_sim/reconstruction/`（袋面折痕、程序贴图、PeachDataSet 先验统计迁入；数据口径以 priors 分位为准），果园外观建模收敛为单管线；光照/叶遮挡/枝干扰为受控变量，多视角感知验证矩阵与基线回归门见 README。
 
@@ -27,6 +27,7 @@ Robotics_Tutorial 教程库已归档 `_archive/parked_2026-09/`，不再随库�
 - **范围：** 果园是愿景。核心能力仍是契约 / 视觉 / 臂 / 调度；整栈入口在 `peach_bringup`，只读观测可拆 `peach_observability`。底盘与雷达**驱动**本仓不实现；导航适配 `peach_navigation` 已归档（`_archive/parked_2026-09/`），`NavigateToWorksite` / `HarvestTargetReport` / `HarvestOperationStatus` / `VehicleState` 四个 IDL 保留标「预留」（manifest `reserved_interfaces` 区），调度到位一步直通 `NAV_OK`。
 - **近期成功标准：** [testing.md](testing.md) 现行定位门是 `PREGRASP_ONLY`：到预抓取停住，不回 `harvest_stow`、不套入、不 SetIO。套入干跑须把 `execute_pregrasp_only` 改 false（默认 `tool.enabled=false`）。切断+撤退均确认才记采摘成功。树干 CollisionObject 仍预留；`peach_vegetation` 只发 2D 掩膜，不写 PlanningScene。
 - **非目标：** launch 自动 `RunHarvest`；感知发运动；技能写 `ledger.json`；学习模型补深度；nvblox；改只读驱动栈；把 ROS / 8090 当成功能安全急停。
+- **peach2（隔离重写，2026-09-30）：** `src/peach2/` 不进 `harvest_system` / 现行 lifecycle，不订 `peach_interfaces`。入口 `peach2_bringup/peach2_system.launch.py`。M1 骨架退出门已过（mock PREGRASP + launch_testing 全绿）；产品套袋+剪断与 M0 台架标定未过。进度在 [peach_v2 方案 §14](peach_v2_重构终版方案.md)；怎么跑系统测见 [testing.md](testing.md) §1 peach2。生产入口仍是本文 + `peach_bringup`。
 
 现场基线（归档数字与轮次：[testing-log.md](testing-log.md)）：相机已运行 ~2.4–2.5 FPS（launch 现行请求 2.5；09-16 实测 5.0 不可达且无加速作用）。现行 `PREGRASP_ONLY` 停袋底对照：`field_pregrasp_20260901_1757:target_1`（目视方向与定位中上水平，只需微调）。
 

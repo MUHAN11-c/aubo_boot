@@ -163,7 +163,7 @@ class Leaves:
         self.rng = random.Random(seed)
         self.records = []
 
-    def add(self, root, tip, width=None):
+    def add(self, root, tip, width=None, normal=None):
         root = Vector(root)
         tip = Vector(tip)
         axis = tip - root
@@ -173,6 +173,13 @@ class Leaves:
         width = width or length * self.rng.uniform(.18, .27)
         quat = axis.to_track_quat('X', 'Z') @ Quaternion(
             (1, 0, 0), self.rng.uniform(-.85, .85))
+        if normal is not None:
+            direction = axis.normalized()
+            projected = Vector(normal) - direction * Vector(normal).dot(direction)
+            if projected.length < 1e-6:
+                raise ValueError('Leaf normal must not be parallel to its axis')
+            quat = (quat @ Vector((0, 0, -1))).rotation_difference(
+                projected.normalized()) @ quat
         index = self.rng.randrange(5) * 4 + self.rng.randrange(4)
         scale = (length / PROTO_LENGTH, width / PROTO_WIDTH, length / PROTO_LENGTH)
         self.records.append((index, root, quat, scale))
@@ -229,7 +236,7 @@ def paper_bag(name, rings, mat, seed=1):
             scale = (abs(co)**power + abs(si)**power)**(-1 / power)
             x = co * scale * w
             y = si * scale * thick * .5
-            if power < 4:
+            if power < 4 and not filled:
                 x *= 1 + (0. if seed % 3 == 0 else .10 if seed % 3 == 1 else .06)
             panel = x / max(w, .001)
             envelope = math.sin(math.pi * t)
@@ -242,7 +249,7 @@ def paper_bag(name, rings, mat, seed=1):
                 fold_slope = 1.35 if seed % 2 else -1.35
                 line_distance = abs(panel - .18 * math.sin(phase) - fold_slope * (t - .45))
                 main_fold = max(0., 1 - line_distance / .22)
-                offset = max(-.0003, min(.0028, offset + .0026 * main_fold))
+                offset = max(-.0014, min(.0045, offset + .0040 * main_fold))
                 offset *= face * envelope
                 gathers = .0016 * max(0., (t - .72) / .28) * math.sin(
                     7 * a + phase) * math.sin(math.pi * t)
@@ -278,7 +285,9 @@ def paper_bag(name, rings, mat, seed=1):
                     gathers + crease) * si
             zz = z
             if filled:
-                zz += .0012 * math.sin(2 * a + phase) * math.exp(-(t / .05) ** 2)
+                zz += .0030 * co * math.sin(phase) * math.exp(-(t / .12) ** 2)
+                # Curl the free lower paper, fading before the fruit contact.
+                y += .004 * math.sin(phase) * max(0., 1 - t / .25) ** 2
                 zz += .0007 * math.sin(5 * a + phase) * max(0., (t - .94) / .06)
             verts.append((cx + x, front + thick * .5 + y, zz))
             uv.append((j / n, t))
@@ -297,8 +306,8 @@ def paper_bag(name, rings, mat, seed=1):
     obj['paper_form'] = (rings[0][6] if len(rings[0]) > 6
                          else 'reference_visible_panel')
     obj['hidden_surface_status'] = 'thickness, creases and seam construction inferred'
-    obj['single_crease_amplitude_bound_m'] = .0026 if filled else .0008
-    obj['combined_crease_amplitude_bound_m'] = .0028 if filled else .0012
+    obj['single_crease_amplitude_bound_m'] = .0040 if filled else .0008
+    obj['combined_crease_amplitude_bound_m'] = .0045 if filled else .0012
     return obj
 
 
@@ -339,20 +348,31 @@ def bag_rings(width, height, thickness=.055, seed=1, fruit_diameter=None):
     fruit_r = fruit_diameter / 2
     clearance_r = fruit_r + .006
     forms = ('folded_gusset', 'broad_panel', 'creased_panel')
-    power = (6., 9., 5.)[seed % 3]
-    width_controls = [(0, .88), (.08, 1.), (.38, .98), (.60, .97),
-                      (.72, .82), (.86, .27), (.93, .12), (1, .20)]
-    depth_controls = [(0, .52), (.12, 1.), (.65, 1.),
-                      (.72, .80), (.86, .30), (.93, .13), (1, .20)]
+    # A two-panel envelope: thin sealed hem and sides, local fruit bulge.
+    # The flat paper silhouette stays broad below the fruit; the front/back
+    # depth follows its support only locally instead of forming a cuboid.
+    width_controls = [(0, .94), (.10, 1.), (.35, .96), (.55, .89),
+                      (.72, .68), (.86, .34), (.95, .095), (1, .15)]
+    depth_controls = [(0, .0012), (.08, .0020), (.22, .009),
+                      (.50, .020), (.72, .014), (.88, .005), (1, .003)]
     rings = []
-    for i in range(49):
-        u = i / 48
+    for i in range(65):
+        u = i / 64
         z = u * height
         dz = z - fruit_center_z(fruit_diameter)
         support = math.sqrt(max(0., clearance_r ** 2 - dz ** 2))
-        half_width = max(width * .5 * _profile_width(u, width_controls), support)
-        depth_half = max(clearance_r * _profile_width(u, depth_controls), support)
-        cx = width * .02 * math.sin(seed * 1.73) * (1 - u)
+        center_z = fruit_center_z(fruit_diameter)
+        tangent_z = (center_z ** 2 - clearance_r ** 2) / center_z
+        if z < tangent_z:
+            support = z * clearance_r / math.sqrt(
+                center_z ** 2 - clearance_r ** 2)
+        cx = width * .035 * math.sin(seed * 1.73 + .6) * (1 - u)
+        half_width = max(width * .5 * _profile_width(u, width_controls),
+                         support + abs(cx))
+        depth_half = max(_profile_width(u, depth_controls), support)
+        # Elliptical lens cross-sections meet at thin side folds. High-order
+        # superellipses previously made thick vertical walls and a box floor.
+        power = 2.0
         rings.append((z, cx, half_width, -depth_half, depth_half * 2,
                       power, forms[seed % 3]))
     return rings

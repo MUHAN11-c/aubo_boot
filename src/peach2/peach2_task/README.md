@@ -90,7 +90,7 @@ HarvestOne
 | 节点 | 类型 | 端口 | 行为 |
 |------|------|------|------|
 | `CheckSafety` | Condition | — | 缓存的 robot_status（drives_powered ∧ ¬e_stopped ∧ ¬in_error ∧ 年龄<0.3 s；mock 可关）+ enables（每个 intent 要 execution，FULL 另要 grasp+tool）+ FULL 时 ToolState≠FAULT；失败 → abort `safety:<blockers>` |
-| `MoveToNamed` | 异步 action | in `target`(string)、in `velocity_scaling`(double, 0) | MoveTo；失败/超时 → Survey 失败，批次中止 |
+| `MoveToNamed` | 异步 action | in `target`(string)、in `velocity_scaling`(double, 0) | MoveTo；`success=true` 即成功（含已在目标的空运动）；SAFETY_GATE_CLOSED（臂侧只规划，受理后使能被撤）→ `safety:move_to …` 中止；其余失败/超时 → Survey 失败，批次中止 |
 | `BuildSceneSnapshot` | 异步 srv | in `clear_previous`(bool, true) | 失败 → 批次中止（无障碍快照不接触）；日志带 `truncated` / `n_frames` |
 | `BeginScene` | 异步 srv | — | 首巡调用 `/peach/perception/begin_scene`(request_id)；`accepted=false` 或服务失败 → 批次中止；成功把 `scene_epoch` 记进 session 与账本 |
 | `WaitTargetSetLocked` | 异步 | — | 等 `target_set_locked`、`scene_epoch` = BeginScene 返回值、`header.stamp` ≥ 本节点开始时刻（stamp=0 则用接收时刻）；epoch 更大 → `scene_epoch_changed` 中止；缓存 `locked_target_ids` 与观测进 session；超时 `lock_wait_s` → 批次中止 |
@@ -176,9 +176,15 @@ schema `peach2_task/ledger/2`：`scene_epoch`、`counts.plan_only`、`targets[].
 `timeouts.{server_wait_s, move_to_s, snapshot_s, begin_scene_s, lock_wait_s, reachability_s, observe_s, decision_s, harvest_s, ack_forward_s}`、
 `bond_heartbeat_timeout_s`。批次开始时快照参数，批中改参下一批生效。
 
-RunBatch 拒绝条件：节点非 Active、已有批次、臂侧 `recovery_required` 锁存中、intent 非法、request_id 非法或目录已存在、target_ids 含空串、
-非 SURVEY_ONLY 且无工具、工具与挂载工具不符、限值非法（ratio∉[0,1]、timeout<0）。拒绝原因写日志与
-`BatchState.message`。
+RunBatch 拒绝条件（goal 受理阶段 REJECT，不起树）：节点非 Active、已有批次、臂侧 `recovery_required` 锁存中、
+**execution=false（任何 intent）→ `execution_disabled: use CheckReachability or HarvestTarget for plan-only`**
+（停走式感知必须动臂到拍照位才能勘察，批次没有 plan-only 形态；只规划请直接调 CheckReachability / HarvestTarget）、
+FULL 缺 grasp 或 tool → `enables_missing_for_FULL: <缺项>`（tool 也在受理时强制：manipulation
+`harvest_cycle` 对 MODE_FULL 未开 grasp∧tool 直接 SAFETY_GATE_CLOSED，而本包 STOP_BATCH，受理了也只是把同一拒绝
+推迟到回拍照位、勘察、观测之后；CheckSafety 本就每 tick 要求 FULL 的 tool）、使能链非法、intent 非法、request_id 非法或目录已存在、target_ids 含空串、
+非 SURVEY_ONLY 且无工具、工具与挂载工具不符、限值非法（ratio∉[0,1]、timeout<0）。拒绝原因写日志（WARN）与
+`BatchState.message`（`RunBatch rejected: <原因>`）。批次运行中撤使能：CheckSafety 下一 tick 失败 → haltTree
+（在途 goal 取消）→ 批次以 `safety:enable_missing:<名>` 中止。
 
 ## 用法（手工；launch 不自动发）
 
@@ -187,7 +193,8 @@ ros2 launch peach2_task peach2_task.launch.py hardware_mode:=mock tool_profile:=
 # lifecycle 由整栈 lifecycle manager 驱动；单独调试可手动：
 ros2 lifecycle set /peach2_task configure && ros2 lifecycle set /peach2_task activate
 
-# 使能（默认全 false；PREGRASP_ONLY 只需 execution）
+# 使能（默认全 false；execution=false 时任何 RunBatch 都被拒；SURVEY/PREGRASP_ONLY 只需 execution，
+# FULL 需 execution+grasp+tool）
 ros2 service call /peach/task/set_enables peach2_interfaces/srv/SetEnables \
   "{execution: true, grasp: false, tool: false}"
 
@@ -215,11 +222,11 @@ colcon test --base-paths src/peach2 --packages-select peach2_task \
 colcon test-result --test-result-base build/v2/peach2_task --verbose
 ```
 
-gtest：`test_selection`、`test_batch_policy`、`test_enables_policy`（含 safety gate）、`test_ledger`、
-`test_batch_session`、`test_msg_mirror`（纯核镜像常量对 IDL + 消息转换）、`test_harvest_batch_tree`
+gtest：`test_selection`、`test_batch_policy`、`test_enables_policy`（含 safety gate 与 RunBatch 受理使能检查）、`test_ledger`、
+`test_batch_session`、`test_msg_mirror`（纯核镜像常量对 IDL + 消息转换 + MoveTo 结果判定）、`test_harvest_batch_tree`
 （真 `harvest_batch.xml` + 真逻辑节点 + 纯 C++ mock 叶子 + 假时钟：全成功、max_targets/采收率/名单收批、
 skip、RETRY_VIEW、WAIT、PREGRASP 检查点 ACK、RECOVER ACK、取消、失去使能 halt、空勘察上限、重勘新目标、
-SURVEY_ONLY、STOP_BATCH、不可达+reason、单果超时 TARGET_TIMEOUT、BeginScene 仅首巡/clear_previous 真→假、
+SURVEY_ONLY、STOP_BATCH、不可达+reason、真 safety gate 下运行中撤 execution/tool 即 halt、仅 execution 可跑 PREGRASP、单果超时 TARGET_TIMEOUT、BeginScene 仅首巡/clear_previous 真→假、
 BeginScene 拒绝中止、锁定集限选、颈部复测→cut 成功、复测不受已耗重试限制、复测 MISMATCH/再 PENDING 跳过、
 PREGRASP_ONLY 不复测、plan-only 不计 attempted、臂侧锁存阻断直到 ACK+回落、DEPENDENCY_UNAVAILABLE 中止）。
 xmllint 需联网（colcon test 用 full_network）。不起任何 ROS 进程。
@@ -248,3 +255,4 @@ NECK_REMEASURE_PENDING、`locked_target_ids`、`CheckReachability.reasons`、`Ha
   （记 PERCEPTION_NO_TARGET 跳过）。
 - 单果时限只罩 observe+decision，不抢占 HarvestTarget（接触中途放弃比完成更危险，由 `timeouts.harvest_s` 兜底）。
 - bond 与 nav2 lifecycle_manager 的接线在整栈 bringup 包里做；本包只在 activate 起 bond。
+- **M1（2026-09-30）：** `execution=false` 的 `RunBatch` 在 goal 阶段 REJECT（`execution_disabled`）；plan-only 走 `HarvestTarget` / `CheckReachability`。系统测 33/33 已覆盖。FULL 套入/剪切与 M0 标定不在本轮。

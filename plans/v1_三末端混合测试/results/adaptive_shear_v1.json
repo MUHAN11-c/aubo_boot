@@ -1,0 +1,35 @@
+{
+  "profile": "adaptive_shear_v1",
+  "launch_pid": 1294287,
+  "lifecycle": {
+    "peach_scene_perception_node": "active [3] [WARN] [1790761054.744247304] [rcl]: ROS_LOCALHOST_ONLY is deprecated but still honored if it is enabled. Use",
+    "peach_target_reconstruction_node": "active [3] [WARN] [1790761056.007379858] [rcl]: ROS_LOCALHOST_ONLY is deprecated but still honored if it is enabled. Use",
+    "peach_supervisor": "active [3] [WARN] [1790761061.295060082] [rcl]: ROS_LOCALHOST_ONLY is deprecated but still honored if it is enabled. Use",
+    "manipulation_skills": "Node not found"
+  },
+  "tool_profile_id": "String value is: adaptive_shear_v1\n[WARN] [1790761067.382347838] [rcl]: ROS_LOCALHOST_ONLY is deprecated but still honored if it is enabled. Use ROS_AUTOMATIC_DISCOVERY_RANGE and ROS_STATIC_PEERS inst",
+  "skip_reconstruction": "Boolean value is: True\n[WARN] [1790761068.721947682] [rcl]: ROS_LOCALHOST_ONLY is deprecated but still honored if it is enabled. Use ROS_AUTOMATIC_DISCOVERY_RANGE and ROS_STATIC_PEERS instead.\n[WARN] ",
+  "allow_unrefined": "Boolean value is: True\n[WARN] [1790761071.733467870] [rcl]: ROS_LOCALHOST_ONLY is deprecated but still honored if it is enabled. Use ROS_AUTOMATIC_DISCOVERY_RANGE and ROS_STATIC_PEERS instead.\n[WARN] ",
+  "color_hz": "min: 0.066s max: 0.436s std dev: 0.08387s window: 22\n[WARN] [1790761072.993029511] [rcl]: ROS_LOCALHOST_ONLY is deprecated but still honored if it is enabled. Use ROS_AUTOMATIC_DISCOVERY_RANGE and ROS_STATIC_PEERS instead.\n[WARN] [1790761072.993038014] [rcl]: 'localhost_only' is disabled, 'automatic_discovery_range' and 'static_peers' will be used.",
+  "depth_hz": "\tmin: 0.135s max: 0.359s std dev: 0.06840s window: 6\n[WARN] [1790761078.423597548] [rcl]: ROS_LOCALHOST_ONLY is deprecated but still honored if it is enabled. Use ROS_AUTOMATIC_DISCOVERY_RANGE and ROS_STATIC_PEERS instead.\n[WARN] [1790761078.423604940] [rcl]: 'localhost_only' is disabled, 'automatic_discovery_range' and 'static_peers' will be used.",
+  "tf_tcp": "isabled, 'automatic_discovery_range' and 'static_peers' will be used.\n[INFO] [1790761083.814460807] [tf2_echo]: Waiting for transform wrist3_Link ->  tcp: Invalid frame ID \"wrist3_Link\" passed to canTransform argument target_frame - frame does not exist\n[INFO] [1790761085.801355745] [tf2_echo]: Waiting for transform wrist3_Link ->  tcp: Invalid frame ID \"tcp\" passed to canTransform argument source_frame - frame does not exist\n[INFO] [1790761088.655310055] [rclcpp]: signal_handler(SIGINT/SIGTERM)",
+  "tf_cam": "eprecated but still honored if it is enabled. Use ROS_AUTOMATIC_DISCOVERY_RANGE and ROS_STATIC_PEERS instead.\n[WARN] [1790761089.213156009] [rcl]: 'localhost_only' is disabled, 'automatic_discovery_range' and 'static_peers' will be used.\n[INFO] [1790761089.229191424] [tf2_echo]: Waiting for transform wrist3_Link ->  camera_link: Invalid frame ID \"wrist3_Link\" passed to canTransform argument target_frame - frame does not exist\n[INFO] [1790761094.064086557] [rclcpp]: signal_handler(SIGINT/SIGTERM)",
+  "expected_tcp": [
+    0.0,
+    0.047,
+    0.16866
+  ],
+  "imu_follow_srvs": "/imu_follow/describe_parameters\n/imu_follow/disable\n/imu_follow/enable\n/imu_follow/get_parameter_types\n/imu_follow/get_parameters\n/imu_follow/get_type_description\n/imu_follow/insert_retract\n/imu_follow/insert_start\n/imu_follow/insert_stop\n/imu_follow/list_parameters\n/imu_follow/set_parameters\n/imu_follow/set_parameters_atomically",
+  "controllers": "joint_state_broadcaster     joint_state_broadcaster/JointStateBroadcaster          active\njoint_trajectory_controller joint_trajectory_controller/JointTrajectoryController  active\n",
+  "grasp": {
+    "elapsed_s": 17.3,
+    "limit_s": 120.0,
+    "returncode": 0,
+    "within_2min": true,
+    "log": "/home/mu/Desktop/aubo_e5_jazzy_ws/plans/v1_三末端混合测试/results/adaptive_shear_v1_grasp_1757.txt",
+    "tail": "peach_arm Active；execution/grasp 已开（tool 保持关）；mode=full；速度/加速度缩放=1（仅仿真）\n回拍照位走 ExecuteTarget 内 goToPhotoPose（接近原路返程，否则 PTP），不经脚本 JTC\n\n=== case 1757 entry=[0.304, -0.614, 0.536] axis_z=0.99 ===\n  -> outcome=3 completion=2 matched=None code= reason=接触阶段取消或撤离未确认；保持停止，须现场人工撤离后确认恢复\n  [接近] 从拍照位 点数=45 弦=0.42m 路径=0.677m 比=1.61 偏离=0.114m 回退=0.005m max_z=0.707 起=[0.301, -0.249, 0.707] 早段=[0.301, -0.249, 0.707] 终=[0.303, -0.618, 0.507]  ✓ 果实胶囊外\n\n结果已写入 /home/mu/Desktop/aubo_e5_jazzy_ws/runs/sim_field_targets_20260930_173822.jsonl\nFULL 干跑成功 0/1（套入到位、grasped=false、tool 关）\n现场典型包络 (|entry|≤1.02 ∧ axis_z≥0.7) 0/1\n\n[WARN] [1790761098.916206491] [rcl]: ROS_LOCALHOST_ONLY is deprecated but still honored if it is enabled. Use ROS_AUTOMATIC_DISCOVERY_RANGE and ROS_STATIC_PEERS instead.\n[WARN] [1790761098.916215462] [rcl]: 'localhost_only' is disabled, 'automatic_discovery_range' and 'static_peers' will be used.",
+    "passed_gate": true
+  },
+  "launch_exit": 0,
+  "leftover": []
+}

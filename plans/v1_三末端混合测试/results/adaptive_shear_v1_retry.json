@@ -1,0 +1,24 @@
+{
+  "profile": "adaptive_shear_v1",
+  "retry": true,
+  "lifecycle": {
+    "peach_scene_perception_node": "active [3] [WARN] [1790761317.310491717] [rcl]: ROS_LOCALHOST_ONLY is deprecated but still honored if it is enabled. Use",
+    "peach_target_reconstruction_node": "active [3] [WARN] [1790761320.184818575] [rcl]: ROS_LOCALHOST_ONLY is deprecated but still honored if it is enabled. Use",
+    "peach_supervisor": "active [3] [WARN] [1790761322.896939073] [rcl]: ROS_LOCALHOST_ONLY is deprecated but still honored if it is enabled. Use",
+    "peach_arm": "active [3] [WARN] [1790761325.486783254] [rcl]: ROS_LOCALHOST_ONLY is deprecated but still honored if it is enabled. Use"
+  },
+  "imu_motion": "Set parameter successful\n[WARN] [1790761336.226837311] [rcl]: ROS_LOCALHOST_ONLY is deprecated but still honored if it is enabled. Use ROS_AUTOMATIC_DISCOVERY_RANGE and ROS_STATIC_PEERS instead.\n[WARN] [1790761336.226850018] [rcl]: 'localhost_only' is disabled, 'automatic_discovery_range' and 'static_peers' will be used.\n",
+  "tool_profile_id": "String value is: adaptive_shear_v1\n[WARN] [1790761339.808436774] [rcl]: ROS_LOCALHOST_ONLY is deprecated but still honored if it is enabled. Use ROS_AUTOMATIC_DISCOVERY_RANGE and ROS_STATIC_PEERS inst",
+  "color_hz": "color/image_raw] does not appear to be published yet\n[WARN] [1790761341.456264831] [rcl]: ROS_LOCALHOST_ONLY is deprecated but still honored if it is enabled. Use ROS_AUTOMATIC_DISCOVERY_RANGE and ROS_STATIC_PEERS instead.\n[WARN] [1790761341.456282242] [rcl]: 'localhost_only' is disabled, 'automatic_discovery_range' and 'static_peers' will be used.",
+  "grasp": {
+    "elapsed_s": 13.33,
+    "limit_s": 120.0,
+    "returncode": 0,
+    "within_2min": true,
+    "log": "/home/mu/Desktop/aubo_e5_jazzy_ws/plans/v1_三末端混合测试/results/adaptive_shear_v1_retry_grasp_1757.txt",
+    "tail": "peach_arm Active；execution/grasp 已开（tool 保持关）；mode=full；速度/加速度缩放=1（仅仿真）\n回拍照位走 ExecuteTarget 内 goToPhotoPose（接近原路返程，否则 PTP），不经脚本 JTC\n\n=== case 1757 entry=[0.304, -0.614, 0.536] axis_z=0.99 ===\n  -> outcome=2 completion=0 matched=None code= reason=到预抓取失败: MTC short-path guard rejected: 工具筒体接触果实胶囊 s=0.0141582m r=0.144555m 间隙=-0.00544527m (果半径 0.04m)\n  [接近] 从拍照位 点数=14 弦=0.058m 路径=0.059m 比=1.0 偏离=0.002m 回退=0.0m max_z=0.707 起=[0.301, -0.249, 0.707] 早段=[0.301, -0.249, 0.707] 终=[0.359, -0.247, 0.706]  ✓ 果实胶囊外\n\n结果已写入 /home/mu/Desktop/aubo_e5_jazzy_ws/runs/sim_field_targets_20260930_174235.jsonl\nFULL 干跑成功 0/1（套入到位、grasped=false、tool 关）\n现场典型包络 (|entry|≤1.02 ∧ axis_z≥0.7) 0/1\n\n[WARN] [1790761347.107752864] [rcl]: ROS_LOCALHOST_ONLY is deprecated but still honored if it is enabled. Use ROS_AUTOMATIC_DISCOVERY_RANGE and ROS_STATIC_PEERS instead.\n[WARN] [1790761347.107771502] [rcl]: 'localhost_only' is disabled, 'automatic_discovery_range' and 'static_peers' will be used.",
+    "passed_gate": false
+  },
+  "launch_exit": 0,
+  "leftover": []
+}

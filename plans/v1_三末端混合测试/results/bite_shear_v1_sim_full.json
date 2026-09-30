@@ -1,0 +1,22 @@
+{
+  "profile": "bite_shear_v1",
+  "camera_enabled": false,
+  "lifecycle": {
+    "peach_scene_perception_node": "active [3] [WARN] [1790761517.034954730] [rcl]: ROS_LOCALHOST_ONLY is deprecated but still honored if it is enabled. Use",
+    "peach_target_reconstruction_node": "active [3] [WARN] [1790761519.203325116] [rcl]: ROS_LOCALHOST_ONLY is deprecated but still honored if it is enabled. Use",
+    "peach_supervisor": "active [3] [WARN] [1790761520.373810393] [rcl]: ROS_LOCALHOST_ONLY is deprecated but still honored if it is enabled. Use",
+    "peach_arm": "active [3] [WARN] [1790761522.568784682] [rcl]: ROS_LOCALHOST_ONLY is deprecated but still honored if it is enabled. Use"
+  },
+  "tool_profile_id": "String value is: bite_shear_v1\n[WARN] [1790761533.769452124] [rcl]: ROS_LOCALHOST_ONLY is deprecated but still honored if it is enabled. Use ROS_AUTOMATIC_DISCOVERY_RANGE and ROS_STATIC_PEERS instead.",
+  "grasp": {
+    "elapsed_s": 21.09,
+    "limit_s": 120.0,
+    "returncode": 0,
+    "within_2min": true,
+    "log": "/home/mu/Desktop/aubo_e5_jazzy_ws/plans/v1_三末端混合测试/results/bite_shear_v1_sim_full_grasp_1757.txt",
+    "tail": "peach_arm Active；execution/grasp 已开（tool 保持关）；mode=full；速度/加速度缩放=1（仅仿真）\n回拍照位走 ExecuteTarget 内 goToPhotoPose（接近原路返程，否则 PTP），不经脚本 JTC\n\n=== case 1757 entry=[0.304, -0.614, 0.536] axis_z=0.99 ===\n  -> outcome=0 completion=6 matched=None code= reason=周期完成；tool.enabled=false 或未宣称采摘成功\n  [回拍照] 弦=0.473m 路径=0.782m 比=1.65 偏离=0.14m 回退=0.0m 起=[0.3, -0.625, 0.407] 终=[0.301, -0.246, 0.691]\n  [接近] 从拍照位 点数=24 弦=0.473m 路径=0.567m 比=1.2 偏离=0.109m 回退=0.004m max_z=0.691 起=[0.301, -0.246, 0.691] 早段=[0.312, -0.247, 0.69] 终=[0.3, -0.625, 0.407]  ✓ 果实胶囊外\n\n结果已写入 /home/mu/Desktop/aubo_e5_jazzy_ws/runs/sim_field_targets_20260930_174540.jsonl\nFULL 干跑成功 1/1（套入到位、grasped=false、tool 关）\n现场典型包络 (|entry|≤1.02 ∧ axis_z≥0.7) 1/1\n\n[WARN] [1790761537.704626296] [rcl]: ROS_LOCALHOST_ONLY is deprecated but still honored if it is enabled. Use ROS_AUTOMATIC_DISCOVERY_RANGE and ROS_STATIC_PEERS instead.\n[WARN] [1790761537.704633243] [rcl]: 'localhost_only' is disabled, 'automatic_discovery_range' and 'static_peers' will be used.",
+    "passed_gate": true
+  },
+  "launch_exit": 0,
+  "leftover": []
+}

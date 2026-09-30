@@ -337,6 +337,13 @@ peach2_manipulation:
     description: "Current joints vs trajectory start; larger deviation forces a replan [rad]"
     validation:
       bounds<>: [0.001, 0.2]
+  at_goal_tolerance_rad:
+    type: double
+    default_value: 0.002
+    read_only: true
+    description: "Transit/MoveTo: planned path within this of the start (max |dq|) = already at goal, null motion, nothing sent [rad]. Residual-correction LINs do not use this collapse."
+    validation:
+      bounds<>: [0.0001, 0.05]
   release_named_target:
     type: string
     default_value: harvest_stow

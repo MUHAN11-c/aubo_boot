@@ -1,0 +1,428 @@
+{
+  "session": {
+    "bag": "/home/mu/Desktop/aubo_e5_jazzy_ws/plans/v1_三末端混合测试/results/runs/session_20260930_174150/bag",
+    "session_dir": "/home/mu/Desktop/aubo_e5_jazzy_ws/plans/v1_三末端混合测试/results/runs/session_20260930_174150",
+    "started_at": 1790761311.9192517,
+    "ended_at": 1790761359.6247127,
+    "duration_s": 47.7
+  },
+  "requests": [],
+  "gates": {
+    "rows": [
+      [
+        "感知帧率 FPS",
+        1.36,
+        "≥ 2.0",
+        "✗"
+      ],
+      [
+        "重建 TF 失败次数",
+        0,
+        "= 0",
+        "✓"
+      ],
+      [
+        "到预抓取停住（succeeded）",
+        0,
+        "≥1（有派发目标时）",
+        "—"
+      ]
+    ],
+    "fps": 1.36,
+    "tf_failures": 0,
+    "succeeded": 0
+  },
+  "targets": [],
+  "phase_durations": [],
+  "events": {
+    "total": 0,
+    "by_code": {},
+    "by_severity": {}
+  },
+  "perception": {
+    "frames": 53,
+    "median_interval_s": 0.734,
+    "fps": 1.36,
+    "target_count_min": 0,
+    "target_count_max": 1
+  },
+  "reconstruction": {
+    "state": "READY",
+    "target_id": "target_1",
+    "captured_views": 3,
+    "rejected_views": 0,
+    "tf_failures": 0,
+    "tf_latency_ms": 0.0,
+    "max_baseline_deg": 20.0,
+    "mean_nearest_baseline_deg": 12.0,
+    "grasp_allowed": true,
+    "grasp_reason": "sim_budget_accept"
+  },
+  "reconstruction_per_target": [
+    {
+      "target_id": "target_1",
+      "captured_views_max": 3,
+      "skipped_views_max": 0,
+      "skip_reasons": {},
+      "last_state": "READY"
+    }
+  ],
+  "jobs": [
+    {
+      "target_id": "target_0",
+      "cycle_id": "",
+      "batch_state": 0,
+      "target_phase": 0,
+      "active_id": "discover",
+      "why": "到预抓取失败: MTC short-path guard rejected: 工具筒体接触果实胶囊 s=0.0141582m r=0.144555m 间隙=-0.00544527m (果半径 0.04m)",
+      "flags": {
+        "execution_enabled": false,
+        "grasp_enabled": false,
+        "tool_enabled": false,
+        "skill_grasp_enabled": true,
+        "skill_execution_enabled": true
+      },
+      "stages": [
+        {
+          "id": "discover",
+          "label": "发现",
+          "status": "active",
+          "detail": ""
+        },
+        {
+          "id": "photo",
+          "label": "拍照",
+          "status": "pending",
+          "detail": ""
+        },
+        {
+          "id": "lock",
+          "label": "锁定",
+          "status": "pending",
+          "detail": ""
+        },
+        {
+          "id": "observe",
+          "label": "观察",
+          "status": "pending",
+          "detail": "FAILED"
+        },
+        {
+          "id": "permit",
+          "label": "许可",
+          "status": "pending",
+          "detail": "GraspDecision.allowed"
+        },
+        {
+          "id": "approach",
+          "label": "靠近",
+          "status": "gated",
+          "detail": "抓取档关闭，本轮不接触"
+        },
+        {
+          "id": "tool",
+          "label": "工具",
+          "status": "gated",
+          "detail": "工具档关闭，不打 SetIO"
+        },
+        {
+          "id": "retreat",
+          "label": "撤离",
+          "status": "pending",
+          "detail": ""
+        },
+        {
+          "id": "done",
+          "label": "完成",
+          "status": "pending",
+          "detail": ""
+        }
+      ],
+      "coords": {
+        "frame_id": "base_link",
+        "perception_entry": [
+          0.1696737665635144,
+          -0.7911776084192672,
+          0.6199038055231294
+        ],
+        "perception_bottom": [
+          0.1696737665635144,
+          -0.7911776084192672,
+          0.6199038055231294
+        ],
+        "perception_neck": [
+          0.16818787227292864,
+          -0.8293247610276084,
+          0.6760081575735271
+        ],
+        "reconstruction_center": [
+          0.30512117007335904,
+          -0.6100193981653015,
+          0.5661673096002635
+        ],
+        "refined_axis": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "grasp_entry": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "grasp_pregrasp": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "hypothesis_entry": [
+          0.30384646154773753,
+          -0.614107279028262,
+          0.5364744763197402
+        ],
+        "hypothesis_travel_m": 0.05999999865889549,
+        "camera_distance_m": 0.0
+      },
+      "grasp": {
+        "allowed": true,
+        "reason": "sim_budget_accept",
+        "target_id": "target_1",
+        "entry": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "pregrasp": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "axis": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "cut_pose": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "diameter_m": 0.06,
+        "rmse_m": 0.0,
+        "inlier_ratio": 0.0
+      },
+      "motion": {
+        "state": "FAILED",
+        "message": "到预抓取失败: MTC short-path guard rejected: 工具筒体接触果实胶囊 s=0.0141582m r=0.144555m 间隙=-0.00544527m (果半径 0.04m)",
+        "running": false
+      },
+      "reconstruction": {
+        "state": "READY",
+        "captured_views": 3,
+        "rejected_views": 0,
+        "max_baseline_deg": 20.0,
+        "mean_nearest_baseline_deg": 12.0
+      },
+      "perception": {
+        "locked": true,
+        "target_count": 1,
+        "harvest_status": "WAITING_QUALITY",
+        "tracking_status": "LOST",
+        "confidence": 0.0
+      }
+    },
+    {
+      "target_id": "target_1",
+      "cycle_id": "",
+      "batch_state": 0,
+      "target_phase": 0,
+      "active_id": "discover",
+      "why": "到预抓取失败: MTC short-path guard rejected: 工具筒体接触果实胶囊 s=0.0141582m r=0.144555m 间隙=-0.00544527m (果半径 0.04m)",
+      "flags": {
+        "execution_enabled": false,
+        "grasp_enabled": false,
+        "tool_enabled": false,
+        "skill_grasp_enabled": true,
+        "skill_execution_enabled": true
+      },
+      "stages": [
+        {
+          "id": "discover",
+          "label": "发现",
+          "status": "active",
+          "detail": ""
+        },
+        {
+          "id": "photo",
+          "label": "拍照",
+          "status": "pending",
+          "detail": ""
+        },
+        {
+          "id": "lock",
+          "label": "锁定",
+          "status": "pending",
+          "detail": ""
+        },
+        {
+          "id": "observe",
+          "label": "观察",
+          "status": "pending",
+          "detail": "FAILED"
+        },
+        {
+          "id": "permit",
+          "label": "许可",
+          "status": "pending",
+          "detail": "GraspDecision.allowed"
+        },
+        {
+          "id": "approach",
+          "label": "靠近",
+          "status": "gated",
+          "detail": "抓取档关闭，本轮不接触"
+        },
+        {
+          "id": "tool",
+          "label": "工具",
+          "status": "gated",
+          "detail": "工具档关闭，不打 SetIO"
+        },
+        {
+          "id": "retreat",
+          "label": "撤离",
+          "status": "pending",
+          "detail": ""
+        },
+        {
+          "id": "done",
+          "label": "完成",
+          "status": "pending",
+          "detail": ""
+        }
+      ],
+      "coords": {
+        "frame_id": "base_link",
+        "perception_entry": [
+          0.30384646154773753,
+          -0.614107279028262,
+          0.5364744763197402
+        ],
+        "perception_bottom": [
+          0.30384646154773753,
+          -0.614107279028262,
+          0.5364744763197402
+        ],
+        "perception_neck": [
+          0.3063958785989806,
+          -0.6059315173023411,
+          0.5958601428807867
+        ],
+        "reconstruction_center": [
+          0.30512117007335904,
+          -0.6100193981653015,
+          0.5661673096002635
+        ],
+        "refined_axis": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "grasp_entry": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "grasp_pregrasp": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "hypothesis_entry": [
+          0.30384646154773753,
+          -0.614107279028262,
+          0.5364744763197402
+        ],
+        "hypothesis_travel_m": 0.05999999865889549,
+        "camera_distance_m": 0.699999988079071
+      },
+      "grasp": {
+        "allowed": true,
+        "reason": "sim_budget_accept",
+        "target_id": "target_1",
+        "entry": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "pregrasp": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "axis": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "cut_pose": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "diameter_m": 0.06,
+        "rmse_m": 0.0,
+        "inlier_ratio": 0.0
+      },
+      "motion": {
+        "state": "FAILED",
+        "message": "到预抓取失败: MTC short-path guard rejected: 工具筒体接触果实胶囊 s=0.0141582m r=0.144555m 间隙=-0.00544527m (果半径 0.04m)",
+        "running": false
+      },
+      "reconstruction": {
+        "state": "READY",
+        "captured_views": 3,
+        "rejected_views": 0,
+        "max_baseline_deg": 20.0,
+        "mean_nearest_baseline_deg": 12.0
+      },
+      "perception": {
+        "locked": true,
+        "target_count": 1,
+        "harvest_status": "SELECTED",
+        "tracking_status": "OBSERVED",
+        "confidence": 0.8999999761581421
+      }
+    }
+  ],
+  "metrics": {
+    "samples": 38,
+    "cpu_percent": {
+      "mean": 75.45,
+      "max": 84.7
+    },
+    "memory_percent": {
+      "mean": 54.66,
+      "max": 57.1
+    },
+    "gpu_utilization_percent": {
+      "mean": 13.95,
+      "max": 30.0
+    },
+    "gpu_memory_used_mb": {
+      "mean": 1681.53,
+      "max": 1839.0
+    }
+  },
+  "tcp": {
+    "count": 7,
+    "path_length_m": 0.0585,
+    "chord_m": 0.0584,
+    "detour_ratio": 1.002,
+    "max_dev_m": 0.0015,
+    "z_min_m": 0.7056,
+    "z_max_m": 0.7075,
+    "dz_m": -0.0019,
+    "samples": 7
+  }
+}

@@ -130,7 +130,7 @@ TEST(HarvestCycle, ExecutedResultIsNotPlanOnly)
   const auto r = rig.run(pm::CycleMode::PREGRASP_ONLY);
   EXPECT_EQ(r.outcome, pm::Outcome::SUCCEEDED);
   EXPECT_FALSE(r.plan_only);
-  EXPECT_EQ(r.reached, pm::Reached::RETREATED);
+  EXPECT_EQ(r.reached, pm::Reached::PREGRASP);
 }
 
 // ---------------------------------------------------------------- scene phases
@@ -329,10 +329,32 @@ TEST(HarvestCycle, PregraspOnlyWithExecutionOnly)
   rig.grasp = rig.tool_enabled = false;
   const auto r = rig.run(pm::CycleMode::PREGRASP_ONLY);
   EXPECT_EQ(r.outcome, pm::Outcome::SUCCEEDED) << r.reason;
-  EXPECT_EQ(r.reached, pm::Reached::RETREATED);
+  EXPECT_EQ(r.failure_code, failure::NONE);
+  // Ordered progress: the exit is not RETREATED (that implies a cut); it shows in the stages.
+  EXPECT_EQ(r.reached, pm::Reached::PREGRASP);
+  EXPECT_EQ(
+    r.stage_names,
+    v({"TRANSIT_STAGING", "APPROACH_PREGRASP", "VERIFY_PREGRASP", "RETREAT"}));
+  EXPECT_EQ(r.stage_times_s.size(), r.stage_names.size());
+  EXPECT_FALSE(r.recovery_required);
   EXPECT_EQ(rig.motion.executed, v({"transit_staging", "approach_pregrasp", "reverse"}));
   EXPECT_EQ(rig.io->write_count(), 0);
   EXPECT_EQ(rig.decisions.calls(), 1U);
+}
+
+TEST(HarvestCycle, PregraspOnlyRetreatFailureKeepsPregrasp)
+{
+  CycleRig rig;
+  rig.grasp = rig.tool_enabled = false;
+  rig.motion.exec_fail["reverse"] = {false, failure::EXEC_FAILED, "fake_exec_fail"};
+  rig.motion.plan_fail["retreat_fallback"] = failure::PLAN_CARTESIAN_INCOMPLETE;
+  const auto r = rig.run(pm::CycleMode::PREGRASP_ONLY);
+  EXPECT_EQ(r.outcome, pm::Outcome::FAILED);
+  EXPECT_EQ(r.failure_code, failure::RETREAT_FAILED);
+  EXPECT_TRUE(r.recovery_required);
+  EXPECT_EQ(r.reached, pm::Reached::PREGRASP);
+  ASSERT_FALSE(r.stage_names.empty());
+  EXPECT_EQ(r.stage_names.back(), "RETREAT");
 }
 
 TEST(HarvestCycle, PregraspOnlyWithoutRetreat)
@@ -346,12 +368,61 @@ TEST(HarvestCycle, PregraspOnlyWithoutRetreat)
   EXPECT_EQ(rig.motion.executed, v({"transit_staging", "approach_pregrasp"}));
 }
 
+// ---------------------------------------------------------------- null motion (start at goal)
+
+TEST(HarvestCycle, TransitAlreadyAtStagingIsNotSent)
+{
+  CycleRig rig;
+  rig.motion.at_goal.insert("transit_staging");
+  const auto r = rig.run();
+  EXPECT_EQ(r.outcome, pm::Outcome::SUCCEEDED) << r.reason;
+  EXPECT_EQ(r.reached, pm::Reached::RELEASED);
+  EXPECT_EQ(
+    rig.motion.executed, v({"approach_pregrasp", "insert", "reverse", "transit_release"}));
+  EXPECT_EQ(r.stage_names.front(), "PREPARE_TOOL");
+  EXPECT_EQ(r.stage_names[1], "TRANSIT_STAGING");
+}
+
+TEST(HarvestCycle, NullMotionRetreatFallbackCountsAsExited)
+{
+  CycleRig rig;
+  rig.motion.exec_fail["reverse"] = {false, failure::EXEC_FAILED, "fake_exec_fail"};
+  rig.motion.at_goal.insert("retreat_fallback");
+  const auto r = rig.run(pm::CycleMode::PREGRASP_ONLY);
+  EXPECT_EQ(r.outcome, pm::Outcome::SUCCEEDED) << r.reason;
+  EXPECT_FALSE(r.recovery_required);
+  EXPECT_EQ(FakeMotion::count(rig.motion.planned, "retreat_fallback"), 1);
+  EXPECT_EQ(FakeMotion::count(rig.motion.executed, "null_motion"), 0);
+}
+
+TEST(HarvestCycle, NullMotionTransitReleaseIsNotSent)
+{
+  CycleRig rig;
+  rig.motion.at_goal.insert("transit_release");
+  const auto r = rig.run();
+  EXPECT_EQ(r.outcome, pm::Outcome::SUCCEEDED) << r.reason;
+  EXPECT_EQ(r.reached, pm::Reached::RELEASED);
+  EXPECT_EQ(FakeMotion::count(rig.motion.executed, "transit_release"), 0);
+  EXPECT_EQ(FakeMotion::count(rig.motion.executed, "null_motion"), 0);
+}
+
 // ---------------------------------------------------------------- pregrasp residual
 
 TEST(HarvestCycle, ResidualCorrectedOnce)
 {
   CycleRig rig;
   rig.motion.tcp_error["approach_pregrasp"] = Eigen::Vector3d(0.006, 0.0, 0.0);
+  const auto r = rig.run();
+  EXPECT_EQ(r.outcome, pm::Outcome::SUCCEEDED) << r.reason;
+  EXPECT_EQ(FakeMotion::count(rig.motion.executed, "pregrasp_correction"), 1);
+}
+
+TEST(HarvestCycle, ResidualCorrectionNotCollapsedAsAtGoal)
+{
+  // 4 mm TCP residual is above the 3 mm gate and below 0.005 rad at-goal; must still move.
+  CycleRig rig;
+  rig.motion.at_goal_tolerance_rad = 0.005;
+  rig.motion.tcp_error["approach_pregrasp"] = Eigen::Vector3d(0.004, 0.0, 0.0);
   const auto r = rig.run();
   EXPECT_EQ(r.outcome, pm::Outcome::SUCCEEDED) << r.reason;
   EXPECT_EQ(FakeMotion::count(rig.motion.executed, "pregrasp_correction"), 1);
@@ -366,7 +437,9 @@ TEST(HarvestCycle, ResidualFailsAndRetreats)
     const auto r = rig.run(mode);
     EXPECT_EQ(r.outcome, pm::Outcome::FAILED);
     EXPECT_EQ(r.failure_code, failure::PREGRASP_RESIDUAL);
-    EXPECT_EQ(r.reached, pm::Reached::RETREATED);
+    // FULL keeps its historical RETREATED; pregrasp-only never got past NONE.
+    EXPECT_EQ(
+      r.reached, mode == pm::CycleMode::FULL ? pm::Reached::RETREATED : pm::Reached::NONE);
     EXPECT_FALSE(r.recovery_required);
     EXPECT_EQ(rig.motion.executed.back(), "reverse");
     EXPECT_EQ(FakeMotion::count(rig.motion.planned, "insert"), 0);

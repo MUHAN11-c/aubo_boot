@@ -40,10 +40,22 @@ class TestBringupMock(unittest.TestCase):
                           'perception must not be launched with camera_enabled:=false')
         self.assertIsNone(self.node.lifecycle_state('peach2_scene', 1.0),
                           'scene must not be launched with camera_enabled:=false')
-        is_active = self.node.create_client(Trigger, f'/{h.MANAGER}/is_active')
-        response = self.node.call(is_active, Trigger.Request(), 20.0)
+        is_active = self.node.create_client(
+            Trigger, f'/{h.MANAGER}/is_active', callback_group=self.node._group)
+        self.assertTrue(
+            is_active.wait_for_service(timeout_sec=60.0),
+            f'/{h.MANAGER}/is_active not advertised')
+        response = h.wait_future(is_active.call_async(Trigger.Request()), 20.0)
         self.assertIsNotNone(response, 'lifecycle manager is_active unavailable')
         self.assertTrue(response.success, 'lifecycle manager reports inactive stack')
+        self.node.destroy_client(is_active)
+
+    def test_0b_mock_controllers_and_joints(self):
+        self.assertTrue(self.node.wait_controllers(h.MOCK_CONTROLLERS, 60.0),
+                        f'controllers active: {self.node.active_controllers()}')
+        self.assertTrue(h.wait_until(lambda: self.node.joints() is not None, 30.0),
+                        'no /joint_states')
+        self.assertEqual(set(self.node.joints()), set(h.JOINTS))
 
     def test_1_enables_default_false(self):
         self.assertTrue(h.wait_until(lambda: self.node.enables is not None, 30.0),
@@ -90,19 +102,21 @@ class TestBringupMock(unittest.TestCase):
         self.assertEqual(state.request_id, '')
 
     def test_5_bond_heartbeats_cpp(self):
+        # Node-side evidence: each managed node publishes /bond. The test stack may run with
+        # bond_timeout:=0 (manager creates no bonds) or the launch default 4.0.
         self.assertTrue(
             h.wait_until(lambda: {'peach2_manipulation', 'peach2_task'} <= self.node.bond_ids,
                          30.0),
             f'bond ids seen: {sorted(self.node.bond_ids)}')
 
     def test_6_bond_heartbeat_target_model(self):
-        def check():
-            self.assertTrue(
-                h.wait_until(lambda: 'peach2_target_model' in self.node.bond_ids, 15.0),
-                f'bond ids seen: {sorted(self.node.bond_ids)}')
-
-        h.xfail(self, 'README 已知失败 #1: target_model `from bondpy import Bond` ImportError, '
-                'no bond heartbeat', check)
+        try:
+            from bondpy.bondpy import Bond  # noqa: F401
+        except ImportError:
+            self.skipTest('ros-jazzy-bondpy not installed; target_model has no /bond')
+        self.assertTrue(
+            h.wait_until(lambda: 'peach2_target_model' in self.node.bond_ids, 15.0),
+            f'bond ids seen: {sorted(self.node.bond_ids)}')
 
     def test_7_still_active(self):
         for name in MANAGED:

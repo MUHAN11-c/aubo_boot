@@ -4,6 +4,7 @@
 #include <gtest/gtest.h>
 
 #include <peach2_interfaces/action/harvest_target.hpp>
+#include <peach2_interfaces/action/move_to.hpp>
 #include <peach2_interfaces/action/run_batch.hpp>
 #include <peach2_interfaces/msg/batch_state.hpp>
 #include <peach2_interfaces/msg/failure_code.hpp>
@@ -208,4 +209,19 @@ TEST(Conversions, BatchStateFromSnapshot)
   EXPECT_EQ(m.attempted, 2U);
   EXPECT_TRUE(m.recovery_required);
   EXPECT_EQ(m.header.stamp.sec, 5);
+}
+
+TEST(Conversions, MoveVerdict)
+{
+  peach2_interfaces::action::MoveTo::Result r;
+  r.success = true;
+  r.message = "already_at_target";
+  EXPECT_EQ(conv::move_verdict(false, r), conv::MoveVerdict::MOVED);
+  EXPECT_EQ(conv::move_verdict(true, r), conv::MoveVerdict::FAILED);
+  r.success = false;
+  r.failure_code = fc::SAFETY_GATE_CLOSED;
+  r.message = "plan_only_ok";
+  EXPECT_EQ(conv::move_verdict(false, r), conv::MoveVerdict::GATE_CLOSED);
+  r.failure_code = fc::PLAN_FAILED;
+  EXPECT_EQ(conv::move_verdict(false, r), conv::MoveVerdict::FAILED);
 }

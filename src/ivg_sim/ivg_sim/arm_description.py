@@ -26,14 +26,19 @@ ARM_JOINTS = (
     'wrist1_joint', 'wrist2_joint', 'wrist3_joint',
 )
 
-# 四指夹爪（gripper2 剖分，v3 原装链挂接）：同一指令值同步开合，
-# 0=闭态原位；行程 0.055
-FINGER_JOINTS = (
-    'finger_xp_joint', 'finger_xn_joint', 'finger_yp_joint',
-    'finger_yn_joint',
-)
-FINGER_OPEN = 0.05    # 张开 50mm：开口 119×138mm（> 最大对象 100mm+余量）
-FINGER_CLOSED = 0.0   # 闭态原位（effort 限力 40N/指，停在对象表面）
+# Allegro Hand（2026-09-30 v4：用户裁定换社区常用四指手；16 revolute：
+# 指 0/1/2 = joint_0..11（外展/近/中/远），拇指 = joint_12..15）
+FINGER_JOINTS = tuple(f'joint_{i}' for i in range(16))
+# 张开位形（指伸直；拇指外展下限 ~0.263 取 0.3）
+FINGER_OPEN_POSE = (0.0, 0.0, 0.0, 0.0,
+                    0.0, 0.0, 0.0, 0.0,
+                    0.0, 0.0, 0.0, 0.0,
+                    0.3, 0.0, 0.0, 0.0)
+# 包络抓取位形（Ø100mm 罐：三指弯曲环抱 + 拇指对握；首轮实测后微调）
+FINGER_GRASP_POSE = (0.0, 0.30, 1.30, 1.30,
+                     0.0, 0.30, 1.30, 1.30,
+                     0.0, 0.30, 1.30, 1.30,
+                     1.2, 0.90, 1.30, 1.30)
 
 # 属性顺序无关（minidom 序列化可能重排属性：name 不一定紧跟标签名）。
 # barista 版：剥 world link + fixed_base（原 aubo 版为 world_joint）

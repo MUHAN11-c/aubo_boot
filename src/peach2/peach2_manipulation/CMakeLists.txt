@@ -44,6 +44,7 @@ add_library(${PROJECT_NAME}_core SHARED
   src/bag_obstacles.cpp
   src/command_gate.cpp
   src/harvest_cycle.cpp
+  src/motion_backend.cpp
   src/move_to.cpp
   src/staging_geometry.cpp
   src/trajectory_reverse.cpp
@@ -115,6 +116,7 @@ if(BUILD_TESTING)
       test_bag_obstacles
       test_command_gate
       test_harvest_cycle
+      test_motion_backend
       test_move_to
       test_staging_geometry
       test_trajectory_reverse)

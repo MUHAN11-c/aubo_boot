@@ -236,6 +236,7 @@ ManipulationNode::CallbackReturn ManipulationNode::on_configure(const rclcpp_lif
     mc.wait_for_servers_s = p.moveit.wait_for_servers_s;
     mc.stop_grace_s = p.timeouts.stop_grace_s;
     mc.validate_stride = static_cast<int>(p.moveit.validate_stride);
+    mc.at_goal_tolerance_rad = p.at_goal_tolerance_rad;
     motion_ = std::make_shared<MoveItMotionBackend>(moveit_node_, mc);
 
     reachability_srv_ = create_service<peach2_interfaces::srv::CheckReachability>(

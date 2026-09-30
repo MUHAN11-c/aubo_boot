@@ -39,4 +39,11 @@ double joint_path_length(const JointTrajectory & trajectory);
 /// Max |q_a - q_b| over joints; +inf on size mismatch.
 double max_joint_deviation(const std::vector<double> & a, const std::vector<double> & b);
 
+/// Single-point trajectory = the start already is the goal. Executors report it reached
+/// without sending it (a one-point goal is rejected by execute_trajectory / JTC).
+inline bool is_null_motion(const JointTrajectory & trajectory)
+{
+  return trajectory.points.size() == 1U;
+}
+
 }  // namespace peach2_manipulation

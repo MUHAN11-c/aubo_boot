@@ -144,6 +144,18 @@ msg::BatchState to_msg(
   return m;
 }
 
+MoveVerdict move_verdict(bool canceled, const peach2_interfaces::action::MoveTo::Result & result)
+{
+  if (canceled) {
+    return MoveVerdict::FAILED;
+  }
+  if (result.success) {
+    return MoveVerdict::MOVED;
+  }
+  return result.failure_code == core::fc::SAFETY_GATE_CLOSED ?
+         MoveVerdict::GATE_CLOSED : MoveVerdict::FAILED;
+}
+
 uint8_t harvest_mode_for(core::Intent intent)
 {
   using Goal = peach2_interfaces::action::HarvestTarget::Goal;

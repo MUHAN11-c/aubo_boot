@@ -80,12 +80,21 @@ class ModelingTests(unittest.TestCase):
             self.assertAlmostEqual(
                 (matrix.to_3x3() @ Vector((1, 0, 0))).length, 1.2, places=5)
 
+    def test_reference_leaf_normal_preserves_observed_axis(self):
+        leaves = Leaves(create(), seed=24)
+        leaves.add((0, 0, 0), (.08, 0, .06), .025, normal=(0, -1, 0))
+        quat = leaves.records[0][2]
+        axis = (quat @ Vector((1, 0, 0))).normalized()
+        normal = (quat @ Vector((0, 0, -1))).normalized()
+        self.assertGreater(axis.dot(Vector((.8, 0, .6))), .99999)
+        self.assertGreater(normal.dot(Vector((0, -1, 0))), .99999)
+
     def test_mature_fruit_clears_the_paper(self):
         from mathutils.bvhtree import BVHTree
         forms = set()
         for diameter in (.06, .075, .085):
             for seed in range(3):
-                rings = bag_rings(diameter + .012, diameter + .027, .09, seed,
+                rings = bag_rings(diameter + .012, diameter + .055, .09, seed,
                                   fruit_diameter=diameter)
                 obj = paper_bag('Fruit fit probe', rings, None, seed)
                 forms.add(obj['paper_form'])
@@ -107,17 +116,17 @@ class ModelingTests(unittest.TestCase):
                 self.assertTrue(all(count == 2 for count in edge_use.values()))
         self.assertEqual(forms, {'folded_gusset', 'broad_panel', 'creased_panel'})
 
-    def test_filled_bag_retains_wide_paper_faces(self):
-        """A contained peach must not force the external shell into a ball."""
+    def test_filled_bag_has_a_flat_paper_hem(self):
+        """Loose paper below the fruit closes as an edge, not a box floor."""
         for seed in range(3):
             obj = paper_bag('Loose paper probe',
-                            bag_rings(.115, .12, seed=seed, fruit_diameter=.075),
+                            bag_rings(.115, .135, seed=seed, fruit_diameter=.075),
                             None, seed)
-            low = [v.co.x for v in obj.data.vertices if abs(v.co.z) < .003]
-            self.assertGreater(max(low) - min(low), .09)
-            front = [v.co.y for v in obj.data.vertices
-                     if .040 < v.co.z < .045 and abs(v.co.x) < .025 and v.co.y < 0]
-            self.assertLess(max(front) - min(front), .003)
+            bottom = [v.co for v in obj.data.vertices[:64]]
+            self.assertGreater(max(v.x for v in bottom) - min(v.x for v in bottom), .09)
+            self.assertLess(max(v.y for v in bottom) - min(v.y for v in bottom), .005)
+            center = fruit_center_z(.075)
+            self.assertGreater(center - .075 / 2, .015)
 
     def test_crown_roots_lie_on_generated_parent_centerlines(self):
         bpy.ops.object.select_all(action='SELECT')

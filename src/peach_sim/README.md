@@ -1,5 +1,19 @@
 # peach_sim — Blender 数据驱动果园重建 + 多视角感知验证矩阵
 
+当前套袋专项修正版为 **v10 独立资产**：
+[三只套袋桃子](reconstruction/output/bag_assets/bagged_peaches.png)、
+[正面](reconstruction/output/bag_assets/front.png)、
+[侧面](reconstruction/output/bag_assets/side.png)、
+[Blender 模型](reconstruction/output/bag_assets/bagged_peaches.blend)。
+袋底改为薄封边，果实上移以保留余纸；袋面仅在内果附近鼓起，侧边压扁。
+`build_bag_assets.py` 直接复用果园的建袋函数和实拍统计，确定性生成三袋。
+根目录整园、field、五光照和旧对照仍是 **v9 历史产物**，未用作 v10 验收。
+工作区根目录重现：
+```bash
+CUDA_VISIBLE_DEVICES=0 _tools/blender-4.5.14-linux-x64/blender -b -t 6 \
+  --python-exit-code 1 -P src/peach_sim/reconstruction/build_bag_assets.py
+```
+
 外观建模与感知验证的唯一入口是 **`reconstruction/`**（2026-09-24 重建，
 2026-09-28 合并根目录 `blender_orchard/` 观感链并升级为受控条件矩阵）。
 旧 Gazebo 入口仍在仓库中，但不是本次重建场景，也不代表通过真实感验收。
@@ -101,15 +115,15 @@ aubo_py3.12/bin/python src/peach_sim/reconstruction/validate_perception.py \
 推断树上的袋内果取裸桃框宽的成熟段（p50–p90，约 6.7–7.9 cm），
 套袋内有桃子；v9 三种推断纸形为折角袋、宽面袋和带主折痕纸袋，袋口收拢扎丝。
 袋宽/高重新消费 Peach_bag 实拍分位采样，再按内果约束限制：宽为果径的
-1.25–1.65 倍，高比果径多 3–6 cm。这些上下界是建模假设，不是现场测量。
+1.25–1.65 倍，高比果径多 5.5–8 cm。这些上下界是建模假设，不是现场测量。
 宽面、底部余量与稀疏折痕替代 v8 贴果球壳，纸面 bump 强度和高度降低。
-独立套袋资产见 `reconstruction/output/bag_assets/bagged_peaches.blend` / `.png`，
-保留内部果实、果梗和扎丝，仅调整摆放姿态；无裸桃展示。工作区根目录导出命令：
+旧场景导出工具会导出该场景自己的版本，不能用来覆盖当前 v10 独立资产。
+保留内部果实、果梗和扎丝的旧场景导出命令（另存目录）：
 ```bash
 _tools/blender-4.5.14-linux-x64/blender -b \
   src/peach_sim/reconstruction/output/bagged_peach_orchard.blend \
   --python-exit-code 1 -P src/peach_sim/reconstruction/export_bag_assets.py -- \
-  --out src/peach_sim/reconstruction/output/bag_assets
+  --out src/peach_sim/reconstruction/output/orchard_bag_export
 ```
 同机位 v8/v9 小样对照为
 `output/bag_before_after.jpg`；整树 `before_after.jpg` 的 detail 已改取景，不能当同机位回归。

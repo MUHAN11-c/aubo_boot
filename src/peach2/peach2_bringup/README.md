@@ -7,6 +7,10 @@ Peach v2 整栈入口（方案 §3.3 / §13）：预检 → 相机 → Include `
 **launch 绝不发 `RunBatch`、`SetEnables`、任何运动或 SetIO。** 栈起来后 enables 全 false
 （`peach2_task` on_activate 发布），批次永远由操作员发起。
 
+**进度（2026-09-30）：** M1 骨架退出门已过（系统测 33/33；mock PREGRASP）。本 launch 不是生产
+`harvest_system`。M0 台架标定与套袋+剪断产品验收未过。见方案
+[`docs/peach_v2_重构终版方案.md`](../../../docs/peach_v2_重构终版方案.md) §14 现行进度。
+
 ## 公有 API
 
 | 名字 | 说明 |
@@ -29,6 +33,10 @@ Peach v2 整栈入口（方案 §3.3 / §13）：预检 → 相机 → Include `
 | `bond_timeout` | `4.0` | lifecycle_manager bond 超时 [s]；0 关 |
 | `use_sim_time` | `false` | 全图跟 `/clock`；与 `hardware_mode:=real` 同开时拒启 |
 | `runs_dir` | `''` | 任务账本根；空=`$PEACH_RUNS_DIR`，否则 `<cwd>/runs` |
+
+Python 托管节点用 `from bondpy.bondpy import Bond`（Jazzy 顶层不导出 `Bond`）。本机无
+`ros-jazzy-bondpy` 时节点 WARN 降级、不发心跳；要把默认 `bond_timeout:=4.0` 用起来需 apt 装上。
+系统测默认 `bond_timeout:=0.0`（环境变量 `PEACH2_LT_BOND_TIMEOUT` 可覆盖），不依赖管理器侧 bond。
 
 生命周期名单（顺序即 configure/activate 顺序，拆栈反向）：
 `peach2_perception → peach2_target_model → peach2_scene → peach2_manipulation → peach2_task`，
@@ -64,7 +72,8 @@ ros2 launch peach2_bringup peach2_system.launch.py \
 
 ## 冒烟清单（发任何批次之前）
 
-1. `ros2 control list_controllers`：`joint_state_broadcaster` 与轨迹控制器 active
+1. `ros2 control list_controllers`：`joint_state_broadcaster` 与轨迹控制器 active。lifecycle manager
+   不等控制器，mock 下轨迹控制器可能比 peach2 节点 Active 晚几秒，过早发批次会 `EXEC_FAILED:execute_error:-4`
 2. `ros2 topic echo /joint_states --once`：六关节名与冻结关节序一致
 3. `ros2 lifecycle get /peach2_task`、`/peach2_manipulation`、`/peach2_target_model`（相机开时另加
    `/peach2_perception`、`/peach2_scene`）均 `active [3]`

@@ -1,5 +1,6 @@
 # ivg_sim gz_ros2_control 控制器（由 xacro 内 <plugin> 的 <parameters> 加载）。
-# 臂=原厂 AUBO E5 六关节；夹爪=gripper2 剖分四指（同一指令值同步开合）。
+# 臂=原厂 AUBO E5 六关节；末端=Allegro Hand 四指手（16 关节，社区常用件，
+# 2026-09-30 用户裁定；gripper2 剖分爪与 Robotiq 2F-140 两指先后退场）。
 # JTC 名保持 joint_trajectory_controller（与 aubo controllers_mock 对齐，
 # MoveIt 控制器映射零改动）。
 controller_manager:
@@ -38,10 +39,26 @@ joint_trajectory_controller:
       stopped_velocity_tolerance: 0.05
       goal_time: 0.0
 
+# Allegro 16 关节：位置组控（开/合位形由 execute_grasp 下发）。
+# 原包自带 damping/friction=断电自锁；接触后位置伺服按 effort 15N 限力。
 gripper_position_controller:
   ros__parameters:
     use_sim_time: true
-    # mimic 联动：仅主驱动关节可命令（官方要求；xn/yp/yn 物理耦合跟随）
     joints:
-      - finger_xp_joint
+      - joint_0
+      - joint_1
+      - joint_2
+      - joint_3
+      - joint_4
+      - joint_5
+      - joint_6
+      - joint_7
+      - joint_8
+      - joint_9
+      - joint_10
+      - joint_11
+      - joint_12
+      - joint_13
+      - joint_14
+      - joint_15
     interface_name: position

@@ -107,6 +107,11 @@ campaign/**/*.mcap
 campaign/**/*.bag
 campaign/**/*.png
 
+# HIL 会话 bag（plans/v1 三末端）：单文件可达 0.8–0.9GB，超 GitHub 100MB /
+# Gitee 社区单文件配额；json/jsonl/yaml/txt 仍入库。
+plans/**/*.mcap
+plans/**/*.bag
+
 # 场景预览图（ros2 run peach_sim scene_preview 生成，可复现，不入库）
 src/peach_sim/worlds/*.preview.png
 

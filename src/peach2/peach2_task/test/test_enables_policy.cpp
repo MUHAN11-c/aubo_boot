@@ -156,3 +156,36 @@ TEST(SafetyGate, FirstBlockerDecidesCode)
   EXPECT_EQ(v.failure_code, fc::ROBOT_NOT_READY);
   EXPECT_EQ(v.blockers.size(), 5U);
 }
+
+TEST(Admission, ExecutionDisabledRejectsEveryIntent)
+{
+  for (const Intent intent : {Intent::SURVEY_ONLY, Intent::PREGRASP_ONLY, Intent::FULL}) {
+    EXPECT_EQ(
+      core::admission_error(Enables{}, intent),
+      "execution_disabled: use CheckReachability or HarvestTarget for plan-only")
+      << core::intent_name(intent);
+  }
+}
+
+TEST(Admission, ExecutionAloneAdmitsSurveyAndPregrasp)
+{
+  EXPECT_TRUE(core::admission_error({true, false, false}, Intent::SURVEY_ONLY).empty());
+  EXPECT_TRUE(core::admission_error({true, false, false}, Intent::PREGRASP_ONLY).empty());
+}
+
+TEST(Admission, FullNeedsGraspAndTool)
+{
+  EXPECT_EQ(
+    core::admission_error({true, false, false}, Intent::FULL),
+    "enables_missing_for_FULL: grasp,tool");
+  EXPECT_EQ(
+    core::admission_error({true, true, false}, Intent::FULL), "enables_missing_for_FULL: tool");
+  EXPECT_TRUE(core::admission_error({true, true, true}, Intent::FULL).empty());
+}
+
+TEST(Admission, BrokenChainRejected)
+{
+  EXPECT_EQ(
+    core::admission_error({true, false, true}, Intent::PREGRASP_ONLY).rfind(
+      "enables_chain_invalid:", 0), 0U);
+}

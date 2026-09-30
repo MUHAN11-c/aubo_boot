@@ -16,11 +16,10 @@ setup(
         ('share/' + package_name + '/config', glob('config/*.yaml')),
         # 世界与 GT manifest 安装到 share（generate_table_world 生成后重建生效）
         ('share/' + package_name + '/worlds', glob('worlds/*.sdf') + glob('worlds/*.yaml')),
-        # 四指夹爪剖分网格（scripts/split_gripper2.py 产物）+ 包装 xacro
-        ('share/' + package_name + '/meshes/visual',
-         glob('meshes/visual/*.stl')),
-        ('share/' + package_name + '/meshes/collision',
-         glob('meshes/collision/*.stl')),
+        # 四指夹爪剖分网格（scripts/split_gripper2.py 产物；已随 gripper2
+        # 退场移除——保留目录给历史重建）+ Allegro Hand 网格
+        ('share/' + package_name + '/meshes/allegro',
+         glob('meshes/allegro/*.STL')),
         ('share/' + package_name + '/urdf', glob('urdf/*.xacro')),
         # YCB model.sdf/model.config 安装；meshes 由 fetch_ycb.sh 恢复（不入 git）
         ('share/' + package_name + '/models', glob('models/LICENSE*') + glob('models/README.md')),

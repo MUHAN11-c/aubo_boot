@@ -1,0 +1,12 @@
+# =============================================================================
+# ReadRobotIO.srv — 读取机器人 IO 状态
+# 服务方: ivg_demo_services 的 move_service_node（/read_robot_io，取自
+#         /aubo_io_controller/io_states 缓存）
+# 调用方: Web 调试面板（DI 指示灯）
+# =============================================================================
+string io_type    # IO 类型："digital"=数字量（返回 0/1），"analog"=模拟量
+int32 io_index    # IO 通道索引，从 0 开始
+---
+bool success      # true=成功读取；false=索引越界或缓存不可用
+float64 value     # 数字量 0/1；模拟量为浮点值
+string message    # 状态消息或错误信息

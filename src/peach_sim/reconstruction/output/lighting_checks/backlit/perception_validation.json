@@ -1,0 +1,705 @@
+{
+  "model_classes": {
+    "0": "peach_bag",
+    "1": "peach_nobag"
+  },
+  "confidence_threshold": 0.25,
+  "box_iou_threshold": 0.5,
+  "scene_manifest_sha256": "44ddd9e87be30c0e5d5629741c0b729e60bffc30a5619db1decc3c9af8cbd50e",
+  "lighting": {
+    "preset": "backlit",
+    "name": "backlit",
+    "sun_elevation_deg": 20.0,
+    "sun_azimuth_deg": 60.0,
+    "air_density": 1.0,
+    "sun_size_deg": 0.53,
+    "sky_strength": 0.25,
+    "fill_energy": 3.0,
+    "fill_spread_deg": 0.53,
+    "note": "\u9006\u5149\u56f0\u96be\u7ec4\uff1b\u4fdd\u7559\u6697\u888b\u9762\u3001\u4eae\u53f6\u7f18\uff0c\u4e0d\u6309\u68c0\u51fa\u7387\u5254\u9664",
+    "dust_density": 0.45,
+    "cloud_cover": 0.0,
+    "exposure_ev": 0.5
+  },
+  "model_sha256": "6981750db67a726eef206353a3d777671f9c9411491c1eaa1914185e203e765e",
+  "sam_model_sha256": "6dbb90523a35330fedd7f1d3dfc66f995213d81b29a5ca8108dbcdd4e37d6c2f",
+  "views": {
+    "reference": {
+      "visible_gt": [
+        {
+          "id": 1,
+          "box": [
+            553,
+            20,
+            672,
+            178
+          ],
+          "pixels": 6744,
+          "name": "Reference/bag_0"
+        },
+        {
+          "id": 2,
+          "box": [
+            612,
+            578,
+            800,
+            720
+          ],
+          "pixels": 17394,
+          "name": "Reference/bag_1"
+        },
+        {
+          "id": 3,
+          "box": [
+            233,
+            190,
+            370,
+            398
+          ],
+          "pixels": 17711,
+          "name": "Reference/bag_2"
+        },
+        {
+          "id": 4,
+          "box": [
+            871,
+            0,
+            1209,
+            215
+          ],
+          "pixels": 31284,
+          "name": "Reference/bag_3"
+        },
+        {
+          "id": 5,
+          "box": [
+            754,
+            206,
+            835,
+            298
+          ],
+          "pixels": 2806,
+          "name": "Reference/bag_4"
+        },
+        {
+          "id": 6,
+          "box": [
+            251,
+            516,
+            392,
+            611
+          ],
+          "pixels": 6040,
+          "name": "Reference/bag_5"
+        },
+        {
+          "id": 7,
+          "box": [
+            893,
+            264,
+            1049,
+            393
+          ],
+          "pixels": 10729,
+          "name": "Reference/bag_6"
+        },
+        {
+          "id": 8,
+          "box": [
+            243,
+            317,
+            495,
+            515
+          ],
+          "pixels": 32744,
+          "name": "Reference/bag_8"
+        },
+        {
+          "id": 9,
+          "box": [
+            672,
+            455,
+            866,
+            685
+          ],
+          "pixels": 20899,
+          "name": "Reference/bag_9"
+        },
+        {
+          "id": 19,
+          "box": [
+            478,
+            647,
+            511,
+            692
+          ],
+          "pixels": 256,
+          "name": "Tree00/shoot2_4_1/bag"
+        },
+        {
+          "id": 20,
+          "box": [
+            432,
+            621,
+            489,
+            672
+          ],
+          "pixels": 806,
+          "name": "Tree00/shoot2_6_1/bag"
+        },
+        {
+          "id": 21,
+          "box": [
+            385,
+            555,
+            430,
+            588
+          ],
+          "pixels": 154,
+          "name": "Tree00/shoot2_8_1/bag"
+        },
+        {
+          "id": 26,
+          "box": [
+            86,
+            650,
+            122,
+            684
+          ],
+          "pixels": 141,
+          "name": "Tree01/shoot1_2_1/bag"
+        },
+        {
+          "id": 27,
+          "box": [
+            135,
+            621,
+            185,
+            659
+          ],
+          "pixels": 153,
+          "name": "Tree01/shoot1_4_1/bag"
+        },
+        {
+          "id": 28,
+          "box": [
+            189,
+            542,
+            230,
+            583
+          ],
+          "pixels": 311,
+          "name": "Tree01/shoot1_6_1/bag"
+        },
+        {
+          "id": 29,
+          "box": [
+            235,
+            502,
+            279,
+            537
+          ],
+          "pixels": 271,
+          "name": "Tree01/shoot1_8_1/bag"
+        }
+      ],
+      "detections": [
+        {
+          "box": [
+            885.099853515625,
+            259.72674560546875,
+            1054.17138671875,
+            399.05609130859375
+          ],
+          "confidence": 0.8846367001533508,
+          "class": 0
+        },
+        {
+          "box": [
+            227.8713836669922,
+            190.30844116210938,
+            373.06097412109375,
+            396.9779357910156
+          ],
+          "confidence": 0.8716663122177124,
+          "class": 0
+        },
+        {
+          "box": [
+            671.6884765625,
+            449.49072265625,
+            871.769775390625,
+            682.499755859375
+          ],
+          "confidence": 0.8690412044525146,
+          "class": 0
+        },
+        {
+          "box": [
+            608.7269287109375,
+            575.0562744140625,
+            802.9949951171875,
+            719.8006591796875
+          ],
+          "confidence": 0.866959273815155,
+          "class": 0
+        },
+        {
+          "box": [
+            238.02273559570312,
+            315.7056884765625,
+            496.4798889160156,
+            517.7979125976562
+          ],
+          "confidence": 0.8640336394309998,
+          "class": 0
+        },
+        {
+          "box": [
+            550.329833984375,
+            17.9910888671875,
+            676.75146484375,
+            180.66650390625
+          ],
+          "confidence": 0.859675943851471,
+          "class": 0
+        },
+        {
+          "box": [
+            248.6092987060547,
+            514.1968383789062,
+            405.05450439453125,
+            611.7962036132812
+          ],
+          "confidence": 0.8589731454849243,
+          "class": 0
+        },
+        {
+          "box": [
+            869.854248046875,
+            1.8674697875976562,
+            1210.595947265625,
+            209.54574584960938
+          ],
+          "confidence": 0.7518854141235352,
+          "class": 0
+        },
+        {
+          "box": [
+            755.7232666015625,
+            202.5635986328125,
+            843.1744384765625,
+            293.5035400390625
+          ],
+          "confidence": 0.6111589074134827,
+          "class": 0
+        }
+      ],
+      "matches": [
+        {
+          "gt_id": 4,
+          "detection_index": 7,
+          "box_iou": 0.958435836215419
+        },
+        {
+          "gt_id": 8,
+          "detection_index": 4,
+          "box_iou": 0.9552731493914992
+        },
+        {
+          "gt_id": 2,
+          "detection_index": 3,
+          "box_iou": 0.9467918986321601
+        },
+        {
+          "gt_id": 3,
+          "detection_index": 1,
+          "box_iou": 0.9378963723287939
+        },
+        {
+          "gt_id": 9,
+          "detection_index": 2,
+          "box_iou": 0.9369325031164601
+        },
+        {
+          "gt_id": 1,
+          "detection_index": 5,
+          "box_iou": 0.9142410898417095
+        },
+        {
+          "gt_id": 6,
+          "detection_index": 6,
+          "box_iou": 0.8772703801309838
+        },
+        {
+          "gt_id": 7,
+          "detection_index": 0,
+          "box_iou": 0.8542819296828079
+        },
+        {
+          "gt_id": 5,
+          "detection_index": 8,
+          "box_iou": 0.8192195050770577
+        }
+      ],
+      "recall_iou50": 0.5625,
+      "precision_iou50": 1.0,
+      "prompted_sam": [
+        {
+          "id": 1,
+          "prompted_sam_iou": 0.8442277279915656
+        },
+        {
+          "id": 2,
+          "prompted_sam_iou": 0.9784841913023627
+        },
+        {
+          "id": 3,
+          "prompted_sam_iou": 0.9688816491602539
+        },
+        {
+          "id": 4,
+          "prompted_sam_iou": 0.9788916523180919
+        },
+        {
+          "id": 5,
+          "prompted_sam_iou": 0.6669453734671126
+        },
+        {
+          "id": 6,
+          "prompted_sam_iou": 0.7793446145581521
+        },
+        {
+          "id": 7,
+          "prompted_sam_iou": 0.8255655927732033
+        },
+        {
+          "id": 8,
+          "prompted_sam_iou": 0.9732042264242867
+        },
+        {
+          "id": 9,
+          "prompted_sam_iou": 0.9806510031930611
+        },
+        {
+          "id": 19,
+          "prompted_sam_iou": 0.07027942421676546
+        },
+        {
+          "id": 20,
+          "prompted_sam_iou": 0.382242287434161
+        },
+        {
+          "id": 21,
+          "prompted_sam_iou": 0.019867549668874173
+        },
+        {
+          "id": 26,
+          "prompted_sam_iou": 0.1724137931034483
+        },
+        {
+          "id": 27,
+          "prompted_sam_iou": 0.0967741935483871
+        },
+        {
+          "id": 28,
+          "prompted_sam_iou": 0.28606658446362515
+        },
+        {
+          "id": 29,
+          "prompted_sam_iou": 0.18036072144288579
+        }
+      ],
+      "reference_comparison": [
+        {
+          "id": 1,
+          "source_mask_iou": 0.6201187485727335,
+          "overlap_valid_pixels": 5223,
+          "depth_mae_m": 0.015571376190727845
+        },
+        {
+          "id": 2,
+          "source_mask_iou": 0.7929125770372061,
+          "overlap_valid_pixels": 13753,
+          "depth_mae_m": 0.009574927417666655
+        },
+        {
+          "id": 3,
+          "source_mask_iou": 0.7253142825497038,
+          "overlap_valid_pixels": 12814,
+          "depth_mae_m": 0.02554891021729483
+        },
+        {
+          "id": 4,
+          "source_mask_iou": 0.5801570470568006,
+          "overlap_valid_pixels": 19729,
+          "depth_mae_m": 0.011035987160754365
+        },
+        {
+          "id": 5,
+          "source_mask_iou": 0.3383172090296101,
+          "overlap_valid_pixels": 1035,
+          "depth_mae_m": 0.010363373101275896
+        },
+        {
+          "id": 6,
+          "source_mask_iou": 0.538018018018018,
+          "overlap_valid_pixels": 4302,
+          "depth_mae_m": 0.01558783382041572
+        },
+        {
+          "id": 7,
+          "source_mask_iou": 0.6228457484688791,
+          "overlap_valid_pixels": 8460,
+          "depth_mae_m": 0.006739524603369108
+        },
+        {
+          "id": 8,
+          "source_mask_iou": 0.8084338810404414,
+          "overlap_valid_pixels": 26288,
+          "depth_mae_m": 0.016687788538149555
+        },
+        {
+          "id": 9,
+          "source_mask_iou": 0.8079024034959942,
+          "overlap_valid_pixels": 17158,
+          "depth_mae_m": 0.021651442694058165
+        }
+      ]
+    },
+    "detail": {
+      "visible_gt": [
+        {
+          "id": 2,
+          "box": [
+            327,
+            150,
+            353,
+            208
+          ],
+          "pixels": 208,
+          "name": "Reference/bag_1"
+        },
+        {
+          "id": 11,
+          "box": [
+            956,
+            671,
+            1121,
+            720
+          ],
+          "pixels": 861,
+          "name": "Tree00/shoot0_4_1/bag"
+        },
+        {
+          "id": 12,
+          "box": [
+            478,
+            174,
+            790,
+            526
+          ],
+          "pixels": 79839,
+          "name": "Tree00/shoot0_6_1/bag"
+        },
+        {
+          "id": 13,
+          "box": [
+            255,
+            0,
+            452,
+            63
+          ],
+          "pixels": 6536,
+          "name": "Tree00/shoot0_8_1/bag"
+        },
+        {
+          "id": 20,
+          "box": [
+            921,
+            366,
+            948,
+            419
+          ],
+          "pixels": 106,
+          "name": "Tree00/shoot2_6_1/bag"
+        }
+      ],
+      "detections": [
+        {
+          "box": [
+            478.7528076171875,
+            193.5259246826172,
+            792.993408203125,
+            523.7097778320312
+          ],
+          "confidence": 0.8710123300552368,
+          "class": 0
+        }
+      ],
+      "matches": [
+        {
+          "gt_id": 12,
+          "detection_index": 0,
+          "box_iou": 0.9274126397191401
+        }
+      ],
+      "recall_iou50": 0.2,
+      "precision_iou50": 1.0,
+      "prompted_sam": [
+        {
+          "id": 2,
+          "prompted_sam_iou": 0.1705607476635514
+        },
+        {
+          "id": 11,
+          "prompted_sam_iou": 0.13195732838589982
+        },
+        {
+          "id": 12,
+          "prompted_sam_iou": 0.9560043007031896
+        },
+        {
+          "id": 13,
+          "prompted_sam_iou": 0.9228437168409883
+        },
+        {
+          "id": 20,
+          "prompted_sam_iou": 0.052830188679245285
+        }
+      ]
+    },
+    "orchard": {
+      "visible_gt": [
+        {
+          "id": 2,
+          "box": [
+            481,
+            365,
+            504,
+            389
+          ],
+          "pixels": 407,
+          "name": "Reference/bag_1"
+        },
+        {
+          "id": 3,
+          "box": [
+            439,
+            316,
+            452,
+            336
+          ],
+          "pixels": 165,
+          "name": "Reference/bag_2"
+        },
+        {
+          "id": 8,
+          "box": [
+            440,
+            328,
+            465,
+            351
+          ],
+          "pixels": 384,
+          "name": "Reference/bag_8"
+        },
+        {
+          "id": 9,
+          "box": [
+            471,
+            346,
+            495,
+            369
+          ],
+          "pixels": 248,
+          "name": "Reference/bag_9"
+        },
+        {
+          "id": 106,
+          "box": [
+            1254,
+            488,
+            1275,
+            504
+          ],
+          "pixels": 220,
+          "name": "Tree07/shoot2_2_1/bag"
+        },
+        {
+          "id": 107,
+          "box": [
+            1247,
+            469,
+            1270,
+            491
+          ],
+          "pixels": 137,
+          "name": "Tree07/shoot2_4_1/bag"
+        }
+      ],
+      "detections": [
+        {
+          "box": [
+            436.64599609375,
+            314.7749938964844,
+            472.44140625,
+            352.2162780761719
+          ],
+          "confidence": 0.3582356870174408,
+          "class": 0
+        },
+        {
+          "box": [
+            480.3677673339844,
+            361.5753173828125,
+            505.4730529785156,
+            389.370849609375
+          ],
+          "confidence": 0.2552981972694397,
+          "class": 0
+        }
+      ],
+      "matches": [
+        {
+          "gt_id": 2,
+          "detection_index": 1,
+          "box_iou": 0.7910408590287556
+        }
+      ],
+      "recall_iou50": 0.16666666666666666,
+      "precision_iou50": 0.5,
+      "prompted_sam": [
+        {
+          "id": 2,
+          "prompted_sam_iou": 0.7996031746031746
+        },
+        {
+          "id": 3,
+          "prompted_sam_iou": 0.7734806629834254
+        },
+        {
+          "id": 8,
+          "prompted_sam_iou": 0.7604166666666666
+        },
+        {
+          "id": 9,
+          "prompted_sam_iou": 0.6319018404907976
+        },
+        {
+          "id": 106,
+          "prompted_sam_iou": 0.6548387096774193
+        },
+        {
+          "id": 107,
+          "prompted_sam_iou": 0.31048387096774194
+        }
+      ]
+    }
+  },
+  "notes": [
+    "SAM is GT-box prompted here; mask score is not detector recall.",
+    "Reference optical depth is independently derived from world Position Y.",
+    "Source SAM masks are estimated labels, not manual ground truth."
+  ]
+}

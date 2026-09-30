@@ -1,0 +1,64 @@
+{
+  "revision": "2026-09-30-bag-paper-v9",
+  "same_camera_probe": true,
+  "fruit_diameter_m": 0.075,
+  "v8_sizes_m": [
+    [
+      0.089,
+      0.102
+    ],
+    [
+      0.089,
+      0.102
+    ],
+    [
+      0.089,
+      0.102
+    ]
+  ],
+  "v9_sizes_m": [
+    [
+      0.096,
+      0.111
+    ],
+    [
+      0.11,
+      0.119
+    ],
+    [
+      0.119,
+      0.125
+    ]
+  ],
+  "probe_tool_sha256": "12d81cf83f41793f94c7d9133d6f1794fc087e7abf38445e2a8ab80d2342ff84",
+  "images_sha256": {
+    "v8": "f34ec024c137c6a151d90bda51b979dad7de7bc3da270a64a0d79525f0a17103",
+    "candidate": "f8463c69afb128091475ec63201f1326f2e911cadeff0e999f93a709b0ad4080"
+  },
+  "old_sources_sha256": {
+    "geometry.py": "97b33e6031c977342b3196284160f6f3ba5d729408ecaa4b491f61bbb59fdf98",
+    "materials.py": "8ad9d8b0bba8e883f06c1e67b32a60c31588f34a1e0bc0b1410905751d47baf1",
+    "distributions.py": "d8962c8d80cf9607cfefaa4b96dfcd44b81ece5aeac80989aca0e4692915eab2"
+  },
+  "source_sha256": {
+    "build_scene.py": "bac68aaa59d0c5a50b4c9145c75d74d524cea2234e06b341a68c7d67fd773c45",
+    "geometry.py": "86d9af81314d111e924878c3638c493ed07c6f583fb5db3b60de92e060021350",
+    "materials.py": "64d571d8c90815041fbfb84279ddae6da8eb35d97a2ce92e4486aee367f5308f",
+    "lighting.py": "afdebe7632d637bc490ad88190e4f8bf9afead6d50dd3d748e3fd365d0540f6a",
+    "lighting_apply.py": "54b03c0e7d126cea3fa4e78c8c033b213ee3fda4f6981d861029c8001dc0bf12",
+    "occlusion.py": "781c9a8099cca5c93722d6d075e1fca0b0775aca176f08ab5d02235bb41677a7",
+    "distributions.py": "dd7ac382adaef249cdeb0c91ae7f4f94101acaa5ca4b55fe5c66fc8fcabab5af",
+    "make_textures.py": "86f3ce78251b276428bd768a1bd7c691bdd865634ac1f96c466426934e1248a9",
+    "textures/paper_height.png": "0aeb3bf94b817dd3fceb4e9510a9485311392ee96b10311b0940627ea25cc4c1",
+    "evidence/priors.json": "4b28a910197f850feb5caa605210dcafbd680231e9d7a1c353d1aa872c6caf5c",
+    "evidence/reference_measurements.json": "59d5c1fcb36e3592003940cdc25610898f696e361fc8c2c2b5f72a5838c51f19",
+    "evidence/foliage_support.json": "5f28d8fe0036d5ac5bd9624d2f7ccd1cef8c4ceb0a3c04d8a1b1ea01c8d71b94"
+  },
+  "asset_manifest_sha256": "06a2bd362001ab9ae00fa604a8e4156351f8de381446cd2bd61fb5a52806f5a0",
+  "asset_geometry_sha256": "84ead21a089837f810f798924734b1eac1a0a2426684ecd6ac97c11c7c66952a",
+  "limits": [
+    "Probe sizes manually selected to illustrate paper slack, not empirical fit validation.",
+    "v8 textures loaded from retained backup; other missing textures are outside the shown meshes.",
+    "Visual comparison is qualitative; no photorealism pass threshold."
+  ]
+}

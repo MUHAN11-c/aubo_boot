@@ -1,0 +1,14 @@
+# /peach/target_model/observe : next-best-view close-range observation and
+# fusion until sigma gates are met or max_views reached.
+string target_id
+uint32 max_views
+bool neck_remeasure                  # true = single close-range neck re-measure at pregrasp
+---
+TargetModel model
+bool converged
+uint32 failure_code
+---
+uint32 n_views
+float64 sigma_lateral95_m
+float64 sigma_axial95_m
+float64 theta95_deg

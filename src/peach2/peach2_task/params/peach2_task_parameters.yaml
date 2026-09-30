@@ -1,0 +1,180 @@
+# peach2_task parameters (generate_parameter_library single source).
+# Root key = generated namespace peach2_task::Params / ParamListener.
+# Deployment values: config/peach2_task.param.yaml. Graph names are never parameters.
+peach2_task:
+  tree_file:
+    type: string
+    default_value: ""
+    read_only: true
+    description: "BT XML; empty = share/peach2_task/trees/harvest_batch.xml"
+  tick_hz:
+    type: double
+    default_value: 50.0
+    read_only: true
+    description: "wall-timer rate of Tree::tickOnce while a batch runs [Hz]"
+    validation:
+      bounds<>: [1.0, 200.0]
+  runs_dir:
+    type: string
+    default_value: ""
+    read_only: true
+    description: "ledger root; empty = $PEACH_RUNS_DIR, else <cwd>/runs"
+  default_tool_id:
+    type: string
+    default_value: ""
+    description: "tool used when RunBatch.tool_id is empty (launch passes tool_profile); empty = goal must name it unless SURVEY_ONLY"
+    validation:
+      one_of<>: [["", "shear_v1", "bite_shear_v1", "adaptive_shear_v1"]]
+  empty_survey_limit:
+    type: int
+    default_value: 2
+    description: "consecutive surveys without a selectable target before the batch settles"
+    validation:
+      bounds<>: [1, 100]
+  per_target_timeout_s:
+    type: double
+    default_value: 60.0
+    description: "default per-target observe+decision budget when the goal gives 0 [s]; 0 = unlimited"
+    validation:
+      gt_eq<>: [0.0]
+  observe_max_views:
+    type: int
+    default_value: 3
+    description: "ObserveTarget.max_views"
+    validation:
+      bounds<>: [1, 10]
+  retry_attempts:
+    type: int
+    default_value: 2
+    description: "attempts per target for RETRY_VIEW / WAIT failures (2 = retry once)"
+    validation:
+      bounds<>: [1, 5]
+  wait_retry_s:
+    type: double
+    default_value: 5.0
+    description: "pause before retrying a WAIT-policy failure (swing / environment) [s]"
+    validation:
+      gt_eq<>: [0.0]
+  ack_each_pregrasp:
+    type: bool
+    default_value: true
+    description: "PREGRASP_ONLY: require an operator ACK after every target before the next one"
+  photo_pose:
+    type: string
+    default_value: global_photo_pose
+    read_only: true
+    description: "SRDF group_state used by Survey (blackboard {photo_pose})"
+  safety:
+    require_robot_status:
+      type: bool
+      default_value: true
+      description: "false only with mock hardware (no aubo_io_controller)"
+    robot_status_max_age_s:
+      type: double
+      default_value: 0.3
+      description: "RobotStatus receipt age limit [s]"
+      validation:
+        gt<>: [0.0]
+  selection:
+    require_reachability:
+      type: bool
+      default_value: true
+      description: "a target without a CheckReachability answer is not selectable"
+    min_mask_quality:
+      type: double
+      default_value: 0.3
+      description: "survey-frame mask quality gate (TODO(M0) field tune)"
+      validation:
+        bounds<>: [0.0, 1.0]
+    min_depth_coverage:
+      type: double
+      default_value: 0.3
+      description: "survey-frame depth coverage gate inside the mask (TODO(M0) field tune)"
+      validation:
+        bounds<>: [0.0, 1.0]
+    depth_min_m:
+      type: double
+      default_value: 0.3
+      description: "camera distance window lower bound [m]"
+      validation:
+        gt_eq<>: [0.0]
+    depth_max_m:
+      type: double
+      default_value: 1.6
+      description: "camera distance window upper bound [m]"
+      validation:
+        gt<>: [0.0]
+    height_band_m:
+      type: double
+      default_value: 0.10
+      description: "height bin for lower-first ordering [m]"
+      validation:
+        gt<>: [0.0]
+  timeouts:
+    server_wait_s:
+      type: double
+      default_value: 5.0
+      description: "wait for an action/service server to appear before failing the leaf [s]"
+      validation:
+        gt<>: [0.0]
+    move_to_s:
+      type: double
+      default_value: 60.0
+      description: "MoveTo result [s]"
+      validation:
+        gt<>: [0.0]
+    snapshot_s:
+      type: double
+      default_value: 15.0
+      description: "BuildSceneSnapshot response [s]"
+      validation:
+        gt<>: [0.0]
+    begin_scene_s:
+      type: double
+      default_value: 5.0
+      description: "BeginScene response (first survey of a batch) [s]"
+      validation:
+        gt<>: [0.0]
+    lock_wait_s:
+      type: double
+      default_value: 15.0
+      description: "wait for a locked observation set newer than the survey arrival [s]"
+      validation:
+        gt<>: [0.0]
+    reachability_s:
+      type: double
+      default_value: 10.0
+      description: "CheckReachability response [s]"
+      validation:
+        gt<>: [0.0]
+    observe_s:
+      type: double
+      default_value: 90.0
+      description: "ObserveTarget result [s]"
+      validation:
+        gt<>: [0.0]
+    decision_s:
+      type: double
+      default_value: 5.0
+      description: "GetDecision response [s]"
+      validation:
+        gt<>: [0.0]
+    harvest_s:
+      type: double
+      default_value: 180.0
+      description: "HarvestTarget result [s]; on expiry the goal is canceled (EXEC_TIMEOUT, recover)"
+      validation:
+        gt<>: [0.0]
+    ack_forward_s:
+      type: double
+      default_value: 5.0
+      description: "forwarded /peach/manipulation/acknowledge_recovery response [s]"
+      validation:
+        gt<>: [0.0]
+  bond_heartbeat_timeout_s:
+    type: double
+    default_value: 4.0
+    read_only: true
+    description: "bondcpp heartbeat timeout seen by nav2_lifecycle_manager [s]"
+    validation:
+      gt<>: [0.0]

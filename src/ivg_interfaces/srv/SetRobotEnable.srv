@@ -1,0 +1,14 @@
+# =============================================================================
+# SetRobotEnable.srv — 机器人上电/停运控制（演示栈映射语义）
+# 服务方: ivg_demo_services 的 move_service_node（/set_robot_enable）
+#         enable=true  → 转发 aubo_dashboard /aubo/startup（上电+松抱闸）
+#         enable=false → 转发 aubo_dashboard /aubo/stop（应用层受控停）
+# 注意: 本服务不是急停（ISO 13850 急停在柜/示教器，不经 ROS）；
+#       dashboard 未运行时返回 false。
+# 调用方: Web 调试面板（快速使能开关）
+# =============================================================================
+bool enable  # true=上电（startup），false=停运（stop）
+---
+bool success      # true=转发成功
+int32 error_code  # 0=成功，非零=dashboard 不可达或服务拒绝
+string message    # 状态消息或错误信息

@@ -1,0 +1,53 @@
+# peach2_scene runtime configuration. Read directly by params.load_params(): every key is
+# required, unknown keys and out-of-range values reject configure.
+# Topic / service names are fixed in code (not parameters); remap in launch if needed.
+
+base_frame: base_link
+tcp_frame: tcp
+# Optical frame of the registered depth (K from the colour camera_info, same as peach2_perception).
+# Empty = use the depth image header.frame_id.
+camera_frame: camera_color_optical_frame
+
+# ---------------------------------------------------------------- frame acquisition
+# uint16 depth LSB [m]: stereo front end 0.00025, Percipio 0.001. 32FC1 depth is taken as metres.
+depth_unit_m: 0.00025
+# best_effort matches SensorDataQoS publishers and also connects to reliable ones.
+# reliable only if FastDDS large-frame loss shows up again (09-29: best-effort probe got 0 frames
+# from the Percipio reliable publisher).
+image_qos_reliability: best_effort
+# Service waits at most this long for a depth frame stamped after the request whose TF and
+# joint_states are available at that stamp and whose arm is static.
+frame_timeout_s: 2.0
+tf_timeout_s: 0.3
+# Frames taken while any joint moves faster than this are skipped (the TF at the image stamp
+# would be interpolated across motion).
+max_joint_speed_rad_s: 0.02
+joint_buffer_s: 5.0
+joint_max_gap_s: 0.2
+# Robot collision-mesh surface sample step [m] (<= self_margin_m).
+self_sample_spacing_m: 0.01
+# clear_previous=false appends the frame to the batch; beyond this the call fails.
+max_frames_per_batch: 8
+apply_timeout_s: 5.0
+
+# ---------------------------------------------------------------- snapshot core (§6.3)
+voxel_size_m: 0.03
+min_points_per_voxel: 5          # sparser voxels are flying points
+workspace_radius_m: 1.5          # from the base_link origin
+pixel_stride: 2
+min_confidence: 0.5              # used only when /camera/depth/confidence matches the frame
+min_depth_m: 0.3                 # [m] stereo z_min ~0.27 m; nearer depth is noise
+max_depth_m: 1.5                 # [m] optical-axis depth window
+self_margin_m: 0.03              # voxel centres additionally use + half diagonal
+target_margin_m: 0.05            # hollow radius = d95/2 + this (+ half diagonal on voxels)
+target_axial_margin_m: 0.05      # bottom-neck segment extended by this at both ends
+target_neck_overshoot_m: 0.09    # extra hollow past the neck: max L_blade over tools (0.079) + 0.01
+hard_min_thickness_m: 0.012      # linear structures at least this wide are L2 (§6.3)
+linearity_min: 0.5               # (l1 - l2) / l1 of the 3x3x3-voxel neighbourhood
+flat_thickness_max_m: 0.010      # non-linear and thinner than this = leaf-like plane (L3)
+soft_max_extent_m: 0.25          # flat L3 clusters larger than this are promoted to L2
+branch_vote_min: 0.2             # branch-mask fraction that makes a voxel L2
+leaf_vote_min: 0.6               # leaf-mask fraction that makes a voxel L3
+leaf_mask_max_width_m: 0.05      # leaf-voted but linear and wider than this stays L2
+fit_min_fill_ratio: 0.25         # occupied volume / fitted object volume before splitting
+max_objects: 400                 # nearest to the TCP are kept

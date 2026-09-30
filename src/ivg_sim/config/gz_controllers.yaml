@@ -1,0 +1,47 @@
+# ivg_sim gz_ros2_control 控制器（由 xacro 内 <plugin> 的 <parameters> 加载）。
+# 臂=原厂 AUBO E5 六关节；夹爪=gripper2 剖分四指（同一指令值同步开合）。
+# JTC 名保持 joint_trajectory_controller（与 aubo controllers_mock 对齐，
+# MoveIt 控制器映射零改动）。
+controller_manager:
+  ros__parameters:
+    update_rate: 200  # Hz
+    use_sim_time: true
+
+    joint_state_broadcaster:
+      type: joint_state_broadcaster/JointStateBroadcaster
+
+    joint_trajectory_controller:
+      type: joint_trajectory_controller/JointTrajectoryController
+
+    gripper_position_controller:
+      type: position_controllers/JointGroupPositionController
+
+joint_trajectory_controller:
+  ros__parameters:
+    use_sim_time: true
+    joints:
+      - shoulder_joint
+      - upperArm_joint
+      - foreArm_joint
+      - wrist1_joint
+      - wrist2_joint
+      - wrist3_joint
+    command_interfaces:
+      - position
+    state_interfaces:
+      - position
+      - velocity
+    state_publish_rate: 50.0
+    action_monitor_rate: 20.0
+    allow_partial_joints_goal: false
+    constraints:
+      stopped_velocity_tolerance: 0.05
+      goal_time: 0.0
+
+gripper_position_controller:
+  ros__parameters:
+    use_sim_time: true
+    # mimic 联动：仅主驱动关节可命令（官方要求；xn/yp/yn 物理耦合跟随）
+    joints:
+      - finger_xp_joint
+    interface_name: position

@@ -1,0 +1,327 @@
+<?xml version="1.0"?>
+<!--
+  ivg_sim 抓取执行机器人 v3（2026-09-30）：原厂 AUBO E5 + 原装四指夹爪
+  （tool_changer 电动夹爪 φ60，gripper2 剖分）+ 仿真基座 + gz_ros2_control。
+
+  v1→v3 变更：v1 自制两指爪装配错位（用户指正）；v2 barista 整模换装在
+  gz 中观感碎块化（SW 多色分件 STL）+ 零位侧伸（用户指正）；v3 回原厂臂，
+  四指爪按 tool_changer 原装装配链挂接——
+    wrist3 →(0,0,0.020)→ camera_Link →(0,0,0.0215, Rz π)→ kuaihuan
+    →(0,0,0.020)→ gripper2
+  三段合成 = g2_base_joint：xyz (0,0,0.0615) rpy (0,0,π)。
+
+  四指 = gripper2 网格剖分（scripts/split_gripper2.py）：闭态十字排布，
+  径向 prismatic 同步开合（行程 55mm → 开口 119×138mm）。四向同步闭合
+  自定心，治两指先触指推飞问题。
+  TCP=指端包络腔心 = 法兰下 0.0615+0.175=0.2365 m；姿态恒等
+  （Z=approach、X=宽度，与 graspnet_to_ros_rotation 对齐）。
+
+  ros2_control 为本包自有声明（驱动栈只读）；world link/world_joint 由
+  arm_description.strip_world() 在 launch 侧剥除（gz 浮基 spawn）。
+-->
+<robot name="aubo_e5" xmlns:xacro="http://www.ros.org/wiki/xacro">
+  <xacro:include filename="$(find aubo_description)/urdf/aubo_e5.urdf"/>
+
+  <!-- ======================= 仿真基座（重力世界锚定） ======================= -->
+  <!-- 宽 0.24：基座心 x=-0.58（SPAWN_XYZ 单源）时前缘 -0.46 距桌沿（-0.45）
+       1cm 不相交（MoveIt 永碰撞态红线），且抗前倾矩 353 Nm > 全展 223 Nm；
+       0.18 窄基座曾在全展抓取时整体前翻（2026-09-30 实测） -->
+  <link name="pedestal_link">
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <mass value="300.0"/>
+      <inertia ixx="14.2" ixy="0" ixz="0" iyy="14.2" iyz="0" izz="1.44"/>
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry><box size="0.24 0.24 0.75"/></geometry>
+      <material name="pedestal_grey"><color rgba="0.45 0.45 0.45 1"/></material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry><box size="0.24 0.24 0.75"/></geometry>
+    </collision>
+  </link>
+  <joint name="pedestal_joint" type="fixed">
+    <parent link="base_link"/>
+    <child link="pedestal_link"/>
+    <origin xyz="0 0 -0.375" rpy="0 0 0"/>
+  </joint>
+
+  <!-- ======================= 四指夹爪（原装完整链 + 剖分四指） =======================
+       链路与件均还原 tool_changer 原装（用户参照"移植前完整模型"）：
+         wrist3 →(0,0,0.020) camera_Link（相机支架件）
+                →(0,0,0.0215,Rzπ) kuaihuan_Link（快换盘件）
+                →(0,0,0.020,Rxπ) g2_base（剖分基座；Rx π=指朝 -z 远离
+                  法兰——网格建模 +z 朝法兰，不翻则指端朝天，2026-09-30
+                  用户截图实锤）
+       网格引用 package://tool_changer（本仓已装包，模型单源）。
+       四指=gripper2 剖分（scripts/split_gripper2.py）：径向 prismatic
+       同步开合，行程 55mm → 开口 119×138mm；四向同步闭合自定心。 -->
+  <xacro:property name="finger_travel_max" value="0.055"/>
+  <xacro:property name="finger_travel_min" value="0.0"/>
+  <xacro:property name="finger_effort" value="40.0"/>
+
+  <link name="camera_Link">
+    <inertial>
+      <origin xyz="0 0 0.01" rpy="0 0 0"/>
+      <mass value="0.3"/>
+      <inertia ixx="3e-4" ixy="0" ixz="0" iyy="3e-4" iyz="0" izz="3e-4"/>
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry><mesh filename="package://tool_changer/meshes/visual/camera_link.stl"/></geometry>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry><mesh filename="package://tool_changer/meshes/collision/camera_link.stl"/></geometry>
+    </collision>
+  </link>
+  <joint name="camera_joint" type="fixed">
+    <parent link="wrist3_Link"/>
+    <child link="camera_Link"/>
+    <origin xyz="0 0 0.020" rpy="0 0 0"/>
+  </joint>
+
+  <link name="kuaihuan_Link">
+    <inertial>
+      <origin xyz="0 0 0.005" rpy="0 0 0"/>
+      <mass value="0.3"/>
+      <inertia ixx="4e-4" ixy="0" ixz="0" iyy="4e-4" iyz="0" izz="4e-4"/>
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry><mesh filename="package://tool_changer/meshes/visual/kuaihuan_link.stl"/></geometry>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry><mesh filename="package://tool_changer/meshes/collision/kuaihuan_link.stl"/></geometry>
+    </collision>
+  </link>
+  <joint name="kuaihuan_joint" type="fixed">
+    <parent link="camera_Link"/>
+    <child link="kuaihuan_Link"/>
+    <origin xyz="0 0 0.0215" rpy="0 0 3.1416"/>
+  </joint>
+
+  <link name="g2_base_link">
+    <inertial>
+      <origin xyz="0 0 0.045" rpy="0 0 0"/>
+      <mass value="0.9"/>
+      <inertia ixx="0.0016" ixy="0" ixz="0" iyy="0.0019" iyz="0" izz="0.0024"/>
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry><mesh filename="package://ivg_sim/meshes/visual/g2_base.stl"/></geometry>
+      <material name="g2_body"><color rgba="0.25 0.26 0.28 1"/></material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry><mesh filename="package://ivg_sim/meshes/collision/g2_base.stl"/></geometry>
+    </collision>
+  </link>
+  <!-- 与原版一致（kuaihuan_to_gripper2）+ Rz 90°：用户指定的安装朝向
+       （宽指对水平「横着」；原装物理垫高不变）。 -->
+  <joint name="g2_base_joint" type="fixed">
+    <parent link="kuaihuan_Link"/>
+    <child link="g2_base_link"/>
+    <origin xyz="0 0 0.02" rpy="0 0 1.5708"/>
+  </joint>
+
+  <!-- mimic 联动（官方 gz_ros2_control 机制，dartsim 前提）：xp 主驱动，
+       其余三指物理耦合锁死行程比——先触即整组停，根治独立伺服先触指
+       单侧推飞（2026-09-30 蒙太奇实锤）。multiplier 0.75：主指令
+       0.040 → y 指 0.030，恰为罐半径 50mm 的对称贴面。
+       指自锁 friction/damping：真电动爪丝杠断电不滑。 -->
+  <xacro:macro name="g2_finger_master" params="name axis_x axis_y mesh">
+    <link name="finger_${name}_link">
+      <inertial>
+        <origin xyz="0 0 0.05" rpy="0 0 0"/>
+        <mass value="0.10"/>
+        <inertia ixx="4e-4" ixy="0" ixz="0" iyy="4e-4" iyz="0" izz="2e-4"/>
+      </inertial>
+      <visual>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry><mesh filename="package://ivg_sim/meshes/visual/g2_${mesh}.stl"/></geometry>
+        <material name="g2_dark"><color rgba="0.25 0.26 0.28 1"/></material>
+      </visual>
+      <collision>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry><mesh filename="package://ivg_sim/meshes/collision/g2_${mesh}.stl"/></geometry>
+      </collision>
+    </link>
+    <joint name="finger_${name}_joint" type="prismatic">
+      <parent link="g2_base_link"/>
+      <child link="finger_${name}_link"/>
+      <origin xyz="0 0 0.078" rpy="0 0 0"/>
+      <axis xyz="${axis_x} ${axis_y} 0"/>
+      <dynamics damping="0.5" friction="2.0"/>
+      <limit lower="${finger_travel_min}" upper="${finger_travel_max}"
+             effort="${finger_effort}" velocity="0.03"/>
+    </joint>
+  </xacro:macro>
+
+  <xacro:macro name="g2_finger_mimic" params="name axis_x axis_y mesh multiplier">
+    <link name="finger_${name}_link">
+      <inertial>
+        <origin xyz="0 0 0.05" rpy="0 0 0"/>
+        <mass value="0.10"/>
+        <inertia ixx="4e-4" ixy="0" ixz="0" iyy="4e-4" iyz="0" izz="2e-4"/>
+      </inertial>
+      <visual>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry><mesh filename="package://ivg_sim/meshes/visual/g2_${mesh}.stl"/></geometry>
+        <material name="g2_dark"><color rgba="0.25 0.26 0.28 1"/></material>
+      </visual>
+      <collision>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry><mesh filename="package://ivg_sim/meshes/collision/g2_${mesh}.stl"/></geometry>
+      </collision>
+    </link>
+    <joint name="finger_${name}_joint" type="prismatic">
+      <parent link="g2_base_link"/>
+      <child link="finger_${name}_link"/>
+      <origin xyz="0 0 0.078" rpy="0 0 0"/>
+      <axis xyz="${axis_x} ${axis_y} 0"/>
+      <mimic joint="finger_xp_joint" multiplier="${multiplier}" offset="0"/>
+      <dynamics damping="0.5" friction="2.0"/>
+      <limit lower="${finger_travel_min}" upper="${finger_travel_max}"
+             effort="${finger_effort}" velocity="0.03"/>
+    </joint>
+  </xacro:macro>
+
+  <xacro:g2_finger_master name="xp" axis_x="1" axis_y="0" mesh="xp"/>
+  <xacro:g2_finger_mimic name="xn" axis_x="-1" axis_y="0" mesh="xn" multiplier="1"/>
+  <xacro:g2_finger_mimic name="yp" axis_x="0" axis_y="1" mesh="yp" multiplier="0.75"/>
+  <xacro:g2_finger_mimic name="yn" axis_x="0" axis_y="-1" mesh="yn" multiplier="0.75"/>
+
+  <!-- ======================= 腕上相机（eye-in-hand，标定外参+内参） =======================
+       外参：aubo_hand_eye_calibration/hand_eye/active.yaml（已激活，
+       eye_in_hand，RMS 3.19mm）。光学帧 wrist3 直挂（scipy 核定 rpy）。
+       camera_mount 为 gz 传感器挂体（gz 点云轴系实测=body：x=视轴；
+       mount rpy 由外参合成，光轴沿工具方向）。
+       内参：percipio_camera/config/color_camera_info.yaml：fx=466.17
+       → hfov=1.203132；k1=0.0037 近零；center 0.5095/0.5100 未建模
+       （gz distortion 中心归一化近似 0.5，偏移 0.9% 影响可忽略）。 -->
+  <link name="camera_mount_link">
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <mass value="0.05"/>
+      <inertia ixx="1e-5" ixy="0" ixz="0" iyy="1e-5" iyz="0" izz="1e-5"/>
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry><box size="0.03 0.03 0.02"/></geometry>
+      <material name="cam_dark"><color rgba="0.15 0.15 0.15 1"/></material>
+    </visual>
+  </link>
+  <joint name="camera_mount_joint" type="fixed">
+    <parent link="wrist3_Link"/>
+    <child link="camera_mount_link"/>
+    <origin xyz="0.044852 0.108401 0.001697"
+            rpy="-0.021191 0.000029 -0.021399"/>
+  </joint>
+
+  <!-- REP-103 光学系（x 右 y 下 z 前）：标定外参原值直挂 -->
+  <link name="camera_color_optical_frame"/>
+  <joint name="camera_optical_joint" type="fixed">
+    <parent link="wrist3_Link"/>
+    <child link="camera_color_optical_frame"/>
+    <origin xyz="0.044852 0.108401 0.001697"
+            rpy="-0.001461 0.009760 3.118940"/>
+  </joint>
+
+  <gazebo reference="camera_mount_link">
+    <sensor name="rgbd" type="rgbd_camera">
+      <topic>camera/depth</topic>
+      <update_rate>10.0</update_rate>
+      <gz_frame_id>camera_color_optical_frame</gz_frame_id>
+      <camera name="rgbd">
+        <horizontal_fov>1.203132</horizontal_fov>
+        <image><width>640</width><height>480</height></image>
+        <clip><near>0.05</near><far>2.5</far></clip>
+        <depth_camera><output>depths</output></depth_camera>
+      </camera>
+    </sensor>
+  </gazebo>
+
+  <!-- TCP：指端包络腔心（翻转后指沿 -z：法兰下 0.0615+0.175=0.2365），
+       姿态与 wrist3_Link 恒等 -->
+  <link name="tcp">
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <mass value="0.001"/>
+      <inertia ixx="1e-6" ixy="0" ixz="0" iyy="1e-6" iyz="0" izz="1e-6"/>
+    </inertial>
+  </link>
+  <joint name="tcp_joint" type="fixed">
+    <parent link="wrist3_Link"/>
+    <child link="tcp"/>
+    <origin xyz="0 0 0.2365" rpy="0 0 0"/>
+  </joint>
+
+  <!-- ======================= gz_ros2_control（本包自有声明） ======================= -->
+  <ros2_control name="IvgSimGazeboSystem" type="system">
+    <hardware>
+      <plugin>gz_ros2_control/GazeboSimSystem</plugin>
+    </hardware>
+    <joint name="shoulder_joint">
+      <command_interface name="position"/>
+      <state_interface name="position"/>
+      <state_interface name="velocity"/>
+    </joint>
+    <joint name="upperArm_joint">
+      <command_interface name="position"/>
+      <state_interface name="position"/>
+      <state_interface name="velocity"/>
+    </joint>
+    <joint name="foreArm_joint">
+      <command_interface name="position"/>
+      <state_interface name="position"/>
+      <state_interface name="velocity"/>
+    </joint>
+    <joint name="wrist1_joint">
+      <command_interface name="position"/>
+      <state_interface name="position"/>
+      <state_interface name="velocity"/>
+    </joint>
+    <joint name="wrist2_joint">
+      <command_interface name="position"/>
+      <state_interface name="position"/>
+      <state_interface name="velocity"/>
+    </joint>
+    <joint name="wrist3_joint">
+      <command_interface name="position"/>
+      <state_interface name="position"/>
+      <state_interface name="velocity"/>
+    </joint>
+    <joint name="finger_xp_joint">
+      <command_interface name="position"/>
+      <state_interface name="position">
+        <param name="initial_value">0.05</param>
+      </state_interface>
+      <state_interface name="velocity"/>
+    </joint>
+    <!-- mimic 关节只配 state_interface（官方要求：不得有 command） -->
+    <joint name="finger_xn_joint">
+      <state_interface name="position"/>
+      <state_interface name="velocity"/>
+    </joint>
+    <joint name="finger_yp_joint">
+      <state_interface name="position"/>
+      <state_interface name="velocity"/>
+    </joint>
+    <joint name="finger_yn_joint">
+      <state_interface name="position"/>
+      <state_interface name="velocity"/>
+    </joint>
+  </ros2_control>
+
+  <gazebo>
+    <plugin filename="gz_ros2_control-system" name="gz_ros2_control::GazeboSimROS2ControlPlugin">
+      <parameters>$(find ivg_sim)/config/gz_controllers.yaml</parameters>
+      <robot_param>robot_description</robot_param>
+      <robot_param_node>robot_state_publisher</robot_param_node>
+    </plugin>
+  </gazebo>
+</robot>

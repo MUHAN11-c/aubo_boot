@@ -1,5 +1,7 @@
 # 输入输出
 
+> 2026-09-30 离线模型 v9：按套袋观感反馈恢复有余量的宽面/折角纸袋，重新使用实拍袋尺寸分位，保留原内果尺寸并降低纸面凹凸。主展示和真实对照仅套袋，另导出三种完整套袋资产。树枝/叶结构沿用已核验的 v8；参考袋内部未知。完整矩阵基线仍属 v5、总体深度对照仍属 v6，不能作为 v9 验收。范围与证据见 [peach_sim README](../src/peach_sim/README.md)。
+
 > 2026-09-24 果园外观重建：当前 Blender 入口为 `src/peach_sim/reconstruction/`，不复用旧模型/贴图/随机布局。RGB-D 约束局部可见袋面；整树、遮挡部分与树行是标注清楚的推断。旧 Gazebo SDF/GT 仍属旧管线，尚未接入此次新场景；无 ROS IDL、运动或驱动变更。数据口径、离线命令与验收边界见 [peach_sim README](../src/peach_sim/README.md)。根目录 `blender_orchard/` 观感预览链已于 2026-09-28 并入 `src/peach_sim/reconstruction/`（袋面折痕、程序贴图、PeachDataSet 先验统计迁入；数据口径以 priors 分位为准），果园外观建模收敛为单管线；光照/叶遮挡/枝干扰为受控变量，多视角感知验证矩阵与基线回归门见 README。
 
 现行系统（SNAPSHOT）：源码、各包 `config/*.yaml`、[`peach_interfaces/config/interface_manifest.yaml`](../src/peach_interfaces/config/interface_manifest.yaml)。字段级目录：[peach_interfaces/README.md](../src/peach_interfaces/README.md)。清单漂移：`python3 src/peach_interfaces/scripts/check_interface_manifest.py`。与 [architecture.md](architecture.md)、[testing.md](testing.md) 构成仅有的三份活文档；**源码与本文互相更新，改接口/话题/TF 或改本文须同一轮改另一边**。**如何演化**以 [AGENTS.md](../AGENTS.md) 为准：非完美适配当前真机/产品则跟 ROS 2 / 优秀 GitHub 主流（标准 msg、QoS、相对名+remap）。真机轮次：[testing-log.md](testing-log.md)。工程整理过程：[REFACTORING.md](REFACTORING.md)（不驱动现行设计）。
@@ -604,7 +606,7 @@ flowchart LR
 | `debug.audit_enabled` | 审计落盘 `runs/debug_audit/`；默认开（含被拒，含 `enabled=false` 的 503） |
 | `debug.endpoints.*` | 调试桥目标（18 个既有动作/服务名，params.py 默认=现行契约名） |
 
-HTTP `/api/state` 区段：`perception` / `reconstruction` / `refined` / `manipulation` / `task_executor`（含 `state_seq`/`scene_epoch` 镜像）/ `robot`（含 `tcp` 摘要与 `joints` 六轴）/ `metrics` / `record` / `params` / **`pipeline`**（全流程阶段时序：调度 FSM 与技能周期各一条服务器侧时间线，每次状态转移记一条、段时长=到下一转移的间隔，页面刷新不丢）/ **`ledger`**（批次账本直播：`runs/<request_id>/ledger.json` 按 mtime 增量重读，per-target 结果/原因/失败码/耗时/阶段耗时与总计；`run_id` 即账本目录名）/ **`job`**（当前果实作业票：过程线状态、档位、`why`、感知入口/重建中心/预抓取/抓取进入点，`base_link` 米）/ **`startup`**（启动事实镜像，2026-09-29 起）/ **`selfcheck`**（最近一次自检报告：逐项 pass/warn/fail/skip + 汇总）/ **`diagnostics`**（`/diagnostics` 聚合：按 hardware_id 归组的任务级状态，2026-09-29 起）/ **`debug`**（`enabled` / `motion_enabled` + 最近操作环形缓冲）。`reconstruction.grasp_decision` 镜像含 `valid_until`/`model_revision`/`failure_code`（许可有效期倒计时，心跳不续签）。`GET /api/trajectory` 给俯视页：TCP 点列、起止弦、路标、Marker 字典（绕行比、Δz）。过程页首屏按作业票展示；抓取档关闭时靠近/工具为 gated，不是已完成；其后为阶段时序（FSM/技能两列）、批次账本表（阶段耗时可展开）、感知节拍（fps/检测/分割/几何耗时、掉锚/陈旧锚）与重建进度（机位/拒帧/TF 失败/基线/许可倒计时）、系统负载与参数镜像（折叠）。机械臂硬件表订 `/joint_states`（角/速度）与 `/aubo_io_controller/joint_status`（电流 SDK 原单位/温度/跟随误差），镜像只在 Web、原始话题随 bag 录制。`POST /api/debug/<action>`：`enabled=false→503`、运动类未放行→`423`、未知端点→`404`、未知 mode/intent/command→`400`。无令牌、无 401。运动类 = RunHarvest 全部档位（含 `SURVEY_ONLY`——会 Survey 移到拍照位，09-18 收紧）、Survey、Execute 非 `PREVIEW`（`OBSERVE_ONLY` 算运动）、`go_to_photo_pose`、arm、ControlTask 的 `RESUME`/`EXIT_MAINTENANCE`。页面只暴露本管线按钮：批次 ControlTask 含 PAUSE/RESUME/SKIP_TARGET/ACK 恢复/CANCEL_NOW（PAUSE 与 CANCEL_NOW 带 `expected_state_seq=0` 不做过期拦截，其余带最新镜像 `state_seq`，过期由调度拒）；ExecuteTarget 组含 `set_execution_armed` 武装/解除（属运动类，照常 423 门）；后端端点清单见 `config/observability.yaml` 的 `debug.endpoints.*`。
+HTTP `/api/state` 区段：`perception` / `reconstruction` / `refined` / `manipulation` / `task_executor`（含 `state_seq`/`scene_epoch` 镜像）/ `robot`（含 `tcp` 摘要与 `joints` 六轴）/ `metrics` / `record` / `params` / **`pipeline`**（全流程阶段时序：调度 FSM 与技能周期各一条服务器侧时间线，每次状态转移记一条、段时长=到下一转移的间隔，页面刷新不丢）/ **`ledger`**（批次账本直播：`runs/<request_id>/ledger.json` 按 mtime 增量重读，per-target 结果/原因/失败码/耗时/阶段耗时与总计；`run_id` 即账本目录名）/ **`job`**（当前果实作业票：过程线状态、档位、`why`、感知入口/重建中心/预抓取/抓取进入点，`base_link` 米）/ **`startup`**（启动事实镜像，2026-09-29 起）/ **`selfcheck`**（最近一次自检报告：逐项 pass/warn/fail/skip + 汇总）/ **`diagnostics`**（`/diagnostics` 聚合：按 hardware_id 归组的任务级状态，2026-09-29 起）/ **`debug`**（`enabled` / `motion_enabled` + 最近操作环形缓冲）。**页面（2026-09-30 web 升级轮）**：事件时间线逐条带 severity 徽标（信息/警告/错误/审计）与事件码中文标签（`begin_scene_failed`→开场景失败等全词表）；`blockers` 红显且中文（`mode_paused`→批次已暂停等五词表）；账本失败码数值映射常量名（0-23，含 21 TRANSIT_FAILED/22 START_NOT_READY/23 CANCELED）；SELFCHECK 面板头部附启动事实摘要行（模式/末端/相机/git 短哈希/域）。`reconstruction.grasp_decision` 镜像含 `valid_until`/`model_revision`/`failure_code`（许可有效期倒计时，心跳不续签）。`GET /api/trajectory` 给俯视页：TCP 点列、起止弦、路标、Marker 字典（绕行比、Δz）。过程页首屏按作业票展示；抓取档关闭时靠近/工具为 gated，不是已完成；其后为阶段时序（FSM/技能两列）、批次账本表（阶段耗时可展开）、感知节拍（fps/检测/分割/几何耗时、掉锚/陈旧锚）与重建进度（机位/拒帧/TF 失败/基线/许可倒计时）、系统负载与参数镜像（折叠）。机械臂硬件表订 `/joint_states`（角/速度）与 `/aubo_io_controller/joint_status`（电流 SDK 原单位/温度/跟随误差），镜像只在 Web、原始话题随 bag 录制。`POST /api/debug/<action>`：`enabled=false→503`、运动类未放行→`423`、未知端点→`404`、未知 mode/intent/command→`400`。无令牌、无 401。运动类 = RunHarvest 全部档位（含 `SURVEY_ONLY`——会 Survey 移到拍照位，09-18 收紧）、Survey、Execute 非 `PREVIEW`（`OBSERVE_ONLY` 算运动）、`go_to_photo_pose`、arm、ControlTask 的 `RESUME`/`EXIT_MAINTENANCE`。页面只暴露本管线按钮：批次 ControlTask 含 PAUSE/RESUME/SKIP_TARGET/ACK 恢复/CANCEL_NOW（PAUSE 与 CANCEL_NOW 带 `expected_state_seq=0` 不做过期拦截，其余带最新镜像 `state_seq`，过期由调度拒）；ExecuteTarget 组含 `set_execution_armed` 武装/解除（属运动类，照常 423 门）；后端端点清单见 `config/observability.yaml` 的 `debug.endpoints.*`。
 
 | 产物 | 路径 |
 |------|------|
@@ -798,3 +800,25 @@ peach `ExecuteTarget` FULL 在自适应档案上于预抓取验证后调用下�
 | `execution.follow_joint_trajectory_action` | fjt 后端动作：mock `/joint_trajectory_controller/...`；真机 `/aubo_passthrough_trajectory_controller/...` |
 
 跟随链：Δ(conj(q_ref)·q_now) → 符号映射 `follow.invert_*` → 死区 → 锥钳 → 平滑 → 目标姿态；servo 后端对当前 TF 求体轴误差按 `servo.orientation_gain` P 控制成角速度（钳 `execution.max_omega_rad_s`；位置小增益 `servo.position_gain` 防漂移，插入推进期间目标点随行程前移）；fjt 后端 `/compute_ik` + 单步钳制流式 FJT。IMU / 关节状态断流、连续 IK 失败自动 disable。参数全量：包内 `config/imu_follow.yaml`（节点，决策 0017 口径手写 `params.py`）与 `config/moveit_servo.yaml`（servo；此版参数名自带 `moveit_servo.` 前缀）。手册：[src/imu_follow/README.md](../src/imu_follow/README.md)。
+
+## 10. IVG 演示栈（2026-09-30 自 aubo_boot 移植；不进采摘）
+
+四新包 `ivg_demo_services` / `latte_backend` / `tool_changer` / `aubo_ros2_web_dashboard` + `ivg_interfaces` 扩展（+10 srv +3 msg：拉花/快换/抓取/监控族）。独立 launch 栈（入口 `scripts/start_ivg_demo.sh`，默认 mock 且默认**独立 DDS 域 96**；`io_simulated:=true` 时 IO 旁路）；FK/IK/上下电走 `aubo_dashboard /aubo/*`，IO 走 `aubo_msgs/SetIO` `/aubo_io_controller/set_io`（板载 DO）。
+
+**IVG/peach 隔离裁定（2026-09-30）**：IVG 演示资产只落 IVG 包——工具 mesh 在 `tool_changer/meshes/`、演示辅助脚本在 `ivg_demo_services/scripts/`；**不向共享包（aubo_description / aubo_e5_moveit_config / peach_*）添加任何 IVG 专有内容**；与 peach 不同域并行（peach 现役 77，演示栈 96），勿同域混跑；URDF 换装改 TF 树期间禁止 peach 预检/整栈同域启动。共享面仅限通用基础设施：bringup/moveit 控制器栈、aubo_dashboard、aubo_msgs。
+
+| 名字 | 类型 | 提供方 → 消费方 |
+|------|------|----------------|
+| `/latte/run_workflow` | `ivg_interfaces/RunLatteWorkflow` | latte_backend → Web 咖啡拉花面板/CLI |
+| `/set_latte_do2` `/set_latte_do4` | `std_srvs/SetBool` | latte_backend latte_io_node → 面板（转 SetIO pin2/4） |
+| `/latte_di_status` | `std_msgs/String`（JSON） | latte_io_node → 面板 DI 指示灯 |
+| `/run_gripper_swap` `/change_tool` `/get_current_tool` | `ivg_interfaces` 三 srv | tool_changer → Web 视觉抓取面板 |
+| `/scene_attach` `/scene_detach` `/set_display_tool` | `ivg_interfaces/ChangeTool` | tool_changer scene_attach_worker → swap worker/面板 |
+| `/tool_changer_status` | `ivg_interfaces/ToolChangerStatus` | gripper_swap_worker（5s 周期）→ scene_attach/面板 |
+| `/execute_single_grasp` | `ivg_interfaces/ExecuteGraspPose` | ivg_demo_services grasp_trigger → 面板（视觉源 `/grasp_poses_base`） |
+| `/loop_grasp_control` `/publish_grasps_worker_loop_control` | `std_srvs/SetBool` | grasp_trigger → 面板循环开关 |
+| `/move_to_pose` `/debug/move_to_xyz` | `ivg_interfaces/MoveToPose` | move_service_node → 面板手动运动 |
+| `/get_current_state` `/read_robot_io` `/set_robot_enable` `/set_speed_factor` | `ivg_interfaces` 四 srv | move_service_node → 面板/位姿轮询（500ms） |
+| `/system/node_status` `/system/log` | `ivg_interfaces/NodeStatus/SystemLog` | system_monitor_node → 面板监控/日志 |
+| 端口 **8095** | 网关（uvicorn） | aubo_ros2_web_dashboard（**8090 仍归 peach_observability**） |
+| 端口 9090 / 8765 / 8089 | rosbridge / foxglove_bridge / web_video_server | 网关上游（apt `ros-jazzy-rosbridge-suite` 等，env_bootstrap 已列） |

@@ -1,0 +1,38 @@
+# ivg_demo_services 默认参数（演示栈三节点共用骨架；launch 可覆盖）
+# 语义见包 README 的服务映射表。真机使用=操作员起 real 栈（授权语义）。
+
+move_service_node:
+  ros__parameters:
+    planning_group: "manipulator_e5"
+    home_target: "camera_pose"
+    io_simulated: false          # mock 栈无 aubo_io_controller 时置 true
+    planning_pipeline: "pilz_industrial_motion_planner"  # 本仓默认管线；Pilz 需显式 planner_id
+    planner_id: "PTP"
+    default_velocity_scaling: 0.5
+    default_acceleration_scaling: 0.5
+
+grasp_trigger_node:
+  ros__parameters:
+    planning_group: "manipulator_e5"
+    home_target: "camera_pose"
+    io_simulated: false
+    planning_pipeline: "pilz_industrial_motion_planner"
+    planner_id: "PTP"
+    grasp_poses_topic: "/grasp_poses_base"
+    egp_grasp_z_offset: 0.01
+    egp_joint_velocity_scaling: 0.7
+    egp_joint_acceleration_scaling: 0.7
+    egp_gripper_io_index: 6
+    egp_lift_offset: 0.2
+    egp_place_offset_x: -0.2
+    egp_place_offset_y: -0.2
+    egp_place_offset_z: -0.15
+    egp_cartesian_max_points: 40
+    egp_height_above: 0.05
+    egp_z_min_limit: 0.05
+    egp_wait_poses_timeout_sec: 10.0
+    egp_loop_interval_sec: 1.0
+    # 预设抓取位姿（use_visual_estimation=false 时使用）
+    egp_preset_grasp_x: 0.0
+    egp_preset_grasp_y: 0.0
+    egp_preset_grasp_z: 0.0

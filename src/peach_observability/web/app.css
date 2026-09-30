@@ -422,3 +422,11 @@ button.danger { border-color: color-mix(in srgb, var(--err) 55%, transparent); c
   .traj-body { grid-template-columns: 1fr; }
   .stage-cols { grid-template-columns: 1fr; }
 }
+
+/* 事件 severity 徽标（信息/警告/错误/审计）与启动事实摘要行（2026-09-30 观测性轮） */
+.sev-badge { font-size: 10px; line-height: 1; padding: 2px 6px; border-radius: 8px; margin-left: 6px; vertical-align: 1px; }
+.sev-badge.sev-0 { background: rgba(74, 222, 128, .16); color: var(--ok, #4ade80); }
+.sev-badge.sev-1 { background: rgba(251, 191, 36, .16); color: var(--warn, #fbbf24); }
+.sev-badge.sev-2 { background: rgba(248, 113, 113, .18); color: var(--err, #f87171); }
+.sev-badge.sev-3 { background: rgba(96, 165, 250, .16); color: var(--accent, #60a5fa); }
+#startup-facts span { font-size: 11px; color: var(--muted, #94a3b8); margin-left: 10px; white-space: nowrap; }

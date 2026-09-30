@@ -35,7 +35,8 @@ PKG_ROOT = Path(__file__).resolve().parent.parent
 WORLDS_DIR = PKG_ROOT / 'worlds'
 
 
-def generate_sdf(layout: TableLayout) -> str:
+def generate_sdf(layout: TableLayout, gravity_mps2: float = 0.0,
+                 camera_rig: bool = True) -> str:
     """渲染世界 SDF（peach_sim 风格：显式 systems 插件 + SDF 1.11）."""
     cam_xyz, cam_rpy = camera_world_pose(layout)
     table_sx, table_sy, table_sz = layout.table_size
@@ -55,15 +56,50 @@ def generate_sdf(layout: TableLayout) -> str:
   </include>''')
     includes_block = '\n'.join(includes)
 
+    camera_rig_block = '' if not camera_rig else f'''    <model name="camera_rig">
+      <static>true</static>
+      <pose>{cam_xyz[0]:.6f} {cam_xyz[1]:.6f} {cam_xyz[2]:.6f} {cam_rpy[0]:.6f} {cam_rpy[1]:.6f} {cam_rpy[2]:.6f}</pose>
+      <link name="link">
+        <inertial>
+          <mass>0.1</mass>
+          <inertia>
+            <ixx>1e-4</ixx><ixy>0</ixy><ixz>0</ixz>
+            <iyy>1e-4</iyy><iyz>0</iyz><izz>1e-4</izz>
+          </inertia>
+        </inertial>
+        <sensor name="rgbd" type="rgbd_camera">
+          <topic>camera/depth</topic>
+          <update_rate>{layout.camera_update_rate}</update_rate>
+          <camera name="rgbd">
+            <horizontal_fov>{fov_rad:.6f}</horizontal_fov>
+            <image>
+              <width>{width}</width>
+              <height>{height}</height>
+              <format>R8G8B8</format>
+            </image>
+            <clip>
+              <near>{near}</near>
+              <far>{far}</far>
+            </clip>
+            <depth_camera>
+              <output>depths</output>
+            </depth_camera>
+          </camera>
+        </sensor>
+      </link>
+    </model>
+
+'''
+
     return f'''<?xml version="1.0" ?>
 <sdf version="1.11">
   <world name="{layout.world_name}">
     <physics name="1ms" type="ignored">
       <max_step_size>{layout.physics_step}</max_step_size>
       <real_time_factor>1.0</real_time_factor>
-      <!-- 零重力：对象冻结在摆位（GT=manifest 精确一致）；抓取检测基准要
-           确定性场景，动态交互验证属后续轮 -->
-      <gravity>0 0 0</gravity>
+      <!-- 零重力=检测基准世界（对象冻结在摆位，GT=manifest 精确一致）；
+           gravity_mps2>0 生成抓取执行变体世界（对象受重力，可被夹爪搬动） -->
+      <gravity>0 0 {(-gravity_mps2) if gravity_mps2 else 0.0:.4f}</gravity>
     </physics>
     <plugin filename="gz-sim-physics-system"
             name="gz::sim::systems::Physics"/>
@@ -143,40 +179,7 @@ def generate_sdf(layout: TableLayout) -> str:
       </link>
     </model>
 
-    <model name="camera_rig">
-      <static>true</static>
-      <pose>{cam_xyz[0]:.6f} {cam_xyz[1]:.6f} {cam_xyz[2]:.6f} {cam_rpy[0]:.6f} {cam_rpy[1]:.6f} {cam_rpy[2]:.6f}</pose>
-      <link name="link">
-        <inertial>
-          <mass>0.1</mass>
-          <inertia>
-            <ixx>1e-4</ixx><ixy>0</ixy><ixz>0</ixz>
-            <iyy>1e-4</iyy><iyz>0</iyz><izz>1e-4</izz>
-          </inertia>
-        </inertial>
-        <sensor name="rgbd" type="rgbd_camera">
-          <topic>camera/depth</topic>
-          <update_rate>{layout.camera_update_rate}</update_rate>
-          <camera name="rgbd">
-            <horizontal_fov>{fov_rad:.6f}</horizontal_fov>
-            <image>
-              <width>{width}</width>
-              <height>{height}</height>
-              <format>R8G8B8</format>
-            </image>
-            <clip>
-              <near>{near}</near>
-              <far>{far}</far>
-            </clip>
-            <depth_camera>
-              <output>depths</output>
-            </depth_camera>
-          </camera>
-        </sensor>
-      </link>
-    </model>
-
-{includes_block}
+{camera_rig_block}{includes_block}
   </world>
 </sdf>
 '''
@@ -184,22 +187,32 @@ def generate_sdf(layout: TableLayout) -> str:
 
 def generate(layout_path: Optional[str] = None, jitter: bool = False,
              seed: Optional[int] = None,
-             worlds_dir: Optional[Path] = None) -> Path:
-    """生成世界 SDF + GT manifest，返回 SDF 路径."""
+             worlds_dir: Optional[Path] = None,
+             gravity_mps2: float = 0.0, out_name: Optional[str] = None,
+             camera_rig: bool = True) -> Path:
+    """生成世界 SDF + GT manifest，返回 SDF 路径.
+
+    gravity_mps2>0 时输出重力执行变体（默认出 ``<name>_grasp.sdf``，
+    不覆盖零重力检测门世界）；out_name 可显式指定输出名。
+    camera_rig=False 时不放固定相机架（腕上相机栈用，v2 真机同构）。
+    """
     layout = load_layout(layout_path)
     if jitter:
         if seed is None:
             raise SystemExit('--jitter 需要配合 --seed N（确定性复现）')
         layout = apply_jitter(layout, seed)
 
-    sdf_text = generate_sdf(layout)
+    sdf_text = generate_sdf(layout, gravity_mps2=gravity_mps2,
+                            camera_rig=camera_rig)
     world_sha256 = hashlib.sha256(sdf_text.encode('utf-8')).hexdigest()
     manifest = build_manifest(layout, world_sha256)
 
     out_dir = Path(worlds_dir) if worlds_dir else WORLDS_DIR
     out_dir.mkdir(parents=True, exist_ok=True)
-    world_path = out_dir / f'{layout.world_name}.sdf'
-    manifest_path = out_dir / f'{layout.world_name}.manifest.yaml'
+    stem = out_name or (
+        f'{layout.world_name}_grasp' if gravity_mps2 > 0 else layout.world_name)
+    world_path = out_dir / f'{stem}.sdf'
+    manifest_path = out_dir / f'{stem}.manifest.yaml'
     world_path.write_text(sdf_text, encoding='utf-8')
     manifest_path.write_text(
         yaml.safe_dump(manifest, allow_unicode=True, sort_keys=False),
@@ -216,10 +229,15 @@ def main() -> int:
                         help='对摆位做确定性随机扰动')
     parser.add_argument('--seed', type=int, default=None,
                         help='扰动种子（配合 --jitter，同 seed 同布局）')
+    parser.add_argument('--gravity', type=float, default=0.0,
+                        help='重力 m/s²（默认 0=零重力检测世界；>0 出抓取执行变体世界）')
+    parser.add_argument('--no-camera-rig', action='store_true',
+                        help='不放固定相机架（腕上相机栈：v2 真机同构 eye-in-hand）')
     args = parser.parse_args()
 
     world_path = generate(layout_path=args.layout, jitter=args.jitter,
-                          seed=args.seed)
+                          seed=args.seed, gravity_mps2=args.gravity,
+                          camera_rig=not args.no_camera_rig)
     print(f'世界已生成: {world_path}')
     print(f'GT manifest: {world_path.parent / (world_path.stem + ".manifest.yaml")}')
     return 0

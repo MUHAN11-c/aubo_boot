@@ -1,0 +1,94 @@
+{
+  "near_window_m": [
+    0.25,
+    1.3
+  ],
+  "keep_depth_m": [
+    0.55,
+    0.75
+  ],
+  "keep_width_m": [
+    0.051493124999999994,
+    0.20734874999999992
+  ],
+  "primary_dist_m": [
+    0.55,
+    0.75
+  ],
+  "views": [
+    "reference",
+    "detail",
+    "orchard"
+  ],
+  "matrix": "/home/mu/Desktop/aubo_e5_jazzy_ws/src/peach_sim/reconstruction/output/depth_pop",
+  "real_frames_sampled": 250,
+  "counts": {
+    "real": 722,
+    "sim_near": 31,
+    "sim_dropped": 419,
+    "sim_survey": 201,
+    "sim_reference_patch": 15,
+    "wrap_physical": 112,
+    "sim_near_by_kind": {
+      "primary": 31
+    },
+    "sim_near_by_view": {
+      "tgt10_v0": 4,
+      "tgt12_v0": 3,
+      "tgt16_v0": 2,
+      "tgt17_v0": 2,
+      "tgt18_v0": 2,
+      "tgt21_v0": 1,
+      "tgt29_v0": 3,
+      "tgt36_v0": 3,
+      "tgt42_v0": 3,
+      "tgt43_v0": 4,
+      "tgt48_v0": 2,
+      "tgt49_v0": 2
+    }
+  },
+  "depth_m": {
+    "real": {
+      "n": 722,
+      "p10": 0.3251,
+      "p50": 0.611,
+      "p90": 1.1277499999999998,
+      "mean": 0.6827603878116343
+    },
+    "sim_near": {
+      "n": 31,
+      "p10": 0.581960796465483,
+      "p50": 0.6392513430150218,
+      "p90": 0.6965115673471799,
+      "mean": 0.6388405505032871
+    }
+  },
+  "width_m": {
+    "real": {
+      "n": 722,
+      "p10": 0.051493124999999994,
+      "p50": 0.10929218749999997,
+      "p90": 0.20734874999999992,
+      "mean": 0.12554023329293626
+    },
+    "sim_near": {
+      "n": 31,
+      "p10": 0.07353662519447317,
+      "p50": 0.08467318409325225,
+      "p90": 0.09710035614303412,
+      "mean": 0.08541952069775753
+    },
+    "wrap_physical": {
+      "n": 112,
+      "p10": 0.08010344866337728,
+      "p50": 0.08706510523756217,
+      "p90": 0.09544324192039046,
+      "mean": 0.08759095669950431
+    }
+  },
+  "notes": [
+    "Dropped sim bags/views that do not fit PRIMARY_DIST_M depth (0.55\u20130.75 m) or real Peach_bag p10\u2013p90 apparent width, and primary views whose aimed bag is outside that depth window.",
+    "Empty 1200 reference patches are not kept. Frame 1200 MAE is not a population check.",
+    "Sim optical Z is camera-forward from Position and lookat\u2212eye."
+  ]
+}

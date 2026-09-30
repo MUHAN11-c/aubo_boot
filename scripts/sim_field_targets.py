@@ -811,7 +811,11 @@ def main() -> int:
         refined.bag_bottom = point(case['bag_bottom'])
         refined.bag_neck = point(case['bag_neck'])
         refined.translation_direction = vector(case['axis'])
-        refined.bag_diameter_upper_m = SIM_BAG_DIAMETER_M
+        # 袋径随案（与 on_decision 的 d95 同源）：refined 硬编码 0.06 会在
+        # 快照能力（袋径×D_inner 兜底）里把小袋案算成 sleeve INVALID——bite
+        # D_inner 0.030 档完整链被自身注入拒（2026-09-30 E2E 轮实测）。
+        refined.bag_diameter_upper_m = float(
+            case.get('bag_diameter_upper_m') or SIM_BAG_DIAMETER_M)
         refined.suggested_travel_m = float(case.get('travel_m') or 0.0)
         refined.confidence = 0.9
         refined.status = BagGraspCandidate.ACCEPT

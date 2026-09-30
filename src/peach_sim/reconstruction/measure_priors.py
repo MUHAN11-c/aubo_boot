@@ -9,13 +9,14 @@ Azure Kinect 彩色 RES_720P 视场 90°×59°（中国科学数据 2022, 7(4)�
 
 from __future__ import annotations
 
+import argparse
 from collections import defaultdict
 import json
 from pathlib import Path
 import xml.etree.ElementTree as ET
 
 import numpy as np
-from PIL import Image
+from PIL import Image, UnidentifiedImageError
 
 # 输出路径只从脚本自身位置派生，并显式约束在包内，不接受外部注入。
 HERE = Path(__file__).resolve().parent
@@ -76,18 +77,31 @@ def measure_split(split, limit=250):
     depth_dir = DATASET / split / 'Depth'
     ann_dir = DATASET / split / 'Annotations_VOC' / 'VOC_4label'
     names = sorted(p.name for p in ann_dir.iterdir() if p.name.endswith('.xml'))
-    step = max(1, len(names) // limit)
-    names = names[::step][:limit]
+    available = len(names)
+    if limit is not None:
+        step = max(1, len(names) // limit)
+        names = names[::step][:limit]
     by_class = defaultdict(lambda: defaultdict(list))
     gaps = []
+    skipped = []
+    readable = 0
     for name in names:
         stem = name[:-4]
         rgb_path = rgb_dir / f'{stem}.png'
         depth_path = depth_dir / f'{stem}.png'
         if not (rgb_path.exists() and depth_path.exists()):
+            skipped.append({'id': stem, 'reason': 'missing RGB or depth'})
             continue
-        rgb = np.asarray(Image.open(rgb_path).convert('RGB'))
-        depth = np.asarray(Image.open(depth_path))
+        try:
+            rgb = np.asarray(Image.open(rgb_path).convert('RGB'))
+            depth = np.asarray(Image.open(depth_path))
+        except (OSError, UnidentifiedImageError) as exc:
+            skipped.append({'id': stem, 'reason': type(exc).__name__})
+            continue
+        if rgb.shape != (H, W, 3) or depth.shape != (H, W):
+            skipped.append({'id': stem, 'reason': 'unexpected image shape'})
+            continue
+        readable += 1
         points = []
         for cls, x1, y1, x2, y2 in _boxes(ann_dir / name):
             x1, y1 = max(0, x1), max(0, y1)
@@ -135,7 +149,11 @@ def measure_split(split, limit=250):
             'depth_m': _percentiles(bucket['depth_m']),
             'rgb_median': [float(x) for x in np.median(rgb, axis=0)],
         }
-    return {'classes': summary, 'bag_nearest_gap_m': _percentiles(gaps)}
+    return {'classes': summary, 'bag_nearest_gap_m': _percentiles(gaps),
+            'annotation_frames_available': available, 'selected_frames': len(names),
+            'readable_frames': readable, 'skipped_frames': skipped,
+            'method': 'VOC box dimensions + valid central depth, not instance masks',
+            'sampling': 'full corpus' if limit is None else 'deterministic subset'}
 
 
 def measure_field():
@@ -163,6 +181,10 @@ def measure_field():
 
 
 def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--full', action='store_true',
+                        help='measure every available four-class annotation')
+    args = parser.parse_args()
     priors = {
         'camera': {
             'sensor': 'Azure Kinect DK color RES_720P, depth aligned',
@@ -178,8 +200,10 @@ def main():
             'source': '湖南省林业局桃树树形；DB41/T 1317-2016',
         },
         'splits': {
-            'Peach_bag': measure_split('Peach_bag'),
-            'Peach_nobag': measure_split('Peach_nobag', limit=120),
+            'Peach_bag': measure_split('Peach_bag', limit=None if args.full else 250),
+            'Peach_nobag': measure_split('Peach_nobag', limit=None if args.full else 120),
+            **({'Peach_young': measure_split('Peach_young', limit=None)}
+               if args.full else {}),
         },
         'field_20260909': measure_field(),
     }

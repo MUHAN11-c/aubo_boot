@@ -73,6 +73,9 @@ ROS_APT_PKGS=(
   ros-jazzy-pilz-industrial-motion-planner ros-jazzy-moveit-planners-stomp
   ros-jazzy-moveit-task-constructor-core ros-jazzy-moveit-task-constructor-msgs
   ros-jazzy-moveit-task-constructor-capabilities ros-jazzy-moveit-configs-utils
+  # IVG 演示栈 Web 控制台依赖（2026-09-30 自 aubo_boot 移植：8095 网关上游）
+  ros-jazzy-rosbridge-suite ros-jazzy-web-video-server ros-jazzy-foxglove-bridge
+  ros-jazzy-tf2-web-republisher
 )
 
 # venv 内应可导入的第三方库（requirements.txt 钉版 + ROS apt 注入的 serial/cv2 桥）

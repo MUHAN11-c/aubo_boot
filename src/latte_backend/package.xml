@@ -1,0 +1,35 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypatterns="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>latte_backend</name>
+  <version>1.0.0</version>
+  <description>
+    咖啡拉花 ROS 2 后端（2026-09-30 自 aubo_boot 移植，Jazzy 适配）：
+    5 步工作流编排（/latte/run_workflow）+ 心形轨迹纯核生成（MSLA 参数化）
+    + 奶缸嘴标定工具 + 拉花 IO 桥（DO2/DO4）。运动薄层复用 ivg_demo_services。
+    不进 peach harvest_system/lifecycle。
+  </description>
+  <maintainer email="wangxiaoyun@iscas.ac.cn">muhan11</maintainer>
+  <license>BSD-3-Clause</license>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+
+  <depend>aubo_msgs</depend>
+  <depend>geometry_msgs</depend>
+  <depend>ivg_demo_services</depend>
+  <depend>ivg_interfaces</depend>
+  <depend>rclcpp</depend>
+  <depend>std_srvs</depend>
+
+  <exec_depend>rclpy</exec_depend>
+  <exec_depend>tf2_ros</exec_depend>
+  <exec_depend>visualization_msgs</exec_depend>
+
+  <test_depend>ament_lint_auto</test_depend>
+  <test_depend>ament_lint_common</test_depend>
+  <test_depend>ament_cmake_gtest</test_depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>

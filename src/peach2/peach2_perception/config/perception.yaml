@@ -1,0 +1,90 @@
+# peach2_perception parameters. Every key is required; unknown keys are rejected at configure.
+# Topic names are fixed in the node (never parameters). Model paths: absolute, or
+# $(find-pkg-share <pkg>)/... resolved through ament_index at configure time.
+
+frame_id: base_link                     # output frame of every observation (must be base_link)
+# Frame of the registered depth / colour optical axes; K comes from the colour camera_info.
+# Empty = use the depth image header.frame_id.
+camera_frame: camera_color_optical_frame
+depth_unit_m: 0.00025                   # [m/LSB] uint16 depth; stereo front end 0.25 mm, Percipio 0.001
+min_depth_m: 0.3                        # [m] stereo z_min ~0.27 m at 62.2 mm baseline
+max_depth_m: 1.5                        # [m] beyond this the bag is background for this stack
+min_confidence: 0.5                     # 0..1 depth confidence below which a pixel is unusable
+confidence_match_tol_s: 0.005           # [s] confidence image must match the depth stamp within this
+sync_slop_s: 0.05                       # [s] ApproximateTime slop for colour / depth / camera_info
+sync_queue_size: 10
+# false = BEST_EFFORT subscriptions, which connect to both RELIABLE and BEST_EFFORT publishers
+# and never back-pressure the driver's large-image stream.
+sensor_qos_reliable: false
+tf_timeout_s: 0.2                       # [s] exact-stamp TF wait; on failure the frame is dropped
+
+depth_noise:                            # stereo disparity noise model (processing resolution)
+  baseline_m: 0.0622
+  fx_px: 549.0
+  disparity_sigma_px: 0.25
+
+surrogate_confidence:                   # used only while /camera/depth/confidence is absent
+  jump_rel_lo: 0.01                     # relative depth jump to a neighbour mapped to confidence 1
+  jump_rel_hi: 0.04                     # ... and to confidence 0 (flying pixels at depth edges)
+
+detector:
+  model_path: $(find-pkg-share peach_harvester)/model/best.pt
+  engine_path: ''                       # TensorRT .engine preferred when set and present
+  device: cuda:0
+  allow_cpu: false                      # refuse to start on CPU instead of silently degrading
+  imgsz: 640
+  half: false
+  conf: 0.35                            # single threshold; 0.25 over-detects, keep >= 0.30 (field)
+  iou: 0.5
+  class_names: [peach_bag, peach_nobag]
+  bag_class_id: 0
+  dedup_ios: 0.6                        # cross-class duplicate: intersection / smaller box
+  dedup_frag_ios: 0.2                   # fragment rule: IoS >= this and ...
+  dedup_area_ratio: 0.5                 # ... area <= this fraction of the kept box; 0 disables
+
+segmenter:
+  model_path: $(find-pkg-share peach_harvester)/model/mobile_sam.pt
+  imgsz: 1024
+  max_boxes: 16                         # outdoor scenes regularly exceed 8 bags per frame
+  box_expand_frac: 0.10                 # box prompt grows by this fraction of its size per side
+  neg_point_offset_px: 8                # negatives this far outside the expanded box corners
+  min_area_px: 100
+  depth_jump_rel: 0.03                  # depth discontinuity: |dz| > max(abs, rel * z)
+  depth_jump_abs_m: 0.01
+  seed_frac: 0.34                       # central fraction of the box that must hold the bag
+  morph_kernel_px: 5                    # elliptical open/close kernel; 0 disables
+  segment_nobag: false                  # nobag boxes are display only; skip SAM for them
+
+landmarks:
+  n_bins_2d: 20
+  n_bins_3d: 12
+  taper_ratio: 0.85
+  point_stride: 1
+  cross_check_tol_m: 0.015              # 2D ray vs 3D landmark deviation above which it is invalid
+  cross_check_inset_px: 3               # 2D bottom lies on the silhouette edge; step inside
+  backproject_win: 1
+
+tracker:
+  confirm_hits: 3
+  ttl_s: 3.0
+  gate_chi2: 11.34                      # chi2(3) 99 %
+  process_accel_sigma: 0.5
+
+stationary:
+  joint_speed_threshold_rad_s: 0.02
+  window_s: 0.2                         # every joint sample in [stamp - window, stamp] must be still
+  max_gap_s: 0.1                        # joint_states must bracket the image stamp this closely
+  buffer_s: 5.0
+
+swing:
+  window_s: 2.0
+  min_span_s: 1.0
+
+lock:
+  min_stationary_frames: 10
+  stable_s: 2.0
+  max_collect_s: 25.0
+
+debug:
+  publish_image: false
+  downscale: 0.5

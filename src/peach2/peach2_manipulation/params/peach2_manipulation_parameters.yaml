@@ -1,0 +1,383 @@
+# peach2_manipulation parameters (generate_parameter_library). Deployment values:
+# config/manipulation.yaml. Topic / service names are fixed in code, never parameters.
+# Tool geometry comes only from aubo_description/config/<tool_id>.yaml.
+peach2_manipulation:
+  tool_id:
+    type: string
+    default_value: adaptive_shear_v1
+    read_only: true
+    description: "Tool profile to load; must appear in plugin_tool_ids"
+    validation:
+      one_of<>: [["shear_v1", "bite_shear_v1", "adaptive_shear_v1"]]
+  plugin_tool_ids:
+    type: string_array
+    default_value: ["shear_v1", "bite_shear_v1", "adaptive_shear_v1"]
+    read_only: true
+    description: "tool_id -> pluginlib class mapping, keys"
+    validation:
+      not_empty<>: []
+      unique<>: []
+  plugin_classes:
+    type: string_array
+    default_value:
+      - peach2_end_effector::ShearV1
+      - peach2_end_effector::BiteShearV1
+      - peach2_end_effector::AdaptiveShearV1
+    read_only: true
+    description: "tool_id -> pluginlib class mapping, values (same length as plugin_tool_ids)"
+    validation:
+      not_empty<>: []
+  tool_description_dir:
+    type: string
+    default_value: ""
+    read_only: true
+    description: "Directory with <tool_id>.yaml; empty = share/aubo_description/config"
+  io_backend:
+    type: string
+    default_value: aubo
+    read_only: true
+    description: "aubo = aubo_io_controller SetIO/IOState; mock = simulated tool (hardware_mode:=mock)"
+    validation:
+      one_of<>: [["aubo", "mock"]]
+  io:
+    cmd_pin:
+      type: int
+      default_value: 0
+      read_only: true
+      description: "Tool DO driving the blade (SetIO fun from the tool profile)"
+      validation:
+        bounds<>: [0, 15]
+    feedback_pin:
+      type: int
+      default_value: 1
+      read_only: true
+      description: "Independent blade-closed input in IOState.tool_io_states; must differ from cmd_pin"
+      validation:
+        bounds<>: [0, 15]
+    feedback_active_high:
+      type: bool
+      default_value: true
+      read_only: true
+      description: "Input high = blade closed"
+    min_actuation_s:
+      type: double
+      default_value: 0.03
+      read_only: true
+      description: "Feedback flip faster than this after the write is treated as DO read-back [s]"
+      validation:
+        bounds<>: [0.0, 1.0]
+    max_close_energized_s:
+      type: double
+      default_value: 0.0
+      read_only: true
+      description: "Max time the close level may stay commanded; 0 disables [s]"
+      validation:
+        gt_eq<>: [0.0]
+    poll_period_s:
+      type: double
+      default_value: 0.01
+      read_only: true
+      description: "Feedback sampling period inside tool operations [s]"
+      validation:
+        bounds<>: [0.002, 0.2]
+    service_timeout_s:
+      type: double
+      default_value: 1.0
+      read_only: true
+      description: "SetIO response wait [s]"
+      validation:
+        bounds<>: [0.1, 5.0]
+    current_signature:
+      enabled:
+        type: bool
+        default_value: false
+        read_only: true
+        description: "Require the actuator current drop as second cut criterion (TODO(M0): sensor)"
+      peak_min_a:
+        type: double
+        default_value: 0.5
+        read_only: true
+        description: "Minimum closing current peak [A]"
+        validation:
+          gt<>: [0.0]
+      drop_ratio:
+        type: double
+        default_value: 0.5
+        read_only: true
+        description: "Current must fall below ratio * peak after the feedback edge"
+        validation:
+          bounds<>: [0.0, 1.0]
+      window_s:
+        type: double
+        default_value: 0.3
+        read_only: true
+        description: "Window after the feedback edge to see the drop [s]"
+        validation:
+          gt<>: [0.0]
+  require_robot_status:
+    type: bool
+    default_value: true
+    read_only: true
+    description: "Gate on /aubo_io_controller/robot_status; false only for hardware_mode:=mock"
+  robot_status_max_age_s:
+    type: double
+    default_value: 0.3
+    read_only: true
+    description: "RobotStatus older than this (receipt time) closes the gate [s]"
+    validation:
+      bounds<>: [0.05, 2.0]
+  enables_timeout_s:
+    type: double
+    default_value: 3.0
+    read_only: true
+    description: "Enables heartbeat (1 Hz) older than this = all disabled [s]"
+    validation:
+      bounds<>: [1.0, 10.0]
+  moveit:
+    group:
+      type: string
+      default_value: manipulator_e5
+      read_only: true
+      description: "MoveIt planning group"
+    tip_link:
+      type: string
+      default_value: tcp
+      read_only: true
+      description: "End-effector link planned for"
+    base_frame:
+      type: string
+      default_value: base_link
+      read_only: true
+      description: "Frame of all Cartesian goals"
+    free_pipeline:
+      type: string
+      default_value: ompl
+      read_only: true
+      description: "Planning pipeline for free-space transit"
+    free_planner_id:
+      type: string
+      default_value: RRTConnectkConfigDefault
+      read_only: true
+      description: "OMPL planner id"
+    linear_pipeline:
+      type: string
+      default_value: pilz_industrial_motion_planner
+      read_only: true
+      description: "Planning pipeline for straight TCP segments"
+    linear_planner_id:
+      type: string
+      default_value: LIN
+      read_only: true
+      description: "Pilz planner id (LIN is all-or-nothing, no partial Cartesian fraction)"
+    planning_time_s:
+      type: double
+      default_value: 2.0
+      read_only: true
+      description: "Per-plan time limit [s]"
+      validation:
+        gt<>: [0.0]
+    planning_attempts:
+      type: int
+      default_value: 3
+      read_only: true
+      description: "OMPL planning attempts"
+      validation:
+        gt_eq<>: [1]
+    cartesian_max_trans_vel_mps:
+      type: double
+      default_value: 0.25
+      read_only: true
+      description: "Pilz cartesian_limits max_trans_vel; LIN speed scaling = speed / this [m/s]"
+      validation:
+        gt<>: [0.0]
+    wait_for_servers_s:
+      type: double
+      default_value: 30.0
+      read_only: true
+      description: "on_configure waits this long for move_group action servers [s]"
+      validation:
+        gt<>: [0.0]
+    validate_stride:
+      type: int
+      default_value: 5
+      read_only: true
+      description: "Collision-check every Nth waypoint of a reversed exit (plus endpoints)"
+      validation:
+        gt_eq<>: [1]
+  speed:
+    transit_velocity_scaling:
+      type: double
+      default_value: 0.1
+      description: "OMPL transit velocity scaling"
+      validation:
+        bounds<>: [0.01, 0.5]
+    transit_acceleration_scaling:
+      type: double
+      default_value: 0.1
+      description: "Acceleration scaling for all segments"
+      validation:
+        bounds<>: [0.01, 0.5]
+    move_to_max_velocity_scaling:
+      type: double
+      default_value: 0.3
+      description: "Upper bound for MoveTo.velocity_scaling"
+      validation:
+        bounds<>: [0.01, 1.0]
+    approach_speed_mps:
+      type: double
+      default_value: 0.05
+      description: "Staging -> pregrasp LIN TCP speed [m/s]"
+      validation:
+        bounds<>: [0.005, 0.10]
+    retreat_speed_mps:
+      type: double
+      default_value: 0.03
+      description: "Fallback axial retreat LIN TCP speed [m/s]"
+      validation:
+        bounds<>: [0.005, 0.10]
+  timeouts:
+    execute_timeout_scale:
+      type: double
+      default_value: 2.0
+      description: "Execution timeout = duration * scale + margin"
+      validation:
+        gt_eq<>: [1.0]
+    execute_timeout_margin_s:
+      type: double
+      default_value: 5.0
+      description: "Execution timeout margin [s]"
+      validation:
+        gt_eq<>: [0.0]
+    stop_grace_s:
+      type: double
+      default_value: 5.0
+      read_only: true
+      description: "Wait for the controller to acknowledge a cancel before reporting [s]"
+      validation:
+        gt<>: [0.0]
+    decision_s:
+      type: double
+      default_value: 2.0
+      read_only: true
+      description: "GetDecision response wait [s]"
+      validation:
+        gt<>: [0.0]
+    confirm_margin_s:
+      type: double
+      default_value: 0.5
+      description: "Cut confirm window = profile feedback_timeout_s + margin [s]"
+      validation:
+        gt_eq<>: [0.0]
+    scene_s:
+      type: double
+      default_value: 2.0
+      read_only: true
+      description: "Get/ApplyPlanningScene wait for the neighbour-bag objects [s]"
+      validation:
+        gt<>: [0.0]
+  bag_margin_m:
+    type: double
+    default_value: 0.02
+    description: "Neighbour-bag collision cylinder radius = d95/2 + this, bottom -> neck [m]"
+    validation:
+      bounds<>: [0.0, 0.10]
+  staging:
+    distance_m:
+      type: double
+      default_value: 0.20
+      description: "Staging distance below bag bottom along -axis [m] (outside canopy)"
+      validation:
+        bounds<>: [0.15, 0.25]
+    roll_samples:
+      type: int
+      default_value: 7
+      description: "Rolls sampled inside the plugin roll interval"
+      validation:
+        bounds<>: [1, 36]
+  pregrasp:
+    lateral_tol_m:
+      type: double
+      default_value: 0.003
+      description: "Pregrasp residual normal to the bag axis [m]"
+      validation:
+        gt<>: [0.0]
+    axial_tol_m:
+      type: double
+      default_value: 0.005
+      description: "Pregrasp residual along the bag axis [m]"
+      validation:
+        gt<>: [0.0]
+    angle_tol_deg:
+      type: double
+      default_value: 2.0
+      description: "Pregrasp tilt residual [deg]"
+      validation:
+        gt<>: [0.0]
+    max_corrections:
+      type: int
+      default_value: 1
+      description: "Corrective LIN attempts before PREGRASP_RESIDUAL"
+      validation:
+        bounds<>: [0, 3]
+    model_shift_tol_m:
+      type: double
+      default_value: 0.01
+      description: "Newer model revision moving pregrasp/neck more than this = MODEL_STALE [m]"
+      validation:
+        gt<>: [0.0]
+    insert_lateral_tol_m:
+      type: double
+      default_value: 0.005
+      description: "Insert goal off the pregrasp line by more than this is rejected [m]"
+      validation:
+        gt<>: [0.0]
+  start_tolerance_rad:
+    type: double
+    default_value: 0.02
+    description: "Current joints vs trajectory start; larger deviation forces a replan [rad]"
+    validation:
+      bounds<>: [0.001, 0.2]
+  release_named_target:
+    type: string
+    default_value: harvest_stow
+    description: "SRDF group_state where the fruit is released"
+    validation:
+      not_empty<>: []
+  pregrasp_only_retreat:
+    type: bool
+    default_value: true
+    description: "MODE_PREGRASP_ONLY backs out of the canopy after verifying the pregrasp"
+  cut_retry_max:
+    type: int
+    default_value: 1
+    description: "Re-insert + cut attempts after CUT_NOT_CONFIRMED"
+    validation:
+      bounds<>: [0, 2]
+  tool_state_period_s:
+    type: double
+    default_value: 0.2
+    read_only: true
+    description: "ToolState publish / tool poll period [s]"
+    validation:
+      bounds<>: [0.02, 2.0]
+  gate_monitor_period_s:
+    type: double
+    default_value: 0.02
+    read_only: true
+    description: "Gate edge monitor period while a trajectory executes [s]"
+    validation:
+      bounds<>: [0.005, 0.1]
+  joint_states_max_age_s:
+    type: double
+    default_value: 0.5
+    read_only: true
+    description: "/joint_states older than this blocks a new trajectory [s]"
+    validation:
+      gt<>: [0.0]
+  bond_heartbeat_timeout_s:
+    type: double
+    default_value: 4.0
+    read_only: true
+    description: "bondcpp heartbeat timeout seen by nav2_lifecycle_manager [s]"
+    validation:
+      gt<>: [0.0]

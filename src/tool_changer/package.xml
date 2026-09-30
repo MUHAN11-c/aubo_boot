@@ -1,0 +1,39 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypatterns="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>tool_changer</name>
+  <version>1.0.0</version>
+  <description>
+    工具快换（2026-09-30 自 aubo_boot 移植，Jazzy 适配）：gripper_swap_worker
+    （数据驱动取/放轨迹 + RunGripperSwap/ChangeTool/GetCurrentTool 服务 + 状态发布）
+    + scene_attach_worker（AttachedCollisionObject 附着/脱离 + 前端 URDF 换装）。
+    运动薄层复用 ivg_demo_services；IO 走 aubo_io_controller；不进 peach 清单。
+  </description>
+  <maintainer email="wangxiaoyun@iscas.ac.cn">muhan11</maintainer>
+  <license>BSD-3-Clause</license>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+
+  <depend>ament_index_cpp</depend>
+  <depend>geometry_msgs</depend>
+  <depend>ivg_demo_services</depend>
+  <depend>ivg_interfaces</depend>
+  <depend>moveit_msgs</depend>
+  <depend>rclcpp</depend>
+  <depend>resource_retriever</depend>
+  <depend>shape_msgs</depend>
+  <depend>std_msgs</depend>
+  <depend>yaml-cpp</depend>
+
+  <exec_depend>aubo_msgs</exec_depend>
+  <exec_depend>moveit_configs_utils</exec_depend>
+  <exec_depend>rclpy</exec_depend>
+
+  <test_depend>ament_lint_auto</test_depend>
+  <test_depend>ament_lint_common</test_depend>
+  <test_depend>ament_cmake_gtest</test_depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>

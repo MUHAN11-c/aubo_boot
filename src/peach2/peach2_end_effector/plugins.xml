@@ -1,0 +1,14 @@
+<library path="peach2_end_effector_plugins">
+  <class type="peach2_end_effector::ShearV1"
+         base_class_type="peach2_end_effector::EndEffector">
+    <description>Scissor sleeve cutter (tool profile shear_v1).</description>
+  </class>
+  <class type="peach2_end_effector::BiteShearV1"
+         base_class_type="peach2_end_effector::EndEffector">
+    <description>Bite sleeve cutter, jaws perpendicular to the branch (bite_shear_v1).</description>
+  </class>
+  <class type="peach2_end_effector::AdaptiveShearV1"
+         base_class_type="peach2_end_effector::EndEffector">
+    <description>Axisymmetric adaptive sleeve cutter (adaptive_shear_v1).</description>
+  </class>
+</library>

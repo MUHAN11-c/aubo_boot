@@ -1,0 +1,33 @@
+# peach2_task deployment values. Declarations, bounds and defaults:
+# params/peach2_task_parameters.yaml (generate_parameter_library).
+# default_tool_id and safety.require_robot_status are set by launch (tool_profile / hardware_mode).
+peach2_task:
+  ros__parameters:
+    tick_hz: 50.0
+    empty_survey_limit: 2
+    per_target_timeout_s: 60.0
+    observe_max_views: 3
+    retry_attempts: 2
+    wait_retry_s: 5.0
+    ack_each_pregrasp: true
+    photo_pose: global_photo_pose
+    safety:
+      robot_status_max_age_s: 0.3
+    selection:
+      require_reachability: true
+      min_mask_quality: 0.3
+      min_depth_coverage: 0.3
+      depth_min_m: 0.3
+      depth_max_m: 1.6
+      height_band_m: 0.10
+    timeouts:
+      server_wait_s: 5.0
+      move_to_s: 60.0
+      snapshot_s: 15.0
+      begin_scene_s: 5.0
+      lock_wait_s: 15.0
+      reachability_s: 10.0
+      observe_s: 90.0
+      decision_s: 5.0
+      harvest_s: 180.0
+      ack_forward_s: 5.0

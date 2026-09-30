@@ -1,0 +1,30 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypatterns="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>aubo_ros2_web_dashboard</name>
+  <version>0.4.0</version>
+  <description>
+    IVG 演示栈 Web 控制台（2026-09-30 自 aubo_boot 移植，Jazzy 适配）：
+    FastAPI 网关（零 ROS 依赖纯代理，端口 8095）+ 8 个 MPA 面板
+    （机械臂手动控制/视觉抓取/咖啡拉花/调试/监控/日志/设置）。
+    经 rosbridge(9090)/foxglove(8765)/web_video(8089) 与 ROS 图交互。
+    不进 peach harvest_system/lifecycle；不是 peach_observability(8090) 的替代。
+  </description>
+  <maintainer email="wangxiaoyun@iscas.ac.cn">muhan11</maintainer>
+  <license>Apache-2.0</license>
+
+  <depend>ament_index_python</depend>
+
+  <exec_depend>foxglove_bridge</exec_depend>
+  <exec_depend>rosbridge_server</exec_depend>
+  <exec_depend>tf2_web_republisher</exec_depend>
+  <exec_depend>web_video_server</exec_depend>
+
+  <test_depend>ament_lint_auto</test_depend>
+  <test_depend>ament_lint_common</test_depend>
+  <test_depend>python3-pytest</test_depend>
+
+  <export>
+    <build_type>ament_python</build_type>
+  </export>
+</package>

@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <title>Peach v2 Observability</title>
+  <style>
+    body { font-family: system-ui, sans-serif; margin: 1.5rem; background: #0f1419; color: #e7ecf1; }
+    h1 { font-size: 1.25rem; font-weight: 600; }
+    .badge { display: inline-block; padding: 0.15rem 0.5rem; border-radius: 4px;
+             background: #1a3d2e; color: #7dffb3; font-size: 0.75rem; }
+    pre { background: #1a222c; padding: 1rem; border-radius: 8px; overflow: auto;
+          max-height: 70vh; font-size: 0.8rem; line-height: 1.35; }
+    .err { color: #ff8a80; }
+  </style>
+</head>
+<body>
+  <h1>Peach v2 <span class="badge">read-only</span></h1>
+  <p>轮询 <code>/api/state</code>（无 POST，不能触发运动或 SetIO）。</p>
+  <pre id="out">加载中…</pre>
+  <script>
+    const out = document.getElementById('out');
+    async function poll() {
+      try {
+        const res = await fetch('/api/state', { cache: 'no-store' });
+        const data = await res.json();
+        out.textContent = JSON.stringify(data, null, 2);
+        out.classList.remove('err');
+      } catch (e) {
+        out.textContent = String(e);
+        out.classList.add('err');
+      }
+    }
+    poll();
+    setInterval(poll, 1000);
+  </script>
+</body>
+</html>

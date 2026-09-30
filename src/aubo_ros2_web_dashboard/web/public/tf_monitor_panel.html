@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<link rel="icon" href="data:," />
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content" />
+<title>监控面板</title>
+<link rel="stylesheet" href="css/tokens.css" />
+<link rel="stylesheet" href="css/layout_base.css" />
+<link rel="stylesheet" href="css/components/app_shell.css" />
+<link rel="stylesheet" href="css/pages/tf_monitor_panel.css" />
+<link rel="stylesheet" href="css/components/ivg_site_nav.css" />
+<link rel="stylesheet" href="css/components/ivg_status_bar.css" />
+<script src="/js/robotwebtools/importmap.js"></script>
+</head>
+<body class="ivg-single-screen">
+
+<ivg-site-nav page="monitor"></ivg-site-nav>
+
+<main class="wrap monitor-wrap">
+
+  <!-- 末端位姿 + 关节角 两栏 -->
+  <div class="monitor-row">
+    <!-- 末端位姿 -->
+    <div class="panel monitor-panel">
+      <h2 class="monitor-panel-title">末端位姿 (TCP)</h2>
+      <table class="pose-table">
+        <tbody>
+          <tr><td>X</td><td id="pose-x">—</td></tr>
+          <tr><td>Y</td><td id="pose-y">—</td></tr>
+          <tr><td>Z</td><td id="pose-z">—</td></tr>
+          <tr><td>QX</td><td id="pose-qx">—</td></tr>
+          <tr><td>QY</td><td id="pose-qy">—</td></tr>
+          <tr><td>QZ</td><td id="pose-qz">—</td></tr>
+          <tr><td>QW</td><td id="pose-qw">—</td></tr>
+          <tr class="pose-table__divider"><td>Roll</td><td id="pose-roll">—</td></tr>
+          <tr><td>Pitch</td><td id="pose-pitch">—</td></tr>
+          <tr><td>Yaw</td><td id="pose-yaw">—</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- 关节角 -->
+    <div class="panel monitor-panel">
+      <h2 class="monitor-panel-title">关节角度</h2>
+      <table class="joint-table">
+        <thead>
+          <tr><th>关节</th><th>角度 (度)</th><th>角度 (弧度)</th></tr>
+        </thead>
+        <tbody id="joint-tbody">
+        </tbody>
+      </table>
+      <div class="btn-group btn-group--top">
+        <button class="btn btn-primary" id="btn-copy-group-state">复制为 group_state 格式</button>
+        <button class="btn btn-outline" id="btn-copy-json">复制 JSON</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 数据导出 -->
+  <div class="panel monitor-panel">
+    <h2 class="monitor-panel-title">数据记录与导出</h2>
+    <div class="btn-group btn-group--bottom">
+      <button class="btn btn-primary" id="btn-record-snapshot">记录当前快照</button>
+      <button class="btn btn-outline" id="btn-export-json">导出全部记录 (JSON)</button>
+      <button class="btn btn-outline" id="btn-export-xml">导出全部记录 (XML)</button>
+      <button class="btn btn-outline btn-danger-text" id="btn-clear-history">清空记录</button>
+    </div>
+    <div id="record-count" class="record-count">已记录: 0 条</div>
+    <div class="export-history" id="export-history">
+      <span class="monitor-muted">暂无记录，点击「记录当前快照」开始。</span>
+    </div>
+  </div>
+</main>
+
+
+<div class="toast" id="toast" aria-live="polite"></div>
+
+<script type="module" src="js/core/log-ros-bridge.js"></script>
+	<script type="module" src="js/ivg_site_nav.js"></script>
+<script type="module" src="js/tf_monitor_panel.js?v=20260506_monitor_rewrite"></script>
+<script type="module" src="js/core/ivg_status_bar.js"></script>
+</body>
+</html>

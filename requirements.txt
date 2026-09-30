@@ -68,6 +68,9 @@ six==1.17.0
 # 全新环境按本文件装会缺 fastapi → peach_executor Web 起不来） ----
 fastapi==0.101.0
 uvicorn==0.27.1
+# aubo_ros2_web_dashboard 网关 WebSocket 代理依赖（2026-09-30 移植补钉；
+# 12.0 与 aubo_boot install_requires 下限一致，legacy client API 可用）
+websockets==12.0
 pytest==7.4.4
 pytest-cov==4.1.0
 

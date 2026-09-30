@@ -5,6 +5,9 @@ import random
 import bpy
 from mathutils import Quaternion, Vector
 
+from distributions import (FRUIT_SEAT_M, fruit_center_z,  # noqa: E402,F401,I100
+                           wrap_half_at, wrap_radius)
+
 # Shared leaf meshes. Instances scale X/Z with length and Y with width.
 PROTO_LENGTH = .10
 PROTO_WIDTH = .022
@@ -52,7 +55,9 @@ def tube(name, points, radii, mat, sides=9):
             faces.append((a, b, b + sides, a + sides))
     faces.extend([tuple(reversed(range(sides))), tuple(
         range(len(verts) - sides, len(verts)))])
-    return mesh(name, verts, faces, mat)
+    obj = mesh(name, verts, faces, mat)
+    obj['tube_sides'] = sides
+    return obj
 
 
 def blade_vertices(length, width, curl, twist, droop):
@@ -60,14 +65,14 @@ def blade_vertices(length, width, curl, twist, droop):
     verts = []
     faces = []
     uv = []
-    segments = 24
+    segments = 40
     for i in range(segments + 1):
         t = i / segments
         # Narrow attached petiole, then a lanceolate, finely serrated blade.
         blade_t = max(0., (t - .08) / .92)
         w = (.00055 if t < .08 else width / 2 * max(
             .005, math.sin(math.pi * blade_t) ** .92)
-            * (1 + .018 * (-1 if i % 2 else 1)))
+            * (1 + .025 * (-1 if i % 2 else 1)))
         for j in range(5):
             s = (j - 2) / 2
             verts.append((length * t, w * s, length * curl * t * t + s * s
@@ -91,6 +96,17 @@ def _prototype_collection(mats):
         for shape, (curl, twist, droop_k) in enumerate(_SHAPES):
             verts, faces, uv = blade_vertices(
                 PROTO_LENGTH, PROTO_WIDTH, curl, twist, PROTO_LENGTH * droop_k)
+            # Paired basal glands are a botanical feature; size is inferred.
+            for side in (-1, 1):
+                center = Vector((PROTO_LENGTH * .085, side * .0008, .00025))
+                offset = len(verts)
+                directions = ((1, 0, 0), (-1, 0, 0), (0, 1, 0),
+                              (0, -1, 0), (0, 0, 1), (0, 0, -1))
+                verts.extend(tuple(center + Vector(d) * .0006) for d in directions)
+                uv.extend([(.085, .5)] * 6)
+                faces.extend(tuple(offset + j for j in f) for f in
+                             ((0, 2, 4), (2, 1, 4), (1, 3, 4), (3, 0, 4),
+                              (2, 0, 5), (1, 2, 5), (3, 1, 5), (0, 3, 5)))
             obj = mesh(f'leaf proto {material}_{shape}', verts, faces,
                        mats[f'leaf{material}'], uv)
             for owner in list(obj.users_collection):
@@ -166,17 +182,19 @@ class Leaves:
             return []
         me = bpy.data.meshes.new(f'{prefix} leaf points')
         me.from_pydata([tuple(rec[1]) for rec in self.records], [], [])
-        quats = me.attributes.new('leaf_quat', 'QUATERNION', 'POINT')
-        indexes = me.attributes.new('leaf_index', 'INT', 'POINT')
-        scales = me.attributes.new('leaf_scale', 'FLOAT_VECTOR', 'POINT')
+        me.attributes.new('leaf_quat', 'QUATERNION', 'POINT')
+        me.attributes.new('leaf_index', 'INT', 'POINT')
+        me.attributes.new('leaf_scale', 'FLOAT_VECTOR', 'POINT')
         qflat, iflat, sflat = [], [], []
         for index, _loc, quat, scale in self.records:
             qflat.extend((quat.w, quat.x, quat.y, quat.z))
             iflat.append(index)
             sflat.extend(scale)
-        quats.data.foreach_set('value', array.array('f', qflat))
-        indexes.data.foreach_set('value', array.array('i', iflat))
-        scales.data.foreach_set('vector', array.array('f', sflat))
+        # Adding attributes can invalidate earlier RNA attribute references.
+        # Resolve each attribute only after all layers have been created.
+        me.attributes['leaf_quat'].data.foreach_set('value', array.array('f', qflat))
+        me.attributes['leaf_index'].data.foreach_set('value', array.array('i', iflat))
+        me.attributes['leaf_scale'].data.foreach_set('vector', array.array('f', sflat))
         me.update()
         obj = bpy.data.objects.new(f'{prefix}/leaves', me)
         bpy.context.collection.objects.link(obj)
@@ -193,6 +211,7 @@ def paper_bag(name, rings, mat, seed=1):
     faces = []
     uv = []
     n = 64
+    filled = len(rings[0]) > 6
     folds = [(rng.uniform(-1.5, 1.5), rng.uniform(-1, 1),
               rng.uniform(.06, .16), rng.uniform(-.0008, .0008)) for _ in range(18)]
     for i, ring in enumerate(rings):
@@ -210,32 +229,57 @@ def paper_bag(name, rings, mat, seed=1):
             scale = (abs(co)**power + abs(si)**power)**(-1 / power)
             x = co * scale * w
             y = si * scale * thick * .5
+            if power < 4:
+                x *= 1 + (0. if seed % 3 == 0 else .10 if seed % 3 == 1 else .06)
             panel = x / max(w, .001)
             envelope = math.sin(math.pi * t)
             face = min(1., abs(si) / max(abs(co), 1e-8))
-            offset = 0.
-            for slope, center, spread, amplitude in folds:
-                distance = abs(panel - (center + slope * (t - .5)))
-                offset += amplitude * max(0., 1 - distance / spread)
-            # Local angular folds are sub-millimetre; no global sine-wave warp.
-            offset = max(-min(.0012, thick * .06),
-                         min(min(.0012, thick * .06), offset))
-            offset *= face * envelope
-            # Thin folded bottom seam and side fold, integrated into the closed
-            # mesh so their pixels inherit the same object/instance index.
-            seam = .0007 * math.exp(-((t - .035) / .018)**2)
-            seam *= face * envelope
-            side = .0005 * max(0., 1 - abs(abs(panel) - .94) / .06) * envelope
-            gathers = .0012 * t**8 * math.sin(9 * a + phase) * envelope
-            # Outward ribs, zero on the bottom ring. Neck creases (t>0.78)
-            # radiate from the tie and stay outside the fruit cheek.
-            rib = min(.0016, thick * .05) * math.sin(math.pi * t) * max(
-                0., math.sin(5 * a + phase))
-            neck = max(0., (t - .78) / .22)
-            crease = min(.0025, thick * .15) * neck * math.sin(8 * a + phase)
-            y += math.copysign(1, si) * (offset + seam + side + rib) + (
-                gathers + crease) * si
+            if filled:
+                # Sparse physical creases on broad paper; no inflated ribs.
+                offset = sum(amplitude * 2.4 * max(0., 1 - abs(
+                    panel - center - slope * (t - .5)) / spread)
+                    for slope, center, spread, amplitude in folds[:5])
+                fold_slope = 1.35 if seed % 2 else -1.35
+                line_distance = abs(panel - .18 * math.sin(phase) - fold_slope * (t - .45))
+                main_fold = max(0., 1 - line_distance / .22)
+                offset = max(-.0003, min(.0028, offset + .0026 * main_fold))
+                offset *= face * envelope
+                gathers = .0016 * max(0., (t - .72) / .28) * math.sin(
+                    7 * a + phase) * math.sin(math.pi * t)
+                y += math.copysign(1, si) * offset + gathers * si
+            elif power < 4:
+                # Outward-only folds preserve the fruit clearance envelope.
+                fold = .0012 * max(0., math.cos(7 * a + phase)) ** 6
+                fold *= math.sin(math.pi * t) ** 2
+                x += fold * co
+                y += fold * si
+                # Gathered neck above the fruit.
+                gathers = .0016 * max(0., t - .78)**2 * math.sin(
+                    8 * a + phase)
+                crease = .0012 * max(0., t - .86) * math.sin(6 * a + phase)
+                y += (gathers + crease) * si
+            else:
+                offset = 0.
+                for slope, center, spread, amplitude in folds:
+                    distance = abs(panel - (center + slope * (t - .5)))
+                    offset += amplitude * max(0., 1 - distance / spread)
+                offset = max(-min(.0012, thick * .06),
+                             min(min(.0012, thick * .06), offset))
+                offset *= face * envelope
+                seam = .0007 * math.exp(-((t - .035) / .018)**2)
+                seam *= face * envelope
+                side = .0005 * max(0., 1 - abs(abs(panel) - .94) / .06) * envelope
+                gathers = .0012 * t**8 * math.sin(9 * a + phase) * envelope
+                rib = min(.0016, thick * .05) * math.sin(math.pi * t) * max(
+                    0., math.sin(5 * a + phase))
+                neck = max(0., (t - .78) / .22)
+                crease = min(.0025, thick * .15) * neck * math.sin(8 * a + phase)
+                y += math.copysign(1, si) * (offset + seam + side + rib) + (
+                    gathers + crease) * si
             zz = z
+            if filled:
+                zz += .0012 * math.sin(2 * a + phase) * math.exp(-(t / .05) ** 2)
+                zz += .0007 * math.sin(5 * a + phase) * max(0., (t - .94) / .06)
             verts.append((cx + x, front + thick * .5 + y, zz))
             uv.append((j / n, t))
     for i in range(len(rings) - 1):
@@ -249,19 +293,16 @@ def paper_bag(name, rings, mat, seed=1):
     faces.extend([tuple(reversed(range(n))), tuple(
         range(len(verts) - n, len(verts)))])
     obj = mesh(name, verts, faces, mat, uv)
-    obj['geometry'] = 'closed flat paper panels; thin integrated seams and inferred microfolds'
+    obj['geometry'] = 'closed paper shell; observed folds with inferred construction'
+    obj['paper_form'] = (rings[0][6] if len(rings[0]) > 6
+                         else 'reference_visible_panel')
     obj['hidden_surface_status'] = 'thickness, creases and seam construction inferred'
-    obj['single_crease_amplitude_bound_m'] = .0008
-    obj['combined_crease_amplitude_bound_m'] = .0012
+    obj['single_crease_amplitude_bound_m'] = .0026 if filled else .0008
+    obj['combined_crease_amplitude_bound_m'] = .0028 if filled else .0012
     return obj
 
 
-# Fruit centre above the bag bottom, so a little paper remains underneath.
-FRUIT_SEAT_CLEARANCE_M = .010
-
-
-def fruit_center_z(diameter):
-    return diameter / 2 + FRUIT_SEAT_CLEARANCE_M
+FRUIT_SEAT_CLEARANCE_M = FRUIT_SEAT_M
 
 
 def _profile_width(t, controls):
@@ -292,36 +333,26 @@ def _empty_bag_rings(width, height, thickness, seed):
 
 
 def bag_rings(width, height, thickness=.055, seed=1, fruit_diameter=None):
-    """Teardrop paper around a fruit: full cheek, gathered neck, flared lip.
-
-    The 6th ring value is the superellipse power (2.3 = round cheek).
-    Without a fruit this falls back to a flat-panel envelope.
-    """
+    """Build a loose folded paper envelope with a fruit-clearance constraint."""
     if not fruit_diameter:
         return _empty_bag_rings(width, height, thickness, seed)
-    rng = random.Random(seed)
-    offset = rng.uniform(-.04, .04) * width
     fruit_r = fruit_diameter / 2
-    z_c = fruit_center_z(fruit_diameter)
-    cheek = width / 2
-    sigma = max(fruit_r * .95, .025)
-    neck_half = .008
+    clearance_r = fruit_r + .006
+    forms = ('folded_gusset', 'broad_panel', 'creased_panel')
+    power = (6., 9., 5.)[seed % 3]
+    width_controls = [(0, .88), (.08, 1.), (.38, .98), (.60, .97),
+                      (.72, .82), (.86, .27), (.93, .12), (1, .20)]
+    depth_controls = [(0, .52), (.12, 1.), (.65, 1.),
+                      (.72, .80), (.86, .30), (.93, .13), (1, .20)]
     rings = []
-    steps = 40
-    for i in range(steps + 1):
-        t = i / steps
-        z = t * height
-        if t > .92:
-            half = neck_half + (t - .92) / .08 * .012
-            power = 2.
-        else:
-            bulge = math.exp(-((z - z_c) / sigma) ** 2)
-            half = neck_half + (cheek - neck_half) * bulge
-            power = 2.15
-        dz = z - z_c
-        section = math.sqrt(max(0., fruit_r ** 2 - dz ** 2)) if abs(dz) < fruit_r else 0.
-        half = max(half, section + .006, .004)
-        # Round cross-section: a flat slab reads as a cushion.
-        thick = half * 2
-        rings.append((z, offset * (1 - t), half, -thick / 2, thick, power))
+    for i in range(49):
+        u = i / 48
+        z = u * height
+        dz = z - fruit_center_z(fruit_diameter)
+        support = math.sqrt(max(0., clearance_r ** 2 - dz ** 2))
+        half_width = max(width * .5 * _profile_width(u, width_controls), support)
+        depth_half = max(clearance_r * _profile_width(u, depth_controls), support)
+        cx = width * .02 * math.sin(seed * 1.73) * (1 - u)
+        rings.append((z, cx, half_width, -depth_half, depth_half * 2,
+                      power, forms[seed % 3]))
     return rings

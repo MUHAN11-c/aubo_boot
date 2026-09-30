@@ -1,0 +1,140 @@
+<?xml version="1.0" ?>
+<sdf version="1.11">
+  <world name="ivg_table">
+    <physics name="1ms" type="ignored">
+      <max_step_size>0.004</max_step_size>
+      <real_time_factor>1.0</real_time_factor>
+      <!-- 零重力=检测基准世界（对象冻结在摆位，GT=manifest 精确一致）；
+           gravity_mps2>0 生成抓取执行变体世界（对象受重力，可被夹爪搬动） -->
+      <gravity>0 0 -9.8100</gravity>
+    </physics>
+    <plugin filename="gz-sim-physics-system"
+            name="gz::sim::systems::Physics"/>
+    <plugin filename="gz-sim-user-commands-system"
+            name="gz::sim::systems::UserCommands"/>
+    <plugin filename="gz-sim-scene-broadcaster-system"
+            name="gz::sim::systems::SceneBroadcaster"/>
+    <plugin filename="gz-sim-sensors-system"
+            name="gz::sim::systems::Sensors">
+      <render_engine>ogre2</render_engine>
+    </plugin>
+
+    <light type="directional" name="sun">
+      <cast_shadows>true</cast_shadows>
+      <pose>0 0 3 0 0 0</pose>
+      <diffuse>0.9 0.9 0.9</diffuse>
+      <specular>0.2 0.2 0.2</specular>
+      <attenuation>
+        <range>20</range>
+        <constant>0.9</constant>
+        <linear>0.01</linear>
+        <quadratic>0.001</quadratic>
+      </attenuation>
+      <direction>-0.3 0.3 -0.9</direction>
+    </light>
+
+    <model name="ground_plane">
+      <static>true</static>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <plane>
+              <normal>0 0 1</normal>
+              <size>10 10</size>
+            </plane>
+          </geometry>
+          <surface>
+            <friction><ode><mu>1.0</mu><mu2>1.0</mu2></ode></friction>
+          </surface>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <plane>
+              <normal>0 0 1</normal>
+              <size>10 10</size>
+            </plane>
+          </geometry>
+          <material>
+            <ambient>0.6 0.6 0.6</ambient>
+            <diffuse>0.7 0.7 0.7</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="table">
+      <static>true</static>
+      <pose>0 0 0.725000 0 0 0</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box><size>0.9 0.7 0.05</size></box>
+          </geometry>
+          <surface>
+            <friction><ode><mu>1.0</mu><mu2>1.0</mu2></ode></friction>
+          </surface>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box><size>0.9 0.7 0.05</size></box>
+          </geometry>
+          <material>
+            <ambient>0.55 0.45 0.35</ambient>
+            <diffuse>0.55 0.45 0.35</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+  <include>
+    <uri>model://mustard_bottle</uri>
+    <name>obj_00_mustard_bottle</name>
+    <pose>-0.180000 0.100000 0.750000 0 0 0.349066</pose>
+  </include>
+  <include>
+    <uri>model://potted_meat_can</uri>
+    <name>obj_01_potted_meat_can</name>
+    <pose>-0.050000 -0.120000 0.750000 0 0 0.000000</pose>
+  </include>
+  <include>
+    <uri>model://pudding_box</uri>
+    <name>obj_02_pudding_box</name>
+    <pose>0.080000 0.140000 0.750000 0 0 -0.261799</pose>
+  </include>
+  <include>
+    <uri>model://gelatin_box</uri>
+    <name>obj_03_gelatin_box</name>
+    <pose>0.170000 -0.020000 0.750000 0 0 0.698132</pose>
+  </include>
+  <include>
+    <uri>model://banana</uri>
+    <name>obj_04_banana</name>
+    <pose>-0.120000 -0.180000 0.750000 0 0 1.134464</pose>
+  </include>
+  <include>
+    <uri>model://apple</uri>
+    <name>obj_05_apple</name>
+    <pose>0.050000 0.020000 0.750000 0 0 0.000000</pose>
+  </include>
+  <include>
+    <uri>model://cracker_box</uri>
+    <name>obj_06_cracker_box</name>
+    <pose>0.280000 0.180000 0.750000 0 0 0.174533</pose>
+  </include>
+  <include>
+    <uri>model://sugar_box</uri>
+    <name>obj_07_sugar_box</name>
+    <pose>-0.280000 -0.050000 0.750000 0 0 -0.523599</pose>
+  </include>
+  <include>
+    <uri>model://master_chef_can</uri>
+    <name>obj_08_master_chef_can</name>
+    <pose>0.200000 -0.160000 0.750000 0 0 0.000000</pose>
+  </include>
+  <include>
+    <uri>model://chips_can</uri>
+    <name>obj_09_chips_can</name>
+    <pose>-0.020000 0.240000 0.750000 0 0 1.570796</pose>
+  </include>
+  </world>
+</sdf>

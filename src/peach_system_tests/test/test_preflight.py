@@ -27,6 +27,7 @@ def test_preflight_patterns_cover_current_topology():
     for pattern in (
             'peach_harvester', 'peach_lifecycle_flag_bridge',
             'peach_autostart_client', 'stereo_camera_node',
+            'peach_scene_obstacles',
             'imu_follow_node', 'servo_node', 'lifecycle_manager', 'rviz2'):
         assert pattern in PREFLIGHT_PATTERNS, pattern
 

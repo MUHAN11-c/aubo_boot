@@ -1,0 +1,25 @@
+# Error constants for bite_shear_v1 (single source; consumed by peach2_core.tool.load_tool_calibration).
+# status: design_reference -> cut_allowed is always false (BUDGET_STRUCTURAL / calibration_pending)
+# until the M0 bench replaces every value below and sets status: calibrated.
+# Initial values copied from src/aubo_description/config/bite_shear_v1.yaml (v1.2):
+#   w_capture_m <- geometry_m.blade_capture_half_width (nominal; the 220 mm throat guide may
+#                  widen the real capture band to >= 15 mm, bench scan +-20 mm required)
+#   e_blade_m   <- error_m.blade_plane_calibration_error95
+#   e_robot_m   <- error_m.robot_axial_error95
+#   e_tcp_m     <- error_m.tcp_calibration_error95
+#   e_handeye_m <- error_m.hand_eye_error95
+#   e_runout_m  <- error_m.tool_runout95
+#   c_wall_m    <- geometry_m.wall_clearance
+#   fruit_clearance_m <- geometry_m.fruit_safety_clearance
+# All values are 95% bounds in metres.
+tool_id: bite_shear_v1
+status: design_reference
+source: aubo_description/config/bite_shear_v1.yaml v1.2 (design reference, not measured)
+w_capture_m: 0.008
+e_blade_m: 0.003
+e_robot_m: 0.002
+e_tcp_m: 0.005
+e_handeye_m: 0.003
+e_runout_m: 0.001
+c_wall_m: 0.002
+fruit_clearance_m: 0.012

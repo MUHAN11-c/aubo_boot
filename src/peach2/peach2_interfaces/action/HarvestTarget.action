@@ -1,0 +1,14 @@
+# /peach/manipulation/harvest_target : one full MTC cycle for one target.
+uint8 MODE_PREGRASP_ONLY=0
+uint8 MODE_FULL=1
+
+string request_id
+string target_id
+string tool_id
+uint8 mode
+---
+HarvestResult result
+---
+string stage
+uint8 stage_index
+float64 elapsed_s

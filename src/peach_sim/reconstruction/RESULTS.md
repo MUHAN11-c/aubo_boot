@@ -183,14 +183,14 @@ foliage-daylight-v1，不能作为 groundcover-v2 的完整矩阵验收。
 来源校验、重渲染和对照板四个文件通过 ament_flake8。全包 pytest 的 flake8、
 pep257 门仍失败，不能宣称全包测试通过。
 
-人工复核产物：`output/modeling_20260929/before_after.jpg`、
-`output/modeling_20260929/lighting_comparison.jpg`、`output/appearance_board.jpg`。
+人工复核产物（当时落在 `output/modeling_20260929/`，该中间目录已清）：
+`output/appearance_board.jpg`；当轮 lighting 对照板未迁入现行 `output/` 根。
 实拍水印仅出现在对照源图，未作为模型纹理。纸袋微褶皱、叶面细节仍有合成感，
 外围环境较空、无地形测量和风致形变；这些是后续建模工作，不以检出率掩盖。
 
 ## 轮次 2026-09-29 傍晚：canopy-v4
 
-产物 `output/modeling_20260929/canopy_v4/{validation,field}`（48 samples，
+产物当时 `output/modeling_20260929/canopy_v4/{validation,field}`（目录已清；48 samples，
 1280×720，noon）。本轮未重跑矩阵、未改冻结基线。
 
 - 叶色：叶像素色度/明度 v3 0.67 → v4 0.50（validation 近景）/0.41（field
@@ -206,7 +206,7 @@ pep257 门仍失败，不能宣称全包测试通过。
 
 ## 轮次 2026-09-29 傍晚：fruit-bag-v5
 
-产物 `output/modeling_20260929/fruit_v5/{validation,field}`（48 samples，
+产物当时 `output/modeling_20260929/fruit_v5/{validation,field}`（目录已清；48 samples，
 1280×720，noon）。未重跑矩阵，未改冻结基线。
 
 - 果：validation 112 颗、field 395 颗。横径 p10/p50/p90 = 6.7/7.3/8.1 cm
@@ -229,7 +229,7 @@ pep257 门仍失败，不能宣称全包测试通过。
 矩阵用 `fruit_v5/validation/bagged_peach_orchard.blend`（revision
 `2026-09-29-fruit-bag-v5`），`--samples 24 --subset-per-level 20`，与上一轮
 冻结时的规模相同：5 光照 × 213 视 = 1065 帧，81.3 分钟，退出码 0。
-帧在 `output/modeling_20260929/fruit_v5/matrix/`（gitignore，9.1 GB）。
+帧当时在 `output/modeling_20260929/fruit_v5/matrix/`（gitignore，已清）。
 摘要已拷到 `output/matrix_{summary,report,trajectory,render_times}.*`。
 `output/` 验证场契约（blend、清单、三锚定图、几何/感知门产物）已换成这一版。
 
@@ -241,3 +241,184 @@ pep257 门仍失败，不能宣称全包测试通过。
 - 旧基线属于 foliage-daylight，袋形和果径已变，不拿来比回归。按协议重冻结
   `baselines/perception_matrix_baseline.json`（50 格，容差 0.05），
   `--gate` 对当轮 summary 逐格通过。
+
+## 轮次 2026-09-30：fruit-wrap-v6
+
+产物 `output/` 验证场（48 samples，1280×720，noon），revision
+`2026-09-30-fruit-wrap-v6`。对照板
+`output/before_after.jpg`（左 v5 空枕头，右 v6 纸贴果）。
+未重跑矩阵，未改冻结基线。
+
+- 根因：v5 `cheek = Peach_bag 框宽/2`，中位袋宽 14.3 cm、果径 7.3 cm，再加
+  袋底锥尖，侧视是空枕头+鸟嘴。现场 `bottom_to_neck` p50 7.0 cm ≈ 果径。
+- 推断袋 112 个 `dimension_fit=fruit_wrap`：宽 p10/p50/p90 = 7.7/8.7/9.9 cm，
+  高 8.2/9.2/10.5 cm，果径 6.6/7.3/8.2 cm。纸面间隙 4.9–5.0 mm。
+  9 个 RGB-D 参考袋仍无内果（深度锚是纸面）。
+- 几何门：121 袋、1,071,280 顶点、`errors=[]`。
+- 感知（YOLO `best.pt` + MobileSAM，conf .25，IoU.5；分母含远小目标）：
+
+  | 机位 | 可见 GT | 匹配 | recall | precision | 近袋 ≥2000 px |
+  |------|--------|------|--------|-----------|----------------|
+  | reference | 22 | 9 | 0.41 | 0.90 | 参考空袋 9/9，SAM 中位 0.97 |
+  | detail | 18 | 5 | 0.28 | 1.00 | 裹果袋 4/4，SAM 中位 0.94 |
+  | orchard | 6 | 0 | 0 | — | 无近袋（远景过小） |
+
+  近袋才是外形验收：特写三颗圆裹果判 `peach_bag`（0.70–0.80），SAM 贴球面
+  （0.83 / 0.94 / 0.98）。全图 recall 被远小目标拉低，不说明近袋失败。
+  detail 另有 3 个 `peach_nobag`（远处圆团）。叠加
+  `output/{reference,detail,orchard}_{detection,segmentation}.jpg`，
+  拼板 `output/perception_board.jpg`。`detail` 机位已改，不能拿 v5 特写 11/32 比回归。
+- 深度：单帧 1200 配准已从产物里去掉（`depth_comparison.jpg` 已删）。总体对照
+  `output/dataset_depth_comparison.jpg`：实拍 n=722；仿真只留瞄准袋在
+  0.55–0.75 m 且表观宽在实拍 p10–p90 内的近距袋（**留下 31，丢掉 419**，
+  含后退超窗的机位、邻袋过远、1200 空参考袋）。
+
+  | 量 | 实拍 p10/p50/p90 | 仿真留下 | 说明 |
+  |----|------------------|----------|------|
+  | 光轴深 | 0.33 / 0.61 / 1.13 m | n=31：0.58 / 0.64 / 0.70 m | 后退超窗的视已丢，中位对齐 |
+  | 表观宽 | 5.1 / 10.9 / 20.7 cm | n=31：7.4 / 8.5 / 9.7 cm | 贴果纸；不是实拍框，不能再滤掉 |
+
+  纸宽 112 袋 8.0 / 8.7 / 9.5 cm，与留下的表观宽同量级。
+- 回归：`test_reconstruction_core.py` 含 `ConformingSimTests`；`check_modeling_blender` 6/6。
+
+## 轮次 2026-09-30：leaf-orientation-v7
+
+现行验证场 `output/`，48 samples、1280×720、noon；同机位 v6/v7 对照
+`output/before_after.jpg`。本轮未重跑完整 1065 帧矩阵，未修改冻结基线。
+
+- 根因：`Leaves.finish` 保存旋转与原型编号的 RNA 属性引用后继续新增属性，
+  旧引用失效；旋转保持单位四元数、原型编号保持 0。最终实例全部朝 +X，
+  只使用一个原型。全部属性建完后按名重新取得引用再写入，三方向实际实例
+  矩阵与所选原型均正确。既有叶片方向采样、长度、宽度、叶数保持原值。
+- 验证场：121 袋、112 个袋内成熟桃子、1,071,280 顶点；几何门 errors=[]，
+  最小纸面间隙 4.893 mm。套袋里有桃子；9 个 RGB-D 参考袋只建可见纸面，
+  内部未建模不代表实际内部为空。此前结果中的“空参考袋”仅指缺内部模型，
+  此表述不再使用。
+- 同机位感知（conf .25、IoU .5）：reference 9/13、detail 2/8、orchard 1/4，
+  precision 均为 1.0。叶片恢复真实姿态改变遮挡，detail 匹配数较 v6 的 5
+  降到 2；GT 分母也变，不能只看 recall 判断外观改善。SAM 仍为 GT 框提示。
+- 回归：新增最终实例测试先失败（方向点积 0），修复后 Blender 7/7；
+  reconstruction pytest 25/25；colcon test peach_sim 29 通过、2 失败，
+  失败为既有 test_flake8（222 条）及 test_pep257（43 条），不宣称全包通过。
+- 来源核对：Blender 4.5 API/节点文档及 v4.5.3 的 rna_attribute.cc、
+  node_geo_input_named_attribute.cc、node_geo_mesh_to_points.cc、
+  node_geo_instance_on_points.cc；以本机 4.5.14 实际实例矩阵为复现依据。
+- 历史产物边界：matrix_* 与基线仍属 v5；dataset_depth_comparison.* 仍属 v6。
+  v7 的完整多视和总体深度尚未复测，不混用历史数字证明当前版通过。
+
+整园同版复验：395 袋、395 个内部成熟桃子、2,846,655 顶点；几何门 errors=[]，
+最小纸面间隙 4.801 mm。与验证场 source_sha256 逐项一致；
+产物更新到 output/field_anchor。感知：orchard 0 GT/0 匹配（远景过小），
+aisle 1/7（3 个检测框，precision 1/3）。这不是通过完整矩阵门。
+
+最终复核：回归文件既有缩进项修正后单文件 flake8 通过；再次 colcon test
+仍为 29 通过、2 失败（flake8 221 条，pep257 43 条）。两份模型源码/模型/
+全部锚定渲染哈希核对通过。本轮 Blender 与评测进程全部退出，重复中间目录已清。
+收尾发现另一个会话启动了 ivg_sim ROS 进程，本轮未启动或终止该会话。
+
+
+## 轮次 2026-09-30：real-features-v8
+
+用户要求全量参考真实数据、完善树/枝/叶/套袋桃子并逐项核验。本轮完全离线，
+未启动ROS或真机，未动驱动栈。现行验证场和整园revision均为
+`2026-09-30-real-features-v8`。
+
+- 全量审计本机3627帧（bag2050/nobag577/young1000），14498现存
+  RGB/Depth/IR/VOC4文件逐一哈希，所有RGB做一致缩略像素代理统计。
+  bag Depth/1397.png损坏、nobag Depth/233.png全零、nobag缺10个VOC4
+  标注均显式记录，不补造。全量先验：bag2049/nobag567/young1000可读帧，
+  bag无遮挡class0有效框观察6014，nobag无遮挡class0有效尺寸676。
+  这些是重复视图下框观察，不是独立果实数，也不是实例完整三维测量。
+- 纠正旧轮的类别解释：作者0/1/2/3是无遮挡/叶遮挡/枝遮挡/果遮挡，
+  不是大小或成熟度；旧class1“成熟果”解释不再成立。当前取class0的
+  p50–p90果径作为显式“成熟段”假设，970kg/m³仍为假设密度。
+- 树：主枝根沿上段树干错层，次枝/梢逐级渐细；灰粗皮与红绿嫩枝。
+  整园独立验收曾发现73个主枝比母干粗：冠幅1.5放大了length和radius，
+  没有同步改变trunk。新增crown1.5实际网格测试先失败，修复按连接段
+  实际母径将主枝root限制为92%，保持冠幅表达；验收阈值未放宽。
+- 叶：20共享原型，尖端/细锯齿/主侧脉/短柄/两叶基腺体，卷边与垂曲；
+  姿态在局部枝轴中生成，节位有界抖动。腺体大小、叶序/节距分布为推断。
+- 袋：round_wrap / folded_panel_wrap / soft_fold_wrap，保留桃子体积，
+  增加较直纸面、折角、平底和不规则褶皱。三个果径×三袋形实际BVH
+  检查果心在内、保守包络间隙及网格封闭；不缩果来迁就纸袋。
+- 内果：红黄皮、角度边界连续果缝、向内柄窝；梗根贴实际网格极点，
+  另一端到袋颈，实际表面/端点验收。9个RGB-D参考袋只建可见纸面；
+  内部未观测/未建模不表示实际袋内为空。
+
+保存网格最终结果（验收直接读取.blend轴环、顶点及evaluated叶实例）：
+
+| 场景 | 树 | 非trunk分枝 | 叶实例 | 套袋/内果 | 顶点 | 最小保守纸果间隙 |
+|---|---:|---:|---:|---:|---:|---:|
+| 验证场 | 9 | 2205 | 27357 | 121/112 | 1,076,240 | 4.459mm |
+| 整园 | 24 | 11326 | 157335 | 395/395 | 2,856,235 | 4.310mm |
+
+验证场errors=[]，最大枝根贴轴误差1.547µm，最大子/母径比0.915651；三纸形数量{'soft_fold_wrap': 37, 'folded_panel_wrap': 37, 'round_wrap': 38}。
+
+整园errors=[]，最大枝根贴轴误差6.074µm，最大子/母径比0.920004；三纸形数量{'soft_fold_wrap': 133, 'folded_panel_wrap': 130, 'round_wrap': 132}。
+
+当前版感知（conf.25、IoU.5，SAM使用GT框提示）：
+
+| 场景/机位 | 可见GT | 匹配 | 检测框 |
+|---|---:|---:|---:|
+| 验证场/reference | 15 | 9 | 9 |
+| 验证场/detail | 3 | 2 | 3 |
+| 验证场/orchard | 4 | 1 | 1 |
+| 整园/orchard | 0 | 0 | 0 |
+| 整园/aisle | 7 | 2 | 2 |
+
+- 逐项真实对照`output/real_feature_comparison.jpg/json`包含真实来源hash、
+  全帧像素代理分布、当前实际几何报告和隔离渲染出处。板上是不同树/机位，
+  不是配准误差评测；绿色像素含草/背景，黄水印排除仅近似，不是叶面积。
+  `feature_details/`独立诊断只在内存隐藏其他物体，未修改保存模型。
+  目检确认三纸形差异、叶尖/柄/齿缘和粗主枝→细梢层级；仍不是照片级验收。
+- 五光照×三锚定共15视角，同一验证模型、48samples、1280×720；
+  每个RGB/Depth/IndexOB/Position、模型、源码及感知manifest哈希核对。
+  光照板/统计为`output/lighting_board.jpg`及`lighting_validation.json`。
+  `before_after.jpg`同机位v7/v8；`appearance_board.jpg`包含同版整园。
+- 回归：纯核pytest31/31；Blender主11/11（含冠幅失败→修复），
+  独立验收行为3/3（故意移动枝根/梗能失败）。本轮8个新/回归文件
+  ament_flake8与pep257通过。全包colcon仍29通过、2失败：flake8 215条、
+  pep257 43条，不宣称全包全绿。
+- 未重跑1065帧完整矩阵，不改基线；matrix_*仍v5、总体深度对照仍v6，
+  不能作为当前版通过。隐藏冠结构/枝龄/枝领/芽与剪痕、叶序分布、纸背与
+  纸厚、内部果面均非逐树实测；未证明全部枝叶/袋间无碰撞或物理真实性。
+- 原始保存网格报告保留执行时输入路径；发布文件与执行输入逐字节hash一致。
+  本轮生成、验收和渲染子程序均完成退出；不终止其他会话ROS进程。
+
+最终独立实拍比较复核：稳定目录的6项几何关联齐全，validation/field保存模型、
+六项隔离图、全部锚定渲染与5张实拍来源哈希一致。仍有纸褶较规则、纸色与
+成熟桃局部红晕比实拍均匀的差异，不宣称照片级一致。field/aisle绿色像素代理
+0.338；实拍bag全帧p10/p50/p90为0.004/0.154/0.487，仅报告代理，不设虚假
+“真实通过”阈值。本轮重复中间目录已清理，稳定发布模型与证据保留，程序无残留。
+
+
+## 轮次 2026-09-30：bag-paper-v9
+
+用户明确只需要套袋桃子，并反馈 v8 套袋观感退步。本轮先比较旧图、
+v8 与 Peach_bag：v8 内果约束把纸袋变成紧贴果实的球壳，袋尺寸采样
+忽略实拍统计；几何细褶与高强度 bump 叠加，特写也有叶片遮挡。
+
+- 保留 v8 原内果、果缝、果梗及已修复的树/叶结构；重新消费实拍袋宽高
+  分位，随后用明确的推断上下界保证余量。未通过缩小桃子消除穿袋。
+- 外袋采用宽纸面、折角和平底余量、少量主折痕与收口；降低纸纹 bump
+  高度/强度和大色斑反差。三种袋形为 folded_gusset / broad_panel /
+  creased_panel。尝试整面 flat shading 产生三角面伪影，已撤销。
+- 九点实际 ray_cast 选择主体可见的特写，不删除枝叶；这不是精确可见
+  面积指标，仍有树叶投影。主展示导出三种完整套袋资产，只改变摆放
+  姿态，保留原网格、内果、果梗与扎丝，不显示裸果/叶片/骨架隔离图。
+- 独立资产闭合且包容内果，最小保守间隙 4.087 mm；资产模型约 5.1 MB。
+- 纯核 31/31、Blender 主回归 12/12、独立验收行为 3/3。包级 colcon
+  29 项通过、2 项 lint 失败（214 条 flake8、42 条 pep257），不能声称
+  包级全绿。新导出/套袋诊断/对照脚本独立 lint 通过。
+
+实拍框与深度统计约束外形分布；隐藏袋背面、内部形态、真实折纸工艺
+未测得，仍属推断。纸色和褶皱尚有合成感，不宣称照片级一致。
+完整 1065 视角矩阵仍为 v5、总体深度对照仍为 v6，本轮没有将它们
+冒充 v9 验收。同机位 75 mm 内果小样见 bag_before_after.jpg，手选
+袋尺寸仅用于解释余量变化，不能作为实拍尺寸拟合通过的证据。
+
+最终发布：validation/field 保存网格两项验收通过，5 光照×3 锚定图
+均为 v9 同版模型，逐视角 RGB/EXR/模型哈希与感知报告关联通过。
+套袋独立资产导出工具、模型与 PNG 哈希复验一致；实拍逐项对照仅
+三种袋形和带袋果园。中间模型发布为稳定路径的相同字节后清理。
+实拍对照可见模型折角/颈肩仍偏规整、纸面损伤不足；不设虚假观感通过阈值。

@@ -1,0 +1,9 @@
+# peach2_observability — deployment values (loaded via config_file param).
+peach2_observability:
+  host: 127.0.0.1
+  port: 8091
+  runs_root: ''
+  session_bag:
+    enabled: false
+    sigint_timeout_s: 15.0
+    term_timeout_s: 5.0

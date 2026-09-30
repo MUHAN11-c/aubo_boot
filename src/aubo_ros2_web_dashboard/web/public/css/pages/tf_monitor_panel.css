@@ -1,0 +1,207 @@
+/* tf_monitor_panel.css — TF/状态监控页面覆盖 */
+
+@layer pages {
+
+body.ivg-single-screen .monitor-wrap {
+  display: block;
+  overflow: auto;
+  padding-bottom: max(1rem, env(safe-area-inset-bottom, 0px));
+}
+
+.monitor-panel-title {
+  font-size: 1rem;
+  color: var(--text-muted);
+  margin: 0 0 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.monitor-row {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.monitor-row > * {
+  flex: 1;
+  min-width: 280px;
+}
+
+.monitor-panel {
+  padding: 1.05rem 1.25rem;
+  margin-bottom: 1rem;
+  background:
+    linear-gradient(180deg, var(--surface-panel-strong), var(--surface-panel)),
+    var(--surface-glass);
+}
+
+.pose-table,
+.joint-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+  background: rgba(255,255,255,0.38);
+  border-radius: var(--radius-sm);
+}
+
+.pose-table td {
+  padding: 0.32rem 0;
+}
+
+.pose-table td:first-child {
+  color: var(--text-muted);
+  width: 5.6rem;
+}
+
+.pose-table td:last-child,
+.joint-table td:last-child,
+.joint-table td:nth-child(3) {
+  font-family: "Noto Sans Mono", "DejaVu Sans Mono", ui-monospace, Consolas, monospace;
+}
+
+.pose-table__divider td {
+  border-top: 1px solid var(--line-robot);
+}
+
+.joint-table th {
+  text-align: left;
+  color: var(--text-muted);
+  font-weight: 700;
+  padding: 0.25rem 0;
+  border-bottom: 1px solid var(--line-robot);
+  font-size: 0.8rem;
+}
+
+.joint-table td {
+  padding: 0.38rem 0;
+  border-bottom: 1px solid rgba(62, 90, 115, 0.12);
+}
+
+.btn-group {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.btn-group--top {
+  margin-top: 0.75rem;
+}
+
+.btn-group--bottom {
+  margin-bottom: 0.65rem;
+}
+
+.btn-danger-text {
+  color: var(--red);
+}
+
+.toast {
+  position: fixed;
+  bottom: calc(1.5rem + env(safe-area-inset-bottom, 0px));
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--surface-robot-dark);
+  color: #fff;
+  padding: 0.65rem 1.25rem;
+  border-radius: var(--radius);
+  font-size: 0.85rem;
+  z-index: 999;
+  opacity: 0;
+  transition: opacity 0.25s;
+  pointer-events: none;
+  box-shadow: var(--shadow-lg);
+}
+
+.toast.show {
+  opacity: 1;
+}
+
+.export-history {
+  max-height: 260px;
+  overflow-y: auto;
+  margin-top: 0.65rem;
+  font-size: 0.78rem;
+  font-family: "Noto Sans Mono", "DejaVu Sans Mono", ui-monospace, monospace;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.72), rgba(244,247,248,0.88)),
+    var(--soft-grain);
+  background-size: auto, 38px 38px, 54px 54px;
+  border: 1px solid rgba(62, 90, 115, 0.1);
+  border-radius: var(--radius-sm);
+  padding: 0.5rem 0.75rem;
+}
+
+.export-history .entry {
+  padding: 0.25rem 0;
+  border-bottom: 1px solid rgba(62, 90, 115, 0.1);
+}
+
+.export-history .entry:last-child {
+  border: none;
+}
+
+.entry-name-row {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.record-name {
+  color: #2563eb;
+  font-weight: 600;
+  cursor: pointer;
+  user-select: none;
+}
+
+.record-name:hover {
+  text-decoration: underline;
+}
+
+.record-name-edit {
+  font-size: 0.78rem;
+  padding: 0.06rem 0.38rem;
+  border: 1px solid #2563eb;
+  border-radius: 3px;
+  outline: none;
+  background: #eef2ff;
+  color: var(--text);
+  font-family: inherit;
+  min-width: 5rem;
+}
+
+.entry-info,
+.monitor-muted {
+  color: var(--text-muted);
+}
+
+.entry-info {
+  font-size: 0.72rem;
+  padding-left: 0;
+}
+
+.record-delete-btn {
+  font-size: 0.7rem;
+  padding: 0 0.38rem;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--red);
+  cursor: pointer;
+  line-height: 1.4;
+  opacity: 0.55;
+  transition: opacity 0.15s, border-color 0.15s, background 0.15s;
+}
+
+.record-delete-btn:hover {
+  opacity: 1;
+  border-color: #fecaca;
+  background: #fef2f2;
+}
+
+.record-count {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  margin-bottom: 0.4rem;
+}
+
+}

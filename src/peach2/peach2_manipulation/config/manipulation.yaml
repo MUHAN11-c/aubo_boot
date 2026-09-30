@@ -1,0 +1,67 @@
+# peach2_manipulation deployment values. Declarations, ranges and descriptions:
+# params/peach2_manipulation_parameters.yaml. tool_id / io_backend / require_robot_status are
+# overridden by the launch file from tool_profile and hardware_mode.
+# Execution, grasp and tool permissions are NOT parameters: they arrive on /peach/enables
+# (default all false => plan-only).
+peach2_manipulation:
+  ros__parameters:
+    tool_id: adaptive_shear_v1
+    io_backend: aubo
+    io:
+      cmd_pin: 0
+      feedback_pin: 1
+      feedback_active_high: true
+      min_actuation_s: 0.03
+      max_close_energized_s: 0.0
+      poll_period_s: 0.01
+      service_timeout_s: 1.0
+      current_signature:
+        enabled: false
+    require_robot_status: true
+    robot_status_max_age_s: 0.3
+    enables_timeout_s: 3.0
+    moveit:
+      group: manipulator_e5
+      tip_link: tcp
+      base_frame: base_link
+      free_pipeline: ompl
+      free_planner_id: RRTConnectkConfigDefault
+      linear_pipeline: pilz_industrial_motion_planner
+      linear_planner_id: LIN
+      planning_time_s: 2.0
+      planning_attempts: 3
+      cartesian_max_trans_vel_mps: 0.25
+      wait_for_servers_s: 30.0
+      validate_stride: 5
+    speed:
+      transit_velocity_scaling: 0.1
+      transit_acceleration_scaling: 0.1
+      move_to_max_velocity_scaling: 0.3
+      approach_speed_mps: 0.05
+      retreat_speed_mps: 0.03
+    timeouts:
+      execute_timeout_scale: 2.0
+      execute_timeout_margin_s: 5.0
+      stop_grace_s: 5.0
+      decision_s: 2.0
+      confirm_margin_s: 0.5
+      scene_s: 2.0
+    bag_margin_m: 0.02
+    staging:
+      distance_m: 0.20
+      roll_samples: 7
+    pregrasp:
+      lateral_tol_m: 0.003
+      axial_tol_m: 0.005
+      angle_tol_deg: 2.0
+      max_corrections: 1
+      model_shift_tol_m: 0.01
+      insert_lateral_tol_m: 0.005
+    start_tolerance_rad: 0.02
+    release_named_target: harvest_stow
+    pregrasp_only_retreat: true
+    cut_retry_max: 1
+    tool_state_period_s: 0.2
+    gate_monitor_period_s: 0.02
+    joint_states_max_age_s: 0.5
+    bond_heartbeat_timeout_s: 4.0

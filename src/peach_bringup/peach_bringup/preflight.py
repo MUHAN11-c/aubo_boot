@@ -29,6 +29,7 @@ PREFLIGHT_PATTERNS = (
     'extrinsics_publisher',
     'serial_imu_node',
     'stereo_camera_node',
+    'peach_scene_obstacles',
     'imu_follow_node',
     'servo_node',
     'rviz2',

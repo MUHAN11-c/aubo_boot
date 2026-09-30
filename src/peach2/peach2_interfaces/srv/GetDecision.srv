@@ -1,0 +1,7 @@
+# /peach/target_model/get_decision : latest decision for target x tool.
+string target_id
+string tool_id
+uint64 min_model_revision    # 0 = any; otherwise reject older models
+---
+bool found
+GraspDecision decision

@@ -1,7 +1,9 @@
 # ivg_interfaces
 
 旁路视觉抓取（IVG）栈的唯一 IDL 包：模板估姿服务族的 `.srv` 与笛卡尔位姿
-`.msg` 定义。**不含机械臂/IO/相机触发服务，不进 peach 接口清单。**
+`.msg` 定义，加上 2026-09-30 自 aubo_boot 移植的**演示栈 IDL**（拉花/快换/
+抓取/监控）。**机械臂 FK/IK/IO/急停走 `aubo_msgs` 不在此重复，不进 peach
+接口清单。**
 
 ## 谁发谁订
 
@@ -10,6 +12,11 @@
 | `srv/EstimatePose` | `ivg_pose_estimation` 节点（服务名 `estimate_pose`，根命名空间） | `ivg_pose_estimation` Web 桥（`algorithm_http_server_node`）、上位机 |
 | `srv/EstimatePose2D` | 同上（`estimate_pose_2d`） | 同上 |
 | `srv/ListTemplates` / `srv/StandardizeTemplate` / `srv/UpdateParams` | 同上 | Web 桥（模板管理/调参面） |
+| `srv/RunLatteWorkflow` | `latte_backend`（`/latte/run_workflow`） | Web 咖啡拉花面板 / CLI |
+| `srv/RunGripperSwap` / `srv/ChangeTool` / `srv/GetCurrentTool` | `tool_changer`（`/run_gripper_swap` `/change_tool` `/get_current_tool`） | Web 视觉抓取面板 / 调度脚本 |
+| `srv/ExecuteGraspPose` | `ivg_demo_services`（`/execute_single_grasp`） | Web 视觉抓取面板 / 抓取循环器 |
+| `msg/ToolChangerStatus` | `tool_changer` 发布（`/tool_changer_status`） | `tool_changer/scene_attach_worker`、Web 面板 |
+| `msg/NodeStatus` / `msg/SystemLog` | `ivg_demo_services/system_monitor_node` 发布（`/system/node_status` `/system/log`） | Web 监控/日志面板 |
 
 `msg/CartesianPosition`：base 系笛卡尔位姿容器（位置+四元数+RPY+关节值，
 弧度制），仅被 `EstimatePose` 响应嵌用。

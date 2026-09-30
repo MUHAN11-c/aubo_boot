@@ -1,0 +1,23 @@
+# /peach/task/run_batch : operator-initiated batch. Never sent by launch.
+uint8 INTENT_SURVEY_ONLY=0
+uint8 INTENT_PREGRASP_ONLY=1
+uint8 INTENT_FULL=2
+
+string request_id                    # empty -> auto_<timestamp>; never reused
+uint8 intent
+string tool_id
+string[] target_ids                  # optional explicit list (still eligibility-checked)
+uint32 max_targets                   # 0 = unlimited
+float64 per_target_timeout_s         # 0 = default
+float64 target_harvest_ratio         # 0 = disabled
+---
+string request_id
+string termination_reason
+uint32 discovered
+uint32 attempted
+uint32 succeeded
+uint32 skipped
+uint32 failed
+HarvestResult[] results
+---
+BatchState state

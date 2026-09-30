@@ -11,14 +11,27 @@ find_package(geometry_msgs REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(std_msgs REQUIRED)
 
-# 旁路估姿 IDL：仅 visual_pose_estimation_python 使用。
+# 旁路估姿 IDL（EstimatePose 族）+ IVG 演示栈 IDL（拉花/快换/抓取/监控，源自 aubo_boot 移植）。
 rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/CartesianPosition.msg"
+  "msg/NodeStatus.msg"
+  "msg/SystemLog.msg"
+  "msg/ToolChangerStatus.msg"
   "srv/EstimatePose.srv"
   "srv/EstimatePose2D.srv"
   "srv/ListTemplates.srv"
   "srv/StandardizeTemplate.srv"
   "srv/UpdateParams.srv"
+  "srv/RunLatteWorkflow.srv"
+  "srv/RunGripperSwap.srv"
+  "srv/ChangeTool.srv"
+  "srv/GetCurrentTool.srv"
+  "srv/ExecuteGraspPose.srv"
+  "srv/MoveToPose.srv"
+  "srv/GetCurrentState.srv"
+  "srv/ReadRobotIO.srv"
+  "srv/SetRobotEnable.srv"
+  "srv/SetSpeedFactor.srv"
   DEPENDENCIES
     geometry_msgs
     sensor_msgs

@@ -1,0 +1,11 @@
+# =============================================================================
+# GetCurrentState.srv — 查询机器人当前状态
+# 服务方: ivg_demo_services 的 move_service_node（/get_current_state）
+# 调用方: Web 调试/监控面板
+# =============================================================================
+---
+bool success                        # true=成功获取到机器人状态
+float64[] joint_position_rad        # 当前6个关节角度（rad）
+geometry_msgs/Pose cartesian_position  # 当前 TCP 基坐标系位姿（米，归一化四元数）
+float64[] velocity                  # 当前各关节速度（rad/s）
+string message                      # 状态消息或错误信息

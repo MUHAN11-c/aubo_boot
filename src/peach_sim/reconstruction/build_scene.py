@@ -41,8 +41,9 @@ CORRIDOR_PROB = .15
 
 _PRIORS = json.loads((HERE / 'evidence' / 'priors.json').read_text())
 BAG_STATS = _PRIORS['splits']['Peach_bag']['classes']['0']
-# Largest bare-peach class. Mature fruit uses its upper half (see distributions).
-NOBAG_STATS = _PRIORS['splits']['Peach_nobag']['classes']['1']
+# VOC labels encode occlusion, not maturity. Use non-occluded bare fruit.
+# Its upper size half is an explicit mature-fruit modelling assumption.
+NOBAG_STATS = _PRIORS['splits']['Peach_nobag']['classes']['0']
 TILT_STATS = _PRIORS['field_20260909']['axis_tilt_from_up_deg']
 
 SCALES = {
@@ -111,7 +112,13 @@ def peach(name, center, radius, aspect, rotation, mat, seed):
     for v in obj.data.vertices:
         co = v.co
         co.z *= aspect
-        groove = math.exp(-((math.atan2(co.y, co.x) - phase) / .22) ** 2)
+        # Inward stem cavity preserves the conservative bounding sphere.
+        if co.z > radius * aspect * .75:
+            cavity = .055 * radius * math.exp(-((co.xy.length / (radius * .20)) ** 2))
+            co.z -= cavity
+        delta = math.atan2(math.sin(math.atan2(co.y, co.x) - phase),
+                           math.cos(math.atan2(co.y, co.x) - phase))
+        groove = math.exp(-(delta / .22) ** 2)
         co.x *= (1 - .045 * groove)
         co.y *= (1 - .045 * groove)
         v.co = co
@@ -119,7 +126,7 @@ def peach(name, center, radius, aspect, rotation, mat, seed):
     return obj
 
 
-def attach(name, points, radii, mat, parent_point=None):
+def attach(name, points, radii, mat, parent_point=None, parent_radius=None):
     if parent_point is not None:
         error = (Vector(points[0]) - Vector(parent_point)).length
         if error > 1e-6:
@@ -128,17 +135,22 @@ def attach(name, points, radii, mat, parent_point=None):
                             'root': list(points[0]),
                             'parent_point': list(parent_point),
                             'error_m': error})
-    return tube(name, points, radii, mat)
+    if parent_radius is not None and radii[0] > parent_radius:
+        raise ValueError(f'{name}: child radius exceeds supporting wood')
+    obj = tube(name, points, radii, mat)
+    obj['root_radius_m'] = radii[0]
+    if parent_radius is not None:
+        obj['parent_radius_m'] = parent_radius
+    return obj
 
 
 def add_bag(name, neck, width, height, mats, fruit, seed=1, tilt=.1,
             angle=0, tilt_from_up_deg=None):
     """Paper sized around a mature fruit. The fruit is not shrunk to fit."""
     radius = fruit['diameter_m'] / 2
-    thickness = max(min(width * .55, .09), fruit['diameter_m'] + .016)
-    rings = bag_rings(width, height, thickness, seed, fruit['diameter_m'])
+    rings = bag_rings(width, height, .055, seed, fruit['diameter_m'])
     obj = paper_bag(name, rings, mats[f'paper{seed % 3}'], seed)
-    obj['geometry'] = 'closed paper; round cheek over a mature fruit; gathered neck'
+    obj['geometry'] = 'loose folded paper envelope over unchanged fruit; gathered neck'
     # End of stem = gathered neck; bag hangs below, with restrained natural
     # tilt.
     obj.rotation_euler = (tilt, tilt * .2, angle)
@@ -153,9 +165,11 @@ def add_bag(name, neck, width, height, mats, fruit, seed=1, tilt=.1,
     target = {'id': obj.pass_index,
               'name': name,
               'neck': list(neck),
-              'width_m': width,
+              'width_m': (max(v.co.x for v in obj.data.vertices)
+                          - min(v.co.x for v in obj.data.vertices)),
               'height_m': height,
-              'source': 'distribution of Peach_bag priors; placement inferred'}
+              'paper_form': obj['paper_form'],
+              'source': 'paper wrap over mature fruit; placement inferred'}
     target['interior_status'] = fruit['source']
     # World frame recorded for occlusion dressing and viewpoint planning.
     # Centre is the fruit, which is what a picker aims at.
@@ -184,11 +198,22 @@ def add_bag(name, neck, width, height, mats, fruit, seed=1, tilt=.1,
         'diameter_source_percentile']
     target['fruit_clearance_m'] = nearest[3] - radius
     fruit_obj.pass_index = obj.pass_index
+    # Attach to the actual inward stem cavity, not the bounding sphere top.
+    pole = max((v.co for v in fruit_obj.data.vertices if v.co.xy.length < 1e-6),
+               key=lambda co: co.z)
+    fruit_top = fruit_obj.location + rot @ pole
+    tube(name + '/fruit peduncle', [fruit_top, Vector(neck)],
+         [.0012, .0015], mats['twig'])
+    target['peduncle_endpoints_world'] = [list(fruit_top), list(neck)]
+    target['peduncle_status'] = 'inferred internal attachment, not observed through paper'
     wirepoints = []
     for j in range(45):
         a = j / 44 * math.tau * 1.4
-        wirepoints.append(Vector(neck) + rot @ Vector((.008 *
-                          math.cos(a), .0055 * math.sin(a), .0006 * j / 44)))
+        co, si = math.cos(a), math.sin(a)
+        contour = (abs(co) ** cinch[5] + abs(si) ** cinch[5]) ** (-1 / cinch[5])
+        wirepoints.append(Vector(neck) + rot @ Vector((
+            co * contour * (cinch[2] + .001),
+            si * contour * (cinch[4] * .5 + .001), .0006 * j / 44)))
     tube(
         name +
         '/tie',
@@ -200,7 +225,7 @@ def add_bag(name, neck, width, height, mats, fruit, seed=1, tilt=.1,
     return obj
 
 
-def dress_occlusion(name, anchor, neck, target, mats, leaves, rng):
+def dress_occlusion(name, anchor, neck, target, mats, leaves, rng, parent_radius):
     """Controlled leaf occlusion + branch interference for one bag (M2).
 
     Plans come from occlusion.assign_levels; foreground leaves physically
@@ -222,21 +247,25 @@ def dress_occlusion(name, anchor, neck, target, mats, leaves, rng):
         root = Vector(root)
         attach(f'{name}/occluder stem{k}',
                [neck, neck.lerp(root, .5) + Vector((0, .004, .005)), root],
-               [.0016, .0011, .0006], mats['twig'], neck)
+               [.0006, .00045, .0003], mats['twig'], neck, parent_radius=.0009)
         leaves.add(root, Vector(tip), width=rng.uniform(.031, .045))
     if plan.branch_front:
         p0, p1, radius = occlusion.front_branch_segment(frame, rng)
+        radius = min(radius, parent_radius * .75)
         attach(f'{name}/blocking branch',
                [anchor, Vector(p0), Vector(p1)],
-               [radius, radius * .75, radius * .45], mats['twig'], anchor)
+               [radius, radius * .75, radius * .45], mats['twig'], anchor,
+               parent_radius=parent_radius)
     if corridor:
         approach = (Vector(target['bottom_world']) -
                     Vector(neck)).normalized()
         p0, p1, radius = occlusion.corridor_branch_segment(
             frame, rng, approach)
+        radius = min(radius, parent_radius * .75)
         attach(f'{name}/corridor branch',
                [anchor, Vector(p0), Vector(p1)],
-               [radius, radius * .8, radius * .5], mats['twig'], anchor)
+               [radius, radius * .8, radius * .5], mats['twig'], anchor,
+               parent_radius=parent_radius)
     target['occlusion'] = {
         'level': plan.level,
         'nominal_coverage': plan.nominal_coverage,
@@ -246,21 +275,27 @@ def dress_occlusion(name, anchor, neck, target, mats, leaves, rng):
     }
 
 
-def shoot(name, start, direction, length, mats, leaves, seed, bags=False):
+def shoot(name, start, direction, length, mats, leaves, seed, bags=False,
+          parent_radius=.006):
     rng = random.Random(seed)
     start = Vector(start)
     direction = Vector(direction).normalized()
     pts = [start + direction * (length * t) + Vector((.022 * math.sin(
         t * math.pi) * rng.uniform(-1, 1), 0, -.05 * t * t)) for t in [0, .25, .5, .75, 1]]
-    attach(name, pts, [.004, .0034, .0026, .0018, .0007], mats['twig'], start)
+    base_radius = min(.004, parent_radius * .65)
+    radii = [base_radius * f for f in (1, .85, .65, .45, .175)]
+    obj = attach(name, pts, radii, mats['young_twig'], start, parent_radius)
+    obj['wood_age'] = 'one-year fruiting shoot / inferred'
+    frame = direction.to_track_quat('Z', 'Y')
     count = max(4, int(length / .018))
     for i in range(1, count):
-        t = i / count
+        # Bounded jitter cannot reorder alternate nodes along the shoot.
+        t = (i + rng.uniform(-.28, .28)) / count
         seg = min(3, int(t * 4))
         u = t * 4 - seg
         p = pts[seg].lerp(pts[seg + 1], u)
         a = i * 2.399 + seed
-        d = Vector((math.cos(a), math.sin(a), rng.uniform(-.45, .3)))
+        d = frame @ Vector((math.cos(a), math.sin(a), rng.uniform(.1, .65))).normalized()
         end = p + d * rng.uniform(.09, .165)
         leaves.add(p, end)
     if bags:
@@ -270,7 +305,8 @@ def shoot(name, start, direction, length, mats, leaves, seed, bags=False):
         anchor = pts[seg].lerp(pts[seg + 1], u)
         neck = anchor + Vector((0, 0, -.012))
         attach(name + '/fruit stem', [anchor, neck],
-               [.0018, .0015], mats['twig'], anchor)
+               [min(.0015, radii[seg] * .7), .0009], mats['twig'], anchor,
+               parent_radius=radii[seg])
         fruit = sample_mature_fruit(NOBAG_STATS, rng)
         sample = sample_bag_for_fruit(BAG_STATS, fruit, rng)
         tilt_deg, tilt_u = sample_percentile(TILT_STATS, rng.random())
@@ -279,12 +315,15 @@ def shoot(name, start, direction, length, mats, leaves, seed, bags=False):
                 rng.uniform(-math.pi, math.pi), tilt_from_up_deg=tilt_deg)
         TARGETS[-1]['dimension_source'] = sample['source']
         TARGETS[-1]['dimension_fit'] = sample['dimension_fit']
+        TARGETS[-1]['observed_paper_size_m'] = [
+            sample['observed_width_m'], sample['observed_height_m']]
         TARGETS[-1]['width_source_percentile'] = sample[
             'width_source_percentile']
         TARGETS[-1]['aspect_source_percentile'] = sample[
             'aspect_source_percentile']
         TARGETS[-1]['tilt_source_percentile'] = round(tilt_u, 4)
-        dress_occlusion(name, anchor, neck, TARGETS[-1], mats, leaves, rng)
+        dress_occlusion(name, anchor, neck, TARGETS[-1], mats, leaves, rng,
+                        radii[seg] * (1 - u) + radii[seg + 1] * u)
 
 
 def tree(name, origin, mats, seed, crown=1.0):
@@ -305,7 +344,7 @@ def tree(name, origin, mats, seed, crown=1.0):
     rng = random.Random(seed)
     o = Vector(origin)
     leaves = Leaves(mats, seed)
-    trunk_h = rng.uniform(.46, .68)
+    trunk_h = rng.uniform(*_PRIORS['orchard_standard']['trunk_height_m'])
     trunk = [o,
              o + Vector((rng.uniform(-.035, .035), rng.uniform(-.035, .035),
                          trunk_h * .5)),
@@ -324,15 +363,21 @@ def tree(name, origin, mats, seed, crown=1.0):
         horiz = math.cos(polar) * length
         rad = Vector((math.cos(a) * horiz, math.sin(a) * horiz,
                       math.sin(polar) * length))
-        top = trunk[-1]
+        # Stagger scaffolds on the actual upper trunk centerline.
+        root_t = .40 / trunk_h + (1 - .40 / trunk_h) * arm / max(arms - 1, 1)
+        top = trunk[1].lerp(trunk[2], (root_t - .5) * 2)
         bend = top + rad * .5 + Vector((0, 0, rng.uniform(.00, .09)))
         tip = top + rad
         tip.z = min(tip.z, 2.35)
         pts = [top, bend, tip]
-        scale = length / 1.0
+        parent_u = (root_t - .5) * 2
+        parent_r = base_r * (.88 * (1 - parent_u) + .60 * parent_u)
+        # Crown reach does not authorize wood thicker than its supporting trunk.
+        scale = min(length / 1.0, parent_r * .92 / .046)
         attach(name + f'/scaffold{arm}', pts,
-               [.046 * scale, .027 * scale, .013 * scale], mats['bark'], top)
-        anchors.append((pts, a, scale))
+               [.046 * scale, .027 * scale, .013 * scale], mats['bark'], top,
+               parent_radius=parent_r)
+        anchors.append((pts, a, [.046 * scale, .027 * scale, .013 * scale]))
         n_seg = len(pts) - 1
         n_side = round(7 * crown)
         for k in range(2, 2 + n_side):
@@ -348,9 +393,13 @@ def tree(name, origin, mats, seed, crown=1.0):
             length_s = max(.15, min(length_s, (2.2 - root.z) / max(vec.z, .1)))
             end = root + vec * length_s
             mid = root.lerp(end, .55) + Vector((0, 0, .035))
+            scaffold_r = ([.046, .027, .013][seg] * (1 - u)
+                          + [.046, .027, .013][seg + 1] * u) * scale
+            secondary_r = min(.012, scaffold_r * .65)
+            secondary_radii = [secondary_r * f for f in (1, .58, .17)]
             attach(name + f'/secondary{arm}_{k}',
-                   [root, mid, end], [.012, .007, .002], mats['twig'], root)
-            anchors.append(([root, mid, end], b, 1.0))
+                   [root, mid, end], secondary_radii, mats['twig'], root, scaffold_r)
+            anchors.append(([root, mid, end], b, secondary_radii))
             n_shoot = round(7 * crown)
             for j in range(n_shoot):
                 s = .19 + .72 * j / (n_shoot - 1)
@@ -367,12 +416,16 @@ def tree(name, origin, mats, seed, crown=1.0):
                       k *
                       10 +
                       j, bags=(j == 1 and k %
-                               2 == 0))
+                               2 == 0), parent_radius=(
+                          secondary_radii[0] * (1 - s / .55)
+                          + secondary_radii[1] * s / .55 if s <= .55 else
+                          secondary_radii[1] * (1 - (s - .55) / .45)
+                          + secondary_radii[2] * (s - .55) / .45))
     # Leaf-bearing extension shoots, rooted on the actual bent parent axis.
     # Do not bridge the endpoints of a curved branch: that floats roots in air.
     # Keep the vase centre open by favouring outward directions.
     for c in range(round(rng.randint(20, 32) * crown * crown)):
-        pts_list, az, _ = rng.choice(anchors)
+        pts_list, az, parent_radii = rng.choice(anchors)
         position = rng.uniform(.3, .95) * (len(pts_list) - 1)
         segment = min(int(position), len(pts_list) - 2)
         base = pts_list[segment].lerp(
@@ -384,7 +437,9 @@ def tree(name, origin, mats, seed, crown=1.0):
         if length < .12:
             continue
         shoot(name + f'/crown{c}', base, d, length,
-              mats, leaves, seed * 1000 + 777 + c, bags=False)
+              mats, leaves, seed * 1000 + 777 + c, bags=False,
+              parent_radius=parent_radii[segment] * (1 - (position - segment))
+              + parent_radii[segment + 1] * (position - segment))
     leaves.finish(name)
 
 
@@ -436,8 +491,8 @@ def local_reference(mats, report):
         # Complete beyond the image crop, never identify the crop edge as a neck.
         extension={'top_m':0.,'bottom_m':0.}
         if item['box'][1]<=1:
-            z,x,w,front,thick=rings[-1];h=max(.035,width*.42)
-            rings.extend([(z+h*.5,x,w*.6,front,thick*.65),(z+h,x,w*.1,front,thick*.2)])
+            z,x,w,front,thick=rings[-1];h=max(.028,width*.28)
+            rings.extend([(z+h*.45,x,w*.42,front,thick*.4),(z+h,x,w*.16,front,thick*.22)])
             extension['top_m']=h
         if item['box'][3]>=719:
             z,x,w,front,thick=rings[0];h=max(.045,width*.4)
@@ -625,6 +680,54 @@ def camera(name, location, target, lens):
     return obj
 
 
+def bag_detail_camera(lighting_name):
+    """Choose a readable bag face without deleting surrounding vegetation."""
+    bpy.context.view_layer.update()
+    depsgraph = bpy.context.evaluated_depsgraph_get()
+    preset = lighting_mod.get(lighting_name)
+    az = math.radians(preset.sun_azimuth_deg)
+    el = math.radians(preset.sun_elevation_deg)
+    sun = Vector((math.sin(az) * math.cos(el),
+                  math.cos(az) * math.cos(el), math.sin(el)))
+    best = None
+    for target in [t for t in TARGETS if t.get('fruit_radius_m')][:48]:
+        bag = bpy.data.objects[target['name']]
+        rotation = bag.rotation_euler.to_matrix()
+        body_shift = target['height_m'] * .45 - fruit_center_z(2 * target['fruit_radius_m'])
+        center = Vector(target['center_world']) + rotation @ Vector((0, 0, body_shift))
+        for side, face_side in ((-.55, -1), (0., -1), (.55, -1),
+                                (-.55, 1), (0., 1), (.55, 1)):
+            direction = (rotation @ Vector((side, face_side, .22))).normalized()
+            eye = center + direction * .60
+            right = direction.cross(Vector((0, 0, 1))).normalized()
+            up = rotation @ Vector((0, 0, 1))
+            visible = 0
+            lit = 0
+            for x in (-1, 0, 1):
+                for z in (-1, 0, 1):
+                    point = (center + right * x * target['width_m'] * .34
+                             + up * z * target['height_m'] * .28)
+                    ray = point - eye
+                    hit, point_hit, normal, _i, obj, _m = bpy.context.scene.ray_cast(
+                        depsgraph, eye, ray.normalized(), distance=ray.length)
+                    if hit and obj.original.name == bag.name:
+                        visible += 1
+                        if normal.dot(sun) > .15:
+                            shadow = bpy.context.scene.ray_cast(
+                                depsgraph, point_hit + sun * .002, sun, distance=20)[0]
+                            lit += int(not shadow)
+            neighbours = sum((Vector(t['center_world']) - center).length < .28
+                             for t in TARGETS if t.get('fruit_radius_m'))
+            score = visible * 100 + lit * 3 + min(neighbours, 4)
+            if best is None or score > best[0]:
+                best = (score, eye, center, target['id'], visible / 9, lit / 9)
+    cam = camera('Bag-priority close-up / inferred tree', best[1], best[2], 42)
+    cam['target_id'] = best[3]
+    cam['visible_probe_fraction'] = best[4]
+    cam['sunlit_probe_fraction'] = best[5]
+    return cam
+
+
 def _enable_gpu():
     """Prefer OptiX/CUDA over CPU rendering; return the compute backend used."""
     try:
@@ -638,10 +741,11 @@ def _enable_gpu():
             gpus = [d for d in prefs.devices if d.type != 'CPU']
             if not gpus:
                 continue
+            # One GPU: dual OptiX BVH on this orchard has hung the driver.
+            chosen = gpus[0]
             for d in prefs.devices:
-                d.use = d.type != 'CPU'
-            print('CYCLES DEVICE', backend,
-                  [d.name for d in gpus], flush=True)
+                d.use = d == chosen
+            print('CYCLES DEVICE', backend, chosen.name, flush=True)
             return backend
     except Exception as exc:  # GPU optional: fall back silently to CPU.
         print('CYCLES DEVICE fallback CPU:', exc, flush=True)
@@ -745,9 +849,14 @@ def main():
     if scale['backdrop']:
         backdrop({o.name for o in bpy.data.objects} - before - {'Orchard ground'},
                  scale['backdrop'])
-    cams = {'reference': camera('Reference 1200 / approximate 90deg', (0, 0, 1.6), (0, 1, 1.6), 18),
-            'detail': camera('Fruit branch / oblique', (-.36, -.12, 1.66), (-.02, .46, 1.58), 27),
-            'orchard': camera('Orchard / aisle overview', (5, -6, 2.25), (-.7, 3.7, 1.12), 36)}
+    cams = {
+        'reference': camera('Reference 1200 / approximate 90deg',
+                            (0, 0, 1.6), (0, 1, 1.6), 18),
+        'detail': (bag_detail_camera(args.lighting) if args.scale == 'validation' else
+                   camera('Field unused close-up',
+                          (-.92, .72, 1.22), (-.40, 1.44, 1.05), 40)),
+        'orchard': camera('Orchard / aisle overview',
+                          (5, -6, 2.25), (-.7, 3.7, 1.12), 36)}
     if args.scale == 'field':
         overview = cams['orchard']
         overview.location = (12, -11, 9)
@@ -768,7 +877,7 @@ def main():
     s.unit_settings.system = 'METRIC'
     # Save manifest before rendering for crash-safe evidence.
     manifest = {
-        'modeling_revision': '2026-09-29-fruit-bag-v5',
+        'modeling_revision': '2026-09-30-bag-paper-v9',
         'source_sha256': {
             name: hashlib.sha256((HERE / name).read_bytes()).hexdigest()
             for name in ('build_scene.py', 'geometry.py', 'materials.py',
@@ -794,22 +903,27 @@ def main():
         'occlusion_view_dir': list(VIEW_DIR),
         'cameras': {},
         'notes': [
-            'Reference visible geometry is approximate RGB-D reconstruction.',
-            'Hidden branches, leaf orientations, bag thickness and whole orchard are inferred.',
-            'Controlled occlusion: per-target occlusion.level (none/light/heavy), nominal coverage vs depth-measured actual.',
-            'Bag dimensions sampled from Peach_bag priors percentiles (n=722); tilt from field 20260909.',
-            'Enclosed fruit diameter is the mature half of Peach_nobag class 1 (p50-p90); mass uses an assumed 970 kg/m3.',
-            'Reference bags stay empty: their depth anchor is the paper surface.',
-            'Leaves are instances of 20 shared blades.']}
+            ('Only bagged peaches are presented; enclosed fruits support geometry, '
+             'not naked-fruit display.'),
+            'Paper dimensions sample Peach_bag class 0 quantiles within fruit-supported bounds.',
+            'Paper folds and hidden back surfaces are inferred; fruit is not shrunk to fit.',
+            ('Reference interiors are unobserved; missing modeled interiors do not '
+             'mean empty bags.'),
+            'Bag-priority detail uses visible-ray probes; canopy geometry is unchanged.',
+            'Tree structure, leaf prototypes and internal fruit semantics retain v8 corrections.']}
     bpy.context.view_layer.update()
     for key, cam in cams.items():
         manifest['cameras'][key] = {
+            'object_name': cam.name,
             'matrix_world': [
                 list(row) for row in cam.matrix_world],
             'location': list(
                 cam.location),
             'rotation_euler': list(
                 cam.rotation_euler),
+            'target_id': cam.get('target_id'),
+            'visible_probe_fraction': cam.get('visible_probe_fraction'),
+            'sunlit_probe_fraction': cam.get('sunlit_probe_fraction'),
             'lens_mm': cam.data.lens,
             'sensor_width_mm': 36}
     (out / 'scene_manifest.json').write_text(json.dumps(manifest, indent=2))

@@ -139,12 +139,13 @@ def create():
         ((.36, .195, .072), (.53, .31, .13)),
     ]):
         mats[f'paper{i}'] = textured(
-            f'Paper / pigment variant {i}', (a, b), 8, .00025, .86)
+            f'Paper / pigment variant {i}',
+            (a, tuple(.7 * x + .3 * y for x, y in zip(a, b))), 8, .00005, .90)
         # Scalar height map: no pigment multiplication and no colour transform.
         _apply_detail(mats[f'paper{i}'], _bsdf(mats[f'paper{i}']),
                       'paper_height.png', coords='UV', scale=1.0,
-                      bump_strength=.7, bump_distance=.0025, is_data=True)
-        _bsdf(mats[f'paper{i}']).inputs['Roughness'].default_value = .78
+                      bump_strength=.20, bump_distance=.0004, is_data=True)
+        _bsdf(mats[f'paper{i}']).inputs['Roughness'].default_value = .90
     mats['bark'] = textured('Bark / aged silver brown',
                             ((.075, .064, .052), (.24, .20, .16)), 18, .0015, .86)
     _apply_detail(mats['bark'], _bsdf(mats['bark']),
@@ -152,9 +153,12 @@ def create():
                   bump_strength=.5, bump_distance=.002)
     mats['twig'] = textured(
         'One year fruiting wood', ((.07, .032, .018), (.18, .105, .055)), 9, .0006, .52)
+    mats['young_twig'] = textured(
+        'Young fruiting shoot / reddish-green cortex',
+        ((.065, .075, .028), (.22, .065, .042)), 12, .0003, .54)
     mats['wire'] = material('Twisted matte wire', (.13, .11, .07), .45)[0]
     mats['fruit'] = textured(
-        'Peach / enclosed fruit', ((.55, .19, .043), (.85, .47, .16)), 9, .00015, .65)
+        'Peach / enclosed fruit', ((.45, .038, .025), (.85, .47, .16)), 9, .00015, .65)
     for i in range(5):
         m, p = material(
             f'Leaf / variant {i}', (.03 + i * .007, .09 + i * .016, .012 + i * .003), .4)
@@ -262,5 +266,5 @@ def create():
     _apply_detail(mats['grass'], _bsdf(mats['grass']),
                   'grass.png', coords='OBJECT', scale=1.5, color_factor=.25)
     mats['litter'] = textured('Dry fallen peach leaves',
-                               ((.055, .028, .009), (.20, .12, .035)), 5, .0002, .95)
+                              ((.055, .028, .009), (.20, .12, .035)), 5, .0002, .95)
     return mats

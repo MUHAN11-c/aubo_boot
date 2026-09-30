@@ -1,0 +1,162 @@
+{
+  "trigger": "periodic",
+  "checked_at": "2026-09-30T10:04:39",
+  "duration_s": 0.002,
+  "facts": {
+    "launched_at": "2026-09-30T09:51:08",
+    "hardware_mode": "mock",
+    "robot_ip": "169.254.10.98",
+    "tool_profile": "bite_shear_v1",
+    "moveit_enabled": "true",
+    "camera_enabled": "false",
+    "camera_frontend": "stereo",
+    "camera_ip": "169.254.10.110",
+    "extrinsics_enabled": "true",
+    "imu_enabled": "false",
+    "bond_timeout": "0.0",
+    "use_sim_time": "false",
+    "skip_reconstruction": "true",
+    "autostart": "false",
+    "require_robot_status": "false",
+    "expected_tcp_norm_m": 0.1682400297194458,
+    "ros_domain_id": "77",
+    "git": {
+      "root": "/home/mu/Desktop/aubo_e5_jazzy_ws",
+      "branch": "20260924-full-sync",
+      "commit": "aa5c73a59aee"
+    }
+  },
+  "checks": [
+    {
+      "name": "managed_lifecycle",
+      "status": "pass",
+      "detail": "托管节点已激活",
+      "value": true
+    },
+    {
+      "name": "controllers",
+      "status": "pass",
+      "detail": "期望控制器均 active",
+      "value": {
+        "joint_trajectory_controller": "active",
+        "joint_state_broadcaster": "active"
+      }
+    },
+    {
+      "name": "joint_states_flow",
+      "status": "pass",
+      "detail": "帧率 181.40Hz",
+      "value": 181.4
+    },
+    {
+      "name": "joint_order",
+      "status": "pass",
+      "detail": "六关节名集合一致",
+      "value": [
+        "foreArm_joint",
+        "shoulder_joint",
+        "upperArm_joint",
+        "wrist1_joint",
+        "wrist2_joint",
+        "wrist3_joint"
+      ]
+    },
+    {
+      "name": "tcp_frame",
+      "status": "pass",
+      "detail": "|tcp|=168.2mm 对档案",
+      "value": 0.16824
+    },
+    {
+      "name": "camera_color_rate",
+      "status": "skip",
+      "detail": "camera_enabled=false",
+      "value": null
+    },
+    {
+      "name": "camera_depth_rate",
+      "status": "skip",
+      "detail": "camera_enabled=false",
+      "value": null
+    },
+    {
+      "name": "move_group",
+      "status": "pass",
+      "detail": "GetPlanningScene 可用",
+      "value": true
+    },
+    {
+      "name": "action_run_harvest",
+      "status": "pass",
+      "detail": "服务端就绪",
+      "value": true
+    },
+    {
+      "name": "action_survey_scene",
+      "status": "pass",
+      "detail": "服务端就绪",
+      "value": true
+    },
+    {
+      "name": "action_execute_target",
+      "status": "pass",
+      "detail": "服务端就绪",
+      "value": true
+    },
+    {
+      "name": "action_build_target_model",
+      "status": "pass",
+      "detail": "服务端就绪",
+      "value": true
+    },
+    {
+      "name": "robot_status",
+      "status": "skip",
+      "detail": "mock 模式不要求",
+      "value": null
+    },
+    {
+      "name": "imu_topic",
+      "status": "skip",
+      "detail": "imu_enabled=false",
+      "value": null
+    },
+    {
+      "name": "disk_free",
+      "status": "pass",
+      "detail": "剩余 97.7GB",
+      "value": 104945504256
+    },
+    {
+      "name": "model_files",
+      "status": "skip",
+      "detail": "未配置检查清单",
+      "value": null
+    },
+    {
+      "name": "param_consistency",
+      "status": "pass",
+      "detail": "启动参数组合自洽",
+      "value": null
+    },
+    {
+      "name": "vegetation_status",
+      "status": "skip",
+      "detail": "vegetation 不在图",
+      "value": null
+    }
+  ],
+  "status": "pass",
+  "passed": true,
+  "failed": [],
+  "warned": [],
+  "skipped": [
+    "camera_color_rate",
+    "camera_depth_rate",
+    "robot_status",
+    "imu_topic",
+    "model_files",
+    "vegetation_status"
+  ],
+  "summary": "12/18 通过，跳过: camera_color_rate, camera_depth_rate, robot_status, imu_topic, model_files, vegetation_status"
+}

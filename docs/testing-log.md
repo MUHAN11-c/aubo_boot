@@ -1487,3 +1487,57 @@ depth=50 后 P6 三跑 **8/8 全绿**——target_timeout 事件成功收到，�
 **修复方向（挂账，部署面）**：统一各节点运行 python 环境（排查 ~/.local
 混布或改用系统 python 跑 ROS 节点）；bag 证据链不受影响，作为 L3 权威
 口径继续有效。
+
+---
+
+## 2026-09-30 首跑落地：test_mock_launch 5/5 全绿 + 第 6 真 bug（shutdown 竞态）
+
+bite 残留栈（275682）于 01:02 自然退出（累计空转 ~8h，无人拆除；期间
+23 窗会话 30s 粒度 + cron 10min 双值守）。监视器立即自动执行整包首跑
+（未过滤）。
+
+**test_mock_launch 首跑 5/5 全绿**（xunit tests=5 failures=0）：
+joint_states 冻结序 / lifecycle 旗标 / bond 心跳 / **selfcheck 用例
+（3.557s 过）** / exit_codes。日志原文实证：
+`自检[initial] 12/18 通过，跳过: camera_color_rate, camera_depth_rate,
+robot_status, imu_topic, model_files, vegetation_status`（6 项合法
+SKIP，0 失败 → status=pass → 闩锁 true → 工件断言全过）。01:13 复跑
+保持绿。目标收尾项闭环。
+
+**首跑照出第 6 个真 bug（已修两形态之一）**：
+① `requestCancelAll` 无防御——SIGINT 后 signal_handler 已 rcl_shutdown，
+deactivate 收口里 `move_group_->stop()/grasp_task_->cancel()` 内部经
+rclcpp 异步口创建 guard condition 抛 `RCLError: context is not valid`
+→ std::terminate（exit -6，三档 tool_profile_smoke 全挂）。修复：
+stop/cancel 包 try/catch（DEBUG 记录，清理失败不得终止进程）。
+修复后三档 smoke 2/2×3 全绿 + mock_launch 保持 5/5。
+② 第二形态（**存量挂账 F3/批次7 家族**）：e1 在「SIGINT 时有在途
+ExecuteTarget」下仍 `terminate called without an active exception`
+（joinable 线程竞态：bound_join 2s 超时 detach 后，detached 线程在
+rcl_shutdown 后世界继续跑/入口线程成员赋值竞态）。e1 其余 3/4 绿
+（C01 过、C02 产品裁定 skip、**C03 过**）；exit_codes 一项挂此存量。
+修复需重构线程入口赋值守卫，未在本轮强改（无充分验证窗口），证据：
+launch_test/test_test_e1_supervisor_chain.py.txt 尾部。
+
+**机器状态**：首跑后机器空闲；测完清场复核通过（无残留）。
+
+---
+
+## 2026-09-30 监控调试 web 升级：日志/反馈数据面全呈现（未提交攒批）
+
+**依据本轮新增的日志与反馈通道，升级 8090 页面呈现**（`web/app.js`/`app.css`/
+`index.html`，纯前端，无 IDL/话题变化）：
+① 事件时间线：逐条 severity 徽标（信息/警告/错误/审计，四色）+ 事件码
+中文标签全词表（`begin_scene_failed`→开场景失败、`target_timeout`→单果
+时限超限等 22 码，未知码回退原码）——此前只有彩色点+裸码。
+② `HarvestState.blockers` 红显中文化（`mode_paused`→批次已暂停等五词表）。
+③ 账本失败码数值→常量名映射（0-23 全表，含本轮新增 21 TRANSIT_FAILED/
+22 START_NOT_READY/23 CANCELED）——此前显示裸数字。
+④ SELFCHECK 面板头部新增启动事实摘要行（模式/末端/相机开关/git 短哈希/
+域——回答"当前跑的什么配置"，startup.json 同源）。
+⑤ 保留既有：diagnostics 聚合列、selfcheck 逐项表、ledger 阶段耗时链。
+
+**验证**：独立冒烟（域 98/8091）七项页面断言全过（app.js 四张新表+徽标
+样式+index 元素下发），/api/state startup 分区 facts 实测回填（mock/
+git 2d410ffc）；JS 语法 node 校验过；obs colcon test 0 失败；flake8 0。
+清场干净（新起的 774704 为并发会话栈，未触碰）。

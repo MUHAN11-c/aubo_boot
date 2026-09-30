@@ -1,0 +1,13 @@
+# /peach/manipulation/check_reachability : plan-only with the same MTC
+# generator used for execution (scene collisions included). Never moves.
+uint8 MODE_PREGRASP_ONLY=0
+uint8 MODE_FULL=1
+
+string[] target_ids
+string tool_id
+uint8 mode
+---
+string[] target_ids
+bool[] reachable
+uint32[] failure_codes
+string[] reasons

@@ -1,0 +1,65 @@
+{
+  "revision": "2026-09-30-bag-paper-v9",
+  "source_blend_sha256": "889729b59f3522f7893c7e012647ef840663cdd2fdc2163b09abe1fb214d2351",
+  "asset_blend_sha256": "0b4eb25ca47680cb4814a3252a2aa36b81956c408771be99eaed97359f9e4a6b",
+  "export_tool_sha256": "f90461da26ad3617449f53a77ae2080862d6b03e839b982b481ab168dec6e631",
+  "rgb_sha256": "b703f519e9d731732d648ab4729951fa463c44eaaf0b4c06cc19de40e54e8b38",
+  "source_sha256": {
+    "build_scene.py": "bac68aaa59d0c5a50b4c9145c75d74d524cea2234e06b341a68c7d67fd773c45",
+    "geometry.py": "86d9af81314d111e924878c3638c493ed07c6f583fb5db3b60de92e060021350",
+    "materials.py": "64d571d8c90815041fbfb84279ddae6da8eb35d97a2ce92e4486aee367f5308f",
+    "lighting.py": "afdebe7632d637bc490ad88190e4f8bf9afead6d50dd3d748e3fd365d0540f6a",
+    "lighting_apply.py": "54b03c0e7d126cea3fa4e78c8c033b213ee3fda4f6981d861029c8001dc0bf12",
+    "occlusion.py": "781c9a8099cca5c93722d6d075e1fca0b0775aca176f08ab5d02235bb41677a7",
+    "distributions.py": "dd7ac382adaef249cdeb0c91ae7f4f94101acaa5ca4b55fe5c66fc8fcabab5af",
+    "make_textures.py": "86f3ce78251b276428bd768a1bd7c691bdd865634ac1f96c466426934e1248a9",
+    "textures/paper_height.png": "0aeb3bf94b817dd3fceb4e9510a9485311392ee96b10311b0940627ea25cc4c1",
+    "evidence/priors.json": "4b28a910197f850feb5caa605210dcafbd680231e9d7a1c353d1aa872c6caf5c",
+    "evidence/reference_measurements.json": "59d5c1fcb36e3592003940cdc25610898f696e361fc8c2c2b5f72a5838c51f19",
+    "evidence/foliage_support.json": "5f28d8fe0036d5ac5bd9624d2f7ccd1cef8c4ceb0a3c04d8a1b1ea01c8d71b94"
+  },
+  "source_target_ids": [
+    12,
+    11,
+    10
+  ],
+  "paper_forms": [
+    "folded_gusset",
+    "broad_panel",
+    "creased_panel"
+  ],
+  "shown_meshes": [
+    "Tree00/shoot0_2_1/bag",
+    "Tree00/shoot0_2_1/bag/enclosed peach",
+    "Tree00/shoot0_2_1/bag/fruit peduncle",
+    "Tree00/shoot0_2_1/bag/tie",
+    "Tree00/shoot0_4_1/bag",
+    "Tree00/shoot0_4_1/bag/enclosed peach",
+    "Tree00/shoot0_4_1/bag/fruit peduncle",
+    "Tree00/shoot0_4_1/bag/tie",
+    "Tree00/shoot0_6_1/bag",
+    "Tree00/shoot0_6_1/bag/enclosed peach",
+    "Tree00/shoot0_6_1/bag/fruit peduncle",
+    "Tree00/shoot0_6_1/bag/tie"
+  ],
+  "lighting": {
+    "preset": "noon",
+    "name": "noon",
+    "sun_elevation_deg": 38.0,
+    "sun_azimuth_deg": 125.0,
+    "air_density": 1.0,
+    "sun_size_deg": 0.53,
+    "sky_strength": 0.35,
+    "fill_energy": 3.0,
+    "fill_spread_deg": 0.53,
+    "note": "\u6e05\u6d01\u65e5\u95f4\u5929\u7a7a\u4e0e\u5355\u4e00\u592a\u9633\uff1b\u4fdd\u7559\u53c2\u8003\u592a\u9633\u65b9\u4f4d\uff0c\u91cd\u5efa\u5916\u89c2\u57fa\u7ebf",
+    "dust_density": 0.5,
+    "cloud_cover": 0.0,
+    "exposure_ev": 0.5
+  },
+  "samples": 64,
+  "limits": [
+    "Review poses differ from orchard; source mesh coordinates unchanged.",
+    "Internal peaches remain enclosed; no naked-fruit diagnostic shown."
+  ]
+}

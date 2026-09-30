@@ -1,0 +1,111 @@
+# IVG Web Dashboard — 默认配置（唯一配置来源，2026-09-30 自 aubo_boot 移植适配）
+# 启动时通过 ROS 2 launch arguments 覆盖，网关进程通过 CLI 参数接收覆盖值
+# 具体覆盖映射见 aubo_ros2_web_dashboard/config.py 的 _CLI_MAP
+#
+# 本仓适配（相对 aubo_boot）：
+#   - gateway.port 8090 → 8095（8090 归 peach_observability，不可冲突）
+#   - 补 web_video 段（aubo_boot 源树缺失）
+#   - 机械臂状态话题/类型 → aubo_msgs/RobotStatus @ /aubo_io_controller/robot_status
+#   - FK/IK 服务 → aubo_dashboard /aubo/get_fk /aubo/get_ik（字段与旧 ivg 同名同序）
+
+# ---- 网关进程 ----
+gateway:
+  bind: "0.0.0.0"           # uvicorn 监听地址
+  port: 8095                # uvicorn 监听端口（8090 归 peach_observability）
+  gzip_min_size: 512        # GZip 压缩阈值（字节）
+
+# ---- 日志 ----
+logging:
+  level: "INFO"             # Python logging 级别 (DEBUG/INFO/WARNING/ERROR)
+
+# ---- rosbridge 上游 (Tornado WebSocket) ----
+rosbridge:
+  host: "127.0.0.1"
+  port: 9090
+  ws_path: "/ws/rosbridge"           # 网关对外暴露的 WebSocket 路径
+  max_message_bytes: 67108864        # 单帧最大字节 (64 MiB)
+  ping_interval: 20                  # 心跳间隔（秒）
+  ping_timeout: 60                   # 心跳超时（秒）
+  close_timeout: 10                  # 关闭超时（秒）
+
+# ---- foxglove_bridge 上游 (C++ 高性能 WebSocket, CDR 二进制, 点云/图像专用) ----
+foxglove_bridge:
+  host: "127.0.0.1"
+  port: 8765
+  ws_path: "/ws/foxglove"           # 网关对外暴露的 WebSocket 路径
+  max_message_bytes: 134217728      # 单帧最大字节 (128 MiB, PointCloud2 需要)
+  ping_interval: 20
+  ping_timeout: 60
+  close_timeout: 10
+
+# ---- web_video_server 上游 (MJPEG/JPEG) ----
+web_video:
+  host: "127.0.0.1"
+  port: 8089
+
+# ---- HTTP 代理调优 ----
+proxy:
+  video_connect_timeout: 15          # httpx 连接超时（秒）
+  video_pool_timeout: 10             # httpx 连接池超时（秒）
+  video_chunk_bytes: 65536           # 流式传输块大小 (64 KiB)
+
+# ---- 包信息 ----
+package:
+  version_fallback: "0.4.0"          # importlib.metadata 不可用时的回退版本
+
+# ---- 前端设置页：话题/服务默认值（分类：公共 / 视觉抓取 / 咖啡拉花）----
+# 通过 GET /api/v1/runtime 暴露给设置页，localStorage 覆盖
+#
+# 节点依赖速查（本仓服务端）:
+#   /joint_states → controller 栈
+#   /camera/color/image_raw → percipio_camera
+#   /aubo_io_controller/robot_status → aubo_io_controller (aubo_msgs)
+#   /grasp_poses_base → ivg_graspnet graspnet_node
+#   /tool_changer_status → tool_changer gripper_swap_worker
+#   /system/node_status /system/log → ivg_demo_services system_monitor_node
+#   /latte_di_status → latte_backend latte_io_node
+#   /execute_single_grasp /loop_grasp_control → ivg_demo_services grasp_trigger_node
+#   /get_current_state /read_robot_io /set_robot_enable /set_speed_factor
+#     → ivg_demo_services move_service_node
+#   /move_to_pose /debug/move_to_xyz → ivg_demo_services move_service_node
+#   /run_gripper_swap /change_tool /get_current_tool → tool_changer
+#   /latte/run_workflow → latte_backend
+#   /set_latte_do2 /set_latte_do4 → latte_backend latte_io_node
+vision_panel:
+  # -- 公共参数（视觉抓取 + 咖啡拉花共用）--
+  common:
+    topics:
+      - {id: "topic-joints",       default: "/joint_states",                  label: "关节状态话题",     msg_type: "sensor_msgs/msg/JointState"}
+      - {id: "topic-tool-status",  default: "/tool_changer_status",           label: "工具快换状态话题", msg_type: "ivg_interfaces/msg/ToolChangerStatus"}
+      - {id: "urdf-param",         default: "/robot_state_publisher:robot_description", label: "URDF 参数 (node:param)", allow_empty: false}
+      - {id: "tf-fixed-frame",     default: "base_link",                      label: "3D 固定坐标系",    allow_empty: false}
+    tf_topics:
+      - {id: "topic-tf",           default: "/tf",                            label: "TF 动态变换",      msg_type: "tf2_msgs/msg/TFMessage"}
+      - {id: "topic-tf-static",    default: "/tf_static",                     label: "TF 静态变换",      msg_type: "tf2_msgs/msg/TFMessage"}
+
+  # -- 视觉抓取 --
+  vision:
+    topics:
+      - {id: "topic-color",        default: "/camera/color/image_raw",       label: "彩色相机话题",     msg_type: "sensor_msgs/msg/Image"}
+      - {id: "topic-result",       default: "",                               label: "识别结果话题",     msg_type: "sensor_msgs/msg/Image", allow_empty: true}
+      - {id: "topic-robot",        default: "/aubo_io_controller/robot_status", label: "机械臂状态话题", msg_type: "aubo_msgs/msg/RobotStatus"}
+      - {id: "topic-vpe-status",   default: "/system_status",                 label: "VPE 状态话题",     msg_type: "std_msgs/msg/String"}
+      - {id: "topic-grasp-poses",  default: "/grasp_poses_base",              label: "抓取位姿话题",     msg_type: "geometry_msgs/msg/PoseArray"}
+    services:
+      - {id: "svc-loop-grasp-control",   default: "/loop_grasp_control",                label: "循环抓取控制",         srv_type: "std_srvs/srv/SetBool"}
+      - {id: "svc-graspnet-capture",     default: "/graspnet_capture_control",          label: "GraspNet 采集控制",     srv_type: "std_srvs/srv/SetBool"}
+      - {id: "svc-publish-grasps-loop",  default: "/publish_grasps_worker_loop_control", label: "发布抓取循环控制",     srv_type: "std_srvs/srv/SetBool"}
+      - {id: "svc-execute-single-grasp", default: "/execute_single_grasp",              label: "单次抓取执行",         srv_type: "ivg_interfaces/srv/ExecuteGraspPose"}
+      - {id: "svc-gripper-swap",         default: "/run_gripper_swap",                  label: "夹爪快换",             srv_type: "ivg_interfaces/srv/RunGripperSwap"}
+      - {id: "svc-debug-move-to-xyz",    default: "/move_to_pose",                      label: "手动运动 (MoveJ/MoveL)", srv_type: "ivg_interfaces/srv/MoveToPose"}
+    fixed_service_types:
+      execute-single-grasp: "ivg_interfaces/srv/ExecuteGraspPose"
+
+  # -- 咖啡拉花 --
+  latte:
+    topics:
+      - {id: "latte-di-topic",     default: "/latte_di_status",              label: "DI 输入话题",      msg_type: "std_msgs/msg/String"}
+    services:
+      - {id: "svc-latte-do2",      default: "/set_latte_do2",                label: "DO2 开关",         srv_type: "std_srvs/srv/SetBool"}
+      - {id: "svc-latte-do4",      default: "/set_latte_do4",                label: "DO4 开关",         srv_type: "std_srvs/srv/SetBool"}
+      - {id: "svc-latte-workflow", default: "/latte/run_workflow",            label: "拉花工作流",     srv_type: "ivg_interfaces/srv/RunLatteWorkflow"}

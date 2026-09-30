@@ -66,3 +66,20 @@ def test_jitter_changes_world_and_manifest(tmp_path):
 def test_jitter_requires_seed(tmp_path):
     with pytest.raises(SystemExit):
         generate(jitter=True, seed=None, worlds_dir=tmp_path)
+
+
+def test_gravity_variant_separate_file(tmp_path, layout):
+    """重力执行变体：独立文件名（不覆盖零重力门世界）+ 重力值落 SDF."""
+    world_path = generate(worlds_dir=tmp_path)
+    gate_text = world_path.read_text(encoding='utf-8')
+    assert '<gravity>0 0 0.0000</gravity>' in gate_text
+
+    grasp_path = generate(gravity_mps2=9.81, worlds_dir=tmp_path)
+    assert grasp_path.name == 'ivg_table_grasp.sdf'
+    assert grasp_path != world_path
+    grasp_text = grasp_path.read_text(encoding='utf-8')
+    assert '<gravity>0 0 -9.8100</gravity>' in grasp_text
+    # 零重力门世界不被覆盖
+    assert world_path.read_text(encoding='utf-8') == gate_text
+    # 对象摆位与门世界一致（GT 同源）
+    assert grasp_text.count('<include>') == len(layout.placements)

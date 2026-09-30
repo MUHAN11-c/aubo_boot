@@ -1,5 +1,7 @@
 # 测试流程与命名
 
+> 2026-09-30 离线模型 v9：按套袋观感反馈恢复有余量的宽面/折角纸袋，重新使用实拍袋尺寸分位，保留原内果尺寸并降低纸面凹凸。主展示和真实对照仅套袋，另导出三种完整套袋资产。树枝/叶结构沿用已核验的 v8；参考袋内部未知。完整矩阵基线仍属 v5、总体深度对照仍属 v6，不能作为 v9 验收。范围与证据见 [peach_sim README](../src/peach_sim/README.md)。
+
 > 2026-09-24 果园外观重建：当前 Blender 入口为 `src/peach_sim/reconstruction/`，不复用旧模型/贴图/随机布局。RGB-D 约束局部可见袋面；整树、遮挡部分与树行是标注清楚的推断。旧 Gazebo SDF/GT 仍属旧管线，尚未接入此次新场景；无 ROS IDL、运动或驱动变更。数据口径、离线命令与验收边界见 [peach_sim README](../src/peach_sim/README.md)。根目录 `blender_orchard/` 观感预览链已于 2026-09-28 并入 `src/peach_sim/reconstruction/`（袋面折痕、程序贴图、PeachDataSet 先验统计迁入；数据口径以 priors 分位为准），果园外观建模收敛为单管线。
 
 现行系统（SNAPSHOT）：源码。与 [architecture.md](architecture.md)、[io.md](io.md) 构成仅有的三份活文档；**源码与本文互相更新，改启动/验收口径或改本文须同一轮改另一边**。**如何演化**以 [AGENTS.md](../AGENTS.md) 为准：非完美适配当前真机/产品则跟 ROS 2 / 优秀 GitHub 主流。
@@ -68,8 +70,9 @@ exit≠0）、三锚定机位感知门（`validate_perception.py`，YOLO/SAM 对
 光照 4 档 × 停走轨迹视角 → `evaluate_matrix.py --gate` 对冻结基线
 `reconstruction/baselines/perception_matrix_baseline.json`，分层 recall
 回退超容差 exit≠0；建模改动后重跑矩阵对基线，防静默回归）。GPU 渲染作业
-必须串行（双 Blender 并发抢 3090 会 OOM）；矩阵帧不入 git，报告与轨迹以
-`output/matrix_*` 入库。命令与分层口径见 `peach_sim` README。
+必须串行（双 Blender 并发抢 3090 会 OOM）；矩阵帧与 EXR 不入 git，报告与轨迹以
+`output/matrix_*` 入库。中间轮次 `output/modeling_*/` 整树不入库；对照板在
+`output/before_after.jpg` 与 `output/appearance_board.jpg`。命令与分层口径见 `peach_sim` README。
 
 **B. 场景层（Gazebo Harmonic / gz-sim 8；非验收门）**：改 `src/peach_sim/config/orchard.yaml`（树行 / 挂果 / 袋具 / 工位 / 光照）后先重生成，再起场景；前清后清照旧：
 
@@ -713,3 +716,22 @@ ros2 service call /peach_supervisor/control peach_interfaces/srv/ControlTask \
 - 异常先 `ControlTask` 命令 4（CANCEL_NOW），臂停后人工撤离；恢复等待未 ACK 前调度不会 Survey/派下一颗。
 - 停轨走透传取消 + 硬件 `RobotMoveStop`；避障绕行只看行程护栏（观察 4/1.5、接触 12/6.1、拍照 6/2.5）。
 - 观察失败高发项（历史）：`selected_target_stale`/`selected_target_changed`（身份新鲜度）、`missing_mask`（有效深度不足）——summary 原因列现在直接给出，先看原因再调参。量化复算与归档数字见 [testing-log.md](testing-log.md)。
+
+## 5. IVG 演示栈（2026-09-30 自 aubo_boot 移植；独立于采摘）
+
+四包：`ivg_demo_services`（运动薄层+手动/抓取/监控服务）、`latte_backend`（拉花）、`tool_changer`（快换）、`aubo_ros2_web_dashboard`（Web 8095）。**不进 `harvest_system`/lifecycle；与 peach 隔离（用户裁定）：默认独立 DDS 域 96（`IVG_DEMO_DOMAIN_ID` 可覆盖），勿与 peach 同域并行**；IVG 资产只在 IVG 包内（工具 mesh 在 tool_changer/meshes、辅助脚本在 ivg_demo_services/scripts），共享包零 IVG 专有内容。
+
+mock 冒烟（IO 自动旁路）：
+
+```bash
+colcon build --packages-select ivg_interfaces ivg_demo_services latte_backend tool_changer aubo_ros2_web_dashboard aubo_e5_moveit_config
+colcon test  --packages-select ivg_demo_services latte_backend tool_changer aubo_ros2_web_dashboard && colcon test-result --verbose
+scripts/start_ivg_demo.sh mock          # Ctrl+C 停栈（脚本自动 trap 清理+pgrep 复核）
+ros2 service call /get_current_state ivg_interfaces/srv/GetCurrentState "{}"     # 位姿查询
+ros2 service call /set_display_tool ivg_interfaces/srv/ChangeTool "{tool_id: gripper0}"  # 场景附着（不动臂）
+ros2 run tool_changer test_tool_change.py --status
+```
+
+Web 面板需 apt（env_bootstrap 已列）：`ros-jazzy-rosbridge-suite` `ros-jazzy-web-video-server` `ros-jazzy-foxglove-bridge` `ros-jazzy-tf2-web-republisher`；网关 venv 依赖 `websockets==12.0` 已钉 `requirements.txt`。浏览器开 `http://127.0.0.1:8095/`（8090 仍是采摘 observability）。
+
+真机：`scripts/start_ivg_demo.sh real`——**操作员起本栈=授权**（示教器上电、急停手能摸到、工作空间无人）；拉花/快换的预教关节角与杯口标定值沿 aubo_boot 默认，现场重标走 `lwf_*` 参数与 `scripts`（`spout_calibrator`、`compute_dock_ik`）。验收对错只在现场评；已知降级：调试面板"工具电压"按钮无对应服务（点击报不存在，预期）。

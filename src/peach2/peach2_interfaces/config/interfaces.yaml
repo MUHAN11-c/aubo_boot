@@ -1,0 +1,33 @@
+# Peach v2 graph contract (single source for names and QoS).
+# Transport contract, not thresholds.
+topics:
+  /peach/perception/observations: {type: peach2_interfaces/msg/TargetObservationArray, qos: {reliability: reliable, durability: volatile, depth: 10}, producer: peach2_perception, consumers: [peach2_target_model, peach2_task, peach2_observability]}
+  /peach/target_model/models: {type: peach2_interfaces/msg/TargetModelArray, qos: {reliability: reliable, durability: transient_local, depth: 1}, producer: peach2_target_model, consumers: [peach2_scene, peach2_manipulation, peach2_observability]}
+  /peach/enables: {type: peach2_interfaces/msg/Enables, qos: {reliability: reliable, durability: transient_local, depth: 1}, producer: peach2_task, consumers: [peach2_manipulation]}
+  /peach/end_effector/tool_state: {type: peach2_interfaces/msg/ToolState, qos: {reliability: reliable, durability: transient_local, depth: 1}, producer: peach2_manipulation, consumers: [peach2_task, peach2_observability]}
+  /peach/manipulation/recovery_required: {type: std_msgs/msg/Bool, qos: {reliability: reliable, durability: transient_local, depth: 1}, producer: peach2_manipulation, consumers: [peach2_task, peach2_observability]}
+  /peach/task/state: {type: peach2_interfaces/msg/BatchState, qos: {reliability: reliable, durability: transient_local, depth: 1}, producer: peach2_task, consumers: [peach2_observability]}
+services:
+  /peach/perception/begin_scene: {type: peach2_interfaces/srv/BeginScene, server: peach2_perception, clients: [peach2_task]}
+  /peach/target_model/get_decision: {type: peach2_interfaces/srv/GetDecision, server: peach2_target_model, clients: [peach2_manipulation, peach2_task]}
+  /peach/scene/build_snapshot: {type: peach2_interfaces/srv/BuildSceneSnapshot, server: peach2_scene, clients: [peach2_task]}
+  /peach/manipulation/check_reachability: {type: peach2_interfaces/srv/CheckReachability, server: peach2_manipulation, clients: [peach2_task]}
+  # Idempotent: succeeds (no-op) when nothing is pending.
+  /peach/manipulation/acknowledge_recovery: {type: std_srvs/srv/Trigger, server: peach2_manipulation, clients: [peach2_task]}
+  # Operator-facing ACK; forwards to manipulation and clears task-side pending ACK.
+  /peach/task/acknowledge_recovery: {type: std_srvs/srv/Trigger, server: peach2_task, clients: [operator]}
+  /peach/task/set_enables: {type: peach2_interfaces/srv/SetEnables, server: peach2_task, clients: [operator]}
+actions:
+  /peach/task/run_batch: {type: peach2_interfaces/action/RunBatch, server: peach2_task, clients: [operator]}
+  /peach/target_model/observe: {type: peach2_interfaces/action/ObserveTarget, server: peach2_target_model, clients: [peach2_task]}
+  /peach/manipulation/harvest_target: {type: peach2_interfaces/action/HarvestTarget, server: peach2_manipulation, clients: [peach2_task]}
+  /peach/manipulation/move_to: {type: peach2_interfaces/action/MoveTo, server: peach2_manipulation, clients: [peach2_task, peach2_target_model]}
+# Read-only inputs owned by the vendor driver stack.
+external_inputs:
+  /aubo_io_controller/robot_status: {type: aubo_msgs/msg/RobotStatus, consumers: [peach2_manipulation, peach2_task]}
+  /aubo_io_controller/io_states: {type: aubo_msgs/msg/IOState, consumers: [peach2_manipulation]}
+  /aubo_io_controller/set_io: {type: aubo_msgs/srv/SetIO, clients: [peach2_manipulation]}
+  /joint_states: {type: sensor_msgs/msg/JointState, consumers: [peach2_perception, peach2_scene, peach2_manipulation]}
+  /camera/color/image_raw: {type: sensor_msgs/msg/Image, consumers: [peach2_perception]}
+  /camera/depth/image_raw: {type: sensor_msgs/msg/Image, consumers: [peach2_perception, peach2_scene]}
+  /camera/color/camera_info: {type: sensor_msgs/msg/CameraInfo, consumers: [peach2_perception, peach2_scene]}

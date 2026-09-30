@@ -1,0 +1,8 @@
+# /peach/task/set_enables : operator intent. Rejected if the dependency chain
+# (tool => grasp => execution) is violated.
+bool execution
+bool grasp
+bool tool
+---
+bool accepted
+string message

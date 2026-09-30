@@ -19,8 +19,9 @@ ROOT = HERE.parents[2]
 sys.path.insert(0, str(HERE))
 
 import depth_io  # noqa: E402
-from distributions import (sample_bag_for_fruit, sample_mature_fruit,  # noqa: E402
-                           sample_percentile, sample_width_height)
+from distributions import (fruit_center_z, sample_bag_for_fruit,  # noqa: E402
+                           sample_mature_fruit, sample_percentile,
+                           sample_width_height, wrap_half_at, wrap_radius)
 import lighting  # noqa: E402
 import occlusion  # noqa: E402
 from viewpoints import (alley_stops, build_trajectory,  # noqa: E402
@@ -93,16 +94,39 @@ class DistributionTests(unittest.TestCase):
         again = sample_mature_fruit(stats, random.Random(0))
         self.assertEqual(draws[0], again)
 
-    def test_bag_encloses_the_fruit(self):
+    def test_bag_size_uses_observed_paper_and_keeps_fruit_room(self):
         bag = {'width_m': {'p10': .05, 'p50': .11, 'p90': .21},
-               'aspect_h_over_w': {'p10': .65, 'p50': 1.03, 'p90': 1.6}}
+               'aspect_h_over_w': {'p10': .7, 'p50': 1.1, 'p90': 1.5}}
         fruit = {'diameter_m': .08}
-        for i in range(30):
-            sample = sample_bag_for_fruit(bag, fruit, random.Random(i))
-            self.assertGreaterEqual(sample['width_m'], .095 - 1e-9)
-            self.assertGreaterEqual(sample['height_m'], .115 - 1e-9)
-            self.assertIn(sample['dimension_fit'],
-                          ('resampled', 'height_clamped', 'clamped'))
+        widths = []
+        for seed in range(50):
+            sample = sample_bag_for_fruit(bag, fruit, random.Random(seed))
+            widths.append(sample['width_m'])
+            self.assertGreaterEqual(sample['width_m'], .08 * 1.25)
+            self.assertLessEqual(sample['width_m'], .08 * 1.65)
+            self.assertGreaterEqual(sample['height_m'], .08 + .03)
+            self.assertLessEqual(sample['height_m'], .08 + .06)
+            self.assertIsNotNone(sample['width_source_percentile'])
+            self.assertEqual(sample['dimension_fit'], 'fruit_supported_paper')
+        self.assertGreater(max(widths) - min(widths), .02)
+
+    def test_wrap_profile_clears_the_fruit_sphere(self):
+        for diameter in (.066, .073, .081):
+            fruit_r = diameter / 2
+            width = diameter + .012
+            height = diameter + .005 + .022
+            wrap_r = wrap_radius(fruit_r, width)
+            z_c = fruit_center_z(diameter)
+            for i in range(49):
+                z = i / 48 * height
+                half, _power = wrap_half_at(z, fruit_r, wrap_r, height)
+                dz = z - z_c
+                if abs(dz) >= fruit_r - 1e-6:
+                    continue
+                fruit_xy = math.sqrt(fruit_r * fruit_r - dz * dz)
+                self.assertGreater(
+                    half, fruit_xy + .0025,
+                    msg=f'd={diameter:.3f} z={z:.4f}')
 
 
 class OcclusionTests(unittest.TestCase):
@@ -205,6 +229,51 @@ class DepthIOTests(unittest.TestCase):
     def test_nan_is_invalid(self):
         out = depth_io.to_uint16_mm(np.array([[np.nan, -0.1]]))
         self.assertEqual(out.tolist(), [[0, 0]])
+
+    def test_optical_depth_is_camera_forward(self):
+        matrix = [[1., 0., 0., 0.],
+                  [0., 0., -1., 0.],
+                  [0., 1., 0., 1.6],
+                  [0., 0., 0., 1.]]
+        axis = depth_io.camera_look_axis(matrix)
+        self.assertAlmostEqual(axis[1], 1.0, places=5)
+        pos = np.zeros((2, 2, 3))
+        pos[..., 1] = 0.5
+        z = depth_io.optical_depth_m(pos, (0., 0., 1.6), axis)
+        self.assertTrue(np.allclose(z, 0.5))
+
+
+class ConformingSimTests(unittest.TestCase):
+    def test_drops_retreated_primary_reference_and_out_of_support(self):
+        from compare_dataset_depth import conforming_sim
+        real = [{'depth_m': z, 'width_m': w}
+                for z, w in ((0.40, 0.08), (0.60, 0.11), (1.00, 0.18))] * 20
+        sim = [
+            {'view': 'tgt10_v0', 'id': 10, 'kind': 'primary',
+             'band': 'near', 'depth_m': 0.65, 'width_m': 0.09},
+            {'view': 'tgt10_v0', 'id': 11, 'kind': 'primary',
+             'band': 'near', 'depth_m': 0.62, 'width_m': 0.10},
+            {'view': 'tgt99_v0', 'id': 99, 'kind': 'primary',
+             'band': 'near', 'depth_m': 1.20, 'width_m': 0.09},
+            {'view': 'detail', 'id': 20, 'kind': 'wrap',
+             'band': 'near', 'depth_m': 0.58, 'width_m': 0.09},
+            {'view': 'tgt10_v0', 'id': 12, 'kind': 'primary',
+             'band': 'near', 'depth_m': 0.95, 'width_m': 0.09},
+            {'view': 'detail', 'id': 21, 'kind': 'wrap',
+             'band': 'near', 'depth_m': 0.50, 'width_m': 0.40},
+            {'view': 'reference', 'id': 1, 'kind': 'reference_patch',
+             'band': 'near', 'depth_m': 0.50, 'width_m': 0.10},
+        ]
+        traj = {'views': [
+            {'view_id': 'tgt10_v0', 'kind': 'primary', 'target_ids': [10]},
+            {'view_id': 'tgt99_v0', 'kind': 'primary', 'target_ids': [99]},
+        ]}
+        kept, dropped = conforming_sim(sim, real, traj)
+        kept_ids = {(s['view'], s['id']) for s in kept}
+        self.assertEqual(
+            kept_ids,
+            {('tgt10_v0', 10), ('tgt10_v0', 11), ('detail', 20)})
+        self.assertEqual(len(dropped), 4)
 
 
 if __name__ == '__main__':

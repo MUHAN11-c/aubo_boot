@@ -1,0 +1,119 @@
+/* ivg_status_bar.css — 底部状态栏：ROS连接/在线/使能/运动/规划/模式 */
+.ivg-status-bar {
+  --sb-bg: var(--bg-elevated, #ffffff);
+  --sb-border: var(--border, #e2e6ed);
+  --sb-text: var(--text, #171b23);
+  --sb-muted: var(--text-muted, #8b95a6);
+  --sb-ok: #16a34a;
+  --sb-warn: #d97706;
+  --sb-err: #dc2626;
+  --sb-off: #a0a8b8;
+
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 300;
+  background: rgba(255,255,255,0.9);
+  backdrop-filter: blur(10px) saturate(1.1);
+  -webkit-backdrop-filter: blur(10px) saturate(1.1);
+  border-top: 1px solid var(--sb-border);
+  box-shadow: 0 -1px 3px rgba(15, 23, 42, 0.035);
+  padding: 0.35rem max(1.1rem, env(safe-area-inset-right, 0px))
+    0.35rem max(1.1rem, env(safe-area-inset-left, 0px));
+  padding-bottom: calc(0.35rem + env(safe-area-inset-bottom, 0px));
+  font-size: 13px;
+  font-family: "Noto Sans CJK SC", "Noto Sans SC", "PingFang SC", "Microsoft YaHei", "Hiragino Sans GB", system-ui, -apple-system, sans-serif;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem 1.5rem;
+  user-select: none;
+}
+
+.ivg-status-bar__item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  white-space: nowrap;
+}
+
+.ivg-status-bar__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  transition: background 0.25s;
+}
+.ivg-status-bar__dot--on  { background: var(--sb-ok); }
+.ivg-status-bar__dot--off { background: var(--sb-off); }
+.ivg-status-bar__dot--warn { background: var(--sb-warn); }
+.ivg-status-bar__dot--err  { background: var(--sb-err); }
+
+.ivg-status-bar__label {
+  color: var(--sb-muted);
+  font-weight: 500;
+}
+
+.ivg-status-bar__value {
+  color: var(--sb-text);
+  font-weight: 600;
+}
+
+.ivg-status-bar__value--real {
+  color: var(--sb-ok);
+  font-weight: 700;
+}
+
+.ivg-status-bar__value--sim {
+  color: var(--sb-warn);
+  font-weight: 700;
+}
+
+/* ROS 连接状态 — 高亮标记 */
+.ivg-status-bar__item--ros {
+  background: var(--accent-soft);
+  padding: 0.15rem 0.6rem;
+  border-radius: 14px;
+  border: 1px solid rgba(79, 111, 138, 0.12);
+}
+
+.ivg-status-bar__spacer {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+/* 页面底部留出状态栏高度 */
+body.has-ivg-status-bar {
+  padding-bottom: calc(2.2rem + env(safe-area-inset-bottom, 0px));
+}
+
+@media (max-width: 640px) {
+  .ivg-status-bar {
+    gap: 0.4rem 0.8rem;
+    font-size: 11px;
+    padding: 0.28rem 0.6rem;
+    padding-bottom: calc(0.28rem + env(safe-area-inset-bottom, 0px));
+  }
+  body.has-ivg-status-bar {
+    padding-bottom: calc(2.8rem + env(safe-area-inset-bottom, 0px));
+  }
+}
+
+/* ── Bridge 选择器 (临时简化: DOM 已移除, CSS 注释保留以便回滚) ── * /
+.ivg-bridge-selector { display: none; }
+/* 原样式见 git history */
+
+/* ── Foxglove 统计 ─────────────────────────────────────────────────────── */
+
+.ivg-bridge-stats {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.ivg-bridge-stats__item {
+  color: var(--sb-muted);
+  font-size: 11px;
+  font-weight: 500;
+}

@@ -1,0 +1,37 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypatterns="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>ivg_demo_services</name>
+  <version>1.0.0</version>
+  <description>
+    IVG 演示栈服务（2026-09-30 自 aubo_boot demo_driver 按需补缺移植）：
+    demo_motion 运动薄层（MoveGroupInterface 包装）+ move_service_node（手动运动/状态/IO 读/使能/速度）
+    + grasp_trigger_node（单次/循环抓取触发）+ system_monitor_node（节点心跳/日志聚合）。
+    不进 peach harvest_system/lifecycle；机械臂 FK/IK/急停走 aubo_dashboard，IO 走 aubo_io_controller。
+  </description>
+  <maintainer email="wangxiaoyun@iscas.ac.cn">muhan11</maintainer>
+  <license>Apache License 2.0</license>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+
+  <depend>aubo_msgs</depend>
+  <depend>geometry_msgs</depend>
+  <depend>ivg_interfaces</depend>
+  <depend>moveit_msgs</depend>
+  <depend>moveit_ros_planning_interface</depend>
+
+  <exec_depend>moveit_configs_utils</exec_depend>
+  <exec_depend>rclpy</exec_depend>
+  <depend>rclcpp</depend>
+  <depend>sensor_msgs</depend>
+  <depend>shape_msgs</depend>
+  <depend>std_srvs</depend>
+
+  <test_depend>ament_lint_auto</test_depend>
+  <test_depend>ament_lint_common</test_depend>
+  <test_depend>ament_cmake_gtest</test_depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>

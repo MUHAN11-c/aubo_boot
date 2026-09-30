@@ -4,8 +4,10 @@
   <name>ivg_interfaces</name>
   <version>1.0.0</version>
   <description>
-    旁路模板估姿 IDL（EstimatePose* / ListTemplates / StandardizeTemplate / UpdateParams）。
-    不进 peach 清单，不含机械臂/IO/相机触发服务。
+    IVG IDL：旁路模板估姿（EstimatePose* / ListTemplates / StandardizeTemplate / UpdateParams）
+    + 演示栈（拉花 RunLatteWorkflow / 快换 RunGripperSwap·ChangeTool·GetCurrentTool /
+    抓取 ExecuteGraspPose / 监控 NodeStatus·SystemLog·ToolChangerStatus，源自 aubo_boot 移植）。
+    不进 peach 清单；机械臂 FK/IK/IO/急停仍走 aubo_msgs，不在此重复。
   </description>
   <maintainer email="wangxiaoyun@iscas.ac.cn">muhan11</maintainer>
   <license>Apache License 2.0</license>

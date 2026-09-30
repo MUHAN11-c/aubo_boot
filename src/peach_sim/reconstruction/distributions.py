@@ -9,11 +9,14 @@ Blender/ROS 依赖。
 import math
 from typing import Dict, Tuple
 
-# Peach_nobag 框宽含幼果（p10 4.7 cm）。成熟果只取 p50–p90。
+# VOC 0=无遮挡；尺寸上半段作为成熟内果是假设，不是成熟度标签。
 MATURE_U_MIN = 0.5
-# 纸袋可见宽/高必须包住果并留下扎口与袋底的纸。
-FRUIT_WIDTH_MARGIN_M = 0.015
-FRUIT_HEIGHT_MARGIN_M = 0.035
+# 纸贴果：径向间隙 5–9 mm。现场袋底到袋口 p50 7.0 cm，约等于果径。
+FRUIT_SEAT_M = 0.005
+PAPER_GAP_M = 0.005
+PAPER_SLACK_M = (0.005, 0.009)
+NECK_ABOVE_FRUIT_M = (0.010, 0.018)
+NECK_HALF_M = 0.006
 # 假设密度，不是实测；只用于清单里的质量字段。
 FRUIT_DENSITY_KG_M3 = 970.0
 
@@ -50,7 +53,8 @@ def sample_width_height(stats: Dict, rng) -> Dict:
         'height_m': width * aspect,
         'width_source_percentile': round(u_w, 4),
         'aspect_source_percentile': round(u_a, 4),
-        'source': 'Peach_bag priors percentile sampling (n=722)',
+        'source': ('Peach_bag priors percentile sampling '
+                   f"(n={stats['width_m'].get('n', 'not available')})"),
     }
 
 
@@ -73,30 +77,70 @@ def sample_mature_fruit(stats: Dict, rng) -> Dict:
         'diameter_source_percentile': round(u_d, 4),
         'aspect_source_percentile': round(u_a, 4),
         'source': (
-            'Peach_nobag class 1 mature half (u>=0.5, n=359); '
+            'Peach_nobag non-occluded class 0 mature half '
+            f"(u>=0.5, n={stats['width_m'].get('n', 'not available')}); "
             'mass from assumed 970 kg/m3'),
     }
 
 
-def sample_bag_for_fruit(stats: Dict, fruit: Dict, rng, attempts: int = 12) -> Dict:
-    """抽一只装得下这颗果的袋；抽不到就把最后一次抬到下限.
+def fruit_center_z(diameter: float) -> float:
+    """Bag-local Z of the enclosed fruit centre (origin = paper floor)."""
+    return diameter / 2 + FRUIT_SEAT_M
 
-    下限是果径加余量，同时保留原先的 0.22/0.24 m 护栏。
+
+def wrap_radius(fruit_r: float, width: float) -> float:
+    """Equator paper radius. Width encodes slack; Peach_bag boxes do not."""
+    slack = width / 2 - fruit_r
+    slack = min(max(slack, PAPER_GAP_M), PAPER_SLACK_M[1])
+    return fruit_r + slack
+
+
+def wrap_half_at(z: float, fruit_r: float, wrap_r: float, height: float):
+    """Paper half-width and superellipse power at bag-local z.
+
+    Cheek is a sphere about the fruit until just above the fruit, then a
+    short gathered neck. No teardrop floor: that read as an empty bag.
     """
-    floor_w = fruit['diameter_m'] + FRUIT_WIDTH_MARGIN_M
-    floor_h = fruit['diameter_m'] + FRUIT_HEIGHT_MARGIN_M
-    last = None
-    for _ in range(attempts):
-        last = sample_width_height(stats, rng)
-        if floor_w <= last['width_m'] <= .22:
-            # 只抬高度。连宽度一起重抽会把袋宽推到分布上半段。
-            if last['height_m'] < floor_h:
-                last['height_m'] = min(.24, floor_h)
-                last['dimension_fit'] = 'height_clamped'
-            else:
-                last['dimension_fit'] = 'resampled'
-            return last
-    last['width_m'] = min(.22, max(last['width_m'], floor_w))
-    last['height_m'] = min(.24, max(last['height_m'], floor_h))
-    last['dimension_fit'] = 'clamped'
-    return last
+    z_c = fruit_r + FRUIT_SEAT_M
+    fruit_top = z_c + fruit_r
+    gather_start = min(height - 0.006, fruit_top + 0.001)
+    dz = z - z_c
+    sphere = (math.sqrt(max(0.0, wrap_r * wrap_r - dz * dz))
+              if abs(dz) < wrap_r else 0.0)
+    if z <= gather_start:
+        return max(sphere, 0.004), 2.08
+    span = max(height - gather_start, 1e-4)
+    u = min(1.0, max(0.0, (z - gather_start) / span))
+    start_dz = gather_start - z_c
+    if abs(start_dz) < wrap_r:
+        start_r = math.sqrt(max(1e-8, wrap_r * wrap_r - start_dz * start_dz))
+    else:
+        start_r = 0.004
+    s = u * u * (3.0 - 2.0 * u)
+    half = start_r * (1.0 - s) + NECK_HALF_M * s
+    if u > 0.88:
+        half = NECK_HALF_M + 0.003 * (u - 0.88) / 0.12
+    return max(half, 0.004), 2.04
+
+
+def sample_bag_for_fruit(stats: Dict, fruit: Dict, rng, attempts: int = 12) -> Dict:
+    """Sample observed paper dimensions, bounded around an unchanged fruit.
+
+    Bounding boxes are approximate projected dimensions. Their variation is
+    retained within plausible paper bounds, not treated as calibrated meshes.
+    """
+    del attempts
+    observed = sample_width_height(stats, rng)
+    diameter = fruit['diameter_m']
+    width = min(max(observed['width_m'], diameter * 1.25), diameter * 1.65)
+    height = min(max(observed['height_m'], diameter + .03), diameter + .06)
+    return {
+        'width_m': width,
+        'height_m': height,
+        'width_source_percentile': observed['width_source_percentile'],
+        'aspect_source_percentile': observed['aspect_source_percentile'],
+        'observed_width_m': observed['width_m'],
+        'observed_height_m': observed['height_m'],
+        'source': 'Peach_bag class 0 paper quantiles; bounded to contain unchanged fruit',
+        'dimension_fit': 'fruit_supported_paper',
+    }

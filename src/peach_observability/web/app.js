@@ -20,6 +20,41 @@ const batchNames = ["等待就绪", "发现目标", "运行中", "等待安全�
 const phaseNames = ["空闲", "选择目标", "观测中", "完成观测", "质量校验", "靠近中", "工具动作", "撤退中", "收尾中", "目标成功", "目标跳过", "目标失败"];
 const pipelineClass = ["done", "active", "alert", "gated", "failed", "skipped"];
 
+// CanonicalEvent.code → 人读标签（对齐 CanonicalEvent.msg 头注词表；未知码回退原码）
+const eventCodeNames = {
+  target_dispatched: "派发目标", target_succeeded: "目标成功",
+  target_skipped: "目标跳过", target_failed: "目标失败",
+  target_canceled: "目标取消", target_operator_skipped: "人工跳过",
+  survey_failed: "扫场失败", begin_scene_failed: "开场景失败",
+  navigate_failed: "到位失败（预留）", photo_pose_reached: "到达拍照位",
+  round_locked: "锁定本轮", target_timeout: "单果时限超限",
+  targets_filtered: "选果过滤", batch_paused: "批次暂停",
+  batch_resumed: "批次恢复", recovery_required: "需要恢复",
+  recovery_acknowledged: "恢复已确认", enables_changed: "使能变更",
+  batch_policy_updated: "批次策略变更", fire_step: "单步调试",
+  ledger_restored: "账本断点恢复", observe_build_view_race: "观察/建模视角竞态",
+};
+// HarvestState.blockers 词表（harvest_fsm.BLOCKER_*）
+const blockerNames = {
+  stack_not_ready: "托管栈未就绪", recovery_required: "待人工恢复确认",
+  mode_paused: "批次已暂停", mode_maintenance: "维护模式",
+  ledger_write_failed: "账本写失败",
+};
+// FailureCode 数值 → 常量名（IDL 0-23；对齐 docs/io.md 排障表）
+const failureCodeNames = {
+  0: "NONE", 1: "OBSERVE_FAILED", 2: "BUILD_FAILED", 3: "DECISION_REJECTED",
+  4: "PREGRASP_RESIDUAL", 5: "SLEEVE_PLAN_FAILED", 6: "CUT_COMMAND_FAILED",
+  7: "CUT_FEEDBACK_TIMEOUT", 8: "RETREAT_FAILED", 9: "RECOVERY_REQUIRED",
+  10: "VEHICLE_NOT_STATIONARY", 11: "EXACT_TF_MISSING",
+  12: "DYNAMIC_BUDGET_NEGATIVE", 13: "UNBAGGED_NOT_IN_SCOPE",
+  14: "DEGRADED_CONTACT_FORBIDDEN", 15: "MODEL_STALE", 16: "CORRIDOR_BLOCKED",
+  17: "MODEL_IDENTITY_INCOMPLETE", 18: "MODEL_EXPIRED",
+  19: "TOOL_STATE_UNKNOWN", 20: "PLAN_MISMATCH", 21: "TRANSIT_FAILED",
+  22: "START_NOT_READY", 23: "CANCELED",
+};
+const failureCodeLabel = (n) =>
+  failureCodeNames[Number(n)] || `CODE_${n}`;
+
 // 最新一次 /api/state（调试面取 state_seq；渲染器共用）
 let monitorState = null;
 
@@ -138,13 +173,15 @@ function renderEvents(events) {
     const time = numeric(ev.stamp) && ev.stamp > 0
       ? new Date(ev.stamp * 1000).toLocaleTimeString("zh-CN", {hour12: false}) : "--:--:--";
     const severity = numeric(ev.severity) ? Number(ev.severity) : 0;
+    const sevLabel = ["信息", "警告", "错误", "审计"][severity] || "信息";
+    const codeLabel = eventCodeNames[ev.code] || ev.code;
     const target = ev.target_id ? `<span class="target">[${safe(ev.target_id)}]</span>` : "";
     const detailKeys = ev.details && Object.keys(ev.details).length
       ? Object.keys(ev.details) : [];
     const details = detailKeys.length
       ? `<details class="event-details"><summary>${detailKeys.length} 项详情</summary><pre>${safe(JSON.stringify(ev.details))}</pre></details>`
       : "";
-    return `<div class="event-item sev-${severity}"><time>${time}</time><i class="dot" title="${safe(ev.severity_name)}"></i><div class="body"><span class="code">${safe(ev.code)}</span>${target}<p>${safe(ev.message)}</p>${details}</div></div>`;
+    return `<div class="event-item sev-${severity}"><time>${time}</time><i class="dot" title="${safe(ev.severity_name)}"></i><div class="body"><span class="code">${safe(codeLabel)}</span><span class="sev-badge sev-${severity}">${sevLabel}</span>${target}<p>${safe(ev.message)}</p>${details}</div></div>`;
   }).join("");
 }
 
@@ -196,7 +233,7 @@ function renderPlan(perception, taskExecutor) {
   const blockers = state.blockers || [];
   $("batch-blockers").hidden = !blockers.length;
   $("batch-blockers").innerHTML = blockers.map((item) =>
-    `<span title="该就绪门未通过">${safe(item)}</span>`).join("");
+    `<span title="该就绪门未通过">${safe(blockerNames[item] || item)}</span>`).join("");
 
   if (!observations.length) {
     $("target-list").innerHTML = '<tr><td colspan="5" class="empty">等待 target_observations</td></tr>';
@@ -265,7 +302,7 @@ function renderLedger(ledger) {
     const cls = ledgerChip[row.outcome_name] || "";
     const name = ledgerNames[row.outcome_name] || row.outcome_name || "—";
     const failure = row.failure_code !== undefined && row.failure_code !== null
-      ? ` <span class="mono">[${safe(String(row.failure_code))}${row.failure_code_n !== undefined ? `/${safe(String(row.failure_code_n))}` : ""}]</span>` : "";
+      ? ` <span class="mono">[${safe(String(row.failure_code))}${row.failure_code_n !== undefined && row.failure_code_n !== null ? `/${failureCodeLabel(row.failure_code_n)}` : ""}]</span>` : "";
     const stages = (row.stages || []);
     const stageChips = stages.length
       ? stages.map((s) => `<span class="phase-chip">${safe(s.name)} ${s.dur_s === null ? "—" : s.dur_s.toFixed(1)}s</span>`).join("")
@@ -435,6 +472,21 @@ function renderSystem(state) {
       `</div>`
     : "";
   $("selfcheck-panel").innerHTML = selfcheckRows || '<p class="empty">等待首次自检</p>';
+
+  // 启动事实摘要（startup.json 同源；回答"当前跑的什么配置"）
+  const facts = state.startup?.facts || {};
+  const factsRow = [
+    facts.hardware_mode ? `模式 ${String(facts.hardware_mode) === "mock" ? "mock" : "真机"}` : null,
+    facts.tool_profile ? `末端 ${safe(facts.tool_profile)}` : null,
+    facts.camera_enabled !== undefined ? `相机 ${String(facts.camera_enabled) === "true" ? "开" : "关"}` : null,
+    (facts.git && facts.git.commit && facts.git.commit !== "unknown") ? `git ${safe(String(facts.git.commit).slice(0, 8))}` : null,
+    facts.ros_domain_id !== undefined && facts.ros_domain_id !== "" ? `域 ${safe(String(facts.ros_domain_id))}` : null,
+  ].filter(Boolean);
+  const startupEl = $("startup-facts");
+  if (startupEl) {
+    startupEl.hidden = !factsRow.length;
+    startupEl.innerHTML = factsRow.map((text) => `<span>${safe(text)}</span>`).join("");
+  }
 
   const diagNodes = state.diagnostics?.nodes || {};
   const levelText = {0: "OK", 1: "WARN", 2: "ERROR", 3: "STALE"};

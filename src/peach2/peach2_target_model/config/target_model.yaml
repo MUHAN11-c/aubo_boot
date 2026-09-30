@@ -1,0 +1,53 @@
+# peach2_target_model runtime configuration. Read directly by params.load_params():
+# every key is required, unknown keys and out-of-range values reject configure.
+# Topic / service / action names are fixed in code (not parameters).
+
+frame_id: base_link
+
+# GraspDecision.valid_until = now + validity_s; a model whose last observation is older than
+# validity_s is answered with MODEL_EXPIRED.
+validity_s: 120.0
+# Pregrasp TCP = bottom - pregrasp_standoff_m * axis.
+pregrasp_standoff_m: 0.03
+
+# Convergence gates (strict "<").
+converge_sigma_lateral95_m: 0.006
+converge_theta95_deg: 4.0
+converge_sigma_axial95_m: 0.010
+min_views: 1
+
+# ObserveTarget (M1: wait for convergence, no viewpoint motion).
+default_max_views: 3          # used when goal.max_views == 0
+max_views_per_target: 8       # oldest viewpoint dropped beyond this
+observe_timeout_s: 30.0
+
+# Viewpoint segmentation (TargetObservation.camera_pose): a frame starts a new viewpoint when
+# the camera moved from the first frame of the current viewpoint by more than
+# view_translation_change_m or view_rotation_change_deg, or after a time gap > view_gap_s.
+view_gap_s: 0.8
+view_translation_change_m: 0.05
+view_rotation_change_deg: 10.0
+max_frames_per_view: 30
+
+# Close-range neck re-measure at pregrasp (ObserveTarget.neck_remeasure = true).
+remeasure_mismatch_m: 0.010
+remeasure_max_camera_distance_m: 0.30
+remeasure_min_frames: 2
+cut_requires_remeasure: true
+
+# Swing: max(reported, sine fit on bottom positions of the latest view) over swing_window_s,
+# using only observations with swing_known = true. Unknown swing blocks approach
+# (SWING_TOO_LARGE / swing_unknown) when require_known_swing is true.
+swing_max_m: 0.015
+swing_window_s: 5.0
+require_known_swing: true
+
+# approach_allowed tolerates a slightly negative radial margin (the pregrasp is below the bag).
+approach_radial_slack_m: 0.005
+
+# model_revision only increments when content moves by more than these.
+revision_position_tol_m: 0.0005
+revision_angle_tol_deg: 0.1
+
+description_config_dir: $(find-pkg-share aubo_description)/config
+calibration_dir: $(find-pkg-share peach2_calibration)/results

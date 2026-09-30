@@ -1,0 +1,28 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>peach2_bringup</name>
+  <version>2.0.0</version>
+  <description>Peach v2 whole-stack launch: preflight, camera, aubo_e5_bringup include, peach2 lifecycle nodes and nav2 lifecycle manager.</description>
+  <maintainer email="wjz@example.com">wjz</maintainer>
+  <license>BSD-3-Clause</license>
+
+  <exec_depend>aubo_e5_bringup</exec_depend>
+  <exec_depend>launch</exec_depend>
+  <exec_depend>launch_ros</exec_depend>
+  <exec_depend>nav2_lifecycle_manager</exec_depend>
+  <exec_depend>peach2_manipulation</exec_depend>
+  <exec_depend>peach2_perception</exec_depend>
+  <exec_depend>peach2_scene</exec_depend>
+  <exec_depend>peach2_target_model</exec_depend>
+  <exec_depend>peach2_task</exec_depend>
+  <exec_depend>peach_stereo</exec_depend>
+
+  <test_depend>ament_flake8</test_depend>
+  <test_depend>ament_pep257</test_depend>
+  <test_depend>python3-pytest</test_depend>
+
+  <export>
+    <build_type>ament_python</build_type>
+  </export>
+</package>

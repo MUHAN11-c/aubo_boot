@@ -1,0 +1,282 @@
+/* home.css — 门户首页（需先加载 tokens.css + layout_base.css） */
+@layer pages {
+
+/* ---- 入场动画 ---- */
+@keyframes home-fade-up {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.hero              { animation: home-fade-up 0.5s cubic-bezier(0.22,0.61,0.36,1) both; }
+.hero-cta-row      { animation: home-fade-up 0.45s 0.08s cubic-bezier(0.22,0.61,0.36,1) both; }
+section.card       { animation: home-fade-up 0.45s 0.16s cubic-bezier(0.22,0.61,0.36,1) both; }
+section.card + .card { animation-delay: 0.22s; }
+section.card + .card + .card { animation-delay: 0.28s; }
+section.card + .card + .card + .card { animation-delay: 0.34s; }
+
+/* ---- Hero ---- */
+.hero {
+  position: relative;
+  width: 100%; margin: 0 auto;
+  padding: 2.2rem max(1.5rem, env(safe-area-inset-left, 0px)) 1.5rem max(1.5rem, env(safe-area-inset-right, 0px));
+  text-align: center; scroll-margin-top: 5rem;
+  border-bottom: 1px solid var(--line-robot);
+  background:
+    radial-gradient(circle at 50% -10%, rgba(var(--accent-rgb), 0.2), transparent 28rem),
+    linear-gradient(180deg, rgba(var(--accent-rgb), 0.08) 0%, transparent 100%);
+  overflow: hidden;
+}
+
+.hero::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 36% 22%, rgba(255,255,255,0.4), transparent 0.2rem),
+    linear-gradient(115deg, transparent 0 28%, rgba(var(--accent-rgb), 0.06) 28% 29%, transparent 29% 100%);
+  background-size: 42px 42px, auto;
+  mask-image: linear-gradient(180deg, #000, transparent 78%);
+  opacity: 0.45;
+  pointer-events: none;
+}
+
+.hero > * { position: relative; z-index: 1; }
+
+.hero-kicker {
+  margin: 0 0 0.25rem;
+  font-size: 0.78rem; font-weight: 700;
+  color: var(--accent); letter-spacing: 0.14em; text-transform: uppercase;
+}
+
+.hero h1 {
+  margin: 0 0 0.5rem;
+  font-size: clamp(2rem, 5vw, 3.2rem);
+  font-weight: 900; letter-spacing: -0.05em; line-height: 1;
+  color: var(--accent-strong);
+}
+
+.hero .chips {
+  display: flex; flex-wrap: wrap; justify-content: center; gap: 0.35rem;
+  margin-bottom: 0.2rem;
+}
+
+.hero .chip {
+  font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em;
+  color: var(--accent); background: var(--accent-soft);
+  border: 1px solid var(--line-robot); padding: 0.25rem 0.6rem; border-radius: 999px;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.7);
+}
+
+/* ---- Hero CTA 按钮 ---- */
+.hero-cta-row {
+  display: flex; flex-wrap: wrap; justify-content: center; align-items: center;
+  gap: 0.55rem; margin: 1rem 0 0; scroll-margin-top: 5rem;
+}
+
+.hero-cta {
+  display: inline-flex; align-items: center; gap: 0.4rem;
+  min-width: 9rem; min-height: 44px; padding: 0.55rem 1rem;
+  font-size: 0.88rem; font-weight: 700; text-decoration: none;
+  border-radius: 8px; border: 2px solid var(--border);
+  background: var(--bg-elevated); color: var(--accent);
+  box-shadow: var(--shadow-sm); transition: all 0.2s ease;
+}
+
+.hero-cta:hover {
+  border-color: var(--accent); background: var(--accent-soft);
+  box-shadow: var(--shadow-md); transform: translateY(-2px);
+}
+
+.hero-cta__icon { font-size: 1.05rem; line-height: 1; }
+
+.hero-cta--solid {
+  background: var(--accent); color: #fff; border-color: var(--accent);
+  box-shadow: 0 2px 10px rgba(62, 90, 115, 0.35);
+}
+
+.hero-cta--solid:hover {
+  background: var(--accent-hover); border-color: var(--accent-hover);
+  box-shadow: 0 4px 18px rgba(62, 90, 115, 0.4); transform: translateY(-2px);
+}
+
+/* ---- 卡片网格 ---- */
+.sections {
+  width: 100%; max-width: none; margin: 0 auto;
+  padding: 1.2rem max(1.5rem, env(safe-area-inset-left, 0px)) max(1.5rem, env(safe-area-inset-bottom, 0px)) max(1.5rem, env(safe-area-inset-right, 0px));
+  flex: 1 0 auto;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 360px), 1fr));
+  gap: 0.85rem;
+}
+
+/* ---- 卡片 ---- */
+section.card {
+  container-type: inline-size;
+  container-name: card;
+  position: relative;
+  background:
+    linear-gradient(180deg, var(--surface-panel-strong), var(--surface-panel)),
+    var(--surface-glass);
+  border: 1px solid var(--line-robot);
+  border-left: 4px solid var(--accent);
+  border-radius: var(--radius);
+  padding: 1.15rem 1.3rem;
+  box-shadow: var(--glow-robot);
+  scroll-margin-top: 5.5rem;
+  transition: border-color 0.2s ease, box-shadow 0.25s ease, transform 0.2s ease;
+  overflow: hidden;
+  backdrop-filter: blur(14px);
+}
+
+section.card::before {
+  content: "";
+  position: absolute; inset: 0 0 auto; height: 2px;
+  background: var(--scanline); opacity: 0.7; pointer-events: none;
+}
+
+section.card:hover {
+  border-color: var(--line-robot-strong);
+  border-left-color: var(--accent-hover);
+  box-shadow: var(--glow-robot-strong);
+  transform: translateY(-2px);
+}
+
+/* 卡片标题 */
+section.card h2 {
+  display: flex; align-items: center; gap: 0.4rem;
+  margin: 0 0 0.55rem; padding-bottom: 0.4rem;
+  font-size: 1rem; font-weight: 700; color: var(--text);
+  border-bottom: 1px solid var(--border);
+}
+
+.card__icon { font-size: 1.1rem; line-height: 1; color: var(--accent); }
+
+/* 卡片导语 */
+.card-lead {
+  font-weight: 500; color: var(--text-secondary);
+  font-size: 0.84rem; margin: 0 0 0.55rem; line-height: 1.5;
+}
+
+/* 卡片正文 */
+section.card p {
+  margin: 0 0 0.5rem; color: var(--text-muted);
+  font-size: 0.82rem; line-height: 1.5;
+}
+
+/* 特性列表 */
+section.card ul.card-list {
+  margin: 0 0 0.65rem; padding-left: 0; list-style: none;
+  color: var(--text-muted); font-size: 0.82rem;
+}
+
+section.card ul.card-list li {
+  position: relative; margin-bottom: 0.35rem; padding-left: 0.55rem;
+  border-left: 3px solid var(--accent-soft);
+  display: flex; align-items: baseline; gap: 0.3rem;
+}
+
+.card-list-label {
+  display: inline-block; min-width: 4.5rem;
+  font-weight: 600; font-size: 0.75rem; color: var(--text);
+  flex-shrink: 0;
+}
+
+/* ---- 徽章 ---- */
+.badge {
+  display: inline-block;
+  font-size: 0.6rem; font-weight: 800;
+  text-transform: uppercase; letter-spacing: 0.05em;
+  padding: 0.1rem 0.4rem; border-radius: 4px;
+  vertical-align: middle; flex-shrink: 0;
+}
+
+.badge--new {
+  color: var(--accent);
+  background: var(--accent-soft);
+  border: 1px solid rgba(var(--accent-rgb), 0.15);
+}
+
+.badge--demo {
+  color: var(--warn);
+  background: rgba(217, 119, 6, 0.1);
+  border: 1px solid rgba(217, 119, 6, 0.18);
+}
+
+/* ---- 链接按钮行 ---- */
+.link-row {
+  display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.6rem;
+}
+
+.link-row a.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 0.3rem;
+  min-height: 40px; padding: 0.45rem 0.9rem;
+  font-size: 0.8rem; font-weight: 600; text-decoration: none;
+  border-radius: 7px; border: 2px solid var(--line-robot);
+  background: var(--bg-muted); color: var(--accent);
+  transition: all 0.2s ease;
+}
+
+.link-row a.btn:hover {
+  border-color: var(--accent); background: var(--accent-soft);
+  transform: translateY(-1px); box-shadow: var(--shadow-sm);
+}
+
+.link-row a.btn-solid {
+  background: var(--accent); color: #fff; border-color: var(--accent);
+  box-shadow: 0 2px 8px rgba(62, 90, 115, 0.25);
+}
+
+.link-row a.btn-solid:hover {
+  background: var(--accent-hover); border-color: var(--accent-hover);
+}
+
+/* ---- 容器查询：宽卡片双列列表 ---- */
+@container card (min-width: 500px) {
+  section.card ul.card-list {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.25rem 0.5rem;
+  }
+  section.card ul.card-list li {
+    margin-bottom: 0.2rem;
+  }
+}
+
+/* ---- 响应式 ---- */
+@media (hover: none) and (pointer: coarse), (max-width: 1024px) {
+  .hero-cta { min-height: 48px; }
+  .link-row a.btn { min-height: 44px; }
+}
+
+@media (max-width: 640px) {
+  .hero {
+    padding: 1.5rem 1rem 1rem;
+  }
+
+  .hero-cta {
+    min-width: 100%;
+  }
+
+  .sections {
+    grid-template-columns: 1fr;
+    padding: 0.8rem 1rem 1.2rem;
+  }
+
+  section.card {
+    padding: 1rem 1rem;
+  }
+
+  .card-list-label {
+    display: block; margin-bottom: 0.1rem;
+  }
+
+  .link-row {
+    flex-direction: column; align-items: stretch;
+  }
+
+  .link-row a.btn {
+    justify-content: center; width: 100%;
+  }
+}
+
+}

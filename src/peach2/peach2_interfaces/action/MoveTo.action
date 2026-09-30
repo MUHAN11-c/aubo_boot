@@ -1,0 +1,10 @@
+# /peach/manipulation/move_to : free-space transit, whole arm collision checked.
+string named_target                  # SRDF group_state; empty = use pose
+geometry_msgs/PoseStamped tcp_pose
+float64 velocity_scaling             # 0 = default
+---
+bool success
+uint32 failure_code
+string message
+---
+float64 progress                     # 0..1

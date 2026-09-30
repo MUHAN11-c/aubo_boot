@@ -1,0 +1,319 @@
+<!-- robot_arm_panel.html — 机械臂上位机可视化页面，结构完全参考 ReBot Arm B601-DM 仿真器，仅修改主题色为项目暖灰蓝 -->
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content">
+<title>机械臂上位机</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="css/tokens.css">
+<link rel="stylesheet" href="css/layout_base.css">
+<link rel="stylesheet" href="css/pages/robot_arm_panel.css">
+<link rel="stylesheet" href="css/components/ivg_site_nav.css">
+<link rel="stylesheet" href="css/components/ivg_status_bar.css">
+<script src="/js/robotwebtools/importmap.js"></script>
+</head>
+<body class="ivg-single-screen">
+<ivg-site-nav page="robot-arm"></ivg-site-nav>
+
+<main class="app-shell">
+  <!-- ====== 左侧：3D 视口区域 ====== -->
+  <section class="viewport" id="viewport">
+    <!-- CSS 构建的机械臂数字孪生（替代 Three.js 实时渲染） -->
+    <div id="scene-host" class="scene-host" aria-hidden="true">
+      <div class="robot-grid-floor"></div>
+      <div class="robot-base"></div>
+      <div class="robot-link robot-link--shoulder"></div>
+      <div class="robot-joint robot-joint--shoulder"></div>
+      <div class="robot-link robot-link--upper"></div>
+      <div class="robot-joint robot-joint--elbow"></div>
+      <div class="robot-link robot-link--forearm"></div>
+      <div class="robot-joint robot-joint--wrist"></div>
+      <div class="robot-tool"></div>
+      <div class="robot-reach-ring robot-reach-ring--near"></div>
+      <div class="robot-reach-ring robot-reach-ring--far"></div>
+    </div>
+
+    <!-- 顶部 HUD：标题 + 状态 -->
+    <header class="hud top-hud">
+      <div>
+        <p class="eyebrow">欢迎来到机械臂上位机</p>
+        <h1>ROS2 机械臂上位机 · 数字孪生</h1>
+      </div>
+      <div class="status-pill ready" id="load-status">
+        <span class="status-dot"></span>
+        就绪
+      </div>
+    </header>
+
+    <!-- TCP 位置 HUD -->
+    <div class="hud pose-hud">
+      <div>
+        <span>TCP 末端位置</span>
+        <strong id="tcp-position">X 0.374 / Y 0.304 / Z 0.476</strong>
+      </div>
+      <div>
+        <span>可达参考</span>
+        <strong id="reach-state">范围内</strong>
+      </div>
+    </div>
+
+    <!-- 底部图例：ROS 坐标轴方向 -->
+    <div class="hud legend-hud">
+      <span><i class="axis x"></i>ROS +X 前方</span>
+      <span><i class="axis y"></i>ROS +Y 左侧</span>
+      <span><i class="axis z"></i>ROS +Z 向上</span>
+    </div>
+  </section>
+
+  <!-- ====== 右侧：控制面板 ====== -->
+  <aside class="control-panel">
+    <!-- 面板标题栏 -->
+    <div class="panel-title">
+      <div>
+        <p class="eyebrow">控制台</p>
+        <h2>仿真控制台</h2>
+      </div>
+      <div class="panel-actions">
+        <button class="icon-btn" id="reset-camera" title="重置视角" disabled>↺</button>
+      </div>
+    </div>
+
+    <!-- ====== ROS2 桥接区块 ====== -->
+    <div class="section ros-section">
+      <div class="section-head">
+        <div>
+          <p class="eyebrow">ROS2 桥接</p>
+          <h3>真实机械臂连接</h3>
+        </div>
+        <span class="mini-pill offline" id="ros-status">离线</span>
+      </div>
+      <label class="field-row">
+        <span>WebSocket</span>
+        <input id="ros-url" type="text" value="ws://localhost:9090" spellcheck="false" readonly>
+      </label>
+      <div class="button-grid">
+        <button type="button" id="ros-connect" disabled>连接 ROS</button>
+        <button type="button" id="ros-disconnect" disabled>断开</button>
+      </div>
+      <label class="switch-row">
+        <input type="checkbox" id="ros-mirror" disabled>
+        <span>镜像真实关节状态到网页</span>
+      </label>
+      <label class="switch-row">
+        <input type="checkbox" id="ros-control-enable" disabled>
+        <span>允许网页向真实机械臂发控制</span>
+      </label>
+      <div class="button-grid">
+        <button type="button" id="ros-enable" disabled>使能</button>
+        <button type="button" id="ros-disable" disabled>失能</button>
+        <button type="button" id="ros-safe-home" disabled>安全回零</button>
+        <button type="button" id="ros-open-gripper" disabled>夹爪打开</button>
+        <button type="button" id="ros-close-gripper" disabled>夹爪闭合</button>
+      </div>
+      <div class="ros-feedback">
+        <span>反馈差值</span>
+        <strong id="ros-feedback-error">等待 /joint_states</strong>
+      </div>
+      <p class="ros-message" id="ros-message">先启动 rosbridge 并连接 WebSocket。</p>
+    </div>
+
+    <!-- ====== 诊断区块 ====== -->
+    <div class="section ros-tools-section">
+      <div class="section-head">
+        <div>
+          <p class="eyebrow">诊断</p>
+          <h3>ROS 一键检测</h3>
+        </div>
+        <span class="mini-pill online" id="ros-mode-pill">仿真</span>
+      </div>
+      <label class="field-row">
+        <span>运行模式</span>
+        <select id="ros-mode" disabled>
+          <option value="fake" selected>仿真驱动</option>
+          <option value="real">真实机械臂</option>
+        </select>
+      </label>
+      <div class="diag-grid">
+        <div class="diag-item"><span>rosbridge</span><strong id="diag-bridge">待检测</strong></div>
+        <div class="diag-item"><span>/joint_states</span><strong id="diag-joint-states">待检测</strong></div>
+        <div class="diag-item"><span>/arm_status</span><strong id="diag-arm-status">待检测</strong></div>
+        <div class="diag-item"><span>/gripper/state</span><strong id="diag-gripper">待检测</strong></div>
+      </div>
+      <div class="button-grid">
+        <button type="button" id="ros-run-diagnostics" disabled>检测 ROS</button>
+        <button type="button" id="ros-clear-log" disabled>清空日志</button>
+      </div>
+    </div>
+
+    <!-- ====== 安全限制区块 ====== -->
+    <div class="section safety-section">
+      <h3>安全限制</h3>
+      <label class="field-row">
+        <span>关节速度上限 rad/s</span>
+        <input id="ros-vlim" type="text" value="1.2" readonly>
+      </label>
+      <label class="field-row">
+        <span>轨迹总时长 s</span>
+        <input id="ros-trajectory-duration" type="text" value="6" readonly>
+      </label>
+      <label class="switch-row">
+        <input type="checkbox" id="ros-require-confirm" checked disabled>
+        <span>真机模式下执行前二次确认</span>
+      </label>
+    </div>
+
+    <!-- ====== 轨迹与 Pose 下发区块 ====== -->
+    <div class="section action-section">
+      <h3>轨迹与 Pose 下发</h3>
+      <div class="button-grid">
+        <button type="button" id="ros-send-teach-trajectory" disabled>下发示教轨迹</button>
+        <button type="button" id="ros-send-current-trajectory" disabled>下发当前姿态</button>
+      </div>
+      <div class="pose-grid">
+        <label>X m<input id="ros-pose-x" type="text" value="0.30" readonly></label>
+        <label>Y m<input id="ros-pose-y" type="text" value="0.00" readonly></label>
+        <label>Z m<input id="ros-pose-z" type="text" value="0.30" readonly></label>
+        <label>时长 s<input id="ros-pose-duration" type="text" value="2.0" readonly></label>
+      </div>
+      <div class="button-grid">
+        <button type="button" id="ros-check-ik" disabled>IK 检查</button>
+        <button type="button" id="ros-send-pose" disabled>发送 Pose</button>
+      </div>
+    </div>
+
+    <!-- ====== Ubuntu 启动助手 ====== -->
+    <div class="section startup-section">
+      <h3>Ubuntu 启动助手</h3>
+      <pre class="command-box" id="ros-startup-commands">source /opt/ros/jazzy/setup.bash
+cd ~/reBotArmController_ROS2-main
+colcon build --symlink-install
+source install/setup.bash
+ros2 launch rebotarm_bringup fake_bringup.launch.py
+
+# 另一个终端
+source /opt/ros/jazzy/setup.bash
+source ~/reBotArmController_ROS2-main/install/setup.bash
+ros2 launch rosbridge_server rosbridge_websocket_launch.xml port:=9090 address:=0.0.0.0</pre>
+    </div>
+
+    <!-- ====== ROS 实时日志区块 ====== -->
+    <div class="section log-section">
+      <h3>ROS 实时日志</h3>
+      <div class="ros-log" id="ros-log">
+        <div class="ros-log-line"><time>--:--</time><span class="info">等待 ROS bridge 连接 …</span></div>
+        <div class="ros-log-line"><time>--:--</time><span class="info">安全限制已加载</span></div>
+        <div class="ros-log-line"><time>--:--</time><span class="info">数字孪生视口已准备</span></div>
+        <div class="ros-log-line"><time>--:--</time><span class="ok">仿真模式就绪</span></div>
+      </div>
+    </div>
+
+    <!-- ====== 姿态预设区块 ====== -->
+    <div class="section">
+      <h3>姿态预设</h3>
+      <div class="button-grid" id="preset-buttons">
+        <button type="button" disabled>就绪</button>
+        <button type="button" disabled>前方</button>
+        <button type="button" disabled>左侧抓取</button>
+        <button type="button" disabled>右侧放置</button>
+        <button type="button" disabled>检测</button>
+        <button type="button" disabled>折叠</button>
+      </div>
+    </div>
+
+    <!-- ====== 关节角度区块 ====== -->
+    <div class="section">
+      <h3>关节角度</h3>
+      <div id="joint-controls" class="joint-list">
+        <div class="joint-control">
+          <div class="joint-head"><span>J1 基座旋转</span><strong class="joint-value">0.0°</strong></div>
+          <input type="range" min="-180" max="180" value="0" disabled>
+        </div>
+        <div class="joint-control">
+          <div class="joint-head"><span>J2 肩部</span><strong class="joint-value">-42.0°</strong></div>
+          <input type="range" min="-180" max="180" value="-42" disabled>
+        </div>
+        <div class="joint-control">
+          <div class="joint-head"><span>J3 肘部</span><strong class="joint-value">84.0°</strong></div>
+          <input type="range" min="-180" max="180" value="84" disabled>
+        </div>
+        <div class="joint-control">
+          <div class="joint-head"><span>J4 腕部旋转</span><strong class="joint-value">0.0°</strong></div>
+          <input type="range" min="-180" max="180" value="0" disabled>
+        </div>
+        <div class="joint-control">
+          <div class="joint-head"><span>J5 腕部俯仰</span><strong class="joint-value">48.0°</strong></div>
+          <input type="range" min="-180" max="180" value="48" disabled>
+        </div>
+        <div class="joint-control">
+          <div class="joint-head"><span>J6 末端旋转</span><strong class="joint-value">0.0°</strong></div>
+          <input type="range" min="-180" max="180" value="0" disabled>
+        </div>
+      </div>
+    </div>
+
+    <!-- ====== 夹爪区块 ====== -->
+    <div class="section">
+      <h3>夹爪</h3>
+      <div class="gripper-readout">
+        <span>开合宽度</span>
+        <strong id="gripper-width">0 毫米</strong>
+      </div>
+      <div class="button-grid">
+        <button type="button" id="open-gripper" disabled>打开夹爪</button>
+        <button type="button" id="close-gripper" disabled>关闭夹爪</button>
+      </div>
+    </div>
+
+    <!-- ====== 空间图层区块 ====== -->
+    <div class="section">
+      <h3>空间图层</h3>
+      <label class="switch-row">
+        <input type="checkbox" id="toggle-envelope" checked disabled>
+        <span>显示估算可达包络</span>
+      </label>
+      <label class="switch-row">
+        <input type="checkbox" id="toggle-ghost" checked disabled>
+        <span>显示目标残影</span>
+      </label>
+    </div>
+
+    <!-- ====== 演示区块 ====== -->
+    <div class="section">
+      <h3>演示</h3>
+      <button class="primary-btn" id="play-path" disabled>播放取放路径</button>
+      <button class="secondary-btn" id="plan-trajectory" disabled>规划到当前姿态</button>
+      <button class="secondary-btn" id="toggle-drag" disabled>启用 TCP 拖拽</button>
+      <button class="secondary-btn" id="stop-path" disabled>停止</button>
+    </div>
+
+    <!-- ====== TCP 示教区块 ====== -->
+    <div class="section teach-section">
+      <h3>TCP 示教</h3>
+      <div class="button-grid teach-buttons">
+        <button type="button" id="teach-record" disabled>开始录制</button>
+        <button type="button" id="teach-replay" disabled>回放</button>
+        <button type="button" id="teach-export" disabled>导出 ROS waypoint</button>
+        <button type="button" id="teach-clear" disabled>清空</button>
+      </div>
+      <p class="teach-status" id="teach-status">未录制</p>
+      <textarea id="teach-export-text" class="teach-export" readonly placeholder="导出的 waypoints 会显示在这里"></textarea>
+    </div>
+
+    <!-- ====== 机械臂信息区块 ====== -->
+    <div class="section metrics">
+      <h3>机械臂信息</h3>
+      <dl>
+        <div><dt>模型</dt><dd>ROS2 URDF + STL</dd></div>
+        <div><dt>自由度</dt><dd>6 DOF + 夹爪</dd></div>
+        <div><dt>建议负载</dt><dd>1.5 kg</dd></div>
+        <div><dt>坐标</dt><dd>X 前 / Y 左 / Z 上</dd></div>
+      </dl>
+    </div>
+  </aside>
+</main>
+
+<script type="module" src="js/ivg_site_nav.js"></script>
+<script type="module" src="js/core/ivg_status_bar.js"></script>
+</body>
+</html>

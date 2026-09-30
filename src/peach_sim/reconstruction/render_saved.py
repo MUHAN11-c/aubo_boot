@@ -9,6 +9,7 @@ import bpy
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
+from build_scene import _enable_gpu  # noqa: E402,I100
 import lighting  # noqa: E402,I100
 from lighting_apply import apply_lighting  # noqa: E402
 from render_evidence import record_render  # noqa: E402
@@ -22,9 +23,10 @@ p.add_argument('--lighting', choices=sorted(lighting.PRESETS))
 p.add_argument('--out', type=Path, default=HERE / 'output')
 a = p.parse_args(sys.argv[sys.argv.index('--') + 1:])
 s = bpy.context.scene
+s.cycles.device = 'GPU' if _enable_gpu() != 'CPU' else 'CPU'
 names = {
     'reference': 'Reference 1200 / approximate 90deg',
-    'detail': 'Fruit branch / oblique',
+    'detail': 'Filled bag close-up / inferred tree',
     'orchard': 'Orchard / aisle overview'}
 out = a.out
 out.mkdir(parents=True, exist_ok=True)
@@ -51,7 +53,8 @@ manifest['render_settings'] = {
 manifest['lighting'] = lighting.manifest_entry(preset_name)
 (out / 'scene_manifest.json').write_text(json.dumps(manifest, indent=2))
 for view in names if a.view == 'all' else [a.view]:
-    s.camera = bpy.data.objects[names[view]]
+    camera_name = manifest['cameras'][view].get('object_name', names[view])
+    s.camera = bpy.data.objects[camera_name]
     s.render.filepath = str(out / f'{view}.png')
     for node in s.node_tree.nodes:
         if node.type == 'OUTPUT_FILE':

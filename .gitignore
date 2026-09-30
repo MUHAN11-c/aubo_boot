@@ -117,9 +117,11 @@ _tools/
 *.blend
 *.blend1
 
-# 感知验证矩阵渲染产物（数百~数千帧，run_matrix 可重现；摘要/报告以 matrix_* 前缀拷贝入库）
+# 感知验证矩阵 / field 锚定 / 中间建模轮次（可重渲；摘要以 matrix_* 前缀拷进 output/ 根）
 src/peach_sim/reconstruction/output/matrix*/
-src/peach_sim/reconstruction/output/modeling_*/**/matrix/
-
-# field 锚定整园渲染（--scale field 可重现，535MB+ 渲染帧不入库）
+src/peach_sim/reconstruction/output/depth_pop/
 src/peach_sim/reconstruction/output/field_anchor/
+src/peach_sim/reconstruction/output/modeling_*/
+src/peach_sim/reconstruction/output/blender_tutorial/
+src/peach_sim/reconstruction/output/**/*.exr
+src/peach_sim/reconstruction/matrix/

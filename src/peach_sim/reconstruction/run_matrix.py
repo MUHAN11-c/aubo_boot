@@ -74,6 +74,8 @@ def adjust_primary_views(traj):
         primary['eye'] = list(final)
         cam = final
         for vid in chain[1:]:
+            if vid not in view_by_id:
+                continue
             nxt = Vector(supplemental_viewpoint(
                 list(center), list(cam), list(axis)))
             view_by_id[vid]['eye'] = list(nxt)
@@ -109,6 +111,14 @@ def main():
                         help='evaluate a stratified subset: N tree bags per '
                              'occlusion level (plus all reference bags); '
                              '0 = every target (slow: ~1900 renders)')
+    parser.add_argument('--view-kinds', default='',
+                        help='comma-separated: alley_stop,primary,supplemental; '
+                             'empty = all kinds')
+    parser.add_argument('--skip-reference', action='store_true',
+                        help='drop views whose targets are only RGB-D '
+                             'Reference/ bags')
+    parser.add_argument('--skip-existing', action='store_true',
+                        help='do not re-render a view that already has EXRs')
     args = parser.parse_args(sys.argv[sys.argv.index(
         '--') + 1:] if '--' in sys.argv else [])
 
@@ -145,6 +155,17 @@ def main():
                                    in traj['target_registry'].items()
                                    if tid in keep}
         traj['subset_per_level'] = args.subset_per_level
+    if args.view_kinds:
+        kinds = {s.strip() for s in args.view_kinds.split(',') if s.strip()}
+        traj['views'] = [v for v in traj['views'] if v['kind'] in kinds]
+        traj['view_kinds'] = sorted(kinds)
+    if args.skip_reference:
+        ref_ids = {t['id'] for t in manifest['targets']
+                   if str(t.get('name', '')).startswith('Reference/')}
+        traj['views'] = [v for v in traj['views']
+                         if not (set(v.get('target_ids') or ()) and
+                                 set(v.get('target_ids') or ()) <= ref_ids)]
+        traj['skip_reference'] = True
     if args.max_views:
         keep = {v['view_id'] for v in traj['views'][:args.max_views]}
         traj['views'] = [v for v in traj['views'] if v['view_id'] in keep]
@@ -170,6 +191,9 @@ def main():
     cam = matrix_camera(traj)
 
     total = len(traj['lighting_applied']) * len(traj['views'])
+    print(f'MATRIX START {total} views '
+          f'kinds={traj.get("view_kinds")} skip_ref={args.skip_reference}',
+          flush=True)
     done = 0
     t0 = time.time()
     times = []
@@ -178,6 +202,9 @@ def main():
         for view in traj['views']:
             view_dir = out / lname / view['view_id']
             view_dir.mkdir(parents=True, exist_ok=True)
+            if args.skip_existing and (view_dir / 'Position_0001.exr').is_file():
+                print(f'MATRIX skip {view["view_id"]}', flush=True)
+                continue
             cam.location = Vector(view['eye'])
             cam.rotation_euler = (
                 Vector(view['lookat']) -
@@ -192,10 +219,10 @@ def main():
             times.append({'lighting': lname, 'view': view['view_id'],
                           'seconds': round(time.time() - stamp, 2)})
             done += 1
-            if done % 25 == 0:
-                rate = (time.time() - t0) / done
-                print(f'MATRIX {done}/{total} avg {rate:.1f}s '
-                      f'eta {rate * (total - done) / 60:.0f}min', flush=True)
+            rate = (time.time() - t0) / done
+            print(f'MATRIX {done}/{total} {view["view_id"]} '
+                  f'{times[-1]["seconds"]:.1f}s avg {rate:.1f}s '
+                  f'eta {rate * (total - done) / 60:.0f}min', flush=True)
     (out / 'render_times.json').write_text(json.dumps(times, indent=1))
     print(f'MATRIX COMPLETE {done} renders in '
           f'{(time.time() - t0) / 60:.1f} min', flush=True)

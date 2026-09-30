@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Peach v2 batch tree (plan §8.2). Ticked with Tree::tickOnce from a 50 Hz wall timer.
+  Root blackboard (set by peach2_task before createTree):
+    intent (int, RunBatch.INTENT_*), tool_id (string), photo_pose (string),
+    max_views (unsigned), retry_attempts (unsigned).
+  SUCCESS = batch settled (termination reason in the session); FAILURE = aborted.
+-->
+<root BTCPP_format="4" main_tree_to_execute="HarvestBatch">
+
+  <BehaviorTree ID="HarvestBatch">
+    <ReactiveSequence>
+      <CheckSafety/>
+      <Sequence>
+        <SubTree ID="Survey" _autoremap="true"/>
+        <Fallback>
+          <Sequence>
+            <IntentIs intent="SURVEY_ONLY"/>
+            <SettleBatch reason="survey_only"/>
+          </Sequence>
+          <Fallback>
+            <KeepRunningUntilFailure>
+              <SubTree ID="NextTarget" _autoremap="true"/>
+            </KeepRunningUntilFailure>
+            <BatchSettled/>
+          </Fallback>
+        </Fallback>
+      </Sequence>
+    </ReactiveSequence>
+  </BehaviorTree>
+
+  <!-- First survey: photo pose, scene snapshot on the stationary frame, BeginScene (clears
+       tracks, new scene_epoch), then a lock of that epoch. -->
+  <BehaviorTree ID="Survey">
+    <Sequence>
+      <MoveToNamed target="{photo_pose}"/>
+      <BuildSceneSnapshot clear_previous="true"/>
+      <BeginScene/>
+      <WaitTargetSetLocked/>
+    </Sequence>
+  </BehaviorTree>
+
+  <!-- Re-survey after an empty round: same epoch (target ids stay valid for the ledger),
+       snapshot frames merged into the batch scene. -->
+  <BehaviorTree ID="Resurvey">
+    <Sequence>
+      <MoveToNamed target="{photo_pose}"/>
+      <BuildSceneSnapshot clear_previous="false"/>
+      <WaitTargetSetLocked/>
+    </Sequence>
+  </BehaviorTree>
+
+  <!-- One loop iteration: FAILURE ends the loop (settled or aborted, see BatchSettled).
+       A pending recovery is ACKed before the gate so a batch never settles past it. -->
+  <BehaviorTree ID="NextTarget">
+    <Sequence>
+      <IfThenElse>
+        <IsRecoveryRequired/>
+        <WaitForAck/>
+        <AlwaysSuccess/>
+      </IfThenElse>
+      <BatchGate/>
+      <IfThenElse>
+        <SelectTarget target_id="{tid}"/>
+        <Fallback>
+          <Sequence>
+            <SubTree ID="HarvestOne" _autoremap="true"/>
+            <RecordResult target_id="{tid}"/>
+          </Sequence>
+          <RecordSkip target_id="{tid}"/>
+        </Fallback>
+        <Sequence>
+          <NoTargetRound/>
+          <SubTree ID="Resurvey" _autoremap="true"/>
+        </Sequence>
+      </IfThenElse>
+    </Sequence>
+  </BehaviorTree>
+
+  <!-- Normal attempt: observe close-range until sigma gates pass, check the approach
+       permission, then one manipulation cycle. After NECK_REMEASURE_PENDING (FULL, arm at
+       pregrasp): single close-range neck re-measure, cut permission, then the cycle again.
+       RETRY_VIEW / WAIT failures retry the whole cycle (bounded by retry_attempts). -->
+  <BehaviorTree ID="HarvestOne">
+    <RetryOnPolicy num_attempts="{retry_attempts}">
+      <Sequence>
+        <IfThenElse>
+          <NeckRemeasurePending/>
+          <Sequence>
+            <ObserveTarget target_id="{tid}" max_views="1" neck_remeasure="true"
+                           model_revision="{model_revision}"/>
+            <CheckDecision target_id="{tid}" tool_id="{tool_id}" level="cut"
+                           min_model_revision="{model_revision}"/>
+          </Sequence>
+          <WithinTargetDeadline>
+            <Sequence>
+              <ObserveTarget target_id="{tid}" max_views="{max_views}"
+                             model_revision="{model_revision}"/>
+              <CheckDecision target_id="{tid}" tool_id="{tool_id}" level="approach"
+                             min_model_revision="{model_revision}"/>
+            </Sequence>
+          </WithinTargetDeadline>
+        </IfThenElse>
+        <NoRecoveryPending/>
+        <HarvestTarget target_id="{tid}" tool_id="{tool_id}" intent="{intent}"/>
+      </Sequence>
+    </RetryOnPolicy>
+  </BehaviorTree>
+
+</root>

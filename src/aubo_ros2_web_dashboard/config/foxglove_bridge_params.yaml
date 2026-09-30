@@ -1,0 +1,7 @@
+# foxglove_bridge 独立终端参数
+# 排除 /aubo/feedback_states (action 隐式话题, 无独立 .idl,
+# 会导致 rosgraphPollThread 触发 bad optional access 崩溃) 喵~
+/foxglove_bridge:
+  ros__parameters:
+    topic_whitelist:
+      - "^(?!/aubo/feedback_states$).*$"

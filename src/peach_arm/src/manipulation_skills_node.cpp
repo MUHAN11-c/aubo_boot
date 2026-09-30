@@ -288,11 +288,20 @@ void ManipulationSkillsNode::requestCancelAll(const std::string & reason)
     get_logger(), "requestCancelAll: 停止当前执行（来源：%s）",
     reason.empty() ? "未注明" : reason.c_str());
   cancel_requested_.store(true);
-  if (move_group_) {
-    move_group_->stop();
-  }
-  if (grasp_task_) {
-    grasp_task_->cancel();
+  // 防御式（E2E 首跑实锤 2026-09-30）：SIGINT 后 signal_handler 已调
+  // rcl_shutdown，deactivate 收口路径里的 stop/cancel（内部经 rclcpp
+  // 异步口创建 guard condition）会抛 RCLError → std::terminate（exit -6）。
+  // 清理路径的失败只记录，不得终止进程。
+  try {
+    if (move_group_) {
+      move_group_->stop();
+    }
+    if (grasp_task_) {
+      grasp_task_->cancel();
+    }
+  } catch (const std::exception & error) {
+    RCLCPP_DEBUG(
+      get_logger(), "取消清理在关停期失败（可忽略）: %s", error.what());
   }
   cache_.notifyAll();
 }

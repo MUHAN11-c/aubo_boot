@@ -1,0 +1,17 @@
+# /peach/scene/build_snapshot : grab one time-aligned depth frame and rebuild
+# the layered PlanningScene obstacles (hard obstacles collide with the whole arm).
+# Hard objects are written with id prefix HARD_OBJECT_PREFIX; target bags are hollowed
+# (peach2_manipulation adds bag capsules itself).
+string HARD_OBJECT_PREFIX=peach_scene_hard_
+
+string request_id
+bool clear_previous          # true at batch start
+---
+bool success
+uint32 n_hard_objects
+uint32 n_soft_voxels
+bool truncated               # max_objects reached (farthest from TCP dropped)
+uint32 n_frames              # frames merged in this batch
+builtin_interfaces/Time frame_stamp
+float64 frame_age_s
+string message

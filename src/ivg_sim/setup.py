@@ -16,6 +16,12 @@ setup(
         ('share/' + package_name + '/config', glob('config/*.yaml')),
         # 世界与 GT manifest 安装到 share（generate_table_world 生成后重建生效）
         ('share/' + package_name + '/worlds', glob('worlds/*.sdf') + glob('worlds/*.yaml')),
+        # 四指夹爪剖分网格（scripts/split_gripper2.py 产物）+ 包装 xacro
+        ('share/' + package_name + '/meshes/visual',
+         glob('meshes/visual/*.stl')),
+        ('share/' + package_name + '/meshes/collision',
+         glob('meshes/collision/*.stl')),
+        ('share/' + package_name + '/urdf', glob('urdf/*.xacro')),
         # YCB model.sdf/model.config 安装；meshes 由 fetch_ycb.sh 恢复（不入 git）
         ('share/' + package_name + '/models', glob('models/LICENSE*') + glob('models/README.md')),
     ] + [
@@ -39,6 +45,7 @@ setup(
             'generate_table_world = ivg_sim.generate_table_world:main',
             'cloud_relay = ivg_sim.cloud_relay:main',
             'score_grasps = ivg_sim.score_grasps:main',
+            'execute_grasp = ivg_sim.execute_grasp:main',
         ],
     },
 )

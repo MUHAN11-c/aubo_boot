@@ -79,5 +79,5 @@ print(report['project_recordings'])
 
 # Keep foliage measurement in one implementation; auditing must not restore
 # obsolete random leaf angles and lengths.
-from measure_foliage import main as measure_foliage  # noqa: E402
+from measure_reference_leaves import main as measure_foliage  # noqa: E402
 measure_foliage()

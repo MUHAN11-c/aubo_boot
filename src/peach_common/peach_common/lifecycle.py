@@ -36,7 +36,9 @@ def create_bond(node, bond_id: str, topic: str = BOND_TOPIC):
     bondpy 的心跳由其内部守护线程发送，收包依赖节点被 executor spin。
     """
     try:
-        from bondpy import Bond
+        # apt ros-jazzy-bondpy 的顶层 __init__ 为空文件，`from bondpy import
+        # Bond` 必 ImportError（2026-09-24 实测勘定）；子模块路径才是可用入口
+        from bondpy.bondpy import Bond
     except ImportError:
         node.get_logger().warning(
             'bond 未生效：缺 ros-jazzy-bondpy（sudo apt install 后重启'

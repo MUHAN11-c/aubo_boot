@@ -5,7 +5,8 @@ ivg_pose_estimation / peach_* 任何文件；检测节点经参数化启动 = �
 
 桌面 + 10 YCB 对象杂乱摆位 + rgbd 相机（tilt 可调），点云经光学系中继喂
 `ivg_graspnet` 检测节点，评分工具对 GT 对象位姿核验抓取覆盖率。
-**2026-09-30 起含机械臂抓取执行闭环**（AUBO E5 + sim 两指夹爪 + gz_ros2_control
+**2026-09-30 起含机械臂抓取执行闭环**（AUBO E5 + 仿真四指手（用户裁定换 vendored
+Allegro 右手；Robotiq 2F-140 与 gripper2 剖分爪先后退场）+ gz_ros2_control
 + MoveIt：检测选目标 → IK → transit/descend/close/lift → gz 实测对象位移核验）。
 
 ## 运行链
@@ -21,9 +22,9 @@ config/table_layout.yaml（唯一事实源：桌/相机/摆位/tilt）
 
 # 抓取执行栈（ivg_grasp_sim.launch.py，独立 ROS 域防同机串扰）：
 gz sim（重力世界 ivg_table_grasp.sdf，对象可被搬动）
-  + aubo_e5 spawn（urdf/aubo_e5_ivg_sim.xacro：厂商臂+基座+两指爪
+  + aubo_e5 spawn（urdf/aubo_e5_ivg_sim.xacro：厂商臂+基座+四指手
     + gz_ros2_control；world link 由 arm_description.strip_world 剥除）
-  + JTC/JSB/夹爪三控制器 + move_group（管线/限位/IK 复用 aubo_e5_moveit_config）
+  + JTC/JSB/手指控制器 + move_group（管线/限位/IK 复用 aubo_e5_moveit_config）
   └─ execute_grasp：检测选目标 → 残差闭环 → transit（两段高位）→
      密集路点下降 → 两段闭合 → 抬升 → gz 位移核验（Δz/Δxy + 判定）
 ```

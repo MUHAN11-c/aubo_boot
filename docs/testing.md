@@ -137,7 +137,8 @@ python3 scripts/sim_field_targets.py --random 100 --envelope algorithm --seed 20
 # 口径已弃）。三档案轴向余量在当前误差常数下结构性为负（blade_capture<固定误差+安全余量），
 # 见战役 analysis。
 python3 scripts/sim_field_targets.py --grid --mode full --tool-profile shear_v1 --velocity 1.0
-# 咬合式主测档（2026-09-29 起；D_inner 0.030 径向门天然紧，deny 高占比属档案几何预期）
+# 咬合式主测档（2026-09-29 起；D_inner 2026-09-30 裁定 0.104：径向门宽松，d_bag95≥0.100 才
+# too_wide，旧 0.030 时代「deny 高占比属预期」作废，勿按旧口径解读网格结果）
 python3 scripts/sim_field_targets.py --grid --mode full --tool-profile bite_shear_v1 --velocity 1.0
 # 接近失败根因探针：G/预抓取/staging 逐滚转 IK + 直弦 fraction（只读诊断）
 python3 scripts/sim_approach_probe.py --random 100 --seed 20260910
@@ -202,7 +203,7 @@ Tab「调试」＝向**既有**动作/服务发请求的纯客户端，页面只
 | `hand_eye_web_enabled` | false | 标定 Web `:8088` |
 | `use_sim_time` | false | bag 回放须 `true` + `ros2 bag play --clock`；真机必须 false |
 | 调度 `execute_pregrasp_only` | true | 接触段 `PREGRASP_ONLY`：停预抓取不回 stow；套入前改 false |
-| `skip_reconstruction` | false | true 时调度不发 Build/补视，且同 arg 打开技能 `quality.allow_unrefined_geometry`。brain 用 `peach_supervisor` 键 ParameterFile overlay（unnamed Node 嵌套 dict 打不进）。起栈后核 `ros2 param get /peach_supervisor skip_reconstruction` 与 `ros2 param get /peach_arm quality.allow_unrefined_geometry`。真机 KEEP false。**真感知下暂不可用**（09-29 勘定：未精化候选 `bag_diameter_upper_m=0` 非 ACCEPT，技能侧判「无有效场景几何」——该路径只适配 mock 注入器的完整候选） |
+| `skip_reconstruction` | false | true 时调度不发 Build/补视，且同 arg 打开技能 `quality.allow_unrefined_geometry`。brain overlay 按节点名分节写 ParameterFile（unnamed Node 上扁平 dict 与单键嵌套都打不进，2026-09-30 实测）。起栈后核 `ros2 param get /peach_supervisor skip_reconstruction` 与 `ros2 param get /peach_arm quality.allow_unrefined_geometry`。真机 KEEP false。**真感知下暂不可用**（09-29 勘定：未精化候选 `bag_diameter_upper_m=0` 非 ACCEPT，技能侧判「无有效场景几何」——该路径只适配 mock 注入器的完整候选） |
 
 过程录制不再有 launch 参数：observability 的 `record.enabled`（默认 true）随栈开合会话 bag，栈停自动出报告；`record.level`/`record.max_total_bag_gb` 见 `config/observability.yaml`。
 
@@ -427,7 +428,7 @@ ros2 action send_goal -f /peach_supervisor/run_harvest peach_interfaces/action/R
 
 物理臂用示教器停在 `global_photo_pose` 并保持。mock 先 Survey 到同位，锁定 + Reconfirm 才与真相机 3D 对齐；mock 离位后直播 3D 作废，接触只用钉住的场景几何（`skip_reconstruction:=true`）。重建多视本战役不评。三把末端（`shear_v1` / `bite_shear_v1` / `adaptive_shear_v1`）必须**整栈隔离重启**切换 `tool_profile`（唯一切换参数，禁止混跑；`sim_field_targets --tool-profile` 与栈错配即拒跑）。launch 默认 `adaptive_shear_v1`（自适应剪切手，会 Include imu_follow）；`shear_v1` / `bite_shear_v1` 必须显式传（忘传会起跟随）。三档接线冒烟已自动化：`colcon test --packages-select peach_system_tests` 的 `test_tool_profile_smoke_{shear_v1,bite_shear_v1,adaptive_shear_v1}`（隔离域 91/92/93：TF `wrist3_Link→tcp`==档案 ±2 mm、`/peach_arm tool.profile_id` 对齐、imu_follow 服务按名单在/不在图）。**当前主测档=bite_shear_v1（咬合式）**；shear/adaptive 两档步骤完整保留、随切随跑。已知红（工具几何换代记档，09-28）：E1 注入器 known-good 夹具按旧圆柱 TCP 标定，重标前跑 E1 的 C03 预期红（testing-log 09-28）。
 
-1. **咬合式网格（主测，无相机，非 IMU）**：`hardware_mode:=mock camera_enabled:=false skip_reconstruction:=true tool_profile:=bite_shear_v1 imu_enabled:=false` + `python3 scripts/sim_field_targets.py --grid --mode full --velocity 1.0 --tool-profile bite_shear_v1`。核 `/peach_arm tool.profile_id`、无 `imu_follow` 节点、`ros2 service list` 无 `/imu_follow/*`；套入/撤退走 MTC LIN（与 shear_v1 同代码路径、同款验收词表：在达 `succeed` 须 outcome=0、`completion_level≥3`、`grasped=false`；贴边/`tool_clearance_failed` 须 skip_select）。bite 专属预期（档案几何所致，不按缺陷报）：D_inner 0.030 对袋颈 d_bag95>0.026 即 `bag_d95_exceeds_tool`/`radial_budget_negative`，deny 高占比；body 包络 0.260 长喉道使 ①层工具胶囊审查更严（`tool_clearance_failed` 升高）；IO=fun3/pin0 与另两把共用（BST-YF 推杆反馈通道待真机核，档案 notes）。
+1. **咬合式网格（主测，无相机，非 IMU）**：`hardware_mode:=mock camera_enabled:=false skip_reconstruction:=true tool_profile:=bite_shear_v1 imu_enabled:=false` + `python3 scripts/sim_field_targets.py --grid --mode full --velocity 1.0 --tool-profile bite_shear_v1`。核 `/peach_arm tool.profile_id`、无 `imu_follow` 节点、`ros2 service list` 无 `/imu_follow/*`；套入/撤退走 MTC LIN（与 shear_v1 同代码路径、同款验收词表：在达 `succeed` 须 outcome=0、`completion_level≥3`、`grasped=false`；贴边/`tool_clearance_failed` 须 skip_select）。bite 专属预期（档案几何所致，不按缺陷报）：D_inner 0.104（2026-09-30 裁定，按设计意图登记、机械定型后实测核回）径向门宽松，袋颈 d_bag95≥0.100 才 `bag_d95_exceeds_tool`、`radial_budget_negative` 仅在径向误差合成超净空时出现——正常袋径 deny **不再**天然高占比，0.030 时代的「deny 高占比属预期」已作废，deny 走高须另归因（误差常数/轴向预算）；body 包络 0.260 长喉道使 ①层工具胶囊审查更严（`tool_clearance_failed` 升高）；IO=fun3/pin0 与另两把共用（BST-YF 推杆反馈通道待真机核，档案 notes）。
 2. **基础剪切手网格（无相机，非 IMU）**：`hardware_mode:=mock camera_enabled:=false skip_reconstruction:=true tool_profile:=shear_v1 imu_enabled:=false` + `python3 scripts/sim_field_targets.py --grid --mode full --velocity 1.0 --tool-profile shear_v1`。核 `/peach_arm tool.profile_id`、无 `imu_follow` 节点、`ros2 service list` 无 `/imu_follow/*`。在达 `succeed` 须 outcome=0、`completion_level≥3`、`grasped=false`；`lab_oos_20260922` 须 `sleeve_no_cartesian`；贴边/`tool_clearance_failed` 须 skip_select。
 3. **真相机 stereo（非 IMU）**：`camera_enabled:=true camera_frontend:=stereo skip_reconstruction:=true tool_profile:=<当轮主测档，现 bite_shear_v1> imu_enabled:=false`。SURVEY_ONLY → 锁集稳定（确认、ID 不闪、debug 叠加、FPS≥2）→ PREGRASP（Hold 后才 `ControlTask` 命令 6；周期未结束 ACK 会被拒）→ 仅 cartesian 放行时 live FULL。
 4. **自适应剪切手网格（无相机，与非 IMU 隔离）**：换栈 `tool_profile:=adaptive_shear_v1`（`imu_follow` 随档案 Include）。同一 `--grid --mode full --tool-profile adaptive_shear_v1`。套入走 IMU 接触窗；无 USB 时 `waitImuFollowTravel` 只是墙钟等待，不证明跟随位移。核 `tf2_echo tcp imu_link` 与 `/imu/data` 才算跟随链。FULL 接触窗 = 预抓取→insert→回预抓取。mock 下 `motion.enabled` 默认关，peach 不自动开门。

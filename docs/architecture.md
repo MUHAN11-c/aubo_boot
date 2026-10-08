@@ -494,7 +494,7 @@ flowchart LR
 
 **作用：** 各能力包之间唯一允许的消息/服务/动作类型。感知两节点之间、技能、调度、监控都只依赖本包，禁止互相 `import` 业务模块传结构体。
 
-**含什么：** 无节点、无 launch、无运行参数。`msg/` `srv/` `action/`（文件头写话题/谁发谁订，字段行内注释）+ `config/interface_manifest.yaml`（名称/类型/QoS/生产消费方；56 active + 5 reserved——预留第五个为 `peach_sim/joint_states` gz 桥登记，非导航；`scripts/check_interface_manifest.py` 双向核对）。管子与字段含义：[README.md](../src/peach_interfaces/README.md)。
+**含什么：** 无节点、无 launch、无运行参数。`msg/` `srv/` `action/`（文件头写话题/谁发谁订，字段行内注释）+ `config/interface_manifest.yaml`（名称/类型/QoS/生产消费方；57 active + 5 reserved——预留第五个为 `peach_sim/joint_states` gz 桥登记，非导航；`scripts/check_interface_manifest.py` 双向核对）。管子与字段含义：[README.md](../src/peach_interfaces/README.md)。
 
 **对外提供：**
 
@@ -674,7 +674,7 @@ flowchart TB
 
 ### `peach_navigation` — 已归档（预留）
 
-包体移至 `_archive/parked_2026-09/peach_navigation`，不在 colcon 构建、不进整栈 launch 与 lifecycle 名单。曾提供 `NavigateToWorksite` 缝与 `target_report` / `arm_status` / `vehicle_state` 适配话题（固定座 `reserved_stub` 合成静止 `VehicleState`）。现行只在 `peach_interfaces` 留痕：`NavigateToWorksite` / `HarvestTargetReport` / `HarvestOperationStatus` / `VehicleState` 四个 IDL 与 manifest `reserved_interfaces` 区保留标「预留」（56 active + 5 reserved——预留第五个为 `peach_sim/joint_states` gz 桥登记，非导航；清单脚本双向核对）；调度 `_cmd_navigate` 固定座直通 `NAV_OK`，不发动作、不等 `VehicleState`。真底盘须书面授权后从归档恢复并在**包内部**接发行版 Nav2——不加第五个 peach 包，本仓仍不写底盘/雷达驱动或 `cmd_vel`。
+包体移至 `_archive/parked_2026-09/peach_navigation`，不在 colcon 构建、不进整栈 launch 与 lifecycle 名单。曾提供 `NavigateToWorksite` 缝与 `target_report` / `arm_status` / `vehicle_state` 适配话题（固定座 `reserved_stub` 合成静止 `VehicleState`）。现行只在 `peach_interfaces` 留痕：`NavigateToWorksite` / `HarvestTargetReport` / `HarvestOperationStatus` / `VehicleState` 四个 IDL 与 manifest `reserved_interfaces` 区保留标「预留」（57 active + 5 reserved——预留第五个为 `peach_sim/joint_states` gz 桥登记，非导航；清单脚本双向核对）；调度 `_cmd_navigate` 固定座直通 `NAV_OK`，不发动作、不等 `VehicleState`。真底盘须书面授权后从归档恢复并在**包内部**接发行版 Nav2——不加第五个 peach 包，本仓仍不写底盘/雷达驱动或 `cmd_vel`。
 
 ---
 
@@ -695,7 +695,7 @@ flowchart TB
 #### `peach_lifecycle_manager`（管）
 
 - **名单（部署值 `config/lifecycle_manager.yaml`）：** 场景感知 → 重建 → 技能 → 调度。observability **不进名单**。节点 `peach_lifecycle_manager.attach` 按 yaml 声明叶子。
-- **入口：** `~/manage_nodes`。STARTUP 先 configure 再 activate；拆除逆序。发闩锁 `/peach/lifecycle/managed_nodes_activated`。**整栈由 `nav2_lifecycle_manager` 承载**（节点名同为 `peach_lifecycle_manager`，`bond_timeout` 为 launch 参数默认 0，名单硬编码在整栈 launch；四托管节点已接 `/bond` 心跳——`peach_arm`（bondcpp）生效、Python 三节点待 apt `ros-jazzy-bondpy` 后生效；闩锁由 `peach_lifecycle_flag_bridge` 发出）；本节点保留独立 launch（`peach_harvester/launch/lifecycle_manager.launch.py`）。
+- **入口：** `~/manage_nodes`。STARTUP 先 configure 再 activate；拆除逆序。发闩锁 `/peach/lifecycle/managed_nodes_activated`。**整栈由 `nav2_lifecycle_manager` 承载**（节点名同为 `peach_lifecycle_manager`，`bond_timeout` 为 launch 参数默认 0，名单硬编码在整栈 launch；四托管节点已接 `/bond` 心跳——`peach_arm`（bondcpp）生效、Python 三节点守卫 import 已改 `from bondpy.bondpy import Bond`（2026-10-08：包在装而顶层 `__init__` 0 字节，0029 ④ 真修落地；`bond_timeout` 仍默认 0，置 8.0 开 nav2_lm 进程死检前先 mock 冒烟复核）；闩锁由 `peach_lifecycle_flag_bridge` 发出）；本节点保留独立 launch（`peach_harvester/launch/lifecycle_manager.launch.py`）。
 - **禁止：** 发 `RunHarvest`。PAUSE 是节点 Inactive，不是批次 `ControlTask` 暂停。
 
 #### `peach_observability`（监）
@@ -747,7 +747,7 @@ flowchart TB
 
 工作单元 URDF。`aubo_e5.urdf.xacro` 拼臂本体、桌、腕上相机体、快换、末端工具（`wrist3_Link→tool_axis / sleeve_mouth / cutting_plane / tcp`，帧名三把工具共用冻结——SRDF/ACM/技能三点 TF 验证按名消费）。**三把剪切手档案**（xacro `tool_profile` arg，默认 `adaptive_shear_v1`；三个独立 `<xacro:if>`，未知名三支都不展开→缺 `tcp` 帧启动即失败）：
 - `shear_v1`（剪切手，桃子采摘手-相机位置试验版本）：连杆切刀在法兰 +Y 侧，开口 +Y（Rx(−90°)），TCP `(0, 47.90, 151.07) mm`——传承旧 hollow_cylinder_v1 设计基准（git 历史核定，2026-09-28 用户裁定），wrapper `components/tcp_shear_v1.xacro`，档案 `config/shear_v1.yaml`（D_inner 0.080）。
-- `bite_shear_v1`（咬合式剪切手）：双刀口对夹+喉道导轨，开口 +Y（Rx(−90°)，果侧进枝），TCP `(0, 30.24, 165.5) mm`（总装系测量核定：ΔY 30.24/ΔZ 165.5/距离 168.24 自洽），`sleeve_mouth`=identity（进枝口即 TCP，1aa50d0 勘正；旧 +Z 0.223 喉道口径已弃），档案 `config/bite_shear_v1.yaml`（D_inner 0.030、L_insert 0.030、body 包络 0.260×0.090）。
+- `bite_shear_v1`（咬合式剪切手）：双刀口对夹+喉道导轨，开口 +Y（Rx(−90°)，果侧进枝），TCP `(0, 30.24, 165.5) mm`（总装系测量核定：ΔY 30.24/ΔZ 165.5/距离 168.24 自洽），`sleeve_mouth`=identity（进枝口即 TCP，1aa50d0 勘正；旧 +Z 0.223 喉道口径已弃），档案 `config/bite_shear_v1.yaml`（D_inner 0.104——2026-09-30 裁定：几何权威在 URDF/机械设计、CAD 闭合单姿态量不出开口，按设计意图登记 104mm 级（与 `tool_budget.py` 历史默认同级），机械定型后实测核回；L_insert 0.030、body 包络 0.260×0.090）。
 - `adaptive_shear_v1`（自适应剪切手+增量 IMU，默认）：Ø136 圆盘+拉钩组+MPU6050，开口 +Y（与旧圆柱同向），TCP `(0, 47, 168.66) mm`——与旧 adaptive_cylinder_v1 设计基准完全一致（总装系测量核定：中心距 175.09 自洽；曾做 +8mm 装配差修正，2026-09-28 复审裁定撤销，总装快照即设计位），标定链几何零漂移，档案 `config/adaptive_shear_v1.yaml`（D_inner 0.120、L_insert 0.090）。
 
 姿态语义三把同款：**TCP Z=开口、XY=刀口平面**；`cutting_plane` / `tcp` 与 `tool_axis` 同点（刀口深登记 `geometry_m.L_blade`）；`tool_body_link` 挂 `wrist3_Link`（identity），visual/collision 用真实 CAD 网格 `meshes/{visual,collision}/tools/<profile>.stl`（法兰系建模：CAD 总装全局原点=wrist3_Link 原点，已 link6 Ø75 法兰 + STW 快换盘 + 相机族三方数值叠对与渲染叠图双重验证）；规划 tip 仍名 `tcp`。`robot_state_publisher` 发 TF。权威关节顺序六轴。**档案 yaml 是整栈单一事实源**：`peach_harvester.vision.tool_profiles` launch 期装载注入感知 `tool.D_inner`/`tool.L_insert`/`tool.L_blade`（径向走廊门+行程/刀口轴向，2026-09-29 扩）、重建 `tool.budget.d_inner`（GraspDecision 许可数学）、各包 `tool.profile_id` 标签与 `peach_arm` `tool.d_inner_m`/`tool.body_length_m`/`tool.body_radius_m`（①层胶囊审查包络，2026-09-28 扩注入面）；`bringup`（RSP）与 `moveit.launch.py`/技能/`imu_follow_servo`（MoveItConfigsBuilder mappings）双展开必须同 arg，防 move_group 模型与 TF 分叉。改末端几何改 wrapper xacro 与档案 yaml 两处；**不要**改只读的 `aubo_e5.ros2_control.xacro`。共享底座 `components/tcp.xacro`（`aubo_e5_tcp` macro 持帧链与网格体）。STEP→网格可复现管线入库 `aubo_description/scripts/`（FreeCAD snap 无头提取 + Blender 4.5 无头减面/渲染验收，决策 0033）。
@@ -797,7 +797,7 @@ USB 串口 IMU（QinHeng USB 转串适配器：CH340 `1a86:7523`（旧，ttyUSB�
 - **估姿**（`ivg_pose_estimation`）：`pipeline/` 分段门面（Segmenter→Matcher→pose 求解，段段可换）。分割档 `depth_band`（默认）/`rembg_u2net`/`mobile_sam`（MobileSAM 点提示，39M 轻量）；匹配档 `geometric`（默认，距离/IoU 两模式）/`dinov2_template`（DINOv2 嵌入检索，FoundPose/CNOS 范式，索引落盘）。配置单源 `config/pose_estimation.yaml`（含 `camera.depth_scale`、`calibration.translation_unit`）；`EstimatePose` 带 Header（stamp=图像采集时刻，TF 同 stamp 查询）。Web 默认 `:8089`（与手眼标定网关错开），写端点（`/exit`/模板保存/标准化/调试参数写盘）需 `vpe_auth` SameSite=Strict cookie 或 `X-Auth-Token`（token 见启动日志，`VPE_WEB_TOKEN` 可固定）；CORS 通配已移除。运动/IO HTTP 仍 501。
 - **抓取**（`ivg_graspnet`）：`backends/` 注册表双后端——`graspnet_torch`（默认，vendored GraspNet-baseline 纯 torch，**不用 AnyGrasp** 许可证）+ `contact_graspnet`（vendored contact_graspnet_pytorch，NVIDIA 非商用系许可，内部研究用；`approach_flip_z180=false` 待真机方向核验）。耦合超参随权重走（`checkpoint-rs.yaml` manifest）；碰撞/NMS/topK 在 `postprocess.py`（模型无关，重构前后行为等价由 golden 测试守卫）；`InferenceSession` 统一 device/fp16。MoveIt 超时发 `cancel_goal_async`；`publish_grasps_client` 有 opt-in 使能门 `require_enable`（默认 false 保持旧流程）与 `apply_grasp_z_flip`（对齐后端 `approach_flip_z180`）。真机运动只走 harvest 调试操作面或 GraspNet 的 MoveIt 客户端（须另授权）。
 - 旋转/四元数数学统一 `scipy.spatial.transform.Rotation`（2026-09-17 删 `ivg_utils`）。评估基线 `campaign/20260929_ivg_refactor/report.md`（dinov2 检索 14/14；分割学习档棚拍口径未达标 → 默认档不切换，待现场快照轮）。
-- **抓取验证仿真**（2026-09-29 新增 `ivg_sim`，独立包不改 ivg_* 源码）：Gazebo Harmonic 桌面场景（10 YCB + tilt 可调 rgbd；布局单源 `config/table_layout.yaml` → `generate_table_world` 产世界 + GT manifest，零重力冻结摆位）；gz 点云经参数桥 + `cloud_relay`（帧重写 `camera_depth_optical_frame`，轴系=传感器体系 spike 实测）喂检测节点（venv 链 `python3 -m` 直跑）；`score_grasps` 对 GT 评覆盖率（门=默认后端实测基线 40%；tilt 35° 命中垂直度 0.85+）。YCB meshes 不入库（`models/fetch_ycb.sh` 恢复）；不进 harvest_system/lifecycle；机械臂仿真执行闭环留后续轮。
+- **抓取验证仿真**（2026-09-29 新增 `ivg_sim`，独立包不改 ivg_* 源码）：Gazebo Harmonic 桌面场景（10 YCB + tilt 可调 rgbd；布局单源 `config/table_layout.yaml` → `generate_table_world` 产世界 + GT manifest，零重力冻结摆位）；gz 点云经参数桥 + `cloud_relay`（帧重写 `camera_depth_optical_frame`，轴系=传感器体系 spike 实测）喂检测节点（venv 链 `python3 -m` 直跑）；`score_grasps` 对 GT 评覆盖率（门=默认后端实测基线 40%；tilt 35° 命中垂直度 0.85+）。YCB meshes 不入库（`models/fetch_ycb.sh` 恢复）；不进 harvest_system/lifecycle。**机械臂执行闭环已入库**（2026-09-30 `execute_grasp.py`：检测位姿→选最近抓取→MoveItPy OMPL transit 至抓取上方安全点（场景注入桌+对象盒）→approach/下降/抬升逐路点 KDL IK 连发 FollowJointTrajectory（本版 moveit_py 无 cartesian 接口；KDL sloppy 须 FK 回验）→夹爪 JointGroupPositionController 开合→gz dynamic_pose Δz 位移核验）；已知限制：Allegro 四指独立伺服先触单侧会推飞目标，mimic 联动方案已核实待实施。
 
 | 包 | 节点 / 入口 | 作用 | 不做什么 |
 |----|-------------|------|----------|
@@ -1166,7 +1166,7 @@ yaml：仅上述 4 键仍为 `*.impl`（技能 yaml 无 `*.impl`）。检测/分
 | 目标 | 事实 | 含义 |
 |------|------|------|
 | 换检测器 | 袋/果与柱/球两处映射；YOLO/SAM/TSDF 直接构造 | R9：无第二 C++ 实现则不上 pluginlib；A/B 未赢不替换 |
-| 节点挂了 | lifecycle `HeartbeatWatchdog`（GetState 心跳，bondpy 未装）。STARTUP/RESUME/RESET 成功重新武装；PAUSE/SHUTDOWN 撤防。observability 不在名单 | 超时 ERROR，不称 e-stop |
+| 节点挂了 | lifecycle `HeartbeatWatchdog`（GetState 心跳；bond import 已修 2026-10-08 但 `bond_timeout` 默认 0 未开）。STARTUP/RESUME/RESET 成功重新武装；PAUSE/SHUTDOWN 撤防。observability 不在名单 | 超时 ERROR，不称 e-stop |
 | 失败可归因 | ledger 有 `failure_code`；消息无 algo/config 版本；清单脚本已进 `peach_interfaces` colcon test | 消费者弱校验：调度不含监控目录 |
 | 会话 | 账本 `runs/<request_id>/ledger.json`；过程 bag `runs/session_*/bag/` 随 observability 启停（决策 0019 会话 bag） | 批次根与会话根分离；旧「批结束后 jsonl 再写约 65 分钟」已消失 |
 | 新鲜度 | 08-24 `selected_target_stale` ×4 | 门限不预填 EMA；非 OBSERVED 仍按末次 live `received_s` |

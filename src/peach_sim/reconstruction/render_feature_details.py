@@ -54,7 +54,8 @@ def main():
         prefix = target['name']
         keep = {obj.name for obj in bpy.data.objects
                 if obj.name == prefix or obj.name.startswith(prefix + '/')}
-        shot('bag_form_' + str(i), keep, target['center_world'], (.10, -.26, .055), 55,
+        focus = Vector(target['bottom_world']) + Vector(target['axis_world']) * target['height_m'] * .5
+        shot('bag_form_' + str(i), keep, focus, (.12, -.40, .07), 48,
              'Isolated paper shell with internal mature peach; other vegetation hidden.')
     report = {'source_blend_sha256': hashlib.sha256(source.read_bytes()).hexdigest(),
               'tool_sha256': hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),

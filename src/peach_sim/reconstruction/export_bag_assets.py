@@ -52,7 +52,7 @@ def main():
     scene.cycles.samples = 64
     scene.render.resolution_x = 1600
     scene.render.resolution_y = 900
-    scene.camera = camera('Only bagged peaches', (.22, -.64, .23), (0, 0, .06), 55)
+    scene.camera = camera('Only bagged peaches', (.22, -.78, .25), (0, 0, .078), 55)
     for node in scene.node_tree.nodes:
         if node.type == 'OUTPUT_FILE':
             node.mute = True

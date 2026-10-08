@@ -75,7 +75,7 @@ flowchart LR
 | `ExecuteTarget` OBSERVE_ONLY | 技能 `~/execute_target` | `_cmd_dispatch` | 主动视点给重建凑 `min_views` 机位 |
 | `ExecuteTarget` FULL | 技能 `~/execute_target` | `_cmd_full` | 观察+模型都过门之后；仅 `execute_pregrasp_only=false` |
 | `ExecuteTarget` PREGRASP_ONLY | 技能 `~/execute_target` | `_cmd_full` | 默认 `execute_pregrasp_only=true` 时替代 FULL；停预抓取等 ACK |
-| （可选）`skip_reconstruction` | 调度参数 | `_cmd_dispatch` | launch `skip_reconstruction:=true` 时 **不发** Build/OBSERVE，直接 `READY_FULL`；接触几何=锁定集场景观测。brain 用 `peach_supervisor` 键的 ParameterFile overlay（unnamed Node 上嵌套 dict 打不进进程内调度节点）。默认 false |
+| （可选）`skip_reconstruction` | 调度参数 | `_cmd_dispatch` | launch `skip_reconstruction:=true` 时 **不发** Build/OBSERVE，直接 `READY_FULL`；接触几何=锁定集场景观测。brain overlay 按节点名分节写 ParameterFile（unnamed Node 上扁平 dict 与 `peach_supervisor` 单键嵌套都打不进进程内节点，2026-09-30 实测）。默认 false |
 | `ControlTask` | 调度 `~/control` | 人工（监控只读不发） | PAUSE / SKIP / CANCEL… |
 | `ManageLifecycleNodes` | 管理器 `~/manage_nodes` | 人工 | STARTUP/PAUSE/RESUME/RESET/SHUTDOWN；不发 RunHarvest |
 
@@ -83,7 +83,7 @@ flowchart LR
 
 ## 2. `peach_interfaces`
 
-无节点、无 launch、无运行参数。跨包唯一 IDL；清单 56 active + 5 reserved（预留=四个导航 IDL + `peach_sim/joint_states` gz 桥登记），脚本双向核对。每根管子与每个字段的含义写在 [peach_interfaces/README.md](../src/peach_interfaces/README.md)。改字段只改本包，先编本包再编下游；同轮改 README、manifest 与本文。
+无节点、无 launch、无运行参数。跨包唯一 IDL；清单 57 active + 5 reserved（预留=四个导航 IDL + `peach_sim/joint_states` gz 桥登记），脚本双向核对。每根管子与每个字段的含义写在 [peach_interfaces/README.md](../src/peach_interfaces/README.md)。改字段只改本包，先编本包再编下游；同轮改 README、manifest 与本文。
 
 | 动作 | 服务端所在包 | 含义 |
 |------|--------------|------|
@@ -246,7 +246,7 @@ flowchart TB
 | `depth_scale_unit` | uint16：raw × 本值 = 毫米（Percipio 0.25） |
 | `sync_slop_s` | RGB-D 近似同步允差（0.05 s） |
 | `tool.entry_d_tool` / `entry_d_s` | 入口相对袋底。由 `grasp_standoffs.yaml` 注入，勿只改这里 |
-| `tool.D_inner` | 工具内径（径向走廊门）。整栈由 launch `tool_profile` 档案注入覆盖（`aubo_description/config/<profile>.yaml` 单一事实源；三把剪切手 0.030/0.080/0.120，基础值=adaptive_shear_v1 0.120） |
+| `tool.D_inner` | 工具内径（径向走廊门）。整栈由 launch `tool_profile` 档案注入覆盖（`aubo_description/config/<profile>.yaml` 单一事实源；三把剪切手 bite/shear/adaptive = 0.104/0.080/0.120，基础值=adaptive_shear_v1 0.120；bite 0.104 为 2026-09-30 裁定——几何权威在 URDF/机械设计，按设计意图登记，机械定型后实测核回） |
 | `tool.L_insert` / `tool.L_blade` | 最大插入深度 / TCP 到剪切平面轴向距离。整栈由档案注入覆盖（三把 0.030/0.030/0.090 与 0.037/0.030/0.079，基础值=adaptive 档案；2026-09-29 扩注入面） |
 
 ### 3.2 `peach_target_reconstruction_node`（建）
@@ -334,7 +334,7 @@ flowchart TB
 | `capture.min_neighbor_gap_m` / `neighbor_gap_area_ratio` | 邻锚过近拒帧；小框面积比豁免，近距双检不互锁 |
 | `tf_timeout_sec` | 按深度 stamp 精确查 TF；失败跳帧，禁止 latest |
 | `refit.entry_standoff_m` / `refit.pregrasp_standoff_m` | 入口相对袋底、预抓取相对入口。只改 `grasp_standoffs.yaml` |
-| `tool.budget.d_inner` | GraspDecision 动态预算许可的工具内径。整栈由 launch `tool_profile` 档案注入覆盖（三把剪切手 0.030/0.080/0.120，基础值=adaptive 0.120） |
+| `tool.budget.d_inner` | GraspDecision 动态预算许可的工具内径。整栈由 launch `tool_profile` 档案注入覆盖（三把剪切手 bite/shear/adaptive = 0.104/0.080/0.120，基础值=adaptive 0.120；bite 0.104 为 2026-09-30 裁定值，与纯核 `ToolBudgetParams` 历史默认同级） |
 | `tool.profile_id` | 档案标签（`GraspDecision`/`PregraspVerification`/`TargetModel` 的 `tool_profile_id`）。整栈由 launch `tool_profile` 档案注入 |
 | `refitter.cylinder_impl` / `sphere_impl` | 柱/球精化映射名（`REFITTERS_BY_IMPL`）；其余算法直接构造 |
 

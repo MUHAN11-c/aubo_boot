@@ -151,7 +151,7 @@
 | 传感 | 无 | 无 | 挂增量 IMU（MPU6050，随栈起） |
 | 接触段信息 | 视觉许可 | 视觉许可 | 许可 + IMU 姿态跟随（批次自动开窗，0026） |
 | 几何依据 | 近距抓取许可 | 同左 | 许可不变；姿态不替代许可 |
-| 现行角色 | 可选 | **主测档**（0034，显式传参；D_inner 0.030 对袋颈偏紧 → deny 高占比是已知预期） | **默认档**（忘传参时模型偏长、停浅不撞深更安全） |
+| 现行角色 | 可选 | **主测档**（0034，显式传参；D_inner 2026-09-30 裁定 0.104 后径向门宽松，旧「deny 高占比是已知预期」作废） | **默认档**（忘传参时模型偏长、停浅不撞深更安全） |
 
 夹持器、真空吸盘不参与比选，与工艺不符。
 
@@ -280,7 +280,7 @@ L5 过程数据层  会话 bag（三档限速）+ 批次账本 + 停栈自动报
 | 档案 | 形态 | TCP（法兰系，全族开口 +Y / Rx(−90°)） | 开口 D_inner | L_insert / L_blade | ①层包络 L / r | 标定状态 |
 |------|------|----------------------------------------|--------------|--------------------|----------------|-----------|
 | `shear_v1` | 连杆切刀对切 | (0, 47.90, 151.07) mm（传承旧固定圆柱基准，git 历史核定） | 0.080 | 0.030 / 0.030 | 0.120 / 0.100 | design_reference |
-| `bite_shear_v1` | 双刀口对夹 + 喉道导轨 | (0, 30.24, 165.5) mm（总装测量核定，168.24 算术自洽） | 0.030 | 0.030 / 0.037 | 0.260 / 0.090 | cad_reference_point |
+| `bite_shear_v1` | 双刀口对夹 + 喉道导轨 | (0, 30.24, 165.5) mm（总装测量核定，168.24 算术自洽） | 0.104 | 0.030 / 0.037 | 0.260 / 0.090 | cad_reference_point |
 | `adaptive_shear_v1` | 圆盘自适应贴果 + MPU6050 | (0, 47, 168.66) mm（总装测量，与旧自适应圆柱同基准；+8 mm 装配差修正已撤销） | 0.120 | 0.090 / 0.079 | 0.140 / 0.110 | design_reference（默认） |
 
 三档案共用冻结帧名；张口/包络为 CAD 单姿态推导，**待真机标定与剪切抓取预算（tool_budget）语义重设计**（遗留，见第 10 章）。IO 定义 fun 3 / pin 0；驱动通道（BST-YF 推杆 / JGB37 等）待真机核。
@@ -351,7 +351,7 @@ GPU 枝/叶二维分割（Frangi 血管ness + 叶绿启发式），发布掩膜/
 
 ### 7.3 内部接口
 
-跨包唯一契约包 `peach_interfaces`（manifest 现行 56 active + 5 reserved，脚本双向核对）。数据流方向：调度 → 感知/重建/臂（BeginScene / BuildTargetModel / Survey·MoveTo·ExecuteTarget action 与 CheckReachability srv）；感知/重建 → 调度与臂（target_observations / GraspDecision + 许可令牌族）；Survey 后闩锁触发场景障碍快照；调度 → 全栈（HarvestState 绑定、使能心跳广播）；生命周期 → 调度（Active 旗标闸门）；导航四 IDL 预留。完整表（源/宿/类型/QoS/消费者列）以 `docs/io.md` 与 manifest 为权威，本书不复制。
+跨包唯一契约包 `peach_interfaces`（manifest 现行 57 active + 5 reserved，脚本双向核对）。数据流方向：调度 → 感知/重建/臂（BeginScene / BuildTargetModel / Survey·MoveTo·ExecuteTarget action 与 CheckReachability srv）；感知/重建 → 调度与臂（target_observations / GraspDecision + 许可令牌族）；Survey 后闩锁触发场景障碍快照；调度 → 全栈（HarvestState 绑定、使能心跳广播）；生命周期 → 调度（Active 旗标闸门）；导航四 IDL 预留。完整表（源/宿/类型/QoS/消费者列）以 `docs/io.md` 与 manifest 为权威，本书不复制。
 
 ## 8 运行控制与安全设计
 
@@ -534,8 +534,8 @@ mock 冒烟清单（栈起 → JTC/透传 active → 六关节序 → TF 无叠�
 
 **D.1 仓库内依据（现行权威，细节以这些文件为准）**
 
-1. 三份活文档 `docs/architecture.md` / `docs/io.md` / `docs/testing.md`（含已拍板决策表，编号 0001–0036）。
-2. 跨包契约 `src/peach_interfaces/config/interface_manifest.yaml`（现行 56 active + 5 reserved——预留为四个导航 IDL 加 `peach_sim/joint_states` gz 桥登记；脚本双向核对；计数以 manifest 为准）。
+1. 三份活文档 `docs/architecture.md` / `docs/io.md` / `docs/testing.md`（含已拍板决策表，编号 0001–0038）。
+2. 跨包契约 `src/peach_interfaces/config/interface_manifest.yaml`（现行 57 active + 5 reserved——预留为四个导航 IDL 加 `peach_sim/joint_states` gz 桥登记；脚本双向核对；计数以 manifest 为准）。
 3. 工具档案 `src/aubo_description/config/<profile>.yaml`（末端几何单一事实源）。
 4. 真机轮次与量化基线（`docs/testing-log.md`）、现场过程数据（`runs/`：批次账本、会话 bag、调参轮）与战役台账（`campaign/`）。
 5. 测试方案 `reports/2026-09-24-e2e-test-plan/report.md`（v2.2 六阶段）。

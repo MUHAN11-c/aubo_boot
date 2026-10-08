@@ -1,0 +1,123 @@
+{
+  "stereo_10s": {
+    "counts": {
+      "/camera/depth_registered/points": 145,
+      "/camera/depth/camera_info": 146,
+      "/camera/color/camera_info": 146,
+      "/camera/depth/image_raw": 146,
+      "/camera/color/image_raw": 146
+    },
+    "color": {
+      "encoding": "bgr8",
+      "width": 640,
+      "height": 480,
+      "frame_id": "camera_color_optical_frame",
+      "mean_rgb": [
+        89.3,
+        88.8,
+        75.3
+      ],
+      "nonzero_frac": 0.9779
+    },
+    "depth": {
+      "encoding": "16UC1",
+      "width": 640,
+      "height": 480,
+      "frame_id": "camera_depth_optical_frame",
+      "valid_frac": 0.5479,
+      "raw_min": 1182,
+      "raw_p50": 3356,
+      "raw_p90": 4067,
+      "raw_max": 19478
+    },
+    "cloud": {
+      "frame_id": "camera_depth_optical_frame",
+      "fields": [
+        "x",
+        "y",
+        "z",
+        "rgb",
+        "confidence"
+      ],
+      "point_step": 24,
+      "n_points": 168312,
+      "finite_z": 168312,
+      "z_min_m": 0.296,
+      "z_p50_m": 0.839,
+      "z_p90_m": 1.017,
+      "z_max_m": 4.87
+    },
+    "color_K": [
+      466.175,
+      0.0,
+      326.071,
+      0.0,
+      465.557,
+      244.789,
+      0.0,
+      0.0,
+      1.0
+    ],
+    "color_frame": "camera_color_optical_frame"
+  },
+  "percipio_10s": {
+    "counts": {
+      "/camera/depth_registered/points": 10,
+      "/camera/depth/camera_info": 9,
+      "/camera/color/camera_info": 10,
+      "/camera/depth/image_raw": 11,
+      "/camera/color/image_raw": 10
+    },
+    "color": {
+      "encoding": "bgr8",
+      "width": 640,
+      "height": 480,
+      "frame_id": "camera_color_optical_frame",
+      "mean_rgb": [
+        89.1,
+        88.7,
+        77.9
+      ],
+      "nonzero_frac": 0.8751
+    },
+    "depth": {
+      "encoding": "16UC1",
+      "width": 640,
+      "height": 480,
+      "frame_id": "camera_depth_optical_frame",
+      "valid_frac": 0.5504,
+      "raw_min": 1017,
+      "raw_p50": 3247,
+      "raw_p90": 4256,
+      "raw_max": 62562
+    },
+    "cloud": {
+      "frame_id": "camera_depth_optical_frame",
+      "fields": [
+        "x",
+        "y",
+        "z",
+        "rgb"
+      ],
+      "point_step": 20,
+      "n_points": 169091,
+      "finite_z": 169091,
+      "z_min_m": 0.254,
+      "z_p50_m": 0.812,
+      "z_p90_m": 1.064,
+      "z_max_m": 15.641
+    },
+    "color_K": [
+      466.175,
+      0.0,
+      326.071,
+      0.0,
+      465.557,
+      244.789,
+      0.0,
+      0.0,
+      1.0
+    ],
+    "color_frame": "camera_color_optical_frame"
+  }
+}

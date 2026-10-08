@@ -31,6 +31,14 @@ EXEMPT_VISUALIZATION = {
     '/peach_arm/planned_views',
 }
 
+# rcl 自动参数服务端点后缀（每个节点随参数设施自动生成）：框架设施非业务契约，
+# 不进清单；后缀豁免使测试对任意 peach 节点调参数服务不再逐个登记
+# （2026-10-08：/peach_arm/get_parameters、/peach_supervisor/set_parameters 误报即此类）
+_RCL_PARAM_SERVICE_SUFFIXES = (
+    '/get_parameters', '/set_parameters', '/set_parameters_atomically',
+    '/describe_parameters', '/get_parameter_types', '/list_parameters',
+)
+
 # bag_reader legacy 别名的旧键：仅为旧 bag 回放兼容，不在图上（阶段 6-3）
 EXEMPT_LEGACY_ALIASES = {
     '/peach_executor/control',
@@ -66,6 +74,10 @@ _CONSUMER_PATHS = {
     'peach_scene_perception': [
         'peach_harvester/peach_harvester/vision/scene_perception',
         'peach_harvester/config/scene_perception.yaml',
+    ],
+    'peach_scene_obstacles': [
+        'peach_harvester/peach_harvester/vision/scene_obstacles',
+        'peach_harvester/config/scene_obstacles.yaml',
     ],
     'peach_target_reconstruction': [
         'peach_harvester/peach_harvester/vision/target_reconstruction',
@@ -174,6 +186,8 @@ def main() -> int:
     untracked = []
     for literal in sorted(set(_LITERAL_RE.findall(blob))):
         if literal in known or literal in EXEMPT_VISUALIZATION:
+            continue
+        if literal.endswith(_RCL_PARAM_SERVICE_SUFFIXES):
             continue
         if literal in EXEMPT_LEGACY_ALIASES:
             continue

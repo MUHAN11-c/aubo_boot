@@ -11,7 +11,7 @@
 | 硬件基线 | 现场主控 **NVIDIA Jetson Orin NX 16GB**；压力分流 **RK3588**（预留）；臂 **AUBO E5**；腕载 **Percipio PS800-E1** |
 | 编制依据 | GB/T 8567-2006；ISO/IEC/IEEE 42010:2022；ISO 10218 / ISO 13850 / IEC 60204-1；ROS 2 Jazzy Developer Guide；C4 模型；NVIDIA Jetson 产品设计指南式框图 |
 | 读者 | 项目负责人、总体/分项设计、现场实施、评审委员会 |
-| 与活文档关系 | 本文是**代次冻结的设计书**。现行参数与图名以 `docs/architecture.md` / `docs/io.md` / `docs/testing.md` 为 SNAPSHOT |
+| 与活文档关系 | 本文是**代次冻结的概要设计书**。完整方案见 [`docs/peach_v1_现行终版方案.md`](../docs/peach_v1_现行终版方案.md)。现行参数与图名以 `docs/architecture.md` / `docs/io.md` / `docs/testing.md` 为 SNAPSHOT |
 
 ---
 
@@ -546,8 +546,8 @@ v1 固定座采摘核结构完整、安全分层正确、三末端可切换，�
 
 - GB/T 8567-2006 计算机软件文档编制规范  
 - ISO/IEC/IEEE 42010:2022 体系结构描述  
-- ISO 10218-1/-2、ISO 13850、IEC 60204-1  
-- ROS 2 Jazzy Developer Guide、REP-103/144/149/2004  
+- ISO 10218-1/-2:2025、ISO 13850:2015、IEC 60204-1（现行 6.1 版 2016+A1:2021；版次年份 2026-10-08 核验，记录见 docs/peach_v2_重构终版方案.md R18）  
+- ROS 2 Jazzy Developer Guide（C++17 口径见其 Code Style 页）、REP-103/144/149/2004  
 - NVIDIA Jetson Orin NX 模块数据手册 / 产品设计指南  
 - Rockchip RK3588 技术参考手册（分流板）  
 - C4 model（Simon Brown）；Autoware / Nav2 / UR ROS2 Driver 架构文档  

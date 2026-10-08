@@ -84,17 +84,21 @@ def launch_setup(context):
     yaml.safe_dump(sections, overlay_file, default_flow_style=False,
                    allow_unicode=True, sort_keys=True)
     overlay_file.close()
+    parameters = [
+        ParameterFile(scene_params, allow_substs=True),
+        ParameterFile(recon_params, allow_substs=True),
+        ParameterFile(supervisor_params, allow_substs=True),
+        ParameterFile(overlay_file.name),
+    ]
+    extra = LaunchConfiguration('params_overlay').perform(context).strip()
+    if extra:
+        parameters.append(ParameterFile(extra, allow_substs=True))
     brain = Node(
         package='peach_harvester',
         executable='peach_harvester',
         namespace='',
         output='screen',
-        parameters=[
-            ParameterFile(scene_params, allow_substs=True),
-            ParameterFile(recon_params, allow_substs=True),
-            ParameterFile(supervisor_params, allow_substs=True),
-            ParameterFile(overlay_file.name),
-        ],
+        parameters=parameters,
     )
     return [brain]
 
@@ -112,5 +116,9 @@ def generate_launch_description():
             'tool_profile', default_value='adaptive_shear_v1',
             choices=['shear_v1', 'bite_shear_v1', 'adaptive_shear_v1'],
             description='末端工具档案（URDF/许可内径/标签统一注入）'),
+        DeclareLaunchArgument(
+            'params_overlay', default_value='',
+            description='可选额外 ParameterFile（节点名分节）。冻结相机'
+                        '系统测用来把 min_views 置 1；空=不装'),
         OpaqueFunction(function=launch_setup),
     ])

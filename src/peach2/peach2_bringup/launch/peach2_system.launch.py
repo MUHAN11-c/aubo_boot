@@ -85,17 +85,23 @@ def _setup(context: LaunchContext) -> list:
     }))
     if camera_enabled:
         actions.append(_include('peach2_perception', 'perception.launch.py', {
-            'autostart': 'false', 'use_sim_time': use_sim_time}))
+            'autostart': 'false', 'use_sim_time': use_sim_time,
+            'config_file': arg('perception_config')}))
     actions.append(_include('peach2_target_model', 'target_model.launch.py', {
-        'autostart': 'false', 'use_sim_time': use_sim_time}))
+        'autostart': 'false', 'use_sim_time': use_sim_time,
+        'config_file': arg('target_model_config')}))
     if camera_enabled:
         actions.append(_include('peach2_scene', 'scene.launch.py', {
-            'autostart': 'false', 'use_sim_time': use_sim_time}))
+            'autostart': 'false', 'use_sim_time': use_sim_time,
+            'config_file': arg('scene_config')}))
     actions.append(_include('peach2_manipulation', 'manipulation.launch.py', {
-        'hardware_mode': hardware_mode, 'tool_profile': tool_id, 'autostart': 'false'}))
+        'hardware_mode': hardware_mode, 'tool_profile': tool_id, 'autostart': 'false',
+        'tool_description_dir': arg('tool_description_dir')}))
     actions.append(_include('peach2_task', 'peach2_task.launch.py', {
         'hardware_mode': hardware_mode, 'tool_profile': tool_id,
-        'runs_dir': arg('runs_dir')}))
+        'runs_dir': arg('runs_dir'),
+        'lock_wait_s': arg('lock_wait_s'),
+        'observe_max_views': arg('observe_max_views')}))
     actions.append(Node(
         package='nav2_lifecycle_manager',
         executable='lifecycle_manager',
@@ -124,7 +130,8 @@ def generate_launch_description() -> LaunchDescription:
         DeclareLaunchArgument(
             'camera_frontend', default_value='stereo', choices=list(stack.CAMERA_FRONTENDS),
             description='stereo = peach_stereo host stereo; percipio = device depth via '
-                        'aubo_e5_bringup (mutually exclusive camera connection)'),
+                        'aubo_e5_bringup; replay = no driver (frozen bag republish on '
+                        '/camera/*). stereo and percipio are mutually exclusive on the device'),
         DeclareLaunchArgument(
             'camera_ip', default_value='169.254.10.110',
             description='camera IP for the stereo frontend'),
@@ -143,6 +150,35 @@ def generate_launch_description() -> LaunchDescription:
         DeclareLaunchArgument(
             'runs_dir', default_value='',
             description='peach2_task ledger root; empty = $PEACH_RUNS_DIR, else <cwd>/runs'),
+        DeclareLaunchArgument(
+            'target_model_config',
+            default_value=PathJoinSubstitution([
+                FindPackageShare('peach2_target_model'), 'config', 'target_model.yaml']),
+            description='peach2_target_model yaml; frozen-camera tests overlay '
+                        'cut_requires_remeasure / require_known_swing'),
+        DeclareLaunchArgument(
+            'lock_wait_s', default_value='15.0',
+            description='peach2_task timeouts.lock_wait_s; frozen-camera tests raise this'),
+        DeclareLaunchArgument(
+            'observe_max_views', default_value='3',
+            description='peach2_task ObserveTarget.max_views; frozen-camera tests set 1'),
+        DeclareLaunchArgument(
+            'tool_description_dir', default_value='',
+            description='peach2_manipulation tool yaml dir; empty = '
+                        'share/aubo_description/config. Frozen-camera tests '
+                        'point this at peach2_system_tests/config/frozen_tools'),
+        DeclareLaunchArgument(
+            'perception_config',
+            default_value=PathJoinSubstitution([
+                FindPackageShare('peach2_perception'), 'config', 'perception.yaml']),
+            description='peach2_perception yaml; frozen-camera tests overlay '
+                        'lock / confirm_hits so a 2 Hz still frame can lock'),
+        DeclareLaunchArgument(
+            'scene_config',
+            default_value=PathJoinSubstitution([
+                FindPackageShare('peach2_scene'), 'config', 'scene.yaml']),
+            description='peach2_scene yaml; frozen-camera tests overlay '
+                        'hard-obstacle gates so the still cloud is not L2'),
         OpaqueFunction(function=_preflight),
         # Before every node, including those inside included launch files.
         SetParameter(name='use_sim_time', value=LaunchConfiguration('use_sim_time')),

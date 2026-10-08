@@ -756,7 +756,17 @@ GraspTaskResult GraspTask::executeBlendedCorridor(
   const auto tcp_per_part = tcpPathsFromJointsPerPart(
     robot_model, config_.tip_frame, parts);
   if (inspect_fruit_) {
+    // 关节名/维度与模型不符时 FK 返回空/短段：直接索引是越界 UB（planTaskOnly
+    // 同位置有同款检查）。
+    if (tcp_per_part.size() != parts.size()) {
+      output.reason = "无法 FK 果实胶囊审查";
+      return output;
+    }
     for (std::size_t part = 0; part < parts.size(); ++part) {
+      if (tcp_per_part[part].size() < 2U) {
+        output.reason = "无法 FK 果实胶囊审查";
+        return output;
+      }
       const auto fruit_report = inspectToolVsFruit(
         tcp_per_part[part], pending_fruit_, true,
         config_.tool_body_length_m, config_.tool_body_radius_m);

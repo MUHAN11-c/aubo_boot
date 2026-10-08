@@ -5,13 +5,13 @@
 | 工程名称 | 套袋桃采摘机器人感知—抓取联合工程 |
 | 文档名称 | 项目设计书（重构概要设计 + 已落地优化） |
 | 系统代次 | **v2**（仓库 `src/peach2/*`；旧栈 `src/peach_*` 只读对照） |
-| 版本 | V2.1 |
-| 日期 | 2026-09-30 |
-| 设计阶段 | 方案 M0–M7 已定；M1 骨架与纯核/集成测已落地；后续优化见第 8 章 |
-| 硬件基线 | 与 v1 相同：Orin NX 16GB 主控；RK3588 加压分流；AUBO E5；Percipio |
+| 版本 | V2.2 |
+| 日期 | 2026-10-08（V2.1：2026-09-30） |
+| 设计阶段 | 方案 M0–M7 已定；M1 退出门已过（mock 链 launch_testing 全绿，26 例；例数口径见 docs 方案 R18 源码核对）；实施基线与交付验收见 docs/peach_v2_重构终版方案.md §18；后续优化见第 8 章 |
+| 硬件基线 | 与 v1 相同：Jetson Orin NX 16GB 单板承载整机栈；RK3588 仅前端分流预案（预留未实装）；AUBO E5；Percipio（docs 方案 §3.4） |
 | 编制依据 | 同 v1；另对照 BehaviorTree.CPP v4、MoveIt Task Constructor、pluginlib、generate_parameter_library |
 | 读者 | 项目负责人、实现代理、安全评审 |
-| 与活文档关系 | v2 运行后以 peach2 包 README + `peach2_interfaces` 为契约；三活文档在切换期仍描述 v1 |
+| 与活文档关系 | v2 运行后以 peach2 包 README + `peach2_interfaces` 为契约；三活文档在切换期仍描述 v1；深度方案与实施基线见 [`docs/peach_v2_重构终版方案.md`](../docs/peach_v2_重构终版方案.md)（其 §18 为收敛基线） |
 
 ---
 
@@ -22,6 +22,8 @@ v2 按「忽略现行包结构、保留物理与法规四条红线」完全重�
 **后续优化（方案印发当日已落入 peach2 源码，超出原 M1 空插件骨架）：** 接口变更 01、邻袋碰撞分工、空运动塌缩、倒放加速度符号、命令门 `motion_possible` 语义、摆幅未知显式化、视点按 `camera_pose` 分段、系统测 PREGRASP mock 执行链等。这些不是另一份设计书，并入本文第 8 章。
 
 硬件部署与 v1 共用 Orin NX / RK3588 分流；软件按 UR / Nav2 主流重新切包。HIL 一次完整抓取墙钟上限与 v1 附录相同：**≤ 120 s**（mock）；产品节拍首期 ≤ 25 s、二期 ≤ 15 s。
+
+**V2.2 修订（2026-10-08）：** 同步 docs/peach_v2_重构终版方案.md 本周增量——§3.4 车载硬件与计算架构（NX 单板整机栈、RK3588 预案化、JetPack/Jazzy 容器部署约束）、§18 实施基线与交付验收（决策基线、误差与许可契约、实施工作包）、补充评审 R0–R18、官方资料核验记录（R18）。本文仍为概要级交付版，深度内容以该方案为准。
 
 ---
 
@@ -94,7 +96,7 @@ HIL 门（与 v1 附录对齐）：mock 一次完整抓取 **≤ 120 s**。产�
 
 ## 5 硬件架构
 
-硬件清单、急停域、网络与 v1 第 5 章相同（Orin NX 16GB 主控，RK3588 加压分流）。v2 强化三点：
+硬件清单、急停域、网络与 v1 第 5 章相同。计算拓扑定调（docs 方案 §3.4，2026-10-08）：**现场主控 = Jetson Orin NX 16GB 单板承载整机栈；RK3588 只作压力过大时的前端采集/预处理分流预案（预留，未实装、不作首期依赖）；开发/仿真/测试留在开发机，不随车。** v2 相对 v1 强化三点：
 
 1. **刀反馈必须是独立 DI**，与命令 DO 不同脚；上线前断电反证。  
 2. **强烈建议腕部六维力**（adaptive 贴果与全程接触监测）。无 F/T 时用电流模型残差，监测在控制循环侧。  
@@ -129,7 +131,7 @@ flowchart TB
   scene --> man
 ```
 
-NX 热设计：检测+分割+MoveIt 同卡时优先保证 manipulation 的 CPU 核隔离（taskset / cgroup 为二期）。加压时把 SGBM 从 NX GPU/CPU 挪到 RK3588，NX 只跑 TensorRT + 规划。
+NX 热设计：检测+分割+MoveIt 同卡时优先保证 manipulation 的 CPU 核隔离（taskset / cgroup 为二期）。若实测加压再启用 RK3588 分流预案（把 SGBM/前端预处理挪出 NX，NX 只跑 TensorRT + 规划；触发阈值待 NX 重标后定）。部署约束：JetPack 6.x 宿主为 Ubuntu 22.04 而 Jazzy 官方发行是 24.04——NX 整机栈跑 Docker 容器（`ros:jazzy` arm64 + CUDA/TensorRT 设备直通）或源编，属部署前置验证项；性能锚点均为开发机实测，NX 部署后须专项重标。
 
 ---
 
@@ -203,7 +205,7 @@ PREPARE_TOOL → TRANSIT_STAGING → APPROACH_PREGRASP → VERIFY_PREGRASP
 
 `HarvestBatch`：ReactiveSequence(CheckSafety, Survey, KeepRunningUntilFailure(NextTarget))。  
 `HarvestOne`：Observe → CheckDecision(approach) → HarvestTarget → 失败记 skip。  
-恢复：WaitForAck，不自动继续。FULL 可插 NeckRemeasure。
+恢复：WaitForAck，不自动继续。FULL 可插 NeckRemeasurePending（条件）＋ObserveTarget 复测。
 
 ### 6.6 ROS 2 分层
 
@@ -268,10 +270,10 @@ m_a=w_\mathrm{capture}-\sqrt{\sigma_\mathrm{ax}^{2}+e_\mathrm{blade}^{2}+e_\math
 | O7 | PREGRASP_ONLY 的 `reached` 不超过 PREGRASP | manipulation | 避免干跑误计已采 |
 | O8 | ACK 幂等；无待确认直接 success | manipulation + task | 操作台可重复点 |
 | O9 | 视点分段改用 `camera_pose` 平移/旋转阈值，不再只用距离 | target_model | 停走式相机 |
-| O10 | `require_known_swing`：未知摆幅显式拒绝接近 | target_model | 不再用 0 表示未知 |
+| O10 | `require_known_swing`：未知摆幅显式拒绝接近（部署 yaml 置 true，代码缺省 false） | target_model | 不再用 0 表示未知 |
 | O11 | 2D/3D 交叉校验分底/颈/扎口；结点独立协方差 | perception + core | 地标质量 |
 | O12 | 3D 剖面 Tukey 圆拟合 / 加权 PCA | peach2_core | 飞点稳健 |
-| O13 | BT：WaitForAck、NeckRemeasure、BatchGate、非阻塞叶子 | peach2_task | 方案 §8 落地 |
+| O13 | BT：WaitForAck、NeckRemeasurePending（条件）＋ObserveTarget neck_remeasure 复测、BatchGate、异步叶子（StatefulActionNode，50 Hz tickOnce） | peach2_task | 方案 §8 落地 |
 | O14 | bringup 同域预检；Include 作用域隔离，避免 launch_arguments 泄漏 | peach2_bringup | Jazzy launch 坑 |
 | O15 | 系统测：bringup mock、plan-only 关节不动、PREGRASP mock 执行+ACK | peach2_system_tests | 方案 M1 退出门 |
 | O16 | 果园外观重建管线（Blender）照明/实拍特征对照 | peach_sim reconstruction | 仿真资产，供后续 Gazebo 系统测 |
@@ -330,7 +332,7 @@ m_a=w_\mathrm{capture}-\sqrt{\sigma_\mathrm{ax}^{2}+e_\mathrm{blade}^{2}+e_\math
 
 ## 12 分期与开放问题
 
-M0 实测台架 → M1 骨架（已）→ M2 感知 v2.0 → M3 预算 → M4 运动避障 → M5 三插件实机 → M6 果园 → M6.5 关键点 → M7 提速与底盘。
+M0 实测台架（未过，标定文件仍 design_reference）→ M1 骨架（退出门已过）→ M2 感知 v2.0 → M3 预算 → M4 运动避障 → M5 三插件实机 → M6 果园 → M6.5 关键点 → M7 提速与底盘。各里程碑验收明细与实施工作包见 docs/peach_v2_重构终版方案.md §14/§18。
 
 开放问题仍须实测：袋颈可剪空间、刃口捕获带、DI 是否独立、透传能否接流式、腕力、室外深度、摆幅分布、接果方式。
 
@@ -342,11 +344,12 @@ v2 用主流切包和可证明的预算/门控，替换 v1 上叠出来的令牌
 
 ---
 
-## 附录 A 引用（增量）
+## 附录 A 引用（增量；链接 2026-10-08 核验）
 
-- BehaviorTree.CPP v4；MoveIt Task Constructor；pluginlib；generate_parameter_library  
-- Bac 2014 JFR；SWEEPER；HAVS；ISO 10218-2:2025  
-- 其余同 v1 附录 A  
+- [BehaviorTree.CPP v4](https://www.behaviortree.dev/)；[BehaviorTree.ROS2](https://github.com/BehaviorTree/BehaviorTree.ROS2)；[MoveIt Task Constructor 教程](https://moveit.picknik.ai/main/doc/tutorials/pick_and_place_with_moveit_task_constructor/pick_and_place_with_moveit_task_constructor.html)；[Pilz](https://moveit.picknik.ai/main/doc/how_to_guides/pilz_industrial_motion_planner/pilz_industrial_motion_planner.html)；[generate_parameter_library](https://github.com/PickNikRobotics/generate_parameter_library)；[ros2_controllers admittance_controller（Jazzy）](https://control.ros.org/jazzy/doc/ros2_controllers/admittance_controller/doc/userdoc.html)
+- [Nav2 lifecycle manager（Jazzy 版页面；`bond_timeout` 默认 4.0 s，rolling 版与本地 1.3.13 三源一致）](https://docs.nav2.org/jazzy/configuration_and_development/configuration_guide/core_servers/configuring_lifecycle_manager/)；[UR robot_state_helper（P-stop 恢复语义）](https://docs.universal-robots.com/Universal_Robots_ROS_Documentation/rolling/doc/ur_robot_driver/ur_robot_driver/doc/robot_state_helper.html)
+- Bac 2014 JFR；SWEEPER；HAVS；ISO 10218-1/-2:2025；ISO 18497-1…4:2024；ISO 13850:2015；IEC 60204-1（现行 6.1 版）  
+- 其余同 v1 附录 A；完整核验记录见 docs/peach_v2_重构终版方案.md R18  
 
 ## 附录 B v1 能力 → v2 包映射
 

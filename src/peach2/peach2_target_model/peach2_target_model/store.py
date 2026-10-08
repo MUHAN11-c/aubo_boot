@@ -172,15 +172,19 @@ def swing_from_views(views: list[list[Frame]], window_s: float) -> float:
     """
     Swing over the last window_s: max(reported amplitudes, sine fit on bottom positions).
 
-    Only swing_known frames count. Reported amplitudes are taken from every viewpoint in the
-    window; the sine fit only uses the latest viewpoint (stationary camera). NaN when no
-    swing_known frame is in the window.
+    The window ends at the LATEST OBSERVATION, known swing or not: old known-swing evidence
+    must expire even when only unknown-swing frames arrive afterwards. Only swing_known
+    frames count as evidence; the sine fit only uses the latest viewpoint (stationary camera).
+    NaN when no swing_known frame is in the window.
     """
-    known = [f for view in views for f in view if f.swing_known]
+    frames = [f for view in views for f in view]
+    if not frames:
+        return float('nan')
+    t_end = max(f.stamp_s for f in frames)
+    known = [f for f in frames if f.swing_known and t_end - f.stamp_s <= window_s]
     if not known:
         return float('nan')
-    t_end = max(f.stamp_s for f in known)
-    reported = max(f.swing_amplitude_m for f in known if t_end - f.stamp_s <= window_s)
+    reported = max(f.swing_amplitude_m for f in known)
     latest = [f for f in (views[-1] if views else [])
               if f.swing_known and t_end - f.stamp_s <= window_s]
     if len(latest) < _MIN_SWING_SAMPLES:
@@ -193,7 +197,7 @@ def swing_from_views(views: list[list[Frame]], window_s: float) -> float:
 
 def fuse_job(job: FusionJob, params: TargetModelParams) -> FusionOutput:
     samples = [aggregate_view(frames) for frames in job.views if frames]
-    fused = fuse_views(samples, 1)
+    fused = fuse_views(samples, params.min_views)
     swing = swing_from_views(job.views, params.swing_window_s)
     # No TargetObservation field carries fruit evidence yet (fruit keypoint / fruit mask), so
     # the offset stays unknown and the decision falls back to the length - d95 proxy.
@@ -242,7 +246,11 @@ def significant_change(old: ModelRecord, new: FusionOutput, params: TargetModelP
 class _History:
     def __init__(self) -> None:
         self.views: list[list[Frame]] = []
-        self.last_obs_s = -math.inf
+        # (position, quat) of the frame that OPENED each view: the anchor must not drift when
+        # max_frames_per_view rolls the buffer (comparing against buffer contents would let a
+        # slow camera drift merge into one view).
+        self.view_anchors: list[tuple[np.ndarray, np.ndarray]] = []
+        self.last_obs_s: float = -math.inf
         self.dirty = False
         self.remeasure = Remeasure.NONE
 
@@ -268,13 +276,19 @@ class ModelStore:
 
     def add_frame(self, target_id: str, frame: Frame) -> None:
         h = self._hist.setdefault(target_id, _History())
+        # Duplicate, out-of-order or non-finite stamps must never touch the model: a past stamp
+        # would squeeze into the current view (negative gap) or roll fresh frames out, and NaN
+        # comparisons silently pass everywhere.
+        if not math.isfinite(frame.stamp_s) or frame.stamp_s <= h.last_obs_s:
+            return
         p = self._p
         last = h.views[-1] if h.views else None
-        same_view = (last is not None
+        anchor = h.view_anchors[-1] if h.view_anchors else None
+        same_view = (last is not None and anchor is not None
                      and frame.stamp_s - last[-1].stamp_s <= p.view_gap_s
-                     and np.linalg.norm(frame.camera_position - last[0].camera_position)
+                     and np.linalg.norm(frame.camera_position - anchor[0])
                      <= p.view_translation_change_m
-                     and rotation_angle_deg(frame.camera_quat_xyzw, last[0].camera_quat_xyzw)
+                     and rotation_angle_deg(frame.camera_quat_xyzw, anchor[1])
                      <= p.view_rotation_change_deg)
         if same_view:
             last.append(frame)
@@ -282,8 +296,11 @@ class ModelStore:
                 del last[0]
         else:
             h.views.append([frame])
+            h.view_anchors.append(
+                (frame.camera_position.copy(), frame.camera_quat_xyzw.copy()))
             if len(h.views) > p.max_views_per_target:
                 del h.views[0]
+                del h.view_anchors[0]
         h.last_obs_s = max(h.last_obs_s, frame.stamp_s)
         h.dirty = True
 
@@ -304,9 +321,18 @@ class ModelStore:
             if out.epoch != self.epoch or out.target_id not in self._hist:
                 continue
             old = self._records.get(out.target_id)
+            if old is not None and out.last_obs_s < old.last_obs_s:
+                # Delayed fusion result: a model built on later observations already exists;
+                # a stale output must not roll the model (or last_obs_s) back.
+                continue
             if old is not None and not significant_change(old, out, self._p):
                 old.last_obs_s = max(old.last_obs_s, out.last_obs_s)
                 continue
+            h = self._hist[out.target_id]
+            # A revision bump invalidates a PASSED re-measure (it certified the old geometry);
+            # MISMATCH stays sticky until an epoch change (set_remeasure refuses to clear it).
+            if h.remeasure is not Remeasure.MISMATCH:
+                h.remeasure = Remeasure.NONE
             rev = self._revisions.get(out.target_id, 0) + 1
             self._revisions[out.target_id] = rev
             self._records[out.target_id] = ModelRecord(

@@ -170,6 +170,67 @@ def test_stale_epoch_output_ignored():
     assert store.commit([FusionOutput('ghost', 2, fused(), 0.0, 1.0, [])]) == []
 
 
+@pytest.mark.parametrize('stamp', [0.5, 1.0, float('nan'), float('inf'), -1.0])
+def test_duplicate_or_out_of_order_frames_cannot_change_model(stamp):
+    p = params()
+    store = ModelStore(p)
+    store.set_epoch(1)
+    store.add_frame('t', _frame(1.0))
+    _fuse(store, p)
+    delayed = dataclasses.replace(_frame(2.0, neck_err=(0.0, 0.0, 0.1)), stamp_s=stamp)
+    store.add_frame('t', delayed)
+    assert store.take_jobs() == []
+    assert store.record('t').last_obs_s == 1.0
+    assert np.allclose(store.record('t').fused.neck, NECK)
+
+
+def test_delayed_fusion_cannot_replace_newer_model():
+    p = params()
+    store = ModelStore(p)
+    store.set_epoch(1)
+    store.add_frame('t', _frame(1.0))
+    old = fuse_job(store.take_jobs()[0], p)
+    store.add_frame('t', _frame(2.0, neck_err=(0.0, 0.0, 0.02)))
+    _fuse(store, p)
+    latest = store.record('t')
+    assert store.commit([old]) == []
+    assert store.record('t').revision == latest.revision
+    assert store.record('t').last_obs_s == 2.0
+    assert np.array_equal(store.record('t').fused.neck, latest.fused.neck)
+
+
+def test_view_anchor_does_not_drift_when_frame_buffer_rolls():
+    p = dataclasses.replace(params(), max_frames_per_view=2,
+                            view_translation_change_m=0.05)
+    store = ModelStore(p)
+    store.set_epoch(1)
+    for i in range(4):
+        camera = (np.array(CAM_POS) + [0.02 * i, 0.0, 0.0], CAM_Q)
+        store.add_frame('t', _frame(0.1 * i, cam=camera))
+    assert [len(view) for view in store.take_jobs()[0].views] == [2, 1]
+
+
+def test_old_known_swing_expires_even_if_new_frames_are_unknown():
+    views = [[_frame(1.0, swing=0.003)], [_frame(7.0, swing_known=False)]]
+    assert math.isnan(swing_from_views(views, 5.0))
+
+
+def test_model_change_revokes_passed_remeasure_but_keeps_mismatch():
+    p = params()
+    store = ModelStore(p)
+    store.set_epoch(1)
+    store.add_frame('t', _frame(1.0))
+    _fuse(store, p)
+    store.set_remeasure('t', Remeasure.PASSED)
+    store.add_frame('t', _frame(2.0, neck_err=(0.0, 0.0, 0.02)))
+    assert _fuse(store, p) == ['t']
+    assert store.record('t').remeasure is Remeasure.NONE
+    store.set_remeasure('t', Remeasure.MISMATCH)
+    store.add_frame('t', _frame(3.0, neck_err=(0.0, 0.0, 0.04)))
+    _fuse(store, p)
+    assert store.record('t').remeasure is Remeasure.MISMATCH
+
+
 def test_remeasure_state_and_frames_since():
     p = params()
     store = ModelStore(p)

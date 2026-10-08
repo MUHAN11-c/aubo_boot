@@ -1,5 +1,6 @@
 #include "peach2_manipulation/command_gate.hpp"
 
+#include <cmath>
 #include <string>
 
 #include "peach2_end_effector/failure_codes.hpp"
@@ -11,6 +12,10 @@ namespace failure = peach2_end_effector::failure;
 
 namespace
 {
+
+/// Samples stamped up to this far ahead of `now` still count as fresh (clock skew slack);
+/// anything further is rejected instead of staying "fresh" until the clock catches up.
+constexpr double kMaxFutureSkewS = 1.0;
 
 GateVerdict closed(uint32_t code, const std::string & reason) {return {false, code, reason};}
 GateVerdict opened() {return {true, failure::NONE, "open"};}
@@ -39,8 +44,11 @@ CommandGate::CommandGate(GateConfig config)
 EffectiveEnables CommandGate::enables(double now_s) const
 {
   EffectiveEnables e;
-  if (!enables_ || now_s - enables_->received_s > config_.enables_timeout_s ||
-    now_s < enables_->received_s - 1.0)
+  // Non-finite times fail closed: with NaN every comparison below is false, which would make
+  // a stale sample look fresh (Autoware gate rule: reject invalid input at the boundary).
+  if (!enables_ || !std::isfinite(now_s) || !std::isfinite(enables_->received_s) ||
+    now_s - enables_->received_s > config_.enables_timeout_s ||
+    now_s < enables_->received_s - kMaxFutureSkewS)
   {
     return e;
   }
@@ -59,8 +67,15 @@ GateVerdict CommandGate::robot_ready(double now_s, bool new_trajectory) const
   if (!robot_) {
     return closed(failure::ROBOT_NOT_READY, "robot_status_missing");
   }
+  if (!std::isfinite(now_s) || !std::isfinite(robot_->received_s)) {
+    return closed(failure::ROBOT_NOT_READY, "robot_status_invalid_time");
+  }
   if (now_s - robot_->received_s > config_.robot_status_max_age_s) {
     return closed(failure::ROBOT_NOT_READY, "robot_status_stale");
+  }
+  if (now_s < robot_->received_s - kMaxFutureSkewS) {
+    // Symmetric with enables(): a sample stamped far into the future is not "fresh".
+    return closed(failure::ROBOT_NOT_READY, "robot_status_future");
   }
   if (robot_->e_stopped != 0) {
     return closed(failure::ROBOT_NOT_READY, "e_stopped");
@@ -89,7 +104,10 @@ GateVerdict CommandGate::check(GateStage stage, double now_s, bool new_trajector
     if (!config_.require_robot_status) {
       return opened();
     }
-    if (!robot_ || now_s - robot_->received_s > config_.robot_status_max_age_s) {
+    if (!robot_ || !std::isfinite(now_s) || !std::isfinite(robot_->received_s) ||
+      now_s - robot_->received_s > config_.robot_status_max_age_s ||
+      now_s < robot_->received_s - kMaxFutureSkewS)
+    {
       return closed(failure::ROBOT_NOT_READY, "robot_status_stale");
     }
     if (robot_->e_stopped != 0) {

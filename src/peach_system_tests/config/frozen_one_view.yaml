@@ -1,0 +1,35 @@
+# Frozen-camera overlay: one photo-pose view then one FULL dry grasp.
+# Product yaml stays min_views=2 and 8° baseline. Loaded last by
+# brain.launch params_overlay (node-named sections). Last-wins against
+# tool_profile injection of tool.budget.d_inner.
+peach_scene_perception_node:
+  ros__parameters:
+    # Product min_collect=10 + settle=5 at 2 Hz replay with YOLO drops
+    # does not lock inside survey_wait_s. Test-only; product yaml stays.
+    harvest.min_collect_frames: 3
+    harvest.lock_settle_frames: 2
+peach_target_reconstruction_node:
+  ros__parameters:
+    capture:
+      min_views: 1
+      minimum_baseline_deg: 0.0
+      minimum_mean_nearest_baseline_deg: 0.0
+      build_timeout_s: 25.0
+    # One frozen view inflates fusion sigma (~18 mm / 6°). Product bite
+    # D_inner 0.104 then loses GraspDecision.allowed (radial_budget_negative).
+    # Test-only slack; aubo_description / product yaml stay unchanged.
+    tool.budget.d_inner: 0.25
+    tool.budget.blade_capture_half_width: 0.030
+    tool.budget.blade_plane_calibration_error95: 0.0
+    tool.budget.robot_axial_error95: 0.0
+    tool.budget.target_motion95: 0.0
+    tool.budget.axial_neck_floor_m: 0.0
+peach_supervisor:
+  ros__parameters:
+    reconstruction_min_views: 1
+    survey_wait_s: 15.0
+    action_timeout_s: 70.0
+    empty_survey_limit: 2
+    observe_build_grace_s: 8.0
+    reconstruct_in_trajectory: true
+    execute_pregrasp_only: false

@@ -198,12 +198,14 @@ def generate_launch_description():
             description='启动相机（前端由 camera_frontend 决定）'),
         DeclareLaunchArgument(
             'camera_frontend', default_value='stereo',
-            choices=['percipio', 'stereo'],
+            choices=['percipio', 'stereo', 'replay'],
             description='相机前端（2026-09-29 用户裁定默认 stereo）：'
                         'stereo=peach_stereo 主机单图案立体（~13.5fps，'
                         '话题同构，09-17 A/B：感知锁定 2.8s vs 48s）；'
                         'percipio=设备端 18 图案深度（2.43fps，额定量程 '
-                        '0.4-0.8m）。两者互斥（相机连接独占）'),
+                        '0.4-0.8m）；replay=不起驱动，由冻结 bag 重发 '
+                        '/camera/*（拍照位一次感知）。stereo/percipio 互斥'
+                        '（相机连接独占）'),
         DeclareLaunchArgument(
             'camera_ip', default_value='169.254.10.110',
             description='相机 IP（peach_stereo 前端使用）'),
@@ -235,6 +237,10 @@ def generate_launch_description():
             'skip_reconstruction', default_value='false',
             description='true 时跳过 Build/补视，用未精化场景观测验证接触；'
                         '默认关。mock+相机不跟随可开；真机 KEEP false'),
+        DeclareLaunchArgument(
+            'brain_params_overlay', default_value='',
+            description='透传 peach_harvester brain params_overlay；空=不装。'
+                        '冻结相机系统测用来把 reconstruction min_views 置 1'),
         # 须在所有 Node / Include 之前：included launch 里的节点同样吃到
         SetParameter(name='use_sim_time', value=LaunchConfiguration('use_sim_time')),
         # 启动事实采集（须在全部 DeclareLaunchArgument 之后；结果进
@@ -272,8 +278,9 @@ def generate_launch_description():
                 'tool_profile': tool_profile,
                 'moveit_enabled': moveit_enabled,
                 'camera_enabled': PythonExpression(
-                    ["'false' if '", camera_frontend,
-                     "' == 'stereo' else '", camera_enabled, "'"]),
+                    ["'true' if '", camera_frontend,
+                     "' == 'percipio' and '", camera_enabled,
+                     "' == 'true' else 'false'"]),
                 'extrinsics_enabled': extrinsics_enabled,
                 'hand_eye_enabled': hand_eye_enabled,
                 'hand_eye_web_enabled': hand_eye_web_enabled,
@@ -303,6 +310,8 @@ def generate_launch_description():
                 'tool_profile': tool_profile,
                 'skip_reconstruction': LaunchConfiguration(
                     'skip_reconstruction'),
+                'params_overlay': LaunchConfiguration(
+                    'brain_params_overlay'),
             }),
         _include(
             'peach_arm', 'peach_arm.launch.py',

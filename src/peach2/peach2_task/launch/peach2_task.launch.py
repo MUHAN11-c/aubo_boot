@@ -31,6 +31,12 @@ def generate_launch_description() -> LaunchDescription:
         DeclareLaunchArgument(
             'runs_dir', default_value='',
             description='ledger root; empty = $PEACH_RUNS_DIR, else <cwd>/runs'),
+        DeclareLaunchArgument(
+            'lock_wait_s', default_value='15.0',
+            description='seconds to wait for target_set_locked after BeginScene'),
+        DeclareLaunchArgument(
+            'observe_max_views', default_value='3',
+            description='ObserveTarget.max_views (frozen-camera tests set 1)'),
         LifecycleNode(
             package='peach2_task',
             executable='peach2_task_node',
@@ -45,6 +51,10 @@ def generate_launch_description() -> LaunchDescription:
                     'safety.require_robot_status': ParameterValue(
                         PythonExpression(["'", hardware_mode, "' == 'real'"]),
                         value_type=bool),
+                    'timeouts.lock_wait_s': ParameterValue(
+                        LaunchConfiguration('lock_wait_s'), value_type=float),
+                    'observe_max_views': ParameterValue(
+                        LaunchConfiguration('observe_max_views'), value_type=int),
                 },
             ],
         ),

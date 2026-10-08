@@ -20,8 +20,9 @@ Peach v2 分层场景快照（方案 §6.3）：按需取**一帧**与 TF / 关�
 与 peach2_manipulation 的分工：
 
 - 本包只写 `world.collision_objects`，id 前缀取 srv 常量 `BuildSceneSnapshot.HARD_OBJECT_PREFIX`
-  （`peach_scene_hard_0000` …）。**不写 ACM**：接触阶段（套入 / 剪切）的局部放行由 manipulation 按阶段本地改
-  ACM，本包的写入不会覆盖它。
+  （`peach_scene_hard_0000` …）。**不写 ACM**：接触阶段（套入 / 剪切）的局部放行由 manipulation 按阶段把当前
+  目标袋从碰撞世界**移除**、阶段结束恢复（`peach_bag_*` 前缀原子 diff，全程无 ACM 写入；2026-10-08 勘定，
+  与 `peach2_manipulation/README.md` 同口径），本包的写入不会覆盖它（前缀不同）。
 - **所有**带有效底 / 颈 / d95 的 TargetModel 都被挖空（含颈端越出段）。主审分工（接口变更 01）：manipulation
   在每次规划前把除当前目标外的所有袋写成 `peach_bag_` 胶囊，当前目标只在接近段写入、INSERT 起移除；挖空只保证
   硬障碍不会吞掉套袋走廊。

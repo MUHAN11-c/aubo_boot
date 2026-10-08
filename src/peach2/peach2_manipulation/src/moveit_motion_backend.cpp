@@ -208,6 +208,18 @@ ExecResult MoveItMotionBackend::execute(
 
   auto goal_future = exec_client_->async_send_goal(goal);
   if (goal_future.wait_for(2s) != std::future_status::ready) {
+    // The server may still accept this goal and start moving after we gave up waiting
+    // (dropping the goal handle does NOT cancel it — rclcpp_action client.hpp). This client
+    // has at most one goal in flight, so cancel-all is exact; nav2's bt_action_node uses the
+    // same recovery. Bounded by stop_grace_s so a dead server cannot hang execute().
+    auto cancel_future = exec_client_->async_cancel_all_goals();
+    if (cancel_future.wait_for(std::chrono::duration<double>(config_.stop_grace_s)) !=
+      std::future_status::ready)
+    {
+      RCLCPP_ERROR(
+        logger_, "cancel-all after goal timeout not acknowledged within %.1f s",
+        config_.stop_grace_s);
+    }
     result.failure_code = failure::EXEC_FAILED;
     result.reason = "execute_goal_no_response";
     return result;

@@ -1,0 +1,93 @@
+# Test-only peach2_perception overlay for frozen-camera one-view mock FULL.
+# Product perception.yaml is unchanged. Every key is required (the node rejects
+# a partial file). Relaxed lock / confirm / joint-gap so a 2 Hz frozen replay
+# plus YOLO/SAM queue still locks inside lock_wait_s (product 10 frames / 2 s
+# / confirm_hits=3 does not, and then WaitTargetSetLocked reports lock_timeout).
+
+frame_id: base_link
+camera_frame: camera_color_optical_frame
+depth_unit_m: 0.00025
+min_depth_m: 0.3
+max_depth_m: 1.5
+min_confidence: 0.5
+confidence_match_tol_s: 0.005
+sync_slop_s: 0.05
+sync_queue_size: 10
+sensor_qos_reliable: true
+tf_timeout_s: 0.5
+
+depth_noise:
+  baseline_m: 0.0622
+  fx_px: 549.0
+  disparity_sigma_px: 0.25
+
+surrogate_confidence:
+  jump_rel_lo: 0.01
+  jump_rel_hi: 0.04
+
+detector:
+  model_path: $(find-pkg-share peach_harvester)/model/best.pt
+  engine_path: ''
+  device: cuda:0
+  allow_cpu: false
+  imgsz: 640
+  half: false
+  conf: 0.35
+  iou: 0.5
+  class_names: [peach_bag, peach_nobag]
+  bag_class_id: 0
+  dedup_ios: 0.6
+  dedup_frag_ios: 0.2
+  dedup_area_ratio: 0.5
+
+segmenter:
+  model_path: $(find-pkg-share peach_harvester)/model/mobile_sam.pt
+  imgsz: 1024
+  max_boxes: 16
+  box_expand_frac: 0.10
+  neg_point_offset_px: 8
+  min_area_px: 100
+  depth_jump_rel: 0.03
+  depth_jump_abs_m: 0.01
+  seed_frac: 0.34
+  morph_kernel_px: 5
+  segment_nobag: false
+
+landmarks:
+  n_bins_2d: 20
+  n_bins_3d: 12
+  taper_ratio: 0.85
+  point_stride: 1
+  # The stereo_10s neck region is depth-split (bag surface vs the branch
+  # behind): the 2D-pixel window and the 3D fit sample different layers, so
+  # the neck fails the product 15 mm cross-check on every frame. Frozen-flow
+  # testing only (same test-only widening spirit as the v1 d_inner overlay);
+  # the product yaml stays 0.015.
+  cross_check_tol_m: 0.050
+  cross_check_inset_px: 3
+  backproject_win: 1
+
+tracker:
+  confirm_hits: 1
+  ttl_s: 3.0
+  gate_chi2: 11.34
+  process_accel_sigma: 0.5
+
+stationary:
+  joint_speed_threshold_rad_s: 0.02
+  window_s: 0.2
+  max_gap_s: 0.5
+  buffer_s: 8.0
+
+swing:
+  window_s: 2.0
+  min_span_s: 1.0
+
+lock:
+  min_stationary_frames: 3
+  stable_s: 0.5
+  max_collect_s: 25.0
+
+debug:
+  publish_image: false
+  downscale: 0.5

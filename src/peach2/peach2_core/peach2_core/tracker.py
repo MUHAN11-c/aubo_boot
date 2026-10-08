@@ -13,6 +13,7 @@ from __future__ import annotations
 from dataclasses import dataclass, replace
 
 import numpy as np
+from scipy.linalg import cho_factor, cho_solve
 from scipy.optimize import linear_sum_assignment
 
 # 1-sigma prior on the velocity of a newly born track [m/s]; bags are quasi-static.
@@ -65,7 +66,11 @@ class _KF:
     def update(self, x: np.ndarray, P: np.ndarray, z: np.ndarray, R: np.ndarray,
                stamp_s: float) -> None:
         S = P[:3, :3] + R
-        K = P[:, :3] @ np.linalg.inv(S)
+        # Cholesky-solve the gain: enforces a positive-definite innovation covariance (raises
+        # LinAlgError otherwise; the gating step rejects such pairs first) and avoids the
+        # explicit inverse.
+        c, low = cho_factor(S)
+        K = cho_solve((c, low), P[:, :3].T).T
         self.x = x + K @ (z - x[:3])
         IKH = np.eye(6)
         IKH[:, :3] -= K
@@ -134,7 +139,10 @@ class Tracker:
                 y = z - x[:3]
                 S = P[:3, :3] + R
                 try:
-                    d2 = float(y @ np.linalg.solve(S, y))
+                    # Cholesky rejects indefinite (not only singular) S: np.linalg.solve would
+                    # return a negative Mahalanobis distance there, which passes any gate.
+                    c, low = cho_factor(S)
+                    d2 = float(y @ cho_solve((c, low), y))
                 except np.linalg.LinAlgError:
                     continue
                 if d2 <= self._gate:

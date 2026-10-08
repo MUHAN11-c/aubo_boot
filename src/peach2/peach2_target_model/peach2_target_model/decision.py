@@ -26,6 +26,9 @@ from peach2_core.types import unit
 
 from .params import TargetModelParams
 
+# Clock-domain slack before an observation stamp counts as "from the future" and fails closed.
+_FUTURE_EPS_S = 1e-6
+
 
 class Remeasure(Enum):
     NONE = 'none'
@@ -138,12 +141,20 @@ def _blocked(record: ModelRecord, tool_id: str, valid_until_s: float,
 
 def build_decision(record: ModelRecord, tool: ToolGeometry, calib: ToolCalibration,
                    params: TargetModelParams, now_s: float) -> Decision:
-    valid_until = now_s + params.validity_s
+    # Expiry is anchored to the last observation: repeated queries must not extend the window.
+    # Non-finite or future evidence fails closed (reject at the boundary; downstream numeric
+    # code cannot catch NaN time, the same lesson as Autoware's control command gate).
+    valid_until = record.last_obs_s + params.validity_s
+    if not math.isfinite(valid_until):
+        valid_until = now_s + params.validity_s if math.isfinite(now_s) else 0.0
     model = record.fused
     if not model.ok:
         return _blocked(record, tool.tool_id, valid_until, codes.MODEL_NOT_CONVERGED,
                         'model_invalid')
-    if now_s - record.last_obs_s > params.validity_s:
+    evidence_ok = (math.isfinite(now_s) and math.isfinite(record.last_obs_s)
+                   and record.last_obs_s <= now_s + _FUTURE_EPS_S
+                   and now_s - record.last_obs_s <= params.validity_s)
+    if not evidence_ok:
         return _blocked(record, tool.tool_id, valid_until, codes.MODEL_EXPIRED, 'model_expired')
 
     flags: list[str] = []

@@ -689,6 +689,7 @@ def _sun_direction(params: OrchardParams) -> Vec3:
 
 def _world_shell(params: OrchardParams, world: ET.Element) -> None:
     light = params.lighting
+    # 引擎跟官方 tracked_vehicle_simple.sdf 一样取服务器默认（'ignored'）
     physics = _element(world, 'physics', name='4ms', type='ignored')
     _element(physics, 'max_step_size', _fmt(0.004))
     _element(physics, 'real_time_factor', _fmt(1.0))
@@ -696,8 +697,13 @@ def _world_shell(params: OrchardParams, world: ET.Element) -> None:
             ('gz::sim::systems::Physics', 'gz-sim-physics-system'),
             ('gz::sim::systems::UserCommands', 'gz-sim-user-commands-system'),
             ('gz::sim::systems::SceneBroadcaster',
-             'gz-sim-scene-broadcaster-system')):
-        _element(world, 'plugin', name=name, filename=filename)
+             'gz-sim-scene-broadcaster-system'),
+            # 渲染模型传感器（2D 激光 gpu_lidar）：世界必须加载 Sensors 系统，
+            # 否则传感器无人更新、/scan 无发布者（TB4 官方世界同款）
+            ('gz::sim::systems::Sensors', 'gz-sim-sensors-system')):
+        plugin = _element(world, 'plugin', name=name, filename=filename)
+        if name.endswith('Sensors'):
+            _element(plugin, 'render_engine', 'ogre2')
 
     scene = _element(world, 'scene')
     _element(scene, 'ambient', _fmt(*light.ambient, 1.0))

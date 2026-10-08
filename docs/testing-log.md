@@ -1541,3 +1541,37 @@ launch_test/test_test_e1_supervisor_chain.py.txt 尾部。
 样式+index 元素下发），/api/state startup 分区 facts 实测回填（mock/
 git 2d410ffc）；JS 语法 node 校验过；obs colcon test 0 失败；flake8 0。
 清场干净（新起的 774704 为并发会话栈，未触碰）。
+
+## 2026-10-08 v2 时效/融合正确性实施轮（§18.16 P1–P4）+ 权威对齐修复 + v1 定点修
+
+**范围**：三路深审（v2 纯核 / v2 C++ / v1 栈）后按 P0/P1 全修实施；设计逐项对齐
+官方与社区权威（man7 / cppreference / 本机 Jazzy rclcpp_action·context 头文件 /
+nav2 bt_action_node·SimpleActionServer / Autoware control_command_gate / numpy
+cholesky）。完整依据与逐条记录见 `docs/peach_v2_重构终版方案.md` §18.16 与 R18·七。
+
+**v2 Python（peach2_target_model / peach2_core）**：`decision.py` 截止锚定最后观测、
+非有限/未来证据 fail-closed；`store.py` 拒重复/倒序/非有限 stamp、拒迟到融合、视点
+锚固定开视帧、swing 窗口锚最新观测、几何修订撤 PASSED（MISMATCH 粘滞）；
+`target_model_node` 复测快照 epoch+revision（失配 MODEL_STALE=21）、deadline 改
+monotonic；tracker 门控/增益改 Cholesky（消负 Mahalanobis 过门）；fusion 视点尺度
+下限 1 mm＋`_regularized` 特征值裁剪；landmarks3d d95 空选集回退全云。并行轮预置
+的 8 个红测试全部转绿（测试即规格，未改测试文件）。
+
+**v2 C++（peach2_manipulation）**：`command_gate` 三路（enables/robot_ready/
+TOOL_SAFE）非有限时间 fail-closed＋robot_ready 未来 1.0 s 护栏；新增 3 边界 gtest
+（非有限、未来、`>` 等值——等值用例须用 0.5/4.0 s 可精确表示值，`10.0+0.3` 双精度
+差 0.3000000000000007 会写歪）；`moveit_motion_backend` goal 发送超时改
+`async_cancel_all_goals()` 有界等待（rclcpp_action 官方：丢弃 handle 不会取消
+goal；nav2 同款）。
+
+**v1（peach_arm）**：`pthread_timedjoin_np` 传相对值致 2 s 有界回收恒 0 s（man7：
+abstime 为 CLOCK_REALTIME 绝对时刻）——修为 clock_gettime+2 s；executeSurvey 终局
+与 on_activate ACM 分离线程补 try/catch（cppreference：线程逃逸异常=terminate）；
+混成走廊 FK 空段越界补 planTaskOnly 同款检查。
+
+**验证**：四包 colcon test 全绿——peach2_core pytest 80、peach2_target_model
+pytest 80（含 8 红转绿）、peach2_manipulation gtest 114（111+3 新增）、peach_arm
+构建与测试过。本轮无新增残留进程；并行会话 orchard_nav 栈（PID 202162 系）与
+774704 属其在途工作，已报告未动。P5 的三活文档更新避让并行轮在途改动，归所有者
+会话收口；`peach2_scene/README` ACM 表述已与 manipulation README 统一（目标袋阶段
+移除、非 ACM）。

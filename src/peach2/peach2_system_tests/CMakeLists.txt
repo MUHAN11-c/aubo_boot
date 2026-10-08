@@ -9,6 +9,9 @@ if(BUILD_TESTING)
   set(ament_cmake_cpplint_FOUND TRUE)
   ament_lint_auto_find_test_dependencies()
 
+  find_package(ament_cmake_pytest REQUIRED)
+  ament_add_pytest_test(test_frozen_camera_bag test/test_frozen_camera_bag.py)
+
   # Jazzy launch_testing_ament_cmake has no add_ros_isolated_launch_test (Kilted+): each test
   # gets its own ROS_DOMAIN_ID (95..97, v1 system tests use 89..94) and localhost-only DDS.
   find_package(launch_testing_ament_cmake REQUIRED)
@@ -19,5 +22,12 @@ if(BUILD_TESTING)
   add_launch_test(test/test_pregrasp_mock_exec.py TIMEOUT 900
     ENV "ROS_DOMAIN_ID=97" "ROS_LOCALHOST_ONLY=1")
 endif()
+
+install(DIRECTORY launch DESTINATION share/${PROJECT_NAME})
+install(DIRECTORY config DESTINATION share/${PROJECT_NAME})
+install(
+  DIRECTORY scripts/
+  DESTINATION lib/${PROJECT_NAME}
+  USE_SOURCE_PERMISSIONS)
 
 ament_package()

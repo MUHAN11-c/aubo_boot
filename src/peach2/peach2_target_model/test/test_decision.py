@@ -70,7 +70,7 @@ def test_geometry_fields(tool_id):
     assert d.insert_travel_m == pytest.approx(
         model.length_m + tool.l_blade_m + p.pregrasp_standoff_m)
     assert np.allclose(_rotate(d.pregrasp_quat_xyzw, np.array([0.0, 0.0, 1.0])), axis)
-    assert d.valid_until_s == pytest.approx(NOW + p.validity_s)
+    assert d.valid_until_s == pytest.approx(100.0 + p.validity_s)
     assert d.tool_id == tool_id and d.model_revision == 3 and d.target_id == 'target_1'
 
 
@@ -103,6 +103,29 @@ def test_remeasure_gating():
     assert mismatch.sleeve_allowed and not mismatch.cut_allowed
     assert mismatch.reason == 'neck_remeasure_mismatch'
     assert mismatch.failure_code == codes.NECK_REMEASURE_MISMATCH
+
+
+def test_repeated_queries_do_not_extend_observation_lifetime():
+    p = dataclasses.replace(params(), validity_s=20.0)
+    rec = record(last_obs_s=100.0, remeasure=Remeasure.PASSED)
+    tool, calib = _tool('shear_v1'), _calib('shear_v1', True)
+    first = build_decision(rec, tool, calib, p, 105.0)
+    later = build_decision(rec, tool, calib, p, 119.0)
+    assert first.cut_allowed and later.cut_allowed
+    assert first.valid_until_s == later.valid_until_s == 120.0
+    assert not build_decision(rec, tool, calib, p, 120.001).approach_allowed
+
+
+@pytest.mark.parametrize('now,stamp', [
+    (130.0, 131.0), (float('nan'), 100.0), (float('inf'), 100.0),
+    (130.0, float('nan')), (130.0, float('inf')), (130.0, -1.0),
+])
+def test_invalid_or_future_evidence_never_grants_permission(now, stamp):
+    d = build_decision(record(last_obs_s=stamp, remeasure=Remeasure.PASSED),
+                       _tool('shear_v1'), _calib('shear_v1', True), params(), now)
+    assert not (d.approach_allowed or d.sleeve_allowed or d.cut_allowed)
+    assert d.failure_code == codes.MODEL_EXPIRED
+    assert np.isfinite(d.valid_until_s)
 
 
 def test_unknown_swing():

@@ -735,15 +735,22 @@ void ManipulationSkillsNode::executeSurvey(
   result->scene_epoch = 0;
   // M1：survey 终局收口取消旗标（周期不在运行即清；语义见声明处注释）。
   clearCancelFlagIfIdle();
-  if (goal_handle->is_canceling()) {
-    goal_handle->canceled(result);
-    return;
+  // 与 executeAction 同款兜底：线程 detach 后若节点正在 shutdown，终局上报可抛
+  // RCLError，逃逸到线程外即 std::terminate。
+  try {
+    if (goal_handle->is_canceling()) {
+      goal_handle->canceled(result);
+      return;
+    }
+    if (!response->success) {
+      goal_handle->abort(result);
+      return;
+    }
+    goal_handle->succeed(result);
+  } catch (const std::exception & error) {
+    RCLCPP_WARN(
+      get_logger(), "survey 终局上报失败（可能正在 shutdown）: %s", error.what());
   }
-  if (!response->success) {
-    goal_handle->abort(result);
-    return;
-  }
-  goal_handle->succeed(result);
 }
 
 }  // namespace peach_arm

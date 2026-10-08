@@ -1,0 +1,43 @@
+# Test overlay for frozen-camera one-shot perception → FULL grasp.
+# Same keys as peach2_target_model/config/target_model.yaml; only the two
+# frozen-image gates differ: the still frame cannot follow the arm to
+# pregrasp (no neck remeasure, swing unknown).
+# Product yaml stays cut_requires_remeasure / require_known_swing true.
+
+frame_id: base_link
+
+validity_s: 120.0
+pregrasp_standoff_m: 0.03
+
+# One frozen photo-pose view cannot shrink MAD/sigma to the product 6 mm / 4°
+# gates. Params cap these at 0.05 / 45°; v1 one-view fusion was ~18 mm / 6°.
+converge_sigma_lateral95_m: 0.05
+converge_theta95_deg: 45.0
+converge_sigma_axial95_m: 0.05
+min_views: 1
+
+default_max_views: 1
+max_views_per_target: 4
+observe_timeout_s: 15.0
+
+view_gap_s: 0.8
+view_translation_change_m: 0.05
+view_rotation_change_deg: 10.0
+max_frames_per_view: 30
+
+remeasure_mismatch_m: 0.010
+remeasure_max_camera_distance_m: 0.30
+remeasure_min_frames: 2
+cut_requires_remeasure: false
+
+swing_max_m: 0.015
+swing_window_s: 5.0
+require_known_swing: false
+
+approach_radial_slack_m: 0.05
+
+revision_position_tol_m: 0.0005
+revision_angle_tol_deg: 0.1
+
+description_config_dir: $(find-pkg-share peach2_system_tests)/config/frozen_tools
+calibration_dir: $(find-pkg-share peach2_system_tests)/config/frozen_calibration

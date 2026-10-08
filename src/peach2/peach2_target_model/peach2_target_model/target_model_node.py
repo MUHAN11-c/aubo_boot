@@ -389,8 +389,10 @@ class TargetModelNode(LifecycleNode):
     def _execute_observe(self, goal_handle):
         goal = goal_handle.request
         params = self._params
+        # t0 (ROS clock) seeds frames_since(); the deadline uses the monotonic clock so wall-time
+        # jumps cannot stretch or cut the timeout semantics.
         t0 = self._now_s()
-        deadline = t0 + params.observe_timeout_s
+        deadline = time.monotonic() + params.observe_timeout_s
         if goal.neck_remeasure:
             return self._remeasure(goal_handle, goal.target_id, t0, deadline)
         max_views = int(goal.max_views) or params.default_max_views
@@ -410,17 +412,23 @@ class TargetModelNode(LifecycleNode):
                     return self._finish(goal_handle, rec, codes.NONE, True)
                 if rec.fused.n_views >= max_views:
                     return self._finish(goal_handle, rec, codes.MODEL_NOT_CONVERGED, False)
-            if self._now_s() >= deadline:
+            if time.monotonic() >= deadline:
                 code = codes.PERCEPTION_NO_TARGET if rec is None else codes.MODEL_NOT_CONVERGED
                 return self._finish(goal_handle, rec, code, False)
 
     def _remeasure(self, goal_handle, target_id: str, t0: float, deadline: float):
         params = self._params
         with self._lock:
-            rec = self._store.record(target_id) if self._store is not None else None
+            store = self._store
+            rec = store.record(target_id) if store is not None else None
         if rec is None or not rec.fused.ok:
             code = codes.PERCEPTION_NO_TARGET if rec is None else codes.MODEL_NOT_CONVERGED
             return self._finish(goal_handle, rec, code, False)
+        # The verdict is only valid for the model it was measured against: if a new epoch or
+        # geometry revision lands mid-measure, certifying the old neck would write a stale
+        # (and sticky, for MISMATCH) state onto a different model.
+        baseline_epoch = store.epoch
+        baseline_revision = rec.revision
         fused_neck = rec.fused.neck.copy()
         seen_any = False
         while True:
@@ -437,10 +445,18 @@ class TargetModelNode(LifecycleNode):
                 deviation = remeasure_deviation(fused_neck, close)
                 passed = deviation <= params.remeasure_mismatch_m
                 with self._lock:
-                    if self._store is not None:
-                        self._store.set_remeasure(
+                    store = self._store
+                    current = store.record(target_id) if store is not None else None
+                    baseline_intact = (store is not None
+                                       and store.epoch == baseline_epoch
+                                       and current is not None
+                                       and current.revision == baseline_revision)
+                    if baseline_intact:
+                        store.set_remeasure(
                             target_id, Remeasure.PASSED if passed else Remeasure.MISMATCH)
-                        rec = self._store.record(target_id) or rec
+                        rec = current
+                if not baseline_intact:
+                    return self._finish(goal_handle, current or rec, codes.MODEL_STALE, False)
                 self.get_logger().info(
                     f'{target_id}: neck remeasure deviation {deviation * 1e3:.1f} mm '
                     f'({"pass" if passed else "MISMATCH"})')
@@ -448,7 +464,7 @@ class TargetModelNode(LifecycleNode):
                 if passed:
                     return self._finish(goal_handle, rec, codes.NONE, True)
                 return self._finish(goal_handle, rec, codes.NECK_REMEASURE_MISMATCH, False)
-            if self._now_s() >= deadline:
+            if time.monotonic() >= deadline:
                 code = (codes.PERCEPTION_LOW_QUALITY if seen_any
                         else codes.PERCEPTION_NO_TARGET)
                 return self._finish(goal_handle, rec, code, False)

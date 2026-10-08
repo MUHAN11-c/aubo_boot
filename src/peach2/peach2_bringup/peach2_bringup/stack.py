@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 HARDWARE_MODES = ('mock', 'real')
-CAMERA_FRONTENDS = ('stereo', 'percipio')
+CAMERA_FRONTENDS = ('stereo', 'percipio', 'replay')
 TOOL_IDS = ('shear_v1', 'bite_shear_v1', 'adaptive_shear_v1')
 
 # Lifecycle order: sensing -> model -> scene -> motion -> task; teardown is the reverse.

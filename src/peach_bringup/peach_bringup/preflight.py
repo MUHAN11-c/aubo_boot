@@ -1,7 +1,10 @@
-"""启动预检（零 ROS）：拒重复栈实例."""
+"""启动预检（零 ROS）：拒同域重复栈实例."""
 from __future__ import annotations
 
 import os
+
+DEFAULT_DOMAIN_ID = '0'
+UNKNOWN_DOMAIN = '?'
 
 PREFLIGHT_PATTERNS = (
     # brain 进程 exec=peach_harvester 承载场景/重建/调度三托管节点（launch
@@ -50,6 +53,8 @@ def cmdline_looks_like_stack(cmdline: str) -> bool:
     """判断 cmdline 是否为栈节点可执行文件，而不是 colcon/pytest 参数名."""
     if 'harvest_system.launch' in cmdline:
         return False
+    if 'frozen_camera_grasp.launch' in cmdline:
+        return False
     if 'cursorsandbox' in cmdline:
         return False
     parts = [part for part in cmdline.split('\x00') if part]
@@ -65,15 +70,32 @@ def cmdline_looks_like_stack(cmdline: str) -> bool:
     return False
 
 
-def running_stack_pids(proc_root: str = '/proc'):
-    """返回 (pid, cmdline) 列表：仍在跑的栈节点进程."""
+def domain_from_environ(raw: bytes | None) -> str:
+    """ROS_DOMAIN_ID from /proc/<pid>/environ; unset/empty -> '0'; unreadable -> '?'."""
+    if raw is None:
+        return UNKNOWN_DOMAIN
+    for entry in raw.split(b'\x00'):
+        if entry.startswith(b'ROS_DOMAIN_ID='):
+            value = entry.split(b'=', 1)[1].decode('utf-8', 'replace').strip()
+            return value or DEFAULT_DOMAIN_ID
+    return DEFAULT_DOMAIN_ID
+
+
+def running_stack_pids(proc_root: str = '/proc', own_domain: str | None = None):
+    """返回 (pid, cmdline)：同域（或 environ 不可读）仍在跑的栈节点.
+
+    其它 ROS_DOMAIN_ID 的栈不挡（隔离域系统测 / 仿真与开发栈可并存）。
+    """
+    if own_domain is None:
+        own_domain = os.environ.get('ROS_DOMAIN_ID', '').strip() or DEFAULT_DOMAIN_ID
     found = []
     try:
         entries = os.listdir(proc_root)
     except OSError:
         return found
+    skip = {os.getpid()}
     for entry in entries:
-        if not entry.isdigit():
+        if not entry.isdigit() or int(entry) in skip:
             continue
         try:
             cmd_path = os.path.join(proc_root, entry, 'cmdline')
@@ -81,9 +103,18 @@ def running_stack_pids(proc_root: str = '/proc'):
                 cmdline = stream.read().decode('utf-8', 'replace')
         except OSError:
             continue
-        if cmdline_looks_like_stack(cmdline):
-            display = ' '.join(part for part in cmdline.split('\x00') if part)
-            found.append((int(entry), display[:200]))
+        if not cmdline_looks_like_stack(cmdline):
+            continue
+        try:
+            env_path = os.path.join(proc_root, entry, 'environ')
+            with open(env_path, 'rb') as stream:
+                domain = domain_from_environ(stream.read())
+        except OSError:
+            domain = UNKNOWN_DOMAIN
+        if domain not in (own_domain, UNKNOWN_DOMAIN):
+            continue
+        display = ' '.join(part for part in cmdline.split('\x00') if part)
+        found.append((int(entry), display[:200]))
     return found
 
 

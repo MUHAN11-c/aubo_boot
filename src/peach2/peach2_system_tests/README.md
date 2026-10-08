@@ -12,6 +12,7 @@ Peach v2 的隔离域 `launch_testing` 集成测：每个测试文件自己用
 | `test_bringup_mock.py` | 95 | task / manipulation / target_model 均 Active（perception / scene 不起）；lifecycle manager `is_active`；`/peach/enables` 默认全 false；`tool_state` 有发布；全部 action / service server 就绪；launch 没触发 BeginScene / 快照 / SetIO、批次 IDLE；C++ 节点 bond 心跳；post_shutdown 退出码 |
 | `test_plan_only_chain.py` | 96 | 测试进程发合成观测（两袋、已锁定、双视点、`swing_known`），等模型收敛与 `approach_allowed`；enables 全 false 发 `RunBatch(PREGRASP_ONLY)`：goal REJECT、`BatchState.message` 含 `execution_disabled`、关节不动、SetIO 0 次；直接发 `HarvestTarget(PREGRASP_ONLY)`：`plan_only=true`、`SKIPPED/NONE/planned`、`reached=NONE`、关节不动 |
 | `test_pregrasp_mock_exec.py` | 97 | `SetEnables(execution=true, grasp=false, tool=false)` → `RunBatch(PREGRASP_ONLY)`：mock 关节真实运动、TCP 到达 `GetDecision.pregrasp_tcp`（<2 cm）、`reached=PREGRASP`；批次停在 `WAITING_ACK` 且不 ACK 不结束；`/peach/task/acknowledge_recovery` 后批次 `COMPLETED`、结果 `SUCCEEDED`；无目标批次（重勘，已在拍照位的 MoveTo 空运动成功）；SetIO 0 次 |
+| `test_frozen_camera_bag.py` | — | 零 ROS 图：核 `config/frozen_target_model.yaml` / `frozen_perception.yaml` / `frozen_scene.yaml`；有 bag 时再核一帧 RGB-D。缺 bag skip。不进 GPU FULL |
 
 `test/peach2_harness.py` 是公共夹具（测试进程内节点，后台 `MultiThreadedExecutor`）：
 
@@ -96,5 +97,22 @@ rviz2（offscreen）与 move_group 在 SIGINT 时的退出码不计入断言。
 测试在第一次运动前用 `/controller_manager/list_controllers` 等 `joint_state_broadcaster` 和
 `joint_trajectory_controller` 都 active（`test_bringup_mock::test_0b`、`test_pregrasp_mock_exec::test_0`）。
 操作员起栈后同样要先看 `ros2 control list_controllers`（见 `peach2_bringup` README 冒烟清单）。
+
+## 冻结相机一次感知 → mock FULL（不进默认 colcon test）
+
+图像与点云来自 `runs/peach_camera_capture_20260930/stereo_10s`（`PEACH_FROZEN_BAG` 可改），
+回放节点改写为当前时间戳，感知按拍照位腕 TF 反投影。只扫一次锁定集、只抓一颗
+（`RunBatch max_targets=1`），不补视、不跟臂重测袋颈。`config/frozen_target_model.yaml`
+关掉 `cut_requires_remeasure` 与 `require_known_swing`、`min_views=1`、sigma 放到参数上限、`observe_max_views:=1`（产品 yaml 不变）。测试标定 `config/frozen_calibration/`（`status: calibrated`）与 `config/frozen_tools/`（`L_insert=0.200`）只给这条路径；产品仍是 `design_reference` / 0.090。`config/frozen_scene.yaml` 把 L2 硬障碍抬成飞点（产品 L2 对全臂受查，冻结云否则挡套入）。
+`config/frozen_perception.yaml` 把锁定收到 3 静止帧 / 0.5 s、`confirm_hits=1`（产品 10 帧 / 2 s / 3 hits，2 Hz 冻结图加 YOLO 排队会 `lock_timeout`），并把传感 QoS 改成 RELIABLE 以对接冻结回放；`lock_wait_s:=20`。
+真 `peach2_perception`，不用 harness 桩。mock 末端 IO，无真机 SetIO。域 82。需 GPU。
+整段墙钟 **180 s**，超时即失败并排查。
+
+```bash
+source /opt/ros/jazzy/setup.bash && source install/setup.bash
+ros2 run peach2_system_tests run_frozen_grasp.py
+# 测完复核（MUST）：
+pgrep -af 'ros2 launch|component_container|ros2 run|move_group|ros2_control_node|robot_state_publisher|peach2_|lifecycle_manager|frozen_camera'
+```
 
 许可 BSD-3-Clause。

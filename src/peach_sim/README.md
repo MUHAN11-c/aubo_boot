@@ -24,8 +24,9 @@ peach_sim/
     evidence/              # 先验 JSON + 1200 深度/掩膜锚 + 对照 contact sheet
     output/                # 现行契约：三锚定图、门 JSON、对照板、matrix_* 摘要
     baselines/             # 冻结感知矩阵基线
-  peach_sim/ config/ launch/ urdf/ worlds/ meshes/ blender/
-                           # 旧 Gazebo Harmonic 场景包（与 Blender 不是同一份 GT）
+  peach_sim/ config/ launch/ urdf/ worlds/ meshes/ maps/ blender/
+                           # Gazebo Harmonic 场景包：锚定建模 + 自主导航轮
+                           # （与 Blender 感知验收不是同一份 GT）
 ```
 
 `output/modeling_*/`、`matrix*` 帧、EXR、`.blend` 本机可重渲，不入库。
@@ -211,11 +212,63 @@ nobag/Depth/233.png 全零，nobag 缺 10 个 VOC4 标注，均留证不补造�
    3 视序列 ≥1/≥2 检出）不低于冻结基线 −0.05，防建模改动造成静默回
    归；深度为理想渲染值（无噪声模型）。逐轮结论追加 `reconstruction/RESULTS.md`。
 
-## 旧 ROS 场景
+## 自主导航（Gazebo Harmonic + Nav2，2026-10 轮）
+
+仿真采摘工位可驾驶化 + 官方 Nav2 全栈，全部落在本包内（不进 harvest_system、
+不动驱动九包）。三入口：
+
+```bash
+# 1) 自主导航：gz 履带驱动 + 桥接 + AMCL/NavFn/MPPI + RViz（2D Goal Point 发目标）
+ros2 launch peach_sim orchard_nav.launch.py                 # gui/rviz 默认开
+ros2 launch peach_sim orchard_nav.launch.py rviz:=False gui:=false  # 无头
+
+# 2) 巡航采摘：逐树停靠位 NavigateToPose（蛇形穿行树行，每站停留模拟节拍）
+ros2 run peach_sim orchard_tour --rows 2 3                  # 或省略 --rows 全园
+
+# 3) SLAM 校验：slam_toolbox 在线建图，与确定性生成图人工对照
+ros2 launch peach_sim orchard_nav.launch.py slam:=True rviz:=False
+ros2 run nav2_map_server map_saver_cli -f /tmp/slam_check
+```
+
+（布尔 launch 参数注意：`slam`/`rviz` 走 IfCondition/PythonExpression 求值，
+须用 Python 大写字面量 `True`/`False`；`gui` 由本包 Python 解析、大小写皆可。）
+
+要点：
+
+- **帧树（REP-105）**：`map → odom → platform_base_link → {left,right}_track/lidar_mount`。
+  `odom→platform_base_link` 由 gz DiffDrive 发布（关节积分里程计），`map→odom` 由
+  AMCL/SLAM 发布；Nav2 基座帧 = `platform_base_link`。
+- **mobile URDF 是纯平台**（不含臂链）：`aubo_e5.urdf` 的 `world_joint` 在 URDF→SDF
+  后把整机焊死在世界系（固定座语义），只读面外无法解除；本轮导航不动臂，故
+  mobile 模式根 = `platform_base_link`、spawn 落地 z=0。锚定建模模式（默认）
+  行为与旧版完全一致（含臂链与世界锚定）。
+- **驱动 = gz DiffDrive + 履带滚筒轮**（官方 TB3/TB4 仿真同款）：mobile 下履带为
+  continuous 关节 + 圆柱碰撞体（盒体仅视觉，等效履带接地印迹），各向同性 μ 1/1
+  显式摩擦。冒烟实测（2026-10-08）：指令 1.2 m 实走 ~1.05 m（滚筒滑移 ~12%），
+  AMCL 兜底。官方 TrackedVehicle+TrackController 表面速度方案在 gz-sim 8.15 的
+  URDF→SDF 路径上不出牵引（指令链通、整车不动；疑 dartsim 未实现接触面速度
+  API），留待原生 SDF 模型轮再试。
+- **传感**：前桅杆 2D 激光（z=0.45 穿树干区，±95°——车体自遮挡扇区不发射），
+  桥接 `clock/joint_states/odom/tf/scan` 入、`cmd_vel` 出（普通 Twist）。世界已加
+  `gz::sim::systems::Sensors`（ogre2）系统渲染传感器，否则 /scan 无发布者。
+- **地图**：`generate_orchard --map` 确定性生成 `maps/orchard_map.{pgm,yaml}`
+  （树干保守上界 + 棚架立柱 + 地面边环），与世界同参数重生成；AMCL 初始位姿
+  取场景 spawn，免手发 2D Pose Estimate。
+- **冒烟结论（2026-10-08）**：AMCL/NavFn/MPPI 全 active，`map→odom→platform` TF
+  链解析出生位姿；巡航 `orchard_tour --rows 2` 多轮到站（含出生点后方掉头
+  航段）。**已知欠账**：窄过道（行距 4 m、作业位 x=0.95）掉头处 MPPI 仍会
+  卡死被 progress checker 中止（2/7 站），`gz DiffDrive 保持最后一条速度指令
+  无超时`——真实任务里由 Nav2 velocity_smoother 持续发布兜底；两项调参
+  （RotationShim/行为树恢复策略）留下轮。
+- **测完即停**：Ctrl+C 停栈后 `pgrep -af 'gz sim|ros2 launch|rviz2'` 清残留
+  （MUST；无头冒烟建议 `timeout` 包裹）。
+
+## 旧 Gazebo 静态场景
 
 `peach_sim.params/scene/cli`、`config/orchard.yaml`、`worlds/peach_orchard.sdf`
-仍是旧 Gazebo 管线；新建模不消费它们，二者不是同一份 GT。保留既有包接口
-避免本轮改变 ROS 运行栈；切换仿真资产需另做坐标与碰撞对账。
+既是旧静态管线（`orchard_sim.launch.py` 默认锚定模式），也是自主导航轮的
+世界底座（`mobile:=true` 由 `orchard_nav.launch.py` Include）；新建模不消费
+它们做感知验收，Blender 与 Gazebo 仍不是同一份 GT。
 
 ## 许可
 

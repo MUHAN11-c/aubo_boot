@@ -319,8 +319,15 @@ class PerceptionNode(LifecycleNode):
         response.accepted = True
         response.scene_epoch = epoch
         response.message = 'tracks cleared, collecting target set'
-        self.get_logger().info(f'begin_scene request_id={request.request_id!r}: '
-                               f'scene_epoch={epoch}')
+        with self._stats_lock:
+            synced = self._synced
+            processed = self._processed
+            drops = dict(self._drops)
+            tf_fail = self._tf_failures
+        self.get_logger().info(
+            f'begin_scene request_id={request.request_id!r}: '
+            f'scene_epoch={epoch} synced={synced} processed={processed} '
+            f'tf_failures={tf_fail} drops={drops}')
         return response
 
     def _drop(self, reason: str) -> None:

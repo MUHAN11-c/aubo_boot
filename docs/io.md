@@ -97,7 +97,7 @@ flowchart LR
 |------|--------------|------|
 | `BeginScene` | `peach_harvester`（vision） | **重启收齐窗。** 推进 `scene_epoch`。同 `scene_key` 保留身份；换场才清表。非 Active 拒绝。调度仅 DISCOVERY 首巡 Survey 到位后调用一次 |
 | `CheckReachability` | `peach_arm` | **选果：预抓取停位 IK；FULL 时再检套入终点 IK 与沿轴笛卡尔。** 预抓取后撤 `mtc_approach_along_axis_m`，姿态 `alignFrameZ` 不抄感知滚转；keep-roll 无解再 ±30°/±60° 滚转。`require_sleeve`（调度在非 `execute_pregrasp_only` 时置位）时套入终点 = 入口沿袋轴 + clamp(travel)，再从预抓取 IK 解沿轴 interpolate（步长/完成比与接触 LIN 同参）。不装配 MTC、不动臂。失败码 `no_ik` / `sleeve_no_ik` / `sleeve_no_cartesian`。服务不可用时调度回退半径窗（FULL 另卡套入终点半径） |
-| `ControlTask` | `peach_harvester`（supervisor） | **人工控批（监控不发）。** PAUSE / RESUME / CANCEL_NOW / SKIP_TARGET / ACKNOWLEDGE_RECOVERY。`expected_state_seq` 须对上，防过期点击 |
+| `ControlTask` | `peach_harvester`（supervisor） | **人工控批（监控不发）。** PAUSE / RESUME / CANCEL_NOW / SKIP_TARGET / ACKNOWLEDGE_RECOVERY。`expected_state_seq` 须对上，防过期点击。`CANCEL_NOW` 只置 `_cancel`；客户端未发 action cancel 时终局 `abort()`，不得从 EXECUTING 直接 `canceled()` |
 | `ManageLifecycleNodes` | `peach_harvester`（supervisor） | **整栈 configure/activate/拆除。** PAUSE=节点 Inactive，不是批次暂停。不发 `RunHarvest` |
 
 | 消息 | 含义 |
@@ -158,7 +158,7 @@ flowchart LR
 | `/camera/depth/camera_info` | 深度内参（配准后与彩色同 K；stereo 前端同发） |
 | `/camera/depth_registered/points` | 配准彩色点云（percipio 默认开；stereo 同名，点云多一个 `confidence` 字段，见下） |
 
-**相机前端（2026-09-17 起，harvest_system `camera_frontend:=percipio|stereo`；**默认 stereo**，2026-09-29 用户裁定；percipio 显式传参仍可用）**：percipio=设备端 18 图案深度（~2.43 fps，额定量程 0.4–0.8 m；09-21 修复 `parameters.xml` 调参残留下发致深度大面积无效——该 XML 是无条件下发通道，实验值勿残留）；stereo=`peach_stereo` 主机单图案立体（~13.7 fps，hh4 档；话题与 percipio 同构：`color/image_raw`、`depth/image_raw`、`{color,depth}/camera_info`、`depth_registered/points`——stereo 点云比 percipio 多一个 `confidence` FLOAT32 字段（point_step 24=xyz12+pad4+rgb4+confidence4——confidence 在 rgb 槽之后，勿与 rgb@16 重叠；`temporal_k>1` 时=窗内采样占比×取值一致性、与发布深度逐像素对齐，`=1` 时恒 1.0；消费方按字段名读，octomap/RViz/PCL 兼容）；深度口径 uint16×0.25 mm；只发 raw Image + 点云，不用 image_transport；静态 TF 同名链；激光满功率点亮、停栈自动复位；与 percipio 相机连接互斥；SGBM 档 `sgbm.mode`/`sgbm.uniqueness_ratio`/`median_ksize` + 配准后滑窗时域中值 `temporal_k`（1=关/3/5 非法拒启；逐像素有效中值、每帧照常发布不除率；部署 yaml=3，09-21 live A/B：entry std z 0.41→0.21mm、袋半径 std 0.27→0.14mm、覆盖 +0.4pp、13.7gps 无回归），参数依据见该包 README 与 yaml 注释）。规格档案与实测数据见 `src/peach_stereo/README.md`。感知/重建订阅零改动。
+**相机前端（2026-09-17 起，harvest_system `camera_frontend:=percipio|stereo|replay`；**默认 stereo**，2026-09-29 用户裁定；percipio 显式传参仍可用；`replay` 不起驱动，由各栈系统测包 `frozen_camera_replay.py` 冻结 bag 重发同名 `/camera/*`；v1 另经 `brain_params_overlay` 装 `frozen_one_view.yaml`（`min_views=1`、基线 0°、`reconstruct_in_trajectory`，不用 `skip_reconstruction`），v2 经 `target_model_config` 装 `frozen_target_model.yaml`（单视 sigma 放到参数上限、`observe_max_views:=1`、测试标定 `status: calibrated` + 测试 `L_insert`），经 `scene_config` 装 `frozen_scene.yaml`（硬障碍抬成飞点），经 `perception_config` 装 `frozen_perception.yaml`（锁门 3 帧 / 0.5 s、`confirm_hits=1`、传感 QoS RELIABLE；`lock_wait_s:=20`）；v1 驱动另关 `moveit.obstacle_guard_enabled`）**：percipio=设备端 18 图案深度（~2.43 fps，额定量程 0.4–0.8 m；09-21 修复 `parameters.xml` 调参残留下发致深度大面积无效——该 XML 是无条件下发通道，实验值勿残留）；stereo=`peach_stereo` 主机单图案立体（~13.7 fps，hh4 档；话题与 percipio 同构：`color/image_raw`、`depth/image_raw`、`{color,depth}/camera_info`、`depth_registered/points`——stereo 点云比 percipio 多一个 `confidence` FLOAT32 字段（point_step 24=xyz12+pad4+rgb4+confidence4——confidence 在 rgb 槽之后，勿与 rgb@16 重叠；`temporal_k>1` 时=窗内采样占比×取值一致性、与发布深度逐像素对齐，`=1` 时恒 1.0；消费方按字段名读，octomap/RViz/PCL 兼容）；深度口径 uint16×0.25 mm；只发 raw Image + 点云，不用 image_transport；静态 TF 同名链；激光满功率点亮、停栈自动复位；与 percipio 相机连接互斥；SGBM 档 `sgbm.mode`/`sgbm.uniqueness_ratio`/`median_ksize` + 配准后滑窗时域中值 `temporal_k`（1=关/3/5 非法拒启；逐像素有效中值、每帧照常发布不除率；部署 yaml=3，09-21 live A/B：entry std z 0.41→0.21mm、袋半径 std 0.27→0.14mm、覆盖 +0.4pp、13.7gps 无回归），参数依据见该包 README 与 yaml 注释）。规格档案与实测数据见 `src/peach_stereo/README.md`。感知/重建订阅零改动。
 
 感知/重建 ApproximateTime slop **0.05 s**。驱动 QoS 字符串 `default`（RELIABLE）；订户手写 RELIABLE、depth=10。跨包轴向后撤只改 `src/peach_harvester/config/grasp_standoffs.yaml` 两行（`entry_standoff_m` / `pregrasp_standoff_m`），launch 注入各节点已声明参数。
 
@@ -519,7 +519,7 @@ flowchart TB
 | `/peach_supervisor/events` | topic | 可检索事件（拍照到位/锁定/派发/终局/过滤/ACK） | peach_supervisor | peach_observability |
 | `/peach_supervisor/scene_snapshot` | topic | WAIT_LOCK 或回访 dwell 后的锁定集快照 | peach_supervisor | （无订阅方；账本/MCAP） |
 
-客户端（仅本节点）：`BeginScene`、`SurveyScene`、`BuildTargetModel`（与 OBSERVE_ONLY 并行）、`ExecuteTarget`、`CheckReachability`。批次6 `reconstruct_in_trajectory`（默认关）：true 时 DISPATCH 起 Build 后不再阻塞等 Build 完成，立即派 FULL（goal 自带 `skip_observation=true`）——重建与接近并行，臂侧 FinalizeAndValidate 有界等精化兜底，周期收口取消并等 Build 结束（单槽约束）。账本：`runs/<request_id>/ledger.json`。
+客户端（仅本节点）：`BeginScene`、`SurveyScene`、`BuildTargetModel`（与 OBSERVE_ONLY 并行）、`ExecuteTarget`、`CheckReachability`。批次6 `reconstruct_in_trajectory`（默认关）：true 时 DISPATCH 起 Build 后不再阻塞等 Build 完成，立即派 FULL（goal 自带 `skip_observation=true`，身份 revision=`pending:*` 占位，不装 GraspDecision 令牌）——重建与接近并行，臂侧 FinalizeAndValidate 有界等精化兜底，周期收口取消并等 Build 结束（单槽约束）。账本：`runs/<request_id>/ledger.json`。
 
 作业参数（部署值 `config/peach_supervisor.yaml`；`peach_supervisor.attach`。`tool.profile_id` 基础值是 adaptive_shear_v1 标签，整栈由 launch `tool_profile` 注入覆盖）：
 

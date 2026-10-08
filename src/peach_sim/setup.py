@@ -32,11 +32,14 @@ setup(
         (os.path.join('share', package_name), ['package.xml', 'LICENSE']),
         (os.path.join('share', package_name, 'launch'), glob('launch/*.launch.py')),
         (os.path.join('share', package_name, 'config'), glob('config/*.yaml')),
+        (os.path.join('share', package_name, 'config'),
+         glob('config/*.config')),
         (os.path.join('share', package_name, 'worlds'), _files('worlds')),
         (os.path.join('share', package_name, 'worlds', 'textures'),
          _files('worlds/textures')),
         (os.path.join('share', package_name, 'urdf'), _files('urdf')),
         (os.path.join('share', package_name, 'meshes'), _files('meshes')),
+        (os.path.join('share', package_name, 'maps'), _files('maps')),
     ],
     install_requires=['setuptools'],
     extras_require={'test': ['pytest']},
@@ -49,6 +52,7 @@ setup(
         'console_scripts': [
             'generate_orchard = peach_sim.cli:main',
             'scene_preview = peach_sim.preview:main',
+            'orchard_tour = peach_sim.tour_node:main',
         ],
     },
     options={

@@ -61,6 +61,8 @@ def _launch_setup(context) -> list:
                 'tool_id': tool_profile,
                 'io_backend': 'aubo' if real else 'mock',
                 'require_robot_status': real,
+                'tool_description_dir': LaunchConfiguration(
+                    'tool_description_dir'),
             },
         ],
     )
@@ -93,5 +95,8 @@ def generate_launch_description() -> LaunchDescription:
         DeclareLaunchArgument(
             'autostart', default_value='false',
             description='true: configure + activate here instead of the lifecycle manager'),
+        DeclareLaunchArgument(
+            'tool_description_dir', default_value='',
+            description='Directory with <tool_id>.yaml; empty = share/aubo_description/config'),
         OpaqueFunction(function=_launch_setup),
     ])

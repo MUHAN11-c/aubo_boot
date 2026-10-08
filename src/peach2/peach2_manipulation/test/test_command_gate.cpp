@@ -1,5 +1,7 @@
 #include <gtest/gtest.h>
 
+#include <limits>
+
 #include "peach2_end_effector/failure_codes.hpp"
 #include "peach2_manipulation/command_gate.hpp"
 
@@ -179,6 +181,63 @@ TEST(CommandGate, ToolSafeIgnoresEnablesButNotEstop)
   EXPECT_FALSE(gate.check(GateStage::TOOL_SAFE, 20.0, false).open);
   gate.set_active(false);
   EXPECT_FALSE(gate.check(GateStage::TOOL_SAFE, 10.1, false).open);
+}
+
+TEST(CommandGate, NonFiniteTimeFailsClosed)
+{
+  const double bad_now[] = {std::numeric_limits<double>::quiet_NaN(),
+    std::numeric_limits<double>::infinity()};
+  for (double now : bad_now) {
+    auto gate = ready_gate(10.0);
+    EXPECT_FALSE(gate.enables(now).heartbeat_ok);
+    EXPECT_FALSE(gate.check(GateStage::TRANSIT, now, true).open);
+    EXPECT_FALSE(gate.check(GateStage::TOOL_SAFE, now, false).open);
+  }
+  auto gate = ready_gate(10.0);
+  auto s = healthy(std::numeric_limits<double>::quiet_NaN());
+  gate.on_robot_status(s);
+  EXPECT_EQ(gate.check(GateStage::TRANSIT, 10.1, true).reason, "robot_status_invalid_time");
+  EXPECT_FALSE(gate.check(GateStage::TOOL_SAFE, 10.1, false).open);
+  auto gate2 = ready_gate(10.0);
+  gate2.on_enables(en(true, true, true, std::numeric_limits<double>::quiet_NaN()));
+  EXPECT_FALSE(gate2.enables(10.1).heartbeat_ok);
+  auto gate3 = ready_gate(10.0);
+  gate3.on_enables(en(true, true, true, std::numeric_limits<double>::infinity()));
+  EXPECT_FALSE(gate3.enables(10.1).heartbeat_ok);
+}
+
+TEST(CommandGate, FutureSampleTimeIsNotFresh)
+{
+  auto gate = ready_gate(10.0);
+  gate.on_robot_status(healthy(12.0));   // > kMaxFutureSkewS ahead of now
+  EXPECT_EQ(gate.check(GateStage::TRANSIT, 10.1, true).reason, "robot_status_future");
+  EXPECT_FALSE(gate.check(GateStage::TOOL_SAFE, 10.1, false).open);
+  auto gate2 = ready_gate(10.0);
+  gate2.on_enables(en(true, true, true, 12.0));
+  EXPECT_FALSE(gate2.enables(10.1).heartbeat_ok);
+  // Within the skew slack the sample still counts as fresh (10.5 < 10.1 + 1.0).
+  auto gate3 = ready_gate(10.0);
+  gate3.on_robot_status(healthy(10.5));
+  EXPECT_TRUE(gate3.check(GateStage::TRANSIT, 10.1, true).open);
+}
+
+TEST(CommandGate, DeadlineBoundaryIsStrictlyGreater)
+{
+  // Locks the ">" semantics: exactly at the age / timeout limit the gate is still open.
+  // Boundaries use exactly representable values (0.5 / 4.0 s): 10.0 + 0.3 in double is a
+  // hair above 0.3 and would be stale for the wrong reason.
+  GateConfig cfg;
+  cfg.robot_status_max_age_s = 0.5;
+  cfg.enables_timeout_s = 4.0;
+  CommandGate gate(cfg);
+  gate.set_active(true);
+  gate.on_robot_status(healthy(10.0));
+  gate.on_enables(en(true, true, true, 10.0));
+  EXPECT_TRUE(gate.check(GateStage::TRANSIT, 10.5, false).open);
+  EXPECT_FALSE(gate.check(GateStage::TRANSIT, 10.5000001, false).open);
+  EXPECT_TRUE(gate.enables(14.0).heartbeat_ok);
+  EXPECT_FALSE(gate.enables(14.0000001).heartbeat_ok);
+  EXPECT_TRUE(gate.check(GateStage::TOOL_SAFE, 10.5, false).open);
 }
 
 TEST(ClosedEdge, FiresOncePerTransition)

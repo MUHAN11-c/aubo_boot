@@ -1,0 +1,16 @@
+# Test-only calibration for frozen-camera FULL.
+# Product peach2_calibration/results/adaptive_shear_v1.yaml stays
+# status: design_reference (cut_allowed always false / calibration_pending).
+# One frozen view also inflates sigma; zero the bench error floors so a
+# 68 mm bag can get sleeve+cut on mock IO.
+tool_id: adaptive_shear_v1
+status: calibrated
+source: peach2_system_tests frozen-camera overlay (not an M0 bench)
+w_capture_m: 0.050
+e_blade_m: 0.0
+e_robot_m: 0.0
+e_tcp_m: 0.0
+e_handeye_m: 0.0
+e_runout_m: 0.0
+c_wall_m: 0.0
+fruit_clearance_m: 0.0

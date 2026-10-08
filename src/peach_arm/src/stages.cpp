@@ -732,7 +732,21 @@ bool ManipulationSkillsNode::stageFinalizeAndValidate(CycleContext & ctx)
     }
     return true;
   }
-  const QualitySnapshot snapshot = qualitySnapshot();
+  QualitySnapshot snapshot = qualitySnapshot();
+  // skip_observation：编排已钉死 goal.target_id（锁定集），感知 selected
+  // 心跳可能尚未跟上。质量门用 selected 字段当身份，空 selected 会把已
+  // ACCEPT 的精化打成 selected_target_missing（reconstruct_in_trajectory）。
+  if (ctx.skip_observation && !ctx.target_id.empty()) {
+    if (snapshot.selected_target_id.empty()) {
+      snapshot.selected_target_id = ctx.target_id;
+    }
+    if (snapshot.reconstruction_target_id.empty()) {
+      snapshot.reconstruction_target_id = ctx.target_id;
+    }
+    if (snapshot.refined_target_id.empty() && refined_arrived) {
+      snapshot.refined_target_id = ctx.target_id;
+    }
+  }
   const GateResult gate = ctx.pregrasp_only ?
     quality_gate_->readyToApproach(snapshot) :
     quality_gate_->readyToGrasp(snapshot);
@@ -1162,6 +1176,7 @@ bool ManipulationSkillsNode::stagePlanSleeveAndReverseRetreat(CycleContext & ctx
     return failStage(
       ctx, FailureCode::DEGRADED_CONTACT_FORBIDDEN, "套入预规划无几何");
   }
+  grasp_task_->setContactAcm(ctx.target_id, ContactAcmStage::Sleeve);
   const auto result = grasp_task_->previewFullContact(
     ctx.entry_tip_pose, ctx.refined->axis, ctx.travel_m,
     fruitCapsuleFor(*ctx.refined));

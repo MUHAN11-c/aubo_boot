@@ -102,8 +102,10 @@ def test_managed_node_names_order():
 @pytest.mark.parametrize('enabled, frontend, stereo, aubo', [
     (False, 'stereo', False, False),
     (False, 'percipio', False, False),
+    (False, 'replay', False, False),
     (True, 'stereo', True, False),
     (True, 'percipio', False, True),
+    (True, 'replay', False, False),
 ])
 def test_camera_routing(enabled, frontend, stereo, aubo):
     assert stack.start_stereo(enabled, frontend) is stereo

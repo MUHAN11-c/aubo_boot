@@ -56,6 +56,17 @@ def test_running_stack_pids_skips_missing_proc(tmp_path):
     assert running_stack_pids(str(tmp_path)) == []
 
 
+def test_running_stack_pids_ignores_other_domain(tmp_path):
+    proc = tmp_path / '4242'
+    proc.mkdir()
+    (proc / 'cmdline').write_bytes(
+        b'/opt/ros/jazzy/lib/robot_state_publisher/robot_state_publisher\x00')
+    (proc / 'environ').write_bytes(b'ROS_DOMAIN_ID=0\x00')
+    assert running_stack_pids(str(tmp_path), own_domain='81') == []
+    same = running_stack_pids(str(tmp_path), own_domain='0')
+    assert len(same) == 1 and same[0][0] == 4242
+
+
 def test_preflight_ignores_editor_path_substring():
     cmdline = (
         '/usr/share/cursor/cursor\x00'

@@ -1,0 +1,40 @@
+# mobile 模式 ros_gz_bridge 桥接清单（TB4 官方 tb4_bridge.yaml 模式）。
+# GZ→ROS：时钟（单向）、关节状态、里程计、TF、激光；ROS→GZ：cmd_vel（普通 Twist，
+# 与本机 nav2_bringup 1.3.13 默认 unstamped 输出一致）。
+# gz 侧话题由 URDF DiffDrive 插件显式指定（/cmd_vel、/odom、/tf）与传感器
+# <topic>（/scan）。
+- ros_topic_name: "clock"
+  gz_topic_name: "/clock"
+  ros_type_name: "rosgraph_msgs/msg/Clock"
+  gz_type_name: "gz.msgs.Clock"
+  direction: GZ_TO_ROS
+
+- ros_topic_name: "joint_states"
+  gz_topic_name: "/peach_sim/joint_states"
+  ros_type_name: "sensor_msgs/msg/JointState"
+  gz_type_name: "gz.msgs.Model"
+  direction: GZ_TO_ROS
+
+- ros_topic_name: "odom"
+  gz_topic_name: "/odom"
+  ros_type_name: "nav_msgs/msg/Odometry"
+  gz_type_name: "gz.msgs.Odometry"
+  direction: GZ_TO_ROS
+
+- ros_topic_name: "tf"
+  gz_topic_name: "/tf"
+  ros_type_name: "tf2_msgs/msg/TFMessage"
+  gz_type_name: "gz.msgs.Pose_V"
+  direction: GZ_TO_ROS
+
+- ros_topic_name: "scan"
+  gz_topic_name: "/scan"
+  ros_type_name: "sensor_msgs/msg/LaserScan"
+  gz_type_name: "gz.msgs.LaserScan"
+  direction: GZ_TO_ROS
+
+- ros_topic_name: "cmd_vel"
+  gz_topic_name: "/cmd_vel"
+  ros_type_name: "geometry_msgs/msg/Twist"
+  gz_type_name: "gz.msgs.Twist"
+  direction: ROS_TO_GZ

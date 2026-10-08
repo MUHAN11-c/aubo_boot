@@ -1003,7 +1003,12 @@ class TaskExecutorNode(LifecycleNode):
         else:
             result.termination_reason = 'completed'
         if interrupted:
-            goal_handle.canceled()
+            # ControlTask CANCEL_NOW 只置 _cancel，客户端未必发了 action
+            # cancel。Jazzy 禁止从 EXECUTING 直接 canceled()。
+            if goal_handle.is_cancel_requested:
+                goal_handle.canceled()
+            else:
+                goal_handle.abort()
             # 终局/取消突破限频立即发
             self._publish_state(force=True)
         elif aborted:
@@ -1229,6 +1234,14 @@ class TaskExecutorNode(LifecycleNode):
         # COLLECTING 即派 FULL（skip_observation）——重建与接近并行，臂侧
         # FinalizeAndValidate 有界等精化兜底；Build 句柄随周期收口取消。
         if bool(getattr(self._params, 'reconstruct_in_trajectory', False)):
+            # FULL/PREGRASP 受理门要完整身份元组。Build 此时只到
+            # COLLECTING，revision 还没有；pending:* 占位让 peach_arm 接
+            # goal，FinalizeAndValidate 再有界等精化。空 revision 会直接
+            # REJECT（「身份元组不完整」），并行接近永远走不到。
+            epoch = int(self._scene_epoch or 0)
+            self._last_model_revision = f'pending:{epoch}:{target_id}'
+            self._last_calibration_revision = 'pending'
+            self._last_config_revision = 'pending'
             self.get_logger().info(
                 f'reconstruct_in_trajectory: Build 并行，立即派 FULL '
                 f'target={target_id}（skip_observation）')
@@ -1464,7 +1477,10 @@ class TaskExecutorNode(LifecycleNode):
         # 复检路径），旧目标的许可不得授权新目标（Clearance.target_id 契约）。
         # skip_reconstruction：不把未融合 GraspDecision（常 allowed=false）
         # 装成 CONTACT 令牌；臂侧 promoteUnrefined 提升 grasp_allowed。
-        if bool(self._params.skip_reconstruction):
+        if bool(self._params.skip_reconstruction) or bool(
+                getattr(self._params, 'reconstruct_in_trajectory', False)):
+            # 未融合 / 并行 Build 未 finalize 的 GraspDecision 不得装成
+            # CONTACT 令牌；臂侧等精化后走快照复检。
             decision = None
         if decision is not None and str(
                 getattr(decision, 'target_id', '') or '') == target_id:

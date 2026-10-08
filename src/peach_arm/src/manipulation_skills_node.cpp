@@ -218,16 +218,22 @@ CallbackReturn ManipulationSkillsNode::on_activate(const rclcpp_lifecycle::State
       params_.moveit.obstacle_object_ids,
       params_.moveit.obstacle_guard_enabled};
     std::thread([logger, tool_links, obstacle_spec]() {
-        moveit::planning_interface::PlanningSceneInterface scene;
-        // 09-29 真相机轮勘定：激活早期服务竞态会让 apply 静默落空（ACM
-        // 无条目、无 WARN），观察/接近规划起点即撞。重试 3 次——每次都
-        // 先读现行 ACM 再整表合并（幂等，不会冲掉别处已写的条目）。
-        for (int attempt = 1; attempt <= 3; ++attempt) {
-          GraspTask::applyWholeOctomapToolExemption(
-            logger, scene, tool_links, obstacle_spec);
-          if (attempt < 3) {
-            std::this_thread::sleep_for(std::chrono::seconds(3));
+        // 分离线程内逃逸异常 = std::terminate（cppreference std::thread）；rcl 关停期
+        // 构造 PlanningSceneInterface 会抛 RCLError（2026-09-30 实锤的 exit -6 同款）。
+        try {
+          moveit::planning_interface::PlanningSceneInterface scene;
+          // 09-29 真相机轮勘定：激活早期服务竞态会让 apply 静默落空（ACM
+          // 无条目、无 WARN），观察/接近规划起点即撞。重试 3 次——每次都
+          // 先读现行 ACM 再整表合并（幂等，不会冲掉别处已写的条目）。
+          for (int attempt = 1; attempt <= 3; ++attempt) {
+            GraspTask::applyWholeOctomapToolExemption(
+              logger, scene, tool_links, obstacle_spec);
+            if (attempt < 3) {
+              std::this_thread::sleep_for(std::chrono::seconds(3));
+            }
           }
+        } catch (const std::exception & e) {
+          RCLCPP_WARN(logger, "ACM 豁免线程异常退出（可能正在 shutdown）: %s", e.what());
         }
       }).detach();
   }
@@ -335,8 +341,13 @@ void ManipulationSkillsNode::closeMotionOutputAndCancel()
       if (!th.joinable()) {
         return;
       }
-      // std::thread 无 join_for（Linux-only 栈用 pthread_timedjoin_np）
-      timespec ts{2, 0};
+      // std::thread 无 join_for（Linux-only 栈用 pthread_timedjoin_np）。abstime 是
+      // CLOCK_REALTIME 绝对时刻（man7 示例：clock_gettime 后加偏移），传相对值 {2,0}
+      // 会因时刻早已过去而立刻 ETIMEDOUT——"2s 有界回收"实际变 0s、必走 detach。
+      // glibc 内部按 CLOCK_MONOTONIC 换算该期限，不受墙钟跳变影响。
+      timespec ts{};
+      clock_gettime(CLOCK_REALTIME, &ts);
+      ts.tv_sec += 2;
       const int rc = pthread_timedjoin_np(
         th.native_handle(), nullptr, &ts);
       if (rc == 0) {

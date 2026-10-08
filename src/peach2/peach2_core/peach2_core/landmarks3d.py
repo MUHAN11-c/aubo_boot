@@ -350,6 +350,11 @@ def landmarks_from_points(points: np.ndarray, gravity: np.ndarray,
                        axial_lateral_cov(axis, sigma_lateral(tie_t), bin_w), 0.3)
     else:
         tie = Landmark(False, np.full(3, np.nan), np.full((3, 3), np.nan), 0.0)
-    d95 = float(2.0 * np.percentile(d[(t >= t_bottom) & (t <= t_neck)], 95))
+    section = d[(t >= t_bottom) & (t <= t_neck)]
+    if section.size == 0:
+        # Degenerate axial range (all points outside [bottom, neck]): fall back to the whole
+        # cloud instead of crashing the percentile; the larger d95 only shrinks the margin.
+        section = d
+    d95 = float(2.0 * np.percentile(section, 95))
     return Landmarks3D(ok=True, bottom=bottom, neck=neck, tie=tie, axis=axis.copy(),
                        d95_m=d95, length_m=float(length), flags=flags)

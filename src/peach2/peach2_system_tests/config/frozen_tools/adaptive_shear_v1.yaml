@@ -1,0 +1,20 @@
+# Test-only tool archive for frozen-camera FULL.
+# Product aubo_description/config/adaptive_shear_v1.yaml stays L_insert 0.090.
+# One-view reconstruction of the stereo_10s bag reports ~0.10 m bag length,
+# which peach2_end_effector.feasible would skip as bag_longer_than_L_insert.
+profile_id: adaptive_shear_v1
+calibration_status: calibrated
+geometry_m:
+  D_inner: 0.120
+  D_outer: 0.215
+  L_insert: 0.200
+  L_blade: 0.079
+  body_length: 0.140
+  body_radius: 0.110
+  wall_clearance: 0.002
+io:
+  fun: 3
+  pin: 0
+  close_state: 1.0
+  pulse: false
+  feedback_timeout_s: 1.5

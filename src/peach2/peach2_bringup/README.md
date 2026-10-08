@@ -26,13 +26,19 @@ Peach v2 整栈入口（方案 §3.3 / §13）：预检 → 相机 → Include `
 | `hardware_mode` | `mock` | `mock`=mock_components + JTC、臂侧 mock IO、`require_robot_status=false`；`real` 需示教器上电与授权 |
 | `robot_ip` | `169.254.10.98` | 仅 real |
 | `camera_enabled` | `false` | true 时起相机、`peach2_perception`、`peach2_scene` |
-| `camera_frontend` | `stereo` | `stereo`=本 launch 起 `peach_stereo`（在 aubo include 之前）；`percipio`=aubo bringup 内 Percipio |
+| `camera_frontend` | `stereo` | `stereo`=本 launch 起 `peach_stereo`（在 aubo include 之前）；`percipio`=aubo bringup 内 Percipio；`replay`=不起驱动，由冻结 bag 重发 `/camera/*`（须 `camera_enabled:=true` 才起 perception/scene） |
 | `camera_ip` | `169.254.10.110` | stereo 前端 |
 | `tool_id` | `adaptive_shear_v1` | 透传 aubo bringup `tool_profile`、臂侧 `tool_id`、任务 `default_tool_id` |
 | `moveit_enabled` | `true` | `peach2_manipulation` 需要 move_group |
 | `bond_timeout` | `4.0` | lifecycle_manager bond 超时 [s]；0 关 |
 | `use_sim_time` | `false` | 全图跟 `/clock`；与 `hardware_mode:=real` 同开时拒启 |
 | `runs_dir` | `''` | 任务账本根；空=`$PEACH_RUNS_DIR`，否则 `<cwd>/runs` |
+| `target_model_config` | `peach2_target_model/config/target_model.yaml` | 目标模型 yaml；冻结相机系统测可换成 overlay |
+| `lock_wait_s` | `15.0` | 透传 `peach2_task` `timeouts.lock_wait_s` |
+| `observe_max_views` | `3` | 透传 `peach2_task` `observe_max_views`；冻结相机系统测置 1 |
+| `tool_description_dir` | `''` | 透传 `peach2_manipulation` 工具档案目录；空=`share/aubo_description/config`。冻结相机系统测指向本仓 `peach2_system_tests/config/frozen_tools`（测试用 `L_insert`） |
+| `perception_config` | `peach2_perception/config/perception.yaml` | 透传 `peach2_perception` `config_file`；冻结相机系统测换成 `frozen_perception.yaml`（锁门 3 帧 / 0.5 s、`confirm_hits=1`、传感 QoS RELIABLE） |
+| `scene_config` | `peach2_scene/config/scene.yaml` | 透传 `peach2_scene` `config_file`；冻结相机系统测换成 `frozen_scene.yaml`（硬障碍抬成飞点） |
 
 Python 托管节点用 `from bondpy.bondpy import Bond`（Jazzy 顶层不导出 `Bond`）。本机无
 `ros-jazzy-bondpy` 时节点 WARN 降级、不发心跳；要把默认 `bond_timeout:=4.0` 用起来需 apt 装上。

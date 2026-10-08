@@ -1,7 +1,8 @@
 """
-``generate_orchard`` 入口：读场景参数 → 写世界 SDF 与目标清单.
+``generate_orchard`` 入口：读场景参数 → 写世界 SDF、目标清单与导航地图.
 
-文件 I/O 全在这里；布局与几何计算在纯核 ``peach_sim.scene``。
+文件 I/O 全在这里；布局与几何计算在纯核 ``peach_sim.scene`` /
+``peach_sim.nav_map``。
 """
 
 from __future__ import annotations
@@ -12,6 +13,7 @@ import sys
 
 import yaml
 
+from .nav_map import build_nav_map, map_yaml_text, write_pgm
 from .params import check_params, params_from_dict
 from .scene import render_scene
 from .textures import generate_all
@@ -40,6 +42,10 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         '--check', action='store_true',
         help='只校验参数与布局，不写文件')
+    parser.add_argument(
+        '--map', action='store_true',
+        help='顺带写导航占据栅格 maps/orchard_map.{pgm,yaml}（AMCL 用，'
+             '目录 = --out-dir 同级 maps/）')
     args = parser.parse_args(argv)
 
     raw = yaml.safe_load(args.params.read_text(encoding='utf-8'))
@@ -74,6 +80,16 @@ def main(argv: list[str] | None = None) -> int:
         encoding='utf-8')
     print(f'已写 {world_path}')
     print(f'已写 {manifest_path}')
+    if args.map:
+        maps_dir = args.out_dir.parent / 'maps'
+        maps_dir.mkdir(parents=True, exist_ok=True)
+        nav_map = build_nav_map(params)
+        pgm_path = maps_dir / 'orchard_map.pgm'
+        write_pgm(nav_map, pgm_path)
+        yaml_path = maps_dir / 'orchard_map.yaml'
+        yaml_path.write_text(map_yaml_text(nav_map), encoding='utf-8')
+        print(f'已写 {pgm_path}')
+        print(f'已写 {yaml_path}')
     return 0
 
 

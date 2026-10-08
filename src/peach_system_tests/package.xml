@@ -10,6 +10,18 @@
 
   <buildtool_depend>ament_cmake</buildtool_depend>
 
+  <exec_depend>action_msgs</exec_depend>
+  <exec_depend>controller_manager_msgs</exec_depend>
+  <exec_depend>geometry_msgs</exec_depend>
+  <exec_depend>launch_ros</exec_depend>
+  <exec_depend>peach_bringup</exec_depend>
+  <exec_depend>peach_interfaces</exec_depend>
+  <exec_depend>rclpy</exec_depend>
+  <exec_depend>rosbag2_py</exec_depend>
+  <exec_depend>sensor_msgs</exec_depend>
+  <exec_depend>std_msgs</exec_depend>
+  <exec_depend>tf2_ros</exec_depend>
+
   <test_depend>ament_cmake_pytest</test_depend>
   <test_depend>ament_index_python</test_depend>
   <test_depend>geometry_msgs</test_depend>
@@ -29,6 +41,7 @@
   <test_depend>python3-pytest</test_depend>
   <test_depend>python3-yaml</test_depend>
   <test_depend>rclpy</test_depend>
+  <test_depend>rosbag2_py</test_depend>
   <test_depend>sensor_msgs</test_depend>
   <test_depend>std_msgs</test_depend>
 

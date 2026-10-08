@@ -105,6 +105,15 @@ ros2 launch peach_bringup harvest_system.launch.py \
 # ros2 bag play /home/mu/Pictures/pipeline_replay_20260918_162704/bag --clock
 # ros2 launch peach_bringup harvest_system.launch.py \
 #   hardware_mode:=mock camera_enabled:=false imu_enabled:=false use_sim_time:=true
+#
+# 冻结一帧（推荐仿真）：重发当前时间戳，mock 臂 Survey 到拍照位后一次感知再抓一颗。
+# 测试相关只在各自系统测包；默认不进 colcon test（需 bag + GPU）。整段墙钟 180 s，
+# 超时即失败并须排查（不是把超时再拉长）。
+# bag 默认 runs/peach_camera_capture_20260930/stereo_10s；域 81/82 与开发机栈隔离。
+# v1：brain overlay min_views=1（不用 skip_reconstruction），tool=false 套入干跑，第一颗终局后 action cancel
+ros2 run peach_system_tests run_frozen_grasp.py
+# v2：真 peach2_perception；overlay min_views=1 且关 cut_requires_remeasure / require_known_swing；mock FULL 一颗
+ros2 run peach2_system_tests run_frozen_grasp.py
 
 # GPU 枝/叶分割（独立 launch，不进 harvest_system，不写 PlanningScene）
 ros2 launch peach_vegetation vegetation.launch.py
@@ -195,7 +204,7 @@ Tab「调试」＝向**既有**动作/服务发请求的纯客户端，页面只
 | `robot_ip` | 169.254.10.98 | 仅 real |
 | `tool_profile` | adaptive_shear_v1 | 末端工具档案（URDF TCP、感知许可内径、消息标签统一随档案切换）；`shear_v1` / `bite_shear_v1` 显式指定。切换须整栈重启，RSP 与 move_group 同 arg（bringup 侧纯透传无 choices，未知名 xacro fail-fast） |
 | `camera_enabled` | false | 有相机时设 true |
-| `camera_frontend` | stereo | `percipio` / `stereo`（2026-09-29 用户裁定默认 stereo）；stereo 时 harvest_system 直起 peach_stereo，压掉 bringup 内 percipio |
+| `camera_frontend` | stereo | `percipio` / `stereo` / `replay`（2026-09-29 用户裁定默认 stereo）；stereo 时 harvest_system 直起 peach_stereo，压掉 bringup 内 percipio；`replay` 不起驱动，由各栈系统测包 `frozen_camera_replay.py` 重发 `/camera/*`（v1 `peach_system_tests`，v2 `peach2_system_tests`） |
 | `imu_enabled` | true | USB IMU；挂 tcp 并对齐。无设备时节点重试。关掉：`false` |
 | `extrinsics_enabled` | true | wrist3 → camera_link |
 | `moveit_enabled` | true | move_group + RViz |
@@ -204,6 +213,7 @@ Tab「调试」＝向**既有**动作/服务发请求的纯客户端，页面只
 | `use_sim_time` | false | bag 回放须 `true` + `ros2 bag play --clock`；真机必须 false |
 | 调度 `execute_pregrasp_only` | true | 接触段 `PREGRASP_ONLY`：停预抓取不回 stow；套入前改 false |
 | `skip_reconstruction` | false | true 时调度不发 Build/补视，且同 arg 打开技能 `quality.allow_unrefined_geometry`。brain overlay 按节点名分节写 ParameterFile（unnamed Node 上扁平 dict 与单键嵌套都打不进，2026-09-30 实测）。起栈后核 `ros2 param get /peach_supervisor skip_reconstruction` 与 `ros2 param get /peach_arm quality.allow_unrefined_geometry`。真机 KEEP false。**真感知下暂不可用**（09-29 勘定：未精化候选 `bag_diameter_upper_m=0` 非 ACCEPT，技能侧判「无有效场景几何」——该路径只适配 mock 注入器的完整候选） |
+| `brain_params_overlay` | 空 | 透传 `peach_harvester` `brain.launch` `params_overlay`（节点名分节 ParameterFile）。冻结相机系统测装 `peach_system_tests/config/frozen_one_view.yaml`（`min_views=1`、基线门 0°、单视预算 `tool.budget.d_inner=0.25`）；空=不装。产品 yaml 不改 |
 
 过程录制不再有 launch 参数：observability 的 `record.enabled`（默认 true）随栈开合会话 bag，栈停自动出报告；`record.level`/`record.max_total_bag_gb` 见 `config/observability.yaml`。
 
@@ -366,9 +376,22 @@ ros2 action send_goal /peach_supervisor/run_harvest peach_interfaces/action/RunH
 
 `intent: 2` = SURVEY_ONLY。技能 `execution.enabled=false` 时 Survey **仍核当前关节**（只规划不够）。调度会先 Survey、再 Begin、再 WAIT_LOCK，然后结算（不选果）。默认 intent 0 且调度 `execution_enabled` 关时同样：拍照位失败则 `survey_failed`；成功则锁定后直接结算（不选果、不记 `SKIPPED_QUALITY`）。全流程到预抓取须两边 `execution=true` 且技能 `grasp.enabled=true`。mock 验收：Survey result `已到达全局拍照位姿`、`/joint_states` 过拍照位容差、`termination_reason=completed`、`scene_epoch≥1`、账本 `claimed` 仍为空。使能走操作台 `SetEnables`（广播 `/peach/batch/enables`）；不要只 `ros2 param set` 技能侧。测完 `SetEnables` 全 false。
 
+### 冻结相机一次感知 → 抓一颗（推荐仿真）
+
+静止 RGB-D + 点云来自 `runs/peach_camera_capture_20260930/stereo_10s`（`PEACH_FROZEN_BAG` 可改）。回放节点把 stamp 改成当前时刻，mock 臂 Survey 到拍照位后用当时腕 TF 反投影。**只扫一次、只抓一颗**；产品 yaml 的 `min_views=2` 不动，测试 overlay 才把 `min_views` 置 1（v1 还把基线门置 0°、`reconstruct_in_trajectory` 跳过补视 LIN、把 `tool.budget.d_inner` 放到 0.25 过单视 sigma；驱动再开 `grasp.allow_stale_anchor`，因为冻结图离拍照位后 TF 会像果在飘；并关 `moveit.obstacle_guard_enabled`、把 `grasp.maximum_travel_m` 收到 0.02（单视袋在 TCP≈1.04 m，再沿颈轴 0.10 m 会出 E5 工作空间）、快照 `workspace_radius_m` 收到 0.05 以免冻结点云 box 占套入走廊；第一颗终局后 action cancel，不再在 EXECUTING 上裸 `canceled()`）。不要走 `skip_reconstruction`：真感知未精化直径为 0。v2 overlay 另关颈复测/摆幅门、sigma 放到参数上限 0.05、`observe_max_views:=1`，并用测试标定 `status: calibrated` + 测试 `L_insert=0.200`（产品仍是 `design_reference` / 0.090）；测试 `frozen_scene.yaml` 把硬障碍抬到飞点（v2 L2 对全臂受查，冻结云否则会挡套入）；测试 `frozen_perception.yaml` 把锁定收到 3 帧 / 0.5 s、`confirm_hits=1`、传感 QoS RELIABLE（对接冻结回放），`lock_wait_s:=20`。整段墙钟 **180 s**（launch+感知+接触+拆栈），超时即失败并排查，不要把超时再拉长。mock；未授权不动真机。测试资产只在 `peach_system_tests` / `peach2_system_tests`，不进默认 `colcon test`（需 bag + GPU）。成功口径是账本/结果里至少一颗 `succeeded`（v1 `tool=false` 干跑套入+跳过 SetIO；v2 mock IO），不是“尝试过就算过”。
+
+```bash
+pgrep -af 'ros2 launch|component_container|extrinsics_publisher|ros2 run|bag record|collect|probe'
+# v1 域 81：brain_params_overlay + bite_shear_v1（MTC LIN，不起 imu_follow），tool=false
+ros2 run peach_system_tests run_frozen_grasp.py
+# v2 域 82：frozen_target_model.yaml + 测试标定/L_insert，max_targets=1，mock IO
+ros2 run peach2_system_tests run_frozen_grasp.py
+pgrep -af 'ros2 launch|component_container|extrinsics_publisher|ros2 run|bag record|frozen_camera|move_group|ros2_control_node'
+```
+
 ### 实验室端到端（mock 臂 + 真立体相机）
 
-物理相机不跟随 mock TF，重建凑不齐第二独立机位（`observe_build_view_race` / `min_views=2`）。**不要**放宽 `min_views` / `max_target_drift_m`。接触链验证走 `skip_reconstruction`（默认关；真机 KEEP false；不评套袋方向精度）。默认仍 `execute_pregrasp_only=true`（停预抓取、不 SetIO）。顺序：前清 → 起栈 → 自检 → 只扫 → 跳过重建 PICK_ALL → ACK → 关使能 → 停栈。
+物理相机不跟随 mock TF，重建凑不齐第二独立机位（`observe_build_view_race` / `min_views=2`）。**不要**把产品 yaml 的 `min_views` / `max_target_drift_m` 改掉（冻结仿真走系统测 overlay，见上一节）。接触链验证走 `skip_reconstruction`（默认关；真机 KEEP false；不评套袋方向精度）。默认仍 `execute_pregrasp_only=true`（停预抓取、不 SetIO）。顺序：前清 → 起栈 → 自检 → 只扫 → 跳过重建 PICK_ALL → ACK → 关使能 → 停栈。
 
 ```bash
 pgrep -af 'ros2 launch|component_container|extrinsics_publisher|ros2 run|bag record|collect|probe'

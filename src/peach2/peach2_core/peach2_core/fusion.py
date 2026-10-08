@@ -13,6 +13,9 @@ _HUBER_K = 1.345
 _HUBER_ITERATIONS = 10
 _AXIS_LINE_CONSISTENCY_DEG = 10.0
 _ANGLE_SCALE_FLOOR_RAD = np.radians(2.0)
+# Per-view scale floor in the Huber mean: caps the implicit precision weight at (1 mm)^-2 so an
+# over-confident single view cannot hijack the fused position.
+_MIN_VIEW_SCALE_M = 1e-3
 
 
 @dataclass
@@ -55,12 +58,18 @@ def _regularized(cov: np.ndarray) -> np.ndarray:
     c = np.asarray(cov, dtype=np.float64).reshape(3, 3)
     if not np.all(np.isfinite(c)):
         c = (0.01 ** 2) * np.eye(3)
-    return 0.5 * (c + c.T) + 1e-12 * np.eye(3)
+    c = 0.5 * (c + c.T) + 1e-12 * np.eye(3)
+    # Symmetrized but still indefinite: clip eigenvalues to the floor so every downstream
+    # inverse/propagation sees a positive-definite matrix.
+    w, v = np.linalg.eigh(c)
+    if w.min() <= 0.0:
+        c = (v * np.maximum(w, 1e-12)) @ v.T
+    return c
 
 
 def _huber_mean(points: np.ndarray, covs: list[np.ndarray]) -> tuple[np.ndarray, np.ndarray]:
     """IRLS Huber mean with per-view scale sqrt(trace(C)/3); returns (mean, huber weights)."""
-    scale = np.array([np.sqrt(max(np.trace(c) / 3.0, 1e-12)) for c in covs])
+    scale = np.array([np.sqrt(max(np.trace(c) / 3.0, _MIN_VIEW_SCALE_M ** 2)) for c in covs])
     prec = 1.0 / scale ** 2
     x = np.median(points, axis=0)
     hw = np.ones(points.shape[0])

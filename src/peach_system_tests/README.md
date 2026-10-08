@@ -19,11 +19,22 @@
   RELIABLE 时 BEST_EFFORT 会假性 0 帧，09-29 勘定）
 - `check_planning_scene.py`：`GetPlanningScene` 巡检——快照 box 数 +
   ACM 豁免条目（「起点碰撞但本该豁免」类问题用它判）
+- 冻结相机一次感知→干跑 FULL（不进默认 `colcon test`，需 bag + GPU）：
+  `frozen_camera_replay.py`、`launch/frozen_camera_grasp.launch.py`、
+  `config/frozen_one_view.yaml`（`min_views=1`、基线门 0°、
+  `reconstruct_in_trajectory`、单视预算 `d_inner=0.25`）、`drive_frozen_grasp.py`、`run_frozen_grasp.py`
+  （域 81，墙钟 180 s，`skip_reconstruction:=false`，`grasp.allow_stale_anchor`，
+  `moveit.obstacle_guard_enabled=false` 以免冻结点云 box 拦套入，
+  第一颗终局后 action cancel，`tool=false` 跳过 SetIO）。默认 bag
+  `runs/peach_camera_capture_20260930/stereo_10s`。成功须 `succeeded≥1`。
+  `test_frozen_camera_bag.py` 核 overlay + bag 帧，缺 bag 则 skip 帧测。
 
 ## 构建 / 测试
 
 ```bash
 colcon test --packages-select peach_system_tests
+# 冻结相机一次感知 + 套入干跑（mock，域 81；需 bag 与 GPU；墙钟 180 s）：
+ros2 run peach_system_tests run_frozen_grasp.py
 ```
 
 `colcon test` 绿 ≠ 套袋验收。BSD-3-Clause。

@@ -1,0 +1,59 @@
+<mxfile host="app.diagrams.net" agent="peach_v2" version="24.7.8">
+  <diagram id="sw" name="软件架构">
+    <mxGraphModel dx="1200" dy="560" grid="0" gridSize="8" guides="1" page="1" pageWidth="1200" pageHeight="540" background="#FFFFFF" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+        <mxCell id="title" value="Peach v2 软件架构" style="text;html=1;fontSize=18;fontStyle=1;fontColor=#1A1A1A;align=left;verticalAlign=middle;" vertex="1" parent="1"><mxGeometry x="24" y="8" width="260" height="28" as="geometry"/></mxCell>
+        <mxCell id="sub" value="传感 → 事实 → 编排 → 命令门 → 臂" style="text;html=1;fontSize=12;fontColor=#888888;align=left;verticalAlign=middle;" vertex="1" parent="1"><mxGeometry x="284" y="12" width="360" height="20" as="geometry"/></mxCell>
+
+        <mxCell id="l0" value="peach_stereo · serial_imu&lt;br&gt;&lt;font style=&quot;font-size:12px&quot;&gt;+ RGB-D 停走　　+ IMU / 力&lt;/font&gt;" style="rounded=1;arcSize=8;html=1;whiteSpace=wrap;fillColor=#5BC0EB;strokeColor=none;fontSize=15;fontStyle=1;fontColor=#1A1A1A;align=center;verticalAlign=middle;" vertex="1" parent="1"><mxGeometry x="132" y="44" width="1040" height="52" as="geometry"/></mxCell>
+
+        <mxCell id="side" value="observability&lt;br&gt;8091 只读" style="rounded=1;arcSize=12;html=1;whiteSpace=wrap;fillColor=#F5C242;strokeColor=none;fontSize=12;fontStyle=1;fontColor=#1A1A1A;align=center;verticalAlign=middle;" vertex="1" parent="1"><mxGeometry x="24" y="108" width="96" height="88" as="geometry"/></mxCell>
+
+        <mxCell id="p" value="perception&lt;br&gt;&lt;font style=&quot;font-size:12px&quot;&gt;+ 同步 · 检测 · 地标&lt;/font&gt;" style="rounded=1;arcSize=12;html=1;whiteSpace=wrap;fillColor=#F47C7C;strokeColor=none;fontSize=14;fontStyle=1;fontColor=#1A1A1A;align=center;verticalAlign=middle;" vertex="1" parent="1"><mxGeometry x="132" y="108" width="340" height="88" as="geometry"/></mxCell>
+        <mxCell id="tm" value="target_model&lt;br&gt;&lt;font style=&quot;font-size:12px&quot;&gt;+ 跟踪 · 融合 · GetDecision&lt;/font&gt;" style="rounded=1;arcSize=12;html=1;whiteSpace=wrap;fillColor=#F4E04D;strokeColor=none;fontSize=14;fontStyle=1;fontColor=#1A1A1A;align=center;verticalAlign=middle;" vertex="1" parent="1"><mxGeometry x="480" y="108" width="340" height="88" as="geometry"/></mxCell>
+        <mxCell id="sc" value="scene&lt;br&gt;&lt;font style=&quot;font-size:12px&quot;&gt;+ 硬障碍快照&lt;/font&gt;" style="rounded=1;arcSize=12;html=1;whiteSpace=wrap;fillColor=#F47C7C;strokeColor=none;fontSize=14;fontStyle=1;fontColor=#1A1A1A;align=center;verticalAlign=middle;" vertex="1" parent="1"><mxGeometry x="828" y="108" width="344" height="88" as="geometry"/></mxCell>
+
+        <mxCell id="task" value="task&lt;br&gt;&lt;font style=&quot;font-size:12px&quot;&gt;+ BT.CPP · RunBatch · 账本&lt;/font&gt;" style="rounded=1;arcSize=8;html=1;whiteSpace=wrap;fillColor=#C8C8C8;strokeColor=none;fontSize=16;fontStyle=1;fontColor=#1A1A1A;align=center;verticalAlign=middle;" vertex="1" parent="1"><mxGeometry x="132" y="208" width="1040" height="56" as="geometry"/></mxCell>
+
+        <mxCell id="mn" value="manipulation&lt;br&gt;&lt;font style=&quot;font-size:12px&quot;&gt;+ 命令门 → MTC → EndEffector&lt;/font&gt;" style="rounded=1;arcSize=8;html=1;whiteSpace=wrap;fillColor=#F0A04A;strokeColor=none;fontSize=16;fontStyle=1;fontColor=#1A1A1A;align=center;verticalAlign=middle;" vertex="1" parent="1"><mxGeometry x="132" y="276" width="1040" height="64" as="geometry"/></mxCell>
+
+        <mxCell id="ros" value="ROS 2 Jazzy&lt;br&gt;&lt;font style=&quot;font-size:12px&quot;&gt;+ rclcpp / rclpy　　+ Lifecycle · bond 4.0&lt;/font&gt;" style="rounded=1;arcSize=8;html=1;whiteSpace=wrap;fillColor=#F5C242;strokeColor=none;fontSize=15;fontStyle=1;fontColor=#1A1A1A;align=center;verticalAlign=middle;" vertex="1" parent="1"><mxGeometry x="132" y="352" width="1040" height="52" as="geometry"/></mxCell>
+
+        <mxCell id="d1" value="MoveIt 2" style="rounded=1;arcSize=12;html=1;whiteSpace=wrap;fillColor=#5BC0EB;strokeColor=none;fontSize=14;fontStyle=1;fontColor=#1A1A1A;align=center;verticalAlign=middle;" vertex="1" parent="1"><mxGeometry x="132" y="416" width="516" height="56" as="geometry"/></mxCell>
+        <mxCell id="d2" value="aubo_e5　只读" style="rounded=1;arcSize=12;html=1;whiteSpace=wrap;fillColor=#5BC0EB;strokeColor=none;fontSize=14;fontStyle=1;fontColor=#1A1A1A;align=center;verticalAlign=middle;" vertex="1" parent="1"><mxGeometry x="656" y="416" width="516" height="56" as="geometry"/></mxCell>
+
+        <mxCell id="foot" value="interfaces · core · bringup · calibration · system_tests" style="rounded=1;arcSize=8;html=1;whiteSpace=wrap;fillColor=#E6E6E6;strokeColor=none;fontSize=12;fontColor=#555555;align=center;verticalAlign=middle;" vertex="1" parent="1"><mxGeometry x="132" y="484" width="1040" height="36" as="geometry"/></mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram id="hw" name="硬件架构">
+    <mxGraphModel dx="1200" dy="560" grid="0" gridSize="8" guides="1" page="1" pageWidth="1200" pageHeight="540" background="#FFFFFF" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+        <mxCell id="titleh" value="Peach v2 硬件架构" style="text;html=1;fontSize=18;fontStyle=1;fontColor=#1A1A1A;align=left;verticalAlign=middle;" vertex="1" parent="1"><mxGeometry x="24" y="8" width="260" height="28" as="geometry"/></mxCell>
+        <mxCell id="subh" value="Orin 承载整机栈 · 急停不经计算" style="text;html=1;fontSize=12;fontColor=#888888;align=left;verticalAlign=middle;" vertex="1" parent="1"><mxGeometry x="284" y="12" width="360" height="20" as="geometry"/></mxCell>
+
+        <mxCell id="estop_side" value="安全回路&lt;br&gt;不经 ROS" style="rounded=1;arcSize=12;html=1;whiteSpace=wrap;fillColor=#F47C7C;strokeColor=none;fontSize=12;fontStyle=1;fontColor=#1A1A1A;align=center;verticalAlign=middle;" vertex="1" parent="1"><mxGeometry x="24" y="44" width="96" height="88" as="geometry"/></mxCell>
+
+        <mxCell id="teach" value="示教器&lt;br&gt;&lt;font style=&quot;font-size:12px&quot;&gt;+ 上电 / 抱闸&lt;/font&gt;" style="rounded=1;arcSize=12;html=1;whiteSpace=wrap;fillColor=#F4E04D;strokeColor=none;fontSize=14;fontStyle=1;fontColor=#1A1A1A;align=center;verticalAlign=middle;" vertex="1" parent="1"><mxGeometry x="132" y="44" width="340" height="88" as="geometry"/></mxCell>
+        <mxCell id="console" value="操作台&lt;br&gt;&lt;font style=&quot;font-size:12px&quot;&gt;+ 使能 · 8091 只读&lt;/font&gt;" style="rounded=1;arcSize=12;html=1;whiteSpace=wrap;fillColor=#F0A04A;strokeColor=none;fontSize=14;fontStyle=1;fontColor=#1A1A1A;align=center;verticalAlign=middle;" vertex="1" parent="1"><mxGeometry x="480" y="44" width="340" height="88" as="geometry"/></mxCell>
+        <mxCell id="estop" value="急停&lt;br&gt;&lt;font style=&quot;font-size:12px&quot;&gt;+ Cat 0/1&lt;/font&gt;" style="rounded=1;arcSize=12;html=1;whiteSpace=wrap;fillColor=#F47C7C;strokeColor=none;fontSize=14;fontStyle=1;fontColor=#1A1A1A;align=center;verticalAlign=middle;" vertex="1" parent="1"><mxGeometry x="828" y="44" width="344" height="88" as="geometry"/></mxCell>
+
+        <mxCell id="orin" value="Orin NX 16GB&lt;br&gt;&lt;font style=&quot;font-size:12px&quot;&gt;+ 整机栈唯一算力　　+ 命令门写柜&lt;/font&gt;" style="rounded=0;html=1;whiteSpace=wrap;fillColor=#F0A04A;strokeColor=none;fontSize=14;fontStyle=1;fontColor=#1A1A1A;align=center;verticalAlign=middle;" vertex="1" parent="1"><mxGeometry x="132" y="148" width="700" height="80" as="geometry"/></mxCell>
+        <mxCell id="carrier" value="载板&lt;br&gt;&lt;font style=&quot;font-size:12px&quot;&gt;+ 双 GbE · UART&lt;/font&gt;" style="rounded=0;html=1;whiteSpace=wrap;fillColor=#F5C242;strokeColor=none;fontSize=14;fontStyle=1;fontColor=#1A1A1A;align=center;verticalAlign=middle;" vertex="1" parent="1"><mxGeometry x="832" y="148" width="340" height="80" as="geometry"/></mxCell>
+
+        <mxCell id="cam" value="PS800-E1&lt;br&gt;&lt;font style=&quot;font-size:12px&quot;&gt;+ GigE · 停走取帧&lt;/font&gt;" style="rounded=1;arcSize=12;html=1;whiteSpace=wrap;fillColor=#5BC0EB;strokeColor=none;fontSize=14;fontStyle=1;fontColor=#1A1A1A;align=center;verticalAlign=middle;" vertex="1" parent="1"><mxGeometry x="132" y="244" width="254" height="112" as="geometry"/></mxCell>
+        <mxCell id="cab" value="E5 控制柜&lt;br&gt;&lt;font style=&quot;font-size:12px&quot;&gt;+ 透传 · 工具 IO&lt;/font&gt;" style="rounded=1;arcSize=12;html=1;whiteSpace=wrap;fillColor=#5BC0EB;strokeColor=none;fontSize=14;fontStyle=1;fontColor=#1A1A1A;align=center;verticalAlign=middle;" vertex="1" parent="1"><mxGeometry x="394" y="244" width="254" height="112" as="geometry"/></mxCell>
+        <mxCell id="cut" value="剪切手 ×3&lt;br&gt;&lt;font style=&quot;font-size:12px&quot;&gt;+ DO / DI 分通道&lt;/font&gt;" style="rounded=1;arcSize=12;html=1;whiteSpace=wrap;fillColor=#5BC0EB;strokeColor=none;fontSize=14;fontStyle=1;fontColor=#1A1A1A;align=center;verticalAlign=middle;" vertex="1" parent="1"><mxGeometry x="656" y="244" width="254" height="112" as="geometry"/></mxCell>
+        <mxCell id="imu" value="IMU + 力&lt;br&gt;&lt;font style=&quot;font-size:12px&quot;&gt;+ UART 同口复用&lt;/font&gt;" style="rounded=1;arcSize=12;html=1;whiteSpace=wrap;fillColor=#5BC0EB;strokeColor=none;fontSize=14;fontStyle=1;fontColor=#1A1A1A;align=center;verticalAlign=middle;" vertex="1" parent="1"><mxGeometry x="918" y="244" width="254" height="112" as="geometry"/></mxCell>
+
+        <mxCell id="rk" value="RK3588 · 腕六维力 · 风速计　预留　　许可与命令门不离开 NX" style="rounded=1;arcSize=8;html=1;whiteSpace=wrap;fillColor=#C8C8C8;strokeColor=none;fontSize=12;fontColor=#1A1A1A;align=center;verticalAlign=middle;" vertex="1" parent="1"><mxGeometry x="132" y="372" width="1040" height="56" as="geometry"/></mxCell>
+
+        <mxCell id="pwr" value="市电 / 车载电源　　RTX 3090 开发机（不随车）" style="rounded=1;arcSize=8;html=1;whiteSpace=wrap;fillColor=#E6E6E6;strokeColor=none;fontSize=12;fontColor=#555555;align=center;verticalAlign=middle;" vertex="1" parent="1"><mxGeometry x="132" y="444" width="1040" height="36" as="geometry"/></mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

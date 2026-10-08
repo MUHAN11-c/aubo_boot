@@ -181,9 +181,101 @@ flowchart LR
 | scene | 硬障碍快照 | Python | 低频 |
 | manipulation | move_group 客户端 + MTC + 命令门 + 末端插件 | C++ | 实时性、MoveIt API |
 | task | BT 执行器 + 账本 | C++ | BT.CPP 原生 |
-| observability | 诊断聚合、bag、8090 | Python | 只读 |
+| observability | 诊断聚合、bag、8091 只读面板 | Python | 只读 |
 
 生命周期：perception_container / target_model / scene / manipulation / task 全部 LifecycleNode，由 `nav2_lifecycle_manager` 托管，**bond 默认开**（`bond_timeout: 4.0`）。
+
+### 3.4 车载硬件与计算架构
+
+**计算拓扑一句话：现场主控 = Jetson Orin NX 16GB 单板承载整机栈（§3.3 全部八个进程）；RK3588 只作压力过大时的前端采集/预处理分流预案（预留，未实装、不作首期依赖）；开发、仿真与测试留在开发工控机（Ubuntu 24.04 + Jazzy + RTX 3090），不随车。** 与 `docs/design.md`（V6.4 硬件口径）同源；性能锚点全部是开发机实测，NX 部署后须专项重标（见下文部署约束）。
+
+#### 3.4.1 分层硬件架构图
+
+画法对齐主流系统架构图的分层条带语义：自上而下按「人机安全 → 主控计算 → 感知前端 → 驱动执行 → 供电结构」分层；**实线 = 数据/控制链路（标注接口与协议），虚线 = 硬件安全回路或预留未实装**。安全功能（急停/保护停止）在柜体与示教器侧闭环，**不经 ROS**。
+
+```mermaid
+flowchart TB
+    subgraph HMI ["⑤ 人机与安全层"]
+        TP["AUBO 示教器<br/>上电 / 抱闸 / 保护停止复位"]
+        ES["急停按钮盒<br/>ISO 13850 Cat 0/1"]
+        OP["操作台浏览器<br/>HTTP 8091 只读面板"]
+    end
+    subgraph NXU ["④ 主控计算层 — Jetson Orin NX 16GB（整机栈唯一车载算力）"]
+        subgraph CT ["ROS 2 Jazzy 容器（JetPack 6.x 宿主 + CUDA/TensorRT 设备直通）"]
+            P1["perception_container<br/>同步 / 深度质量 / 点云"]
+            P2["perception_infer<br/>YOLO + MobileSAM（TensorRT FP16）"]
+            P3["target_model + scene<br/>跟踪融合预算 / 硬障碍快照"]
+            P4["manipulation<br/>MTC + 命令门 + EndEffector 插件"]
+            P5["task（BT.CPP）+ observability<br/>批次编排 / 只读面板与 bag"]
+        end
+    end
+    subgraph EDGE ["③ 感知前端层"]
+        CAM["Percipio PS800-E1<br/>散斑结构光双目 · 基线 62.2 mm<br/>L/R 1280×960 硬件同帧 · GigE"]
+        RK["RK3588 前端盒（预留）<br/>采集 / 时间同步 / 深度质量 / 检测前置"]
+    end
+    subgraph DRIVE ["② 驱动与执行层"]
+        CAB["AUBO E5 控制柜<br/>六关节透传 · 工具 DO/DI · RobotStatus"]
+        EE["三把剪切手（快换）<br/>shear / bite（BST-YF 推杆）/ adaptive（圆盘+MPU6050）"]
+        FT["腕六维力 / 风速计（预留）<br/>§6.4 接触监测 / §9 风速暂停"]
+    end
+    subgraph PWR ["① 供电与结构层"]
+        PSU["台架市电 →（上底盘后）车载电池 / 发电机<br/>NX 10–25 W 档 · 柜供电 · 相机 / 末端供电"]
+    end
+
+    OP -- "HTTP 只读（默认回环，操作台经白名单/隧道）" --> P5
+    ES -. "硬件安全回路：切断驱动电源（不经 ROS）" .-> CAB
+    TP -- "安全与上电操作（人在示教器侧）" --> CAB
+    CAM -- "GigE · camport4 SDK · 停走式取帧" --> P1
+    CAM -. "MIPI/GigE（分流预案，未实装）" .-> RK
+    RK -. "GbE · ROI/深度结果回传（预案）" .-> P1
+    P4 <--> |"GbE 链路本地 169.254.10.98<br/>aubo SDK 透传 + ROS 2"| CAB
+    CAB -- "关节动力 + 工具 DO/DI（输出与反馈分通道，§7.2）" --> EE
+    EE -- "MPU6050 + 末端 5 点力<br/>USB-UART CH343 · 115200（同口时分复用）" --> P3
+    FT -. "预留：腕力→接触监测（§6.4）；风速→BT CheckSafety（§9）" .-> P4 & P5
+    PSU -. "各层供电" .-> NXU & DRIVE & EDGE
+```
+
+#### 3.4.2 硬件清单（型号 / 接口 / 角色）
+
+| 单元 | 型号与关键规格 | 接口 / 链路 | 角色 |
+|------|---------------|-------------|------|
+| **现场主控** | **Jetson Orin NX 16GB**：8× Cortex-A78AE + Ampere GPU（1024 CUDA / 32 Tensor Core），100 TOPS 量级（INT8 稀疏），16 GB LPDDR5 102.4 GB/s，功耗 10/15/25 W 档 | 双 GbE、USB 3.2、UART、GPIO、M.2 | §3.3 八进程全部车载承载；唯一有权与柜对话的计算单元（经 manipulation） |
+| 前端计算（**预留**） | RK3588：8 核（4×A76+4×A55）+ 6 TOPS NPU（RKNN） | GbE → NX；相机侧 GigE/MIPI | 相机采集 / 时间同步 / 深度质量预筛 /（可选）检测前置，为 NX 减负 |
+| RGB-D 前端 | Percipio PS800-E1：散斑结构光双目，基线 62.2 mm，L/R 1280×960 mono8 硬件同帧；主机侧 SGBM 13.5–13.7 fps；深度 uint16 × 0.25 mm | GigE（camport4，legacy GigE2.0） | 停走式感知前端；v2 §4.1 改造承载（置信度 / 静止中值 / 曝光） |
+| 控制柜 | AUBO E5 柜：六关节透传控制、工具 IO（DO/DI）、`RobotStatus`（抱闸 / motion_possible / 急停**状态**） | GbE 链路本地 `169.254.10.98`，aubo SDK | 驱动栈只读边界；所有运动与 SetIO 只经 manipulation 命令门 |
+| 示教器 / 急停 | AUBO 示教器；急停按钮盒（ISO 13850 Cat 0/1，IEC 60204-1） | 柜侧安全回路 | 上电 / 抱闸 / 保护停止复位；急停切断驱动电源，**不经 ROS** |
+| 刀具执行器 | shear_v1 连杆剪；bite_shear_v1（BST-YF 推杆 + 喉道导轨）；adaptive_shear_v1（Ø136 圆盘 + 拉钩 + 电机） | 柜工具 DO（快换后统一走 quick_changer） | `EndEffector` 三插件（§7.1）；DO 与反馈 DI **必须分物理通道**（§7.2 反证测试） |
+| 刀具反馈 | 限位开关 DI（刀闭合确认）、执行器电流曲线（剪断第二判据） | 柜工具 DI / 电流 | `confirm_cut()` 独立于剪切命令（P0-3 对策） |
+| IMU / 力 | MPU6050（adaptive 刀姿态跟随）+ 末端 5 点力 `/force/points` | **同一 USB-UART（CH343 `/dev/imu`，115200）**：IMU 75 Hz + 力 100 Hz 同口时分复用（serial_imu `feed_mux`） | 摆动估计（§4.3）/ 接触监测（§6.4）；风摆 A⊥、A∥ 进许可预算（§5.1） |
+| 腕六维力（**预留**） | 待选型（v2 §16 开放问题 5，强烈建议） | 多为以太网 | §6.4 接触监测首选硬件 |
+| 风速计（**预留**） | 待选型 | UART / GPIO | §9 风速 > 5 m/s 暂停批次（BT `CheckSafety`） |
+| 供电 | 台架：市电；上底盘后：车载电池 / 发电机（容量按柜 + NX 25 W + 相机 + 末端峰值定） | — | 果园离网作业前置（M7） |
+
+#### 3.4.3 进程 → 计算单元映射（与 §3.3 进程表对应）
+
+| §3.3 进程 | 默认部署 | RK3588 分流后 |
+|-----------|----------|----------------|
+| camera（stereo 驱动） | NX（GigE 直连） | RK3588 |
+| perception_container（同步/深度质量/点云） | NX 容器 | 采集与深度质量预筛 → RK3588；点云裁剪留 NX |
+| perception_infer（YOLO + MobileSAM TensorRT） | NX 容器（GPU） | 检测前置（RKNN 6 TOPS）可选拆分，语义分割仍留 NX |
+| target_model / scene / manipulation / task / observability | NX 容器（不拆分） | 不拆分 |
+
+#### 3.4.4 RK3588 分流预案（触发条件与边界）
+
+**这是预案不是首期依赖**（对齐 §6.3 GPU 选项的写法：不作首期、实测后定案）：
+
+- **触发条件（满足其一且经 NX 专项实测确认）**：① NX CPU 持续占用 > 80% 且套入窗内感知节拍抖动超预算；② SGBM + 推理同板争抢致 `perception_infer` P95 帧延迟超过停走节拍预算（阈值待 NX 重标后定）；③ 后续接入更高分辨率 / 帧率前端。
+- **分流内容**：相机驱动与时间同步、深度质量门、（可选）检测前置；**许可预算、融合、MTC、命令门绝不离开 NX**——单点安全与「一个事实只有一个源」不受分流影响。
+- **链路**：RK3588 → NX 走 GbE，只传 ROI / 深度结果 / 检测框，不常发全帧点云（对齐 §4.1「点云按需」）；两机同交换机、同 `ROS_DOMAIN_ID`，或 RK3588 侧仅跑驱动进程桥接。
+- **代价**：多一台整机的供电、启动、时钟同步（PTP/chrony）与运维面；**先测单板，证明不够再分流**。
+
+#### 3.4.5 部署约束（NX 专项，进果园前须过）
+
+1. **操作系统 / ABI**：JetPack 6.x 宿主为 Ubuntu 22.04，Jazzy 官方发行是 24.04——NX 上整机栈跑在 **Docker 容器**（`ros:jazzy` arm64 镜像 + CUDA/TensorRT 设备直通）或源编；属部署前置验证项（与 design.md 第 10 章同一挂账）。
+2. **numpy == 1.26.4** ABI 红线（Jazzy cv_bridge 按 numpy 1.x 编译）在 NX 容器内同样生效。
+3. **性能锚点重标**：§12/§14 的节拍数字与 design.md 表 2-2 锚点均开发机（3090）实测；YOLO / MobileSAM TensorRT FP16、SGBM、Frangi、bag 落盘 I/O 四类须在 NX 重出锚点后再冻结停走节拍参数。
+4. **8091 只读面板**默认回环监听：操作台访问经 SSH 隧道或显式绑定内网 + 白名单；不开放公网。
+5. **多机时钟**：RK3588 分流落地时，相机帧 stamp 的权威时钟源须唯一（NX chrony 主 / RK3588 从或相机自身 TIME_SYNC=HOST 语义保持），避免 §4.1 时间同步目标被分流破坏。
 
 ---
 

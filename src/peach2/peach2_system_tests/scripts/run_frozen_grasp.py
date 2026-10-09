@@ -146,7 +146,7 @@ def main() -> int:
     env = os.environ.copy()
     env.setdefault('ROS_DOMAIN_ID', '82')
     env['ROS_LOCALHOST_ONLY'] = '1'
-    env['QT_QPA_PLATFORM'] = 'offscreen'
+    # 不设 QT_QPA_PLATFORM=offscreen：会破坏 rviz2 的 GLX 窗口（可视化验证需要真渲染）
     env['PEACH_FROZEN_BAG'] = bag
     domain = env['ROS_DOMAIN_ID']
     print(f'ROS_DOMAIN_ID={domain} bag={bag} wall={args.timeout:.0f}s',
@@ -177,6 +177,7 @@ def main() -> int:
                 f'hz:={args.hz}',
                 f'tool_id:={args.tool_id}',
             ]
+            # spawn = 真拍照位 global_photo_pose（launch 默认 mock_initial_positions）
             launch_proc = subprocess.Popen(
                 launch_cmd, env=env, start_new_session=True)
             print(f'launch pid={launch_proc.pid}', flush=True)
@@ -188,7 +189,7 @@ def main() -> int:
                 code = launch_proc.returncode or 1
                 launch_proc = None
                 return code
-        harvest_s = min(80.0, max(20.0, remaining() - 20.0))
+        harvest_s = min(100.0, max(20.0, remaining() - 20.0))  # 批跑含 ~16 s 拍照位过渡
         ready_s = min(45.0, max(15.0, remaining() - harvest_s - 25.0))
         drive_cmd = [
             'ros2', 'run', 'peach2_system_tests', 'drive_frozen_grasp.py',
@@ -199,7 +200,8 @@ def main() -> int:
             drive_cmd.extend(['--request-id', args.request_id])
         if args.intent:
             drive_cmd.extend(['--intent', args.intent])
-        drive_proc = subprocess.Popen(drive_cmd, env=env, start_new_session=True)
+        drive_proc = subprocess.Popen(
+            args=drive_cmd, env=env, start_new_session=True)
         try:
             code = drive_proc.wait(timeout=max(5.0, remaining() - 8.0))
         except subprocess.TimeoutExpired:

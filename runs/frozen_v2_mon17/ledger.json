@@ -1,0 +1,84 @@
+{
+ "counts": {
+  "attempted": 1,
+  "discovered": 1,
+  "failed": 0,
+  "plan_only": 0,
+  "skipped": 0,
+  "succeeded": 1
+ },
+ "discovered_ids": [
+  "target_7"
+ ],
+ "finished_utc": "2026-10-09T09:38:42.267976Z",
+ "intent": "FULL",
+ "policy": {
+  "empty_survey_limit": 2,
+  "max_targets": 1,
+  "per_target_timeout_s": 70.0,
+  "target_harvest_ratio": 0.0
+ },
+ "reachability": {
+  "target_7": {
+   "failure_code": 0,
+   "failure_name": "NONE",
+   "reachable": true,
+   "reason": "planned"
+  }
+ },
+ "request_id": "frozen_v2_mon17",
+ "scene_epoch": 2,
+ "schema": "peach2_task/ledger/2",
+ "started_utc": "2026-10-09T09:37:48.971985Z",
+ "target_list": [],
+ "targets": [
+  {
+   "attempts": 1,
+   "axial_margin_m": 0.007189780132079153,
+   "cycle_time_s": 49.799987575999694,
+   "failure_code": 0,
+   "failure_name": "NONE",
+   "finished_utc": "2026-10-09T09:38:42.247976Z",
+   "model_revision": 1,
+   "outcome": "SUCCEEDED",
+   "plan_only": false,
+   "policy": "NONE",
+   "radial_margin_m": 0.06367293137470895,
+   "reached": "RELEASED",
+   "reason": "",
+   "recovery_required": false,
+   "rework_kind": "",
+   "stage_names": [
+    "PREPARE_TOOL",
+    "TRANSIT_STAGING",
+    "APPROACH_PREGRASP",
+    "VERIFY_PREGRASP",
+    "INSERT",
+    "CUT",
+    "CONFIRM",
+    "RETREAT",
+    "TRANSIT_RELEASE",
+    "RELEASE",
+    "DONE"
+   ],
+   "stage_times_s": [
+    5.930699990130961e-05,
+    13.551415255002212,
+    5.0212316129982355,
+    0.0043685150012606755,
+    9.88579516000027,
+    0.006516926998301642,
+    0.15100627100036945,
+    14.63760025100055,
+    6.329667920999782,
+    0.1534270150004886,
+    4.966000051354058e-05
+   ],
+   "started_utc": "2026-10-09T09:37:52.447986Z",
+   "target_id": "target_7",
+   "tool_id": "bite_shear_v1"
+  }
+ ],
+ "termination_reason": "max_targets",
+ "tool_id": "bite_shear_v1"
+}

@@ -37,6 +37,11 @@ def generate_launch_description() -> LaunchDescription:
         DeclareLaunchArgument(
             'observe_max_views', default_value='3',
             description='ObserveTarget.max_views (frozen-camera tests set 1)'),
+        DeclareLaunchArgument(
+            'photo_pose', default_value='global_photo_pose',
+            description='SRDF group_state Survey moves to first; frozen-camera '
+                        'tests point this at frozen_photo_pose so the batch '
+                        'surveys at the calibrated photo pose'),
         LifecycleNode(
             package='peach2_task',
             executable='peach2_task_node',
@@ -55,6 +60,8 @@ def generate_launch_description() -> LaunchDescription:
                         LaunchConfiguration('lock_wait_s'), value_type=float),
                     'observe_max_views': ParameterValue(
                         LaunchConfiguration('observe_max_views'), value_type=int),
+                    'photo_pose': ParameterValue(
+                        LaunchConfiguration('photo_pose'), value_type=str),
                 },
             ],
         ),

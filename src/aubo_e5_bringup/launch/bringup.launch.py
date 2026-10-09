@@ -45,6 +45,9 @@ def launch_nodes(context):
     # 透传进去——xacro 内部据此选择硬件插件（mock/real）、填充 <param> robot_ip、
     # 按工具档案选 TCP 原点，即"一份 URDF 模板、多种后端/末端"的实现方式。
     # 未知 tool_profile 名两支 if 都不展开 → 缺 tcp 帧，启动即失败（fail-fast）。
+    # 2026-10-09 操作员授权的默认不变透传：mock 六关节初值（shoulder..wrist3 逗号串），
+    # 缺省=原 xacro 字面量（展开结果不变）；仿真要"出生即拍照位"时由上层传拍照位六关节。
+    mock_initial_positions = LaunchConfiguration('mock_initial_positions')
     robot_description = Command([
         'xacro ',
         PathJoinSubstitution([
@@ -52,6 +55,7 @@ def launch_nodes(context):
         ' hardware_mode:=', mode,
         ' robot_ip:=', robot_ip,
         ' tool_profile:=', tool_profile,
+        ' mock_initial_positions:=', mock_initial_positions,
     ])
 
     # 控制器参数（goal 容差、blend、RIB 流控等），同时喂给 ros2_control_node
@@ -177,6 +181,12 @@ def generate_launch_description():
             description='末端工具档案（URDF TCP 与整栈标签）；纯透传给 xacro，'
                         '未知名 xacro 不展开 tcp 帧即失败（fail-fast），'
                         '白名单由各应用层 launch/档案持有'),
+        DeclareLaunchArgument(
+            'mock_initial_positions',
+            default_value='0.425083,0.195177,1.677740,1.461739,-0.500161,0.038621',
+            description='mock 六关节初值（shoulder,upperArm,foreArm,wrist1,wrist2,'
+                        'wrist3 逗号串，rad）；2026-10-09 操作员授权的默认不变参数化，'
+                        '缺省=原 xacro 字面量'),
         DeclareLaunchArgument(
             'moveit_enabled', default_value='true',
             description='MoveIt move_group + rviz2；false 关闭'),

@@ -24,6 +24,11 @@ struct PlanRequest
 {
   PlanKind kind{PlanKind::FREE};
   Eigen::Isometry3d tcp_goal{Eigen::Isometry3d::Identity()};  ///< base_link, TCP frame
+  /// FREE: plan to this joint solution (group order) instead of sampling pose
+  /// goals. Used with seeded_ik for branch-continuous staging: the nearest wrist
+  /// branch instead of OMPL's random goal sample (no ~180 deg wrist swings and a
+  /// deterministic staging distance between waypoints).
+  std::optional<std::vector<double>> goal_joints;
   std::string named_target;
   double velocity_scaling{0.1};       ///< FREE / NAMED
   double acceleration_scaling{0.1};
@@ -83,6 +88,10 @@ class MotionBackend
 public:
   virtual ~MotionBackend() = default;
   virtual PlanResult plan(const PlanRequest & request) = 0;
+  /// Nearest-branch IK: solve tcp_goal seeded at the CURRENT joint state (KDL
+  /// converges to the closest solution). nullopt = no solution from that seed;
+  /// callers fall back to pose-goal planning.
+  virtual std::optional<std::vector<double>> seeded_ik(const Eigen::Isometry3d & tcp_goal) = 0;
   /// Blocking, bounded by options.timeout_s. On abort / timeout the backend stops the arm
   /// (trajectory cancel -> driver RobotMoveStop; an application stop, not an e-stop).
   virtual ExecResult execute(const JointTrajectory & trajectory, const ExecOptions & options) = 0;

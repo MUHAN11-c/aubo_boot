@@ -141,7 +141,7 @@ def main() -> int:
     env = os.environ.copy()
     env.setdefault('ROS_DOMAIN_ID', '81')
     env['ROS_LOCALHOST_ONLY'] = '1'
-    env['QT_QPA_PLATFORM'] = 'offscreen'
+    # 不设 QT_QPA_PLATFORM=offscreen：会破坏 rviz2 的 GLX 窗口（可视化验证需要真渲染）
     env['PEACH_FROZEN_BAG'] = bag
     domain = env['ROS_DOMAIN_ID']
     print(f'ROS_DOMAIN_ID={domain} bag={bag} wall={args.timeout:.0f}s',

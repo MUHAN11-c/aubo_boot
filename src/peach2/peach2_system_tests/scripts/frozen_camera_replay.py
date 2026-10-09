@@ -16,11 +16,13 @@ import sys
 
 from geometry_msgs.msg import TransformStamped
 import rclpy
+from rclpy.callback_groups import ReentrantCallbackGroup
 from rclpy.node import Node
 from rclpy.qos import DurabilityPolicy, HistoryPolicy, QoSProfile, ReliabilityPolicy
 from rclpy.serialization import deserialize_message
 import rosbag2_py
 from sensor_msgs.msg import CameraInfo, Image, PointCloud2
+from std_srvs.srv import SetBool
 from tf2_ros import StaticTransformBroadcaster
 
 # peach_stereo publishStaticTf: RPY(-π/2, 0, -π/2) → optical (REP-103).
@@ -101,7 +103,7 @@ def optical_static_tfs(stamp) -> list[TransformStamped]:
 class FrozenCamera(Node):
     """Timer publisher of one bag frame with rewritten stamps."""
 
-    def __init__(self, frame: dict, hz: float):
+    def __init__(self, frame: dict, hz: float, start_paused: bool = False):
         super().__init__('frozen_camera_replay')
         qos = QoSProfile(
             reliability=ReliabilityPolicy.RELIABLE,
@@ -109,16 +111,28 @@ class FrozenCamera(Node):
             depth=5,
             durability=DurabilityPolicy.VOLATILE)
         self._frame = frame
+        self._paused = start_paused
         self._pubs = {
             name: self.create_publisher(type(msg), name, qos)
             for name, msg in frame.items()}
+        self.create_service(
+            SetBool, '~/pause', self._on_pause,
+            callback_group=ReentrantCallbackGroup())
         self._static_tf = StaticTransformBroadcaster(self)
         self._static_tf.sendTransform(
             optical_static_tfs(self.get_clock().now().to_msg()))
         period = 1.0 / max(hz, 0.1)
         self.create_timer(period, self._tick)
 
+    def _on_pause(self, request, response):
+        self._paused = bool(request.data)
+        response.success = True
+        response.message = 'paused' if self._paused else 'streaming'
+        return response
+
     def _tick(self) -> None:
+        if self._paused:
+            return  # freeze the world: no frames, no TF refresh, no fusion drift
         stamp = self.get_clock().now().to_msg()
         for name, proto in self._frame.items():
             msg = copy.deepcopy(proto)
@@ -134,6 +148,10 @@ def main() -> int:
     parser.add_argument('--index', type=int, default=70,
                         help='0-based frame index to freeze')
     parser.add_argument('--hz', type=float, default=2.0)
+    parser.add_argument(
+        '--start-paused', default='false',
+        help='true = publish nothing until ~/pause is set false (blind photo '
+             'pose: no frames, no fusion, no stale tracks while the arm moves)')
     args, _unknown = parser.parse_known_args()
     uri = args.bag.strip() or discover_bag()
     if not uri:
@@ -142,7 +160,9 @@ def main() -> int:
         return 2
     frame = load_frame(uri, args.index)
     rclpy.init()
-    node = FrozenCamera(frame, args.hz)
+    node = FrozenCamera(
+        frame, args.hz, start_paused=args.start_paused.strip().lower() in
+        ('1', 'true', 'yes', 'on'))
     try:
         rclpy.spin(node)
     except KeyboardInterrupt:

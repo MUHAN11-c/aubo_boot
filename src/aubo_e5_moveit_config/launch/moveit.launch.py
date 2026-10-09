@@ -42,6 +42,7 @@
 #               经 bringup 集成时传 false，避免 TF 双发
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, OpaqueFunction
+from launch.conditions import IfCondition
 from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
 from moveit_configs_utils import MoveItConfigsBuilder
@@ -106,7 +107,8 @@ def launch_setup(context):
             executable='rviz2',
             output='screen',
             arguments=['-d', rviz_config],
-            parameters=[params]),
+            parameters=[params],
+            condition=IfCondition(LaunchConfiguration('rviz'))),
     ]
     if standalone:
         nodes += [
@@ -129,6 +131,10 @@ def generate_launch_description():
             'standalone_state_publishers', default_value='true',
             description='true=脱离 bringup 单跑（自带 rsp + joint_state_publisher_gui）；'
                         'false=经 bringup 集成（rsp 由 bringup 提供）'),
+        DeclareLaunchArgument(
+            'rviz', default_value='true',
+            description='随 move_group 起 rviz2（MotionPlanning 面板）；false 只起 move_group'
+                        '（无头/CI 用；显示端缺 GLX 时 rviz2 会崩，应显式置 false）'),
         DeclareLaunchArgument(
             'controllers_file', default_value='controllers.yaml',
             description='config/ 下的 MoveIt 控制器映射（mock 用 controllers_mock.yaml）'),

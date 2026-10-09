@@ -1,0 +1,74 @@
+{
+ "counts": {
+  "attempted": 1,
+  "discovered": 1,
+  "failed": 0,
+  "plan_only": 0,
+  "skipped": 1,
+  "succeeded": 0
+ },
+ "discovered_ids": [
+  "target_7"
+ ],
+ "finished_utc": "2026-10-09T06:39:49.134972Z",
+ "intent": "FULL",
+ "policy": {
+  "empty_survey_limit": 2,
+  "max_targets": 1,
+  "per_target_timeout_s": 70.0,
+  "target_harvest_ratio": 0.0
+ },
+ "reachability": {
+  "target_7": {
+   "failure_code": 0,
+   "failure_name": "NONE",
+   "reachable": true,
+   "reason": "planned"
+  }
+ },
+ "request_id": "frozen_v2_photo_rviz2",
+ "scene_epoch": 2,
+ "schema": "peach2_task/ledger/2",
+ "started_utc": "2026-10-09T06:39:29.163025Z",
+ "target_list": [],
+ "targets": [
+  {
+   "attempts": 1,
+   "axial_margin_m": 0.00718991796125909,
+   "cycle_time_s": 17.160051388000284,
+   "failure_code": 33,
+   "failure_name": "PLAN_CARTESIAN_INCOMPLETE",
+   "finished_utc": "2026-10-09T06:39:49.114991Z",
+   "model_revision": 1,
+   "outcome": "SKIPPED",
+   "plan_only": false,
+   "policy": "SKIP",
+   "radial_margin_m": 0.06366859012044063,
+   "reached": "RETREATED",
+   "reason": "insert:insert:FAILURE",
+   "recovery_required": false,
+   "rework_kind": "unreachable",
+   "stage_names": [
+    "PREPARE_TOOL",
+    "TRANSIT_STAGING",
+    "APPROACH_PREGRASP",
+    "VERIFY_PREGRASP",
+    "INSERT",
+    "RETREAT"
+   ],
+   "stage_times_s": [
+    6.59059987810906e-05,
+    6.9307631040028355,
+    5.075178192997555,
+    0.004799744001502404,
+    0.013309546000527916,
+    5.076565676998143
+   ],
+   "started_utc": "2026-10-09T06:39:31.954935Z",
+   "target_id": "target_7",
+   "tool_id": "bite_shear_v1"
+  }
+ ],
+ "termination_reason": "max_targets",
+ "tool_id": "bite_shear_v1"
+}

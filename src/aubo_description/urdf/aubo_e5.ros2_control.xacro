@@ -31,7 +31,14 @@
     same_point_eps:=0.00015
     dedup_threshold:=0.000001
     state_timeout_ms:=200
-    auto_power_on:=false">
+    auto_power_on:=false
+    mock_initial_positions:='0.425083,0.195177,1.677740,1.461739,-0.500161,0.038621'">
+
+    <!-- 2026-10-09 操作员授权的默认不变参数化：mock 六关节初值按
+         shoulder,upperArm,foreArm,wrist1,wrist2,wrist3 顺序取逗号串元素；
+         缺省串与原字面量逐位相同（展开结果不变）。仅 mock 分支使用，
+         real 分支不读初值。 -->
+    <xacro:property name="mock_q" value="${mock_initial_positions.split(',')}"/>
 
     <ros2_control name="${name}" type="system">
       <hardware>
@@ -69,42 +76,42 @@
       <joint name="shoulder_joint">
         <command_interface name="position"/>
         <state_interface name="position">
-          <param name="initial_value">0.425083</param>
+          <param name="initial_value">${mock_q[0]}</param>
         </state_interface>
         <state_interface name="velocity"/>
       </joint>
       <joint name="upperArm_joint">
         <command_interface name="position"/>
         <state_interface name="position">
-          <param name="initial_value">0.195177</param>
+          <param name="initial_value">${mock_q[1]}</param>
         </state_interface>
         <state_interface name="velocity"/>
       </joint>
       <joint name="foreArm_joint">
         <command_interface name="position"/>
         <state_interface name="position">
-          <param name="initial_value">1.677740</param>
+          <param name="initial_value">${mock_q[2]}</param>
         </state_interface>
         <state_interface name="velocity"/>
       </joint>
       <joint name="wrist1_joint">
         <command_interface name="position"/>
         <state_interface name="position">
-          <param name="initial_value">1.461739</param>
+          <param name="initial_value">${mock_q[3]}</param>
         </state_interface>
         <state_interface name="velocity"/>
       </joint>
       <joint name="wrist2_joint">
         <command_interface name="position"/>
         <state_interface name="position">
-          <param name="initial_value">-0.500161</param>
+          <param name="initial_value">${mock_q[4]}</param>
         </state_interface>
         <state_interface name="velocity"/>
       </joint>
       <joint name="wrist3_joint">
         <command_interface name="position"/>
         <state_interface name="position">
-          <param name="initial_value">0.038621</param>
+          <param name="initial_value">${mock_q[5]}</param>
         </state_interface>
         <state_interface name="velocity"/>
       </joint>

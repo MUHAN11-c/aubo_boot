@@ -49,7 +49,9 @@ TEST(HarvestCycle, PlanOnlyWhenExecutionDisabled)
   EXPECT_TRUE(rig.motion.executed.empty());
   EXPECT_EQ(rig.io->write_count(), 0);
   EXPECT_EQ(FakeMotion::count(rig.motion.planned, "transit_staging"), rig.config.roll_samples);
-  EXPECT_EQ(FakeMotion::count(rig.motion.planned, "insert"), 1);
+  // Selection-time insert validation (first passing candidate wins) plus
+  // plan_chain's own plan of the chosen candidate.
+  EXPECT_EQ(FakeMotion::count(rig.motion.planned, "insert"), 2);
   EXPECT_EQ(rig.decisions.calls(), 1U);
 }
 
@@ -86,6 +88,60 @@ TEST(HarvestCycle, PlanOnlyPregraspSkipsInsertPlan)
   EXPECT_EQ(r.reason, "planned");
   EXPECT_TRUE(r.plan_only);
   EXPECT_EQ(FakeMotion::count(rig.motion.planned, "insert"), 0);
+}
+
+TEST(HarvestCycle, SeededIkJointGoalUsedForStaging)
+{
+  // Branch continuity: when the backend offers a seeded IK solution, the staging
+  // transit plans to that joint goal instead of a pose goal (no OMPL goal-sample
+  // wrist branch lottery).
+  CycleRig rig;
+  rig.execution = false;
+  const std::vector<double> seed{0.1, 0.2, 0.3, 0.4, 0.5, 0.6};
+  rig.motion.ik_result = seed;
+  std::optional<pm::PlanRequest> staging_req;
+  rig.motion.on_plan = [&staging_req](const pm::PlanRequest & r) {
+      if (r.label == "transit_staging") {
+        staging_req = r;
+      }
+    };
+  const auto r = rig.run();
+  EXPECT_EQ(r.reason, "planned");
+  ASSERT_TRUE(staging_req.has_value());
+  ASSERT_TRUE(staging_req->goal_joints.has_value());
+  EXPECT_EQ(*staging_req->goal_joints, seed);
+}
+
+TEST(HarvestCycle, SeededIkUnavailableFallsBackToPoseGoal)
+{
+  CycleRig rig;
+  rig.execution = false;
+  std::optional<pm::PlanRequest> staging_req;
+  rig.motion.on_plan = [&staging_req](const pm::PlanRequest & r) {
+      if (r.label == "transit_staging") {
+        staging_req = r;
+      }
+    };
+  const auto r = rig.run();
+  EXPECT_EQ(r.reason, "planned");
+  ASSERT_TRUE(staging_req.has_value());
+  EXPECT_FALSE(staging_req->goal_joints.has_value());
+}
+
+TEST(HarvestCycle, InsertValidationFallsBackWhenAllRollsFail)
+{
+  // Every candidate fails the selection-time insert check; pass 1 must still
+  // select on the legacy staging+approach criteria (no outright skip), and
+  // plan_chain's own insert plan then surfaces the failure.
+  CycleRig rig;
+  rig.execution = false;
+  rig.motion.plan_fail["insert"] = failure::PLAN_CARTESIAN_INCOMPLETE;
+  const auto r = rig.run();
+  EXPECT_EQ(r.outcome, pm::Outcome::SKIPPED);
+  EXPECT_NE(r.reason.find("insert:"), std::string::npos);
+  EXPECT_EQ(
+    FakeMotion::count(rig.motion.planned, "transit_staging"), rig.config.roll_samples);
+  EXPECT_EQ(FakeMotion::count(rig.motion.planned, "insert"), rig.config.roll_samples + 1);
 }
 
 TEST(HarvestCycle, PlanOnlyFailureNeverCarriesNone)
@@ -173,7 +229,9 @@ TEST(HarvestCycle, PlanOnlyChainSwitchesSceneBeforeInsert)
     };
   EXPECT_EQ(rig.run().reason, "planned");
   EXPECT_EQ(
-    calls, (std::vector<pm::ScenePhase>{pm::ScenePhase::APPROACH, pm::ScenePhase::CONTACT}));
+    calls, (std::vector<pm::ScenePhase>{
+    pm::ScenePhase::APPROACH, pm::ScenePhase::CONTACT, pm::ScenePhase::APPROACH,
+    pm::ScenePhase::CONTACT}));
 
   calls.clear();
   rig.motion.planned.clear();
@@ -442,7 +500,11 @@ TEST(HarvestCycle, ResidualFailsAndRetreats)
       r.reached, mode == pm::CycleMode::FULL ? pm::Reached::RETREATED : pm::Reached::NONE);
     EXPECT_FALSE(r.recovery_required);
     EXPECT_EQ(rig.motion.executed.back(), "reverse");
-    EXPECT_EQ(FakeMotion::count(rig.motion.planned, "insert"), 0);
+    // FULL: selection-time insert validation planned once; exec never did.
+    // PREGRASP: no insert planning at all.
+    EXPECT_EQ(
+      FakeMotion::count(rig.motion.planned, "insert"),
+      mode == pm::CycleMode::FULL ? 1 : 0);
   }
 }
 
@@ -490,7 +552,8 @@ TEST(HarvestCycle, ModelMovedIsStale)
   rig.decisions.script = {d1, d2};
   const auto r = rig.run();
   EXPECT_EQ(r.failure_code, failure::MODEL_STALE);
-  EXPECT_EQ(FakeMotion::count(rig.motion.planned, "insert"), 0);
+  // Selection-time insert validation planned once; exec never reached insert.
+  EXPECT_EQ(FakeMotion::count(rig.motion.planned, "insert"), 1);
 }
 
 TEST(HarvestCycle, SmallRevisionChangeAccepted)

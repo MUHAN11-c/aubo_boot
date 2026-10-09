@@ -1,0 +1,60 @@
+{
+ "counts": {
+  "attempted": 1,
+  "discovered": 1,
+  "failed": 0,
+  "plan_only": 0,
+  "skipped": 1,
+  "succeeded": 0
+ },
+ "discovered_ids": [
+  "target_5"
+ ],
+ "finished_utc": "2026-10-09T08:06:36.736140Z",
+ "intent": "FULL",
+ "policy": {
+  "empty_survey_limit": 2,
+  "max_targets": 1,
+  "per_target_timeout_s": 70.0,
+  "target_harvest_ratio": 0.0
+ },
+ "reachability": {
+  "target_5": {
+   "failure_code": 0,
+   "failure_name": "NONE",
+   "reachable": true,
+   "reason": "planned"
+  }
+ },
+ "request_id": "frozen_v2_mon6",
+ "scene_epoch": 1,
+ "schema": "peach2_task/ledger/2",
+ "started_utc": "2026-10-09T08:05:16.200952Z",
+ "target_list": [],
+ "targets": [
+  {
+   "attempts": 1,
+   "axial_margin_m": 0.007189742420451381,
+   "cycle_time_s": 62.880016634997446,
+   "failure_code": 62,
+   "failure_name": "CANCELED",
+   "finished_utc": "2026-10-09T08:06:36.724377Z",
+   "model_revision": 1,
+   "outcome": "CANCELED",
+   "plan_only": false,
+   "policy": "STOP_BATCH",
+   "radial_margin_m": 0.06367321119426912,
+   "reached": "NONE",
+   "reason": "batch_canceled",
+   "recovery_required": false,
+   "rework_kind": "canceled",
+   "stage_names": [],
+   "stage_times_s": [],
+   "started_utc": "2026-10-09T08:05:33.844359Z",
+   "target_id": "target_5",
+   "tool_id": "bite_shear_v1"
+  }
+ ],
+ "termination_reason": "canceled",
+ "tool_id": "bite_shear_v1"
+}

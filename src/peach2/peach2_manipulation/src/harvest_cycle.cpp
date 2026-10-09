@@ -228,7 +228,7 @@ std::optional<HarvestCycle::Selection> HarvestCycle::select_roll(
   g.axis = axis;
   const auto rolls = deps_.ee->roll_constraint(g).samples(config_.roll_samples);
 
-  std::optional<Selection> best;
+  std::vector<Selection> candidates;
   int best_failure_rank = -1;
   for (double roll : rolls) {
     Selection s;
@@ -238,6 +238,12 @@ std::optional<HarvestCycle::Selection> HarvestCycle::select_roll(
 
     s.free_request.kind = PlanKind::FREE;
     s.free_request.tcp_goal = s.staging;
+    // Branch continuity: seed the staging IK at the current state so the transit
+    // lands on the nearest wrist branch instead of an OMPL goal-sample lottery
+    // (no ~180 deg wrist swings between waypoints, deterministic staging cost).
+    if (const auto seed = deps_.motion->seeded_ik(s.staging)) {
+      s.free_request.goal_joints = seed;
+    }
     s.free_request.velocity_scaling = config_.transit_velocity_scaling;
     s.free_request.acceleration_scaling = config_.transit_acceleration_scaling;
     s.free_request.label = "transit_staging";
@@ -268,13 +274,50 @@ std::optional<HarvestCycle::Selection> HarvestCycle::select_roll(
     s.free_trajectory = pf.trajectory;
     s.approach_trajectory = pl.trajectory;
     s.cost = joint_path_length(pf.trajectory) + joint_path_length(pl.trajectory);
-    if (!best || s.cost < best->cost) {
-      best = s;
-    }
+    candidates.push_back(s);
   }
   if (rolls.empty()) {
     code = failure::TOOL_NOT_FEASIBLE;
     reason = "no_roll_samples";
+    return std::nullopt;
+  }
+  if (candidates.empty()) {
+    return std::nullopt;  // code/reason already carry the deepest failure rank
+  }
+  std::sort(
+    candidates.begin(), candidates.end(),
+    [](const Selection & a, const Selection & b) {return a.cost < b.cost;});
+  std::optional<Selection> best = candidates.front();  // legacy fallback floor
+  if (run.request.mode == CycleMode::FULL) {
+    // Insert validation under CONTACT-phase scene semantics: the own-bag capsule
+    // exclusion only exists in CONTACT, so validating earlier would reject every
+    // insert by design. Cheapest candidate whose insert LIN validates wins; if
+    // none does (or the scene switch fails) keep the legacy pick instead of
+    // skipping outright — exec-time insert planning stays the authority.
+    std::string why;
+    if (set_scene(run, ScenePhase::CONTACT, why)) {
+      for (auto & cand : candidates) {
+        const Eigen::Isometry3d goal = tcp_for_blade(
+          d.blade_target, cand.pregrasp.linear(), deps_.ee->blade_in_tcp());
+        const InsertGeometry ig = insert_geometry(cand.pregrasp, goal.translation());
+        if (ig.travel_m <= 0.0 || ig.lateral_m > config_.insert_lateral_tol_m) {
+          continue;
+        }
+        PlanRequest ins;
+        ins.kind = PlanKind::LINEAR;
+        ins.tcp_goal = goal;
+        ins.linear_speed_mps = deps_.ee->insert(run.geometry).speed_mps;
+        ins.acceleration_scaling = config_.transit_acceleration_scaling;
+        ins.start_joints = cand.approach_trajectory.points.back().positions;
+        ins.label = "insert";
+        const PlanResult pi = deps_.motion->plan(ins);
+        if (pi.ok) {
+          best = cand;
+          break;
+        }
+      }
+      set_scene(run, ScenePhase::APPROACH, why);  // restore exec-side semantics
+    }
   }
   return best;
 }

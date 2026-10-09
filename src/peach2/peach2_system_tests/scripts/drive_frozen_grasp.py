@@ -3,8 +3,11 @@
 Drive one frozen-camera FULL harvest on an already-running v2 mock stack.
 
 Waits for lifecycle + RGB-D replay + JTC, enables execution+grasp+tool
-(mock IO backend, no real SetIO), sends RunBatch INTENT_FULL, and ACKs if
-the batch parks in WAITING_ACK.
+(mock IO backend, no real SetIO), moves the arm to a calibrated PHOTO POSE
+(the real flow photographs at a wrist pose; at the mock stow pose the frozen
+bag lands ~1.0 m out and the reach-to-neck pose has no IK — see
+plans/冻结相机全流程测试/测试报告.md §5.7/§5.8), then sends RunBatch and
+ACKs if the batch parks in WAITING_ACK.
 """
 from __future__ import annotations
 
@@ -17,7 +20,7 @@ from controller_manager_msgs.srv import ListControllers
 from lifecycle_msgs.msg import State as LifecycleState
 from lifecycle_msgs.srv import GetState
 from peach2_interfaces.action import RunBatch
-from peach2_interfaces.msg import BatchState, HarvestResult
+from peach2_interfaces.msg import BatchState, HarvestResult, TargetModelArray
 from peach2_interfaces.srv import SetEnables
 import rclpy
 from rclpy.action import ActionClient
@@ -25,8 +28,9 @@ from rclpy.callback_groups import ReentrantCallbackGroup
 from rclpy.executors import MultiThreadedExecutor
 from rclpy.node import Node
 from rclpy.qos import DurabilityPolicy, HistoryPolicy, QoSProfile, ReliabilityPolicy
-from sensor_msgs.msg import Image
-from std_srvs.srv import Trigger
+from sensor_msgs.msg import Image, JointState
+from std_srvs.srv import SetBool, Trigger
+
 
 LATCHED = QoSProfile(
     history=HistoryPolicy.KEEP_LAST, depth=1,
@@ -60,6 +64,10 @@ def _wait(predicate, timeout_s: float, period_s: float = 0.2) -> bool:
     return predicate()
 
 
+def _dist(a, b) -> float:
+    return sum((x - y) ** 2 for x, y in zip(a, b)) ** 0.5
+
+
 class Driver(Node):
     """Operator stand-in: SetEnables, RunBatch, ACK."""
 
@@ -68,12 +76,20 @@ class Driver(Node):
         self._group = ReentrantCallbackGroup()
         self.images = 0
         self.batch_state: BatchState | None = None
+        self.model: TargetModelArray | None = None
+        self.joints: JointState | None = None
         self.create_subscription(
             Image, '/camera/color/image_raw', self._on_image, RELIABLE,
             callback_group=self._group)
         self.create_subscription(
+            JointState, '/joint_states', self._on_joints, RELIABLE,
+            callback_group=self._group)
+        self.create_subscription(
             BatchState, '/peach/task/state', self._on_batch, LATCHED,
             callback_group=self._group)
+        self.create_subscription(
+            TargetModelArray, '/peach/target_model/models', self._on_models,
+            LATCHED, callback_group=self._group)
         self._state_clients: dict[str, object] = {}
         self._list = self.create_client(
             ListControllers, '/controller_manager/list_controllers',
@@ -86,12 +102,30 @@ class Driver(Node):
         self._run = ActionClient(
             self, RunBatch, '/peach/task/run_batch',
             callback_group=self._group)
+        self._replay_pause = self.create_client(
+            SetBool, '/frozen_camera_replay/pause', callback_group=self._group)
 
     def _on_image(self, _msg: Image) -> None:
         self.images += 1
 
+    def _on_joints(self, msg: JointState) -> None:
+        self.joints = msg
+
     def _on_batch(self, msg: BatchState) -> None:
         self.batch_state = msg
+
+    def _on_models(self, msg: TargetModelArray) -> None:
+        if msg.models:
+            self.model = msg
+            for m in msg.models:
+                b, n = m.bottom.position, m.neck.position
+                print(
+                    f'model {m.target_id} rev={m.model_revision} '
+                    f'bottom=({b.x:+.3f},{b.y:+.3f},{b.z:+.3f}) '
+                    f'neck=({n.x:+.3f},{n.y:+.3f},{n.z:+.3f}) '
+                    f'len={m.length_m:.3f} d95={m.d95_m:.3f} '
+                    f'conv={int(m.converged)} n_views={m.n_views}',
+                    flush=True)
 
     def _call(self, client, request, timeout_s: float = 10.0):
         if not client.wait_for_service(timeout_sec=timeout_s):
@@ -110,9 +144,9 @@ class Driver(Node):
         response = self._call(client, GetState.Request(), 3.0)
         return None if response is None else response.current_state.id
 
-    def wait_ready(self, timeout_s: float) -> bool:
+    def wait_ready(self, timeout_s: float, require_images: bool = True) -> bool:
         def ready() -> bool:
-            if self.images <= 0:
+            if require_images and self.images <= 0:
                 return False
             for name in MANAGED:
                 if self.lifecycle_state(name) != LifecycleState.PRIMARY_STATE_ACTIVE:
@@ -161,6 +195,46 @@ class Driver(Node):
             f'{getattr(response, "message", "")}',
             flush=True)
 
+    def watch_motion_freeze(self, tol_rad: float = 2e-3) -> None:
+        """Daemon thread: once the batch leaves the survey phase (BeginScene
+        has cleared the stale tracks and fresh anchors exist), pause the
+        replay on the first harvest motion (>2 mm joint deviation from the
+        phase-entry baseline). Frozen frame × live wrist TF would otherwise
+        drift the fresh models along the arm during staging/insert. Survey-
+        phase motion is intentionally NOT frozen: BeginScene clears whatever
+        drifted there and re-anchors at the (stationary) survey pose."""
+        def watch() -> None:
+            baseline = None
+            deadline = time.monotonic() + 180.0
+            while time.monotonic() < deadline:
+                state = self.batch_state
+                if state is not None and state.phase >= 3:  # OBSERVING..ABORTED
+                    js = self.joints
+                    if js is not None:
+                        if baseline is None:
+                            baseline = list(js.position)
+                        else:
+                            dev = max((abs(a - b)
+                                       for a, b in zip(js.position, baseline)),
+                                      default=0.0)
+                            if dev > tol_rad:
+                                self._pause_replay(True)
+                                print(f'photo: replay paused on harvest motion '
+                                      f'(joint dev {dev:.4f} rad) — world frozen',
+                                      flush=True)
+                                return
+                time.sleep(0.05)
+            print('photo: motion watch expired (replay left streaming)',
+                  file=sys.stderr, flush=True)
+
+        threading.Thread(target=watch, daemon=True).start()
+
+    def _pause_replay(self, paused: bool) -> None:
+        if self._replay_pause.wait_for_service(timeout_sec=2.0):
+            req = SetBool.Request()
+            req.data = paused
+            self._call(self._replay_pause, req, 5.0)
+
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
@@ -171,7 +245,9 @@ def main() -> int:
                         help='FULL needs the blade goal inside the pose reach sphere; '
                              'PREGRASP_ONLY completes at the pregrasp stop')
     parser.add_argument('--ready-timeout', type=float, default=45.0)
-    parser.add_argument('--timeout', type=float, default=80.0)
+    parser.add_argument('--timeout', type=float, default=100.0,
+                        help='RunBatch wall budget; the batch now also owns '
+                             'the ~16 s survey transit to the photo pose')
     args = parser.parse_args()
     rid = args.request_id.strip() or f'frozen_v2_{int(time.time())}'
 
@@ -190,6 +266,12 @@ def main() -> int:
         time.sleep(5.0)
         if not node.set_enables():
             return 1
+        # The mock spawns at the true photo pose (SRDF global_photo_pose via
+        # mock_initial_positions): no transit exists, the world stays live and
+        # no frame ever spans motion until the harvest freeze watcher.
+        node.watch_motion_freeze()
+        print('photo: arm spawns at the photo pose — survey anchors in place',
+              flush=True)
         if not node._run.wait_for_server(timeout_sec=10.0):
             print('run_batch ACTION_UNAVAILABLE', file=sys.stderr)
             return 1

@@ -15,7 +15,6 @@ from launch import LaunchDescription
 from launch.actions import (
     DeclareLaunchArgument,
     IncludeLaunchDescription,
-    SetEnvironmentVariable,
 )
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration
@@ -34,7 +33,8 @@ def generate_launch_description() -> LaunchDescription:
         'config', 'frozen_one_view.yaml')
     bag_default = os.environ.get('PEACH_FROZEN_BAG', '').strip() or _DEFAULT_BAG
     return LaunchDescription([
-        SetEnvironmentVariable('QT_QPA_PLATFORM', 'offscreen'),
+        # 不再强设 QT_QPA_PLATFORM=offscreen：它会破坏 rviz2 的 Ogre GLX 窗口句柄。
+        # 桌面测试保留 rviz 可视化；无头环境显式传 rviz:=false。
         DeclareLaunchArgument(
             'bag', default_value=bag_default,
             description='mcap bag directory with /camera/* (frozen frame)'),

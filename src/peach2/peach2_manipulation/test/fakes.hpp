@@ -71,6 +71,9 @@ public:
     if (r.kind == pm::PlanKind::NAMED) {
       goal = {0.5, 0.5, 0.5, 0.5, 0.5, 0.5};
       goal_pose.translation() = Eigen::Vector3d(0.3, 0.3, 0.3);
+    } else if (r.goal_joints) {
+      goal = *r.goal_joints;
+      goal_pose = r.tcp_goal;
     } else {
       goal = joints_of(r.tcp_goal);
       goal_pose = r.tcp_goal;
@@ -145,6 +148,12 @@ public:
     return validate_ok;
   }
   std::optional<std::vector<double>> current_joints() override {return joints;}
+  /// Canned seeded_ik: nullopt (default) exercises the pose-goal fallback path.
+  std::optional<std::vector<double>> ik_result;
+  std::optional<std::vector<double>> seeded_ik(const Eigen::Isometry3d &) override
+  {
+    return ik_result;
+  }
   std::optional<Eigen::Isometry3d> current_tcp() override {return tcp;}
   void stop() override {++stop_calls;}
   bool has_force_sensing() const override {return force_sensing;}

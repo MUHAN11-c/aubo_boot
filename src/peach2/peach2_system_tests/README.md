@@ -108,9 +108,40 @@ rviz2（offscreen）与 move_group 在 SIGINT 时的退出码不计入断言。
 真 `peach2_perception`，不用 harness 桩。mock 末端 IO，无真机 SetIO。域 82。需 GPU。
 整段墙钟 **180 s**，超时即失败并排查。
 
+**工具与意图：** 默认 `INTENT_FULL tool=bite_shear_v1`。
+**当前通过态（2026-10-09 终态）：仿真出生即真拍照位**——冻结 launch 经 `mock_initial_positions`
+（操作员授权的 xacro 参数化，缺省=原字面量）把 mock 六关节初值设为 SRDF `global_photo_pose`
+（真机示教拍照位；其值与 mock home 几乎逐位同，bag 亦在此位附近采集），无 home→photo 过渡，
+Survey 原地锚定，仅收获运动冻结回放。**真拍照位数据边界**：FULL 插入出可达球（袋 ~1.04 m、沿
+外向轴 19 cm 出球，预检 insert LIN 拒——§5.5 边界分析的数据佐证；FULL 需更近采集或底盘前移）；
+`--intent PREGRASP_ONLY` 为真拍照位通过档（mon14：cycle 21.2 s）。staging 分支连续（种子 IK）、
+关节目标 PTP 优先、选型期插入验证见 peach2_manipulation（197/197 绿）。
+
+**默认流程（spawn 即真拍照位，测试包只做监测）：**
+
+1. 栈就绪（臂已在 global_photo_pose，rviz2 真渲染）；
+2. 发 RunBatch；Survey 的 `MoveToNamed(photo_pose)` 原地空操作，锚定发生在真拍照位；
+3. 批跑进入抓取阶段（`BatchState.phase≥OBSERVING`）后首个运动暂停回放——冻结帧 × 实时腕 TF
+   否则会把模型沿臂拖跑（mon5 rev=45 为活体样本，收敛门拦截）；
+4. 全链执行（PREGRASP 档）；测完 pgrep 清残留（MUST；**勿连跑两轮全栈**——拆栈未净会相撞，
+   mon13 附带发现）。
+
+**已删除（2026-10-09 操作员裁定）：** photo-move 备用流整体移除——`--photo-move/--photo-* /
+--start-pose` 参数、`photo_move()`/种子运输逻辑、`scripts/photo_pose.py` 刚体运输、SRDF
+`frozen_photo_pose` 位形。该流从 home 出生并移动到计算拍照位，方向即错；真拍照位是
+`global_photo_pose`，仿真出生即在该位。历史机制记录见 docs/testing-log.md 与测试报告 §5.8/§5.12。
+
+**本轮发现并同轮修复的产品缺陷：** `peach2_manipulation` 的 `ModelCache` 只增不减——models 话题是
+全量快照，但缓存无视缺席 id，BeginScene epoch 清空模型库后同袋双胞胎 id（实测 `target_5`/`target_7`
+几何一字不差）的胶囊永久残留 PlanningScene 挡住插入；已改为按快照同步删除。
+**同轮产品改进（轨迹/稳定性）：** staging 种子 IK 分支连续（`goal_joints`+`seeded_ik`）、关节目标
+Pilz PTP 优先+OMPL 兜底、select_roll 选型期插入 LIN 验证（CONTACT 场景相）、自由规划有界重试——
+mon11 实测 staging 腕大摆消除（detour 全 1.00）。
+
 ```bash
 source /opt/ros/jazzy/setup.bash && source install/setup.bash
-ros2 run peach2_system_tests run_frozen_grasp.py
+ros2 run peach2_system_tests run_frozen_grasp.py --intent PREGRASP_ONLY   # 本数据通过档（cycle ~21 s）
+ros2 run peach2_system_tests run_frozen_grasp.py                          # FULL：本数据插入出可达球（预期 no_targets）
 # 测完复核（MUST）：
 pgrep -af 'ros2 launch|component_container|ros2 run|move_group|ros2_control_node|robot_state_publisher|peach2_|lifecycle_manager|frozen_camera'
 ```

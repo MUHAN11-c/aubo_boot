@@ -21,11 +21,15 @@
        → 缺 tcp 帧，启动即失败。 -->
   <xacro:arg name="tool_profile" default="adaptive_shear_v1"/>
   <xacro:property name="tool_profile" value="$(arg tool_profile)"/>
+  <!-- 2026-10-09 操作员授权：mock 六关节初值（shoulder..wrist3 逗号串），缺省=原字面量 -->
+  <xacro:arg name="mock_initial_positions"
+             default="0.425083,0.195177,1.677740,1.461739,-0.500161,0.038621"/>
 
   <xacro:aubo_e5_ros2_control
     name="AuboE5System"
     hardware_mode="$(arg hardware_mode)"
-    robot_ip="$(arg robot_ip)"/>
+    robot_ip="$(arg robot_ip)"
+    mock_initial_positions="$(arg mock_initial_positions)"/>
 
   <xacro:if value="$(arg include_table)">
     <xacro:aubo_e5_table parent="world"/>

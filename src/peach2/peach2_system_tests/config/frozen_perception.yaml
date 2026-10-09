@@ -47,6 +47,10 @@ detector:
 segmenter:
   model_path: $(find-pkg-share peach_harvester)/model/mobile_sam.pt
   imgsz: 1024
+  # max_boxes 1 was tried to drop the neighbour bag (two bags ~0.2 m apart in
+  # this scene) but breaks the detection chain entirely (no model at all);
+  # stay at the product 16 — the dense-planting collision rejection is a
+  # product-correct finding, see the test report.
   max_boxes: 16
   box_expand_frac: 0.10
   neg_point_offset_px: 8

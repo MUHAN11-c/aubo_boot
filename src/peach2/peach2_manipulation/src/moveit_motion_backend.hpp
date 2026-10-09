@@ -25,8 +25,13 @@ struct MoveItBackendConfig
   std::string free_planner_id;
   std::string linear_pipeline;
   std::string linear_planner_id;
+  /// Joint-space goals (NAMED / goal_joints) try this planner first: Pilz PTP
+  /// is deterministic monotone joint interpolation (detour 1.0 per joint, no
+  /// RRT wander between waypoints); OMPL stays the collision-detour fallback.
+  std::string ptp_planner_id{"PTP"};
   double planning_time_s{2.0};
   int planning_attempts{3};
+  double ik_timeout_s{0.1};
   double cartesian_max_trans_vel_mps{0.25};
   double wait_for_servers_s{30.0};
   double stop_grace_s{5.0};
@@ -48,6 +53,7 @@ public:
   ~MoveItMotionBackend() override;
 
   PlanResult plan(const PlanRequest & request) override;
+  std::optional<std::vector<double>> seeded_ik(const Eigen::Isometry3d & tcp_goal) override;
   ExecResult execute(const JointTrajectory & trajectory, const ExecOptions & options) override;
   bool validate(const JointTrajectory & trajectory, std::string * why) override;
   std::optional<std::vector<double>> current_joints() override;

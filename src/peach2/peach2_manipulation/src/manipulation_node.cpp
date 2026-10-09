@@ -6,6 +6,7 @@
 #include <functional>
 #include <future>
 #include <stdexcept>
+#include <set>
 #include <string>
 #include <utility>
 #include <vector>
@@ -85,12 +86,25 @@ double RosDecisionClient::now_s()
 void ModelCache::update(const peach2_interfaces::msg::TargetModelArray & msg)
 {
   std::lock_guard<std::mutex> lock(mutex_);
+  // The models topic is a full snapshot of the model store. Sync to it: ids
+  // absent from the latest array must be dropped, else records erased by a
+  // BeginScene epoch change (store.set_epoch clears everything) survive here
+  // forever and their capsules block later cycles as ghost twins.
+  std::set<std::string> present;
   for (const auto & model : msg.models) {
+    present.insert(model.target_id);
     auto g = geometry_from_msg(model);
     if (g) {
       models_[model.target_id] = *g;
     } else {
       models_.erase(model.target_id);
+    }
+  }
+  for (auto it = models_.begin(); it != models_.end(); ) {
+    if (present.count(it->first) == 0) {
+      it = models_.erase(it);
+    } else {
+      ++it;
     }
   }
 }

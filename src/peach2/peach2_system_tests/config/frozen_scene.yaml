@@ -32,7 +32,14 @@ max_depth_m: 1.5
 self_margin_m: 0.03
 target_margin_m: 0.05
 target_axial_margin_m: 0.05
-target_neck_overshoot_m: 0.09
+# Product 0.09 extends the capsule past the neck (forced corridor for L_blade).
+# The frozen bite throat guide reaches 0.23 m ahead of the TCP; at the
+# approach end pose (TCP 0.03 m below the bag bottom) the throat tip sits at
+# ~0.20 m above the bottom and overlaps the 0.09-overshoot capsule top
+# (~0.20 m) — tool_body_link x own-target capsule on every roll (verified in
+# runs frozen_v2_photo_full1..4 + cal runs). 0.03 keeps the capsule top at
+# ~0.14 m, clearing the throat by ~6 cm. Product yaml stays 0.09.
+target_neck_overshoot_m: 0.03
 hard_min_thickness_m: 0.19
 linearity_min: 0.5
 flat_thickness_max_m: 0.010

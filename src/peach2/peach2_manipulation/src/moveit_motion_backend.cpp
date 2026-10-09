@@ -117,13 +117,24 @@ PlanResult MoveItMotionBackend::plan(const PlanRequest & request)
   auto & group = *mgi_;
   group.clearPoseTargets();
   double velocity = request.velocity_scaling;
+  struct PipelineSpec
+  {
+    std::string pipeline;
+    std::string planner;
+    int attempts;
+  };
+  std::vector<PipelineSpec> pipes;
   if (request.kind == PlanKind::LINEAR) {
-    group.setPlanningPipelineId(config_.linear_pipeline);
-    group.setPlannerId(config_.linear_planner_id);
     velocity = request.linear_speed_mps / config_.cartesian_max_trans_vel_mps;
+    pipes.push_back({config_.linear_pipeline, config_.linear_planner_id, 1});
+  } else if (request.kind == PlanKind::NAMED || request.goal_joints) {
+    // Joint-space goal: Pilz PTP first (deterministic monotone interpolation —
+    // per-joint detour 1.0, no RRT wander), then OMPL as the fallback that can
+    // detour around obstacles (PTP only fails on a blocked direct joint path).
+    pipes.push_back({config_.linear_pipeline, config_.ptp_planner_id, 1});
+    pipes.push_back({config_.free_pipeline, config_.free_planner_id, 2});
   } else {
-    group.setPlanningPipelineId(config_.free_pipeline);
-    group.setPlannerId(config_.free_planner_id);
+    pipes.push_back({config_.free_pipeline, config_.free_planner_id, 2});
   }
   group.setMaxVelocityScalingFactor(clamp_scaling(velocity));
   group.setMaxAccelerationScalingFactor(clamp_scaling(request.acceleration_scaling));
@@ -156,6 +167,14 @@ PlanResult MoveItMotionBackend::plan(const PlanRequest & request)
       result.reason = "unknown_named_target:" + request.named_target;
       return result;
     }
+  } else if (request.goal_joints) {
+    // Branch-continuous staging: plan to the seeded IK solution, not a random
+    // OMPL goal sample (the wrist branch lottery).
+    if (!group.setJointValueTarget(*request.goal_joints)) {
+      result.failure_code = failure::PLAN_FAILED;
+      result.reason = request.label + ":joint_target_rejected";
+      return result;
+    }
   } else {
     geometry_msgs::msg::PoseStamped goal;
     goal.header.frame_id = config_.base_frame;
@@ -168,7 +187,24 @@ PlanResult MoveItMotionBackend::plan(const PlanRequest & request)
   }
 
   MoveGroupInterface::Plan plan;
-  const auto rc = group.plan(plan);
+  moveit::core::MoveItErrorCode rc = moveit::core::MoveItErrorCode::FAILURE;
+  for (const auto & pipe : pipes) {
+    group.setPlanningPipelineId(pipe.pipeline);
+    group.setPlannerId(pipe.planner);
+    for (int attempt = 1; attempt <= pipe.attempts; ++attempt) {
+      rc = group.plan(plan);
+      if (rc == moveit::core::MoveItErrorCode::SUCCESS) {
+        break;
+      }
+      RCLCPP_WARN(
+        node_->get_logger(), "%s: %s/%s plan attempt %d/%d failed (%s)",
+        request.label.c_str(), pipe.pipeline.c_str(), pipe.planner.c_str(), attempt,
+        pipe.attempts, moveit::core::errorCodeToString(rc).c_str());
+    }
+    if (rc == moveit::core::MoveItErrorCode::SUCCESS) {
+      break;
+    }
+  }
   group.clearPoseTargets();
   if (rc != moveit::core::MoveItErrorCode::SUCCESS) {
     result.failure_code = plan_failure_code(rc.val, request.kind);
@@ -191,6 +227,28 @@ PlanResult MoveItMotionBackend::plan(const PlanRequest & request)
   return finalize_plan(
     std::move(trajectory), start, request.kind, request.label, config_.at_goal_tolerance_rad,
     request.collapse_at_goal);
+}
+
+std::optional<std::vector<double>> MoveItMotionBackend::seeded_ik(
+  const Eigen::Isometry3d & tcp_goal)
+{
+  std::lock_guard<std::mutex> lock(mgi_mutex_);
+  auto state = mgi_->getCurrentState(1.0);
+  if (!state) {
+    return std::nullopt;
+  }
+  const auto * jmg = state->getJointModelGroup(config_.group);
+  if (!jmg) {
+    return std::nullopt;
+  }
+  // Seeded at the current state, the KDL solver converges to the nearest
+  // branch — exactly the branch continuity select_roll wants for staging.
+  if (!state->setFromIK(jmg, tcp_goal, config_.tip_link, config_.ik_timeout_s)) {
+    return std::nullopt;
+  }
+  std::vector<double> q;
+  state->copyJointGroupPositions(jmg, q);
+  return q;
 }
 
 ExecResult MoveItMotionBackend::execute(

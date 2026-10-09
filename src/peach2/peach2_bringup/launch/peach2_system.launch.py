@@ -82,6 +82,7 @@ def _setup(context: LaunchContext) -> list:
         'extrinsics_enabled': 'true',
         'hand_eye_enabled': 'false',
         'hand_eye_web_enabled': 'false',
+        'mock_initial_positions': arg('mock_initial_positions'),
     }))
     if camera_enabled:
         actions.append(_include('peach2_perception', 'perception.launch.py', {
@@ -101,7 +102,8 @@ def _setup(context: LaunchContext) -> list:
         'hardware_mode': hardware_mode, 'tool_profile': tool_id,
         'runs_dir': arg('runs_dir'),
         'lock_wait_s': arg('lock_wait_s'),
-        'observe_max_views': arg('observe_max_views')}))
+        'observe_max_views': arg('observe_max_views'),
+        'photo_pose': arg('photo_pose')}))
     actions.append(Node(
         package='nav2_lifecycle_manager',
         executable='lifecycle_manager',
@@ -142,6 +144,13 @@ def generate_launch_description() -> LaunchDescription:
             'moveit_enabled', default_value='true',
             description='start move_group (required by peach2_manipulation)'),
         DeclareLaunchArgument(
+            'mock_initial_positions',
+            default_value='0.425083,0.195177,1.677740,1.461739,-0.500161,0.038621',
+            description='mock joint spawn pose (shoulder..wrist3 comma list, rad); '
+                        'frozen-camera tests pass the SRDF frozen_photo_pose joints so '
+                        'the arm spawns AT the photo pose (2026-10-09 operator-'
+                        'authorised pass-through; default = original xacro literals)'),
+        DeclareLaunchArgument(
             'bond_timeout', default_value='4.0',
             description='nav2 lifecycle_manager bond timeout [s]; 0 disables bond'),
         DeclareLaunchArgument(
@@ -162,6 +171,10 @@ def generate_launch_description() -> LaunchDescription:
         DeclareLaunchArgument(
             'observe_max_views', default_value='3',
             description='peach2_task ObserveTarget.max_views; frozen-camera tests set 1'),
+        DeclareLaunchArgument(
+            'photo_pose', default_value='global_photo_pose',
+            description='SRDF survey pose for peach2_task; frozen-camera tests '
+                        'point this at frozen_photo_pose'),
         DeclareLaunchArgument(
             'tool_description_dir', default_value='',
             description='peach2_manipulation tool yaml dir; empty = '

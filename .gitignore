@@ -130,3 +130,7 @@ src/peach_sim/reconstruction/output/modeling_*/
 src/peach_sim/reconstruction/output/blender_tutorial/
 src/peach_sim/reconstruction/output/**/*.exr
 src/peach_sim/reconstruction/matrix/
+
+# 会话 bag 二进制留本地（jazzy 分支政策：runs 文本层入库）；peach_sim 重建生成物不入库
+runs/*/bag/
+src/peach_sim/reconstruction/output/

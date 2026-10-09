@@ -1,0 +1,70 @@
+{
+ "counts": {
+  "attempted": 1,
+  "discovered": 1,
+  "failed": 0,
+  "plan_only": 0,
+  "skipped": 0,
+  "succeeded": 1
+ },
+ "discovered_ids": [
+  "target_3"
+ ],
+ "finished_utc": "2026-10-09T02:37:48.261023Z",
+ "intent": "PREGRASP_ONLY",
+ "policy": {
+  "empty_survey_limit": 2,
+  "max_targets": 1,
+  "per_target_timeout_s": 70.0,
+  "target_harvest_ratio": 0.0
+ },
+ "reachability": {
+  "target_3": {
+   "failure_code": 0,
+   "failure_name": "NONE",
+   "reachable": true,
+   "reason": "planned"
+  }
+ },
+ "request_id": "frozen_v2_pregrasp3",
+ "scene_epoch": 1,
+ "schema": "peach2_task/ledger/2",
+ "started_utc": "2026-10-09T02:37:15.169079Z",
+ "target_list": [],
+ "targets": [
+  {
+   "attempts": 1,
+   "axial_margin_m": 0.0075645946644741086,
+   "cycle_time_s": 26.319863294000243,
+   "failure_code": 0,
+   "failure_name": "NONE",
+   "finished_utc": "2026-10-09T02:37:47.721059Z",
+   "model_revision": 1,
+   "outcome": "SUCCEEDED",
+   "plan_only": false,
+   "policy": "NONE",
+   "radial_margin_m": 0.05110878655873038,
+   "reached": "PREGRASP",
+   "reason": "",
+   "recovery_required": false,
+   "rework_kind": "",
+   "stage_names": [
+    "TRANSIT_STAGING",
+    "APPROACH_PREGRASP",
+    "VERIFY_PREGRASP",
+    "RETREAT"
+   ],
+   "stage_times_s": [
+    16.11545402699994,
+    5.074859475000267,
+    0.004517571000178577,
+    5.07539666699995
+   ],
+   "started_utc": "2026-10-09T02:37:21.401193Z",
+   "target_id": "target_3",
+   "tool_id": "bite_shear_v1"
+  }
+ ],
+ "termination_reason": "max_targets",
+ "tool_id": "bite_shear_v1"
+}

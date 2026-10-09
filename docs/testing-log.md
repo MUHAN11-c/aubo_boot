@@ -1594,3 +1594,137 @@ max_depth_m 截断无效（0.80 颈部仍 1.11 m；0.76 掩膜饿死无模型）
 is_active 偶发超时复跑即绿，与改动无关）；脚本 py_compile 过、改动 yaml 均合法。
 测后 pgrep 无残留。账本/补采清单随仓推送（runs/frozen_v2_bite3|bite5|pregrasp1）。
 
+
+## 2026-10-09（下午）冻结相机 FULL 全链打通：拍照位语义修正 + 两处产品缺陷修复 + 两侧全栈复核
+
+**背景**：操作员指出录制图像中两袋相距较远均可抓，推翻上午"密植 0.2 m"定案；复测更正并打通 v2 FULL。
+
+**病根更正（图像实测 + 模型轨迹实录）**：第 70 帧恰两袋，像素距 283 px≈0.45 m（fx=466.2、z≈0.75 m），
+两袋模型均正常收敛。真正病根=**运动期间回放流 × 实时腕 TF 的模型漂移**：机械臂运动时每帧把同一冻结图
+重新锚到不同世界位置，模型沿臂轨迹涂抹（target_3/4 rev1→16+ 实录），邻袋弱模型胶囊追臂产生假碰撞、
+目标袋漂出可达区产生假 NO_IK。stow/full 轮的"密植碰撞"与"插入不可达"均系此伪象。
+
+**修复与机制（v2 测试路径）**：`frozen_camera_replay` 加 `~/pause`（std_srvs/SetBool）与
+`--start-paused`；driver `--photo-move` 全流程=stow 流式锚定（全精度轴向——拍照位贴可达边界，两位
+小数舍入即翻 IK）→ 暂停回放过渡 MoveTo 拍照位（无帧无漂移；规划失败重试一次）→ 到位恢复、重锚定
+（实测 0 mm）→ SRDF 新增具名位形 `frozen_photo_pose`（关节值捕获自落点），`photo_pose` 参数
+（peach2_task/peach2_bringup/冻结 launch 三层透传）令批跑 Survey 原地感知 → 抓取阶段首运动再冻结
+（BatchState.phase≥OBSERVING 门控 + 关节偏差 2 mm 触发）→ 全链执行。
+
+**产品缺陷 1（已修）**：`peach2_manipulation` ModelCache 只增不减——models 话题为全量快照，缓存无视
+缺席 id；BeginScene epoch 清库后同袋双胞胎 id（target_5/7 几何一字不差）胶囊永久残留 PlanningScene
+挡插入。已改按快照同步删除（manipulation_node.cpp），peach2_manipulation 194/194 绿。
+**产品缺陷 2（定位，留改进）**：插入 LIN 种子=approach 末端关节（harvest_cycle.cpp:453），分支由
+OMPL 手气决定；插入失败直接 SKIPPED 不回滚重选滚转（:456-458）。修复后 6 轮 3 过（50%），失败全型
+=循环内 foreArm×wrist2/camera_body 腕自碰；预检期自袋/桌面碰撞为设计内保守（排除仅 CONTACT 期生效，
+manipulation_node.cpp:860）。
+
+**通过态**：v2 FULL 全链 **pass2/6/7**（reached=RELEASED，11 段全走，cycle 49.9–63.6 s，全程
+79–96 s ≪ 180 s 门；余量 axial 7.2–19.7 mm 随决策取 rev1/rev2 波动）。v1 全栈复跑 frozen_v1_deep1
+通过（target_2 九检查点，47.3 s）；v1 暴露面：回放节点无 pause，靠"邻袋在跟踪未建模"侥幸通过；
+感知 worker 满队丢帧累计 20（2 Hz 处理极限量化）；moveit.velocity_scaling 参数告警 ×2。
+
+**核对（AGENTS 改后 8 条）**：受影响包 colcon test——manipulation 194/194、system_tests 功能测
+26/26（flake8/pep257 红为 HEAD 预存风格项，本轮真差量 1 处 E306 已修）、task/bringup/moveit_config
+194+27+6 全绿；IDL 未动（manifest 不涉及）；图无重复节点/TF 无叠帧（起栈日志复核）；mock 起+lifecycle
+Active+测后 pgrep 全域干净（两侧多轮）；ros2 doctor 4/4 过；活文档同轮——docs/testing.md 冻结节
+v2 判定由"FULL 无法规划"更新为"--photo-move FULL 全链通过档"（含流程/通过态/抖动注记），
+peach2_system_tests README 同步，详析入 plans/冻结相机全流程测试/测试报告.md §5.8–§5.9。
+C++ 改动后 compile_commands 已随构建更新（Clangd 需手动 Restart）。
+
+**附（rviz2 崩因修复与可视化存证，同日）**：操作员质询发现历轮"完整起栈"里 rviz2 实际每次
+GLX `Invalid parentWindowHandle`×100 后 exit −6——桌面本有 `DISPLAY=:0`，但 v1/v2 冻结 launch
+（`SetEnvironmentVariable`）与两侧 `run_frozen_grasp.py`（子进程 env）共四处强设
+`QT_QPA_PLATFORM=offscreen`，Ogre GLX 在离屏 Qt 平台拿不到窗口句柄。四处 offscreen 全部移除
+（launch_testing harness 里的保留——CI 无头语义正确）；`aubo_e5_moveit_config/launch/moveit.launch.py`
+增 `rviz` 参数（默认 true，IfCondition；无头直起该文件可 `rviz:=false`；经 bringup 链不透传，
+MUST 只读不动 bringup）。存证轮 `frozen_v2_photo_rviz3 --photo-move`：rviz2 真 OpenGL 4.6 渲染、
+窗口 t+6~78 s 全程存活、零 GLX 报错，批跑同步 **FULL 通过**（succeeded=1、93.6 s）——"带活 rviz
+的完整全流程测试"成立；13 帧阶段截图存 `plans/冻结相机全流程测试/截图/rviz_run_*.png`。通过率
+更新：修复后全流程 12 轮 7 过（58%），失败全型不变（插入分支腕自碰）。详析见测试报告 §5.10。
+
+**附二（数据/日志/反馈全量复盘，同日晚）**：对 52 个冻结运行目录账本（48 目标行）+14 份存活整栈日志
++v1 全量 perception_data 做统计复盘（详析入测试报告 §5.11）。要点：(1) **失败纪元位移**——pause 前
+7 轮死于预检 `check_reachability`（attempted=false），pass1 死于预检被双胞胎胶囊挡，pass 纪元 5 轮
+attempted=true 死于循环内 insert：修复链每环都在数据里可见；(2) **感知实质确定性**——v2 决策余量族内
+抖动 ≤5 µm、v1 同袋 10 轮几何逐位相同，通过率掷硬币定位于 approach IK 分支而非感知；(3) **staging
+二模态**（核心新发现）——TRANSIT_STAGING 失败轮全 6.8–6.9 s/通过轮全 13.6–17.7 s，12 轮完美分离，
+insert 失败最小修复=重试时扰动 IK 种子换分支（较 §5.9-C 的重选滚转建议更小改动）；(4) 节拍定量——
+APPROACH 5.03 s/INSERT 9.89 s/RETREAT 14.63 s 恒定（Pilz 剖面 50/15.2/27 mm/s 有效速度），变异只在
+两段 OMPL 自由空间过渡；(5) 日志聚类——`glx_parent=100`/轮×14（rviz 崩溃定量）；通过轮也带 10–14
+次规划失败+6 次 OMPL goal-tree 采样失败（t+4~t+9 s，边界区采样难的运行时表现）；慢性
+`validate_workspace_bounds`×27–31/轮 值得配置修正；(6) v1 事件流 2 Hz、30 s 窗 55–60 帧仅 2 帧入重建
+（锁定门节拍 1:30 量化）。
+
+**附三（mon1 全程监测轮，同日）**：带实时监测跑一轮 v2 `--photo-move` FULL（frozen_v2_mon1）：t+14s
+栈起/rviz OpenGL 4.6 存活；t+29s 拍照位链全绿（锚定 synced=13 processed=13 drops={} tf_failures=0、
+photo move 一次过、落点偏差 ≤0.0015 rad、重锚定、回放冻结 0.0032 rad 触发、2 目标成模）；t+44s
+target_7 选中、staging 1s 内开跑；终局 **通过**（RELEASED，cycle 67.0 s / drive 96.2 s / exit 0），
+rev1 7.2 mm 风险族走远档 staging 18.9 s——二模态规则更新 **近档 0/5 过、远档 8/8 过**，累计 13 轮
+8 过（62%）。栈健康：GLX 0、ERROR 行 0、OMPL goal-tree 采样失败 0、workspace_bounds 28（慢性不变）；
+测后 pgrep 干净。
+
+**附四（mon2 桌面可见轮，同日）**：操作员质询"未见程序启动"——mon1 为后台 shell 启动，桌面无终端、
+rviz 窗口仅存活 ~95 s 且测后按 MUST 拆净，事后看屏幕必空。改 gnome-terminal 可见方式重跑
+frozen_v2_mon2：桌面双窗（测试控制台日志滚动 + rviz2 六轴臂实时构型，31 fps），三张时点桌面截图
+`plans/冻结相机全流程测试/截图/mon2_desktop_t{25,52,82}.png` 目检在屏。结果**通过**（RELEASED，
+rev1/7.2 mm 远档 staging 15.9 s，cycle 61.1 s，drive 91.4 s，exit 0）——二模态规则收口
+**近档 0/5、远档 9/9**，累计 14 轮 9 过（64%）。测后终端包装进程按 PID 清净、pgrep 复核干净。
+
+**附五（mon3 完整抓取轮，同日）**：操作员指定再跑一轮完整抓取（frozen_v2_mon3，桌面可见双窗，
+截图 `mon3_desktop_t{25,52,80}.png`）。**通过**：RELEASED、cycle 50.9 s、drive 83.2 s、exit 0；
+远档 staging 14.62 s（中途快速打印曾误读 6.4 s 为近档——实为 TRANSIT_RELEASE，逐段精确值复核后
+更正）。二模态规则**近档 0/5、远档 10/10**，累计 15 轮 10 过（67%）。测后 pgrep 干净。
+
+**附六（启动默认=拍照位，同日晚）**：应操作员要求把启动位姿默认改为拍照位。`drive_frozen_grasp.py`
+新增默认 `--start-pose photo`：就绪后先暂停回放（任何感知前世界冻结）→
+`MoveTo(named_target='frozen_photo_pose')`（MoveTo 动作原生 named_target，关节空间目标）→ 到位恢复
+→ Survey 原地一次锚定——砍掉旧三步（stow 锚定/photo_tcp_pose 计算拍照 TCP/重锚定门）；旧流保留为
+`--start-pose stow --photo-move`。共用发送逻辑抽 `_move_with_retry`。run 脚本同步透传并在
+start-pose=photo（默认）或 --photo-move 时附 `photo_pose:=frozen_photo_pose`。验证轮 frozen_v2_mon4
+（桌面可见）：命名移动一次规划成功、落点偏差 ≤0.0001 rad、**FULL 通过**（RELEASED，cycle 65.6 s，
+drive 93.9 s；远档 staging 19.08 s——二模态规则近档 0/5、远档 11/11，累计 16 轮 11 过 69%）；
+规划失败面收窄 MGI 5–14→2、OMPL goal-tree 6→0、ERROR 0、GLX 0；flake8 无新增 E 级（I/D 预存类）；
+testing.md / README / 测试报告 §5.12 同轮更新；测后 pgrep 干净。
+
+**附七（启动位姿终态：产品 Survey 自主过渡 + 轨迹取证，同日晚）**：操作员裁定测试包只做编排监测、
+移动归产品栈。核验行为树 `Survey=MoveToNamed(photo_pose)→BuildSceneSnapshot→BeginScene→锁定`
+（严格顺序、移动在前、帧只在到位后需）后重构默认流：drive 暂停回放→发 RunBatch→产品自主过渡→
+`arm_arrival_watch`（离 home+静止 1 s）恢复→原地锚定→`watch_motion_freeze` 抓取首运动再冻结。
+三轮演进各留数据教训：mon5 `MODEL_NOT_CONVERGED` rev=45（漏搬看护，observe 移动期帧流入逐帧改写
+模型——§5.8 漂移活体，收敛门拦截）；mon6 CANCELED（80 s 收获预算装不下过渡 16 s+cycle 63 s，
+预算 80→100 s）；**mon7/mon8 通过**（RELEASED 78.9/79.5 s，rev=1）。mock initial_value 为 MUST 只读
+xacro 字面量，"spawn 即拍照位"需授权改 MUST（已问询，操作员选择产品自主过渡路线）。
+**轨迹取证**（mon8 录 /joint_states 200 Hz）：操作员目视"轨迹很奇怪"——量化定位于**到 staging 的
+OMPL 过渡腿**（shoulder 出 22° 原路回、detour 16 倍；foreArm 2.5 倍 1 换向；wrist1 1.36 倍），叠加
+home↔photo 位姿对固有腕摆（wrist1≈185°/wrist3≈172°，截图目检腕 90°+ 扭转）；接触四段（approach/
+insert/retreat/release）全部 detour 1.00 零换向（Pilz LIN 干净）。功能无碍（全臂碰撞受检），观感=
+OMPL 关节路径常态；顺滑方向=Pilz PTP 自由过渡或加重定时（产品决策）。详析测试报告 §5.12–§5.13。
+
+**附八（轨迹优化三修复+出生即拍照位+真拍照位裁定，2026-10-09 深夜）**：操作员两轮质询
+（"轨迹很奇怪"→"还在旋转后退"→"真拍照位是默认那个"）驱动的产品修复与裁定收口：
+(1) **staging 分支连续**（`goal_joints`+`seeded_ik` 当前态种子 KDL）+ **关节目标 Pilz PTP 优先**
+（OMPL 兜底）+ **选型期插入验证**（CONTACT 场景相逐候选验 LIN，首个通过者胜出，全败回退）
++ 规划有界重试——peach2_manipulation 197/197 绿；mon11 实测 photo→staging 腕大摆+过冲回摆
+消除（wrist1 detour 1.30→1.00，-0.88 rad 单调）。(2) **出生即拍照位**：操作员授权 MUST 参数化
+（`aubo_e5.ros2_control.xacro` `mock_initial_positions`，缺省=原字面量，**无参展开与 HEAD 逐字节
+等价已证**；bringup/peach2_system/冻结 launch 透传；授权记录在文件注释）；mon12 零过渡 69.6 s
+通过；drive 简化为仅收获运动冻结看护。(3) **真拍照位裁定**：frozen_photo_pose 系测试反推位
+弃用（SRDF 留研究记录）；真拍照位=SRDF `global_photo_pose`（真机示教，关节值与 mock home 几乎
+逐位同）——冻结 launch 改传其六关节。mon13/14 数据：真位锚定正常（余量 7.6/51.1 与历史逐位同）、
+**FULL 插入出可达球**（预检拒，与 §5.5 边界 1.058✓/1.102✗ 一致——数据边界发现：当前 bag 在
+~1.04 m，FULL 需近拍或底盘前移）、**PREGRASP_ONLY 通过**（cycle 21.2 s，staging 11.05 s）。
+附带发现：连跑两轮全栈会在拆栈未净时相撞（rviz2 SIGABRT 残留/apport 收尸、次轮栈未就绪）——
+保持单轮制+测后 pgrep。详析测试报告 §5.14。
+
+**附九（photo-move 备用流彻底删除 + 用户数据包核验，2026-10-09 夜）**：操作员三轮质询收口
+（"为什么又旋转"→"拍照位不是已定好吗"→"photo-move 备用流完全删除，这就是个错的"）：
+(1) 旋转源=mon17 我为绕数据边界重启用 photo-move（home 出生→计算拍照位大过渡）——即停；
+(2) 拍照位终态不变：`global_photo_pose`，仿真经 `mock_initial_positions` 出生即该位；
+(3) **photo-move 流整体删除**：drive 的 `photo_move/_move_with_retry/--photo-move/--photo-*/--start-pose`
+与 MoveTo/BeginScene/tf2 客户端、run 脚本透传、`scripts/photo_pose.py` 刚体运输、SRDF
+`frozen_photo_pose` 位形全部移除；flake8 无 E 级、重建绿。用户数据包核验
+（`peach_camera_sim_20260930.tar.gz`）：stereo_10s 与工作区默认 bag **同源**（起始时间戳/729 消息数
+逐位同）、10 s/146 帧全静态（帧差 0.82=噪声）、邻袋更远更小（图像实测，排除"选错袋"假设）——
+真拍照位 FULL 出球维持定论（mon15 用户数据路径复现 24.9 s）。**mon18 删除后默认流验证通过**
+（PREGRASP，cycle 21.3 s / 全程 41.8 s ≪ 180 s 门，exit 0）。testing.md/README/SRDF 同轮对齐。

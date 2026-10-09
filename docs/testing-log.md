@@ -1575,3 +1575,22 @@ pytest 80（含 8 红转绿）、peach2_manipulation gtest 114（111+3 新增）
 774704 属其在途工作，已报告未动。P5 的三活文档更新避让并行轮在途改动，归所有者
 会话收口；`peach2_scene/README` ACM 表述已与 manipulation README 统一（目标袋阶段
 移除、非 ACM）。
+
+## 2026-10-09 v2 冻结相机 bite 轮收口：照片位姿 FULL 不可达定案，PREGRASP_ONLY 全流程跑通
+
+**轮次**（stereo_10s bag、frame 70、tool bite_shear_v1、mock 臂）：frozen_v2_bite3 /
+bite5 两轮 FULL 均 `PLAN_CARTESIAN_INCOMPLETE(33)`（insert 段规划失败）——照片位姿
+自袋轴向上看，融合颈部 1.11 m 超该位姿 ~1.05 m IK 天花板，且 depth_split 使
+max_depth_m 截断无效（0.80 颈部仍 1.11 m；0.76 掩膜饿死无模型），max_depth_m 回退
+产品值 1.5、FULL 不可达记为测试发现（frozen_perception.yaml 注释；c3f26a0 曾随并行
+在途编辑短暂带入 0.80 中间态，本轮回退）。轴向分箱 n_bins_3d 12→6 / taper 0.85→0.60
+为测试旋钮把颈部估计拉回可达域（产品 yaml 保持 12/0.85）。`drive/run_frozen_grasp.py`
+增加 `--intent FULL|PREGRASP_ONLY` 贯通；**frozen_v2_pregrasp1** 以 PREGRASP_ONLY
+1/1 SUCCEEDED（TRANSIT_STAGING→APPROACH_PREGRASP→VERIFY_PREGRASP→RETREAT 共
+19.0 s，径向余量 0.051 m / 轴向 0.0076 m，rework 空）。bite_shear_v1.yaml L_blade
+注释与回退后的 frozen_perception 对齐（原注释引用已放弃的截断方案）。
+
+**验证**：peach2_system_tests 构建过，colcon test 47/47 绿（bringup_mock 早前一轮
+is_active 偶发超时复跑即绿，与改动无关）；脚本 py_compile 过、改动 yaml 均合法。
+测后 pgrep 无残留。账本/补采清单随仓推送（runs/frozen_v2_bite3|bite5|pregrasp1）。
+

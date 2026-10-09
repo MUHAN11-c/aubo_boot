@@ -8,13 +8,11 @@ frame_id: base_link
 camera_frame: camera_color_optical_frame
 depth_unit_m: 0.00025
 min_depth_m: 0.3
-# The photo pose looks up the bag axis: the neck end is FARTHER in camera z than
-# the bottom. Measured IK ceiling on this pose is ~1.05 m from base and the
-# fused neck lands at 1.11 m, so a reach-to-neck insert cannot plan. Capping the
-# camera-z range trims the far (neck) end of the point cloud and shortens the
-# estimated bag — the test-only equivalent of v1's cut-at-the-mouth recipe.
-# Product yaml stays 1.5.
-max_depth_m: 0.80
+# depth_split keeps a near layer under any cap here: 0.80 leaves the fused neck
+# at 1.11 m, 0.76 starves the mask of depth (no model). The photo-pose x
+# reach-to-neck mismatch is recorded as a test finding instead; PREGRASP_ONLY is
+# the completing full-flow run on this data. Product yaml stays 1.5.
+max_depth_m: 1.5
 min_confidence: 0.5
 confidence_match_tol_s: 0.005
 sync_slop_s: 0.05

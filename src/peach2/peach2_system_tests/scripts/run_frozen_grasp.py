@@ -129,6 +129,8 @@ def main() -> int:
     parser.add_argument('--request-id', default='')
     parser.add_argument('--tool-id', default='bite_shear_v1',
                         help='mounted tool (must match a frozen_tools/<id>.yaml)')
+    parser.add_argument('--intent', default='', choices=('', 'FULL', 'PREGRASP_ONLY'),
+                        help='override the driven RunBatch intent (default FULL)')
     parser.add_argument('--timeout', type=float, default=WALL_S,
                         help='whole-run wall clock seconds (default 180)')
     parser.add_argument(
@@ -195,6 +197,8 @@ def main() -> int:
         ]
         if args.request_id:
             drive_cmd.extend(['--request-id', args.request_id])
+        if args.intent:
+            drive_cmd.extend(['--intent', args.intent])
         drive_proc = subprocess.Popen(drive_cmd, env=env, start_new_session=True)
         try:
             code = drive_proc.wait(timeout=max(5.0, remaining() - 8.0))

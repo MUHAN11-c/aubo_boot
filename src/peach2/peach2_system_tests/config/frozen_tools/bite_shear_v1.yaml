@@ -11,6 +11,11 @@ geometry_m:
   D_inner: 0.250
   D_outer: 0.300
   L_insert: 0.150
+  # tcp_for_blade puts the TCP goal L_blade along the bag axis beyond the neck
+  # (product 0.037). On the stereo_10s photo pose the fused neck sits at 1.11 m
+  # vs the ~1.05 m IK ceiling (see frozen_perception.yaml), so the blade goal
+  # is out of reach and FULL cannot plan on this data; PREGRASP_ONLY is the
+  # completing run. Value stays at the product 0.037.
   L_blade: 0.037
   body_length: 0.260
   body_radius: 0.090

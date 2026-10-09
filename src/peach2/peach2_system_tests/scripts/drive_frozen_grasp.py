@@ -167,6 +167,9 @@ def main() -> int:
     parser.add_argument('--request-id', default='',
                         help='batch id (default frozen_v2_<unix>)')
     parser.add_argument('--tool-id', default='bite_shear_v1')
+    parser.add_argument('--intent', default='FULL', choices=('FULL', 'PREGRASP_ONLY'),
+                        help='FULL needs the blade goal inside the pose reach sphere; '
+                             'PREGRASP_ONLY completes at the pregrasp stop')
     parser.add_argument('--ready-timeout', type=float, default=45.0)
     parser.add_argument('--timeout', type=float, default=80.0)
     args = parser.parse_args()
@@ -192,11 +195,12 @@ def main() -> int:
             return 1
         goal = RunBatch.Goal()
         goal.request_id = rid
-        goal.intent = RunBatch.Goal.INTENT_FULL
+        goal.intent = (RunBatch.Goal.INTENT_FULL if args.intent == 'FULL'
+                       else RunBatch.Goal.INTENT_PREGRASP_ONLY)
         goal.tool_id = args.tool_id
         goal.max_targets = 1
         goal.per_target_timeout_s = 70.0
-        print(f'goal: request_id={rid} INTENT_FULL tool={args.tool_id}',
+        print(f'goal: request_id={rid} INTENT_{args.intent} tool={args.tool_id}',
               flush=True)
         send = node._run.send_goal_async(goal)
         if not _wait(send.done, 15.0, 0.05):

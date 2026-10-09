@@ -73,7 +73,9 @@ python3 -m pytest -q -p no:cacheprovider --import-mode=importlib \
   src/peach_common/test/test_param_rules.py \
   src/peach_common/test/test_paths.py \
   src/peach_common/test/test_qos.py \
-  src/peach_common/test/test_lifecycle.py
+  src/peach_common/test/test_lifecycle.py \
+  src/peach_common/test/test_event_meter.py \
+  src/peach_common/test/test_ros_log_bridge.py
 
 python3 -m pytest -q -p no:cacheprovider --import-mode=importlib \
   src/peach_harvester/test/test_view_policy.py \

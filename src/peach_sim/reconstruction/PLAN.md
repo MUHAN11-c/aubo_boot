@@ -171,3 +171,14 @@ HEAD旧图、v8与真实Peach_bag：球形贴果外壳、重凹凸条纹、特�
 内果离底 22 mm（推断余纸，不是实测），袋高护栏随之增加；截面改为
 薄侧边透镜形，底部沿内果切线展开，保留原果径和包容性校验。
 只更新独立三袋资产，正面/侧面/斜视核验；旧整园渲染明确为历史 v9。
+
+## 2026-10-09 无草视口轻量场景开关
+
+用户反馈整园 .blend 在 Blender 视口交互极卡（单核 depsgraph 跑满，GPU 13%），
+且确认地表草不需要。build_scene.py 增加 --no-grass：跳过
+'Groundcover / curved tufts'（约 2.9 万簇弯曲草叶，地表几何大头），保留
+'Orchard ground' 土面、枯叶与土块；area/rng 固定种子计算移出条件块，
+默认带草路径逐字节不变（manifest 增记 groundcover_grass 布尔）。
+纯核 pytest 33/33；validation 小场景无头重建核验：manifest false、
+对象级无 tufts、142M vs 同版带草 160M。契约 output/ 与 field_anchor
+不动；field 无草版另存 output/field_no_grass_20261009/。

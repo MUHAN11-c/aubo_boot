@@ -1,7 +1,7 @@
 # 显式开一批采摘。唯一开批开关；launch 绝不自动发本动作。
 # 动作：/peach_supervisor/run_harvest
 # 服务端：peach_supervisor    客户端：人工（监控 Web 默认不发）
-# intent 取值见 JobIntent（本文件不重复常量，须与其对齐）。
+# intent 取值见本文件 INTENT_* 常量（JobIntent 已删，此处为唯一权威）。
 # Result.success 至少成功一颗为 true。
 
 # === Goal ===
@@ -18,7 +18,7 @@ uint8 VIEW_CONSERVATIVE=1      # 现行多视观察循环（原值）
 string request_id              # 本批请求 ID，同时作账本目录名；须唯一
 string scene_key               # 场景键，传给 BeginScene / SurveyScene；换键=换场清身份
 string profile_id              # 参数剖面 ID（现行执行器未消费）
-uint8 intent                   # JobIntent：PICK_ALL=0 / PICK_SELECTED=1 / SURVEY_ONLY=2
+uint8 intent                   # INTENT_*：PICK_ALL=0 / PICK_SELECTED=1 / SURVEY_ONLY=2
 uint8 selection_mode           # AUTO / MANUAL（预留；现行看 target_ids 是否非空）
 string[] target_ids            # 可选允许列表；空=不限定。PICK_SELECTED 时使用
 float64 target_harvest_ratio   # 0..1 目标采收率；0=不限（阶段 3 消费）

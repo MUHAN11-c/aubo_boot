@@ -1355,3 +1355,74 @@ v2 末端插件将刀口偏移、roll、prepare/cut/confirm/release 集中，值
 加固与勘定：fusion 视点尺度下限 1 mm（精度权重上限 1e6，防单视点劫持 Huber 均值）；`_regularized` 特征值裁剪保证下游全正定；landmarks3d d95 空选集回退全云（更大 d95 只缩余量，fail-safe 方向）；`fuse_job` 的 min_views 改传 params（去硬编码，部署值 1 无行为差）。边界 gtest 教训：等值边界须用二进制可精确表示值（0.5/4.0 s）——`10.0+0.3` 的双精度差是 0.3000000000000007，会把「等值仍开门」的断言写歪。
 
 ---
+
+## 源码架构图重绘记录（2026-10-09）
+
+本次按工作区源码静态核对后绘制四张独立架构图。硬件图描述源码中可确认的机械结构、驱动通信和安全边界，不充当现场电气接线图；软件图描述主要职责、算法、接口及启动范围，不充当完整运行时 ROS graph。所有图均输出 PNG（插文档）、SVG（缩放查看）、PDF（打印）与 DOT（编辑）格式，重绘命令：`python3 docs/images/render_peach_architecture.py`，依赖系统 Graphviz 与 Noto Sans CJK SC 字体。
+
+- [v1 硬件架构图](images/peach_v1_hardware.svg)：固定座、六轴机械臂、腕载相机、三种可换末端、柜体 IO、安全回路与条件 IMU 支路。
+- [v1 软件架构图](images/peach_v1_software.svg)：brain 同进程三节点、显式 FSM、ICP/TSDF 重建、peach_arm 运动、场景快照、条件 Servo 支路及 8090 观测。
+- [v2 硬件架构图](images/peach_v2_hardware.svg)：复用同一硬件；独立反馈、力传感与 IMU 的接入状态以虚线说明，不假定新增器件已经落地。
+- [v2 软件架构图](images/peach_v2_software.svg)：BT 任务、单帧感知、多视点 Huber 模型融合、许可预算、分层场景、单一命令门、进程内末端插件与只读驱动。
+
+源码依据（图中模块按以下实现核对，后续重绘应重查）：
+
+- v1 整栈：`src/peach_bringup/launch/harvest_system.launch.py`；brain：`src/peach_harvester/peach_harvester/brain.py`；调度：`src/peach_harvester/peach_harvester/supervisor/executor_node.py`、`harvest_fsm.py`。
+- v1 算法：`src/peach_harvester/peach_harvester/vision/scene_perception/inference.py`、`vision/target_reconstruction/target_reconstruction_node.py`；执行：`src/peach_arm/src/manipulation_skills_node.cpp`。
+- v2 整栈：`src/peach2/peach2_bringup/launch/peach2_system.launch.py`；任务树：`src/peach2/peach2_task/trees/harvest_batch.xml`。
+- v2 感知与模型：`src/peach2/peach2_perception/peach2_perception/perception_node.py`、`detector.py`、`segmenter.py`；`src/peach2/peach2_target_model/peach2_target_model/{store,decision,target_model_node}.py`；`src/peach2/peach2_core/peach2_core/fusion.py`。
+- v2 场景与执行：`src/peach2/peach2_scene/peach2_scene/{scene_node,scene_core}.py`；`src/peach2/peach2_manipulation/src/{manipulation_node,harvest_cycle,command_gate}.cpp`、`moveit_motion_backend.hpp`。
+- v2 末端：`src/peach2/peach2_end_effector/plugins.xml`、`src/{aubo_io_backend,cutter_end_effector,tool_state_machine}.cpp`；独立观测入口：`src/peach2/peach2_observability/launch/observability.launch.py`，端口依据其 `config`。
+- 共用硬件：`src/aubo_description/urdf/aubo_e5.urdf.xacro`、`components/camera.xacro`、三种 `tcp_*` xacro；`src/aubo_e5_bringup/launch/bringup.launch.py`。相机网格注释为 PS800-E1，不能据此推定所有部署使用完全相同相机。
+
+关键勘定：v1 `_include` 没有 scoped GroupAction，v2 使用 scoped GroupAction；v1 serial_imu 由 imu_enabled 控制，imu_follow 由 adaptive 工具条件控制；v2 整栈未 include 两者；v2 observability 有独立启动文件但整栈未 include；v2 scene 与 manipulation 分别写环境障碍和 `peach_bag_*`；力传感后端目前返回 false。三工具标定与真机产品验收边界沿用源码/已有记录，图的生成不新增通过结论。
+
+验证：四张图已成功导出四种格式并逐张目视检查中文、图例、节点范围与安全链路；未运行 ROS、未运动或 SetIO。旧图保留，避免破坏既有引用。
+
+### 架构图表达修订：高层视图与接口视图分开（2026-10-09）
+
+用户澄清交付需要的是架构图。前一轮将节点、动作、话题和算法步骤同时展开，形成了过密的连接图。现已重绘并覆盖四张主图及其对应导出文件，上一小节的源码依据仍适用，当前表达以本小节为准。
+
+本次参考官方架构资料：
+
+- [Autoware Architecture overview](https://docs.autoware.org/main/design/autoware-architecture-v1/)：以职责分层降低模块耦合，高层架构与 Node diagram 单独呈现。
+- [MoveIt System Architecture / Concepts](https://moveit.ai/documentation/concepts/)：高层图组织核心能力与用户、机器人接口，具体内部细节在下级概念文档展开。该页面含历史 API 名称，本次只参考图的组织方式，不作为 Jazzy API 实现依据。
+- [ros2_control Jazzy Architecture](https://control.ros.org/jazzy/doc/getting_started/getting_started.html#architecture)：框架架构与内部 UML 类图分开，控制器管理、资源管理与硬件抽象具有明确职责边界。
+
+由这些参考归纳并采用的绘图原则（本项目的表达选择，不宣称官方规定唯一图法）：一张图固定一个抽象层级；模块先按职责归属，再用包名定位实现；同一层并列组件保持相同粒度；跨层关系仅保留关键主链；横向支撑与独立安全域另列；运行时节点通信、完整话题清单、阶段流程不混入主架构图。
+
+当前软件主图：任务编排 → 感知与世界模型 → 作业执行 → 机器人基础设施 → 硬件抽象与驱动，附独立安全域与跨层的任务执行、观测输入关系。层次表示责任归属，不表示所有请求必须逐层转发。v1/v2 使用相同布局，以比较纯 FSM 与 BT、ICP/TSDF 与多视地标融合、臂内工具逻辑与末端插件边界。
+
+当前硬件主图：计算与操作、通信与设备接口、控制与采集、机械与执行四个职责域，单独表达功能安全边界。两版本机械与驱动基本复用，差异注释反映 IMU/Servo 接入范围，不臆造 v2 新硬件。该图不表示具体引脚、电源、总线拓扑或安全认证等级；这些需电气图与现场依据。
+
+输出更新：四张图均提供 SVG / PNG / PDF / DOT，另增加同名 `.drawio` 可编辑文件。`render_peach_architecture.py` 以固定布局生成一致的版本视图；修改模块或边界前应重查上小节列出的源码。四张渲染图已逐张目视检查，SVG、PNG 和 drawio 文件结构检查通过。Graphviz HTML 标签初次导出遇到空标题语法错误，已修正并全部重新导出成功。
+
+### 架构图视觉优化（2026-10-09）
+
+按用户要求美化四张主图：采用统一浅色背景、职责色带、独立模块卡片和圆角边界；区分层标题、模块职责与源码定位三档文字；增加侧栏留白，改善主链和跨层连线阅读；安全域保持红色。v1/v2 使用一致模块位置与配色，内容依据与系统边界沿用上一轮源码核对。PNG 导出提升到 180 dpi，SVG/PDF 保留矢量能力，DOT/drawio 同步重生成。逐图检查渲染，文件结构与差异空白检查通过；drawio 已检查 XML 结构，未在 diagrams.net 中打开验证。
+
+### NX 与 RK3588 硬件部署角色补回（2026-10-09）
+
+用户指出硬件图遗漏 NX 与 RK3588。原因是绘制职责分域时把具体计算设备合并成“上位机”，丢失了既有 §3.4 的部署边界；本次已在 v1/v2 硬件主图恢复 **Jetson Orin NX 16GB** 现场主控及 **RK3588 预留分流板**，并单列开发/测试机。
+
+证据：本方案 §3.4、`docs/peach_v1_现行终版方案.md` 硬件部署段、`plans/peach_v1_套袋桃采摘机器人项目设计书.md` §5，以及 `plans/peach_v2_套袋桃采摘机器人项目设计书.md` 硬件段均明确 NX 默认承载整机栈，RK3588 是压力过大时的前端采集/预处理预案，预留未实装。源码的整栈 launch 确认应用能力、设备接口和命令门，但没有证明 NX 或 RK3588 已完成部署验收，因此图注明“部署目标 / 验收待完成”，不把预案画成当前已运行事实。
+
+图示恢复默认相机直接接入 NX 的说明；RK3588 可选承担采集、时间同步、深度与 ROI 预处理，通过 GbE 向 NX 提供处理后的 RGB-D。RK3588 不直接控制机械臂或工具 IO，v2 命令门与运动决策保留在 NX。所有硬件图格式（SVG/PNG/PDF/DOT/drawio）同步导出并检查。
+
+### 官方与论文系统图参考后的拓扑优化（2026-10-09）
+
+本轮继续查阅官方与原始论文，按图的语义重新组织主图，而非只改色彩：
+
+- NIST《World Model Data Specifications as Metrics for Sensory Processing》Figure 1：[原文](https://tsapps.nist.gov/publication/get_pdf.cfm?pub_id=822563)。感知处理、世界模型与行为生成分开，传感与执行跨越内部/外部边界。借鉴职责与闭环表达，不把 Peach 宣称为完整 4D/RCS 实现。
+- Zhang 等《Algorithm Design and Integration for a Robotic Apple Harvesting System》：[原文](https://arxiv.org/abs/2203.00582)。Figure 1 是物理系统，Figure 2 是采摘周期算法流程图；本轮借鉴感知、规划、控制的功能划分，不将论文流程图等同于软件架构图。
+- Parsa 等《Modular autonomous strawberry picking robotic system》，Journal of Field Robotics，Figure 3：[原文](https://onlinelibrary.wiley.com/doi/full/10.1002/rob.22229)。正文与图注明确硬件/软件系统框图、计算设备的分工及 Ethernet 连接；借鉴部署边界与子系统连接表达。
+- NVIDIA《Introducing Jetson Xavier NX》Figure 2：[官方页面](https://developer.nvidia.com/blog/jetson-xavier-nx-the-worlds-smallest-ai-supercomputer/)。仅参考“功能块与接口”画法；Xavier 与项目 Orin NX 不是同一型号，不迁移该页面的芯片规格到本图。
+- Autoware / MoveIt / ros2_control 官方参考沿用上节，其高层架构、节点图、内部类图保持区别。
+
+证据范围：通过网页/论文文本核查图注与相关说明，苹果论文 PDF 的 web 截图请求返回了页面引用；额外本地下载因超时未形成可用 PDF，未用不完整文件生成参考图，也未声称所有参考原图均已成功在本地查看。图形表达为原创绘制，未直接复用论文图片或他人设备照片。
+
+当前硬件图改为以 **NX 为中心的实际系统拓扑**：相机默认直连 NX；RK3588 在可选视觉链路上；NX 与柜体双向通信；柜体分别连接关节驱动和工具 IO；机械安装与通信区别表达；安全回路独立。纠正此前“通信域→采集域→机械域”串行分层可能造成的拓扑误读。
+
+当前软件图改为 **输入—感知—目标模型—任务决策** 的功能横向主线，加环境模型、运动技能/命令门、末端控制、MoveIt、驱动与设备，单独画状态反馈、作业结果反馈、工具 IO 直达驱动及 v2 的许可查询。环境碰撞对象指向 MoveIt，而非假定场景由技能节点转发。公共支撑只用代表性关联，不扩展所有节点级依赖。两版本保留同一模块位置与色彩，源码差异通过模块内容体现。
+
+所有 SVG/PNG/PDF/DOT/drawio 已同步更新；drawio 补充折线转点与双向箭头信息。渲染目视检查与文件结构检查通过，尚未在 diagrams.net 中验证编辑渲染。未启动 ROS 或硬件程序。

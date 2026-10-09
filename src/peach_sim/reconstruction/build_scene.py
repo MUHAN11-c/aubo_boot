@@ -583,41 +583,42 @@ def local_reference(mats, report):
     return trunk
 
 
-def ground(mats, x_range=(-7, 7), y_range=(-5, 13), path_x=(1.8,)):
+def ground(mats, x_range=(-7, 7), y_range=(-5, 13), path_x=(1.8,), grass=True):
     bpy.ops.mesh.primitive_plane_add(size=200)
     bpy.context.object.name = 'Orchard ground'
     bpy.context.object.data.materials.append(mats['soil'])
+    area = (x_range[1] - x_range[0]) * (y_range[1] - y_range[0])
     # Fixed local seed keeps vegetation independent of tree construction order.
     rng = random.Random(240929)
-    verts, faces = [], []
-    area = (x_range[1] - x_range[0]) * (y_range[1] - y_range[0])
-    for _ in range(round(area * 75)):
-        x, y = rng.uniform(*x_range), rng.uniform(*y_range)
-        cover = (.5 + .25 * math.sin(.8 * x + .31 * y)
-                 + .25 * math.sin(1.4 * y - .26 * x))
-        if rng.random() > .18 + .82 * cover:
-            continue
-        mown = min(abs(x - p) for p in path_x) < .65
-        for _ in range(rng.randint(4, 7)):
-            angle = rng.uniform(0, math.tau)
-            height = rng.uniform(.035, .14) * (.25 if mown else 1)
-            width = rng.uniform(.0015, .0035)
-            root = Vector((x + rng.uniform(-.025, .025),
-                           y + rng.uniform(-.025, .025), .001))
-            side = Vector((math.cos(angle), math.sin(angle), 0))
-            bend = Vector((-math.sin(angle), math.cos(angle), 0))
-            start = len(verts)
-            for level in range(4):
-                t = level / 3
-                center = root + bend * (height * .65 * t * t)
-                center.z += height * (t - .22 * t * t)
-                half = width * (1 - t) + .00008
-                verts.extend((center - side * half, center + side * half))
-            for level in range(3):
-                i = start + level * 2
-                faces.append((i, i + 1, i + 3, i + 2))
-    obj = mesh('Groundcover / curved tufts', verts, faces, mats['grass'])
-    obj['source'] = 'inferred mown alley and patchy grass; not surveyed vegetation'
+    if grass:
+        verts, faces = [], []
+        for _ in range(round(area * 75)):
+            x, y = rng.uniform(*x_range), rng.uniform(*y_range)
+            cover = (.5 + .25 * math.sin(.8 * x + .31 * y)
+                     + .25 * math.sin(1.4 * y - .26 * x))
+            if rng.random() > .18 + .82 * cover:
+                continue
+            mown = min(abs(x - p) for p in path_x) < .65
+            for _ in range(rng.randint(4, 7)):
+                angle = rng.uniform(0, math.tau)
+                height = rng.uniform(.035, .14) * (.25 if mown else 1)
+                width = rng.uniform(.0015, .0035)
+                root = Vector((x + rng.uniform(-.025, .025),
+                               y + rng.uniform(-.025, .025), .001))
+                side = Vector((math.cos(angle), math.sin(angle), 0))
+                bend = Vector((-math.sin(angle), math.cos(angle), 0))
+                start = len(verts)
+                for level in range(4):
+                    t = level / 3
+                    center = root + bend * (height * .65 * t * t)
+                    center.z += height * (t - .22 * t * t)
+                    half = width * (1 - t) + .00008
+                    verts.extend((center - side * half, center + side * half))
+                for level in range(3):
+                    i = start + level * 2
+                    faces.append((i, i + 1, i + 3, i + 2))
+        obj = mesh('Groundcover / curved tufts', verts, faces, mats['grass'])
+        obj['source'] = 'inferred mown alley and patchy grass; not surveyed vegetation'
     # Sparse curled litter and low soil crumbs supply contact shadows without
     # altering the measured world-Z baseline or inventing navigable slopes.
     verts, faces = [], []
@@ -822,6 +823,9 @@ def main():
     p.add_argument('--out', default='',
                    help='alternate output dir (e.g. field anchor renders); '
                         'default output/ holds the validation-scene contract')
+    p.add_argument('--no-grass', action='store_true',
+                   help='skip groundcover grass tufts for a viewport-light '
+                        'scene; soil plane, litter and crumbs stay')
     args = p.parse_args(sys.argv[sys.argv.index(
         '--') + 1:] if '--' in sys.argv else [])
     bpy.ops.object.select_all(action='SELECT')
@@ -839,7 +843,7 @@ def main():
     before = {o.name for o in bpy.data.objects}
     for i, origin in enumerate(scale['origins']):
         tree(f'Tree{i:02d}', origin, mats, 80 + i, scale['crown'])
-    ground(mats, **scale['grass'])
+    ground(mats, grass=not args.no_grass, **scale['grass'])
     if scale['backdrop']:
         backdrop({o.name for o in bpy.data.objects} - before - {'Orchard ground'},
                  scale['backdrop'])
@@ -896,6 +900,7 @@ def main():
         'render_backend': RENDER_BACKEND,
         'lighting': lighting_mod.manifest_entry(args.lighting),
         'scale': args.scale,
+        'groundcover_grass': not args.no_grass,
         'reference_patch_included': args.scale == 'validation',
         'crown_scale': scale['crown'],
         'backdrop_offsets_m': [list(o) for o in scale['backdrop']],

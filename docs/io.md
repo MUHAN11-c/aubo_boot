@@ -37,7 +37,7 @@
 | `peach_bringup` | 整栈 launch / 预检 | Include 只读 `aubo_e5_bringup` | 不自动 RunHarvest |
 | `peach_observability` | 8090 转发、独立 rosbag2 | 调度/技能只读话题 | 不发运动 |
 | `peach_vegetation` | `/peach/vegetation/{leaf_mask,branch_mask,overlay,status}` | 彩色图 `image`（remap） | 运动、PlanningScene、octomap、选果 |
-| `peach_sim` | 果园世界 `worlds/peach_orchard.sdf`、采摘工位 xacro、目标清单 GT（`peach_orchard.manifest.yaml`：袋底=entry/袋颈/轴/果心/`reachable`） | `config/orchard.yaml`（场景参数唯一事实源） | ROS 业务话题/动作/IDL；仅桥 `/clock` 与 `/joint_states`（gz `gz.msgs.Model`→`sensor_msgs/JointState`），不进 `harvest_system` |
+| `peach_sim` | 果园世界 `worlds/peach_orchard.sdf`、采摘工位 xacro、目标清单 GT（`peach_orchard.manifest.yaml`：袋底=entry/袋颈/轴/果心/`reachable`）、履带可驾驶仿真 + Nav2 巡园（`orchard_nav.launch.py` + `tour_node`，2026-10-08 起） | `config/orchard.yaml`（场景参数唯一事实源） | 不进 `harvest_system` / 不订 peach 话题；gz↔ROS 桥按 `config/orchard_bridge.yaml` 六路：`/clock`、`/joint_states`（gz `gz.msgs.Model`→`sensor_msgs/JointState`）、`/odom`、`/tf`、`/scan`、`/cmd_vel`；巡园动作=Nav2 自带 `NavigateToPose`（nav2_simple_commander），非 peach IDL |
 
 导航预留（`peach_navigation` 已归档 `_archive/parked_2026-09/`）：曾提供 `NavigateToWorksite` 与 `/peach/navigation/target_report` / `arm_status` / `vehicle_state`；现仅在 manifest `reserved_interfaces` 区留名，无生产方。调度是批次侧**唯一**动作客户端。技能不调重建 `reset`/`finalize` Trigger。到位一步无导航动作：`_cmd_navigate` 固定座直通 `NAV_OK`。`harvest_plan` 只做收齐窗口与锁定集，不选下一颗。
 
@@ -127,18 +127,18 @@ flowchart LR
 | `/peach/navigation/vehicle_state` | `VehicleState` | 底盘位姿/速度；无节点 |
 | `/peach/navigation/arm_status` | `HarvestOperationStatus` | 臂作业状态给导航；无节点 |
 
-清洁重写轮契约接线状态（设计全文见 REFACTORING.md 重写轮节；**阶段 2b 已接线臂侧**，其余随阶段 3/4 落地）：
+清洁重写轮契约接线状态（设计全文见 REFACTORING.md 重写轮节；**阶段 2b/3 已全部落码**：服务端在 `peach_supervisor`，8090 页面尚未转发这些入口——人工经 `ros2 service call` 可用）：
 
 | 类型 | 图名 | 服务端 | 状态 | 语义 |
 |------|------|--------|------|------|
-| `MoveTo.action` | `/peach_arm/move_to` | `peach_arm` | **已接线（2b）** | KIND_NAMED（goToPhotoPose 通用命名位，拍照位带原路返程）/ KIND_POSE（lin_only 只 LIN，失败不回退；非 base 系自动换系）；KIND_JOINTS 预留未实现；取消=abort+RobotMoveStop；与接触周期互斥（running/recovery 期拒） |
-| `Enables.msg` | `/peach/batch/enables` | `peach_supervisor`（Active 且 override 非空时 1Hz 心跳重发） | **臂侧已订阅（2b）** | transient_local；臂侧收到过即覆盖本地参数（意图源=大脑），无发布者时本地参数保持唯一权威。**缺心跳=故障（09-18）**：臂侧 `peach_arm.execution.enables_heartbeat_timeout_s`（默认 5.0，<=0 关闭）超时未收到广播即回落本地参数权威并 WARN；广播源在权时本地参数 set 不覆盖使能（双写竞争已修） |
+| `MoveTo.action` | `/peach_arm/move_to` | `peach_arm` | **已接线（2b）；supervisor 为消费方（2026-10-08 起，fast 档观察/回拍照位）** | KIND_NAMED（goToPhotoPose 通用命名位，拍照位带原路返程）/ KIND_POSE（lin_only 只 LIN，失败不回退；非 base 系自动换系）；KIND_JOINTS 预留未实现；取消=abort+RobotMoveStop；与接触周期互斥（running/recovery 期拒） |
+| `Enables.msg` | `/peach/batch/enables` | `peach_supervisor`（Active 且 override 非空时 1Hz 心跳重发；lifecycle publisher） | **已接线（2b 臂侧订阅 + supervisor 发布/心跳）** | transient_local；臂侧收到过即覆盖本地参数（意图源=大脑），无发布者时本地参数保持唯一权威。**缺心跳=故障（09-18）**：臂侧 `peach_arm.execution.enables_heartbeat_timeout_s`（默认 5.0，<=0 关闭）超时未收到广播即回落本地参数权威并 WARN；广播源在权时本地参数 set 不覆盖使能（双写竞争已修） |
 | `Clearance.msg` | （随 ExecuteTarget goal） | `peach_supervisor` 装配 | **已接线（2b；09-18 加绑定）** | 接触许可令牌：goal 填写 model_stamp 即启用 CONTACT/TOOL 级令牌复检——`target_id` 须等于当前目标（装配端不绑定不装，臂侧不匹配拒）、`valid_until`（GraspDecision 原值冻结不续签；窗口=`decision.validity_s` 默认 120s，G1）过期拒、allowed 拒；批次4 单条 allowed 拆档位门：CONTACT 另查令牌径向余量 >0、TOOL 另查轴向余量 >0 + 预备位残差过门 + `tool_enabled`。装配时令牌已过期仍照装（臂侧拒），supervisor 打一次过期 WARN 供现场归因（按 target+revision 去重防 1Hz 刷屏；不拒发不重排，G1 预警）。model_stamp 新鲜窗=effectiveTargetMaxAgeS，不重算几何；未装（绑定不对齐，或 `skip_reconstruction` FULL——不把未融合决策装成令牌）回退 GraspDecision 话题快照复检（skip 路径该快照=臂侧 promoteUnrefined 钉住的 `grasp_allowed`） |
 | `ExecuteTarget` 扩展字段 | 现名不变 | `peach_arm` | **已接线（2b）** | `mode` 是接触深度权威（FULL 不被默认 `profile=0` HOLD 盖成停预抓取）；`PROFILE_FULL` 强制套入。`feedback.checkpoint` 随行下发——已记 AT_PREGRASP/SLEEVE_PLANNED/SLEEVED/CUT_ACCEPTED/RETREATED/STOWED；AT_STAGING 待 GraspTask staging 到位回调，CUT_CONFIRMED 已随批次3 接线（`stageVerifyCut` 等到刀具 DI 本命令后新上升沿即记，超时 `CUT_UNCONFIRMED` 保守收口）；RETAINED 待承接 DI（仍预留） |
-| `RunHarvest` 扩展字段 | 现名不变 | `peach_supervisor` | 3 | `INTENT_*` 常量（JobIntent 删除后唯一权威）+ 批次策略 `target_harvest_ratio`/`per_target_timeout_s`/`sector_timeout_s`/`view_policy`（VIEW_FAST 默认/VIEW_CONSERVATIVE 原值） |
-| `SetEnables.srv` | `/peach_supervisor/set_enables` | `peach_supervisor` | 3 | 操作台使能开关；广播 `/peach/batch/enables` +审计 |
-| `SetBatchPolicy.srv` | `/peach_supervisor/set_batch_policy` | `peach_supervisor` | 3 | 运行期改批次策略（当前批或下批默认） |
-| `FireStep.srv` | `/peach_supervisor/fire_step` | `peach_supervisor` | 3/4 | 操作台单步（PHOTO/VIEWPOINT/BUILD/APPROACH/PREVIEW/TOOL_DEBUG）；运动类过臂侧命令门 |
+| `RunHarvest` 扩展字段 | 现名不变 | `peach_supervisor` | **已接线（3）** | `INTENT_*` 常量（JobIntent 删除后唯一权威）+ 批次策略 `target_harvest_ratio`/`per_target_timeout_s`/`sector_timeout_s`/`view_policy`（VIEW_FAST 默认/VIEW_CONSERVATIVE 原值）——`cycle_core/batch_policy.py` 解析、单果时限与 `target_timeout` 事件已投产 |
+| `SetEnables.srv` | `/peach_supervisor/set_enables` | `peach_supervisor` | **已接线（3）** | 操作台使能开关；广播 `/peach/batch/enables` +审计 |
+| `SetBatchPolicy.srv` | `/peach_supervisor/set_batch_policy` | `peach_supervisor` | **已接线（3）** | 运行期改批次策略（当前批或下批默认） |
+| `FireStep.srv` | `/peach_supervisor/fire_step` | `peach_supervisor` | **已接线（3 服务端；8090 页面转发未接——人工 `ros2 service call` 可用）** | 操作台单步（PHOTO/VIEWPOINT/BUILD/APPROACH/PREVIEW/TOOL_DEBUG）；运动类过臂侧命令门 |
 
 
 
@@ -205,6 +205,7 @@ flowchart TB
 | `/peach/perception/masks` | SAM 像素掩膜 |
 | `/peach/perception/single_cloud` | 检测框深度反投影，对 TF/深度，不是重建 |
 | `/peach/perception/markers` | 锁定目标 3D：绿 ACCEPT、黄 REOBSERVE、红 REJECT |
+| `/peach/perception/axis` | 袋轴 Vector3Stamped 可视化（RViz） |
 
 ```mermaid
 flowchart TB
@@ -277,7 +278,7 @@ flowchart TB
 | 名字 | 种类 | 含义 | 生产 | 消费 |
 |------|------|------|------|------|
 | `/peach_target_reconstruction_node/build_target_model` | action | 绑 `target_id`，收满机位后 finalize 出模型 | peach_target_reconstruction | peach_supervisor |
-| `/peach/reconstruction/diagnostics` | topic | 结构化心跳：绑定态、机位数、基线、TF 失败 | peach_target_reconstruction | peach_arm, peach_observability |
+| `/peach/reconstruction/diagnostics` | topic | 结构化心跳：绑定态、机位数、基线、TF 失败。**QoS=latched+DDS deadline 1.5 s**（A10：心跳 1 Hz，超期即 offered-deadline-missed WARN——执行器卡滞的 DDS 层补强，只记日志不改行为；请求方 deadline ≥1.5 s 或不设均兼容） | peach_target_reconstruction | peach_arm, peach_observability |
 | `/peach/reconstruction/diagnostics_debug` | topic | 调试 JSON 明细（TSDF/ICP/逐机位），不进决策 | peach_target_reconstruction | peach_observability |
 | `/peach/reconstruction/status` | topic | 短状态 String（MCAP 白名单用这个，不是 diagnostics） | peach_target_reconstruction | peach_observability |
 | `/peach/reconstruction/grasp_decision` | topic | 融合入口/轴/预抓取/剪切 + `allowed` 汇总位（分档复检语义见 §5 `GraspDecision` 行） | peach_target_reconstruction | peach_arm, peach_supervisor（闩锁令牌缓存）, peach_observability |
@@ -287,8 +288,18 @@ flowchart TB
 | `/peach/reconstruction/refined_axis` | topic | 融合袋轴，给监控三维 | peach_target_reconstruction | peach_observability |
 | `/peach/reconstruction/refined_diagnostics` | topic | 精化拟合诊断 | peach_target_reconstruction | peach_arm, peach_observability |
 | `/peach/reconstruction/tsdf_cloud` | topic | 绑定目标 TSDF 表面（批次结束会复位变空） | peach_target_reconstruction | peach_observability |
+| `/peach/reconstruction/local_cloud` | topic | 当前目标局部点云（latched；清单可视化豁免） | peach_target_reconstruction | （可视化/调试） |
 | `/peach/reconstruction/markers` | topic | 相机轨迹与精化示意 | peach_target_reconstruction | （可视化） |
 | `/peach/reconstruction/shape_hypothesis` | topic | 形状假说（契约预留，未当批次门） | peach_target_reconstruction | （无消费方） |
+
+重建调试 Trigger（`std_srvs/Trigger`，已进清单；Web 调试面/人工用，调度主路径不调；改状态的三口过 Active 门，query 只读无门）：
+
+| 名字 | 含义 |
+|------|------|
+| `/peach_target_reconstruction_node/reset_reconstruction` | 清空帧栈与绑定目标，回 IDLE（换目标重积） |
+| `/peach_target_reconstruction_node/finalize_reconstruction` | 手动提前 finalize 当前会话出模型 |
+| `/peach_target_reconstruction_node/save_session` | 显式落盘会话工件（`runs/session_*/`） |
+| `/peach_target_reconstruction_node/query_reconstruction_state` | 只读返回当前重建与数据关联 JSON |
 
 采帧门（`target_reconstruction/capture.py`，自动失败=skip）：满栈 → 无帧 → 掩膜 → 同 stamp → 帧龄>2 s → 静止（`/joint_states` 最大 `|vel|`>0.03 rad/s）→ 空 frame_id → **精确 TF**。
 
@@ -414,6 +425,7 @@ flowchart TB
 | `/peach_arm/acknowledge_recovery` | service | 技能确认停驻已看过；调度 ACK 会调它，成功才消耗 `state_seq` | peach_arm | peach_supervisor |
 | `/peach/manipulation/grasp_hypothesis` | topic | 本周期抓取假说（监控三维；未当批次门） | peach_arm | peach_observability |
 | `/peach_arm/status` | topic | 技能短状态 JSON，作业票「靠近/工具」用 | peach_arm | peach_observability |
+| `~/planned_views`（`/peach_arm/planned_views`） | topic | 已走到的观察视点 MarkerArray（latched；清单可视化豁免，不进 RViz 默认面板） | peach_arm | （可视化） |
 | `/diagnostics` | topic | 节点诊断标准面（diagnostic_updater 周期任务；2026-09-29 观测性轮起全覆盖）：`peach_arm`（9 任务：观测流/TF、目标缓存、回调耗时、接触电流、使能、**robot_status 断流、工具链、move_group 在场、最近拒因锁存**）、`peach_scene_perception_node` / `peach_target_reconstruction_node` / `peach_supervisor` / `peach_lifecycle_manager`（watchdog）/ `peach_scene_obstacles`（快照结局）/ `peach_observability`（bag 队列、摄入活度、**selfcheck 裁决**）/ `peach_vegetation` / `peach_stereo`（帧率/丢弃/激光配置）/ `serial_imu`。不进接口清单：核对器只扫 `/peach` 前缀绝对名字面量，`/diagnostics` 属 ROS 标准诊断面（同 `serial_imu` 先例，W5 验证不登记也绿）。**消费端**：`peach_observability` 订阅聚合进 `/api/state` `diagnostics` 分区与 8090 面板（此前全栈无消费方）+ 会话 bag | peach_arm 等 | peach_observability（聚合）+ 通用诊断工具 |
 
 另有 Trigger（已进清单；8090 调试面调用，调度主路径走动作 cancel）：
@@ -519,7 +531,7 @@ flowchart TB
 | `/peach_supervisor/events` | topic | 可检索事件（拍照到位/锁定/派发/终局/过滤/ACK） | peach_supervisor | peach_observability |
 | `/peach_supervisor/scene_snapshot` | topic | WAIT_LOCK 或回访 dwell 后的锁定集快照 | peach_supervisor | （无订阅方；账本/MCAP） |
 
-客户端（仅本节点）：`BeginScene`、`SurveyScene`、`BuildTargetModel`（与 OBSERVE_ONLY 并行）、`ExecuteTarget`、`CheckReachability`。批次6 `reconstruct_in_trajectory`（默认关）：true 时 DISPATCH 起 Build 后不再阻塞等 Build 完成，立即派 FULL（goal 自带 `skip_observation=true`，身份 revision=`pending:*` 占位，不装 GraspDecision 令牌）——重建与接近并行，臂侧 FinalizeAndValidate 有界等精化兜底，周期收口取消并等 Build 结束（单槽约束）。账本：`runs/<request_id>/ledger.json`。
+客户端（仅本节点）：`BeginScene`、`SurveyScene`、`BuildTargetModel`（与 OBSERVE_ONLY 并行）、`ExecuteTarget`、`CheckReachability`、`MoveTo`（`/peach_arm/move_to`，fast 档观察/回拍照位，2026-10-08 起）。批次6 `reconstruct_in_trajectory`（默认关）：true 时 DISPATCH 起 Build 后不再阻塞等 Build 完成，立即派 FULL（goal 自带 `skip_observation=true`，身份 revision=`pending:*` 占位，不装 GraspDecision 令牌）——重建与接近并行，臂侧 FinalizeAndValidate 有界等精化兜底，周期收口取消并等 Build 结束（单槽约束）。账本：`runs/<request_id>/ledger.json`。
 
 作业参数（部署值 `config/peach_supervisor.yaml`；`peach_supervisor.attach`。`tool.profile_id` 基础值是 adaptive_shear_v1 标签，整栈由 launch `tool_profile` 注入覆盖）：
 
@@ -556,6 +568,7 @@ flowchart TB
 | 名字 | 种类 | 含义 | 生产 | 消费 |
 |------|------|------|------|------|
 | `/peach_lifecycle_manager/manage_nodes` | service | STARTUP/PAUSE/RESUME/RESET/SHUTDOWN 整栈；不发 RunHarvest | peach_lifecycle_manager | 人工 |
+| `/peach_lifecycle_manager/is_active` | service | nav2_lifecycle_manager 自带只读口：查询某托管节点当前生命周期态（调试用） | peach_lifecycle_manager | 人工/调试 |
 | `/peach/lifecycle/managed_nodes_activated` | topic | 名单节点是否都 Active；调度开批闸门 | peach_lifecycle_manager（独立）/ peach_lifecycle_flag_bridge（整栈） | peach_supervisor |
 
 名单默认：场景感知 → 重建 → 技能 → 调度。observability **不进名单**。
@@ -689,7 +702,7 @@ flowchart TB
 | `/aubo_io_controller/joint_status` | 监控 Web：关节电流（SDK 原单位）、温度、跟随误差。技能 ④层接触检测只读 `current[6]`（默认关，只缓存） |
 | `/aubo_io_controller/set_io` | 工具闭合；仅 `tool.enabled` 且 FULL 切断阶段 |
 | `/joint_states` | 重建静止门、技能规划当前关节；监控 Web 实际角/速度 |
-| `/camera/depth_registered/points` | move_group ③层 octomap（`aubo_e5_moveit_config/config/sensors_3d.yaml`，pluginlib `occupancy_map_monitor/PointCloudOctomapUpdater`，分辨率 0.04 m；地图系=规划系 `world`，URDF 固定到 `base_link`）；mock 无点云=空地图。RViz Camera Points / 旁路 GraspNet 同名 |
+| `/camera/depth_registered/points` | ③层场景障碍快照（0035，2026-09-29 起现行）：`peach_scene_obstacles` 节点订本话题（RELIABLE VOLATILE depth 5）→ 滤自身/滤已精化目标 → 体素化 → BOX 对象写 PlanningScene；**`sensors_3d.yaml` 保持 `sensors: []`，不用 octomap updater**（两轮翻车教训见该文件注释；详见 §4 peach_scene_obstacles 节）。mock 无点云=无快照。RViz Camera Points / 旁路 GraspNet 同名 |
 
 采摘 IDL 在 `peach_interfaces`。
 

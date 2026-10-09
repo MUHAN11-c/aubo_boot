@@ -4,6 +4,8 @@
 # 现行核心栈：peach_interfaces / peach_common / peach_harvester / peach_arm /
 # peach_bringup / peach_observability / peach_vegetation / peach_system_tests /
 # peach_stereo（相机前端；peach_sim 场景包另有 /peach_sim/joint_states 预留登记）。
+# 范围排除：peach2（src/peach2/，隔离重写栈）契约单源在其自带的
+# peach2/peach2_interfaces/config/interfaces.yaml，不在本清单。
 version: 2
 interfaces:
   - name: /peach_supervisor/state
@@ -33,18 +35,17 @@ interfaces:
     kind: service
     type: peach_interfaces/srv/SetEnables
     producers: [peach_supervisor]
-    consumers: []   # 阶段 4 起：操作台 8090（后端转发）——意图源=supervisor，
-                    # 广播 /peach/batch/enables，强制点=臂侧命令门
+    consumers: []   # 人工（8090 转发未接；ros2 service call 可用）；服务端广播 /peach/batch/enables
   - name: /peach_supervisor/set_batch_policy
     kind: service
     type: peach_interfaces/srv/SetBatchPolicy
     producers: [peach_supervisor]
-    consumers: []   # 阶段 4 起：操作台 8090
+    consumers: []   # 人工（8090 操作台转发未接；ros2 service call 可用）
   - name: /peach_supervisor/fire_step
     kind: service
     type: peach_interfaces/srv/FireStep
     producers: [peach_supervisor]
-    consumers: []   # 阶段 4 起：操作台 8090；运动类过臂侧命令门
+    consumers: []   # 人工（8090 操作台转发未接）；运动类过臂侧命令门
   - name: /peach_supervisor/control
     kind: service
     type: peach_interfaces/srv/ControlTask
@@ -196,7 +197,7 @@ interfaces:
     kind: action
     type: peach_interfaces/action/MoveTo
     producers: [peach_arm]
-    consumers: []   # 阶段 3 起 peach_supervisor（观察循环/回拍照位/stow）
+    consumers: [peach_supervisor]   # fast 档观察补视 + FireStep PHOTO 拍照位（2026-10-08 起）；stow 仍走接触周期内 PTP
   - name: /peach_arm/tool_state
     kind: topic
     type: peach_interfaces/msg/ToolState
@@ -207,8 +208,8 @@ interfaces:
     kind: topic
     type: peach_interfaces/msg/Enables
     qos: {reliability: reliable, durability: transient_local, depth: 1}
-    producers: []   # 阶段 3 起 peach_supervisor（SetEnables 服务后广播）
-    consumers: [peach_arm]
+    producers: [peach_supervisor]   # SetEnables 服务后广播；Active 且 override 非空时 1Hz 心跳重发
+    consumers: [peach_arm]   # 臂侧收到过即覆盖本地参数（意图源=supervisor，强制点=臂侧命令门）
   - name: /peach_lifecycle_manager/is_active
     kind: service
     type: std_srvs/srv/Trigger

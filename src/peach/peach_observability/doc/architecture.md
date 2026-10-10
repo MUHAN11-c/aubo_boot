@@ -1,0 +1,13 @@
+# `peach_observability` 架构（v1 活文档）
+
+> 2026-10-10 用户裁定自仓库级 `docs/architecture.md` 拆写入包。系统级架构在 [peach_bringup/doc/architecture.md](../../peach_bringup/doc/architecture.md)。**源码与本文互相更新，改一边须同一轮改另一边**。
+
+- **禁止：** 发 `RunHarvest`。PAUSE 是节点 Inactive，不是批次 `ControlTask` 暂停。
+
+#### `peach_observability`（监）
+
+- **作用：** HTTP（默认 `127.0.0.1:8090`）过程页：只读监控（订阅各包状态与原始话题）+ 会话 bag 过程记录（决策 0019：随节点启停开合 `runs/session_*/bag`，栈停自动出 `bag_report.md/json` 并按 `record.max_total_bag_gb` 预算回收旧 bag）+ 柜侧硬件表（TCP xyz/quat、六轴角/速度/电流/温度/跟随误差）+ 末端主平面轨迹（按点列跨度最大的两轴投影，不固定 X–Y 俯视）+ 单步调试 POST（决策 0018，无令牌）。整栈 include 时 **不进 lifecycle 名单**，节点 `main()` 在 spin 前自行 `configure/activate`。作业票下方对照实测 TCP、起止弦与预抓取/入口。
+- **类 / 配置：** `ObservabilityNode`、`ObservabilityState`；参数 `config/observability.yaml`。静态页在包内 `web/`，Tab 分「过程 / 调试」。首屏是当前果实作业票（发现→拍照→锁定→观察→许可→靠近→工具→撤离→完成）。抓取档关闭时靠近/工具标 **gated**，不得显示成已勾上。健康走 `/diagnostics` 周期任务（5s；W15 双轨 + 2026-09-29 扩充：`session_recorder` 报队列水位/丢帧/目录、`ingest_liveness` 报镜像键最热年龄 ≤10s OK / ≤60s WARN / 更久 STALE、`selfcheck` 投影最近一次自检裁决；对齐 peach_arm W5 与 vegetation 的做法）。
+- **`/api/state` 区段：** `perception` / `reconstruction` / `refined` / `manipulation`（含 `status` 与 `hypothesis`）/ `task_executor`（含 `state_seq`/`scene_epoch` 镜像）/ **`pipeline`**（调度 FSM 与技能周期阶段时序）/ **`ledger`**（批次账本直播）/ `robot`（柜侧 `status` + latest TF `tcp` 摘要：xyz/quat/路径长/弦长/绕行比/Δz + `joints` 六轴角/速度/电流/温度/跟随误差）/ `metrics` / `record` / `params` / `startup`（启动事实镜像）/ `selfcheck`（最近一次自检报告）/ `diagnostics`（`/diagnostics` 聚合）/ **`job`**（派生作业票：过程线、档位、`why`、base_link 坐标含预抓取）/ **`debug`**（`enabled` / `motion_enabled` + 最近操作环形缓冲）。不再用 `approach` / `orchestration`。
+- **`/api/trajectory`：** 末端点列（平坦 `xyz` + 相位）+ 作业票路标 + 与 RViz 同源的 Marker 字典。只读，不进 MCAP。
+- **调试 POST：** `POST /api/debug/<action>`。`debug.enabled` 默认 true（false→503）；无令牌。运动类另需 `debug.motion_enabled`（默认 false→423）。审计落 `runs/debug_audit/<日期>.jsonl`。后端仍转发全部既有端点（`debug.endpoints.*` 键冻结）；**页面只暴露本管线**：BeginScene / SurveyScene / Build / finalize / ExecuteTarget（含 `set_execution_armed` 武装/解除）/ 去拍照位 / RunHarvest / ControlTask（PAUSE / RESUME / SKIP_TARGET / ACK 恢复 / CANCEL_NOW）。`PREVIEW` 与 BeginScene 不受运动门拦。技能 `ExecutionAuthority` 与调度/重建门**原样生效**。

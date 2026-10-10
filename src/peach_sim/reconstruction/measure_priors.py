@@ -26,7 +26,7 @@ if not OUT.resolve().is_relative_to(HERE):
 
 DATASET = Path('/home/mu/Downloads/PeachDataSet')
 FIELD = Path(
-    '/home/mu/Desktop/aubo_e5_jazzy_ws/src/peach_arm/test/fixtures/'
+    '/home/mu/Desktop/aubo_e5_jazzy_ws/src/peach/peach_arm/test/fixtures/'
     'field_pregrasp_cases.yaml')
 
 W, H = 1280, 720

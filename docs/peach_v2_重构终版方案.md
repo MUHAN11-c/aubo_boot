@@ -267,7 +267,7 @@ flowchart LR
 
 ### 4.2 2D：基线用现有模型（v2.0），关键点模型作后续升级（v2.1）
 
-**现有资产（2026-09-30 核实）：** `src/peach_harvester/model/best.pt` 是 **YOLO 检测模型**（task=detect，两类 `peach_bag` / `peach_nobag`，只出框，不出掩膜/关键点）；`mobile_sam.pt` 是 MobileSAM（框提示分割）。袋颈/袋底现在由 `vision/common/bag_landmarks.py` 用几何推出：点云主轴 + 沿轴 12 段半径剖面（90 分位），收缩比 0.85 判断哪端是颈。**v2.0 不依赖任何新模型**，只重写这条链的质量与不确定度。
+**现有资产（2026-09-30 核实）：** `src/peach/peach_harvester/model/best.pt` 是 **YOLO 检测模型**（task=detect，两类 `peach_bag` / `peach_nobag`，只出框，不出掩膜/关键点）；`mobile_sam.pt` 是 MobileSAM（框提示分割）。袋颈/袋底现在由 `vision/common/bag_landmarks.py` 用几何推出：点云主轴 + 沿轴 12 段半径剖面（90 分位），收缩比 0.85 判断哪端是颈。**v2.0 不依赖任何新模型**，只重写这条链的质量与不确定度。
 
 **v2.0 基线链（每帧）：**
 
@@ -1259,16 +1259,16 @@ v2 末端插件将刀口偏移、roll、prepare/cut/confirm/release 集中，值
 - [ ] v1 SIGINT 深修：对齐 nav2 SimpleActionServer **无 detach** 模式（std::async future＋协作停止标志＋有界轮询；超时强制终止 goal 仍不 detach），或线程捕获 `shared_from_this()` 续命；配合 Jazzy `Context::add_pre_shutdown_callback`（rcl_shutdown 前、信号线程、不得抛异常）提前收线程。2026-10-08 已修三处定点（timedjoin 绝对时刻 P0、survey 终局与 ACM 分离线程 try/catch），detach 后 UAF 根治仍开放。
 - [ ] v1 P2 组：`execution_started` 置位过早致 FAILED/SKIPPED_UNREACHABLE 分级漂移并误置恢复锁；`_wait_result` 超时取消后不等动作退场（下一 goal 被 REJECT 误记 full_failed）；EventHold 暂存命令被不同事件覆盖；MoveTo/Survey 不占 `running_` 的参数重写窄竞态；硬编码 group/tcp/world/帧名不走 config。
 - [ ] v2 P2 组：moveit backend `active_goal_` 赋值窗口（goal 发出→handle 就绪最长 2 s）与 `mgi_mutex_` 阻塞锁让 stop 排队（公开 stop 用 try_to_lock 拿不到即静默跳过）；`stop_grace` 超时后仅 ERROR 不 latch recovery；`selection.cpp` height NaN 破坏 std::sort 严格弱序（UB）；v1 `peach_common/lifecycle.py` bond 无 `on_broken` 回调（bondpy 支持 `on_broken=` 参数，Timer 线程触发需线程安全）且 `start()` 不在守卫内；v1 视觉 slop 同步失败无计数、「从未收帧」诊断显示 healthy。
-- [ ] 三活文档（architecture/io/testing）与 `peach2_system_tests/README.md`、`REFACTORING.md` L725 的 33/191 旧数字及 §3.3 相关表述，由所有者会话在并行轮收口时同轮更正。
+- [ ] 三活文档（architecture/io/testing）与 `peach2_system_tests/README.md` 的 33/191 旧数字及 §3.3 相关表述，由所有者会话在并行轮收口时同轮更正（`REFACTORING.md` 同源数字已随该文件 2026-10-10 删除消失）。
 
 ### R18. 源码与外部依据索引
 
 相对路径均指本工作区；代码后续变化时应重核结论，行号不作为永久契约。
 
-- v1 调度：`src/peach_harvester/peach_harvester/supervisor/harvest_fsm.py` 及同目录调度实现；源码地图 `.agents/skills/peach/harvest-flow.md`。
-- v1 感知/重建：`src/peach_harvester/peach_harvester/vision/`；预算 `common/tool_budget.py`；轴向下限 `target_reconstruction/refine.py`；配置 `src/peach_harvester/config/target_reconstruction.yaml`。
-- v1 收尾：`src/peach_arm/src/manipulation_skills_node.cpp::closeMotionOutputAndCancel`、`cycle.cpp::onActionAccepted`；本机 `/usr/include/c++/13/bits/std_thread.h` 和 `pthread_tryjoin_np(3)` 核对线程语义。
-- v1 旁路运动：`src/imu_follow/imu_follow/follow_node.py::_publish_twist`；测试 `src/peach_system_tests/test/test_e1_supervisor_chain.py`。
+- v1 调度：`src/peach/peach_harvester/peach_harvester/supervisor/harvest_fsm.py` 及同目录调度实现；源码地图 `.agents/skills/peach/harvest-flow.md`。
+- v1 感知/重建：`src/peach/peach_harvester/peach_harvester/vision/`；预算 `common/tool_budget.py`；轴向下限 `target_reconstruction/refine.py`；配置 `src/peach/peach_harvester/config/target_reconstruction.yaml`。
+- v1 收尾：`src/peach/peach_arm/src/manipulation_skills_node.cpp::closeMotionOutputAndCancel`、`cycle.cpp::onActionAccepted`；本机 `/usr/include/c++/13/bits/std_thread.h` 和 `pthread_tryjoin_np(3)` 核对线程语义。
+- v1 旁路运动：`src/imu_follow/imu_follow/follow_node.py::_publish_twist`；测试 `src/peach/peach_system_tests/test/test_e1_supervisor_chain.py`。
 - v2 感知：`src/peach2/peach2_perception/README.md` 与 `peach2_perception/` 节点/纯核实现。
 - v2 算法：`src/peach2/peach2_core/peach2_core/{tracker,landmarks3d,fusion,budget,swing}.py`。
 - v2 模型/许可：`src/peach2/peach2_target_model/peach2_target_model/{store,decision,target_model_node}.py`、`config/target_model.yaml`。
@@ -1367,8 +1367,8 @@ v2 末端插件将刀口偏移、roll、prepare/cut/confirm/release 集中，值
 
 源码依据（图中模块按以下实现核对，后续重绘应重查）：
 
-- v1 整栈：`src/peach_bringup/launch/harvest_system.launch.py`；brain：`src/peach_harvester/peach_harvester/brain.py`；调度：`src/peach_harvester/peach_harvester/supervisor/executor_node.py`、`harvest_fsm.py`。
-- v1 算法：`src/peach_harvester/peach_harvester/vision/scene_perception/inference.py`、`vision/target_reconstruction/target_reconstruction_node.py`；执行：`src/peach_arm/src/manipulation_skills_node.cpp`。
+- v1 整栈：`src/peach/peach_bringup/launch/harvest_system.launch.py`；brain：`src/peach/peach_harvester/peach_harvester/brain.py`；调度：`src/peach/peach_harvester/peach_harvester/supervisor/executor_node.py`、`harvest_fsm.py`。
+- v1 算法：`src/peach/peach_harvester/peach_harvester/vision/scene_perception/inference.py`、`vision/target_reconstruction/target_reconstruction_node.py`；执行：`src/peach/peach_arm/src/manipulation_skills_node.cpp`。
 - v2 整栈：`src/peach2/peach2_bringup/launch/peach2_system.launch.py`；任务树：`src/peach2/peach2_task/trees/harvest_batch.xml`。
 - v2 感知与模型：`src/peach2/peach2_perception/peach2_perception/perception_node.py`、`detector.py`、`segmenter.py`；`src/peach2/peach2_target_model/peach2_target_model/{store,decision,target_model_node}.py`；`src/peach2/peach2_core/peach2_core/fusion.py`。
 - v2 场景与执行：`src/peach2/peach2_scene/peach2_scene/{scene_node,scene_core}.py`；`src/peach2/peach2_manipulation/src/{manipulation_node,harvest_cycle,command_gate}.cpp`、`moveit_motion_backend.hpp`。

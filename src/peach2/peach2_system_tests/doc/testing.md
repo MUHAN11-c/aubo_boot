@@ -1,6 +1,6 @@
 # peach2（v2）测试指导
 
-> 本文档是 v2 重构栈（`src/peach2/` 十二包）的测试流程指导，2026-10-10 自仓库级 `docs/testing.md` 拆写入包（用户裁定）。现行系统快照的活文档为 [docs/architecture.md](../../../../docs/architecture.md) 与 [docs/io.md](../../../../docs/io.md)；v2 设计与分期落地的权威是 [docs/peach_v2_重构终版方案.md](../../../../docs/peach_v2_重构终版方案.md)。v1 栈指导在 [src/peach_system_tests/doc/testing.md](../../../peach_system_tests/doc/testing.md)。
+> 本文档是 v2 重构栈（`src/peach2/` 十二包）的测试流程指导，2026-10-10 自仓库级 `docs/testing.md` 拆写入包（用户裁定）。现行系统快照 = 包级活文档（同日拆包入库）：v1 系统级 [peach_bringup/doc](../../../../src/peach/peach_bringup/doc/architecture.md) 与各能力包 `doc/`；v2 设计与分期落地的权威是 [docs/peach_v2_重构终版方案.md](../../../../docs/peach_v2_重构终版方案.md)。v1 栈指导在 [src/peach/peach_system_tests/doc/testing.md](../../../../src/peach/peach_system_tests/doc/testing.md)。
 >
 > **边界（与 v1 并存）**：v2 不进 `harvest_system`/现行 lifecycle、不订 `peach_interfaces`（契约单源 `peach2_interfaces`）、入口 `peach2_bringup/peach2_system.launch.py`。生产入口仍是 v1 `peach_bringup`；v1/v2 不同时占有同一驱动/相机/运动端口；回退以停作业弃在途 goal 为前提（方案 §18.13）。
 

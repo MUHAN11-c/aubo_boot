@@ -127,8 +127,8 @@ def main():
     import torch
     torch.set_num_threads(6)
     from ultralytics import SAM, YOLO
-    det = YOLO(str(ROOT / 'src/peach_harvester/model/best.pt'))
-    sam = SAM(str(ROOT / 'src/peach_harvester/model/mobile_sam.pt'))
+    det = YOLO(str(ROOT / 'src/peach/peach_harvester/model/best.pt'))
+    sam = SAM(str(ROOT / 'src/peach/peach_harvester/model/mobile_sam.pt'))
     bag_classes = {int(k) for k, v in det.names.items()
                    if 'bag' in v and 'nobag' not in v}
 

@@ -13,11 +13,11 @@ pgrep -af 'ros2 launch|component_container|extrinsics_publisher|ros2 run'
 ros2 launch peach_bringup harvest_system.launch.py hardware_mode:=mock camera_enabled:=false
 ```
 
-真机另需 `hardware_mode:=real camera_enabled:=true robot_ip:=169.254.10.98`，示教器上电。怎么跑、命名、验收门细节见两测试包指导：[src/peach_system_tests/doc/testing.md](src/peach_system_tests/doc/testing.md)（v1）与 [src/peach2/peach2_system_tests/doc/testing.md](src/peach2/peach2_system_tests/doc/testing.md)（v2）。
+真机另需 `hardware_mode:=real camera_enabled:=true robot_ip:=169.254.10.98`，示教器上电。怎么跑、命名、验收门细节见两测试包指导：[src/peach/peach_system_tests/doc/testing.md](src/peach/peach_system_tests/doc/testing.md)（v1）与 [src/peach2/peach2_system_tests/doc/testing.md](src/peach2/peach2_system_tests/doc/testing.md)（v2）。
 
-现行系统快照：[docs/architecture.md](docs/architecture.md)、[docs/io.md](docs/io.md)。测试流程指导在两测试包 `doc/testing.md`（2026-10-10 用户裁定自 docs/testing.md 拆写入包）。过程记录类文档（docs/testing-log.md、docs/REFACTORING.md）已于 2026-10-10 用户裁定删除：轮次结论随提交说明，历史在 git。`docs/` 不新增第三份活文档。
+现行系统快照 = **包级活文档**（2026-10-10 用户裁定自 docs/architecture.md、docs/io.md 拆写入包）：系统级（分层 / 整栈组合 / 决策表 / 驱动地图）在 [src/peach/peach_bringup/doc/architecture.md](src/peach/peach_bringup/doc/architecture.md) 与 [src/peach/peach_bringup/doc/io.md](src/peach/peach_bringup/doc/io.md)；各能力包 `doc/architecture.md` / `doc/io.md` 记本包。测试流程指导在两测试包 `doc/testing.md`。过程记录类文档（docs/testing-log.md、docs/REFACTORING.md）已于 2026-10-10 用户裁定删除：轮次结论随提交说明，历史在 git。`docs/` 只留 v1/v2 方案书（非活文档），不再新增仓库级活文档。
 
-**怎么改以本文为准。** 两份活文档是 SNAPSHOT（现在跑什么），不是“永远必须这样”。非完美适配则跟 ROS 2 / 优秀 GitHub 主流，同轮改活文档。
+**怎么改以本文为准。** 包级活文档（`peach_bringup/doc` 系统文档 + 各能力包 `doc/`）是 SNAPSHOT（现在跑什么），不是“永远必须这样”。非完美适配则跟 ROS 2 / 优秀 GitHub 主流，同轮改活文档。
 
 ```mermaid
 flowchart TB
@@ -34,7 +34,7 @@ flowchart TB
     Fit[真机或产品最小必要表达]
   end
   subgraph snapshot [现行记录]
-    Current[两份活文档里的现状]
+    Current[包级活文档里的现状]
   end
   must --> default
   default --> keep
@@ -70,7 +70,7 @@ flowchart TB
 | **MUST** | 不可破：安全、发行版/ABI、测完清进程、不提交 `build/` `install/` `log/` `_archive/` |
 | **DEFAULT** | 主流。新代码、重构触及处、文档与代码已漂移处，都跟主流 |
 | **KEEP** | 仅当完美适配当前真机/产品（下三条同时成立） |
-| **SNAPSHOT** | 两份活文档里**现在跑什么**。不是“永远必须这样” |
+| **SNAPSHOT** | 包级活文档里**现在跑什么**。不是“永远必须这样” |
 | **UNWIND** | 不是完美适配。改到那一块就改成主流，禁止用“现行 architecture 这么写的”挡回去 |
 
 **KEEP 本地须同时成立：**
@@ -79,7 +79,7 @@ flowchart TB
 2. 本地做法是表达该约束的**最小**方式，没有再造一套与主流平行的框架
 3. 不阻止使用主流 API（例如可以 pluginlib，同时保留一个直接构造的默认实现）
 
-写任何源码 / IDL / launch / yaml **之前**做第 3 章检索。检索用一句话写进提交说明或 PR 即可，不必另开文档。SNAPSHOT 与 DEFAULT 冲突：先问是否完美适配；**不是则跟主流**，同轮改两份活文档。本地设计与现行代码已经对不上（文档漂移）时，不要把本地发明圆回去，改走主流。
+写任何源码 / IDL / launch / yaml **之前**做第 3 章检索。检索用一句话写进提交说明或 PR 即可，不必另开文档。SNAPSHOT 与 DEFAULT 冲突：先问是否完美适配；**不是则跟主流**，同轮改对应包的活文档。本地设计与现行代码已经对不上（文档漂移）时，不要把本地发明圆回去，改走主流。
 
 本轮文档权威已改；**不立刻拆包、不立刻补 CI / Gazebo / 回迁 GPL**。后续改到那一块再改成主流。
 
@@ -103,7 +103,7 @@ flowchart TB
 - bringup **不起** `aubo_dashboard`；禁止调用该包。`auto_power_on=false`。上电、抱闸用示教器。规划 / FK / IK 用 MoveIt。停轨 = 透传取消 + 硬件 `RobotMoveStop`（对齐 UR：dashboard 仅真机；本仓选择不用远程上电，避免软件误上电）。
 - 未授权不得真机运动或 SetIO。授权是人的口头/书面确认，不是 8090 按钮、不是 yaml 里某个 `true`。
 - Python：`aubo_py3.12`。ROS 2 依赖走 Jazzy apt；其余第三方钉进 `requirements.txt` 装 venv。**numpy == 1.26.4**（Jazzy `cv_bridge` 按 numpy 1.x 编译；升 2.x 会 ABI 崩）。
-- 用 venv 时：先 source Jazzy，再 source 工作区，再确认 `python3` 指向 `aubo_py3.12`。venv 若抢 `PYTHONPATH` 导致 `cv_bridge` 进错副本，按 v1 测试指导（`src/peach_system_tests/doc/testing.md` §1）清再 source。不要 `pip install numpy --upgrade`。
+- 用 venv 时：先 source Jazzy，再 source 工作区，再确认 `python3` 指向 `aubo_py3.12`。venv 若抢 `PYTHONPATH` 导致 `cv_bridge` 进错副本，按 v1 测试指导（`src/peach/peach_system_tests/doc/testing.md` §1）清再 source。不要 `pip install numpy --upgrade`。
 - 关节序冻结：`shoulder_joint, upperArm_joint, foreArm_joint, wrist1_joint, wrist2_joint, wrist3_joint`。顺序与 URDF / `joint_states` / 控制器 yaml 必须一致，否则透传点会拧腕。
 - 启动前：`pgrep -af 'ros2 launch|component_container|extrinsics_publisher|ros2 run'`。多代 `robot_state_publisher` 或 `extrinsics_publisher` 会叠同一 child frame，TF 静默错。
 - **测完即停、不允许残留：** 任何测试或程序（整栈 `ros2 launch`、`ros2 run`、采集器、`ros2 bag record`、探针、演示节点）运行结束后必须退出并清进程，不允许挂在后台。残留订户会占 FastDDS SHM、以死订户卡住 RELIABLE 大图流，使下一轮新订户 0 帧、TF 叠 child frame（2026-09-21：4 个挂死 `ros2 bag record` 堵死 `/camera/depth/image_raw`）。与「启动前 pgrep」成对：前清后清。收尾步骤见第 9 章。
@@ -118,7 +118,7 @@ flowchart TB
 
 ## 2. 机器人安全
 
-ROS 2 社区把安全分成三层。混为一谈会把网页按钮当成急停。真机操作纪律在 v1 测试指导（[src/peach_system_tests/doc/testing.md](src/peach_system_tests/doc/testing.md) §8）。
+ROS 2 社区把安全分成三层。混为一谈会把网页按钮当成急停。真机操作纪律在 v1 测试指导（[src/peach/peach_system_tests/doc/testing.md](src/peach/peach_system_tests/doc/testing.md) §8）。
 
 ```mermaid
 flowchart TB
@@ -204,7 +204,7 @@ ISO 10218 要求独立的正常停止、保护停止、急停，且急停优先�
 2. 对应 REP（103 / 105 / 117 / 132 / 144 / 149 / 2000 / 2004 / 2005）
 3. 同发行版分支教程与驱动：`ros-controls/ros2_control_demos`、`moveit/moveit2_tutorials`、`ros-navigation/navigation2`、`UniversalRobots/Universal_Robots_ROS2_Driver`、`ros2/common_interfaces`、`ros2/launch_ros`
 4. 应用栈范例：Autoware interface spec、TurtleBot 4 / Stretch 分包、OSU apple-harvest 的 `enable_*`
-5. 本仓 SNAPSHOT：两份活文档 + 测试包指导 + 同职责现有包（先看结构，再按 DEFAULT 改进）
+5. 本仓 SNAPSHOT：包级活文档（bringup 系统文档 + 各能力包 doc/）+ 测试包指导 + 同职责现有包（先看结构，再按 DEFAULT 改进）
 
 | 要做的事 | 先读 |
 |----------|------|
@@ -309,7 +309,7 @@ ISO 10218 要求独立的正常停止、保护停止、急停，且急停优先�
 - 图像 / 点云与 TF 对齐：积分 / 重建 **精确 stamp**；`TimePointZero` / latest 只允许诊断并打 stale（KEEP：已是 tf2 主流）
 - 仿真全图 `use_sim_time:=true` 且有 `/clock`；真机禁止误开
 - 多节点同 stamp 工作：`message_filters` + tf2 `MessageFilter`，不要“等到 latest TF 再积”
-- 合法帧集以 URDF + 单一 `extrinsics_publisher` 为准（现行树见 architecture L0）。多出来的 child frame = 旧实例污染，预检拒启。新静态 TF 进 xacro，不要节点里 `StaticTransformBroadcaster` 再发一份已有的 parent→child
+- 合法帧集以 URDF + 单一 `extrinsics_publisher` 为准（现行树见 [peach_bringup/doc/architecture.md](src/peach/peach_bringup/doc/architecture.md) 五层图）。多出来的 child frame = 旧实例污染，预检拒启。新静态 TF 进 xacro，不要节点里 `StaticTransformBroadcaster` 再发一份已有的 parent→child
 
 ### 深度与单位（产品例外要标出来）
 
@@ -373,7 +373,7 @@ TurtleBot 4 / Stretch / UR 的做法：同一套控制器与 MoveIt，只换硬�
 - 单位 [REP-103](https://www.ros.org/reps/rep-0103.html)：m、rad、s。体轴 x 前 y 左 z 上；光学系 `_optical` 为 z 前 x 右 y 下。深度若用 mm 必须在字段名或注释标明（本仓 uint16 毫米是 SNAPSHOT 例外；新字段优先米）
 - 能嵌 `PoseStamped` / `Image` / `PointCloud2` 就嵌，不要手写 x,y,z
 - 失败用专用 `FailureCode`，不要散落 string
-- 接口包 **不跑节点、不声明运行参数**。QoS 写在 [interface_manifest.yaml](src/peach_interfaces/config/interface_manifest.yaml)，当传输契约不当阈值
+- 接口包 **不跑节点、不声明运行参数**。QoS 写在 [interface_manifest.yaml](src/peach/peach_interfaces/config/interface_manifest.yaml)，当传输契约不当阈值
 
 ### 图名
 
@@ -381,8 +381,8 @@ TurtleBot 4 / Stretch / UR 的做法：同一套控制器与 MoveIt，只换硬�
 - 禁止 `__` 与数字开头
 - 节点私有用 `~/state`；跨包稳定名写进 manifest
 - 相对名可随 namespace 搬迁；绝对 `/` 名谨慎（多机/多臂会撞）
-- 改字段：IDL → 接口 README / manifest → [docs/io.md](docs/io.md) → 各端 pub/sub → **先编接口包再编下游**
-- 核对：`python3 src/peach_interfaces/scripts/check_interface_manifest.py`（Autoware 同类：manifest 与实现对齐，漂移即失败）
+- 改字段：IDL → 接口 README / manifest → [peach_interfaces/doc/io.md](src/peach/peach_interfaces/doc/io.md) → 各端 pub/sub → **先编接口包再编下游**
+- 核对：`python3 src/peach/peach_interfaces/scripts/check_interface_manifest.py`（Autoware 同类：manifest 与实现对齐，漂移即失败）
 - 消费者列必须对上真实订阅：调度订 `target_observations`、`grasp_decision`（闩锁许可令牌缓存，3c-2a，非选果输入）与 `managed_nodes_activated`；`initial_pose` 只进重建，不是调度订阅（KEEP：这是契约正确性，不是禁 pluginlib）
 - 预留 IDL（导航等）放 manifest `reserved_interfaces`，无生产方；不要假装有节点在发
 
@@ -399,7 +399,7 @@ TurtleBot 4 / Stretch / UR 的做法：同一套控制器与 MoveIt，只换硬�
 - 传感：`SensorDataQoS` ≈ BEST_EFFORT + volatile + 小 depth
 - 命令 / 状态 / latch：RELIABLE；晚订户要最后一帧 → transient_local depth 1（`HarvestState`、`GraspDecision` 已如此）
 - `/tf_static`、`robot_description` 用 transient_local
-- 两端必须兼容，否则静默无连接。改 QoS 必改 manifest + io.md
+- 两端必须兼容，否则静默无连接。改 QoS 必改 manifest + 对应包 doc/io.md
 - 兼容规则（蒸馏）：RELIABLE 订阅收不到 BEST_EFFORT 发布；volatile 订阅收不到“只为晚到者准备的”历史。怀疑没连上时先 `ros2 topic info -v`，不要先改算法
 
 ### 参数 API（与话题分离）
@@ -459,7 +459,7 @@ description (URDF + ros2_control 标签)
 - launch 文件：Python launch 用 `OpaqueFunction` 只在需要运行期计算时；能 `IncludeLaunchDescription` 就不要复制 bringup。参数文件用 `ParameterFile(..., allow_substs=True)` 时写清哪些键会被替换
 - 测试文件：`test/test_*.py` / `test_*_cpp.cpp`；`ament_add_gtest` / `ament_add_pytest_test` / `add_ros_isolated_launch_test` 进 `BUILD_TESTING`
 
-现行 peach 树见 [docs/architecture.md](docs/architecture.md)「命名与文件树」，此处不复制。新文件先问：它属于 description、bringup、moveit_config、interfaces，还是某个能力包？不要往驱动九包塞业务。
+工作区按**子工作空间分组**（2026-10-10 用户裁定，对齐 peach2/ivg 先例）：`src/peach/` = v1 采摘栈九包、`src/peach2/` = v2 孵化栈十二包、`src/ivg/` = IVG/演示栈；驱动九包与 `peach_sim` / `serial_imu` / `imu_follow` / `percipio_camera` 留 `src/` 顶层。分组只是目录收纳：包名、图名、colcon 递归发现与 `--packages-select` 均不变。现行 peach 树见 [peach_bringup/doc/architecture.md](src/peach/peach_bringup/doc/architecture.md)「命名与文件树」，此处不复制。新文件先问：它属于 description、bringup、moveit_config、interfaces，还是某个能力包？不要往驱动九包塞业务。
 
 ---
 
@@ -514,22 +514,23 @@ description (URDF + ros2_control 标签)
 
 包 README 七要素（[Developer Guide](https://docs.ros.org/en/jazzy/The-ROS2-Project/Contributing/Developer-Guide.html)）：目的、公有 API、例子、如何 build/install、如何测、如何生成文档、许可。接口包额外：谁发谁订、QoS、改字段流程。可选 [rosdoc2](https://github.com/ros-infrastructure/rosdoc2)。
 
-**本仓两份活文档（不新增第三份）：**
+**本仓活文档（包级，2026-10-10 拆包入库；不再新增仓库级活文档）：**
 
-| 文件 | 写什么 |
+| 文档 | 写什么 |
 |------|--------|
-| [docs/architecture.md](docs/architecture.md) | 现行分层 / 流程 / 决策。每条尽量能回答「现行 / 来源 / 原因」 |
-| [docs/io.md](docs/io.md) | 跨包名字、类型、QoS、TF、权威字段 |
+| [src/peach/peach_bringup/doc/architecture.md](src/peach/peach_bringup/doc/architecture.md) | v1 系统架构：分层 / 流程 / 决策表 / 驱动地图。每条尽量能回答「现行 / 来源 / 原因」 |
+| [src/peach/peach_bringup/doc/io.md](src/peach/peach_bringup/doc/io.md) | v1 系统 io：跨包边界（谁叫谁）、相机契约、驱动层、可选外设与旁路栈 |
+| 各能力包 `doc/architecture.md` / `doc/io.md` | 本包架构与 io：`peach_interfaces` / `peach_harvester` / `peach_arm` / `peach_observability` / `peach_vegetation` / `peach_common` / `peach_stereo` / `peach_system_tests`（`src/peach/` 下）；`peach_sim` 在 `src/peach_sim/doc/` |
 
-测试流程指导在两测试包 `doc/testing.md`（v1 [src/peach_system_tests/doc/testing.md](src/peach_system_tests/doc/testing.md)、v2 [src/peach2/peach2_system_tests/doc/testing.md](src/peach2/peach2_system_tests/doc/testing.md)；2026-10-10 自 docs/testing.md 拆写入包，随源码同轮更新）：怎么跑、命名、验收门、真机纪律。
+测试流程指导在两测试包 `doc/testing.md`（v1 [src/peach/peach_system_tests/doc/testing.md](src/peach/peach_system_tests/doc/testing.md)、v2 [src/peach2/peach2_system_tests/doc/testing.md](src/peach2/peach2_system_tests/doc/testing.md)；2026-10-10 自 docs/testing.md 拆写入包，随源码同轮更新）：怎么跑、命名、验收门、真机纪律。
 
 过程记录类文档（docs/testing-log.md、docs/REFACTORING.md）已于 2026-10-10 用户裁定删除：轮次结论随提交说明，历史在 git。改行为 = 源码 + 对应活文档/测试指导同一轮。注释不得与活文档或源码打架。发现不一致：两边一起改到一致再继续。
 
-`docs/` 另有两份**非活文档**（用户裁定入驻，不参与「两活文档」轮换、不是第三份活文档）：[docs/peach_v1_现行终版方案.md](docs/peach_v1_现行终版方案.md) = v1 现行栈终版方案（2026-10-08 定稿，与 v2 方案成对；2026-10-10 用户裁定转正入驻）；[docs/peach_v2_重构终版方案.md](docs/peach_v2_重构终版方案.md) = v2 完全重构设计与落地计划（2026-09-30 定稿，对应 `src/peach2/` 孵化栈；方案自述性质=重构计划非活文档）。原项目设计书主本 `design.md` 已于 2026-10-10 用户裁定删除（由 v1/v2 方案书取代）。两者与活文档打架时：现行行为以两活文档为准，方向以 v1/v2 方案书为准，同轮对齐。
+`docs/` 另有两份**非活文档**（用户裁定入驻，不参与活文档轮换、不是活文档）：[docs/peach_v1_现行终版方案.md](docs/peach_v1_现行终版方案.md) = v1 现行栈终版方案（2026-10-08 定稿，与 v2 方案成对；2026-10-10 用户裁定转正入驻）；[docs/peach_v2_重构终版方案.md](docs/peach_v2_重构终版方案.md) = v2 完全重构设计与落地计划（2026-09-30 定稿，对应 `src/peach2/` 孵化栈；方案自述性质=重构计划非活文档）。原项目设计书主本 `design.md` 已于 2026-10-10 用户裁定删除（由 v1/v2 方案书取代）。两者与活文档打架时：现行行为以包级活文档为准，方向以 v1/v2 方案书为准，同轮对齐。
 
 IDL 文件头写通道语义；字段行内写单位与取值。代码注释解释非显然的 **为什么**，不要复述下一行。行为变化写提交说明或 `CHANGELOG.rst`（[REP-132](https://www.reps.openrobotics.org/rep-0132.html)）；轮次散文不写回测试指导文档。公有 C++ 头必须 `///`。
 
-如何演化以**本文**为准：非完美适配则主流，并同轮改两份活文档。不要把当时否决（不上 pluginlib、禁止 launch_testing）当永久禁令。
+如何演化以**本文**为准：非完美适配则主流，并同轮改对应包的活文档。不要把当时否决（不上 pluginlib、禁止 launch_testing）当永久禁令。
 
 代理写文档时：SNAPSHOT 用现在时（“现行 … 是 …”）；DEFAULT 用祈使（“新代码 …”）；UNWIND 标明“不是完美适配”。禁止把 SNAPSHOT 写成红线，也禁止把 MUST 写成“建议”。
 
@@ -566,7 +567,7 @@ flowchart LR
 - 环境：官方建议 `ros2 doctor`；本仓启动前与结束后都 pgrep
 - 日志：现场复盘靠 bag + `runs/` jsonl，不靠终端滚动。`RCLCPP_INFO` 写节拍与目标 ID，不写矩阵
 
-带相机 / MoveIt / IMU 的 launch 参数与真机干跑步骤见 v1 测试指导（[src/peach_system_tests/doc/testing.md](src/peach_system_tests/doc/testing.md)）。不要把测试指导的命令表再贴一遍。
+带相机 / MoveIt / IMU 的 launch 参数与真机干跑步骤见 v1 测试指导（[src/peach/peach_system_tests/doc/testing.md](src/peach/peach_system_tests/doc/testing.md)）。不要把测试指导的命令表再贴一遍。
 
 ### 冒烟最小集（mock）
 
@@ -608,7 +609,7 @@ flowchart TB
 - 改动后本地 `colcon test --packages-select …` + `colcon test-result --verbose`
 - 新功能：先单测，再 launch_testing，最后才真机
 - **测完即停：** 探针 / bag / 采集 / 演示栈 / mock 冒烟结束后必须退出并 `pgrep` 复核（MUST 第 1 章；步骤第 9 章）。`colcon test` 与 isolated launch_testing 本身会拆栈，但本机手工起的进程不在其列。
-- 真机命名：v1 测试指导（`src/peach_system_tests/doc/testing.md` §3）的 `field_pregrasp_*` / `field_full_*`；`request_id` 不复用
+- 真机命名：v1 测试指导（`src/peach/peach_system_tests/doc/testing.md` §3）的 `field_pregrasp_*` / `field_full_*`；`request_id` 不复用
 - `colcon test` 绿 **不等于** 采摘方向验收；也不再把“禁止仿真测”写成原则
 - CI DEFAULT：[industrial_ci](https://github.com/ros-industrial/industrial_ci) GitHub Action，`ROS_DISTRO: jazzy`，跑 build+test。真机 job 不进 PR 必过门。本仓 `.github/workflows/jazzy.yaml`：`peach-core` = `scripts/r0_gate.sh`；`industrial_ci` job 编测驱动+peach（忽略 IVG / `imu_follow` / `percipio_camera` / `camera_calibration`；apt scipy/pytest/yaml，不 Docker pip）
 
@@ -632,7 +633,7 @@ Gazebo Harmonic（Jazzy 搭配）或 Isaac / MuJoCo：同一 URDF，换 `gz_ros2
 ### 改后核对（做完改动要跑）
 
 1. 风格：受影响包 `colcon test --packages-select <pkg>`（lint + 纯核 / gtest）
-2. 接口：改了 IDL / 接线则跑 `python3 src/peach_interfaces/scripts/check_interface_manifest.py`；`ros2 interface show` 对得上 io.md
+2. 接口：改了 IDL / 接线则跑 `python3 src/peach/peach_interfaces/scripts/check_interface_manifest.py`；`ros2 interface show` 对得上包级 io 文档
 3. 图：无重复节点；TF `tf2_echo` 无叠 child frame
 4. Launch：mock 能起；lifecycle Active；**停栈后** pgrep 无残留（含 bag record / collect / probe）
 5. 行为：运动路径至少 `hardware_mode:=mock` 走通；真机另需授权
@@ -646,9 +647,9 @@ gtest 放本包 `test/`，链到纯核静态库，不 `spin` 整个技能节点�
 
 ## 11. SNAPSHOT
 
-只记录现在跑什么。没有 KEEP 理由的条目见第 12 章，标 UNWIND。细节链到两份活文档，不把 architecture 复制进来。
+只记录现在跑什么。没有 KEEP 理由的条目见第 12 章，标 UNWIND。细节链到包级活文档（系统=peach_bringup/doc；包级=各包 doc/），不把 architecture 复制进来。
 
-产品：固定座 AUBO E5 + Percipio RGB-D；愿景含底盘。`peach_navigation` 已归档 `_archive/parked_2026-09/`。IVG 三包不是 peach，不进 `harvest_system` / lifecycle（产品范围 KEEP）。peach2 v2 孵化栈（`src/peach2/`，十二包）同样不进 `harvest_system` / lifecycle：M1 退出门已过（系统测 33/33），非生产入口，方案见 `docs/peach_v2_重构终版方案.md`。`imu_follow` 不是 peach、不进 lifecycle；仅 `adaptive_shear_v1` 随 `harvest_system` Include（shear/bite 两档不起）。`imu_follow` 开运动时不经 `authorizeStage`（peach 接触窗只调 Trigger；`motion.enabled` 默认 false），真机须另授权。
+产品：固定座 AUBO E5 + Percipio RGB-D；愿景含底盘。`src/` 分组（2026-10-10 用户裁定）：`src/peach/` = v1 采摘栈九包（下表职责摘要对象）、`src/peach2/` = v2 十二包、`src/ivg/` = 演示八包；驱动与 `peach_sim`/`serial_imu`/`imu_follow`/`percipio_camera` 顶层。`peach_navigation` 已归档 `_archive/parked_2026-09/`。IVG 三包不是 peach，不进 `harvest_system` / lifecycle（产品范围 KEEP）。peach2 v2 孵化栈（`src/peach2/`，十二包）同样不进 `harvest_system` / lifecycle：M1 退出门已过（系统测 33/33），非生产入口，方案见 `docs/peach_v2_重构终版方案.md`。`imu_follow` 不是 peach、不进 lifecycle；仅 `adaptive_shear_v1` 随 `harvest_system` Include（shear/bite 两档不起）。`imu_follow` 开运动时不经 `authorizeStage`（peach 接触窗只调 Trigger；`motion.enabled` 默认 false），真机须另授权。
 
 ### KEEP（完美适配当前实现）
 
@@ -685,7 +686,7 @@ gtest 放本包 `test/`，链到纯核静态库，不 `spin` 整个技能节点�
 | `peach_system_tests` | isolated mock launch_testing + 回放塔 | 不进运行 launch |
 | `peach_stereo` | 主机单图案立体深度相机前端（PS800-E1；0036 起**默认** `camera_frontend:=stereo`，话题与 percipio 同构） | 不做感知业务；不改 percipio 驱动 |
 
-lifecycle 名单现行（nav2_lm 承载，`bond_timeout` launch 参数默认 0；四托管节点已接线心跳——C++ bondcpp 生效、Python 守卫 import 已修（2026-10-08））：场景 → 重建 → 技能 → 调度；observability / vegetation 不进名单。若重划包边界，这张表与 [docs/io.md](docs/io.md) 消费者列必须同轮改。
+lifecycle 名单现行（nav2_lm 承载，`bond_timeout` launch 参数默认 0；四托管节点已接线心跳——C++ bondcpp 生效、Python 守卫 import 已修（2026-10-08））：场景 → 重建 → 技能 → 调度；observability / vegetation 不进名单。若重划包边界，这张表与 [peach_bringup/doc/io.md](src/peach/peach_bringup/doc/io.md) 消费者列必须同轮改。
 
 ### UNWIND（不是完美适配；禁止当红线）
 
@@ -747,7 +748,7 @@ lifecycle 名单现行（nav2_lm 承载，`bond_timeout` launch 参数默认 0�
 
 7. lint + 单测绿；接口改了则 manifest 绿
 8. mock 冒烟或 launch_testing
-9. 同轮两份活文档/测试指导（若改为主流，删掉旧“禁止 / 不上”口吻）
+9. 同轮包级活文档/测试指导（若改为主流，删掉旧“禁止 / 不上”口吻）
 10. 未授权则不动真机
 11. 测完 / 跑完 pgrep 无残留（MUST）
 
@@ -766,7 +767,7 @@ lifecycle 名单现行（nav2_lm 承载，`bond_timeout` launch 参数默认 0�
 
 1. 改 IDL 与字段注释（单位、frame、stamp）
 2. 改接口 README 与 `interface_manifest.yaml`
-3. 改 [docs/io.md](docs/io.md) 对应表
+3. 改 [peach_interfaces/doc/io.md](src/peach/peach_interfaces/doc/io.md) 与 [系统 io](src/peach/peach_bringup/doc/io.md) 对应表
 4. **先** `colcon build --packages-select peach_interfaces`
 5. 改各端 pub/sub；跑 `check_interface_manifest.py`
 6. launch_testing 或 mock 冒烟证明两端仍连得上
@@ -797,7 +798,7 @@ lifecycle 名单现行（nav2_lm 承载，`bond_timeout` launch 参数默认 0�
 
 ### 本文不写什么
 
-- 不把 [docs/architecture.md](docs/architecture.md) 全文复制进来（SNAPSHOT 摘要 + 链接）
+- 不把 [peach_bringup/doc/architecture.md](src/peach/peach_bringup/doc/architecture.md) 全文复制进来（SNAPSHOT 摘要 + 链接）
 - 不把测试包指导文档的命令表再贴一遍（入口 + 分层原则即可）
 - 不在 `docs/` 再开第四份活文档
 - 不大段粘贴 Google C++ 指南原文（只蒸馏本仓要用的条目）

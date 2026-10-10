@@ -36,8 +36,8 @@ def main():
     import torch
     torch.set_num_threads(6)
     from ultralytics import SAM, YOLO
-    det = YOLO(str(ROOT / 'src/peach_harvester/model/best.pt'))
-    sam = SAM(str(ROOT / 'src/peach_harvester/model/mobile_sam.pt'))
+    det = YOLO(str(ROOT / 'src/peach/peach_harvester/model/best.pt'))
+    sam = SAM(str(ROOT / 'src/peach/peach_harvester/model/mobile_sam.pt'))
     measure = json.loads(
         (HERE / 'evidence/reference_measurements.json').read_text())
     result = {
@@ -47,9 +47,9 @@ def main():
         'scene_manifest_sha256': hashlib.sha256(manifest_path.read_bytes()).hexdigest(),
         'lighting': manifest.get('lighting'),
         'model_sha256': hashlib.sha256(
-            (ROOT / 'src/peach_harvester/model/best.pt').read_bytes()).hexdigest(),
+            (ROOT / 'src/peach/peach_harvester/model/best.pt').read_bytes()).hexdigest(),
         'sam_model_sha256': hashlib.sha256(
-            (ROOT / 'src/peach_harvester/model/mobile_sam.pt').read_bytes()).hexdigest(),
+            (ROOT / 'src/peach/peach_harvester/model/mobile_sam.pt').read_bytes()).hexdigest(),
         'views': {},
         'notes': [
             'SAM is GT-box prompted here; mask score is not detector recall.',

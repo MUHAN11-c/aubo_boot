@@ -60,8 +60,8 @@ def main():
     import torch
     torch.set_num_threads(6)
     from ultralytics import SAM, YOLO
-    sam = SAM(str(ROOT / 'src/peach_harvester/model/mobile_sam.pt'))
-    detector = YOLO(str(ROOT / 'src/peach_harvester/model/best.pt'))
+    sam = SAM(str(ROOT / 'src/peach/peach_harvester/model/mobile_sam.pt'))
+    detector = YOLO(str(ROOT / 'src/peach/peach_harvester/model/best.pt'))
     out = HERE / 'evidence'
     out.mkdir(exist_ok=True)
     report = {'source': str(args.dataset), 'intrinsics': {'width': 1280, 'height': 720, 'fx': 640., 'fy': 640., 'cx': 640., 'cy': 360.,

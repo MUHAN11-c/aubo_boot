@@ -8,7 +8,8 @@ r"""从重建整园 .blend 导出 Gazebo 查看 GLB（headless）.
         --out src/peach_sim/meshes/field_no_grass.glb [--keep-backdrop] [--decimate 0.25]
 
 流程：删相机/灯 → （默认删 backdrop 远景行实例）→ collection 实例实体化 →
-几何节点叶 apply（实例 realize）→ 全网格 join → 可选 decimate → glTF GLB
+几何节点叶 apply（实例 realize）→ 逐对象烘焙变换（不 join，多节点结构
+与 build_assets 树 GLB 同构）→ 可选 decimate → glTF GLB
 （export_yup，与 build_assets.py 同参数；Gazebo world 以
 ``model://peach_sim/meshes/field_no_grass.glb`` 引用，见 worlds/field_no_grass.sdf）。
 
@@ -173,31 +174,35 @@ def main() -> None:
     meshes = [o for o in bpy.context.view_layer.objects
               if o is not None and o.type == 'MESH']
     if not meshes:
-        raise RuntimeError('no meshes left to join')
+        raise RuntimeError('no meshes left to export')
+
+    # Keep meshes as separate objects (no join). gz-common 5.9 loads glb
+    # through Assimp: a single-node single-mesh glb rendered rotated 90 deg
+    # (vertical ground wall) while multi-node glbs (build_assets trees)
+    # load upright — match the proven structure. Bake each object's world
+    # matrix into its vertices via Mesh.transform (pure data op; per-object
+    # bpy.ops.transform_apply costs ~1 ms x 13k objects and is too slow).
+    for obj in meshes:
+        obj.data.transform(obj.matrix_world)
+        obj.parent = None
+        obj.location = (0.0, 0.0, 0.0)
+        obj.rotation_euler = (0.0, 0.0, 0.0)
+        obj.scale = (1.0, 1.0, 1.0)
+    log('world transforms baked into vertices, meshes kept separate:',
+        len(meshes))
+
+    if args.decimate > 0:
+        for obj in meshes:
+            mod = obj.modifiers.new('gz_decimate', 'DECIMATE')
+            mod.ratio = args.decimate
+            bpy.context.view_layer.objects.active = obj
+            bpy.ops.object.modifier_apply(modifier=mod.name)
+        log('decimated every mesh at ratio', args.decimate)
+
+    log('verts total:', sum(len(o.data.vertices) for o in meshes))
     bpy.ops.object.select_all(action='DESELECT')
     for obj in meshes:
         obj.select_set(True)
-    bpy.context.view_layer.objects.active = meshes[0]
-    t0 = time.time()
-    bpy.ops.object.join()
-    log(f'joined {len(meshes)} meshes in {time.time() - t0:.1f}s')
-
-    obj = bpy.context.active_object
-    obj.name = 'field_no_grass'
-    # Bake world transform into vertices: the join target keeps its own
-    # object rotation/origin, which would otherwise tilt the whole merged
-    # mesh in Gazebo (and resetting location alone shifts it).
-    bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
-    log('verts after join:', len(obj.data.vertices))
-
-    if args.decimate > 0:
-        mod = obj.modifiers.new('gz_decimate', 'DECIMATE')
-        mod.ratio = args.decimate
-        bpy.ops.object.modifier_apply(modifier=mod.name)
-        log('verts after decimate:', len(obj.data.vertices))
-
-    bpy.ops.object.select_all(action='DESELECT')
-    obj.select_set(True)
     bpy.ops.export_scene.gltf(filepath=args.out, export_format='GLB',
                               use_selection=True, export_yup=True)
     log('exported', args.out)

@@ -1,6 +1,6 @@
 # 契约：名字、QoS、身份、失败码
 
-真源：`src/peach_interfaces/config/interface_manifest.yaml`。核对：`python3 src/peach_interfaces/scripts/check_interface_manifest.py`。字段目录：`src/peach_interfaces/README.md`。活文档：`docs/io.md`。
+真源：`src/peach/peach_interfaces/config/interface_manifest.yaml`。核对：`python3 src/peach/peach_interfaces/scripts/check_interface_manifest.py`。字段目录：`src/peach/peach_interfaces/README.md`。活文档：`src/peach/peach_interfaces/doc/io.md` 与系统 io（`src/peach/peach_bringup/doc/io.md`）。
 
 ## 命名陷阱
 

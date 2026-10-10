@@ -214,6 +214,6 @@ def main(argv=None):
           '(launch 经 FindPackageShare 读 install 副本, 重建后新内参才进前端)')
     print('  2. 重启相机前端 (percipio 或 stereo) 生效')
     print('  3. 验证: ros2 topic echo /camera/color/camera_info --once 核对 K')
-    print('  4. 手动更新 src/peach_harvester/config/scene_perception.yaml '
+    print('  4. 手动更新 src/peach/peach_harvester/config/scene_perception.yaml '
           '的 calibration_version 标签')
     return 0

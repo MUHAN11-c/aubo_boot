@@ -51,7 +51,7 @@ for category in ['Peach_bag', 'Peach_nobag', 'Peach_young']:
             list(
                 (p / 'Infrared').glob('*.png'))),
         'sampled_frames': rows}
-for f in (ROOT / 'src/peach_stereo/test/data').glob('*frames.jsonl'):
+for f in (ROOT / 'src/peach/peach_stereo/test/data').glob('*frames.jsonl'):
     rows = [json.loads(line) for line in f.open()]
     targets = [t for r in rows for t in r.get('targets', {}).values()]
     good = [

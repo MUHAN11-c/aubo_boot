@@ -1,0 +1,234 @@
+#!/usr/bin/env python3
+"""
+双向核对 interface_manifest.yaml 与 peach_* 源码.
+
+正向：manifest 每个 name 必须出现在源码字面量（绝对名或 ~/相对名）。
+反向：源码中出现的绝对 /peach 话题字面量必须在 manifest（现行或预留）或
+可视化豁免表内；否则说明新增了未登记的跨包话题（漂移）。
+弱校验：现行接口的 consumers 须在对应节点源码树里出现该名字
+（调度不含 observability；预留区不查消费者）。
+"""
+from __future__ import annotations
+
+from pathlib import Path
+import re
+import sys
+
+try:
+    import yaml
+except ImportError:
+    yaml = None
+
+# 可视化/调试话题：仅供 RViz/Web 调试，按 architecture §3 不进清单
+EXEMPT_VISUALIZATION = {
+    '/peach/perception/axis',
+    '/peach/perception/debug_image_raw',
+    '/peach/perception/detections',
+    '/peach/perception/markers',
+    '/peach/perception/masks',
+    '/peach/perception/single_cloud',
+    '/peach/reconstruction/local_cloud',
+    '/peach_arm/planned_views',
+}
+
+# rcl 自动参数服务端点后缀（每个节点随参数设施自动生成）：框架设施非业务契约，
+# 不进清单；后缀豁免使测试对任意 peach 节点调参数服务不再逐个登记
+# （2026-10-08：/peach_arm/get_parameters、/peach_supervisor/set_parameters 误报即此类）
+_RCL_PARAM_SERVICE_SUFFIXES = (
+    '/get_parameters', '/set_parameters', '/set_parameters_atomically',
+    '/describe_parameters', '/get_parameter_types', '/list_parameters',
+)
+
+# bag_reader legacy 别名的旧键：仅为旧 bag 回放兼容，不在图上（阶段 6-3）
+EXEMPT_LEGACY_ALIASES = {
+    '/peach_executor/control',
+    '/peach_executor/events',
+    '/peach_executor/run_harvest',
+    '/peach_executor/scene_snapshot',
+    '/peach_executor/state',
+}
+
+_LITERAL_RE = re.compile(r'[\'"](/peach[A-Za-z0-9_/]*)[\'"]')
+
+# consumer 标签 → 源码相对 src/ 的文件或目录（调度节点不含监控）。
+_CONSUMER_PATHS = {
+    'peach_supervisor': [
+        'peach/peach_harvester/peach_harvester/supervisor/executor_node.py',
+        'peach/peach_harvester/peach_harvester/supervisor/batch.py',
+        'peach/peach_harvester/peach_harvester/supervisor/harvest_fsm.py',
+        'peach/peach_harvester/config/peach_supervisor.yaml',
+    ],
+    'peach_bringup': [
+        'peach/peach_bringup/peach_bringup',
+        'peach/peach_bringup/launch',
+        'peach/peach_bringup/config',
+    ],
+    'peach_lifecycle_flag_bridge': [
+        'peach/peach_bringup/peach_bringup/lifecycle_flag_bridge.py',
+        'peach/peach_bringup/config',
+    ],
+    'peach_observability': [
+        'peach/peach_observability/peach_observability',
+        'peach/peach_observability/config/observability.yaml',
+    ],
+    'peach_scene_perception': [
+        'peach/peach_harvester/peach_harvester/vision/scene_perception',
+        'peach/peach_harvester/config/scene_perception.yaml',
+    ],
+    'peach_scene_obstacles': [
+        'peach/peach_harvester/peach_harvester/vision/scene_obstacles',
+        'peach/peach_harvester/config/scene_obstacles.yaml',
+    ],
+    'peach_target_reconstruction': [
+        'peach/peach_harvester/peach_harvester/vision/target_reconstruction',
+        'peach/peach_harvester/config/target_reconstruction.yaml',
+    ],
+    'peach_arm': [
+        'peach/peach_arm/src',
+        'peach/peach_arm/include',
+        'peach/peach_arm/config',
+    ],
+    'peach_lifecycle_manager': [
+        'peach/peach_harvester/peach_harvester/supervisor/lifecycle_manager.py',
+        'peach/peach_harvester/config/lifecycle_manager.yaml',
+    ],
+}
+
+
+def _workspace_src(script: Path) -> Path:
+    """peach_interfaces/scripts → 工作区 src/（v1 包嵌套在 src/peach/ 分组下）."""
+    return script.resolve().parents[3]
+
+
+# GPL 生成模块（gitignore）：default_value 会把未进清单的节点内服务名
+# 收成 Python 字面量；反向扫描只看手写源码与 yaml。
+_GENERATED_PARAM_MODULES = {
+    'executor_parameters.py',
+    'lifecycle_manager_parameters.py',
+    'observability_parameters.py',
+    'scene_perception_parameters.py',
+    'target_reconstruction_parameters.py',
+}
+
+
+def _iter_sources(src_root: Path):
+    # 2026-10-10 子工作空间分组：v1 包嵌套在 src/peach/ 下；peach_sim 等仍在 src/ 顶层。
+    # 名字过滤天然排除 peach2_*（peach2_ 前缀）。
+    packages = sorted(set(src_root.glob('peach_*')) | set(src_root.glob('*/peach_*')))
+    for package in packages:
+        for path in package.rglob('*'):
+            if path.suffix not in {'.py', '.cpp', '.hpp', '.xml', '.yaml'}:
+                continue
+            if path.name in _GENERATED_PARAM_MODULES:
+                continue
+            if any(part in {'build', 'install', 'log', '__pycache__',
+                            '.pytest_cache'} for part in path.parts):
+                continue
+            yield path
+
+
+def _read(path: Path) -> str:
+    try:
+        return path.read_text(encoding='utf-8', errors='ignore')
+    except OSError:
+        return ''
+
+
+def _consumer_blob(src_root: Path, consumer: str) -> str:
+    """拼接某一 consumer 标签对应的源码文本."""
+    pieces = []
+    for relative in _CONSUMER_PATHS.get(consumer, ()):
+        path = src_root / relative
+        if path.is_file():
+            pieces.append(_read(path))
+            continue
+        if path.is_dir():
+            for child in path.rglob('*'):
+                if child.name in _GENERATED_PARAM_MODULES:
+                    continue
+                if child.suffix in {'.py', '.cpp', '.hpp', '.yaml'}:
+                    pieces.append(_read(child))
+    return '\n'.join(pieces)
+
+
+def _name_in_blob(name: str, blob: str) -> bool:
+    """绝对名或 ~/相对名出现即算接线."""
+    if name in blob:
+        return True
+    rel = name.rsplit('/', 1)[-1]
+    return f"'~/{rel}'" in blob or f'"~/{rel}"' in blob
+
+
+def main() -> int:
+    script = Path(__file__)
+    manifest_path = script.resolve().parents[1] / 'config' / 'interface_manifest.yaml'
+    if yaml is None:
+        print('PyYAML missing; skip interface manifest check', file=sys.stderr)
+        return 0
+    document = yaml.safe_load(manifest_path.read_text(encoding='utf-8'))
+    interfaces = document.get('interfaces', [])
+    reserved = document.get('reserved_interfaces', [])
+    names = [item['name'] for item in interfaces + reserved]
+    known = set(names)
+    blob = ''
+    src_root = _workspace_src(script)
+    for path in _iter_sources(src_root):
+        blob += _read(path)
+    missing = []
+    for name in names:
+        if not _name_in_blob(name, blob):
+            missing.append(name)
+    if missing:
+        print('interface manifest names not found in peach_* sources:')
+        for name in missing:
+            print(f'  {name}')
+        return 1
+    # 反向：源码绝对 /peach 字面量必须可归入 manifest / 豁免表 / 是清单名的前缀
+    untracked = []
+    for literal in sorted(set(_LITERAL_RE.findall(blob))):
+        if literal in known or literal in EXEMPT_VISUALIZATION:
+            continue
+        if literal.endswith(_RCL_PARAM_SERVICE_SUFFIXES):
+            continue
+        if literal in EXEMPT_LEGACY_ALIASES:
+            continue
+        if any(name.startswith(literal) for name in known):
+            continue
+        untracked.append(literal)
+    if untracked:
+        print('source /peach topic literals not tracked in interface manifest:')
+        for literal in untracked:
+            print(f'  {literal}')
+        return 1
+    # 弱校验：现行 consumers 须在对应节点源码出现该名字（自订阅跳过）。
+    # 同一 consumer 被 N 个接口引用只拼一次 blob（原实现接口数×consumer 数重复 IO）
+    consumer_miss = []
+    consumer_blobs: dict[str, str] = {}
+    for item in interfaces:
+        name = item['name']
+        producers = set(item.get('producers') or [])
+        for consumer in item.get('consumers') or []:
+            if consumer in producers:
+                continue
+            if consumer not in _CONSUMER_PATHS:
+                consumer_miss.append(f'{name}: unknown consumer {consumer}')
+                continue
+            cblob = consumer_blobs.get(consumer)
+            if cblob is None:
+                cblob = consumer_blobs[consumer] = _consumer_blob(
+                    src_root, consumer)
+            if not _name_in_blob(name, cblob):
+                consumer_miss.append(f'{name} consumer {consumer}')
+    if consumer_miss:
+        print('interface manifest consumers not found in node sources:')
+        for line in consumer_miss:
+            print(f'  {line}')
+        return 1
+    active = len(interfaces)
+    print(
+        f'interface manifest ok ({active} active + {len(reserved)} reserved names)')
+    return 0
+
+
+if __name__ == '__main__':
+    sys.exit(main())

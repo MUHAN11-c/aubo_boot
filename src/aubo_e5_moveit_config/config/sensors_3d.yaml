@@ -6,7 +6,7 @@
 # /apply_planning_scene 原子写入 PlanningScene；作业期图冻结，新批次重建。
 # 受查对仅 camera_body_link×障碍（peach_arm ACM：tool.links 部署值=全机器人
 # −相机；开关 moveit.obstacle_guard_enabled=false 时相机一并豁免，用于障碍
-# 拦路到不了位时恢复可达性）。机制细节见 docs/architecture.md ③层。
+# 拦路到不了位时恢复可达性）。机制细节见 src/peach/peach_bringup/doc/architecture.md 接近约束 ③层。
 #
 # 历史教训（octomap 路线两轮翻车，保留备忘）：
 #   09-17：眼在手上 self-filter（ShapeMask）漏收工具点云 → 工具×<octomap>

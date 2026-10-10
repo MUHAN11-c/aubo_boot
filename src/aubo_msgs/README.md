@@ -1,6 +1,6 @@
 # aubo_msgs
 
-AUBO 驱动栈接口：状态、IO、FK/IK、手眼标定动作。采摘业务类型在 [`peach_interfaces`](../peach_interfaces/README.md)。包职责见 [docs/architecture.md](../../docs/architecture.md) §3 驱动层。
+AUBO 驱动栈接口：状态、IO、FK/IK、手眼标定动作。采摘业务类型在 [`peach_interfaces`](../peach/peach_interfaces/README.md)。包职责见 [peach_bringup/doc/architecture.md](../peach/peach_bringup/doc/architecture.md) 驱动层。
 
 ## 消息
 

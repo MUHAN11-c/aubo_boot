@@ -25,13 +25,13 @@ src.tar.xz
 
 # rembg u2net 权重约 168MB，超过 Gitee 社区版单文件配额与 GitHub 100MB；
 # 本机文件保留不删。clone 后见
-# src/ivg_pose_estimation/models/README.md
-src/ivg_pose_estimation/models/*.onnx
-src/ivg_pose_estimation/models/*.pt
+# src/ivg/ivg_pose_estimation/models/README.md
+src/ivg/ivg_pose_estimation/models/*.onnx
+src/ivg/ivg_pose_estimation/models/*.pt
 # DINOv2 模板嵌入索引：由 template_index 按模板 mtime 重建的可再生产物
-src/ivg_pose_estimation/templates/*/.dinov2_index.npz
+src/ivg/ivg_pose_estimation/templates/*/.dinov2_index.npz
 # ivg_sim YCB meshes（全库约 118MB，models/fetch_ycb.sh 恢复；sdf/config 入库）
-src/ivg_sim/models/*/meshes/
+src/ivg/ivg_sim/models/*/meshes/
 # MobileCLIP2 权重约 243MB，同样超单文件配额，本机保留
 /mobileclip2_b.ts
 

@@ -2,9 +2,9 @@
 
 套袋桃采摘：到位（预留）→ 场景里有哪些桃 → 这一颗的局部模型 → 臂怎么动 → 调度开批。
 
-- 设计架构：[docs/architecture.md](docs/architecture.md)
-- 输入输出：[docs/io.md](docs/io.md)
-- 测试流程指导：[src/peach_system_tests/doc/testing.md](src/peach_system_tests/doc/testing.md)（v1）；[src/peach2/peach2_system_tests/doc/testing.md](src/peach2/peach2_system_tests/doc/testing.md)（v2）
+- 设计架构：[src/peach/peach_bringup/doc/architecture.md](src/peach/peach_bringup/doc/architecture.md)
+- 输入输出：[src/peach/peach_bringup/doc/io.md](src/peach/peach_bringup/doc/io.md)
+- 测试流程指导：[src/peach_system_tests/doc/testing.md](src/peach/peach_system_tests/doc/testing.md)（v1）；[src/peach2/peach2_system_tests/doc/testing.md](src/peach2/peach2_system_tests/doc/testing.md)（v2）
 - 用户裁定文档（非活文档）：[docs/peach_v1_现行终版方案.md](docs/peach_v1_现行终版方案.md) v1 现行栈终版方案；[docs/peach_v2_重构终版方案.md](docs/peach_v2_重构终版方案.md) v2 重构设计与落地计划（原 design.md 项目设计书已由两者取代删除）
 - 代理约束：[AGENTS.md](AGENTS.md)
 
@@ -26,17 +26,17 @@ ros2 launch peach_bringup harvest_system.launch.py \
 
 ## 采摘应用包
 
-详细作用、入口、禁止项、命名与文件树：[docs/architecture.md](docs/architecture.md) §3。跨包契约：[docs/io.md](docs/io.md)。能力包不互发批次命令；只有调度当客户端。节点之间只走 `peach_interfaces`。
+详细作用、入口、禁止项、命名与文件树：[src/peach/peach_bringup/doc/architecture.md](src/peach/peach_bringup/doc/architecture.md) §3。跨包契约：[src/peach/peach_bringup/doc/io.md](src/peach/peach_bringup/doc/io.md)。能力包不互发批次命令；只有调度当客户端。节点之间只走 `peach_interfaces`。
 
 | 包 | 作用 | 含节点 | 不做什么 |
 |----|------|--------|----------|
-| [peach_interfaces](src/peach_interfaces/README.md) | 跨包唯一 IDL：批次/观测/重建/抓取（导航名预留） | 无 | 不跑节点、不设算法参数、不 launch |
+| [peach_interfaces](src/peach/peach_interfaces/README.md) | 跨包唯一 IDL：批次/观测/重建/抓取（导航名预留） | 无 | 不跑节点、不设算法参数、不 launch |
 | peach_harvester | 大脑一进程三节点：vision（场景观测+目标重建）+ supervisor（批次 FSM/选果/视点两档/批次策略/操作台服务/账本+补采清单） | `peach_scene_perception_node`、`peach_target_reconstruction_node`、`peach_supervisor` | 不发关节命令、不做 IK（问臂）；感知不选下一颗、不写账本 |
-| [peach_arm](src/peach_arm/README.md) | 拍照、主动视点、质量/安全门、MTC 接触、工具 SetIO、撤退 | `peach_arm` | 不写账本、不调重建 Trigger、不 `BeginScene`/`RunHarvest` |
-| [peach_bringup](src/peach_bringup/README.md) | 整栈入口、预检、lifecycle 托管、autostart 客户端、生命周期桥 | `peach_lifecycle_flag_bridge`、`peach_autostart_client` | 不含业务；launch 不自动开批 |
-| [peach_observability](src/peach_observability/README.md) | 8090 过程页/单步调试、会话 bag、`peach_bag_report` | `peach_observability` | 不发运动 |
-| [peach_vegetation](src/peach_vegetation/README.md) | GPU 枝/叶 2D 掩膜（独立 launch） | `peach_vegetation` | 不写 PlanningScene、不进 harvest_system |
-| [peach_system_tests](src/peach_system_tests/README.md) | isolated mock launch_testing + 回放塔 | （launch_testing） | 不进运行 launch |
+| [peach_arm](src/peach/peach_arm/README.md) | 拍照、主动视点、质量/安全门、MTC 接触、工具 SetIO、撤退 | `peach_arm` | 不写账本、不调重建 Trigger、不 `BeginScene`/`RunHarvest` |
+| [peach_bringup](src/peach/peach_bringup/README.md) | 整栈入口、预检、lifecycle 托管、autostart 客户端、生命周期桥 | `peach_lifecycle_flag_bridge`、`peach_autostart_client` | 不含业务；launch 不自动开批 |
+| [peach_observability](src/peach/peach_observability/README.md) | 8090 过程页/单步调试、会话 bag、`peach_bag_report` | `peach_observability` | 不发运动 |
+| [peach_vegetation](src/peach/peach_vegetation/README.md) | GPU 枝/叶 2D 掩膜（独立 launch） | `peach_vegetation` | 不写 PlanningScene、不进 harvest_system |
+| [peach_system_tests](src/peach/peach_system_tests/README.md) | isolated mock launch_testing + 回放塔 | （launch_testing） | 不进运行 launch |
 
 作业目标以调度 `/peach_supervisor/state` 的 `target_id` 为准。感知 `harvest_plan` 只做收齐锁定窗。导航已归档 `_archive/parked_2026-09/`，到位一步调度直通 `NAV_OK`（`NavigateToWorksite` 预留）。
 
@@ -55,7 +55,7 @@ ros2 launch peach_bringup harvest_system.launch.py \
 | [aubo_e5_moveit_config](src/aubo_e5_moveit_config/README.md) | E5 MoveIt |
 | [aubo_hand_eye_calibration](src/aubo_hand_eye_calibration/README.md) | 手眼标定（侧车） |
 | [percipio_camera](src/percipio_camera/README.md) | 图漾驱动 |
-| [peach_stereo](src/peach_stereo/README.md) | 可选相机前端（`camera_frontend:=stereo`，主机单图案立体，话题同构） |
+| [peach_stereo](src/peach/peach_stereo/README.md) | 可选相机前端（`camera_frontend:=stereo`，主机单图案立体，话题同构） |
 | `camera_calibration` | vendored 彩色内参标定工具（image_pipeline jazzy 原样入库，会话工具不进常驻栈） |
 
 架子机 URDF / MoveIt 在 `_archive/parked_2026-08-24/`，不在本链路。

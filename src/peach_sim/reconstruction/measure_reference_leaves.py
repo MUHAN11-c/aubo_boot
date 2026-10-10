@@ -26,7 +26,7 @@ def main():
     boxes = prompts['boxes']
     manual_count = prompts['manual_count']
     rgb_path = DATA / 'RGB/1200.png'
-    model_path = HERE.parents[2] / 'src/peach_harvester/model/mobile_sam.pt'
+    model_path = HERE.parents[2] / 'src/peach/peach_harvester/model/mobile_sam.pt'
     torch.set_num_threads(6)
     sam = SAM(str(model_path))
     result = sam(str(rgb_path), bboxes=boxes, device='cpu', verbose=False)[0]

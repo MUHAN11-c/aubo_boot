@@ -4,7 +4,7 @@ description: >-
   Peach harvest stack source map (SNAPSHOT 2026-09-30): RunHarvest FSM,
   vision (YOLO/SAM/TSDF), peach_scene_obstacles, peach_arm ExecuteTarget,
   GraspDecision gates, shear tool profiles, IDL/QoS/TF, observability
-  four-layer diagnostics. Use when editing src/peach_*, tracing harvest
+  four-layer diagnostics. Use when editing src/peach/peach_*, tracing harvest
   flow, wiring topics/actions, changing harvest_fsm, scene perception,
   reconstruction, scene_obstacles, manipulation_skills, GraspDecision,
   FailureCode, or peach_interfaces.
@@ -17,12 +17,12 @@ description: >-
 | 权威 | 路径 | 写什么 |
 |------|------|--------|
 | 怎么改 | [`AGENTS.md`](../../../AGENTS.md) | MUST / DEFAULT / KEEP / UNWIND |
-| 现在跑什么 | [`docs/architecture.md`](../../../docs/architecture.md) [`docs/io.md`](../../../docs/io.md) [`docs/testing.md`](../../../docs/testing.md) | SNAPSHOT；改行为同轮改这三份 |
-| 图名/QoS | [`interface_manifest.yaml`](../../../src/peach_interfaces/config/interface_manifest.yaml) | **高于 IDL 文件头注释**（头注释常残留 `peach_executor`） |
+| 现在跑什么 | [`peach_bringup/doc/architecture.md`](../../../src/peach/peach_bringup/doc/architecture.md) + [`doc/io.md`](../../../src/peach/peach_bringup/doc/io.md) + 两测试包 `doc/testing.md` | SNAPSHOT（2026-10-10 拆包入库）；改行为同轮改对应包文档 |
+| 图名/QoS | [`interface_manifest.yaml`](../../../src/peach/peach_interfaces/config/interface_manifest.yaml) | **高于 IDL 文件头注释**（头注释常残留 `peach_executor`） |
 | 接近路径 | `grasp_task.cpp::tryStagingTransit` | **高于** `grasp_task.hpp` / `peach_arm/README.md` 文件头（仍写斜插兜底，已过期） |
 | 本技能 | 本目录 | 读哪几个文件、谁调谁、禁区 |
 
-冲突时：MUST > 源码+清单 > 三份活文档 > 本技能。IDL 注释与清单打架以清单为准。头注释与 `.cpp` 打架以实现函数为准。
+冲突时：MUST > 源码+清单 > 包级活文档 > 本技能。IDL 注释与清单打架以清单为准。头注释与 `.cpp` 打架以实现函数为准。
 
 ## 先读哪一份
 
@@ -79,7 +79,7 @@ RGB-D → 感知(事实) → 观测/初值
 ## 改代码纪律（peach 特有）
 
 1. **批次态只经** `harvest_fsm.react` / reducer / `_apply`。节点禁止 `self._batch_state = …`。
-2. **跨包只走 IDL**。改名字：IDL → manifest → `docs/io.md` → 各端；先编 `peach_interfaces`。
+2. **跨包只走 IDL**。改名字：IDL → manifest → 包级 io 文档 → 各端；先编 `peach_interfaces`。
 3. **图名用相对名+launch remap**，禁止 `declare_parameter("image_topic")` 当主接线。
 4. **重建禁止 latest TF**（积分必须精确 stamp）。深度是 uint16 **毫米**，边界换成米。
 5. **新算法缝默认 pluginlib**；现存 `PIPELINES_BY_IMPL` / `REFITTERS_BY_IMPL` 是 UNWIND，不要再扩 dict。
@@ -102,4 +102,4 @@ RGB-D → 感知(事实) → 观测/初值
 
 ## 验证
 
-受影响包 `colcon test --packages-select …`。改 IDL/接线再跑 `python3 src/peach_interfaces/scripts/check_interface_manifest.py`。停栈后 `pgrep` 无残留。
+受影响包 `colcon test --packages-select …`。改 IDL/接线再跑 `python3 src/peach/peach_interfaces/scripts/check_interface_manifest.py`。停栈后 `pgrep` 无残留。

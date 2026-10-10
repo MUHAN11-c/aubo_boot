@@ -3,20 +3,6 @@ on:
   push:
   pull_request:
 jobs:
-  peach-core:
-    runs-on: ubuntu-24.04
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-      - name: Pin numpy 1.26.4 and test deps
-        run: |
-          python3 -m pip install --upgrade pip
-          python3 -m pip install 'numpy==1.26.4' scipy pytest pyyaml
-      - name: Core gate (no DDS, no arm)
-        run: bash scripts/r0_gate.sh
-
   industrial_ci:
     runs-on: ubuntu-24.04
     timeout-minutes: 120
@@ -30,9 +16,8 @@ jobs:
           IMMEDIATE_TEST_OUTPUT: 'true'
           ADDITIONAL_DEBS: python3-scipy python3-pytest python3-yaml
           BEFORE_BUILD_TARGET_WORKSPACE: >-
-            touch src/ivg_interfaces/COLCON_IGNORE
-            src/ivg_pose_estimation/COLCON_IGNORE
-            src/ivg_graspnet/COLCON_IGNORE
+            touch src/ivg/ivg_interfaces/COLCON_IGNORE
+            src/ivg/ivg_pose_estimation/COLCON_IGNORE
+            src/ivg/ivg_graspnet/COLCON_IGNORE
             src/imu_follow/COLCON_IGNORE
             src/percipio_camera/COLCON_IGNORE
-            src/camera_calibration/COLCON_IGNORE

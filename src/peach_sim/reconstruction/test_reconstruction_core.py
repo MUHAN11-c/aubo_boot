@@ -29,7 +29,7 @@ from viewpoints import (alley_stops, build_trajectory,  # noqa: E402
 
 
 def _load_view_policy():
-    path = (ROOT / 'src/peach_harvester/peach_harvester/cycle_core'
+    path = (ROOT / 'src/peach/peach_harvester/peach_harvester/cycle_core'
             / 'view_policy.py')
     spec = importlib.util.spec_from_file_location('view_policy_ref', path)
     module = importlib.util.module_from_spec(spec)

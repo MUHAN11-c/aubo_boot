@@ -4,7 +4,7 @@ USB 串口 IMU（QinHeng USB 转串适配器：CH340 `1a86:7523`（旧）或 CH3
 
 同包还有咬合末端 5 点力传感器（0xA5 帧，100Hz，见第 8 节）：**与 IMU 帧共用 `/dev/imu` 同一条串口**（2026-09-29 实测），本节点内建分流发 `/force/points`；独立节点 `serial_force_node` 是"只看力"的用法，不进 `harvest_system`。
 
-现行行为以源码为准。栈内摘要：[architecture.md](../../docs/architecture.md) §3 `serial_imu`、[io.md](../../docs/io.md)、[testing.md](../../docs/testing.md)（怎么跑）。本文件是本包现场手册。
+现行行为以源码为准。栈内摘要：[系统架构](../peach/peach_bringup/doc/architecture.md) §3 `serial_imu`、[系统 io](../peach/peach_bringup/doc/io.md)、[testing.md](../../docs/testing.md)（怎么跑）。本文件是本包现场手册。
 
 ```
 serial_imu/

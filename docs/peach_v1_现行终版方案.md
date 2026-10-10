@@ -1,6 +1,6 @@
 # Peach v1：室外套袋桃三末端剪切采摘 · 现行终版方案
 
-日期：2026-10-08。性质：本文件是现行采摘核（`src/peach_*`）的完整方案说明，与 [`peach_v2_重构终版方案.md`](peach_v2_重构终版方案.md) 成对；不是部署快照，不新增第四份活文档。
+日期：2026-10-08。性质：本文件是现行采摘核（`src/peach/peach_*`）的完整方案说明，与 [`peach_v2_重构终版方案.md`](peach_v2_重构终版方案.md) 成对；不是部署快照，不新增第四份活文档。
 
 **阅读顺序：** 先看 §1 建成范围与成功口径，再看 §3–§13 专题；结构性缺口集中在 §14。运行中的参数、图名、QoS 以源码和三份活文档为准：[`architecture.md`](architecture.md)、[`io.md`](io.md)、[`testing.md`](testing.md)。概要设计书在 [`plans/peach_v1_套袋桃采摘机器人项目设计书.md`](../plans/peach_v1_套袋桃采摘机器人项目设计书.md)。大方向仍以 [`design.md`](design.md) 为准。本文与活文档打架时，以活文档和源码为准，并同轮改本文。
 
@@ -454,7 +454,7 @@ IO 通道：下刀与反馈若落在同一 pin，确认会读回自己的 DO。�
 
 ## 11. 接口
 
-权威清单：`src/peach_interfaces/config/interface_manifest.yaml`。改字段的顺序：IDL → 接口 README → manifest → `docs/io.md` → 各端；先编 `peach_interfaces`。
+权威清单：`src/peach/peach_interfaces/config/interface_manifest.yaml`。改字段的顺序：IDL → 接口 README → manifest → `src/peach/peach_interfaces/doc/io.md` → 各端；先编 `peach_interfaces`。
 
 | 名字 | 种类 | 作用 |
 |------|------|------|
@@ -549,17 +549,17 @@ v1 是现在的生产入口：固定座采摘核完整，真机预抓取有记�
 
 v2 要换掉的，就是 §14 里那些靠继续叠令牌和豁免解决不了的部分：许可改成同步 `GetDecision` 和 RSS、刃面相对 TCP 的真实偏移、刀反馈独立 DI、末端 pluginlib、全臂受查、行为树编排。两边硬件、红线和作业链相同。
 
-在 v2 成为生产入口之前：改现行行为改 `src/peach_*` 与三份活文档；不要把 v2 方案里的「拟」写进 v1 的运行描述。
+在 v2 成为生产入口之前：改现行行为改 `src/peach/peach_*` 与包级活文档；不要把 v2 方案里的「拟」写进 v1 的运行描述。
 
 ---
 
 ## 16. 参考
 
-- 运行权威：`docs/architecture.md`、`docs/io.md`、`docs/testing.md`；图名 `src/peach_interfaces/config/interface_manifest.yaml`
+- 运行权威：`src/peach/peach_bringup/doc/architecture.md`、`src/peach/peach_bringup/doc/io.md`（系统级）+ 各能力包 doc/ + 两测试包 doc/testing.md；图名 `src/peach/peach_interfaces/config/interface_manifest.yaml`
 - 怎么改：`AGENTS.md`（MUST / DEFAULT / KEEP / SNAPSHOT / UNWIND）
 - 重构对照：`docs/peach_v2_重构终版方案.md`
 - 概要设计：`plans/peach_v1_套袋桃采摘机器人项目设计书.md`、`docs/design.md`
-- 预算实现：`src/peach_harvester/peach_harvester/vision/common/tool_budget.py`
+- 预算实现：`src/peach/peach_harvester/peach_harvester/vision/common/tool_budget.py`
 - 阶段序列：`peach_arm` 的 `stages.cpp` / `cycle.cpp`；接近以 `grasp_task.cpp` 现行函数为准
 - 批次：`harvest_fsm` 纯核
 - 标准与官方资料（2026-10-08 核验）：ISO 10218-1/-2:2025、ISO 13850:2015、IEC 60204-1（现行 6.1 版 2016+A1:2021）；[ROS 2 Jazzy Developer Guide](https://docs.ros.org/en/jazzy/The-ROS2-Project/Contributing/Developer-Guide.html)（C++17 口径见 [Code Style 页](https://docs.ros.org/en/jazzy/The-ROS2-Project/Contributing/Code-Style-Language-Versions.html)："Jazzy targets C++17"）；[REP-103](https://www.ros.org/reps/rep-0103.html)

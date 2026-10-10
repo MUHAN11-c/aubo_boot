@@ -35,7 +35,7 @@ bringup 默认可开外参发布。全标定流程单独 launch，不要在日�
 3. GUI 里采满进度条 → CALIBRATE → SAVE（写出 `/tmp/calibrationdata.tar.gz`；COMMIT 不可用——前端无 `set_camera_info`）；
 4. `ros2 run aubo_hand_eye_calibration apply_intrinsics /tmp/calibrationdata.tar.gz` → 校验（分辨率/焦距/主点/畸变系数个数）后原子写入事实源；
 5. `colcon build --packages-select percipio_camera`（launch 经 `FindPackageShare` 读 **install 副本**，必须重建才生效）；
-6. 重启相机前端；`ros2 topic echo /camera/color/camera_info --once` 核对 K；手动更新 `src/peach_harvester/config/scene_perception.yaml` 的 `calibration_version` 标签。
+6. 重启相机前端；`ros2 topic echo /camera/color/camera_info --once` 核对 K；手动更新 `src/peach/peach_harvester/config/scene_perception.yaml` 的 `calibration_version` 标签。
 
 `apply_intrinsics` 的输入也可以是本包 `hand_eye/active.yaml`（读 auto 档联合标定写入的 `intrinsics` 节）。
 

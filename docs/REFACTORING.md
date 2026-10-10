@@ -728,3 +728,33 @@ colcon build/test 三包全绿（222 tests 0 failures）；venv 回归 test_web_
 
 活文档：architecture 产品定位补 peach2 隔离条；testing §1 补系统测入口；方案两份（`docs/` 与 `.cursor/plans/`）§14 现行进度。包 README：`peach2_system_tests` / `peach2_bringup` / `peach2_calibration` / `peach2_manipulation`。未新开第四份活文档。
 
+---
+
+## 2026-10-10 深度清理轮（旧的、冗余文件）
+
+用户拍板四项：runs 袋全部回收 / v1 三末端战役整目录归档 / 分支不动 / 驱动 vendor 书删除（明示豁免「驱动九包文件树不动」红线，一次性授权非规则废止）。
+
+**磁盘回收（74G→约 25G）：**
+
+- `runs/` 45G→86M：官方脚本 `purge_analyzed_bags` 回收 4 个有报告袋；直删其余 30 个 bag/（含 24G 无账本无报告的硬杀栈裸袋 session_20260929_165037、09-29 下午 38G 批、10-08/09 冻结相机 1.4G——各轮结论均已入 testing-log）；`peach_camera_capture_20260930` 的 stereo_10s/percipio_10s 两个不叫 bag/ 的采集 mcap（822M）同政策回收；10 个空壳目录删除；`grid_hollow_stowfix_20260922`（无跟踪文件）移 `_archive/runs/`。525 个跟踪文本账本全保留。
+- `plans/v1_三末端混合测试` 整目录归档 `_archive/plans_2026-09/`（84 跟踪文本出仓 + 2.9G 本地袋留档）；plans/README 同轮注记归档去向。
+- 驱动两包 vendor 书：`src/aubo_dashboard/vendor/` 与 `src/aubo_e5_hardware/vendor/` 根下逐字节重复的 C++ 书三件套（pdf+docx+md 共 8.65M×2）双双出库；一份备份 `_archive/vendor/C++书三件套/`。注意 aubo_e5_hardware 源码 L1560 注释仍引「vendor 文档 C++.md:5528」（驱动源码只读未动，查证时看归档副本）。
+- `log/` 1.5G→8.8M；33 个 root 属主 09-16 文件需手动 `sudo rm -rf log/build_2026-09-16_*`。
+- 包内 colcon 残留清零：peach_arm 的 build/install/log/Testing 与 peach_harvester / peach_observability / ivg_graspnet 的 build/install/log；全仓 `__pycache__` / `.pytest_cache` / `.mimosa` 清零（删除前均核实未跟踪）。
+
+**git 跟踪面：**
+
+- 4 个零引用脚本出库：scripts 下 smoothness_analyze / validate_render_perception / probe_chord / replay_metrics（两轮 grep 核实零活引用；本地副本经 `git show <本提交^>:scripts/<名>` 可恢复）。`_archive/scripts_2026-09/` 未放拷贝：安全钩子拦截 bash 移动脚本文件，走 git 历史更省。
+- `.cursor/plans/架构基座蓝图`（08-25 编辑器 plan 产物）untrack 留本地；v2 方案的 `.cursor/plans/` 配对副本本就未跟踪、不受影响。
+- `.gitignore` 删 6 条退役包陈旧规则（src/peach_perception、src/peach_executor 的 GPL 生成物、src/visual_pose_estimation 的 onnx）。
+
+**文档：**
+
+- `docs/peach_v1_现行终版方案.md` 用户裁定转正为第三份非活文档：AGENTS §8 与根 README 文档区同轮更新。
+- 陈旧引用核查：architecture.md 各项引用（grasp_task 源文件 / arm_parameters 单源 / 接口清单核对脚本等）逐一核实**均真实存在**（探查报告误报）；design.md L516 `src/dsh_system_monitor` 排除说明已过时（包已不存在，用户裁定文档不擅动）。
+
+**遗留手动项：**
+
+- `mobileclip2_b.ts`（243M、零引用、未跟踪）仍在仓库根：移动命令被代码安全钩子误拦（把二进制 mv 判为源码写入），手动执行 mv 到 `_archive/models/` 后可删 .gitignore 对应行。
+- log/ 的 33 个 root 文件（见上）。
+

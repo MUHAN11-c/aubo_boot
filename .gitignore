@@ -3,13 +3,6 @@ build/
 install/
 log/
 
-# generate_parameter_library_py 写入源码包（供 PYTHONPATH 指向 src 时导入）
-src/peach_perception/peach_perception/scene_perception_parameters.py
-src/peach_perception/peach_perception/target_reconstruction_parameters.py
-src/peach_executor/peach_executor/executor_parameters.py
-src/peach_executor/peach_executor/observability_parameters.py
-src/peach_executor/peach_executor/lifecycle_manager_parameters.py
-
 # Python 环境（本机 venv，不随仓库分发）
 aubo_py3.12/
 **/.venv-yolo/
@@ -39,7 +32,6 @@ src/ivg_pose_estimation/models/*.pt
 src/ivg_pose_estimation/templates/*/.dinov2_index.npz
 # ivg_sim YCB meshes（全库约 118MB，models/fetch_ycb.sh 恢复；sdf/config 入库）
 src/ivg_sim/models/*/meshes/
-src/visual_pose_estimation/visual_pose_estimation_python/models/*.onnx
 # MobileCLIP2 权重约 243MB，同样超单文件配额，本机保留
 /mobileclip2_b.ts
 

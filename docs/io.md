@@ -4,7 +4,7 @@
 
 > 2026-09-24 果园外观重建：当前 Blender 入口为 `src/peach_sim/reconstruction/`，不复用旧模型/贴图/随机布局。RGB-D 约束局部可见袋面；整树、遮挡部分与树行是标注清楚的推断。旧 Gazebo SDF/GT 仍属旧管线，尚未接入此次新场景；无 ROS IDL、运动或驱动变更。数据口径、离线命令与验收边界见 [peach_sim README](../src/peach_sim/README.md)。根目录 `blender_orchard/` 观感预览链已于 2026-09-28 并入 `src/peach_sim/reconstruction/`（袋面折痕、程序贴图、PeachDataSet 先验统计迁入；数据口径以 priors 分位为准），果园外观建模收敛为单管线；光照/叶遮挡/枝干扰为受控变量，多视角感知验证矩阵与基线回归门见 README。
 
-现行系统（SNAPSHOT）：源码、各包 `config/*.yaml`、[`peach_interfaces/config/interface_manifest.yaml`](../src/peach_interfaces/config/interface_manifest.yaml)。字段级目录：[peach_interfaces/README.md](../src/peach_interfaces/README.md)。清单漂移：`python3 src/peach_interfaces/scripts/check_interface_manifest.py`。与 [architecture.md](architecture.md)、[testing.md](testing.md) 构成仅有的三份活文档；**源码与本文互相更新，改接口/话题/TF 或改本文须同一轮改另一边**。**如何演化**以 [AGENTS.md](../AGENTS.md) 为准：非完美适配当前真机/产品则跟 ROS 2 / 优秀 GitHub 主流（标准 msg、QoS、相对名+remap）。真机轮次：[testing-log.md](testing-log.md)。工程整理过程：[REFACTORING.md](REFACTORING.md)（不驱动现行设计）。
+现行系统（SNAPSHOT）：源码、各包 `config/*.yaml`、[`peach_interfaces/config/interface_manifest.yaml`](../src/peach_interfaces/config/interface_manifest.yaml)。字段级目录：[peach_interfaces/README.md](../src/peach_interfaces/README.md)。清单漂移：`python3 src/peach_interfaces/scripts/check_interface_manifest.py`。与 [architecture.md](architecture.md) 构成仅有的两份活文档；**源码与本文互相更新，改接口/话题/TF 或改本文须同一轮改另一边**。**如何演化**以 [AGENTS.md](../AGENTS.md) 为准：非完美适配当前真机/产品则跟 ROS 2 / 优秀 GitHub 主流（标准 msg、QoS、相对名+remap）。测试流程指导在两测试包 `doc/testing.md`（v1 `peach_system_tests` / v2 `peach2_system_tests`）。过程记录类文档（testing-log / REFACTORING）已于 2026-10-10 用户裁定删除，历史在 git。
 
 对象是套袋桃。跨包只走 `peach_interfaces`。能力包不互发批次命令；作业目标只认调度 `~/state.target_id`。包职责见 [architecture.md](architecture.md) §3。
 
@@ -37,7 +37,7 @@
 | `peach_bringup` | 整栈 launch / 预检 | Include 只读 `aubo_e5_bringup` | 不自动 RunHarvest |
 | `peach_observability` | 8090 转发、独立 rosbag2 | 调度/技能只读话题 | 不发运动 |
 | `peach_vegetation` | `/peach/vegetation/{leaf_mask,branch_mask,overlay,status}` | 彩色图 `image`（remap） | 运动、PlanningScene、octomap、选果 |
-| `peach_sim` | 果园世界 `worlds/peach_orchard.sdf`、采摘工位 xacro、目标清单 GT（`peach_orchard.manifest.yaml`：袋底=entry/袋颈/轴/果心/`reachable`）、履带可驾驶仿真 + Nav2 巡园（`orchard_nav.launch.py` + `tour_node`，2026-10-08 起） | `config/orchard.yaml`（场景参数唯一事实源） | 不进 `harvest_system` / 不订 peach 话题；gz↔ROS 桥按 `config/orchard_bridge.yaml` 六路：`/clock`、`/joint_states`（gz `gz.msgs.Model`→`sensor_msgs/JointState`）、`/odom`、`/tf`、`/scan`、`/cmd_vel`；巡园动作=Nav2 自带 `NavigateToPose`（nav2_simple_commander），非 peach IDL |
+| `peach_sim` | 果园世界 `worlds/peach_orchard.sdf`、采摘工位 xacro、目标清单 GT（`peach_orchard.manifest.yaml`：袋底=entry/袋颈/轴/果心/`reachable`）、履带可驾驶仿真 + Nav2 巡园（`orchard_nav.launch.py` + `tour_node`，2026-10-08 起）、重建去草整园纯视觉查看世界 `worlds/field_no_grass.sdf`（单静态 GLB visual，无碰撞体/传感器/桥/TF，非 GT） | `config/orchard.yaml`（场景参数唯一事实源） | 不进 `harvest_system` / 不订 peach 话题；gz↔ROS 桥按 `config/orchard_bridge.yaml` 六路：`/clock`、`/joint_states`（gz `gz.msgs.Model`→`sensor_msgs/JointState`）、`/odom`、`/tf`、`/scan`、`/cmd_vel`；巡园动作=Nav2 自带 `NavigateToPose`（nav2_simple_commander），非 peach IDL |
 
 导航预留（`peach_navigation` 已归档 `_archive/parked_2026-09/`）：曾提供 `NavigateToWorksite` 与 `/peach/navigation/target_report` / `arm_status` / `vehicle_state`；现仅在 manifest `reserved_interfaces` 区留名，无生产方。调度是批次侧**唯一**动作客户端。技能不调重建 `reset`/`finalize` Trigger。到位一步无导航动作：`_cmd_navigate` 固定座直通 `NAV_OK`。`harvest_plan` 只做收齐窗口与锁定集，不选下一颗。
 
@@ -127,7 +127,7 @@ flowchart LR
 | `/peach/navigation/vehicle_state` | `VehicleState` | 底盘位姿/速度；无节点 |
 | `/peach/navigation/arm_status` | `HarvestOperationStatus` | 臂作业状态给导航；无节点 |
 
-清洁重写轮契约接线状态（设计全文见 REFACTORING.md 重写轮节；**阶段 2b/3 已全部落码**：服务端在 `peach_supervisor`，8090 页面尚未转发这些入口——人工经 `ros2 service call` 可用）：
+清洁重写轮契约接线状态（**阶段 2b/3 已全部落码**：服务端在 `peach_supervisor`，8090 页面尚未转发这些入口——人工经 `ros2 service call` 可用）：
 
 | 类型 | 图名 | 服务端 | 状态 | 语义 |
 |------|------|--------|------|------|
@@ -328,7 +328,7 @@ flowchart TB
 | 层 | 字段 | 谁消费 |
 |----|------|--------|
 | 感知单帧 | `BagGraspCandidate.status` ACCEPT/REOBSERVE/REJECT | 初值、可视化。不发运动 |
-| 融合几何 | `GraspDecision` 入口/轴/预抓取/剪切参考（融合成功即填；后撤由 `grasp_standoffs.yaml` 注入，现行入口 0=拟合袋底、预抓取相对入口 0.03 m） | `PREGRASP_ONLY` 到预抓取停住；RViz/监控目视。方向定位对错以真机预抓取实测为准。停袋底对照轮次见 [testing-log.md](testing-log.md) 1757 |
+| 融合几何 | `GraspDecision` 入口/轴/预抓取/剪切参考（融合成功即填；后撤由 `grasp_standoffs.yaml` 注入，现行入口 0=拟合袋底、预抓取相对入口 0.03 m） | `PREGRASP_ONLY` 到预抓取停住；RViz/监控目视。方向定位对错以真机预抓取实测为准。停袋底对照轮次 1757（历史在 git，原 testing-log 已删） |
 | 接触许可 | `GraspDecision.allowed` | 只授权套入/剪切；禁止降级接触 |
 
 融合成功时 entry/axis/pregrasp/cut_pose 有效，即使 `allowed=false`。无几何时入口/轴填零，只信 `reason` / `failure_code`。常见 reason：`reconstruction_not_ready`、`refined_geometry_unavailable`、`bag_model_unavailable`、`dynamic_budget_negative`、`keypoint_cloud_axis_conflict`（包络轴与关键点轴 >12° 且包络有长径比）、`cut_plane_fruit_clearance` / `cut_band_unavailable`。`envelope_axis_ill_conditioned` / `envelope_too_few_slices` 只诊断，不单独关 `allowed`。>35° 只打 `diagnostic_axis_mismatch`，不单独把 `allowed` 打成 false。通过接触：`dynamic_budget_accept` / `refined_geometry_accept`。软件预算与夹角不代替预抓取位的真机精度评定。
@@ -449,7 +449,7 @@ flowchart TB
 - ExecuteTarget FULL/PREGRASP_ONLY 要求完整模型身份元组；空版本拒执行（PREVIEW / OBSERVE_ONLY 除外）。`plan_id` 绑定（2026-09-20 修复轮收紧口径）：**只有 PREVIEW 档 goal 记 preview 绑定**，FULL **在自身携带 plan_id 时**与其全字段比对（mismatch → `failure_code=PLAN_MISMATCH(20)`）；绑定存在而 FULL 缺 plan_id 时比对不生效、直接放行（ID-2 缺口，architecture「ID 与身份确定」链 C；绑定写入亦先于预览成败）。OBSERVE_ONLY 只携带 plan_id+身份（观察会动臂、不构成计划预览，模型建好前本就带不了三修订）；FULL/PREGRASP_ONLY 周期终局清绑定。授权拒绝分级：许可过期（valid_until / model_stamp 超窗）→ SKIPPED_QUALITY（可重派），明确不允许 → FAILED。
 - 新鲜度门：`SafetyGate` 比较 `clock - freshnessStamp`。OBSERVED 且 `updated_s` 更新时用 `updated_s`，否则末次有效观测 `received_s`。门限 `effectiveTargetMaxAgeS()`：未测得 EMA 用 yaml 3.0 s，测得后只放宽。`assumed_frame_interval_s: 0.4` 只估等待窗口，不预填 EMA。
 - 工具三轴状态（批次3，2026-09-23）：`/peach_arm/tool_state`（ToolState.msg，latched，on-change）——刀/保持/载荷三轴各自 UNKNOWN 优先；刀闭合证据=`/aubo_io_controller/io_states` 的 `tool_io_states[pin0]` **本命令后新上升沿**（早已卡高不算，§12.2 新事件门在 ToolActuator 内强制）；闭合≠分离（M0 台架后升级组合判别）。`stageVerifyCut` 有界等沿（`tool.feedback_timeout_s` 2.0s），超时=`CUT_UNCONFIRMED` 保守收口：**不撤退、不重发、不 resume**，FAILED+CUT_FEEDBACK_TIMEOUT 待人工；`stageReleasePayload` 在 harvest_stow 后开刀释放（授权矩阵同 TOOL 级）。SetIO ACK 仍≠任何确认。
-- 接触护栏（yaml）：绕腕看累计 12 rad、单轴 6.1 rad（URDF ±3.05 满行程）；段间接缝计入 `|Δq|`。口侧/上方看①②层果实胶囊，**逐段审查**（工具有限圆柱 vs 感知胶囊；反爬 s 不得超过本段起点 max(s,0)+2 cm——v4 两段 LIN 逐跳都查；PTP 首段只查筒体接触，不查反爬；套入/撤退不审）。笛卡尔绕行比 2.6 / 偏离 0.32 m / 回退 0.12 m（09-18 标定；接近与转移段同值，逐段审；0=不查）；TCP 姿态行程绝对 110°（相对起止余量 20°，0=不查）。09-11 mock typical 打开默认门后，从拍照位成功接近绕行比 ≤1.70、姿态 ≤71°；超门拒发见 testing-log。不按时长（`mtc_approach_max_duration_s` 默认 0）。预抓取先回拍照位（有记录的接近则原路返程，否则 PTP 0.5 s / 失败 OMPL 3.0 s），再主路径 PTP+垂直入冠+沿轴到预抓取，再一段沿轴 LIN 套入；反向同轨迹（含入冠/沿轴段）回预抓取。已齐 LIN 加 tip 姿态 OrientationConstraint（对目标姿态，容差 `mtc_approach_max_align_deg` 20°）。主路径未齐先 LIN 原地对齐再平移（对齐跳不挂门）；兜底直连 LIN 同样。直连 LIN 弦长/弧长上限 0.80 m（v4 两段 LIN 同限；PTP 不受此限）。观察短移：只 LIN；行程 `observe_max_*` 4.0 rad / 1.5 rad（09-01 现场把 2.5 会拒的合法短移固化进 yaml）。`goToPhotoPose`：原路返程不过 `transit_max_*`；新规划先 PTP（`photo_ptp_planning_time_s` 0.5 s）失败再 OMPL（`photo_planning_time_s` 3.0 s），行程门 6 rad / 2.5 rad。成功出口核当前关节（`photo_pose_joint_tolerance_rad` / `photo_pose_max_joint_vel_rad_s`，`execute=false` 仍核）。超行程或不在拍照位不报成功。③层场景障碍=Survey 快照对象（0035）：`sensors_3d.yaml` 保持 `sensors: []`（不用 octomap updater，两轮翻车教训见该文件注释）；障碍由 `peach_scene_obstacles` 节点写入（见下节），受查面与开关见上「场景障碍 ACM」。④层近果速度档只套入/撤退 0.05（接近折线走 `velocity_scaling` 0.10）；接触检测订 `joint_status`，默认关。
+- 接触护栏（yaml）：绕腕看累计 12 rad、单轴 6.1 rad（URDF ±3.05 满行程）；段间接缝计入 `|Δq|`。口侧/上方看①②层果实胶囊，**逐段审查**（工具有限圆柱 vs 感知胶囊；反爬 s 不得超过本段起点 max(s,0)+2 cm——v4 两段 LIN 逐跳都查；PTP 首段只查筒体接触，不查反爬；套入/撤退不审）。笛卡尔绕行比 2.6 / 偏离 0.32 m / 回退 0.12 m（09-18 标定；接近与转移段同值，逐段审；0=不查）；TCP 姿态行程绝对 110°（相对起止余量 20°，0=不查）。09-11 mock typical 打开默认门后，从拍照位成功接近绕行比 ≤1.70、姿态 ≤71°；超门拒发（历史数字在 git，原 testing-log 已删）。不按时长（`mtc_approach_max_duration_s` 默认 0）。预抓取先回拍照位（有记录的接近则原路返程，否则 PTP 0.5 s / 失败 OMPL 3.0 s），再主路径 PTP+垂直入冠+沿轴到预抓取，再一段沿轴 LIN 套入；反向同轨迹（含入冠/沿轴段）回预抓取。已齐 LIN 加 tip 姿态 OrientationConstraint（对目标姿态，容差 `mtc_approach_max_align_deg` 20°）。主路径未齐先 LIN 原地对齐再平移（对齐跳不挂门）；兜底直连 LIN 同样。直连 LIN 弦长/弧长上限 0.80 m（v4 两段 LIN 同限；PTP 不受此限）。观察短移：只 LIN；行程 `observe_max_*` 4.0 rad / 1.5 rad（09-01 现场把 2.5 会拒的合法短移固化进 yaml）。`goToPhotoPose`：原路返程不过 `transit_max_*`；新规划先 PTP（`photo_ptp_planning_time_s` 0.5 s）失败再 OMPL（`photo_planning_time_s` 3.0 s），行程门 6 rad / 2.5 rad。成功出口核当前关节（`photo_pose_joint_tolerance_rad` / `photo_pose_max_joint_vel_rad_s`，`execute=false` 仍核）。超行程或不在拍照位不报成功。③层场景障碍=Survey 快照对象（0035）：`sensors_3d.yaml` 保持 `sensors: []`（不用 octomap updater，两轮翻车教训见该文件注释）；障碍由 `peach_scene_obstacles` 节点写入（见下节），受查面与开关见上「场景障碍 ACM」。④层近果速度档只套入/撤退 0.05（接近折线走 `velocity_scaling` 0.10）；接触检测订 `joint_status`，默认关。
 
 默认 `execution/grasp/tool=false`：只规划、不接触、不 SetIO。
 
@@ -786,7 +786,7 @@ flowchart LR
 | `grasp_poses_base` | `base_link` 系 PoseArray |
 | `grasp_pose_i` | 动态 TF（候选抓取） |
 
-`publish_grasps_client` 凑满 `min_groups_before_pick` 组后会走 MoveIt 接近。未授权不得真机运动。手册：[src/ivg_graspnet/README.md](../src/ivg_graspnet/README.md)。
+`publish_grasps_client` 凑满 `min_groups_before_pick` 组后会走 MoveIt 接近。未授权不得真机运动。手册：[src/ivg/ivg_graspnet/README.md](../src/ivg/ivg_graspnet/README.md)。
 
 ---
 

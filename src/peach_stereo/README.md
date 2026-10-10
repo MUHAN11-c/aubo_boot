@@ -1,8 +1,7 @@
 # peach_stereo
 
 PS800-E1 **主机侧单图案立体深度**相机节点：`percipio_camera` 的替代前端，
-输出**话题同构**的 RGB-D，感知/重建零改动接入。依据与数据见
-`docs/testing-log.md` 09-16/09-17/09-18/09-20/09-21 各条目（根因 → 解锁 → 单图案验证 → 实时演示 → 需求评估 → 感知 A/B → 配准几何/SGBM/时域参数定档）。
+输出**话题同构**的 RGB-D，感知/重建零改动接入。依据与数据（根因 → 解锁 → 单图案验证 → 实时演示 → 需求评估 → 感知 A/B → 配准几何/SGBM/时域参数定档）为原 `docs/testing-log.md` 09-16/09-17/09-18/09-20/09-21 各条目（该日志已删，历史在 git）。
 
 ## PS800-E1 规格档案（本机实测，2026-09-16/17）
 
@@ -70,7 +69,7 @@ PS800-E1 **主机侧单图案立体深度**相机节点：`percipio_camera` 的�
 colcon build --packages-select peach_stereo
 # 与 percipio_camera 互斥（相机独占）：先停 percipio 相机栈
 ros2 launch peach_stereo stereo_camera.launch.py
-ros2 topic hz /camera/depth/image_raw   # 预期 ~13.7 Hz（本机 topic hz CLI 有恒 0 帧怪癖，健康验证用 30 帧探针，见 docs/testing.md 冒烟节）
+ros2 topic hz /camera/depth/image_raw   # 预期 ~13.7 Hz（本机 topic hz CLI 有恒 0 帧怪癖，健康验证用 30 帧探针，见 v1 测试指导冒烟节）
 ```
 
 参数见 `config/stereo_camera.yaml`（nav2 式：部署值即事实源，键名冻结）。顶层键必须用 `/**:` 通配——节点全名是 `/camera/peach_stereo_camera_node`，用节点名做顶层键**从不匹配**且不报错（所有部署值静默不生效，09-21 才修复的存量坑，此前默认值碰巧一致未暴露）。

@@ -2,6 +2,8 @@
 
 隔离域 `launch_testing` 与 mock 故障矩阵。不含真机、不自动 `RunHarvest`。
 
+**测试流程指导（本栈怎么跑、命名、验收门、真机纪律）：[doc/testing.md](doc/testing.md)**——2026-10-10 自仓库级 `docs/testing.md` 重写入包（用户裁定）。
+
 ## 测什么
 
 - `test_preflight.py`：启动预检零 ROS（argv basename，不误伤编辑器路径）

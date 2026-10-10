@@ -2,7 +2,7 @@
 
 四个能力包之一：**机械臂执行**。单节点 `peach_arm`（Lifecycle）：拍照、主动视点、质量/安全门、预抓取验证、沿轴套入、刀具 GPIO、原路撤退。不写账本、不调重建 Trigger、不当 `BeginScene` / `RunHarvest` 客户端；仅 Active 允许运动类入口。
 
-现行设计、文件树与「从哪读源码」（先 `stages.cpp` 的 `executeCycle`，接触进 `GraspTask`）：[docs/architecture.md](../../docs/architecture.md) §3。动作/服务/参数契约：[docs/io.md](../../docs/io.md) §4。怎么跑与验收门：[docs/testing.md](../../docs/testing.md)。
+现行设计、文件树与「从哪读源码」（先 `stages.cpp` 的 `executeCycle`，接触进 `GraspTask`）：[docs/architecture.md](../../docs/architecture.md) §3。动作/服务/参数契约：[docs/io.md](../../docs/io.md) §4。怎么跑与验收门：[v1 测试指导](../peach_system_tests/doc/testing.md)。
 
 ```bash
 ros2 launch peach_arm peach_arm.launch.py

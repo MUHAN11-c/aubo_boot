@@ -5,6 +5,8 @@ Peach v2 的隔离域 `launch_testing` 集成测：每个测试文件自己用
 测完由 launch_testing 拆栈。只动 mock 关节（`mock_components` + JTC），**绝不连真机**。launch
 本身不发任何批次/使能/运动/SetIO；所有 goal 都由测试进程显式发出。
 
+**测试流程指导（冻结相机、分期门、迁移边界、环境与纪律）：[doc/testing.md](doc/testing.md)**——2026-10-10 自仓库级 `docs/testing.md` 拆写入包（用户裁定）。
+
 ## 测试
 
 | 文件 | 域 | 内容 |
@@ -129,7 +131,7 @@ Survey 原地锚定，仅收获运动冻结回放。**真拍照位数据边界**
 **已删除（2026-10-09 操作员裁定）：** photo-move 备用流整体移除——`--photo-move/--photo-* /
 --start-pose` 参数、`photo_move()`/种子运输逻辑、`scripts/photo_pose.py` 刚体运输、SRDF
 `frozen_photo_pose` 位形。该流从 home 出生并移动到计算拍照位，方向即错；真拍照位是
-`global_photo_pose`，仿真出生即在该位。历史机制记录见 docs/testing-log.md 与测试报告 §5.8/§5.12。
+`global_photo_pose`，仿真出生即在该位。历史机制记录在 git（原 docs/testing-log.md 已删）与测试报告 §5.8/§5.12。
 
 **本轮发现并同轮修复的产品缺陷：** `peach2_manipulation` 的 `ModelCache` 只增不减——models 话题是
 全量快照，但缓存无视缺席 id，BeginScene epoch 清空模型库后同袋双胞胎 id（实测 `target_5`/`target_7`

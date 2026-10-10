@@ -45,7 +45,7 @@ Peach v2 每把刀的**误差常数单源**：`results/<tool_id>.yaml`，安装�
 7. **`c_wall_m`**：用最大允许袋径的假袋套入 ≥ 10 次，确认不刮壁的最小内壁余量（通常取套筒内壁公差 + 袋表面起伏）。
 8. **`fruit_clearance_m`**：真果/假果贴袋底，逐步缩小刀口平面到果顶的距离下刀，取无果皮损伤的最小距离再加安全余量。
 
-全部替换后：把 `status` 改为 `calibrated`，`source` 写成台架记录编号与日期，并在 `docs/testing-log.md` 追加该轮记录。
+全部替换后：把 `status` 改为 `calibrated`，`source` 写成台架记录编号与日期，并随该轮提交说明记录（原 docs/testing-log.md 已于 2026-10-10 删除）。
 `test/test_results.py` 只在 `status: design_reference` 时要求数值与 profile 一致；改成 `calibrated` 后只检查键完整和取值合法。
 
 ## 怎么测

@@ -4,7 +4,7 @@
 
 > 2026-09-24 果园外观重建：当前 Blender 入口为 `src/peach_sim/reconstruction/`，不复用旧模型/贴图/随机布局。RGB-D 约束局部可见袋面；整树、遮挡部分与树行是标注清楚的推断。旧 Gazebo SDF/GT 仍属旧管线，尚未接入此次新场景；无 ROS IDL、运动或驱动变更。数据口径、离线命令与验收边界见 [peach_sim README](../src/peach_sim/README.md)。根目录 `blender_orchard/` 观感预览链已于 2026-09-28 并入 `src/peach_sim/reconstruction/`（袋面折痕、程序贴图、PeachDataSet 先验统计迁入；数据口径以 priors 分位为准），果园外观建模收敛为单管线；光照/叶遮挡/枝干扰为受控变量，多视角感知验证矩阵与基线回归门见 README。
 
-现行系统（SNAPSHOT）：本文件 + 各包 `config/*.yaml` + 源码。与 [io.md](io.md)、[testing.md](testing.md) 构成仅有的三份活文档；**源码与本文互相更新，改一边须同一轮改另一边**。**如何演化**以 [AGENTS.md](../AGENTS.md) 为准：非完美适配当前真机/产品则跟 ROS 2 / 优秀 GitHub 主流，同轮改本文口吻（不要把当时否决写成永久禁令）。真机轮次：[testing-log.md](testing-log.md)。工程整理过程：[REFACTORING.md](REFACTORING.md)（与 testing-log 同类，不驱动现行设计）。
+现行系统（SNAPSHOT）：本文件 + 各包 `config/*.yaml` + 源码。与 [io.md](io.md) 构成仅有的两份活文档；**源码与本文互相更新，改一边须同一轮改另一边**。**如何演化**以 [AGENTS.md](../AGENTS.md) 为准：非完美适配当前真机/产品则跟 ROS 2 / 优秀 GitHub 主流，同轮改本文口吻（不要把当时否决写成永久禁令）。测试流程指导在两测试包 `doc/testing.md`（[v1](../src/peach_system_tests/doc/testing.md) / [v2](../src/peach2/peach2_system_tests/doc/testing.md)，2026-10-10 自 docs/testing.md 拆写入包）。过程记录类文档（testing-log / REFACTORING）已于 2026-10-10 用户裁定删除，历史在 git。
 
 **每条事实三问：** 现行 → 来源 → 原因（无注释则「源码未写理由」）。
 
@@ -25,11 +25,11 @@ Robotics_Tutorial 教程库已归档 `_archive/parked_2026-09/`，不再随库�
 - **愿景：** 果园套袋桃采摘（室外光照、枝叶遮挡、将来底盘移动）。
 - **本仓库现行产品：** 固定座 AUBO E5 + RGB-D（launch 默认 `camera_frontend:=stereo`，percipio 显式备用）。采摘应用九包 = 契约 / 视觉 / 臂 / 调度 / 公共库（`peach_common`）/ bringup / observability / vegetation / system_tests。产品运行链 = 臂/相机 9（相机前端可选 `peach_stereo`，`camera_frontend` 切换）+ 能力四包 + bringup/observability + 可选 USB IMU；`peach_common` 是共享设施库（W1 起，对齐 `nav2_common`），不跑节点、不进 launch；`peach_vegetation` 独立 launch，默认不进运行链。工作区另含 `imu_follow`（仅 `tool_profile:=adaptive_shear_v1` 时 `harvest_system` Include `imu_follow_servo`，非 IMU 末端不起）与旁路 IVG 三包（IVG 仍隔离，不进整栈）。
 - **范围：** 果园是愿景。核心能力仍是契约 / 视觉 / 臂 / 调度；整栈入口在 `peach_bringup`，只读观测可拆 `peach_observability`。底盘与雷达**驱动**本仓不实现；导航适配 `peach_navigation` 已归档（`_archive/parked_2026-09/`），`NavigateToWorksite` / `HarvestTargetReport` / `HarvestOperationStatus` / `VehicleState` 四个 IDL 保留标「预留」（manifest `reserved_interfaces` 区），调度到位一步直通 `NAV_OK`。
-- **近期成功标准：** [testing.md](testing.md) 现行定位门是 `PREGRASP_ONLY`：到预抓取停住，不回 `harvest_stow`、不套入、不 SetIO。套入干跑须把 `execute_pregrasp_only` 改 false（默认 `tool.enabled=false`）。切断+撤退均确认才记采摘成功。树干 CollisionObject 仍预留；`peach_vegetation` 只发 2D 掩膜，不写 PlanningScene。
+- **近期成功标准：** v1 测试指导（`src/peach_system_tests/doc/testing.md`）现行定位门是 `PREGRASP_ONLY`：到预抓取停住，不回 `harvest_stow`、不套入、不 SetIO。套入干跑须把 `execute_pregrasp_only` 改 false（默认 `tool.enabled=false`）。切断+撤退均确认才记采摘成功。树干 CollisionObject 仍预留；`peach_vegetation` 只发 2D 掩膜，不写 PlanningScene。
 - **非目标：** launch 自动 `RunHarvest`；感知发运动；技能写 `ledger.json`；学习模型补深度；nvblox；改只读驱动栈；把 ROS / 8090 当成功能安全急停。
-- **peach2（隔离重写，2026-09-30）：** `src/peach2/` 十二包（`peach2_{bringup,calibration,core,end_effector,interfaces,manipulation,observability,perception,scene,system_tests,target_model,task}`）不进 `harvest_system` / 现行 lifecycle，不订 `peach_interfaces`（契约单源 `peach2_interfaces`）。入口 `peach2_bringup/peach2_system.launch.py`。M1 骨架退出门已过（mock PREGRASP + launch_testing 全绿）；产品套袋+剪断与 M0 台架标定未过。进度在 [peach_v2 方案 §14](peach_v2_重构终版方案.md)；怎么跑系统测见 [testing.md](testing.md) §1 peach2。生产入口仍是本文 + `peach_bringup`。v1 完整方案说明（非活文档）见 [peach_v1 现行终版方案](peach_v1_现行终版方案.md)。
+- **peach2（隔离重写，2026-09-30）：** `src/peach2/` 十二包（`peach2_{bringup,calibration,core,end_effector,interfaces,manipulation,observability,perception,scene,system_tests,target_model,task}`）不进 `harvest_system` / 现行 lifecycle，不订 `peach_interfaces`（契约单源 `peach2_interfaces`）。入口 `peach2_bringup/peach2_system.launch.py`。M1 骨架退出门已过（mock PREGRASP + launch_testing 全绿）；产品套袋+剪断与 M0 台架标定未过。进度在 [peach_v2 方案 §14](peach_v2_重构终版方案.md)；怎么跑系统测见 [v2 测试指导](../src/peach2/peach2_system_tests/doc/testing.md)。生产入口仍是本文 + `peach_bringup`。v1 完整方案说明（非活文档）见 [peach_v1 现行终版方案](peach_v1_现行终版方案.md)。
 
-现场基线（归档数字与轮次：[testing-log.md](testing-log.md)）：相机已运行 ~2.4–2.5 FPS（launch 现行请求 2.5；09-16 实测 5.0 不可达且无加速作用）。现行 `PREGRASP_ONLY` 停袋底对照：`field_pregrasp_20260901_1757:target_1`（目视方向与定位中上水平，只需微调）。
+现场基线（归档数字与轮次历史在 git，原 testing-log 已于 2026-10-10 删除）：相机已运行 ~2.4–2.5 FPS（launch 现行请求 2.5；09-16 实测 5.0 不可达且无加速作用）。现行 `PREGRASP_ONLY` 停袋底对照：`field_pregrasp_20260901_1757:target_1`（目视方向与定位中上水平，只需微调）。
 
 **产品结论：** 栈能跑完全流程。失败不在缺包，而在观察节拍、身份新鲜度、可达性门、会话隔离没有按 2.5 FPS 停走式相机做成一等公民。
 
@@ -46,7 +46,7 @@ Robotics_Tutorial 教程库已归档 `_archive/parked_2026-09/`，不再随库�
 5. **套入/剪切唯一权威是 `GraspDecision.allowed`。** 感知 ACCEPT 只当初值/可视化。融合成功时入口/轴/剪切参考有效，`PREGRASP_ONLY` 可据此到预抓取。`allowed=false` 禁止套入/SetIO，禁止单帧候选降级接触。套入许可走逐目标动态径向/轴向预算；固定 35° 只诊断完全错轴。
 6. **会话有边界。** 一次 `RunHarvest` 对应一份账本目录 `runs/<request_id>/`；过程录制为会话 bag（决策 0019），随节点启停开合，批次边界由消息自带 `request_id` 还原。
 7. **导航已归档，不是底盘驱动。** `peach_navigation` 包体在 `_archive/parked_2026-09/`，不进 colcon 构建；四个导航 IDL 在 manifest 标「预留」并由清单脚本双向核对。调度 `_cmd_navigate` 固定座直通 `NAV_OK`，不发动作。**仿真域例外（2026-10-08 入库）**：`peach_sim` 已接 gz DiffDrive 履带驱动与 Nav2 巡园（`orchard_nav.launch.py` + `tour_node`，独立栈不进 `harvest_system` / lifecycle，见 §8 物理仿真行）——产品底盘/雷达驱动与 `peach_navigation` 归档恢复仍须另授权，不加第五个 peach 业务包。
-7a. **标定唯一事实源（2026-09-17 整理）。** 手眼外参=`src/aubo_hand_eye_calibration/hand_eye/active.yaml`（入库随仓；改值或覆盖后重启 extrinsics_publisher 生效；candidates/ 会话产物不入库；`_archive/runs/hand_eye/` 是历史归档不读取）。彩色内参=`src/percipio_camera/config/color_camera_info.yaml`（percipio 与 peach_stereo 两前端共用；重标定走 vendored `camera_calibration`（`src/camera_calibration`，image_pipeline jazzy 原样入库）＋`apply_intrinsics` 原子落盘，2026-09-17 集成，流程见 testing.md 标定节）。同日新增 auto 档：由当前图像定位固定棋盘格自动生成 FOV 保持视点（相机无关，几何量运行时取自 camera_info）并联合求解内外参，产物（外参 transforms＋`intrinsics` 节）同存本包 hand_eye/，内参进 percipio 事实源仍走人工 `apply_intrinsics`；默认档仍是 poses 示教位姿。IR/深度内外参=设备内标定直读（无文件）。`AUBO_HAND_EYE_DIR` 环境变量仅限特殊部署覆盖。
+7a. **标定唯一事实源（2026-09-17 整理）。** 手眼外参=`src/aubo_hand_eye_calibration/hand_eye/active.yaml`（入库随仓；改值或覆盖后重启 extrinsics_publisher 生效；candidates/ 会话产物不入库；`_archive/runs/hand_eye/` 是历史归档不读取）。彩色内参=`src/percipio_camera/config/color_camera_info.yaml`（percipio 与 peach_stereo 两前端共用；重标定走 vendored `camera_calibration`（`src/camera_calibration`，image_pipeline jazzy 原样入库）＋`apply_intrinsics` 原子落盘，2026-09-17 集成，流程见 v1 测试指导标定节）。同日新增 auto 档：由当前图像定位固定棋盘格自动生成 FOV 保持视点（相机无关，几何量运行时取自 camera_info）并联合求解内外参，产物（外参 transforms＋`intrinsics` 节）同存本包 hand_eye/，内参进 percipio 事实源仍走人工 `apply_intrinsics`；默认档仍是 poses 示教位姿。IR/深度内外参=设备内标定直读（无文件）。`AUBO_HAND_EYE_DIR` 环境变量仅限特殊部署覆盖。
 8. **ROS 不是功能安全通道。** 急停 / 保护停止 / 使能在柜与示教器（ISO 10218、IEC 60204-1、ISO 13850）。`ExecutionAuthority`、使能默认关、`RobotMoveStop` 是应用护栏，不得称为 e-stop，也不得替代硬件急停。工作流见 [AGENTS.md](../AGENTS.md) 第 2 章。保护停止解除后禁止 resume 原轨迹。
 
 ---
@@ -387,16 +387,18 @@ peach_system_tests/
   test/{test_mock_launch,test_preflight,test_replay_approach,test_perf_baseline,test_e1_supervisor_chain,test_scene_obstacles,test_tool_profile_smoke,test_baseline_inventory,test_frozen_camera_bag}.py
     # + replay_{oracle.py,baselines.json} + perf_baseline.json + baseline_inventory.json + perception_sim.py（域 89-94）
   scripts/{drive_harvest,probe_topics,check_planning_scene,run_frozen_grasp,drive_frozen_grasp,frozen_camera_replay,gen_baseline_inventory}.py   # 0036④ 测试驱动收编 + 2026-10-08 冻结相机抓取
-  launch/frozen_camera_grasp.launch.py   # 冻结 bag 回放→单视感知→抓一颗（域 81/82，成功口径 succeeded≥1，180 s 墙钟；见 testing.md）
+  launch/frozen_camera_grasp.launch.py   # 冻结 bag 回放→单视感知→抓一颗（域 81/82，成功口径 succeeded≥1，180 s 墙钟；见 v1/v2 测试指导）
   config/frozen_one_view.yaml            # v1 单视 overlay（min_views=1、基线门 0°、tool.budget.d_inner=0.25）
   # perf_baseline.json：性能对拍锚点（W0，仓内实测数字带 _provenance，schema 由 test_perf_baseline 守卫）
 
-peach_sim/                 # Gazebo Harmonic 果园仿真（场景+巡园；独立栈，不进 harvest_system/lifecycle）
+peach_sim/                 # Gazebo Harmonic 果园仿真（场景+巡园+离线 Blender 线；独立栈，不进 harvest_system/lifecycle）
   peach_sim/{scene,cli,preview,params,textures,nav_map,tour_core,tour_node}.py   # scene=确定性果园纯核；nav_map/tour_core=地图/巡园纯核，tour_node=NavigateToPose 节点
   launch/{orchard_sim,orchard_nav}.launch.py   # 仿真+工位（mobile:=true 解锚可驾驶）/ Nav2 巡园（AMCL+确定性图或 slam:=True）
   config/{orchard,orchard_bridge,nav2_params}.yaml   # 场景 schema / gz↔ROS 六路桥 / Nav2 全参
   maps/orchard_map.{pgm,yaml}   # 确定性栅格图（生成器产物入库）
-  worlds/urdf/meshes/textures/  # SDF 世界 / 履带+臂 xacro（mobile 化）/ GLB 网格 / PBR 贴图
+  blender/{build_assets,export_field_to_gz}.py   # 离线 Blender 4.5 无头导出（Blender 自带 Python，勿进 aubo_py3.12/numpy 环境）：工位 GLB 网格 / 重建去草整园→查看 GLB（决策 0039）
+  reconstruction/               # Blender 外观重建 + 感知验证矩阵管线（离线门；见 v1 测试指导「peach_sim 仿真」A 与包 README）
+  worlds/urdf/meshes/textures/  # 两份 SDF 世界（peach_orchard=程序化锚定 GT；field_no_grass=重建桥接纯视觉查看，无桥无 TF）/ 履带+臂 xacro（mobile 化）/ GLB 网格 / PBR 贴图
   test/{test_params,test_scene,test_textures,test_nav_config,test_nav_map,test_tour_core,test_urdf_mobile}.py
 
 peach_common/                     # 共享设施库（W1，对齐 nav2_common）：不跑节点、不进 launch；harvester/bringup/vegetation 旧路径为转发 shim
@@ -420,28 +422,30 @@ imu_follow/
   config/{imu_follow,moveit_servo}.yaml            # 节点参数 / moveit_servo 部署值（参数名自带 moveit_servo. 前缀）
   launch/{imu_follow,imu_follow_servo}.launch.py   # 单节点（fjt 备选）/ servo 集成（mock 主入口）
 
-# 旁路视觉抓取（不进 harvest_system / lifecycle；IDL 不走 peach_interfaces）
-ivg_interfaces/          # 估姿 srv/msg；仅旁路栈（EstimatePose 带 Header）
-ivg_pose_estimation/     # 估姿节点 + FastAPI :8089（分段流水线 pipeline/；旋转数学用 scipy）
-  ivg_pose_estimation/pipeline/   # 分段门面：segmenters/{depth_band,rembg_u2net,mobile_sam} + matchers/{geometric,dinov2_template}
-  config/pose_estimation.yaml     # 算法配置单源（后端选型/深度单位/手眼单位）
-  models/                # u2net.onnx 与 mobile_sam.pt 均不入库（fetch 脚本拉取）
-  templates/             # 工件模板（DINOv2 嵌入索引 .dinov2_index.npz 随建随存）
-ivg_graspnet/
-  ivg_graspnet/{grasp_core,postprocess,inference_session,graspnet_node,motion_controller,publish_grasps_client}.py
-  ivg_graspnet/backends/         # GraspBackend 注册表：graspnet_torch（默认）+ contact_graspnet
-  ivg_graspnet/graspnet_lib/      # vendored GraspNet-baseline 推理子集（纯 torch，AMENT_IGNORE）
-  ivg_graspnet/contact_graspnet_lib/  # vendored contact_graspnet_pytorch（AMENT_IGNORE；NVIDIA 非商用系许可）
-  config/graspnet.yaml
-  launch/{graspnet_detect,graspnet_grasp}.launch.py
-  models/checkpoint-rs.tar + checkpoint-rs.yaml   # 权重 + 耦合超参 manifest
+# IVG 项目子工作空间 src/ivg/（2026-10-10 起 8 包归入：旁路三包 + ivg_sim + 演示四包；与 src/peach2/ 同构，包名不变、colcon 发现与构建不变）
+# ——以下为旁路视觉抓取（不进 harvest_system / lifecycle；IDL 不走 peach_interfaces）——
+ivg/
+  ivg_interfaces/        # 估姿 srv/msg；仅旁路栈（EstimatePose 带 Header）
+  ivg_pose_estimation/   # 估姿节点 + FastAPI :8089（分段流水线 pipeline/；旋转数学用 scipy）
+    ivg_pose_estimation/pipeline/   # 分段门面：segmenters/{depth_band,rembg_u2net,mobile_sam} + matchers/{geometric,dinov2_template}
+    config/pose_estimation.yaml     # 算法配置单源（后端选型/深度单位/手眼单位）
+    models/              # u2net.onnx 与 mobile_sam.pt 均不入库（fetch 脚本拉取）
+    templates/           # 工件模板（DINOv2 嵌入索引 .dinov2_index.npz 随建随存）
+  ivg_graspnet/
+    ivg_graspnet/{grasp_core,postprocess,inference_session,graspnet_node,motion_controller,publish_grasps_client}.py
+    ivg_graspnet/backends/         # GraspBackend 注册表：graspnet_torch（默认）+ contact_graspnet
+    ivg_graspnet/graspnet_lib/      # vendored GraspNet-baseline 推理子集（纯 torch，AMENT_IGNORE）
+    ivg_graspnet/contact_graspnet_lib/  # vendored contact_graspnet_pytorch（AMENT_IGNORE；NVIDIA 非商用系许可）
+    config/graspnet.yaml
+    launch/{graspnet_detect,graspnet_grasp}.launch.py
+    models/checkpoint-rs.tar + checkpoint-rs.yaml   # 权重 + 耦合超参 manifest
 ```
 
 旧名 `peach_pose` / `approach_grasp` 不再作路径。Marker 命名空间：场景 `scene_perception`；重建主 ns `target_reconstruction`，精化 `peach_reconstruction/refined`，网格 `peach_reconstruction/tsdf_mesh`。
 
 ### 三十一包总表（采摘产品 + IVG 演示栈 + 仿真/夹爪资产）
 
-colcon 工作区 = 采摘应用 8（含公共库 `peach_common`：参数/规则/QoS/路径单源，不跑节点、不进运行链）+ 相机前端 1（`peach_stereo`）+ 臂/相机 9 + 内参标定工具 1（`camera_calibration`，vendored）+ 可选 USB IMU 1 + 可选 IMU 跟随 1 + **旁路视觉抓取 3** + 演示四包（`ivg_demo_services` / `latte_backend` / `tool_changer` / `aubo_ros2_web_dashboard`）+ 仿真场景与巡园 1（`peach_sim`）+ IVG 仿真环境 1（`ivg_sim`，Gazebo Allegro 手抓取验证，零污染 ivg_* 业务包）+ 上游夹爪描述 1（`robotiq_description`，vendored BSD-3，2026-09-30 随三末端 HIL 轮入库，v2 三末端线备用、v1 无包内依赖方）。旁路三包与仿真两包不进 `harvest_system` / lifecycle、不订 peach 话题。能力四包作用不得串；驱动九包给感知 TF / 技能 MoveIt 用，其中标「只读」的不得改。`serial_imu` 随 `harvest_system` 起、不进 lifecycle。`imu_follow` 仅 `adaptive_shear_v1` 随整栈 Include（`motion.enabled` 默认 false；shear/bite 两档不起）。`peach_navigation` 已归档，不在本表。
+colcon 工作区 = 采摘应用 8（含公共库 `peach_common`：参数/规则/QoS/路径单源，不跑节点、不进运行链）+ 相机前端 1（`peach_stereo`）+ 臂/相机 9 + 内参标定工具 1（`camera_calibration`，vendored）+ 可选 USB IMU 1 + 可选 IMU 跟随 1 + **旁路视觉抓取 3** + 演示四包（`ivg_demo_services` / `latte_backend` / `tool_changer` / `aubo_ros2_web_dashboard`）+ 仿真场景与巡园 1（`peach_sim`）+ IVG 仿真环境 1（`ivg_sim`，Gazebo Allegro 手抓取验证，零污染 ivg_* 业务包）+ 上游夹爪描述 1（`robotiq_description`，vendored BSD-3，2026-09-30 随三末端 HIL 轮入库，v2 三末端线备用、v1 无包内依赖方）。旁路三包与仿真两包不进 `harvest_system` / lifecycle、不订 peach 话题。能力四包作用不得串；驱动九包给感知 TF / 技能 MoveIt 用，其中标「只读」的不得改。`serial_imu` 随 `harvest_system` 起、不进 lifecycle。`imu_follow` 仅 `adaptive_shear_v1` 随整栈 Include（`motion.enabled` 默认 false；shear/bite 两档不起）。`peach_navigation` 已归档，不在本表。**IVG 项目 8 包（旁路 3 + `ivg_sim` + 演示 4）2026-10-10 起归入 `src/ivg/` 子工作空间目录（与 `src/peach2/` 同构；包名/图名/构建零变化，仅目录位置）。**
 
 ### 产品链（应用九包）
 
@@ -460,7 +464,7 @@ colcon 工作区采摘应用 = `peach_interfaces` / `peach_harvester`（vision�
 | `peach_observability` | 观测 | 8090/JSONL + 独立 rosbag2 | 录制话题 |
 | `peach_vegetation` | 环境（影子） | GPU 枝/叶 2D 掩膜 | 分割阈值；不写场景 |
 | `peach_system_tests` | 测试 | isolated launch_testing / mock 矩阵 + 回放塔 + perf 基线 | 不进真机 |
-| `peach_sim` | 仿真场景+巡园 | Gazebo Harmonic 果园世界 + 采摘工位模型 + 目标清单 GT + 履带可驾驶/Nav2 巡园（`orchard_nav`，2026-10-08 起；口径见包 README「自主导航」节） | 布局/几何/巡园参数；不进 `harvest_system` 运行 launch |
+| `peach_sim` | 仿真场景+巡园 | Gazebo Harmonic 果园世界 + 采摘工位模型 + 目标清单 GT + 履带可驾驶/Nav2 巡园（`orchard_nav`，2026-10-08 起；口径见包 README「自主导航」节）+ 重建去草整园 GLB 桥接纯视觉查看世界（`field_no_grass`，2026-10-09 起；无 GT/无桥/无 TF，见包 README「无草整园 Gazebo 查看」节与决策 0039） | 布局/几何/巡园参数；不进 `harvest_system` 运行 launch |
 
 ```mermaid
 flowchart LR
@@ -794,7 +798,7 @@ launch 参数装载走官方 `moveit_configs_utils.MoveItConfigsBuilder`（与 M
 
 #### `aubo_hand_eye_calibration`
 
-`extrinsics_publisher` 读 `src/aubo_hand_eye_calibration/hand_eye/active.yaml`（入库随仓）发 `wrist3_Link→camera_link`。找不到该文件则名义平移 2 cm、单位四元数（点云会相对臂偏约 10 cm 且轴向不对）；外参来源经 `diagnostic_updater` 上 `/diagnostics`（`extrinsics_source` 任务，2026-09-29 起：active=OK、无文件回退名义=WARN、active 损坏/帧名不匹配=ERROR），标定 Web 台诊断卡可见。重建积分依赖这条链的精确 stamp。日常采摘不自动跑标定流程；内参/外参重标定工具（vendored `camera_calibration`、`apply_intrinsics`）均为会话工具，不进常驻栈，流程见 testing.md 标定节。标定 Web 台（`web_gateway`，仅回环 :8088）自 2026-09-29 起 `/api/plan`、`/api/run` 接受 `pose_source`/`solve_target` 档位（auto 视点档与 joint 联合档不再只能 CLI）。
+`extrinsics_publisher` 读 `src/aubo_hand_eye_calibration/hand_eye/active.yaml`（入库随仓）发 `wrist3_Link→camera_link`。找不到该文件则名义平移 2 cm、单位四元数（点云会相对臂偏约 10 cm 且轴向不对）；外参来源经 `diagnostic_updater` 上 `/diagnostics`（`extrinsics_source` 任务，2026-09-29 起：active=OK、无文件回退名义=WARN、active 损坏/帧名不匹配=ERROR），标定 Web 台诊断卡可见。重建积分依赖这条链的精确 stamp。日常采摘不自动跑标定流程；内参/外参重标定工具（vendored `camera_calibration`、`apply_intrinsics`）均为会话工具，不进常驻栈，流程见 v1 测试指导标定节。标定 Web 台（`web_gateway`，仅回环 :8088）自 2026-09-29 起 `/api/plan`、`/api/run` 接受 `pose_source`/`solve_target` 档位（auto 视点档与 joint 联合档不再只能 CLI）。
 
 #### `percipio_camera`
 
@@ -808,9 +812,9 @@ USB 串口 IMU（QinHeng USB 转串适配器：CH340 `1a86:7523`（旧，ttyUSB�
 
 可选 IMU 姿态跟随工具包（Python；不进 lifecycle、不改只读 bringup、不订 peach 话题）。`harvest_system` **仅** `tool_profile:=adaptive_shear_v1` 时 Include `imu_follow_servo.launch.py`（含 `moveit_servo`）；其余末端不起本节点（进程隔离）。`~/enable` 采两组参考（TF `base_link→tcp` 当前位姿 + 当前 `/imu/data` 四元数），此后每节拍（`rate.update_hz` 默认 20 Hz）把 IMU 体轴姿态增量经死区/符号映射/锥限幅/平滑叠加到参考 TCP 姿态（位置钉死参考点，只跟姿态；插入/回退时位置沿锁定开口移动）。后端双轨（`motion.backend`）：**servo 默认**——节点对当前 TF 闭环，姿态/位置误差 P 控制成 `TwistStamped`（tcp 系 speed_units）发 moveit_servo（Jazzy apt `ros-jazzy-moveit-servo`）的 `/moveit_servo/delta_twist_cmds`（BEST_EFFORT；enable 自动 `switch_command_type(TWIST)` + 确保未暂停），Servo 100 Hz 增量 IK 流式输出 JTC 话题；**未 enable 时 pause servo**，避免与 peach Survey/MovePregrasp 的 MTC 同时写控制器。**fjt 备选**（真机透传）——`/compute_ik` 解关节、单步钳制后流式 FollowJointTrajectory。`motion.enabled` 默认 false：只发布 `~/target_pose`、`~/command_twist`，不发运动；**peach 不自动开门**；真机须另行人工授权。自动 disable：IMU / 关节状态断流、连续 IK 失败（fjt）；servo 补零速刹车并 pause、fjt 取消在途 goal。**插入/回退**（决策 0026）：`~/insert_start` 锁当前工具开口（tip +Z，base 系）按 `insert.speed_m_s`（0.01）推进、钳 `insert.max_travel_m`（0.09）；`~/insert_stop` 停推进；`~/insert_retract` 沿锁定方向把行程收回参考点。peach `ExecuteTarget` FULL 在自适应档案上于 VerifyPregrasp 之后 `enable` → `insert_start` → 剪切 → `insert_retract` → `disable`，再 MTC 回 `harvest_stow`；非 IMU 末端仍走 MTC LIN，永不调、不建这些服务客户端。PREGRASP_ONLY 不开窗。mock 冷启动关节全零参考 IK 无解（-31），先导 `global_photo_pose`。姿态/行程数学纯核 `follow_core.py`；参数走手写 `params.py` + `config/imu_follow.yaml`。**手册：** [`src/imu_follow/README.md`](../src/imu_follow/README.md)。
 
-### 旁路视觉抓取（三包，非采摘）
+### 旁路视觉抓取（三包，非采摘；位于 `src/ivg/` 子工作空间）
 
-从旧仓移植后按本区裁过：**不进** `harvest_system.launch.py`、**不进** lifecycle 名单、**不订** `peach_interfaces`、不改驱动栈。共用 L0 相机 / TF / MoveIt。2026-09-29 前沿化重构轮后为**分段流水线 + 可换后端**架构：
+从旧仓移植后按本区裁过：**不进** `harvest_system.launch.py`、**不进** lifecycle 名单、**不订** `peach_interfaces`、不改驱动栈。2026-10-10 起与 IVG 演示栈（`ivg_demo_services` / `latte_backend` / `tool_changer` / `aubo_ros2_web_dashboard`）及 `ivg_sim` 一并归入 `src/ivg/` 子工作空间目录（包名与图名不变）。共用 L0 相机 / TF / MoveIt。2026-09-29 前沿化重构轮后为**分段流水线 + 可换后端**架构：
 
 - **估姿**（`ivg_pose_estimation`）：`pipeline/` 分段门面（Segmenter→Matcher→pose 求解，段段可换）。分割档 `depth_band`（默认）/`rembg_u2net`/`mobile_sam`（MobileSAM 点提示，39M 轻量）；匹配档 `geometric`（默认，距离/IoU 两模式）/`dinov2_template`（DINOv2 嵌入检索，FoundPose/CNOS 范式，索引落盘）。配置单源 `config/pose_estimation.yaml`（含 `camera.depth_scale`、`calibration.translation_unit`）；`EstimatePose` 带 Header（stamp=图像采集时刻，TF 同 stamp 查询）。Web 默认 `:8089`（与手眼标定网关错开），写端点（`/exit`/模板保存/标准化/调试参数写盘）需 `vpe_auth` SameSite=Strict cookie 或 `X-Auth-Token`（token 见启动日志，`VPE_WEB_TOKEN` 可固定）；CORS 通配已移除。运动/IO HTTP 仍 501。
 - **抓取**（`ivg_graspnet`）：`backends/` 注册表双后端——`graspnet_torch`（默认，vendored GraspNet-baseline 纯 torch，**不用 AnyGrasp** 许可证）+ `contact_graspnet`（vendored contact_graspnet_pytorch，NVIDIA 非商用系许可，内部研究用；`approach_flip_z180=false` 待真机方向核验）。耦合超参随权重走（`checkpoint-rs.yaml` manifest）；碰撞/NMS/topK 在 `postprocess.py`（模型无关，重构前后行为等价由 golden 测试守卫）；`InferenceSession` 统一 device/fp16。MoveIt 超时发 `cancel_goal_async`；`publish_grasps_client` 有 opt-in 使能门 `require_enable`（默认 false 保持旧流程）与 `apply_grasp_z_flip`（对齐后端 `approach_flip_z180`）。真机运动只走 harvest 调试操作面或 GraspNet 的 MoveIt 客户端（须另授权）。
@@ -823,7 +827,7 @@ USB 串口 IMU（QinHeng USB 转串适配器：CH340 `1a86:7523`（旧，ttyUSB�
 | `ivg_pose_estimation` | `ivg_pose_estimation`、Web `:8089` | 模板匹配 6D 估姿（分段流水线）；T_B_C 按 stamp 查 TF | 不发运动/IO、不写账本 |
 | `ivg_graspnet` | `graspnet_demo_points_node`、`publish_grasps_client` | 点云→抓取位姿→MoveIt 接近（双后端可换） | 不拉相机/手眼；不走 ExecutionAuthority；真机须另授权 |
 
-接口见 [io.md](io.md) §8。包 README：[`src/ivg_pose_estimation/README.md`](../src/ivg_pose_estimation/README.md)、[`src/ivg_graspnet/README.md`](../src/ivg_graspnet/README.md)。
+接口见 [io.md](io.md) §8。包 README：[`src/ivg/ivg_pose_estimation/README.md`](../src/ivg/ivg_pose_estimation/README.md)、[`src/ivg/ivg_graspnet/README.md`](../src/ivg/ivg_graspnet/README.md)。
 
 ### 从哪读源码
 
@@ -1177,6 +1181,8 @@ yaml：仅上述 4 键仍为 `*.impl`（技能 yaml 无 `*.impl`）。检测/分
 
 | 0038 | **peach_arm 关停期取消竞态防御（2026-09-30，整包首跑第 6 真 bug·形态①）**：`peach_system_tests` 整包首跑实锤——SIGINT 后 signal_handler 已调 `rcl_shutdown`，`on_deactivate` 收口路径 `requestCancelAll` 里 `move_group_->stop()` / `grasp_task_->cancel()`（内部经 rclcpp 异步口创建 guard condition）在 context 已 invalid 时抛 `RCLError: context is not valid` → `std::terminate`（exit -6，三档 tool_profile_smoke 全挂）。修复：两调用包 try/catch，清理期失败 DEBUG 记录即吞——收口/清理路径失败只留痕，不得终止进程（`cancel_requested_` 旗标先置，停运动语义不变）。验证：修复后三档 tool_profile_smoke 2/2×3 全绿 + `test_mock_launch` 首跑 5/5 保持绿（testing-log 09-30）。**形态②存量挂账（未修，AGENTS 审计 F3 同源）**：2s 有界 join 超时 detach 后 detached 线程在 rcl_shutdown 后继续跑/入口线程成员赋值竞态——e1 在「SIGINT 时有在途 ExecuteTarget」下仍 `terminate called without an active exception`（e1 其余 3/4 绿，C03 过；exit_codes 一项挂此存量），修复需重构线程入口赋值守卫，留足验证窗口另行轮做。零 IDL/话题/QoS/参数变化。推翻：无。 |
 
+| 0039 | **重建去草整园 → Gazebo 查看桥（2026-10-09，peach_sim 离线 Blender 线）**：`build_scene.py --no-grass` 的去草整园 `.blend` 经 `blender/export_field_to_gz.py` 无头导出单 GLB（约 220 MB / 370 万顶点），`worlds/field_no_grass.sdf` 以纯视觉静态模型查看（单 visual 引 `model://peach_sim/meshes/field_no_grass.glb`；无碰撞体/传感器/gz↔ROS 桥/TF/launch，不进任何运行链）。管线：删相机/灯 →（默认删 backdrop 远景行，`--keep-backdrop` 留）→ collection 实例实体化 → GN 叶实例在共享 node group 的 GROUP_OUTPUT 前插 Realize Instances 节点求值物化（秒级）→ 全网格 join → 可选 `--decimate` → glTF `export_yup`。**踩坑入册**：① 重建材质 Base Color 走 Mix(noise,image) / Noise→ColorRamp 程序链，glTF 导出器丢链 → gz 里整模全白；修法=上游搜 TEX_IMAGE 直连 Base Color，搜不到则断链摊平 `diffuse_color`（socket 链接覆盖 default_value，只设系数导不出色）并清 Metallic（2026-10-10 收口）；② join 目标保有自己的 object 旋转/原点，直接导出整园在 gz 里倾倒——`transform_apply` 把世界变换烘进顶点；③ 逐对象 `modifier_apply` 物化每叶建对象要几十分钟，Realize 节点走 C++ 并行求值是被采纳路径。**边界**：仅人工查看效果；导航/感知 GT 仍以 `worlds/peach_orchard.sdf`（程序化锚定世界）为准，两份 GT 不混用；Blender 用 `_tools/` 自带 Python，勿混 aubo_py3.12/numpy 环境。被否：把 field_no_grass 当第二份导航/感知 GT；gz GUI 截图当验收。推翻：无。 |
+
 ---
 
 ## 8. 缺口与规约
@@ -1204,7 +1210,7 @@ yaml：仅上述 4 键仍为 `*.impl`（技能 yaml 无 `*.impl`）。检测/分
 | 切断确认 | SetIO ACK 只到 `CUT_COMMAND_ACCEPTED`；刀具 DI 预留 `/aubo_io_controller/io_states`，未接线。`tool.enabled=true` 未确认终局 `FAILED`/`CUT_FEEDBACK_TIMEOUT`。切断行程/电流常数未真机标定 | KEEP 田间；不得把 ACK 当切断 |
 | ID 身份联动 | 详见「ID 与身份确定（含模块联动）」缺口 ID-1~ID-5：request_id 空默认 `'harvest'` × ledger 断点恢复 × 重启后 target_id 重铸可致新批误跳过（链 A）；plan 契约三软点（FULL 缺 plan_id 放行 / 绑定先于预览成败 / 批流不发 PREVIEW 故契约 inert，链 C）；`approach_execution_gate` 读 `ModelSnapshot` 只查新鲜度不绑 `ctx.target_id`、`onDecision` 替换不比 run_id/标定/配置修订（链 ID-3）；臂 SurveyScene result 恒 0、臂不独立跟踪世代（链 B 断点）；`harvest_status` 对跳过目标报 'HARVESTED'（措辞级） | 均不破使能门/令牌门主链（fail-closed 兜底在）；修复另轮裁定 |
 
-怎么跑与验收门：[testing.md](testing.md)。量化复算与归档数字：[testing-log.md](testing-log.md)。
+怎么跑与验收门：v1 / v2 测试包指导（`src/peach_system_tests/doc/testing.md`、`src/peach2/peach2_system_tests/doc/testing.md`）。量化复算与归档数字：历史在 git（原 testing-log 已于 2026-10-10 删除）。
 
 规约：
 

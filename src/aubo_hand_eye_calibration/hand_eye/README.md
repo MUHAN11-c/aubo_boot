@@ -31,4 +31,4 @@ ros2 run tf2_ros tf2_echo wrist3_Link camera_link   # 核对数值
 - 彩色相机内参的唯一事实源是 `src/percipio_camera/config/color_camera_info.yaml`
   （percipio 与 peach_stereo 两个相机前端共用同一份）。
   重标定工具与流程（vendored `camera_calibration` + `apply_intrinsics`）
-  见包 README「内参标定流程」与 docs/testing.md 标定节。
+  见包 README「内参标定流程」与 v1 测试指导标定节（`src/peach_system_tests/doc/testing.md`）。

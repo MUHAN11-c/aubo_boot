@@ -4,13 +4,11 @@
 
 - 设计架构：[docs/architecture.md](docs/architecture.md)
 - 输入输出：[docs/io.md](docs/io.md)
-- 测试流程与命名：[docs/testing.md](docs/testing.md)
-- 测试过程记录：[docs/testing-log.md](docs/testing-log.md)
-- 工程整理过程：[docs/REFACTORING.md](docs/REFACTORING.md)
+- 测试流程指导：[src/peach_system_tests/doc/testing.md](src/peach_system_tests/doc/testing.md)（v1）；[src/peach2/peach2_system_tests/doc/testing.md](src/peach2/peach2_system_tests/doc/testing.md)（v2）
 - 用户裁定文档（非活文档）：[docs/peach_v1_现行终版方案.md](docs/peach_v1_现行终版方案.md) v1 现行栈终版方案；[docs/peach_v2_重构终版方案.md](docs/peach_v2_重构终版方案.md) v2 重构设计与落地计划（原 design.md 项目设计书已由两者取代删除）
 - 代理约束：[AGENTS.md](AGENTS.md)
 
-前三份（architecture / io / testing）是活文档，与源码互相更新：改一边须同一轮改另一边。`testing-log.md` 与 `REFACTORING.md` 只记过程，不驱动现行设计。`docs/` 不另增活文档。
+前两份（architecture / io）是活文档，与源码互相更新：改一边须同一轮改另一边。测试流程随两测试包 `doc/testing.md` 维护（2026-10-10 自 docs/testing.md 拆写入包，用户裁定）。过程记录类（testing-log / REFACTORING）已于 2026-10-10 清理退役，历史在 git。`docs/` 不另增活文档。
 
 验收看实机和过程数据（`runs/`、`_archive/runs/`）。`colcon test` 跑 ROS 2 默认 lint 加零 ROS 纯核 pytest，不等于采摘验收。
 
@@ -67,7 +65,7 @@ ros2 launch peach_bringup harvest_system.launch.py \
 | 路径 | 内容 |
 |------|------|
 | `src/` | 采摘应用 7 包 + 相机前端 1 + 臂/相机 9 包 + 内参标定 1 + 可选 USB IMU / IMU 跟随 2 + 旁路 IVG 3 |
-| `docs/` | `architecture.md` 设计架构；`io.md` 输入输出；`testing.md` 测试流程与命名；`testing-log.md` / `REFACTORING.md` 过程记录（不驱动设计） |
+| `docs/` | `architecture.md` 设计架构；`io.md` 输入输出；v1/v2 方案书（用户裁定非活文档）；测试指导在两测试包 `doc/` |
 | `runs/` | 过程数据唯一根（gitignore：账本、观测、session、MCAP） |
 | `_archive/runs/` | 历史过程数据（勿删） |
 | `_archive/parked_2026-08-24/` | 暂不用：tools / diagnostics / profiles / scripts / 架子机 / 过程文档 |

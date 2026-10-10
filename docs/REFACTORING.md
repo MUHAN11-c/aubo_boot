@@ -762,3 +762,7 @@ colcon build/test 三包全绿（222 tests 0 failures）；venv 回归 test_web_
 
 用户裁定 runs/ 历史记录全部删除（转向 peach2 新框架测试）：501 个跟踪文本（账本/审计/报告）与全部本地件清空，仅保留空的 `runs/` 过程数据根；结构化文本随仓与 bag 回收政策不变，后续新会话照常入库。testing.md「过程数据」段同轮改写。
 
+### 追记（同日）：design.md 删除
+
+用户裁定删除 `docs/design.md`（项目设计书主本，V6.5）——内容已由 `peach_v1_现行终版方案.md` 与 `peach_v2_重构终版方案.md` 取代。AGENTS §8 非活文档清单回到两份并把「方向权威」口径改为 v1/v2 方案书，根 README 文档区同轮。testing-log 里的历史轮次引用（设计书 V6.x 对账轮等）按只追加原则保留原文。
+

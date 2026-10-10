@@ -7,7 +7,7 @@
 - 测试流程与命名：[docs/testing.md](docs/testing.md)
 - 测试过程记录：[docs/testing-log.md](docs/testing-log.md)
 - 工程整理过程：[docs/REFACTORING.md](docs/REFACTORING.md)
-- 用户裁定文档（非活文档）：[docs/design.md](docs/design.md) 项目设计书主本；[docs/peach_v1_现行终版方案.md](docs/peach_v1_现行终版方案.md) v1 现行栈终版方案；[docs/peach_v2_重构终版方案.md](docs/peach_v2_重构终版方案.md) v2 重构设计与落地计划
+- 用户裁定文档（非活文档）：[docs/peach_v1_现行终版方案.md](docs/peach_v1_现行终版方案.md) v1 现行栈终版方案；[docs/peach_v2_重构终版方案.md](docs/peach_v2_重构终版方案.md) v2 重构设计与落地计划（原 design.md 项目设计书已由两者取代删除）
 - 代理约束：[AGENTS.md](AGENTS.md)
 
 前三份（architecture / io / testing）是活文档，与源码互相更新：改一边须同一轮改另一边。`testing-log.md` 与 `REFACTORING.md` 只记过程，不驱动现行设计。`docs/` 不另增活文档。

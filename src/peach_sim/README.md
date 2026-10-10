@@ -237,14 +237,25 @@ _tools/blender-4.5.14-linux-x64/blender -b \
 GZ_SIM_RESOURCE_PATH=src:src/peach_sim gz sim -r \
   src/peach_sim/worlds/field_no_grass.sdf
 
-# 带采摘机器人（复用 orchard_sim 全套 spawn/bridge；mobile 模式但本世界
-# physics=ignored，履带不驱动——驾驶体验用默认 peach_orchard.sdf）
+# 带完整采摘机器人（固定工位：BUNKER 彩色底盘 + 臂链 + 球形末端）
+# 本世界只有视觉地面、无地面碰撞；physics type="ignored" 不关闭物理。
+# 禁用 mobile 模式以免底盘自由落体；驾驶体验用默认 peach_orchard.sdf。
 ros2 launch peach_sim orchard_sim.launch.py \
-  world:=install/peach_sim/share/peach_sim/worlds/field_no_grass.sdf mobile:=true
+  world:=install/peach_sim/share/peach_sim/worlds/field_no_grass.sdf mobile:=false
 ```
 
 仅为人工查看效果；导航/感知 GT 仍以 `worlds/peach_orchard.sdf`（程序化
 锚定世界）为准，两者不混用。
+
+固定工位默认使用 `tool_profile:=bite_shear_v1`（peach 球形环抱咬合式剪切手
+的真实 CAD 网格和 TCP 档案）与下载适配的 BUNKER Pro 2 外观；深灰车体、
+黑色履带、橙色面板和金属灰
+轮毂通过 GLB 材质显示。资产来源与重导出见 [BUNKER_SOURCE](meshes/BUNKER_SOURCE.md)。
+其他 peach 真实末端可用 `tool_profile:=shear_v1` 或 `tool_profile:=adaptive_shear_v1`
+显式选择。移动导航模式仍使用原来的低模底盘。
+
+模型看不见、动态底盘下落、工具选型和渲染颜色的定位顺序与解决方法见
+[包级架构文档：Gazebo 模型不可见](doc/architecture.md#gazebo-模型不可见定位与解决方法)。
 
 ## 自主导航（Gazebo Harmonic + Nav2，2026-10 轮）
 

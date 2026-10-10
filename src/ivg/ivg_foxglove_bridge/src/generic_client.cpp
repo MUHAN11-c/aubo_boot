@@ -203,9 +203,17 @@ GenericClient::SharedFuture GenericClient::async_send_request(SharedRequest requ
   auto srv_members = static_cast<const ServiceMembers*>(_typeIntrospectionHdl->data);
   auto buf = allocate_message(srv_members->request_members_);
 
+  // IVG 本地修复（2026-10-10 实证）：零字段 srv（如 controller_manager/ListControllers、
+  // ivg_interfaces/GetCurrentState/RunLatteWorkflow）的请求 CDR 仅含 4 字节封装头，但
+  // rosidl IDL 生成会给空结构塞占位成员 structure_needs_at_least_one_member（uint8），
+  // rmw_deserialize 读该占位成员时越界抛 Fast CDR 异常。判定：payload ≤ 封装头（≤4B）
+  // 即零字段语义，buf 的 default-init 实例即为正确请求——跳过反序列化直接发送。
+  // （带字段请求的最小 CDR = 4B 封装头 + ≥1 字段对齐数据 > 4B，不受影响。）
   const rmw_serialized_message_t* sm = &request->get_rcl_serialized_message();
-  if (const auto ret = rmw_deserialize(sm, _requestTypeSupportHdl, buf.get()) != RCL_RET_OK) {
-    rclcpp::exceptions::throw_from_rcl_error(ret, "failed to desirialize request");
+  if (sm->buffer_length > 4) {
+    if (const auto ret = rmw_deserialize(sm, _requestTypeSupportHdl, buf.get()) != RCL_RET_OK) {
+      rclcpp::exceptions::throw_from_rcl_error(ret, "failed to desirialize request");
+    }
   }
   rcl_ret_t ret = rcl_send_request(get_client_handle().get(), buf.get(), &sequence_number);
   if (RCL_RET_OK != ret) {

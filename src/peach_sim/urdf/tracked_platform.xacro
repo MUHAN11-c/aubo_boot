@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <robot xmlns:xacro="http://www.ros.org/wiki/xacro">
-  <!-- 果园采摘工位履带底盘（低模）。
+  <!-- 果园采摘工位履带底盘（固定工位为 BUNKER Pro 2 彩色网格；导航为低模）。
     几何与履带摩擦参数改自 Gazebo Sim 官方示例 worlds/tracked_vehicle_simple.sdf
     的 simple_tracked 模型（gazebosim/gz-sim，Apache-2.0）：双履带 = 箱体 +
     两端圆柱，ODE 摩擦 mu 0.7 / mu2 150 / fdir1 0 1 0（横向高摩擦近似履带）。
@@ -42,15 +42,26 @@
         <mass value="120.0"/>
         <inertia ixx="4.05" ixy="0.0" ixz="0.0" iyy="12.05" iyz="0.0" izz="14.05"/>
       </inertial>
-      <visual name="body_visual">
-        <origin xyz="0 0 ${body_cz}" rpy="0 0 0"/>
-        <geometry>
-          <box size="${bx} ${by} ${bz}"/>
-        </geometry>
-        <material name="platform_gray">
-          <color rgba="0.55 0.57 0.55 1.0"/>
-        </material>
-      </visual>
+      <xacro:unless value="${mobile}">
+        <!-- BUNKER 外观网格：带颜色的车体/履带；碰撞仍用下面的简单代理。 -->
+        <visual name="bunker_chassis_visual">
+          <geometry>
+            <mesh filename="package://peach_sim/meshes/bunker_chassis.glb"
+                  scale="${bx / 1.05} ${(ts + tw) / 0.71} ${(bb + bz) / 0.54}"/>
+          </geometry>
+        </visual>
+      </xacro:unless>
+      <xacro:if value="${mobile}">
+        <visual name="body_visual">
+          <origin xyz="0 0 ${body_cz}" rpy="0 0 0"/>
+          <geometry>
+            <box size="${bx} ${by} ${bz}"/>
+          </geometry>
+          <material name="platform_gray">
+            <color rgba="0.55 0.57 0.55 1.0"/>
+          </material>
+        </visual>
+      </xacro:if>
       <collision name="body_collision">
         <origin xyz="0 0 ${body_cz}" rpy="0 0 0"/>
         <geometry>
@@ -92,15 +103,17 @@
           <mass value="25.0"/>
           <inertia ixx="0.30" ixy="0.0" ixz="0.0" iyy="1.60" iyz="0.0" izz="1.45"/>
         </inertial>
-        <visual name="${name}_visual">
-          <origin xyz="0 0 0" rpy="${pi / 2.0} 0 ${pi / 2.0}"/>
-          <geometry>
-            <box size="${tw} ${th} ${tl}"/>
-          </geometry>
-          <material name="${name}_black">
-            <color rgba="0.16 0.16 0.16 1.0"/>
-          </material>
-        </visual>
+        <xacro:if value="${mobile}">
+          <visual name="${name}_visual">
+            <origin xyz="0 0 0" rpy="${pi / 2.0} 0 ${pi / 2.0}"/>
+            <geometry>
+              <box size="${tw} ${th} ${tl}"/>
+            </geometry>
+            <material name="${name}_black">
+              <color rgba="0.16 0.16 0.16 1.0"/>
+            </material>
+          </visual>
+        </xacro:if>
         <xacro:if value="${mobile}">
           <!-- mobile：滚筒碰撞体（轴 Y、半径 th/2、长 tl）——DiffDrive 关节驱动下
                平滑滚动，等效履带接地印迹；盒体仅作视觉 -->
@@ -119,26 +132,30 @@
             </geometry>
           </collision>
         </xacro:unless>
-        <visual name="${name}_wheel_front">
-          <origin xyz="${wheel_x} 0 0" rpy="${pi / 2.0} 0 0"/>
-          <geometry>
-            <cylinder radius="${wheel_r}" length="${tw}"/>
-          </geometry>
-          <material name="${name}_black"/>
-        </visual>
+        <xacro:if value="${mobile}">
+          <visual name="${name}_wheel_front">
+            <origin xyz="${wheel_x} 0 0" rpy="${pi / 2.0} 0 0"/>
+            <geometry>
+              <cylinder radius="${wheel_r}" length="${tw}"/>
+            </geometry>
+            <material name="${name}_black"/>
+          </visual>
+        </xacro:if>
         <collision name="${name}_wheel_front_collision">
           <origin xyz="${wheel_x} 0 0" rpy="${pi / 2.0} 0 0"/>
           <geometry>
             <cylinder radius="${wheel_r}" length="${tw}"/>
           </geometry>
         </collision>
-        <visual name="${name}_wheel_rear">
-          <origin xyz="${-wheel_x} 0 0" rpy="${pi / 2.0} 0 0"/>
-          <geometry>
-            <cylinder radius="${wheel_r}" length="${tw}"/>
-          </geometry>
-          <material name="${name}_black"/>
-        </visual>
+        <xacro:if value="${mobile}">
+          <visual name="${name}_wheel_rear">
+            <origin xyz="${-wheel_x} 0 0" rpy="${pi / 2.0} 0 0"/>
+            <geometry>
+              <cylinder radius="${wheel_r}" length="${tw}"/>
+            </geometry>
+            <material name="${name}_black"/>
+          </visual>
+        </xacro:if>
         <collision name="${name}_wheel_rear_collision">
           <origin xyz="${-wheel_x} 0 0" rpy="${pi / 2.0} 0 0"/>
           <geometry>

@@ -58,13 +58,19 @@
 2. **clientAdvertise depth≥1 加固**：拷贝端点 QoS 时 history depth 可能为 0
    （RMW 不回填），KEEP_LAST(0) writer 会静默丢写；与 subscribe() 的防护对齐。
 3. **保留上游拷贝 QoS 语义**（不强制 SystemDefaults）。
-4. **已知限制（Jazzy + FastDDS，2026-10-10 可靠方法实测）**：在已有
+4. **GenericClient 零字段服务请求修复（关键）**：`generic_client.cpp`
+   async_send_request——零字段 srv（ListControllers、GetCurrentState、RunLatteWorkflow
+   等）的请求 CDR 仅 4 字节封装头，但 rosidl IDL 生成会给空结构塞占位成员
+   `structure_needs_at_least_one_member`（uint8），rmw_deserialize 读占位成员越界抛
+   Fast CDR 异常。修复：payload ≤ 4B 时跳过反序列化、直接发送 default-init 实例
+   （零字段语义下即为正确请求；带字段请求最小 CDR > 4B 不受影响）。
+5. **已知限制（Jazzy + FastDDS，2026-10-10 可靠方法实测）**：在已有
    TRANSIENT_LOCAL 发布者的话题上（如 ros2_control JSB 的 /joint_states、/rosout），
    本桥客户端发布的消息对所有订阅者均不投递（拷贝 TL QoS 与 VOLATILE 均同现象；
    同期在无 TL 发布者话题上发布完全正常：全新话题、VOLATILE 发布者话题、
    浏览器↔桥回环 20/20）。疑为 rmw_fastrtps 序列化发布 × TL durability 的交互问题，
    待上游/深入排查；面板发布测试请避开 TL 发布者话题。
-5. 协议对齐注记：该服务器线的 subscribe/unsubscribe/advertise/unadvertise 四个 op
+6. 协议对齐注记：该服务器线的 subscribe/unsubscribe/advertise/unadvertise 四个 op
    均为**批量格式**（subscriptions[]/subscriptionIds[]/channels[]/channelIds[]），
    与归档 spec 单条形式不同；sessionId 为服务器实例级常量（非连接身份，客户端
    重连时不能据此跳过发布通道重建）。

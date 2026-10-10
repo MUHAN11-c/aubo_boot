@@ -14,7 +14,7 @@
     map→odom→platform_base_link→{left,right}_track/lidar_mount，
     map→odom 由 Nav2 AMCL/SLAM 发布。
     不改 aubo_description 只读面；gz_ros2_control 接臂属后续轮。 -->
-  <xacro:arg name="tool_profile" default="adaptive_shear_v1"/>
+  <xacro:arg name="tool_profile" default="bite_shear_v1"/>
   <xacro:arg name="arm_mount_height" default="0.75"/>
   <xacro:arg name="arm_mount_yaw_deg" default="-32.0"/>
   <xacro:arg name="body_x" default="1.05"/>
@@ -57,7 +57,7 @@
   <xacro:unless value="${mobile}">
     <xacro:aubo_e5_camera parent="wrist3_Link"/>
     <xacro:aubo_e5_quick_changer parent="camera_body_link"/>
-    <!-- 三个独立 if（非 if/else）：未知 profile 名三支都不展开 → 缺 tcp 帧，启动即失败 -->
+    <!-- 三种 peach 真实末端各自展开，默认球形环抱的 bite_shear_v1。 -->
     <xacro:if value="${tool_profile == 'shear_v1'}">
       <xacro:aubo_e5_tcp_shear_v1 parent="wrist3_Link"/>
     </xacro:if>

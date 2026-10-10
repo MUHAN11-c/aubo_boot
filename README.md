@@ -71,3 +71,12 @@ ros2 launch peach_bringup harvest_system.launch.py \
 | `_archive/parked_2026-08-24/` | 暂不用：tools / diagnostics / profiles / scripts / 架子机 / 过程文档 |
 | `_archive/parked_2026-09/` | 已归档 `peach_navigation`（真底盘授权后恢复） |
 | `aubo_py3.12/` | Python 3.12 venv（本机，不入库） |
+
+## 打包迁移
+
+```bash
+scripts/pack_workspace.sh --dry-run   # 预览包含/排除与体积
+scripts/pack_workspace.sh             # 生成 ../aubo_e5_jazzy_ws-src-<时间戳>.tar.zst
+```
+
+排除归档（`_archive/`）、根目录编译产物与包内残留的 colcon `build/ install/ log/`、venv、会话输出与 IDE/AI 工具本地态；ivg 模型权重、Blender 发行版、YCB meshes 等**可重下**大件不入包（目标环境按各包 README、`fetch_*.sh` 重取，`colcon build` 重建）；`reconstruction/output/` 只随包携带 git 已跟踪的验证产物，未跟踪的重渲大件重渲即得。`src/` 源码资产（含 `peach_harvester/model` 自训练模型、驱动 vendor、web 前端 three.js/robotwebtools 发行件）、`.cursor/rules`、`scripts/` 与 `.git` 历史默认入包，`--no-git` 可去掉。

@@ -172,7 +172,8 @@ def generate_launch_description() -> LaunchDescription:
             description='true=自主导航模式：URDF 根翻转为 platform_base_link，'
                         '履带可驾驶、带 2D 激光与完整桥接（orchard_nav 用）'),
         DeclareLaunchArgument(
-            'tool_profile', default_value='adaptive_shear_v1',
-            description='末端工具档案（同整栈 tool_profile 语义）'),
+            'tool_profile', default_value='bite_shear_v1',
+            description='peach 真实末端：默认球形环抱的 bite_shear_v1；'
+                        '也可选择 shear_v1 或 adaptive_shear_v1'),
         OpaqueFunction(function=_setup),
     ])

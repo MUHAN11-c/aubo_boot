@@ -23,7 +23,7 @@ PS800-E1 **主机侧单图案立体深度**相机节点：`percipio_camera` 的�
 | 深度口径 | uint16 × 0.25 mm（与感知 `depth_scale_unit: 0.25` 对齐，零配置） | 设计 |
 | 配准几何 | z(校正网格)直喂左 IR 标定；与设备配准链同帧组实测差 **+8px**（≈10mm@0.6m）；反校正/换 DEPTH_CAM 标定更差（+23/+26px），勿改 | 09-20 真 SDK 三方实测 |
 | DEPTH_CAM 标定 | fx=fy=1044.93、cx=605.31、畸变全零（零畸变校正网格，区别于左 IR 标定）；设备内部网格不可从标定推导 | 设备直读 |
-| SGBM 匹配参数 | `num_disparities=128` 已证最优（0.3m 感知下限 ⇒ d≥113.8 ⇒ 下一档 112 会切 305mm>300mm）；`uniqueness_ratio=6`（10→6：同帧组扫描覆盖 +2.7pp、精度门内、帧率 13.5gps 不变）；`mode=hh4` 端到端 12 变体矩阵帕累托最优（精度 8.75→7.50mm、鬼影 −0.17pp、粗糙度 −9%、13.7gps 无回归；HH 同质量慢 2×；时域 k3（视差域批式）/全分辨率档记档未落地）；**minDisparity>0 已证伪**（远背景强制错配成中距，谷底精度 25×劣化） | 09-20 参数扫描 + 端到端矩阵（reports/2026-09-20-camera-image-analysis/sgbm-sweep.md、reports/2026-09-20-e2e-stereo-optimal/） |
+| SGBM 匹配参数 | `num_disparities=128` 已证最优（0.3m 感知下限 ⇒ d≥113.8 ⇒ 下一档 112 会切 305mm>300mm）；`uniqueness_ratio=6`（10→6：同帧组扫描覆盖 +2.7pp、精度门内、帧率 13.5gps 不变）；`mode=hh4` 端到端 12 变体矩阵帕累托最优（精度 8.75→7.50mm、鬼影 −0.17pp、粗糙度 −9%、13.7gps 无回归；HH 同质量慢 2×；时域 k3（视差域批式）/全分辨率档记档未落地）；**minDisparity>0 已证伪**（远背景强制错配成中距，谷底精度 25×劣化） | 09-20 参数扫描 + 端到端矩阵（`_archive/reports/2026-09-20-camera-image-analysis/sgbm-sweep.md`、`_archive/reports/2026-09-20-e2e-stereo-optimal/`） |
 | 滑窗时域中值 | `temporal_k`（1=关/3/5，非法拒启；部署 3）：配准后彩色网格 k 帧逐像素有效中值，每帧照常发布不除率；entry std z 0.41→0.21mm、袋半径 std 0.27→0.14mm（均 −48%）、覆盖 +0.4pp、13.7gps 无回归（~3ms 开销在采集线程内）；tk=5 半径更优（±0.06mm）未取 | 09-21 live A/B（testing-log 09-21 续） |
 | 避障（枝细结构） | peach_vegetation 枝掩膜×深度四档实测：**现行档（scale0.5+med3+tk3）枝上覆盖全档最优**（0.604/细枝 0.652，tk3 补细枝闪烁）——为避障关滤波/上全分辨率皆负收益（全分辨率：细节 +18% 但覆盖 −18%、4.3gps、z_min≈0.53m 侵入工作区）；细节密度 percipio 16.0 vs 本链 12.9mm，细枝精度敏感的单帧场合用 percipio | 09-21 避障轮（test/report/branch/ + 影响评估 §4a） |
 | 已知限制 | jpeg 插件编不了 mono16（`/compressed` 空载荷），深度压缩通道用 `compressedDepth`（12 字节容器头）或 `zstd`；raw RELIABLE 大图本机 FastDDS 投递坍塌 | 台架 |
@@ -43,8 +43,8 @@ PS800-E1 **主机侧单图案立体深度**相机节点：`percipio_camera` 的�
 - **帧组硬件同步**：彩色/左 IR/右 IR 同时间戳（纪元微秒，TIME_SYNC=HOST），RGB-D 时间对齐天然满足感知 `sync_slop 0.05s`。
 - **深度口径与 percipio 一致**：uint16 × `depth_scale_unit 0.25`(mm)，感知端默认参数直接可用。
 - **质量-帧率旋钮**：`avg_k`（1→~13.7fps/1.49mm；4→~3.4fps；实测 k=5≈0.96mm@0.8m，优于设备 18 图案单帧 1.13mm）。k 帧均值为**有效值均值**（无效 0 不进分母，逐像素按有效计数求商）。
-- **空间去噪**：`median_ksize`（0=关/3/5，默认 3）深度有效值中值——只去噪不补洞（中心无效保持无效、无效邻居不进中值）；3×3 过同帧组三门且点云局部平面粗糙度 −12%（1.17→1.03mm，低于设备链 1.08mm）；联合双边/引导滤波被精度门证伪勿再引入（reports/2026-09-20-camera-image-analysis/pointcloud-quality.md）。
-- **路径聚合模式**：`sgbm.mode`（3way/sgbm/hh/hh4，默认 hh4）。hh4 相比 3way 全指标占优（09-20 端到端矩阵，同帧组 vs 设备 18 图案链）：谷底 8.75→7.50mm、鬼影 1.65→1.48%、粗糙度 1.03→0.94mm、覆盖 −0.34pp 门内，匹配 10.9→54ms 仍装进相机 73ms 帧间隔（13.7gps 无回归）。hh 同质量但慢 2×；视差域 k3 时域融合与全分辨率档实测有增益但未落地（率÷3 / 粗糙度劣化，数字见 reports/2026-09-20-e2e-stereo-optimal/）。
+- **空间去噪**：`median_ksize`（0=关/3/5，默认 3）深度有效值中值——只去噪不补洞（中心无效保持无效、无效邻居不进中值）；3×3 过同帧组三门且点云局部平面粗糙度 −12%（1.17→1.03mm，低于设备链 1.08mm）；联合双边/引导滤波被精度门证伪勿再引入（`_archive/reports/2026-09-20-camera-image-analysis/pointcloud-quality.md`）。
+- **路径聚合模式**：`sgbm.mode`（3way/sgbm/hh/hh4，默认 hh4）。hh4 相比 3way 全指标占优（09-20 端到端矩阵，同帧组 vs 设备 18 图案链）：谷底 8.75→7.50mm、鬼影 1.65→1.48%、粗糙度 1.03→0.94mm、覆盖 −0.34pp 门内，匹配 10.9→54ms 仍装进相机 73ms 帧间隔（13.7gps 无回归）。hh 同质量但慢 2×；视差域 k3 时域融合与全分辨率档实测有增益但未落地（率÷3 / 粗糙度劣化，数字见 `_archive/reports/2026-09-20-e2e-stereo-optimal/`）。
 - **滑窗时域中值**：`temporal_k`（1=关/3/5，部署 3）在配准后彩色网格深度上做 k 帧逐像素**有效值中值**（无效 0 不进窗），每帧照常发布不除率——区别于 avg_k 批式（率÷k）；续四否决的是视差域批式 k3（率÷3），与本逐帧滑窗是两个设计点。live A/B（09-21）：entry std z 0.41→0.21mm（−48%）、袋半径 std 0.27→0.14mm（−48%）、场景中位 std −48%、覆盖 +0.4pp、13.7gps 无回归。中值是序统计量、域无关，顺带稳定配准闪烁（参考 librealsense temporal filter 多帧融合）。
 - 相比设备端深度（2.43fps）：**~5.6 倍帧率**，代价是单图案噪声 +30%（对 3–8mm 尺度的感知管线裕度充足，见评估条目）。
 - 与 percipio 前端的已知系统差：配准输出 +8px（≈10mm@0.6m）；**切前端采果前重做一次手眼标定**可吸收。
@@ -55,7 +55,7 @@ PS800-E1 **主机侧单图案立体深度**相机节点：`percipio_camera` 的�
 |------|------|------|
 | `color/image_raw` | bgr8 | 彩色，与深度同帧组时间戳 |
 | `depth/image_raw` | 16UC1 | **已配准到彩色几何**，单位 0.25mm |
-| `color/camera_info` | CameraInfo | 按彩色流分辨率折算的 K |
+| `color/camera_info` | CameraInfo | K 整组取自 launch 注入的 percipio 标定 yaml（`color_camera_info_file`，与 percipio 前端共用；留空才按彩色流分辨率折算设备内参） |
 | `depth/camera_info` | CameraInfo | 与彩色同 K（配准后），frame=`camera_depth_optical_frame` |
 | `depth_registered/points` | PointCloud2 | 配准彩色点云（与 percipio `color_point_cloud_enable` 同名；stereo 多一个 `confidence` 字段，见下） |
 
@@ -81,5 +81,5 @@ ros2 topic hz /camera/depth/image_raw   # 预期 ~13.7 Hz（本机 topic hz CLI 
 - **激光满功率持续点亮**（`laser_power: 100`）：长时间运行的热管理未验证；停栈自动复位（auto=1/50）。台架连续观察为宜，田间长时间挂机前先做温升确认。
 - 依赖 `percipio_camera` 源码树 vendored 的 camport4 SDK（头文件未随包安装，CMake 直接引用源码路径）；运行时 `.so` 由 `install/percipio_camera/lib` 解析。
 - 大消息投递：raw RELIABLE 大图在本机 FastDDS 下有坍塌现象（testing-log 09-16）。Jazzy `image_transport` 无法按话题关插件；整栈 catch-all 会订 jpeg/compressedDepth，16UC1 与 bgr8 交叉编码每帧 ERROR。本节点只发 raw Image（感知订 raw）。
-- 默认不进 harvest_system（`camera_frontend` 默认 percipio）。整栈切 stereo：`camera_enabled:=true camera_frontend:=stereo`。
+- 0036 起 `camera_frontend` **默认 stereo**（用户裁定），`camera_enabled:=true` 即随 `harvest_system` 起；percipio 为显式传参备用（`camera_frontend:=percipio`，两前端相机独占互斥）。
 - 深度工作范围：设备端额定 0.4–0.8m；本链路 SGBM 理论下限 ~0.27m（近距光学质量未标定）。

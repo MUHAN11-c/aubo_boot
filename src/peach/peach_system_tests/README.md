@@ -8,7 +8,11 @@
 
 - `test_preflight.py`：启动预检零 ROS（argv basename，不误伤编辑器路径）
 - `test_mock_launch.py`：isolated launch_testing 起 mock `harvest_system`；使能默认关、无自动 goal；`/joint_states` 关节序；lifecycle Active
+- `test_e1_supervisor_chain.py`：E1 批次链（域 90）——注入器 `test/perception_sim.py` 真发 RunHarvest 走完 FSM
+- `test_tool_profile_smoke.py`：三末端逐档冒烟（域 91/92/93）——TF 对档案 ±2mm、`tool.profile_id`、imu_follow 接线
+- `test_scene_obstacles.py`：场景障碍快照链（域 94）——合成点云+假目标+假 apply 端
 - `test_replay_approach.py`：回放塔——零 ROS 纯几何，现场真袋/分层/随机语料对照 `replay_baselines.json` 冻结基线（改接近/融合/护栏/包络必跑）
+- `test_perf_baseline.py` / `test_baseline_inventory.py`：`perf_baseline.json` / `baseline_inventory.json` schema 守卫
 
 ## 系统测驱动脚本（scripts/，对已起栈的人工复核）
 
@@ -21,6 +25,8 @@
   RELIABLE 时 BEST_EFFORT 会假性 0 帧，09-29 勘定）
 - `check_planning_scene.py`：`GetPlanningScene` 巡检——快照 box 数 +
   ACM 豁免条目（「起点碰撞但本该豁免」类问题用它判）
+- `gen_baseline_inventory.py`：生成重构基线快照 `test/baseline_inventory.json`
+  （参数/接口/函数索引，只锁 schema 不锁数值）
 - 冻结相机一次感知→干跑 FULL（不进默认 `colcon test`，需 bag + GPU）：
   `frozen_camera_replay.py`、`launch/frozen_camera_grasp.launch.py`、
   `config/frozen_one_view.yaml`（`min_views=1`、基线门 0°、

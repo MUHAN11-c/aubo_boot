@@ -79,10 +79,10 @@ flowchart LR
 
 - 深度 uint16：**raw × `depth_scale_unit=0.25` = 毫米**（Percipio）。数据集真毫米设 1.0。32FC1 按米 ×1000，该参数不生效。
 - 有效深度：非 0、非 65535；管线窗现行 `pipeline.min_depth_m`/`max_depth_m` **0.3–1.5 m**（`scene_perception.yaml`）。禁止网络补深度。`depth_fallback` 只出现在构造 `hybrid_dilated` 时的深度连通域标签，以及管线 `_foreground` 在「外部掩膜 ∩ 有效深度 <50 像素」时的内部降级；节点主路径 SAM 缺失走 `mask_unavailable`，不把深度带当几何。
-- Percipio launch **请求** `frame_rate:=5.0`。归档现场彩色流约 **2.43 fps**，感知帧间隔中位 **0.4 s ≈ 2.5 FPS**。设计节拍用实测，不把 5.0 当已测 Hz。未授权不改 Percipio `frame_rate`。
+- Percipio launch **请求** `frame_rate:=2.5`（`percipio_camera.launch.py` 默认值；09-16 前曾请求 5.0，实测不可达且无加速作用）。归档现场彩色流约 **2.43 fps**，感知帧间隔中位 **0.4 s ≈ 2.5 FPS**。设计节拍用实测。未授权不改 Percipio `frame_rate`。
 - 重建 `capture.max_views: 24` 是帧栈上限不是节拍。停稳门打开后有效视角常 4–6。
 
-话题三类语义（最终架构 R3/R4）：**稳定流**（confirmed-only，进 RViz）`markers`、`single_cloud`、`debug_image`；**真相流**（全量含未确认，进记录层与 L2 选果，不进 RViz）`detections`、`masks`、`observations`、`initial_pose`、`debug_image_raw`（与稳定流成对落盘供筛选前后对比）；**模型流**（几何+许可）`grasp_decision`、`refined_*`、`tsdf_cloud`。豁免话题含义见 §3.1。
+话题三类语义（最终架构 R3/R4）：**稳定流**（confirmed-only，进 RViz）`markers`、`single_cloud`、`debug_image`；**真相流**（全量含未确认，进记录层与 L2 选果，不进 RViz）`detections`、`masks`、`observations`、`initial_pose`、`debug_image_raw`（与稳定流成对落盘供筛选前后对比）；**模型流**（几何+许可）`grasp_decision`、`refined_*`、`tsdf_cloud`。豁免话题（清单未列、源码仍发的可视化话题）含义见 [peach_harvester/doc/io.md](../../peach_harvester/doc/io.md)。
 ---
 ## 3. 驱动层
 
@@ -151,7 +151,7 @@ flowchart TB
 | `/aubo_io_controller/joint_status` | 监控 Web：关节电流（SDK 原单位）、温度、跟随误差。技能 ④层接触检测只读 `current[6]`（默认关，只缓存） |
 | `/aubo_io_controller/set_io` | 工具闭合；仅 `tool.enabled` 且 FULL 切断阶段 |
 | `/joint_states` | 重建静止门、技能规划当前关节；监控 Web 实际角/速度 |
-| `/camera/depth_registered/points` | ③层场景障碍快照（0035，2026-09-29 起现行）：`peach_scene_obstacles` 节点订本话题（RELIABLE VOLATILE depth 5）→ 滤自身/滤已精化目标 → 体素化 → BOX 对象写 PlanningScene；**`sensors_3d.yaml` 保持 `sensors: []`，不用 octomap updater**（两轮翻车教训见该文件注释；详见 §4 peach_scene_obstacles 节）。mock 无点云=无快照。RViz Camera Points / 旁路 GraspNet 同名 |
+| `/camera/depth_registered/points` | ③层场景障碍快照（0035，2026-09-29 起现行）：`peach_scene_obstacles` 节点订本话题（RELIABLE VOLATILE depth 5）→ 滤自身/滤已精化目标 → 体素化 → BOX 对象写 PlanningScene；**`sensors_3d.yaml` 保持 `sensors: []`，不用 octomap updater**（两轮翻车教训见该文件注释；详见 [peach_harvester/doc/io.md](../../peach_harvester/doc/io.md) peach_scene_obstacles 节）。mock 无点云=无快照。RViz Camera Points / 旁路 GraspNet 同名 |
 
 采摘 IDL 在 `peach_interfaces`。
 ---
@@ -199,11 +199,11 @@ flowchart LR
 | 名字 | 含义 |
 |------|------|
 | `estimate_pose`（根命名空间，非私有） | 深度(+可选彩色) → 6D 与抓取/放置笛卡尔位（米）；请求/响应带 `std_msgs/Header`，响应 stamp=图像采集时刻、frame=`base_link`；响应含 `message` 状态/失败原因字段 |
-| `~/estimate_pose_2d` | RGB → 像素中心与转角 |
-| `~/list_templates` | 列出模板库 |
-| `~/standardize_template` | 标准化某工件模板 |
-| `~/update_params` | 更新算法参数段 |
-| `~/system_status` | 运行日志 String |
+| `/estimate_pose_2d`（同上根命名空间） | RGB → 像素中心与转角 |
+| `/list_templates` | 列出模板库 |
+| `/standardize_template` | 标准化某工件模板 |
+| `/update_params` | 更新算法参数段 |
+| `/system_status` | 运行日志 String |
 | `/camera/color/image_raw`、`/camera/depth/image_raw` | 与采摘同一相机话题（参数可改） |
 | `/camera/soft_trigger` | Percipio 软触发（`std_msgs/String`） |
 
@@ -237,7 +237,7 @@ flowchart LR
 
 不在 peach 清单、不进 lifecycle。`harvest_system` **仅** `tool_profile:=adaptive_shear_v1` 时 Include `imu_follow_servo.launch.py`（含 moveit_servo）；非 IMU 末端不起。独立 launch 仍可用于人工调试。`motion.enabled` 默认 false 只算不发；**peach 不自动开门**。mock 下发用 `ros2 param set /imu_follow motion.enabled true`。真机换 fjt 后端（透传只有 FJT 动作口）并另行人工授权。
 
-peach `ExecuteTarget` FULL 在自适应档案上于预抓取验证后调用下列服务（非 IMU 末端永不调用、**也不建**这些 Trigger 客户端——非 IMU 栈 `ros2 service list` 不得出现 `/imu_follow/*`）：`/imu_follow/enable` → `/imu_follow/insert_start` →（剪切）→ `/imu_follow/insert_retract` → `/imu_follow/disable`。回到预抓取才关窗，再 MTC 回 `harvest_stow`。未 enable 时 follow_node pause servo，禁止与 MTC 同时写 JTC。follow_node 另发 `~/insert_progress`（`/imu_follow/insert_progress`，Float64，on-change；插入行程进度目标积分）——peach 侧套入/撤退行程判据的回退源（批次5：主判据 FK 沿轴投影，见 §5 周期）。
+peach `ExecuteTarget` FULL 在自适应档案上于预抓取验证后调用下列服务（非 IMU 末端永不调用、**也不建**这些 Trigger 客户端——非 IMU 栈 `ros2 service list` 不得出现 `/imu_follow/*`）：`/imu_follow/enable` → `/imu_follow/insert_start` →（剪切）→ `/imu_follow/insert_retract` → `/imu_follow/disable`。回到预抓取才关窗，再 MTC 回 `harvest_stow`。未 enable 时 follow_node pause servo，禁止与 MTC 同时写 JTC。follow_node 另发 `~/insert_progress`（`/imu_follow/insert_progress`，Float64，on-change；插入行程进度目标积分）——peach 侧套入/撤退行程判据的回退源（批次5：主判据 FK 沿轴投影，见 [peach_arm/doc/io.md](../../peach_arm/doc/io.md) 周期段）。
 
 | 名字 | 含义 |
 |------|------|
@@ -245,7 +245,7 @@ peach `ExecuteTarget` FULL 在自适应档案上于预抓取验证后调用下�
 | `/joint_states` | 当前关节（订；新鲜度门与 fjt 种子） |
 | `~/enable` | `std_srvs/Trigger`：前置全就绪才采参考开始；servo 后端自动 `switch_command_type(TWIST)` + 确保未暂停 |
 | `~/disable` | `std_srvs/Trigger`：停跟随（servo 补零速刹车并 pause；fjt 取消在途 goal；disable 后在途回执不补发） |
-| `~/insert_start` | `std_srvs/Trigger`：插入推进开始——锁当前工具开口方向（tip +Z，base 系），位置目标沿它按 `insert.speed_m_s`（0.01 m/s）推进、钳 `insert.max_travel_m`（0.20 m）；姿态照常跟 IMU。须先 `~/enable` |
+| `~/insert_start` | `std_srvs/Trigger`：插入推进开始——锁当前工具开口方向（tip +Z，base 系），位置目标沿它按 `insert.speed_m_s`（0.01 m/s）推进、钳 `insert.max_travel_m`（0.09 m，= adaptive_shear_v1 档案 L_insert）；姿态照常跟 IMU。须先 `~/enable` |
 | `~/insert_stop` | `std_srvs/Trigger`：停推进（跟随保持）；disable/断流/达行程上限亦自动停 |
 | `~/insert_retract` | `std_srvs/Trigger`：沿锁定开口把行程收回 enable 参考点（跟随保持）；须先 `~/enable` |
 | `~/target_pose` | `geometry_msgs/PoseStamped`（base_link）：平滑后 TCP 目标（位置=参考点或插入推进点，姿态跟 IMU） |
@@ -259,7 +259,7 @@ peach `ExecuteTarget` FULL 在自适应档案上于预抓取验证后调用下�
 ---
 ## 7. IVG 演示栈（不进采摘）
 
-四新包 `ivg_demo_services` / `latte_backend` / `tool_changer` / `aubo_ros2_web_dashboard` + `ivg_interfaces` 扩展（+10 srv +3 msg：拉花/快换/抓取/监控族）。独立 launch 栈（入口 `scripts/start_ivg_demo.sh`，默认 mock 且默认**独立 DDS 域 96**；`io_simulated:=true` 时 IO 旁路）；FK/IK/上下电走 `aubo_dashboard /aubo/*`，IO 走 `aubo_msgs/SetIO` `/aubo_io_controller/set_io`（板载 DO）。
+四新包 `ivg_demo_services` / `latte_backend` / `tool_changer` / `aubo_ros2_web_dashboard` + `ivg_interfaces` 扩展（+10 srv +3 msg：拉花/快换/抓取/监控族）。独立 launch 栈（入口 `ros2 launch ivg_demo_services demo_services.launch.py`，须先起 move_group 与控制器栈；原统一入口 `scripts/start_ivg_demo.sh` 已于 2026-10-10 退役、git 历史可取，launch 不代设域——每个终端自行 `export ROS_DOMAIN_ID=96`，默认 mock；`io_simulated:=true` 时 IO 旁路）；FK/IK/上下电走 `aubo_dashboard /aubo/*`，IO 走 `aubo_msgs/SetIO` `/aubo_io_controller/set_io`（板载 DO）。
 
 **IVG/peach 隔离裁定（2026-09-30）**：IVG 演示资产只落 IVG 包——工具 mesh 在 `tool_changer/meshes/`、演示辅助脚本在 `ivg_demo_services/scripts/`；**不向共享包（aubo_description / aubo_e5_moveit_config / peach_*）添加任何 IVG 专有内容**；与 peach 不同域并行（peach 现役 77，演示栈 96），勿同域混跑；URDF 换装改 TF 树期间禁止 peach 预检/整栈同域启动。共享面仅限通用基础设施：bringup/moveit 控制器栈、aubo_dashboard、aubo_msgs。
 

@@ -2,7 +2,7 @@
 
 > 2026-10-10 用户裁定自仓库级 `docs/io.md` 拆写入包。跨包边界在 [peach_bringup/doc/io.md](../../peach_bringup/doc/io.md)。**源码与本文互相更新，改接口须同一轮改另一边**。
 
-独立 Lifecycle 节点，**不进** `harvest_system` / lifecycle 名单。只做二维分割，不写 PlanningScene、不删 octomap 叶、不发运动。输入相对名 `image`（launch remap 到 `/camera/color/image_raw`，禁止话题名参数）；订阅 QoS 为传感档 BEST_EFFORT+VOLATILE（`peach_common.qos.sensor`，W12 起对齐 AGENTS 传感默认；与 RELIABLE 发布端兼容）。首版直接构造 Frangi（torch Hessian，`device:=auto` 有 CUDA 用 `cuda:0`）+ Excess Green/HSV 叶；GPU 推理跑在专用互斥回调组（双线程执行器，长帧推理不饿死 diagnostics）。同卡时不要和场景感知对打。健康走 `/diagnostics`。
+独立 Lifecycle 节点，**不进** `harvest_system` / lifecycle 名单。只做二维分割，不写 PlanningScene、不删 octomap 叶、不发运动。输入相对名 `image`（launch remap 到 `/camera/color/image_raw`，禁止话题名参数）；订阅 QoS 为传感档 BEST_EFFORT+VOLATILE（`peach_common.qos.sensor`，W12 起对齐 AGENTS 传感默认；与 RELIABLE 发布端兼容）。首版直接构造 Frangi（torch Hessian，`device: auto` 有 CUDA 用 `cuda:0`）+ Excess Green/HSV 叶；GPU 推理跑在专用互斥回调组（双线程执行器，长帧推理不饿死 diagnostics）。同卡时不要和场景感知对打。健康走 `/diagnostics`。
 
 ```mermaid
 flowchart LR

@@ -16,14 +16,21 @@ import json
 import re
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[3]
+ROOT = Path(__file__).resolve().parents[4]
 SCHEMA_VERSION = 1
+
+
+def _peach_pkg_roots():
+    """v1 包根列表（2026-10-10 分组后：src/peach/peach_* 嵌套 + peach_sim 顶层）."""
+    src = ROOT / 'src'
+    return sorted(src.glob('peach/peach_*')) + sorted(src.glob('peach_*'))
 
 
 def collect_parameters() -> list:
     import yaml
     params = []
-    for p in sorted((ROOT / 'src').glob('peach*/config/*.yaml')):
+    for p in sorted(cfg for pkg in _peach_pkg_roots()
+                    for cfg in pkg.glob('config/*.yaml')):
         if p.name in {'interface_manifest.yaml'}:
             continue
         try:
@@ -50,14 +57,14 @@ def collect_parameters() -> list:
 def collect_interfaces() -> list:
     import yaml
     m = yaml.safe_load(
-        (ROOT / 'src/peach_interfaces/config/interface_manifest.yaml').read_text())
+        (ROOT / 'src/peach/peach_interfaces/config/interface_manifest.yaml').read_text())
     names = sorted(x['name'] for x in (m.get('interfaces') or []))
     return names
 
 
 def collect_functions() -> list:
     functions = []
-    for p in sorted((ROOT / 'src').glob('peach*/**/*.py')):
+    for p in sorted(py for pkg in _peach_pkg_roots() for py in pkg.rglob('*.py')):
         if any(x in p.parts for x in ('test', 'build', 'install', 'log', '_archive')):
             continue
         if p.name == '__init__.py':
@@ -72,7 +79,7 @@ def collect_functions() -> list:
                     'file': str(p.relative_to(ROOT)), 'line': n.lineno,
                     'name': n.name,
                 })
-    for p in sorted((ROOT / 'src/peach_arm').glob('src/*.cpp')):
+    for p in sorted((ROOT / 'src/peach/peach_arm').glob('src/*.cpp')):
         for no, line in enumerate(p.read_text().splitlines(), 1):
             m = re.match(r'^\s*[\w:<>~*& ,]+\b((?:\w+::)+\w+)\s*\(', line)
             if m and not m.group(1).startswith(

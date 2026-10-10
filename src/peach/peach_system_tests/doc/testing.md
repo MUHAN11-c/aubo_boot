@@ -32,7 +32,7 @@ pgrep -af 'ros2 launch|component_container|extrinsics_publisher|ros2 run'
 | 层 | 工具 | 内容 |
 |----|------|------|
 | Lint | `ament_lint_auto`（flake8/pep257/uncrustify/cppcheck） | 各包 `test/` 默认保留；`peach_arm` 跳过 cpplint（版权头/include 序与本项目约定冲突，SNAPSHOT） |
-| 纯核 | pytest（零 rclpy）/ gtest | `peach_common` 七文件、`peach_harvester` 纯核组、`peach_observability/test_bag_report`、`peach_arm` gtest 十二套、`serial_imu`/`imu_follow` 协议与核 |
+| 纯核 | pytest（零 rclpy）/ gtest | `peach_common` 七文件、`peach_harvester` 纯核组、`peach_observability/test_bag_report`、`peach_arm` gtest 十三套、`serial_imu`/`imu_follow` 协议与核 |
 | 集成 | isolated launch_testing | 本包（域 89–94），mock 硬件 |
 | 仿真 | `peach_sim`（Gazebo Harmonic + Blender 离线门） | 见 §12 |
 | 现场 | 真机 + `runs/` | 方向/接触对错的最终权威（KEEP） |
@@ -43,7 +43,7 @@ colcon test --packages-select peach_common peach_interfaces peach_harvester \
   peach_arm peach_bringup peach_observability peach_vegetation peach_system_tests peach_sim
 colcon test-result --verbose
 # 接口清单核对（改 IDL/接线必跑）
-python3 src/peach_interfaces/scripts/check_interface_manifest.py
+python3 src/peach/peach_interfaces/scripts/check_interface_manifest.py
 ```
 
 测试文件名必须匹配 pytest 默认收集（`test_*.py`）——2026-09-18 前曾因 `vision_test_*` 命名 24 个模块不被收集（假绿）。C++ 新测试允许 gtest；launch_testing 用 ENV 隔离域（Jazzy 无 `add_ros_isolated_launch_test` 宏，等效 `ROS_DOMAIN_ID=<N> ROS_LOCALHOST_ONLY=1`）。
@@ -223,7 +223,7 @@ aubo_py3.12/bin/python _archive/parked_2026-08-24/tools/passthrough_traj_client.
 
 ## 10. 回放塔（解析回归门；改接近/融合/护栏/包络必跑）
 
-`colcon test --packages-select peach_system_tests` 的 `test_replay_approach`：零 ROS 纯几何，确定性语料三层（现场真袋 14 例（`src/peach_arm/test/fixtures/field_pregrasp_cases.yaml`）；分层 200 例 seed 20260911；随机 100 例 seed 20260910）对照 `test/replay_baselines.json` 冻结基线（2026-09-23 v4 三路点重封；基线逐数权威是 json 自身 provenance/revised 链）。判定：`analytic_ok` 只许升不许降；`lin_chord_fail` 双侧容差 1；分母精确断言，采样器/案册漂移须显式重封。护栏数学 `test/replay_oracle.py`（v4 公式）。旧 bag 回放兼容走 `peach_observability/bag_reader.py` 的 LEGACY 别名。
+`colcon test --packages-select peach_system_tests` 的 `test_replay_approach`：零 ROS 纯几何，确定性语料三层（现场真袋 14 例（`src/peach/peach_arm/test/fixtures/field_pregrasp_cases.yaml`）；分层 200 例 seed 20260911；随机 100 例 seed 20260910）对照 `test/replay_baselines.json` 冻结基线（2026-09-23 v4 三路点重封；基线逐数权威是 json 自身 provenance/revised 链）。判定：`analytic_ok` 只许升不许降；`lin_chord_fail` 双侧容差 1；分母精确断言，采样器/案册漂移须显式重封。护栏数学 `test/replay_oracle.py`（v4 公式）。旧 bag 回放兼容走 `peach_observability/bag_reader.py` 的 LEGACY 别名。
 
 ## 11. 标定（手眼外参 + 彩色内参）
 
@@ -247,7 +247,7 @@ colcon build --packages-select percipio_camera   # launch 读 install 副本，�
 ros2 topic echo /camera/color/camera_info --once # 核对 K 与文件一致
 ```
 
-内参变更后手动更新 `peach_harvester/config/scene_perception.yaml` 的 `calibration_version`；感知/重建按新 K 重验。标定器是 vendored image_pipeline jazzy 包（`src/camera_calibration`）。
+内参变更后手动更新 `peach_harvester/config/scene_perception.yaml` 的 `calibration_version`；感知/重建按新 K 重验。标定器原为 vendored image_pipeline jazzy 包 `src/camera_calibration`（2026-10-10 已随清理删除，可 `git show <提交>:src/camera_calibration/...` 取回）。
 
 ## 12. peach_sim 仿真（非验收门）
 

@@ -1,6 +1,6 @@
 # Web API 调用速览（当前实际面）
 
-前端（`web_ui/index.html` + `scripts/app.js`）→ FastAPI（默认 `127.0.0.1:8088`）→ ROS 2。
+前端（`web_ui/index.html` + `scripts/app.js`）→ FastAPI（默认 `127.0.0.1:8089`，与手眼标定网关 8088 错开）→ ROS 2。
 
 ## 可用端点
 
@@ -17,8 +17,10 @@
 
 ## 设计要点
 
-- 运动与 IO 不经 Web：旧仓的 `/move_to_pose`、`/set_robot_io`、`/execute_single_grasp`
-  等服务在本工作区不存在，对应 HTTP 端点保留但固定返回 501。
+- 运动与 IO 不经 Web：`/move_to_pose`、`/execute_single_grasp`、`/run_gripper_swap`
+  等 ROS 服务自 2026-09-30 起存在于本仓 IVG 演示栈（`ivg_demo_services` /
+  `tool_changer`，独立 DDS 域），但估姿 Web 不调用它们——对应 HTTP 端点保留并固定
+  返回 501（真机运动走 harvest 调试面或 `ivg_graspnet`，须授权）。
 - 相机软触发是 `std_msgs/String` 话题 `/camera/soft_trigger`（Percipio 驱动），
   不是旧仓的 `SoftwareTrigger` 服务。
 - 调试阈值的事实源是 `web_ui/configs/default_config.yaml`（经 `ConfigReader`）；

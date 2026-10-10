@@ -91,7 +91,7 @@ def demo_page():
 def status(ros_bridge: RosBridgeManager = Depends(get_ros_bridge)):
     payload = {
         "status": "online",
-        "port": int(os.environ.get("VPE_WEB_PORT", "8088")),
+        "port": int(os.environ.get("VPE_WEB_PORT", "8089")),
         "service": "ivg_pose_estimation_fastapi_web",
         "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
         "ros_bridge": ros_bridge.status(),

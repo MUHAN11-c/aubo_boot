@@ -56,9 +56,10 @@ peach_sim/
 | `lighting.py` / `occlusion.py` / `distributions.py` / `depth_io.py` | 纯核：光照预设 / 受控遮挡 / 分位采样 / 深度量化 | — |
 
 纯核单测：`test_reconstruction_core.py`（含与
-`peach_harvester/cycle_core/view_policy.py` 的补视几何对拍）、`test_measurement.py`、
-`test_render_evidence.py`、`test_full_priors.py`、`test_real_features.py`（当前31项）。
-Blender主回归12项，独立验收行为3项；两种规模保存网格均另外完整复验。
+`src/peach/peach_harvester/peach_harvester/cycle_core/view_policy.py` 的补视几何对拍）、`test_measurement.py`、
+`test_render_evidence.py`、`test_full_priors.py`、`test_real_features.py`、
+`test_observed_foliage.py`（当前33项）。
+Blender主回归13项，独立验收行为3项；两种规模保存网格均另外完整复验。
 
 ## 重现（工作区根目录，独立 Blender 4.5.14，venv `aubo_py3.12`）
 
@@ -238,11 +239,11 @@ GZ_SIM_RESOURCE_PATH=src:src/peach_sim gz sim -r \
 
 ```bash
 # 1) 自主导航：gz 履带驱动 + 桥接 + AMCL/NavFn/MPPI + RViz（2D Goal Point 发目标）
-ros2 launch peach_sim orchard_nav.launch.py                 # gui/rviz 默认开
+ros2 launch peach_sim orchard_nav.launch.py                 # rviz 默认开、gz gui 默认关
 ros2 launch peach_sim orchard_nav.launch.py rviz:=False gui:=false  # 无头
 
 # 2) 巡航采摘：逐树停靠位 NavigateToPose（蛇形穿行树行，每站停留模拟节拍）
-ros2 run peach_sim orchard_tour --rows 2 3                  # 或省略 --rows 全园
+ros2 run peach_sim orchard_tour --rows 2,3                  # 或省略 --rows 全园
 
 # 3) SLAM 校验：slam_toolbox 在线建图，与确定性生成图人工对照
 ros2 launch peach_sim orchard_nav.launch.py slam:=True rviz:=False

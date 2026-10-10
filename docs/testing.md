@@ -300,7 +300,7 @@ ros2 service call /peach_supervisor/control peach_interfaces/srv/ControlTask \
 
 `auto_power_on` 必须为 false。柜侧用示教器；规划/FK/IK 用 MoveIt；停轨走透传取消 + 硬件 `RobotMoveStop`（应用停轨，**不是** ISO 13850 急停）。禁止调用 `aubo_dashboard`。真机授权前：示教器急停手能摸到；工作空间无人或已隔离；使能保持默认关。急停或保护停止之后：处理现场 → 示教器复位 → 取消并丢弃 ROS 在途 goal → 重新授权后再下发，**不要 resume 原轨迹**（UR ROS2 Driver 同类警告）。分层见 [AGENTS.md](../AGENTS.md) 第 2 章。
 
-过程数据：新记录在工作区 `runs/`。`testing-log.md` 为轮次权威；`runs/` 结构化文本随仓（09-22 压缩后历经 09-23/24/30 多轮与 2026-10-08 冻结抓取文本账本入库，现含网格/接近 jsonl、live SURVEY/PREGRASP/`e2e_*` 账本、`frozen_v1_*`/`frozen_v2_*` 文本账本、`session_*/` 报告与审计——MCAP 二进制仍只留本地，分析后 `python3 scripts/purge_analyzed_bags.py --all-reported runs` 回收）。历史 idle/session/harvest 目录与 MCAP 已删（分析结论已进 testing-log）。08-20～08-24 旧根输出曾在 `_archive/runs/`，同轮清空。每次干跑把结论追加 [testing-log.md](testing-log.md)。过程录制仍为会话 bag（决策 0019）：observability 随栈开合 `runs/session_<时间戳>/bag/`，栈停出 `bag_report.md`。bag 体积超 `record.max_total_bag_gb` 时停栈后自动回收最旧 bag。
+过程数据：新记录在工作区 `runs/`。`testing-log.md` 为轮次权威；`runs/` 结构化文本随仓（政策不变：MCAP 二进制只留本地，分析后 `python3 scripts/purge_analyzed_bags.py --all-reported runs` 回收）。**2026-10-10 用户裁定 `runs/` 历史全清**（501 跟踪文本与全部本地件删除，为转向 peach2 新框架测试腾空过程数据根；此前各轮结论均已在 testing-log 留档，`grid_hollow_stowfix_20260922` 存 `_archive/runs/`）。历史 idle/session/harvest 目录与 MCAP 早已分批回收（分析结论已进 testing-log）。08-20～08-24 旧根输出曾在 `_archive/runs/`，同轮清空。每次干跑把结论追加 [testing-log.md](testing-log.md)。过程录制仍为会话 bag（决策 0019）：observability 随栈开合 `runs/session_<时间戳>/bag/`，栈停出 `bag_report.md`。bag 体积超 `record.max_total_bag_gb` 时停栈后自动回收最旧 bag。
 
 ### 档位（干跑默认）
 

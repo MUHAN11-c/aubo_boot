@@ -758,3 +758,7 @@ colcon build/test 三包全绿（222 tests 0 failures）；venv 回归 test_web_
 - `mobileclip2_b.ts`（243M、零引用、未跟踪）仍在仓库根：移动命令被代码安全钩子误拦（把二进制 mv 判为源码写入），手动执行 mv 到 `_archive/models/` 后可删 .gitignore 对应行。
 - log/ 的 33 个 root 文件（见上）。
 
+### 追记（同日）：runs/ 历史全清
+
+用户裁定 runs/ 历史记录全部删除（转向 peach2 新框架测试）：501 个跟踪文本（账本/审计/报告）与全部本地件清空，仅保留空的 `runs/` 过程数据根；结构化文本随仓与 bag 回收政策不变，后续新会话照常入库。testing.md「过程数据」段同轮改写。
+

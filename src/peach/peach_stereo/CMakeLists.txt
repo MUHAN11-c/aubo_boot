@@ -20,8 +20,8 @@ find_package(OpenCV REQUIRED COMPONENTS core imgproc calib3d)
 
 # camport4 SDK 随 percipio_camera 源码树 vendored（未安装头文件），跨包引用源码路径；
 # 运行时 .so 由 install/percipio_camera/lib 经 LD_LIBRARY_PATH 解析
-# 2026-10-10 子工作空间分组：本包在 src/peach/ 下，percipio_camera 在 src/ 顶层（上溯三级）
-set(TYCAM_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../../../percipio_camera/camport4)
+# 2026-10-10 子工作空间分组：本包在 src/peach/ 下，percipio_camera 在 src/ 顶层（上溯两级）
+set(TYCAM_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../../percipio_camera/camport4)
 if(NOT EXISTS ${TYCAM_DIR}/include/TYApi.h)
   message(FATAL_ERROR "camport4 SDK not found at ${TYCAM_DIR}（需先检出 percipio_camera）")
 endif()

@@ -28,9 +28,9 @@ def test_whitespace_only_stripped_then_fallback():
 # ---- runs_root 三场景对拍（W6-B 归一：与归一前两实现行为一致）----
 
 def _expected_default_root() -> Path:
-    """镜像实现的探测规则（找 src/peach_interfaces 标记 → cwd 兜底）."""
+    """镜像实现的探测规则（找 src/peach/peach_interfaces 标记 → cwd 兜底）."""
     for parent in Path(__file__).resolve().parents:
-        if (parent / 'src' / 'peach_interfaces').is_dir():
+        if (parent / 'src' / 'peach' / 'peach_interfaces').is_dir():
             return parent / 'runs'
     return Path.cwd() / 'runs'
 
@@ -41,7 +41,7 @@ def _clear_runs_env(monkeypatch):
 
 
 def test_runs_root_default_without_env(monkeypatch):
-    """场景一：无 env——工作区标记探测（src/peach_interfaces）→ runs/."""
+    """场景一：无 env——工作区标记探测（src/peach/peach_interfaces）→ runs/."""
     _clear_runs_env(monkeypatch)
     assert runs_root() == _expected_default_root()
 

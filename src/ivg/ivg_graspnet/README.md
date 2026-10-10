@@ -43,7 +43,8 @@ contact_graspnet_pytorch，Contact-GraspNet 移植）。
 ```bash
 # 检测（默认不拉相机；点云已由 bringup 提供）
 ros2 launch ivg_graspnet graspnet_detect.launch.py
-# 换后端：backend:=contact_graspnet（detect/grasp launch 均可传）；执行端
+# 换后端：backend:=contact_graspnet（detect launch 显式声明；grasp launch 未声明
+# 该参数，靠 launch context 隐式传播才生效——稳妥起见在 detect launch 传）；执行端
 # apply_grasp_z_flip 是节点参数（launch 未透传）——改 config/graspnet.yaml 的
 # publish_grasps_client.apply_grasp_z_flip: false，或 ros2 run 时
 # -p apply_grasp_z_flip:=false，与后端 approach_flip_z180 对齐

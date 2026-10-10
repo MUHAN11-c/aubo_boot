@@ -69,7 +69,7 @@ PS800-E1 **主机侧单图案立体深度**相机节点：`percipio_camera` 的�
 colcon build --packages-select peach_stereo
 # 与 percipio_camera 互斥（相机独占）：先停 percipio 相机栈
 ros2 launch peach_stereo stereo_camera.launch.py
-ros2 topic hz /camera/depth/image_raw   # 预期 ~13.7 Hz（本机 topic hz CLI 有恒 0 帧怪癖，健康验证用 30 帧探针，见 v1 测试指导冒烟节）
+ros2 topic hz /camera/depth/image_raw   # 预期 ~13.5–13.7 Hz（本机 topic hz CLI 有恒 0 帧怪癖，健康验证用 30 帧探针，见 v1 测试指导冒烟节）
 ```
 
 参数见 `config/stereo_camera.yaml`（nav2 式：部署值即事实源，键名冻结）。顶层键必须用 `/**:` 通配——节点全名是 `/camera/peach_stereo_camera_node`，用节点名做顶层键**从不匹配**且不报错（所有部署值静默不生效，09-21 才修复的存量坑，此前默认值碰巧一致未暴露）。

@@ -5,12 +5,13 @@
 发布 ``/peach/vegetation/{leaf_mask,branch_mask,overlay,status}``。
 不写 PlanningScene、不发运动、不进 harvest_system。
 
+生命周期：main() 的 ensure_active() 自激活；launch 不发转换事件
+（2026-09-29 修复：旧写法对已 active 节点发 activate 会打死进程，
+launch autostart 参数为无操作兼容位；launch 与 ``ros2 run`` 直起均可）。
+
 运维注意（2026-09-21 避障轮实测，缺陷待修）：
-- main() 的 ensure_active() 自激活与 launch autostart 事件确定性互杀——
-  launch 路径不可用；用 ``ros2 run`` 直起（自激活），勿再发 lifecycle
-  change_state（对已 active 节点发 activate 会打死进程）。
 - 相机节点重启/换前端后本节点订阅会楔死（收流不吐掩膜、CPU 空闲）——
-  每次相机侧重启后须重启本节点。
+  每次相机侧重启后须重启本节点（诊断 STALE 分支会提示）。
 """
 
 from __future__ import annotations

@@ -1203,8 +1203,9 @@ class ObservabilityNode(LifecycleNode):
             self.get_logger().warning(
                 f'*** 安全提示：Web 监听在非回环地址 {host}:{port}，'
                 '严禁暴露到公网或不受信网络 ***')
+        # 静态页资源在顶层资源包 peach_web（2026-10-10 拆出），本包只托管 HTTP
         web_root = Path(get_package_share_directory(
-            'peach_observability')) / 'web'
+            'peach_web')) / 'web'
         self._http = http_server.start_http(
             host, port, web_root, self, self.get_logger().debug)
         if self._metrics is not None:

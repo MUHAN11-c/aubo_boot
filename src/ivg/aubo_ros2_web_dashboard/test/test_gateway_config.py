@@ -1,4 +1,7 @@
-"""网关配置与应用工厂冒烟测试（零 ROS 图依赖）."""
+"""网关配置与应用工厂冒烟测试（零 ROS 图依赖）.
+
+2026-10-10 阶段 3：rosbridge 移除，唯一传输面 = vendored ivg_foxglove_bridge（8765）。
+"""
 import os
 import sys
 
@@ -17,10 +20,20 @@ def test_gateway_port_8095_not_8090():
 
 
 def test_defaults_yaml_loaded():
-    """defaults.yaml 已加载（rosbridge 段非空）."""
-    assert cfg.rosbridge_port() == 9090
+    """defaults.yaml 已加载（foxglove 桥段与网关段非默认值生效）."""
     assert cfg.foxglove_bridge_port() == 8765
+    assert cfg.foxglove_bridge_ws_path() == "/ws/foxglove"
     assert cfg.web_video_port() == 8089
+    # rosbridge 配置已随阶段 3 移除：访问器不应再存在
+    assert not hasattr(cfg, "rosbridge_port")
+
+
+def test_rosbridge_config_section_removed():
+    """defaults.yaml 不再含 rosbridge 段（唯一传输面 = foxglove）."""
+    defaults = os.path.join(_PKG_ROOT, "config", "defaults.yaml")
+    with open(defaults, "r", encoding="utf-8") as f:
+        text = f.read()
+    assert "rosbridge:" not in text
 
 
 def test_robot_status_topic_mapped():
@@ -46,4 +59,7 @@ def test_create_app_routes():
     assert '/health' in paths
     assert '/api/v1/runtime' in paths
     assert '/api/v1/tool-geometries' in paths
+    # /ws/rosbridge 代理路由已移除；/ws/foxglove 保留
+    assert '/ws/foxglove' in paths
+    assert '/ws/rosbridge' not in paths
     assert fastapi is not None

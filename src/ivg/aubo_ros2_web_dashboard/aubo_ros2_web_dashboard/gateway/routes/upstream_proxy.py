@@ -38,11 +38,6 @@ _HOP_BY_HOP = frozenset({
 
 # ── 上游地址 ─────────────────────────────────────────────────────────────────
 
-def _rosbridge_upstream_url() -> str:
-    """rosbridge 上游 WebSocket 地址."""
-    return f"ws://{cfg.rosbridge_host()}:{cfg.rosbridge_port()}/"
-
-
 def _foxglove_bridge_upstream_url() -> str:
     """foxglove_bridge 上游 WebSocket 地址."""
     return f"ws://{cfg.foxglove_bridge_host()}:{cfg.foxglove_bridge_port()}/"
@@ -92,95 +87,6 @@ def _parse_subprotocols(websocket: WebSocket) -> list[str]:
     return [p.strip() for p in raw.split(",") if p.strip()]
 
 
-# ═══════════════════════════════ WebSocket 代理: /ws/rosbridge ═══════════════════════════════
-
-@ws_router.websocket("/ws/rosbridge")
-async def rosbridge_websocket_proxy(websocket: WebSocket) -> None:
-    """浏览器 WebSocket ↔ rosbridge 双向代理.
-
-    建立两条 asyncio Task 分别处理上下游方向，
-    任一方向断开即取消另一方向并清理资源。
-
-    roslib 2.x 通过代理时首次连接可能立即断开 (内部探测/握手)，
-    第二次连接稳定。日志已抑制快速断开场景以避免误导。
-    """
-    t0 = time.monotonic()
-    await websocket.accept()
-    target = _rosbridge_upstream_url()
-
-    try:
-        async with websockets.connect(
-            target,
-            max_size=cfg.rosbridge_max_message_bytes(),
-            ping_interval=cfg.rosbridge_ping_interval(),
-            ping_timeout=cfg.rosbridge_ping_timeout(),
-            close_timeout=cfg.rosbridge_close_timeout(),
-        ) as upstream:
-
-            async def client_to_upstream():
-                """浏览器 → rosbridge: 接收浏览器消息，转发到上游."""
-                try:
-                    while True:
-                        try:
-                            msg = await websocket.receive()
-                        except WebSocketDisconnect:
-                            return
-                        if msg["type"] == "websocket.disconnect":
-                            return
-                        if msg["type"] != "websocket.receive":
-                            continue
-                        if msg.get("text") is not None:
-                            await upstream.send(msg["text"])
-                        elif msg.get("bytes") is not None:
-                            await upstream.send(msg["bytes"])
-                finally:
-                    await _close_ws(upstream)
-
-            async def upstream_to_client():
-                """rosbridge → 浏览器: 接收上游消息，转发到浏览器."""
-                try:
-                    async for message in upstream:
-                        try:
-                            if isinstance(message, str):
-                                await websocket.send_text(message)
-                            else:
-                                await websocket.send_bytes(message)
-                        except (WebSocketDisconnect, RuntimeError, OSError):
-                            return
-                except websockets.exceptions.ConnectionClosed:
-                    return
-                finally:
-                    await _close_ws(websocket)
-
-            # 并发运行两个方向，任一完成则取消另一个
-            t1 = asyncio.create_task(client_to_upstream())
-            t2 = asyncio.create_task(upstream_to_client())
-            try:
-                _, pending = await asyncio.wait(
-                    {t1, t2}, return_when=asyncio.FIRST_COMPLETED)
-                for t in pending:
-                    t.cancel()
-                await asyncio.gather(t1, t2, return_exceptions=True)
-            except asyncio.CancelledError:
-                for t in (t1, t2):
-                    if not t.done():
-                        t.cancel()
-                await asyncio.gather(t1, t2, return_exceptions=True)
-                raise
-    except (websockets.exceptions.ConnectionClosed, websockets.exceptions.InvalidURI,
-            websockets.exceptions.InvalidHandshake, ConnectionRefusedError, OSError):
-        # 上游连接失败 — 关闭客户端连接
-        await _close_ws(websocket)
-    except Exception:
-        elapsed = time.monotonic() - t0
-        if elapsed < 0.5:
-            # roslib 探测连接（首次连接 < 500ms 断开是正常行为，抑制日志）
-            pass
-        else:
-            _logger.warning("rosbridge 代理异常 (%.1fs)", elapsed, exc_info=True)
-        await _close_ws(websocket)
-
-
 # ═══════════════════════════════ WebSocket 代理: /ws/foxglove ═══════════════════════════════
 
 @ws_router.websocket("/ws/foxglove")
@@ -189,15 +95,21 @@ async def foxglove_bridge_websocket_proxy(websocket: WebSocket) -> None:
 
     与 rosbridge 代理逻辑相同，但连接 foxglove_bridge 上游，
     使用更大的 max_size 以容纳 PointCloud2 等大消息。
-    转发客户端请求的 foxglove.sdk.v1 子协议到上游。
+    转发客户端请求的 foxglove 子协议（sdk.v1 或 websocket.v1）到上游。
+    websocket.v1 是 vendored ivg_foxglove_bridge（ws-protocol 最终独立库）使用的子协议。
     """
     t0 = time.monotonic()
 
     client_subprotocols = _parse_subprotocols(websocket)
-    fox_sub = [p for p in client_subprotocols if p == "foxglove.sdk.v1"]
-    accepted_sub = fox_sub[0] if fox_sub else None
+    _FOXGLOVE_SUBPROTOCOLS = ("foxglove.websocket.v1", "foxglove.sdk.v1")
+    fox_sub = [p for p in client_subprotocols if p in _FOXGLOVE_SUBPROTOCOLS]
+    # 客户端侧按其声明的 foxglove 子协议回应（浏览器 WS 要求所选子协议 ∈ 客户端请求集）；
+    # 未声明者回 websocket.v1。上游恒定连 websocket.v1（vendored ivg_foxglove_bridge 唯一方言），
+    # 归一化 sdk.v1 旧客户端与缺省客户端，避免 400 拒绝风暴（2026-10-10 实证）。
+    client_accepted_sub = fox_sub[0] if fox_sub else _FOXGLOVE_SUBPROTOCOLS[0]
+    accepted_sub = client_accepted_sub
 
-    await websocket.accept(subprotocol=accepted_sub)
+    await websocket.accept(subprotocol=client_accepted_sub)
     target = _foxglove_bridge_upstream_url()
 
     try:
@@ -207,7 +119,7 @@ async def foxglove_bridge_websocket_proxy(websocket: WebSocket) -> None:
             ping_interval=cfg.foxglove_bridge_ping_interval(),
             ping_timeout=cfg.foxglove_bridge_ping_timeout(),
             close_timeout=cfg.foxglove_bridge_close_timeout(),
-            subprotocols=[accepted_sub] if accepted_sub else None,
+            subprotocols=[_FOXGLOVE_SUBPROTOCOLS[0]],
         ) as upstream:
 
             async def client_to_upstream():

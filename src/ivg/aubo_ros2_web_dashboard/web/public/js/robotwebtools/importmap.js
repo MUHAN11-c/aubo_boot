@@ -20,6 +20,10 @@
     "ws": "./roslib-esm/vendor/ws/browser.js",
     "@cto.af/wtf8": "./roslib-esm/vendor/@cto.af/wtf8/lib/index.js",
     "fflate": "./roslib-esm/vendor/fflate/esm/browser.js",
-    "iobuffer": "./roslib-esm/vendor/iobuffer/lib/iobuffer.js"
+    "iobuffer": "./roslib-esm/vendor/iobuffer/lib/iobuffer.js",
+    "three": "../vendor/three/build/three.module.js",
+    "three/addons/": "../vendor/three/examples/jsm/",
+    "three/examples/jsm/": "../vendor/three/examples/jsm/",
+    "urdf-loader": "../vendor/urdf-loader/src/URDFLoader.js"
   }
 });

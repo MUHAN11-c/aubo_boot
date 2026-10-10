@@ -12,7 +12,6 @@
 import { ivgTransport } from '../ivg_transport.js';
 import {
     loadRuntime as _loadPorts,
-    rosbridgeWebSocketUrl,
     createRosReconnectState,
     clearRosReconnectTimer,
     bumpRosReconnectGen,

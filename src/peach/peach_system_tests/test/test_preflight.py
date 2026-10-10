@@ -182,13 +182,22 @@ def test_executor_setup_does_not_install_observability():
     assert "glob('web/*')" not in text
 
 
-def test_executor_does_not_ship_web_assets():
+def test_web_assets_owned_by_peach_web():
+    """静态页 2026-10-10 起独立成顶层资源包 peach_web；observability 只托管不随包安装."""
     root = _src_root()
     assert root is not None
-    assert not (root / 'peach_supervisor' / 'web').exists()
-    assert (root / 'peach_observability' / 'web' / 'index.html').is_file()
-    assert (root / 'peach_observability' / 'web' / 'app.js').is_file()
-    assert (root / 'peach_observability' / 'web' / 'app.css').is_file()
+    src_root = root.parent
+    assert not (root / 'peach_harvester' / 'web').exists()
+    assert not (root / 'peach_observability' / 'web').exists()
+    assert (src_root / 'peach_web' / 'web' / 'index.html').is_file()
+    assert (src_root / 'peach_web' / 'web' / 'app.js').is_file()
+    assert (src_root / 'peach_web' / 'web' / 'app.css').is_file()
+    observability_setup = (
+        root / 'peach_observability' / 'setup.py').read_text(encoding='utf-8')
+    assert "glob('web/*')" not in observability_setup
+    web_cmake = (
+        src_root / 'peach_web' / 'CMakeLists.txt').read_text(encoding='utf-8')
+    assert 'DIRECTORY' in web_cmake and 'web' in web_cmake
 
 
 def test_industrial_ci_ignores_vendor_sidecars():

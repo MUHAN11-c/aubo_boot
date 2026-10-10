@@ -20,8 +20,8 @@ async function loadCategoryDefs() {
         if (gwInfo) {
             gwInfo.innerHTML = [
                 ['版本', data.version],
-                ['rosbridge 端口', data.rosbridge_port],
-                ['WS 路径', data.rosbridge_ws_path],
+                ['foxglove 端口', data.foxglove_bridge_port],
+                ['WS 路径', data.foxglove_ws_path],
             ].map(([k, v]) => `<span>${k}: <code>${v != null ? v : '—'}</code></span>`).join('');
         }
 

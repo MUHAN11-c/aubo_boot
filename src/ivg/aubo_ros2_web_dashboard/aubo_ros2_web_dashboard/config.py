@@ -58,12 +58,6 @@ _cfg: dict[str, Any] = _load_yaml()
 
 # CLI 参数名 → YAML 路径（点号分隔），init() 时用于合并覆盖
 _CLI_MAP: dict[str, str] = {
-    "rosbridge_host": "rosbridge.host",
-    "rosbridge_port": "rosbridge.port",
-    "rosbridge_max_msg_bytes": "rosbridge.max_message_bytes",
-    "rosbridge_ping_interval": "rosbridge.ping_interval",
-    "rosbridge_ping_timeout": "rosbridge.ping_timeout",
-    "rosbridge_close_timeout": "rosbridge.close_timeout",
     "foxglove_bridge_host": "foxglove_bridge.host",
     "foxglove_bridge_port": "foxglove_bridge.port",
     "foxglove_bridge_max_msg_bytes": "foxglove_bridge.max_message_bytes",
@@ -104,7 +98,7 @@ def _apply_cli(args: dict[str, Any]) -> None:
 # ── 通用取值 ─────────────────────────────────────────────────────────────────
 
 def _g(path: str, default=None):
-    """按点号路径从 _cfg 中取值，如 'rosbridge.port' → 9090。不存在则返回 default."""
+    """按点号路径从 _cfg 中取值，如 'foxglove_bridge.port' → 8765。不存在则返回 default."""
     c = _cfg
     for k in path.split("."):
         if isinstance(c, dict):
@@ -127,36 +121,6 @@ def gateway_port() -> int:
 
 def gateway_gzip_min_size() -> int:
     return int(_g("gateway.gzip_min_size", 512))
-
-# ---- rosbridge ----
-
-
-def rosbridge_host() -> str:
-    return str(_g("rosbridge.host", "127.0.0.1"))
-
-
-def rosbridge_port() -> int:
-    return int(_g("rosbridge.port", 9090))
-
-
-def rosbridge_ws_path() -> str:
-    return str(_g("rosbridge.ws_path", "/ws/rosbridge"))
-
-
-def rosbridge_max_message_bytes() -> int:
-    return int(_g("rosbridge.max_message_bytes", 67108864))
-
-
-def rosbridge_ping_interval() -> int:
-    return int(_g("rosbridge.ping_interval", 20))
-
-
-def rosbridge_ping_timeout() -> int:
-    return int(_g("rosbridge.ping_timeout", 60))
-
-
-def rosbridge_close_timeout() -> int:
-    return int(_g("rosbridge.close_timeout", 10))
 
 # ---- foxglove_bridge ----
 
@@ -225,7 +189,7 @@ def package_version_fallback() -> str:
     return str(_g("package.version_fallback", "0.4.0"))
 
 # ---- BFF 配置 ─────────────────────────────────────────────────────────────
-# GET /api/v1/runtime 返回的数据 — 前端用来自动发现 rosbridge/视频代理/话题定义
+# GET /api/v1/runtime 返回的数据 — 前端用来自动发现 foxglove 桥/视频代理/话题定义
 
 
 def vision_panel_config() -> dict[str, Any]:
@@ -243,11 +207,9 @@ def runtime_config_dict(static_root: str) -> dict[str, Any]:
     return {
         "package": "aubo_ros2_web_dashboard",
         "version": pkg_ver,
-        "rosbridge_port": rosbridge_port(),
         "foxglove_bridge_port": foxglove_bridge_port(),
         "static_root": static_root,
         "unified_proxy": True,
-        "rosbridge_ws_path": rosbridge_ws_path(),
         "foxglove_ws_path": foxglove_bridge_ws_path(),
         "settings_categories": vp,  # 设置页渲染表单的数据源（含 label）
     }

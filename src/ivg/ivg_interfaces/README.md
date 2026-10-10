@@ -19,8 +19,8 @@
 | `msg/ToolChangerStatus` | `tool_changer` 发布（`/tool_changer_status`） | `tool_changer/scene_attach_worker`、Web 面板 |
 | `msg/NodeStatus` / `msg/SystemLog` | `ivg_demo_services/system_monitor_node` 发布（`/system/node_status` `/system/log`） | Web 监控/日志面板 |
 
-`msg/CartesianPosition`：base 系笛卡尔位姿容器（位置+四元数+RPY+关节值，
-弧度制），仅被 `EstimatePose` 响应嵌用。
+`msg/CartesianPosition`：base 系笛卡尔位姿容器（位置+四元数+RPY+关节值；RPY 与
+关节值各含 **rad/deg 双字段**），仅被 `EstimatePose` 响应嵌用。
 
 ## 时间与单位语义（EstimatePose）
 

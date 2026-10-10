@@ -35,6 +35,7 @@ ros2 launch peach_bringup harvest_system.launch.py \
 | [peach_arm](src/peach/peach_arm/README.md) | 拍照、主动视点、质量/安全门、MTC 接触、工具 SetIO、撤退 | `peach_arm` | 不写账本、不调重建 Trigger、不 `BeginScene`/`RunHarvest` |
 | [peach_bringup](src/peach/peach_bringup/README.md) | 整栈入口、预检、lifecycle 托管、autostart 客户端、生命周期桥 | `peach_lifecycle_flag_bridge`、`peach_autostart_client` | 不含业务；launch 不自动开批 |
 | [peach_observability](src/peach/peach_observability/README.md) | 8090 过程页/单步调试、会话 bag、`peach_bag_report` | `peach_observability` | 不发运动 |
+| [peach_web](src/peach_web/README.md) | 8090 过程页静态资源（顶层资源包，HTTP 托管在 peach_observability） | 无 | 不跑节点、不进 launch/lifecycle |
 | [peach_vegetation](src/peach/peach_vegetation/README.md) | GPU 枝/叶 2D 掩膜（独立 launch） | `peach_vegetation` | 不写 PlanningScene、不进 harvest_system |
 | [peach_system_tests](src/peach/peach_system_tests/README.md) | isolated mock launch_testing + 回放塔 | （launch_testing） | 不进运行 launch |
 
@@ -56,7 +57,6 @@ ros2 launch peach_bringup harvest_system.launch.py \
 | [aubo_hand_eye_calibration](src/aubo_hand_eye_calibration/README.md) | 手眼标定（侧车） |
 | [percipio_camera](src/percipio_camera/README.md) | 图漾驱动 |
 | [peach_stereo](src/peach/peach_stereo/README.md) | 可选相机前端（`camera_frontend:=stereo`，主机单图案立体，话题同构） |
-| `camera_calibration` | vendored 彩色内参标定工具（image_pipeline jazzy 原样入库，会话工具不进常驻栈） |
 
 架子机 URDF / MoveIt 在 `_archive/parked_2026-08-24/`，不在本链路。
 
@@ -64,7 +64,7 @@ ros2 launch peach_bringup harvest_system.launch.py \
 
 | 路径 | 内容 |
 |------|------|
-| `src/` | 采摘应用 7 包 + 相机前端 1 + 臂/相机 9 包 + 内参标定 1 + 可选 USB IMU / IMU 跟随 2 + 旁路 IVG 3 |
+| `src/` | v1 采摘栈九包（`src/peach/`，含公共库与相机前端）+ v2 孵化十二包（`src/peach2/`）+ IVG 演示八包（`src/ivg/`）+ 臂/相机驱动九包 + 过程页静态资源 `peach_web` 1 + 仿真 `peach_sim` 1 + 可选 USB IMU / IMU 跟随 2 + 夹爪描述 `robotiq_description` 1 |
 | `docs/` | `architecture.md` 设计架构；`io.md` 输入输出；v1/v2 方案书（用户裁定非活文档）；测试指导在两测试包 `doc/` |
 | `runs/` | 过程数据唯一根（gitignore：账本、观测、session、MCAP） |
 | `_archive/runs/` | 历史过程数据（勿删） |

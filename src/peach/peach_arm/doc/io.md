@@ -11,6 +11,7 @@ flowchart TB
   act -->|是| src{"入口"}
   src -->|CheckReachability| ik["预抓取 IK；FULL 再套入 IK+沿轴笛卡尔 不动臂"]
   src -->|SurveyScene| photo["goToPhotoPose 原路返程或 PTP；PTP 行程门 6 / 2.5；成功出口 atNamedTarget"]
+  src -->|MoveTo| mv["命名位/位姿直达 TRANSIT 级授权；KIND_JOINTS 预留"]
   src -->|ExecuteTarget| cycle["executeCycle"]
   cycle --> en{"execution_enabled?"}
   en -->|否| preview["PlanPreview 终结"]
@@ -32,7 +33,7 @@ flowchart TB
   done --> hyp["grasp_hypothesis / status"]
 ```
 
-**读图：** 三个对外入口。可达性预检不动臂。拍照是 Survey。一颗桃的接触/观察全在 `executeCycle`（与 [architecture.md](architecture.md) 图 D 同构）：关执行只规划；`OBSERVE_ONLY` 看完就停；干跑默认 `PREGRASP_ONLY` 停预抓取；FULL 才套入打刀。套入/剪切前复检 `GraspDecision.allowed`。
+**读图：** 四个对外入口（三动作 + 可达性预检服务；明细见下表）。可达性预检不动臂。拍照是 Survey；补视/拍照位直达走 MoveTo。一颗桃的接触/观察全在 `executeCycle`（与 [architecture.md](architecture.md) 图 D 同构）：关执行只规划；`OBSERVE_ONLY` 看完就停；干跑默认 `PREGRASP_ONLY` 停预抓取；FULL 才套入打刀。套入/剪切前复检 `GraspDecision.allowed`。
 
 | 名字 | 种类 | 含义 | 生产 | 消费 |
 |------|------|------|------|------|
@@ -54,17 +55,19 @@ flowchart TB
 | `cancel_cycle` | 手动停一周期（调度走动作 cancel，不走此口；调试面在用） |
 | `go_to_photo_pose` | 只回拍照位（有接近记录则原路返程，否则 PTP），不采锁定集 |
 | `preview_approach_insert` / `preview_full_contact` | 只规划接触预览 |
-| `set_execution_armed` | 本周期武装；`execution.enabled` 后每个周期还须调一次 |
+
+`set_execution_armed`（`std_srvs/SetBool`，已进清单；**不是 Trigger**）：data=true 武装本周期 / false 解除；`execution.enabled` 后每个周期还须调一次。
 
 订阅：感知观测；重建 `grasp_decision` / `refined_*` / `diagnostics`；操作台 `/peach/batch/enables`（收到过即覆盖本地使能参数，`enables_heartbeat_timeout_s` 心跳超时回落本地权威）。柜侧：`RobotStatus` 做安全门；`/aubo_io_controller/joint_status` 电流环形缓存给 ④层接触检测（默认关，只缓存不判定）；工具闭合调 `/aubo_io_controller/set_io`。TF：`tf2::TimePointZero`（规划下一视点，不是积分旧深度）。
 
-`stages.cpp` 的 `executeCycle(ctx)` 显式模式 switch，周期状态全在 `CycleContext`（action 受理时创建、worker 单写者）：PrepareCycle →（`execution_enabled` 关则 PlanPreview 终结）→（未 `skip_observation` 则 AcquireViews）→ FinalizeAndValidate →（OBSERVE_ONLY → Report / `grasp_enabled` 关 → ReportReady / Reconfirm → MovePregrasp → VerifyPregrasp →（PREGRASP_ONLY 则 `HoldPregrasp` 停住 | PlanSleeve → SleeveLinear → ActuateCutter → VerifyCut → ReverseRetreat → ReturnStow → VerifyHarvestOutcome））→ CompleteTarget。FULL 套入/撤退：shear/bite 走 MTC LIN；adaptive_shear_v1 FULL 在预抓取验证后开 imu_follow 窗（enable→insert_start→剪切→insert_retract→disable），回到预抓取才关窗，**先倒放回拍照位再短 PTP `harvest_stow`**；套入/撤退用实测行程判据（批次5）：进度主判据 FK（等待起点 TCP 沿锁定轴向的位移投影），回退订 `/imu_follow/insert_progress`（目标积分），时间只作截止，停滞窗（3 s 实测增益 <1 mm）进度收口 UNKNOWN。shear/bite 两档走 MTC LIN，永不调、不建 `/imu_follow` 客户端。未 enable 时 follow_node pause servo，禁止与 MTC 同时写 JTC。运动/IO 入口逐阶段过 `ExecutionAuthority`（套入/剪切前复检 `GraspDecision.allowed`；撤离 TRANSIT 级不做决策复检）。
+`stages.cpp` 的 `executeCycle(ctx)` 显式模式 switch，周期状态全在 `CycleContext`（action 受理时创建、worker 单写者）：PrepareCycle →（`execution_enabled` 关则 PlanPreview 终结）→（未 `skip_observation` 则 AcquireViews）→ FinalizeAndValidate →（OBSERVE_ONLY → Report / `grasp_enabled` 关 → ReportReady / Reconfirm → MovePregrasp → VerifyPregrasp →（PREGRASP_ONLY 则 `HoldPregrasp` 停住 | PlanSleeve → SleeveLinear → ActuateCutter → VerifyCut → ReverseRetreat → ReturnStow → **ReleasePayload（harvest_stow 后开刀释放，授权同 TOOL 级）** → VerifyHarvestOutcome））→ CompleteTarget。FULL 套入/撤退：shear/bite 走 MTC LIN；adaptive_shear_v1 FULL 在预抓取验证后开 imu_follow 窗（enable→insert_start→套入到位 best-effort `insert_stop`→剪切→insert_retract→disable），回到预抓取才关窗，**先倒放回拍照位再短 PTP `harvest_stow`**；套入/撤退用实测行程判据（批次5）：进度主判据 FK（等待起点 TCP 沿锁定轴向的位移投影），回退订 `/imu_follow/insert_progress`（目标积分），时间只作截止，停滞窗（3 s 实测增益 <1 mm）进度收口 UNKNOWN。shear/bite 两档走 MTC LIN，永不调、不建 `/imu_follow` 客户端。未 enable 时 follow_node pause servo，禁止与 MTC 同时写 JTC。运动/IO 入口逐阶段过 `ExecutionAuthority`（套入/剪切前复检 `GraspDecision.allowed`；撤离 TRANSIT 级不做决策复检）。
 
 - OBSERVE_ONLY：当前位先采帧；基线未过最多两次最近短移（只 LIN，失败换候选），沿当前相机直线截到 `max_camera_step_m`（默认 0.15 m），评分以行程最短为主；朝当前目标检测框内分割更满的方向微偏。禁止 OMPL、对侧兜圈、贴 `observation_radius_m` 0.45 m 球面环绕、PTP 兜底。覆盖门 `minimum_baseline_deg: 8`。停准则：覆盖达标或 `maximum_moves` 用尽；不做墙钟预算/移动+等帧 EMA 预测收口（`time_budget_s` 键已随死分支删除，2026-09-20 W5）。到位后等新机位（`view_directions` 增加），同机位连帧不加覆盖。成功：重建已绑定、独立机位已满 `min_views`、TSDF/精化已发布。观察成功但 Build `view_count`（机位数）`< min_views` → `observe_build_view_race`。`captured_views` 仍是积分帧数。
 - PREGRASP_ONLY：有融合几何即去预抓取（入口在拟合袋底，预抓取相对入口后撤 0.03 m）；先回拍照位（有记录的接近则原路返程，否则 PTP 0.5 s / 失败 OMPL 3.0 s），再走接近主路径：**PTP 关节空间到中段点正下方（树冠外，滚转梯子 {0,±30°,±60°}+随机重启 IK）+ 世界垂直 LIN 入冠（伸进果树里）+ 沿轴 LIN 对轴进入预抓取**（`staging.*` 已删；不满足即失败收口）（已齐 LIN 挂相对目标 20° 姿态路径约束）。执行路径 MTC `plan(1)`。起点已在袋底侧、直连不穿囊的短修正走直连 LIN（未齐先 LIN 原地对齐工具 Z；keep-roll 自碰则换滚转）。不走 CIRC/STOMP/OMPL。拍照位失败则从当前位规划。不要求 `allowed`。工具 TF 残差超门则按**最新精化快照**重算 entry/pregrasp 做增量修正（最多两次）；残差未过门也停在预抓取（不回 `harvest_stow`），`pregrasp.passed=false` 且 `completion_level=LEVEL_PREGRASP_REACHED`（不得抬到 `LEVEL_PREGRASP_VERIFIED`；`passed` 与 `completion_level` 不得互相抬级）。任何路径不 SetIO。到位终局 `SUCCEEDED` 且 `recovery_required`，ACK 前调度不 Survey。现行不是两帧精确 TF RGB-D 重估。
-- FULL：`skip_observation`。shear/bite 沿轴 MTC LIN 套入/原路撤退；adaptive_shear_v1 在预抓取验证后开 imu_follow 窗（`enable`→`insert_start`→剪切→`insert_retract`→`disable`），回到预抓取才关窗，**先倒放回拍照位再短 PTP `harvest_stow`**（stow 与 photo 已分叉，直达会跳过原路返程撞 `transit_max`）。结果填 `HarvestResult` / `Verification` / `PregraspVerification` / `outcome_record`；W7 起顶层 bool 镜像与 `DepositResult` 字段已删（cut/retreat/harvest 证据单源 harvest/verification 块；`DepositResult` 消息保留卸果站预留，不随 Result 携带）。`harvest.grasped` 仅切断证据∧撤退证据。SetIO 超时 → 工具 UNKNOWN，不自动重发、不自动撤退。SetIO ACK 只产生 `CUT_COMMAND_ACCEPTED`；切断确认已接 `/aubo_io_controller/io_states`（批次3：`tool_io_states[pin0]` **本命令后新上升沿**，早已卡高不算），`stageVerifyCut` 有界等沿 2 s（`tool.feedback_timeout_s`）超时 `CUT_UNCONFIRMED` 保守收口——不撤退不重发，终局 `FAILED`/`CUT_FEEDBACK_TIMEOUT` 待人工（详见下「工具三轴状态」行）。
+- FULL：`skip_observation`。shear/bite 沿轴 MTC LIN 套入/原路撤退；adaptive_shear_v1 在预抓取验证后开 imu_follow 窗（`enable`→`insert_start`→套入到位 best-effort `insert_stop`→剪切→`insert_retract`→`disable`），回到预抓取才关窗，**先倒放回拍照位再短 PTP `harvest_stow`**（stow 与 photo 已分叉，直达会跳过原路返程撞 `transit_max`）。结果填 `HarvestResult` / `Verification` / `PregraspVerification` / `outcome_record`；W7 起顶层 bool 镜像与 `DepositResult` 字段已删（cut/retreat/harvest 证据单源 harvest/verification 块；`DepositResult` 消息保留卸果站预留，不随 Result 携带）。`harvest.grasped` 仅切断证据∧撤退证据。SetIO 超时 → 工具 UNKNOWN，不自动重发、不自动撤退。SetIO ACK 只产生 `CUT_COMMAND_ACCEPTED`；切断确认已接 `/aubo_io_controller/io_states`（批次3：`tool_io_states[pin0]` **本命令后新上升沿**，早已卡高不算），`stageVerifyCut` 有界等沿 2 s（`tool.feedback_timeout_s`）超时 `CUT_UNCONFIRMED` 保守收口——不撤退不重发，终局 `FAILED`/`CUT_FEEDBACK_TIMEOUT` 待人工（详见下「工具三轴状态」行）。
 - 接触 ACM：只对指定目标对象 × 指定工具链接 × 套入/剪切阶段放行（场景障碍豁免见下条，0035 起为独立面）。
 - 场景障碍 ACM（0035，2026-09-29 起现行）：避障目的=**保护相机**（臂/末端轻微碰撞用户已接受）。`tool.links` 部署值=全机器人连杆−`camera_body_link`，豁免×`{<octomap>, peach_scene_obstacles}`；唯一受查对=相机×障碍。开关 `moveit.obstacle_guard_enabled`（默认 true；false=相机一并豁免恢复可达性，对象保留场景，重开即恢复保护；空闲 `ros2 param set` 生效，运动中拒改，下个规划前重写 ACM）。豁免条目组装纯核=`acm_policy::obstacleExemptionEntries`。**PlanningScene 写域分域**：`peach_scene_obstacles` 节点只写 world.collision_objects（快照对象）、`peach_arm` 只写 ACM diff，双写者互不覆盖。
+- MoveIt 标准口（非本包 IDL，不进清单）：冠内两段 LIN 的 Pilz sequence blend 走 `/plan_sequence_path`（GetMotionSequence）规划、`/execute_trajectory` 下发；ACM 整表合并与 move_group 在场诊断探针走 `/get_planning_scene`。环境盒 `scan.protected_zones` / `scan.min_camera_height_m` 双路生效（视点剔除 + MTC planning scene 碰撞盒）。on_activate 另建 bondcpp `/bond` 心跳（nav2_lm `bond_timeout`>0 才启用进程死检，现行默认 0 关）。
 - ExecuteTarget FULL/PREGRASP_ONLY 要求完整模型身份元组；空版本拒执行（PREVIEW / OBSERVE_ONLY 除外）。`plan_id` 绑定（2026-09-20 修复轮收紧口径）：**只有 PREVIEW 档 goal 记 preview 绑定**，FULL **在自身携带 plan_id 时**与其全字段比对（mismatch → `failure_code=PLAN_MISMATCH(20)`）；绑定存在而 FULL 缺 plan_id 时比对不生效、直接放行（ID-2 缺口，architecture「ID 与身份确定」链 C；绑定写入亦先于预览成败）。OBSERVE_ONLY 只携带 plan_id+身份（观察会动臂、不构成计划预览，模型建好前本就带不了三修订）；FULL/PREGRASP_ONLY 周期终局清绑定。授权拒绝分级：许可过期（valid_until / model_stamp 超窗）→ SKIPPED_QUALITY（可重派），明确不允许 → FAILED。
 - 新鲜度门：`SafetyGate` 比较 `clock - freshnessStamp`。OBSERVED 且 `updated_s` 更新时用 `updated_s`，否则末次有效观测 `received_s`。门限 `effectiveTargetMaxAgeS()`：未测得 EMA 用 yaml 3.0 s，测得后只放宽。`assumed_frame_interval_s: 0.4` 只估等待窗口，不预填 EMA。
 - 工具三轴状态（批次3，2026-09-23）：`/peach_arm/tool_state`（ToolState.msg，latched，on-change）——刀/保持/载荷三轴各自 UNKNOWN 优先；刀闭合证据=`/aubo_io_controller/io_states` 的 `tool_io_states[pin0]` **本命令后新上升沿**（早已卡高不算，§12.2 新事件门在 ToolActuator 内强制）；闭合≠分离（M0 台架后升级组合判别）。`stageVerifyCut` 有界等沿（`tool.feedback_timeout_s` 2.0s），超时=`CUT_UNCONFIRMED` 保守收口：**不撤退、不重发、不 resume**，FAILED+CUT_FEEDBACK_TIMEOUT 待人工；`stageReleasePayload` 在 harvest_stow 后开刀释放（授权矩阵同 TOOL 级）。SetIO ACK 仍≠任何确认。
@@ -101,3 +104,6 @@ flowchart TB
 | `quality.allow_unrefined_geometry` | 默认 false；true 时用场景观测当精化入口并钉住 `grasp_allowed` 与 `bag_diameter_upper_m`（`skip_reconstruction` 打开） |
 | `photo_pose_named_target` | Survey / 回拍照位的 SRDF 名（`global_photo_pose`） |
 | `photo_pose_joint_tolerance_rad` / `photo_pose_max_joint_vel_rad_s` | `goToPhotoPose` 成功出口每轴 \|Δq\| / \|qdot\| 上限（默认 0.05） |
+| `execution_contract.robot_status_timeout_s` | robot_status 断流判据（安全门 stale + 诊断阈值；GPL 默认 0.5 s，config 未部署） |
+| `execution_contract.model_max_age_s` | 精化模型最大龄（GPL 默认 5.0 s，config 未部署） |
+| `scan.protected_zones` / `scan.min_camera_height_m` | 环境禁入盒 / 相机最低高度：视点剔除与 MTC 碰撞盒双路生效 |

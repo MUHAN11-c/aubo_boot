@@ -34,8 +34,10 @@ launch 不发任何 `RunBatch` / `SetEnables` / 运动 / SetIO；所有 goal 由
 
 ```bash
 colcon test --packages-select peach2_system_tests
-colcon test-result --verbose        # 现行 33/33 绿
+colcon test-result --verbose
 ```
+
+现行测试函数 29 个（bringup_mock 10 / plan_only_chain 7 / pregrasp_mock_exec 9 / frozen_camera_bag 3）+ lint 用例（flake8/pep257/xmllint）。**预存红（2026-10-09 轮）**：`test_pregrasp_mock_exec` 3 例 `DEPENDENCY_UNAVAILABLE:check_reachability:timeout` 与 lint 债（`drive_frozen_grasp.py` 风格、pep257）——宣称绿前先复跑核对。测试栈 `bond_timeout:=0.0`（`PEACH2_LT_BOND_TIMEOUT` 可覆盖；bringup 默认 4.0）。
 
 | 文件 | 域 | 内容 |
 |------|----|------|
@@ -57,14 +59,14 @@ ros2 run peach2_system_tests run_frozen_grasp.py                          # FULL
 pgrep -af 'ros2 launch|component_container|extrinsics_publisher|ros2 run|bag record|frozen_camera|move_group|ros2_control_node'
 ```
 
-**终态（2026-10-09 操作员三轮裁定）**：仿真经 `mock_initial_positions`（授权参数化）**出生即真拍照位 `global_photo_pose`**——无 home→photo 过渡，Survey 原地锚定，仅抓取首运动冻结回放（`watch_motion_freeze`，phase≥OBSERVING 门控+2 mm 关节偏差触发）。photo-move 备用流已彻底删除（drive/run 脚本、`photo_pose.py`、SRDF `frozen_photo_pose` 位——操作员裁定该流是错的）。
+**终态（2026-10-09 操作员三轮裁定）**：仿真经 `mock_initial_positions`（授权参数化）**出生即真拍照位 `global_photo_pose`**——无 home→photo 过渡，Survey 原地锚定，仅抓取首运动冻结回放（`watch_motion_freeze`，phase≥OBSERVING 门控 + 2 mrad 关节角偏差触发）。photo-move 备用流已彻底删除（drive/run 脚本、`photo_pose.py`、SRDF `frozen_photo_pose` 位——操作员裁定该流是错的）。frozen 流默认工具 `bite_shear_v1`（`--tool-id` 可改；系统栈 `tool_id` 默认 `adaptive_shear_v1`，两者不同）。
 
 **本数据（stereo_10s，静止场景）数据边界**：主袋 ~1.04 m、沿外向轴插入终点在 E5 可达球外（三轮确定性复现）；**PREGRASP_ONLY 是本数据通过档**；FULL 需更近采集或底盘前移。
 
 **v2 测试 overlay 旋钮**（均只在本包 config，产品 yaml 不动）：
 
-- `frozen_target_model.yaml`：`min_views=1`、关 `cut_requires_remeasure`/`require_known_swing`、sigma 放到参数上限 0.05、`observe_max_views:=1`。
-- 测试标定 `status: calibrated` + 测试工具档案 `frozen_tools/<tool_id>.yaml` 放宽 `L_insert` 过单视 `bag_longer_than_L_insert` 门（`--tool-id bite_shear_v1`→0.150，产品 0.030；`adaptive_shear_v1`→0.200，产品 0.090；产品标定状态仍 `design_reference`）。
+- `frozen_target_model.yaml`：`min_views=1`（与产品同值，非差异项）、关 `cut_requires_remeasure`/`require_known_swing`、sigma 放到参数上限 0.05、`observe_max_views:=1`。
+- 测试标定 `status: calibrated` + 测试工具档案 `frozen_tools/<tool_id>.yaml` 放宽插入/径向门过单视检查（`--tool-id bite_shear_v1`→`L_insert` 0.150 + `D_inner` 0.250，产品 0.030/0.104；`adaptive_shear_v1`→`L_insert` 0.200，产品 0.090；产品标定状态仍 `design_reference`，在 `peach2_calibration/results/`）。
 - `frozen_scene.yaml`：硬障碍抬到飞点（v2 L2 对全臂受查，冻结云否则挡套入）。
 - `frozen_perception.yaml`：锁定 3 帧 / 0.5 s、`confirm_hits=1`、传感 QoS RELIABLE、`lock_wait_s:=20`、轴向分箱调粗（`n_bins_3d` 12→6、`taper_ratio` 0.85→0.60——**测试专用几何旋钮**：stereo_10s 拍照位融合颈部在可达球外 ~46 mm，粗分箱把颈部估计拉回可达域；产品保持 12/0.85；`max_depth_m` 保持 1.5）。
 
@@ -87,27 +89,27 @@ pgrep -af 'ros2 launch|component_container|extrinsics_publisher|ros2 run|bag rec
 
 ## 7. 命名与过程数据
 
-与 v1 同一规范：`request_id` = 账本目录 `runs/<request_id>/` 不得复用；`runs/session_*/bag/` 会话袋随栈开合、停栈出 `bag_report.md`；结构化文本入库随仓、bag 二进制只留本地、分析后回收。v2 测试轮次结论随提交说明记录（仓库级 testing-log 与 REFACTORING 均已于 2026-10-10 退役，历史在 git）。
+与 v1 同一规范：`request_id` = 账本目录 `runs/<request_id>/` 不得复用；`runs/session_*/bag/` 会话袋随栈开合（**bag_report 为 v1 专属——v2 `peach2_observability` 未迁离线报告 CLI**）；结构化文本入库随仓、bag 二进制只留本地、分析后回收。v2 测试轮次结论随提交说明记录（仓库级 testing-log 与 REFACTORING 均已于 2026-10-10 退役，历史在 git）。
 
 ## 8. 标定（工作区级，v1/v2 共用基线）
 
-- **手眼外参**：真值源 `src/aubo_hand_eye_calibration/hand_eye/active.yaml`（入库随仓）；v2 感知/建模消费同一 TF 链。标定流程见 v1 指导 §11（Web 8088 / auto 档）。
-- **剪切工具标定**：v2 专属 `peach2_calibration`（`config/` 现为 `design_reference`；M0 门要求台架标定后置 `calibrated`，`results/` 存会话产物 shear_v1/bite_shear_v1/adaptive_shear_v1）。
+- **手眼外参**：真值源 `src/aubo_hand_eye_calibration/hand_eye/active.yaml`（入库随仓）；v2 感知/建模消费同一 TF 链。标定流程见 v1 指导 §12（Web 8088 / auto 档）。
+- **剪切工具标定**：v2 专属 `peach2_calibration`（真值在 `results/{shear_v1,bite_shear_v1,adaptive_shear_v1}.yaml`，现行 `design_reference`；M0 门要求台架标定后置 `calibrated`，会话产物也落 `results/`）。
 - **彩色内参**：同 v1（棋盘 + `apply_intrinsics` + 重建 `percipio_camera`）；v2 感知读同一 `camera_info`。
 
 ## 9. 共享设施现状
 
 - **IMU / imu_follow**：`serial_imu` 随 v1 `harvest_system` 起（`imu_enabled` 默认 true）；`imu_follow` 接触窗是 v1 `adaptive_shear_v1` 档专属，v2 接触走 BT+MTC，不经 imu_follow。
 - **RViz**：v1 面板在 `aubo_e5_moveit_config/rviz/moveit.rviz`（Fixed Frame `base_link`）；v2 无专属 RViz 配置，看 TF/话题用通用 rviz2。
-- **peach_sim**：Gazebo 果园世界/目标清单 GT 供两栈共用（导航/感知 GT 以 `worlds/peach_orchard.sdf` 为准；`field_no_grass` 仅视觉查看非 GT）。命令见 `peach_sim` README 与 v1 指导 §12。
-- **IVG 演示栈**：独立 DDS 域 96，与 peach/v2 均隔离；见 v1 指导 §13。
+- **peach_sim**：Gazebo 果园世界/目标清单 GT 供两栈共用（导航/感知 GT 以 `worlds/peach_orchard.sdf` 为准；`field_no_grass` 仅视觉查看非 GT）。命令见 `peach_sim` README 与 v1 指导 §13。
+- **IVG 演示栈**：独立 DDS 域 96（`ivg_sim` 另用域 98）——**与本包 `test_plan_only_chain` 的测试域 96 撞号**：跑 IVG 演示时勿同时跑 v2 系统测，反之亦然；见 v1 指导 §14。
 
 ## 10. 停栈与清进程（MUST，与启动前 pgrep 成对）
 
-launch 终端 Ctrl+C；一次性命令 `timeout` 包裹。结束后复核：
+launch 终端 Ctrl+C；一次性命令 `timeout` 包裹。结束后复核（v2 栈残留典型为 `move_group`/`ros2_control_node`/`robot_state_publisher`/`peach2_*`/`lifecycle_manager`/`frozen_camera`，须并入模式）：
 
 ```bash
-pgrep -af 'ros2 launch|component_container|extrinsics_publisher|ros2 run|bag record|collect|probe'
+pgrep -af 'ros2 launch|component_container|extrinsics_publisher|ros2 run|bag record|move_group|ros2_control_node|robot_state_publisher|peach2_|lifecycle_manager|frozen_camera'
 ```
 
-有残留按 PID `kill -TERM`，2 秒仍存活 `kill -9`，再复核。不要宽泛 `pkill`。
+`run_frozen_grasp.py` 自带本域（82）残留按 marker 自动清理（TERM→2 s→KILL）；仍须人工复核。有残留按 PID `kill -TERM`，2 秒仍存活 `kill -9`，再复核。不要宽泛 `pkill`。

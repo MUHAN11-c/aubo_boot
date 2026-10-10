@@ -3,11 +3,10 @@
 Drive one frozen-camera FULL harvest on an already-running v2 mock stack.
 
 Waits for lifecycle + RGB-D replay + JTC, enables execution+grasp+tool
-(mock IO backend, no real SetIO), moves the arm to a calibrated PHOTO POSE
-(the real flow photographs at a wrist pose; at the mock stow pose the frozen
-bag lands ~1.0 m out and the reach-to-neck pose has no IK — see
-plans/冻结相机全流程测试/测试报告.md §5.7/§5.8), then sends RunBatch and
-ACKs if the batch parks in WAITING_ACK.
+(mock IO backend, no real SetIO), then sends RunBatch and ACKs if the
+batch parks in WAITING_ACK. No arm move to a photo pose is driven here:
+since mock_initial_positions the stack is born AT global_photo_pose
+(Survey anchors in place; photo-move fallback flow deleted 2026-10-09).
 """
 from __future__ import annotations
 

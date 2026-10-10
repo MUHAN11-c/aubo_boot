@@ -33,7 +33,8 @@ colcon build --packages-select ivg_interfaces ivg_pose_estimation
 source install/setup.bash
 
 ros2 launch ivg_pose_estimation ivg_pose_estimation.launch.py
-# 另终端 Web（默认 http://127.0.0.1:8089/，与手眼标定网关 8088 错开）
+# 另终端 Web（默认 http://127.0.0.1:8089/，与手眼标定网关 8088 错开；
+# 注意 web_dashboard 栈的 web_video_server 上游也是 8089——同机并行会撞口，错开一方）
 ros2 launch ivg_pose_estimation ivg_pose_estimation_web.launch.py
 ```
 

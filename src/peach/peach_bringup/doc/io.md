@@ -14,7 +14,7 @@
 | `peach_harvester`（vision） | `BeginScene`；`/peach/perception/*`；`BuildTargetModel`；`/peach/reconstruction/*` | RGB-D、`HarvestState`、精确 stamp TF | 运动动作、`ledger.json`、选下一颗 |
 | `peach_arm` | `SurveyScene`、`ExecuteTarget`、`CheckReachability`、`grasp_hypothesis`、预览/使能/ACK 服务 | 观测、`GraspDecision`、`refined_*` | `RunHarvest`、重建 Trigger 客户端、`ledger.json` |
 | `peach_harvester`（supervisor） | `RunHarvest`、`ControlTask`、`HarvestState`/`events`、lifecycle | 观测（选果，仅 `target_observations`）、动作结果 | RGB-D 处理、MoveIt 规划接触、Nav2 规划 |
-| `peach_bringup` | 整栈 launch / 预检 | Include 只读 `aubo_e5_bringup` | 不自动 RunHarvest |
+| `peach_bringup` | 整栈 launch / 预检 | Include 只读 `aubo_e5_bringup` | 默认不自动 RunHarvest（`autostart:=true` 选配：授权=操作员发起 real launch，客户端硬等自检绿） |
 | `peach_observability` | 8090 转发、独立 rosbag2 | 调度/技能只读话题 | 不发运动 |
 | `peach_vegetation` | `/peach/vegetation/{leaf_mask,branch_mask,overlay,status}` | 彩色图 `image`（remap） | 运动、PlanningScene、octomap、选果 |
 | `peach_sim` | 果园世界 `worlds/peach_orchard.sdf`、采摘工位 xacro、目标清单 GT（`peach_orchard.manifest.yaml`：袋底=entry/袋颈/轴/果心/`reachable`）、履带可驾驶仿真 + Nav2 巡园（`orchard_nav.launch.py` + `tour_node`，2026-10-08 起）、重建去草整园纯视觉查看世界 `worlds/field_no_grass.sdf`（单静态 GLB visual，无碰撞体/传感器/桥/TF，非 GT） | `config/orchard.yaml`（场景参数唯一事实源） | 不进 `harvest_system` / 不订 peach 话题；gz↔ROS 桥按 `config/orchard_bridge.yaml` 六路：`/clock`、`/joint_states`（gz `gz.msgs.Model`→`sensor_msgs/JointState`）、`/odom`、`/tf`、`/scan`、`/cmd_vel`；巡园动作=Nav2 自带 `NavigateToPose`（nav2_simple_commander），非 peach IDL |
@@ -57,7 +57,7 @@ flowchart LR
 | `ExecuteTarget` PREGRASP_ONLY | 技能 `~/execute_target` | `_cmd_full` | 默认 `execute_pregrasp_only=true` 时替代 FULL；停预抓取等 ACK |
 | （可选）`skip_reconstruction` | 调度参数 | `_cmd_dispatch` | launch `skip_reconstruction:=true` 时 **不发** Build/OBSERVE，直接 `READY_FULL`；接触几何=锁定集场景观测。brain overlay 按节点名分节写 ParameterFile（unnamed Node 上扁平 dict 与 `peach_supervisor` 单键嵌套都打不进进程内节点，2026-09-30 实测）。默认 false |
 | `ControlTask` | 调度 `~/control` | 人工（监控只读不发） | PAUSE / SKIP / CANCEL… |
-| `ManageLifecycleNodes` | 管理器 `~/manage_nodes` | 人工 | STARTUP/PAUSE/RESUME/RESET/SHUTDOWN；不发 RunHarvest |
+| `ManageLifecycleNodes` | 管理器 `~/manage_nodes` | 人工 | STARTUP/PAUSE/RESUME/RESET/SHUTDOWN；不发 RunHarvest。**整栈 harvest_system 用 nav2_lifecycle_manager（同名节点 `peach_lifecycle_manager`、nav2_msgs 自带服务），本服务仅独立起自研管理器（`peach_harvester/launch/lifecycle_manager.launch.py`）时存在** |
 
 ---
 ## 2. 相机契约（全栈共享 /camera/*，前端二选一）
@@ -73,7 +73,7 @@ flowchart LR
 | `/camera/depth/camera_info` | 深度内参（配准后与彩色同 K；stereo 前端同发） |
 | `/camera/depth_registered/points` | 配准彩色点云（percipio 默认开；stereo 同名，点云多一个 `confidence` 字段，见下） |
 
-**相机前端（2026-09-17 起，harvest_system `camera_frontend:=percipio|stereo|replay`；**默认 stereo**，2026-09-29 用户裁定；percipio 显式传参仍可用；`replay` 不起驱动，由各栈系统测包 `frozen_camera_replay.py` 冻结 bag 重发同名 `/camera/*`；v1 另经 `brain_params_overlay` 装 `frozen_one_view.yaml`（`min_views=1`、基线 0°、`reconstruct_in_trajectory`，不用 `skip_reconstruction`），v2 经 `target_model_config` 装 `frozen_target_model.yaml`（单视 sigma 放到参数上限、`observe_max_views:=1`、测试标定 `status: calibrated` + 测试 `L_insert`），经 `scene_config` 装 `frozen_scene.yaml`（硬障碍抬成飞点），经 `perception_config` 装 `frozen_perception.yaml`（锁门 3 帧 / 0.5 s、`confirm_hits=1`、传感 QoS RELIABLE；`lock_wait_s:=20`）；v1 驱动另关 `moveit.obstacle_guard_enabled`）**：percipio=设备端 18 图案深度（~2.43 fps，额定量程 0.4–0.8 m；09-21 修复 `parameters.xml` 调参残留下发致深度大面积无效——该 XML 是无条件下发通道，实验值勿残留）；stereo=`peach_stereo` 主机单图案立体（~13.7 fps，hh4 档；话题与 percipio 同构：`color/image_raw`、`depth/image_raw`、`{color,depth}/camera_info`、`depth_registered/points`——stereo 点云比 percipio 多一个 `confidence` FLOAT32 字段（point_step 24=xyz12+pad4+rgb4+confidence4——confidence 在 rgb 槽之后，勿与 rgb@16 重叠；`temporal_k>1` 时=窗内采样占比×取值一致性、与发布深度逐像素对齐，`=1` 时恒 1.0；消费方按字段名读，octomap/RViz/PCL 兼容）；深度口径 uint16×0.25 mm；只发 raw Image + 点云，不用 image_transport；静态 TF 同名链；激光满功率点亮、停栈自动复位；与 percipio 相机连接互斥；SGBM 档 `sgbm.mode`/`sgbm.uniqueness_ratio`/`median_ksize` + 配准后滑窗时域中值 `temporal_k`（1=关/3/5 非法拒启；逐像素有效中值、每帧照常发布不除率；部署 yaml=3，09-21 live A/B：entry std z 0.41→0.21mm、袋半径 std 0.27→0.14mm、覆盖 +0.4pp、13.7gps 无回归），参数依据见该包 README 与 yaml 注释）。规格档案与实测数据见 `src/peach/peach_stereo/README.md`。感知/重建订阅零改动。
+**相机前端（2026-09-17 起，harvest_system `camera_frontend:=percipio|stereo|replay`；**默认 stereo**，2026-09-29 用户裁定；percipio 显式传参仍可用；`replay` 不起驱动，由各栈系统测包 `frozen_camera_replay.py` 冻结 bag 重发同名 `/camera/*`；v1 另经 `brain_params_overlay` 装 `frozen_one_view.yaml`（`min_views=1`、基线 0°、`reconstruct_in_trajectory`，不用 `skip_reconstruction`），v2 经 `target_model_config` 装 `frozen_target_model.yaml`（单视 sigma 放到参数上限、`observe_max_views:=1`、测试标定 `status: calibrated` + 测试 `L_insert`），经 `scene_config` 装 `frozen_scene.yaml`（硬障碍抬成飞点），经 `perception_config` 装 `frozen_perception.yaml`（锁门 3 帧 / 0.5 s、`confirm_hits=1`、传感 QoS RELIABLE；`lock_wait_s:=20`）；v1 驱动另关 `moveit.obstacle_guard_enabled`）**：percipio=设备端 18 图案深度（~2.43 fps，额定量程 0.4–0.8 m；09-21 修复 `parameters.xml` 调参残留下发致深度大面积无效——该 XML 是无条件下发通道，实验值勿残留）；stereo=`peach_stereo` 主机单图案立体（~13.5–13.7 fps（档位相关），hh4 档；话题与 percipio 同构：`color/image_raw`、`depth/image_raw`、`{color,depth}/camera_info`、`depth_registered/points`——stereo 点云比 percipio 多一个 `confidence` FLOAT32 字段（point_step 24=xyz12+pad4+rgb4+confidence4——confidence 在 rgb 槽之后，勿与 rgb@16 重叠；`temporal_k>1` 时=窗内采样占比×取值一致性、与发布深度逐像素对齐，`=1` 时恒 1.0；消费方按字段名读，octomap/RViz/PCL 兼容）；深度口径 uint16×0.25 mm；只发 raw Image + 点云，不用 image_transport；静态 TF 同名链；激光满功率点亮、停栈自动复位；与 percipio 相机连接互斥；SGBM 档 `sgbm.mode`/`sgbm.uniqueness_ratio`/`median_ksize` + 配准后滑窗时域中值 `temporal_k`（1=关/3/5 非法拒启；逐像素有效中值、每帧照常发布不除率；部署 yaml=3，09-21 live A/B：entry std z 0.41→0.21mm、袋半径 std 0.27→0.14mm、覆盖 +0.4pp、13.7gps 无回归），参数依据见该包 README 与 yaml 注释）。规格档案与实测数据见 `src/peach/peach_stereo/README.md`。感知/重建订阅零改动。
 
 感知/重建 ApproximateTime slop **0.05 s**。驱动 QoS 字符串 `default`（RELIABLE）；订户手写 RELIABLE、depth=10。跨包轴向后撤只改 `src/peach/peach_harvester/config/grasp_standoffs.yaml` 两行（`entry_standoff_m` / `pregrasp_standoff_m`），launch 注入各节点已声明参数。
 
@@ -93,10 +93,11 @@ base_link → 臂链 → wrist3_Link
   → camera_link（extrinsics_publisher 标定权威）
      → camera_color_frame → camera_color_optical_frame（感知 yaml）
      → camera_depth_frame → camera_depth_optical_frame（深度 header、技能 yaml）
-  → tool_axis → cutting_plane / tcp / sleeve_mouth / tool_body_link
+  → tool_axis → cutting_plane / tcp / sleeve_mouth
+  → tool_body_link（identity，载 CAD 网格）
      （按 launch tool_profile 选档案，帧名共用：shear_v1 TCP (0, 47.90, 151.07) mm Rx(−90°)（传承旧 hollow 基准）/
       bite_shear_v1 TCP (0, 30.24, 165.5) mm / adaptive_shear_v1 TCP (0, 47, 168.66) mm Rx(−90°)；
-      Z=开口，XY=刀口；TCP=刀口/工作口设计基准（adaptive 与旧圆柱同基准、bite 总装测量点；shear_v1 为 CAD 推导）；tool_body_link 挂 wrist3_Link 载 CAD 网格）
+      Z=开口，XY=刀口；TCP=刀口/工作口设计基准（adaptive 与旧圆柱同基准、bite 总装测量点；shear_v1 为 CAD 推导）；tool_body_link 挂 wrist3_Link）
 ```
 
 无 `active.yaml` 时名义 TF：`wrist3_Link→camera_link` 平移 2 cm、单位四元数。现场标定约 `[0.045, 0.108, 0.002]`。驱动两光学系相对 `camera_link` 平移为 0（源码如此；未 live echo 不改名）。

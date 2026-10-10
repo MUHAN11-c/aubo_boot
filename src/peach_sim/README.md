@@ -108,8 +108,9 @@ aubo_py3.12/bin/python src/peach_sim/reconstruction/validate_perception.py \
 双门 JSON + `matrix_*` 摘要 + `appearance_board.jpg` /
 `dataset_depth_comparison.jpg` + `before_after.jpg`）。矩阵帧、EXR、`.blend`、
 `modeling_*/` 中间轮次、`field_anchor/`、`depth_pop/` 不入库，本机也不堆积
-（重渲即可）。field 规模场景默认写 `output/field_anchor/`。只改相机与采样可用
-`render_saved.py`。
+（重渲即可）。field 规模场景须显式传 `--out .../field_anchor`（`--out`
+默认恒为 `output/`，不随 `--scale` 切换，上文示例即显式传参）。只改相机与
+采样可用 `render_saved.py`。
 `field` 场景只含 3 行×8 株推断桃树，不插入实拍对齐的局部树干；该参考局部
 仅保留在 `validation` 场景。field 树用成熟冠幅（`SCALES['field']['crown']=1.5`，
 株距 3 m 下行内冠层交接成树篱，树高仍 ≤2.5 m），并以无袋集合实例把行列
@@ -213,20 +214,33 @@ nobag/Depth/233.png 全零，nobag 缺 10 个 VOC4 标注，均留证不补造�
    3 视序列 ≥1/≥2 检出）不低于冻结基线 −0.05，防建模改动造成静默回
    归；深度为理想渲染值（无噪声模型）。逐轮结论追加 `reconstruction/RESULTS.md`。
 
-## 无草整园 Gazebo 查看（重建 GT 桥接，2026-10-09）
+## 无草整园 Gazebo 查看（重建 GT 桥接，2026-10-09/10）
 
 重建整园去草版（`build_scene.py --no-grass`）导出单 GLB 供 Gazebo 人工查看：
 `blender/export_field_to_gz.py` 删相机/灯与 backdrop 远景行 → GN 叶实例插
-Realize 节点求值物化（秒级，勿走逐对象 apply）→ 合并导出 GLB（220 MB /
-370 万顶点；`--keep-backdrop` 留远景行，`--decimate R` 减面）。
+Realize 节点求值物化（**两阶段**：先全部物化再删原对象——边物化边删会使
+depsgraph 失效、23/24 棵树静默丢叶）→ 逐对象 `Mesh.transform` 烘焙世界
+变换（多对象不 join）→ `export_yup=False` 导出（本机 gz-common
+5.9/Assimp 链按 Z-up 直读 GLB 顶点，yup=True 会被竖成 90° 墙；与
+build_assets 树 GLB 的表现差异未深究，以实测为准）。全叶版 ≈1.7 GB /
+3650 万顶点（24 树 × ~170 万顶点叶幕），首次加载需数分钟；嫌慢用
+`--decimate 0.25` 出轻量版。`--keep-backdrop` 留远景行。
 
 ```bash
+# 导出（工作区根目录）
 _tools/blender-4.5.14-linux-x64/blender -b \
   src/peach_sim/reconstruction/output/field_no_grass_20261009/bagged_peach_orchard.blend \
   -P src/peach_sim/blender/export_field_to_gz.py -- \
   --out src/peach_sim/meshes/field_no_grass.glb
+
+# 仅看世界（纯视觉静态模型，查看完关窗即清）
 GZ_SIM_RESOURCE_PATH=src:src/peach_sim gz sim -r \
-  src/peach_sim/worlds/field_no_grass.sdf   # 纯视觉静态模型，查看完关窗即清
+  src/peach_sim/worlds/field_no_grass.sdf
+
+# 带采摘机器人（复用 orchard_sim 全套 spawn/bridge；mobile 模式但本世界
+# physics=ignored，履带不驱动——驾驶体验用默认 peach_orchard.sdf）
+ros2 launch peach_sim orchard_sim.launch.py \
+  world:=install/peach_sim/share/peach_sim/worlds/field_no_grass.sdf mobile:=true
 ```
 
 仅为人工查看效果；导航/感知 GT 仍以 `worlds/peach_orchard.sdf`（程序化

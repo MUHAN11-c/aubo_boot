@@ -17,10 +17,7 @@
 import { ivgPorts } from './ivg_runtime.js';
 import { ivgTransport } from './ivg_transport.js';
 import { ros } from './core/ros.js';
-import * as ROSLIB from 'roslib';
-import * as ROS3D from 'ros3d';
 import { createDomCache } from './core/dom_cache.js';
-import { IvgRos3dView3dSession } from './view3d/session.js';
 import { createVisionSettingsController } from './vision_grasp/ui_settings.js';
 import { createVisionUrdfPanel } from './vision_grasp/urdf_panel.js';
 import { createProjectionOverlayController } from './vision_grasp/projection_overlay.js';
@@ -51,16 +48,15 @@ import {
 } from './components/pose-card.js';
 
 (() => {
-	if (!ROSLIB || !ROS3D || !IvgRos3dView3dSession) {
-		throw new Error('vision_grasp_panel.js requires ROSLIB/ROS3D and IvgRos3dView3dSession');
-	}
+	// 3D 视图已切渲染新岛（island_session，经 urdf_panel 默认会话）；
+	// ROSLIB 仍服务于控制面服务（阶段 3 移除）
 	const PAGE_STREAM_SUFFIX = `${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
 	const subs = {};
 	/** 左栏 URDF：独立 3D 会话控制器，避免与控制面 WS 生命周期互相干扰。 */
 	const visionUrdfPanel =
 		typeof createVisionUrdfPanel === 'function'
 			? createVisionUrdfPanel({
-				SessionCtor: IvgRos3dView3dSession,
+				// 渲染新岛（现代 three + urdf-loader + foxglove 数据）；不传 SessionCtor 走默认
 				documentRef: document
 			})
 			: null;
@@ -137,7 +133,7 @@ import {
 	/*
 	 * 本文件内局部函数按主题分组（便于跳转；各 function 建议配合 IDE 大纲阅读）：
 	 * - 话题/TF 工具：normalizeIvgTopic … buildCameraInfoTopic
-	 * - 2D 投影与 TF 图：vision_grasp/projection_overlay.js（复用 view3d/tf_clients.js 中 ivgFindRelativeTransform 等）
+	 * - 2D 投影与 TF 图：vision_grasp/projection_overlay.js（复用 core/tf-math.js 中 ivgFindRelativeTransform 等）
 	 * - 投影叠加：resetProjectionState … scheduleProjectionDraw
 	 * - 设置持久化：getSetting … clearTopicsStorage
 	 * - 模态与连接：topicSettingsModalOpen … connect / syncModeUi
@@ -302,7 +298,12 @@ import {
 		if (visionUrdfPanel) visionUrdfPanel.layout();
 	}
 
+	let _vision3dStarted = false;
 	function startVisionUrdf3d() {
+		// 渲染新岛数据自管理（foxglove 惰性建连），不再等 rosbridge 连接流；
+		// 连接流里的重复调用按幂等跳过
+		if (_vision3dStarted) return;
+		_vision3dStarted = true;
 		if (visionUrdfPanel) visionUrdfPanel.start($, ivgTransport.ros);
 	}
 
@@ -746,12 +747,15 @@ import {
 		_callGetCurrentToolAndSubscribe();
 	}
 
-	document.addEventListener('DOMContentLoaded', () => {
-		void (async () => {
-			await ivgPorts.loadRuntime();
-			loadTopicsFromStorage();
+		document.addEventListener('DOMContentLoaded', () => {
+			void (async () => {
+				await ivgPorts.loadRuntime();
+				loadTopicsFromStorage();
 
-			jointChart.observeResize();
+				// 3D 视图即启（渲染新岛：foxglove 数据自管理，不等待 rosbridge 连接流）
+				startVisionUrdf3d();
+
+				jointChart.observeResize();
 			monitoringCollapse.bindEvents();
 			monitoringCollapse.scheduleSyncMinHeight();
 			requestAnimationFrame(() => monitoringCollapse.scheduleSyncMinHeight());

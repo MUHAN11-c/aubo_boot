@@ -25,19 +25,6 @@ def _add_args(p: argparse.ArgumentParser) -> None:
     p.add_argument("--directory", "-d", required=True,
                    help="静态文件根目录 (share/.../web/public)")
 
-    # rosbridge 上游连接参数
-    g = p.add_argument_group("rosbridge 上游")
-    g.add_argument("--rosbridge-host", default=cfg.rosbridge_host())
-    g.add_argument("--rosbridge-port", type=int, default=cfg.rosbridge_port())
-    g.add_argument("--rosbridge-max-msg-bytes", type=int,
-                   default=cfg.rosbridge_max_message_bytes())
-    g.add_argument("--rosbridge-ping-interval", type=int,
-                   default=cfg.rosbridge_ping_interval())
-    g.add_argument("--rosbridge-ping-timeout", type=int,
-                   default=cfg.rosbridge_ping_timeout())
-    g.add_argument("--rosbridge-close-timeout", type=int,
-                   default=cfg.rosbridge_close_timeout())
-
     # foxglove_bridge 上游连接参数
     f = p.add_argument_group("foxglove_bridge 上游")
     f.add_argument("--foxglove-bridge-host", default=cfg.foxglove_bridge_host())

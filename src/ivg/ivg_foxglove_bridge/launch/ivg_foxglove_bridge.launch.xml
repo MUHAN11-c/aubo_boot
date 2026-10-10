@@ -1,0 +1,8 @@
+<launch>
+  <arg name="port" default="8765"/>
+  <arg name="params_file" default="$(find-pkg-share ivg_foxglove_bridge)/config/ivg_foxglove_bridge_params.yaml"/>
+  <node pkg="ivg_foxglove_bridge" exec="foxglove_bridge" name="foxglove_bridge" output="screen" respawn="true" respawn_delay="2">
+    <param from="$(var params_file)"/>
+    <param name="port" value="$(var port)"/>
+  </node>
+</launch>

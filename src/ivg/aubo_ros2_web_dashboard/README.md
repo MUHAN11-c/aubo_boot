@@ -25,8 +25,7 @@ FastAPI 网关（**零 ROS 依赖纯代理**，端口 **8095**）+ 8 个 MPA 面
 | IO 写 | /aubo_driver/set_io ivg SetRobotIO | `/aubo_io_controller/set_io` aubo_msgs/SetIO（fun=1 板载 DO） |
 | upstream_proxy 尾部空 router 重绑 | 有（疑似死代码） | 删除 |
 
-已知降级：调试面板"工具电压"按钮调 `/aubo/set_tool_voltage`（本仓无对应服务，
-点击报服务不存在，属预期降级）。
+已知降级：调试面板"工具电压"按钮调 `/aubo/set_tool_voltage`（`ivg_interfaces/srv/SetToolVoltage` 类型本身未定义、亦无服务端——补服务端前须先在 ivg_interfaces 建 srv，点击报错属预期降级）。另注意 **8089 双占**：本栈 web_video_server 上游与 `ivg_pose_estimation` Web 默认口同为 8089，视觉 Web 与面板视频流同机并行会撞口（错开一方端口）。
 
 ## 公有 API
 

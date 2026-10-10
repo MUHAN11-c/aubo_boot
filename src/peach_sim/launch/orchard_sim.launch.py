@@ -10,7 +10,7 @@
 4. ``mobile:=true``（自主导航轮，被 ``orchard_nav.launch.py`` Include）：
    xacro 根翻转为 ``platform_base_link``（REP-105），spawn 用车体中心位姿，
    桥接换 ``config/orchard_bridge.yaml``（增 odom/tf/scan 入、cmd_vel 出），
-   履带驱动由 gz TrackedVehicle + TrackController 摩擦驱动。
+   履带驱动由 gz DiffDrive 实现（TrackedVehicle 方案已否，见 README 自主导航节）。
 
 场景几何/摆位唯一事实源是 ``config/orchard.yaml``：改挂果、树行或工位后先
 ``ros2 run peach_sim generate_orchard`` 重生成世界与目标清单，再起本 launch。

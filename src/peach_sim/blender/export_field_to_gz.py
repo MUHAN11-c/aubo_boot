@@ -21,7 +21,6 @@ from __future__ import annotations
 
 import argparse
 import sys
-import time
 
 import bpy
 
@@ -155,6 +154,10 @@ def main() -> None:
         log('realize node inserted into', nt.name)
 
     depsgraph = bpy.context.evaluated_depsgraph_get()
+    # Two phases: evaluate ALL GN objects first, delete originals after.
+    # Removing an object mid-loop invalidates the depsgraph handles, which
+    # silently yielded empty leaves for every tree but the first.
+    realized = []
     for obj in gn_objs:
         ob_eval = obj.evaluated_get(depsgraph)
         mesh_eval = bpy.data.meshes.new_from_object(
@@ -162,8 +165,12 @@ def main() -> None:
         new_ob = bpy.data.objects.new(obj.name + '_real', mesh_eval)
         new_ob.matrix_world = obj.matrix_world.copy()
         bpy.context.scene.collection.objects.link(new_ob)
+        realized.append(new_ob)
+    for obj in gn_objs:
         bpy.data.objects.remove(obj, do_unlink=True)
-    log('gn objects realized:', len(gn_objs))
+    log('gn objects realized:', len(realized), 'leaf verts per tree ~',
+        max((len(o.data.vertices) for o in realized
+             if 'leaves' in o.name), default=0))
 
     # Only meshes inside the view layer: GN prototype sources (e.g. leaf
     # proto 0..19) live in collections excluded from rendering, and
@@ -176,12 +183,15 @@ def main() -> None:
     if not meshes:
         raise RuntimeError('no meshes left to export')
 
-    # Keep meshes as separate objects (no join). gz-common 5.9 loads glb
-    # through Assimp: a single-node single-mesh glb rendered rotated 90 deg
-    # (vertical ground wall) while multi-node glbs (build_assets trees)
-    # load upright — match the proven structure. Bake each object's world
-    # matrix into its vertices via Mesh.transform (pure data op; per-object
-    # bpy.ops.transform_apply costs ~1 ms x 13k objects and is too slow).
+    # Keep meshes as separate objects (no join): smaller GLB than a joined
+    # single mesh (measured on the 2026-10-09 scene: ~143 MB vs 220 MB; the
+    # current full-leaf asset is ~1.6 GB either way) and structural parity
+    # with build_assets tree GLBs.
+    # Bake each object's world matrix into its vertices via Mesh.transform
+    # (pure data op; per-object bpy.ops.transform_apply costs ~1 ms x 13k
+    # objects and is too slow). Axis note: the export itself uses
+    # export_yup=False — this gz-common 5.9/Assimp chain reads GLB vertices
+    # as Z-up, so yup=True data renders as a 90-degree vertical wall.
     for obj in meshes:
         obj.data.transform(obj.matrix_world)
         obj.parent = None
@@ -192,20 +202,25 @@ def main() -> None:
         len(meshes))
 
     if args.decimate > 0:
-        for obj in meshes:
+        # Only decimate the big leaf meshes (~1.7 M verts each): applying a
+        # decimate modifier per object via ops costs ~0.1 s each, and the
+        # 13k small objects contribute almost nothing to the file size.
+        big = [o for o in meshes if len(o.data.vertices) > 100_000]
+        for obj in big:
             mod = obj.modifiers.new('gz_decimate', 'DECIMATE')
             mod.ratio = args.decimate
             bpy.context.view_layer.objects.active = obj
             bpy.ops.object.modifier_apply(modifier=mod.name)
-        log('decimated every mesh at ratio', args.decimate)
+        log('decimated', len(big), 'big meshes at ratio', args.decimate)
 
     log('verts total:', sum(len(o.data.vertices) for o in meshes))
     bpy.ops.object.select_all(action='DESELECT')
     for obj in meshes:
         obj.select_set(True)
     bpy.ops.export_scene.gltf(filepath=args.out, export_format='GLB',
-                              use_selection=True, export_yup=True)
-    log('exported', args.out)
+                              use_selection=True, export_yup=False)
+    log('exported (yup=False: vertices stay Blender Z-up, matching what '
+        'this gz/Assimp build actually renders upright)', args.out)
 
 
 main()

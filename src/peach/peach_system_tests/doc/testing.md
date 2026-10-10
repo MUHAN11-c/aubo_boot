@@ -9,10 +9,55 @@
 - 未授权不得真机运动或 SetIO（操作员在 real 上发起 launch/操作台指令 = 授权）。
 - 硬件急停在示教器/柜，不经 ROS；`RobotMoveStop`/取消 action 是应用停轨，**不得称 e-stop**。
 - 驱动九包只读；`auto_power_on=false`；bringup 不起 `aubo_dashboard`。
-- **测完即停**：任何测试/程序结束后必须退出并 `pgrep` 清残留（见 §14）。
+- **测完即停**：任何测试/程序结束后必须退出并 `pgrep` 清残留（见 §15）。
 - mock 不证明安全；碰撞、电流、急停回路、刀、人在环只在真机 KEEP。
 
-## 1. 构建与环境（开发机）
+## 1. 默认配置（先读：不带参数启动你得到什么）
+
+```bash
+ros2 launch peach_bringup harvest_system.launch.py
+```
+
+等价于 `hardware_mode:=mock camera_enabled:=false`：**mock 臂（GenericSystem+标准 JTC）、无相机、MoveIt+RViz2 起、手眼 TF 起、IMU 起、会话 bag 随栈开、全部执行使能关**。未开 `execution_enabled` 时发 RunHarvest 只走 WAIT_LOCK 后结算，不动臂。进程拓扑与数据流见 [peach_bringup/doc/architecture.md](../../peach_bringup/doc/architecture.md)。
+
+### launch 参数默认值（`harvest_system.launch.py`；完整列表 `--show-args`）
+
+| 参数 | 默认 | 说明 |
+|------|------|------|
+| `hardware_mode` | `mock` | 真机须显式 `real`（另需示教器上电与 `robot_ip`） |
+| `robot_ip` | `169.254.10.98` | AUBO 控制器 IP；mock 不使用 |
+| `tool_profile` | `adaptive_shear_v1` | 末端工具档案；`shear_v1`/`bite_shear_v1` 显式传，切换须整栈隔离重启 |
+| `autostart` | `false` | true 时托管栈就绪自动发 RunHarvest（授权语义=操作员在 real 上发起本 launch） |
+| `moveit_enabled` | `true` | move_group + RViz2 |
+| `camera_enabled` | `false` | 相机总开关；前端由 `camera_frontend` 决定 |
+| `camera_frontend` | `stereo` | stereo=peach_stereo 主机单图案立体（~13.5 FPS，话题同构）；percipio=设备端 18 图案（2.43 FPS、额定量程 0.4–0.8 m）显式备用；replay=不起驱动、冻结 bag 重发 `/camera/*`（§7）。stereo/percipio 互斥（相机连接独占） |
+| `camera_ip` | `169.254.10.110` | peach_stereo 前端使用 |
+| `extrinsics_enabled` | `true` | 手眼外参静态 TF（extrinsics_publisher） |
+| `hand_eye_enabled` / `hand_eye_web_enabled` | `false` / `false` | 标定采集流程与标定 Web（8088 回环）；标定轮才开（§12） |
+| `imu_enabled` | `true` | USB 串口 IMU；无设备每 2 s 重试不挡栈；不进 lifecycle |
+| `use_sim_time` | `false` | bag 回放 true + `ros2 bag play --clock`；真机禁止误开 |
+| `bond_timeout` | `0.0` | nav2_lm 进程死检窗口 [s]；0=关（现行） |
+| `skip_reconstruction` | `false` | 真机 KEEP false；测试档语义见 §8 |
+| `brain_params_overlay` | `''` | 冻结相机等测试 overlay；空=不装（§7） |
+
+### 运行期使能默认（软件门全关）
+
+| 门 | 默认 | 语义 |
+|----|------|------|
+| `/peach_supervisor execution_enabled` | false | false 时 WAIT_LOCK 后直接结算，不选目标、不派 ExecuteTarget |
+| `/peach_arm execution.enabled` | false | 默认只规划；置 true 后每个周期还须人工调 `/peach_arm/set_execution_armed`（SetBool） |
+| `/peach_arm grasp.enabled` | false | 默认停在 READY_FOR_GRASP；依赖链 execution→grasp→tool 由参数校验钩子强制 |
+| `/peach_arm tool.enabled` | false | 工具 IO 默认关；开启要求 grasp.enabled=true |
+| `/peach_supervisor execute_pregrasp_only` | true | 接触段发 PREGRASP_ONLY：到预抓取停住、不回 stow、不 SetIO、ACK 后再 Survey |
+| RunHarvest `intent` | 0 | PICK_ALL=0 / PICK_SELECTED=1 / SURVEY_ONLY=2（只扫不运动） |
+
+使能是运行时开关（`ros2 param set`，或 `/peach_supervisor/set_enables` 服务——意图源 supervisor、广播 `/peach/batch/enables` 并写审计）；mock/real 同一套门。mock 差异：不起 `aubo_io_controller`，launch 把 `/peach_arm execution.require_robot_status` 置 false（真机 KEEP true，`robot_status` 门生效）。会话 bag 默认随栈录制（`record.level: std`——相机大流限 1 Hz；总量预算 100 GB 最旧先删，报告/账本永不删）。
+
+**仿真下相机 TF 是静态的（重要语义）**：相机为腕载（eye-in-hand，外参 `wrist3_Link → camera_link` 静态 × 腕 TF 动态复合，真机上相机随臂动）。mock 下这一复合**不成立**——真相机一旦打开就物理固定在机位上、回放 bag 也是固定机位采集，都跟不上 mock 臂的 TF 运动。因此仿真下相机相关 TF 必须按**静态锚定**理解：相机位姿锚在拍照/采集位，移动 mock 臂**造不出**新相机机位（视点增量只在真机上存在）。具体形态见 §7（回放窗内静态锚定+锚点允许过期）与 §8（物理相机+mock 臂凑不出第二独立机位）。
+
+环境默认（venv / numpy / 权重）见 §2；真机档位与授权纪律见 §9。
+
+## 2. 构建与环境（开发机）
 
 ```bash
 source /opt/ros/jazzy/setup.bash
@@ -27,18 +72,22 @@ pgrep -af 'ros2 launch|component_container|extrinsics_publisher|ros2 run'
 - 感知模型权重随仓：`peach_harvester/model/best.pt`（YOLO）与 `mobile_sam.pt`；空路径在参数层拒绝启动。
 - 改完 C++ 后 **Clangd: Restart language server**；驱动栈 CMakeLists 只读。
 
-## 2. 测试塔
+## 3. 测试塔
 
 | 层 | 工具 | 内容 |
 |----|------|------|
 | Lint | `ament_lint_auto`（flake8/pep257/uncrustify/cppcheck） | 各包 `test/` 默认保留；`peach_arm` 跳过 cpplint（版权头/include 序与本项目约定冲突，SNAPSHOT） |
 | 纯核 | pytest（零 rclpy）/ gtest | `peach_common` 七文件、`peach_harvester` 纯核组、`peach_observability/test_bag_report`、`peach_arm` gtest 十三套、`serial_imu`/`imu_follow` 协议与核 |
 | 集成 | isolated launch_testing | 本包（域 89–94），mock 硬件 |
-| 仿真 | `peach_sim`（Gazebo Harmonic + Blender 离线门） | 见 §12 |
+| 仿真 | `peach_sim`（Gazebo Harmonic + Blender 离线门） | 见 §13 |
 | 现场 | 真机 + `runs/` | 方向/接触对错的最终权威（KEEP） |
 
 ```bash
 # 纯核+lint 门（原 r0_gate.sh 的等价命令；该脚本 2026-10-10 退役）
+# launch_testing 套件起真实节点，须先带上 venv（否则节点 No module named 'open3d'/
+# torch 而超时红——2026-10-10 实证）：source Jazzy 后
+#   export PYTHONPATH=/home/mu/Desktop/aubo_e5_jazzy_ws/aubo_py3.12/lib/python3.12/site-packages:$PYTHONPATH
+# （即 §2 的 venv 双 source 次序；纯核/清单核对不带 venv 也可跑）
 colcon test --packages-select peach_common peach_interfaces peach_harvester \
   peach_arm peach_bringup peach_observability peach_vegetation peach_system_tests peach_sim
 colcon test-result --verbose
@@ -48,7 +97,7 @@ python3 src/peach/peach_interfaces/scripts/check_interface_manifest.py
 
 测试文件名必须匹配 pytest 默认收集（`test_*.py`）——2026-09-18 前曾因 `vision_test_*` 命名 24 个模块不被收集（假绿）。C++ 新测试允许 gtest；launch_testing 用 ENV 隔离域（Jazzy 无 `add_ros_isolated_launch_test` 宏，等效 `ROS_DOMAIN_ID=<N> ROS_LOCALHOST_ONLY=1`）。
 
-## 3. 命名
+## 4. 命名
 
 批次 `request_id` 同时是账本目录名 `runs/<request_id>/`，**不得复用**，按当时本地时间填 `YYYYMMDD`/`HHMM`。
 
@@ -62,9 +111,9 @@ python3 src/peach/peach_interfaces/scripts/check_interface_manifest.py
 | 开发机 mock | `dev` | `intent` 默认 0 |
 | 监控会话 | `runs/session_<YYYYMMDD>_<HHMMSS>/bag/` | observability 随栈开合，停栈自动出 `bag_report.md` |
 
-`scene_key` 现行实验室用 `lab`；`profile_id` 现行 `default`。`runs/` 结构化文本入库随仓、bag/图像等二进制只留本地（.gitignore 白名单）；分析完成后删除 `bag/` 目录回收（历史回收脚本已退役，政策不变）。
+`scene_key` 现行实验室用 `lab`；`profile_id` 现行 `default`。`runs/` 结构化文本入库随仓、bag/图像等二进制只留本地（.gitignore 白名单）；分析完成后删除 `bag/` 目录回收——现行入口是 `peach_observability.retention.purge_analyzed_sessions` Python API（纯核选择+I/O 执行，逐条写 `runs/retention_audit.jsonl` 审计；原 scripts/ 回收脚本已随 2026-10-10 清理退役）。
 
-## 4. mock 起 + 冒烟
+## 5. mock 起 + 冒烟
 
 ```bash
 ros2 launch peach_bringup harvest_system.launch.py \
@@ -81,29 +130,33 @@ ros2 launch peach_bringup harvest_system.launch.py \
 6. 相机开时：`ros2 topic hz /camera/color/image_raw`（订阅 QoS 须与发布端一致；本机 `hz` CLI 有恒 0 帧怪癖，帧率以 30 帧探针为准）；驱动深度健康口径=头 30 帧 valid <10% 即异常。
 7. 启动自检（0037）：栈激活后 observability 自动首轮自检、每 30s 复检；`ros2 topic echo --once /peach/observability/selfcheck_passed`；软门语义=自检红只呈现不拦手动 RunHarvest，`autostart:=true` 的自动批硬等 `selfcheck_passed=true`。
 
-launch 参数（常用）：`tool_profile`（默认 `adaptive_shear_v1`；`shear_v1`/`bite_shear_v1` 显式传，切换须整栈隔离重启）、`camera_frontend`（`stereo` 默认 / `percipio` / `replay`）、`imu_enabled`（默认 true）、`skip_reconstruction`（默认 false；真机 KEEP false，且真感知下不可用）、`brain_params_overlay`（冻结相机等测试 overlay）、`use_sim_time`（bag 回放 true + `ros2 bag play --clock`；真机必须 false）。完整列表 `--show-args`。
+launch 参数默认值全表见 §1；测试常用覆盖：`camera_enabled:=true`（前端默认 stereo）、`tool_profile`（切换须整栈隔离重启）、`skip_reconstruction`（真机 KEEP false，且真感知下不可用，语义见 §8）、`brain_params_overlay`（冻结相机 overlay，§7）、`use_sim_time`（bag 回放 true + `ros2 bag play --clock`；真机必须 false）。完整列表 `--show-args`。
 
-## 5. 本包 launch_testing（isolated 域）
+## 6. 本包 launch_testing（isolated 域）
 
 | 测试 | 域 | 内容 |
 |------|----|------|
-| `test_mock_launch.py` | 89 | mock `harvest_system` 起栈接线：`/joint_states` MUST 序、lifecycle Active、**不发 RunHarvest**、ENV 隔离（`ROS_DOMAIN_ID=89 ROS_LOCALHOST_ONLY=1`）、`AUBO_RUNS_DIR` 指临时目录、`QT_QPA_PLATFORM=offscreen` |
-| `test_e1_supervisor_chain.py` | 90 | 测试进程真发 RunHarvest 走完 FSM（「不发 RunHarvest」仅指 mock_launch） |
+| `test_mock_launch.py` | 89 | mock `harvest_system` 起栈接线：`/joint_states` MUST 序、lifecycle Active、**不发 RunHarvest**、ENV 隔离（`ROS_DOMAIN_ID=89 ROS_LOCALHOST_ONLY=1`）、`AUBO_RUNS_DIR` 指临时目录、`QT_QPA_PLATFORM=offscreen`；W14 起 bond 心跳爆发核对（`/bond`，WaitForTopics 收不到时直订 rclpy）与 P0 自检通过+`runs/session_*/selfcheck.json|startup.json` 工件路径 containment |
+| `test_e1_supervisor_chain.py` | 90 | 测试进程真发 RunHarvest 走完 FSM（「不发 RunHarvest」仅指 mock_launch）。现行有效 C01（SURVEY_ONLY 结算零派发）与 C03（PREGRASP_ONLY 停驻需 ACK）；C02 被 `@unittest.skip`（F-E1-2，09-24 实测，待产品裁定）。环境事实：brain 激活装 YOLO/SAM 需 12 s 稳定窗；观测注入用 `perception_sim.py`（纯核 Scenario + rclpy 壳，含 robot_status 10 Hz 同构） |
 | `test_tool_profile_smoke_{shear_v1,bite_shear_v1,adaptive_shear_v1}` | 91/92/93 | TF `wrist3_Link→tcp`==档案 ±2mm、`/peach_arm tool.profile_id` 对齐、imu_follow 接线按档案在/不在图 |
 | `test_scene_obstacles.py` | 94 | 合成点云+假目标+假 apply 端：障碍成 box/目标邻域空洞/贴机器人滤除/超半径裁剪/REMOVE+ADD 原子替换 |
-| `test_replay_approach.py` | — | 回放塔（见 §10），零 ROS 纯几何 |
+| `test_replay_approach.py` | — | 回放塔（见 §11），零 ROS 纯几何 |
 | `test_frozen_camera_bag.py` | — | 零 GPU 零 ROS 图的 bag/overlay 断言，缺捕获目录自动 skip（进默认 colcon test） |
-| `test_perf_baseline.py` / `test_baseline_inventory.py` | — | `perf_baseline.json` 性能对拍锚点 schema 守卫 |
+| `test_perf_baseline.py` | — | `perf_baseline.json` 性能对拍锚点 schema 守卫 |
+| `test_baseline_inventory.py` | — | `baseline_inventory.json` 重构基线清单（参数/接口/函数索引）schema 守卫；重新封版用 `scripts/gen_baseline_inventory.py` |
+| `test_preflight.py` | — | 零 DDS 纯核：`peach_bringup.preflight` 拒旧实例模式守卫（brain 进程 exec 名/两小组件/相机前端/伴随节点全覆盖、按 `ROS_DOMAIN_ID` 过滤、编辑器路径子串免疫）+ bringup/observability 接线守卫（launch 不自动 RunHarvest、使能默认关、节点/入口/web 资产属顶层 `peach_web`、industrial_ci 忽略面） |
 
 `colcon test --packages-select peach_system_tests` 一次全跑。headless 下 `move_group`/`rviz2` 退出码不纳入 peach 进程门；本机**同域**栈残留时预检拒测（按 `ROS_DOMAIN_ID` 过滤；`frozen_camera_grasp.launch` 在白名单）。
 
-## 6. 冻结相机一次感知 → 抓一颗（推荐仿真，域 81）
+## 7. 冻结相机一次感知 → 抓一颗（推荐仿真，域 81）
 
-静止 RGB-D 来自 `runs/peach_camera_capture_20260930/stereo_10s`（`PEACH_FROZEN_BAG` 可改；该采集 mcap 已按回收政策清除，需重新采集或从备份恢复时先恢复 bag 再跑）。回放节点把 stamp 改成当前时刻，mock 臂 Survey 到拍照位后用当时腕 TF 反投影。**只扫一次、只抓一颗**；产品 yaml `min_views=2` 不动，测试 overlay `config/frozen_one_view.yaml` 才置 1（另：基线门 0°、`reconstruct_in_trajectory` 跳过补视 LIN、`tool.budget.d_inner=0.25` 过单视 sigma；驱动再开 `grasp.allow_stale_anchor`、关 `moveit.obstacle_guard_enabled`、`grasp.maximum_travel_m` 收到 0.02、快照 `workspace_radius_m` 收到 0.05）。不要走 `skip_reconstruction`（真感知未精化直径为 0）。第一颗终局后 action cancel。
+静止 RGB-D 来自 `runs/peach_camera_capture_20260930/stereo_10s`（`PEACH_FROZEN_BAG` 可改；该采集 mcap 已按回收政策清除，需重新采集或从备份恢复时先恢复 bag 再跑）。回放节点把 stamp 改成当前时刻，mock 臂 Survey 到拍照位后用当时腕 TF 反投影。**相机侧在整个回放窗内是静态的**（§1：bag 为固定机位采集）——锚定发生在拍照位停驻时刻，之后 mock 臂的运动不代表相机动；overlay 开 `grasp.allow_stale_anchor` 正是为此（锚点允许过期不重算）。**只扫一次、只抓一颗**；产品 yaml `min_views=2` 不动，测试 overlay `config/frozen_one_view.yaml` 才置 1（另：基线门 0°、`reconstruct_in_trajectory` 跳过补视 LIN、`tool.budget.d_inner=0.25` 过单视 sigma；驱动再开 `grasp.allow_stale_anchor`、关 `moveit.obstacle_guard_enabled`、`grasp.maximum_travel_m` 收到 0.02、快照 `workspace_radius_m` 收到 0.05）。不要走 `skip_reconstruction`（真感知未精化直径为 0）。第一颗终局后 action cancel。
 
 ```bash
 pgrep -af 'ros2 launch|component_container|extrinsics_publisher|ros2 run|bag record|collect|probe'
 ros2 run peach_system_tests run_frozen_grasp.py        # v1 域 81；bite_shear_v1、tool=false 干跑套入
+# 常用参数：--bag <路径>（默认 PEACH_FROZEN_BAG 或 runs/peach_camera_capture_20260930/stereo_10s）、
+#           --index <n>（抓第几颗）、--hz、--request-id（默认 frozen_v1_<unix>）、--skip-launch
 pgrep -af 'ros2 launch|component_container|extrinsics_publisher|ros2 run|bag record|frozen_camera|move_group|ros2_control_node'
 ```
 
@@ -112,9 +165,9 @@ pgrep -af 'ros2 launch|component_container|extrinsics_publisher|ros2 run|bag rec
 - 成功口径：账本/结果至少一颗 `succeeded`（v1 `tool=false` 干跑套入+跳过 SetIO），不是"尝试过就算过"。
 - FULL 抓取用例（需 bag+GPU）不进默认 colcon test；`test_frozen_camera_bag`（零 GPU）已注册进默认。
 
-## 7. 实验室端到端（mock 臂 + 真立体相机）
+## 8. 实验室端到端（mock 臂 + 真立体相机）
 
-物理相机不跟随 mock TF，重建凑不齐第二独立机位；**不要**改产品 `min_views`/`max_target_drift_m`。接触链验证走 `skip_reconstruction`（不评套袋方向）。顺序：前清 → 起栈 → 自检 → 只扫 → 跳过重建 PICK_ALL → ACK → 关使能 → 停栈。
+mock 下相机相关 TF 按静态处理（§1）：真相机打开后物理固定在采集位，跟不上 mock 臂运动——移动 mock 臂凑不出第二独立机位，重建凑不齐 `min_views`；**不要**改产品 `min_views`/`max_target_drift_m`。接触链验证走 `skip_reconstruction`（不评套袋方向）。顺序：前清 → 起栈 → 自检 → 只扫 → 跳过重建 PICK_ALL → ACK → 关使能 → 停栈。
 
 ```bash
 ros2 launch peach_bringup harvest_system.launch.py hardware_mode:=mock \
@@ -144,9 +197,9 @@ ros2 service call /peach_supervisor/control peach_interfaces/srv/ControlTask \
 
 **套入干跑（不开刀）**：运行期 `ros2 param set /peach_supervisor execute_pregrasp_only false`（不改仓库 yaml）+ `SetEnables(execution+grasp, tool=false)`。FULL 预检套入终点 IK 与沿轴笛卡尔（`sleeve_no_ik`/`sleeve_no_cartesian` 在 SELECT 过滤）。成功撤退后一般不必 ACK；`harvest.grasped` 必须 false。测完 `execute_pregrasp_only` 改回 true、使能全关。
 
-> 原 mock 网格战役入口 `scripts/sim_field_targets.py`（`--grid`/`--random`/`--tool-profile`）与回放/探针脚本族已于 2026-10-10 退役（git 历史可取）。mock 接触链现走本节 supervisor goal 流（`drive_harvest.py`）+ 回放塔解析回归；三末端档位隔离与验收词表口径不变（§9）。
+> 原 mock 网格战役入口 `scripts/sim_field_targets.py`（`--grid`/`--random`/`--tool-profile`）与回放/探针脚本族已于 2026-10-10 退役（git 历史可取）。mock 接触链现走本节 supervisor goal 流（`drive_harvest.py`）+ 回放塔解析回归；三末端档位隔离与验收词表口径不变（§10）。
 
-## 8. 真机纪律（授权前/中/后）
+## 9. 真机纪律（授权前/中/后）
 
 发真运动或 SetIO 之前：示教器急停手能摸到；工作空间无人或已隔离；使能保持默认关直到口头/书面授权；先 mock 再 real。`hardware_mode:=real camera_enabled:=true robot_ip:=169.254.10.98`，示教器上电。
 
@@ -165,7 +218,7 @@ ros2 service call /peach_supervisor/control peach_interfaces/srv/ControlTask \
 
 ### 预抓取全程就绪单（真机前逐项）
 
-前置：pgrep 无残留；示教器上电、抱闸释放；手眼 TF 在位；`tf2_echo base_link tip` 报不存在；相机出图且深度配准（≈2.5 FPS percipio / ~13.7 stereo）；当前关节对照拍照位。复现命令链（含 venv PYTHONPATH 双 source 次序）与逐项检查见本节历史版（git 历史 `docs/testing.md`）；要点：
+前置：pgrep 无残留；示教器上电、抱闸释放；手眼 TF 在位；`tf2_echo base_link tip` 报不存在；相机出图且深度配准（≈2.5 FPS percipio / ~13.5–13.7 stereo）；当前关节对照拍照位。复现命令链（含 venv PYTHONPATH 双 source 次序）与逐项检查见本节历史版（git 历史 `docs/testing.md`）；要点：
 
 1. 起 real 栈，等 managed nodes Active。
 2. `ros2 param set` 开 `/peach_arm execution.enabled`、`grasp.enabled` 与 `/peach_supervisor execution_enabled`；`tool.enabled` 保持 false、`execute_pregrasp_only` 保持 true。
@@ -182,7 +235,7 @@ ros2 service call /peach_supervisor/control peach_interfaces/srv/ControlTask \
 aubo_py3.12/bin/python _archive/parked_2026-08-24/tools/passthrough_traj_client.py wave_shoulder
 ```
 
-## 9. 验收门（产品）
+## 10. 验收门（产品）
 
 **适用范围：现行代码**（阶段执行器 + ExecutionAuthority + CycleContext 重构后）。历史量化基线已随 testing-log 退役；现行有效性以按本节就绪单完成的真机验证为唯一依据。
 
@@ -221,11 +274,11 @@ aubo_py3.12/bin/python _archive/parked_2026-08-24/tools/passthrough_traj_client.
 
 每果周期：`粗扫帧 → 选果 → 观察循环[视点×(移臂+停稳+等帧+积分)] → 接触[staging PTP+轴向 LIN+套入+剪切+撤退] → 后勤[回位+记账+放果]`。现状：观察 6 视 33.5 s；接触干跑目标 45–60 s/果。fast 档方向目标（不是门）：观察 ≤2 视 ≤12 s、单果 ≤20 s。对标谱系：人 3–6 s/果；机器人 2.78–24 s/果带；大田成功率 51–88%。策略：速度不够时长凑（可靠性优先）；跳过是调度参数不是失败。
 
-## 10. 回放塔（解析回归门；改接近/融合/护栏/包络必跑）
+## 11. 回放塔（解析回归门；改接近/融合/护栏/包络必跑）
 
 `colcon test --packages-select peach_system_tests` 的 `test_replay_approach`：零 ROS 纯几何，确定性语料三层（现场真袋 14 例（`src/peach/peach_arm/test/fixtures/field_pregrasp_cases.yaml`）；分层 200 例 seed 20260911；随机 100 例 seed 20260910）对照 `test/replay_baselines.json` 冻结基线（2026-09-23 v4 三路点重封；基线逐数权威是 json 自身 provenance/revised 链）。判定：`analytic_ok` 只许升不许降；`lin_chord_fail` 双侧容差 1；分母精确断言，采样器/案册漂移须显式重封。护栏数学 `test/replay_oracle.py`（v4 公式）。旧 bag 回放兼容走 `peach_observability/bag_reader.py` 的 LEGACY 别名。
 
-## 11. 标定（手眼外参 + 彩色内参）
+## 12. 标定（手眼外参 + 彩色内参）
 
 日常采摘不跑标定，但必须有 `src/aubo_hand_eye_calibration/hand_eye/active.yaml`（入库随仓；改值后重启 extrinsics_publisher 生效）。平移应接近 `[0.045, 0.108, 0.002]`。
 
@@ -249,11 +302,11 @@ ros2 topic echo /camera/color/camera_info --once # 核对 K 与文件一致
 
 内参变更后手动更新 `peach_harvester/config/scene_perception.yaml` 的 `calibration_version`；感知/重建按新 K 重验。标定器原为 vendored image_pipeline jazzy 包 `src/camera_calibration`（2026-10-10 已随清理删除，可 `git show <提交>:src/camera_calibration/...` 取回）。
 
-## 12. peach_sim 仿真（非验收门）
+## 13. peach_sim 仿真（非验收门）
 
 **A. Blender 重建 + 感知验证矩阵（离线门）**：`src/peach_sim/reconstruction/` 三道离线门 + 一道回归门：几何门（`validate_geometry.py`）、三锚定机位感知门（`validate_perception.py`）、感知验证矩阵门（`run_matrix.py` → `evaluate_matrix.py --gate` 对冻结基线）。GPU 渲染作业串行（双 Blender 并发抢 3090 OOM）；矩阵帧与 EXR 不入 git。命令与分层口径见 `peach_sim` README。
 
-**A→gz 查看桥（2026-10-09 起，纯视觉）**：重建去草整园经 `blender/export_field_to_gz.py` 无头导出单 GLB（材质直连/摊平 + GN 叶 Realize + join 变换烘焙；约 220 MB），`GZ_SIM_RESOURCE_PATH=src:src/peach_sim gz sim -r src/peach_sim/worlds/field_no_grass.sdf` 人工查看。该世界无碰撞体/传感器/桥/TF，**不是**导航或感知 GT（仍以 `worlds/peach_orchard.sdf` 为准）；Blender 走 `_tools/` 自带 Python（勿混 aubo_py3.12/numpy）。看完关窗并 `pgrep -af 'gz sim'` 清残留（决策 0039）。
+**A→gz 查看桥（2026-10-09/10）**：重建去草整园经 `blender/export_field_to_gz.py` 无头导出单 GLB（材质 Base Color 重接贴图/回退 diffuse + GN 叶 Realize **两阶段物化**（先全部物化再删原对象，边删边物化会静默丢叶）+ 逐对象 `Mesh.transform` 烘焙世界变换、多对象不 join + `export_yup=False`——本机 gz-common 5.9/Assimp 按 Z-up 直读顶点，yup=True 会被竖成 90° 墙；现行全叶版 `field_no_grass.glb` ≈1.6 GB / 3650 万顶点，首次加载数分钟，轻量版 `--decimate 0.25`），`GZ_SIM_RESOURCE_PATH=src:src/peach_sim gz sim -r src/peach_sim/worlds/field_no_grass.sdf` 人工查看。该世界无碰撞体/传感器/桥/TF，**不是**导航或感知 GT（仍以 `worlds/peach_orchard.sdf` 为准）；Blender 走 `_tools/` 自带 Python（勿混 aubo_py3.12/numpy）。看完关窗并 `pgrep -af 'gz sim'` 清残留（决策 0039）。
 
 **B. 场景层（Gazebo Harmonic / gz-sim 8）**：改 `src/peach_sim/config/orchard.yaml` 后先重生成再起场景：
 
@@ -269,7 +322,7 @@ pgrep -af 'ros2 launch|gz sim|robot_state_publisher|parameter_bridge'   # 测完
 
 **C. Nav2 巡园（2026-10-08 起）**：`orchard_sim.launch.py mobile:=true` 解锚换 gz DiffDrive；`orchard_nav.launch.py`（`slam:=True` 在线建图，否则 AMCL+确定性图）；`ros2 run peach_sim orchard_tour` 逐站 `NavigateToPose`。巡园只动底盘不动臂；不进 `harvest_system`。
 
-## 13. IMU 与 imu_follow；RViz；IVG
+## 14. IMU 与 imu_follow；RViz；IVG
 
 **USB IMU（随整栈，不进 lifecycle）**：`imu_enabled` 默认 true；`tf_parent_frame:=tcp` 对齐；无 USB 每 2s 重试不挡栈。`usermod -aG dialout` 后必须 `newgrp`。画面在 MoveIt RViz **Peach → Imu**；静置 `linear_acceleration.z` 为正（~+9.6）；健康看 `/diagnostics`。不要另起 `serial_imu.launch.py` 与整栈并行。
 
@@ -288,12 +341,12 @@ ros2 service call /get_current_state ivg_interfaces/srv/GetCurrentState "{}"
 
 与 peach 隔离（用户裁定）：勿与 peach 同域并行。真机：操作员起本栈=授权。
 
-## 14. 停栈与清进程（MUST，与启动前 pgrep 成对）
+## 15. 停栈与清进程（MUST，与启动前 pgrep 成对）
 
-launch 终端 Ctrl+C；一次性命令 `timeout` 包裹（`ros2 bag record -d N` 自停不可靠，用 `timeout -s INT -k 10`）。结束后复核：
+launch 终端 Ctrl+C；一次性命令 `timeout` 包裹（`ros2 bag record -d N` 自停不可靠，用 `timeout -s INT -k 10`）。结束后复核（v1 栈残留典型为 `move_group`/`ros2_control_node`/`robot_state_publisher`/`peach_*` 节点/`lifecycle_manager`/`frozen_camera`，须并入模式——与 v2 指导同口径）：
 
 ```bash
-pgrep -af 'ros2 launch|component_container|extrinsics_publisher|ros2 run|bag record|collect|probe'
+pgrep -af 'ros2 launch|component_container|extrinsics_publisher|ros2 run|bag record|move_group|ros2_control_node|robot_state_publisher|peach_|lifecycle_manager|frozen_camera'
 ```
 
 有残留按 PID `kill -TERM`，2 秒仍存活 `kill -9`，再复核。不要宽泛 `pkill`。别人的残留先报告再清理；清后复验数据流（30 帧探针或 `ros2 topic echo --once`）。

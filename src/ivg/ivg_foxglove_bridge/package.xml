@@ -1,0 +1,39 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>ivg_foxglove_bridge</name>
+  <version>0.8.5</version>
+  <description>
+    Vendored foxglove WebSocket bridge（Foxglove WebSocket v1 协议 ROS 2 服务端）。
+    服务器库与 ROS glue 全部源码本地化：vendor/foxglove-websocket（foxglove/ws-protocol
+    最终独立 C++ 版，MIT）+ vendor/websocketpp（0.8.2，BSD）+ 0.8.5 ros2 glue 适配。
+    替代 rosbridge 作为 aubo_ros2_web_dashboard 的唯一传输面。来源与改动见 VENDOR_PROVENANCE.md。
+  </description>
+  <maintainer email="mu@example.com">MU</maintainer>
+  <license>MIT</license>
+  <url type="website">https://github.com/foxglove/ws-protocol</url>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+
+  <depend>ament_index_cpp</depend>
+  <depend>rclcpp</depend>
+  <depend>rclcpp_components</depend>
+  <depend>rcl_interfaces</depend>
+  <depend>resource_retriever</depend>
+  <depend>rosgraph_msgs</depend>
+
+  <build_depend>ros_environment</build_depend>
+  <build_depend>libboost-dev</build_depend>
+  <build_depend>zlib</build_depend>
+  <build_depend>nlohmann-json-dev</build_depend>
+
+  <exec_depend>openssl</exec_depend>
+  <exec_depend>zlib</exec_depend>
+
+  <test_depend>ament_lint_auto</test_depend>
+  <test_depend>ament_lint_common</test_depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>

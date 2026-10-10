@@ -1,7 +1,8 @@
-# 操作台单步调试（清洁重写轮契约，阶段 3/4 接线；取代 8090 直发动作数组）。
+# 操作台单步调试（清洁重写轮契约；取代 8090 直发动作数组）。
 # 服务：/peach_supervisor/fire_step
-# 服务端：peach_supervisor    客户端：操作台 8090
-# 运动类步骤（APPROACH/PREVIEW/TOOL_DEBUG）由大脑转发臂侧命令门，
+# 服务端：peach_supervisor    客户端：人工（ros2 service call；8090 转发未接）
+# 现行仅 PHOTO 已接线（MoveTo KIND_NAMED）；其余档位占位，调用即拒。
+# 未来运动类步骤（APPROACH/PREVIEW/TOOL_DEBUG）由大脑转发臂侧命令门，
 # 不旁路 enables × clearance × robotReady 判定；全部写审计。
 
 # === Request ===

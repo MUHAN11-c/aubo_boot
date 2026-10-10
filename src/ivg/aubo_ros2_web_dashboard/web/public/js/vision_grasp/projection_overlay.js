@@ -7,7 +7,7 @@ import {
 	ivgRotateVectorByQuat,
 	ivgComposeTransforms,
 	ivgFindRelativeTransform
-} from '../view3d/tf_clients.js';
+} from '../core/tf-math.js';
 import { canonicalRosTopic } from '../core/utils.js';
 
 // ── 抑制 THREE URDF 加载噪音日志 ──

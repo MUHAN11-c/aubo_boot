@@ -2,9 +2,11 @@
 
 GPU 枝 / 叶二维分割。订阅彩色图，发布 `sensor_msgs/Image` 掩膜（叶绿 / 枝红叠加）。
 **不写 PlanningScene、不删 octomap、不发运动、不进 `harvest_system`。**
+话题/参数契约权威见 [doc/io.md](doc/io.md)（status JSON 实键、QoS、参数表）与 [doc/architecture.md](doc/architecture.md)。
 
 首版直接构造 Frangi（torch Hessian，有 CUDA 用 `cuda:0`）+ Excess Green / HSV 叶。
 同一进程内序列化推理。与 YOLO / MobileSAM 分进程，同卡时不要和采摘感知对打。
+**生命周期**：节点 `main()` `ensure_active()` 自激活是唯一转换源（2026-09-29 修复后 launch 与 `ros2 run` 均可；launch `autostart` 参数为无操作兼容位）——勿用 `ros2 lifecycle set` 手动操作。`device: 显式 cuda` 无卡则 configure 失败；相机重启后订阅会楔死，须重启本节点（详见 doc/io.md）。
 
 ## 公有入口
 

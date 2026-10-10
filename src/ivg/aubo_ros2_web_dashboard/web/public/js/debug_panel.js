@@ -4,7 +4,10 @@ import { loadRecords, saveRecords } from './core/record_store.js';
 import { quatToRpyDeg, rpyDegToQuat } from './core/tf-math.js';
 import { $, escapeHtml } from './core/utils.js';
 import { logBus } from './core/log-bus.js';
-import { createPointCloudViewer } from './view3d/pointcloud_viewer.js';
+import * as THREE from 'three';
+import { OrbitControls as PcOrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { createModernPointCloudViewer } from './view3d/pointcloud_island.js';
+import { foxgloveRosClient } from './transport/foxglove/ros_client.js';
 
 const TAG = '[debug_panel]';
 
@@ -1014,59 +1017,53 @@ let _pcControls = null;    // OrbitControls
 let _pcAnimId = null;      // requestAnimationFrame id
 
 function setupPointCloudViewer() {
-  const THREE = globalThis.THREE;
-  if (!THREE) {
-    logWarn('debug-log-pointcloud', 'THREE 未加载, 点云功能不可用');
-    return;
-  }
-
+  // 2026-10-10 渲染新岛：现代 three(0.164 ESM) + foxglove 数据链（原 r89 全局 THREE 版已替换）
   const vp = $('dbg-pointcloud-viewport');
   if (!vp) return;
 
-  // ── 创建 Three.js 场景 ──
+  // ── 创建场景（现代 three 模块） ──
   _pcScene = new THREE.Scene();
   _pcScene.background = new THREE.Color(0x1a1a2e);
 
-  // 相机
   const w = vp.clientWidth || 640;
   const h = vp.clientHeight || 420;
   _pcCamera = new THREE.PerspectiveCamera(55, w / h, 0.01, 50);
   _pcCamera.position.set(1.5, 1.0, 2.0);
   _pcCamera.lookAt(0, 0, 0.5);
 
-  // 渲染器
-  _pcRenderer = new THREE.WebGLRenderer({ antialias: true });
-  _pcRenderer.setSize(w, h);
-  _pcRenderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
-  _pcRenderer.shadowMap.enabled = false;
-  vp.appendChild(_pcRenderer.domElement);
+  try {
+    _pcRenderer = new THREE.WebGLRenderer({ antialias: true });
+  } catch (e) {
+    _pcRenderer = null;
+    logWarn('debug-log-pointcloud', 'WebGL 不可用，点云渲染禁用（数据链仍可连）');
+  }
+  if (_pcRenderer) {
+    _pcRenderer.setSize(w, h);
+    _pcRenderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    vp.appendChild(_pcRenderer.domElement);
+    _pcControls = new PcOrbitControls(_pcCamera, _pcRenderer.domElement);
+    _pcControls.enableDamping = true;
+    _pcControls.target.set(0, 0, 0.5);
+  }
 
-  // ── 内嵌 OrbitController (不依赖外部库) ──
-  _pcControls = _createOrbitController(_pcCamera, _pcRenderer.domElement);
-  _pcControls.setTarget(0, 0, 0.5);
-
-  // 光照
   _pcScene.add(new THREE.AmbientLight(0x404060, 1.8));
   const dir = new THREE.DirectionalLight(0xffffff, 0.6);
   dir.position.set(0.5, 1, 0.8);
   _pcScene.add(dir);
 
-  // 网格地面
   const grid = new THREE.GridHelper(3, 20, 0x334455, 0x1a1a2e);
   _pcScene.add(grid);
 
-  // 坐标轴
   const axLen = 0.2;
-  const axR = new THREE.Line(
+  _pcScene.add(new THREE.Line(
     new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0, 0, 0), new THREE.Vector3(axLen, 0, 0)]),
-    new THREE.LineBasicMaterial({ color: 0xff3333 }));
-  const axG = new THREE.Line(
+    new THREE.LineBasicMaterial({ color: 0xff3333 })));
+  _pcScene.add(new THREE.Line(
     new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, axLen, 0)]),
-    new THREE.LineBasicMaterial({ color: 0x33ff33 }));
-  const axB = new THREE.Line(
+    new THREE.LineBasicMaterial({ color: 0x33ff33 })));
+  _pcScene.add(new THREE.Line(
     new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, 0, axLen)]),
-    new THREE.LineBasicMaterial({ color: 0x3388ff }));
-  _pcScene.add(axR); _pcScene.add(axG); _pcScene.add(axB);
+    new THREE.LineBasicMaterial({ color: 0x3388ff })));
 
   // 渲染循环
   function animate() {
@@ -1076,7 +1073,7 @@ function setupPointCloudViewer() {
       _pcRenderer.render(_pcScene, _pcCamera);
     }
   }
-  animate();
+  if (_pcRenderer) animate();
 
   // 窗口大小调整
   function onResize() {
@@ -1107,8 +1104,8 @@ function setupPointCloudViewer() {
 
   btnStart.addEventListener('click', () => {
     if (_pcv) {
-      _pcv.stop();
-      _pcv.dispose();
+      if (_pcv.sub) { try { _pcv.sub.cancel(); } catch (e) {} }
+      _pcv.viewer.dispose();
       _pcv = null;
     }
     const topic = (topicInput && topicInput.value) || '/camera/depth/color/points';
@@ -1116,26 +1113,20 @@ function setupPointCloudViewer() {
     const ptSize = parseFloat((ptSizeInput && ptSizeInput.value) || '3') * 0.001;
 
     try {
-      _pcv = createPointCloudViewer({
+      const client = foxgloveRosClient();
+      if (!client.isConnected) client.connect().catch(() => {});
+      const viewer = createModernPointCloudViewer({
         scene: _pcScene,
-        topic: topic,
         maxPoints: maxPts,
         pointSize: ptSize,
       });
-      _pcv.start();
+      const sub = client.subscribe(topic, 'sensor_msgs/msg/PointCloud2', (m) => {
+        viewer.updatePoints(m.data);
+        if (infoEl && viewer.pointCount > 0) updateInfo('已连接 | 点数: ' + viewer.pointCount, 'ok');
+      }, { dispatchMode: 'latest' });
+      _pcv = { viewer, sub, isConnected: client.isConnected };
       updateInfo('连接中...', 'warn');
-      log('debug-log-pointcloud', '点云连接中 → ' + topic);
-
-      // 定期更新连接状态
-      const checkInterval = setInterval(() => {
-        if (!_pcv) { clearInterval(checkInterval); return; }
-        if (_pcv.isConnected) {
-          updateInfo('已连接 | 点数: ' + _pcv.pointCount, 'ok');
-          clearInterval(checkInterval);
-        }
-      }, 500);
-      setTimeout(() => { clearInterval(checkInterval); }, 15000);
-
+      log('debug-log-pointcloud', '点云连接中 → ' + topic + '（foxglove）');
     } catch (e) {
       updateInfo('错误: ' + (e.message || e), 'err');
       logErr('debug-log-pointcloud', '点云创建失败: ' + (e.message || e));
@@ -1144,8 +1135,8 @@ function setupPointCloudViewer() {
 
   btnStop.addEventListener('click', () => {
     if (_pcv) {
-      _pcv.stop();
-      _pcv.dispose();
+      if (_pcv.sub) { try { _pcv.sub.cancel(); } catch (e) {} }
+      _pcv.viewer.dispose();
       _pcv = null;
     }
     updateInfo('已断开', '');
@@ -1155,7 +1146,11 @@ function setupPointCloudViewer() {
   // 清理
   const origCleanup = globalThis._debugPanelCleanup;
   globalThis._debugPanelCleanup = () => {
-    if (_pcv) { _pcv.stop(); _pcv.dispose(); _pcv = null; }
+    if (_pcv) {
+      if (_pcv.sub) { try { _pcv.sub.cancel(); } catch (e) {} }
+      _pcv.viewer.dispose();
+      _pcv = null;
+    }
     if (_pcAnimId) { cancelAnimationFrame(_pcAnimId); _pcAnimId = null; }
     if (_pcControls) { _pcControls.dispose(); _pcControls = null; }
     window.removeEventListener('resize', onResize);

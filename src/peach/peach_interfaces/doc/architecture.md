@@ -19,11 +19,15 @@
 | 动作 | `SurveyScene` | 技能 | 去拍照位姿并复核关节；DISCOVERY 首巡在 Begin 之前 |
 | 动作 | `BuildTargetModel` | 重建 | 绑定目标、等视角、finalize |
 | 动作 | `ExecuteTarget` | 技能 | PREVIEW / OBSERVE_ONLY / FULL / PREGRASP_ONLY |
+| 动作 | `MoveTo` | 技能 | 视点/拍照位/命名位/位姿转移移动（KIND_JOINTS 预留未实现）；与接触周期互斥 |
 | 服务 | `CheckReachability` | 技能 | 选果：预抓取 IK；FULL 再检套入终点 IK 与沿轴笛卡尔；不动臂 |
 | 服务 | `BeginScene` | 场景感知 | 重启收齐窗、推进 `scene_epoch`；换场才清身份 |
 | 服务 | `ControlTask` | 调度 | 暂停/跳过/取消/ACK 恢复 |
-| 服务 | `ManageLifecycleNodes` | lifecycle 管理器 | 整栈 STARTUP…SHUTDOWN；不发 `RunHarvest` |
+| 服务 | `SetEnables` | 调度 | 操作台使能开关；广播 `/peach/batch/enables` + 审计 |
+| 服务 | `SetBatchPolicy` | 调度 | 运行期改批次策略（当前批或下批默认） |
+| 服务 | `FireStep` | 调度 | 操作台单步；现行仅 PHOTO 已接线（MoveTo KIND_NAMED），其余档位占位调用即拒；未来运动类档位过臂侧命令门 |
+| 服务 | `ManageLifecycleNodes` | lifecycle 管理器（仅随包内独立 launch；现行整栈同名服务由 nav2_lm 以 `nav2_msgs` 类型提供） | 整栈 STARTUP…SHUTDOWN；不发 `RunHarvest` |
 
-主要消息：观测 `PeachTargetObservation*`；几何初值 `BagGraspCandidate*` / `BagFitting*`；批次 `HarvestState` / `HarvestSummary` / `TargetOutcome` / `CanonicalEvent`；重建 `GraspDecision` / `ReconstructionStatus` / `TargetModel`。契约预留、节点尚未全部接线：`ShapeHypothesis`、`GraspHypothesis`。导航预留（manifest `reserved_interfaces` 区）：`NavigateToWorksite`、`HarvestTargetReport`、`VehicleState`、`HarvestOperationStatus`。
+主要消息：观测 `PeachTargetObservation*`；几何初值 `BagGraspCandidate*` / `BagFitting*`；批次 `HarvestState` / `HarvestSummary` / `TargetOutcome` / `CanonicalEvent`；重建 `GraspDecision` / `ReconstructionStatus` / `TargetModel`；执行合同 `Enables` / `Clearance` / `ToolState`。契约预留、节点尚未全部接线：`ShapeHypothesis`、`GraspHypothesis`。导航预留（manifest `reserved_interfaces` 区）：`NavigateToWorksite`、`HarvestTargetReport`、`VehicleState`、`HarvestOperationStatus`。已删类型（e2f37ff，勿再造）：`JobIntent`（常量并入 `RunHarvest` 的 `INTENT_*`）、`HarvestEvent`、`MatchStatus`。
 
 **禁止：** 跑节点、设算法默认值、写 launch、夹带视觉/运动实现。

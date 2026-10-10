@@ -18,7 +18,6 @@
 
 import { BridgeMode } from './adapter.js';
 import { foxgloveAdapter } from './foxglove/adapter.js';
-import { rosbridgeAdapter } from './rosbridge/adapter.js';
 import { topicRouter } from './topic_router.js';
 import { SubRegistry } from './sub_registry.js';
 import { bridgeLogger } from './bridge_logger.js';
@@ -34,7 +33,7 @@ class TransportHub extends EventTarget {
   constructor() {
     super();
     this._adapters = new Map();          // id → MessageAdapter
-    this._mode = BridgeMode.ROSBRIDGE;  // 临时简化: 非点云数据全部走 rosbridge
+    this._mode = BridgeMode.FOXGLOVE;  // 阶段 3：唯一传输面（rosbridge 已移除）
     this._activeId = null;
     this._router = topicRouter;
     this._subRegistry = new SubRegistry();
@@ -153,16 +152,8 @@ class TransportHub extends EventTarget {
   }
 
   async _tryConnect(adapter) {
-    const url = adapter.id === 'foxglove'
-      ? foxgloveWebSocketUrl()
-      : this._rosbridgeUrl();
+    const url = foxgloveWebSocketUrl();
     return adapter.connect(url);
-  }
-
-  _rosbridgeUrl() {
-    const { rosbridgeWebSocketUrl } = g.ivgPorts || {};
-    if (typeof rosbridgeWebSocketUrl === 'function') return rosbridgeWebSocketUrl();
-    return `ws://${g.location.host}/ws/rosbridge`;
   }
 
   // ── 模式切换 (统一入口) ─────────────────────────────────────────────────
@@ -359,7 +350,8 @@ class TransportHub extends EventTarget {
 // ── 单例 (自注册内置适配器) ──────────────────────────────────────────────────
 
 const transportHub = new TransportHub();
-transportHub.registerAll([foxgloveAdapter, rosbridgeAdapter]);
+// 阶段 3（2026-10-10）：rosbridge 适配器移除，唯一传输面 = foxglove
+transportHub.registerAll([foxgloveAdapter]);
 g.__transportHub = transportHub;
 
 // 向后兼容: 保留 __dataService 别名

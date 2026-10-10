@@ -2,7 +2,7 @@
 // 不复用 vision_grasp_panel.js！独立初始化 3D 查看器 + 关节图 + 连接管理喵~
 //
 // 架构:
-//   3D 查看器 ← view3d/urdf-viewer.js (ros3djs)
+//   3D 查看器 ← view3d/urdf_island.js
 //   关节图     ← components/joint-chart.js
 //   位姿显示   ← components/pose-card.js
 //   监控区折叠 ← components/monitoring-collapse.js (共享)
@@ -13,9 +13,9 @@
 
 import { ros } from '../core/ros.js';
 import { loadIvgRuntime } from '../core/runtime_provider.js';
-import { rosbridgeWebSocketUrlFromRuntime } from '../ivg_runtime.js';
+import { foxgloveWebSocketUrl as rosbridgeWebSocketUrlFromRuntime } from '../ivg_runtime.js';
 import { createPageLifecycle } from '../core/lifecycle.js';
-import { createUrdfViewer } from '../view3d/urdf-viewer.js';
+import { createUrdfViewerModern } from '../view3d/urdf_island.js';
 import { createJointChartController } from '../components/joint-chart.js';
 import { createMonitoringCollapse } from '../components/monitoring-collapse.js';
 import { formatRobotPoseHtml, robotPoseHtmlIsRenderable } from '../components/pose-card.js';
@@ -136,17 +136,12 @@ async function init() {
     const url = rosbridgeWebSocketUrlFromRuntime(globalThis.__IVG_RUNTIME);
     await ros.connect(url);
 
-    // 4. 启动 3D 查看器（依赖 ros._transport）
-    urdfViewer = createUrdfViewer({
-        ros: ros._transport?.ros,
+    // 4. 启动 3D 查看器 — 渲染新岛（现代 three + urdf-loader，foxglove 数据：
+    //    /robot_description + /joint_states + /tool_changer_status；不再依赖 ros._transport）
+    urdfViewer = createUrdfViewerModern({
         getById: $,
         hostId: 'vision-urdf-host',
         innerId: 'latte-urdf-inner',
-        viewerOpts: {
-            background: '#303030',
-            intensity: 0.65,
-            gridEnabled: true,
-        },
     });
     urdfViewer.start();
 

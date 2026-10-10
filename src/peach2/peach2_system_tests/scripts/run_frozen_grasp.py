@@ -189,7 +189,7 @@ def main() -> int:
                 code = launch_proc.returncode or 1
                 launch_proc = None
                 return code
-        harvest_s = min(100.0, max(20.0, remaining() - 20.0))  # 批跑含 ~16 s 拍照位过渡
+        harvest_s = min(100.0, max(20.0, remaining() - 20.0))  # 批跑（出生即拍照位，无 home→photo 过渡）
         ready_s = min(45.0, max(15.0, remaining() - harvest_s - 25.0))
         drive_cmd = [
             'ros2', 'run', 'peach2_system_tests', 'drive_frozen_grasp.py',

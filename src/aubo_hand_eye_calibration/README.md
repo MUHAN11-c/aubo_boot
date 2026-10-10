@@ -1,6 +1,6 @@
 # aubo_hand_eye_calibration
 
-眼在手上外参标定 + 彩色内参标定落盘：采集标定板、解外参、落盘，并由 `extrinsics_publisher` 发静态 TF；内参用 vendored `camera_calibration` 交互标定后由 `apply_intrinsics` 原子落盘。
+眼在手上外参标定 + 彩色内参标定落盘：采集标定板、解外参、落盘，并由 `extrinsics_publisher` 发静态 TF；内参用 `camera_calibration` 交互标定后由 `apply_intrinsics` 原子落盘（原 vendored 副本 2026-10-10 已随清理删除，现行由 apt `ros-jazzy-camera-calibration` 同名同版解析，见下「vendored camera_calibration」节）。
 
 感知与重建用**精确时间戳**查 `base_link ← camera`；外参 TF 是这条链的一部分。标定坏了，世界系身份和 ICP 初值都会偏。
 
@@ -24,7 +24,7 @@
 - `calibration_server`：动作/服务跑采集与求解（17 位姿自动采集 + OpenCV 五方法竞赛 + Huber 精化 + 质量门）
 - `web_gateway`：`http://127.0.0.1:8088` 调试界面（仅回环；2026-09-29 起界面可选 `pose_source`（poses/auto）与 `solve_target`（hand_eye/joint）档位，非法值 400；显示当前激活外参卡——`import:` 来源标「外部导入 · 非本机标定产物」）
 - `apply_intrinsics`：校验 `cameracalibrator` SAVE 产物并原子写入内参事实源
-- `intrinsics_calibration.launch.py`：拉起 vendored `cameracalibrator`（交互式 GUI；板参数默认值运行时取自 `config/calibration.yaml` 单源，launch args 可覆盖）
+- `intrinsics_calibration.launch.py`：拉起 `cameracalibrator`（交互式 GUI；板参数默认值运行时取自 `config/calibration.yaml` 单源，launch args 可覆盖）
 
 bringup 默认可开外参发布。全标定流程单独 launch，不要在日常采摘里自动跑。无 `active.yaml` 时发名义 TF（平移 2 cm、单位四元数），光学系会偏。`_archive/runs/hand_eye/` 是历史归档，不被读取。
 
@@ -59,16 +59,16 @@ ros2 action send_goal /hand_eye_calibration_server/run \
 - 误差门：`joint_max_reprojection_rms_px`（默认 0.8px）+ 沿用平移/旋转一致性与跨度门；逐视 RMS 明细在 `per_view`。
 - 内参生效三步：`~/activate` 激活 → `apply_intrinsics src/aubo_hand_eye_calibration/hand_eye/active.yaml` → `colcon build --packages-select percipio_camera` 后重启前端。
 
-## vendored camera_calibration（来源与边界）
+## camera_calibration（来源与边界；vendored 副本已删）
 
-- 上游：<https://github.com/ros-perception/image_pipeline> `jazzy` 分支 @ `6c3df3099bc7b1ec92215719215c8eefd0d3aa69`（2026-07-10，版本 5.0.13）；**原样入库、零本地修改**，日后对上游 re-sync 直接覆盖 `src/camera_calibration/` 即可；
-- 与 apt `ros-jazzy-camera-calibration` 同名同版：**勿与 apt 版并装**（工作区 overlay 优先，易混淆来源）；
-- 依赖 `semver`：本机 venv 钉 `semver==3.0.2`（`requirements.txt`）；CI 由该包 `package.xml` 的 `python3-semver` rosdep 键走 apt；
+- 上游：<https://github.com/ros-perception/image_pipeline> `jazzy` 分支 @ `6c3df3099bc7b1ec92215719215c8eefd0d3aa69`（2026-07-10，版本 5.0.13）；工作区 vendored 副本 `src/camera_calibration/` 已于 2026-10-10 随清理删除（历史可 `git show <提交>:src/camera_calibration/...` 取回，re-vendor 直接覆盖该路径即可）；
+- 现行 `intrinsics_calibration.launch.py` 与 `package.xml` 的 `exec_depend camera_calibration` 由 **apt `ros-jazzy-camera-calibration`**（同名同版）解析——跑内参标定前确认 apt 包在装；
+- 依赖 `semver`：本机 venv 钉 `semver==3.0.2`（`requirements.txt`）；apt 版依赖走 rosdep；
 - 订阅 QoS 自动匹配发布端 profile（`camera_calibrator.get_topic_qos`），percipio / stereo 两前端均兼容。
 
 ## 社区对照（选型依据）
 
-- 内参：image_pipeline `camera_calibration` 是 ROS 2 官方棋盘格标定工具（Nav2 Jazzy 教程同款），vendored 集成而非自研 `cv2.calibrateCamera` 节点——成熟库优先；
+- 内参：image_pipeline `camera_calibration` 是 ROS 2 官方棋盘格标定工具（Nav2 Jazzy 教程同款），官方包集成而非自研 `cv2.calibrateCamera` 节点——成熟库优先；
 - 外参：求解核即 OpenCV `calibrateHandEye` 五方法（tsai/park/horaud/andreff/daniilidis）+ MAD 离群 + scipy Huber 联合精化，与社区同源且强于 easy_handeye2 的基础用法；easy_handeye2 与 moveit_calibration 均无 Jazzy apt 发行版（后者官方无 ROS 2 版），不引入。
 
 ## 测试

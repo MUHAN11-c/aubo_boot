@@ -10,7 +10,8 @@ package_name = 'peach_vegetation'
 
 def _resolve_python():
     """工作区 venv 存在则用作 console_scripts shebang."""
-    ws_venv = Path(__file__).resolve().parents[2] / 'aubo_py3.12' / 'bin' / 'python'
+    # 2026-10-10 分组重组后包在 src/peach/<pkg>/，工作区根是 parents[3]
+    ws_venv = Path(__file__).resolve().parents[3] / 'aubo_py3.12' / 'bin' / 'python'
     if ws_venv.exists():
         return str(ws_venv)
     return sys.executable

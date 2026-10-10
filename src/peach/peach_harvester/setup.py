@@ -7,7 +7,8 @@ from setuptools import find_packages, setup
 
 def _venv_python() -> str:
     """工作区 aubo_py3.12 存在则用作 console_scripts shebang（torch/open3d）."""
-    ws_venv = Path(__file__).resolve().parents[2] / 'aubo_py3.12' / 'bin' / 'python'
+    # 2026-10-10 分组重组后包在 src/peach/<pkg>/，工作区根是 parents[3]
+    ws_venv = Path(__file__).resolve().parents[3] / 'aubo_py3.12' / 'bin' / 'python'
     if ws_venv.exists():
         return str(ws_venv)
     return sys.executable

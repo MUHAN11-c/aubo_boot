@@ -8,7 +8,7 @@ vision 侧无净化）。本模块是唯一实现：拒绝分隔符、上跳、N
 
 runs_root（W6-B）归一 supervisor/batch 与 vision/common/runtime 两份同名
 实现：env 键取两者并集（AUBO_RUNS_DIR 优先于 AUBO_HARVEST_DATA_DIR），
-探测序=从本文件向上找含 ``src/peach_interfaces`` 的工作区标记 → cwd。
+探测序=从本文件向上找含 ``src/peach/peach_interfaces`` 的工作区标记 → cwd。
 """
 from __future__ import annotations
 
@@ -18,8 +18,8 @@ from pathlib import Path
 _INVALID = {'', '.', '..'}
 _FORBIDDEN_CHARS = ('/', '\\', '\x00')
 
-_WORKSPACE_MARKER = Path('src') / 'peach_interfaces'
-"""工作区根标记：仓库布局 src/&lt;pkg&gt; 下的接口包目录."""
+_WORKSPACE_MARKER = Path('src') / 'peach' / 'peach_interfaces'
+"""工作区根标记：仓库布局 src/peach/<pkg> 下的接口包目录（2026-10-10 分组重组后路径）."""
 
 
 def safe_component(name, fallback: str) -> str:
@@ -76,7 +76,7 @@ def runs_root(configured: str = '') -> Path:
     过程数据根目录（工作区 ``runs/``）唯一解析.
 
     优先级：configured 为绝对路径 > 环境变量（AUBO_RUNS_DIR 优先于
-    AUBO_HARVEST_DATA_DIR）> 从本文件向上找含 ``src/peach_interfaces``
+    AUBO_HARVEST_DATA_DIR）> 从本文件向上找含 ``src/peach/peach_interfaces``
     的工作区根，取其 ``runs/`` > ``Path.cwd()/runs`` 兜底。与归一前
     supervisor/batch 与 vision/common/runtime 两实现语义一致（并集）。
 

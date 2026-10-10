@@ -103,7 +103,7 @@ flowchart TB
 - bringup **不起** `aubo_dashboard`；禁止调用该包。`auto_power_on=false`。上电、抱闸用示教器。规划 / FK / IK 用 MoveIt。停轨 = 透传取消 + 硬件 `RobotMoveStop`（对齐 UR：dashboard 仅真机；本仓选择不用远程上电，避免软件误上电）。
 - 未授权不得真机运动或 SetIO。授权是人的口头/书面确认，不是 8090 按钮、不是 yaml 里某个 `true`。
 - Python：`aubo_py3.12`。ROS 2 依赖走 Jazzy apt；其余第三方钉进 `requirements.txt` 装 venv。**numpy == 1.26.4**（Jazzy `cv_bridge` 按 numpy 1.x 编译；升 2.x 会 ABI 崩）。
-- 用 venv 时：先 source Jazzy，再 source 工作区，再确认 `python3` 指向 `aubo_py3.12`。venv 若抢 `PYTHONPATH` 导致 `cv_bridge` 进错副本，按 v1 测试指导（`src/peach/peach_system_tests/doc/testing.md` §1）清再 source。不要 `pip install numpy --upgrade`。
+- 用 venv 时：先 source Jazzy，再 source 工作区，再确认 `python3` 指向 `aubo_py3.12`。venv 若抢 `PYTHONPATH` 导致 `cv_bridge` 进错副本，按 v1 测试指导（`src/peach/peach_system_tests/doc/testing.md` §2）清再 source。不要 `pip install numpy --upgrade`。
 - 关节序冻结：`shoulder_joint, upperArm_joint, foreArm_joint, wrist1_joint, wrist2_joint, wrist3_joint`。顺序与 URDF / `joint_states` / 控制器 yaml 必须一致，否则透传点会拧腕。
 - 启动前：`pgrep -af 'ros2 launch|component_container|extrinsics_publisher|ros2 run'`。多代 `robot_state_publisher` 或 `extrinsics_publisher` 会叠同一 child frame，TF 静默错。
 - **测完即停、不允许残留：** 任何测试或程序（整栈 `ros2 launch`、`ros2 run`、采集器、`ros2 bag record`、探针、演示节点）运行结束后必须退出并清进程，不允许挂在后台。残留订户会占 FastDDS SHM、以死订户卡住 RELIABLE 大图流，使下一轮新订户 0 帧、TF 叠 child frame（2026-09-21：4 个挂死 `ros2 bag record` 堵死 `/camera/depth/image_raw`）。与「启动前 pgrep」成对：前清后清。收尾步骤见第 9 章。
@@ -118,7 +118,7 @@ flowchart TB
 
 ## 2. 机器人安全
 
-ROS 2 社区把安全分成三层。混为一谈会把网页按钮当成急停。真机操作纪律在 v1 测试指导（[src/peach/peach_system_tests/doc/testing.md](src/peach/peach_system_tests/doc/testing.md) §8）。
+ROS 2 社区把安全分成三层。混为一谈会把网页按钮当成急停。真机操作纪律在 v1 测试指导（[src/peach/peach_system_tests/doc/testing.md](src/peach/peach_system_tests/doc/testing.md) §9）。
 
 ```mermaid
 flowchart TB
@@ -459,7 +459,7 @@ description (URDF + ros2_control 标签)
 - launch 文件：Python launch 用 `OpaqueFunction` 只在需要运行期计算时；能 `IncludeLaunchDescription` 就不要复制 bringup。参数文件用 `ParameterFile(..., allow_substs=True)` 时写清哪些键会被替换
 - 测试文件：`test/test_*.py` / `test_*_cpp.cpp`；`ament_add_gtest` / `ament_add_pytest_test` / `add_ros_isolated_launch_test` 进 `BUILD_TESTING`
 
-工作区按**子工作空间分组**（2026-10-10 用户裁定，对齐 peach2/ivg 先例）：`src/peach/` = v1 采摘栈九包、`src/peach2/` = v2 孵化栈十二包、`src/ivg/` = IVG/演示栈；驱动九包与 `peach_sim` / `serial_imu` / `imu_follow` / `percipio_camera` 留 `src/` 顶层。分组只是目录收纳：包名、图名、colcon 递归发现与 `--packages-select` 均不变。现行 peach 树见 [peach_bringup/doc/architecture.md](src/peach/peach_bringup/doc/architecture.md)「命名与文件树」，此处不复制。新文件先问：它属于 description、bringup、moveit_config、interfaces，还是某个能力包？不要往驱动九包塞业务。
+工作区按**子工作空间分组**（2026-10-10 用户裁定，对齐 peach2/ivg 先例）：`src/peach/` = v1 采摘栈九包、`src/peach2/` = v2 孵化栈十二包、`src/ivg/` = IVG/演示栈；驱动九包与 `peach_sim` / `serial_imu` / `imu_follow` / `percipio_camera` / `peach_web`（8090 静态页资源包，2026-10-10 自 peach_observability/web 拆出）留 `src/` 顶层。分组只是目录收纳：包名、图名、colcon 递归发现与 `--packages-select` 均不变。现行 peach 树见 [peach_bringup/doc/architecture.md](src/peach/peach_bringup/doc/architecture.md)「命名与文件树」，此处不复制。新文件先问：它属于 description、bringup、moveit_config、interfaces，还是某个能力包？不要往驱动九包塞业务。
 
 ---
 
@@ -550,7 +550,7 @@ flowchart LR
   Intent --> Teardown[停栈并pgrep清残留]
 ```
 
-- Overlay：`source /opt/ros/jazzy/setup.bash` → 工作区 `install/setup.bash`。venv 抢 `PYTHONPATH` 时按 v1 测试指导 §1 清再 source
+- Overlay：`source /opt/ros/jazzy/setup.bash` → 工作区 `install/setup.bash`。venv 抢 `PYTHONPATH` 时按 v1 测试指导 §2 清再 source
 - 构建：`colcon build --cmake-args -DCMAKE_BUILD_TYPE=Release -DCMAKE_EXPORT_COMPILE_COMMANDS=ON`。Python 迭代可加 `--symlink-install`
 - 依赖：`rosdep install --from-paths src --ignore-src -r -y` 只解 ROS 键；其余进 venv
 - 入口结构与 UR 相同（bringup + 应用 launch Include）；本仓 SNAPSHOT 命令见文首。真机另需示教器上电
@@ -609,7 +609,7 @@ flowchart TB
 - 改动后本地 `colcon test --packages-select …` + `colcon test-result --verbose`
 - 新功能：先单测，再 launch_testing，最后才真机
 - **测完即停：** 探针 / bag / 采集 / 演示栈 / mock 冒烟结束后必须退出并 `pgrep` 复核（MUST 第 1 章；步骤第 9 章）。`colcon test` 与 isolated launch_testing 本身会拆栈，但本机手工起的进程不在其列。
-- 真机命名：v1 测试指导（`src/peach/peach_system_tests/doc/testing.md` §3）的 `field_pregrasp_*` / `field_full_*`；`request_id` 不复用
+- 真机命名：v1 测试指导（`src/peach/peach_system_tests/doc/testing.md` §4）的 `field_pregrasp_*` / `field_full_*`；`request_id` 不复用
 - `colcon test` 绿 **不等于** 采摘方向验收；也不再把“禁止仿真测”写成原则
 - CI DEFAULT：[industrial_ci](https://github.com/ros-industrial/industrial_ci) GitHub Action，`ROS_DISTRO: jazzy`，跑 build+test。真机 job 不进 PR 必过门。本仓 `.github/workflows/jazzy.yaml`：`peach-core` = `scripts/r0_gate.sh`；`industrial_ci` job 编测驱动+peach（忽略 IVG / `imu_follow` / `percipio_camera` / `camera_calibration`；apt scipy/pytest/yaml，不 Docker pip）
 
@@ -649,7 +649,7 @@ gtest 放本包 `test/`，链到纯核静态库，不 `spin` 整个技能节点�
 
 只记录现在跑什么。没有 KEEP 理由的条目见第 12 章，标 UNWIND。细节链到包级活文档（系统=peach_bringup/doc；包级=各包 doc/），不把 architecture 复制进来。
 
-产品：固定座 AUBO E5 + Percipio RGB-D；愿景含底盘。`src/` 分组（2026-10-10 用户裁定）：`src/peach/` = v1 采摘栈九包（下表职责摘要对象）、`src/peach2/` = v2 十二包、`src/ivg/` = 演示八包；驱动与 `peach_sim`/`serial_imu`/`imu_follow`/`percipio_camera` 顶层。`peach_navigation` 已归档 `_archive/parked_2026-09/`。IVG 三包不是 peach，不进 `harvest_system` / lifecycle（产品范围 KEEP）。peach2 v2 孵化栈（`src/peach2/`，十二包）同样不进 `harvest_system` / lifecycle：M1 退出门已过（系统测 33/33），非生产入口，方案见 `docs/peach_v2_重构终版方案.md`。`imu_follow` 不是 peach、不进 lifecycle；仅 `adaptive_shear_v1` 随 `harvest_system` Include（shear/bite 两档不起）。`imu_follow` 开运动时不经 `authorizeStage`（peach 接触窗只调 Trigger；`motion.enabled` 默认 false），真机须另授权。
+产品：固定座 AUBO E5 + Percipio RGB-D；愿景含底盘。`src/` 分组（2026-10-10 用户裁定）：`src/peach/` = v1 采摘栈九包（下表职责摘要对象）、`src/peach2/` = v2 十二包、`src/ivg/` = 演示八包；驱动与 `peach_sim`/`serial_imu`/`imu_follow`/`percipio_camera`/`peach_web`（8090 静态页资源）顶层。`peach_navigation` 已归档 `_archive/parked_2026-09/`。IVG 三包不是 peach，不进 `harvest_system` / lifecycle（产品范围 KEEP）。peach2 v2 孵化栈（`src/peach2/`，十二包）同样不进 `harvest_system` / lifecycle：M1 退出门已过（系统测 33/33），非生产入口，方案见 `docs/peach_v2_重构终版方案.md`。`imu_follow` 不是 peach、不进 lifecycle；仅 `adaptive_shear_v1` 随 `harvest_system` Include（shear/bite 两档不起）。`imu_follow` 开运动时不经 `authorizeStage`（peach 接触窗只调 Trigger；`motion.enabled` 默认 false），真机须另授权。
 
 ### KEEP（完美适配当前实现）
 
@@ -681,7 +681,7 @@ gtest 放本包 `test/`，链到纯核静态库，不 `spin` 整个技能节点�
 | `peach_harvester` | 大脑一进程三节点：`vision`（场景观测+目标重建）+ `supervisor`（批次 FSM/选果/视点两档/批次策略/操作台服务/账本+补采清单）+ `peach_scene_obstacles` 场景障碍快照独立进程（0035，Survey 触发护相机）；台架独立入口保留 | 不发关节命令、不做 IK（问臂） |
 | `peach_arm` | `MoveTo` / 接触 `ExecuteTarget`（检查点+令牌双路）/ `CheckReachability`；命令门=enables×clearance×robotReady×¬cancel；GPL 参数单源 | 不写 `ledger.json`、不选目标 |
 | `peach_bringup` | 整栈入口、预检、nav2_lm 托管、autostart 客户端、生命周期桥 | 不含业务 |
-| `peach_observability` | 8090 / 会话 bag / `peach_bag_report` | 不发运动 |
+| `peach_observability` | 8090 / 会话 bag / `peach_bag_report`（静态页资源在顶层 `peach_web`，本包 HTTP 托管） | 不发运动 |
 | `peach_vegetation` | GPU 枝/叶 2D 掩膜（独立 launch） | 不写 PlanningScene、不进 harvest_system |
 | `peach_system_tests` | isolated mock launch_testing + 回放塔 | 不进运行 launch |
 | `peach_stereo` | 主机单图案立体深度相机前端（PS800-E1；0036 起**默认** `camera_frontend:=stereo`，话题与 percipio 同构） | 不做感知业务；不改 percipio 驱动 |

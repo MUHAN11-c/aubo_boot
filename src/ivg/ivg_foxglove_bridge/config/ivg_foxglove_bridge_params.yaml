@@ -1,0 +1,19 @@
+# ivg_foxglove_bridge 运行参数（Foxglove WebSocket v1 服务端，默认 8765）
+# 端口语义：8095=dashboard 网关；8765=本桥；8089=web_video_server；8090=peach_observability（禁区）
+/foxglove_bridge:
+  ros__parameters:
+    port: 8765
+    address: "0.0.0.0"
+    # 能力面：订阅默认开；客户端发布（debug 面板发布测试）与服务调用（全部面板控制面）
+    capabilities:
+      - "clientPublish"
+      - "services"
+    # 排除 /aubo/feedback_states（action 隐式话题，无独立 .idl，
+    # 会触发 rosgraph 轮询 bad optional access 崩溃——自上游移植期已知问题）
+    topic_whitelist:
+      - "^(?!/aubo/feedback_states$).*$"
+    # 服务白名单：面板所需 + 各节点标准参数服务（参数读写走 rcl_interfaces）
+    service_whitelist:
+      - ".*"
+    client_topic_whitelist:
+      - ".*"

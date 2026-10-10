@@ -40,6 +40,71 @@ def parse_args() -> argparse.Namespace:
     return p.parse_args(argv)
 
 
+def _find_upstream(node_tree, socket, node_type):
+    """Depth-first search upstream of socket for a node of node_type."""
+    for link in socket.links:
+        node = link.from_node
+        if node.type == node_type:
+            return node
+        for inp in node.inputs:
+            if inp.type == 'RGBA':
+                found = _find_upstream(node_tree, inp, node_type)
+                if found:
+                    return found
+    return None
+
+
+def _ramp_mid_color(socket):
+    """Mid-element color of the first ValToRGB ramp upstream, else None."""
+    for link in socket.links:
+        node = link.from_node
+        if node.type == 'VAL_TO_RGB':
+            elements = node.color_ramp.elements
+            return list(elements[len(elements) // 2].color)
+        for inp in node.inputs:
+            if inp.type == 'RGBA':
+                color = _ramp_mid_color(inp)
+                if color:
+                    return color
+    return None
+
+
+def simplify_materials() -> None:
+    """Make Base Color glTF-exportable.
+
+    Reconstruction materials feed Base Color through Mix(noise, image) or
+    Noise->ColorRamp chains; the glTF exporter drops them (all-white model
+    in Gazebo). Rewire image textures straight into Base Color when found;
+    otherwise fall back to the material's diffuse_color (set at creation
+    in materials.py, sRGB viewport shade), converted to linear.
+    """
+    rewired, flattened = 0, 0
+    for mat in bpy.data.materials:
+        if not mat.use_nodes:
+            continue
+        bsdf = next((n for n in mat.node_tree.nodes
+                     if n.type == 'BSDF_PRINCIPLED'), None)
+        if bsdf is None:
+            continue
+        base = bsdf.inputs['Base Color']
+        image = _find_upstream(mat.node_tree, base, 'TEX_IMAGE')
+        if image is not None and image.image is not None:
+            mat.node_tree.links.new(image.outputs['Color'], base)
+            rewired += 1
+        else:
+            # Unlink the procedural chain first: a socket link overrides
+            # default_value, so setting the factor alone exports nothing.
+            # diffuse_color stays linear — no sRGB conversion here.
+            for link in list(base.links):
+                mat.node_tree.links.remove(link)
+            color = mat.diffuse_color
+            base.default_value = (*color[:3], 1.0)
+            flattened += 1
+        bsdf.inputs['Metallic'].default_value = 0.0
+    log('materials rewired to image:', rewired, 'flattened to diffuse:',
+        flattened)
+
+
 def main() -> None:
     args = parse_args()
 
@@ -47,6 +112,8 @@ def main() -> None:
         if obj.type in {'CAMERA', 'LIGHT'}:
             bpy.data.objects.remove(obj, do_unlink=True)
     log('cameras/lights removed')
+
+    simplify_materials()
 
     if not args.keep_backdrop:
         empties = [o for o in bpy.data.objects
@@ -117,7 +184,10 @@ def main() -> None:
 
     obj = bpy.context.active_object
     obj.name = 'field_no_grass'
-    obj.location = (0.0, 0.0, 0.0)
+    # Bake world transform into vertices: the join target keeps its own
+    # object rotation/origin, which would otherwise tilt the whole merged
+    # mesh in Gazebo (and resetting location alone shifts it).
+    bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
     log('verts after join:', len(obj.data.vertices))
 
     if args.decimate > 0:

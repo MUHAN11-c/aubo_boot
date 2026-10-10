@@ -212,6 +212,25 @@ nobag/Depth/233.png 全零，nobag 缺 10 个 VOC4 标注，均留证不补造�
    3 视序列 ≥1/≥2 检出）不低于冻结基线 −0.05，防建模改动造成静默回
    归；深度为理想渲染值（无噪声模型）。逐轮结论追加 `reconstruction/RESULTS.md`。
 
+## 无草整园 Gazebo 查看（重建 GT 桥接，2026-10-09）
+
+重建整园去草版（`build_scene.py --no-grass`）导出单 GLB 供 Gazebo 人工查看：
+`blender/export_field_to_gz.py` 删相机/灯与 backdrop 远景行 → GN 叶实例插
+Realize 节点求值物化（秒级，勿走逐对象 apply）→ 合并导出 GLB（220 MB /
+370 万顶点；`--keep-backdrop` 留远景行，`--decimate R` 减面）。
+
+```bash
+_tools/blender-4.5.14-linux-x64/blender -b \
+  src/peach_sim/reconstruction/output/field_no_grass_20261009/bagged_peach_orchard.blend \
+  -P src/peach_sim/blender/export_field_to_gz.py -- \
+  --out src/peach_sim/meshes/field_no_grass.glb
+GZ_SIM_RESOURCE_PATH=src:src/peach_sim gz sim -r \
+  src/peach_sim/worlds/field_no_grass.sdf   # 纯视觉静态模型，查看完关窗即清
+```
+
+仅为人工查看效果；导航/感知 GT 仍以 `worlds/peach_orchard.sdf`（程序化
+锚定世界）为准，两者不混用。
+
 ## 自主导航（Gazebo Harmonic + Nav2，2026-10 轮）
 
 仿真采摘工位可驾驶化 + 官方 Nav2 全栈，全部落在本包内（不进 harvest_system、

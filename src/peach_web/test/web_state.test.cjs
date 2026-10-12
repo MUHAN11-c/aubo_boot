@@ -51,11 +51,12 @@ async function browser() {
     element('pause', {debug: 'control_service', payload: '{"command":"PAUSE"}'}),
     element('cancel-now', {debug: 'control_service', payload: '{"command":"CANCEL_NOW"}'}),
     element('cancel-action', {debugCancel: 'run_harvest_action'}),
+    element('return-photo', {debug: 'photo_pose_service', confirm: '1'}),
   ];
   document.querySelectorAll = (selector) => {
     if (selector === '.view-tabs button') return tabs;
-    if (selector === '[data-debug]') return buttons.slice(0, 2);
-    if (selector === '[data-debug-cancel]') return buttons.slice(2);
+    if (selector === '[data-debug]') return [buttons[0], buttons[1], buttons[3]];
+    if (selector === '[data-debug-cancel]') return [buttons[2]];
     if (selector === '[data-debug], [data-debug-cancel]') return buttons;
     return [];
   };
@@ -78,6 +79,7 @@ async function browser() {
       confirm: () => true, alert: () => {}},
   });
   vm.runInContext(source, context);
+  vm.runInContext('const realRenderPlan = renderPlan; const realRenderLedger = renderLedger; const realRenderStatus = renderStatus; renderHardware = () => {};', context);
   // These renderers consume large ROS snapshots; exercise transport and controls here.
   for (const name of ['renderStatus', 'renderFlow', 'renderPlan', 'renderStages',
     'renderLedger', 'renderVision', 'renderSystem', 'renderTrajHud', 'renderTcpMini']) {
@@ -249,4 +251,61 @@ test('confirming after the snapshot expires cannot send an ordinary POST', async
   b.run('window.confirm = () => {stateFeed.lastSuccessAt = Date.now() - 60000; return true;};');
   await b.run('debugPost("execute_action", {}, "confirm")');
   assert.equal(b.requests.length, 0);
+});
+
+test('canceled level 2 ledger preserves pregrasp verification and cancellation', async () => {
+  const b = await browser();
+  b.run(`realRenderLedger({live: {request_id: "r", rows: [{target_id: "target_0",
+    outcome_name: "CANCELED", completion_level: 2, reason: "canceled", stages: []}]}})`);
+  const html = b.elements.get('ledger-body').innerHTML;
+  assert.match(html, /预抓取已验证/);
+  assert.match(html, /取消/);
+  assert.doesNotMatch(html, /采摘已确认/);
+});
+
+test('perception HARVESTED and level 6 never count as confirmed harvest', async () => {
+  const b = await browser();
+  b.run(`monitorState = {ledger: {live: {request_id: "r", rows: [{target_id: "target_0",
+    outcome_name: "SUCCEEDED", completion_level: 6}]}}};
+    realRenderPlan({targets: {harvest_run_id: "r", observations: [{target_id: "target_0",
+      harvest_status: "HARVESTED", tracking_status: "LOST", candidate: {}}]}}, {state: {run_id: "r"}});`);
+  assert.match(b.elements.get('plan-summary-inline').innerHTML, /采摘确认 <b>0/);
+  assert.match(b.elements.get('target-list').innerHTML, /撤退已确认/);
+  assert.doesNotMatch(b.elements.get('target-list').innerHTML, /HARVESTED/);
+});
+
+test('only matching current ledger level 7 counts as confirmed harvest', async () => {
+  const b = await browser();
+  b.run(`monitorState = {ledger: {live: {request_id: "r", rows: [{target_id: "target_0",
+    completion_level: 7}]}}}; realRenderPlan({}, {state: {run_id: "r"}});`);
+  assert.match(b.elements.get('plan-summary-inline').innerHTML, /采摘确认 <b>1/);
+  b.run('realRenderPlan({}, {state: {run_id: "another_run"}})');
+  assert.match(b.elements.get('plan-summary-inline').innerHTML, /采摘确认 <b>0/);
+});
+
+test('allowed decision with diagnostic reason is not displayed as a rejection', async () => {
+  const b = await browser();
+  b.run('realRenderStatus({reconstruction: {grasp_decision: {allowed: true, reason: "radial_budget_negative"}}})');
+  assert.match(b.elements.get('status-strip').innerHTML, /许可允许.*诊断/);
+  assert.doesNotMatch(b.elements.get('status-strip').innerHTML, /拒绝|未许可/);
+});
+
+test('photo return never posts through disabled motion or recovery gates', async () => {
+  const b = await browser(); b.requests.length = 0;
+  await b.run('debugPost("photo_pose_service", {}, "confirm")');
+  assert.equal(b.requests.length, 0);
+  b.run('monitorState = {debug: {enabled: true, motion_enabled: true}, task_executor: {state: {recovery_required: true}}}; updateDebugControls();');
+  assert.equal(b.buttons[3].disabled, true);
+  assert.match(b.buttons[3].title, /恢复/);
+  await b.run('debugPost("photo_pose_service", {}, "confirm")');
+  assert.equal(b.requests.length, 0);
+});
+
+test('photo return uses the existing service after explicit recovery has cleared', async () => {
+  const b = await browser(); b.requests.length = 0;
+  b.run('monitorState = {debug: {enabled: true, motion_enabled: true}, task_executor: {state: {recovery_required: false, action_active: false}}}; updateDebugControls();');
+  b.handler(async () => response({accepted: true, result: {success: true}}));
+  await b.run('debugPost("photo_pose_service", {}, "confirm")');
+  assert.equal(b.requests.length, 1);
+  assert.equal(b.requests[0].url, '/api/debug/photo_pose_service');
 });

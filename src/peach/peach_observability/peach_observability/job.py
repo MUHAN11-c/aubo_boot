@@ -122,10 +122,40 @@ def build_harvest_job(snapshot: dict) -> dict:
         if statuses.get('retreat') == 'done' and phase != _PHASE_SUCCEEDED:
             statuses['retreat'] = 'skipped'
 
+    # 终局与最高完成级别是两条事实；取消不能抹掉已验证的预抓取。
+    # 仅使用同批同目标、当前无在途动作的账本行，避免旧结果串入新周期。
+    live = (snapshot.get('ledger') or {}).get('live') or {}
+    completion = {}
+    if (live.get('request_id') == executor.get('run_id')
+            and target_id and not executor.get('action_active')
+            and not manipulation.get('running')):
+        for row in reversed(live.get('rows') or []):
+            if row.get('target_id') == target_id:
+                level = _int(row.get('completion_level'), -1)
+                if level in range(8):
+                    completion = dict(row)
+                    if level >= 1:
+                        statuses['approach'] = 'done'
+                    if level >= 5 and tool_on:
+                        statuses['tool'] = 'done'
+                    if level >= 6:
+                        statuses['retreat'] = 'done'
+                break
+
     why = _why(
         batch, phase, message, skill_state, grasp_on, tool_on,
         allowed, decision.get('reason') or '', recon_state,
         manipulation.get('message') or '', fail_at)
+    if completion:
+        labels = ('尚未到达预抓取', '预抓取已到达', '预抓取已验证',
+                  '套入已完成', '刀指令已受理（未确认切断）',
+                  '切断已确认', '撤退已确认（采摘未确认）', '采摘已确认')
+        outcome = completion.get('outcome_name') or ''
+        terminal = {'CANCELED': '批次已取消', 'FAILED': '周期失败',
+                    'SUCCEEDED': '周期完成'}.get(outcome, outcome)
+        why = f"{labels[completion['completion_level']]} · {terminal}"
+        if recovery:
+            why += ' · 等待人工恢复确认'
 
     stages = []
     for stage_id, label in STAGE_SPECS:
@@ -186,6 +216,7 @@ def build_harvest_job(snapshot: dict) -> dict:
         'target_phase': phase,
         'active_id': active,
         'why': why,
+        'completion': completion,
         'flags': flags,
         'stages': stages,
         'coords': coords,

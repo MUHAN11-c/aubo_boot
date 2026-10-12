@@ -554,17 +554,34 @@ void ManipulationSkillsNode::rebuildGraspTask()
   task_config.staging_ik = [this](const Eigen::Isometry3d & staging_pose)
     -> std::optional<std::pair<std::map<std::string, double>, double>>
     {
+      std::string target_id;
+      {
+        std::lock_guard<std::mutex> lock(state_mutex_);
+        if (state_json_.contains("target_id")) {
+          target_id = state_json_["target_id"].get<std::string>();
+        }
+      }
+      const auto model = cache_.modelSnapshot();
       if (!move_group_) {
+        RCLCPP_WARN(
+          get_logger(), "staging IK 不可用 target=%s reason=moveit_unavailable",
+          target_id.c_str());
         return std::nullopt;
       }
       const auto base = move_group_->getCurrentState();
       if (!base) {
         // 状态监视器断流/启动早期 getCurrentState 可为空（审查 P1-1）
+        RCLCPP_WARN(
+          get_logger(), "staging IK 不可用 target=%s reason=robot_state_unavailable",
+          target_id.c_str());
         return std::nullopt;
       }
       const auto * group =
         base->getJointModelGroup(params_.moveit.planning_group);
       if (group == nullptr) {
+        RCLCPP_WARN(
+          get_logger(), "staging IK 不可用 target=%s reason=invalid_group group=%s",
+          target_id.c_str(), params_.moveit.planning_group.c_str());
         return std::nullopt;
       }
       const auto names = group->getActiveJointModelNames();
@@ -583,6 +600,11 @@ void ManipulationSkillsNode::rebuildGraspTask()
       constexpr int kRandomRestarts = 3;
       constexpr double kWristWeight = 2.5;
       int attempts = 0;
+      // 每次尝试只计首个拒绝门，四项之和恒等于 attempts；valid 不是择优次数。
+      int ik_failed = 0;
+      int bounds_failed = 0;
+      int self_collision = 0;
+      int valid_candidates = 0;
       double best_score = std::numeric_limits<double>::max();
       std::map<std::string, double> best_joints;
       double best_roll = 0.0;
@@ -599,10 +621,12 @@ void ManipulationSkillsNode::rebuildGraspTask()
           if (!probe.setFromIK(
               group, rolled, params_.frames.tip, 0.2))
           {
+            ++ik_failed;
             continue;
           }
           probe.update();
           if (!probe.satisfiesBounds(group)) {
+            ++bounds_failed;
             continue;
           }
           collision_detection::CollisionRequest collision_request;
@@ -610,8 +634,10 @@ void ManipulationSkillsNode::rebuildGraspTask()
           staging_ik_env_->env->checkSelfCollision(
             collision_request, collision_result, probe, staging_ik_env_->acm);
           if (collision_result.collision) {
+            ++self_collision;
             continue;
           }
+          ++valid_candidates;
           std::vector<double> values;
           probe.copyJointGroupPositions(group, values);
           double score = 0.0;
@@ -632,15 +658,25 @@ void ManipulationSkillsNode::rebuildGraspTask()
           }
         }
       }
+      const auto & position = staging_pose.translation();
+      RCLCPP_INFO(
+        get_logger(),
+        "%s target=%s model_target=%s model_revision=%s frame=%s group=%s tip=%s "
+        "position_m=[%.4f %.4f %.4f] axis=[%.4f %.4f %.4f] "
+        "attempts=%d ik_failed=%d bounds_failed=%d self_collision=%d valid_candidates=%d",
+        have_best ? "staging IK 候选筛选成功" : "staging IK 梯子全灭",
+        target_id.c_str(), model.identity.target_id.c_str(),
+        model.identity.model_revision.c_str(), params_.frames.base.c_str(),
+        params_.moveit.planning_group.c_str(), params_.frames.tip.c_str(),
+        position.x(), position.y(), position.z(), axis.x(), axis.y(), axis.z(),
+        attempts, ik_failed, bounds_failed, self_collision, valid_candidates);
       if (!have_best) {
-        RCLCPP_INFO(
-          get_logger(), "staging IK 梯子全灭（%d 次尝试）", attempts);
         return std::nullopt;
       }
       RCLCPP_INFO(
         get_logger(),
         "staging IK 择优：滚转 %.0f°（%d 候选，腕轴加权距离² %.3f）",
-        best_roll * 180.0 / static_cast<double>(EIGEN_PI), attempts,
+        best_roll * 180.0 / static_cast<double>(EIGEN_PI), valid_candidates,
         best_score);
       return std::make_pair(best_joints, best_roll);
     };

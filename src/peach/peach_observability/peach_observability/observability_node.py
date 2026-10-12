@@ -119,6 +119,7 @@ PARAM_WATCHLIST = {
     ],
     '/peach_supervisor': [
         'execution_enabled', 'survey_wait_s', 'survey_dwell_s',
+        'execute_pregrasp_only', 'reconstruct_in_trajectory',
         'empty_survey_limit',
         'persist_ledger',
     ],

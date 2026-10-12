@@ -55,6 +55,35 @@ const failureCodeNames = {
 };
 const failureCodeLabel = (n) =>
   failureCodeNames[Number(n)] || `CODE_${n}`;
+const failureDescriptions = {
+  OBSERVE_FAILED: "观察未完成", BUILD_FAILED: "模型构建失败",
+  DECISION_REJECTED: "许可复检未通过", PREGRASP_RESIDUAL: "预抓取残差未通过",
+  SLEEVE_PLAN_FAILED: "套入规划失败", CUT_COMMAND_FAILED: "刀指令失败",
+  CUT_FEEDBACK_TIMEOUT: "切断反馈超时", RETREAT_FAILED: "撤退失败",
+  RECOVERY_REQUIRED: "等待人工恢复", EXACT_TF_MISSING: "缺少同时间坐标变换",
+  DYNAMIC_BUDGET_NEGATIVE: "动态余量不足", MODEL_STALE: "模型陈旧",
+  CORRIDOR_BLOCKED: "接近通道受阻", TRANSIT_FAILED: "过渡移动失败",
+  START_NOT_READY: "起点未就绪", CANCELED: "人工取消",
+};
+const completionNames = ["尚未到达预抓取", "预抓取已到达", "预抓取已验证",
+  "套入已完成", "刀指令已受理（未确认切断）", "切断已确认",
+  "撤退已确认（采摘未确认）", "采摘已确认"];
+function completionLabel(row) {
+  return numeric(row?.completion_level)
+    ? completionNames[Number(row.completion_level)] || `完成级别 ${row.completion_level}`
+    : "完成证据待确认";
+}
+function currentLedgerRows(state = monitorState) {
+  const live = state?.ledger?.live || {};
+  const run = state?.task_executor?.state?.run_id || state?.perception?.targets?.harvest_run_id;
+  return run && live.request_id === run ? live.rows || [] : [];
+}
+function decisionSummary(decision) {
+  const reason = decision.reason || "";
+  if (decision.allowed === true) return `许可允许${reason ? ` · 诊断：${reason}` : ""}`;
+  if (decision.allowed === false) return `未许可${reason ? `：${reason}` : ""}`;
+  return "等待许可";
+}
 
 // 最新一次 /api/state（调试面取 state_seq；渲染器共用）
 let monitorState = null;
@@ -129,7 +158,9 @@ function renderTicket(job) {
   else if (/失败|未许可|未收敛|未进入/.test(why)) banner.classList.add("fail");
 
   setText("ticket-title", job && job.target_id
-    ? `${job.target_id} · ${(job.perception && job.perception.harvest_status) || "作业中"}`
+    ? `${job.target_id} · ${job.completion?.completion_level !== undefined
+      ? completionLabel(job.completion)
+      : job.perception?.harvest_status === "HARVESTED" ? "已结算 · 采摘证据待确认" : "作业中"}`
     : "尚未锁定目标");
   const motion = (job && job.motion) || {};
   setText("ticket-skill", motion.state || "—");
@@ -220,14 +251,17 @@ function renderPlan(perception, taskExecutor) {
   const harvest = perception.harvest || {};
   const state = taskExecutor.state || {};
   const observations = targets.observations || [];
-  const harvested = observations.filter((item) => item.harvest_status === "HARVESTED");
+  const rows = currentLedgerRows({...monitorState, perception, task_executor: taskExecutor});
+  const results = new Map(rows.map((row) => [row.target_id, row]));
+  const harvested = rows.filter((row) => Number(row.completion_level) === 7);
   const pending = observations.filter((item) =>
     item.harvest_status === "PLANNED" || item.harvest_status === "WAITING_QUALITY");
   setText("run-id", targets.harvest_run_id || harvest.harvest_run_id || state.run_id || "等待批次");
   $("plan-summary-inline").innerHTML = [
     ["锁定", targets.target_count ?? harvest.target_count ?? observations.length],
-    ["已抓", harvested.length || (harvest.completed_target_ids || []).length],
-    ["待抓", pending.length],
+    ["采摘确认", harvested.length],
+    ["已结算", rows.length],
+    ["待处理", pending.length],
     ["选中", state.target_id || targets.selected_target_id || "—"],
   ].map(([label, value]) => `<span>${label} <b>${safe(String(value))}</b></span>`).join("");
 
@@ -243,11 +277,15 @@ function renderPlan(perception, taskExecutor) {
   const selectedId = state.target_id || targets.selected_target_id || "";
   $("target-list").innerHTML = observations.slice().sort((a, b) => a.priority - b.priority)
     .map((item) => {
-      const rowClass = `${item.target_id === selectedId || item.selected ? "selected" : ""} ${item.harvest_status === "HARVESTED" ? "harvested" : ""}`;
+      const result = results.get(item.target_id);
+      const confirmed = Number(result?.completion_level) === 7;
+      const status = result ? completionLabel(result) : item.harvest_status === "HARVESTED"
+        ? "已结算 · 采摘证据待确认" : item.harvest_status;
+      const rowClass = `${item.target_id === selectedId || item.selected ? "selected" : ""} ${confirmed ? "harvested" : ""}`;
       const entry = xyzCells((item.candidate || {}).entry_position);
       return `<tr class="${rowClass}">
         <td><b>${safe(item.target_id)}</b></td>
-        <td>${chip(item.harvest_status, harvestChip[item.harvest_status] ?? "")}</td>
+        <td>${chip(status, confirmed ? "ok" : result || item.harvest_status === "HARVESTED" ? "warn" : harvestChip[item.harvest_status] ?? "")}</td>
         <td>${chip(item.tracking_status, trackingChip[item.tracking_status] ?? "")}</td>
         <td>${percent(item.confidence)}</td>
         <td class="mono">${entry[0]}, ${entry[1]}, ${entry[2]}</td>
@@ -288,7 +326,9 @@ function renderLedger(ledger) {
   const pending = Math.max(0, Number(totals.claimed || 0) - Number(totals.attempted || 0));
   $("ledger-summary").innerHTML = [
     ["入账", totals.attempted ?? rows.length],
-    ["成功", totals.SUCCEEDED ?? 0],
+    ["周期完成", totals.SUCCEEDED ?? 0],
+    ["预抓取验证", rows.filter((row) => Number(row.completion_level) >= 2).length],
+    ["采摘确认", rows.filter((row) => Number(row.completion_level) === 7).length],
     ["跳过", (totals.SKIPPED_QUALITY ?? 0) + (totals.SKIPPED_UNREACHABLE ?? 0)],
     ["失败", totals.FAILED ?? 0],
     ["取消", totals.CANCELED ?? 0],
@@ -302,17 +342,19 @@ function renderLedger(ledger) {
   $("ledger-body").innerHTML = rows.slice().reverse().map((row) => {
     const cls = ledgerChip[row.outcome_name] || "";
     const name = ledgerNames[row.outcome_name] || row.outcome_name || "—";
-    const failure = row.failure_code !== undefined && row.failure_code !== null
-      ? ` <span class="mono">[${safe(String(row.failure_code))}${row.failure_code_n !== undefined && row.failure_code_n !== null ? `/${failureCodeLabel(row.failure_code_n)}` : ""}]</span>` : "";
+    const code = row.failure_code_n !== undefined && row.failure_code_n !== null
+      ? failureCodeLabel(row.failure_code_n) : String(row.failure_code || "").toUpperCase();
+    const failure = code && code !== "NONE" && code !== "0"
+      ? ` <span class="failure-detail">${safe(failureDescriptions[code] || "失败码")} <span class="mono">[${safe(code)}]</span></span>` : "";
     const stages = (row.stages || []);
     const stageChips = stages.length
-      ? stages.map((s) => `<span class="phase-chip">${safe(s.name)} ${s.dur_s === null ? "—" : s.dur_s.toFixed(1)}s</span>`).join("")
+      ? stages.map((s) => `<span class="phase-chip">${safe(({reconfirm: "目标复核", approach_insert: "预抓取/接近", observe: "观察", tool: "刀具", retreat: "撤退"})[s.name] || s.name)} ${numeric(s.dur_s) ? Number(s.dur_s).toFixed(1) : "—"}s</span>`).join("")
       : '<p class="empty">无阶段记录</p>';
     const stageTotal = stages.length
       ? ` ${stages.reduce((acc, s) => acc + (Number(s.dur_s) || 0), 0).toFixed(1)}s` : "";
     return `<tr>
       <td><b>${safe(row.target_id)}</b></td>
-      <td>${chip(name, cls)}</td>
+      <td>${chip(name, cls)}<div class="completion-note">${safe(completionLabel(row))}</div></td>
       <td class="reason-cell">${safe(row.reason || "—")}${failure}</td>
       <td class="mono">${row.elapsed_s === null || row.elapsed_s === undefined ? "—" : Number(row.elapsed_s).toFixed(1)}</td>
       <td class="mono">${row.build_view_count ?? "—"}</td>
@@ -495,7 +537,7 @@ function renderVision(state) {
       metricChip("TF 延迟", numeric(diag.tf_latency_ms) ? `${Number(diag.tf_latency_ms).toFixed(0)}ms` : "—"),
       metricChip("最大基线", numeric(coverage.max_baseline_deg) ? `${Number(coverage.max_baseline_deg).toFixed(1)}°` : "—"),
       metricChip("许可", validText, decision.allowed ? "" : "hot"),
-      metricChip("原因", decision.reason || null),
+      metricChip(decision.allowed === true ? "许可诊断" : "未许可原因", decision.reason || null),
     ].filter(Boolean).join("") || '<p class="empty">等待重建心跳</p>';
   }
 }
@@ -619,8 +661,7 @@ function renderStatus(state) {
   const reconState = diag.state || state.reconstruction?.status?.state ||
     state.reconstruction?.status?.text || "—";
   const decision = state.reconstruction?.grasp_decision || {};
-  const graspText = decision.allowed === true
-    ? "允许" : (decision.reason || (decision.allowed === false ? "未许可" : "—"));
+  const graspText = decisionSummary(decision);
   const manipulation = state.manipulation?.status || {};
   const robot = state.robot?.status || {};
 

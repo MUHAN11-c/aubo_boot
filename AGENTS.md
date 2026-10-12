@@ -343,7 +343,7 @@ pluginlib 最小形态（新缝用这个，不要再加 yaml dict）：`PLUGINLI
 
 ### 仿真与真机同一管线
 
-TurtleBot 4 / Stretch / UR 的做法：同一套控制器与 MoveIt，只换硬件 plugin 与 clock。将来补 Gazebo Harmonic 或 Isaac，应走 `gz_ros2_control` / `topic_based_ros2_control`，不要为仿真再写一套关节话题。本仓 `scripts/sim_field_targets.py` 是手工系统测（UNWIND），应逐步收进独立 `*_tests` 包。真机仍是套袋方向 / 接触的最终权威（KEEP）。
+TurtleBot 4 / Stretch / UR 的做法：同一套控制器与 MoveIt，只换硬件 plugin 与 clock。将来补 Gazebo Harmonic 或 Isaac，应走 `gz_ros2_control` / `topic_based_ros2_control`，不要为仿真再写一套关节话题。本仓系统测在独立 `peach_system_tests` / `peach2_system_tests` 包；旧工作区脚本已退役。真机仍是套袋方向 / 接触的最终权威（KEEP）。
 
 ### 不要做的设计
 
@@ -429,7 +429,7 @@ TurtleBot 4 / Stretch / UR 的做法：同一套控制器与 MoveIt，只换硬�
   launch/
   config/
   test/
-  doc/                 # 可选；本仓活文档在仓库 docs/，包 README 链过去
+  doc/                 # 本包活文档；系统文档在 peach_bringup/doc/
 ```
 
 - `package.xml` format 3（[REP-149](https://www.ros.org/reps/rep-0149.html)）；依赖字母序；build/exec/test 分栏写对
@@ -601,7 +601,7 @@ flowchart TB
 | Lint | `ament_lint_auto` / flake8 / pep257 / uncrustify / cppcheck | 风格 | 已有 |
 | Unit | gtest / pytest + mock；零 ROS 纯核也合法 | FSM、几何、协议 | 仅纯核 pytest；**新 C++ 允许 gtest** |
 | Integration | `launch_testing`：`generate_test_description` + `ReadyToTest` + 运行中 TestCase + `@post_shutdown_test` 查退出码；`add_ros_isolated_launch_test` 隔离域；`mock_components` | launch、lifecycle、话题接线、MoveIt piping | **缺口 / UNWIND** |
-| System | 独立 `*_tests` 包；Gazebo Harmonic / Isaac / MuJoCo + clock bridge | 跨包端到端 | **缺口**。`scripts/sim_field_targets.py` 是手工系统测，应逐步收进 colcon |
+| System | 独立 `*_tests` 包；Gazebo Harmonic / Isaac / MuJoCo + clock bridge | 跨包端到端 | **缺口**。系统测在独立 `peach_system_tests` / `peach2_system_tests` 包；旧工作区脚本已退役 |
 | Field | 真机 + bag + 命名 `request_id` | 方向 / 接触 / IO | KEEP：采摘对错的最终权威 |
 
 硬规则：
@@ -611,7 +611,7 @@ flowchart TB
 - **测完即停：** 探针 / bag / 采集 / 演示栈 / mock 冒烟结束后必须退出并 `pgrep` 复核（MUST 第 1 章；步骤第 9 章）。`colcon test` 与 isolated launch_testing 本身会拆栈，但本机手工起的进程不在其列。
 - 真机命名：v1 测试指导（`src/peach/peach_system_tests/doc/testing.md` §4）的 `field_pregrasp_*` / `field_full_*`；`request_id` 不复用
 - `colcon test` 绿 **不等于** 采摘方向验收；也不再把“禁止仿真测”写成原则
-- CI DEFAULT：[industrial_ci](https://github.com/ros-industrial/industrial_ci) GitHub Action，`ROS_DISTRO: jazzy`，跑 build+test。真机 job 不进 PR 必过门。本仓 `.github/workflows/jazzy.yaml`：`peach-core` = `scripts/r0_gate.sh`；`industrial_ci` job 编测驱动+peach（忽略 IVG / `imu_follow` / `percipio_camera` / `camera_calibration`；apt scipy/pytest/yaml，不 Docker pip）
+- CI DEFAULT：[industrial_ci](https://github.com/ros-industrial/industrial_ci) GitHub Action，`ROS_DISTRO: jazzy`，跑 build+test。真机 job 不进 PR 必过门。本仓 `.github/workflows/jazzy.yaml`：`industrial_ci` job 编测驱动+peach（原 `peach-core` / `r0_gate.sh` 已退役）（忽略 IVG / `imu_follow` / `percipio_camera` / `camera_calibration`；apt scipy/pytest/yaml，不 Docker pip）
 
 ### launch_testing 怎么写（新接线用这个，不再禁止）
 
@@ -626,7 +626,7 @@ flowchart TB
 
 ### 物理仿真（缺口，不是禁令）
 
-Gazebo Harmonic（Jazzy 搭配）或 Isaac / MuJoCo：同一 URDF，换 `gz_ros2_control`，全图 `use_sim_time`。系统测放独立包，避免能力包与测试包环依赖。本仓尚未落地（UNWIND）。未落地之前，用 mock_components 做集成测，用 `scripts/sim_field_targets.py` 做手工系统测，**不要**把“还没有 Gazebo”写成“禁止仿真测”。
+Gazebo Harmonic（Jazzy 搭配）或 Isaac / MuJoCo：同一 URDF，换 `gz_ros2_control`，全图 `use_sim_time`。系统测放独立包，避免能力包与测试包环依赖。本仓尚未落地（UNWIND）。未落地之前，用 mock_components 做集成测，用独立 `*_system_tests` 包做系统测，**不要**把“还没有 Gazebo”写成“禁止仿真测”。
 
 ---
 
@@ -649,7 +649,7 @@ gtest 放本包 `test/`，链到纯核静态库，不 `spin` 整个技能节点�
 
 只记录现在跑什么。没有 KEEP 理由的条目见第 12 章，标 UNWIND。细节链到包级活文档（系统=peach_bringup/doc；包级=各包 doc/），不把 architecture 复制进来。
 
-产品：固定座 AUBO E5 + Percipio RGB-D；愿景含底盘。`src/` 分组（2026-10-10 用户裁定）：`src/peach/` = v1 采摘栈九包（下表职责摘要对象）、`src/peach2/` = v2 十二包、`src/ivg/` = 演示八包；驱动与 `peach_sim`/`serial_imu`/`imu_follow`/`percipio_camera`/`peach_web`（8090 静态页资源）顶层。`peach_navigation` 已归档 `_archive/parked_2026-09/`。IVG 三包不是 peach，不进 `harvest_system` / lifecycle（产品范围 KEEP）。peach2 v2 孵化栈（`src/peach2/`，十二包）同样不进 `harvest_system` / lifecycle：M1 退出门已过（系统测 33/33），非生产入口，方案见 `docs/peach_v2_重构终版方案.md`。`imu_follow` 不是 peach、不进 lifecycle；仅 `adaptive_shear_v1` 随 `harvest_system` Include（shear/bite 两档不起）。`imu_follow` 开运动时不经 `authorizeStage`（peach 接触窗只调 Trigger；`motion.enabled` 默认 false），真机须另授权。
+产品：固定座 AUBO E5 + Percipio RGB-D；愿景含底盘。`src/` 分组（2026-10-10 用户裁定）：`src/peach/` = v1 采摘栈九包（下表职责摘要对象）、`src/peach2/` = v2 十二包、`src/ivg/` = 演示九包；驱动与 `peach_sim`/`serial_imu`/`imu_follow`/`percipio_camera`/`peach_web`（8090 静态页资源）顶层。`peach_navigation` 已归档 `_archive/parked_2026-09/`。IVG 三包不是 peach，不进 `harvest_system` / lifecycle（产品范围 KEEP）。peach2 v2 孵化栈（`src/peach2/`，十二包）同样不进 `harvest_system` / lifecycle：M1 退出门已过（系统测 33/33），非生产入口，方案见 `docs/peach_v2_重构终版方案.md`。`imu_follow` 不是 peach、不进 lifecycle；仅 `adaptive_shear_v1` 随 `harvest_system` Include（shear/bite 两档不起）。`imu_follow` 开运动时不经 `authorizeStage`（peach 接触窗只调 Trigger；`motion.enabled` 默认 false），真机须另授权。
 
 ### KEEP（完美适配当前实现）
 
@@ -677,7 +677,7 @@ gtest 放本包 `test/`，链到纯核静态库，不 `spin` 整个技能节点�
 | 包 | 现行职责 | 不做什么 |
 |----|----------|----------|
 | `peach_interfaces` | 唯一 IDL + manifest 双向核对 | 不跑节点 |
-| `peach_common` | Python 共享库（对齐 nav2_common）：yaml_params/param_rules/qos/paths 单源（W1 起，各包旧路径留 shim） | 不跑节点、不进 launch |
+| `peach_common` | Python 共享库（对齐 nav2_common）：yaml_params/param_rules/qos/paths 单源（各能力包直接 import peach_common） | 不跑节点、不进 launch |
 | `peach_harvester` | 大脑一进程三节点：`vision`（场景观测+目标重建）+ `supervisor`（批次 FSM/选果/视点两档/批次策略/操作台服务/账本+补采清单）+ `peach_scene_obstacles` 场景障碍快照独立进程（0035，Survey 触发护相机）；台架独立入口保留 | 不发关节命令、不做 IK（问臂） |
 | `peach_arm` | `MoveTo` / 接触 `ExecuteTarget`（检查点+令牌双路）/ `CheckReachability`；命令门=enables×clearance×robotReady×¬cancel；GPL 参数单源 | 不写 `ledger.json`、不选目标 |
 | `peach_bringup` | 整栈入口、预检、nav2_lm 托管、autostart 客户端、生命周期桥 | 不含业务 |
@@ -715,7 +715,7 @@ lifecycle 名单现行（nav2_lm 承载，`bond_timeout` launch 参数默认 0�
 | 参数 | generate_parameter_library | Python peach：yaml 直读 + `attach`（0024）；`peach_arm` C++ GPL（2c） | Python 侧否（KEEP 可读 yaml）；C++ 技能是 | 新 C++ 包 GPL；Python peach 不要再引入 params_gen |
 | 单测 | gtest + pytest | 仅零 ROS pytest；禁 gtest | 否 | 新 C++ 用 gtest |
 | 集成测 | launch_testing + isolated domain | 禁止 launch_testing（0006） | 否 | 新接线/生命周期用 launch_testing |
-| 系统测 | 独立 `*_tests` 包；Gazebo / Isaac | 手工 `scripts/sim_field_targets.py` | 否 | 逐步收进 colcon；真机仍最终权威 |
+| 系统测 | 独立 `*_tests` 包；Gazebo / Isaac | 独立 `*_system_tests` 包（旧工作区脚本已退役） | 否 | 逐步收进 colcon；真机仍最终权威 |
 | CI | industrial_ci | `.github/workflows/jazzy.yaml` 有 r0_gate + industrial_ci（忽略 IVG/`imu_follow`/`percipio_camera`/`camera_calibration`） | 否（切法） | 真机 job 仍不进 PR 必过门 |
 | 诊断 | `diagnostic_updater` | `peach_arm`（W5 双轨）与 `serial_imu` 已用；其余包未用；8090 自研 | 部分 | 新健康信号走 `/diagnostics` |
 | 话题名当参数 | 默认名 + remap | 多数已相对名 | — | 禁止 `declare_parameter("image_topic")` |

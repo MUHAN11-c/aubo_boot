@@ -3,9 +3,9 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from peach_vegetation.param_rules import check, check_min_max
+from peach_common.param_rules import check, check_min_max
+from peach_common.yaml_params import leaf_keys
 from peach_vegetation.params import _RULES, _validate
-from peach_vegetation.yaml_params import leaf_keys
 
 ROOT = Path(__file__).resolve().parents[1]
 

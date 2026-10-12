@@ -5,16 +5,15 @@ peach 能力包的共享设施**单源**（W1 起，角色对齐 Nav2 `nav2_comm
 `qos`（QoS 工厂）、`paths`（目录段净化与 `runs/` 根单源）、
 `lifecycle`（名单外节点自转换 + bond 心跳守卫）、`ros_log_bridge`
 （stdlib logging → /rosout 桥）、`event_meter`（纯核事件计数摘要）。
-`peach_harvester` / `peach_bringup` / `peach_vegetation`
-的旧 import 路径保留为转发 shim，行为零变化。
+能力包直接导入 `peach_common`。原 harvester/bringup/vegetation 的六个参数转发模块已退役；外部脚本也应改用下列公共 API。参数键与规则行为不变。
 
 ## 公有 API
 
-- `peach_common.yaml_params`（= 各包旧 `yaml_params` 路径）：
+- `peach_common.yaml_params`：
   `attach`、`load_ros_parameters`、`leaf_keys`、`set_dotted`、`dict_to_ns`、
   `expand_share`、`package_yaml`、`flatten_leaves`、`snapshot`；类型别名
   `ValidateFn` / `PreviewFn` / `CommitFn`
-- `peach_common.param_rules`（= 各包旧 `param_rules` 路径）：
+- `peach_common.param_rules`：
   `check`（kind：`gt` / `gt_eq` / `lt` / `lt_eq` / `bounds` / `nonempty` /
   `one_of` / `seq_gt`）、`check_min_max`、`check_enable_deps`
 - `peach_common.paths`：`safe_component`（目录段净化，非法回退 fallback）、
@@ -34,7 +33,7 @@ peach 能力包的共享设施**单源**（W1 起，角色对齐 Nav2 `nav2_comm
 ## 用法
 
 ```python
-from peach_common import attach, package_yaml      # 或旧路径 shim
+from peach_common import attach, package_yaml
 from peach_common.param_rules import check
 from peach_common.qos import latched
 params = attach(node, package_yaml('peach_harvester', 'peach_supervisor.yaml'))

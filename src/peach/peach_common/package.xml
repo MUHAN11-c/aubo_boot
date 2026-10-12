@@ -4,13 +4,16 @@
 <package format="3">
   <name>peach_common</name>
   <version>0.1.0</version>
-  <description>peach 共享设施单源（W1；角色对齐 Nav2 nav2_common）。yaml_params/param_rules/qos/paths/lifecycle/ros_log_bridge/event_meter；各能力包旧路径 shim 转发。</description>
+  <description>peach 共享设施单源（W1；角色对齐 Nav2 nav2_common）。yaml_params/param_rules/qos/paths/lifecycle/ros_log_bridge/event_meter；各能力包直接依赖公共库。</description>
   <maintainer email="2155413529@qq.com">wjz</maintainer>
   <license>BSD-3-Clause</license>
 
   <buildtool_depend>ament_python</buildtool_depend>
 
+  <exec_depend>ament_index_python</exec_depend>
+  <exec_depend>bondpy</exec_depend>
   <exec_depend>python3-yaml</exec_depend>
+  <exec_depend>rcl_interfaces</exec_depend>
   <exec_depend>rclpy</exec_depend>
 
   <test_depend>ament_flake8</test_depend>

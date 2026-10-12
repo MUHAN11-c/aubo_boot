@@ -82,7 +82,8 @@ def domain_from_environ(raw: bytes | None) -> str:
 
 
 def running_stack_pids(proc_root: str = '/proc', own_domain: str | None = None):
-    """返回 (pid, cmdline)：同域（或 environ 不可读）仍在跑的栈节点.
+    """
+    返回 (pid, cmdline)：同域（或 environ 不可读）仍在跑的栈节点.
 
     其它 ROS_DOMAIN_ID 的栈不挡（隔离域系统测 / 仿真与开发栈可并存）。
     """

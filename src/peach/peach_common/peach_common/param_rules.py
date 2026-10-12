@@ -4,7 +4,7 @@
 ``check`` 支持的规则 kind 并集：``gt`` / ``gt_eq`` / ``lt`` / ``lt_eq`` /
 ``bounds``（三份原有）、``nonempty``（原 vision）、``one_of`` / ``seq_gt``
 （原 vegetation）。对既有 RULES 表零语义变化：并集只新增 kind，不改任何
-拒绝文案；三包旧 ``param_rules`` 路径为转发 shim。
+拒绝文案；各能力包直接导入本模块。
 """
 
 from __future__ import annotations

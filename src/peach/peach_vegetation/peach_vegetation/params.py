@@ -9,8 +9,8 @@ leaf.h_max 跨字段经 preview 整批拒绝。掩膜阈值热生效；device / 
 """
 from __future__ import annotations
 
-from peach_vegetation.param_rules import check as _check, check_min_max
-from peach_vegetation.yaml_params import attach, package_yaml
+from peach_common.param_rules import check as _check, check_min_max
+from peach_common.yaml_params import attach, package_yaml
 
 _RULES = {  # 键 -> 校验规则表（启动期非法即拒启；运行期非法 set 即拒）
     'device': (('one_of', ('auto', 'cpu', 'cuda', 'cuda:0')),),

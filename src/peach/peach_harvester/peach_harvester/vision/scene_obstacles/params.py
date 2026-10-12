@@ -9,8 +9,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from peach_harvester.vision.param_rules import check as _check
-from peach_harvester.yaml_params import package_yaml
+from peach_common.param_rules import check as _check
+from peach_common.yaml_params import package_yaml
 
 
 _RULES = {  # 键 -> 校验规则表（启动期非法即拒启）
@@ -65,7 +65,7 @@ class SceneObstaclesParams:
     @staticmethod
     def attach(node) -> 'SceneObstaclesParams':
         """Declare yaml leaves with range checks; live namespace."""
-        from peach_harvester.yaml_params import attach as _attach
+        from peach_common.yaml_params import attach as _attach
 
         namespace = _attach(
             node,

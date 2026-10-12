@@ -4,13 +4,13 @@
 
 - 设计架构：[src/peach/peach_bringup/doc/architecture.md](src/peach/peach_bringup/doc/architecture.md)
 - 输入输出：[src/peach/peach_bringup/doc/io.md](src/peach/peach_bringup/doc/io.md)
-- 测试流程指导：[src/peach_system_tests/doc/testing.md](src/peach/peach_system_tests/doc/testing.md)（v1）；[src/peach2/peach2_system_tests/doc/testing.md](src/peach2/peach2_system_tests/doc/testing.md)（v2）
+- 测试流程指导：[src/peach/peach_system_tests/doc/testing.md](src/peach/peach_system_tests/doc/testing.md)（v1）；[src/peach2/peach2_system_tests/doc/testing.md](src/peach2/peach2_system_tests/doc/testing.md)（v2）
 - 用户裁定文档（非活文档）：[docs/peach_v1_现行终版方案.md](docs/peach_v1_现行终版方案.md) v1 现行栈终版方案；[docs/peach_v2_重构终版方案.md](docs/peach_v2_重构终版方案.md) v2 重构设计与落地计划（原 design.md 项目设计书已由两者取代删除）
 - 代理约束：[AGENTS.md](AGENTS.md)
 
 前两份（architecture / io）是活文档，与源码互相更新：改一边须同一轮改另一边。测试流程随两测试包 `doc/testing.md` 维护（2026-10-10 自 docs/testing.md 拆写入包，用户裁定）。过程记录类（testing-log / REFACTORING）已于 2026-10-10 清理退役，历史在 git。`docs/` 不另增活文档。
 
-验收看实机和过程数据（`runs/`、`_archive/runs/`）。`colcon test` 跑 ROS 2 默认 lint 加零 ROS 纯核 pytest，不等于采摘验收。
+验收看实机和过程数据（`runs/`、`_archive/runs/`）。`colcon test` 跑包内 lint、pytest/gTest 与 isolated launch_testing，不等于采摘验收。
 
 ```bash
 source /opt/ros/jazzy/setup.bash
@@ -31,7 +31,7 @@ ros2 launch peach_bringup harvest_system.launch.py \
 | 包 | 作用 | 含节点 | 不做什么 |
 |----|------|--------|----------|
 | [peach_interfaces](src/peach/peach_interfaces/README.md) | 跨包唯一 IDL：批次/观测/重建/抓取（导航名预留） | 无 | 不跑节点、不设算法参数、不 launch |
-| peach_harvester | 大脑一进程三节点：vision（场景观测+目标重建）+ supervisor（批次 FSM/选果/视点两档/批次策略/操作台服务/账本+补采清单） | `peach_scene_perception_node`、`peach_target_reconstruction_node`、`peach_supervisor` | 不发关节命令、不做 IK（问臂）；感知不选下一颗、不写账本 |
+| [peach_harvester](src/peach/peach_harvester/README.md) | 大脑一进程三节点：vision（场景观测+目标重建）+ supervisor（批次 FSM/选果/视点两档/批次策略/操作台服务/账本+补采清单） | `peach_scene_perception_node`、`peach_target_reconstruction_node`、`peach_supervisor` | 不发关节命令、不做 IK（问臂）；感知不选下一颗、不写账本 |
 | [peach_arm](src/peach/peach_arm/README.md) | 拍照、主动视点、质量/安全门、MTC 接触、工具 SetIO、撤退 | `peach_arm` | 不写账本、不调重建 Trigger、不 `BeginScene`/`RunHarvest` |
 | [peach_bringup](src/peach/peach_bringup/README.md) | 整栈入口、预检、lifecycle 托管、autostart 客户端、生命周期桥 | `peach_lifecycle_flag_bridge`、`peach_autostart_client` | 不含业务；launch 不自动开批 |
 | [peach_observability](src/peach/peach_observability/README.md) | 8090 过程页/单步调试、会话 bag、`peach_bag_report` | `peach_observability` | 不发运动 |
@@ -64,9 +64,11 @@ ros2 launch peach_bringup harvest_system.launch.py \
 
 | 路径 | 内容 |
 |------|------|
-| `src/` | v1 采摘栈九包（`src/peach/`，含公共库与相机前端）+ v2 孵化十二包（`src/peach2/`）+ IVG 演示八包（`src/ivg/`）+ 臂/相机驱动九包 + 过程页静态资源 `peach_web` 1 + 仿真 `peach_sim` 1 + 可选 USB IMU / IMU 跟随 2 + 夹爪描述 `robotiq_description` 1 |
-| `docs/` | `architecture.md` 设计架构；`io.md` 输入输出；v1/v2 方案书（用户裁定非活文档）；测试指导在两测试包 `doc/` |
-| `runs/` | 过程数据唯一根（gitignore：账本、观测、session、MCAP） |
+| `src/` | v1 采摘栈九包（`src/peach/`，含公共库与相机前端）+ v2 孵化十二包（`src/peach2/`）+ IVG 演示九包（`src/ivg/`）+ 臂/相机驱动九包 + 过程页静态资源 `peach_web` 1 + 仿真 `peach_sim` 1 + 可选 USB IMU / IMU 跟随 2 + 夹爪描述 `robotiq_description` 1 |
+| `docs/` | v1/v2 方案书与架构图交付件（非活文档）；现行架构、IO 与测试指导在各包 `doc/` |
+| `plans/` | 冻结项目设计书及入口说明（与 `docs/` 方案书用途不同，现行行为看包级 `doc/`） |
+| `scripts/` | 工作区打包与架构图生成工具；业务、采集与测试入口在所属包 |
+| `runs/` | 过程数据唯一根（文本按 `.gitignore` 可入库，bag/图像等二进制留本地） |
 | `_archive/runs/` | 历史过程数据（勿删） |
 | `_archive/parked_2026-08-24/` | 暂不用：tools / diagnostics / profiles / scripts / 架子机 / 过程文档 |
 | `_archive/parked_2026-09/` | 已归档 `peach_navigation`（真底盘授权后恢复） |

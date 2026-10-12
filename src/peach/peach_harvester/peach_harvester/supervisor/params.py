@@ -9,8 +9,8 @@ yaml 迁 ``peach_observability/config``，本包不再代持）。
 """
 from __future__ import annotations
 
-from peach_harvester.supervisor.param_rules import check as _check, check_min_max
-from peach_harvester.yaml_params import attach, package_yaml
+from peach_common.param_rules import check as _check, check_min_max
+from peach_common.yaml_params import attach, package_yaml
 
 
 def _yaml(filename: str):

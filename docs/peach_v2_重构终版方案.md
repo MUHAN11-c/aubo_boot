@@ -1358,7 +1358,7 @@ v2 末端插件将刀口偏移、roll、prepare/cut/confirm/release 集中，值
 
 ## 源码架构图重绘记录（2026-10-09）
 
-本次按工作区源码静态核对后绘制四张独立架构图。硬件图描述源码中可确认的机械结构、驱动通信和安全边界，不充当现场电气接线图；软件图描述主要职责、算法、接口及启动范围，不充当完整运行时 ROS graph。所有图均输出 PNG（插文档）、SVG（缩放查看）、PDF（打印）与 DOT（编辑）格式，重绘命令：`python3 docs/images/render_peach_architecture.py`，依赖系统 Graphviz 与 Noto Sans CJK SC 字体。
+本次按工作区源码静态核对后绘制四张独立架构图。硬件图描述源码中可确认的机械结构、驱动通信和安全边界，不充当现场电气接线图；软件图描述主要职责、算法、接口及启动范围，不充当完整运行时 ROS graph。所有图均输出 PNG（插文档）、SVG（缩放查看）、PDF（打印）与 DOT（编辑）格式，重绘命令：`python3 scripts/render_peach_architecture.py`，依赖系统 Graphviz 与 Noto Sans CJK SC 字体。
 
 - [v1 硬件架构图](images/peach_v1_hardware.svg)：固定座、六轴机械臂、腕载相机、三种可换末端、柜体 IO、安全回路与条件 IMU 支路。
 - [v1 软件架构图](images/peach_v1_software.svg)：brain 同进程三节点、显式 FSM、ICP/TSDF 重建、peach_arm 运动、场景快照、条件 Servo 支路及 8090 观测。

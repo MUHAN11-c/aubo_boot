@@ -306,14 +306,13 @@ peach_interfaces/
 peach_harvester/                    # 大脑包：vision（看+建）与 supervisor（批）一包；3b 起一进程三节点
   peach_harvester/brain.py          # 大脑进程入口（3b）：scene_perception + target_reconstruction + supervisor
                                     # 三节点进同一 MultiThreadedExecutor；图名/话题/lifecycle 管理零变化
-  peach_harvester/yaml_params.py    # W1 起 shim：实现单源 peach_common（bringup/vegetation 同；vision/supervisor 两处 param_rules.py 同为 shim）
   peach_harvester/vision/common/{runtime,geometry,tool_budget,bag_landmarks}.py + common/ros/clock_adapter.py
   peach_harvester/vision/domain/{budget,cross_field,evidence,model_contract}.py
   peach_harvester/vision/scene_perception/{scene_perception_node,pipeline,plan_updater,stream_metrics,identity,image_gates,pose_pipelines,inference,contracts,visualization,msg_builders,debug_draw,params}.py  # pipeline.py：from_params+process；plan_updater.py：帧级计划/身份/光照推进纯核（W3 下沉，零 ROS msg）；msg_builders/debug_draw：消息组装与像素绘制自 visualization 拆出；params.py：gravity/tool 派生 + attach(node) 一行
   peach_harvester/vision/target_reconstruction/{target_reconstruction_node,reconstruction_core,session,capture,integrate,refine,refit_orchestrator,session_recorder,publish,params}.py  # session.py：from_params+process；reconstruction_core.py：共享状态与方法宿主（W4 三 Mixin 本体迁入，节点经 MRO 组合）；refit_orchestrator.py：refit→关键点融合→merge 编排纯核；session_recorder.py：session/geometry 落盘纯核（含自 publish 迁入的 save_session）；params.py：attach + strip 派生
-  peach_harvester/vision/{grasp_standoffs,tool_profiles,param_rules}.py   # grasp_standoffs 读同名 yaml 注入两节点；tool_profiles 装载工具档案
+  peach_harvester/vision/{grasp_standoffs,tool_profiles}.py   # grasp_standoffs 读同名 yaml 注入两节点；tool_profiles 装载工具档案
   peach_harvester/vision/scene_obstacles/{core,node,params}.py   # 0035 场景障碍快照节点（独立进程 `peach_scene_obstacles`，不进 lifecycle；core=滤自身/胶囊/体素化纯核）
-  peach_harvester/supervisor/{executor_node,harvest_fsm,batch,observe,lifecycle_manager,param_rules,params}.py  # observe=fast 档观察纯核（W6-A）；ledger/watchdog 死码已删（W6-B）
+  peach_harvester/supervisor/{executor_node,harvest_fsm,batch,observe,lifecycle_manager,params}.py  # observe=fast 档观察纯核（W6-A）；ledger/watchdog 死码已删（W6-B）
   peach_harvester/supervisor/domain/{reducer,lifecycle}.py
   peach_harvester/cycle_core/{batch_policy,view_planner,view_policy}.py   # 批次策略 / 视点规划纯核
   config/{scene_perception,target_reconstruction,peach_supervisor,scene_obstacles,lifecycle_manager}.yaml  # 全量清单（部署事实源）；observability.yaml 已迁 `peach_observability/config`（W11）
@@ -337,7 +336,7 @@ peach_arm/
   launch/peach_arm.launch.py
 
 peach_bringup/
-  peach_bringup/{preflight,lifecycle_flag_bridge,autostart_client,params,yaml_params}.py  # yaml_params 为 peach_common shim（W1）
+  peach_bringup/{preflight,lifecycle_flag_bridge,autostart_client,params}.py
   launch/harvest_system.launch.py
   config/bringup.yaml   # 两小组件（flag_bridge / autostart_client）参数清单（0024 attach）
 
@@ -350,7 +349,7 @@ peach_observability/
   # 8090 静态页已拆出：web/ 2026-10-10 迁顶层资源包 peach_web（见下）
 
 peach_vegetation/
-  peach_vegetation/{vegetation_node,split,frangi,params,param_rules,yaml_params}.py   # yaml_params 为 peach_common shim（W1）
+  peach_vegetation/{vegetation_node,split,frangi,params}.py
   config/vegetation.yaml
   launch/vegetation.launch.py
   test/{test_leaf_mask,test_frangi,test_params}.py
@@ -376,7 +375,7 @@ peach_sim/                 # Gazebo Harmonic 果园仿真（场景+巡园+离线
   worlds/urdf/meshes/textures/  # 两份 SDF 世界（peach_orchard=程序化锚定 GT；field_no_grass=重建桥接纯视觉查看，无桥无 TF）/ 履带+臂 xacro（mobile 化）/ GLB 网格 / PBR 贴图
   test/{test_params,test_scene,test_textures,test_nav_config,test_nav_map,test_tour_core,test_urdf_mobile}.py
 
-peach_common/                     # 共享设施库（W1，对齐 nav2_common）：不跑节点、不进 launch；harvester/bringup/vegetation 旧路径为转发 shim
+peach_common/                     # 共享设施库（W1，对齐 nav2_common）：不跑节点、不进 launch；harvester/bringup/vegetation 直接导入公共模块
   peach_common/{yaml_params,param_rules,qos,paths}.py   # yaml 直读 attach / 规则并集 / QoS 工厂 / safe_component+runs_root 单源
   peach_common/{ros_log_bridge,event_meter,lifecycle}.py   # 0037 纯核日志桥 / 计数+周期摘要原语 / lifecycle 自转换单源
   test/{test_yaml_params,test_param_rules,test_paths,test_qos,test_ros_log_bridge,test_event_meter,test_lifecycle}.py
@@ -430,7 +429,7 @@ colcon 工作区采摘应用 = `peach_interfaces` / `peach_harvester`（vision�
 | 包 | 层 | 作用（一句话） | 改不改 |
 |----|----|----------------|--------|
 | `peach_interfaces` | 契约 | 跨包唯一 IDL（含 4 个预留导航名） | 改字段只改这里 |
-| `peach_common` | 公共库 | `yaml_params` / `param_rules` / `qos` / `paths` 单源（对齐 `nav2_common`；不跑节点） | 只加共享设施；旧路径 shim 保留 |
+| `peach_common` | 公共库 | `yaml_params` / `param_rules` / `qos` / `paths` 单源（对齐 `nav2_common`；不跑节点） | 只加共享设施；能力包直接导入 |
 | `peach_harvester`（vision） | 视觉 | 看场景 + 建当前目标（节点薄壳；`plan_updater` / `refit_orchestrator` / `session_recorder` / `ReconstructionCore` 承计算本体）+ `peach_scene_obstacles` 场景障碍快照节点（独立进程，Survey 触发→点云滤除链→PlanningScene 障碍对象；0035） | 检测/分割/TSDF/障碍快照 |
 | `peach_arm` | 臂 | 拍照、视点、MTC、工具、撤退（纯核 `frame_timeouts` / `pregrasp_residual` / `angles` + `params_bridge` 参数单点） | 视点/MTC/GPIO 参数 |
 | `peach_harvester`（supervisor） | 调度 | 开批、选果、账本、lifecycle（`observe.py` fast 档观察纯核） | 批次顺序/名单 |
@@ -611,7 +610,7 @@ USB 串口 IMU（QinHeng USB 转串适配器：CH340 `1a86:7523`（旧，ttyUSB�
 | 拟合共用 | `peach_harvester/vision/common/geometry.py` | 球/柱 RANSAC、深度单位、TF 纯函数、向量/轴线原语、RGB 位打包（单一事实源） |
 | EMA / 时钟 / 落盘根 | `peach_harvester/vision/common/runtime.py` | 标量 EMA、ManualClock / BoundedWorker、`default_runs_root`（单源 `peach_common.paths`，W6-B） |
 
-参数分层（nav2 式全量清单 + 一行 attach）：**`config/<节点>.yaml` 是 nav2 式 `ros__parameters` 全量清单（`参数: 值 # 中文说明`），launch 以 `ParameterFile(..., allow_substs=True)` 装入，是部署值与中文描述的事实源**。Python peach 节点（感知 / 重建 / 调度 / 观测 / lifecycle / vegetation / bringup 两小组件）用 `yaml_params.attach(node, yaml)`：按 yaml 叶子 `declare_parameter`，返回嵌套 namespace，`ros2 param set` 原地刷新；主节点一行 `Xxx.attach(self)`。**实现单源 `peach_common`**（W1：`yaml_params` / `param_rules` 三包并集 / `qos` 工厂 / `paths`；`peach_harvester` / `peach_bringup` / `peach_vegetation` 的旧路径为转发 shim，键名与行为零变化）。数值/白名单校验在各节点 params 模块的 `_RULES` 规则表（`validate=`：启动期非法拒启、运行期非法 set 即拒）；跨字段窗走 `preview=`（scene 深度窗 / supervisor 选果窗 / vegetation HSV 窗：非法整批拒绝、保持当前一致快照）；空 YOLO/SAM 路径在参数层拒绝启动；规则键⊆部署清单键由各包测试对账。感知逐帧读取键热生效，构造期捕获键（模型/管线/记忆）改后须重启。`peach_arm` 仍走 C++ generate_parameter_library（`src/arm_parameters.yaml` → `arm_parameters.hpp`，空闲态重载、运行中拒改、execution→grasp→tool 依赖链）。生效顺序：yaml 声明默认 → launch overlay（`grasp_standoffs.yaml` 注入 `tool.entry_d_*` / `refit.*_standoff_m` / `moveit.mtc_approach_along_axis_m`；整栈 launch 注 `require_managed_stack`）→ 运行期 `ros2 param set`。改默认值只改对应 `config/<节点>.yaml`。键名冻结（0016 口径，真机命令/文档零破坏）。`ros2 param describe` 中文以 yaml 行内注释为准。rcl 不能把 grasp_standoffs.yaml 当 ParameterFile 直接喂节点；各能力 launch 读入后以参数字典注入已声明名，禁止在源码写死这些米数。
+参数分层（nav2 式全量清单 + 一行 attach）：**`config/<节点>.yaml` 是 nav2 式 `ros__parameters` 全量清单（`参数: 值 # 中文说明`），launch 以 `ParameterFile(..., allow_substs=True)` 装入，是部署值与中文描述的事实源**。Python peach 节点（感知 / 重建 / 调度 / 观测 / lifecycle / vegetation / bringup 两小组件）用 `yaml_params.attach(node, yaml)`：按 yaml 叶子 `declare_parameter`，返回嵌套 namespace，`ros2 param set` 原地刷新；主节点一行 `Xxx.attach(self)`。**实现单源 `peach_common`**（W1：`yaml_params` / `param_rules` 三包并集 / `qos` 工厂 / `paths`；`peach_harvester` / `peach_bringup` / `peach_vegetation` 直接导入公共模块，六个参数转发文件已退役，参数键名与行为不变）。数值/白名单校验在各节点 params 模块的 `_RULES` 规则表（`validate=`：启动期非法拒启、运行期非法 set 即拒）；跨字段窗走 `preview=`（scene 深度窗 / supervisor 选果窗 / vegetation HSV 窗：非法整批拒绝、保持当前一致快照）；空 YOLO/SAM 路径在参数层拒绝启动；规则键⊆部署清单键由各包测试对账。感知逐帧读取键热生效，构造期捕获键（模型/管线/记忆）改后须重启。`peach_arm` 仍走 C++ generate_parameter_library（`src/arm_parameters.yaml` → `arm_parameters.hpp`，空闲态重载、运行中拒改、execution→grasp→tool 依赖链）。生效顺序：yaml 声明默认 → launch overlay（`grasp_standoffs.yaml` 注入 `tool.entry_d_*` / `refit.*_standoff_m` / `moveit.mtc_approach_along_axis_m`；整栈 launch 注 `require_managed_stack`）→ 运行期 `ros2 param set`。改默认值只改对应 `config/<节点>.yaml`。键名冻结（0016 口径，真机命令/文档零破坏）。`ros2 param describe` 中文以 yaml 行内注释为准。rcl 不能把 grasp_standoffs.yaml 当 ParameterFile 直接喂节点；各能力 launch 读入后以参数字典注入已声明名，禁止在源码写死这些米数。
 
 ## 4. 入口、批次、接触
 

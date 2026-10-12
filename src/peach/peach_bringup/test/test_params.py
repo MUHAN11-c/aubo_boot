@@ -4,7 +4,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from peach_bringup.params import _validate
-from peach_bringup.yaml_params import leaf_keys
+from peach_common.yaml_params import leaf_keys
 
 ROOT = Path(__file__).resolve().parents[1]
 BRINGUP = ROOT / 'config' / 'bringup.yaml'

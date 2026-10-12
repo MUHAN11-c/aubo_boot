@@ -1,47 +1,9 @@
-"""yaml_params: flatten, dotted keys, load deployment yaml (no ROS)."""
-from __future__ import annotations
-
+"""Deployment model paths and YAML keys (shared helpers tested in peach_common)."""
 from pathlib import Path
-from types import SimpleNamespace as NS
 
-from peach_harvester.yaml_params import (
-    dict_to_ns,
-    flatten_leaves,
-    leaf_keys,
-    load_ros_parameters,
-    set_dotted,
-)
+from peach_common.yaml_params import leaf_keys, load_ros_parameters
 
 ROOT = Path(__file__).resolve().parents[1]
-
-
-def test_flatten_nested_and_dotted_keys():
-    spec = {
-        'device': 'auto',
-        'leaf.exg_min': 20.0,
-        'pipeline': {'min_depth_m': 0.3, 'max_depth_m': 1.5},
-    }
-    keys = dict(flatten_leaves(spec))
-    assert keys['device'] == 'auto'
-    assert keys['leaf.exg_min'] == 20.0
-    assert keys['pipeline.min_depth_m'] == 0.3
-    assert keys['pipeline.max_depth_m'] == 1.5
-
-
-def test_dict_to_ns_nested_access():
-    ns = dict_to_ns({
-        'leaf.exg_min': 20.0,
-        'pipeline': {'min_depth_m': 0.3},
-    })
-    assert ns.leaf.exg_min == 20.0
-    assert ns.pipeline.min_depth_m == 0.3
-
-
-def test_set_dotted_overwrites_leaf():
-    ns = NS()
-    set_dotted(ns, 'tool.D_inner', 0.104)
-    set_dotted(ns, 'tool.D_inner', 0.116)
-    assert ns.tool.D_inner == 0.116
 
 
 def test_scene_yaml_has_model_paths():

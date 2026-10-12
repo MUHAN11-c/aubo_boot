@@ -8,7 +8,7 @@ IDL 唯一契约包，不跑节点。`config/interface_manifest.yaml` + `scripts
 
 ## peach_common
 
-不跑节点。`yaml_params.py`（attach）、`param_rules.py`、`qos.py`、`paths.py`、`lifecycle.py`（bond 守卫）、`ros_log_bridge.py`（stdlib→/rosout）、`event_meter.py`。各 peach 包旧路径留 shim。
+不跑节点。`yaml_params.py`（attach）、`param_rules.py`、`qos.py`、`paths.py`、`lifecycle.py`（bond 守卫）、`ros_log_bridge.py`（stdlib→/rosout）、`event_meter.py`。各能力包直接导入本库，旧包内参数转发模块已退役（键名与行为不变）。
 
 ## peach_bringup
 

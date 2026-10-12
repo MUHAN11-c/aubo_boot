@@ -4,7 +4,7 @@
 
 对象是套袋桃。跨包只走 `peach_interfaces`。能力包不互发批次命令；作业目标只认调度 `~/state.target_id`。包职责见 [architecture.md](architecture.md) §3。
 
-下表生产/消费名与清单一致。**名字之外须能看出功能含义**（这一口数据/命令干什么、谁据此做什么）。改接口先改 IDL 再改清单再改本文。运行参数部署值在各包 `config/<节点>.yaml`（nav2 式全量清单）；Python 节点 `attach(node)` 按该 yaml 声明叶子（实现单源 `peach_common.yaml_params`，W1；包内旧路径 shim），`peach_arm` 仍 GPL `arm_parameters.yaml`。下表只列改变作业行为的键。
+下表生产/消费名与清单一致。**名字之外须能看出功能含义**（这一口数据/命令干什么、谁据此做什么）。改接口先改 IDL 再改清单再改本文。运行参数部署值在各包 `config/<节点>.yaml`（nav2 式全量清单）；Python 节点 `attach(node)` 按该 yaml 声明叶子（直接导入 `peach_common.yaml_params`），`peach_arm` 仍 GPL `arm_parameters.yaml`。下表只列改变作业行为的键。
 ---
 ## 1. 跨包边界
 

@@ -16,6 +16,7 @@ from diagnostic_msgs.msg import DiagnosticStatus
 import diagnostic_updater
 import geometry_msgs.msg
 from peach_common.lifecycle import break_bond, create_bond
+from peach_common.param_rules import check_enable_deps
 
 from peach_interfaces.action import (
     BuildTargetModel, ExecuteTarget, MoveTo, RunHarvest, SurveyScene)
@@ -88,7 +89,6 @@ from .harvest_fsm import (
     settle_terminal,
     WAITING_READY,
 )
-from .param_rules import check_enable_deps
 from .params import SupervisorParams
 from ..cycle_core.batch_policy import (
     BatchPolicy,

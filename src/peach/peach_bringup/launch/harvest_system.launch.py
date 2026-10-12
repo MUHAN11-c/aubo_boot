@@ -1,8 +1,8 @@
 """
 启动桃子采摘完整业务栈（整栈入口；autostart 参数控制是否自动开批）.
 
-本文件只做预检与 Include，不含业务。各包 `yaml_params.py` 自持同文副本，
-不合并（包独立 KEEP）。
+本文件只做预检与 Include，不含业务。Python 参数公共函数直接使用
+peach_common.yaml_params；各节点规则表与部署 YAML 留在所属能力包。
 
 清洁重写轮阶段 5：生命周期管理换 nav2_lifecycle_manager（bond_timeout 参数
 化，默认 0.0 关闭——Python 三托管节点的心跳依赖 ros-jazzy-bondpy，本机未装

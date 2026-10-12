@@ -11,7 +11,7 @@ import xml.etree.ElementTree as ET
 import json
 import subprocess
 
-ROOT = Path(__file__).resolve().parent
+ROOT = Path(__file__).resolve().parents[1] / 'docs' / 'images'
 COLORS = {'task': '#E9EDFC', 'facts': '#DDF3F1', 'motion': '#FFF0DD',
           'infra': '#EAF0F6', 'hw': '#E5F1E9', 'safety': '#FBE5E8'}
 ACCENTS = {'task': '#485BA9', 'facts': '#197C79', 'motion': '#AE7029',

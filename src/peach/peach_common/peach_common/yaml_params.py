@@ -6,8 +6,8 @@ leaf so ``ros2 param set`` works, and returns a SimpleNamespace tree that
 mutates in place on a successful set. Nested yaml groups and dotted keys
 (``leaf.exg_min``) both become ``params.leaf.exg_min``.
 
-Single source since W1 (``peach_common``); leaf packages keep their old
-import paths as shims that re-export from here.
+Single source since W1 (``peach_common``); leaf packages import from here
+directly (their former re-export shims are retired).
 """
 from __future__ import annotations
 

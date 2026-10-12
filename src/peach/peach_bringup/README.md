@@ -13,7 +13,7 @@ bag 回放另加 `use_sim_time:=true`，并先 `ros2 bag play --clock`。其余�
 
 本包自带小组件（setup.py console_scripts）：`peach_lifecycle_flag_bridge`（nav2_lm `is_active` → 闩锁 `/peach/lifecycle/managed_nodes_activated`）与 `peach_autostart_client`（autostart 档开批客户端，参数 `config/bringup.yaml`）。
 
-`peach_harvester/launch/harvest_system.launch.py` 薄转发到本包。预检 `peach_bringup.preflight.running_stack_pids`（argv0 或 `.../lib/<pkg>/<node>`，不是 colcon 参数名；RSP/rviz/MoveIt 等同名二进制须带 aubo/peach 标记，不拦同机其他机器人）。参数走本包 `yaml_params.py`（W1 起为 `peach_common.yaml_params` 转发 shim，实现单源；harvester / vegetation 同），部署值 `config/bringup.yaml`。
+`peach_harvester/launch/harvest_system.launch.py` 薄转发到本包。预检 `peach_bringup.preflight.running_stack_pids`（argv0 或 `.../lib/<pkg>/<node>`，不是 colcon 参数名；RSP/rviz/MoveIt 等同名二进制须带 aubo/peach 标记，不拦同机其他机器人）。参数直接使用 `peach_common.yaml_params`（harvester / vegetation 同），部署值 `config/bringup.yaml`。
 
 ## 构建 / 测试 / 许可
 

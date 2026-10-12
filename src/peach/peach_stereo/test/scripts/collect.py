@@ -19,22 +19,21 @@ import sys
 import time
 
 import cv2
-import numpy as np
-import rclpy
 from message_filters import ApproximateTimeSynchronizer, Subscriber
+import numpy as np
+from peach_common.yaml_params import (
+    dict_to_ns, expand_share, load_ros_parameters, package_yaml)
+from peach_harvester.vision.scene_perception.params import ScenePerceptionParams
+from peach_harvester.vision.scene_perception.pipeline import (
+    PerceptionPipeline, SyncedRgbd)
+import rclpy
 from rclpy.node import Node
-from rclpy.qos import (DurabilityPolicy, HistoryPolicy, QoSProfile,
-                       ReliabilityPolicy)
+from rclpy.qos import (
+    DurabilityPolicy, HistoryPolicy, QoSProfile, ReliabilityPolicy)
 from sensor_msgs.msg import Image, PointCloud2, PointField
 from sensor_msgs_py import point_cloud2 as pc2
 from std_msgs.msg import Header
 from visualization_msgs.msg import MarkerArray
-
-from peach_harvester.vision.scene_perception.params import ScenePerceptionParams
-from peach_harvester.vision.scene_perception.pipeline import (
-    PerceptionPipeline, SyncedRgbd)
-from peach_harvester.yaml_params import (dict_to_ns, expand_share,
-                                         load_ros_parameters, package_yaml)
 
 CAM_FRAME = 'camera_color_optical_frame'
 K = dict(fx=466.17, fy=465.56, cx=326.07, cy=244.79, width=640, height=480)

@@ -34,13 +34,13 @@ setup(
         (os.path.join('share', package_name, 'model'),
          [os.path.join('model', f) for f in sorted(os.listdir('model'))
           if not f.startswith('.')]),
-        ('share/ament_index/resource_index/packages', ['resource/' + package_name]),
+        (os.path.join('share', package_name), ['package.xml', 'README.md']),
     ],
     install_requires=['setuptools'],
     zip_safe=True,
     maintainer='wjz',
     maintainer_email='2155413529@qq.com',
-    description='套袋桃采收大脑：vision（看+建）与 supervisor（批+编排）一包两进程。',
+    description='套袋桃采收大脑：vision（看+建）与 supervisor（批+编排）一包同进程三节点，场景障碍独立进程。',
     license='BSD-3-Clause',
     # colcon test 的 pytest 探测只认 extras_require（legacy tests_require 会静默
     # 退回 unittest 且 0 测试判失败；peach_bringup 同款写法）。

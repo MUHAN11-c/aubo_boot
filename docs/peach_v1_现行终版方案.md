@@ -2,7 +2,7 @@
 
 日期：2026-10-08。性质：本文件是现行采摘核（`src/peach/peach_*`）的完整方案说明，与 [`peach_v2_重构终版方案.md`](peach_v2_重构终版方案.md) 成对；不是部署快照，不新增第四份活文档。
 
-**阅读顺序：** 先看 §1 建成范围与成功口径，再看 §3–§13 专题；结构性缺口集中在 §14。运行中的参数、图名、QoS 以源码和三份活文档为准：[`architecture.md`](architecture.md)、[`io.md`](io.md)、[`testing.md`](testing.md)。概要设计书在 [`plans/peach_v1_套袋桃采摘机器人项目设计书.md`](../plans/peach_v1_套袋桃采摘机器人项目设计书.md)。大方向仍以 [`design.md`](design.md) 为准。本文与活文档打架时，以活文档和源码为准，并同轮改本文。
+**阅读顺序：** 先看 §1 建成范围与成功口径，再看 §3–§13 专题；结构性缺口集中在 §14。运行中的参数、图名、QoS 以源码和三份活文档为准：[系统架构](../src/peach/peach_bringup/doc/architecture.md)、[系统 IO](../src/peach/peach_bringup/doc/io.md)、[v1 测试指导](../src/peach/peach_system_tests/doc/testing.md)。概要设计书在 [`plans/peach_v1_套袋桃采摘机器人项目设计书.md`](../plans/peach_v1_套袋桃采摘机器人项目设计书.md)。v2 演进方向见 [v2 重构方案](peach_v2_重构终版方案.md)（原 `design.md` 已退役）。本文与活文档打架时，以活文档和源码为准，并同轮改本文。
 
 生产入口是 `peach_bringup` 的 `harvest_system.launch.py`。`src/peach2/` 不进该入口。
 

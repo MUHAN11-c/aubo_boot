@@ -8,8 +8,8 @@ peach_bringup: yaml 直读 + 一行 attach.
 """
 from __future__ import annotations
 
-from peach_bringup.yaml_params import attach, package_yaml
 from peach_common.param_rules import check as _check
+from peach_common.yaml_params import attach, package_yaml
 
 _RULES = {  # 键 -> 校验规则表（启动期非法即拒启；运行期非法 set 即拒）
     'poll_hz': (('gt', 0.0),),

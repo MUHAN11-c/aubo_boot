@@ -35,6 +35,8 @@ set -euo pipefail
 
 WS="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 NAME="$(basename "$WS")"
+# 所有相对路径扫描均从工作区根执行，允许从任意 cwd 调用。
+cd "$WS"
 
 usage() {
   sed -n '2,30p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
@@ -81,13 +83,12 @@ for e in "${INCLUDE[@]}"; do
 done
 [[ ${#PATHS[@]} -gt 0 ]] || { echo "工作区内容为空？$WS" >&2; exit 1; }
 
-# 任意层级排除（按名字/后缀匹配，与 .gitignore 的生成物策略对齐）
 # 任意层级排除（按名字/后缀匹配，与 .gitignore 的生成物策略对齐）。
 # 注意：不用裸名 build/install/log 排除——web/public/ 下的 build/ 是 three.js、
 # robotwebtools 前端 vendor 发行文件（importmap.js 引用、仓内无重下脚本），必须入包；
 # colcon 误在 src 包内留下的产物目录由下方打包时现查的锚定排除处理。
 EXC_ANY=(
-  __pycache__ .venv-yolo .venv venv .pytest_cache .cache
+  __pycache__ .venv-yolo .venv venv .pytest_cache .cache Testing
   .vscode .codegraph .serena .mimosa .zcode .v2c .video_agent .codex .mimocode
   .remember .claude
   test_results harvest_runs web_runs peach_sessions validation_runs rosbag2_* depth_eval_out

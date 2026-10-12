@@ -1,5 +1,5 @@
 """Executor enable-window and reach min/max."""
-from peach_harvester.supervisor.param_rules import check_enable_deps, check_min_max
+from peach_common.param_rules import check_enable_deps, check_min_max
 
 
 def test_reach_window():

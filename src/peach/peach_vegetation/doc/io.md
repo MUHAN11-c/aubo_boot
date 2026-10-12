@@ -30,7 +30,7 @@ flowchart LR
 | `leaf.exg_min` / `leaf.h_*` / `leaf.s_min` / `leaf.v_min` | 叶：Excess Green 下限 ∪ HSV 绿窗 |
 | `branch.sigmas` / `beta` / `gamma` / `percentile` / `dilate_px` / `dark_max` | Frangi 尺度与暗脊门 |
 | `branch.exclude_leaf` | 枝掩膜减去叶（无 param_rules 规则校验） |
-| `publish_overlay` | 关则零序列化 overlay（无 param_rules 规则校验；其余 11 键有规则表） |
+| `publish_overlay` | 关则零序列化 overlay（无 param_rules 规则校验；其余 12 键有规则表） |
 
 参数校验表 `_RULES` 覆盖除上两键外的全部部署键（HSV 跨字段 `h_min<h_max` 整批拒绝）。
 

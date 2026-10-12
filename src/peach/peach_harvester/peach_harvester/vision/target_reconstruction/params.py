@@ -8,7 +8,7 @@ TargetReconstructionParams: yaml 直读，frames / session 字符串 strip.
 """
 from __future__ import annotations
 
-from peach_harvester.vision.param_rules import check as _check
+from peach_common.param_rules import check as _check
 
 _RULES = {  # 键 -> 校验规则表（启动期非法即拒启；运行期非法 set 即拒）
     'sync_slop_s': (('gt_eq', 0.0),),
@@ -124,7 +124,7 @@ class TargetReconstructionParams:
     @classmethod
     def attach(cls, node) -> 'TargetReconstructionParams':
         """Declare yaml leaves with range checks; return a live wrapper."""
-        from peach_harvester.yaml_params import attach, package_yaml
+        from peach_common.yaml_params import attach, package_yaml
         raw = attach(
             node,
             package_yaml('peach_harvester', 'target_reconstruction.yaml'),

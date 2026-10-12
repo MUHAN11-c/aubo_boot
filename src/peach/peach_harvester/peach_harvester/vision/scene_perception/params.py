@@ -12,7 +12,7 @@ from __future__ import annotations
 from typing import Optional
 
 import numpy as np
-from peach_harvester.vision.param_rules import check, check_min_max
+from peach_common.param_rules import check, check_min_max
 from peach_harvester.vision.scene_perception.contracts import ToolGeometry
 
 
@@ -239,7 +239,7 @@ class ScenePerceptionParams:
     @classmethod
     def attach(cls, node) -> 'ScenePerceptionParams':
         """Declare yaml leaves, validate, and hook runtime refresh."""
-        from peach_harvester.yaml_params import attach, package_yaml
+        from peach_common.yaml_params import attach, package_yaml
 
         holder = []
 

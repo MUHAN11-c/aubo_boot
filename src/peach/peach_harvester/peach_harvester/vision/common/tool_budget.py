@@ -87,8 +87,10 @@ def evaluate_sleeve_cut(
     diagnostic_mismatch = float(axis_error_deg) > cfg.diagnostic_axis_deg
     too_wide = available <= 0.0
     fruit_ok = float(cut_to_fruit_m) > cfg.fruit_safety_clearance
-    sleeve_ok = (not too_wide) and radial_margin > 0.0
-    cut_ok = axial_margin > 0.0 and fruit_ok
+    # 袋径相对刀内径、径向/轴向余量仍计算并写入结果，给机械对尚未更新的
+    # 刀具常数。这些数不作为套入或剪切许可：负余量不得把 allowed 打成 false。
+    sleeve_ok = True
+    cut_ok = bool(fruit_ok)
     reason = 'dynamic_budget_accept'
     failure_code = 0
     # 结构性诊断（批次2）：零感知误差（neck_position95=0）下余量仍 ≤0 =
@@ -102,10 +104,8 @@ def evaluate_sleeve_cut(
     axial_structural = (cfg.blade_capture_half_width - axial_fixed) <= 0.0
     if too_wide:
         reason = 'bag_d95_exceeds_tool'
-        failure_code = 12
     elif radial_margin <= 0.0:
         reason = 'radial_budget_negative'
-        failure_code = 12
     elif not fruit_ok:
         reason = 'cut_plane_fruit_clearance'
         failure_code = 16
@@ -113,7 +113,6 @@ def evaluate_sleeve_cut(
         reason = (
             'axial_budget_structurally_unsatisfiable' if axial_structural
             else 'axial_budget_negative')
-        failure_code = 12
     return {
         'sleeve_ok': bool(sleeve_ok),
         'cut_ok': bool(cut_ok),

@@ -11,6 +11,7 @@
 
 from __future__ import annotations
 
+from collections import deque
 import json
 from pathlib import Path
 import threading
@@ -196,9 +197,8 @@ _CORE_SUBSCRIPTIONS = (
 )
 
 # bag 专用 raw 订阅（只落盘不镜像）：(消息类型, 话题参数名, QoS 档名,
-# 门控参数属性名)。'/rosout' 无参数名，用 None 标记直连固定话题。
+# 门控参数属性名)。/rosout 另订，页面环与 bag 共用一条回调。
 _RAW_SUBSCRIPTIONS = (
-    (RosoutLog, None, 'reliable', 'record_rosout'),
     (Image, 'debug_image_topic', 'reliable', 'record_save_images'),
     # 真相流画布（raw 前缀）：与稳定流成对进 bag，筛选前后对比不依赖 RViz
     (Image, 'debug_image_raw_topic', 'reliable', 'record_save_images'),
@@ -280,6 +280,9 @@ class ObservabilityNode(LifecycleNode):
         # 启动自检（P0）：探针 + 周期检查 + 闩锁 selfcheck_passed + 会话工件
         self._selfcheck: SelfCheckRunner | None = None
         self._startup_thread: threading.Thread | None = None
+        # /rosout 页面环（与 bag 解耦；丢最旧）。configure 后按 log_buffer_size 定长
+        self._log_lock = threading.Lock()
+        self._logs: deque = deque(maxlen=200)
 
     def on_configure(self, state):
         del state
@@ -288,6 +291,7 @@ class ObservabilityNode(LifecycleNode):
         except Exception as exc:  # noqa: BLE001 参数库校验异常类型跨 rclpy 版本
             self.get_logger().error(f'参数非法: {exc}')
             return TransitionCallbackReturn.FAILURE
+        self._resize_logs(int(self._params.log_buffer_size))
         runs_root = resolve_runs_root(self._params.record_root_dir)
         self._ledger_watch = pipeline.LedgerWatch(runs_root)
         # 会话 bag 开启前先跑一次体积回收（超预算清最旧 bag，写审计）。
@@ -370,9 +374,44 @@ class ObservabilityNode(LifecycleNode):
             self._record_raw(topic_parameter, message)
         return callback
 
+    def _resize_logs(self, limit: int) -> None:
+        """按 log_buffer_size 重建环，保留最新条目."""
+        size = max(1, int(limit))
+        with self._log_lock:
+            if self._logs.maxlen == size:
+                return
+            self._logs = deque(self._logs, maxlen=size)
+
+    def _append_rosout(self, message) -> None:
+        """rcl_interfaces/Log → 页面行：stamp/level/name/msg，消息截到 400 字."""
+        text = str(getattr(message, 'msg', '') or '')
+        if len(text) > 400:
+            text = text[:400]
+        stamp = getattr(message, 'stamp', None)
+        sec = float(getattr(stamp, 'sec', 0) or 0)
+        nsec = float(getattr(stamp, 'nanosec', 0) or 0)
+        row = {
+            'stamp': sec + nsec * 1e-9,
+            'level': int(getattr(message, 'level', 0) or 0),
+            'name': str(getattr(message, 'name', '') or ''),
+            'msg': text,
+        }
+        limit = (
+            int(self._params.log_buffer_size) if self._params is not None
+            else 200)
+        size = max(1, int(limit))
+        with self._log_lock:
+            if self._logs.maxlen != size:
+                self._logs = deque(self._logs, maxlen=size)
+            self._logs.append(row)
+
     def _rosout_callback(self, message) -> None:
-        """全量节点日志进会话 bag（stamp/level/logger/name/msg 可离线回放）."""
-        if self._recorder is not None:
+        """节点日志进页面环；record.rosout 开启时同一条再进会话 bag."""
+        self._append_rosout(message)
+        if (
+            self._recorder is not None and self._params is not None
+            and self._params.record_rosout
+        ):
             self._recorder.handle_raw('/rosout', message)
 
     def _topic(self, parameter: str) -> str:
@@ -418,22 +457,18 @@ class ObservabilityNode(LifecycleNode):
         self._subscribe(
             DiagnosticArray, '/diagnostics', self._diagnostics_callback,
             qos_profile_sensor_data)
+        # /rosout 始终进页面环。bag 由回调里的 record.rosout 门控，不另订一条。
+        self._subscribe(
+            RosoutLog, '/rosout', self._rosout_callback, profiles['reliable'])
         # 记录器图像/点云订阅：只在对应开关开启时建立（省带宽），直接进 bag
         if not self._params.record_enabled:
             return
         for msg_type, param, profile, gate in _RAW_SUBSCRIPTIONS:
             if gate is not None and not getattr(self._params, gate):
                 continue
-            if param is not None:
-                self._subscribe(
-                    msg_type, self._topic(param), self._raw_cb(param),
-                    profiles[profile])
-            else:
-                # /rosout 全量进 bag：全部节点日志（stamp/level/logger）可
-                # 回放，测试复盘最低完备集（record.rosout 门控，默认开）
-                self._subscribe(
-                    msg_type, '/rosout', self._rosout_callback,
-                    profiles[profile])
+            self._subscribe(
+                msg_type, self._topic(param), self._raw_cb(param),
+                profiles[profile])
 
     def _robot_status_callback(self, message: RobotStatus) -> None:
         """机械臂柜侧状态；in_motion 给 TCP 采样当运动标记."""
@@ -1112,6 +1147,8 @@ class ObservabilityNode(LifecycleNode):
                 self._debug_bridge.state().get('recent', [])
                 if self._debug_bridge is not None else []),
         }
+        with self._log_lock:
+            snapshot['logs'] = list(self._logs)
         return snapshot
 
     def trajectory(self) -> dict:

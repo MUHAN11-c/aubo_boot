@@ -44,6 +44,22 @@ def test_frozen_one_view_overlay_relaxes_min_views_and_baseline():
     assert supervisor['survey_wait_s'] >= 15.0
 
 
+def test_replay_pause_and_photo_pose_spawn():
+    import inspect
+    init = inspect.getsource(replay.FrozenCamera.__init__)
+    tick = inspect.getsource(replay.FrozenCamera._tick)
+    assert '~/pause' in init
+    assert 'self._paused' in tick
+    launch = Path(__file__).resolve().parents[1] / 'launch' / 'frozen_camera_grasp.launch.py'
+    text = launch.read_text(encoding='utf-8')
+    assert '0.425175,0.194274,1.679546,1.462579,-0.279948,0.038859' in text
+    harvest = (
+        Path(__file__).resolve().parents[2] / 'peach_bringup' / 'launch'
+        / 'harvest_system.launch.py')
+    forwarded = harvest.read_text(encoding='utf-8')
+    assert "'mock_initial_positions': LaunchConfiguration(" in forwarded
+
+
 def test_optical_static_tfs_cover_color_and_depth():
     from geometry_msgs.msg import TransformStamped
     stamp = TransformStamped().header.stamp

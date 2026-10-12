@@ -1,0 +1,18 @@
+# Pilz 工业运动规划器管线（moveit_configs_utils 默认模板的本包副本）。
+# 与 ompl_planning.yaml 同级，由 MoveItConfigsBuilder 按
+# config/<pipeline>_planning.yaml 装载到 planning_pipelines.pilz_industrial_motion_planner。
+# 注意：Pilz 的 MoveGroupSequence* 能力不是管线参数，在 moveit.launch.py 里
+# 以 move_group 顶层 capabilities 参数声明。
+planning_plugins:
+  - pilz_industrial_motion_planner/CommandPlanner
+default_planner_config: PTP
+request_adapters:
+  - default_planning_request_adapters/ResolveConstraintFrames
+  - default_planning_request_adapters/ValidateWorkspaceBounds
+  - default_planning_request_adapters/CheckStartStateBounds
+  - default_planning_request_adapters/CheckStartStateCollision
+response_adapters:
+  - default_planning_response_adapters/ValidateSolution
+  # 不挂 DisplayMotionPath：该 adapter 在每次 plan() 成功后立刻发
+  # /display_planned_path，含随后被果实胶囊/行程门拒掉的候选。Nav2 只发
+  # 正在跟随的 path；本仓执行轨迹看 observability TCP Path。

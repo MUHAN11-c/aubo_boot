@@ -281,7 +281,7 @@ private:
   ModelSnapshot model_;
   double model_generated_s_{0.0};
   bool unrefined_hold_{false};
-  double tool_d_inner_m_{0.0};  // 批次4 unrefined 袋径门（0=关）
+  double tool_d_inner_m_{0.0};  // 刀内径记录；不作为袋径拒绝门
 };
 
 }  // namespace peach_arm

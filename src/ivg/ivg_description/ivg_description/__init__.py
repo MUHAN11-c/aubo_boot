@@ -1,0 +1,1 @@
+"""IVG robot description resources."""

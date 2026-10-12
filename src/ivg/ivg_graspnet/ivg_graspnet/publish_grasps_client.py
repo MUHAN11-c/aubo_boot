@@ -35,7 +35,7 @@ class PublishGraspsClient(GraspMotionController):
         super().__init__('publish_grasps_client')
 
         self.declare_parameter('prefer_vertical', True)
-        self.declare_parameter('grasp_z_offset', 0.15)  # gripper_tip→末端沿抓取 Z 的补偿（米）
+        self.declare_parameter('grasp_z_offset', 0.0)  # grasp_tcp is already the grip center
         self.declare_parameter('height_above', 0.05)
         self.declare_parameter('joint_velocity_scaling', 0.15)
         self.declare_parameter('joint_acceleration_scaling', 0.1)

@@ -32,12 +32,9 @@ except ImportError as e:
 
 def load_tools_yaml():
     """加载 tools.yaml，返回工具字典."""
-    script_dir = os.path.dirname(os.path.realpath(__file__))
-    yaml_path = os.path.normpath(os.path.join(script_dir, '..', 'config', 'tools.yaml'))
-    if not os.path.isfile(yaml_path):
-        from ament_index_python.packages import get_package_share_directory
-        yaml_path = os.path.join(
-            get_package_share_directory('tool_changer'), 'config', 'tools.yaml')
+    from ament_index_python.packages import get_package_share_directory
+    yaml_path = os.path.join(
+        get_package_share_directory('ivg_description'), 'config', 'tools.yaml')
     with open(yaml_path, 'r') as f:
         data = yaml.safe_load(f)
     return data.get('tools', {})

@@ -15,7 +15,7 @@ import rclpy
 from rclpy.node import Node
 from shape_msgs.msg import SolidPrimitive
 
-ATTACH_FRAME = 'quick_changer_link'
+ATTACH_FRAME = 'kuaihuan_Link'
 
 
 class AttachTest(Node):

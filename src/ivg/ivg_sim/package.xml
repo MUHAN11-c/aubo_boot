@@ -23,6 +23,16 @@
   <test_depend>ament_lint_common</test_depend>
   <test_depend>python3-pytest</test_depend>
 
+  <exec_depend>ivg_description</exec_depend>
+
+  <exec_depend>ivg_moveit_config</exec_depend>
+
+  <exec_depend>gz_ros2_control</exec_depend>
+  <exec_depend>effort_controllers</exec_depend>
+  <exec_depend>joint_trajectory_controller</exec_depend>
+  <exec_depend>robot_state_publisher</exec_depend>
+  <exec_depend>moveit_ros_move_group</exec_depend>
+  <exec_depend>xacro</exec_depend>
   <export>
     <build_type>ament_python</build_type>
   </export>

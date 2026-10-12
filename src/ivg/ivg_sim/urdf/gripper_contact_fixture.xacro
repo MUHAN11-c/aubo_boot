@@ -1,0 +1,50 @@
+<?xml version="1.0"?>
+<robot name="ivg_gripper_fixture" xmlns:xacro="http://www.ros.org/wiki/xacro">
+  <xacro:include filename="$(find ivg_description)/urdf/tools.xacro"/>
+  <xacro:include filename="$(find ivg_description)/urdf/gripper2_sim.xacro"/>
+  <link name="world"/>
+  <link name="fixture_base">
+    <inertial><mass value="1000"/><inertia ixx="1" ixy="0" ixz="0" iyy="1" iyz="0" izz="1"/></inertial>
+  </link>
+  <joint name="fixture_anchor" type="fixed"><parent link="world"/><child link="fixture_base"/></joint>
+  <link name="kuaihuan_Link">
+    <inertial><mass value="1"/><inertia ixx="0.01" ixy="0" ixz="0" iyy="0.01" iyz="0" izz="0.01"/></inertial>
+  </link>
+  <joint name="fixture_lift" type="prismatic">
+    <parent link="fixture_base"/><child link="lift_carriage"/>
+    <origin xyz="0 0 0.24"/>
+    <axis xyz="0 0 1"/><limit lower="0" upper="0.25" effort="1000" velocity="0.05"/>
+  </joint>
+  <link name="lift_carriage">
+    <inertial><mass value="1"/><inertia ixx="0.01" ixy="0" ixz="0" iyy="0.01" iyz="0" izz="0.01"/></inertial>
+  </link>
+  <joint name="fixture_tool_mount" type="fixed">
+    <parent link="lift_carriage"/><child link="kuaihuan_Link"/><origin rpy="${pi} 0 0"/>
+  </joint>
+  <link name="tool_tcp"/>
+  <joint name="fixture_tcp" type="fixed"><parent link="kuaihuan_Link"/><child link="tool_tcp"/></joint>
+  <xacro:ivg_tools gripper="gripper2" tools_file="$(find ivg_description)/config/tools.yaml" articulated="true"/>
+  <xacro:ivg_gripper2_fingers/>
+  <ros2_control name="IvgGripperContactSystem" type="system">
+    <hardware><plugin>gz_ros2_control/GazeboSimSystem</plugin></hardware>
+    <joint name="fixture_lift"><state_interface name="position"/><state_interface name="velocity"/></joint>
+    <xacro:macro name="finger_interface" params="name">
+      <joint name="gripper2_${name}_joint">
+        <command_interface name="effort"><param name="min">-20</param><param name="max">20</param></command_interface>
+        <state_interface name="position"><param name="initial_value">0.055</param></state_interface>
+        <state_interface name="velocity"/><state_interface name="effort"/>
+      </joint>
+    </xacro:macro>
+    <xacro:finger_interface name="pp"/><xacro:finger_interface name="pn"/>
+    <xacro:finger_interface name="np"/><xacro:finger_interface name="nn"/>
+  </ros2_control>
+  <gazebo><plugin filename="libgz_ros2_control-system.so" name="gz_ros2_control::GazeboSimROS2ControlPlugin">
+    <parameters>$(find ivg_sim)/config/gripper_contact_controllers.yaml</parameters>
+  </plugin></gazebo>
+  <!-- The fixture lift is a native force PID, separate from the hand under test. -->
+  <gazebo><plugin filename="gz-sim-joint-position-controller-system" name="gz::sim::systems::JointPositionController">
+    <joint_name>fixture_lift</joint_name><topic>/ivg_fixture/lift</topic>
+    <p_gain>2000</p_gain><i_gain>0</i_gain><d_gain>80</d_gain>
+    <cmd_max>200</cmd_max><cmd_min>-200</cmd_min><cmd_offset>35.0</cmd_offset>
+  </plugin></gazebo>
+</robot>

@@ -2,8 +2,9 @@
 
 // 感知抓取过程页：/api/state（1s）+ /api/trajectory（0.4s）。
 // 调试面转发既有动作/服务；动臂由 yaml debug.motion_enabled 放行。
-// 全流程反馈：阶段时序（pipeline.fsm/arm 服务器侧）+ 批次账本（ledger.live）
-// + 感知节拍/重建进度 + 系统负载与参数镜像。
+// 全流程反馈：阶段时序（pipeline.fsm/arm 服务器侧，缓冲全量面板内滚动）
+// + 节点日志（/api/state.logs，级别阈值 + 节点名包含）+ 批次账本
+// + 感知节拍/重建进度 + 系统负载、参数、自检与诊断。
 
 const $ = (id) => document.getElementById(id);
 const numeric = (value) => value !== null && value !== undefined && value !== "" &&
@@ -327,6 +328,29 @@ function timelineTime(t) {
     ? new Date(t * 1000).toLocaleTimeString("zh-CN", {hour12: false}) : "--:--:--";
 }
 
+function paintKeepingScroll(el, html) {
+  if (!el) return;
+  const top = Number(el.scrollTop) || 0;
+  el.innerHTML = html;
+  el.scrollTop = top;
+}
+
+function renderStageHeader(state) {
+  const job = (state && state.job) || {};
+  const arm = (((state && state.pipeline) || {}).arm || [])
+    .find((item) => item && item.current) || null;
+  const batch = numeric(job.batch_state) ? Number(job.batch_state) : -1;
+  const phase = numeric(job.target_phase) ? Number(job.target_phase) : -1;
+  const skill = (arm && arm.state) || ((job.motion || {}).state) || "—";
+  const target = (arm && arm.target_id) || job.target_id || "—";
+  setText("stage-live", [
+    batchNames[batch] || "等待调度",
+    phaseNames[phase] || "—",
+    skill,
+    target,
+  ].join(" · "));
+}
+
 function renderStages(pipelineSection) {
   const fsm = (pipelineSection && pipelineSection.fsm) || [];
   const arm = (pipelineSection && pipelineSection.arm) || [];
@@ -334,9 +358,9 @@ function renderStages(pipelineSection) {
   setText("arm-count", `${arm.length} 条`);
 
   if (!fsm.length) {
-    $("fsm-list").innerHTML = '<p class="empty">等待调度状态转移</p>';
+    paintKeepingScroll($("fsm-list"), '<p class="empty">等待调度状态转移</p>');
   } else {
-    $("fsm-list").innerHTML = fsm.slice().reverse().slice(0, 40).map((item) => {
+    paintKeepingScroll($("fsm-list"), fsm.slice().reverse().map((item) => {
       const batch = batchNames[item.batch_state] || item.batch_state;
       const phase = phaseNames[item.target_phase] || item.target_phase;
       const flags = [
@@ -351,21 +375,66 @@ function renderStages(pipelineSection) {
         ${flags ? `<span class="tl-flag">${safe(flags)}</span>` : ""}
         <p>${safe(item.message || "")}</p></div>
         <b class="tl-dur">${fmtDur(item.dur_s)}</b></div>`;
-    }).join("");
+    }).join(""));
   }
 
   if (!arm.length) {
-    $("arm-list").innerHTML = '<p class="empty">等待技能状态（/peach_arm/status）</p>';
+    paintKeepingScroll($("arm-list"), '<p class="empty">等待技能状态（/peach_arm/status）</p>');
   } else {
-    $("arm-list").innerHTML = arm.slice().reverse().slice(0, 40).map((item) => {
+    paintKeepingScroll($("arm-list"), arm.slice().reverse().map((item) => {
       const target = item.target_id ? ` <span class="target">[${safe(item.target_id)}]</span>` : "";
       return `<div class="tl-item${item.current ? " current" : ""}">
         <time>${timelineTime(item.t)}</time>
         <div class="tl-main"><span class="state-pill ${pillClass(item.state)}">${safe(item.state || "—")}</span>${target}${item.recovery ? '<span class="tl-flag">恢复</span>' : ""}
         <p>${safe(item.message || "")}</p></div>
         <b class="tl-dur">${fmtDur(item.dur_s)}</b></div>`;
-    }).join("");
+    }).join(""));
   }
+}
+
+const logLevelName = {10: "DEBUG", 20: "INFO", 30: "WARN", 40: "ERROR", 50: "FATAL"};
+
+function filterLogs(logs, minLevel, nodeQuery) {
+  const floor = numeric(minLevel) ? Number(minLevel) : 20;
+  const query = String(nodeQuery || "").trim().toLowerCase();
+  return (Array.isArray(logs) ? logs : []).filter((row) => {
+    const level = numeric(row && row.level) ? Number(row.level) : 0;
+    if (level < floor) return false;
+    if (query && !String((row && row.name) || "").toLowerCase().includes(query)) return false;
+    return true;
+  });
+}
+
+function logLevelClass(level) {
+  if (level >= 50) return "fatal";
+  if (level >= 40) return "error";
+  if (level >= 30) return "warn";
+  if (level >= 20) return "info";
+  return "debug";
+}
+
+function renderLogs(logs) {
+  const body = $("log-body");
+  const scroller = $("log-scroll");
+  if (!body) return;
+  const floorEl = $("log-level");
+  const nodeEl = $("log-node");
+  const floor = floorEl && numeric(floorEl.value) ? Number(floorEl.value) : 20;
+  const query = nodeEl ? String(nodeEl.value || "").trim() : "";
+  const rows = filterLogs(logs, floor, query);
+  setText("log-count", `${rows.length} 条`);
+  const html = rows.length
+    ? rows.map((row) => {
+      const level = numeric(row.level) ? Number(row.level) : 0;
+      return `<tr class="log-${logLevelClass(level)}"><td>${timelineTime(row.stamp)}</td><td>${safe(logLevelName[level] || String(level))}</td><td>${safe(row.name)}</td><td>${safe(row.msg)}</td></tr>`;
+    }).join("")
+    : '<tr><td colspan="4" class="empty">等待 /rosout</td></tr>';
+  const height = scroller ? (Number(scroller.scrollHeight) || 0) : 0;
+  const top = scroller ? (Number(scroller.scrollTop) || 0) : 0;
+  const client = scroller ? (Number(scroller.clientHeight) || 0) : 0;
+  const stick = !scroller || height - top - client < 48;
+  body.innerHTML = html;
+  if (scroller) scroller.scrollTop = stick ? (Number(scroller.scrollHeight) || 0) : top;
 }
 
 /* ---------- 感知节拍 / 重建进度 ---------- */
@@ -818,80 +887,246 @@ function renderTcpMini(payload) {
   }
 }
 
-async function pollTrajectory() {
+// Browser waiting limits do not cancel a ROS goal and must never trigger POST retries.
+const stateFeed = {inFlight: false, lastSuccessAt: 0, error: ""};
+const pendingDebug = new Set();
+const fetchControllers = new Set();
+let trajectoryInFlight = false;
+let trajectoryPayload = null;
+
+async function requestJson(url, options = {}, timeoutMs = 6000) {
+  const controller = new AbortController();
+  fetchControllers.add(controller);
+  let timedOut = false;
+  const timer = setTimeout(() => { timedOut = true; controller.abort(); }, timeoutMs);
   try {
-    const response = await fetch(`/api/trajectory?t=${Date.now()}`, {cache: "no-store"});
+    const response = await fetch(url, {...options, signal: controller.signal});
+    const body = await response.json();
+    return {response, body};
+  } catch (error) {
+    if (timedOut) throw new Error("等待响应超时");
+    throw error;
+  } finally {
+    clearTimeout(timer);
+    fetchControllers.delete(controller);
+  }
+}
+
+function stateIsFresh() {
+  return stateFeed.lastSuccessAt > 0 && !stateFeed.error &&
+    Date.now() - stateFeed.lastSuccessAt < 5000;
+}
+
+function updateConnectionView() {
+  const fresh = stateIsFresh();
+  const seen = stateFeed.lastSuccessAt > 0;
+  const label = fresh ? "已连接" : stateFeed.error ? "连接中断" : seen ? "数据陈旧" : "正在连接";
+  const connection = $("connection");
+  connection.className = `connection ${fresh ? "online" : seen || stateFeed.error ? "offline" : ""}`;
+  connection.querySelector("span").textContent = label;
+  const age = seen ? Math.max(0, Math.floor((Date.now() - stateFeed.lastSuccessAt) / 1000)) : 0;
+  setText("state-updated", seen
+    ? `更新于 ${new Date(stateFeed.lastSuccessAt).toLocaleTimeString("zh-CN", {hour12: false})} · ${age}s 前`
+    : "尚未收到状态快照");
+  const alert = $("feed-alert");
+  if (alert) {
+    alert.hidden = fresh;
+    alert.textContent = !seen
+      ? "等待状态连接，操作将在数据就绪后开放。"
+      : `当前显示最后一次快照（${age}s 前）。${stateFeed.error || "状态更新延迟"}；普通操作已暂停，可尝试取消在途动作。`;
+  }
+  document.body.classList.toggle("data-stale", !fresh);
+  updateDebugControls();
+}
+
+function renderOverview(state) {
+  const facts = state.startup?.facts || {};
+  setText("health-mode", facts.hardware_mode === "mock" ? "模拟硬件" :
+    facts.hardware_mode === "real" ? "真机硬件" : "模式待确认");
+  setText("health-tool", facts.tool_profile || "等待工具档案");
+  $("health-mode").className = `health-value ${facts.hardware_mode === "real" ? "warn" : ""}`;
+  const report = state.selfcheck?.report;
+  const passed = report?.passed;
+  const checkTone = passed === false ? "err" : passed === true
+    ? (report.status === "warn" ? "warn" : "ok") : "";
+  setText("health-selfcheck", passed === false ? "未通过" : passed === true
+    ? (checkTone === "warn" ? "通过 · 有警告" : "检查通过") : "等待判定");
+  $("health-selfcheck").className = `health-value ${checkTone}`;
+  setText("health-selfcheck-note", report?.summary || "栈就绪后自动检查");
+  const nodes = Object.values(state.diagnostics?.nodes || {});
+  const valid = nodes.filter((entry) => numeric(entry.level));
+  const errors = valid.filter((entry) => Number(entry.level) >= 2).length;
+  const warnings = valid.filter((entry) => Number(entry.level) === 1).length;
+  setText("health-diagnostics", !valid.length ? "尚无诊断" : errors
+    ? `${errors} 个异常节点` : warnings ? `${warnings} 个警告节点` : "节点正常");
+  $("health-diagnostics").className = `health-value ${errors ? "err" : warnings ? "warn" : valid.length ? "ok" : ""}`;
+  setText("health-diagnostics-note", valid.length ? `${valid.length} 个节点已有诊断` : "等待 /diagnostics");
+  const executor = state.task_executor?.state || {};
+  setText("health-enables-note", executor.execution_enabled === true
+    ? "执行已开启 · 臂侧继续复核权限" : executor.execution_enabled === false
+      ? "执行输出关闭" : "等待运行期使能状态");
+}
+
+async function pollTrajectory() {
+  if (trajectoryInFlight || document.hidden) return;
+  trajectoryInFlight = true;
+  try {
+    const {response, body} = await requestJson(`/api/trajectory?t=${Date.now()}`);
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    const payload = await response.json();
-    renderTrajHud(payload);
-    renderTcpMini(payload);
+    trajectoryPayload = body;
+    renderTrajHud(body);
+    renderTcpMini(body);
   } catch (_) {
-    setText("traj-status", "轨迹 API 不可用");
+    setText("traj-status", "轨迹更新不可用 · 保留上次画面");
+  } finally {
+    trajectoryInFlight = false;
   }
 }
 
 async function pollState() {
+  if (stateFeed.inFlight || document.hidden) return;
+  stateFeed.inFlight = true;
   try {
-    const response = await fetch(`/api/state?t=${Date.now()}`, {cache: "no-store"});
+    const {response, body: state} = await requestJson(`/api/state?t=${Date.now()}`);
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    const state = await response.json();
+    if (!state || typeof state !== "object" || Array.isArray(state)) {
+      throw new Error("状态快照格式无效");
+    }
     monitorState = state;
     const record = state.record?.info || {};
-    setText("record-dir", record.enabled === false
-      ? "记录已关闭" : record.directory || "等待首批数据");
-    $("record-strip").classList.toggle("off",
-      record.enabled === false || !record.directory);
+    const directory = record.enabled === false
+      ? "记录已关闭" : record.directory || "等待首批数据";
+    setText("record-dir", directory);
+    $("record-dir").title = directory;
+    $("record-strip").classList.toggle("off", record.enabled === false || !record.directory);
+    renderOverview(state);
     renderStatus(state);
     renderFlow(state.task_executor || {}, state.job || {});
     renderPlan(state.perception || {}, state.task_executor || {});
     renderStages(state.pipeline || {});
+    renderStageHeader(state);
+    renderLogs(state.logs || []);
     renderLedger(state.ledger || {});
     renderVision(state);
     renderSystem(state);
+    stateFeed.lastSuccessAt = Date.now();
+    stateFeed.error = "";
     renderDebugPanel(state.debug || {});
-    $("connection").className = "connection online";
-    $("connection").querySelector("span").textContent = "已连接";
-  } catch (_) {
-    $("connection").className = "connection offline";
-    $("connection").querySelector("span").textContent = "连接中断";
+  } catch (error) {
+    stateFeed.error = error.message || "状态请求失败";
+  } finally {
+    stateFeed.inFlight = false;
+    updateConnectionView();
   }
 }
-
-setInterval(pollState, 1000);
-setInterval(pollTrajectory, 400);
-window.addEventListener("resize", pollTrajectory);
-pollState();
-pollTrajectory();
 
 const debugView = {results: []};
 
 function switchView(name) {
   document.querySelectorAll(".view-tabs button").forEach((el) => {
-    el.classList.toggle("active", el.dataset.view === name);
+    const active = el.dataset.view === name;
+    el.classList.toggle("active", active);
+    el.setAttribute("aria-selected", String(active));
+    el.tabIndex = active ? 0 : -1;
   });
   $("view-monitor").hidden = name !== "monitor";
   $("view-debug").hidden = name !== "debug";
+  if (name === "monitor" && trajectoryPayload) renderTcpMini(trajectoryPayload);
+}
+
+function debugRequestKey(action, payload) {
+  if (action === "cancel") return `cancel:${payload.target || ""}`;
+  if (action === "control_service" && payload.command === "CANCEL_NOW") return "control_service:CANCEL_NOW";
+  return action;
+}
+
+function isCancelControl(el) {
+  return isCancelRequest(el.dataset.debugCancel ? "cancel" : el.dataset.debug,
+    JSON.parse(el.dataset.payload || "{}"));
+}
+
+function isCancelRequest(action, payload) {
+  return action === "cancel" || (action === "control_service" && payload.command === "CANCEL_NOW");
+}
+
+function updateDebugControls() {
+  const enabled = monitorState?.debug?.enabled === true;
+  document.querySelectorAll("[data-debug], [data-debug-cancel]").forEach((el) => {
+    const action = el.dataset.debugCancel ? "cancel" : el.dataset.debug;
+    const payload = el.dataset.debugCancel ? {target: el.dataset.debugCancel} :
+      JSON.parse(el.dataset.payload || "{}");
+    const busy = pendingDebug.has(debugRequestKey(action, payload));
+    if (!el.dataset.label) el.dataset.label = el.textContent;
+    el.disabled = !enabled || (!stateIsFresh() && !isCancelControl(el)) || busy;
+    el.setAttribute("aria-busy", String(busy));
+    el.textContent = busy ? `${el.dataset.label} · 等待中` : el.dataset.label;
+    el.title = busy ? "请求仍在等待结果，取消入口保持独立。" :
+      !enabled ? "后端调试入口尚未就绪或已关闭。" :
+        !stateIsFresh() && !isCancelControl(el) ? "状态快照已失联，请等待恢复。" : "";
+  });
+}
+
+function debugNotice(message, tone = "") {
+  const notice = $("debug-notice");
+  if (!notice) return;
+  notice.textContent = message;
+  notice.className = `debug-notice ${tone}`;
 }
 
 async function debugPost(action, payload, confirmText) {
-  if (confirmText && !window.confirm(confirmText)) {
+  const key = debugRequestKey(action, payload || {});
+  if (pendingDebug.has(key)) {
+    debugNotice("前一次请求仍在等待结果，请勿重复提交。", "warn");
     return null;
   }
-  const response = await fetch(`/api/debug/${encodeURIComponent(action)}`, {
-    method: "POST",
-    headers: {"Content-Type": "application/json"},
-    body: JSON.stringify(payload || {}),
-  });
-  let body = {};
-  try { body = await response.json(); } catch (_) { /* 非 JSON 响应 */ }
-  debugView.results.unshift({
-    ts: new Date().toLocaleTimeString("zh-CN", {hour12: false}),
-    action, status: response.status, accepted: body.accepted === true,
-    message: body.message || "", detail: body,
-  });
-  if (debugView.results.length > 30) debugView.results.pop();
-  renderDebugResults();
-  return {ok: response.ok, status: response.status, body};
+  if (confirmText && !window.confirm(confirmText)) return null;
+  // A native confirmation can remain open while the last snapshot expires.
+  if (monitorState?.debug?.enabled !== true || (!stateIsFresh() && !isCancelRequest(action, payload || {}))) {
+    updateConnectionView();
+    debugNotice("请求未发送：调试入口关闭或状态快照已陈旧，请等状态恢复后再操作。", "warn");
+    return null;
+  }
+  pendingDebug.add(key);
+  updateDebugControls();
+  debugNotice("请求已发送，等待后端结果；取消入口仍可使用。");
+  let outcome;
+  try {
+    // Covers the usual 180s backend budget; longer ROS work can still continue.
+    const {response, body} = await requestJson(`/api/debug/${encodeURIComponent(action)}`, {
+      method: "POST", headers: {"Content-Type": "application/json"},
+      body: JSON.stringify(payload || {}),
+    }, 195000);
+    if (!body || typeof body !== "object" || Array.isArray(body)) throw new Error("后端结果格式无效");
+    const running = response.status === 202;
+    const unknown = response.status >= 500 && response.status !== 503;
+    const failed = body.result?.success === false || body.result?.accepted === false;
+    const rejected = !response.ok || body.accepted !== true;
+    const tone = running || unknown ? "warn" : failed || rejected ? "err" :
+      body.result?.success === true ? "ok" : "info";
+    const label = running ? "仍在执行 · 可取消" : unknown ? "结果未知" :
+      failed ? "操作失败" : rejected ? "请求被拒" : tone === "ok" ? "操作成功" : "已受理 · 查看结果";
+    const detailMessage = body.message || body.result?.message;
+    const message = unknown
+      ? `${detailMessage || "后端未返回操作终态"}。请核对状态或使用取消入口，勿直接重复发送。`
+      : detailMessage || (failed ? "请求已受理，但服务返回失败。" :
+        response.status === 423 ? "动臂未放行，后端授权门拒绝本次操作。" : label);
+    debugView.results.unshift({ts: new Date().toLocaleTimeString("zh-CN", {hour12: false}),
+      action, status: response.status, label, tone, message, detail: body});
+    debugNotice(`${label} · ${message}`, tone);
+    outcome = {ok: response.ok && !failed && !rejected && !running && !unknown, status: response.status, body};
+  } catch (error) {
+    const message = `${error.message || "网络请求失败"}。ROS 操作结果未知，请核对状态或使用取消入口，勿直接重复发送。`;
+    debugView.results.unshift({ts: new Date().toLocaleTimeString("zh-CN", {hour12: false}),
+      action, status: null, label: "结果未知", tone: "warn", message, detail: {error: error.message}});
+    debugNotice(message, "warn");
+    outcome = {ok: false, status: null, body: {message}};
+  } finally {
+    if (debugView.results.length > 30) debugView.results.pop();
+    pendingDebug.delete(key);
+    renderDebugResults();
+    updateDebugControls();
+  }
+  return outcome;
 }
 
 function renderDebugResults() {
@@ -901,14 +1136,13 @@ function renderDebugResults() {
     return;
   }
   list.innerHTML = debugView.results.map((entry, index) => {
-    const cls = entry.accepted ? (entry.status < 300 ? "ok" : "warn") : "err";
-    const detail = safe(JSON.stringify(entry.detail));
-    return `<details class="debug-result ${cls}" ${index ? "" : "open"}>
-      <summary><b>${safe(entry.ts)}</b> ${safe(entry.action)}
-      <span class="debug-status">${entry.status} ${entry.accepted ? "已受理" : "被拒/未成"}</span></summary>
+    const detail = safe(JSON.stringify(entry.detail, null, 2));
+    return `<details class="debug-result ${entry.tone}" ${index ? "" : "open"}>
+      <summary><b>${safe(entry.ts)}</b> <span>${safe(entry.action)}</span>
+      <span class="debug-status">${entry.status ?? "—"} ${safe(entry.label)}</span></summary>
       <p>${safe(entry.message)}</p><pre>${detail}</pre></details>`;
   }).join("");
-  $("debug-recent-count").textContent = `${debugView.results.length} 条`;
+  setText("debug-recent-count", `${debugView.results.length} 条`);
 }
 
 function renderDebugPanel(debug) {
@@ -917,33 +1151,43 @@ function renderDebugPanel(debug) {
   const enabled = debug.enabled === true;
   const motion = debug.motion_enabled === true;
   gates.innerHTML = `
-    <span class="debug-gate ${enabled ? "ok" : "err"}">调试 ${enabled ? "开" : "关（debug.enabled=false）"}</span>
-    <span class="debug-gate ${motion ? "warn" : "ok"}">动臂 ${motion ? "已放行" : "未放行（423）"}</span>`;
-  document.querySelectorAll("[data-debug], [data-debug-cancel]").forEach((el) => {
-    el.disabled = !enabled;
-  });
+    <span class="debug-gate ${enabled ? "ok" : "err"}">调试 ${enabled ? "已开启" : "已关闭"}</span>
+    <span class="debug-gate ${motion ? "warn" : "ok"}">动臂 ${motion ? "已放行" : "未放行"}</span>`;
+  updateDebugControls();
 }
 
 function bindDebugControls() {
-  document.querySelectorAll(".view-tabs button").forEach((el) => {
+  const tabs = [...document.querySelectorAll(".view-tabs button")];
+  tabs.forEach((el, index) => {
     el.addEventListener("click", () => switchView(el.dataset.view));
+    el.addEventListener("keydown", (event) => {
+      const keys = {ArrowRight: (index + 1) % tabs.length,
+        ArrowLeft: (index + tabs.length - 1) % tabs.length, Home: 0, End: tabs.length - 1};
+      if (!(event.key in keys)) return;
+      event.preventDefault();
+      const next = tabs[keys[event.key]];
+      switchView(next.dataset.view);
+      next.focus();
+    });
   });
   document.querySelectorAll("[data-debug]").forEach((el) => {
     el.addEventListener("click", async () => {
-      const action = el.dataset.debug;
-      const payload = buildDebugPayload(action, el);
-      if (payload === null) return;
-      const outcome = await debugPost(action, payload, el.dataset.confirm === "1"
-        ? `确认发送 ${action}？\n${JSON.stringify(payload, null, 2)}`
-        : null);
-      if (outcome && outcome.status === 423) {
-        window.alert("423：动臂未放行（yaml debug.motion_enabled: true）");
+      try {
+        const action = el.dataset.debug;
+        const payload = buildDebugPayload(action, el);
+        if (payload === null) return;
+        await debugPost(action, payload, el.dataset.confirm === "1"
+          ? `确认发送 ${action}？\n${JSON.stringify(payload, null, 2)}` : null);
+      } catch (error) {
+        debugNotice(`请求未发送：${error.message}`, "err");
       }
     });
   });
   document.querySelectorAll("[data-debug-cancel]").forEach((el) => {
     el.addEventListener("click", () => debugPost("cancel", {target: el.dataset.debugCancel}, null));
   });
+  switchView("monitor");
+  updateDebugControls();
 }
 
 function buildDebugPayload(action, el) {
@@ -991,4 +1235,39 @@ function buildDebugPayload(action, el) {
 }
 
 bindDebugControls();
+function bindLogFilters() {
+  const refresh = () => renderLogs((monitorState && monitorState.logs) || []);
+  const level = $("log-level");
+  const node = $("log-node");
+  if (level) level.addEventListener("change", refresh);
+  if (node) node.addEventListener("input", refresh);
+}
+bindLogFilters();
+updateConnectionView();
+let pollTimers = [];
+function startPolling() {
+  if (pollTimers.length) return;
+  pollTimers = [setInterval(pollState, 1000), setInterval(pollTrajectory, 400),
+    setInterval(updateConnectionView, 1000)];
+}
+startPolling();
+window.addEventListener("resize", () => {
+  if (trajectoryPayload) renderTcpMini(trajectoryPayload);
+});
+document.addEventListener("visibilitychange", () => {
+  if (!document.hidden) { pollState(); pollTrajectory(); }
+});
+window.addEventListener("pagehide", () => {
+  pollTimers.forEach(clearInterval);
+  pollTimers = [];
+  fetchControllers.forEach((controller) => controller.abort());
+});
+window.addEventListener("pageshow", (event) => {
+  if (!event.persisted) return;
+  startPolling();
+  updateConnectionView();
+  pollState();
+  pollTrajectory();
+});
+pollState();
 pollTrajectory();

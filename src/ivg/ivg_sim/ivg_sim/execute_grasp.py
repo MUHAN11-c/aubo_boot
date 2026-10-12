@@ -44,8 +44,10 @@ from trajectory_msgs.msg import JointTrajectory, JointTrajectoryPoint
 
 from ivg_sim.arm_description import (
     ARM_JOINTS,
-    FINGER_GRASP_POSE,
-    FINGER_OPEN_POSE,
+    FINGER_GRASP_FORCE,
+    FINGER_OPEN_FORCE,
+    GRASP_LINK,
+    collision_center_z,
     SPAWN_XYZ,
     worlds_dir,
 )
@@ -176,7 +178,8 @@ def ik_via_service(node, ik_cli, pose: Pose, seed) -> list:
     """/compute_ik 单点解（种子=上一解；失败即 SystemExit）."""
     req = GetPositionIK.Request()
     req.ik_request.group_name = GROUP
-    req.ik_request.ik_link_name = 'tcp'
+    req.ik_request.ik_link_name = GRASP_LINK
+    req.ik_request.avoid_collisions = True
     req.ik_request.pose_stamped.header.frame_id = 'base_link'
     req.ik_request.pose_stamped.pose = pose
     req.ik_request.timeout.sec = 0
@@ -198,7 +201,7 @@ def fk_tcp(node, fk_cli, q) -> Pose:
     """/compute_fk 读 q 下 tcp 位姿（base 帧）."""
     req = GetPositionFK.Request()
     req.header.frame_id = 'base_link'
-    req.fk_link_names = ['tcp']
+    req.fk_link_names = [GRASP_LINK]
     req.robot_state.joint_state.name = \
         list(ARM_JOINTS)
     req.robot_state.joint_state.position = \
@@ -345,7 +348,7 @@ class GraspExecutor(Node):
         self.scene_pub = self.create_publisher(
             CollisionObject, '/collision_object', 5)
         self.gripper = self.create_publisher(
-            Float64MultiArray, '/gripper_position_controller/commands', 1)
+            Float64MultiArray, '/gripper_effort_controller/commands', 1)
 
     def _on_poses(self, msg: PoseArray):
         self.poses = msg
@@ -485,7 +488,8 @@ def main() -> int:
     x_col[2] = 0.0
     norm = float(np.linalg.norm(x_col))
     x_col = x_col / norm if norm > 1e-6 else np.array([1.0, 0.0, 0.0])
-    z_col = np.array([0.0, 0.0, 1.0])
+    # Original fingers extend along tool +Z; approach from above points down.
+    z_col = np.array([0.0, 0.0, -1.0])
     y_col = np.cross(z_col, x_col)
     vert_quat = Quaternion()
     (vert_quat.x, vert_quat.y,
@@ -494,7 +498,7 @@ def main() -> int:
 
     grasp_w.position.x = p_before[0]
     grasp_w.position.y = p_before[1]
-    grasp_w.position.z = p_before[2] + ENVELOP_RISE
+    grasp_w.position.z = p_before[2] + collision_center_z(obj['model']) + ENVELOP_RISE
     grasp_w.orientation = vert_quat
 
     tfb = Buffer(node=node)
@@ -534,7 +538,7 @@ def main() -> int:
         print(f'[execute][WARN] 场景注入失败（transit 无障碍退化）：{exc}')
 
     open_msg = Float64MultiArray()
-    open_msg.data = list(FINGER_OPEN_POSE)
+    open_msg.data = list(FINGER_OPEN_FORCE)
     node.gripper.publish(open_msg)
 
     # 1) transit：两段（高位扫到 hover 正上方 → 纯竖直下行到 hover；
@@ -568,7 +572,7 @@ def main() -> int:
     for _ in range(30):
         rclpy.spin_once(node, timeout_sec=0.1)
     try:
-        tf_tcp = tfb.lookup_transform('world', 'tcp', rclpy.time.Time())
+        tf_tcp = tfb.lookup_transform('world', GRASP_LINK, rclpy.time.Time())
         tcp_w = tf_tcp.transform.translation
         live = gz_model_pose(entity)
         dx = live[0] - tcp_w.x
@@ -596,17 +600,14 @@ def main() -> int:
     q_grasp = descend[-1]
     print('[execute] descend 完成（TCP 至抓取点）')
 
-    # 3) close（Allegro 四指包络：两段插值闭合——先 65% 缓合到位形，
-    #    停 2s 让指节逐个接触（自锁 friction 不回弹），再全位形轻夹。
-    #    原包 effort 15N/关节限力，接触即停）
-    near = [o + (c - o) * 0.65
-            for o, c in zip(FINGER_OPEN_POSE, FINGER_GRASP_POSE)]
+    # Independent effort commands let each CAD finger stop at object contact.
+    near = [force * 0.5 for force in FINGER_GRASP_FORCE]
     near_msg = Float64MultiArray()
     near_msg.data = near
     node.gripper.publish(near_msg)
     time.sleep(2.5)
     close_msg = Float64MultiArray()
-    close_msg.data = list(FINGER_GRASP_POSE)
+    close_msg.data = list(FINGER_GRASP_FORCE)
     node.gripper.publish(close_msg)
     time.sleep(2.0)
     print('[execute] 四指包络闭合完成')

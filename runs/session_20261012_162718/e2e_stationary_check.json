@@ -1,0 +1,431 @@
+{
+  "test": "real_stationary_validation",
+  "motion_sent": false,
+  "set_io_sent": false,
+  "full_grasp_executed": false,
+  "startup": {
+    "facts": {
+      "launched_at": "2026-10-12T16:27:17",
+      "hardware_mode": "real",
+      "robot_ip": "169.254.10.98",
+      "tool_profile": "bite_shear_v1",
+      "moveit_enabled": "true",
+      "camera_enabled": "true",
+      "camera_frontend": "stereo",
+      "camera_ip": "169.254.10.110",
+      "extrinsics_enabled": "true",
+      "imu_enabled": "true",
+      "bond_timeout": "0.0",
+      "use_sim_time": "false",
+      "skip_reconstruction": "false",
+      "autostart": "false",
+      "require_robot_status": "true",
+      "expected_tcp_norm_m": 0.1682400297194458,
+      "ros_domain_id": "86",
+      "git": {
+        "root": "/home/mu/Desktop/aubo_e5_jazzy_ws",
+        "branch": "20260924-full-sync",
+        "commit": "7ab5e7804c6c"
+      }
+    }
+  },
+  "selfcheck": {
+    "report": {
+      "trigger": "periodic",
+      "checked_at": "2026-10-12T16:29:18",
+      "duration_s": 0.002,
+      "facts": {
+        "launched_at": "2026-10-12T16:27:17",
+        "hardware_mode": "real",
+        "robot_ip": "169.254.10.98",
+        "tool_profile": "bite_shear_v1",
+        "moveit_enabled": "true",
+        "camera_enabled": "true",
+        "camera_frontend": "stereo",
+        "camera_ip": "169.254.10.110",
+        "extrinsics_enabled": "true",
+        "imu_enabled": "true",
+        "bond_timeout": "0.0",
+        "use_sim_time": "false",
+        "skip_reconstruction": "false",
+        "autostart": "false",
+        "require_robot_status": "true",
+        "expected_tcp_norm_m": 0.1682400297194458,
+        "ros_domain_id": "86",
+        "git": {
+          "root": "/home/mu/Desktop/aubo_e5_jazzy_ws",
+          "branch": "20260924-full-sync",
+          "commit": "7ab5e7804c6c"
+        }
+      },
+      "checks": [
+        {
+          "name": "managed_lifecycle",
+          "status": "pass",
+          "detail": "托管节点已激活",
+          "value": true
+        },
+        {
+          "name": "controllers",
+          "status": "pass",
+          "detail": "期望控制器均 active",
+          "value": {
+            "aubo_passthrough_trajectory_controller": "active",
+            "joint_state_broadcaster": "active",
+            "aubo_io_controller": "active"
+          }
+        },
+        {
+          "name": "joint_states_flow",
+          "status": "pass",
+          "detail": "帧率 160.00Hz",
+          "value": 160.0
+        },
+        {
+          "name": "joint_order",
+          "status": "pass",
+          "detail": "六关节名集合一致",
+          "value": [
+            "foreArm_joint",
+            "shoulder_joint",
+            "upperArm_joint",
+            "wrist1_joint",
+            "wrist2_joint",
+            "wrist3_joint"
+          ]
+        },
+        {
+          "name": "tcp_frame",
+          "status": "pass",
+          "detail": "|tcp|=168.2mm 对档案",
+          "value": 0.16824
+        },
+        {
+          "name": "camera_color_rate",
+          "status": "pass",
+          "detail": "图像探针接收帧率 8.00Hz（仅诊断，不拦开批）",
+          "value": 8.0
+        },
+        {
+          "name": "camera_depth_rate",
+          "status": "pass",
+          "detail": "图像探针接收帧率 9.20Hz（仅诊断，不拦开批）",
+          "value": 9.2
+        },
+        {
+          "name": "move_group",
+          "status": "pass",
+          "detail": "GetPlanningScene 可用",
+          "value": true
+        },
+        {
+          "name": "action_run_harvest",
+          "status": "pass",
+          "detail": "服务端就绪",
+          "value": true
+        },
+        {
+          "name": "action_survey_scene",
+          "status": "pass",
+          "detail": "服务端就绪",
+          "value": true
+        },
+        {
+          "name": "action_execute_target",
+          "status": "pass",
+          "detail": "服务端就绪",
+          "value": true
+        },
+        {
+          "name": "action_build_target_model",
+          "status": "pass",
+          "detail": "服务端就绪",
+          "value": true
+        },
+        {
+          "name": "robot_status",
+          "status": "pass",
+          "detail": "新鲜 0.0s",
+          "value": 0.01
+        },
+        {
+          "name": "imu_topic",
+          "status": "pass",
+          "detail": "话题在场: /imu/data",
+          "value": "/imu/data"
+        },
+        {
+          "name": "disk_free",
+          "status": "pass",
+          "detail": "剩余 99.1GB",
+          "value": 106370199552
+        },
+        {
+          "name": "model_files",
+          "status": "skip",
+          "detail": "未配置检查清单",
+          "value": null
+        },
+        {
+          "name": "param_consistency",
+          "status": "pass",
+          "detail": "启动参数组合自洽",
+          "value": null
+        },
+        {
+          "name": "vegetation_status",
+          "status": "skip",
+          "detail": "vegetation 不在图",
+          "value": null
+        }
+      ],
+      "status": "pass",
+      "passed": true,
+      "failed": [],
+      "warned": [],
+      "skipped": [
+        "model_files",
+        "vegetation_status"
+      ],
+      "summary": "16/18 通过，跳过: model_files, vegetation_status"
+    }
+  },
+  "robot_status": {
+    "mode": 2,
+    "e_stopped": 0,
+    "drives_powered": 1,
+    "motion_possible": 1,
+    "in_motion": 0,
+    "in_error": 0,
+    "error_code": 0
+  },
+  "reachability": {
+    "target_id": "target_0",
+    "require_sleeve": true,
+    "reachable": true,
+    "error_code": ""
+  },
+  "reconstruction": {
+    "status": {
+      "state": "READY"
+    },
+    "diagnostics": {
+      "harvest_run_id": "harvest_20261012T162737_754824_s1",
+      "selected_target_id": "target_0",
+      "target_mask_cache_size": 30,
+      "state": "READY",
+      "target_id": "target_0",
+      "target_center_base": [
+        0.36322303225452,
+        -0.8352527473192971,
+        0.6330349980193638
+      ],
+      "bound_axis_hint": [
+        0.3294254129615562,
+        -0.34137113798186747,
+        0.8803094021127306
+      ],
+      "captured_views": 1,
+      "pose_count": 1,
+      "rejected_views": 13,
+      "tf_failures": 0,
+      "skipped_views": 13,
+      "skip_reasons": {
+        "other": 13
+      },
+      "last_skip_code": "other",
+      "last_skip_reason": "缺少所选 target_id 的容差内掩膜",
+      "frame_ring_size": 5,
+      "tf_latency_ms": 0.09369850158691406,
+      "valid_depth_ratio": 0.9652479500195236,
+      "cloud_points": 2472,
+      "last_rel_translation_m": null,
+      "last_rel_rotation_deg": null,
+      "overlap": {
+        "pairs": [],
+        "frame_centroids_base": [
+          [
+            0.36980526664230384,
+            -0.8245988417087345,
+            0.6379272292585844
+          ]
+        ],
+        "centroid_base": [
+          0.36980526664230384,
+          -0.8245988417087345,
+          0.6379272292585844
+        ]
+      },
+      "tsdf": {
+        "points": 912,
+        "integrated_frames": 1,
+        "integrate_time_s": 0.024302005767822266,
+        "voxel_length": 0.003,
+        "sdf_trunc": 0.012,
+        "mesh_vertices": 1616,
+        "roi_center": [
+          0.36322303225452,
+          -0.8352527473192971,
+          0.6330349980193638
+        ]
+      },
+      "registration": {
+        "accepted": 1,
+        "latest": {
+          "mode": "fk",
+          "reason": "model_warmup",
+          "fitness": -1.0,
+          "rmse_m": -1.0,
+          "translation_m": 0.0,
+          "rotation_deg": 0.0
+        },
+        "target_refresh_period": 1,
+        "target_points": 912,
+        "target_full_refreshes": 2,
+        "target_incremental_appends": 0
+      },
+      "view_coverage": {
+        "max_baseline_deg": 0.0,
+        "mean_nearest_baseline_deg": 0.0,
+        "valid_depth_ratio_mean": 0.9652479500195236
+      },
+      "refined": {
+        "ok": true,
+        "kind": "cylinder",
+        "status": 0,
+        "reason": "",
+        "center": [
+          0.3759132275177799,
+          -0.8219294324199726,
+          0.6368576655734882
+        ],
+        "axis": [
+          0.16191145986132827,
+          -0.3600389358074888,
+          0.9187799757657893
+        ],
+        "bottom": [
+          0.3681996515739778,
+          -0.8047769240276987,
+          0.5930863406482243
+        ],
+        "neck": [
+          0.38362680346158196,
+          -0.8390819408122464,
+          0.6806289904987521
+        ],
+        "diameter": 0.08942781032192108,
+        "span_m": 0.09528140812773196,
+        "rmse": 0.022362068151200287,
+        "inlier_ratio": 0.0,
+        "n_points": 912,
+        "flags": [
+          "cut_band_unavailable"
+        ],
+        "axis_angle_deg": 12.016067488507863,
+        "refit_axis_angle_deg": 19.31585668337339,
+        "fused_axis_angle_deg": 12.016067488507863,
+        "axis_conflict_deg": 5.619339582680784,
+        "envelope_conditioned": true,
+        "envelope_reason": "ok",
+        "perception_axis": [
+          0.30198047355973406,
+          -0.48215459441533065,
+          0.8223957324018814
+        ],
+        "final": true
+      },
+      "grasp_decision": {
+        "stamp": 1791793768.2493408,
+        "harvest_run_id": "harvest_20261012T162737_754824_s1",
+        "target_id": "target_0",
+        "tool_profile_id": "bite_shear_v1",
+        "allowed": false,
+        "reason": "cut_plane_fruit_clearance",
+        "valid_until": 1791793880.0076234,
+        "model_revision": "target_0:1:2",
+        "scene_epoch": 0,
+        "failure_code": 16,
+        "entry": [
+          0.3681996515739778,
+          -0.8047769240276987,
+          0.5930863406482243
+        ],
+        "pregrasp": [
+          0.363342307778138,
+          -0.793975755953474,
+          0.5655229413752506
+        ],
+        "cut_pose": [
+          0.38362680346158196,
+          -0.8390819408122464,
+          0.6806289904987521
+        ],
+        "axis": [
+          0.16191145986132827,
+          -0.3600389358074888,
+          0.9187799757657893
+        ],
+        "diameter_m": 0.08942781032192108,
+        "rmse_m": 0.022362068151200287,
+        "inlier_ratio": 0.0
+      },
+      "timing": {
+        "icp_ms_ema": 0.019788742065429688,
+        "tsdf_integrate_ms_ema": 28.384685516357422,
+        "frame_total_ms_ema": 97.6719856262207,
+        "refit_ms_last": 75.8664608001709,
+        "finalize_ms_last": 113.74926567077637,
+        "frames_timed": 1
+      },
+      "stamp": 1791793769.2493143,
+      "view_directions": [
+        [
+          0.01922593057750667,
+          0.984701182335023,
+          0.17318760088827548
+        ]
+      ]
+    },
+    "grasp_decision": {
+      "stamp": 1791793769.2493143,
+      "harvest_run_id": "harvest_20261012T162737_754824_s1",
+      "target_id": "target_0",
+      "tool_profile_id": "bite_shear_v1",
+      "allowed": false,
+      "reason": "cut_plane_fruit_clearance",
+      "valid_until": 1791793880.0076234,
+      "model_revision": "target_0:1:2",
+      "scene_epoch": 0,
+      "failure_code": 16,
+      "entry": [
+        0.3681996515739778,
+        -0.8047769240276987,
+        0.5930863406482243
+      ],
+      "pregrasp": [
+        0.363342307778138,
+        -0.793975755953474,
+        0.5655229413752506
+      ],
+      "cut_pose": [
+        0.38362680346158196,
+        -0.8390819408122464,
+        0.6806289904987521
+      ],
+      "axis": [
+        0.16191145986132827,
+        -0.3600389358074888,
+        0.9187799757657893
+      ],
+      "diameter_m": 0.08942781032192108,
+      "rmse_m": 0.022362068151200287,
+      "inlier_ratio": 0.0
+    }
+  },
+  "pending_field_confirmation": [
+    "physical_tool_profile",
+    "workspace_clear",
+    "hardware_estop_accessible"
+  ]
+}

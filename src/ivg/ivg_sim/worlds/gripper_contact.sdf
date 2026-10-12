@@ -1,0 +1,20 @@
+<?xml version="1.0"?>
+<sdf version="1.9">
+  <world name="ivg_gripper_test">
+    <physics name="physics" type="ignored"><max_step_size>0.001</max_step_size><real_time_factor>1</real_time_factor></physics>
+    <plugin filename="gz-sim-physics-system" name="gz::sim::systems::Physics"/>
+    <plugin filename="gz-sim-user-commands-system" name="gz::sim::systems::UserCommands"/>
+    <plugin filename="gz-sim-scene-broadcaster-system" name="gz::sim::systems::SceneBroadcaster"/>
+    <model name="table"><static>true</static><link name="link">
+      <collision name="surface"><geometry><plane><normal>0 0 1</normal><size>2 2</size></plane></geometry></collision>
+    </link></model>
+    <!-- Box matches potted_meat_can collision/mass; no attachment or grasp plugin. -->
+    <model name="test_object"><pose>0 0 0.041 0 0 0</pose><link name="link">
+      <inertial><mass>0.370</mass><inertia><ixx>0.000497434</ixx><iyy>0.000284407</iyy><izz>0.000367194</izz></inertia></inertial>
+      <collision name="collision"><geometry><box><size>0.050 0.097 0.082</size></box></geometry>
+        <surface><friction><ode><mu>1.0</mu><mu2>1.0</mu2></ode></friction></surface>
+      </collision>
+      <visual name="visual"><geometry><box><size>0.050 0.097 0.082</size></box></geometry></visual>
+    </link></model>
+  </world>
+</sdf>

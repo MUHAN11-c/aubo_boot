@@ -1,0 +1,100 @@
+{
+  "source": "reconstruction",
+  "event": "reconstruction_finalized",
+  "target_id": "target_0",
+  "captured_views": 1,
+  "pose_count": 1,
+  "refined": {
+    "ok": true,
+    "kind": "cylinder",
+    "status": 0,
+    "reason": "",
+    "center": [
+      0.37455907449779524,
+      -0.8248456411499263,
+      0.639713298422054
+    ],
+    "axis": [
+      0.14392326870742567,
+      -0.30571802536463866,
+      0.941181481804501
+    ],
+    "bottom": [
+      0.3675154964017945,
+      -0.8098838576499392,
+      0.593652051139823
+    ],
+    "neck": [
+      0.381602652593796,
+      -0.8398074246499134,
+      0.6857745457042851
+    ],
+    "diameter": 0.08803457193511999,
+    "span_m": 0.097879629322751,
+    "rmse": 0.020750675894940864,
+    "inlier_ratio": 0.0,
+    "n_points": 962,
+    "flags": [],
+    "axis_angle_deg": 13.453005444906264,
+    "refit_axis_angle_deg": 11.918233472798896,
+    "fused_axis_angle_deg": 13.453005444906264,
+    "axis_conflict_deg": 6.6738968655663236,
+    "envelope_conditioned": true,
+    "envelope_reason": "ok",
+    "perception_axis": [
+      0.3692248755635976,
+      -0.30737021606313925,
+      0.8770385063053646
+    ],
+    "final": true
+  },
+  "grasp_decision": {
+    "harvest_run_id": "harvest_20261012T171134_485094_s1",
+    "target_id": "target_0",
+    "allowed": true,
+    "geometry_valid": true,
+    "reason": "radial_budget_negative",
+    "axis_angle_deg": 13.453005444906264,
+    "diagnostic_axis_mismatch": false,
+    "entry": [
+      0.3675154964017945,
+      -0.8098838576499392,
+      0.593652051139823
+    ],
+    "axis": [
+      0.14392326870742567,
+      -0.30571802536463866,
+      0.941181481804501
+    ],
+    "pregrasp": [
+      0.3631977983405717,
+      -0.800712316889,
+      0.5654166066856879
+    ],
+    "cut_pose": [
+      0.381602652593796,
+      -0.8398074246499134,
+      0.6857745457042851
+    ],
+    "diameter_m": 0.08803457193511999,
+    "d95_m": 0.08803457193511999,
+    "travel_m": 0.097879629322751,
+    "cut_travel_m": 0.097879629322751,
+    "radial_margin_m": -0.044157637350416,
+    "axial_margin_m": -0.002,
+    "corridor_clear": true,
+    "rmse_m": 0.020750675894940864,
+    "inlier_ratio": 0.0,
+    "model_revision": "target_0:1:2",
+    "tool_profile_id": "bite_shear_v1",
+    "scene_epoch": 1,
+    "calibration_revision": "unspecified",
+    "config_revision": "bite_shear_v1",
+    "geometry_capability": 0,
+    "pregrasp_capability": 0,
+    "sleeve_capability": 0,
+    "cut_capability": 0,
+    "failure_code": 0
+  },
+  "recorded_at": "2026-10-12T09:11:36.706588+00:00"
+}

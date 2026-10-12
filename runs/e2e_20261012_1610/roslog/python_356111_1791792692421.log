@@ -1,0 +1,32 @@
+[INFO] [1791792692.490614300] [peach_scene_perception_node]: YOLO=/home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_harvester/share/peach_harvester/model/best.pt
+[INFO] [1791792692.490814690] [peach_scene_perception_node]: SAM=/home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_harvester/share/peach_harvester/model/mobile_sam.pt
+[INFO] [1791792693.318733427] [peach_scene_perception_node]: Subscribed color=/camera/color/image_raw depth=/camera/depth/image_raw info=/camera/color/camera_info slop=0.05s optical=camera_color_optical_frame output=base_link depth_scale_unit=0.25 gravity_mode=tf calib=percipio-640x480-chessboard|hand_eye:import_humble_20260128T114006
+[INFO] [1791792693.318955267] [peach_scene_perception_node]: 目标身份记忆已启用：match_radius=0.06 m, max_targets=50, ema=0.3
+[INFO] [1791792693.329483937] [peach_target_reconstruction_node]: peach_target_reconstruction_node ready: base=base_link color=/camera/color/image_raw depth=/camera/depth/image_raw slop=0.05s depth_scale_unit=0.25 views(min/rec/max)=1/5/24 require_static=True auto_mode=True session_root=/home/mu/Desktop/aubo_e5_jazzy_ws/runs
+[INFO] [1791792693.492657883] [peach_supervisor]: task executor configured; will not auto-start harvest
+[INFO] [1791792693.498873620] [peach_scene_perception_node]: perception Active：开始处理 RGB-D
+[INFO] [1791792693.502279872] [peach_target_reconstruction_node]: reconstruction Active：开始积分
+[INFO] [1791792694.004872736] [peach_scene_perception_node]: CameraInfo K fx=466.175 fy=465.557 cx=326.071 cy=244.789 640x480
+[WARN] [1791792695.019864999] [peach_scene_perception_node]: TF 失败，输出退回相机系 camera_color_optical_frame: Could not find a connection between 'base_link' and 'camera_color_optical_frame' because they are not part of the same tree.Tf has two or more unconnected trees.
+[WARN] [1791792695.020196063] [peach_scene_perception_node]: gravity_mode=tf 但 TF 不可用或未设 output_frame，本帧回退 gravity_hint_xyz
+[INFO] [1791792698.544497721] [peach_scene_perception_node]: 目标注册表在册 0 个目标（累计注册 0、累计命中 0）
+[WARN] [1791792698.548280561] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 5（处理跟不上到达率，排查热路径耗时或降低到达率）
+[INFO] [1791792698.684854132] [peach_scene_perception_node]: peach_harvester.vision.scene_perception.identity: 目标注册 累计 1 次（最近: target_0 cls=0 累计表规模 1）
+[WARN] [1791792699.507181358] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 6（处理跟不上到达率，排查热路径耗时或降低到达率）
+[WARN] [1791792699.657729250] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 8（处理跟不上到达率，排查热路径耗时或降低到达率）
+[INFO] [1791792701.344597913] [peach_supervisor]: 操作台使能: execution=True grasp=True tool=False（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792701.416642560] [peach_supervisor]: Survey 进行中: moving_to_photo_pose
+[INFO] [1791792701.418083079] [peach_supervisor]: Survey 进行中: waiting_snapshot
+[INFO] [1791792708.698396252] [peach_scene_perception_node]: 目标注册表在册 1 个目标（累计注册 1、累计命中 20）
+[INFO] [1791792717.705965792] [peach_target_reconstruction_node]: 已清空，回 IDLE
+[INFO] [1791792718.864914039] [peach_target_reconstruction_node]: 自动开始：开始重建，绑定目标 target_0
+[WARN] [1791792718.868701949] [peach_target_reconstruction_node]: 自动采帧跳过 [other]：缺少所选 target_id 的容差内掩膜
+[INFO] [1791792718.876805660] [peach_supervisor]: reconstruct_in_trajectory: Build 并行，立即派 FULL target=target_0（skip_observation）
+[INFO] [1791792718.912936546] [peach_target_reconstruction_node]: REFINING：几何二次拟合开始（kind=bag，843 点）
+[INFO] [1791792718.943180684] [peach_scene_perception_node]: 目标注册表在册 1 个目标（累计注册 1、累计命中 40）
+[INFO] [1791792718.961701831] [peach_target_reconstruction_node]: REFINING 完成：cylinder status=ACCEPT final=False axis=[0.0299, -0.4767, 0.8785] diameter=68.0mm
+[INFO] [1791792718.962445186] [peach_target_reconstruction_node]: 已采第 1/5 视角，本帧 2291 点，有效深度占比 0.95，位姿=fk
+[INFO] [1791792718.970823731] [peach_target_reconstruction_node]: 已采第 2/5 视角，本帧 2291 点，有效深度占比 0.95，位姿=fk
+[INFO] [1791792718.980906882] [peach_target_reconstruction_node]: REFINING：几何二次拟合开始（kind=bag，843 点）
+[INFO] [1791792719.019597238] [peach_target_reconstruction_node]: REFINING 完成：cylinder status=ACCEPT final=True axis=[0.0299, -0.4767, 0.8785] diameter=68.0mm
+[INFO] [1791792719.020395150] [peach_target_reconstruction_node]: 局部重建完成：2 帧，4582 点（少于推荐 5 帧）；重叠 mean=0.0mm p95=0.0mm；TSDF 843 点 / mesh 1441 顶点（累计积分 0.01s）；refit ACCEPT（袋模型 1 视）

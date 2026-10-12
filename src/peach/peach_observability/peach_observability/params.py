@@ -22,6 +22,7 @@ _RULES = {  # 键 -> 校验规则表（启动期非法即拒启；运行期非�
     'port': (('bounds', 1.0, 65535.0),),
     'param_poll_period_s': (('gt', 0.0),),
     'event_buffer_size': (('gt_eq', 1),),
+    'log_buffer_size': (('gt_eq', 1),),
     'metrics_period_s': (('gt', 0.0),),
     'trajectory.period_s': (('gt', 0.0),),
     'trajectory.min_step_m': (('gt', 0.0),),
@@ -111,6 +112,8 @@ class ObservabilityParams:
     """节点参数镜像轮询周期 [s]."""
     event_buffer_size: int
     """批次事件环形缓冲条数."""
+    log_buffer_size: int
+    """/api/state.logs 环形缓冲条数（/rosout，丢最旧）."""
     metrics_period_s: float
     """系统/GPU 采样周期 [s]."""
     metrics_process_patterns: Tuple[str, ...]
@@ -226,6 +229,7 @@ def from_params(raw) -> ObservabilityParams:
         port=int(raw.port),
         param_poll_period_s=float(raw.param_poll_period_s),
         event_buffer_size=int(raw.event_buffer_size),
+        log_buffer_size=int(raw.log_buffer_size),
         metrics_period_s=float(raw.metrics_period_s),
         metrics_process_patterns=tuple(
             str(item) for item in raw.metrics_process_patterns),

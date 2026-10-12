@@ -13,11 +13,11 @@ peach_target_reconstruction_node:
     tf_timeout_sec: 1.0  # 按 depth.header.stamp 精确查询 TF 的最长等待 (s)；连续运动时严禁回退 latest TF，否则深度与机器人位姿错时会产生重影
     depth_scale_unit: 0.25  # 深度比例因子（仅 uint16 原始深度生效）：raw × 本值 = 毫米（Percipio 常见 0.25）；数据集回放(真毫米)设 1.0；32FC1 浮点深度按（米）×1000，本参数不生效
     capture:
-      min_views: 2  # finalize 所需最少机位数（当前位+一次 0.15 m 短移）；同机位连帧不加机位
+      min_views: 1  # finalize 所需最少机位数。单视即可收口，不为凑第二机位再移臂（效率优先）；同机位连帧不加机位
       recommended_views: 5  # 推荐视角数（不足仅提示，不阻塞 finalize）
       max_views: 24  # 帧栈上限（不是节拍）：percipio 端约 2.5 FPS 时有效视角常 4–6；peach_stereo 端（09-17 A/B 实测感知处理 ~7.5fps）单停帧密度约 3 倍，同视角去重靠 view_filter，本上限无需改动
-      minimum_baseline_deg: 8.0  # 单位置最少基线角 (deg)：12° PTP 在重建中心实测约 9.5°，与技能质量门对齐
-      minimum_mean_nearest_baseline_deg: 6.0  # 视角集合平均最近基线角门限 (deg)
+      minimum_baseline_deg: 0.0  # 机位角基线门 (deg)。0=单视可 finalize，不强制再移一个视点
+      minimum_mean_nearest_baseline_deg: 0.0  # 视角集合平均最近基线角门限 (deg)。0=不要求多视张角
       minimum_mean_depth_ratio: 0.4  # 视角集合平均有效深度占比门限
       require_robot_static: true  # 观察到位后才积分；false 时连续运动中每个唯一时间戳都会入栈（现场重影后圆柱轴可偏 ~90°）
       static_joint_vel_thresh: 0.03  # 到位后残余速度阈值 (rad/s)；转移中仍是 0.4–1.5 rad/s

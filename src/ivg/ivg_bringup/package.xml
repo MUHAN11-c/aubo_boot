@@ -1,0 +1,11 @@
+<?xml version="1.0"?>
+<package format="3">
+  <name>ivg_bringup</name><version>0.1.0</version>
+  <description>IVG robot composition using unchanged AUBO hardware plugins.</description>
+  <maintainer email="wangxiaoyun@iscas.ac.cn">mu</maintainer><license>BSD-3-Clause</license>
+  <buildtool_depend>ament_cmake</buildtool_depend>
+  <exec_depend>ivg_description</exec_depend><exec_depend>ivg_moveit_config</exec_depend>
+  <exec_depend>aubo_e5_bringup</exec_depend><exec_depend>controller_manager</exec_depend>
+  <exec_depend>robot_state_publisher</exec_depend><exec_depend>launch_ros</exec_depend>
+  <export><build_type>ament_cmake</build_type></export>
+</package>

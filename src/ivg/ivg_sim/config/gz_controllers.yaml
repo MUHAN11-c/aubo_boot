@@ -1,64 +1,40 @@
-# ivg_sim gz_ros2_control 控制器（由 xacro 内 <plugin> 的 <parameters> 加载）。
-# 臂=原厂 AUBO E5 六关节；末端=Allegro Hand 四指手（16 关节，社区常用件，
-# 2026-09-30 用户裁定；gripper2 剖分爪与 Robotiq 2F-140 两指先后退场）。
-# JTC 名保持 joint_trajectory_controller（与 aubo controllers_mock 对齐，
-# MoveIt 控制器映射零改动）。
+# Original gripper2: effort commands (N), independent CAD fingers.
 controller_manager:
   ros__parameters:
-    update_rate: 200  # Hz
+    update_rate: 200
     use_sim_time: true
-
     joint_state_broadcaster:
       type: joint_state_broadcaster/JointStateBroadcaster
-
     joint_trajectory_controller:
       type: joint_trajectory_controller/JointTrajectoryController
-
-    gripper_position_controller:
-      type: position_controllers/JointGroupPositionController
-
+    gripper_effort_controller:
+      type: effort_controllers/JointGroupEffortController
 joint_trajectory_controller:
   ros__parameters:
     use_sim_time: true
     joints:
-      - shoulder_joint
-      - upperArm_joint
-      - foreArm_joint
-      - wrist1_joint
-      - wrist2_joint
-      - wrist3_joint
+    - shoulder_joint
+    - upperArm_joint
+    - foreArm_joint
+    - wrist1_joint
+    - wrist2_joint
+    - wrist3_joint
     command_interfaces:
-      - position
+    - position
     state_interfaces:
-      - position
-      - velocity
+    - position
+    - velocity
     state_publish_rate: 50.0
     action_monitor_rate: 20.0
     allow_partial_joints_goal: false
     constraints:
       stopped_velocity_tolerance: 0.05
       goal_time: 0.0
-
-# Allegro 16 关节：位置组控（开/合位形由 execute_grasp 下发）。
-# 原包自带 damping/friction=断电自锁；接触后位置伺服按 effort 15N 限力。
-gripper_position_controller:
+gripper_effort_controller:
   ros__parameters:
     use_sim_time: true
     joints:
-      - joint_0
-      - joint_1
-      - joint_2
-      - joint_3
-      - joint_4
-      - joint_5
-      - joint_6
-      - joint_7
-      - joint_8
-      - joint_9
-      - joint_10
-      - joint_11
-      - joint_12
-      - joint_13
-      - joint_14
-      - joint_15
-    interface_name: position
+    - gripper2_pp_joint
+    - gripper2_pn_joint
+    - gripper2_np_joint
+    - gripper2_nn_joint

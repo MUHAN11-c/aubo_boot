@@ -31,8 +31,8 @@ float64 diameter_m              # 袋径 [m]
 float64 d95_m                   # 径向 D95 [m]
 float64 travel_m                # 建议插入行程 [m]
 float64 cut_travel_m            # 剪切相关行程 [m]
-float64 radial_margin_m         # 径向余量 [m]；负值不可套
-float64 axial_margin_m          # 轴向余量 [m]；负值不可剪
+float64 radial_margin_m         # 径向余量 [m]；记录给机械，负值不拦套入
+float64 axial_margin_m          # 轴向余量 [m]；记录给机械，负值不拦剪切
 bool corridor_clear             # 插入走廊是否清空
 float64 rmse_m                  # 融合拟合 RMSE [m]
 float64 inlier_ratio            # 内点比 0..1

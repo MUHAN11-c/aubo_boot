@@ -1,0 +1,17 @@
+<?xml version="1.0"?>
+<robot name="aubo_e5" xmlns:xacro="http://www.ros.org/wiki/xacro">
+  <xacro:arg name="gripper" default="none"/>
+  <xacro:arg name="hardware_mode" default="mock"/>
+  <xacro:arg name="robot_ip" default="169.254.10.98"/>
+  <xacro:arg name="include_workcell" default="true"/>
+  <xacro:arg name="tools_file" default="$(find ivg_description)/config/tools.yaml"/>
+  <xacro:include filename="base.xacro"/>
+  <xacro:include filename="tools.xacro"/>
+  <xacro:include filename="$(find aubo_description)/urdf/aubo_e5.ros2_control.xacro"/>
+  <xacro:ivg_base include_workcell="$(arg include_workcell)"/>
+  <xacro:ivg_tools gripper="$(arg gripper)" tools_file="$(arg tools_file)"/>
+  <xacro:if value="${'$(arg hardware_mode)' != 'none'}">
+    <xacro:aubo_e5_ros2_control name="IvgAuboE5System"
+        hardware_mode="$(arg hardware_mode)" robot_ip="$(arg robot_ip)"/>
+  </xacro:if>
+</robot>

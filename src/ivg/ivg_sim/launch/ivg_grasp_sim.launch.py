@@ -68,13 +68,13 @@ def _launch_setup(context: LaunchContext):
         get_package_share_directory('aubo_description'))
     resource_path = os.pathsep.join(filter(None, [
         # 源码树优先（symlink-install 下 share 不含 worlds/models data_files）
-        os.path.join(workspace, 'src', PKG, 'models'),
-        os.path.join(workspace, 'src', PKG, 'worlds'),
+        os.path.join(os.path.dirname(arm_description.arm_xacro_path()), '..', 'models'),
+        str(arm_description.worlds_dir()),
         # <ws>/src：gz 把 package:// 转 model:// 后按「条目+包名」搜索，
         # package://ivg_sim/meshes/... 需要 <ws>/src 这一级作为条目
-        os.path.join(workspace, 'src'),
+        os.path.join(workspace, 'src', 'ivg'),
         # 原装相机支架/快换盘件引用 package://tool_changer（gz 侧解析）
-        os.path.join(workspace, 'install', 'tool_changer', 'share'),
+        os.path.dirname(get_package_share_directory('ivg_description')),
         aubo_share_parent,
         os.environ.get('GZ_SIM_RESOURCE_PATH', ''),
     ]))
@@ -86,7 +86,7 @@ def _launch_setup(context: LaunchContext):
     gz_args = (['-s'] if gui not in ('true', '1', 'yes') else []) + \
         ['-r', world_path]
 
-    arm_urdf = arm_description.build_arm_urdf()
+    arm_urdf = arm_description.build_arm_urdf(LaunchConfiguration('gripper').perform(context))
     spawn_x, spawn_y, spawn_z = arm_description.SPAWN_XYZ
 
     clock_bridge = Node(
@@ -167,7 +167,7 @@ def _launch_setup(context: LaunchContext):
     )
     spawner_gripper = Node(
         package='controller_manager', executable='spawner', output='screen',
-        arguments=['gripper_position_controller'],
+        arguments=['gripper_effort_controller'],
     )
 
     from ivg_sim.moveit_params import build_moveit_params
@@ -213,6 +213,8 @@ def _launch_setup(context: LaunchContext):
 
 def generate_launch_description():
     return LaunchDescription([
+        DeclareLaunchArgument('gripper', default_value='gripper2', choices=['gripper2'],
+                              description='Gazebo actuator model: original four-finger gripper2'),
         DeclareLaunchArgument(
             'gui', default_value='false',
             description='true 时 gz sim 服务端+GUI 一起拉起（默认无头 -s）',

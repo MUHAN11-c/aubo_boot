@@ -1,0 +1,53 @@
+<?xml version="1.0"?>
+<robot name="aubo_e5">
+  <group name="manipulator_e5">
+    <chain base_link="base_link" tip_link="tool_tcp" />
+  </group>
+  <group_state name="home" group="manipulator_e5">
+    <joint name="foreArm_joint" value="1.236" />
+    <joint name="shoulder_joint" value="0" />
+    <joint name="upperArm_joint" value="-0.0334" />
+    <joint name="wrist1_joint" value="-0.3675" />
+    <joint name="wrist2_joint" value="1.5701" />
+    <joint name="wrist3_joint" value="0" />
+  </group_state>
+  <group_state name="camera_pose" group="manipulator_e5">
+    <joint name="foreArm_joint" value="1.7700852155685425" />
+    <joint name="shoulder_joint" value="-0.27411168813705444" />
+    <joint name="upperArm_joint" value="0.4963911175727844" />
+    <joint name="wrist1_joint" value="-0.2978658676147461" />
+    <joint name="wrist2_joint" value="1.571584939956665" />
+    <joint name="wrist3_joint" value="-0.2750104069709778" />
+  </group_state>
+  <group_state name="global_photo_pose" group="manipulator_e5">
+    <joint name="foreArm_joint" value="1.679546" />
+    <joint name="shoulder_joint" value="0.425175" />
+    <joint name="upperArm_joint" value="0.194274" />
+    <joint name="wrist1_joint" value="1.462579" />
+    <joint name="wrist2_joint" value="-0.279948" />
+    <joint name="wrist3_joint" value="0.038859" />
+  </group_state>
+  <group_state name="harvest_stow" group="manipulator_e5">
+    <joint name="foreArm_joint" value="1.677740" />
+    <joint name="shoulder_joint" value="0.425083" />
+    <joint name="upperArm_joint" value="0.195177" />
+    <joint name="wrist1_joint" value="1.461739" />
+    <joint name="wrist2_joint" value="-0.500161" />
+    <joint name="wrist3_joint" value="0.038621" />
+  </group_state>
+  <disable_collisions link1="base_link" link2="shoulder_Link" reason="Adjacent" />
+  <disable_collisions link1="shoulder_Link" link2="upperArm_Link" reason="Adjacent" />
+  <disable_collisions link1="upperArm_Link" link2="foreArm_Link" reason="Adjacent" />
+  <disable_collisions link1="foreArm_Link" link2="wrist1_Link" reason="Adjacent" />
+  <disable_collisions link1="wrist1_Link" link2="wrist2_Link" reason="Adjacent" />
+  <disable_collisions link1="wrist2_Link" link2="wrist3_Link" reason="Adjacent" />
+  <disable_collisions link1="pedestal_Link" link2="base_link" reason="Adjacent" />
+  <disable_collisions link1="pedestal_Link" link2="cup0_Link" reason="Adjacent" />
+  <disable_collisions link1="pedestal_Link" link2="lizhu_Link" reason="Adjacent" />
+  <disable_collisions link1="pedestal_Link" link2="coffee_Link" reason="Adjacent" />
+  <disable_collisions link1="wrist3_Link" link2="camera_Link" reason="Adjacent" />
+  <disable_collisions link1="camera_Link" link2="kuaihuan_Link" reason="Adjacent" />
+  <disable_collisions link1="wrist3_Link" link2="tool_tcp" reason="Adjacent" />
+  <disable_collisions link1="wrist1_Link" link2="wrist3_Link" reason="Never" />
+  <disable_collisions link1="wrist3_Link" link2="kuaihuan_Link" reason="Never" />
+</robot>

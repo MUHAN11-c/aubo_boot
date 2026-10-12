@@ -66,7 +66,7 @@ def generate_launch_description():
             description='MoveIt 规划组（本区 aubo_e5.srdf）',
         ),
         DeclareLaunchArgument(
-            'ee_link', default_value='tcp',
+            'ee_link', default_value='grasp_tcp',
             description='MoveIt 末端 link（本区 aubo_e5.srdf tip）',
         ),
         DeclareLaunchArgument(

@@ -40,7 +40,6 @@ private:
 
   void loadToolConfig();
   shape_msgs::msg::Mesh loadMesh(const std::string & resource_path);
-  void loadUrdfCache();
 
   void onToolStatus(const ivg_interfaces::msg::ToolChangerStatus & msg);
 
@@ -58,7 +57,6 @@ private:
     const std::shared_ptr<ivg_interfaces::srv::ChangeTool::Request> req,
     std::shared_ptr<ivg_interfaces::srv::ChangeTool::Response> resp);
 
-  void updateRobotDescription(const std::string & tool_id, bool sync = false);
 
   std::map<std::string, ToolGeometry> tool_geometries_;
   rclcpp::Publisher<moveit_msgs::msg::PlanningScene>::SharedPtr planning_scene_pub_;
@@ -69,14 +67,9 @@ private:
   rclcpp::Service<ivg_interfaces::srv::ChangeTool>::SharedPtr scene_detach_srv_;
   rclcpp::Service<ivg_interfaces::srv::ChangeTool>::SharedPtr display_tool_srv_;
 
-  std::map<std::string, std::string> urdf_cache_;
-  rclcpp::CallbackGroup::SharedPtr param_cb_group_;
-  rclcpp::AsyncParametersClient::SharedPtr param_client_;
-  rclcpp::Publisher<std_msgs::msg::String>::SharedPtr robot_description_pub_;
-
-  std::string attach_frame_{"quick_changer_link"};
+  std::string attach_frame_{"kuaihuan_Link"};
+  std::string modeled_tool_;
   std::string current_attached_tool_;
-  std::string current_display_tool_;
 };
 
 }  // namespace tool_changer

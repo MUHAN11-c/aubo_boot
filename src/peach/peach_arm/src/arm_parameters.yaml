@@ -417,7 +417,7 @@ peach_arm:
   quality:
     minimum_views:
       type: int
-      default_value: 2
+      default_value: 1
       description: "最小机位数"
       validation:
         gt_eq<>: [1]
@@ -427,13 +427,13 @@ peach_arm:
       description: "用场景观测几何代替重建精化（验证路径；默认关）"
     minimum_baseline_deg:
       type: double
-      default_value: 8.0
+      default_value: 0.0
       description: "覆盖门角基线 [deg]"
       validation:
         gt_eq<>: [0.0]
     minimum_mean_nearest_baseline_deg:
       type: double
-      default_value: 6.0
+      default_value: 0.0
       description: "平均最近基线 [deg]"
       validation:
         gt_eq<>: [0.0]

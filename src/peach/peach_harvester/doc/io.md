@@ -166,7 +166,7 @@ flowchart TB
 | 融合几何 | `GraspDecision` 入口/轴/预抓取/剪切参考（融合成功即填；后撤由 `grasp_standoffs.yaml` 注入，现行入口 0=拟合袋底、预抓取相对入口 0.03 m） | `PREGRASP_ONLY` 到预抓取停住；RViz/监控目视。方向定位对错以真机预抓取实测为准。停袋底对照轮次 1757（历史在 git，原 testing-log 已删） |
 | 接触许可 | `GraspDecision.allowed` | 只授权套入/剪切；禁止降级接触 |
 
-融合成功时 entry/axis/pregrasp/cut_pose 有效，即使 `allowed=false`。无几何时入口/轴填零，只信 `reason` / `failure_code`。常见 reason：`reconstruction_not_ready`、`refined_geometry_unavailable`、`bag_model_unavailable`、`bag_d95_exceeds_tool` / `bag_d95_missing`、`radial_budget_negative` / `axial_budget_negative` / `axial_budget_structurally_unsatisfiable`（以上 code 12 预算族）、`keypoint_cloud_axis_conflict`（包络轴与关键点轴 >12° 且包络有长径比）、`cut_plane_fruit_clearance` / `cut_band_unavailable`。`envelope_axis_ill_conditioned` / `envelope_too_few_slices` 只诊断，不单独关 `allowed`。>35° 只打 `diagnostic_axis_mismatch`，不单独把 `allowed` 打成 false。通过接触：`dynamic_budget_accept` / `refined_geometry_accept`。软件预算与夹角不代替预抓取位的真机精度评定。
+融合成功时 entry/axis/pregrasp/cut_pose 有效，即使 `allowed=false`。无几何时入口/轴填零，只信 `reason` / `failure_code`。常见 reason：`reconstruction_not_ready`、`refined_geometry_unavailable`、`bag_model_unavailable`、`bag_d95_missing`（无尺度证据，仍拒绝）。`bag_d95_exceeds_tool`、`radial_budget_negative`、`axial_budget_negative`、`axial_budget_structurally_unsatisfiable` 只记录尚未更新的刀具常数，不把 `allowed` 打成 false、`keypoint_cloud_axis_conflict`（包络轴与关键点轴 >12° 且包络有长径比）、`cut_plane_fruit_clearance` / `cut_band_unavailable`。`envelope_axis_ill_conditioned` / `envelope_too_few_slices` 只诊断，不单独关 `allowed`。>35° 只打 `diagnostic_axis_mismatch`，不单独把 `allowed` 打成 false。通过接触：`dynamic_budget_accept` / `refined_geometry_accept`。软件预算与夹角不代替预抓取位的真机精度评定。
 
 `allowed=true` 之后仍可能 `skipped_quality`（再确认/预抓取残差）或 `skipped_unreachable`（MTC 护栏）。心跳里大量 `not_ready` 不等于精化从未 ACCEPT；看逐目标 max，不要看收工 IDLE。
 
@@ -174,7 +174,7 @@ flowchart TB
 
 | 参数 | 含义 |
 |------|------|
-| `capture.min_views` | finalize 所需独立机位数（默认 2 = 当前位+一次短移） |
+| `capture.min_views` | finalize 所需独立机位数（默认 1，当前拍照位即可；角基线门 0，不强制再移一个视点） |
 | `capture.max_views` | 帧栈上限，不是节拍 |
 | `capture.require_robot_static` | `/joint_states` 最大 \|vel\| 超门则跳帧 |
 | `capture.min_neighbor_gap_m` / `neighbor_gap_area_ratio` | 邻锚过近拒帧；小框面积比豁免，近距双检不互锁 |
@@ -188,7 +188,7 @@ flowchart TB
 
 ### peach_scene_obstacles（场景障碍快照，0035）
 
-独立进程（`peach_harvester` 包 console_script，不进 lifecycle 名单、不随 brain 进程）；`harvest_system` 在 `camera_enabled:=true` 时拉起（须位于 aubo include 之前，stereo 分支参数泄漏坑同见 launch 注释）。无状态快照服务：订阅 `/camera/depth_registered/points`（**RELIABLE** VOLATILE depth 5——两前端发布端均 RELIABLE，BE 订户大帧假性丢包（09-29 勘定），缓存最近一帧）、`/peach/reconstruction/refined_pose`（latched，累积已精化目标胶囊）、`/joint_states`+`/robot_description`（自身滤除 FK/mesh）、`/peach/scene/obstacles_refresh`（触发）；经 `/apply_planning_scene` 写 BOX 对象 `peach_scene_obstacles`（首写 ADD、此后同请求 REMOVE+ADD 原子替换）。参数 `config/scene_obstacles.yaml`（0024 直读 attach：体素 0.06、自身余量 0.05、胶囊余量 0.10/0.10、半径 1.5、上限 3000、帧龄门 2s；**滤除在体素中心上做，阈值=余量+体素半对角**——保证方块含角点不切机器人表面，0036）。触发后处理链在工作线程单飞（Open3D 突发不占 executor）；新目标精化后同帧重写；作业期冻结。**只写 world.collision_objects，不碰 ACM**（ACM 归 peach_arm，分域防覆盖；peach_arm 激活即 3 次幂等重试应用 26 条豁免并打 INFO）。纯核 `vision/scene_obstacles/core.py`（零 ROS，pytest 19 例）。
+独立进程（`peach_harvester` 包 console_script，不进 lifecycle 名单、不随 brain 进程）；`harvest_system` 在 `camera_enabled:=true` 时拉起（须位于 aubo include 之前，stereo 分支参数泄漏坑同见 launch 注释）。无状态快照服务：订阅 `/camera/depth_registered/points`（**RELIABLE** VOLATILE depth 5——两前端发布端均 RELIABLE，BE 订户大帧假性丢包（09-29 勘定），缓存最近一帧）、`/peach/reconstruction/refined_pose`（latched，累积已精化目标胶囊）、`/joint_states`+`/robot_description`（自身滤除 FK/mesh）、`/peach/scene/obstacles_refresh`（触发）；经 `/apply_planning_scene` 写 BOX 对象 `peach_scene_obstacles`（首写 ADD、此后同请求 REMOVE+ADD 原子替换）。参数 `config/scene_obstacles.yaml`（0024 直读 attach：`enabled` 默认 false，不把枝叶写成碰撞方块；体素 0.12、自身余量 0.05、胶囊余量 0.10/0.10、半径 1.5、上限 3000、帧龄门 2s；**滤除在体素中心上做，阈值=余量+体素半对角**——保证方块含角点不切机器人表面，0036）。触发后处理链在工作线程单飞（Open3D 突发不占 executor）；新目标精化后同帧重写；作业期冻结。**只写 world.collision_objects，不碰 ACM**（ACM 归 peach_arm，分域防覆盖；peach_arm 激活即 3 次幂等重试应用 26 条豁免并打 INFO）。纯核 `vision/scene_obstacles/core.py`（零 ROS，pytest 19 例）。
 
 ---
 

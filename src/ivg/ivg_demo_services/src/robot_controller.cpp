@@ -13,6 +13,9 @@ namespace ivg_demo_services
 RobotController::RobotController(rclcpp::Node * owner, const std::string & planning_group)
 : node_(owner), planning_group_(planning_group)
 {
+  if (!node_->has_parameter("ee_link")) {
+    node_->declare_parameter<std::string>("ee_link", "tool_tcp");
+  }
   // 两阶段初始化：MoveGroupInterface 构造需要 owner->shared_from_this()，
   // 而 enable_shared_from_this 的 weak_ptr 在 shared_ptr 构造完成后才可用。
   if (node_->has_parameter("io_simulated")) {
@@ -41,7 +44,14 @@ bool RobotController::init()
     move_group_->allowReplanning(true);
     move_group_->setMaxVelocityScalingFactor(0.5);
     move_group_->setMaxAccelerationScalingFactor(0.5);
-    setEndEffectorLink(move_group_->getEndEffectorLink());
+    const auto ee_link = node_->has_parameter("ee_link") ?
+      node_->get_parameter("ee_link").as_string() : move_group_->getEndEffectorLink();
+    if (!move_group_->getRobotModel()->hasLinkModel(ee_link)) {
+      RCLCPP_ERROR(node_->get_logger(), "IVG URDF 缺少末端链接: %s", ee_link.c_str());
+      move_group_.reset();
+      return false;
+    }
+    setEndEffectorLink(ee_link);
     // 启动即订阅 /joint_states：否则首次查询才建订阅，DDS 发现超 1s 会
     // "Failed to fetch current robot state"（冷启动竞态，实测可 SIGSEGV）
     move_group_->startStateMonitor(5.0);

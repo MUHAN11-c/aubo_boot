@@ -324,11 +324,11 @@ Goal：`pose`、`site_id`。现行固定座调度直通 `NAV_OK`，**不发送**
 
 | 字段 | 含义 |
 |------|------|
-| `allowed` | **汇总位**=geometry∧sleeve∧cut（pregrasp 不进），只拦套入和 SetIO。批次4 起臂侧分档复检：CONTACT 另查 sleeve/径向余量、TOOL 另查 cut/轴向余量+预备位残差，`allowed` 不再单条放行剪切。false 时仍可有几何，预抓取可以走，禁止降级接触 |
+| `allowed` | **汇总位**=geometry∧sleeve∧cut（pregrasp 不进），只拦套入和 SetIO。径向/轴向余量不进这三位。false 时仍可有几何，预抓取可以走，禁止降级接触。TOOL 另要预备位残差与 `tool.enabled` |
 | `reason` / `failure_code` | 原因；`FailureCode.*`，0=无失败 |
 | `entry` / `pregrasp` / `cut_pose` / `axis` | base 系入口、预抓取、剪切参考、袋轴。无融合时入口/轴填零 |
 | `diameter_m` / `d95_m` / `travel_m` / `cut_travel_m` | 直径、D95、插入/剪切行程 |
-| `radial_margin_m` / `axial_margin_m` | 径向/轴向余量；负值不可套/剪 |
+| `radial_margin_m` / `axial_margin_m` | 径向/轴向余量，记录给机械对尚未更新的刀具常数。负值不拦套入或剪切 |
 | `corridor_clear` / `rmse_m` / `inlier_ratio` | 走廊、拟合误差、内点比 |
 | `harvest_run_id` / `target_id` / `model_revision` / `tool_profile_id` | 身份与剖面（`tool_profile_id` 由重建按节点 `tool.profile_id` 填，整栈=launch `tool_profile` 档案） |
 

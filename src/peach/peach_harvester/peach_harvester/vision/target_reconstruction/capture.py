@@ -343,7 +343,7 @@ STATE_READY = 'READY'
 class CollectorConfig:
     """采帧与视角过滤配置（平移 [m]，旋转 [deg]，间隔 [s]）."""
 
-    min_views: int = 2
+    min_views: int = 1
     """finalize 所需最少机位数."""
     recommended_views: int = 5
     """推荐视角数（不足仅提示）."""

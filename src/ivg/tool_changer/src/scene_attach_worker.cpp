@@ -21,7 +21,8 @@ namespace tool_changer
 SceneAttachWorker::SceneAttachWorker(const rclcpp::NodeOptions & options)
 : rclcpp::Node("scene_attach_worker", options)
 {
-  attach_frame_ = declare_parameter<std::string>("attach_frame", "quick_changer_link");
+  attach_frame_ = declare_parameter<std::string>("attach_frame", "kuaihuan_Link");
+  modeled_tool_ = declare_parameter<std::string>("modeled_tool", "none");
 
   planning_scene_pub_ = create_publisher<moveit_msgs::msg::PlanningScene>(
     "/planning_scene", rclcpp::QoS(10).transient_local());
@@ -52,28 +53,10 @@ SceneAttachWorker::SceneAttachWorker(const rclcpp::NodeOptions & options)
     });
 
   loadToolConfig();
-  loadUrdfCache();
 
-  // 独立回调组，避免 set_parameters 与 onSetDisplayTool 死锁
-  param_cb_group_ = create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
-  param_client_ = std::make_shared<rclcpp::AsyncParametersClient>(
-    get_node_base_interface(),
-    get_node_topics_interface(),
-    get_node_graph_interface(),
-    get_node_services_interface(),
-    "robot_state_publisher",
-    rmw_qos_profile_parameters,
-    param_cb_group_);
 
-  // 发布 /robot_description（RSP dynamic reload 话题 + 前端 3D 重载）
-  robot_description_pub_ = create_publisher<std_msgs::msg::String>(
-    "/robot_description", rclcpp::QoS(1).transient_local());
-
-  RCLCPP_INFO(
-    get_logger(),
-    "就绪 | %zu 工具 | attach_frame=%s | ACO + /robot_description(URDF) | "
-    "sub /tool_changer_status | srv /scene_attach /scene_detach /set_display_tool",
-    tool_geometries_.size(), attach_frame_.c_str());
+  RCLCPP_INFO(get_logger(), "就绪 | attach_frame=%s | modeled_tool=%s | ACO only",
+    attach_frame_.c_str(), modeled_tool_.c_str());
 }
 
 // ═════════════════════════════════ 配置加载 ═════════════════════════════════
@@ -83,7 +66,7 @@ void SceneAttachWorker::loadToolConfig()
   std::string config_path;
   try {
     config_path =
-      ament_index_cpp::get_package_share_directory("tool_changer") + "/config/tools.yaml";
+      ament_index_cpp::get_package_share_directory("ivg_description") + "/config/tools.yaml";
   } catch (const std::exception & e) {
     RCLCPP_ERROR(get_logger(), "tool_changer 包路径: %s", e.what());
     return;
@@ -128,45 +111,6 @@ void SceneAttachWorker::loadToolConfig()
     tool_geometries_[tid] = geom;
   }
   RCLCPP_INFO(get_logger(), "已加载 %zu 个工具配置", tool_geometries_.size());
-}
-
-// ═════════════════════════════════ URDF 缓存 ═════════════════════════════════
-
-/// 读取本包 urdf/ 下 vendored 静态 URDF（aubo_e5_<tool>.urdf；空 id = base）
-void SceneAttachWorker::loadUrdfCache()
-{
-  std::string urdf_dir;
-  try {
-    urdf_dir = ament_index_cpp::get_package_share_directory("tool_changer") + "/urdf";
-  } catch (const std::exception & e) {
-    RCLCPP_ERROR(get_logger(), "tool_changer 包路径: %s", e.what());
-    return;
-  }
-
-  auto load_file = [&](const std::string & tid) {
-      std::string fname = tid.empty() ? "aubo_e5_base.urdf" :
-        "aubo_e5_" + tid + ".urdf";
-      std::ifstream ifs(urdf_dir + "/" + fname);
-      if (!ifs.is_open()) {
-        return std::string();
-      }
-      std::ostringstream oss;
-      oss << ifs.rdbuf();
-      return oss.str();
-    };
-
-  urdf_cache_[""] = load_file("");
-  for (const auto & [tid, geom] : tool_geometries_) {
-    (void)geom;
-    std::string urdf = load_file(tid);
-    if (!urdf.empty()) {
-      urdf_cache_[tid] = urdf;
-      RCLCPP_INFO(get_logger(), "URDF 缓存: %s (%zu bytes)", tid.c_str(), urdf.size());
-    } else {
-      RCLCPP_WARN(
-        get_logger(), "URDF 文件缺失: %s（/set_display_tool 对该工具降级）", tid.c_str());
-    }
-  }
 }
 
 // ═════════════════════════════════ STL 解析 ═════════════════════════════════
@@ -257,6 +201,7 @@ shape_msgs::msg::Mesh SceneAttachWorker::loadMesh(const std::string & resource_p
 
 void SceneAttachWorker::onToolStatus(const ivg_interfaces::msg::ToolChangerStatus & msg)
 {
+  if (modeled_tool_ != "none") {return;}
   const std::string new_tool = msg.is_connected ? msg.tool_id : "";
 
   if (new_tool == current_attached_tool_) {
@@ -279,6 +224,12 @@ void SceneAttachWorker::onToolStatus(const ivg_interfaces::msg::ToolChangerStatu
 
 void SceneAttachWorker::attachToolToScene(const std::string & tool_id)
 {
+  if (modeled_tool_ != "none") {
+    RCLCPP_WARN(get_logger(), "固定模型 %s 不接受运行时工具附着；请以 gripper:=none 启动快换栈",
+      modeled_tool_.c_str());
+    return;
+  }
+
   auto it = tool_geometries_.find(tool_id);
   if (it == tool_geometries_.end()) {
     RCLCPP_WARN(get_logger(), "attachTool: 未知工具 %s", tool_id.c_str());
@@ -301,7 +252,6 @@ void SceneAttachWorker::attachToolToScene(const std::string & tool_id)
 
   attached_object_pub_->publish(att);
   removeWorldToolObject(tool_id);
-  updateRobotDescription(tool_id);
   RCLCPP_INFO(
     get_logger(), "AttachedCollisionObject ADD: %s → %s | offset xyz=(%.4f, %.4f, %.4f)",
     tool_id.c_str(), attach_frame_.c_str(),
@@ -322,7 +272,6 @@ void SceneAttachWorker::detachToolFromScene(const std::string & tool_id)
 
   attached_object_pub_->publish(att);
   removeWorldToolObject(tool_id);
-  updateRobotDescription("");
   RCLCPP_INFO(get_logger(), "AttachedCollisionObject REMOVE: %s", tool_id.c_str());
 }
 
@@ -346,6 +295,11 @@ void SceneAttachWorker::onSceneAttach(
   std::shared_ptr<ivg_interfaces::srv::ChangeTool::Response> resp)
 {
   bool found = tool_geometries_.find(req->tool_id) != tool_geometries_.end();
+  if (modeled_tool_ != "none") {
+    resp->success = false;
+    resp->message = "启动模型已包含固定工具；运行时附着要求 gripper:=none";
+    return;
+  }
   if (found) {
     if (!current_attached_tool_.empty()) {
       detachToolFromScene(current_attached_tool_);
@@ -374,105 +328,17 @@ void SceneAttachWorker::onSetDisplayTool(
   const std::shared_ptr<ivg_interfaces::srv::ChangeTool::Request> req,
   std::shared_ptr<ivg_interfaces::srv::ChangeTool::Response> resp)
 {
-  // 双重更新：URDF（/robot_description → 前端 + RViz2）+ ACO（PlanningScene 显示）
-  bool found = urdf_cache_.find(req->tool_id) != urdf_cache_.end();
-  if (found) {
-    if (!current_display_tool_.empty() && current_display_tool_ != current_attached_tool_) {
-      moveit_msgs::msg::AttachedCollisionObject att;
-      att.object.id = "attached_tool_" + current_display_tool_;
-      att.object.operation = moveit_msgs::msg::CollisionObject::REMOVE;
-      att.link_name = attach_frame_;
-      attached_object_pub_->publish(att);
-      removeWorldToolObject(current_display_tool_);
-    }
-
-    if (!req->tool_id.empty() && req->tool_id != current_attached_tool_) {
-      auto it = tool_geometries_.find(req->tool_id);
-      if (it != tool_geometries_.end()) {
-        removeWorldToolObject(req->tool_id);
-        moveit_msgs::msg::AttachedCollisionObject att;
-        att.object.id = "attached_tool_" + req->tool_id;
-        att.object.header.frame_id = attach_frame_;
-        att.object.operation = moveit_msgs::msg::CollisionObject::ADD;
-        att.object.pose = it->second.attach_offset;
-        att.link_name = attach_frame_;
-        att.touch_links = it->second.touch_links;
-        att.object.meshes.push_back(it->second.mesh_collision);
-        geometry_msgs::msg::Pose mesh_pose;
-        mesh_pose.orientation.w = 1.0;
-        att.object.mesh_poses.push_back(mesh_pose);
-        attached_object_pub_->publish(att);
-        removeWorldToolObject(req->tool_id);
-      }
-    }
-
-    updateRobotDescription(req->tool_id, true);
-
-    current_display_tool_ = req->tool_id;
-    RCLCPP_INFO(
-      get_logger(), "显示工具: %s (URDF + ACO)",
-      req->tool_id.empty() ? "(无工具)" : req->tool_id.c_str());
-  } else {
-    RCLCPP_WARN(get_logger(), "显示工具失败， URDF 缓存未命中: %s", req->tool_id.c_str());
-  }
-  resp->success = found;
-  resp->message = found ?
-    ("已更新: " + (req->tool_id.empty() ? std::string("(无工具)") : req->tool_id)) :
-    ("未知工具 ID: " + req->tool_id);
-}
-
-// ═════════════════════════════════ robot_description 更新 ═════════════════════════════════
-
-void SceneAttachWorker::updateRobotDescription(const std::string & tool_id, bool sync)
-{
-  auto it = urdf_cache_.find(tool_id);
-  if (it == urdf_cache_.end()) {
-    RCLCPP_WARN(get_logger(), "URDF 缓存未命中: '%s'", tool_id.c_str());
+  if (modeled_tool_ != "none") {
+    resp->success = req->tool_id == modeled_tool_;
+    resp->message = resp->success ? "该工具已在启动模型中" :
+      "固定模型须停栈后通过 gripper 参数切换";
     return;
   }
-
-  std_msgs::msg::String msg;
-  msg.data = it->second;
-  robot_description_pub_->publish(msg);
-  RCLCPP_INFO(
-    get_logger(), "URDF 已发布到 /robot_description: %s (%zu bytes)",
-    tool_id.empty() ? "(default)" : tool_id.c_str(), it->second.size());
-
-  if (!param_client_->wait_for_service(std::chrono::seconds(1))) {
-    RCLCPP_WARN(get_logger(), "robot_state_publisher 参数服务未就绪，跳过 set_parameters");
-    return;
-  }
-
-  if (sync) {
-    auto future = param_client_->set_parameters(
-      {rclcpp::Parameter("robot_description", it->second)});
-    auto status = future.wait_for(std::chrono::seconds(2));
-    if (status != std::future_status::ready) {
-      RCLCPP_ERROR(get_logger(), "robot_state_publisher set_parameters 超时");
-      return;
-    }
-    auto results = future.get();
-    for (const auto & r : results) {
-      if (!r.successful) {
-        RCLCPP_ERROR(
-          get_logger(), "robot_state_publisher set_parameters 失败: %s",
-          r.reason.c_str());
-      }
-    }
-  } else {
-    param_client_->set_parameters(
-      {rclcpp::Parameter("robot_description", it->second)},
-      [this](std::shared_future<std::vector<rcl_interfaces::msg::SetParametersResult>> future) {
-        auto results = future.get();
-        for (const auto & r : results) {
-          if (!r.successful) {
-            RCLCPP_ERROR(
-              get_logger(), "robot_state_publisher set_parameters 失败: %s",
-              r.reason.c_str());
-          }
-        }
-      });
-  }
+  // A display request must never remove or replace the physically attached tool.
+  const std::string requested = req->tool_id == "none" ? "" : req->tool_id;
+  resp->success = requested == current_attached_tool_;
+  resp->message = resp->success ? "工具状态已一致；机器人描述不变" :
+    "显示模型由启动参数选择；碰撞附着只随实际工具状态更新";
 }
 
 }  // namespace tool_changer

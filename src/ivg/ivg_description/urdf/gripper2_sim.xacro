@@ -1,0 +1,31 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+  <!-- Radial motion approximates the real linkage; visual CAD is preserved.
+       Travel/force/friction are simulation parameters, not hardware calibration. -->
+  <xacro:macro name="ivg_finger" params="name ax ay travel:=0.055">
+    <link name="gripper2_finger_${name}">
+      <inertial>
+        <origin xyz="${ax*0.024} ${ay*0.038} 0.115"/>
+        <mass value="0.10"/>
+        <inertia ixx="0.00010" ixy="0" ixz="0" iyy="0.00009" iyz="0" izz="0.00003"/>
+      </inertial>
+      <visual><geometry><mesh filename="package://ivg_description/meshes/gripper2/${name}_visual.stl"/></geometry></visual>
+      <collision><geometry><mesh filename="package://ivg_description/meshes/gripper2/${name}_collision.stl"/></geometry></collision>
+    </link>
+    <joint name="gripper2_${name}_joint" type="prismatic">
+      <parent link="gripper2_Link"/><child link="gripper2_finger_${name}"/>
+      <axis xyz="${ax} ${ay} 0"/>
+      <limit lower="0" upper="${travel}" effort="20" velocity="0.04"/>
+      <dynamics damping="150" friction="0.3"/>
+    </joint>
+    <gazebo reference="gripper2_finger_${name}">
+      <mu1>1.0</mu1><mu2>1.0</mu2><selfCollide>true</selfCollide>
+    </gazebo>
+  </xacro:macro>
+  <xacro:macro name="ivg_gripper2_fingers" params="travel:=0.055">
+    <xacro:ivg_finger name="pp" ax="0.70710678" ay="0.70710678" travel="${travel}"/>
+    <xacro:ivg_finger name="pn" ax="0.70710678" ay="-0.70710678" travel="${travel}"/>
+    <xacro:ivg_finger name="np" ax="-0.70710678" ay="0.70710678" travel="${travel}"/>
+    <xacro:ivg_finger name="nn" ax="-0.70710678" ay="-0.70710678" travel="${travel}"/>
+  </xacro:macro>
+</robot>

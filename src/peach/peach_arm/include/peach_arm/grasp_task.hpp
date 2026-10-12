@@ -156,7 +156,7 @@ struct GraspTaskConfig
   ///< 场景障碍对象 id（快照节点写入）；豁免连杆 × 这些对象 + <octomap>。
   std::vector<std::string> obstacle_guard_links{"camera_body_link"};
   ///< guard 开时唯一受查连杆（避障目标=保护相机）。
-  bool obstacle_guard_enabled{true};  ///< false=相机一并豁免（恢复可达性）。
+  bool obstacle_guard_enabled{false};  ///< 枝叶方块默认不挡相机；true 才受查。
   double tool_body_length_m{0.200};  ///< 工具筒体长 [m]（①层审查，tcp.xacro 对齐）。
   double tool_body_radius_m{0.060};  ///< 工具筒体半径 [m]。
   std::function<std::optional<Eigen::Isometry3d>()> lookup_current_tip;  ///< 查当前 TCP。

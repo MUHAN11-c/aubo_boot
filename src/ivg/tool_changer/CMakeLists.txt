@@ -51,7 +51,7 @@ install(PROGRAMS
   scripts/scene_monitor.py
   scripts/test_tool_change.py
   DESTINATION lib/${PROJECT_NAME})
-install(DIRECTORY config launch urdf meshes DESTINATION share/${PROJECT_NAME})
+install(DIRECTORY launch urdf DESTINATION share/${PROJECT_NAME})
 
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)

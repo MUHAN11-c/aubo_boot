@@ -33,7 +33,9 @@ def test_lateral_floor_no_longer_poisons_axial():
     # 才拒，且 reason 是普通负预算（8−7−6<0 但 8−7−0>0 非结构性）
     r = _run(0.104, 0.006)
     assert r['axial_margin_m'] < 0.0
-    assert r['cut_ok'] is False
+    # 余量只诊断。刀具常数未更新，负轴向不关剪切许可。
+    assert r['cut_ok'] is True
+    assert r['sleeve_ok'] is True
     assert r['reason'] == 'axial_budget_negative'
     assert r['axial_structural'] is False
 
@@ -43,6 +45,7 @@ def test_structural_flag_when_fixed_budget_exceeds_capture():
     # 结构性诊断。恢复旧轴向安全余量 4mm 即触发：8 − 11 < 0。
     r = _run(0.104, 0.0, axial_safety_margin=0.004)
     assert r['axial_structural'] is True
+    assert r['cut_ok'] is True
     assert r['reason'] == 'axial_budget_structurally_unsatisfiable'
     # 颈下限再大也不改变结构性判定（不属工艺侧）
     r2 = _run(0.104, 0.006, axial_safety_margin=0.004)
@@ -81,8 +84,30 @@ def test_evaluate_capabilities_allowed_is_contract_only():
     fused = evaluate_capabilities(
         d_bag95=0.06, length_m=0.05, center_lateral95=0.0,
         axis_error_deg=0.0, neck_position95=0.003, cut_to_fruit_m=0.05)
-    assert fused['cut_capability'] != CAPABILITY_VALID
-    assert fused['allowed'] is False
+    # 颈误差仍把轴向余量打负，但不再因此拒绝接触。
+    assert fused['axial_margin_m'] < 0.0
+    assert fused['cut_capability'] == CAPABILITY_VALID
+    assert fused['allowed'] is True
+
+
+def test_stale_tool_bore_margin_does_not_deny_contact():
+    # 袋径贴近刀内径、再扣余量后径向和轴向都为负。刀具常数未更新，只记录。
+    raw = evaluate_sleeve_cut(
+        d_bag95=0.103, length_m=0.12, center_lateral95=0.01,
+        axis_error_deg=5.0, neck_position95=0.006,
+        cut_to_fruit_m=0.12)
+    assert raw['radial_margin_m'] < 0.0
+    assert raw['axial_margin_m'] < 0.0
+    assert raw['sleeve_ok'] is True
+    assert raw['cut_ok'] is True
+    assert raw['failure_code'] == 0
+    fused = evaluate_capabilities(
+        d_bag95=0.103, length_m=0.12, center_lateral95=0.01,
+        axis_error_deg=5.0, neck_position95=0.006,
+        cut_to_fruit_m=0.12)
+    assert fused['allowed'] is True
+    assert fused['sleeve_capability'] == CAPABILITY_VALID
+    assert fused['cut_capability'] == CAPABILITY_VALID
 
 
 def test_default_neck_uncertainty_is_checked_by_actual_budget():
@@ -92,5 +117,5 @@ def test_default_neck_uncertainty_is_checked_by_actual_budget():
             d_bag95=0.08, length_m=0.15, center_lateral95=0.002,
             axis_error_deg=2.0, neck_position95=neck_error,
             cut_to_fruit_m=0.04, params=cfg)
-        assert bool(result['cut_ok']) is expected
+        assert result['cut_ok'] is True
         assert (result['axial_margin_m'] > 0.0) is expected

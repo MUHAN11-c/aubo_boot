@@ -2,7 +2,8 @@
 """Start the v1 frozen-camera mock stack, drive one dry FULL grasp, then stop.
 
 Isolates ROS_DOMAIN_ID (default 81). Does not connect to a real robot.
-Requires the frozen bag and a GPU for YOLO/SAM. Whole-run wall is 180 s.
+Requires the frozen bag and a GPU for YOLO/SAM. The 180 s clock starts when
+RunHarvest is accepted; stack boot has its own ready budget.
 """
 from __future__ import annotations
 
@@ -16,7 +17,8 @@ from pathlib import Path
 
 from frozen_camera_replay import discover_bag
 
-WALL_S = 180.0
+GRASP_S = 180.0
+READY_S = 120.0
 MARKERS = (
     'ros2 launch',
     'component_container',
@@ -126,8 +128,10 @@ def main() -> int:
     parser.add_argument('--index', type=int, default=70)
     parser.add_argument('--hz', type=float, default=2.0)
     parser.add_argument('--request-id', default='')
-    parser.add_argument('--timeout', type=float, default=WALL_S,
-                        help='whole-run wall clock seconds (default 180)')
+    parser.add_argument('--timeout', type=float, default=GRASP_S,
+                        help='grasp budget in seconds from goal acceptance (default 180)')
+    parser.add_argument('--ready-timeout', type=float, default=READY_S,
+                        help='stack boot budget; not part of the grasp clock')
     parser.add_argument(
         '--skip-launch', action='store_true',
         help='drive only; stack already running on this domain')
@@ -144,8 +148,10 @@ def main() -> int:
     # 不设 QT_QPA_PLATFORM=offscreen：会破坏 rviz2 的 GLX 窗口（可视化验证需要真渲染）
     env['PEACH_FROZEN_BAG'] = bag
     domain = env['ROS_DOMAIN_ID']
-    print(f'ROS_DOMAIN_ID={domain} bag={bag} wall={args.timeout:.0f}s',
-          flush=True)
+    print(
+        f'ROS_DOMAIN_ID={domain} bag={bag} '
+        f'ready={args.ready_timeout:.0f}s grasp={args.timeout:.0f}s',
+        flush=True)
 
     leftover = _pgrep()
     if leftover:
@@ -155,10 +161,6 @@ def main() -> int:
             print(f'  {pid} {cmd}', flush=True)
 
     t0 = time.monotonic()
-
-    def remaining() -> float:
-        return args.timeout - (time.monotonic() - t0)
-
     launch_proc = None
     drive_proc = None
     code = 1
@@ -174,7 +176,7 @@ def main() -> int:
             launch_proc = subprocess.Popen(
                 launch_cmd, env=env, start_new_session=True)
             print(f'launch pid={launch_proc.pid}', flush=True)
-            time.sleep(min(3.0, max(0.0, remaining() - 20.0)))
+            time.sleep(3.0)
             if launch_proc.poll() is not None:
                 print(
                     f'launch exited early rc={launch_proc.returncode}',
@@ -182,30 +184,26 @@ def main() -> int:
                 code = launch_proc.returncode or 1
                 launch_proc = None
                 return code
-        harvest_s = min(80.0, max(20.0, remaining() - 20.0))
-        ready_s = min(45.0, max(15.0, remaining() - harvest_s - 25.0))
         drive_cmd = [
             'ros2', 'run', 'peach_system_tests', 'drive_frozen_grasp.py',
-            '--ready-timeout', f'{ready_s:.1f}',
-            '--timeout', f'{harvest_s:.1f}',
+            '--ready-timeout', f'{args.ready_timeout:.1f}',
+            '--timeout', f'{args.timeout:.1f}',
         ]
         if args.request_id:
             drive_cmd.extend(['--request-id', args.request_id])
         drive_proc = subprocess.Popen(drive_cmd, env=env, start_new_session=True)
+        drive_wait = args.ready_timeout + args.timeout + 60.0
         try:
-            code = drive_proc.wait(timeout=max(5.0, remaining() - 8.0))
+            code = drive_proc.wait(timeout=drive_wait)
         except subprocess.TimeoutExpired:
             print(
-                f'drive TIMEOUT wall>={args.timeout:.0f}s — inspect',
+                f'drive TIMEOUT ready+grasp>={drive_wait:.0f}s — inspect',
                 file=sys.stderr)
             _stop_group(drive_proc)
             code = 2
             drive_proc = None
         elapsed = time.monotonic() - t0
         print(f'drive elapsed={elapsed:.1f}s exit={code}', flush=True)
-        if elapsed > args.timeout + 1.0 and code == 0:
-            print('full run exceeded 180s — inspect', file=sys.stderr)
-            code = 2
     finally:
         if drive_proc is not None and drive_proc.poll() is None:
             _stop_group(drive_proc)

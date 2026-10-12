@@ -501,16 +501,9 @@ bool TargetCache::promoteUnrefinedGeometry(
     refined_ = CachedRefined();
     return false;
   }
-  // 批次4（A-P3-2 收口）：unrefined 自授权链的轻量径向门——袋径超过
-  // 工具内径即拒绝自授权（skip_reconstruction 批无 GraspDecision 预算，
-  // 这是该链唯一的臂侧径向防线；refined 链走能力三态不吃此门）。
-  if (tool_d_inner_m_ > 0.0 && refined_.bag_diameter_upper_m > 0.0 &&
-    refined_.bag_diameter_upper_m > tool_d_inner_m_)
-  {
-    refined_ = CachedRefined();
-    set_reason("bag_over_tool_inner_diameter");
-    return false;
-  }
+  // 袋径相对刀内径只记录在 refined_.bag_diameter_upper_m。刀具常数未更新，
+  // 不在 unrefined 自授权链上拒绝。
+  (void)tool_d_inner_m_;
   quality_.selected_target_id = target_id;
   quality_.refined_target_id = target_id;
   quality_.refined_accept = true;

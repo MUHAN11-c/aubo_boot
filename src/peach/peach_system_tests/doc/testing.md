@@ -30,7 +30,8 @@ ros2 launch peach_bringup harvest_system.launch.py
 | `robot_ip` | `169.254.10.98` | AUBO 控制器 IP；mock 不使用 |
 | `tool_profile` | `adaptive_shear_v1` | 末端工具档案；`shear_v1`/`bite_shear_v1` 显式传，切换须整栈隔离重启 |
 | `autostart` | `false` | true 时托管栈就绪自动发 RunHarvest（授权语义=操作员在 real 上发起本 launch） |
-| `moveit_enabled` | `true` | move_group + RViz2；无头测试另传下行参数 `rviz:=false`，保留 move_group |
+| `moveit_enabled` | `true` | 启动 move_group。关掉则规划与 RViz2 一起不起 |
+| `rviz` | `true` | 桌面默认开 MoveIt RViz2。无头/CI 传 `rviz:=false`，只留 move_group |
 | `camera_enabled` | `false` | 相机总开关；前端由 `camera_frontend` 决定 |
 | `camera_frontend` | `stereo` | stereo=peach_stereo 主机单图案立体（~13.5 FPS，话题同构）；percipio=设备端 18 图案（2.43 FPS、额定量程 0.4–0.8 m）显式备用；replay=不起驱动、冻结 bag 重发 `/camera/*`（§7）。stereo/percipio 互斥（相机连接独占） |
 | `camera_ip` | `169.254.10.110` | peach_stereo 前端使用 |
@@ -55,7 +56,7 @@ ros2 launch peach_bringup harvest_system.launch.py
 
 使能是运行时开关（`ros2 param set`，或 `/peach_supervisor/set_enables` 服务——意图源 supervisor、广播 `/peach/batch/enables` 并写审计）；mock/real 同一套门。mock 差异：不起 `aubo_io_controller`，launch 把 `/peach_arm execution.require_robot_status` 置 false（真机 KEEP true，`robot_status` 门生效）。会话 bag 默认随栈录制（`record.level: std`——相机大流限 1 Hz；总量预算 100 GB 最旧先删，报告/账本永不删）。
 
-**仿真下相机 TF 是静态的（重要语义）**：相机为腕载（eye-in-hand，外参 `wrist3_Link → camera_link` 静态 × 腕 TF 动态复合，真机上相机随臂动）。mock 下这一复合**不成立**——真相机一旦打开就物理固定在机位上、回放 bag 也是固定机位采集，都跟不上 mock 臂的 TF 运动。因此仿真下相机相关 TF 必须按**静态锚定**理解：相机位姿锚在拍照/采集位，移动 mock 臂**造不出**新相机机位（视点增量只在真机上存在）。具体形态见 §7（回放窗内静态锚定+锚点允许过期）与 §8（物理相机+mock 臂凑不出第二独立机位）。
+**仿真下相机 TF 是静态的（重要语义）**：相机为腕载（eye-in-hand，外参 `wrist3_Link → camera_link` 静态 × 腕 TF 动态复合，真机上相机随臂动）。mock 下这一复合**不成立**——真相机一旦打开就物理固定在机位上、回放 bag 也是固定机位采集，都跟不上 mock 臂的 TF 运动。因此仿真下相机相关 TF 必须按**静态锚定**理解：相机位姿锚在拍照/采集位，移动 mock 臂**造不出**新相机机位（视点增量只在真机上存在）。具体形态见 §7（拍照位才发布，离开后暂停，锚点允许过期）与 §8（物理相机+mock 臂凑不出第二独立机位）。
 
 环境默认（venv / numpy / 权重）见 §2；真机档位与授权纪律见 §9。
 
@@ -223,7 +224,7 @@ timeout -s INT -k 3 10 ros2 lifecycle get /peach_arm
 
 ## 7. 冻结相机一次感知 → 抓一颗（推荐仿真，域 81）
 
-静止 RGB-D 来自 `runs/peach_camera_capture_20260930/stereo_10s`（`PEACH_FROZEN_BAG` 可改；先核 metadata.yaml 与实际 bag 存储文件；缺数据需重新采集或从备份恢复后再跑）。回放节点把 stamp 改成当前时刻，mock 臂 Survey 到拍照位后用当时腕 TF 反投影。**相机侧在整个回放窗内是静态的**（§1：bag 为固定机位采集）——锚定发生在拍照位停驻时刻，之后 mock 臂的运动不代表相机动；overlay 开 `grasp.allow_stale_anchor` 正是为此（锚点允许过期不重算）。**只扫一次、只抓一颗**；产品 yaml `min_views=2` 不动，测试 overlay `config/frozen_one_view.yaml` 才置 1（另：基线门 0°、`reconstruct_in_trajectory` 跳过补视 LIN、`tool.budget.d_inner=0.25` 过单视 sigma；驱动再开 `grasp.allow_stale_anchor`、关 `moveit.obstacle_guard_enabled`、`grasp.maximum_travel_m` 收到 0.02、快照 `workspace_radius_m` 收到 0.05）。不要走 `skip_reconstruction`（真感知未精化直径为 0）。第一颗终局后 action cancel。
+静止 RGB-D 与点云来自 `runs/peach_camera_capture_20260930/stereo_10s`（`PEACH_FROZEN_BAG` 或 `--bag` 可改；先核 metadata.yaml 与实际 bag 存储文件；缺数据需重新采集或从备份恢复后再跑）。回放节点把 stamp 改成当前时刻。mock 经 `mock_initial_positions` 出生在 SRDF `global_photo_pose`，不在 `harvest_stow` 到拍照位的途中发画面。**相机侧是固定机位**（§1）：图像和点云只在拍照位静止时发布；`drive_frozen_grasp.py` 在 `target_phase` 进入接近及之后、关节离开拍照位超过 2 mrad 时调用 `~/pause`，彩色、深度和点云一起停。`grasp.allow_stale_anchor` 仍开，离开拍照位后不按新腕 TF 重锚。**只扫一次、只抓一颗**。产品 `min_views=1`、角基线门 0，单视即可 finalize。测试 overlay `config/frozen_one_view.yaml` 仍把基线门写成 0°，并 `reconstruct_in_trajectory` 跳过补视 LIN、`tool.budget.d_inner=0.25` 过单视 sigma；驱动再开 `grasp.allow_stale_anchor`、`grasp.maximum_travel_m` 收到 0.02、快照 `workspace_radius_m` 收到 0.05。枝叶方块默认不写入规划场景。不要走 `skip_reconstruction`（真感知未精化直径为 0）。第一颗终局后 action cancel。`tool=false`，剪切段跳过柜侧 SetIO。
 
 ```bash
 pgrep -af 'ros2 launch|component_container|extrinsics_publisher|ros2 run|bag record|collect|probe'
@@ -233,20 +234,21 @@ ros2 run peach_system_tests run_frozen_grasp.py        # v1 域 81；bite_shear_
 pgrep -af 'ros2 launch|component_container|extrinsics_publisher|ros2 run|bag record|frozen_camera|move_group|ros2_control_node'
 ```
 
-- 整段墙钟 **180 s**（launch+感知+接触+拆栈），超时即失败并排查，不要拉长。
+- 抓取时钟从 `RunHarvest` 受理起 **180 s**，到点取消并失败。栈启动另有 ready 预算，不占这 180 s。不要把抓取预算拉长来改通过结论。
 - 2026-10-09 起 rviz2 不再强设 `QT_QPA_PLATFORM=offscreen`（会砸 Ogre GLX 窗口）；现行冻结 runner 未提供 `--rviz` 参数，退出判定仍豁免 RViz；无头跑这条路径时先核对其实际 launch。不要为关闭显示另起第二份 MoveIt/驱动。
-- 成功口径：账本/结果至少一颗 `succeeded`（v1 `tool=false` 干跑套入+跳过 SetIO），不是"尝试过就算过"。
+- 成功口径：至少一颗 `succeeded`，且回放已暂停（关节离开拍照位后不再发图像和点云）。`tool=false` 干跑会走套入、跳过 SetIO、再撤出。不是"尝试过就算过"。
 - FULL 抓取用例（需 bag+GPU）不进默认 colcon test；`test_frozen_camera_bag`（零 GPU）已注册进默认。
 
 ## 8. 实验室端到端：区分真相机与注入观测
 
-mock 臂配真相机时，相机物理机位固定，移动 mock 关节不会得到新 RGB-D 机位。此档用于相机出图、感知、TF 与场景观测验证，不证明多视重建或套袋方向；不要改产品 `min_views` / `max_target_drift_m` 来凑通过。
+mock 臂配真相机时，相机物理机位固定，移动 mock 关节不会得到新 RGB-D 机位。此档用于相机出图、感知、TF 与场景观测验证。产品已是单视收口；不要放宽 `max_target_drift_m` 来凑通过。
 
 ```bash
 # 相机验证：会连接相机设备，但臂仍是 mock；先确认设备未被其他栈占有
 ros2 launch peach_bringup harvest_system.launch.py hardware_mode:=mock \
   camera_enabled:=true camera_frontend:=stereo imu_enabled:=false \
-  rviz:=false autostart:=false
+  autostart:=false
+# 桌面默认打开 MoveIt RViz2。无显示再加 rviz:=false，不要另起第二份 MoveIt
 # 在另一同域终端做有限时间的只读探针
 timeout -s INT -k 3 5 ros2 topic hz /camera/color/image_raw
 timeout -s INT -k 3 5 ros2 run tf2_ros tf2_echo wrist3_Link camera_link
@@ -298,7 +300,7 @@ SURVEY_ONLY 只禁止接触目标派发，Survey 可移到拍照位。FULL 干�
 
 ### M1 单果观察（不接触、不开工具）
 
-两边 `execution=true`，`grasp/tool=false`，确认 `motion_possible=1 e_stop=0`。同一可见目标连续 3 次 PICK_ALL/OBSERVE_ONLY。每次须：独立机位 `view_count >= capture.min_views`（默认 2）；TSDF 点数 >0，refit `ok=True`；`ExecuteTarget.outcome=SUCCEEDED` 且 Build 成功；失败时 ledger 有 `failure_code`。
+两边 `execution=true`，`grasp/tool=false`，确认 `motion_possible=1 e_stop=0`。同一可见目标连续 3 次 PICK_ALL/OBSERVE_ONLY。每次须：独立机位 `view_count >= capture.min_views`（默认 1）；TSDF 点数 >0，refit `ok=True`；`ExecuteTarget.outcome=SUCCEEDED` 且 Build 成功；失败时 ledger 有 `failure_code`。
 
 ### 单目标完整抓取（运动、接触，不开工具 IO）
 
@@ -315,7 +317,7 @@ SURVEY_ONLY 只禁止接触目标派发，Survey 可移到拍照位。FULL 干�
 |----|--------|------|
 | P0 可构建+工具帧 | 干净 build 后 colcon；URDF 含 `tool_axis`/`sleeve_mouth`/`cutting_plane`/`tool_body_link`；三 profile xacro 展开含全部冻结帧+stl 引用；`test_tool_profile_smoke_*` 自动化 | TCP 按当前 `tool_profile`：shear `(0,47.90,151.07)mm Rx(−90°)` / bite `(0,30.24,165.5)mm` / adaptive `(0,47,168.66)mm Rx(−90°)` |
 | P2 袋模型 | 观测 `occlusion_class`；裸果不入 `next_target_id`；`branch_blocked`/`neighbor_overlap`/`damaged_or_wet` 不得 `allowed` | 袋长轴半径剖面定口/底；袋底→袋口只许上半球；两端贴框差定口 |
-| P3 重建权威 | `allowed` 须袋融合预算才套入；圆柱/TSDF 不定轴；包络轴只否决 | FULL `allowed=false` → `SKIPPED_QUALITY`；`PREGRASP_ONLY` 不要求 `allowed` |
+| P3 重建权威 | `allowed` 看几何与遮挡等能力；袋径相对刀内径的径向/轴向余量只记录，不拦套入；圆柱/TSDF 不定轴；包络轴只否决 | FULL `allowed=false` → `SKIPPED_QUALITY`；`PREGRASP_ONLY` 不要求 `allowed` |
 | P4 预抓取 | 默认 `execute_pregrasp_only=true`；停预抓取（入口=拟合袋底，沿 −axis 后撤 30 mm）；无 SetIO；ACK 后再 Survey | 残差未过门也 Hold；方向/定位以现场目视为准 |
 | P5 套入干跑 | `grasp=true tool=false`；套入与撤退先过 `PlanSleeve` | 软件路径已接线 |
 | P6 刀具 | `ToolActuator`：SetIO ACK ≠ `cut_confirmed` | 已实现；真刀未接 |

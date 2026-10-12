@@ -14,7 +14,7 @@ peach_observability:
       initial_timeout_s: 90.0  # 旗标未到的初次检查兜底超时（秒）
       rate_window_s: 5.0  # 帧率探针滑动窗（秒）
       camera_probe_enabled: false  # 相机帧率探针（camera_enabled 时 launch 置 true）
-      camera_min_hz: 2.0  # 相机 color/depth 最低帧率（stereo 实测约 13.5gps；2.0 为停走节拍下限）
+      camera_min_hz: 2.0  # 图像探针接收到达率告警阈值；低率仅 WARN，不判采集失败、不拦开批
       disk_min_gb: 10.0  # runs 根所在盘最低剩余（GB；bag 预算 100G 的安全垫）
       expected_joints: [shoulder_joint, upperArm_joint, foreArm_joint, wrist1_joint, wrist2_joint, wrist3_joint]  # MUST 冻结序（AGENTS 第 1 章）
       expected_tcp_norm_m: -1.0  # wrist3_Link→tcp 平移模长期望（米）；-1=跳过；harvest_system 从 aubo_description 工具档案算好注入
@@ -46,6 +46,7 @@ peach_observability:
     job_topic: /peach/observability/job  # 作业票 JSON 派生话题（指纹变化发布，随 bag 录制）
     metrics_topic: /peach/observability/metrics  # 性能采样 JSON 派生话题（1s 发布，随 bag 录制）
     event_buffer_size: 100  # 事件时间线环形缓冲上限（条），超出丢弃最旧
+    log_buffer_size: 200  # /api/state.logs 环形缓冲（条）：/rosout 的 stamp/level/name/msg，超出丢最旧；消息截断 400 字。页面按级别阈值与节点名过滤，不进图像或点云
     metrics_period_s: 1.0  # 系统/GPU/进程性能采样周期（秒），独立线程采集
     metrics_process_patterns: [peach_scene_perception_node, peach_target_reconstruction_node, peach_arm, peach_supervisor, ros2_control_node, percipio]  # 进程性能监控的 cmdline 子串匹配关键字列表
     record:

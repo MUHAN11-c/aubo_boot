@@ -1,31 +1,12 @@
 <?xml version="1.0"?>
-<!--
-  ivg_sim 抓取执行机器人 v3（2026-09-30）：原厂 AUBO E5 + 原装四指夹爪
-  （tool_changer 电动夹爪 φ60，gripper2 剖分）+ 仿真基座 + gz_ros2_control。
-
-  v1→v3 变更：v1 自制两指爪装配错位（用户指正）；v2 barista 整模换装在
-  gz 中观感碎块化（SW 多色分件 STL）+ 零位侧伸（用户指正）；v3 回原厂臂，
-  四指爪按 tool_changer 原装装配链挂接——
-    wrist3 →(0,0,0.020)→ camera_Link →(0,0,0.0215, Rz π)→ kuaihuan
-    →(0,0,0.020)→ gripper2
-  三段合成 = g2_base_joint：xyz (0,0,0.0615) rpy (0,0,π)。
-
-  四指 = gripper2 网格剖分（scripts/split_gripper2.py）：闭态十字排布，
-  径向 prismatic 同步开合（行程 55mm → 开口 119×138mm）。四向同步闭合
-  自定心，治两指先触指推飞问题。
-  TCP=指端包络腔心 = 法兰下 0.0615+0.175=0.2365 m；姿态恒等
-  （Z=approach、X=宽度，与 graspnet_to_ros_rotation 对齐）。
-
-  ros2_control 为本包自有声明（驱动栈只读）；world link/world_joint 由
-  arm_description.strip_world() 在 launch 侧剥除（gz 浮基 spawn）。
--->
 <robot name="aubo_e5" xmlns:xacro="http://www.ros.org/wiki/xacro">
-  <xacro:include filename="$(find aubo_description)/urdf/aubo_e5.urdf"/>
-
-  <!-- ======================= 仿真基座（重力世界锚定） ======================= -->
-  <!-- 宽 0.24：基座心 x=-0.58（SPAWN_XYZ 单源）时前缘 -0.46 距桌沿（-0.45）
-       1cm 不相交（MoveIt 永碰撞态红线），且抗前倾矩 353 Nm > 全展 223 Nm；
-       0.18 窄基座曾在全展抓取时整体前翻（2026-09-30 实测） -->
+<xacro:arg name="gripper" default="gripper2"/>
+<xacro:include filename="$(find ivg_description)/urdf/base.xacro"/>
+<xacro:include filename="$(find ivg_description)/urdf/tools.xacro"/>
+<xacro:include filename="$(find ivg_description)/urdf/gripper2_sim.xacro"/>
+<xacro:ivg_base include_workcell="false"/>
+<xacro:ivg_tools gripper="$(arg gripper)" tools_file="$(find ivg_description)/config/tools.yaml" articulated="true"/>
+<xacro:ivg_gripper2_fingers/>
   <link name="pedestal_link">
     <inertial>
       <origin xyz="0 0 0" rpy="0 0 0"/>
@@ -48,27 +29,7 @@
     <origin xyz="0 0 -0.375" rpy="0 0 0"/>
   </joint>
 
-  <!-- ======================= Allegro Hand（社区常用四指手，仅仿真） =======================
-       源：felixduvallet/allegro-hand-ros allegro_hand_description（右手，
-       vendor 于 urdf/allegro_hand.xacro + meshes/allegro/）；16 revolute
-       关节（四指×4：外展/近/中/远节），自带 damping/friction（断电自锁）。
-       用户裁定（2026-09-30）：换社区常用四指夹爪（Robotiq 2F-140 两指
-       与 gripper2 剖分爪先后退场）。挂 wrist3，手指沿 +z（工具方向）。 -->
-  <xacro:include filename="$(find ivg_sim)/urdf/allegro_hand.xacro"/>
 
-  <joint name="allegro_mount_joint" type="fixed">
-    <parent link="wrist3_Link"/>
-    <child link="hand_root"/>
-    <origin xyz="0 0 0.02" rpy="0 0 0"/>
-  </joint>
-  <!-- ======================= 腕上相机（eye-in-hand，标定外参+内参） =======================
-       外参：aubo_hand_eye_calibration/hand_eye/active.yaml（已激活，
-       eye_in_hand，RMS 3.19mm）。光学帧 wrist3 直挂（scipy 核定 rpy）。
-       camera_mount 为 gz 传感器挂体（gz 点云轴系实测=body：x=视轴；
-       mount rpy 由外参合成，光轴沿工具方向）。
-       内参：percipio_camera/config/color_camera_info.yaml：fx=466.17
-       → hfov=1.203132；k1=0.0037 近零；center 0.5095/0.5100 未建模
-       （gz distortion 中心归一化近似 0.5，偏移 0.9% 影响可忽略）。 -->
   <link name="camera_mount_link">
     <inertial>
       <origin xyz="0 0 0" rpy="0 0 0"/>
@@ -111,178 +72,18 @@
     </sensor>
   </gazebo>
 
-  <!-- TCP：Allegro 抓取腔心。掌面 hand_root+0.095，指全长 ~0.148
-       （tip ~0.243）；抓取腔心取 hand_root+0.203（≈指尖下 4cm，
-       对象上部包络区；spawn 后 TF 校核微调）。姿态与 wrist3 恒等。 -->
-  <link name="tcp">
-    <inertial>
-      <origin xyz="0 0 0" rpy="0 0 0"/>
-      <mass value="0.001"/>
-      <inertia ixx="1e-6" ixy="0" ixz="0" iyy="1e-6" iyz="0" izz="1e-6"/>
-    </inertial>
-  </link>
-  <joint name="tcp_joint" type="fixed">
-    <parent link="hand_root"/>
-    <child link="tcp"/>
-    <origin xyz="0 0 0.203" rpy="0 0 0"/>
-  </joint>
 
-  <!-- ======================= gz_ros2_control（本包自有声明） ======================= -->
-  <ros2_control name="IvgSimGazeboSystem" type="system">
-    <hardware>
-      <plugin>gz_ros2_control/GazeboSimSystem</plugin>
-    </hardware>
-    <joint name="shoulder_joint">
-      <command_interface name="position"/>
-      <state_interface name="position"/>
-      <state_interface name="velocity"/>
-    </joint>
-    <joint name="upperArm_joint">
-      <command_interface name="position"/>
-      <state_interface name="position"/>
-      <state_interface name="velocity"/>
-    </joint>
-    <joint name="foreArm_joint">
-      <command_interface name="position"/>
-      <state_interface name="position"/>
-      <state_interface name="velocity"/>
-    </joint>
-    <joint name="wrist1_joint">
-      <command_interface name="position"/>
-      <state_interface name="position"/>
-      <state_interface name="velocity"/>
-    </joint>
-    <joint name="wrist2_joint">
-      <command_interface name="position"/>
-      <state_interface name="position"/>
-      <state_interface name="velocity"/>
-    </joint>
-    <joint name="wrist3_joint">
-      <command_interface name="position"/>
-      <state_interface name="position"/>
-      <state_interface name="velocity"/>
-    </joint>
-    <!-- Allegro 16 关节（四指×4）：全部 position 命令位；initial_value
-         = 张开位（断电自锁由原包 damping/friction 保证） -->
-    <joint name="joint_0">
-      <command_interface name="position"/>
-      <state_interface name="position">
-        <param name="initial_value">0.0</param>
-      </state_interface>
-      <state_interface name="velocity"/>
-    </joint>
-    <joint name="joint_1">
-      <command_interface name="position"/>
-      <state_interface name="position">
-        <param name="initial_value">0.0</param>
-      </state_interface>
-      <state_interface name="velocity"/>
-    </joint>
-    <joint name="joint_2">
-      <command_interface name="position"/>
-      <state_interface name="position">
-        <param name="initial_value">0.0</param>
-      </state_interface>
-      <state_interface name="velocity"/>
-    </joint>
-    <joint name="joint_3">
-      <command_interface name="position"/>
-      <state_interface name="position">
-        <param name="initial_value">0.0</param>
-      </state_interface>
-      <state_interface name="velocity"/>
-    </joint>
-    <joint name="joint_4">
-      <command_interface name="position"/>
-      <state_interface name="position">
-        <param name="initial_value">0.0</param>
-      </state_interface>
-      <state_interface name="velocity"/>
-    </joint>
-    <joint name="joint_5">
-      <command_interface name="position"/>
-      <state_interface name="position">
-        <param name="initial_value">0.0</param>
-      </state_interface>
-      <state_interface name="velocity"/>
-    </joint>
-    <joint name="joint_6">
-      <command_interface name="position"/>
-      <state_interface name="position">
-        <param name="initial_value">0.0</param>
-      </state_interface>
-      <state_interface name="velocity"/>
-    </joint>
-    <joint name="joint_7">
-      <command_interface name="position"/>
-      <state_interface name="position">
-        <param name="initial_value">0.0</param>
-      </state_interface>
-      <state_interface name="velocity"/>
-    </joint>
-    <joint name="joint_8">
-      <command_interface name="position"/>
-      <state_interface name="position">
-        <param name="initial_value">0.0</param>
-      </state_interface>
-      <state_interface name="velocity"/>
-    </joint>
-    <joint name="joint_9">
-      <command_interface name="position"/>
-      <state_interface name="position">
-        <param name="initial_value">0.0</param>
-      </state_interface>
-      <state_interface name="velocity"/>
-    </joint>
-    <joint name="joint_10">
-      <command_interface name="position"/>
-      <state_interface name="position">
-        <param name="initial_value">0.0</param>
-      </state_interface>
-      <state_interface name="velocity"/>
-    </joint>
-    <joint name="joint_11">
-      <command_interface name="position"/>
-      <state_interface name="position">
-        <param name="initial_value">0.0</param>
-      </state_interface>
-      <state_interface name="velocity"/>
-    </joint>
-    <joint name="joint_12">
-      <command_interface name="position"/>
-      <state_interface name="position">
-        <param name="initial_value">0.3</param>
-      </state_interface>
-      <state_interface name="velocity"/>
-    </joint>
-    <joint name="joint_13">
-      <command_interface name="position"/>
-      <state_interface name="position">
-        <param name="initial_value">0.0</param>
-      </state_interface>
-      <state_interface name="velocity"/>
-    </joint>
-    <joint name="joint_14">
-      <command_interface name="position"/>
-      <state_interface name="position">
-        <param name="initial_value">0.0</param>
-      </state_interface>
-      <state_interface name="velocity"/>
-    </joint>
-    <joint name="joint_15">
-      <command_interface name="position"/>
-      <state_interface name="position">
-        <param name="initial_value">0.0</param>
-      </state_interface>
-      <state_interface name="velocity"/>
-    </joint>
-  </ros2_control>
-
-  <gazebo>
-    <plugin filename="gz_ros2_control-system" name="gz_ros2_control::GazeboSimROS2ControlPlugin">
-      <parameters>$(find ivg_sim)/config/gz_controllers.yaml</parameters>
-      <robot_param>robot_description</robot_param>
-      <robot_param_node>robot_state_publisher</robot_param_node>
-    </plugin>
-  </gazebo>
+<ros2_control name="IvgSimGazeboSystem" type="system"><hardware><plugin>gz_ros2_control/GazeboSimSystem</plugin></hardware>
+<joint name="shoulder_joint"><command_interface name="position"/><state_interface name="position"/><state_interface name="velocity"/></joint>
+<joint name="upperArm_joint"><command_interface name="position"/><state_interface name="position"/><state_interface name="velocity"/></joint>
+<joint name="foreArm_joint"><command_interface name="position"/><state_interface name="position"/><state_interface name="velocity"/></joint>
+<joint name="wrist1_joint"><command_interface name="position"/><state_interface name="position"/><state_interface name="velocity"/></joint>
+<joint name="wrist2_joint"><command_interface name="position"/><state_interface name="position"/><state_interface name="velocity"/></joint>
+<joint name="wrist3_joint"><command_interface name="position"/><state_interface name="position"/><state_interface name="velocity"/></joint>
+<joint name="gripper2_pp_joint"><command_interface name="effort"><param name="min">-20</param><param name="max">20</param></command_interface><state_interface name="position"><param name="initial_value">0.055</param></state_interface><state_interface name="velocity"/><state_interface name="effort"/></joint>
+<joint name="gripper2_pn_joint"><command_interface name="effort"><param name="min">-20</param><param name="max">20</param></command_interface><state_interface name="position"><param name="initial_value">0.055</param></state_interface><state_interface name="velocity"/><state_interface name="effort"/></joint>
+<joint name="gripper2_np_joint"><command_interface name="effort"><param name="min">-20</param><param name="max">20</param></command_interface><state_interface name="position"><param name="initial_value">0.055</param></state_interface><state_interface name="velocity"/><state_interface name="effort"/></joint>
+<joint name="gripper2_nn_joint"><command_interface name="effort"><param name="min">-20</param><param name="max">20</param></command_interface><state_interface name="position"><param name="initial_value">0.055</param></state_interface><state_interface name="velocity"/><state_interface name="effort"/></joint>
+</ros2_control>
+<gazebo><plugin filename="libgz_ros2_control-system.so" name="gz_ros2_control::GazeboSimROS2ControlPlugin"><parameters>$(find ivg_sim)/config/gz_controllers.yaml</parameters><hold_joints>true</hold_joints></plugin></gazebo>
 </robot>

@@ -31,7 +31,9 @@
   `frozen_camera_replay.py`、`launch/frozen_camera_grasp.launch.py`、
   `config/frozen_one_view.yaml`（`min_views=1`、基线门 0°、
   `reconstruct_in_trajectory`、单视预算 `d_inner=0.25`）、`drive_frozen_grasp.py`、`run_frozen_grasp.py`
-  （域 81，墙钟 180 s，`skip_reconstruction:=false`，`grasp.allow_stale_anchor`，
+  （域 81，抓取时钟从 goal 受理起 180 s，出生在 `global_photo_pose`，
+  离开拍照位后 `~/pause` 停发图像和点云，`skip_reconstruction:=false`，
+  `grasp.allow_stale_anchor`，
   `moveit.obstacle_guard_enabled=false` 以免冻结点云 box 拦套入，
   第一颗终局后 action cancel，`tool=false` 跳过 SetIO）。默认 bag
   `runs/peach_camera_capture_20260930/stereo_10s`。成功须 `succeeded≥1`。

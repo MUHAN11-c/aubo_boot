@@ -106,6 +106,14 @@ def generate_test_description():
         launch_ros.actions.Node(
             package='peach_harvester',
             executable='peach_scene_obstacles',
+            # 部署 yaml 2026-10-12 起默认 enabled: false（真机枝叶快照封死
+            # 套入走廊；关闭时触发只发 REMOVE 清场）。本测验证快照建图链
+            # 本身，显式开启，并钉住 0.06 体素（下方断言按半体素 0.06
+            # 容差写死；部署默认已调 0.12）。
+            parameters=[{
+                'enabled': True,
+                'voxel_size_m': 0.06,
+            }],
             output='screen'),
         launch_testing.actions.ReadyToTest(),
     ])

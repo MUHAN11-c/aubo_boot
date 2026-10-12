@@ -120,24 +120,9 @@ bool ManipulationSkillsNode::authorizeStage(
         return false;
       }
     }
-    // 令牌只覆盖 allowed/绑定/有效期；档位门仍在（stages.cpp 另有兜底，
-    // 此处前置保持授权矩阵单点）。
-    // 批次4 分级许可（P0-2）：CONTACT 套入看径向余量，TOOL 剪切看轴向
-    // 余量 + 预抓取残差——单条 allowed 拆两道档位门，负余量目标在对应
-    // 阶段精确拒绝（此前负径向也在 TOOL 才暴露/负轴向挡住套入）。
-    if (stage == MotionStage::CONTACT &&
-      !(ctx.clearance_radial_margin_m > 0.0))
-    {
-      why = "套入径向余量非正（token radial_margin=" +
-        std::to_string(ctx.clearance_radial_margin_m) + "）";
-      return false;
-    }
+    // 径向/轴向余量仍随令牌记录，给机械对刀具常数。常数未更新前，
+    // 负余量不拒绝套入或剪切。TOOL 仍要求预备位残差和 tool.enabled。
     if (stage == MotionStage::TOOL) {
-      if (!(ctx.clearance_axial_margin_m > 0.0)) {
-        why = "剪切轴向余量非正（token axial_margin=" +
-          std::to_string(ctx.clearance_axial_margin_m) + "）";
-        return false;
-      }
       if (!ctx.pregrasp_verified) {
         why = "预备位残差未过门不得开刀（pregrasp_verified=false）";
         return false;
@@ -156,9 +141,8 @@ bool ManipulationSkillsNode::authorizeStage(
     why = "GraspDecision 复检未通过（allowed=false 或目标不符）";
     return false;
   }
-  // 批次4 分级许可（快照路径）：refined 链按能力三态分档（sleeve/cut）；
-  // unrefined 自授权链（skip_reconstruction）无能力三态，径向由
-  // markUnrefinedHold 的袋径×D_inner 门兜（target_cache 批次4 同轮）。
+  // 快照路径：套入/剪切能力仍看 occlusion 等非刀具余量原因。
+  // 径向/轴向余量与袋径×刀内径不在这里拒绝。
   const auto snapshot = cache_.modelSnapshot();
   const bool refined_caps =
     identityComplete(snapshot.identity) && snapshot.valid_until_s > 0.0;

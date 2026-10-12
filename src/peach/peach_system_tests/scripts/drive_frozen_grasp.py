@@ -26,8 +26,9 @@ from rclpy.callback_groups import ReentrantCallbackGroup
 from rclpy.executors import MultiThreadedExecutor
 from rclpy.node import Node
 from rclpy.qos import DurabilityPolicy, HistoryPolicy, QoSProfile, ReliabilityPolicy
-from sensor_msgs.msg import Image
+from sensor_msgs.msg import Image, JointState
 from std_msgs.msg import Bool
+from std_srvs.srv import SetBool
 
 LATCHED = QoSProfile(
     history=HistoryPolicy.KEEP_LAST, depth=1,
@@ -62,13 +63,18 @@ class Driver(Node):
         self._group = ReentrantCallbackGroup()
         self.activated = False
         self.images = 0
+        self.joints: JointState | None = None
         self.state: HarvestState | None = None
+        self.replay_paused = False
         self._canceled = False
         self.create_subscription(
             Bool, '/peach/lifecycle/managed_nodes_activated',
             self._on_flag, LATCHED, callback_group=self._group)
         self.create_subscription(
             Image, '/camera/color/image_raw', self._on_image, RELIABLE,
+            callback_group=self._group)
+        self.create_subscription(
+            JointState, '/joint_states', self._on_joints, RELIABLE,
             callback_group=self._group)
         self.create_subscription(
             HarvestState, '/peach_supervisor/state', self._on_state, LATCHED,
@@ -94,12 +100,17 @@ class Driver(Node):
         self._run = ActionClient(
             self, RunHarvest, '/peach_supervisor/run_harvest',
             callback_group=self._group)
+        self._replay_pause = self.create_client(
+            SetBool, '/frozen_camera_replay/pause', callback_group=self._group)
 
     def _on_flag(self, msg: Bool) -> None:
         self.activated = bool(msg.data)
 
     def _on_image(self, _msg: Image) -> None:
         self.images += 1
+
+    def _on_joints(self, msg: JointState) -> None:
+        self.joints = msg
 
     def _on_state(self, msg: HarvestState) -> None:
         self.state = msg
@@ -235,6 +246,78 @@ class Driver(Node):
         if state.batch_state in BATCH_DONE:
             return
 
+    def watch_motion_freeze(self, tol_rad: float = 2e-3) -> None:
+        """Pause RGB-D and the point cloud once the arm leaves the photo pose.
+
+        The frozen frame is a wrist camera at global_photo_pose. Republishing
+        it with stamp=now() while the joints move would drag the fruit along
+        the arm. Observation stays live; the first motion at APPROACHING or
+        later stops the publishers.
+        """
+        def watch() -> None:
+            baseline = None
+            deadline = time.monotonic() + 180.0
+            while time.monotonic() < deadline:
+                js = self.joints
+                if baseline is None and js is not None and js.position:
+                    baseline = list(js.position)
+                state = self.state
+                if (baseline is not None and state is not None and js is not None
+                        and js.position
+                        and state.target_phase >= HarvestState.APPROACHING):
+                    dev = max(
+                        (abs(a - b) for a, b in zip(js.position, baseline)),
+                        default=0.0)
+                    if dev > tol_rad:
+                        self._pause_replay(True)
+                        print(
+                            f'photo: replay paused on harvest motion '
+                            f'(joint dev {dev:.4f} rad)',
+                            flush=True)
+                        # #region agent log
+                        try:
+                            import json
+                            _payload = {
+                                'sessionId': 'd5915a', 'runId': 'compare',
+                                'hypothesisId': 'H4',
+                                'location': 'v1/drive_frozen_grasp.py:pause',
+                                'message': 'v1 replay paused',
+                                'timestamp': int(time.time() * 1000),
+                                'data': {
+                                    'joint_dev_rad': round(dev, 4),
+                                    'phase': int(state.target_phase),
+                                    'joints': [round(float(x), 4) for x in js.position],
+                                },
+                            }
+                            with open(
+                                    '/home/mu/Desktop/aubo_e5_jazzy_ws/.cursor/'
+                                    'debug-d5915a.log', 'a') as _fh:
+                                _fh.write(json.dumps(_payload) + '\n')
+                        except Exception:
+                            pass
+                        # #endregion
+                        return
+                time.sleep(0.05)
+            print('photo: motion watch expired (replay left streaming)',
+                  file=sys.stderr, flush=True)
+
+        threading.Thread(target=watch, daemon=True).start()
+
+    def _pause_replay(self, paused: bool) -> None:
+        if not self._replay_pause.wait_for_service(timeout_sec=2.0):
+            print('replay pause service unavailable', file=sys.stderr, flush=True)
+            return
+        req = SetBool.Request()
+        req.data = paused
+        response = self._call(self._replay_pause, req, 5.0)
+        ok = response is not None and bool(response.success)
+        if ok and paused:
+            self.replay_paused = True
+        print(
+            f'replay pause={paused} ok={ok} '
+            f'{getattr(response, "message", "")}',
+            flush=True)
+
     def log_state(self) -> None:
         state = self.state
         if state is None:
@@ -251,8 +334,10 @@ def main() -> int:
                         help='batch id (default frozen_v1_<unix>)')
     parser.add_argument('--scene-key', default='lab')
     parser.add_argument('--profile', default='default')
-    parser.add_argument('--ready-timeout', type=float, default=50.0)
-    parser.add_argument('--timeout', type=float, default=90.0)
+    parser.add_argument('--ready-timeout', type=float, default=120.0,
+                        help='stack boot budget; not part of the grasp clock')
+    parser.add_argument('--timeout', type=float, default=180.0,
+                        help='seconds from goal acceptance until the grasp must finish')
     args = parser.parse_args()
     rid = args.request_id.strip() or f'frozen_v1_{int(time.time())}'
 
@@ -296,6 +381,7 @@ def main() -> int:
             'workspace_radius_m', 0.05, client=node._obstacle_params)
         if not node.set_enables(True):
             return 1
+        node.watch_motion_freeze()
         if not node._run.wait_for_server(timeout_sec=10.0):
             print('run_harvest ACTION_UNAVAILABLE', file=sys.stderr)
             return 1
@@ -316,8 +402,9 @@ def main() -> int:
         if handle is None or not handle.accepted:
             print('goal REJECTED', file=sys.stderr)
             return 1
+        accepted_at = time.monotonic()
         result_future = handle.get_result_async()
-        deadline = time.monotonic() + args.timeout
+        deadline = accepted_at + args.timeout
         last_log = 0.0
         while time.monotonic() < deadline and not result_future.done():
             node.maybe_stop_after_first(handle)
@@ -344,14 +431,41 @@ def main() -> int:
         status = status_names.get(wrapper.status, str(wrapper.status))
         result = wrapper.result
         summary = result.summary
-        elapsed = summary.elapsed.sec + summary.elapsed.nanosec * 1e-9
+        elapsed = time.monotonic() - accepted_at
+        summary_elapsed = summary.elapsed.sec + summary.elapsed.nanosec * 1e-9
         print(
             f'RESULT status={status} success={result.success} '
             f'termination={result.termination_reason} '
             f'discovered={summary.discovered} attempted={summary.attempted} '
             f'succeeded={summary.succeeded} failed={summary.failed} '
-            f'elapsed={elapsed:.1f}s',
+            f'grasp_s={elapsed:.1f} summary_elapsed={summary_elapsed:.1f}s '
+            f'replay_paused={node.replay_paused}',
             flush=True)
+        # #region agent log
+        try:
+            import json
+            _js = node.joints.position if node.joints is not None else []
+            _payload = {
+                'sessionId': 'd5915a', 'runId': 'compare', 'hypothesisId': 'H4',
+                'location': 'v1/drive_frozen_grasp.py:result',
+                'message': 'v1 grasp result',
+                'timestamp': int(time.time() * 1000),
+                'data': {
+                    'status': status,
+                    'succeeded': int(summary.succeeded),
+                    'grasp_s': round(elapsed, 2),
+                    'replay_paused': bool(node.replay_paused),
+                    'reasons': [str(item.reason) for item in summary.outcomes],
+                    'joints': [round(float(x), 4) for x in _js],
+                },
+            }
+            with open(
+                    '/home/mu/Desktop/aubo_e5_jazzy_ws/.cursor/debug-d5915a.log',
+                    'a') as _fh:
+                _fh.write(json.dumps(_payload) + '\n')
+        except Exception:
+            pass
+        # #endregion
         for item in summary.outcomes:
             print(
                 f'  target={item.target_id} outcome={item.outcome} '
@@ -364,6 +478,13 @@ def main() -> int:
             return 3
         if int(summary.succeeded) < 1:
             print('no target succeeded — inspect', file=sys.stderr)
+            return 3
+        if elapsed > args.timeout + 1.0:
+            print(f'grasp exceeded {args.timeout:.0f}s — inspect', file=sys.stderr)
+            return 2
+        if not node.replay_paused:
+            print('grasp finished while replay was still streaming — inspect',
+                  file=sys.stderr)
             return 3
         return 0
     finally:

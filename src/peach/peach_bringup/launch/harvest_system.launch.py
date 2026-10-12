@@ -186,12 +186,23 @@ def generate_launch_description():
             choices=['shear_v1', 'bite_shear_v1', 'adaptive_shear_v1'],
             description='末端工具档案'),
         DeclareLaunchArgument(
+            'mock_initial_positions',
+            default_value='0.425083,0.195177,1.677740,1.461739,-0.500161,0.038621',
+            description='透传 aubo bringup 的 mock 六关节初值（rad，逗号串）。'
+                        '缺省=harvest_stow，与不传该参时的 xacro 字面量相同；'
+                        '冻结仿真传入 SRDF global_photo_pose'),
+        DeclareLaunchArgument(
             'autostart', default_value='false',
             description='true 时托管栈就绪后自动发 RunHarvest（授权=操作员'
                         '发起本 launch，红线 3；默认关，部署档自定）'),
         DeclareLaunchArgument(
             'moveit_enabled', default_value='true',
-            description='启动 MoveIt move_group 和 RViz2'),
+            description='启动 MoveIt move_group；RViz2 由 rviz 单独开关'),
+        DeclareLaunchArgument(
+            'rviz', default_value='true',
+            description='随 move_group 起 rviz2。MoveIt launch 声明同名参数，'
+                        '本文件声明后命令行 rviz:=false 会传到它；'
+                        '无头/CI 关窗口，move_group 仍在'),
         DeclareLaunchArgument(
             'camera_enabled', default_value='false',
             description='启动相机（前端由 camera_frontend 决定）'),
@@ -274,6 +285,8 @@ def generate_launch_description():
                 'hardware_mode': hardware_mode,
                 'robot_ip': robot_ip,
                 'tool_profile': tool_profile,
+                'mock_initial_positions': LaunchConfiguration(
+                    'mock_initial_positions'),
                 'moveit_enabled': moveit_enabled,
                 'camera_enabled': PythonExpression(
                     ["'true' if '", camera_frontend,

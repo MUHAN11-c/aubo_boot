@@ -189,6 +189,9 @@ class SceneObstaclesNode(Node):
                 f'障碍快照重建失败: {error}\n{traceback.format_exc()}')
 
     def _rebuild_once(self) -> None:
+        if not bool(getattr(self.params, 'enabled', True)):
+            self._remove_obstacles()
+            return
         cloud = self._cloud
         urdf_xml = self._urdf_xml
         if cloud is None or urdf_xml is None:
@@ -258,6 +261,30 @@ class SceneObstaclesNode(Node):
             [tr.translation.x, tr.translation.y, tr.translation.z])
 
     # ------------------------------------------------------------ 场景写入
+
+    def _remove_obstacles(self) -> None:
+        """关掉枝叶快照时清掉已写入的碰撞对象，避免旧方块继续挡路."""
+        object_id = str(self.params.object_id)
+        remove = CollisionObject()
+        remove.id = object_id
+        remove.header.frame_id = str(self.params.base_frame)
+        remove.operation = CollisionObject.REMOVE
+        scene = PlanningScene()
+        scene.is_diff = True
+        scene.robot_state.is_diff = True
+        scene.world.collision_objects = [remove]
+        request = ApplyPlanningScene.Request()
+        request.scene = scene
+        if not self._apply_client.wait_for_service(timeout_sec=2.0):
+            self.get_logger().warning('apply_planning_scene 不可用，旧障碍方块未清除')
+            return
+        future = self._apply_client.call_async(request)
+        deadline = time.monotonic() + float(self.params.apply_service_timeout_s)
+        while not future.done() and time.monotonic() < deadline:
+            time.sleep(0.05)
+        self._last_snapshot_ok = True
+        self._last_snapshot_detail = 'disabled'
+        self.get_logger().info('场景障碍已关闭，不把枝叶写入碰撞场景')
 
     def _apply_snapshot(self, snapshot: ObstacleSnapshot) -> None:
         objects = []

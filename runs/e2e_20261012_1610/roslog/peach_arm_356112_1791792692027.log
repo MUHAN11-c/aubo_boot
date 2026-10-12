@@ -1,0 +1,355 @@
+[WARN] [1791792692.059639654] [rcl.logging_rosout]: Publisher already registered for node name: 'peach_arm'. If this is due to multiple nodes with the same name then all logs for the logger named 'peach_arm' will go out over the existing publisher. As soon as any node with that name is destructed it will unregister the publisher, preventing any further logs for that name from being published on the rosout topic.
+[WARN] [1791792692.063543434] [peach_arm]: scan.protected_zones 丢弃畸形盒: 盒#0 存在 min>=max 的轴（空盒/退化盒），已丢弃
+[WARN] [1791792693.416468636] [peach_arm]: scan.protected_zones 丢弃畸形盒: 盒#0 存在 min>=max 的轴（空盒/退化盒），已丢弃
+[WARN] [1791792693.434468770] [peach_arm]: scan.protected_zones 丢弃畸形盒: 盒#0 存在 min>=max 的轴（空盒/退化盒），已丢弃
+[WARN] [1791792693.434560964] [peach_arm]: scan.protected_zones 丢弃畸形盒: 盒#0 存在 min>=max 的轴（空盒/退化盒），已丢弃
+[WARN] [1791792693.435877649] [rcl.logging_rosout]: Publisher already registered for node name: 'peach_arm'. If this is due to multiple nodes with the same name then all logs for the logger named 'peach_arm' will go out over the existing publisher. As soon as any node with that name is destructed it will unregister the publisher, preventing any further logs for that name from being published on the rosout topic.
+[INFO] [1791792693.440837606] [peach_arm.moveit.ros.rdf_loader]: Loaded robot model in 0.00202094 seconds
+[INFO] [1791792693.440897095] [peach_arm.moveit.core.robot_model]: Loading robot model 'aubo_e5'...
+[INFO] [1791792693.440906726] [peach_arm.moveit.core.robot_model]: No root/virtual joint specified in SRDF. Assuming fixed joint
+[INFO] [1791792693.460666897] [peach_arm.moveit.kinematics.kdl_kinematics_plugin]: Joint weights for group 'manipulator_e5': 1 1 1 1 1 1
+[INFO] [1791792693.469078725] [peach_arm.moveit.ros.move_group_interface]: Ready to take commands for planning group manipulator_e5.
+[INFO] [1791792693.469122123] [peach_arm]: 主动视觉靠近节点 ready: group=manipulator_e5 base=base_link tip=tcp camera=camera_depth_optical_frame execution=plan_only grasp=disabled
+[INFO] [1791792693.469142065] [peach_arm]: [IDLE] 已配置；activate 后才开放运动输出权限
+[WARN] [1791792693.503646158] [peach_arm]: scan.protected_zones 丢弃畸形盒: 盒#0 存在 min>=max 的轴（空盒/退化盒），已丢弃
+[INFO] [1791792693.505146834] [peach_arm]: 节点已激活：运动输出权限开放
+[WARN] [1791792693.511047487] [rcl.logging_rosout]: Publisher already registered for node name: 'peach_arm'. If this is due to multiple nodes with the same name then all logs for the logger named 'peach_arm' will go out over the existing publisher. As soon as any node with that name is destructed it will unregister the publisher, preventing any further logs for that name from being published on the rosout topic.
+[WARN] [1791792693.515887881] [rcl.logging_rosout]: Publisher already registered for node name: 'peach_arm'. If this is due to multiple nodes with the same name then all logs for the logger named 'peach_arm' will go out over the existing publisher. As soon as any node with that name is destructed it will unregister the publisher, preventing any further logs for that name from being published on the rosout topic.
+[INFO] [1791792693.520870969] [peach_arm]: 场景障碍 ACM 豁免已应用: 28 条（含 <octomap> 保留名）
+[INFO] [1791792696.530811434] [peach_arm]: 场景障碍 ACM 豁免已应用: 28 条（含 <octomap> 保留名）
+[INFO] [1791792699.619729410] [peach_arm]: 场景障碍 ACM 豁免已应用: 28 条（含 <octomap> 保留名）
+[WARN] [1791792701.135041968] [peach_arm]: scan.protected_zones 丢弃畸形盒: 盒#0 存在 min>=max 的轴（空盒/退化盒），已丢弃
+[WARN] [1791792701.188716155] [peach_arm]: scan.protected_zones 丢弃畸形盒: 盒#0 存在 min>=max 的轴（空盒/退化盒），已丢弃
+[WARN] [1791792701.239080727] [peach_arm]: scan.protected_zones 丢弃畸形盒: 盒#0 存在 min>=max 的轴（空盒/退化盒），已丢弃
+[INFO] [1791792701.344067157] [peach_arm]: 使能切换到操作台广播源（/peach/batch/enables）
+[INFO] [1791792701.344095043] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792701.412974370] [peach_arm.moveit.ros.current_state_monitor]: Listening to joint states on topic 'joint_states'
+[INFO] [1791792701.495110906] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792702.488408516] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792703.487531312] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792704.487228857] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792705.487728553] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792706.488575534] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792707.487599382] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792708.487251909] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792709.487692170] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792710.487377751] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792711.487914072] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792712.487782717] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792713.488708475] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792714.496775717] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792715.487759332] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792716.488741107] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792717.488048497] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792718.495702051] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792718.888335514] [peach_arm]: [PLAN_OBSERVATION] 生成目标导向主动视点
+[INFO] [1791792718.888520315] [peach_arm]: [FINALIZE] 等待重建精化几何（BuildTargetModel）
+[INFO] [1791792719.029983656] [peach_arm]: 接触几何（核对方向） target=target_0 entry=[0.356 -0.797 0.606] axis=[0.030 -0.477 0.879] travel=0.020m axis_angle_deg=5.74
+[WARN] [1791792719.030049707] [peach_arm]: grasp.allow_stale_anchor=true：跳过抓取前再确认，按静态目标锚点继续（旧行为，验证期遗留）
+[INFO] [1791792719.030089197] [peach_arm]: [MTC_APPROACH_INSERT] 拍照位再最短路径到预抓取
+[INFO] [1791792719.031269813] [peach_arm]: 预抓取从拍照位出发: 已在命名状态
+[INFO] [1791792719.031283470] [peach_arm]: 接近：距入口 0.559m 轴向 0.191m 侧向 0.526m 夹角 28.8° 扫角 70.1° 半径 0.559m 沿轴LIN 0.030m 刀口滚转 0° 原语 LIN-align+LIN
+[INFO] [1791792719.487567043] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792719.914888298] [peach_arm]: staging IK 择优：滚转 0°（20 候选，腕轴加权距离² 7.515）
+[INFO] [1791792719.914906882] [peach_arm]: PTP 接近（主路径）：关节空间到中段点正下方 + 垂直入冠 0.050m + 沿轴 0.050m（滚转 0°）
+[INFO] [1791792719.934362575] [peach_arm.moveit.ros.rdf_loader]: Loaded robot model in 0.000948916 seconds
+[INFO] [1791792719.934375822] [peach_arm.moveit.core.robot_model]: Loading robot model 'aubo_e5'...
+[INFO] [1791792719.934378334] [peach_arm.moveit.core.robot_model]: No root/virtual joint specified in SRDF. Assuming fixed joint
+[INFO] [1791792719.952233836] [peach_arm.moveit.kinematics.kdl_kinematics_plugin]: Joint weights for group 'manipulator_e5': 1 1 1 1 1 1
+[INFO] [1791792719.959720449] [peach_arm]: 场景障碍 ACM 豁免已应用: 28 条（含 <octomap> 保留名）
+[INFO] [1791792719.967952205] [peach_arm.moveit.planners.pilz.joint_limits_aggregator]: Reading limits from namespace robot_description_planning
+[INFO] [1791792719.968387324] [peach_arm.moveit.planners.pilz.command_planner]: Available plugins: pilz_industrial_motion_planner/PlanningContextLoaderCIRC pilz_industrial_motion_planner/PlanningContextLoaderLIN pilz_industrial_motion_planner/PlanningContextLoaderPTP 
+[INFO] [1791792719.968391684] [peach_arm.moveit.planners.pilz.command_planner]: About to load: pilz_industrial_motion_planner/PlanningContextLoaderCIRC
+[INFO] [1791792719.969111983] [peach_arm.moveit.planners.pilz.command_planner]: Registered Algorithm [CIRC]
+[INFO] [1791792719.969115571] [peach_arm.moveit.planners.pilz.command_planner]: About to load: pilz_industrial_motion_planner/PlanningContextLoaderLIN
+[INFO] [1791792719.969619852] [peach_arm.moveit.planners.pilz.command_planner]: Registered Algorithm [LIN]
+[INFO] [1791792719.969622440] [peach_arm.moveit.planners.pilz.command_planner]: About to load: pilz_industrial_motion_planner/PlanningContextLoaderPTP
+[INFO] [1791792719.970109891] [peach_arm.moveit.planners.pilz.command_planner]: Registered Algorithm [PTP]
+[INFO] [1791792719.970113850] [peach_arm.moveit.ros.planning_pipeline]: Successfully loaded planner 'Pilz Industrial Motion Planner'
+[INFO] [1791792719.970836529] [peach_arm]: Try loading adapter 'default_planning_request_adapters/ResolveConstraintFrames'
+[INFO] [1791792719.971330837] [peach_arm]: Loaded adapter 'default_planning_request_adapters/ResolveConstraintFrames'
+[INFO] [1791792719.971332990] [peach_arm]: Try loading adapter 'default_planning_request_adapters/ValidateWorkspaceBounds'
+[INFO] [1791792719.971368512] [peach_arm]: Loaded adapter 'default_planning_request_adapters/ValidateWorkspaceBounds'
+[INFO] [1791792719.971369662] [peach_arm]: Try loading adapter 'default_planning_request_adapters/CheckStartStateBounds'
+[INFO] [1791792719.971391713] [peach_arm]: Loaded adapter 'default_planning_request_adapters/CheckStartStateBounds'
+[INFO] [1791792719.971392924] [peach_arm]: Try loading adapter 'default_planning_request_adapters/CheckStartStateCollision'
+[INFO] [1791792719.971396147] [peach_arm]: Loaded adapter 'default_planning_request_adapters/CheckStartStateCollision'
+[INFO] [1791792719.972099416] [peach_arm]: Try loading adapter 'default_planning_response_adapters/ValidateSolution'
+[INFO] [1791792719.973195884] [peach_arm]: Loaded adapter 'default_planning_response_adapters/ValidateSolution'
+[INFO] [1791792720.038103178] [peach_arm]: Calling PlanningRequestAdapter 'ResolveConstraintFrames'
+[INFO] [1791792720.038268912] [peach_arm]: Calling PlanningRequestAdapter 'ValidateWorkspaceBounds'
+[WARN] [1791792720.038273124] [peach_arm.moveit.ros.validate_workspace_bounds]: It looks like the planning volume was not specified. Using default values.
+[INFO] [1791792720.038285321] [peach_arm]: Calling PlanningRequestAdapter 'CheckStartStateBounds'
+[INFO] [1791792720.038306201] [peach_arm]: Calling PlanningRequestAdapter 'CheckStartStateCollision'
+[INFO] [1791792720.038432026] [peach_arm.moveit.planners.pilz.trajectory_generator.ptp]: Initialized Point-to-Point Trajectory Generator.
+[INFO] [1791792720.038445945] [peach_arm]: Calling Planner 'Pilz Industrial Motion Planner'
+[INFO] [1791792720.038468801] [peach_arm.moveit.planners.pilz.trajectory_generator]: Generating PTP trajectory...
+[INFO] [1791792720.038898942] [peach_arm]: Calling PlanningResponseAdapter 'ValidateSolution'
+[INFO] [1791792720.039777076] [peach_arm]: MTC 接近短路径审查: segments=1 allowed=true points=58 duration=5.694s joint_total=4.508rad joint_max=1.344rad (短路径门通过)
+[INFO] [1791792720.039811374] [peach_arm]: MTC 接近果实胶囊审查(seg0 转移): allowed=true min_clearance=999.000m (果实胶囊审查通过)
+[INFO] [1791792720.039815342] [peach_arm]: MTC 接近笛卡尔审查: allowed=true path=0.619m chord=0.554m ratio=1.12 max_dev=0.117m recede=0.000m (笛卡尔短路径门通过)
+[INFO] [1791792720.039819726] [peach_arm]: MTC 接近姿态审查: allowed=true max_from_start=28.8deg (TCP 姿态行程通过)
+[INFO] [1791792720.491457484] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792721.487962303] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792722.487955693] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[WARN] [1791792722.666217226] [rclcpp]: Failed to get parameters: moveit.velocity_scaling
+[INFO] [1791792723.488040122] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792724.488314069] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792725.488948497] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[WARN] [1791792725.668262712] [rclcpp]: Failed to get parameters: moveit.velocity_scaling
+[INFO] [1791792725.811402024] [peach_arm]: sequence 冠内审查: segments=1 allowed=true points=42 duration=4.100s joint_total=0.890rad (短路径门通过)
+[INFO] [1791792726.487661153] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792727.487761540] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792728.487337191] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792729.488060568] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792729.932250263] [peach_arm]: 检查点 2（到预抓取）
+[INFO] [1791792729.932356432] [peach_arm]: [RECONFIRM] 预抓取停稳验证（不 SetIO）
+[INFO] [1791792730.132709537] [peach_arm]: [PREVIEW_CONTACT_PLANNING] 预规划套入与反向撤退
+[INFO] [1791792730.147620629] [peach_arm.moveit.ros.rdf_loader]: Loaded robot model in 0.00101423 seconds
+[INFO] [1791792730.147633751] [peach_arm.moveit.core.robot_model]: Loading robot model 'aubo_e5'...
+[INFO] [1791792730.147636520] [peach_arm.moveit.core.robot_model]: No root/virtual joint specified in SRDF. Assuming fixed joint
+[INFO] [1791792730.165042087] [peach_arm.moveit.kinematics.kdl_kinematics_plugin]: Joint weights for group 'manipulator_e5': 1 1 1 1 1 1
+[INFO] [1791792730.172975002] [peach_arm]: 场景障碍 ACM 豁免已应用: 28 条（含 <octomap> 保留名）
+[INFO] [1791792730.247772444] [peach_arm]: 检查点 3（套入与反向撤退预规划过门）
+[INFO] [1791792730.247828281] [peach_arm]: [MTC_APPROACH_INSERT] 沿轴 LIN 套入
+[INFO] [1791792730.257501667] [peach_arm.moveit.ros.rdf_loader]: Loaded robot model in 0.000919508 seconds
+[INFO] [1791792730.257518910] [peach_arm.moveit.core.robot_model]: Loading robot model 'aubo_e5'...
+[INFO] [1791792730.257521500] [peach_arm.moveit.core.robot_model]: No root/virtual joint specified in SRDF. Assuming fixed joint
+[INFO] [1791792730.275322135] [peach_arm.moveit.kinematics.kdl_kinematics_plugin]: Joint weights for group 'manipulator_e5': 1 1 1 1 1 1
+[INFO] [1791792730.285470335] [peach_arm]: 场景障碍 ACM 豁免已应用: 28 条（含 <octomap> 保留名）
+[INFO] [1791792730.442078402] [peach_arm]: MTC 接近短路径审查: segments=1 allowed=true points=42 duration=4.100s joint_total=0.979rad joint_max=0.465rad (短路径门通过)
+[INFO] [1791792730.442112530] [peach_arm]: MTC 接近笛卡尔审查: allowed=true path=0.050m chord=0.050m ratio=1.00 max_dev=0.000m recede=0.000m (笛卡尔短路径门通过)
+[INFO] [1791792730.442115774] [peach_arm]: MTC 接近姿态审查: allowed=true max_from_start=0.0deg (TCP 姿态行程通过)
+[INFO] [1791792730.488138344] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792731.487595798] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[WARN] [1791792731.667480897] [rclcpp]: Failed to get parameters: moveit.velocity_scaling
+[INFO] [1791792732.488493859] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792733.490653139] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792734.487571500] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792734.593156351] [peach_arm]: 检查点 4（沿轴套入到位）
+[INFO] [1791792734.593211616] [peach_arm]: [ACTUATE_TOOL] tool.enabled=false，跳过末端 IO
+[INFO] [1791792734.593228709] [peach_arm]: [MTC_RETREAT] MTC 沿插入反方向保持直线撤离
+[INFO] [1791792734.603013334] [peach_arm.moveit.ros.rdf_loader]: Loaded robot model in 0.00103847 seconds
+[INFO] [1791792734.603027891] [peach_arm.moveit.core.robot_model]: Loading robot model 'aubo_e5'...
+[INFO] [1791792734.603030113] [peach_arm.moveit.core.robot_model]: No root/virtual joint specified in SRDF. Assuming fixed joint
+[INFO] [1791792734.622792868] [peach_arm.moveit.kinematics.kdl_kinematics_plugin]: Joint weights for group 'manipulator_e5': 1 1 1 1 1 1
+[INFO] [1791792734.632594290] [peach_arm]: 场景障碍 ACM 豁免已应用: 28 条（含 <octomap> 保留名）
+[INFO] [1791792735.487912684] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792736.487695921] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792737.489943975] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[WARN] [1791792737.665374497] [rclcpp]: Failed to get parameters: moveit.velocity_scaling
+[INFO] [1791792738.488947823] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792738.863212732] [peach_arm]: 检查点 8（原路撤回预抓取）
+[INFO] [1791792738.863278401] [peach_arm]: [MTC_RETREAT] 返回 harvest_stow
+[INFO] [1791792738.871938895] [peach_arm.moveit.ros.move_group_interface]: MoveGroup action client/server ready
+[INFO] [1791792738.872533081] [peach_arm.moveit.ros.move_group_interface]: Planning request accepted
+[INFO] [1791792738.877906043] [peach_arm.moveit.ros.move_group_interface]: Planning request complete!
+[INFO] [1791792738.878897366] [peach_arm.moveit.ros.move_group_interface]: time taken to generate plan: 0.000151623 seconds
+[INFO] [1791792738.879555591] [peach_arm.moveit.ros.move_group_interface]: Execute request accepted
+[INFO] [1791792739.490094808] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792740.488971084] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792741.487876889] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792742.488161306] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792743.490869713] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792744.487562301] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792745.197215878] [peach_arm.moveit.ros.move_group_interface]: Execute request success!
+[INFO] [1791792745.211530062] [peach_arm.moveit.ros.move_group_interface]: MoveGroup action client/server ready
+[INFO] [1791792745.213855648] [peach_arm.moveit.ros.move_group_interface]: Planning request accepted
+[INFO] [1791792745.217413380] [peach_arm.moveit.ros.move_group_interface]: Planning request complete!
+[INFO] [1791792745.217931569] [peach_arm.moveit.ros.move_group_interface]: time taken to generate plan: 5.5525e-05 seconds
+[INFO] [1791792745.218638720] [peach_arm.moveit.ros.move_group_interface]: Execute request accepted
+[INFO] [1791792745.487732063] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792746.488227312] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792747.137592320] [peach_arm.moveit.ros.move_group_interface]: Execute request success!
+[INFO] [1791792747.141587122] [peach_arm]: 检查点 9（回收纳位）
+[INFO] [1791792747.141663468] [peach_arm]: [SUCCEEDED] 周期完成；tool.enabled=false 或未宣称采摘成功
+[INFO] [1791792747.369970247] [peach_arm]: [IDLE] 已记录现场人工撤离确认；本服务不发送任何运动命令
+[INFO] [1791792747.487667001] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792748.487714728] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792749.487496416] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792750.487628316] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792751.487879070] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792752.489801221] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792753.489953495] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792754.487943404] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792755.492117209] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792756.488296574] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792757.491853994] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792758.487343464] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792759.487748010] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792760.490391339] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792761.488674274] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792762.487460419] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792763.491443129] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792764.487735301] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792765.488968146] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792766.487729285] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792767.487337464] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792768.487765469] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792769.487985871] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792770.491285277] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792771.489842991] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792772.487926210] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792773.490807156] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792774.487508317] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792775.487644227] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792776.487692613] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792777.487263996] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792778.493225257] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792779.487668487] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792780.487787287] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792781.487836168] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792782.487546056] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792783.487780155] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792784.488159542] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792785.488186667] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792786.487953081] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792787.491245557] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792788.487386693] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792789.488130524] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792790.487515038] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792791.488626152] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792792.488616157] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792793.490715024] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792794.488028307] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792795.490561985] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792796.487451365] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792797.488031112] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792798.488033300] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792799.489434632] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792800.488506208] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792801.488093941] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792802.487580765] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792803.489670249] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792804.488770239] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792805.490859994] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792806.487493975] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792807.488972982] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792808.490544694] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792809.487835654] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792810.487405771] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792811.490901993] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792812.487798309] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792813.487707920] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792814.489775011] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792815.488185836] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792816.487369839] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792817.487474616] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792818.487836132] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792819.488070119] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792820.489636706] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792821.499886076] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792822.487532598] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792823.487452178] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792824.487772157] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792825.487576090] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792826.490428040] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792827.488939189] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792828.490756256] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792829.487864322] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792830.487931111] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792831.488048550] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792832.489063270] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792833.489621937] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792834.487459042] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792835.489641310] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792836.487950401] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792837.488552461] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792838.490963059] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792839.488111969] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792840.488983142] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792841.487958430] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792842.487888113] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792843.487975767] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792844.487332407] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792845.489977277] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792846.489875942] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792847.488003322] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792848.488540338] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792849.490408126] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792850.490916230] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792851.488130446] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792852.487559703] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792853.487914868] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792854.487496584] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792855.490759644] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792856.487506934] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792857.487889055] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792858.487453766] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792859.487577056] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792860.487332084] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792861.488482507] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792862.487930284] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792863.487914883] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792864.487945440] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792865.487976747] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792866.494114746] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792867.487758490] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792868.487758356] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792869.489491343] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792870.487837104] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792871.487689431] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792872.487822372] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792873.490493341] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792874.487418265] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792875.488846236] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792876.495653693] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792877.488643533] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792878.487358201] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792879.487945159] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792880.487871150] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792881.487248361] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792882.488075562] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792883.489179649] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792884.488023028] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792885.489471014] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792886.487337930] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792887.488298983] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792888.487398865] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792889.489789445] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792890.490804333] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792891.488286887] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792892.487850356] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792893.487883894] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792894.488950517] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792895.487585571] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792896.488626499] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792897.487397719] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792898.487227672] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792899.488033200] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792900.488234938] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792901.487252673] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792902.487835610] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792903.490199824] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792904.488598166] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792905.487501224] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792906.487392331] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792907.489276771] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792908.487279439] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792909.489218749] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792910.487485653] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792911.488032028] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792912.490016715] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792913.487584382] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792914.498443937] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792915.488656613] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792916.487391450] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792917.488239081] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792918.489001475] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792919.490205025] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792920.487620134] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792921.488386452] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792922.487515268] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792923.487617302] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792924.487423012] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792925.488311693] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792926.487938227] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792927.487841512] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792928.487208357] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792929.488530990] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792930.487706670] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792931.487467440] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792932.487695256] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792933.488031444] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792934.488634733] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[INFO] [1791792934.585444081] [rclcpp]: signal_handler(SIGINT/SIGTERM)

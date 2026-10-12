@@ -29,6 +29,7 @@ def test_from_params_flattens_topics_and_endpoints():
         'port': 8090,
         'param_poll_period_s': 3.0,
         'event_buffer_size': 100,
+        'log_buffer_size': 200,
         'metrics_period_s': 1.0,
         'metrics_process_patterns': ['peach_arm'],
         'startup_facts': '',
@@ -60,6 +61,7 @@ def test_from_params_flattens_topics_and_endpoints():
     spec.update({name: '/t' for name in TOPIC_NAMES})
     snapshot = from_params(dict_to_ns(spec))
     assert snapshot.port == 8090
+    assert snapshot.log_buffer_size == 200
     assert snapshot.record_level == 'std'
     assert snapshot.record_queue_depth == 64
     assert snapshot.topics['target_observations_topic'] == '/t'

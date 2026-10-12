@@ -14,6 +14,7 @@
 
 import re
 from pathlib import Path
+import xml.etree.ElementTree as ET
 
 # 机械臂基座摆放（world 帧，桌面中心原点）。x=-0.58 + 基座宽 0.24：
 # 前缘 -0.46 距桌沿（-0.45）1cm 不相交（MoveIt 永碰撞态红线），同时
@@ -26,19 +27,14 @@ ARM_JOINTS = (
     'wrist1_joint', 'wrist2_joint', 'wrist3_joint',
 )
 
-# Allegro Hand（2026-09-30 v4：用户裁定换社区常用四指手；16 revolute：
-# 指 0/1/2 = joint_0..11（外展/近/中/远），拇指 = joint_12..15）
-FINGER_JOINTS = tuple(f'joint_{i}' for i in range(16))
-# 张开位形（指伸直；拇指外展下限 ~0.263 取 0.3）
-FINGER_OPEN_POSE = (0.0, 0.0, 0.0, 0.0,
-                    0.0, 0.0, 0.0, 0.0,
-                    0.0, 0.0, 0.0, 0.0,
-                    0.3, 0.0, 0.0, 0.0)
-# 包络抓取位形（Ø100mm 罐：三指弯曲环抱 + 拇指对握；首轮实测后微调）
-FINGER_GRASP_POSE = (0.0, 0.30, 1.30, 1.30,
-                     0.0, 0.30, 1.30, 1.30,
-                     0.0, 0.30, 1.30, 1.30,
-                     1.2, 0.90, 1.30, 1.30)
+# Original CAD subassemblies, diagonal outward axes. Positions in metres;
+# commands are forces, not positions, so contact can stop an individual jaw.
+FINGER_JOINTS = tuple(f'gripper2_{n}_joint' for n in ('pp', 'pn', 'np', 'nn'))
+FINGER_OPEN_POSE = (0.055,) * 4
+FINGER_GRASP_POSE = (0.0,) * 4
+FINGER_OPEN_FORCE = (4.0,) * 4
+FINGER_GRASP_FORCE = (-12.0,) * 4
+GRASP_LINK = 'grasp_tcp'
 
 # 属性顺序无关（minidom 序列化可能重排属性：name 不一定紧跟标签名）。
 # barista 版：剥 world link + fixed_base（原 aubo 版为 world_joint）
@@ -80,9 +76,26 @@ def worlds_dir() -> Path:
     return _package_root() / 'worlds'
 
 
-def build_arm_urdf() -> str:
+def collision_center_z(model_name: str) -> float:
+    """Return the local box collision center; reject unmodelled geometry."""
+    if not re.fullmatch(r'[a-zA-Z0-9_]+', model_name):
+        raise ValueError('Invalid Gazebo model name')
+    model = ET.parse(_package_root() / 'models' / model_name / 'model.sdf')
+    collision = model.find('model/link/collision')
+    if collision is None or collision.find('geometry/box') is None:
+        raise ValueError(f'{model_name}: grasp height requires a box collision model')
+    link_pose = model.findtext('model/link/pose', '0 0 0 0 0 0').split()
+    collision_pose = collision.findtext('pose', '0 0 0 0 0 0').split()
+    if any(abs(float(v)) > 1e-8 for v in link_pose[3:5]):
+        raise ValueError(f'{model_name}: rotated link requires a measured grip pose')
+    return float(link_pose[2]) + float(collision_pose[2])
+
+
+def build_arm_urdf(gripper='gripper2') -> str:
     """xacro 展开并剥除 world link/joint，返回 robot_description 字符串."""
     import xacro
 
-    doc = xacro.process_file(str(arm_xacro_path()))
+    if gripper != 'gripper2':
+        raise ValueError('Gazebo actuation is defined only for original gripper2')
+    doc = xacro.process_file(str(arm_xacro_path()), mappings={'gripper': gripper})
     return strip_world(doc.toprettyxml(indent='  '))

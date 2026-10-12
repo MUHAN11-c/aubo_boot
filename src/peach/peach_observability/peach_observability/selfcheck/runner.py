@@ -39,6 +39,7 @@ from sensor_msgs.msg import Image, JointState
 from std_msgs.msg import Bool, String
 
 from .checks import (
+    check_camera_rate,
     check_controllers,
     check_disk_free,
     check_fresh,
@@ -123,14 +124,17 @@ class SelfCheckRunner:
             String, VEGETATION_STATUS_TOPIC,
             self._make_probe_cb('vegetation'), latched))
         if p.selfcheck_camera_probe_enabled:
+            # 当前 stereo/percipio/replay 均默认 RELIABLE。BEST_EFFORT
+            # 大图探针在本机实测漏帧，不能把其到达率误报成相机采集率。
+            camera_qos = QoSProfile(
+                depth=5, reliability=ReliabilityPolicy.RELIABLE,
+                durability=DurabilityPolicy.VOLATILE)
             self._subs.append(node.create_subscription(
                 Image, p.selfcheck_color_image_topic,
-                self._make_probe_cb('camera_color'),
-                qos_profile_sensor_data))
+                self._make_probe_cb('camera_color'), camera_qos))
             self._subs.append(node.create_subscription(
                 Image, p.selfcheck_depth_image_topic,
-                self._make_probe_cb('camera_depth'),
-                qos_profile_sensor_data))
+                self._make_probe_cb('camera_depth'), camera_qos))
         if p.robot_status_probe_enabled:
             self._subs.append(node.create_subscription(
                 RobotStatus, p.topics['robot_status_topic'],
@@ -286,11 +290,11 @@ class SelfCheckRunner:
         # 4) TF：wrist3_Link→tcp 对档案
         checks.append(check_tcp_norm(
             self._lookup_tcp_norm(), p.selfcheck_expected_tcp_norm_m))
-        # 5) 相机帧率（camera_enabled=false → SKIP）
+        # 5) 相机探针接收帧率仅诊断（低率 WARN；关闭时 SKIP）
         camera_on = p.selfcheck_camera_probe_enabled
         for key, label in (('camera_color', 'camera_color_rate'),
                            ('camera_depth', 'camera_depth_rate')):
-            checks.append(check_min_rate(
+            checks.append(check_camera_rate(
                 probes[key].count(mono) if camera_on else None,
                 window, p.selfcheck_camera_min_hz, label,
                 skip_reason='camera_enabled=false'))

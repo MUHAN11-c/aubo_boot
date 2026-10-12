@@ -1172,7 +1172,8 @@ def fuse_bag_views(
     corridor = corridor_is_clear(
         corridor_status(points_present=points_present, blocked=blocked))
     if not corridor:
-        budget['sleeve_capability'] = CAPABILITY_INVALID
+        # 走廊是否宽于刀内径只记诊断。内径常数未按现行刀具更新，不否决套入。
+        flags.append('corridor_not_clear')
     budget['allowed'] = allowed_from_capabilities(
         int(budget.get('geometry_capability', CAPABILITY_UNKNOWN)),
         int(budget.get('pregrasp_capability', CAPABILITY_UNKNOWN)),

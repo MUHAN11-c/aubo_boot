@@ -38,6 +38,20 @@ def test_min_rate_pass_fail_skip():
     assert skip.status == 'skip'
 
 
+def test_camera_rate_is_advisory_without_blocking_start():
+    """探针低到达率不等同采集失败；包括零帧在内仅警告，禁用仍跳过."""
+    for count in (0, 3):
+        result = checks.check_camera_rate(count, 5.0, 2.0, 'camera_color_rate')
+        assert result.status == 'warn'
+        assert result.value == count / 5.0
+        assert evaluate([result])['passed'] is True
+    assert checks.check_camera_rate(70, 5.0, 2.0, 'cam').status == 'pass'
+    assert checks.check_camera_rate(None, 5.0, 2.0, 'cam').status == 'skip'
+    # 关节状态流仍按原规则裁决，不扩大警告范围。
+    verdict = evaluate([check_min_rate(0, 5.0, 10.0, 'joint_states_flow')])
+    assert verdict['passed'] is False
+
+
 def test_fresh_levels():
     assert check_fresh(0.5, 2.0, 'rs').status == 'pass'
     assert check_fresh(3.0, 2.0, 'rs').status == 'fail'

@@ -43,7 +43,7 @@ from tf2_ros import Buffer, TransformListener
 # 模块默认常量（对齐本区 aubo_e5_moveit_config/aubo_e5.srdf）
 DEFAULT_GROUP_NAME = 'manipulator_e5'
 DEFAULT_BASE_FRAME = 'base_link'
-DEFAULT_EE_LINK = 'tcp'
+DEFAULT_EE_LINK = 'grasp_tcp'
 CARTESIAN_MAX_POINTS_FOR_EXECUTION = 60  # 笛卡尔轨迹最大点数；超过则回退关节空间
 ARC_PATH_MAX_RETRIES = 3
 ARC_PATH_RETRY_DELAY_SEC = 0.5

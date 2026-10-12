@@ -1,73 +1,57 @@
-<?xml version="1.0" ?>
-<!--ivg_sim 抓取执行 SRDF（v4：原厂 AUBO E5 + Allegro Hand 四指手）。
-    组名/KDL/关节限位与 aubo_e5_moveit_config 同构（其 yaml 直接复用）；
-    链 tip=tcp（Allegro 抓取腔心，hand_root 下 0.203m）。
-    手内碰撞对宽放行（验证单元：位置伺服按指令位形弯曲，指间碰撞
-    检查只会误伤抓取姿态；臂↔桌/对象仍全查）。-->
+<?xml version="1.0"?>
 <robot name="aubo_e5">
-    <group name="manipulator_e5">
-        <chain base_link="base_link" tip_link="tcp" />
-    </group>
-    <group_state name="home" group="manipulator_e5">
-        <joint name="shoulder_joint" value="0" />
-        <joint name="upperArm_joint" value="-0.0334" />
-        <joint name="foreArm_joint" value="1.236" />
-        <joint name="wrist1_joint" value="-0.3675" />
-        <joint name="wrist2_joint" value="1.5701" />
-        <joint name="wrist3_joint" value="0" />
-    </group_state>
-    <disable_collisions link1="base_link" link2="shoulder_Link" reason="Adjacent" />
-    <disable_collisions link1="base_link" link2="upperArm_Link" reason="Never" />
-    <disable_collisions link1="base_link" link2="pedestal_link" reason="Adjacent" />
-    <disable_collisions link1="foreArm_Link" link2="upperArm_Link" reason="Adjacent" />
-    <disable_collisions link1="foreArm_Link" link2="wrist1_Link" reason="Adjacent" />
-    <disable_collisions link1="shoulder_Link" link2="upperArm_Link" reason="Adjacent" />
-    <disable_collisions link1="shoulder_Link" link2="wrist1_Link" reason="Never" />
-    <disable_collisions link1="wrist1_Link" link2="wrist2_Link" reason="Adjacent" />
-    <disable_collisions link1="wrist1_Link" link2="wrist3_Link" reason="Never" />
-    <disable_collisions link1="wrist2_Link" link2="wrist3_Link" reason="Adjacent" />
-    <disable_collisions link1="wrist3_Link" link2="palm_link" reason="Adjacent" />
-    <disable_collisions link1="wrist3_Link" link2="tcp" reason="Adjacent" />
-    <disable_collisions link1="wrist3_Link" link2="camera_mount_link" reason="Adjacent" />
-    <disable_collisions link1="pedestal_link" link2="upperArm_Link" reason="Never" />
-    <!-- Allegro 手内：掌-指邻接 + 指节链邻接 + 跨指/指尖全宽放行 -->
-    <disable_collisions link1="palm_link" link2="link_0" reason="Adjacent" />
-    <disable_collisions link1="palm_link" link2="link_4" reason="Adjacent" />
-    <disable_collisions link1="palm_link" link2="link_8" reason="Adjacent" />
-    <disable_collisions link1="palm_link" link2="link_12" reason="Adjacent" />
-    <disable_collisions link1="palm_link" link2="tcp" reason="Never" />
-    <disable_collisions link1="link_0" link2="link_1" reason="Adjacent" />
-    <disable_collisions link1="link_1" link2="link_2" reason="Adjacent" />
-    <disable_collisions link1="link_2" link2="link_3" reason="Adjacent" />
-    <disable_collisions link1="link_4" link2="link_5" reason="Adjacent" />
-    <disable_collisions link1="link_5" link2="link_6" reason="Adjacent" />
-    <disable_collisions link1="link_6" link2="link_7" reason="Adjacent" />
-    <disable_collisions link1="link_8" link2="link_9" reason="Adjacent" />
-    <disable_collisions link1="link_9" link2="link_10" reason="Adjacent" />
-    <disable_collisions link1="link_10" link2="link_11" reason="Adjacent" />
-    <disable_collisions link1="link_12" link2="link_13" reason="Adjacent" />
-    <disable_collisions link1="link_13" link2="link_14" reason="Adjacent" />
-    <disable_collisions link1="link_14" link2="link_15" reason="Adjacent" />
-    <disable_collisions link1="link_3" link2="link_3_tip" reason="Adjacent" />
-    <disable_collisions link1="link_7" link2="link_7_tip" reason="Adjacent" />
-    <disable_collisions link1="link_11" link2="link_11_tip" reason="Adjacent" />
-    <disable_collisions link1="link_15" link2="link_15_tip" reason="Adjacent" />
-    <disable_collisions link1="link_0" link2="link_4" reason="Never" />
-    <disable_collisions link1="link_4" link2="link_8" reason="Never" />
-    <disable_collisions link1="link_0" link2="link_8" reason="Never" />
-    <disable_collisions link1="link_12" link2="link_0" reason="Never" />
-    <disable_collisions link1="link_12" link2="link_4" reason="Never" />
-    <disable_collisions link1="link_12" link2="link_8" reason="Never" />
-    <disable_collisions link1="palm_link" link2="link_1" reason="Never" />
-    <disable_collisions link1="palm_link" link2="link_5" reason="Never" />
-    <disable_collisions link1="palm_link" link2="link_9" reason="Never" />
-    <disable_collisions link1="palm_link" link2="link_13" reason="Never" />
-    <disable_collisions link1="link_3" link2="link_6" reason="Never" />
-    <disable_collisions link1="link_7" link2="link_10" reason="Never" />
-    <disable_collisions link1="link_11" link2="link_14" reason="Never" />
-    <disable_collisions link1="link_15" link2="link_2" reason="Never" />
-    <disable_collisions link1="wrist3_Link" link2="link_0" reason="Never" />
-    <disable_collisions link1="wrist3_Link" link2="link_4" reason="Never" />
-    <disable_collisions link1="wrist3_Link" link2="link_8" reason="Never" />
-    <disable_collisions link1="wrist3_Link" link2="link_12" reason="Never" />
+  <group name="manipulator_e5">
+    <chain base_link="base_link" tip_link="grasp_tcp" />
+  </group>
+  <group_state name="home" group="manipulator_e5">
+    <joint name="foreArm_joint" value="1.236" />
+    <joint name="shoulder_joint" value="0" />
+    <joint name="upperArm_joint" value="-0.0334" />
+    <joint name="wrist1_joint" value="-0.3675" />
+    <joint name="wrist2_joint" value="1.5701" />
+    <joint name="wrist3_joint" value="0" />
+  </group_state>
+  <group_state name="camera_pose" group="manipulator_e5">
+    <joint name="foreArm_joint" value="1.7700852155685425" />
+    <joint name="shoulder_joint" value="-0.27411168813705444" />
+    <joint name="upperArm_joint" value="0.4963911175727844" />
+    <joint name="wrist1_joint" value="-0.2978658676147461" />
+    <joint name="wrist2_joint" value="1.571584939956665" />
+    <joint name="wrist3_joint" value="-0.2750104069709778" />
+  </group_state>
+  <group_state name="global_photo_pose" group="manipulator_e5">
+    <joint name="foreArm_joint" value="1.679546" />
+    <joint name="shoulder_joint" value="0.425175" />
+    <joint name="upperArm_joint" value="0.194274" />
+    <joint name="wrist1_joint" value="1.462579" />
+    <joint name="wrist2_joint" value="-0.279948" />
+    <joint name="wrist3_joint" value="0.038859" />
+  </group_state>
+  <group_state name="harvest_stow" group="manipulator_e5">
+    <joint name="foreArm_joint" value="1.677740" />
+    <joint name="shoulder_joint" value="0.425083" />
+    <joint name="upperArm_joint" value="0.195177" />
+    <joint name="wrist1_joint" value="1.461739" />
+    <joint name="wrist2_joint" value="-0.500161" />
+    <joint name="wrist3_joint" value="0.038621" />
+  </group_state>
+  <disable_collisions link1="base_link" link2="shoulder_Link" reason="Adjacent" />
+  <disable_collisions link1="shoulder_Link" link2="upperArm_Link" reason="Adjacent" />
+  <disable_collisions link1="upperArm_Link" link2="foreArm_Link" reason="Adjacent" />
+  <disable_collisions link1="foreArm_Link" link2="wrist1_Link" reason="Adjacent" />
+  <disable_collisions link1="wrist1_Link" link2="wrist2_Link" reason="Adjacent" />
+  <disable_collisions link1="wrist2_Link" link2="wrist3_Link" reason="Adjacent" />
+  <disable_collisions link1="wrist3_Link" link2="camera_Link" reason="Adjacent" />
+  <disable_collisions link1="camera_Link" link2="kuaihuan_Link" reason="Adjacent" />
+  <disable_collisions link1="wrist3_Link" link2="tool_tcp" reason="Adjacent" />
+  <disable_collisions link1="wrist1_Link" link2="wrist3_Link" reason="Never" />
+  <disable_collisions link1="wrist3_Link" link2="kuaihuan_Link" reason="Never" />
+  <disable_collisions link1="base_link" link2="pedestal_link" reason="Adjacent" />
+  <disable_collisions link1="kuaihuan_Link" link2="gripper2_Link" reason="Adjacent" />
+  <disable_collisions link1="camera_Link" link2="gripper2_Link" reason="Adjacent" />
+  <disable_collisions link1="wrist3_Link" link2="gripper2_Link" reason="Adjacent" />
+  <disable_collisions link1="gripper2_Link" link2="gripper2_finger_pp" reason="Adjacent" />
+  <disable_collisions link1="gripper2_Link" link2="gripper2_finger_pn" reason="Adjacent" />
+  <disable_collisions link1="gripper2_Link" link2="gripper2_finger_np" reason="Adjacent" />
+  <disable_collisions link1="gripper2_Link" link2="gripper2_finger_nn" reason="Adjacent" />
 </robot>

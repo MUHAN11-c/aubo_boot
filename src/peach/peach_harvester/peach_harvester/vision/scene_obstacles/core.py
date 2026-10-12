@@ -385,7 +385,7 @@ def keep_within_radius(centers: np.ndarray, radius_m: float) -> np.ndarray:
 class SnapshotParams:
     """build_snapshot 全链参数（部署 yaml 单源：config/scene_obstacles.yaml）."""
 
-    voxel_size_m: float = 0.06
+    voxel_size_m: float = 0.12
     self_filter_margin_m: float = 0.05
     capsule_radial_margin_m: float = 0.10
     capsule_axial_margin_m: float = 0.10

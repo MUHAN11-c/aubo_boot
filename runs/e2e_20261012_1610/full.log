@@ -1,0 +1,1061 @@
+ROS_DOMAIN_ID=81 bag=/home/mu/Desktop/peach_camera_sim_20260930/peach_camera_sim_20260930/01_live_10s_verified/stereo_10s ready=25s grasp=70s
+note: other ROS processes exist (other domain, not killed):
+  146005 /usr/share/cursor/resources/app/resources/helpers/cursorsandbox --policy /home/mu/.cursor/sandbox-policies/sandbox-policy-0bbf940395d108e6 -- /bin/bash -O extglob -c snap=$(command cat <&3) && builtin shopt -s extglob && builtin eval -- "$snap" && { builtin set +u 2>/dev/null || true; builtin eval "${__CURSOR_SANDBOX_ENV_RESTORE:-}" 2>/dev/null; builtin eval "${__CURSOR_SANDBOX_TEMP_RESTORE:-}" 2>/dev/null; builtin export PWD="$(builtin pwd)"; builtin shopt -s expand_aliases 2>/dev/null; builtin eval "$1" < /dev/null; }; COMMAND_EXIT_CODE=$?; dump_bash_state >&4; builtin exit $COMMAND_EXIT_CODE -- python3 -m py_compile \   src/peach/peach_system_tests/scripts/frozen_camera_replay.py \   src/peach/peach_system_tests/scripts/drive_frozen_grasp.py \   src/peach/peach_system_tests/scripts/run_frozen_grasp.py \   src/peach2/peach2_system_tests/scripts/drive_frozen_grasp.py \   src/peach2/peach2_system_tests/scripts/run_frozen_grasp.py \   src/peach2/peach2_target_model/peach2_target_model/decision.py \   src/peach2/peach2_target_model/peach2_target_model/params.py \   src/peach2/peach2_target_model/peach2_target_model/target_model_node.py \   src/peach2/peach2_target_model/test/test_decision.py \   src/peach2/peach2_target_model/test/test_params.py \   src/peach/peach_system_tests/test/test_frozen_camera_bag.py \   src/peach2/peach2_system_tests/test/test_frozen_camera_bag.py && \ python3 - <<'PY' from pathlib import Path files = [ "src/peach/peach_system_tests/scripts/frozen_camera_replay.py", "src/peach/peach_system_tests/scripts/drive_frozen_grasp.py", "src/peach/peach_system_tests/scripts/run_frozen_grasp.py", "src/peach2/peach2_system_tests/scripts/drive_frozen_grasp.py", "src/peach2/peach2_system_tests/scripts/run_frozen_grasp.py", "src/peach2/peach2_target_model/peach2_target_model/decision.py", "src/peach2/peach2_target_model/peach2_target_model/params.py", "src/peach2/peach2_target_model/peach2_target_model/target_model_node.py", "src/peach2/peach2_target_model/test/test_decision.py", "src/peach2/peach2_target_model/test/test_params.py", "src/peach/peach_system_tests/test/test_frozen_camera_bag.py", "src/peach2/peach2_system_tests/test/test_frozen_camera_bag.py", "src/peach/peach_bringup/launch/harvest_system.launch.py", "src/peach/peach_system_tests/launch/frozen_camera_grasp.launch.py", ] for f in files:     for i,line in enumerate(Path(f).read_text().splitlines(),1):         if len(line) > 100:             print(f"{f}:{i}:{len(line)}:{line}") PY
+  253039 /usr/share/cursor/resources/app/resources/helpers/cursorsandbox --policy /home/mu/.cursor/sandbox-policies/sandbox-policy-7d1c29ac10c90ce7 -- /bin/bash -O extglob -c snap=$(command cat <&3) && builtin shopt -s extglob && builtin eval -- "$snap" && { builtin set +u 2>/dev/null || true; builtin eval "${__CURSOR_SANDBOX_ENV_RESTORE:-}" 2>/dev/null; builtin eval "${__CURSOR_SANDBOX_TEMP_RESTORE:-}" 2>/dev/null; builtin export PWD="$(builtin pwd)"; builtin shopt -s expand_aliases 2>/dev/null; builtin eval "$1" < /dev/null; }; COMMAND_EXIT_CODE=$?; dump_bash_state >&4; builtin exit $COMMAND_EXIT_CODE -- rg -n "unknown|rviz|not used|unrecognized" /tmp/peach_live_cam.log | head -n 20; echo '--- display ---'; echo "DISPLAY=${DISPLAY:-unset}"; who; ls /tmp/.X11-unix 2>/dev/null; echo '--- leftover ---'; python3 - << 'PY' from pathlib import Path for pid in Path('/proc').iterdir():     if not pid.name.isdigit():         continue     try:         cmd=(pid/'cmdline').read_bytes().replace(b'\0', b' ').decode(errors='replace')     except Exception:         continue     if 'cursor' in cmd or 'sandbox' in cmd:         continue     if any(w in cmd for w in ('rviz2','stereo_camera','ros2 launch peach')):         print(pid.name, cmd[:140]) PY
+  342083 /usr/share/cursor/resources/app/resources/helpers/cursorsandbox --policy /home/mu/.cursor/sandbox-policies/sandbox-policy-bae792837e4344ca -- /bin/bash -O extglob -c snap=$(command cat <&3) && builtin shopt -s extglob && builtin eval -- "$snap" && { builtin set +u 2>/dev/null || true; builtin eval "${__CURSOR_SANDBOX_ENV_RESTORE:-}" 2>/dev/null; builtin eval "${__CURSOR_SANDBOX_TEMP_RESTORE:-}" 2>/dev/null; builtin export PWD="$(builtin pwd)"; builtin shopt -s expand_aliases 2>/dev/null; builtin eval "$1" < /dev/null; }; COMMAND_EXIT_CODE=$?; dump_bash_state >&4; builtin exit $COMMAND_EXIT_CODE -- stat -c '%y %n' /home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm/CMakeFiles/peach_arm.dir/src/cycle.cpp.o /home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm/CMakeFiles/peach_arm.dir/src/target_cache.cpp.o /home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm/peach_arm 2>/dev/null; echo '--- strings ---'; strings /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_arm/lib/peach_arm/peach_arm | grep -F '套入径向余量' || echo 'margin gate string absent'; strings /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_arm/lib/peach_arm/peach_arm | grep -F '负余量不拒绝' || echo 'new comment not in binary (expected, comments are not strings)'; echo '--- python ---'; grep -n 'sleeve_ok = True' /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_harvester/lib/python3.12/site-packages/peach_harvester/vision/common/tool_budget.py
+  342599 /usr/share/cursor/resources/app/resources/helpers/cursorsandbox --policy /home/mu/.cursor/sandbox-policies/sandbox-policy-addb683599d269ec -- /bin/bash -O extglob -c snap=$(command cat <&3) && builtin shopt -s extglob && builtin eval -- "$snap" && { builtin set +u 2>/dev/null || true; builtin eval "${__CURSOR_SANDBOX_ENV_RESTORE:-}" 2>/dev/null; builtin eval "${__CURSOR_SANDBOX_TEMP_RESTORE:-}" 2>/dev/null; builtin export PWD="$(builtin pwd)"; builtin shopt -s expand_aliases 2>/dev/null; builtin eval "$1" < /dev/null; }; COMMAND_EXIT_CODE=$?; dump_bash_state >&4; builtin exit $COMMAND_EXIT_CODE -- strings /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_arm/lib/peach_arm/peach_arm | grep -E 'bag_over_tool|径向余量非正|轴向余量非正' || echo 'old gate strings gone'; echo '--- target_cache obj ---'; find /home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm -name 'target_cache.cpp.o' -printf '%T+ %p\n'
+  356005 /bin/bash -c source /opt/ros/jazzy/setup.bash source install/setup.bash source aubo_py3.12/bin/activate export PYTHONPATH="$PWD/aubo_py3.12/lib/python3.12/site-packages:$PYTHONPATH" export ROS_DOMAIN_ID=81 export ROS_LOCALHOST_ONLY=1 export ROS_LOG_DIR="$PWD/runs/e2e_20261012_1610/roslog" ros2 run peach_system_tests run_frozen_grasp.py --bag /home/mu/Desktop/peach_camera_sim_20260930/peach_camera_sim_20260930/01_live_10s_verified/stereo_10s --ready-timeout 25 --timeout 70 --request-id e2e_20261012_1610 > runs/e2e_20261012_1610/full.log 2>&1
+launch pid=356047
+[INFO] [launch]: All log files can be found below /home/mu/Desktop/aubo_e5_jazzy_ws/runs/e2e_20261012_1610/roslog/2026-10-12-16-11-31-534287-mu-MS-7E34-356047
+[INFO] [launch]: Default logging verbosity is set to INFO
+[preflight] ROS_DOMAIN_ID=81
+[WARN] [1791792691.859764174] [rcl]: ROS_LOCALHOST_ONLY is deprecated but still honored if it is enabled. Use ROS_AUTOMATIC_DISCOVERY_RANGE and ROS_STATIC_PEERS instead.
+[WARN] [1791792691.859780917] [rcl]: 'localhost_only' is enabled, 'automatic_discovery_range' and 'static_peers' will be ignored.
+[INFO] [peach_scene_obstacles-1]: process started with pid [356099]
+[INFO] [robot_state_publisher-2]: process started with pid [356100]
+[INFO] [ros2_control_node-3]: process started with pid [356103]
+[INFO] [spawner-4]: process started with pid [356104]
+[INFO] [spawner-5]: process started with pid [356105]
+[INFO] [move_group-6]: process started with pid [356106]
+[INFO] [rviz2-7]: process started with pid [356107]
+[INFO] [extrinsics_publisher-8]: process started with pid [356108]
+[INFO] [peach_harvester-9]: process started with pid [356111]
+[INFO] [peach_arm-10]: process started with pid [356112]
+[INFO] [peach_observability-11]: process started with pid [356113]
+[INFO] [lifecycle_manager-12]: process started with pid [356114]
+[INFO] [peach_lifecycle_flag_bridge-13]: process started with pid [356115]
+[INFO] [frozen_camera_replay.py-14]: process started with pid [356116]
+[robot_state_publisher-2] [WARN] [1791792691.991658753] [rcl]: ROS_LOCALHOST_ONLY is deprecated but still honored if it is enabled. Use ROS_AUTOMATIC_DISCOVERY_RANGE and ROS_STATIC_PEERS instead.
+[robot_state_publisher-2] [WARN] [1791792691.991665433] [rcl]: 'localhost_only' is enabled, 'automatic_discovery_range' and 'static_peers' will be ignored.
+[lifecycle_manager-12] [WARN] [1791792692.009134225] [rcl]: ROS_LOCALHOST_ONLY is deprecated but still honored if it is enabled. Use ROS_AUTOMATIC_DISCOVERY_RANGE and ROS_STATIC_PEERS instead.
+[lifecycle_manager-12] [WARN] [1791792692.009143219] [rcl]: 'localhost_only' is enabled, 'automatic_discovery_range' and 'static_peers' will be ignored.
+[ros2_control_node-3] [WARN] [1791792692.009772187] [rcl]: ROS_LOCALHOST_ONLY is deprecated but still honored if it is enabled. Use ROS_AUTOMATIC_DISCOVERY_RANGE and ROS_STATIC_PEERS instead.
+[ros2_control_node-3] [WARN] [1791792692.009782100] [rcl]: 'localhost_only' is enabled, 'automatic_discovery_range' and 'static_peers' will be ignored.
+[rviz2-7] qt.qpa.xcb: could not connect to display 
+[rviz2-7] qt.qpa.plugin: Could not load the Qt platform plugin "xcb" in "" even though it was found.
+[rviz2-7] This application failed to start because no Qt platform plugin could be initialized. Reinstalling the application may fix this problem.
+[rviz2-7] 
+[rviz2-7] Available platform plugins are: eglfs, linuxfb, minimal, minimalegl, offscreen, vnc, xcb.
+[rviz2-7] 
+[lifecycle_manager-12] [INFO] [1791792692.018508881] [peach_lifecycle_manager]: Creating
+[lifecycle_manager-12] [INFO] [1791792692.020446053] [peach_lifecycle_manager]: [34m[1mCreating and initializing lifecycle service clients[0m[0m
+[move_group-6] [WARN] [1791792692.024007389] [rcl]: ROS_LOCALHOST_ONLY is deprecated but still honored if it is enabled. Use ROS_AUTOMATIC_DISCOVERY_RANGE and ROS_STATIC_PEERS instead.
+[move_group-6] [WARN] [1791792692.024027830] [rcl]: 'localhost_only' is enabled, 'automatic_discovery_range' and 'static_peers' will be ignored.
+[peach_arm-10] [WARN] [1791792692.027517917] [rcl]: ROS_LOCALHOST_ONLY is deprecated but still honored if it is enabled. Use ROS_AUTOMATIC_DISCOVERY_RANGE and ROS_STATIC_PEERS instead.
+[peach_arm-10] [WARN] [1791792692.027533813] [rcl]: 'localhost_only' is enabled, 'automatic_discovery_range' and 'static_peers' will be ignored.
+[robot_state_publisher-2] [INFO] [1791792692.027713775] [robot_state_publisher]: Robot initialized
+[ros2_control_node-3] [INFO] [1791792692.028125382] [controller_manager]: Using Steady (Monotonic) clock for triggering controller manager cycles.
+[ros2_control_node-3] [INFO] [1791792692.035999225] [controller_manager]: Subscribing to '/robot_description' topic for robot description.
+[ros2_control_node-3] [INFO] [1791792692.036055667] [controller_manager]: update rate is 200 Hz
+[ros2_control_node-3] [INFO] [1791792692.036058879] [controller_manager]: Overruns handling is : enabled
+[ros2_control_node-3] [INFO] [1791792692.036060766] [controller_manager]: Spawning controller_manager RT thread with scheduler priority: 50
+[ros2_control_node-3] [INFO] [1791792692.036120898] [controller_manager]: Successful set up FIFO RT scheduling policy with priority 50.
+[move_group-6] [INFO] [1791792692.046469327] [move_group.moveit.moveit.ros.rdf_loader]: Loaded robot model in 0.00229826 seconds
+[move_group-6] [INFO] [1791792692.046564815] [move_group.moveit.moveit.core.robot_model]: Loading robot model 'aubo_e5'...
+[move_group-6] [INFO] [1791792692.046575344] [move_group.moveit.moveit.core.robot_model]: No root/virtual joint specified in SRDF. Assuming fixed joint
+[peach_arm-10] [WARN] [1791792692.059639654] [rcl.logging_rosout]: Publisher already registered for node name: 'peach_arm'. If this is due to multiple nodes with the same name then all logs for the logger named 'peach_arm' will go out over the existing publisher. As soon as any node with that name is destructed it will unregister the publisher, preventing any further logs for that name from being published on the rosout topic.
+[peach_arm-10] [WARN] [1791792692.063543434] [peach_arm]: scan.protected_zones 丢弃畸形盒: 盒#0 存在 min>=max 的轴（空盒/退化盒），已丢弃
+[move_group-6] [INFO] [1791792692.076664575] [move_group.moveit.moveit.kinematics.kdl_kinematics_plugin]: Joint weights for group 'manipulator_e5': 1 1 1 1 1 1
+[ERROR] [rviz2-7]: process has died [pid 356107, exit code -6, cmd '/opt/ros/jazzy/lib/rviz2/rviz2 -d /home/mu/Desktop/aubo_e5_jazzy_ws/install/aubo_e5_moveit_config/share/aubo_e5_moveit_config/rviz/moveit.rviz --ros-args -p use_sim_time:=False --params-file /tmp/launch_params_0u_523qt'].
+[move_group-6] [INFO] [1791792692.158434290] [move_group.moveit.moveit.ros.planning_scene_monitor]: Publishing maintained planning scene on 'monitored_planning_scene'
+[move_group-6] [INFO] [1791792692.158659980] [move_group.moveit.moveit.ros.moveit_cpp]: Listening to 'joint_states' for joint states
+[move_group-6] [INFO] [1791792692.159303181] [move_group.moveit.moveit.ros.current_state_monitor]: Listening to joint states on topic 'joint_states'
+[move_group-6] [INFO] [1791792692.159559714] [move_group.moveit.moveit.ros.planning_scene_monitor]: Listening to '/attached_collision_object' for attached collision objects
+[move_group-6] [INFO] [1791792692.159568726] [move_group.moveit.moveit.ros.planning_scene_monitor]: Stopping existing planning scene publisher.
+[move_group-6] [INFO] [1791792692.159705095] [move_group.moveit.moveit.ros.planning_scene_monitor]: Stopped publishing maintained planning scene.
+[move_group-6] [INFO] [1791792692.160302383] [move_group.moveit.moveit.ros.planning_scene_monitor]: Publishing maintained planning scene on 'monitored_planning_scene'
+[move_group-6] [INFO] [1791792692.160363075] [move_group.moveit.moveit.ros.planning_scene_monitor]: Starting planning scene monitor
+[move_group-6] [INFO] [1791792692.160626599] [move_group.moveit.moveit.ros.planning_scene_monitor]: Listening to '/planning_scene'
+[move_group-6] [INFO] [1791792692.160635822] [move_group.moveit.moveit.ros.planning_scene_monitor]: Starting world geometry update monitor for collision objects, attached objects, octomap updates.
+[move_group-6] [INFO] [1791792692.161127605] [move_group.moveit.moveit.ros.planning_scene_monitor]: Listening to 'collision_object'
+[move_group-6] [INFO] [1791792692.161373879] [move_group.moveit.moveit.ros.planning_scene_monitor]: Listening to 'planning_scene_world' for planning scene world geometry
+[move_group-6] [WARN] [1791792692.161850681] [move_group.moveit.moveit.ros.occupancy_map_monitor]: Resolution not specified for Octomap. Assuming resolution = 0.1 instead
+[move_group-6] [ERROR] [1791792692.161864830] [move_group.moveit.moveit.ros.occupancy_map_monitor]: No 3D sensor plugin(s) defined for octomap updates
+[move_group-6] [INFO] [1791792692.210212174] [move_group.moveit.moveit.ros.planning_pipeline]: Successfully loaded planner 'OMPL'
+[move_group-6] [INFO] [1791792692.211368975] [move_group]: Try loading adapter 'default_planning_request_adapters/ResolveConstraintFrames'
+[move_group-6] [INFO] [1791792692.212086273] [move_group]: Loaded adapter 'default_planning_request_adapters/ResolveConstraintFrames'
+[move_group-6] [INFO] [1791792692.212095286] [move_group]: Try loading adapter 'default_planning_request_adapters/ValidateWorkspaceBounds'
+[move_group-6] [INFO] [1791792692.212313864] [move_group]: Loaded adapter 'default_planning_request_adapters/ValidateWorkspaceBounds'
+[move_group-6] [INFO] [1791792692.212319334] [move_group]: Try loading adapter 'default_planning_request_adapters/CheckStartStateBounds'
+[move_group-6] [INFO] [1791792692.212333083] [move_group]: Loaded adapter 'default_planning_request_adapters/CheckStartStateBounds'
+[move_group-6] [INFO] [1791792692.212335555] [move_group]: Try loading adapter 'default_planning_request_adapters/CheckStartStateCollision'
+[move_group-6] [INFO] [1791792692.212341603] [move_group]: Loaded adapter 'default_planning_request_adapters/CheckStartStateCollision'
+[move_group-6] [INFO] [1791792692.213429147] [move_group]: Try loading adapter 'default_planning_response_adapters/AddTimeOptimalParameterization'
+[move_group-6] [INFO] [1791792692.214853236] [move_group]: Loaded adapter 'default_planning_response_adapters/AddTimeOptimalParameterization'
+[move_group-6] [INFO] [1791792692.214861036] [move_group]: Try loading adapter 'default_planning_response_adapters/AddRuckigTrajectorySmoothing'
+[move_group-6] [INFO] [1791792692.214869376] [move_group]: Loaded adapter 'default_planning_response_adapters/AddRuckigTrajectorySmoothing'
+[move_group-6] [INFO] [1791792692.214871602] [move_group]: Try loading adapter 'default_planning_response_adapters/ValidateSolution'
+[move_group-6] [INFO] [1791792692.216186103] [move_group]: Loaded adapter 'default_planning_response_adapters/ValidateSolution'
+[move_group-6] [INFO] [1791792692.218413300] [move_group.moveit.moveit.planners.pilz.joint_limits_aggregator]: Reading limits from namespace robot_description_planning
+[move_group-6] [INFO] [1791792692.219884801] [move_group.moveit.moveit.planners.pilz.command_planner]: Available plugins: pilz_industrial_motion_planner/PlanningContextLoaderCIRC pilz_industrial_motion_planner/PlanningContextLoaderLIN pilz_industrial_motion_planner/PlanningContextLoaderPTP 
+[move_group-6] [INFO] [1791792692.219896218] [move_group.moveit.moveit.planners.pilz.command_planner]: About to load: pilz_industrial_motion_planner/PlanningContextLoaderCIRC
+[move_group-6] [INFO] [1791792692.221054926] [move_group.moveit.moveit.planners.pilz.command_planner]: Registered Algorithm [CIRC]
+[move_group-6] [INFO] [1791792692.221070469] [move_group.moveit.moveit.planners.pilz.command_planner]: About to load: pilz_industrial_motion_planner/PlanningContextLoaderLIN
+[move_group-6] [INFO] [1791792692.221685684] [move_group.moveit.moveit.planners.pilz.command_planner]: Registered Algorithm [LIN]
+[move_group-6] [INFO] [1791792692.221695203] [move_group.moveit.moveit.planners.pilz.command_planner]: About to load: pilz_industrial_motion_planner/PlanningContextLoaderPTP
+[move_group-6] [INFO] [1791792692.222271707] [move_group.moveit.moveit.planners.pilz.command_planner]: Registered Algorithm [PTP]
+[move_group-6] [INFO] [1791792692.222282386] [move_group.moveit.moveit.ros.planning_pipeline]: Successfully loaded planner 'Pilz Industrial Motion Planner'
+[move_group-6] [INFO] [1791792692.223340231] [move_group]: Try loading adapter 'default_planning_request_adapters/ResolveConstraintFrames'
+[move_group-6] [INFO] [1791792692.223458325] [move_group]: Loaded adapter 'default_planning_request_adapters/ResolveConstraintFrames'
+[move_group-6] [INFO] [1791792692.223462142] [move_group]: Try loading adapter 'default_planning_request_adapters/ValidateWorkspaceBounds'
+[move_group-6] [INFO] [1791792692.223686365] [move_group]: Loaded adapter 'default_planning_request_adapters/ValidateWorkspaceBounds'
+[move_group-6] [INFO] [1791792692.223692779] [move_group]: Try loading adapter 'default_planning_request_adapters/CheckStartStateBounds'
+[move_group-6] [INFO] [1791792692.223704002] [move_group]: Loaded adapter 'default_planning_request_adapters/CheckStartStateBounds'
+[move_group-6] [INFO] [1791792692.223706419] [move_group]: Try loading adapter 'default_planning_request_adapters/CheckStartStateCollision'
+[move_group-6] [INFO] [1791792692.223712926] [move_group]: Loaded adapter 'default_planning_request_adapters/CheckStartStateCollision'
+[spawner-5] [WARN] [1791792692.222688305] [rcl]: ROS_LOCALHOST_ONLY is deprecated but still honored if it is enabled. Use ROS_AUTOMATIC_DISCOVERY_RANGE and ROS_STATIC_PEERS instead.
+[spawner-5] [WARN] [1791792692.222694657] [rcl]: 'localhost_only' is enabled, 'automatic_discovery_range' and 'static_peers' will be ignored.
+[move_group-6] [INFO] [1791792692.224740926] [move_group]: Try loading adapter 'default_planning_response_adapters/ValidateSolution'
+[move_group-6] [INFO] [1791792692.225414671] [move_group]: Loaded adapter 'default_planning_response_adapters/ValidateSolution'
+[move_group-6] [INFO] [1791792692.228625673] [move_group.moveit.moveit.ros.planning_pipeline]: Successfully loaded planner 'STOMP'
+[move_group-6] [INFO] [1791792692.229785617] [move_group]: Try loading adapter 'default_planning_request_adapters/ResolveConstraintFrames'
+[move_group-6] [INFO] [1791792692.229907652] [move_group]: Loaded adapter 'default_planning_request_adapters/ResolveConstraintFrames'
+[move_group-6] [INFO] [1791792692.229911683] [move_group]: Try loading adapter 'default_planning_request_adapters/ValidateWorkspaceBounds'
+[move_group-6] [INFO] [1791792692.230034394] [move_group]: Loaded adapter 'default_planning_request_adapters/ValidateWorkspaceBounds'
+[move_group-6] [INFO] [1791792692.230038922] [move_group]: Try loading adapter 'default_planning_request_adapters/CheckStartStateBounds'
+[move_group-6] [INFO] [1791792692.230049239] [move_group]: Loaded adapter 'default_planning_request_adapters/CheckStartStateBounds'
+[move_group-6] [INFO] [1791792692.230051639] [move_group]: Try loading adapter 'default_planning_request_adapters/CheckStartStateCollision'
+[move_group-6] [INFO] [1791792692.230057650] [move_group]: Loaded adapter 'default_planning_request_adapters/CheckStartStateCollision'
+[move_group-6] [INFO] [1791792692.231093629] [move_group]: Try loading adapter 'default_planning_response_adapters/AddTimeOptimalParameterization'
+[move_group-6] [INFO] [1791792692.231320040] [move_group]: Loaded adapter 'default_planning_response_adapters/AddTimeOptimalParameterization'
+[move_group-6] [INFO] [1791792692.231324383] [move_group]: Try loading adapter 'default_planning_response_adapters/ValidateSolution'
+[move_group-6] [INFO] [1791792692.231705826] [move_group]: Loaded adapter 'default_planning_response_adapters/ValidateSolution'
+[move_group-6] [INFO] [1791792692.231715007] [move_group]: Try loading adapter 'default_planning_response_adapters/DisplayMotionPath'
+[move_group-6] [INFO] [1791792692.232101462] [move_group]: Loaded adapter 'default_planning_response_adapters/DisplayMotionPath'
+[peach_lifecycle_flag_bridge-13] [WARN] [1791792692.237559876] [rcl]: ROS_LOCALHOST_ONLY is deprecated but still honored if it is enabled. Use ROS_AUTOMATIC_DISCOVERY_RANGE and ROS_STATIC_PEERS instead.
+[peach_lifecycle_flag_bridge-13] [WARN] [1791792692.237569130] [rcl]: 'localhost_only' is enabled, 'automatic_discovery_range' and 'static_peers' will be ignored.
+[spawner-4] [WARN] [1791792692.249034819] [rcl]: ROS_LOCALHOST_ONLY is deprecated but still honored if it is enabled. Use ROS_AUTOMATIC_DISCOVERY_RANGE and ROS_STATIC_PEERS instead.
+[spawner-4] [WARN] [1791792692.249045542] [rcl]: 'localhost_only' is enabled, 'automatic_discovery_range' and 'static_peers' will be ignored.
+[move_group-6] [INFO] [1791792692.260058928] [move_group.moveit.moveit.plugins.simple_controller_manager]: Added FollowJointTrajectory controller for joint_trajectory_controller
+[move_group-6] [INFO] [1791792692.260214607] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[move_group-6] [INFO] [1791792692.260232547] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[move_group-6] [INFO] [1791792692.260650895] [move_group.moveit.moveit.ros.trajectory_execution_manager]: Trajectory execution is not managing controllers
+[move_group-6] [INFO] [1791792692.260665850] [move_group]: MoveGroup debug mode is ON
+[spawner-5] [INFO] [1791792692.278520783] [spawner_joint_trajectory_controller]: waiting for service /controller_manager/list_controllers to become available...
+[move_group-6] [INFO] [1791792692.281151398] [move_group.moveit.moveit.planners.pilz.move_group_sequence_action]: initialize move group sequence action
+[move_group-6] [INFO] [1791792692.283122308] [move_group.moveit.moveit.planners.pilz.joint_limits_aggregator]: Reading limits from namespace robot_description_planning
+[move_group-6] [INFO] [1791792692.283263104] [move_group.moveit.moveit.planners.pilz.joint_limits_aggregator]: Reading limits from namespace robot_description_planning
+[move_group-6] [INFO] [1791792692.283808237] [move_group.moveit.moveit.ros.move_group.executable]: 
+[move_group-6] 
+[move_group-6] ********************************************************
+[move_group-6] * MoveGroup using: 
+[move_group-6] *     - apply_planning_scene_service
+[move_group-6] *     - clear_octomap_service
+[move_group-6] *     - ExecuteTaskSolution
+[move_group-6] *     - get_group_urdf
+[move_group-6] *     - load_geometry_from_file
+[move_group-6] *     - CartesianPathService
+[move_group-6] *     - execute_trajectory_action
+[move_group-6] *     - get_planning_scene_service
+[move_group-6] *     - kinematics_service
+[move_group-6] *     - move_action
+[move_group-6] *     - motion_plan_service
+[move_group-6] *     - query_planners_service
+[move_group-6] *     - state_validation_service
+[move_group-6] *     - save_geometry_to_file
+[move_group-6] *     - SequenceAction
+[move_group-6] *     - SequenceService
+[move_group-6] ********************************************************
+[move_group-6] 
+[move_group-6] [INFO] [1791792692.283841462] [move_group.moveit.moveit.ros.move_group.context]: MoveGroup context using pipeline pilz_industrial_motion_planner
+[move_group-6] [INFO] [1791792692.283848227] [move_group.moveit.moveit.ros.move_group.context]: MoveGroup context initialization complete
+[move_group-6] [96mLoading 'move_group/ApplyPlanningSceneService'...[0m
+[move_group-6] [96mLoading 'move_group/ClearOctomapService'...[0m
+[move_group-6] [96mLoading 'move_group/ExecuteTaskSolutionCapability'...[0m
+[move_group-6] [96mLoading 'move_group/GetUrdfService'...[0m
+[move_group-6] [96mLoading 'move_group/LoadGeometryFromFileService'...[0m
+[move_group-6] [96mLoading 'move_group/MoveGroupCartesianPathService'...[0m
+[move_group-6] [96mLoading 'move_group/MoveGroupExecuteTrajectoryAction'...[0m
+[move_group-6] [96mLoading 'move_group/MoveGroupGetPlanningSceneService'...[0m
+[move_group-6] [96mLoading 'move_group/MoveGroupKinematicsService'...[0m
+[move_group-6] [96mLoading 'move_group/MoveGroupMoveAction'...[0m
+[move_group-6] [96mLoading 'move_group/MoveGroupPlanService'...[0m
+[move_group-6] [96mLoading 'move_group/MoveGroupQueryPlannersService'...[0m
+[move_group-6] [96mLoading 'move_group/MoveGroupStateValidationService'...[0m
+[move_group-6] [96mLoading 'move_group/SaveGeometryToFileService'...[0m
+[move_group-6] [96mLoading 'pilz_industrial_motion_planner/MoveGroupSequenceAction'...[0m
+[move_group-6] [96mLoading 'pilz_industrial_motion_planner/MoveGroupSequenceService'...[0m
+[move_group-6] 
+[move_group-6] [92mYou can start planning now![0m
+[move_group-6] 
+[ros2_control_node-3] [INFO] [1791792692.318416929] [controller_manager]: Received robot description from topic.
+[ros2_control_node-3] [INFO] [1791792692.318468627] [controller_manager]: Enforcing command limits is disabled. Command limits from URDF will be ignored.
+[ros2_control_node-3] [INFO] [1791792692.320619555] [controller_manager]: Loading hardware 'AuboE5System' 
+[ros2_control_node-3] [INFO] [1791792692.321008891] [controller_manager]: Loaded hardware 'AuboE5System' from plugin 'mock_components/GenericSystem'
+[ros2_control_node-3] [INFO] [1791792692.321064155] [controller_manager]: Initialize hardware 'AuboE5System' 
+[ros2_control_node-3] [INFO] [1791792692.325455120] [controller_manager]: Successful initialization of hardware 'AuboE5System'
+[ros2_control_node-3] [INFO] [1791792692.325856200] [controller_manager]: Activating component 'AuboE5System'.
+[ros2_control_node-3] [INFO] [1791792692.325866285] [resource_manager]: 'configure' hardware 'AuboE5System' 
+[ros2_control_node-3] [INFO] [1791792692.325874418] [resource_manager]: Successful 'configure' of hardware 'AuboE5System'
+[ros2_control_node-3] [INFO] [1791792692.325888487] [resource_manager]: 'activate' hardware 'AuboE5System' 
+[ros2_control_node-3] [INFO] [1791792692.325893775] [resource_manager]: Successful 'activate' of hardware 'AuboE5System'
+[ros2_control_node-3] [INFO] [1791792692.325945526] [controller_manager]: Registering statistics for : AuboE5System
+[ros2_control_node-3] [INFO] [1791792692.325975844] [controller_manager]: Resource Manager has been successfully initialized. Starting Controller Manager services...
+[extrinsics_publisher-8] [WARN] [1791792692.333417546] [rcl]: ROS_LOCALHOST_ONLY is deprecated but still honored if it is enabled. Use ROS_AUTOMATIC_DISCOVERY_RANGE and ROS_STATIC_PEERS instead.
+[extrinsics_publisher-8] [WARN] [1791792692.333427397] [rcl]: 'localhost_only' is enabled, 'automatic_discovery_range' and 'static_peers' will be ignored.
+[peach_scene_obstacles-1] [WARN] [1791792692.346882255] [rcl]: ROS_LOCALHOST_ONLY is deprecated but still honored if it is enabled. Use ROS_AUTOMATIC_DISCOVERY_RANGE and ROS_STATIC_PEERS instead.
+[peach_scene_obstacles-1] [WARN] [1791792692.346891954] [rcl]: 'localhost_only' is enabled, 'automatic_discovery_range' and 'static_peers' will be ignored.
+[peach_harvester-9] [WARN] [1791792692.421107439] [rcl]: ROS_LOCALHOST_ONLY is deprecated but still honored if it is enabled. Use ROS_AUTOMATIC_DISCOVERY_RANGE and ROS_STATIC_PEERS instead.
+[peach_harvester-9] [WARN] [1791792692.421126014] [rcl]: 'localhost_only' is enabled, 'automatic_discovery_range' and 'static_peers' will be ignored.
+[extrinsics_publisher-8] [INFO] [1791792692.426722391] [hand_eye_extrinsics_publisher]: Published active camera extrinsic from /home/mu/Desktop/aubo_e5_jazzy_ws/src/aubo_hand_eye_calibration/hand_eye/active.yaml: xyz_m=[0.044852, 0.108401, 0.001697] quat_xyzw=[0.502841, 0.496407, 0.508405, -0.492194]
+[peach_scene_obstacles-1] [INFO] [1791792692.428675078] [peach_scene_obstacles]: scene obstacles snapshot node ready (waits refresh trigger)
+[peach_harvester-9] [INFO] [1791792692.490614300] [peach_scene_perception_node]: YOLO=/home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_harvester/share/peach_harvester/model/best.pt
+[peach_harvester-9] [INFO] [1791792692.490814690] [peach_scene_perception_node]: SAM=/home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_harvester/share/peach_harvester/model/mobile_sam.pt
+[peach_observability-11] [WARN] [1791792692.502187740] [rcl]: ROS_LOCALHOST_ONLY is deprecated but still honored if it is enabled. Use ROS_AUTOMATIC_DISCOVERY_RANGE and ROS_STATIC_PEERS instead.
+[peach_observability-11] [WARN] [1791792692.502717260] [rcl]: 'localhost_only' is enabled, 'automatic_discovery_range' and 'static_peers' will be ignored.
+[ros2_control_node-3] [INFO] [1791792692.611750688] [controller_manager]: Loading controller : 'joint_trajectory_controller' of type 'joint_trajectory_controller/JointTrajectoryController'
+[ros2_control_node-3] [INFO] [1791792692.611788057] [controller_manager]: Loading controller 'joint_trajectory_controller'
+[ros2_control_node-3] [INFO] [1791792692.614006427] [controller_manager]: Controller 'joint_trajectory_controller' node arguments: --ros-args -p use_sim_time:=False --params-file /tmp/launch_params_2usc8b65 --params-file /home/mu/Desktop/aubo_e5_jazzy_ws/install/aubo_e5_bringup/share/aubo_e5_bringup/config/controllers.yaml 
+[spawner-5] [INFO] [1791792692.633606448] [spawner_joint_trajectory_controller]: Loaded joint_trajectory_controller
+[ros2_control_node-3] [INFO] [1791792692.635411911] [controller_manager]: Configuring controller: 'joint_trajectory_controller'
+[ros2_control_node-3] [INFO] [1791792692.635597595] [joint_trajectory_controller]: No specific joint names are used for command interfaces. Using 'joints' parameter.
+[ros2_control_node-3] [INFO] [1791792692.635612109] [joint_trajectory_controller]: Command interfaces are [position] and state interfaces are [position velocity].
+[ros2_control_node-3] [INFO] [1791792692.635626059] [joint_trajectory_controller]: Using 'splines' interpolation method.
+[ros2_control_node-3] [INFO] [1791792692.640053853] [joint_trajectory_controller]: Action status changes will be monitored at 20.00 Hz.
+[ros2_control_node-3] [INFO] [1791792692.643536263] [joint_trajectory_controller]: Setting initial scaling factor to 1.000000
+[ros2_control_node-3] [INFO] [1791792692.643556366] [joint_trajectory_controller]: No scaling interface set. This controller will not read speed scaling from the hardware.
+[ros2_control_node-3] [INFO] [1791792692.648704707] [controller_manager]: Activating controllers: [ joint_trajectory_controller ]
+[ros2_control_node-3] [INFO] [1791792692.651403006] [controller_manager]: Successfully switched controllers!
+[spawner-5] [INFO] [1791792692.657133766] [spawner_joint_trajectory_controller]: Configured and activated joint_trajectory_controller
+[peach_observability-11] [WARN] [1791792692.688269097] [peach_observability]: *** 调试操作面已启用：运动类操作=默认拒绝。技能侧既有安全门照常生效；请保持 HTTP 回环绑定 ***
+[peach_observability-11] [INFO] [1791792692.691759546] [peach_observability]: 感知抓取过程页（过程监控+单步调试）: http://127.0.0.1:8090
+[peach_observability-11] [INFO] [1791792692.695069038] [peach_observability]: 全量录制订阅: /attached_collision_object [moveit_msgs/msg/AttachedCollisionObject]
+[peach_observability-11] [INFO] [1791792692.695596212] [peach_observability]: 全量录制订阅: /aubo_io_controller/joint_status [aubo_msgs/msg/JointStatus]
+[peach_observability-11] [INFO] [1791792692.695971625] [peach_observability]: 全量录制订阅: /aubo_io_controller/robot_status [aubo_msgs/msg/RobotStatus]
+[peach_observability-11] [INFO] [1791792692.696364762] [peach_observability]: 全量录制订阅: /camera/color/image_raw [sensor_msgs/msg/Image]
+[peach_observability-11] [INFO] [1791792692.697050783] [peach_observability]: 全量录制订阅: /camera/depth/image_raw [sensor_msgs/msg/Image]
+[peach_observability-11] [INFO] [1791792692.697422028] [peach_observability]: 全量录制订阅: /camera/depth_registered/points [sensor_msgs/msg/PointCloud2]
+[peach_observability-11] [INFO] [1791792692.697972264] [peach_observability]: 全量录制订阅: /collision_object [moveit_msgs/msg/CollisionObject]
+[peach_observability-11] [INFO] [1791792692.698733945] [peach_observability]: 全量录制订阅: /controller_manager/activity [controller_manager_msgs/msg/ControllerManagerActivity]
+[peach_observability-11] [INFO] [1791792692.703656981] [peach_observability]: 全量录制订阅: /controller_manager/introspection_data/full [pal_statistics_msgs/msg/Statistics]
+[peach_observability-11] [INFO] [1791792692.704178251] [peach_observability]: 全量录制订阅: /controller_manager/introspection_data/names [pal_statistics_msgs/msg/StatisticsNames]
+[peach_observability-11] [INFO] [1791792692.704599237] [peach_observability]: 全量录制订阅: /controller_manager/introspection_data/values [pal_statistics_msgs/msg/StatisticsValues]
+[peach_observability-11] [INFO] [1791792692.704973930] [peach_observability]: 全量录制订阅: /controller_manager/statistics/full [pal_statistics_msgs/msg/Statistics]
+[peach_observability-11] [INFO] [1791792692.705349868] [peach_observability]: 全量录制订阅: /controller_manager/statistics/names [pal_statistics_msgs/msg/StatisticsNames]
+[peach_observability-11] [INFO] [1791792692.705716274] [peach_observability]: 全量录制订阅: /controller_manager/statistics/values [pal_statistics_msgs/msg/StatisticsValues]
+[peach_observability-11] [INFO] [1791792692.706216441] [peach_observability]: 全量录制订阅: /diagnostics [diagnostic_msgs/msg/DiagnosticArray]
+[peach_observability-11] [INFO] [1791792692.706621602] [peach_observability]: 全量录制订阅: /display_contacts [visualization_msgs/msg/MarkerArray]
+[peach_observability-11] [INFO] [1791792692.707577668] [peach_observability]: 全量录制订阅: /display_planned_path [moveit_msgs/msg/DisplayTrajectory]
+[peach_observability-11] [INFO] [1791792692.717455681] [peach_observability]: 全量录制订阅: /execute_task_solution/_action/feedback [moveit_task_constructor_msgs/action/ExecuteTaskSolution_FeedbackMessage]
+[peach_observability-11] [INFO] [1791792692.718115634] [peach_observability]: 全量录制订阅: /execute_task_solution/_action/status [action_msgs/msg/GoalStatusArray]
+[spawner-4] [INFO] [1791792692.760092985] [spawner_joint_state_broadcaster]: waiting for service /controller_manager/list_controllers to become available...
+[peach_observability-11] [INFO] [1791792692.763362734] [peach_observability]: 全量录制订阅: /execute_trajectory/_action/feedback [moveit_msgs/action/ExecuteTrajectory_FeedbackMessage]
+[peach_observability-11] [INFO] [1791792692.764092562] [peach_observability]: 全量录制订阅: /execute_trajectory/_action/status [action_msgs/msg/GoalStatusArray]
+[peach_observability-11] [INFO] [1791792692.764971088] [peach_observability]: 全量录制订阅: /joint_states [sensor_msgs/msg/JointState]
+[peach_observability-11] [INFO] [1791792692.805546301] [peach_observability]: 全量录制订阅: /joint_trajectory_controller/follow_joint_trajectory/_action/feedback [control_msgs/action/FollowJointTrajectory_FeedbackMessage]
+[peach_observability-11] [INFO] [1791792692.806155396] [peach_observability]: 全量录制订阅: /joint_trajectory_controller/follow_joint_trajectory/_action/status [action_msgs/msg/GoalStatusArray]
+[peach_observability-11] [INFO] [1791792692.807088989] [peach_observability]: 全量录制订阅: /monitored_planning_scene [moveit_msgs/msg/PlanningScene]
+[INFO] [spawner-5]: process has finished cleanly [pid 356105]
+[peach_observability-11] [INFO] [1791792692.807657504] [peach_observability]: 全量录制订阅: /move_action/_action/feedback [moveit_msgs/action/MoveGroup_FeedbackMessage]
+[peach_observability-11] [INFO] [1791792692.808101790] [peach_observability]: 全量录制订阅: /move_action/_action/status [action_msgs/msg/GoalStatusArray]
+[peach_observability-11] [INFO] [1791792692.808505557] [peach_observability]: 全量录制订阅: /peach/lifecycle/managed_nodes_activated [std_msgs/msg/Bool]
+[peach_observability-11] [INFO] [1791792692.808990282] [peach_observability]: 全量录制订阅: /peach/manipulation/grasp_hypothesis [peach_interfaces/msg/GraspHypothesis]
+[peach_observability-11] [INFO] [1791792692.809490110] [peach_observability]: 全量录制订阅: /peach/observability/job [std_msgs/msg/String]
+[peach_observability-11] [INFO] [1791792692.809966988] [peach_observability]: 全量录制订阅: /peach/observability/markers [visualization_msgs/msg/MarkerArray]
+[peach_observability-11] [INFO] [1791792692.810449206] [peach_observability]: 全量录制订阅: /peach/observability/metrics [std_msgs/msg/String]
+[peach_observability-11] [INFO] [1791792692.810819616] [peach_observability]: 全量录制订阅: /peach/observability/selfcheck_passed [std_msgs/msg/Bool]
+[peach_observability-11] [INFO] [1791792692.811318386] [peach_observability]: 全量录制订阅: /peach/observability/tcp_path [nav_msgs/msg/Path]
+[peach_observability-11] [INFO] [1791792692.811726617] [peach_observability]: 全量录制订阅: /peach/perception/debug_image [sensor_msgs/msg/Image]
+[peach_observability-11] [INFO] [1791792692.812171818] [peach_observability]: 全量录制订阅: /peach/perception/debug_image_raw [sensor_msgs/msg/Image]
+[peach_observability-11] [INFO] [1791792692.812630508] [peach_observability]: 全量录制订阅: /peach/perception/harvest_state [std_msgs/msg/String]
+[peach_observability-11] [INFO] [1791792692.813083696] [peach_observability]: 全量录制订阅: /peach/perception/target_observations [peach_interfaces/msg/PeachTargetObservationArray]
+[peach_observability-11] [INFO] [1791792692.813535259] [peach_observability]: 全量录制订阅: /peach/reconstruction/diagnostics [peach_interfaces/msg/ReconstructionStatus]
+[peach_observability-11] [INFO] [1791792692.814139388] [peach_observability]: 全量录制订阅: /peach/reconstruction/diagnostics_debug [std_msgs/msg/String]
+[peach_observability-11] [INFO] [1791792692.814581659] [peach_observability]: 全量录制订阅: /peach/reconstruction/grasp_decision [peach_interfaces/msg/GraspDecision]
+[peach_observability-11] [INFO] [1791792692.815115307] [peach_observability]: 全量录制订阅: /peach/reconstruction/refined_axis [geometry_msgs/msg/Vector3Stamped]
+[peach_observability-11] [INFO] [1791792692.815556790] [peach_observability]: 全量录制订阅: /peach/reconstruction/refined_diagnostics [peach_interfaces/msg/BagFittingArray]
+[peach_observability-11] [INFO] [1791792692.816570766] [peach_observability]: 全量录制订阅: /peach/reconstruction/refined_pose [peach_interfaces/msg/BagGraspCandidateArray]
+[peach_observability-11] [INFO] [1791792692.817128798] [peach_observability]: 全量录制订阅: /peach/reconstruction/status [std_msgs/msg/String]
+[peach_observability-11] [INFO] [1791792692.817896039] [peach_observability]: 全量录制订阅: /peach/reconstruction/tsdf_cloud [sensor_msgs/msg/PointCloud2]
+[peach_observability-11] [INFO] [1791792692.818361131] [peach_observability]: 全量录制订阅: /peach/scene/obstacles_refresh [std_msgs/msg/Empty]
+[peach_observability-11] [INFO] [1791792692.818781509] [peach_observability]: 全量录制订阅: /peach/vegetation/status [std_msgs/msg/String]
+[peach_observability-11] [INFO] [1791792692.819272794] [peach_observability]: 全量录制订阅: /peach_arm/execute_target/_action/feedback [peach_interfaces/action/ExecuteTarget_FeedbackMessage]
+[peach_observability-11] [INFO] [1791792692.819705883] [peach_observability]: 全量录制订阅: /peach_arm/execute_target/_action/status [action_msgs/msg/GoalStatusArray]
+[peach_observability-11] [INFO] [1791792692.820190554] [peach_observability]: 全量录制订阅: /peach_arm/status [std_msgs/msg/String]
+[peach_observability-11] [INFO] [1791792692.820660372] [peach_observability]: 全量录制订阅: /peach_arm/survey_scene/_action/feedback [peach_interfaces/action/SurveyScene_FeedbackMessage]
+[peach_observability-11] [INFO] [1791792692.821086213] [peach_observability]: 全量录制订阅: /peach_arm/survey_scene/_action/status [action_msgs/msg/GoalStatusArray]
+[peach_observability-11] [INFO] [1791792692.821534699] [peach_observability]: 全量录制订阅: /peach_arm/transition_event [lifecycle_msgs/msg/TransitionEvent]
+[peach_observability-11] [INFO] [1791792692.821954610] [peach_observability]: 全量录制订阅: /peach_observability/transition_event [lifecycle_msgs/msg/TransitionEvent]
+[peach_observability-11] [INFO] [1791792692.822374762] [peach_observability]: 全量录制订阅: /peach_scene_perception_node/transition_event [lifecycle_msgs/msg/TransitionEvent]
+[peach_observability-11] [INFO] [1791792692.822792932] [peach_observability]: 全量录制订阅: /peach_supervisor/events [peach_interfaces/msg/CanonicalEvent]
+[peach_observability-11] [INFO] [1791792692.823253468] [peach_observability]: 全量录制订阅: /peach_supervisor/run_harvest/_action/feedback [peach_interfaces/action/RunHarvest_FeedbackMessage]
+[peach_observability-11] [INFO] [1791792692.823635281] [peach_observability]: 全量录制订阅: /peach_supervisor/run_harvest/_action/status [action_msgs/msg/GoalStatusArray]
+[peach_observability-11] [INFO] [1791792692.824192824] [peach_observability]: 全量录制订阅: /peach_supervisor/scene_snapshot [peach_interfaces/msg/SceneSnapshot]
+[peach_observability-11] [INFO] [1791792692.824917038] [peach_observability]: 全量录制订阅: /peach_supervisor/state [peach_interfaces/msg/HarvestState]
+[peach_observability-11] [INFO] [1791792692.825366456] [peach_observability]: 全量录制订阅: /peach_target_reconstruction_node/build_target_model/_action/feedback [peach_interfaces/action/BuildTargetModel_FeedbackMessage]
+[peach_observability-11] [INFO] [1791792692.825817144] [peach_observability]: 全量录制订阅: /peach_target_reconstruction_node/build_target_model/_action/status [action_msgs/msg/GoalStatusArray]
+[peach_observability-11] [INFO] [1791792692.827232611] [peach_observability]: 全量录制订阅: /pipeline_state [moveit_msgs/msg/PipelineState]
+[peach_observability-11] [INFO] [1791792692.827768978] [peach_observability]: 全量录制订阅: /planning_scene [moveit_msgs/msg/PlanningScene]
+[peach_observability-11] [INFO] [1791792692.828396552] [peach_observability]: 全量录制订阅: /planning_scene_world [moveit_msgs/msg/PlanningSceneWorld]
+[peach_observability-11] [INFO] [1791792692.828863309] [peach_observability]: 全量录制订阅: /robot_description [std_msgs/msg/String]
+[peach_observability-11] [INFO] [1791792692.829523786] [peach_observability]: 全量录制订阅: /sequence_move_group/_action/feedback [moveit_msgs/action/MoveGroupSequence_FeedbackMessage]
+[peach_observability-11] [INFO] [1791792692.830080258] [peach_observability]: 全量录制订阅: /sequence_move_group/_action/status [action_msgs/msg/GoalStatusArray]
+[peach_observability-11] [INFO] [1791792692.830541578] [peach_observability]: 全量录制订阅: /tf [tf2_msgs/msg/TFMessage]
+[peach_observability-11] [INFO] [1791792692.831009807] [peach_observability]: 全量录制订阅: /tf_static [tf2_msgs/msg/TFMessage]
+[peach_observability-11] [INFO] [1791792692.831499557] [peach_observability]: 全量录制订阅: /trajectory_execution_event [std_msgs/msg/String]
+[frozen_camera_replay.py-14] loaded frame 70 from /home/mu/Desktop/peach_camera_sim_20260930/peach_camera_sim_20260930/01_live_10s_verified/stereo_10s: /camera/color/image_raw=71, /camera/depth/image_raw=71, /camera/color/camera_info=71, /camera/depth/camera_info=71, /camera/depth_registered/points=71
+[frozen_camera_replay.py-14] [WARN] [1791792692.964687105] [rcl]: ROS_LOCALHOST_ONLY is deprecated but still honored if it is enabled. Use ROS_AUTOMATIC_DISCOVERY_RANGE and ROS_STATIC_PEERS instead.
+[frozen_camera_replay.py-14] [WARN] [1791792692.964693517] [rcl]: 'localhost_only' is enabled, 'automatic_discovery_range' and 'static_peers' will be ignored.
+[peach_harvester-9] [INFO] [1791792693.318733427] [peach_scene_perception_node]: Subscribed color=/camera/color/image_raw depth=/camera/depth/image_raw info=/camera/color/camera_info slop=0.05s optical=camera_color_optical_frame output=base_link depth_scale_unit=0.25 gravity_mode=tf calib=percipio-640x480-chessboard|hand_eye:import_humble_20260128T114006
+[peach_harvester-9] [INFO] [1791792693.318955267] [peach_scene_perception_node]: 目标身份记忆已启用：match_radius=0.06 m, max_targets=50, ema=0.3
+[peach_harvester-9] [INFO] [1791792693.329483937] [peach_target_reconstruction_node]: peach_target_reconstruction_node ready: base=base_link color=/camera/color/image_raw depth=/camera/depth/image_raw slop=0.05s depth_scale_unit=0.25 views(min/rec/max)=1/5/24 require_static=True auto_mode=True session_root=/home/mu/Desktop/aubo_e5_jazzy_ws/runs
+[lifecycle_manager-12] [INFO] [1791792693.373456750] [peach_lifecycle_manager]: [34m[1mStarting managed nodes bringup...[0m[0m
+[lifecycle_manager-12] [INFO] [1791792693.373502245] [peach_lifecycle_manager]: [34m[1mConfiguring peach_scene_perception_node[0m[0m
+[lifecycle_manager-12] [INFO] [1791792693.399386905] [peach_lifecycle_manager]: [34m[1mConfiguring peach_target_reconstruction_node[0m[0m
+[lifecycle_manager-12] [INFO] [1791792693.416101201] [peach_lifecycle_manager]: [34m[1mConfiguring peach_arm[0m[0m
+[peach_arm-10] [WARN] [1791792693.416468636] [peach_arm]: scan.protected_zones 丢弃畸形盒: 盒#0 存在 min>=max 的轴（空盒/退化盒），已丢弃
+[peach_arm-10] [WARN] [1791792693.434468770] [peach_arm]: scan.protected_zones 丢弃畸形盒: 盒#0 存在 min>=max 的轴（空盒/退化盒），已丢弃
+[peach_arm-10] [WARN] [1791792693.434560964] [peach_arm]: scan.protected_zones 丢弃畸形盒: 盒#0 存在 min>=max 的轴（空盒/退化盒），已丢弃
+[peach_arm-10] [WARN] [1791792693.435877649] [rcl.logging_rosout]: Publisher already registered for node name: 'peach_arm'. If this is due to multiple nodes with the same name then all logs for the logger named 'peach_arm' will go out over the existing publisher. As soon as any node with that name is destructed it will unregister the publisher, preventing any further logs for that name from being published on the rosout topic.
+[peach_arm-10] [INFO] [1791792693.440837606] [peach_arm.moveit.ros.rdf_loader]: Loaded robot model in 0.00202094 seconds
+[peach_arm-10] [INFO] [1791792693.440897095] [peach_arm.moveit.core.robot_model]: Loading robot model 'aubo_e5'...
+[peach_arm-10] [INFO] [1791792693.440906726] [peach_arm.moveit.core.robot_model]: No root/virtual joint specified in SRDF. Assuming fixed joint
+[peach_arm-10] [INFO] [1791792693.460666897] [peach_arm.moveit.kinematics.kdl_kinematics_plugin]: Joint weights for group 'manipulator_e5': 1 1 1 1 1 1
+[peach_arm-10] [INFO] [1791792693.469078725] [peach_arm.moveit.ros.move_group_interface]: Ready to take commands for planning group manipulator_e5.
+[peach_arm-10] [INFO] [1791792693.469122123] [peach_arm]: 主动视觉靠近节点 ready: group=manipulator_e5 base=base_link tip=tcp camera=camera_depth_optical_frame execution=plan_only grasp=disabled
+[peach_arm-10] [INFO] [1791792693.469142065] [peach_arm]: [IDLE] 已配置；activate 后才开放运动输出权限
+[lifecycle_manager-12] [INFO] [1791792693.469590581] [peach_lifecycle_manager]: [34m[1mConfiguring peach_supervisor[0m[0m
+[peach_harvester-9] [INFO] [1791792693.492657883] [peach_supervisor]: task executor configured; will not auto-start harvest
+[lifecycle_manager-12] [INFO] [1791792693.496868729] [peach_lifecycle_manager]: [34m[1mActivating peach_scene_perception_node[0m[0m
+[peach_harvester-9] [INFO] [1791792693.498873620] [peach_scene_perception_node]: perception Active：开始处理 RGB-D
+[lifecycle_manager-12] [INFO] [1791792693.499759710] [peach_lifecycle_manager]: [34m[1mActivating peach_target_reconstruction_node[0m[0m
+[peach_harvester-9] [INFO] [1791792693.502279872] [peach_target_reconstruction_node]: reconstruction Active：开始积分
+[lifecycle_manager-12] [INFO] [1791792693.503378058] [peach_lifecycle_manager]: [34m[1mActivating peach_arm[0m[0m
+[peach_arm-10] [WARN] [1791792693.503646158] [peach_arm]: scan.protected_zones 丢弃畸形盒: 盒#0 存在 min>=max 的轴（空盒/退化盒），已丢弃
+[peach_arm-10] [INFO] [1791792693.505146834] [peach_arm]: 节点已激活：运动输出权限开放
+[lifecycle_manager-12] [INFO] [1791792693.505542297] [peach_lifecycle_manager]: [34m[1mActivating peach_supervisor[0m[0m
+[lifecycle_manager-12] [INFO] [1791792693.508190129] [peach_lifecycle_manager]: [34m[1mManaged nodes are active[0m[0m
+[peach_arm-10] [WARN] [1791792693.511047487] [rcl.logging_rosout]: Publisher already registered for node name: 'peach_arm'. If this is due to multiple nodes with the same name then all logs for the logger named 'peach_arm' will go out over the existing publisher. As soon as any node with that name is destructed it will unregister the publisher, preventing any further logs for that name from being published on the rosout topic.
+[peach_lifecycle_flag_bridge-13] [INFO] [1791792693.515370473] [peach_lifecycle_flag_bridge]: 托管栈 Active=True（桥自 nav2_lm is_active）
+[peach_arm-10] [WARN] [1791792693.515887881] [rcl.logging_rosout]: Publisher already registered for node name: 'peach_arm'. If this is due to multiple nodes with the same name then all logs for the logger named 'peach_arm' will go out over the existing publisher. As soon as any node with that name is destructed it will unregister the publisher, preventing any further logs for that name from being published on the rosout topic.
+[move_group-6] [WARN] [1791792693.520717700] [move_group.moveit.moveit.ros.planning_scene_monitor]: Unable to transform object from frame 'camera_link' to planning frame'world' (Could not find a connection between 'world' and 'camera_link' because they are not part of the same tree.Tf has two or more unconnected trees.)
+[peach_arm-10] [INFO] [1791792693.520870969] [peach_arm]: 场景障碍 ACM 豁免已应用: 28 条（含 <octomap> 保留名）
+[peach_harvester-9] [INFO] [1791792694.004872736] [peach_scene_perception_node]: CameraInfo K fx=466.175 fy=465.557 cx=326.071 cy=244.789 640x480
+[WARN] [1791792694.729285856] [rcl]: ROS_LOCALHOST_ONLY is deprecated but still honored if it is enabled. Use ROS_AUTOMATIC_DISCOVERY_RANGE and ROS_STATIC_PEERS instead.
+[WARN] [1791792694.729303598] [rcl]: 'localhost_only' is enabled, 'automatic_discovery_range' and 'static_peers' will be ignored.
+[peach_observability-11] [INFO] [1791792694.835516597] [peach_observability]: 全量录制订阅: /aubo_io_controller/io_states [aubo_msgs/msg/IOState]
+[peach_observability-11] [INFO] [1791792694.839870591] [peach_observability]: 全量录制订阅: /bond [bond/msg/Status]
+[peach_observability-11] [INFO] [1791792694.841153555] [peach_observability]: 全量录制订阅: /camera/color/camera_info [sensor_msgs/msg/CameraInfo]
+[peach_observability-11] [INFO] [1791792694.842114458] [peach_observability]: 全量录制订阅: /camera/depth/camera_info [sensor_msgs/msg/CameraInfo]
+[peach_observability-11] [INFO] [1791792694.842740320] [peach_observability]: 全量录制订阅: /imu_follow/insert_progress [std_msgs/msg/Float64]
+[peach_observability-11] [INFO] [1791792694.875230760] [peach_observability]: 全量录制订阅: /joint_trajectory_controller/controller_state [control_msgs/msg/JointTrajectoryControllerState]
+[peach_observability-11] [INFO] [1791792694.876135132] [peach_observability]: 全量录制订阅: /joint_trajectory_controller/joint_trajectory [trajectory_msgs/msg/JointTrajectory]
+[peach_observability-11] [INFO] [1791792694.876875901] [peach_observability]: 全量录制订阅: /joint_trajectory_controller/speed_scaling_input [control_msgs/msg/SpeedScalingFactor]
+[peach_observability-11] [INFO] [1791792694.877520849] [peach_observability]: 全量录制订阅: /joint_trajectory_controller/transition_event [lifecycle_msgs/msg/TransitionEvent]
+[peach_observability-11] [INFO] [1791792694.878156081] [peach_observability]: 全量录制订阅: /peach/batch/enables [peach_interfaces/msg/Enables]
+[peach_observability-11] [INFO] [1791792694.878833181] [peach_observability]: 全量录制订阅: /peach/perception/axis [geometry_msgs/msg/Vector3Stamped]
+[peach_observability-11] [INFO] [1791792694.891622951] [peach_observability]: 全量录制订阅: /peach/perception/detections [vision_msgs/msg/Detection2DArray]
+[peach_observability-11] [INFO] [1791792694.892317021] [peach_observability]: 全量录制订阅: /peach/perception/diagnostics [peach_interfaces/msg/BagFittingArray]
+[peach_observability-11] [INFO] [1791792694.893027748] [peach_observability]: 全量录制订阅: /peach/perception/initial_pose [peach_interfaces/msg/BagGraspCandidateArray]
+[peach_observability-11] [INFO] [1791792694.893721827] [peach_observability]: 全量录制订阅: /peach/perception/markers [visualization_msgs/msg/MarkerArray]
+[peach_observability-11] [INFO] [1791792694.894441166] [peach_observability]: 全量录制订阅: /peach/perception/masks [sensor_msgs/msg/Image]
+[peach_observability-11] [INFO] [1791792694.895037724] [peach_observability]: 全量录制订阅: /peach/perception/single_cloud [sensor_msgs/msg/PointCloud2]
+[peach_observability-11] [INFO] [1791792694.895637475] [peach_observability]: 全量录制订阅: /peach/reconstruction/local_cloud [sensor_msgs/msg/PointCloud2]
+[peach_observability-11] [INFO] [1791792694.896226749] [peach_observability]: 全量录制订阅: /peach/reconstruction/markers [visualization_msgs/msg/MarkerArray]
+[peach_observability-11] [INFO] [1791792694.896936255] [peach_observability]: 全量录制订阅: /peach/reconstruction/pregrasp_verification [peach_interfaces/msg/PregraspVerification]
+[peach_observability-11] [INFO] [1791792694.897653302] [peach_observability]: 全量录制订阅: /peach/reconstruction/shape_hypothesis [peach_interfaces/msg/ShapeHypothesis]
+[peach_observability-11] [INFO] [1791792694.898383365] [peach_observability]: 全量录制订阅: /peach_arm/move_to/_action/feedback [peach_interfaces/action/MoveTo_FeedbackMessage]
+[peach_observability-11] [INFO] [1791792694.898982086] [peach_observability]: 全量录制订阅: /peach_arm/move_to/_action/status [action_msgs/msg/GoalStatusArray]
+[peach_observability-11] [INFO] [1791792694.899593888] [peach_observability]: 全量录制订阅: /peach_arm/planned_views [visualization_msgs/msg/MarkerArray]
+[peach_observability-11] [INFO] [1791792694.900270809] [peach_observability]: 全量录制订阅: /peach_arm/tool_state [peach_interfaces/msg/ToolState]
+[peach_observability-11] [INFO] [1791792694.900881291] [peach_observability]: 全量录制订阅: /peach_supervisor/transition_event [lifecycle_msgs/msg/TransitionEvent]
+[peach_observability-11] [INFO] [1791792694.901516901] [peach_observability]: 全量录制订阅: /peach_target_reconstruction_node/transition_event [lifecycle_msgs/msg/TransitionEvent]
+[peach_harvester-9] [WARN] [1791792695.019864999] [peach_scene_perception_node]: TF 失败，输出退回相机系 camera_color_optical_frame: Could not find a connection between 'base_link' and 'camera_color_optical_frame' because they are not part of the same tree.Tf has two or more unconnected trees.
+[peach_harvester-9] [WARN] [1791792695.020196063] [peach_scene_perception_node]: gravity_mode=tf 但 TF 不可用或未设 output_frame，本帧回退 gravity_hint_xyz
+ready activated=True images=1
+[peach_harvester-9] /home/mu/Desktop/aubo_e5_jazzy_ws/aubo_py3.12/lib/python3.12/site-packages/matplotlib/projections/__init__.py:63: UserWarning: Unable to import Axes3D. This may be due to multiple versions of Matplotlib being installed (e.g. as a system package and as a pip package). As a result, the 3D projection is not available.
+[peach_harvester-9]   warnings.warn("Unable to import Axes3D. This may be due to multiple versions of "
+[ros2_control_node-3] [INFO] [1791792695.769665513] [controller_manager]: Loading controller : 'joint_state_broadcaster' of type 'joint_state_broadcaster/JointStateBroadcaster'
+[ros2_control_node-3] [INFO] [1791792695.769699469] [controller_manager]: Loading controller 'joint_state_broadcaster'
+[ros2_control_node-3] [INFO] [1791792695.770731072] [controller_manager]: Controller 'joint_state_broadcaster' node arguments: --ros-args -p use_sim_time:=False --params-file /tmp/launch_params_2usc8b65 --params-file /home/mu/Desktop/aubo_e5_jazzy_ws/install/aubo_e5_bringup/share/aubo_e5_bringup/config/controllers.yaml 
+[spawner-4] [INFO] [1791792695.789599843] [spawner_joint_state_broadcaster]: Loaded joint_state_broadcaster
+[ros2_control_node-3] [INFO] [1791792695.794164420] [controller_manager]: Configuring controller: 'joint_state_broadcaster'
+[ros2_control_node-3] [INFO] [1791792695.794223966] [joint_state_broadcaster]: 'joints' or 'interfaces' parameter is empty. All available state interfaces will be published
+[ros2_control_node-3] [INFO] [1791792695.805687776] [controller_manager]: Activating controllers: [ joint_state_broadcaster ]
+[ros2_control_node-3] [INFO] [1791792695.806301733] [controller_manager]: Successfully switched controllers!
+[spawner-4] [INFO] [1791792695.812017012] [spawner_joint_state_broadcaster]: Configured and activated joint_state_broadcaster
+[INFO] [spawner-4]: process has finished cleanly [pid 356104]
+controllers ready=True
+[peach_arm-10] [INFO] [1791792696.530811434] [peach_arm]: 场景障碍 ACM 豁免已应用: 28 条（含 <octomap> 保留名）
+[peach_observability-11] [INFO] [1791792696.836075436] [peach_observability]: 全量录制订阅: /dynamic_joint_states [control_msgs/msg/DynamicJointState]
+[peach_observability-11] [INFO] [1791792696.837292118] [peach_observability]: 全量录制订阅: /joint_state_broadcaster/transition_event [lifecycle_msgs/msg/TransitionEvent]
+[peach_harvester-9] [INFO] [1791792698.544497721] [peach_scene_perception_node]: 目标注册表在册 0 个目标（累计注册 0、累计命中 0）
+[peach_harvester-9] [WARN] [1791792698.548280561] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 5（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [INFO] [1791792698.684854132] [peach_scene_perception_node]: peach_harvester.vision.scene_perception.identity: 目标注册 累计 1 次（最近: target_0 cls=0 累计表规模 1）
+[peach_harvester-9] [WARN] [1791792699.507181358] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 6（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_arm-10] [INFO] [1791792699.619729410] [peach_arm]: 场景障碍 ACM 豁免已应用: 28 条（含 <octomap> 保留名）
+[peach_harvester-9] [WARN] [1791792699.657729250] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 8（处理跟不上到达率，排查热路径耗时或降低到达率）
+param execute_pregrasp_only=False: OK
+param reconstruct_in_trajectory=True: OK
+param reconstruction_min_views=1: OK
+[peach_arm-10] [WARN] [1791792701.135041968] [peach_arm]: scan.protected_zones 丢弃畸形盒: 盒#0 存在 min>=max 的轴（空盒/退化盒），已丢弃
+param grasp.allow_stale_anchor=True: OK
+[peach_arm-10] [WARN] [1791792701.188716155] [peach_arm]: scan.protected_zones 丢弃畸形盒: 盒#0 存在 min>=max 的轴（空盒/退化盒），已丢弃
+param moveit.obstacle_guard_enabled=False: OK
+[peach_arm-10] [WARN] [1791792701.239080727] [peach_arm]: scan.protected_zones 丢弃畸形盒: 盒#0 存在 min>=max 的轴（空盒/退化盒），已丢弃
+param grasp.maximum_travel_m=0.02: OK
+param workspace_radius_m=0.05: OK
+[peach_arm-10] [INFO] [1791792701.344067157] [peach_arm]: 使能切换到操作台广播源（/peach/batch/enables）
+[peach_arm-10] [INFO] [1791792701.344095043] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_harvester-9] [INFO] [1791792701.344597913] [peach_supervisor]: 操作台使能: execution=True grasp=True tool=False（peach_system_tests frozen_camera one-view FULL dry）
+enables(execution=True grasp=True tool=False): OK
+goal: request_id=e2e_20261012_1610 intent=PICK_ALL (one-view overlay, cancel after first target)
+[peach_observability-11] [WARN] [1791792701.407247904] [rosbag2_cpp]: Message definition for topic '/peach_supervisor/run_harvest/_action/status' with type 'action_msgs/msg/GoalStatusArray' not found. Message definition will be left empty in bag.
+[peach_arm-10] [INFO] [1791792701.412974370] [peach_arm.moveit.ros.current_state_monitor]: Listening to joint states on topic 'joint_states'
+[peach_harvester-9] [INFO] [1791792701.416642560] [peach_supervisor]: Survey 进行中: moving_to_photo_pose
+[peach_observability-11] [WARN] [1791792701.417368721] [rosbag2_cpp]: Message definition for topic '/peach_arm/survey_scene/_action/feedback' with type 'peach_interfaces/msg/SurveyScene_FeedbackMessage' not found. Message definition will be left empty in bag.
+[peach_harvester-9] [INFO] [1791792701.418083079] [peach_supervisor]: Survey 进行中: waiting_snapshot
+[peach_observability-11] [WARN] [1791792701.418862161] [rosbag2_cpp]: Message definition for topic '/peach_arm/survey_scene/_action/status' with type 'action_msgs/msg/GoalStatusArray' not found. Message definition will be left empty in bag.
+state batch=0 phase=0 target='' recovery=False
+[peach_arm-10] [INFO] [1791792701.495110906] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792702.488408516] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_observability-11] [WARN] [1791792702.696870532] [peach_observability]: 自检[initial] 12/18 通过，失败: camera_color_rate, camera_depth_rate，跳过: robot_status, imu_topic, model_files, vegetation_status
+[peach_arm-10] [INFO] [1791792703.487531312] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792704.487228857] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792705.487728553] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792706.488575534] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+state batch=0 phase=0 target='' recovery=False
+[peach_observability-11] [WARN] [1791792706.890926868] [rosbag2_cpp]: Message definition for topic '/peach/scene/obstacles_refresh' with type 'std_msgs/msg/Empty' not found. Message definition will be left empty in bag.
+[peach_observability-11] [WARN] [1791792706.891105533] [rosbag2_cpp]: Message definition for topic '/peach_supervisor/run_harvest/_action/feedback' with type 'peach_interfaces/msg/RunHarvest_FeedbackMessage' not found. Message definition will be left empty in bag.
+[move_group-6] [WARN] [1791792706.919359752] [move_group.moveit.moveit.core.planning_scene]: Tried to remove world object 'peach_scene_obstacles', but it does not exist in this scene.
+[peach_scene_obstacles-1] [INFO] [1791792706.969397114] [peach_scene_obstacles]: 场景障碍已关闭，不把枝叶写入碰撞场景
+[peach_arm-10] [INFO] [1791792707.487599382] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792708.487251909] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_harvester-9] [INFO] [1791792708.698396252] [peach_scene_perception_node]: 目标注册表在册 1 个目标（累计注册 1、累计命中 20）
+[peach_arm-10] [INFO] [1791792709.487692170] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792710.487377751] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792711.487914072] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+state batch=1 phase=0 target='' recovery=False
+[peach_arm-10] [INFO] [1791792712.487782717] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792713.488708475] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792714.496775717] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792715.487759332] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792716.488741107] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+state batch=1 phase=0 target='' recovery=False
+[peach_arm-10] [INFO] [1791792717.488048497] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_observability-11] [WARN] [1791792717.699976746] [rosbag2_cpp]: Message definition for topic '/peach_target_reconstruction_node/build_target_model/_action/status' with type 'action_msgs/msg/GoalStatusArray' not found. Message definition will be left empty in bag.
+[peach_harvester-9] [INFO] [1791792717.705965792] [peach_target_reconstruction_node]: 已清空，回 IDLE
+[peach_arm-10] [INFO] [1791792718.495702051] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_harvester-9] [INFO] [1791792718.864914039] [peach_target_reconstruction_node]: 自动开始：开始重建，绑定目标 target_0
+[peach_harvester-9] [WARN] [1791792718.868701949] [peach_target_reconstruction_node]: 自动采帧跳过 [other]：缺少所选 target_id 的容差内掩膜
+[peach_observability-11] [WARN] [1791792718.872713469] [rosbag2_cpp]: Message definition for topic '/peach_target_reconstruction_node/build_target_model/_action/feedback' with type 'peach_interfaces/msg/BuildTargetModel_FeedbackMessage' not found. Message definition will be left empty in bag.
+[peach_harvester-9] [INFO] [1791792718.876805660] [peach_supervisor]: reconstruct_in_trajectory: Build 并行，立即派 FULL target=target_0（skip_observation）
+[peach_arm-10] [INFO] [1791792718.888335514] [peach_arm]: [PLAN_OBSERVATION] 生成目标导向主动视点
+[peach_arm-10] [INFO] [1791792718.888520315] [peach_arm]: [FINALIZE] 等待重建精化几何（BuildTargetModel）
+[peach_observability-11] [WARN] [1791792718.894383409] [rosbag2_cpp]: Message definition for topic '/peach_arm/execute_target/_action/feedback' with type 'peach_interfaces/msg/ExecuteTarget_FeedbackMessage' not found. Message definition will be left empty in bag.
+[peach_observability-11] [WARN] [1791792718.894467995] [rosbag2_cpp]: Message definition for topic '/peach_arm/execute_target/_action/status' with type 'action_msgs/msg/GoalStatusArray' not found. Message definition will be left empty in bag.
+[peach_harvester-9] [INFO] [1791792718.912936546] [peach_target_reconstruction_node]: REFINING：几何二次拟合开始（kind=bag，843 点）
+[peach_harvester-9] [INFO] [1791792718.943180684] [peach_scene_perception_node]: 目标注册表在册 1 个目标（累计注册 1、累计命中 40）
+[peach_harvester-9] [INFO] [1791792718.961701831] [peach_target_reconstruction_node]: REFINING 完成：cylinder status=ACCEPT final=False axis=[0.0299, -0.4767, 0.8785] diameter=68.0mm
+[peach_harvester-9] [INFO] [1791792718.962445186] [peach_target_reconstruction_node]: 已采第 1/5 视角，本帧 2291 点，有效深度占比 0.95，位姿=fk
+[peach_harvester-9] [INFO] [1791792718.970823731] [peach_target_reconstruction_node]: 已采第 2/5 视角，本帧 2291 点，有效深度占比 0.95，位姿=fk
+[peach_harvester-9] [INFO] [1791792718.980906882] [peach_target_reconstruction_node]: REFINING：几何二次拟合开始（kind=bag，843 点）
+[peach_harvester-9] [INFO] [1791792719.019597238] [peach_target_reconstruction_node]: REFINING 完成：cylinder status=ACCEPT final=True axis=[0.0299, -0.4767, 0.8785] diameter=68.0mm
+[peach_harvester-9] [INFO] [1791792719.020395150] [peach_target_reconstruction_node]: 局部重建完成：2 帧，4582 点（少于推荐 5 帧）；重叠 mean=0.0mm p95=0.0mm；TSDF 843 点 / mesh 1441 顶点（累计积分 0.01s）；refit ACCEPT（袋模型 1 视）
+[peach_arm-10] [INFO] [1791792719.029983656] [peach_arm]: 接触几何（核对方向） target=target_0 entry=[0.356 -0.797 0.606] axis=[0.030 -0.477 0.879] travel=0.020m axis_angle_deg=5.74
+[peach_arm-10] [WARN] [1791792719.030049707] [peach_arm]: grasp.allow_stale_anchor=true：跳过抓取前再确认，按静态目标锚点继续（旧行为，验证期遗留）
+[peach_arm-10] [INFO] [1791792719.030089197] [peach_arm]: [MTC_APPROACH_INSERT] 拍照位再最短路径到预抓取
+[peach_arm-10] [INFO] [1791792719.031269813] [peach_arm]: 预抓取从拍照位出发: 已在命名状态
+[peach_arm-10] [INFO] [1791792719.031283470] [peach_arm]: 接近：距入口 0.559m 轴向 0.191m 侧向 0.526m 夹角 28.8° 扫角 70.1° 半径 0.559m 沿轴LIN 0.030m 刀口滚转 0° 原语 LIN-align+LIN
+[peach_arm-10] [INFO] [1791792719.487567043] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792719.914888298] [peach_arm]: staging IK 择优：滚转 0°（20 候选，腕轴加权距离² 7.515）
+[peach_arm-10] [INFO] [1791792719.914906882] [peach_arm]: PTP 接近（主路径）：关节空间到中段点正下方 + 垂直入冠 0.050m + 沿轴 0.050m（滚转 0°）
+[peach_arm-10] [INFO] [1791792719.934362575] [peach_arm.moveit.ros.rdf_loader]: Loaded robot model in 0.000948916 seconds
+[peach_arm-10] [INFO] [1791792719.934375822] [peach_arm.moveit.core.robot_model]: Loading robot model 'aubo_e5'...
+[peach_arm-10] [INFO] [1791792719.934378334] [peach_arm.moveit.core.robot_model]: No root/virtual joint specified in SRDF. Assuming fixed joint
+[peach_arm-10] [INFO] [1791792719.952233836] [peach_arm.moveit.kinematics.kdl_kinematics_plugin]: Joint weights for group 'manipulator_e5': 1 1 1 1 1 1
+[peach_arm-10] [INFO] [1791792719.959720449] [peach_arm]: 场景障碍 ACM 豁免已应用: 28 条（含 <octomap> 保留名）
+[peach_arm-10] [INFO] [1791792719.967952205] [peach_arm.moveit.planners.pilz.joint_limits_aggregator]: Reading limits from namespace robot_description_planning
+[peach_arm-10] [INFO] [1791792719.968387324] [peach_arm.moveit.planners.pilz.command_planner]: Available plugins: pilz_industrial_motion_planner/PlanningContextLoaderCIRC pilz_industrial_motion_planner/PlanningContextLoaderLIN pilz_industrial_motion_planner/PlanningContextLoaderPTP 
+[peach_arm-10] [INFO] [1791792719.968391684] [peach_arm.moveit.planners.pilz.command_planner]: About to load: pilz_industrial_motion_planner/PlanningContextLoaderCIRC
+[peach_arm-10] [INFO] [1791792719.969111983] [peach_arm.moveit.planners.pilz.command_planner]: Registered Algorithm [CIRC]
+[peach_arm-10] [INFO] [1791792719.969115571] [peach_arm.moveit.planners.pilz.command_planner]: About to load: pilz_industrial_motion_planner/PlanningContextLoaderLIN
+[peach_arm-10] [INFO] [1791792719.969619852] [peach_arm.moveit.planners.pilz.command_planner]: Registered Algorithm [LIN]
+[peach_arm-10] [INFO] [1791792719.969622440] [peach_arm.moveit.planners.pilz.command_planner]: About to load: pilz_industrial_motion_planner/PlanningContextLoaderPTP
+[peach_arm-10] [INFO] [1791792719.970109891] [peach_arm.moveit.planners.pilz.command_planner]: Registered Algorithm [PTP]
+[peach_arm-10] [INFO] [1791792719.970113850] [peach_arm.moveit.ros.planning_pipeline]: Successfully loaded planner 'Pilz Industrial Motion Planner'
+[peach_arm-10] [INFO] [1791792719.970836529] [peach_arm]: Try loading adapter 'default_planning_request_adapters/ResolveConstraintFrames'
+[peach_arm-10] [INFO] [1791792719.971330837] [peach_arm]: Loaded adapter 'default_planning_request_adapters/ResolveConstraintFrames'
+[peach_arm-10] [INFO] [1791792719.971332990] [peach_arm]: Try loading adapter 'default_planning_request_adapters/ValidateWorkspaceBounds'
+[peach_arm-10] [INFO] [1791792719.971368512] [peach_arm]: Loaded adapter 'default_planning_request_adapters/ValidateWorkspaceBounds'
+[peach_arm-10] [INFO] [1791792719.971369662] [peach_arm]: Try loading adapter 'default_planning_request_adapters/CheckStartStateBounds'
+[peach_arm-10] [INFO] [1791792719.971391713] [peach_arm]: Loaded adapter 'default_planning_request_adapters/CheckStartStateBounds'
+[peach_arm-10] [INFO] [1791792719.971392924] [peach_arm]: Try loading adapter 'default_planning_request_adapters/CheckStartStateCollision'
+[peach_arm-10] [INFO] [1791792719.971396147] [peach_arm]: Loaded adapter 'default_planning_request_adapters/CheckStartStateCollision'
+[peach_arm-10] [INFO] [1791792719.972099416] [peach_arm]: Try loading adapter 'default_planning_response_adapters/ValidateSolution'
+[peach_arm-10] [INFO] [1791792719.973195884] [peach_arm]: Loaded adapter 'default_planning_response_adapters/ValidateSolution'
+[peach_arm-10] [INFO] [1791792720.038103178] [peach_arm]: Calling PlanningRequestAdapter 'ResolveConstraintFrames'
+[peach_arm-10] [INFO] [1791792720.038268912] [peach_arm]: Calling PlanningRequestAdapter 'ValidateWorkspaceBounds'
+[peach_arm-10] [WARN] [1791792720.038273124] [peach_arm.moveit.ros.validate_workspace_bounds]: It looks like the planning volume was not specified. Using default values.
+[peach_arm-10] [INFO] [1791792720.038285321] [peach_arm]: Calling PlanningRequestAdapter 'CheckStartStateBounds'
+[peach_arm-10] [INFO] [1791792720.038306201] [peach_arm]: Calling PlanningRequestAdapter 'CheckStartStateCollision'
+[peach_arm-10] [INFO] [1791792720.038432026] [peach_arm.moveit.planners.pilz.trajectory_generator.ptp]: Initialized Point-to-Point Trajectory Generator.
+[peach_arm-10] [INFO] [1791792720.038445945] [peach_arm]: Calling Planner 'Pilz Industrial Motion Planner'
+[peach_arm-10] [INFO] [1791792720.038468801] [peach_arm.moveit.planners.pilz.trajectory_generator]: Generating PTP trajectory...
+[peach_arm-10] [INFO] [1791792720.038898942] [peach_arm]: Calling PlanningResponseAdapter 'ValidateSolution'
+[peach_arm-10] [INFO] [1791792720.039777076] [peach_arm]: MTC 接近短路径审查: segments=1 allowed=true points=58 duration=5.694s joint_total=4.508rad joint_max=1.344rad (短路径门通过)
+[peach_arm-10] [INFO] [1791792720.039811374] [peach_arm]: MTC 接近果实胶囊审查(seg0 转移): allowed=true min_clearance=999.000m (果实胶囊审查通过)
+[peach_arm-10] [INFO] [1791792720.039815342] [peach_arm]: MTC 接近笛卡尔审查: allowed=true path=0.619m chord=0.554m ratio=1.12 max_dev=0.117m recede=0.000m (笛卡尔短路径门通过)
+[peach_arm-10] [INFO] [1791792720.039819726] [peach_arm]: MTC 接近姿态审查: allowed=true max_from_start=28.8deg (TCP 姿态行程通过)
+[move_group-6] [WARN] [1791792720.046170452] [moveit_task_constructor_visualization.execute_task_solution]: The trajectory of stage '0' from task '' does not have any controllers specified for trajectory execution. This might lead to unexpected controller selection.
+[move_group-6] [INFO] [1791792720.046190264] [moveit_task_constructor_visualization.execute_task_solution]: Executing TaskSolution
+[move_group-6] [INFO] [1791792720.046334466] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[move_group-6] [INFO] [1791792720.046384169] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[move_group-6] [INFO] [1791792720.046444771] [move_group.moveit.moveit.ros.trajectory_execution_manager]: Validating trajectory with allowed_start_tolerance 0.15
+[peach_observability-11] [WARN] [1791792720.049849460] [rosbag2_cpp]: Message definition for topic '/execute_task_solution/_action/status' with type 'action_msgs/msg/GoalStatusArray' not found. Message definition will be left empty in bag.
+[move_group-6] [INFO] [1791792720.051385637] [move_group.moveit.moveit.ros.trajectory_execution_manager]: Starting trajectory execution ...
+[move_group-6] [INFO] [1791792720.051436168] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[move_group-6] [INFO] [1791792720.051451605] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[move_group-6] [INFO] [1791792720.052437335] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[move_group-6] [INFO] [1791792720.052464133] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[move_group-6] [INFO] [1791792720.052634615] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: sending trajectory to joint_trajectory_controller
+[ros2_control_node-3] [INFO] [1791792720.052859435] [joint_trajectory_controller]: Received new action goal
+[ros2_control_node-3] [INFO] [1791792720.052901191] [joint_trajectory_controller]: Accepted new action goal
+[move_group-6] [INFO] [1791792720.053041853] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: joint_trajectory_controller started execution
+[move_group-6] [INFO] [1791792720.053053116] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: Goal request accepted!
+[peach_observability-11] [WARN] [1791792720.056191553] [rosbag2_cpp]: Message definition for topic '/execute_task_solution/_action/feedback' with type 'moveit_task_constructor_msgs/msg/ExecuteTaskSolution_FeedbackMessage' not found. Message definition will be left empty in bag.
+[peach_observability-11] [WARN] [1791792720.059067239] [rosbag2_cpp]: Message definition for topic '/joint_trajectory_controller/follow_joint_trajectory/_action/status' with type 'action_msgs/msg/GoalStatusArray' not found. Message definition will be left empty in bag.
+[peach_observability-11] [WARN] [1791792720.109628724] [rosbag2_cpp]: Message definition for topic '/joint_trajectory_controller/follow_joint_trajectory/_action/feedback' with type 'control_msgs/msg/FollowJointTrajectory_FeedbackMessage' not found. Message definition will be left empty in bag.
+replay pause=True ok=True paused
+photo: replay paused on harvest motion (joint dev 0.0033 rad)
+[peach_arm-10] [INFO] [1791792720.491457484] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792721.487962303] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+state batch=2 phase=5 target='target_0' recovery=False
+[peach_arm-10] [INFO] [1791792722.487955693] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [WARN] [1791792722.666217226] [rclcpp]: Failed to get parameters: moveit.velocity_scaling
+[peach_observability-11] [WARN] [1791792722.703774198] [peach_observability]: 自检[periodic] 12/18 通过，失败: camera_color_rate, camera_depth_rate，跳过: robot_status, imu_topic, model_files, vegetation_status
+[peach_arm-10] [INFO] [1791792723.488040122] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792724.488314069] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792725.488948497] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [WARN] [1791792725.668262712] [rclcpp]: Failed to get parameters: moveit.velocity_scaling
+[ros2_control_node-3] [INFO] [1791792725.746203715] [joint_trajectory_controller]: Goal reached, success!
+[move_group-6] [INFO] [1791792725.757046875] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: Controller 'joint_trajectory_controller' successfully finished
+[move_group-6] [INFO] [1791792725.772008416] [move_group.moveit.moveit.ros.trajectory_execution_manager]: Completed trajectory execution with status SUCCEEDED ...
+[peach_arm-10] Warning: class_loader.ClassLoader: SEVERE WARNING!!! Attempting to unload library while objects created by this loader exist in the heap! You should delete your objects before attempting to unload the library or destroying the ClassLoader. The library will NOT be unloaded.
+[peach_arm-10]          at line 127 in ./src/class_loader.cpp
+[move_group-6] [INFO] [1791792725.806257254] [move_group.moveit.moveit.ros.move_group.capability]: Using planning pipeline 'pilz_industrial_motion_planner'
+[move_group-6] [INFO] [1791792725.807286381] [move_group]: Calling PlanningRequestAdapter 'ResolveConstraintFrames'
+[move_group-6] [INFO] [1791792725.807580123] [move_group]: Calling PlanningRequestAdapter 'ValidateWorkspaceBounds'
+[move_group-6] [WARN] [1791792725.807588784] [move_group.moveit.moveit.ros.validate_workspace_bounds]: It looks like the planning volume was not specified. Using default values.
+[move_group-6] [INFO] [1791792725.807603923] [move_group]: Calling PlanningRequestAdapter 'CheckStartStateBounds'
+[move_group-6] [ERROR] [1791792725.807624867] [move_group.moveit.moveit.core.conversions]: Found empty JointState message
+[move_group-6] [INFO] [1791792725.807678242] [move_group]: Calling PlanningRequestAdapter 'CheckStartStateCollision'
+[move_group-6] [ERROR] [1791792725.807684582] [move_group.moveit.moveit.core.conversions]: Found empty JointState message
+[move_group-6] [INFO] [1791792725.807797592] [move_group]: Calling Planner 'Pilz Industrial Motion Planner'
+[move_group-6] [INFO] [1791792725.807818941] [move_group.moveit.moveit.planners.pilz.trajectory_generator]: Generating LIN trajectory...
+[move_group-6] [ERROR] [1791792725.807874154] [move_group.moveit.moveit.core.conversions]: Found empty JointState message
+[move_group-6] [INFO] [1791792725.808843442] [move_group]: Calling PlanningResponseAdapter 'ValidateSolution'
+[move_group-6] [INFO] [1791792725.809219740] [move_group]: Calling PlanningRequestAdapter 'ResolveConstraintFrames'
+[move_group-6] [INFO] [1791792725.809230830] [move_group]: Calling PlanningRequestAdapter 'ValidateWorkspaceBounds'
+[move_group-6] [WARN] [1791792725.809234520] [move_group.moveit.moveit.ros.validate_workspace_bounds]: It looks like the planning volume was not specified. Using default values.
+[move_group-6] [INFO] [1791792725.809242152] [move_group]: Calling PlanningRequestAdapter 'CheckStartStateBounds'
+[move_group-6] [INFO] [1791792725.809252353] [move_group]: Calling PlanningRequestAdapter 'CheckStartStateCollision'
+[move_group-6] [INFO] [1791792725.809279143] [move_group]: Calling Planner 'Pilz Industrial Motion Planner'
+[move_group-6] [INFO] [1791792725.809284729] [move_group.moveit.moveit.planners.pilz.trajectory_generator]: Generating LIN trajectory...
+[move_group-6] [INFO] [1791792725.810243379] [move_group]: Calling PlanningResponseAdapter 'ValidateSolution'
+[move_group-6] [INFO] [1791792725.810575119] [move_group.moveit.moveit.planners.pilz.trajectory_blender_transition_window]: Start trajectory blending using transition window.
+[move_group-6] [INFO] [1791792725.810594607] [move_group.moveit.moveit.planners.pilz.trajectory_blender_transition_window]: Search for start and end point of blending trajectory.
+[move_group-6] [INFO] [1791792725.810605722] [move_group.moveit.moveit.planners.pilz.trajectory_blender_transition_window]: Intersection point of first trajectory found, index: 15
+[move_group-6] [INFO] [1791792725.810613060] [move_group.moveit.moveit.planners.pilz.trajectory_blender_transition_window]: Intersection point of second trajectory found, index: 10
+[peach_arm-10] [INFO] [1791792725.811402024] [peach_arm]: sequence 冠内审查: segments=1 allowed=true points=42 duration=4.100s joint_total=0.890rad (短路径门通过)
+[move_group-6] [INFO] [1791792725.813210222] [move_group.moveit.moveit.ros.move_group.clear_octomap_service]: Execution request received
+[move_group-6] [INFO] [1791792725.813248090] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[move_group-6] [INFO] [1791792725.813273949] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[move_group-6] [INFO] [1791792725.813337279] [move_group.moveit.moveit.ros.trajectory_execution_manager]: Validating trajectory with allowed_start_tolerance 0.15
+[move_group-6] [INFO] [1791792725.818027489] [move_group.moveit.moveit.ros.trajectory_execution_manager]: Starting trajectory execution ...
+[move_group-6] [INFO] [1791792725.818078252] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[move_group-6] [INFO] [1791792725.818095234] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[move_group-6] [INFO] [1791792725.818278461] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: sending trajectory to joint_trajectory_controller
+[ros2_control_node-3] [INFO] [1791792725.818416645] [joint_trajectory_controller]: Received new action goal
+[ros2_control_node-3] [INFO] [1791792725.818444189] [joint_trajectory_controller]: Accepted new action goal
+[move_group-6] [INFO] [1791792725.819091667] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: joint_trajectory_controller started execution
+[move_group-6] [INFO] [1791792725.819099906] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: Goal request accepted!
+[peach_observability-11] [WARN] [1791792725.830349725] [rosbag2_cpp]: Message definition for topic '/execute_trajectory/_action/feedback' with type 'moveit_msgs/msg/ExecuteTrajectory_FeedbackMessage' not found. Message definition will be left empty in bag.
+[peach_observability-11] [WARN] [1791792725.830424196] [rosbag2_cpp]: Message definition for topic '/execute_trajectory/_action/status' with type 'action_msgs/msg/GoalStatusArray' not found. Message definition will be left empty in bag.
+[peach_arm-10] [INFO] [1791792726.487661153] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+state batch=2 phase=5 target='target_0' recovery=False
+[peach_arm-10] [INFO] [1791792727.487761540] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792728.487337191] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792729.488060568] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[ros2_control_node-3] [INFO] [1791792729.916377288] [joint_trajectory_controller]: Goal reached, success!
+[move_group-6] [INFO] [1791792729.918728057] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: Controller 'joint_trajectory_controller' successfully finished
+[move_group-6] [INFO] [1791792729.931672300] [move_group.moveit.moveit.ros.trajectory_execution_manager]: Completed trajectory execution with status SUCCEEDED ...
+[move_group-6] [INFO] [1791792729.931812282] [move_group.moveit.moveit.ros.move_group.clear_octomap_service]: Execution completed: SUCCEEDED
+[peach_arm-10] [INFO] [1791792729.932250263] [peach_arm]: 检查点 2（到预抓取）
+[peach_arm-10] [INFO] [1791792729.932356432] [peach_arm]: [RECONFIRM] 预抓取停稳验证（不 SetIO）
+[peach_arm-10] [INFO] [1791792730.132709537] [peach_arm]: [PREVIEW_CONTACT_PLANNING] 预规划套入与反向撤退
+[peach_arm-10] [INFO] [1791792730.147620629] [peach_arm.moveit.ros.rdf_loader]: Loaded robot model in 0.00101423 seconds
+[peach_arm-10] [INFO] [1791792730.147633751] [peach_arm.moveit.core.robot_model]: Loading robot model 'aubo_e5'...
+[peach_arm-10] [INFO] [1791792730.147636520] [peach_arm.moveit.core.robot_model]: No root/virtual joint specified in SRDF. Assuming fixed joint
+[peach_arm-10] [INFO] [1791792730.165042087] [peach_arm.moveit.kinematics.kdl_kinematics_plugin]: Joint weights for group 'manipulator_e5': 1 1 1 1 1 1
+[peach_arm-10] [INFO] [1791792730.172975002] [peach_arm]: 场景障碍 ACM 豁免已应用: 28 条（含 <octomap> 保留名）
+[peach_arm-10] [INFO] [1791792730.247772444] [peach_arm]: 检查点 3（套入与反向撤退预规划过门）
+[peach_arm-10] [INFO] [1791792730.247828281] [peach_arm]: [MTC_APPROACH_INSERT] 沿轴 LIN 套入
+[peach_arm-10] [INFO] [1791792730.257501667] [peach_arm.moveit.ros.rdf_loader]: Loaded robot model in 0.000919508 seconds
+[peach_arm-10] [INFO] [1791792730.257518910] [peach_arm.moveit.core.robot_model]: Loading robot model 'aubo_e5'...
+[peach_arm-10] [INFO] [1791792730.257521500] [peach_arm.moveit.core.robot_model]: No root/virtual joint specified in SRDF. Assuming fixed joint
+[peach_arm-10] [INFO] [1791792730.275322135] [peach_arm.moveit.kinematics.kdl_kinematics_plugin]: Joint weights for group 'manipulator_e5': 1 1 1 1 1 1
+[peach_arm-10] [INFO] [1791792730.285470335] [peach_arm]: 场景障碍 ACM 豁免已应用: 28 条（含 <octomap> 保留名）
+[peach_arm-10] [INFO] [1791792730.442078402] [peach_arm]: MTC 接近短路径审查: segments=1 allowed=true points=42 duration=4.100s joint_total=0.979rad joint_max=0.465rad (短路径门通过)
+[peach_arm-10] [INFO] [1791792730.442112530] [peach_arm]: MTC 接近笛卡尔审查: allowed=true path=0.050m chord=0.050m ratio=1.00 max_dev=0.000m recede=0.000m (笛卡尔短路径门通过)
+[peach_arm-10] [INFO] [1791792730.442115774] [peach_arm]: MTC 接近姿态审查: allowed=true max_from_start=0.0deg (TCP 姿态行程通过)
+[move_group-6] [WARN] [1791792730.449185316] [moveit_task_constructor_visualization.execute_task_solution]: The trajectory of stage '0' from task '' does not have any controllers specified for trajectory execution. This might lead to unexpected controller selection.
+[move_group-6] [INFO] [1791792730.449206019] [moveit_task_constructor_visualization.execute_task_solution]: Executing TaskSolution
+[move_group-6] [INFO] [1791792730.449236879] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[move_group-6] [INFO] [1791792730.449268107] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[move_group-6] [INFO] [1791792730.449295330] [move_group.moveit.moveit.ros.trajectory_execution_manager]: Validating trajectory with allowed_start_tolerance 0.15
+[move_group-6] [INFO] [1791792730.451576627] [move_group.moveit.moveit.ros.trajectory_execution_manager]: Starting trajectory execution ...
+[move_group-6] [INFO] [1791792730.451621087] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[move_group-6] [INFO] [1791792730.451638313] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[move_group-6] [INFO] [1791792730.452229160] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[move_group-6] [INFO] [1791792730.452247921] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[move_group-6] [INFO] [1791792730.452395695] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: sending trajectory to joint_trajectory_controller
+[ros2_control_node-3] [INFO] [1791792730.452498646] [joint_trajectory_controller]: Received new action goal
+[ros2_control_node-3] [INFO] [1791792730.452532148] [joint_trajectory_controller]: Accepted new action goal
+[move_group-6] [INFO] [1791792730.452570193] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: joint_trajectory_controller started execution
+[move_group-6] [INFO] [1791792730.452575988] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: Goal request accepted!
+[peach_arm-10] [INFO] [1791792730.488138344] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792731.487595798] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [WARN] [1791792731.667480897] [rclcpp]: Failed to get parameters: moveit.velocity_scaling
+state batch=2 phase=5 target='target_0' recovery=True
+[peach_arm-10] [INFO] [1791792732.488493859] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792733.490653139] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792734.487571500] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[ros2_control_node-3] [INFO] [1791792734.551255946] [joint_trajectory_controller]: Goal reached, success!
+[move_group-6] [INFO] [1791792734.553003860] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: Controller 'joint_trajectory_controller' successfully finished
+[move_group-6] [INFO] [1791792734.566781085] [move_group.moveit.moveit.ros.trajectory_execution_manager]: Completed trajectory execution with status SUCCEEDED ...
+[peach_arm-10] [INFO] [1791792734.593156351] [peach_arm]: 检查点 4（沿轴套入到位）
+[peach_arm-10] [INFO] [1791792734.593211616] [peach_arm]: [ACTUATE_TOOL] tool.enabled=false，跳过末端 IO
+[peach_arm-10] [INFO] [1791792734.593228709] [peach_arm]: [MTC_RETREAT] MTC 沿插入反方向保持直线撤离
+[peach_arm-10] [INFO] [1791792734.603013334] [peach_arm.moveit.ros.rdf_loader]: Loaded robot model in 0.00103847 seconds
+[peach_arm-10] [INFO] [1791792734.603027891] [peach_arm.moveit.core.robot_model]: Loading robot model 'aubo_e5'...
+[peach_arm-10] [INFO] [1791792734.603030113] [peach_arm.moveit.core.robot_model]: No root/virtual joint specified in SRDF. Assuming fixed joint
+[peach_arm-10] [INFO] [1791792734.622792868] [peach_arm.moveit.kinematics.kdl_kinematics_plugin]: Joint weights for group 'manipulator_e5': 1 1 1 1 1 1
+[peach_arm-10] [INFO] [1791792734.632594290] [peach_arm]: 场景障碍 ACM 豁免已应用: 28 条（含 <octomap> 保留名）
+[move_group-6] [WARN] [1791792734.720313170] [moveit_task_constructor_visualization.execute_task_solution]: The trajectory of stage '0' from task '' does not have any controllers specified for trajectory execution. This might lead to unexpected controller selection.
+[move_group-6] [INFO] [1791792734.720336163] [moveit_task_constructor_visualization.execute_task_solution]: Executing TaskSolution
+[move_group-6] [INFO] [1791792734.720368578] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[move_group-6] [INFO] [1791792734.720396411] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[move_group-6] [INFO] [1791792734.720418498] [move_group.moveit.moveit.ros.trajectory_execution_manager]: Validating trajectory with allowed_start_tolerance 0.15
+[move_group-6] [INFO] [1791792734.721778006] [move_group.moveit.moveit.ros.trajectory_execution_manager]: Starting trajectory execution ...
+[move_group-6] [INFO] [1791792734.721843664] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[move_group-6] [INFO] [1791792734.721858685] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[move_group-6] [INFO] [1791792734.722526435] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[move_group-6] [INFO] [1791792734.722539368] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[move_group-6] [INFO] [1791792734.722708341] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: sending trajectory to joint_trajectory_controller
+[ros2_control_node-3] [INFO] [1791792734.722850712] [joint_trajectory_controller]: Received new action goal
+[ros2_control_node-3] [INFO] [1791792734.722883773] [joint_trajectory_controller]: Accepted new action goal
+[move_group-6] [INFO] [1791792734.723014045] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: joint_trajectory_controller started execution
+[move_group-6] [INFO] [1791792734.723022589] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: Goal request accepted!
+[peach_arm-10] [INFO] [1791792735.487912684] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792736.487695921] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+state batch=2 phase=7 target='target_0' recovery=True
+[peach_arm-10] [INFO] [1791792737.489943975] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [WARN] [1791792737.665374497] [rclcpp]: Failed to get parameters: moveit.velocity_scaling
+[peach_arm-10] [INFO] [1791792738.488947823] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[ros2_control_node-3] [INFO] [1791792738.821212850] [joint_trajectory_controller]: Goal reached, success!
+[move_group-6] [INFO] [1791792738.823545356] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: Controller 'joint_trajectory_controller' successfully finished
+[move_group-6] [INFO] [1791792738.836282184] [move_group.moveit.moveit.ros.trajectory_execution_manager]: Completed trajectory execution with status SUCCEEDED ...
+[peach_arm-10] [INFO] [1791792738.863212732] [peach_arm]: 检查点 8（原路撤回预抓取）
+[peach_arm-10] [INFO] [1791792738.863278401] [peach_arm]: [MTC_RETREAT] 返回 harvest_stow
+[peach_arm-10] [INFO] [1791792738.871938895] [peach_arm.moveit.ros.move_group_interface]: MoveGroup action client/server ready
+[move_group-6] [INFO] [1791792738.872224546] [move_group.moveit.moveit.ros.move_group.move_action]: MoveGroupMoveAction: Received request
+[move_group-6] [INFO] [1791792738.872372056] [move_group.moveit.moveit.ros.move_group.move_action]: executing..
+[peach_arm-10] [INFO] [1791792738.872533081] [peach_arm.moveit.ros.move_group_interface]: Planning request accepted
+[peach_observability-11] [WARN] [1791792738.874369431] [rosbag2_cpp]: Message definition for topic '/move_action/_action/status' with type 'action_msgs/msg/GoalStatusArray' not found. Message definition will be left empty in bag.
+[peach_observability-11] [WARN] [1791792738.876130872] [rosbag2_cpp]: Message definition for topic '/move_action/_action/feedback' with type 'moveit_msgs/msg/MoveGroup_FeedbackMessage' not found. Message definition will be left empty in bag.
+[move_group-6] [INFO] [1791792738.876374439] [move_group.moveit.moveit.ros.move_group.move_action]: Planning request received for MoveGroup action. Forwarding to planning pipeline.
+[move_group-6] [INFO] [1791792738.876435913] [move_group.moveit.moveit.ros.move_group.capability]: Using planning pipeline 'pilz_industrial_motion_planner'
+[move_group-6] [INFO] [1791792738.876523097] [move_group]: Calling PlanningRequestAdapter 'ResolveConstraintFrames'
+[move_group-6] [INFO] [1791792738.876540282] [move_group]: Calling PlanningRequestAdapter 'ValidateWorkspaceBounds'
+[move_group-6] [WARN] [1791792738.876545398] [move_group.moveit.moveit.ros.validate_workspace_bounds]: It looks like the planning volume was not specified. Using default values.
+[move_group-6] [INFO] [1791792738.876554628] [move_group]: Calling PlanningRequestAdapter 'CheckStartStateBounds'
+[move_group-6] [INFO] [1791792738.876566898] [move_group]: Calling PlanningRequestAdapter 'CheckStartStateCollision'
+[move_group-6] [INFO] [1791792738.876653199] [move_group.moveit.moveit.planners.pilz.trajectory_generator.ptp]: Initialized Point-to-Point Trajectory Generator.
+[move_group-6] [INFO] [1791792738.876668835] [move_group]: Calling Planner 'Pilz Industrial Motion Planner'
+[move_group-6] [INFO] [1791792738.876678376] [move_group.moveit.moveit.planners.pilz.trajectory_generator]: Generating PTP trajectory...
+[move_group-6] [INFO] [1791792738.876880661] [move_group]: Calling PlanningResponseAdapter 'ValidateSolution'
+[move_group-6] [INFO] [1791792738.877713283] [move_group.moveit.moveit.ros.move_group.move_action]: Motion plan was computed successfully.
+[peach_arm-10] [INFO] [1791792738.877906043] [peach_arm.moveit.ros.move_group_interface]: Planning request complete!
+[peach_arm-10] [INFO] [1791792738.878897366] [peach_arm.moveit.ros.move_group_interface]: time taken to generate plan: 0.000151623 seconds
+[move_group-6] [INFO] [1791792738.879533816] [move_group.moveit.moveit.ros.move_group.clear_octomap_service]: Execution request received
+[peach_arm-10] [INFO] [1791792738.879555591] [peach_arm.moveit.ros.move_group_interface]: Execute request accepted
+[move_group-6] [INFO] [1791792738.879563328] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[move_group-6] [INFO] [1791792738.879577170] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[move_group-6] [INFO] [1791792738.879623548] [move_group.moveit.moveit.ros.trajectory_execution_manager]: Validating trajectory with allowed_start_tolerance 0.15
+[move_group-6] [INFO] [1791792738.881290505] [move_group.moveit.moveit.ros.trajectory_execution_manager]: Starting trajectory execution ...
+[move_group-6] [INFO] [1791792738.881315408] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[move_group-6] [INFO] [1791792738.881330294] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[move_group-6] [INFO] [1791792738.881507807] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: sending trajectory to joint_trajectory_controller
+[ros2_control_node-3] [INFO] [1791792738.881769221] [joint_trajectory_controller]: Received new action goal
+[ros2_control_node-3] [INFO] [1791792738.881801871] [joint_trajectory_controller]: Accepted new action goal
+[move_group-6] [INFO] [1791792738.881861005] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: joint_trajectory_controller started execution
+[move_group-6] [INFO] [1791792738.881865172] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: Goal request accepted!
+[peach_arm-10] [INFO] [1791792739.490094808] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792740.488971084] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792741.487876889] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792742.488161306] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+state batch=2 phase=7 target='target_0' recovery=True
+[peach_arm-10] [INFO] [1791792743.490869713] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792744.487562301] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[ros2_control_node-3] [INFO] [1791792745.176206087] [joint_trajectory_controller]: Goal reached, success!
+[move_group-6] [INFO] [1791792745.182050332] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: Controller 'joint_trajectory_controller' successfully finished
+[move_group-6] [INFO] [1791792745.196514762] [move_group.moveit.moveit.ros.trajectory_execution_manager]: Completed trajectory execution with status SUCCEEDED ...
+[move_group-6] [INFO] [1791792745.196599236] [move_group.moveit.moveit.ros.move_group.clear_octomap_service]: Execution completed: SUCCEEDED
+[peach_arm-10] [INFO] [1791792745.197215878] [peach_arm.moveit.ros.move_group_interface]: Execute request success!
+[peach_arm-10] [INFO] [1791792745.211530062] [peach_arm.moveit.ros.move_group_interface]: MoveGroup action client/server ready
+[move_group-6] [INFO] [1791792745.213700553] [move_group.moveit.moveit.ros.move_group.move_action]: MoveGroupMoveAction: Received request
+[peach_arm-10] [INFO] [1791792745.213855648] [peach_arm.moveit.ros.move_group_interface]: Planning request accepted
+[move_group-6] [INFO] [1791792745.213967227] [move_group.moveit.moveit.ros.move_group.move_action]: executing..
+[move_group-6] [INFO] [1791792745.216657100] [move_group.moveit.moveit.ros.move_group.move_action]: Planning request received for MoveGroup action. Forwarding to planning pipeline.
+[move_group-6] [INFO] [1791792745.216682375] [move_group.moveit.moveit.ros.move_group.capability]: Using planning pipeline 'pilz_industrial_motion_planner'
+[move_group-6] [INFO] [1791792745.216766350] [move_group]: Calling PlanningRequestAdapter 'ResolveConstraintFrames'
+[move_group-6] [INFO] [1791792745.216809865] [move_group]: Calling PlanningRequestAdapter 'ValidateWorkspaceBounds'
+[move_group-6] [WARN] [1791792745.216815732] [move_group.moveit.moveit.ros.validate_workspace_bounds]: It looks like the planning volume was not specified. Using default values.
+[move_group-6] [INFO] [1791792745.216826034] [move_group]: Calling PlanningRequestAdapter 'CheckStartStateBounds'
+[move_group-6] [INFO] [1791792745.216842118] [move_group]: Calling PlanningRequestAdapter 'CheckStartStateCollision'
+[move_group-6] [INFO] [1791792745.216919617] [move_group.moveit.moveit.planners.pilz.trajectory_generator.ptp]: Initialized Point-to-Point Trajectory Generator.
+[move_group-6] [INFO] [1791792745.216933712] [move_group]: Calling Planner 'Pilz Industrial Motion Planner'
+[move_group-6] [INFO] [1791792745.216942374] [move_group.moveit.moveit.planners.pilz.trajectory_generator]: Generating PTP trajectory...
+[move_group-6] [INFO] [1791792745.217027019] [move_group]: Calling PlanningResponseAdapter 'ValidateSolution'
+[move_group-6] [INFO] [1791792745.217341934] [move_group.moveit.moveit.ros.move_group.move_action]: Motion plan was computed successfully.
+[peach_arm-10] [INFO] [1791792745.217413380] [peach_arm.moveit.ros.move_group_interface]: Planning request complete!
+[peach_arm-10] [INFO] [1791792745.217931569] [peach_arm.moveit.ros.move_group_interface]: time taken to generate plan: 5.5525e-05 seconds
+[peach_arm-10] [INFO] [1791792745.218638720] [peach_arm.moveit.ros.move_group_interface]: Execute request accepted
+[move_group-6] [INFO] [1791792745.218644451] [move_group.moveit.moveit.ros.move_group.clear_octomap_service]: Execution request received
+[move_group-6] [INFO] [1791792745.218669959] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[move_group-6] [INFO] [1791792745.218682450] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[move_group-6] [INFO] [1791792745.218711452] [move_group.moveit.moveit.ros.trajectory_execution_manager]: Validating trajectory with allowed_start_tolerance 0.15
+[move_group-6] [INFO] [1791792745.221676523] [move_group.moveit.moveit.ros.trajectory_execution_manager]: Starting trajectory execution ...
+[move_group-6] [INFO] [1791792745.221728048] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[move_group-6] [INFO] [1791792745.221749946] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[move_group-6] [INFO] [1791792745.221929178] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: sending trajectory to joint_trajectory_controller
+[move_group-6] [INFO] [1791792745.222154504] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: joint_trajectory_controller started execution
+[move_group-6] [INFO] [1791792745.222161990] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: Goal request accepted!
+[ros2_control_node-3] [INFO] [1791792745.222062492] [joint_trajectory_controller]: Received new action goal
+[ros2_control_node-3] [INFO] [1791792745.222099289] [joint_trajectory_controller]: Accepted new action goal
+[peach_arm-10] [INFO] [1791792745.487732063] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792746.488227312] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[ros2_control_node-3] [INFO] [1791792747.101195248] [joint_trajectory_controller]: Goal reached, success!
+[move_group-6] [INFO] [1791792747.123675147] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: Controller 'joint_trajectory_controller' successfully finished
+[move_group-6] [INFO] [1791792747.137242911] [move_group.moveit.moveit.ros.trajectory_execution_manager]: Completed trajectory execution with status SUCCEEDED ...
+[move_group-6] [INFO] [1791792747.137438302] [move_group.moveit.moveit.ros.move_group.clear_octomap_service]: Execution completed: SUCCEEDED
+[peach_arm-10] [INFO] [1791792747.137592320] [peach_arm.moveit.ros.move_group_interface]: Execute request success!
+[peach_arm-10] [INFO] [1791792747.141587122] [peach_arm]: 检查点 9（回收纳位）
+[peach_arm-10] [INFO] [1791792747.141663468] [peach_arm]: [SUCCEEDED] 周期完成；tool.enabled=false 或未宣称采摘成功
+[peach_arm-10] [INFO] [1791792747.369970247] [peach_arm]: [IDLE] 已记录现场人工撤离确认；本服务不发送任何运动命令
+ACK seq=154 accepted=True 已记录现场人工撤离确认；本服务不发送任何运动命令
+cancel 'frozen_camera one target (recovery)' CANCEL_NOW accepted=True ok
+[peach_arm-10] [INFO] [1791792747.487667001] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+RESULT status=STATUS_CANCELED success=False termination=canceled discovered=1 attempted=1 succeeded=1 failed=0 grasp_s=46.3 summary_elapsed=46.0s replay_paused=True
+  target=target_0 outcome=0 reason='周期完成；tool.enabled=false 或未宣称采摘成功' quality=0.0
+The following exception was never retrieved: cannot use Destroyable because destruction was requested
+[peach_arm-10] [INFO] [1791792748.487714728] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792749.487496416] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792750.487628316] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792751.487879070] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792752.489801221] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_observability-11] [WARN] [1791792752.700873815] [peach_observability]: 自检[periodic] 12/18 通过，失败: camera_color_rate, camera_depth_rate，跳过: robot_status, imu_topic, model_files, vegetation_status
+[peach_arm-10] [INFO] [1791792753.489953495] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792754.487943404] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792755.492117209] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792756.488296574] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792757.491853994] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792758.487343464] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792759.487748010] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792760.490391339] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792761.488674274] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792762.487460419] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792763.491443129] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792764.487735301] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792765.488968146] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792766.487729285] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792767.487337464] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792768.487765469] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792769.487985871] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792770.491285277] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792771.489842991] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792772.487926210] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792773.490807156] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792774.487508317] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792775.487644227] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792776.487692613] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792777.487263996] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792778.493225257] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792779.487668487] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792780.487787287] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792781.487836168] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792782.487546056] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_observability-11] [WARN] [1791792782.696308303] [peach_observability]: 自检[periodic] 12/18 通过，失败: camera_color_rate, camera_depth_rate，跳过: robot_status, imu_topic, model_files, vegetation_status
+[peach_arm-10] [INFO] [1791792783.487780155] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792784.488159542] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792785.488186667] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792786.487953081] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792787.491245557] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792788.487386693] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792789.488130524] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792790.487515038] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792791.488626152] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792792.488616157] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792793.490715024] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792794.488028307] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792795.490561985] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792796.487451365] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792797.488031112] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792798.488033300] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792799.489434632] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792800.488506208] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792801.488093941] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792802.487580765] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792803.489670249] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792804.488770239] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792805.490859994] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792806.487493975] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792807.488972982] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792808.490544694] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792809.487835654] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792810.487405771] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792811.490901993] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792812.487798309] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_observability-11] [WARN] [1791792812.695796341] [peach_observability]: 自检[periodic] 12/18 通过，失败: camera_color_rate, camera_depth_rate，跳过: robot_status, imu_topic, model_files, vegetation_status
+[peach_arm-10] [INFO] [1791792813.487707920] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792814.489775011] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792815.488185836] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792816.487369839] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792817.487474616] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792818.487836132] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792819.488070119] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792820.489636706] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792821.499886076] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792822.487532598] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792823.487452178] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792824.487772157] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792825.487576090] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792826.490428040] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792827.488939189] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792828.490756256] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792829.487864322] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792830.487931111] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792831.488048550] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792832.489063270] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792833.489621937] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792834.487459042] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792835.489641310] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792836.487950401] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792837.488552461] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792838.490963059] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792839.488111969] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792840.488983142] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792841.487958430] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792842.487888113] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_observability-11] [WARN] [1791792842.695946873] [peach_observability]: 自检[periodic] 12/18 通过，失败: camera_color_rate, camera_depth_rate，跳过: robot_status, imu_topic, model_files, vegetation_status
+[peach_arm-10] [INFO] [1791792843.487975767] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792844.487332407] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792845.489977277] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792846.489875942] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792847.488003322] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792848.488540338] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792849.490408126] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792850.490916230] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792851.488130446] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792852.487559703] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792853.487914868] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792854.487496584] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792855.490759644] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792856.487506934] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792857.487889055] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792858.487453766] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792859.487577056] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792860.487332084] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792861.488482507] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792862.487930284] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792863.487914883] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792864.487945440] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792865.487976747] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792866.494114746] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792867.487758490] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792868.487758356] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792869.489491343] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792870.487837104] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792871.487689431] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792872.487822372] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_observability-11] [WARN] [1791792872.697176584] [peach_observability]: 自检[periodic] 12/18 通过，失败: camera_color_rate, camera_depth_rate，跳过: robot_status, imu_topic, model_files, vegetation_status
+[peach_arm-10] [INFO] [1791792873.490493341] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792874.487418265] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792875.488846236] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792876.495653693] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792877.488643533] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792878.487358201] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792879.487945159] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792880.487871150] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792881.487248361] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792882.488075562] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792883.489179649] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792884.488023028] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792885.489471014] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792886.487337930] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792887.488298983] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792888.487398865] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792889.489789445] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792890.490804333] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792891.488286887] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792892.487850356] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792893.487883894] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792894.488950517] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792895.487585571] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792896.488626499] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792897.487397719] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792898.487227672] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792899.488033200] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792900.488234938] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792901.487252673] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792902.487835610] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_observability-11] [WARN] [1791792902.694863832] [peach_observability]: 自检[periodic] 12/18 通过，失败: camera_color_rate, camera_depth_rate，跳过: robot_status, imu_topic, model_files, vegetation_status
+[peach_arm-10] [INFO] [1791792903.490199824] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792904.488598166] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792905.487501224] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792906.487392331] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792907.489276771] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792908.487279439] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792909.489218749] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792910.487485653] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792911.488032028] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792912.490016715] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792913.487584382] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792914.498443937] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792915.488656613] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792916.487391450] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792917.488239081] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792918.489001475] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792919.490205025] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792920.487620134] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792921.488386452] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792922.487515268] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792923.487617302] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792924.487423012] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792925.488311693] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792926.487938227] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792927.487841512] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792928.487208357] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792929.488530990] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792930.487706670] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792931.487467440] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792932.487695256] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_observability-11] [WARN] [1791792932.697110612] [peach_observability]: 自检[periodic] 12/18 通过，失败: camera_color_rate, camera_depth_rate，跳过: robot_status, imu_topic, model_files, vegetation_status
+[peach_arm-10] [INFO] [1791792933.488031444] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[peach_arm-10] [INFO] [1791792934.488634733] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests frozen_camera one-view FULL dry）
+[WARNING] [launch]: user interrupted with ctrl-c (SIGINT)
+[INFO] [frozen_camera_replay.py-14]: sending signal 'SIGINT' to process[frozen_camera_replay.py-14]
+[INFO] [peach_lifecycle_flag_bridge-13]: sending signal 'SIGINT' to process[peach_lifecycle_flag_bridge-13]
+[INFO] [lifecycle_manager-12]: sending signal 'SIGINT' to process[lifecycle_manager-12]
+[INFO] [peach_observability-11]: sending signal 'SIGINT' to process[peach_observability-11]
+[INFO] [peach_arm-10]: sending signal 'SIGINT' to process[peach_arm-10]
+[INFO] [peach_harvester-9]: sending signal 'SIGINT' to process[peach_harvester-9]
+[INFO] [extrinsics_publisher-8]: sending signal 'SIGINT' to process[extrinsics_publisher-8]
+[INFO] [move_group-6]: sending signal 'SIGINT' to process[move_group-6]
+[INFO] [ros2_control_node-3]: sending signal 'SIGINT' to process[ros2_control_node-3]
+[INFO] [robot_state_publisher-2]: sending signal 'SIGINT' to process[robot_state_publisher-2]
+[INFO] [peach_scene_obstacles-1]: sending signal 'SIGINT' to process[peach_scene_obstacles-1]
+[lifecycle_manager-12] [INFO] [1791792934.584527531] [rclcpp]: signal_handler(SIGINT/SIGTERM)
+[lifecycle_manager-12] [INFO] [1791792934.584593957] [peach_lifecycle_manager]: Running Nav2 LifecycleManager rcl preshutdown (peach_lifecycle_manager)
+[peach_arm-10] [INFO] [1791792934.585444081] [rclcpp]: signal_handler(SIGINT/SIGTERM)
+[peach_arm-10] [INFO] [1791792934.586086049] [peach_arm]: requestCancelAll: 停止当前执行（来源：deactivate 收口）
+[move_group-6] [INFO] [1791792934.586710247] [rclcpp]: signal_handler(SIGINT/SIGTERM)
+[ros2_control_node-3] [INFO] [1791792934.587197750] [rclcpp]: signal_handler(SIGINT/SIGTERM)
+[ros2_control_node-3] [INFO] [1791792934.587265841] [controller_manager]: Shutdown request received....
+[ros2_control_node-3] [INFO] [1791792934.587294224] [controller_manager]: Shutting down all controllers in the controller manager.
+[ros2_control_node-3] [INFO] [1791792934.587308586] [controller_manager]: Deactivating controller 'joint_state_broadcaster'
+[ros2_control_node-3] [INFO] [1791792934.587339943] [controller_manager]: Shutting down controller 'joint_state_broadcaster'
+[ros2_control_node-3] [INFO] [1791792934.587409055] [controller_manager]: Deactivating controller 'joint_trajectory_controller'
+[ros2_control_node-3] [INFO] [1791792934.587427081] [controller_manager]: Shutting down controller 'joint_trajectory_controller'
+[ros2_control_node-3] [INFO] [1791792934.587451822] [resource_manager]: 'deactivate' hardware 'AuboE5System' 
+[ros2_control_node-3] [INFO] [1791792934.587457176] [resource_manager]: Successful 'deactivate' of hardware 'AuboE5System'
+[ros2_control_node-3] [INFO] [1791792934.587458369] [resource_manager]: 'shutdown' hardware 'AuboE5System' 
+[ros2_control_node-3] [INFO] [1791792934.587459570] [resource_manager]: Successful 'shutdown' of hardware 'AuboE5System'
+[ros2_control_node-3] [INFO] [1791792934.587493502] [controller_manager]: Shutting down the controller manager.
+[robot_state_publisher-2] [INFO] [1791792934.587651392] [rclcpp]: signal_handler(SIGINT/SIGTERM)
+[lifecycle_manager-12] [INFO] [1791792934.594072350] [peach_lifecycle_manager]: Destroying peach_lifecycle_manager
+[peach_lifecycle_flag_bridge-13] Traceback (most recent call last):
+[peach_lifecycle_flag_bridge-13]   File "/home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_bringup/lib/peach_bringup/peach_lifecycle_flag_bridge", line 33, in <module>
+[peach_lifecycle_flag_bridge-13]     sys.exit(load_entry_point('peach-bringup', 'console_scripts', 'peach_lifecycle_flag_bridge')())
+[peach_lifecycle_flag_bridge-13]              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[peach_lifecycle_flag_bridge-13]   File "/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_bringup/peach_bringup/lifecycle_flag_bridge.py", line 79, in main
+[peach_lifecycle_flag_bridge-13]     rclpy.spin(node)
+[peach_lifecycle_flag_bridge-13]   File "/opt/ros/jazzy/lib/python3.12/site-packages/rclpy/__init__.py", line 247, in spin
+[peach_lifecycle_flag_bridge-13]     executor.spin_once()
+[peach_lifecycle_flag_bridge-13]   File "/opt/ros/jazzy/lib/python3.12/site-packages/rclpy/executors.py", line 926, in spin_once
+[peach_lifecycle_flag_bridge-13]     self._spin_once_impl(timeout_sec)
+[peach_lifecycle_flag_bridge-13]   File "/opt/ros/jazzy/lib/python3.12/site-packages/rclpy/executors.py", line 907, in _spin_once_impl
+[peach_lifecycle_flag_bridge-13]     handler, entity, node = self.wait_for_ready_callbacks(
+[peach_lifecycle_flag_bridge-13]                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[peach_lifecycle_flag_bridge-13]   File "/opt/ros/jazzy/lib/python3.12/site-packages/rclpy/executors.py", line 877, in wait_for_ready_callbacks
+[peach_lifecycle_flag_bridge-13]     return next(self._cb_iter)
+[peach_lifecycle_flag_bridge-13]            ^^^^^^^^^^^^^^^^^^^
+[peach_lifecycle_flag_bridge-13]   File "/opt/ros/jazzy/lib/python3.12/site-packages/rclpy/executors.py", line 781, in _wait_for_ready_callbacks
+[peach_lifecycle_flag_bridge-13]     wait_set.wait(timeout_nsec)
+[peach_lifecycle_flag_bridge-13] KeyboardInterrupt
+[ros2_control_node-3] [ERROR] [1791792934.598231177] [controller_manager.pal_statistics]: Exception in publisher thread: context cannot be slept with because it's invalid!. Aborting!
+[ros2_control_node-3] [ERROR] [1791792934.598231080] [controller_manager.pal_statistics]: Exception in publisher thread: context cannot be slept with because it's invalid!. Aborting!
+[ros2_control_node-3] [INFO] [1791792934.598285579] [controller_manager.pal_statistics]: Async messages lost 0
+[ros2_control_node-3] [INFO] [1791792934.598291746] [controller_manager.pal_statistics]: publish_async_failures_ 0
+[peach_scene_obstacles-1] Traceback (most recent call last):
+[peach_scene_obstacles-1]   File "/home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_harvester/lib/peach_harvester/peach_scene_obstacles", line 33, in <module>
+[peach_scene_obstacles-1]     sys.exit(load_entry_point('peach-harvester==0.1.0', 'console_scripts', 'peach_scene_obstacles')())
+[peach_scene_obstacles-1]              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[peach_scene_obstacles-1]   File "/home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_harvester/lib/python3.12/site-packages/peach_harvester/vision/scene_obstacles/node.py", line 367, in main
+[peach_scene_obstacles-1]     rclpy.spin(node)
+[peach_scene_obstacles-1]   File "/opt/ros/jazzy/lib/python3.12/site-packages/rclpy/__init__.py", line 247, in spin
+[peach_scene_obstacles-1]     executor.spin_once()
+[peach_scene_obstacles-1]   File "/opt/ros/jazzy/lib/python3.12/site-packages/rclpy/executors.py", line 926, in spin_once
+[peach_scene_obstacles-1]     self._spin_once_impl(timeout_sec)
+[peach_scene_obstacles-1]   File "/opt/ros/jazzy/lib/python3.12/site-packages/rclpy/executors.py", line 907, in _spin_once_impl
+[peach_scene_obstacles-1]     handler, entity, node = self.wait_for_ready_callbacks(
+[peach_scene_obstacles-1]                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[peach_scene_obstacles-1]   File "/opt/ros/jazzy/lib/python3.12/site-packages/rclpy/executors.py", line 877, in wait_for_ready_callbacks
+[peach_scene_obstacles-1]     return next(self._cb_iter)
+[peach_scene_obstacles-1]            ^^^^^^^^^^^^^^^^^^^
+[peach_scene_obstacles-1]   File "/opt/ros/jazzy/lib/python3.12/site-packages/rclpy/executors.py", line 781, in _wait_for_ready_callbacks
+[peach_scene_obstacles-1]     wait_set.wait(timeout_nsec)
+[peach_scene_obstacles-1] KeyboardInterrupt
+[ros2_control_node-3] [INFO] [1791792934.600498916] [controller_manager.pal_statistics]: Async messages lost 0
+[ros2_control_node-3] [INFO] [1791792934.600503858] [controller_manager.pal_statistics]: publish_async_failures_ 0
+[peach_arm-10] terminate called without an active exception
+[move_group-6] Stack trace (most recent call last):
+[move_group-6] #6    Object "", at 0xffffffffffffffff, in 
+[move_group-6] #5    Object "/opt/ros/jazzy/lib/moveit_ros_move_group/move_group", at 0x580c1587aa14, in _start
+[peach_harvester-9] Traceback (most recent call last):
+[peach_harvester-9]   File "/home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_harvester/lib/peach_harvester/peach_harvester", line 33, in <module>
+[peach_harvester-9]     sys.exit(load_entry_point('peach-harvester==0.1.0', 'console_scripts', 'peach_harvester')())
+[peach_harvester-9]              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[peach_harvester-9]   File "/home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_harvester/lib/python3.12/site-packages/peach_harvester/brain.py", line 36, in main
+[peach_harvester-9]     executor.spin()
+[peach_harvester-9]   File "/opt/ros/jazzy/lib/python3.12/site-packages/rclpy/executors.py", line 359, in spin
+[peach_harvester-9]     self._spin_once_impl()
+[peach_harvester-9]   File "/opt/ros/jazzy/lib/python3.12/site-packages/rclpy/executors.py", line 991, in _spin_once_impl
+[peach_harvester-9]     handler, entity, node = self.wait_for_ready_callbacks(
+[peach_harvester-9]                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[peach_harvester-9]   File "/opt/ros/jazzy/lib/python3.12/site-packages/rclpy/executors.py", line 877, in wait_for_ready_callbacks
+[peach_harvester-9]     return next(self._cb_iter)
+[peach_harvester-9]            ^^^^^^^^^^^^^^^^^^^
+[peach_harvester-9]   File "/opt/ros/jazzy/lib/python3.12/site-packages/rclpy/executors.py", line 781, in _wait_for_ready_callbacks
+[peach_harvester-9]     wait_set.wait(timeout_nsec)
+[peach_harvester-9] KeyboardInterrupt
+[ERROR] [peach_lifecycle_flag_bridge-13]: process has died [pid 356115, exit code -2, cmd '/home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_bringup/lib/peach_bringup/peach_lifecycle_flag_bridge --ros-args -r __node:=peach_lifecycle_flag_bridge -p use_sim_time:=False'].
+[ERROR] [peach_scene_obstacles-1]: process has died [pid 356099, exit code -2, cmd '/home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_harvester/lib/peach_harvester/peach_scene_obstacles --ros-args -p use_sim_time:=False'].
+[move_group-6] #4    Source "../csu/libc-start.c", line 360, in __libc_start_main_impl [0x72fa1ae2a28a]
+[move_group-6] #3    Source "../sysdeps/nptl/libc_start_call_main.h", line 58, in __libc_start_call_main [0x72fa1ae2a1c9]
+[move_group-6] #2    Object "/opt/ros/jazzy/lib/moveit_ros_move_group/move_group", at 0x580c158794e7, in main
+[move_group-6] #1    Object "/opt/ros/jazzy/lib/librclcpp.so", at 0x72fa1b7162f7, in rclcpp::Executor::~Executor()
+[move_group-6] #0    Object "/opt/ros/jazzy/lib/librclcpp.so", at 0x72fa1b710dde, in 
+[move_group-6] Segmentation fault (Address not mapped to object [0x72fa040c3170])
+[ERROR] [peach_arm-10]: process has died [pid 356112, exit code -6, cmd '/home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_arm/lib/peach_arm/peach_arm --ros-args -r __node:=peach_arm -r __ns:=/ -p use_sim_time:=False --params-file /tmp/launch_params_jvvrlqqu --params-file /tmp/launch_params_6619w08_ --params-file /tmp/launch_params_xgemr3mo --params-file /tmp/launch_params_w8kk1oq4 --params-file /tmp/launch_params_gqxi3ly4 --params-file /tmp/launch_params_qargthyt --params-file /tmp/launch_params_lr7u8xuk --params-file /tmp/launch_params_knxx22tt --params-file /tmp/launch_params_xf_juy5n --params-file /tmp/launch_params_fk2muxkv --params-file /tmp/launch_params_q3n4y5j6 --params-file /tmp/launch_params_9vjsos66'].
+[INFO] [robot_state_publisher-2]: process has finished cleanly [pid 356100]
+[INFO] [lifecycle_manager-12]: process has finished cleanly [pid 356114]
+[ERROR] [move_group-6]: process has died [pid 356106, exit code -11, cmd '/opt/ros/jazzy/lib/moveit_ros_move_group/move_group --ros-args -p use_sim_time:=False --params-file /tmp/launch_params_uadrmhz_ --params-file /tmp/launch_params_3u96zh0f'].
+[INFO] [ros2_control_node-3]: process has finished cleanly [pid 356103]
+[INFO] [frozen_camera_replay.py-14]: process has finished cleanly [pid 356116]
+[INFO] [extrinsics_publisher-8]: process has finished cleanly [pid 356108]
+[ERROR] [peach_harvester-9]: process has died [pid 356111, exit code -2, cmd '/home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_harvester/lib/peach_harvester/peach_harvester --ros-args -r __ns:=/ -p use_sim_time:=False --params-file /tmp/launch_params__cnr_inm --params-file /tmp/launch_params_mzzbt1ez --params-file /tmp/launch_params_roctrf9s --params-file /tmp/peach_brain_overlay_sxc3nesm.yaml --params-file /tmp/launch_params_46747xym'].
+[peach_observability-11] [INFO] [1791792948.541447061] [peach_observability]: bag 分析报告已生成：/home/mu/Desktop/aubo_e5_jazzy_ws/runs/session_20261012_161132/bag_report.md
+[peach_observability-11] Failed to publish log message to rosout: publisher's context is invalid, at ./src/rcl/publisher.c:423
+[INFO] [peach_observability-11]: process has finished cleanly [pid 356113]

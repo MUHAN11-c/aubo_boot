@@ -1,0 +1,11 @@
+<?xml version="1.0"?>
+<package format="3">
+  <name>ivg_moveit_config</name><version>0.1.0</version>
+  <description>MoveIt configuration for the ported IVG tools.</description>
+  <maintainer email="wangxiaoyun@iscas.ac.cn">mu</maintainer><license>BSD-3-Clause</license>
+  <buildtool_depend>ament_cmake</buildtool_depend><buildtool_depend>ament_cmake_python</buildtool_depend>
+  <exec_depend>ivg_description</exec_depend><exec_depend>moveit_configs_utils</exec_depend>
+  <exec_depend>aubo_e5_moveit_config</exec_depend>
+  <exec_depend>moveit_ros_move_group</exec_depend>
+  <export><build_type>ament_cmake</build_type></export>
+</package>

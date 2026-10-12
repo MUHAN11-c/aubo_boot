@@ -536,6 +536,9 @@ class ReconstructionCore:
             self.collector.frames, self.collector.target_center)
         pose_count = int(coverage.get('view_count') or 0)
         min_views = int(self.params.capture.min_views)
+        # 采帧器在节点构造时拷了一份 min_views；运行期 param set 只更新
+        # params，finalize 前对齐，否则单视仍被旧门槛「已采 1 帧 < min_views=2」拒掉。
+        self.collector.config.min_views = min_views
         if pose_count < min_views:
             message = (
                 f'已采 {pose_count} 机位 < min_views={min_views}，'

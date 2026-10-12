@@ -1,0 +1,48 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+  <!-- One geometry per tool. Runtime ACOs are used only with gripper:=none. -->
+  <xacro:macro name="ivg_tools" params="gripper tools_file articulated:=false">
+    <xacro:property name="tools" value="${xacro.load_yaml(tools_file)['tools']}"/>
+    <xacro:if value="${gripper != 'none'}">
+      <xacro:property name="tool" value="${tools[gripper]}"/>
+      <xacro:property name="offset" value="${tool['attach_offset']}"/>
+      <xacro:property name="p" value="${offset['position']}"/>
+      <xacro:property name="q" value="${offset['orientation']}"/>
+      <link name="${gripper}_Link">
+        <inertial>
+          <origin xyz="0 0 0.06"/>
+          <mass value="1.1"/>
+          <inertia ixx="0.002" ixy="0" ixz="0" iyy="0.002" iyz="0" izz="0.001"/>
+        </inertial>
+        <xacro:if value="${articulated and gripper == 'gripper2'}">
+          <visual><geometry><mesh filename="package://ivg_description/meshes/gripper2/palm_visual.stl"/></geometry></visual>
+          <collision><geometry><mesh filename="package://ivg_description/meshes/gripper2/palm_collision.stl"/></geometry></collision>
+        </xacro:if>
+        <xacro:unless value="${articulated and gripper == 'gripper2'}">
+          <visual><geometry><mesh filename="${tool['mesh_visual']}"/></geometry></visual>
+          <collision>
+            <geometry><mesh filename="${tool['mesh_collision']}"/></geometry>
+          </collision>
+        </xacro:unless>
+      </link>
+      <joint name="kuaihuan_to_${gripper}" type="fixed">
+        <parent link="kuaihuan_Link"/><child link="${gripper}_Link"/>
+        <origin xyz="${p['x']} ${p['y']} ${p['z']}" rpy="0 0 ${2*atan2(q['z'], q['w'])}"/>
+      </joint>
+      <!-- Grip cavity is separate from the legacy flange reference tool_tcp.
+           This CAD-derived point is a simulation reference, not a measured TCP. -->
+      <xacro:if value="${gripper == 'gripper2'}">
+        <link name="grasp_tcp"/>
+        <joint name="gripper2_grasp_tcp" type="fixed">
+          <parent link="gripper2_Link"/><child link="grasp_tcp"/>
+          <origin xyz="0 0 ${tool['grasp_depth_m']}"/>
+        </joint>
+      </xacro:if>
+    </xacro:if>
+    <link name="spout_marker"/>
+    <joint name="tcp_to_spout" type="fixed">
+      <parent link="tool_tcp"/><child link="spout_marker"/>
+      <origin xyz="-0.038 0.095 0.212"/>
+    </joint>
+  </xacro:macro>
+</robot>

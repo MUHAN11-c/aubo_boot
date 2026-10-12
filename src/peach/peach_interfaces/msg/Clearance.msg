@@ -8,7 +8,7 @@ string target_id                     # 绑定目标；空或不符=令牌无效�
 builtin_interfaces/Time valid_until  # GraspDecision.valid_until 原值；过期不得执行（心跳不续签）
 builtin_interfaces/Time model_stamp   # 融合模型时刻；CONTACT/TOOL 级复检新鲜度
 bool allowed                          # 套入/剪切许可（动态预算派生；原值数学）
-float64 radial_margin_m               # 径向余量 [m]；负值不可套
-float64 axial_margin_m                # 轴向余量 [m]；负值不可剪
+float64 radial_margin_m               # 径向余量 [m]；记录给机械，负值不拦套入
+float64 axial_margin_m                # 轴向余量 [m]；记录给机械，负值不拦剪切
 string model_fingerprint              # 模型指纹（版本归因）
 string reason                         # 许可/拒绝原因（稳定短语）

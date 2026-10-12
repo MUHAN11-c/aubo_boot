@@ -1,0 +1,9 @@
+<?xml version="1.0"?>
+<robot name="aubo_e5" xmlns:xacro="http://www.ros.org/wiki/xacro">
+  <xacro:arg name="gripper" default="none"/>
+  <xacro:include filename="aubo_e5.srdf"/>
+  <xacro:if value="${'$(arg gripper)' != 'none'}">
+    <!-- Fixed mounting contact only; do not disable the tool against the scene. -->
+    <disable_collisions link1="kuaihuan_Link" link2="$(arg gripper)_Link" reason="Adjacent"/>
+  </xacro:if>
+</robot>

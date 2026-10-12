@@ -29,7 +29,7 @@ _FALLBACK_TOOLS: dict[str, Any] = {
     "gripper0": {
         "name": "气动夹爪 φ40",
         "type": "gripper",
-        "mesh_visual": "tool_changer/meshes/visual/gripper0_link.stl",
+        "mesh_visual": "ivg_description/meshes/visual/gripper0_link.stl",
         "attach_offset": {
             "position": {"x": 0.0, "y": 0.0, "z": 0.033},
             "orientation": {"x": 0.0, "y": 0.0, "z": 0.0, "w": 1.0},
@@ -38,7 +38,7 @@ _FALLBACK_TOOLS: dict[str, Any] = {
     "gripper1": {
         "name": "电动夹爪 A",
         "type": "gripper",
-        "mesh_visual": "tool_changer/meshes/visual/gripper1_link.stl",
+        "mesh_visual": "ivg_description/meshes/visual/gripper1_link.stl",
         "attach_offset": {
             "position": {"x": 0.0, "y": 0.0, "z": 0.033},
             "orientation": {"x": 0.0, "y": 0.0, "z": 0.0, "w": 1.0},
@@ -47,7 +47,7 @@ _FALLBACK_TOOLS: dict[str, Any] = {
     "gripper2": {
         "name": "电动夹爪 φ60",
         "type": "gripper",
-        "mesh_visual": "tool_changer/meshes/visual/gripper2_link.stl",
+        "mesh_visual": "ivg_description/meshes/visual/gripper2_link.stl",
         "attach_offset": {
             "position": {"x": 0.0, "y": 0.0, "z": 0.033},
             "orientation": {"x": 0.0, "y": 0.0, "z": 0.7071, "w": 0.7071},
@@ -56,7 +56,7 @@ _FALLBACK_TOOLS: dict[str, Any] = {
     "gripper1coffeecup": {
         "name": "咖啡杯工具",
         "type": "other",
-        "mesh_visual": "tool_changer/meshes/visual/gripper1coffeecup_link.stl",
+        "mesh_visual": "ivg_description/meshes/visual/gripper1coffeecup_link.stl",
         "attach_offset": {
             "position": {"x": 0.0, "y": 0.0, "z": 0.033},
             "orientation": {"x": 0.0, "y": 0.0, "z": 1.0, "w": 0.0},
@@ -65,7 +65,7 @@ _FALLBACK_TOOLS: dict[str, Any] = {
     "gripper1milkcup": {
         "name": "牛奶杯工具",
         "type": "other",
-        "mesh_visual": "tool_changer/meshes/visual/gripper1milkcup_link.stl",
+        "mesh_visual": "ivg_description/meshes/visual/gripper1milkcup_link.stl",
         "attach_offset": {
             "position": {"x": 0.0, "y": 0.0, "z": 0.033},
             "orientation": {"x": 0.0, "y": 0.0, "z": -0.7071, "w": 0.7071},
@@ -77,7 +77,7 @@ _FALLBACK_TOOLS: dict[str, Any] = {
 def _load_tools_yaml() -> dict[str, Any] | None:
     """尝试从 tool_changer 包的 share 目录读取 tools.yaml 的 tools 段."""
     try:
-        share = Path(get_package_share_directory("tool_changer"))
+        share = Path(get_package_share_directory("ivg_description"))
         yaml_path = share / "config" / "tools.yaml"
         if yaml_path.is_file() and _HAS_YAML and _yaml is not None:
             raw = yaml_path.read_text(encoding="utf-8")

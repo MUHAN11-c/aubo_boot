@@ -81,6 +81,17 @@ def check_min_rate(count: int, window_s: float, min_hz: float,
     return CheckResult(name, PASS, f'帧率 {rate:.2f}Hz', round(rate, 3))
 
 
+def check_camera_rate(count: int | None, window_s: float, min_hz: float,
+                      name: str, skip_reason: str = '') -> CheckResult:
+    """图像探针到达率仅诊断：低率不证明采集失败，不阻止自动开批."""
+    result = check_min_rate(count, window_s, min_hz, name, skip_reason)
+    if result.status == FAIL:
+        result.status = WARN
+    if result.status != SKIP:
+        result.detail = f'图像探针接收{result.detail}（仅诊断，不拦开批）'
+    return result
+
+
 def check_fresh(age_s: float | None, max_age_s: float, name: str,
                 skip_reason: str = '') -> CheckResult:
     """最近一条消息年龄 ≤ max_age_s；age_s None 且有 skip_reason → SKIP."""

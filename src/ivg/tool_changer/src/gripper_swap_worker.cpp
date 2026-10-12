@@ -141,7 +141,7 @@ GripperSwapWorker::GripperSwapWorker(const rclcpp::NodeOptions & options)
   // 加载 tools.yaml（纯核解析）
   try {
     const std::string config_path =
-      ament_index_cpp::get_package_share_directory("tool_changer") + "/config/tools.yaml";
+      ament_index_cpp::get_package_share_directory("ivg_description") + "/config/tools.yaml";
     std::string err;
     if (!loadToolConfigs(config_path, tool_configs_, err)) {
       RCLCPP_ERROR(get_logger(), "tools.yaml 加载失败: %s", err.c_str());

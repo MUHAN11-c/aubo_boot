@@ -23,7 +23,7 @@ TEST(ToolConfig, ParseSwapDirection)
 TEST(ToolConfig, LoadRealToolsYaml)
 {
   const std::string path =
-    ament_index_cpp::get_package_share_directory("tool_changer") + "/config/tools.yaml";
+    ament_index_cpp::get_package_share_directory("ivg_description") + "/config/tools.yaml";
   std::map<std::string, tool_changer::ToolConfig> configs;
   std::string err;
   ASSERT_TRUE(tool_changer::loadToolConfigs(path, configs, err)) << err;

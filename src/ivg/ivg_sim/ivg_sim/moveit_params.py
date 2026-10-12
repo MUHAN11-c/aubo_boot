@@ -15,21 +15,11 @@ from ivg_sim.arm_description import ARM_JOINTS, build_arm_urdf, srdf_path
 
 def build_moveit_params() -> dict:
     """组装 move_group / MoveItPy 的完整参数 dict."""
-    from moveit_configs_utils import MoveItConfigsBuilder
+    from ivg_moveit_config.configuration import build_moveit_config
 
-    cfg = (
-        MoveItConfigsBuilder('aubo_e5', package_name='aubo_e5_moveit_config')
-        .robot_description_kinematics(file_path='config/kinematics.yaml')
-        .joint_limits(file_path='config/joint_limits.yaml')
-        .planning_pipelines(
-            pipelines=['ompl', 'pilz_industrial_motion_planner', 'stomp'],
-            default_planning_pipeline='ompl')
-        .to_moveit_configs()
-    )
-
-    cfg.robot_description = {'robot_description': build_arm_urdf()}
-    cfg.robot_description_semantic = {
-        'robot_description_semantic': srdf_path().read_text(encoding='utf-8')}
+    cfg = build_moveit_config(
+        'gripper2', 'none', robot_description=build_arm_urdf(),
+        srdf=srdf_path().read_text(encoding='utf-8'))
     cfg.trajectory_execution = {
         'moveit_manage_controllers': False,
         'moveit_controller_manager':

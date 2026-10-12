@@ -41,6 +41,12 @@ def generate_launch_description() -> LaunchDescription:
         DeclareLaunchArgument('frame_index', default_value='70'),
         DeclareLaunchArgument('hz', default_value='2.0'),
         DeclareLaunchArgument(
+            'mock_initial_positions',
+            default_value='0.425175,0.194274,1.679546,1.462579,-0.279948,0.038859',
+            description='mock spawn joints; default is SRDF global_photo_pose '
+                        'so the frozen frame is not republished during a '
+                        'home-to-photo transit'),
+        DeclareLaunchArgument(
             'tool_profile', default_value='bite_shear_v1',
             description='v1 main tool for this dry-grasp path'),
         IncludeLaunchDescription(
@@ -59,6 +65,8 @@ def generate_launch_description() -> LaunchDescription:
                 'autostart': 'false',
                 'bond_timeout': '0.0',
                 'tool_profile': LaunchConfiguration('tool_profile'),
+                'mock_initial_positions': LaunchConfiguration(
+                    'mock_initial_positions'),
             }.items()),
         Node(
             package='peach_system_tests',

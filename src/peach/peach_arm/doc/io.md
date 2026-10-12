@@ -46,7 +46,7 @@ flowchart TB
 | `/peach_arm/status` | topic | 技能短状态 JSON，作业票「靠近/工具」用 | peach_arm | peach_observability |
 | `/peach_arm/tool_state` | topic | 工具三轴状态 `ToolState`（刀/保持/载荷；latched，on-change，证据=io_states 新上升沿，详见下「工具三轴状态」） | peach_arm | 无显式订户（会话 bag catch-all 落证据） |
 | `~/planned_views`（`/peach_arm/planned_views`） | topic | 已走到的观察视点 MarkerArray（latched；清单可视化豁免，不进 RViz 默认面板） | peach_arm | （可视化） |
-| `/diagnostics` | topic | 节点诊断标准面（diagnostic_updater 周期任务；2026-09-29 观测性轮起全覆盖）：`peach_arm`（9 任务：观测流/TF、目标缓存、回调耗时、接触电流、使能、**robot_status 断流、工具链、move_group 在场、最近拒因锁存**）、`peach_scene_perception_node` / `peach_target_reconstruction_node` / `peach_supervisor` / `peach_lifecycle_manager`（watchdog）/ `peach_scene_obstacles`（快照结局）/ `peach_observability`（bag 队列、摄入活度、**selfcheck 裁决**）/ `peach_vegetation` / `peach_stereo`（帧率/丢弃/激光配置）/ `serial_imu`。不进接口清单：核对器只扫 `/peach` 前缀绝对名字面量，`/diagnostics` 属 ROS 标准诊断面（同 `serial_imu` 先例，W5 验证不登记也绿）。**消费端**：`peach_observability` 订阅聚合进 `/api/state` `diagnostics` 分区与 8090 面板（此前全栈无消费方）+ 会话 bag | peach_arm 等 | peach_observability（聚合）+ 通用诊断工具 |
+| `/diagnostics` | topic | 节点诊断标准面（diagnostic_updater 周期任务；2026-09-29 观测性轮起全覆盖）：`peach_arm`（9 任务：观测流/TF、目标缓存、回调耗时、接触电流、使能、**robot_status 断流、工具链、move_group 在场、最近拒因锁存**）、`peach_scene_perception_node` / `peach_target_reconstruction_node` / `peach_supervisor`/ `peach_scene_obstacles`（快照结局）/ `peach_observability`（bag 队列、摄入活度、**selfcheck 裁决**）/ `peach_vegetation` / `peach_stereo`（帧率/丢弃/激光配置）/ `serial_imu`。不进接口清单：核对器只扫 `/peach` 前缀绝对名字面量，`/diagnostics` 属 ROS 标准诊断面（同 `serial_imu` 先例，W5 验证不登记也绿）。**消费端**：`peach_observability` 订阅聚合进 `/api/state` `diagnostics` 分区与 8090 面板（此前全栈无消费方）+ 会话 bag | peach_arm 等 | peach_observability（聚合）+ 通用诊断工具 |
 
 另有 Trigger（已进清单；8090 调试面调用，调度主路径走动作 cancel）：
 

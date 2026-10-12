@@ -32,7 +32,7 @@ python3 src/peach/peach_interfaces/scripts/check_interface_manifest.py
 | `peach_arm/config/peach_arm.yaml` | 视点、MTC、接触、刀具 IO |
 | `peach_arm/src/arm_parameters.yaml` | 执行合同（GPL 单源，2c 回迁） |
 | `peach_harvester/config/peach_supervisor.yaml` | 批次、选果、`execute_pregrasp_only` |
-| `peach_harvester/config/lifecycle_manager.yaml` | lifecycle 名单与顺序 |
+| `peach_bringup/launch/harvest_system.launch.py` | Nav2 lifecycle 名单与顺序 |
 | `peach_observability/config/observability.yaml` | 监控 Web + 启动自检；`debug.motion_enabled` 默认关（W11 起随包走） |
 
 ---
@@ -61,7 +61,7 @@ QoS 缩写：`R` reliable；`TL` transient_local（晚订户仍拿得到最后�
 
 | 名字 | 种类 | 类型 | 含义 | 发 | 订 | QoS |
 |------|------|------|------|----|----|-----|
-| `/peach_lifecycle_manager/manage_nodes` | service | `ManageLifecycleNodes` | 整栈 configure/activate/拆除。这里的 PAUSE 是节点 Inactive，不是批次暂停；不发 `RunHarvest` | lifecycle（仅随包内独立 launch；现行整栈同名服务由 nav2_lm 以 `nav2_msgs` 类型提供，非本 IDL） | （人工） | — |
+| `/peach_lifecycle_manager/manage_nodes` | service | `nav2_msgs/ManageLifecycleNodes` | 整栈 configure/activate/拆除；PAUSE 是节点 Inactive，不是批次暂停 | nav2_lifecycle_manager（外部） | observability / 人工 | — |
 | `/peach_lifecycle_manager/is_active` | service | `std_srvs/Trigger` | nav2_lifecycle_manager 自带就绪查询（外部节点）；闩锁桥输入 | （nav2_lifecycle_manager，外部） | bringup | — |
 | `/peach/lifecycle/managed_nodes_activated` | topic | `std_msgs/Bool` | 名单都 Active 后才允许接开批 | lifecycle 闩锁桥（`peach_lifecycle_flag_bridge`，bringup） | 调度 | R/TL/1 |
 
@@ -221,11 +221,9 @@ Goal：`pose`、`site_id`。现行固定座调度直通 `NAV_OK`，**不发送**
 
 响应：`accepted`、`message`、`state_seq`、完整 `state`。
 
-### `ManageLifecycleNodes`
+### 标准生命周期服务
 
-`STARTUP=0` 先全部 configure 再 activate；`PAUSE=1` 逆序 deactivate；`RESUME=2` 顺序 activate；`RESET=3` 拆除再 STARTUP；`SHUTDOWN=4` 停在 Unconfigured。
-
----
+`/peach_lifecycle_manager/manage_nodes` 使用 `nav2_msgs/srv/ManageLifecycleNodes`，本包不生成重复 IDL。8090 调试桥保留五条现行命令；响应仅有 `success`，没有 `message`。PAUSE 是节点生命周期停用，不是批次暂停。
 
 ## 消息字段
 

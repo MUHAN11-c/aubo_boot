@@ -1,7 +1,0 @@
-# peach_lifecycle_manager 参数全量清单（nav2 式：launch 以 ParameterFile 装入，部署值即事实源）
-# 节点 peach_lifecycle_manager.attach 按本文件声明叶子；ros2 param set 原地刷新。
-# 键名冻结。名单顺序：场景感知 → 重建 → 技能 → 调度。
-peach_lifecycle_manager:
-  ros__parameters:
-    node_names: [peach_scene_perception_node, peach_target_reconstruction_node, peach_arm, peach_supervisor]  # 有序 configure/activate 的节点名单；observability 不进名单（自行 configure/activate）。拆除逆序。
-    startup_timeout_s: 60.0  # 单次生命周期状态转换等待上限 (s)。

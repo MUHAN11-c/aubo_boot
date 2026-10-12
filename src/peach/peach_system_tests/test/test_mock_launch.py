@@ -15,16 +15,15 @@ import launch_testing
 from launch_testing.actions import ReadyToTest
 from launch_testing.util import resolveProcesses
 from launch_testing_ros import WaitForTopics
+from peach_bringup.preflight import running_stack_pids
 import pytest
 from rclpy.qos import DurabilityPolicy
 from rclpy.qos import HistoryPolicy
+from rclpy.qos import qos_profile_sensor_data
 from rclpy.qos import QoSProfile
 from rclpy.qos import ReliabilityPolicy
-from rclpy.qos import qos_profile_sensor_data
 from sensor_msgs.msg import JointState
 from std_msgs.msg import Bool
-
-from peach_bringup.preflight import running_stack_pids
 
 _MUST_JOINTS = (
     'shoulder_joint',
@@ -74,6 +73,8 @@ def generate_test_description():
                     'camera_enabled': 'false',
                     'imu_enabled': 'false',
                     'moveit_enabled': 'true',
+                    # 驱动已有无头参数；保留 move_group，避免显示端缺 GLX 崩溃。
+                    'rviz': 'false',
                     'extrinsics_enabled': 'true',
                     'hand_eye_enabled': 'false',
                     'hand_eye_web_enabled': 'false',

@@ -17,7 +17,7 @@
 | `BeginScene` | `peach_harvester`（vision） | **重启收齐窗。** 推进 `scene_epoch`。同 `scene_key` 保留身份；换场才清表。非 Active 拒绝。调度仅 DISCOVERY 首巡 Survey 到位后调用一次 |
 | `CheckReachability` | `peach_arm` | **选果：预抓取停位 IK；FULL 时再检套入终点 IK 与沿轴笛卡尔。** 预抓取后撤 `mtc_approach_along_axis_m`，姿态 `alignFrameZ` 不抄感知滚转；keep-roll 无解再 ±30°/±60° 滚转。`require_sleeve`（调度在非 `execute_pregrasp_only` 时置位）时套入终点 = 入口沿袋轴 + clamp(travel)，再从预抓取 IK 解沿轴 interpolate（步长/完成比与接触 LIN 同参）。不装配 MTC、不动臂。失败码 `no_ik` / `sleeve_no_ik` / `sleeve_no_cartesian`。服务不可用时调度回退半径窗（FULL 另卡套入终点半径） |
 | `ControlTask` | `peach_harvester`（supervisor） | **人工控批（监控不发）。** PAUSE / RESUME / CANCEL_NOW / SKIP_TARGET / ACKNOWLEDGE_RECOVERY。`expected_state_seq` 须对上，防过期点击。`CANCEL_NOW` 只置 `_cancel`；客户端未发 action cancel 时终局 `abort()`，不得从 EXECUTING 直接 `canceled()` |
-| `ManageLifecycleNodes` | `peach_harvester`（supervisor，仅随包内独立 launch） | **整栈 configure/activate/拆除。** PAUSE=节点 Inactive，不是批次暂停。不发 `RunHarvest`。现行整栈由 nav2_lifecycle_manager 承载（同名节点用自带 `nav2_msgs` 服务，非本 IDL；本 IDL 服务端无现行生产方，manifest 登记 producers 空） |
+| `nav2_msgs/srv/ManageLifecycleNodes` | Nav2 管理器 `/peach_lifecycle_manager/manage_nodes` | 8090 调试桥/人工；STARTUP、PAUSE、RESUME、RESET、SHUTDOWN，不发 RunHarvest |
 
 | 消息 | 含义 |
 |------|------|

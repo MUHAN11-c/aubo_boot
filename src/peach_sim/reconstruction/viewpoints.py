@@ -4,7 +4,7 @@
 - 沿作业道停靠位序列（alley stops）——机器人停、拍、再停；
 - 每目标补视取两候选行程短者：A) 沿相机→目标直线 0.15 m 截距、
   B) 绕袋轴 ±30° 摆角。常数与 peach_harvester
-  `cycle_core/view_policy.py::supplemental_viewpoint` 原值一致；
+  旧版采摘补视原型的常数一致（原型已归档；本模块仍用于现行离线矩阵）；
   test_viewpoints.py 用 sys.path 双向对拍两实现防漂移；
 - 每目标总视数封顶 3（min_views=2 口径）：1 停靠视 + 至多 2 补视。
 
@@ -76,7 +76,7 @@ def supplemental_viewpoint(
     bag_axis: Vec3,
     camera_front: Optional[Vec3] = None,
 ) -> List[float]:
-    """补视机位：两候选行程短者（常数同 view_policy 原值，勿单独调参）."""
+    """仿真补视机位：在本模块的预算内选取行程较短的候选."""
     unit_axis = _unit(bag_axis) if _norm(bag_axis) > 1e-12 else [0., 0., 1.]
 
     toward = _sub(target_xyz, camera_xyz)

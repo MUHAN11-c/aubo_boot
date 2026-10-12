@@ -15,9 +15,9 @@
 #
 # 保留：src/ 全部源码与资产（含 peach_sim/meshes、peach_harvester/model 自训练模型、
 #       驱动 vendor、web/public 前端 vendor JS——three.js/robotwebtools 的 build 发行件，
-#       仓内无重下脚本）、docs/、plans/、根文档、requirements.txt、.clangd/.colcon 构建配置、
+#       仓内无重下脚本）、docs/、根文档、requirements.txt、.clangd/.colcon 构建配置、
 #       .github、.agents、.cursor/rules（git 跟踪的规则）、scripts/（含本脚本）、
-#       _tools/*.sh 小脚本；.git/ 历史默认入包（--no-git 去掉）。
+#       .git/ 历史默认入包（--no-git 去掉）。
 #
 # 用法：
 #   scripts/pack_workspace.sh [--dry-run] [--no-git] [--out DIR] [--gz | --zstd]
@@ -75,7 +75,7 @@ OUT_FILE="$OUT_DIR/${NAME}-src-${STAMP}.tar.${EXT}"
 
 # 顶层白名单：不在此列的根目录（_archive/build/install/log/runs/各工具点目录）整体不入包。
 INCLUDE=(AGENTS.md CLAUDE.md LICENSE README.md .gitignore .zcodeignore .clangd .colcon
-         .github .agents .cursor/rules docs plans scripts src requirements.txt _tools)
+         .github .agents .cursor/rules docs scripts src requirements.txt)
 [[ $WITH_GIT -eq 1 ]] && INCLUDE+=(.git)
 PATHS=()
 for e in "${INCLUDE[@]}"; do
@@ -128,7 +128,7 @@ done < <(find "$WS/$OUT_REL" -mindepth 1 -type d -printf '%P\n')
 # （新环境重新 colcon build 即有）。web/public/ 下的前端 vendor build 不在排除之列。
 while IFS= read -r d; do
   EXC_ANCHOR+=("$NAME/$d")
-done < <(find src docs plans _tools .agents .github .colcon -mindepth 1 -type d \
+done < <(find src docs .agents .github .colcon -mindepth 1 -type d \
            \( -name build -o -name install -o -name log \) -not -path '*/web/public/*' -print)
 
 TAR_ARGS=(--create --file="$OUT_FILE" "${COMP[@]}" -C "$(dirname "$WS")"
@@ -144,10 +144,36 @@ for e in "${PATHS[@]}"; do
   inc_kb=$(( inc_kb + $(du -sk "$WS/${e#"$NAME"/}" | cut -f1) ))
 done
 exc_kb=0
-for p in "${EXC_ANCHOR[@]}"; do
+declare -A counted_exclusions=()
+while IFS= read -r p; do
   p="${p#"$NAME"/}"
-  [[ -e "$WS/$p" ]] && exc_kb=$(( exc_kb + $(du -sk "$WS/$p" | cut -f1) ))
-done
+  anchor_in_include=0
+  for included_path in "${PATHS[@]}"; do
+    included_path="${included_path#"$NAME"/}"
+    if [[ "$p" == "$included_path" || "$p" == "$included_path/"* ]]; then
+      anchor_in_include=1
+      break
+    fi
+  done
+  # 已整体排除的顶层目录不能再次扣体积，否则会出现负数预估。
+  if [[ $anchor_in_include -eq 1 && -e "$WS/$p" ]]; then
+    ancestor="$p"
+    already_counted=0
+    while [[ -n "$ancestor" ]]; do
+      if [[ -n "${counted_exclusions[$ancestor]:-}" ]]; then
+        already_counted=1
+        break
+      fi
+      [[ "$ancestor" == */* ]] || break
+      ancestor="${ancestor%/*}"
+    done
+    if [[ $already_counted -eq 0 ]]; then
+      exc_kb=$(( exc_kb + $(du -sk "$WS/$p" | cut -f1) ))
+      counted_exclusions[$p]=1
+    fi
+  fi
+# 按路径排序使父目录先处理；父目录已扣除时，子文件/子目录不再重复扣除。
+done < <(printf '%s\n' "${EXC_ANCHOR[@]}" | LC_ALL=C sort -u)
 est_kb=$(( inc_kb - exc_kb ))
 avail_kb="$(df -Pk "$OUT_DIR" | awk 'NR==2 {print $4}')"
 

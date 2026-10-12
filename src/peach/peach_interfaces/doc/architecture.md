@@ -26,7 +26,7 @@
 | 服务 | `SetEnables` | 调度 | 操作台使能开关；广播 `/peach/batch/enables` + 审计 |
 | 服务 | `SetBatchPolicy` | 调度 | 运行期改批次策略（当前批或下批默认） |
 | 服务 | `FireStep` | 调度 | 操作台单步；现行仅 PHOTO 已接线（MoveTo KIND_NAMED），其余档位占位调用即拒；未来运动类档位过臂侧命令门 |
-| 服务 | `ManageLifecycleNodes` | lifecycle 管理器（仅随包内独立 launch；现行整栈同名服务由 nav2_lm 以 `nav2_msgs` 类型提供） | 整栈 STARTUP…SHUTDOWN；不发 `RunHarvest` |
+| 标准服务 | `nav2_msgs/srv/ManageLifecycleNodes` | 外部 Nav2 管理器 | STARTUP、PAUSE、RESUME、RESET、SHUTDOWN；不发 RunHarvest |
 
 主要消息：观测 `PeachTargetObservation*`；几何初值 `BagGraspCandidate*` / `BagFitting*`；批次 `HarvestState` / `HarvestSummary` / `TargetOutcome` / `CanonicalEvent`；重建 `GraspDecision` / `ReconstructionStatus` / `TargetModel`；执行合同 `Enables` / `Clearance` / `ToolState`。契约预留、节点尚未全部接线：`ShapeHypothesis`、`GraspHypothesis`。导航预留（manifest `reserved_interfaces` 区）：`NavigateToWorksite`、`HarvestTargetReport`、`VehicleState`、`HarvestOperationStatus`。已删类型（e2f37ff，勿再造）：`JobIntent`（常量并入 `RunHarvest` 的 `INTENT_*`）、`HarvestEvent`、`MatchStatus`。
 

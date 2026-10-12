@@ -57,7 +57,7 @@ flowchart LR
 | `ExecuteTarget` PREGRASP_ONLY | 技能 `~/execute_target` | `_cmd_full` | 默认 `execute_pregrasp_only=true` 时替代 FULL；停预抓取等 ACK |
 | （可选）`skip_reconstruction` | 调度参数 | `_cmd_dispatch` | launch `skip_reconstruction:=true` 时 **不发** Build/OBSERVE，直接 `READY_FULL`；接触几何=锁定集场景观测。brain overlay 按节点名分节写 ParameterFile（unnamed Node 上扁平 dict 与 `peach_supervisor` 单键嵌套都打不进进程内节点，2026-09-30 实测）。默认 false |
 | `ControlTask` | 调度 `~/control` | 人工（监控只读不发） | PAUSE / SKIP / CANCEL… |
-| `ManageLifecycleNodes` | 管理器 `~/manage_nodes` | 人工 | STARTUP/PAUSE/RESUME/RESET/SHUTDOWN；不发 RunHarvest。**整栈 harvest_system 用 nav2_lifecycle_manager（同名节点 `peach_lifecycle_manager`、nav2_msgs 自带服务），本服务仅独立起自研管理器（`peach_harvester/launch/lifecycle_manager.launch.py`）时存在** |
+| `nav2_msgs/srv/ManageLifecycleNodes` | Nav2 管理器 `/peach_lifecycle_manager/manage_nodes` | 8090 调试桥/人工 | STARTUP、PAUSE、RESUME、RESET、SHUTDOWN；不发 RunHarvest |
 
 ---
 ## 2. 相机契约（全栈共享 /camera/*，前端二选一）

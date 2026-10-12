@@ -1,7 +1,7 @@
 """
-Supervisor / lifecycle: yaml 直读 + 一行 attach.
+Supervisor: yaml 直读 + 一行 attach.
 
-部署事实源 ``config/{peach_supervisor,lifecycle_manager}.yaml``。
+部署事实源 ``config/peach_supervisor.yaml``。
 节点 ``Xxx.attach(node)`` 声明叶子并挂校验：启动期非法覆盖即抛（拒绝启动）；
 ``ros2 param set`` 原地刷新，整批合法才提交（跨字段选果窗经 preview 拒绝）。
 observability 的参数/规则随 ``peach_observability/params.py`` 自持（W11 起
@@ -27,10 +27,6 @@ _SUPERVISOR_RULES = {  # 键 -> 校验规则表（启动期非法即拒启；运
     'reconstruction_min_views': (('gt_eq', 1),),
     'build_start_timeout_s': (('gt', 0.0),),
     'observe_build_grace_s': (('gt_eq', 0.0),),
-}
-
-_LIFECYCLE_RULES = {
-    'startup_timeout_s': (('gt', 0.0),),
 }
 
 
@@ -116,14 +112,3 @@ class peach_supervisor:
             _yaml('peach_supervisor.yaml'),
             validate=_validator(_SUPERVISOR_RULES),
             preview=_supervisor_preview)
-
-
-class peach_lifecycle_manager:
-    """peach_lifecycle_manager parameters from lifecycle_manager.yaml."""
-
-    @staticmethod
-    def attach(node):
-        """Declare yaml leaves; live namespace."""
-        return attach(
-            node, _yaml('lifecycle_manager.yaml'),
-            validate=_validator(_LIFECYCLE_RULES))

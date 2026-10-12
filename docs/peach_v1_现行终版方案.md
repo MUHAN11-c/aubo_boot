@@ -2,7 +2,7 @@
 
 日期：2026-10-08。性质：本文件是现行采摘核（`src/peach/peach_*`）的完整方案说明，与 [`peach_v2_重构终版方案.md`](peach_v2_重构终版方案.md) 成对；不是部署快照，不新增第四份活文档。
 
-**阅读顺序：** 先看 §1 建成范围与成功口径，再看 §3–§13 专题；结构性缺口集中在 §14。运行中的参数、图名、QoS 以源码和三份活文档为准：[系统架构](../src/peach/peach_bringup/doc/architecture.md)、[系统 IO](../src/peach/peach_bringup/doc/io.md)、[v1 测试指导](../src/peach/peach_system_tests/doc/testing.md)。概要设计书在 [`plans/peach_v1_套袋桃采摘机器人项目设计书.md`](../plans/peach_v1_套袋桃采摘机器人项目设计书.md)。v2 演进方向见 [v2 重构方案](peach_v2_重构终版方案.md)（原 `design.md` 已退役）。本文与活文档打架时，以活文档和源码为准，并同轮改本文。
+**阅读顺序：** 先看 §1 建成范围与成功口径，再看 §3–§13 专题；结构性缺口集中在 §14。运行中的参数、图名、QoS 以源码和三份活文档为准：[系统架构](../src/peach/peach_bringup/doc/architecture.md)、[系统 IO](../src/peach/peach_bringup/doc/io.md)、[v1 测试指导](../src/peach/peach_system_tests/doc/testing.md)。概要设计书在 [`_archive/code_cleanup_2026-10-12/plans/peach_v1_套袋桃采摘机器人项目设计书.md`](../_archive/code_cleanup_2026-10-12/plans/peach_v1_套袋桃采摘机器人项目设计书.md)。v2 演进方向见 [v2 重构方案](peach_v2_重构终版方案.md)（原 `design.md` 已退役）。本文与活文档打架时，以活文档和源码为准，并同轮改本文。
 
 生产入口是 `peach_bringup` 的 `harvest_system.launch.py`。`src/peach2/` 不进该入口。
 
@@ -558,7 +558,7 @@ v2 要换掉的，就是 §14 里那些靠继续叠令牌和豁免解决不了�
 - 运行权威：`src/peach/peach_bringup/doc/architecture.md`、`src/peach/peach_bringup/doc/io.md`（系统级）+ 各能力包 doc/ + 两测试包 doc/testing.md；图名 `src/peach/peach_interfaces/config/interface_manifest.yaml`
 - 怎么改：`AGENTS.md`（MUST / DEFAULT / KEEP / SNAPSHOT / UNWIND）
 - 重构对照：`docs/peach_v2_重构终版方案.md`
-- 概要设计：`plans/peach_v1_套袋桃采摘机器人项目设计书.md`、`docs/design.md`
+- 概要设计：`_archive/code_cleanup_2026-10-12/plans/peach_v1_套袋桃采摘机器人项目设计书.md`、`docs/design.md`
 - 预算实现：`src/peach/peach_harvester/peach_harvester/vision/common/tool_budget.py`
 - 阶段序列：`peach_arm` 的 `stages.cpp` / `cycle.cpp`；接近以 `grasp_task.cpp` 现行函数为准
 - 批次：`harvest_fsm` 纯核

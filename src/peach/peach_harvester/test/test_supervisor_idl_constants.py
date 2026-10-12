@@ -2,7 +2,6 @@
 from pathlib import Path
 import re
 
-from peach_harvester.supervisor.domain import lifecycle
 import peach_harvester.supervisor.harvest_fsm as fsm
 
 SRC = Path(__file__).resolve().parents[2]
@@ -48,12 +47,3 @@ def test_control_task_commands_match_fsm():
     assert fsm.CMD_CANCEL_NOW == idl['CANCEL_NOW']
     assert fsm.CMD_SKIP_TARGET == idl['SKIP_TARGET']
     assert fsm.CMD_ACKNOWLEDGE_RECOVERY == idl['ACKNOWLEDGE_RECOVERY']
-
-
-def test_manage_lifecycle_commands_match_domain():
-    idl = _uint8_constants('peach_interfaces/srv/ManageLifecycleNodes.srv')
-    assert lifecycle.CMD_STARTUP == idl['STARTUP']
-    assert lifecycle.CMD_PAUSE == idl['PAUSE']
-    assert lifecycle.CMD_RESUME == idl['RESUME']
-    assert lifecycle.CMD_RESET == idl['RESET']
-    assert lifecycle.CMD_SHUTDOWN == idl['SHUTDOWN']

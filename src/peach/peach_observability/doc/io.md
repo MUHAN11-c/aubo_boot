@@ -39,7 +39,7 @@ flowchart LR
 | `debug.enabled` | 调试 POST 总开关；默认 true |
 | `debug.motion_enabled` | 运动类放行；默认 false→423 |
 | `debug.audit_enabled` | 审计落盘 `runs/debug_audit/`；默认开（含被拒，含 `enabled=false` 的 503） |
-| `debug.endpoints.*` | 调试桥目标（18 个既有动作/服务名，params.py 默认=现行契约名）。注意 `manage_nodes_service`→`/peach_lifecycle_manager/manage_nodes` 走本包 IDL 类型：**整栈（nav2_lm）下该端点必 503**（nav2 节点不提供本类型服务），仅独立起自研管理器时可用——已知，非遗漏 |
+| `debug.endpoints.*` | 调试桥目标（18 个既有动作/服务名，params.py 默认=现行契约名）。注意 `manage_nodes_service`→`/peach_lifecycle_manager/manage_nodes` 使用 `nav2_msgs/srv/ManageLifecycleNodes`；五条既有命令不变，响应只读取 `success`，不假定有 `message`；服务缺席时 503 |
 | `record_bag`（launch 参数） | observability.launch 另有旁路录制通道：`record_bag:=true` 时 include `record_bag.launch.py` 起独立 `ros2 bag record -s mcap` 进程，只录 `/peach_supervisor/state`+`/peach_supervisor/events`，输出 `runs/session_bag`（与体积预算的旧 `mcap_*` 回收衔接） |
 
 参数表为改变行为的节选；全量键（`selfcheck.*` 细项、`trajectory.base_frame/tip_frame/period_s/min_step_m/max_points`、`metrics_process_patterns`、`event_buffer_size`、`param_poll_period_s`、`robot_status_probe_enabled` 等）见 `config/observability.yaml`。

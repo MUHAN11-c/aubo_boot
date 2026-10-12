@@ -66,10 +66,10 @@ ros2 launch peach_bringup harvest_system.launch.py \
 |------|------|
 | `src/` | v1 采摘栈九包（`src/peach/`，含公共库与相机前端）+ v2 孵化十二包（`src/peach2/`）+ IVG 演示九包（`src/ivg/`）+ 臂/相机驱动九包 + 过程页静态资源 `peach_web` 1 + 仿真 `peach_sim` 1 + 可选 USB IMU / IMU 跟随 2 + 夹爪描述 `robotiq_description` 1 |
 | `docs/` | v1/v2 方案书与架构图交付件（非活文档）；现行架构、IO 与测试指导在各包 `doc/` |
-| `plans/` | 冻结项目设计书及入口说明（与 `docs/` 方案书用途不同，现行行为看包级 `doc/`） |
 | `scripts/` | 工作区打包与架构图生成工具；业务、采集与测试入口在所属包 |
 | `runs/` | 过程数据唯一根（文本按 `.gitignore` 可入库，bag/图像等二进制留本地） |
 | `_archive/runs/` | 历史过程数据（勿删） |
+| `_archive/code_cleanup_2026-10-12/` | 冻结设计书、历史 A/B 实验与退役源码；manifest.json 可校验和恢复（本地，不随仓） |
 | `_archive/parked_2026-08-24/` | 暂不用：tools / diagnostics / profiles / scripts / 架子机 / 过程文档 |
 | `_archive/parked_2026-09/` | 已归档 `peach_navigation`（真底盘授权后恢复） |
 | `aubo_py3.12/` | Python 3.12 venv（本机，不入库） |

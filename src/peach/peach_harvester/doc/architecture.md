@@ -109,9 +109,9 @@ flowchart TD
 - **FSM：** `harvest_fsm.react` 出 `Command`，节点做 ROS I/O。`execution_enabled=false` 或 `intent=SURVEY_ONLY` 则 Survey 后结算。默认 `execute_pregrasp_only=true`：FULL 槽改发 `PREGRASP_ONLY`（停预抓取，ACK 后再 Survey）。套入前改 false。臂侧 `pregraspOnlyFromGoal`：`mode=FULL` 不被默认 `profile=0` 盖成停预抓取；`PROFILE_FULL` 强制套入。运行期 `ros2 param set` 改 `execution_enabled` / `execute_pregrasp_only` 原地写入调度参数树（下次开批与 `HarvestState` 发布读到新值），不改 yaml 默认。`require_managed_stack`（整栈 launch 为 true）未收到 lifecycle 旗标则拒绝开批。DISPATCH：`BuildTargetModel` 须在 `build_start_timeout_s`（默认 2 s）内反馈 COLLECTING/READY；超时则取消并**等该动作结束**再派下一颗（重建单槽，未结束会拒下一颗 Build）。批次6 `reconstruct_in_trajectory`（默认关）：true 时 Build 进 COLLECTING 后不再阻塞 `_wait_build_after_observe` 等待段，立即派 FULL（goal 自带 `skip_observation=true`，身份 revision=`pending:*` 占位——空 revision 会被 peach_arm 以「身份元组不完整」REJECT；FULL 不装未融合 GraspDecision 令牌）——重建与接近并行；臂侧 FinalizeAndValidate 有界等精化兜底（`skip_observation` 时质量门 selected 回退 `goal.target_id`，避免感知心跳未跟上打成 `selected_target_missing`），周期收口取消并等 Build 结束（单槽约束保持）。`skip_reconstruction`（默认 false；`harvest_system skip_reconstruction:=true` 同时打开技能 `quality.allow_unrefined_geometry`）时 DISPATCH **不发** Build/补视，用锁定集场景观测当接触入口（身份 revision=`unrefined:*`；FULL 不装重建 GraspDecision 令牌）。brain 把该 launch 参数写成 `peach_supervisor` 键 ParameterFile overlay（unnamed `Node` 上嵌套 dict 打不进进程内节点）。验证路径：mock 臂 + 真相机不跟随、无法凑第二机位时走接触；真机 KEEP false。不放松 `min_views` / `max_target_drift_m`。
 - **禁止：** launch 自动 `RunHarvest`；监控代发运动；直接调 MoveIt / Nav2。
 
-#### `peach_lifecycle_manager`（管）
+#### 生命周期边界
 
-- **名单（部署值 `config/lifecycle_manager.yaml`）：** 场景感知 → 重建 → 技能 → 调度。observability **不进名单**。节点 `peach_lifecycle_manager.attach` 按 yaml 声明叶子。
+本包不再安装生命周期管理器。整栈由 `peach_bringup` 启动 Nav2 管理器，名单及闩锁桥见 [系统架构](../../peach_bringup/doc/architecture.md)。本包仅保留各节点的 lifecycle 回调。
 
 ---
 
@@ -159,7 +159,7 @@ sequenceDiagram
 
 **读图（时序）：** 柜侧上电由人工用示教器完成；lifecycle 只把节点配到 Active。等人发 `RunHarvest`。固定座无导航一步：到位直通 `NAV_OK`（`NavigateToWorksite` 预留）。**先 Survey 到拍照位并复核关节，再 BeginScene 重启收齐窗**，等本世代锁定后才选果。选中一颗后重建与主动观察**同时**跑。观察结束后默认去预抓取停住（不剪、不回 stow），看完方向再 ACK；只有把 `execute_pregrasp_only` 改成 false 才走套入/剪切。回访只再 Survey，禁止再 Begin。
 
-批次纯核是 `harvest_fsm.react(batch_state, event) → Reaction`。节点禁止手写 `batch_state`。数值与 `HarvestState` / `ControlTask` / `ManageLifecycleNodes` IDL 由 `test/test_supervisor_idl_constants.py` 对账；`NAVIGATING=9` 预留，纯核不定义该常量。`READY_FULL` 对应命令 `EXECUTE_FULL`，节点再按 `execute_pregrasp_only` 选 `PREGRASP_ONLY` 或 `FULL`。
+批次纯核是 `harvest_fsm.react(batch_state, event) → Reaction`。节点禁止手写 `batch_state`。数值与 `HarvestState` / `ControlTask` IDL 由 `test/test_supervisor_idl_constants.py` 对账；`NAVIGATING=9` 预留，纯核不定义该常量。`READY_FULL` 对应命令 `EXECUTE_FULL`，节点再按 `execute_pregrasp_only` 选 `PREGRASP_ONLY` 或 `FULL`。
 
 ```mermaid
 stateDiagram-v2

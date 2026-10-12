@@ -187,12 +187,3 @@ def read_bag(bag_dir, *, stamps_only=HEAVY_TOPICS) -> dict:
         records.append(
             (int(t_ns), converter(message) if converter else _to_dict(message)))
     return streams
-
-
-def topic_streams(streams: dict, *names: str) -> list:
-    """取指定话题的记录流（缺失给空表；多话题按时间归并升序）."""
-    merged: list = []
-    for name in names:
-        merged.extend(streams.get(name) or [])
-    merged.sort(key=lambda item: item[0])
-    return merged

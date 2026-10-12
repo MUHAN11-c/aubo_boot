@@ -1,21 +1,16 @@
 """M2/M3 纯核单测：光照预设 / 分布采样 / 受控遮挡 / 停走轨迹 / 深度量化.
 
 运行方式同 test_measurement.py（pytest 收集或直接 python 运行）。
-补视几何与 peach_harvester view_policy 的对拍用 importlib 按文件加载，
-运行时零跨包依赖。
+补视几何用独立边界与不变量验证，不加载其他包的历史原型。
 """
 
-import importlib.util
 import math
+from pathlib import Path
 import random
 import sys
 import unittest
-from pathlib import Path
-
-import numpy as np
 
 HERE = Path(__file__).resolve().parent
-ROOT = HERE.parents[2]
 sys.path.insert(0, str(HERE))
 
 import depth_io  # noqa: E402
@@ -23,19 +18,10 @@ from distributions import (fruit_center_z, sample_bag_for_fruit,  # noqa: E402
                            sample_mature_fruit, sample_percentile,
                            sample_width_height, wrap_half_at, wrap_radius)
 import lighting  # noqa: E402
+import numpy as np  # noqa: E402
 import occlusion  # noqa: E402
 from viewpoints import (alley_stops, build_trajectory,  # noqa: E402
                         supplemental_viewpoint)
-
-
-def _load_view_policy():
-    path = (ROOT / 'src/peach/peach_harvester/peach_harvester/cycle_core'
-            / 'view_policy.py')
-    spec = importlib.util.spec_from_file_location('view_policy_ref', path)
-    module = importlib.util.module_from_spec(spec)
-    sys.modules[spec.name] = module  # dataclasses needs the module registered
-    spec.loader.exec_module(module)
-    return module
 
 
 class LightingTests(unittest.TestCase):
@@ -178,17 +164,25 @@ class OcclusionTests(unittest.TestCase):
 
 
 class ViewpointTests(unittest.TestCase):
-    def test_supplemental_matches_view_policy_reference(self):
-        ref = _load_view_policy()
+    def test_supplemental_step_is_finite_and_capped(self):
         rng = random.Random(11)
         for _ in range(60):
             target = [rng.uniform(-1, 1), rng.uniform(0, 2), rng.uniform(.5, 2)]
             camera = [rng.uniform(-1, 1), rng.uniform(-2, 0), rng.uniform(.5, 2)]
             axis = [rng.uniform(-.4, .4), rng.uniform(-.4, .4), 1.]
-            mine = supplemental_viewpoint(target, camera, axis)
-            theirs = ref.supplemental_viewpoint(target, camera, axis)
-            for a, b in zip(mine, theirs):
-                self.assertAlmostEqual(a, b, places=9)
+            original = (target[:], camera[:], axis[:])
+            result = supplemental_viewpoint(target, camera, axis)
+            self.assertTrue(all(math.isfinite(value) for value in result))
+            self.assertLessEqual(math.dist(camera, result), .15 + 1e-9)
+            self.assertEqual((target, camera, axis), original)
+
+    def test_supplemental_axial_fallback_and_near_target(self):
+        self.assertTrue(np.allclose(
+            supplemental_viewpoint([0., 0., 0.], [0., 0., .5], [0., 0., 1.]),
+            [0., 0., .35]))
+        self.assertTrue(np.allclose(
+            supplemental_viewpoint([0., 0., 0.], [0., 0., .1], [0., 0., 1.]),
+            [0., 0., 0.]))
 
     def test_supplemental_step_capped(self):
         camera = [0., -.7, 1.0]

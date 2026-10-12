@@ -21,6 +21,7 @@ import time
 from typing import Callable, Mapping
 
 from geometry_msgs.msg import PoseStamped
+from nav2_msgs.srv import ManageLifecycleNodes
 from peach_interfaces.action import (
     BuildTargetModel,
     ExecuteTarget,
@@ -31,7 +32,6 @@ from peach_interfaces.srv import (
     BeginScene,
     CheckReachability,
     ControlTask,
-    ManageLifecycleNodes,
 )
 from rclpy.action import ActionClient
 from rclpy.task import Future

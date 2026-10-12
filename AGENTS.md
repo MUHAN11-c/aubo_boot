@@ -177,7 +177,7 @@ ISO 10218 要求独立的正常停止、保护停止、急停，且急停优先�
 
 **KEEP：** 示教器上电与抱闸；不起 dashboard、不远程上电；`ExecutionAuthority`；使能默认关；launch 不自动接触；停轨 = 透传 abort + `RobotMoveStop`（失败再 `robotMoveFastStop`）；`robot_status` 给安全门看抱闸 / `motion_possible` / 急停**状态**（观测，不是急停通道）；刀默认关。
 
-**UNWIND / 缺口：** lifecycle bond 已接线（2026-09-20 W14：`peach_arm` bondcpp 生效；Python 三节点守卫 import 已修 `from bondpy.bondpy import Bond`（2026-10-08——`ros-jazzy-bondpy` 在装但顶层 `__init__` 0 字节，旧写法必 ImportError）；`bond_timeout` 默认 0 未开启，置 8.0 开 nav2_lm 进程死检前先 mock 冒烟复核；未开启期死检仍由 supervisor HeartbeatWatchdog 承担）；`diagnostic_updater` 2026-09-29 观测性轮起**全节点覆盖**（`peach_arm` 9 任务、感知/重建/调度/lifecycle_manager/scene_obstacles/observability/vegetation/stereo/serial_imu；`/diagnostics` 由 observability 订阅聚合进 8090）；腕轴 `ContactMonitor` 已有、默认关（须真机标定），不是 Nav2 Collision Monitor，**不能**代替柜急停；`imu_follow` 开运动时不经 `authorizeStage`（默认 `motion.enabled=false`；Servo 已有 `incoming_command_timeout`）。
+**UNWIND / 缺口：** lifecycle bond 已接线（2026-09-20 W14：`peach_arm` bondcpp 生效；Python 三节点守卫 import 已修 `from bondpy.bondpy import Bond`（2026-10-08——`ros-jazzy-bondpy` 在装但顶层 `__init__` 0 字节，旧写法必 ImportError）；`bond_timeout` 默认 0 未开启，置 8.0 开 nav2_lm 进程死检前先 mock 冒烟复核；未开启期无 Nav2 bond 进程死检；旧自研管理器及其看门狗已归档）；`diagnostic_updater` 2026-09-29 观测性轮起**全节点覆盖**（`peach_arm` 9 任务、感知/重建/调度/scene_obstacles/observability/vegetation/stereo/serial_imu；`/diagnostics` 由 observability 订阅聚合进 8090）；腕轴 `ContactMonitor` 已有、默认关（须真机标定），不是 Nav2 Collision Monitor，**不能**代替柜急停；`imu_follow` 开运动时不经 `authorizeStage`（默认 `motion.enabled=false`；Servo 已有 `incoming_command_timeout`）。
 
 ### 真机操作纪律
 

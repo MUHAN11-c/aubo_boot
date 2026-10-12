@@ -245,31 +245,6 @@ flowchart TB
 
 ---
 
-### 5.2 `peach_lifecycle_manager`（管）
+### 5.2 生命周期管理边界
 
-```mermaid
-flowchart TB
-  boot["节点起来 定时器踢一次 STARTUP"] --> cfg["正向 configure"]
-  cfg --> act["正向 activate"]
-  act --> flag["managed_nodes_activated"]
-  flag --> wait["等人 ManageLifecycleNodes"]
-  wait -->|PAUSE| deact["逆向 deactivate → 旗标 false"]
-  wait -->|RESUME| react["正向 activate → 旗标"]
-  wait -->|RESET| rst["逆向 deactivate+cleanup 再 configure/activate"]
-  wait -->|SHUTDOWN| td["逆向 teardown → 旗标 false"]
-```
-
-**读图：** 名单感知 → 重建 → 技能 → 调度；observability 不进名单。PAUSE 是节点 Inactive，不是批次暂停。不管柜侧上电，不发 `RunHarvest`。**整栈由 `nav2_lifecycle_manager` 承载**（节点名同为 `peach_lifecycle_manager`，bond_timeout=0，名单硬编码在整栈 launch；下表闩锁在整栈由 `peach_lifecycle_flag_bridge` 发出）；本包内管理器保留独立 launch（`peach_harvester/launch/lifecycle_manager.launch.py`），进程死检为自带 GetState 心跳 watchdog（timeout 4 s、1 s tick，超时 ERROR——非 bond、非 e-stop）；整栈的进程死检由 nav2_lm `bond_timeout` 承担（现行默认 0 关，关停期由 supervisor HeartbeatWatchdog 兜）。
-
-| 名字 | 种类 | 含义 | 生产 | 消费 |
-|------|------|------|------|------|
-| `/peach_lifecycle_manager/manage_nodes` | service | STARTUP/PAUSE/RESUME/RESET/SHUTDOWN 整栈；不发 RunHarvest（**仅独立起本包管理器时存在**；整栈 harvest_system 的同名节点是 nav2_lifecycle_manager、nav2_msgs 类型，本服务无服务端——8090 `manage_nodes_service` 端点整栈下 503 属已知） | peach_lifecycle_manager（独立栈） | 人工 |
-| `/peach_lifecycle_manager/is_active` | service | nav2_lifecycle_manager 自带只读口：查询某托管节点当前生命周期态（调试用）。**仅整栈 nav2 变体提供；本包自研管理器只建 `~/manage_nodes`，无此口** | nav2_lifecycle_manager（整栈） | 人工/调试 |
-| `/peach/lifecycle/managed_nodes_activated` | topic | 名单节点是否都 Active；调度开批闸门 | peach_lifecycle_manager（独立）/ peach_lifecycle_flag_bridge（整栈） | peach_supervisor |
-
-名单默认：场景感知 → 重建 → 技能 → 调度。observability **不进名单**。
-
-| 参数 | 含义 |
-|------|------|
-| `node_names` | 有序 configure/activate 名单 |
-| `startup_timeout_s` | 单次状态转换等待上限 |
+本包不提供管理服务；调度订阅 `/peach/lifecycle/managed_nodes_activated` 作为开批门。其生产方是 `peach_bringup` 的 flag bridge；管理服务使用 Nav2 类型，见 [系统 IO](../../peach_bringup/doc/io.md)。

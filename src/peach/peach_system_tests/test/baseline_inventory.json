@@ -1,10 +1,10 @@
 {
  "schema_version": 1,
- "generated_at": "2026-10-10T10:45:50",
+ "generated_at": "2026-10-12T09:24:42",
  "counts": {
-  "parameters": 841,
+  "parameters": 818,
   "interfaces": 57,
-  "functions": 1813
+  "functions": 1776
  },
  "parameters": [
   {
@@ -608,16 +608,6 @@
    "value": "0.03"
   },
   {
-   "file": "src/peach/peach_harvester/config/lifecycle_manager.yaml",
-   "key": "node_names",
-   "value": "[\"peach_scene_perception_node\", \"peach_target_reconstruction_node\", \"peach_arm\", \"peach_supervisor\"]"
-  },
-  {
-   "file": "src/peach/peach_harvester/config/lifecycle_manager.yaml",
-   "key": "startup_timeout_s",
-   "value": "60.0"
-  },
-  {
    "file": "src/peach/peach_harvester/config/peach_supervisor.yaml",
    "key": "execution_enabled",
    "value": "false"
@@ -1103,51 +1093,6 @@
    "value": "true"
   },
   {
-   "file": "src/peach/peach_harvester/config/supervisor_contract.param.yaml",
-   "key": "peach_supervisor.execution_enabled.type",
-   "value": "\"bool\""
-  },
-  {
-   "file": "src/peach/peach_harvester/config/supervisor_contract.param.yaml",
-   "key": "peach_supervisor.execution_enabled.default_value",
-   "value": "false"
-  },
-  {
-   "file": "src/peach/peach_harvester/config/supervisor_contract.param.yaml",
-   "key": "peach_supervisor.execution_enabled.description",
-   "value": "\"Default off; launch never auto RunHarvest\""
-  },
-  {
-   "file": "src/peach/peach_harvester/config/supervisor_contract.param.yaml",
-   "key": "peach_supervisor.selection_reach_min_m.type",
-   "value": "\"double\""
-  },
-  {
-   "file": "src/peach/peach_harvester/config/supervisor_contract.param.yaml",
-   "key": "peach_supervisor.selection_reach_min_m.default_value",
-   "value": "0.15"
-  },
-  {
-   "file": "src/peach/peach_harvester/config/supervisor_contract.param.yaml",
-   "key": "peach_supervisor.selection_reach_min_m.validation.gt<>",
-   "value": "[0.0]"
-  },
-  {
-   "file": "src/peach/peach_harvester/config/supervisor_contract.param.yaml",
-   "key": "peach_supervisor.selection_reach_max_m.type",
-   "value": "\"double\""
-  },
-  {
-   "file": "src/peach/peach_harvester/config/supervisor_contract.param.yaml",
-   "key": "peach_supervisor.selection_reach_max_m.default_value",
-   "value": "0.88"
-  },
-  {
-   "file": "src/peach/peach_harvester/config/supervisor_contract.param.yaml",
-   "key": "peach_supervisor.selection_reach_max_m.validation.gt<>",
-   "value": "[0.0]"
-  },
-  {
    "file": "src/peach/peach_harvester/config/target_reconstruction.yaml",
    "key": "frames.base_frame",
    "value": "\"base_link\""
@@ -1516,66 +1461,6 @@
    "file": "src/peach/peach_harvester/config/target_reconstruction.yaml",
    "key": "tool.profile_id",
    "value": "\"adaptive_shear_v1\""
-  },
-  {
-   "file": "src/peach/peach_harvester/config/vision_contract.param.yaml",
-   "key": "peach_scene_perception_node.pipeline.min_depth_m.type",
-   "value": "\"double\""
-  },
-  {
-   "file": "src/peach/peach_harvester/config/vision_contract.param.yaml",
-   "key": "peach_scene_perception_node.pipeline.min_depth_m.default_value",
-   "value": "0.3"
-  },
-  {
-   "file": "src/peach/peach_harvester/config/vision_contract.param.yaml",
-   "key": "peach_scene_perception_node.pipeline.min_depth_m.description",
-   "value": "\"Pose pipeline minimum depth (m)\""
-  },
-  {
-   "file": "src/peach/peach_harvester/config/vision_contract.param.yaml",
-   "key": "peach_scene_perception_node.pipeline.min_depth_m.validation.gt<>",
-   "value": "[0.0]"
-  },
-  {
-   "file": "src/peach/peach_harvester/config/vision_contract.param.yaml",
-   "key": "peach_scene_perception_node.pipeline.max_depth_m.type",
-   "value": "\"double\""
-  },
-  {
-   "file": "src/peach/peach_harvester/config/vision_contract.param.yaml",
-   "key": "peach_scene_perception_node.pipeline.max_depth_m.default_value",
-   "value": "2.5"
-  },
-  {
-   "file": "src/peach/peach_harvester/config/vision_contract.param.yaml",
-   "key": "peach_scene_perception_node.pipeline.max_depth_m.description",
-   "value": "\"Pose pipeline maximum depth (m)\""
-  },
-  {
-   "file": "src/peach/peach_harvester/config/vision_contract.param.yaml",
-   "key": "peach_scene_perception_node.pipeline.max_depth_m.validation.gt<>",
-   "value": "[0.0]"
-  },
-  {
-   "file": "src/peach/peach_harvester/config/vision_contract.param.yaml",
-   "key": "peach_scene_perception_node.tool.D_inner.type",
-   "value": "\"double\""
-  },
-  {
-   "file": "src/peach/peach_harvester/config/vision_contract.param.yaml",
-   "key": "peach_scene_perception_node.tool.D_inner.default_value",
-   "value": "0.104"
-  },
-  {
-   "file": "src/peach/peach_harvester/config/vision_contract.param.yaml",
-   "key": "peach_scene_perception_node.tool.D_inner.description",
-   "value": "\"Tool inner diameter (m)\""
-  },
-  {
-   "file": "src/peach/peach_harvester/config/vision_contract.param.yaml",
-   "key": "peach_scene_perception_node.tool.D_inner.validation.gt<>",
-   "value": "[0.0]"
   },
   {
    "file": "src/peach/peach_observability/config/observability.yaml",
@@ -4405,12 +4290,12 @@
   },
   {
    "file": "src/peach/peach_bringup/peach_bringup/preflight.py",
-   "line": 121,
+   "line": 122,
    "name": "runs_disk_free_gb"
   },
   {
    "file": "src/peach/peach_bringup/peach_bringup/preflight.py",
-   "line": 132,
+   "line": 133,
    "name": "check_disk_free"
   },
   {
@@ -4589,21 +4474,6 @@
    "name": "generate_launch_description"
   },
   {
-   "file": "src/peach/peach_harvester/launch/harvest_system.launch.py",
-   "line": 22,
-   "name": "generate_launch_description"
-  },
-  {
-   "file": "src/peach/peach_harvester/launch/lifecycle_manager.launch.py",
-   "line": 10,
-   "name": "generate_launch_description"
-  },
-  {
-   "file": "src/peach/peach_harvester/launch/observability.launch.py",
-   "line": 10,
-   "name": "generate_launch_description"
-  },
-  {
    "file": "src/peach/peach_harvester/launch/peach_executor.launch.py",
    "line": 17,
    "name": "generate_launch_description"
@@ -4775,52 +4645,22 @@
   },
   {
    "file": "src/peach/peach_harvester/peach_harvester/cycle_core/view_policy.py",
-   "line": 82,
-   "name": "_norm"
-  },
-  {
-   "file": "src/peach/peach_harvester/peach_harvester/cycle_core/view_policy.py",
-   "line": 86,
-   "name": "_sub"
-  },
-  {
-   "file": "src/peach/peach_harvester/peach_harvester/cycle_core/view_policy.py",
-   "line": 90,
-   "name": "_add"
-  },
-  {
-   "file": "src/peach/peach_harvester/peach_harvester/cycle_core/view_policy.py",
-   "line": 94,
-   "name": "_scale"
-  },
-  {
-   "file": "src/peach/peach_harvester/peach_harvester/cycle_core/view_policy.py",
-   "line": 98,
+   "line": 69,
    "name": "decide_fast"
   },
   {
    "file": "src/peach/peach_harvester/peach_harvester/cycle_core/view_policy.py",
-   "line": 122,
-   "name": "supplemental_viewpoint"
-  },
-  {
-   "file": "src/peach/peach_harvester/peach_harvester/cycle_core/view_policy.py",
-   "line": 179,
-   "name": "conservative_should_continue"
-  },
-  {
-   "file": "src/peach/peach_harvester/peach_harvester/cycle_core/view_policy.py",
-   "line": 46,
+   "line": 39,
    "name": "too_small"
   },
   {
    "file": "src/peach/peach_harvester/peach_harvester/cycle_core/view_policy.py",
-   "line": 50,
+   "line": 43,
    "name": "mask_low"
   },
   {
    "file": "src/peach/peach_harvester/peach_harvester/cycle_core/view_policy.py",
-   "line": 55,
+   "line": 48,
    "name": "acceptable"
   },
   {
@@ -4967,26 +4807,6 @@
    "file": "src/peach/peach_harvester/peach_harvester/supervisor/batch.py",
    "line": 171,
    "name": "_window_reasons"
-  },
-  {
-   "file": "src/peach/peach_harvester/peach_harvester/supervisor/domain/lifecycle.py",
-   "line": 18,
-   "name": "plan_deactivate"
-  },
-  {
-   "file": "src/peach/peach_harvester/peach_harvester/supervisor/domain/lifecycle.py",
-   "line": 59,
-   "name": "watchdog_armed_after"
-  },
-  {
-   "file": "src/peach/peach_harvester/peach_harvester/supervisor/domain/lifecycle.py",
-   "line": 37,
-   "name": "beat"
-  },
-  {
-   "file": "src/peach/peach_harvester/peach_harvester/supervisor/domain/lifecycle.py",
-   "line": 41,
-   "name": "missing"
   },
   {
    "file": "src/peach/peach_harvester/peach_harvester/supervisor/domain/reducer.py",
@@ -5504,101 +5324,6 @@
    "name": "take_after_pause"
   },
   {
-   "file": "src/peach/peach_harvester/peach_harvester/supervisor/lifecycle_manager.py",
-   "line": 26,
-   "name": "_wait_future"
-  },
-  {
-   "file": "src/peach/peach_harvester/peach_harvester/supervisor/lifecycle_manager.py",
-   "line": 280,
-   "name": "main"
-  },
-  {
-   "file": "src/peach/peach_harvester/peach_harvester/supervisor/lifecycle_manager.py",
-   "line": 36,
-   "name": "__init__"
-  },
-  {
-   "file": "src/peach/peach_harvester/peach_harvester/supervisor/lifecycle_manager.py",
-   "line": 65,
-   "name": "_snapshot"
-  },
-  {
-   "file": "src/peach/peach_harvester/peach_harvester/supervisor/lifecycle_manager.py",
-   "line": 69,
-   "name": "_kick"
-  },
-  {
-   "file": "src/peach/peach_harvester/peach_harvester/supervisor/lifecycle_manager.py",
-   "line": 74,
-   "name": "_watch_tick"
-  },
-  {
-   "file": "src/peach/peach_harvester/peach_harvester/supervisor/lifecycle_manager.py",
-   "line": 92,
-   "name": "_diag_watchdog"
-  },
-  {
-   "file": "src/peach/peach_harvester/peach_harvester/supervisor/lifecycle_manager.py",
-   "line": 107,
-   "name": "_on_manage"
-  },
-  {
-   "file": "src/peach/peach_harvester/peach_harvester/supervisor/lifecycle_manager.py",
-   "line": 115,
-   "name": "_startup"
-  },
-  {
-   "file": "src/peach/peach_harvester/peach_harvester/supervisor/lifecycle_manager.py",
-   "line": 125,
-   "name": "_run_command"
-  },
-  {
-   "file": "src/peach/peach_harvester/peach_harvester/supervisor/lifecycle_manager.py",
-   "line": 171,
-   "name": "_set_watch"
-  },
-  {
-   "file": "src/peach/peach_harvester/peach_harvester/supervisor/lifecycle_manager.py",
-   "line": 181,
-   "name": "_configure_then_activate"
-  },
-  {
-   "file": "src/peach/peach_harvester/peach_harvester/supervisor/lifecycle_manager.py",
-   "line": 188,
-   "name": "_teardown_locked"
-  },
-  {
-   "file": "src/peach/peach_harvester/peach_harvester/supervisor/lifecycle_manager.py",
-   "line": 195,
-   "name": "_transition_all"
-  },
-  {
-   "file": "src/peach/peach_harvester/peach_harvester/supervisor/lifecycle_manager.py",
-   "line": 202,
-   "name": "_change"
-  },
-  {
-   "file": "src/peach/peach_harvester/peach_harvester/supervisor/lifecycle_manager.py",
-   "line": 235,
-   "name": "_already_done"
-  },
-  {
-   "file": "src/peach/peach_harvester/peach_harvester/supervisor/lifecycle_manager.py",
-   "line": 247,
-   "name": "_can_apply"
-  },
-  {
-   "file": "src/peach/peach_harvester/peach_harvester/supervisor/lifecycle_manager.py",
-   "line": 258,
-   "name": "_get_state"
-  },
-  {
-   "file": "src/peach/peach_harvester/peach_harvester/supervisor/lifecycle_manager.py",
-   "line": 271,
-   "name": "_client"
-  },
-  {
    "file": "src/peach/peach_harvester/peach_harvester/supervisor/observe.py",
    "line": 32,
    "name": "_observation_item"
@@ -5630,27 +5355,22 @@
   },
   {
    "file": "src/peach/peach_harvester/peach_harvester/supervisor/params.py",
-   "line": 37,
+   "line": 32,
    "name": "_validator"
   },
   {
    "file": "src/peach/peach_harvester/peach_harvester/supervisor/params.py",
-   "line": 48,
+   "line": 43,
    "name": "_supervisor_preview"
   },
   {
    "file": "src/peach/peach_harvester/peach_harvester/supervisor/params.py",
-   "line": 39,
+   "line": 34,
    "name": "_validate"
   },
   {
    "file": "src/peach/peach_harvester/peach_harvester/supervisor/params.py",
-   "line": 112,
-   "name": "attach"
-  },
-  {
-   "file": "src/peach/peach_harvester/peach_harvester/supervisor/params.py",
-   "line": 125,
+   "line": 107,
    "name": "attach"
   },
   {
@@ -6082,31 +5802,6 @@
    "file": "src/peach/peach_harvester/peach_harvester/vision/domain/budget.py",
    "line": 22,
    "name": "evaluate_capabilities"
-  },
-  {
-   "file": "src/peach/peach_harvester/peach_harvester/vision/domain/cross_field.py",
-   "line": 7,
-   "name": "check_min_max"
-  },
-  {
-   "file": "src/peach/peach_harvester/peach_harvester/vision/domain/cross_field.py",
-   "line": 14,
-   "name": "check_enable_deps"
-  },
-  {
-   "file": "src/peach/peach_harvester/peach_harvester/vision/domain/cross_field.py",
-   "line": 24,
-   "name": "check_depth_window"
-  },
-  {
-   "file": "src/peach/peach_harvester/peach_harvester/vision/domain/cross_field.py",
-   "line": 30,
-   "name": "check_reach_window"
-  },
-  {
-   "file": "src/peach/peach_harvester/peach_harvester/vision/domain/cross_field.py",
-   "line": 36,
-   "name": "cut_capability_report"
   },
   {
    "file": "src/peach/peach_harvester/peach_harvester/vision/domain/evidence.py",
@@ -8510,32 +8205,32 @@
   },
   {
    "file": "src/peach/peach_interfaces/scripts/check_interface_manifest.py",
-   "line": 98,
+   "line": 94,
    "name": "_workspace_src"
   },
   {
    "file": "src/peach/peach_interfaces/scripts/check_interface_manifest.py",
-   "line": 114,
+   "line": 109,
    "name": "_iter_sources"
   },
   {
    "file": "src/peach/peach_interfaces/scripts/check_interface_manifest.py",
-   "line": 130,
+   "line": 125,
    "name": "_read"
   },
   {
    "file": "src/peach/peach_interfaces/scripts/check_interface_manifest.py",
-   "line": 137,
+   "line": 132,
    "name": "_consumer_blob"
   },
   {
    "file": "src/peach/peach_interfaces/scripts/check_interface_manifest.py",
-   "line": 154,
+   "line": 149,
    "name": "_name_in_blob"
   },
   {
    "file": "src/peach/peach_interfaces/scripts/check_interface_manifest.py",
-   "line": 162,
+   "line": 157,
    "name": "main"
   },
   {
@@ -8582,11 +8277,6 @@
    "file": "src/peach/peach_observability/peach_observability/bag_reader.py",
    "line": 124,
    "name": "read_bag"
-  },
-  {
-   "file": "src/peach/peach_observability/peach_observability/bag_reader.py",
-   "line": 192,
-   "name": "topic_streams"
   },
   {
    "file": "src/peach/peach_observability/peach_observability/bag_report.py",
@@ -8990,7 +8680,7 @@
   },
   {
    "file": "src/peach/peach_observability/peach_observability/observability_node.py",
-   "line": 1334,
+   "line": 1335,
    "name": "main"
   },
   {
@@ -9285,37 +8975,37 @@
   },
   {
    "file": "src/peach/peach_observability/peach_observability/observability_node.py",
-   "line": 1218,
+   "line": 1219,
    "name": "_stop_runtime"
   },
   {
    "file": "src/peach/peach_observability/peach_observability/observability_node.py",
-   "line": 1227,
+   "line": 1228,
    "name": "_release_resources"
   },
   {
    "file": "src/peach/peach_observability/peach_observability/observability_node.py",
-   "line": 1276,
+   "line": 1277,
    "name": "_stop_recording"
   },
   {
    "file": "src/peach/peach_observability/peach_observability/observability_node.py",
-   "line": 1283,
+   "line": 1284,
    "name": "_close_recorder"
   },
   {
    "file": "src/peach/peach_observability/peach_observability/observability_node.py",
-   "line": 1290,
+   "line": 1291,
    "name": "_spawn_report"
   },
   {
    "file": "src/peach/peach_observability/peach_observability/observability_node.py",
-   "line": 1322,
+   "line": 1323,
    "name": "join_report"
   },
   {
    "file": "src/peach/peach_observability/peach_observability/observability_node.py",
-   "line": 1327,
+   "line": 1328,
    "name": "destroy_node"
   },
   {
@@ -9345,7 +9035,7 @@
   },
   {
    "file": "src/peach/peach_observability/peach_observability/observability_node.py",
-   "line": 1301,
+   "line": 1302,
    "name": "finalize"
   },
   {
@@ -10375,72 +10065,72 @@
   },
   {
    "file": "src/peach/peach_vegetation/peach_vegetation/vegetation_node.py",
-   "line": 251,
+   "line": 252,
    "name": "main"
   },
   {
    "file": "src/peach/peach_vegetation/peach_vegetation/vegetation_node.py",
-   "line": 55,
+   "line": 56,
    "name": "__init__"
   },
   {
    "file": "src/peach/peach_vegetation/peach_vegetation/vegetation_node.py",
-   "line": 79,
+   "line": 80,
    "name": "on_configure"
   },
   {
    "file": "src/peach/peach_vegetation/peach_vegetation/vegetation_node.py",
-   "line": 109,
+   "line": 110,
    "name": "on_activate"
   },
   {
    "file": "src/peach/peach_vegetation/peach_vegetation/vegetation_node.py",
-   "line": 114,
+   "line": 115,
    "name": "on_deactivate"
   },
   {
    "file": "src/peach/peach_vegetation/peach_vegetation/vegetation_node.py",
-   "line": 119,
+   "line": 120,
    "name": "on_cleanup"
   },
   {
    "file": "src/peach/peach_vegetation/peach_vegetation/vegetation_node.py",
-   "line": 126,
+   "line": 127,
    "name": "on_shutdown"
   },
   {
    "file": "src/peach/peach_vegetation/peach_vegetation/vegetation_node.py",
-   "line": 133,
+   "line": 134,
    "name": "ensure_active"
   },
   {
    "file": "src/peach/peach_vegetation/peach_vegetation/vegetation_node.py",
-   "line": 142,
+   "line": 143,
    "name": "_release"
   },
   {
    "file": "src/peach/peach_vegetation/peach_vegetation/vegetation_node.py",
-   "line": 155,
+   "line": 156,
    "name": "_diag"
   },
   {
    "file": "src/peach/peach_vegetation/peach_vegetation/vegetation_node.py",
-   "line": 184,
+   "line": 185,
    "name": "_on_image"
   },
   {
    "file": "src/peach/peach_vegetation/peach_vegetation/vegetation_node.py",
-   "line": 201,
+   "line": 202,
    "name": "_process"
   },
   {
    "file": "src/peach/peach_vegetation/peach_vegetation/vegetation_node.py",
-   "line": 233,
+   "line": 234,
    "name": "_to_bgr"
   },
   {
    "file": "src/peach/peach_vegetation/peach_vegetation/vegetation_node.py",
-   "line": 243,
+   "line": 244,
    "name": "_mask_msg"
   },
   {
@@ -10504,33 +10194,43 @@
    "name": "main"
   },
   {
-   "file": "src/peach_sim/blender/export_field_to_gz.py",
+   "file": "src/peach_sim/blender/color_bunker.py",
+   "line": 17,
+   "name": "material"
+  },
+  {
+   "file": "src/peach_sim/blender/color_bunker.py",
    "line": 29,
+   "name": "main"
+  },
+  {
+   "file": "src/peach_sim/blender/export_field_to_gz.py",
+   "line": 28,
    "name": "log"
   },
   {
    "file": "src/peach_sim/blender/export_field_to_gz.py",
-   "line": 33,
+   "line": 32,
    "name": "parse_args"
   },
   {
    "file": "src/peach_sim/blender/export_field_to_gz.py",
-   "line": 44,
+   "line": 43,
    "name": "_find_upstream"
   },
   {
    "file": "src/peach_sim/blender/export_field_to_gz.py",
-   "line": 58,
+   "line": 57,
    "name": "_ramp_mid_color"
   },
   {
    "file": "src/peach_sim/blender/export_field_to_gz.py",
-   "line": 73,
+   "line": 72,
    "name": "simplify_materials"
   },
   {
    "file": "src/peach_sim/blender/export_field_to_gz.py",
-   "line": 109,
+   "line": 108,
    "name": "main"
   },
   {

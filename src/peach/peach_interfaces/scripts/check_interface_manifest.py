@@ -88,10 +88,6 @@ _CONSUMER_PATHS = {
         'peach/peach_arm/include',
         'peach/peach_arm/config',
     ],
-    'peach_lifecycle_manager': [
-        'peach/peach_harvester/peach_harvester/supervisor/lifecycle_manager.py',
-        'peach/peach_harvester/config/lifecycle_manager.yaml',
-    ],
 }
 
 
@@ -104,7 +100,6 @@ def _workspace_src(script: Path) -> Path:
 # 收成 Python 字面量；反向扫描只看手写源码与 yaml。
 _GENERATED_PARAM_MODULES = {
     'executor_parameters.py',
-    'lifecycle_manager_parameters.py',
     'observability_parameters.py',
     'scene_perception_parameters.py',
     'target_reconstruction_parameters.py',

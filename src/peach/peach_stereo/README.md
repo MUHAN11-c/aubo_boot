@@ -25,7 +25,7 @@ PS800-E1 **主机侧单图案立体深度**相机节点：`percipio_camera` 的�
 | DEPTH_CAM 标定 | fx=fy=1044.93、cx=605.31、畸变全零（零畸变校正网格，区别于左 IR 标定）；设备内部网格不可从标定推导 | 设备直读 |
 | SGBM 匹配参数 | `num_disparities=128` 已证最优（0.3m 感知下限 ⇒ d≥113.8 ⇒ 下一档 112 会切 305mm>300mm）；`uniqueness_ratio=6`（10→6：同帧组扫描覆盖 +2.7pp、精度门内、帧率 13.5gps 不变）；`mode=hh4` 端到端 12 变体矩阵帕累托最优（精度 8.75→7.50mm、鬼影 −0.17pp、粗糙度 −9%、13.7gps 无回归；HH 同质量慢 2×；时域 k3（视差域批式）/全分辨率档记档未落地）；**minDisparity>0 已证伪**（远背景强制错配成中距，谷底精度 25×劣化） | 09-20 参数扫描 + 端到端矩阵（`_archive/reports/2026-09-20-camera-image-analysis/sgbm-sweep.md`、`_archive/reports/2026-09-20-e2e-stereo-optimal/`） |
 | 滑窗时域中值 | `temporal_k`（1=关/3/5，非法拒启；部署 3）：配准后彩色网格 k 帧逐像素有效中值，每帧照常发布不除率；entry std z 0.41→0.21mm、袋半径 std 0.27→0.14mm（均 −48%）、覆盖 +0.4pp、13.7gps 无回归（~3ms 开销在采集线程内）；tk=5 半径更优（±0.06mm）未取 | 09-21 live A/B（testing-log 09-21 续） |
-| 避障（枝细结构） | peach_vegetation 枝掩膜×深度四档实测：**现行档（scale0.5+med3+tk3）枝上覆盖全档最优**（0.604/细枝 0.652，tk3 补细枝闪烁）——为避障关滤波/上全分辨率皆负收益（全分辨率：细节 +18% 但覆盖 −18%、4.3gps、z_min≈0.53m 侵入工作区）；细节密度 percipio 16.0 vs 本链 12.9mm，细枝精度敏感的单帧场合用 percipio | 09-21 避障轮（test/report/branch/ + 影响评估 §4a） |
+| 避障（枝细结构） | peach_vegetation 枝掩膜×深度四档实测：**现行档（scale0.5+med3+tk3）枝上覆盖全档最优**（0.604/细枝 0.652，tk3 补细枝闪烁）——为避障关滤波/上全分辨率皆负收益（全分辨率：细节 +18% 但覆盖 −18%、4.3gps、z_min≈0.53m 侵入工作区）；细节密度 percipio 16.0 vs 本链 12.9mm，细枝精度敏感的单帧场合用 percipio | 09-21 避障轮（本地归档 code_cleanup_2026-10-12 中的 stereo/test/report/branch/ + 影响评估 §4a） |
 | 已知限制 | jpeg 插件编不了 mono16（`/compressed` 空载荷），深度压缩通道用 `compressedDepth`（12 字节容器头）或 `zstd`；raw RELIABLE 大图本机 FastDDS 投递坍塌 | 台架 |
 | 无效参数（本机实测勿再调） | image number / SGPM 相位数 / 深度分辨率 / frame_rate 请求 / 深度模式 IR 曝光——均不改深度采集帧率 | 09-16 全实测 |
 

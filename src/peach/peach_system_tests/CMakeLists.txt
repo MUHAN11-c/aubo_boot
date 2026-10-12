@@ -22,6 +22,8 @@ if(BUILD_TESTING)
   # 假 apply_planning_scene 端断言对象内容/目标邻域空洞/原子替换。域 94。
   add_launch_test(test/test_scene_obstacles.py TIMEOUT 300
     ENV "ROS_DOMAIN_ID=94" "ROS_LOCALHOST_ONLY=1")
+  add_launch_test(test/test_nav2_lifecycle_debug.py TIMEOUT 60
+    ENV "ROS_DOMAIN_ID=98" "ROS_LOCALHOST_ONLY=1")
   # 三把末端逐档冒烟（bite 主测轮）：TF 对档案 + 标签对齐 + imu_follow 接线，
   # 收编 09-28 手工 _tools/smoke_shear.sh。域 91/92/93 = shear/bite/adaptive。
   add_launch_test(test/test_tool_profile_smoke.py

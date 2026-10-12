@@ -44,7 +44,6 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "srv/CheckReachability.srv"
   "srv/ControlTask.srv"
   "srv/FireStep.srv"
-  "srv/ManageLifecycleNodes.srv"
   "srv/SetBatchPolicy.srv"
   "srv/SetEnables.srv"
   "action/BuildTargetModel.action"

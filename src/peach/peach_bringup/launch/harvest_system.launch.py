@@ -7,8 +7,7 @@ peach_common.yaml_params；各节点规则表与部署 YAML 留在所属能力�
 清洁重写轮阶段 5：生命周期管理换 nav2_lifecycle_manager（bond_timeout 参数
 化，默认 0.0 关闭——Python 三托管节点的心跳依赖 ros-jazzy-bondpy，本机未装
 时守卫降级；装上后置 bond_timeout:=8.0 即开进程死检；C++ 侧 peach_arm 用
-bondcpp 开箱即发；名单/顺序语义同原自研件；bond 关闭期进程死检由 supervisor
-HeartbeatWatchdog 承担）+ lifecycle_flag_bridge 把 is_active 桥接为闩锁
+bondcpp 开箱即发；bond 关闭期没有该管理器的进程死检兜底）+ lifecycle_flag_bridge 把 is_active 桥接为闩锁
 /peach/lifecycle/managed_nodes_activated（消费方零改动）。autostart 客户端
 在栈就绪后自动发 RunHarvest——原「launch 绝不自动开批」红线已按用户核定
 删除（2026-09-16），授权语义=操作员发起 launch（红线 3）；默认关，部署

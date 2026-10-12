@@ -142,17 +142,6 @@ def test_observability_launch_owns_node():
     assert "launch', 'observability.launch.py'" not in text
 
 
-def test_executor_observability_launch_forwards():
-    root = _src_root()
-    assert root is not None
-    text = (
-        root / 'peach_harvester' / 'launch' / 'observability.launch.py'
-        ).read_text(encoding='utf-8')
-    assert "FindPackageShare('peach_observability')" in text
-    # W11 起 observability.yaml 随 peach_observability/config 走，harvester 不再代持
-    assert "FindPackageShare('peach_harvester')" not in text
-
-
 def test_observability_yaml_ownership():
     root = _src_root()
     assert root is not None

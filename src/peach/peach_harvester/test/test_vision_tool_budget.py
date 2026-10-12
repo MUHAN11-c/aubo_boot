@@ -83,3 +83,14 @@ def test_evaluate_capabilities_allowed_is_contract_only():
         axis_error_deg=0.0, neck_position95=0.003, cut_to_fruit_m=0.05)
     assert fused['cut_capability'] != CAPABILITY_VALID
     assert fused['allowed'] is False
+
+
+def test_default_neck_uncertainty_is_checked_by_actual_budget():
+    cfg = ToolBudgetParams()
+    for neck_error, expected in ((cfg.axial_neck_floor_m, False), (0.0, True)):
+        result = evaluate_sleeve_cut(
+            d_bag95=0.08, length_m=0.15, center_lateral95=0.002,
+            axis_error_deg=2.0, neck_position95=neck_error,
+            cut_to_fruit_m=0.04, params=cfg)
+        assert bool(result['cut_ok']) is expected
+        assert (result['axial_margin_m'] > 0.0) is expected

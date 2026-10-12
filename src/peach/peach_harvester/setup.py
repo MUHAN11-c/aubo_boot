@@ -54,8 +54,6 @@ setup(
             'peach_harvester.vision.target_reconstruction.target_reconstruction_node:main',
             'peach_supervisor = '
             'peach_harvester.supervisor.executor_node:main',
-            'peach_lifecycle_manager = '
-            'peach_harvester.supervisor.lifecycle_manager:main',
             'peach_scene_obstacles = '
             'peach_harvester.vision.scene_obstacles.node:main',
         ],

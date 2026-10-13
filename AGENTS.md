@@ -459,7 +459,7 @@ description (URDF + ros2_control 标签)
 - launch 文件：Python launch 用 `OpaqueFunction` 只在需要运行期计算时；能 `IncludeLaunchDescription` 就不要复制 bringup。参数文件用 `ParameterFile(..., allow_substs=True)` 时写清哪些键会被替换
 - 测试文件：`test/test_*.py` / `test_*_cpp.cpp`；`ament_add_gtest` / `ament_add_pytest_test` / `add_ros_isolated_launch_test` 进 `BUILD_TESTING`
 
-工作区按**子工作空间分组**（2026-10-10 用户裁定，对齐 ivg 先例）：`src/peach/` = 现行采摘栈九包、`src/ivg/` = IVG/演示栈；驱动九包与 `peach_sim` / `serial_imu` / `imu_follow` / `percipio_camera` / `peach_web`（8090 静态页资源包，2026-10-10 自 peach_observability/web 拆出）留 `src/` 顶层。peach2 已于 2026-10-12 移出 `src/`。分组只是目录收纳：包名、图名、colcon 递归发现与 `--packages-select` 均不变。现行 peach 树见 [peach_bringup/doc/architecture.md](src/peach/peach_bringup/doc/architecture.md)「命名与文件树」，此处不复制。新文件先问：它属于 description、bringup、moveit_config、interfaces，还是某个能力包？不要往驱动九包塞业务。
+工作区按**子工作空间分组**（2026-10-10 用户裁定，对齐 ivg 先例）：`src/peach/` = 现行采摘栈九包、`src/ivg/` = IVG/演示栈、`src/sim/` = 仿真子工作空间（2026-10-13 P1 重组：原顶层 `peach_sim` 拆为 `sim_worlds` 场景 / `sim_description` 机体 / `sim_bringup` 入口 / `sim_perception` 感知复制（P3）/ `sim_system_tests` 验收门（P2）；图名、话题名、世界产物不变）；驱动九包与 `serial_imu` / `imu_follow` / `percipio_camera` / `peach_web`（8090 静态页资源包，2026-10-10 自 peach_observability/web 拆出）留 `src/` 顶层。peach2 已于 2026-10-12 移出 `src/`。分组只是目录收纳：包名、图名、colcon 递归发现与 `--packages-select` 均不变。现行 peach 树见 [peach_bringup/doc/architecture.md](src/peach/peach_bringup/doc/architecture.md)「命名与文件树」，此处不复制。新文件先问：它属于 description、bringup、moveit_config、interfaces，还是某个能力包？不要往驱动九包塞业务。
 
 ---
 
@@ -520,7 +520,7 @@ description (URDF + ros2_control 标签)
 |------|--------|
 | [src/peach/peach_bringup/doc/architecture.md](src/peach/peach_bringup/doc/architecture.md) | v1 系统架构：分层 / 流程 / 决策表 / 驱动地图。每条尽量能回答「现行 / 来源 / 原因」 |
 | [src/peach/peach_bringup/doc/io.md](src/peach/peach_bringup/doc/io.md) | v1 系统 io：跨包边界（谁叫谁）、相机契约、驱动层、可选外设与旁路栈 |
-| 各能力包 `doc/architecture.md` / `doc/io.md` | 本包架构与 io：`peach_interfaces` / `peach_harvester` / `peach_arm` / `peach_observability` / `peach_vegetation` / `peach_common` / `peach_stereo` / `peach_system_tests`（`src/peach/` 下）；`peach_sim` 在 `src/peach_sim/doc/` |
+| 各能力包 `doc/architecture.md` / `doc/io.md` | 本包架构与 io：`peach_interfaces` / `peach_harvester` / `peach_arm` / `peach_observability` / `peach_vegetation` / `peach_common` / `peach_stereo` / `peach_system_tests`（`src/peach/` 下）；sim 组场景包活文档在 `src/sim/sim_worlds/doc/` |
 
 测试流程指导在 [src/peach/peach_system_tests/doc/testing.md](src/peach/peach_system_tests/doc/testing.md)（2026-10-10 自 docs/testing.md 拆写入包，随源码同轮更新）：怎么跑、命名、验收门、真机纪律。v2 测试指导随 peach2 于 2026-10-12 归档。
 
@@ -649,7 +649,7 @@ gtest 放本包 `test/`，链到纯核静态库，不 `spin` 整个技能节点�
 
 只记录现在跑什么。没有 KEEP 理由的条目见第 12 章，标 UNWIND。细节链到包级活文档（系统=peach_bringup/doc；包级=各包 doc/），不把 architecture 复制进来。
 
-产品：固定座 AUBO E5 + Percipio RGB-D；愿景含底盘。`src/` 分组：`src/peach/` = 现行采摘栈九包（下表职责摘要对象）、`src/ivg/` = 演示九包；驱动与 `peach_sim`/`serial_imu`/`imu_follow`/`percipio_camera`/`peach_web`（8090 静态页资源）顶层。`peach_navigation` 已归档 `_archive/parked_2026-09/`。peach2 十二包已于 2026-10-12 归档 `_archive/parked_2026-10-12/peach2/`（同一冻结 bag 上刀到不了果子：目标位无逆解，拉近后轨迹停在果子前约 23 cm），不再编进工作区；方案书 `docs/peach_v2_重构终版方案.md` 仍只作历史。IVG 三包不是 peach，不进 `harvest_system` / lifecycle（产品范围 KEEP）。`imu_follow` 不是 peach、不进 lifecycle；仅 `adaptive_shear_v1` 随 `harvest_system` Include（shear/bite 两档不起）。`imu_follow` 开运动时不经 `authorizeStage`（peach 接触窗只调 Trigger；`motion.enabled` 默认 false），真机须另授权。
+产品：固定座 AUBO E5 + Percipio RGB-D；愿景含底盘。`src/` 分组：`src/peach/` = 现行采摘栈九包（下表职责摘要对象）、`src/ivg/` = 演示九包、`src/sim/` = 仿真子工作空间五包（2026-10-13 重组，见第 6 章分组说明）；驱动与 `serial_imu`/`imu_follow`/`percipio_camera`/`peach_web`（8090 静态页资源）顶层。`peach_navigation` 已归档 `_archive/parked_2026-09/`。peach2 十二包已于 2026-10-12 归档 `_archive/parked_2026-10-12/peach2/`（同一冻结 bag 上刀到不了果子：目标位无逆解，拉近后轨迹停在果子前约 23 cm），不再编进工作区；方案书 `docs/peach_v2_重构终版方案.md` 仍只作历史。IVG 三包不是 peach，不进 `harvest_system` / lifecycle（产品范围 KEEP）。`imu_follow` 不是 peach、不进 lifecycle；仅 `adaptive_shear_v1` 随 `harvest_system` Include（shear/bite 两档不起）。`imu_follow` 开运动时不经 `authorizeStage`（peach 接触窗只调 Trigger；`motion.enabled` 默认 false），真机须另授权。
 
 ### KEEP（完美适配当前实现）
 

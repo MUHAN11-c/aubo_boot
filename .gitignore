@@ -110,7 +110,7 @@ plans/**/*.mcap
 plans/**/*.bag
 
 # 场景预览图（ros2 run peach_sim scene_preview 生成，可复现，不入库）
-src/peach_sim/worlds/*.preview.png
+src/sim/sim_worlds/worlds/*.preview.png
 
 # Blender 独立包（仅生成网格用，不入仓；colcon 用 COLCON_IGNORE 忽略）
 _tools/
@@ -120,14 +120,15 @@ _tools/
 *.blend1
 
 # 感知验证矩阵 / field 锚定 / 中间建模轮次（可重渲；摘要以 matrix_* 前缀拷进 output/ 根）
-src/peach_sim/reconstruction/output/matrix*/
-src/peach_sim/reconstruction/output/depth_pop/
-src/peach_sim/reconstruction/output/field_anchor/
-src/peach_sim/reconstruction/output/modeling_*/
-src/peach_sim/reconstruction/output/blender_tutorial/
-src/peach_sim/reconstruction/output/**/*.exr
-src/peach_sim/reconstruction/matrix/
+src/sim/sim_worlds/reconstruction/output/matrix*/
+src/sim/sim_worlds/reconstruction/output/depth_pop/
+src/sim/sim_worlds/reconstruction/output/field_anchor/
+src/sim/sim_worlds/reconstruction/output/modeling_*/
+src/sim/sim_worlds/reconstruction/output/blender_tutorial/
+src/sim/sim_worlds/reconstruction/output/**/*.exr
+src/sim/sim_worlds/reconstruction/matrix/
 
 # 会话 bag 二进制留本地（jazzy 分支政策：runs 文本层入库）；peach_sim 重建生成物不入库
 runs/*/bag/
-src/peach_sim/reconstruction/output/
+src/sim/sim_worlds/reconstruction/output/
+src/sim/sim_worlds/reconstruction/output/lighting_checks/

@@ -1,0 +1,63 @@
+<?xml version="1.0"?>
+<sdf version="1.11">
+  <!-- 无草重建整园查看世界：单 GLB 视觉模型，无物理/传感器。
+       网格由 blender/export_field_to_gz.py 从重建 .blend 导出（README 有入口）。
+       仅为人工查看效果，导航/感知 GT 仍以 peach_orchard.sdf 为准。 -->
+  <world name="field_no_grass">
+    <physics name="4ms" type="ignored">
+      <max_step_size>0.004</max_step_size>
+      <real_time_factor>1</real_time_factor>
+    </physics>
+    <plugin name="gz::sim::systems::Physics" filename="gz-sim-physics-system" />
+    <plugin name="gz::sim::systems::UserCommands" filename="gz-sim-user-commands-system" />
+    <plugin name="gz::sim::systems::SceneBroadcaster" filename="gz-sim-scene-broadcaster-system" />
+    <scene>
+      <ambient>0.78 0.76 0.78 1</ambient>
+      <background>0.53 0.67 0.88 1</background>
+      <shadows>true</shadows>
+      <sky>
+        <clouds>
+          <speed>4</speed>
+          <direction>1.2</direction>
+          <humidity>0.6</humidity>
+          <mean_size>0.8</mean_size>
+        </clouds>
+      </sky>
+      <fog>
+        <density>0.002</density>
+        <color>0.85 0.88 0.92 1</color>
+      </fog>
+    </scene>
+    <gui>
+      <camera name="user_camera">
+        <pose>0 -14 12 0 0.45 1.5708</pose>
+      </camera>
+    </gui>
+    <light name="sun" type="directional">
+      <cast_shadows>true</cast_shadows>
+      <pose>0 0 30 0 0 0</pose>
+      <diffuse>1 0.97 0.92 1</diffuse>
+      <intensity>1</intensity>
+      <specular>0.3 0.3 0.3 1</specular>
+      <attenuation>
+        <range>1000</range>
+        <constant>0.9</constant>
+        <linear>0.01</linear>
+        <quadratic>0.001</quadratic>
+      </attenuation>
+      <direction>0.557208 -0.557208 -0.615661</direction>
+    </light>
+    <model name="field_no_grass">
+      <static>true</static>
+      <link name="link">
+        <visual name="orchard">
+          <geometry>
+            <mesh>
+              <uri>model://sim_description/meshes/field_no_grass.glb</uri>
+            </mesh>
+          </geometry>
+        </visual>
+      </link>
+    </model>
+  </world>
+</sdf>

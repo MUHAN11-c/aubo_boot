@@ -4,10 +4,10 @@
 
 ## 页面与反馈
 
-- 首屏显示运行模式、启动自检、诊断摘要、运行期使能与当前作业。顶栏固定当前阶段（批次态、目标阶段、技能周期、目标 id）。节点/关节硬件，以及系统负载、参数、自检、诊断默认展开。阶段时序按服务器缓冲全量在面板内滚动。节点日志读 `/api/state` 的 `logs`：时间、级别、节点、消息；级别是该级及以上（默认 INFO），节点名是包含过滤；离开底部不抢滚动。只读，不增加 SetIO 或运动按钮。
-- 过程/调试两个视图支持键盘左右键、Home/End 与焦点提示；表格窄屏在容器内滚动，支持 reduced-motion。页面不使用外部字体或 CDN，符合后端 self-only CSP。
+- 首屏显示运行模式、启动自检、诊断摘要、运行期使能与当前作业。两个视图共用常用操作区：「回到拍照位」转发既有 `photo_pose_service`，保留发送前确认，取消执行/批次保持显眼且独立。批次执行档读取 `/api/state.params./peach_supervisor.execute_pregrasp_only`，明确显示 PREGRASP_ONLY/FULL；当前条件解释运行期使能关闭与调度 blockers，许可允许时的 reason 仅作诊断。当前完成证据沿用 `job.why`，取消不会抹掉已验证的预抓取；感知 HARVESTED 只表示已结算，采摘确认以当前账本 completion_level=7 为准。常用区反馈操作结果，详细响应保留在单步调试。顶栏固定当前阶段（批次态、目标阶段、技能周期、目标 id）。节点/关节硬件、系统负载、参数与系统诊断默认折叠。阶段时序按服务器缓冲全量在面板内滚动。节点日志读 `/api/state` 的 `logs`：时间、级别、节点、消息；级别是该级及以上（默认 INFO），节点名是包含过滤；离开底部不抢滚动。
+- 过程/调试两个视图支持键盘左右键、Home/End 与焦点提示；表格窄屏在容器内滚动，支持 reduced-motion。页面不使用外部字体或 CDN；本地 JPEG 使用 blob URL，后端 CSP 仅对 img-src 增加 blob:，脚本仍为 self。
 - 状态快照每 1 s、轨迹每 0.4 s 尝试更新，每接口至多一个在途请求，GET 等待上限 6 s。5 s 无新快照或请求失败时标明陈旧/断线并保留旧数据，暂停普通操作。后台页面不发新的 GET；恢复可见或浏览器历史恢复时继续刷新。
-- 操作提交期间同类请求防重复，轮询不会解除提交锁；取消动作与 CANCEL_NOW 独立。前端在确认之后、发送之前重新核对状态新鲜度和后端调试开关，不能代替 ROS 授权门。
+- 操作提交期间同类请求防重复，轮询不会解除提交锁；取消动作与 CANCEL_NOW 独立。前端在确认之后、发送之前重新核对状态新鲜度、后端调试开关和对应的动臂门。回拍照还呈现恢复锁与臂周期运行的阻挡；不自动 ACK、武装或开使能。臂侧 execution_enabled=false 时服务可以只规划，页面提示「仅规划拍照路径」，不额外禁止服务。前端不能代替 ROS 授权门。
 - HTTP `accepted` 与 `result.success` 分开：服务 success=false 显示操作失败，HTTP 202 显示仍在执行并保留取消提示，HTTP 504/502/500 等或网络失联显示结果未知。只有明确 success=true 才显示操作成功；其他结果提示查看详情。
 - POST 不自动重试。浏览器等待上限 195 s（后端常用 180 s 加 HTTP 余量；后端预算由其参数独立控制），超时/关闭页面不会取消 ROS goal；应核对状态或使用已有取消入口，不能直接重复发送。
 
@@ -23,10 +23,27 @@ source install/setup.bash
 colcon test --packages-select peach_web --return-code-on-test-failure
 colcon test-result --test-result-base build/peach_web --verbose
 # 直接运行同一组前端行为回归，无 ROS 图或网络
-node src/peach_web/test/web_state.test.cjs
+node src/peach_web/scripts/run-tests.cjs
 ```
 
-测试依赖 Node.js 18+ 与 `ament_cmake_test`；使用 Node 内置 test/vm/assert，无 npm 依赖，也不把 Node 作为页面运行依赖。CTest 注册 `test_web_state` 一组，Node 输出 15 项断言及失败返回码；ament 包装生成 XUnit。覆盖请求重叠、超时恢复、明确失败/未知/仍在执行、提交锁与取消、断线、确认后陈旧、BFCache恢复、键盘切页、日志级别过滤和顶栏当前阶段。VM 使用最小 DOM 与假的 fetch；实际 DOM/布局需浏览器验证。
+测试依赖 Node.js 18+ 与 `ament_cmake_test`；使用 Node 内置 test/vm/assert。CTest 分别注册 `test/*.test.cjs`，直接运行每个测试文件并生成 XUnit。独立 runner 同样逐文件执行，传播子进程失败、信号与启动错误。覆盖请求与确认复检、提交锁与取消、结果未知、恢复锁、预抓取证据、目标选择与换场景、模型来源与错轴、无效几何、图像帧龄与 TF 失联，以及 WebGL 降级；VM 测试之外还须浏览器布局验收。
+
+## 分步实验台与定位方向
+
+- 六步为拍照与建场景、扫场与选目标、重建与核对、只规划、预抓取、完整周期。切换步骤和目标不会发送命令。人工选择与实验标识保留，场景 epoch 改变后旧选择失效；确认后再次核对捕获的目标与场景。
+- 图像支持稳定识别图/即时检测图切换、放大和暂停；暂停只冻结画面。JPEG 独立于录包；来源、曝光 ROS 时间、帧龄和不可用原因可见。重建查询、finalize、保存、复位和取消，以及生命周期、自检、恢复确认、批次和显式可达性查询沿用现有 POST 接口。
+- Three.js 图像对照显示感知初值、融合模型、袋轴、预抓取、剪切参考、实际末端坐标轴及 TCP 轨迹，统一 base_link、米、Z 向上。工具轴只取实际 tool_axis TF；缺失或陈旧位姿不画默认方向。模型来源无法对应当前场景时不绘制，原始诊断仍可查询。错轴是红色诊断几何，不代表可执行许可。
+- 图像、模型、TF 分别展示时间与新鲜度；异步观测不声明同步。三维支持拖动、缩放、居中、俯视、侧视、复位；刷新保留用户视角。WebGL 不可用或丢失时保留原二维轨迹及数值。
+- 桌面采用步骤/对照/操作三栏；窄屏上下布局，并切页显示图像与三维。监控页优先显示定位、方向和完成证据。日志支持级别、节点、关键词与暂停滚动。
+
+Three.js **0.186.1**、esbuild **0.28.2** 由本包 package-lock.json 固定，编译后的 `web/vendor/peach-three.js` 与许可随静态资源安装；页面运行无需 npm 或网络。更新 bundle：
+
+```bash
+cd src/peach_web
+npm ci
+npm run build:vendor
+npm test
+```
 
 浏览器验证使用独立静态站点与假的 `/api/state`、`/api/trajectory`、`/api/debug/*`，覆盖 320/390/768/1440 px 两视图、慢请求、断线恢复、POST错误和重复点击；不向真机发请求。安装后在现有 observability 服务刷新页面即可加载新静态资源；整栈 mock 启停与清理见 [v1 测试指导](../peach/peach_system_tests/doc/testing.md)。任何临时 HTTP 服务器或测试浏览器结束后都要关闭，不残留进程。
 

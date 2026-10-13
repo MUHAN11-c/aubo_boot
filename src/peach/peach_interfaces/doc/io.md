@@ -6,7 +6,7 @@
 
 | 动作 | 服务端所在包 | 含义 |
 |------|--------------|------|
-| `RunHarvest` | `peach_harvester`（supervisor） | **开一批采摘。** launch 默不自动发（`autostart:=true` 选配档例外：整栈客户端硬等自检绿后才发）。goal：`request_id`（账本目录名，须唯一；空则 `auto_<时间戳>` 兜底、账本不复用——批次7 ID-1）、`scene_key`、`profile_id`（**批次参数剖面**，现行未消费；与工具档案 `tool_profile_id` 是两个字段，勿混）、`intent`（PICK_ALL / PICK_SELECTED / SURVEY_ONLY）、可选 `target_ids`。结果：至少成功一颗才 `success` |
+| `RunHarvest` | `peach_harvester`（supervisor） | **开一批采摘。** launch 默不自动发（`autostart:=true` 选配档例外：整栈客户端硬等自检绿后才发）。goal：`request_id`（账本目录名，须唯一；空则 `auto_<时间戳>` 兜底、账本不复用——批次7 ID-1）、`scene_key`、`profile_id`（**批次参数剖面**，现行未消费；与工具档案 `tool_profile_id` 是两个字段，勿混）、`intent`（PICK_ALL / PICK_SELECTED / SURVEY_ONLY）、可选 `target_ids`。结果：采摘意图至少成功一颗才 `success`（`SURVEY_ONLY` 正常扫场结算可为 true，零目标不算失败） |
 | `NavigateToWorksite` | （预留，导航包已归档） | **走到作业位。** 固定座调度直通 `NAV_OK`，不发动作、无服务端 |
 | `SurveyScene` | `peach_arm` | **去全局拍照位并复核关节已静止。** 给感知准备发现 FOV。PAUSE 会取消，恢复后重试。失败整批 `survey_failed`，不 Begin |
 | `BuildTargetModel` | `peach_harvester`（vision） | **绑一颗、收合格机位后 finalize。** 与 OBSERVE_ONLY 并行。积分只用精确 stamp TF。反馈 `view_count` 是机位数 |

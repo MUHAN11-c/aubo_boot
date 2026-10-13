@@ -21,6 +21,7 @@ _RULES = {  # 键 -> 校验规则表（启动期非法即拒启；运行期非�
     'capture.minimum_mean_nearest_baseline_deg': (('gt_eq', 0.0),),
     'capture.minimum_mean_depth_ratio': (('bounds', 0.0, 1.0),),
     'capture.static_joint_vel_thresh': (('gt_eq', 0.0),),
+    'capture.joint_state_tolerance_s': (('gt', 0.0),),
     'capture.max_frame_age_s': (('gt', 0.0),),
     'capture.auto_min_interval_s': (('gt_eq', 0.0),),
     'capture.min_mask_pixels': (('gt_eq', 1),),

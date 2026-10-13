@@ -12,8 +12,148 @@ from pathlib import Path
 import pytest
 import yaml
 
+import rosbag2_py
+from rclpy.serialization import serialize_message
+from sensor_msgs.msg import CameraInfo, Image, PointCloud2
+
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'scripts'))
 import frozen_camera_replay as replay  # noqa: E402, I100
+
+
+COLOR = '/camera/color/image_raw'
+DEPTH = '/camera/depth/image_raw'
+POINTS = '/camera/depth_registered/points'
+COLOR_INFO = '/camera/color/camera_info'
+DEPTH_INFO = '/camera/depth/camera_info'
+
+
+def _message(topic, stamp_ns):
+    msg = replay.TOPICS[topic]()
+    msg.header.stamp.sec, msg.header.stamp.nanosec = divmod(stamp_ns, 10**9)
+    msg.header.frame_id = (
+        'camera_color_optical_frame' if 'color' in topic
+        else 'camera_depth_optical_frame')
+    msg.width = msg.height = 2
+    if isinstance(msg, CameraInfo):
+        msg.k = [100.0, 0.0, 1.0, 0.0, 100.0, 1.0, 0.0, 0.0, 1.0]
+    elif isinstance(msg, Image):
+        msg.encoding = 'bgr8' if topic == COLOR else '16UC1'
+        msg.step = 6 if topic == COLOR else 4
+        msg.data = bytes(msg.height * msg.step)
+    elif isinstance(msg, PointCloud2):
+        msg.point_step = 12
+        msg.row_step = msg.width * msg.point_step
+        msg.data = bytes(msg.height * msg.row_step)
+    return msg
+
+
+def _write_bag(tmp_path, samples):
+    """Write tiny real CDR messages, without initializing a ROS graph."""
+    uri = str(tmp_path / 'bag')
+    writer = rosbag2_py.SequentialWriter()
+    writer.open(
+        rosbag2_py.StorageOptions(uri=uri, storage_id='mcap'),
+        rosbag2_py.ConverterOptions('cdr', 'cdr'))
+    try:
+        for topic, kind in replay.TOPICS.items():
+            writer.create_topic(rosbag2_py.TopicMetadata(
+                id=0, name=topic, type=f'sensor_msgs/msg/{kind.__name__}',
+                serialization_format='cdr'))
+        for i, (topic, msg) in enumerate(samples):
+            writer.write(topic, serialize_message(msg), (i + 1) * 10**9)
+    finally:
+        writer.close()
+    return uri
+
+
+def _calibration():
+    return [(topic, _message(topic, 1_000_000_000))
+            for topic in (COLOR_INFO, DEPTH_INFO)]
+
+
+def test_load_frame_matches_header_stamp_instead_of_topic_index(tmp_path):
+    samples = _calibration() + [
+        (DEPTH, _message(DEPTH, 9_000_000_000)),
+        (POINTS, _message(POINTS, 2_000_000_000)),
+        (COLOR, _message(COLOR, 10_000_000_000)),
+        (DEPTH, _message(DEPTH, 10_020_000_000)),
+        (POINTS, _message(POINTS, 10_015_000_000)),
+    ]
+    frame = replay.load_frame(_write_bag(tmp_path, samples), 0)
+    assert frame[DEPTH].header.stamp.nanosec == 20_000_000
+    assert frame[POINTS].header.stamp.sec == 10
+
+
+@pytest.mark.parametrize('depth_stamp,cloud_stamp', [
+    (9_800_000_000, 78_438_000_000),  # Recorded 200 ms / 68 s mismatch.
+    (9_960_000_000, 10_040_000_000),  # Each near RGB, total span is 80 ms.
+    (10_050_000_000, 10_000_000_000),  # Jazzy ATS requires span < slop.
+])
+def test_load_frame_rejects_unsynchronized_original_exposures(
+        tmp_path, depth_stamp, cloud_stamp):
+    samples = _calibration() + [
+        (COLOR, _message(COLOR, 10_000_000_000)),
+        (DEPTH, _message(DEPTH, depth_stamp)),
+        (POINTS, _message(POINTS, cloud_stamp)),
+    ]
+    with pytest.raises(RuntimeError, match='synchronized'):
+        replay.load_frame(_write_bag(tmp_path, samples), 0)
+
+
+@pytest.mark.parametrize('fault', ['size', 'intrinsic', 'unregistered', 'frame'])
+def test_load_frame_rejects_incompatible_static_calibration(tmp_path, fault):
+    samples = _calibration()
+    if fault == 'size':
+        samples[0][1].width = 4
+    elif fault == 'intrinsic':
+        samples[0][1].k[0] = 0.0
+    elif fault == 'unregistered':
+        samples[1][1].k[0] = 120.0
+    else:
+        samples[0][1].header.frame_id = 'another_optical_frame'
+    samples += [(topic, _message(topic, 10_000_000_000))
+                for topic in (COLOR, DEPTH, POINTS)]
+    with pytest.raises(RuntimeError, match='calibration'):
+        replay.load_frame(_write_bag(tmp_path, samples), 0)
+
+
+def test_load_frame_does_not_replace_requested_rgb_with_another_valid_group(tmp_path):
+    samples = _calibration() + [
+        (COLOR, _message(COLOR, 10_000_000_000)),
+        (COLOR, _message(COLOR, 20_000_000_000)),
+        (DEPTH, _message(DEPTH, 20_000_000_000)),
+        (POINTS, _message(POINTS, 20_000_000_000)),
+    ]
+    uri = _write_bag(tmp_path, samples)
+    with pytest.raises(RuntimeError, match='synchronized'):
+        replay.load_frame(uri, 0)
+    frame = replay.load_frame(uri, 1)
+    assert frame[COLOR].header.stamp.sec == 20
+    assert frame[DEPTH].header.stamp.sec == 20
+
+
+def test_load_frame_rejects_cloud_in_another_coordinate_frame(tmp_path):
+    samples = _calibration() + [(topic, _message(topic, 10_000_000_000))
+                                for topic in (COLOR, DEPTH, POINTS)]
+    samples[-1][1].header.frame_id = 'base_link'
+    with pytest.raises(RuntimeError, match='calibration'):
+        replay.load_frame(_write_bag(tmp_path, samples), 0)
+
+
+def test_retimestamp_preserves_original_sensor_skews():
+    frame = {topic: _message(topic, stamp) for topic, stamp in [
+        (COLOR, 10_000_000_000), (DEPTH, 10_020_000_000),
+        (POINTS, 10_015_000_000),
+        (COLOR_INFO, 1_000_000_000), (DEPTH_INFO, 1_000_000_000),
+    ]}
+    stamp = _message(COLOR, 100_000_000_000).header.stamp
+    emitted = replay.retimestamp_frame(frame, stamp)
+    assert emitted[COLOR].header.stamp.sec == 100
+    assert emitted[DEPTH].header.stamp.nanosec == 20_000_000
+    assert emitted[POINTS].header.stamp.nanosec == 15_000_000
+    assert emitted[COLOR_INFO].header.stamp == emitted[COLOR].header.stamp
+    assert emitted[DEPTH_INFO].header.stamp == emitted[DEPTH].header.stamp
+    assert frame[COLOR].header.stamp.sec == 10
 
 
 def _bag() -> str | None:

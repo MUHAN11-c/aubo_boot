@@ -10,6 +10,13 @@ inline bool isHiddenTopicOrService(const std::string& name) {
   if (name.empty()) {
     throw std::invalid_argument("Topic or service name can't be empty");
   }
+  // IVG 本地改动：放行 ROS 2 action 标准端点（/_action/ 前缀的服务与话题，
+  // 如 /fibonacci/_action/send_goal）——它们以 '_' 开头但不是隐藏端点，是 rcl_action
+  // 的公开命名约定。过滤其余 "/_" 隐藏端点语义不变。（不放行则 web 端
+  // ActionClient 无法发现 action 服务，2026-10-10 实证。）
+  if (name.find("/_action/") != std::string::npos) {
+    return false;
+  }
   return name.front() == '_' || name.find("/_") != std::string::npos;
 }
 }  // namespace
@@ -167,9 +174,9 @@ void FoxgloveBridge::rosgraphPollThread() {
         const auto topicNamesAndTypes = get_topic_names_and_types();
         updateAdvertisedTopics(topicNamesAndTypes);
         updateAdvertisedServices();
-        if (_subscribeGraphUpdates) {
-          updateConnectionGraph(topicNamesAndTypes);
-        }
+        // IVG 本地改动：始终维护图谱缓存（原代码只在有订阅者时更新，导致客户端
+        // 首次 subscribeConnectionGraph 收到的初始快照可能缺少先于订阅出现的节点）
+        updateConnectionGraph(topicNamesAndTypes);
         // Graph changes tend to come in batches, so wait a bit before checking again
         std::this_thread::sleep_for(500ms);
       }

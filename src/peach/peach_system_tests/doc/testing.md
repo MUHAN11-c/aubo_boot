@@ -226,11 +226,13 @@ timeout -s INT -k 3 10 ros2 lifecycle get /peach_arm
 
 静止 RGB-D 与点云来自 `runs/peach_camera_capture_20260930/stereo_10s`（`PEACH_FROZEN_BAG` 或 `--bag` 可改；先核 metadata.yaml 与实际 bag 存储文件；缺数据需重新采集或从备份恢复后再跑）。回放节点把 stamp 改成当前时刻。mock 经 `mock_initial_positions` 出生在 SRDF `global_photo_pose`，不在 `harvest_stow` 到拍照位的途中发画面。**相机侧是固定机位**（§1）：图像和点云只在拍照位静止时发布；`drive_frozen_grasp.py` 在 `target_phase` 进入接近及之后、关节离开拍照位超过 2 mrad 时调用 `~/pause`，彩色、深度和点云一起停。`grasp.allow_stale_anchor` 仍开，离开拍照位后不按新腕 TF 重锚。**只扫一次、只抓一颗**。产品 `min_views=1`、角基线门 0，单视即可 finalize。测试 overlay `config/frozen_one_view.yaml` 仍把基线门写成 0°，并 `reconstruct_in_trajectory` 跳过补视 LIN、`tool.budget.d_inner=0.25` 过单视 sigma；驱动再开 `grasp.allow_stale_anchor`、`grasp.maximum_travel_m` 收到 0.02、快照 `workspace_radius_m` 收到 0.05。枝叶方块默认不写入规划场景。不要走 `skip_reconstruction`（真感知未精化直径为 0）。第一颗终局后 action cancel。`tool=false`，剪切段跳过柜侧 SetIO。
 
+`--index` 指 **RGB 流从 0 开始的帧序号**。加载器固定该 RGB，按原始 `header.stamp` 用 Jazzy `ApproximateTimeSynchronizer` 配深度与注册点云，三者时间跨度须严格 **<50 ms**；各话题各取相同序号不等于同步。CameraInfo 单独取该时刻之前最近的静态校准（无前样本才取之后最早样本），核对图像尺寸、各自光学 frame 和注册深度的相同 K；它不作为同曝光证据。日志报告全部原始 stamp 与相对 RGB 的偏差。发布时整组平移到当前时间并保留 RGB/深度/点云原始时间差，CameraInfo 随对应图像戳。找不到有效组则明确拒绝，不自动换 RGB index、不扩大窗口。`session_20261012_161555/bag` 的 RGB index 0 有同戳组；`session_20261012_163436/bag` 的 RGB index 0 深度相差 200.156 ms，首点云又晚约 68 s，不能用于冻结回放验收。冻结输入只能验证该拍照位和该数据的单视管线，不能充当多视重建数据。
+
 ```bash
 pgrep -af 'ros2 launch|component_container|extrinsics_publisher|ros2 run|bag record|collect|probe'
 ros2 run peach_system_tests run_frozen_grasp.py        # v1 域 81；bite_shear_v1、tool=false 干跑套入
 # 常用参数：--bag <路径>（默认 PEACH_FROZEN_BAG 或 runs/peach_camera_capture_20260930/stereo_10s）、
-#           --index <n>（抓第几颗）、--hz、--request-id（默认 frozen_v1_<unix>）、--skip-launch
+#           --index <n>（RGB 帧序号，从 0 开始）、--hz、--request-id（默认 frozen_v1_<unix>）、--skip-launch
 pgrep -af 'ros2 launch|component_container|extrinsics_publisher|ros2 run|bag record|frozen_camera|move_group|ros2_control_node'
 ```
 

@@ -122,7 +122,9 @@ def estimate_normals(depth_roi: np.ndarray, xoff: int, yoff: int, K: dict,
     du = np.zeros((h, w, 3))
     dv = np.zeros((h, w, 3))
     du[:, 1:-1, 0] = X[:, 2:] - X[:, :-2]
+    du[:, 1:-1, 1] = Y[:, 2:] - Y[:, :-2]
     du[:, 1:-1, 2] = z[:, 2:] - z[:, :-2]
+    dv[1:-1, :, 0] = X[2:, :] - X[:-2, :]
     dv[1:-1, :, 1] = Y[2:, :] - Y[:-2, :]
     dv[1:-1, :, 2] = z[2:, :] - z[:-2, :]
 
@@ -143,7 +145,11 @@ def estimate_normals(depth_roi: np.ndarray, xoff: int, yoff: int, K: dict,
                               - depth_roi[:, :-2].astype(np.int32)) > depth_jump_mm)
     jump_v[1:-1, :] = (np.abs(depth_roi[2:, :].astype(np.int32)
                               - depth_roi[:-2, :].astype(np.int32)) > depth_jump_mm)
-    nvalid = valid & (norm > 1e-12) & ~jump_u & ~jump_v
+    neighbors_valid = np.zeros((h, w), dtype=bool)
+    neighbors_valid[1:-1, 1:-1] = (
+        valid[1:-1, :-2] & valid[1:-1, 2:]
+        & valid[:-2, 1:-1] & valid[2:, 1:-1])
+    nvalid = valid & neighbors_valid & (norm > 1e-12) & ~jump_u & ~jump_v
     nvalid[[0, -1], :] = False
     nvalid[:, [0, -1]] = False
     return n, nvalid
@@ -303,7 +309,8 @@ def fit_sphere_robust(points: np.ndarray, normals: Optional[np.ndarray] = None,
     Args:
         points: (N, 3) 点（米）.
         normals: (N, 3) 单位法线；None 退化 4 点采样.
-        radius_prior: 半径先验（米）；None 表示半径自由（抛光亦放开）.
+        radius_prior: 固定半径先验（米），有无法线均在抛光时执行；
+            None 表示半径自由（抛光亦放开）.
         radius_range: 接受的半径区间（米），抛光后越界判失败.
         thresh: 内点径向残差阈值（米）.
         max_iter: RANSAC 迭代次数.
@@ -320,7 +327,8 @@ def fit_sphere_robust(points: np.ndarray, normals: Optional[np.ndarray] = None,
         return None
     inl_pts = points[est['inliers']]
     center, radius = polish_sphere_lm(
-        inl_pts, est['center'], est['radius'],
+        inl_pts, est['center'], (
+            float(radius_prior) if radius_prior is not None else est['radius']),
         fixed_radius=radius_prior is not None)
     if not (radius_range[0] <= radius <= radius_range[1]):
         return None

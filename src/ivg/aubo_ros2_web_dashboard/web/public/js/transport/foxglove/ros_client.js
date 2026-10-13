@@ -54,6 +54,7 @@ function parameterValueFrom(v) {
 	}
 	if (typeof v === 'string') return { type: PARAM_TYPE.STRING, string_value: v };
 	if (Array.isArray(v)) {
+		if (v.length === 0) return { type: PARAM_TYPE.NOT_SET };
 		if (v.every((x) => typeof x === 'number')) {
 			return Number.isInteger(v[0])
 				? { type: PARAM_TYPE.INTEGER_ARRAY, integer_array_value: v }
@@ -130,6 +131,13 @@ class FoxgloveRosClient {
 
 	callService(name, requestObj, opts = {}) {
 		return this.player.callService(name, requestObj, opts);
+	}
+
+	// ── 连接图（topics/nodes/services 图谱查询）─────────────────────────
+
+	/** 图谱快照（首次调用时订阅 connectionGraph，之后持续更新） */
+	getGraph() {
+		return this.player.subscribeConnectionGraph();
 	}
 
 	// ── 参数（标准参数服务直调） ──────────────────────────────────────────

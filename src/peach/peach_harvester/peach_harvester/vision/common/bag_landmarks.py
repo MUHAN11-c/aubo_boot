@@ -281,6 +281,10 @@ def estimate_bag_landmarks(
     if finite.shape[0] < 30:
         result.flags.append('too_few_finite_points')
         return result
+    # A point cloud has no row-order semantics. Canonicalize before seeded
+    # sampling and tie-breaking so storage/voxel iteration cannot change a
+    # fitted auxiliary sphere or endpoint for the same geometric point set.
+    finite = finite[np.lexsort((finite[:, 2], finite[:, 1], finite[:, 0]))]
     gravity_u = _unit(gravity)
     if gravity_u is None:
         gravity_u = np.array([0.0, 0.0, -1.0])
@@ -384,7 +388,7 @@ def estimate_bag_landmarks(
     if len(finite) > 1200:
         sphere_pts = finite[np.random.default_rng(0).choice(
             len(finite), 1200, replace=False)]
-    sphere = fit_sphere_robust(sphere_pts)
+    sphere = fit_sphere_robust(sphere_pts, radius_prior=None)
     if sphere is not None:
         result.fruit_prior_center = np.asarray(sphere['center'], dtype=np.float64)
         result.fruit_prior_radius_m = float(sphere['radius'])

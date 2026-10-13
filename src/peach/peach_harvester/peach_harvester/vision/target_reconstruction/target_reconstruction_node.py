@@ -62,6 +62,7 @@ from peach_harvester.vision.target_reconstruction.capture import (
     capture_gate,
     CapturedFrame,
     CollectorConfig,
+    exposure_joint_velocity,
     FrameCollector,
     FrameStoreMixin,
     GATE_ALLOW,
@@ -283,8 +284,10 @@ class TargetReconstructionNode(
         self._executor_target_id = ''
         self._executor_state_seen = False
         self._target_observation_seen = False
-        self._joint_states_seen = False
-        self._max_joint_vel = 0.0  # [rad/s] 最近 /joint_states 的最大关节速度
+        # Cache 只按 header stamp 留历史；Jazzy 实现无内部锁，读写共用
+        # _state_lock。1024 条覆盖正常控制频率下的 2s 最大图像处理延迟。
+        self._joint_state_cache = message_filters.Cache(
+            message_filters.SimpleFilter(), cache_size=1024)
         # BuildTargetModel 单槽重入护栏（goal 回调置位，执行体 finally 清零）
         self._build_goal_active = False
         # ROS 实体（发布器/订阅/服务/ActionServer/TF/心跳）统一在 on_configure
@@ -396,6 +399,8 @@ class TargetReconstructionNode(
         self._sub_perc_diag = self.create_subscription(
             BagFittingArray, '/peach/perception/diagnostics',
             self._on_perception_diagnostics, default_qos)
+        self._joint_state_cache = message_filters.Cache(
+            message_filters.SimpleFilter(), cache_size=1024)
         self._sub_joint = self.create_subscription(
             JointState, '/joint_states', self._on_joint_states, default_qos)
         self._cb = ReentrantCallbackGroup()
@@ -784,9 +789,40 @@ class TargetReconstructionNode(
         return self._target_kind_memory.resolve()
 
     def _on_joint_states(self, msg: JointState):
-        """缓存最大关节速度幅值 [rad/s]（require_robot_static 判定用）."""
-        self._joint_states_seen = True
-        self._max_joint_vel = max((abs(float(v)) for v in msg.velocity), default=0.0)
+        """缓存带曝光可查询时间戳的关节状态；回退时丢弃旧时钟域历史."""
+        with self._state_lock:
+            stamp = Time.from_msg(msg.header.stamp)
+            newest = self._joint_state_cache.getLastestTime()
+            if newest is not None and stamp < newest:
+                # 安装的 Jazzy Cache.add 按到达顺序 append；回放重启或
+                # 乱序都保守重建，不把旧域消息误作曝光时刻证据。
+                self._joint_state_cache = message_filters.Cache(
+                    message_filters.SimpleFilter(), cache_size=1024)
+            self._joint_state_cache.add(msg)
+
+    def _joint_velocity_at_frame(self, stamp_msg):
+        """锁内查曝光两侧关节证据；无证据不可回退最新状态."""
+        if stamp_msg is None:
+            return None, '曝光时刻关节状态缺失（无图像时间戳）'
+        stamp = Time.from_msg(stamp_msg)
+
+        def sample(msg):
+            if msg is None:
+                return None
+            velocities = tuple(float(v) for v in msg.velocity)
+            arm_joints = {
+                'shoulder_joint', 'upperArm_joint', 'foreArm_joint',
+                'wrist1_joint', 'wrist2_joint', 'wrist3_joint'}
+            if (len(msg.name) != len(velocities)
+                    or not arm_joints.issubset(msg.name)):
+                velocities = ()
+            return self._stamp_ns(msg.header.stamp), velocities
+
+        return exposure_joint_velocity(
+            stamp.nanoseconds,
+            sample(self._joint_state_cache.getElemBeforeTime(stamp)),
+            sample(self._joint_state_cache.getElemAfterTime(stamp)),
+            float(self.params.capture.joint_state_tolerance_s))
 
     # ------------------------------------------------------------------
     # TF
@@ -867,6 +903,7 @@ class TargetReconstructionNode(
             rgb, depth_mm, K, stamp_msg, stamp_sec, cam_frame = cached
             target_mask, mask_reason = self._target_mask_for_frame(
                 stamp_msg, depth_mm)
+        joint_vel, static_reason = self._joint_velocity_at_frame(stamp_msg)
         gate_values = {
             'frame_available': cached is not None,
             'frame_count': len(self.collector.frames),
@@ -877,8 +914,9 @@ class TargetReconstructionNode(
             'frame_age_s': self._algo_clock.now() - stamp_sec,
             'max_frame_age_s': self.params.capture.max_frame_age_s,
             'require_robot_static': self.params.capture.require_robot_static,
-            'joint_states_seen': self._joint_states_seen,
-            'max_joint_vel': self._max_joint_vel,
+            'joint_states_seen': joint_vel is not None,
+            'max_joint_vel': joint_vel if joint_vel is not None else 0.0,
+            'static_state_reason': static_reason,
             'static_joint_vel_thresh':
                 self.params.capture.static_joint_vel_thresh,
             'cam_frame_ok': bool(cam_frame),
@@ -1243,13 +1281,15 @@ class TargetReconstructionNode(
             status_text = (
                 'ACCEPT' if result.status == STATUS_ACCEPT else 'REOBSERVE')
             return f'；refit {status_text}（袋模型 {fused.view_count} 视）'
-        if (previous is not None and previous.ok and previous.budget):
+        if (previous is not None and previous.ok and previous.budget
+                and result.reason != 'fused_axis_conflict'):
             # keep_last_good：两个缓存都不动（_bag_model 由成对写入维护），
             # 避免旧 good _refined 配新失败 _bag_model 的矛盾对。
             return f'；refit 未更新（{result.reason}）'
         self._refined = result
         self._bag_model = fused
         self._bump_products_version()
+        self._products_force_publish = True
         return f'；refit 失败（{result.reason}）'
 
     def _on_finalize(self, request, response):

@@ -21,6 +21,7 @@ peach_target_reconstruction_node:
       minimum_mean_depth_ratio: 0.4  # 视角集合平均有效深度占比门限
       require_robot_static: true  # 观察到位后才积分；false 时连续运动中每个唯一时间戳都会入栈（现场重影后圆柱轴可偏 ~90°）
       static_joint_vel_thresh: 0.03  # 到位后残余速度阈值 (rad/s)；转移中仍是 0.4–1.5 rad/s
+      joint_state_tolerance_s: 0.1  # 曝光前后关节状态各自最大间距(s)；缺失/过旧/无速度拒帧，不回退处理时刻速度
       max_frame_age_s: 2.0  # 缓存帧龄期上限 (s)，超过视为陈帧拒采
       auto_mode: true  # 有候选自动开始，每个唯一同步帧进入质量门；false = 纯手动 Trigger 服务流
       auto_finalize_at_max: false  # 默认由用户在覆盖充分后 finalize
@@ -74,7 +75,7 @@ peach_target_reconstruction_node:
       rmse_max_m: 0.005  # [m] ACCEPT 门控：拟合 RMSE 上限
       entry_standoff_m: 0.0  # [m] entry_pose 自 bottom 沿 −axis 后撤量；0=入口在拟合袋底。整栈数值以 grasp_standoffs.yaml 为准。
       pregrasp_standoff_m: 0.0  # [m] GraspDecision.pregrasp 自入口沿 −axis 后撤；0=与入口重合。由 grasp_standoffs.yaml 与技能 mtc_approach_along_axis_m 同值注入。
-      max_axis_angle_deg: 35.0  # [deg] 检测轴与融合轴完全错轴诊断；超过只打旗标。接触许可走动态预算
+      max_axis_angle_deg: 35.0  # [deg] 可靠 ACCEPT 点云拟合轴 vs 融合轴超此角=fused_axis_conflict（REOBSERVE、清预算与旧缓存许可）；hint 超此角只打 fused_perception_axis_mismatch 诊断旗标，无可靠拟合且 hint>90° 才保守拒绝
     publish:
       on_change_only: true  # false=回退逐次全发旧行为（点云/Marker 大消息仅内容版本变化且过最小间隔才发布）
       min_interval_s: 0.2  # [s] 最小发布间隔；≤0 关闭间隔门

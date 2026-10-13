@@ -122,7 +122,10 @@ def test_informational_flags_do_not_block_accept():
     flags = sorted(set(result.grasp_3d.diagnostic_flags))
     informational = [f for f in flags if f not in _gating_flags(flags)]
     # 过程类 flags 照常在列（可追溯），但不参与门
-    assert 'fruit_prior_auxiliary' in informational
+    # Taper evidence is present in this cone; a free-radius sphere may fail
+    # its range check and must not claim an auxiliary fruit prior then.
+    # The partition test below covers fruit_prior_auxiliary explicitly.
+    assert 'taper_neck' in informational
     assert _gating_flags(flags) == []
     assert result.grasp_3d.status == 'ACCEPT'
 

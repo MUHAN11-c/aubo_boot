@@ -32,6 +32,10 @@ class HttpBackend(Protocol):
         """返回 TCP 点列、visualization_msgs Marker 字典与路标."""
         ...
 
+    def image(self, stream: str) -> tuple:
+        """取已编码 JPEG 与帧元数据；无帧返回 None 与原因."""
+        ...
+
     def debug_command(self, action: str, payload: dict,
                       headers) -> tuple:
         """
@@ -60,7 +64,7 @@ class ObservabilityHttpHandler(BaseHTTPRequestHandler):
         """访问日志转交后端 debug 日志（ROS 节点或测试 noop）."""
         self.server.log_debug(fmt % args)
 
-    def _send(self, status, content_type, data, cache='no-store'):
+    def _send(self, status, content_type, data, cache='no-store', headers=None):
         self.send_response(status)
         self.send_header('Content-Type', content_type)
         self.send_header('Content-Length', str(len(data)))
@@ -69,8 +73,12 @@ class ObservabilityHttpHandler(BaseHTTPRequestHandler):
         self.send_header('X-Frame-Options', 'DENY')
         self.send_header(
             'Content-Security-Policy',
-            "default-src 'self'; object-src 'none'; "
+            "default-src 'self'; img-src 'self' blob:; object-src 'none'; "
             "frame-ancestors 'none'")
+        for name, value in (headers or {}).items():
+            # 帧名来自 ROS 消息，不允许响应头注入.
+            safe = str(value).replace('\r', '').replace('\n', '')
+            self.send_header(name, safe.encode('ascii', 'replace').decode('ascii'))
         self.end_headers()
         self.wfile.write(data)
 
@@ -91,17 +99,40 @@ class ObservabilityHttpHandler(BaseHTTPRequestHandler):
             getter = getattr(self.server.backend, 'trajectory', None)
             self._json(getter() if callable(getter) else {})
             return
+        images = {'/api/images/perception.jpg': 'perception',
+                  '/api/images/raw.jpg': 'raw'}
+        if path in images:
+            getter = getattr(self.server.backend, 'image', None)
+            data, metadata = getter(images[path]) if callable(getter) else (
+                None, {'available': False, 'error': 'preview_unavailable'})
+            if data is None or metadata.get('error') == 'clock_mismatch':
+                self._json(metadata, HTTPStatus.NOT_FOUND)
+            else:
+                self._send(HTTPStatus.OK, 'image/jpeg', data, headers={
+                    'X-Frame-Stamp-Ns': metadata['stamp_ns'],
+                    'X-Frame-Id': metadata['frame_id'],
+                    'X-Frame-Age-S': metadata['age_s']})
+            return
         assets = {
             '/': ('index.html', 'text/html; charset=utf-8'),
             '/index.html': ('index.html', 'text/html; charset=utf-8'),
             '/app.css': ('app.css', 'text/css; charset=utf-8'),
             '/app.js': ('app.js', 'text/javascript; charset=utf-8'),
         }
+        for filename in ('vendor/peach-three.js', 'viz3d.js',
+                         'visualization.js', 'workbench.js'):
+            assets['/' + filename] = (filename, 'text/javascript; charset=utf-8')
+        for filename in ('visualization.css', 'workbench.css'):
+            assets['/' + filename] = (filename, 'text/css; charset=utf-8')
         asset = assets.get(path)
         if asset is None:
             self.send_error(HTTPStatus.NOT_FOUND)
             return
-        data = (self.server.web_root / asset[0]).read_bytes()
+        try:
+            data = (self.server.web_root / asset[0]).read_bytes()
+        except OSError:
+            self._json({'error': 'asset_unavailable'}, HTTPStatus.NOT_FOUND)
+            return
         self._send(
             HTTPStatus.OK, asset[1], data,
             cache='public, max-age=60')

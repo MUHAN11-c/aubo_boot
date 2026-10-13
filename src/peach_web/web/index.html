@@ -6,6 +6,8 @@
   <meta name="theme-color" content="#10151a">
   <title>Peach · 采摘控制台</title>
   <link rel="stylesheet" href="/app.css">
+  <link rel="stylesheet" href="/visualization.css">
+  <link rel="stylesheet" href="/workbench.css">
 </head>
 <body class="data-stale">
   <div class="page-header">
@@ -34,7 +36,28 @@
     <article class="health-card gates-card"><p class="kicker">运行期使能</p><div class="policy-badges" id="policy-badges"></div><span id="health-enables-note">等待运行期使能状态</span></article>
   </section>
 
+  <section class="panel operation-panel" aria-label="常用操作与执行状态">
+    <div class="operation-head">
+      <div><p class="kicker">OPERATIONS</p><h2>常用操作</h2></div>
+      <div class="operation-buttons">
+        <button type="button" data-debug="photo_pose_service" data-confirm="1" data-confirm-text="确认回到拍照位？请先核对现场与当前执行使能。">回到拍照位</button>
+        <button type="button" data-debug-cancel="execute_action" class="danger">取消执行</button>
+        <button type="button" data-debug="control_service" data-payload='{"command":"CANCEL_NOW"}' class="danger">取消批次</button>
+      </div>
+    </div>
+    <details class="operation-details"><summary>执行条件与完成证据</summary><div class="operation-context">
+      <div><span class="operation-label">批次执行档</span><strong id="operation-mode">等待配置</strong></div>
+      <div><span class="operation-label">当前条件</span><p id="operation-status">等待运行状态</p></div>
+      <div><span class="operation-label">当前完成证据</span><p id="operation-evidence">等待作业票</p></div>
+      <div><span class="operation-label">接触许可</span><p id="operation-decision">等待许可</p></div>
+    </div>
+    <p id="photo-return-note" class="operation-note">等待回拍照条件</p>
+    </details>
+    <p id="debug-notice" class="debug-notice" role="status" aria-live="polite">操作结果将在此显示，详细响应见单步调试。</p>
+  </section>
+
   <main id="view-monitor" role="tabpanel" aria-labelledby="tab-monitor">
+  <div id="monitor-visualization-host"></div>
   <section class="panel flow-panel" id="flow-panel">
     <div class="flow-main">
       <div class="section-head">
@@ -87,7 +110,7 @@
   </section>
 
   <section class="panel status-panel">
-    <details open>
+    <details>
       <summary class="hardware-summary"><span>节点与机械臂硬件</span><span class="traj-hint">五节点状态、TCP 与六轴关节</span></summary>
     <div class="status-strip" id="status-strip"></div>
     <div class="hw-panel" id="hw-panel">
@@ -148,6 +171,8 @@
         <label>节点
           <input id="log-node" type="search" placeholder="名称包含" autocomplete="off" aria-label="按节点名过滤">
         </label>
+        <label>关键词 <input id="log-keyword" type="search" placeholder="消息包含" autocomplete="off" aria-label="按日志内容过滤"></label>
+        <button type="button" id="log-pause">暂停日志</button>
         <span id="log-count" class="traj-hint">0 条</span>
       </div>
     </div>
@@ -221,7 +246,7 @@
   </section>
 
   <section class="panel system-panel" id="system-panel">
-    <details open>
+    <details>
       <summary>系统负载 · 参数 · 自检 · 诊断 <span id="system-summary" class="empty">—</span></summary>
       <div class="stage-cols system-cols">
         <div class="stage-col">
@@ -246,76 +271,16 @@
   </main>
 
   <main id="view-debug" role="tabpanel" aria-labelledby="tab-debug" hidden>
-    <section class="panel debug-banner" id="debug-banner">
-      <div><p class="kicker">DEBUG</p>
-        <h2 id="debug-state-title">单步：场景 → 重建 → 预抓取</h2></div>
-      <div class="debug-gates" id="debug-gates"></div>
-      <p class="traj-hint">操作由后端授权门复核。动臂未放行时返回 423；取消与普通操作独立。网页操作不替代示教器硬件急停。</p>
-    </section>
-    <p id="debug-notice" class="debug-notice" role="status" aria-live="polite">选择操作前核对本场标识与使能档位。</p>
-
-    <section class="panel debug-card">
-      <div class="section-head"><div><p class="kicker">IDS</p><h2>本场标识</h2></div></div>
-      <div class="debug-row">
-        <label>批次标识 <input id="dbg-request-id" placeholder="request_id · 每批唯一" autocomplete="off"></label>
-        <label>场景 <input id="dbg-scene-key" value="lab" autocomplete="off"></label>
-        <label>目标 <input id="dbg-target-id" placeholder="target_id · 如 target_0" autocomplete="off"></label>
-        <label>scene_epoch <input id="dbg-epoch" value="0" inputmode="numeric"></label>
-      </div>
-    </section>
-
-    <section class="panel debug-card">
-      <div class="section-head"><div><p class="kicker">STEPS</p><h2>感知 · 扫场 · 重建 · 技能</h2></div></div>
-      <div class="debug-grid">
-        <fieldset><legend>感知 / 扫场</legend>
-          <button type="button" data-debug="begin_scene_service">BeginScene</button>
-          <button type="button" data-debug="survey_action" data-confirm="1">SurveyScene</button>
-          <button type="button" data-debug-cancel="survey_action">取消 Survey</button>
-          <button type="button" data-debug="photo_pose_service" data-confirm="1">去拍照位</button>
-        </fieldset>
-        <fieldset><legend>重建</legend>
-          <button type="button" data-debug="build_action" data-confirm="1">BuildTargetModel</button>
-          <button type="button" data-debug-cancel="build_action">取消 Build</button>
-          <button type="button" data-debug="recon_finalize_service">finalize</button>
-        </fieldset>
-        <fieldset><legend>ExecuteTarget</legend>
-          <label>mode <select id="exec-mode">
-            <option value="PREVIEW">PREVIEW 只规划</option>
-            <option value="OBSERVE_ONLY">OBSERVE_ONLY 观察</option>
-            <option value="PREGRASP_ONLY" selected>PREGRASP_ONLY 停预抓取</option>
-            <option value="FULL">FULL 套入剪切</option>
-          </select></label>
-          <label class="inline"><input type="checkbox" id="exec-skip-obs" checked> skip_observation</label>
-          <button type="button" data-debug="execute_action" data-confirm="1">发送 ExecuteTarget</button>
-          <button type="button" data-debug-cancel="execute_action">取消 Execute</button>
-          <button type="button" data-debug="arm_service" data-payload='{"data":true}' data-confirm="1">武装本周期</button>
-          <button type="button" data-debug="arm_service" data-payload='{"data":false}'>解除武装</button>
-        </fieldset>
-        <fieldset><legend>批次</legend>
-          <label>intent <select id="run-intent">
-            <option value="SURVEY_ONLY">SURVEY_ONLY 只扫</option>
-            <option value="PICK_ALL">PICK_ALL 逐颗</option>
-            <option value="PICK_SELECTED">PICK_SELECTED 指定</option>
-          </select></label>
-          <label>target_ids <input id="run-target-ids" placeholder="逗号分隔，仅 PICK_SELECTED"></label>
-          <button type="button" data-debug="run_harvest_action" data-confirm="1">RunHarvest</button>
-          <button type="button" data-debug-cancel="run_harvest_action">取消批次</button>
-          <button type="button" data-debug="control_service" data-payload='{"command":"PAUSE"}'>PAUSE</button>
-          <button type="button" data-debug="control_service" data-payload='{"command":"RESUME"}' data-confirm="1">RESUME</button>
-          <button type="button" data-debug="control_service" data-payload='{"command":"SKIP_TARGET"}'>SKIP_TARGET</button>
-          <button type="button" data-debug="control_service" data-payload='{"command":"ACKNOWLEDGE_RECOVERY"}'>ACK 恢复</button>
-          <button type="button" data-debug="control_service" data-payload='{"command":"CANCEL_NOW"}' class="danger">CANCEL_NOW</button>
-        </fieldset>
-      </div>
-    </section>
-
-    <section class="panel debug-card">
-      <div class="section-head"><div><p class="kicker">RESULTS</p><h2>本次会话</h2></div><span id="debug-recent-count">0 条</span></div>
-      <div class="debug-results" id="debug-results"><p class="empty">尚无操作</p></div>
-    </section>
+    <section class="debug-runtime"><div id="debug-gates"></div></section>
+    <div id="workbench-host"></div>
+    <section class="panel debug-card"><details><summary>操作记录与完整响应 <span id="debug-recent-count">0 条</span></summary><div class="debug-results" id="debug-results"><p class="empty">尚无操作</p></div></details></section>
   </main>
 
   <footer class="footer"><span>过程记录 · 监控 · 轨迹 · 单步调试 · 127.0.0.1:8090</span><span>上电与安全恢复由现场完成</span></footer>
+  <script src="/vendor/peach-three.js"></script>
+  <script src="/viz3d.js"></script>
+  <script src="/visualization.js"></script>
+  <script src="/workbench.js"></script>
   <script src="/app.js"></script>
 </body>
 </html>

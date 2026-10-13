@@ -905,11 +905,15 @@ class ReconstructionCore:
             'geometry_valid': False,
             'reason': 'reconstruction_not_ready',
         }
-        if self.collector.state != 'READY':
-            return decision
         result = self._refined
+        if self.collector.state != 'READY':
+            if result is not None and result.reason == 'fused_axis_conflict':
+                decision['reason'] = result.reason
+            return decision
         if result is None or not result.ok:
-            decision['reason'] = 'refined_geometry_unavailable'
+            decision['reason'] = (
+                result.reason if result is not None and result.reason
+                else 'refined_geometry_unavailable')
             return decision
         angle = result.axis_angle_deg
         if angle is None:

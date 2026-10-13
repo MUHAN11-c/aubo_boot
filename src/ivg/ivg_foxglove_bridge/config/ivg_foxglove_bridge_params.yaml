@@ -4,10 +4,12 @@
   ros__parameters:
     port: 8765
     address: "0.0.0.0"
-    # 能力面：订阅默认开；客户端发布（debug 面板发布测试）与服务调用（全部面板控制面）
+    # 能力面：订阅默认开；客户端发布（debug 面板发布测试）、服务调用（全部面板控制面）、
+    # 连接图（topics/nodes/services 图谱查询，web 系统自检与调试 UI 用）
     capabilities:
       - "clientPublish"
       - "services"
+      - "connectionGraph"
     # 排除 /aubo/feedback_states（action 隐式话题，无独立 .idl，
     # 会触发 rosgraph 轮询 bad optional access 崩溃——自上游移植期已知问题）
     topic_whitelist:

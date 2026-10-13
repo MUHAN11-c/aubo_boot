@@ -21,7 +21,7 @@
 
 - **输入：** 同一套 RGB-D；感知观测；`HarvestState.target_id`；`BuildTargetModel`。积分**只用精确 stamp TF**，禁止 latest。
 - **输出：** `/peach/reconstruction/grasp_decision`（`allowed` 是套入/剪切权威；融合几何供预抓取；`valid_until` 窗口 2026-09-20 参数化 `decision.validity_s` 默认 120s——G1：原 5s 与接近链时长错配，冻结/不续签语义不变；`model_revision` 含单调 finalize 计数——G3：同目标重 Build 不再沿用旧令牌）、`pregrasp_verification`、`refined_*`、`diagnostics`、`tsdf_cloud`；可选 `session_*` 与 `geometry.jsonl`。
-- **做什么：** 节点 decode 后 `ReconstructionSession.process` 做深度归一化与内参门；采集门（锁 → 精确 TF → 重校验）→ 局部 TSDF（可视化/占用，不授权轴）→ 有界 ICP 拒帧 → 采集串扰门（邻目标锚点 <150 mm 拒帧；**小框豁免**：邻居检测框面积×`capture.neighbor_gap_area_ratio`(2.0) < 绑定框面积时不计入间距，近距双检不互相锁死）→ 多视角袋关键点 Huber 融合（方向=底→颈；口底对打的视角否决不平均）→ 体积截面质心只改侧向定位 → 轴上剪切参考（袋口 / 分割贴检测框极限；果距不足只否决 `allowed`，不把刀挪到果–颈中点）→ 沿关键点轴的 TSDF 包络主方向作一致性否决 → 动态工具预算许可。体积积分成功后才做袋融合；融合或 `geometry.jsonl` 失败**不得**回滚已积分体积、不得把该帧从采集栈弹出（否则 `/peach/reconstruction/tsdf_cloud` 空、技能有效视点仍为 0）。写三维点不得对 ndarray 用 Python `or`。固定 35° 只诊断完全错轴。包络轴向跨度小于直径或切片不足时**不**打 `keypoint_cloud_axis_conflict`（扁袋圆柱 RANSAC 不作否决）。检测轴夹角只诊断，不进接触预算。融合残差写入 RMSE/内点率，不写死 0/1。`require_robot_static`：到位静止后才积分。`BuildTargetModel` 等独立机位数达标再 finalize（`capture.min_views` 默认 1，角基线门 0，当前拍照位即可收口，不强制再移一个视点）。`captured_views` 是积分帧数；`BuildTargetModel` 反馈 / `TargetModel.view_count` 是机位数。机位覆盖看 `view_directions` / `max_baseline_deg`（同机位连帧不加机位，不把连拍当多视）。
+- **做什么：** 节点 decode 后 `ReconstructionSession.process` 做深度归一化与内参门；采集门（锁 → 精确 TF → 重校验）→ 局部 TSDF（可视化/占用，不授权轴）→ 有界 ICP 拒帧 → 采集串扰门（邻目标锚点 <150 mm 拒帧；**小框豁免**：邻居检测框面积×`capture.neighbor_gap_area_ratio`(2.0) < 绑定框面积时不计入间距，近距双检不互相锁死）→ 多视角袋关键点 Huber 融合（方向=底→颈；口底对打的视角否决不平均）→ 体积截面质心只改侧向定位 → 轴上剪切参考（袋口 / 分割贴检测框极限；果距不足只否决 `allowed`，不把刀挪到果–颈中点）→ 沿关键点轴的 TSDF 包络主方向作一致性否决 → 动态工具预算许可。体积积分成功后才做袋融合；融合或 `geometry.jsonl` 失败**不得**回滚已积分体积、不得把该帧从采集栈弹出（否则 `/peach/reconstruction/tsdf_cloud` 空、技能有效视点仍为 0）。写三维点不得对 ndarray 用 Python `or`。融合轴与可靠 ACCEPT 点云拟合轴超过 `refit.max_axis_angle_deg`（默认 35°）时拒绝为 `fused_axis_conflict` / REOBSERVE，清除预算及旧模型缓存许可；不强制朝向世界竖直。包络轴向跨度小于直径或切片不足时**不**打 `keypoint_cloud_axis_conflict`（扁袋圆柱 RANSAC 不作否决）。检测 hint 超 35°只诊断；无可靠拟合时 hint 与融合轴超过 90°保守拒绝。`rmse` / `inlier_ratio` 保持点云拟合含义，融合前拟合轴、状态和质量另留 `refit_*`。端点散布在侧向修正及极性调整前计算，写 `fusion_landmark_*`；至少两个独立机位才有一致性证据（`fusion_consistency_available` / `fusion_pose_count`），单机位散布为 null，侧向修正另记 `fusion_lateral_shift_m`。`require_robot_static`：通过 `message_filters.Cache` 查询图像曝光前后两条完整六轴状态，各自距曝光不超过 `capture.joint_state_tolerance_s`（0.1s），两侧最大速度均不超 0.03rad/s 才积分；缺失、过旧、空/非有限速度拒帧，不回退处理时刻的最新速度。`BuildTargetModel` 等独立机位数达标再 finalize（`capture.min_views` 默认 1，角基线门 0，当前拍照位即可收口，不强制再移一个视点）。`captured_views` 是积分帧数；`BuildTargetModel` 反馈 / `TargetModel.view_count` 是机位数。机位覆盖看 `view_directions` / `max_baseline_deg`（同机位连帧不加机位，不把连拍当多视）。
 - **禁止：** 自己跑检测、写 `ledger.json`、选下一颗、用 latest TF 积分。
 
 **被谁调：** 只有调度发 `BeginScene` / `BuildTargetModel`。技能只订阅观测与 `GraspDecision`，不调重建 `reset`/`finalize` Trigger。
@@ -161,6 +161,8 @@ sequenceDiagram
 
 批次纯核是 `harvest_fsm.react(batch_state, event) → Reaction`。节点禁止手写 `batch_state`。数值与 `HarvestState` / `ControlTask` IDL 由 `test/test_supervisor_idl_constants.py` 对账；`NAVIGATING=9` 预留，纯核不定义该常量。`READY_FULL` 对应命令 `EXECUTE_FULL`，节点再按 `execute_pregrasp_only` 选 `PREGRASP_ONLY` 或 `FULL`。
 
+批次结算与产品达成分别表达：正常收口保持 `HarvestState.COMPLETED` 与 action `SUCCEEDED`，采摘意图（`PICK_ALL` / `PICK_SELECTED`）的 `Result.success` 仅在 `summary.succeeded > 0` 时为 true；空场景、全部目标被过滤或全部执行失败均为 false，`termination_reason=no_targets_succeeded`。`FULL` 与 `PREGRASP_ONLY` 都按各自目标动作的成功结果计数，不把预抓取成功解释为采摘确认。`SURVEY_ONLY` 在扫场和场景收齐正常完成时可成功，允许零目标、零尝试；取消和导航/扫场/场景启动中止仍返回 false 并保留原因。因此 `COMPLETED` / action `SUCCEEDED` 只证明批次正常结算，客户端必须读取 `Result.success` 判断请求是否达成。
+
 ```mermaid
 stateDiagram-v2
   [*] --> WAITING_READY
@@ -185,3 +187,11 @@ stateDiagram-v2
 ```
 
 **读图（状态机）：** 圆是批次态，箭头上是「事件 / 接下来调度会发的命令」。发现阶段在 DISCOVERY 上转：到位 → 拍照并复核 → 开收齐窗 → 等锁 → 选果。选中后进 RUNNING；一颗结束必须回到 DISCOVERY 再拍一次（不再 Begin），不能直接派下一颗。右边注解：臂真动过之后要人工 ACK，否则停在恢复门。
+
+### 几何估计与证据边界
+
+有序深度法线使用针孔反投影后三维邻点的完整切向量叉积，包含 `du.Y` 与 `dv.X`；中心和四邻点必须有效。`fit_sphere_robust(radius_prior=r)` 在有/无法线两条路径都用给定固定半径做 LM 抛光，`None` 才自由估计半径。袋面辅助球使用自由半径和现有半径窗；输入有限点按 XYZ 规范排序后才抽样，避免同一无序点集因存储/体素遍历顺序改变关键点与辅助球结果。
+
+袋云表面拟合出的辅助球不等于独立观测的袋内果实包络。现行 `cut_to_fruit_m` 是该辅助先验与袋口参考的轴向估计，不可解释为经验证的真实果距。原始诊断明确标注 `cut_distance_source=bag_surface_sphere_auxiliary`；辅助先验缺失时诊断距离为 null。现行剪切许可仍使用该估计与 `fruit_safety_clearance`，本轮未修改接触门及预算影子语义。剪切许可的证据来源需要后续引入独立果几何或经过验证的保守包络。
+
+单侧可见表面的质心/端缘中点不是真实袋轴中心；当前 lateral snap 与径向 P95 仍存在模型偏差。点云 refit RMSE、融合端点散布、轴心可辨识性与口/底语义是不同证据，不可互相替代。`sigma_*` 为当前经验散布参数，并非经真机标定的 95% 置信界；包络轴一致性也不是与真实轴的角误差保证。无扎口语义或充分覆盖时，不应将本模块输出当作已验证的闭合袋中心、直径或内部果实包络。

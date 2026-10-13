@@ -47,7 +47,7 @@ QoS 缩写：`R` reliable；`TL` transient_local（晚订户仍拿得到最后�
 
 | 名字 | 种类 | 类型 | 含义 | 发 | 订 | QoS |
 |------|------|------|------|----|----|-----|
-| `/peach_supervisor/run_harvest` | action | `RunHarvest` | **唯一开批开关。** 至少成功一颗才 `success`；autostart 部署参数可自动发（默认关，且硬等 `/peach/observability/selfcheck_passed`） | 调度 | （人工/客户端/autostart） | — |
+| `/peach_supervisor/run_harvest` | action | `RunHarvest` | **唯一开批开关。** 采摘意图至少成功一颗才 `success`；`SURVEY_ONLY` 正常扫场结算可为 true（零目标不算失败）；autostart 部署参数可自动发（默认关，且硬等 `/peach/observability/selfcheck_passed`） | 调度 | （人工/客户端/autostart） | — |
 | `/peach_supervisor/control` | service | `ControlTask` | 暂停/恢复/取消/跳过/ACK 恢复。`expected_state_seq` 须对上当前快照 | 调度 | （人工；监控默认不发） | — |
 | `/peach_supervisor/state` | topic | `HarvestState` | **批次唯一快照。** 能力包只认其中的 `target_id` 当当前作业 | 调度 | 感知、重建、监控；调度自订 | R/TL/1 |
 | `/peach_supervisor/events` | topic | `CanonicalEvent` | 可检索事件流（派发/成功/失败/暂停/ACK/过滤） | 调度 | 监控 | R/TL/50 |
@@ -149,7 +149,7 @@ Goal：
 | `selection_mode` | 预留 `AUTO/MANUAL`；现行：`target_ids` 非空即优先按列表 |
 | `target_ids` | 可选允许列表；空=不限定 |
 
-Result：`success` = 至少成功一颗；`termination_reason`（`completed` / `canceled` / `survey_failed` / `begin_scene_failed` / `no_targets_succeeded` 等）；`summary` 见 `HarvestSummary`。
+Result：采摘意图（PICK_ALL / PICK_SELECTED）`success` = 至少成功一颗——空场景、全过滤或全失败均 false（`termination_reason=no_targets_succeeded`）；`SURVEY_ONLY` 正常扫场结算可为 true，零目标不算失败；取消或中止保持 false。批次态 `COMPLETED` / action `SUCCEEDED` 只证明批次正常结算，请求是否达成读本字段。`termination_reason`（`completed` / `canceled` / `survey_failed` / `begin_scene_failed` / `no_targets_succeeded` 等）；`summary` 见 `HarvestSummary`。
 
 Feedback：与 `~/state` 同源的 `HarvestState`。
 

@@ -108,6 +108,8 @@ flowchart TB
   bind --> wait
 ```
 
+`diagnostics_debug.refined` 新增融合前 `refit_ok/status/axis/rmse/inlier_ratio`、`fused_refit_axis_angle_deg`，以及独立的 `fusion_landmark_scatter_rmse_m` / `fusion_landmark_inlier_ratio` / `fusion_consistency_available` / `fusion_pose_count` / `fusion_lateral_shift_m`。端点散布排除侧向修正量，单机位或覆盖不可用时散布字段为 null。明确错轴原因即使 finalize 退回 COLLECTING 也透传到 GraspDecision.reason。
+
 **读图：** `BuildTargetModel` 一次只绑一颗。RGB-D 过门才积分；机位够了才 finalize 出发许可话题。换目标丢旧会话。finalize 后的几何/许可分岔见下图。
 
 | 名字 | 种类 | 含义 | 生产 | 消费 |
@@ -136,7 +138,7 @@ flowchart TB
 | `/peach_target_reconstruction_node/save_session` | 显式落盘会话工件（`runs/session_*/`） |
 | `/peach_target_reconstruction_node/query_reconstruction_state` | 只读返回当前重建与数据关联 JSON |
 
-采帧门（`target_reconstruction/capture.py`，自动失败=skip）：满栈 → 无帧 → 掩膜 → 同 stamp → 帧龄>2 s → 静止（`/joint_states` 最大 `|vel|`>0.03 rad/s）→ 空 frame_id → **精确 TF**。
+采帧门（`target_reconstruction/capture.py`，自动失败=skip）：满栈 → 无帧 → 掩膜 → 同 stamp → 帧龄>2 s → 静止（按图像曝光 stamp 查 `/joint_states` 历史前后两条六轴证据——`joint_state_tolerance_s` 0.1 s、Cache 1024 条、时钟回退重建；两侧最大 `|vel|`>0.03 rad/s 或证据缺失/过旧/非有限值拒帧，不回退处理时刻速度）→ 空 frame_id → **精确 TF**。
 
 ```mermaid
 flowchart TB
@@ -166,7 +168,7 @@ flowchart TB
 | 融合几何 | `GraspDecision` 入口/轴/预抓取/剪切参考（融合成功即填；后撤由 `grasp_standoffs.yaml` 注入，现行入口 0=拟合袋底、预抓取相对入口 0.03 m） | `PREGRASP_ONLY` 到预抓取停住；RViz/监控目视。方向定位对错以真机预抓取实测为准。停袋底对照轮次 1757（历史在 git，原 testing-log 已删） |
 | 接触许可 | `GraspDecision.allowed` | 只授权套入/剪切；禁止降级接触 |
 
-融合成功时 entry/axis/pregrasp/cut_pose 有效，即使 `allowed=false`。无几何时入口/轴填零，只信 `reason` / `failure_code`。常见 reason：`reconstruction_not_ready`、`refined_geometry_unavailable`、`bag_model_unavailable`、`bag_d95_missing`（无尺度证据，仍拒绝）。`bag_d95_exceeds_tool`、`radial_budget_negative`、`axial_budget_negative`、`axial_budget_structurally_unsatisfiable` 只记录尚未更新的刀具常数，不把 `allowed` 打成 false、`keypoint_cloud_axis_conflict`（包络轴与关键点轴 >12° 且包络有长径比）、`cut_plane_fruit_clearance` / `cut_band_unavailable`。`envelope_axis_ill_conditioned` / `envelope_too_few_slices` 只诊断，不单独关 `allowed`。>35° 只打 `diagnostic_axis_mismatch`，不单独把 `allowed` 打成 false。通过接触：`dynamic_budget_accept` / `refined_geometry_accept`。软件预算与夹角不代替预抓取位的真机精度评定。
+融合成功时 entry/axis/pregrasp/cut_pose 有效，即使 `allowed=false`。无几何时入口/轴填零，只信 `reason` / `failure_code`。常见 reason：`reconstruction_not_ready`、`refined_geometry_unavailable`、`bag_model_unavailable`、`bag_d95_missing`（无尺度证据，仍拒绝）。`bag_d95_exceeds_tool`、`radial_budget_negative`、`axial_budget_negative`、`axial_budget_structurally_unsatisfiable` 只记录尚未更新的刀具常数，不把 `allowed` 打成 false、`keypoint_cloud_axis_conflict`（包络轴与关键点轴 >12° 且包络有长径比）、`cut_plane_fruit_clearance` / `cut_band_unavailable`。`envelope_axis_ill_conditioned` / `envelope_too_few_slices` 只诊断，不单独关 `allowed`。hint >35°只诊断；可靠 ACCEPT 点云拟合轴与融合轴 >`refit.max_axis_angle_deg`（35°）时 `fused_axis_conflict`：REOBSERVE、几何/预抓取/接触能力不可用、清除预算，并覆盖旧 good 缓存。无可靠拟合且 hint 与融合轴 >90°也保守拒绝。通过接触：`dynamic_budget_accept` / `refined_geometry_accept`。软件预算与夹角不代替预抓取位的真机精度评定。
 
 `allowed=true` 之后仍可能 `skipped_quality`（再确认/预抓取残差）或 `skipped_unreachable`（MTC 护栏）。心跳里大量 `not_ready` 不等于精化从未 ACCEPT；看逐目标 max，不要看收工 IDLE。
 
@@ -176,7 +178,8 @@ flowchart TB
 |------|------|
 | `capture.min_views` | finalize 所需独立机位数（默认 1，当前拍照位即可；角基线门 0，不强制再移一个视点） |
 | `capture.max_views` | 帧栈上限，不是节拍 |
-| `capture.require_robot_static` | `/joint_states` 最大 \|vel\| 超门则跳帧 |
+| `capture.require_robot_static` | 按图像曝光 stamp 查询 `/joint_states` 历史两侧完整六轴速度；最大 \|vel\| 超门则跳帧，缺失/过旧/非有限值拒帧 |
+| `capture.joint_state_tolerance_s` | 前后状态各距曝光最多 0.1s；Cache 1024 条，时钟回退重建历史，不使用处理时刻速度 |
 | `capture.min_neighbor_gap_m` / `neighbor_gap_area_ratio` | 邻锚过近拒帧；小框面积比豁免，近距双检不互锁 |
 | `tf_timeout_sec` | 按深度 stamp 精确查 TF；失败跳帧，禁止 latest |
 | `refit.entry_standoff_m` / `refit.pregrasp_standoff_m` | 入口相对袋底、预抓取相对入口。只改 `grasp_standoffs.yaml` |
@@ -243,8 +246,12 @@ flowchart TB
 
 客户端（仅本节点）：`BeginScene`、`SurveyScene`、`BuildTargetModel`（与 OBSERVE_ONLY 并行）、`ExecuteTarget`、`CheckReachability`、`MoveTo`（`/peach_arm/move_to`，fast 档观察/回拍照位，2026-10-08 起）、`acknowledge_recovery`（`/peach_arm/acknowledge_recovery`，PREGRASP_ONLY 停驻 ACK，成功才消耗 `state_seq`）。批次6 `reconstruct_in_trajectory`（默认关）：true 时 DISPATCH 起 Build 后不再阻塞等 Build 完成，立即派 FULL（goal 自带 `skip_observation=true`，身份 revision=`pending:*` 占位，不装 GraspDecision 令牌）——重建与接近并行，臂侧 FinalizeAndValidate 有界等精化兜底，周期收口取消并等 Build 结束（单槽约束）。**批次策略与补采**（2026-09 轮起）：`BatchPolicy`（target_harvest_ratio / per_target_timeout_s / sector_timeout_s / view_policy fast|conservative）随 RunHarvest goal 初值、`set_batch_policy` 运行期改；单果时限门超时记 `target_timeout` 事件，`ratio_reached` 收批（`batch_ratio_satisfied` 事件）；批末补采清单落 `runs/<request_id>/rework_list.json`。视点两档：conservative=Build+OBSERVE 并行（上图）；fast=supervisor 直驱 MoveTo 补视（不发 arm OBSERVE_ONLY 动作，单视优先、补视封顶 3 视，`min_views` 未达仍补）。账本：`runs/<request_id>/ledger.json`。
 
+`RunHarvest.Result.success`：`PICK_ALL` / `PICK_SELECTED` 必须至少一个 `summary.succeeded`（目标 `FULL` 或 `PREGRASP_ONLY` 成功）；零成功均为 false / `no_targets_succeeded`，包括空场景和全过滤导致 `attempted=0`。`SURVEY_ONLY` 正常扫场结算可为 true，零目标不算失败。正常结算的批次态 `COMPLETED` 和 action 状态 `SUCCEEDED` 不代替该字段；取消或中止保持 false 与对应原因。
+
 ---
 
 ### 5.2 生命周期管理边界
 
 本包不提供管理服务；调度订阅 `/peach/lifecycle/managed_nodes_activated` 作为开批门。其生产方是 `peach_bringup` 的 flag bridge；管理服务使用 Nav2 类型，见 [系统 IO](../../peach_bringup/doc/io.md)。
+
+`/peach/reconstruction/diagnostics_debug` 的 `refined` JSON 另包含实际 `model_revision`、`fruit_prior_radius_m`、`cut_to_fruit_m` 与 `cut_distance_source`。`cut_distance_source=unavailable` 时 `cut_to_fruit_m=null`；`bag_surface_sphere_auxiliary` 表示外袋表面拟合所得的辅助估计，不能解释为内部果实的独立测量。该补充只读，不改 ROS IDL、令牌有效期、运动权限或许可计算。

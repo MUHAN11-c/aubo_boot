@@ -332,6 +332,60 @@
       <div class="debug-log debug-log--spaced" id="debug-log-pointcloud" aria-live="polite"></div>
     </div>
 
+    <!-- 连接诊断（心跳/RTT/图谱） -->
+    <div class="debug-card ok-card" id="debug-conn-diag">
+      <h2>连接诊断 <span class="debug-heading-note">(心跳 5s / RTT / 图谱)</span></h2>
+      <div class="debug-live-data" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:0.5rem;">
+        <div><span class="debug-muted-note">连接状态</span><br><strong id="diag-state">—</strong></div>
+        <div><span class="debug-muted-note">RTT</span><br><strong id="diag-rtt">—</strong></div>
+        <div><span class="debug-muted-note">会话</span><br><strong id="diag-session">—</strong></div>
+        <div><span class="debug-muted-note">消息数</span><br><strong id="diag-msgs">—</strong></div>
+        <div><span class="debug-muted-note">字节</span><br><strong id="diag-bytes">—</strong></div>
+        <div><span class="debug-muted-note">话题数</span><br><strong id="diag-topics">—</strong></div>
+        <div><span class="debug-muted-note">服务数</span><br><strong id="diag-services">—</strong></div>
+        <div><span class="debug-muted-note">节点数</span><br><strong id="diag-nodes">—</strong></div>
+      </div>
+      <div class="debug-btn-row" style="margin-top:0.5rem;">
+        <button type="button" class="debug-btn debug-btn--primary" id="btn-diag-refresh">刷新图谱</button>
+        <button type="button" class="debug-btn" id="btn-diag-ping">延迟测试 (10次)</button>
+      </div>
+      <div class="debug-log" id="debug-log-diag" aria-live="polite"></div>
+    </div>
+
+    <!-- 图像查看器 -->
+    <div class="debug-card highlight" id="debug-image-viewer">
+      <h2>图像流 <span class="debug-heading-note">(foxglove CDR Image)</span></h2>
+      <div class="debug-pointcloud-toolbar">
+        <label class="debug-inline-label">话题</label>
+        <input class="debug-input debug-input--topic" id="dbg-img-topic" value="/ivg_sim_image" placeholder="/ivg_sim_image">
+        <button type="button" class="debug-btn debug-btn--primary" id="btn-dbg-img-start">连接</button>
+        <button type="button" class="debug-btn debug-btn--danger" id="btn-dbg-img-stop">断开</button>
+        <span class="debug-muted-note" id="dbg-img-info">未连接</span>
+      </div>
+      <canvas id="dbg-img-canvas" width="640" height="480"
+        style="max-width:100%;border:1px solid #333;border-radius:4px;background:#111;"></canvas>
+      <div class="debug-log" id="debug-log-img" aria-live="polite"></div>
+    </div>
+
+    <!-- 话题浏览器 -->
+    <div class="debug-card" id="debug-topic-browser">
+      <h2>话题/服务浏览器 <span class="debug-heading-note">(connectionGraph)</span></h2>
+      <div class="debug-tabs">
+        <button class="debug-tab active" data-tab="tb-topics">话题</button>
+        <button class="debug-tab" data-tab="tb-services">服务</button>
+        <button class="debug-tab" data-tab="tb-nodes">节点</button>
+      </div>
+      <div class="debug-tab-panel" id="tb-panel-topics">
+        <div id="tb-topic-list" style="max-height:300px;overflow-y:auto;font-size:12px;line-height:1.6;"></div>
+      </div>
+      <div class="debug-tab-panel" id="tb-panel-services" style="display:none;">
+        <div id="tb-service-list" style="max-height:300px;overflow-y:auto;font-size:12px;line-height:1.6;"></div>
+      </div>
+      <div class="debug-tab-panel" id="tb-panel-nodes" style="display:none;">
+        <div id="tb-node-list" style="max-height:300px;overflow-y:auto;font-size:12px;line-height:1.6;"></div>
+      </div>
+    </div>
+
     <!-- 话题发布测试 -->
     <div class="debug-card highlight" id="debug-topic">
       <h2>话题发布</h2>

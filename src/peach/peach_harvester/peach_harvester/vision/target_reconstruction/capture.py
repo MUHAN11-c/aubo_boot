@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+import math
 import time
 from typing import Callable, List, Mapping, Optional, Tuple
 
@@ -55,6 +56,8 @@ class CapturedFrame:
 # (子串, 短码) 顺序即优先级
 _SKIP_PATTERNS = (
     ('缺少所选 target_id 的同时间戳掩膜', 'missing_mask'),
+    ('缺少所选 target_id 的容差内掩膜', 'missing_mask'),
+    ('曝光时刻关节状态', 'joint_state_unavailable'),
     ('目标掩膜仅', 'mask_pixels'),
     ('掩膜内有效深度占比', 'mask_depth_ratio'),
     ('目标漂移', 'target_drift'),
@@ -106,6 +109,23 @@ class GateDecision:
     count_tf_failure: bool = False  # 是否计 collector.tf_failures
 
 
+def exposure_joint_velocity(
+        stamp_ns: int, before: Optional[tuple], after: Optional[tuple],
+        tolerance_s: float) -> Tuple[Optional[float], str]:
+    """用曝光两侧的 (stamp_ns, velocities) 证据求保守最大速度."""
+    if stamp_ns <= 0 or before is None or after is None:
+        return None, '曝光时刻关节状态缺失（须有前后时间戳证据）'
+    tolerance_ns = round(tolerance_s * 1e9)
+    if not (0 <= stamp_ns - before[0] <= tolerance_ns
+            and 0 <= after[0] - stamp_ns <= tolerance_ns):
+        return None, '曝光时刻关节状态过旧或时间戳不匹配'
+    velocities = tuple(before[1]) + tuple(after[1])
+    if not before[1] or not after[1] or not all(
+            math.isfinite(v) for v in velocities):
+        return None, '曝光时刻关节状态速度缺失或非有限值'
+    return max(abs(v) for v in velocities), ''
+
+
 def capture_gate(
         *,
         frame_available: bool,
@@ -124,7 +144,8 @@ def capture_gate(
         base_frame: str,
         cam_frame: str,
         tf_available: Optional[bool],
-        automatic: bool) -> GateDecision:
+        automatic: bool,
+        static_state_reason: str = '') -> GateDecision:
     """
     按固定顺序评估采帧公共门禁（与重构前两路内联实现逐条对应）.
 
@@ -143,7 +164,7 @@ def capture_gate(
         max_frame_age_s: 允许的最大帧龄 [s].
         require_robot_static: 是否要求机器人静止.
         joint_states_seen: 是否已收到 /joint_states.
-        max_joint_vel: 最近最大关节速度幅值 [rad/s].
+        max_joint_vel: 曝光前后关节状态的最大速度幅值 [rad/s].
         static_joint_vel_thresh: 静止判定阈值 [rad/s].
         cam_frame_ok: 深度图 header.frame_id 非空.
         base_frame: 机器人基座系名（仅用于 TF 失败消息）.
@@ -151,6 +172,7 @@ def capture_gate(
         tf_available: TF 查询结果；None 表示尚未查询.
         automatic: True=自动模式（失败映射 skip），False=手动服务
             （失败映射 deny）.
+        static_state_reason: 曝光关节状态证据缺失/无效的原因.
 
     Returns
     -------
@@ -178,6 +200,8 @@ def capture_gate(
             f'缓存帧龄期 {frame_age_s:.2f} s > '
             f'max_frame_age_s={max_frame_age_s}（陈帧拒采）')
     if require_robot_static:
+        if static_state_reason:
+            return _fail(static_state_reason)
         if not joint_states_seen:
             return _fail('require_robot_static=true 但未收到 /joint_states')
         if max_joint_vel > static_joint_vel_thresh:

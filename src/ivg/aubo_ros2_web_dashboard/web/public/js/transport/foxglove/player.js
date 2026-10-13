@@ -21,6 +21,8 @@ const CONNECT_TIMEOUT_MS = 10000;
 const RECENTLY_CANCELED_MS = 2000;
 // advertise 后 DDS 匹配完成前的短窗口内 VOLATILE 消息会丢——首帧保持期（Lichtblick 同款）
 const FIRST_PUBLISH_HOLD_MS = 300;
+// 心跳：周期探测连接活性（订阅 /rosout 有流=活跃；RTT 用参数服务往返时间）
+const HEARTBEAT_INTERVAL_MS = 5000;
 
 class FoxglovePlayer {
 	constructor() {
@@ -32,6 +34,7 @@ class FoxglovePlayer {
 		this.serverInfo = null;
 		this.capabilities = [];
 		this.currentTimeNs = null;
+		this.heartbeat = { rttMs: null, lastPongAt: null, alive: false, consecutiveFailures: 0 };
 
 		this._channelsByTopic = new Map(); // topic → channel
 		this._channelsById = new Map(); // channelId → channel
@@ -43,6 +46,8 @@ class FoxglovePlayer {
 		this._pendingServiceCalls = new Map(); // callId → { resolve, reject, timer, service, startedAt }
 		this._nextCallId = 1;
 		this._serviceWaiters = new Map(); // service name → Set<fn>（等 advertiseServices 的等待者）
+		this._graph = { publishedTopics: {}, subscribedTopics: {}, advertisedServices: {} };
+		this._graphSubscribed = false;
 
 		this._stateCbs = new Set();
 		this._statusCbs = new Set();
@@ -105,6 +110,7 @@ class FoxglovePlayer {
 
 	stop() {
 		this._stopped = true;
+		this._stopHeartbeat();
 		if (this._reconnectTimer) {
 			clearTimeout(this._reconnectTimer);
 			this._reconnectTimer = null;
@@ -112,6 +118,43 @@ class FoxglovePlayer {
 		this._rejectAllPending('connection stopped');
 		this._proto.close();
 		this._setState('closed');
+	}
+
+	// ── 心跳（连接活性探测 + RTT 测量）───────────────────────────────────
+
+	_startHeartbeat() {
+		this._stopHeartbeat();
+		this.heartbeat.alive = true;
+		this.heartbeat.consecutiveFailures = 0;
+		this._heartbeatTimer = setInterval(async () => {
+			if (!this.isConnected || this._stopped) return;
+			try {
+				// RTT 用参数服务往返（不需要知道具体节点——桥自身必有 get_parameters）
+				const t0 = performance.now();
+				await this.callService('/foxglove_bridge/get_parameters', { names: [] }, { timeoutMs: 3000 });
+				const rtt = Math.round(performance.now() - t0);
+				this.heartbeat.rttMs = rtt;
+				this.heartbeat.lastPongAt = Date.now();
+				this.heartbeat.alive = true;
+				this.heartbeat.consecutiveFailures = 0;
+				// 心跳事件（状态栏等消费方监听）
+				this._emit('heartbeat', { rttMs: rtt, alive: true, ts: Date.now() });
+			} catch (_) {
+				this.heartbeat.consecutiveFailures++;
+				if (this.heartbeat.consecutiveFailures >= 3) {
+					this.heartbeat.alive = false;
+					this._emit('heartbeat', { rttMs: null, alive: false, ts: Date.now() });
+				}
+			}
+		}, HEARTBEAT_INTERVAL_MS);
+	}
+
+	_stopHeartbeat() {
+		if (this._heartbeatTimer) {
+			clearInterval(this._heartbeatTimer);
+			this._heartbeatTimer = null;
+		}
+		this.heartbeat.alive = false;
 	}
 
 	_openOnce() {
@@ -156,6 +199,7 @@ class FoxglovePlayer {
 				this._resetSession();
 			}
 			this._setState('connected');
+			this._startHeartbeat();
 			// 订阅重放（首连或重连后的全新会话）
 			this._replaySubscriptions();
 			// 客户端发布通道不做重放：_resetSession 已清空，publish() 下次调用惰性重新 advertise
@@ -211,6 +255,35 @@ class FoxglovePlayer {
 		});
 
 		p.on('serviceCallResponse', (r) => this._onServiceResponse(r));
+
+		p.on('connectionGraphUpdate', (msg) => {
+			// 载荷格式（vendor websocket_server.hpp 1467-1488）：
+			//   publishedTopics: [{name, publisherIds}]   （数组，非对象映射）
+			//   subscribedTopics: [{name, subscriberIds}]
+			//   advertisedServices: [{name, providerIds}]
+			//   removedTopics/removedServices: string[]
+			const g = this._graph;
+			const entriesToMap = (arr) => {
+				const out = {};
+				if (Array.isArray(arr)) {
+					for (const e of arr) {
+						if (e && e.name !== undefined) out[e.name] = e.publisherIds || e.subscriberIds || e.providerIds || [];
+					}
+				}
+				return out;
+			};
+			const newPub = entriesToMap(msg.publishedTopics);
+			const newSub = entriesToMap(msg.subscribedTopics);
+			const newSvc = entriesToMap(msg.advertisedServices);
+			for (const [k, v] of Object.entries(newPub)) g.publishedTopics[k] = v;
+			for (const [k, v] of Object.entries(newSub)) g.subscribedTopics[k] = v;
+			for (const [k, v] of Object.entries(newSvc)) g.advertisedServices[k] = v;
+			for (const t of msg.removedTopics || []) {
+				delete g.publishedTopics[t];
+				delete g.subscribedTopics[t];
+			}
+			for (const s of msg.removedServices || []) delete g.advertisedServices[s];
+		});
 
 		p.on('serviceCallFailure', (msg) => {
 			const pending = this._pendingServiceCalls.get(msg.callId);
@@ -433,6 +506,37 @@ class FoxglovePlayer {
 			return true;
 		}
 		return sendNow();
+	}
+
+	// ── 连接图（topics/nodes/services 图谱查询）────────────────────────────
+
+	/**
+	 * 订阅连接图（幂等；返回快照并随 connectionGraphUpdate 持续更新 getGraph()）。
+	 * 需要服务器 connectionGraph capability（未开启时抛错）。
+	 */
+	subscribeConnectionGraph() {
+		if (!this.capabilities.includes('connectionGraph')) {
+			throw new Error('server lacks connectionGraph capability');
+		}
+		if (this._graphSubscribed || !this.isConnected) return this.getGraph();
+		this._graphSubscribed = true;
+		this._proto.sendJsonOp({ op: 'subscribeConnectionGraph' });
+		return this.getGraph();
+	}
+
+	/** 图谱快照：{ publishedTopics, subscribedTopics, advertisedServices, topics, services } */
+	getGraph() {
+		const g = this._graph;
+		const topics = [...new Set([...Object.keys(g.publishedTopics), ...Object.keys(g.subscribedTopics)])];
+		const nodes = [...new Set([].concat(...Object.values(g.publishedTopics), ...Object.values(g.subscribedTopics), ...Object.values(g.advertisedServices)))];
+		return {
+			publishedTopics: { ...g.publishedTopics },
+			subscribedTopics: { ...g.subscribedTopics },
+			advertisedServices: { ...g.advertisedServices },
+			topics,
+			services: Object.keys(g.advertisedServices),
+			nodes,
+		};
 	}
 
 	// ── 服务调用 ──────────────────────────────────────────────────────────

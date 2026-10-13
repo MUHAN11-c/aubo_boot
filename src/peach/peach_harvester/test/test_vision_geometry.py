@@ -2,7 +2,7 @@
 W3 反投影/裁剪单实现的数值等价对拍（零 ROS）.
 
 三份旧实现（pose_pipelines._to_points / visualization._bbox_cloud_xyzrgb /
-geometry.estimate_normals 内联段）原样拷贝为参考实现；合成深度图含
+geometry 反投影网格）对照；法线按完整三维点差校验；合成深度图含
 0 / 65535 / 窗内外 / 边界(300mm) / stride 各情形，断言 allclose。
 边界 300mm 同时锚定 float32 窗比较口径（旧 valid_depth_mask 的边界取舍
 必须逐位保留）。
@@ -75,7 +75,7 @@ def _ref_bbox_cloud_xyzrgb(rgb_bgr, depth_mm, K, bboxes, stride: int = 1):
 
 def _ref_estimate_normals(depth_roi, xoff: int, yoff: int, K: dict,
                           depth_jump_mm: int = 30):
-    # 原 geometry.estimate_normals（内联反投影段未提取时的全文）
+    # 三维邻点弦向量，不复用生产函数的分量近似。
     h, w = depth_roi.shape
     z = depth_roi.astype(np.float64) / 1000.0
     valid = (depth_roi > 0) & (depth_roi < 65535)
@@ -85,10 +85,9 @@ def _ref_estimate_normals(depth_roi, xoff: int, yoff: int, K: dict,
     Y = (vs - K['cy']) * z / K['fy']
     du = np.zeros((h, w, 3))
     dv = np.zeros((h, w, 3))
-    du[:, 1:-1, 0] = X[:, 2:] - X[:, :-2]
-    du[:, 1:-1, 2] = z[:, 2:] - z[:, :-2]
-    dv[1:-1, :, 1] = Y[2:, :] - Y[:-2, :]
-    dv[1:-1, :, 2] = z[2:, :] - z[:-2, :]
+    points = np.stack([X, Y, z], axis=-1)
+    du[:, 1:-1] = points[:, 2:] - points[:, :-2]
+    dv[1:-1] = points[2:] - points[:-2]
     n = np.cross(du, dv)
     norm = np.linalg.norm(n, axis=2)
     with np.errstate(invalid='ignore', divide='ignore'):
@@ -102,7 +101,11 @@ def _ref_estimate_normals(depth_roi, xoff: int, yoff: int, K: dict,
                               - depth_roi[:, :-2].astype(np.int32)) > depth_jump_mm)
     jump_v[1:-1, :] = (np.abs(depth_roi[2:, :].astype(np.int32)
                               - depth_roi[:-2, :].astype(np.int32)) > depth_jump_mm)
-    nvalid = valid & (norm > 1e-12) & ~jump_u & ~jump_v
+    neighbors_valid = np.zeros((h, w), dtype=bool)
+    neighbors_valid[1:-1, 1:-1] = (
+        valid[1:-1, :-2] & valid[1:-1, 2:]
+        & valid[:-2, 1:-1] & valid[2:, 1:-1])
+    nvalid = valid & neighbors_valid & (norm > 1e-12) & ~jump_u & ~jump_v
     nvalid[[0, -1], :] = False
     nvalid[:, [0, -1]] = False
     return n, nvalid

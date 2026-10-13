@@ -8,6 +8,7 @@ import * as THREE from 'three';
 import { OrbitControls as PcOrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { createModernPointCloudViewer } from './view3d/pointcloud_island.js';
 import { foxgloveRosClient } from './transport/foxglove/ros_client.js';
+import { foxgloveRosClient } from './transport/foxglove/ros_client.js';
 
 const TAG = '[debug_panel]';
 
@@ -922,8 +923,225 @@ async function init() {
 
   // 4. 点云 3D 查看 (foxglove_bridge)
   setupPointCloudViewer();
+  // 5. 连接诊断 + 图像流 + 话题浏览器
+  setupConnDiagnostics();
+  setupImageViewer();
+  setupTopicBrowser();
 
   logBus.addLog('info', 'lifecycle', '调试面板初始化完成');
+}
+
+// ── 连接诊断（心跳/RTT/图谱）────────────────────────────────────────────────
+function setupConnDiagnostics() {
+  const $d = (id) => document.getElementById(id);
+  const els = {
+    state: $d('diag-state'), rtt: $d('diag-rtt'), session: $d('diag-session'),
+    msgs: $d('diag-msgs'), bytes: $d('diag-bytes'),
+    topics: $d('diag-topics'), services: $d('diag-services'), nodes: $d('diag-nodes'),
+    log: $d('debug-log-diag'),
+  };
+  if (!els.state) return;
+
+  function fmtBytes(n) {
+    if (n > 1048576) return (n / 1048576).toFixed(1) + ' MB';
+    if (n > 1024) return (n / 1024).toFixed(1) + ' KB';
+    return n + ' B';
+  }
+
+  function refresh() {
+    const client = foxgloveRosClient();
+    const hb = client.player.heartbeat;
+    els.state.textContent = client.isConnected ? (hb.alive ? '✅ 已连接' : '⚠️ 连接(心跳超时)') : '❌ 断开';
+    els.state.style.color = client.isConnected ? '#4ade80' : '#f87171';
+    els.rtt.textContent = hb.rttMs !== null ? hb.rttMs + ' ms' : '—';
+    els.rtt.style.color = hb.rttMs !== null && hb.rttMs < 100 ? '#4ade80' : '#fbbf24';
+    els.session.textContent = client.player.stats.sessionId || '—';
+    els.msgs.textContent = client.player.stats.messagesReceived.toLocaleString();
+    els.bytes.textContent = fmtBytes(client.player.stats.bytesReceived);
+    try {
+      const g = client.getGraph();
+      els.topics.textContent = g.topics.length;
+      els.services.textContent = g.services.length;
+      els.nodes.textContent = g.nodes.length;
+    } catch (_) {}
+  }
+
+  // 心跳事件实时刷新
+  foxgloveRosClient().player.on('heartbeat', refresh);
+  setInterval(refresh, 3000);
+  refresh();
+
+  // 刷新图谱按钮
+  const btnRefresh = $d('btn-diag-refresh');
+  if (btnRefresh) btnRefresh.addEventListener('click', () => {
+    try {
+      foxgloveRosClient().getGraph();
+      refresh();
+      els.log.textContent = new Date().toLocaleTimeString() + ' 图谱已刷新';
+    } catch (e) {
+      els.log.textContent = new Date().toLocaleTimeString() + ' 图谱刷新失败: ' + (e.message || e);
+    }
+  });
+
+  // 延迟测试（10 次 Trigger 调用取 min/avg/max）
+  const btnPing = $d('btn-diag-ping');
+  if (btnPing) btnPing.addEventListener('click', async () => {
+    btnPing.disabled = true;
+    btnPing.textContent = '测试中...';
+    els.log.textContent = '';
+    const client = foxgloveRosClient();
+    const results = [];
+    for (let i = 0; i < 10; i++) {
+      const t0 = performance.now();
+      try {
+        await client.callService('/ivg_sim_echo', {}, { timeoutMs: 3000 });
+        results.push(Math.round(performance.now() - t0));
+      } catch (_) { results.push(null); }
+      await new Promise((r) => setTimeout(r, 200));
+    }
+    const valid = results.filter((x) => x !== null);
+    if (valid.length > 0) {
+      const min = Math.min(...valid);
+      const max = Math.max(...valid);
+      const avg = Math.round(valid.reduce((a, b) => a + b, 0) / valid.length);
+      els.log.innerHTML = `<span style="color:#4ade80">延迟测试（${valid.length}/10 成功）</span><br>` +
+        `最小: <b>${min}ms</b> 平均: <b>${avg}ms</b> 最大: <b>${max}ms</b><br>` +
+        `逐次: ${valid.map((x) => x + 'ms').join(', ')}`;
+    } else {
+      els.log.textContent = '延迟测试失败（/ivg_sim_echo 服务不可达，需先启动模拟夹具）';
+    }
+    btnPing.disabled = false;
+    btnPing.textContent = '延迟测试 (10次)';
+  });
+}
+
+// ── 图像流查看器（foxglove CDR → Canvas）────────────────────────────────────
+function setupImageViewer() {
+  const $d = (id) => document.getElementById(id);
+  const canvas = $d('dbg-img-canvas');
+  const info = $d('dbg-img-info');
+  const logEl = $d('debug-log-img');
+  if (!canvas || !info) return;
+  const ctx = canvas.getContext('2d');
+  let subHandle = null;
+  let frameCount = 0;
+  let lastFrameAt = 0;
+  let fpsTimer = null;
+
+  const btnStart = $d('btn-dbg-img-start');
+  const btnStop = $d('btn-dbg-img-stop');
+  const topicInput = $d('dbg-img-topic');
+
+  function stop() {
+    if (subHandle) { try { subHandle.cancel(); } catch (_) {} subHandle = null; }
+    if (fpsTimer) { clearInterval(fpsTimer); fpsTimer = null; }
+    info.textContent = '已断开';
+    info.style.color = '';
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+  }
+
+  if (btnStart) btnStart.addEventListener('click', async () => {
+    stop();
+    const topic = (topicInput && topicInput.value) || '/ivg_sim_image';
+    const client = foxgloveRosClient();
+    if (!client.isConnected) await client.connect().catch(() => {});
+    try {
+      subHandle = client.subscribe(topic, 'sensor_msgs/msg/Image', (m) => {
+        frameCount++;
+        const d = m.data;
+        if (!d || !d.width || !d.height) return;
+        // rgb8 → canvas
+        if (canvas.width !== d.width || canvas.height !== d.height) {
+          canvas.width = d.width;
+          canvas.height = d.height;
+        }
+        const raw = d.data;
+        if (raw instanceof Uint8Array && d.encoding === 'rgb8') {
+          const imgData = ctx.createImageData(d.width, d.height);
+          for (let i = 0, j = 0; i < d.width * d.height * 3; i += 3, j += 4) {
+            imgData.data[j] = raw[i];
+            imgData.data[j + 1] = raw[i + 1];
+            imgData.data[j + 2] = raw[i + 2];
+            imgData.data[j + 3] = 255;
+          }
+          ctx.putImageData(imgData, 0, 0);
+        }
+        lastFrameAt = Date.now();
+      }, { dispatchMode: 'latest' });
+      info.textContent = '连接中...';
+      info.style.color = '#fbbf24';
+      // FPS 统计
+      let lastCount = 0;
+      fpsTimer = setInterval(() => {
+        if (frameCount > 0) {
+          const fps = frameCount - lastCount;
+          lastCount = frameCount;
+          const stale = Date.now() - lastFrameAt;
+          info.textContent = `已连接 | ${fps} FPS | 帧数: ${frameCount}`;
+          info.style.color = stale < 2000 ? '#4ade80' : '#f87171';
+        }
+      }, 1000);
+      if (logEl) logEl.textContent = new Date().toLocaleTimeString() + ' 图像流连接 → ' + topic;
+    } catch (e) {
+      info.textContent = '错误: ' + (e.message || e);
+      info.style.color = '#f87171';
+    }
+  });
+
+  if (btnStop) btnStop.addEventListener('click', stop);
+}
+
+// ── 话题/服务/节点浏览器 ────────────────────────────────────────────────────
+function setupTopicBrowser() {
+  const $d = (id) => document.getElementById(id);
+  const topicList = $d('tb-topic-list');
+  const serviceList = $d('tb-service-list');
+  const nodeList = $d('tb-node-list');
+  if (!topicList) return;
+
+  // tab 切换
+  document.querySelectorAll('#debug-topic-browser .debug-tab').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('#debug-topic-browser .debug-tab').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      const tab = btn.dataset.tab;
+      document.querySelectorAll('#debug-topic-browser .debug-tab-panel').forEach(p => {
+        p.style.display = 'none';
+      });
+      const panel = document.getElementById('tb-panel-' + tab.replace('tb-', ''));
+      if (panel) panel.style.display = '';
+    });
+  });
+
+  function refresh() {
+    try {
+      const g = foxgloveRosClient().getGraph();
+      // 话题
+      topicList.innerHTML = g.topics.sort().map(t => {
+        const pubs = (g.publishedTopics[t] || []).length;
+        const subs = (g.subscribedTopics[t] || []).length;
+        return `<div style="display:flex;gap:6px;align-items:baseline;">` +
+          `<code style="color:#7dd3fc;flex:1;">${escapeHtml(t)}</code>` +
+          `<span style="color:#888;font-size:11px;">↑${pubs} ↓${subs}</span></div>`;
+      }).join('') || '<span style="color:#666;">等待图谱数据...</span>';
+      // 服务
+      serviceList.innerHTML = g.services.sort().map(s => {
+        const provs = (g.advertisedServices[s] || []).length;
+        return `<div style="display:flex;gap:6px;"><code style="color:#a5f3fc;flex:1;">${escapeHtml(s)}</code>` +
+          `<span style="color:#888;font-size:11px;">→${provs}</span></div>`;
+      }).join('') || '<span style="color:#666;">等待图谱数据...</span>';
+      // 节点
+      nodeList.innerHTML = g.nodes.sort().map(n =>
+        `<div><code style="color:#c4b5fd;">${escapeHtml(n)}</code></div>`
+      ).join('') || '<span style="color:#666;">等待图谱数据...</span>';
+    } catch (_) {
+      topicList.innerHTML = '<span style="color:#666;">图谱不可用（需 connectionGraph 能力）</span>';
+      serviceList.innerHTML = nodeList.innerHTML = topicList.innerHTML;
+    }
+  }
+
+  setInterval(refresh, 3000);
+  refresh();
 }
 
 

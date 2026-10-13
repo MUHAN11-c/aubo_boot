@@ -13,6 +13,9 @@ from typing import Callable, Optional, Tuple
 
 import numpy as np
 from peach_harvester.vision.common.tool_budget import ToolBudgetParams
+from peach_harvester.vision.target_reconstruction.integrate import (
+    summarize_view_coverage,
+)
 from peach_harvester.vision.target_reconstruction.refine import (
     BagModel,
     collect_bag_views,
@@ -83,11 +86,12 @@ class RefitOrchestrator:
             previous: Optional[RefitResult] = None,
             on_view: Optional[Callable] = None) -> Tuple[RefitResult, BagModel]:
         """
-        Fuse bag landmarks; TSDF cylinder/sphere is visualization only.
+        Fuse bag landmarks and cross-check the accepted TSDF refit axis.
 
         自节点 ``_run_refit`` 本体迁入（docstring 语义原样）：Contact
-        authority is the fused bag model plus dynamic budget. TSDF cloud
-        supplies envelope-axis consistency only; squat volumes skip the 12°
+        authority is the fused bag model plus dynamic budget. A reliable
+        ACCEPT refit also vetoes fused axes beyond max_axis_angle_deg.
+        TSDF cloud supplies envelope-axis consistency; squat volumes skip the 12°
         veto. Fusion still runs from cloud_base when TSDF is
         enabled-but-empty (tsdf_xyz=None 即该路径). keep_last_good keeps
         the last bag model that already has a budget（调用方把 previous=
@@ -107,7 +111,7 @@ class RefitOrchestrator:
             pregrasp_standoff_m: 预抓取后撤量 [m].
             budget_params: ToolBudgetParams（tool_profile 注入 d_inner）.
             mark_final: finalize 定稿标记.
-            previous: keep_last_good 时的上一帧 _refined（None=无保留对象）.
+        previous: keep_last_good 上一帧；fused_axis_conflict 禁止保留许可.
             on_view: 逐视角回调（geometry.jsonl 视角行追加）.
 
         Returns
@@ -154,11 +158,18 @@ class RefitOrchestrator:
             pregrasp_standoff_m=float(pregrasp_standoff_m),
             # 许可数学内径随当前工具档案（tool_profile launch 注入）
             params=budget_params)
+        if not summarize_view_coverage(frames, target_center).get('valid'):
+            # collect 的无覆盖 fallback 是逐帧，不能称为独立机位证据。
+            fused.fusion_pose_count = 0
+            fused.fusion_consistency_available = False
+            fused.fusion_landmark_scatter_rmse_m = None
+            fused.fusion_landmark_inlier_ratio = None
         # G3：先取号再 merge——本轮 revision 尾段即该单调计数
         self._finalize_counter += 1
         result = merge_fused_bag_model(
             result, fused, len(views), bound_axis_hint, target_id,
-            finalize_counter=self._finalize_counter)
+            finalize_counter=self._finalize_counter,
+            max_axis_angle_deg=self._refit_config.max_axis_angle_deg)
         # 分支日志（缓存写入分支由节点 _run_refit 按同一判据执行）
         if result.ok and result.budget:
             status_text = (
@@ -168,7 +179,8 @@ class RefitOrchestrator:
                 f'final={result.final} '
                 f'axis={np.round(result.axis, 4).tolist()} '
                 f'diameter={float(result.diameter or 0) * 1000.0:.1f}mm')
-        elif previous is not None and previous.ok and previous.budget:
+        elif ('fused_axis_conflict' not in result.flags
+              and previous is not None and previous.ok and previous.budget):
             self._logger.warning(
                 f'refit/融合未收敛，保留上一帧袋模型：{result.reason}')
         else:

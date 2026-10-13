@@ -58,6 +58,7 @@ from . import pipeline
 from . import retention
 from .catch_all_recorder import CatchAllRecorder
 from .debug_actions import DebugAudit, DebugBridge, is_motion
+from .image_preview import ImagePreview
 from .params import ObservabilityParams
 from .recorder import Recorder
 from .selfcheck.runner import SelfCheckRunner
@@ -107,6 +108,9 @@ PARAM_WATCHLIST = {
         'capture.min_views', 'capture.recommended_views',
         'capture.min_mask_depth_ratio', 'capture.require_target_mask',
         'icp.enable', 'tsdf.enable',
+        'capture.require_robot_static', 'capture.static_joint_vel_thresh',
+        'capture.joint_state_tolerance_s', 'capture.max_frame_age_s',
+        'refit.max_axis_angle_deg',
     ],
     '/peach_arm': [
         'moveit.velocity_scaling', 'moveit.acceleration_scaling',
@@ -200,9 +204,6 @@ _CORE_SUBSCRIPTIONS = (
 # bag 专用 raw 订阅（只落盘不镜像）：(消息类型, 话题参数名, QoS 档名,
 # 门控参数属性名)。/rosout 另订，页面环与 bag 共用一条回调。
 _RAW_SUBSCRIPTIONS = (
-    (Image, 'debug_image_topic', 'reliable', 'record_save_images'),
-    # 真相流画布（raw 前缀）：与稳定流成对进 bag，筛选前后对比不依赖 RViz
-    (Image, 'debug_image_raw_topic', 'reliable', 'record_save_images'),
     (PointCloud2, 'tsdf_cloud_topic', 'latched', 'record_save_clouds'),
     # SceneSnapshot 单发闩锁（M13）：落盘订阅须 transient_local，VOLATILE
     # 会在记录节点晚于发布启动时永久丢单发快照
@@ -233,7 +234,11 @@ class ObservabilityNode(LifecycleNode):
         # 重建镜像合并缓存：调试 JSON 明细（tsdf/registration/refined 等）与
         # 最近一次许可镜像——类型化诊断到达时并入，保持镜像/落盘信息不缩水
         self._recon_debug_extra: dict = {}
+        self._recon_typed_value: dict = {}
+        self._recon_debug_context: dict | None = None
         self._recon_decision_value: dict | None = None
+        self._image_preview = None
+        self._tool_frames = {}
         self._tf_buffer = None
         self._tf_listener = None
         self._traj_timer = None
@@ -321,6 +326,7 @@ class ObservabilityNode(LifecycleNode):
             String, self._topic('job_topic'), 10)
         self._metrics_pub = self.create_publisher(
             String, self._topic('metrics_topic'), 10)
+        self._image_preview = ImagePreview()
         self._create_subscriptions()
         self._create_param_watchers()
         self._create_metrics_sampler()
@@ -339,7 +345,9 @@ class ObservabilityNode(LifecycleNode):
         if (self._recorder is not None and self._recorder.enabled
                 and self._params.record_level in ('all', 'std')):
             self._catch_all = CatchAllRecorder(
-                self, self._recorder, level=self._params.record_level)
+                self, self._recorder, level=self._params.record_level,
+                excluded_topics={self._topic('debug_image_topic'),
+                                 self._topic('debug_image_raw_topic')})
             self._catch_all.start()
         return result
 
@@ -373,6 +381,19 @@ class ObservabilityNode(LifecycleNode):
         """订阅回调工厂：原样把消息送进会话 bag（bag 专用订阅用）."""
         def callback(message) -> None:
             self._record_raw(topic_parameter, message)
+        return callback
+
+    def _image_cb(self, stream: str, topic_parameter: str):
+        """预览与 bag 复用同一订阅，bag 保存仍遵守原有开关."""
+        def callback(message):
+            preview = self._image_preview
+            if preview is not None:
+                preview.submit(stream, message)
+            if (self._params is not None and self._params.record_enabled
+                    and (self._params.record_save_images
+                         or getattr(self._params, 'record_level', 'core')
+                         in ('std', 'all'))):
+                self._record_raw(topic_parameter, message)
         return callback
 
     def _resize_logs(self, limit: int) -> None:
@@ -461,7 +482,12 @@ class ObservabilityNode(LifecycleNode):
         # /rosout 始终进页面环。bag 由回调里的 record.rosout 门控，不另订一条。
         self._subscribe(
             RosoutLog, '/rosout', self._rosout_callback, profiles['reliable'])
-        # 记录器图像/点云订阅：只在对应开关开启时建立（省带宽），直接进 bag
+        # 只读 JPEG 独立于会话录制，每流只建一条 RELIABLE 订阅.
+        for stream, param in (('perception', 'debug_image_topic'),
+                              ('raw', 'debug_image_raw_topic')):
+            self._subscribe(Image, self._topic(param),
+                            self._image_cb(stream, param), profiles['reliable'])
+        # 其余 raw 订阅仍仅在对应记录开关开启时建立.
         if not self._params.record_enabled:
             return
         for msg_type, param, profile, gate in _RAW_SUBSCRIPTIONS:
@@ -576,19 +602,47 @@ class ObservabilityNode(LifecycleNode):
         bag 录原始话题；合并体（调试明细 ∪ 类型化字段 ∪ 最近许可镜像）
         由 bag_report 离线重放，镜像侧保持合并以便前端消费。
         """
+        self._recon_typed_value = to_reconstruction_status(message)
+        self._publish_recon_diagnostics()
+        self._record_raw('reconstruction_diagnostics_topic', message)
+
+    def _raw_refined_context(self) -> dict | None:
+        """仅原始身份与当下感知观察一致时绑定只读来源，不猜 revision."""
+        raw = self._recon_debug_extra
+        targets = self._state.snapshot().get('perception', {}).get('targets', {})
+        run, target = raw.get('harvest_run_id'), raw.get('target_id')
+        epoch = targets.get('scene_epoch')
+        if (not isinstance(run, str) or not run
+                or not isinstance(target, str) or not target
+                or run != targets.get('harvest_run_id')
+                or not isinstance(epoch, int) or isinstance(epoch, bool) or epoch <= 0):
+            return None
+        if not any(item.get('target_id') == target
+                   for item in targets.get('observations', []) if isinstance(item, dict)):
+            return None
+        return {'target_id': target, 'harvest_run_id': run, 'scene_epoch': epoch}
+
+    def _publish_recon_diagnostics(self) -> None:
+        """原始与类型化诊断共用合并：typed 覆盖状态，但不重写 raw 来源身份."""
         merged = dict(self._recon_debug_extra)
-        merged.update(to_reconstruction_status(message))
+        merged.pop('refined_context', None)
+        merged.update(getattr(self, '_recon_typed_value', {}))
+        context = getattr(self, '_recon_debug_context', None)
+        # 只验证当时绑定的来源，后来新 epoch 不得追溯重贴旧 raw.
+        if context is not None and context == self._raw_refined_context():
+            merged['refined_context'] = dict(context)
         if self._recon_decision_value is not None:
             merged['grasp_decision'] = self._recon_decision_value
         center = merged.get('target_center_base')
         if isinstance(center, list):
             self._traj_landmarks['reconstruction_center'] = center
         self._state.update('reconstruction', 'diagnostics', merged)
-        self._record_raw('reconstruction_diagnostics_topic', message)
 
     def _recon_debug_callback(self, message: String) -> None:
         """重建调试明细 JSON：更新镜像缓存（bag 另录原始话题，防缺料）."""
         self._recon_debug_extra = parse_json_text(message.data)
+        self._recon_debug_context = self._raw_refined_context()
+        self._publish_recon_diagnostics()
         self._record_raw('reconstruction_diagnostics_debug_topic', message)
 
     def _recon_decision_callback(self, message: GraspDecision) -> None:
@@ -720,6 +774,8 @@ class ObservabilityNode(LifecycleNode):
             self.get_logger().warning(f'目标快照转换失败: {error}')
             return
         self._state.update('perception', 'targets', value)
+        if self._recon_debug_extra:
+            self._publish_recon_diagnostics()
         self._record_raw('target_observations_topic', message)
 
     # ------------------------------------------------------------------
@@ -789,22 +845,22 @@ class ObservabilityNode(LifecycleNode):
 
     def _create_tcp_sampler(self) -> None:
         """Latest TF 采 tcp；重建积分仍用精确时间戳，这里只给监控/落盘."""
+        self._tf_buffer = Buffer()
+        self._tf_listener = TransformListener(self._tf_buffer, self)
+        self._traj_timer = self.create_timer(
+            self._params.trajectory_period_s, self._sample_tcp,
+            callback_group=self._cb)
         if not self._params.trajectory_enabled:
             return
         self._tcp_path = TcpPathBuffer(
             max_points=self._params.trajectory_max_points,
             min_step_m=self._params.trajectory_min_step_m)
-        self._tf_buffer = Buffer()
-        self._tf_listener = TransformListener(self._tf_buffer, self)
         latched = QoSProfile(
             depth=1, durability=DurabilityPolicy.TRANSIENT_LOCAL)
         self._tcp_path_pub = self.create_publisher(
             NavPath, self._topic('tcp_path_topic'), latched)
         self._tcp_marker_pub = self.create_publisher(
             MarkerArray, self._topic('tcp_markers_topic'), latched)
-        self._traj_timer = self.create_timer(
-            self._params.trajectory_period_s, self._sample_tcp,
-            callback_group=self._cb)
 
     def _publish_tcp_summary(self) -> None:
         """把路径摘要写入 /api/state 的 robot.tcp（不含全点列）."""
@@ -815,8 +871,53 @@ class ObservabilityNode(LifecycleNode):
         summary['tip_frame'] = self._params.trajectory_tip_frame
         self._state.update('robot', 'tcp', summary)
 
+    def _sample_tool_frames(self) -> None:
+        """只读 latest TF 诊断：查 URDF 三个工具帧，不推测 TCP 局部轴."""
+        if self._tf_buffer is None:
+            return
+        frames = {}
+        for frame in ('tool_axis', 'sleeve_mouth', 'cutting_plane'):
+            row = {'available': False, 'position': [], 'orientation': [],
+                   'stamp_sec': None, 'frame_id': 'base_link',
+                   'age_s': None, 'error': ''}
+            try:
+                tf = self._tf_buffer.lookup_transform(
+                    'base_link', frame, rclpy.time.Time())
+                translation, rotation = tf.transform.translation, tf.transform.rotation
+                stamp = tf.header.stamp
+                sec = float(stamp.sec) + float(stamp.nanosec) * 1e-9
+                row.update(available=sec > 0, stamp_sec=sec,
+                           position=[translation.x, translation.y, translation.z],
+                           orientation=[rotation.x, rotation.y, rotation.z, rotation.w],
+                           error='' if sec > 0 else 'unknown_stamp')
+            except TransformException as exc:
+                row['error'] = f'tf_unavailable:{exc}'
+            frames[frame] = row
+        # 单次替换完整字典，HTTP 不触碰 tf2 或 ROS executor.
+        self._tool_frames = frames
+
+    def _tool_frames_now(self) -> dict:
+        """从采样缓存按 ROS 时钟计算陈旧，查询失败不伪造最新工具位姿."""
+        now = self.get_clock().now().nanoseconds * 1e-9
+        frames = {}
+        for frame in ('tool_axis', 'sleeve_mouth', 'cutting_plane'):
+            row = dict(getattr(self, '_tool_frames', {}).get(frame, {
+                'available': False, 'position': [], 'orientation': [],
+                'stamp_sec': None, 'frame_id': 'base_link', 'age_s': None,
+                'error': 'tf_unavailable:not_sampled'}))
+            if row['stamp_sec'] is not None and row['stamp_sec'] > 0:
+                age = now - row['stamp_sec']
+                row['age_s'] = age if age <= -0.1 else max(0.0, age)
+                if row['available'] and age <= -0.1:
+                    row.update(available=False, error='clock_mismatch')
+                elif row['available'] and row['age_s'] > 1.0:
+                    row.update(available=False, error='stale')
+            frames[frame] = row
+        return frames
+
     def _sample_tcp(self) -> None:
-        """周期查询 base←tip；位移过门槛才落盘."""
+        """周期查询 base←tip 与工具三帧；位移过门槛才落盘."""
+        self._sample_tool_frames()
         if (
             self._tcp_path is None or
             self._tf_buffer is None or
@@ -1139,6 +1240,7 @@ class ObservabilityNode(LifecycleNode):
     def snapshot(self) -> dict:
         """浏览器状态快照（GET /api/state 的载荷，含 debug 段）."""
         snapshot = self._state.snapshot()
+        snapshot['images'] = self._images_now()
         snapshot['debug'] = {
             'enabled': bool(
                 self._params.debug_enabled if self._params else False),
@@ -1151,6 +1253,23 @@ class ObservabilityNode(LifecycleNode):
         with self._log_lock:
             snapshot['logs'] = list(self._logs)
         return snapshot
+
+    def _images_now(self) -> dict:
+        """返回两流预览状态，即使录制关闭或尚未 configure."""
+        preview = getattr(self, '_image_preview', None)
+        if preview is not None:
+            return preview.metadata(self.get_clock().now().nanoseconds * 1e-9)
+        return {key: {'available': False, 'stamp_sec': None, 'stamp_ns': None,
+                      'frame_id': '', 'width': 0, 'height': 0,
+                      'error': 'no_frame', 'age_s': None}
+                for key in ('perception', 'raw')}
+
+    def image(self, stream: str) -> tuple:
+        """HTTP 只取 JPEG 字节与相同帧元数据，不做图像转换."""
+        preview = getattr(self, '_image_preview', None)
+        if preview is None:
+            return None, self._images_now()[stream]
+        return preview.jpeg(stream, self.get_clock().now().nanoseconds * 1e-9)
 
     def trajectory(self) -> dict:
         """末端轨迹 + 当前作业票路标（GET /api/trajectory）."""
@@ -1170,6 +1289,7 @@ class ObservabilityNode(LifecycleNode):
             'phase': [],
             'metrics': {},
             'landmarks': {},
+            'tool_frames': self._tool_frames_now(),
         }
         if self._tcp_path is not None:
             payload.update(self._tcp_path.export())
@@ -1265,6 +1385,14 @@ class ObservabilityNode(LifecycleNode):
 
     def _release_resources(self) -> None:
         """释放 configure 期资源，允许再次 configure."""
+        preview = getattr(self, '_image_preview', None)
+        self._image_preview = None
+        if preview is not None:
+            preview.close()
+        self._tool_frames = {}
+        self._recon_debug_extra = {}
+        self._recon_typed_value = {}
+        self._recon_debug_context = None
         if self._sweep_thread is not None:
             self._sweep_thread.join(timeout=5.0)
             self._sweep_thread = None
@@ -1283,6 +1411,8 @@ class ObservabilityNode(LifecycleNode):
         if self._tcp_marker_pub is not None:
             self.destroy_publisher(self._tcp_marker_pub)
             self._tcp_marker_pub = None
+        if self._tf_listener is not None:
+            self._tf_listener.unregister()
         self._tf_listener = None
         self._tf_buffer = None
         self._tcp_path = None
@@ -1367,6 +1497,7 @@ class ObservabilityNode(LifecycleNode):
         """停止 HTTP/性能采样，先停通配录制再收尾 bag 并起自动报告后销毁 ROS 节点."""
         self._stop_runtime()
         self._stop_recording()
+        self._release_resources()
         super().destroy_node()
 
 

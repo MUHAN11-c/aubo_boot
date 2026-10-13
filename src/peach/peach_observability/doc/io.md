@@ -64,3 +64,43 @@ HTTP `/api/state` 区段：`perception` / `reconstruction` / `refined` / `manipu
 静态页面由顶层 `peach_web` 提供，入口与 ROS API 不变。首屏显示自检/诊断/使能摘要与当前作业；顶栏固定当前阶段（批次态、目标阶段、技能周期、目标 id）。硬件与系统/自检/诊断默认展开。节点日志只读，不增加 SetIO 或运动按钮。状态/轨迹请求各自单在途、有限等待；5 s 无新状态或失联时呈现最后快照并暂停普通操作，取消独立。确认框返回后发送前再次核对新鲜度；后退恢复页面会恢复轮询。
 
 操作反馈按实际响应区分：`accepted=true` 不等于操作成功，`result.success=false` 显示失败；后端动作 HTTP 202（`result.goal_handle_kept=true`）显示仍在执行，并呈现 `result.message` 中的查询/取消提示；HTTP 504/502/500 或网络异常显示结果未知。POST不自动重发，浏览器等待超时/退出不代表 ROS goal 已取消；在途终态须通过现行状态与取消流程核对。授权仍由后端和臂侧强制，未增加网页授权/SetIO入口。前端测试与浏览器验收方法见 [peach_web README](../../../peach_web/README.md)。
+
+## 只读图像与工具三帧（2026-10-13）
+
+`GET /api/images/perception.jpg` 与 `/api/images/raw.jpg` 分别来自现有
+`debug_image_topic` / `debug_image_raw_topic`。订阅为 RELIABLE，每流一条，
+预览独立于 `record.enabled` / `record.save_images`；同一回调按原记录配置送 bag，
+`std` / `all` 通配发现排除这两个共享话题，避免重复订阅与重复落盘。
+HTTP 只取缓存 JPEG（最长边 960 px、质量 80），响应为 `image/jpeg`、`no-store`，
+`X-Frame-Stamp-Ns` 为原 ROS header 的整数纳秒字符串，`X-Frame-Id` 为原图像帧名，`X-Frame-Age-S` 为响应时按 ROS 时钟计算的帧龄。
+无帧、转换失败或 `clock_mismatch` 返回 JSON 404，`error` 明确原因；坏帧会清掉旧 JPEG。
+
+`/api/state.images` 固定含 `perception` / `raw` 两项，每项字段为
+`available`、`stamp_sec`、`stamp_ns`（字符串）、`frame_id`、编码后 `width` / `height`、
+`error`、`age_s`。无帧时间/年龄为 null；编码失败为 `encode_failed:<原因>`。
+年龄使用节点 ROS 时钟与消息 stamp 同一时间域。ROS 时钟回退使帧时间领先 ≥0.1 s 时，
+图像与工具 TF 元数据为 `available=false,error=clock_mismatch`，`age_s` 保留负值。超过 1 s 为
+`available=false,error=stale`；陈帧 JPEG 仍可读取，页面保留最近帧并标记陈旧。
+
+`/api/trajectory.tool_frames` 固定含 `tool_axis` / `sleeve_mouth` / `cutting_plane`。
+后台 TCP 采样器按 tf2 `lookup_transform('base_link', <工具帧>, Time())` 读取 URDF 工具帧，
+HTTP 不查询 TF。各项字段为 `available`、`position:[x,y,z]`、
+`orientation:[x,y,z,w]`、`stamp_sec`、`frame_id:'base_link'`、`age_s`、`error`。
+TF 缺失为 `tf_unavailable:<原因>`，零时间为 `unknown_stamp`，超过 1 s 为 `stale`。
+这是 latest TF 的只读新鲜度诊断，不改变重建精确 stamp 积分或运动授权门。
+
+重建参数镜像补充 `capture.require_robot_static`、`capture.static_joint_vel_thresh`、
+`capture.joint_state_tolerance_s`、`capture.max_frame_age_s` 与 `refit.max_axis_angle_deg`。
+静态资源仅开放固定白名单：原 index/app 加 `/vendor/peach-three.js`、`/viz3d.js`、
+`/visualization.js`、`/visualization.css`、`/workbench.js`、`/workbench.css`。
+CSP 维持同源脚本与 `object-src 'none'`，仅图像增加 `blob:` 以显示本地 JPEG 响应。
+
+
+重建诊断 `diagnostics.refined_context` 是只读来源注记：原始 JSON 的
+`target_id` / `harvest_run_id` 存在，且在原始消息到达时与感知 `targets` 批次一致、
+目标属于 `observations`、`scene_epoch` 为正整数，才绑定
+`{target_id,harvest_run_id,scene_epoch}`。类型化心跳覆盖当前诊断身份时仍保留
+原始 refined 的来源身份；感知世代或批次变化后撤去注记，不追溯把新世代贴给旧 JSON。
+身份缺失为 unknown，不解析 opaque revision。该注记仅用于 raw refined 诊断显示，
+不为旧 pose candidate、模型接受、抓取许可或运动授权提供依据。
+图像编码为两流合计全局至多 5 Hz，单工作线程按最近处理次序公平消费每流最新槽。

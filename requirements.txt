@@ -67,6 +67,7 @@ six==1.17.0
 # ---- Web 服务与纯核测试框架（2026-09-15 补钉：venv 早已在装、本文件此前漏钉，
 # 全新环境按本文件装会缺 fastapi → peach_executor Web 起不来） ----
 fastapi==0.101.0
+starlette==0.27.0  # fastapi 0.101 兼容上限；starlette>=1.0 删除 on_startup 会炸网关 APIRouter
 uvicorn==0.27.1
 # aubo_ros2_web_dashboard 网关 WebSocket 代理依赖（2026-09-30 移植补钉；
 # 12.0 与 aubo_boot install_requires 下限一致，legacy client API 可用）

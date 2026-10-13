@@ -11,6 +11,36 @@ const response = (body, status = 200) => ({
   ok: status < 400, status, json: async () => body,
 });
 
+test('keyword filtering includes log text without weakening level or node filters', async () => {
+  const b = await browser();
+  const rows = b.run(`filterLogs([
+    {level:40,name:'peach_arm',msg:'staging IK failed'},
+    {level:40,name:'peach_arm',msg:'configured'},
+    {level:20,name:'peach_arm',msg:'IK candidate'},
+    {level:40,name:'camera',msg:'IK marker'}],30,'arm','ik')`);
+  assert.equal(rows.length, 1);
+  assert.match(rows[0].msg, /staging IK/);
+});
+
+test('target context is rechecked after confirmation before sending a command', async () => {
+  const b = await browser(); b.requests.length = 0;
+  b.handler(async () => response({accepted:true,result:{success:true}}));
+  await b.run(`debugPost('build_action',{target_id:'target_0'},'confirm',()=> '场景已变化')`);
+  assert.equal(b.requests.length, 0);
+  assert.match(b.elements.get('debug-notice').textContent, /场景已变化/);
+});
+
+test('trajectory fetch failure invalidates cached tool frames without erasing the historical path', async () => {
+  const b = await browser();
+  b.run(`trajectoryPayload={xyz:[1,2,3],tool_frames:{tool_axis:{available:true,age_s:0.1}}};
+    trajectoryFeed.lastSuccessAt=Date.now(); trajectoryFeed.error='';`);
+  assert.equal(b.run('labTrajectory().tool_frames.tool_axis.available'),true);
+  b.handler(async () => {throw new Error('lost');});
+  await b.run('pollTrajectory()');
+  assert.equal(b.run('labTrajectory().tool_frames.tool_axis.available'),false);
+  assert.equal(b.run('labTrajectory().xyz.length'),3);
+});
+
 async function browser() {
   const elements = new Map();
   const requests = [];
@@ -184,6 +214,7 @@ test('arrow-key tab navigation updates selection, panel and focus', async () => 
 
 test('backend 202 keeps the running goal visible and preserves its cancel advice', async () => {
   const b = await browser();
+  b.run('monitorState.debug.motion_enabled = true;');
   b.handler(async () => response({accepted: false, result: {
     goal_handle_kept: true, message: '仍在执行；可查询状态或取消',
   }}, 202));
@@ -308,4 +339,67 @@ test('photo return uses the existing service after explicit recovery has cleared
   await b.run('debugPost("photo_pose_service", {}, "confirm")');
   assert.equal(b.requests.length, 1);
   assert.equal(b.requests[0].url, '/api/debug/photo_pose_service');
+});
+
+test('photo return confirmation rechecks the motion gate before submitting', async () => {
+  const b = await browser(); b.requests.length = 0;
+  b.run('monitorState.debug.motion_enabled = true; window.confirm = () => { monitorState.debug.motion_enabled = false; return true; };');
+  await b.run('debugPost("photo_pose_service", {}, "confirm")');
+  assert.equal(b.requests.length, 0);
+});
+
+test('photo return is disabled during an arm cycle but execution-off still permits planning', async () => {
+  const b = await browser(); b.requests.length = 0;
+  b.run('monitorState = {debug: {enabled: true, motion_enabled: true}, manipulation: {status: {running: true}}}; updateDebugControls();');
+  assert.equal(b.buttons[3].disabled, true);
+  b.run('monitorState.manipulation.status = {running: false, execution_enabled: false}; updateDebugControls();');
+  assert.equal(b.buttons[3].disabled, false);
+  b.handler(async () => response({accepted: true, result: {success: true}}));
+  await b.run('debugPost("photo_pose_service", {}, "confirm")');
+  assert.equal(b.requests.length, 1);
+});
+
+test('main operation area explains PREGRASP_ONLY and independent grasp diagnostic', async () => {
+  const b = await browser();
+  b.run(`renderOperationContext({params: {"/peach_supervisor": {execute_pregrasp_only: true}},
+    task_executor: {state: {execution_enabled: true, grasp_enabled: true, tool_enabled: false}},
+    reconstruction: {grasp_decision: {allowed: true, reason: "radial_budget_negative"}}});`);
+  assert.match(b.elements.get('operation-mode').textContent, /PREGRASP_ONLY/);
+  assert.match(b.elements.get('operation-status').textContent, /预抓取.*不套入.*不剪切/);
+  assert.match(b.elements.get('operation-decision').textContent, /许可允许.*诊断：radial_budget_negative/);
+  assert.doesNotMatch(b.elements.get('operation-status').textContent, /radial_budget_negative/);
+});
+
+test('main operation area shows FULL enable blockers and preserves canceled level 2 evidence', async () => {
+  const b = await browser();
+  b.run(`renderOperationContext({params: {"/peach_supervisor": {execute_pregrasp_only: false}},
+    task_executor: {state: {execution_enabled: true, grasp_enabled: false, tool_enabled: false,
+      recovery_required: true, blockers: ["recovery_required"]}},
+    job: {completion: {completion_level: 2, outcome_name: "CANCELED"},
+      why: "预抓取已验证 · 批次已取消 · 等待人工恢复确认"}});`);
+  assert.match(b.elements.get('operation-mode').textContent, /FULL/);
+  assert.match(b.elements.get('operation-status').textContent, /抓取关闭.*工具关闭.*恢复/);
+  assert.match(b.elements.get('operation-evidence').textContent, /预抓取已验证.*取消/);
+  assert.doesNotMatch(b.elements.get('operation-evidence').textContent, /采摘已确认/);
+});
+
+test('PREVIEW can submit with motion disabled while OBSERVE_ONLY cannot', async () => {
+  const b = await browser(); b.requests.length = 0;
+  b.handler(async () => response({accepted: true, result: {success: true}}));
+  await b.run('debugPost("execute_action", {mode: "OBSERVE_ONLY"}, null)');
+  assert.equal(b.requests.length, 0);
+  await b.run('debugPost("execute_action", {mode: "PREVIEW"}, null)');
+  assert.equal(b.requests.length, 1);
+});
+
+test('return-photo click confirms and submits only the existing empty service request', async () => {
+  const b = await browser(); b.requests.length = 0;
+  b.run('monitorState.debug.motion_enabled = true;');
+  b.run('window.confirm = () => { window.photoConfirmed = true; return true; };');
+  b.handler(async () => response({accepted: true, result: {success: true}}));
+  await b.buttons[3].dispatch('click');
+  assert.equal(b.run('window.photoConfirmed'), true);
+  assert.equal(b.requests.length, 1);
+  assert.equal(b.requests[0].url, '/api/debug/photo_pose_service');
+  assert.equal(b.requests[0].options.body, '{}');
 });

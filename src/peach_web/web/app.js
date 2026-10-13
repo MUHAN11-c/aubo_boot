@@ -16,8 +16,35 @@ const safe = (value) => String(value ?? "—").replace(/[&<>"']/g, (char) => ({
   "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;"
 })[char]);
 const setText = (id, value) => { const el = $(id); if (el) el.textContent = value ?? "—"; };
+let labWorkbench = null;
+let labVisualization = null;
+let logsPaused = false;
+const trajectoryFeed = {lastSuccessAt:0,error:''};
 
-const batchNames = ["等待就绪", "发现目标", "运行中", "等待安全暂停点", "已暂停", "维护模式", "已完成", "需要恢复", "已中断"];
+function labTrajectory() {
+  const age = trajectoryFeed.lastSuccessAt ? (Date.now() - trajectoryFeed.lastSuccessAt) / 1000 : Infinity;
+  const fresh = !trajectoryFeed.error && age <= 5;
+  const frames = Object.fromEntries(Object.entries(trajectoryPayload?.tool_frames || {}).map(([name,tf]) => {
+    const frameAge = numeric(tf.age_s) ? Number(tf.age_s) + age : null;
+    const valid = fresh && tf.available === true && (frameAge === null || frameAge <= 1);
+    return [name,{...tf,age_s:frameAge,available:valid,error:valid ? '' : tf.error || (fresh ? 'stale' : 'trajectory_unavailable')}];
+  }));
+  return {...(trajectoryPayload || {}),tool_frames:frames};
+}
+
+function labState() {
+  const context = labWorkbench?.context?.() || {};
+  return {...(monitorState || {}), ui: {fresh: stateIsFresh(), pending: [...pendingDebug],
+    selected_target_id: context.target_id, selected_scene_epoch: context.scene_epoch}};
+}
+
+function updateLab() {
+  const state = labState();
+  labWorkbench?.update(state);
+  labVisualization?.update(state, labTrajectory());
+}
+
+const batchNames = ["等待就绪", "发现目标", "运行中", "等待安全暂停点", "已暂停", "维护模式", "已结算", "需要恢复", "已中断"];
 const phaseNames = ["空闲", "选择目标", "观测中", "完成观测", "质量校验", "靠近中", "工具动作", "撤退中", "收尾中", "目标成功", "目标跳过", "目标失败"];
 const pipelineClass = ["done", "active", "alert", "gated", "failed", "skipped"];
 
@@ -436,13 +463,14 @@ function renderStages(pipelineSection) {
 
 const logLevelName = {10: "DEBUG", 20: "INFO", 30: "WARN", 40: "ERROR", 50: "FATAL"};
 
-function filterLogs(logs, minLevel, nodeQuery) {
+function filterLogs(logs, minLevel, nodeQuery, keyword = '') {
   const floor = numeric(minLevel) ? Number(minLevel) : 20;
   const query = String(nodeQuery || "").trim().toLowerCase();
   return (Array.isArray(logs) ? logs : []).filter((row) => {
     const level = numeric(row && row.level) ? Number(row.level) : 0;
     if (level < floor) return false;
     if (query && !String((row && row.name) || "").toLowerCase().includes(query)) return false;
+    if (keyword && !String((row && row.msg) || "").toLowerCase().includes(String(keyword).trim().toLowerCase())) return false;
     return true;
   });
 }
@@ -456,6 +484,7 @@ function logLevelClass(level) {
 }
 
 function renderLogs(logs) {
+  if (logsPaused) return;
   const body = $("log-body");
   const scroller = $("log-scroll");
   if (!body) return;
@@ -463,7 +492,8 @@ function renderLogs(logs) {
   const nodeEl = $("log-node");
   const floor = floorEl && numeric(floorEl.value) ? Number(floorEl.value) : 20;
   const query = nodeEl ? String(nodeEl.value || "").trim() : "";
-  const rows = filterLogs(logs, floor, query);
+  const keyword = $("log-keyword")?.value || '';
+  const rows = filterLogs(logs, floor, query, keyword);
   setText("log-count", `${rows.length} 条`);
   const html = rows.length
     ? rows.map((row) => {
@@ -1008,6 +1038,32 @@ function renderOverview(state) {
       ? "执行输出关闭" : "等待运行期使能状态");
 }
 
+function renderOperationContext(state) {
+  const executor = state.task_executor?.state || {};
+  const arm = state.manipulation?.status || {};
+  const config = state.params?.["/peach_supervisor"] || {};
+  const pregraspOnly = config.execute_pregrasp_only;
+  setText("operation-mode", pregraspOnly === true ? "PREGRASP_ONLY · 停在预抓取" :
+    pregraspOnly === false ? "FULL · 套入与剪切" : "执行档待确认");
+  const conditions = [];
+  if (pregraspOnly === true) conditions.push("到预抓取停住，不套入、不剪切");
+  if (executor.execution_enabled === false) conditions.push("执行关闭：批次只扫场，不派抓取目标");
+  if (executor.grasp_enabled === false) conditions.push("抓取关闭：接触阶段未开放");
+  if (executor.tool_enabled === false) conditions.push("工具关闭：不下发剪切");
+  const blockers = new Set(executor.blockers || []);
+  if (executor.recovery_required || arm.contact_recovery_required) blockers.add("recovery_required");
+  conditions.push(...Array.from(blockers, (item) => blockerNames[item] || item));
+  setText("operation-status", conditions.length ? conditions.join(" · ") :
+    pregraspOnly === false ? "FULL 档已配置；臂侧继续复核许可、使能与当前状态" : "等待运行条件");
+  setText("operation-evidence", state.job?.why || "等待作业票");
+  setText("operation-decision", decisionSummary(state.reconstruction?.grasp_decision || {}));
+  const photoBlock = state.debug?.enabled !== true ? "后端调试入口关闭或尚未就绪" :
+    debugBlockReason("photo_pose_service", {}, state);
+  setText("photo-return-note", photoBlock ? `回到拍照位：${photoBlock}` :
+    arm.execution_enabled === false ? "回到拍照位：臂侧执行关闭，仅规划拍照路径" :
+      "回到拍照位：转发既有拍照服务，臂侧复核后规划并按当前使能执行");
+}
+
 async function pollTrajectory() {
   if (trajectoryInFlight || document.hidden) return;
   trajectoryInFlight = true;
@@ -1015,9 +1071,13 @@ async function pollTrajectory() {
     const {response, body} = await requestJson(`/api/trajectory?t=${Date.now()}`);
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     trajectoryPayload = body;
+    trajectoryFeed.lastSuccessAt = Date.now(); trajectoryFeed.error = '';
     renderTrajHud(body);
     renderTcpMini(body);
+    labVisualization?.update(labState(), labTrajectory());
   } catch (_) {
+    trajectoryFeed.error = 'trajectory_unavailable';
+    labVisualization?.update(labState(), labTrajectory());
     setText("traj-status", "轨迹更新不可用 · 保留上次画面");
   } finally {
     trajectoryInFlight = false;
@@ -1041,6 +1101,7 @@ async function pollState() {
     $("record-dir").title = directory;
     $("record-strip").classList.toggle("off", record.enabled === false || !record.directory);
     renderOverview(state);
+    renderOperationContext(state);
     renderStatus(state);
     renderFlow(state.task_executor || {}, state.job || {});
     renderPlan(state.perception || {}, state.task_executor || {});
@@ -1053,6 +1114,7 @@ async function pollState() {
     stateFeed.lastSuccessAt = Date.now();
     stateFeed.error = "";
     renderDebugPanel(state.debug || {});
+    updateLab();
   } catch (error) {
     stateFeed.error = error.message || "状态请求失败";
   } finally {
@@ -1072,6 +1134,8 @@ function switchView(name) {
   });
   $("view-monitor").hidden = name !== "monitor";
   $("view-debug").hidden = name !== "debug";
+  document.body.dataset.view = name;
+  labVisualization?.moveTo($(name === 'debug' ? 'debug-visualization-host' : 'monitor-visualization-host'));
   if (name === "monitor" && trajectoryPayload) renderTcpMini(trajectoryPayload);
 }
 
@@ -1090,6 +1154,23 @@ function isCancelRequest(action, payload) {
   return action === "cancel" || (action === "control_service" && payload.command === "CANCEL_NOW");
 }
 
+// Mirror DebugBridge.is_motion; this is UI feedback, the backend remains authoritative.
+function isMotionRequest(action, payload) {
+  if (["survey_action", "photo_pose_service", "arm_service", "run_harvest_action"].includes(action)) return true;
+  if (action === "execute_action") return String(payload.mode || "PREVIEW").toUpperCase() !== "PREVIEW";
+  return action === "control_service" && ["RESUME", "EXIT_MAINTENANCE"].includes(String(payload.command || "").toUpperCase());
+}
+
+function debugBlockReason(action, payload, state = monitorState) {
+  if (isMotionRequest(action, payload) && state?.debug?.motion_enabled !== true) return "后端动臂入口未放行";
+  if (action === "photo_pose_service") {
+    const arm = state?.manipulation?.status || {};
+    if (arm.contact_recovery_required || state?.task_executor?.state?.recovery_required) return "待人工恢复确认；不会自动确认恢复";
+    if (arm.running === true) return "臂周期正在运行，请等待结束或取消执行";
+  }
+  return "";
+}
+
 function updateDebugControls() {
   const enabled = monitorState?.debug?.enabled === true;
   document.querySelectorAll("[data-debug], [data-debug-cancel]").forEach((el) => {
@@ -1097,13 +1178,15 @@ function updateDebugControls() {
     const payload = el.dataset.debugCancel ? {target: el.dataset.debugCancel} :
       JSON.parse(el.dataset.payload || "{}");
     const busy = pendingDebug.has(debugRequestKey(action, payload));
+    const block = debugBlockReason(action, action === "execute_action"
+      ? {...payload, mode: $("exec-mode").value} : payload);
     if (!el.dataset.label) el.dataset.label = el.textContent;
-    el.disabled = !enabled || (!stateIsFresh() && !isCancelControl(el)) || busy;
+    el.disabled = !enabled || (!stateIsFresh() && !isCancelControl(el)) || busy || Boolean(block);
     el.setAttribute("aria-busy", String(busy));
     el.textContent = busy ? `${el.dataset.label} · 等待中` : el.dataset.label;
     el.title = busy ? "请求仍在等待结果，取消入口保持独立。" :
       !enabled ? "后端调试入口尚未就绪或已关闭。" :
-        !stateIsFresh() && !isCancelControl(el) ? "状态快照已失联，请等待恢复。" : "";
+        !stateIsFresh() && !isCancelControl(el) ? "状态快照已失联，请等待恢复。" : block;
   });
 }
 
@@ -1114,20 +1197,32 @@ function debugNotice(message, tone = "") {
   notice.className = `debug-notice ${tone}`;
 }
 
-async function debugPost(action, payload, confirmText) {
+async function debugPost(action, payload, confirmText, contextGuard) {
   const key = debugRequestKey(action, payload || {});
   if (pendingDebug.has(key)) {
     debugNotice("前一次请求仍在等待结果，请勿重复提交。", "warn");
     return null;
   }
   if (confirmText && !window.confirm(confirmText)) return null;
+  const contextReason = typeof contextGuard === 'function' ? contextGuard() : '';
+  if (contextReason) {
+    debugNotice(`请求未发送：${contextReason}。`, 'warn');
+    return null;
+  }
   // A native confirmation can remain open while the last snapshot expires.
   if (monitorState?.debug?.enabled !== true || (!stateIsFresh() && !isCancelRequest(action, payload || {}))) {
     updateConnectionView();
     debugNotice("请求未发送：调试入口关闭或状态快照已陈旧，请等状态恢复后再操作。", "warn");
     return null;
   }
+  const block = debugBlockReason(action, payload || {});
+  if (block) {
+    updateDebugControls();
+    debugNotice(`请求未发送：${block}。`, "warn");
+    return null;
+  }
   pendingDebug.add(key);
+  updateLab();
   updateDebugControls();
   debugNotice("请求已发送，等待后端结果；取消入口仍可使用。");
   let outcome;
@@ -1166,6 +1261,7 @@ async function debugPost(action, payload, confirmText) {
     pendingDebug.delete(key);
     renderDebugResults();
     updateDebugControls();
+    updateLab();
   }
   return outcome;
 }
@@ -1218,7 +1314,7 @@ function bindDebugControls() {
         const payload = buildDebugPayload(action, el);
         if (payload === null) return;
         await debugPost(action, payload, el.dataset.confirm === "1"
-          ? `确认发送 ${action}？\n${JSON.stringify(payload, null, 2)}` : null);
+          ? el.dataset.confirmText || `确认发送 ${action}？\n${JSON.stringify(payload, null, 2)}` : null);
       } catch (error) {
         debugNotice(`请求未发送：${error.message}`, "err");
       }
@@ -1228,6 +1324,7 @@ function bindDebugControls() {
     el.addEventListener("click", () => debugPost("cancel", {target: el.dataset.debugCancel}, null));
   });
   switchView("monitor");
+  $("exec-mode")?.addEventListener("change", updateDebugControls);
   updateDebugControls();
 }
 
@@ -1276,12 +1373,27 @@ function buildDebugPayload(action, el) {
 }
 
 bindDebugControls();
+if (window.PeachWorkbench && $('workbench-host')) {
+  labWorkbench = window.PeachWorkbench.create($('workbench-host'), {
+    getState: labState, submit: debugPost, log: debugNotice,
+    onContextChange: () => labVisualization?.update(labState(), labTrajectory()),
+  });
+}
+if (window.PeachVisualization && $('monitor-visualization-host')) {
+  labVisualization = window.PeachVisualization.create($('monitor-visualization-host'));
+}
 function bindLogFilters() {
   const refresh = () => renderLogs((monitorState && monitorState.logs) || []);
   const level = $("log-level");
   const node = $("log-node");
   if (level) level.addEventListener("change", refresh);
   if (node) node.addEventListener("input", refresh);
+  $("log-keyword")?.addEventListener('input', refresh);
+  $("log-pause")?.addEventListener('click', (event) => {
+    logsPaused = !logsPaused;
+    event.target.textContent = logsPaused ? '恢复日志' : '暂停日志';
+    if (!logsPaused) refresh();
+  });
 }
 bindLogFilters();
 updateConnectionView();
@@ -1296,15 +1408,19 @@ window.addEventListener("resize", () => {
   if (trajectoryPayload) renderTcpMini(trajectoryPayload);
 });
 document.addEventListener("visibilitychange", () => {
+  labVisualization?.setActive(!document.hidden);
   if (!document.hidden) { pollState(); pollTrajectory(); }
 });
-window.addEventListener("pagehide", () => {
+window.addEventListener("pagehide", (event) => {
   pollTimers.forEach(clearInterval);
   pollTimers = [];
   fetchControllers.forEach((controller) => controller.abort());
+  labVisualization?.setActive(false);
+  if (!event?.persisted) { labVisualization?.dispose(); labWorkbench?.dispose(); }
 });
 window.addEventListener("pageshow", (event) => {
   if (!event.persisted) return;
+  labVisualization?.setActive(true);
   startPolling();
   updateConnectionView();
   pollState();

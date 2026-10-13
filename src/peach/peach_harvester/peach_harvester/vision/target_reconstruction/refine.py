@@ -205,6 +205,8 @@ class RefitResult:
     写）与 ``fused_axis_angle_deg``（融合轴 vs hint，merge 写）双字段；
     ``as_dict()`` 的兼容投影 ``axis_angle_deg`` 保持旧 JSON 语义
     （融合值优先，融合未发生时回退 refit 值）。
+    ``refit_*`` 保存融合前点云拟合证据；``rmse``/``inlier_ratio`` 保持
+    点云拟合含义。融合端点散布与侧向调整独立记录在 ``fusion_*`` 中。
     """
 
     ok: bool = False
@@ -244,9 +246,9 @@ class RefitResult:
     span_m: float = -1.0
     """底→颈跨度 [m]；merge 后 = 融合 length_m（无效 -1）."""
     rmse: float = -1.0
-    """拟合 RMSE [m]；merge 后为融合关键点 RMSE（无效 -1）."""
+    """点云拟合 RMSE [m]；融合不覆写（无效 -1）."""
     inlier_ratio: float = -1.0
-    """内点率 [0,1]；merge 后为融合一致率（无效 -1）."""
+    """点云拟合内点率 [0,1]；融合不覆写（无效 -1）."""
     n_points: int = 0
     """输入点数."""
     radial_margin_m: float = 0.0
@@ -279,6 +281,28 @@ class RefitResult:
     """N1：refit 轴 vs 感知 hint 夹角 [deg]；无 hint 为 None."""
     fused_axis_angle_deg: Optional[float] = None
     """N1：融合轴 vs 感知 hint 夹角 [deg]；无 hint 为 None."""
+    refit_ok: bool = False
+    """融合前点云 refit 是否产出几何."""
+    refit_status: Optional[int] = None
+    """融合前点云 refit 门控状态；未 merge 为 None."""
+    refit_axis: Optional[np.ndarray] = None
+    """融合前点云 refit 轴，独立保留以核对方向冲突."""
+    refit_rmse: float = -1.0
+    """融合前点云拟合 RMSE [m]."""
+    refit_inlier_ratio: float = -1.0
+    """融合前点云拟合内点率."""
+    fused_refit_axis_angle_deg: Optional[float] = None
+    """融合轴 vs 点云 refit 轴有向夹角 [deg]."""
+    fusion_landmark_scatter_rmse_m: Optional[float] = None
+    """调整前逐机位端点到 Huber 端点的散布 RMSE [m]，不可用为 None."""
+    fusion_landmark_inlier_ratio: Optional[float] = None
+    """调整前端点残差 < 20 mm 的比例；单机位不可用."""
+    fusion_consistency_available: bool = False
+    """至少两个独立机位提供关键点，才有多视散布证据."""
+    fusion_pose_count: int = 0
+    """融合保留的独立机位数；机位覆盖不可用时为 0."""
+    fusion_lateral_shift_m: float = 0.0
+    """端点向体积截面质心的侧向平移量 [m]，与多视散布分开."""
 
     @property
     def axis_angle_deg(self) -> Optional[float]:
@@ -313,6 +337,25 @@ class RefitResult:
             'span_m': float(self.span_m),
             'rmse': float(self.rmse),
             'inlier_ratio': float(self.inlier_ratio),
+            'refit_ok': bool(self.refit_ok),
+            'refit_status': self.refit_status,
+            'refit_axis': self._xyz(self.refit_axis),
+            'refit_rmse': float(self.refit_rmse),
+            'refit_inlier_ratio': float(self.refit_inlier_ratio),
+            'fused_refit_axis_angle_deg': self.fused_refit_axis_angle_deg,
+            'fusion_landmark_scatter_rmse_m': self.fusion_landmark_scatter_rmse_m,
+            'fusion_landmark_inlier_ratio': self.fusion_landmark_inlier_ratio,
+            'fusion_consistency_available': bool(self.fusion_consistency_available),
+            'fusion_pose_count': int(self.fusion_pose_count),
+            'fusion_lateral_shift_m': float(self.fusion_lateral_shift_m),
+            'model_revision': str(self.model_revision),
+            'fruit_prior_radius_m': float(self.fruit_prior_radius_m),
+            'cut_to_fruit_m': (
+                float(self.cut_to_fruit_m)
+                if self.fruit_prior_radius_m > 0.0 else None),
+            'cut_distance_source': (
+                'bag_surface_sphere_auxiliary'
+                if self.fruit_prior_radius_m > 0.0 else 'unavailable'),
             'n_points': int(self.n_points),
             'flags': list(self.flags),
             'axis_angle_deg': (
@@ -378,9 +421,19 @@ class BagModel:
     sigma_axis_deg: float = 0.0
     """轴向 σ [deg]."""
     rmse: float = 0.0
-    """融合关键点 RMSE [m]."""
+    """兼容端点散布 RMSE [m]；不可用为 -1，不并入点云拟合质量."""
     inlier_ratio: float = 0.0
-    """关键点一致率 [0,1]."""
+    """兼容端点一致率 [0,1]；不可用为 -1，不并入点云拟合质量."""
+    fusion_landmark_scatter_rmse_m: Optional[float] = None
+    """调整前 Huber 端点散布 RMSE [m]；单机位不可用."""
+    fusion_landmark_inlier_ratio: Optional[float] = None
+    """调整前端点残差 < 20 mm 的比例；单机位不可用."""
+    fusion_consistency_available: bool = False
+    """有至少两个独立机位的关键点散布证据."""
+    fusion_pose_count: int = 0
+    """朝向多数表决后参与融合的独立机位数."""
+    fusion_lateral_shift_m: float = 0.0
+    """截面质心 snap 的侧向平移量 [m]."""
     axis_conflict_deg: float = 0.0
     """关键点轴 vs 包络轴夹角 [deg]."""
     envelope_conditioned: bool = False
@@ -1015,6 +1068,9 @@ def fuse_bag_views(
     剪切站：袋口 / 分割贴检测框极限；果距不足只否决 allowed，不挪刀。
     包络长径比不足则跳过 12° 否决。检测轴夹角只诊断，不进接触预算。
     后撤量由调用方传入（节点从 ROS 参数读，不在本函数写死米数）。
+    views 应为各独立机位代表关键点；散布统计在 snap/口底调整前计算，
+    侧移独立计量；单机位散布不可用。无可用机位覆盖的逐帧 fallback
+    由编排器把 fusion_consistency_available 置假。
     W4：返回 BagModel（§7 消费表裁掉 detection_conflict_deg /
     envelope_span_m / envelope_d95_m / cut_normal / fruit_prior_auxiliary
     五个无消费输出键；detection_axis 形参保留调用方契约，不再产出键）。
@@ -1043,6 +1099,18 @@ def fuse_bag_views(
         axis = _unit(np.mean(np.stack(axes), axis=0))
     if bottom is None or neck is None or axis is None:
         return BagModel(ok=False, reason='fusion_failed', allowed=False)
+    # 多视散布只衡量逐机位端点之间的差异：必须先于侧移/口底调整。
+    # 单机位残差为零是恒等式，不是多视一致性证据。
+    consistency_available = len(items) >= 2
+    scatter_rmse = None
+    landmark_inlier_ratio = None
+    if consistency_available:
+        combined = np.concatenate([
+            np.linalg.norm(bottoms - bottom, axis=1),
+            np.linalg.norm(necks - neck, axis=1)])
+        scatter_rmse = float(np.sqrt(np.mean(combined * combined)))
+        landmark_inlier_ratio = float(np.mean(combined < 0.02))
+    lateral_shift_m = 0.0
     d95_values = [item.d95_m for item in items if item.d95_m > 0]
     # 全部视角 d95 缺失（0/负）时回退 0：下游预算把 0 当「无径向散布数据」
     # 处理，不得让 np.median([]) 的 NaN 流进许可与 diagnostics JSON。
@@ -1056,8 +1124,10 @@ def fuse_bag_views(
     if mid is None:
         mid = slice_centroid(cloud_xyz, axis, bottom, 0.0)
     if mid is not None:
+        raw_bottom = bottom.copy()
         bottom = snap_lateral(bottom, axis, mid)
         neck = snap_lateral(neck, axis, mid)
+        lateral_shift_m = float(np.linalg.norm(bottom - raw_bottom))
         length = float(np.dot(neck - bottom, axis))
         if length < 0.0:
             axis = -axis
@@ -1088,11 +1158,6 @@ def fuse_bag_views(
     else:
         sig_axial = axial_floor
     sig_a = float(np.median([item.sigma_axis_deg for item in items]))
-    bottom_err = np.linalg.norm(bottoms - bottom, axis=1)
-    neck_err = np.linalg.norm(necks - neck, axis=1)
-    combined = np.concatenate([bottom_err, neck_err])
-    rmse = float(np.sqrt(np.mean(combined * combined)))
-    inlier_ratio = float(np.mean(combined < 0.02))
     envelope = envelope_axis_from_cloud(cloud_xyz, axis)
     axis_conflict_deg = 0.0
     if envelope.get('conditioned'):
@@ -1195,8 +1260,15 @@ def fuse_bag_views(
         fruit_prior_radius_m=fruit_r,
         sigma_position_m=sig_p,
         sigma_axis_deg=sig_a,
-        rmse=rmse,
-        inlier_ratio=inlier_ratio,
+        # 旧 BagModel 标量仅保留兼容；不再并入点云 refit 质量。
+        rmse=scatter_rmse if scatter_rmse is not None else -1.0,
+        inlier_ratio=(landmark_inlier_ratio
+                      if landmark_inlier_ratio is not None else -1.0),
+        fusion_landmark_scatter_rmse_m=scatter_rmse,
+        fusion_landmark_inlier_ratio=landmark_inlier_ratio,
+        fusion_consistency_available=consistency_available,
+        fusion_pose_count=len(items),
+        fusion_lateral_shift_m=lateral_shift_m,
         axis_conflict_deg=axis_conflict_deg,
         envelope_conditioned=bool(envelope.get('conditioned')),
         envelope_reason=str(envelope.get('reason') or ''),
@@ -1269,9 +1341,10 @@ def collect_bag_views(frames, target_center,
 def merge_fused_bag_model(result: RefitResult, fused: BagModel,
                           views_count: int, bound_axis_hint,
                           target_id: str = '',
-                          finalize_counter: int = 0) -> RefitResult:
+                          finalize_counter: int = 0, *,
+                          max_axis_angle_deg: float = 35.0) -> RefitResult:
     """
-    Merge fused geometry into refit result; drop budget on fusion fail.
+    Merge fused geometry, retaining point-fit evidence and rejecting axis conflict.
 
     W4 自节点 ``_merge_fused_bag_model`` 下沉改纯函数（数学零改动）。
     不写任何缓存：``_refined``/``_bag_model`` 的成对写入权在编排层
@@ -1288,7 +1361,19 @@ def merge_fused_bag_model(result: RefitResult, fused: BagModel,
     只按 (revision,target_id) 变化刷新，格式对 arm/observability/
     bag_report 均为不透明字符串）。计数由 RefitOrchestrator 进程级维护，
     reset_reconstruction 不清零；融合失败早退不写 revision（保持归空）。
+    可靠（ok 且 ACCEPT 且轴有效）refit 与融合轴夹角超过
+    max_axis_angle_deg 时清许可并 REOBSERVE；无可靠 refit 时只有
+    hint > 90° 的方向冲突才保守否决。hint > max_axis_angle_deg 本身
+    只记诊断，不能否决与可靠点云 refit 一致的倾斜/水平几何。
     """
+    # 在几何覆写前保存点云 refit 证据。snapshot 也覆盖融合失败路径。
+    if result.refit_status is None:
+        result.refit_ok = bool(result.ok)
+        result.refit_status = int(result.status)
+        result.refit_axis = (
+            None if result.axis is None else np.asarray(result.axis).copy())
+        result.refit_rmse = float(result.rmse)
+        result.refit_inlier_ratio = float(result.inlier_ratio)
     if not fused.ok:
         result.flags.append('bag_fusion_required')
         result.ok = False
@@ -1307,8 +1392,11 @@ def merge_fused_bag_model(result: RefitResult, fused: BagModel,
     result.d95_m = fused.d95_m
     result.diameter = fused.d95_m
     result.radius = 0.5 * float(fused.d95_m)
-    result.rmse = float(fused.rmse or 0.0)
-    result.inlier_ratio = float(fused.inlier_ratio or 0.0)
+    result.fusion_landmark_scatter_rmse_m = fused.fusion_landmark_scatter_rmse_m
+    result.fusion_landmark_inlier_ratio = fused.fusion_landmark_inlier_ratio
+    result.fusion_consistency_available = fused.fusion_consistency_available
+    result.fusion_pose_count = fused.fusion_pose_count
+    result.fusion_lateral_shift_m = fused.fusion_lateral_shift_m
     result.radial_margin_m = fused.radial_margin_m
     result.axial_margin_m = fused.axial_margin_m
     result.corridor_clear = fused.corridor_clear
@@ -1322,6 +1410,8 @@ def merge_fused_bag_model(result: RefitResult, fused: BagModel,
     result.span_m = float(fused.length_m or 0.0)
     result.fused_axis_angle_deg = axis_angle_deg(
         fused.axis, bound_axis_hint)
+    result.fused_refit_axis_angle_deg = axis_angle_deg(
+        fused.axis, result.refit_axis)
     # 融合成功即可接近预抓取；接触许可仍只看 budget.allowed。
     result.status = STATUS_ACCEPT
     result.flags.extend(fused.flags or [])
@@ -1337,6 +1427,30 @@ def merge_fused_bag_model(result: RefitResult, fused: BagModel,
         else fused.neck)
     result.cut_travel_m = float(fused.cut_travel_m or 0.0)
     result.cut_to_fruit_m = float(fused.cut_to_fruit_m or 0.0)
+    reliable_refit = (
+        result.refit_ok and result.refit_status == STATUS_ACCEPT
+        and _unit(result.refit_axis) is not None)
+    refit_conflict = (
+        reliable_refit and result.fused_refit_axis_angle_deg is not None
+        and result.fused_refit_axis_angle_deg > float(max_axis_angle_deg))
+    hint_conflict = (
+        not reliable_refit and result.fused_axis_angle_deg is not None
+        and result.fused_axis_angle_deg > 90.0)
+    if (result.fused_axis_angle_deg is not None
+            and result.fused_axis_angle_deg > float(max_axis_angle_deg)):
+        result.flags.append('fused_perception_axis_mismatch')
+    if refit_conflict or hint_conflict:
+        # 否决不能被 keep_last_good 恢复许可；节点按此稳定标记失效旧缓存。
+        result.flags.append('fused_axis_conflict')
+        result.reason = 'fused_axis_conflict'
+        result.ok = False
+        result.status = STATUS_REOBSERVE
+        result.budget = {}
+        result.corridor_clear = False
+        fused.ok = False
+        fused.budget = {}
+        fused.allowed = False
+        fused.reason = 'fused_axis_conflict'
     return result
 
 

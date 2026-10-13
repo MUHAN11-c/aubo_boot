@@ -2,8 +2,7 @@
 反向代理核心 — 浏览器 ↔ 网关 ↔ 上游 ROS 服务.
 
 两条代理通道:
-  1. WebSocket 代理 (/ws/rosbridge)
-     浏览器 ←→ 网关 ←→ rosbridge (Tornado)
+  1. WebSocket 代理 (/ws/foxglove) ← 唯一传输面
      双向异步转发，任一方向断开即关闭另一方向
 
   2. HTTP 流代理 (/api/ivg/proxy/web-video/*)
@@ -93,7 +92,7 @@ def _parse_subprotocols(websocket: WebSocket) -> list[str]:
 async def foxglove_bridge_websocket_proxy(websocket: WebSocket) -> None:
     """浏览器 WebSocket ↔ foxglove_bridge 双向代理（CDR 二进制，点云/高频话题专用）.
 
-    与 rosbridge 代理逻辑相同，但连接 foxglove_bridge 上游，
+    连接 foxglove_bridge 上游，
     使用更大的 max_size 以容纳 PointCloud2 等大消息。
     转发客户端请求的 foxglove 子协议（sdk.v1 或 websocket.v1）到上游。
     websocket.v1 是 vendored ivg_foxglove_bridge（ws-protocol 最终独立库）使用的子协议。

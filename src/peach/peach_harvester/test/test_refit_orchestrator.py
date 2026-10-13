@@ -239,3 +239,37 @@ def test_revision_counter_survives_reset_and_target_switch():
         for rev in (first.model_revision, rebuild.model_revision,
                     other.model_revision)]
     assert counters == sorted(counters) == [1, 2, 3]
+
+
+def test_run_passes_configured_fused_refit_axis_gate_and_does_not_log_retention():
+    refit = _ok_refit()
+    refit.axis = np.array([np.sin(np.deg2rad(25)), 0.0, np.cos(np.deg2rad(25))])
+    orch = _make(_FakeRefitter(product=refit))
+    orch._refit_config.max_axis_angle_deg = 10.0
+    result, fused = orch.run(**_run_kwargs(
+        tsdf_xyz=_bag_cloud(), previous=_ok_refit()))
+    assert result.reason == 'fused_axis_conflict'
+    assert not result.ok
+    assert not result.budget
+    assert not fused.allowed
+    assert not any('保留上一帧袋模型' in msg for _, msg in orch._logger.records)
+
+
+def test_same_pose_burst_is_not_multiview_consistency():
+    frames = _frames(4)
+    for frame in frames:
+        frame.camera_position_base = np.array([0.25, 0.0, 0.6])
+    result, fused = _make(_FakeRefitter()).run(**_run_kwargs(frames=frames))
+    assert fused.view_count == 1
+    assert fused.fusion_pose_count == 1
+    assert not result.fusion_consistency_available
+    assert result.fusion_landmark_scatter_rmse_m is None
+
+
+def test_unavailable_pose_coverage_does_not_claim_distinct_views():
+    result, fused = _make(_FakeRefitter()).run(**_run_kwargs(target_center=None))
+    assert fused.view_count == 2  # 原有 fallback 仍可融合逐帧关键点
+    assert result.fusion_pose_count == 0
+    assert not result.fusion_consistency_available
+    assert result.fusion_landmark_scatter_rmse_m is None
+    assert result.fusion_landmark_inlier_ratio is None

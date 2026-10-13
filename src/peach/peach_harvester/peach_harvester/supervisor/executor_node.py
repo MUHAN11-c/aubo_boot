@@ -987,7 +987,7 @@ class TaskExecutorNode(LifecycleNode):
             time.monotonic() - self._run_started)
         no_product = (
             not aborted and not interrupted
-            and int(result.summary.attempted) > 0
+            and not self._survey_only
             and int(result.summary.succeeded) == 0)
         result.success = not aborted and not interrupted and not no_product
         if aborted:

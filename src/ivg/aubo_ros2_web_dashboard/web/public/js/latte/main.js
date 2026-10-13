@@ -13,7 +13,7 @@
 
 import { ros } from '../core/ros.js';
 import { loadIvgRuntime } from '../core/runtime_provider.js';
-import { foxgloveWebSocketUrl as rosbridgeWebSocketUrlFromRuntime } from '../ivg_runtime.js';
+import { foxgloveWebSocketUrl } from '../ivg_runtime.js';
 import { createPageLifecycle } from '../core/lifecycle.js';
 import { createUrdfViewerModern } from '../view3d/urdf_island.js';
 import { createJointChartController } from '../components/joint-chart.js';
@@ -133,7 +133,7 @@ async function init() {
     requestAnimationFrame(() => monitoringCollapse.scheduleSyncMinHeight());
 
     // 3. 连接 rosbridge（慢速网络操作）
-    const url = rosbridgeWebSocketUrlFromRuntime(globalThis.__IVG_RUNTIME);
+    const url = foxgloveWebSocketUrl();
     await ros.connect(url);
 
     // 4. 启动 3D 查看器 — 渲染新岛（现代 three + urdf-loader，foxglove 数据：
@@ -307,7 +307,7 @@ createPageLifecycle({
     onPause: () => ros.pause(),
     onResume: async () => {
         ros.resume();
-        const url = rosbridgeWebSocketUrlFromRuntime(globalThis.__IVG_RUNTIME);
+        const url = foxgloveWebSocketUrl();
         await ros.connect(url);
         if (urdfViewer) urdfViewer.start();
     },

@@ -44,7 +44,8 @@ def _is_raw_camera(topic: str) -> bool:
 class CatchAllRecorder:
     """通配话题发现 → bag 专用订阅（线程安全，activate 期启动）."""
 
-    def __init__(self, node, recorder, level: str = 'std'):
+    def __init__(self, node, recorder, level: str = 'std', excluded_topics=()):
+        self._excluded_topics = frozenset(excluded_topics)
         self._node = node
         self._recorder = recorder
         self._level = level
@@ -77,7 +78,8 @@ class CatchAllRecorder:
             self._node.destroy_subscription(sub)
 
     def _allow(self, topic: str) -> bool:
-        if topic in EXCLUDE_TOPICS or topic in self._recorded:
+        if (topic in EXCLUDE_TOPICS or topic in self._excluded_topics
+                or topic in self._recorded):
             return False
         if self._level == 'core':
             return False

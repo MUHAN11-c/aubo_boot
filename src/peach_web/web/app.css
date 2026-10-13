@@ -25,6 +25,23 @@ body {
   font-size: 14px;
 }
 
+.overview { gap:8px; }
+.overview .health-card { padding:10px 12px; min-height:0; }
+.overview .health-value { font-size:16px; }
+.overview .health-card > span { font-size:11px; }
+.overview .kicker { letter-spacing:.3px; }
+.operation-panel { padding:10px 14px; position:sticky; top:0; z-index:12; }
+.operation-panel h2 { font-size:14px; margin:0; }
+.operation-panel .kicker { display:none; }
+.operation-details { margin-top:8px; font-size:12px; color:var(--muted); }
+.operation-details summary { cursor:pointer; }
+.operation-details .operation-context { margin-top:10px; }
+.operation-panel .debug-notice { margin:6px 0 0; padding:6px 10px; font-size:12px; }
+.debug-runtime { margin:12px 22px 0; }
+#workbench-host { min-width:0; }
+.log-filters { flex-wrap:wrap; }
+@media(max-width:767px) { .operation-panel { position:relative; } .operation-panel .operation-head { flex-wrap:wrap; } }
+
 b, strong { font-variant-numeric: tabular-nums; }
 
 /* ---------- 顶栏 ---------- */
@@ -502,6 +519,17 @@ main { min-width: 0; }
 .debug-notice.warn { color: var(--warn); border-color: #6c5038; }
 .debug-notice.err { color: var(--err); border-color: #7b4545; }
 .debug-notice.info { color: var(--accent); }
+.operation-panel { margin: 14px 22px 0; }
+.operation-head { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 14px; }
+.operation-head h2 { margin: 2px 0 0; font-size: 17px; }
+.operation-buttons { display: flex; flex-wrap: wrap; gap: 8px; }
+.operation-buttons button:first-child { border-color: var(--accent); }
+.operation-context { display: grid; grid-template-columns: minmax(180px, 1fr) 2fr; gap: 12px 24px; margin-top: 16px; }
+.operation-label { display: block; color: var(--muted); font-size: 11px; margin-bottom: 5px; }
+.operation-context strong { font-size: 14px; color: var(--accent); }
+.operation-context p { margin: 0; font-size: 12px; line-height: 1.6; overflow-wrap: anywhere; }
+.operation-note { margin: 14px 0 0; color: var(--muted); font-size: 11px; line-height: 1.6; }
+.operation-panel .debug-notice { margin: 10px 0 0; }
 button[aria-busy="true"] { border-style: dashed; }
 button, input, select, summary { transition: border-color .15s, background-color .15s; }
 :where(button, input, select, summary, a):focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
@@ -511,7 +539,7 @@ button, input, select, summary { transition: border-color .15s, background-color
 .data-stale .freshness.ok i { background: var(--warn); }
 
 @media (min-width: 1500px) {
-  .overview, main, .feed-alert, .debug-notice { max-width: 1600px; margin-left: auto; margin-right: auto; }
+  .overview, main, .feed-alert, .debug-notice, .operation-panel { max-width: 1600px; margin-left: auto; margin-right: auto; }
   main { padding: 0 4px; }
 }
 @media (max-width: 900px) {
@@ -524,8 +552,11 @@ button, input, select, summary { transition: border-color .15s, background-color
   .brand { gap: 9px; }
   .brand h1 { font-size: 18px; }
   .eyebrow { font-size: 8px; letter-spacing: 1px; }
-  .top-status { flex: 1 1 100%; justify-content: space-between; }
-  .run-id { max-width: 45%; }
+  .top-status { flex: 1 1 100%; min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr) auto; width: 100%; }
+  .run-id { max-width: none; min-width: 0; }
+  .run-id strong { display: block; overflow-wrap: anywhere; }
+  .stage-live { grid-row: 2; grid-column: 1 / -1; text-align: left; max-width: 100%; }
+  .feed-status { grid-row: 1; grid-column: 2; }
   .record-strip { padding: 5px 14px; }
   .view-tabs { padding: 8px 14px 0; }
   .view-tabs button { flex: 1; padding: 9px 12px; }
@@ -536,6 +567,8 @@ button, input, select, summary { transition: border-color .15s, background-color
   .gates-card .badge { padding: 2px 6px; font-size: 10px; }
   .panel { margin: 12px 12px 0; padding: 14px; }
   .feed-alert, .debug-notice { margin: 12px 12px 0; }
+  .operation-panel { margin: 12px 12px 0; }
+  .operation-context { grid-template-columns: 1fr; gap: 12px; }
   .section-head { flex-wrap: wrap; }
   .section-head h2 { font-size: 16px; }
   .pipeline { gap: 5px; }

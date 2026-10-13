@@ -297,7 +297,14 @@ function ensureStatus() {
 function init() {
   mountBar();
 
-  // (临时简化: Bridge 选择器已移除, 固定 rosbridge)
+  // ROS 连接健康监视器（心跳/延迟/图谱/消息率，挂在状态栏尾部）
+  import('./ros_health_monitor.js')
+    .then(({ createRosHealthMonitor }) => {
+      const monitor = createRosHealthMonitor();
+      monitor.mount('.ivg-status-bar');
+      g.__rosHealthMonitor = monitor;
+    })
+    .catch(() => { /* 模块加载失败不阻塞状态栏 */ });
 
   var _rosConnected = !!(ivgTransport.ros && ivgTransport.ros.isConnected);
   updateRosConnection(_rosConnected);

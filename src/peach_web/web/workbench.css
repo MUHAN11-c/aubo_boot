@@ -1,0 +1,62 @@
+/* The workbench is scoped to wb-*; monitor panels keep their existing style. */
+.wb-shell { margin: 16px 22px 24px; color: var(--text); }
+.wb-head { display:flex; justify-content:space-between; align-items:center; gap:20px; padding:8px 0 16px; }
+.wb-head h2 { margin:5px 0 0; font-size:22px; font-weight:600; }
+.wb-shell button { color:var(--text); background:var(--panel); border:1px solid var(--line); border-radius:5px; padding:10px 12px; cursor:pointer; font:inherit; font-size:12px; text-align:left; }
+.wb-shell button:hover:not(:disabled) { border-color:var(--accent); background:var(--panel-hi, #1e2932); }
+.wb-shell button:focus-visible, .wb-shell input:focus-visible, .wb-shell select:focus-visible, .wb-shell textarea:focus-visible, .wb-shell summary:focus-visible { outline:2px solid var(--accent); outline-offset:3px; }
+.wb-shell button:disabled { opacity:.42; cursor:not-allowed; }
+.wb-shell button[aria-busy="true"] { color:var(--warn); opacity:.75; }
+.wb-context { display:grid; grid-template-columns:minmax(180px,1.4fr) minmax(100px,.6fr) minmax(150px,1fr) 90px; gap:12px; padding:16px; background:var(--panel); border:1px solid var(--line); border-radius:8px; }
+.wb-shell label { display:flex; flex-direction:column; gap:6px; color:var(--muted); font-size:11px; min-width:0; }
+.wb-shell input:not([type="checkbox"]), .wb-shell select, .wb-shell textarea { width:100%; box-sizing:border-box; color:var(--text); background:var(--bg); border:1px solid var(--line); border-radius:4px; padding:9px 10px; min-width:0; font:inherit; font-size:12px; }
+.wb-shell input[data-wb-field="request"], .wb-shell textarea { font-family:ui-monospace,monospace; }
+.wb-epoch { display:flex; flex-direction:column; justify-content:center; gap:9px; color:var(--muted); font-size:11px; }
+.wb-epoch strong { font-size:20px; font-family:ui-monospace,monospace; color:var(--accent); }
+.wb-columns { display:grid; grid-template-columns:220px minmax(0,1fr) 320px; gap:16px; margin:16px 0; align-items:start; }
+.wb-steps { display:flex; flex-direction:column; gap:7px; }
+.wb-steps button { display:flex; align-items:center; gap:13px; min-height:53px; }
+.wb-steps button b { font:17px ui-monospace,monospace; color:var(--muted); }
+.wb-steps button[aria-pressed="true"] { border-color:var(--accent); box-shadow:inset 3px 0 var(--accent); background:var(--panel-hi,#1e2932); }
+.wb-steps button[aria-pressed="true"] b { color:var(--accent); }
+.wb-steps p, .wb-shell p { color:var(--muted); line-height:1.65; font-size:12px; }
+.wb-steps > p { padding:8px 12px; }
+.wb-center, .wb-inspector { min-width:0; }
+.wb-step-heading { padding:8px 2px 12px; border-bottom:1px solid var(--line); margin-bottom:14px; }
+.wb-step-heading h3 { margin:7px 0; font-size:20px; }
+.wb-step-heading p { margin:4px 0; }
+.wb-visualization-host { min-width:0; min-height:350px; }
+.wb-visualization-host > .panel { margin:0 0 14px; }
+.wb-inspector { background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:16px; }
+.wb-inspector h3 { margin:0 0 12px; font-size:14px; }
+.wb-inspector h3:not(:first-child) { margin-top:20px; padding-top:16px; border-top:1px solid var(--line); }
+.wb-condition { display:flex; justify-content:space-between; gap:12px; padding:7px 0; font-size:11px; border-bottom:1px solid var(--line); }
+.wb-condition span { color:var(--muted); }
+.wb-condition strong { text-align:right; font-weight:500; overflow-wrap:anywhere; }
+.wb-shell .wb-condition-note { font-size:11px; }
+.wb-actions { display:grid; gap:8px; }
+.wb-actions button { display:flex; flex-direction:column; gap:5px; }
+.wb-shell button small { display:block; font:10px ui-monospace,monospace; color:var(--muted); opacity:.8; }
+.wb-shell .wb-checkbox { flex-direction:row; align-items:center; gap:7px; margin:4px 0 12px; line-height:1.5; }
+.wb-checkbox input { accent-color:var(--accent); }
+.wb-shell [data-wb-notice] { padding:10px; border-left:2px solid var(--accent); background:var(--bg); overflow-wrap:anywhere; }
+.wb-latest { font-size:12px; overflow-wrap:anywhere; }
+.wb-latest b { font:11px ui-monospace,monospace; }
+.wb-evidence, .wb-advanced, .wb-json { border:1px solid var(--line); background:var(--panel); border-radius:8px; padding:14px; margin-top:14px; }
+.wb-shell summary { cursor:pointer; color:var(--text); font-size:13px; }
+.wb-shell pre { white-space:pre-wrap; overflow-wrap:anywhere; font:11px/1.7 ui-monospace,monospace; max-height:320px; overflow:auto; background:var(--bg); padding:10px; border-radius:3px; }
+.wb-evidence details { margin:8px 0; }
+.wb-evidence details summary { font-size:11px; color:var(--muted); }
+.wb-evidence dl { display:grid; grid-template-columns:110px minmax(0,1fr); font-size:11px; gap:8px; }
+.wb-evidence dt { color:var(--muted); }
+.wb-evidence dd { margin:0; overflow-wrap:anywhere; }
+.wb-advanced-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:14px; margin-top:16px; }
+.wb-shell fieldset { min-width:0; border:1px solid var(--line); padding:12px; border-radius:5px; display:flex; gap:10px; flex-wrap:wrap; align-items:start; }
+.wb-shell fieldset legend { color:var(--muted); padding:0 6px; font-size:12px; }
+.wb-shell fieldset label, .wb-shell fieldset p { flex-basis:100%; }
+.wb-shell fieldset p { margin:2px 0; }
+.wb-shell .wb-ik { grid-column:1/-1; }
+.wb-json details { border-top:1px solid var(--line); padding-top:12px; margin-top:12px; }
+@media(max-width:1100px) { .wb-columns { grid-template-columns:170px minmax(0,1fr) 280px; gap:12px; } .wb-shell { margin:14px; } }
+@media(max-width:850px) { .wb-columns { grid-template-columns:1fr; } .wb-steps { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); } .wb-steps p { grid-column:1/-1; margin:0; } .wb-steps button { min-height:55px; padding:8px; gap:8px; } .wb-steps button b { font-size:14px; } .wb-context { grid-template-columns:1fr 1fr; } .wb-inspector { padding:16px; } .wb-actions { grid-template-columns:repeat(2,minmax(0,1fr)); } .wb-visualization-host { min-height:280px; } }
+@media(max-width:480px) { .wb-shell { margin:12px 10px; } .wb-head h2 { font-size:19px; } .wb-head { gap:10px; } .wb-context { gap:10px; padding:12px; } .wb-context label:first-child { grid-column:1/-1; } .wb-steps { grid-template-columns:repeat(2,minmax(0,1fr)); } .wb-advanced-grid { grid-template-columns:1fr; } .wb-actions { grid-template-columns:1fr; } .wb-shell button { min-height:44px; } .wb-evidence dl { grid-template-columns:100px minmax(0,1fr); } }

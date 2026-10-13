@@ -448,10 +448,10 @@ def check_params(params: OrchardParams) -> list[str]:
             f'超出 rows.count ({rows.count})'
         )
     deck_top = platform.body_bottom + platform.body_size[2]
-    if platform.arm_mount_height <= deck_top:
+    if platform.arm_mount_height < deck_top:
         problems.append(
-            f'platform.arm_mount_height ({platform.arm_mount_height}) 不高于车体顶面 '
-            f'({deck_top:.3f})：臂座无立柱空间'
+            f'platform.arm_mount_height ({platform.arm_mount_height}) 低于车体顶面 '
+            f'({deck_top:.3f})：臂座没入车体（等于顶面 = 无垫台直落，合法）'
         )
     if platform.track_separation < platform.track_width:
         problems.append('platform.track_separation 小于 track_width')

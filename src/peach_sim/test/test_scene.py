@@ -2,8 +2,8 @@
 
 import math
 from pathlib import Path
-import xml.etree.ElementTree as ET
 
+from peach_sim.xmlsafe import parse_xml
 from peach_sim.params import params_from_dict
 from peach_sim.scene import (
     aim_rpy,
@@ -58,7 +58,7 @@ def test_manifest_targets_exist_in_world():
     _params, scene = _scene()
     names = {
         model.get('name')
-        for model in ET.fromstring(scene.world_sdf).iter('model')
+        for model in parse_xml(scene.world_sdf).iter('model')
     }
     targets = scene.manifest['targets']
     assert targets
@@ -153,7 +153,7 @@ def test_targets_never_touch_ground_or_platform():
 def test_sdf_colors_are_normalized():
     """SDF 材质色分量必须 ∈ [0,1]（0–255 调色板误入会把世界打回非法）."""
     _params, scene = _scene()
-    root = ET.fromstring(scene.world_sdf)
+    root = parse_xml(scene.world_sdf)
     for parent_tag in ('material', 'light', 'scene'):
         for parent in root.iter(parent_tag):
             for tag in ('ambient', 'diffuse', 'specular', 'background'):

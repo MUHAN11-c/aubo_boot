@@ -13,11 +13,12 @@ import argparse
 from dataclasses import dataclass
 import math
 from pathlib import Path
-import xml.etree.ElementTree as ET
+import xml.etree.ElementTree as ET  # noqa: F401 — 仅类型注解 ET.Element
 
 from PIL import Image, ImageDraw
 
 from .scene import PLATFORM_MODEL
+from .xmlsafe import parse_xml
 
 PANEL_W = 900
 PANEL_H = 900
@@ -67,7 +68,7 @@ def _rotate(rpy: tuple[float, float, float], vector: tuple[float, float, float])
 def parse_shapes(sdf_text: str) -> list[Shape]:
     """把世界 SDF 的 visual 几何摊平成可投影形状（含模型位姿合成）."""
     shapes: list[Shape] = []
-    for model in ET.fromstring(sdf_text).iter('model'):
+    for model in parse_xml(sdf_text).iter('model'):
         pose = _pose(model.findtext('pose'))
         for link in model.findall('link'):
             link_pose = _pose(link.findtext('pose'))

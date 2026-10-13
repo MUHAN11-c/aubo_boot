@@ -33,6 +33,7 @@
     <xacro:property name="deck_top" value="${bb + bz}"/>
     <xacro:property name="body_cz" value="${bb + bz / 2.0}"/>
     <xacro:property name="mount_cz" value="${(deck_top + mount_h) / 2.0}"/>
+    <xacro:property name="mount_t" value="${mount_h - deck_top}"/>
     <xacro:property name="wheel_x" value="${tl / 2.0 - th / 2.0}"/>
     <xacro:property name="wheel_r" value="${th / 2.0}"/>
 
@@ -68,22 +69,25 @@
           <box size="${bx} ${by} ${bz}"/>
         </geometry>
       </collision>
-      <!-- 臂安装座（车体顶面 → base_link 离地高度） -->
-      <visual name="mount_visual">
-        <origin xyz="0 0 ${mount_cz}" rpy="0 0 0"/>
-        <geometry>
-          <box size="0.20 0.20 ${mount_h - deck_top}"/>
-        </geometry>
-        <material name="mount_gray">
-          <color rgba="0.45 0.45 0.48 1.0"/>
-        </material>
-      </visual>
-      <collision name="mount_collision">
-        <origin xyz="0 0 ${mount_cz}" rpy="0 0 0"/>
-        <geometry>
-          <box size="0.20 0.20 ${mount_h - deck_top}"/>
-        </geometry>
-      </collision>
+      <!-- 臂安装座（车体顶面 → base_link 离地高度）；mount_t≤0 时臂直接落
+           车体顶面，不生成垫台（零高盒退化，gz 不收） -->
+      <xacro:if value="${mount_t > 1e-9}">
+        <visual name="mount_visual">
+          <origin xyz="0 0 ${mount_cz}" rpy="0 0 0"/>
+          <geometry>
+            <box size="0.20 0.20 ${mount_t}"/>
+          </geometry>
+          <material name="mount_gray">
+            <color rgba="0.45 0.45 0.48 1.0"/>
+          </material>
+        </visual>
+        <collision name="mount_collision">
+          <origin xyz="0 0 ${mount_cz}" rpy="0 0 0"/>
+          <geometry>
+            <box size="0.20 0.20 ${mount_t}"/>
+          </geometry>
+        </collision>
+      </xacro:if>
     </link>
 
     <!-- 层级：锚定 = world（臂座，模型根）→ platform_base_link → 履带/桅杆；

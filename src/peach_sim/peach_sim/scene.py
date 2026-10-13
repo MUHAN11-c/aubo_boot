@@ -437,12 +437,16 @@ def _bag_targets(params: OrchardParams, tree_id: str, origin: Vec3,
             lateral_now = lateral + step * branch_dir[1] + jitter
             # 车体安全带：袋到树行中心线的径向距离限 0.22–0.55 m
             radial_now = max(0.22, min(0.55, radial + step * branch_dir[0]))
-            # 袋底高度钳制在现场窗（runs/field_pregrasp_*：base_link+0.52~0.71）
+            # 袋底高度钳制在现场窗（runs/field_pregrasp_*：base_link+0.52~0.71）。
+            # 窗随臂座高度平移（臂座 2026-10-13 起=车体顶面 0.54，无垫台），
+            # 不再写死绝对高度，保证相对包络与现场一致。
             z_now = anchor_z + step * branch_dir[2] + rng.uniform(-0.03, 0.03)
+            window_low = params.platform.arm_mount_height + 0.52
+            window_high = params.platform.arm_mount_height + 0.71
             bottom = (
                 origin[0] + alley_dir[0] * radial_now + row_dir[0] * lateral_now,
                 origin[1] + alley_dir[1] * radial_now + row_dir[1] * lateral_now,
-                max(1.27, min(1.45, z_now)),
+                max(window_low, min(window_high, z_now)),
             )
             body_diameter = _sample(rng, bag.body_diameter)
             fruit_hi = min(bag.fruit_diameter[1], body_diameter - 0.004)

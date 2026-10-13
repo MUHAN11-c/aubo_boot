@@ -19,9 +19,13 @@
     map→odom 由 AMCL/SLAM 发布，不在此 URDF。
     数值入参一律字符串进、float() 出（xacro 属性默认是字符串，直接相加会拼接）。 -->
   <xacro:macro name="peach_tracked_platform"
-               params="parent arm_mount_height arm_mount_yaw_deg body_x body_y body_z body_bottom track_length track_width track_height track_separation mobile:=false">
+               params="parent arm_mount_height arm_mount_yaw_deg body_x body_y body_z body_bottom track_length track_width track_height track_separation mobile:=false chassis_visual:=''">
     <xacro:property name="mount_h" value="${float(arm_mount_height)}"/>
     <xacro:property name="mount_yaw" value="${-float(arm_mount_yaw_deg) * pi / 180.0}"/>
+    <!-- 车体外観：chassis_visual 显式覆盖（'bunker'|'box'）；空串跟随 mobile
+         （锚定=BUNKER 彩色网格，mobile=低模盒体）。统一机体 = bunker + 可驾驶。 -->
+    <xacro:property name="bunker_visual"
+                    value="${chassis_visual == 'bunker' or (chassis_visual == '' and not mobile)}"/>
     <xacro:property name="bx" value="${float(body_x)}"/>
     <xacro:property name="by" value="${float(body_y)}"/>
     <xacro:property name="bz" value="${float(body_z)}"/>
@@ -43,7 +47,7 @@
         <mass value="120.0"/>
         <inertia ixx="4.05" ixy="0.0" ixz="0.0" iyy="12.05" iyz="0.0" izz="14.05"/>
       </inertial>
-      <xacro:unless value="${mobile}">
+      <xacro:if value="${bunker_visual}">
         <!-- BUNKER 外观网格：带颜色的车体/履带；碰撞仍用下面的简单代理。 -->
         <visual name="bunker_chassis_visual">
           <geometry>
@@ -51,8 +55,8 @@
                   scale="${bx / 1.05} ${(ts + tw) / 0.71} ${(bb + bz) / 0.54}"/>
           </geometry>
         </visual>
-      </xacro:unless>
-      <xacro:if value="${mobile}">
+      </xacro:if>
+      <xacro:unless value="${bunker_visual}">
         <visual name="body_visual">
           <origin xyz="0 0 ${body_cz}" rpy="0 0 0"/>
           <geometry>
@@ -62,7 +66,7 @@
             <color rgba="0.55 0.57 0.55 1.0"/>
           </material>
         </visual>
-      </xacro:if>
+      </xacro:unless>
       <collision name="body_collision">
         <origin xyz="0 0 ${body_cz}" rpy="0 0 0"/>
         <geometry>
@@ -91,7 +95,8 @@
     </link>
 
     <!-- 层级：锚定 = world（臂座，模型根）→ platform_base_link → 履带/桅杆；
-       mobile = platform_base_link 即根（无臂链、无 world 链接） -->
+       mobile/统一机体 = platform_base_link 即根（无本关节；统一机体的臂由
+       外层挂到车体顶面） -->
     <xacro:unless value="${mobile}">
       <joint name="platform_mount" type="fixed">
         <parent link="${parent}"/>

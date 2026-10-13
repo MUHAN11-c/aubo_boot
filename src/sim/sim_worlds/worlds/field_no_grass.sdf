@@ -47,6 +47,18 @@
       </attenuation>
       <direction>0.557208 -0.557208 -0.615661</direction>
     </light>
+    <model name="ground_collision">
+      <!-- 不可见地面碰撞：统一机体（动态）在本世界可落地站立（P2）。
+           视觉地面由下方 GLB 提供；本模型仅碰撞，无视觉。 -->
+      <static>true</static>
+      <link name="link">
+        <collision name="plane">
+          <geometry>
+            <plane><normal>0 0 1</normal><size>200 200</size></plane>
+          </geometry>
+        </collision>
+      </link>
+    </model>
     <model name="field_no_grass">
       <static>true</static>
       <link name="link">

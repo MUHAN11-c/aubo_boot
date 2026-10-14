@@ -20,6 +20,7 @@ r"""从重建整园 .blend 导出 Gazebo 查看 GLB（headless）.
 from __future__ import annotations
 
 import argparse
+from pathlib import Path
 import sys
 
 import bpy
@@ -105,6 +106,38 @@ def simplify_materials() -> None:
         flattened)
 
 
+def bake_paper_albedo() -> None:
+    """paper* 材质 Base Color 直连 paper.png（UV 与高度贴图同源）.
+
+    2026-10-14 P4b 实证：袋材质 Base Color 是程序化节点（无图片），导出时
+    回退纯色 diffuse → gz 里袋子失去纸纹理/折痕，YOLO 对 gz 渲染零检出
+    （Blender 渲染同袋 conf 0.8、gz conf<0.05 均无，对照实验在案）。把重建
+    管线自己生成的纸袋 albedo（reconstruction/textures/paper.png）直连后，
+    gz 材质与 Blender 验收图同分布。
+    """
+    tex_path = Path(__file__).resolve().parents[1] / \
+        'reconstruction' / 'textures' / 'paper.png'
+    if not tex_path.exists():
+        log('paper.png 缺失，跳过 albedo 直连：', tex_path)
+        return
+    image = bpy.data.images.load(str(tex_path), check_existing=True)
+    baked = 0
+    for mat in bpy.data.materials:
+        if not mat.name.startswith('Paper / pigment') or not mat.use_nodes:
+            continue
+        bsdf = next((n for n in mat.node_tree.nodes
+                     if n.type == 'BSDF_PRINCIPLED'), None)
+        if bsdf is None:
+            continue
+        tex = mat.node_tree.nodes.new('ShaderNodeTexImage')
+        tex.image = image
+        tex.label = 'paper_albedo_export'
+        mat.node_tree.links.new(tex.outputs['Color'],
+                                bsdf.inputs['Base Color'])
+        baked += 1
+    log('paper albedo baked into Base Color:', baked)
+
+
 def main() -> None:
     args = parse_args()
 
@@ -113,6 +146,7 @@ def main() -> None:
             bpy.data.objects.remove(obj, do_unlink=True)
     log('cameras/lights removed')
 
+    bake_paper_albedo()
     simplify_materials()
 
     if not args.keep_backdrop:

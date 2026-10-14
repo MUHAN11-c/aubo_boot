@@ -26,6 +26,9 @@ setup(
     description='Sim sub-workspace bringup: gz world spawn, bridges, Nav2, perception launches.',
     license='BSD-3-Clause',
     entry_points={
-        'console_scripts': [],
+        'console_scripts': [
+            'orchard_harvest = sim_bringup.orchard_harvest:main',
+            'odom_tf_relay = sim_bringup.odom_tf_relay:main',
+        ],
     },
 )

@@ -63,6 +63,7 @@ def _setup(context, *args, **kwargs):
     tool_profile = LaunchConfiguration('tool_profile').perform(context)
     gui = LaunchConfiguration('gui').perform(context).lower() in ('true', '1')
     moveit = LaunchConfiguration('moveit').perform(context).lower() in ('true', '1')
+    spawn_mode = LaunchConfiguration('spawn').perform(context)
 
     raw = yaml.safe_load(scene_path.read_text(encoding='utf-8'))
     params, problems = params_from_dict(raw if isinstance(raw, dict) else {})
@@ -93,13 +94,27 @@ def _setup(context, *args, **kwargs):
     if not gui:
         gz_args.insert(0, '-s')
 
-    # 落地 spawn：车体中心（= 模型根 platform_base_link）在 **作业位**（与
-    # 锚定建模同位，row_gap 0.95 m）——感知深度窗 0.3–1.5 m、臂展包络与
-    # photo_joints 拍照位都按此摆位标定；走廊中心外移是 orchard_nav 导航轮
-    # 的起步清障需求，不适用于本工作场景。
-    spawn_xyz = (pose.mount[0], pose.mount[1], 0.0)
-    # 车头 = 行驶朝向；转台 -32° 后臂基落在 mount_yaw（与锚定模式逐位一致）
-    spawn_yaw = pose.vehicle_yaw
+    # 落地 spawn：spawn_x/y/yaw 显式覆盖（field 世界 = generate_field 站位）；
+    # 否则 work=作业位（0.95 m，感知深度窗/臂展/拍照位标定；默认）；
+    # corridor=行间走廊中心（程序化世界导航起步位：作业位车侧缘距树干膨胀圈
+    # 仅 ~2.5 cm 骑在障碍上，起步干净——orchard_nav 用）。
+    spawn_x_arg = LaunchConfiguration('spawn_x').perform(context)
+    spawn_y_arg = LaunchConfiguration('spawn_y').perform(context)
+    spawn_yaw_arg = LaunchConfiguration('spawn_yaw').perform(context)
+    if spawn_x_arg and spawn_y_arg:
+        spawn_xyz = (float(spawn_x_arg), float(spawn_y_arg), 0.0)
+        spawn_yaw = (float(spawn_yaw_arg) if spawn_yaw_arg
+                     else 0.0)
+    elif spawn_mode == 'corridor':
+        spawn_xyz = (
+            pose.vehicle_center[0] + params.rows.spacing / 2.0
+            - params.platform.row_gap,
+            pose.vehicle_center[1], 0.0)
+        spawn_yaw = pose.vehicle_yaw
+    else:
+        spawn_xyz = (pose.mount[0], pose.mount[1], 0.0)
+        # 车头 = 行驶朝向；转台 -32° 后臂基落在 mount_yaw（与锚定模式逐位一致）
+        spawn_yaw = pose.vehicle_yaw
 
     nodes = [
         SetEnvironmentVariable(
@@ -140,6 +155,13 @@ def _setup(context, *args, **kwargs):
                 'config_file': str(Path(get_package_share_directory('sim_bringup'))
                                    / 'config' / 'sim_bridge.yaml'),
                 'use_sim_time': True}]),
+        # odom→platform_base_link TF 中继：OdometryPublisher 的 gz 帧名
+        # （harvester/base_footprint）与 ROS 帧名不一致，TF 树在此断裂
+        Node(
+            package='sim_bringup',
+            executable='odom_tf_relay',
+            output='screen',
+            parameters=[{'use_sim_time': True}]),
         # 控制器加载在实体生成之后（重世界首载 40-60 s；gz 内 controller_manager
         # 冷启动服务调用 >10s，必须拉长 spawner 超时，否则 load 重试撞 already-loaded）
         TimerAction(
@@ -193,6 +215,17 @@ def generate_launch_description() -> LaunchDescription:
             'moveit', default_value='true',
             description='include aubo_e5_moveit_config（JTC 映射复用 '
                         'controllers_mock.yaml）'),
+        DeclareLaunchArgument(
+            'spawn', default_value='work',
+            description='work=作业位 0.95m（感知标定位）；corridor=走廊中心'
+                        '（程序化世界导航起步位，orchard_nav 用）'),
+        DeclareLaunchArgument(
+            'spawn_x', default_value='',
+            description='显式 spawn x（field 世界 = generate_field 站位；'
+                        '给出则覆盖 spawn 模式计算）'),
+        DeclareLaunchArgument('spawn_y', default_value='', description='同上 y'),
+        DeclareLaunchArgument(
+            'spawn_yaw', default_value='', description='同上 yaw (rad)'),
         DeclareLaunchArgument(
             'tool_profile', default_value='bite_shear_v1',
             description='peach 真实末端（bite_shear_v1 / shear_v1 / '

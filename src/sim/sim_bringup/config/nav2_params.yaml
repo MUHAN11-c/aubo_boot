@@ -8,11 +8,11 @@
 # 注意：本文件不含 use_sim_time（由 launch 统一注入 true）。
 amcl:
   ros__parameters:
-    alpha1: 0.2
-    alpha2: 0.2
-    alpha3: 0.2
-    alpha4: 0.2
-    alpha5: 0.2
+    alpha1: 0.05
+    alpha2: 0.05
+    alpha3: 0.05
+    alpha4: 0.05
+    alpha5: 0.05
     base_frame_id: "platform_base_link"
     beam_skip_distance: 0.5
     beam_skip_error_threshold: 0.9
@@ -207,8 +207,8 @@ local_costmap:
       plugins: ["voxel_layer", "inflation_layer"]
       inflation_layer:
         plugin: "nav2_costmap_2d::InflationLayer"
-        cost_scaling_factor: 5.0
-        inflation_radius: 0.45
+        cost_scaling_factor: 3.0
+        inflation_radius: 0.66
       voxel_layer:
         plugin: "nav2_costmap_2d::VoxelLayer"
         enabled: True
@@ -264,8 +264,8 @@ global_costmap:
         map_subscribe_transient_local: True
       inflation_layer:
         plugin: "nav2_costmap_2d::InflationLayer"
-        cost_scaling_factor: 5.0
-        inflation_radius: 0.45
+        cost_scaling_factor: 3.0
+        inflation_radius: 0.66
       always_send_full_costmap: True
 
 map_saver:

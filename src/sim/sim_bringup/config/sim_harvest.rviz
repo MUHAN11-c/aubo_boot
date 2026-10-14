@@ -1,0 +1,242 @@
+Panels:
+  - Class: rviz_common/Displays
+    Name: Displays
+  - Class: rviz_common/Views
+    Name: Views
+  - Class: rviz_common/Tool Properties
+    Name: Tool Properties
+Visualization Manager:
+  Class: rviz_common/VisualizationManager
+  Displays:
+    # ===== 基础 =====
+    - Class: rviz_default_plugin/Grid
+      Name: Grid
+      Enabled: true
+      Value: true
+      Color: 160; 160; 164
+      Plane Cell Count: 60
+      Cell Size: 1
+      Reference Frame: <Fixed Frame>
+      Plane: XY
+    - Class: rviz_default_plugin/RobotModel
+      Name: RobotModel
+      Enabled: true
+      Value: true
+      Description Topic:
+        Value: /robot_description
+      TF Prefix: ""
+      Links:
+        All Links Enabled: true
+        Expand Joint Details: false
+        Expand Link Details: false
+        Expand Tree: true
+        Link Tree Style: Links in Alphabetic Order
+    - Class: rviz_default_plugin/TF
+      Name: TF
+      Enabled: true
+      Value: true
+      Frame Timeout: 15
+      Frames:
+        All Enabled: false
+        base_link:
+          Value: true
+        camera_color_optical_frame:
+          Value: true
+        platform_base_link:
+          Value: true
+        tcp:
+          Value: true
+        wrist3_Link:
+          Value: true
+        odom:
+          Value: true
+        map:
+          Value: true
+      Marker Scale: 0.3
+      Show Arrows: false
+      Show Axes: true
+      Show Names: true
+    # ===== 导航 =====
+    - Class: rviz_default_plugin/Map
+      Name: Map
+      Enabled: true
+      Value: true
+      Topic:
+        Value: /map
+      Color Scheme: map
+      Alpha: 0.35
+      Draw Behind: true
+    - Class: rviz_default_plugin/LaserScan
+      Name: LaserScan
+      Enabled: true
+      Value: true
+      Topic:
+        Value: /scan
+      Size (m): 0.04
+      Style: Flat Squares
+      Color Transformer: Flat Color
+      Color: 255; 255; 0
+      Channel Name: intensity
+      Autocompute Intensity Bounds: true
+    - Class: rviz_default_plugin/Path
+      Name: GlobalPlan
+      Enabled: true
+      Value: true
+      Topic:
+        Value: /plan
+      Line Width: 0.08
+      Color: 25; 255; 255
+      Alpha: 1
+      Buffer Length: 3
+    - Class: rviz_default_plugin/Path
+      Name: LocalPlan
+      Enabled: true
+      Value: true
+      Topic:
+        Value: /local_plan
+      Line Width: 0.04
+      Color: 25; 255; 0
+      Alpha: 1
+      Buffer Length: 3
+    - Class: rviz_default_plugin/PoseArray
+      Name: AMCL Particles
+      Enabled: true
+      Value: true
+      Topic:
+        Value: /particle_cloud
+      Color: 125; 125; 255
+      Arrow Length: 0.15
+      Alpha: 0.5
+    - Class: rviz_default_plugin/Pose
+      Name: GoalPose
+      Enabled: true
+      Value: true
+      Topic:
+        Value: /goal_pose
+      Color: 255; 25; 255
+      Shaft Length: 0.5
+      Shaft Radius: 0.03
+      Head Length: 0.15
+      Head Radius: 0.06
+      Axes: false
+    - Class: rviz_default_plugin/PoseWithCovariance
+      Name: AMCL Pose
+      Enabled: true
+      Value: true
+      Topic:
+        Value: /amcl_pose
+      Color: 255; 25; 25
+      Covariance:
+        Pose: true
+        x: 0.5
+        Position Offset: 0
+    # ===== 传感器 =====
+    - Class: rviz_default_plugin/Camera
+      Name: WristCamera
+      Enabled: true
+      Value: true
+      Image Topic:
+        Value: /camera/color/image_raw
+      Camera Info Topic:
+        Value: /camera/color/camera_info
+      Queue Size: 2
+      Transport Hint: raw
+      Overlay Alpha: 0.5
+      Zoom Factor: 1
+    - Class: rviz_default_plugin/PointCloud2
+      Name: DepthCloud
+      Enabled: true
+      Value: true
+      Topic:
+        Value: /camera/depth_registered/points
+      Queue Size: 2
+      Selectable: false
+      Style (New): Flat Squares
+      Size (m): 0.01
+      Color Transformer: RGB8
+      Channel Name: rgb
+      Use rainbow: true
+      Invert Rainbow: false
+      Position Transformer: XYZ
+      Alpha: 0.6
+    # ===== 感知 =====
+    - Class: rviz_default_plugin/MarkerArray
+      Name: PerceptionMarkers
+      Enabled: true
+      Value: true
+      Topic:
+        Value: /peach/perception/markers
+      Queue Size: 10
+    - Class: rviz_default_plugin/Image
+      Name: DebugImage
+      Enabled: true
+      Value: true
+      Topic:
+        Value: /peach/perception/debug_image
+      Queue Size: 1
+      Transport Hint: raw
+      Normalize Range: true
+    # ===== MoveIt =====
+    - Class: rviz_default_plugin/PlanningScene
+      Name: PlanningScene
+      Enabled: true
+      Value: true
+      Robot:
+        Robot Scene Topic:
+          Value: /monitored_planning_scene
+        Scene Geometry:
+          Scene Topic:
+            Value: /monitored_planning_scene
+          Scene Color: 100; 100; 100
+          Scene Alpha: 0.9
+          Attach Body Color: 200; 100; 0
+        Scene Robot:
+          Visible: true
+          Robot Description: robot_description
+      Planning Scene Topic:
+        Value: /monitored_planning_scene
+  Global Options:
+    Background Color: 48; 48; 48
+    Default Light: true
+    Fixed Frame: map
+    Frame Rate: 30
+  Name: root
+  Tools:
+    - Class: rviz_default_plugin/Interact
+      Hide Inactive Objects: true
+    - Class: rviz_default_plugin/MoveCamera
+    - Class: rviz_default_plugin/Select
+    - Class: rviz_default_plugin/FocusCamera
+    - Class: rviz_default_plugin/Measure
+      Line color: 128; 128; 0
+    - Class: rviz_default_plugin/SetInitialPose
+      Topic:
+        Value: /initialpose
+    - Class: rviz_default_plugin/SetGoal
+      Topic:
+        Value: /goal_pose
+  Value: true
+  Views:
+    Current:
+      Class: rviz_default_plugin/Orbit
+      Name: Current View
+      Distance: 15
+      Focal Point:
+        X: 0
+        Y: 5
+        Z: 0
+      Focal Shape Fixed Size: true
+      Focal Shape Size: 0.05
+      Invert Z Axis: false
+      Near Clip Distance: 0.01
+      Pitch: 0.5
+      Target Frame: <Fixed Frame>
+      Yaw: 3.14
+    Saved: ~
+Window Geometry:
+  Height: 1000
+  Width: 1600
+  Displays:
+    collapsed: false
+  Views:
+    collapsed: false

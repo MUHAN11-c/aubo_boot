@@ -46,6 +46,7 @@ setup(
     entry_points={
         'console_scripts': [
             'generate_orchard = sim_worlds.cli:main',
+            'generate_field = sim_worlds.field_gt:main',
             'scene_preview = sim_worlds.preview:main',
             'orchard_tour = sim_worlds.tour_node:main',
         ],

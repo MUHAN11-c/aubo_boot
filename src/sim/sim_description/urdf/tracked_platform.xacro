@@ -105,7 +105,7 @@
       </joint>
     </xacro:unless>
 
-    <xacro:macro name="track_unit" params="name side">
+      <xacro:macro name="track_unit" params="name side">
       <link name="${name}">
         <inertial>
           <origin xyz="0 0 0" rpy="0 0 0"/>
@@ -123,13 +123,15 @@
             </material>
           </visual>
         </xacro:if>
+        <!-- mobile（P4b 修正）：box 碰撞 = 履带接地印迹。VelocityControl
+             直接控制机体速度（对齐 AgileX planar_move 口径），不需要滚筒
+             物理滚动。圆柱滚筒方案实测侧滑 + MPPI 蛇形（各向同性 μ 下
+             横向无约束），2026-10-14 用户指出后修正。 -->
         <xacro:if value="${mobile}">
-          <!-- mobile：滚筒碰撞体（轴 Y、半径 th/2、长 tl）——DiffDrive 关节驱动下
-               平滑滚动，等效履带接地印迹；盒体仅作视觉 -->
           <collision name="${name}_collision">
-            <origin xyz="0 0 0" rpy="${pi / 2.0} 0 0"/>
+            <origin xyz="0 0 0" rpy="${pi / 2.0} 0 ${pi / 2.0}"/>
             <geometry>
-              <cylinder radius="${wheel_r}" length="${tl}"/>
+              <box size="${tw} ${th} ${tl}"/>
             </geometry>
           </collision>
         </xacro:if>
@@ -141,76 +143,22 @@
             </geometry>
           </collision>
         </xacro:unless>
-        <xacro:if value="${mobile}">
-          <visual name="${name}_wheel_front">
-            <origin xyz="${wheel_x} 0 0" rpy="${pi / 2.0} 0 0"/>
-            <geometry>
-              <cylinder radius="${wheel_r}" length="${tw}"/>
-            </geometry>
-            <material name="${name}_black"/>
-          </visual>
-        </xacro:if>
-        <collision name="${name}_wheel_front_collision">
-          <origin xyz="${wheel_x} 0 0" rpy="${pi / 2.0} 0 0"/>
-          <geometry>
-            <cylinder radius="${wheel_r}" length="${tw}"/>
-          </geometry>
-        </collision>
-        <xacro:if value="${mobile}">
-          <visual name="${name}_wheel_rear">
-            <origin xyz="${-wheel_x} 0 0" rpy="${pi / 2.0} 0 0"/>
-            <geometry>
-              <cylinder radius="${wheel_r}" length="${tw}"/>
-            </geometry>
-            <material name="${name}_black"/>
-          </visual>
-        </xacro:if>
-        <collision name="${name}_wheel_rear_collision">
-          <origin xyz="${-wheel_x} 0 0" rpy="${pi / 2.0} 0 0"/>
-          <geometry>
-            <cylinder radius="${wheel_r}" length="${tw}"/>
-          </geometry>
-        </collision>
       </link>
-      <!-- 履带挂接：mobile 用 continuous 转动关节当驱动轮——URDF→SDF 会把固定
-           关节子链接合并进父链接（fixed-joint lumping），履带不成其为独立链接、
-           无从驱动（冒烟实测固定关节时 TrackController 表面速度不出牵引）。
-           锚定模式仍用固定关节。 -->
-      <xacro:if value="${mobile}">
-        <joint name="${name}_mount" type="continuous">
-          <parent link="platform_base_link"/>
-          <child link="${name}"/>
-          <origin xyz="0 ${side * ts / 2.0} ${th / 2.0}" rpy="0 0 0"/>
-          <axis xyz="0 1 0"/>
-          <dynamics damping="0.05" friction="0.0"/>
-          <limit effort="1e5" velocity="20"/>
-        </joint>
-      </xacro:if>
-      <xacro:unless value="${mobile}">
-        <joint name="${name}_mount" type="fixed">
-          <parent link="platform_base_link"/>
-          <child link="${name}"/>
-          <origin xyz="0 ${side * ts / 2.0} ${th / 2.0}" rpy="0 0 0"/>
-        </joint>
-      </xacro:unless>
-      <!-- 履带摩擦：gz-physics dartsim 对未显式声明的碰撞不保证默认摩擦
-           （官方 TB3/TB4 轮子全部显式 <surface><friction>）。
-           mobile：各向同性 mu 1/1（TB3 轮口径，无 fdir1——圆柱碰撞系里
-           fdir1 会指向竖直方向、破坏滚动牵引，冒烟实测）。
-           锚定：官方履带口径（fdir1 车体横向 mu 0.7 / 纵向 mu2 150）。 -->
-      <xacro:if value="${mobile}">
-        <gazebo reference="${name}">
-          <mu1>1.0</mu1>
-          <mu2>1.0</mu2>
-        </gazebo>
-      </xacro:if>
-      <xacro:unless value="${mobile}">
-        <gazebo reference="${name}">
-          <mu1>0.7</mu1>
-          <mu2>150</mu2>
-          <fdir1>0 1 0</fdir1>
-        </gazebo>
-      </xacro:unless>
+      <!-- 履带挂接：统一用 fixed——VelocityControl 不需要旋转关节
+           （DiffDrive 需要 continuous 关节驱动滚筒；planar_move 口径下
+           履带只是碰撞足迹 + 视觉箱体）。 -->
+      <joint name="${name}_mount" type="fixed">
+        <parent link="platform_base_link"/>
+        <child link="${name}"/>
+        <origin xyz="0 ${side * ts / 2.0} ${th / 2.0}" rpy="0 0 0"/>
+      </joint>
+      <!-- 履带摩擦：统一用 box 各向异性——纵向低（前进阻力小）横向高
+           （抗侧滑，履带物理语义）。 -->
+      <gazebo reference="${name}">
+        <mu1>0.7</mu1>
+        <mu2>150</mu2>
+        <fdir1>0 1 0</fdir1>
+      </gazebo>
     </xacro:macro>
 
     <xacro:track_unit name="left_track" side="1.0"/>
@@ -288,28 +236,26 @@
         </sensor>
       </gazebo>
 
-      <!-- 底盘驱动：gz DiffDrive（官方 TB3/TB4 仿真同款，gz-sim 8 URDF 路径
-           验证可用）。左右履带 = 滚筒驱动轮（continuous 关节），odom 由关节
-           角积分。履带表面速度方案（TrackedVehicle+TrackController）在 8.15
-           URDF→SDF 路径上冒烟实测不出牵引（指令链通、整车不动），留待原生
-           SDF 模型轮再试。mobile 时转台偏航归零 → world 与 platform_base_link
-           同向，child_frame_id 取 platform_base_link 无恒定偏差。 -->
+      <!-- 底盘驱动（P4b 修正）：VelocityControl 直接控制机体速度（对齐 AgileX
+           planar_move 口径——上游 bunker_gazebo_sim 用 gazebo_ros_planar_move，
+           不模拟轮子物理，轮子仅视觉）。OdometryPublisher 从世界位姿发布
+           odom（无积分误差）。替换原 DiffDrive + 滚筒方案（各向同性 μ 下
+           侧滑 + MPPI 蛇形，2026-10-14 用户指出后修正）。 -->
       <gazebo>
-        <plugin name="gz::sim::systems::DiffDrive"
-                filename="gz-sim-diff-drive-system">
-          <left_joint>left_track_mount</left_joint>
-          <right_joint>right_track_mount</right_joint>
-          <wheel_separation>${ts}</wheel_separation>
-          <wheel_radius>${wheel_r}</wheel_radius>
+        <plugin name="gz::sim::systems::VelocityControl"
+                filename="gz-sim-velocity-control-system">
           <topic>/cmd_vel</topic>
+        </plugin>
+      </gazebo>
+      <gazebo>
+        <plugin name="gz::sim::systems::OdometryPublisher"
+                filename="gz-sim-odometry-publisher-system">
           <odom_topic>/odom</odom_topic>
-          <odom_publish_frequency>50</odom_publish_frequency>
           <tf_topic>/tf</tf_topic>
-          <frame_id>odom</frame_id>
-          <child_frame_id>platform_base_link</child_frame_id>
-          <max_linear_acceleration>1.0</max_linear_acceleration>
-          <max_linear_deceleration>1.0</max_linear_deceleration>
-          <max_angular_acceleration>2.0</max_angular_acceleration>
+          <odom_frame>odom</odom_frame>
+          <robot_frame>platform_base_link</robot_frame>
+          <odom_publish_frequency>50</odom_publish_frequency>
+          <dimensions>2</dimensions>
         </plugin>
       </gazebo>
     </xacro:if>

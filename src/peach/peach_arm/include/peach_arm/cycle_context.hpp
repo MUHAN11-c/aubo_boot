@@ -173,6 +173,7 @@ struct CycleContext
 {
   /// ExecuteTarget.goal.target_id；手动周期为空。
   std::string target_id;
+  std::optional<ModelIdentity> bound_model;  ///< Finalize 原子快照的身份，接触前必须仍匹配。
   bool observe_only{false};     ///< True=只观察/补视，不接触。
   bool pregrasp_only{false};    ///< True=到预抓取验证后停，不 SetIO。
   bool skip_observation{false}; ///< True=跳过观察段，直接用已有几何。

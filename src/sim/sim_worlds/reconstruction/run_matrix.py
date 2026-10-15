@@ -7,7 +7,7 @@
 
 用法：
   _tools/blender-4.5.14-linux-x64/blender -b -t 8 --python-exit-code 1 \
-    -P src/peach_sim/reconstruction/run_matrix.py -- --samples 32
+    -P src/sim/sim_worlds/reconstruction/run_matrix.py -- --samples 32
 """
 
 import argparse

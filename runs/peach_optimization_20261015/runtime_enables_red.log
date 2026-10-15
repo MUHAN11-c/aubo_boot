@@ -1,0 +1,105 @@
+FFFF                                                                     [100%]
+=================================== FAILURES ===================================
+___________ test_set_enables_after_begin_is_read_at_lock_completion ____________
+
+    def test_set_enables_after_begin_is_read_at_lock_completion():
+        """开批快照仍为true时，运行期关使能必须直接结算而非LOCK_READY."""
+        node = _node()
+        _disable(node)
+        reaction, _persist = TaskExecutorNode._cmd_wait_lock(
+            node, SimpleNamespace(request_id='r'), None)
+>       assert reaction.batch_state == COMPLETED
+E       AssertionError: assert 1 == 6
+E        +  where 1 = Reaction(batch_state=1, target_phase=1, command='select', event_code='round_locked', message='discovery', operation_mode=0).batch_state
+
+src/peach/peach_harvester/test/test_supervisor_runtime_enables.py:44: AssertionError
+_______ test_selection_reads_runtime_disable_before_claiming_or_querying _______
+
+    def test_selection_reads_runtime_disable_before_claiming_or_querying():
+        """锁后选果前关闭时，不查询IK或claim目标，直接走FSM结算."""
+        node = _node()
+        _disable(node)
+>       reaction, _persist = TaskExecutorNode._cmd_select(
+            node, SimpleNamespace(request_id='r'), None)
+
+src/peach/peach_harvester/test/test_supervisor_runtime_enables.py:53: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = namespace(_enables_override={'execution': False, 'grasp': False, 'tool': False, 'reason': ''}, _params=namespace(execu...locals>.<lambda> at 0x7bf424fa3920>, _execution_enabled_effective=<function _node.<locals>.<lambda> at 0x7bf424fa39c0>)
+goal = namespace(request_id='r'), reaction = None
+
+    def _cmd_select(self, goal, reaction):
+        """SELECT 分支（原循环分支逐字搬运）：采收率门→联合约束选果→claim."""
+        # 采收率门（3c-2a：跳过是调度参数不是失败——达标即收批，
+        # 余果不再尝试，入补采清单）
+        if ratio_reached(
+>               sum(1 for o in self._outcomes
+                    if int(o.outcome) == int(TargetOutcome.SUCCEEDED)),
+                int(self._discovered or 0), self._batch_policy):
+E               AttributeError: 'types.SimpleNamespace' object has no attribute '_outcomes'
+
+src/peach/peach_harvester/peach_harvester/supervisor/executor_node.py:1083: AttributeError
+_ test_disabled_dispatch_or_full_does_not_send_motion[_cmd_dispatch-observe_failed] _
+
+method = '_cmd_dispatch', event = 'observe_failed'
+
+    @pytest.mark.parametrize('method,event', [('_cmd_dispatch', Event.OBSERVE_FAILED),
+                                              ('_cmd_full', Event.FULL_SKIPPED)])
+    def test_disabled_dispatch_or_full_does_not_send_motion(method, event):
+        """选果后瞬时关闭使能时，派发前拒绝，不创建动作goal."""
+        node = _node()
+        _disable(node)
+        node._current_target_id = 't1'
+        node._react = lambda actual: actual
+        node._fail_dispatch = lambda reaction, *_args, **_kwargs: (reaction, True)
+>       actual, _persist = getattr(TaskExecutorNode, method)(
+            node, SimpleNamespace(request_id='r'), None)
+
+src/peach/peach_harvester/test/test_supervisor_runtime_enables.py:67: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = namespace(_enables_override={'execution': False, 'grasp': False, 'tool': False, 'reason': ''}, _params=namespace(execu...t1', _fail_dispatch=<function test_disabled_dispatch_or_full_does_not_send_motion.<locals>.<lambda> at 0x7bf42154b7e0>)
+goal = namespace(request_id='r'), reaction = None
+
+    def _cmd_dispatch(self, goal, reaction):
+        """DISPATCH 分支（原循环分支逐字搬运）：单果时限门 + 观察周期派发."""
+        request_id = goal.request_id
+>       if self._target_deadline_exceeded(request_id):
+E       AttributeError: 'types.SimpleNamespace' object has no attribute '_target_deadline_exceeded'
+
+src/peach/peach_harvester/peach_harvester/supervisor/executor_node.py:1177: AttributeError
+_ test_disabled_dispatch_or_full_does_not_send_motion[_cmd_full-full_skipped] __
+
+method = '_cmd_full', event = 'full_skipped'
+
+    @pytest.mark.parametrize('method,event', [('_cmd_dispatch', Event.OBSERVE_FAILED),
+                                              ('_cmd_full', Event.FULL_SKIPPED)])
+    def test_disabled_dispatch_or_full_does_not_send_motion(method, event):
+        """选果后瞬时关闭使能时，派发前拒绝，不创建动作goal."""
+        node = _node()
+        _disable(node)
+        node._current_target_id = 't1'
+        node._react = lambda actual: actual
+        node._fail_dispatch = lambda reaction, *_args, **_kwargs: (reaction, True)
+>       actual, _persist = getattr(TaskExecutorNode, method)(
+            node, SimpleNamespace(request_id='r'), None)
+
+src/peach/peach_harvester/test/test_supervisor_runtime_enables.py:67: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = namespace(_enables_override={'execution': False, 'grasp': False, 'tool': False, 'reason': ''}, _params=namespace(execu...t1', _fail_dispatch=<function test_disabled_dispatch_or_full_does_not_send_motion.<locals>.<lambda> at 0x7bf42154bf60>)
+goal = namespace(request_id='r'), reaction = None
+
+    def _cmd_full(self, goal, reaction):
+        """EXECUTE_FULL 分支（原循环分支逐字搬运）：时限门 + 接触执行入账."""
+        request_id = goal.request_id
+>       if self._target_deadline_exceeded(request_id):
+E       AttributeError: 'types.SimpleNamespace' object has no attribute '_target_deadline_exceeded'
+
+src/peach/peach_harvester/peach_harvester/supervisor/executor_node.py:1450: AttributeError
+=========================== short test summary info ============================
+FAILED src/peach/peach_harvester/test/test_supervisor_runtime_enables.py::test_set_enables_after_begin_is_read_at_lock_completion
+FAILED src/peach/peach_harvester/test/test_supervisor_runtime_enables.py::test_selection_reads_runtime_disable_before_claiming_or_querying
+FAILED src/peach/peach_harvester/test/test_supervisor_runtime_enables.py::test_disabled_dispatch_or_full_does_not_send_motion[_cmd_dispatch-observe_failed]
+FAILED src/peach/peach_harvester/test/test_supervisor_runtime_enables.py::test_disabled_dispatch_or_full_does_not_send_motion[_cmd_full-full_skipped]
+4 failed in 0.36s

@@ -1,0 +1,21 @@
+Starting >>> peach_harvester
+--- stderr: peach_harvester
+
+=============================== warnings summary ===============================
+test/test_flake8.py: 20 warnings
+  Warning: This process (pid=32) is multi-threaded, use of fork() may lead to deadlocks in the child.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+---
+Finished <<< peach_harvester [3.14s]
+Starting >>> peach_arm
+--- stderr: peach_arm
+Errors while running CTest
+Output from these tests are in: /home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm/Testing/Temporary/LastTest.log
+Use "--rerun-failed --output-on-failure" to re-run the failed cases verbosely.
+---
+Finished <<< peach_arm [2.89s]	[ with test failures ]
+
+Summary: 2 packages finished [6.33s]
+  2 packages had stderr output: peach_arm peach_harvester
+  1 package had test failures: peach_arm

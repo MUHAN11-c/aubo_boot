@@ -62,6 +62,7 @@ _RULES = {  # 键 -> 校验规则表（启动期非法即拒启；运行期非�
     'refit.max_axis_angle_deg': (('gt', 0.0),),
     'publish.min_interval_s': (('gt_eq', 0.0),),
     'tool.budget.d_inner': (('bounds', 0.01, 0.5),),
+    'tool.budget.cut_reference_offset_m': (('bounds', -0.03, 0.03),),
 }
 
 

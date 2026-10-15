@@ -1,0 +1,74 @@
+FFFFF                                                                    [100%]
+=================================== FAILURES ===================================
+________ test_preview_is_bounded_deterministic_and_keeps_xyz_and_rgb[0] ________
+
+count = 0
+
+    @pytest.mark.parametrize('count', [0, 50000, 50001, 200003])
+    def test_preview_is_bounded_deterministic_and_keeps_xyz_and_rgb(count):
+        xyz = np.arange(count * 3, dtype=np.float32).reshape(-1, 3)
+        colors = np.tile(np.array([[7, 31, 251]], dtype=np.uint8), (count, 1))
+        header = Header(frame_id='base_link')
+>       preview = publish.preview_cloud_msg(xyz, colors, header)
+E       AttributeError: module 'peach_harvester.vision.target_reconstruction.publish' has no attribute 'preview_cloud_msg'
+
+src/peach/peach_harvester/test/test_reconstruction_preview.py:16: AttributeError
+______ test_preview_is_bounded_deterministic_and_keeps_xyz_and_rgb[50000] ______
+
+count = 50000
+
+    @pytest.mark.parametrize('count', [0, 50000, 50001, 200003])
+    def test_preview_is_bounded_deterministic_and_keeps_xyz_and_rgb(count):
+        xyz = np.arange(count * 3, dtype=np.float32).reshape(-1, 3)
+        colors = np.tile(np.array([[7, 31, 251]], dtype=np.uint8), (count, 1))
+        header = Header(frame_id='base_link')
+>       preview = publish.preview_cloud_msg(xyz, colors, header)
+E       AttributeError: module 'peach_harvester.vision.target_reconstruction.publish' has no attribute 'preview_cloud_msg'
+
+src/peach/peach_harvester/test/test_reconstruction_preview.py:16: AttributeError
+______ test_preview_is_bounded_deterministic_and_keeps_xyz_and_rgb[50001] ______
+
+count = 50001
+
+    @pytest.mark.parametrize('count', [0, 50000, 50001, 200003])
+    def test_preview_is_bounded_deterministic_and_keeps_xyz_and_rgb(count):
+        xyz = np.arange(count * 3, dtype=np.float32).reshape(-1, 3)
+        colors = np.tile(np.array([[7, 31, 251]], dtype=np.uint8), (count, 1))
+        header = Header(frame_id='base_link')
+>       preview = publish.preview_cloud_msg(xyz, colors, header)
+E       AttributeError: module 'peach_harvester.vision.target_reconstruction.publish' has no attribute 'preview_cloud_msg'
+
+src/peach/peach_harvester/test/test_reconstruction_preview.py:16: AttributeError
+_____ test_preview_is_bounded_deterministic_and_keeps_xyz_and_rgb[200003] ______
+
+count = 200003
+
+    @pytest.mark.parametrize('count', [0, 50000, 50001, 200003])
+    def test_preview_is_bounded_deterministic_and_keeps_xyz_and_rgb(count):
+        xyz = np.arange(count * 3, dtype=np.float32).reshape(-1, 3)
+        colors = np.tile(np.array([[7, 31, 251]], dtype=np.uint8), (count, 1))
+        header = Header(frame_id='base_link')
+>       preview = publish.preview_cloud_msg(xyz, colors, header)
+E       AttributeError: module 'peach_harvester.vision.target_reconstruction.publish' has no attribute 'preview_cloud_msg'
+
+src/peach/peach_harvester/test/test_reconstruction_preview.py:16: AttributeError
+____ test_preview_prefers_tsdf_and_clears_on_reset_without_mutating_sources ____
+
+    def test_preview_prefers_tsdf_and_clears_on_reset_without_mutating_sources():
+        local = np.ones((120003, 3), dtype=np.float32)
+        tsdf = np.full((60003, 3), 2., dtype=np.float32)
+        messages = []
+        node = SimpleNamespace(_tsdf_cloud_cache=(tsdf, None),
+            collector=SimpleNamespace(accumulated_cloud=lambda: local, accumulated_rgb=lambda: None),
+            pub_preview_cloud=SimpleNamespace(publish=messages.append))
+>       ReconstructionCore._publish_preview(node, Header(), (1, 1., 1), None, False)
+E       AttributeError: type object 'ReconstructionCore' has no attribute '_publish_preview'
+
+src/peach/peach_harvester/test/test_reconstruction_preview.py:37: AttributeError
+=========================== short test summary info ============================
+FAILED src/peach/peach_harvester/test/test_reconstruction_preview.py::test_preview_is_bounded_deterministic_and_keeps_xyz_and_rgb[0]
+FAILED src/peach/peach_harvester/test/test_reconstruction_preview.py::test_preview_is_bounded_deterministic_and_keeps_xyz_and_rgb[50000]
+FAILED src/peach/peach_harvester/test/test_reconstruction_preview.py::test_preview_is_bounded_deterministic_and_keeps_xyz_and_rgb[50001]
+FAILED src/peach/peach_harvester/test/test_reconstruction_preview.py::test_preview_is_bounded_deterministic_and_keeps_xyz_and_rgb[200003]
+FAILED src/peach/peach_harvester/test/test_reconstruction_preview.py::test_preview_prefers_tsdf_and_clears_on_reset_without_mutating_sources
+5 failed in 0.48s

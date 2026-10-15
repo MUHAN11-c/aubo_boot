@@ -5,7 +5,7 @@
 - 设计架构：[src/peach/peach_bringup/doc/architecture.md](src/peach/peach_bringup/doc/architecture.md)
 - 输入输出：[src/peach/peach_bringup/doc/io.md](src/peach/peach_bringup/doc/io.md)
 - 测试流程指导：[src/peach/peach_system_tests/doc/testing.md](src/peach/peach_system_tests/doc/testing.md)（v1）；[src/peach2/peach2_system_tests/doc/testing.md](src/peach2/peach2_system_tests/doc/testing.md)（v2）
-- 用户裁定文档（非活文档）：[docs/peach_v1_现行终版方案.md](docs/peach_v1_现行终版方案.md) v1 现行栈终版方案；[docs/peach_v2_重构终版方案.md](docs/peach_v2_重构终版方案.md) v2 重构设计与落地计划（原 design.md 项目设计书已由两者取代删除）
+- 完整项目目标设计（非活文档）：[peach_autonomous_harvest_design/README.md](peach_autonomous_harvest_design/README.md)，包含自主导航采摘、Web与调试设计。原docs中的v1已按模块[整理合并](peach_autonomous_harvest_design/10_docs_merge_and_baseline.md)，v2及配套图件[仅归档](peach_autonomous_harvest_design/archive/docs_2026-10-13/README.md)、暂不采用；docs旧路径保留兼容导航。
 - 代理约束：[AGENTS.md](AGENTS.md)
 
 前两份（architecture / io）是活文档，与源码互相更新：改一边须同一轮改另一边。测试流程随两测试包 `doc/testing.md` 维护（2026-10-10 自 docs/testing.md 拆写入包，用户裁定）。过程记录类（testing-log / REFACTORING）已于 2026-10-10 清理退役，历史在 git。`docs/` 不另增活文档。

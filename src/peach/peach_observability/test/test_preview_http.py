@@ -23,7 +23,9 @@ def endpoint(tmp_path):
     """启动临时 HTTP 并保证测试后关闭服务."""
     (tmp_path / 'vendor').mkdir()
     for path in ['vendor/peach-three.js', 'viz3d.js', 'visualization.js',
-                 'visualization.css', 'workbench.js', 'workbench.css']:
+                 'visualization.css', 'workbench.js', 'workbench.css', 'ui-common.js',
+                 'monitor-renderers.js', 'trajectory-renderers.js',
+                 'request-runtime.js']:
         (tmp_path / path).write_text('asset')
     (tmp_path / 'secret.txt').write_text('secret')
     server = start_http('127.0.0.1', 0, tmp_path, Backend(), lambda _msg: None)
@@ -53,7 +55,9 @@ def test_jpeg_binary_headers_and_missing_reason(endpoint):
 
 @pytest.mark.parametrize('path', ['vendor/peach-three.js', 'viz3d.js',
                                   'visualization.js', 'visualization.css',
-                                  'workbench.js', 'workbench.css'])
+                                  'workbench.js', 'workbench.css', 'ui-common.js',
+                                  'monitor-renderers.js', 'trajectory-renderers.js',
+                                  'request-runtime.js'])
 def test_fixed_static_assets(endpoint, path):
     """显式白名单资源可访问，同源 CSP 允许本地模块."""
     with urlopen(endpoint + '/' + path) as response:

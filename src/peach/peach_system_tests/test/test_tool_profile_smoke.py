@@ -85,6 +85,7 @@ def generate_test_description():
                     'camera_enabled': 'false',
                     'imu_enabled': 'false',
                     'moveit_enabled': 'true',
+                    'rviz': 'false',  # 无头集成测不启动显示端；RViz另做桌面联合验收。
                     'extrinsics_enabled': 'true',
                     'hand_eye_enabled': 'false',
                     'hand_eye_web_enabled': 'false',

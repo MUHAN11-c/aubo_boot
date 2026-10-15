@@ -1,0 +1,28 @@
+1791944959.4226193 [INFO] [launch]: All log files can be found below /home/mu/Desktop/aubo_e5_jazzy_ws/runs/outer_bag_validation_20261014/ros_logs/2026-10-14-10-29-19-421971-mu-MS-7E34-159466
+1791944959.4227049 [INFO] [launch]: Default logging verbosity is set to INFO
+1791944959.8981526 [INFO] [stereo_camera_node-1]: process started with pid [159493]
+1791944959.8982658 [INFO] [peach_scene_obstacles-2]: process started with pid [159494]
+1791944959.8983037 [INFO] [robot_state_publisher-3]: process started with pid [159495]
+1791944959.8983335 [INFO] [ros2_control_node-4]: process started with pid [159496]
+1791944959.8983591 [INFO] [spawner-5]: process started with pid [159497]
+1791944959.8983815 [INFO] [spawner-6]: process started with pid [159498]
+1791944959.8984020 [INFO] [move_group-7]: process started with pid [159499]
+1791944959.8984225 [INFO] [peach_harvester-8]: process started with pid [159500]
+1791944959.8984430 [INFO] [peach_arm-9]: process started with pid [159501]
+1791944959.8984644 [INFO] [peach_observability-10]: process started with pid [159502]
+1791944959.8984845 [INFO] [lifecycle_manager-11]: process started with pid [159503]
+1791944959.8985038 [INFO] [peach_lifecycle_flag_bridge-12]: process started with pid [159504]
+1791944960.7037821 [INFO] [spawner-6]: process has finished cleanly [pid 159498]
+1791944961.0943642 [INFO] [spawner-5]: process has finished cleanly [pid 159497]
+1791944964.1021438 [ERROR] [robot_state_publisher-3]: process has died [pid 159495, exit code -9, cmd '/opt/ros/jazzy/lib/robot_state_publisher/robot_state_publisher --ros-args -p use_sim_time:=False --params-file /tmp/launch_params_2dzkokfd'].
+1791944964.1022987 [ERROR] [lifecycle_manager-11]: process has died [pid 159503, exit code -9, cmd '/opt/ros/jazzy/lib/nav2_lifecycle_manager/lifecycle_manager --ros-args -r __node:=peach_lifecycle_manager -p use_sim_time:=False --params-file /tmp/launch_params_srcips66'].
+1791944964.1029527 [ERROR] [move_group-7]: process has died [pid 159499, exit code -9, cmd '/opt/ros/jazzy/lib/moveit_ros_move_group/move_group --ros-args -p use_sim_time:=False --params-file /tmp/launch_params_jgqioowe --params-file /tmp/launch_params_16mulzww'].
+1791944982.4847841 [WARNING] [launch]: user interrupted with ctrl-c (SIGINT)
+1791944983.4666488 [INFO] [peach_lifecycle_flag_bridge-12]: sending signal 'SIGINT' to process[peach_lifecycle_flag_bridge-12]
+1791944983.4673469 [ERROR] [peach_lifecycle_flag_bridge-12]: process has died [pid 159504, exit code -2, cmd '/home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_bringup/lib/peach_bringup/peach_lifecycle_flag_bridge --ros-args -r __node:=peach_lifecycle_flag_bridge -p use_sim_time:=False'].
+1791944983.4674191 [ERROR] [peach_scene_obstacles-2]: process has died [pid 159494, exit code -2, cmd '/home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_harvester/lib/peach_harvester/peach_scene_obstacles --ros-args -p use_sim_time:=False'].
+1791944983.4674571 [INFO] [ros2_control_node-4]: process has finished cleanly [pid 159496]
+1791944983.4674892 [INFO] [peach_arm-9]: process has finished cleanly [pid 159501]
+1791944983.4675186 [INFO] [stereo_camera_node-1]: process has finished cleanly [pid 159493]
+1791944983.4675441 [INFO] [peach_observability-10]: process has finished cleanly [pid 159502]
+1791944983.4675734 [ERROR] [peach_harvester-8]: process has died [pid 159500, exit code -2, cmd '/home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_harvester/lib/peach_harvester/peach_harvester --ros-args -r __ns:=/ -p use_sim_time:=False --params-file /tmp/launch_params_rk9tslxy --params-file /tmp/launch_params_oylqxlu6 --params-file /tmp/launch_params_i2pr6l7w --params-file /tmp/peach_brain_overlay_eop2oox2.yaml'].

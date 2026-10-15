@@ -1,0 +1,29 @@
+{
+  "objective_complete": false,
+  "verified_stage": "real camera + mock survey and scene lock",
+  "survey": {
+    "action_status": "SUCCEEDED",
+    "success": true,
+    "elapsed_s": 10.4,
+    "discovered": 1,
+    "attempted": 0,
+    "succeeded": 0
+  },
+  "driver_fixes": [
+    "current IDL result.summary.elapsed",
+    "require product result.success",
+    "respect SetEnables.accepted",
+    "cycle budget 0<timeout<=180",
+    "server per-target and sector deadlines",
+    "request cancellation on result timeout; preserve unknown"
+  ],
+  "real_motion_or_io": false,
+  "full_grasp_verified": false,
+  "next_required": [
+    "bind fixed live camera to simulation without moving-wrist TF reanchor",
+    "resolve bite L_insert=0.03 vs generic travel_too_short threshold=0.05 semantics",
+    "validate reconstruction/cut location from exterior bag shape",
+    "execute and verify full simulated cycle within180 seconds"
+  ],
+  "reach_probe": "service unavailable after timed launch shutdown; not an IK failure"
+}

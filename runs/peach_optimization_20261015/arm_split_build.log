@@ -1,0 +1,74 @@
+-- Found ament_cmake: 2.5.6 (/opt/ros/jazzy/share/ament_cmake/cmake)
+-- Found Python3: /usr/bin/python3 (found version "3.12.3") found components: Interpreter 
+-- Found aubo_msgs: 1.3.3 (/home/mu/Desktop/aubo_e5_jazzy_ws/install/aubo_msgs/share/aubo_msgs/cmake)
+-- Found rosidl_generator_c: 4.6.9 (/opt/ros/jazzy/share/rosidl_generator_c/cmake)
+-- Found rosidl_generator_cpp: 4.6.9 (/opt/ros/jazzy/share/rosidl_generator_cpp/cmake)
+-- Using all available rosidl_typesupport_c: rosidl_typesupport_fastrtps_c;rosidl_typesupport_introspection_c
+-- Using all available rosidl_typesupport_cpp: rosidl_typesupport_fastrtps_cpp;rosidl_typesupport_introspection_cpp
+-- Found bondcpp: 4.2.0 (/opt/ros/jazzy/share/bondcpp/cmake)
+-- Found rmw_implementation_cmake: 7.3.4 (/opt/ros/jazzy/share/rmw_implementation_cmake/cmake)
+-- Found rmw_fastrtps_cpp: 8.4.4 (/opt/ros/jazzy/share/rmw_fastrtps_cpp/cmake)
+-- Using RMW implementation 'rmw_fastrtps_cpp' as default
+-- Found diagnostic_updater: 4.2.7 (/opt/ros/jazzy/share/diagnostic_updater/cmake)
+-- Found moveit_msgs: 2.6.0 (/opt/ros/jazzy/share/moveit_msgs/cmake)
+-- Found moveit_ros_planning_interface: 2.12.4 (/opt/ros/jazzy/share/moveit_ros_planning_interface/cmake)
+-- Found Boost: /usr/lib/x86_64-linux-gnu/cmake/Boost-1.83.0/BoostConfig.cmake (found version "1.83.0") found components: date_time filesystem program_options system thread 
+-- Found Boost: /usr/lib/x86_64-linux-gnu/cmake/Boost-1.83.0/BoostConfig.cmake (found version "1.83.0") found components: chrono date_time filesystem iostreams program_options regex serialization system thread 
+-- Found tcb_span: 1.3.2 (/opt/ros/jazzy/share/tcb_span/cmake)
+-- Found parameter_traits: 0.7.6 (/opt/ros/jazzy/share/parameter_traits/cmake)
+-- Ensuring Eigen3 include directory is part of orocos-kdl CMake target
+-- Found Boost: /usr/lib/x86_64-linux-gnu/cmake/Boost-1.83.0/BoostConfig.cmake (found version "1.83.0") found components: system filesystem date_time program_options thread chrono 
+-- Found Boost: /usr/lib/x86_64-linux-gnu/cmake/Boost-1.83.0/BoostConfig.cmake (found version "1.83.0") found components: thread system filesystem regex date_time program_options 
+-- Found Boost: /usr/lib/x86_64-linux-gnu/cmake/Boost-1.83.0/BoostConfig.cmake (found version "1.83.0") found components: system filesystem date_time program_options thread 
+-- Found moveit_task_constructor_core: 0.1.8 (/opt/ros/jazzy/share/moveit_task_constructor_core/cmake)
+-- Found Python3: /usr/bin/python3 (found version "3.12.3") found components: Interpreter Development Development.Module Development.Embed 
+-- Found pybind11: /usr/include (found version "2.11.1")
+-- Found peach_interfaces: 0.1.0 (/home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_interfaces/share/peach_interfaces/cmake)
+-- Found ament_lint_auto: 0.17.5 (/opt/ros/jazzy/share/ament_lint_auto/cmake)
+-- Found gtest sources under '/opt/ros/jazzy/src/gtest_vendor': C++ tests using 'Google Test' will be built
+-- Added test 'cppcheck' to perform static code analysis on C / C++ code
+-- Configured cppcheck include dirs: $<BUILD_INTERFACE:/home/mu/Desktop/aubo_e5_jazzy_ws/src/peach/peach_arm/include>;/home/mu/Desktop/aubo_e5_jazzy_ws/src/peach/peach_arm/include
+-- Configured cppcheck exclude dirs and/or files: 
+-- Added test 'flake8' to check Python code syntax and style conventions
+-- Configured 'flake8' exclude dirs and/or files: 
+-- Added test 'lint_cmake' to check CMake code style
+-- Added test 'pep257' to check Python code against some of the docstring style conventions in PEP 257
+-- Added test 'uncrustify' to check C / C++ code style
+-- Configured uncrustify additional arguments: 
+-- Added test 'xmllint' to check XML markup files
+-- Configuring done (1.2s)
+-- Generating done (0.0s)
+-- Build files have been written to: /home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm
+[  4%] Built target arm_parameters
+[ 12%] Built target gtest_main
+[ 12%] Built target gtest
+[ 25%] Built target peach_arm_core
+[ 29%] Built target test_pregrasp_level
+[ 31%] Linking CXX executable test_acm_policy
+[ 33%] Linking CXX executable test_grasp_geometry
+[ 35%] Linking CXX executable test_trajectory_guard
+[ 37%] Building CXX object CMakeFiles/peach_arm.dir/src/manipulation_skills_node.cpp.o
+[ 39%] Built target test_acm_policy
+[ 41%] Built target test_grasp_geometry
+[ 43%] Linking CXX executable test_view_planner
+[ 45%] Linking CXX executable test_gates
+[ 47%] Built target test_trajectory_guard
+[ 50%] Linking CXX executable test_reconfirm_policy
+[ 52%] Built target test_view_planner
+[ 54%] Built target test_gates
+[ 58%] Built target test_target_cache
+[ 60%] Built target test_reconfirm_policy
+[ 62%] Linking CXX executable test_frame_timeouts
+[ 64%] Linking CXX executable test_staging_waypoints
+[ 66%] Linking CXX executable test_pregrasp_residual
+[ 68%] Built target test_staging_waypoints
+[ 70%] Built target test_frame_timeouts
+[ 72%] Linking CXX executable test_insert_progress
+[ 75%] Linking CXX executable test_tool_actuator
+[ 77%] Built target test_pregrasp_residual
+[ 79%] Building CXX object CMakeFiles/peach_arm.dir/src/target_observers.cpp.o
+[ 81%] Built target test_insert_progress
+[ 83%] Building CXX object CMakeFiles/peach_arm.dir/src/status.cpp.o
+[ 85%] Built target test_tool_actuator
+[ 87%] Linking CXX executable peach_arm
+[100%] Built target peach_arm

@@ -139,6 +139,9 @@ def save_session(root_dir, frames: list, metadata: dict,
         if not cv2.imwrite(stem + '_rgb.png', frame.rgb):
             raise OSError(f'RGB PNG 写出失败: {stem}_rgb.png')
         np.save(stem + '_depth.npy', frame.depth_mm)
+        target_mask = getattr(frame, 'target_mask', None)
+        if target_mask is not None:
+            np.save(stem + '_target_mask.npy', target_mask)
         _dump_yaml({
             'stamp_sec': float(frame.stamp),
             'width': int(frame.camera_K.get('width', 0)),
@@ -273,7 +276,13 @@ class SessionRecorder:
                 'envelope_conditioned': bool(fused.envelope_conditioned),
                 'envelope_reason': str(fused.envelope_reason or ''),
                 'cut_pose': _xyz_list(cut_pose),
-                'cut_to_fruit_m': float(fused.cut_to_fruit_m or 0.0),
+                'cut_to_fruit_m': (
+                    float(fused.cut_to_fruit_m)
+                    if fused.fruit_prior_radius_m > 0.0 else None),
+                'cut_distance_source': (
+                    'bag_surface_sphere_auxiliary'
+                    if fused.fruit_prior_radius_m > 0.0 else 'unavailable'),
+                'cut_reference_source': 'bag_mouth_geometry',
                 'cut_travel_m': float(fused.cut_travel_m or 0.0),
                 'rmse_m': float(fused.rmse or 0.0),
                 'inlier_ratio': float(fused.inlier_ratio or 0.0),

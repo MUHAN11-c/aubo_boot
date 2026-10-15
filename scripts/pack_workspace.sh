@@ -13,7 +13,7 @@
 #   可重渲/重建   output/ 内未跟踪的重渲大件（跟踪的验证产物随包迁移）、*.blend、
 #                 *.preview.png、.dinov2_index.npz
 #
-# 保留：src/ 全部源码与资产（含 peach_sim/meshes、peach_harvester/model 自训练模型、
+# 保留：src/ 全部源码与资产（含 sim_description/sim_worlds meshes、peach_harvester/model 自训练模型、
 #       驱动 vendor、web/public 前端 vendor JS——three.js/robotwebtools 的 build 发行件，
 #       仓内无重下脚本）、docs/、根文档、requirements.txt、.clangd/.colcon 构建配置、
 #       .github、.agents、.cursor/rules（git 跟踪的规则）、scripts/（含本脚本）、
@@ -101,7 +101,7 @@ EXC_ANCHOR=(
   "$NAME/_tools/blender-*"
   "$NAME/_tools/cadenv"
   "$NAME/_tools/shear_pipeline"
-  "$NAME/src/peach_sim/reconstruction/matrix"
+  "$NAME/src/sim/sim_worlds/reconstruction/matrix"
   "$NAME/src/ivg/ivg_pose_estimation/models/*.onnx"
   "$NAME/src/ivg/ivg_pose_estimation/models/*.pt"
   "$NAME/src/ivg/ivg_pose_estimation/models/*.pth"
@@ -110,11 +110,11 @@ EXC_ANCHOR=(
 )
 # 注意：peach_harvester/model/*.pt 是 git 跟踪的自训练模型，必须入包，勿加全局 *.pt 排除。
 
-# peach_sim/reconstruction/output/：1.3G 未跟踪重渲大件不入包，但其中 103 个验证产物
+# sim_worlds/reconstruction/output/：1.3G 未跟踪重渲大件不入包，但其中 103 个验证产物
 # （图/清单，64M）在 gitignore 兜底行之前已入库、必须随包完整迁移。手工模式追不上
 # （如根级 matrix_report.md 被跟踪而 matrix*/ 子目录没有），改为按 git 索引现算：
 # 完全未跟踪的目录整目录排除，混合目录中的未跟踪文件逐个排除。
-OUT_REL=src/peach_sim/reconstruction/output
+OUT_REL=src/sim/sim_worlds/reconstruction/output
 while IFS= read -r -d '' f; do
   EXC_ANCHOR+=("$NAME/$f")
 done < <(git -C "$WS" ls-files --others --ignored --exclude-standard -z -- "$OUT_REL")
@@ -184,7 +184,7 @@ echo "包含顶层  : ${PATHS[*]}"
 echo "排除锚点（存在者，含大小上界）:"
 for p in _archive build install log aubo_py3.12 runs \
          _tools/blender-4.5.14-linux-x64 _tools/cadenv _tools/shear_pipeline \
-         src/peach_sim/reconstruction/output src/peach_sim/reconstruction/matrix \
+         src/sim/sim_worlds/reconstruction/output src/sim/sim_worlds/reconstruction/matrix \
          src/ivg/ivg_pose_estimation/models src/ivg/ivg_sim/models \
          src/aubo_hand_eye_calibration/hand_eye/candidates mobileclip2_b.ts; do
   [[ -e "$WS/$p" ]] && du -sh "$WS/$p" | sed 's/^/  /'

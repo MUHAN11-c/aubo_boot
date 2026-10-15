@@ -34,6 +34,8 @@ class ToolBudgetParams:
     axial_neck_floor_m: float = 0.003
     fruit_safety_clearance: float = 0.012
     diagnostic_axis_deg: float = 35.0
+    cut_reference_offset_m: float = 0.0
+    """袋口沿 bottom→neck 轴的工艺偏置；TCP=刀口，不叠加 L_blade."""
 
 
 def radial_available(d_inner: float, d_bag95: float,

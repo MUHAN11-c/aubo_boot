@@ -60,6 +60,16 @@
     return `<button type="button" data-wb-action="${action}" data-wb-payload="${escape(JSON.stringify(payload))}"${confirm ? ' data-wb-confirm="1"' : ''}><span>${label}</span><small>${action}</small></button>`;
   }
   const cancel = (label, target) => button(label, 'cancel', {target});
+  function reachabilityHTML(result, request) {
+    const response = result?.body?.result || result?.body?.response || result?.body || {};
+    if (!Array.isArray(response.reachable)) return '';
+    const names = {no_ik:'预抓取无逆解',sleeve_no_ik:'套入终点无逆解',sleeve_no_cartesian:'套入笛卡尔路径未通过',
+      invalid_frame:'坐标系无效',moveit_unavailable:'MoveIt 不可用'};
+    return `<div class="wb-reach-results"><p>${request?.require_sleeve?'预抓取 + 套入路径':'预抓取'} · MoveIt 查询结果</p>${response.reachable.map((ok,i)=>{
+      const code = response.error_codes?.[i] || '';
+      return `<div class="wb-reach-row ${ok===true?'good':'bad'}"><b>位姿 ${i+1}</b><strong>${ok===true?'通过':names[code]||'未通过'}</strong><code>${escape(code)}</code></div>`;
+    }).join('')}<small>查询通过只表示本次求解通过；执行轨迹仍由臂侧规划与授权。</small></div>`;
+  }
   function stepActions(step) {
     if (step === 0) return button('回到拍照位','photo_pose_service',{},true) + button('开始新场景','begin_scene_service');
     if (step === 1) return button('扫描场景','survey_action',{},true) + cancel('取消扫场','survey_action');
@@ -155,7 +165,7 @@
     function renderConditions() {
       const arm = state.manipulation?.status || {}, task = state.task_executor?.state || {}, clearance = state.reconstruction?.grasp_decision || {};
       const yn = v=>v===true?'已开启':v===false?'未开启':'未报告';
-      const rows = [['调试入口 · 必须门',yn(state.debug?.enabled)],['动臂入口 · 运动必须门',yn(state.debug?.motion_enabled)],['运行执行使能 · 臂侧门',yn(arm.execution_enabled ?? task.execution_enabled)],['抓取使能 · 臂侧门',yn(arm.grasp_enabled ?? task.grasp_enabled)],['工具使能 · 臂侧门',yn(arm.tool_enabled ?? task.tool_enabled)],['武装状态 · 臂侧门',yn(arm.armed ?? arm.execution_armed ?? arm.cycle_armed)],['恢复 / 运行 · 拍照门',`${yn(arm.contact_recovery_required || task.recovery_required)} / ${yn(arm.running)}`],['Clearance · 诊断',String(clearance.level ?? clearance.decision_level ?? clearance.clearance_level ?? '未报告')],['失败门 · 诊断',String(clearance.failed_gate ?? '未报告')],['失败码 · 诊断',String(clearance.failure_code ?? arm.failure_code ?? '未报告')],['有效期 · 诊断',String(clearance.valid_until ?? '未报告')]];
+      const rows = [['调试入口 · 必须门',yn(state.debug?.enabled)],['动臂入口 · 运动必须门',yn(state.debug?.motion_enabled)],['运行执行使能 · 臂侧门',yn(arm.execution_enabled ?? task.execution_enabled)],['抓取使能 · 臂侧门',yn(arm.grasp_enabled ?? task.grasp_enabled)],['工具使能 · 臂侧门',yn(arm.tool_enabled ?? task.tool_enabled)],['武装状态 · 臂侧门',yn(arm.armed ?? arm.execution_armed ?? arm.cycle_armed)],['恢复 / 运行 · 拍照门',`${yn(arm.contact_recovery_required || task.recovery_required)} / ${yn(arm.running)}`],['分级能力 · 诊断',['geometry','pregrasp','sleeve','cut'].map(key=>({0:'有效',1:'无效',2:'未知'})[clearance[key+'_capability']] || '未报告').join(' / ')],['失败门 · 诊断',String(clearance.failed_gate ?? '未报告')],['失败码 · 诊断',String(clearance.failure_code ?? arm.failure_code ?? '未报告')],['有效期 · 诊断',String(clearance.valid_until ?? '未报告')]];
       find('conditions').innerHTML = rows.map(([name,v])=>`<div class="wb-condition"><span>${name}</span><strong>${escape(v)}</strong></div>`).join('') + '<p class="wb-condition-note">展示不授权。分级许可、预算与有效期由后端和臂侧校验。</p>';
     }
     function update(next) {
@@ -163,7 +173,7 @@
       if (old.target_id && !selection.target_id) notice('场景或目标已变化，请重新选择；已有结果证据保留。');
       const optionsHTML = '<option value="">请选择本场目标</option>' + targets(state).map(t=>`<option value="${escape(t.target_id)}">${escape(t.target_id)}${t.confirmed?' · 已确认':''}</option>`).join('');
       if (field('target').innerHTML !== optionsHTML) field('target').innerHTML = optionsHTML;
-      field('target').value = selection.target_id; find('epoch').textContent = String(selection.scene_epoch ?? '未报告');
+      field('target').value = selection.target_id; find('epoch').textContent = Number.isInteger(selection.scene_epoch) && selection.scene_epoch > 0 ? String(selection.scene_epoch) : '未报告';
       renderConditions(); renderEvidence(); refreshButtons();
       if (old.target_id !== selection.target_id || old.scene_epoch !== selection.scene_epoch) options.onContextChange?.();
     }
@@ -200,7 +210,7 @@
           if (disposed || result === null || result === undefined) return;
           const entry = {time:new Date().toLocaleTimeString('zh-CN',{hour12:false}),action,request:payload,response:result}; results.unshift(entry); if(results.length>30) results.pop();
           const detail = result.body?.message || result.body?.result?.message || '查看请求 / 响应 JSON';
-          find('latest').innerHTML = `<b>${escape(action)}</b><p>${escape(result.ok === true ? '请求成功' : result.status === 202 ? '仍在执行 · 可取消' : '未确认成功')}</p><p>${escape(detail)}</p>`;
+          find('latest').innerHTML = `<b>${escape(action)}</b><p>${escape(result.ok === true ? '请求成功' : result.status === 202 ? '仍在执行 · 可取消' : '未确认成功')}</p><p>${escape(detail)}</p>${action==='check_reachability_service'?reachabilityHTML(result,payload):''}`;
           find('results').innerHTML = results.map((r,i)=>`<details ${i?'':'open'}><summary>${escape(r.time)} · ${escape(r.action)}</summary><pre>${escape(JSON.stringify(r,null,2))}</pre></details>`).join('');
           notice(`${entry.time} · ${detail}`);
         });
@@ -210,5 +220,5 @@
     showStep(); update(state);
     return {update,context: () => ({...selection}),dispose() {disposed=true;listeners.forEach(([name,fn])=>container.removeEventListener(name,fn));}};
   }
-  return {create,selectionFor,contextReason,blockReason,operationLock,requestId};
+  return {create,selectionFor,contextReason,blockReason,operationLock,requestId,reachabilityHTML};
 });

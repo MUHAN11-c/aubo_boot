@@ -210,7 +210,6 @@ class TaskExecutorNode(LifecycleNode):
         self._empty_limit = 1
         self._survey_goal = None
         self._survey_only = False
-        self._run_enabled = False
         # state/feedback 广播节流（W6-A 限频）：上次发布时刻（monotonic）
         self._state_last_publish_s = 0.0
         self._observations: Optional[PeachTargetObservationArray] = None
@@ -446,8 +445,11 @@ class TaskExecutorNode(LifecycleNode):
         return super().on_cleanup(state)
 
     def _on_stack_ready(self, msg: Bool) -> None:
-        """托管栈就绪订阅：缓存 managed_nodes_activated 供 goal 门判读."""
-        self._stack_ready = bool(msg.data)
+        """托管栈就绪变化时刷新权限投影，及时解除或显示启动阻塞."""
+        ready = bool(msg.data)
+        if ready != self._stack_ready:
+            self._stack_ready = ready
+            self._publish_state(force=True)
 
     def _on_decision(self, msg: GraspDecision) -> None:
         """接触许可令牌缓存（goal.clearance 装配源；心跳不续签语义不变）."""
@@ -943,8 +945,6 @@ class TaskExecutorNode(LifecycleNode):
         result = RunHarvest.Result()
         self._empty_limit = max(1, int(self._params.empty_survey_limit))
         self._empty_rounds = 0
-        # 使能快照在开批时刻取一次（原局部 enabled 语义不变）
-        self._run_enabled = self._execution_enabled_effective()
         self._survey_only = (
             int(goal.intent) == int(RunHarvest.Goal.INTENT_SURVEY_ONLY))
         self._survey_goal = SurveyScene.Goal()
@@ -1065,7 +1065,7 @@ class TaskExecutorNode(LifecycleNode):
             return reaction, False
         if self._survey_only:
             reaction = self._react(Event.SURVEY_ONLY)
-        elif not self._run_enabled:
+        elif not self._execution_enabled_effective():
             reaction = self._react(Event.EXECUTION_DISABLED)
         else:
             reaction = self._react(Event.LOCK_READY)
@@ -1074,6 +1074,10 @@ class TaskExecutorNode(LifecycleNode):
 
     def _cmd_select(self, goal, reaction):
         """SELECT 分支（原循环分支逐字搬运）：采收率门→联合约束选果→claim."""
+        if not self._execution_enabled_effective():
+            reaction = self._react(Event.EXECUTION_DISABLED)
+            self._apply(reaction, goal.request_id)
+            return reaction, True
         # 采收率门（3c-2a：跳过是调度参数不是失败——达标即收批，
         # 余果不再尝试，入补采清单）
         if ratio_reached(
@@ -1122,6 +1126,11 @@ class TaskExecutorNode(LifecycleNode):
             reaction = self._react(event)
             self._apply(reaction, goal.request_id)
             return reaction, False
+        # 可达性查询会等待服务；返回后再次读取运行时权限再claim/进入RUNNING。
+        if not self._execution_enabled_effective():
+            reaction = self._react(Event.EXECUTION_DISABLED)
+            self._apply(reaction, goal.request_id)
+            return reaction, True
         self._empty_rounds = 0
         self._claimed.add(target_id)
         self._current_target_id = target_id
@@ -1171,6 +1180,11 @@ class TaskExecutorNode(LifecycleNode):
     def _cmd_dispatch(self, goal, reaction):
         """DISPATCH 分支（原循环分支逐字搬运）：单果时限门 + 观察周期派发."""
         request_id = goal.request_id
+        if not self._execution_enabled_effective():
+            return self._fail_dispatch(
+                self._react(Event.OBSERVE_FAILED), request_id, self._current_target_id,
+                outcome=TargetOutcome.SKIPPED_QUALITY, reason='execution_disabled',
+                failure_code='execution_disabled', dispatch_t0=time.monotonic())
         if self._target_deadline_exceeded(request_id):
             # 时限门不落 TargetOutcome（淘汰语义由单果时限自身决定）
             return self._fail_dispatch(
@@ -1196,6 +1210,11 @@ class TaskExecutorNode(LifecycleNode):
                 outcome=TargetOutcome.SKIPPED_QUALITY,
                 reason='observe_failed: target_not_in_locked_set',
                 failure_code='observe_failed', dispatch_t0=dispatch_t0)
+        if not self._execution_enabled_effective():
+            return self._fail_dispatch(
+                self._react(Event.OBSERVE_FAILED), request_id, target_id,
+                outcome=TargetOutcome.SKIPPED_QUALITY, reason='execution_disabled',
+                failure_code='execution_disabled', dispatch_t0=dispatch_t0)
         if bool(self._params.skip_reconstruction):
             return self._dispatch_unrefined(
                 request_id, target_id, dispatch_t0)
@@ -1230,9 +1249,9 @@ class TaskExecutorNode(LifecycleNode):
                 reason='build_start_timeout: reconstruction not COLLECTING',
                 failure_code='build_start_timeout', dispatch_t0=dispatch_t0,
                 extra=build_details(self._build_feedback, dispatch_t0, None))
-        # 变体A 一期（批次6，reconstruct_in_trajectory，默认关）：Build 已
-        # COLLECTING 即派 FULL（skip_observation）——重建与接近并行，臂侧
-        # FinalizeAndValidate 有界等精化兜底；Build 句柄随周期收口取消。
+        # 默认路径：Build 已 COLLECTING 即派臂侧周期（skip_observation），
+        # 不额外串行观察而消耗冻结的模型有效窗。FinalizeAndValidate 有界
+        # 等待同目标精化/许可，通过后才规划；Build 句柄随周期收口取消。
         if bool(getattr(self._params, 'reconstruct_in_trajectory', False)):
             # FULL/PREGRASP 受理门要完整身份元组。Build 此时只到
             # COLLECTING，revision 还没有；pending:* 占位让 peach_arm 接
@@ -1243,7 +1262,7 @@ class TaskExecutorNode(LifecycleNode):
             self._last_calibration_revision = 'pending'
             self._last_config_revision = 'pending'
             self.get_logger().info(
-                f'reconstruct_in_trajectory: Build 并行，立即派 FULL '
+                f'reconstruct_in_trajectory: Build 并行，启动臂侧精化等待 '
                 f'target={target_id}（skip_observation）')
             self._cycle_plan_id = (
                 f'{request_id}:{target_id}:{self._action_generation}')
@@ -1251,6 +1270,13 @@ class TaskExecutorNode(LifecycleNode):
             reaction = self._react(Event.READY_FULL)
             self._apply(reaction, request_id, target_id)
             return reaction, True
+        if not self._execution_enabled_effective():
+            self._cancel_handle(build_handle)
+            self._wait_result(build_handle, 10.0, goal_handle=self._run_goal_handle)
+            return self._fail_dispatch(
+                self._react(Event.OBSERVE_FAILED), request_id, target_id,
+                outcome=TargetOutcome.SKIPPED_QUALITY, reason='execution_disabled',
+                failure_code='execution_disabled', dispatch_t0=dispatch_t0)
         # 视点策略开关（3c-2c）：fast=supervisor 直驱补视（单视优先封顶
         # 3 视）；conservative=现行多视观察（arm OBSERVE_ONLY 原值路径）。
         # plan_id 两档共用（W13-A：fast 档不发 arm 观察动作，但
@@ -1444,6 +1470,18 @@ class TaskExecutorNode(LifecycleNode):
     def _cmd_full(self, goal, reaction):
         """EXECUTE_FULL 分支（原循环分支逐字搬运）：时限门 + 接触执行入账."""
         request_id = goal.request_id
+        if not self._execution_enabled_effective():
+            handle = getattr(self, '_in_flight_build_handle', None)
+            if handle is not None:
+                self._in_flight_build_handle = None
+                self._cancel_handle(handle)
+                self._wait_result(handle, 10.0, goal_handle=self._run_goal_handle)
+            self._cycle_observe_extra = {}
+            self._cycle_dispatch_t0 = 0.0
+            return self._fail_dispatch(
+                self._react(Event.FULL_SKIPPED), request_id, self._current_target_id,
+                outcome=TargetOutcome.SKIPPED_QUALITY, reason='execution_disabled',
+                failure_code='execution_disabled', dispatch_t0=time.monotonic())
         if self._target_deadline_exceeded(request_id):
             # 时限门统一走 _fail_dispatch（P0 三通道对齐勘定：此处原为
             # 裸 _apply，缺「派发失败」WARN；outcome 不传——时限函数自身

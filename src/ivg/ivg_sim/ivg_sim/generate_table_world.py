@@ -37,7 +37,7 @@ WORLDS_DIR = PKG_ROOT / 'worlds'
 
 def generate_sdf(layout: TableLayout, gravity_mps2: float = 0.0,
                  camera_rig: bool = True) -> str:
-    """渲染世界 SDF（peach_sim 风格：显式 systems 插件 + SDF 1.11）."""
+    """渲染世界 SDF（sim_worlds 风格：显式 systems 插件 + SDF 1.11）."""
     cam_xyz, cam_rpy = camera_world_pose(layout)
     table_sx, table_sy, table_sz = layout.table_size
     table_cz = layout.table_top_z - table_sz / 2.0

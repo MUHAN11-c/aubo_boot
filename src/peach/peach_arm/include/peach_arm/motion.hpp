@@ -33,6 +33,8 @@ namespace peach_arm
 /// 选果预检（CheckReachability）单次 IK 探测超时 [s]（原 staging_selector
 /// 单源；staging 候选生态删除后迁此，2026-09-23）。
 inline constexpr double kQuickIkProbeTimeoutS = 0.05;
+// 精化几何与中转候选的深搜上限；跨源文件共享，保持求解有界。
+inline constexpr double kStagingIkSolveTimeoutS = 0.2;
 
 class RetireBucket;  // execution_guard.hpp（src/ 私有头；指针成员避免安装头依赖）
 

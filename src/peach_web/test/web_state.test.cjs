@@ -5,7 +5,9 @@ const path = require('node:path');
 const test = require('node:test');
 const vm = require('node:vm');
 
-const source = fs.readFileSync(path.join(__dirname, '../web/app.js'), 'utf8');
+// Match the classic same-origin script order in index.html.
+const source = ['ui-common.js', 'monitor-renderers.js', 'trajectory-renderers.js', 'request-runtime.js', 'app.js']
+  .map(file => fs.readFileSync(path.join(__dirname, '../web', file), 'utf8')).join('\n');
 const flush = () => new Promise((resolve) => setImmediate(resolve));
 const response = (body, status = 200) => ({
   ok: status < 400, status, json: async () => body,
@@ -41,6 +43,16 @@ test('trajectory fetch failure invalidates cached tool frames without erasing th
   assert.equal(b.run('labTrajectory().xyz.length'),3);
 });
 
+test('lighting renders observed components instead of object coercion', async () => {
+  const b = await browser();
+  b.run(`realRenderVision({perception:{harvest:{lighting:{
+    depth_ratio:0.96,conf_mean:0.87,bad_streak:0,low_quality:false}}}})`);
+  const html = b.elements.get('perception-metrics').innerHTML;
+  assert.doesNotMatch(html, /\[object Object\]/);
+  assert.match(html, /96%/);
+  assert.match(html, /0\.87/);
+});
+
 async function browser() {
   const elements = new Map();
   const requests = [];
@@ -53,8 +65,9 @@ async function browser() {
     const classes = new Set();
     const attrs = new Map();
     const listeners = {};
+    const listenerCounts = {};
     return {
-      id, dataset, textContent: id, innerHTML: '', value: '', hidden: false,
+      id, dataset, listenerCounts, textContent: id, innerHTML: '', value: '', hidden: false,
       disabled: false, className: '',
       classList: {
         add: (...names) => names.forEach((n) => classes.add(n)),
@@ -64,7 +77,7 @@ async function browser() {
       setAttribute: (name, value) => attrs.set(name, String(value)),
       getAttribute: (name) => attrs.get(name) ?? null,
       removeAttribute: (name) => attrs.delete(name),
-      addEventListener: (name, fn) => { listeners[name] = fn; },
+      addEventListener: (name, fn) => { listeners[name] = fn; listenerCounts[name] = (listenerCounts[name] || 0) + 1; },
       dispatch: (name, event) => listeners[name]?.(event),
       focus() { document.activeElement = this; },
       querySelector() { return document.getElementById(id + '-child'); },
@@ -109,7 +122,7 @@ async function browser() {
       confirm: () => true, alert: () => {}},
   });
   vm.runInContext(source, context);
-  vm.runInContext('const realRenderPlan = renderPlan; const realRenderLedger = renderLedger; const realRenderStatus = renderStatus; renderHardware = () => {};', context);
+  vm.runInContext('const realRenderPlan = renderPlan; const realRenderLedger = renderLedger; const realRenderStatus = renderStatus; const realRenderVision = renderVision; renderHardware = () => {};', context);
   // These renderers consume large ROS snapshots; exercise transport and controls here.
   for (const name of ['renderStatus', 'renderFlow', 'renderPlan', 'renderStages',
     'renderLedger', 'renderVision', 'renderSystem', 'renderTrajHud', 'renderTcpMini']) {
@@ -402,4 +415,28 @@ test('return-photo click confirms and submits only the existing empty service re
   assert.equal(b.requests.length, 1);
   assert.equal(b.requests[0].url, '/api/debug/photo_pose_service');
   assert.equal(b.requests[0].options.body, '{}');
+});
+
+test('accepted response without success is not a confirmed successful operation', async () => {
+  const b = await browser();
+  b.handler(async () => response({accepted:true,result:{message:'accepted'}}));
+  const result = await b.run('debugPost("manage_nodes_service", {}, null)');
+  assert.equal(result.ok, false);
+  assert.match(b.elements.get('debug-results').innerHTML, /已受理/);
+});
+
+test('formatting does not turn boolean or blank missing values into measured zero', async () => {
+  const b = await browser();
+  assert.equal(b.run('fmt(false)'), '—');
+  assert.equal(b.run('fmt("   ")'), '—');
+  assert.equal(b.run('fmt(0)'), '0.000');
+});
+
+
+test('binding controls again does not duplicate command or log listeners', async () => {
+  const b = await browser();
+  b.run('bindDebugControls(); bindLogFilters();');
+  assert.equal(b.buttons[0].listenerCounts.click, 1);
+  assert.equal(b.tabs[0].listenerCounts.keydown, 1);
+  assert.equal(b.elements.get('log-keyword').listenerCounts.input, 1);
 });

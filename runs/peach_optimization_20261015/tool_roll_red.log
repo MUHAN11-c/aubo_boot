@@ -1,0 +1,92 @@
+[0.380s] WARNING:colcon.colcon_core.package_selection:Some selected packages are already built in one or more underlay workspaces:
+	'peach_arm' is in: /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_arm
+If a package in a merged underlay workspace is overridden and it installs headers, then all packages in the overlay must sort their include directories by workspace order. Failure to do so may result in build failures or undefined behavior at run time.
+If the overridden package is used by another package in any underlay, then the overriding package in the overlay must be API and ABI compatible or undefined behavior at run time may occur.
+
+If you understand the risks and want to override a package anyways, add the following to the command line:
+	--allow-overriding peach_arm
+
+This may be promoted to an error in a future release of colcon-override-check.
+Starting >>> peach_arm
+[  4%] Built target gtest_main
+[  8%] Built target arm_parameters
+[ 12%] Built target gtest
+[ 24%] Built target peach_arm_core
+[ 28%] Built target test_pregrasp_level
+[ 32%] Built target test_reconfirm_policy
+[ 34%] Building CXX object CMakeFiles/test_grasp_geometry.dir/test/test_grasp_geometry.cpp.o
+[ 38%] Built target test_acm_policy
+[ 46%] Built target test_pregrasp_residual
+[ 44%] Built target test_trajectory_guard
+[ 52%] Built target test_frame_timeouts
+[ 58%] Built target test_staging_waypoints
+[ 60%] Built target test_tool_actuator
+[ 62%] Built target test_view_planner
+[ 66%] Built target test_insert_progress
+[ 70%] Built target test_target_cache
+[ 74%] Built target test_thread_join
+[ 78%] Built target test_gates
+[ 98%] Built target peach_arm
+/home/mu/Desktop/aubo_e5_jazzy_ws/src/peach/peach_arm/test/test_grasp_geometry.cpp: In member function ‘virtual void GraspGeometry_StagingSelectionMinimizesToolRollBeforeJointDistance_Test::TestBody()’:
+/home/mu/Desktop/aubo_e5_jazzy_ws/src/peach/peach_arm/test/test_grasp_geometry.cpp:467:20: error: ‘preferStagingCandidate’ has not been declared in ‘peach_arm’
+  467 |   using peach_arm::preferStagingCandidate;
+      |                    ^~~~~~~~~~~~~~~~~~~~~~
+In file included from /opt/ros/jazzy/src/gtest_vendor/include/gtest/gtest-printers.h:122,
+                 from /opt/ros/jazzy/src/gtest_vendor/include/gtest/gtest-matchers.h:49,
+                 from /opt/ros/jazzy/src/gtest_vendor/include/gtest/internal/gtest-death-test-internal.h:47,
+                 from /opt/ros/jazzy/src/gtest_vendor/include/gtest/gtest-death-test.h:43,
+                 from /opt/ros/jazzy/src/gtest_vendor/include/gtest/gtest.h:65,
+                 from /home/mu/Desktop/aubo_e5_jazzy_ws/src/peach/peach_arm/test/test_grasp_geometry.cpp:4:
+/home/mu/Desktop/aubo_e5_jazzy_ws/src/peach/peach_arm/test/test_grasp_geometry.cpp:468:15: error: ‘preferStagingCandidate’ was not declared in this scope
+  468 |   EXPECT_TRUE(preferStagingCandidate(0.0, 20.0, EIGEN_PI / 6.0, 0.1));
+      |               ^~~~~~~~~~~~~~~~~~~~~~
+/home/mu/Desktop/aubo_e5_jazzy_ws/src/peach/peach_arm/test/test_grasp_geometry.cpp:469:16: error: ‘preferStagingCandidate’ was not declared in this scope
+  469 |   EXPECT_FALSE(preferStagingCandidate(EIGEN_PI / 6.0, 0.1, 0.0, 20.0));
+      |                ^~~~~~~~~~~~~~~~~~~~~~
+/home/mu/Desktop/aubo_e5_jazzy_ws/src/peach/peach_arm/test/test_grasp_geometry.cpp:470:15: error: ‘preferStagingCandidate’ was not declared in this scope
+  470 |   EXPECT_TRUE(preferStagingCandidate(-EIGEN_PI / 6.0, 2.0, EIGEN_PI / 6.0, 3.0));
+      |               ^~~~~~~~~~~~~~~~~~~~~~
+/home/mu/Desktop/aubo_e5_jazzy_ws/src/peach/peach_arm/test/test_grasp_geometry.cpp:471:16: error: ‘preferStagingCandidate’ was not declared in this scope
+  471 |   EXPECT_FALSE(preferStagingCandidate(EIGEN_PI / 3.0, 1.0, EIGEN_PI / 6.0, 10.0));
+      |                ^~~~~~~~~~~~~~~~~~~~~~
+/home/mu/Desktop/aubo_e5_jazzy_ws/src/peach/peach_arm/test/test_grasp_geometry.cpp:472:16: error: ‘preferStagingCandidate’ was not declared in this scope
+  472 |   EXPECT_FALSE(preferStagingCandidate(0.0, std::numeric_limits<double>::infinity(), 0.0, 2.0));
+      |                ^~~~~~~~~~~~~~~~~~~~~~
+gmake[2]: *** [CMakeFiles/test_grasp_geometry.dir/build.make:76: CMakeFiles/test_grasp_geometry.dir/test/test_grasp_geometry.cpp.o] Error 1
+gmake[1]: *** [CMakeFiles/Makefile2:323: CMakeFiles/test_grasp_geometry.dir/all] Error 2
+gmake: *** [Makefile:146: all] Error 2
+--- stderr: peach_arm
+/home/mu/Desktop/aubo_e5_jazzy_ws/src/peach/peach_arm/test/test_grasp_geometry.cpp: In member function ‘virtual void GraspGeometry_StagingSelectionMinimizesToolRollBeforeJointDistance_Test::TestBody()’:
+/home/mu/Desktop/aubo_e5_jazzy_ws/src/peach/peach_arm/test/test_grasp_geometry.cpp:467:20: error: ‘preferStagingCandidate’ has not been declared in ‘peach_arm’
+  467 |   using peach_arm::preferStagingCandidate;
+      |                    ^~~~~~~~~~~~~~~~~~~~~~
+In file included from /opt/ros/jazzy/src/gtest_vendor/include/gtest/gtest-printers.h:122,
+                 from /opt/ros/jazzy/src/gtest_vendor/include/gtest/gtest-matchers.h:49,
+                 from /opt/ros/jazzy/src/gtest_vendor/include/gtest/internal/gtest-death-test-internal.h:47,
+                 from /opt/ros/jazzy/src/gtest_vendor/include/gtest/gtest-death-test.h:43,
+                 from /opt/ros/jazzy/src/gtest_vendor/include/gtest/gtest.h:65,
+                 from /home/mu/Desktop/aubo_e5_jazzy_ws/src/peach/peach_arm/test/test_grasp_geometry.cpp:4:
+/home/mu/Desktop/aubo_e5_jazzy_ws/src/peach/peach_arm/test/test_grasp_geometry.cpp:468:15: error: ‘preferStagingCandidate’ was not declared in this scope
+  468 |   EXPECT_TRUE(preferStagingCandidate(0.0, 20.0, EIGEN_PI / 6.0, 0.1));
+      |               ^~~~~~~~~~~~~~~~~~~~~~
+/home/mu/Desktop/aubo_e5_jazzy_ws/src/peach/peach_arm/test/test_grasp_geometry.cpp:469:16: error: ‘preferStagingCandidate’ was not declared in this scope
+  469 |   EXPECT_FALSE(preferStagingCandidate(EIGEN_PI / 6.0, 0.1, 0.0, 20.0));
+      |                ^~~~~~~~~~~~~~~~~~~~~~
+/home/mu/Desktop/aubo_e5_jazzy_ws/src/peach/peach_arm/test/test_grasp_geometry.cpp:470:15: error: ‘preferStagingCandidate’ was not declared in this scope
+  470 |   EXPECT_TRUE(preferStagingCandidate(-EIGEN_PI / 6.0, 2.0, EIGEN_PI / 6.0, 3.0));
+      |               ^~~~~~~~~~~~~~~~~~~~~~
+/home/mu/Desktop/aubo_e5_jazzy_ws/src/peach/peach_arm/test/test_grasp_geometry.cpp:471:16: error: ‘preferStagingCandidate’ was not declared in this scope
+  471 |   EXPECT_FALSE(preferStagingCandidate(EIGEN_PI / 3.0, 1.0, EIGEN_PI / 6.0, 10.0));
+      |                ^~~~~~~~~~~~~~~~~~~~~~
+/home/mu/Desktop/aubo_e5_jazzy_ws/src/peach/peach_arm/test/test_grasp_geometry.cpp:472:16: error: ‘preferStagingCandidate’ was not declared in this scope
+  472 |   EXPECT_FALSE(preferStagingCandidate(0.0, std::numeric_limits<double>::infinity(), 0.0, 2.0));
+      |                ^~~~~~~~~~~~~~~~~~~~~~
+gmake[2]: *** [CMakeFiles/test_grasp_geometry.dir/build.make:76: CMakeFiles/test_grasp_geometry.dir/test/test_grasp_geometry.cpp.o] Error 1
+gmake[1]: *** [CMakeFiles/Makefile2:323: CMakeFiles/test_grasp_geometry.dir/all] Error 2
+gmake: *** [Makefile:146: all] Error 2
+---
+Failed   <<< peach_arm [3.09s, exited with code 2]
+
+Summary: 0 packages finished [3.41s]
+  1 package failed: peach_arm
+  1 package had stderr output: peach_arm

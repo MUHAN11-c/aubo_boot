@@ -37,7 +37,7 @@ IDL 唯一契约包，不跑节点。`config/interface_manifest.yaml` + `scripts
 | `observe.py` | fast 档视点信号纯核 |
 | `params.py` + `config/peach_supervisor.yaml` | 参数 |
 
-`cycle_core/`：`batch_policy.py`、`view_policy.py`、`view_planner.py`（与臂 C++ / peach_sim 补视几何对拍）。
+`cycle_core/`：`batch_policy.py`、`view_policy.py`、`view_planner.py`（与臂 C++ / sim_worlds 补视几何对拍）。
 
 ### vision/scene_perception/
 
@@ -97,9 +97,9 @@ IDL 唯一契约包，不跑节点。`config/interface_manifest.yaml` + `scripts
 
 默认相机前端（`camera_frontend:=stereo`）。话题与 Percipio 同构，点云多 `confidence`。与 percipio **互斥**；include 必须在 aubo bringup **之前**。
 
-## peach_sim
+## 仿真组（src/sim/，2026-10-13 自顶层 peach_sim 拆五包）
 
-离线 Blender 果园重建，**不进 harvest_system**。入口 `src/peach_sim/reconstruction/`（`blender_orchard/` 已并入）。只桥 `/clock` 与 `/joint_states`。纯核与 `cycle_core/view_policy.py` 补视几何对拍。
+Blender 果园重建 + Gazebo 仿真（sim_worlds/sim_description/sim_bringup/sim_perception/sim_system_tests），**不进 harvest_system**。重建入口 `src/sim/sim_worlds/reconstruction/`（`blender_orchard/` 已并入）；旧锚定模式只桥 `/clock` 与 `/joint_states`。纯核与 `cycle_core/view_policy.py` 补视几何对拍。
 
 ## peach_system_tests
 

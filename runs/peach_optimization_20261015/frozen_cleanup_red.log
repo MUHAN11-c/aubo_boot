@@ -1,0 +1,124 @@
+FFF                                                                      [100%]
+=================================== FAILURES ===================================
+_______________ test_default_headless_and_existing_cli_preserved _______________
+
+    def test_default_headless_and_existing_cli_preserved():
+>       m = load()
+
+src/peach/peach_system_tests/test/test_run_frozen_grasp.py:23: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+src/peach/peach_system_tests/test/test_run_frozen_grasp.py:16: in load
+    spec.loader.exec_module(module)
+<frozen importlib._bootstrap_external>:995: in exec_module
+    ???
+<frozen importlib._bootstrap>:488: in _call_with_frames_removed
+    ???
+src/peach/peach_system_tests/scripts/run_frozen_grasp.py:18: in <module>
+    from frozen_camera_replay import discover_bag
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    #!/usr/bin/env python3
+    """Republish one RGB-D frame from a camera bag with live timestamps.
+    
+    The recorded image is fixed (photo-pose simulation). A synchronized RGB-D/cloud
+    group is selected using its original exposure stamps, then shifted to live time
+    without erasing sensor skews. Does not start a camera driver.
+    """
+    from __future__ import annotations
+    
+    import argparse
+    import copy
+    import math
+    import os
+    import sys
+    from pathlib import Path
+    
+>   from geometry_msgs.msg import TransformStamped
+E   ModuleNotFoundError: No module named 'geometry_msgs'
+
+src/peach/peach_system_tests/scripts/frozen_camera_replay.py:17: ModuleNotFoundError
+__________________ test_skip_launch_only_cleans_owned_driver ___________________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x73398f327650>
+tmp_path = PosixPath('/tmp/pytest-of-mu/pytest-21/test_skip_launch_only_cleans_o0')
+
+    def test_skip_launch_only_cleans_owned_driver(monkeypatch, tmp_path):
+>       m = load()
+
+src/peach/peach_system_tests/test/test_run_frozen_grasp.py:30: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+src/peach/peach_system_tests/test/test_run_frozen_grasp.py:16: in load
+    spec.loader.exec_module(module)
+<frozen importlib._bootstrap_external>:995: in exec_module
+    ???
+<frozen importlib._bootstrap>:488: in _call_with_frames_removed
+    ???
+src/peach/peach_system_tests/scripts/run_frozen_grasp.py:18: in <module>
+    from frozen_camera_replay import discover_bag
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    #!/usr/bin/env python3
+    """Republish one RGB-D frame from a camera bag with live timestamps.
+    
+    The recorded image is fixed (photo-pose simulation). A synchronized RGB-D/cloud
+    group is selected using its original exposure stamps, then shifted to live time
+    without erasing sensor skews. Does not start a camera driver.
+    """
+    from __future__ import annotations
+    
+    import argparse
+    import copy
+    import math
+    import os
+    import sys
+    from pathlib import Path
+    
+>   from geometry_msgs.msg import TransformStamped
+E   ModuleNotFoundError: No module named 'geometry_msgs'
+
+src/peach/peach_system_tests/scripts/frozen_camera_replay.py:17: ModuleNotFoundError
+__ test_owned_launch_passes_explicit_rviz_and_cleanup_never_uses_foreign_pid ___
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x73398e516c90>
+tmp_path = PosixPath('/tmp/pytest-of-mu/pytest-21/test_owned_launch_passes_expli0')
+
+    def test_owned_launch_passes_explicit_rviz_and_cleanup_never_uses_foreign_pid(monkeypatch, tmp_path):
+>       m = load()
+
+src/peach/peach_system_tests/test/test_run_frozen_grasp.py:57: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+src/peach/peach_system_tests/test/test_run_frozen_grasp.py:16: in load
+    spec.loader.exec_module(module)
+<frozen importlib._bootstrap_external>:995: in exec_module
+    ???
+<frozen importlib._bootstrap>:488: in _call_with_frames_removed
+    ???
+src/peach/peach_system_tests/scripts/run_frozen_grasp.py:18: in <module>
+    from frozen_camera_replay import discover_bag
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    #!/usr/bin/env python3
+    """Republish one RGB-D frame from a camera bag with live timestamps.
+    
+    The recorded image is fixed (photo-pose simulation). A synchronized RGB-D/cloud
+    group is selected using its original exposure stamps, then shifted to live time
+    without erasing sensor skews. Does not start a camera driver.
+    """
+    from __future__ import annotations
+    
+    import argparse
+    import copy
+    import math
+    import os
+    import sys
+    from pathlib import Path
+    
+>   from geometry_msgs.msg import TransformStamped
+E   ModuleNotFoundError: No module named 'geometry_msgs'
+
+src/peach/peach_system_tests/scripts/frozen_camera_replay.py:17: ModuleNotFoundError
+=========================== short test summary info ============================
+FAILED src/peach/peach_system_tests/test/test_run_frozen_grasp.py::test_default_headless_and_existing_cli_preserved
+FAILED src/peach/peach_system_tests/test/test_run_frozen_grasp.py::test_skip_launch_only_cleans_owned_driver
+FAILED src/peach/peach_system_tests/test/test_run_frozen_grasp.py::test_owned_launch_passes_explicit_rviz_and_cleanup_never_uses_foreign_pid
+3 failed in 0.03s

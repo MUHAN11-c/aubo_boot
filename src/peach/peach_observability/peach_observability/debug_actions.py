@@ -216,7 +216,7 @@ def _goal_for(action: str, payload: dict):
             pose.pose.orientation.x = float(orientation.get('x', 0.0) or 0.0)
             pose.pose.orientation.y = float(orientation.get('y', 0.0) or 0.0)
             pose.pose.orientation.z = float(orientation.get('z', 0.0) or 0.0)
-            pose.pose.orientation.w = float(orientation.get('w', 1.0) or 1.0)
+            pose.pose.orientation.w = float(orientation.get('w', 1.0))
             pose.header.frame_id = str(
                 item.get('frame_id', 'base_link') or 'base_link')
             request.tcp_poses.append(pose)
@@ -240,7 +240,7 @@ def _summarize_service(response) -> dict:
     """服务响应 → 精简 dict（字段存在才收录，防类型差异）."""
     out = {}
     for key in ('success', 'accepted', 'message', 'scene_epoch',
-                'state_seq', 'reachable'):
+                'state_seq', 'reachable', 'error_codes'):
         if hasattr(response, key):
             value = getattr(response, key)
             out[key] = list(value) if isinstance(value, list) else value

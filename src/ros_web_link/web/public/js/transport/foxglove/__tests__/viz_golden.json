@@ -1,0 +1,333 @@
+{
+ "cases": [
+  {
+   "name": "image",
+   "type": "sensor_msgs/msg/Image",
+   "schema": "# This message contains an uncompressed image\n# (0, 0) is at top-left corner of image\n\nstd_msgs/Header header # Header timestamp should be acquisition time of image\n                             # Header frame_id should be optical frame of camera\n                             # origin of frame should be optical center of cameara\n                             # +x should point to the right in the image\n                             # +y should point down in the image\n                             # +z should point into to plane of the image\n                             # If the frame_id here and the frame_id of the CameraInfo\n                             # message associated with the image conflict\n                             # the behavior is undefined\n\nuint32 height                # image height, that is, number of rows\nuint32 width                 # image width, that is, number of columns\n\n# The legal values for encoding are in file include/sensor_msgs/image_encodings.hpp\n# If you want to standardize a new string format, join\n# ros-users@lists.ros.org and send an email proposing a new encoding.\n\nstring encoding       # Encoding of pixels -- channel meaning, ordering, size\n                      # taken from the list of strings in include/sensor_msgs/image_encodings.hpp\n\nuint8 is_bigendian    # is this data bigendian?\nuint32 step           # Full row length in bytes\nuint8[] data          # actual matrix data, size is (step * rows)\n\n================================================================================\nMSG: std_msgs/Header\n# Standard metadata for higher-level stamped data types.\n# This is generally used to communicate timestamped data\n# in a particular coordinate frame.\n\n# Two-integer timestamp that is expressed as seconds and nanoseconds.\nbuiltin_interfaces/Time stamp\n\n# Transform frame with which this data is associated.\nstring frame_id\n",
+   "hex": "000100006039ce6a15cd5b070900000072776c5f676f6c64004b80a60200000004000000060000006d6f6e6f3800000004000000080000000a141e28323c4650",
+   "expected": {
+    "width": 4,
+    "height": 2,
+    "step": 4,
+    "encoding": "mono8",
+    "data_len": 8,
+    "data_head": [
+     10,
+     20,
+     30,
+     40
+    ],
+    "frame_id": "rwl_gold"
+   }
+  },
+  {
+   "name": "compressed_image",
+   "type": "sensor_msgs/msg/CompressedImage",
+   "schema": "# This message contains a compressed image.\n\nstd_msgs/Header header # Header timestamp should be acquisition time of image\n                             # Header frame_id should be optical frame of camera\n                             # origin of frame should be optical center of cameara\n                             # +x should point to the right in the image\n                             # +y should point down in the image\n                             # +z should point into to plane of the image\n\nstring format                # Specifies the format of the data\n                             # Acceptable values differ by the image transport used:\n                             # - compressed_image_transport:\n                             #     ORIG_PIXFMT; CODEC compressed [COMPRESSED_PIXFMT]\n                             #   where:\n                             #   - ORIG_PIXFMT is pixel format of the raw image, i.e.\n                             #     the content of sensor_msgs/Image/encoding with\n                             #     values from include/sensor_msgs/image_encodings.h\n                             #   - CODEC is one of [jpeg, png, tiff]\n                             #   - COMPRESSED_PIXFMT is only appended for color images\n                             #     and is the pixel format used by the compression\n                             #     algorithm. Valid values for jpeg encoding are:\n                             #     [bgr8, rgb8]. Valid values for png encoding are:\n                             #     [bgr8, rgb8, bgr16, rgb16].\n                             #   If the field is empty or does not correspond to the\n                             #   above pattern, the image is treated as bgr8 or mono8\n                             #   jpeg image (depending on the number of channels).\n                             # - compressed_depth_image_transport:\n                             #     ORIG_PIXFMT; compressedDepth CODEC\n                             #   where:\n                             #   - ORIG_PIXFMT is pixel format of the raw image, i.e.\n                             #     the content of sensor_msgs/Image/encoding with\n                             #     values from include/sensor_msgs/image_encodings.h\n                             #     It is usually one of [16UC1, 32FC1].\n                             #   - CODEC is one of [png, rvl]\n                             #   If the field is empty or does not correspond to the\n                             #   above pattern, the image is treated as png image.\n                             # - Other image transports can store whatever values they\n                             #   need for successful decoding of the image. Refer to\n                             #   documentation of the other transports for details.\n\nuint8[] data                 # Compressed image buffer\n\n================================================================================\nMSG: std_msgs/Header\n# Standard metadata for higher-level stamped data types.\n# This is generally used to communicate timestamped data\n# in a particular coordinate frame.\n\n# Two-integer timestamp that is expressed as seconds and nanoseconds.\nbuiltin_interfaces/Time stamp\n\n# Transform frame with which this data is associated.\nstring frame_id\n",
+   "hex": "000100006039ce6a15cd5b070900000072776c5f676f6c64006f6d70050000006a7065670067655f07000000ffd8010203ffd9",
+   "expected": {
+    "format": "jpeg",
+    "data_len": 7,
+    "data_head": [
+     255,
+     216,
+     1,
+     2,
+     3
+    ]
+   }
+  },
+  {
+   "name": "camera_info",
+   "type": "sensor_msgs/msg/CameraInfo",
+   "schema": "# This message defines meta information for a camera. It should be in a\n# camera namespace on topic \"camera_info\" and accompanied by up to five\n# image topics named:\n#\n#   image_raw - raw data from the camera driver, possibly Bayer encoded\n#   image            - monochrome, distorted\n#   image_color      - color, distorted\n#   image_rect       - monochrome, rectified\n#   image_rect_color - color, rectified\n#\n# The image_pipeline contains packages (image_proc, stereo_image_proc)\n# for producing the four processed image topics from image_raw and\n# camera_info. The meaning of the camera parameters are described in\n# detail at http://www.ros.org/wiki/image_pipeline/CameraInfo.\n#\n# The image_geometry package provides a user-friendly interface to\n# common operations using this meta information. If you want to, e.g.,\n# project a 3d point into image coordinates, we strongly recommend\n# using image_geometry.\n#\n# If the camera is uncalibrated, the matrices D, K, R, P should be left\n# zeroed out. In particular, clients may assume that K[0] == 0.0\n# indicates an uncalibrated camera.\n\n#######################################################################\n#                     Image acquisition info                          #\n#######################################################################\n\n# Time of image acquisition, camera coordinate frame ID\nstd_msgs/Header header # Header timestamp should be acquisition time of image\n                             # Header frame_id should be optical frame of camera\n                             # origin of frame should be optical center of camera\n                             # +x should point to the right in the image\n                             # +y should point down in the image\n                             # +z should point into the plane of the image\n\n\n#######################################################################\n#                      Calibration Parameters                         #\n#######################################################################\n# These are fixed during camera calibration. Their values will be the #\n# same in all messages until the camera is recalibrated. Note that    #\n# self-calibrating systems may \"recalibrate\" frequently.              #\n#                                                                     #\n# The internal parameters can be used to warp a raw (distorted) image #\n# to:                                                                 #\n#   1. An undistorted image (requires D and K)                        #\n#   2. A rectified image (requires D, K, R)                           #\n# The projection matrix P projects 3D points into the rectified image.#\n#######################################################################\n\n# The image dimensions with which the camera was calibrated.\n# Normally this will be the full camera resolution in pixels.\nuint32 height\nuint32 width\n\n# The distortion model used. Supported models are listed in\n# sensor_msgs/distortion_models.hpp. For most cameras, \"plumb_bob\" - a\n# simple model of radial and tangential distortion - is sufficent.\nstring distortion_model\n\n# The distortion parameters, size depending on the distortion model.\n# For \"plumb_bob\", the 5 parameters are: (k1, k2, t1, t2, k3).\nfloat64[] d\n\n# Intrinsic camera matrix for the raw (distorted) images.\n#     [fx  0 cx]\n# K = [ 0 fy cy]\n#     [ 0  0  1]\n# Projects 3D points in the camera coordinate frame to 2D pixel\n# coordinates using the focal lengths (fx, fy) and principal point\n# (cx, cy).\nfloat64[9]  k # 3x3 row-major matrix\n\n# Rectification matrix (stereo cameras only)\n# A rotation matrix aligning the camera coordinate system to the ideal\n# stereo image plane so that epipolar lines in both stereo images are\n# parallel.\nfloat64[9]  r # 3x3 row-major matrix\n\n# Projection/camera matrix\n#     [fx'  0  cx' Tx]\n# P = [ 0  fy' cy' Ty]\n#     [ 0   0   1   0]\n# By convention, this matrix specifies the intrinsic (camera) matrix\n#  of the processed (rectified) image. That is, the left 3x3 portion\n#  is the normal camera intrinsic matrix for the rectified image.\n# It projects 3D points in the camera coordinate frame to 2D pixel\n#  coordinates using the focal lengths (fx', fy') and principal point\n#  (cx', cy') - these may differ from the values in K.\n# For monocular cameras, Tx = Ty = 0. Normally, monocular cameras will\n#  also have R = the identity and P[1:3,1:3] = K.\n# For a stereo pair, the fourth column [Tx Ty 0]' is related to the\n#  position of the optical center of the second camera in the first\n#  camera's frame. We assume Tz = 0 so both cameras are in the same\n#  stereo image plane. The first camera always has Tx = Ty = 0. For\n#  the right (second) camera of a horizontal stereo pair, Ty = 0 and\n#  Tx = -fx' * B, where B is the baseline between the cameras.\n# Given a 3D point [X Y Z]', the projection (x, y) of the point onto\n#  the rectified image is given by:\n#  [u v w]' = P * [X Y Z 1]'\n#         x = u / w\n#         y = v / w\n#  This holds for both images of a stereo pair.\nfloat64[12] p # 3x4 row-major matrix\n\n\n#######################################################################\n#                      Operational Parameters                         #\n#######################################################################\n# These define the image region actually captured by the camera       #\n# driver. Although they affect the geometry of the output image, they #\n# may be changed freely without recalibrating the camera.             #\n#######################################################################\n\n# Binning refers here to any camera setting which combines rectangular\n#  neighborhoods of pixels into larger \"super-pixels.\" It reduces the\n#  resolution of the output image to\n#  (width / binning_x) x (height / binning_y).\n# The default values binning_x = binning_y = 0 is considered the same\n#  as binning_x = binning_y = 1 (no subsampling).\nuint32 binning_x\nuint32 binning_y\n\n# Region of interest (subwindow of full camera resolution), given in\n#  full resolution (unbinned) image coordinates. A particular ROI\n#  always denotes the same window of pixels on the camera sensor,\n#  regardless of binning settings.\n# The default setting of roi (all values 0) is considered the same as\n#  full resolution (roi.width = width, roi.height = height).\nRegionOfInterest roi\n\n================================================================================\nMSG: std_msgs/Header\n# Standard metadata for higher-level stamped data types.\n# This is generally used to communicate timestamped data\n# in a particular coordinate frame.\n\n# Two-integer timestamp that is expressed as seconds and nanoseconds.\nbuiltin_interfaces/Time stamp\n\n# Transform frame with which this data is associated.\nstring frame_id\n\n================================================================================\nMSG: sensor_msgs/RegionOfInterest\n# This message is used to specify a region of interest within an image.\n#\n# When used to specify the ROI setting of the camera when the image was\n# taken, the height and width fields should either match the height and\n# width fields for the associated image; or height = width = 0\n# indicates that the full resolution image was captured.\n\nuint32 x_offset  # Leftmost pixel of the ROI\n                 # (0 if the ROI includes the left edge of the image)\nuint32 y_offset  # Topmost pixel of the ROI\n                 # (0 if the ROI includes the top edge of the image)\nuint32 height    # Height of ROI\nuint32 width     # Width of ROI\n\n# True if a distinct rectified ROI should be calculated from the \"raw\"\n# ROI in this message. Typically this should be False if the full image\n# is captured (ROI not used), and True if a subwindow is captured (ROI\n# used).\nbool do_rectify\n",
+   "hex": "000100006039ce6a15cd5b070900000072776c5f676f6c640070795f30000000400000000a000000706c756d625f626f6200206e020000002072636c000000000000e03f000000000000d0bf000000000000f03f0000000000000000000000000000004000000000000000000000000000000840000000000000104000000000000000000000000000000000000000000000f03f00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+   "expected": {
+    "height": 48,
+    "width": 64,
+    "distortion_model": "plumb_bob",
+    "d": [
+     0.5,
+     -0.25
+    ],
+    "k": [
+     1.0,
+     0.0,
+     2.0,
+     0.0,
+     3.0,
+     4.0,
+     0.0,
+     0.0,
+     1.0
+    ]
+   }
+  },
+  {
+   "name": "pointcloud2",
+   "type": "sensor_msgs/msg/PointCloud2",
+   "schema": "# This message holds a collection of N-dimensional points, which may\n# contain additional information such as normals, intensity, etc. The\n# point data is stored as a binary blob, its layout described by the\n# contents of the \"fields\" array.\n#\n# The point cloud data may be organized 2d (image-like) or 1d (unordered).\n# Point clouds organized as 2d images may be produced by camera depth sensors\n# such as stereo or time-of-flight.\n\n# Time of sensor data acquisition, and the coordinate frame ID (for 3d points).\nstd_msgs/Header header\n\n# 2D structure of the point cloud. If the cloud is unordered, height is\n# 1 and width is the length of the point cloud.\nuint32 height\nuint32 width\n\n# Describes the channels and their layout in the binary data blob.\nPointField[] fields\n\nbool    is_bigendian # Is this data bigendian?\nuint32  point_step   # Length of a point in bytes\nuint32  row_step     # Length of a row in bytes\nuint8[] data         # Actual point data, size is (row_step*height)\n\nbool is_dense        # True if there are no invalid points\n\n================================================================================\nMSG: std_msgs/Header\n# Standard metadata for higher-level stamped data types.\n# This is generally used to communicate timestamped data\n# in a particular coordinate frame.\n\n# Two-integer timestamp that is expressed as seconds and nanoseconds.\nbuiltin_interfaces/Time stamp\n\n# Transform frame with which this data is associated.\nstring frame_id\n\n================================================================================\nMSG: sensor_msgs/PointField\n# This message holds the description of one point entry in the\n# PointCloud2 message format.\nuint8 INT8    = 1\nuint8 UINT8   = 2\nuint8 INT16   = 3\nuint8 UINT16  = 4\nuint8 INT32   = 5\nuint8 UINT32  = 6\nuint8 FLOAT32 = 7\nuint8 FLOAT64 = 8\n\n# Common PointField names are x, y, z, intensity, rgb, rgba\nstring name      # Name of field\nuint32 offset    # Offset from start of point struct\nuint8  datatype  # Datatype enumeration, see above\nuint32 count     # How many elements in the field\n",
+   "hex": "000100006039ce6a15cd5b070900000072776c5f676f6c64000000000100000003000000030000000200000078000000000000000700000001000000020000007900000004000000079e541701000000020000007a000000080000000700000001000000000000000c000000240000002400000000000000000000000000003f0000803f000000400000003f00000040000080400000003f00",
+   "expected": {
+    "width": 3,
+    "height": 1,
+    "point_step": 12,
+    "fields": [
+     {
+      "name": "x",
+      "offset": 0,
+      "datatype": 7,
+      "count": 1
+     },
+     {
+      "name": "y",
+      "offset": 4,
+      "datatype": 7,
+      "count": 1
+     },
+     {
+      "name": "z",
+      "offset": 8,
+      "datatype": 7,
+      "count": 1
+     }
+    ],
+    "data_len": 36,
+    "first_point_xyz": [
+     0.0,
+     0.0,
+     0.5
+    ],
+    "third_point_xyz": [
+     2.0,
+     4.0,
+     0.5
+    ]
+   }
+  },
+  {
+   "name": "laserscan",
+   "type": "sensor_msgs/msg/LaserScan",
+   "schema": "# Single scan from a planar laser range-finder\n#\n# If you have another ranging device with different behavior (e.g. a sonar\n# array), please find or create a different message, since applications\n# will make fairly laser-specific assumptions about this data\n\nstd_msgs/Header header # timestamp in the header is the acquisition time of\n                             # the first ray in the scan.\n                             #\n                             # in frame frame_id, angles are measured around\n                             # the positive Z axis (counterclockwise, if Z is up)\n                             # with zero angle being forward along the x axis\n\nfloat32 angle_min            # start angle of the scan [rad]\nfloat32 angle_max            # end angle of the scan [rad]\nfloat32 angle_increment      # angular distance between measurements [rad]\n\nfloat32 time_increment       # time between measurements [seconds] - if your scanner\n                             # is moving, this will be used in interpolating position\n                             # of 3d points\nfloat32 scan_time            # time between scans [seconds]\n\nfloat32 range_min            # minimum range value [m]\nfloat32 range_max            # maximum range value [m]\n\nfloat32[] ranges             # range data [m]\n                             # (Note: values < range_min or > range_max should be discarded)\nfloat32[] intensities        # intensity data [device-specific units].  If your\n                             # device does not provide intensities, please leave\n                             # the array empty.\n\n================================================================================\nMSG: std_msgs/Header\n# Standard metadata for higher-level stamped data types.\n# This is generally used to communicate timestamped data\n# in a particular coordinate frame.\n\n# Two-integer timestamp that is expressed as seconds and nanoseconds.\nbuiltin_interfaces/Time stamp\n\n# Transform frame with which this data is associated.\nstring frame_id\n",
+   "hex": "000100006039ce6a15cd5b070900000072776c5f676f6c6400000000000080bf0000803f0000003f0000000000000000cdcccc3d00002041030000000000807f0000c03f000020400300000000000000000020410000a041",
+   "expected": {
+    "range_min": 0.1,
+    "ranges_len": 3,
+    "ranges1": 1.5,
+    "ranges2": 2.5,
+    "ranges0_inf": true,
+    "intensities": [
+     0.0,
+     10.0,
+     20.0
+    ]
+   }
+  },
+  {
+   "name": "range",
+   "type": "sensor_msgs/msg/Range",
+   "schema": "# Single range reading from an active ranger that emits energy and reports\n# one range reading that is valid along an arc at the distance measured.\n# This message is  not appropriate for laser scanners. See the LaserScan\n# message if you are working with a laser scanner.\n#\n# This message also can represent a fixed-distance (binary) ranger.  This\n# sensor will have min_range===max_range===distance of detection.\n# These sensors follow REP 117 and will output -Inf if the object is detected\n# and +Inf if the object is outside of the detection range.\n\nstd_msgs/Header header # timestamp in the header is the time the ranger\n                             # returned the distance reading\n\n# Radiation type enums\n# If you want a value added to this list, send an email to the ros-users list\nuint8 ULTRASOUND=0\nuint8 INFRARED=1\n\nuint8 radiation_type    # the type of radiation used by the sensor\n                        # (sound, IR, etc) [enum]\n\nfloat32 field_of_view   # the size of the arc that the distance reading is\n                        # valid for [rad]\n                        # the object causing the range reading may have\n                        # been anywhere within -field_of_view/2 and\n                        # field_of_view/2 at the measured range.\n                        # 0 angle corresponds to the x-axis of the sensor.\n\nfloat32 min_range       # minimum range value [m]\nfloat32 max_range       # maximum range value [m]\n                        # Fixed distance rangers require min_range==max_range\n\nfloat32 range           # range data [m]\n                        # (Note: values < range_min or > range_max should be discarded)\n                        # Fixed distance rangers only output -Inf or +Inf.\n                        # -Inf represents a detection within fixed distance.\n                        # (Detection too close to the sensor to quantify)\n                        # +Inf represents no detection within the fixed distance.\n                        # (Object out of range)\n\nfloat32 variance        # variance of the range sensor\n                        # 0 is interpreted as variance unknown\n\n================================================================================\nMSG: std_msgs/Header\n# Standard metadata for higher-level stamped data types.\n# This is generally used to communicate timestamped data\n# in a particular coordinate frame.\n\n# Two-integer timestamp that is expressed as seconds and nanoseconds.\nbuiltin_interfaces/Time stamp\n\n# Transform frame with which this data is associated.\nstring frame_id\n",
+   "hex": "000100006039ce6a15cd5b070900000072776c5f676f6c64000165730000803ecdcccc3d0000a0400000304000000000",
+   "expected": {
+    "radiation_type": 1,
+    "field_of_view": 0.25,
+    "range": 2.75
+   }
+  },
+  {
+   "name": "odometry",
+   "type": "nav_msgs/msg/Odometry",
+   "schema": "# This represents an estimate of a position and velocity in free space.\n# The pose in this message should be specified in the coordinate frame given by header.frame_id\n# The twist in this message should be specified in the coordinate frame given by the child_frame_id\n\n# Includes the frame id of the pose parent.\nstd_msgs/Header header\n\n# Frame id the pose points to. The twist is in this coordinate frame.\nstring child_frame_id\n\n# Estimated pose that is typically relative to a fixed world frame.\ngeometry_msgs/PoseWithCovariance pose\n\n# Estimated linear and angular velocity relative to child_frame_id.\ngeometry_msgs/TwistWithCovariance twist\n\n================================================================================\nMSG: std_msgs/Header\n# Standard metadata for higher-level stamped data types.\n# This is generally used to communicate timestamped data\n# in a particular coordinate frame.\n\n# Two-integer timestamp that is expressed as seconds and nanoseconds.\nbuiltin_interfaces/Time stamp\n\n# Transform frame with which this data is associated.\nstring frame_id\n\n================================================================================\nMSG: geometry_msgs/PoseWithCovariance\n# This represents a pose in free space with uncertainty.\n\nPose pose\n\n# Row-major representation of the 6x6 covariance matrix\n# The orientation parameters use a fixed-axis representation.\n# In order, the parameters are:\n# (x, y, z, rotation about X axis, rotation about Y axis, rotation about Z axis)\nfloat64[36] covariance\n\n================================================================================\nMSG: geometry_msgs/Pose\n# A representation of pose in free space, composed of position and orientation.\n\nPoint position\nQuaternion orientation\n\n================================================================================\nMSG: geometry_msgs/Point\n# This contains the position of a point in free space\nfloat64 x\nfloat64 y\nfloat64 z\n\n================================================================================\nMSG: geometry_msgs/Quaternion\n# This represents an orientation in free space in quaternion form.\n\nfloat64 x 0\nfloat64 y 0\nfloat64 z 0\nfloat64 w 1\n\n================================================================================\nMSG: geometry_msgs/TwistWithCovariance\n# This expresses velocity in free space with uncertainty.\n\nTwist twist\n\n# Row-major representation of the 6x6 covariance matrix\n# The orientation parameters use a fixed-axis representation.\n# In order, the parameters are:\n# (x, y, z, rotation about X axis, rotation about Y axis, rotation about Z axis)\nfloat64[36] covariance\n\n================================================================================\nMSG: geometry_msgs/Twist\n# This expresses velocity in free space broken into its linear and angular parts.\n\nVector3  linear\nVector3  angular\n\n================================================================================\nMSG: geometry_msgs/Vector3\n# This represents a vector in free space.\n\n# This is semantically different than a point.\n# A vector is always anchored at the origin.\n# When a transform is applied to a vector, only the rotational component is applied.\n\nfloat64 x\nfloat64 y\nfloat64 z\n",
+   "hex": "000100006039ce6a15cd5b070900000072776c5f676f6c6400356b17050000006261736500760000809fc3a1000000000000f43f0000000000000cc00000000000000000000000000000000000000000000000000000000000000000000000000000f03f7b14ae47e17a843f0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000007b14ae47e17a943f0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000e03f00000000000000000000000000000000000000000000000000000000000000009a9999999999b9bf00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000b81e85eb51b89e3f",
+   "expected": {
+    "child_frame_id": "base",
+    "position": [
+     1.25,
+     -3.5,
+     0.0
+    ],
+    "pose_cov0": 0.01,
+    "pose_cov7": 0.02,
+    "pose_cov35": 0.0,
+    "twist": [
+     0.5,
+     0.0,
+     0.0,
+     0.0,
+     0.0,
+     -0.1
+    ],
+    "twist_cov35": 0.03
+   }
+  },
+  {
+   "name": "path",
+   "type": "nav_msgs/msg/Path",
+   "schema": "# An array of poses that represents a Path for a robot to follow.\n\n# Indicates the frame_id of the path.\nstd_msgs/Header header\n\n# Array of poses to follow.\ngeometry_msgs/PoseStamped[] poses\n\n================================================================================\nMSG: std_msgs/Header\n# Standard metadata for higher-level stamped data types.\n# This is generally used to communicate timestamped data\n# in a particular coordinate frame.\n\n# Two-integer timestamp that is expressed as seconds and nanoseconds.\nbuiltin_interfaces/Time stamp\n\n# Transform frame with which this data is associated.\nstring frame_id\n\n================================================================================\nMSG: geometry_msgs/PoseStamped\n# A Pose with reference coordinate frame and timestamp\n\nstd_msgs/Header header\nPose pose\n\n================================================================================\nMSG: geometry_msgs/Pose\n# A representation of pose in free space, composed of position and orientation.\n\nPoint position\nQuaternion orientation\n\n================================================================================\nMSG: geometry_msgs/Point\n# This contains the position of a point in free space\nfloat64 x\nfloat64 y\nfloat64 z\n\n================================================================================\nMSG: geometry_msgs/Quaternion\n# This represents an orientation in free space in quaternion form.\n\nfloat64 x 0\nfloat64 y 0\nfloat64 z 0\nfloat64 w 1\n",
+   "hex": "000100006039ce6a15cd5b070900000072776c5f676f6c6400320617020000006039ce6a15cd5b070900000072776c5f676f6c6400760000ffffffff000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000f03f6039ce6a15cd5b070900000072776c5f676f6c6400000000000000000000f03f00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000f03f",
+   "expected": {
+    "poses_len": 2,
+    "pose0_x": 0.0,
+    "pose1_x": 1.0
+   }
+  },
+  {
+   "name": "pose_array",
+   "type": "geometry_msgs/msg/PoseArray",
+   "schema": "# An array of poses with a header for global reference.\n\nstd_msgs/Header header\n\nPose[] poses\n\n================================================================================\nMSG: std_msgs/Header\n# Standard metadata for higher-level stamped data types.\n# This is generally used to communicate timestamped data\n# in a particular coordinate frame.\n\n# Two-integer timestamp that is expressed as seconds and nanoseconds.\nbuiltin_interfaces/Time stamp\n\n# Transform frame with which this data is associated.\nstring frame_id\n\n================================================================================\nMSG: geometry_msgs/Pose\n# A representation of pose in free space, composed of position and orientation.\n\nPoint position\nQuaternion orientation\n\n================================================================================\nMSG: geometry_msgs/Point\n# This contains the position of a point in free space\nfloat64 x\nfloat64 y\nfloat64 z\n\n================================================================================\nMSG: geometry_msgs/Quaternion\n# This represents an orientation in free space in quaternion form.\n\nfloat64 x 0\nfloat64 y 0\nfloat64 z 0\nfloat64 w 1\n",
+   "hex": "000100006039ce6a15cd5b070900000072776c5f676f6c6400000000020000000000000000000000000000000000000000000000000000000000f03f000000000000000000000000000000000000000000000000000000000000f03f000000000000000000000000000000000000000000000040000000000000000000000000000000000000000000000000000000000000f03f",
+   "expected": {
+    "poses_len": 2,
+    "pose0_z": 1.0,
+    "pose1_z": 2.0
+   }
+  },
+  {
+   "name": "pose_stamped",
+   "type": "geometry_msgs/msg/PoseStamped",
+   "schema": "# A Pose with reference coordinate frame and timestamp\n\nstd_msgs/Header header\nPose pose\n\n================================================================================\nMSG: std_msgs/Header\n# Standard metadata for higher-level stamped data types.\n# This is generally used to communicate timestamped data\n# in a particular coordinate frame.\n\n# Two-integer timestamp that is expressed as seconds and nanoseconds.\nbuiltin_interfaces/Time stamp\n\n# Transform frame with which this data is associated.\nstring frame_id\n\n================================================================================\nMSG: geometry_msgs/Pose\n# A representation of pose in free space, composed of position and orientation.\n\nPoint position\nQuaternion orientation\n\n================================================================================\nMSG: geometry_msgs/Point\n# This contains the position of a point in free space\nfloat64 x\nfloat64 y\nfloat64 z\n\n================================================================================\nMSG: geometry_msgs/Quaternion\n# This represents an orientation in free space in quaternion form.\n\nfloat64 x 0\nfloat64 y 0\nfloat64 z 0\nfloat64 w 1\n",
+   "hex": "000100006039ce6a15cd5b070900000072776c5f676f6c6400000000333333333333d33f9a9999999999d93f000000000000e03f000000000000000000000000000000000000000000000000000000000000f03f",
+   "expected": {
+    "position": [
+     0.3,
+     0.4,
+     0.5
+    ]
+   }
+  },
+  {
+   "name": "pose_cov",
+   "type": "geometry_msgs/msg/PoseWithCovarianceStamped",
+   "schema": "# This expresses an estimated pose with a reference coordinate frame and timestamp\n\nstd_msgs/Header header\nPoseWithCovariance pose\n\n================================================================================\nMSG: std_msgs/Header\n# Standard metadata for higher-level stamped data types.\n# This is generally used to communicate timestamped data\n# in a particular coordinate frame.\n\n# Two-integer timestamp that is expressed as seconds and nanoseconds.\nbuiltin_interfaces/Time stamp\n\n# Transform frame with which this data is associated.\nstring frame_id\n\n================================================================================\nMSG: geometry_msgs/PoseWithCovariance\n# This represents a pose in free space with uncertainty.\n\nPose pose\n\n# Row-major representation of the 6x6 covariance matrix\n# The orientation parameters use a fixed-axis representation.\n# In order, the parameters are:\n# (x, y, z, rotation about X axis, rotation about Y axis, rotation about Z axis)\nfloat64[36] covariance\n\n================================================================================\nMSG: geometry_msgs/Pose\n# A representation of pose in free space, composed of position and orientation.\n\nPoint position\nQuaternion orientation\n\n================================================================================\nMSG: geometry_msgs/Point\n# This contains the position of a point in free space\nfloat64 x\nfloat64 y\nfloat64 z\n\n================================================================================\nMSG: geometry_msgs/Quaternion\n# This represents an orientation in free space in quaternion form.\n\nfloat64 x 0\nfloat64 y 0\nfloat64 z 0\nfloat64 w 1\n",
+   "hex": "000100006039ce6a15cd5b070900000072776c5f676f6c6400bb8f40333333333333e3bf00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000f03f7b14ae47e17aa43fb81e85eb51b88e3f000000000000000000000000000000000000000000000000000000000000000000000000000000007b14ae47e17a843f0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+   "expected": {
+    "position": [
+     -0.6,
+     0.0,
+     0.0
+    ],
+    "cov0": 0.04,
+    "cov1": 0.015,
+    "cov7": 0.01,
+    "cov35": 0.0
+   }
+  },
+  {
+   "name": "wrench",
+   "type": "geometry_msgs/msg/WrenchStamped",
+   "schema": "# A wrench with reference coordinate frame and timestamp\n\nstd_msgs/Header header\nWrench wrench\n\n================================================================================\nMSG: std_msgs/Header\n# Standard metadata for higher-level stamped data types.\n# This is generally used to communicate timestamped data\n# in a particular coordinate frame.\n\n# Two-integer timestamp that is expressed as seconds and nanoseconds.\nbuiltin_interfaces/Time stamp\n\n# Transform frame with which this data is associated.\nstring frame_id\n\n================================================================================\nMSG: geometry_msgs/Wrench\n# This represents force in free space, separated into its linear and angular parts.\n\nVector3  force\nVector3  torque\n\n================================================================================\nMSG: geometry_msgs/Vector3\n# This represents a vector in free space.\n\n# This is semantically different than a point.\n# A vector is always anchored at the origin.\n# When a transform is applied to a vector, only the rotational component is applied.\n\nfloat64 x\nfloat64 y\nfloat64 z\n",
+   "hex": "000100006039ce6a15cd5b070900000072776c5f676f6c6400000000000000000000f83f0000000000000000000000000000000000000000000000000000000000000000000000000000d0bf",
+   "expected": {
+    "force": [
+     1.5,
+     0.0,
+     0.0
+    ],
+    "torque": [
+     0.0,
+     0.0,
+     -0.25
+    ]
+   }
+  },
+  {
+   "name": "marker",
+   "type": "visualization_msgs/msg/Marker",
+   "schema": "# See:\n#  - http://www.ros.org/wiki/rviz/DisplayTypes/Marker\n#  - http://www.ros.org/wiki/rviz/Tutorials/Markers%3A%20Basic%20Shapes\n#\n# for more information on using this message with rviz.\n\nint32 ARROW=0\nint32 CUBE=1\nint32 SPHERE=2\nint32 CYLINDER=3\nint32 LINE_STRIP=4\nint32 LINE_LIST=5\nint32 CUBE_LIST=6\nint32 SPHERE_LIST=7\nint32 POINTS=8\nint32 TEXT_VIEW_FACING=9\nint32 MESH_RESOURCE=10\nint32 TRIANGLE_LIST=11\nint32 ARROW_STRIP=12\n\nint32 ADD=0\nint32 MODIFY=0\nint32 DELETE=2\nint32 DELETEALL=3\n\n# Header for timestamp and frame id.\nstd_msgs/Header header\n# Namespace in which to place the object.\n# Used in conjunction with id to create a unique name for the object.\nstring ns\n# Object ID used in conjunction with the namespace for manipulating and deleting the object later.\nint32 id\n# Type of object.\nint32 type\n# Action to take; one of:\n#  - 0 add/modify an object\n#  - 1 (deprecated)\n#  - 2 deletes an object (with the given ns and id)\n#  - 3 deletes all objects (or those with the given ns if any)\nint32 action\n# Pose of the object with respect the frame_id specified in the header.\ngeometry_msgs/Pose pose\n# Scale of the object; 1,1,1 means default (usually 1 meter square).\ngeometry_msgs/Vector3 scale\n# Color of the object; in the range: [0.0-1.0]\nstd_msgs/ColorRGBA color\n# How long the object should last before being automatically deleted.\n# 0 indicates forever.\nbuiltin_interfaces/Duration lifetime\n# If this marker should be frame-locked, i.e. retransformed into its frame every timestep.\nbool frame_locked\n\n# Only used if the type specified has some use for them (eg. POINTS, LINE_STRIP, ARROW_STRIP, etc.)\ngeometry_msgs/Point[] points\n# Only used if the type specified has some use for them (eg. POINTS, LINE_STRIP, etc.)\n# The number of colors provided must either be 0 or equal to the number of points provided.\n# NOTE: alpha is not yet used\nstd_msgs/ColorRGBA[] colors\n\n# Texture resource is a special URI that can either reference a texture file in\n# a format acceptable to (resource retriever)[https://docs.ros.org/en/rolling/p/resource_retriever/]\n# or an embedded texture via a string matching the format:\n#   \"embedded://texture_name\"\nstring texture_resource\n# An image to be loaded into the rendering engine as the texture for this marker.\n# This will be used iff texture_resource is set to embedded.\nsensor_msgs/CompressedImage texture\n# Location of each vertex within the texture; in the range: [0.0-1.0]\nUVCoordinate[] uv_coordinates\n\n# Only used for text markers\nstring text\n\n# Only used for MESH_RESOURCE markers.\n# Similar to texture_resource, mesh_resource uses resource retriever to load a mesh.\n# Optionally, a mesh file can be sent in-message via the mesh_file field. If doing so,\n# use the following format for mesh_resource:\n#   \"embedded://mesh_name\"\nstring mesh_resource\nMeshFile mesh_file\nbool mesh_use_embedded_materials\n\n================================================================================\nMSG: std_msgs/Header\n# Standard metadata for higher-level stamped data types.\n# This is generally used to communicate timestamped data\n# in a particular coordinate frame.\n\n# Two-integer timestamp that is expressed as seconds and nanoseconds.\nbuiltin_interfaces/Time stamp\n\n# Transform frame with which this data is associated.\nstring frame_id\n\n================================================================================\nMSG: geometry_msgs/Pose\n# A representation of pose in free space, composed of position and orientation.\n\nPoint position\nQuaternion orientation\n\n================================================================================\nMSG: geometry_msgs/Point\n# This contains the position of a point in free space\nfloat64 x\nfloat64 y\nfloat64 z\n\n================================================================================\nMSG: geometry_msgs/Quaternion\n# This represents an orientation in free space in quaternion form.\n\nfloat64 x 0\nfloat64 y 0\nfloat64 z 0\nfloat64 w 1\n\n================================================================================\nMSG: geometry_msgs/Vector3\n# This represents a vector in free space.\n\n# This is semantically different than a point.\n# A vector is always anchored at the origin.\n# When a transform is applied to a vector, only the rotational component is applied.\n\nfloat64 x\nfloat64 y\nfloat64 z\n\n================================================================================\nMSG: std_msgs/ColorRGBA\nfloat32 r\nfloat32 g\nfloat32 b\nfloat32 a\n\n================================================================================\nMSG: sensor_msgs/CompressedImage\n# This message contains a compressed image.\n\nstd_msgs/Header header # Header timestamp should be acquisition time of image\n                             # Header frame_id should be optical frame of camera\n                             # origin of frame should be optical center of cameara\n                             # +x should point to the right in the image\n                             # +y should point down in the image\n                             # +z should point into to plane of the image\n\nstring format                # Specifies the format of the data\n                             # Acceptable values differ by the image transport used:\n                             # - compressed_image_transport:\n                             #     ORIG_PIXFMT; CODEC compressed [COMPRESSED_PIXFMT]\n                             #   where:\n                             #   - ORIG_PIXFMT is pixel format of the raw image, i.e.\n                             #     the content of sensor_msgs/Image/encoding with\n                             #     values from include/sensor_msgs/image_encodings.h\n                             #   - CODEC is one of [jpeg, png, tiff]\n                             #   - COMPRESSED_PIXFMT is only appended for color images\n                             #     and is the pixel format used by the compression\n                             #     algorithm. Valid values for jpeg encoding are:\n                             #     [bgr8, rgb8]. Valid values for png encoding are:\n                             #     [bgr8, rgb8, bgr16, rgb16].\n                             #   If the field is empty or does not correspond to the\n                             #   above pattern, the image is treated as bgr8 or mono8\n                             #   jpeg image (depending on the number of channels).\n                             # - compressed_depth_image_transport:\n                             #     ORIG_PIXFMT; compressedDepth CODEC\n                             #   where:\n                             #   - ORIG_PIXFMT is pixel format of the raw image, i.e.\n                             #     the content of sensor_msgs/Image/encoding with\n                             #     values from include/sensor_msgs/image_encodings.h\n                             #     It is usually one of [16UC1, 32FC1].\n                             #   - CODEC is one of [png, rvl]\n                             #   If the field is empty or does not correspond to the\n                             #   above pattern, the image is treated as png image.\n                             # - Other image transports can store whatever values they\n                             #   need for successful decoding of the image. Refer to\n                             #   documentation of the other transports for details.\n\nuint8[] data                 # Compressed image buffer\n\n================================================================================\nMSG: visualization_msgs/UVCoordinate\n# Location of the pixel as a ratio of the width of a 2D texture.\n# Values should be in range: [0.0-1.0].\nfloat32 u\nfloat32 v\n\n================================================================================\nMSG: visualization_msgs/MeshFile\n# Used to send raw mesh files.\n\n# The filename is used for both debug purposes and to provide a file extension\n# for whatever parser is used.\nstring filename\n\n# This stores the raw text of the mesh file.\nuint8[] data\n",
+   "hex": "000100006039ce6a15cd5b070900000072776c5f676f6c64002149f705000000676f6c6400027c01070000000700000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000f03f9a9999999999b93f9a9999999999b93f9a9999999999b93f0000000000000000000000000000000000000000000000000005740a02000000000000000000f03f00000000000000000000000000000000000000000000004000000000000000000000000000000000010000000000803f00000000000000000000003f0100000000000000000000000000000001000000000100000100000000010000000000000000000001000000000000000100000000053c000100000000007c020000000000",
+   "expected": {
+    "ns": "gold",
+    "id": 7,
+    "type": 7,
+    "action": 0,
+    "points": [
+     [
+      1.0,
+      0.0,
+      0.0
+     ],
+     [
+      2.0,
+      0.0,
+      0.0
+     ]
+    ],
+    "colors": [
+     {
+      "r": 1.0,
+      "a": 0.5
+     }
+    ]
+   }
+  },
+  {
+   "name": "marker_array",
+   "type": "visualization_msgs/msg/MarkerArray",
+   "schema": "Marker[] markers\n\n================================================================================\nMSG: visualization_msgs/Marker\n# See:\n#  - http://www.ros.org/wiki/rviz/DisplayTypes/Marker\n#  - http://www.ros.org/wiki/rviz/Tutorials/Markers%3A%20Basic%20Shapes\n#\n# for more information on using this message with rviz.\n\nint32 ARROW=0\nint32 CUBE=1\nint32 SPHERE=2\nint32 CYLINDER=3\nint32 LINE_STRIP=4\nint32 LINE_LIST=5\nint32 CUBE_LIST=6\nint32 SPHERE_LIST=7\nint32 POINTS=8\nint32 TEXT_VIEW_FACING=9\nint32 MESH_RESOURCE=10\nint32 TRIANGLE_LIST=11\nint32 ARROW_STRIP=12\n\nint32 ADD=0\nint32 MODIFY=0\nint32 DELETE=2\nint32 DELETEALL=3\n\n# Header for timestamp and frame id.\nstd_msgs/Header header\n# Namespace in which to place the object.\n# Used in conjunction with id to create a unique name for the object.\nstring ns\n# Object ID used in conjunction with the namespace for manipulating and deleting the object later.\nint32 id\n# Type of object.\nint32 type\n# Action to take; one of:\n#  - 0 add/modify an object\n#  - 1 (deprecated)\n#  - 2 deletes an object (with the given ns and id)\n#  - 3 deletes all objects (or those with the given ns if any)\nint32 action\n# Pose of the object with respect the frame_id specified in the header.\ngeometry_msgs/Pose pose\n# Scale of the object; 1,1,1 means default (usually 1 meter square).\ngeometry_msgs/Vector3 scale\n# Color of the object; in the range: [0.0-1.0]\nstd_msgs/ColorRGBA color\n# How long the object should last before being automatically deleted.\n# 0 indicates forever.\nbuiltin_interfaces/Duration lifetime\n# If this marker should be frame-locked, i.e. retransformed into its frame every timestep.\nbool frame_locked\n\n# Only used if the type specified has some use for them (eg. POINTS, LINE_STRIP, ARROW_STRIP, etc.)\ngeometry_msgs/Point[] points\n# Only used if the type specified has some use for them (eg. POINTS, LINE_STRIP, etc.)\n# The number of colors provided must either be 0 or equal to the number of points provided.\n# NOTE: alpha is not yet used\nstd_msgs/ColorRGBA[] colors\n\n# Texture resource is a special URI that can either reference a texture file in\n# a format acceptable to (resource retriever)[https://docs.ros.org/en/rolling/p/resource_retriever/]\n# or an embedded texture via a string matching the format:\n#   \"embedded://texture_name\"\nstring texture_resource\n# An image to be loaded into the rendering engine as the texture for this marker.\n# This will be used iff texture_resource is set to embedded.\nsensor_msgs/CompressedImage texture\n# Location of each vertex within the texture; in the range: [0.0-1.0]\nUVCoordinate[] uv_coordinates\n\n# Only used for text markers\nstring text\n\n# Only used for MESH_RESOURCE markers.\n# Similar to texture_resource, mesh_resource uses resource retriever to load a mesh.\n# Optionally, a mesh file can be sent in-message via the mesh_file field. If doing so,\n# use the following format for mesh_resource:\n#   \"embedded://mesh_name\"\nstring mesh_resource\nMeshFile mesh_file\nbool mesh_use_embedded_materials\n\n================================================================================\nMSG: std_msgs/Header\n# Standard metadata for higher-level stamped data types.\n# This is generally used to communicate timestamped data\n# in a particular coordinate frame.\n\n# Two-integer timestamp that is expressed as seconds and nanoseconds.\nbuiltin_interfaces/Time stamp\n\n# Transform frame with which this data is associated.\nstring frame_id\n\n================================================================================\nMSG: geometry_msgs/Pose\n# A representation of pose in free space, composed of position and orientation.\n\nPoint position\nQuaternion orientation\n\n================================================================================\nMSG: geometry_msgs/Point\n# This contains the position of a point in free space\nfloat64 x\nfloat64 y\nfloat64 z\n\n================================================================================\nMSG: geometry_msgs/Quaternion\n# This represents an orientation in free space in quaternion form.\n\nfloat64 x 0\nfloat64 y 0\nfloat64 z 0\nfloat64 w 1\n\n================================================================================\nMSG: geometry_msgs/Vector3\n# This represents a vector in free space.\n\n# This is semantically different than a point.\n# A vector is always anchored at the origin.\n# When a transform is applied to a vector, only the rotational component is applied.\n\nfloat64 x\nfloat64 y\nfloat64 z\n\n================================================================================\nMSG: std_msgs/ColorRGBA\nfloat32 r\nfloat32 g\nfloat32 b\nfloat32 a\n\n================================================================================\nMSG: sensor_msgs/CompressedImage\n# This message contains a compressed image.\n\nstd_msgs/Header header # Header timestamp should be acquisition time of image\n                             # Header frame_id should be optical frame of camera\n                             # origin of frame should be optical center of cameara\n                             # +x should point to the right in the image\n                             # +y should point down in the image\n                             # +z should point into to plane of the image\n\nstring format                # Specifies the format of the data\n                             # Acceptable values differ by the image transport used:\n                             # - compressed_image_transport:\n                             #     ORIG_PIXFMT; CODEC compressed [COMPRESSED_PIXFMT]\n                             #   where:\n                             #   - ORIG_PIXFMT is pixel format of the raw image, i.e.\n                             #     the content of sensor_msgs/Image/encoding with\n                             #     values from include/sensor_msgs/image_encodings.h\n                             #   - CODEC is one of [jpeg, png, tiff]\n                             #   - COMPRESSED_PIXFMT is only appended for color images\n                             #     and is the pixel format used by the compression\n                             #     algorithm. Valid values for jpeg encoding are:\n                             #     [bgr8, rgb8]. Valid values for png encoding are:\n                             #     [bgr8, rgb8, bgr16, rgb16].\n                             #   If the field is empty or does not correspond to the\n                             #   above pattern, the image is treated as bgr8 or mono8\n                             #   jpeg image (depending on the number of channels).\n                             # - compressed_depth_image_transport:\n                             #     ORIG_PIXFMT; compressedDepth CODEC\n                             #   where:\n                             #   - ORIG_PIXFMT is pixel format of the raw image, i.e.\n                             #     the content of sensor_msgs/Image/encoding with\n                             #     values from include/sensor_msgs/image_encodings.h\n                             #     It is usually one of [16UC1, 32FC1].\n                             #   - CODEC is one of [png, rvl]\n                             #   If the field is empty or does not correspond to the\n                             #   above pattern, the image is treated as png image.\n                             # - Other image transports can store whatever values they\n                             #   need for successful decoding of the image. Refer to\n                             #   documentation of the other transports for details.\n\nuint8[] data                 # Compressed image buffer\n\n================================================================================\nMSG: visualization_msgs/UVCoordinate\n# Location of the pixel as a ratio of the width of a 2D texture.\n# Values should be in range: [0.0-1.0].\nfloat32 u\nfloat32 v\n\n================================================================================\nMSG: visualization_msgs/MeshFile\n# Used to send raw mesh files.\n\n# The filename is used for both debug purposes and to provide a file extension\n# for whatever parser is used.\nstring filename\n\n# This stores the raw text of the mesh file.\nuint8[] data\n",
+   "hex": "00010000010000006039ce6a15cd5b070900000072776c5f676f6c64000000000300000067310001010000000100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000f03f0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000100000000137d0500000000000000000100000000000000010000000000000000000000000000000c000000e4bda0e5a5bd20676f6c6400010000000000000001000000000000000000000000",
+   "expected": {
+    "markers_len": 1,
+    "m0_ns": "g1",
+    "m0_type": 1,
+    "m0_text": "你好 gold"
+   }
+  },
+  {
+   "name": "diagnostics",
+   "type": "diagnostic_msgs/msg/DiagnosticArray",
+   "schema": "# This message is used to send diagnostic information about the state of the robot.\nstd_msgs/Header header # for timestamp\nDiagnosticStatus[] status # an array of components being reported on\n\n================================================================================\nMSG: std_msgs/Header\n# Standard metadata for higher-level stamped data types.\n# This is generally used to communicate timestamped data\n# in a particular coordinate frame.\n\n# Two-integer timestamp that is expressed as seconds and nanoseconds.\nbuiltin_interfaces/Time stamp\n\n# Transform frame with which this data is associated.\nstring frame_id\n\n================================================================================\nMSG: diagnostic_msgs/DiagnosticStatus\n# This message holds the status of an individual component of the robot.\n\n# Possible levels of operations.\nbyte OK=0\nbyte WARN=1\nbyte ERROR=2\nbyte STALE=3\n\n# Level of operation enumerated above.\nbyte level\n# A description of the test/component reporting.\nstring name\n# A description of the status.\nstring message\n# A hardware unique string.\nstring hardware_id\n# An array of values associated with the status.\nKeyValue[] values\n\n\n================================================================================\nMSG: diagnostic_msgs/KeyValue\n# What to label this value when viewing.\nstring key\n# A value to track over time.\nstring value\n",
+   "hex": "000100006039ce6a15cd5b070900000072776c5f676f6c640068203d010000000020202009000000672f73746174757300696c65030000006f6b0073010000000020202001000000020000006b006c73020000007600",
+   "expected": {
+    "status_len": 1,
+    "name": "g/status",
+    "level": 0,
+    "message": "ok",
+    "values": [
+     {
+      "key": "k",
+      "value": "v"
+     }
+    ]
+   }
+  },
+  {
+   "name": "joint_state",
+   "type": "sensor_msgs/msg/JointState",
+   "schema": "# This is a message that holds data to describe the state of a set of torque controlled joints.\n#\n# The state of each joint (revolute or prismatic) is defined by:\n#  * the position of the joint (rad or m),\n#  * the velocity of the joint (rad/s or m/s) and\n#  * the effort that is applied in the joint (Nm or N).\n#\n# Each joint is uniquely identified by its name\n# The header specifies the time at which the joint states were recorded. All the joint states\n# in one message have to be recorded at the same time.\n#\n# This message consists of a multiple arrays, one for each part of the joint state.\n# The goal is to make each of the fields optional. When e.g. your joints have no\n# effort associated with them, you can leave the effort array empty.\n#\n# All arrays in this message should have the same size, or be empty.\n# This is the only way to uniquely associate the joint name with the correct\n# states.\n\nstd_msgs/Header header\n\nstring[] name\nfloat64[] position\nfloat64[] velocity\nfloat64[] effort\n\n================================================================================\nMSG: std_msgs/Header\n# Standard metadata for higher-level stamped data types.\n# This is generally used to communicate timestamped data\n# in a particular coordinate frame.\n\n# Two-integer timestamp that is expressed as seconds and nanoseconds.\nbuiltin_interfaces/Time stamp\n\n# Transform frame with which this data is associated.\nstring frame_id\n",
+   "hex": "000100006039ce6a15cd5b070900000072776c5f676f6c6400000000020000000200000061000000020000006200000002000000000000000000e03f000000000000e0bf0200000000000000000000000000f03f0000000000000040020000000000000000000000000024400000000000003440",
+   "expected": {
+    "name": [
+     "a",
+     "b"
+    ],
+    "position": [
+     0.5,
+     -0.5
+    ],
+    "velocity": [
+     1.0,
+     2.0
+    ],
+    "effort": [
+     10.0,
+     20.0
+    ]
+   }
+  },
+  {
+   "name": "tf_message",
+   "type": "tf2_msgs/msg/TFMessage",
+   "schema": "geometry_msgs/TransformStamped[] transforms\n\n================================================================================\nMSG: geometry_msgs/TransformStamped\n# This expresses a transform from coordinate frame header.frame_id\n# to the coordinate frame child_frame_id at the time of header.stamp\n#\n# This message is mostly used by the\n# <a href=\"https://docs.ros.org/en/rolling/p/tf2/\">tf2</a> package.\n# See its documentation for more information.\n#\n# The child_frame_id is necessary in addition to the frame_id\n# in the Header to communicate the full reference for the transform\n# in a self contained message.\n\n# The frame id in the header is used as the reference frame of this transform.\nstd_msgs/Header header\n\n# The frame id of the child frame to which this transform points.\nstring child_frame_id\n\n# Translation and rotation in 3-dimensions of child_frame_id from header.frame_id.\nTransform transform\n\n================================================================================\nMSG: std_msgs/Header\n# Standard metadata for higher-level stamped data types.\n# This is generally used to communicate timestamped data\n# in a particular coordinate frame.\n\n# Two-integer timestamp that is expressed as seconds and nanoseconds.\nbuiltin_interfaces/Time stamp\n\n# Transform frame with which this data is associated.\nstring frame_id\n\n================================================================================\nMSG: geometry_msgs/Transform\n# This represents the transform between two coordinate frames in free space.\n\nVector3 translation\nQuaternion rotation\n\n================================================================================\nMSG: geometry_msgs/Vector3\n# This represents a vector in free space.\n\n# This is semantically different than a point.\n# A vector is always anchored at the origin.\n# When a transform is applied to a vector, only the rotational component is applied.\n\nfloat64 x\nfloat64 y\nfloat64 z\n\n================================================================================\nMSG: geometry_msgs/Quaternion\n# This represents an orientation in free space in quaternion form.\n\nfloat64 x 0\nfloat64 y 0\nfloat64 z 0\nfloat64 w 1\n",
+   "hex": "00010000010000006039ce6a15cd5b07040000006d617000050000006f646f6d00f44e17000000000000f83f00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000f03f",
+   "expected": {
+    "transforms_len": 1,
+    "child": "odom",
+    "translation": [
+     1.5,
+     0.0,
+     0.0
+    ]
+   }
+  }
+ ]
+}

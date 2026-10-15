@@ -1,0 +1,549 @@
+{
+  "date": "2026-10-14",
+  "timezone": "Asia/Shanghai",
+  "passed": false,
+  "scope": "真实PS800-E1相机 + mock_components/GenericSystem/JTC + MoveIt；非Gazebo接触物理验收",
+  "camera": {
+    "ip": "169.254.10.110",
+    "serial": "207000152740",
+    "reported_rate_hz_range": [
+      10.9,
+      11.8
+    ],
+    "fixed_tf_reference": "runs/live_cam_sim_20261013_1505/reference.json",
+    "new_extrinsic_calibration": false
+  },
+  "domain": 81,
+  "real_robot_motion": false,
+  "set_io": false,
+  "initial_selfcheck": {
+    "trigger": "initial",
+    "checked_at": "2026-10-14T09:35:14",
+    "duration_s": 0.001,
+    "facts": {
+      "launched_at": "2026-10-14T09:35:02",
+      "hardware_mode": "mock",
+      "robot_ip": "169.254.10.98",
+      "tool_profile": "bite_shear_v1",
+      "moveit_enabled": "true",
+      "camera_enabled": "true",
+      "camera_frontend": "stereo",
+      "camera_ip": "169.254.10.110",
+      "extrinsics_enabled": "false",
+      "imu_enabled": "false",
+      "bond_timeout": "0.0",
+      "use_sim_time": "false",
+      "skip_reconstruction": "false",
+      "autostart": "false",
+      "require_robot_status": "false",
+      "expected_tcp_norm_m": 0.1682400297194458,
+      "ros_domain_id": "81",
+      "git": {
+        "root": "/home/mu/Desktop/aubo_e5_jazzy_ws",
+        "branch": "20260924-full-sync",
+        "commit": "6dbf9a749496"
+      }
+    },
+    "checks": [
+      {
+        "name": "managed_lifecycle",
+        "status": "pass",
+        "detail": "托管节点已激活",
+        "value": true
+      },
+      {
+        "name": "controllers",
+        "status": "pass",
+        "detail": "期望控制器均 active",
+        "value": {
+          "joint_state_broadcaster": "active",
+          "joint_trajectory_controller": "active"
+        }
+      },
+      {
+        "name": "joint_states_flow",
+        "status": "pass",
+        "detail": "帧率 163.00Hz",
+        "value": 163.0
+      },
+      {
+        "name": "joint_order",
+        "status": "pass",
+        "detail": "六关节名集合一致",
+        "value": [
+          "foreArm_joint",
+          "shoulder_joint",
+          "upperArm_joint",
+          "wrist1_joint",
+          "wrist2_joint",
+          "wrist3_joint"
+        ]
+      },
+      {
+        "name": "tcp_frame",
+        "status": "pass",
+        "detail": "|tcp|=168.2mm 对档案",
+        "value": 0.16824
+      },
+      {
+        "name": "camera_color_rate",
+        "status": "pass",
+        "detail": "图像探针接收帧率 11.80Hz（仅诊断，不拦开批）",
+        "value": 11.8
+      },
+      {
+        "name": "camera_depth_rate",
+        "status": "pass",
+        "detail": "图像探针接收帧率 11.80Hz（仅诊断，不拦开批）",
+        "value": 11.8
+      },
+      {
+        "name": "move_group",
+        "status": "pass",
+        "detail": "GetPlanningScene 可用",
+        "value": true
+      },
+      {
+        "name": "action_run_harvest",
+        "status": "pass",
+        "detail": "服务端就绪",
+        "value": true
+      },
+      {
+        "name": "action_survey_scene",
+        "status": "pass",
+        "detail": "服务端就绪",
+        "value": true
+      },
+      {
+        "name": "action_execute_target",
+        "status": "pass",
+        "detail": "服务端就绪",
+        "value": true
+      },
+      {
+        "name": "action_build_target_model",
+        "status": "pass",
+        "detail": "服务端就绪",
+        "value": true
+      },
+      {
+        "name": "robot_status",
+        "status": "skip",
+        "detail": "mock 模式不要求",
+        "value": null
+      },
+      {
+        "name": "imu_topic",
+        "status": "skip",
+        "detail": "imu_enabled=false",
+        "value": null
+      },
+      {
+        "name": "disk_free",
+        "status": "pass",
+        "detail": "剩余 51.6GB",
+        "value": 55447400448
+      },
+      {
+        "name": "model_files",
+        "status": "skip",
+        "detail": "未配置检查清单",
+        "value": null
+      },
+      {
+        "name": "param_consistency",
+        "status": "pass",
+        "detail": "启动参数组合自洽",
+        "value": null
+      },
+      {
+        "name": "vegetation_status",
+        "status": "skip",
+        "detail": "vegetation 不在图",
+        "value": null
+      }
+    ],
+    "status": "pass",
+    "passed": true,
+    "failed": [],
+    "warned": [],
+    "skipped": [
+      "robot_status",
+      "imu_topic",
+      "model_files",
+      "vegetation_status"
+    ],
+    "summary": "14/18 通过，跳过: robot_status, imu_topic, model_files, vegetation_status"
+  },
+  "final_selfcheck": {
+    "trigger": "periodic",
+    "checked_at": "2026-10-14T09:39:04",
+    "duration_s": 0.004,
+    "facts": {
+      "launched_at": "2026-10-14T09:35:02",
+      "hardware_mode": "mock",
+      "robot_ip": "169.254.10.98",
+      "tool_profile": "bite_shear_v1",
+      "moveit_enabled": "true",
+      "camera_enabled": "true",
+      "camera_frontend": "stereo",
+      "camera_ip": "169.254.10.110",
+      "extrinsics_enabled": "false",
+      "imu_enabled": "false",
+      "bond_timeout": "0.0",
+      "use_sim_time": "false",
+      "skip_reconstruction": "false",
+      "autostart": "false",
+      "require_robot_status": "false",
+      "expected_tcp_norm_m": 0.1682400297194458,
+      "ros_domain_id": "81",
+      "git": {
+        "root": "/home/mu/Desktop/aubo_e5_jazzy_ws",
+        "branch": "20260924-full-sync",
+        "commit": "6dbf9a749496"
+      }
+    },
+    "checks": [
+      {
+        "name": "managed_lifecycle",
+        "status": "pass",
+        "detail": "托管节点已激活",
+        "value": true
+      },
+      {
+        "name": "controllers",
+        "status": "pass",
+        "detail": "期望控制器均 active",
+        "value": {
+          "joint_state_broadcaster": "active",
+          "joint_trajectory_controller": "active"
+        }
+      },
+      {
+        "name": "joint_states_flow",
+        "status": "pass",
+        "detail": "帧率 107.20Hz",
+        "value": 107.2
+      },
+      {
+        "name": "joint_order",
+        "status": "pass",
+        "detail": "六关节名集合一致",
+        "value": [
+          "foreArm_joint",
+          "shoulder_joint",
+          "upperArm_joint",
+          "wrist1_joint",
+          "wrist2_joint",
+          "wrist3_joint"
+        ]
+      },
+      {
+        "name": "tcp_frame",
+        "status": "pass",
+        "detail": "|tcp|=168.2mm 对档案",
+        "value": 0.16824
+      },
+      {
+        "name": "camera_color_rate",
+        "status": "pass",
+        "detail": "图像探针接收帧率 8.40Hz（仅诊断，不拦开批）",
+        "value": 8.4
+      },
+      {
+        "name": "camera_depth_rate",
+        "status": "pass",
+        "detail": "图像探针接收帧率 9.00Hz（仅诊断，不拦开批）",
+        "value": 9.0
+      },
+      {
+        "name": "move_group",
+        "status": "fail",
+        "detail": "move_group / get_planning_scene 不可用",
+        "value": false
+      },
+      {
+        "name": "action_run_harvest",
+        "status": "pass",
+        "detail": "服务端就绪",
+        "value": true
+      },
+      {
+        "name": "action_survey_scene",
+        "status": "pass",
+        "detail": "服务端就绪",
+        "value": true
+      },
+      {
+        "name": "action_execute_target",
+        "status": "pass",
+        "detail": "服务端就绪",
+        "value": true
+      },
+      {
+        "name": "action_build_target_model",
+        "status": "pass",
+        "detail": "服务端就绪",
+        "value": true
+      },
+      {
+        "name": "robot_status",
+        "status": "skip",
+        "detail": "mock 模式不要求",
+        "value": null
+      },
+      {
+        "name": "imu_topic",
+        "status": "skip",
+        "detail": "imu_enabled=false",
+        "value": null
+      },
+      {
+        "name": "disk_free",
+        "status": "pass",
+        "detail": "剩余 50.3GB",
+        "value": 53970591744
+      },
+      {
+        "name": "model_files",
+        "status": "skip",
+        "detail": "未配置检查清单",
+        "value": null
+      },
+      {
+        "name": "param_consistency",
+        "status": "pass",
+        "detail": "启动参数组合自洽",
+        "value": null
+      },
+      {
+        "name": "vegetation_status",
+        "status": "skip",
+        "detail": "vegetation 不在图",
+        "value": null
+      }
+    ],
+    "status": "fail",
+    "passed": false,
+    "failed": [
+      "move_group"
+    ],
+    "warned": [],
+    "skipped": [
+      "robot_status",
+      "imu_topic",
+      "model_files",
+      "vegetation_status"
+    ],
+    "summary": "13/18 通过，失败: move_group，跳过: robot_status, imu_topic, model_files, vegetation_status"
+  },
+  "runs": [
+    {
+      "request_id": "live_camera_mock_full_product_20261014_0936",
+      "action_status": "STATUS_SUCCEEDED",
+      "result_success": false,
+      "termination_reason": "no_targets_succeeded",
+      "elapsed_s": 39.6,
+      "discovered": 1,
+      "attempted": 1,
+      "succeeded": 0,
+      "ledger": {
+        "claimed": [
+          "target_0"
+        ],
+        "outcomes": [
+          {
+            "target_id": "target_0",
+            "outcome": 1,
+            "reason": "build_start_timeout: reconstruction not COLLECTING",
+            "quality_score": 0.0,
+            "elapsed_s": 2.183,
+            "failure_code": "build_start_timeout",
+            "build_view_count": 0,
+            "build_status": "COLLECTING",
+            "build_duration_s": 2.182
+          }
+        ]
+      },
+      "config": {
+        "hardware_mode": "mock",
+        "camera_frontend": "stereo",
+        "tool_enabled": false,
+        "execute_pregrasp_only": false,
+        "reconstruct_in_trajectory": false,
+        "build_start_timeout_s": 2.0,
+        "budget_s": 180.0,
+        "tool_inner_diameter_m": 0.104,
+        "max_travel_m": 0.2,
+        "obstacle_guard_enabled": false
+      }
+    },
+    {
+      "request_id": "live_camera_mock_full_fixed_20261014_0938",
+      "action_status": "STATUS_SUCCEEDED",
+      "result_success": false,
+      "termination_reason": "no_targets_succeeded",
+      "elapsed_s": 32.2,
+      "discovered": 1,
+      "attempted": 1,
+      "succeeded": 0,
+      "ledger": {
+        "claimed": [
+          "target_0"
+        ],
+        "outcomes": [
+          {
+            "target_id": "target_0",
+            "outcome": 1,
+            "reason": "skipped_quality: GraspDecision.allowed=false，禁止降级接触: refined_quality_not_allowed",
+            "quality_score": 0.0,
+            "elapsed_s": 0.807,
+            "failure_code": "skipped_quality",
+            "failure_code_n": 14,
+            "completion_level": 0
+          }
+        ]
+      },
+      "config": {
+        "hardware_mode": "mock",
+        "camera_frontend": "stereo",
+        "tool_enabled": false,
+        "execute_pregrasp_only": false,
+        "reconstruct_in_trajectory": true,
+        "build_start_timeout_s": 8.0,
+        "budget_s": 180.0,
+        "tool_inner_diameter_m": 0.104,
+        "max_travel_m": 0.2,
+        "obstacle_guard_enabled": false
+      }
+    }
+  ],
+  "contact_decision": {
+    "target_id": "target_0",
+    "bag_bottom": [
+      0.35879551841077184,
+      -0.7913250816385127,
+      0.5959517103654118
+    ],
+    "bag_neck": [
+      0.3870517861572307,
+      -0.8754358059951642,
+      0.6666795450318763
+    ],
+    "axis": [
+      0.24901956326548455,
+      -0.7412591087109104,
+      0.6233170869342297
+    ],
+    "d95_m": 0.10628547128110422,
+    "length_m": 0.11347007189284285,
+    "sigma_position_m": 0.039811508199355625,
+    "sigma_axis_deg": 3.538158929976396,
+    "radial_margin_m": -0.10349732806008906,
+    "axial_margin_m": -0.002,
+    "occlusion_class": "clear",
+    "allowed": false,
+    "reason": "cut_plane_fruit_clearance",
+    "view_count": 1,
+    "axis_conflict_deg": 27.584531433295684,
+    "envelope_conditioned": true,
+    "envelope_reason": "ok",
+    "cut_pose": [
+      0.3870517861572307,
+      -0.8754358059951642,
+      0.6666795450318762
+    ],
+    "cut_to_fruit_m": 0.0,
+    "cut_travel_m": 0.11347007189284278,
+    "rmse_m": -1.0,
+    "inlier_ratio": -1.0,
+    "corridor_clear": true,
+    "flags": [
+      "taper_polarity_swapped",
+      "polarity_upper_hemisphere",
+      "keypoint_cloud_axis_conflict",
+      "cut_band_unavailable"
+    ],
+    "fused": true
+  },
+  "enable_shutdown": {
+    "service_accepted": true,
+    "arm_parameters": {
+      "execution.enabled": false,
+      "grasp.enabled": false,
+      "tool.enabled": false
+    },
+    "arm_log_confirms_all_false": true,
+    "web_task_state_grasp_stale": true
+  },
+  "stage_coverage": {
+    "live_camera": true,
+    "survey": true,
+    "target_selection": true,
+    "reconstruction": true,
+    "contact_permission_rejection": true,
+    "pregrasp": false,
+    "sleeve": false,
+    "cut_io": false,
+    "retreat": false,
+    "actual_fruit_detachment": false
+  },
+  "bag": {
+    "path": "runs/session_20261014_093504/bag",
+    "normal_close": false,
+    "reindexed": true,
+    "info_readable": true,
+    "message_count": 53643,
+    "duration_s": 254.705759248,
+    "rgb_index0_sync_audit": {
+      "passed": false,
+      "rgb_index": 0,
+      "error": "bag runs/session_20261014_093504/bag has no synchronized RGB-D/cloud group for RGB index 0, original RGB stamp_ns=1791941708494263000; span must be <50 ms; nearest original skews_ms={'/camera/depth/image_raw': -66.718, '/camera/depth_registered/points': 333.593}"
+    },
+    "recorded_sync_groups": {
+      "recorded_counts": {
+        "/camera/color/image_raw": 162,
+        "/camera/depth/image_raw": 213,
+        "/camera/depth_registered/points": 28
+      },
+      "bounded_groups": [
+        {
+          "rgb_index": 46,
+          "rgb_stamp_ns": 1791941773802610000,
+          "depth_skew_ms": 0.0,
+          "cloud_skew_ms": 0.0,
+          "after_static_tf": true
+        }
+      ],
+      "note": "只读完整扫描，严格<50ms；不把首帧审计失败改写成通过。",
+      "selected_calibration_valid": true,
+      "selected_group": {
+        "rgb_index": 46,
+        "rgb_stamp_ns": 1791941773802610000,
+        "depth_skew_ms": 0.0,
+        "cloud_skew_ms": 0.0,
+        "after_static_tf": true
+      }
+    }
+  },
+  "cleanup": {
+    "domain": 81,
+    "remaining_processes": [],
+    "http_8090_closed": true,
+    "passed": true,
+    "note": "仅检查本轮域81；用户另有仿真及ucvcameraservice，未终止。"
+  },
+  "limitations": [
+    "复用前日固定机位外参，本轮未重新实测。",
+    "产品默认场景障碍护栏关闭，未验证枝叶碰撞阻挡。",
+    "单视外袋模型不是果梗/剪切净空真值，cut_to_fruit_m=0.0是模型输出。",
+    "自检model_files项目跳过，不包含权重清单验收。",
+    "启动RViz显示/模型配置曾失败，后沿用launch参数恢复。",
+    "现有probe_topics.py双类型订阅在Jazzy报错；ros2 topic hz不支持qos-reliability选项。",
+    "停栈前末次自检move_group查询失败，不宣称全时段自检通过。",
+    "录制各话题限流不同，首帧不满足RGB-D/点云同步，不作为冻结输入。",
+    "Web task_executor.grasp_enabled关闭使能后仍显示旧值；臂参数和日志已全关。"
+  ],
+  "source_code_modified": false
+}

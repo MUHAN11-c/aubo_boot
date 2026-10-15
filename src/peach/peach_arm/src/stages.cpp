@@ -244,7 +244,8 @@ Eigen::Isometry3d ManipulationSkillsNode::entryToolPose(
 
 bool ManipulationSkillsNode::contactEntryGeometry(
   const CachedRefined & refined, const Eigen::Isometry3d & initial_pose,
-  Eigen::Isometry3d & entry_tip_pose, double & travel_m, std::string & error)
+  Eigen::Isometry3d & entry_tip_pose, double & travel_m, std::string & error,
+  bool require_cut_travel)
 {
   const Eigen::Isometry3d entry_tool_pose = entryToolPose(
     refined.entry, refined.axis, initial_pose.linear().col(0));
@@ -255,6 +256,10 @@ bool ManipulationSkillsNode::contactEntryGeometry(
   }
   entry_tip_pose = entry_tool_pose * tip_from_tool->inverse();
   travel_m = insertionTravel(refined);
+  if (require_cut_travel && (!std::isfinite(travel_m) || travel_m <= 0.0)) {
+    error = "剪切参考行程超出执行范围";
+    return false;
+  }
   return true;
 }
 
@@ -732,7 +737,23 @@ bool ManipulationSkillsNode::stageFinalizeAndValidate(CycleContext & ctx)
     }
     return true;
   }
-  QualitySnapshot snapshot = qualitySnapshot();
+  // 精化位姿和决策是不同话题，READY 不保证许可已到。等待同目标原子快照，
+  // 明确拒绝也属于“已到”，由分档能力门给出拒因，不把传输时序误报成质量差。
+  if (!params_.quality.allow_unrefined_geometry &&
+    !cache_.waitForDecision(ctx.target_id, effectiveRefinedWaitS(), cancel_requested_))
+  {
+    return failStage(
+      ctx, ExecuteTarget::Result::SKIPPED_QUALITY, FailureCode::DECISION_REJECTED,
+      "decision_snapshot_unavailable: 同目标模型与许可未在时限内到齐或已过期");
+  }
+  const auto decision = cache_.decisionSnapshot();
+  if (!decision && !params_.quality.allow_unrefined_geometry) {
+    // 等待返回与读快照之间仍可能过期/撤销，禁止退回无版本 legacy 位姿。
+    return failStage(
+      ctx, ExecuteTarget::Result::SKIPPED_QUALITY, FailureCode::DECISION_REJECTED,
+      "decision_snapshot_expired_or_revoked");
+  }
+  QualitySnapshot snapshot = decision ? decision->quality : qualitySnapshot();
   // skip_observation：编排已钉死 goal.target_id（锁定集），感知 selected
   // 心跳可能尚未跟上。质量门用 selected 字段当身份，空 selected 会把已
   // ACCEPT 的精化打成 selected_target_missing（reconstruct_in_trajectory）。
@@ -747,9 +768,9 @@ bool ManipulationSkillsNode::stageFinalizeAndValidate(CycleContext & ctx)
       snapshot.refined_target_id = ctx.target_id;
     }
   }
-  const GateResult gate = ctx.pregrasp_only ?
-    quality_gate_->readyToApproach(snapshot) :
-    quality_gate_->readyToGrasp(snapshot);
+  // FULL also starts with a pregrasp approach. CONTACT/TOOL authorization
+  // stays at those stages; a cutting denial must not veto pregrasp geometry.
+  const GateResult gate = quality_gate_->readyToApproach(snapshot);
   if (!gate.allowed) {
     RCLCPP_WARN(
       get_logger(),
@@ -766,7 +787,10 @@ bool ManipulationSkillsNode::stageFinalizeAndValidate(CycleContext & ctx)
       ctx, FailureCode::EXACT_TF_MISSING, "无法取得 tip 到 tool 的变换");
   }
   if (grasp_ready) {
-    ctx.refined = refinedSnapshot();
+    ctx.refined = decision ? std::optional<CachedRefined>(decision->geometry) : refinedSnapshot();
+    if (decision) {
+      ctx.bound_model = decision->model.identity;
+    }
     if (!ctx.refined) {
       return failStage(
       ctx, FailureCode::BUILD_FAILED, "精化位姿数据不存在");
@@ -783,6 +807,30 @@ bool ManipulationSkillsNode::stageFinalizeAndValidate(CycleContext & ctx)
       ctx.target->initial_pose.linear().col(0));
     ctx.entry_tip_pose = entry_tool_pose * tip_from_tool->inverse();
     ctx.travel_m = insertionTravel(*ctx.refined);
+    if (!ctx.pregrasp_only && (!std::isfinite(ctx.travel_m) || ctx.travel_m <= 0.0)) {
+      return failStage(
+        ctx, ExecuteTarget::Result::SKIPPED_QUALITY,
+        FailureCode::DECISION_REJECTED, "剪切参考行程超出执行范围");
+    }
+    // Selection used the provisional perception geometry. Recheck the
+    // actual reconstructed entry and cut travel before moving from photo pose.
+    auto request = std::make_shared<CheckReachability::Request>();
+    geometry_msgs::msg::PoseStamped entry;
+    entry.header.frame_id = params_.frames.base;
+    entry.pose = tf2::toMsg(ctx.entry_tip_pose);
+    request->tcp_poses.push_back(entry);
+    request->suggested_travel_m.push_back(ctx.travel_m);
+    request->require_sleeve = !ctx.pregrasp_only;
+    request->timeout_s = 0.2;
+    auto response = std::make_shared<CheckReachability::Response>();
+    evaluateReachability(request, response);
+    if (response->reachable.empty() || !response->reachable.front()) {
+      const std::string code = response->error_codes.empty() ?
+        "reachability_unavailable" : response->error_codes.front();
+      return failStage(
+        ctx, ExecuteTarget::Result::SKIPPED_UNREACHABLE,
+        FailureCode::SLEEVE_PLAN_FAILED, "精化几何可达性未通过: " + code);
+    }
     const auto quality = qualitySnapshot();
     RCLCPP_INFO(
       get_logger(),
@@ -809,7 +857,7 @@ bool ManipulationSkillsNode::stageFinalizeAndValidate(CycleContext & ctx)
     FailureCode::DEGRADED_CONTACT_FORBIDDEN,
     ctx.pregrasp_only ?
     ("预抓取缺少融合几何: " + gate.reason) :
-    ("GraspDecision.allowed=false，禁止降级接触: " + gate.reason));
+    ("decision_geometry_unavailable: " + gate.reason));
 }
 
 bool ManipulationSkillsNode::stageReconfirmTarget(CycleContext & ctx)
@@ -982,8 +1030,11 @@ bool ManipulationSkillsNode::stageMovePregrasp(CycleContext & ctx)
     }
   }
   if (!result.success) {
-    if (result.execution_started && motion_) {
-      motion_->clearPhotoApproach();
+    if (result.execution_started) {
+      contact_recovery_required_.store(true);
+      if (motion_) {
+        motion_->clearPhotoApproach();
+      }
     }
     return failStage(
       ctx, ExecuteTarget::Result::SKIPPED_UNREACHABLE,
@@ -1092,11 +1143,12 @@ bool ManipulationSkillsNode::stageVerifyPregrasp(CycleContext & ctx)
       std::string entry_error;
       if (!contactEntryGeometry(
           *latest_refined, ctx.target->initial_pose,
-          entry_tip_pose, travel_m, entry_error))
+          entry_tip_pose, travel_m, entry_error, !ctx.pregrasp_only))
       {
         return failStage(
           ctx, ExecuteTarget::Result::SKIPPED_QUALITY,
-          FailureCode::EXACT_TF_MISSING,
+          entry_error == "剪切参考行程超出执行范围" ?
+          FailureCode::DECISION_REJECTED : FailureCode::EXACT_TF_MISSING,
           "预抓取修正重算入口时" + entry_error);
       }
       ctx.refined = latest_refined;

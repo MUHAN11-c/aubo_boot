@@ -35,3 +35,22 @@ def test_unavailable_lifecycle_service_is_503():
         'manage_nodes_service', {'command': 'STARTUP'})
     assert status == 503
     assert body['accepted'] is False
+
+
+def test_reachability_response_preserves_per_pose_failure_codes():
+    """The web must distinguish endpoint IK failure from a partial path."""
+    from peach_interfaces.srv import CheckReachability
+    response = CheckReachability.Response(
+        reachable=[True, False], error_codes=['', 'sleeve_no_ik'])
+    summary = _summarize_service(response)
+    assert summary['error_codes'] == ['', 'sleeve_no_ik']
+    assert list(summary['reachable']) == [True, False]
+
+
+def test_reachability_preserves_valid_half_turn_quaternion():
+    """A zero quaternion w is a valid half turn, never the default identity."""
+    request = _goal_for('check_reachability_service', {'tcp_poses': [{
+        'frame_id': 'base_link', 'position': {'x': 0.4, 'y': 0, 'z': 0.3},
+        'orientation': {'x': 0, 'y': 1, 'z': 0, 'w': 0}}]})
+    assert request.tcp_poses[0].pose.orientation.w == 0
+    assert request.tcp_poses[0].pose.orientation.y == 1

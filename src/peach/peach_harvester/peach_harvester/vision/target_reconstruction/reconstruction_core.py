@@ -46,6 +46,7 @@ from peach_harvester.vision.target_reconstruction.publish import (
     decision_validity_s,
     diagnostics_to_status_msg,
     grasp_decision_to_msg,
+    preview_cloud_msg,
     xyzrgb_to_cloud_msg,
 )
 from peach_harvester.vision.target_reconstruction.refine import (
@@ -109,7 +110,10 @@ class ReconstructionCore:
         self._state_lock = threading.RLock()
         self._lifecycle_active = False
         # —— FrameStore 状态 ——
-        self._frame_ring_max = 5
+        self._frame_ring_max = 64
+        self._frame_ring_max_bytes = 96 * 1024 * 1024
+        self._frame_ring_bytes = 0
+        self._frame_ring_latest_stamp_ns = None
         # 同步 RGB-D 帧环：按 stamp_ns 保留最近若干帧，供掩膜滞后对齐。
         # 元组 (rgb, depth_mm, K, stamp_msg, stamp_sec, cam_frame)。
         # 只缓存、不直接累积；手动/自动门禁通过后才会入帧栈。
@@ -152,6 +156,7 @@ class ReconstructionCore:
         self._bound_axis_hint = None
         self._harvest_run_id = ''
         self._scene_epoch = 0
+        self._capture_generation = 0
         # —— N12：_lock_decision_validity 三属性显式初始化（旧版靠
         # getattr 默认值隐式存在，宿主 __init__ 未声明）——
         self._locked_model_revision: Optional[str] = None
@@ -195,6 +200,7 @@ class ReconstructionCore:
         """清空本轮派生结果；开始新轮时同时创建一个空在线 TSDF."""
         # 预抓取验证的一致性比对基点一并清空：换目标后首拍不得与上一
         # 目标（甚至上一轮）的残差比 frames_consistent。
+        self._capture_generation = getattr(self, '_capture_generation', 0) + 1
         self._pregrasp_prev = None
         self._overlap_cache = None
         self._tsdf_cloud_cache = None
@@ -279,25 +285,43 @@ class ReconstructionCore:
 
     def _clear_frame_ring(self) -> None:
         """换绑/reset 时丢弃未对齐的陈帧，避免旧目标点云混入."""
-        self._frame_ring = {}
-        self._latest_frame = None
+        with self._state_lock:
+            self._frame_ring = {}
+            self._frame_ring_bytes = 0
+            self._frame_ring_latest_stamp_ns = None
+            self._latest_frame = None
+
+    @staticmethod
+    def _frame_array_bytes(frame_tuple) -> int:
+        """仅RGB与深度数组占大内存；元数据由64帧硬上限约束."""
+        return sum(int(getattr(array, 'nbytes', 0)) for array in frame_tuple[:2])
 
     def _push_frame_ring(self, frame_tuple) -> None:
-        """
-        按 stamp_ns 写入帧环，超出容量丢最旧.
-
-        须持 ``_state_lock``：读者（``_select_cached_frame``，持锁）
-        对环做 ``list(...)`` 快照迭代，无锁并发插入会触发
-        ``RuntimeError: dictionary changed size during iteration``。
-        """
-        stamp_msg = frame_tuple[3]
-        stamp_ns = self._stamp_ns(stamp_msg)
+        """在既有采帧新鲜度窗内等精确同戳掩膜，最多64帧/96MiB数组."""
+        stamp_ns = self._stamp_ns(frame_tuple[3])
+        array_bytes = self._frame_array_bytes(frame_tuple)
         with self._state_lock:
-            self._frame_ring.pop(stamp_ns, None)
-            self._frame_ring[stamp_ns] = frame_tuple
-            while len(self._frame_ring) > self._frame_ring_max:
-                self._frame_ring.pop(next(iter(self._frame_ring)))
-        self._latest_frame = frame_tuple
+            newest = self._frame_ring_latest_stamp_ns
+            newest = stamp_ns if newest is None else max(newest, stamp_ns)
+            self._frame_ring_latest_stamp_ns = newest
+            horizon_ns = round(max(0., float(self.params.capture.max_frame_age_s)) * 1e9)
+            oldest_allowed = newest - horizon_ns
+            # 单帧超预算不能驱逐整个等待窗后又无法保留自身。
+            previous = self._frame_ring.pop(stamp_ns, None)
+            if previous is not None:
+                self._frame_ring_bytes -= self._frame_array_bytes(previous)
+            if stamp_ns >= oldest_allowed and array_bytes <= self._frame_ring_max_bytes:
+                self._frame_ring[stamp_ns] = frame_tuple
+                self._frame_ring_bytes += array_bytes
+            # 按曝光时间淘汰，乱序到达不把旧帧当作最新，也不复活过期帧。
+            for key in sorted(self._frame_ring):
+                if (key >= oldest_allowed and len(self._frame_ring) <= self._frame_ring_max
+                        and self._frame_ring_bytes <= self._frame_ring_max_bytes):
+                    break
+                removed = self._frame_ring.pop(key)
+                self._frame_ring_bytes -= self._frame_array_bytes(removed)
+            self._latest_frame = (self._frame_ring[max(self._frame_ring)]
+                                  if self._frame_ring else None)
 
     def _select_cached_frame(
             self, prefer_stamp_sec=None, prefer_cam_frame=None):
@@ -317,11 +341,11 @@ class ReconstructionCore:
                     continue
                 return frame
             return None
-        for stamp_ns in reversed(list(self._frame_ring.keys())):
+        for stamp_ns in sorted(self._frame_ring, reverse=True):
             if stamp_ns in self._target_masks:
                 return self._frame_ring[stamp_ns]
         if self._frame_ring:
-            return next(reversed(list(self._frame_ring.values())))
+            return self._frame_ring[max(self._frame_ring)]
         return self._latest_frame
 
     @staticmethod
@@ -381,6 +405,8 @@ class ReconstructionCore:
         （见节点 _gated_capture_finish 竞态说明）。
         """
         with self._state_lock:
+            if not getattr(self, '_lifecycle_active', True):
+                return
             if self.collector.state == STATE_IDLE and \
                     self.collector.should_auto_start():
                 self._auto_start()
@@ -394,6 +420,7 @@ class ReconstructionCore:
             if len(self.collector.frames) >= self.params.capture.max_views:
                 # 满栈后静默等待 finalize，避免每帧重复构云/ICP和刷屏
                 return
+            generation = self._capture_generation
             decision, tf_request = self._gated_capture_begin(automatic=True)
             if tf_request is None:
                 # 前置门禁已定案（skip），无需 TF 查询。落账须持锁
@@ -408,13 +435,15 @@ class ReconstructionCore:
         # 锁外：阻塞式 TF 查询（不得持 _state_lock）。
         tf_result = self._gated_capture_query_tf(tf_request)
         with self._state_lock:
+            if generation != self._capture_generation:
+                return
             decision, context = self._gated_capture_finish(
                 automatic=True, tf_request=tf_request, tf_result=tf_result)
             bound_target = self.collector.target_id
         # 锁域自管：构云/ICP 重活在锁外（见 _auto_capture_commit）。旧版
         # 全程持 _state_lock，心跳/观测回调被饿死（2026-09-09 真机：
         # 心跳违约 57 次、绑定延迟 73s > build_start_timeout 12s）。
-        self._auto_capture_commit(decision, context, bound_target)
+        self._auto_capture_commit(decision, context, bound_target, generation)
 
     def _auto_start(self):
         """自动开始：绑定当前最优候选进 COLLECTING；无候选则保持 IDLE 等待."""
@@ -432,13 +461,14 @@ class ReconstructionCore:
         self._logger.info(f'自动开始：{message}')
         self._publish_all()
 
-    def _auto_capture_commit(self, decision, context, bound_target):
+    def _auto_capture_commit(self, decision, context, bound_target, generation=None):
         """
         自动采帧落地段（锁域自管）：锁内判门取上下文，锁外构云/ICP，锁内窄临界提交.
 
         decision 非 GATE_ALLOW 即按 skip 跳过（按需计 tf_failures）；
         context 为 ALLOW 时的帧上下文（见节点 _gated_capture_finish）。
-        bound_target 是 finish 锁内快照的绑定目标，提交前复核会话未变。
+        bound_target 是 finish 锁内快照的绑定目标；generation跨TF/构云锁外阶段
+        保持不变才允许入库，同ID reset也必须拒绝旧帧。
 
         并发说明（2026-09-09 锁手术）：构云+ICP 是每帧最重的纯计算，
         持 _state_lock 执行会把心跳/观测回调饿到分钟级滞后；现移到锁外，
@@ -458,7 +488,10 @@ class ReconstructionCore:
             return
         t_frame0 = self._algo_clock.now()
         with self._state_lock:
-            if (self.collector.state != STATE_COLLECTING
+            if generation is None:
+                generation = self._capture_generation
+            if (generation != self._capture_generation
+                    or self.collector.state != STATE_COLLECTING
                     or self.collector.target_id != bound_target):
                 return
             (rgb, depth_mm, K, stamp_sec,
@@ -476,13 +509,16 @@ class ReconstructionCore:
         if prepared is None:
             # 构云/ICP 拒帧：与原 _accept_frame 失败路径同语义
             with self._state_lock:
+                if generation != self._capture_generation:
+                    return
                 self.collector.rejected_views += 1
                 self._record_auto_skip(reject, count_reject=False)
             self._logger.warning(f'自动采帧未入库：{reject}',
                                  throttle_duration_sec=1.0)
             return
         with self._state_lock:
-            if (self.collector.state != STATE_COLLECTING
+            if (generation != self._capture_generation
+                    or self.collector.state != STATE_COLLECTING
                     or self.collector.target_id != bound_target):
                 self._logger.debug(
                     '采帧准备期间会话已切换/收口，丢弃陈旧帧 '
@@ -651,14 +687,18 @@ class ReconstructionCore:
         String JSON（/diagnostics_debug），许可走 GraspDecision——三者同
         transient_local 闩锁，后启动订阅者读到的始终是最新一轮。
         """
+        decision = self._lock_decision_validity(self._grasp_decision())
         diag = self._diagnostics()
+        # JSON 镜像保留模型时间，供诊断区分心跳新鲜与模型新鲜。
+        stamp = decision['generated_at']
+        diag['model_stamp'] = float(stamp.sec) + 1e-9 * stamp.nanosec
         self.pub_status.publish(String(data=self.collector.state))
         self.pub_diag.publish(diagnostics_to_status_msg(diag, header))
         self.pub_diag_debug.publish(
             String(data=json.dumps(diag, ensure_ascii=False)))
         self.pub_grasp_decision.publish(
             grasp_decision_to_msg(
-                self._lock_decision_validity(self._grasp_decision()), header,
+                decision, header,
                 validity_s=decision_validity_s(self.params)))
         if getattr(self, 'pub_pregrasp', None) is not None:
             self.pub_pregrasp.publish(self._pregrasp_verification_msg(header))
@@ -683,6 +723,18 @@ class ReconstructionCore:
         decision['generated_at'] = self._locked_generated_at
         decision['valid_until'] = self._locked_valid_until
         return decision
+
+    def _publish_preview(self, header, key, throttle, force):
+        """Publish a bounded display cloud without changing algorithm outputs."""
+        if throttle is not None and not throttle.should_publish(
+                'preview_cloud', key, force=force):
+            return
+        if self._tsdf_cloud_cache is not None and len(self._tsdf_cloud_cache[0]):
+            xyz, colors = self._tsdf_cloud_cache
+        else:
+            xyz = self.collector.accumulated_cloud()
+            colors = self.collector.accumulated_rgb()
+        self.pub_preview_cloud.publish(preview_cloud_msg(xyz, colors, header))
 
     def _publish_all(self):
         """
@@ -730,6 +782,8 @@ class ReconstructionCore:
                 tsdf_xyz, tsdf_rgb = np.zeros((0, 3)), None
             self.pub_tsdf_cloud.publish(
                 xyzrgb_to_cloud_msg(tsdf_xyz, tsdf_rgb, header))
+        self._publish_preview(
+            header, (n_frames, last_stamp, self._tsdf_cloud_version), throttle, force)
         self._publish_status_trio(header)
         # Marker 内容 = 相机轨迹（帧栈）+ refined 抓取示意 + mesh
         # _products_version 覆盖（refit 写入/finalize 清理均递增）
@@ -1023,6 +1077,7 @@ class ReconstructionCore:
             'last_skip_code': c.last_skip_code,
             'last_skip_reason': c.last_skip_reason,
             'frame_ring_size': len(self._frame_ring),
+            'frame_ring_bytes': self._frame_ring_bytes,
             'tf_latency_ms': self._last_tf_latency_ms,
             'valid_depth_ratio': last_ratio,
             'cloud_points': int(c.accumulated_points_count),

@@ -1,0 +1,51 @@
+[WARN] [1791967381.248008364] [rcl]: ROS_LOCALHOST_ONLY is deprecated but still honored if it is enabled. Use ROS_AUTOMATIC_DISCOVERY_RANGE and ROS_STATIC_PEERS instead.
+[WARN] [1791967381.248040607] [rcl]: 'localhost_only' is enabled, 'automatic_discovery_range' and 'static_peers' will be ignored.
+[INFO] [1791967381.850781863] [rviz2]: Stereo is NOT SUPPORTED
+[INFO] [1791967381.850852492] [rviz2]: OpenGl version: 4.6 (GLSL 4.6)
+[INFO] [1791967381.955480014] [rviz2]: Stereo is NOT SUPPORTED
+Warning: class_loader.impl: SEVERE WARNING!!! A namespace collision has occurred with plugin factory for class rviz_default_plugins::displays::InteractiveMarkerDisplay. New factory will OVERWRITE existing one. This situation occurs when libraries containing plugins are directly linked against an executable (the one running right now generating this message). Please separate plugins out into their own library or just don't link against the library and use either class_loader::ClassLoader/MultiLibraryClassLoader to open.
+         at line 321 in /opt/ros/jazzy/include/class_loader/class_loader/class_loader_core.hpp
+[WARN] [1791967382.009439222] [rcl.logging_rosout]: Publisher already registered for node name: 'peach_joint_test_rviz'. If this is due to multiple nodes with the same name then all logs for the logger named 'peach_joint_test_rviz' will go out over the existing publisher. As soon as any node with that name is destructed it will unregister the publisher, preventing any further logs for that name from being published on the rosout topic.
+[ERROR] [1791967385.031766381] [peach_joint_test_rviz.moveit.ros.motion_planning_frame]: Action server: /recognize_objects not available
+[INFO] [1791967385.045593749] [peach_joint_test_rviz.moveit.ros.motion_planning_frame]: MoveGroup namespace changed: / -> . Reloading params.
+[INFO] [1791967385.058373383] [peach_joint_test_rviz]: Subscribing to: /peach/perception/single_cloud
+
+[INFO] [1791967385.058806876] [peach_joint_test_rviz]: Subscribing to: /peach/perception/single_cloud
+
+[INFO] [1791967385.059144583] [peach_joint_test_rviz]: Subscribing to: /peach/reconstruction/tsdf_cloud
+
+[INFO] [1791967385.059535244] [peach_joint_test_rviz]: Subscribing to: /peach/reconstruction/tsdf_cloud
+
+[INFO] [1791967385.059845760] [peach_joint_test_rviz]: Subscribing to: /peach/reconstruction/tsdf_cloud
+
+[INFO] [1791967385.060189421] [peach_joint_test_rviz]: Subscribing to: /peach/reconstruction/tsdf_cloud
+
+[INFO] [1791967385.062407303] [peach_joint_test_rviz]: Subscribing to: /peach/reconstruction/local_cloud
+
+[INFO] [1791967385.062830591] [peach_joint_test_rviz]: Subscribing to: /peach/reconstruction/local_cloud
+
+[INFO] [1791967385.063211046] [peach_joint_test_rviz]: Subscribing to: /peach/reconstruction/local_cloud
+
+[INFO] [1791967385.063646528] [peach_joint_test_rviz]: Subscribing to: /peach/reconstruction/local_cloud
+
+[INFO] [1791967385.076128897] [peach_joint_test_rviz]: Subscribing to: /peach/perception/single_cloud
+
+[INFO] [1791967385.076550394] [peach_joint_test_rviz]: Subscribing to: /peach/reconstruction/tsdf_cloud
+
+[INFO] [1791967385.076925643] [peach_joint_test_rviz]: Subscribing to: /peach/reconstruction/local_cloud
+
+[INFO] [1791967385.117987533] [peach_joint_test_rviz.moveit.ros.rdf_loader]: Loaded robot model in 0.00204254 seconds
+[INFO] [1791967385.118070259] [peach_joint_test_rviz.moveit.core.robot_model]: Loading robot model 'aubo_e5'...
+[INFO] [1791967385.118084151] [peach_joint_test_rviz.moveit.core.robot_model]: No root/virtual joint specified in SRDF. Assuming fixed joint
+[INFO] [1791967385.142227209] [peach_joint_test_rviz.moveit.kinematics.kdl_kinematics_plugin]: Joint weights for group 'manipulator_e5': 1 1 1 1 1 1
+[INFO] [1791967385.239551106] [rviz2]: Stereo is NOT SUPPORTED
+[INFO] [1791967385.568846408] [peach_joint_test_rviz.moveit.ros.planning_scene_monitor]: Starting planning scene monitor
+[INFO] [1791967385.569843199] [peach_joint_test_rviz.moveit.ros.planning_scene_monitor]: Listening to '/monitored_planning_scene'
+[INFO] [1791967385.575630384] [interactive_marker_display_105382457875760]: Connected on namespace: /rviz_moveit_motion_planning_display/robot_interaction_interactive_marker_topic
+[INFO] [1791967385.581656054] [peach_joint_test_rviz.moveit.ros.motion_planning_frame]: group manipulator_e5
+[INFO] [1791967385.581765415] [peach_joint_test_rviz.moveit.ros.motion_planning_frame]: Constructing new MoveGroup connection for group 'manipulator_e5' in namespace ''
+[INFO] [1791967385.588239547] [peach_joint_test_rviz.moveit.ros.move_group_interface]: Ready to take commands for planning group manipulator_e5.
+[INFO] [1791967385.619484375] [interactive_marker_display_105382457875760]: Sending request for interactive markers
+[INFO] [1791967385.650419996] [interactive_marker_display_105382457875760]: Service response received for initialization
+terminate called after throwing an instance of 'Ogre::InternalErrorException'
+  what():  InternalErrorException: Cannot create GL index buffer in GLHardwareIndexBuffer::GLHardwareIndexBuffer at ./.obj-x86_64-linux-gnu/ogre_vendor-prefix/src/ogre_vendor/RenderSystems/GL/src/OgreGLHardwareIndexBuffer.cpp (line 45)

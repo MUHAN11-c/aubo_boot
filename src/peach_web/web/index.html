@@ -3,14 +3,14 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#10151a">
+  <meta name="theme-color" content="#f4f7f8">
   <title>Peach · 采摘控制台</title>
   <link rel="stylesheet" href="/app.css">
   <link rel="stylesheet" href="/visualization.css">
   <link rel="stylesheet" href="/workbench.css">
 </head>
 <body class="data-stale">
-  <div class="page-header">
+  <div class="page-header" id="page-header">
   <header class="topbar">
     <div class="brand">
       <div class="brand-mark"><span></span><span></span><span></span></div>
@@ -88,6 +88,14 @@
           </tbody>
         </table>
         <div class="ticket-metrics" id="ticket-metrics"></div>
+        <div class="geometry-analysis" id="geometry-analysis">
+          <div class="section-head compact">
+            <div><p class="kicker">GEOMETRY</p><h2>几何对照</h2></div>
+            <span id="analysis-profile" class="empty"></span>
+          </div>
+          <div id="analysis-bars"></div>
+          <p class="analysis-note" id="analysis-note">等待袋轴几何</p>
+        </div>
       </div>
       <div class="cycle-bar">
         <div class="cycle-info">
@@ -281,6 +289,10 @@
   <script src="/viz3d.js"></script>
   <script src="/visualization.js"></script>
   <script src="/workbench.js"></script>
+  <script src="/ui-common.js"></script>
+  <script src="/monitor-renderers.js"></script>
+  <script src="/trajectory-renderers.js"></script>
+  <script src="/request-runtime.js"></script>
   <script src="/app.js"></script>
 </body>
 </html>

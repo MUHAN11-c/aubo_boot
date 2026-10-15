@@ -1,0 +1,44 @@
+[WARN] [1792028702.440684947] [rcl]: ROS_LOCALHOST_ONLY is deprecated but still honored if it is enabled. Use ROS_AUTOMATIC_DISCOVERY_RANGE and ROS_STATIC_PEERS instead.
+[WARN] [1792028702.440753494] [rcl]: 'localhost_only' is enabled, 'automatic_discovery_range' and 'static_peers' will be ignored.
+[INFO] [1792028703.276739045] [rviz2]: Stereo is NOT SUPPORTED
+[INFO] [1792028703.276818761] [rviz2]: OpenGl version: 4.6 (GLSL 4.6)
+[INFO] [1792028703.364050760] [rviz2]: Stereo is NOT SUPPORTED
+Warning: class_loader.impl: SEVERE WARNING!!! A namespace collision has occurred with plugin factory for class rviz_default_plugins::displays::InteractiveMarkerDisplay. New factory will OVERWRITE existing one. This situation occurs when libraries containing plugins are directly linked against an executable (the one running right now generating this message). Please separate plugins out into their own library or just don't link against the library and use either class_loader::ClassLoader/MultiLibraryClassLoader to open.
+         at line 321 in /opt/ros/jazzy/include/class_loader/class_loader/class_loader_core.hpp
+[ERROR] [1792028706.542638844] [moveit_3064886216.moveit.ros.motion_planning_frame]: Action server: /recognize_objects not available
+[INFO] [1792028706.596603645] [moveit_3064886216.moveit.ros.motion_planning_frame]: MoveGroup namespace changed: / -> . Reloading params.
+[INFO] [1792028706.622713654] [rviz]: Subscribing to: /peach/reconstruction/preview_cloud
+
+[INFO] [1792028706.624535367] [rviz]: Subscribing to: /peach/reconstruction/preview_cloud
+
+[INFO] [1792028706.626334791] [rviz]: Subscribing to: /peach/reconstruction/preview_cloud
+
+[INFO] [1792028706.627558892] [rviz]: Subscribing to: /peach/reconstruction/preview_cloud
+
+[INFO] [1792028706.628327772] [rviz]: Subscribing to: /peach/perception/single_cloud
+
+[INFO] [1792028706.629325873] [rviz]: Subscribing to: /peach/perception/single_cloud
+
+[INFO] [1792028706.629936467] [rviz]: Subscribing to: /peach/perception/single_cloud
+
+[INFO] [1792028706.681211254] [rviz]: Subscribing to: /peach/reconstruction/preview_cloud
+
+[INFO] [1792028706.683155435] [rviz]: Subscribing to: /peach/perception/single_cloud
+
+[INFO] [1792028706.756673217] [moveit_3064886216.moveit.ros.rdf_loader]: Loaded robot model in 0.00556079 seconds
+[INFO] [1792028706.756824671] [moveit_3064886216.moveit.core.robot_model]: Loading robot model 'aubo_e5'...
+[INFO] [1792028706.756845289] [moveit_3064886216.moveit.core.robot_model]: No root/virtual joint specified in SRDF. Assuming fixed joint
+[INFO] [1792028706.798724548] [moveit_3064886216.moveit.kinematics.kdl_kinematics_plugin]: Joint weights for group 'manipulator_e5': 1 1 1 1 1 1
+[INFO] [1792028706.946835177] [rviz2]: Stereo is NOT SUPPORTED
+[INFO] [1792028707.284019555] [moveit_3064886216.moveit.ros.planning_scene_monitor]: Starting planning scene monitor
+[INFO] [1792028707.285148549] [moveit_3064886216.moveit.ros.planning_scene_monitor]: Listening to '/monitored_planning_scene'
+[INFO] [1792028707.290589430] [interactive_marker_display_102323604251392]: Connected on namespace: /rviz_moveit_motion_planning_display/robot_interaction_interactive_marker_topic
+[INFO] [1792028707.312123644] [moveit_3064886216.moveit.ros.motion_planning_frame]: group manipulator_e5
+[INFO] [1792028707.312271480] [moveit_3064886216.moveit.ros.motion_planning_frame]: Constructing new MoveGroup connection for group 'manipulator_e5' in namespace ''
+[INFO] [1792028707.321661145] [interactive_marker_display_102323604251392]: Sending request for interactive markers
+[INFO] [1792028707.356127899] [interactive_marker_display_102323604251392]: Service response received for initialization
+[INFO] [1792028707.384080404] [moveit_3064886216.moveit.ros.move_group_interface]: Ready to take commands for planning group manipulator_e5.
+[INFO] [1792029341.963458408] [rclcpp]: signal_handler(SIGINT/SIGTERM)
+[WARN] [1792029341.990041997] [interactive_marker_display_102323604251392]: Server not available while running, resetting
+terminate called after throwing an instance of 'Ogre::InternalErrorException'
+  what():  InternalErrorException: Vertex Buffer: Out of memory in GLHardwareVertexBuffer::lock at ./.obj-x86_64-linux-gnu/ogre_vendor-prefix/src/ogre_vendor/RenderSystems/GL/src/OgreGLHardwareVertexBuffer.cpp (line 125)

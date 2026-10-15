@@ -128,3 +128,50 @@ test('typed pose with matching epoch but old run stays hidden',()=> {
   s.refined={pose:{frame_id:'base_link',scene_epoch:3,harvest_run_id:'run-old',candidates:[{target_id:'a',bag_bottom:[2,3,4],bag_neck:[2,3,5],translation_direction:[0,0,1]}]}};
   assert.equal(api().normalizeScene(s,{}).fused,null);
 });
+
+test('geometry analysis computes axial projection, lateral offset and signed travel mismatch',()=> {
+  const s=fixture(); const d=s.reconstruction.grasp_decision;
+  Object.assign(d,{entry:[0.1,0.2,0.3],pregrasp:[0.1,0.2,0.27],cut_pose:[0.104,0.2,0.4],axis:[0,0,1],cut_travel_m:0.09,radial_margin_m:-0.004,axial_margin_m:0.012});
+  const a=api().analyzeScene(s,{}); const m=a.metrics;
+  assert.ok(Math.abs(m.axial_travel_m-0.1)<1e-12);
+  assert.ok(Math.abs(m.lateral_error_m-0.004)<1e-12);
+  assert.ok(Math.abs(m.travel_error_m-0.01)<1e-12);
+  assert.ok(Math.abs(m.standoff_m-0.03)<1e-12);
+  assert.equal(m.radial_margin_m,-0.004);
+  assert.equal(a.reachability.tone,'unknown');
+});
+test('permission and radial distance never imply MoveIt reachability',()=> {
+  const s=fixture();s.reconstruction.grasp_decision.allowed=true;
+  const a=api().analyzeScene(s,{});
+  assert.equal(a.reachability.tone,'unknown');assert.match(a.reachability.label,/尚未验证/);
+  s.job.completion={completion_level:0,reason:'skipped_unreachable: MTC planning failed'};
+  assert.equal(api().analyzeScene(s,{}).reachability.tone,'bad');
+});
+test('target switches hide numeric budgets and planning results for other targets',()=> {
+  const s=fixture();s.ui={selected_target_id:'b',selected_scene_epoch:3};
+  s.job.completion={completion_level:2,reason:'sleeve_no_ik'};
+  const a=api().analyzeScene(s,{});
+  assert.equal(a.decision,null);assert.equal(a.metrics.axial_margin_m,null);
+  assert.equal(a.points.length,0);assert.equal(a.reachability.tone,'unknown');
+});
+test('missing numeric evidence is null rather than zero or NaN',()=> {
+  const s=fixture();s.reconstruction.grasp_decision.cut_travel_m=null;
+  s.reconstruction.grasp_decision.cut_pose=[NaN,0,1];
+  const a=api().analyzeScene(s,{});
+  assert.equal(a.metrics.entry_cut_m,null);assert.equal(a.metrics.travel_error_m,null);
+  assert.equal(a.metrics.cut_travel_m,null);
+});
+test('a decision from a different harvest run is never drawn as executable geometry',()=> {
+  const s=fixture();s.reconstruction.grasp_decision.harvest_run_id='old-run';
+  const a=api().analyzeScene(s,{});assert.equal(a.scene.entry,null);assert.equal(a.decision,null);
+});
+
+test('completed retreat is shown beyond pregrasp without claiming harvest confirmation',()=> {
+  const s=fixture();s.job.completion={completion_level:6,reason:'tool.enabled=false'};
+  const a=api().analyzeScene(s,{});assert.match(a.reachability.label,/撤退/);
+  assert.doesNotMatch(a.reachability.label,/采摘确认/);
+});
+test('unavailable fit sentinels never become negative RMSE or inlier percentages',()=> {
+  const s=fixture();Object.assign(s.reconstruction.diagnostics.refined,{refit_rmse:-1,rmse:-1,refit_inlier_ratio:-1,inlier_ratio:-1});
+  const m=api().analyzeScene(s,{}).metrics;assert.equal(m.refit_rmse_m,null);assert.equal(m.inlier_ratio,null);
+});

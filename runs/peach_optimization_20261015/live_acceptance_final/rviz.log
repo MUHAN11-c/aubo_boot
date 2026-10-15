@@ -1,0 +1,42 @@
+[WARN] [1792029477.341765721] [rcl]: ROS_LOCALHOST_ONLY is deprecated but still honored if it is enabled. Use ROS_AUTOMATIC_DISCOVERY_RANGE and ROS_STATIC_PEERS instead.
+[WARN] [1792029477.341811564] [rcl]: 'localhost_only' is enabled, 'automatic_discovery_range' and 'static_peers' will be ignored.
+[INFO] [1792029477.872629567] [rviz2]: Stereo is NOT SUPPORTED
+[INFO] [1792029477.872741998] [rviz2]: OpenGl version: 4.6 (GLSL 4.6)
+[INFO] [1792029477.956362133] [rviz2]: Stereo is NOT SUPPORTED
+Warning: class_loader.impl: SEVERE WARNING!!! A namespace collision has occurred with plugin factory for class rviz_default_plugins::displays::InteractiveMarkerDisplay. New factory will OVERWRITE existing one. This situation occurs when libraries containing plugins are directly linked against an executable (the one running right now generating this message). Please separate plugins out into their own library or just don't link against the library and use either class_loader::ClassLoader/MultiLibraryClassLoader to open.
+         at line 321 in /opt/ros/jazzy/include/class_loader/class_loader/class_loader_core.hpp
+[ERROR] [1792029481.051903939] [moveit_2433644453.moveit.ros.motion_planning_frame]: Action server: /recognize_objects not available
+[INFO] [1792029481.061612960] [moveit_2433644453.moveit.ros.motion_planning_frame]: MoveGroup namespace changed: / -> . Reloading params.
+[INFO] [1792029481.070796660] [rviz]: Subscribing to: /peach/perception/single_cloud
+
+[INFO] [1792029481.071319956] [rviz]: Subscribing to: /peach/perception/single_cloud
+
+[INFO] [1792029481.071856923] [rviz]: Subscribing to: /peach/perception/single_cloud
+
+[INFO] [1792029481.072263023] [rviz]: Subscribing to: /peach/reconstruction/preview_cloud
+
+[INFO] [1792029481.072672239] [rviz]: Subscribing to: /peach/reconstruction/preview_cloud
+
+[INFO] [1792029481.073087351] [rviz]: Subscribing to: /peach/reconstruction/preview_cloud
+
+[INFO] [1792029481.073475821] [rviz]: Subscribing to: /peach/reconstruction/preview_cloud
+
+[INFO] [1792029481.091919908] [rviz]: Subscribing to: /peach/perception/single_cloud
+
+[INFO] [1792029481.092409537] [rviz]: Subscribing to: /peach/reconstruction/preview_cloud
+
+[INFO] [1792029481.132112657] [moveit_2433644453.moveit.ros.rdf_loader]: Loaded robot model in 0.00295953 seconds
+[INFO] [1792029481.132205497] [moveit_2433644453.moveit.core.robot_model]: Loading robot model 'aubo_e5'...
+[INFO] [1792029481.132222293] [moveit_2433644453.moveit.core.robot_model]: No root/virtual joint specified in SRDF. Assuming fixed joint
+[INFO] [1792029481.157107582] [moveit_2433644453.moveit.kinematics.kdl_kinematics_plugin]: Joint weights for group 'manipulator_e5': 1 1 1 1 1 1
+[INFO] [1792029481.190985230] [rviz2]: Stereo is NOT SUPPORTED
+[INFO] [1792029481.450749565] [moveit_2433644453.moveit.ros.planning_scene_monitor]: Starting planning scene monitor
+[INFO] [1792029481.451473262] [moveit_2433644453.moveit.ros.planning_scene_monitor]: Listening to '/monitored_planning_scene'
+[INFO] [1792029481.457628289] [interactive_marker_display_105130020320032]: Connected on namespace: /rviz_moveit_motion_planning_display/robot_interaction_interactive_marker_topic
+[INFO] [1792029481.462393007] [moveit_2433644453.moveit.ros.motion_planning_frame]: group manipulator_e5
+[INFO] [1792029481.462434667] [moveit_2433644453.moveit.ros.motion_planning_frame]: Constructing new MoveGroup connection for group 'manipulator_e5' in namespace ''
+[INFO] [1792029481.468672200] [moveit_2433644453.moveit.ros.move_group_interface]: Ready to take commands for planning group manipulator_e5.
+[INFO] [1792029481.495817687] [interactive_marker_display_105130020320032]: Sending request for interactive markers
+[INFO] [1792029481.524863565] [interactive_marker_display_105130020320032]: Service response received for initialization
+terminate called after throwing an instance of 'Ogre::InternalErrorException'
+  what():  InternalErrorException: Cannot create GL vertex buffer in GLHardwareVertexBuffer::GLHardwareVertexBuffer at ./.obj-x86_64-linux-gnu/ogre_vendor-prefix/src/ogre_vendor/RenderSystems/GL/src/OgreGLHardwareVertexBuffer.cpp (line 46)

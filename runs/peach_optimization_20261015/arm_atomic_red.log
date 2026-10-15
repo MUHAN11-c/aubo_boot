@@ -1,0 +1,94 @@
+Running main() from /opt/ros/jazzy/src/gtest_vendor/src/gtest_main.cc
+[==========] Running 19 tests from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 19 tests from TargetCache
+[ RUN      ] TargetCache.SelectedTargetStoresAnchorAndStamp
+[       OK ] TargetCache.SelectedTargetStoresAnchorAndStamp (0 ms)
+[ RUN      ] TargetCache.InvalidAnchorKeepsTargetInvalid
+[       OK ] TargetCache.InvalidAnchorKeepsTargetInvalid (0 ms)
+[ RUN      ] TargetCache.SameIdRefreshKeepsRefinedAndDecision
+[       OK ] TargetCache.SameIdRefreshKeepsRefinedAndDecision (0 ms)
+[ RUN      ] TargetCache.IdConflictClearsRefinedAndDecision
+[       OK ] TargetCache.IdConflictClearsRefinedAndDecision (0 ms)
+[ RUN      ] TargetCache.RefinedBeforeSelectedIsRetainedOnSameId
+[       OK ] TargetCache.RefinedBeforeSelectedIsRetainedOnSameId (0 ms)
+[ RUN      ] TargetCache.GraspDecisionForOtherTargetIgnored
+[       OK ] TargetCache.GraspDecisionForOtherTargetIgnored (0 ms)
+[ RUN      ] TargetCache.RefinedSnapshotProjection
+[       OK ] TargetCache.RefinedSnapshotProjection (0 ms)
+[ RUN      ] TargetCache.RefinedFittingSelectsSphereOrCylinder
+[       OK ] TargetCache.RefinedFittingSelectsSphereOrCylinder (0 ms)
+[ RUN      ] TargetCache.QualitySnapshotProjectsDiagnosticsAndAge
+[       OK ] TargetCache.QualitySnapshotProjectsDiagnosticsAndAge (0 ms)
+[ RUN      ] TargetCache.LockedTargetsRefreshClearAndRunBoundary
+[       OK ] TargetCache.LockedTargetsRefreshClearAndRunBoundary (0 ms)
+[ RUN      ] TargetCache.WaitForNewViewTimesOutAndSatisfiesFast
+[       OK ] TargetCache.WaitForNewViewTimesOutAndSatisfiesFast (50 ms)
+[ RUN      ] TargetCache.PromoteUnrefinedFromLockedAndHoldsAgainstDiagnostics
+[       OK ] TargetCache.PromoteUnrefinedFromLockedAndHoldsAgainstDiagnostics (0 ms)
+[ RUN      ] TargetCache.DiagnosticsHeartbeatDoesNotRefreshModelAge
+/home/mu/Desktop/aubo_e5_jazzy_ws/src/peach/peach_arm/test/test_target_cache.cpp:406: Failure
+Expected equality of these values:
+  cache.qualitySnapshot().data_age_s
+    Which is: 0
+  10.0
+    Which is: 10
+
+[  FAILED  ] TargetCache.DiagnosticsHeartbeatDoesNotRefreshModelAge (0 ms)
+[ RUN      ] TargetCache.DecisionCommitsGeometryCapabilitiesAndIdentityTogether
+/home/mu/Desktop/aubo_e5_jazzy_ws/src/peach/peach_arm/test/test_target_cache.cpp:431: Failure
+Value of: cache.updateDecisionSnapshot(decisionModel(), refinedPoseUpdate(), 0.002, 0.8)
+  Actual: false
+Expected: true
+
+[  FAILED  ] TargetCache.DecisionCommitsGeometryCapabilitiesAndIdentityTogether (0 ms)
+[ RUN      ] TargetCache.ForeignDecisionCannotReplaceCurrentModel
+/home/mu/Desktop/aubo_e5_jazzy_ws/src/peach/peach_arm/test/test_target_cache.cpp:443: Failure
+Value of: cache.updateDecisionSnapshot(decisionModel(), refinedPoseUpdate(), 0.002, 0.8)
+  Actual: false
+Expected: true
+
+[  FAILED  ] TargetCache.ForeignDecisionCannotReplaceCurrentModel (0 ms)
+[ RUN      ] TargetCache.DecisionHeartbeatDoesNotRenewExpiryOrGeneration
+/home/mu/Desktop/aubo_e5_jazzy_ws/src/peach/peach_arm/test/test_target_cache.cpp:457: Failure
+Value of: cache.updateDecisionSnapshot(model, refinedPoseUpdate(), 0.002, 0.8)
+  Actual: false
+Expected: true
+
+[  FAILED  ] TargetCache.DecisionHeartbeatDoesNotRenewExpiryOrGeneration (0 ms)
+[ RUN      ] TargetCache.LegacyPoseCannotOverwriteAuthoritativeDecisionGeometry
+/home/mu/Desktop/aubo_e5_jazzy_ws/src/peach/peach_arm/test/test_target_cache.cpp:474: Failure
+Value of: cache.updateDecisionSnapshot(decisionModel(), refinedPoseUpdate(), 0.002, 0.8)
+  Actual: false
+Expected: true
+
+[  FAILED  ] TargetCache.LegacyPoseCannotOverwriteAuthoritativeDecisionGeometry (0 ms)
+[ RUN      ] TargetCache.IncompleteRevocationClearsCurrentPermission
+/home/mu/Desktop/aubo_e5_jazzy_ws/src/peach/peach_arm/test/test_target_cache.cpp:485: Failure
+Value of: cache.updateDecisionSnapshot(decisionModel(), refinedPoseUpdate(), 0.002, 0.8)
+  Actual: false
+Expected: true
+
+[  FAILED  ] TargetCache.IncompleteRevocationClearsCurrentPermission (0 ms)
+[ RUN      ] TargetCache.TargetChangeInvalidatesDecisionEvenWhenIdIsReused
+/home/mu/Desktop/aubo_e5_jazzy_ws/src/peach/peach_arm/test/test_target_cache.cpp:499: Failure
+Value of: cache.updateDecisionSnapshot(decisionModel(), refinedPoseUpdate(), 0.002, 0.8)
+  Actual: false
+Expected: true
+
+[  FAILED  ] TargetCache.TargetChangeInvalidatesDecisionEvenWhenIdIsReused (0 ms)
+[----------] 19 tests from TargetCache (50 ms total)
+
+[----------] Global test environment tear-down
+[==========] 19 tests from 1 test suite ran. (50 ms total)
+[  PASSED  ] 12 tests.
+[  FAILED  ] 7 tests, listed below:
+[  FAILED  ] TargetCache.DiagnosticsHeartbeatDoesNotRefreshModelAge
+[  FAILED  ] TargetCache.DecisionCommitsGeometryCapabilitiesAndIdentityTogether
+[  FAILED  ] TargetCache.ForeignDecisionCannotReplaceCurrentModel
+[  FAILED  ] TargetCache.DecisionHeartbeatDoesNotRenewExpiryOrGeneration
+[  FAILED  ] TargetCache.LegacyPoseCannotOverwriteAuthoritativeDecisionGeometry
+[  FAILED  ] TargetCache.IncompleteRevocationClearsCurrentPermission
+[  FAILED  ] TargetCache.TargetChangeInvalidatesDecisionEvenWhenIdIsReused
+
+ 7 FAILED TESTS

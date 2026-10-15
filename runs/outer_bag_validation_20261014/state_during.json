@@ -1,0 +1,2264 @@
+{
+  "perception": {
+    "harvest": {
+      "harvest_run_id": "harvest_20261014T102343_249718_s2",
+      "snapshot_id": 2,
+      "target_set_locked": true,
+      "target_count": 1,
+      "collecting_count": 1,
+      "pending_count": 0,
+      "target_ids": [
+        "target_0"
+      ],
+      "completed_target_ids": [],
+      "priorities": {
+        "target_0": 1
+      },
+      "selected_target_id": "target_0",
+      "anchor_stale_target_ids": [],
+      "out_of_view_target_ids": [],
+      "dropped_target_ids": [],
+      "lighting": {
+        "depth_ratio": 0.9522802343949184,
+        "conf_mean": 0.9162382835808291,
+        "bad_streak": 0,
+        "low_quality": false
+      },
+      "low_light_quality": false,
+      "scene_epoch": 1,
+      "timing": {
+        "detect_ms": 121.69,
+        "geometry_ms": 372.388,
+        "segment_ms": 78.455,
+        "total_ms": 712.146,
+        "fps": 1.48
+      },
+      "data": {
+        "run_dir": "/home/mu/Desktop/aubo_e5_jazzy_ws/runs/outer_bag_full_20261014_1025/perception_data/harvest_20261014T102343_249718_s2",
+        "latest": {
+          "source": "perception",
+          "event": "frame_observations",
+          "stamp_ns": 1791944628945638000,
+          "observed_target_ids": [
+            "target_0"
+          ],
+          "selected_target_id": "target_0",
+          "recorded_at": "2026-10-14T02:23:50.995595+00:00"
+        }
+      }
+    },
+    "targets": {
+      "stamp": 1791944630.013153,
+      "frame_id": "base_link",
+      "snapshot_id": 2,
+      "scene_epoch": 1,
+      "harvest_run_id": "harvest_20261014T102343_249718_s2",
+      "target_set_locked": true,
+      "target_count": 1,
+      "selected_target_id": "target_0",
+      "collecting_count": 1,
+      "pending_count": 0,
+      "observations": [
+        {
+          "target_id": "target_0",
+          "priority": 1,
+          "confirmed": true,
+          "selected": true,
+          "harvest_status": "SELECTED",
+          "tracking_status": "OBSERVED",
+          "camera_distance_m": 0.7949506044387817,
+          "confidence": 0.9122137427330017,
+          "candidate": {
+            "target_id": "target_0",
+            "entry_position": [
+              0.3962255655494798,
+              -0.8554684882162004,
+              0.5958300287771656
+            ],
+            "entry_quaternion_xyzw": [
+              -0.25157780369924726,
+              -0.0920055901062928,
+              0.9491954834269523,
+              0.16514089232207207
+            ],
+            "bag_bottom": [
+              0.3962255655494798,
+              -0.8554684882162004,
+              0.5958300287771656
+            ],
+            "bag_neck": [
+              0.34466839499393875,
+              -0.864762426968757,
+              0.6827586185012791
+            ],
+            "translation_direction": [
+              -0.5079808005011399,
+              -0.09157101517520769,
+              0.8564871601501116
+            ],
+            "diameter_m": 0.12351906299591064,
+            "travel_m": 0.029999999329447746,
+            "confidence": 0.9122137427330017,
+            "status": "REJECT",
+            "diagnostic_flags": [
+              "axis_from_primary",
+              "taper_neck",
+              "length_extended_from_2d",
+              "length_extended_from_2d",
+              "tool_clearance_failed",
+              "axis_2d_mismatch",
+              "error_budget_exceeded",
+              "target_matched"
+            ],
+            "strategy_id": "robust_bag_pose:hybrid_dilated",
+            "model_version": "yolo:6981750db67a726e|mobile_sam:6dbb90523a35330f",
+            "calibration_version": "percipio-640x480-chessboard|hand_eye:import_humble_20260128T114006",
+            "tool_version": "1.1"
+          },
+          "fitting": {
+            "target_id": "target_0",
+            "target_kind": "bag",
+            "status": "REJECT",
+            "axis_confidence": 0.38581565022468567,
+            "valid_depth_ratio": 0.9514601230621338,
+            "n_points": 2188,
+            "error_budget_mm": 1.0469849109649658,
+            "radial_clearance_mm": -14.75953197479248,
+            "diameter_m": 0.12351906299591064,
+            "cylinder_rms_m": 0.0016678189858794212,
+            "sphere_rms_m": -1.0,
+            "inlier_ratio": 0.46320754289627075,
+            "diagnostic_flags": [
+              "axis_from_primary",
+              "taper_neck",
+              "length_extended_from_2d",
+              "length_extended_from_2d",
+              "tool_clearance_failed",
+              "axis_2d_mismatch",
+              "error_budget_exceeded",
+              "target_matched"
+            ]
+          },
+          "mask": {
+            "width": 640,
+            "height": 480,
+            "stamp": 1791944630.013153
+          },
+          "diagnostic_flags": [
+            "axis_from_primary",
+            "taper_neck",
+            "length_extended_from_2d",
+            "length_extended_from_2d",
+            "tool_clearance_failed",
+            "axis_2d_mismatch",
+            "error_budget_exceeded",
+            "target_matched"
+          ]
+        }
+      ]
+    }
+  },
+  "reconstruction": {
+    "status": {
+      "state": "COLLECTING"
+    },
+    "diagnostics": {
+      "harvest_run_id": "harvest_20261014T102343_249718_s2",
+      "selected_target_id": "target_0",
+      "target_mask_cache_size": 13,
+      "state": "COLLECTING",
+      "target_id": "target_0",
+      "target_center_base": [
+        0.3752173756150251,
+        -0.8665245197437816,
+        0.6293050877748321
+      ],
+      "bound_axis_hint": [
+        -0.5079808005011399,
+        -0.09157101517520769,
+        0.8564871601501116
+      ],
+      "captured_views": 1,
+      "pose_count": 1,
+      "rejected_views": 59,
+      "tf_failures": 0,
+      "skipped_views": 66,
+      "skip_reasons": {
+        "no_frame": 1,
+        "missing_mask": 53,
+        "same_stamp": 4,
+        "near_duplicate": 7,
+        "stale_frame": 1
+      },
+      "last_skip_code": "near_duplicate",
+      "last_skip_reason": "近重复视角不积分：平移 0.0 mm / 旋转 0.00 deg",
+      "frame_ring_size": 5,
+      "tf_latency_ms": 0.11420249938964844,
+      "valid_depth_ratio": 0.954240631163708,
+      "cloud_points": 2401,
+      "last_rel_translation_m": 0.0,
+      "last_rel_rotation_deg": 0.0,
+      "overlap": {
+        "pairs": [],
+        "frame_centroids_base": [
+          [
+            0.3691695915169968,
+            -0.8342027363950755,
+            0.6365924102242017
+          ]
+        ],
+        "centroid_base": [
+          0.3691695915169968,
+          -0.8342027363950755,
+          0.6365924102242017
+        ]
+      },
+      "tsdf": {
+        "points": 934,
+        "integrated_frames": 1,
+        "integrate_time_s": 0.0033588409423828125,
+        "voxel_length": 0.003,
+        "sdf_trunc": 0.012,
+        "mesh_vertices": 1562,
+        "roi_center": [
+          0.3752173756150251,
+          -0.8665245197437816,
+          0.6293050877748321
+        ]
+      },
+      "registration": {
+        "accepted": 1,
+        "latest": {
+          "mode": "fk",
+          "reason": "model_warmup",
+          "fitness": -1.0,
+          "rmse_m": -1.0,
+          "translation_m": 0.0,
+          "rotation_deg": 0.0
+        },
+        "target_refresh_period": 1,
+        "target_points": 934,
+        "target_full_refreshes": 2,
+        "target_incremental_appends": 0
+      },
+      "view_coverage": {
+        "max_baseline_deg": 0.0,
+        "mean_nearest_baseline_deg": 0.0,
+        "valid_depth_ratio_mean": 0.954240631163708
+      },
+      "refined": {
+        "ok": false,
+        "kind": "cylinder",
+        "status": 1,
+        "reason": "fused_axis_conflict",
+        "center": [
+          0.3745376558351031,
+          -0.8673872156441317,
+          0.631568113989833
+        ],
+        "axis": [
+          -0.2702166380346766,
+          -0.34295719019039694,
+          0.8996462272615523
+        ],
+        "bottom": [
+          0.38583040508932503,
+          -0.8530545321279684,
+          0.5939705798932549
+        ],
+        "neck": [
+          0.36324490658088116,
+          -0.8817198991602949,
+          0.6691656480864112
+        ],
+        "diameter": 0.11176453893226992,
+        "span_m": 0.08358293061712029,
+        "rmse": 0.0019250252186982695,
+        "inlier_ratio": 0.5738758029978587,
+        "refit_ok": true,
+        "refit_status": 0,
+        "refit_axis": [
+          0.33730568551175855,
+          -0.2346752269369665,
+          0.911675606991613
+        ],
+        "refit_rmse": 0.0019250252186982695,
+        "refit_inlier_ratio": 0.5738758029978587,
+        "fused_refit_axis_angle_deg": 35.950600908571225,
+        "fusion_landmark_scatter_rmse_m": null,
+        "fusion_landmark_inlier_ratio": null,
+        "fusion_consistency_available": false,
+        "fusion_pose_count": 1,
+        "fusion_lateral_shift_m": 0.0,
+        "model_revision": "target_0:1:2",
+        "fruit_prior_radius_m": 0.04330482717197068,
+        "cut_to_fruit_m": 0.008514990614206977,
+        "cut_distance_source": "bag_surface_sphere_auxiliary",
+        "n_points": 934,
+        "flags": [
+          "perception_reconstruction_axis_mismatch",
+          "keypoint_cloud_axis_conflict",
+          "fused_axis_conflict"
+        ],
+        "axis_angle_deg": 0.0,
+        "refit_axis_angle_deg": 35.95060090857123,
+        "fused_axis_angle_deg": 0.0,
+        "axis_conflict_deg": 15.840532086284,
+        "envelope_conditioned": true,
+        "envelope_reason": "ok",
+        "perception_axis": [
+          -0.27021663803467694,
+          -0.3429571901903966,
+          0.8996462272615523
+        ],
+        "final": true
+      },
+      "grasp_decision": {
+        "stamp": 1791944630.7273674,
+        "harvest_run_id": "harvest_20261014T102343_249718_s2",
+        "target_id": "target_0",
+        "tool_profile_id": "",
+        "allowed": false,
+        "reason": "fused_axis_conflict",
+        "valid_until": 1791944677.8514297,
+        "model_revision": "",
+        "scene_epoch": 0,
+        "failure_code": 0
+      },
+      "timing": {
+        "icp_ms_ema": 0.08463859558105469,
+        "tsdf_integrate_ms_ema": 13.967275619506836,
+        "frame_total_ms_ema": 94.9559211730957,
+        "refit_ms_last": 41.19706153869629,
+        "finalize_ms_last": 78.60207557678223,
+        "frames_timed": 1
+      },
+      "stamp": 1791944631.7271087,
+      "view_directions": [
+        [
+          0.0035371478934811407,
+          0.9852510218355307,
+          0.17107867358856385
+        ]
+      ],
+      "refined_context": {
+        "target_id": "target_0",
+        "harvest_run_id": "harvest_20261014T102343_249718_s2",
+        "scene_epoch": 1
+      }
+    },
+    "grasp_decision": {
+      "stamp": 1791944631.7271087,
+      "harvest_run_id": "harvest_20261014T102343_249718_s2",
+      "target_id": "target_0",
+      "tool_profile_id": "",
+      "allowed": false,
+      "reason": "fused_axis_conflict",
+      "valid_until": 1791944677.8514297,
+      "model_revision": "",
+      "scene_epoch": 0,
+      "failure_code": 0
+    }
+  },
+  "refined": {
+    "pose": {
+      "stamp": 1791944627.203142,
+      "frame_id": "base_link",
+      "candidates": []
+    },
+    "axis": {
+      "stamp": 1791944627.203142,
+      "frame_id": "base_link",
+      "xyz": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    "diagnostics": {
+      "stamp": 1791944627.203142,
+      "frame_id": "base_link",
+      "fittings": [
+        {
+          "target_id": "target_0",
+          "target_kind": "cylinder",
+          "status": "REJECT",
+          "axis_confidence": -1.0,
+          "valid_depth_ratio": -1.0,
+          "n_points": -1,
+          "error_budget_mm": -1.0,
+          "radial_clearance_mm": -1.0,
+          "diameter_m": -1.0,
+          "cylinder_rms_m": -1.0,
+          "sphere_rms_m": -1.0,
+          "inlier_ratio": -1.0,
+          "diagnostic_flags": [
+            "refit_failed",
+            "fused_axis_conflict"
+          ]
+        }
+      ]
+    }
+  },
+  "manipulation": {
+    "status": {
+      "callback_timing": {
+        "action_goal": {
+          "count": 1,
+          "last_ms": 0.00429,
+          "max_ms": 0.00429,
+          "total_ms": 0.00429
+        },
+        "check_reachability": {
+          "count": 1,
+          "last_ms": 1.795995,
+          "max_ms": 1.795995,
+          "total_ms": 1.795995
+        },
+        "go_to_photo_pose": {
+          "count": 1,
+          "last_ms": 1.905958,
+          "max_ms": 1.905958,
+          "total_ms": 1.905958
+        },
+        "start_cycle": {
+          "count": 1,
+          "last_ms": 0.053083,
+          "max_ms": 0.053083,
+          "total_ms": 0.053083
+        }
+      },
+      "contact_recovery_required": false,
+      "execution_armed": true,
+      "execution_enabled": true,
+      "grasp_enabled": true,
+      "message": "等待重建精化几何（BuildTargetModel）",
+      "quality": {
+        "axis_angle_deg": -1.0,
+        "captured_views": 0,
+        "grasp_allowed": false,
+        "max_baseline_deg": 0.0,
+        "mean_depth_ratio": 0.0,
+        "mean_nearest_baseline_deg": 0.0,
+        "reconstruction_target_id": "target_0",
+        "refined_inlier_ratio": -1.0,
+        "refined_rmse_m": -1.0,
+        "refined_target_id": "",
+        "selected_target_id": "",
+        "station_count": 0
+      },
+      "running": true,
+      "state": "FINALIZE",
+      "target_id": "target_0"
+    },
+    "hypothesis": {}
+  },
+  "task_executor": {
+    "state": {
+      "revision": 41,
+      "state_seq": 41,
+      "run_id": "outer_bag_full_20261014_1025",
+      "cycle_id": "outer_bag_full_20261014_1025:target_0",
+      "target_id": "target_0",
+      "operation_mode": 0,
+      "batch_state": 2,
+      "target_phase": 3,
+      "action_active": true,
+      "auto_start_enabled": false,
+      "execution_enabled": true,
+      "grasp_enabled": true,
+      "tool_enabled": false,
+      "recovery_required": false,
+      "progress": 0.0,
+      "message": "等待重建精化几何（BuildTargetModel）",
+      "blockers": [],
+      "scene_epoch": 1
+    },
+    "events": [
+      {
+        "stamp": 1791944606.350465,
+        "sequence": 0,
+        "severity": 3,
+        "severity_name": "AUDIT",
+        "code": "enables_changed",
+        "message": "{\"code\": \"enables_changed\", \"execution\": true, \"grasp\": true, \"tool\": false, \"reason\": \"peach_system_tests drive_harvest\"}",
+        "request_id": "",
+        "run_id": "",
+        "cycle_id": "",
+        "state_seq": 1,
+        "target_id": "",
+        "details": {}
+      },
+      {
+        "stamp": 1791944612.1594465,
+        "sequence": 0,
+        "severity": 0,
+        "severity_name": "INFO",
+        "code": "photo_pose_reached",
+        "message": "{\"code\": \"photo_pose_reached\"}",
+        "request_id": "outer_bag_full_20261014_1025",
+        "run_id": "outer_bag_full_20261014_1025",
+        "cycle_id": "",
+        "state_seq": 5,
+        "target_id": "",
+        "details": {}
+      },
+      {
+        "stamp": 1791944623.2596545,
+        "sequence": 0,
+        "severity": 0,
+        "severity_name": "INFO",
+        "code": "round_locked",
+        "message": "{\"code\": \"round_locked\"}",
+        "request_id": "outer_bag_full_20261014_1025",
+        "run_id": "outer_bag_full_20261014_1025",
+        "cycle_id": "",
+        "state_seq": 8,
+        "target_id": "",
+        "details": {}
+      },
+      {
+        "stamp": 1791944623.2744644,
+        "sequence": 0,
+        "severity": 0,
+        "severity_name": "INFO",
+        "code": "target_dispatched",
+        "message": "{\"code\": \"target_dispatched\"}",
+        "request_id": "outer_bag_full_20261014_1025",
+        "run_id": "outer_bag_full_20261014_1025",
+        "cycle_id": "",
+        "state_seq": 9,
+        "target_id": "target_0",
+        "details": {}
+      }
+    ]
+  },
+  "pipeline": {
+    "fsm": [
+      {
+        "batch_state": 0,
+        "target_phase": 0,
+        "message": "waiting_ready",
+        "run_id": "",
+        "cycle_id": "",
+        "target_id": "",
+        "recovery_required": false,
+        "execution_enabled": false,
+        "grasp_enabled": false,
+        "tool_enabled": false,
+        "state_seq": 1,
+        "t": 1791944557.8710344,
+        "dur_s": 48.489
+      },
+      {
+        "batch_state": 0,
+        "target_phase": 0,
+        "message": "waiting_ready",
+        "run_id": "",
+        "cycle_id": "",
+        "target_id": "",
+        "recovery_required": false,
+        "execution_enabled": true,
+        "grasp_enabled": false,
+        "tool_enabled": false,
+        "state_seq": 2,
+        "t": 1791944606.3601165,
+        "dur_s": 5.807
+      },
+      {
+        "batch_state": 1,
+        "target_phase": 0,
+        "message": "preparing",
+        "run_id": "outer_bag_full_20261014_1025",
+        "cycle_id": "outer_bag_full_20261014_1025",
+        "target_id": "",
+        "recovery_required": false,
+        "execution_enabled": true,
+        "grasp_enabled": false,
+        "tool_enabled": false,
+        "state_seq": 6,
+        "t": 1791944612.167406,
+        "dur_s": 11.097
+      },
+      {
+        "batch_state": 1,
+        "target_phase": 1,
+        "message": "discovery",
+        "run_id": "outer_bag_full_20261014_1025",
+        "cycle_id": "outer_bag_full_20261014_1025",
+        "target_id": "",
+        "recovery_required": false,
+        "execution_enabled": true,
+        "grasp_enabled": false,
+        "tool_enabled": false,
+        "state_seq": 8,
+        "t": 1791944623.2639232,
+        "dur_s": 2.342
+      },
+      {
+        "batch_state": 2,
+        "target_phase": 4,
+        "message": "running",
+        "run_id": "outer_bag_full_20261014_1025",
+        "cycle_id": "outer_bag_full_20261014_1025:target_0",
+        "target_id": "target_0",
+        "recovery_required": false,
+        "execution_enabled": true,
+        "grasp_enabled": false,
+        "tool_enabled": false,
+        "state_seq": 10,
+        "t": 1791944625.6057043,
+        "dur_s": 0.211
+      },
+      {
+        "batch_state": 2,
+        "target_phase": 3,
+        "message": "等待重建精化几何（BuildTargetModel）",
+        "run_id": "outer_bag_full_20261014_1025",
+        "cycle_id": "outer_bag_full_20261014_1025:target_0",
+        "target_id": "target_0",
+        "recovery_required": false,
+        "execution_enabled": true,
+        "grasp_enabled": true,
+        "tool_enabled": false,
+        "state_seq": 12,
+        "t": 1791944625.8167663,
+        "dur_s": 0.0,
+        "current": true
+      }
+    ],
+    "arm": [
+      {
+        "state": "IDLE",
+        "message": "已配置；activate 后才开放运动输出权限",
+        "target_id": "",
+        "running": false,
+        "recovery": false,
+        "t": 1791944557.8610883,
+        "dur_s": 67.761
+      },
+      {
+        "state": "FINALIZE",
+        "message": "等待重建精化几何（BuildTargetModel）",
+        "target_id": "target_0",
+        "running": true,
+        "recovery": false,
+        "t": 1791944625.6221519,
+        "dur_s": 0.0,
+        "current": true
+      }
+    ]
+  },
+  "ledger": {
+    "live": {
+      "request_id": "outer_bag_full_20261014_1025",
+      "path": "/home/mu/Desktop/aubo_e5_jazzy_ws/runs/outer_bag_full_20261014_1025/ledger.json",
+      "mtime": 1791944625.6084654,
+      "error": null,
+      "claimed": [
+        "target_0"
+      ],
+      "rows": [],
+      "totals": {
+        "SUCCEEDED": 0,
+        "SKIPPED_QUALITY": 0,
+        "SKIPPED_UNREACHABLE": 0,
+        "FAILED": 0,
+        "CANCELED": 0,
+        "attempted": 0,
+        "claimed": 1
+      }
+    }
+  },
+  "robot": {
+    "status": {},
+    "tcp": {
+      "frame_id": "base_link",
+      "tip_frame": "tcp",
+      "tf_ok": true,
+      "tf_failures": 3,
+      "xyz": [
+        0.3588,
+        -0.2443,
+        0.6888
+      ],
+      "quat": [
+        -0.00251,
+        -0.00873,
+        0.0726,
+        0.99732
+      ],
+      "stamp": 1791944630.861,
+      "count": 21,
+      "path_length_m": 0.0,
+      "chord_m": 0.0,
+      "detour_ratio": null,
+      "max_dev_m": 0.0,
+      "z_min_m": 0.6888,
+      "z_max_m": 0.6888,
+      "dz_m": 0.0
+    },
+    "joints": {
+      "rows": [
+        {
+          "name": "shoulder_joint",
+          "position": 0.425175,
+          "velocity": 0.0,
+          "effort": null,
+          "current": null,
+          "temperature": null,
+          "tag_pos": null,
+          "tag_vel": null,
+          "following_error": null,
+          "error_code": 0
+        },
+        {
+          "name": "upperArm_joint",
+          "position": 0.194274,
+          "velocity": 0.0,
+          "effort": null,
+          "current": null,
+          "temperature": null,
+          "tag_pos": null,
+          "tag_vel": null,
+          "following_error": null,
+          "error_code": 0
+        },
+        {
+          "name": "foreArm_joint",
+          "position": 1.679546,
+          "velocity": 0.0,
+          "effort": null,
+          "current": null,
+          "temperature": null,
+          "tag_pos": null,
+          "tag_vel": null,
+          "following_error": null,
+          "error_code": 0
+        },
+        {
+          "name": "wrist1_joint",
+          "position": 1.462579,
+          "velocity": 0.0,
+          "effort": null,
+          "current": null,
+          "temperature": null,
+          "tag_pos": null,
+          "tag_vel": null,
+          "following_error": null,
+          "error_code": 0
+        },
+        {
+          "name": "wrist2_joint",
+          "position": -0.279948,
+          "velocity": 0.0,
+          "effort": null,
+          "current": null,
+          "temperature": null,
+          "tag_pos": null,
+          "tag_vel": null,
+          "following_error": null,
+          "error_code": 0
+        },
+        {
+          "name": "wrist3_joint",
+          "position": 0.038859,
+          "velocity": 0.0,
+          "effort": null,
+          "current": null,
+          "temperature": null,
+          "tag_pos": null,
+          "tag_vel": null,
+          "following_error": null,
+          "error_code": 0
+        }
+      ],
+      "stamp": 1791944631.7204697
+    }
+  },
+  "metrics": {
+    "sample": {
+      "stamp": 1791944629.1313596,
+      "cpu_percent": 73.4,
+      "memory_percent": 83.6,
+      "memory_used_mb": 26309.7,
+      "memory_total_mb": 31457.4,
+      "load1": 23.54,
+      "load5": 12.6,
+      "load15": 12.03,
+      "gpu": {
+        "utilization_percent": 58.0,
+        "memory_used_mb": 6234.0,
+        "memory_total_mb": 24576.0
+      },
+      "processes": [
+        {
+          "name": "peach_scene_perception_node",
+          "pid": 142389,
+          "cpu_percent": 148.2,
+          "rss_mb": 1419.8
+        },
+        {
+          "name": "peach_target_reconstruction_node",
+          "pid": 142390,
+          "cpu_percent": 55.0,
+          "rss_mb": 232.3
+        },
+        {
+          "name": "peach_arm",
+          "pid": 145347,
+          "cpu_percent": 8.6,
+          "rss_mb": 98.2
+        },
+        {
+          "name": "peach_supervisor",
+          "pid": 147208,
+          "cpu_percent": 0.0,
+          "rss_mb": 3.9
+        },
+        {
+          "name": "ros2_control_node",
+          "pid": 145342,
+          "cpu_percent": 10.8,
+          "rss_mb": 60.8
+        },
+        {
+          "name": "percipio",
+          "pid": 2212,
+          "cpu_percent": 0.0,
+          "rss_mb": 4.1
+        }
+      ]
+    }
+  },
+  "record": {
+    "info": {
+      "enabled": true,
+      "directory": "/home/mu/Desktop/aubo_e5_jazzy_ws/runs/session_20261014_102236/bag",
+      "session": "/home/mu/Desktop/aubo_e5_jazzy_ws/runs/session_20261014_102236",
+      "queue_size": 0,
+      "queue_depth": 512,
+      "drops": 0
+    }
+  },
+  "startup": {
+    "facts": {
+      "launched_at": "2026-10-14T10:22:35",
+      "hardware_mode": "mock",
+      "robot_ip": "169.254.10.98",
+      "tool_profile": "bite_shear_v1",
+      "moveit_enabled": "true",
+      "camera_enabled": "true",
+      "camera_frontend": "stereo",
+      "camera_ip": "169.254.10.110",
+      "extrinsics_enabled": "false",
+      "imu_enabled": "false",
+      "bond_timeout": "0.0",
+      "use_sim_time": "false",
+      "skip_reconstruction": "false",
+      "autostart": "false",
+      "require_robot_status": "false",
+      "expected_tcp_norm_m": 0.1682400297194458,
+      "ros_domain_id": "81",
+      "git": {
+        "root": "/home/mu/Desktop/aubo_e5_jazzy_ws",
+        "branch": "20260924-full-sync",
+        "commit": "6dbf9a749496"
+      }
+    }
+  },
+  "selfcheck": {
+    "report": {
+      "trigger": "periodic",
+      "checked_at": "2026-10-14T10:23:37",
+      "duration_s": 0.003,
+      "facts": {
+        "launched_at": "2026-10-14T10:22:35",
+        "hardware_mode": "mock",
+        "robot_ip": "169.254.10.98",
+        "tool_profile": "bite_shear_v1",
+        "moveit_enabled": "true",
+        "camera_enabled": "true",
+        "camera_frontend": "stereo",
+        "camera_ip": "169.254.10.110",
+        "extrinsics_enabled": "false",
+        "imu_enabled": "false",
+        "bond_timeout": "0.0",
+        "use_sim_time": "false",
+        "skip_reconstruction": "false",
+        "autostart": "false",
+        "require_robot_status": "false",
+        "expected_tcp_norm_m": 0.1682400297194458,
+        "ros_domain_id": "81",
+        "git": {
+          "root": "/home/mu/Desktop/aubo_e5_jazzy_ws",
+          "branch": "20260924-full-sync",
+          "commit": "6dbf9a749496"
+        }
+      },
+      "checks": [
+        {
+          "name": "managed_lifecycle",
+          "status": "pass",
+          "detail": "托管节点已激活",
+          "value": true
+        },
+        {
+          "name": "controllers",
+          "status": "pass",
+          "detail": "期望控制器均 active",
+          "value": {
+            "joint_trajectory_controller": "active",
+            "joint_state_broadcaster": "active"
+          }
+        },
+        {
+          "name": "joint_states_flow",
+          "status": "pass",
+          "detail": "帧率 146.20Hz",
+          "value": 146.2
+        },
+        {
+          "name": "joint_order",
+          "status": "pass",
+          "detail": "六关节名集合一致",
+          "value": [
+            "foreArm_joint",
+            "shoulder_joint",
+            "upperArm_joint",
+            "wrist1_joint",
+            "wrist2_joint",
+            "wrist3_joint"
+          ]
+        },
+        {
+          "name": "tcp_frame",
+          "status": "pass",
+          "detail": "|tcp|=168.2mm 对档案",
+          "value": 0.16824
+        },
+        {
+          "name": "camera_color_rate",
+          "status": "pass",
+          "detail": "图像探针接收帧率 6.20Hz（仅诊断，不拦开批）",
+          "value": 6.2
+        },
+        {
+          "name": "camera_depth_rate",
+          "status": "pass",
+          "detail": "图像探针接收帧率 7.20Hz（仅诊断，不拦开批）",
+          "value": 7.2
+        },
+        {
+          "name": "move_group",
+          "status": "pass",
+          "detail": "GetPlanningScene 可用",
+          "value": true
+        },
+        {
+          "name": "action_run_harvest",
+          "status": "pass",
+          "detail": "服务端就绪",
+          "value": true
+        },
+        {
+          "name": "action_survey_scene",
+          "status": "pass",
+          "detail": "服务端就绪",
+          "value": true
+        },
+        {
+          "name": "action_execute_target",
+          "status": "pass",
+          "detail": "服务端就绪",
+          "value": true
+        },
+        {
+          "name": "action_build_target_model",
+          "status": "pass",
+          "detail": "服务端就绪",
+          "value": true
+        },
+        {
+          "name": "robot_status",
+          "status": "skip",
+          "detail": "mock 模式不要求",
+          "value": null
+        },
+        {
+          "name": "imu_topic",
+          "status": "skip",
+          "detail": "imu_enabled=false",
+          "value": null
+        },
+        {
+          "name": "disk_free",
+          "status": "pass",
+          "detail": "剩余 46.3GB",
+          "value": 49667612672
+        },
+        {
+          "name": "model_files",
+          "status": "skip",
+          "detail": "未配置检查清单",
+          "value": null
+        },
+        {
+          "name": "param_consistency",
+          "status": "pass",
+          "detail": "启动参数组合自洽",
+          "value": null
+        },
+        {
+          "name": "vegetation_status",
+          "status": "skip",
+          "detail": "vegetation 不在图",
+          "value": null
+        }
+      ],
+      "status": "pass",
+      "passed": true,
+      "failed": [],
+      "warned": [],
+      "skipped": [
+        "robot_status",
+        "imu_topic",
+        "model_files",
+        "vegetation_status"
+      ],
+      "summary": "14/18 通过，跳过: robot_status, imu_topic, model_files, vegetation_status"
+    }
+  },
+  "diagnostics": {
+    "nodes": {
+      "peach_arm": {
+        "level": 0,
+        "tasks": {
+          "peach_arm: perception_stream": {
+            "level": 0,
+            "message": "观测流与 TF 正常",
+            "values": {
+              "frame_interval_ema_s": "0.680505",
+              "last_arrival_age_s": "0.333071",
+              "frame_wait_s": "3.72202",
+              "target_max_age_s": "3",
+              "refined_wait_s": "30",
+              "tf_base_to_camera_ok": "1"
+            }
+          },
+          "peach_arm: target_cache": {
+            "level": 0,
+            "message": "目标缓存正常",
+            "values": {
+              "reconstruction_state": "COLLECTING",
+              "data_age_s": "0.0368164",
+              "captured_views": "1",
+              "station_count": "1",
+              "selected_target_id": "target_0",
+              "refined_target_id": "target_0"
+            }
+          },
+          "peach_arm: callback_timing": {
+            "level": 0,
+            "message": "回调耗时 TopN",
+            "values": {
+              "go_to_photo_pose.count": "1",
+              "go_to_photo_pose.last_ms": "1.90596",
+              "go_to_photo_pose.max_ms": "1.90596",
+              "check_reachability.count": "1",
+              "check_reachability.last_ms": "1.796",
+              "check_reachability.max_ms": "1.796",
+              "start_cycle.count": "1",
+              "start_cycle.last_ms": "0.053083",
+              "start_cycle.max_ms": "0.053083",
+              "action_goal.count": "1",
+              "action_goal.last_ms": "0.00429",
+              "action_goal.max_ms": "0.00429"
+            }
+          },
+          "peach_arm: contact_monitor": {
+            "level": 0,
+            "message": "接触检测关闭（仅缓存）",
+            "values": {
+              "enabled": "0",
+              "baseline_s": "0.2",
+              "slope_threshold": "0",
+              "spike_threshold": "0",
+              "abort_suspected": "0",
+              "current_sample_count": "0"
+            }
+          },
+          "peach_arm: enables": {
+            "level": 0,
+            "message": "使能正常（源=console_broadcast）",
+            "values": {
+              "source": "console_broadcast",
+              "heartbeat_age_s": "0.930325",
+              "heartbeat_timeout_s": "5",
+              "execution_enabled": "1",
+              "grasp_enabled": "1",
+              "tool_enabled": "0",
+              "execution_armed": "1",
+              "motion_output_permitted": "1",
+              "contact_recovery_required": "0"
+            }
+          },
+          "peach_arm: robot_status": {
+            "level": 0,
+            "message": "mock：不要求 robot_status",
+            "values": {
+              "required": "0",
+              "valid": "0",
+              "age_s": "-1",
+              "contract_timeout_s": "0.5"
+            }
+          },
+          "peach_arm: tool_chain": {
+            "level": 0,
+            "message": "工具状态机正常",
+            "values": {
+              "state": "0",
+              "blade": "0",
+              "retention": "0",
+              "payload": "0",
+              "evidence_source": "",
+              "fault_code": "",
+              "tool_enabled": "0"
+            }
+          },
+          "peach_arm: moveit_availability": {
+            "level": 0,
+            "message": "move_group 在场",
+            "values": {
+              "mgi_initialized": "1",
+              "get_planning_scene_ready": "1"
+            }
+          },
+          "peach_arm: last_denial": {
+            "level": 0,
+            "message": "无失败记录",
+            "values": {
+              "last_denial": ""
+            }
+          }
+        },
+        "stamp": 1791944631
+      }
+    }
+  },
+  "params": {
+    "/peach_arm": {
+      "moveit.velocity_scaling": 0.1,
+      "moveit.acceleration_scaling": 0.1,
+      "moveit.transit_velocity_scaling": 0.1,
+      "moveit.transit_acceleration_scaling": 0.1,
+      "scan.observation_radius_m": 0.45,
+      "scan.minimum_radius_m": 0.42,
+      "scan.frame_wait_s": 4.0,
+      "scan.maximum_moves": 2,
+      "quality.minimum_views": 1,
+      "quality.minimum_baseline_deg": 0.0,
+      "execution.enabled": false,
+      "grasp.enabled": false,
+      "tool.enabled": false,
+      "photo_pose_joint_tolerance_rad": 0.05,
+      "photo_pose_max_joint_vel_rad_s": 0.05
+    },
+    "/peach_scene_perception_node": {
+      "yolo_conf": 0.35,
+      "min_detection_conf": 0.4,
+      "target_memory.match_radius_m": 0.06,
+      "target_memory.recovery_scale": 1.0,
+      "target_memory.confirm_frames": 5,
+      "harvest.min_collect_frames": 10,
+      "harvest.lock_settle_frames": 5,
+      "harvest.max_collect_s": 25.0,
+      "harvest.priority_prefer_lower_first": true
+    },
+    "/peach_target_reconstruction_node": {
+      "capture.min_views": 1,
+      "capture.recommended_views": 5,
+      "capture.min_mask_depth_ratio": 0.35,
+      "capture.require_target_mask": true,
+      "icp.enable": true,
+      "tsdf.enable": true,
+      "capture.require_robot_static": true,
+      "capture.static_joint_vel_thresh": 0.03,
+      "capture.joint_state_tolerance_s": 0.1,
+      "capture.max_frame_age_s": 2.0,
+      "refit.max_axis_angle_deg": 35.0
+    },
+    "/peach_supervisor": {
+      "execution_enabled": false,
+      "survey_wait_s": 15.0,
+      "survey_dwell_s": 2.0,
+      "execute_pregrasp_only": false,
+      "reconstruct_in_trajectory": true,
+      "empty_survey_limit": 2,
+      "persist_ledger": true
+    }
+  },
+  "system": {
+    "revision": 3536,
+    "server_time": 1791944631.8144548,
+    "uptime_s": 74.96192002296448,
+    "topic_age_s": {
+      "record.info": 74.917,
+      "startup.facts": 74.952,
+      "robot.tcp": 0.015,
+      "diagnostics.nodes": 0.026,
+      "robot.joints": 0.073,
+      "reconstruction.status": 0.081,
+      "reconstruction.diagnostics": 0.081,
+      "reconstruction.grasp_decision": 0.081,
+      "refined.pose": 4.595,
+      "refined.axis": 4.595,
+      "refined.diagnostics": 4.595,
+      "manipulation.status": 0.972,
+      "pipeline.arm": 6.192,
+      "task_executor.state": 0.187,
+      "pipeline.fsm": 5.998,
+      "metrics.sample": 1.782,
+      "params./peach_arm": 2.175,
+      "params./peach_scene_perception_node": 2.176,
+      "params./peach_target_reconstruction_node": 2.136,
+      "params./peach_supervisor": 2.175,
+      "selfcheck.report": 14.125,
+      "perception.targets": 0.376,
+      "perception.harvest": 0.376,
+      "task_executor.events": 8.535,
+      "ledger.live": 5.211
+    }
+  },
+  "job": {
+    "target_id": "target_0",
+    "cycle_id": "outer_bag_full_20261014_1025:target_0",
+    "batch_state": 2,
+    "target_phase": 3,
+    "active_id": "permit",
+    "why": "重建COLLECTING，尚未给出抓取几何",
+    "completion": {},
+    "flags": {
+      "execution_enabled": true,
+      "grasp_enabled": true,
+      "tool_enabled": false,
+      "skill_grasp_enabled": true,
+      "skill_execution_enabled": true
+    },
+    "stages": [
+      {
+        "id": "discover",
+        "label": "发现",
+        "status": "done",
+        "detail": ""
+      },
+      {
+        "id": "photo",
+        "label": "拍照",
+        "status": "done",
+        "detail": ""
+      },
+      {
+        "id": "lock",
+        "label": "锁定",
+        "status": "done",
+        "detail": ""
+      },
+      {
+        "id": "observe",
+        "label": "观察",
+        "status": "done",
+        "detail": "FINALIZE"
+      },
+      {
+        "id": "permit",
+        "label": "许可",
+        "status": "active",
+        "detail": "fused_axis_conflict"
+      },
+      {
+        "id": "approach",
+        "label": "靠近",
+        "status": "pending",
+        "detail": ""
+      },
+      {
+        "id": "tool",
+        "label": "工具",
+        "status": "gated",
+        "detail": "工具档关闭，不打 SetIO"
+      },
+      {
+        "id": "retreat",
+        "label": "撤离",
+        "status": "pending",
+        "detail": ""
+      },
+      {
+        "id": "done",
+        "label": "完成",
+        "status": "pending",
+        "detail": ""
+      }
+    ],
+    "coords": {
+      "frame_id": "base_link",
+      "perception_entry": [
+        0.3962255655494798,
+        -0.8554684882162004,
+        0.5958300287771656
+      ],
+      "perception_bottom": [
+        0.3962255655494798,
+        -0.8554684882162004,
+        0.5958300287771656
+      ],
+      "perception_neck": [
+        0.34466839499393875,
+        -0.864762426968757,
+        0.6827586185012791
+      ],
+      "reconstruction_center": [
+        0.3752173756150251,
+        -0.8665245197437816,
+        0.6293050877748321
+      ],
+      "refined_axis": null,
+      "grasp_entry": null,
+      "grasp_pregrasp": null,
+      "hypothesis_entry": null,
+      "hypothesis_travel_m": null,
+      "camera_distance_m": 0.7949506044387817
+    },
+    "grasp": {
+      "allowed": false,
+      "reason": "fused_axis_conflict",
+      "target_id": "target_0",
+      "entry": null,
+      "pregrasp": null,
+      "axis": null,
+      "cut_pose": null,
+      "diameter_m": null,
+      "rmse_m": null,
+      "inlier_ratio": null
+    },
+    "motion": {
+      "state": "FINALIZE",
+      "message": "等待重建精化几何（BuildTargetModel）",
+      "running": true
+    },
+    "reconstruction": {
+      "state": "COLLECTING",
+      "captured_views": 1,
+      "rejected_views": 59,
+      "max_baseline_deg": 0.0,
+      "mean_nearest_baseline_deg": 0.0
+    },
+    "perception": {
+      "locked": true,
+      "target_count": 1,
+      "harvest_status": "SELECTED",
+      "tracking_status": "OBSERVED",
+      "confidence": 0.9122137427330017
+    }
+  },
+  "images": {
+    "perception": {
+      "available": false,
+      "stamp_sec": 1791944630.013153,
+      "stamp_ns": "1791944630013153000",
+      "frame_id": "camera_color_optical_frame",
+      "width": 640,
+      "height": 480,
+      "error": "stale",
+      "age_s": 1.8014216423034668
+    },
+    "raw": {
+      "available": false,
+      "stamp_sec": 1791944630.013153,
+      "stamp_ns": "1791944630013153000",
+      "frame_id": "camera_color_optical_frame",
+      "width": 640,
+      "height": 480,
+      "error": "stale",
+      "age_s": 1.8014216423034668
+    }
+  },
+  "debug": {
+    "enabled": true,
+    "motion_enabled": false,
+    "recent": []
+  },
+  "logs": [
+    {
+      "stamp": 1791944557.6585321,
+      "level": 20,
+      "name": "peach_observability",
+      "msg": "全量录制订阅: /peach_supervisor/events [peach_interfaces/msg/CanonicalEvent]"
+    },
+    {
+      "stamp": 1791944557.658969,
+      "level": 20,
+      "name": "peach_observability",
+      "msg": "全量录制订阅: /peach_supervisor/run_harvest/_action/feedback [peach_interfaces/action/RunHarvest_FeedbackMessage]"
+    },
+    {
+      "stamp": 1791944557.6593633,
+      "level": 20,
+      "name": "peach_observability",
+      "msg": "全量录制订阅: /peach_supervisor/run_harvest/_action/status [action_msgs/msg/GoalStatusArray]"
+    },
+    {
+      "stamp": 1791944557.6597722,
+      "level": 20,
+      "name": "peach_observability",
+      "msg": "全量录制订阅: /peach_supervisor/scene_snapshot [peach_interfaces/msg/SceneSnapshot]"
+    },
+    {
+      "stamp": 1791944557.6601999,
+      "level": 20,
+      "name": "peach_observability",
+      "msg": "全量录制订阅: /peach_supervisor/state [peach_interfaces/msg/HarvestState]"
+    },
+    {
+      "stamp": 1791944557.6606436,
+      "level": 20,
+      "name": "peach_observability",
+      "msg": "全量录制订阅: /peach_target_reconstruction_node/build_target_model/_action/feedback [peach_interfaces/action/BuildTargetModel_FeedbackMessage]"
+    },
+    {
+      "stamp": 1791944557.6610582,
+      "level": 20,
+      "name": "peach_observability",
+      "msg": "全量录制订阅: /peach_target_reconstruction_node/build_target_model/_action/status [action_msgs/msg/GoalStatusArray]"
+    },
+    {
+      "stamp": 1791944557.6619072,
+      "level": 20,
+      "name": "peach_observability",
+      "msg": "全量录制订阅: /robot_description [std_msgs/msg/String]"
+    },
+    {
+      "stamp": 1791944557.662534,
+      "level": 20,
+      "name": "peach_observability",
+      "msg": "全量录制订阅: /tf [tf2_msgs/msg/TFMessage]"
+    },
+    {
+      "stamp": 1791944557.6630683,
+      "level": 20,
+      "name": "peach_observability",
+      "msg": "全量录制订阅: /tf_static [tf2_msgs/msg/TFMessage]"
+    },
+    {
+      "stamp": 1791944557.6717448,
+      "level": 20,
+      "name": "peach_lifecycle_manager",
+      "msg": "\u001b[34m\u001b[1mStarting managed nodes bringup...\u001b[0m\u001b[0m"
+    },
+    {
+      "stamp": 1791944557.6717954,
+      "level": 20,
+      "name": "peach_lifecycle_manager",
+      "msg": "\u001b[34m\u001b[1mConfiguring peach_scene_perception_node\u001b[0m\u001b[0m"
+    },
+    {
+      "stamp": 1791944557.709577,
+      "level": 20,
+      "name": "peach_lifecycle_manager",
+      "msg": "\u001b[34m\u001b[1mConfiguring peach_target_reconstruction_node\u001b[0m\u001b[0m"
+    },
+    {
+      "stamp": 1791944557.7288094,
+      "level": 20,
+      "name": "peach_lifecycle_manager",
+      "msg": "\u001b[34m\u001b[1mConfiguring peach_arm\u001b[0m\u001b[0m"
+    },
+    {
+      "stamp": 1791944557.7290647,
+      "level": 30,
+      "name": "peach_arm",
+      "msg": "scan.protected_zones 丢弃畸形盒: 盒#0 存在 min>=max 的轴（空盒/退化盒），已丢弃"
+    },
+    {
+      "stamp": 1791944557.763127,
+      "level": 30,
+      "name": "peach_arm",
+      "msg": "scan.protected_zones 丢弃畸形盒: 盒#0 存在 min>=max 的轴（空盒/退化盒），已丢弃"
+    },
+    {
+      "stamp": 1791944557.7644267,
+      "level": 30,
+      "name": "peach_arm",
+      "msg": "scan.protected_zones 丢弃畸形盒: 盒#0 存在 min>=max 的轴（空盒/退化盒），已丢弃"
+    },
+    {
+      "stamp": 1791944557.773127,
+      "level": 20,
+      "name": "peach_arm.moveit.ros.rdf_loader",
+      "msg": "Loaded robot model in 0.00231863 seconds"
+    },
+    {
+      "stamp": 1791944557.7731864,
+      "level": 20,
+      "name": "peach_arm.moveit.core.robot_model",
+      "msg": "Loading robot model 'aubo_e5'..."
+    },
+    {
+      "stamp": 1791944557.773195,
+      "level": 20,
+      "name": "peach_arm.moveit.core.robot_model",
+      "msg": "No root/virtual joint specified in SRDF. Assuming fixed joint"
+    },
+    {
+      "stamp": 1791944557.7944825,
+      "level": 20,
+      "name": "peach_arm.moveit.kinematics.kdl_kinematics_plugin",
+      "msg": "Joint weights for group 'manipulator_e5': 1 1 1 1 1 1"
+    },
+    {
+      "stamp": 1791944557.8083944,
+      "level": 20,
+      "name": "peach_arm.moveit.ros.move_group_interface",
+      "msg": "Ready to take commands for planning group manipulator_e5."
+    },
+    {
+      "stamp": 1791944557.8084452,
+      "level": 20,
+      "name": "peach_arm",
+      "msg": "主动视觉靠近节点 ready: group=manipulator_e5 base=base_link tip=tcp camera=camera_depth_optical_frame execution=plan_only grasp=disabled"
+    },
+    {
+      "stamp": 1791944557.8084648,
+      "level": 20,
+      "name": "peach_arm",
+      "msg": "[IDLE] 已配置；activate 后才开放运动输出权限"
+    },
+    {
+      "stamp": 1791944557.8101964,
+      "level": 20,
+      "name": "peach_lifecycle_manager",
+      "msg": "\u001b[34m\u001b[1mConfiguring peach_supervisor\u001b[0m\u001b[0m"
+    },
+    {
+      "stamp": 1791944557.8444812,
+      "level": 20,
+      "name": "peach_supervisor",
+      "msg": "task executor configured; will not auto-start harvest"
+    },
+    {
+      "stamp": 1791944557.8460486,
+      "level": 20,
+      "name": "peach_lifecycle_manager",
+      "msg": "\u001b[34m\u001b[1mActivating peach_scene_perception_node\u001b[0m\u001b[0m"
+    },
+    {
+      "stamp": 1791944557.8498886,
+      "level": 20,
+      "name": "peach_lifecycle_manager",
+      "msg": "\u001b[34m\u001b[1mActivating peach_target_reconstruction_node\u001b[0m\u001b[0m"
+    },
+    {
+      "stamp": 1791944557.8551342,
+      "level": 20,
+      "name": "peach_lifecycle_manager",
+      "msg": "\u001b[34m\u001b[1mActivating peach_arm\u001b[0m\u001b[0m"
+    },
+    {
+      "stamp": 1791944557.8554456,
+      "level": 30,
+      "name": "peach_arm",
+      "msg": "scan.protected_zones 丢弃畸形盒: 盒#0 存在 min>=max 的轴（空盒/退化盒），已丢弃"
+    },
+    {
+      "stamp": 1791944557.8584142,
+      "level": 20,
+      "name": "peach_arm",
+      "msg": "节点已激活：运动输出权限开放"
+    },
+    {
+      "stamp": 1791944557.862251,
+      "level": 20,
+      "name": "peach_lifecycle_manager",
+      "msg": "\u001b[34m\u001b[1mActivating peach_supervisor\u001b[0m\u001b[0m"
+    },
+    {
+      "stamp": 1791944557.8667822,
+      "level": 20,
+      "name": "peach_lifecycle_manager",
+      "msg": "\u001b[34m\u001b[1mManaged nodes are active\u001b[0m\u001b[0m"
+    },
+    {
+      "stamp": 1791944557.8884845,
+      "level": 20,
+      "name": "peach_arm",
+      "msg": "场景障碍 ACM 豁免已应用: 28 条（含 <octomap> 保留名）"
+    },
+    {
+      "stamp": 1791944557.6115758,
+      "level": 20,
+      "name": "peach_scene_perception_node",
+      "msg": "Subscribed color=/camera/color/image_raw depth=/camera/depth/image_raw info=/camera/color/camera_info slop=0.05s optical=camera_color_optical_frame output=base_link depth_scale_unit=0.25 gravity_mode=tf calib=percipio-640x480-chessboard|hand_eye:import_humble_20260128T114006"
+    },
+    {
+      "stamp": 1791944557.611805,
+      "level": 20,
+      "name": "peach_scene_perception_node",
+      "msg": "目标身份记忆已启用：match_radius=0.06 m, max_targets=50, ema=0.3"
+    },
+    {
+      "stamp": 1791944557.6271722,
+      "level": 20,
+      "name": "peach_target_reconstruction_node",
+      "msg": "peach_target_reconstruction_node ready: base=base_link color=/camera/color/image_raw depth=/camera/depth/image_raw slop=0.05s depth_scale_unit=0.25 views(min/rec/max)=1/5/24 require_static=True auto_mode=True session_root=/home/mu/Desktop/aubo_e5_jazzy_ws/runs"
+    },
+    {
+      "stamp": 1791944557.848055,
+      "level": 20,
+      "name": "peach_scene_perception_node",
+      "msg": "perception Active：开始处理 RGB-D"
+    },
+    {
+      "stamp": 1791944557.8540757,
+      "level": 20,
+      "name": "peach_target_reconstruction_node",
+      "msg": "reconstruction Active：开始积分"
+    },
+    {
+      "stamp": 1791944558.2127764,
+      "level": 20,
+      "name": "controller_manager",
+      "msg": "Loading controller : 'joint_trajectory_controller' of type 'joint_trajectory_controller/JointTrajectoryController'"
+    },
+    {
+      "stamp": 1791944558.212819,
+      "level": 20,
+      "name": "controller_manager",
+      "msg": "Loading controller 'joint_trajectory_controller'"
+    },
+    {
+      "stamp": 1791944558.215867,
+      "level": 20,
+      "name": "controller_manager",
+      "msg": "Controller 'joint_trajectory_controller' node arguments: --ros-args -p use_sim_time:=False --params-file /tmp/launch_params_7d531vcf --params-file /home/mu/Desktop/aubo_e5_jazzy_ws/install/aubo_e5_bringup/share/aubo_e5_bringup/config/controllers.yaml "
+    },
+    {
+      "stamp": 1791944558.2315774,
+      "level": 20,
+      "name": "spawner_joint_trajectory_controller",
+      "msg": "Loaded joint_trajectory_controller"
+    },
+    {
+      "stamp": 1791944558.2335262,
+      "level": 20,
+      "name": "controller_manager",
+      "msg": "Configuring controller: 'joint_trajectory_controller'"
+    },
+    {
+      "stamp": 1791944558.234445,
+      "level": 20,
+      "name": "joint_trajectory_controller",
+      "msg": "No specific joint names are used for command interfaces. Using 'joints' parameter."
+    },
+    {
+      "stamp": 1791944558.2344816,
+      "level": 20,
+      "name": "joint_trajectory_controller",
+      "msg": "Command interfaces are [position] and state interfaces are [position velocity]."
+    },
+    {
+      "stamp": 1791944558.2345102,
+      "level": 20,
+      "name": "joint_trajectory_controller",
+      "msg": "Using 'splines' interpolation method."
+    },
+    {
+      "stamp": 1791944558.2374737,
+      "level": 20,
+      "name": "joint_trajectory_controller",
+      "msg": "Action status changes will be monitored at 20.00 Hz."
+    },
+    {
+      "stamp": 1791944558.2433622,
+      "level": 20,
+      "name": "joint_trajectory_controller",
+      "msg": "Setting initial scaling factor to 1.000000"
+    },
+    {
+      "stamp": 1791944558.243388,
+      "level": 20,
+      "name": "joint_trajectory_controller",
+      "msg": "No scaling interface set. This controller will not read speed scaling from the hardware."
+    },
+    {
+      "stamp": 1791944558.2479713,
+      "level": 20,
+      "name": "controller_manager",
+      "msg": "Activating controllers: [ joint_trajectory_controller ]"
+    },
+    {
+      "stamp": 1791944558.250722,
+      "level": 20,
+      "name": "controller_manager",
+      "msg": "Successfully switched controllers!"
+    },
+    {
+      "stamp": 1791944558.256484,
+      "level": 20,
+      "name": "spawner_joint_trajectory_controller",
+      "msg": "Configured and activated joint_trajectory_controller"
+    },
+    {
+      "stamp": 1791944557.879846,
+      "level": 20,
+      "name": "peach_lifecycle_flag_bridge",
+      "msg": "托管栈 Active=True（桥自 nav2_lm is_active）"
+    },
+    {
+      "stamp": 1791944559.3539996,
+      "level": 20,
+      "name": "camera.peach_stereo_camera_node",
+      "msg": "iface eth-fc:9d:05:6c:6f:a00b0afea9: 1 device(s)"
+    },
+    {
+      "stamp": 1791944559.3540697,
+      "level": 20,
+      "name": "camera.peach_stereo_camera_node",
+      "msg": "  dev 207000152740 model PS800-E1 ip 169.254.10.110"
+    },
+    {
+      "stamp": 1791944559.4956179,
+      "level": 20,
+      "name": "camera.peach_stereo_camera_node",
+      "msg": "open device 207000152740: status=0"
+    },
+    {
+      "stamp": 1791944559.557237,
+      "level": 20,
+      "name": "camera.peach_stereo_camera_node",
+      "msg": "rectify: R1=2.65deg f=548.9px B=62.2mm proc=640x480 numDisp=128 med=3 mode=3 tk=3"
+    },
+    {
+      "stamp": 1791944559.5584757,
+      "level": 20,
+      "name": "camera.peach_stereo_camera_node",
+      "msg": "color mode set: yuyv 640x480"
+    },
+    {
+      "stamp": 1791944559.9032693,
+      "level": 20,
+      "name": "peach_observability",
+      "msg": "全量录制订阅: /peach_arm/tool_state [peach_interfaces/msg/ToolState]"
+    },
+    {
+      "stamp": 1791944559.9040473,
+      "level": 20,
+      "name": "peach_observability",
+      "msg": "全量录制订阅: /peach_scene_perception_node/transition_event [lifecycle_msgs/msg/TransitionEvent]"
+    },
+    {
+      "stamp": 1791944559.9048808,
+      "level": 20,
+      "name": "peach_observability",
+      "msg": "全量录制订阅: /peach_supervisor/transition_event [lifecycle_msgs/msg/TransitionEvent]"
+    },
+    {
+      "stamp": 1791944559.9058943,
+      "level": 20,
+      "name": "peach_observability",
+      "msg": "全量录制订阅: /peach_target_reconstruction_node/transition_event [lifecycle_msgs/msg/TransitionEvent]"
+    },
+    {
+      "stamp": 1791944559.9079802,
+      "level": 20,
+      "name": "peach_observability",
+      "msg": "全量录制订阅: /pipeline_state [moveit_msgs/msg/PipelineState]"
+    },
+    {
+      "stamp": 1791944559.9088826,
+      "level": 20,
+      "name": "peach_observability",
+      "msg": "全量录制订阅: /planning_scene [moveit_msgs/msg/PlanningScene]"
+    },
+    {
+      "stamp": 1791944559.9097154,
+      "level": 20,
+      "name": "peach_observability",
+      "msg": "全量录制订阅: /planning_scene_world [moveit_msgs/msg/PlanningSceneWorld]"
+    },
+    {
+      "stamp": 1791944559.9107907,
+      "level": 20,
+      "name": "peach_observability",
+      "msg": "全量录制订阅: /sequence_move_group/_action/feedback [moveit_msgs/action/MoveGroupSequence_FeedbackMessage]"
+    },
+    {
+      "stamp": 1791944559.9115796,
+      "level": 20,
+      "name": "peach_observability",
+      "msg": "全量录制订阅: /sequence_move_group/_action/status [action_msgs/msg/GoalStatusArray]"
+    },
+    {
+      "stamp": 1791944559.912435,
+      "level": 20,
+      "name": "peach_observability",
+      "msg": "全量录制订阅: /trajectory_execution_event [std_msgs/msg/String]"
+    },
+    {
+      "stamp": 1791944560.197853,
+      "level": 20,
+      "name": "peach_scene_perception_node",
+      "msg": "CameraInfo K fx=466.175 fy=465.557 cx=326.071 cy=244.789 640x480"
+    },
+    {
+      "stamp": 1791944560.9103005,
+      "level": 20,
+      "name": "peach_arm",
+      "msg": "场景障碍 ACM 豁免已应用: 28 条（含 <octomap> 保留名）"
+    },
+    {
+      "stamp": 1791944563.9223862,
+      "level": 20,
+      "name": "peach_arm",
+      "msg": "场景障碍 ACM 豁免已应用: 28 条（含 <octomap> 保留名）"
+    },
+    {
+      "stamp": 1791944567.6380925,
+      "level": 20,
+      "name": "peach_observability",
+      "msg": "自检[initial] 14/18 通过，跳过: robot_status, imu_topic, model_files, vegetation_status"
+    },
+    {
+      "stamp": 1791944567.6882596,
+      "level": 20,
+      "name": "peach_scene_perception_node",
+      "msg": "peach_harvester.vision.scene_perception.identity: 目标注册 累计 1 次（最近: target_0 cls=0 累计表规模 1）"
+    },
+    {
+      "stamp": 1791944567.6926472,
+      "level": 20,
+      "name": "peach_scene_perception_node",
+      "msg": "目标注册表在册 1 个目标（累计注册 1、累计命中 0）"
+    },
+    {
+      "stamp": 1791944567.694744,
+      "level": 30,
+      "name": "peach_scene_perception_node",
+      "msg": "感知 worker 满队丢帧累计 87（处理跟不上到达率，排查热路径耗时或降低到达率）"
+    },
+    {
+      "stamp": 1791944568.5423188,
+      "level": 20,
+      "name": "camera.peach_stereo_camera_node",
+      "msg": "groups=100 published=100 rate=11.4 gps drop(stream=0 incomplete=0 nostamp=0 depth=0)"
+    },
+    {
+      "stamp": 1791944572.7754593,
+      "level": 30,
+      "name": "peach_scene_perception_node",
+      "msg": "感知 worker 满队丢帧累计 133（处理跟不上到达率，排查热路径耗时或降低到达率）"
+    },
+    {
+      "stamp": 1791944577.132588,
+      "level": 20,
+      "name": "camera.peach_stereo_camera_node",
+      "msg": "groups=200 published=200 rate=11.5 gps drop(stream=0 incomplete=0 nostamp=0 depth=0)"
+    },
+    {
+      "stamp": 1791944577.9533591,
+      "level": 20,
+      "name": "peach_scene_perception_node",
+      "msg": "目标注册表在册 1 个目标（累计注册 1、累计命中 28）"
+    },
+    {
+      "stamp": 1791944577.9795725,
+      "level": 30,
+      "name": "peach_scene_perception_node",
+      "msg": "感知 worker 满队丢帧累计 178（处理跟不上到达率，排查热路径耗时或降低到达率）"
+    },
+    {
+      "stamp": 1791944583.3103843,
+      "level": 30,
+      "name": "peach_scene_perception_node",
+      "msg": "感知 worker 满队丢帧累计 222（处理跟不上到达率，排查热路径耗时或降低到达率）"
+    },
+    {
+      "stamp": 1791944586.062814,
+      "level": 20,
+      "name": "camera.peach_stereo_camera_node",
+      "msg": "groups=300 published=300 rate=11.4 gps drop(stream=0 incomplete=0 nostamp=0 depth=0)"
+    },
+    {
+      "stamp": 1791944587.6529617,
+      "level": 20,
+      "name": "peach_observability",
+      "msg": "自检[periodic] 14/18 通过，跳过: robot_status, imu_topic, model_files, vegetation_status"
+    },
+    {
+      "stamp": 1791944587.9968503,
+      "level": 20,
+      "name": "peach_scene_perception_node",
+      "msg": "目标注册表在册 1 个目标（累计注册 1、累计命中 55）"
+    },
+    {
+      "stamp": 1791944588.519666,
+      "level": 30,
+      "name": "peach_scene_perception_node",
+      "msg": "感知 worker 满队丢帧累计 269（处理跟不上到达率，排查热路径耗时或降低到达率）"
+    },
+    {
+      "stamp": 1791944593.560674,
+      "level": 30,
+      "name": "peach_scene_perception_node",
+      "msg": "感知 worker 满队丢帧累计 314（处理跟不上到达率，排查热路径耗时或降低到达率）"
+    },
+    {
+      "stamp": 1791944594.760284,
+      "level": 20,
+      "name": "camera.peach_stereo_camera_node",
+      "msg": "groups=400 published=400 rate=11.4 gps drop(stream=0 incomplete=0 nostamp=0 depth=0)"
+    },
+    {
+      "stamp": 1791944598.0338469,
+      "level": 20,
+      "name": "peach_scene_perception_node",
+      "msg": "目标注册表在册 1 个目标（累计注册 1、累计命中 82）"
+    },
+    {
+      "stamp": 1791944598.7204292,
+      "level": 30,
+      "name": "peach_scene_perception_node",
+      "msg": "感知 worker 满队丢帧累计 359（处理跟不上到达率，排查热路径耗时或降低到达率）"
+    },
+    {
+      "stamp": 1791944603.4726963,
+      "level": 20,
+      "name": "camera.peach_stereo_camera_node",
+      "msg": "groups=500 published=500 rate=11.4 gps drop(stream=0 incomplete=0 nostamp=0 depth=0)"
+    },
+    {
+      "stamp": 1791944603.978966,
+      "level": 30,
+      "name": "peach_scene_perception_node",
+      "msg": "感知 worker 满队丢帧累计 404（处理跟不上到达率，排查热路径耗时或降低到达率）"
+    },
+    {
+      "stamp": 1791944604.9820843,
+      "level": 30,
+      "name": "peach_target_reconstruction_node",
+      "msg": "重建 worker 队列已满，拒绝新帧以保持积分顺序"
+    },
+    {
+      "stamp": 1791944606.3411999,
+      "level": 30,
+      "name": "peach_target_reconstruction_node",
+      "msg": "重建 worker 队列已满，拒绝新帧以保持积分顺序"
+    },
+    {
+      "stamp": 1791944606.3542848,
+      "level": 20,
+      "name": "peach_supervisor",
+      "msg": "操作台使能: execution=True grasp=True tool=False（peach_system_tests drive_harvest）"
+    },
+    {
+      "stamp": 1791944606.4332764,
+      "level": 20,
+      "name": "peach_supervisor",
+      "msg": "Survey 进行中: waiting_snapshot"
+    },
+    {
+      "stamp": 1791944606.4438047,
+      "level": 20,
+      "name": "peach_supervisor",
+      "msg": "Survey 进行中: moving_to_photo_pose"
+    },
+    {
+      "stamp": 1791944608.0908651,
+      "level": 20,
+      "name": "peach_scene_perception_node",
+      "msg": "目标注册表在册 1 个目标（累计注册 1、累计命中 104）"
+    },
+    {
+      "stamp": 1791944608.29327,
+      "level": 30,
+      "name": "peach_target_reconstruction_node",
+      "msg": "重建 worker 队列已满，拒绝新帧以保持积分顺序"
+    },
+    {
+      "stamp": 1791944609.010142,
+      "level": 20,
+      "name": "peach_scene_perception_node",
+      "msg": "peach_harvester.vision.scene_perception.identity: 目标注册 累计 2 次（最近: target_1 cls=0 累计表规模 2）"
+    },
+    {
+      "stamp": 1791944609.1241412,
+      "level": 30,
+      "name": "peach_scene_perception_node",
+      "msg": "感知 worker 满队丢帧累计 446（处理跟不上到达率，排查热路径耗时或降低到达率）"
+    },
+    {
+      "stamp": 1791944609.3496883,
+      "level": 30,
+      "name": "peach_target_reconstruction_node",
+      "msg": "重建 worker 队列已满，拒绝新帧以保持积分顺序"
+    },
+    {
+      "stamp": 1791944611.1098425,
+      "level": 30,
+      "name": "peach_target_reconstruction_node",
+      "msg": "重建 worker 队列已满，拒绝新帧以保持积分顺序"
+    },
+    {
+      "stamp": 1791944612.315781,
+      "level": 20,
+      "name": "camera.peach_stereo_camera_node",
+      "msg": "groups=600 published=600 rate=11.4 gps drop(stream=0 incomplete=0 nostamp=0 depth=0)"
+    },
+    {
+      "stamp": 1791944612.3251042,
+      "level": 30,
+      "name": "peach_target_reconstruction_node",
+      "msg": "重建 worker 队列已满，拒绝新帧以保持积分顺序"
+    },
+    {
+      "stamp": 1791944612.6148138,
+      "level": 30,
+      "name": "move_group.moveit.moveit.core.planning_scene",
+      "msg": "Tried to remove world object 'peach_scene_obstacles', but it does not exist in this scene."
+    },
+    {
+      "stamp": 1791944612.6649714,
+      "level": 20,
+      "name": "peach_scene_obstacles",
+      "msg": "场景障碍已关闭，不把枝叶写入碰撞场景"
+    },
+    {
+      "stamp": 1791944613.4087052,
+      "level": 30,
+      "name": "peach_target_reconstruction_node",
+      "msg": "重建 worker 队列已满，拒绝新帧以保持积分顺序"
+    },
+    {
+      "stamp": 1791944614.9099643,
+      "level": 30,
+      "name": "peach_scene_perception_node",
+      "msg": "感知 worker 满队丢帧累计 504（处理跟不上到达率，排查热路径耗时或降低到达率）"
+    },
+    {
+      "stamp": 1791944615.5015686,
+      "level": 30,
+      "name": "peach_target_reconstruction_node",
+      "msg": "重建 worker 队列已满，拒绝新帧以保持积分顺序"
+    },
+    {
+      "stamp": 1791944617.4274185,
+      "level": 30,
+      "name": "peach_target_reconstruction_node",
+      "msg": "重建 worker 队列已满，拒绝新帧以保持积分顺序"
+    },
+    {
+      "stamp": 1791944617.6895463,
+      "level": 20,
+      "name": "peach_observability",
+      "msg": "自检[periodic] 14/18 通过，跳过: robot_status, imu_topic, model_files, vegetation_status"
+    },
+    {
+      "stamp": 1791944618.4393868,
+      "level": 30,
+      "name": "peach_target_reconstruction_node",
+      "msg": "重建 worker 队列已满，拒绝新帧以保持积分顺序"
+    },
+    {
+      "stamp": 1791944618.7083035,
+      "level": 20,
+      "name": "peach_scene_perception_node",
+      "msg": "目标注册表在册 2 个目标（累计注册 2、累计命中 124）"
+    },
+    {
+      "stamp": 1791944619.9383664,
+      "level": 30,
+      "name": "peach_scene_perception_node",
+      "msg": "感知 worker 满队丢帧累计 547（处理跟不上到达率，排查热路径耗时或降低到达率）"
+    },
+    {
+      "stamp": 1791944619.989303,
+      "level": 30,
+      "name": "peach_target_reconstruction_node",
+      "msg": "重建 worker 队列已满，拒绝新帧以保持积分顺序"
+    },
+    {
+      "stamp": 1791944621.1297247,
+      "level": 20,
+      "name": "camera.peach_stereo_camera_node",
+      "msg": "groups=700 published=700 rate=11.4 gps drop(stream=0 incomplete=0 nostamp=0 depth=0)"
+    },
+    {
+      "stamp": 1791944621.2403717,
+      "level": 30,
+      "name": "peach_target_reconstruction_node",
+      "msg": "重建 worker 队列已满，拒绝新帧以保持积分顺序"
+    },
+    {
+      "stamp": 1791944622.9111156,
+      "level": 30,
+      "name": "peach_target_reconstruction_node",
+      "msg": "重建 worker 队列已满，拒绝新帧以保持积分顺序"
+    },
+    {
+      "stamp": 1791944623.2971103,
+      "level": 20,
+      "name": "peach_target_reconstruction_node",
+      "msg": "已清空，回 IDLE"
+    },
+    {
+      "stamp": 1791944625.1997225,
+      "level": 30,
+      "name": "peach_scene_perception_node",
+      "msg": "感知 worker 满队丢帧累计 596（处理跟不上到达率，排查热路径耗时或降低到达率）"
+    },
+    {
+      "stamp": 1791944625.5747113,
+      "level": 20,
+      "name": "peach_target_reconstruction_node",
+      "msg": "自动开始：开始重建，绑定目标 target_0"
+    },
+    {
+      "stamp": 1791944625.598174,
+      "level": 30,
+      "name": "peach_target_reconstruction_node",
+      "msg": "diagnostics 心跳超过 offered deadline 1.5s（累计违约 1 次）：节点执行器疑似卡滞"
+    },
+    {
+      "stamp": 1791944625.600971,
+      "level": 20,
+      "name": "peach_supervisor",
+      "msg": "reconstruct_in_trajectory: Build 并行，立即派 FULL target=target_0（skip_observation）"
+    },
+    {
+      "stamp": 1791944625.6091113,
+      "level": 30,
+      "name": "peach_target_reconstruction_node",
+      "msg": "自动采帧跳过 [no_frame]：尚无同步 RGB-D 帧（确认相机/回放在线）"
+    },
+    {
+      "stamp": 1791944626.3019483,
+      "level": 30,
+      "name": "peach_target_reconstruction_node",
+      "msg": "重建 worker 队列已满，拒绝新帧以保持积分顺序"
+    },
+    {
+      "stamp": 1791944627.051982,
+      "level": 20,
+      "name": "peach_target_reconstruction_node",
+      "msg": "REFINING：几何二次拟合开始（kind=bag，934 点）"
+    },
+    {
+      "stamp": 1791944627.1144512,
+      "level": 30,
+      "name": "peach_target_reconstruction_node",
+      "msg": "REFINING：无接触权威几何（fused_axis_conflict）"
+    },
+    {
+      "stamp": 1791944627.1148014,
+      "level": 20,
+      "name": "peach_target_reconstruction_node",
+      "msg": "已采第 1/5 视角，本帧 2401 点，有效深度占比 0.95，位姿=fk"
+    },
+    {
+      "stamp": 1791944627.1489289,
+      "level": 20,
+      "name": "peach_target_reconstruction_node",
+      "msg": "REFINING：几何二次拟合开始（kind=bag，934 点）"
+    },
+    {
+      "stamp": 1791944627.2025805,
+      "level": 30,
+      "name": "peach_target_reconstruction_node",
+      "msg": "REFINING：无接触权威几何（fused_axis_conflict）"
+    },
+    {
+      "stamp": 1791944627.2030075,
+      "level": 30,
+      "name": "peach_target_reconstruction_node",
+      "msg": "局部重建完成：1 帧，2401 点（少于推荐 5 帧）；重叠指标需 ≥2 帧，本批次不可用；TSDF 934 点 / mesh 1562 顶点（累计积分 0.00s）；refit 失败（fused_axis_conflict）；refit 未产出可用几何"
+    },
+    {
+      "stamp": 1791944627.267666,
+      "level": 30,
+      "name": "peach_target_reconstruction_node",
+      "msg": "自动采帧跳过 [same_stamp]：缓存帧未更新（与上次采帧同帧），请等下一帧"
+    },
+    {
+      "stamp": 1791944627.3239992,
+      "level": 30,
+      "name": "peach_target_reconstruction_node",
+      "msg": "重建 worker 队列已满，拒绝新帧以保持积分顺序"
+    },
+    {
+      "stamp": 1791944628.3674922,
+      "level": 30,
+      "name": "peach_target_reconstruction_node",
+      "msg": "自动采帧跳过 [missing_mask]：缺少所选 target_id 的容差内掩膜"
+    },
+    {
+      "stamp": 1791944628.40139,
+      "level": 30,
+      "name": "peach_target_reconstruction_node",
+      "msg": "重建 worker 队列已满，拒绝新帧以保持积分顺序"
+    },
+    {
+      "stamp": 1791944629.0954118,
+      "level": 20,
+      "name": "peach_scene_perception_node",
+      "msg": "目标注册表在册 2 个目标（累计注册 2、累计命中 144）"
+    },
+    {
+      "stamp": 1791944629.4776878,
+      "level": 30,
+      "name": "peach_target_reconstruction_node",
+      "msg": "重建 worker 队列已满，拒绝新帧以保持积分顺序"
+    },
+    {
+      "stamp": 1791944629.5205698,
+      "level": 30,
+      "name": "peach_target_reconstruction_node",
+      "msg": "自动采帧跳过 [near_duplicate]：近重复视角不积分：平移 0.0 mm / 旋转 0.00 deg"
+    },
+    {
+      "stamp": 1791944629.8850162,
+      "level": 20,
+      "name": "camera.peach_stereo_camera_node",
+      "msg": "groups=800 published=800 rate=11.4 gps drop(stream=0 incomplete=0 nostamp=0 depth=0)"
+    },
+    {
+      "stamp": 1791944630.5544596,
+      "level": 30,
+      "name": "peach_target_reconstruction_node",
+      "msg": "自动采帧跳过 [missing_mask]：缺少所选 target_id 的容差内掩膜"
+    },
+    {
+      "stamp": 1791944630.5903778,
+      "level": 30,
+      "name": "peach_target_reconstruction_node",
+      "msg": "重建 worker 队列已满，拒绝新帧以保持积分顺序"
+    },
+    {
+      "stamp": 1791944631.0224648,
+      "level": 30,
+      "name": "peach_scene_perception_node",
+      "msg": "感知 worker 满队丢帧累计 658（处理跟不上到达率，排查热路径耗时或降低到达率）"
+    },
+    {
+      "stamp": 1791944631.5789793,
+      "level": 30,
+      "name": "peach_target_reconstruction_node",
+      "msg": "自动采帧跳过 [near_duplicate]：近重复视角不积分：平移 0.0 mm / 旋转 0.00 deg"
+    },
+    {
+      "stamp": 1791944631.80787,
+      "level": 30,
+      "name": "peach_target_reconstruction_node",
+      "msg": "重建 worker 队列已满，拒绝新帧以保持积分顺序"
+    }
+  ]
+}

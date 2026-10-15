@@ -1,0 +1,140 @@
+{
+  "driver_exit_code": 3,
+  "cycle_budget_s": 150,
+  "real_robot_motion": false,
+  "tool_io_enabled": false,
+  "camera_binding": "fixed base_link -> camera_link; original wrist extrinsics disabled",
+  "task_executor": {
+    "revision": 21,
+    "state_seq": 21,
+    "run_id": "live_camera_mock_web_full_20261013_1446",
+    "cycle_id": "live_camera_mock_web_full_20261013_1446:target_0",
+    "target_id": "",
+    "operation_mode": 0,
+    "batch_state": 6,
+    "target_phase": 0,
+    "action_active": false,
+    "auto_start_enabled": false,
+    "execution_enabled": true,
+    "grasp_enabled": true,
+    "tool_enabled": false,
+    "recovery_required": false,
+    "progress": 1.0,
+    "message": "completed",
+    "blockers": [],
+    "scene_epoch": 1
+  },
+  "ledger": {
+    "request_id": "live_camera_mock_web_full_20261013_1446",
+    "path": "/home/mu/Desktop/aubo_e5_jazzy_ws/runs/live_camera_mock_web_full_20261013_1446/ledger.json",
+    "mtime": 1791874013.613964,
+    "error": null,
+    "claimed": [
+      "target_0"
+    ],
+    "rows": [
+      {
+        "target_id": "target_0",
+        "outcome": 1,
+        "outcome_name": "SKIPPED_QUALITY",
+        "reason": "skipped_quality: GraspDecision.allowed=false，禁止降级接触: refined_quality_not_allowed",
+        "quality_score": 0.0,
+        "elapsed_s": 8.378,
+        "stages": [],
+        "failure_code": "skipped_quality",
+        "build_view_count": 1,
+        "build_status": "局部重建完成：1 帧，2366 点（少于推荐 5 帧）；重叠指标需 ≥2 帧，本批次不可用；TSDF 840 点 / mesh 1535 顶点（累计积分 0.02s）；refit ACCEPT（袋模型 1 视）",
+        "build_duration_s": 8.164,
+        "completion_level": 0,
+        "failure_code_n": 14
+      }
+    ],
+    "totals": {
+      "SUCCEEDED": 0,
+      "SKIPPED_QUALITY": 1,
+      "SKIPPED_UNREACHABLE": 0,
+      "FAILED": 0,
+      "CANCELED": 0,
+      "attempted": 1,
+      "claimed": 1
+    }
+  },
+  "reconstruction": {
+    "status": {
+      "state": "IDLE"
+    },
+    "diagnostics": {
+      "harvest_run_id": "harvest_20261013T144635_964729_s2",
+      "selected_target_id": "",
+      "target_mask_cache_size": 0,
+      "state": "IDLE",
+      "target_id": "",
+      "target_center_base": null,
+      "bound_axis_hint": null,
+      "captured_views": 0,
+      "pose_count": 0,
+      "rejected_views": 0,
+      "tf_failures": 0,
+      "skipped_views": 0,
+      "skip_reasons": {},
+      "last_skip_code": "",
+      "last_skip_reason": "",
+      "frame_ring_size": 5,
+      "tf_latency_ms": 0.08440017700195312,
+      "valid_depth_ratio": null,
+      "cloud_points": 0,
+      "last_rel_translation_m": null,
+      "last_rel_rotation_deg": null,
+      "overlap": null,
+      "tsdf": null,
+      "registration": {
+        "accepted": 0,
+        "latest": null,
+        "target_refresh_period": 1,
+        "target_points": 0,
+        "target_full_refreshes": 2,
+        "target_incremental_appends": 0
+      },
+      "view_coverage": {
+        "max_baseline_deg": null,
+        "mean_nearest_baseline_deg": null,
+        "valid_depth_ratio_mean": null
+      },
+      "refined": null,
+      "grasp_decision": {
+        "stamp": 1791874019.6670048,
+        "harvest_run_id": "harvest_20261013T144635_964729_s2",
+        "target_id": "",
+        "tool_profile_id": "",
+        "allowed": false,
+        "reason": "reconstruction_not_ready",
+        "valid_until": 1791874135.6835628,
+        "model_revision": "",
+        "scene_epoch": 0,
+        "failure_code": 0
+      },
+      "timing": {
+        "icp_ms_ema": 0.0247955322265625,
+        "tsdf_integrate_ms_ema": 27.200937271118164,
+        "frame_total_ms_ema": 107.39946365356445,
+        "refit_ms_last": 69.9007511138916,
+        "finalize_ms_last": 113.98839950561523,
+        "frames_timed": 1
+      },
+      "stamp": 1791874019.6670048,
+      "view_directions": []
+    },
+    "grasp_decision": {
+      "stamp": 1791874019.6670048,
+      "harvest_run_id": "harvest_20261013T144635_964729_s2",
+      "target_id": "",
+      "tool_profile_id": "",
+      "allowed": false,
+      "reason": "reconstruction_not_ready",
+      "valid_until": 1791874135.6835628,
+      "model_revision": "",
+      "scene_epoch": 0,
+      "failure_code": 0
+    }
+  }
+}

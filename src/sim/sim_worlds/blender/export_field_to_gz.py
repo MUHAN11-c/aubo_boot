@@ -3,18 +3,22 @@ r"""从重建整园 .blend 导出 Gazebo 查看 GLB（headless）.
 用法（Blender 自带 Python，勿混进 aubo_py3.12 / numpy 1.26.4 环境）::
 
     _tools/blender-4.5.14-linux-x64/blender -b \
-        src/peach_sim/reconstruction/output/field_no_grass_20261009/bagged_peach_orchard.blend \
-        -P src/peach_sim/blender/export_field_to_gz.py -- \
-        --out src/peach_sim/meshes/field_no_grass.glb [--keep-backdrop] [--decimate 0.25]
+        src/sim/sim_worlds/reconstruction/output/field_no_grass_20261009/ \
+        bagged_peach_orchard.blend \
+        -P src/sim/sim_worlds/blender/export_field_to_gz.py -- \
+        --out src/sim/sim_worlds/meshes/field_no_grass.glb [--keep-backdrop] [--decimate 0.25]
 
 流程：删相机/灯 → （默认删 backdrop 远景行实例）→ collection 实例实体化 →
 几何节点叶 apply（实例 realize）→ 逐对象烘焙变换（不 join，多节点结构
 与 build_assets 树 GLB 同构）→ 可选 decimate → glTF GLB
-（export_yup，与 build_assets.py 同参数；Gazebo world 以
-``model://peach_sim/meshes/field_no_grass.glb`` 引用，见 worlds/field_no_grass.sdf）。
+（export_yup，与 build_assets.py 同参数；Gazebo world 引用
+``model://sim_description/meshes/field_no_grass.glb``——sim_description
+安装树内的副本，见 worlds/field_no_grass.sdf）。
 
-注意：这是"重建 GT → Gazebo 查看"的一次性桥接产物，供人工查看整园效果，
-不替代 worlds/peach_orchard.sdf 的程序化锚定世界（那才是导航轮 GT）。
+注意：这不再是"一次性查看桥接"——P2/P4b 起该世界带地面碰撞与
+Sensors(ogre2) 渲染，是 harvest.launch.py field 预设的自主采摘世界；
+导航/站位 GT 由 generate_field 取 scene_manifest 生成
+（maps/field_map、maps/field_stations）。
 """
 
 from __future__ import annotations

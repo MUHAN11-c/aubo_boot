@@ -120,7 +120,9 @@ class ObservabilityHttpHandler(BaseHTTPRequestHandler):
             '/app.js': ('app.js', 'text/javascript; charset=utf-8'),
         }
         for filename in ('vendor/peach-three.js', 'viz3d.js',
-                         'visualization.js', 'workbench.js'):
+                         'visualization.js', 'workbench.js', 'ui-common.js',
+                         'monitor-renderers.js', 'trajectory-renderers.js',
+                         'request-runtime.js'):
             assets['/' + filename] = (filename, 'text/javascript; charset=utf-8')
         for filename in ('visualization.css', 'workbench.css'):
             assets['/' + filename] = (filename, 'text/css; charset=utf-8')

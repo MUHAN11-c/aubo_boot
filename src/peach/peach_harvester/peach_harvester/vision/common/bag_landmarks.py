@@ -262,7 +262,7 @@ def estimate_bag_landmarks(
         points: np.ndarray, gravity=None,
         mask_area_ratio: float = 0.05, edge_touch: bool = False,
         neighbor_gap_m: float = 1.0, valid_depth_ratio: float = 1.0,
-        bbox_aspect: float = 1.0) -> BagLandmarks:
+        bbox_aspect: float = 1.0, axis_hint=None, axis_origin=None) -> BagLandmarks:
     """
     沿袋长轴做半径剖面：窄头为扎口，宽头为袋底，轴从袋底指向袋口.
 
@@ -289,10 +289,18 @@ def estimate_bag_landmarks(
     if gravity_u is None:
         gravity_u = np.array([0.0, 0.0, -1.0])
         result.flags.append('gravity_defaulted')
-    long_axis, from_pca = _long_axis(finite, gravity_u)
-    if from_pca:
-        result.flags.append('axis_from_pca')
+    long_axis = _unit(axis_hint)
+    from_hint = long_axis is not None
+    from_pca = False
+    if from_hint:
+        if float(long_axis @ gravity_u) > 0.0:
+            long_axis = -long_axis
+        result.flags.append('axis_from_primary')
     else:
+        long_axis, from_pca = _long_axis(finite, gravity_u)
+    if not from_hint and from_pca:
+        result.flags.append('axis_from_pca')
+    elif not from_hint:
         result.flags.append('axis_from_gravity_prior')
     profile = _bin_radii(finite, long_axis)
     if profile[0] is None:
@@ -358,6 +366,19 @@ def estimate_bag_landmarks(
     if result.bottom_center is None:
         result.bottom_center = np.mean(bottom_band, axis=0)
         result.flags.append('bottom_from_band')
+    if from_hint or from_pca:
+        # Surface centres move with taper; both endpoints must remain on
+        # one line along the already selected process axis, including a
+        # conditioned whole-bag principal axis selected from this cloud.
+        origin = (np.asarray(axis_origin, dtype=np.float64)
+                  if axis_origin is not None else np.median(finite, axis=0))
+        if origin.shape != (3,) or not np.isfinite(origin).all():
+            result.flags.append('axis_origin_invalid')
+            return result
+        result.bottom_center = origin + float(
+            (result.bottom_center - origin) @ long_axis) * long_axis
+        result.neck_center = origin + float(
+            (result.neck_center - origin) @ long_axis) * long_axis
     result.bag_axis = _unit(result.neck_center - result.bottom_center)
     bottom, neck, axis, swapped = enforce_wide_bottom(
         result.bottom_center, result.neck_center, result.bag_axis, finite)
@@ -381,7 +402,7 @@ def estimate_bag_landmarks(
     result.bag_axis = axis
     radial = axis_radial_distance(finite, result.bag_axis, result.bottom_center)
     result.d95_m = float(2.0 * np.percentile(radial, 95))
-    # 球先验是辅助量（诊断 + 多帧融合后的禁切包络先验，非主几何）：
+    # 球先验是辅助量（诊断，不作为袋内果实观测或剪切许可条件）：
     # RANSAC 打分与 LM 抛光都随点数线性走，>1200 时固定种子均匀抽稀
     # （PCL「先降采样云再拟合」同一实践；先验经 refine 多帧融合平滑）
     sphere_pts = finite

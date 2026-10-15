@@ -1,0 +1,125 @@
+...FFFF                                                                  [100%]
+=================================== FAILURES ===================================
+_____________ test_skip_launch_only_cleans_owned_driver[True-True] _____________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f83a51f78c0>
+tmp_path = PosixPath('/tmp/pytest-of-mu/pytest-46/test_skip_launch_only_cleans_o2')
+skip_launch = True, cleanup_failed = True
+
+    @pytest.mark.parametrize("skip_launch", [True, False])
+    @pytest.mark.parametrize("cleanup_failed", [False, True])
+    def test_skip_launch_only_cleans_owned_driver(monkeypatch, tmp_path, skip_launch, cleanup_failed):
+        m = load()
+        (tmp_path / 'metadata.yaml').write_text('read-only fixture')
+        started, cleaned, app_cleanup = [], [], []
+        class Owner:
+            def __init__(self, *args, **kwargs):
+                self.processes = []
+            def start(self, command, log=None, env=None):
+                started.append(command)
+                process = SimpleNamespace(pid=111, wait=lambda **kw: 0,
+                                          poll=lambda: None if 'launch' in command else 0)
+                self.processes.append(process)
+                return process
+            def cleanup(self):
+                cleaned.extend(p.pid for p in self.processes)
+                return []
+        monkeypatch.setattr(m, 'OwnedProcesses', Owner)
+        monkeypatch.setattr(m, '_pgrep', lambda *args: [] if args else [(999, 'external_ros')])
+        monkeypatch.setattr(m, 'assert_mock_stack', lambda *args: None)
+        monkeypatch.setattr(m, 'cleanup_request', lambda *args: app_cleanup.append(args) or (['disable failed'] if cleanup_failed else []))
+        monkeypatch.setattr(m.time, 'sleep', lambda *args: None)
+        options = ['--bag', str(tmp_path), '--request-id', 'own'] + (['--skip-launch'] if skip_launch else [])
+>       assert m.main(options) == (1 if cleanup_failed else 0)
+E       AssertionError: assert 0 == 1
+E        +  where 0 = <function main at 0x7f83a521b380>(['--bag', '/tmp/pytest-of-mu/pytest-46/test_skip_launch_only_cleans_o2', '--request-id', 'own', '--skip-launch'])
+E        +    where <function main at 0x7f83a521b380> = <module 'run_frozen_test' from '/home/mu/Desktop/aubo_e5_jazzy_ws/src/peach/peach_system_tests/scripts/run_frozen_grasp.py'>.main
+
+src/peach/peach_system_tests/test/test_run_frozen_grasp.py:55: AssertionError
+----------------------------- Captured stdout call -----------------------------
+ROS_DOMAIN_ID=81 bag=/tmp/pytest-of-mu/pytest-46/test_skip_launch_only_cleans_o2 ready=120s grasp=180s
+note: existing process pid=999 executable=external_ros
+owned process groups clean; external stacks untouched
+wall elapsed=0.0s
+----------------------------- Captured stderr call -----------------------------
+disable failed
+____________ test_skip_launch_only_cleans_owned_driver[True-False] _____________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f83a51f68a0>
+tmp_path = PosixPath('/tmp/pytest-of-mu/pytest-46/test_skip_launch_only_cleans_o3')
+skip_launch = False, cleanup_failed = True
+
+    @pytest.mark.parametrize("skip_launch", [True, False])
+    @pytest.mark.parametrize("cleanup_failed", [False, True])
+    def test_skip_launch_only_cleans_owned_driver(monkeypatch, tmp_path, skip_launch, cleanup_failed):
+        m = load()
+        (tmp_path / 'metadata.yaml').write_text('read-only fixture')
+        started, cleaned, app_cleanup = [], [], []
+        class Owner:
+            def __init__(self, *args, **kwargs):
+                self.processes = []
+            def start(self, command, log=None, env=None):
+                started.append(command)
+                process = SimpleNamespace(pid=111, wait=lambda **kw: 0,
+                                          poll=lambda: None if 'launch' in command else 0)
+                self.processes.append(process)
+                return process
+            def cleanup(self):
+                cleaned.extend(p.pid for p in self.processes)
+                return []
+        monkeypatch.setattr(m, 'OwnedProcesses', Owner)
+        monkeypatch.setattr(m, '_pgrep', lambda *args: [] if args else [(999, 'external_ros')])
+        monkeypatch.setattr(m, 'assert_mock_stack', lambda *args: None)
+        monkeypatch.setattr(m, 'cleanup_request', lambda *args: app_cleanup.append(args) or (['disable failed'] if cleanup_failed else []))
+        monkeypatch.setattr(m.time, 'sleep', lambda *args: None)
+        options = ['--bag', str(tmp_path), '--request-id', 'own'] + (['--skip-launch'] if skip_launch else [])
+>       assert m.main(options) == (1 if cleanup_failed else 0)
+E       AssertionError: assert 0 == 1
+E        +  where 0 = <function main at 0x7f83a52193a0>(['--bag', '/tmp/pytest-of-mu/pytest-46/test_skip_launch_only_cleans_o3', '--request-id', 'own'])
+E        +    where <function main at 0x7f83a52193a0> = <module 'run_frozen_test' from '/home/mu/Desktop/aubo_e5_jazzy_ws/src/peach/peach_system_tests/scripts/run_frozen_grasp.py'>.main
+
+src/peach/peach_system_tests/test/test_run_frozen_grasp.py:55: AssertionError
+----------------------------- Captured stdout call -----------------------------
+ROS_DOMAIN_ID=81 bag=/tmp/pytest-of-mu/pytest-46/test_skip_launch_only_cleans_o3 ready=120s grasp=180s
+note: existing process pid=999 executable=external_ros
+owned process groups clean; external stacks untouched
+wall elapsed=0.0s
+----------------------------- Captured stderr call -----------------------------
+disable failed
+____________ test_foreign_request_never_receives_cancel_or_disable _____________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f83a52221e0>
+
+    def test_foreign_request_never_receives_cancel_or_disable(monkeypatch):
+        m = load()
+        monkeypatch.setattr(m, 'snapshot', lambda: {
+            'startup': {'facts': {'hardware_mode': 'mock', 'ros_domain_id': '81'}},
+            'task_executor': {'state': {'run_id': 'foreign', 'action_active': True}}})
+        def forbidden():
+            raise AssertionError('must not create ROS driver for foreign request')
+        monkeypatch.setattr(m, 'RosDriver', forbidden)
+>       assert m.cleanup_request({'ROS_DOMAIN_ID': '81'}, 'owned') == []
+E       AssertionError: assert ['cancel/disa...is not owned'] == []
+E         Left contains one more item: 'cancel/disable skipped: current request/domain is not owned'
+E         Use -v to get more diff
+
+src/peach/peach_system_tests/test/test_run_frozen_grasp.py:72: AssertionError
+____________ test_frozen_fixture_preserves_product_cut_travel_range ____________
+
+    def test_frozen_fixture_preserves_product_cut_travel_range():
+        import ast
+        tree = ast.parse((SCRIPTS / 'drive_frozen_grasp.py').read_text())
+        overrides = [node.args[0].value for node in ast.walk(tree)
+                     if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute)
+                     and node.func.attr == 'set_double' and node.args
+                     and isinstance(node.args[0], ast.Constant)]
+>       assert 'grasp.maximum_travel_m' not in overrides
+E       AssertionError: assert 'grasp.maximum_travel_m' not in ['workspace_radius_m', 'grasp.maximum_travel_m']
+
+src/peach/peach_system_tests/test/test_run_frozen_grasp.py:82: AssertionError
+=========================== short test summary info ============================
+FAILED src/peach/peach_system_tests/test/test_run_frozen_grasp.py::test_skip_launch_only_cleans_owned_driver[True-True]
+FAILED src/peach/peach_system_tests/test/test_run_frozen_grasp.py::test_skip_launch_only_cleans_owned_driver[True-False]
+FAILED src/peach/peach_system_tests/test/test_run_frozen_grasp.py::test_foreign_request_never_receives_cancel_or_disable
+FAILED src/peach/peach_system_tests/test/test_run_frozen_grasp.py::test_frozen_fixture_preserves_product_cut_travel_range
+4 failed, 3 passed in 0.04s

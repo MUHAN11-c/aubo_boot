@@ -1,13 +1,13 @@
 """
-重建发布：诊断状态、点云节流、Marker、TargetModel/预抓取组装.
+重建对外投影：诊断、限频点云、Marker 与带冻结时间的模型/许可.
 
-W4：session 文件 IO（save_session/PLY/yaml writer）迁 session_recorder；
-PublisherMixin 方法本体迁 reconstruction_core.ReconstructionCore（本文件
-留过渡薄壳）；``_fill_target_model``/``_pregrasp_verification_msg``/
-``_lookup_tool_frame`` 的组装本体自节点下沉为公开函数.
+同一模型修订的生成时刻和有效期来自模型本身，发布心跳只说明节点仍在线。
+点云与Marker仅作显示；TargetModel和GraspDecision描述事实与能力，不发送运动。
+会话文件由session_recorder写入，本模块只组装消息并管理发布频率。
 """
 from __future__ import annotations
 
+from copy import deepcopy
 import time
 from typing import (
     Callable,
@@ -42,6 +42,7 @@ from peach_interfaces.msg import (
     GraspDecision,
     PregraspVerification,
     ReconstructionStatus,
+    TargetQuality,
 )
 from rclpy.duration import Duration
 from sensor_msgs.msg import PointCloud2, PointField
@@ -268,7 +269,10 @@ def grasp_decision_to_msg(decision: dict, header,
 
     """
     msg = GraspDecision()
-    msg.header = header
+    # 模型时间属于版本身份；复制 Header 避免改变其他心跳话题的发布时刻。
+    msg.header = deepcopy(header)
+    if decision.get('generated_at') is not None:
+        msg.header.stamp = decision['generated_at']
     msg.harvest_run_id = str(decision.get('harvest_run_id') or '')
     msg.target_id = str(decision.get('target_id') or '')
     msg.model_revision = str(decision.get('model_revision') or '')
@@ -644,6 +648,16 @@ def xyzrgb_to_cloud_msg(xyz: np.ndarray, colors_bgr,
     return msg
 
 
+def preview_cloud_msg(xyz: np.ndarray, colors_bgr, header: Header) -> PointCloud2:
+    """Deterministic display-only stride sampling, capped at 50,000 colored points."""
+    points = np.asarray(xyz).reshape(-1, 3)
+    count = len(points)
+    stride = max(1, (count + 49999) // 50000)
+    colors = (np.asarray(colors_bgr)[::stride]
+              if colors_bgr is not None and len(colors_bgr) == count else None)
+    return xyzrgb_to_cloud_msg(points[::stride], colors, header)
+
+
 def lookup_tool_frame(tf_buffer, base_frame: str, child: str):
     """
     Latest TF: base <- child; (None, None) on failure.
@@ -739,9 +753,18 @@ def build_pregrasp_verification(
     return msg, eval_row
 
 
+def model_quality_level(accepted: bool, independent_views: int) -> int:
+    """单机位拟合可支持预抓取；高质量融合至少需要两个独立机位."""
+    if not accepted:
+        return TargetQuality.LOW
+    return (TargetQuality.HIGH if independent_views >= 2
+            else TargetQuality.MEDIUM)
+
+
 def fill_target_model(model, fused: Optional[BagModel],
                       refined: Optional[RefitResult], params, now,
-                      run_id: str = '', scene_epoch: int = 0) -> None:
+                      run_id: str = '', scene_epoch: int = 0,
+                      decision: Optional[dict] = None) -> None:
     """
     把融合袋模型写入 TargetModel 扩展字段.
 
@@ -756,6 +779,7 @@ def fill_target_model(model, fused: Optional[BagModel],
         now: rclpy Time（节点时钟；generated_at/valid_until 基准）.
         run_id: 当前 harvest_run_id.
         scene_epoch: 当前批次 scene_epoch（0 保持调用方已填值）.
+        decision: 同一模型版本的冻结生成时间与有效期；缺省兼容独立调用.
 
     Returns
     -------
@@ -780,6 +804,10 @@ def fill_target_model(model, fused: Optional[BagModel],
     # 与接近链时长错配；见 decision_validity_s 注释）。
     model.valid_until = (
         now + Duration(seconds=decision_validity_s(params))).to_msg()
+    if decision is not None:
+        model.generated_at = decision['generated_at']
+        model.header.stamp = model.generated_at
+        model.valid_until = decision['valid_until']
     model.capture_start = model.generated_at
     model.capture_end = model.generated_at
     fused_ok = fused is not None

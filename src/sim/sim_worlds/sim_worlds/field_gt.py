@@ -184,14 +184,25 @@ def main(argv: list[str] | None = None) -> int:
     stations_path = args.out_dir / 'field_stations.yaml'
     fruitful = [s for s in stations if s.bag_count > 0]
     first = fruitful[0] if fruitful else stations[0]
+    # 走廊起步位：首行相邻两树干中点（不是首站——站位是作业位，距树仅
+    # row_gap，机器人出生即压在树干膨胀圈上，MPPI 无法起步
+    # "Failed to make progress"，2026-10-15 实测）。列中点距两侧树干
+    # 各 ≈ 列距/2（≈2.5m），代价图干净。
+    first_row = _rows(gt.trunks)[0]
+    row_xs = sorted(gt.trunks[t][0] for t in first_row)
+    if len(row_xs) >= 2:
+        spawn_x = round((row_xs[0] + row_xs[1]) / 2.0, 3)
+    else:
+        spawn_x = round(row_xs[0] + 2.5, 3)
     lines = [
         '# 重建果园停靠位（generate_field 产物；世界系 = GLB Z-up 米）',
         f'manifest: {args.manifest}',
         f'bag_total: {gt.bag_total}',
-        'spawn:  # AMCL 初始位姿 = 首个有袋站',
-        f'  x: {first.x}',
+        'spawn:  # AMCL 初始位姿 = 首行走廊中点（干净起步；站位是作业位贴树，'
+        '不作 spawn）',
+        f'  x: {spawn_x}',
         f'  y: {first.y}',
-        f'  yaw: {first.yaw}',
+        f'  yaw: 0.0',
         'stations:',
     ]
     for s in stations:

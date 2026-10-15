@@ -1,0 +1,856 @@
+Starting >>> peach_arm
+UpdateCTestConfiguration  from :/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm/CTestConfiguration.ini
+Parse Config file:/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm/CTestConfiguration.ini
+   Site: mu-MS-7E34
+   Build name: (empty)
+ Add coverage exclude regular expressions.
+Create new tag: 20261015-0129 - Experimental
+UpdateCTestConfiguration  from :/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm/CTestConfiguration.ini
+Parse Config file:/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm/CTestConfiguration.ini
+Test project /home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm
+Constructing a list of tests
+Done constructing a list of tests
+Updating test list for fixtures
+Added 0 tests to meet fixture requirements
+Checking test dependency graph...
+Checking test dependency graph end
+test 1
+      Start  1: test_pregrasp_level
+
+1: Test command: /usr/bin/python3 "-u" "/opt/ros/jazzy/share/ament_cmake_test/cmake/run_test.py" "/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm/test_results/peach_arm/test_pregrasp_level.gtest.xml" "--package-name" "peach_arm" "--output-file" "/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm/ament_cmake_gtest/test_pregrasp_level.txt" "--command" "/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm/test_pregrasp_level" "--gtest_output=xml:/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm/test_results/peach_arm/test_pregrasp_level.gtest.xml"
+1: Working Directory: /home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm
+1: Test timeout computed to be: 60
+1: -- run_test.py: invoking following command in '/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm':
+1:  - /home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm/test_pregrasp_level --gtest_output=xml:/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm/test_results/peach_arm/test_pregrasp_level.gtest.xml
+1: Running main() from /opt/ros/jazzy/src/gtest_vendor/src/gtest_main.cc
+1: [==========] Running 12 tests from 6 test suites.
+1: [----------] Global test environment set-up.
+1: [----------] 3 tests from PregraspLevel
+1: [ RUN      ] PregraspLevel.ResidualFailIsReachedNotVerified
+1: [       OK ] PregraspLevel.ResidualFailIsReachedNotVerified (0 ms)
+1: [ RUN      ] PregraspLevel.ResidualPassIsVerified
+1: [       OK ] PregraspLevel.ResidualPassIsVerified (0 ms)
+1: [ RUN      ] PregraspLevel.NotReachedStaysNone
+1: [       OK ] PregraspLevel.NotReachedStaysNone (0 ms)
+1: [----------] 3 tests from PregraspLevel (0 ms total)
+1: 
+1: [----------] 1 test from AcmPolicy
+1: [ RUN      ] AcmPolicy.WholeOctomapToolExemptionIsF10Fallback
+1: [       OK ] AcmPolicy.WholeOctomapToolExemptionIsF10Fallback (0 ms)
+1: [----------] 1 test from AcmPolicy (0 ms total)
+1: 
+1: [----------] 4 tests from PlanContract
+1: [ RUN      ] PlanContract.PreviewMustMatchExecute
+1: [       OK ] PlanContract.PreviewMustMatchExecute (0 ms)
+1: [ RUN      ] PlanContract.ObserveBindingSkipsJoints
+1: [       OK ] PlanContract.ObserveBindingSkipsJoints (0 ms)
+1: [ RUN      ] PlanContract.ObserveOnlyLeavesNoPreviewBindingSoFullPasses
+1: [       OK ] PlanContract.ObserveOnlyLeavesNoPreviewBindingSoFullPasses (0 ms)
+1: [ RUN      ] PlanContract.PreviewBindingRejectsIdentityChangedFull
+1: [       OK ] PlanContract.PreviewBindingRejectsIdentityChangedFull (0 ms)
+1: [----------] 4 tests from PlanContract (0 ms total)
+1: 
+1: [----------] 1 test from StageDenial
+1: [ RUN      ] StageDenial.ExpiredTokenIsSkippedQualityNotFailed
+1: [       OK ] StageDenial.ExpiredTokenIsSkippedQualityNotFailed (0 ms)
+1: [----------] 1 test from StageDenial (0 ms total)
+1: 
+1: [----------] 1 test from ToolActuatorPolicy
+1: [ RUN      ] ToolActuatorPolicy.HarvestConfirmedNeedsBothEvidence
+1: [       OK ] ToolActuatorPolicy.HarvestConfirmedNeedsBothEvidence (0 ms)
+1: [----------] 1 test from ToolActuatorPolicy (0 ms total)
+1: 
+1: [----------] 2 tests from ModelContract
+1: [ RUN      ] ModelContract.EmptyVersionNotExecutable
+1: [       OK ] ModelContract.EmptyVersionNotExecutable (0 ms)
+1: [ RUN      ] ModelContract.ExpiredAndWrongToolRejected
+1: [       OK ] ModelContract.ExpiredAndWrongToolRejected (0 ms)
+1: [----------] 2 tests from ModelContract (0 ms total)
+1: 
+1: [----------] Global test environment tear-down
+1: [==========] 12 tests from 6 test suites ran. (0 ms total)
+1: [  PASSED  ] 12 tests.
+1: -- run_test.py: return code 0
+1: -- run_test.py: inject classname prefix into gtest result file '/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm/test_results/peach_arm/test_pregrasp_level.gtest.xml'
+1: -- run_test.py: verify result file '/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm/test_results/peach_arm/test_pregrasp_level.gtest.xml'
+ 1/22 Test  #1: test_pregrasp_level ..............   Passed    0.05 sec
+test 2
+      Start  2: test_acm_policy
+
+2: Test command: /usr/bin/python3 "-u" "/opt/ros/jazzy/share/ament_cmake_test/cmake/run_test.py" "/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm/test_results/peach_arm/test_acm_policy.gtest.xml" "--package-name" "peach_arm" "--output-file" "/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm/ament_cmake_gtest/test_acm_policy.txt" "--command" "/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm/test_acm_policy" "--gtest_output=xml:/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm/test_results/peach_arm/test_acm_policy.gtest.xml"
+2: Working Directory: /home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm
+2: Test timeout computed to be: 60
+2: -- run_test.py: invoking following command in '/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm':
+2:  - /home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm/test_acm_policy --gtest_output=xml:/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm/test_results/peach_arm/test_acm_policy.gtest.xml
+2: Running main() from /opt/ros/jazzy/src/gtest_vendor/src/gtest_main.cc
+2: [==========] Running 3 tests from 1 test suite.
+2: [----------] Global test environment set-up.
+2: [----------] 3 tests from ObstacleExemption
+2: [ RUN      ] ObstacleExemption.GuardOnExemptsLinksVersusAllObjectsNotCamera
+2: [       OK ] ObstacleExemption.GuardOnExemptsLinksVersusAllObjectsNotCamera (0 ms)
+2: [ RUN      ] ObstacleExemption.GuardOffExemptsCameraToo
+2: [       OK ] ObstacleExemption.GuardOffExemptsCameraToo (0 ms)
+2: [ RUN      ] ObstacleExemption.EmptyIdsAndLinksSkipped
+2: [       OK ] ObstacleExemption.EmptyIdsAndLinksSkipped (0 ms)
+2: [----------] 3 tests from ObstacleExemption (0 ms total)
+2: 
+2: [----------] Global test environment tear-down
+2: [==========] 3 tests from 1 test suite ran. (0 ms total)
+2: [  PASSED  ] 3 tests.
+2: -- run_test.py: return code 0
+2: -- run_test.py: inject classname prefix into gtest result file '/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm/test_results/peach_arm/test_acm_policy.gtest.xml'
+2: -- run_test.py: verify result file '/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm/test_results/peach_arm/test_acm_policy.gtest.xml'
+ 2/22 Test  #2: test_acm_policy ..................   Passed    0.04 sec
+test 3
+      Start  3: test_grasp_geometry
+
+3: Test command: /usr/bin/python3 "-u" "/opt/ros/jazzy/share/ament_cmake_test/cmake/run_test.py" "/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm/test_results/peach_arm/test_grasp_geometry.gtest.xml" "--package-name" "peach_arm" "--output-file" "/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm/ament_cmake_gtest/test_grasp_geometry.txt" "--command" "/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm/test_grasp_geometry" "--gtest_output=xml:/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm/test_results/peach_arm/test_grasp_geometry.gtest.xml"
+3: Working Directory: /home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm
+3: Test timeout computed to be: 60
+3: -- run_test.py: invoking following command in '/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm':
+3:  - /home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm/test_grasp_geometry --gtest_output=xml:/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm/test_results/peach_arm/test_grasp_geometry.gtest.xml
+3: Running main() from /opt/ros/jazzy/src/gtest_vendor/src/gtest_main.cc
+3: [==========] Running 22 tests from 1 test suite.
+3: [----------] Global test environment set-up.
+3: [----------] 22 tests from GraspGeometry
+3: [ RUN      ] GraspGeometry.AlignFrameZPointsZAlongAxis
+3: [       OK ] GraspGeometry.AlignFrameZPointsZAlongAxis (0 ms)
+3: [ RUN      ] GraspGeometry.AlignFrameZDegenerateAxisReturnsInput
+3: [       OK ] GraspGeometry.AlignFrameZDegenerateAxisReturnsInput (0 ms)
+3: [ RUN      ] GraspGeometry.AlignFrameZRolledKeepsAxisAndRollAngle
+3: [       OK ] GraspGeometry.AlignFrameZRolledKeepsAxisAndRollAngle (0 ms)
+3: [ RUN      ] GraspGeometry.ToolRollsAreFiveLevelsAroundZero
+3: [       OK ] GraspGeometry.ToolRollsAreFiveLevelsAroundZero (0 ms)
+3: [ RUN      ] GraspGeometry.PregraspAlongAxisRetreatsByStandoff
+3: [       OK ] GraspGeometry.PregraspAlongAxisRetreatsByStandoff (0 ms)
+3: [ RUN      ] GraspGeometry.PregraspFromEntryKeepRollAlignsCurrentAttitude
+3: [       OK ] GraspGeometry.PregraspFromEntryKeepRollAlignsCurrentAttitude (0 ms)
+3: [ RUN      ] GraspGeometry.SleeveAlongAxisAdvancesByTravel
+3: [       OK ] GraspGeometry.SleeveAlongAxisAdvancesByTravel (0 ms)
+3: [ RUN      ] GraspGeometry.SleeveFromEntryKeepRollMatchesPregraspAttitude
+3: [       OK ] GraspGeometry.SleeveFromEntryKeepRollMatchesPregraspAttitude (0 ms)
+3: [ RUN      ] GraspGeometry.ClampInsertionTravelUsesMinWhenUnset
+3: [       OK ] GraspGeometry.ClampInsertionTravelUsesMinWhenUnset (0 ms)
+3: [ RUN      ] GraspGeometry.ExplicitCutTravelIsRejectedInsteadOfMovingCutPoint
+3: [       OK ] GraspGeometry.ExplicitCutTravelIsRejectedInsteadOfMovingCutPoint (0 ms)
+3: [ RUN      ] GraspGeometry.PregraspOnlyFromGoalModeFullWinsOverDefaultHold
+3: [       OK ] GraspGeometry.PregraspOnlyFromGoalModeFullWinsOverDefaultHold (0 ms)
+3: [ RUN      ] GraspGeometry.SleeveReachabilityCodePriority
+3: [       OK ] GraspGeometry.SleeveReachabilityCodePriority (0 ms)
+3: [ RUN      ] GraspGeometry.LabOosSleeveIsFartherThanPregrasp
+3: [       OK ] GraspGeometry.LabOosSleeveIsFartherThanPregrasp (0 ms)
+3: [ RUN      ] GraspGeometry.SegmentSegmentDistanceHandComputed
+3: [       OK ] GraspGeometry.SegmentSegmentDistanceHandComputed (0 ms)
+3: [ RUN      ] GraspGeometry.FruitRadiusFloorAndInflation
+3: [       OK ] GraspGeometry.FruitRadiusFloorAndInflation (0 ms)
+3: [ RUN      ] GraspGeometry.ToolCapsuleClearanceClearCase
+3: [       OK ] GraspGeometry.ToolCapsuleClearanceClearCase (0 ms)
+3: [ RUN      ] GraspGeometry.InspectToolVsFruitClearAndHit
+3: [       OK ] GraspGeometry.InspectToolVsFruitClearAndHit (0 ms)
+3: [ RUN      ] GraspGeometry.InspectToolVsFruitClimbAuditAndDisabled
+3: [       OK ] GraspGeometry.InspectToolVsFruitClimbAuditAndDisabled (0 ms)
+3: [ RUN      ] GraspGeometry.ToolSweepHitsFruitAlongSweep
+3: [       OK ] GraspGeometry.ToolSweepHitsFruitAlongSweep (0 ms)
+3: [ RUN      ] GraspGeometry.UsesImuFollowContactOnlyAdaptive
+3: [       OK ] GraspGeometry.UsesImuFollowContactOnlyAdaptive (0 ms)
+3: [ RUN      ] GraspGeometry.HarvestStowNamedHopsViaPhotoThenStow
+3: [       OK ] GraspGeometry.HarvestStowNamedHopsViaPhotoThenStow (0 ms)
+3: [ RUN      ] GraspGeometry.StagingSelectionMinimizesToolRollBeforeJointDistance
+3: [       OK ] GraspGeometry.StagingSelectionMinimizesToolRollBeforeJointDistance (0 ms)
+3: [----------] 22 tests from GraspGeometry (0 ms total)
+3: 
+3: [----------] Global test environment tear-down
+3: [==========] 22 tests from 1 test suite ran. (0 ms total)
+3: [  PASSED  ] 22 tests.
+3: -- run_test.py: return code 0
+3: -- run_test.py: inject classname prefix into gtest result file '/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm/test_results/peach_arm/test_grasp_geometry.gtest.xml'
+3: -- run_test.py: verify result file '/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm/test_results/peach_arm/test_grasp_geometry.gtest.xml'
+ 3/22 Test  #3: test_grasp_geometry ..............   Passed    0.05 sec
+test 4
+      Start  4: test_trajectory_guard
+
+4: Test command: /usr/bin/python3 "-u" "/opt/ros/jazzy/share/ament_cmake_test/cmake/run_test.py" "/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm/test_results/peach_arm/test_trajectory_guard.gtest.xml" "--package-name" "peach_arm" "--output-file" "/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm/ament_cmake_gtest/test_trajectory_guard.txt" "--command" "/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm/test_trajectory_guard" "--gtest_output=xml:/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm/test_results/peach_arm/test_trajectory_guard.gtest.xml"
+4: Working Directory: /home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm
+4: Test timeout computed to be: 60
+4: -- run_test.py: invoking following command in '/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm':
+4:  - /home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm/test_trajectory_guard --gtest_output=xml:/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm/test_results/peach_arm/test_trajectory_guard.gtest.xml
+4: Running main() from /opt/ros/jazzy/src/gtest_vendor/src/gtest_main.cc
+4: [==========] Running 13 tests from 1 test suite.
+4: [----------] Global test environment set-up.
+4: [----------] 13 tests from TrajectoryGuard
+4: [ RUN      ] TrajectoryGuard.ConcatStitchesTimeAxisAndDedupsSeam
+4: [       OK ] TrajectoryGuard.ConcatStitchesTimeAxisAndDedupsSeam (0 ms)
+4: [ RUN      ] TrajectoryGuard.ConcatRejectsNameMismatchAndEmpty
+4: [       OK ] TrajectoryGuard.ConcatRejectsNameMismatchAndEmpty (0 ms)
+4: [ RUN      ] TrajectoryGuard.ReverseInvertsOrderSignsAndZeroesEndpoints
+4: [       OK ] TrajectoryGuard.ReverseInvertsOrderSignsAndZeroesEndpoints (0 ms)
+4: [ RUN      ] TrajectoryGuard.ReverseShortTrajectoryKeepsNames
+4: [       OK ] TrajectoryGuard.ReverseShortTrajectoryKeepsNames (0 ms)
+4: [ RUN      ] TrajectoryGuard.InspectApproachCountsTravelIncludingSeam
+4: [       OK ] TrajectoryGuard.InspectApproachCountsTravelIncludingSeam (0 ms)
+4: [ RUN      ] TrajectoryGuard.InspectApproachRejectsTravelAndDuration
+4: [       OK ] TrajectoryGuard.InspectApproachRejectsTravelAndDuration (0 ms)
+4: [ RUN      ] TrajectoryGuard.InspectApproachRejectsMalformed
+4: [       OK ] TrajectoryGuard.InspectApproachRejectsMalformed (0 ms)
+4: [ RUN      ] TrajectoryGuard.InspectCartesianDetourStraightLinePasses
+4: [       OK ] TrajectoryGuard.InspectCartesianDetourStraightLinePasses (0 ms)
+4: [ RUN      ] TrajectoryGuard.InspectCartesianDetourRejectsDetourRatio
+4: [       OK ] TrajectoryGuard.InspectCartesianDetourRejectsDetourRatio (0 ms)
+4: [ RUN      ] TrajectoryGuard.InspectCartesianDetourRejectsRecedeAndDeviation
+4: [       OK ] TrajectoryGuard.InspectCartesianDetourRejectsRecedeAndDeviation (0 ms)
+4: [ RUN      ] TrajectoryGuard.QuatGeodesicHandlesIdentityAndSign
+4: [       OK ] TrajectoryGuard.QuatGeodesicHandlesIdentityAndSign (0 ms)
+4: [ RUN      ] TrajectoryGuard.QuatGeodesicMatchesEigenAngularDistance
+4: [       OK ] TrajectoryGuard.QuatGeodesicMatchesEigenAngularDistance (0 ms)
+4: [ RUN      ] TrajectoryGuard.OrientationTravelCapAndSlack
+4: [       OK ] TrajectoryGuard.OrientationTravelCapAndSlack (0 ms)
+4: [----------] 13 tests from TrajectoryGuard (0 ms total)
+4: 
+4: [----------] Global test environment tear-down
+4: [==========] 13 tests from 1 test suite ran. (0 ms total)
+4: [  PASSED  ] 13 tests.
+4: -- run_test.py: return code 0
+4: -- run_test.py: inject classname prefix into gtest result file '/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm/test_results/peach_arm/test_trajectory_guard.gtest.xml'
+4: -- run_test.py: verify result file '/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm/test_results/peach_arm/test_trajectory_guard.gtest.xml'
+ 4/22 Test  #4: test_trajectory_guard ............   Passed    0.06 sec
+test 5
+      Start  5: test_view_planner
+
+5: Test command: /usr/bin/python3 "-u" "/opt/ros/jazzy/share/ament_cmake_test/cmake/run_test.py" "/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm/test_results/peach_arm/test_view_planner.gtest.xml" "--package-name" "peach_arm" "--output-file" "/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm/ament_cmake_gtest/test_view_planner.txt" "--command" "/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm/test_view_planner" "--gtest_output=xml:/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm/test_results/peach_arm/test_view_planner.gtest.xml"
+5: Working Directory: /home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm
+5: Test timeout computed to be: 60
+5: -- run_test.py: invoking following command in '/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm':
+5:  - /home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm/test_view_planner --gtest_output=xml:/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm/test_results/peach_arm/test_view_planner.gtest.xml
+5: Running main() from /opt/ros/jazzy/src/gtest_vendor/src/gtest_main.cc
+5: [==========] Running 4 tests from 1 test suite.
+5: [----------] Global test environment set-up.
+5: [----------] 4 tests from ViewPlanner
+5: [ RUN      ] ViewPlanner.GenerateProducesBoundedCandidatesOnRadiusBand
+5: [       OK ] ViewPlanner.GenerateProducesBoundedCandidatesOnRadiusBand (0 ms)
+5: [ RUN      ] ViewPlanner.GenerateShrinksRadiusWhenMaskFillLow
+5: [       OK ] ViewPlanner.GenerateShrinksRadiusWhenMaskFillLow (0 ms)
+5: [ RUN      ] ViewPlanner.GenerateConvenienceOverloadMatchesContext
+5: [       OK ] ViewPlanner.GenerateConvenienceOverloadMatchesContext (0 ms)
+5: [ RUN      ] ViewPlanner.GenerateDropsCandidatesInsideProtectedZone
+5: [       OK ] ViewPlanner.GenerateDropsCandidatesInsideProtectedZone (0 ms)
+5: [----------] 4 tests from ViewPlanner (0 ms total)
+5: 
+5: [----------] Global test environment tear-down
+5: [==========] 4 tests from 1 test suite ran. (0 ms total)
+5: [  PASSED  ] 4 tests.
+5: -- run_test.py: return code 0
+5: -- run_test.py: inject classname prefix into gtest result file '/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm/test_results/peach_arm/test_view_planner.gtest.xml'
+5: -- run_test.py: verify result file '/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm/test_results/peach_arm/test_view_planner.gtest.xml'
+ 5/22 Test  #5: test_view_planner ................   Passed    0.05 sec
+test 6
+      Start  6: test_gates
+
+6: Test command: /usr/bin/python3 "-u" "/opt/ros/jazzy/share/ament_cmake_test/cmake/run_test.py" "/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm/test_results/peach_arm/test_gates.gtest.xml" "--package-name" "peach_arm" "--output-file" "/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm/ament_cmake_gtest/test_gates.txt" "--command" "/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm/test_gates" "--gtest_output=xml:/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm/test_results/peach_arm/test_gates.gtest.xml"
+6: Working Directory: /home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm
+6: Test timeout computed to be: 60
+6: -- run_test.py: invoking following command in '/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm':
+6:  - /home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm/test_gates --gtest_output=xml:/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm/test_results/peach_arm/test_gates.gtest.xml
+6: Running main() from /opt/ros/jazzy/src/gtest_vendor/src/gtest_main.cc
+6: [==========] Running 7 tests from 2 test suites.
+6: [----------] Global test environment set-up.
+6: [----------] 4 tests from QualityGate
+6: [ RUN      ] QualityGate.ReadyToFinalizeBoundaryValues
+6: [       OK ] QualityGate.ReadyToFinalizeBoundaryValues (0 ms)
+6: [ RUN      ] QualityGate.ReadyToFinalizeIdentityAndFreshness
+6: [       OK ] QualityGate.ReadyToFinalizeIdentityAndFreshness (0 ms)
+6: [ RUN      ] QualityGate.PreviewContactIgnoresAgeButRequiresDecision
+6: [       OK ] QualityGate.PreviewContactIgnoresAgeButRequiresDecision (0 ms)
+6: [ RUN      ] QualityGate.ApproachRequiresGeometryNotDecision
+6: [       OK ] QualityGate.ApproachRequiresGeometryNotDecision (0 ms)
+6: [----------] 4 tests from QualityGate (0 ms total)
+6: 
+6: [----------] 3 tests from SafetyGate
+6: [ RUN      ] SafetyGate.RobotReadyFreshStaleAndNotReady
+6: [       OK ] SafetyGate.RobotReadyFreshStaleAndNotReady (0 ms)
+6: [ RUN      ] SafetyGate.TargetReadyIdentityValidityAndAge
+6: [       OK ] SafetyGate.TargetReadyIdentityValidityAndAge (0 ms)
+6: [ RUN      ] SafetyGate.AdaptiveTimeoutClampsToFloorAndCap
+6: [       OK ] SafetyGate.AdaptiveTimeoutClampsToFloorAndCap (0 ms)
+6: [----------] 3 tests from SafetyGate (0 ms total)
+6: 
+6: [----------] Global test environment tear-down
+6: [==========] 7 tests from 2 test suites ran. (0 ms total)
+6: [  PASSED  ] 7 tests.
+6: -- run_test.py: return code 0
+6: -- run_test.py: inject classname prefix into gtest result file '/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm/test_results/peach_arm/test_gates.gtest.xml'
+6: -- run_test.py: verify result file '/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm/test_results/peach_arm/test_gates.gtest.xml'
+ 6/22 Test  #6: test_gates .......................   Passed    0.05 sec
+test 7
+      Start  7: test_reconfirm_policy
+
+7: Test command: /usr/bin/python3 "-u" "/opt/ros/jazzy/share/ament_cmake_test/cmake/run_test.py" "/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm/test_results/peach_arm/test_reconfirm_policy.gtest.xml" "--package-name" "peach_arm" "--output-file" "/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm/ament_cmake_gtest/test_reconfirm_policy.txt" "--command" "/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm/test_reconfirm_policy" "--gtest_output=xml:/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm/test_results/peach_arm/test_reconfirm_policy.gtest.xml"
+7: Working Directory: /home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm
+7: Test timeout computed to be: 60
+7: -- run_test.py: invoking following command in '/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm':
+7:  - /home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm/test_reconfirm_policy --gtest_output=xml:/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm/test_results/peach_arm/test_reconfirm_policy.gtest.xml
+7: Running main() from /opt/ros/jazzy/src/gtest_vendor/src/gtest_main.cc
+7: [==========] Running 8 tests from 1 test suite.
+7: [----------] Global test environment set-up.
+7: [----------] 8 tests from ReconfirmPolicy
+7: [ RUN      ] ReconfirmPolicy.CleanSamplePassesImmediately
+7: [       OK ] ReconfirmPolicy.CleanSamplePassesImmediately (0 ms)
+7: [ RUN      ] ReconfirmPolicy.IdentityChangeAbortsImmediately
+7: [       OK ] ReconfirmPolicy.IdentityChangeAbortsImmediately (0 ms)
+7: [ RUN      ] ReconfirmPolicy.DriftOverToleranceRefinesThenAborts
+7: [       OK ] ReconfirmPolicy.DriftOverToleranceRefinesThenAborts (0 ms)
+7: [ RUN      ] ReconfirmPolicy.DriftAfterSwingReportsPersistentSwing
+7: [       OK ] ReconfirmPolicy.DriftAfterSwingReportsPersistentSwing (0 ms)
+7: [ RUN      ] ReconfirmPolicy.SwingingWaitsForTwoCalmFrames
+7: [       OK ] ReconfirmPolicy.SwingingWaitsForTwoCalmFrames (0 ms)
+7: [ RUN      ] ReconfirmPolicy.DriftResetsCalmFrameCounter
+7: [       OK ] ReconfirmPolicy.DriftResetsCalmFrameCounter (0 ms)
+7: [ RUN      ] ReconfirmPolicy.ExhaustedWindowsCountStrikesThenAbort
+7: [       OK ] ReconfirmPolicy.ExhaustedWindowsCountStrikesThenAbort (0 ms)
+7: [ RUN      ] ReconfirmPolicy.StaleAnchorFallbackPassesOnExhausted
+7: [       OK ] ReconfirmPolicy.StaleAnchorFallbackPassesOnExhausted (0 ms)
+7: [----------] 8 tests from ReconfirmPolicy (0 ms total)
+7: 
+7: [----------] Global test environment tear-down
+7: [==========] 8 tests from 1 test suite ran. (0 ms total)
+7: [  PASSED  ] 8 tests.
+7: -- run_test.py: return code 0
+7: -- run_test.py: inject classname prefix into gtest result file '/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm/test_results/peach_arm/test_reconfirm_policy.gtest.xml'
+7: -- run_test.py: verify result file '/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm/test_results/peach_arm/test_reconfirm_policy.gtest.xml'
+ 7/22 Test  #7: test_reconfirm_policy ............   Passed    0.05 sec
+test 8
+      Start  8: test_thread_join
+
+8: Test command: /usr/bin/python3 "-u" "/opt/ros/jazzy/share/ament_cmake_test/cmake/run_test.py" "/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm/test_results/peach_arm/test_thread_join.gtest.xml" "--package-name" "peach_arm" "--output-file" "/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm/ament_cmake_gtest/test_thread_join.txt" "--command" "/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm/test_thread_join" "--gtest_output=xml:/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm/test_results/peach_arm/test_thread_join.gtest.xml"
+8: Working Directory: /home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm
+8: Test timeout computed to be: 60
+8: -- run_test.py: invoking following command in '/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm':
+8:  - /home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm/test_thread_join --gtest_output=xml:/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm/test_results/peach_arm/test_thread_join.gtest.xml
+8: Running main() from /opt/ros/jazzy/src/gtest_vendor/src/gtest_main.cc
+8: [==========] Running 2 tests from 1 test suite.
+8: [----------] Global test environment set-up.
+8: [----------] 2 tests from ThreadJoin
+8: [ RUN      ] ThreadJoin.CompletedTaskMakesStdThreadNonJoinable
+8: [       OK ] ThreadJoin.CompletedTaskMakesStdThreadNonJoinable (0 ms)
+8: [ RUN      ] ThreadJoin.TimeoutDoesNotJoinOrConsumeAnActiveTask
+8: [       OK ] ThreadJoin.TimeoutDoesNotJoinOrConsumeAnActiveTask (0 ms)
+8: [----------] 2 tests from ThreadJoin (0 ms total)
+8: 
+8: [----------] Global test environment tear-down
+8: [==========] 2 tests from 1 test suite ran. (0 ms total)
+8: [  PASSED  ] 2 tests.
+8: -- run_test.py: return code 0
+8: -- run_test.py: inject classname prefix into gtest result file '/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm/test_results/peach_arm/test_thread_join.gtest.xml'
+8: -- run_test.py: verify result file '/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm/test_results/peach_arm/test_thread_join.gtest.xml'
+ 8/22 Test  #8: test_thread_join .................   Passed    0.05 sec
+test 9
+      Start  9: test_target_cache
+
+9: Test command: /usr/bin/python3 "-u" "/opt/ros/jazzy/share/ament_cmake_test/cmake/run_test.py" "/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm/test_results/peach_arm/test_target_cache.gtest.xml" "--package-name" "peach_arm" "--output-file" "/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm/ament_cmake_gtest/test_target_cache.txt" "--command" "/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm/test_target_cache" "--gtest_output=xml:/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm/test_results/peach_arm/test_target_cache.gtest.xml"
+9: Working Directory: /home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm
+9: Test timeout computed to be: 60
+9: -- run_test.py: invoking following command in '/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm':
+9:  - /home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm/test_target_cache --gtest_output=xml:/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm/test_results/peach_arm/test_target_cache.gtest.xml
+9: Running main() from /opt/ros/jazzy/src/gtest_vendor/src/gtest_main.cc
+9: [==========] Running 26 tests from 1 test suite.
+9: [----------] Global test environment set-up.
+9: [----------] 26 tests from TargetCache
+9: [ RUN      ] TargetCache.SelectedTargetStoresAnchorAndStamp
+9: [       OK ] TargetCache.SelectedTargetStoresAnchorAndStamp (0 ms)
+9: [ RUN      ] TargetCache.InvalidAnchorKeepsTargetInvalid
+9: [       OK ] TargetCache.InvalidAnchorKeepsTargetInvalid (0 ms)
+9: [ RUN      ] TargetCache.SameIdRefreshKeepsRefinedAndDecision
+9: [       OK ] TargetCache.SameIdRefreshKeepsRefinedAndDecision (0 ms)
+9: [ RUN      ] TargetCache.IdConflictClearsRefinedAndDecision
+9: [       OK ] TargetCache.IdConflictClearsRefinedAndDecision (0 ms)
+9: [ RUN      ] TargetCache.RefinedBeforeSelectedIsRetainedOnSameId
+9: [       OK ] TargetCache.RefinedBeforeSelectedIsRetainedOnSameId (0 ms)
+9: [ RUN      ] TargetCache.GraspDecisionForOtherTargetIgnored
+9: [       OK ] TargetCache.GraspDecisionForOtherTargetIgnored (0 ms)
+9: [ RUN      ] TargetCache.RefinedSnapshotProjection
+9: [       OK ] TargetCache.RefinedSnapshotProjection (0 ms)
+9: [ RUN      ] TargetCache.RefinedFittingSelectsSphereOrCylinder
+9: [       OK ] TargetCache.RefinedFittingSelectsSphereOrCylinder (0 ms)
+9: [ RUN      ] TargetCache.QualitySnapshotProjectsDiagnosticsAndAge
+9: [       OK ] TargetCache.QualitySnapshotProjectsDiagnosticsAndAge (0 ms)
+9: [ RUN      ] TargetCache.LockedTargetsRefreshClearAndRunBoundary
+9: [       OK ] TargetCache.LockedTargetsRefreshClearAndRunBoundary (0 ms)
+9: [ RUN      ] TargetCache.WaitForNewViewTimesOutAndSatisfiesFast
+9: [       OK ] TargetCache.WaitForNewViewTimesOutAndSatisfiesFast (50 ms)
+9: [ RUN      ] TargetCache.PromoteUnrefinedFromLockedAndHoldsAgainstDiagnostics
+9: [       OK ] TargetCache.PromoteUnrefinedFromLockedAndHoldsAgainstDiagnostics (0 ms)
+9: [ RUN      ] TargetCache.DiagnosticsHeartbeatDoesNotRefreshModelAge
+9: [       OK ] TargetCache.DiagnosticsHeartbeatDoesNotRefreshModelAge (0 ms)
+9: [ RUN      ] TargetCache.DecisionCommitsGeometryCapabilitiesAndIdentityTogether
+9: [       OK ] TargetCache.DecisionCommitsGeometryCapabilitiesAndIdentityTogether (0 ms)
+9: [ RUN      ] TargetCache.ForeignDecisionCannotReplaceCurrentModel
+9: [       OK ] TargetCache.ForeignDecisionCannotReplaceCurrentModel (0 ms)
+9: [ RUN      ] TargetCache.DecisionHeartbeatDoesNotRenewExpiryOrGeneration
+9: [       OK ] TargetCache.DecisionHeartbeatDoesNotRenewExpiryOrGeneration (0 ms)
+9: [ RUN      ] TargetCache.LegacyPoseCannotOverwriteAuthoritativeDecisionGeometry
+9: [       OK ] TargetCache.LegacyPoseCannotOverwriteAuthoritativeDecisionGeometry (0 ms)
+9: [ RUN      ] TargetCache.IncompleteRevocationClearsCurrentPermission
+9: [       OK ] TargetCache.IncompleteRevocationClearsCurrentPermission (0 ms)
+9: [ RUN      ] TargetCache.TargetChangeInvalidatesDecisionEvenWhenIdIsReused
+9: [       OK ] TargetCache.TargetChangeInvalidatesDecisionEvenWhenIdIsReused (0 ms)
+9: [ RUN      ] TargetCache.RevokedRevisionCannotBeResurrectedByDelayedHeartbeat
+9: [       OK ] TargetCache.RevokedRevisionCannotBeResurrectedByDelayedHeartbeat (0 ms)
+9: [ RUN      ] TargetCache.OlderRevisionCannotReplaceNewerGeometry
+9: [       OK ] TargetCache.OlderRevisionCannotReplaceNewerGeometry (0 ms)
+9: [ RUN      ] TargetCache.DecisionWaitIsCancelableAndDoesNotAcceptForeignTarget
+9: [       OK ] TargetCache.DecisionWaitIsCancelableAndDoesNotAcceptForeignTarget (0 ms)
+9: [ RUN      ] TargetCache.DecisionBeforeSelectedCannotCrossRunWithSameTargetId
+9: [       OK ] TargetCache.DecisionBeforeSelectedCannotCrossRunWithSameTargetId (0 ms)
+9: [ RUN      ] TargetCache.SameRevisionDenialCannotBeUpgradedByOldValidHeartbeat
+9: [       OK ] TargetCache.SameRevisionDenialCannotBeUpgradedByOldValidHeartbeat (0 ms)
+9: [ RUN      ] TargetCache.ExecutionSnapshotKeepsGeometryAndModelInOneRead
+9: [       OK ] TargetCache.ExecutionSnapshotKeepsGeometryAndModelInOneRead (0 ms)
+9: [ RUN      ] TargetCache.DecisionCanExpireBetweenWaitAndExecutionRead
+9: [       OK ] TargetCache.DecisionCanExpireBetweenWaitAndExecutionRead (0 ms)
+9: [----------] 26 tests from TargetCache (50 ms total)
+9: 
+9: [----------] Global test environment tear-down
+9: [==========] 26 tests from 1 test suite ran. (50 ms total)
+9: [  PASSED  ] 26 tests.
+9: -- run_test.py: return code 0
+9: -- run_test.py: inject classname prefix into gtest result file '/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm/test_results/peach_arm/test_target_cache.gtest.xml'
+9: -- run_test.py: verify result file '/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm/test_results/peach_arm/test_target_cache.gtest.xml'
+ 9/22 Test  #9: test_target_cache ................   Passed    0.10 sec
+test 10
+      Start 10: test_frame_timeouts
+
+10: Test command: /usr/bin/python3 "-u" "/opt/ros/jazzy/share/ament_cmake_test/cmake/run_test.py" "/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm/test_results/peach_arm/test_frame_timeouts.gtest.xml" "--package-name" "peach_arm" "--output-file" "/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm/ament_cmake_gtest/test_frame_timeouts.txt" "--command" "/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm/test_frame_timeouts" "--gtest_output=xml:/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm/test_results/peach_arm/test_frame_timeouts.gtest.xml"
+10: Working Directory: /home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm
+10: Test timeout computed to be: 60
+10: -- run_test.py: invoking following command in '/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm':
+10:  - /home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm/test_frame_timeouts --gtest_output=xml:/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm/test_results/peach_arm/test_frame_timeouts.gtest.xml
+10: Running main() from /opt/ros/jazzy/src/gtest_vendor/src/gtest_main.cc
+10: [==========] Running 10 tests from 1 test suite.
+10: [----------] Global test environment set-up.
+10: [----------] 10 tests from FrameRateTimeouts
+10: [ RUN      ] FrameRateTimeouts.FreshNodeUsesAssumedIntervalEstimates
+10: [       OK ] FrameRateTimeouts.FreshNodeUsesAssumedIntervalEstimates (0 ms)
+10: [ RUN      ] FrameRateTimeouts.CollectingOverridesShortWindowRegardlessOfEma
+10: [       OK ] FrameRateTimeouts.CollectingOverridesShortWindowRegardlessOfEma (0 ms)
+10: [ RUN      ] FrameRateTimeouts.MeasuredEmaDrivesAllWindows
+10: [       OK ] FrameRateTimeouts.MeasuredEmaDrivesAllWindows (0 ms)
+10: [ RUN      ] FrameRateTimeouts.LowFrameRateWidensUpToCaps
+10: [       OK ] FrameRateTimeouts.LowFrameRateWidensUpToCaps (0 ms)
+10: [ RUN      ] FrameRateTimeouts.HighFrameRateFloors
+10: [       OK ] FrameRateTimeouts.HighFrameRateFloors (0 ms)
+10: [ RUN      ] FrameRateTimeouts.AbnormalIntervalsDoNotEnterEma
+10: [       OK ] FrameRateTimeouts.AbnormalIntervalsDoNotEnterEma (0 ms)
+10: [ RUN      ] FrameRateTimeouts.FirstFrameDoesNotSetEma
+10: [       OK ] FrameRateTimeouts.FirstFrameDoesNotSetEma (0 ms)
+10: [ RUN      ] FrameRateTimeouts.ZeroAssumedFallsBackToConfigCaps
+10: [       OK ] FrameRateTimeouts.ZeroAssumedFallsBackToConfigCaps (0 ms)
+10: [ RUN      ] FrameRateTimeouts.RefinedFloorFollowsCapWhenCapBelowTwo
+10: [       OK ] FrameRateTimeouts.RefinedFloorFollowsCapWhenCapBelowTwo (0 ms)
+10: [ RUN      ] FrameRateTimeouts.UpdateConfigRewritesAllWindows
+10: [       OK ] FrameRateTimeouts.UpdateConfigRewritesAllWindows (0 ms)
+10: [----------] 10 tests from FrameRateTimeouts (0 ms total)
+10: 
+10: [----------] Global test environment tear-down
+10: [==========] 10 tests from 1 test suite ran. (0 ms total)
+10: [  PASSED  ] 10 tests.
+10: -- run_test.py: return code 0
+10: -- run_test.py: inject classname prefix into gtest result file '/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm/test_results/peach_arm/test_frame_timeouts.gtest.xml'
+10: -- run_test.py: verify result file '/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm/test_results/peach_arm/test_frame_timeouts.gtest.xml'
+10/22 Test #10: test_frame_timeouts ..............   Passed    0.05 sec
+test 11
+      Start 11: test_staging_waypoints
+
+11: Test command: /usr/bin/python3 "-u" "/opt/ros/jazzy/share/ament_cmake_test/cmake/run_test.py" "/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm/test_results/peach_arm/test_staging_waypoints.gtest.xml" "--package-name" "peach_arm" "--output-file" "/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm/ament_cmake_gtest/test_staging_waypoints.txt" "--command" "/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm/test_staging_waypoints" "--gtest_output=xml:/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm/test_results/peach_arm/test_staging_waypoints.gtest.xml"
+11: Working Directory: /home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm
+11: Test timeout computed to be: 60
+11: -- run_test.py: invoking following command in '/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm':
+11:  - /home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm/test_staging_waypoints --gtest_output=xml:/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm/test_results/peach_arm/test_staging_waypoints.gtest.xml
+11: Running main() from /opt/ros/jazzy/src/gtest_vendor/src/gtest_main.cc
+11: [==========] Running 6 tests from 1 test suite.
+11: [----------] Global test environment set-up.
+11: [----------] 6 tests from StagingWaypoints
+11: [ RUN      ] StagingWaypoints.VerticalAxisStraightLine
+11: [       OK ] StagingWaypoints.VerticalAxisStraightLine (0 ms)
+11: [ RUN      ] StagingWaypoints.TiltedAxisDecouplesCanopyFromAxis
+11: [       OK ] StagingWaypoints.TiltedAxisDecouplesCanopyFromAxis (0 ms)
+11: [ RUN      ] StagingWaypoints.RollRotatesOrientationAboutToolZ
+11: [       OK ] StagingWaypoints.RollRotatesOrientationAboutToolZ (0 ms)
+11: [ RUN      ] StagingWaypoints.DegenerateZeroParametersCollapse
+11: [       OK ] StagingWaypoints.DegenerateZeroParametersCollapse (0 ms)
+11: [ RUN      ] StagingWaypoints.PartialCorridorCannotAuthorizeAnUnreachedPregrasp
+11: [       OK ] StagingWaypoints.PartialCorridorCannotAuthorizeAnUnreachedPregrasp (0 ms)
+11: [ RUN      ] StagingWaypoints.WrongFinalRollOrNonfiniteFractionCannotPassCorridor
+11: [       OK ] StagingWaypoints.WrongFinalRollOrNonfiniteFractionCannotPassCorridor (0 ms)
+11: [----------] 6 tests from StagingWaypoints (0 ms total)
+11: 
+11: [----------] Global test environment tear-down
+11: [==========] 6 tests from 1 test suite ran. (0 ms total)
+11: [  PASSED  ] 6 tests.
+11: -- run_test.py: return code 0
+11: -- run_test.py: inject classname prefix into gtest result file '/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm/test_results/peach_arm/test_staging_waypoints.gtest.xml'
+11: -- run_test.py: verify result file '/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm/test_results/peach_arm/test_staging_waypoints.gtest.xml'
+11/22 Test #11: test_staging_waypoints ...........   Passed    0.04 sec
+test 12
+      Start 12: test_pregrasp_residual
+
+12: Test command: /usr/bin/python3 "-u" "/opt/ros/jazzy/share/ament_cmake_test/cmake/run_test.py" "/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm/test_results/peach_arm/test_pregrasp_residual.gtest.xml" "--package-name" "peach_arm" "--output-file" "/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm/ament_cmake_gtest/test_pregrasp_residual.txt" "--command" "/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm/test_pregrasp_residual" "--gtest_output=xml:/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm/test_results/peach_arm/test_pregrasp_residual.gtest.xml"
+12: Working Directory: /home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm
+12: Test timeout computed to be: 60
+12: -- run_test.py: invoking following command in '/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm':
+12:  - /home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm/test_pregrasp_residual --gtest_output=xml:/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm/test_results/peach_arm/test_pregrasp_residual.gtest.xml
+12: Running main() from /opt/ros/jazzy/src/gtest_vendor/src/gtest_main.cc
+12: [==========] Running 8 tests from 1 test suite.
+12: [----------] Global test environment set-up.
+12: [----------] 8 tests from PregraspResidual
+12: [ RUN      ] PregraspResidual.AlignedSamplePasses
+12: [       OK ] PregraspResidual.AlignedSamplePasses (0 ms)
+12: [ RUN      ] PregraspResidual.AxisAngleComputedFromTiltedToolZ
+12: [       OK ] PregraspResidual.AxisAngleComputedFromTiltedToolZ (0 ms)
+12: [ RUN      ] PregraspResidual.FrameInconsistencyIsStrictThreshold
+12: [       OK ] PregraspResidual.FrameInconsistencyIsStrictThreshold (0 ms)
+12: [ RUN      ] PregraspResidual.LateralTakesMaxOfMouthAndCut
+12: [       OK ] PregraspResidual.LateralTakesMaxOfMouthAndCut (0 ms)
+12: [ RUN      ] PregraspResidual.LateralBoundaryIsInclusive
+12: [       OK ] PregraspResidual.LateralBoundaryIsInclusive (0 ms)
+12: [ RUN      ] PregraspResidual.AxialOffsetIsRecordedOnly
+12: [       OK ] PregraspResidual.AxialOffsetIsRecordedOnly (0 ms)
+12: [ RUN      ] PregraspResidual.DegenerateToolZMapsToMaxMismatch
+12: [       OK ] PregraspResidual.DegenerateToolZMapsToMaxMismatch (0 ms)
+12: [ RUN      ] PregraspResidual.ThresholdsEchoedInReport
+12: [       OK ] PregraspResidual.ThresholdsEchoedInReport (0 ms)
+12: [----------] 8 tests from PregraspResidual (0 ms total)
+12: 
+12: [----------] Global test environment tear-down
+12: [==========] 8 tests from 1 test suite ran. (0 ms total)
+12: [  PASSED  ] 8 tests.
+12: -- run_test.py: return code 0
+12: -- run_test.py: inject classname prefix into gtest result file '/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm/test_results/peach_arm/test_pregrasp_residual.gtest.xml'
+12: -- run_test.py: verify result file '/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm/test_results/peach_arm/test_pregrasp_residual.gtest.xml'
+12/22 Test #12: test_pregrasp_residual ...........   Passed    0.05 sec
+test 13
+      Start 13: test_insert_progress
+
+13: Test command: /usr/bin/python3 "-u" "/opt/ros/jazzy/share/ament_cmake_test/cmake/run_test.py" "/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm/test_results/peach_arm/test_insert_progress.gtest.xml" "--package-name" "peach_arm" "--output-file" "/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm/ament_cmake_gtest/test_insert_progress.txt" "--command" "/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm/test_insert_progress" "--gtest_output=xml:/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm/test_results/peach_arm/test_insert_progress.gtest.xml"
+13: Working Directory: /home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm
+13: Test timeout computed to be: 60
+13: -- run_test.py: invoking following command in '/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm':
+13:  - /home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm/test_insert_progress --gtest_output=xml:/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm/test_results/peach_arm/test_insert_progress.gtest.xml
+13: Running main() from /opt/ros/jazzy/src/gtest_vendor/src/gtest_main.cc
+13: [==========] Running 5 tests from 1 test suite.
+13: [----------] Global test environment set-up.
+13: [----------] 5 tests from InsertProgress
+13: [ RUN      ] InsertProgress.DoneOnMeasuredTarget
+13: [       OK ] InsertProgress.DoneOnMeasuredTarget (0 ms)
+13: [ RUN      ] InsertProgress.ContinueWhileGaining
+13: [       OK ] InsertProgress.ContinueWhileGaining (0 ms)
+13: [ RUN      ] InsertProgress.StallAfterWindowWithoutGain
+13: [       OK ] InsertProgress.StallAfterWindowWithoutGain (0 ms)
+13: [ RUN      ] InsertProgress.DeadlineIsBoundNotProof
+13: [       OK ] InsertProgress.DeadlineIsBoundNotProof (0 ms)
+13: [ RUN      ] InsertProgress.IncreasingErrorNeverDone
+13: [       OK ] InsertProgress.IncreasingErrorNeverDone (0 ms)
+13: [----------] 5 tests from InsertProgress (0 ms total)
+13: 
+13: [----------] Global test environment tear-down
+13: [==========] 5 tests from 1 test suite ran. (0 ms total)
+13: [  PASSED  ] 5 tests.
+13: -- run_test.py: return code 0
+13: -- run_test.py: inject classname prefix into gtest result file '/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm/test_results/peach_arm/test_insert_progress.gtest.xml'
+13: -- run_test.py: verify result file '/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm/test_results/peach_arm/test_insert_progress.gtest.xml'
+13/22 Test #13: test_insert_progress .............   Passed    0.05 sec
+test 14
+      Start 14: test_tool_actuator
+
+14: Test command: /usr/bin/python3 "-u" "/opt/ros/jazzy/share/ament_cmake_test/cmake/run_test.py" "/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm/test_results/peach_arm/test_tool_actuator.gtest.xml" "--package-name" "peach_arm" "--output-file" "/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm/ament_cmake_gtest/test_tool_actuator.txt" "--command" "/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm/test_tool_actuator" "--gtest_output=xml:/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm/test_results/peach_arm/test_tool_actuator.gtest.xml"
+14: Working Directory: /home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm
+14: Test timeout computed to be: 60
+14: -- run_test.py: invoking following command in '/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm':
+14:  - /home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm/test_tool_actuator --gtest_output=xml:/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm/test_results/peach_arm/test_tool_actuator.gtest.xml
+14: Running main() from /opt/ros/jazzy/src/gtest_vendor/src/gtest_main.cc
+14: [==========] Running 6 tests from 1 test suite.
+14: [----------] Global test environment set-up.
+14: [----------] 6 tests from ToolActuator
+14: [ RUN      ] ToolActuator.DiClosedRiseConfirmsCut
+14: [       OK ] ToolActuator.DiClosedRiseConfirmsCut (0 ms)
+14: [ RUN      ] ToolActuator.StuckHighDiIsNotNewEdge
+14: [       OK ] ToolActuator.StuckHighDiIsNotNewEdge (0 ms)
+14: [ RUN      ] ToolActuator.OpenFallReleasesPayloadAxes
+14: [       OK ] ToolActuator.OpenFallReleasesPayloadAxes (0 ms)
+14: [ RUN      ] ToolActuator.CutOncePerTransaction
+14: [       OK ] ToolActuator.CutOncePerTransaction (0 ms)
+14: [ RUN      ] ToolActuator.ResetRestoresUnknownAxes
+14: [       OK ] ToolActuator.ResetRestoresUnknownAxes (0 ms)
+14: [ RUN      ] ToolActuator.HarvestNeedsBothEvidences
+14: [       OK ] ToolActuator.HarvestNeedsBothEvidences (0 ms)
+14: [----------] 6 tests from ToolActuator (0 ms total)
+14: 
+14: [----------] Global test environment tear-down
+14: [==========] 6 tests from 1 test suite ran. (0 ms total)
+14: [  PASSED  ] 6 tests.
+14: -- run_test.py: return code 0
+14: -- run_test.py: inject classname prefix into gtest result file '/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm/test_results/peach_arm/test_tool_actuator.gtest.xml'
+14: -- run_test.py: verify result file '/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm/test_results/peach_arm/test_tool_actuator.gtest.xml'
+14/22 Test #14: test_tool_actuator ...............   Passed    0.05 sec
+test 15
+      Start 15: test_contact_monitor
+
+15: Test command: /usr/bin/python3 "-u" "/opt/ros/jazzy/share/ament_cmake_test/cmake/run_test.py" "/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm/test_results/peach_arm/test_contact_monitor.xunit.xml" "--package-name" "peach_arm" "--output-file" "/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm/ament_cmake_pytest/test_contact_monitor.txt" "--command" "/usr/bin/python3" "-u" "-m" "pytest" "/home/mu/Desktop/aubo_e5_jazzy_ws/src/peach/peach_arm/test/test_contact_monitor.py" "-o" "cache_dir=/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm/ament_cmake_pytest/test_contact_monitor/.cache" "--junit-xml=/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm/test_results/peach_arm/test_contact_monitor.xunit.xml" "--junit-prefix=peach_arm"
+15: Working Directory: /home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm
+15: Test timeout computed to be: 60
+15: -- run_test.py: invoking following command in '/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm':
+15:  - /usr/bin/python3 -u -m pytest /home/mu/Desktop/aubo_e5_jazzy_ws/src/peach/peach_arm/test/test_contact_monitor.py -o cache_dir=/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm/ament_cmake_pytest/test_contact_monitor/.cache --junit-xml=/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm/test_results/peach_arm/test_contact_monitor.xunit.xml --junit-prefix=peach_arm
+15: ============================= test session starts ==============================
+15: platform linux -- Python 3.12.3, pytest-7.4.4, pluggy-1.4.0
+15: cachedir: build/peach_arm/ament_cmake_pytest/test_contact_monitor/.cache
+15: rootdir: /home/mu/Desktop/aubo_e5_jazzy_ws
+15: plugins: ament-lint-0.17.5, ament-xmllint-0.17.5, ament-copyright-0.17.5, launch-pytest-3.4.12, launch-testing-3.4.12, launch-testing-ros-0.26.13, ament-pep257-0.17.5, ament-flake8-0.17.5, anyio-4.15.1, typeguard-4.1.5, colcon-core-0.21.3, cov-4.1.0
+15: collected 1 item
+15: 
+15: ../../src/peach/peach_arm/test/test_contact_monitor.py .                 [100%]
+15: 
+15: - generated xml file: /home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm/test_results/peach_arm/test_contact_monitor.xunit.xml -
+15: ============================== 1 passed in 0.29s ===============================
+15: -- run_test.py: return code 0
+15: -- run_test.py: verify result file '/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm/test_results/peach_arm/test_contact_monitor.xunit.xml'
+15/22 Test #15: test_contact_monitor .............   Passed    0.60 sec
+test 16
+      Start 16: test_constraint_grid
+
+16: Test command: /usr/bin/python3 "-u" "/opt/ros/jazzy/share/ament_cmake_test/cmake/run_test.py" "/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm/test_results/peach_arm/test_constraint_grid.xunit.xml" "--package-name" "peach_arm" "--output-file" "/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm/ament_cmake_pytest/test_constraint_grid.txt" "--command" "/usr/bin/python3" "-u" "-m" "pytest" "/home/mu/Desktop/aubo_e5_jazzy_ws/src/peach/peach_arm/test/test_constraint_grid.py" "-o" "cache_dir=/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm/ament_cmake_pytest/test_constraint_grid/.cache" "--junit-xml=/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm/test_results/peach_arm/test_constraint_grid.xunit.xml" "--junit-prefix=peach_arm"
+16: Working Directory: /home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm
+16: Test timeout computed to be: 60
+16: -- run_test.py: invoking following command in '/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm':
+16:  - /usr/bin/python3 -u -m pytest /home/mu/Desktop/aubo_e5_jazzy_ws/src/peach/peach_arm/test/test_constraint_grid.py -o cache_dir=/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm/ament_cmake_pytest/test_constraint_grid/.cache --junit-xml=/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm/test_results/peach_arm/test_constraint_grid.xunit.xml --junit-prefix=peach_arm
+16: ============================= test session starts ==============================
+16: platform linux -- Python 3.12.3, pytest-7.4.4, pluggy-1.4.0
+16: cachedir: build/peach_arm/ament_cmake_pytest/test_constraint_grid/.cache
+16: rootdir: /home/mu/Desktop/aubo_e5_jazzy_ws
+16: plugins: ament-lint-0.17.5, ament-xmllint-0.17.5, ament-copyright-0.17.5, launch-pytest-3.4.12, launch-testing-3.4.12, launch-testing-ros-0.26.13, ament-pep257-0.17.5, ament-flake8-0.17.5, anyio-4.15.1, typeguard-4.1.5, colcon-core-0.21.3, cov-4.1.0
+16: collected 4 items
+16: 
+16: ../../src/peach/peach_arm/test/test_constraint_grid.py ....              [100%]
+16: 
+16: - generated xml file: /home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm/test_results/peach_arm/test_constraint_grid.xunit.xml -
+16: ============================== 4 passed in 0.04s ===============================
+16: -- run_test.py: return code 0
+16: -- run_test.py: verify result file '/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm/test_results/peach_arm/test_constraint_grid.xunit.xml'
+16/22 Test #16: test_constraint_grid .............   Passed    0.34 sec
+test 17
+      Start 17: cppcheck
+
+17: Test command: /usr/bin/python3 "-u" "/opt/ros/jazzy/share/ament_cmake_test/cmake/run_test.py" "/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm/test_results/peach_arm/cppcheck.xunit.xml" "--package-name" "peach_arm" "--output-file" "/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm/ament_cppcheck/cppcheck.txt" "--command" "/opt/ros/jazzy/bin/ament_cppcheck" "--xunit-file" "/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm/test_results/peach_arm/cppcheck.xunit.xml" "--include_dirs" "/home/mu/Desktop/aubo_e5_jazzy_ws/src/peach/peach_arm/include" "/home/mu/Desktop/aubo_e5_jazzy_ws/src/peach/peach_arm/include"
+17: Working Directory: /home/mu/Desktop/aubo_e5_jazzy_ws/src/peach/peach_arm
+17: Test timeout computed to be: 300
+17: -- run_test.py: invoking following command in '/home/mu/Desktop/aubo_e5_jazzy_ws/src/peach/peach_arm':
+17:  - /opt/ros/jazzy/bin/ament_cppcheck --xunit-file /home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm/test_results/peach_arm/cppcheck.xunit.xml --include_dirs /home/mu/Desktop/aubo_e5_jazzy_ws/src/peach/peach_arm/include /home/mu/Desktop/aubo_e5_jazzy_ws/src/peach/peach_arm/include
+17: cppcheck 2.13.0 has known performance issues and therefore will not be used, set the AMENT_CPPCHECK_ALLOW_SLOW_VERSIONS environment variable to override this.
+17: -- run_test.py: return code 0
+17: -- run_test.py: verify result file '/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm/test_results/peach_arm/cppcheck.xunit.xml'
+17/22 Test #17: cppcheck .........................   Passed    0.10 sec
+test 18
+      Start 18: flake8
+
+18: Test command: /usr/bin/python3 "-u" "/opt/ros/jazzy/share/ament_cmake_test/cmake/run_test.py" "/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm/test_results/peach_arm/flake8.xunit.xml" "--package-name" "peach_arm" "--output-file" "/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm/ament_flake8/flake8.txt" "--command" "/opt/ros/jazzy/bin/ament_flake8" "--xunit-file" "/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm/test_results/peach_arm/flake8.xunit.xml"
+18: Working Directory: /home/mu/Desktop/aubo_e5_jazzy_ws/src/peach/peach_arm
+18: Test timeout computed to be: 60
+18: -- run_test.py: invoking following command in '/home/mu/Desktop/aubo_e5_jazzy_ws/src/peach/peach_arm':
+18:  - /opt/ros/jazzy/bin/ament_flake8 --xunit-file /home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm/test_results/peach_arm/flake8.xunit.xml
+18: 
+18: 3 files checked
+18: No problems found
+18: 
+18: Checked files:
+18: 
+18: * ./test/test_constraint_grid.py
+18: * ./test/test_contact_monitor.py
+18: * ./launch/peach_arm.launch.py
+18: -- run_test.py: return code 0
+18: -- run_test.py: verify result file '/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm/test_results/peach_arm/flake8.xunit.xml'
+18/22 Test #18: flake8 ...........................   Passed    0.23 sec
+test 19
+      Start 19: lint_cmake
+
+19: Test command: /usr/bin/python3 "-u" "/opt/ros/jazzy/share/ament_cmake_test/cmake/run_test.py" "/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm/test_results/peach_arm/lint_cmake.xunit.xml" "--package-name" "peach_arm" "--output-file" "/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm/ament_lint_cmake/lint_cmake.txt" "--command" "/opt/ros/jazzy/bin/ament_lint_cmake" "--xunit-file" "/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm/test_results/peach_arm/lint_cmake.xunit.xml"
+19: Working Directory: /home/mu/Desktop/aubo_e5_jazzy_ws/src/peach/peach_arm
+19: Test timeout computed to be: 60
+19: -- run_test.py: invoking following command in '/home/mu/Desktop/aubo_e5_jazzy_ws/src/peach/peach_arm':
+19:  - /opt/ros/jazzy/bin/ament_lint_cmake --xunit-file /home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm/test_results/peach_arm/lint_cmake.xunit.xml
+19: 
+19: No problems found
+19: -- run_test.py: return code 0
+19: -- run_test.py: verify result file '/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm/test_results/peach_arm/lint_cmake.xunit.xml'
+19/22 Test #19: lint_cmake .......................   Passed    0.11 sec
+test 20
+      Start 20: pep257
+
+20: Test command: /usr/bin/python3 "-u" "/opt/ros/jazzy/share/ament_cmake_test/cmake/run_test.py" "/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm/test_results/peach_arm/pep257.xunit.xml" "--package-name" "peach_arm" "--output-file" "/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm/ament_pep257/pep257.txt" "--command" "/opt/ros/jazzy/bin/ament_pep257" "--xunit-file" "/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm/test_results/peach_arm/pep257.xunit.xml"
+20: Working Directory: /home/mu/Desktop/aubo_e5_jazzy_ws/src/peach/peach_arm
+20: Test timeout computed to be: 60
+20: -- run_test.py: invoking following command in '/home/mu/Desktop/aubo_e5_jazzy_ws/src/peach/peach_arm':
+20:  - /opt/ros/jazzy/bin/ament_pep257 --xunit-file /home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm/test_results/peach_arm/pep257.xunit.xml
+20: checking ./launch/peach_arm.launch.py
+20: checking ./test/test_constraint_grid.py
+20: checking ./test/test_contact_monitor.py
+20: No problems found
+20: -- run_test.py: return code 0
+20: -- run_test.py: verify result file '/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm/test_results/peach_arm/pep257.xunit.xml'
+20/22 Test #20: pep257 ...........................   Passed    0.13 sec
+test 21
+      Start 21: uncrustify
+
+21: Test command: /usr/bin/python3 "-u" "/opt/ros/jazzy/share/ament_cmake_test/cmake/run_test.py" "/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm/test_results/peach_arm/uncrustify.xunit.xml" "--package-name" "peach_arm" "--output-file" "/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm/ament_uncrustify/uncrustify.txt" "--command" "/opt/ros/jazzy/bin/ament_uncrustify" "--xunit-file" "/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm/test_results/peach_arm/uncrustify.xunit.xml"
+21: Working Directory: /home/mu/Desktop/aubo_e5_jazzy_ws/src/peach/peach_arm
+21: Test timeout computed to be: 60
+21: -- run_test.py: invoking following command in '/home/mu/Desktop/aubo_e5_jazzy_ws/src/peach/peach_arm':
+21:  - /opt/ros/jazzy/bin/ament_uncrustify --xunit-file /home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm/test_results/peach_arm/uncrustify.xunit.xml
+21: No code style divergence in file 'include/peach_arm/acm_policy.hpp'
+21: 
+21: No code style divergence in file 'include/peach_arm/angles.hpp'
+21: 
+21: No code style divergence in file 'include/peach_arm/contact_monitor.hpp'
+21: 
+21: No code style divergence in file 'include/peach_arm/cycle_context.hpp'
+21: 
+21: No code style divergence in file 'include/peach_arm/cycle_support.hpp'
+21: 
+21: No code style divergence in file 'include/peach_arm/eigen_conversions.hpp'
+21: 
+21: No code style divergence in file 'include/peach_arm/frame_timeouts.hpp'
+21: 
+21: No code style divergence in file 'include/peach_arm/grasp_geometry.hpp'
+21: 
+21: No code style divergence in file 'include/peach_arm/grasp_task.hpp'
+21: 
+21: No code style divergence in file 'include/peach_arm/insert_progress.hpp'
+21: 
+21: No code style divergence in file 'include/peach_arm/manipulation_skills_node.hpp'
+21: 
+21: No code style divergence in file 'include/peach_arm/math_utils.hpp'
+21: 
+21: No code style divergence in file 'include/peach_arm/model_contract.hpp'
+21: 
+21: No code style divergence in file 'include/peach_arm/motion.hpp'
+21: 
+21: No code style divergence in file 'include/peach_arm/params_bridge.hpp'
+21: 
+21: No code style divergence in file 'include/peach_arm/plan_contract.hpp'
+21: 
+21: No code style divergence in file 'include/peach_arm/pregrasp_level.hpp'
+21: 
+21: No code style divergence in file 'include/peach_arm/pregrasp_residual.hpp'
+21: 
+21: No code style divergence in file 'include/peach_arm/protected_zones.hpp'
+21: 
+21: No code style divergence in file 'include/peach_arm/quality_gate.hpp'
+21: 
+21: No code style divergence in file 'include/peach_arm/reconfirm_policy.hpp'
+21: 
+21: No code style divergence in file 'include/peach_arm/safety_gate.hpp'
+21: 
+21: No code style divergence in file 'include/peach_arm/stage_denial.hpp'
+21: 
+21: No code style divergence in file 'include/peach_arm/target_cache.hpp'
+21: 
+21: No code style divergence in file 'include/peach_arm/thread_join.hpp'
+21: 
+21: No code style divergence in file 'include/peach_arm/tool_actuator.hpp'
+21: 
+21: No code style divergence in file 'include/peach_arm/trajectory_guard.hpp'
+21: 
+21: No code style divergence in file 'include/peach_arm/view_planner.hpp'
+21: 
+21: No code style divergence in file 'src/cycle.cpp'
+21: 
+21: No code style divergence in file 'src/execution_guard.hpp'
+21: 
+21: No code style divergence in file 'src/grasp_task.cpp'
+21: 
+21: No code style divergence in file 'src/main.cpp'
+21: 
+21: No code style divergence in file 'src/manipulation_skills_node.cpp'
+21: 
+21: No code style divergence in file 'src/motion.cpp'
+21: 
+21: No code style divergence in file 'src/move_to.cpp'
+21: 
+21: No code style divergence in file 'src/quality_gate.cpp'
+21: 
+21: No code style divergence in file 'src/safety_gate.cpp'
+21: 
+21: No code style divergence in file 'src/stages.cpp'
+21: 
+21: No code style divergence in file 'src/status.cpp'
+21: 
+21: No code style divergence in file 'src/target_cache.cpp'
+21: 
+21: No code style divergence in file 'src/target_observers.cpp'
+21: 
+21: No code style divergence in file 'src/tool_actuator.cpp'
+21: 
+21: No code style divergence in file 'src/view_planner.cpp'
+21: 
+21: No code style divergence in file 'test/contact_monitor_probe.cpp'
+21: 
+21: No code style divergence in file 'test/test_acm_policy.cpp'
+21: 
+21: No code style divergence in file 'test/test_frame_timeouts.cpp'
+21: 
+21: No code style divergence in file 'test/test_gates.cpp'
+21: 
+21: No code style divergence in file 'test/test_grasp_geometry.cpp'
+21: 
+21: No code style divergence in file 'test/test_insert_progress.cpp'
+21: 
+21: No code style divergence in file 'test/test_pregrasp_level.cpp'
+21: 
+21: No code style divergence in file 'test/test_pregrasp_residual.cpp'
+21: 
+21: No code style divergence in file 'test/test_reconfirm_policy.cpp'
+21: 
+21: No code style divergence in file 'test/test_staging_waypoints.cpp'
+21: 
+21: No code style divergence in file 'test/test_target_cache.cpp'
+21: 
+21: No code style divergence in file 'test/test_thread_join.cpp'
+21: 
+21: No code style divergence in file 'test/test_tool_actuator.cpp'
+21: 
+21: No code style divergence in file 'test/test_trajectory_guard.cpp'
+21: 
+21: No code style divergence in file 'test/test_view_planner.cpp'
+21: 
+21: No problems found
+21: -- run_test.py: return code 0
+21: -- run_test.py: verify result file '/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm/test_results/peach_arm/uncrustify.xunit.xml'
+21/22 Test #21: uncrustify .......................   Passed    0.35 sec
+test 22
+      Start 22: xmllint
+
+22: Test command: /usr/bin/python3 "-u" "/opt/ros/jazzy/share/ament_cmake_test/cmake/run_test.py" "/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm/test_results/peach_arm/xmllint.xunit.xml" "--package-name" "peach_arm" "--output-file" "/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm/ament_xmllint/xmllint.txt" "--command" "/opt/ros/jazzy/bin/ament_xmllint" "--xunit-file" "/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm/test_results/peach_arm/xmllint.xunit.xml"
+22: Working Directory: /home/mu/Desktop/aubo_e5_jazzy_ws/src/peach/peach_arm
+22: Test timeout computed to be: 60
+22: -- run_test.py: invoking following command in '/home/mu/Desktop/aubo_e5_jazzy_ws/src/peach/peach_arm':
+22:  - /opt/ros/jazzy/bin/ament_xmllint --xunit-file /home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm/test_results/peach_arm/xmllint.xunit.xml
+22: File 'package.xml' is valid
+22: 
+22: No problems found
+22: -- run_test.py: return code 0
+22: -- run_test.py: verify result file '/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_arm/test_results/peach_arm/xmllint.xunit.xml'
+22/22 Test #22: xmllint ..........................   Passed    0.57 sec
+
+100% tests passed, 0 tests failed out of 22
+
+Label Time Summary:
+cppcheck      =   0.10 sec*proc (1 test)
+flake8        =   0.23 sec*proc (1 test)
+gtest         =   0.73 sec*proc (14 tests)
+lint_cmake    =   0.11 sec*proc (1 test)
+linter        =   1.49 sec*proc (6 tests)
+pep257        =   0.13 sec*proc (1 test)
+pytest        =   0.94 sec*proc (2 tests)
+uncrustify    =   0.35 sec*proc (1 test)
+xmllint       =   0.57 sec*proc (1 test)
+
+Total Test time (real) =   3.16 sec
+Finished <<< peach_arm [3.22s]
+
+Summary: 1 package finished [3.55s]

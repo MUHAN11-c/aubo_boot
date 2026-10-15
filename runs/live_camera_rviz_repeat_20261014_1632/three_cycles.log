@@ -1,0 +1,21 @@
+[WARN] [1791967545.657030328] [rcl]: ROS_LOCALHOST_ONLY is deprecated but still honored if it is enabled. Use ROS_AUTOMATIC_DISCOVERY_RANGE and ROS_STATIC_PEERS instead.
+[WARN] [1791967545.657073958] [rcl]: 'localhost_only' is enabled, 'automatic_discovery_range' and 'static_peers' will be ignored.
+Set parameter successful
+[WARN] [1791967546.690768900] [rcl]: ROS_LOCALHOST_ONLY is deprecated but still honored if it is enabled. Use ROS_AUTOMATIC_DISCOVERY_RANGE and ROS_STATIC_PEERS instead.
+[WARN] [1791967546.690804946] [rcl]: 'localhost_only' is enabled, 'automatic_discovery_range' and 'static_peers' will be ignored.
+Set parameter successful
+[WARN] [1791967547.516453344] [rcl]: ROS_LOCALHOST_ONLY is deprecated but still honored if it is enabled. Use ROS_AUTOMATIC_DISCOVERY_RANGE and ROS_STATIC_PEERS instead.
+[WARN] [1791967547.516500416] [rcl]: 'localhost_only' is enabled, 'automatic_discovery_range' and 'static_peers' will be ignored.
+ROUND_START 1 rviz_repeat_20261014_1632_round_1
+ROUND_OUTCOME 1 {"claimed": ["target_0"], "outcomes": [{"target_id": "target_0", "outcome": 0, "reason": "周期完成；tool.enabled=false 或未宣称采摘成功", "quality_score": 0.0, "elapsed_s": 31.074, "completion_level": 6, "stage_names": ["reconfirm", "approach_insert", "tool", "retreat"], "stage_durations": [0.341, 16.232, 0.0, 12.974]}]}
+ROUND_RECOVERY_ACK 1 {'accepted': True, 'message': '已记录现场人工撤离确认；本服务不发送任何运动命令', 'state_seq': 168}
+ROUND_RESULT 1 4 True completed
+ROUND_START 2 rviz_repeat_20261014_1632_round_2
+ROUND_OUTCOME 2 {"claimed": ["target_1"], "outcomes": [{"target_id": "target_1", "outcome": 1, "reason": "skipped_quality: GraspDecision.allowed=false，禁止降级接触: pregrasp_geometry_ready", "quality_score": 0.0, "elapsed_s": 0.809, "failure_code": "skipped_quality", "failure_code_n": 14, "completion_level": 0}]}
+ROUND_RECOVERY_ACK 2 {'accepted': True, 'message': 'no recovery pending'}
+ROUND_RESULT 2 4 False no_targets_succeeded
+ROUND_START 3 rviz_repeat_20261014_1632_round_3
+ROUND_OUTCOME 3 {"claimed": ["target_2"], "outcomes": [{"target_id": "target_2", "outcome": 0, "reason": "周期完成；tool.enabled=false 或未宣称采摘成功", "quality_score": 0.0, "elapsed_s": 33.1, "completion_level": 6, "stage_names": ["reconfirm", "approach_insert", "tool", "retreat"], "stage_durations": [0.533, 16.967, 0.0, 14.616]}]}
+ROUND_RECOVERY_ACK 3 {'accepted': True, 'message': '已记录现场人工撤离确认；本服务不发送任何运动命令', 'state_seq': 376}
+ROUND_RESULT 3 4 True completed
+REPORT {"mode": "real camera + mock robot + RViz2", "tool_enabled": false, "rounds": [{"round": 1, "request_id": "rviz_repeat_20261014_1632_round_1", "scene_key": "rviz_repeat_scene_1", "ledger": {"claimed": ["target_0"], "outcomes": [{"target_id": "target_0", "outcome": 0, "reason": "周期完成；tool.enabled=false 或未宣称采摘成功", "quality_score": 0.0, "elapsed_s": 31.074, "completion_level": 6, "stage_names": ["reconfirm", "approach_insert", "tool", "retreat"], "stage_durations": [0.341, 16.232, 0.0, 12.974]}]}, "recovery_ack": {"accepted": true, "message": "已记录现场人工撤离确认；本服务不发送任何运动命令", "state_seq": 168}, "action_status": 4, "success": true, "termination_reason": "completed"}, {"round": 2, "request_id": "rviz_repeat_20261014_1632_round_2", "scene_key": "rviz_repeat_scene_2", "ledger": {"claimed": ["target_1"], "outcomes": [{"target_id": "target_1", "outcome": 1, "reason": "skipped_quality: GraspDecision.allowed=false，禁止降级接触: pregrasp_geometry_ready", "quality_score": 0.0, "elapsed_s": 0.809, "failure_code": "skipped_quality", "failure_code_n": 14, "completion_level": 0}]}, "recovery_ack": {"accepted": true, "message": "no recovery pending"}, "action_status": 4, "success": false, "termination_reason": "no_targets_succeeded"}, {"round": 3, "request_id": "rviz_repeat_20261014_1632_round_3", "scene_key": "rviz_repeat_scene_3", "ledger": {"claimed": ["target_2"], "outcomes": [{"target_id": "target_2", "outcome": 0, "reason": "周期完成；tool.enabled=false 或未宣称采摘成功", "quality_score": 0.0, "elapsed_s": 33.1, "completion_level": 6, "stage_names": ["reconfirm", "approach_insert", "tool", "retreat"], "stage_durations": [0.533, 16.967, 0.0, 14.616]}]}, "recovery_ack": {"accepted": true, "message": "已记录现场人工撤离确认；本服务不发送任何运动命令", "state_seq": 376}, "action_status": 4, "success": true, "termination_reason": "completed"}], "completed_full_cycles": 2}

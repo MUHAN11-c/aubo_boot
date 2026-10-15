@@ -23,6 +23,7 @@ from peach_harvester.vision.common.geometry import (
     fit_cylinder_robust,
     fit_sphere_robust,
     grasp_frame_from_axis,
+    mask_axis_disagreement,
     polish_sphere_lm,
     project_point,
     transform_direction,
@@ -37,6 +38,7 @@ from .contracts import (
     compute_travel_range,
     TOOL_GEOMETRY,
     ToolGeometry,
+    travel_is_too_short,
 )
 from .identity import estimate_pose_covariance
 from .image_gates import clip_bbox, foreground_mask, valid_depth_mask
@@ -119,6 +121,7 @@ _INFORMATIONAL_FLAGS = frozenset({
     'taper_lower_hemisphere_ignored',
     'polarity_upper_hemisphere',  # 上半球夹持已生效（校正完成）
     'fruit_prior_auxiliary',      # 球先验仅为辅助量（按构造恒在）
+    'axis_from_primary',          # 端点沿已选定的主轴估计，不再覆写该轴
     'neck_from_band', 'bottom_from_band',
     'gravity_defaulted',          # 无重力提示回退默认（下游另有不确定度门）
     'length_extended_from_2d',    # 袋长经 2D 掩膜展程补全（2D+3D 融合）
@@ -314,7 +317,7 @@ class RobustBagPosePipeline:
         source = inputs.source
         gravity = inputs.gravity
 
-        # ── 套入轴估计: 圆柱 RANSAC 主估 → 2D 掩膜校验 → 重力显式降级 ──
+        # ── 局部圆柱诊断；最终袋轴由独立整袋地标估计并做 2D 校验 ──
         # 理论: 圆柱法线 ⊥ 轴 (a = n₁×n₂)；局部几何结构良态，全局 PCA 对
         # 近回转体退化；重力假设仅在自由悬垂时成立
         normals_map, nvalid_map = estimate_normals(roi, x1, y1, obs.camera_K)
@@ -329,7 +332,7 @@ class RobustBagPosePipeline:
         cyl = None
         if len(fit_pts) >= 200:
             cyl = fit_cylinder_robust(fit_pts, fit_nrm)
-        if cyl is not None and cyl['inlier_ratio'] >= 0.35:
+        if cyl is not None and cyl['inlier_ratio'] >= 0.35 and cyl['rms'] <= 0.008:
             axis = cyl['axis']
             axis_source = 'cylinder_ransac'
             axis_confidence = float(
@@ -353,11 +356,6 @@ class RobustBagPosePipeline:
         bottom = transverse_center + bottom_axis * axis
         neck = transverse_center + neck_axis * axis
         length = float(np.dot(neck - bottom, axis))
-        if length <= 0.03:
-            return self._failed(target_id, base_2d, 'bag_axis_too_short', source,
-                                valid_depth_ratio=valid_ratio, foreground_ratio=coverage,
-                                n_points=len(points), bag_length_m=length)
-
         # 2D 校验: 掩膜 PCA 主轴 与 袋轴投影(底→颈) 的夹角
         disagreement_deg = None
         _bottom_px = self._project(bottom, obs.camera_K)
@@ -373,6 +371,9 @@ class RobustBagPosePipeline:
             points, gravity,
             mask_area_ratio=coverage, edge_touch=False,
             neighbor_gap_m=1.0, valid_depth_ratio=valid_ratio,
+            # A paper bag is not a rigid cylinder. Local fold normals can
+            # fit a low-residual cylinder across the bag; whole-bag landmarks
+            # must estimate their axis independently of that local fit.
             bbox_aspect=bbox_aspect)
         landmark_flags = list(landmarks.flags)
         if (landmarks.neck_center is not None
@@ -381,7 +382,8 @@ class RobustBagPosePipeline:
             bottom = landmarks.bottom_center
             neck = landmarks.neck_center
             axis = landmarks.bag_axis
-            axis_source = 'bag_landmarks'
+            if 'axis_from_primary' not in landmarks.flags:
+                axis_source = 'bag_landmarks'
             if landmarks.d95_m > 0.0:
                 diameter = float(landmarks.d95_m)
         bottom, neck, axis, width_flipped = enforce_wide_bottom(
@@ -409,6 +411,13 @@ class RobustBagPosePipeline:
             if t_tip > 0.02:
                 neck = np.asarray(bottom, dtype=float) + t_tip * np.asarray(
                     axis, dtype=float)
+        # Endpoints and polarity above may have changed. Pixel/meter scale
+        # must use this final axis and span, not the earlier cylinder span.
+        length = float(np.dot(neck - bottom, axis))
+        if not np.isfinite(length) or length <= 0.03:
+            return self._failed(target_id, base_2d, 'bag_axis_too_short', source,
+                                valid_depth_ratio=valid_ratio, foreground_ratio=coverage,
+                                n_points=len(points), bag_length_m=length)
         # ── 2D+3D 融合补全（检测框限幅，09-21 用户定版）──
         # 深度空洞/遮挡让点云只覆盖袋体可见段，分位带长度系统性偏短
         # （活流对拍 len −29%）。2D 证据优先原始 SAM 掩膜剪影（
@@ -450,6 +459,17 @@ class RobustBagPosePipeline:
                     fuse_flags.append('length_extended_from_2d')
         length = float(np.dot(neck - bottom, axis))
 
+        orientation_uncertain = abs(float(axis @ gravity)) < 0.3
+        disagreement_deg = None
+        bottom_px = self._project(bottom, obs.camera_K)
+        neck_px = self._project(neck, obs.camera_K)
+        if bottom_px is not None and neck_px is not None:
+            disagreement_deg = self._mask_axis_disagreement(
+                raw_mask if raw_mask is not None else local_mask, bottom_px, neck_px)
+        if axis_source == 'bag_landmarks':
+            theta_err_deg = float(landmarks.sigma_axis_deg)
+            axis_confidence = float(np.clip(1.0 - theta_err_deg / 30.0, 0.0, 1.0))
+
         # ── entry_start = P_bottom − (d_tool + d_s)·axis (Gürsoy 分解) ──
         standoff = self.tool.entry_standoff
         entry = compute_entry_start(bottom, axis, standoff)
@@ -477,7 +497,7 @@ class RobustBagPosePipeline:
             flags.append('small_foreground')
         if diameter + 2.0 * self.tool.clearance_min >= self.tool.d_inner_m:
             flags.append('tool_clearance_failed')
-        if travel < 0.05:
+        if travel_is_too_short(travel, self.tool.insert_length_m):
             flags.append('travel_too_short')
         if axis_source == 'gravity_prior':
             flags.append('axis_from_gravity_prior')
@@ -844,24 +864,7 @@ class RobustBagPosePipeline:
             情形返回 None.
 
         """
-        ys, xs = np.where(mask)
-        if len(xs) < 30:
-            return None
-        a2d = np.array([neck_px[0] - bottom_px[0],
-                        neck_px[1] - bottom_px[1]], dtype=float)
-        la = np.linalg.norm(a2d)
-        if la < 5.0:  # 投影过短，轴向几乎正对相机，2D 校验无意义
-            return None
-        a2d /= la
-        pts2d = np.column_stack([xs, ys]).astype(float)
-        pts2d -= pts2d.mean(axis=0)
-        cov = pts2d.T @ pts2d / len(pts2d)
-        evals, vecs = np.linalg.eigh(cov)
-        if evals[-1] < 2.5 * max(evals[0], 1e-9):
-            return None  # 掩膜近圆形，2D 主轴无判别力
-        v2d = vecs[:, -1]
-        cos = abs(float(a2d @ v2d))
-        return float(np.degrees(np.arccos(np.clip(cos, 0.0, 1.0))))
+        return mask_axis_disagreement(mask, bottom_px, neck_px)
 
     @staticmethod
     def _project(point, K):
@@ -1058,7 +1061,7 @@ class RobustFruitPosePipeline(RobustBagPosePipeline):
             flags.append('small_foreground')
         if diameter + 2.0 * self.tool.clearance_min >= self.tool.d_inner_m:
             flags.append('tool_clearance_failed')
-        if travel < 0.05:
+        if travel_is_too_short(travel, self.tool.insert_length_m):
             flags.append('travel_too_short')
         if not sphere_ok:
             flags.append('sphere_fit_unstable')

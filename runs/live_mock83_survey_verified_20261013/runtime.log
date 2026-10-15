@@ -1,0 +1,830 @@
+[INFO] [launch]: All log files can be found below /home/mu/.ros/log/2026-10-13-14-06-17-570970-mu-MS-7E34-341076
+[INFO] [launch]: Default logging verbosity is set to INFO
+[preflight] ROS_DOMAIN_ID=83
+[INFO] [stereo_camera_node-1]: process started with pid [341151]
+[INFO] [peach_scene_obstacles-2]: process started with pid [341152]
+[INFO] [robot_state_publisher-3]: process started with pid [341153]
+[INFO] [ros2_control_node-4]: process started with pid [341154]
+[INFO] [spawner-5]: process started with pid [341155]
+[INFO] [spawner-6]: process started with pid [341156]
+[INFO] [move_group-7]: process started with pid [341157]
+[INFO] [extrinsics_publisher-8]: process started with pid [341158]
+[INFO] [peach_harvester-9]: process started with pid [341159]
+[INFO] [peach_arm-10]: process started with pid [341160]
+[INFO] [peach_observability-11]: process started with pid [341161]
+[INFO] [lifecycle_manager-12]: process started with pid [341162]
+[INFO] [peach_lifecycle_flag_bridge-13]: process started with pid [341163]
+[lifecycle_manager-12] [INFO] [1791871578.046418730] [peach_lifecycle_manager]: Creating
+[lifecycle_manager-12] [INFO] [1791871578.048808447] [peach_lifecycle_manager]: [34m[1mCreating and initializing lifecycle service clients[0m[0m
+[robot_state_publisher-3] [INFO] [1791871578.050665165] [robot_state_publisher]: Robot initialized
+[ros2_control_node-4] [INFO] [1791871578.056228567] [controller_manager]: Using Steady (Monotonic) clock for triggering controller manager cycles.
+[ros2_control_node-4] [INFO] [1791871578.061329093] [controller_manager]: Subscribing to '/robot_description' topic for robot description.
+[ros2_control_node-4] [INFO] [1791871578.061397798] [controller_manager]: update rate is 200 Hz
+[ros2_control_node-4] [INFO] [1791871578.061402793] [controller_manager]: Overruns handling is : enabled
+[ros2_control_node-4] [INFO] [1791871578.061406535] [controller_manager]: Spawning controller_manager RT thread with scheduler priority: 50
+[ros2_control_node-4] [INFO] [1791871578.061483124] [controller_manager]: Successful set up FIFO RT scheduling policy with priority 50.
+[ros2_control_node-4] [INFO] [1791871578.071772449] [controller_manager]: Received robot description from topic.
+[ros2_control_node-4] [INFO] [1791871578.071819209] [controller_manager]: Enforcing command limits is disabled. Command limits from URDF will be ignored.
+[move_group-7] [INFO] [1791871578.073692716] [move_group.moveit.moveit.ros.rdf_loader]: Loaded robot model in 0.00229852 seconds
+[move_group-7] [INFO] [1791871578.073790271] [move_group.moveit.moveit.core.robot_model]: Loading robot model 'aubo_e5'...
+[move_group-7] [INFO] [1791871578.073799369] [move_group.moveit.moveit.core.robot_model]: No root/virtual joint specified in SRDF. Assuming fixed joint
+[ros2_control_node-4] [INFO] [1791871578.073871625] [controller_manager]: Loading hardware 'AuboE5System' 
+[ros2_control_node-4] [INFO] [1791871578.074277435] [controller_manager]: Loaded hardware 'AuboE5System' from plugin 'mock_components/GenericSystem'
+[ros2_control_node-4] [INFO] [1791871578.074334381] [controller_manager]: Initialize hardware 'AuboE5System' 
+[peach_arm-10] [WARN] [1791871578.076195043] [rcl.logging_rosout]: Publisher already registered for node name: 'peach_arm'. If this is due to multiple nodes with the same name then all logs for the logger named 'peach_arm' will go out over the existing publisher. As soon as any node with that name is destructed it will unregister the publisher, preventing any further logs for that name from being published on the rosout topic.
+[peach_arm-10] [WARN] [1791871578.078266733] [peach_arm]: scan.protected_zones 丢弃畸形盒: 盒#0 存在 min>=max 的轴（空盒/退化盒），已丢弃
+[ros2_control_node-4] [INFO] [1791871578.082423677] [controller_manager]: Successful initialization of hardware 'AuboE5System'
+[ros2_control_node-4] [INFO] [1791871578.082851901] [controller_manager]: Activating component 'AuboE5System'.
+[ros2_control_node-4] [INFO] [1791871578.082866227] [resource_manager]: 'configure' hardware 'AuboE5System' 
+[ros2_control_node-4] [INFO] [1791871578.082876888] [resource_manager]: Successful 'configure' of hardware 'AuboE5System'
+[ros2_control_node-4] [INFO] [1791871578.082890957] [resource_manager]: 'activate' hardware 'AuboE5System' 
+[ros2_control_node-4] [INFO] [1791871578.082896665] [resource_manager]: Successful 'activate' of hardware 'AuboE5System'
+[ros2_control_node-4] [INFO] [1791871578.082953281] [controller_manager]: Registering statistics for : AuboE5System
+[ros2_control_node-4] [INFO] [1791871578.082987998] [controller_manager]: Resource Manager has been successfully initialized. Starting Controller Manager services...
+[move_group-7] [INFO] [1791871578.103349950] [move_group.moveit.moveit.kinematics.kdl_kinematics_plugin]: Joint weights for group 'manipulator_e5': 1 1 1 1 1 1
+[stereo_camera_node-1] [INFO] [1791871578.132906476] [camera.peach_stereo_camera_node]: color camera_info override from /home/mu/Desktop/aubo_e5_jazzy_ws/install/percipio_camera/share/percipio_camera/config/color_camera_info.yaml (camera=camera_color)
+[stereo_camera_node-1] [INFO] [1791871578.143478107] [camera.peach_stereo_camera_node]: interface list: status=0 count=4
+[move_group-7] [INFO] [1791871578.186502331] [move_group.moveit.moveit.ros.planning_scene_monitor]: Publishing maintained planning scene on 'monitored_planning_scene'
+[move_group-7] [INFO] [1791871578.186667876] [move_group.moveit.moveit.ros.moveit_cpp]: Listening to 'joint_states' for joint states
+[move_group-7] [INFO] [1791871578.187379241] [move_group.moveit.moveit.ros.current_state_monitor]: Listening to joint states on topic 'joint_states'
+[move_group-7] [INFO] [1791871578.187897992] [move_group.moveit.moveit.ros.planning_scene_monitor]: Listening to '/attached_collision_object' for attached collision objects
+[move_group-7] [INFO] [1791871578.187912252] [move_group.moveit.moveit.ros.planning_scene_monitor]: Stopping existing planning scene publisher.
+[move_group-7] [INFO] [1791871578.191635245] [move_group.moveit.moveit.ros.planning_scene_monitor]: Stopped publishing maintained planning scene.
+[move_group-7] [INFO] [1791871578.192032448] [move_group.moveit.moveit.ros.planning_scene_monitor]: Publishing maintained planning scene on 'monitored_planning_scene'
+[move_group-7] [INFO] [1791871578.192108703] [move_group.moveit.moveit.ros.planning_scene_monitor]: Starting planning scene monitor
+[move_group-7] [INFO] [1791871578.192658111] [move_group.moveit.moveit.ros.planning_scene_monitor]: Listening to '/planning_scene'
+[move_group-7] [INFO] [1791871578.192673215] [move_group.moveit.moveit.ros.planning_scene_monitor]: Starting world geometry update monitor for collision objects, attached objects, octomap updates.
+[move_group-7] [INFO] [1791871578.192926568] [move_group.moveit.moveit.ros.planning_scene_monitor]: Listening to 'collision_object'
+[move_group-7] [INFO] [1791871578.193139969] [move_group.moveit.moveit.ros.planning_scene_monitor]: Listening to 'planning_scene_world' for planning scene world geometry
+[move_group-7] [WARN] [1791871578.193638170] [move_group.moveit.moveit.ros.occupancy_map_monitor]: Resolution not specified for Octomap. Assuming resolution = 0.1 instead
+[move_group-7] [ERROR] [1791871578.193653657] [move_group.moveit.moveit.ros.occupancy_map_monitor]: No 3D sensor plugin(s) defined for octomap updates
+[move_group-7] [INFO] [1791871578.243603560] [move_group.moveit.moveit.ros.planning_pipeline]: Successfully loaded planner 'OMPL'
+[move_group-7] [INFO] [1791871578.244838968] [move_group]: Try loading adapter 'default_planning_request_adapters/ResolveConstraintFrames'
+[move_group-7] [INFO] [1791871578.245616765] [move_group]: Loaded adapter 'default_planning_request_adapters/ResolveConstraintFrames'
+[move_group-7] [INFO] [1791871578.245630299] [move_group]: Try loading adapter 'default_planning_request_adapters/ValidateWorkspaceBounds'
+[move_group-7] [INFO] [1791871578.245778075] [move_group]: Loaded adapter 'default_planning_request_adapters/ValidateWorkspaceBounds'
+[move_group-7] [INFO] [1791871578.245783633] [move_group]: Try loading adapter 'default_planning_request_adapters/CheckStartStateBounds'
+[move_group-7] [INFO] [1791871578.245797391] [move_group]: Loaded adapter 'default_planning_request_adapters/CheckStartStateBounds'
+[move_group-7] [INFO] [1791871578.245799985] [move_group]: Try loading adapter 'default_planning_request_adapters/CheckStartStateCollision'
+[move_group-7] [INFO] [1791871578.245805757] [move_group]: Loaded adapter 'default_planning_request_adapters/CheckStartStateCollision'
+[move_group-7] [INFO] [1791871578.246942535] [move_group]: Try loading adapter 'default_planning_response_adapters/AddTimeOptimalParameterization'
+[move_group-7] [INFO] [1791871578.248388882] [move_group]: Loaded adapter 'default_planning_response_adapters/AddTimeOptimalParameterization'
+[move_group-7] [INFO] [1791871578.248400654] [move_group]: Try loading adapter 'default_planning_response_adapters/AddRuckigTrajectorySmoothing'
+[move_group-7] [INFO] [1791871578.248411543] [move_group]: Loaded adapter 'default_planning_response_adapters/AddRuckigTrajectorySmoothing'
+[move_group-7] [INFO] [1791871578.248414128] [move_group]: Try loading adapter 'default_planning_response_adapters/ValidateSolution'
+[move_group-7] [INFO] [1791871578.249887099] [move_group]: Loaded adapter 'default_planning_response_adapters/ValidateSolution'
+[move_group-7] [INFO] [1791871578.252292726] [move_group.moveit.moveit.planners.pilz.joint_limits_aggregator]: Reading limits from namespace robot_description_planning
+[move_group-7] [INFO] [1791871578.254038411] [move_group.moveit.moveit.planners.pilz.command_planner]: Available plugins: pilz_industrial_motion_planner/PlanningContextLoaderCIRC pilz_industrial_motion_planner/PlanningContextLoaderLIN pilz_industrial_motion_planner/PlanningContextLoaderPTP 
+[move_group-7] [INFO] [1791871578.254056804] [move_group.moveit.moveit.planners.pilz.command_planner]: About to load: pilz_industrial_motion_planner/PlanningContextLoaderCIRC
+[move_group-7] [INFO] [1791871578.255032765] [move_group.moveit.moveit.planners.pilz.command_planner]: Registered Algorithm [CIRC]
+[move_group-7] [INFO] [1791871578.255049546] [move_group.moveit.moveit.planners.pilz.command_planner]: About to load: pilz_industrial_motion_planner/PlanningContextLoaderLIN
+[move_group-7] [INFO] [1791871578.255748803] [move_group.moveit.moveit.planners.pilz.command_planner]: Registered Algorithm [LIN]
+[move_group-7] [INFO] [1791871578.255762084] [move_group.moveit.moveit.planners.pilz.command_planner]: About to load: pilz_industrial_motion_planner/PlanningContextLoaderPTP
+[move_group-7] [INFO] [1791871578.256442243] [move_group.moveit.moveit.planners.pilz.command_planner]: Registered Algorithm [PTP]
+[move_group-7] [INFO] [1791871578.256458121] [move_group.moveit.moveit.ros.planning_pipeline]: Successfully loaded planner 'Pilz Industrial Motion Planner'
+[move_group-7] [INFO] [1791871578.257614606] [move_group]: Try loading adapter 'default_planning_request_adapters/ResolveConstraintFrames'
+[move_group-7] [INFO] [1791871578.257759754] [move_group]: Loaded adapter 'default_planning_request_adapters/ResolveConstraintFrames'
+[move_group-7] [INFO] [1791871578.257764728] [move_group]: Try loading adapter 'default_planning_request_adapters/ValidateWorkspaceBounds'
+[move_group-7] [INFO] [1791871578.257927837] [move_group]: Loaded adapter 'default_planning_request_adapters/ValidateWorkspaceBounds'
+[move_group-7] [INFO] [1791871578.257933095] [move_group]: Try loading adapter 'default_planning_request_adapters/CheckStartStateBounds'
+[move_group-7] [INFO] [1791871578.257943977] [move_group]: Loaded adapter 'default_planning_request_adapters/CheckStartStateBounds'
+[move_group-7] [INFO] [1791871578.257946511] [move_group]: Try loading adapter 'default_planning_request_adapters/CheckStartStateCollision'
+[move_group-7] [INFO] [1791871578.257953106] [move_group]: Loaded adapter 'default_planning_request_adapters/CheckStartStateCollision'
+[move_group-7] [INFO] [1791871578.259031721] [move_group]: Try loading adapter 'default_planning_response_adapters/ValidateSolution'
+[move_group-7] [INFO] [1791871578.259762903] [move_group]: Loaded adapter 'default_planning_response_adapters/ValidateSolution'
+[move_group-7] [INFO] [1791871578.262485602] [move_group.moveit.moveit.ros.planning_pipeline]: Successfully loaded planner 'STOMP'
+[move_group-7] [INFO] [1791871578.263597009] [move_group]: Try loading adapter 'default_planning_request_adapters/ResolveConstraintFrames'
+[move_group-7] [INFO] [1791871578.263746379] [move_group]: Loaded adapter 'default_planning_request_adapters/ResolveConstraintFrames'
+[move_group-7] [INFO] [1791871578.263751304] [move_group]: Try loading adapter 'default_planning_request_adapters/ValidateWorkspaceBounds'
+[move_group-7] [INFO] [1791871578.263865240] [move_group]: Loaded adapter 'default_planning_request_adapters/ValidateWorkspaceBounds'
+[move_group-7] [INFO] [1791871578.263870029] [move_group]: Try loading adapter 'default_planning_request_adapters/CheckStartStateBounds'
+[move_group-7] [INFO] [1791871578.263879941] [move_group]: Loaded adapter 'default_planning_request_adapters/CheckStartStateBounds'
+[move_group-7] [INFO] [1791871578.263882647] [move_group]: Try loading adapter 'default_planning_request_adapters/CheckStartStateCollision'
+[move_group-7] [INFO] [1791871578.263889418] [move_group]: Loaded adapter 'default_planning_request_adapters/CheckStartStateCollision'
+[move_group-7] [INFO] [1791871578.264936522] [move_group]: Try loading adapter 'default_planning_response_adapters/AddTimeOptimalParameterization'
+[move_group-7] [INFO] [1791871578.265208786] [move_group]: Loaded adapter 'default_planning_response_adapters/AddTimeOptimalParameterization'
+[move_group-7] [INFO] [1791871578.265215067] [move_group]: Try loading adapter 'default_planning_response_adapters/ValidateSolution'
+[move_group-7] [INFO] [1791871578.265618708] [move_group]: Loaded adapter 'default_planning_response_adapters/ValidateSolution'
+[move_group-7] [INFO] [1791871578.265629686] [move_group]: Try loading adapter 'default_planning_response_adapters/DisplayMotionPath'
+[move_group-7] [INFO] [1791871578.266077173] [move_group]: Loaded adapter 'default_planning_response_adapters/DisplayMotionPath'
+[move_group-7] [INFO] [1791871578.291509776] [move_group.moveit.moveit.plugins.simple_controller_manager]: Added FollowJointTrajectory controller for joint_trajectory_controller
+[move_group-7] [INFO] [1791871578.291683990] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[move_group-7] [INFO] [1791871578.291705299] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[move_group-7] [INFO] [1791871578.292181069] [move_group.moveit.moveit.ros.trajectory_execution_manager]: Trajectory execution is not managing controllers
+[move_group-7] [INFO] [1791871578.292206247] [move_group]: MoveGroup debug mode is ON
+[move_group-7] [INFO] [1791871578.313775306] [move_group.moveit.moveit.planners.pilz.move_group_sequence_action]: initialize move group sequence action
+[move_group-7] [INFO] [1791871578.317767205] [move_group.moveit.moveit.planners.pilz.joint_limits_aggregator]: Reading limits from namespace robot_description_planning
+[move_group-7] [INFO] [1791871578.317992887] [move_group.moveit.moveit.planners.pilz.joint_limits_aggregator]: Reading limits from namespace robot_description_planning
+[move_group-7] [INFO] [1791871578.318893095] [move_group.moveit.moveit.ros.move_group.executable]: 
+[move_group-7] 
+[move_group-7] ********************************************************
+[move_group-7] * MoveGroup using: 
+[move_group-7] *     - apply_planning_scene_service
+[move_group-7] *     - clear_octomap_service
+[move_group-7] *     - ExecuteTaskSolution
+[move_group-7] *     - get_group_urdf
+[move_group-7] *     - load_geometry_from_file
+[move_group-7] *     - CartesianPathService
+[move_group-7] *     - execute_trajectory_action
+[move_group-7] *     - get_planning_scene_service
+[move_group-7] *     - kinematics_service
+[move_group-7] *     - move_action
+[move_group-7] *     - motion_plan_service
+[move_group-7] *     - query_planners_service
+[move_group-7] *     - state_validation_service
+[move_group-7] *     - save_geometry_to_file
+[move_group-7] *     - SequenceAction
+[move_group-7] *     - SequenceService
+[move_group-7] ********************************************************
+[move_group-7] 
+[move_group-7] [INFO] [1791871578.318934851] [move_group.moveit.moveit.ros.move_group.context]: MoveGroup context using pipeline pilz_industrial_motion_planner
+[move_group-7] [INFO] [1791871578.318942691] [move_group.moveit.moveit.ros.move_group.context]: MoveGroup context initialization complete
+[move_group-7] [96mLoading 'move_group/ApplyPlanningSceneService'...[0m
+[move_group-7] [96mLoading 'move_group/ClearOctomapService'...[0m
+[move_group-7] [96mLoading 'move_group/ExecuteTaskSolutionCapability'...[0m
+[move_group-7] [96mLoading 'move_group/GetUrdfService'...[0m
+[move_group-7] [96mLoading 'move_group/LoadGeometryFromFileService'...[0m
+[move_group-7] [96mLoading 'move_group/MoveGroupCartesianPathService'...[0m
+[move_group-7] [96mLoading 'move_group/MoveGroupExecuteTrajectoryAction'...[0m
+[move_group-7] [96mLoading 'move_group/MoveGroupGetPlanningSceneService'...[0m
+[move_group-7] [96mLoading 'move_group/MoveGroupKinematicsService'...[0m
+[move_group-7] [96mLoading 'move_group/MoveGroupMoveAction'...[0m
+[move_group-7] [96mLoading 'move_group/MoveGroupPlanService'...[0m
+[move_group-7] [96mLoading 'move_group/MoveGroupQueryPlannersService'...[0m
+[move_group-7] [96mLoading 'move_group/MoveGroupStateValidationService'...[0m
+[move_group-7] [96mLoading 'move_group/SaveGeometryToFileService'...[0m
+[move_group-7] [96mLoading 'pilz_industrial_motion_planner/MoveGroupSequenceAction'...[0m
+[move_group-7] [96mLoading 'pilz_industrial_motion_planner/MoveGroupSequenceService'...[0m
+[move_group-7] 
+[move_group-7] [92mYou can start planning now![0m
+[move_group-7] 
+[spawner-5] [INFO] [1791871578.348166623] [spawner_joint_state_broadcaster]: waiting for service /controller_manager/list_controllers to become available...
+[peach_scene_obstacles-2] [INFO] [1791871578.431301247] [peach_scene_obstacles]: scene obstacles snapshot node ready (waits refresh trigger)
+[extrinsics_publisher-8] [INFO] [1791871578.466620079] [hand_eye_extrinsics_publisher]: Published active camera extrinsic from /home/mu/Desktop/aubo_e5_jazzy_ws/src/aubo_hand_eye_calibration/hand_eye/active.yaml: xyz_m=[0.044852, 0.108401, 0.001697] quat_xyzw=[0.502841, 0.496407, 0.508405, -0.492194]
+[ros2_control_node-4] [INFO] [1791871578.599794630] [controller_manager]: Loading controller : 'joint_state_broadcaster' of type 'joint_state_broadcaster/JointStateBroadcaster'
+[ros2_control_node-4] [INFO] [1791871578.599832954] [controller_manager]: Loading controller 'joint_state_broadcaster'
+[ros2_control_node-4] [INFO] [1791871578.602571356] [controller_manager]: Controller 'joint_state_broadcaster' node arguments: --ros-args -p use_sim_time:=False --params-file /tmp/launch_params_7105uoao --params-file /home/mu/Desktop/aubo_e5_jazzy_ws/install/aubo_e5_bringup/share/aubo_e5_bringup/config/controllers.yaml 
+[spawner-5] [INFO] [1791871578.612571923] [spawner_joint_state_broadcaster]: Loaded joint_state_broadcaster
+[ros2_control_node-4] [INFO] [1791871578.613550873] [controller_manager]: Configuring controller: 'joint_state_broadcaster'
+[ros2_control_node-4] [INFO] [1791871578.613655062] [joint_state_broadcaster]: 'joints' or 'interfaces' parameter is empty. All available state interfaces will be published
+[ros2_control_node-4] [INFO] [1791871578.622841901] [controller_manager]: Activating controllers: [ joint_state_broadcaster ]
+[ros2_control_node-4] [INFO] [1791871578.626899441] [controller_manager]: Successfully switched controllers!
+[spawner-5] [INFO] [1791871578.632664254] [spawner_joint_state_broadcaster]: Configured and activated joint_state_broadcaster
+[peach_harvester-9] [INFO] [1791871578.646786327] [peach_scene_perception_node]: YOLO=/home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_harvester/share/peach_harvester/model/best.pt
+[peach_harvester-9] [INFO] [1791871578.646972979] [peach_scene_perception_node]: SAM=/home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_harvester/share/peach_harvester/model/mobile_sam.pt
+[spawner-6] [INFO] [1791871578.741753959] [spawner_joint_trajectory_controller]: waiting for service /controller_manager/list_controllers to become available...
+[peach_observability-11] [WARN] [1791871578.766590865] [peach_observability]: *** 调试操作面已启用：运动类操作=默认拒绝。技能侧既有安全门照常生效；请保持 HTTP 回环绑定 ***
+[INFO] [spawner-5]: process has finished cleanly [pid 341155]
+[peach_observability-11] [INFO] [1791871578.769818159] [peach_observability]: 感知抓取过程页（过程监控+单步调试）: http://127.0.0.1:8090
+[peach_observability-11] [INFO] [1791871578.771305760] [peach_observability]: 全量录制订阅: /aubo_io_controller/joint_status [aubo_msgs/msg/JointStatus]
+[peach_observability-11] [INFO] [1791871578.771694147] [peach_observability]: 全量录制订阅: /aubo_io_controller/robot_status [aubo_msgs/msg/RobotStatus]
+[peach_observability-11] [INFO] [1791871578.772300346] [peach_observability]: 全量录制订阅: /camera/color/camera_info [sensor_msgs/msg/CameraInfo]
+[peach_observability-11] [INFO] [1791871578.772707578] [peach_observability]: 全量录制订阅: /camera/color/image_raw [sensor_msgs/msg/Image]
+[peach_observability-11] [INFO] [1791871578.773073644] [peach_observability]: 全量录制订阅: /camera/depth/camera_info [sensor_msgs/msg/CameraInfo]
+[peach_observability-11] [INFO] [1791871578.773436532] [peach_observability]: 全量录制订阅: /camera/depth/image_raw [sensor_msgs/msg/Image]
+[peach_observability-11] [INFO] [1791871578.773796573] [peach_observability]: 全量录制订阅: /camera/depth_registered/points [sensor_msgs/msg/PointCloud2]
+[peach_observability-11] [INFO] [1791871578.774630767] [peach_observability]: 全量录制订阅: /controller_manager/activity [controller_manager_msgs/msg/ControllerManagerActivity]
+[peach_observability-11] [INFO] [1791871578.779464969] [peach_observability]: 全量录制订阅: /controller_manager/introspection_data/full [pal_statistics_msgs/msg/Statistics]
+[peach_observability-11] [INFO] [1791871578.779972438] [peach_observability]: 全量录制订阅: /controller_manager/introspection_data/names [pal_statistics_msgs/msg/StatisticsNames]
+[peach_observability-11] [INFO] [1791871578.780388601] [peach_observability]: 全量录制订阅: /controller_manager/introspection_data/values [pal_statistics_msgs/msg/StatisticsValues]
+[peach_observability-11] [INFO] [1791871578.780766573] [peach_observability]: 全量录制订阅: /controller_manager/statistics/full [pal_statistics_msgs/msg/Statistics]
+[peach_observability-11] [INFO] [1791871578.781119803] [peach_observability]: 全量录制订阅: /controller_manager/statistics/names [pal_statistics_msgs/msg/StatisticsNames]
+[peach_observability-11] [INFO] [1791871578.781474111] [peach_observability]: 全量录制订阅: /controller_manager/statistics/values [pal_statistics_msgs/msg/StatisticsValues]
+[peach_observability-11] [INFO] [1791871578.781863531] [peach_observability]: 全量录制订阅: /diagnostics [diagnostic_msgs/msg/DiagnosticArray]
+[peach_observability-11] [INFO] [1791871578.782235099] [peach_observability]: 全量录制订阅: /display_contacts [visualization_msgs/msg/MarkerArray]
+[peach_observability-11] [INFO] [1791871578.784492498] [peach_observability]: 全量录制订阅: /display_planned_path [moveit_msgs/msg/DisplayTrajectory]
+[peach_observability-11] [INFO] [1791871578.812168508] [peach_observability]: 全量录制订阅: /dynamic_joint_states [control_msgs/msg/DynamicJointState]
+[peach_observability-11] [INFO] [1791871578.813178365] [peach_observability]: 全量录制订阅: /joint_state_broadcaster/transition_event [lifecycle_msgs/msg/TransitionEvent]
+[peach_observability-11] [INFO] [1791871578.815352419] [peach_observability]: 全量录制订阅: /joint_states [sensor_msgs/msg/JointState]
+[peach_observability-11] [INFO] [1791871578.816270302] [peach_observability]: 全量录制订阅: /monitored_planning_scene [moveit_msgs/msg/PlanningScene]
+[peach_observability-11] [INFO] [1791871578.816812018] [peach_observability]: 全量录制订阅: /peach/lifecycle/managed_nodes_activated [std_msgs/msg/Bool]
+[peach_observability-11] [INFO] [1791871578.817269005] [peach_observability]: 全量录制订阅: /peach/manipulation/grasp_hypothesis [peach_interfaces/msg/GraspHypothesis]
+[peach_observability-11] [INFO] [1791871578.817753165] [peach_observability]: 全量录制订阅: /peach/observability/job [std_msgs/msg/String]
+[peach_observability-11] [INFO] [1791871578.818256605] [peach_observability]: 全量录制订阅: /peach/observability/markers [visualization_msgs/msg/MarkerArray]
+[peach_observability-11] [INFO] [1791871578.818749907] [peach_observability]: 全量录制订阅: /peach/observability/metrics [std_msgs/msg/String]
+[peach_observability-11] [INFO] [1791871578.819205735] [peach_observability]: 全量录制订阅: /peach/observability/selfcheck_passed [std_msgs/msg/Bool]
+[peach_observability-11] [INFO] [1791871578.819660137] [peach_observability]: 全量录制订阅: /peach/observability/tcp_path [nav_msgs/msg/Path]
+[peach_observability-11] [INFO] [1791871578.820144840] [peach_observability]: 全量录制订阅: /peach/perception/harvest_state [std_msgs/msg/String]
+[peach_observability-11] [INFO] [1791871578.820599777] [peach_observability]: 全量录制订阅: /peach/perception/target_observations [peach_interfaces/msg/PeachTargetObservationArray]
+[peach_observability-11] [INFO] [1791871578.821052257] [peach_observability]: 全量录制订阅: /peach/reconstruction/diagnostics [peach_interfaces/msg/ReconstructionStatus]
+[peach_observability-11] [INFO] [1791871578.821467061] [peach_observability]: 全量录制订阅: /peach/reconstruction/diagnostics_debug [std_msgs/msg/String]
+[peach_observability-11] [INFO] [1791871578.821948616] [peach_observability]: 全量录制订阅: /peach/reconstruction/grasp_decision [peach_interfaces/msg/GraspDecision]
+[peach_observability-11] [INFO] [1791871578.822392644] [peach_observability]: 全量录制订阅: /peach/reconstruction/refined_axis [geometry_msgs/msg/Vector3Stamped]
+[peach_observability-11] [INFO] [1791871578.822877025] [peach_observability]: 全量录制订阅: /peach/reconstruction/refined_diagnostics [peach_interfaces/msg/BagFittingArray]
+[peach_observability-11] [INFO] [1791871578.823369046] [peach_observability]: 全量录制订阅: /peach/reconstruction/refined_pose [peach_interfaces/msg/BagGraspCandidateArray]
+[peach_observability-11] [INFO] [1791871578.823783070] [peach_observability]: 全量录制订阅: /peach/reconstruction/status [std_msgs/msg/String]
+[peach_observability-11] [INFO] [1791871578.824260734] [peach_observability]: 全量录制订阅: /peach/reconstruction/tsdf_cloud [sensor_msgs/msg/PointCloud2]
+[peach_observability-11] [INFO] [1791871578.824771672] [peach_observability]: 全量录制订阅: /peach/scene/obstacles_refresh [std_msgs/msg/Empty]
+[peach_observability-11] [INFO] [1791871578.825197201] [peach_observability]: 全量录制订阅: /peach/vegetation/status [std_msgs/msg/String]
+[peach_observability-11] [INFO] [1791871578.825700828] [peach_observability]: 全量录制订阅: /peach_arm/execute_target/_action/feedback [peach_interfaces/action/ExecuteTarget_FeedbackMessage]
+[peach_observability-11] [INFO] [1791871578.826178295] [peach_observability]: 全量录制订阅: /peach_arm/execute_target/_action/status [action_msgs/msg/GoalStatusArray]
+[peach_observability-11] [INFO] [1791871578.826661330] [peach_observability]: 全量录制订阅: /peach_arm/status [std_msgs/msg/String]
+[peach_observability-11] [INFO] [1791871578.827195408] [peach_observability]: 全量录制订阅: /peach_arm/survey_scene/_action/feedback [peach_interfaces/action/SurveyScene_FeedbackMessage]
+[peach_observability-11] [INFO] [1791871578.827644172] [peach_observability]: 全量录制订阅: /peach_arm/survey_scene/_action/status [action_msgs/msg/GoalStatusArray]
+[peach_observability-11] [INFO] [1791871578.828135039] [peach_observability]: 全量录制订阅: /peach_arm/transition_event [lifecycle_msgs/msg/TransitionEvent]
+[peach_observability-11] [INFO] [1791871578.828621539] [peach_observability]: 全量录制订阅: /peach_observability/transition_event [lifecycle_msgs/msg/TransitionEvent]
+[peach_observability-11] [INFO] [1791871578.829074029] [peach_observability]: 全量录制订阅: /peach_scene_perception_node/transition_event [lifecycle_msgs/msg/TransitionEvent]
+[peach_observability-11] [INFO] [1791871578.829555844] [peach_observability]: 全量录制订阅: /peach_supervisor/events [peach_interfaces/msg/CanonicalEvent]
+[peach_observability-11] [INFO] [1791871578.829997095] [peach_observability]: 全量录制订阅: /peach_supervisor/run_harvest/_action/feedback [peach_interfaces/action/RunHarvest_FeedbackMessage]
+[peach_observability-11] [INFO] [1791871578.830415437] [peach_observability]: 全量录制订阅: /peach_supervisor/run_harvest/_action/status [action_msgs/msg/GoalStatusArray]
+[peach_observability-11] [INFO] [1791871578.830859932] [peach_observability]: 全量录制订阅: /peach_supervisor/scene_snapshot [peach_interfaces/msg/SceneSnapshot]
+[peach_observability-11] [INFO] [1791871578.831314482] [peach_observability]: 全量录制订阅: /peach_supervisor/state [peach_interfaces/msg/HarvestState]
+[peach_observability-11] [INFO] [1791871578.831767475] [peach_observability]: 全量录制订阅: /peach_target_reconstruction_node/build_target_model/_action/feedback [peach_interfaces/action/BuildTargetModel_FeedbackMessage]
+[peach_observability-11] [INFO] [1791871578.832183937] [peach_observability]: 全量录制订阅: /peach_target_reconstruction_node/build_target_model/_action/status [action_msgs/msg/GoalStatusArray]
+[peach_observability-11] [INFO] [1791871578.833959616] [peach_observability]: 全量录制订阅: /pipeline_state [moveit_msgs/msg/PipelineState]
+[peach_observability-11] [INFO] [1791871578.834530760] [peach_observability]: 全量录制订阅: /robot_description [std_msgs/msg/String]
+[peach_observability-11] [INFO] [1791871578.834918646] [peach_observability]: 全量录制订阅: /tf [tf2_msgs/msg/TFMessage]
+[peach_observability-11] [INFO] [1791871578.835415494] [peach_observability]: 全量录制订阅: /tf_static [tf2_msgs/msg/TFMessage]
+[ros2_control_node-4] [INFO] [1791871578.994709816] [controller_manager]: Loading controller : 'joint_trajectory_controller' of type 'joint_trajectory_controller/JointTrajectoryController'
+[ros2_control_node-4] [INFO] [1791871578.994755108] [controller_manager]: Loading controller 'joint_trajectory_controller'
+[ros2_control_node-4] [INFO] [1791871578.996432484] [controller_manager]: Controller 'joint_trajectory_controller' node arguments: --ros-args -p use_sim_time:=False --params-file /tmp/launch_params_7105uoao --params-file /home/mu/Desktop/aubo_e5_jazzy_ws/install/aubo_e5_bringup/share/aubo_e5_bringup/config/controllers.yaml 
+[spawner-6] [INFO] [1791871579.013790085] [spawner_joint_trajectory_controller]: Loaded joint_trajectory_controller
+[ros2_control_node-4] [INFO] [1791871579.015542737] [controller_manager]: Configuring controller: 'joint_trajectory_controller'
+[ros2_control_node-4] [INFO] [1791871579.015689923] [joint_trajectory_controller]: No specific joint names are used for command interfaces. Using 'joints' parameter.
+[ros2_control_node-4] [INFO] [1791871579.015708160] [joint_trajectory_controller]: Command interfaces are [position] and state interfaces are [position velocity].
+[ros2_control_node-4] [INFO] [1791871579.015725231] [joint_trajectory_controller]: Using 'splines' interpolation method.
+[ros2_control_node-4] [INFO] [1791871579.017165033] [joint_trajectory_controller]: Action status changes will be monitored at 20.00 Hz.
+[ros2_control_node-4] [INFO] [1791871579.020761671] [joint_trajectory_controller]: Setting initial scaling factor to 1.000000
+[ros2_control_node-4] [INFO] [1791871579.020793362] [joint_trajectory_controller]: No scaling interface set. This controller will not read speed scaling from the hardware.
+[ros2_control_node-4] [INFO] [1791871579.023672692] [controller_manager]: Activating controllers: [ joint_trajectory_controller ]
+[ros2_control_node-4] [INFO] [1791871579.026930899] [controller_manager]: Successfully switched controllers!
+[spawner-6] [INFO] [1791871579.032628167] [spawner_joint_trajectory_controller]: Configured and activated joint_trajectory_controller
+[INFO] [spawner-6]: process has finished cleanly [pid 341156]
+[peach_harvester-9] [INFO] [1791871579.386979751] [peach_scene_perception_node]: Subscribed color=/camera/color/image_raw depth=/camera/depth/image_raw info=/camera/color/camera_info slop=0.05s optical=camera_color_optical_frame output=base_link depth_scale_unit=0.25 gravity_mode=tf calib=percipio-640x480-chessboard|hand_eye:import_humble_20260128T114006
+[peach_harvester-9] [INFO] [1791871579.387192800] [peach_scene_perception_node]: 目标身份记忆已启用：match_radius=0.06 m, max_targets=50, ema=0.3
+[peach_harvester-9] [INFO] [1791871579.397517781] [peach_target_reconstruction_node]: peach_target_reconstruction_node ready: base=base_link color=/camera/color/image_raw depth=/camera/depth/image_raw slop=0.05s depth_scale_unit=0.25 views(min/rec/max)=1/5/24 require_static=True auto_mode=True session_root=/home/mu/Desktop/aubo_e5_jazzy_ws/runs
+[lifecycle_manager-12] [INFO] [1791871579.430107030] [peach_lifecycle_manager]: [34m[1mStarting managed nodes bringup...[0m[0m
+[lifecycle_manager-12] [INFO] [1791871579.430143572] [peach_lifecycle_manager]: [34m[1mConfiguring peach_scene_perception_node[0m[0m
+[lifecycle_manager-12] [INFO] [1791871579.453999969] [peach_lifecycle_manager]: [34m[1mConfiguring peach_target_reconstruction_node[0m[0m
+[lifecycle_manager-12] [INFO] [1791871579.469407083] [peach_lifecycle_manager]: [34m[1mConfiguring peach_arm[0m[0m
+[peach_arm-10] [WARN] [1791871579.469593324] [peach_arm]: scan.protected_zones 丢弃畸形盒: 盒#0 存在 min>=max 的轴（空盒/退化盒），已丢弃
+[peach_arm-10] [WARN] [1791871579.484842879] [peach_arm]: scan.protected_zones 丢弃畸形盒: 盒#0 存在 min>=max 的轴（空盒/退化盒），已丢弃
+[peach_arm-10] [WARN] [1791871579.485639795] [peach_arm]: scan.protected_zones 丢弃畸形盒: 盒#0 存在 min>=max 的轴（空盒/退化盒），已丢弃
+[peach_arm-10] [WARN] [1791871579.486954410] [rcl.logging_rosout]: Publisher already registered for node name: 'peach_arm'. If this is due to multiple nodes with the same name then all logs for the logger named 'peach_arm' will go out over the existing publisher. As soon as any node with that name is destructed it will unregister the publisher, preventing any further logs for that name from being published on the rosout topic.
+[peach_arm-10] [INFO] [1791871579.492884102] [peach_arm.moveit.ros.rdf_loader]: Loaded robot model in 0.0019905 seconds
+[peach_arm-10] [INFO] [1791871579.492936004] [peach_arm.moveit.core.robot_model]: Loading robot model 'aubo_e5'...
+[peach_arm-10] [INFO] [1791871579.492946386] [peach_arm.moveit.core.robot_model]: No root/virtual joint specified in SRDF. Assuming fixed joint
+[peach_arm-10] [INFO] [1791871579.512438634] [peach_arm.moveit.kinematics.kdl_kinematics_plugin]: Joint weights for group 'manipulator_e5': 1 1 1 1 1 1
+[peach_arm-10] [INFO] [1791871579.521282673] [peach_arm.moveit.ros.move_group_interface]: Ready to take commands for planning group manipulator_e5.
+[peach_arm-10] [INFO] [1791871579.521320094] [peach_arm]: 主动视觉靠近节点 ready: group=manipulator_e5 base=base_link tip=tcp camera=camera_depth_optical_frame execution=plan_only grasp=disabled
+[peach_arm-10] [INFO] [1791871579.521342559] [peach_arm]: [IDLE] 已配置；activate 后才开放运动输出权限
+[lifecycle_manager-12] [INFO] [1791871579.521685455] [peach_lifecycle_manager]: [34m[1mConfiguring peach_supervisor[0m[0m
+[peach_harvester-9] [INFO] [1791871579.544016961] [peach_supervisor]: task executor configured; will not auto-start harvest
+[lifecycle_manager-12] [INFO] [1791871579.544971553] [peach_lifecycle_manager]: [34m[1mActivating peach_scene_perception_node[0m[0m
+[peach_harvester-9] [INFO] [1791871579.546210231] [peach_scene_perception_node]: perception Active：开始处理 RGB-D
+[lifecycle_manager-12] [INFO] [1791871579.547447904] [peach_lifecycle_manager]: [34m[1mActivating peach_target_reconstruction_node[0m[0m
+[peach_harvester-9] [INFO] [1791871579.550388503] [peach_target_reconstruction_node]: reconstruction Active：开始积分
+[lifecycle_manager-12] [INFO] [1791871579.551844793] [peach_lifecycle_manager]: [34m[1mActivating peach_arm[0m[0m
+[peach_arm-10] [WARN] [1791871579.552024461] [peach_arm]: scan.protected_zones 丢弃畸形盒: 盒#0 存在 min>=max 的轴（空盒/退化盒），已丢弃
+[peach_arm-10] [INFO] [1791871579.553768262] [peach_arm]: 节点已激活：运动输出权限开放
+[lifecycle_manager-12] [INFO] [1791871579.554030197] [peach_lifecycle_manager]: [34m[1mActivating peach_supervisor[0m[0m
+[lifecycle_manager-12] [INFO] [1791871579.555853655] [peach_lifecycle_manager]: [34m[1mManaged nodes are active[0m[0m
+[peach_arm-10] [WARN] [1791871579.556846669] [rcl.logging_rosout]: Publisher already registered for node name: 'peach_arm'. If this is due to multiple nodes with the same name then all logs for the logger named 'peach_arm' will go out over the existing publisher. As soon as any node with that name is destructed it will unregister the publisher, preventing any further logs for that name from being published on the rosout topic.
+[peach_arm-10] [WARN] [1791871579.561642695] [rcl.logging_rosout]: Publisher already registered for node name: 'peach_arm'. If this is due to multiple nodes with the same name then all logs for the logger named 'peach_arm' will go out over the existing publisher. As soon as any node with that name is destructed it will unregister the publisher, preventing any further logs for that name from being published on the rosout topic.
+[peach_lifecycle_flag_bridge-13] [INFO] [1791871579.564881785] [peach_lifecycle_flag_bridge]: 托管栈 Active=True（桥自 nav2_lm is_active）
+[peach_arm-10] [INFO] [1791871579.647371033] [peach_arm]: 场景障碍 ACM 豁免已应用: 28 条（含 <octomap> 保留名）
+[peach_observability-11] [INFO] [1791871580.858292518] [peach_observability]: 全量录制订阅: /attached_collision_object [moveit_msgs/msg/AttachedCollisionObject]
+[peach_observability-11] [INFO] [1791871580.860173922] [peach_observability]: 全量录制订阅: /aubo_io_controller/io_states [aubo_msgs/msg/IOState]
+[peach_observability-11] [INFO] [1791871580.867267478] [peach_observability]: 全量录制订阅: /bond [bond/msg/Status]
+[peach_observability-11] [INFO] [1791871580.867983968] [peach_observability]: 全量录制订阅: /collision_object [moveit_msgs/msg/CollisionObject]
+[peach_observability-11] [INFO] [1791871580.879790799] [peach_observability]: 全量录制订阅: /execute_task_solution/_action/feedback [moveit_task_constructor_msgs/action/ExecuteTaskSolution_FeedbackMessage]
+[peach_observability-11] [INFO] [1791871580.880792051] [peach_observability]: 全量录制订阅: /execute_task_solution/_action/status [action_msgs/msg/GoalStatusArray]
+[peach_observability-11] [INFO] [1791871580.930810704] [peach_observability]: 全量录制订阅: /execute_trajectory/_action/feedback [moveit_msgs/action/ExecuteTrajectory_FeedbackMessage]
+[peach_observability-11] [INFO] [1791871580.931446942] [peach_observability]: 全量录制订阅: /execute_trajectory/_action/status [action_msgs/msg/GoalStatusArray]
+[peach_observability-11] [INFO] [1791871580.932071490] [peach_observability]: 全量录制订阅: /imu_follow/insert_progress [std_msgs/msg/Float64]
+[peach_observability-11] [INFO] [1791871580.932743651] [peach_observability]: 全量录制订阅: /joint_trajectory_controller/controller_state [control_msgs/msg/JointTrajectoryControllerState]
+[peach_observability-11] [INFO] [1791871580.990747416] [peach_observability]: 全量录制订阅: /joint_trajectory_controller/follow_joint_trajectory/_action/feedback [control_msgs/action/FollowJointTrajectory_FeedbackMessage]
+[peach_observability-11] [INFO] [1791871580.991523960] [peach_observability]: 全量录制订阅: /joint_trajectory_controller/follow_joint_trajectory/_action/status [action_msgs/msg/GoalStatusArray]
+[peach_observability-11] [INFO] [1791871580.992402146] [peach_observability]: 全量录制订阅: /joint_trajectory_controller/joint_trajectory [trajectory_msgs/msg/JointTrajectory]
+[peach_observability-11] [INFO] [1791871581.011064828] [peach_observability]: 全量录制订阅: /joint_trajectory_controller/speed_scaling_input [control_msgs/msg/SpeedScalingFactor]
+[peach_observability-11] [INFO] [1791871581.012449932] [peach_observability]: 全量录制订阅: /joint_trajectory_controller/transition_event [lifecycle_msgs/msg/TransitionEvent]
+[peach_observability-11] [INFO] [1791871581.013403603] [peach_observability]: 全量录制订阅: /move_action/_action/feedback [moveit_msgs/action/MoveGroup_FeedbackMessage]
+[peach_observability-11] [INFO] [1791871581.013946034] [peach_observability]: 全量录制订阅: /move_action/_action/status [action_msgs/msg/GoalStatusArray]
+[peach_observability-11] [INFO] [1791871581.014583683] [peach_observability]: 全量录制订阅: /peach/batch/enables [peach_interfaces/msg/Enables]
+[peach_observability-11] [INFO] [1791871581.015109869] [peach_observability]: 全量录制订阅: /peach/perception/axis [geometry_msgs/msg/Vector3Stamped]
+[peach_observability-11] [INFO] [1791871581.029392786] [peach_observability]: 全量录制订阅: /peach/perception/detections [vision_msgs/msg/Detection2DArray]
+[peach_observability-11] [INFO] [1791871581.030062758] [peach_observability]: 全量录制订阅: /peach/perception/diagnostics [peach_interfaces/msg/BagFittingArray]
+[peach_observability-11] [INFO] [1791871581.030604328] [peach_observability]: 全量录制订阅: /peach/perception/initial_pose [peach_interfaces/msg/BagGraspCandidateArray]
+[peach_observability-11] [INFO] [1791871581.031140986] [peach_observability]: 全量录制订阅: /peach/perception/markers [visualization_msgs/msg/MarkerArray]
+[peach_observability-11] [INFO] [1791871581.031672043] [peach_observability]: 全量录制订阅: /peach/perception/masks [sensor_msgs/msg/Image]
+[peach_observability-11] [INFO] [1791871581.032538997] [peach_observability]: 全量录制订阅: /peach/perception/single_cloud [sensor_msgs/msg/PointCloud2]
+[peach_observability-11] [INFO] [1791871581.033103954] [peach_observability]: 全量录制订阅: /peach/reconstruction/local_cloud [sensor_msgs/msg/PointCloud2]
+[peach_observability-11] [INFO] [1791871581.033698154] [peach_observability]: 全量录制订阅: /peach/reconstruction/markers [visualization_msgs/msg/MarkerArray]
+[peach_observability-11] [INFO] [1791871581.034436610] [peach_observability]: 全量录制订阅: /peach/reconstruction/pregrasp_verification [peach_interfaces/msg/PregraspVerification]
+[peach_observability-11] [INFO] [1791871581.035113236] [peach_observability]: 全量录制订阅: /peach/reconstruction/shape_hypothesis [peach_interfaces/msg/ShapeHypothesis]
+[peach_observability-11] [INFO] [1791871581.035791954] [peach_observability]: 全量录制订阅: /peach_arm/move_to/_action/feedback [peach_interfaces/action/MoveTo_FeedbackMessage]
+[peach_observability-11] [INFO] [1791871581.036340176] [peach_observability]: 全量录制订阅: /peach_arm/move_to/_action/status [action_msgs/msg/GoalStatusArray]
+[peach_observability-11] [INFO] [1791871581.037061383] [peach_observability]: 全量录制订阅: /peach_arm/planned_views [visualization_msgs/msg/MarkerArray]
+[peach_observability-11] [INFO] [1791871581.037742152] [peach_observability]: 全量录制订阅: /peach_arm/tool_state [peach_interfaces/msg/ToolState]
+[peach_observability-11] [INFO] [1791871581.038941618] [peach_observability]: 全量录制订阅: /peach_supervisor/transition_event [lifecycle_msgs/msg/TransitionEvent]
+[peach_observability-11] [INFO] [1791871581.039641843] [peach_observability]: 全量录制订阅: /peach_target_reconstruction_node/transition_event [lifecycle_msgs/msg/TransitionEvent]
+[peach_observability-11] [INFO] [1791871581.040469707] [peach_observability]: 全量录制订阅: /planning_scene [moveit_msgs/msg/PlanningScene]
+[peach_observability-11] [INFO] [1791871581.041223071] [peach_observability]: 全量录制订阅: /planning_scene_world [moveit_msgs/msg/PlanningSceneWorld]
+[peach_observability-11] [INFO] [1791871581.046984452] [peach_observability]: 全量录制订阅: /sequence_move_group/_action/feedback [moveit_msgs/action/MoveGroupSequence_FeedbackMessage]
+[peach_observability-11] [INFO] [1791871581.047768250] [peach_observability]: 全量录制订阅: /sequence_move_group/_action/status [action_msgs/msg/GoalStatusArray]
+[peach_observability-11] [INFO] [1791871581.048443566] [peach_observability]: 全量录制订阅: /trajectory_execution_event [std_msgs/msg/String]
+[stereo_camera_node-1] [INFO] [1791871581.155002428] [camera.peach_stereo_camera_node]: iface eth-fc:9d:05:6c:6f:a00b0afea9: 1 device(s)
+[stereo_camera_node-1] [INFO] [1791871581.155055447] [camera.peach_stereo_camera_node]:   dev 207000152740 model PS800-E1 ip 169.254.10.110
+[stereo_camera_node-1] [INFO] [1791871581.297793663] [camera.peach_stereo_camera_node]: open device 207000152740: status=0
+[stereo_camera_node-1] [INFO] [1791871581.356547119] [camera.peach_stereo_camera_node]: rectify: R1=2.65deg f=548.9px B=62.2mm proc=640x480 numDisp=128 med=3 mode=3 tk=3
+[stereo_camera_node-1] [INFO] [1791871581.357738435] [camera.peach_stereo_camera_node]: color mode set: yuyv 640x480
+[peach_harvester-9] [INFO] [1791871582.021253025] [peach_scene_perception_node]: CameraInfo K fx=466.175 fy=465.557 cx=326.071 cy=244.789 640x480
+[peach_harvester-9] /home/mu/Desktop/aubo_e5_jazzy_ws/aubo_py3.12/lib/python3.12/site-packages/matplotlib/projections/__init__.py:63: UserWarning: Unable to import Axes3D. This may be due to multiple versions of Matplotlib being installed (e.g. as a system package and as a pip package). As a result, the 3D projection is not available.
+[peach_harvester-9]   warnings.warn("Unable to import Axes3D. This may be due to multiple versions of "
+[peach_arm-10] [INFO] [1791871582.658147516] [peach_arm]: 场景障碍 ACM 豁免已应用: 28 条（含 <octomap> 保留名）
+[peach_arm-10] [INFO] [1791871585.758907766] [peach_arm]: 场景障碍 ACM 豁免已应用: 28 条（含 <octomap> 保留名）
+[peach_harvester-9] [INFO] [1791871587.884812561] [peach_scene_perception_node]: peach_harvester.vision.scene_perception.identity: 目标注册 累计 1 次（最近: target_0 cls=0 累计表规模 1）
+[peach_harvester-9] [INFO] [1791871587.886680930] [peach_scene_perception_node]: 目标注册表在册 1 个目标（累计注册 1、累计命中 0）
+[peach_harvester-9] [WARN] [1791871587.891803916] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 79（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871588.062934811] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 81（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871588.229729687] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 82（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871588.433144138] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 84（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871588.648684900] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 86（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_observability-11] [INFO] [1791871588.776635883] [peach_observability]: 自检[initial] 14/18 通过，跳过: robot_status, imu_topic, model_files, vegetation_status
+[peach_harvester-9] [WARN] [1791871588.870828637] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 88（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871589.173322930] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 90（处理跟不上到达率，排查热路径耗时或降低到达率）
+[stereo_camera_node-1] [INFO] [1791871589.225451462] [camera.peach_stereo_camera_node]: groups=100 published=100 rate=13.1 gps drop(stream=0 incomplete=0 nostamp=0 depth=0)
+[peach_harvester-9] [WARN] [1791871589.370148824] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 91（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871589.536427457] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 93（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871589.705415703] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 94（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871589.886108889] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 95（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871590.066670441] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 97（处理跟不上到达率，��查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871590.250101818] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 99（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871590.444165416] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 100（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871590.640094946] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 102（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871590.805130737] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 103（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871590.995462420] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 105（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871591.196190248] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 107（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871591.548971247] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 110（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871591.718881521] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 111（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871591.877759548] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 112（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871592.087689973] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 114（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871592.277284007] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 116（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871592.462010573] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 117（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871592.800406040] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 120（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871592.969563191] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 121（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871593.146039011] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 123（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871593.315494501] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 124（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871593.486394696] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 125（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871593.682128387] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 127（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871593.869009121] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 128（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871594.071055221] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 130（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871594.274788363] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 132（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871594.460687074] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 133（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871594.619782316] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 135（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871594.821193755] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 136（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871594.991338874] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 137（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871595.214628953] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 140（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871595.391483757] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 141（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871595.568712862] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 143（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871595.721772673] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 144（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871595.900614284] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 145（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871596.081768723] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 147（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871596.245632270] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 148（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871596.401457555] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 149（处理跟不上到达率，排查热路径耗时或降低到达率）
+[stereo_camera_node-1] [INFO] [1791871596.484776378] [camera.peach_stereo_camera_node]: groups=200 published=200 rate=13.4 gps drop(stream=0 incomplete=0 nostamp=0 depth=0)
+[peach_harvester-9] [WARN] [1791871596.566039414] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 150（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871596.763986606] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 152（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871596.945585737] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 154（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871597.120239799] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 155（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871597.286333230] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 157（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871597.449589166] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 158（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871597.651739959] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 160（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871597.851051319] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 162（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [INFO] [1791871598.002698082] [peach_scene_perception_node]: 目标注册表在册 1 个目标（累计注册 1、累计命中 56）
+[peach_harvester-9] [WARN] [1791871598.011408086] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 163（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871598.214959070] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 164（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871598.421516381] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 166（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871598.629653170] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 168（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871598.786065437] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 169（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871598.965427920] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 171（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871599.150351214] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 172（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871599.376981041] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 174（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871599.564423449] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 176（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871599.776488093] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 177（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871599.954358646] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 179（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871600.125269642] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 180（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871600.341181400] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 182（处理跟不上到达率，���查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871600.579032707] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 183（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871600.818336848] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 186（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871601.034320750] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 188（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871601.266215312] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 190（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871601.483685190] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 192（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871601.665266771] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 193（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871601.819922815] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 195（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871601.995237232] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 196（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871602.196352885] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 197（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871602.407745090] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 200（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871602.604195438] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 202（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871602.812701663] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 204（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871603.166729728] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 207（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871603.350485035] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 208（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871603.531044978] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 210（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871603.731540626] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 212（处理跟不上到达率，排查热路径耗时或降低到达率）
+[stereo_camera_node-1] [INFO] [1791871603.790247416] [camera.peach_stereo_camera_node]: groups=300 published=300 rate=13.5 gps drop(stream=0 incomplete=0 nostamp=0 depth=0)
+[peach_harvester-9] [WARN] [1791871604.077426632] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 214（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871604.254725309] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 216（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871604.436308332] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 217（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871604.643338899] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 219（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871604.828630093] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 221（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871604.989609805] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 222（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871605.145790337] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 223（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871605.304023362] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 224（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871605.470244232] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 226（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871605.751923657] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 227（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871605.951698112] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 229（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871606.171071242] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 231（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871606.348119827] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 233（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871606.535761465] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 234（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871606.740536535] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 236（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871606.889662230] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 237（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871607.091824580] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 238（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871607.296001150] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 240（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871607.460007512] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 242（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871607.644157716] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 243（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871607.834727353] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 245（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871607.989121445] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 246（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [INFO] [1791871608.127822393] [peach_scene_perception_node]: 目标注册表在册 1 个目标（累计注册 1、累计命中 110）
+[peach_harvester-9] [WARN] [1791871608.135400488] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 247（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871608.279925064] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 248（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871608.465379590] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 250（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871608.661069932] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 252（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_observability-11] [INFO] [1791871608.773099251] [peach_observability]: 自检[periodic] 14/18 通过，跳过: robot_status, imu_topic, model_files, vegetation_status
+[peach_harvester-9] [WARN] [1791871608.851309147] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 253（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871609.000157642] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 255（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871609.209710804] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 256（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871609.405047027] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 258（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871609.637064174] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 260（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871609.814432085] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 261（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871610.010331969] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 263（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871610.301453211] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 266（处理跟不上到达率，���查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871610.605439263] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 268（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871610.826730076] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 271（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871610.999892799] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 272（处理跟不上到达率，排查热路径耗时或降低到达率）
+[stereo_camera_node-1] [INFO] [1791871611.079639727] [camera.peach_stereo_camera_node]: groups=400 published=400 rate=13.6 gps drop(stream=0 incomplete=0 nostamp=0 depth=0)
+[peach_harvester-9] [WARN] [1791871611.145698708] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 273（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871611.355522629] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 275（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871611.534026618] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 277（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871611.712713440] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 278（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871611.902873975] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 280（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871612.073804965] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 281（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871612.205386195] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 282（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871612.388887451] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 283（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871612.548495291] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 285（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871612.717787424] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 286（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871612.863659489] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 287（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871613.062916929] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 289（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871613.234934761] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 290（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871613.455247277] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 292（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871613.640528738] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 294（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871613.820948819] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 295（处理跟不上到达率，���查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871614.001489238] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 297（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871614.179478694] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 298（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871614.361042709] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 299（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871614.525507880] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 301（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871614.729325999] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 302（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871615.083808581] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 305（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871615.251640587] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 306（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871615.546367213] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 309（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871615.745056610] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 310（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871616.005022424] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 313（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871616.182714713] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 315（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871616.395716081] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 317（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871616.606312391] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 318（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871616.812697303] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 320（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871617.011647414] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 322（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871617.158898336] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 323（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871617.312392026] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 324（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871617.498719981] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 325（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871617.670252041] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 327（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871617.833032871] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 328（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871618.010741891] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 330（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [INFO] [1791871618.166070028] [peach_scene_perception_node]: 目标注册表在册 1 个目标（累计注册 1、累计命中 163）
+[peach_harvester-9] [WARN] [1791871618.173176016] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 331（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871618.339886431] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 332（处理跟不上到达率，排查热路径耗时或降低到达率）
+[stereo_camera_node-1] [INFO] [1791871618.413899653] [camera.peach_stereo_camera_node]: groups=500 published=500 rate=13.6 gps drop(stream=0 incomplete=0 nostamp=0 depth=0)
+[peach_harvester-9] [WARN] [1791871618.541405682] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 334（处理跟不上到达率，���查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871618.701654631] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 335（处理跟不上到达率，���查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871618.901691682] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 337（处理跟不上到达率，���查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871619.060401343] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 339（处理跟不上到达率，���查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871619.221007657] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 340（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871619.385542299] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 341（处理跟不上到达率，���查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871619.574458699] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 343（处理跟不上到达率，���查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871619.734397067] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 344（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871619.887819987] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 345（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871620.054685741] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 347（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871620.243562599] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 348（处理跟不上到达率，���查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871620.405443043] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 350（处理跟不上到达率，���查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871620.564307585] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 351（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871620.731840822] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 352（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871620.895693436] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 353（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871621.096430897] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 355（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871621.257974282] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 356（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871621.436119591] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 358（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871621.618596009] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 359（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871621.787998073] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 361（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871622.104779694] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 362（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871622.325936811] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 365（处理跟不上到达率，���查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871622.535172229] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 367（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871622.725373464] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 368（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871622.911643572] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 370（处理跟不上到达率，���查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871623.131025539] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 372（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871623.349168117] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 374（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871623.517138300] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 375（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871623.673222295] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 376（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871623.853751005] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 378（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871624.030877796] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 379（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871624.227928476] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 381（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871624.423466820] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 383（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871624.586625042] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 384（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871624.744362378] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 385（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871624.889110730] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 386（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871625.064768064] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 388（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871625.271100991] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 390（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871625.480282345] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 391（处理跟不上到达率，排查热路径耗时或降低到达率）
+[stereo_camera_node-1] [INFO] [1791871625.613195640] [camera.peach_stereo_camera_node]: groups=600 published=600 rate=13.6 gps drop(stream=0 incomplete=0 nostamp=0 depth=0)
+[peach_harvester-9] [WARN] [1791871625.625240581] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 392（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871625.813266834] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 394（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871625.971711277] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 395（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871626.143422782] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 397（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871626.314269123] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 398（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871626.485270034] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 399（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871626.689827685] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 401（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871626.831086818] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 402（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871627.035200054] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 404（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871627.216675444] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 406（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871627.380632978] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 407（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871627.583519207] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 409（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871627.731274737] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 410（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871627.905769375] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 411（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871628.084543802] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 413（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [INFO] [1791871628.206251205] [peach_scene_perception_node]: 目标注册表在册 1 个目标（累计注册 1、累计命中 220）
+[peach_harvester-9] [WARN] [1791871628.387995899] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 415（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871628.572916035] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 416（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871628.760974765] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 418（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871628.920652721] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 419（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871629.085956635] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 420（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871629.273509316] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 422（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871629.441470180] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 424（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871629.630357523] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 425（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871629.801051231] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 427（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871629.964214604] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 428（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871630.181053918] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 430（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871630.383485972] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 432（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871630.566501620] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 433（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871630.755090051] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 435（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871630.913049603] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 436（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871631.136998176] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 438（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871631.398378820] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 440（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871631.584654547] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 441（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871631.785569115] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 443（处理跟不上到达率，���查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871631.952860313] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 444（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871632.090057668] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 445（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871632.246586931] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 446（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871632.455883935] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 448（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871632.641693644] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 449（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871632.874175631] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 452（处理跟不上到达率，排查热路径耗时或降低到达率）
+[stereo_camera_node-1] [INFO] [1791871632.917438438] [camera.peach_stereo_camera_node]: groups=700 published=700 rate=13.6 gps drop(stream=0 incomplete=0 nostamp=0 depth=0)
+[peach_harvester-9] [WARN] [1791871633.084663189] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 454（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871633.238009827] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 455（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871633.373847760] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 456（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871633.553248763] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 457（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871633.724111308] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 458（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871633.921172394] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 460（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871634.065932602] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 461（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871634.248290858] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 463（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871634.585161537] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 465（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871634.756569811] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 466（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871634.905908666] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 467（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871635.072076512] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 469（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871635.223510304] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 470（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871635.347618623] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 471（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871635.511058917] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 472（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871635.785854494] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 474（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871636.039996844] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 477（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871636.204013226] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 478（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_observability-11] [WARN] [1791871636.281744877] [rosbag2_cpp]: Message definition for topic '/peach_supervisor/run_harvest/_action/status' with type 'action_msgs/msg/GoalStatusArray' not found. Message definition will be left empty in bag.
+[peach_observability-11] [WARN] [1791871636.284281016] [rosbag2_cpp]: Message definition for topic '/peach_supervisor/run_harvest/_action/feedback' with type 'peach_interfaces/msg/RunHarvest_FeedbackMessage' not found. Message definition will be left empty in bag.
+[peach_arm-10] [INFO] [1791871636.287054898] [peach_arm.moveit.ros.current_state_monitor]: Listening to joint states on topic 'joint_states'
+[peach_observability-11] [WARN] [1791871636.293255170] [rosbag2_cpp]: Message definition for topic '/peach_arm/survey_scene/_action/feedback' with type 'peach_interfaces/msg/SurveyScene_FeedbackMessage' not found. Message definition will be left empty in bag.
+[peach_observability-11] [WARN] [1791871636.293327951] [rosbag2_cpp]: Message definition for topic '/peach_arm/survey_scene/_action/status' with type 'action_msgs/msg/GoalStatusArray' not found. Message definition will be left empty in bag.
+[peach_harvester-9] [INFO] [1791871636.295551525] [peach_supervisor]: Survey 进行中: moving_to_photo_pose
+[peach_observability-11] [WARN] [1791871636.304893357] [rosbag2_cpp]: Message definition for topic '/peach/scene/obstacles_refresh' with type 'std_msgs/msg/Empty' not found. Message definition will be left empty in bag.
+[peach_harvester-9] [WARN] [1791871636.385786056] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 479（处理跟不上到达率，排查热路径耗时或降低到达率）
+[move_group-7] [WARN] [1791871636.423178453] [move_group.moveit.moveit.core.planning_scene]: Tried to remove world object 'peach_scene_obstacles', but it does not exist in this scene.
+[peach_scene_obstacles-2] [INFO] [1791871636.473265276] [peach_scene_obstacles]: 场景障碍已关闭，不把枝叶写入碰撞场景
+[peach_harvester-9] [WARN] [1791871636.559528987] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 481（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871636.764137100] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 483（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871636.979174782] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 485（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871637.185845468] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 486（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871637.352458318] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 488（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871637.531176450] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 489（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871637.750845234] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 491（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871637.906097316] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 493（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [INFO] [1791871638.212019590] [peach_scene_perception_node]: 目标注册表在册 1 个目标（累计注册 1、累计命中 275）
+[peach_harvester-9] [WARN] [1791871638.223202442] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 495（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871638.410964845] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 496（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_observability-11] [INFO] [1791871638.779043976] [peach_observability]: 自检[periodic] 14/18 通过，跳过: robot_status, imu_topic, model_files, vegetation_status
+[peach_harvester-9] [WARN] [1791871639.108286035] [peach_target_reconstruction_node]: 重建 worker 队列已满，拒绝新帧以保持积分顺序
+[peach_harvester-9] [WARN] [1791871639.300790013] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 504（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871640.006381280] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 506（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871640.186758493] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 512（处理跟不上到达率，排查热路径耗时或降低到达率）
+[stereo_camera_node-1] [INFO] [1791871640.215531615] [camera.peach_stereo_camera_node]: groups=800 published=800 rate=13.7 gps drop(stream=0 incomplete=0 nostamp=0 depth=0)
+[peach_harvester-9] [WARN] [1791871640.759711768] [peach_target_reconstruction_node]: 重建 worker 队列已满，拒绝新帧以保持积分顺序
+[peach_harvester-9] [WARN] [1791871640.831347041] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 521（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871641.654091246] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 529（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871642.248929216] [peach_target_reconstruction_node]: 重建 worker 队列已满，拒绝新帧以保持积分顺序
+[peach_harvester-9] [WARN] [1791871642.340911957] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 537（处理跟不上到达率，���查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871642.883762688] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 538（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871643.106252453] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 548（处理跟不上到达率，���查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871644.039942237] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 552（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871644.116824106] [peach_target_reconstruction_node]: 重建 worker 队列已满，拒绝新帧以保持积分顺序
+[peach_harvester-9] [WARN] [1791871644.243370238] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 559（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871645.016029803] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 568（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871646.076627980] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 575（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871646.736163126] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 579（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871646.849484441] [peach_target_reconstruction_node]: 重建 worker 队列已满，拒绝新帧以保持积分顺序
+[peach_harvester-9] [WARN] [1791871646.929405597] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 583（处理跟不上到达率，排查热路径耗时或降低到达率）
+[stereo_camera_node-1] [INFO] [1791871647.474493856] [camera.peach_stereo_camera_node]: groups=900 published=900 rate=13.7 gps drop(stream=0 incomplete=0 nostamp=0 depth=0)
+[peach_harvester-9] [WARN] [1791871647.503267654] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 586（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871647.776626094] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 594（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871648.181814035] [peach_target_reconstruction_node]: 重建 worker 队列已满，拒绝新帧以保持积分顺序
+[peach_harvester-9] [INFO] [1791871648.330497385] [peach_scene_perception_node]: 目标注册表在册 1 个目标（累计注册 1、累计命中 307）
+[peach_harvester-9] [WARN] [1791871648.342891976] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 601（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871649.276946903] [peach_target_reconstruction_node]: 重建 worker 队列已满，拒绝新帧以保持积分顺序
+[peach_harvester-9] [WARN] [1791871649.343147294] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 611（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871650.073648112] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 618（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871650.729928037] [peach_target_reconstruction_node]: 重建 worker 队列已满，拒绝新帧以保持积分顺序
+[peach_harvester-9] [WARN] [1791871650.784298774] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 629（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871651.102706745] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 630（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871651.279185036] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 632（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871651.849204421] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 633（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871651.952869833] [peach_target_reconstruction_node]: 重建 worker 队列已满，拒绝新帧以保持积分顺序
+[peach_harvester-9] [WARN] [1791871652.099295714] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 641（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871652.872145803] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 649（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871653.430879164] [peach_target_reconstruction_node]: 重建 worker 队列已满，拒绝新帧以保持积分顺序
+[peach_harvester-9] [WARN] [1791871653.581934356] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 658（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871654.381075169] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 669（处理跟不上到达率，排查热路径耗时或降低到达率）
+[stereo_camera_node-1] [INFO] [1791871654.699533255] [camera.peach_stereo_camera_node]: groups=1000 published=1000 rate=13.7 gps drop(stream=0 incomplete=0 nostamp=0 depth=0)
+[peach_harvester-9] [WARN] [1791871655.209456606] [peach_target_reconstruction_node]: 重建 worker 队列已满，拒绝新帧以保持积分顺序
+[peach_harvester-9] [WARN] [1791871655.307237483] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 675（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871655.950826490] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 679（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871656.369730101] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 683（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871656.531770279] [peach_target_reconstruction_node]: 重建 worker 队列已满，拒绝新帧以保持积分顺序
+[peach_harvester-9] [WARN] [1791871656.547581629] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 688（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871657.345069953] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 698（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871658.047510062] [peach_target_reconstruction_node]: 重建 worker 队列已满，拒绝新帧以保持积分顺序
+[peach_harvester-9] [WARN] [1791871658.190827992] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 706（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [INFO] [1791871658.910124324] [peach_scene_perception_node]: 目标注册表在册 1 个目标（累计注册 1、累计命中 336）
+[peach_harvester-9] [WARN] [1791871658.922678624] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 715（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871659.629670809] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 718（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871659.806868434] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 722（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871660.349123862] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 730（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871660.851587742] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 731（处理跟不上到达率，���查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871661.064536302] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 735（处理跟不上到达率，���查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871661.499295567] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 737（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871661.642810286] [peach_target_reconstruction_node]: 重建 worker 队列已满，拒绝新帧以保持积分顺序
+[peach_harvester-9] [WARN] [1791871661.697372315] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 741（处理跟不上到达率，排查热路径耗时或降低到达率）
+[stereo_camera_node-1] [INFO] [1791871661.903919063] [camera.peach_stereo_camera_node]: groups=1100 published=1100 rate=13.7 gps drop(stream=0 incomplete=0 nostamp=0 depth=0)
+[peach_harvester-9] [WARN] [1791871662.217455404] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 746（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871662.644907821] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 747（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871662.747961842] [peach_target_reconstruction_node]: 重建 worker 队列已满，拒绝新帧以保持积分顺序
+[peach_harvester-9] [WARN] [1791871662.884927234] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 752（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871663.319278179] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 759（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871663.969402071] [peach_target_reconstruction_node]: 重建 worker 队列已满，拒绝新帧以保持积分顺序
+[peach_harvester-9] [WARN] [1791871664.075430576] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 768（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871664.846442298] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 777（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871665.473363375] [peach_target_reconstruction_node]: 重建 worker 队列已满，拒绝新帧以保持积分顺序
+[peach_harvester-9] [WARN] [1791871665.613695036] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 785（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871666.362335795] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 793（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-9] [WARN] [1791871667.005077678] [peach_target_reconstruction_node]: 重建 worker 队列已满，拒绝新帧以保持积分顺序
+[peach_harvester-9] [WARN] [1791871667.096097667] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 801（处理跟不上到达率，���查热路径耗时或降低到达率）
+[WARNING] [launch]: user interrupted with ctrl-c (SIGINT)
+[WARNING] [launch]: user interrupted with ctrl-c (SIGINT) again, ignoring...
+[INFO] [peach_lifecycle_flag_bridge-13]: sending signal 'SIGINT' to process[peach_lifecycle_flag_bridge-13]
+[ERROR] [peach_lifecycle_flag_bridge-13]: process has died [pid 341163, exit code -2, cmd '/home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_bringup/lib/peach_bringup/peach_lifecycle_flag_bridge --ros-args -r __node:=peach_lifecycle_flag_bridge -p use_sim_time:=False'].
+[ERROR] [peach_scene_obstacles-2]: process has died [pid 341152, exit code -2, cmd '/home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_harvester/lib/peach_harvester/peach_scene_obstacles --ros-args -p use_sim_time:=False'].
+[ERROR] [peach_arm-10]: process has died [pid 341160, exit code -6, cmd '/home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_arm/lib/peach_arm/peach_arm --ros-args -r __node:=peach_arm -r __ns:=/ -p use_sim_time:=False --params-file /tmp/launch_params_9dmz8f_6 --params-file /tmp/launch_params_21a927oi --params-file /tmp/launch_params_8osdzwmb --params-file /tmp/launch_params_dbnduxbv --params-file /tmp/launch_params_excnzljy --params-file /tmp/launch_params_j4k97v1q --params-file /tmp/launch_params_sow2iozz --params-file /tmp/launch_params_i5eee3e5 --params-file /tmp/launch_params_17kpbm_t --params-file /tmp/launch_params_3eftk09f --params-file /tmp/launch_params_g1e68y6g --params-file /tmp/launch_params_znp6wy4g'].
+[INFO] [robot_state_publisher-3]: process has finished cleanly [pid 341153]
+[INFO] [lifecycle_manager-12]: process has finished cleanly [pid 341162]
+[INFO] [ros2_control_node-4]: process has finished cleanly [pid 341154]
+[ERROR] [move_group-7]: process has died [pid 341157, exit code -11, cmd '/opt/ros/jazzy/lib/moveit_ros_move_group/move_group --ros-args -p use_sim_time:=False --params-file /tmp/launch_params_eb7y_8n2 --params-file /tmp/launch_params_1efqhqcc'].
+[INFO] [extrinsics_publisher-8]: process has finished cleanly [pid 341158]
+[INFO] [peach_observability-11]: sending signal 'SIGINT' to process[peach_observability-11]
+[INFO] [peach_harvester-9]: sending signal 'SIGINT' to process[peach_harvester-9]
+[INFO] [stereo_camera_node-1]: sending signal 'SIGINT' to process[stereo_camera_node-1]
+[ros2_control_node-4] [INFO] [1791871667.386408584] [rclcpp]: signal_handler(SIGINT/SIGTERM)
+[ros2_control_node-4] [INFO] [1791871667.386488680] [controller_manager]: Shutdown request received....
+[ros2_control_node-4] [INFO] [1791871667.386539414] [controller_manager]: Shutting down all controllers in the controller manager.
+[ros2_control_node-4] [INFO] [1791871667.386557963] [controller_manager]: Deactivating controller 'joint_trajectory_controller'
+[ros2_control_node-4] [INFO] [1791871667.386607626] [controller_manager]: Shutting down controller 'joint_trajectory_controller'
+[ros2_control_node-4] [INFO] [1791871667.386725665] [controller_manager]: Deactivating controller 'joint_state_broadcaster'
+[ros2_control_node-4] [INFO] [1791871667.386754292] [controller_manager]: Shutting down controller 'joint_state_broadcaster'
+[ros2_control_node-4] [INFO] [1791871667.386783289] [resource_manager]: 'deactivate' hardware 'AuboE5System' 
+[ros2_control_node-4] [INFO] [1791871667.386793141] [resource_manager]: Successful 'deactivate' of hardware 'AuboE5System'
+[ros2_control_node-4] [INFO] [1791871667.386794900] [resource_manager]: 'shutdown' hardware 'AuboE5System' 
+[ros2_control_node-4] [INFO] [1791871667.386796531] [resource_manager]: Successful 'shutdown' of hardware 'AuboE5System'
+[ros2_control_node-4] [INFO] [1791871667.386851388] [controller_manager]: Shutting down the controller manager.
+[move_group-7] [INFO] [1791871667.386639052] [rclcpp]: signal_handler(SIGINT/SIGTERM)
+[move_group-7] Stack trace (most recent call last):
+[move_group-7] #6    Object "", at 0xffffffffffffffff, in 
+[move_group-7] #5    Object "/opt/ros/jazzy/lib/moveit_ros_move_group/move_group", at 0x5cbcb7703a14, in _start
+[move_group-7] #4    Source "../csu/libc-start.c", line 360, in __libc_start_main_impl [0x7e6a1c82a28a]
+[move_group-7] #3    Source "../sysdeps/nptl/libc_start_call_main.h", line 58, in __libc_start_call_main [0x7e6a1c82a1c9]
+[move_group-7] #2    Object "/opt/ros/jazzy/lib/moveit_ros_move_group/move_group", at 0x5cbcb77024e7, in main
+[move_group-7] #1    Object "/opt/ros/jazzy/lib/librclcpp.so", at 0x7e6a1d1162f7, in rclcpp::Executor::~Executor()
+[move_group-7] #0    Object "/opt/ros/jazzy/lib/librclcpp.so", at 0x7e6a1d110dde, in 
+[move_group-7] Segmentation fault (Address not mapped to object [0x7e69ed9c1170])
+[lifecycle_manager-12] [INFO] [1791871667.386658661] [rclcpp]: signal_handler(SIGINT/SIGTERM)
+[lifecycle_manager-12] [INFO] [1791871667.386727958] [peach_lifecycle_manager]: Running Nav2 LifecycleManager rcl preshutdown (peach_lifecycle_manager)
+[lifecycle_manager-12] [INFO] [1791871667.393913783] [peach_lifecycle_manager]: Destroying peach_lifecycle_manager
+[stereo_camera_node-1] [INFO] [1791871667.386664523] [rclcpp]: signal_handler(SIGINT/SIGTERM)
+[stereo_camera_node-1] [INFO] [1791871667.493205191] [camera.peach_stereo_camera_node]: device closed, laser restored
+[robot_state_publisher-3] [INFO] [1791871667.386757595] [rclcpp]: signal_handler(SIGINT/SIGTERM)
+[peach_arm-10] [INFO] [1791871667.388776828] [rclcpp]: signal_handler(SIGINT/SIGTERM)
+[peach_arm-10] [INFO] [1791871667.390710206] [peach_arm]: requestCancelAll: 停止当前执行（来源：deactivate 收口）
+[peach_arm-10] terminate called without an active exception
+[ros2_control_node-4] [INFO] [1791871667.392089587] [controller_manager.pal_statistics]: Async messages lost 0
+[ros2_control_node-4] [INFO] [1791871667.392169826] [controller_manager.pal_statistics]: publish_async_failures_ 0
+[ros2_control_node-4] [INFO] [1791871667.393249076] [controller_manager.pal_statistics]: Async messages lost 0
+[ros2_control_node-4] [INFO] [1791871667.393254833] [controller_manager.pal_statistics]: publish_async_failures_ 0
+[peach_lifecycle_flag_bridge-13] Traceback (most recent call last):
+[peach_lifecycle_flag_bridge-13]   File "/home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_bringup/lib/peach_bringup/peach_lifecycle_flag_bridge", line 33, in <module>
+[peach_lifecycle_flag_bridge-13]     sys.exit(load_entry_point('peach-bringup==0.1.0', 'console_scripts', 'peach_lifecycle_flag_bridge')())
+[peach_lifecycle_flag_bridge-13]              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[peach_lifecycle_flag_bridge-13]   File "/home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_bringup/lib/python3.12/site-packages/peach_bringup/lifecycle_flag_bridge.py", line 79, in main
+[peach_lifecycle_flag_bridge-13]     rclpy.spin(node)
+[peach_lifecycle_flag_bridge-13]   File "/opt/ros/jazzy/lib/python3.12/site-packages/rclpy/__init__.py", line 247, in spin
+[peach_lifecycle_flag_bridge-13]     executor.spin_once()
+[peach_lifecycle_flag_bridge-13]   File "/opt/ros/jazzy/lib/python3.12/site-packages/rclpy/executors.py", line 926, in spin_once
+[peach_lifecycle_flag_bridge-13]     self._spin_once_impl(timeout_sec)
+[peach_lifecycle_flag_bridge-13]   File "/opt/ros/jazzy/lib/python3.12/site-packages/rclpy/executors.py", line 907, in _spin_once_impl
+[peach_lifecycle_flag_bridge-13]     handler, entity, node = self.wait_for_ready_callbacks(
+[peach_lifecycle_flag_bridge-13]                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[peach_lifecycle_flag_bridge-13]   File "/opt/ros/jazzy/lib/python3.12/site-packages/rclpy/executors.py", line 877, in wait_for_ready_callbacks
+[peach_lifecycle_flag_bridge-13]     return next(self._cb_iter)
+[peach_lifecycle_flag_bridge-13]            ^^^^^^^^^^^^^^^^^^^
+[peach_lifecycle_flag_bridge-13]   File "/opt/ros/jazzy/lib/python3.12/site-packages/rclpy/executors.py", line 781, in _wait_for_ready_callbacks
+[peach_lifecycle_flag_bridge-13]     wait_set.wait(timeout_nsec)
+[peach_lifecycle_flag_bridge-13] KeyboardInterrupt
+[peach_scene_obstacles-2] Traceback (most recent call last):
+[peach_scene_obstacles-2]   File "/home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_harvester/lib/peach_harvester/peach_scene_obstacles", line 33, in <module>
+[peach_scene_obstacles-2]     sys.exit(load_entry_point('peach-harvester==0.1.0', 'console_scripts', 'peach_scene_obstacles')())
+[peach_scene_obstacles-2]              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[peach_scene_obstacles-2]   File "/home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_harvester/lib/python3.12/site-packages/peach_harvester/vision/scene_obstacles/node.py", line 367, in main
+[peach_scene_obstacles-2]     rclpy.spin(node)
+[peach_scene_obstacles-2]   File "/opt/ros/jazzy/lib/python3.12/site-packages/rclpy/__init__.py", line 247, in spin
+[peach_scene_obstacles-2]     executor.spin_once()
+[peach_scene_obstacles-2]   File "/opt/ros/jazzy/lib/python3.12/site-packages/rclpy/executors.py", line 926, in spin_once
+[peach_scene_obstacles-2]     self._spin_once_impl(timeout_sec)
+[peach_scene_obstacles-2]   File "/opt/ros/jazzy/lib/python3.12/site-packages/rclpy/executors.py", line 907, in _spin_once_impl
+[peach_scene_obstacles-2]     handler, entity, node = self.wait_for_ready_callbacks(
+[peach_scene_obstacles-2]                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[peach_scene_obstacles-2]   File "/opt/ros/jazzy/lib/python3.12/site-packages/rclpy/executors.py", line 877, in wait_for_ready_callbacks
+[peach_scene_obstacles-2]     return next(self._cb_iter)
+[peach_scene_obstacles-2]            ^^^^^^^^^^^^^^^^^^^
+[peach_scene_obstacles-2]   File "/opt/ros/jazzy/lib/python3.12/site-packages/rclpy/executors.py", line 781, in _wait_for_ready_callbacks
+[peach_scene_obstacles-2]     wait_set.wait(timeout_nsec)
+[peach_scene_obstacles-2] KeyboardInterrupt
+[peach_harvester-9] Traceback (most recent call last):
+[peach_harvester-9]   File "/home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_harvester/lib/peach_harvester/peach_harvester", line 33, in <module>
+[peach_harvester-9]     sys.exit(load_entry_point('peach-harvester==0.1.0', 'console_scripts', 'peach_harvester')())
+[peach_harvester-9]              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[peach_harvester-9]   File "/home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_harvester/lib/python3.12/site-packages/peach_harvester/brain.py", line 36, in main
+[peach_harvester-9]     executor.spin()
+[peach_harvester-9]   File "/opt/ros/jazzy/lib/python3.12/site-packages/rclpy/executors.py", line 359, in spin
+[peach_harvester-9]     self._spin_once_impl()
+[peach_harvester-9]   File "/opt/ros/jazzy/lib/python3.12/site-packages/rclpy/executors.py", line 991, in _spin_once_impl
+[peach_harvester-9]     handler, entity, node = self.wait_for_ready_callbacks(
+[peach_harvester-9]                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[peach_harvester-9]   File "/opt/ros/jazzy/lib/python3.12/site-packages/rclpy/executors.py", line 877, in wait_for_ready_callbacks
+[peach_harvester-9]     return next(self._cb_iter)
+[peach_harvester-9]            ^^^^^^^^^^^^^^^^^^^
+[peach_harvester-9]   File "/opt/ros/jazzy/lib/python3.12/site-packages/rclpy/executors.py", line 781, in _wait_for_ready_callbacks
+[peach_harvester-9]     wait_set.wait(timeout_nsec)
+[peach_harvester-9] KeyboardInterrupt
+[peach_observability-11] Traceback (most recent call last):
+[peach_observability-11]   File "/home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_observability/lib/peach_observability/peach_observability", line 33, in <module>
+[peach_observability-11]     sys.exit(load_entry_point('peach-observability==0.1.0', 'console_scripts', 'peach_observability')())
+[peach_observability-11]              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[peach_observability-11]   File "/home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_observability/lib/python3.12/site-packages/peach_observability/observability_node.py", line 1517, in main
+[peach_observability-11]     node.destroy_node()
+[peach_observability-11]   File "/home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_observability/lib/python3.12/site-packages/peach_observability/observability_node.py", line 1499, in destroy_node
+[peach_observability-11]     self._stop_recording()
+[peach_observability-11]   File "/home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_observability/lib/python3.12/site-packages/peach_observability/observability_node.py", line 1450, in _stop_recording
+[peach_observability-11]     self._spawn_report(self._close_recorder())
+[peach_observability-11]                        ^^^^^^^^^^^^^^^^^^^^^^
+[peach_observability-11]   File "/home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_observability/lib/python3.12/site-packages/peach_observability/observability_node.py", line 1457, in _close_recorder
+[peach_observability-11]     return recorder.close()
+[peach_observability-11]            ^^^^^^^^^^^^^^^^
+[peach_observability-11]   File "/home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_observability/lib/python3.12/site-packages/peach_observability/recorder.py", line 207, in close
+[peach_observability-11]     self._thread.join(timeout=min(2.0, budget))
+[peach_observability-11]   File "/usr/lib/python3.12/threading.py", line 1151, in join
+[peach_observability-11]     self._wait_for_tstate_lock(timeout=max(timeout, 0))
+[peach_observability-11]   File "/usr/lib/python3.12/threading.py", line 1167, in _wait_for_tstate_lock
+[peach_observability-11]     if lock.acquire(block, timeout):
+[peach_observability-11]        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[peach_observability-11] KeyboardInterrupt
+[ERROR] [stereo_camera_node-1]: process has died [pid 341151, exit code -2, cmd '/home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_stereo/lib/peach_stereo/stereo_camera_node --ros-args -r __node:=peach_stereo_camera_node -r __ns:=/camera -p use_sim_time:=False --params-file /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_stereo/share/peach_stereo/config/stereo_camera.yaml --params-file /tmp/launch_params_ajvsrt3h --params-file /tmp/launch_params_ex8zg_w0'].
+[ERROR] [peach_observability-11]: process has died [pid 341161, exit code -2, cmd '/home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_observability/lib/peach_observability/peach_observability --ros-args -r __node:=peach_observability -r __ns:=/ -p use_sim_time:=False --params-file /tmp/launch_params_ehjifybw --params-file /tmp/launch_params_f0qmv2uk'].
+[ERROR] [peach_harvester-9]: process has died [pid 341159, exit code -2, cmd '/home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_harvester/lib/peach_harvester/peach_harvester --ros-args -r __ns:=/ -p use_sim_time:=False --params-file /tmp/launch_params_2fb9l1fk --params-file /tmp/launch_params_50o9qr3t --params-file /tmp/launch_params_35p2lrom --params-file /tmp/peach_brain_overlay_r4vyzp3q.yaml'].

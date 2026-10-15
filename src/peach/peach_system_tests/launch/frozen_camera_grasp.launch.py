@@ -34,12 +34,13 @@ def generate_launch_description() -> LaunchDescription:
     bag_default = os.environ.get('PEACH_FROZEN_BAG', '').strip() or _DEFAULT_BAG
     return LaunchDescription([
         # 不再强设 QT_QPA_PLATFORM=offscreen：它会破坏 rviz2 的 Ogre GLX 窗口句柄。
-        # 桌面测试保留 rviz 可视化；无头环境显式传 rviz:=false。
+        # 冻结回归默认无头；桌面验收显式传 rviz:=true。
         DeclareLaunchArgument(
             'bag', default_value=bag_default,
             description='mcap bag directory with /camera/* (frozen frame)'),
         DeclareLaunchArgument('frame_index', default_value='70'),
         DeclareLaunchArgument('hz', default_value='2.0'),
+        DeclareLaunchArgument('rviz', default_value='false'),
         DeclareLaunchArgument(
             'mock_initial_positions',
             default_value='0.425175,0.194274,1.679546,1.462579,-0.279948,0.038859',
@@ -59,6 +60,7 @@ def generate_launch_description() -> LaunchDescription:
                 'brain_params_overlay': overlay,
                 'imu_enabled': 'false',
                 'moveit_enabled': 'true',
+                'rviz': LaunchConfiguration('rviz'),
                 'extrinsics_enabled': 'true',
                 'hand_eye_enabled': 'false',
                 'hand_eye_web_enabled': 'false',

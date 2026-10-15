@@ -1,0 +1,531 @@
+ M .agents/skills/peach/SKILL.md
+ M .agents/skills/peach/contracts.md
+ M .agents/skills/peach/vision.md
+ M README.md
+ D docs/images/peach2_hw.png
+ D docs/images/peach2_sw.png
+ D docs/images/peach_v1_hardware.dot
+ D docs/images/peach_v1_hardware.drawio
+ D docs/images/peach_v1_hardware.pdf
+ D docs/images/peach_v1_hardware.png
+ D docs/images/peach_v1_hardware.svg
+ D docs/images/peach_v1_software.dot
+ D docs/images/peach_v1_software.drawio
+ D docs/images/peach_v1_software.pdf
+ D docs/images/peach_v1_software.png
+ D docs/images/peach_v1_software.svg
+ D docs/images/peach_v2_arch.drawio
+ D docs/images/peach_v2_hardware.dot
+ D docs/images/peach_v2_hardware.drawio
+ D docs/images/peach_v2_hardware.pdf
+ D docs/images/peach_v2_hardware.png
+ D docs/images/peach_v2_hardware.svg
+ D docs/images/peach_v2_software.dot
+ D docs/images/peach_v2_software.drawio
+ D docs/images/peach_v2_software.pdf
+ D docs/images/peach_v2_software.png
+ D docs/images/peach_v2_software.svg
+ M "docs/peach_v1_\347\216\260\350\241\214\347\273\210\347\211\210\346\226\271\346\241\210.md"
+ M "docs/peach_v2_\351\207\215\346\236\204\347\273\210\347\211\210\346\226\271\346\241\210.md"
+ M runs/geometry.jsonl
+ M src/ivg/aubo_ros2_web_dashboard/README.md
+ M src/ivg/aubo_ros2_web_dashboard/launch/web_dashboard.launch.py
+ M src/ivg/aubo_ros2_web_dashboard/package.json
+ M src/ivg/aubo_ros2_web_dashboard/package.xml
+ M src/ivg/aubo_ros2_web_dashboard/test/test_gateway_config.py
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/components/topic_browser.js
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/core/__tests__/tf-math.test.js
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/core/__tests__/utils.test.js
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/core/log-bus.js
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/core/log-ros-bridge.js
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/core/ros.js
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/core/ros_connector.js
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/core/ros_health_monitor.js
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/core/runtime_provider.js
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/core/settings.js
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/core/tf-math.js
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/core/utils.js
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/entities/connection_store.js
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/entities/ros_data_store.js
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/entities/service_store.js
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/entities/ui_state_store.js
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/ivg_runtime.js
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/ivg_transport.js
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/importmap.js
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/libs/ColladaLoader.js
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/libs/STLLoader.js
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/libs/easeljs.js
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/libs/eventemitter2.js
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/libs/roslib.global.js
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/libs/three.js
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/roslib-esm/importmap.js
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/roslib-esm/vendor/@cto.af/wtf8/lib/const.d.ts
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/roslib-esm/vendor/@cto.af/wtf8/lib/const.js
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/roslib-esm/vendor/@cto.af/wtf8/lib/decode.d.ts
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/roslib-esm/vendor/@cto.af/wtf8/lib/decode.js
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/roslib-esm/vendor/@cto.af/wtf8/lib/decodeStream.d.ts
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/roslib-esm/vendor/@cto.af/wtf8/lib/decodeStream.js
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/roslib-esm/vendor/@cto.af/wtf8/lib/encode.d.ts
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/roslib-esm/vendor/@cto.af/wtf8/lib/encode.js
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/roslib-esm/vendor/@cto.af/wtf8/lib/encodeStream.d.ts
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/roslib-esm/vendor/@cto.af/wtf8/lib/encodeStream.js
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/roslib-esm/vendor/@cto.af/wtf8/lib/errors.d.ts
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/roslib-esm/vendor/@cto.af/wtf8/lib/errors.js
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/roslib-esm/vendor/@cto.af/wtf8/lib/index.d.ts
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/roslib-esm/vendor/@cto.af/wtf8/lib/index.js
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/roslib-esm/vendor/bson/lib/bson.bundle.js
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/roslib-esm/vendor/bson/lib/bson.bundle.js.map
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/roslib-esm/vendor/bson/lib/bson.cjs
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/roslib-esm/vendor/bson/lib/bson.cjs.map
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/roslib-esm/vendor/bson/lib/bson.mjs
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/roslib-esm/vendor/bson/lib/bson.mjs.map
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/roslib-esm/vendor/bson/lib/bson.node.mjs
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/roslib-esm/vendor/bson/lib/bson.node.mjs.map
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/roslib-esm/vendor/bson/lib/bson.rn.cjs
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/roslib-esm/vendor/bson/lib/bson.rn.cjs.map
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/roslib-esm/vendor/cbor2/lib/box.d.ts
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/roslib-esm/vendor/cbor2/lib/box.js
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/roslib-esm/vendor/cbor2/lib/comment.d.ts
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/roslib-esm/vendor/cbor2/lib/comment.js
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/roslib-esm/vendor/cbor2/lib/constants.d.ts
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/roslib-esm/vendor/cbor2/lib/constants.js
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/roslib-esm/vendor/cbor2/lib/container.d.ts
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/roslib-esm/vendor/cbor2/lib/container.js
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/roslib-esm/vendor/cbor2/lib/decodeStream.d.ts
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/roslib-esm/vendor/cbor2/lib/decodeStream.js
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/roslib-esm/vendor/cbor2/lib/decoder.d.ts
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/roslib-esm/vendor/cbor2/lib/decoder.js
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/roslib-esm/vendor/cbor2/lib/diagnostic.d.ts
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/roslib-esm/vendor/cbor2/lib/diagnostic.js
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/roslib-esm/vendor/cbor2/lib/encoder.d.ts
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/roslib-esm/vendor/cbor2/lib/encoder.js
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/roslib-esm/vendor/cbor2/lib/float.d.ts
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/roslib-esm/vendor/cbor2/lib/float.js
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/roslib-esm/vendor/cbor2/lib/index.d.ts
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/roslib-esm/vendor/cbor2/lib/index.js
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/roslib-esm/vendor/cbor2/lib/options-Tr9xj9hl.d.ts
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/roslib-esm/vendor/cbor2/lib/options.d.ts
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/roslib-esm/vendor/cbor2/lib/options.js
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/roslib-esm/vendor/cbor2/lib/simple.d.ts
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/roslib-esm/vendor/cbor2/lib/simple.js
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/roslib-esm/vendor/cbor2/lib/sorts.d.ts
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/roslib-esm/vendor/cbor2/lib/sorts.js
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/roslib-esm/vendor/cbor2/lib/tag.d.ts
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/roslib-esm/vendor/cbor2/lib/tag.js
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/roslib-esm/vendor/cbor2/lib/typeEncoderMap.d.ts
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/roslib-esm/vendor/cbor2/lib/typeEncoderMap.js
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/roslib-esm/vendor/cbor2/lib/types.d.ts
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/roslib-esm/vendor/cbor2/lib/types.js
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/roslib-esm/vendor/cbor2/lib/utils.d.ts
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/roslib-esm/vendor/cbor2/lib/utils.js
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/roslib-esm/vendor/cbor2/lib/version.d.ts
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/roslib-esm/vendor/cbor2/lib/version.js
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/roslib-esm/vendor/cbor2/lib/writer.d.ts
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/roslib-esm/vendor/cbor2/lib/writer.js
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/roslib-esm/vendor/eventemitter3/dist/eventemitter3.esm.js
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/roslib-esm/vendor/fast-png/lib/convert_indexed_to_rgb.d.ts
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/roslib-esm/vendor/fast-png/lib/convert_indexed_to_rgb.d.ts.map
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/roslib-esm/vendor/fast-png/lib/convert_indexed_to_rgb.js
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/roslib-esm/vendor/fast-png/lib/convert_indexed_to_rgb.js.map
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/roslib-esm/vendor/fast-png/lib/helpers/apply_unfilter.d.ts
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/roslib-esm/vendor/fast-png/lib/helpers/apply_unfilter.d.ts.map
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/roslib-esm/vendor/fast-png/lib/helpers/apply_unfilter.js
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/roslib-esm/vendor/fast-png/lib/helpers/apply_unfilter.js.map
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/roslib-esm/vendor/fast-png/lib/helpers/crc.d.ts
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/roslib-esm/vendor/fast-png/lib/helpers/crc.d.ts.map
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/roslib-esm/vendor/fast-png/lib/helpers/crc.js
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/roslib-esm/vendor/fast-png/lib/helpers/crc.js.map
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/roslib-esm/vendor/fast-png/lib/helpers/decode_interlace_adam7.d.ts
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/roslib-esm/vendor/fast-png/lib/helpers/decode_interlace_adam7.d.ts.map
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/roslib-esm/vendor/fast-png/lib/helpers/decode_interlace_adam7.js
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/roslib-esm/vendor/fast-png/lib/helpers/decode_interlace_adam7.js.map
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/roslib-esm/vendor/fast-png/lib/helpers/decode_interlace_null.d.ts
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/roslib-esm/vendor/fast-png/lib/helpers/decode_interlace_null.d.ts.map
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/roslib-esm/vendor/fast-png/lib/helpers/decode_interlace_null.js
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/roslib-esm/vendor/fast-png/lib/helpers/decode_interlace_null.js.map
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/roslib-esm/vendor/fast-png/lib/helpers/signature.d.ts
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/roslib-esm/vendor/fast-png/lib/helpers/signature.d.ts.map
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/roslib-esm/vendor/fast-png/lib/helpers/signature.js
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/roslib-esm/vendor/fast-png/lib/helpers/signature.js.map
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/roslib-esm/vendor/fast-png/lib/helpers/text.d.ts
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/roslib-esm/vendor/fast-png/lib/helpers/text.d.ts.map
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/roslib-esm/vendor/fast-png/lib/helpers/text.js
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/roslib-esm/vendor/fast-png/lib/helpers/text.js.map
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/roslib-esm/vendor/fast-png/lib/helpers/unfilter.d.ts
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/roslib-esm/vendor/fast-png/lib/helpers/unfilter.d.ts.map
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/roslib-esm/vendor/fast-png/lib/helpers/unfilter.js
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/roslib-esm/vendor/fast-png/lib/helpers/unfilter.js.map
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/roslib-esm/vendor/fast-png/lib/index.d.ts
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/roslib-esm/vendor/fast-png/lib/index.d.ts.map
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/roslib-esm/vendor/fast-png/lib/index.js
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/roslib-esm/vendor/fast-png/lib/index.js.map
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/roslib-esm/vendor/fast-png/lib/internal_types.d.ts
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/roslib-esm/vendor/fast-png/lib/internal_types.d.ts.map
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/roslib-esm/vendor/fast-png/lib/internal_types.js
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/roslib-esm/vendor/fast-png/lib/internal_types.js.map
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/roslib-esm/vendor/fast-png/lib/png_decoder.d.ts
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/roslib-esm/vendor/fast-png/lib/png_decoder.d.ts.map
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/roslib-esm/vendor/fast-png/lib/png_decoder.js
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/roslib-esm/vendor/fast-png/lib/png_decoder.js.map
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/roslib-esm/vendor/fast-png/lib/png_encoder.d.ts
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/roslib-esm/vendor/fast-png/lib/png_encoder.d.ts.map
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/roslib-esm/vendor/fast-png/lib/png_encoder.js
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/roslib-esm/vendor/fast-png/lib/png_encoder.js.map
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/roslib-esm/vendor/fast-png/lib/types.d.ts
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/roslib-esm/vendor/fast-png/lib/types.d.ts.map
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/roslib-esm/vendor/fast-png/lib/types.js
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/roslib-esm/vendor/fast-png/lib/types.js.map
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/roslib-esm/vendor/fflate/esm/browser.d.ts
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/roslib-esm/vendor/fflate/esm/browser.js
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/roslib-esm/vendor/fflate/esm/index.d.mts
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/roslib-esm/vendor/fflate/esm/index.mjs
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/roslib-esm/vendor/iobuffer/lib/iobuffer.d.ts
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/roslib-esm/vendor/iobuffer/lib/iobuffer.d.ts.map
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/roslib-esm/vendor/iobuffer/lib/iobuffer.js
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/roslib-esm/vendor/iobuffer/lib/iobuffer.js.map
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/roslib-esm/vendor/iobuffer/lib/text.d.ts
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/roslib-esm/vendor/iobuffer/lib/text.d.ts.map
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/roslib-esm/vendor/iobuffer/lib/text.js
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/roslib-esm/vendor/iobuffer/lib/text.js.map
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/roslib-esm/vendor/uuid/dist/index.d.ts
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/roslib-esm/vendor/uuid/dist/index.js
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/roslib-esm/vendor/uuid/dist/max.d.ts
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/roslib-esm/vendor/uuid/dist/max.js
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/roslib-esm/vendor/uuid/dist/md5.d.ts
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/roslib-esm/vendor/uuid/dist/md5.js
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/roslib-esm/vendor/uuid/dist/native.d.ts
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/roslib-esm/vendor/uuid/dist/native.js
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/roslib-esm/vendor/uuid/dist/nil.d.ts
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/roslib-esm/vendor/uuid/dist/nil.js
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/roslib-esm/vendor/uuid/dist/parse.d.ts
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/roslib-esm/vendor/uuid/dist/parse.js
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/roslib-esm/vendor/uuid/dist/regex.d.ts
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/roslib-esm/vendor/uuid/dist/regex.js
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/roslib-esm/vendor/uuid/dist/rng.d.ts
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/roslib-esm/vendor/uuid/dist/rng.js
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/roslib-esm/vendor/uuid/dist/sha1.d.ts
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/roslib-esm/vendor/uuid/dist/sha1.js
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/roslib-esm/vendor/uuid/dist/stringify.d.ts
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/roslib-esm/vendor/uuid/dist/stringify.js
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/roslib-esm/vendor/uuid/dist/types.d.ts
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/roslib-esm/vendor/uuid/dist/types.js
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/roslib-esm/vendor/uuid/dist/uuid-bin.d.ts
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/roslib-esm/vendor/uuid/dist/uuid-bin.js
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/roslib-esm/vendor/uuid/dist/v1.d.ts
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/roslib-esm/vendor/uuid/dist/v1.js
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/roslib-esm/vendor/uuid/dist/v1ToV6.d.ts
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/roslib-esm/vendor/uuid/dist/v1ToV6.js
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/roslib-esm/vendor/uuid/dist/v3.d.ts
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/roslib-esm/vendor/uuid/dist/v3.js
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/roslib-esm/vendor/uuid/dist/v35.d.ts
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/roslib-esm/vendor/uuid/dist/v35.js
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/roslib-esm/vendor/uuid/dist/v4.d.ts
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/roslib-esm/vendor/uuid/dist/v4.js
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/roslib-esm/vendor/uuid/dist/v5.d.ts
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/roslib-esm/vendor/uuid/dist/v5.js
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/roslib-esm/vendor/uuid/dist/v6.d.ts
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/roslib-esm/vendor/uuid/dist/v6.js
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/roslib-esm/vendor/uuid/dist/v6ToV1.d.ts
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/roslib-esm/vendor/uuid/dist/v6ToV1.js
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/roslib-esm/vendor/uuid/dist/v7.d.ts
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/roslib-esm/vendor/uuid/dist/v7.js
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/roslib-esm/vendor/uuid/dist/validate.d.ts
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/roslib-esm/vendor/uuid/dist/validate.js
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/roslib-esm/vendor/uuid/dist/version.d.ts
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/roslib-esm/vendor/uuid/dist/version.js
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/robotwebtools/roslib-esm/vendor/ws/browser.js
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/transport/adapter.js
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/transport/bridge_logger.js
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/transport/foxglove/__tests__/protocol.test.js
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/transport/foxglove/__tests__/ros_client_params.test.js
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/transport/foxglove/action_client.js
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/transport/foxglove/adapter.js
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/transport/foxglove/codec.js
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/transport/foxglove/player.js
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/transport/foxglove/protocol.js
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/transport/foxglove/ros_client.js
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/transport/foxglove/vendor/CdrReader.js
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/transport/foxglove/vendor/CdrWriter.js
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/transport/foxglove/vendor/EncapsulationKind.js
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/transport/foxglove/vendor/MessageReader.js
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/transport/foxglove/vendor/MessageWriter.js
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/transport/foxglove/vendor/README.md
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/transport/foxglove/vendor/foxglove_cdr.js
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/transport/foxglove/vendor/getEncapsulationKindInfo.js
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/transport/foxglove/vendor/isBigEndian.js
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/transport/foxglove/vendor/lengthCodes.js
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/transport/foxglove/vendor/messageDefinitionHasDataFields.js
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/transport/foxglove/vendor/reservedPIDs.js
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/transport/hub.js
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/transport/sub_registry.js
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/transport/topic_router.js
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/vendor/three/examples/jsm/controls/OrbitControls.js
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/vendor/three/examples/jsm/loaders/ColladaLoader.js
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/vendor/three/examples/jsm/loaders/STLLoader.js
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/vendor/three/examples/jsm/loaders/TGALoader.js
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/vendor/transforms/README.md
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/vendor/transforms/do_build.sh
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/vendor/transforms/entry.ts
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/vendor/transforms/package.json
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/vendor/transforms/src/den/collection/ArrayMap.test.ts
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/vendor/transforms/src/den/collection/ArrayMap.ts
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/vendor/transforms/src/den/collection/MultiMap.test.ts
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/vendor/transforms/src/den/collection/MultiMap.ts
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/vendor/transforms/src/den/collection/ObjectPool.test.ts
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/vendor/transforms/src/den/collection/ObjectPool.ts
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/vendor/transforms/src/den/collection/VecQueue.test.ts
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/vendor/transforms/src/den/collection/VecQueue.ts
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/vendor/transforms/src/den/collection/binarySearch.test.ts
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/vendor/transforms/src/den/collection/binarySearch.ts
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/vendor/transforms/src/den/collection/filterMap.test.ts
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/vendor/transforms/src/den/collection/filterMap.ts
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/vendor/transforms/src/den/collection/index.ts
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/vendor/transforms/src/den/collection/minIndexBy.test.ts
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/vendor/transforms/src/den/collection/minIndexBy.ts
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/vendor/transforms/src/den/index.ts
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/vendor/transforms/src/transforms/CoordinateFrame.ts
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/vendor/transforms/src/transforms/Transform.ts
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/vendor/transforms/src/transforms/TransformTree.test.ts
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/vendor/transforms/src/transforms/TransformTree.ts
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/vendor/transforms/src/transforms/geometry.ts
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/vendor/transforms/src/transforms/index.ts
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/vendor/transforms/src/transforms/time.ts
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/vendor/transforms/tf_tree_bundle.mjs
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/vendor/urdf-loader/LICENSE
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/vendor/urdf-loader/package.json
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/vendor/urdf-loader/src/URDFClasses.js
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/vendor/urdf-loader/src/URDFLoader.js
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/view3d/foxglove_image.js
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/view3d/hints.js
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/view3d/island_session.js
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/view3d/pointcloud_island.js
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/view3d/tf_buffer.js
+ D src/ivg/aubo_ros2_web_dashboard/web/public/js/view3d/urdf_island.js
+ M src/peach/peach_arm/doc/architecture.md
+ M src/peach/peach_arm/doc/io.md
+ M src/peach/peach_arm/include/peach_arm/grasp_geometry.hpp
+ M src/peach/peach_arm/include/peach_arm/grasp_task.hpp
+ M src/peach/peach_arm/include/peach_arm/manipulation_skills_node.hpp
+ M src/peach/peach_arm/include/peach_arm/motion.hpp
+ M src/peach/peach_arm/src/grasp_task.cpp
+ M src/peach/peach_arm/src/manipulation_skills_node.cpp
+ M src/peach/peach_arm/src/motion.cpp
+ M src/peach/peach_arm/src/stages.cpp
+ M src/peach/peach_arm/test/test_grasp_geometry.cpp
+ M src/peach/peach_arm/test/test_staging_waypoints.cpp
+ M src/peach/peach_bringup/doc/architecture.md
+ M src/peach/peach_bringup/launch/harvest_system.launch.py
+ M src/peach/peach_harvester/config/peach_supervisor.yaml
+ M src/peach/peach_harvester/config/target_reconstruction.yaml
+ M src/peach/peach_harvester/doc/architecture.md
+ M src/peach/peach_harvester/doc/io.md
+ M src/peach/peach_harvester/peach_harvester/vision/common/bag_landmarks.py
+ M src/peach/peach_harvester/peach_harvester/vision/common/geometry.py
+ M src/peach/peach_harvester/peach_harvester/vision/common/tool_budget.py
+ M src/peach/peach_harvester/peach_harvester/vision/scene_perception/contracts.py
+ M src/peach/peach_harvester/peach_harvester/vision/scene_perception/params.py
+ M src/peach/peach_harvester/peach_harvester/vision/scene_perception/pipeline.py
+ M src/peach/peach_harvester/peach_harvester/vision/scene_perception/pose_pipelines.py
+ M src/peach/peach_harvester/peach_harvester/vision/scene_perception/scene_perception_node.py
+ M src/peach/peach_harvester/peach_harvester/vision/target_reconstruction/capture.py
+ M src/peach/peach_harvester/peach_harvester/vision/target_reconstruction/params.py
+ M src/peach/peach_harvester/peach_harvester/vision/target_reconstruction/refine.py
+ M src/peach/peach_harvester/peach_harvester/vision/target_reconstruction/refit_orchestrator.py
+ M src/peach/peach_harvester/peach_harvester/vision/target_reconstruction/session_recorder.py
+ M src/peach/peach_harvester/peach_harvester/vision/target_reconstruction/target_reconstruction_node.py
+ M src/peach/peach_harvester/test/test_geometry_invariants.py
+ M src/peach/peach_harvester/test/test_reconstruction_fusion_quality.py
+ M src/peach/peach_harvester/test/test_reconstruction_session_recorder.py
+ M src/peach/peach_harvester/test/test_refit_orchestrator.py
+ M src/peach/peach_harvester/test/test_vision_gating.py
+ M src/peach/peach_observability/doc/architecture.md
+ M src/peach/peach_observability/doc/io.md
+ M src/peach/peach_observability/peach_observability/debug_actions.py
+ M src/peach/peach_observability/peach_observability/job.py
+ M src/peach/peach_observability/peach_observability/state.py
+ M src/peach/peach_observability/test/test_debug_lifecycle.py
+ M src/peach/peach_observability/test/test_job_completion.py
+ M src/peach/peach_system_tests/CMakeLists.txt
+ M src/peach/peach_system_tests/doc/testing.md
+ M src/peach/peach_system_tests/scripts/drive_harvest.py
+ M src/peach_web/README.md
+ M src/peach_web/test/visualization_state.test.cjs
+ M src/peach_web/test/viz3d.test.cjs
+ M src/peach_web/test/web_state.test.cjs
+ M src/peach_web/test/workbench.test.cjs
+ M src/peach_web/web/app.css
+ M src/peach_web/web/app.js
+ M src/peach_web/web/index.html
+ M src/peach_web/web/visualization.css
+ M src/peach_web/web/visualization.js
+ M src/peach_web/web/viz3d.js
+ M src/peach_web/web/workbench.css
+ M src/peach_web/web/workbench.js
+ M src/sim/sim_bringup/config/sim_bridge.yaml
+ M src/sim/sim_bringup/config/sim_harvest.rviz
+ M src/sim/sim_bringup/launch/harvest.launch.py
+ M src/sim/sim_bringup/launch/sim.launch.py
+ M src/sim/sim_bringup/package.xml
+ M src/sim/sim_bringup/setup.py
+ M src/sim/sim_description/urdf/harvester_unified.urdf.xacro
+?? docs/README.md
+?? peach_autonomous_harvest_design/
+?? runs/camera_moveit_ik_20261014/
+?? runs/debug_audit/20261014.jsonl
+?? runs/harvest_20261013T103312_841779_s1/
+?? runs/harvest_20261013T105253_155694_s1/
+?? runs/harvest_20261013T110717_317293_s1/
+?? runs/harvest_20261013T111252_217043_s1/
+?? runs/harvest_20261013T135829_648116_s1/
+?? runs/harvest_20261013T140637_988409_s1/
+?? runs/harvest_20261013T141732_711134_s1/
+?? runs/harvest_20261013T143558_795649_s1/
+?? runs/harvest_20261013T143850_873603_s1/
+?? runs/harvest_20261013T144625_709237_s1/
+?? runs/harvest_20261013T150704_857806_s1/
+?? runs/harvest_20261013T151811_263405_s1/
+?? runs/harvest_20261013T152008_976331_s2/
+?? runs/harvest_20261013T152652_257574_s3/
+?? runs/harvest_20261013T153113_218658_s1/
+?? runs/harvest_20261013T154101_713473_s1/
+?? runs/harvest_20261013T154113_774456_s1/
+?? runs/harvest_20261013T154237_867424_s2/
+?? runs/harvest_20261013T162356_493336_s1/
+?? runs/harvest_20261013T163228_408347_s1/
+?? runs/harvest_20261013T164018_869011_s1/
+?? runs/harvest_20261013T164417_715216_s2/
+?? runs/harvest_20261013T164431_624226_s3/
+?? runs/harvest_20261013T165518_849185_s1/
+?? runs/harvest_20261013T165820_300280_s2/
+?? runs/harvest_20261013T165840_399538_s3/
+?? runs/harvest_20261013T170803_463615_s1/
+?? runs/harvest_20261013T171743_408272_s2/
+?? runs/harvest_20261013T171907_734121_s3/
+?? runs/harvest_20261013T172548_659125_s4/
+?? runs/harvest_20261013T173223_689095_s5/
+?? runs/harvest_20261014T091705_357911_s1/
+?? runs/harvest_20261014T091952_687777_s2/
+?? runs/harvest_20261014T092443_331827_s1/
+?? runs/harvest_20261014T093527_329732_s1/
+?? runs/harvest_20261014T093950_980138_s1/
+?? runs/harvest_20261014T094251_298029_s2/
+?? runs/harvest_20261014T094342_891360_s3/
+?? runs/harvest_20261014T102139_494499_s1/
+?? runs/harvest_20261014T102257_912525_s1/
+?? runs/harvest_20261014T102529_056336_s1/
+?? runs/harvest_20261014T103000_571919_s1/
+?? runs/harvest_20261014T103124_729472_s1/
+?? runs/harvest_20261014T103541_062080_s2/
+?? runs/harvest_20261014T104538_878445_s1/
+?? runs/harvest_20261014T104847_230213_s2/
+?? runs/harvest_20261014T105033_661561_s3/
+?? runs/harvest_20261014T110022_060673_s1/
+?? runs/harvest_20261014T110337_116022_s2/
+?? runs/harvest_20261014T113410_460129_s1/
+?? runs/harvest_20261014T114126_458106_s1/
+?? runs/harvest_20261014T114642_500690_s1/
+?? runs/harvest_20261014T114952_860689_s2/
+?? runs/harvest_20261014T115312_443074_s3/
+?? runs/harvest_20261014T115631_480333_s4/
+?? runs/harvest_20261014T120136_952626_s1/
+?? runs/harvest_20261014T122037_525020_s1/
+?? runs/harvest_20261014T122337_508395_s2/
+?? runs/harvest_20261014T122700_920926_s3/
+?? runs/harvest_20261014T134416_428046_s1/
+?? runs/harvest_20261014T134703_305755_s2/
+?? runs/harvest_20261014T135023_970145_s3/
+?? runs/harvest_20261014T135354_409412_s4/
+?? runs/harvest_20261014T140200_524493_s1/
+?? runs/harvest_20261014T145219_721484_s1/
+?? runs/harvest_20261014T152333_659702_s1/
+?? runs/harvest_20261014T152533_147178_s1/
+?? runs/harvest_20261014T152646_045562_s1/
+?? runs/harvest_20261014T152705_505860_s2/
+?? runs/harvest_20261014T154322_077437_s1/
+?? runs/harvest_20261014T154627_150104_s1/
+?? runs/harvest_20261014T154733_526838_s1/
+?? runs/harvest_20261014T154757_643514_s2/
+?? runs/harvest_20261014T155338_671119_s1/
+?? runs/harvest_20261014T155722_267188_s1/
+?? runs/harvest_20261014T160040_984181_s1/
+?? runs/harvest_20261014T160321_801136_s1/
+?? runs/harvest_20261014T160351_628929_s2/
+?? runs/harvest_20261014T160800_876494_s1/
+?? runs/harvest_20261014T160851_567474_s2/
+?? runs/harvest_20261014T161229_564172_s1/
+?? runs/harvest_20261014T163633_180396_s1/
+?? runs/harvest_20261014T164310_583724_s1/
+?? runs/live_cam_shear_20261014_1142/
+?? runs/live_cam_shear_full_20261014_1143/
+?? runs/live_cam_sim_20261013_1505/
+?? runs/live_cam_sim_full_20261013_1545/
+?? runs/live_cam_sim_grasp_20261013_1541/
+?? runs/live_camera_mock_e2e_20261014_0933/
+?? runs/live_camera_mock_full_20261013_1424/
+?? runs/live_camera_mock_full_fixed_20261014_0938/
+?? runs/live_camera_mock_full_product_20261014_0936/
+?? runs/live_camera_mock_web_full_20261013_1433/
+?? runs/live_camera_mock_web_full_20261013_1442/
+?? runs/live_camera_mock_web_full_20261013_1446/
+?? runs/live_camera_rviz_repeat_20261014_1632/
+?? runs/live_camera_stability_20261014_1547/
+?? runs/live_camera_stability_complete_20261014_1612/
+?? runs/live_camera_stability_end2end_20261014_1606/
+?? runs/live_camera_stability_final_20261014_1558/
+?? runs/live_camera_stability_verified_20261014_1602/
+?? runs/live_camera_web_joint_20261014_1519/
+?? runs/live_mock83_survey_20261013_1359/
+?? runs/live_mock83_survey_verified_20261013/
+?? runs/outer_bag_full_20261014_1025/
+?? runs/outer_bag_full_final2_20261014/
+?? runs/outer_bag_validation_20261014/
+?? runs/reconstruction_counterfactual_20261014/
+?? runs/rviz_repeat_20261014_1632_round_1/
+?? runs/rviz_repeat_20261014_1632_round_2/
+?? runs/rviz_repeat_20261014_1632_round_3/
+?? runs/session_20261013_103304/
+?? runs/session_20261013_105244/
+?? runs/session_20261013_110707/
+?? runs/session_20261013_111232/
+?? runs/session_20261013_135810/
+?? runs/session_20261013_140618/
+?? runs/session_20261013_141713/
+?? runs/session_20261013_142343/
+?? runs/session_20261013_143539/
+?? runs/session_20261013_143831/
+?? runs/session_20261013_144605/
+?? runs/session_20261013_150640/
+?? runs/session_20261013_153039/
+?? runs/session_20261013_154041/
+?? runs/session_20261014_093504/
+?? runs/session_20261014_102055/
+?? runs/session_20261014_102236/
+?? runs/session_20261014_102920/
+?? runs/session_20261014_103101/
+?? runs/session_20261014_105652/
+?? runs/session_20261014_105752/
+?? runs/session_20261014_114058/
+?? runs/session_20261014_152311/
+?? runs/session_20261014_152623/
+?? runs/session_20261014_154710/
+?? runs/session_20261014_155658/
+?? runs/session_20261014_160308/
+?? runs/session_20261014_160748/
+?? runs/session_20261014_161215/
+?? runs/session_20261014_163621/
+?? runs/session_20261014_163858/
+?? runs/session_20261014_164050/
+?? runs/session_20261014_164258/
+?? runs/stability_full_cycle_20261014_1609/
+?? runs/stability_full_cycle_20261014_1612/
+?? runs/web_joint_full_20261014_1533/
+?? runs/web_visualization_20261014/
+?? src/ivg/aubo_ros2_web_dashboard/aubo_ros2_web_dashboard/gateway_routes.py
+?? src/ivg/aubo_ros2_web_dashboard/aubo_ros2_web_dashboard/launch_gateway.py
+?? src/panda_description/
+?? src/panda_moveit_config/
+?? src/peach/peach_harvester/test/test_outer_bag_geometry.py
+?? src/peach/peach_observability/test/test_grasp_decision_mirror.py
+?? src/peach/peach_system_tests/test/test_drive_harvest.py
+?? src/ros_web_link/
+?? src/sim/sim_bringup/launch/moveit_sim.launch.py

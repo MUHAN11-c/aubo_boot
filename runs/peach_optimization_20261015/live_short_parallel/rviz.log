@@ -1,0 +1,53 @@
+[WARN] [1792027331.667768196] [rcl]: ROS_LOCALHOST_ONLY is deprecated but still honored if it is enabled. Use ROS_AUTOMATIC_DISCOVERY_RANGE and ROS_STATIC_PEERS instead.
+[WARN] [1792027331.668238549] [rcl]: 'localhost_only' is enabled, 'automatic_discovery_range' and 'static_peers' will be ignored.
+[INFO] [1792027332.233819781] [rviz2]: Stereo is NOT SUPPORTED
+[INFO] [1792027332.233953969] [rviz2]: OpenGl version: 4.6 (GLSL 4.6)
+[INFO] [1792027332.371389279] [rviz2]: Stereo is NOT SUPPORTED
+Warning: class_loader.impl: SEVERE WARNING!!! A namespace collision has occurred with plugin factory for class rviz_default_plugins::displays::InteractiveMarkerDisplay. New factory will OVERWRITE existing one. This situation occurs when libraries containing plugins are directly linked against an executable (the one running right now generating this message). Please separate plugins out into their own library or just don't link against the library and use either class_loader::ClassLoader/MultiLibraryClassLoader to open.
+         at line 321 in /opt/ros/jazzy/include/class_loader/class_loader/class_loader_core.hpp
+[ERROR] [1792027335.509796641] [moveit_2924535850.moveit.ros.motion_planning_frame]: Action server: /recognize_objects not available
+[INFO] [1792027335.524490538] [moveit_2924535850.moveit.ros.motion_planning_frame]: MoveGroup namespace changed: / -> . Reloading params.
+[INFO] [1792027335.539315228] [rviz]: Subscribing to: /peach/reconstruction/tsdf_cloud
+
+[INFO] [1792027335.540199655] [rviz]: Subscribing to: /peach/reconstruction/tsdf_cloud
+
+[INFO] [1792027335.540519001] [rviz]: Subscribing to: /peach/reconstruction/tsdf_cloud
+
+[INFO] [1792027335.540778919] [rviz]: Subscribing to: /peach/reconstruction/tsdf_cloud
+
+[INFO] [1792027335.541185790] [rviz]: Subscribing to: /peach/perception/single_cloud
+
+[INFO] [1792027335.541453093] [rviz]: Subscribing to: /peach/perception/single_cloud
+
+[INFO] [1792027335.541681597] [rviz]: Subscribing to: /peach/perception/single_cloud
+
+[INFO] [1792027335.545046787] [rviz]: Subscribing to: /peach/reconstruction/local_cloud
+
+[INFO] [1792027335.545374146] [rviz]: Subscribing to: /peach/reconstruction/local_cloud
+
+[INFO] [1792027335.545643348] [rviz]: Subscribing to: /peach/reconstruction/local_cloud
+
+[INFO] [1792027335.545897709] [rviz]: Subscribing to: /peach/reconstruction/local_cloud
+
+[INFO] [1792027335.559008816] [rviz]: Subscribing to: /peach/reconstruction/tsdf_cloud
+
+[INFO] [1792027335.559329470] [rviz]: Subscribing to: /peach/perception/single_cloud
+
+[INFO] [1792027335.559594167] [rviz]: Subscribing to: /peach/reconstruction/local_cloud
+
+[INFO] [1792027335.720671997] [rviz2]: Stereo is NOT SUPPORTED
+[INFO] [1792027335.746852345] [moveit_2924535850.moveit.ros.rdf_loader]: Loaded robot model in 0.00262818 seconds
+[INFO] [1792027335.746948644] [moveit_2924535850.moveit.core.robot_model]: Loading robot model 'aubo_e5'...
+[INFO] [1792027335.746967398] [moveit_2924535850.moveit.core.robot_model]: No root/virtual joint specified in SRDF. Assuming fixed joint
+[INFO] [1792027335.771467812] [moveit_2924535850.moveit.kinematics.kdl_kinematics_plugin]: Joint weights for group 'manipulator_e5': 1 1 1 1 1 1
+[INFO] [1792027336.067878892] [moveit_2924535850.moveit.ros.planning_scene_monitor]: Starting planning scene monitor
+[INFO] [1792027336.069015476] [moveit_2924535850.moveit.ros.planning_scene_monitor]: Listening to '/monitored_planning_scene'
+[INFO] [1792027336.075388403] [interactive_marker_display_103522177249904]: Connected on namespace: /rviz_moveit_motion_planning_display/robot_interaction_interactive_marker_topic
+[INFO] [1792027336.082911564] [moveit_2924535850.moveit.ros.motion_planning_frame]: group manipulator_e5
+[INFO] [1792027336.082960976] [moveit_2924535850.moveit.ros.motion_planning_frame]: Constructing new MoveGroup connection for group 'manipulator_e5' in namespace ''
+[INFO] [1792027336.098130395] [moveit_2924535850.moveit.ros.move_group_interface]: Ready to take commands for planning group manipulator_e5.
+[INFO] [1792027336.106034683] [interactive_marker_display_103522177249904]: Sending request for interactive markers
+[INFO] [1792027336.162340456] [interactive_marker_display_103522177249904]: Service response received for initialization
+[INFO] [1792027408.427370340] [rclcpp]: signal_handler(SIGINT/SIGTERM)
+[WARN] [1792027408.434862224] [interactive_marker_display_103522177249904]: Server not available while running, resetting
+[INFO] [1792027408.567555268] [moveit_2924535850.moveit.ros.planning_scene_monitor]: Stopping planning scene monitor

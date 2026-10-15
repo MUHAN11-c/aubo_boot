@@ -201,3 +201,48 @@ def test_grasp_decision_dict_allowed_false_when_not_ready():
     decision = core._grasp_decision()
     assert decision['allowed'] is False
     assert decision['reason'] == 'reconstruction_not_ready'
+
+
+def test_decision_message_model_stamp_is_frozen_without_mutating_heartbeat():
+    """模型时间与发布心跳独立，禁止同版本续签或共享 Header 污染."""
+    from peach_harvester.vision.target_reconstruction.publish import (
+        grasp_decision_to_msg,
+    )
+    from builtin_interfaces.msg import Time
+    from std_msgs.msg import Header
+
+    heartbeat = Header(stamp=Time(sec=1020), frame_id='base_link')
+    decision = {'generated_at': Time(sec=1000), 'valid_until': Time(sec=1030)}
+    msg = grasp_decision_to_msg(decision, heartbeat)
+    assert msg.header.stamp.sec == 1000
+    assert heartbeat.stamp.sec == 1020
+
+
+def test_target_model_uses_same_frozen_validity_as_decision():
+    """动作返回模型与话题令牌必须使用同一个时间窗口."""
+    from peach_harvester.vision.target_reconstruction.publish import (
+        fill_target_model,
+    )
+    from builtin_interfaces.msg import Time
+    from peach_interfaces.msg import TargetModel
+    from rclpy.time import Time as RosTime
+
+    model = TargetModel()
+    frozen = {'generated_at': Time(sec=1000), 'valid_until': Time(sec=1030)}
+    fill_target_model(model, None, None, _params(), RosTime(seconds=1020),
+                      decision=frozen)
+    assert model.generated_at.sec == 1000
+    assert model.header.stamp.sec == 1000
+    assert model.valid_until.sec == 1030
+
+
+def test_single_pose_model_is_not_high_quality_even_when_fit_succeeds():
+    """单机位重复积分不能冒充高质量多视融合."""
+    from peach_harvester.vision.target_reconstruction.publish import (
+        model_quality_level,
+    )
+    from peach_interfaces.msg import TargetQuality
+
+    assert model_quality_level(True, 1) == TargetQuality.MEDIUM
+    assert model_quality_level(True, 2) == TargetQuality.HIGH
+    assert model_quality_level(False, 4) == TargetQuality.LOW

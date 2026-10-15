@@ -1,0 +1,109 @@
+{
+  "input": "real PS800 stereo camera; fixed calibrated extrinsics; scene reported stationary by operator",
+  "robot_mode": "mock",
+  "target_id": "target_0",
+  "real_robot_motion": false,
+  "tool_enabled": false,
+  "root_causes": [
+    "narrow layout hid camera when choosing 3D",
+    "launch repeatedly terminated by SIGTERM; operator confirms concurrent ROS cleanup tasks; signal sender not identified",
+    "paper surface local cylinder axis dominated whole-bag geometry",
+    "single-view success/failure switched between incompatible centre definitions",
+    "auxiliary single-view fit incorrectly vetoed observed process axis"
+  ],
+  "fixed_input_baseline": {
+    "frames": 8,
+    "axis_pairwise_max_deg": 76.40951952960292,
+    "diameter_range_mm": [
+      66.2,
+      114.8
+    ],
+    "identical_input_repeat_count": 3,
+    "identical_input_deterministic": true
+  },
+  "fixed_input_after": {
+    "frames": 8,
+    "axis_pairwise_max_deg": 2.12590581941397,
+    "observed_d95_range_mm": [
+      56.53370783306567,
+      57.851670234697615
+    ]
+  },
+  "two_independent_live_builds": {
+    "axis_difference_deg": 0.0737533596887511,
+    "d95_mm": [
+      60.383371035321986,
+      61.59332054154545
+    ],
+    "entry_difference_mm": 0.05698310589481279,
+    "cut_difference_mm": 0.07599494160357834,
+    "flags_1": [
+      "axis_from_captured_shape"
+    ],
+    "flags_2": [
+      "axis_from_captured_shape"
+    ]
+  },
+  "full_cycle": {
+    "hardware_mode": "mock",
+    "camera": "real",
+    "tool_enabled": false,
+    "ledger": {
+      "claimed": [
+        "target_0"
+      ],
+      "outcomes": [
+        {
+          "target_id": "target_0",
+          "outcome": 0,
+          "reason": "周期完成；tool.enabled=false 或未宣称采摘成功",
+          "quality_score": 0.0,
+          "elapsed_s": 29.257,
+          "completion_level": 6,
+          "stage_names": [
+            "reconfirm",
+            "approach_insert",
+            "tool",
+            "retreat"
+          ],
+          "stage_durations": [
+            0.41,
+            14.454,
+            0.0,
+            11.959
+          ]
+        }
+      ]
+    },
+    "cancel_requested_after_ledger_or_timeout": true
+  },
+  "tests": {
+    "peach_harvester": {
+      "tests": 320,
+      "errors": 0,
+      "failures": 0
+    },
+    "peach_web": "5 test files passed"
+  },
+  "limits": [
+    "single fixed camera view; no multiview consistency evidence",
+    "observed surface geometry is not calibrated hidden centre or absolute bag diameter",
+    "two-build repeatability is not a long duration stability guarantee",
+    "completion level 6 means retreat recorded; actual cutting and harvesting not verified",
+    "other ROS cleanup tasks can interrupt this stack"
+  ],
+  "review": {
+    "result": "passed after fixing independent-view support voting",
+    "fixed_issue": "same camera bursts cannot outvote a conflicting independent silhouette",
+    "checks": "original conflicting-view reproduction rejected; legal one/two view cases retained; unknown second view cannot authorize refit axis"
+  },
+  "cleanup": {
+    "owned_groups": [
+      875565,
+      876140,
+      876141,
+      894951
+    ],
+    "remaining": []
+  }
+}

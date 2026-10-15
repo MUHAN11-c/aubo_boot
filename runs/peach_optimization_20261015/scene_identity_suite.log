@@ -1,0 +1,912 @@
+........................................................................ [ 16%]
+........................................................................ [ 33%]
+...................................................FFF.................. [ 49%]
+........................................................................ [ 66%]
+........................................................................ [ 82%]
+.................................EEEEEEEEEEEEE.......................... [ 99%]
+...                                                                      [100%]
+==================================== ERRORS ====================================
+________ ERROR at setup of test_jpeg_binary_headers_and_missing_reason _________
+
+tmp_path = PosixPath('/tmp/pytest-of-mu/pytest-31/test_jpeg_binary_headers_and_m0')
+
+    @pytest.fixture
+    def endpoint(tmp_path):
+        """启动临时 HTTP 并保证测试后关闭服务."""
+        (tmp_path / 'vendor').mkdir()
+        for path in ['vendor/peach-three.js', 'viz3d.js', 'visualization.js',
+                     'visualization.css', 'workbench.js', 'workbench.css', 'ui-common.js',
+                     'monitor-renderers.js', 'trajectory-renderers.js',
+                     'request-runtime.js']:
+            (tmp_path / path).write_text('asset')
+        (tmp_path / 'secret.txt').write_text('secret')
+>       server = start_http('127.0.0.1', 0, tmp_path, Backend(), lambda _msg: None)
+
+src/peach/peach_observability/test/test_preview_http.py:31: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+src/peach/peach_observability/peach_observability/http_server.py:230: in start_http
+    server = _ObservabilityHttpServer(
+src/peach/peach_observability/peach_observability/http_server.py:209: in __init__
+    super().__init__(server_address, ObservabilityHttpHandler)
+/usr/lib/python3.12/socketserver.py:453: in __init__
+    self.socket = socket.socket(self.address_family,
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <socket.socket fd=-1, family=0, type=0, proto=0>
+family = <AddressFamily.AF_INET: 2>, type = <SocketKind.SOCK_STREAM: 1>
+proto = 0, fileno = None
+
+    def __init__(self, family=-1, type=-1, proto=-1, fileno=None):
+        # For user code address family and type values are IntEnum members, but
+        # for the underlying _socket.socket they're just integers. The
+        # constructor of _socket.socket converts the given argument to an
+        # integer automatically.
+        if fileno is None:
+            if family == -1:
+                family = AF_INET
+            if type == -1:
+                type = SOCK_STREAM
+            if proto == -1:
+                proto = 0
+>       _socket.socket.__init__(self, family, type, proto, fileno)
+E       PermissionError: [Errno 1] Operation not permitted
+
+/usr/lib/python3.12/socket.py:233: PermissionError
+______ ERROR at setup of test_fixed_static_assets[vendor/peach-three.js] _______
+
+tmp_path = PosixPath('/tmp/pytest-of-mu/pytest-31/test_fixed_static_assets_vendo0')
+
+    @pytest.fixture
+    def endpoint(tmp_path):
+        """启动临时 HTTP 并保证测试后关闭服务."""
+        (tmp_path / 'vendor').mkdir()
+        for path in ['vendor/peach-three.js', 'viz3d.js', 'visualization.js',
+                     'visualization.css', 'workbench.js', 'workbench.css', 'ui-common.js',
+                     'monitor-renderers.js', 'trajectory-renderers.js',
+                     'request-runtime.js']:
+            (tmp_path / path).write_text('asset')
+        (tmp_path / 'secret.txt').write_text('secret')
+>       server = start_http('127.0.0.1', 0, tmp_path, Backend(), lambda _msg: None)
+
+src/peach/peach_observability/test/test_preview_http.py:31: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+src/peach/peach_observability/peach_observability/http_server.py:230: in start_http
+    server = _ObservabilityHttpServer(
+src/peach/peach_observability/peach_observability/http_server.py:209: in __init__
+    super().__init__(server_address, ObservabilityHttpHandler)
+/usr/lib/python3.12/socketserver.py:453: in __init__
+    self.socket = socket.socket(self.address_family,
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <socket.socket fd=-1, family=0, type=0, proto=0>
+family = <AddressFamily.AF_INET: 2>, type = <SocketKind.SOCK_STREAM: 1>
+proto = 0, fileno = None
+
+    def __init__(self, family=-1, type=-1, proto=-1, fileno=None):
+        # For user code address family and type values are IntEnum members, but
+        # for the underlying _socket.socket they're just integers. The
+        # constructor of _socket.socket converts the given argument to an
+        # integer automatically.
+        if fileno is None:
+            if family == -1:
+                family = AF_INET
+            if type == -1:
+                type = SOCK_STREAM
+            if proto == -1:
+                proto = 0
+>       _socket.socket.__init__(self, family, type, proto, fileno)
+E       PermissionError: [Errno 1] Operation not permitted
+
+/usr/lib/python3.12/socket.py:233: PermissionError
+_____________ ERROR at setup of test_fixed_static_assets[viz3d.js] _____________
+
+tmp_path = PosixPath('/tmp/pytest-of-mu/pytest-31/test_fixed_static_assets_viz3d0')
+
+    @pytest.fixture
+    def endpoint(tmp_path):
+        """启动临时 HTTP 并保证测试后关闭服务."""
+        (tmp_path / 'vendor').mkdir()
+        for path in ['vendor/peach-three.js', 'viz3d.js', 'visualization.js',
+                     'visualization.css', 'workbench.js', 'workbench.css', 'ui-common.js',
+                     'monitor-renderers.js', 'trajectory-renderers.js',
+                     'request-runtime.js']:
+            (tmp_path / path).write_text('asset')
+        (tmp_path / 'secret.txt').write_text('secret')
+>       server = start_http('127.0.0.1', 0, tmp_path, Backend(), lambda _msg: None)
+
+src/peach/peach_observability/test/test_preview_http.py:31: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+src/peach/peach_observability/peach_observability/http_server.py:230: in start_http
+    server = _ObservabilityHttpServer(
+src/peach/peach_observability/peach_observability/http_server.py:209: in __init__
+    super().__init__(server_address, ObservabilityHttpHandler)
+/usr/lib/python3.12/socketserver.py:453: in __init__
+    self.socket = socket.socket(self.address_family,
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <socket.socket fd=-1, family=0, type=0, proto=0>
+family = <AddressFamily.AF_INET: 2>, type = <SocketKind.SOCK_STREAM: 1>
+proto = 0, fileno = None
+
+    def __init__(self, family=-1, type=-1, proto=-1, fileno=None):
+        # For user code address family and type values are IntEnum members, but
+        # for the underlying _socket.socket they're just integers. The
+        # constructor of _socket.socket converts the given argument to an
+        # integer automatically.
+        if fileno is None:
+            if family == -1:
+                family = AF_INET
+            if type == -1:
+                type = SOCK_STREAM
+            if proto == -1:
+                proto = 0
+>       _socket.socket.__init__(self, family, type, proto, fileno)
+E       PermissionError: [Errno 1] Operation not permitted
+
+/usr/lib/python3.12/socket.py:233: PermissionError
+_________ ERROR at setup of test_fixed_static_assets[visualization.js] _________
+
+tmp_path = PosixPath('/tmp/pytest-of-mu/pytest-31/test_fixed_static_assets_visua0')
+
+    @pytest.fixture
+    def endpoint(tmp_path):
+        """启动临时 HTTP 并保证测试后关闭服务."""
+        (tmp_path / 'vendor').mkdir()
+        for path in ['vendor/peach-three.js', 'viz3d.js', 'visualization.js',
+                     'visualization.css', 'workbench.js', 'workbench.css', 'ui-common.js',
+                     'monitor-renderers.js', 'trajectory-renderers.js',
+                     'request-runtime.js']:
+            (tmp_path / path).write_text('asset')
+        (tmp_path / 'secret.txt').write_text('secret')
+>       server = start_http('127.0.0.1', 0, tmp_path, Backend(), lambda _msg: None)
+
+src/peach/peach_observability/test/test_preview_http.py:31: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+src/peach/peach_observability/peach_observability/http_server.py:230: in start_http
+    server = _ObservabilityHttpServer(
+src/peach/peach_observability/peach_observability/http_server.py:209: in __init__
+    super().__init__(server_address, ObservabilityHttpHandler)
+/usr/lib/python3.12/socketserver.py:453: in __init__
+    self.socket = socket.socket(self.address_family,
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <socket.socket fd=-1, family=0, type=0, proto=0>
+family = <AddressFamily.AF_INET: 2>, type = <SocketKind.SOCK_STREAM: 1>
+proto = 0, fileno = None
+
+    def __init__(self, family=-1, type=-1, proto=-1, fileno=None):
+        # For user code address family and type values are IntEnum members, but
+        # for the underlying _socket.socket they're just integers. The
+        # constructor of _socket.socket converts the given argument to an
+        # integer automatically.
+        if fileno is None:
+            if family == -1:
+                family = AF_INET
+            if type == -1:
+                type = SOCK_STREAM
+            if proto == -1:
+                proto = 0
+>       _socket.socket.__init__(self, family, type, proto, fileno)
+E       PermissionError: [Errno 1] Operation not permitted
+
+/usr/lib/python3.12/socket.py:233: PermissionError
+________ ERROR at setup of test_fixed_static_assets[visualization.css] _________
+
+tmp_path = PosixPath('/tmp/pytest-of-mu/pytest-31/test_fixed_static_assets_visua1')
+
+    @pytest.fixture
+    def endpoint(tmp_path):
+        """启动临时 HTTP 并保证测试后关闭服务."""
+        (tmp_path / 'vendor').mkdir()
+        for path in ['vendor/peach-three.js', 'viz3d.js', 'visualization.js',
+                     'visualization.css', 'workbench.js', 'workbench.css', 'ui-common.js',
+                     'monitor-renderers.js', 'trajectory-renderers.js',
+                     'request-runtime.js']:
+            (tmp_path / path).write_text('asset')
+        (tmp_path / 'secret.txt').write_text('secret')
+>       server = start_http('127.0.0.1', 0, tmp_path, Backend(), lambda _msg: None)
+
+src/peach/peach_observability/test/test_preview_http.py:31: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+src/peach/peach_observability/peach_observability/http_server.py:230: in start_http
+    server = _ObservabilityHttpServer(
+src/peach/peach_observability/peach_observability/http_server.py:209: in __init__
+    super().__init__(server_address, ObservabilityHttpHandler)
+/usr/lib/python3.12/socketserver.py:453: in __init__
+    self.socket = socket.socket(self.address_family,
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <socket.socket fd=-1, family=0, type=0, proto=0>
+family = <AddressFamily.AF_INET: 2>, type = <SocketKind.SOCK_STREAM: 1>
+proto = 0, fileno = None
+
+    def __init__(self, family=-1, type=-1, proto=-1, fileno=None):
+        # For user code address family and type values are IntEnum members, but
+        # for the underlying _socket.socket they're just integers. The
+        # constructor of _socket.socket converts the given argument to an
+        # integer automatically.
+        if fileno is None:
+            if family == -1:
+                family = AF_INET
+            if type == -1:
+                type = SOCK_STREAM
+            if proto == -1:
+                proto = 0
+>       _socket.socket.__init__(self, family, type, proto, fileno)
+E       PermissionError: [Errno 1] Operation not permitted
+
+/usr/lib/python3.12/socket.py:233: PermissionError
+___________ ERROR at setup of test_fixed_static_assets[workbench.js] ___________
+
+tmp_path = PosixPath('/tmp/pytest-of-mu/pytest-31/test_fixed_static_assets_workb0')
+
+    @pytest.fixture
+    def endpoint(tmp_path):
+        """启动临时 HTTP 并保证测试后关闭服务."""
+        (tmp_path / 'vendor').mkdir()
+        for path in ['vendor/peach-three.js', 'viz3d.js', 'visualization.js',
+                     'visualization.css', 'workbench.js', 'workbench.css', 'ui-common.js',
+                     'monitor-renderers.js', 'trajectory-renderers.js',
+                     'request-runtime.js']:
+            (tmp_path / path).write_text('asset')
+        (tmp_path / 'secret.txt').write_text('secret')
+>       server = start_http('127.0.0.1', 0, tmp_path, Backend(), lambda _msg: None)
+
+src/peach/peach_observability/test/test_preview_http.py:31: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+src/peach/peach_observability/peach_observability/http_server.py:230: in start_http
+    server = _ObservabilityHttpServer(
+src/peach/peach_observability/peach_observability/http_server.py:209: in __init__
+    super().__init__(server_address, ObservabilityHttpHandler)
+/usr/lib/python3.12/socketserver.py:453: in __init__
+    self.socket = socket.socket(self.address_family,
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <socket.socket fd=-1, family=0, type=0, proto=0>
+family = <AddressFamily.AF_INET: 2>, type = <SocketKind.SOCK_STREAM: 1>
+proto = 0, fileno = None
+
+    def __init__(self, family=-1, type=-1, proto=-1, fileno=None):
+        # For user code address family and type values are IntEnum members, but
+        # for the underlying _socket.socket they're just integers. The
+        # constructor of _socket.socket converts the given argument to an
+        # integer automatically.
+        if fileno is None:
+            if family == -1:
+                family = AF_INET
+            if type == -1:
+                type = SOCK_STREAM
+            if proto == -1:
+                proto = 0
+>       _socket.socket.__init__(self, family, type, proto, fileno)
+E       PermissionError: [Errno 1] Operation not permitted
+
+/usr/lib/python3.12/socket.py:233: PermissionError
+__________ ERROR at setup of test_fixed_static_assets[workbench.css] ___________
+
+tmp_path = PosixPath('/tmp/pytest-of-mu/pytest-31/test_fixed_static_assets_workb1')
+
+    @pytest.fixture
+    def endpoint(tmp_path):
+        """启动临时 HTTP 并保证测试后关闭服务."""
+        (tmp_path / 'vendor').mkdir()
+        for path in ['vendor/peach-three.js', 'viz3d.js', 'visualization.js',
+                     'visualization.css', 'workbench.js', 'workbench.css', 'ui-common.js',
+                     'monitor-renderers.js', 'trajectory-renderers.js',
+                     'request-runtime.js']:
+            (tmp_path / path).write_text('asset')
+        (tmp_path / 'secret.txt').write_text('secret')
+>       server = start_http('127.0.0.1', 0, tmp_path, Backend(), lambda _msg: None)
+
+src/peach/peach_observability/test/test_preview_http.py:31: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+src/peach/peach_observability/peach_observability/http_server.py:230: in start_http
+    server = _ObservabilityHttpServer(
+src/peach/peach_observability/peach_observability/http_server.py:209: in __init__
+    super().__init__(server_address, ObservabilityHttpHandler)
+/usr/lib/python3.12/socketserver.py:453: in __init__
+    self.socket = socket.socket(self.address_family,
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <socket.socket fd=-1, family=0, type=0, proto=0>
+family = <AddressFamily.AF_INET: 2>, type = <SocketKind.SOCK_STREAM: 1>
+proto = 0, fileno = None
+
+    def __init__(self, family=-1, type=-1, proto=-1, fileno=None):
+        # For user code address family and type values are IntEnum members, but
+        # for the underlying _socket.socket they're just integers. The
+        # constructor of _socket.socket converts the given argument to an
+        # integer automatically.
+        if fileno is None:
+            if family == -1:
+                family = AF_INET
+            if type == -1:
+                type = SOCK_STREAM
+            if proto == -1:
+                proto = 0
+>       _socket.socket.__init__(self, family, type, proto, fileno)
+E       PermissionError: [Errno 1] Operation not permitted
+
+/usr/lib/python3.12/socket.py:233: PermissionError
+___________ ERROR at setup of test_fixed_static_assets[ui-common.js] ___________
+
+tmp_path = PosixPath('/tmp/pytest-of-mu/pytest-31/test_fixed_static_assets_ui_co0')
+
+    @pytest.fixture
+    def endpoint(tmp_path):
+        """启动临时 HTTP 并保证测试后关闭服务."""
+        (tmp_path / 'vendor').mkdir()
+        for path in ['vendor/peach-three.js', 'viz3d.js', 'visualization.js',
+                     'visualization.css', 'workbench.js', 'workbench.css', 'ui-common.js',
+                     'monitor-renderers.js', 'trajectory-renderers.js',
+                     'request-runtime.js']:
+            (tmp_path / path).write_text('asset')
+        (tmp_path / 'secret.txt').write_text('secret')
+>       server = start_http('127.0.0.1', 0, tmp_path, Backend(), lambda _msg: None)
+
+src/peach/peach_observability/test/test_preview_http.py:31: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+src/peach/peach_observability/peach_observability/http_server.py:230: in start_http
+    server = _ObservabilityHttpServer(
+src/peach/peach_observability/peach_observability/http_server.py:209: in __init__
+    super().__init__(server_address, ObservabilityHttpHandler)
+/usr/lib/python3.12/socketserver.py:453: in __init__
+    self.socket = socket.socket(self.address_family,
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <socket.socket fd=-1, family=0, type=0, proto=0>
+family = <AddressFamily.AF_INET: 2>, type = <SocketKind.SOCK_STREAM: 1>
+proto = 0, fileno = None
+
+    def __init__(self, family=-1, type=-1, proto=-1, fileno=None):
+        # For user code address family and type values are IntEnum members, but
+        # for the underlying _socket.socket they're just integers. The
+        # constructor of _socket.socket converts the given argument to an
+        # integer automatically.
+        if fileno is None:
+            if family == -1:
+                family = AF_INET
+            if type == -1:
+                type = SOCK_STREAM
+            if proto == -1:
+                proto = 0
+>       _socket.socket.__init__(self, family, type, proto, fileno)
+E       PermissionError: [Errno 1] Operation not permitted
+
+/usr/lib/python3.12/socket.py:233: PermissionError
+_______ ERROR at setup of test_fixed_static_assets[monitor-renderers.js] _______
+
+tmp_path = PosixPath('/tmp/pytest-of-mu/pytest-31/test_fixed_static_assets_monit0')
+
+    @pytest.fixture
+    def endpoint(tmp_path):
+        """启动临时 HTTP 并保证测试后关闭服务."""
+        (tmp_path / 'vendor').mkdir()
+        for path in ['vendor/peach-three.js', 'viz3d.js', 'visualization.js',
+                     'visualization.css', 'workbench.js', 'workbench.css', 'ui-common.js',
+                     'monitor-renderers.js', 'trajectory-renderers.js',
+                     'request-runtime.js']:
+            (tmp_path / path).write_text('asset')
+        (tmp_path / 'secret.txt').write_text('secret')
+>       server = start_http('127.0.0.1', 0, tmp_path, Backend(), lambda _msg: None)
+
+src/peach/peach_observability/test/test_preview_http.py:31: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+src/peach/peach_observability/peach_observability/http_server.py:230: in start_http
+    server = _ObservabilityHttpServer(
+src/peach/peach_observability/peach_observability/http_server.py:209: in __init__
+    super().__init__(server_address, ObservabilityHttpHandler)
+/usr/lib/python3.12/socketserver.py:453: in __init__
+    self.socket = socket.socket(self.address_family,
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <socket.socket fd=-1, family=0, type=0, proto=0>
+family = <AddressFamily.AF_INET: 2>, type = <SocketKind.SOCK_STREAM: 1>
+proto = 0, fileno = None
+
+    def __init__(self, family=-1, type=-1, proto=-1, fileno=None):
+        # For user code address family and type values are IntEnum members, but
+        # for the underlying _socket.socket they're just integers. The
+        # constructor of _socket.socket converts the given argument to an
+        # integer automatically.
+        if fileno is None:
+            if family == -1:
+                family = AF_INET
+            if type == -1:
+                type = SOCK_STREAM
+            if proto == -1:
+                proto = 0
+>       _socket.socket.__init__(self, family, type, proto, fileno)
+E       PermissionError: [Errno 1] Operation not permitted
+
+/usr/lib/python3.12/socket.py:233: PermissionError
+_____ ERROR at setup of test_fixed_static_assets[trajectory-renderers.js] ______
+
+tmp_path = PosixPath('/tmp/pytest-of-mu/pytest-31/test_fixed_static_assets_traje0')
+
+    @pytest.fixture
+    def endpoint(tmp_path):
+        """启动临时 HTTP 并保证测试后关闭服务."""
+        (tmp_path / 'vendor').mkdir()
+        for path in ['vendor/peach-three.js', 'viz3d.js', 'visualization.js',
+                     'visualization.css', 'workbench.js', 'workbench.css', 'ui-common.js',
+                     'monitor-renderers.js', 'trajectory-renderers.js',
+                     'request-runtime.js']:
+            (tmp_path / path).write_text('asset')
+        (tmp_path / 'secret.txt').write_text('secret')
+>       server = start_http('127.0.0.1', 0, tmp_path, Backend(), lambda _msg: None)
+
+src/peach/peach_observability/test/test_preview_http.py:31: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+src/peach/peach_observability/peach_observability/http_server.py:230: in start_http
+    server = _ObservabilityHttpServer(
+src/peach/peach_observability/peach_observability/http_server.py:209: in __init__
+    super().__init__(server_address, ObservabilityHttpHandler)
+/usr/lib/python3.12/socketserver.py:453: in __init__
+    self.socket = socket.socket(self.address_family,
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <socket.socket fd=-1, family=0, type=0, proto=0>
+family = <AddressFamily.AF_INET: 2>, type = <SocketKind.SOCK_STREAM: 1>
+proto = 0, fileno = None
+
+    def __init__(self, family=-1, type=-1, proto=-1, fileno=None):
+        # For user code address family and type values are IntEnum members, but
+        # for the underlying _socket.socket they're just integers. The
+        # constructor of _socket.socket converts the given argument to an
+        # integer automatically.
+        if fileno is None:
+            if family == -1:
+                family = AF_INET
+            if type == -1:
+                type = SOCK_STREAM
+            if proto == -1:
+                proto = 0
+>       _socket.socket.__init__(self, family, type, proto, fileno)
+E       PermissionError: [Errno 1] Operation not permitted
+
+/usr/lib/python3.12/socket.py:233: PermissionError
+________ ERROR at setup of test_fixed_static_assets[request-runtime.js] ________
+
+tmp_path = PosixPath('/tmp/pytest-of-mu/pytest-31/test_fixed_static_assets_reque0')
+
+    @pytest.fixture
+    def endpoint(tmp_path):
+        """启动临时 HTTP 并保证测试后关闭服务."""
+        (tmp_path / 'vendor').mkdir()
+        for path in ['vendor/peach-three.js', 'viz3d.js', 'visualization.js',
+                     'visualization.css', 'workbench.js', 'workbench.css', 'ui-common.js',
+                     'monitor-renderers.js', 'trajectory-renderers.js',
+                     'request-runtime.js']:
+            (tmp_path / path).write_text('asset')
+        (tmp_path / 'secret.txt').write_text('secret')
+>       server = start_http('127.0.0.1', 0, tmp_path, Backend(), lambda _msg: None)
+
+src/peach/peach_observability/test/test_preview_http.py:31: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+src/peach/peach_observability/peach_observability/http_server.py:230: in start_http
+    server = _ObservabilityHttpServer(
+src/peach/peach_observability/peach_observability/http_server.py:209: in __init__
+    super().__init__(server_address, ObservabilityHttpHandler)
+/usr/lib/python3.12/socketserver.py:453: in __init__
+    self.socket = socket.socket(self.address_family,
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <socket.socket fd=-1, family=0, type=0, proto=0>
+family = <AddressFamily.AF_INET: 2>, type = <SocketKind.SOCK_STREAM: 1>
+proto = 0, fileno = None
+
+    def __init__(self, family=-1, type=-1, proto=-1, fileno=None):
+        # For user code address family and type values are IntEnum members, but
+        # for the underlying _socket.socket they're just integers. The
+        # constructor of _socket.socket converts the given argument to an
+        # integer automatically.
+        if fileno is None:
+            if family == -1:
+                family = AF_INET
+            if type == -1:
+                type = SOCK_STREAM
+            if proto == -1:
+                proto = 0
+>       _socket.socket.__init__(self, family, type, proto, fileno)
+E       PermissionError: [Errno 1] Operation not permitted
+
+/usr/lib/python3.12/socket.py:233: PermissionError
+________ ERROR at setup of test_clock_mismatch_cached_jpeg_returns_404 _________
+
+tmp_path = PosixPath('/tmp/pytest-of-mu/pytest-31/test_clock_mismatch_cached_jpe0')
+
+    @pytest.fixture
+    def endpoint(tmp_path):
+        """启动临时 HTTP 并保证测试后关闭服务."""
+        (tmp_path / 'vendor').mkdir()
+        for path in ['vendor/peach-three.js', 'viz3d.js', 'visualization.js',
+                     'visualization.css', 'workbench.js', 'workbench.css', 'ui-common.js',
+                     'monitor-renderers.js', 'trajectory-renderers.js',
+                     'request-runtime.js']:
+            (tmp_path / path).write_text('asset')
+        (tmp_path / 'secret.txt').write_text('secret')
+>       server = start_http('127.0.0.1', 0, tmp_path, Backend(), lambda _msg: None)
+
+src/peach/peach_observability/test/test_preview_http.py:31: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+src/peach/peach_observability/peach_observability/http_server.py:230: in start_http
+    server = _ObservabilityHttpServer(
+src/peach/peach_observability/peach_observability/http_server.py:209: in __init__
+    super().__init__(server_address, ObservabilityHttpHandler)
+/usr/lib/python3.12/socketserver.py:453: in __init__
+    self.socket = socket.socket(self.address_family,
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <socket.socket fd=-1, family=0, type=0, proto=0>
+family = <AddressFamily.AF_INET: 2>, type = <SocketKind.SOCK_STREAM: 1>
+proto = 0, fileno = None
+
+    def __init__(self, family=-1, type=-1, proto=-1, fileno=None):
+        # For user code address family and type values are IntEnum members, but
+        # for the underlying _socket.socket they're just integers. The
+        # constructor of _socket.socket converts the given argument to an
+        # integer automatically.
+        if fileno is None:
+            if family == -1:
+                family = AF_INET
+            if type == -1:
+                type = SOCK_STREAM
+            if proto == -1:
+                proto = 0
+>       _socket.socket.__init__(self, family, type, proto, fileno)
+E       PermissionError: [Errno 1] Operation not permitted
+
+/usr/lib/python3.12/socket.py:233: PermissionError
+________ ERROR at setup of test_stale_cached_jpeg_still_returns_binary _________
+
+tmp_path = PosixPath('/tmp/pytest-of-mu/pytest-31/test_stale_cached_jpeg_still_r0')
+
+    @pytest.fixture
+    def endpoint(tmp_path):
+        """启动临时 HTTP 并保证测试后关闭服务."""
+        (tmp_path / 'vendor').mkdir()
+        for path in ['vendor/peach-three.js', 'viz3d.js', 'visualization.js',
+                     'visualization.css', 'workbench.js', 'workbench.css', 'ui-common.js',
+                     'monitor-renderers.js', 'trajectory-renderers.js',
+                     'request-runtime.js']:
+            (tmp_path / path).write_text('asset')
+        (tmp_path / 'secret.txt').write_text('secret')
+>       server = start_http('127.0.0.1', 0, tmp_path, Backend(), lambda _msg: None)
+
+src/peach/peach_observability/test/test_preview_http.py:31: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+src/peach/peach_observability/peach_observability/http_server.py:230: in start_http
+    server = _ObservabilityHttpServer(
+src/peach/peach_observability/peach_observability/http_server.py:209: in __init__
+    super().__init__(server_address, ObservabilityHttpHandler)
+/usr/lib/python3.12/socketserver.py:453: in __init__
+    self.socket = socket.socket(self.address_family,
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <socket.socket fd=-1, family=0, type=0, proto=0>
+family = <AddressFamily.AF_INET: 2>, type = <SocketKind.SOCK_STREAM: 1>
+proto = 0, fileno = None
+
+    def __init__(self, family=-1, type=-1, proto=-1, fileno=None):
+        # For user code address family and type values are IntEnum members, but
+        # for the underlying _socket.socket they're just integers. The
+        # constructor of _socket.socket converts the given argument to an
+        # integer automatically.
+        if fileno is None:
+            if family == -1:
+                family = AF_INET
+            if type == -1:
+                type = SOCK_STREAM
+            if proto == -1:
+                proto = 0
+>       _socket.socket.__init__(self, family, type, proto, fileno)
+E       PermissionError: [Errno 1] Operation not permitted
+
+/usr/lib/python3.12/socket.py:233: PermissionError
+=================================== FAILURES ===================================
+__________ test_default_starts_build_then_defers_geometry_gate_to_arm __________
+
+    def test_default_starts_build_then_defers_geometry_gate_to_arm():
+        config = deployed()
+        sequence = []
+        build = object()
+        def forbidden(*args, **kwargs):
+            pytest.fail('default dispatch must not wait through a serial observation after starting Build')
+        node = SimpleNamespace(
+            _params=SimpleNamespace(**{key: config[key] for key in (
+                'action_timeout_s', 'reconstruction_min_views', 'build_start_timeout_s',
+                'observe_build_grace_s', 'skip_reconstruction', 'reconstruct_in_trajectory')}),
+            _current_target_id='target_3', _scene_epoch=4, _action_generation=8,
+            _target_deadline_exceeded=lambda request: False,
+            _take_skip=lambda: False, _wait_target_in_locked_set=lambda *args: True,
+            _build=object(), _on_build_feedback=lambda *args: None, _in_flight=[],
+            _send_goal=lambda *args, **kwargs: sequence.append('build_goal') or build,
+            _wait_build_started=lambda *args: sequence.append('build_started') or True,
+            _react=lambda event: sequence.append(event) or event,
+            _apply=lambda *args: None,
+            get_logger=lambda: SimpleNamespace(info=lambda *args: None),
+            _dispatch_fast=forbidden, _dispatch_observe=forbidden,
+            _wait_build_after_observe=forbidden,
+        )
+>       reaction, persist = TaskExecutorNode._cmd_dispatch(node, SimpleNamespace(request_id='r'), None)
+
+src/peach/peach_harvester/test/test_supervisor_parallel_build.py:39: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = namespace(_params=namespace(action_timeout_s=180.0, reconstruction_min_views=1, build_start_timeout_s=8.0, observe_bui...ch_t0=0.0, _build_feedback={'view_count': 0, 'status': '', 'started_s': 3013.833638812}, _cycle_plan_id='r:target_3:8')
+goal = namespace(request_id='r'), reaction = None
+
+    def _cmd_dispatch(self, goal, reaction):
+        """DISPATCH 分支（原循环分支逐字搬运）：单果时限门 + 观察周期派发."""
+        request_id = goal.request_id
+        if self._target_deadline_exceeded(request_id):
+            # 时限门不落 TargetOutcome（淘汰语义由单果时限自身决定）
+            return self._fail_dispatch(
+                self._react(Event.OBSERVE_FAILED), request_id,
+                self._current_target_id)
+        timeout = float(self._params.action_timeout_s)
+        min_views = int(self._params.reconstruction_min_views)
+        start_timeout = float(
+            self._params.build_start_timeout_s)
+        grace_s = float(self._params.observe_build_grace_s)
+        target_id = self._current_target_id
+        dispatch_t0 = time.monotonic()
+        self._cycle_observe_extra = {}
+        self._cycle_dispatch_t0 = 0.0
+        if self._take_skip():
+            return self._fail_dispatch(
+                self._react(Event.SKIP), request_id, target_id,
+                outcome=TargetOutcome.CANCELED, reason='skip_target',
+                failure_code='canceled', dispatch_t0=dispatch_t0)
+        if not self._wait_target_in_locked_set(target_id, 2.5):
+            return self._fail_dispatch(
+                self._react(Event.OBSERVE_FAILED), request_id, target_id,
+                outcome=TargetOutcome.SKIPPED_QUALITY,
+                reason='observe_failed: target_not_in_locked_set',
+                failure_code='observe_failed', dispatch_t0=dispatch_t0)
+        if bool(self._params.skip_reconstruction):
+            return self._dispatch_unrefined(
+                request_id, target_id, dispatch_t0)
+        build_goal = BuildTargetModel.Goal()
+        build_goal.request_id = request_id
+        build_goal.target_id = target_id
+        build_goal.scene_epoch = self._scene_epoch
+        self._build_feedback = {
+            'view_count': 0, 'status': '', 'started_s': time.monotonic()}
+        build_handle = self._send_goal(
+            self._build, build_goal, timeout,
+            feedback_cb=self._on_build_feedback)
+        if build_handle is None:
+            return self._fail_dispatch(
+                self._react(Event.BUILD_FAILED), request_id, target_id,
+                outcome=TargetOutcome.SKIPPED_QUALITY,
+                reason='build_target_model rejected',
+                failure_code='build_rejected', dispatch_t0=dispatch_t0)
+        self._in_flight.append(build_handle)
+        if not self._wait_build_started(build_handle, start_timeout):
+            self._cancel_handle(build_handle)
+            # 单槽 Build：取消后必须等该动作结束再派下一颗（08-28 轮次 E
+            # 教训：不等结束就派，重建会因单槽占用拒下一颗 Build，空等
+            # action_timeout）。等待上限 10 s，超时由 _wait_result 自行收口。
+            self._wait_result(
+                build_handle, min(timeout, 10.0),
+                goal_handle=self._run_goal_handle)
+            self._forget_handle(build_handle)
+            return self._fail_dispatch(
+                self._react(Event.BUILD_FAILED), request_id, target_id,
+                outcome=TargetOutcome.SKIPPED_QUALITY,
+                reason='build_start_timeout: reconstruction not COLLECTING',
+                failure_code='build_start_timeout', dispatch_t0=dispatch_t0,
+                extra=build_details(self._build_feedback, dispatch_t0, None))
+        # 变体A 一期（批次6，reconstruct_in_trajectory，默认关）：Build 已
+        # COLLECTING 即派 FULL（skip_observation）——重建与接近并行，臂侧
+        # FinalizeAndValidate 有界等精化兜底；Build 句柄随周期收口取消。
+        if bool(getattr(self._params, 'reconstruct_in_trajectory', False)):
+            # FULL/PREGRASP 受理门要完整身份元组。Build 此时只到
+            # COLLECTING，revision 还没有；pending:* 占位让 peach_arm 接
+            # goal，FinalizeAndValidate 再有界等精化。空 revision 会直接
+            # REJECT（「身份元组不完整」），并行接近永远走不到。
+            epoch = int(self._scene_epoch or 0)
+            self._last_model_revision = f'pending:{epoch}:{target_id}'
+            self._last_calibration_revision = 'pending'
+            self._last_config_revision = 'pending'
+            self.get_logger().info(
+                f'reconstruct_in_trajectory: Build 并行，立即派 FULL '
+                f'target={target_id}（skip_observation）')
+            self._cycle_plan_id = (
+                f'{request_id}:{target_id}:{self._action_generation}')
+            self._in_flight_build_handle = build_handle
+            reaction = self._react(Event.READY_FULL)
+            self._apply(reaction, request_id, target_id)
+            return reaction, True
+        # 视点策略开关（3c-2c）：fast=supervisor 直驱补视（单视优先封顶
+        # 3 视）；conservative=现行多视观察（arm OBSERVE_ONLY 原值路径）。
+        # plan_id 两档共用（W13-A：fast 档不发 arm 观察动作，但
+        # _cmd_full 组装 FULL goal 时读 _cycle_plan_id，故保持在分支外）。
+        self._cycle_plan_id = f'{request_id}:{target_id}:{self._action_generation}'
+        fast_policy = (
+>           int(self._batch_policy.view_policy) == BatchPolicy.VIEW_FAST)
+E       AttributeError: 'types.SimpleNamespace' object has no attribute '_batch_policy'
+
+src/peach/peach_harvester/peach_harvester/supervisor/executor_node.py:1263: AttributeError
+____ test_parallel_full_keeps_mode_and_does_not_attach_old_clearance[True] _____
+
+pregrasp_only = True
+
+    @pytest.mark.parametrize('pregrasp_only', [True, False])
+    def test_parallel_full_keeps_mode_and_does_not_attach_old_clearance(pregrasp_only):
+        class Captured(Exception):
+            pass
+        calls = []
+        def send(client, goal, *args, **kwargs):
+            calls.append(goal)
+            raise Captured()
+        node = SimpleNamespace(
+            _params=SimpleNamespace(action_timeout_s=180., execute_pregrasp_only=pregrasp_only,
+                skip_reconstruction=False, reconstruct_in_trajectory=deployed()['reconstruct_in_trajectory'],
+                tool=SimpleNamespace(profile_id='bite_shear_v1')),
+            _target_deadline_exceeded=lambda request: False,
+            _current_target_id='target_3', _run_id='r', _cycle_id='r:target_3',
+            _decision_cache=SimpleNamespace(target_id='target_3', allowed=True),
+            _scene_epoch=4, _action_generation=8, _cycle_plan_id='r:target_3:8',
+            _last_model_revision='pending:4:target_3', _last_calibration_revision='pending',
+            _last_config_revision='pending', _exec=object(), _run_goal_handle=object(),
+            _send_action=send,
+        )
+        with pytest.raises(Captured):
+>           TaskExecutorNode._cmd_full(node, SimpleNamespace(request_id='r'), None)
+
+src/peach/peach_harvester/test/test_supervisor_parallel_build.py:67: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = namespace(_params=namespace(action_timeout_s=180.0, execute_pregrasp_only=True, skip_reconstruction=False, reconstruct...send_action=<function test_parallel_full_keeps_mode_and_does_not_attach_old_clearance.<locals>.send at 0x72e63ec9d800>)
+goal = namespace(request_id='r'), reaction = None
+
+    def _cmd_full(self, goal, reaction):
+        """EXECUTE_FULL 分支（原循环分支逐字搬运）：时限门 + 接触执行入账."""
+        request_id = goal.request_id
+        if self._target_deadline_exceeded(request_id):
+            # 时限门统一走 _fail_dispatch（P0 三通道对齐勘定：此处原为
+            # 裸 _apply，缺「派发失败」WARN；outcome 不传——时限函数自身
+            # 已 record_skip，双传会二次落账，与 dispatch 入口同款）
+            return self._fail_dispatch(
+                self._react(
+                    event_for_outcome(TargetOutcome.SKIPPED_QUALITY, False)),
+                request_id, self._current_target_id)
+        timeout = float(self._params.action_timeout_s)
+        target_id = self._current_target_id
+        t0 = time.monotonic()
+        full = ExecuteTarget.Goal()
+        full.request_id = request_id
+        full.run_id = self._run_id
+        full.cycle_id = self._cycle_id
+        full.target_id = target_id
+        full.mode = (
+            ExecuteTarget.Goal.PREGRASP_ONLY
+            if bool(self._params.execute_pregrasp_only)
+            else ExecuteTarget.Goal.FULL)
+        full.skip_observation = True
+        # 清洁重写轮（3c-2a）：profile 与 mode 对齐下发；臂侧以 mode 为
+        # 接触深度权威（默认 profile=0 不再盖掉 FULL）。接触许可令牌随
+        # goal（臂侧双路复检：令牌优先/快照回退），装配自最新 GraspDecision 缓存。
+        full.profile = (
+            ExecuteTarget.Goal.PROFILE_PREGRASP_HOLD
+            if bool(self._params.execute_pregrasp_only)
+            else ExecuteTarget.Goal.PROFILE_FULL)
+        decision = self._decision_cache
+        # 令牌绑目标：缓存决策不绑定当前目标时整体不装配（臂侧走快照回退
+        # 复检路径），旧目标的许可不得授权新目标（Clearance.target_id 契约）。
+        # skip_reconstruction：不把未融合 GraspDecision（常 allowed=false）
+        # 装成 CONTACT 令牌；臂侧 promoteUnrefined 提升 grasp_allowed。
+        if bool(self._params.skip_reconstruction) or bool(
+                getattr(self._params, 'reconstruct_in_trajectory', False)):
+            # 未融合 / 并行 Build 未 finalize 的 GraspDecision 不得装成
+            # CONTACT 令牌；臂侧等精化后走快照复检。
+            decision = None
+        if decision is not None and str(
+                getattr(decision, 'target_id', '') or '') == target_id:
+            # G1：已过期的令牌仍照装（臂侧拒），但打一次预警供现场归因
+>           self._warn_decision_expiry(decision, target_id)
+E           AttributeError: 'types.SimpleNamespace' object has no attribute '_warn_decision_expiry'
+
+src/peach/peach_harvester/peach_harvester/supervisor/executor_node.py:1491: AttributeError
+____ test_parallel_full_keeps_mode_and_does_not_attach_old_clearance[False] ____
+
+pregrasp_only = False
+
+    @pytest.mark.parametrize('pregrasp_only', [True, False])
+    def test_parallel_full_keeps_mode_and_does_not_attach_old_clearance(pregrasp_only):
+        class Captured(Exception):
+            pass
+        calls = []
+        def send(client, goal, *args, **kwargs):
+            calls.append(goal)
+            raise Captured()
+        node = SimpleNamespace(
+            _params=SimpleNamespace(action_timeout_s=180., execute_pregrasp_only=pregrasp_only,
+                skip_reconstruction=False, reconstruct_in_trajectory=deployed()['reconstruct_in_trajectory'],
+                tool=SimpleNamespace(profile_id='bite_shear_v1')),
+            _target_deadline_exceeded=lambda request: False,
+            _current_target_id='target_3', _run_id='r', _cycle_id='r:target_3',
+            _decision_cache=SimpleNamespace(target_id='target_3', allowed=True),
+            _scene_epoch=4, _action_generation=8, _cycle_plan_id='r:target_3:8',
+            _last_model_revision='pending:4:target_3', _last_calibration_revision='pending',
+            _last_config_revision='pending', _exec=object(), _run_goal_handle=object(),
+            _send_action=send,
+        )
+        with pytest.raises(Captured):
+>           TaskExecutorNode._cmd_full(node, SimpleNamespace(request_id='r'), None)
+
+src/peach/peach_harvester/test/test_supervisor_parallel_build.py:67: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = namespace(_params=namespace(action_timeout_s=180.0, execute_pregrasp_only=False, skip_reconstruction=False, reconstruc...send_action=<function test_parallel_full_keeps_mode_and_does_not_attach_old_clearance.<locals>.send at 0x72e63ec9dbc0>)
+goal = namespace(request_id='r'), reaction = None
+
+    def _cmd_full(self, goal, reaction):
+        """EXECUTE_FULL 分支（原循环分支逐字搬运）：时限门 + 接触执行入账."""
+        request_id = goal.request_id
+        if self._target_deadline_exceeded(request_id):
+            # 时限门统一走 _fail_dispatch（P0 三通道对齐勘定：此处原为
+            # 裸 _apply，缺「派发失败」WARN；outcome 不传——时限函数自身
+            # 已 record_skip，双传会二次落账，与 dispatch 入口同款）
+            return self._fail_dispatch(
+                self._react(
+                    event_for_outcome(TargetOutcome.SKIPPED_QUALITY, False)),
+                request_id, self._current_target_id)
+        timeout = float(self._params.action_timeout_s)
+        target_id = self._current_target_id
+        t0 = time.monotonic()
+        full = ExecuteTarget.Goal()
+        full.request_id = request_id
+        full.run_id = self._run_id
+        full.cycle_id = self._cycle_id
+        full.target_id = target_id
+        full.mode = (
+            ExecuteTarget.Goal.PREGRASP_ONLY
+            if bool(self._params.execute_pregrasp_only)
+            else ExecuteTarget.Goal.FULL)
+        full.skip_observation = True
+        # 清洁重写轮（3c-2a）：profile 与 mode 对齐下发；臂侧以 mode 为
+        # 接触深度权威（默认 profile=0 不再盖掉 FULL）。接触许可令牌随
+        # goal（臂侧双路复检：令牌优先/快照回退），装配自最新 GraspDecision 缓存。
+        full.profile = (
+            ExecuteTarget.Goal.PROFILE_PREGRASP_HOLD
+            if bool(self._params.execute_pregrasp_only)
+            else ExecuteTarget.Goal.PROFILE_FULL)
+        decision = self._decision_cache
+        # 令牌绑目标：缓存决策不绑定当前目标时整体不装配（臂侧走快照回退
+        # 复检路径），旧目标的许可不得授权新目标（Clearance.target_id 契约）。
+        # skip_reconstruction：不把未融合 GraspDecision（常 allowed=false）
+        # 装成 CONTACT 令牌；臂侧 promoteUnrefined 提升 grasp_allowed。
+        if bool(self._params.skip_reconstruction) or bool(
+                getattr(self._params, 'reconstruct_in_trajectory', False)):
+            # 未融合 / 并行 Build 未 finalize 的 GraspDecision 不得装成
+            # CONTACT 令牌；臂侧等精化后走快照复检。
+            decision = None
+        if decision is not None and str(
+                getattr(decision, 'target_id', '') or '') == target_id:
+            # G1：已过期的令牌仍照装（臂侧拒），但打一次预警供现场归因
+>           self._warn_decision_expiry(decision, target_id)
+E           AttributeError: 'types.SimpleNamespace' object has no attribute '_warn_decision_expiry'
+
+src/peach/peach_harvester/peach_harvester/supervisor/executor_node.py:1491: AttributeError
+=========================== short test summary info ============================
+FAILED src/peach/peach_observability/test_supervisor_parallel_build.py::test_default_starts_build_then_defers_geometry_gate_to_arm
+FAILED src/peach/peach_observability/test_supervisor_parallel_build.py::test_parallel_full_keeps_mode_and_does_not_attach_old_clearance[True]
+FAILED src/peach/peach_observability/test_supervisor_parallel_build.py::test_parallel_full_keeps_mode_and_does_not_attach_old_clearance[False]
+ERROR src/peach/peach_observability/test/test_preview_http.py::test_jpeg_binary_headers_and_missing_reason
+ERROR src/peach/peach_observability/test/test_preview_http.py::test_fixed_static_assets[vendor/peach-three.js]
+ERROR src/peach/peach_observability/test/test_preview_http.py::test_fixed_static_assets[viz3d.js]
+ERROR src/peach/peach_observability/test/test_preview_http.py::test_fixed_static_assets[visualization.js]
+ERROR src/peach/peach_observability/test/test_preview_http.py::test_fixed_static_assets[visualization.css]
+ERROR src/peach/peach_observability/test/test_preview_http.py::test_fixed_static_assets[workbench.js]
+ERROR src/peach/peach_observability/test/test_preview_http.py::test_fixed_static_assets[workbench.css]
+ERROR src/peach/peach_observability/test/test_preview_http.py::test_fixed_static_assets[ui-common.js]
+ERROR src/peach/peach_observability/test/test_preview_http.py::test_fixed_static_assets[monitor-renderers.js]
+ERROR src/peach/peach_observability/test/test_preview_http.py::test_fixed_static_assets[trajectory-renderers.js]
+ERROR src/peach/peach_observability/test/test_preview_http.py::test_fixed_static_assets[request-runtime.js]
+ERROR src/peach/peach_observability/test/test_preview_http.py::test_clock_mismatch_cached_jpeg_returns_404
+ERROR src/peach/peach_observability/test/test_preview_http.py::test_stale_cached_jpeg_still_returns_binary
+3 failed, 419 passed, 4 deselected, 13 errors in 4.33s

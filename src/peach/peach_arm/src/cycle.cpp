@@ -94,6 +94,21 @@ bool ManipulationSkillsNode::authorizeStage(
     why = "grasp.enabled=false（接触未使能）";
     return false;
   }
+  // 携带 goal 令牌也不得绕过当前模型撤销。几何与能力读取同一快照，
+  // 其身份必须仍是 Finalize 锁定的版本；新模型需重新规划，不复用旧轨迹。
+  if (ctx.bound_model) {
+    const auto current = cache_.decisionSnapshot();
+    if (!current || !identitiesMatch(*ctx.bound_model, current->model.identity)) {
+      why = "model_snapshot_revoked_or_changed";
+      return false;
+    }
+    const Capability capability = stage == MotionStage::TOOL ?
+      current->model.cut : current->model.sleeve;
+    if (current->model.geometry != Capability::Valid || capability != Capability::Valid) {
+      why = stage == MotionStage::TOOL ? "cut_capability_invalid" : "sleeve_capability_invalid";
+      return false;
+    }
+  }
   if (ctx.clearance_present) {
     if (!ctx.clearance_allowed) {
       why = "接触许可令牌 allowed=false";

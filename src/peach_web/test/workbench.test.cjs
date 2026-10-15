@@ -124,3 +124,23 @@ test('epoch invalidation publishes empty context once and new experiment refresh
   await h.click({wbNew:''}); assert.equal(changes,3);
   h.instance.dispose();
 });
+
+test('reachability response shows per-pose solver errors instead of request success',()=> {
+  const html=wb.reachabilityHTML({ok:true,body:{result:{reachable:[true,false,false],error_codes:['','sleeve_no_ik','sleeve_no_cartesian']}}},{require_sleeve:true});
+  assert.match(html,/套入终点无逆解/);assert.match(html,/笛卡尔路径未通过/);assert.match(html,/位姿 1/);
+  assert.match(html,/预抓取 \+ 套入路径/);
+});
+
+test('unreported scene epoch is unknown while capability zero remains valid', () => {
+  const h = harness(async () => {});
+  for (const epoch of [0, -1, null]) {
+    const s = state(epoch);
+    s.reconstruction = {grasp_decision: {geometry_capability: 0}};
+    h.instance.update(s);
+    assert.equal(h.elements.get('[data-wb-epoch]').textContent, '未报告');
+    assert.match(h.elements.get('[data-wb-conditions]').innerHTML, /有效/);
+  }
+  h.instance.update(state(8));
+  assert.equal(h.elements.get('[data-wb-epoch]').textContent, '8');
+  h.instance.dispose();
+});

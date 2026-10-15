@@ -384,9 +384,16 @@ def to_grasp_decision(message) -> dict:
         # 冻结有效期（秒，心跳不续签）：前端倒计时「许可还剩几秒」
         'valid_until': stamp_seconds_dict_time(message.valid_until),
         'model_revision': message.model_revision,
+        'calibration_revision': message.calibration_revision,
+        'config_revision': message.config_revision,
         'scene_epoch': int(getattr(message, 'scene_epoch', 0) or 0),
         'failure_code': int(getattr(message, 'failure_code', 0) or 0),
     }
+    value['frame_id'] = message.header.frame_id
+    value['corridor_clear'] = bool(message.corridor_clear)
+    for field in ('geometry_capability', 'pregrasp_capability',
+                  'sleeve_capability', 'cut_capability'):
+        value[field] = int(getattr(message, field))
     axis = message.axis
     has_geom = (axis.x * axis.x + axis.y * axis.y + axis.z * axis.z) > 0.25
     if message.allowed or has_geom:
@@ -396,6 +403,11 @@ def to_grasp_decision(message) -> dict:
             'cut_pose': to_point(message.cut_pose),
             'axis': to_point(message.axis),
             'diameter_m': float(message.diameter_m),
+            'd95_m': float(message.d95_m),
+            'travel_m': float(message.travel_m),
+            'cut_travel_m': float(message.cut_travel_m),
+            'radial_margin_m': float(message.radial_margin_m),
+            'axial_margin_m': float(message.axial_margin_m),
             'rmse_m': float(message.rmse_m),
             'inlier_ratio': float(message.inlier_ratio),
         })

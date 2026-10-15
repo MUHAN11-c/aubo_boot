@@ -18,7 +18,7 @@
 
 ```bash
 _tools/blender-4.5.14-linux-x64/blender -b --factory-startup --python-exit-code 1 \
-  -P src/peach_sim/blender/color_bunker.py -- \
-  --source src/peach_sim/meshes/bunker_pro2_source.stl \
-  --out src/peach_sim/meshes/bunker_chassis.glb
+  -P src/sim/sim_worlds/blender/color_bunker.py -- \
+  --source src/sim/sim_description/meshes/bunker_pro2_source.stl \
+  --out src/sim/sim_description/meshes/bunker_chassis.glb
 ```

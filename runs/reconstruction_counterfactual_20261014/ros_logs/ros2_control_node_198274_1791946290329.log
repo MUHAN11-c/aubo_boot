@@ -1,0 +1,27 @@
+[INFO] [1791946290.368690931] [controller_manager]: Using Steady (Monotonic) clock for triggering controller manager cycles.
+[INFO] [1791946290.374474605] [controller_manager]: Subscribing to '/robot_description' topic for robot description.
+[INFO] [1791946290.374585774] [controller_manager]: update rate is 200 Hz
+[INFO] [1791946290.374591706] [controller_manager]: Overruns handling is : enabled
+[INFO] [1791946290.374594991] [controller_manager]: Spawning controller_manager RT thread with scheduler priority: 50
+[INFO] [1791946290.374652818] [controller_manager]: Successful set up FIFO RT scheduling policy with priority 50.
+[INFO] [1791946290.658395834] [controller_manager]: Received robot description from topic.
+[INFO] [1791946290.658443659] [controller_manager]: Enforcing command limits is disabled. Command limits from URDF will be ignored.
+[INFO] [1791946290.660913631] [controller_manager]: Loading hardware 'AuboE5System' 
+[INFO] [1791946290.661386211] [controller_manager]: Loaded hardware 'AuboE5System' from plugin 'mock_components/GenericSystem'
+[INFO] [1791946290.661867471] [controller_manager]: Initialize hardware 'AuboE5System' 
+[INFO] [1791946290.668064721] [controller_manager]: Successful initialization of hardware 'AuboE5System'
+[INFO] [1791946290.668769509] [controller_manager]: Activating component 'AuboE5System'.
+[INFO] [1791946290.668796160] [resource_manager]: 'configure' hardware 'AuboE5System' 
+[INFO] [1791946290.668809513] [resource_manager]: Successful 'configure' of hardware 'AuboE5System'
+[INFO] [1791946290.668824591] [resource_manager]: 'activate' hardware 'AuboE5System' 
+[INFO] [1791946290.668830951] [resource_manager]: Successful 'activate' of hardware 'AuboE5System'
+[INFO] [1791946290.668917013] [controller_manager]: Registering statistics for : AuboE5System
+[INFO] [1791946290.668958380] [controller_manager]: Resource Manager has been successfully initialized. Starting Controller Manager services...
+[INFO] [1791946290.739158155] [rclcpp]: signal_handler(SIGINT/SIGTERM)
+[INFO] [1791946290.739700432] [controller_manager]: Shutdown request received....
+[INFO] [1791946290.740019207] [controller_manager]: Shutting down all controllers in the controller manager.
+[INFO] [1791946290.740567164] [resource_manager]: 'deactivate' hardware 'AuboE5System' 
+[INFO] [1791946290.740586321] [resource_manager]: Successful 'deactivate' of hardware 'AuboE5System'
+[INFO] [1791946290.740588309] [resource_manager]: 'shutdown' hardware 'AuboE5System' 
+[INFO] [1791946290.740589894] [resource_manager]: Successful 'shutdown' of hardware 'AuboE5System'
+[INFO] [1791946290.740743113] [controller_manager]: Shutting down the controller manager.

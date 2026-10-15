@@ -1,0 +1,228 @@
+
+运行 web_state.test.cjs
+TAP version 13
+# Subtest: keyword filtering includes log text without weakening level or node filters
+ok 1 - keyword filtering includes log text without weakening level or node filters
+  ---
+  duration_ms: 11.986766
+  type: 'test'
+  ...
+# Subtest: target context is rechecked after confirmation before sending a command
+ok 2 - target context is rechecked after confirmation before sending a command
+  ---
+  duration_ms: 1.345952
+  type: 'test'
+  ...
+# Subtest: trajectory fetch failure invalidates cached tool frames without erasing the historical path
+ok 3 - trajectory fetch failure invalidates cached tool frames without erasing the historical path
+  ---
+  duration_ms: 1.0109
+  type: 'test'
+  ...
+# Subtest: lighting renders observed components instead of object coercion
+ok 4 - lighting renders observed components instead of object coercion
+  ---
+  duration_ms: 1.665356
+  type: 'test'
+  ...
+# Subtest: initial load requests the trajectory only once
+ok 5 - initial load requests the trajectory only once
+  ---
+  duration_ms: 1.011167
+  type: 'test'
+  ...
+# Subtest: slow state fetch never overlaps another state fetch
+ok 6 - slow state fetch never overlaps another state fetch
+  ---
+  duration_ms: 0.980211
+  type: 'test'
+  ...
+# Subtest: accepted Nav2 request with success=false is an operation failure
+ok 7 - accepted Nav2 request with success=false is an operation failure
+  ---
+  duration_ms: 1.115027
+  type: 'test'
+  ...
+# Subtest: transport loss records unknown outcome without retrying the POST
+ok 8 - transport loss records unknown outcome without retrying the POST
+  ---
+  duration_ms: 0.988401
+  type: 'test'
+  ...
+# Subtest: duplicate command cannot submit while its previous POST is pending
+ok 9 - duplicate command cannot submit while its previous POST is pending
+  ---
+  duration_ms: 1.203864
+  type: 'test'
+  ...
+# Subtest: state refresh retains pending lock and independent cancellation controls
+ok 10 - state refresh retains pending lock and independent cancellation controls
+  ---
+  duration_ms: 1.935072
+  type: 'test'
+  ...
+# Subtest: disconnected state disables ordinary commands but retains cancellation
+ok 11 - disconnected state disables ordinary commands but retains cancellation
+  ---
+  duration_ms: 1.107301
+  type: 'test'
+  ...
+# Subtest: hung state request is aborted and a later poll can recover
+ok 12 - hung state request is aborted and a later poll can recover
+  ---
+  duration_ms: 1.124559
+  type: 'test'
+  ...
+# Subtest: arrow-key tab navigation updates selection, panel and focus
+ok 13 - arrow-key tab navigation updates selection, panel and focus
+  ---
+  duration_ms: 0.84337
+  type: 'test'
+  ...
+# Subtest: backend 202 keeps the running goal visible and preserves its cancel advice
+ok 14 - backend 202 keeps the running goal visible and preserves its cancel advice
+  ---
+  duration_ms: 0.98542
+  type: 'test'
+  ...
+# Subtest: backend 504 is an unknown execution outcome, not a rejected goal
+ok 15 - backend 504 is an unknown execution outcome, not a rejected goal
+  ---
+  duration_ms: 1.518549
+  type: 'test'
+  ...
+# Subtest: BFCache restore restarts polling without duplicating timers
+ok 16 - BFCache restore restarts polling without duplicating timers
+  ---
+  duration_ms: 1.187431
+  type: 'test'
+  ...
+# Subtest: log filter keeps the chosen level and above
+ok 17 - log filter keeps the chosen level and above
+  ---
+  duration_ms: 1.106894
+  type: 'test'
+  ...
+# Subtest: current stage from the snapshot is written to the header
+ok 18 - current stage from the snapshot is written to the header
+  ---
+  duration_ms: 0.891722
+  type: 'test'
+  ...
+# Subtest: confirming after the snapshot expires cannot send an ordinary POST
+ok 19 - confirming after the snapshot expires cannot send an ordinary POST
+  ---
+  duration_ms: 0.962058
+  type: 'test'
+  ...
+# Subtest: canceled level 2 ledger preserves pregrasp verification and cancellation
+ok 20 - canceled level 2 ledger preserves pregrasp verification and cancellation
+  ---
+  duration_ms: 1.700629
+  type: 'test'
+  ...
+# Subtest: perception HARVESTED and level 6 never count as confirmed harvest
+ok 21 - perception HARVESTED and level 6 never count as confirmed harvest
+  ---
+  duration_ms: 0.987037
+  type: 'test'
+  ...
+# Subtest: only matching current ledger level 7 counts as confirmed harvest
+ok 22 - only matching current ledger level 7 counts as confirmed harvest
+  ---
+  duration_ms: 0.779004
+  type: 'test'
+  ...
+# Subtest: allowed decision with diagnostic reason is not displayed as a rejection
+ok 23 - allowed decision with diagnostic reason is not displayed as a rejection
+  ---
+  duration_ms: 1.19224
+  type: 'test'
+  ...
+# Subtest: photo return never posts through disabled motion or recovery gates
+ok 24 - photo return never posts through disabled motion or recovery gates
+  ---
+  duration_ms: 0.797504
+  type: 'test'
+  ...
+# Subtest: photo return uses the existing service after explicit recovery has cleared
+ok 25 - photo return uses the existing service after explicit recovery has cleared
+  ---
+  duration_ms: 0.952032
+  type: 'test'
+  ...
+# Subtest: photo return confirmation rechecks the motion gate before submitting
+ok 26 - photo return confirmation rechecks the motion gate before submitting
+  ---
+  duration_ms: 0.824999
+  type: 'test'
+  ...
+# Subtest: photo return is disabled during an arm cycle but execution-off still permits planning
+ok 27 - photo return is disabled during an arm cycle but execution-off still permits planning
+  ---
+  duration_ms: 0.963366
+  type: 'test'
+  ...
+# Subtest: main operation area explains PREGRASP_ONLY and independent grasp diagnostic
+ok 28 - main operation area explains PREGRASP_ONLY and independent grasp diagnostic
+  ---
+  duration_ms: 0.939123
+  type: 'test'
+  ...
+# Subtest: main operation area shows FULL enable blockers and preserves canceled level 2 evidence
+ok 29 - main operation area shows FULL enable blockers and preserves canceled level 2 evidence
+  ---
+  duration_ms: 1.112117
+  type: 'test'
+  ...
+# Subtest: PREVIEW can submit with motion disabled while OBSERVE_ONLY cannot
+ok 30 - PREVIEW can submit with motion disabled while OBSERVE_ONLY cannot
+  ---
+  duration_ms: 1.016748
+  type: 'test'
+  ...
+# Subtest: return-photo click confirms and submits only the existing empty service request
+ok 31 - return-photo click confirms and submits only the existing empty service request
+  ---
+  duration_ms: 1.198619
+  type: 'test'
+  ...
+# Subtest: accepted response without success is not a confirmed successful operation
+ok 32 - accepted response without success is not a confirmed successful operation
+  ---
+  duration_ms: 1.056935
+  type: 'test'
+  ...
+# Subtest: formatting does not turn boolean or blank missing values into measured zero
+not ok 33 - formatting does not turn boolean or blank missing values into measured zero
+  ---
+  duration_ms: 2.565852
+  type: 'test'
+  location: '/home/mu/Desktop/aubo_e5_jazzy_ws/src/peach_web/test/web_state.test.cjs:427:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    
+    '0.000' !== '—'
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: '—'
+  actual: '0.000'
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (/home/mu/Desktop/aubo_e5_jazzy_ws/src/peach_web/test/web_state.test.cjs:429:10)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+1..33
+# tests 33
+# suites 0
+# pass 32
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 53.214413
+
+测试文件：1，通过：0，失败：1

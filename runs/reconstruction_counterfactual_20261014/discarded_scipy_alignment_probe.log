@@ -1,0 +1,9 @@
+[WARN] [1791946611.157971835] [rcl]: ROS_LOCALHOST_ONLY is deprecated but still honored if it is enabled. Use ROS_AUTOMATIC_DISCOVERY_RANGE and ROS_STATIC_PEERS instead.
+[WARN] [1791946611.157992398] [rcl]: 'localhost_only' is enabled, 'automatic_discovery_range' and 'static_peers' will be ignored.
+/tmp/peach_outer_bag_20261014/ik_counterfactual.py:51: UserWarning: Optimal rotation is not uniquely or poorly defined for the given sets of vectors.
+  aligned=Rotation.align_vectors(axis.reshape(1,3),current_R[:,2].reshape(1,3))[0].as_matrix()@current_R
+old_success_geometry [(0, True, True, False), (30, True, True, False), (-30, True, True, False), (60, False, False, False), (-60, True, True, False)]
+new_reconstruction_geometry [(0, False, False, False), (30, False, False, False), (-30, False, False, False), (60, True, False, False), (-60, False, False, False)]
+new_entry_old_axis [(0, True, True, False), (30, True, False, False), (-30, True, True, False), (60, False, False, False), (-60, True, False, False)]
+old_entry_new_axis [(0, False, False, False), (30, False, False, False), (-30, False, False, False), (60, True, True, False), (-60, False, False, False)]
+probe stopped own launch 205564 0

@@ -608,31 +608,15 @@ class ObservabilityNode(LifecycleNode):
 
     def _raw_refined_context(self) -> dict | None:
         """仅原始身份与当下感知观察一致时绑定只读来源，不猜 revision."""
-        raw = self._recon_debug_extra
         targets = self._state.snapshot().get('perception', {}).get('targets', {})
-        run, target = raw.get('harvest_run_id'), raw.get('target_id')
-        epoch = targets.get('scene_epoch')
-        if (not isinstance(run, str) or not run
-                or not isinstance(target, str) or not target
-                or run != targets.get('harvest_run_id')
-                or not isinstance(epoch, int) or isinstance(epoch, bool) or epoch <= 0):
-            return None
-        if not any(item.get('target_id') == target
-                   for item in targets.get('observations', []) if isinstance(item, dict)):
-            return None
-        return {'target_id': target, 'harvest_run_id': run, 'scene_epoch': epoch}
+        return pipeline.refined_source_context(self._recon_debug_extra, targets)
 
     def _publish_recon_diagnostics(self) -> None:
         """原始与类型化诊断共用合并：typed 覆盖状态，但不重写 raw 来源身份."""
-        merged = dict(self._recon_debug_extra)
-        merged.pop('refined_context', None)
-        merged.update(getattr(self, '_recon_typed_value', {}))
-        context = getattr(self, '_recon_debug_context', None)
-        # 只验证当时绑定的来源，后来新 epoch 不得追溯重贴旧 raw.
-        if context is not None and context == self._raw_refined_context():
-            merged['refined_context'] = dict(context)
-        if self._recon_decision_value is not None:
-            merged['grasp_decision'] = self._recon_decision_value
+        merged = pipeline.merge_reconstruction_diagnostics(
+            self._recon_debug_extra, getattr(self, '_recon_typed_value', {}),
+            self._recon_decision_value, getattr(self, '_recon_debug_context', None),
+            self._raw_refined_context())
         center = merged.get('target_center_base')
         if isinstance(center, list):
             self._traj_landmarks['reconstruction_center'] = center

@@ -29,7 +29,8 @@ find_library(LIB_TYCAM tycam PATHS ${TYCAM_DIR}/lib/linux/lib_x64 NO_DEFAULT_PAT
 find_library(LIB_TYIMGPROC tyimgproc PATHS ${TYCAM_DIR}/lib/linux/lib_x64 NO_DEFAULT_PATH REQUIRED)
 
 add_executable(stereo_camera_node src/stereo_camera_node.cpp)
-target_include_directories(stereo_camera_node PRIVATE ${TYCAM_DIR}/include)
+# 厂商 SDK 作为系统头处理，保留本包编译告警，不改 vendored SDK。
+target_include_directories(stereo_camera_node SYSTEM PRIVATE ${TYCAM_DIR}/include)
 target_link_libraries(stereo_camera_node ${LIB_TYCAM} ${LIB_TYIMGPROC} ${OpenCV_LIBS})
 ament_target_dependencies(stereo_camera_node
   rclcpp sensor_msgs std_msgs cv_bridge camera_calibration_parsers diagnostic_updater

@@ -1,0 +1,53 @@
+FF                                                                       [100%]
+=================================== FAILURES ===================================
+____ test_build_binds_goal_epoch_before_any_collection_or_model_publication ____
+
+    def test_build_binds_goal_epoch_before_any_collection_or_model_publication():
+        """Build目标的世代必须在自动采集/发布前成为模型身份."""
+        node = SimpleNamespace(
+            _scene_epoch=0, _state_lock=threading.RLock(),
+            _on_reset=lambda *_args: None,
+        )
+    
+        def start():
+            assert node._scene_epoch == 7
+            raise _BindingComplete()
+    
+        node._auto_start = start
+        handle = SimpleNamespace(request=BuildTargetModel.Goal(
+            target_id='t1', scene_epoch=7))
+        with pytest.raises(_BindingComplete):
+>           TargetReconstructionNode._build_target_model_body(node, handle)
+
+src/peach/peach_harvester/test/test_reconstruction_scene_identity.py:33: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+src/peach/peach_harvester/peach_harvester/vision/target_reconstruction/target_reconstruction_node.py:1399: in _build_target_model_body
+    self._auto_start()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    def start():
+>       assert node._scene_epoch == 7
+E       AssertionError: assert 0 == 7
+E        +  where 0 = namespace(_scene_epoch=0, _state_lock=<locked _thread.RLock object owner=133275833142144 count=1 at 0x793633b1b640>, _...tion.<locals>.start at 0x793633af6de0>, _executor_state_seen=True, _executor_target_id='t1', _preferred_target_id='t1')._scene_epoch
+
+src/peach/peach_harvester/test/test_reconstruction_scene_identity.py:26: AssertionError
+_______ test_executor_heartbeat_does_not_overwrite_canonical_scene_epoch _______
+
+    def test_executor_heartbeat_does_not_overwrite_canonical_scene_epoch():
+        """晚到的调度状态不能将已绑定的感知/Build世代回写成零."""
+        node = SimpleNamespace(
+            _scene_epoch=7, _state_lock=threading.RLock(),
+            _harvest_data=SimpleNamespace(base_dir=Path('/tmp')),
+            _recorder=SimpleNamespace(bind_executor_run_id=lambda *_args: None),
+        )
+        TargetReconstructionNode._on_executor_state(
+            node, HarvestState(target_id='t1', run_id='run1', scene_epoch=0))
+>       assert node._scene_epoch == 7
+E       AssertionError: assert 0 == 7
+E        +  where 0 = namespace(_scene_epoch=0, _state_lock=<unlocked _thread.RLock object owner=0 count=0 at 0x793633afb000>, _harvest_data...write_canonical_scene_epoch.<locals>.<lambda> at 0x7936339631a0>), _executor_state_seen=True, _executor_target_id='t1')._scene_epoch
+
+src/peach/peach_harvester/test/test_reconstruction_scene_identity.py:45: AssertionError
+=========================== short test summary info ============================
+FAILED src/peach/peach_harvester/test/test_reconstruction_scene_identity.py::test_build_binds_goal_epoch_before_any_collection_or_model_publication
+FAILED src/peach/peach_harvester/test/test_reconstruction_scene_identity.py::test_executor_heartbeat_does_not_overwrite_canonical_scene_epoch
+2 failed in 0.47s

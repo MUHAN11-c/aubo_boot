@@ -3,7 +3,7 @@
 .wb-head { display:flex; justify-content:space-between; align-items:center; gap:20px; padding:8px 0 16px; }
 .wb-head h2 { margin:5px 0 0; font-size:22px; font-weight:600; }
 .wb-shell button { color:var(--text); background:var(--panel); border:1px solid var(--line); border-radius:5px; padding:10px 12px; cursor:pointer; font:inherit; font-size:12px; text-align:left; }
-.wb-shell button:hover:not(:disabled) { border-color:var(--accent); background:var(--panel-hi, #1e2932); }
+.wb-shell button:hover:not(:disabled) { border-color:var(--accent); background:var(--panel-hi, #edf5f6); }
 .wb-shell button:focus-visible, .wb-shell input:focus-visible, .wb-shell select:focus-visible, .wb-shell textarea:focus-visible, .wb-shell summary:focus-visible { outline:2px solid var(--accent); outline-offset:3px; }
 .wb-shell button:disabled { opacity:.42; cursor:not-allowed; }
 .wb-shell button[aria-busy="true"] { color:var(--warn); opacity:.75; }
@@ -17,7 +17,7 @@
 .wb-steps { display:flex; flex-direction:column; gap:7px; }
 .wb-steps button { display:flex; align-items:center; gap:13px; min-height:53px; }
 .wb-steps button b { font:17px ui-monospace,monospace; color:var(--muted); }
-.wb-steps button[aria-pressed="true"] { border-color:var(--accent); box-shadow:inset 3px 0 var(--accent); background:var(--panel-hi,#1e2932); }
+.wb-steps button[aria-pressed="true"] { border-color:var(--accent); box-shadow:inset 3px 0 var(--accent); background:var(--panel-hi,#edf5f6); }
 .wb-steps button[aria-pressed="true"] b { color:var(--accent); }
 .wb-steps p, .wb-shell p { color:var(--muted); line-height:1.65; font-size:12px; }
 .wb-steps > p { padding:8px 12px; }
@@ -42,6 +42,10 @@
 .wb-shell [data-wb-notice] { padding:10px; border-left:2px solid var(--accent); background:var(--bg); overflow-wrap:anywhere; }
 .wb-latest { font-size:12px; overflow-wrap:anywhere; }
 .wb-latest b { font:11px ui-monospace,monospace; }
+.wb-reach-row { border:1px solid var(--line); padding:9px; display:flex; flex-wrap:wrap; gap:6px; margin:7px 0; border-radius:4px; }
+.wb-reach-row.good { border-left:3px solid var(--ok); }.wb-reach-row.bad { border-left:3px solid var(--err); }
+.wb-reach-row.good strong { color:var(--ok); }.wb-reach-row.bad strong { color:var(--err); }
+.wb-reach-row code { flex-basis:100%; font-size:10px; }.wb-reach-results small { color:var(--muted); }
 .wb-evidence, .wb-advanced, .wb-json { border:1px solid var(--line); background:var(--panel); border-radius:8px; padding:14px; margin-top:14px; }
 .wb-shell summary { cursor:pointer; color:var(--text); font-size:13px; }
 .wb-shell pre { white-space:pre-wrap; overflow-wrap:anywhere; font:11px/1.7 ui-monospace,monospace; max-height:320px; overflow:auto; background:var(--bg); padding:10px; border-radius:3px; }

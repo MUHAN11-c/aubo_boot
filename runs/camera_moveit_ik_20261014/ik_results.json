@@ -1,0 +1,48 @@
+{
+  "solver": "MoveIt 2 /compute_ik KDL, group manipulator_e5, tip tcp, avoid_collisions false",
+  "orientation": "minimum rotation taking photo TCP z onto the camera bag axis, roll 0",
+  "camera_bottom_m": [
+    0.36271119837874255,
+    -0.8527248670953206,
+    0.584436819928776
+  ],
+  "camera_axis": [
+    0.340501769642865,
+    -0.22403278033618573,
+    0.9131636535719738
+  ],
+  "camera_travel_m": 0.09614662700605572,
+  "photo_tcp_m": [
+    0.35878779463397137,
+    -0.24433533371781496,
+    0.6887775205336286
+  ],
+  "photo_self_ik": -31,
+  "points": [
+    {
+      "along_mm": 0.0,
+      "seed_fk_miss_mm": 1.46,
+      "ik_from_near_seed": 1,
+      "forearm_deg": -30.2,
+      "ik_from_photo_seed": 1
+    },
+    {
+      "along_mm": 30.0,
+      "seed_fk_miss_mm": 0.9,
+      "ik_from_near_seed": 1,
+      "forearm_deg": 9.9,
+      "ik_from_photo_seed": 1
+    },
+    {
+      "along_mm": 96.15,
+      "seed_fk_miss_mm": 35.44,
+      "ik_from_near_seed": -31,
+      "forearm_deg": null,
+      "ik_from_photo_seed": -31
+    }
+  ],
+  "cartesian_from_entry_fraction": 0.3,
+  "cartesian_reached_mm": 28.8,
+  "cartesian_error_code": 1,
+  "motion": "none"
+}

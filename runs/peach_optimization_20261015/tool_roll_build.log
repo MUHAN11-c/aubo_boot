@@ -1,0 +1,180 @@
+Starting >>> peach_harvester
+running egg_info
+writing ../../../build/peach_harvester/peach_harvester.egg-info/PKG-INFO
+writing dependency_links to ../../../build/peach_harvester/peach_harvester.egg-info/dependency_links.txt
+writing entry points to ../../../build/peach_harvester/peach_harvester.egg-info/entry_points.txt
+writing requirements to ../../../build/peach_harvester/peach_harvester.egg-info/requires.txt
+writing top-level names to ../../../build/peach_harvester/peach_harvester.egg-info/top_level.txt
+reading manifest file '../../../build/peach_harvester/peach_harvester.egg-info/SOURCES.txt'
+writing manifest file '../../../build/peach_harvester/peach_harvester.egg-info/SOURCES.txt'
+running build
+running build_py
+copying peach_harvester/supervisor/executor_node.py -> /home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_harvester/build/lib/peach_harvester/supervisor
+copying peach_harvester/vision/target_reconstruction/target_reconstruction_node.py -> /home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_harvester/build/lib/peach_harvester/vision/target_reconstruction
+running install
+running install_lib
+copying /home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_harvester/build/lib/peach_harvester/supervisor/executor_node.py -> /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_harvester/lib/python3.12/site-packages/peach_harvester/supervisor
+copying /home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_harvester/build/lib/peach_harvester/vision/target_reconstruction/target_reconstruction_node.py -> /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_harvester/lib/python3.12/site-packages/peach_harvester/vision/target_reconstruction
+byte-compiling /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_harvester/lib/python3.12/site-packages/peach_harvester/supervisor/executor_node.py to executor_node.cpython-312.pyc
+byte-compiling /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_harvester/lib/python3.12/site-packages/peach_harvester/vision/target_reconstruction/target_reconstruction_node.py to target_reconstruction_node.cpython-312.pyc
+running install_data
+copying config/peach_supervisor.yaml -> /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_harvester/share/peach_harvester/config
+running install_egg_info
+removing '/home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_harvester/lib/python3.12/site-packages/peach_harvester-0.1.0-py3.12.egg-info' (and everything under it)
+Copying ../../../build/peach_harvester/peach_harvester.egg-info to /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_harvester/lib/python3.12/site-packages/peach_harvester-0.1.0-py3.12.egg-info
+running install_scripts
+Installing peach_harvester script to /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_harvester/lib/peach_harvester
+Installing peach_scene_obstacles script to /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_harvester/lib/peach_harvester
+Installing peach_scene_perception_node script to /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_harvester/lib/peach_harvester
+Installing peach_supervisor script to /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_harvester/lib/peach_harvester
+Installing peach_target_reconstruction_node script to /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_harvester/lib/peach_harvester
+writing list of installed files to '/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_harvester/install.log'
+Finished <<< peach_harvester [0.83s]
+Starting >>> peach_arm
+[  4%] Built target arm_parameters
+[  8%] Built target gtest_main
+[ 12%] Built target gtest
+[ 24%] Built target peach_arm_core
+[ 32%] Built target test_pregrasp_level
+[ 32%] Built target test_gates
+[ 34%] Building CXX object CMakeFiles/test_staging_waypoints.dir/test/test_staging_waypoints.cpp.o
+[ 38%] Built target test_reconfirm_policy
+[ 42%] Built target test_acm_policy
+[ 52%] Built target test_pregrasp_residual
+[ 54%] Built target test_view_planner
+[ 54%] Built target test_trajectory_guard
+[ 58%] Built target test_frame_timeouts
+[ 66%] Built target test_target_cache
+[ 62%] Built target test_tool_actuator
+[ 70%] Built target test_insert_progress
+[ 72%] Building CXX object CMakeFiles/test_grasp_geometry.dir/test/test_grasp_geometry.cpp.o
+[ 76%] Built target test_thread_join
+[ 78%] Building CXX object CMakeFiles/peach_arm.dir/src/manipulation_skills_node.cpp.o
+[ 80%] Building CXX object CMakeFiles/peach_arm.dir/src/target_observers.cpp.o
+[ 82%] Building CXX object CMakeFiles/peach_arm.dir/src/status.cpp.o
+[ 84%] Building CXX object CMakeFiles/peach_arm.dir/src/cycle.cpp.o
+[ 86%] Building CXX object CMakeFiles/peach_arm.dir/src/move_to.cpp.o
+[ 88%] Building CXX object CMakeFiles/peach_arm.dir/src/stages.cpp.o
+[ 90%] Building CXX object CMakeFiles/peach_arm.dir/src/grasp_task.cpp.o
+[ 92%] Building CXX object CMakeFiles/peach_arm.dir/src/main.cpp.o
+[ 94%] Building CXX object CMakeFiles/peach_arm.dir/src/motion.cpp.o
+[ 96%] Linking CXX executable test_staging_waypoints
+[ 96%] Built target test_staging_waypoints
+[ 98%] Linking CXX executable test_grasp_geometry
+[ 98%] Built target test_grasp_geometry
+[100%] Linking CXX executable peach_arm
+[Processing: peach_arm]
+[100%] Built target peach_arm
+-- Install configuration: "Release"
+-- Up-to-date: /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_arm/include/peach_arm
+-- Up-to-date: /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_arm/include/peach_arm/arm_parameters.hpp
+-- Up-to-date: /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_arm/lib/libpeach_arm_core.a
+-- Installing: /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_arm/lib/peach_arm/peach_arm
+-- Set non-toolchain portion of runtime path of "/home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_arm/lib/peach_arm/peach_arm" to ""
+-- Up-to-date: /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_arm/include
+-- Up-to-date: /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_arm/include/peach_arm
+-- Up-to-date: /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_arm/include/peach_arm/angles.hpp
+-- Up-to-date: /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_arm/include/peach_arm/math_utils.hpp
+-- Up-to-date: /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_arm/include/peach_arm/stage_denial.hpp
+-- Up-to-date: /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_arm/include/peach_arm/motion.hpp
+-- Installing: /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_arm/include/peach_arm/grasp_geometry.hpp
+-- Up-to-date: /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_arm/include/peach_arm/reconfirm_policy.hpp
+-- Up-to-date: /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_arm/include/peach_arm/pregrasp_level.hpp
+-- Up-to-date: /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_arm/include/peach_arm/insert_progress.hpp
+-- Up-to-date: /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_arm/include/peach_arm/grasp_task.hpp
+-- Up-to-date: /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_arm/include/peach_arm/target_cache.hpp
+-- Up-to-date: /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_arm/include/peach_arm/safety_gate.hpp
+-- Up-to-date: /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_arm/include/peach_arm/quality_gate.hpp
+-- Up-to-date: /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_arm/include/peach_arm/acm_policy.hpp
+-- Up-to-date: /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_arm/include/peach_arm/cycle_context.hpp
+-- Up-to-date: /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_arm/include/peach_arm/cycle_support.hpp
+-- Up-to-date: /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_arm/include/peach_arm/view_planner.hpp
+-- Up-to-date: /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_arm/include/peach_arm/protected_zones.hpp
+-- Up-to-date: /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_arm/include/peach_arm/params_bridge.hpp
+-- Up-to-date: /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_arm/include/peach_arm/trajectory_guard.hpp
+-- Up-to-date: /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_arm/include/peach_arm/frame_timeouts.hpp
+-- Up-to-date: /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_arm/include/peach_arm/thread_join.hpp
+-- Up-to-date: /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_arm/include/peach_arm/model_contract.hpp
+-- Up-to-date: /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_arm/include/peach_arm/pregrasp_residual.hpp
+-- Up-to-date: /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_arm/include/peach_arm/manipulation_skills_node.hpp
+-- Up-to-date: /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_arm/include/peach_arm/tool_actuator.hpp
+-- Up-to-date: /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_arm/include/peach_arm/eigen_conversions.hpp
+-- Up-to-date: /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_arm/include/peach_arm/plan_contract.hpp
+-- Up-to-date: /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_arm/include/peach_arm/contact_monitor.hpp
+-- Up-to-date: /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_arm/share/peach_arm/config
+-- Up-to-date: /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_arm/share/peach_arm/config/peach_arm.yaml
+-- Up-to-date: /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_arm/share/peach_arm/launch
+-- Up-to-date: /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_arm/share/peach_arm/launch/peach_arm.launch.py
+-- Up-to-date: /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_arm/share/peach_arm/test/fixtures
+-- Up-to-date: /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_arm/share/peach_arm/test/fixtures/field_pregrasp_cases.yaml
+-- Up-to-date: /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_arm/share/peach_arm/test/fixtures/perception_constraint_grid.yaml
+-- Up-to-date: /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_arm/share/peach_arm/environment/library_path.sh
+-- Up-to-date: /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_arm/share/peach_arm/environment/library_path.dsv
+-- Up-to-date: /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_arm/share/ament_index/resource_index/package_run_dependencies/peach_arm
+-- Up-to-date: /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_arm/share/ament_index/resource_index/parent_prefix_path/peach_arm
+-- Up-to-date: /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_arm/share/peach_arm/environment/ament_prefix_path.sh
+-- Up-to-date: /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_arm/share/peach_arm/environment/ament_prefix_path.dsv
+-- Up-to-date: /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_arm/share/peach_arm/environment/path.sh
+-- Up-to-date: /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_arm/share/peach_arm/environment/path.dsv
+-- Up-to-date: /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_arm/share/peach_arm/local_setup.bash
+-- Up-to-date: /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_arm/share/peach_arm/local_setup.sh
+-- Up-to-date: /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_arm/share/peach_arm/local_setup.zsh
+-- Up-to-date: /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_arm/share/peach_arm/local_setup.dsv
+-- Installing: /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_arm/share/peach_arm/package.dsv
+-- Up-to-date: /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_arm/share/ament_index/resource_index/packages/peach_arm
+-- Up-to-date: /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_arm/share/peach_arm/cmake/ament_cmake_export_dependencies-extras.cmake
+-- Up-to-date: /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_arm/share/peach_arm/cmake/ament_cmake_export_include_directories-extras.cmake
+-- Up-to-date: /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_arm/share/peach_arm/cmake/ament_cmake_export_libraries-extras.cmake
+-- Up-to-date: /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_arm/share/peach_arm/cmake/peach_armConfig.cmake
+-- Up-to-date: /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_arm/share/peach_arm/cmake/peach_armConfig-version.cmake
+-- Up-to-date: /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_arm/share/peach_arm/package.xml
+Finished <<< peach_arm [45.2s]
+Starting >>> peach_system_tests
+-- Found ament_cmake: 2.5.6 (/opt/ros/jazzy/share/ament_cmake/cmake)
+-- Override CMake install command with custom implementation using symlinks instead of copying resources
+-- Found ament_cmake_pytest: 2.5.6 (/opt/ros/jazzy/share/ament_cmake_pytest/cmake)
+-- Found launch_testing_ament_cmake: 3.4.12 (/opt/ros/jazzy/share/launch_testing_ament_cmake/cmake)
+-- Found python_cmake_module: 0.11.1 (/opt/ros/jazzy/share/python_cmake_module/cmake)
+-- Configuring done (4.8s)
+-- Generating done (0.0s)
+-- Build files have been written to: /home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_system_tests
+-- Install configuration: "Release"
+-- Execute custom install script
+-- Up-to-date symlink: /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_system_tests/share/peach_system_tests/launch/frozen_camera_grasp.launch.py
+-- Up-to-date symlink: /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_system_tests/share/peach_system_tests/config/frozen_one_view.yaml
+-- Up-to-date symlink: /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_system_tests/share/peach_system_tests/config/live_camera_mock.rviz
+-- Up-to-date symlink: /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_system_tests/share/peach_system_tests/config/live_camera_mock.yaml
+-- Up-to-date symlink: /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_system_tests/share/ament_index/resource_index/package_run_dependencies/peach_system_tests
+-- Up-to-date symlink: /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_system_tests/share/ament_index/resource_index/parent_prefix_path/peach_system_tests
+-- Up-to-date symlink: /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_system_tests/share/peach_system_tests/environment/ament_prefix_path.sh
+-- Up-to-date symlink: /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_system_tests/share/peach_system_tests/environment/ament_prefix_path.dsv
+-- Up-to-date symlink: /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_system_tests/share/peach_system_tests/environment/path.sh
+-- Up-to-date symlink: /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_system_tests/share/peach_system_tests/environment/path.dsv
+-- Up-to-date symlink: /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_system_tests/share/peach_system_tests/local_setup.bash
+-- Up-to-date symlink: /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_system_tests/share/peach_system_tests/local_setup.sh
+-- Up-to-date symlink: /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_system_tests/share/peach_system_tests/local_setup.zsh
+-- Up-to-date symlink: /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_system_tests/share/peach_system_tests/local_setup.dsv
+-- Symlinking: /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_system_tests/share/peach_system_tests/package.dsv
+-- Up-to-date symlink: /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_system_tests/share/ament_index/resource_index/packages/peach_system_tests
+-- Up-to-date symlink: /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_system_tests/share/peach_system_tests/cmake/peach_system_testsConfig.cmake
+-- Up-to-date symlink: /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_system_tests/share/peach_system_tests/cmake/peach_system_testsConfig-version.cmake
+-- Up-to-date symlink: /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_system_tests/share/peach_system_tests/package.xml
+-- Up-to-date: /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_system_tests/lib/peach_system_tests
+-- Up-to-date: /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_system_tests/lib/peach_system_tests/gen_baseline_inventory.py
+-- Installing: /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_system_tests/lib/peach_system_tests/run_frozen_grasp.py
+-- Up-to-date: /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_system_tests/lib/peach_system_tests/drive_frozen_grasp.py
+-- Up-to-date: /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_system_tests/lib/peach_system_tests/check_planning_scene.py
+-- Up-to-date: /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_system_tests/lib/peach_system_tests/probe_topics.py
+-- Up-to-date: /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_system_tests/lib/peach_system_tests/drive_harvest.py
+-- Up-to-date: /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_system_tests/lib/peach_system_tests/__pycache__
+-- Up-to-date: /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_system_tests/lib/peach_system_tests/__pycache__/frozen_camera_replay.cpython-312.pyc
+-- Installing: /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_system_tests/lib/peach_system_tests/__pycache__/run_frozen_grasp.cpython-312.pyc
+-- Installing: /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_system_tests/lib/peach_system_tests/__pycache__/gen_baseline_inventory.cpython-312.pyc
+-- Installing: /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_system_tests/lib/peach_system_tests/__pycache__/run_live_camera_mock.cpython-312.pyc
+-- Up-to-date: /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_system_tests/lib/peach_system_tests/__pycache__/drive_frozen_grasp.cpython-312.pyc
+-- Up-to-date: /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_system_tests/lib/peach_system_tests/__pycache__/drive_harvest.cpython-312.pyc
+-- Up-to-date: /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_system_tests/lib/peach_system_tests/frozen_camera_replay.py
+-- Installing: /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_system_tests/lib/peach_system_tests/run_live_camera_mock.py
+Finished <<< peach_system_tests [4.91s]
+
+Summary: 3 packages finished [51.2s]

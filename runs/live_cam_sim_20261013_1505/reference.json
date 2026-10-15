@@ -1,0 +1,51 @@
+{
+  "purpose": "真实立体相机 + mock 臂的现场参考。相机物理机位固定，仿真腕不得重锚画面。",
+  "camera": {
+    "frontend": "stereo",
+    "ip": "169.254.10.110",
+    "device": "PS800-E1 207000152740",
+    "rate_gps": 13.3
+  },
+  "fixed_camera_tf": {
+    "parent": "base_link",
+    "child": "camera_link",
+    "xyz_m": [0.3780573326439316, -0.07547177076037584, 0.7666632351254871],
+    "quaternion_xyzw": [-0.0036889994433193067, -7.498157537607713e-06, -0.6576092061184594, 0.753350199611797],
+    "extrinsics_enabled": false,
+    "note": "静态 TF 须在感知节点已订阅 /tf_static 之后再发布，否则 transient_local 样本到不了晚加入的节点，base_link 与 camera_link 会分成两棵树。"
+  },
+  "hardware": {
+    "mode": "mock",
+    "tool_profile": "bite_shear_v1",
+    "robot_controller_169_254_10_98": "unreachable",
+    "real_motion_or_setio": false
+  },
+  "session_bag": "runs/session_20261013_154041/bag",
+  "pregrasp_cycle": {
+    "request_id": "live_cam_sim_grasp_20261013_1541",
+    "mode": "PREGRASP_ONLY",
+    "result": "arm reached pregrasp and waited for ACK; driver cancelled at 180s",
+    "perception": "runs/live_cam_sim_grasp_20261013_1541/perception_data/harvest_20261013T154130_008414_s2"
+  },
+  "full_cycle": {
+    "request_id": "live_cam_sim_full_20261013_1545",
+    "elapsed_s": 45.5,
+    "discovered": 1,
+    "attempted": 1,
+    "succeeded": 0,
+    "termination_reason": "no_targets_succeeded",
+    "ledger": "runs/live_cam_sim_full_20261013_1545/ledger.json",
+    "perception": "runs/live_cam_sim_full_20261013_1545/perception_data/harvest_20261013T154641_579455_s3",
+    "model": {
+      "views": 1,
+      "points": 2335,
+      "diameter_m": 0.0832,
+      "rmse_m": 0.00186,
+      "refit": "ACCEPT",
+      "allowed": false,
+      "reason": "cut_plane_fruit_clearance",
+      "cut_to_fruit_m": null,
+      "radial_margin_m": -0.0342
+    }
+  }
+}

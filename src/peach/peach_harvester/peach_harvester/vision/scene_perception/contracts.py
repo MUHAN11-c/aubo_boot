@@ -202,14 +202,29 @@ def compute_travel_range(P_entry_start: np.ndarray, P_neck: np.ndarray,
     Returns
     -------
         (travel_min, travel_max): 建议行程区间 (m)；travel_min 为 0.8 倍
-        安全行程的保守下限，travel_max 受 insert_length_m 封顶.
+        已封顶安全行程的保守下限，travel_max 受 insert_length_m 封顶.
 
     """
     s_neck = float(np.dot(P_neck - P_entry_start, Z_tool) - tool.blade_offset_m)
     s_safe = max(0.0, s_neck - tool.margin_neck)
-    s_min = max(0.0, s_safe * 0.8)   # 保守下限
     s_max = min(s_safe, tool.insert_length_m)  # 上限受工具长度约束
+    s_min = max(0.0, s_max * 0.8)   # 封顶后派生下限，避免区间倒置
     return (s_min, s_max)
+
+
+# 长行程工具的绝对最短有效插入。bite_shear_v1 的设计行程只有 0.03 m，
+# 下限若固定 0.05 m，封顶后的满行程也会恒判 travel_too_short。
+ABSOLUTE_MIN_TRAVEL_M = 0.05
+
+
+def minimum_useful_travel_m(insert_length_m: float) -> float:
+    """本工具最短有效插入 [m]：min(0.05, insert_length_m)."""
+    return min(ABSOLUTE_MIN_TRAVEL_M, float(insert_length_m))
+
+
+def travel_is_too_short(travel_m: float, insert_length_m: float) -> bool:
+    """封顶后的建议行程短于本工具能完成的最短有效插入."""
+    return float(travel_m) < minimum_useful_travel_m(insert_length_m)
 
 
 @dataclass(frozen=True)

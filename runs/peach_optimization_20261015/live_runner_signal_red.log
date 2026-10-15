@@ -1,0 +1,73 @@
+..............FFFF                                                       [100%]
+=================================== FAILURES ===================================
+_________________ test_signal_handlers_restore_previous_owners _________________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x745621c7c7d0>
+
+    def test_signal_handlers_restore_previous_owners(monkeypatch):
+        m = load()
+        previous = {m.signal.SIGINT: object(), m.signal.SIGTERM: object()}
+        installed = dict(previous)
+        monkeypatch.setattr(m.signal, 'getsignal', lambda sig: installed[sig])
+        monkeypatch.setattr(m.signal, 'signal', lambda sig, fn: installed.__setitem__(sig, fn))
+        def interrupted(args):
+            with pytest.raises(KeyboardInterrupt):
+                installed[m.signal.SIGTERM](m.signal.SIGTERM, None)
+            raise RuntimeError('runtime failure')
+>       monkeypatch.setattr(m, 'run', interrupted)
+E       AttributeError: <module 'live_camera_mock' from '/home/mu/Desktop/aubo_e5_jazzy_ws/src/peach/peach_system_tests/scripts/run_live_camera_mock.py'> has no attribute 'run'
+
+src/peach/peach_system_tests/test/test_live_camera_mock.py:195: AttributeError
+___________ test_cancel_failure_still_disables_before_context_close ____________
+
+    def test_cancel_failure_still_disables_before_context_close():
+        from types import SimpleNamespace
+        m = load()
+        calls = []
+        def cancel():
+            calls.append('cancel')
+            raise RuntimeError('cancel failed')
+        driver = SimpleNamespace(cancel=cancel,
+            enables=lambda *args: calls.append('disable'), close=lambda: calls.append('close'))
+        errors = []
+>       m.cleanup_driver(driver, errors)
+E       AttributeError: module 'live_camera_mock' has no attribute 'cleanup_driver'
+
+src/peach/peach_system_tests/test/test_live_camera_mock.py:211: AttributeError
+____________ test_close_does_not_shutdown_an_already_closed_context ____________
+
+    def test_close_does_not_shutdown_an_already_closed_context():
+        from types import SimpleNamespace
+        m = load()
+        calls = []
+        driver = object.__new__(m.RosDriver)
+        driver.node = SimpleNamespace(destroy_node=lambda: calls.append('destroy'))
+        driver.ros = SimpleNamespace(ok=lambda: False, shutdown=lambda: calls.append('shutdown'))
+        driver.close()
+>       assert calls == ['destroy']
+E       AssertionError: assert ['destroy', 'shutdown'] == ['destroy']
+E         Left contains one more item: 'shutdown'
+E         Use -v to get more diff
+
+src/peach/peach_system_tests/test/test_live_camera_mock.py:224: AssertionError
+______________ test_owned_groups_are_audited_immediately_on_start ______________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x745621cc4620>
+tmp_path = PosixPath('/tmp/pytest-of-mu/pytest-18/test_owned_groups_are_audited_0')
+
+    def test_owned_groups_are_audited_immediately_on_start(monkeypatch, tmp_path):
+        import json
+        from types import SimpleNamespace
+        m = load()
+        captured = []
+        monkeypatch.setattr(m.subprocess, 'Popen', lambda *a, **kw: SimpleNamespace(pid=12345))
+>       manager = m.OwnedProcesses({}, tmp_path / 'owned.json', on_start=lambda pid: captured.append(pid))
+E       TypeError: OwnedProcesses.__init__() got an unexpected keyword argument 'on_start'
+
+src/peach/peach_system_tests/test/test_live_camera_mock.py:233: TypeError
+=========================== short test summary info ============================
+FAILED src/peach/peach_system_tests/test/test_live_camera_mock.py::test_signal_handlers_restore_previous_owners
+FAILED src/peach/peach_system_tests/test/test_live_camera_mock.py::test_cancel_failure_still_disables_before_context_close
+FAILED src/peach/peach_system_tests/test/test_live_camera_mock.py::test_close_does_not_shutdown_an_already_closed_context
+FAILED src/peach/peach_system_tests/test/test_live_camera_mock.py::test_owned_groups_are_audited_immediately_on_start
+4 failed, 14 passed in 0.07s

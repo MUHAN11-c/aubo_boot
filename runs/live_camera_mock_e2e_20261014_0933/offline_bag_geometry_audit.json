@@ -1,0 +1,84 @@
+{
+  "source": "original bag RGB index46, not annotated HTTP preview",
+  "tool": "bite_shear_v1",
+  "gravity_hint": "camera nominal [0,1,0], diagnostic approximation",
+  "targets": [
+    {
+      "det": {
+        "class_id": 0,
+        "class_name": "peach_bag",
+        "bbox": [
+          10,
+          338,
+          88,
+          403
+        ],
+        "conf": 0.827970027923584
+      },
+      "status": "REOBSERVE",
+      "flags": [
+        "mask_unavailable"
+      ],
+      "has_anchor": false,
+      "metrics": {}
+    },
+    {
+      "det": {
+        "class_id": 0,
+        "class_name": "peach_bag",
+        "bbox": [
+          368,
+          290,
+          419,
+          369
+        ],
+        "conf": 0.7740986943244934
+      },
+      "status": "REOBSERVE",
+      "flags": [
+        "axis_from_pca",
+        "gravity_neck_fallback",
+        "length_extended_from_2d",
+        "length_extended_from_2d",
+        "error_budget_exceeded"
+      ],
+      "has_anchor": true,
+      "metrics": {
+        "valid_depth_ratio": 0.9561752988047809,
+        "foreground_ratio": 0.5306527674360884,
+        "boundary_touch_ratio": 0.07692307692307693,
+        "boundary_sides_touched": 2,
+        "n_points": 2122,
+        "bag_length_m": 0.11878769839763596,
+        "bag_diameter_upper_m": 0.08219739257123329,
+        "travel_m": 0.03,
+        "axis_confidence": 0.43278158968032515,
+        "axis_disagreement_deg": 15.522775825411525,
+        "theta_err_deg": 20.0,
+        "error_budget_mm": 20.52120859954012,
+        "radial_clearance_mm": 5.901303714383352,
+        "cylinder_rms_m": 0.0018172952329922939,
+        "cylinder_inlier_ratio": 0.5551774428779777
+      }
+    },
+    {
+      "det": {
+        "class_id": 0,
+        "class_name": "peach_bag",
+        "bbox": [
+          430,
+          424,
+          639,
+          480
+        ],
+        "conf": 0.39797040820121765
+      },
+      "status": "REOBSERVE",
+      "flags": [
+        "mask_unavailable"
+      ],
+      "has_anchor": false,
+      "metrics": {}
+    }
+  ]
+}

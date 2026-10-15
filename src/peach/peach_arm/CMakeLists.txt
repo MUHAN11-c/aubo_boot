@@ -57,12 +57,14 @@ target_include_directories(${PROJECT_NAME}_core PUBLIC
 # Eigen 出现在公共头（target_cache.hpp / view_planner.hpp 等），必须 PUBLIC。
 target_link_libraries(${PROJECT_NAME}_core PUBLIC Eigen3::Eigen Threads::Threads)
 
-# 参数声明/兜底默认/校验单一事实源：include/peach_arm/params.hpp
-# （手写模块，决策 0017）；部署值事实源为 config/peach_arm.yaml。
+# 参数 schema、默认值与校验由 src/arm_parameters.yaml 生成；
+# config/peach_arm.yaml 只提供部署覆盖，节点使用生成的 ParamListener。
 
 # 节点按职责拆为多个编译单元，共享 include/peach_arm/ 下的节点头。
 add_executable(peach_arm
   src/manipulation_skills_node.cpp
+  src/target_observers.cpp
+  src/status.cpp
   src/cycle.cpp
   src/move_to.cpp
   src/stages.cpp
@@ -156,6 +158,14 @@ if(BUILD_TESTING)
   ament_add_gtest(test_reconfirm_policy test/test_reconfirm_policy.cpp)
   if(TARGET test_reconfirm_policy)
     target_link_libraries(test_reconfirm_policy ${PROJECT_NAME}_core)
+  endif()
+  ament_add_gtest(test_thread_join test/test_thread_join.cpp)
+  if(TARGET test_thread_join)
+    target_link_libraries(test_thread_join ${PROJECT_NAME}_core)
+  endif()
+  ament_add_gtest(test_staging_candidates test/test_staging_candidates.cpp)
+  if(TARGET test_staging_candidates)
+    target_link_libraries(test_staging_candidates ${PROJECT_NAME}_core)
   endif()
   ament_add_gtest(test_target_cache test/test_target_cache.cpp)
   if(TARGET test_target_cache)

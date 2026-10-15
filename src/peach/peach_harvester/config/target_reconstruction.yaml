@@ -86,6 +86,7 @@ peach_target_reconstruction_node:
       root_dir: ''  # session 落盘根；空=工作区 runs/（与账本、观测 JSONL 同一根）
     tool:
       budget:
+        cut_reference_offset_m: 0.0  # [m] 袋口→刀口工艺偏置（沿袋底→袋口）；默认刀口对袋口，±30mm 内另行实测标定；不重复扣 L_blade
         d_inner: 0.120  # [m] GraspDecision 动态预算许可的工具开口径。基础值=自适应剪切手；整栈由 launch tool_profile 档案注入覆盖（三把剪切手 0.030/0.080/0.120）
         blade_capture_half_width: 0.008  # [m] 刀口捕获半宽。provenance=档案名义值；M0 台架按柄径×倾角×袋材扫描后重标定（±20mm 轴向偏移取 95% 捕获半宽）
         axial_safety_margin: 0.0  # [m] 轴向安全余量。批次2 起 0（与 fruit_safety_clearance 历史重复扣减，G1 根因③）；旧值 0.004 可临时恢复对拍

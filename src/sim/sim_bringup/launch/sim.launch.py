@@ -8,9 +8,11 @@
 3. ``ros_gz_bridge``（``sim_bridge.yaml``：clock/odom/tf/scan 入、cmd_vel 出；
    ``/joint_states`` 由 gz_ros2_control 的 JSB 原生发布，不经桥）；
 4. 控制器 spawner（JSB + JTC，延迟到实体生成后； peach_orchard 首载 40-60 s）；
-5. ``moveit:=true``（默认）include ``aubo_e5_moveit_config/moveit.launch.py``，
-   ``controllers_file:=controllers_mock.yaml``——仿真 JTC 与 mock 同名同关节，
-   映射零新文件（ivg_sim 同款复用口径）。
+5. ``moveit:=true``（默认）include 本包 ``moveit_sim.launch.py``：统一机体
+   URDF → move_group 规划帧 platform_base_link（接 map/odom 主 TF 树；aubo
+   原版 URDF 根为 world，仿真无 world 帧）；SRDF/IK/Pilz/控制器映射复用
+   ``aubo_e5_moveit_config``（``controllers_mock.yaml``——仿真 JTC 与 mock
+   同名同关节，映射零新文件）。
 
 手动验收：``ros2 topic echo /joint_states --once``（六 AUBO 名）；MoveIt RViz
 plan&execute 或 ``ros2 action send_goal /joint_trajectory_controller/
@@ -181,17 +183,30 @@ def _setup(context, *args, **kwargs):
     ]
 
     if moveit:
-        moveit_share = Path(get_package_share_directory('aubo_e5_moveit_config'))
+        # sim 自有 MoveIt 前端：统一机体 URDF（规划帧 platform_base_link，
+        # 接 map 树）；SRDF/IK/Pilz/控制器映射复用 aubo_e5_moveit_config。
+        # rviz 随 moveit_sim 起（带 robot_description_semantic，moveit 显示层需要）
         nodes.append(
             IncludeLaunchDescription(
                 PythonLaunchDescriptionSource(
-                    str(moveit_share / 'launch' / 'moveit.launch.py')),
+                    str(Path(get_package_share_directory('sim_bringup'))
+                         / 'launch' / 'moveit_sim.launch.py')),
                 launch_arguments={
-                    'controllers_file': 'controllers_mock.yaml',
+                    'scene_params': str(scene_path),
                     'tool_profile': tool_profile,
-                    'standalone_state_publishers': 'false',
-                    'rviz': 'false',
+                    'controllers_file': 'controllers_mock.yaml',
+                    'rviz': LaunchConfiguration('rviz'),
+                    'rviz_config': LaunchConfiguration('rviz_config'),
                 }.items()))
+    elif LaunchConfiguration('rviz').perform(context).lower() in ('true', '1'):
+        # moveit 关闭时的兜底：裸 RViz（无 MoveIt 参数，moveit 显示层不可用）
+        rviz_cfg = LaunchConfiguration('rviz_config').perform(context)
+        nodes.append(
+            Node(
+                package='rviz2',
+                executable='rviz2',
+                output='screen',
+                **({'arguments': ['-d', rviz_cfg]} if rviz_cfg else {})))
 
     return nodes
 
@@ -215,6 +230,12 @@ def generate_launch_description() -> LaunchDescription:
             'moveit', default_value='true',
             description='include aubo_e5_moveit_config（JTC 映射复用 '
                         'controllers_mock.yaml）'),
+        DeclareLaunchArgument(
+            'rviz', default_value='false',
+            description='随栈起 RViz（经 moveit_sim 带 MoveIt 参数）'),
+        DeclareLaunchArgument(
+            'rviz_config', default_value='',
+            description='RViz 配置路径（harvest 传 sim_harvest.rviz）'),
         DeclareLaunchArgument(
             'spawn', default_value='work',
             description='work=作业位 0.95m（感知标定位）；corridor=走廊中心'

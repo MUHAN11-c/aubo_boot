@@ -1,0 +1,620 @@
+
+运行 visualization_state.test.cjs
+TAP version 13
+# Subtest: image metadata never presents missing or invalid timestamps as live
+ok 1 - image metadata never presents missing or invalid timestamps as live
+  ---
+  duration_ms: 3.700491
+  type: 'test'
+  ...
+# Subtest: bad encoder evidence is distinct from a paused or stale camera view
+ok 2 - bad encoder evidence is distinct from a paused or stale camera view
+  ---
+  duration_ms: 0.189005
+  type: 'test'
+  ...
+# Subtest: ROS frame age takes precedence over a wall clock from another time domain
+ok 3 - ROS frame age takes precedence over a wall clock from another time domain
+  ---
+  duration_ms: 0.076323
+  type: 'test'
+  ...
+# Subtest: negative ROS frame age cannot be presented as fresh
+ok 4 - negative ROS frame age cannot be presented as fresh
+  ---
+  duration_ms: 0.063712
+  type: 'test'
+  ...
+# Subtest: model diagnostics distinguish point fit quality from unavailable single-view consistency
+ok 5 - model diagnostics distinguish point fit quality from unavailable single-view consistency
+  ---
+  duration_ms: 1.549367
+  type: 'test'
+  ...
+# Subtest: diagnostic heartbeats do not impersonate a newly fitted model timestamp
+ok 6 - diagnostic heartbeats do not impersonate a newly fitted model timestamp
+  ---
+  duration_ms: 0.158991
+  type: 'test'
+  ...
+# Subtest: an in-flight image cannot resurrect a stream invalidated by an encoder failure
+ok 7 - an in-flight image cannot resurrect a stream invalidated by an encoder failure
+  ---
+  duration_ms: 13.204897
+  type: 'test'
+  ...
+# Subtest: analysis displays unknown capabilities, signed margins and escaped failure evidence
+ok 8 - analysis displays unknown capabilities, signed margins and escaped failure evidence
+  ---
+  duration_ms: 0.515461
+  type: 'test'
+  ...
+# Subtest: initial stale JPEG is displayed with stale frame metadata rather than a blank view
+ok 9 - initial stale JPEG is displayed with stale frame metadata rather than a blank view
+  ---
+  duration_ms: 1.21141
+  type: 'test'
+  ...
+# Subtest: model status exposes a mismatched current identity and labels the diagnostic version
+ok 10 - model status exposes a mismatched current identity and labels the diagnostic version
+  ---
+  duration_ms: 0.224329
+  type: 'test'
+  ...
+# Subtest: image boolean and whitespace ages remain unknown instead of fresh zero
+ok 11 - image boolean and whitespace ages remain unknown instead of fresh zero
+  ---
+  duration_ms: 0.139891
+  type: 'test'
+  ...
+1..11
+# tests 11
+# suites 0
+# pass 11
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 32.849428
+
+运行 viz3d.test.cjs
+TAP version 13
+# Subtest: normalization preserves source timestamps, revisions and rejected axis evidence
+ok 1 - normalization preserves source timestamps, revisions and rejected axis evidence
+  ---
+  duration_ms: 47.43619
+  type: 'test'
+  ...
+# Subtest: actual tool axis comes exclusively from tool_axis TF quaternion
+ok 2 - actual tool axis comes exclusively from tool_axis TF quaternion
+  ---
+  duration_ms: 9.248902
+  type: 'test'
+  ...
+# Subtest: target switches never retain another target geometry
+ok 3 - target switches never retain another target geometry
+  ---
+  duration_ms: 9.724712
+  type: 'test'
+  ...
+# Subtest: invalid vectors, non-base TF and zero quaternions never create geometry
+ok 4 - invalid vectors, non-base TF and zero quaternions never create geometry
+  ---
+  duration_ms: 4.612209
+  type: 'test'
+  ...
+# Subtest: missing library or WebGL produces a usable unavailable fallback
+ok 5 - missing library or WebGL produces a usable unavailable fallback
+  ---
+  duration_ms: 4.690124
+  type: 'test'
+  ...
+# Subtest: bag and actual tool axes report source-based angle or null
+ok 6 - bag and actual tool axes report source-based angle or null
+  ---
+  duration_ms: 8.609982
+  type: 'test'
+  ...
+# Subtest: explicitly selected target hides geometry for another target
+ok 7 - explicitly selected target hides geometry for another target
+  ---
+  duration_ms: 9.943946
+  type: 'test'
+  ...
+# Subtest: selected scene epoch rejects old reconstruction geometry
+ok 8 - selected scene epoch rejects old reconstruction geometry
+  ---
+  duration_ms: 4.351622
+  type: 'test'
+  ...
+# Subtest: Z-up views render on changes, preserve user camera and release resources
+ok 9 - Z-up views render on changes, preserve user camera and release resources
+  ---
+  duration_ms: 12.266227
+  type: 'test'
+  ...
+# Subtest: refused decision with zero axis never manufactures origin references
+ok 10 - refused decision with zero axis never manufactures origin references
+  ---
+  duration_ms: 4.274218
+  type: 'test'
+  ...
+# Subtest: same target in new scene rejects old decision and all old fused references
+ok 11 - same target in new scene rejects old decision and all old fused references
+  ---
+  duration_ms: 7.791704
+  type: 'test'
+  ...
+# Subtest: unknown model and decision epochs never acquire current-scene scope
+ok 12 - unknown model and decision epochs never acquire current-scene scope
+  ---
+  duration_ms: 3.351518
+  type: 'test'
+  ...
+# Subtest: model explicit old epoch overrides even a valid current decision
+ok 13 - model explicit old epoch overrides even a valid current decision
+  ---
+  duration_ms: 3.373503
+  type: 'test'
+  ...
+# Subtest: explicit model scope can retain rejected diagnostics without a decision
+ok 14 - explicit model scope can retain rejected diagnostics without a decision
+  ---
+  duration_ms: 3.716657
+  type: 'test'
+  ...
+# Subtest: unavailable actual TF removes angle immediately
+ok 15 - unavailable actual TF removes angle immediately
+  ---
+  duration_ms: 4.139211
+  type: 'test'
+  ...
+# Subtest: decision without epoch cannot borrow a correctly scoped model for motion references
+ok 16 - decision without epoch cannot borrow a correctly scoped model for motion references
+  ---
+  duration_ms: 4.10447
+  type: 'test'
+  ...
+# Subtest: old pose candidate cannot bypass contradictory model epoch via current decision
+ok 17 - old pose candidate cannot bypass contradictory model epoch via current decision
+  ---
+  duration_ms: 6.58926
+  type: 'test'
+  ...
+# Subtest: raw rejection retains diagnostic axis with verified target run epoch context
+ok 18 - raw rejection retains diagnostic axis with verified target run epoch context
+  ---
+  duration_ms: 3.267672
+  type: 'test'
+  ...
+# Subtest: typed target merge cannot rewrite raw rejected model provenance
+ok 19 - typed target merge cannot rewrite raw rejected model provenance
+  ---
+  duration_ms: 4.560739
+  type: 'test'
+  ...
+# Subtest: old raw run context cannot borrow a valid current decision
+ok 20 - old raw run context cannot borrow a valid current decision
+  ---
+  duration_ms: 3.351335
+  type: 'test'
+  ...
+# Subtest: old raw epoch context cannot borrow a valid current decision
+ok 21 - old raw epoch context cannot borrow a valid current decision
+  ---
+  duration_ms: 3.066494
+  type: 'test'
+  ...
+# Subtest: verified raw context never scopes an unversioned typed pose candidate
+ok 22 - verified raw context never scopes an unversioned typed pose candidate
+  ---
+  duration_ms: 14.568266
+  type: 'test'
+  ...
+# Subtest: incomplete raw context never borrows current decision epoch
+ok 23 - incomplete raw context never borrows current decision epoch
+  ---
+  duration_ms: 5.697533
+  type: 'test'
+  ...
+# Subtest: new decision cannot revive old raw diagnostics after context removal
+ok 24 - new decision cannot revive old raw diagnostics after context removal
+  ---
+  duration_ms: 8.750929
+  type: 'test'
+  ...
+# Subtest: new decision cannot relabel old typed pose without its own run and epoch
+ok 25 - new decision cannot relabel old typed pose without its own run and epoch
+  ---
+  duration_ms: 6.091044
+  type: 'test'
+  ...
+# Subtest: typed pose with its own matching run and epoch remains visible
+ok 26 - typed pose with its own matching run and epoch remains visible
+  ---
+  duration_ms: 9.882738
+  type: 'test'
+  ...
+# Subtest: typed pose with matching epoch but old run stays hidden
+ok 27 - typed pose with matching epoch but old run stays hidden
+  ---
+  duration_ms: 12.927399
+  type: 'test'
+  ...
+# Subtest: geometry analysis computes axial projection, lateral offset and signed travel mismatch
+ok 28 - geometry analysis computes axial projection, lateral offset and signed travel mismatch
+  ---
+  duration_ms: 4.634659
+  type: 'test'
+  ...
+# Subtest: permission and radial distance never imply MoveIt reachability
+ok 29 - permission and radial distance never imply MoveIt reachability
+  ---
+  duration_ms: 8.152391
+  type: 'test'
+  ...
+# Subtest: target switches hide numeric budgets and planning results for other targets
+ok 30 - target switches hide numeric budgets and planning results for other targets
+  ---
+  duration_ms: 3.978696
+  type: 'test'
+  ...
+# Subtest: missing numeric evidence is null rather than zero or NaN
+ok 31 - missing numeric evidence is null rather than zero or NaN
+  ---
+  duration_ms: 3.804325
+  type: 'test'
+  ...
+# Subtest: a decision from a different harvest run is never drawn as executable geometry
+ok 32 - a decision from a different harvest run is never drawn as executable geometry
+  ---
+  duration_ms: 3.660063
+  type: 'test'
+  ...
+# Subtest: completed retreat is shown beyond pregrasp without claiming harvest confirmation
+ok 33 - completed retreat is shown beyond pregrasp without claiming harvest confirmation
+  ---
+  duration_ms: 3.88477
+  type: 'test'
+  ...
+# Subtest: unavailable fit sentinels never become negative RMSE or inlier percentages
+ok 34 - unavailable fit sentinels never become negative RMSE or inlier percentages
+  ---
+  duration_ms: 3.850361
+  type: 'test'
+  ...
+1..34
+# tests 34
+# suites 0
+# pass 34
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 266.855469
+
+运行 viz3d_runner.test.cjs
+TAP version 13
+# Subtest: direct runner exposes actual passing subtests
+ok 1 - direct runner exposes actual passing subtests
+  ---
+  duration_ms: 121.773407
+  type: 'test'
+  ...
+# Subtest: direct runner preserves failed assertion output and returns failure
+ok 2 - direct runner preserves failed assertion output and returns failure
+  ---
+  duration_ms: 131.699457
+  type: 'test'
+  ...
+1..2
+# tests 2
+# suites 0
+# pass 2
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 261.379326
+
+运行 web_state.test.cjs
+TAP version 13
+# Subtest: keyword filtering includes log text without weakening level or node filters
+ok 1 - keyword filtering includes log text without weakening level or node filters
+  ---
+  duration_ms: 18.37904
+  type: 'test'
+  ...
+# Subtest: target context is rechecked after confirmation before sending a command
+ok 2 - target context is rechecked after confirmation before sending a command
+  ---
+  duration_ms: 2.933672
+  type: 'test'
+  ...
+# Subtest: trajectory fetch failure invalidates cached tool frames without erasing the historical path
+ok 3 - trajectory fetch failure invalidates cached tool frames without erasing the historical path
+  ---
+  duration_ms: 2.104511
+  type: 'test'
+  ...
+# Subtest: lighting renders observed components instead of object coercion
+ok 4 - lighting renders observed components instead of object coercion
+  ---
+  duration_ms: 3.739122
+  type: 'test'
+  ...
+# Subtest: initial load requests the trajectory only once
+ok 5 - initial load requests the trajectory only once
+  ---
+  duration_ms: 2.347816
+  type: 'test'
+  ...
+# Subtest: slow state fetch never overlaps another state fetch
+ok 6 - slow state fetch never overlaps another state fetch
+  ---
+  duration_ms: 2.004861
+  type: 'test'
+  ...
+# Subtest: accepted Nav2 request with success=false is an operation failure
+ok 7 - accepted Nav2 request with success=false is an operation failure
+  ---
+  duration_ms: 2.307391
+  type: 'test'
+  ...
+# Subtest: transport loss records unknown outcome without retrying the POST
+ok 8 - transport loss records unknown outcome without retrying the POST
+  ---
+  duration_ms: 1.969081
+  type: 'test'
+  ...
+# Subtest: duplicate command cannot submit while its previous POST is pending
+ok 9 - duplicate command cannot submit while its previous POST is pending
+  ---
+  duration_ms: 2.449435
+  type: 'test'
+  ...
+# Subtest: state refresh retains pending lock and independent cancellation controls
+ok 10 - state refresh retains pending lock and independent cancellation controls
+  ---
+  duration_ms: 3.244322
+  type: 'test'
+  ...
+# Subtest: disconnected state disables ordinary commands but retains cancellation
+ok 11 - disconnected state disables ordinary commands but retains cancellation
+  ---
+  duration_ms: 2.927502
+  type: 'test'
+  ...
+# Subtest: hung state request is aborted and a later poll can recover
+ok 12 - hung state request is aborted and a later poll can recover
+  ---
+  duration_ms: 2.149459
+  type: 'test'
+  ...
+# Subtest: arrow-key tab navigation updates selection, panel and focus
+ok 13 - arrow-key tab navigation updates selection, panel and focus
+  ---
+  duration_ms: 1.517177
+  type: 'test'
+  ...
+# Subtest: backend 202 keeps the running goal visible and preserves its cancel advice
+ok 14 - backend 202 keeps the running goal visible and preserves its cancel advice
+  ---
+  duration_ms: 1.707526
+  type: 'test'
+  ...
+# Subtest: backend 504 is an unknown execution outcome, not a rejected goal
+ok 15 - backend 504 is an unknown execution outcome, not a rejected goal
+  ---
+  duration_ms: 5.909256
+  type: 'test'
+  ...
+# Subtest: BFCache restore restarts polling without duplicating timers
+ok 16 - BFCache restore restarts polling without duplicating timers
+  ---
+  duration_ms: 2.858877
+  type: 'test'
+  ...
+# Subtest: log filter keeps the chosen level and above
+ok 17 - log filter keeps the chosen level and above
+  ---
+  duration_ms: 2.20084
+  type: 'test'
+  ...
+# Subtest: current stage from the snapshot is written to the header
+ok 18 - current stage from the snapshot is written to the header
+  ---
+  duration_ms: 1.677714
+  type: 'test'
+  ...
+# Subtest: confirming after the snapshot expires cannot send an ordinary POST
+ok 19 - confirming after the snapshot expires cannot send an ordinary POST
+  ---
+  duration_ms: 1.919317
+  type: 'test'
+  ...
+# Subtest: canceled level 2 ledger preserves pregrasp verification and cancellation
+ok 20 - canceled level 2 ledger preserves pregrasp verification and cancellation
+  ---
+  duration_ms: 4.620488
+  type: 'test'
+  ...
+# Subtest: perception HARVESTED and level 6 never count as confirmed harvest
+ok 21 - perception HARVESTED and level 6 never count as confirmed harvest
+  ---
+  duration_ms: 2.186815
+  type: 'test'
+  ...
+# Subtest: only matching current ledger level 7 counts as confirmed harvest
+ok 22 - only matching current ledger level 7 counts as confirmed harvest
+  ---
+  duration_ms: 1.498377
+  type: 'test'
+  ...
+# Subtest: allowed decision with diagnostic reason is not displayed as a rejection
+ok 23 - allowed decision with diagnostic reason is not displayed as a rejection
+  ---
+  duration_ms: 5.144644
+  type: 'test'
+  ...
+# Subtest: photo return never posts through disabled motion or recovery gates
+ok 24 - photo return never posts through disabled motion or recovery gates
+  ---
+  duration_ms: 1.743114
+  type: 'test'
+  ...
+# Subtest: photo return uses the existing service after explicit recovery has cleared
+ok 25 - photo return uses the existing service after explicit recovery has cleared
+  ---
+  duration_ms: 2.850399
+  type: 'test'
+  ...
+# Subtest: photo return confirmation rechecks the motion gate before submitting
+ok 26 - photo return confirmation rechecks the motion gate before submitting
+  ---
+  duration_ms: 2.951934
+  type: 'test'
+  ...
+# Subtest: photo return is disabled during an arm cycle but execution-off still permits planning
+ok 27 - photo return is disabled during an arm cycle but execution-off still permits planning
+  ---
+  duration_ms: 1.807075
+  type: 'test'
+  ...
+# Subtest: main operation area explains PREGRASP_ONLY and independent grasp diagnostic
+ok 28 - main operation area explains PREGRASP_ONLY and independent grasp diagnostic
+  ---
+  duration_ms: 1.605122
+  type: 'test'
+  ...
+# Subtest: main operation area shows FULL enable blockers and preserves canceled level 2 evidence
+ok 29 - main operation area shows FULL enable blockers and preserves canceled level 2 evidence
+  ---
+  duration_ms: 8.724204
+  type: 'test'
+  ...
+# Subtest: PREVIEW can submit with motion disabled while OBSERVE_ONLY cannot
+ok 30 - PREVIEW can submit with motion disabled while OBSERVE_ONLY cannot
+  ---
+  duration_ms: 1.844443
+  type: 'test'
+  ...
+# Subtest: return-photo click confirms and submits only the existing empty service request
+ok 31 - return-photo click confirms and submits only the existing empty service request
+  ---
+  duration_ms: 5.359783
+  type: 'test'
+  ...
+# Subtest: accepted response without success is not a confirmed successful operation
+ok 32 - accepted response without success is not a confirmed successful operation
+  ---
+  duration_ms: 1.417348
+  type: 'test'
+  ...
+# Subtest: formatting does not turn boolean or blank missing values into measured zero
+ok 33 - formatting does not turn boolean or blank missing values into measured zero
+  ---
+  duration_ms: 5.06626
+  type: 'test'
+  ...
+# Subtest: binding controls again does not duplicate command or log listeners
+ok 34 - binding controls again does not duplicate command or log listeners
+  ---
+  duration_ms: 4.934902
+  type: 'test'
+  ...
+1..34
+# tests 34
+# suites 0
+# pass 34
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 123.441704
+
+运行 workbench.test.cjs
+TAP version 13
+# Subtest: manual target survives selected_target polling, epoch invalidates it
+ok 1 - manual target survives selected_target polling, epoch invalidates it
+  ---
+  duration_ms: 0.555238
+  type: 'test'
+  ...
+# Subtest: confirmation guard rejects vanished targets and changed epochs
+ok 2 - confirmation guard rejects vanished targets and changed epochs
+  ---
+  duration_ms: 0.141119
+  type: 'test'
+  ...
+# Subtest: motion classification follows backend and allowed negative budgets remain diagnostic
+ok 3 - motion classification follows backend and allowed negative budgets remain diagnostic
+  ---
+  duration_ms: 0.13714
+  type: 'test'
+  ...
+# Subtest: operation lock prevents duplicates and lets independent cancellation through
+ok 4 - operation lock prevents duplicates and lets independent cancellation through
+  ---
+  duration_ms: 1.089756
+  type: 'test'
+  ...
+# Subtest: new experiments generate safe unique request ids
+ok 5 - new experiments generate safe unique request ids
+  ---
+  duration_ms: 1.44741
+  type: 'test'
+  ...
+# Subtest: stale state blocks operations while cancellation remains available
+ok 6 - stale state blocks operations while cancellation remains available
+  ---
+  duration_ms: 0.086692
+  type: 'test'
+  ...
+# Subtest: step navigation sends no requests and preserves visualization host DOM
+ok 7 - step navigation sends no requests and preserves visualization host DOM
+  ---
+  duration_ms: 1.021116
+  type: 'test'
+  ...
+# Subtest: submission captures target before confirmation and guard prevents stale send
+ok 8 - submission captures target before confirmation and guard prevents stale send
+  ---
+  duration_ms: 0.432165
+  type: 'test'
+  ...
+# Subtest: polling preserves user input and does not select a new epoch target
+ok 9 - polling preserves user input and does not select a new epoch target
+  ---
+  duration_ms: 0.868812
+  type: 'test'
+  ...
+# Subtest: manual non-current target publishes immutable context, unchanged polling stays quiet
+ok 10 - manual non-current target publishes immutable context, unchanged polling stays quiet
+  ---
+  duration_ms: 0.744189
+  type: 'test'
+  ...
+# Subtest: epoch invalidation publishes empty context once and new experiment refreshes it
+ok 11 - epoch invalidation publishes empty context once and new experiment refreshes it
+  ---
+  duration_ms: 0.293836
+  type: 'test'
+  ...
+# Subtest: reachability response shows per-pose solver errors instead of request success
+ok 12 - reachability response shows per-pose solver errors instead of request success
+  ---
+  duration_ms: 0.150557
+  type: 'test'
+  ...
+1..12
+# tests 12
+# suites 0
+# pass 12
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 15.407826
+
+测试文件：5，通过：5，失败：0

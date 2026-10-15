@@ -1,0 +1,197 @@
+{
+  "saved_mask": "runs/live_cam_shear_full_20261014_1143/perception_data/harvest_20261014T114208_828150_s2/masks/1791949342691174000_target_0.png",
+  "mask_pixels": 2561,
+  "mask_bbox": [
+    371,
+    289,
+    419,
+    370
+  ],
+  "mask_wh_px": [
+    48,
+    81
+  ],
+  "image_wh": [
+    640,
+    480
+  ],
+  "rgb_skew_ms": 868.4,
+  "depth_skew_ms": 200.2,
+  "info_skew_ms": 0.0,
+  "depth_encoding": "16UC1",
+  "K": {
+    "fx": 466.174635,
+    "fy": 465.556589,
+    "cx": 326.071333,
+    "cy": 244.789156,
+    "width": 640,
+    "height": 480
+  },
+  "mask_valid_depth_pixels": 2451,
+  "mask_valid_depth_ratio": 0.957,
+  "depth_inside_mask_mm": {
+    "p05": 729.0,
+    "p50": 745.0,
+    "p95": 778.0
+  },
+  "cloud_n": 2451,
+  "cloud_aabb_mm": [
+    88.1,
+    414.1,
+    181.5
+  ],
+  "pca_span_mm": 125.5,
+  "pca_eigenvalue_ratio": [
+    1.0,
+    0.644,
+    0.251
+  ],
+  "along_recorded_axis_mm": {
+    "p01": -20.9,
+    "p50": 45.3,
+    "p99": 106.4
+  },
+  "radial_mm": {
+    "p50": 37.8,
+    "p95": 45.4
+  },
+  "radius_profile": [
+    {
+      "t0_mm": -20.9,
+      "n": 144,
+      "r_p50_mm": 38.3,
+      "r_p90_mm": 41.6
+    },
+    {
+      "t0_mm": -5.0,
+      "n": 224,
+      "r_p50_mm": 38.5,
+      "r_p90_mm": 42.5
+    },
+    {
+      "t0_mm": 10.9,
+      "n": 386,
+      "r_p50_mm": 36.7,
+      "r_p90_mm": 41.1
+    },
+    {
+      "t0_mm": 26.9,
+      "n": 388,
+      "r_p50_mm": 37.8,
+      "r_p90_mm": 41.0
+    },
+    {
+      "t0_mm": 42.8,
+      "n": 362,
+      "r_p50_mm": 39.6,
+      "r_p90_mm": 42.4
+    },
+    {
+      "t0_mm": 58.7,
+      "n": 381,
+      "r_p50_mm": 35.3,
+      "r_p90_mm": 43.6
+    },
+    {
+      "t0_mm": 74.6,
+      "n": 324,
+      "r_p50_mm": 36.2,
+      "r_p90_mm": 45.6
+    },
+    {
+      "t0_mm": 90.5,
+      "n": 192,
+      "r_p50_mm": 37.1,
+      "r_p90_mm": 44.4
+    }
+  ],
+  "recorded_endpoint_distance_mm": 96.1,
+  "cloud_to_recorded_bottom_mm": 29.2,
+  "cloud_to_recorded_neck_mm": 18.0,
+  "cloud_to_bottom_plus_30mm": 32.1,
+  "projected_uvz": {
+    "bottom": [
+      398.5,
+      358.0,
+      0.8
+    ],
+    "neck": [
+      379.0,
+      302.8,
+      0.8
+    ],
+    "plus_30mm": [
+      392.3,
+      340.4,
+      0.8
+    ]
+  },
+  "recomputed_landmarks": {
+    "flags": [
+      "axis_from_primary",
+      "gravity_neck_fallback",
+      "leaf_occluded"
+    ],
+    "taper_ratio_gate": 0.85,
+    "endpoint_mm": 99.5,
+    "bottom_vs_recorded_mm": 35.9,
+    "neck_vs_recorded_mm": 35.7
+  },
+  "detections": [
+    {
+      "conf": 0.799,
+      "bbox": [
+        10,
+        340,
+        88,
+        403
+      ],
+      "iou_vs_saved_mask": 0.0,
+      "sam_pixels": 3125,
+      "bbox_valid_depth": 0,
+      "bbox_pixels": 4914,
+      "depth_p50_mm": null
+    },
+    {
+      "conf": 0.756,
+      "bbox": [
+        368,
+        290,
+        419,
+        370
+      ],
+      "iou_vs_saved_mask": 0.971,
+      "sam_pixels": 2562,
+      "bbox_valid_depth": 3766,
+      "bbox_pixels": 4080,
+      "depth_p50_mm": 753.0,
+      "cloud_aabb_mm": [
+        88.0,
+        414.1,
+        184.7
+      ],
+      "cloud_n": 2450
+    },
+    {
+      "conf": 0.433,
+      "bbox": [
+        431,
+        424,
+        640,
+        480
+      ],
+      "iou_vs_saved_mask": 0.0,
+      "sam_pixels": 7739,
+      "bbox_valid_depth": 2497,
+      "bbox_pixels": 11704,
+      "depth_p50_mm": 731.0,
+      "cloud_aabb_mm": [
+        112.4,
+        246.1,
+        108.9
+      ],
+      "cloud_n": 748
+    }
+  ],
+  "note": "会话 bag 彩色约 1.2 s 一帧，与几何 stamp 最近彩色差见 rgb_skew_ms，深度差见 depth_skew_ms。掩膜是当时在线 SAM 存盘，不是这帧重新分割的。黄框是这帧 YOLO。绿边是这帧 SAM 与存盘掩膜 IoU 最高的那个。"
+}

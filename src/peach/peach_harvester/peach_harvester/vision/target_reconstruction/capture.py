@@ -40,11 +40,15 @@ class CapturedFrame:
     """(N, 3) uint8 BGR."""
     diagnostic_flags: List[str] = field(default_factory=list)
     """如 'pose_icp'."""
+    target_mask: Optional[np.ndarray] = None
+    """Original target silhouette, retained independently of valid depth."""
     registration: dict = field(default_factory=dict)
     """ICP fitness / RMSE / 修正量."""
 
     def __post_init__(self):
         """补派生默认值：FK 缺省等于使用位姿，相机位置取使用位姿平移列."""
+        if self.target_mask is not None:
+            self.target_mask = np.asarray(self.target_mask, dtype=np.uint8).copy()
         if self.T_base_camera_fk is None:
             self.T_base_camera_fk = np.asarray(
                 self.T_base_camera, dtype=np.float64).copy()

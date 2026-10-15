@@ -88,6 +88,7 @@ from peach_harvester.vision.target_reconstruction.publish import (
     build_pregrasp_verification,
     fill_target_model,
     lookup_tool_frame,
+    model_quality_level,
     PublisherMixin,
     PublishThrottle,
 )
@@ -97,6 +98,7 @@ from peach_harvester.vision.target_reconstruction.reconstruction_core import (
 from peach_harvester.vision.target_reconstruction.refine import (
     axis_from_vector3,
     candidate_axis_hint,
+    CONTACT_GEOMETRY_INVALID_REASONS,
     RefitConfig,
     select_reconstruction_candidate,
     STATUS_ACCEPT,
@@ -337,6 +339,11 @@ class TargetReconstructionNode(
             use_default_callbacks=False)
         self.pub_cloud = self.create_lifecycle_publisher(
             PointCloud2, '/peach/reconstruction/local_cloud', latched_qos)
+        self.pub_preview_cloud = self.create_lifecycle_publisher(
+            PointCloud2, '/peach/reconstruction/preview_cloud',
+            rclpy.qos.QoSProfile(
+                depth=1, reliability=rclpy.qos.ReliabilityPolicy.BEST_EFFORT,
+                durability=rclpy.qos.DurabilityPolicy.TRANSIENT_LOCAL))
         self.pub_status = self.create_lifecycle_publisher(
             String, '/peach/reconstruction/status', latched_qos)
         self.pub_diag = self.create_lifecycle_publisher(
@@ -470,7 +477,7 @@ class TargetReconstructionNode(
             pass
         try:
             for pub in (
-                    self.pub_cloud, self.pub_status, self.pub_diag,
+                    self.pub_cloud, self.pub_preview_cloud, self.pub_status, self.pub_diag,
                     self.pub_diag_debug, self.pub_grasp_decision,
                     self.pub_pregrasp,
                     self.pub_markers, self.pub_tsdf_cloud,
@@ -534,13 +541,17 @@ class TargetReconstructionNode(
         return result
 
     def on_deactivate(self, state):
-        self._lifecycle_active = False
+        with self._state_lock:
+            self._capture_generation += 1
+            self._lifecycle_active = False
         break_bond(self._bond)
         self._bond = None
         return LifecycleNode.on_deactivate(self, state)
 
     def on_cleanup(self, state):
-        self._lifecycle_active = False
+        with self._state_lock:
+            self._capture_generation += 1
+            self._lifecycle_active = False
         break_bond(self._bond)
         self._bond = None
         self._diag = None
@@ -645,10 +656,21 @@ class TargetReconstructionNode(
         link_event = False
         with self._state_lock:
             self._target_observation_seen = True
+            scene_changed = (
+                msg.harvest_run_id != self._harvest_run_id or
+                int(msg.scene_epoch) > self._scene_epoch)
+            if scene_changed:
+                # 目标ID可跨世代复用；旧几何不得随新身份重新获得接触许可。
+                self._reset_capture_session()
+                self._target_masks.clear()
+                publish_after = True
             if msg.harvest_run_id != self._harvest_run_id:
+                self._scene_epoch = int(msg.scene_epoch)
                 self._harvest_run_id = msg.harvest_run_id
                 self._harvest_data.attach(self._harvest_run_id)
                 link_event = True
+            else:
+                self._scene_epoch = max(self._scene_epoch, int(msg.scene_epoch))
             if self._executor_state_seen:
                 requested_target_id = self._executor_target_id
             else:
@@ -1146,6 +1168,7 @@ class TargetReconstructionNode(
             flags.append(reg_info['reason'])
         frame = CapturedFrame(
             rgb=rgb, depth_mm=masked_depth, camera_K=K, stamp=stamp_sec,
+            target_mask=target_mask,
             T_base_camera=T_used, T_base_camera_fk=T_base_camera,
             target_id=target_id,
             valid_depth_ratio=ratio, cloud_base=cloud_base,
@@ -1204,17 +1227,21 @@ class TargetReconstructionNode(
         self._view_progress.set()
         return True, message
 
+    def _reset_capture_session(self) -> None:
+        """调用方持状态锁：失效采集帧和成对产物，保留进程级修订计数."""
+        self.collector.reset()
+        self._view_progress.clear()
+        self._target_kind_memory.reset()
+        self._last_captured_stamp_sec = -1.0
+        self._clear_frame_ring()
+        self._reset_products(create_volume=False)
+        self._bound_axis_hint = None
+
     def _on_reset(self, request, response):
         """~/reset_reconstruction：清空帧栈与绑定目标，回 IDLE."""
         del request
         with self._state_lock:
-            self.collector.reset()
-            self._view_progress.clear()
-            self._target_kind_memory.reset()
-            self._last_captured_stamp_sec = -1.0
-            self._clear_frame_ring()
-            self._reset_products(create_volume=False)
-            self._bound_axis_hint = None
+            self._reset_capture_session()
             response.success = True
             response.message = '已清空，回 IDLE'
             self.get_logger().info(response.message)
@@ -1254,6 +1281,8 @@ class TargetReconstructionNode(
             # 许可数学内径随当前工具档案（tool_profile launch 注入）
             budget_params=ToolBudgetParams(
                 d_inner=float(self.params.tool.budget.d_inner),
+                cut_reference_offset_m=float(
+                    self.params.tool.budget.cut_reference_offset_m),
                 blade_capture_half_width=float(
                     self.params.tool.budget.blade_capture_half_width),
                 axial_safety_margin=float(
@@ -1282,7 +1311,7 @@ class TargetReconstructionNode(
                 'ACCEPT' if result.status == STATUS_ACCEPT else 'REOBSERVE')
             return f'；refit {status_text}（袋模型 {fused.view_count} 视）'
         if (previous is not None and previous.ok and previous.budget
-                and result.reason != 'fused_axis_conflict'):
+                and result.reason not in CONTACT_GEOMETRY_INVALID_REASONS):
             # keep_last_good：两个缓存都不动（_bag_model 由成对写入维护），
             # 避免旧 good _refined 配新失败 _bag_model 的矛盾对。
             return f'；refit 未更新（{result.reason}）'
@@ -1309,7 +1338,7 @@ class TargetReconstructionNode(
             # 单根会话目录（R7）：批次 request_id 驱动 session/geometry 与
             # 事件库基目录（与感知 datastore 同一 runs/<request_id>/ 根）
             executor_run_id = str(msg.run_id or '')
-            self._scene_epoch = int(getattr(msg, 'scene_epoch', 0) or 0)
+            # 场景世代来自感知事实/Build goal；调度镜像可能晚到或尚未更新。
             self._harvest_data.base_dir = (
                 resolve_runs_root(None) / executor_run_id
                 / 'perception_data'
@@ -1385,6 +1414,7 @@ class TargetReconstructionNode(
             return result
         self._on_reset(Trigger.Request(), Trigger.Response())
         with self._state_lock:
+            self._scene_epoch = int(goal.scene_epoch)
             if goal.target_id:
                 self._executor_state_seen = True
                 self._executor_target_id = goal.target_id
@@ -1412,6 +1442,9 @@ class TargetReconstructionNode(
             goal_handle, goal.target_id,
             timeout_s=float(self.params.capture.build_timeout_s))
         if status in ('canceled', 'timeout'):
+            with self._state_lock:
+                self._reset_capture_session()
+                self._publish_all()
             result = BuildTargetModel.Result()
             result.success = False
             result.message = status
@@ -1439,8 +1472,7 @@ class TargetReconstructionNode(
         result.message = message
         result.failure_code = FailureCode.NONE if ok \
             else FailureCode.BUILD_FAILED
-        result.quality_level = (
-            TargetQuality.HIGH if ok else TargetQuality.LOW)
+        result.quality_level = model_quality_level(bool(ok), pose_count)
         model = TargetModel()
         model.target_id = goal.target_id
         model.scene_epoch = goal.scene_epoch
@@ -1567,7 +1599,8 @@ class TargetReconstructionNode(
             model, self._bag_model, self._refined, self.params,
             self.get_clock().now(),
             run_id=self._harvest_run_id,
-            scene_epoch=self._scene_epoch)
+            scene_epoch=self._scene_epoch,
+            decision=self._lock_decision_validity(self._grasp_decision()))
 
     def destroy_node(self):
         """停止重建单写者 worker 与事件落盘线程后销毁 ROS 节点."""

@@ -73,10 +73,13 @@ colcon build --packages-select aubo_ros2_web_dashboard ivg_foxglove_bridge
 colcon test --packages-select aubo_ros2_web_dashboard && colcon test-result --verbose
 ```
 
-浏览器前端纯核单测走 vitest（协议帧/TF 数学/参数助手/工具函数零 ROS 依赖离线跑）：
+浏览器前端：2026-10-13 单源化后本包仅含 UI 层，传输层 JS（transport/core/view3d/
+vendor 等）唯一源在 ros_web_link，其纯核单测（协议帧/TF 数学/参数助手/工具函数，
+51 用例）也随迁至该包；组合网关启动时逐文件 symlink 合并进本包 js/ 目录：
 
 ```bash
-cd src/ivg/aubo_ros2_web_dashboard && npm install && npm test
+cd src/ros_web_link && node_modules/.bin/vitest run    # 传输层 + 共享纯核
+cd src/ivg/aubo_ros2_web_dashboard && npm test          # UI 层（当前无测试，passWithNoTests）
 ```
 
 Python 依赖钉在仓库根 `requirements.txt`（fastapi==0.101.0 + starlette==0.27.0 +

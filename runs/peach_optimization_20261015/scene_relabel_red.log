@@ -1,0 +1,96 @@
+.....FF                                                                  [100%]
+=================================== FAILURES ===================================
+_____ test_scene_identity_change_revokes_same_target_old_model[new_run-1] ______
+
+new_run = 'new_run', new_epoch = 1
+
+    @pytest.mark.parametrize('new_run, new_epoch', [('new_run', 1), ('old_run', 4)])
+    def test_scene_identity_change_revokes_same_target_old_model(new_run, new_epoch):
+        """同目标ID在换批次/换世代后不能把旧READY模型重贴新身份."""
+        from peach_interfaces.msg import PeachTargetObservationArray
+        from peach_harvester.vision.target_reconstruction.refine import RefitResult
+    
+        node = TargetReconstructionNode.__new__(TargetReconstructionNode)
+        node._state_lock = threading.RLock()
+        node._harvest_run_id, node._scene_epoch = 'old_run', 3
+        node._executor_state_seen, node._executor_target_id = True, 't1'
+        node._preferred_target_id = 't1'
+        node.collector = SimpleNamespace(state='READY', target_id='t1', frames=[object()])
+    
+        def reset():
+            node.collector.state = 'IDLE'
+            node.collector.target_id = ''
+            node.collector.frames.clear()
+    
+        node.collector.reset = reset
+        node._refined = RefitResult(ok=True, model_revision='old_revision')
+        node._bag_model = object()
+        node._view_progress = threading.Event()
+        node._target_kind_memory = SimpleNamespace(reset=lambda: None)
+        node._clear_frame_ring = lambda: None
+        node._icp_target_cache = SimpleNamespace(invalidate=lambda: None)
+        node._bump_products_version = lambda **_kwargs: None
+        node._target_masks = {'old': object()}
+        node._harvest_data = SimpleNamespace(attach=lambda *_args: None,
+                                             append_event=lambda *_args: None)
+        node._switch_holdoff = SimpleNamespace(arbitrate=lambda *_args, **_kwargs: 'FOLLOW')
+        node.params = SimpleNamespace(frames=SimpleNamespace(base_frame='base_link'))
+        published = []
+        node._publish_all = lambda: published.append(node._grasp_decision())
+        message = PeachTargetObservationArray(harvest_run_id=new_run, scene_epoch=new_epoch)
+        message.header.frame_id = 'other_frame'
+        node._on_target_observations(message)
+>       assert node._refined is None
+E       AssertionError: assert RefitResult(ok=True, reason='', kind='', status=2, center=None, axis=None, bottom=None, neck=None, entry=None, pregras...fusion_landmark_inlier_ratio=None, fusion_consistency_available=False, fusion_pose_count=0, fusion_lateral_shift_m=0.0) is None
+E        +  where RefitResult(ok=True, reason='', kind='', status=2, center=None, axis=None, bottom=None, neck=None, entry=None, pregras...fusion_landmark_inlier_ratio=None, fusion_consistency_available=False, fusion_pose_count=0, fusion_lateral_shift_m=0.0) = <peach_harvester.vision.target_reconstruction.target_reconstruction_node.TargetReconstructionNode object at 0x7a596f5ce3f0>._refined
+
+src/peach/peach_harvester/test/test_reconstruction_scene_identity.py:110: AssertionError
+_____ test_scene_identity_change_revokes_same_target_old_model[old_run-4] ______
+
+new_run = 'old_run', new_epoch = 4
+
+    @pytest.mark.parametrize('new_run, new_epoch', [('new_run', 1), ('old_run', 4)])
+    def test_scene_identity_change_revokes_same_target_old_model(new_run, new_epoch):
+        """同目标ID在换批次/换世代后不能把旧READY模型重贴新身份."""
+        from peach_interfaces.msg import PeachTargetObservationArray
+        from peach_harvester.vision.target_reconstruction.refine import RefitResult
+    
+        node = TargetReconstructionNode.__new__(TargetReconstructionNode)
+        node._state_lock = threading.RLock()
+        node._harvest_run_id, node._scene_epoch = 'old_run', 3
+        node._executor_state_seen, node._executor_target_id = True, 't1'
+        node._preferred_target_id = 't1'
+        node.collector = SimpleNamespace(state='READY', target_id='t1', frames=[object()])
+    
+        def reset():
+            node.collector.state = 'IDLE'
+            node.collector.target_id = ''
+            node.collector.frames.clear()
+    
+        node.collector.reset = reset
+        node._refined = RefitResult(ok=True, model_revision='old_revision')
+        node._bag_model = object()
+        node._view_progress = threading.Event()
+        node._target_kind_memory = SimpleNamespace(reset=lambda: None)
+        node._clear_frame_ring = lambda: None
+        node._icp_target_cache = SimpleNamespace(invalidate=lambda: None)
+        node._bump_products_version = lambda **_kwargs: None
+        node._target_masks = {'old': object()}
+        node._harvest_data = SimpleNamespace(attach=lambda *_args: None,
+                                             append_event=lambda *_args: None)
+        node._switch_holdoff = SimpleNamespace(arbitrate=lambda *_args, **_kwargs: 'FOLLOW')
+        node.params = SimpleNamespace(frames=SimpleNamespace(base_frame='base_link'))
+        published = []
+        node._publish_all = lambda: published.append(node._grasp_decision())
+        message = PeachTargetObservationArray(harvest_run_id=new_run, scene_epoch=new_epoch)
+        message.header.frame_id = 'other_frame'
+        node._on_target_observations(message)
+>       assert node._refined is None
+E       AssertionError: assert RefitResult(ok=True, reason='', kind='', status=2, center=None, axis=None, bottom=None, neck=None, entry=None, pregras...fusion_landmark_inlier_ratio=None, fusion_consistency_available=False, fusion_pose_count=0, fusion_lateral_shift_m=0.0) is None
+E        +  where RefitResult(ok=True, reason='', kind='', status=2, center=None, axis=None, bottom=None, neck=None, entry=None, pregras...fusion_landmark_inlier_ratio=None, fusion_consistency_available=False, fusion_pose_count=0, fusion_lateral_shift_m=0.0) = <peach_harvester.vision.target_reconstruction.target_reconstruction_node.TargetReconstructionNode object at 0x7a596f756ae0>._refined
+
+src/peach/peach_harvester/test/test_reconstruction_scene_identity.py:110: AssertionError
+=========================== short test summary info ============================
+FAILED src/peach/peach_harvester/test/test_reconstruction_scene_identity.py::test_scene_identity_change_revokes_same_target_old_model[new_run-1]
+FAILED src/peach/peach_harvester/test/test_reconstruction_scene_identity.py::test_scene_identity_change_revokes_same_target_old_model[old_run-4]
+2 failed, 5 passed in 0.45s

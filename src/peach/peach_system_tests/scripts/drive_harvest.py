@@ -14,6 +14,7 @@ action 命令；使能语义仍=操作台运行时开关。
 """
 import argparse
 import sys
+import time
 
 import rclpy
 from rclpy.action import ActionClient
@@ -36,7 +37,7 @@ def _send_enables(node: Node, grasp: bool, reason: str) -> bool:
     future = client.call_async(request)
     rclpy.spin_until_future_complete(node, future, timeout_sec=10.0)
     response = future.result()
-    ok = response is not None
+    ok = response is not None and bool(response.accepted)
     print(f'enables(execution=True grasp={grasp} tool=False): {"OK" if ok else "FAIL"}')
     return ok
 
@@ -52,8 +53,11 @@ def main() -> int:
     parser.add_argument('--grasp', action='store_true', help='使能 grasp（PREVIEW/接近链需要）')
     parser.add_argument('--reason', default='peach_system_tests drive_harvest')
     parser.add_argument('--skip-enables', action='store_true', help='只发 goal 不动使能')
-    parser.add_argument('--timeout', type=float, default=420.0)
+    parser.add_argument('--timeout', type=float, default=180.0,
+                        help='cycle budget in seconds, greater than 0 and at most 180')
     args = parser.parse_args()
+    if not 0.0 < args.timeout <= 180.0:
+        parser.error('--timeout must be greater than 0 and at most 180 seconds')
 
     rclpy.init()
     node = Node('drive_harvest')
@@ -70,7 +74,10 @@ def main() -> int:
         goal.scene_key = args.scene_key
         goal.profile_id = args.profile
         goal.intent = args.intent
+        goal.per_target_timeout_s = args.timeout
+        goal.sector_timeout_s = args.timeout
         print(f'goal: request_id={args.request_id} intent={args.intent}')
+        started = time.monotonic()
         future = action_client.send_goal_async(goal)
         rclpy.spin_until_future_complete(node, future, timeout_sec=30.0)
         handle = future.result()
@@ -78,10 +85,13 @@ def main() -> int:
             print('goal REJECTED')
             return 1
         result_future = handle.get_result_async()
-        rclpy.spin_until_future_complete(node, result_future, timeout_sec=args.timeout)
+        remaining = max(0.0, args.timeout - (time.monotonic() - started))
+        rclpy.spin_until_future_complete(node, result_future, timeout_sec=remaining)
         wrapper = result_future.result()
         if wrapper is None:
-            print(f'goal TIMEOUT(>={args.timeout}s) 或中断')
+            cancel_future = handle.cancel_goal_async()
+            rclpy.spin_until_future_complete(node, cancel_future, timeout_sec=5.0)
+            print(f'goal TIMEOUT(budget={args.timeout}s); cancel requested; result unknown')
             return 2
         status_names = {
             0: 'STATUS_UNKNOWN', 1: 'STATUS_ACCEPTED', 2: 'STATUS_EXECUTING',
@@ -89,11 +99,14 @@ def main() -> int:
         }
         status = status_names.get(wrapper.status, str(wrapper.status))
         result = wrapper.result
-        elapsed = result.elapsed.sec + result.elapsed.nanosec * 1e-9
+        summary = result.summary
+        elapsed = summary.elapsed.sec + summary.elapsed.nanosec * 1e-9
         print(
-            f'RESULT status={status} quality_score={result.quality_score} '
-            f'elapsed={elapsed:.1f}s')
-        return 0 if wrapper.status == 4 else 3
+            f'RESULT status={status} success={result.success} '
+            f'reason={result.termination_reason} elapsed={elapsed:.1f}s '
+            f'discovered={summary.discovered} attempted={summary.attempted} '
+            f'succeeded={summary.succeeded}')
+        return 0 if wrapper.status == 4 and result.success else 3
     finally:
         node.destroy_node()
         rclpy.shutdown()

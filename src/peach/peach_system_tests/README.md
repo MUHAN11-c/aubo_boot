@@ -1,6 +1,6 @@
 # peach_system_tests
 
-隔离域 `launch_testing` 与 mock 故障矩阵。不含真机、不自动 `RunHarvest`。
+隔离域 `launch_testing` 与 mock 故障矩阵。不含真机；mock冒烟默认不发goal，E1及人工驱动会按各自夹具发RunHarvest。
 
 **测试流程指导（本栈怎么跑、命名、验收门、真机纪律）：[doc/testing.md](doc/testing.md)**——2026-10-10 自仓库级 `docs/testing.md` 重写入包（用户裁定）。
 
@@ -16,7 +16,7 @@
 
 ## 系统测驱动脚本（scripts/，对已起栈的人工复核）
 
-2026-09-29 起测试相关统一收进本包（不再散落 /tmp）。均不代授权、不建
+正式测试入口在本包；/tmp中的试验脚本不作为交付入口。均不代授权、不建
 假发布器，`ROS_DOMAIN_ID` 由环境决定：
 
 - `drive_harvest.py`：操作台 `SetEnables` + `RunHarvest` goal 发送器
@@ -48,3 +48,11 @@ ros2 run peach_system_tests run_frozen_grasp.py
 ```
 
 `colcon test` 绿 ≠ 套袋验收。BSD-3-Clause。
+
+## 当前维护入口
+
+职责、源码地图、参数来源、生命周期/并发与失败处理见 [包架构](doc/architecture.md)。运行环境、分层验证、冻结回放、30组模型/10轮/30分钟验收与精确清理见 [测试指导](../peach_system_tests/doc/testing.md)。本包测试通过不代表现场采摘成功；未授权不得真机运动或SetIO，硬件急停不经ROS，程序结束必须清本轮进程。
+
+真实相机+mock+RViz联合入口为`scripts/run_live_camera_mock.py`，测试专用固定校准与显示配置在`config/live_camera_mock.yaml`、`live_camera_mock.rviz`；CLI及30组模型/10轮/30分钟判据见测试指导。校准来自20261013固定相机记录及用户未移动确认，不写入产品标定；脚本新增不代表联合验收已通过。
+
+冻结runner默认无头，显式--rviz才开桌面；只清自有PGID，--skip-launch保留外部栈。真实联合短测1/1达到level6、RViz存活、cleanup=[]，正式10轮/30模型/1800秒仍待完成。

@@ -13,6 +13,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <limits>
+#include <optional>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -50,12 +51,27 @@ inline Eigen::Matrix3d alignFrameZRolled(
   return aligned * Eigen::AngleAxisd(roll_rad, Eigen::Vector3d::UnitZ());
 }
 
-// 刀口滚转：keep-roll 优先，只扫 ±30°/±60°。更大滚转会让 PTP 把 TCP
-// 拧过 90°+（09-11 mock 30 例里出现 180° 姿态行程）。
+// 工具自身 Z 的额外滚转最多 45°（工艺约束）；与对齐袋轴所需倾斜分开。
+// 按绝对转角递增搜索，禁止为提高可达率自动扩大候选范围。
 inline std::vector<double> toolRollsRad()
 {
-  constexpr double step = static_cast<double>(EIGEN_PI) / 6.0;
-  return {0.0, step, -step, 2.0 * step, -2.0 * step};
+  constexpr double step = static_cast<double>(EIGEN_PI) / 12.0;
+  return {0.0, step, -step, 2.0 * step, -2.0 * step, 3.0 * step, -3.0 * step};
+}
+
+/// Process preference, after IK/bounds/collision/corridor validation: minimize
+/// extra tool-local Z roll first, then joint travel within that roll magnitude.
+/// Joint cost alone may prefer an unnecessary wrist twist over a valid keep-roll.
+inline bool preferStagingCandidate(
+  double roll_rad, double joint_cost, double best_roll_rad, double best_joint_cost)
+{
+  if (!std::isfinite(roll_rad) || !std::isfinite(joint_cost)) {
+    return false;
+  }
+  constexpr double tolerance = 1.0e-9;
+  const double difference = std::abs(roll_rad) - std::abs(best_roll_rad);
+  return difference < -tolerance ||
+         (std::abs(difference) <= tolerance && joint_cost < best_joint_cost);
 }
 
 // 预抓取 = 入口沿 −axis 后撤 standoff_m，姿态与入口一致。
@@ -196,6 +212,33 @@ inline double clampInsertionTravel(double suggested_m, double min_m, double max_
     return lo;
   }
   return std::clamp(suggested_m, lo, hi);
+}
+
+// An explicit cut reference must stay at its measured location.
+inline std::optional<double> validatedCutTravel(double travel_m, double min_m, double max_m)
+{
+  if (!std::isfinite(travel_m) || !std::isfinite(min_m) || !std::isfinite(max_m) ||
+    min_m < 0.0 || max_m < min_m || travel_m < min_m || travel_m > max_m)
+  {
+    return std::nullopt;
+  }
+  return travel_m;
+}
+
+// A staging candidate must reach the final pregrasp, not a truncated corridor.
+inline bool stagingCorridorComplete(
+  double fraction, const Eigen::Isometry3d & reached, const Eigen::Isometry3d & goal,
+  double position_tolerance_m, double rotation_tolerance_rad)
+{
+  if (!std::isfinite(fraction) || fraction < 1.0 - 1.0e-9 ||
+    !reached.matrix().allFinite() || !goal.matrix().allFinite())
+  {
+    return false;
+  }
+  const double position_error = (reached.translation() - goal.translation()).norm();
+  const double rotation_error = Eigen::AngleAxisd(
+    reached.linear().transpose() * goal.linear()).angle();
+  return position_error <= position_tolerance_m && rotation_error <= rotation_tolerance_rad;
 }
 
 // ExecuteTarget.mode / profile 数值与 IDL 对齐。profile=0 是默认 HOLD，

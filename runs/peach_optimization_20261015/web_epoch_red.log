@@ -1,0 +1,112 @@
+
+运行 workbench.test.cjs
+TAP version 13
+# Subtest: manual target survives selected_target polling, epoch invalidates it
+ok 1 - manual target survives selected_target polling, epoch invalidates it
+  ---
+  duration_ms: 1.236028
+  type: 'test'
+  ...
+# Subtest: confirmation guard rejects vanished targets and changed epochs
+ok 2 - confirmation guard rejects vanished targets and changed epochs
+  ---
+  duration_ms: 0.129391
+  type: 'test'
+  ...
+# Subtest: motion classification follows backend and allowed negative budgets remain diagnostic
+ok 3 - motion classification follows backend and allowed negative budgets remain diagnostic
+  ---
+  duration_ms: 0.138867
+  type: 'test'
+  ...
+# Subtest: operation lock prevents duplicates and lets independent cancellation through
+ok 4 - operation lock prevents duplicates and lets independent cancellation through
+  ---
+  duration_ms: 0.200697
+  type: 'test'
+  ...
+# Subtest: new experiments generate safe unique request ids
+ok 5 - new experiments generate safe unique request ids
+  ---
+  duration_ms: 1.348393
+  type: 'test'
+  ...
+# Subtest: stale state blocks operations while cancellation remains available
+ok 6 - stale state blocks operations while cancellation remains available
+  ---
+  duration_ms: 0.085734
+  type: 'test'
+  ...
+# Subtest: step navigation sends no requests and preserves visualization host DOM
+ok 7 - step navigation sends no requests and preserves visualization host DOM
+  ---
+  duration_ms: 1.01583
+  type: 'test'
+  ...
+# Subtest: submission captures target before confirmation and guard prevents stale send
+ok 8 - submission captures target before confirmation and guard prevents stale send
+  ---
+  duration_ms: 0.43544
+  type: 'test'
+  ...
+# Subtest: polling preserves user input and does not select a new epoch target
+ok 9 - polling preserves user input and does not select a new epoch target
+  ---
+  duration_ms: 0.77872
+  type: 'test'
+  ...
+# Subtest: manual non-current target publishes immutable context, unchanged polling stays quiet
+ok 10 - manual non-current target publishes immutable context, unchanged polling stays quiet
+  ---
+  duration_ms: 0.771447
+  type: 'test'
+  ...
+# Subtest: epoch invalidation publishes empty context once and new experiment refreshes it
+ok 11 - epoch invalidation publishes empty context once and new experiment refreshes it
+  ---
+  duration_ms: 0.335659
+  type: 'test'
+  ...
+# Subtest: reachability response shows per-pose solver errors instead of request success
+ok 12 - reachability response shows per-pose solver errors instead of request success
+  ---
+  duration_ms: 0.148331
+  type: 'test'
+  ...
+# Subtest: unreported scene epoch is unknown while capability zero remains valid
+not ok 13 - unreported scene epoch is unknown while capability zero remains valid
+  ---
+  duration_ms: 0.564439
+  type: 'test'
+  location: '/home/mu/Desktop/aubo_e5_jazzy_ws/src/peach_web/test/workbench.test.cjs:134:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    
+    '0' !== '未报告'
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: '未报告'
+  actual: '0'
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (/home/mu/Desktop/aubo_e5_jazzy_ws/src/peach_web/test/workbench.test.cjs:140:12)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:744:18)
+    Test.postRun (node:internal/test_runner/test:1173:19)
+    Test.run (node:internal/test_runner/test:1101:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+1..13
+# tests 13
+# suites 0
+# pass 12
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 14.90917
+
+测试文件：1，通过：0，失败：1

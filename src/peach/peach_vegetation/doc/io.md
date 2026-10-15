@@ -1,6 +1,6 @@
-# `peach_vegetation` io（v1 活文档）
+# `peach_vegetation` io（活文档）
 
-> 2026-10-10 用户裁定自仓库级 `docs/io.md` 拆写入包。跨包边界在 [peach_bringup/doc/io.md](../../peach_bringup/doc/io.md)。**源码与本文互相更新，改接口须同一轮改另一边**。
+> 当前接口快照。跨包边界在 [peach_bringup/doc/io.md](../../peach_bringup/doc/io.md)。**源码与本文互相更新，改接口须同一轮改另一边**。
 
 独立 Lifecycle 节点，**不进** `harvest_system` / lifecycle 名单。只做二维分割，不写 PlanningScene、不删 octomap 叶、不发运动。输入相对名 `image`（launch remap 到 `/camera/color/image_raw`，禁止话题名参数）；订阅 QoS 为传感档 BEST_EFFORT+VOLATILE（`peach_common.qos.sensor`，W12 起对齐 AGENTS 传感默认；与 RELIABLE 发布端兼容）；四个发布端 RELIABLE+VOLATILE+KEEP_LAST(10)。首版直接构造 Frangi（torch Hessian，`device: auto` 有 CUDA 用 `cuda:0`）+ Excess Green/HSV 叶；GPU 推理跑在专用互斥回调组（双线程执行器，长帧推理不饿死 diagnostics）。同卡时不要和场景感知对打。生命周期转换恒由节点 `main()` `ensure_active()` 自激活（2026-09-29 修复：launch 不再发转换事件——旧写法对已 active 节点发 activate 会打死进程；launch `autostart` 参数为无操作兼容位）。健康走 `/diagnostics`（任务 `vegetation_split`：device/dropped/leaf_frac/branch_frac/last_frame_age_s，每帧 force_update）。**运维注意：忙锁非阻塞丢帧（`dropped` 计数进 status 与 /diagnostics）；相机重启后订阅会楔死（末帧 >30s 诊断报 STALE「须重启本节点」）。**
 

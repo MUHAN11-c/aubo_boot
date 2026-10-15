@@ -1,0 +1,37 @@
+Starting >>> peach_common
+Finished <<< peach_common [0.48s]
+Starting >>> peach_interfaces
+Finished <<< peach_interfaces [4.09s]
+Starting >>> peach_web
+Finished <<< peach_web [0.67s]
+Starting >>> peach_harvester
+--- stderr: peach_harvester
+=============================== warnings summary ===============================
+test/test_flake8.py: 20 warnings
+  Warning: This process (pid=45960) is multi-threaded, use of fork() may lead to deadlocks in the child.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+---
+Finished <<< peach_harvester [3.04s]	[ with test failures ]
+Starting >>> peach_observability
+--- stderr: peach_observability
+
+=============================== warnings summary ===============================
+test/test_flake8.py: 20 warnings
+  Warning: This process (pid=46167) is multi-threaded, use of fork() may lead to deadlocks in the child.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+---
+Finished <<< peach_observability [9.60s]
+Starting >>> peach_stereo
+Finished <<< peach_stereo [1.76s]
+Starting >>> peach_vegetation
+Finished <<< peach_vegetation [0.77s]
+Starting >>> peach_arm
+Finished <<< peach_arm [3.39s]
+Starting >>> peach_bringup
+Finished <<< peach_bringup [0.58s]
+
+Summary: 9 packages finished [24.7s]
+  2 packages had stderr output: peach_harvester peach_observability
+  1 package had test failures: peach_harvester

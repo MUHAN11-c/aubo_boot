@@ -1,0 +1,37 @@
+1791945059.9305089 [INFO] [launch]: All log files can be found below /home/mu/Desktop/aubo_e5_jazzy_ws/runs/outer_bag_validation_20261014/ros_logs/2026-10-14-10-30-59-929855-mu-MS-7E34-163337
+1791945059.9305961 [INFO] [launch]: Default logging verbosity is set to INFO
+1791945060.4304595 [INFO] [stereo_camera_node-1]: process started with pid [163365]
+1791945060.4305975 [INFO] [peach_scene_obstacles-2]: process started with pid [163366]
+1791945060.4306350 [INFO] [robot_state_publisher-3]: process started with pid [163367]
+1791945060.4306643 [INFO] [ros2_control_node-4]: process started with pid [163368]
+1791945060.4306889 [INFO] [spawner-5]: process started with pid [163369]
+1791945060.4307132 [INFO] [spawner-6]: process started with pid [163370]
+1791945060.4307356 [INFO] [move_group-7]: process started with pid [163371]
+1791945060.4307570 [INFO] [peach_harvester-8]: process started with pid [163372]
+1791945060.4307783 [INFO] [peach_arm-9]: process started with pid [163373]
+1791945060.4308000 [INFO] [peach_observability-10]: process started with pid [163374]
+1791945060.4308217 [INFO] [lifecycle_manager-11]: process started with pid [163375]
+1791945060.4308417 [INFO] [peach_lifecycle_flag_bridge-12]: process started with pid [163376]
+1791945061.4100885 [INFO] [spawner-5]: process has finished cleanly [pid 163369]
+1791945065.0938275 [INFO] [spawner-6]: process has finished cleanly [pid 163370]
+1791945141.7258103 [WARNING] [launch]: user interrupted with ctrl-c (SIGINT)
+1791945141.8469353 [INFO] [peach_lifecycle_flag_bridge-12]: sending signal 'SIGINT' to process[peach_lifecycle_flag_bridge-12]
+1791945141.8481584 [ERROR] [peach_lifecycle_flag_bridge-12]: process has died [pid 163376, exit code -2, cmd '/home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_bringup/lib/peach_bringup/peach_lifecycle_flag_bridge --ros-args -r __node:=peach_lifecycle_flag_bridge -p use_sim_time:=False'].
+1791945141.8484106 [INFO] [lifecycle_manager-11]: sending signal 'SIGINT' to process[lifecycle_manager-11]
+1791945141.8489723 [INFO] [peach_observability-10]: sending signal 'SIGINT' to process[peach_observability-10]
+1791945141.8495860 [INFO] [peach_arm-9]: sending signal 'SIGINT' to process[peach_arm-9]
+1791945141.8502855 [INFO] [peach_harvester-8]: sending signal 'SIGINT' to process[peach_harvester-8]
+1791945141.8510711 [INFO] [move_group-7]: sending signal 'SIGINT' to process[move_group-7]
+1791945141.8520691 [INFO] [ros2_control_node-4]: sending signal 'SIGINT' to process[ros2_control_node-4]
+1791945141.8522847 [ERROR] [lifecycle_manager-11]: process has died [pid 163375, exit code -2, cmd '/opt/ros/jazzy/lib/nav2_lifecycle_manager/lifecycle_manager --ros-args -r __node:=peach_lifecycle_manager -p use_sim_time:=False --params-file /tmp/launch_params_kxg_y95c'].
+1791945141.8526540 [INFO] [robot_state_publisher-3]: sending signal 'SIGINT' to process[robot_state_publisher-3]
+1791945141.8531144 [INFO] [peach_scene_obstacles-2]: sending signal 'SIGINT' to process[peach_scene_obstacles-2]
+1791945141.8535850 [INFO] [stereo_camera_node-1]: sending signal 'SIGINT' to process[stereo_camera_node-1]
+1791945141.8569160 [ERROR] [robot_state_publisher-3]: process has died [pid 163367, exit code -2, cmd '/opt/ros/jazzy/lib/robot_state_publisher/robot_state_publisher --ros-args -p use_sim_time:=False --params-file /tmp/launch_params_7qx3ree2'].
+1791945141.8586833 [ERROR] [ros2_control_node-4]: process has died [pid 163368, exit code -2, cmd '/opt/ros/jazzy/lib/controller_manager/ros2_control_node --ros-args -p use_sim_time:=False --params-file /tmp/launch_params_uqjw1tdt --params-file /home/mu/Desktop/aubo_e5_jazzy_ws/install/aubo_e5_bringup/share/aubo_e5_bringup/config/controllers.yaml'].
+1791945141.8754880 [ERROR] [stereo_camera_node-1]: process has died [pid 163365, exit code -2, cmd '/home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_stereo/lib/peach_stereo/stereo_camera_node --ros-args -r __node:=peach_stereo_camera_node -r __ns:=/camera -p use_sim_time:=False --params-file /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_stereo/share/peach_stereo/config/stereo_camera.yaml --params-file /tmp/launch_params_8381file --params-file /tmp/launch_params_kwxt9v61'].
+1791945141.8792915 [ERROR] [peach_arm-9]: process has died [pid 163373, exit code -6, cmd '/home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_arm/lib/peach_arm/peach_arm --ros-args -r __node:=peach_arm -r __ns:=/ -p use_sim_time:=False --params-file /tmp/launch_params_eqhmlyhi --params-file /tmp/launch_params_kjh3sb1q --params-file /tmp/launch_params_dzn4g89l --params-file /tmp/launch_params_j25k8hob --params-file /tmp/launch_params_mf__ap5g --params-file /tmp/launch_params_x0gy79m4 --params-file /tmp/launch_params_r78_l_jb --params-file /tmp/launch_params_s1g2055g --params-file /tmp/launch_params_58sl5uud --params-file /tmp/launch_params_4lwsdmlp --params-file /tmp/launch_params_x3tah41o --params-file /tmp/launch_params_tfn6u41x'].
+1791945141.9290214 [ERROR] [move_group-7]: process has died [pid 163371, exit code -11, cmd '/opt/ros/jazzy/lib/moveit_ros_move_group/move_group --ros-args -p use_sim_time:=False --params-file /tmp/launch_params_ho2ii0w2 --params-file /tmp/launch_params_sf0w_vi2'].
+1791945142.0159140 [ERROR] [peach_harvester-8]: process has died [pid 163372, exit code -2, cmd '/home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_harvester/lib/peach_harvester/peach_harvester --ros-args -r __ns:=/ -p use_sim_time:=False --params-file /tmp/launch_params_ajmcbc5u --params-file /tmp/launch_params_5gb8fqky --params-file /tmp/launch_params_0eg9w8jj --params-file /tmp/peach_brain_overlay_ceevpur1.yaml'].
+1791945142.0303969 [ERROR] [peach_observability-10]: process has died [pid 163374, exit code -2, cmd '/home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_observability/lib/peach_observability/peach_observability --ros-args -r __node:=peach_observability -r __ns:=/ -p use_sim_time:=False --params-file /tmp/launch_params__mw6xu4j --params-file /tmp/launch_params_49o3r5di'].
+1791945143.1537759 [ERROR] [peach_scene_obstacles-2]: process has died [pid 163366, exit code -2, cmd '/home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_harvester/lib/peach_harvester/peach_scene_obstacles --ros-args -p use_sim_time:=False'].

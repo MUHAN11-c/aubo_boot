@@ -1,0 +1,20 @@
+[WARN] [1791941762.077228412] [rcl]: ROS_LOCALHOST_ONLY is deprecated but still honored if it is enabled. Use ROS_AUTOMATIC_DISCOVERY_RANGE and ROS_STATIC_PEERS instead.
+[WARN] [1791941762.077338656] [rcl]: 'localhost_only' is enabled, 'automatic_discovery_range' and 'static_peers' will be ignored.
+[INFO] [1791941762.783650180] [rviz2]: Stereo is NOT SUPPORTED
+[INFO] [1791941762.783810435] [rviz2]: OpenGl version: 4.6 (GLSL 4.6)
+[INFO] [1791941762.874310154] [rviz2]: Stereo is NOT SUPPORTED
+Warning: class_loader.impl: SEVERE WARNING!!! A namespace collision has occurred with plugin factory for class rviz_default_plugins::displays::InteractiveMarkerDisplay. New factory will OVERWRITE existing one. This situation occurs when libraries containing plugins are directly linked against an executable (the one running right now generating this message). Please separate plugins out into their own library or just don't link against the library and use either class_loader::ClassLoader/MultiLibraryClassLoader to open.
+         at line 321 in /opt/ros/jazzy/include/class_loader/class_loader/class_loader_core.hpp
+[ERROR] [1791941766.326316902] [moveit_501008377.moveit.ros.motion_planning_frame]: Action server: /recognize_objects not available
+[INFO] [1791941766.383182184] [moveit_501008377.moveit.ros.motion_planning_frame]: MoveGroup namespace changed: / -> . Reloading params.
+[INFO] [1791941766.412665133] [rviz]: Subscribing to: /peach/perception/single_cloud
+
+[INFO] [1791941766.447105829] [rviz]: Subscribing to: /peach/perception/single_cloud
+
+[INFO] [1791941766.703031237] [rviz2]: Stereo is NOT SUPPORTED
+[ERROR] [1791941776.574704625] [rviz]: Could not find parameter robot_description_semantic and did not receive robot_description_semantic via std_msgs::msg::String subscription within 10.000000 seconds.
+Error:   Could not parse the SRDF XML File. Error=XML_ERROR_EMPTY_DOCUMENT ErrorID=13 (0xd) Line number=0
+         at line 732 in ./src/model.cpp
+[ERROR] [1791941776.591471746] [moveit_501008377.moveit.ros.rdf_loader]: Unable to parse SRDF
+[ERROR] [1791941776.607525303] [moveit_501008377.moveit.ros.planning_scene_monitor]: Robot model not loaded
+[INFO] [1791941874.945208941] [rclcpp]: signal_handler(SIGINT/SIGTERM)

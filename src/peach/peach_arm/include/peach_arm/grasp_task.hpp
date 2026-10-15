@@ -12,6 +12,8 @@
 
 #include <Eigen/Geometry>
 
+#include <atomic>
+#include <cstdint>
 #include <functional>
 #include <map>
 #include <memory>
@@ -30,6 +32,7 @@
 #include "peach_arm/acm_policy.hpp"
 #include "peach_arm/grasp_geometry.hpp"
 #include "peach_arm/math_utils.hpp"
+#include "peach_arm/staging_candidates.hpp"
 #include "peach_arm/protected_zones.hpp"
 
 namespace moveit::task_constructor
@@ -160,12 +163,13 @@ struct GraspTaskConfig
   double tool_body_length_m{0.200};  ///< 工具筒体长 [m]（①层审查，tcp.xacro 对齐）。
   double tool_body_radius_m{0.060};  ///< 工具筒体半径 [m]。
   std::function<std::optional<Eigen::Isometry3d>()> lookup_current_tip;  ///< 查当前 TCP。
-  /// staging 滚转梯子 IK（位姿 → {关节解, 命中滚转 rad}；keep-roll 优先、
-  /// ±30°/±60° 兜到首个有解，每档当前种子+随机重启≤3；无解返回空。
+  /// staging 滚转梯子 IK 返回候选列表（关节解、滚转rad、加权关节代价）；
+  /// ±15°/±30°/±45° 按绝对滚转量优先，每档当前种子+随机重启≤3；无解返回空列表。
   /// 调用方用命中滚转构造三路点（stagingWaypoints），保证 PTP 落点与
   /// LIN 目标同姿态族。自碰由 MoveIt PTP 规划器在规划场景内校验。
-  std::function<std::optional<std::pair<std::map<std::string, double>, double>>(
-      const Eigen::Isometry3d & staging_pose)> staging_ik;
+  std::function<std::vector<StagingCandidate>(
+      const Eigen::Isometry3d & staging_pose,
+      const std::vector<Eigen::Isometry3d> & corridor)> staging_ik;
   std::vector<ProtectedZone> protected_zones;  // base 系 AABB → planning scene
   std::function<bool(std::string &)> approach_execution_gate;  // 下发接近轨迹前
   std::function<bool(std::string &)> retreat_execution_gate;   // 撤离不依赖视觉
@@ -179,6 +183,7 @@ struct GraspTaskResult
 {
   bool success{false};
   bool execution_started{false};  // 已向控制器下发
+  bool retry_forbidden{false};  // 取消/授权拒绝不能通过更换候选重试
   std::string reason;
 };
 
@@ -392,6 +397,7 @@ private:
   rclcpp::Node::SharedPtr node_;
   GraspTaskConfig config_;
   std::mutex task_mutex_;
+  std::atomic<std::uint64_t> cancel_generation_{0};
   std::unique_ptr<moveit::task_constructor::Task> active_task_;
   std::atomic_bool task_abandoned_{false};  // 弃等线程已接管任务（reset 前须 release）
   std::unique_ptr<peach_arm::RetireBucket> retiring_;  // 弃等线程桶（execution_guard.hpp）

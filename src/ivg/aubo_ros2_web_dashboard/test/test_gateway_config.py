@@ -46,20 +46,15 @@ def test_robot_status_topic_mapped():
 
 
 def test_create_app_routes():
-    """create_app 挂载核心路由（依赖 fastapi/httpx/websockets，缺则跳过）."""
-    fastapi = pytest.importorskip('fastapi')
-    pytest.importorskip('httpx')
-    pytest.importorskip('websockets')
-    web_root = os.path.join(_PKG_ROOT, 'web', 'public')
-    if not os.path.isdir(web_root):
-        pytest.skip('web/public 不存在')
-    from aubo_ros2_web_dashboard.gateway.app import create_app
-    app = create_app(web_root)
-    paths = {r.path for r in app.routes}
-    assert '/health' in paths
-    assert '/api/v1/runtime' in paths
-    assert '/api/v1/tool-geometries' in paths
-    # /ws/rosbridge 代理路由已移除；/ws/foxglove 保留
-    assert '/ws/foxglove' in paths
-    assert '/ws/rosbridge' not in paths
-    assert fastapi is not None
+    """BFF 子路由模块可提供 FastAPI 路由（网关组合由 ros_web_link 测试覆盖）."""
+    try:
+        from aubo_ros2_web_dashboard.gateway_routes import get_bff_router
+        router = get_bff_router()
+        assert router is not None
+        assert router.prefix == "/api/v1"
+        route_paths = {r.path for r in router.routes}
+        assert "/api/v1/runtime" in route_paths
+        assert "/api/v1/settings" in route_paths
+        assert "/api/v1/tool-geometries" in route_paths
+    except ImportError:
+        pytest.skip("gateway_routes 依赖不可用（fastapi/starlette 或 ros_web_link）")

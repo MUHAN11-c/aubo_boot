@@ -109,7 +109,15 @@ void TargetCache::updateSelectedTarget(const SelectedTargetUpdate & update)
   const bool decision_changed =
     !grasp_decision_target_id_.empty() &&
     grasp_decision_target_id_ != update.selected_id;
-  if (target_changed || refined_changed || decision_changed) {
+  const bool run_changed = !target_.harvest_run_id.empty() &&
+    !update.harvest_run_id.empty() && target_.harvest_run_id != update.harvest_run_id;
+  const bool model_run_changed = !model_.identity.run_id.empty() &&
+    !update.harvest_run_id.empty() && model_.identity.run_id != update.harvest_run_id;
+  if (target_changed || refined_changed || decision_changed || run_changed || model_run_changed) {
+    model_ = ModelSnapshot();
+    model_generated_s_ = 0.0;
+    decision_committed_ = false;
+    decision_revoked_ = false;
     target_.valid = false;
     refined_ = CachedRefined();
     quality_.refined_target_id.clear();
@@ -237,13 +245,133 @@ ModelSnapshot TargetCache::modelSnapshot() const
   return model_;
 }
 
+std::optional<DecisionSnapshot> TargetCache::decisionSnapshot() const
+{
+  std::lock_guard<std::mutex> lock(mutex_);
+  if (!decision_committed_ || !refined_.valid ||
+    !modelExecutable(model_, clock_s_(), false))
+  {
+    return std::nullopt;
+  }
+  QualitySnapshot quality = quality_;
+  quality.data_age_s = std::max(0.0, clock_s_() - model_generated_s_);
+  quality.axis_angle_deg = target_.valid ?
+    angleDeg(target_.initial_axis, refined_.axis, AngleDegenerate::Invalid, 1.0e-6) : -1.0;
+  return DecisionSnapshot{model_, refined_, quality};
+}
+
+bool TargetCache::updateDecisionSnapshot(
+  const ModelSnapshot & model, const RefinedPoseUpdate & geometry,
+  double rmse_m, double inlier_ratio)
+{
+  std::lock_guard<std::mutex> lock(mutex_);
+  if (unrefined_hold_) {
+    return false;
+  }
+  const auto & identity = model.identity;
+  // 先核身份再写任何缓存：外来消息不得先替换 model_ 再被目标门拒绝。
+  if ((!target_.id.empty() && !identity.target_id.empty() &&
+    target_.id != identity.target_id) ||
+    (!target_.harvest_run_id.empty() && !identity.run_id.empty() &&
+    target_.harvest_run_id != identity.run_id))
+  {
+    return false;
+  }
+  if (!model_.identity.run_id.empty() && model_.identity.run_id == identity.run_id &&
+    model_.identity.target_id == identity.target_id &&
+    (identity.scene_epoch < model_.identity.scene_epoch ||
+    (identity.scene_epoch == model_.identity.scene_epoch &&
+    model.generated_s < model_.generated_s)))
+  {
+    return false;  // 不接收迟到的旧版本；生成时间由生产者冻结。
+  }
+  if (!identityComplete(identity)) {
+    // 撤销清执行数据但保留身份/生成时间高水位；旧消息不能趁空缓存重新授权。
+    model_.generated_s = std::max(model_.generated_s, model.generated_s);
+    model_.valid_until_s = 0.0;
+    model_.geometry = Capability::Invalid;
+    model_.pregrasp = Capability::Invalid;
+    model_.sleeve = Capability::Invalid;
+    model_.cut = Capability::Invalid;
+    model_generated_s_ = model_.generated_s;
+    decision_revoked_ = true;
+    refined_ = CachedRefined();
+    quality_.refined_accept = false;
+    quality_.grasp_allowed = false;
+    grasp_decision_target_id_.clear();
+    decision_committed_ = false;
+    cv_.notify_all();
+    return false;
+  }
+  const bool identity_matches = identitiesMatch(model_.identity, identity);
+  if (decision_revoked_ && identity_matches) {
+    return false;
+  }
+  const bool same_revision = decision_committed_ && identity_matches;
+  const auto previous = model_;
+  const double generated_s = same_revision ? model_.generated_s : model.generated_s;
+  const double valid_until_s = same_revision ?
+    std::min(model_.valid_until_s, model.valid_until_s) : model.valid_until_s;
+  model_ = model;
+  if (same_revision) {
+    // 同一修订的 INVALID 是不可执行证据；状态改善必须由新修订证明。
+    if (previous.geometry == Capability::Invalid) {model_.geometry = Capability::Invalid;}
+    if (previous.pregrasp == Capability::Invalid) {model_.pregrasp = Capability::Invalid;}
+    if (previous.sleeve == Capability::Invalid) {model_.sleeve = Capability::Invalid;}
+    if (previous.cut == Capability::Invalid) {model_.cut = Capability::Invalid;}
+  }
+  decision_revoked_ = false;
+  model_.generated_s = generated_s;
+  model_.valid_until_s = valid_until_s;
+  model_generated_s_ = generated_s;
+  decision_committed_ = true;
+  grasp_decision_target_id_ = identity.target_id;
+  refined_ = CachedRefined();
+  refined_.id = identity.target_id;
+  refined_.entry = geometry.entry;
+  refined_.bottom = geometry.bottom;
+  refined_.neck = geometry.neck;
+  refined_.axis = geometry.axis;
+  refined_.suggested_travel_m = geometry.suggested_travel_m;
+  refined_.bag_diameter_upper_m = geometry.bag_diameter_upper_m;
+  refined_.valid = geometry.target_id == identity.target_id &&
+    model_.geometry == Capability::Valid && geometry.entry.allFinite() &&
+    geometry.bottom.allFinite() && geometry.neck.allFinite() && nonzeroFinite(geometry.axis);
+  quality_.refined_target_id = identity.target_id;
+  quality_.reconstruction_target_id = identity.target_id;
+  quality_.reconstruction_state = refined_.valid ? "READY" : "INVALID";
+  quality_.refined_accept = refined_.valid;
+  quality_.refined_rmse_m = std::isfinite(rmse_m) && rmse_m >= 0.0 ? rmse_m : -1.0;
+  quality_.refined_inlier_ratio =
+    std::isfinite(inlier_ratio) && inlier_ratio >= 0.0 && inlier_ratio <= 1.0 ?
+    inlier_ratio : -1.0;
+  quality_.grasp_allowed = refined_.valid &&
+    allowedFromCapabilities(model_.geometry, model_.sleeve, model_.cut) &&
+    modelExecutable(model_, clock_s_(), false);
+  cv_.notify_all();
+  return true;
+}
+
+bool TargetCache::waitForDecision(
+  const std::string & target_id, double timeout_s, const std::atomic_bool & cancel) const
+{
+  std::unique_lock<std::mutex> lock(mutex_);
+  return cv_.wait_for(
+    lock, std::chrono::duration<double>(timeout_s), [this, &target_id, &cancel]() {
+      return cancel.load() || (decision_committed_ &&
+             model_.identity.target_id == target_id &&
+             grasp_decision_target_id_ == target_id &&
+             modelExecutable(model_, clock_s_(), false));
+    }) && !cancel.load();
+}
+
 bool TargetCache::updateRefinedPose(
   const RefinedPoseUpdate & update, std::string * reject_reason)
 {
   std::lock_guard<std::mutex> lock(mutex_);
-  if (unrefined_hold_ && !update.clear) {
+  if (decision_committed_ || (unrefined_hold_ && !update.clear)) {
     if (reject_reason) {
-      *reject_reason = "unrefined_hold";
+      *reject_reason = decision_committed_ ? "authoritative_decision" : "unrefined_hold";
     }
     return false;
   }
@@ -277,9 +405,9 @@ bool TargetCache::updateRefinedFitting(
   const RefinedFittingUpdate & update, std::string * reject_reason)
 {
   std::lock_guard<std::mutex> lock(mutex_);
-  if (unrefined_hold_ && !update.clear) {
+  if (decision_committed_ || (unrefined_hold_ && !update.clear)) {
     if (reject_reason) {
-      *reject_reason = "unrefined_hold";
+      *reject_reason = decision_committed_ ? "authoritative_decision" : "unrefined_hold";
     }
     return false;
   }
@@ -377,8 +505,13 @@ QualitySnapshot TargetCache::qualitySnapshot() const
 {
   std::lock_guard<std::mutex> lock(mutex_);
   QualitySnapshot snapshot = quality_;
+  if (decision_committed_ && !modelExecutable(model_, clock_s_(), false)) {
+    snapshot.grasp_allowed = false;
+  }
   if (unrefined_hold_) {
     snapshot.data_age_s = 0.0;
+  } else if (model_generated_s_ > 0.0) {
+    snapshot.data_age_s = std::max(0.0, clock_s_() - model_generated_s_);
   } else if (diagnostics_seen_) {
     snapshot.data_age_s = std::max(0.0, clock_s_() - diagnostics_received_s_);
   }

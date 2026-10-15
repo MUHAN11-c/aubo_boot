@@ -107,7 +107,8 @@ _GENERATED_PARAM_MODULES = {
 
 
 def _iter_sources(src_root: Path):
-    # 2026-10-10 子工作空间分组：v1 包嵌套在 src/peach/ 下；peach_sim 等仍在 src/ 顶层。
+    # 2026-10-10 子工作空间分组：v1 包嵌套在 src/peach/ 下；2026-10-13 起 sim 组在
+    # src/sim/sim_*、IVG 在 src/ivg/——均不匹配本 glob，不在反向扫描面。
     # 名字过滤天然排除 peach2_*（peach2_ 前缀）。
     packages = sorted(set(src_root.glob('peach_*')) | set(src_root.glob('*/peach_*')))
     for package in packages:

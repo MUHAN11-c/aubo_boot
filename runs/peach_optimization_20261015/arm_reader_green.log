@@ -1,0 +1,59 @@
+Running main() from /opt/ros/jazzy/src/gtest_vendor/src/gtest_main.cc
+[==========] Running 25 tests from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 25 tests from TargetCache
+[ RUN      ] TargetCache.SelectedTargetStoresAnchorAndStamp
+[       OK ] TargetCache.SelectedTargetStoresAnchorAndStamp (0 ms)
+[ RUN      ] TargetCache.InvalidAnchorKeepsTargetInvalid
+[       OK ] TargetCache.InvalidAnchorKeepsTargetInvalid (0 ms)
+[ RUN      ] TargetCache.SameIdRefreshKeepsRefinedAndDecision
+[       OK ] TargetCache.SameIdRefreshKeepsRefinedAndDecision (0 ms)
+[ RUN      ] TargetCache.IdConflictClearsRefinedAndDecision
+[       OK ] TargetCache.IdConflictClearsRefinedAndDecision (0 ms)
+[ RUN      ] TargetCache.RefinedBeforeSelectedIsRetainedOnSameId
+[       OK ] TargetCache.RefinedBeforeSelectedIsRetainedOnSameId (0 ms)
+[ RUN      ] TargetCache.GraspDecisionForOtherTargetIgnored
+[       OK ] TargetCache.GraspDecisionForOtherTargetIgnored (0 ms)
+[ RUN      ] TargetCache.RefinedSnapshotProjection
+[       OK ] TargetCache.RefinedSnapshotProjection (0 ms)
+[ RUN      ] TargetCache.RefinedFittingSelectsSphereOrCylinder
+[       OK ] TargetCache.RefinedFittingSelectsSphereOrCylinder (0 ms)
+[ RUN      ] TargetCache.QualitySnapshotProjectsDiagnosticsAndAge
+[       OK ] TargetCache.QualitySnapshotProjectsDiagnosticsAndAge (0 ms)
+[ RUN      ] TargetCache.LockedTargetsRefreshClearAndRunBoundary
+[       OK ] TargetCache.LockedTargetsRefreshClearAndRunBoundary (0 ms)
+[ RUN      ] TargetCache.WaitForNewViewTimesOutAndSatisfiesFast
+[       OK ] TargetCache.WaitForNewViewTimesOutAndSatisfiesFast (52 ms)
+[ RUN      ] TargetCache.PromoteUnrefinedFromLockedAndHoldsAgainstDiagnostics
+[       OK ] TargetCache.PromoteUnrefinedFromLockedAndHoldsAgainstDiagnostics (0 ms)
+[ RUN      ] TargetCache.DiagnosticsHeartbeatDoesNotRefreshModelAge
+[       OK ] TargetCache.DiagnosticsHeartbeatDoesNotRefreshModelAge (0 ms)
+[ RUN      ] TargetCache.DecisionCommitsGeometryCapabilitiesAndIdentityTogether
+[       OK ] TargetCache.DecisionCommitsGeometryCapabilitiesAndIdentityTogether (0 ms)
+[ RUN      ] TargetCache.ForeignDecisionCannotReplaceCurrentModel
+[       OK ] TargetCache.ForeignDecisionCannotReplaceCurrentModel (0 ms)
+[ RUN      ] TargetCache.DecisionHeartbeatDoesNotRenewExpiryOrGeneration
+[       OK ] TargetCache.DecisionHeartbeatDoesNotRenewExpiryOrGeneration (0 ms)
+[ RUN      ] TargetCache.LegacyPoseCannotOverwriteAuthoritativeDecisionGeometry
+[       OK ] TargetCache.LegacyPoseCannotOverwriteAuthoritativeDecisionGeometry (0 ms)
+[ RUN      ] TargetCache.IncompleteRevocationClearsCurrentPermission
+[       OK ] TargetCache.IncompleteRevocationClearsCurrentPermission (0 ms)
+[ RUN      ] TargetCache.TargetChangeInvalidatesDecisionEvenWhenIdIsReused
+[       OK ] TargetCache.TargetChangeInvalidatesDecisionEvenWhenIdIsReused (0 ms)
+[ RUN      ] TargetCache.RevokedRevisionCannotBeResurrectedByDelayedHeartbeat
+[       OK ] TargetCache.RevokedRevisionCannotBeResurrectedByDelayedHeartbeat (0 ms)
+[ RUN      ] TargetCache.OlderRevisionCannotReplaceNewerGeometry
+[       OK ] TargetCache.OlderRevisionCannotReplaceNewerGeometry (0 ms)
+[ RUN      ] TargetCache.DecisionWaitIsCancelableAndDoesNotAcceptForeignTarget
+[       OK ] TargetCache.DecisionWaitIsCancelableAndDoesNotAcceptForeignTarget (0 ms)
+[ RUN      ] TargetCache.DecisionBeforeSelectedCannotCrossRunWithSameTargetId
+[       OK ] TargetCache.DecisionBeforeSelectedCannotCrossRunWithSameTargetId (0 ms)
+[ RUN      ] TargetCache.SameRevisionDenialCannotBeUpgradedByOldValidHeartbeat
+[       OK ] TargetCache.SameRevisionDenialCannotBeUpgradedByOldValidHeartbeat (0 ms)
+[ RUN      ] TargetCache.ExecutionSnapshotKeepsGeometryAndModelInOneRead
+[       OK ] TargetCache.ExecutionSnapshotKeepsGeometryAndModelInOneRead (0 ms)
+[----------] 25 tests from TargetCache (52 ms total)
+
+[----------] Global test environment tear-down
+[==========] 25 tests from 1 test suite ran. (52 ms total)
+[  PASSED  ] 25 tests.

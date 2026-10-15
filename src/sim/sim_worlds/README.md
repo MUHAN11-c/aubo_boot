@@ -29,8 +29,8 @@ src/sim/
                            # 果园场景生成包：确定性 SDF/manifest/地图 + 离线资产
                            # （与 Blender 感知验收不是同一份 GT）
     test/                   # 纯核测试
-  sim_description/          # 机体 xacro + meshes（履带+臂+末端）
-  sim_bringup/              # orchard_sim/orchard_nav launch + 桥接/Nav2 配置
+  sim_description/          # 机体 xacro + meshes（履带+臂+末端；gz model://sim_description 的 GLB 安装源）
+  sim_bringup/              # sim/harvest/orchard_sim/orchard_nav launch + 桥接/Nav2 配置 + orchard_harvest 编排
   sim_perception/           # P3：peach 感知栈快照复制
   sim_system_tests/         # P2：launch_testing 验收门
 ```
@@ -239,19 +239,25 @@ _tools/blender-4.5.14-linux-x64/blender -b \
   -P src/sim/sim_worlds/blender/export_field_to_gz.py -- \
   --out src/sim/sim_worlds/meshes/field_no_grass.glb
 
-# 仅看世界（纯视觉静态模型，查看完关窗即清）
+# 仅看世界（查看完关窗即清）
 GZ_SIM_RESOURCE_PATH=src:src/sim/sim_worlds:src/sim/sim_description gz sim -r \
   src/sim/sim_worlds/worlds/field_no_grass.sdf
 
 # 带完整采摘机器人（固定工位：BUNKER 彩色底盘 + 臂链 + 球形末端）
-# 本世界只有视觉地面、无地面碰撞；physics type="ignored" 不关闭物理。
-# 禁用 mobile 模式以免底盘自由落体；驾驶体验用默认 peach_orchard.sdf。
 ros2 launch sim_bringup orchard_sim.launch.py \
   world:=install/sim_worlds/share/sim_worlds/worlds/field_no_grass.sdf mobile:=false
 ```
 
-仅为人工查看效果；导航/感知 GT 仍以 `worlds/peach_orchard.sdf`（程序化
-锚定世界）为准，两者不混用。
+定位（P2/P4b 起反转，不再是纯视觉查看件）：世界带**不可见地面碰撞**
+（`ground_collision` 平面，可驾驶）与 `Sensors`（ogre2）渲染系统——腕载
+rgbd/激光可成像；它是 `harvest.launch.py`（field 预设）自主采摘的正式世界。
+GT 同源：`ros2 run sim_worlds generate_field` 从重建
+`scene_manifest.json`（v11，24 树/395 袋全 3D GT）生成
+`maps/field_map.{pgm,yaml}` + `maps/field_stations.yaml`（AMCL 初值与
+spawn 同源）。GLB 由 `sim_description/meshes/` 安装树承载
+（世界引用 `model://sim_description/meshes/field_no_grass.glb`）。
+程序化世界 `worlds/peach_orchard.sdf` 仍是确定性回归口径
+（`harvest.launch.py field:=false`）；两世界各自同源 GT，不混用。
 
 固定工位默认使用 `tool_profile:=bite_shear_v1`（peach 球形环抱咬合式剪切手
 的真实 CAD 网格和 TCP 档案）与下载适配的 BUNKER Pro 2 外观；深灰车体、
@@ -266,7 +272,7 @@ ros2 launch sim_bringup orchard_sim.launch.py \
 ## 自主导航（Gazebo Harmonic + Nav2，2026-10 轮）
 
 仿真采摘工位可驾驶化 + 官方 Nav2 全栈，全部落在本包内（不进 harvest_system、
-不动驱动九包）。三入口：
+不动驱动九包）。四入口：
 
 ```bash
 # 1) 自主导航：gz 履带驱动 + 桥接 + AMCL/NavFn/MPPI + RViz（2D Goal Point 发目标）
@@ -279,6 +285,11 @@ ros2 run sim_worlds orchard_tour --rows 2,3                  # 或省略 --rows 
 # 3) SLAM 校验：slam_toolbox 在线建图，与确定性生成图人工对照
 ros2 launch sim_bringup orchard_nav.launch.py slam:=True rviz:=False
 ros2 run nav2_map_server map_saver_cli -f /tmp/slam_check
+
+# 4) 自主采摘全栈（P4b）：重建果园一键 sim+perception+Nav2，编排 CLI 逐站
+#    导航→感知锁集→建模→臂接近（入口参数详见 sim_bringup/README.md）
+ros2 launch sim_bringup harvest.launch.py
+ros2 run sim_bringup orchard_harvest --rows 2 --max-stations 3
 ```
 
 （布尔 launch 参数注意：`slam`/`rviz` 走 IfCondition/PythonExpression 求值，
@@ -302,9 +313,12 @@ ros2 run nav2_map_server map_saver_cli -f /tmp/slam_check
 - **传感**：前桅杆 2D 激光（z=0.45 穿树干区，±95°——车体自遮挡扇区不发射），
   桥接 `clock/joint_states/odom/tf/scan` 入、`cmd_vel` 出（普通 Twist）。世界已加
   `gz::sim::systems::Sensors`（ogre2）系统渲染传感器，否则 /scan 无发布者。
-- **地图**：`generate_orchard --map` 确定性生成 `maps/orchard_map.{pgm,yaml}`
-  （树干保守上界 + 棚架立柱 + 地面边环），与世界同参数重生成；AMCL 初始位姿
-  取场景 spawn，免手发 2D Pose Estimate。
+- **地图**：程序化世界 `generate_orchard --map` 确定性生成
+  `maps/orchard_map.{pgm,yaml}`（树干保守上界 + 棚架立柱 + 地面边环），与世界
+  同参数重生成；重建果园 `generate_field` 从 `scene_manifest.json` 生成
+  `maps/field_map.{pgm,yaml}` + `maps/field_stations.yaml`（树干致命盘 + 外沿
+  致命环，站位=作业道侧树干外 `row_gap`）。两图的 AMCL 初始位姿都取同源
+  spawn/站位，免手发 2D Pose Estimate。
 - **冒烟结论（2026-10-08）**：AMCL/NavFn/MPPI 全 active，`map→odom→platform` TF
   链解析出生位姿；巡航 `orchard_tour --rows 2` 多轮到站（含出生点后方掉头
   航段）。**已知欠账**：窄过道（行距 4 m、作业位 x=0.95）掉头处 MPPI 仍会
@@ -319,7 +333,9 @@ ros2 run nav2_map_server map_saver_cli -f /tmp/slam_check
 `sim_worlds.params/scene/cli`、`config/orchard.yaml`、`worlds/peach_orchard.sdf`
 既是旧静态管线（`orchard_sim.launch.py` 默认锚定模式），也是自主导航轮的
 世界底座（`mobile:=true` 由 `orchard_nav.launch.py` Include）；新建模不消费
-它们做感知验收，Blender 与 Gazebo 仍不是同一份 GT。
+它们做感知验收。例外：重建果园的导航/站位 GT 由 `generate_field` 直接取
+Blender `scene_manifest.json` 生成（field 世界与 Blender 同源），程序化世界
+与 Blender 仍不是同一份 GT。
 
 ## 许可
 

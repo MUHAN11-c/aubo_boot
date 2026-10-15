@@ -455,6 +455,9 @@ class PerceptionPipeline:
                 tool_version=params.tool.version)
             candidate_2d_msg = to_candidate_2d(header, tid, g2)
             fitting_msg = to_fitting(header, tid, result)
+            # Report every detected bag's geometry failure, including an
+            # untracked depth void. Only confirmed 3-D candidates may move.
+            fit_arr.fittings.append(fitting_msg)
             registry_item = (
                 None if self.target_registry is None
                 else self.target_registry.get(tid))
@@ -492,7 +495,6 @@ class PerceptionPipeline:
                     'mask_depth_ratio': mask_depth_ratio,
                 }
                 cand_arr.candidates.append(candidate_msg)
-                fit_arr.fittings.append(fitting_msg)
                 markers.markers.extend(to_markers(
                     header, tid, p['i'], result,
                     tool_d_inner=float(params.tool.d_inner_m)))

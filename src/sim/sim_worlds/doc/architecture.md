@@ -35,9 +35,12 @@ TCP 保持腕部 `(0, 0.03024, 0.1655) m`、`Rx(-90°)`，不另造普通球体�
 平台名义包络，导出黑色橡胶、金属灰、深灰与橙色 PBR 常量材质；此适配并非
 厂商实机尺寸复刻。碰撞代理、关节与驱动插件独立保留，移动模式仍用原低模。
 
-`field_no_grass.sdf` 只有视觉地面、没有地面碰撞，须用固定工位模式查看完整
-机器人。其 `physics type="ignored"` 不关闭物理插件；动态底盘会自由落体。
-太阳强度为 1，避免原强度 4 将彩色底盘与金属臂的亮部过曝。
+`field_no_grass.sdf` 自 P2（2026-10-13）带不可见地面碰撞
+（`ground_collision` 平面，动态底盘可落地驾驶），自 P4b（2026-10-14）带
+`Sensors`（ogre2）渲染系统——腕载 rgbd/激光可成像；它是
+`harvest.launch.py`（field 预设）自主采摘的正式世界，不再是纯视觉查看件。
+其 `<physics type="ignored">` 仍不关闭物理插件。太阳强度为 1，避免原强度
+4 将彩色底盘与金属臂的亮部过曝。
 
 ## Gazebo 模型不可见：定位与解决方法
 
@@ -78,20 +81,21 @@ timeout 6 gz topic -e -t /world/field_no_grass/pose/info -n 1
 路径、导出坐标轴、GUI 加载错误与相机。这个顺序避免用视角或资源路径
 修补实际的物理下落问题。
 
-### 视觉地面不能承托动态底盘
+### 视觉地面、物理与动态底盘
 
-`field_no_grass.sdf` 的果园模型只有 `<visual>`，没有地面 `<collision>`。
-同时它显式加载 Physics 系统；`<physics type="ignored">` 不关闭物理，
-实际仍可加载 DART。动态底盘因此会穿过可见地面并持续自由落体；实体仍在，
-创建日志也仍成功，但高度可以降到百万米以下，调相机不能恢复正常场景。
+`field_no_grass.sdf` 的果园 GLB 模型只有 `<visual>`；地面承托由独立
+`ground_collision` 平面碰撞承担（P2 起补齐，动态底盘可落地驾驶——
+`harvest.launch.py` 自主采摘即在该世界行驶）。世界显式加载 Physics 系统；
+`<physics type="ignored">` 不关闭物理，实际仍可加载 DART——早于 P2 的
+无碰撞版本曾因此穿过可见地面自由落体（实体仍在、创建日志成功，高度降到
+百万米以下，调相机不能恢复），该排查顺序保留作历史参照。
 
-只看完整采摘机器人时，采用已有的 `mobile:=false`：展开完整臂链，并由
+只看完整采摘机器人时，仍可用 `mobile:=false`：展开完整臂链，并由
 `world_joint` 固定整车。当前臂座高度 = 车体顶面 z=0.54 m
 （`body_bottom+body_z`，2026-10-13 起臂直接落底盘、无垫台），履带底面
 靠近 z=0。
-`mobile:=true` 是导航底盘模式，明确不包含机械臂；即使补了地面碰撞，也
-不会自动出现臂链。驾驶验证使用带碰撞的 `peach_orchard.sdf`。若未来要在
-重建世界驾驶，应先添加与视觉地面对齐的碰撞几何，再验证落地和运动。
+`mobile:=true` 是导航底盘模式，明确不包含机械臂；在重建世界驾驶/采摘走
+`harvest.launch.py`（field 预设，generate_field 站位同源 spawn）。
 
 ```bash
 # 先在原 launch 终端 Ctrl+C，确认其 gz server/gui 与桥接节点退出。

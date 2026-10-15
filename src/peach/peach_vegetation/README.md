@@ -33,3 +33,7 @@ ros2 launch peach_vegetation vegetation.launch.py
 `colcon test --packages-select peach_vegetation`。
 torch 走工作区 `aubo_py3.12`（`requirements.txt`，numpy == 1.26.4）。无 CUDA 回退 CPU。
 BSD-3-Clause。
+
+## 当前维护入口
+
+职责、源码地图、参数来源、生命周期/并发与失败处理见 [包架构](doc/architecture.md)。运行环境、分层验证、冻结回放、30组模型/10轮/30分钟验收与精确清理见 [测试指导](../peach_system_tests/doc/testing.md)。本包测试通过不代表现场采摘成功；未授权不得真机运动或SetIO，硬件急停不经ROS，程序结束必须清本轮进程。

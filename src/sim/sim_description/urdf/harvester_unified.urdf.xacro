@@ -1,5 +1,11 @@
 <?xml version="1.0"?>
-<robot name="peach_harvester_sim" xmlns:xacro="http://www.ros.org/wiki/xacro">
+<!-- robot name 必须与 aubo_e5_moveit_config SRDF 的 robot name 一致
+     （aubo_e5）：moveit rdf_loader 按 name 校验 URDF×SRDF 同体，
+     不一致时 moveit_rviz_plugin 报
+     "Semantic description is not specified for the same robot as the URDF"
+     且 SRDF 碰撞矩阵被整包拒绝（2026-10-14 实测）。gz 实体名不受此影响
+     （ros_gz_sim create -name 另给）。 -->
+<robot name="aubo_e5" xmlns:xacro="http://www.ros.org/wiki/xacro">
   <!-- 统一仿真机体（P2）：可驾驶履带底盘 + 完整 AUBO E5 臂 + 腕载相机 + peach 末端。
 
   与 harvester_robot.urdf.xacro（锚定/mobile 两模式互斥）不同，本文件是单一
@@ -117,7 +123,10 @@
         <pose>0.04485209875285428 0.10840123810873628 0.0016967255768052666
               1.422219176 -1.560927445 -3.015660872</pose>
         <topic>camera/depth</topic>
-        <update_rate>10.0</update_rate>
+        <!-- 5Hz：感知(YOLO+SAM)单帧重，10Hz 连续灌会打满 worker 队列
+             （2026-10-14 过载轮实测满队丢帧 ~1k/轮）；停走式相机节拍
+             5 帧级足够 min_collect_frames=60 的采集 -->
+        <update_rate>5.0</update_rate>
         <gz_frame_id>camera_color_optical_frame</gz_frame_id>
         <camera name="rgbd">
           <horizontal_fov>1.203132</horizontal_fov>

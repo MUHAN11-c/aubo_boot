@@ -1,0 +1,156 @@
+FFFF                                                                     [100%]
+=================================== FAILURES ===================================
+____________________ test_fixed_static_assets[ui-common.js] ____________________
+
+endpoint = 'http://127.0.0.1:33959', path = 'ui-common.js'
+
+    @pytest.mark.parametrize('path', ['vendor/peach-three.js', 'viz3d.js',
+                                      'visualization.js', 'visualization.css',
+                                      'workbench.js', 'workbench.css', 'ui-common.js',
+                                      'monitor-renderers.js', 'trajectory-renderers.js',
+                                      'request-runtime.js'])
+    def test_fixed_static_assets(endpoint, path):
+        """显式白名单资源可访问，同源 CSP 允许本地模块."""
+>       with urlopen(endpoint + '/' + path) as response:
+
+src/peach/peach_observability/test/test_preview_http.py:63: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/lib/python3.12/urllib/request.py:215: in urlopen
+    return opener.open(url, data, timeout)
+/usr/lib/python3.12/urllib/request.py:521: in open
+    response = meth(req, response)
+/usr/lib/python3.12/urllib/request.py:630: in http_response
+    response = self.parent.error(
+/usr/lib/python3.12/urllib/request.py:559: in error
+    return self._call_chain(*args)
+/usr/lib/python3.12/urllib/request.py:492: in _call_chain
+    result = func(*args)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <urllib.request.HTTPDefaultErrorHandler object at 0x7fd4b6a3f740>
+req = <urllib.request.Request object at 0x7fd4b3b1a6c0>
+fp = <http.client.HTTPResponse object at 0x7fd4b6a913c0>, code = 404
+msg = 'Not Found', hdrs = <http.client.HTTPMessage object at 0x7fd4b6a34590>
+
+    def http_error_default(self, req, fp, code, msg, hdrs):
+>       raise HTTPError(req.full_url, code, msg, hdrs, fp)
+E       urllib.error.HTTPError: HTTP Error 404: Not Found
+
+/usr/lib/python3.12/urllib/request.py:639: HTTPError
+________________ test_fixed_static_assets[monitor-renderers.js] ________________
+
+endpoint = 'http://127.0.0.1:33361', path = 'monitor-renderers.js'
+
+    @pytest.mark.parametrize('path', ['vendor/peach-three.js', 'viz3d.js',
+                                      'visualization.js', 'visualization.css',
+                                      'workbench.js', 'workbench.css', 'ui-common.js',
+                                      'monitor-renderers.js', 'trajectory-renderers.js',
+                                      'request-runtime.js'])
+    def test_fixed_static_assets(endpoint, path):
+        """显式白名单资源可访问，同源 CSP 允许本地模块."""
+>       with urlopen(endpoint + '/' + path) as response:
+
+src/peach/peach_observability/test/test_preview_http.py:63: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/lib/python3.12/urllib/request.py:215: in urlopen
+    return opener.open(url, data, timeout)
+/usr/lib/python3.12/urllib/request.py:521: in open
+    response = meth(req, response)
+/usr/lib/python3.12/urllib/request.py:630: in http_response
+    response = self.parent.error(
+/usr/lib/python3.12/urllib/request.py:559: in error
+    return self._call_chain(*args)
+/usr/lib/python3.12/urllib/request.py:492: in _call_chain
+    result = func(*args)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <urllib.request.HTTPDefaultErrorHandler object at 0x7fd4b6a3f740>
+req = <urllib.request.Request object at 0x7fd4b6a35340>
+fp = <http.client.HTTPResponse object at 0x7fd4b6a34d30>, code = 404
+msg = 'Not Found', hdrs = <http.client.HTTPMessage object at 0x7fd4b6a37a40>
+
+    def http_error_default(self, req, fp, code, msg, hdrs):
+>       raise HTTPError(req.full_url, code, msg, hdrs, fp)
+E       urllib.error.HTTPError: HTTP Error 404: Not Found
+
+/usr/lib/python3.12/urllib/request.py:639: HTTPError
+______________ test_fixed_static_assets[trajectory-renderers.js] _______________
+
+endpoint = 'http://127.0.0.1:34993', path = 'trajectory-renderers.js'
+
+    @pytest.mark.parametrize('path', ['vendor/peach-three.js', 'viz3d.js',
+                                      'visualization.js', 'visualization.css',
+                                      'workbench.js', 'workbench.css', 'ui-common.js',
+                                      'monitor-renderers.js', 'trajectory-renderers.js',
+                                      'request-runtime.js'])
+    def test_fixed_static_assets(endpoint, path):
+        """显式白名单资源可访问，同源 CSP 允许本地模块."""
+>       with urlopen(endpoint + '/' + path) as response:
+
+src/peach/peach_observability/test/test_preview_http.py:63: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/lib/python3.12/urllib/request.py:215: in urlopen
+    return opener.open(url, data, timeout)
+/usr/lib/python3.12/urllib/request.py:521: in open
+    response = meth(req, response)
+/usr/lib/python3.12/urllib/request.py:630: in http_response
+    response = self.parent.error(
+/usr/lib/python3.12/urllib/request.py:559: in error
+    return self._call_chain(*args)
+/usr/lib/python3.12/urllib/request.py:492: in _call_chain
+    result = func(*args)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <urllib.request.HTTPDefaultErrorHandler object at 0x7fd4b6a3f740>
+req = <urllib.request.Request object at 0x7fd4b36aade0>
+fp = <http.client.HTTPResponse object at 0x7fd4b36abd30>, code = 404
+msg = 'Not Found', hdrs = <http.client.HTTPMessage object at 0x7fd4b36a92e0>
+
+    def http_error_default(self, req, fp, code, msg, hdrs):
+>       raise HTTPError(req.full_url, code, msg, hdrs, fp)
+E       urllib.error.HTTPError: HTTP Error 404: Not Found
+
+/usr/lib/python3.12/urllib/request.py:639: HTTPError
+_________________ test_fixed_static_assets[request-runtime.js] _________________
+
+endpoint = 'http://127.0.0.1:34633', path = 'request-runtime.js'
+
+    @pytest.mark.parametrize('path', ['vendor/peach-three.js', 'viz3d.js',
+                                      'visualization.js', 'visualization.css',
+                                      'workbench.js', 'workbench.css', 'ui-common.js',
+                                      'monitor-renderers.js', 'trajectory-renderers.js',
+                                      'request-runtime.js'])
+    def test_fixed_static_assets(endpoint, path):
+        """显式白名单资源可访问，同源 CSP 允许本地模块."""
+>       with urlopen(endpoint + '/' + path) as response:
+
+src/peach/peach_observability/test/test_preview_http.py:63: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/lib/python3.12/urllib/request.py:215: in urlopen
+    return opener.open(url, data, timeout)
+/usr/lib/python3.12/urllib/request.py:521: in open
+    response = meth(req, response)
+/usr/lib/python3.12/urllib/request.py:630: in http_response
+    response = self.parent.error(
+/usr/lib/python3.12/urllib/request.py:559: in error
+    return self._call_chain(*args)
+/usr/lib/python3.12/urllib/request.py:492: in _call_chain
+    result = func(*args)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <urllib.request.HTTPDefaultErrorHandler object at 0x7fd4b6a3f740>
+req = <urllib.request.Request object at 0x7fd4b36a98b0>
+fp = <http.client.HTTPResponse object at 0x7fd4b36a9e10>, code = 404
+msg = 'Not Found', hdrs = <http.client.HTTPMessage object at 0x7fd4b36a9e80>
+
+    def http_error_default(self, req, fp, code, msg, hdrs):
+>       raise HTTPError(req.full_url, code, msg, hdrs, fp)
+E       urllib.error.HTTPError: HTTP Error 404: Not Found
+
+/usr/lib/python3.12/urllib/request.py:639: HTTPError
+=========================== short test summary info ============================
+FAILED src/peach/peach_observability/test/test_preview_http.py::test_fixed_static_assets[ui-common.js]
+FAILED src/peach/peach_observability/test/test_preview_http.py::test_fixed_static_assets[monitor-renderers.js]
+FAILED src/peach/peach_observability/test/test_preview_http.py::test_fixed_static_assets[trajectory-renderers.js]
+FAILED src/peach/peach_observability/test/test_preview_http.py::test_fixed_static_assets[request-runtime.js]
+4 failed, 9 deselected in 2.06s

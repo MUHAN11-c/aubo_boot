@@ -8,7 +8,7 @@
 值（无噪声模型），逐视导出 depth_mm.png（uint16 毫米）。
 
 用法：
-  aubo_py3.12/bin/python src/peach_sim/reconstruction/evaluate_matrix.py \
+  aubo_py3.12/bin/python src/sim/sim_worlds/reconstruction/evaluate_matrix.py \
       [--matrix output/matrix] [--gate | --write-baseline]
 """
 

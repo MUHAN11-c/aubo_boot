@@ -1,0 +1,13 @@
+Starting >>> peach_harvester
+--- stderr: peach_harvester
+=============================== warnings summary ===============================
+test/test_flake8.py: 20 warnings
+  Warning: This process (pid=33) is multi-threaded, use of fork() may lead to deadlocks in the child.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+---
+Finished <<< peach_harvester [2.83s]	[ with test failures ]
+
+Summary: 1 package finished [3.12s]
+  1 package had stderr output: peach_harvester
+  1 package had test failures: peach_harvester

@@ -1,0 +1,17 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+_ test_geometry_statistics_use_identified_build_result_not_diagnostic_defaults _
+
+    def test_geometry_statistics_use_identified_build_result_not_diagnostic_defaults():
+        m = load()
+        point = {'x': .1, 'y': .2, 'z': .3}
+        model = {'target_id': 't', 'scene_epoch': 1, 'model_revision': 'v',
+                 'bag_bottom': point, 'cut_plane_point': point,
+                 'bag_axis': {'x': 0., 'y': 0., 'z': 1.}, 'd95_m': .06}
+>       evidence = m.model_geometry(model)
+E       AttributeError: module 'live_camera_mock' has no attribute 'model_geometry'
+
+src/peach/peach_system_tests/test/test_live_camera_mock.py:297: AttributeError
+=========================== short test summary info ============================
+FAILED src/peach/peach_system_tests/test/test_live_camera_mock.py::test_geometry_statistics_use_identified_build_result_not_diagnostic_defaults
+1 failed, 21 deselected in 0.03s

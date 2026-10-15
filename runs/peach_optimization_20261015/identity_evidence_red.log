@@ -1,0 +1,78 @@
+....................F........FFFF                                        [100%]
+=================================== FAILURES ===================================
+_______ test_model_generation_uses_target_model_idl_times_not_heartbeat ________
+
+    def test_model_generation_uses_target_model_idl_times_not_heartbeat():
+        m = load()
+        model, state = matching_model_and_state()
+        assert m.build_generation(model) == ('t', 1, 'rev', 100.5, 105.5)
+>       assert m.web_model_matches(state, model)
+E       AssertionError: assert False
+E        +  where False = <function web_model_matches at 0x766602aaf420>({'reconstruction': {'diagnostics': {'model_stamp': 100.5}, 'grasp_decision': {'axis': [0.0, 0.0, 1.0], 'calibration_revision': 'cal', 'config_revision': 'cfg', 'cut_pose': [0.1, 0.2, 0.4], ...}}}, {'calibration_revision': 'cal', 'config_revision': 'cfg', 'generated_at': {'nanosec': 500000000, 'sec': 100}, 'model_revision': 'rev', ...})
+E        +    where <function web_model_matches at 0x766602aaf420> = <module 'live_camera_mock' from '/home/mu/Desktop/aubo_e5_jazzy_ws/src/peach/peach_system_tests/scripts/run_live_camera_mock.py'>.web_model_matches
+
+src/peach/peach_system_tests/test/test_live_camera_mock.py:291: AssertionError
+__________ test_geometry_statistics_use_actual_matched_decision_entry __________
+
+    def test_geometry_statistics_use_actual_matched_decision_entry():
+        m = load()
+        model, state = matching_model_and_state()
+>       evidence = m.model_geometry(model, state['reconstruction']['grasp_decision'])
+E       TypeError: model_geometry() takes 1 positional argument but 2 were given
+
+src/peach/peach_system_tests/test/test_live_camera_mock.py:311: TypeError
+________ test_geometry_statistics_reject_degenerate_evidence[d95_m-0.0] ________
+
+field = 'd95_m', value = 0.0
+
+    @pytest.mark.parametrize('field,value', [('d95_m', 0.), ('axis', [0., 0., 0.]),
+                                            ('cut_pose', [.1, .2, .3])])
+    def test_geometry_statistics_reject_degenerate_evidence(field, value):
+        m = load()
+        model, state = matching_model_and_state()
+        decision = state['reconstruction']['grasp_decision']
+        decision[field] = value
+        with pytest.raises(ValueError):
+>           m.model_geometry(model, decision)
+E           TypeError: model_geometry() takes 1 positional argument but 2 were given
+
+src/peach/peach_system_tests/test/test_live_camera_mock.py:326: TypeError
+_______ test_geometry_statistics_reject_degenerate_evidence[axis-value1] _______
+
+field = 'axis', value = [0.0, 0.0, 0.0]
+
+    @pytest.mark.parametrize('field,value', [('d95_m', 0.), ('axis', [0., 0., 0.]),
+                                            ('cut_pose', [.1, .2, .3])])
+    def test_geometry_statistics_reject_degenerate_evidence(field, value):
+        m = load()
+        model, state = matching_model_and_state()
+        decision = state['reconstruction']['grasp_decision']
+        decision[field] = value
+        with pytest.raises(ValueError):
+>           m.model_geometry(model, decision)
+E           TypeError: model_geometry() takes 1 positional argument but 2 were given
+
+src/peach/peach_system_tests/test/test_live_camera_mock.py:326: TypeError
+_____ test_geometry_statistics_reject_degenerate_evidence[cut_pose-value2] _____
+
+field = 'cut_pose', value = [0.1, 0.2, 0.3]
+
+    @pytest.mark.parametrize('field,value', [('d95_m', 0.), ('axis', [0., 0., 0.]),
+                                            ('cut_pose', [.1, .2, .3])])
+    def test_geometry_statistics_reject_degenerate_evidence(field, value):
+        m = load()
+        model, state = matching_model_and_state()
+        decision = state['reconstruction']['grasp_decision']
+        decision[field] = value
+        with pytest.raises(ValueError):
+>           m.model_geometry(model, decision)
+E           TypeError: model_geometry() takes 1 positional argument but 2 were given
+
+src/peach/peach_system_tests/test/test_live_camera_mock.py:326: TypeError
+=========================== short test summary info ============================
+FAILED src/peach/peach_system_tests/test/test_live_camera_mock.py::test_model_generation_uses_target_model_idl_times_not_heartbeat
+FAILED src/peach/peach_system_tests/test/test_live_camera_mock.py::test_geometry_statistics_use_actual_matched_decision_entry
+FAILED src/peach/peach_system_tests/test/test_live_camera_mock.py::test_geometry_statistics_reject_degenerate_evidence[d95_m-0.0]
+FAILED src/peach/peach_system_tests/test/test_live_camera_mock.py::test_geometry_statistics_reject_degenerate_evidence[axis-value1]
+FAILED src/peach/peach_system_tests/test/test_live_camera_mock.py::test_geometry_statistics_reject_degenerate_evidence[cut_pose-value2]
+5 failed, 28 passed in 0.09s

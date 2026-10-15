@@ -186,11 +186,22 @@ def build_harvest_job(snapshot: dict) -> dict:
             allowed or has_geom) else None,
         'diameter_m': decision.get('diameter_m') if (
             allowed or has_geom) else None,
+        'd95_m': decision.get('d95_m') if (allowed or has_geom) else None,
+        'travel_m': decision.get('travel_m') if (allowed or has_geom) else None,
+        'cut_travel_m': decision.get('cut_travel_m') if (
+            allowed or has_geom) else None,
+        'radial_margin_m': decision.get('radial_margin_m') if (
+            allowed or has_geom) else None,
+        'axial_margin_m': decision.get('axial_margin_m') if (
+            allowed or has_geom) else None,
         'rmse_m': decision.get('rmse_m') if (allowed or has_geom) else None,
         'inlier_ratio': decision.get('inlier_ratio') if (
             allowed or has_geom) else None,
     }
     candidate = (obs or {}).get('candidate') or {}
+    refined_axis = _xyz((refined.get('axis') or {}).get('xyz'))
+    if refined_axis is not None and math.hypot(*refined_axis) < 1e-9:
+        refined_axis = None
     coords = {
         'frame_id': str(
             targets.get('frame_id') or hypothesis.get('frame_id')
@@ -199,7 +210,7 @@ def build_harvest_job(snapshot: dict) -> dict:
         'perception_bottom': _xyz(candidate.get('bag_bottom')),
         'perception_neck': _xyz(candidate.get('bag_neck')),
         'reconstruction_center': _xyz(diag.get('target_center_base')),
-        'refined_axis': _xyz((refined.get('axis') or {}).get('xyz')),
+        'refined_axis': refined_axis,
         'grasp_entry': grasp['entry'],
         'grasp_pregrasp': _xyz(decision.get('pregrasp')) if (
             allowed or has_geom) else None,
@@ -243,6 +254,7 @@ def build_harvest_job(snapshot: dict) -> dict:
             'tracking_status': (obs or {}).get('tracking_status'),
             'confidence': (obs or {}).get('confidence'),
         },
+        'analysis': _geometry_analysis(grasp, coords, obs, decision),
     }
 
 
@@ -265,6 +277,63 @@ def _xyz(value: Any) -> list[float] | None:
     if out == [-1.0, -1.0, -1.0]:
         return None
     return out
+
+
+def _finite_m(value: Any, *, allow_negative: bool = False) -> float | None:
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        return None
+    if not math.isfinite(number) or number == -1.0:
+        return None
+    if number < 0.0 and not allow_negative:
+        return None
+    return number
+
+
+def _span_m(start: list[float] | None, end: list[float] | None) -> float | None:
+    if start is None or end is None:
+        return None
+    return math.dist(start, end)
+
+
+def _radius_m(point: list[float] | None) -> float | None:
+    if point is None:
+        return None
+    return math.sqrt(point[0] * point[0] + point[1] * point[1] + point[2] * point[2])
+
+
+def _geometry_analysis(grasp: dict, coords: dict, obs: dict | None,
+                       decision: dict) -> dict:
+    """沿袋轴的长度和到原点的距离，只换算已有几何，不算逆解."""
+    candidate = (obs or {}).get('candidate') or {}
+    fitting = (obs or {}).get('fitting') or {}
+    flags = []
+    for source in (candidate.get('diagnostic_flags'), fitting.get('diagnostic_flags'),
+                   (obs or {}).get('diagnostic_flags')):
+        for flag in source or []:
+            text = str(flag)
+            if text and text not in flags:
+                flags.append(text)
+    return {
+        'bottom_neck_m': _span_m(
+            coords.get('perception_bottom'), coords.get('perception_neck')),
+        'entry_cut_m': _span_m(grasp.get('entry'), grasp.get('cut_pose')),
+        'cut_travel_m': _finite_m(grasp.get('cut_travel_m')),
+        'travel_m': _finite_m(grasp.get('travel_m')),
+        'd95_m': _finite_m(grasp.get('d95_m')),
+        'entry_radius_m': _radius_m(grasp.get('entry')),
+        'cut_radius_m': _radius_m(grasp.get('cut_pose')),
+        'radial_margin_m': _finite_m(
+            grasp.get('radial_margin_m'), allow_negative=True),
+        'axial_margin_m': _finite_m(
+            grasp.get('axial_margin_m'), allow_negative=True),
+        'valid_depth_ratio': _finite_m(fitting.get('valid_depth_ratio')),
+        'n_points': fitting.get('n_points') if isinstance(
+            fitting.get('n_points'), int) else None,
+        'tool_profile_id': str(decision.get('tool_profile_id') or ''),
+        'flags': flags[:12],
+    }
 
 
 def _observation(targets: dict, target_id: str) -> dict | None:

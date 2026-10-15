@@ -72,3 +72,23 @@ def test_cut_distance_diagnostics_label_auxiliary_source_and_missing_data():
     assert estimate['cut_distance_source'] == 'bag_surface_sphere_auxiliary'
     assert estimate['model_revision'] == 'target_0:1:2'
     assert estimate['cut_to_fruit_m'] == pytest.approx(0.0089)
+
+
+@pytest.mark.parametrize('polish,radius_range', [
+    (True, (0.015, 0.12)),
+    (False, (0.0236, 0.02365)),
+])
+def test_final_cylinder_radius_respects_requested_range(polish, radius_range):
+    from peach_harvester.vision.common.geometry import fit_cylinder_robust
+
+    theta, z = np.meshgrid(np.linspace(-np.pi / 2, np.pi / 2, 20),
+                           np.linspace(-0.03, 0.03, 10))
+    points = np.column_stack((0.003 * np.cos(theta.ravel()),
+                              0.003 * np.sin(theta.ravel()), z.ravel()))
+    # Unreliable normals can admit an initial larger-radius RANSAC model.
+    # The final geometry must still honor the caller's range in both modes.
+    normals = np.column_stack((np.cos(0.1 * theta.ravel()),
+                               np.sin(0.1 * theta.ravel()), np.zeros(theta.size)))
+    fitted = fit_cylinder_robust(
+        points, normals, radius_range=radius_range, polish=polish)
+    assert fitted is None

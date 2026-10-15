@@ -1,0 +1,25 @@
+[WARN] [1791941874.342763018] [rcl]: ROS_LOCALHOST_ONLY is deprecated but still honored if it is enabled. Use ROS_AUTOMATIC_DISCOVERY_RANGE and ROS_STATIC_PEERS instead.
+[WARN] [1791941874.342792592] [rcl]: 'localhost_only' is enabled, 'automatic_discovery_range' and 'static_peers' will be ignored.
+
+>>> [rcutils|error_handling.c:108] rcutils_set_error_state()
+This error state is being overwritten:
+
+  'create_subscription() called for existing topic name rt/camera/color/image_raw with incompatible type sensor_msgs::msg::dds_::PointCloud2_, at ./src/subscription.cpp:517, at ./src/rcl/subscription.c:112'
+
+with this new error message:
+
+  'invalid allocator, at ./src/rcl/subscription.c:261'
+
+rcutils_reset_error() should be called after error handling to avoid this.
+<<<
+invalid allocator, at ./src/rcl/subscription.c:261
+Traceback (most recent call last):
+  File "/home/mu/Desktop/aubo_e5_jazzy_ws/src/peach/peach_system_tests/scripts/probe_topics.py", line 88, in <module>
+    sys.exit(main())
+             ^^^^^^
+  File "/home/mu/Desktop/aubo_e5_jazzy_ws/src/peach/peach_system_tests/scripts/probe_topics.py", line 67, in main
+    node.create_subscription(PointCloud2, topic, make_cb(topic), qos)
+  File "/opt/ros/jazzy/lib/python3.12/site-packages/rclpy/node.py", line 1639, in create_subscription
+    subscription_object = _rclpy.Subscription(
+                          ^^^^^^^^^^^^^^^^^^^^
+rclpy._rclpy_pybind11.RCLError: Failed to create subscription: invalid allocator, at ./src/rcl/subscription.c:261

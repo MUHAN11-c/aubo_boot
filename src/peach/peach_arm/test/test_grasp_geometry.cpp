@@ -96,17 +96,22 @@ TEST(GraspGeometry, AlignFrameZRolledKeepsAxisAndRollAngle)
   EXPECT_TRUE(peach_arm::alignFrameZRolled(current, axis, 0.0).isApprox(aligned));
 }
 
-// ---------- toolRollsRad：keep-roll 优先，只扫 ±30°/±60° ----------
+// ---------- toolRollsRad：先保持原转角，额外滚转上限 45° ----------
 
-TEST(GraspGeometry, ToolRollsAreFiveLevelsAroundZero)
+TEST(GraspGeometry, ToolRollsStayWithinFortyFiveDegrees)
 {
   const std::vector<double> rolls = peach_arm::toolRollsRad();
-  ASSERT_EQ(rolls.size(), 5U);
+  ASSERT_EQ(rolls.size(), 7U);
   EXPECT_NEAR(rolls[0], 0.0, 1e-12);
-  EXPECT_NEAR(rolls[1], EIGEN_PI / 6.0, 1e-12);
-  EXPECT_NEAR(rolls[2], -EIGEN_PI / 6.0, 1e-12);
-  EXPECT_NEAR(rolls[3], EIGEN_PI / 3.0, 1e-12);
-  EXPECT_NEAR(rolls[4], -EIGEN_PI / 3.0, 1e-12);
+  EXPECT_NEAR(rolls[1], EIGEN_PI / 12.0, 1e-12);
+  EXPECT_NEAR(rolls[2], -EIGEN_PI / 12.0, 1e-12);
+  EXPECT_NEAR(rolls[3], EIGEN_PI / 6.0, 1e-12);
+  EXPECT_NEAR(rolls[4], -EIGEN_PI / 6.0, 1e-12);
+  EXPECT_NEAR(rolls[5], EIGEN_PI / 4.0, 1e-12);
+  EXPECT_NEAR(rolls[6], -EIGEN_PI / 4.0, 1e-12);
+  for (double roll : rolls) {
+    EXPECT_LE(std::abs(roll), EIGEN_PI / 4.0);
+  }
 }
 
 // ---------- pregraspAlongAxis / pregraspFromEntryKeepRoll ----------
@@ -197,6 +202,19 @@ TEST(GraspGeometry, ClampInsertionTravelUsesMinWhenUnset)
   EXPECT_NEAR(peach_arm::clampInsertionTravel(0.08, 0.02, 0.20), 0.08, 1e-12);
   EXPECT_NEAR(peach_arm::clampInsertionTravel(0.50, 0.02, 0.20), 0.20, 1e-12);
   EXPECT_NEAR(peach_arm::clampInsertionTravel(-1.0, 0.02, 0.20), 0.02, 1e-12);
+}
+
+TEST(GraspGeometry, ExplicitCutTravelIsRejectedInsteadOfMovingCutPoint)
+{
+  EXPECT_FALSE(peach_arm::validatedCutTravel(0.015, 0.02, 0.20).has_value());
+  EXPECT_FALSE(peach_arm::validatedCutTravel(0.210, 0.02, 0.20).has_value());
+  EXPECT_FALSE(peach_arm::validatedCutTravel(
+      std::numeric_limits<double>::quiet_NaN(), 0.02, 0.20).has_value());
+  for (const double travel : {0.02, 0.113, 0.20}) {
+    const auto accepted = peach_arm::validatedCutTravel(travel, 0.02, 0.20);
+    ASSERT_TRUE(accepted.has_value());
+    EXPECT_DOUBLE_EQ(*accepted, travel);
+  }
 }
 
 TEST(GraspGeometry, PregraspOnlyFromGoalModeFullWinsOverDefaultHold)
@@ -447,4 +465,14 @@ TEST(GraspGeometry, HarvestStowNamedHopsViaPhotoThenStow)
     "global_photo_pose", "");
   ASSERT_EQ(empty_stow.size(), 1U);
   EXPECT_EQ(empty_stow.front(), "global_photo_pose");
+}
+
+TEST(GraspGeometry, StagingSelectionMinimizesToolRollBeforeJointDistance)
+{
+  using peach_arm::preferStagingCandidate;
+  EXPECT_TRUE(preferStagingCandidate(0.0, 20.0, EIGEN_PI / 6.0, 0.1));
+  EXPECT_FALSE(preferStagingCandidate(EIGEN_PI / 6.0, 0.1, 0.0, 20.0));
+  EXPECT_TRUE(preferStagingCandidate(-EIGEN_PI / 6.0, 2.0, EIGEN_PI / 6.0, 3.0));
+  EXPECT_FALSE(preferStagingCandidate(EIGEN_PI / 3.0, 1.0, EIGEN_PI / 6.0, 10.0));
+  EXPECT_FALSE(preferStagingCandidate(0.0, std::numeric_limits<double>::infinity(), 0.0, 2.0));
 }

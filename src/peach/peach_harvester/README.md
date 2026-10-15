@@ -2,7 +2,7 @@
 
 v1 采摘大脑：场景感知产生观测，目标重建产生模型与 `GraspDecision`，调度选择目标并编排批次。默认 `peach_harvester` 可执行程序在同一进程承载三个节点；`peach_scene_obstacles` 是独立进程，按 Survey 结果生成场景障碍快照。
 
-本包不直接写关节或工具 IO。跨包契约在 `peach_interfaces`；臂侧的运动和接触许可检查由 `peach_arm` 承担。生产仍使用 v1，v2 孵化栈在 `src/peach2/`。
+本包不直接写关节或工具 IO。跨包契约在 `peach_interfaces`；臂侧的运动和接触许可检查由 `peach_arm` 承担。peach2 已归档，不作为现行运行入口。
 
 ## 入口与源码
 
@@ -33,3 +33,7 @@ colcon test-result --verbose
 架构和源码职责见 [doc/architecture.md](doc/architecture.md)，系统组合见 [peach_bringup/doc/architecture.md](../peach_bringup/doc/architecture.md)。这些 Markdown 随源码维护，无独立文档生成步骤。
 
 包元数据声明 BSD-3-Clause，许可文本见 [工作区 LICENSE](../../../LICENSE)。模型资产的来源和约束见各资产附带说明。
+
+## 当前维护入口
+
+职责、源码地图、参数来源、生命周期/并发与失败处理见 [包架构](doc/architecture.md)。运行环境、分层验证、冻结回放、30组模型/10轮/30分钟验收与精确清理见 [测试指导](../peach_system_tests/doc/testing.md)。本包测试通过不代表现场采摘成功；未授权不得真机运动或SetIO，硬件急停不经ROS，程序结束必须清本轮进程。

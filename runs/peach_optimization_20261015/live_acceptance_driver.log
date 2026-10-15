@@ -1,0 +1,176 @@
+[WARN] [1792028689.531755754] [rcl]: ROS_LOCALHOST_ONLY is deprecated but still honored if it is enabled. Use ROS_AUTOMATIC_DISCOVERY_RANGE and ROS_STATIC_PEERS instead.
+[WARN] [1792028689.531789927] [rcl]: 'localhost_only' is enabled, 'automatic_discovery_range' and 'static_peers' will be ignored.
+Traceback (most recent call last):
+  File "/home/mu/Desktop/aubo_e5_jazzy_ws/src/peach/peach_system_tests/scripts/run_live_camera_mock.py", line 369, in action
+    self.ros.spin_once(self.node, timeout_sec=.2)
+  File "/opt/ros/jazzy/lib/python3.12/site-packages/rclpy/__init__.py", line 226, in spin_once
+    executor.spin_once(timeout_sec=timeout_sec)
+  File "/opt/ros/jazzy/lib/python3.12/site-packages/rclpy/executors.py", line 926, in spin_once
+    self._spin_once_impl(timeout_sec)
+  File "/opt/ros/jazzy/lib/python3.12/site-packages/rclpy/executors.py", line 907, in _spin_once_impl
+    handler, entity, node = self.wait_for_ready_callbacks(
+                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/ros/jazzy/lib/python3.12/site-packages/rclpy/executors.py", line 877, in wait_for_ready_callbacks
+    return next(self._cb_iter)
+           ^^^^^^^^^^^^^^^^^^^
+  File "/opt/ros/jazzy/lib/python3.12/site-packages/rclpy/executors.py", line 781, in _wait_for_ready_callbacks
+    wait_set.wait(timeout_nsec)
+  File "/home/mu/Desktop/aubo_e5_jazzy_ws/src/peach/peach_system_tests/scripts/run_live_camera_mock.py", line 740, in interrupt
+    raise KeyboardInterrupt('received signal ' + str(signum))
+KeyboardInterrupt: received signal 2
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/mu/Desktop/aubo_e5_jazzy_ws/src/peach/peach_system_tests/scripts/run_live_camera_mock.py", line 650, in run
+    result = driver.action(RunHarvest, '/peach_supervisor/run_harvest',
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/mu/Desktop/aubo_e5_jazzy_ws/src/peach/peach_system_tests/scripts/run_live_camera_mock.py", line 380, in action
+    self.wait(handle.cancel_goal_async(), 10)
+  File "/home/mu/Desktop/aubo_e5_jazzy_ws/src/peach/peach_system_tests/scripts/run_live_camera_mock.py", line 334, in wait
+    raise TimeoutError('ROS request timeout; outcome unknown')
+TimeoutError: ROS request timeout; outcome unknown
+Traceback (most recent call last):
+  File "/home/mu/Desktop/aubo_e5_jazzy_ws/src/peach/peach_system_tests/scripts/run_live_camera_mock.py", line 645, in run
+    epoch, target = new_scene(driver, request, request, index)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/mu/Desktop/aubo_e5_jazzy_ws/src/peach/peach_system_tests/scripts/run_live_camera_mock.py", line 433, in new_scene
+    result = driver.service(BeginScene, '/peach_scene_perception_node/begin_scene',
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/mu/Desktop/aubo_e5_jazzy_ws/src/peach/peach_system_tests/scripts/run_live_camera_mock.py", line 342, in service
+    return self.wait(client.call_async(request), timeout)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/mu/Desktop/aubo_e5_jazzy_ws/src/peach/peach_system_tests/scripts/run_live_camera_mock.py", line 334, in wait
+    raise TimeoutError('ROS request timeout; outcome unknown')
+TimeoutError: ROS request timeout; outcome unknown
+Traceback (most recent call last):
+  File "/home/mu/Desktop/aubo_e5_jazzy_ws/src/peach/peach_system_tests/scripts/run_live_camera_mock.py", line 645, in run
+    epoch, target = new_scene(driver, request, request, index)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/mu/Desktop/aubo_e5_jazzy_ws/src/peach/peach_system_tests/scripts/run_live_camera_mock.py", line 433, in new_scene
+    result = driver.service(BeginScene, '/peach_scene_perception_node/begin_scene',
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/mu/Desktop/aubo_e5_jazzy_ws/src/peach/peach_system_tests/scripts/run_live_camera_mock.py", line 342, in service
+    return self.wait(client.call_async(request), timeout)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/mu/Desktop/aubo_e5_jazzy_ws/src/peach/peach_system_tests/scripts/run_live_camera_mock.py", line 334, in wait
+    raise TimeoutError('ROS request timeout; outcome unknown')
+TimeoutError: ROS request timeout; outcome unknown
+Traceback (most recent call last):
+  File "/home/mu/Desktop/aubo_e5_jazzy_ws/src/peach/peach_system_tests/scripts/run_live_camera_mock.py", line 645, in run
+    epoch, target = new_scene(driver, request, request, index)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/mu/Desktop/aubo_e5_jazzy_ws/src/peach/peach_system_tests/scripts/run_live_camera_mock.py", line 433, in new_scene
+    result = driver.service(BeginScene, '/peach_scene_perception_node/begin_scene',
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/mu/Desktop/aubo_e5_jazzy_ws/src/peach/peach_system_tests/scripts/run_live_camera_mock.py", line 342, in service
+    return self.wait(client.call_async(request), timeout)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/mu/Desktop/aubo_e5_jazzy_ws/src/peach/peach_system_tests/scripts/run_live_camera_mock.py", line 334, in wait
+    raise TimeoutError('ROS request timeout; outcome unknown')
+TimeoutError: ROS request timeout; outcome unknown
+Traceback (most recent call last):
+  File "/home/mu/Desktop/aubo_e5_jazzy_ws/src/peach/peach_system_tests/scripts/run_live_camera_mock.py", line 645, in run
+    epoch, target = new_scene(driver, request, request, index)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/mu/Desktop/aubo_e5_jazzy_ws/src/peach/peach_system_tests/scripts/run_live_camera_mock.py", line 433, in new_scene
+    result = driver.service(BeginScene, '/peach_scene_perception_node/begin_scene',
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/mu/Desktop/aubo_e5_jazzy_ws/src/peach/peach_system_tests/scripts/run_live_camera_mock.py", line 342, in service
+    return self.wait(client.call_async(request), timeout)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/mu/Desktop/aubo_e5_jazzy_ws/src/peach/peach_system_tests/scripts/run_live_camera_mock.py", line 334, in wait
+    raise TimeoutError('ROS request timeout; outcome unknown')
+TimeoutError: ROS request timeout; outcome unknown
+Traceback (most recent call last):
+  File "/home/mu/Desktop/aubo_e5_jazzy_ws/src/peach/peach_system_tests/scripts/run_live_camera_mock.py", line 645, in run
+    epoch, target = new_scene(driver, request, request, index)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/mu/Desktop/aubo_e5_jazzy_ws/src/peach/peach_system_tests/scripts/run_live_camera_mock.py", line 433, in new_scene
+    result = driver.service(BeginScene, '/peach_scene_perception_node/begin_scene',
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/mu/Desktop/aubo_e5_jazzy_ws/src/peach/peach_system_tests/scripts/run_live_camera_mock.py", line 342, in service
+    return self.wait(client.call_async(request), timeout)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/mu/Desktop/aubo_e5_jazzy_ws/src/peach/peach_system_tests/scripts/run_live_camera_mock.py", line 334, in wait
+    raise TimeoutError('ROS request timeout; outcome unknown')
+TimeoutError: ROS request timeout; outcome unknown
+Traceback (most recent call last):
+  File "/home/mu/Desktop/aubo_e5_jazzy_ws/src/peach/peach_system_tests/scripts/run_live_camera_mock.py", line 645, in run
+    epoch, target = new_scene(driver, request, request, index)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/mu/Desktop/aubo_e5_jazzy_ws/src/peach/peach_system_tests/scripts/run_live_camera_mock.py", line 433, in new_scene
+    result = driver.service(BeginScene, '/peach_scene_perception_node/begin_scene',
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/mu/Desktop/aubo_e5_jazzy_ws/src/peach/peach_system_tests/scripts/run_live_camera_mock.py", line 342, in service
+    return self.wait(client.call_async(request), timeout)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/mu/Desktop/aubo_e5_jazzy_ws/src/peach/peach_system_tests/scripts/run_live_camera_mock.py", line 334, in wait
+    raise TimeoutError('ROS request timeout; outcome unknown')
+TimeoutError: ROS request timeout; outcome unknown
+Traceback (most recent call last):
+  File "/home/mu/Desktop/aubo_e5_jazzy_ws/src/peach/peach_system_tests/scripts/run_live_camera_mock.py", line 645, in run
+    epoch, target = new_scene(driver, request, request, index)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/mu/Desktop/aubo_e5_jazzy_ws/src/peach/peach_system_tests/scripts/run_live_camera_mock.py", line 433, in new_scene
+    result = driver.service(BeginScene, '/peach_scene_perception_node/begin_scene',
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/mu/Desktop/aubo_e5_jazzy_ws/src/peach/peach_system_tests/scripts/run_live_camera_mock.py", line 342, in service
+    return self.wait(client.call_async(request), timeout)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/mu/Desktop/aubo_e5_jazzy_ws/src/peach/peach_system_tests/scripts/run_live_camera_mock.py", line 334, in wait
+    raise TimeoutError('ROS request timeout; outcome unknown')
+TimeoutError: ROS request timeout; outcome unknown
+Traceback (most recent call last):
+  File "/home/mu/Desktop/aubo_e5_jazzy_ws/src/peach/peach_system_tests/scripts/run_live_camera_mock.py", line 645, in run
+    epoch, target = new_scene(driver, request, request, index)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/mu/Desktop/aubo_e5_jazzy_ws/src/peach/peach_system_tests/scripts/run_live_camera_mock.py", line 433, in new_scene
+    result = driver.service(BeginScene, '/peach_scene_perception_node/begin_scene',
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/mu/Desktop/aubo_e5_jazzy_ws/src/peach/peach_system_tests/scripts/run_live_camera_mock.py", line 342, in service
+    return self.wait(client.call_async(request), timeout)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/mu/Desktop/aubo_e5_jazzy_ws/src/peach/peach_system_tests/scripts/run_live_camera_mock.py", line 334, in wait
+    raise TimeoutError('ROS request timeout; outcome unknown')
+TimeoutError: ROS request timeout; outcome unknown
+Traceback (most recent call last):
+  File "/home/mu/Desktop/aubo_e5_jazzy_ws/src/peach/peach_system_tests/scripts/run_live_camera_mock.py", line 751, in <module>
+    for sig, handler in previous.items():
+                 ^^^^^^
+  File "/home/mu/Desktop/aubo_e5_jazzy_ws/src/peach/peach_system_tests/scripts/run_live_camera_mock.py", line 744, in main
+    def interrupt(signum, frame):
+               ^^^^^^^^^
+  File "/home/mu/Desktop/aubo_e5_jazzy_ws/src/peach/peach_system_tests/scripts/run_live_camera_mock.py", line 690, in run
+    report['soak_elapsed_s'] = time.monotonic() - soak_started
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/mu/Desktop/aubo_e5_jazzy_ws/src/peach/peach_system_tests/scripts/run_live_camera_mock.py", line 731, in cleanup_driver
+    # Keep context live for both independent operations before destroying it.
+            ^^^^^^^^^^^
+  File "/home/mu/Desktop/aubo_e5_jazzy_ws/src/peach/peach_system_tests/scripts/run_live_camera_mock.py", line 728, in <lambda>
+    
+  File "/home/mu/Desktop/aubo_e5_jazzy_ws/src/peach/peach_system_tests/scripts/run_live_camera_mock.py", line 348, in enables
+    response = self.service(SetEnables, '/peach_supervisor/set_enables', SetEnables.Request(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/mu/Desktop/aubo_e5_jazzy_ws/src/peach/peach_system_tests/scripts/run_live_camera_mock.py", line 342, in service
+    return self.wait(client.call_async(request), timeout)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/mu/Desktop/aubo_e5_jazzy_ws/src/peach/peach_system_tests/scripts/run_live_camera_mock.py", line 332, in wait
+    self.ros.spin_until_future_complete(self.node, future, timeout_sec=timeout)
+  File "/opt/ros/jazzy/lib/python3.12/site-packages/rclpy/__init__.py", line 274, in spin_until_future_complete
+    executor.spin_until_future_complete(future, timeout_sec)
+  File "/opt/ros/jazzy/lib/python3.12/site-packages/rclpy/executors.py", line 393, in spin_until_future_complete
+    self._spin_once_until_future_complete(future, timeout_left)
+  File "/opt/ros/jazzy/lib/python3.12/site-packages/rclpy/executors.py", line 935, in _spin_once_until_future_complete
+    self._spin_once_impl(timeout_sec, future.done)
+  File "/opt/ros/jazzy/lib/python3.12/site-packages/rclpy/executors.py", line 907, in _spin_once_impl
+    handler, entity, node = self.wait_for_ready_callbacks(
+                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/ros/jazzy/lib/python3.12/site-packages/rclpy/executors.py", line 877, in wait_for_ready_callbacks
+    return next(self._cb_iter)
+           ^^^^^^^^^^^^^^^^^^^
+  File "/opt/ros/jazzy/lib/python3.12/site-packages/rclpy/executors.py", line 781, in _wait_for_ready_callbacks
+    wait_set.wait(timeout_nsec)
+  File "/home/mu/Desktop/aubo_e5_jazzy_ws/src/peach/peach_system_tests/scripts/run_live_camera_mock.py", line 740, in interrupt
+    
+KeyboardInterrupt: received signal 2

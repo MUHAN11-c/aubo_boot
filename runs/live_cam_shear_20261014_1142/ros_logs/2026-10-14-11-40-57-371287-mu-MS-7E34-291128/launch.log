@@ -1,0 +1,35 @@
+1791949257.3723419 [INFO] [launch]: All log files can be found below /home/mu/Desktop/aubo_e5_jazzy_ws/runs/live_cam_shear_20261014_1142/ros_logs/2026-10-14-11-40-57-371287-mu-MS-7E34-291128
+1791949257.3724697 [INFO] [launch]: Default logging verbosity is set to INFO
+1791949258.0226305 [INFO] [stereo_camera_node-1]: process started with pid [291225]
+1791949258.0227671 [INFO] [peach_scene_obstacles-2]: process started with pid [291226]
+1791949258.0228095 [INFO] [robot_state_publisher-3]: process started with pid [291227]
+1791949258.0228393 [INFO] [ros2_control_node-4]: process started with pid [291228]
+1791949258.0228643 [INFO] [spawner-5]: process started with pid [291229]
+1791949258.0228882 [INFO] [spawner-6]: process started with pid [291230]
+1791949258.0229113 [INFO] [move_group-7]: process started with pid [291231]
+1791949258.0229340 [INFO] [peach_harvester-8]: process started with pid [291232]
+1791949258.0229547 [INFO] [peach_arm-9]: process started with pid [291233]
+1791949258.0229747 [INFO] [peach_observability-10]: process started with pid [291234]
+1791949258.0229950 [INFO] [lifecycle_manager-11]: process started with pid [291235]
+1791949258.0230136 [INFO] [peach_lifecycle_flag_bridge-12]: process started with pid [291236]
+1791949258.9352868 [INFO] [spawner-5]: process has finished cleanly [pid 291229]
+1791949259.3894317 [INFO] [spawner-6]: process has finished cleanly [pid 291230]
+1791949515.8940177 [WARNING] [launch]: user interrupted with ctrl-c (SIGINT)
+1791949516.3977854 [INFO] [peach_lifecycle_flag_bridge-12]: sending signal 'SIGINT' to process[peach_lifecycle_flag_bridge-12]
+1791949516.3986096 [INFO] [lifecycle_manager-11]: sending signal 'SIGINT' to process[lifecycle_manager-11]
+1791949516.3991885 [INFO] [peach_observability-10]: sending signal 'SIGINT' to process[peach_observability-10]
+1791949516.3997006 [INFO] [peach_arm-9]: sending signal 'SIGINT' to process[peach_arm-9]
+1791949516.4001806 [INFO] [peach_harvester-8]: sending signal 'SIGINT' to process[peach_harvester-8]
+1791949516.4006569 [INFO] [move_group-7]: sending signal 'SIGINT' to process[move_group-7]
+1791949516.4021125 [INFO] [ros2_control_node-4]: sending signal 'SIGINT' to process[ros2_control_node-4]
+1791949516.4026248 [INFO] [robot_state_publisher-3]: sending signal 'SIGINT' to process[robot_state_publisher-3]
+1791949516.4030709 [INFO] [peach_scene_obstacles-2]: sending signal 'SIGINT' to process[peach_scene_obstacles-2]
+1791949516.4037786 [INFO] [stereo_camera_node-1]: sending signal 'SIGINT' to process[stereo_camera_node-1]
+1791949516.4793131 [ERROR] [peach_lifecycle_flag_bridge-12]: process has died [pid 291236, exit code -2, cmd '/home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_bringup/lib/peach_bringup/peach_lifecycle_flag_bridge --ros-args -r __node:=peach_lifecycle_flag_bridge -p use_sim_time:=False'].
+1791949516.4850230 [ERROR] [peach_scene_obstacles-2]: process has died [pid 291226, exit code -2, cmd '/home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_harvester/lib/peach_harvester/peach_scene_obstacles --ros-args -p use_sim_time:=False'].
+1791949516.5308681 [INFO] [lifecycle_manager-11]: process has finished cleanly [pid 291235]
+1791949516.5329659 [INFO] [robot_state_publisher-3]: process has finished cleanly [pid 291227]
+1791949516.5755279 [INFO] [ros2_control_node-4]: process has finished cleanly [pid 291228]
+1791949516.6592369 [INFO] [stereo_camera_node-1]: process has finished cleanly [pid 291225]
+1791949517.5425165 [ERROR] [peach_arm-9]: process has died [pid 291233, exit code -6, cmd '/home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_arm/lib/peach_arm/peach_arm --ros-args -r __node:=peach_arm -r __ns:=/ -p use_sim_time:=False --params-file /tmp/launch_params_mxp4tyzn --params-file /tmp/launch_params_5y50k1iq --params-file /tmp/launch_params_stpevy_0 --params-file /tmp/launch_params_70z_ey7f --params-file /tmp/launch_params_6aptou8a --params-file /tmp/launch_params_vcx7z958 --params-file /tmp/launch_params_esieqabf --params-file /tmp/launch_params_2ryw_wa7 --params-file /tmp/launch_params_9wek443f --params-file /tmp/launch_params_shskwlq5 --params-file /tmp/launch_params_qt7yggk0 --params-file /tmp/launch_params_7om4xwwf'].
+1791949517.5551264 [ERROR] [peach_harvester-8]: process has died [pid 291232, exit code -2, cmd '/home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_harvester/lib/peach_harvester/peach_harvester --ros-args -r __ns:=/ -p use_sim_time:=False --params-file /tmp/launch_params_uulowwdk --params-file /tmp/launch_params_xjq5xs4c --params-file /tmp/launch_params_au7u8gjk --params-file /tmp/peach_brain_overlay_th3lj1e3.yaml'].

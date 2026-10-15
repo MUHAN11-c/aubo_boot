@@ -1,0 +1,213 @@
+[WARN] [1791941703.852027539] [rcl.logging_rosout]: Publisher already registered for node name: 'peach_arm'. If this is due to multiple nodes with the same name then all logs for the logger named 'peach_arm' will go out over the existing publisher. As soon as any node with that name is destructed it will unregister the publisher, preventing any further logs for that name from being published on the rosout topic.
+[WARN] [1791941703.857129331] [peach_arm]: scan.protected_zones 丢弃畸形盒: 盒#0 存在 min>=max 的轴（空盒/退化盒），已丢弃
+[WARN] [1791941705.714705408] [peach_arm]: scan.protected_zones 丢弃畸形盒: 盒#0 存在 min>=max 的轴（空盒/退化盒），已丢弃
+[WARN] [1791941705.746911564] [peach_arm]: scan.protected_zones 丢弃畸形盒: 盒#0 存在 min>=max 的轴（空盒/退化盒），已丢弃
+[WARN] [1791941705.747039856] [peach_arm]: scan.protected_zones 丢弃畸形盒: 盒#0 存在 min>=max 的轴（空盒/退化盒），已丢弃
+[WARN] [1791941705.748467686] [rcl.logging_rosout]: Publisher already registered for node name: 'peach_arm'. If this is due to multiple nodes with the same name then all logs for the logger named 'peach_arm' will go out over the existing publisher. As soon as any node with that name is destructed it will unregister the publisher, preventing any further logs for that name from being published on the rosout topic.
+[INFO] [1791941705.754040941] [peach_arm.moveit.ros.rdf_loader]: Loaded robot model in 0.00232859 seconds
+[INFO] [1791941705.754109388] [peach_arm.moveit.core.robot_model]: Loading robot model 'aubo_e5'...
+[INFO] [1791941705.754120023] [peach_arm.moveit.core.robot_model]: No root/virtual joint specified in SRDF. Assuming fixed joint
+[INFO] [1791941705.774954154] [peach_arm.moveit.kinematics.kdl_kinematics_plugin]: Joint weights for group 'manipulator_e5': 1 1 1 1 1 1
+[INFO] [1791941705.783137918] [peach_arm.moveit.ros.move_group_interface]: Ready to take commands for planning group manipulator_e5.
+[INFO] [1791941705.783463065] [peach_arm]: 主动视觉靠近节点 ready: group=manipulator_e5 base=base_link tip=tcp camera=camera_depth_optical_frame execution=plan_only grasp=disabled
+[INFO] [1791941705.783494935] [peach_arm]: [IDLE] 已配置；activate 后才开放运动输出权限
+[WARN] [1791941705.832917784] [peach_arm]: scan.protected_zones 丢弃畸形盒: 盒#0 存在 min>=max 的轴（空盒/退化盒），已丢弃
+[INFO] [1791941705.838078474] [peach_arm]: 节点已激活：运动输出权限开放
+[WARN] [1791941705.846094248] [rcl.logging_rosout]: Publisher already registered for node name: 'peach_arm'. If this is due to multiple nodes with the same name then all logs for the logger named 'peach_arm' will go out over the existing publisher. As soon as any node with that name is destructed it will unregister the publisher, preventing any further logs for that name from being published on the rosout topic.
+[WARN] [1791941705.865899652] [rcl.logging_rosout]: Publisher already registered for node name: 'peach_arm'. If this is due to multiple nodes with the same name then all logs for the logger named 'peach_arm' will go out over the existing publisher. As soon as any node with that name is destructed it will unregister the publisher, preventing any further logs for that name from being published on the rosout topic.
+[INFO] [1791941705.876323541] [peach_arm]: 场景障碍 ACM 豁免已应用: 28 条（含 <octomap> 保留名）
+[INFO] [1791941708.911056746] [peach_arm]: 场景障碍 ACM 豁免已应用: 28 条（含 <octomap> 保留名）
+[INFO] [1791941711.938875058] [peach_arm]: 场景障碍 ACM 豁免已应用: 28 条（含 <octomap> 保留名）
+[INFO] [1791941767.460433371] [peach_arm]: 使能切换到操作台广播源（/peach/batch/enables）
+[INFO] [1791941767.460458298] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（用户授权真实相机+mock机械臂FULL端到端干跑，tool=false）
+[INFO] [1791941767.593659671] [peach_arm.moveit.ros.current_state_monitor]: Listening to joint states on topic 'joint_states'
+[INFO] [1791941767.811706073] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（用户授权真实相机+mock机械臂FULL端到端干跑，tool=false）
+[INFO] [1791941768.819646495] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（用户授权真实相机+mock机械臂FULL端到端干跑，tool=false）
+[INFO] [1791941769.812495439] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（用户授权真实相机+mock机械臂FULL端到端干跑，tool=false）
+[INFO] [1791941770.812688945] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（用户授权真实相机+mock机械臂FULL端到端干跑，tool=false）
+[INFO] [1791941771.817739560] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（用户授权真实相机+mock机械臂FULL端到端干跑，tool=false）
+[INFO] [1791941772.811656354] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（用户授权真实相机+mock机械臂FULL端到端干跑，tool=false）
+[INFO] [1791941773.811653044] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（用户授权真实相机+mock机械臂FULL端到端干跑，tool=false）
+[INFO] [1791941774.821388383] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（用户授权真实相机+mock机械臂FULL端到端干跑，tool=false）
+[INFO] [1791941775.812778986] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（用户授权真实相机+mock机械臂FULL端到端干跑，tool=false）
+[INFO] [1791941776.810861272] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（用户授权真实相机+mock机械臂FULL端到端干跑，tool=false）
+[INFO] [1791941777.812775661] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（用户授权真实相机+mock机械臂FULL端到端干跑，tool=false）
+[INFO] [1791941778.820248356] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（用户授权真实相机+mock机械臂FULL端到端干跑，tool=false）
+[INFO] [1791941779.817523083] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（用户授权真实相机+mock机械臂FULL端到端干跑，tool=false）
+[INFO] [1791941780.815268058] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（用户授权真实相机+mock机械臂FULL端到端干跑，tool=false）
+[INFO] [1791941781.811273693] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（用户授权真实相机+mock机械臂FULL端到端干跑，tool=false）
+[INFO] [1791941782.811474452] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（用户授权真实相机+mock机械臂FULL端到端干跑，tool=false）
+[INFO] [1791941783.811153535] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（用户授权真实相机+mock机械臂FULL端到端干跑，tool=false）
+[INFO] [1791941784.864203931] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（用户授权真实相机+mock机械臂FULL端到端干跑，tool=false）
+[INFO] [1791941785.825593691] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（用户授权真实相机+mock机械臂FULL端到端干跑，tool=false）
+[INFO] [1791941786.814298546] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（用户授权真实相机+mock机械臂FULL端到端干跑，tool=false）
+[INFO] [1791941787.812731533] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（用户授权真实相机+mock机械臂FULL端到端干跑，tool=false）
+[INFO] [1791941788.811782290] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（用户授权真实相机+mock机械臂FULL端到端干跑，tool=false）
+[INFO] [1791941789.820291469] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（用户授权真实相机+mock机械臂FULL端到端干跑，tool=false）
+[INFO] [1791941790.812599158] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（用户授权真实相机+mock机械臂FULL端到端干跑，tool=false）
+[INFO] [1791941791.811893102] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（用户授权真实相机+mock机械臂FULL端到端干跑，tool=false）
+[INFO] [1791941792.811784374] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（用户授权真实相机+mock机械臂FULL端到端干跑，tool=false）
+[INFO] [1791941793.813466982] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（用户授权真实相机+mock机械臂FULL端到端干跑，tool=false）
+[INFO] [1791941794.816023030] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（用户授权真实相机+mock机械臂FULL端到端干跑，tool=false）
+[INFO] [1791941795.814042826] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（用户授权真实相机+mock机械臂FULL端到端干跑，tool=false）
+[INFO] [1791941796.814858780] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（用户授权真实相机+mock机械臂FULL端到端干跑，tool=false）
+[INFO] [1791941797.813109149] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（用户授权真实相机+mock机械臂FULL端到端干跑，tool=false）
+[INFO] [1791941798.820629367] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（用户授权真实相机+mock机械臂FULL端到端干跑，tool=false）
+[INFO] [1791941799.812482405] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（用户授权真实相机+mock机械臂FULL端到端干跑，tool=false）
+[INFO] [1791941800.812181959] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（用户授权真实相机+mock机械臂FULL端到端干跑，tool=false）
+[INFO] [1791941801.811310498] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（用户授权真实相机+mock机械臂FULL端到端干跑，tool=false）
+[INFO] [1791941802.835636593] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（用户授权真实相机+mock机械臂FULL端到端干跑，tool=false）
+[INFO] [1791941803.811695983] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（用户授权真实相机+mock机械臂FULL端到端干跑，tool=false）
+[INFO] [1791941804.812687186] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（用户授权真实相机+mock机械臂FULL端到端干跑，tool=false）
+[INFO] [1791941805.812175356] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（用户授权真实相机+mock机械臂FULL端到端干跑，tool=false）
+[INFO] [1791941806.811197735] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（用户授权真实相机+mock机械臂FULL端到端干跑，tool=false）
+[INFO] [1791941807.816686609] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（用户授权真实相机+mock机械臂FULL端到端干跑，tool=false）
+[INFO] [1791941808.813020146] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（用户授权真实相机+mock机械臂FULL端到端干跑，tool=false）
+[INFO] [1791941809.812461562] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（用户授权真实相机+mock机械臂FULL端到端干跑，tool=false）
+[INFO] [1791941810.811473374] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（用户授权真实相机+mock机械臂FULL端到端干跑，tool=false）
+[INFO] [1791941811.824327713] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（用户授权真实相机+mock机械臂FULL端到端干跑，tool=false）
+[INFO] [1791941812.814613685] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（用户授权真实相机+mock机械臂FULL端到端干跑，tool=false）
+[INFO] [1791941813.812529677] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（用户授权真实相机+mock机械臂FULL端到端干跑，tool=false）
+[INFO] [1791941814.810974768] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（用户授权真实相机+mock机械臂FULL端到端干跑，tool=false）
+[INFO] [1791941815.814491203] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（用户授权真实相机+mock机械臂FULL端到端干跑，tool=false）
+[INFO] [1791941816.812117508] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（用户授权真实相机+mock机械臂FULL端到端干跑，tool=false）
+[INFO] [1791941817.811426869] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（用户授权真实相机+mock机械臂FULL端到端干跑，tool=false）
+[INFO] [1791941818.811883959] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（用户授权真实相机+mock机械臂FULL端到端干跑，tool=false）
+[INFO] [1791941819.817363933] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（用户授权真实相机+mock机械臂FULL端到端干跑，tool=false）
+[INFO] [1791941820.815662417] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（用户授权真实相机+mock机械臂FULL端到端干跑，tool=false）
+[INFO] [1791941821.812022047] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（用户授权真实相机+mock机械臂FULL端到端干跑，tool=false）
+[INFO] [1791941822.811632293] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（用户授权真实相机+mock机械臂FULL端到端干跑，tool=false）
+[INFO] [1791941823.813131189] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（用户授权真实相机+mock机械臂FULL端到端干跑，tool=false）
+[INFO] [1791941824.812707741] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（用户授权真实相机+mock机械臂FULL端到端干跑，tool=false）
+[INFO] [1791941825.822918587] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（用户授权真实相机+mock机械臂FULL端到端干跑，tool=false）
+[INFO] [1791941826.820078636] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（用户授权真实相机+mock机械臂FULL端到端干跑，tool=false）
+[INFO] [1791941827.815812551] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（用户授权真实相机+mock机械臂FULL端到端干跑，tool=false）
+[INFO] [1791941828.817070431] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（用户授权真实相机+mock机械臂FULL端到端干跑，tool=false）
+[INFO] [1791941829.813310450] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（用户授权真实相机+mock机械臂FULL端到端干跑，tool=false）
+[INFO] [1791941830.812111735] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（用户授权真实相机+mock机械臂FULL端到端干跑，tool=false）
+[INFO] [1791941831.816360269] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（用户授权真实相机+mock机械臂FULL端到端干跑，tool=false）
+[INFO] [1791941832.827298573] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（用户授权真实相机+mock机械臂FULL端到端干跑，tool=false）
+[INFO] [1791941833.814714609] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（用户授权真实相机+mock机械臂FULL端到端干跑，tool=false）
+[INFO] [1791941834.814339027] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（用户授权真实相机+mock机械臂FULL端到端干跑，tool=false）
+[INFO] [1791941835.814987651] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（用户授权真实相机+mock机械臂FULL端到端干跑，tool=false）
+[INFO] [1791941836.814888267] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（用户授权真实相机+mock机械臂FULL端到端干跑，tool=false）
+[INFO] [1791941837.814162738] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（用户授权真实相机+mock机械臂FULL端到端干跑，tool=false）
+[INFO] [1791941838.811506925] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（用户授权真实相机+mock机械臂FULL端到端干跑，tool=false）
+[INFO] [1791941839.811817488] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（用户授权真实相机+mock机械臂FULL端到端干跑，tool=false）
+[INFO] [1791941840.818857624] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（用户授权真实相机+mock机械臂FULL端到端干跑，tool=false）
+[INFO] [1791941841.813717680] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（用户授权真实相机+mock机械臂FULL端到端干跑，tool=false）
+[INFO] [1791941842.811223199] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（用户授权真实相机+mock机械臂FULL端到端干跑，tool=false）
+[INFO] [1791941843.469653122] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（首轮结束，关闭使能后配置固定相机诊断）
+[INFO] [1791941843.811587353] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（首轮结束，关闭使能后配置固定相机诊断）
+[INFO] [1791941844.815328167] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（首轮结束，关闭使能后配置固定相机诊断）
+[INFO] [1791941845.811676921] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（首轮结束，关闭使能后配置固定相机诊断）
+[INFO] [1791941846.810952264] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（首轮结束，关闭使能后配置固定相机诊断）
+[INFO] [1791941847.811467617] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（首轮结束，关闭使能后配置固定相机诊断）
+[INFO] [1791941848.818847856] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（首轮结束，关闭使能后配置固定相机诊断）
+[INFO] [1791941849.814772914] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（首轮结束，关闭使能后配置固定相机诊断）
+[INFO] [1791941850.812107657] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（首轮结束，关闭使能后配置固定相机诊断）
+[INFO] [1791941851.811560028] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（首轮结束，关闭使能后配置固定相机诊断）
+[INFO] [1791941852.811693327] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（首轮结束，关闭使能后配置固定相机诊断）
+[INFO] [1791941853.817659980] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（首轮结束，关闭使能后配置固定相机诊断）
+[INFO] [1791941854.811486843] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（首轮结束，关闭使能后配置固定相机诊断）
+[INFO] [1791941855.811609956] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（首轮结束，关闭使能后配置固定相机诊断）
+[INFO] [1791941856.811500611] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（首轮结束，关闭使能后配置固定相机诊断）
+[INFO] [1791941857.812784166] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（首轮结束，关闭使能后配置固定相机诊断）
+[INFO] [1791941858.813345810] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（首轮结束，关闭使能后配置固定相机诊断）
+[INFO] [1791941859.820289461] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（首轮结束，关闭使能后配置固定相机诊断）
+[INFO] [1791941860.810972997] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（首轮结束，关闭使能后配置固定相机诊断）
+[INFO] [1791941861.811391332] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（首轮结束，关闭使能后配置固定相机诊断）
+[INFO] [1791941862.811163981] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（首轮结束，关闭使能后配置固定相机诊断）
+[INFO] [1791941863.819327236] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（首轮结束，关闭使能后配置固定相机诊断）
+[INFO] [1791941864.815427361] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（首轮结束，关闭使能后配置固定相机诊断）
+[INFO] [1791941865.820074028] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（首轮结束，关闭使能后配置固定相机诊断）
+[INFO] [1791941866.815903327] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（首轮结束，关闭使能后配置固定相机诊断）
+[INFO] [1791941867.818054320] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（首轮结束，关闭使能后配置固定相机诊断）
+[INFO] [1791941868.818102335] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（首轮结束，关闭使能后配置固定相机诊断）
+[INFO] [1791941869.814224079] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（首轮结束，关闭使能后配置固定相机诊断）
+[INFO] [1791941870.814492745] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（首轮结束，关闭使能后配置固定相机诊断）
+[INFO] [1791941871.820333931] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（首轮结束，关闭使能后配置固定相机诊断）
+[INFO] [1791941872.810876405] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（首轮结束，关闭使能后配置固定相机诊断）
+[INFO] [1791941873.425265293] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（固定相机单视诊断，启动等待8s，产品接触几何门保留，tool=false）
+[INFO] [1791941873.811790328] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（固定相机单视诊断，启动等待8s，产品接触几何门保留，tool=false）
+[INFO] [1791941874.812565051] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（固定相机单视诊断，启动等待8s，产品接触几何门保留，tool=false）
+[INFO] [1791941875.815634795] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（固定相机单视诊断，启动等待8s，产品接触几何门保留，tool=false）
+[INFO] [1791941876.812612034] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（固定相机单视诊断，启动等待8s，产品接触几何门保留，tool=false）
+[INFO] [1791941877.813628222] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（固定相机单视诊断，启动等待8s，产品接触几何门保留，tool=false）
+[INFO] [1791941878.811798074] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（固定相机单视诊断，启动等待8s，产品接触几何门保留，tool=false）
+[INFO] [1791941879.811476701] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（固定相机单视诊断，启动等待8s，产品接触几何门保留，tool=false）
+[INFO] [1791941880.813786166] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（固定相机单视诊断，启动等待8s，产品接触几何门保留，tool=false）
+[INFO] [1791941881.811097732] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（固定相机单视诊断，启动等待8s，产品接触几何门保留，tool=false）
+[INFO] [1791941882.811449002] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（固定相机单视诊断，启动等待8s，产品接触几何门保留，tool=false）
+[INFO] [1791941883.810893765] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（固定相机单视诊断，启动等待8s，产品接触几何门保留，tool=false）
+[INFO] [1791941884.814805692] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（固定相机单视诊断，启动等待8s，产品接触几何门保留，tool=false）
+[INFO] [1791941885.815328109] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（固定相机单视诊断，启动等待8s，产品接触几何门保留，tool=false）
+[INFO] [1791941886.815250651] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（固定相机单视诊断，启动等待8s，产品接触几何门保留，tool=false）
+[INFO] [1791941887.810975480] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（固定相机单视诊断，启动等待8s，产品接触几何门保留，tool=false）
+[INFO] [1791941888.816334903] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（固定相机单视诊断，启动等待8s，产品接触几何门保留，tool=false）
+[INFO] [1791941888.908067887] [peach_arm]: [PLAN_OBSERVATION] 生成目标导向主动视点
+[INFO] [1791941888.908416108] [peach_arm]: [FINALIZE] 等待重建精化几何（BuildTargetModel）
+[WARN] [1791941889.568827142] [peach_arm]: grasp quality gate denied: refined_quality_not_allowed (axis_angle_deg=27.30 pregrasp_only=false)
+[WARN] [1791941889.568931559] [peach_arm]: [FAILED] GraspDecision.allowed=false，禁止降级接触: refined_quality_not_allowed
+[WARN] [1791941889.568955134] [peach_arm]: [FAILED] GraspDecision.allowed=false，禁止降级接触: refined_quality_not_allowed
+[INFO] [1791941889.810932722] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（固定相机单视诊断，启动等待8s，产品接触几何门保留，tool=false）
+[INFO] [1791941890.814409711] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（固定相机单视诊断，启动等待8s，产品接触几何门保留，tool=false）
+[INFO] [1791941891.811020320] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（固定相机单视诊断，启动等待8s，产品接触几何门保留，tool=false）
+[INFO] [1791941892.811195976] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（固定相机单视诊断，启动等待8s，产品接触几何门保留，tool=false）
+[INFO] [1791941893.811094695] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（固定相机单视诊断，启动等待8s，产品接触几何门保留，tool=false）
+[INFO] [1791941894.813312455] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（固定相机单视诊断，启动等待8s，产品接触几何门保留，tool=false）
+[INFO] [1791941895.814180444] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（固定相机单视诊断，启动等待8s，产品接触几何门保留，tool=false）
+[INFO] [1791941896.814680502] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（固定相机单视诊断，启动等待8s，产品接触几何门保留，tool=false）
+[INFO] [1791941897.811110840] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（固定相机单视诊断，启动等待8s，产品接触几何门保留，tool=false）
+[INFO] [1791941898.811187527] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（固定相机单视诊断，启动等待8s，产品接触几何门保留，tool=false）
+[INFO] [1791941899.812259609] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（固定相机单视诊断，启动等待8s，产品接触几何门保留，tool=false）
+[INFO] [1791941900.816061178] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（固定相机单视诊断，启动等待8s，产品接触几何门保留，tool=false）
+[INFO] [1791941901.811897769] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（固定相机单视诊断，启动等待8s，产品接触几何门保留，tool=false）
+[INFO] [1791941902.811627499] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（固定相机单视诊断，启动等待8s，产品接触几何门保留，tool=false）
+[INFO] [1791941903.811269763] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（固定相机单视诊断，启动等待8s，产品接触几何门保留，tool=false）
+[INFO] [1791941904.919094293] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（固定相机单视诊断，启动等待8s，产品接触几何门保留，tool=false）
+[INFO] [1791941905.814084099] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（固定相机单视诊断，启动等待8s，产品接触几何门保留，tool=false）
+[INFO] [1791941906.830641152] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（固定相机单视诊断，启动等待8s，产品接触几何门保留，tool=false）
+[INFO] [1791941907.815126665] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（固定相机单视诊断，启动等待8s，产品接触几何门保留，tool=false）
+[INFO] [1791941908.815984181] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（固定相机单视诊断，启动等待8s，产品接触几何门保留，tool=false）
+[INFO] [1791941909.816645935] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（固定相机单视诊断，启动等待8s，产品接触几何门保留，tool=false）
+[INFO] [1791941910.814837167] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（固定相机单视诊断，启动等待8s，产品接触几何门保留，tool=false）
+[INFO] [1791941911.827340863] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（固定相机单视诊断，启动等待8s，产品接触几何门保留，tool=false）
+[INFO] [1791941912.812487281] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（固定相机单视诊断，启动等待8s，产品接触几何门保留，tool=false）
+[INFO] [1791941913.816361000] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（固定相机单视诊断，启动等待8s，产品接触几何门保留，tool=false）
+[INFO] [1791941914.812904329] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（固定相机单视诊断，启动等待8s，产品接触几何门保留，tool=false）
+[INFO] [1791941915.812739873] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（固定相机单视诊断，启动等待8s，产品接触几何门保留，tool=false）
+[INFO] [1791941916.811171688] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（固定相机单视诊断，启动等待8s，产品接触几何门保留，tool=false）
+[INFO] [1791941917.815069515] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（固定相机单视诊断，启动等待8s，产品接触几何门保留，tool=false）
+[INFO] [1791941918.811933721] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（固定相机单视诊断，启动等待8s，产品接触几何门保留，tool=false）
+[INFO] [1791941919.822119933] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（固定相机单视诊断，启动等待8s，产品接触几何门保留，tool=false）
+[INFO] [1791941920.814939987] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（固定相机单视诊断，启动等待8s，产品接触几何门保留，tool=false）
+[INFO] [1791941921.812417258] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（固定相机单视诊断，启动等待8s，产品接触几何门保留，tool=false）
+[INFO] [1791941922.817870841] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（固定相机单视诊断，启动等待8s，产品接触几何门保留，tool=false）
+[INFO] [1791941923.814859343] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（固定相机单视诊断，启动等待8s，产品接触几何门保留，tool=false）
+[INFO] [1791941924.812654899] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（固定相机单视诊断，启动等待8s，产品接触几何门保留，tool=false）
+[INFO] [1791941925.813903507] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（固定相机单视诊断，启动等待8s，产品接触几何门保留，tool=false）
+[INFO] [1791941926.818509755] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（固定相机单视诊断，启动等待8s，产品接触几何门保留，tool=false）
+[INFO] [1791941927.811704148] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（固定相机单视诊断，启动等待8s，产品接触几何门保留，tool=false）
+[INFO] [1791941928.818383365] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（固定相机单视诊断，启动等待8s，产品接触几何门保留，tool=false）
+[INFO] [1791941929.386199050] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（两轮FULL验证结束，关闭全部使能并停栈）
+[INFO] [1791941929.813657040] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（两轮FULL验证结束，关闭全部使能并停栈）
+[INFO] [1791941930.811163241] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（两轮FULL验证结束，关闭全部使能并停栈）
+[INFO] [1791941931.811333011] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（两轮FULL验证结束，关闭全部使能并停栈）
+[INFO] [1791941932.811451596] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（两轮FULL验证结束，关闭全部使能并停栈）
+[INFO] [1791941933.812468368] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（两轮FULL验证结束，关闭全部使能并停栈）
+[INFO] [1791941934.811765187] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（两轮FULL验证结束，关闭全部使能并停栈）
+[INFO] [1791941935.820276761] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（两轮FULL验证结束，关闭全部使能并停栈）
+[INFO] [1791941936.813878586] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（两轮FULL验证结束，关闭全部使能并停栈）
+[INFO] [1791941937.811333532] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（两轮FULL验证结束，关闭全部使能并停栈）
+[INFO] [1791941938.813587214] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（两轮FULL验证结束，关闭全部使能并停栈）
+[INFO] [1791941939.812246626] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（两轮FULL验证结束，关闭全部使能并停栈）
+[INFO] [1791941940.811018236] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（两轮FULL验证结束，关闭全部使能并停栈）
+[INFO] [1791941941.818375560] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（两轮FULL验证结束，关闭全部使能并停栈）
+[INFO] [1791941942.811846311] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（两轮FULL验证结束，关闭全部使能并停栈）
+[INFO] [1791941943.816654296] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（两轮FULL验证结束，关闭全部使能并停栈）
+[INFO] [1791941944.812511106] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（两轮FULL验证结束，关闭全部使能并停栈）
+[INFO] [1791941945.812085702] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（两轮FULL验证结束，关闭全部使能并停栈）
+[INFO] [1791941946.812270543] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（两轮FULL验证结束，关闭全部使能并停栈）
+[INFO] [1791941947.811046447] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（两轮FULL验证结束，关闭全部使能并停栈）
+[INFO] [1791941948.812383214] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（两轮FULL验证结束，关闭全部使能并停栈）

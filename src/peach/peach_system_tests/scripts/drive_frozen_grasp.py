@@ -369,12 +369,9 @@ def main() -> int:
                 'moveit.obstacle_guard_enabled', False,
                 client=node._arm_params):
             return 1
-        # One-view bag reconstructs ~0.10 m bag at ~1.04 m TCP; +0.10 m along
-        # the neck axis leaves the E5 workspace (CartesianPath 0/1). Product
-        # clamp stays 0.02–0.20; dry FULL still sleeves, just a short hop.
-        if not node.set_double(
-                'grasp.maximum_travel_m', 0.02, client=node._arm_params):
-            return 1
+        # Keep the product travel range. The historical 20 mm fixture clamp
+        # rejected the current index-70 candidate's 30 mm suggested travel in
+        # CheckReachability before dispatch (cut_travel_out_of_range).
         # Frozen photo-pose cloud is not a job-time map. Shrink the snapshot
         # so 769 boxes cannot occupy the sleeve corridor.
         node.set_double(

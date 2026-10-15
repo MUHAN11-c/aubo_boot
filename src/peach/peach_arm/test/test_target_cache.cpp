@@ -389,3 +389,216 @@ TEST(TargetCache, PromoteUnrefinedFromLockedAndHoldsAgainstDiagnostics)
   EXPECT_NEAR(quality.data_age_s, 0.0, 1e-12);
   EXPECT_FALSE(cache.updateRefinedPose(refinedPoseUpdate("a")));
 }
+
+// 模型有效期与数据年龄来自模型生成，不来自诊断心跳。
+TEST(TargetCache, DiagnosticsHeartbeatDoesNotRefreshModelAge)
+{
+  double now = 100.0;
+  peach_arm::TargetCache cache([&now] {return now;});
+  peach_arm::ModelSnapshot model;
+  model.generated_s = 100.0;
+  model.valid_until_s = 120.0;
+  cache.replaceModelSnapshot(model);
+  now = 110.0;
+  peach_arm::ReconstructionDiagnosticsUpdate heartbeat;
+  heartbeat.state = "READY";
+  cache.updateReconstructionDiagnostics(heartbeat);
+  EXPECT_DOUBLE_EQ(cache.qualitySnapshot().data_age_s, 10.0);
+}
+
+namespace
+{
+peach_arm::ModelSnapshot decisionModel()
+{
+  peach_arm::ModelSnapshot model;
+  model.identity = {"run1", 1, "t1", "t1:1", "bite_shear_v1", "cal", "cfg"};
+  model.generated_s = 100.0;
+  model.valid_until_s = 120.0;
+  model.geometry = peach_arm::Capability::Valid;
+  model.pregrasp = peach_arm::Capability::Valid;
+  model.sleeve = peach_arm::Capability::Valid;
+  model.cut = peach_arm::Capability::Valid;
+  return model;
+}
+}
+
+TEST(TargetCache, DecisionCommitsGeometryCapabilitiesAndIdentityTogether)
+{
+  peach_arm::TargetCache cache([] {return 101.0;});
+  cache.updateSelectedTarget(observedUpdate());
+  std::atomic_bool cancel{false};
+  EXPECT_FALSE(cache.waitForDecision("t1", 0.0, cancel));
+  ASSERT_TRUE(cache.updateDecisionSnapshot(decisionModel(), refinedPoseUpdate(), 0.002, 0.8));
+  EXPECT_TRUE(cache.waitForDecision("t1", 0.0, cancel));
+  EXPECT_EQ(cache.modelSnapshot().identity.model_revision, "t1:1");
+  EXPECT_TRUE(cache.qualitySnapshot().grasp_allowed);
+  ASSERT_TRUE(cache.refinedSnapshot());
+  EXPECT_TRUE(cache.refinedSnapshot()->entry.isApprox(refinedPoseUpdate().entry));
+}
+
+TEST(TargetCache, ForeignDecisionCannotReplaceCurrentModel)
+{
+  peach_arm::TargetCache cache([] {return 101.0;});
+  cache.updateSelectedTarget(observedUpdate());
+  ASSERT_TRUE(cache.updateDecisionSnapshot(decisionModel(), refinedPoseUpdate(), 0.002, 0.8));
+  auto other = decisionModel();
+  other.identity.target_id = "t2";
+  EXPECT_FALSE(cache.updateDecisionSnapshot(other, refinedPoseUpdate("t2"), 0.001, 0.9));
+  EXPECT_EQ(cache.modelSnapshot().identity.target_id, "t1");
+  EXPECT_EQ(cache.graspDecisionTarget(), "t1");
+}
+
+TEST(TargetCache, DecisionHeartbeatDoesNotRenewExpiryOrGeneration)
+{
+  double now = 101.0;
+  peach_arm::TargetCache cache([&now] {return now;});
+  cache.updateSelectedTarget(observedUpdate());
+  auto model = decisionModel();
+  ASSERT_TRUE(cache.updateDecisionSnapshot(model, refinedPoseUpdate(), 0.002, 0.8));
+  model.generated_s = 105.0;
+  model.valid_until_s = 125.0;
+  now = 105.0;
+  ASSERT_TRUE(cache.updateDecisionSnapshot(model, refinedPoseUpdate(), 0.002, 0.8));
+  EXPECT_DOUBLE_EQ(cache.modelSnapshot().generated_s, 100.0);
+  EXPECT_DOUBLE_EQ(cache.modelSnapshot().valid_until_s, 120.0);
+  EXPECT_DOUBLE_EQ(cache.qualitySnapshot().data_age_s, 5.0);
+  now = 121.0;
+  std::atomic_bool cancel{false};
+  EXPECT_FALSE(cache.waitForDecision("t1", 0.0, cancel));
+}
+
+TEST(TargetCache, LegacyPoseCannotOverwriteAuthoritativeDecisionGeometry)
+{
+  peach_arm::TargetCache cache([] {return 101.0;});
+  cache.updateSelectedTarget(observedUpdate());
+  ASSERT_TRUE(cache.updateDecisionSnapshot(decisionModel(), refinedPoseUpdate(), 0.002, 0.8));
+  auto old_pose = refinedPoseUpdate();
+  old_pose.entry.x() += 1.0;
+  EXPECT_FALSE(cache.updateRefinedPose(old_pose));
+  EXPECT_TRUE(cache.refinedSnapshot()->entry.isApprox(refinedPoseUpdate().entry));
+}
+
+TEST(TargetCache, IncompleteRevocationClearsCurrentPermission)
+{
+  peach_arm::TargetCache cache([] {return 101.0;});
+  cache.updateSelectedTarget(observedUpdate());
+  ASSERT_TRUE(cache.updateDecisionSnapshot(decisionModel(), refinedPoseUpdate(), 0.002, 0.8));
+  auto invalid = decisionModel();
+  invalid.identity.model_revision.clear();
+  invalid.geometry = peach_arm::Capability::Invalid;
+  EXPECT_FALSE(cache.updateDecisionSnapshot(invalid, refinedPoseUpdate(), -1.0, -1.0));
+  EXPECT_FALSE(cache.qualitySnapshot().grasp_allowed);
+  std::atomic_bool cancel{false};
+  EXPECT_FALSE(cache.waitForDecision("t1", 0.0, cancel));
+}
+
+TEST(TargetCache, TargetChangeInvalidatesDecisionEvenWhenIdIsReused)
+{
+  peach_arm::TargetCache cache([] {return 101.0;});
+  cache.updateSelectedTarget(observedUpdate());
+  ASSERT_TRUE(cache.updateDecisionSnapshot(decisionModel(), refinedPoseUpdate(), 0.002, 0.8));
+  auto next = observedUpdate();
+  next.harvest_run_id = "run2";
+  cache.updateSelectedTarget(next);
+  EXPECT_FALSE(cache.qualitySnapshot().grasp_allowed);
+  EXPECT_TRUE(cache.modelSnapshot().identity.target_id.empty());
+}
+
+TEST(TargetCache, RevokedRevisionCannotBeResurrectedByDelayedHeartbeat)
+{
+  peach_arm::TargetCache cache([] {return 110.0;});
+  cache.updateSelectedTarget(observedUpdate());
+  auto model = decisionModel();
+  ASSERT_TRUE(cache.updateDecisionSnapshot(model, refinedPoseUpdate(), 0.002, 0.8));
+  auto revoked = model;
+  revoked.generated_s = 105.0;
+  revoked.identity.model_revision.clear();
+  revoked.geometry = peach_arm::Capability::Invalid;
+  EXPECT_FALSE(cache.updateDecisionSnapshot(revoked, refinedPoseUpdate(), -1.0, -1.0));
+  EXPECT_FALSE(cache.updateDecisionSnapshot(model, refinedPoseUpdate(), 0.002, 0.8));
+  EXPECT_FALSE(cache.qualitySnapshot().grasp_allowed);
+}
+
+TEST(TargetCache, OlderRevisionCannotReplaceNewerGeometry)
+{
+  peach_arm::TargetCache cache([] {return 110.0;});
+  cache.updateSelectedTarget(observedUpdate());
+  auto model = decisionModel();
+  model.identity.model_revision = "t1:2";
+  model.generated_s = 105.0;
+  ASSERT_TRUE(cache.updateDecisionSnapshot(model, refinedPoseUpdate(), 0.002, 0.8));
+  EXPECT_FALSE(cache.updateDecisionSnapshot(decisionModel(), refinedPoseUpdate(), 0.002, 0.8));
+  EXPECT_EQ(cache.modelSnapshot().identity.model_revision, "t1:2");
+}
+
+TEST(TargetCache, DecisionWaitIsCancelableAndDoesNotAcceptForeignTarget)
+{
+  peach_arm::TargetCache cache([] {return 110.0;});
+  cache.updateSelectedTarget(observedUpdate());
+  ASSERT_TRUE(cache.updateDecisionSnapshot(decisionModel(), refinedPoseUpdate(), 0.002, 0.8));
+  std::atomic_bool cancel{false};
+  EXPECT_FALSE(cache.waitForDecision("t2", 0.0, cancel));
+  cancel.store(true);
+  EXPECT_FALSE(cache.waitForDecision("t1", 0.0, cancel));
+}
+
+TEST(TargetCache, DecisionBeforeSelectedCannotCrossRunWithSameTargetId)
+{
+  peach_arm::TargetCache cache([] {return 110.0;});
+  ASSERT_TRUE(cache.updateDecisionSnapshot(decisionModel(), refinedPoseUpdate(), 0.002, 0.8));
+  auto current = observedUpdate();
+  current.harvest_run_id = "new_run";
+  cache.updateSelectedTarget(current);
+  EXPECT_FALSE(cache.qualitySnapshot().grasp_allowed);
+  std::atomic_bool cancel{false};
+  EXPECT_FALSE(cache.waitForDecision("t1", 0.0, cancel));
+}
+
+TEST(TargetCache, SameRevisionDenialCannotBeUpgradedByOldValidHeartbeat)
+{
+  peach_arm::TargetCache cache([] {return 110.0;});
+  cache.updateSelectedTarget(observedUpdate());
+  auto model = decisionModel();
+  ASSERT_TRUE(cache.updateDecisionSnapshot(model, refinedPoseUpdate(), 0.002, 0.8));
+  auto denied = model;
+  denied.sleeve = peach_arm::Capability::Invalid;
+  ASSERT_TRUE(cache.updateDecisionSnapshot(denied, refinedPoseUpdate(), 0.002, 0.8));
+  EXPECT_FALSE(cache.qualitySnapshot().grasp_allowed);
+  ASSERT_TRUE(cache.updateDecisionSnapshot(model, refinedPoseUpdate(), 0.002, 0.8));
+  EXPECT_FALSE(cache.qualitySnapshot().grasp_allowed);
+  EXPECT_EQ(cache.modelSnapshot().sleeve, peach_arm::Capability::Invalid);
+}
+
+TEST(TargetCache, ExecutionSnapshotKeepsGeometryAndModelInOneRead)
+{
+  peach_arm::TargetCache cache([] {return 110.0;});
+  cache.updateSelectedTarget(observedUpdate());
+  EXPECT_FALSE(cache.decisionSnapshot());
+  ASSERT_TRUE(cache.updateDecisionSnapshot(decisionModel(), refinedPoseUpdate(), 0.002, 0.8));
+  const auto snapshot = cache.decisionSnapshot();
+  ASSERT_TRUE(snapshot);
+  EXPECT_EQ(snapshot->model.identity.target_id, snapshot->geometry.id);
+  EXPECT_EQ(snapshot->quality.refined_target_id, snapshot->geometry.id);
+  EXPECT_TRUE(snapshot->geometry.entry.isApprox(refinedPoseUpdate().entry));
+  auto next = decisionModel();
+  next.identity.model_revision = "t1:2";
+  next.generated_s = 105.0;
+  auto moved = refinedPoseUpdate();
+  moved.entry.x() += 0.01;
+  ASSERT_TRUE(cache.updateDecisionSnapshot(next, moved, 0.002, 0.8));
+  EXPECT_EQ(snapshot->model.identity.model_revision, "t1:1");
+  EXPECT_TRUE(snapshot->geometry.entry.isApprox(refinedPoseUpdate().entry));
+}
+
+TEST(TargetCache, DecisionCanExpireBetweenWaitAndExecutionRead)
+{
+  double now = 110.0;
+  peach_arm::TargetCache cache([&now] {return now;});
+  cache.updateSelectedTarget(observedUpdate());
+  ASSERT_TRUE(cache.updateDecisionSnapshot(decisionModel(), refinedPoseUpdate(), 0.002, 0.8));
+  std::atomic_bool cancel{false};
+  ASSERT_TRUE(cache.waitForDecision("t1", 0.0, cancel));
+  now = 121.0;
+  EXPECT_FALSE(cache.decisionSnapshot());
+  EXPECT_FALSE(cache.qualitySnapshot().grasp_allowed);
+}

@@ -4,8 +4,7 @@
 # 现行核心栈：peach_interfaces / peach_common / peach_harvester / peach_arm /
 # peach_bringup / peach_observability / peach_vegetation / peach_system_tests /
 # peach_stereo（相机前端；peach_sim 场景包另有 /peach_sim/joint_states 预留登记）。
-# 范围排除：peach2（src/peach2/，隔离重写栈）契约单源在其自带的
-# peach2/peach2_interfaces/config/interfaces.yaml，不在本清单。
+# peach2 已归档到 _archive/parked_2026-10-12/peach2，不参与现行构建与清单检查。
 version: 2
 interfaces:
   - name: /peach_supervisor/state
@@ -144,6 +143,12 @@ interfaces:
     qos: {reliability: reliable, durability: transient_local, depth: 1}
     producers: [peach_target_reconstruction]
     consumers: [peach_observability]
+  - name: /peach/reconstruction/preview_cloud
+    kind: topic
+    type: sensor_msgs/msg/PointCloud2
+    qos: {reliability: best_effort, durability: transient_local, depth: 1}
+    producers: [peach_target_reconstruction]
+    consumers: []  # RViz only; <=50000 points, never an algorithm input
   - name: /peach/reconstruction/markers
     kind: topic
     type: visualization_msgs/msg/MarkerArray

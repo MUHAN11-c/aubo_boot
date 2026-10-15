@@ -1,0 +1,26 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+_______ test_stack_ready_change_publishes_blockers_without_changing_fsm ________
+
+    def test_stack_ready_change_publishes_blockers_without_changing_fsm():
+        """就绪上升/下降沿立即发布；相同心跳不重复发布或迁移批次状态."""
+        published = []
+        node = SimpleNamespace(_stack_ready=False, _batch_state=DISCOVERY)
+    
+        def publish(*, force=False):
+            published.append((force, blockers_for(
+                operation_mode=0, recovery_required=False,
+                stack_ready=node._stack_ready, ledger_write_failures=0)))
+    
+        node._publish_state = publish
+        for ready in (False, True, True, False, False):
+            TaskExecutorNode._on_stack_ready(node, Bool(data=ready))
+>       assert published == [(True, []), (True, ['stack_not_ready'])]
+E       AssertionError: assert [] == [(True, []), ..._not_ready'])]
+E         Right contains 2 more items, first extra item: (True, [])
+E         Use -v to get more diff
+
+src/peach/peach_harvester/test/test_supervisor_stack_ready.py:24: AssertionError
+=========================== short test summary info ============================
+FAILED src/peach/peach_harvester/test/test_supervisor_stack_ready.py::test_stack_ready_change_publishes_blockers_without_changing_fsm
+1 failed in 0.28s

@@ -1,230 +1,176 @@
 #!/usr/bin/env python3
-"""Start the v1 frozen-camera mock stack, drive one dry FULL grasp, then stop.
+"""Run a frozen-camera mock grasp and stop only this wrapper's process groups.
 
-Isolates ROS_DOMAIN_ID (default 81). Does not connect to a real robot.
-Requires the frozen bag and a GPU for YOLO/SAM. The 180 s clock starts when
-RunHarvest is accepted; stack boot has its own ready budget.
+Default ROS domain 81. Frozen regression is headless unless --rviz is explicit.
+The source bag is read only; --skip-launch preserves the external stack.
 """
 from __future__ import annotations
 
 import argparse
 import os
+from pathlib import Path
 import signal
 import subprocess
 import sys
 import time
-from pathlib import Path
+import uuid
 
-from frozen_camera_replay import discover_bag
+from run_live_camera_mock import (
+    OwnedProcesses, RosDriver, cleanup_driver, defer_stop_signals, snapshot,
+)
 
 GRASP_S = 180.0
 READY_S = 120.0
-MARKERS = (
-    'ros2 launch',
-    'component_container',
-    'extrinsics_publisher',
-    'ros2 run',
-    'bag record',
-    'frozen_camera',
-    'move_group',
-    'ros2_control_node',
-    'robot_state_publisher',
-    'peach_harvester',
-    'peach_arm',
-    'lifecycle_manager',
-)
+MARKERS = ('peach', 'frozen_camera', 'move_group', 'ros2_control_node',
+           'robot_state_publisher', 'component_container', 'extrinsics_publisher',
+           'lifecycle_manager', 'ros2 launch', 'ros2 run', 'bag record')
 
 
-def _domain_of(pid: int) -> str | None:
+def _domain_of(pid):
     try:
         raw = Path(f'/proc/{pid}/environ').read_bytes().split(b'\0')
-    except (FileNotFoundError, PermissionError, ProcessLookupError):
+        return next((part.split(b'=', 1)[1].decode(errors='replace') for part in raw
+                     if part.startswith(b'ROS_DOMAIN_ID=')), '0')
+    except OSError:
         return None
-    for item in raw:
-        if item.startswith(b'ROS_DOMAIN_ID='):
-            return item.split(b'=', 1)[1].decode(errors='replace')
-    return ''
 
 
-def _pgrep(domain: str | None = None) -> list[tuple[int, str]]:
-    try:
-        out = subprocess.check_output(
-            ['pgrep', '-af', '|'.join(MARKERS)], text=True)
-    except subprocess.CalledProcessError:
-        return []
+def _pgrep(domain=None):
+    """Read process inventory; expose PID/executable only, never shell arguments."""
     rows = []
-    self = os.getpid()
-    for line in out.splitlines():
-        parts = line.split(None, 1)
-        if len(parts) != 2:
-            continue
+    for path in Path('/proc').glob('[0-9]*/cmdline'):
         try:
-            pid = int(parts[0])
-        except ValueError:
-            continue
-        if pid == self or pid == os.getppid():
-            continue
-        if 'pgrep' in parts[1]:
-            continue
-        if domain is not None:
-            pid_domain = _domain_of(pid)
-            if pid_domain is None:
+            pid = int(path.parent.name)
+            if pid in (os.getpid(), os.getppid()):
                 continue
-            if pid_domain != domain:
+            executable = (path.parent / 'exe').resolve().name
+            if executable in ('bash', 'sh', 'dash', 'timeout', 'bwrap', 'zsh'):
                 continue
-        rows.append((pid, parts[1]))
+            command = path.read_bytes().replace(b'\0', b' ').decode(errors='replace')
+            if any(marker in command for marker in MARKERS) and (domain is None or _domain_of(pid) == domain):
+                rows.append((pid, executable))
+        except (OSError, ValueError):
+            pass
     return rows
 
 
-def _stop_pid(pid: int) -> None:
-    try:
-        os.kill(pid, signal.SIGTERM)
-    except ProcessLookupError:
-        return
-    deadline = time.monotonic() + 2.0
-    while time.monotonic() < deadline:
-        try:
-            os.kill(pid, 0)
-        except ProcessLookupError:
-            return
-        time.sleep(0.1)
-    try:
-        os.kill(pid, signal.SIGKILL)
-    except ProcessLookupError:
-        return
-
-
-def _stop_group(proc: subprocess.Popen) -> None:
-    if proc.poll() is not None:
-        return
-    try:
-        os.killpg(proc.pid, signal.SIGINT)
-    except ProcessLookupError:
-        return
-    try:
-        proc.wait(timeout=12)
-        return
-    except subprocess.TimeoutExpired:
-        pass
-    try:
-        os.killpg(proc.pid, signal.SIGTERM)
-    except ProcessLookupError:
-        return
-    try:
-        proc.wait(timeout=4)
-        return
-    except subprocess.TimeoutExpired:
-        pass
-    try:
-        os.killpg(proc.pid, signal.SIGKILL)
-    except ProcessLookupError:
-        return
-    proc.wait(timeout=4)
-
-
-def main() -> int:
+def create_parser():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--bag', default='')
     parser.add_argument('--index', type=int, default=70)
     parser.add_argument('--hz', type=float, default=2.0)
     parser.add_argument('--request-id', default='')
-    parser.add_argument('--timeout', type=float, default=GRASP_S,
-                        help='grasp budget in seconds from goal acceptance (default 180)')
-    parser.add_argument('--ready-timeout', type=float, default=READY_S,
-                        help='stack boot budget; not part of the grasp clock')
-    parser.add_argument(
-        '--skip-launch', action='store_true',
-        help='drive only; stack already running on this domain')
-    args = parser.parse_args()
-    bag = args.bag.strip() or discover_bag()
-    if not bag or not (Path(bag) / 'metadata.yaml').is_file():
-        print('frozen camera bag not found; set --bag or PEACH_FROZEN_BAG',
-              file=sys.stderr)
-        return 2
+    parser.add_argument('--timeout', type=float, default=GRASP_S)
+    parser.add_argument('--ready-timeout', type=float, default=READY_S)
+    parser.add_argument('--skip-launch', action='store_true')
+    parser.add_argument('--rviz', action=argparse.BooleanOptionalAction, default=False)
+    return parser
 
-    env = os.environ.copy()
-    env.setdefault('ROS_DOMAIN_ID', '81')
-    env['ROS_LOCALHOST_ONLY'] = '1'
-    # 不设 QT_QPA_PLATFORM=offscreen：会破坏 rviz2 的 GLX 窗口（可视化验证需要真渲染）
-    env['PEACH_FROZEN_BAG'] = bag
-    domain = env['ROS_DOMAIN_ID']
-    print(
-        f'ROS_DOMAIN_ID={domain} bag={bag} '
-        f'ready={args.ready_timeout:.0f}s grasp={args.timeout:.0f}s',
-        flush=True)
 
-    leftover = _pgrep()
-    if leftover:
-        print('note: other ROS processes exist (other domain, not killed):',
-              flush=True)
-        for pid, cmd in leftover[:8]:
-            print(f'  {pid} {cmd}', flush=True)
+def assert_mock_stack(domain):
+    facts = snapshot().get('startup', {}).get('facts', {})
+    if facts.get('hardware_mode') != 'mock' or str(facts.get('ros_domain_id')) != str(domain):
+        raise RuntimeError('Refusing operation: expected mock stack on this ROS domain')
 
-    t0 = time.monotonic()
-    launch_proc = None
-    drive_proc = None
-    code = 1
+
+def cleanup_request(env, request):
+    """Cancel/disable only the batch this wrapper sent; never a foreign request."""
+    errors = []
+    driver = None
     try:
-        if not args.skip_launch:
-            launch_cmd = [
-                'ros2', 'launch', 'peach_system_tests',
-                'frozen_camera_grasp.launch.py',
-                f'bag:={bag}',
-                f'frame_index:={args.index}',
-                f'hz:={args.hz}',
-            ]
-            launch_proc = subprocess.Popen(
-                launch_cmd, env=env, start_new_session=True)
-            print(f'launch pid={launch_proc.pid}', flush=True)
-            time.sleep(3.0)
-            if launch_proc.poll() is not None:
-                print(
-                    f'launch exited early rc={launch_proc.returncode}',
-                    file=sys.stderr)
-                code = launch_proc.returncode or 1
-                launch_proc = None
-                return code
-        drive_cmd = [
-            'ros2', 'run', 'peach_system_tests', 'drive_frozen_grasp.py',
-            '--ready-timeout', f'{args.ready_timeout:.1f}',
-            '--timeout', f'{args.timeout:.1f}',
-        ]
-        if args.request_id:
-            drive_cmd.extend(['--request-id', args.request_id])
-        drive_proc = subprocess.Popen(drive_cmd, env=env, start_new_session=True)
-        drive_wait = args.ready_timeout + args.timeout + 60.0
-        try:
-            code = drive_proc.wait(timeout=drive_wait)
-        except subprocess.TimeoutExpired:
-            print(
-                f'drive TIMEOUT ready+grasp>={drive_wait:.0f}s — inspect',
-                file=sys.stderr)
-            _stop_group(drive_proc)
-            code = 2
-            drive_proc = None
-        elapsed = time.monotonic() - t0
-        print(f'drive elapsed={elapsed:.1f}s exit={code}', flush=True)
+        state = snapshot()
+        facts = state.get('startup', {}).get('facts', {})
+        task = state.get('task_executor', {}).get('state', {})
+        if (facts.get('hardware_mode') != 'mock' or str(facts.get('ros_domain_id')) != env['ROS_DOMAIN_ID']
+                or task.get('run_id') != request):
+            print('cancel/disable skipped: current request/domain is not owned', flush=True)
+            return []
+        os.environ['ROS_DOMAIN_ID'] = env['ROS_DOMAIN_ID']
+        os.environ['ROS_LOCALHOST_ONLY'] = '1'
+        driver = RosDriver()
+        if task.get('action_active') or task.get('batch_state') not in (0, 6, 8):
+            from peach_interfaces.srv import ControlTask
+            try:
+                reply = driver.service(ControlTask, '/peach_supervisor/control', ControlTask.Request(
+                    request_id=request, expected_state_seq=task['state_seq'], command=4,
+                    reason='frozen wrapper owned request cleanup'))
+                if not reply.accepted:
+                    errors.append('CANCEL_NOW rejected: ' + reply.message)
+            except Exception as exc:
+                errors.append('CANCEL_NOW: ' + str(exc))
+    except Exception as exc:
+        errors.append('cleanup verification: ' + str(exc))
     finally:
-        if drive_proc is not None and drive_proc.poll() is None:
-            _stop_group(drive_proc)
-        if launch_proc is not None:
-            _stop_group(launch_proc)
-        time.sleep(1.0)
-        leftover = _pgrep(domain)
-        if leftover:
-            print('stopping leftover pids on this domain:', flush=True)
-            for pid, cmd in leftover:
-                print(f'  TERM {pid} {cmd}', flush=True)
-                _stop_pid(pid)
-            time.sleep(0.5)
-            leftover = _pgrep(domain)
-        if leftover:
-            print('still running after cleanup:', file=sys.stderr)
-            for pid, cmd in leftover:
-                print(f'  {pid} {cmd}', file=sys.stderr)
+        if driver:
+            cleanup_driver(driver, errors)
+    return errors
+
+
+def main(argv=None):
+    args = create_parser().parse_args(argv)
+    if args.bag.strip():
+        bag = args.bag.strip()
+    else:
+        from frozen_camera_replay import discover_bag
+        bag = discover_bag()
+    if not bag or not (Path(bag) / 'metadata.yaml').is_file():
+        print('frozen camera bag not found; set --bag or PEACH_FROZEN_BAG', file=sys.stderr)
+        return 2
+    env = dict(os.environ)
+    env.setdefault('ROS_DOMAIN_ID', '81')
+    env.update(ROS_LOCALHOST_ONLY='1', PEACH_FROZEN_BAG=bag)
+    domain = env['ROS_DOMAIN_ID']
+    request = args.request_id or ('frozen_' + uuid.uuid4().hex[:12])
+    print(f'ROS_DOMAIN_ID={domain} bag={bag} ready={args.ready_timeout:.0f}s grasp={args.timeout:.0f}s', flush=True)
+    for pid, executable in _pgrep()[:8]:
+        print(f'note: existing process pid={pid} executable={executable}', flush=True)
+    owner = OwnedProcesses(env)
+    started = time.monotonic()
+    code = 1
+    previous = {sig: signal.getsignal(sig) for sig in (signal.SIGINT, signal.SIGTERM)}
+    def interrupt(signum, frame):
+        raise KeyboardInterrupt('received signal ' + str(signum))
+    try:
+        for sig in previous:
+            signal.signal(sig, interrupt)
+        if not args.skip_launch:
+            if _pgrep(domain):
+                raise RuntimeError('Domain already has ROS processes; refusing to launch over an external stack')
+            launch = owner.start(['ros2', 'launch', 'peach_system_tests', 'frozen_camera_grasp.launch.py',
+                f'bag:={bag}', f'frame_index:={args.index}', f'hz:={args.hz}',
+                'rviz:=' + str(args.rviz).lower()])
+            time.sleep(3)
+            if launch.poll() is not None:
+                return launch.returncode or 1
         else:
-            print('pgrep clean (this domain)', flush=True)
-        print(f'wall elapsed={time.monotonic() - t0:.1f}s', flush=True)
+            assert_mock_stack(domain)
+        driver = owner.start(['ros2', 'run', 'peach_system_tests', 'drive_frozen_grasp.py',
+            '--ready-timeout', str(args.ready_timeout), '--timeout', str(args.timeout),
+            '--request-id', request])
+        code = driver.wait(timeout=args.ready_timeout + args.timeout + 60)
+    except subprocess.TimeoutExpired:
+        print('drive timed out; outcome unknown, cancelling owned batch', file=sys.stderr)
+        code = 2
+    except KeyboardInterrupt:
+        code = 130
+    finally:
+        try:
+            with defer_stop_signals():
+                errors = cleanup_request(env, request)
+                for message in errors:
+                    print(message, file=sys.stderr)
+                if errors:
+                    code = code or 1
+                residuals = owner.cleanup()
+                if residuals:
+                    print('owned process residual PIDs: ' + str(residuals), file=sys.stderr)
+                    code = code or 1
+                else:
+                    print('owned process groups clean; external stacks untouched', flush=True)
+                print(f'wall elapsed={time.monotonic() - started:.1f}s', flush=True)
+        finally:
+            for sig, handler in previous.items():
+                signal.signal(sig, handler)
     return code
 
 

@@ -1,0 +1,56 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+___________ test_cancel_timeout_never_swallows_operator_interruption ___________
+
+args = (None,), kw = {'timeout_sec': 0.2}
+
+    def interrupt(*args, **kw):
+>       raise KeyboardInterrupt('operator stop')
+E       KeyboardInterrupt: operator stop
+
+src/peach/peach_system_tests/test/test_live_camera_mock.py:371: KeyboardInterrupt
+
+During handling of the above exception, another exception occurred:
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x71ab66d79a60>
+
+    def test_cancel_timeout_never_swallows_operator_interruption(monkeypatch):
+        import sys
+        from types import SimpleNamespace
+        m = load()
+        handle = SimpleNamespace(accepted=True, get_result_async=lambda: SimpleNamespace(done=lambda: False),
+                                 cancel_goal_async=lambda: 'cancel')
+        client = SimpleNamespace(wait_for_server=lambda **kw: True, send_goal_async=lambda goal: 'send',
+                                 destroy=lambda: None)
+        monkeypatch.setitem(sys.modules, 'rclpy.action', SimpleNamespace(ActionClient=lambda *a: client))
+        monkeypatch.setitem(sys.modules, 'rosidl_runtime_py.convert', SimpleNamespace(message_to_ordereddict=lambda x: x))
+        driver = object.__new__(m.RosDriver)
+        driver.node, driver.active = None, []
+        def interrupt(*args, **kw):
+            raise KeyboardInterrupt('operator stop')
+        def wait(future, timeout):
+            if future == 'send':
+                return handle
+            raise TimeoutError('cancel result unavailable')
+        driver.ros, driver.wait = SimpleNamespace(spin_once=interrupt), wait
+        with pytest.raises(KeyboardInterrupt, match='operator stop'):
+>           driver.action(object, '/mock/action', object(), 10)
+
+src/peach/peach_system_tests/test/test_live_camera_mock.py:378: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+src/peach/peach_system_tests/scripts/run_live_camera_mock.py:380: in action
+    self.wait(handle.cancel_goal_async(), 10)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+future = 'cancel', timeout = 10
+
+    def wait(future, timeout):
+        if future == 'send':
+            return handle
+>       raise TimeoutError('cancel result unavailable')
+E       TimeoutError: cancel result unavailable
+
+src/peach/peach_system_tests/test/test_live_camera_mock.py:375: TimeoutError
+=========================== short test summary info ============================
+FAILED src/peach/peach_system_tests/test/test_live_camera_mock.py::test_cancel_timeout_never_swallows_operator_interruption
+1 failed, 35 deselected in 0.06s

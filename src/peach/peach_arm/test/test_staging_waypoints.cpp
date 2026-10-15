@@ -77,3 +77,24 @@ TEST(StagingWaypoints, DegenerateZeroParametersCollapse)
     (w.staging.translation() - w.pregrasp.translation()).norm(), 1e-9);
   EXPECT_LT((w.mid.translation() - w.pregrasp.translation()).norm(), 1e-9);
 }
+
+TEST(StagingWaypoints, PartialCorridorCannotAuthorizeAnUnreachedPregrasp)
+{
+  Eigen::Isometry3d goal = Eigen::Isometry3d::Identity();
+  goal.translation() = Eigen::Vector3d(0.36, -0.85, 0.59);
+  Eigen::Isometry3d reached = goal;
+  reached.translation().z() -= 0.003;
+  EXPECT_FALSE(peach_arm::stagingCorridorComplete(0.97, reached, goal, 0.001, 0.01));
+  EXPECT_FALSE(peach_arm::stagingCorridorComplete(1.0, reached, goal, 0.001, 0.01));
+  EXPECT_TRUE(peach_arm::stagingCorridorComplete(1.0, goal, goal, 0.001, 0.01));
+}
+
+TEST(StagingWaypoints, WrongFinalRollOrNonfiniteFractionCannotPassCorridor)
+{
+  const Eigen::Isometry3d goal = Eigen::Isometry3d::Identity();
+  Eigen::Isometry3d reached = goal;
+  reached.linear() = Eigen::AngleAxisd(M_PI / 6, Eigen::Vector3d::UnitZ()).toRotationMatrix();
+  EXPECT_FALSE(peach_arm::stagingCorridorComplete(1.0, reached, goal, 0.001, 0.01));
+  EXPECT_FALSE(peach_arm::stagingCorridorComplete(
+    std::numeric_limits<double>::quiet_NaN(), goal, goal, 0.001, 0.01));
+}

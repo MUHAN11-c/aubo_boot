@@ -81,6 +81,9 @@ def test_recorder_geometry_row_writes_jsonl(tmp_path: Path):
     assert row['view_count'] == 3
     assert abs(row['d95_m'] - 0.065) < 1e-12
     assert abs(row['length_m'] - 0.2) < 1e-12
+    assert row['cut_to_fruit_m'] is None
+    assert row['cut_distance_source'] == 'unavailable'
+    assert row['cut_reference_source'] == 'bag_mouth_geometry'
 
 
 def test_recorder_view_row_skips_incomplete_and_appends(tmp_path: Path):

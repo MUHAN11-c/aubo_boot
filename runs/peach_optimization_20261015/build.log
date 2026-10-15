@@ -1,0 +1,44 @@
+[0.410s] WARNING:colcon.colcon_core.package_selection:Some selected packages are already built in one or more underlay workspaces:
+	'peach_interfaces' is in: /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_interfaces
+	'peach_arm' is in: /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_arm
+	'peach_bringup' is in: /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_bringup
+	'peach_observability' is in: /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_observability
+	'peach_stereo' is in: /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_stereo
+If a package in a merged underlay workspace is overridden and it installs headers, then all packages in the overlay must sort their include directories by workspace order. Failure to do so may result in build failures or undefined behavior at run time.
+If the overridden package is used by another package in any underlay, then the overriding package in the overlay must be API and ABI compatible or undefined behavior at run time may occur.
+
+If you understand the risks and want to override a package anyways, add the following to the command line:
+	--allow-overriding peach_arm peach_bringup peach_interfaces peach_observability peach_stereo
+
+This may be promoted to an error in a future release of colcon-override-check.
+Starting >>> peach_common
+Starting >>> peach_interfaces
+Starting >>> peach_web
+Starting >>> peach_stereo
+Finished <<< peach_web [0.46s]
+Finished <<< peach_interfaces [0.61s]
+Finished <<< peach_common [1.02s]
+Starting >>> peach_harvester
+Starting >>> peach_observability
+Starting >>> peach_vegetation
+Finished <<< peach_observability [1.19s]
+Finished <<< peach_harvester [1.19s]
+Starting >>> peach_arm
+Finished <<< peach_vegetation [1.21s]
+--- stderr: peach_stereo
+In file included from /home/mu/Desktop/aubo_e5_jazzy_ws/src/peach/peach_stereo/../../percipio_camera/camport4/include/TYApi.h:30,
+                 from /home/mu/Desktop/aubo_e5_jazzy_ws/src/peach/peach_stereo/src/stereo_camera_node.cpp:54:
+/home/mu/Desktop/aubo_e5_jazzy_ws/src/peach/peach_stereo/../../percipio_camera/camport4/include/TYDefs.h:1006:9: warning: ISO C++ prohibits anonymous structs [-Wpedantic]
+ 1006 |         {
+      |         ^
+/home/mu/Desktop/aubo_e5_jazzy_ws/src/peach/peach_stereo/../../percipio_camera/camport4/include/TYDefs.h:1015:9: warning: ISO C++ prohibits anonymous structs [-Wpedantic]
+ 1015 |         {
+      |         ^
+---
+Finished <<< peach_stereo [7.63s]
+Finished <<< peach_arm [15.2s]
+Starting >>> peach_bringup
+Finished <<< peach_bringup [0.86s]
+
+Summary: 9 packages finished [18.6s]
+  1 package had stderr output: peach_stereo

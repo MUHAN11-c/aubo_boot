@@ -1,5 +1,21 @@
-# `peach_stereo` 架构（v1 活文档）
+# peach_stereo 架构
 
-> 2026-10-10 用户裁定自仓库级 `docs/architecture.md` 拆写入包（职责短页）。
+## 职责
 
-可选相机前端（`camera_frontend:=stereo`，**0036 起默认**；percipio 显式传参备用）：主机单图案立体 RGB-D，~13.5–13.7 FPS（hh4 档，档位相关），话题与 percipio 同构（点云多一个 `confidence` FLOAT32 字段；percipio 另有 `device_event` 话题本前端不发）。launch `respawn=true, respawn_delay=3.0`（2026-09-29 起，掉线自动重连）；诊断任务 `stereo_health` 1 Hz（device_open/激光配置/rate<1.0gps WARN/四类丢弃计数）；激光/曝光/标定写入失败拒启，TIME_SYNC 失败仅 WARN 降级。**整栈 include 顺序坑**：stereo include 必须在 aubo bringup include 之前，否则 stereo 永不启动（见 harvest_system.launch.py 注释）。裸 `ros2 run` 不带 yaml 时 `temporal_k` 用 C++ 默认 1（无时域中值、confidence 恒 1.0），部署 yaml=3。规格档案（参数档 / confidence 布局 / temporal_k / 双前端 A/B 对比）见 [README.md](../README.md)；前端选择与 /camera/* 契约在 [peach_bringup/doc/io.md](../../peach_bringup/doc/io.md)。文件树见 [peach_bringup/doc/architecture.md](../../peach_bringup/doc/architecture.md)。
+PS800-E1 主机单图案立体 RGB-D 前端，与 percipio 设备端前端互斥。
+
+## 源码地图
+
+`src/stereo_camera_node.cpp`：SDK 打开/采集、校正、SGBM、配准、滤波、发布及诊断；`config/stereo_camera.yaml`：部署参数；`launch/stereo_camera.launch.py`：namespace、内参与重启策略。
+
+## 入口、输入输出与参数
+
+`ros2 launch peach_stereo stereo_camera.launch.py`；整栈由 camera_enabled/camera_frontend 选择。发布 `/camera/color/image_raw`、`depth/image_raw`、两路 camera_info、`depth_registered/points` 及 `/diagnostics`。深度 uint16×0.25mm；点云按字段名读取 xyz/rgb/confidence。
+
+## 生命周期、并发与失败
+
+普通 C++ 节点，不进托管名单。采集/匹配是重路径；launch 在进程失败后延迟3秒 respawn。激光/曝光/标定配置失败拒启，TIME_SYNC 失败告警；关闭应释放设备并复位激光。两前端不可同时连接。参数由部署 YAML 与 C++ 声明共同核对，裸 ros2 run 不自动加载部署 YAML。近距质量、温升与长期稳定性需独立验收，历史帧率不是本轮保证。
+
+## 验证与限制
+
+`colcon test --packages-select peach_stereo --return-code-on-test-failure`，随后核对 `colcon test-result --verbose` 中失败、错误、skip及测试数量。系统接线与现场验收见 [测试指导](../../peach_system_tests/doc/testing.md)，系统组合见 [bringup架构](../../peach_bringup/doc/architecture.md)。测试结束清本轮进程；真机运动或SetIO需另授权，驱动只读，numpy固定1.26.4。包测试通过不证明现场精度、功能安全或剪切成功。

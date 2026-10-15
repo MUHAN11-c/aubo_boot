@@ -1,0 +1,23 @@
+Running main() from /opt/ros/jazzy/src/gtest_vendor/src/gtest_main.cc
+Note: Google Test filter = GraspGeometry.ToolRollsStay*
+[==========] Running 1 test from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 1 test from GraspGeometry
+[ RUN      ] GraspGeometry.ToolRollsStayWithinFortyFiveDegrees
+/home/mu/Desktop/aubo_e5_jazzy_ws/src/peach/peach_arm/test/test_grasp_geometry.cpp:104: Failure
+Expected equality of these values:
+  rolls.size()
+    Which is: 5
+  7U
+    Which is: 7
+
+[  FAILED  ] GraspGeometry.ToolRollsStayWithinFortyFiveDegrees (0 ms)
+[----------] 1 test from GraspGeometry (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 1 test from 1 test suite ran. (0 ms total)
+[  PASSED  ] 0 tests.
+[  FAILED  ] 1 test, listed below:
+[  FAILED  ] GraspGeometry.ToolRollsStayWithinFortyFiveDegrees
+
+ 1 FAILED TEST

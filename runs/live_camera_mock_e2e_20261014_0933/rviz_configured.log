@@ -1,0 +1,27 @@
+[WARN] [1791941897.468253201] [rcl]: ROS_LOCALHOST_ONLY is deprecated but still honored if it is enabled. Use ROS_AUTOMATIC_DISCOVERY_RANGE and ROS_STATIC_PEERS instead.
+[WARN] [1791941897.468293933] [rcl]: 'localhost_only' is enabled, 'automatic_discovery_range' and 'static_peers' will be ignored.
+[INFO] [1791941898.082418772] [rviz2]: Stereo is NOT SUPPORTED
+[INFO] [1791941898.082536390] [rviz2]: OpenGl version: 4.6 (GLSL 4.6)
+[INFO] [1791941898.138909770] [rviz2]: Stereo is NOT SUPPORTED
+Warning: class_loader.impl: SEVERE WARNING!!! A namespace collision has occurred with plugin factory for class rviz_default_plugins::displays::InteractiveMarkerDisplay. New factory will OVERWRITE existing one. This situation occurs when libraries containing plugins are directly linked against an executable (the one running right now generating this message). Please separate plugins out into their own library or just don't link against the library and use either class_loader::ClassLoader/MultiLibraryClassLoader to open.
+         at line 321 in /opt/ros/jazzy/include/class_loader/class_loader/class_loader_core.hpp
+[ERROR] [1791941901.349931175] [moveit_667368474.moveit.ros.motion_planning_frame]: Action server: /recognize_objects not available
+[INFO] [1791941901.384788513] [moveit_667368474.moveit.ros.motion_planning_frame]: MoveGroup namespace changed: / -> . Reloading params.
+[INFO] [1791941901.413678585] [rviz]: Subscribing to: /peach/perception/single_cloud
+
+[INFO] [1791941901.439907088] [rviz]: Subscribing to: /peach/perception/single_cloud
+
+[INFO] [1791941901.487452719] [moveit_667368474.moveit.ros.rdf_loader]: Loaded robot model in 0.00616948 seconds
+[INFO] [1791941901.487581681] [moveit_667368474.moveit.core.robot_model]: Loading robot model 'aubo_e5'...
+[INFO] [1791941901.487598305] [moveit_667368474.moveit.core.robot_model]: No root/virtual joint specified in SRDF. Assuming fixed joint
+[INFO] [1791941901.558506762] [moveit_667368474.moveit.kinematics.kdl_kinematics_plugin]: Joint weights for group 'manipulator_e5': 1 1 1 1 1 1
+[INFO] [1791941901.563247041] [rviz2]: Stereo is NOT SUPPORTED
+[INFO] [1791941901.933353858] [moveit_667368474.moveit.ros.planning_scene_monitor]: Publishing maintained planning scene on 'monitored_planning_scene'
+[INFO] [1791941901.957234936] [moveit_667368474.moveit.ros.planning_scene_monitor]: Starting planning scene monitor
+[INFO] [1791941901.958869659] [moveit_667368474.moveit.ros.planning_scene_monitor]: Listening to '/monitored_planning_scene'
+[INFO] [1791941901.970911159] [interactive_marker_display_98272296649936]: Connected on namespace: /rviz_moveit_motion_planning_display/robot_interaction_interactive_marker_topic
+[INFO] [1791941901.989545932] [moveit_667368474.moveit.ros.motion_planning_frame]: group manipulator_e5
+[INFO] [1791941901.989685093] [moveit_667368474.moveit.ros.motion_planning_frame]: Constructing new MoveGroup connection for group 'manipulator_e5' in namespace ''
+[INFO] [1791941901.990105708] [interactive_marker_display_98272296649936]: Sending request for interactive markers
+[INFO] [1791941902.018102776] [interactive_marker_display_98272296649936]: Service response received for initialization
+[INFO] [1791941902.029047566] [moveit_667368474.moveit.ros.move_group_interface]: Ready to take commands for planning group manipulator_e5.

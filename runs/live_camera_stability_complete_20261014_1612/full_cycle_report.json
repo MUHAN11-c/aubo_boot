@@ -1,0 +1,33 @@
+{
+  "hardware_mode": "mock",
+  "camera": "real",
+  "tool_enabled": false,
+  "ledger": {
+    "claimed": [
+      "target_0"
+    ],
+    "outcomes": [
+      {
+        "target_id": "target_0",
+        "outcome": 0,
+        "reason": "周期完成；tool.enabled=false 或未宣称采摘成功",
+        "quality_score": 0.0,
+        "elapsed_s": 29.257,
+        "completion_level": 6,
+        "stage_names": [
+          "reconfirm",
+          "approach_insert",
+          "tool",
+          "retreat"
+        ],
+        "stage_durations": [
+          0.41,
+          14.454,
+          0.0,
+          11.959
+        ]
+      }
+    ]
+  },
+  "cancel_requested_after_ledger_or_timeout": true
+}

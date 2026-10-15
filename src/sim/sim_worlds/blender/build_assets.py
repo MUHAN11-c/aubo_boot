@@ -3,10 +3,11 @@ Blender 建真实网格并导出 gz 可用模型（headless）.
 
 用法（Blender 自带 Python，勿混进 aubo_py3.12 / numpy 1.26.4 环境）::
 
-    _tools/blender-4.5.14-linux-x64/blender -b -P src/peach_sim/blender/build_assets.py \\
-        -- --out src/peach_sim/meshes
+    _tools/blender-4.5.14-linux-x64/blender -b -P src/sim/sim_worlds/blender/build_assets.py \\
+        -- --out src/sim/sim_description/meshes
 
-产物（供 SDF ``model://peach_sim/meshes/...`` 引用）：
+产物（供 SDF ``model://sim_description/meshes/...`` 引用；``--out`` 默认
+``meshes`` 相对路径，gz 消费面在 sim_description 安装树）：
 
 * ``bagged_peach.glb/.dae`` 套袋桃：扁筒袋体（皱褶 + 袋底立体折边）+ 果胀 +
   袋口收拢褶 + 封口铁丝（螺旋 + 翘尾）+ 内衬遮光纸层；尺寸口径 = 名义值，
@@ -15,7 +16,7 @@ Blender 建真实网格并导出 gz 可用模型（headless）.
   枝组 + 叶幕团块（icosphere 噪声位移出自然轮廓），UV 挂树皮/叶幕贴图。
 
 材质用 glTF PBR（Base Color/Roughness/Normal），贴图取自 worlds/textures/
-（peach_sim.textures 同源）。几何全部程序化 + 噪声位移，seed 固定可复现。
+（sim_worlds.textures 同源）。几何全部程序化 + 噪声位移，seed 固定可复现。
 """
 
 from __future__ import annotations

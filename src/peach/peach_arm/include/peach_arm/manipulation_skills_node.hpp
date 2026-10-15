@@ -212,6 +212,10 @@ private:
     const CheckReachability::Request::SharedPtr request,
     CheckReachability::Response::SharedPtr response);
 
+  void evaluateReachability(
+    const CheckReachability::Request::SharedPtr request,
+    CheckReachability::Response::SharedPtr response);
+
   // 数据快照与安全门薄壳：锁内组装纯值样本后委托 cache_/safety_gate_ 纯核。
   QualitySnapshot qualitySnapshot();
   std::optional<CachedTarget> targetSnapshot();
@@ -302,7 +306,7 @@ private:
   bool contactEntryGeometry(
     const CachedRefined & refined, const Eigen::Isometry3d & initial_pose,
     Eigen::Isometry3d & entry_tip_pose, double & travel_m,
-    std::string & error);
+    std::string & error, bool require_cut_travel = true);
   // 果实胶囊（①层审查输入）：感知直径+膨胀；直径无效回退保守半径并 WARN。
   FruitCapsule fruitCapsuleFor(const CachedRefined & refined) const;
   // ④层接触止损：guarded 段（接近执行/套入）包裹调用；enabled=false 时

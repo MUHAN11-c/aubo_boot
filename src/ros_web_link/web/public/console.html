@@ -1,0 +1,590 @@
+<!DOCTYPE html>
+<!-- console.html — ros_web_link 传输诊断台（双栏应用式布局）
+     纯传输模式 /console.html；组合模式 /rwl/console.html
+     布局与设计令牌参考 Rebot-Arm（reBotArm_simulator：token 系统/玻璃 HUD/关节滑块/
+     诊断卡）与 RVIZ-RQT-VISUAL（双栏+面板全屏+话题树/Visualize/绘图增强），
+     交互锁参考 Rebot-Arm control-lock。全部 id 与旧版一致，JS 零迁移。 -->
+<html lang="zh-CN">
+<head>
+<link rel="icon" href="data:," />
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>ros_web_link · 传输诊断台</title>
+<script src="/js/robotwebtools/importmap.js"></script>
+<style>
+  /* ── 设计令牌（白色主题默认，蒸馏 Rebot-Arm 令牌系统）────────────────── */
+  :root {
+    --bg: #f5f7f6; --surface: #ffffff; --surface-2: #eef1f0;
+    --line: rgba(20, 35, 30, .12); --line-2: rgba(20, 35, 30, .2);
+    --text: #1a221f; --muted: #66706b;
+    --teal: #0e9c7f; --amber: #c07a10; --red: #cf3a2e; --green: #3e9c31; --blue: #2563c9;
+    --acc: var(--teal);
+    --glass: rgba(255, 255, 255, .82);
+    --mono: "Cascadia Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    --r-ctl: 7px; --r-card: 8px;
+    color-scheme: light;
+    --viz-bg: #eceef0;
+  }
+  body[data-theme='dark'] {
+    --bg: #111213; --surface: #191b1d; --surface-2: #202326;
+    --line: rgba(255, 255, 255, .11); --line-2: rgba(255, 255, 255, .18);
+    --text: #f0f2ee; --muted: #a4aca6;
+    --teal: #33d6b0; --amber: #f2a541; --red: #ef5a4d; --green: #77c96b; --blue: #5fa8ff;
+    --glass: rgba(25, 27, 29, .78);
+    color-scheme: dark;
+    --viz-bg: #0c0e12;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+         font: 13.5px/1.5 Inter, "Segoe UI", "Noto Sans SC", system-ui, sans-serif;
+         display: flex; flex-direction: column; overflow: hidden; }
+
+  /* ── 头部 ──────────────────────────────────────────────────────────── */
+  header.app-header { display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+    padding: 8px 16px; border-bottom: 1px solid var(--line); background: var(--surface); }
+  header.app-header h1 { font-size: 15px; margin: 0; letter-spacing: .2px; }
+  header.app-header .sub { color: var(--muted); font-size: 11px; }
+  .pill { padding: 2px 11px; border-radius: 999px; font-size: 12px;
+          border: 1px solid var(--line-2); color: var(--muted);
+          display: inline-flex; align-items: center; gap: 6px; cursor: pointer; user-select: none; }
+  .pill .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--muted); }
+  .pill.on { color: var(--teal); border-color: rgba(51, 214, 176, .5); }
+  .pill.on .dot { background: var(--teal); box-shadow: 0 0 8px var(--teal); }
+  .pill.err { color: var(--red); border-color: rgba(239, 90, 77, .5); }
+  .pill.err .dot { background: var(--red); box-shadow: 0 0 8px var(--red); }
+  .pill.warn { color: var(--amber); border-color: rgba(242, 165, 65, .5); }
+  .pill.warn .dot { background: var(--amber); box-shadow: 0 0 8px var(--amber); }
+  .lock-row { display: inline-flex; align-items: center; gap: 7px; font-size: 12px;
+              color: var(--muted); cursor: pointer; user-select: none; }
+  .lock-row input { accent-color: var(--red); width: 15px; height: 15px; }
+  .lock-row.armed { color: var(--amber); font-weight: 600; }
+  .rostime { font: 12px var(--mono); color: var(--muted); margin-left: auto; }
+  .rostime b { color: var(--text); font-weight: 600; }
+
+  /* ── 双栏主布局 ────────────────────────────────────────────────────── */
+  main.app-grid { flex: 1; min-height: 0; display: grid; gap: 0 12px; padding: 12px 16px 16px;
+    grid-template-columns: minmax(0, 1fr) 6px 400px; }
+  .col-viz, .col-panel { min-height: 0; display: flex; flex-direction: column; gap: 12px; }
+  .col-panel { overflow-y: auto; padding-right: 2px; }
+
+  /* 右栏标签页（降低拥挤度：同类面板归一组，非活动组隐藏） */
+  .panel-tabs { display: flex; gap: 4px; padding: 0 0 4px; border-bottom: 1px solid var(--line);
+    position: sticky; top: 0; background: var(--bg); z-index: 5; }
+  .panel-tabs button { margin: 0; padding: 5px 14px; font-size: 12px; min-height: 30px;
+    border-radius: 6px 6px 0 0; border-bottom: 2px solid transparent; background: transparent;
+    color: var(--muted); }
+  .panel-tabs button.active { color: var(--acc); border-bottom-color: var(--acc);
+    background: var(--surface); font-weight: 600; }
+  .panel-tab-group { display: none; flex-direction: column; gap: 12px; }
+  .panel-tab-group.active { display: flex; }
+  @media (max-width: 1080px) {
+    body { overflow: auto; }
+    main.app-grid { grid-template-columns: 1fr; }
+    .col-splitter { display: none; }
+    .col-viz { min-height: 62vh; }
+    .col-panel { overflow: visible; }
+  }
+
+  /* ── 卡片（右栏/通用）──────────────────────────────────────────────── */
+  section.card { background: var(--surface); border: 1px solid var(--line);
+    border-radius: var(--r-card); padding: 10px 13px; min-width: 0; position: relative; }
+  section.card > h2, details.card > summary { font-size: 12.5px; margin: 0 0 8px;
+    color: var(--acc); letter-spacing: .3px; list-style: none; display: flex;
+    align-items: center; gap: 8px; cursor: pointer; }
+  section.card > h2 .n, details.card summary .n { color: var(--muted); font-weight: normal; font-size: 11px; }
+  details.card > summary::-webkit-details-marker { display: none; }
+  details.card > summary::after { content: '▸'; color: var(--muted); margin-left: auto;
+    transition: transform .15s; }
+  details.card[open] > summary::after { transform: rotate(90deg); }
+  details.card { background: var(--surface); border: 1px solid var(--line);
+    border-radius: var(--r-card); padding: 10px 13px; }
+  .fs-btn { position: absolute; top: 8px; right: 10px; border: 1px solid var(--line);
+    background: transparent; color: var(--muted); border-radius: 5px; padding: 1px 8px;
+    font-size: 11px; cursor: pointer; margin: 0; }
+  .fs-btn:hover { color: var(--text); border-color: var(--acc); }
+  section.card:fullscreen, details.card:fullscreen {
+    background: var(--bg); overflow-y: auto; border-radius: 0; }
+  .kv { font: 11.5px var(--mono); color: var(--muted); }
+
+  label { display: block; font-size: 11.5px; color: var(--muted); margin: 7px 0 3px; }
+  input, select, textarea { width: 100%; background: var(--bg); color: var(--text);
+    border: 1px solid var(--line); border-radius: var(--r-ctl); padding: 6px 8px;
+    font: 12px var(--mono); }
+  input:focus, select:focus, textarea:focus { outline: none; border-color: var(--acc); }
+  textarea { min-height: 56px; resize: vertical; }
+  button { background: var(--surface-2); border: 1px solid var(--line-2); color: var(--text);
+    border-radius: var(--r-ctl); padding: 6px 14px; font-size: 12.5px; cursor: pointer;
+    margin: 6px 6px 0 0; min-height: 34px; transition: border-color .12s; }
+  button:hover { border-color: var(--acc); }
+  button:active { transform: translateY(1px); }
+  button:disabled { opacity: .4; cursor: default; }
+  button.primary { background: var(--teal); border-color: var(--teal); color: #0c1512; font-weight: 600; }
+  button.ghost { background: transparent; }
+  button.active-tool { background: var(--teal); border-color: var(--teal); color: #0c1512; }
+  pre { background: var(--bg); border: 1px solid var(--line); border-radius: var(--r-ctl);
+    padding: 8px 10px; font: 11.5px var(--mono); overflow: auto; max-height: 230px;
+    margin: 8px 0 0; white-space: pre-wrap; word-break: break-all; }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: flex-end; }
+  .row > div { flex: 1; min-width: 110px; }
+
+  /* ── 3D 视口 + 玻璃 HUD（Rebot-Arm glass 模式）────────────────────── */
+  .viz-3d { position: relative; background: var(--bg); border: 1px solid var(--line);
+    border-radius: var(--r-card); flex: 1; min-height: 300px; overflow: hidden; }
+  .hud { position: absolute; background: var(--glass);
+    backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+    border: 1px solid var(--line); border-radius: var(--r-card);
+    padding: 5px 11px; font: 11.5px var(--mono); color: var(--muted);
+    pointer-events: none; }
+  .hud b { color: var(--text); font-weight: 600; }
+  #hud-stats { bottom: 10px; left: 10px; }
+  #hud-tool { bottom: 10px; right: 10px; color: var(--amber); max-width: 46%; }
+  #viz-tool-hint:empty { display: none; }
+  .viz-toolbar { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; padding: 8px 0 0; }
+  .viz-toolbar button { margin: 0; padding: 4px 12px; font-size: 12px; min-height: 30px; }
+  .viz-toolbar .sep { width: 1px; height: 16px; background: var(--line-2); margin: 0 4px; }
+
+  /* 2D 三卡行 */
+  .viz-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+  @media (max-width: 1400px) { .viz-row { grid-template-columns: repeat(3, minmax(180px, 1fr)); } }
+  .viz-card { background: var(--bg); border: 1px solid var(--line);
+    border-radius: var(--r-card); padding: 8px; }
+  .viz-card canvas { width: 100%; height: 158px; display: block;
+    image-rendering: pixelated; border-radius: 5px; }
+  .viz-card .cap { font: 11px var(--mono); color: var(--muted); margin-bottom: 6px;
+    display: flex; justify-content: space-between; gap: 6px; }
+
+  /* 关节滑块（Rebot-Arm 渐变限位轨道 + 交互锁武装态） */
+  .joint-row { display: grid; grid-template-columns: 60px 1fr 50px; gap: 8px;
+    align-items: center; font: 11.5px var(--mono); padding: 2.5px 0; }
+  .joint-row .jn { color: var(--muted); overflow: hidden; text-overflow: ellipsis; }
+  .joint-row .jv { text-align: right; color: var(--teal); }
+  .joint-row .jbar, .joint-row input[type="range"] { position: relative; height: 8px;
+    border-radius: 5px; overflow: hidden; }
+  .joint-row .jbar { display: block; background: var(--surface-2); }
+  .joint-row .jbar::before { content: ''; position: absolute; left: 50%; top: 0;
+    bottom: 0; width: 1px; background: var(--line-2); }
+  .joint-row .jbar i { position: absolute; left: 0; top: 0; bottom: 0; background: var(--teal); }
+  body.armed .joint-row .jbar { display: none; }
+  .joint-row input[type="range"] { display: none; width: 100%; -webkit-appearance: none;
+    appearance: none; background: linear-gradient(90deg,
+      rgba(239, 90, 77, .55), rgba(242, 165, 65, .55) 35%,
+      rgba(51, 214, 176, .55) 50%, rgba(242, 165, 65, .55) 65%, rgba(239, 90, 77, .55));
+    cursor: ew-resize; }
+  body.armed .joint-row input[type="range"] { display: block; }
+  .joint-row input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none;
+    width: 14px; height: 14px; border-radius: 50%; background: var(--text);
+    border: 2px solid var(--bg); box-shadow: 0 0 0 1px var(--line-2); }
+
+  /* Displays 表（RViz 风格） */
+  table.disp { width: 100%; border-collapse: collapse; font: 11.5px var(--mono); }
+  table.disp th { text-align: left; color: var(--muted); font-weight: normal; font-size: 10.5px;
+    padding: 2px 6px; border-bottom: 1px solid var(--line); }
+  table.disp td { padding: 3.5px 6px; border-bottom: 1px dashed var(--line); }
+  table.disp .dst.ok { color: var(--green); } table.disp .dst.warn { color: var(--amber); }
+  table.disp .dtopic { background: var(--bg); border: 1px solid var(--line); color: var(--text);
+    border-radius: 4px; padding: 2px 6px; font: 11px var(--mono); width: 168px; }
+  label.mini { font-size: 11px; color: var(--muted); margin-right: 8px; white-space: nowrap;
+    display: inline; }
+  label.mini input[type="range"] { width: 76px; vertical-align: middle; height: 5px; }
+
+  /* 话题卡（RVIZ-RQT 树 + Visualize） */
+  table.topics { width: 100%; border-collapse: collapse; font: 11.5px var(--mono); }
+  table.topics th { text-align: left; color: var(--muted); font-weight: normal; font-size: 10.5px;
+    padding: 2px 6px; border-bottom: 1px solid var(--line); position: sticky;
+    top: 0; background: var(--surface); }
+  table.topics td { padding: 3px 6px; border-bottom: 1px dashed var(--line); }
+  table.topics td.num { text-align: right; }
+  .type-tag { font-size: 10px; color: var(--blue); border: 1px solid rgba(95, 168, 255, .35);
+    border-radius: 4px; padding: 0 5px; white-space: nowrap; }
+  .hz-badge { font-size: 10.5px; padding: 0 6px; border-radius: 999px; white-space: nowrap; }
+  .hz-badge.hi { color: var(--green); border: 1px solid rgba(119, 201, 107, .4); }
+  .hz-badge.md { color: var(--amber); border: 1px solid rgba(242, 165, 65, .4); }
+  .hz-badge.lo { color: var(--muted); border: 1px solid var(--line); }
+  .chip-btn { display: inline-block; padding: 0 8px; border: 1px solid var(--line);
+    border-radius: 999px; cursor: pointer; font-size: 11px; color: var(--muted);
+    user-select: none; }
+  .chip-btn:hover { color: var(--text); border-color: var(--acc); }
+
+  /* 监控（diag-cards + sparkline + feed，Rebot-Arm 模式） */
+  .cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 7px; }
+  .dcard { background: var(--bg); border: 1px solid var(--line); border-radius: var(--r-ctl);
+    padding: 7px 10px; }
+  .dcard .k { font-size: 10.5px; color: var(--muted); }
+  .dcard .v { font-size: 15px; font-family: var(--mono); margin-top: 1px; }
+  .dcard .v.ok { color: var(--teal); } .dcard .v.bad { color: var(--red); }
+  .dcard .v.warn { color: var(--amber); }
+  .mon-chart { background: var(--bg); border: 1px solid var(--line); border-radius: var(--r-ctl);
+    padding: 5px; }
+  .mon-chart canvas { width: 100%; height: 64px; display: block; }
+  .mon-chart .cap { font-size: 10.5px; color: var(--muted); padding: 0 4px 3px;
+    display: flex; justify-content: space-between; }
+  .feed { background: var(--bg); border: 1px solid var(--line); border-radius: var(--r-ctl);
+    padding: 5px; max-height: 168px; overflow: auto; font: 10.5px var(--mono); }
+  .feed div { padding: 1.5px 6px; border-bottom: 1px dashed var(--line); white-space: nowrap;
+    text-overflow: ellipsis; overflow: hidden; }
+  .feed .t { color: var(--muted); margin-right: 6px; }
+  .feed .ok { color: var(--green); } .feed .bad { color: var(--red); } .feed .warn { color: var(--amber); }
+
+  /* 绘图 */
+  .plot-controls { display: flex; gap: 7px; flex-wrap: wrap; align-items: center; }
+  .plot-controls input { width: 100%; }
+  .plot-controls input#plot-field { width: 100%; }
+  .plot-controls .pc { flex: 1; min-width: 90px; }
+  #plot-canvas { width: 100%; height: 128px; display: block; background: var(--bg);
+    border: 1px solid var(--line); border-radius: var(--r-ctl); }
+  .pl-item { font: 11.5px var(--mono); margin-right: 10px; white-space: nowrap; }
+  .pl-item i { display: inline-block; width: 10px; height: 3px; margin-right: 4px;
+    vertical-align: middle; }
+  .pl-item b { color: var(--text); }
+
+  /* 自检 */
+  .st-row { display: flex; gap: 9px; align-items: baseline; padding: 3px 0;
+    border-bottom: 1px dashed var(--line); font-size: 12px; }
+  .st-row .mark { width: 18px; text-align: center; font-weight: bold; }
+  .st-row.pass .mark { color: var(--green); } .st-row.fail .mark { color: var(--red); }
+  .st-row.skip .mark { color: var(--amber); }
+  .st-row .ms { color: var(--muted); font: 10.5px var(--mono); margin-left: auto; }
+  .st-row .why { color: var(--muted); font-size: 11px; }
+
+  .viz-3d .badge3d { position: absolute; top: 8px; left: 10px; font: 11px var(--mono);
+    color: var(--muted); pointer-events: none; }
+  #tcp-drag-marker.dragging { border-color: var(--amber);
+    box-shadow: 0 0 12px rgba(242,165,65,.65); cursor: grabbing; }
+
+  /* 拓扑图 */
+  .topo-wrap { position: relative; height: 300px; border: 1px solid var(--line);
+    border-radius: var(--r-ctl); background: var(--bg); overflow: hidden; }
+  .topo-svg { width: 100%; height: 100%; display: block; cursor: grab; }
+  .topo-svg.panning { cursor: grabbing; }
+  .topo-toolbar { display: flex; gap: 6px; position: absolute; top: 6px; right: 6px; z-index: 3; }
+  .topo-toolbar button { margin: 0; padding: 2px 9px; font-size: 11px; min-height: 24px;
+    background: var(--glass); backdrop-filter: blur(8px); }
+  .topo-svg text { user-select: none; pointer-events: none; }
+  .topo-hint { position: absolute; bottom: 5px; left: 8px; font: 10.5px var(--mono);
+    color: var(--muted); pointer-events: none; }
+
+  /* 分割条 */
+  .col-splitter { width: 6px; cursor: col-resize; border-radius: 3px;
+    background: transparent; position: relative; flex: none; align-self: stretch; }
+  .col-splitter::after { content: ''; position: absolute; inset: 8px 2px;
+    border-radius: 2px; background: var(--line); transition: background .12s; }
+  .col-splitter:hover::after, .col-splitter.active::after { background: var(--acc); }
+
+  /* 轨迹面板 + 加载遮罩 */
+  .traj-stats { display: flex; gap: 12px; font: 11.5px var(--mono); color: var(--muted);
+    margin-bottom: 6px; flex-wrap: wrap; }
+  .traj-stats b { color: var(--text); }
+  .loading-mask { position: absolute; inset: 0; z-index: 10; display: grid;
+    place-items: center; background: var(--bg); border-radius: var(--r-card); }
+  .loading-mask.hidden { display: none; }
+  .loader { width: 44px; height: 44px; border: 4px solid var(--line);
+    border-top-color: var(--teal); border-radius: 999px; animation: spin .9s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  footer { color: var(--muted); font-size: 11px; padding: 4px 16px 8px;
+    border-top: 1px solid var(--line); background: var(--surface); }
+</style>
+</head>
+<body>
+<header class="app-header">
+  <h1>ros_web_link · 传输诊断台</h1>
+  <span class="pill" id="conn-pill" title="点击连接/断开"><span class="dot"></span><span id="conn-pill-text">未连接</span></span>
+  <span class="pill" id="caps-pill" title="服务器能力">caps: —</span>
+  <label class="lock-row" id="lock-row" title="开启后关节滑块可写回 /rwl_viz/joint_cmd（演示闭环，非真机）">
+    <input type="checkbox" id="interact-lock">交互锁
+  </label>
+  <span class="chip-btn" id="theme-toggle" title="切换浅色/深色主题" style="margin-left:10px;">🌙 深色</span>
+  <span class="rostime">ROS Time <b id="viz-rostime">—</b> <span id="conn-detail"></span></span>
+  <button id="btn-selftest-mini" class="primary" style="margin:0;">运行自检</button>
+</header>
+
+<main class="app-grid">
+  <!-- ═════════ 左列：可视化主视口 ═════════ -->
+  <div class="col-viz">
+    <section class="card" id="sec-viz" style="flex:1;display:flex;flex-direction:column;min-height:0;">
+      <h2>实时可视化 <span class="n">RViz 风格 · /rwl_viz/* + /tf</span>
+        <span class="kv" id="viz-status" style="margin-left:auto;">连接后自动订阅</span>
+        <button class="fs-btn" data-fs="sec-viz" title="全屏（ESC 退出）">⛶</button>
+      </h2>
+      <datalist id="rwl-topics"></datalist>
+      <div class="viz-toolbar" style="margin:0 0 8px;">
+        <button data-tool="measure" title="点击两点测距">测距</button>
+        <button data-tool="point" title="点击发布 PointStamped">发布点</button>
+        <button data-tool="goal" title="拖拽发布 PoseStamped 到 /goal_pose（Nav2 目标）">2D Goal Pose</button>
+        <button data-tool="poseest" title="拖拽发布 PoseWithCovarianceStamped 到 /initialpose（RViz 初始位姿）">2D 初始位姿</button>
+        <span class="sep"></span>
+        <button data-view="iso" class="ghost">等轴</button>
+        <button data-view="top" class="ghost">俯视</button>
+        <button data-view="side" class="ghost">侧视</button>
+        <button id="btn-view-save" class="ghost">保存视角</button>
+        <button id="btn-view-restore" class="ghost">恢复视角</button>
+        <span class="sep"></span>
+        <button id="btn-teach-toggle" class="ghost" title="拖拽 TCP 环示教机械臂">TCP 拖拽</button>
+        <button id="btn-teach-record" class="ghost" title="录制航点">录制</button>
+      </div>
+      <div class="viz-3d" id="viz-3d">
+        <div class="badge3d">拖拽旋转 / 滚轮缩放 · Displays 在右栏</div>
+        <div class="hud" id="hud-stats"><b id="hud-fps">—</b> fps · <b id="hud-objs">—</b> 对象 · <span id="tracking-error" style="color:var(--muted)"></span> <span id="hud-tcp" style="color:var(--muted)"></span></div>
+        <div class="hud" id="hud-tool"></div>
+        <div class="loading-mask" id="robot-loading-mask">
+          <div>
+            <div class="loader" style="margin:0 auto 10px;"></div>
+            <div id="robot-loading-text" style="font:11.5px var(--mono);color:var(--muted)">加载机器人模型…</div>
+          </div>
+        </div>
+      </div>
+      <div class="viz-row" style="margin-top:12px;">
+        <div class="viz-card">
+          <div class="cap"><span>相机 Image</span><span id="viz-img-cap">—</span></div>
+          <canvas id="viz-image" width="64" height="48"></canvas>
+        </div>
+        <div class="viz-card">
+          <div class="cap"><span>激光 LaserScan</span><span id="viz-scan-cap">—</span></div>
+          <canvas id="viz-scan" width="320" height="180"></canvas>
+        </div>
+        <div class="viz-card">
+          <div class="cap"><span>关节 JointState <span id="joints-mode" style="color:var(--muted)">(只读)</span></span><span id="viz-joints-cap">—</span></div>
+          <div id="viz-joints"></div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <div class="col-splitter" id="col-splitter" title="拖拽调整列宽"></div>
+
+  <!-- ═════════ 右列：控制面板（标签页分组，非活动组隐藏以减少拥挤） ═════════ -->
+  <div class="col-panel">
+    <div class="panel-tabs" id="panel-tabs">
+      <button data-tab="viz" class="active">可视化</button>
+      <button data-tab="monitor">监控</button>
+      <button data-tab="tools">工具</button>
+    </div>
+
+    <!-- ── 标签组：可视化（Displays + 话题） ── -->
+    <div class="panel-tab-group active" data-group="viz">
+
+    <section class="card">
+      <h2>Displays <span class="n">RViz 风格显示项</span><button class="fs-btn" data-fs>⛶</button></h2>
+      <table class="disp" id="viz-displays">
+        <thead><tr><th></th><th>显示项</th><th>话题</th><th>属性</th><th>状态</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </section>
+
+    <section class="card">
+      <h2>话题 <span class="n">订阅树 + 一键可视化</span>
+        <span class="kv" id="topics-count" style="margin-left:auto;"></span>
+        <button class="fs-btn" data-fs>⛶</button></h2>
+      <div style="max-height:240px;overflow:auto;">
+        <table class="topics" id="topics-table">
+          <thead><tr><th></th><th>话题</th><th>类型</th><th class="num">Hz</th><th class="num">KB/s</th><th></th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+
+    <details class="card" id="sec-topo">
+      <summary>拓扑图 <span class="n">节点/话题/服务 + 流向粒子</span></summary>
+      <div class="topo-wrap" id="topo-container"></div>
+    </details>
+
+    </div>
+
+    <!-- ── 标签组：监控（传输监控 + 绘图） ── -->
+    <div class="panel-tab-group" data-group="monitor">
+
+    <section class="card">
+      <h2>传输监控 <span class="n">Transport &amp; Interaction</span><button class="fs-btn" data-fs>⛶</button></h2>
+      <div class="cards" id="mon-cards">
+        <div class="dcard"><div class="k">心跳 RTT</div><div class="v" id="mon-rtt">—</div></div>
+        <div class="dcard"><div class="k">消息/秒</div><div class="v" id="mon-hz">—</div></div>
+        <div class="dcard"><div class="k">KB/秒</div><div class="v" id="mon-kbps">—</div></div>
+        <div class="dcard"><div class="k">服务 调/败</div><div class="v" id="mon-svc">0/0</div></div>
+        <div class="dcard"><div class="k">累计消息</div><div class="v" id="mon-msgs">0</div></div>
+        <div class="dcard"><div class="k">累计流量</div><div class="v" id="mon-bytes">0 B</div></div>
+        <div class="dcard"><div class="k">重连</div><div class="v" id="mon-reconn">0</div></div>
+        <div class="dcard"><div class="k">解码失败</div><div class="v" id="mon-decode">0</div></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:8px;">
+        <div class="mon-chart"><div class="cap"><span>msg/s</span><span id="mon-hz-now"></span></div><canvas id="mon-chart-hz"></canvas></div>
+        <div class="mon-chart"><div class="cap"><span>KB/s</span><span id="mon-kb-now"></span></div><canvas id="mon-chart-kb"></canvas></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:8px;">
+        <div><label style="margin-top:0;">交互日志</label><div class="feed" id="mon-inter"></div></div>
+        <div><label style="margin-top:0;">事件流</label><div class="feed" id="mon-events"></div></div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>字段绘图 <span class="n">rqt_plot</span><button class="fs-btn" data-fs>⛶</button></h2>
+      <div class="plot-controls">
+        <div class="pc"><input id="plot-topic" list="plot-topics" placeholder="话题（/rwl_viz/joint_states）" spellcheck="false"></div>
+        <div class="pc"><input id="plot-field" list="plot-fields" placeholder="字段（选话题后出候选）" spellcheck="false"></div>
+        <button id="btn-plot-add" style="margin:0;">添加</button>
+        <button id="btn-plot-clear" class="ghost" style="margin:0;">清空</button>
+        <select id="plot-window" style="width:auto;margin:0;">
+          <option value="60" selected>60s</option><option value="120">2min</option><option value="600">10min</option>
+        </select>
+        <button id="btn-plot-pause" class="ghost" style="margin:0;">暂停</button>
+      </div>
+      <datalist id="plot-topics"></datalist>
+      <canvas id="plot-canvas"></canvas>
+      <div id="plot-legend"></div>
+    </section>
+
+    <section class="card">
+      <h2>诊断 <span class="n">rqt_runtime_monitor</span><button class="fs-btn" data-fs>⛶</button></h2>
+      <div class="plot-controls" style="margin-bottom:6px;">
+        <div class="pc"><input id="diag-topic" value="/rwl_viz/diagnostics" list="rwl-topics" spellcheck="false"></div>
+        <label class="mini" style="margin:0 6px 0 0;"><input type="checkbox" id="diag-enable" checked>启用</label>
+        <span class="kv" id="diag-count"></span>
+      </div>
+      <div class="feed" id="diag-list" style="max-height:190px;white-space:normal;"></div>
+    </section>
+
+    <section class="card">
+      <h2>ROS 日志 <span class="n">rqt_console · /rosout</span><button class="fs-btn" data-fs>⛶</button></h2>
+      <div class="plot-controls" style="margin-bottom:6px;">
+        <select id="roslog-level" style="width:auto;margin:0;">
+          <option value="10">DEBUG+</option><option value="20" selected>INFO+</option>
+          <option value="30">WARN+</option><option value="40">ERROR+</option>
+        </select>
+        <button id="btn-roslog-pause" class="ghost" style="margin:0;">暂停</button>
+        <button id="btn-roslog-clear" class="ghost" style="margin:0;">清空</button>
+        <span class="kv" id="roslog-count"></span>
+      </div>
+      <div class="feed" id="roslog-list" style="max-height:190px;white-space:normal;"></div>
+    </section>
+
+    </div>
+
+    <!-- ── 标签组：工具（示教轨迹 + 自检 + 操作台 + 图谱 + 连接） ── -->
+    <div class="panel-tab-group" data-group="tools">
+
+    <section class="card">
+      <h2>示教与轨迹 <span class="n">Teach &amp; Trajectory</span>
+        <button class="fs-btn" data-fs>⛶</button></h2>
+      <div class="traj-stats">
+        <span>航点 <b id="traj-waypoints">0</b></span>
+        <span>拖拽误差 <b id="traj-drag-error">—</b></span>
+        <span id="traj-state" style="color:var(--muted)">待示教</span>
+        <label class="mini" style="margin:0 0 0 auto;"><input type="checkbox" id="env-show" checked>包络线框</label>
+      </div>
+      <div class="row" style="gap:6px;margin-bottom:6px;">
+        <div style="flex:2;min-width:130px;"><label style="margin:0;">姿态预设</label>
+          <select id="preset-select" style="width:100%;"></select></div>
+        <button id="btn-preset-apply" style="margin:0;min-height:30px;padding:4px 12px;" title="easeInOutCubic 850ms 缓动（交互锁开启时同步写 /rwl_viz/joint_cmd）">应用</button>
+        <button id="btn-preset-save" class="ghost" style="margin:0;min-height:30px;padding:4px 10px;" title="把当前关节角存为预设">存当前</button>
+        <button id="btn-preset-del" class="ghost" style="margin:0;min-height:30px;padding:4px 10px;">删</button>
+      </div>
+      <div class="row" style="gap:6px;">
+        <div style="flex:1;min-width:70px;"><label style="margin:0;">时长 s</label>
+          <input id="traj-duration" type="number" min="1" max="30" step="0.5" value="6" style="width:100%;"></div>
+        <div style="flex:1;min-width:70px;"><label style="margin:0;">速度 rad/s</label>
+          <input id="traj-vlim" type="number" min="0.05" max="3" step="0.05" value="1.2" style="width:100%;"></div>
+        <div style="flex:1;min-width:70px;"><label style="margin:0;">Action</label>
+          <input id="traj-action" value="/panda_arm_controller/follow_joint_trajectory" spellcheck="false" style="width:100%;"></div>
+      </div>
+      <button id="btn-traj-send" class="primary" title="FollowJointTrajectory 真执行（失败自动低级回退）">发送轨迹</button>
+      <button id="btn-traj-cancel" class="ghost" disabled>取消</button>
+      <button id="btn-teach-replay" class="ghost" title="录制的航点本地回放（纯前端可视化验证）">本地回放</button>
+      <button id="btn-teach-export" class="ghost">导出航点 JSON</button>
+      <button id="btn-teach-clear" class="ghost">清空航点</button>
+      <pre id="traj-out" style="max-height:90px;">—</pre>
+    </section>
+
+    <details class="card" id="sec-selftest">
+      <summary>全链路自检 <span class="n">Communication Matrix</span></summary>
+      <p class="kv" style="margin:4px 0 6px;">
+        被测端：<code>ros2 launch ros_web_link transport.launch.xml fixture:=true viz_fixture:=true</code>
+      </p>
+      <button id="btn-selftest">运行自检</button>
+      <button id="btn-selftest-cancel" class="ghost" disabled>取消 action</button>
+      <div id="selftest-report"></div>
+    </details>
+
+    <details class="card" id="sec-ops">
+      <summary>操作台 <span class="n">话题回显/发布 · 服务 · Action · 参数 · TF</span></summary>
+      <label>话题回显</label>
+      <input id="sub-topic" value="/rwl_demo/chatter" spellcheck="false">
+      <button id="btn-sub" style="min-height:30px;padding:4px 12px;">订阅</button>
+      <button id="btn-unsub" class="ghost" style="min-height:30px;padding:4px 12px;" disabled>停止</button>
+      <span class="kv" id="sub-hz" style="margin-left:8px;"></span>
+      <pre id="sub-out" style="max-height:120px;">—</pre>
+
+      <label>话题发布（需图上已有该话题）</label>
+      <div class="row">
+        <div style="flex:2"><input id="pub-topic" value="/rwl_demo/echo" spellcheck="false"></div>
+        <div><input id="pub-type" value="std_msgs/msg/String" spellcheck="false"></div>
+      </div>
+      <textarea id="pub-json" spellcheck="false">{ "data": "hello from console" }</textarea>
+      <button id="btn-pub" style="min-height:30px;">发布</button>
+      <pre id="pub-out" style="max-height:90px;">—</pre>
+
+      <label>服务调用</label>
+      <input id="svc-name" value="/rwl_demo/add_two_ints" spellcheck="false">
+      <textarea id="svc-json" spellcheck="false">{ "a": 20, "b": 22 }</textarea>
+      <button id="btn-svc" style="min-height:30px;">调用</button>
+      <pre id="svc-out" style="max-height:110px;">—</pre>
+
+      <label>Action</label>
+      <input id="act-name" value="/rwl_demo/fibonacci" spellcheck="false">
+      <textarea id="act-json" spellcheck="false">{ "order": 8 }</textarea>
+      <button id="btn-act-send" style="min-height:30px;">发送 goal</button>
+      <button id="btn-act-cancel" class="ghost" style="min-height:30px;" disabled>取消全部</button>
+      <pre id="act-out" style="max-height:130px;">—</pre>
+
+      <label>参数读写</label>
+      <div class="row">
+        <div><input id="param-node" value="/comm_fixture" spellcheck="false"></div>
+        <div><input id="param-name" value="rwl.answer" spellcheck="false"></div>
+      </div>
+      <input id="param-value" value="42" placeholder="新值（设置时用）">
+      <button id="btn-param-get" style="min-height:30px;">读取</button>
+      <button id="btn-param-set" class="ghost" style="min-height:30px;">设置</button>
+      <pre id="param-out" style="max-height:90px;">—</pre>
+
+      <label>TF /tf 流</label>
+      <button id="btn-tf" style="min-height:30px;">订阅 /tf</button>
+      <button id="btn-tf-stop" class="ghost" style="min-height:30px;" disabled>停止</button>
+      <ul class="list" id="tf-list" style="list-style:none;margin:6px 0 0;padding:0;max-height:140px;overflow:auto;font:11px var(--mono);"></ul>
+    </details>
+
+    <details class="card" id="sec-graph">
+      <summary>图谱列表 <span class="n">connectionGraph</span></summary>
+      <div class="tabs" style="display:flex;gap:6px;margin:6px 0;">
+        <button data-tab="topics" class="active" style="min-height:26px;padding:2px 12px;">话题</button>
+        <button data-tab="services" style="min-height:26px;padding:2px 12px;">服务</button>
+        <button data-tab="nodes" style="min-height:26px;padding:2px 12px;">节点</button>
+      </div>
+      <ul class="list" id="graph-list" style="list-style:none;margin:0;padding:0;max-height:200px;overflow:auto;font:11px var(--mono);"></ul>
+      <div class="kv" id="graph-hint" style="margin-top:5px;">连接后自动刷新；点击带入表单</div>
+    </details>
+
+    <details class="card" id="sec-conn">
+      <summary>连接 <span class="n">WebSocket</span></summary>
+      <div class="row">
+        <div>
+          <label>WebSocket URL</label>
+          <input id="ws-url" spellcheck="false">
+        </div>
+        <div style="flex:0">
+          <button id="btn-connect" style="min-height:30px;">连接</button>
+          <button id="btn-disconnect" class="ghost" style="min-height:30px;" disabled>断开</button>
+        </div>
+      </div>
+      <div class="kv" id="conn-detail-2" style="margin-top:6px;">session: —</div>
+    </details>
+
+    </div>
+  </div>
+</main>
+
+<footer>
+  ros_web_link 传输诊断台 — 与浏览器面板同一传输链路（网关 /ws/foxglove → ivg_foxglove_bridge）。
+  布局/令牌参考 Rebot-Arm 与 RVIZ-RQT-VISUAL；交互锁仅面向演示闭环，真机运动与 IO 的授权语义见工作区 AGENTS.md。
+</footer>
+
+<script type="module" src="/js/console/app.js"></script>
+</body>
+</html>

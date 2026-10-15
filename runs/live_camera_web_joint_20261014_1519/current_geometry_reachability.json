@@ -1,0 +1,78 @@
+{
+  "orientation_source": "production peach_arm::alignFrameZRolled; current tool_axis TF + reconstructed axis",
+  "scene_epoch": 1,
+  "results": [
+    {
+      "request": {
+        "tcp_poses": [
+          {
+            "frame_id": "base_link",
+            "position": {
+              "x": 0.37053291637420055,
+              "y": -0.6397103729686112,
+              "z": 0.5837031314481342
+            },
+            "orientation": {
+              "x": 0.15077458241654684,
+              "y": 0.14063737781401794,
+              "z": 0.07200518648025701,
+              "w": 0.9758603416363719
+            },
+            "suggested_travel_m": 0.09024108932680316
+          }
+        ],
+        "timeout_s": 0.2,
+        "require_sleeve": false
+      },
+      "status": 200,
+      "body": {
+        "accepted": true,
+        "result": {
+          "message": "",
+          "reachable": [
+            true
+          ],
+          "error_codes": [
+            ""
+          ]
+        }
+      }
+    },
+    {
+      "request": {
+        "tcp_poses": [
+          {
+            "frame_id": "base_link",
+            "position": {
+              "x": 0.37053291637420055,
+              "y": -0.6397103729686112,
+              "z": 0.5837031314481342
+            },
+            "orientation": {
+              "x": 0.15077458241654684,
+              "y": 0.14063737781401794,
+              "z": 0.07200518648025701,
+              "w": 0.9758603416363719
+            },
+            "suggested_travel_m": 0.09024108932680316
+          }
+        ],
+        "timeout_s": 0.2,
+        "require_sleeve": true
+      },
+      "status": 200,
+      "body": {
+        "accepted": true,
+        "result": {
+          "message": "",
+          "reachable": [
+            true
+          ],
+          "error_codes": [
+            ""
+          ]
+        }
+      }
+    }
+  ]
+}

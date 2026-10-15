@@ -12,7 +12,9 @@ import numpy as np
 from peach_harvester.vision.common.geometry import backproject
 from peach_harvester.vision.scene_perception.contracts import (
     BagObservation,
+    compute_travel_range,
     TOOL_GEOMETRY,
+    ToolGeometry,
 )
 from peach_harvester.vision.scene_perception.image_gates import valid_depth_mask
 from peach_harvester.vision.scene_perception.inference import CandidateEstimator
@@ -24,6 +26,16 @@ from peach_harvester.vision.scene_perception.pose_pipelines import (
 
 _K = {'fx': 500.0, 'fy': 500.0, 'cx': 32.0, 'cy': 24.0,
       'width': 64, 'height': 48}
+
+
+def test_capped_travel_range_is_ordered_for_bite_profile():
+    tool = ToolGeometry(insert_length_m=0.03, blade_offset_m=0.037)
+    for length in (0.0904115, 0.15, 0.30):
+        lower, upper = compute_travel_range(
+            np.zeros(3), np.array([0., 0., length]),
+            np.array([0., 0., 1.]), tool)
+        assert 0.0 <= lower <= upper <= 0.03
+        assert np.isclose(lower, 0.8 * upper)
 
 
 def _bench_depth() -> np.ndarray:
@@ -46,6 +58,28 @@ def _obs() -> BagObservation:
         frame_id='cam', gravity_hint=np.array([0.0, 1.0, 0.0]),
         detections=[{'class_id': 0, 'conf': 0.9, 'bbox': (16, 2, 48, 46)}],
         metadata={})
+
+
+def _frustum_depth(radius_m, length_m, focal_px, taper):
+    """
+    Ray intersections with a circular frustum along camera Y, in meters.
+
+    Surface: X² + (Z-0.72)² = (radius_m + taper*Y)².
+    A row-constant depth ramp is a flat sheet, not a cone surface; it can
+    depend on an out-of-range cylinder fit and cannot test valid bag gates.
+    """
+    K = dict(_K, fx=focal_px, fy=focal_px)
+    u, v = np.meshgrid(np.arange(64), np.arange(48))
+    a = (u - K['cx']) / focal_px
+    b = (v - K['cy']) / focal_px
+    qa = a * a + 1.0 - (taper * b) ** 2
+    qb = -2.0 * (0.72 + radius_m * taper * b)
+    qc = 0.72 ** 2 - radius_m ** 2
+    discriminant = qb * qb - 4.0 * qa * qc
+    z = (-qb - np.sqrt(np.maximum(discriminant, 0.0))) / (2.0 * qa)
+    mask = (discriminant > 0.0) & (np.abs(b * z) < length_m / 2.0)
+    depth = np.where(mask, np.round(z * 1000.0), 2200).astype(np.uint16)
+    return K, depth, mask
 
 
 def test_build_masks_reports_sam_yield():
@@ -86,29 +120,13 @@ def test_informational_flags_do_not_block_accept():
     """
     良态锥形袋：仅信息类 flags 在列时单帧门给 ACCEPT（分区后可达）.
 
-    合成竖直锥形袋（底粗顶窄、长 ~11cm、深度噪声 1.5mm）走完整
+    针孔射线与圆锥台求交（底粗顶窄、长 8cm）走完整
     estimate_modes 链（build_masks hybrid + landmarks），历史上该形态
     被 fruit_prior_auxiliary/taper_* 等过程 flags 一律压成 REOBSERVE
     （生产 56/56 恒 REOBSERVE、refine ACCEPT 偏好死码）。
     """
-    K = dict(_K)
-    depth = np.full((48, 64), 2200, dtype=np.uint16)
-    rng = np.random.default_rng(3)
-    # 短袋（z 跨 0.09m）：融合补全后 travel~0.075m，20° 默认轴不确定度
-    # 预算 ~26mm < 30mm 径向余量——保证本测试只考「信息 flag 不压门」，
-    # 不被误差预算门反客为主
-    for j in range(48):
-        t = (j - 6) / 28.0
-        if not 0.0 <= t <= 1.0:
-            continue
-        z = (0.62 + 0.09 * t) * 1000
-        r_px = 17 - 9 * t
-        for i in range(64):
-            if (i - 32) ** 2 <= r_px ** 2:
-                depth[j, i] = int(z + rng.normal(0, 1.5))
-    mask = np.zeros((48, 64), dtype=bool)
-    mask[6:35, 13:51] = True
-    bbox = (13, 5, 51, 36)
+    K, depth, mask = _frustum_depth(0.027, 0.08, 240.0, 0.1)
+    bbox = (18, 7, 47, 42)
     obs = BagObservation(
         rgb=None, depth=depth, camera_K=K, frame_id='cam',
         gravity_hint=np.array([0.0, 1.0, 0.0]),
@@ -128,6 +146,18 @@ def test_informational_flags_do_not_block_accept():
     assert 'taper_neck' in informational
     assert _gating_flags(flags) == []
     assert result.grasp_3d.status == 'ACCEPT'
+
+
+def test_short_insert_tool_full_stroke_is_not_travel_too_short():
+    """Bite L_insert=0.03 的满行程不是过短；长行程工具仍守 0.05 m."""
+    from peach_harvester.vision.scene_perception.contracts import (
+        travel_is_too_short,
+    )
+    assert not travel_is_too_short(0.030, 0.030)
+    assert travel_is_too_short(0.020, 0.030)
+    assert travel_is_too_short(0.049, 0.090)
+    assert not travel_is_too_short(0.050, 0.090)
+    assert not travel_is_too_short(0.050, 0.200)
 
 
 def test_gating_partition_classifies_known_flags():
@@ -175,26 +205,13 @@ def test_bbox_fusion_recovers_depth_holed_bag_length():
     """
     2D+3D 融合：上半段深度空洞时，袋长按掩膜剪影/检测框补全.
 
-    合成锥形袋（rows 6-40、z 0.62→0.73、物理轴长 ~0.11m）；上半段深度
+    合成真实圆锥台表面（物理轴长 0.11m）；上半段深度
     置 0（空洞）。hybrid 点云只剩下半段（旧口径 fit_len ~0.06m 系统性
     偏短），原始 SAM 剪影经检测框限幅补全后 fit_len 应恢复到接近全长。
     """
-    K = dict(_K)
-    depth = np.full((48, 64), 2200, dtype=np.uint16)
-    rng = np.random.default_rng(3)
-    for j in range(48):
-        t = (j - 6) / 34.0
-        if not 0.0 <= t <= 1.0:
-            continue
-        z = (0.62 + 0.11 * t) * 1000
-        r_px = 17 - 9 * t
-        for i in range(64):
-            if (i - 32) ** 2 <= r_px ** 2:
-                depth[j, i] = int(z + rng.normal(0, 1.5))
-    depth[6:20, :] = 0  # 上半段深度空洞（RGB 可见、深度缺失）
-    sam_mask = np.zeros((48, 64), dtype=bool)
-    sam_mask[6:41, 13:51] = True  # 原始剪影：覆盖整段（含空洞区）
-    bbox = (13, 4, 51, 43)
+    K, depth, sam_mask = _frustum_depth(0.0325, 0.11, 170.0, 0.15)
+    depth[:23, :] = 0  # 上半段深度空洞（RGB 可见、深度缺失）
+    bbox = (20, 8, 45, 41)
     obs = BagObservation(
         rgb=None, depth=depth, camera_K=K, frame_id='cam',
         gravity_hint=np.array([0.0, 1.0, 0.0]),

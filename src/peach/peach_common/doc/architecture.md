@@ -1,5 +1,21 @@
-# `peach_common` 架构（v1 活文档）
+# peach_common 架构
 
-> 2026-10-10 用户裁定自仓库级 `docs/architecture.md` 拆写入包（职责短页）。
+## 职责
 
-共享设施库（W1，对齐 `nav2_common`）：`yaml_params`（yaml 直读 + `attach(node)`）/ `param_rules`（规则并集）/ `qos`（QoS 工厂）/ `paths`（`safe_component` / `ensure_within` / `runs_root` 单源）/ `lifecycle`（名单外节点自转换 + bond 心跳守卫）/ `ros_log_bridge`（stdlib logging → /rosout 桥）/ `event_meter`（纯核事件计数 + 周期摘要）。**不跑节点、不进 launch、不载业务契约**；harvester/bringup/vegetation 直接导入 `peach_common`，六个旧参数转发模块已退役（参数键名与行为不变）。文件树与全栈位置见 [peach_bringup/doc/architecture.md](../../peach_bringup/doc/architecture.md)。
+共享基础库；不运行节点、不承载业务契约。
+
+## 源码地图
+
+`peach_common/yaml_params.py`：读取 YAML、声明叶子、预览/提交参数；`param_rules.py`：范围及使能依赖校验；`qos.py`：传输档；`paths.py`：runs 根及路径防御；`lifecycle.py`：自激活与 bond；`ros_log_bridge.py`、`event_meter.py`：日志与计数。
+
+## 入口、输入输出与参数
+
+能力包调用 Python 函数；没有 ROS topic/service/action 或独立运行参数。配置由调用包提供，不在本库复制业务默认值。
+
+## 生命周期、并发与失败
+
+不拥有 executor；生命周期与 bond 句柄由调用节点创建和销毁。QoS 模块延迟导入 rclpy；纯核不要求启动 ROS。参数校验失败返回拒因，路径写入前校验包含关系；bond 缺依赖会告警降级，不等于心跳保护有效。
+
+## 验证与限制
+
+`colcon test --packages-select peach_common --return-code-on-test-failure`，随后核对 `colcon test-result --verbose` 中失败、错误、skip及测试数量。系统接线与现场验收见 [测试指导](../../peach_system_tests/doc/testing.md)，系统组合见 [bringup架构](../../peach_bringup/doc/architecture.md)。测试结束清本轮进程；真机运动或SetIO需另授权，驱动只读，numpy固定1.26.4。包测试通过不证明现场精度、功能安全或剪切成功。

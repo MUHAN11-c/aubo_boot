@@ -1,0 +1,144 @@
+FFFFFF                                                                   [100%]
+=================================== FAILURES ===================================
+__________________ test_defaults_and_no_real_hardware_switch ___________________
+
+    def test_defaults_and_no_real_hardware_switch():
+>       m = load()
+
+src/peach/peach_system_tests/test/test_live_camera_mock.py:18: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+src/peach/peach_system_tests/test/test_live_camera_mock.py:13: in load
+    spec.loader.exec_module(module)
+<frozen importlib._bootstrap_external>:991: in exec_module
+    ???
+<frozen importlib._bootstrap_external>:1128: in get_code
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <_frozen_importlib_external.SourceFileLoader object at 0x7bf83307c8f0>
+path = '/home/mu/Desktop/aubo_e5_jazzy_ws/src/peach/peach_system_tests/scripts/run_live_camera_mock.py'
+
+>   ???
+E   FileNotFoundError: [Errno 2] No such file or directory: '/home/mu/Desktop/aubo_e5_jazzy_ws/src/peach/peach_system_tests/scripts/run_live_camera_mock.py'
+
+<frozen importlib._bootstrap_external>:1186: FileNotFoundError
+_____________ test_accepted_and_skipped_are_not_full_cycle_success _____________
+
+    def test_accepted_and_skipped_are_not_full_cycle_success():
+>       m = load()
+
+src/peach/peach_system_tests/test/test_live_camera_mock.py:27: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+src/peach/peach_system_tests/test/test_live_camera_mock.py:13: in load
+    spec.loader.exec_module(module)
+<frozen importlib._bootstrap_external>:991: in exec_module
+    ???
+<frozen importlib._bootstrap_external>:1128: in get_code
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <_frozen_importlib_external.SourceFileLoader object at 0x7bf833073290>
+path = '/home/mu/Desktop/aubo_e5_jazzy_ws/src/peach/peach_system_tests/scripts/run_live_camera_mock.py'
+
+>   ???
+E   FileNotFoundError: [Errno 2] No such file or directory: '/home/mu/Desktop/aubo_e5_jazzy_ws/src/peach/peach_system_tests/scripts/run_live_camera_mock.py'
+
+<frozen importlib._bootstrap_external>:1186: FileNotFoundError
+______ test_parameter_filter_keeps_false_zero_and_rejects_untyped_values _______
+
+    def test_parameter_filter_keeps_false_zero_and_rejects_untyped_values():
+>       assert load().rviz_parameters({'a': None, 'b': [], 'c': False, 'd': 0}) == {'c': False, 'd': 0}
+
+src/peach/peach_system_tests/test/test_live_camera_mock.py:38: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+src/peach/peach_system_tests/test/test_live_camera_mock.py:13: in load
+    spec.loader.exec_module(module)
+<frozen importlib._bootstrap_external>:991: in exec_module
+    ???
+<frozen importlib._bootstrap_external>:1128: in get_code
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <_frozen_importlib_external.SourceFileLoader object at 0x7bf8321eef60>
+path = '/home/mu/Desktop/aubo_e5_jazzy_ws/src/peach/peach_system_tests/scripts/run_live_camera_mock.py'
+
+>   ???
+E   FileNotFoundError: [Errno 2] No such file or directory: '/home/mu/Desktop/aubo_e5_jazzy_ws/src/peach/peach_system_tests/scripts/run_live_camera_mock.py'
+
+<frozen importlib._bootstrap_external>:1186: FileNotFoundError
+____________ test_target_rotation_and_model_heartbeat_deduplication ____________
+
+    def test_target_rotation_and_model_heartbeat_deduplication():
+>       m = load()
+
+src/peach/peach_system_tests/test/test_live_camera_mock.py:42: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+src/peach/peach_system_tests/test/test_live_camera_mock.py:13: in load
+    spec.loader.exec_module(module)
+<frozen importlib._bootstrap_external>:991: in exec_module
+    ???
+<frozen importlib._bootstrap_external>:1128: in get_code
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <_frozen_importlib_external.SourceFileLoader object at 0x7bf832216180>
+path = '/home/mu/Desktop/aubo_e5_jazzy_ws/src/peach/peach_system_tests/scripts/run_live_camera_mock.py'
+
+>   ???
+E   FileNotFoundError: [Errno 2] No such file or directory: '/home/mu/Desktop/aubo_e5_jazzy_ws/src/peach/peach_system_tests/scripts/run_live_camera_mock.py'
+
+<frozen importlib._bootstrap_external>:1186: FileNotFoundError
+________________ test_group_cleanup_only_signals_owned_sessions ________________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7bf832216c90>
+
+    def test_group_cleanup_only_signals_owned_sessions(monkeypatch):
+>       m = load()
+
+src/peach/peach_system_tests/test/test_live_camera_mock.py:53: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+src/peach/peach_system_tests/test/test_live_camera_mock.py:13: in load
+    spec.loader.exec_module(module)
+<frozen importlib._bootstrap_external>:991: in exec_module
+    ???
+<frozen importlib._bootstrap_external>:1128: in get_code
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <_frozen_importlib_external.SourceFileLoader object at 0x7bf832217800>
+path = '/home/mu/Desktop/aubo_e5_jazzy_ws/src/peach/peach_system_tests/scripts/run_live_camera_mock.py'
+
+>   ???
+E   FileNotFoundError: [Errno 2] No such file or directory: '/home/mu/Desktop/aubo_e5_jazzy_ws/src/peach/peach_system_tests/scripts/run_live_camera_mock.py'
+
+<frozen importlib._bootstrap_external>:1186: FileNotFoundError
+________ test_percentile_and_recovery_require_current_terminal_evidence ________
+
+    def test_percentile_and_recovery_require_current_terminal_evidence():
+>       m = load()
+
+src/peach/peach_system_tests/test/test_live_camera_mock.py:62: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+src/peach/peach_system_tests/test/test_live_camera_mock.py:13: in load
+    spec.loader.exec_module(module)
+<frozen importlib._bootstrap_external>:991: in exec_module
+    ???
+<frozen importlib._bootstrap_external>:1128: in get_code
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <_frozen_importlib_external.SourceFileLoader object at 0x7bf832217e60>
+path = '/home/mu/Desktop/aubo_e5_jazzy_ws/src/peach/peach_system_tests/scripts/run_live_camera_mock.py'
+
+>   ???
+E   FileNotFoundError: [Errno 2] No such file or directory: '/home/mu/Desktop/aubo_e5_jazzy_ws/src/peach/peach_system_tests/scripts/run_live_camera_mock.py'
+
+<frozen importlib._bootstrap_external>:1186: FileNotFoundError
+=========================== short test summary info ============================
+FAILED src/peach/peach_system_tests/test/test_live_camera_mock.py::test_defaults_and_no_real_hardware_switch
+FAILED src/peach/peach_system_tests/test/test_live_camera_mock.py::test_accepted_and_skipped_are_not_full_cycle_success
+FAILED src/peach/peach_system_tests/test/test_live_camera_mock.py::test_parameter_filter_keeps_false_zero_and_rejects_untyped_values
+FAILED src/peach/peach_system_tests/test/test_live_camera_mock.py::test_target_rotation_and_model_heartbeat_deduplication
+FAILED src/peach/peach_system_tests/test/test_live_camera_mock.py::test_group_cleanup_only_signals_owned_sessions
+FAILED src/peach/peach_system_tests/test/test_live_camera_mock.py::test_percentile_and_recovery_require_current_terminal_evidence
+6 failed in 0.02s

@@ -1,0 +1,262 @@
+{
+  "hardware_mode": "mock",
+  "profile": {
+    "schema_version": 1,
+    "profile_id": "fixed_camera_mock_20261013",
+    "hardware_mode": "mock",
+    "camera_frontend": "stereo",
+    "autostart": false,
+    "tool_enabled": false,
+    "camera_calibration": {
+      "parent_frame": "base_link",
+      "child_frame": "camera_link",
+      "xyz_m": [
+        0.3780573326439316,
+        -0.07547177076037584,
+        0.7666632351254871
+      ],
+      "quaternion_xyzw": [
+        -0.0036889994433193067,
+        -7.498157537607713e-06,
+        -0.6576092061184594,
+        0.753350199611797
+      ],
+      "provenance": "20261013 fixed camera record; user confirmed camera unmoved; reused by live_camera_rviz_repeat_20261014_1632",
+      "scope": "test-only frozen calibration; never injected into product calibration files"
+    },
+    "mock_initial_positions": [
+      0.425175,
+      0.194274,
+      1.679546,
+      1.462579,
+      -0.279948,
+      0.038859
+    ]
+  },
+  "rounds": [
+    {
+      "request_id": "round_b95c0d6370fa",
+      "success": false,
+      "target_id": "target_1",
+      "scene_epoch": 2,
+      "action": {
+        "accepted": true,
+        "status": 4,
+        "result": {
+          "success": false,
+          "termination_reason": "no_targets_succeeded",
+          "summary": {
+            "run_id": "round_b95c0d6370fa",
+            "discovered": 2,
+            "attempted": 1,
+            "succeeded": 0,
+            "skipped_quality": 1,
+            "skipped_unreachable": 0,
+            "failed": 0,
+            "canceled": 0,
+            "elapsed": {
+              "sec": 30,
+              "nanosec": 255019623
+            },
+            "outcomes": [
+              {
+                "target_id": "target_1",
+                "outcome": 1,
+                "reason": "skipped_quality: decision_geometry_unavailable: reconstruction_data_stale",
+                "quality_score": 0.0,
+                "elapsed": {
+                  "sec": 8,
+                  "nanosec": 924157318
+                }
+              }
+            ]
+          }
+        }
+      },
+      "ledger": {
+        "request_id": "round_b95c0d6370fa",
+        "path": "/home/mu/Desktop/aubo_e5_jazzy_ws/runs/round_b95c0d6370fa/ledger.json",
+        "mtime": 1792027106.0110795,
+        "error": null,
+        "claimed": [
+          "target_1"
+        ],
+        "rows": [
+          {
+            "target_id": "target_1",
+            "outcome": 1,
+            "outcome_name": "SKIPPED_QUALITY",
+            "reason": "skipped_quality: decision_geometry_unavailable: reconstruction_data_stale",
+            "quality_score": 0.0,
+            "elapsed_s": 8.924,
+            "stages": [],
+            "failure_code": "skipped_quality",
+            "build_view_count": 1,
+            "build_status": "局部重建完成：1 帧，2922 点（少于推荐 5 帧）；重叠指标需 ≥2 帧，本批次不可用；TSDF 507 点 / mesh 930 顶点（累计积分 0.00s）；refit ACCEPT（袋模型 1 视）",
+            "build_duration_s": 8.715,
+            "completion_level": 0,
+            "failure_code_n": 14
+          }
+        ],
+        "totals": {
+          "SUCCEEDED": 0,
+          "SKIPPED_QUALITY": 1,
+          "SKIPPED_UNREACHABLE": 0,
+          "FAILED": 0,
+          "CANCELED": 0,
+          "attempted": 1,
+          "claimed": 1
+        }
+      },
+      "elapsed_s": 33.467409159,
+      "streams": {
+        "camera": {
+          "first": 1792027067.209387,
+          "last": 1792027112.074011,
+          "new_frames": 22,
+          "fresh_stamp": true
+        },
+        "joints": {
+          "first": 1792027112.4638236,
+          "last": 1792027112.618777,
+          "new_frames": 6670,
+          "fresh_stamp": true
+        }
+      }
+    }
+  ],
+  "models": [],
+  "model_attempts": [
+    {
+      "request_id": "model_0771e53a01e1",
+      "error": "'NoneType' object has no attribute 'get'",
+      "elapsed_s": 0.0034733890001916734
+    },
+    {
+      "request_id": "model_032d1fd268d8",
+      "error": "'NoneType' object has no attribute 'get'",
+      "elapsed_s": 0.0034718359997896187
+    },
+    {
+      "request_id": "model_b7c7297be8c9",
+      "error": "'NoneType' object has no attribute 'get'",
+      "elapsed_s": 0.024339524999959394
+    }
+  ],
+  "resources": [
+    {
+      "monotonic": 2452.532871867,
+      "metrics": {
+        "sample": {
+          "stamp": 1792027116.1971164,
+          "cpu_percent": 39.4,
+          "memory_percent": 58.3,
+          "memory_used_mb": 18330.8,
+          "memory_total_mb": 31457.4,
+          "load1": 15.07,
+          "load5": 7.97,
+          "load15": 5.15,
+          "gpu": {
+            "utilization_percent": 20.0,
+            "memory_used_mb": 1668.0,
+            "memory_total_mb": 24576.0
+          },
+          "processes": [
+            {
+              "name": "peach_arm",
+              "pid": 69875,
+              "cpu_percent": 5.3,
+              "rss_mb": 100.0
+            },
+            {
+              "name": "ros2_control_node",
+              "pid": 69870,
+              "cpu_percent": 8.0,
+              "rss_mb": 61.4
+            },
+            {
+              "name": "percipio",
+              "pid": 2212,
+              "cpu_percent": 0.0,
+              "rss_mb": 21.9
+            }
+          ]
+        }
+      },
+      "topic_age_s": {
+        "record.info": 56.874,
+        "startup.facts": 56.896,
+        "robot.tcp": 0.016,
+        "diagnostics.nodes": 0.322,
+        "metrics.sample": 0.921,
+        "robot.joints": 0.009,
+        "reconstruction.status": 0.938,
+        "reconstruction.diagnostics": 0.162,
+        "reconstruction.grasp_decision": 0.937,
+        "refined.pose": 9.495,
+        "refined.axis": 9.495,
+        "refined.diagnostics": 9.495,
+        "manipulation.status": 0.85,
+        "pipeline.arm": 17.709,
+        "task_executor.state": 5.001,
+        "pipeline.fsm": 5.001,
+        "params./peach_scene_perception_node": 2.553,
+        "params./peach_target_reconstruction_node": 2.553,
+        "params./peach_arm": 2.553,
+        "params./peach_supervisor": 2.553,
+        "perception.targets": 0.162,
+        "perception.harvest": 0.162,
+        "selfcheck.report": 26.53,
+        "task_executor.events": 5.003,
+        "ledger.live": 2.559
+      },
+      "streams_fresh": true,
+      "streams": {
+        "camera": {
+          "first": 1792027111.006516,
+          "last": 1792027117.21195,
+          "new_frames": 29,
+          "fresh_stamp": true
+        },
+        "joints": {
+          "first": 1792027117.4838696,
+          "last": 1792027117.638761,
+          "new_frames": 1001,
+          "fresh_stamp": true
+        }
+      },
+      "rviz_alive": true
+    }
+  ],
+  "acks": [],
+  "errors": [],
+  "rviz_requested": true,
+  "owned_process_groups": [
+    69783,
+    69784,
+    70640
+  ],
+  "rviz_started": true,
+  "rviz_lifetime_ok": true,
+  "soak_elapsed_s": 5.007013335000011,
+  "residual_pids": [],
+  "domain_processes_after": [],
+  "model_count": 0,
+  "full_level6_rounds": 0,
+  "model_elapsed_s": {
+    "count": 0,
+    "min": null,
+    "max": null,
+    "p95": null,
+    "range": null
+  },
+  "geometry_statistics": {},
+  "model_samples_per_target": {},
+  "per_target_outcomes": {
+    "target_1": {
+      "SKIPPED_QUALITY": 1
+    }
+  },
+  "soak_passed": true,
+  "passed": false
+}

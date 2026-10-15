@@ -19,7 +19,7 @@ from peach_harvester.vision.target_reconstruction.target_reconstruction_node imp
     TargetReconstructionNode,
 )
 import rclpy
-from rclpy.executors import MultiThreadedExecutor
+from rclpy.executors import ExternalShutdownException, MultiThreadedExecutor
 
 
 def main(argv=None) -> None:
@@ -34,10 +34,13 @@ def main(argv=None) -> None:
         for node in nodes:
             executor.add_node(node)
         executor.spin()
+    except (KeyboardInterrupt, ExternalShutdownException):
+        pass
     finally:
+        # Jazzy shutdown() waits for worker callbacks before node handles die.
+        executor.shutdown()
         for node in nodes:
             node.destroy_node()
-        executor.shutdown()
         if rclpy.ok():
             rclpy.shutdown()
 

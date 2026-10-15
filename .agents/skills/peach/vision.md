@@ -68,7 +68,7 @@ BeginScene：Active 才受理；`scene_epoch++`；换 `scene_key` 清身份表�
 | profile | 套入 |
 |---------|------|
 | `shear_v1` | MTC 沿轴 LIN |
-| `bite_shear_v1` | MTC 沿轴 LIN |
-| `adaptive_shear_v1`（默认） | 预抓取后 `imu_follow` 窗；禁止与 MTC 同时写控制器 |
+| `bite_shear_v1`（默认） | MTC 沿轴 LIN |
+| `adaptive_shear_v1` | 预抓取后 `imu_follow` 窗；禁止与 MTC 同时写控制器 |
 
 launch 注入：scene `tool.D_inner` / `L_insert` / `L_blade`；recon `tool.budget.d_inner` + `profile_id`；臂 `tool.body_*`。停位：`grasp_standoffs.yaml`（预抓取沿 −axis 后撤，现行 0.03 m）。

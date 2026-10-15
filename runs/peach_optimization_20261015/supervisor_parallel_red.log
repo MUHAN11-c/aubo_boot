@@ -1,0 +1,209 @@
+FFF                                                                      [100%]
+=================================== FAILURES ===================================
+__________ test_default_starts_build_then_defers_geometry_gate_to_arm __________
+
+    def test_default_starts_build_then_defers_geometry_gate_to_arm():
+        config = deployed()
+        sequence = []
+        build = object()
+        def forbidden(*args, **kwargs):
+            pytest.fail('default dispatch must not wait through a serial observation after starting Build')
+        node = SimpleNamespace(
+            _params=SimpleNamespace(**{key: config[key] for key in (
+                'action_timeout_s', 'reconstruction_min_views', 'build_start_timeout_s',
+                'observe_build_grace_s', 'skip_reconstruction', 'reconstruct_in_trajectory')}),
+            _current_target_id='target_3', _scene_epoch=4, _action_generation=8,
+            _target_deadline_exceeded=lambda request: False,
+            _take_skip=lambda: False, _wait_target_in_locked_set=lambda *args: True,
+            _batch_policy=SimpleNamespace(view_policy=0),
+            _build=object(), _on_build_feedback=lambda *args: None, _in_flight=[],
+            _send_goal=lambda *args, **kwargs: sequence.append('build_goal') or build,
+            _wait_build_started=lambda *args: sequence.append('build_started') or True,
+            _react=lambda event: sequence.append(event) or event,
+            _apply=lambda *args: None,
+            get_logger=lambda: SimpleNamespace(info=lambda *args: None),
+            _dispatch_fast=forbidden, _dispatch_observe=forbidden,
+            _wait_build_after_observe=forbidden,
+        )
+>       reaction, persist = TaskExecutorNode._cmd_dispatch(node, SimpleNamespace(request_id='r'), None)
+
+src/peach/peach_harvester/test/test_supervisor_parallel_build.py:40: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+src/peach/peach_harvester/peach_harvester/supervisor/executor_node.py:1265: in _cmd_dispatch
+    observe_ok, observe_details, observed = self._dispatch_fast(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+args = ('r', 'target_3'), kwargs = {}
+
+    def forbidden(*args, **kwargs):
+>       pytest.fail('default dispatch must not wait through a serial observation after starting Build')
+E       Failed: default dispatch must not wait through a serial observation after starting Build
+
+src/peach/peach_harvester/test/test_supervisor_parallel_build.py:22: Failed
+____ test_parallel_full_keeps_mode_and_does_not_attach_old_clearance[True] _____
+
+pregrasp_only = True
+
+    @pytest.mark.parametrize('pregrasp_only', [True, False])
+    def test_parallel_full_keeps_mode_and_does_not_attach_old_clearance(pregrasp_only):
+        class Captured(Exception):
+            pass
+        calls = []
+        def send(client, goal, *args, **kwargs):
+            calls.append(goal)
+            raise Captured()
+        node = SimpleNamespace(
+            _params=SimpleNamespace(action_timeout_s=180., execute_pregrasp_only=pregrasp_only,
+                skip_reconstruction=False, reconstruct_in_trajectory=deployed()['reconstruct_in_trajectory'],
+                tool=SimpleNamespace(profile_id='bite_shear_v1')),
+            _target_deadline_exceeded=lambda request: False,
+            _current_target_id='target_3', _run_id='r', _cycle_id='r:target_3',
+            _decision_cache=SimpleNamespace(target_id='target_3', allowed=True),
+            _scene_epoch=4, _action_generation=8, _cycle_plan_id='r:target_3:8',
+            _last_model_revision='pending:4:target_3', _last_calibration_revision='pending',
+            _last_config_revision='pending', _exec=object(), _run_goal_handle=object(),
+            _send_action=send,
+        )
+        with pytest.raises(Captured):
+>           TaskExecutorNode._cmd_full(node, SimpleNamespace(request_id='r'), None)
+
+src/peach/peach_harvester/test/test_supervisor_parallel_build.py:68: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = namespace(_params=namespace(action_timeout_s=180.0, execute_pregrasp_only=True, skip_reconstruction=False, reconstruct...send_action=<function test_parallel_full_keeps_mode_and_does_not_attach_old_clearance.<locals>.send at 0x76a9ad2313a0>)
+goal = namespace(request_id='r'), reaction = None
+
+    def _cmd_full(self, goal, reaction):
+        """EXECUTE_FULL 分支（原循环分支逐字搬运）：时限门 + 接触执行入账."""
+        request_id = goal.request_id
+        if self._target_deadline_exceeded(request_id):
+            # 时限门统一走 _fail_dispatch（P0 三通道对齐勘定：此处原为
+            # 裸 _apply，缺「派发失败」WARN；outcome 不传——时限函数自身
+            # 已 record_skip，双传会二次落账，与 dispatch 入口同款）
+            return self._fail_dispatch(
+                self._react(
+                    event_for_outcome(TargetOutcome.SKIPPED_QUALITY, False)),
+                request_id, self._current_target_id)
+        timeout = float(self._params.action_timeout_s)
+        target_id = self._current_target_id
+        t0 = time.monotonic()
+        full = ExecuteTarget.Goal()
+        full.request_id = request_id
+        full.run_id = self._run_id
+        full.cycle_id = self._cycle_id
+        full.target_id = target_id
+        full.mode = (
+            ExecuteTarget.Goal.PREGRASP_ONLY
+            if bool(self._params.execute_pregrasp_only)
+            else ExecuteTarget.Goal.FULL)
+        full.skip_observation = True
+        # 清洁重写轮（3c-2a）：profile 与 mode 对齐下发；臂侧以 mode 为
+        # 接触深度权威（默认 profile=0 不再盖掉 FULL）。接触许可令牌随
+        # goal（臂侧双路复检：令牌优先/快照回退），装配自最新 GraspDecision 缓存。
+        full.profile = (
+            ExecuteTarget.Goal.PROFILE_PREGRASP_HOLD
+            if bool(self._params.execute_pregrasp_only)
+            else ExecuteTarget.Goal.PROFILE_FULL)
+        decision = self._decision_cache
+        # 令牌绑目标：缓存决策不绑定当前目标时整体不装配（臂侧走快照回退
+        # 复检路径），旧目标的许可不得授权新目标（Clearance.target_id 契约）。
+        # skip_reconstruction：不把未融合 GraspDecision（常 allowed=false）
+        # 装成 CONTACT 令牌；臂侧 promoteUnrefined 提升 grasp_allowed。
+        if bool(self._params.skip_reconstruction) or bool(
+                getattr(self._params, 'reconstruct_in_trajectory', False)):
+            # 未融合 / 并行 Build 未 finalize 的 GraspDecision 不得装成
+            # CONTACT 令牌；臂侧等精化后走快照复检。
+            decision = None
+        if decision is not None and str(
+                getattr(decision, 'target_id', '') or '') == target_id:
+            # G1：已过期的令牌仍照装（臂侧拒），但打一次预警供现场归因
+>           self._warn_decision_expiry(decision, target_id)
+E           AttributeError: 'types.SimpleNamespace' object has no attribute '_warn_decision_expiry'
+
+src/peach/peach_harvester/peach_harvester/supervisor/executor_node.py:1491: AttributeError
+____ test_parallel_full_keeps_mode_and_does_not_attach_old_clearance[False] ____
+
+pregrasp_only = False
+
+    @pytest.mark.parametrize('pregrasp_only', [True, False])
+    def test_parallel_full_keeps_mode_and_does_not_attach_old_clearance(pregrasp_only):
+        class Captured(Exception):
+            pass
+        calls = []
+        def send(client, goal, *args, **kwargs):
+            calls.append(goal)
+            raise Captured()
+        node = SimpleNamespace(
+            _params=SimpleNamespace(action_timeout_s=180., execute_pregrasp_only=pregrasp_only,
+                skip_reconstruction=False, reconstruct_in_trajectory=deployed()['reconstruct_in_trajectory'],
+                tool=SimpleNamespace(profile_id='bite_shear_v1')),
+            _target_deadline_exceeded=lambda request: False,
+            _current_target_id='target_3', _run_id='r', _cycle_id='r:target_3',
+            _decision_cache=SimpleNamespace(target_id='target_3', allowed=True),
+            _scene_epoch=4, _action_generation=8, _cycle_plan_id='r:target_3:8',
+            _last_model_revision='pending:4:target_3', _last_calibration_revision='pending',
+            _last_config_revision='pending', _exec=object(), _run_goal_handle=object(),
+            _send_action=send,
+        )
+        with pytest.raises(Captured):
+>           TaskExecutorNode._cmd_full(node, SimpleNamespace(request_id='r'), None)
+
+src/peach/peach_harvester/test/test_supervisor_parallel_build.py:68: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = namespace(_params=namespace(action_timeout_s=180.0, execute_pregrasp_only=False, skip_reconstruction=False, reconstruc...send_action=<function test_parallel_full_keeps_mode_and_does_not_attach_old_clearance.<locals>.send at 0x76a9ad231300>)
+goal = namespace(request_id='r'), reaction = None
+
+    def _cmd_full(self, goal, reaction):
+        """EXECUTE_FULL 分支（原循环分支逐字搬运）：时限门 + 接触执行入账."""
+        request_id = goal.request_id
+        if self._target_deadline_exceeded(request_id):
+            # 时限门统一走 _fail_dispatch（P0 三通道对齐勘定：此处原为
+            # 裸 _apply，缺「派发失败」WARN；outcome 不传——时限函数自身
+            # 已 record_skip，双传会二次落账，与 dispatch 入口同款）
+            return self._fail_dispatch(
+                self._react(
+                    event_for_outcome(TargetOutcome.SKIPPED_QUALITY, False)),
+                request_id, self._current_target_id)
+        timeout = float(self._params.action_timeout_s)
+        target_id = self._current_target_id
+        t0 = time.monotonic()
+        full = ExecuteTarget.Goal()
+        full.request_id = request_id
+        full.run_id = self._run_id
+        full.cycle_id = self._cycle_id
+        full.target_id = target_id
+        full.mode = (
+            ExecuteTarget.Goal.PREGRASP_ONLY
+            if bool(self._params.execute_pregrasp_only)
+            else ExecuteTarget.Goal.FULL)
+        full.skip_observation = True
+        # 清洁重写轮（3c-2a）：profile 与 mode 对齐下发；臂侧以 mode 为
+        # 接触深度权威（默认 profile=0 不再盖掉 FULL）。接触许可令牌随
+        # goal（臂侧双路复检：令牌优先/快照回退），装配自最新 GraspDecision 缓存。
+        full.profile = (
+            ExecuteTarget.Goal.PROFILE_PREGRASP_HOLD
+            if bool(self._params.execute_pregrasp_only)
+            else ExecuteTarget.Goal.PROFILE_FULL)
+        decision = self._decision_cache
+        # 令牌绑目标：缓存决策不绑定当前目标时整体不装配（臂侧走快照回退
+        # 复检路径），旧目标的许可不得授权新目标（Clearance.target_id 契约）。
+        # skip_reconstruction：不把未融合 GraspDecision（常 allowed=false）
+        # 装成 CONTACT 令牌；臂侧 promoteUnrefined 提升 grasp_allowed。
+        if bool(self._params.skip_reconstruction) or bool(
+                getattr(self._params, 'reconstruct_in_trajectory', False)):
+            # 未融合 / 并行 Build 未 finalize 的 GraspDecision 不得装成
+            # CONTACT 令牌；臂侧等精化后走快照复检。
+            decision = None
+        if decision is not None and str(
+                getattr(decision, 'target_id', '') or '') == target_id:
+            # G1：已过期的令牌仍照装（臂侧拒），但打一次预警供现场归因
+>           self._warn_decision_expiry(decision, target_id)
+E           AttributeError: 'types.SimpleNamespace' object has no attribute '_warn_decision_expiry'
+
+src/peach/peach_harvester/peach_harvester/supervisor/executor_node.py:1491: AttributeError
+=========================== short test summary info ============================
+FAILED src/peach/peach_harvester/test/test_supervisor_parallel_build.py::test_default_starts_build_then_defers_geometry_gate_to_arm
+FAILED src/peach/peach_harvester/test/test_supervisor_parallel_build.py::test_parallel_full_keeps_mode_and_does_not_attach_old_clearance[True]
+FAILED src/peach/peach_harvester/test/test_supervisor_parallel_build.py::test_parallel_full_keeps_mode_and_does_not_attach_old_clearance[False]
+3 failed in 0.30s

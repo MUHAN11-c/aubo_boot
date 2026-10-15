@@ -1,6 +1,6 @@
-# `peach_interfaces` io（v1 活文档）
+# `peach_interfaces` io（活文档）
 
-> 2026-10-10 用户裁定自仓库级 `docs/io.md` 拆写入包。跨包边界在 [peach_bringup/doc/io.md](../../peach_bringup/doc/io.md)。**改字段只改本包 IDL，先编本包再编下游；同轮改 README、manifest 与本文。**
+> 当前接口快照。跨包边界在 [peach_bringup/doc/io.md](../../peach_bringup/doc/io.md)。**改字段只改本包 IDL，先编本包再编下游；同轮改 README、manifest 与本文。**
 
 无节点、无 launch、无运行参数。跨包唯一 IDL；清单 57 active + 5 reserved（预留=四个导航 IDL + `peach_sim/joint_states` gz 桥登记），脚本双向核对（`scripts/check_interface_manifest.py` 已挂 CTest——改 IDL 忘改清单 `colcon test` 会红；可视化话题 8 条、rcl 参数服务后缀、legacy 别名 5 条 `/peach_executor/*` 为脚本内建豁免，旧名 bag 兼容由 `peach_observability/bag_reader.py` 承接）。每根管子与每个字段的含义写在 [peach_interfaces/README.md](../../peach_interfaces/README.md)。改字段只改本包，先编本包再编下游；同轮改 README、manifest 与本文。
 
@@ -59,3 +59,7 @@
 | `SetEnables.srv` | `/peach_supervisor/set_enables` | `peach_supervisor` | **已接线（3）** | 操作台使能开关；广播 `/peach/batch/enables` +审计 |
 | `SetBatchPolicy.srv` | `/peach_supervisor/set_batch_policy` | `peach_supervisor` | **已接线（3）** | 运行期改批次策略（当前批或下批默认） |
 | `FireStep.srv` | `/peach_supervisor/fire_step` | `peach_supervisor` | **仅 PHOTO 已接线**（MoveTo KIND_NAMED 到 `global_photo_pose`）；VIEWPOINT/BUILD/APPROACH/PREVIEW/TOOL_DEBUG 占位，调用即拒（response 提示走 8090 既有单步）；8090 页面转发未接——人工 `ros2 service call` | 操作台单步；PHOTO 走 MoveTo（TRANSIT 级授权），未来运动类档位须过臂侧命令门 |
+
+## 模型时间与结果解释
+
+TargetModel与GraspDecision同model_revision共享首次generated_at及valid_until，header.stamp使用生成时间，心跳不得续签。单独独立机位成功quality最多MEDIUM，至少2独立机位才可HIGH。READY/accepted只表示模型状态，四能力及臂侧运行授权另判；level6干跑与level7真实采摘不能混计。完整模型身份与几何由臂侧从同一决策原子提交，分离诊断/位姿话题不应覆盖该快照。

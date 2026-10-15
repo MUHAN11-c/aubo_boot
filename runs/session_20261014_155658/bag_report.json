@@ -1,0 +1,288 @@
+{
+  "session": {
+    "bag": "/home/mu/Desktop/aubo_e5_jazzy_ws/runs/session_20261014_155658/bag",
+    "session_dir": "/home/mu/Desktop/aubo_e5_jazzy_ws/runs/session_20261014_155658",
+    "started_at": 1791964619.321437,
+    "ended_at": 1791964792.0166333,
+    "duration_s": 172.7
+  },
+  "requests": [],
+  "gates": {
+    "rows": [
+      [
+        "感知帧率 FPS",
+        1.15,
+        "≥ 2.0",
+        "✗"
+      ],
+      [
+        "重建 TF 失败次数",
+        0,
+        "= 0",
+        "✓"
+      ],
+      [
+        "到预抓取停住（succeeded）",
+        0,
+        "≥1（有派发目标时）",
+        "—"
+      ]
+    ],
+    "fps": 1.15,
+    "tf_failures": 0,
+    "succeeded": 0
+  },
+  "targets": [],
+  "phase_durations": [],
+  "events": {
+    "total": 2,
+    "by_code": {
+      "enables_changed": 2
+    },
+    "by_severity": {
+      "AUDIT": 2
+    }
+  },
+  "perception": {
+    "frames": 177,
+    "median_interval_s": 0.867,
+    "fps": 1.15,
+    "target_count_min": 0,
+    "target_count_max": 1
+  },
+  "reconstruction": {
+    "state": "READY",
+    "target_id": "target_0",
+    "captured_views": 1,
+    "rejected_views": 31,
+    "tf_failures": 0,
+    "tf_latency_ms": 0.19049644470214844,
+    "max_baseline_deg": 0.0,
+    "mean_nearest_baseline_deg": 0.0,
+    "grasp_allowed": true,
+    "grasp_reason": "bag_mouth_geometry"
+  },
+  "reconstruction_per_target": [
+    {
+      "target_id": "target_0",
+      "captured_views_max": 1,
+      "skipped_views_max": 0,
+      "skip_reasons": {},
+      "last_state": "READY"
+    }
+  ],
+  "jobs": [
+    {
+      "target_id": "target_0",
+      "cycle_id": "",
+      "batch_state": 0,
+      "target_phase": 0,
+      "active_id": "discover",
+      "why": "抓取已许可，等待进入靠近",
+      "completion": {},
+      "flags": {
+        "execution_enabled": false,
+        "grasp_enabled": false,
+        "tool_enabled": false,
+        "skill_grasp_enabled": false,
+        "skill_execution_enabled": false
+      },
+      "stages": [
+        {
+          "id": "discover",
+          "label": "发现",
+          "status": "active",
+          "detail": ""
+        },
+        {
+          "id": "photo",
+          "label": "拍照",
+          "status": "pending",
+          "detail": ""
+        },
+        {
+          "id": "lock",
+          "label": "锁定",
+          "status": "pending",
+          "detail": ""
+        },
+        {
+          "id": "observe",
+          "label": "观察",
+          "status": "pending",
+          "detail": "IDLE"
+        },
+        {
+          "id": "permit",
+          "label": "许可",
+          "status": "pending",
+          "detail": "GraspDecision.allowed"
+        },
+        {
+          "id": "approach",
+          "label": "靠近",
+          "status": "gated",
+          "detail": "抓取档关闭，本轮不接触"
+        },
+        {
+          "id": "tool",
+          "label": "工具",
+          "status": "gated",
+          "detail": "工具档关闭，不打 SetIO"
+        },
+        {
+          "id": "retreat",
+          "label": "撤离",
+          "status": "pending",
+          "detail": ""
+        },
+        {
+          "id": "done",
+          "label": "完成",
+          "status": "pending",
+          "detail": ""
+        }
+      ],
+      "coords": {
+        "frame_id": "base_link",
+        "perception_entry": [
+          0.3641151330131045,
+          -0.6186062726209757,
+          0.5798056898828641
+        ],
+        "perception_bottom": [
+          0.3641151330131045,
+          -0.6186062726209757,
+          0.5798056898828641
+        ],
+        "perception_neck": [
+          0.3786772037925787,
+          -0.6448753153325966,
+          0.6903762349813498
+        ],
+        "reconstruction_center": [
+          0.3709167157400367,
+          -0.6302279824617175,
+          0.6330924713793713
+        ],
+        "refined_axis": null,
+        "grasp_entry": [
+          0.3718397935780446,
+          -0.626632382018485,
+          0.5875527655098445
+        ],
+        "grasp_pregrasp": [
+          0.364521111272967,
+          -0.6160132400363225,
+          0.560466408927978
+        ],
+        "hypothesis_entry": null,
+        "hypothesis_travel_m": null,
+        "camera_distance_m": 0.5716562271118164
+      },
+      "grasp": {
+        "allowed": true,
+        "reason": "bag_mouth_geometry",
+        "target_id": "target_0",
+        "entry": [
+          0.3718397935780446,
+          -0.626632382018485,
+          0.5875527655098445
+        ],
+        "pregrasp": [
+          0.364521111272967,
+          -0.6160132400363225,
+          0.560466408927978
+        ],
+        "axis": [
+          0.2439560768359195,
+          -0.3539713994054156,
+          0.9028785527288811
+        ],
+        "cut_pose": [
+          0.39363261414075323,
+          -0.6582529724609253,
+          0.6682077364568174
+        ],
+        "diameter_m": 0.06413228684511099,
+        "d95_m": 0.06413228684511099,
+        "travel_m": 0.08933091909559651,
+        "cut_travel_m": 0.08933091909559651,
+        "radial_margin_m": -0.019006959054238735,
+        "axial_margin_m": -0.002,
+        "rmse_m": 0.0017875359927633908,
+        "inlier_ratio": 0.6116700201207244
+      },
+      "motion": {
+        "state": "IDLE",
+        "message": "已配置；activate 后才开放运动输出权限",
+        "running": false
+      },
+      "reconstruction": {
+        "state": "READY",
+        "captured_views": 1,
+        "rejected_views": 31,
+        "max_baseline_deg": 0.0,
+        "mean_nearest_baseline_deg": 0.0
+      },
+      "perception": {
+        "locked": true,
+        "target_count": 1,
+        "harvest_status": "PLANNED",
+        "tracking_status": "OBSERVED",
+        "confidence": 0.8333333134651184
+      },
+      "analysis": {
+        "bottom_neck_m": 0.11457731867061495,
+        "entry_cut_m": 0.08933091909559651,
+        "cut_travel_m": 0.08933091909559651,
+        "travel_m": 0.08933091909559651,
+        "d95_m": 0.06413228684511099,
+        "entry_radius_m": 0.9360295008922473,
+        "cut_radius_m": 1.0172242573443038,
+        "radial_margin_m": -0.019006959054238735,
+        "axial_margin_m": -0.002,
+        "valid_depth_ratio": 0.6808273792266846,
+        "n_points": 3031,
+        "tool_profile_id": "bite_shear_v1",
+        "flags": [
+          "axis_from_pca",
+          "taper_neck",
+          "length_extended_from_2d",
+          "foreground_truncated",
+          "target_matched"
+        ]
+      }
+    }
+  ],
+  "metrics": {
+    "samples": 150,
+    "cpu_percent": {
+      "mean": 82.23,
+      "max": 89.6
+    },
+    "memory_percent": {
+      "mean": 83.8,
+      "max": 86.3
+    },
+    "gpu_utilization_percent": {
+      "mean": 53.68,
+      "max": 75.0
+    },
+    "gpu_memory_used_mb": {
+      "mean": 6175.95,
+      "max": 6409.0
+    }
+  },
+  "tcp": {
+    "count": 1,
+    "path_length_m": 0.0,
+    "chord_m": 0.0,
+    "detour_ratio": null,
+    "max_dev_m": 0.0,
+    "z_min_m": 0.6888,
+    "z_max_m": 0.6888,
+    "dz_m": 0.0,
+    "samples": 1
+  }
+}

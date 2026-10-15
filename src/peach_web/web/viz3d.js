@@ -1,7 +1,7 @@
 /* Read-only geometry in base_link metres. No ROS commands or inferred TF. */
 (function (root) {
   'use strict';
-  const COLORS = Object.freeze({initial: '#62a4d8', fused: '#e4b56b', tool: '#62bfa6', diagnostic: '#e16e73'});
+  const COLORS = Object.freeze({initial: '#2864b4', fused: '#ba621c', tool: '#087f73', diagnostic: '#bc3348'});
   const vector = (value, size = 3) => Array.isArray(value) && value.length >= size &&
     value.slice(0, size).every(v => typeof v === 'number' && Number.isFinite(v)) ? value.slice(0, size) : null;
   const direction = value => { const v = vector(value); const n = v && Math.hypot(...v); return n > 1e-9 ? v.map(x => x / n) : null; };
@@ -18,7 +18,8 @@
     const sceneEpoch = state.ui?.selected_scene_epoch ?? targets.scene_epoch;
     const decision = state.reconstruction?.grasp_decision || {};
     const validEpoch = Number.isInteger(sceneEpoch) && sceneEpoch > 0;
-    const decisionScoped = validEpoch && sameTarget(decision.target_id, target) && decision.scene_epoch === sceneEpoch;
+    const decisionScoped = validEpoch && sameTarget(decision.target_id, target) && decision.scene_epoch === sceneEpoch &&
+      (!decision.harvest_run_id || decision.harvest_run_id === targets.harvest_run_id);
     function modelScoped(...sources) {
       const epochs = sources.map(source => source?.scene_epoch).filter(epoch => epoch != null);
       const runs = sources.map(source => source?.harvest_run_id).filter(run => run != null);
@@ -77,12 +78,58 @@
     const axisAngleDeg = T && bagAxis && toolAxis
       ? new T.Vector3(...bagAxis).angleTo(new T.Vector3(...toolAxis)) * 180 / Math.PI : null;
     return {target_id: target, scene_epoch: state.ui?.selected_scene_epoch ?? targets.scene_epoch,
-      frame_id: 'base_link', initial, fused, axisAngleDeg,
+      frame_id: 'base_link', initial, fused, axisAngleDeg, decision: decisionScoped ? decision : null,
       pregrasp: geometryFrame ? vector(grasp.pregrasp) : null,
       entry: geometryFrame ? vector(grasp.entry) : null,
       cut: geometryFrame ? vector(grasp.cut_pose) : null,
       grasp_axis: geometryFrame ? direction(grasp.axis) : null,
       tool_frames: toolFrames, trajectory: points};
+  }
+  // Geometry arithmetic is descriptive only. Reachability belongs to MoveIt.
+  function analyzeScene(state = {}, trajectory = {}) {
+    const scene = normalizeScene(state, trajectory), d = scene.decision || {};
+    const scalar = v => typeof v === 'number' && Number.isFinite(v) ? v : null;
+    const nonnegative = v => scalar(v) !== null && v >= 0 ? v : null;
+    const ratio = v => nonnegative(v) !== null && v <= 1 ? v : null;
+    const delta = (a, b) => a && b ? a.map((v, i) => v - b[i]) : null;
+    const norm = v => v ? Math.hypot(...v) : null;
+    const dot = (a, b) => a && b ? a.reduce((s, v, i) => s + v * b[i], 0) : null;
+    const angle = (a, b) => a && b ? Math.acos(Math.max(-1, Math.min(1, dot(a,b)))) * 180 / Math.PI : null;
+    const travel = delta(scene.cut, scene.entry), axial = dot(travel, scene.grasp_axis);
+    const lateral = travel && axial !== null ? norm(travel.map((v,i) => v - axial * scene.grasp_axis[i])) : null;
+    const reported = scalar(d.cut_travel_m), ref = scene.fused?.source || {};
+    const scoped = state.job?.target_id === scene.target_id &&
+      (!state.ui?.selected_scene_epoch || state.ui.selected_scene_epoch === state.perception?.targets?.scene_epoch);
+    const job = scoped ? state.job : {}, completion = job?.completion || {};
+    const arm = state.manipulation?.status || {};
+    const text = [completion.reason, job?.why, scoped && arm.target_id === scene.target_id ? arm.message : ''].filter(Boolean).join(' · ');
+    const planningFailure = /SKIPPED_UNREACHABLE|skipped_unreachable|no_ik|no_cartesian|MTC planning failed|精化几何可达性未通过/.test(text);
+    const reached = Number.isInteger(completion.completion_level) && completion.completion_level >= 1;
+    const level = completion.completion_level;
+    const completionLabels = ['尚未到达预抓取','预抓取到达已记录','预抓取验证已记录',
+      '套入到达已记录','刀指令受理已记录','切断确认已记录','撤退完成已记录','采摘确认已记录'];
+    const reachability = {tone:planningFailure ? 'bad' : reached ? 'good' : 'unknown',
+      label:planningFailure ? '规划 / 可达性未通过' : reached ? completionLabels[level] || '完成级别已记录' : '可达性尚未验证',
+      detail:planningFailure ? completion.reason || (arm.target_id===scene.target_id ? arm.message : '') || text : reached ?
+        `证据来自当前作业完成级别 ${level}。${level<3?'完整套入路径需另行验证。':level<7?'采摘确认尚无证据。':''}` : '几何许可不代表机械臂可达。请在单步调试中查询或只规划。'};
+    const metrics = {
+      standoff_m:norm(delta(scene.entry, scene.pregrasp)), entry_cut_m:norm(travel), axial_travel_m:axial,
+      lateral_error_m:lateral, travel_error_m:axial !== null && reported !== null ? axial - reported : null,
+      cut_travel_m:reported, entry_distance_m:norm(scene.entry), cut_distance_m:norm(scene.cut),
+      entry_shift_m:norm(delta(scene.entry,scene.initial?.entry)),
+      initial_fused_angle_deg:angle(scene.initial?.axis,scene.fused?.axis), tool_axis_angle_deg:scene.axisAngleDeg,
+      diameter_m:scalar(d.diameter_m) ?? scene.fused?.diameter ?? null,
+      d95_m:scalar(d.d95_m) > 0 ? d.d95_m : null,
+      radial_margin_m:scalar(d.radial_margin_m), axial_margin_m:scalar(d.axial_margin_m),
+      refit_rmse_m:nonnegative(ref.refit_rmse) ?? nonnegative(ref.rmse), inlier_ratio:ratio(ref.refit_inlier_ratio) ?? ratio(ref.inlier_ratio),
+      captured_views:scene.fused ? scalar(state.reconstruction?.diagnostics?.captured_views) : null,
+      axis_conflict_deg:scalar(ref.axis_conflict_deg), lateral_shift_m:scalar(ref.fusion_lateral_shift_m),
+    };
+    const points = [['预抓取',scene.pregrasp],['袋外入口',scene.entry],['袋底',scene.fused?.bottom],
+      ['袋口 / 袋颈',scene.fused?.neck],['剪切参考',scene.cut],['重建中心',scene.fused?.center],
+      ['实际 TCP',scene.tool_frames.tool_axis?.position]].filter(([,p])=>p).map(([name,position])=>({name,position}));
+    return {scene,metrics,points,reachability,decision:scene.decision, flags:Array.isArray(ref.flags) ? ref.flags : [],
+      consistency:scene.fused ? ref.fusion_consistency_available : null};
   }
   function unavailable(error) {
     return {available: false, error: String(error?.message || error), update() {}, setView() {}, resize() {}, dispose() {}};
@@ -94,7 +141,7 @@
     try {
       renderer = new T.WebGLRenderer({antialias: true, alpha: true});
       renderer.setPixelRatio(Math.min(root.devicePixelRatio || 1, 2));
-      renderer.setClearColor(0x111c22, 1);
+      renderer.setClearColor(0xf8fafb, 1);
       renderer.domElement.setAttribute('aria-label', 'base_link 坐标系三维几何，单位米，Z 向上');
       container.appendChild(renderer.domElement);
       scene = new T.Scene();
@@ -103,7 +150,7 @@
       controls = new OrbitControls(camera, renderer.domElement);
       controls.enableDamping = false; controls.autoRotate = false;
       controls.minDistance = 0.025; controls.maxDistance = 10;
-      const grid = new T.GridHelper(2, 20, 0x49606c, 0x283c46);
+      const grid = new T.GridHelper(2, 20, 0xc1d0d5, 0xe1e8eb);
       grid.rotation.x = Math.PI / 2; scene.add(grid);
       scene.add(new T.AxesHelper(0.16));
       const group = new T.Group(); scene.add(group);
@@ -120,17 +167,38 @@
       function render() {
         if (disposed || root.document.hidden) return;
         renderer.render(scene, camera);
-        labels.forEach(({element, position}) => {
+        const occupied = [];
+        labels.forEach(({element, leader, position}) => {
           const p = position.clone().project(camera);
           element.hidden = p.z < -1 || p.z > 1 || Math.abs(p.x) > 1 || Math.abs(p.y) > 1;
-          element.style.left = `${(p.x + 1) * container.clientWidth / 2}px`;
-          element.style.top = `${(1 - p.y) * container.clientHeight / 2}px`;
+          leader.hidden = element.hidden;
+          if (element.hidden) return;
+          const width = element.offsetWidth || element.textContent.length * 11 + 12;
+          const height = element.offsetHeight || 22;
+          const anchorX = (p.x+1)*container.clientWidth/2, anchorY = (1-p.y)*container.clientHeight/2;
+          let left = anchorX+8, top = anchorY-18;
+          for (let attempt=0;attempt<labels.length*4;attempt++) {
+            const level = Math.floor(attempt/2);
+            const offset = level===0 ? 0 : Math.ceil(level/2)*(level%2 ? 1 : -1)*(height+4);
+            left = Math.max(0,Math.min(container.clientWidth-width,attempt%2 ? anchorX-width-8 : anchorX+8));
+            top = Math.max(0,Math.min(container.clientHeight-height,anchorY-18+offset));
+            if (!occupied.some(r=>left<r.right+4 && left+width>r.left-4 && top<r.bottom+3 && top+height>r.top-3)) break;
+          }
+          occupied.push({left,right:left+width,top,bottom:top+height});
+          element.style.left = `${left}px`; element.style.top = `${top}px`;
+          const dx = Math.max(left,Math.min(left+width,anchorX))-anchorX;
+          const dy = Math.max(top,Math.min(top+height,anchorY))-anchorY;
+          leader.style.left = `${anchorX}px`; leader.style.top = `${anchorY}px`;
+          leader.style.width = `${Math.hypot(dx,dy)}px`;
+          leader.style.transform = `rotate(${Math.atan2(dy,dx)}rad)`;
         });
       }
       function label(text, position, color) {
         if (!position) return;
         const element = root.document.createElement('span'); element.textContent = text;
-        element.style.color = color; labelLayer.appendChild(element); labels.push({element, position: point(position)});
+        const leader = root.document.createElement('div'); leader.className = 'viz3d-leader';
+        leader.style.borderColor = color; labelLayer.appendChild(leader);
+        element.style.color = color; labelLayer.appendChild(element); labels.push({element, leader, position: point(position)});
       }
       function line(points, color, dashed = false) {
         if (points.length < 2 || points.some(p => !p)) return;
@@ -157,7 +225,8 @@
       function model(value, color, prefix) {
         if (!value) return;
         const diagnostic = value.diagnostic; const c = diagnostic ? COLORS.diagnostic : color;
-        dot(value.bottom, c, `${prefix}袋底`); dot(value.neck, c, `${prefix}袋颈`);
+        dot(value.bottom, c, `${prefix}袋底`); dot(value.neck, c, `${prefix}袋口`);
+        dot(value.center, c, `${prefix}中心`);
         line([value.bottom, value.neck], c, diagnostic); axis(value.bottom || value.center || value.entry, value.axis, c, diagnostic);
         ring(value.neck, value.axis, value.diameter, c, diagnostic);
         if (diagnostic) label('错轴 / 拟合拒绝诊断', value.center || value.bottom || value.entry, c);
@@ -183,12 +252,14 @@
         if (signature === next) return; signature = next;
         release(group); group.clear(); labels = []; labelLayer.replaceChildren();
         model(current.initial, COLORS.initial, '初值'); model(current.fused, COLORS.fused, '融合');
-        dot(current.pregrasp, COLORS.fused, '预抓取'); dot(current.entry, COLORS.fused, '融合入口');
+        dot(current.pregrasp, COLORS.fused, 'P · 预抓取'); dot(current.entry, COLORS.fused, 'E · 袋外入口');
         line([current.pregrasp, current.entry], COLORS.fused, true);
-        dot(current.cut, COLORS.fused, '剪切参考');
+        dot(current.cut, COLORS.fused, 'C · 剪切参考');
+        line([current.entry, current.cut], COLORS.fused, true);
+        axis(current.entry, current.grasp_axis, COLORS.fused, false);
         ring(current.cut, current.grasp_axis, current.fused?.diameter, COLORS.fused, true);
         line(current.trajectory, COLORS.tool);
-        const end = current.trajectory.at(-1); dot(end, COLORS.tool, 'TCP');
+        const end = current.trajectory.at(-1); dot(end, COLORS.tool, '轨迹末端');
         for (const [name, frame] of Object.entries(current.tool_frames)) {
           dot(frame.position, COLORS.tool, name); axis(frame.position, frame.axis, COLORS.tool, false);
           if (name !== 'tool_axis') ring(frame.position, frame.axis, 0.035, COLORS.tool);
@@ -220,5 +291,5 @@
       renderer?.dispose(); renderer?.domElement?.remove(); labelLayer?.remove(); return unavailable(error);
     }
   }
-  root.PeachViz3D = Object.freeze({create, normalizeScene, COLORS});
+  root.PeachViz3D = Object.freeze({create, normalizeScene, analyzeScene, COLORS});
 })(typeof window === 'undefined' ? globalThis : window);

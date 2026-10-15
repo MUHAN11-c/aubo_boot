@@ -26,7 +26,7 @@ peach_arm:
       pilz_pipeline: pilz_industrial_motion_planner  # Pilz 规划管线名（PTP/LIN）。
       fallback_pipeline: ompl  # Pilz 失败后的兜底规划管线。
       mtc_free_space_pipeline: pilz_industrial_motion_planner  # MTC 转移管线。接近主路径（v4）= PTP 关节空间到中段点正下方 + 世界垂直 LIN 入冠 + 沿轴 LIN 对轴进入预抓取。
-      mtc_free_space_planner: LIN  # Pilz LIN 规划器 id。果平面折线各跳与袋底侧直连短修正用它；keep-roll 自碰则按 keep-roll 及 ±30°/±60° 扫描刀口。插入段仍是沿轴 CartesianPath。G/under 单弦档已删（photo→G 弦 fraction 0.41–0.73，2026-09-10 100 位姿探针）。接触不用 CIRC/STOMP/OMPL。
+      mtc_free_space_planner: LIN  # Pilz LIN 规划器 id。果平面折线各跳与袋底侧直连短修正用它；keep-roll 自碰则按 keep-roll 及 ±15°/±30°/±45° 扫描刀口。插入段仍是沿轴 CartesianPath。G/under 单弦档已删（photo→G 弦 fraction 0.41–0.73，2026-09-10 100 位姿探针）。接触不用 CIRC/STOMP/OMPL。
       mtc_cartesian_step_m: 0.005  # MTC 笛卡尔段步长（米）。
       mtc_cartesian_min_fraction: 0.95  # MTC 直线插入最低完成比例。1.0 会因笛卡尔末步离散在接触深度失败（真机常见 0.966）；0.95 仍拒绝半程插入。
       mtc_cartesian_precision_m: 0.001  # MTC 笛卡尔段平移精度（米）。
@@ -40,7 +40,7 @@ peach_arm:
       mtc_approach_transit_max_detour_ratio: 2.6  # 接近主路径 PTP 段（关节弧）的 TCP 路径长/弦长上限。0=不查。须 >0 才会审 PTP 弧。同 09-18 标定。
       mtc_approach_transit_max_chord_deviation_m: 0.32  # 接近主路径 PTP 段 TCP 相对起止弦最大偏离（米）。0=不查。同 09-18 标定。
       mtc_approach_transit_max_recede_m: 0.12  # staging 转移级中途相对起点更远离目标的最大回退（米）。0=不查。同 09-18 标定。
-      mtc_approach_max_tcp_rotation_deg: 110.0  # 接近段相对起点 TCP 姿态测地线绝对上限（度）。0=不查。感知允许水平袋：keep-roll γ≈90°，±60° 滚转闭式 γ(90,60)≈105°；仍拦 180° 拧腕。
+      mtc_approach_max_tcp_rotation_deg: 110.0  # 接近段相对起点 TCP 姿态测地线绝对上限（度）。0=不查。感知允许水平袋：keep-roll γ≈90°，额外滚转上限 45°；该门检查倾斜与滚转的合成旋转；仍拦 180° 拧腕。
       mtc_approach_tcp_rotation_slack_deg: 20.0  # 相对本段起止测地线的路径余量（度）。0=只看绝对上限。拦对轴只需 ~20° 却中途拧到 90°+ 的 PTP（09-11 的 108°）。
       mtc_approach_keepout_radius_m: 0.12  # ①层果实胶囊回退半径（米）：感知直径无效时用本值作 fruitRadiusM 的 base，再加 fruit_inflation_m。键名冻结，不再当半无限圆柱半径。
       mtc_approach_keepout_axial_m: 0.12  # ①+②层开关：>0 启用接近段果实胶囊/反爬审查。0=关闭。套入/撤退不审。
@@ -50,7 +50,7 @@ peach_arm:
       approach_canopy_entry_m: 0.05  # 入冠段（米）：世界垂直上行伸进果树到中段点（v4，PTP 落点在中段点正下方）。
       approach_near_velocity_scaling: 0.05  # ④层近果低速档：只套入/撤退 LIN。果平面斜插封顶 0.20/0.10（失败再 0.10/0.04）；沿轴跳已对轴走更高档。PTP 兜底走 velocity_scaling 0.10。
       mtc_approach_max_lateral_m: 0.05  # 末端到抓取轴线的侧向偏差（米）。小于此值视为已对轴，LIN 是最短直线。
-      mtc_approach_max_align_deg: 20.0  # 末端 Z 与检测轴夹角（度）。小于此值视为已齐，走 LIN 且挂同值姿态路径约束。未齐则先 LIN 原地对齐再平移。规划时另按 keep-roll 及 ±30°/±60° 扫描刀口滚转；接触不用 STOMP/OMPL。
+      mtc_approach_max_align_deg: 20.0  # 末端 Z 与检测轴夹角（度）。小于此值视为已齐，走 LIN 且挂同值姿态路径约束。未齐则先 LIN 原地对齐再平移。规划时另按 keep-roll 及 ±15°/±30°/±45° 扫描刀口滚转；接触不用 STOMP/OMPL。
       observe_planning_time_s: 1.0  # 观察短 LIN 单次规划时间上限（秒）。
       observe_planning_attempts: 1  # 观察短 LIN 规划尝试次数。
       observe_max_duration_s: 0.0  # 观察转移轨迹预计时长上限（秒）。0=不按时长拒发。绕行看累计/单轴行程。

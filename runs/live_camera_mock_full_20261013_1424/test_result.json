@@ -1,0 +1,161 @@
+{
+  "driver_exit_code": 3,
+  "cycle_budget_s": 150,
+  "real_robot_motion": false,
+  "tool_io_enabled": false,
+  "camera_binding": "fixed base_link -> camera_link; original wrist extrinsics disabled",
+  "task_executor": {
+    "revision": 21,
+    "state_seq": 21,
+    "run_id": "live_camera_mock_full_20261013_1424",
+    "cycle_id": "live_camera_mock_full_20261013_1424:target_0",
+    "target_id": "",
+    "operation_mode": 0,
+    "batch_state": 6,
+    "target_phase": 0,
+    "action_active": false,
+    "auto_start_enabled": false,
+    "execution_enabled": true,
+    "grasp_enabled": true,
+    "tool_enabled": false,
+    "recovery_required": false,
+    "progress": 1.0,
+    "message": "completed",
+    "blockers": [],
+    "scene_epoch": 1
+  },
+  "ledger": {
+    "request_id": "live_camera_mock_full_20261013_1424",
+    "path": "/home/mu/Desktop/aubo_e5_jazzy_ws/runs/live_camera_mock_full_20261013_1424/ledger.json",
+    "mtime": 1791872669.4714816,
+    "error": null,
+    "claimed": [
+      "target_0"
+    ],
+    "rows": [
+      {
+        "target_id": "target_0",
+        "outcome": 1,
+        "outcome_name": "SKIPPED_QUALITY",
+        "reason": "skipped_quality: GraspDecision.allowed=false，禁止降级接触: refined_quality_not_allowed",
+        "quality_score": 0.0,
+        "elapsed_s": 8.423,
+        "stages": [],
+        "failure_code": "skipped_quality",
+        "build_view_count": 1,
+        "build_status": "局部重建完成：1 帧，2392 点（少于推荐 5 帧）；重叠指标需 ≥2 帧，本批次不可用；TSDF 926 点 / mesh 1535 顶点（累计积分 0.01s）；refit ACCEPT（袋模型 1 视）",
+        "build_duration_s": 8.213,
+        "completion_level": 0,
+        "failure_code_n": 14
+      }
+    ],
+    "totals": {
+      "SUCCEEDED": 0,
+      "SKIPPED_QUALITY": 1,
+      "SKIPPED_UNREACHABLE": 0,
+      "FAILED": 0,
+      "CANCELED": 0,
+      "attempted": 1,
+      "claimed": 1
+    }
+  },
+  "reconstruction": {
+    "status": {
+      "state": "IDLE"
+    },
+    "diagnostics": {
+      "harvest_run_id": "harvest_20261013T142411_759486_s1",
+      "selected_target_id": "",
+      "target_mask_cache_size": 0,
+      "state": "IDLE",
+      "target_id": "",
+      "target_center_base": null,
+      "bound_axis_hint": null,
+      "captured_views": 0,
+      "pose_count": 0,
+      "rejected_views": 0,
+      "tf_failures": 0,
+      "skipped_views": 0,
+      "skip_reasons": {},
+      "last_skip_code": "",
+      "last_skip_reason": "",
+      "frame_ring_size": 5,
+      "tf_latency_ms": 0.06914138793945312,
+      "valid_depth_ratio": null,
+      "cloud_points": 0,
+      "last_rel_translation_m": null,
+      "last_rel_rotation_deg": null,
+      "overlap": null,
+      "tsdf": null,
+      "registration": {
+        "accepted": 0,
+        "latest": null,
+        "target_refresh_period": 1,
+        "target_points": 0,
+        "target_full_refreshes": 2,
+        "target_incremental_appends": 0
+      },
+      "view_coverage": {
+        "max_baseline_deg": null,
+        "mean_nearest_baseline_deg": null,
+        "valid_depth_ratio_mean": null
+      },
+      "refined": null,
+      "grasp_decision": {
+        "stamp": 1791872675.1671014,
+        "harvest_run_id": "harvest_20261013T142411_759486_s1",
+        "target_id": "",
+        "tool_profile_id": "",
+        "allowed": false,
+        "reason": "reconstruction_not_ready",
+        "valid_until": 1791872791.5840585,
+        "model_revision": "",
+        "scene_epoch": 0,
+        "failure_code": 0
+      },
+      "timing": {
+        "icp_ms_ema": 0.059604644775390625,
+        "tsdf_integrate_ms_ema": 22.992372512817383,
+        "frame_total_ms_ema": 72.74079322814941,
+        "refit_ms_last": 53.67469787597656,
+        "finalize_ms_last": 113.10839653015137,
+        "frames_timed": 1
+      },
+      "stamp": 1791872675.1671014,
+      "view_directions": []
+    },
+    "grasp_decision": {
+      "stamp": 1791872675.1671014,
+      "harvest_run_id": "harvest_20261013T142411_759486_s1",
+      "target_id": "",
+      "tool_profile_id": "",
+      "allowed": false,
+      "reason": "reconstruction_not_ready",
+      "valid_until": 1791872791.5840585,
+      "model_revision": "",
+      "scene_epoch": 0,
+      "failure_code": 0
+    }
+  },
+  "full_grasp_verified": false,
+  "observed_action_result": {
+    "status": "SUCCEEDED",
+    "success": false,
+    "termination_reason": "no_targets_succeeded",
+    "elapsed_s": 38.0,
+    "discovered": 1,
+    "attempted": 1,
+    "succeeded": 0
+  },
+  "root_diagnostic": {
+    "refit": "ACCEPT",
+    "refit_rmse_m": 0.0018583066932499272,
+    "fusion_pose_count": 1,
+    "fusion_lateral_shift_m": 0.020115612370964885,
+    "cut_to_fruit_m": -0.0036505439361047692,
+    "distance_source": "bag_surface_sphere_auxiliary",
+    "cut_capability": "INVALID",
+    "geometry_pregrasp_sleeve_capabilities": "VALID",
+    "completion_level": 0
+  }
+}

@@ -1,6 +1,6 @@
-# `peach_observability` io（v1 活文档）
+# `peach_observability` io（活文档）
 
-> 2026-10-10 用户裁定自仓库级 `docs/io.md` 拆写入包。跨包边界在 [peach_bringup/doc/io.md](../../peach_bringup/doc/io.md)。**源码与本文互相更新，改接口须同一轮改另一边**。
+> 当前接口快照。跨包边界在 [peach_bringup/doc/io.md](../../peach_bringup/doc/io.md)。**源码与本文互相更新，改接口须同一轮改另一边**。
 
 ```mermaid
 flowchart LR
@@ -61,7 +61,7 @@ HTTP `/api/state` 区段：`perception` / `reconstruction` / `refined` / `manipu
 
 ## Web 客户端状态（2026-10-12）
 
-静态页面由顶层 `peach_web` 提供，入口与 ROS API 不变。首屏显示自检/诊断/使能摘要与当前作业；顶栏固定当前阶段（批次态、目标阶段、技能周期、目标 id）。硬件与系统/自检/诊断默认展开。节点日志只读，不增加 SetIO 或运动按钮。状态/轨迹请求各自单在途、有限等待；5 s 无新状态或失联时呈现最后快照并暂停普通操作，取消独立。确认框返回后发送前再次核对新鲜度；后退恢复页面会恢复轮询。
+静态页面由顶层 `peach_web` 提供，入口与 ROS API 不变。首屏显示自检/诊断/使能摘要与当前作业；作业票内用条形对照沿袋轴的长度和入口/剪切点离原点的距离（`job.analysis`）。顶栏固定当前阶段（批次态、目标阶段、技能周期、目标 id）。硬件与系统/自检/诊断默认展开。节点日志只读，不增加 SetIO 或运动按钮。状态/轨迹请求各自单在途、有限等待；5 s 无新状态或失联时呈现最后快照并暂停普通操作，取消独立。确认框返回后发送前再次核对新鲜度；后退恢复页面会恢复轮询。
 
 操作反馈按实际响应区分：`accepted=true` 不等于操作成功，`result.success=false` 显示失败；后端动作 HTTP 202（`result.goal_handle_kept=true`）显示仍在执行，并呈现 `result.message` 中的查询/取消提示；HTTP 504/502/500 或网络异常显示结果未知。POST不自动重发，浏览器等待超时/退出不代表 ROS goal 已取消；在途终态须通过现行状态与取消流程核对。授权仍由后端和臂侧强制，未增加网页授权/SetIO入口。前端测试与浏览器验收方法见 [peach_web README](../../../peach_web/README.md)。
 
@@ -95,6 +95,13 @@ TF 缺失为 `tf_unavailable:<原因>`，零时间为 `unknown_stamp`，超过 1
 `/visualization.js`、`/visualization.css`、`/workbench.js`、`/workbench.css`。
 CSP 维持同源脚本与 `object-src 'none'`，仅图像增加 `blob:` 以显示本地 JPEG 响应。
 
+`grasp_decision` 镜像保留消息的 `frame_id`、`corridor_clear` 以及四项
+`geometry_capability/pregrasp_capability/sleeve_capability/cut_capability`；
+枚举沿用 TargetModel（0 VALID、1 INVALID、2 UNKNOWN），不从汇总 allowed 推导。
+`check_reachability_service` 的 `result` 同时透出并行 `reachable` 与 `error_codes`，
+供前端区分预抓取 IK、套入终点 IK 与笛卡尔路径失败；不增加运动端点。
+位姿四元数 `w=0` 原值透传，是合法的半圈旋转，不能替换成默认 1。
+
 
 重建诊断 `diagnostics.refined_context` 是只读来源注记：原始 JSON 的
 `target_id` / `harvest_run_id` 存在，且在原始消息到达时与感知 `targets` 批次一致、
@@ -104,3 +111,9 @@ CSP 维持同源脚本与 `object-src 'none'`，仅图像增加 `blob:` 以显�
 身份缺失为 unknown，不解析 opaque revision。该注记仅用于 raw refined 诊断显示，
 不为旧 pose candidate、模型接受、抓取许可或运动授权提供依据。
 图像编码为两流合计全局至多 5 Hz，单工作线程按最近处理次序公平消费每流最新槽。
+
+## 投影单源与前端模块
+
+原始精化来源绑定及typed/raw/decision合并由pipeline.py完成，ROS回调仅接线。身份未知、旧模型及模型年龄不能因新诊断心跳而更新成可执行。静态白名单新增`/ui-common.js`、`/monitor-renderers.js`、`/trajectory-renderers.js`、`/request-runtime.js`，均为同源静态资源，CSP及ROS授权边界不变。Snapshot READY、页面allowed与臂侧授权是不同证据，不能相互替代。
+
+`reconstruction.grasp_decision`镜像保留生产消息的完整模型身份（含`scene_epoch`、`calibration_revision`和`config_revision`）及独立能力原值。能力枚举`0=VALID`、`1=INVALID`、`2=UNKNOWN`；不得将零解释为未发布或以汇总`allowed`伪造各能力。

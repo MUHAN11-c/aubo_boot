@@ -1,0 +1,1118 @@
+Starting >>> peach_common
+Starting >>> peach_interfaces
+Starting >>> peach_web
+Starting >>> peach_stereo
+UpdateCTestConfiguration  from :/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_web/CTestConfiguration.ini
+Parse Config file:/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_web/CTestConfiguration.ini
+   Site: mu-MS-7E34
+   Build name: (empty)
+ Add coverage exclude regular expressions.
+Create new tag: 20261015-0145 - Experimental
+UpdateCTestConfiguration  from :/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_web/CTestConfiguration.ini
+Parse Config file:/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_web/CTestConfiguration.ini
+Test project /home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_web
+Constructing a list of tests
+Done constructing a list of tests
+Updating test list for fixtures
+Added 0 tests to meet fixture requirements
+Checking test dependency graph...
+Checking test dependency graph end
+test 1
+    Start 1: test_visualization_state
+
+1: Test command: /usr/bin/python3 "-u" "/opt/ros/jazzy/share/ament_cmake_test/cmake/run_test.py" "/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_web/test_results/peach_web/test_visualization_state.xml" "--package-name" "peach_web" "--generate-result-on-success" "--command" "/home/mu/.nvm/versions/node/v22.22.3/bin/node" "/home/mu/Desktop/aubo_e5_jazzy_ws/src/peach_web/test/visualization_state.test.cjs"
+1: Working Directory: /home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_web
+1: Test timeout computed to be: 30
+UpdateCTestConfiguration  from :/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_interfaces/CTestConfiguration.ini
+Parse Config file:/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_interfaces/CTestConfiguration.ini
+   Site: mu-MS-7E34
+   Build name: (empty)
+ Add coverage exclude regular expressions.
+Create new tag: 20261015-0145 - Experimental
+UpdateCTestConfiguration  from :/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_interfaces/CTestConfiguration.ini
+Parse Config file:/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_interfaces/CTestConfiguration.ini
+Test project /home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_interfaces
+Constructing a list of tests
+Done constructing a list of tests
+Updating test list for fixtures
+Added 0 tests to meet fixture requirements
+Checking test dependency graph...
+Checking test dependency graph end
+test 1
+    Start 1: check_interface_manifest
+
+1: Test command: /home/mu/Desktop/aubo_e5_jazzy_ws/aubo_py3.12/bin/python3 "/home/mu/Desktop/aubo_e5_jazzy_ws/src/peach/peach_interfaces/scripts/check_interface_manifest.py"
+1: Working Directory: /home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_interfaces
+1: Test timeout computed to be: 10000000
+UpdateCTestConfiguration  from :/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_stereo/CTestConfiguration.ini
+Parse Config file:/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_stereo/CTestConfiguration.ini
+   Site: mu-MS-7E34
+   Build name: (empty)
+ Add coverage exclude regular expressions.
+Create new tag: 20261015-0145 - Experimental
+UpdateCTestConfiguration  from :/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_stereo/CTestConfiguration.ini
+Parse Config file:/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_stereo/CTestConfiguration.ini
+Test project /home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_stereo
+Constructing a list of tests
+Done constructing a list of tests
+Updating test list for fixtures
+Added 0 tests to meet fixture requirements
+Checking test dependency graph...
+Checking test dependency graph end
+test 1
+    Start 1: copyright
+
+1: Test command: /usr/bin/python3 "-u" "/opt/ros/jazzy/share/ament_cmake_test/cmake/run_test.py" "/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_stereo/test_results/peach_stereo/copyright.xunit.xml" "--package-name" "peach_stereo" "--output-file" "/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_stereo/ament_copyright/copyright.txt" "--command" "/opt/ros/jazzy/bin/ament_copyright" "--xunit-file" "/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_stereo/test_results/peach_stereo/copyright.xunit.xml"
+1: Working Directory: /home/mu/Desktop/aubo_e5_jazzy_ws/src/peach/peach_stereo
+1: Test timeout computed to be: 200
+1: -- run_test.py: invoking following command in '/home/mu/Desktop/aubo_e5_jazzy_ws/src/peach/peach_stereo':
+1:  - /opt/ros/jazzy/bin/ament_copyright --xunit-file /home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_stereo/test_results/peach_stereo/copyright.xunit.xml
+1: -- run_test.py: invoking following command in '/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_web':
+1:  - /home/mu/.nvm/versions/node/v22.22.3/bin/node /home/mu/Desktop/aubo_e5_jazzy_ws/src/peach_web/test/visualization_state.test.cjs
+1: interface manifest ok (58 active + 5 reserved names)
+1/5 Test #1: check_interface_manifest .........   Passed    0.15 sec
+test 2
+    Start 2: flake8
+
+2: Test command: /home/mu/Desktop/aubo_e5_jazzy_ws/aubo_py3.12/bin/python3 "-u" "/opt/ros/jazzy/share/ament_cmake_test/cmake/run_test.py" "/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_interfaces/test_results/peach_interfaces/flake8.xunit.xml" "--package-name" "peach_interfaces" "--output-file" "/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_interfaces/ament_flake8/flake8.txt" "--command" "/opt/ros/jazzy/bin/ament_flake8" "--xunit-file" "/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_interfaces/test_results/peach_interfaces/flake8.xunit.xml"
+2: Working Directory: /home/mu/Desktop/aubo_e5_jazzy_ws/src/peach/peach_interfaces
+2: Test timeout computed to be: 60
+1: TAP version 13
+1: # Subtest: image metadata never presents missing or invalid timestamps as live
+1: ok 1 - image metadata never presents missing or invalid timestamps as live
+1:   ---
+1:   duration_ms: 0.666516
+1:   type: 'test'
+1:   ...
+1: # Subtest: bad encoder evidence is distinct from a paused or stale camera view
+1: ok 2 - bad encoder evidence is distinct from a paused or stale camera view
+1:   ---
+1:   duration_ms: 0.150246
+1:   type: 'test'
+1:   ...
+1: # Subtest: ROS frame age takes precedence over a wall clock from another time domain
+1: ok 3 - ROS frame age takes precedence over a wall clock from another time domain
+1:   ---
+1:   duration_ms: 0.078278
+1:   type: 'test'
+1:   ...
+1: # Subtest: negative ROS frame age cannot be presented as fresh
+1: ok 4 - negative ROS frame age cannot be presented as fresh
+1:   ---
+1:   duration_ms: 2.363502
+1:   type: 'test'
+1:   ...
+1: # Subtest: model diagnostics distinguish point fit quality from unavailable single-view consistency
+1: ok 5 - model diagnostics distinguish point fit quality from unavailable single-view consistency
+1:   ---
+1:   duration_ms: 0.25764
+1:   type: 'test'
+1:   ...
+1: # Subtest: diagnostic heartbeats do not impersonate a newly fitted model timestamp
+1: ok 6 - diagnostic heartbeats do not impersonate a newly fitted model timestamp
+1:   ---
+1:   duration_ms: 0.148079
+1:   type: 'test'
+1:   ...
+1: # Subtest: an in-flight image cannot resurrect a stream invalidated by an encoder failure
+1: ok 7 - an in-flight image cannot resurrect a stream invalidated by an encoder failure
+1:   ---
+1:   duration_ms: 6.617925
+1:   type: 'test'
+1:   ...
+1: # Subtest: analysis displays unknown capabilities, signed margins and escaped failure evidence
+1: ok 8 - analysis displays unknown capabilities, signed margins and escaped failure evidence
+1:   ---
+1:   duration_ms: 0.474526
+1:   type: 'test'
+1:   ...
+1: # Subtest: initial stale JPEG is displayed with stale frame metadata rather than a blank view
+1: ok 9 - initial stale JPEG is displayed with stale frame metadata rather than a blank view
+1:   ---
+1:   duration_ms: 1.077088
+1:   type: 'test'
+1:   ...
+1: # Subtest: model status exposes a mismatched current identity and labels the diagnostic version
+1: ok 10 - model status exposes a mismatched current identity and labels the diagnostic version
+1:   ---
+1:   duration_ms: 0.210413
+1:   type: 'test'
+1:   ...
+1: # Subtest: image boolean and whitespace ages remain unknown instead of fresh zero
+1: ok 11 - image boolean and whitespace ages remain unknown instead of fresh zero
+1:   ---
+1:   duration_ms: 0.089858
+1:   type: 'test'
+1:   ...
+1: 1..11
+1: # tests 11
+1: # suites 0
+1: # pass 11
+1: # fail 0
+1: # cancelled 0
+1: # skipped 0
+1: # todo 0
+1: # duration_ms 16.035455
+1: -- run_test.py: return code 0
+1: -- run_test.py: generate result file '/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_web/test_results/peach_web/test_visualization_state.xml' with successful test
+1/5 Test #1: test_visualization_state .........   Passed    0.22 sec
+test 2
+    Start 2: test_viz3d
+
+2: Test command: /usr/bin/python3 "-u" "/opt/ros/jazzy/share/ament_cmake_test/cmake/run_test.py" "/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_web/test_results/peach_web/test_viz3d.xml" "--package-name" "peach_web" "--generate-result-on-success" "--command" "/home/mu/.nvm/versions/node/v22.22.3/bin/node" "/home/mu/Desktop/aubo_e5_jazzy_ws/src/peach_web/test/viz3d.test.cjs"
+2: Working Directory: /home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_web
+2: Test timeout computed to be: 30
+2: -- run_test.py: invoking following command in '/home/mu/Desktop/aubo_e5_jazzy_ws/src/peach/peach_interfaces':
+2:  - /opt/ros/jazzy/bin/ament_flake8 --xunit-file /home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_interfaces/test_results/peach_interfaces/flake8.xunit.xml
+2: -- run_test.py: invoking following command in '/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_web':
+2:  - /home/mu/.nvm/versions/node/v22.22.3/bin/node /home/mu/Desktop/aubo_e5_jazzy_ws/src/peach_web/test/viz3d.test.cjs
+1: No problems found, checked 2 files
+1: -- run_test.py: return code 0
+1: -- run_test.py: verify result file '/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_stereo/test_results/peach_stereo/copyright.xunit.xml'
+1/8 Test #1: copyright ........................   Passed    0.46 sec
+test 2
+    Start 2: cppcheck
+
+2: Test command: /usr/bin/python3 "-u" "/opt/ros/jazzy/share/ament_cmake_test/cmake/run_test.py" "/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_stereo/test_results/peach_stereo/cppcheck.xunit.xml" "--package-name" "peach_stereo" "--output-file" "/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_stereo/ament_cppcheck/cppcheck.txt" "--command" "/opt/ros/jazzy/bin/ament_cppcheck" "--xunit-file" "/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_stereo/test_results/peach_stereo/cppcheck.xunit.xml" "--include_dirs" "/home/mu/Desktop/aubo_e5_jazzy_ws/src/peach/peach_stereo/../../percipio_camera/camport4/include"
+2: Working Directory: /home/mu/Desktop/aubo_e5_jazzy_ws/src/peach/peach_stereo
+2: Test timeout computed to be: 300
+2: -- run_test.py: invoking following command in '/home/mu/Desktop/aubo_e5_jazzy_ws/src/peach/peach_stereo':
+2:  - /opt/ros/jazzy/bin/ament_cppcheck --xunit-file /home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_stereo/test_results/peach_stereo/cppcheck.xunit.xml --include_dirs /home/mu/Desktop/aubo_e5_jazzy_ws/src/peach/peach_stereo/../../percipio_camera/camport4/include
+2: 
+2: 1 files checked
+2: No problems found
+2: 
+2: Checked files:
+2: 
+2: * ./scripts/check_interface_manifest.py
+2: -- run_test.py: return code 0
+2: -- run_test.py: verify result file '/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_interfaces/test_results/peach_interfaces/flake8.xunit.xml'
+2: cppcheck 2.13.0 has known performance issues and therefore will not be used, set the AMENT_CPPCHECK_ALLOW_SLOW_VERSIONS environment variable to override this.
+2/5 Test #2: flake8 ...........................   Passed    0.51 sec
+test 3
+    Start 3: lint_cmake
+
+3: Test command: /home/mu/Desktop/aubo_e5_jazzy_ws/aubo_py3.12/bin/python3 "-u" "/opt/ros/jazzy/share/ament_cmake_test/cmake/run_test.py" "/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_interfaces/test_results/peach_interfaces/lint_cmake.xunit.xml" "--package-name" "peach_interfaces" "--output-file" "/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_interfaces/ament_lint_cmake/lint_cmake.txt" "--command" "/opt/ros/jazzy/bin/ament_lint_cmake" "--xunit-file" "/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_interfaces/test_results/peach_interfaces/lint_cmake.xunit.xml"
+3: Working Directory: /home/mu/Desktop/aubo_e5_jazzy_ws/src/peach/peach_interfaces
+3: Test timeout computed to be: 60
+2: TAP version 13
+2: # Subtest: normalization preserves source timestamps, revisions and rejected axis evidence
+2: ok 1 - normalization preserves source timestamps, revisions and rejected axis evidence
+2:   ---
+2:   duration_ms: 55.06337
+2:   type: 'test'
+2:   ...
+2: # Subtest: actual tool axis comes exclusively from tool_axis TF quaternion
+2: ok 2 - actual tool axis comes exclusively from tool_axis TF quaternion
+2:   ---
+2:   duration_ms: 24.980523
+2:   type: 'test'
+2:   ...
+2: # Subtest: target switches never retain another target geometry
+2: ok 3 - target switches never retain another target geometry
+2:   ---
+2:   duration_ms: 9.272326
+2:   type: 'test'
+2:   ...
+2: # Subtest: invalid vectors, non-base TF and zero quaternions never create geometry
+2: ok 4 - invalid vectors, non-base TF and zero quaternions never create geometry
+2:   ---
+2:   duration_ms: 4.471341
+2:   type: 'test'
+2:   ...
+2: # Subtest: missing library or WebGL produces a usable unavailable fallback
+2: ok 5 - missing library or WebGL produces a usable unavailable fallback
+2:   ---
+2:   duration_ms: 4.773166
+2:   type: 'test'
+2:   ...
+2: # Subtest: bag and actual tool axes report source-based angle or null
+2: ok 6 - bag and actual tool axes report source-based angle or null
+2:   ---
+2:   duration_ms: 15.779968
+2:   type: 'test'
+2:   ...
+2: # Subtest: explicitly selected target hides geometry for another target
+2: ok 7 - explicitly selected target hides geometry for another target
+2:   ---
+2:   duration_ms: 8.601402
+2:   type: 'test'
+2:   ...
+2: # Subtest: selected scene epoch rejects old reconstruction geometry
+2: ok 8 - selected scene epoch rejects old reconstruction geometry
+2:   ---
+2:   duration_ms: 4.041437
+2:   type: 'test'
+2:   ...
+2: # Subtest: Z-up views render on changes, preserve user camera and release resources
+2: ok 9 - Z-up views render on changes, preserve user camera and release resources
+2:   ---
+2:   duration_ms: 14.189631
+2:   type: 'test'
+2:   ...
+2: # Subtest: refused decision with zero axis never manufactures origin references
+2: ok 10 - refused decision with zero axis never manufactures origin references
+2:   ---
+2:   duration_ms: 4.990248
+2:   type: 'test'
+2:   ...
+2: # Subtest: same target in new scene rejects old decision and all old fused references
+2: ok 11 - same target in new scene rejects old decision and all old fused references
+2:   ---
+2:   duration_ms: 8.826227
+2:   type: 'test'
+2:   ...
+2: # Subtest: unknown model and decision epochs never acquire current-scene scope
+2: ok 12 - unknown model and decision epochs never acquire current-scene scope
+2:   ---
+2:   duration_ms: 4.47511
+2:   type: 'test'
+2:   ...
+2: # Subtest: model explicit old epoch overrides even a valid current decision
+2: ok 13 - model explicit old epoch overrides even a valid current decision
+2:   ---
+2:   duration_ms: 4.295255
+2:   type: 'test'
+2:   ...
+2: # Subtest: explicit model scope can retain rejected diagnostics without a decision
+2: ok 14 - explicit model scope can retain rejected diagnostics without a decision
+2:   ---
+2:   duration_ms: 4.509619
+2:   type: 'test'
+2:   ...
+2: # Subtest: unavailable actual TF removes angle immediately
+2: ok 15 - unavailable actual TF removes angle immediately
+2:   ---
+2:   duration_ms: 4.385778
+2:   type: 'test'
+2:   ...
+2: # Subtest: decision without epoch cannot borrow a correctly scoped model for motion references
+2: ok 16 - decision without epoch cannot borrow a correctly scoped model for motion references
+2:   ---
+2:   duration_ms: 3.95221
+2:   type: 'test'
+2:   ...
+2: # Subtest: old pose candidate cannot bypass contradictory model epoch via current decision
+2: ok 17 - old pose candidate cannot bypass contradictory model epoch via current decision
+2:   ---
+2:   duration_ms: 5.643006
+2:   type: 'test'
+2:   ...
+2: # Subtest: raw rejection retains diagnostic axis with verified target run epoch context
+2: ok 18 - raw rejection retains diagnostic axis with verified target run epoch context
+2:   ---
+2:   duration_ms: 3.547027
+2:   type: 'test'
+2:   ...
+2: # Subtest: typed target merge cannot rewrite raw rejected model provenance
+2: ok 19 - typed target merge cannot rewrite raw rejected model provenance
+2:   ---
+2:   duration_ms: 3.27243
+2:   type: 'test'
+2:   ...
+2: # Subtest: old raw run context cannot borrow a valid current decision
+2: ok 20 - old raw run context cannot borrow a valid current decision
+2:   ---
+2:   duration_ms: 3.31344
+2:   type: 'test'
+2:   ...
+2: # Subtest: old raw epoch context cannot borrow a valid current decision
+2: ok 21 - old raw epoch context cannot borrow a valid current decision
+2:   ---
+2:   duration_ms: 3.207084
+2:   type: 'test'
+2:   ...
+2: # Subtest: verified raw context never scopes an unversioned typed pose candidate
+2: ok 22 - verified raw context never scopes an unversioned typed pose candidate
+2:   ---
+2:   duration_ms: 7.469009
+2:   type: 'test'
+2:   ...
+2: # Subtest: incomplete raw context never borrows current decision epoch
+2: ok 23 - incomplete raw context never borrows current decision epoch
+2:   ---
+2:   duration_ms: 3.394422
+2:   type: 'test'
+2:   ...
+2: # Subtest: new decision cannot revive old raw diagnostics after context removal
+2: ok 24 - new decision cannot revive old raw diagnostics after context removal
+2:   ---
+2:   duration_ms: 4.679897
+2:   type: 'test'
+2:   ...
+2: # Subtest: new decision cannot relabel old typed pose without its own run and epoch
+2: ok 25 - new decision cannot relabel old typed pose without its own run and epoch
+2:   ---
+2:   duration_ms: 4.486774
+2:   type: 'test'
+2:   ...
+2: # Subtest: typed pose with its own matching run and epoch remains visible
+2: ok 26 - typed pose with its own matching run and epoch remains visible
+2:   ---
+2:   duration_ms: 5.70537
+2:   type: 'test'
+2:   ...
+2: # Subtest: typed pose with matching epoch but old run stays hidden
+2: ok 27 - typed pose with matching epoch but old run stays hidden
+2:   ---
+2:   duration_ms: 4.968796
+2:   type: 'test'
+2:   ...
+2: # Subtest: geometry analysis computes axial projection, lateral offset and signed travel mismatch
+2: ok 28 - geometry analysis computes axial projection, lateral offset and signed travel mismatch
+2:   ---
+2:   duration_ms: 8.426809
+2:   type: 'test'
+2:   ...
+2: # Subtest: permission and radial distance never imply MoveIt reachability
+2: ok 29 - permission and radial distance never imply MoveIt reachability
+2:   ---
+2:   duration_ms: 8.676492
+2:   type: 'test'
+2:   ...
+2: # Subtest: target switches hide numeric budgets and planning results for other targets
+2: ok 30 - target switches hide numeric budgets and planning results for other targets
+2:   ---
+2:   duration_ms: 4.269287
+2:   type: 'test'
+2:   ...
+2: # Subtest: missing numeric evidence is null rather than zero or NaN
+2: ok 31 - missing numeric evidence is null rather than zero or NaN
+2:   ---
+2:   duration_ms: 4.337233
+2:   type: 'test'
+2:   ...
+2: # Subtest: a decision from a different harvest run is never drawn as executable geometry
+2: ok 32 - a decision from a different harvest run is never drawn as executable geometry
+2:   ---
+2:   duration_ms: 5.544595
+2:   type: 'test'
+2:   ...
+2: # Subtest: completed retreat is shown beyond pregrasp without claiming harvest confirmation
+2: ok 33 - completed retreat is shown beyond pregrasp without claiming harvest confirmation
+2:   ---
+2:   duration_ms: 15.05604
+2:   type: 'test'
+2:   ...
+2: # Subtest: unavailable fit sentinels never become negative RMSE or inlier percentages
+2: ok 34 - unavailable fit sentinels never become negative RMSE or inlier percentages
+2:   ---
+2:   duration_ms: 12.317539
+2:   type: 'test'
+2:   ...
+2: 1..34
+2: # tests 34
+2: # suites 0
+2: # pass 34
+2: # fail 0
+2: # cancelled 0
+2: # skipped 0
+2: # todo 0
+2: # duration_ms 307.089743
+2: -- run_test.py: return code 0
+2: -- run_test.py: verify result file '/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_stereo/test_results/peach_stereo/cppcheck.xunit.xml'
+2: -- run_test.py: return code 0
+2: -- run_test.py: generate result file '/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_web/test_results/peach_web/test_viz3d.xml' with successful test
+2/8 Test #2: cppcheck .........................   Passed    0.24 sec
+test 3
+    Start 3: cpplint
+
+3: Test command: /usr/bin/python3 "-u" "/opt/ros/jazzy/share/ament_cmake_test/cmake/run_test.py" "/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_stereo/test_results/peach_stereo/cpplint.xunit.xml" "--package-name" "peach_stereo" "--output-file" "/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_stereo/ament_cpplint/cpplint.txt" "--command" "/opt/ros/jazzy/bin/ament_cpplint" "--xunit-file" "/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_stereo/test_results/peach_stereo/cpplint.xunit.xml"
+3: Working Directory: /home/mu/Desktop/aubo_e5_jazzy_ws/src/peach/peach_stereo
+3: Test timeout computed to be: 120
+2/5 Test #2: test_viz3d .......................   Passed    0.50 sec
+test 3
+    Start 3: test_viz3d_runner
+
+3: Test command: /usr/bin/python3 "-u" "/opt/ros/jazzy/share/ament_cmake_test/cmake/run_test.py" "/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_web/test_results/peach_web/test_viz3d_runner.xml" "--package-name" "peach_web" "--generate-result-on-success" "--command" "/home/mu/.nvm/versions/node/v22.22.3/bin/node" "/home/mu/Desktop/aubo_e5_jazzy_ws/src/peach_web/test/viz3d_runner.test.cjs"
+3: Working Directory: /home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_web
+3: Test timeout computed to be: 30
+3: -- run_test.py: invoking following command in '/home/mu/Desktop/aubo_e5_jazzy_ws/src/peach/peach_interfaces':
+3:  - /opt/ros/jazzy/bin/ament_lint_cmake --xunit-file /home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_interfaces/test_results/peach_interfaces/lint_cmake.xunit.xml
+3: -- run_test.py: invoking following command in '/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_web':
+3:  - /home/mu/.nvm/versions/node/v22.22.3/bin/node /home/mu/Desktop/aubo_e5_jazzy_ws/src/peach_web/test/viz3d_runner.test.cjs
+3: -- run_test.py: invoking following command in '/home/mu/Desktop/aubo_e5_jazzy_ws/src/peach/peach_stereo':
+3:  - /opt/ros/jazzy/bin/ament_cpplint --xunit-file /home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_stereo/test_results/peach_stereo/cpplint.xunit.xml
+3: 
+3: No problems found
+3: -- run_test.py: return code 0
+3: -- run_test.py: verify result file '/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_interfaces/test_results/peach_interfaces/lint_cmake.xunit.xml'
+3/5 Test #3: lint_cmake .......................   Passed    0.15 sec
+test 4
+    Start 4: pep257
+
+4: Test command: /home/mu/Desktop/aubo_e5_jazzy_ws/aubo_py3.12/bin/python3 "-u" "/opt/ros/jazzy/share/ament_cmake_test/cmake/run_test.py" "/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_interfaces/test_results/peach_interfaces/pep257.xunit.xml" "--package-name" "peach_interfaces" "--output-file" "/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_interfaces/ament_pep257/pep257.txt" "--command" "/opt/ros/jazzy/bin/ament_pep257" "--xunit-file" "/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_interfaces/test_results/peach_interfaces/pep257.xunit.xml"
+4: Working Directory: /home/mu/Desktop/aubo_e5_jazzy_ws/src/peach/peach_interfaces
+4: Test timeout computed to be: 60
+============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-7.4.4, pluggy-1.4.0
+cachedir: /home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_common/.pytest_cache
+rootdir: /home/mu/Desktop/aubo_e5_jazzy_ws/src/peach/peach_common
+plugins: dash-4.4.1, ament-lint-0.17.5, ament-xmllint-0.17.5, ament-copyright-0.17.5, launch-pytest-3.4.12, launch-testing-3.4.12, launch-testing-ros-0.26.13, ament-pep257-0.17.5, ament-flake8-0.17.5, anyio-4.15.1, typeguard-4.1.5, colcon-core-0.21.3, cov-4.1.0
+collected 47 items
+
+test/test_event_meter.py ..                                              [  4%]
+test/test_lifecycle.py ....                                              [ 12%]
+test/test_param_rules.py ..............                                  [ 42%]
+test/test_paths.py ............                                          [ 68%]
+test/test_qos.py ....                                                    [ 76%]
+test/test_ros_log_bridge.py .....                                        [ 87%]
+4: -- run_test.py: invoking following command in '/home/mu/Desktop/aubo_e5_jazzy_ws/src/peach/peach_interfaces':
+4:  - /opt/ros/jazzy/bin/ament_pep257 --xunit-file /home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_interfaces/test_results/peach_interfaces/pep257.xunit.xml
+test/test_yaml_params.py ......                                          [100%]
+
+- generated xml file: /home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_common/pytest.xml -
+============================== 47 passed in 0.12s ==============================
+4: checking ./scripts/check_interface_manifest.py
+4: No problems found
+4: -- run_test.py: return code 0
+4: -- run_test.py: verify result file '/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_interfaces/test_results/peach_interfaces/pep257.xunit.xml'
+4/5 Test #4: pep257 ...........................   Passed    0.16 sec
+test 5
+    Start 5: xmllint
+
+5: Test command: /home/mu/Desktop/aubo_e5_jazzy_ws/aubo_py3.12/bin/python3 "-u" "/opt/ros/jazzy/share/ament_cmake_test/cmake/run_test.py" "/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_interfaces/test_results/peach_interfaces/xmllint.xunit.xml" "--package-name" "peach_interfaces" "--output-file" "/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_interfaces/ament_xmllint/xmllint.txt" "--command" "/opt/ros/jazzy/bin/ament_xmllint" "--xunit-file" "/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_interfaces/test_results/peach_interfaces/xmllint.xunit.xml"
+5: Working Directory: /home/mu/Desktop/aubo_e5_jazzy_ws/src/peach/peach_interfaces
+5: Test timeout computed to be: 60
+3: TAP version 13
+3: # Subtest: direct runner exposes actual passing subtests
+3: Using '--root=/home/mu/Desktop/aubo_e5_jazzy_ws/src/peach/peach_stereo/src' argument
+3: 
+3: Done processing /home/mu/Desktop/aubo_e5_jazzy_ws/src/peach/peach_stereo/src/stereo_camera_node.cpp
+3: 
+3: No problems found
+3: ok 1 - direct runner exposes actual passing subtests
+3:   ---
+3:   duration_ms: 144.541572
+3:   type: 'test'
+3:   ...
+3: # Subtest: direct runner preserves failed assertion output and returns failure
+3: ok 2 - direct runner preserves failed assertion output and returns failure
+3:   ---
+3:   duration_ms: 97.87947
+3:   type: 'test'
+3:   ...
+3: 1..2
+3: # tests 2
+3: # suites 0
+3: # pass 2
+3: # fail 0
+3: # cancelled 0
+3: # skipped 0
+3: # todo 0
+3: # duration_ms 247.108293
+3: -- run_test.py: return code 0
+3: -- run_test.py: generate result file '/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_web/test_results/peach_web/test_viz3d_runner.xml' with successful test
+3: -- run_test.py: return code 0
+3: -- run_test.py: verify result file '/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_stereo/test_results/peach_stereo/cpplint.xunit.xml'
+3/8 Test #3: cpplint ..........................   Passed    0.37 sec
+test 4
+    Start 4: flake8
+
+4: Test command: /usr/bin/python3 "-u" "/opt/ros/jazzy/share/ament_cmake_test/cmake/run_test.py" "/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_stereo/test_results/peach_stereo/flake8.xunit.xml" "--package-name" "peach_stereo" "--output-file" "/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_stereo/ament_flake8/flake8.txt" "--command" "/opt/ros/jazzy/bin/ament_flake8" "--xunit-file" "/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_stereo/test_results/peach_stereo/flake8.xunit.xml"
+4: Working Directory: /home/mu/Desktop/aubo_e5_jazzy_ws/src/peach/peach_stereo
+4: Test timeout computed to be: 60
+3/5 Test #3: test_viz3d_runner ................   Passed    0.37 sec
+test 4
+    Start 4: test_web_state
+
+4: Test command: /usr/bin/python3 "-u" "/opt/ros/jazzy/share/ament_cmake_test/cmake/run_test.py" "/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_web/test_results/peach_web/test_web_state.xml" "--package-name" "peach_web" "--generate-result-on-success" "--command" "/home/mu/.nvm/versions/node/v22.22.3/bin/node" "/home/mu/Desktop/aubo_e5_jazzy_ws/src/peach_web/test/web_state.test.cjs"
+4: Working Directory: /home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_web
+4: Test timeout computed to be: 30
+5: -- run_test.py: invoking following command in '/home/mu/Desktop/aubo_e5_jazzy_ws/src/peach/peach_interfaces':
+5:  - /opt/ros/jazzy/bin/ament_xmllint --xunit-file /home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_interfaces/test_results/peach_interfaces/xmllint.xunit.xml
+4: -- run_test.py: invoking following command in '/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_web':
+4:  - /home/mu/.nvm/versions/node/v22.22.3/bin/node /home/mu/Desktop/aubo_e5_jazzy_ws/src/peach_web/test/web_state.test.cjs
+4: -- run_test.py: invoking following command in '/home/mu/Desktop/aubo_e5_jazzy_ws/src/peach/peach_stereo':
+4:  - /opt/ros/jazzy/bin/ament_flake8 --xunit-file /home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_stereo/test_results/peach_stereo/flake8.xunit.xml
+4: TAP version 13
+4: # Subtest: keyword filtering includes log text without weakening level or node filters
+4: ok 1 - keyword filtering includes log text without weakening level or node filters
+4:   ---
+4:   duration_ms: 14.489038
+4:   type: 'test'
+4:   ...
+4: # Subtest: target context is rechecked after confirmation before sending a command
+4: ok 2 - target context is rechecked after confirmation before sending a command
+4:   ---
+4:   duration_ms: 1.940193
+4:   type: 'test'
+4:   ...
+4: # Subtest: trajectory fetch failure invalidates cached tool frames without erasing the historical path
+4: ok 3 - trajectory fetch failure invalidates cached tool frames without erasing the historical path
+4:   ---
+4:   duration_ms: 1.229687
+4:   type: 'test'
+4:   ...
+4: # Subtest: lighting renders observed components instead of object coercion
+4: ok 4 - lighting renders observed components instead of object coercion
+4:   ---
+4:   duration_ms: 4.610803
+4:   type: 'test'
+4:   ...
+4: # Subtest: initial load requests the trajectory only once
+4: ok 5 - initial load requests the trajectory only once
+4:   ---
+4:   duration_ms: 1.546794
+4:   type: 'test'
+4:   ...
+4: # Subtest: slow state fetch never overlaps another state fetch
+4: ok 6 - slow state fetch never overlaps another state fetch
+4:   ---
+4:   duration_ms: 1.181243
+4:   type: 'test'
+4:   ...
+4: # Subtest: accepted Nav2 request with success=false is an operation failure
+4: ok 7 - accepted Nav2 request with success=false is an operation failure
+4:   ---
+4:   duration_ms: 1.400678
+4:   type: 'test'
+4:   ...
+4: # Subtest: transport loss records unknown outcome without retrying the POST
+4: ok 8 - transport loss records unknown outcome without retrying the POST
+4:   ---
+4:   duration_ms: 1.107776
+4:   type: 'test'
+4:   ...
+4: # Subtest: duplicate command cannot submit while its previous POST is pending
+4: ok 9 - duplicate command cannot submit while its previous POST is pending
+4:   ---
+4:   duration_ms: 1.339585
+4:   type: 'test'
+4:   ...
+4: # Subtest: state refresh retains pending lock and independent cancellation controls
+4: ok 10 - state refresh retains pending lock and independent cancellation controls
+4:   ---
+4:   duration_ms: 2.248185
+4:   type: 'test'
+4:   ...
+4: # Subtest: disconnected state disables ordinary commands but retains cancellation
+4: ok 11 - disconnected state disables ordinary commands but retains cancellation
+4:   ---
+4:   duration_ms: 1.358126
+4:   type: 'test'
+4:   ...
+4: # Subtest: hung state request is aborted and a later poll can recover
+4: ok 12 - hung state request is aborted and a later poll can recover
+4:   ---
+4:   duration_ms: 1.304515
+4:   type: 'test'
+4:   ...
+4: # Subtest: arrow-key tab navigation updates selection, panel and focus
+4: ok 13 - arrow-key tab navigation updates selection, panel and focus
+4:   ---
+4:   duration_ms: 1.021088
+4:   type: 'test'
+4:   ...
+4: # Subtest: backend 202 keeps the running goal visible and preserves its cancel advice
+4: ok 14 - backend 202 keeps the running goal visible and preserves its cancel advice
+4:   ---
+4:   duration_ms: 1.407929
+4:   type: 'test'
+4:   ...
+4: # Subtest: backend 504 is an unknown execution outcome, not a rejected goal
+4: ok 15 - backend 504 is an unknown execution outcome, not a rejected goal
+4:   ---
+4:   duration_ms: 2.597983
+4:   type: 'test'
+4:   ...
+4: # Subtest: BFCache restore restarts polling without duplicating timers
+4: ok 16 - BFCache restore restarts polling without duplicating timers
+4:   ---
+4:   duration_ms: 1.54424
+4:   type: 'test'
+4:   ...
+4: # Subtest: log filter keeps the chosen level and above
+4: ok 17 - log filter keeps the chosen level and above
+4:   ---
+4:   duration_ms: 1.611914
+4:   type: 'test'
+4:   ...
+4: # Subtest: current stage from the snapshot is written to the header
+4: ok 18 - current stage from the snapshot is written to the header
+4:   ---
+4:   duration_ms: 1.290131
+4:   type: 'test'
+4:   ...
+4: # Subtest: confirming after the snapshot expires cannot send an ordinary POST
+4: ok 19 - confirming after the snapshot expires cannot send an ordinary POST
+4:   ---
+4:   duration_ms: 1.225547
+4:   type: 'test'
+4:   ...
+4: # Subtest: canceled level 2 ledger preserves pregrasp verification and cancellation
+4: ok 20 - canceled level 2 ledger preserves pregrasp verification and cancellation
+4:   ---
+4:   duration_ms: 2.390721
+4:   type: 'test'
+4:   ...
+4: # Subtest: perception HARVESTED and level 6 never count as confirmed harvest
+4: ok 21 - perception HARVESTED and level 6 never count as confirmed harvest
+4:   ---
+4:   duration_ms: 1.558991
+4:   type: 'test'
+4:   ...
+4: # Subtest: only matching current ledger level 7 counts as confirmed harvest
+4: ok 22 - only matching current ledger level 7 counts as confirmed harvest
+4:   ---
+4:   duration_ms: 0.96299
+4:   type: 'test'
+4:   ...
+4: # Subtest: allowed decision with diagnostic reason is not displayed as a rejection
+4: ok 23 - allowed decision with diagnostic reason is not displayed as a rejection
+4:   ---
+4:   duration_ms: 1.353695
+4:   type: 'test'
+4:   ...
+4: # Subtest: photo return never posts through disabled motion or recovery gates
+4: ok 24 - photo return never posts through disabled motion or recovery gates
+4:   ---
+4:   duration_ms: 0.955455
+4:   type: 'test'
+4:   ...
+4: # Subtest: photo return uses the existing service after explicit recovery has cleared
+4: ok 25 - photo return uses the existing service after explicit recovery has cleared
+4:   ---
+4:   duration_ms: 1.10791
+4:   type: 'test'
+4:   ...
+4: # Subtest: photo return confirmation rechecks the motion gate before submitting
+4: ok 26 - photo return confirmation rechecks the motion gate before submitting
+4:   ---
+4:   duration_ms: 1.027174
+4:   type: 'test'
+4:   ...
+4: # Subtest: photo return is disabled during an arm cycle but execution-off still permits planning
+4: ok 27 - photo return is disabled during an arm cycle but execution-off still permits planning
+4:   ---
+4:   duration_ms: 1.105455
+4:   type: 'test'
+4:   ...
+4: # Subtest: main operation area explains PREGRASP_ONLY and independent grasp diagnostic
+4: ok 28 - main operation area explains PREGRASP_ONLY and independent grasp diagnostic
+4:   ---
+4:   duration_ms: 1.049961
+4:   type: 'test'
+4:   ...
+4: # Subtest: main operation area shows FULL enable blockers and preserves canceled level 2 evidence
+4: ok 29 - main operation area shows FULL enable blockers and preserves canceled level 2 evidence
+4:   ---
+4:   duration_ms: 1.0801
+4:   type: 'test'
+4:   ...
+4: # Subtest: PREVIEW can submit with motion disabled while OBSERVE_ONLY cannot
+4: ok 30 - PREVIEW can submit with motion disabled while OBSERVE_ONLY cannot
+4:   ---
+4:   duration_ms: 1.266769
+4:   type: 'test'
+4:   ...
+4: # Subtest: return-photo click confirms and submits only the existing empty service request
+4: ok 31 - return-photo click confirms and submits only the existing empty service request
+4:   ---
+4:   duration_ms: 1.47319
+4:   type: 'test'
+4:   ...
+4: # Subtest: accepted response without success is not a confirmed successful operation
+4: ok 32 - accepted response without success is not a confirmed successful operation
+4:   ---
+4:   duration_ms: 6.621511
+4:   type: 'test'
+4:   ...
+4: # Subtest: formatting does not turn boolean or blank missing values into measured zero
+4: ok 33 - formatting does not turn boolean or blank missing values into measured zero
+4:   ---
+4:   duration_ms: 2.538423
+4:   type: 'test'
+4:   ...
+Finished <<< peach_common [1.53s]
+Starting >>> peach_vegetation
+4: # Subtest: binding controls again does not duplicate command or log listeners
+4: ok 34 - binding controls again does not duplicate command or log listeners
+4:   ---
+4:   duration_ms: 1.231447
+4:   type: 'test'
+4:   ...
+4: 1..34
+4: # tests 34
+4: # suites 0
+4: # pass 34
+4: # fail 0
+4: # cancelled 0
+4: # skipped 0
+4: # todo 0
+4: # duration_ms 75.003316
+4: -- run_test.py: return code 0
+4: -- run_test.py: generate result file '/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_web/test_results/peach_web/test_web_state.xml' with successful test
+4/5 Test #4: test_web_state ...................   Passed    0.17 sec
+test 5
+    Start 5: test_workbench
+
+5: Test command: /usr/bin/python3 "-u" "/opt/ros/jazzy/share/ament_cmake_test/cmake/run_test.py" "/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_web/test_results/peach_web/test_workbench.xml" "--package-name" "peach_web" "--generate-result-on-success" "--command" "/home/mu/.nvm/versions/node/v22.22.3/bin/node" "/home/mu/Desktop/aubo_e5_jazzy_ws/src/peach_web/test/workbench.test.cjs"
+5: Working Directory: /home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_web
+5: Test timeout computed to be: 30
+5: -- run_test.py: invoking following command in '/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_web':
+5:  - /home/mu/.nvm/versions/node/v22.22.3/bin/node /home/mu/Desktop/aubo_e5_jazzy_ws/src/peach_web/test/workbench.test.cjs
+5: TAP version 13
+5: # Subtest: manual target survives selected_target polling, epoch invalidates it
+5: ok 1 - manual target survives selected_target polling, epoch invalidates it
+5:   ---
+5:   duration_ms: 0.604015
+5:   type: 'test'
+5:   ...
+5: # Subtest: confirmation guard rejects vanished targets and changed epochs
+5: ok 2 - confirmation guard rejects vanished targets and changed epochs
+5:   ---
+5:   duration_ms: 0.16279
+5:   type: 'test'
+5:   ...
+5: # Subtest: motion classification follows backend and allowed negative budgets remain diagnostic
+5: ok 3 - motion classification follows backend and allowed negative budgets remain diagnostic
+5:   ---
+5:   duration_ms: 0.680457
+5:   type: 'test'
+5:   ...
+5: # Subtest: operation lock prevents duplicates and lets independent cancellation through
+5: ok 4 - operation lock prevents duplicates and lets independent cancellation through
+5:   ---
+5:   duration_ms: 0.201113
+5:   type: 'test'
+5:   ...
+5: # Subtest: new experiments generate safe unique request ids
+5: ok 5 - new experiments generate safe unique request ids
+5:   ---
+5:   duration_ms: 1.33598
+5:   type: 'test'
+5:   ...
+5: # Subtest: stale state blocks operations while cancellation remains available
+5: ok 6 - stale state blocks operations while cancellation remains available
+5:   ---
+5:   duration_ms: 0.085045
+5:   type: 'test'
+5:   ...
+5: # Subtest: step navigation sends no requests and preserves visualization host DOM
+5: ok 7 - step navigation sends no requests and preserves visualization host DOM
+5:   ---
+5:   duration_ms: 0.960543
+5:   type: 'test'
+5:   ...
+5: # Subtest: submission captures target before confirmation and guard prevents stale send
+5: ok 8 - submission captures target before confirmation and guard prevents stale send
+5:   ---
+5:   duration_ms: 0.473799
+5:   type: 'test'
+5:   ...
+5: # Subtest: polling preserves user input and does not select a new epoch target
+5: ok 9 - polling preserves user input and does not select a new epoch target
+5:   ---
+5:   duration_ms: 0.804429
+5:   type: 'test'
+5:   ...
+5: # Subtest: manual non-current target publishes immutable context, unchanged polling stays quiet
+5: ok 10 - manual non-current target publishes immutable context, unchanged polling stays quiet
+5:   ---
+5:   duration_ms: 0.723506
+5:   type: 'test'
+5:   ...
+5: # Subtest: epoch invalidation publishes empty context once and new experiment refreshes it
+5: ok 11 - epoch invalidation publishes empty context once and new experiment refreshes it
+5:   ---
+5:   duration_ms: 0.307386
+5:   type: 'test'
+5:   ...
+5: # Subtest: reachability response shows per-pose solver errors instead of request success
+5: ok 12 - reachability response shows per-pose solver errors instead of request success
+5:   ---
+5:   duration_ms: 0.170338
+5:   type: 'test'
+5:   ...
+5: # Subtest: unreported scene epoch is unknown while capability zero remains valid
+5: ok 13 - unreported scene epoch is unknown while capability zero remains valid
+5:   ---
+5:   duration_ms: 0.261361
+5:   type: 'test'
+5:   ...
+5: 1..13
+5: # tests 13
+5: # suites 0
+5: # pass 13
+5: # fail 0
+5: # cancelled 0
+5: # skipped 0
+5: # todo 0
+5: # duration_ms 13.402294
+5: -- run_test.py: return code 0
+5: -- run_test.py: generate result file '/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_web/test_results/peach_web/test_workbench.xml' with successful test
+5/5 Test #5: test_workbench ...................   Passed    0.14 sec
+
+100% tests passed, 0 tests failed out of 5
+
+Total Test time (real) =   1.39 sec
+4: 
+4: 1 files checked
+4: No problems found
+4: 
+4: Checked files:
+4: 
+4: * ./launch/stereo_camera.launch.py
+4: -- run_test.py: return code 0
+4: -- run_test.py: verify result file '/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_stereo/test_results/peach_stereo/flake8.xunit.xml'
+4/8 Test #4: flake8 ...........................   Passed    0.29 sec
+test 5
+    Start 5: lint_cmake
+
+5: Test command: /usr/bin/python3 "-u" "/opt/ros/jazzy/share/ament_cmake_test/cmake/run_test.py" "/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_stereo/test_results/peach_stereo/lint_cmake.xunit.xml" "--package-name" "peach_stereo" "--output-file" "/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_stereo/ament_lint_cmake/lint_cmake.txt" "--command" "/opt/ros/jazzy/bin/ament_lint_cmake" "--xunit-file" "/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_stereo/test_results/peach_stereo/lint_cmake.xunit.xml"
+5: Working Directory: /home/mu/Desktop/aubo_e5_jazzy_ws/src/peach/peach_stereo
+5: Test timeout computed to be: 60
+5: -- run_test.py: invoking following command in '/home/mu/Desktop/aubo_e5_jazzy_ws/src/peach/peach_stereo':
+5:  - /opt/ros/jazzy/bin/ament_lint_cmake --xunit-file /home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_stereo/test_results/peach_stereo/lint_cmake.xunit.xml
+Finished <<< peach_web [1.74s]
+5: 
+5: No problems found
+5: -- run_test.py: return code 0
+5: -- run_test.py: verify result file '/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_stereo/test_results/peach_stereo/lint_cmake.xunit.xml'
+5/8 Test #5: lint_cmake .......................   Passed    0.17 sec
+test 6
+    Start 6: pep257
+
+6: Test command: /usr/bin/python3 "-u" "/opt/ros/jazzy/share/ament_cmake_test/cmake/run_test.py" "/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_stereo/test_results/peach_stereo/pep257.xunit.xml" "--package-name" "peach_stereo" "--output-file" "/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_stereo/ament_pep257/pep257.txt" "--command" "/opt/ros/jazzy/bin/ament_pep257" "--xunit-file" "/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_stereo/test_results/peach_stereo/pep257.xunit.xml"
+6: Working Directory: /home/mu/Desktop/aubo_e5_jazzy_ws/src/peach/peach_stereo
+6: Test timeout computed to be: 60
+6: -- run_test.py: invoking following command in '/home/mu/Desktop/aubo_e5_jazzy_ws/src/peach/peach_stereo':
+6:  - /opt/ros/jazzy/bin/ament_pep257 --xunit-file /home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_stereo/test_results/peach_stereo/pep257.xunit.xml
+5: File 'package.xml' is valid
+5: 
+5: No problems found
+5: -- run_test.py: return code 0
+5: -- run_test.py: verify result file '/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_interfaces/test_results/peach_interfaces/xmllint.xunit.xml'
+5/5 Test #5: xmllint ..........................   Passed    0.72 sec
+
+100% tests passed, 0 tests failed out of 5
+
+Label Time Summary:
+flake8        =   0.51 sec*proc (1 test)
+lint_cmake    =   0.15 sec*proc (1 test)
+linter        =   1.54 sec*proc (4 tests)
+pep257        =   0.16 sec*proc (1 test)
+xmllint       =   0.72 sec*proc (1 test)
+
+Total Test time (real) =   1.70 sec
+Finished <<< peach_interfaces [1.99s]
+Starting >>> peach_harvester
+Starting >>> peach_observability
+6: checking ./launch/stereo_camera.launch.py
+6: No problems found
+6: -- run_test.py: return code 0
+6: -- run_test.py: verify result file '/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_stereo/test_results/peach_stereo/pep257.xunit.xml'
+6/8 Test #6: pep257 ...........................   Passed    0.35 sec
+test 7
+    Start 7: uncrustify
+
+7: Test command: /usr/bin/python3 "-u" "/opt/ros/jazzy/share/ament_cmake_test/cmake/run_test.py" "/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_stereo/test_results/peach_stereo/uncrustify.xunit.xml" "--package-name" "peach_stereo" "--output-file" "/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_stereo/ament_uncrustify/uncrustify.txt" "--command" "/opt/ros/jazzy/bin/ament_uncrustify" "--xunit-file" "/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_stereo/test_results/peach_stereo/uncrustify.xunit.xml"
+7: Working Directory: /home/mu/Desktop/aubo_e5_jazzy_ws/src/peach/peach_stereo
+7: Test timeout computed to be: 60
+7: -- run_test.py: invoking following command in '/home/mu/Desktop/aubo_e5_jazzy_ws/src/peach/peach_stereo':
+7:  - /opt/ros/jazzy/bin/ament_uncrustify --xunit-file /home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_stereo/test_results/peach_stereo/uncrustify.xunit.xml
+7: No code style divergence in file 'src/stereo_camera_node.cpp'
+7: 
+7: No problems found
+7: -- run_test.py: return code 0
+7: -- run_test.py: verify result file '/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_stereo/test_results/peach_stereo/uncrustify.xunit.xml'
+7/8 Test #7: uncrustify .......................   Passed    0.27 sec
+test 8
+    Start 8: xmllint
+
+8: Test command: /usr/bin/python3 "-u" "/opt/ros/jazzy/share/ament_cmake_test/cmake/run_test.py" "/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_stereo/test_results/peach_stereo/xmllint.xunit.xml" "--package-name" "peach_stereo" "--output-file" "/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_stereo/ament_xmllint/xmllint.txt" "--command" "/opt/ros/jazzy/bin/ament_xmllint" "--xunit-file" "/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_stereo/test_results/peach_stereo/xmllint.xunit.xml"
+8: Working Directory: /home/mu/Desktop/aubo_e5_jazzy_ws/src/peach/peach_stereo
+8: Test timeout computed to be: 60
+8: -- run_test.py: invoking following command in '/home/mu/Desktop/aubo_e5_jazzy_ws/src/peach/peach_stereo':
+8:  - /opt/ros/jazzy/bin/ament_xmllint --xunit-file /home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_stereo/test_results/peach_stereo/xmllint.xunit.xml
+============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-7.4.4, pluggy-1.4.0
+cachedir: /home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_vegetation/.pytest_cache
+rootdir: /home/mu/Desktop/aubo_e5_jazzy_ws/src/peach/peach_vegetation
+configfile: setup.cfg
+testpaths: test
+plugins: dash-4.4.1, ament-lint-0.17.5, ament-xmllint-0.17.5, ament-copyright-0.17.5, launch-pytest-3.4.12, launch-testing-3.4.12, launch-testing-ros-0.26.13, ament-pep257-0.17.5, ament-flake8-0.17.5, anyio-4.15.1, typeguard-4.1.5, colcon-core-0.21.3, cov-4.1.0
+collected 16 items
+
+test/test_flake8.py .                                                    [  6%]
+8: File 'package.xml' is valid
+8: 
+8: No problems found
+8: -- run_test.py: return code 0
+8: -- run_test.py: verify result file '/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_stereo/test_results/peach_stereo/xmllint.xunit.xml'
+8/8 Test #8: xmllint ..........................   Passed    0.65 sec
+
+100% tests passed, 0 tests failed out of 8
+
+Label Time Summary:
+copyright     =   0.46 sec*proc (1 test)
+cppcheck      =   0.24 sec*proc (1 test)
+cpplint       =   0.37 sec*proc (1 test)
+flake8        =   0.29 sec*proc (1 test)
+lint_cmake    =   0.17 sec*proc (1 test)
+linter        =   2.81 sec*proc (8 tests)
+pep257        =   0.35 sec*proc (1 test)
+uncrustify    =   0.27 sec*proc (1 test)
+xmllint       =   0.65 sec*proc (1 test)
+
+Total Test time (real) =   2.82 sec
+Finished <<< peach_stereo [3.11s]
+============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-7.4.4, pluggy-1.4.0
+cachedir: /home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_observability/.pytest_cache
+rootdir: /home/mu/Desktop/aubo_e5_jazzy_ws/src/peach/peach_observability
+configfile: setup.cfg
+testpaths: test
+plugins: dash-4.4.1, ament-lint-0.17.5, ament-xmllint-0.17.5, ament-copyright-0.17.5, launch-pytest-3.4.12, launch-testing-3.4.12, launch-testing-ros-0.26.13, ament-pep257-0.17.5, ament-flake8-0.17.5, anyio-4.15.1, typeguard-4.1.5, colcon-core-0.21.3, cov-4.1.0
+collected 107 items
+
+test/test_bag_report.py .......                                          [  6%]
+test/test_debug_lifecycle.py ..........                                  [ 15%]
+============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-7.4.4, pluggy-1.4.0
+cachedir: /home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_harvester/.pytest_cache
+rootdir: /home/mu/Desktop/aubo_e5_jazzy_ws/src/peach/peach_harvester
+plugins: dash-4.4.1, ament-lint-0.17.5, ament-xmllint-0.17.5, ament-copyright-0.17.5, launch-pytest-3.4.12, launch-testing-3.4.12, launch-testing-ros-0.26.13, ament-pep257-0.17.5, ament-flake8-0.17.5, anyio-4.15.1, typeguard-4.1.5, colcon-core-0.21.3, cov-4.1.0
+collected 356 items
+
+test/test_batch_policy.py .......                                        [  1%]
+test/test_brain_shutdown.py ......                                       [  3%]
+test/test_flake8.py .                                                    [ 16%]
+test/test_grasp_decision_mirror.py ..                                    [ 18%]
+test/test_hotpaths.py .......                                            [ 25%]
+test/test_frangi.py ....                                                 [ 31%]
+test/test_leaf_mask.py ...                                               [ 50%]
+test/test_params.py .......                                              [ 93%]
+test/test_pep257.py .                                                    [100%]
+
+- generated xml file: /home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_vegetation/pytest.xml -
+============================== 16 passed in 3.90s ==============================
+test/test_image_preview.py ......                                        [ 30%]
+test/test_job_completion.py ........                                     [ 38%]
+test/test_params.py ...                                                  [ 41%]
+test/test_path_metrics.py ..                                             [ 42%]
+test/test_flake8.py .                                                    [  3%]
+test/test_geometry_invariants.py .......                                 [  5%]
+test/test_pep257.py .                                                    [ 43%]
+test/test_pipeline.py ..................                                 [ 60%]
+Finished <<< peach_vegetation [6.01s]
+test/test_outer_bag_geometry.py .......................                  [ 12%]
+test/test_pep257.py .                                                    [ 12%]
+test/test_reconstruction_capture_generation.py ....                      [ 13%]
+test/test_reconstruction_decision_validity.py ..........                 [ 16%]
+test/test_reconstruction_fusion_quality.py .................             [ 21%]
+test/test_reconstruction_icp_cache.py ..                                 [ 21%]
+test/test_reconstruction_mask_gate_f1.py .....                           [ 23%]
+test/test_reconstruction_preview.py ......                               [ 25%]
+test/test_reconstruction_refine_result.py .........                      [ 27%]
+test/test_reconstruction_rejection_cache.py ....                         [ 28%]
+test/test_reconstruction_scene_identity.py .......                       [ 30%]
+test/test_reconstruction_session.py ...                                  [ 31%]
+test/test_reconstruction_session_recorder.py .....                       [ 32%]
+test/test_reconstruction_static_stamp.py .............                   [ 36%]
+test/test_refit_orchestrator.py .........................                [ 43%]
+test/test_scene_obstacles_core.py ...................                    [ 48%]
+test/test_supervisor_batch.py ...................                        [ 54%]
+test/test_supervisor_cross_field.py ..                                   [ 54%]
+test/test_supervisor_frozen_keys.py ..                                   [ 55%]
+test/test_supervisor_harvest_fsm.py ............                         [ 58%]
+test/test_supervisor_idl_constants.py ...                                [ 59%]
+test/test_supervisor_import_guard.py ...                                 [ 60%]
+test/test_supervisor_parallel_build.py ...                               [ 61%]
+test/test_supervisor_reducer.py ...........                              [ 64%]
+test/test_supervisor_result.py ....................                      [ 69%]
+test/test_supervisor_runtime_enables.py ......                           [ 71%]
+test/test_supervisor_stack_ready.py .                                    [ 71%]
+test/test_view_planner_port.py .....                                     [ 73%]
+test/test_view_policy.py ......                                          [ 75%]
+test/test_vision_estimator.py ..                                         [ 75%]
+test/test_vision_evidence.py ...                                         [ 76%]
+test/test_vision_frozen_keys.py .....                                    [ 77%]
+test/test_vision_gating.py .........                                     [ 80%]
+test/test_vision_geometry.py ........                                    [ 82%]
+test/test_vision_identity.py .......                                     [ 84%]
+test/test_vision_import_guard.py ......                                  [ 86%]
+test/test_vision_model_contract.py ......                                [ 87%]
+test/test_vision_plan_updater.py .....                                   [ 89%]
+test/test_vision_ransac.py .......                                       [ 91%]
+test/test_vision_runtime_core.py ......                                  [ 92%]
+test/test_vision_sam_fallback.py .                                       [ 93%]
+test/test_vision_scene_params.py ....                                    [ 94%]
+test/test_vision_tool_budget.py ........                                 [ 96%]
+test/test_vision_tool_profiles.py ...........                            [ 99%]
+
+=============================== warnings summary ===============================
+test/test_flake8.py: 20 warnings
+  Warning: This process (pid=143935) is multi-threaded, use of fork() may lead to deadlocks in the child.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+test/test_yaml_params.py .                                               [100%]
+- generated xml file: /home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_harvester/pytest.xml -
+======================= 356 passed, 20 warnings in 6.75s =======================
+--- stderr: peach_harvester
+
+=============================== warnings summary ===============================
+test/test_flake8.py: 20 warnings
+  Warning: This process (pid=143935) is multi-threaded, use of fork() may lead to deadlocks in the child.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+---
+Finished <<< peach_harvester [9.09s]
+test/test_preview_http.py .............                                  [ 72%]
+test/test_preview_node.py .........                                      [ 81%]
+test/test_refined_context.py ....                                        [ 85%]
+test/test_selfcheck_checks.py .........                                  [ 93%]
+test/test_startup_facts.py ....                                          [ 97%]
+
+=============================== warnings summary ===============================
+test/test_flake8.py: 20 warnings
+  Warning: This process (pid=143949) is multi-threaded, use of fork() may lead to deadlocks in the child.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+test/test_tcp_trajectory.py ...                                          [100%]
+- generated xml file: /home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_observability/pytest.xml -
+====================== 107 passed, 20 warnings in 10.15s =======================
+--- stderr: peach_observability
+
+=============================== warnings summary ===============================
+test/test_flake8.py: 20 warnings
+  Warning: This process (pid=143949) is multi-threaded, use of fork() may lead to deadlocks in the child.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+---
+Finished <<< peach_observability [12.1s]
+Starting >>> peach_bringup
+============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-7.4.4, pluggy-1.4.0
+cachedir: /home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_bringup/.pytest_cache
+rootdir: /home/mu/Desktop/aubo_e5_jazzy_ws/src/peach/peach_bringup
+configfile: setup.cfg
+testpaths: test
+plugins: dash-4.4.1, ament-lint-0.17.5, ament-xmllint-0.17.5, ament-copyright-0.17.5, launch-pytest-3.4.12, launch-testing-3.4.12, launch-testing-ros-0.26.13, ament-pep257-0.17.5, ament-flake8-0.17.5, anyio-4.15.1, typeguard-4.1.5, colcon-core-0.21.3, cov-4.1.0
+collected 10 items
+
+test/test_bridge_shutdown.py ......                                      [ 60%]
+test/test_flake8.py .                                                    [ 70%]
+test/test_params.py ..                                                   [ 90%]
+test/test_pep257.py .                                                    [100%]
+- generated xml file: /home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_bringup/pytest.xml -
+======================= 10 passed, 20 warnings in 0.64s ========================
+
+=============================== warnings summary ===============================
+test/test_flake8.py: 20 warnings
+  Warning: This process (pid=144784) is multi-threaded, use of fork() may lead to deadlocks in the child.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+--- stderr: peach_bringup
+
+=============================== warnings summary ===============================
+test/test_flake8.py: 20 warnings
+  Warning: This process (pid=144784) is multi-threaded, use of fork() may lead to deadlocks in the child.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+---
+Finished <<< peach_bringup [1.99s]
+
+Summary: 8 packages finished [16.4s]
+  3 packages had stderr output: peach_bringup peach_harvester peach_observability

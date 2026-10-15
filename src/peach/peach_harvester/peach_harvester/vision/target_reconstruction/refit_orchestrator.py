@@ -9,9 +9,15 @@ refit 编排纯核：TSDF refit → 袋关键点融合 → merge（W4 自节点�
 from __future__ import annotations
 
 import time
+from types import SimpleNamespace
 from typing import Callable, Optional, Tuple
 
 import numpy as np
+from peach_harvester.vision.common.geometry import (
+    mask_axis_disagreement,
+    project_point,
+    transform_point,
+)
 from peach_harvester.vision.common.tool_budget import ToolBudgetParams
 from peach_harvester.vision.target_reconstruction.integrate import (
     summarize_view_coverage,
@@ -19,13 +25,79 @@ from peach_harvester.vision.target_reconstruction.integrate import (
 from peach_harvester.vision.target_reconstruction.refine import (
     BagModel,
     collect_bag_views,
+    CONTACT_GEOMETRY_INVALID_REASONS,
     fuse_bag_views,
     merge_fused_bag_model,
     RefitConfig,
     RefitResult,
     select_refitter,
     STATUS_ACCEPT,
+    STATUS_REOBSERVE,
 )
+
+
+def reconstruction_axis_image_support(frames, result, *, min_supported_views=1):
+    """Independent silhouette evidence: aggregate within views, never across bursts."""
+    angles = {}
+    image_frames = []
+    invalid_views = 0
+    axis = np.asarray(result.axis, dtype=float).copy()
+    axis /= np.linalg.norm(axis)
+    centre = np.asarray(result.center, dtype=float)
+    half_span = max(float(result.span_m), 0.03) * 0.5
+    for frame in frames:
+        mask = getattr(frame, 'target_mask', None)
+        transform = getattr(frame, 'T_base_camera', None)
+        intrinsics = getattr(frame, 'camera_K', None)
+        if mask is None or transform is None or not intrinsics:
+            continue
+        try:
+            mask = np.asarray(mask)
+            transform = np.asarray(transform, dtype=float)
+            calibration = [float(intrinsics[key]) for key in ('fx', 'fy', 'cx', 'cy')]
+            if (mask.ndim != 2 or not mask.size or not np.isfinite(mask).all()
+                    or transform.shape != (4, 4) or not np.isfinite(transform).all()
+                    or not np.allclose(transform[3], [0, 0, 0, 1])
+                    or not np.allclose(transform[:3, :3].T @ transform[:3, :3], np.eye(3))
+                    or not np.isfinite(calibration).all()
+                    or calibration[0] <= 0 or calibration[1] <= 0):
+                raise ValueError('invalid image support metadata')
+            camera_from_base = np.linalg.inv(transform)
+            index = len(image_frames)
+            image_frames.append(SimpleNamespace(
+                camera_position_base=transform[:3, 3], stamp=getattr(frame, 'stamp', 0.),
+                valid_depth_ratio=getattr(frame, 'valid_depth_ratio', 0.),
+                registration={}, diagnostic_flags=[]))
+            bottom = project_point(transform_point(
+                camera_from_base, centre - half_span * axis), intrinsics)
+            neck = project_point(transform_point(
+                camera_from_base, centre + half_span * axis), intrinsics)
+            mid = project_point(transform_point(camera_from_base, centre), intrinsics)
+            if bottom is None or neck is None or mid is None:
+                continue
+            angle = mask_axis_disagreement(mask, bottom, neck)
+            if angle is None:
+                continue
+            u, v = (int(round(value)) for value in mid)
+            if (not 0 <= u < mask.shape[1] or not 0 <= v < mask.shape[0]
+                    or not np.any(mask[max(0, v - 1):v + 2, max(0, u - 1):u + 2])):
+                angle = 90.0
+            angles[index] = angle
+        except (KeyError, TypeError, ValueError, np.linalg.LinAlgError):
+            invalid_views += 1
+    if not angles:
+        return None, invalid_views
+    coverage = summarize_view_coverage(image_frames, centre)
+    view_angles = []
+    for view in coverage.get('views', []):
+        evidence = [angles[index] for index in view['member_indices'] if index in angles]
+        if evidence:
+            view_angles.append(float(np.median(evidence)))
+    if len(view_angles) < int(min_supported_views):
+        return None, invalid_views
+    # A contradictory independent view cannot be outvoted by repeated frames
+    # at another camera position. The view clustering is shared with fusion.
+    return max(view_angles), invalid_views
 
 
 class RefitOrchestrator:
@@ -86,13 +158,19 @@ class RefitOrchestrator:
             previous: Optional[RefitResult] = None,
             on_view: Optional[Callable] = None) -> Tuple[RefitResult, BagModel]:
         """
-        Fuse bag landmarks and cross-check the accepted TSDF refit axis.
+        Fuse bag landmarks using captured shape and qualified multi-view fits.
 
         自节点 ``_run_refit`` 本体迁入（docstring 语义原样）：Contact
         authority is the fused bag model plus dynamic budget. A reliable
-        ACCEPT refit also vetoes fused axes beyond max_axis_angle_deg.
-        TSDF cloud supplies envelope-axis consistency; squat volumes skip the 12°
-        veto. Fusion still runs from cloud_base when TSDF is
+        ACCEPT refit with independent views supplies the primary axis and
+        centre; single-view geometry consistently uses observed bag shape.
+        Fused-axis checks validate the endpoint contract, not an independent
+        axis measurement.
+        Fallback landmarks derive their axis from captured clouds, not a
+        newer live hint. An ill-conditioned envelope without reliable refit
+        cannot authorize contact. Original-image validation also checks the
+        final fused model, including fallbacks. Fusion still runs
+        from cloud_base when TSDF is
         enabled-but-empty (tsdf_xyz=None 即该路径). keep_last_good keeps
         the last bag model that already has a budget（调用方把 previous=
         上一帧 _refined 传入即启用；本方法只按 previous 打「保留」日志，
@@ -111,7 +189,7 @@ class RefitOrchestrator:
             pregrasp_standoff_m: 预抓取后撤量 [m].
             budget_params: ToolBudgetParams（tool_profile 注入 d_inner）.
             mark_final: finalize 定稿标记.
-        previous: keep_last_good 上一帧；fused_axis_conflict 禁止保留许可.
+            previous: keep_last_good 上一帧；无效几何禁止保留许可.
             on_view: 逐视角回调（geometry.jsonl 视角行追加）.
 
         Returns
@@ -149,7 +227,41 @@ class RefitOrchestrator:
         if result is None:
             result = RefitResult(ok=False, reason='refit_missing', kind=kind)
         result.final = bool(mark_final)
-        views = collect_bag_views(frames, target_center, on_view=on_view)
+        # Fallbacks use the captured cloud's own landmarks. A live hint may
+        # belong to a newer exposure and must not control older captured data.
+        primary_axis = None
+        primary_origin = None
+        if (result.ok and result.status == STATUS_ACCEPT
+                and result.axis is not None and result.center is not None
+                and np.asarray(result.axis).shape == (3,)
+                and np.asarray(result.center).shape == (3,)
+                and np.isfinite(result.axis).all() and np.isfinite(result.center).all()
+                and np.linalg.norm(result.axis) > 1e-9):
+            # Qualify the fit against independent silhouettes before choosing
+            # its role. Never replace captured evidence with a newer live hint.
+            coverage = summarize_view_coverage(frames, target_center)
+            multiple_views = coverage.get('valid') and coverage.get('view_count', 0) >= 2
+            support_angle, invalid_views = reconstruction_axis_image_support(
+                frames, result, min_supported_views=2 if multiple_views else 1)
+            if invalid_views:
+                result.flags.append('refit_axis_invalid_view_metadata')
+            if support_angle is None:
+                result.flags.append('refit_axis_support_unavailable')
+            elif support_angle > self._refit_config.max_axis_angle_deg:
+                result.flags.append('refit_axis_silhouette_conflict')
+            else:
+                if multiple_views:
+                    primary_axis = result.axis
+                    primary_origin = result.center
+                    result.flags.append('axis_from_reconstruction')
+                else:
+                    # Use the same observed axis AND centre whether the
+                    # local cylinder fit succeeds or fails. Mixing a visible
+                    # surface centre with a cylinder centre causes depth jumps.
+                    result.flags.append('axis_from_captured_shape')
+        views = collect_bag_views(
+            frames, target_center, on_view=on_view, axis_hint=primary_axis,
+            axis_origin=primary_origin)
         fused = fuse_bag_views(
             views,
             cloud_xyz=cloud_xyz,
@@ -170,6 +282,29 @@ class RefitOrchestrator:
             result, fused, len(views), bound_axis_hint, target_id,
             finalize_counter=self._finalize_counter,
             max_axis_angle_deg=self._refit_config.max_axis_angle_deg)
+        # Validate the actual output, including hint-based fallbacks. Checking
+        # only an accepted TSDF refit leaves failed fits free to authorize a
+        # different axis that was never checked against the captured image.
+        if result.ok and any(getattr(frame, 'target_mask', None) is not None
+                             for frame in frames):
+            support_angle, invalid_views = reconstruction_axis_image_support(frames, result)
+            reason = ''
+            if support_angle is None or invalid_views:
+                reason = 'bag_axis_unobservable'
+            elif support_angle > self._refit_config.max_axis_angle_deg:
+                reason = 'fused_axis_silhouette_conflict'
+            if reason:
+                result.flags.append(reason)
+                result.ok = False
+                result.status = STATUS_REOBSERVE
+                result.reason = reason
+                result.budget = {}
+                result.corridor_clear = False
+                fused.ok = False
+                fused.allowed = False
+                fused.reason = reason
+                fused.budget = {}
+                fused.flags.append(reason)
         # 分支日志（缓存写入分支由节点 _run_refit 按同一判据执行）
         if result.ok and result.budget:
             status_text = (
@@ -179,7 +314,7 @@ class RefitOrchestrator:
                 f'final={result.final} '
                 f'axis={np.round(result.axis, 4).tolist()} '
                 f'diameter={float(result.diameter or 0) * 1000.0:.1f}mm')
-        elif ('fused_axis_conflict' not in result.flags
+        elif (result.reason not in CONTACT_GEOMETRY_INVALID_REASONS
               and previous is not None and previous.ok and previous.budget):
             self._logger.warning(
                 f'refit/融合未收敛，保留上一帧袋模型：{result.reason}')

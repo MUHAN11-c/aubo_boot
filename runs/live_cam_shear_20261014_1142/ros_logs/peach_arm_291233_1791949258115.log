@@ -1,0 +1,304 @@
+[WARN] [1791949258.158169782] [rcl.logging_rosout]: Publisher already registered for node name: 'peach_arm'. If this is due to multiple nodes with the same name then all logs for the logger named 'peach_arm' will go out over the existing publisher. As soon as any node with that name is destructed it will unregister the publisher, preventing any further logs for that name from being published on the rosout topic.
+[WARN] [1791949258.162402857] [peach_arm]: scan.protected_zones 丢弃畸形盒: 盒#0 存在 min>=max 的轴（空盒/退化盒），已丢弃
+[WARN] [1791949259.995697855] [peach_arm]: scan.protected_zones 丢弃畸形盒: 盒#0 存在 min>=max 的轴（空盒/退化盒），已丢弃
+[WARN] [1791949260.030832328] [peach_arm]: scan.protected_zones 丢弃畸形盒: 盒#0 存在 min>=max 的轴（空盒/退化盒），已丢弃
+[WARN] [1791949260.031057052] [peach_arm]: scan.protected_zones 丢弃畸形盒: 盒#0 存在 min>=max 的轴（空盒/退化盒），已丢弃
+[WARN] [1791949260.032578794] [rcl.logging_rosout]: Publisher already registered for node name: 'peach_arm'. If this is due to multiple nodes with the same name then all logs for the logger named 'peach_arm' will go out over the existing publisher. As soon as any node with that name is destructed it will unregister the publisher, preventing any further logs for that name from being published on the rosout topic.
+[INFO] [1791949260.038408912] [peach_arm.moveit.ros.rdf_loader]: Loaded robot model in 0.00239461 seconds
+[INFO] [1791949260.038503598] [peach_arm.moveit.core.robot_model]: Loading robot model 'aubo_e5'...
+[INFO] [1791949260.038513840] [peach_arm.moveit.core.robot_model]: No root/virtual joint specified in SRDF. Assuming fixed joint
+[INFO] [1791949260.066485913] [peach_arm.moveit.kinematics.kdl_kinematics_plugin]: Joint weights for group 'manipulator_e5': 1 1 1 1 1 1
+[INFO] [1791949260.084472338] [peach_arm.moveit.ros.move_group_interface]: Ready to take commands for planning group manipulator_e5.
+[INFO] [1791949260.084523916] [peach_arm]: 主动视觉靠近节点 ready: group=manipulator_e5 base=base_link tip=tcp camera=camera_depth_optical_frame execution=plan_only grasp=disabled
+[INFO] [1791949260.084543980] [peach_arm]: [IDLE] 已配置；activate 后才开放运动输出权限
+[WARN] [1791949260.183238463] [peach_arm]: scan.protected_zones 丢弃畸形盒: 盒#0 存在 min>=max 的轴（空盒/退化盒），已丢弃
+[INFO] [1791949260.189558883] [peach_arm]: 节点已激活：运动输出权限开放
+[WARN] [1791949260.200181050] [rcl.logging_rosout]: Publisher already registered for node name: 'peach_arm'. If this is due to multiple nodes with the same name then all logs for the logger named 'peach_arm' will go out over the existing publisher. As soon as any node with that name is destructed it will unregister the publisher, preventing any further logs for that name from being published on the rosout topic.
+[WARN] [1791949260.216850924] [rcl.logging_rosout]: Publisher already registered for node name: 'peach_arm'. If this is due to multiple nodes with the same name then all logs for the logger named 'peach_arm' will go out over the existing publisher. As soon as any node with that name is destructed it will unregister the publisher, preventing any further logs for that name from being published on the rosout topic.
+[INFO] [1791949260.311919670] [peach_arm]: 场景障碍 ACM 豁免已应用: 28 条（含 <octomap> 保留名）
+[INFO] [1791949263.338457433] [peach_arm]: 场景障碍 ACM 豁免已应用: 28 条（含 <octomap> 保留名）
+[INFO] [1791949266.370211046] [peach_arm]: 场景障碍 ACM 豁免已应用: 28 条（含 <octomap> 保留名）
+[INFO] [1791949306.182890759] [peach_arm]: 使能切换到操作台广播源（/peach/batch/enables）
+[INFO] [1791949306.182927525] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949307.139486017] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949308.141924381] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949309.145631803] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949309.208697365] [peach_arm.moveit.ros.current_state_monitor]: Listening to joint states on topic 'joint_states'
+[INFO] [1791949310.143171742] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949311.146735369] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949312.139270087] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949313.146443185] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949314.146055827] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949315.139978382] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949316.142117837] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949317.139048008] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949318.138337115] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949319.141145639] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949320.137622434] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949321.141775840] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949322.140670721] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949323.138379734] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949324.140421148] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949325.142432498] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949326.140033095] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949327.138399956] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949328.139662977] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949329.147593224] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949330.148895206] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949331.142195964] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949332.139302307] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949333.139492057] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949334.140094565] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949335.140205360] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949336.139244383] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949337.146219947] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949338.141190977] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949339.139563001] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949340.142961025] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949341.141344265] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949341.227236773] [peach_arm]: [PLAN_OBSERVATION] 生成目标导向主动视点
+[INFO] [1791949341.227439411] [peach_arm]: [FINALIZE] 等待重建精化几何（BuildTargetModel）
+[INFO] [1791949342.143151029] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949343.141832216] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949344.138273109] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949344.590912846] [peach_arm]: 接触几何（核对方向） target=target_0 entry=[0.363 -0.853 0.584] axis=[0.341 -0.224 0.913] travel=0.096m axis_angle_deg=14.64
+[INFO] [1791949344.591996186] [peach_arm]: [RECONFIRM] 抓取前再确认：等待新鲜观测复核身份/锚点漂移/摆动平息
+[INFO] [1791949344.898063301] [peach_arm]: [MTC_APPROACH_INSERT] 拍照位再最短路径到预抓取
+[INFO] [1791949344.901062340] [peach_arm]: 预抓取从拍照位出发: 已在命名状态
+[INFO] [1791949344.901107901] [peach_arm]: 接近：距入口 0.617m 轴向 0.042m 侧向 0.616m 夹角 25.0° 扫角 86.1° 半径 0.617m 沿轴LIN 0.030m 刀口滚转 0° 原语 LIN-align+LIN
+[INFO] [1791949345.140167063] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949346.146961773] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949346.280179816] [peach_arm]: staging IK 候选筛选成功 target=target_0 model_target=target_0 model_revision=target_0:1:2 frame=base_link group=manipulator_e5 tip=tcp position_m=[0.3355 -0.8348 0.4614] axis=[0.3405 -0.2240 0.9132] attempts=20 ik_failed=4 bounds_failed=0 self_collision=0 corridor_failed=8 valid_candidates=8
+[INFO] [1791949346.280196094] [peach_arm]: staging IK 择优：滚转 0°（8 候选，腕轴加权距离² 7.195）
+[INFO] [1791949346.280205109] [peach_arm]: PTP 接近（主路径）：关节空间到中段点正下方 + 垂直入冠 0.050m + 沿轴 0.050m（滚转 0°）
+[INFO] [1791949346.311354261] [peach_arm.moveit.ros.rdf_loader]: Loaded robot model in 0.018892 seconds
+[INFO] [1791949346.311379065] [peach_arm.moveit.core.robot_model]: Loading robot model 'aubo_e5'...
+[INFO] [1791949346.311383399] [peach_arm.moveit.core.robot_model]: No root/virtual joint specified in SRDF. Assuming fixed joint
+[INFO] [1791949346.356535516] [peach_arm.moveit.kinematics.kdl_kinematics_plugin]: Joint weights for group 'manipulator_e5': 1 1 1 1 1 1
+[INFO] [1791949346.468534322] [peach_arm]: 场景障碍 ACM 豁免已应用: 28 条（含 <octomap> 保留名）
+[INFO] [1791949346.495462724] [peach_arm.moveit.planners.pilz.joint_limits_aggregator]: Reading limits from namespace robot_description_planning
+[INFO] [1791949346.497203470] [peach_arm.moveit.planners.pilz.command_planner]: Available plugins: pilz_industrial_motion_planner/PlanningContextLoaderCIRC pilz_industrial_motion_planner/PlanningContextLoaderLIN pilz_industrial_motion_planner/PlanningContextLoaderPTP 
+[INFO] [1791949346.497327218] [peach_arm.moveit.planners.pilz.command_planner]: About to load: pilz_industrial_motion_planner/PlanningContextLoaderCIRC
+[INFO] [1791949346.499446282] [peach_arm.moveit.planners.pilz.command_planner]: Registered Algorithm [CIRC]
+[INFO] [1791949346.499460124] [peach_arm.moveit.planners.pilz.command_planner]: About to load: pilz_industrial_motion_planner/PlanningContextLoaderLIN
+[INFO] [1791949346.500886113] [peach_arm.moveit.planners.pilz.command_planner]: Registered Algorithm [LIN]
+[INFO] [1791949346.500895458] [peach_arm.moveit.planners.pilz.command_planner]: About to load: pilz_industrial_motion_planner/PlanningContextLoaderPTP
+[INFO] [1791949346.501702548] [peach_arm.moveit.planners.pilz.command_planner]: Registered Algorithm [PTP]
+[INFO] [1791949346.501711795] [peach_arm.moveit.ros.planning_pipeline]: Successfully loaded planner 'Pilz Industrial Motion Planner'
+[INFO] [1791949346.504889572] [peach_arm]: Try loading adapter 'default_planning_request_adapters/ResolveConstraintFrames'
+[INFO] [1791949346.511187992] [peach_arm]: Loaded adapter 'default_planning_request_adapters/ResolveConstraintFrames'
+[INFO] [1791949346.511276273] [peach_arm]: Try loading adapter 'default_planning_request_adapters/ValidateWorkspaceBounds'
+[INFO] [1791949346.511439105] [peach_arm]: Loaded adapter 'default_planning_request_adapters/ValidateWorkspaceBounds'
+[INFO] [1791949346.511441487] [peach_arm]: Try loading adapter 'default_planning_request_adapters/CheckStartStateBounds'
+[INFO] [1791949346.511450114] [peach_arm]: Loaded adapter 'default_planning_request_adapters/CheckStartStateBounds'
+[INFO] [1791949346.511451440] [peach_arm]: Try loading adapter 'default_planning_request_adapters/CheckStartStateCollision'
+[INFO] [1791949346.511457500] [peach_arm]: Loaded adapter 'default_planning_request_adapters/CheckStartStateCollision'
+[INFO] [1791949346.516630819] [peach_arm]: Try loading adapter 'default_planning_response_adapters/ValidateSolution'
+[INFO] [1791949346.527908051] [peach_arm]: Loaded adapter 'default_planning_response_adapters/ValidateSolution'
+[INFO] [1791949346.631376150] [peach_arm]: Calling PlanningRequestAdapter 'ResolveConstraintFrames'
+[INFO] [1791949346.631707034] [peach_arm]: Calling PlanningRequestAdapter 'ValidateWorkspaceBounds'
+[WARN] [1791949346.631727103] [peach_arm.moveit.ros.validate_workspace_bounds]: It looks like the planning volume was not specified. Using default values.
+[INFO] [1791949346.631749836] [peach_arm]: Calling PlanningRequestAdapter 'CheckStartStateBounds'
+[INFO] [1791949346.631782311] [peach_arm]: Calling PlanningRequestAdapter 'CheckStartStateCollision'
+[INFO] [1791949346.632494597] [peach_arm.moveit.planners.pilz.trajectory_generator.ptp]: Initialized Point-to-Point Trajectory Generator.
+[INFO] [1791949346.632513892] [peach_arm]: Calling Planner 'Pilz Industrial Motion Planner'
+[INFO] [1791949346.632542495] [peach_arm.moveit.planners.pilz.trajectory_generator]: Generating PTP trajectory...
+[INFO] [1791949346.633287155] [peach_arm]: Calling PlanningResponseAdapter 'ValidateSolution'
+[INFO] [1791949346.635383078] [peach_arm]: MTC 接近短路径审查: segments=1 allowed=true points=58 duration=5.647s joint_total=4.326rad joint_max=1.331rad (短路径门通过)
+[INFO] [1791949346.635426674] [peach_arm]: MTC 接近果实胶囊审查(seg0 转移): allowed=true min_clearance=999.000m (果实胶囊审查通过)
+[INFO] [1791949346.635431125] [peach_arm]: MTC 接近笛卡尔审查: allowed=true path=0.707m chord=0.633m ratio=1.12 max_dev=0.132m recede=0.000m (笛卡尔短路径门通过)
+[INFO] [1791949346.635435955] [peach_arm]: MTC 接近姿态审查: allowed=true max_from_start=25.0deg (TCP 姿态行程通过)
+[INFO] [1791949347.139012685] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949348.139686148] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[WARN] [1791949349.100888867] [rclcpp]: Failed to get parameters: moveit.velocity_scaling
+[INFO] [1791949349.139783552] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949350.141540047] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949351.138525271] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[WARN] [1791949352.096409893] [rclcpp]: Failed to get parameters: moveit.velocity_scaling
+[INFO] [1791949352.147928928] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949352.395014754] [peach_arm]: sequence 冠内审查: segments=1 allowed=true points=41 duration=4.000s joint_total=0.758rad (短路径门通过)
+[INFO] [1791949353.142743497] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949354.140545524] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949355.146947271] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949356.139326912] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949356.472808365] [peach_arm]: 检查点 2（到预抓取）
+[INFO] [1791949356.472916065] [peach_arm]: [RECONFIRM] 预抓取停稳验证（不 SetIO）
+[INFO] [1791949356.676985195] [peach_arm]: [PREVIEW_CONTACT_PLANNING] 预规划套入与反向撤退
+[INFO] [1791949356.713807933] [peach_arm.moveit.ros.rdf_loader]: Loaded robot model in 0.00238544 seconds
+[INFO] [1791949356.713835881] [peach_arm.moveit.core.robot_model]: Loading robot model 'aubo_e5'...
+[INFO] [1791949356.713838842] [peach_arm.moveit.core.robot_model]: No root/virtual joint specified in SRDF. Assuming fixed joint
+[INFO] [1791949356.753288152] [peach_arm.moveit.kinematics.kdl_kinematics_plugin]: Joint weights for group 'manipulator_e5': 1 1 1 1 1 1
+[INFO] [1791949356.775218576] [peach_arm]: 场景障碍 ACM 豁免已应用: 28 条（含 <octomap> 保留名）
+[WARN] [1791949356.956565737] [peach_arm]: [FAILED] 套入/撤退预规划失败: MTC planning failed: Failing stage(s):
+sleeve linear along bag axis (0/1)
+[WARN] [1791949356.956633040] [peach_arm]: [RECOVERY_REQUIRED] 接触阶段取消或撤离未确认；保持停止，须现场人工撤离后确认恢复
+[INFO] [1791949357.141194706] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949358.140216686] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949359.139005317] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949360.140388556] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949361.145289008] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949362.139718492] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949363.142132824] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949364.138144611] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949365.138686561] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949366.140286830] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949367.137834185] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949368.142843305] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949369.139581693] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949370.138008987] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949371.139582509] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949372.141170932] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949373.148362562] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949374.141742891] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949375.138624008] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949376.144314241] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949377.141890972] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949378.139478137] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949379.142762923] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949380.139504541] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949381.147716897] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949382.147393095] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949383.143311156] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949384.139350774] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949385.138102991] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949386.138629818] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949387.145706630] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949388.142543182] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949389.150056488] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949390.145337052] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949391.145364227] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949392.144139688] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949393.140432515] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949394.140852938] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949395.139633061] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949396.141881679] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949397.142667963] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949398.139167642] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949399.142479530] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949400.139300625] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949401.139422894] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949402.137661346] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949403.141007488] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949404.138158613] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949405.139561341] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949406.139057069] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949407.141591550] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949408.137891955] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949409.138340565] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949410.138270296] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949411.138869296] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949412.145012032] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949413.145652146] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949414.138985827] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949415.139952903] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949416.142338043] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949417.138009195] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949418.142347871] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949419.139022037] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949420.140617275] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949421.142626904] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949422.138156492] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949423.138571619] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949424.141928529] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949425.139473394] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949426.145142573] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949427.139184322] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949428.138331813] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949429.147246102] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949430.137985631] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949431.144080286] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949432.137951188] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949433.137718580] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949434.140688773] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949435.138991386] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949436.139633455] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949437.142568304] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949438.138645399] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949439.138011629] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949440.139545772] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949441.139794209] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949442.140584078] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949443.138409502] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949444.142034030] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949445.145079516] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949446.143183637] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949447.139815439] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949448.146959331] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949449.140085714] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949450.140091525] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949451.137926365] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949452.138339501] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949453.141646377] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949454.138655437] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949455.141846825] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949456.140707150] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949457.140214918] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949458.139020743] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949459.141627637] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949460.142965829] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949461.145200209] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949462.144616004] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949463.141724381] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949464.140996982] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949465.138701558] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949466.138388212] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949467.140054955] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949468.138801674] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949469.152484047] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949470.142005427] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949471.142873402] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949472.144441820] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949472.465419502] [peach_arm]: [IDLE] 已记录现场人工撤离确认；本服务不发送任何运动命令
+[INFO] [1791949472.557052398] [peach_arm.moveit.ros.move_group_interface]: MoveGroup action client/server ready
+[INFO] [1791949472.558188894] [peach_arm.moveit.ros.move_group_interface]: Planning request accepted
+[INFO] [1791949472.564476778] [peach_arm.moveit.ros.move_group_interface]: Planning request complete!
+[INFO] [1791949472.564953997] [peach_arm.moveit.ros.move_group_interface]: time taken to generate plan: 0.000389351 seconds
+[INFO] [1791949472.567116938] [peach_arm.moveit.ros.move_group_interface]: Execute request accepted
+[INFO] [1791949473.140099695] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949474.140407555] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949475.139341373] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949476.145758814] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949477.139200893] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949478.142564041] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949478.743946998] [peach_arm.moveit.ros.move_group_interface]: Execute request success!
+[INFO] [1791949479.145244053] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949480.140248795] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949481.142750395] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949482.140589610] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949483.142613554] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949484.143623358] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949485.138208393] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949486.149178372] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949487.137712154] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949488.145935054] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949489.142184968] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949489.204999137] [peach_arm]: requestCancelAll: 停止当前执行（来源：Survey 客户端取消）
+[INFO] [1791949490.149483012] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949491.140595182] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949492.142607138] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949493.138482367] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949494.141627681] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949495.143594398] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949496.142379697] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949497.139742700] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949498.143185293] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949499.149253096] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949500.139178636] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949501.139557206] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949502.138734715] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949503.140549078] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949504.140449759] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949505.141757034] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949506.142746675] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949507.142277007] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949508.143298765] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949509.141177882] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949510.140515077] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949511.140611992] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949512.148134345] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949513.139658791] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949514.138976528] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949515.140377250] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（真实相机+mock FULL剪切干跑，tool=false）
+[INFO] [1791949515.623102347] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（FULL dry run finished; disable enables）
+[INFO] [1791949516.143134252] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（FULL dry run finished; disable enables）
+[INFO] [1791949516.400437914] [rclcpp]: signal_handler(SIGINT/SIGTERM)

@@ -1,0 +1,39 @@
+<?xml version="1.0"?>
+<package format="3">
+  <name>ros_web_link</name>
+  <version>1.0.0</version>
+  <description>
+    Web↔ROS 2 通信层独立包（对标 rosbridge_suite 分包架构）：
+    Python 网关（纯传输：WS 代理/视频代理/mesh）+ JS 客户端库（transport/view3d/vendor）。
+    UI 面板（aubo_ros2_web_dashboard）经 create_app() 组合本包的网关与 JS 资产。
+  </description>
+  <maintainer email="wangxiaoyun@iscas.ac.cn">muhan11</maintainer>
+  <license>Apache-2.0</license>
+
+  <depend>ament_index_python</depend>
+
+  <!-- 运行时（演示 fixture 节点 + launch）ROS 依赖；字母序 -->
+  <exec_depend>diagnostic_msgs</exec_depend>
+  <exec_depend>example_interfaces</exec_depend>
+  <exec_depend>geometry_msgs</exec_depend>
+  <exec_depend>ivg_foxglove_bridge</exec_depend>
+  <exec_depend>launch</exec_depend>
+  <exec_depend>launch_ros</exec_depend>
+  <exec_depend>nav_msgs</exec_depend>
+  <exec_depend>rclpy</exec_depend>
+  <exec_depend>ros2launch</exec_depend>
+  <exec_depend>sensor_msgs</exec_depend>
+  <exec_depend>std_msgs</exec_depend>
+  <exec_depend>tf2_msgs</exec_depend>
+  <exec_depend>visualization_msgs</exec_depend>
+  <!-- pip 依赖（fastapi/uvicorn/websockets/httpx/PyYAML）不走 rosdep：
+       钉版本于仓库根 requirements.txt，装进 aubo_py3.12 venv（见 README/doc/io.md） -->
+
+  <test_depend>ament_lint_auto</test_depend>
+  <test_depend>ament_lint_common</test_depend>
+  <test_depend>python3-pytest</test_depend>
+
+  <export>
+    <build_type>ament_python</build_type>
+  </export>
+</package>

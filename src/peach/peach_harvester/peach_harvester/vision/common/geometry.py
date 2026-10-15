@@ -633,6 +633,10 @@ def fit_cylinder_robust(points: np.ndarray, normals: np.ndarray,
             return None
     d = _cylinder_radial_dist(points[inl], q0, axis)
     radius = float(np.mean(d))
+    # RANSAC bounds only its initial hypothesis. Axis/center polishing and
+    # geometric radius re-estimation must also respect the caller's range.
+    if not np.isfinite(radius) or not radius_range[0] <= radius <= radius_range[1]:
+        return None
     rms = float(np.sqrt(np.mean((d - radius) ** 2)))
     return {'axis': axis, 'q0': q0, 'radius': radius, 'inliers': inl,
             'inlier_ratio': len(inl) / len(points), 'rms': rms}
@@ -1123,3 +1127,22 @@ def transform_points(points: np.ndarray, transform: np.ndarray) -> np.ndarray:
     xyz = np.asarray(points, dtype=np.float64).reshape(-1, 3)
     T = np.asarray(transform, dtype=np.float64)
     return xyz @ T[:3, :3].T + T[:3, 3]
+
+
+def mask_axis_disagreement(mask, bottom_px, neck_px):
+    """Independent silhouette/axis angle [deg]; None for an unobservable axis."""
+    ys, xs = np.where(mask)
+    if len(xs) < 30:
+        return None
+    axis = np.asarray(neck_px, dtype=float) - np.asarray(bottom_px, dtype=float)
+    length = float(np.linalg.norm(axis))
+    if not np.isfinite(length) or length < 5.0:
+        return None
+    axis /= length
+    pixels = np.column_stack([xs, ys]).astype(float)
+    pixels -= pixels.mean(axis=0)
+    values, vectors = np.linalg.eigh(pixels.T @ pixels / len(pixels))
+    if values[-1] < 2.5 * max(values[0], 1e-9):
+        return None
+    cosine = abs(float(axis @ vectors[:, -1]))
+    return float(np.degrees(np.arccos(np.clip(cosine, 0.0, 1.0))))

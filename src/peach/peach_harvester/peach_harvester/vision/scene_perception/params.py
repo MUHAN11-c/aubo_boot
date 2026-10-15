@@ -287,7 +287,9 @@ class ScenePerceptionParams:
         tool = ToolGeometry(
             d_inner_m=float(snapshot.tool.D_inner),
             insert_length_m=float(snapshot.tool.L_insert),
-            blade_offset_m=float(snapshot.tool.L_blade),
+            # TCP and cutting_plane coincide. L_blade is a mechanical
+            # dimension, not a second execution-frame displacement.
+            blade_offset_m=0.0,
             entry_d_tool=float(snapshot.tool.entry_d_tool),
             entry_d_s=float(snapshot.tool.entry_d_s),
             entry_standoff=float(snapshot.tool.entry_d_tool)

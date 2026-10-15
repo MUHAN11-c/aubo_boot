@@ -111,17 +111,17 @@ def _cloud(lateral):
                      for z in np.linspace(0.4, 0.6, 41) for t in theta])
 
 
-def test_single_pose_lateral_snap_cannot_claim_multiview_consistency():
+def test_single_pose_keeps_landmark_line_without_claiming_multiview_consistency():
     fused = fuse_bag_views([_view(0.0)], cloud_xyz=_cloud(0.04))
     assert fused.ok
-    assert fused.fusion_lateral_shift_m == pytest.approx(0.04)
+    assert fused.fusion_lateral_shift_m == pytest.approx(0.0)
     assert fused.fusion_pose_count == 1
     assert not fused.fusion_consistency_available
     assert fused.fusion_landmark_scatter_rmse_m is None
     assert fused.fusion_landmark_inlier_ratio is None
     result = merge_fused_bag_model(_refit(), fused, 1, None)
     exported = result.as_dict()
-    assert exported['fusion_lateral_shift_m'] == pytest.approx(0.04)
+    assert exported['fusion_lateral_shift_m'] == pytest.approx(0.0)
     assert exported['fusion_pose_count'] == 1
     assert exported['fusion_consistency_available'] is False
     assert exported['fusion_landmark_scatter_rmse_m'] is None
@@ -131,12 +131,12 @@ def test_single_pose_lateral_snap_cannot_claim_multiview_consistency():
     json.dumps(exported, allow_nan=False)
 
 
-def test_multiview_scatter_uses_raw_huber_endpoints_before_lateral_snap():
+def test_multiview_scatter_uses_huber_endpoints_without_surface_translation():
     fused = fuse_bag_views([_view(-0.01), _view(0.01)], cloud_xyz=_cloud(0.04))
     assert fused.ok
     assert fused.fusion_pose_count == 2
     assert fused.fusion_consistency_available
-    assert fused.fusion_lateral_shift_m == pytest.approx(0.04)
+    assert fused.fusion_lateral_shift_m == pytest.approx(0.0)
     assert fused.fusion_landmark_scatter_rmse_m == pytest.approx(0.01)
     assert fused.fusion_landmark_inlier_ratio == 1.0
 

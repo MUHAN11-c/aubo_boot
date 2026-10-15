@@ -1,0 +1,480 @@
+FFFFFFFFFFFF                                                             [100%]
+=================================== FAILURES ===================================
+______ test_shutdown_order_and_unexpected_errors[True-KeyboardInterrupt] _______
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x704314a811f0>
+exception = <class 'KeyboardInterrupt'>, context_live = True
+
+    @pytest.mark.parametrize('exception', [KeyboardInterrupt, ExternalShutdownException, RuntimeError])
+    @pytest.mark.parametrize('context_live', [True, False])
+    def test_shutdown_order_and_unexpected_errors(monkeypatch, exception, context_live):
+        calls = []
+    
+        def node(name):
+            return SimpleNamespace(destroy_node=lambda: calls.append('destroy:' + name))
+    
+        def spin():
+            raise exception('test interrupt')
+    
+        executor = SimpleNamespace(
+            add_node=lambda node: None, spin=spin,
+            shutdown=lambda: calls.append('executor_shutdown'))
+        monkeypatch.setattr(brain, 'ScenePerceptionNode', lambda: node('scene'))
+        monkeypatch.setattr(brain, 'TargetReconstructionNode', lambda: node('recon'))
+        monkeypatch.setattr(brain, 'TaskExecutorNode', lambda: node('supervisor'))
+        monkeypatch.setattr(brain, 'MultiThreadedExecutor', lambda: executor)
+        monkeypatch.setattr(brain.rclpy, 'init', lambda **kwargs: calls.append('init'))
+        monkeypatch.setattr(brain.rclpy, 'ok', lambda: context_live)
+        monkeypatch.setattr(brain.rclpy, 'shutdown', lambda: calls.append('context_shutdown'))
+        raised = None
+        try:
+            brain.main()
+        except BaseException as exc:
+            raised = exc
+        if exception is RuntimeError:
+            assert isinstance(raised, RuntimeError)
+        else:
+>           assert raised is None
+E           AssertionError: assert KeyboardInterrupt('test interrupt') is None
+
+src/peach/peach_harvester/test/test_brain_shutdown.py:38: AssertionError
+__ test_shutdown_order_and_unexpected_errors[True-ExternalShutdownException] ___
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x704312e1aed0>
+exception = <class 'rclpy.executors.ExternalShutdownException'>
+context_live = True
+
+    @pytest.mark.parametrize('exception', [KeyboardInterrupt, ExternalShutdownException, RuntimeError])
+    @pytest.mark.parametrize('context_live', [True, False])
+    def test_shutdown_order_and_unexpected_errors(monkeypatch, exception, context_live):
+        calls = []
+    
+        def node(name):
+            return SimpleNamespace(destroy_node=lambda: calls.append('destroy:' + name))
+    
+        def spin():
+            raise exception('test interrupt')
+    
+        executor = SimpleNamespace(
+            add_node=lambda node: None, spin=spin,
+            shutdown=lambda: calls.append('executor_shutdown'))
+        monkeypatch.setattr(brain, 'ScenePerceptionNode', lambda: node('scene'))
+        monkeypatch.setattr(brain, 'TargetReconstructionNode', lambda: node('recon'))
+        monkeypatch.setattr(brain, 'TaskExecutorNode', lambda: node('supervisor'))
+        monkeypatch.setattr(brain, 'MultiThreadedExecutor', lambda: executor)
+        monkeypatch.setattr(brain.rclpy, 'init', lambda **kwargs: calls.append('init'))
+        monkeypatch.setattr(brain.rclpy, 'ok', lambda: context_live)
+        monkeypatch.setattr(brain.rclpy, 'shutdown', lambda: calls.append('context_shutdown'))
+        raised = None
+        try:
+            brain.main()
+        except BaseException as exc:
+            raised = exc
+        if exception is RuntimeError:
+            assert isinstance(raised, RuntimeError)
+        else:
+>           assert raised is None
+E           AssertionError: assert ExternalShutdownException('test interrupt') is None
+
+src/peach/peach_harvester/test/test_brain_shutdown.py:38: AssertionError
+_________ test_shutdown_order_and_unexpected_errors[True-RuntimeError] _________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x704312e1cef0>
+exception = <class 'RuntimeError'>, context_live = True
+
+    @pytest.mark.parametrize('exception', [KeyboardInterrupt, ExternalShutdownException, RuntimeError])
+    @pytest.mark.parametrize('context_live', [True, False])
+    def test_shutdown_order_and_unexpected_errors(monkeypatch, exception, context_live):
+        calls = []
+    
+        def node(name):
+            return SimpleNamespace(destroy_node=lambda: calls.append('destroy:' + name))
+    
+        def spin():
+            raise exception('test interrupt')
+    
+        executor = SimpleNamespace(
+            add_node=lambda node: None, spin=spin,
+            shutdown=lambda: calls.append('executor_shutdown'))
+        monkeypatch.setattr(brain, 'ScenePerceptionNode', lambda: node('scene'))
+        monkeypatch.setattr(brain, 'TargetReconstructionNode', lambda: node('recon'))
+        monkeypatch.setattr(brain, 'TaskExecutorNode', lambda: node('supervisor'))
+        monkeypatch.setattr(brain, 'MultiThreadedExecutor', lambda: executor)
+        monkeypatch.setattr(brain.rclpy, 'init', lambda **kwargs: calls.append('init'))
+        monkeypatch.setattr(brain.rclpy, 'ok', lambda: context_live)
+        monkeypatch.setattr(brain.rclpy, 'shutdown', lambda: calls.append('context_shutdown'))
+        raised = None
+        try:
+            brain.main()
+        except BaseException as exc:
+            raised = exc
+        if exception is RuntimeError:
+            assert isinstance(raised, RuntimeError)
+        else:
+            assert raised is None
+        expected = ['init', 'executor_shutdown', 'destroy:scene', 'destroy:recon',
+                    'destroy:supervisor']
+        if context_live:
+            expected.append('context_shutdown')
+>       assert calls == expected
+E       AssertionError: assert ['init', 'des...ext_shutdown'] == ['init', 'exe...ext_shutdown']
+E         At index 1 diff: 'destroy:scene' != 'executor_shutdown'
+E         Use -v to get more diff
+
+src/peach/peach_harvester/test/test_brain_shutdown.py:43: AssertionError
+______ test_shutdown_order_and_unexpected_errors[False-KeyboardInterrupt] ______
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x704312e1d6a0>
+exception = <class 'KeyboardInterrupt'>, context_live = False
+
+    @pytest.mark.parametrize('exception', [KeyboardInterrupt, ExternalShutdownException, RuntimeError])
+    @pytest.mark.parametrize('context_live', [True, False])
+    def test_shutdown_order_and_unexpected_errors(monkeypatch, exception, context_live):
+        calls = []
+    
+        def node(name):
+            return SimpleNamespace(destroy_node=lambda: calls.append('destroy:' + name))
+    
+        def spin():
+            raise exception('test interrupt')
+    
+        executor = SimpleNamespace(
+            add_node=lambda node: None, spin=spin,
+            shutdown=lambda: calls.append('executor_shutdown'))
+        monkeypatch.setattr(brain, 'ScenePerceptionNode', lambda: node('scene'))
+        monkeypatch.setattr(brain, 'TargetReconstructionNode', lambda: node('recon'))
+        monkeypatch.setattr(brain, 'TaskExecutorNode', lambda: node('supervisor'))
+        monkeypatch.setattr(brain, 'MultiThreadedExecutor', lambda: executor)
+        monkeypatch.setattr(brain.rclpy, 'init', lambda **kwargs: calls.append('init'))
+        monkeypatch.setattr(brain.rclpy, 'ok', lambda: context_live)
+        monkeypatch.setattr(brain.rclpy, 'shutdown', lambda: calls.append('context_shutdown'))
+        raised = None
+        try:
+            brain.main()
+        except BaseException as exc:
+            raised = exc
+        if exception is RuntimeError:
+            assert isinstance(raised, RuntimeError)
+        else:
+>           assert raised is None
+E           AssertionError: assert KeyboardInterrupt('test interrupt') is None
+
+src/peach/peach_harvester/test/test_brain_shutdown.py:38: AssertionError
+__ test_shutdown_order_and_unexpected_errors[False-ExternalShutdownException] __
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x704312e1e240>
+exception = <class 'rclpy.executors.ExternalShutdownException'>
+context_live = False
+
+    @pytest.mark.parametrize('exception', [KeyboardInterrupt, ExternalShutdownException, RuntimeError])
+    @pytest.mark.parametrize('context_live', [True, False])
+    def test_shutdown_order_and_unexpected_errors(monkeypatch, exception, context_live):
+        calls = []
+    
+        def node(name):
+            return SimpleNamespace(destroy_node=lambda: calls.append('destroy:' + name))
+    
+        def spin():
+            raise exception('test interrupt')
+    
+        executor = SimpleNamespace(
+            add_node=lambda node: None, spin=spin,
+            shutdown=lambda: calls.append('executor_shutdown'))
+        monkeypatch.setattr(brain, 'ScenePerceptionNode', lambda: node('scene'))
+        monkeypatch.setattr(brain, 'TargetReconstructionNode', lambda: node('recon'))
+        monkeypatch.setattr(brain, 'TaskExecutorNode', lambda: node('supervisor'))
+        monkeypatch.setattr(brain, 'MultiThreadedExecutor', lambda: executor)
+        monkeypatch.setattr(brain.rclpy, 'init', lambda **kwargs: calls.append('init'))
+        monkeypatch.setattr(brain.rclpy, 'ok', lambda: context_live)
+        monkeypatch.setattr(brain.rclpy, 'shutdown', lambda: calls.append('context_shutdown'))
+        raised = None
+        try:
+            brain.main()
+        except BaseException as exc:
+            raised = exc
+        if exception is RuntimeError:
+            assert isinstance(raised, RuntimeError)
+        else:
+>           assert raised is None
+E           AssertionError: assert ExternalShutdownException('test interrupt') is None
+
+src/peach/peach_harvester/test/test_brain_shutdown.py:38: AssertionError
+________ test_shutdown_order_and_unexpected_errors[False-RuntimeError] _________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x704312e1eea0>
+exception = <class 'RuntimeError'>, context_live = False
+
+    @pytest.mark.parametrize('exception', [KeyboardInterrupt, ExternalShutdownException, RuntimeError])
+    @pytest.mark.parametrize('context_live', [True, False])
+    def test_shutdown_order_and_unexpected_errors(monkeypatch, exception, context_live):
+        calls = []
+    
+        def node(name):
+            return SimpleNamespace(destroy_node=lambda: calls.append('destroy:' + name))
+    
+        def spin():
+            raise exception('test interrupt')
+    
+        executor = SimpleNamespace(
+            add_node=lambda node: None, spin=spin,
+            shutdown=lambda: calls.append('executor_shutdown'))
+        monkeypatch.setattr(brain, 'ScenePerceptionNode', lambda: node('scene'))
+        monkeypatch.setattr(brain, 'TargetReconstructionNode', lambda: node('recon'))
+        monkeypatch.setattr(brain, 'TaskExecutorNode', lambda: node('supervisor'))
+        monkeypatch.setattr(brain, 'MultiThreadedExecutor', lambda: executor)
+        monkeypatch.setattr(brain.rclpy, 'init', lambda **kwargs: calls.append('init'))
+        monkeypatch.setattr(brain.rclpy, 'ok', lambda: context_live)
+        monkeypatch.setattr(brain.rclpy, 'shutdown', lambda: calls.append('context_shutdown'))
+        raised = None
+        try:
+            brain.main()
+        except BaseException as exc:
+            raised = exc
+        if exception is RuntimeError:
+            assert isinstance(raised, RuntimeError)
+        else:
+            assert raised is None
+        expected = ['init', 'executor_shutdown', 'destroy:scene', 'destroy:recon',
+                    'destroy:supervisor']
+        if context_live:
+            expected.append('context_shutdown')
+>       assert calls == expected
+E       AssertionError: assert ['init', 'des...tor_shutdown'] == ['init', 'exe...y:supervisor']
+E         At index 1 diff: 'destroy:scene' != 'executor_shutdown'
+E         Use -v to get more diff
+
+src/peach/peach_harvester/test/test_brain_shutdown.py:43: AssertionError
+______________ test_bridge_shutdown_order[True-KeyboardInterrupt] ______________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x704312e134d0>
+exception = <class 'KeyboardInterrupt'>, context_live = True
+
+    @pytest.mark.parametrize('exception', [KeyboardInterrupt, ExternalShutdownException, RuntimeError])
+    @pytest.mark.parametrize('context_live', [True, False])
+    def test_bridge_shutdown_order(monkeypatch, exception, context_live):
+        calls = []
+    
+        def spin(*args):
+            raise exception('test interrupt')
+    
+        executor = SimpleNamespace(add_node=lambda node: None, spin=spin,
+                                   shutdown=lambda: calls.append('executor_shutdown'))
+        monkeypatch.setattr(bridge, 'SingleThreadedExecutor', lambda: executor, raising=False)
+        monkeypatch.setattr(bridge, 'LifecycleFlagBridge', lambda: SimpleNamespace(
+            destroy_node=lambda: calls.append('destroy')))
+        monkeypatch.setattr(bridge.rclpy, 'init', lambda **kwargs: calls.append('init'))
+        monkeypatch.setattr(bridge.rclpy, 'spin', spin)
+        monkeypatch.setattr(bridge.rclpy, 'ok', lambda: context_live)
+        monkeypatch.setattr(bridge.rclpy, 'shutdown', lambda: calls.append('context_shutdown'))
+        raised = None
+        try:
+            bridge.main()
+        except BaseException as exc:
+            raised = exc
+        if exception is RuntimeError:
+            assert isinstance(raised, RuntimeError)
+        else:
+>           assert raised is None
+E           AssertionError: assert KeyboardInterrupt('test interrupt') is None
+
+src/peach/peach_bringup/test/test_bridge_shutdown.py:34: AssertionError
+__________ test_bridge_shutdown_order[True-ExternalShutdownException] __________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x704312e12060>
+exception = <class 'rclpy.executors.ExternalShutdownException'>
+context_live = True
+
+    @pytest.mark.parametrize('exception', [KeyboardInterrupt, ExternalShutdownException, RuntimeError])
+    @pytest.mark.parametrize('context_live', [True, False])
+    def test_bridge_shutdown_order(monkeypatch, exception, context_live):
+        calls = []
+    
+        def spin(*args):
+            raise exception('test interrupt')
+    
+        executor = SimpleNamespace(add_node=lambda node: None, spin=spin,
+                                   shutdown=lambda: calls.append('executor_shutdown'))
+        monkeypatch.setattr(bridge, 'SingleThreadedExecutor', lambda: executor, raising=False)
+        monkeypatch.setattr(bridge, 'LifecycleFlagBridge', lambda: SimpleNamespace(
+            destroy_node=lambda: calls.append('destroy')))
+        monkeypatch.setattr(bridge.rclpy, 'init', lambda **kwargs: calls.append('init'))
+        monkeypatch.setattr(bridge.rclpy, 'spin', spin)
+        monkeypatch.setattr(bridge.rclpy, 'ok', lambda: context_live)
+        monkeypatch.setattr(bridge.rclpy, 'shutdown', lambda: calls.append('context_shutdown'))
+        raised = None
+        try:
+            bridge.main()
+        except BaseException as exc:
+            raised = exc
+        if exception is RuntimeError:
+            assert isinstance(raised, RuntimeError)
+        else:
+>           assert raised is None
+E           AssertionError: assert ExternalShutdownException('test interrupt') is None
+
+src/peach/peach_bringup/test/test_bridge_shutdown.py:34: AssertionError
+________________ test_bridge_shutdown_order[True-RuntimeError] _________________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x704312e13cb0>
+exception = <class 'RuntimeError'>, context_live = True
+
+    @pytest.mark.parametrize('exception', [KeyboardInterrupt, ExternalShutdownException, RuntimeError])
+    @pytest.mark.parametrize('context_live', [True, False])
+    def test_bridge_shutdown_order(monkeypatch, exception, context_live):
+        calls = []
+    
+        def spin(*args):
+            raise exception('test interrupt')
+    
+        executor = SimpleNamespace(add_node=lambda node: None, spin=spin,
+                                   shutdown=lambda: calls.append('executor_shutdown'))
+        monkeypatch.setattr(bridge, 'SingleThreadedExecutor', lambda: executor, raising=False)
+        monkeypatch.setattr(bridge, 'LifecycleFlagBridge', lambda: SimpleNamespace(
+            destroy_node=lambda: calls.append('destroy')))
+        monkeypatch.setattr(bridge.rclpy, 'init', lambda **kwargs: calls.append('init'))
+        monkeypatch.setattr(bridge.rclpy, 'spin', spin)
+        monkeypatch.setattr(bridge.rclpy, 'ok', lambda: context_live)
+        monkeypatch.setattr(bridge.rclpy, 'shutdown', lambda: calls.append('context_shutdown'))
+        raised = None
+        try:
+            bridge.main()
+        except BaseException as exc:
+            raised = exc
+        if exception is RuntimeError:
+            assert isinstance(raised, RuntimeError)
+        else:
+            assert raised is None
+        expected = ['init', 'executor_shutdown', 'destroy']
+        if context_live:
+            expected.append('context_shutdown')
+>       assert calls == expected
+E       AssertionError: assert ['init', 'des...ext_shutdown'] == ['init', 'exe...ext_shutdown']
+E         At index 1 diff: 'destroy' != 'executor_shutdown'
+E         Right contains one more item: 'context_shutdown'
+E         Use -v to get more diff
+
+src/peach/peach_bringup/test/test_bridge_shutdown.py:38: AssertionError
+_____________ test_bridge_shutdown_order[False-KeyboardInterrupt] ______________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x704312ee2e70>
+exception = <class 'KeyboardInterrupt'>, context_live = False
+
+    @pytest.mark.parametrize('exception', [KeyboardInterrupt, ExternalShutdownException, RuntimeError])
+    @pytest.mark.parametrize('context_live', [True, False])
+    def test_bridge_shutdown_order(monkeypatch, exception, context_live):
+        calls = []
+    
+        def spin(*args):
+            raise exception('test interrupt')
+    
+        executor = SimpleNamespace(add_node=lambda node: None, spin=spin,
+                                   shutdown=lambda: calls.append('executor_shutdown'))
+        monkeypatch.setattr(bridge, 'SingleThreadedExecutor', lambda: executor, raising=False)
+        monkeypatch.setattr(bridge, 'LifecycleFlagBridge', lambda: SimpleNamespace(
+            destroy_node=lambda: calls.append('destroy')))
+        monkeypatch.setattr(bridge.rclpy, 'init', lambda **kwargs: calls.append('init'))
+        monkeypatch.setattr(bridge.rclpy, 'spin', spin)
+        monkeypatch.setattr(bridge.rclpy, 'ok', lambda: context_live)
+        monkeypatch.setattr(bridge.rclpy, 'shutdown', lambda: calls.append('context_shutdown'))
+        raised = None
+        try:
+            bridge.main()
+        except BaseException as exc:
+            raised = exc
+        if exception is RuntimeError:
+            assert isinstance(raised, RuntimeError)
+        else:
+>           assert raised is None
+E           AssertionError: assert KeyboardInterrupt('test interrupt') is None
+
+src/peach/peach_bringup/test/test_bridge_shutdown.py:34: AssertionError
+_________ test_bridge_shutdown_order[False-ExternalShutdownException] __________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x704312dd49e0>
+exception = <class 'rclpy.executors.ExternalShutdownException'>
+context_live = False
+
+    @pytest.mark.parametrize('exception', [KeyboardInterrupt, ExternalShutdownException, RuntimeError])
+    @pytest.mark.parametrize('context_live', [True, False])
+    def test_bridge_shutdown_order(monkeypatch, exception, context_live):
+        calls = []
+    
+        def spin(*args):
+            raise exception('test interrupt')
+    
+        executor = SimpleNamespace(add_node=lambda node: None, spin=spin,
+                                   shutdown=lambda: calls.append('executor_shutdown'))
+        monkeypatch.setattr(bridge, 'SingleThreadedExecutor', lambda: executor, raising=False)
+        monkeypatch.setattr(bridge, 'LifecycleFlagBridge', lambda: SimpleNamespace(
+            destroy_node=lambda: calls.append('destroy')))
+        monkeypatch.setattr(bridge.rclpy, 'init', lambda **kwargs: calls.append('init'))
+        monkeypatch.setattr(bridge.rclpy, 'spin', spin)
+        monkeypatch.setattr(bridge.rclpy, 'ok', lambda: context_live)
+        monkeypatch.setattr(bridge.rclpy, 'shutdown', lambda: calls.append('context_shutdown'))
+        raised = None
+        try:
+            bridge.main()
+        except BaseException as exc:
+            raised = exc
+        if exception is RuntimeError:
+            assert isinstance(raised, RuntimeError)
+        else:
+>           assert raised is None
+E           AssertionError: assert ExternalShutdownException('test interrupt') is None
+
+src/peach/peach_bringup/test/test_bridge_shutdown.py:34: AssertionError
+________________ test_bridge_shutdown_order[False-RuntimeError] ________________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x704312e1ed50>
+exception = <class 'RuntimeError'>, context_live = False
+
+    @pytest.mark.parametrize('exception', [KeyboardInterrupt, ExternalShutdownException, RuntimeError])
+    @pytest.mark.parametrize('context_live', [True, False])
+    def test_bridge_shutdown_order(monkeypatch, exception, context_live):
+        calls = []
+    
+        def spin(*args):
+            raise exception('test interrupt')
+    
+        executor = SimpleNamespace(add_node=lambda node: None, spin=spin,
+                                   shutdown=lambda: calls.append('executor_shutdown'))
+        monkeypatch.setattr(bridge, 'SingleThreadedExecutor', lambda: executor, raising=False)
+        monkeypatch.setattr(bridge, 'LifecycleFlagBridge', lambda: SimpleNamespace(
+            destroy_node=lambda: calls.append('destroy')))
+        monkeypatch.setattr(bridge.rclpy, 'init', lambda **kwargs: calls.append('init'))
+        monkeypatch.setattr(bridge.rclpy, 'spin', spin)
+        monkeypatch.setattr(bridge.rclpy, 'ok', lambda: context_live)
+        monkeypatch.setattr(bridge.rclpy, 'shutdown', lambda: calls.append('context_shutdown'))
+        raised = None
+        try:
+            bridge.main()
+        except BaseException as exc:
+            raised = exc
+        if exception is RuntimeError:
+            assert isinstance(raised, RuntimeError)
+        else:
+            assert raised is None
+        expected = ['init', 'executor_shutdown', 'destroy']
+        if context_live:
+            expected.append('context_shutdown')
+>       assert calls == expected
+E       AssertionError: assert ['init', 'destroy'] == ['init', 'exe...n', 'destroy']
+E         At index 1 diff: 'destroy' != 'executor_shutdown'
+E         Right contains one more item: 'destroy'
+E         Use -v to get more diff
+
+src/peach/peach_bringup/test/test_bridge_shutdown.py:38: AssertionError
+=========================== short test summary info ============================
+FAILED src/peach/peach_bringup/::test_shutdown_order_and_unexpected_errors[True-KeyboardInterrupt]
+FAILED src/peach/peach_bringup/::test_shutdown_order_and_unexpected_errors[True-ExternalShutdownException]
+FAILED src/peach/peach_bringup/::test_shutdown_order_and_unexpected_errors[True-RuntimeError]
+FAILED src/peach/peach_bringup/::test_shutdown_order_and_unexpected_errors[False-KeyboardInterrupt]
+FAILED src/peach/peach_bringup/::test_shutdown_order_and_unexpected_errors[False-ExternalShutdownException]
+FAILED src/peach/peach_bringup/::test_shutdown_order_and_unexpected_errors[False-RuntimeError]
+FAILED src/peach/peach_bringup/test/test_bridge_shutdown.py::test_bridge_shutdown_order[True-KeyboardInterrupt]
+FAILED src/peach/peach_bringup/test/test_bridge_shutdown.py::test_bridge_shutdown_order[True-ExternalShutdownException]
+FAILED src/peach/peach_bringup/test/test_bridge_shutdown.py::test_bridge_shutdown_order[True-RuntimeError]
+FAILED src/peach/peach_bringup/test/test_bridge_shutdown.py::test_bridge_shutdown_order[False-KeyboardInterrupt]
+FAILED src/peach/peach_bringup/test/test_bridge_shutdown.py::test_bridge_shutdown_order[False-ExternalShutdownException]
+FAILED src/peach/peach_bringup/test/test_bridge_shutdown.py::test_bridge_shutdown_order[False-RuntimeError]
+12 failed in 0.57s

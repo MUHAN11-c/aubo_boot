@@ -1,8 +1,8 @@
-# `peach_harvester` io（v1 活文档）
+# `peach_harvester` io（活文档）
 
 > 2026-10-10 用户裁定自仓库级 `docs/io.md` 拆写入包：本包四节点（scene_perception / target_reconstruction / supervisor / lifecycle_manager）与独立进程 `peach_scene_obstacles` 的话题、服务、动作与参数。相机契约（/camera/* 前端选择）与跨包边界在 [peach_bringup/doc/io.md](../../peach_bringup/doc/io.md)；字段级 IDL 在 [peach_interfaces/README.md](../../peach_interfaces/README.md)。**源码与本文互相更新，改接口须同一轮改另一边**。
 
-vision 一包两节点（看 + 建）。不发运动、不选下一颗、不写 `ledger.json`（可向 `runs/<request_id>/perception_data/` 追加 `HarvestDataStore` 事件）。感知几何优先 stamp TF，失败 latest 并 `tf_stale`；重建积分必须图像时刻精确 TF，禁止 latest。
+本节描述brain中的vision两节点（看 + 建）；同包另有supervisor及独立scene_obstacles。不发运动、不选下一颗、不写 `ledger.json`（可向 `runs/<request_id>/perception_data/` 追加 `HarvestDataStore` 事件）。感知几何优先 stamp TF，失败 latest 并 `tf_stale`；重建积分必须图像时刻精确 TF，禁止 latest。
 
 ### 3.1 `peach_scene_perception_node`（看）
 
@@ -83,7 +83,7 @@ flowchart TB
 | `sync_slop_s` | RGB-D 近似同步允差（0.05 s） |
 | `tool.entry_d_tool` / `entry_d_s` | 入口相对袋底。由 `grasp_standoffs.yaml` 注入，勿只改这里 |
 | `tool.D_inner` | 工具内径（径向走廊门）。整栈由 launch `tool_profile` 档案注入覆盖（`aubo_description/config/<profile>.yaml` 单一事实源；三把剪切手 bite/shear/adaptive = 0.104/0.080/0.120，基础值=adaptive_shear_v1 0.120；bite 0.104 为 2026-09-30 裁定——几何权威在 URDF/机械设计，按设计意图登记，机械定型后实测核回） |
-| `tool.L_insert` / `tool.L_blade` | 最大插入深度 / TCP 到剪切平面轴向距离。整栈由档案注入覆盖（三把 0.030/0.030/0.090 与 0.037/0.030/0.079，基础值=adaptive 档案；2026-09-29 扩注入面） |
+| `tool.L_insert` / `tool.L_blade` | 最大插入深度 / 档案机械刀具长度（TCP 与剪切平面重合，感知 blade_offset_m=0）。整栈由档案注入覆盖（三把 0.030/0.030/0.090 与 0.037/0.030/0.079，基础值=adaptive 档案；2026-09-29 扩注入面） |
 
 ### 3.2 `peach_target_reconstruction_node`（建）
 
@@ -125,7 +125,8 @@ flowchart TB
 | `/peach/reconstruction/refined_axis` | topic | 融合袋轴，给监控三维 | peach_target_reconstruction | peach_observability |
 | `/peach/reconstruction/refined_diagnostics` | topic | 精化拟合诊断 | peach_target_reconstruction | peach_arm, peach_observability |
 | `/peach/reconstruction/tsdf_cloud` | topic | 绑定目标 TSDF 表面（批次结束会复位变空） | peach_target_reconstruction | peach_observability |
-| `/peach/reconstruction/local_cloud` | topic | 当前目标局部点云（latched；清单可视化豁免） | peach_target_reconstruction | （可视化/调试） |
+| `/peach/reconstruction/local_cloud` | topic | 当前目标完整局部点云，无显示点数截断（latched；清单可视化豁免） | peach_target_reconstruction | （可视化/调试） |
+| `/peach/reconstruction/preview_cloud` | topic | RViz专用有色预览：TSDF优先、否则累加云，确定性步长采样，硬上限50000点；BEST_EFFORT / TRANSIENT_LOCAL / depth1，复位发布空云 | peach_target_reconstruction | （RViz，不供算法消费） |
 | `/peach/reconstruction/markers` | topic | 相机轨迹与精化示意 | peach_target_reconstruction | （可视化） |
 | `/peach/reconstruction/shape_hypothesis` | topic | 形状假说（契约预留，未当批次门） | peach_target_reconstruction | （无消费方） |
 
@@ -138,6 +139,10 @@ flowchart TB
 | `/peach_target_reconstruction_node/save_session` | 显式落盘会话工件（`runs/session_*/`） |
 | `/peach_target_reconstruction_node/query_reconstruction_state` | 只读返回当前重建与数据关联 JSON |
 
+重建会话有原始目标掩膜时，同帧另存 `frame_NN_target_mask.npy`；与 RGB、毫米深度、内参和曝光 TF 一起复算原始轮廓检查。最终融合的 `fused_axis_silhouette_conflict` 与 `bag_axis_unobservable` 是许可撤销原因，不允许旧模型缓存恢复接触许可。
+
+轮廓支持按曝光 TF 复用独立机位聚类，簇内取稳健角度、跨独立机位取最坏冲突；连拍帧数不能压过另一机位。至少两个独立、可观测的机位支持后，才能授予多视图 refit 主轴权威。
+
 采帧门（`target_reconstruction/capture.py`，自动失败=skip）：满栈 → 无帧 → 掩膜 → 同 stamp → 帧龄>2 s → 静止（按图像曝光 stamp 查 `/joint_states` 历史前后两条六轴证据——`joint_state_tolerance_s` 0.1 s、Cache 1024 条、时钟回退重建；两侧最大 `|vel|`>0.03 rad/s 或证据缺失/过旧/非有限值拒帧，不回退处理时刻速度）→ 空 frame_id → **精确 TF**。
 
 ```mermaid
@@ -148,17 +153,17 @@ flowchart TB
   icp -->|过| tsdf["LocalTsdf"]
   tsdf --> fin["finalize 提云"]
   fin --> landmarks["宽头=底、窄头=口；轴袋底→袋口且不朝下；对打否决该帧"]
-  landmarks --> geom["入口侧向贴体积 + 剪切参考=袋口/框极限"]
+  landmarks --> geom["保留关键点中心线 + 剪切参考=袋口+工艺偏置"]
   geom --> pre["PREGRASP_ONLY 真机评方向定位"]
   geom --> envelope["TSDF 包络主方向否决"]
   envelope -->|病态跳过12°| budget["动态径向/轴向预算"]
-  envelope -->|夹角>12°| veto["keypoint_cloud_axis_conflict"]
+  envelope -->|夹角诊断| veto["keypoint_cloud_axis_conflict，不否决"]
   envelope -->|一致| budget
   veto --> gd{"GraspDecision.allowed 只拦套入"}
   budget --> gd
 ```
 
-**读图：** 重建把多机位收成「这一颗怎么套」。过采帧门才积分；ICP 拒了就丢这一帧，不硬套进模型。下面分岔：左边融合几何给预抓取评方向；右边包络轴只否决、不授权。最下菱形 `allowed` **只决定能不能套入/剪切**，关了仍可去预抓取。
+**读图：** 重建把多机位收成「这一颗怎么套」。过采帧门才积分；ICP 拒了就丢这一帧，不硬套进模型。下面分岔：左边融合几何给预抓取评方向；右边包络轴只诊断，不授权或否决。最下菱形 `allowed` **只决定能不能套入/剪切**，关了仍可去预抓取。
 
 **两层三态不要混：**
 
@@ -168,7 +173,7 @@ flowchart TB
 | 融合几何 | `GraspDecision` 入口/轴/预抓取/剪切参考（融合成功即填；后撤由 `grasp_standoffs.yaml` 注入，现行入口 0=拟合袋底、预抓取相对入口 0.03 m） | `PREGRASP_ONLY` 到预抓取停住；RViz/监控目视。方向定位对错以真机预抓取实测为准。停袋底对照轮次 1757（历史在 git，原 testing-log 已删） |
 | 接触许可 | `GraspDecision.allowed` | 只授权套入/剪切；禁止降级接触 |
 
-融合成功时 entry/axis/pregrasp/cut_pose 有效，即使 `allowed=false`。无几何时入口/轴填零，只信 `reason` / `failure_code`。常见 reason：`reconstruction_not_ready`、`refined_geometry_unavailable`、`bag_model_unavailable`、`bag_d95_missing`（无尺度证据，仍拒绝）。`bag_d95_exceeds_tool`、`radial_budget_negative`、`axial_budget_negative`、`axial_budget_structurally_unsatisfiable` 只记录尚未更新的刀具常数，不把 `allowed` 打成 false、`keypoint_cloud_axis_conflict`（包络轴与关键点轴 >12° 且包络有长径比）、`cut_plane_fruit_clearance` / `cut_band_unavailable`。`envelope_axis_ill_conditioned` / `envelope_too_few_slices` 只诊断，不单独关 `allowed`。hint >35°只诊断；可靠 ACCEPT 点云拟合轴与融合轴 >`refit.max_axis_angle_deg`（35°）时 `fused_axis_conflict`：REOBSERVE、几何/预抓取/接触能力不可用、清除预算，并覆盖旧 good 缓存。无可靠拟合且 hint 与融合轴 >90°也保守拒绝。通过接触：`dynamic_budget_accept` / `refined_geometry_accept`。软件预算与夹角不代替预抓取位的真机精度评定。
+融合成功时 entry/axis/pregrasp/cut_pose 有效，即使 `allowed=false`。无几何时入口/轴填零，只信 `reason` / `failure_code`。`bag_d95_missing`、缺走廊仍拒绝；径向/轴向预算影子字段维持现行诊断语义。`keypoint_cloud_axis_conflict` 仅诊断单面包络轴偏差。外袋辅助球不阻断剪切，cut_reference_source 为 bag_mouth_geometry。可靠 ACCEPT refit 与融合轴超过 35°、无可靠拟合且 hint 极性相反、口底/轴无效、landmark_axis_conflict、fusion_failed 或 cut_reference_invalid 均清除预算并覆盖旧 good 缓存。预抓取仍要求有效、绑定、新鲜的重建几何；CONTACT/TOOL 才复检接触许可。软件预算不代替台架几何核对。
 
 `allowed=true` 之后仍可能 `skipped_quality`（再确认/预抓取残差）或 `skipped_unreachable`（MTC 护栏）。心跳里大量 `not_ready` 不等于精化从未 ACCEPT；看逐目标 max，不要看收工 IDLE。
 
@@ -183,6 +188,7 @@ flowchart TB
 | `capture.min_neighbor_gap_m` / `neighbor_gap_area_ratio` | 邻锚过近拒帧；小框面积比豁免，近距双检不互锁 |
 | `tf_timeout_sec` | 按深度 stamp 精确查 TF；失败跳帧，禁止 latest |
 | `refit.entry_standoff_m` / `refit.pregrasp_standoff_m` | 入口相对袋底、预抓取相对入口。只改 `grasp_standoffs.yaml` |
+| `tool.budget.cut_reference_offset_m` | 袋口到剪切参考的轴向工艺偏置；默认 0，允许 [-0.03,0.03] m；正向沿袋底到袋口，不重复计 L_blade |
 | `tool.budget.d_inner` | GraspDecision 动态预算许可的工具内径。整栈由 launch `tool_profile` 档案注入覆盖（三把剪切手 bite/shear/adaptive = 0.104/0.080/0.120，基础值=adaptive 0.120；bite 0.104 为 2026-09-30 裁定值，与纯核 `ToolBudgetParams` 历史默认同级） |
 | `tool.profile_id` | 档案标签（`GraspDecision`/`PregraspVerification`/`TargetModel` 的 `tool_profile_id`）。整栈由 launch `tool_profile` 档案注入 |
 | `refitter.cylinder_impl` / `sphere_impl` | 柱/球精化映射名（`REFITTERS_BY_IMPL`）；其余算法直接构造 |
@@ -216,14 +222,16 @@ flowchart TB
   sel -->|无候选| empty{"empty_survey_limit?"}
   empty -->|否| revisit["SurveyScene 回访 不 Begin"]
   empty -->|是| settle
-  sel -->|有| disp["并行 BuildTargetModel + ExecuteTarget OBSERVE"]
+  sel -->|有| disp["BuildTargetModel 绑定目标后启动臂侧周期"]
   disp --> full{"execute_pregrasp_only?"}
   full -->|true 默认| pg["ExecuteTarget PREGRASP_ONLY"]
   full -->|false| fl["ExecuteTarget FULL"]
-  pg --> recov{"recovery_required?"}
+  pg --> refine["FinalizeAndValidate 同目标精化与许可 → 规划"]
+  fl --> refine
+  refine --> recov{"recovery_required?"}
   recov -->|是 未 ACK| hold["不 Survey 不派下一颗"]
   recov -->|ACK| ledger["写 ledger.json"]
-  fl --> ledger
+  recov -->|否| ledger
   ledger --> revisit
   revisit --> sel
   ctl["ControlTask PAUSE/SKIP/CANCEL/ACK"] -.-> recov
@@ -244,7 +252,13 @@ flowchart TB
 | `/peach_supervisor/scene_snapshot` | topic | WAIT_LOCK 或回访 dwell 后的锁定集快照 | peach_supervisor | peach_observability（会话 bag/MCAP 落证据） |
 | `/diagnostics` | topic | diagnostic_updater 5 s 周期（感知/重建/调度/scene_obstacles/lifecycle_manager 五节点全覆盖，任务见各自小节） | 本包各节点 | peach_observability（聚合） |
 
-客户端（仅本节点）：`BeginScene`、`SurveyScene`、`BuildTargetModel`（与 OBSERVE_ONLY 并行）、`ExecuteTarget`、`CheckReachability`、`MoveTo`（`/peach_arm/move_to`，fast 档观察/回拍照位，2026-10-08 起）、`acknowledge_recovery`（`/peach_arm/acknowledge_recovery`，PREGRASP_ONLY 停驻 ACK，成功才消耗 `state_seq`）。批次6 `reconstruct_in_trajectory`（默认关）：true 时 DISPATCH 起 Build 后不再阻塞等 Build 完成，立即派 FULL（goal 自带 `skip_observation=true`，身份 revision=`pending:*` 占位，不装 GraspDecision 令牌）——重建与接近并行，臂侧 FinalizeAndValidate 有界等精化兜底，周期收口取消并等 Build 结束（单槽约束）。**批次策略与补采**（2026-09 轮起）：`BatchPolicy`（target_harvest_ratio / per_target_timeout_s / sector_timeout_s / view_policy fast|conservative）随 RunHarvest goal 初值、`set_batch_policy` 运行期改；单果时限门超时记 `target_timeout` 事件，`ratio_reached` 收批（`batch_ratio_satisfied` 事件）；批末补采清单落 `runs/<request_id>/rework_list.json`。视点两档：conservative=Build+OBSERVE 并行（上图）；fast=supervisor 直驱 MoveTo 补视（不发 arm OBSERVE_ONLY 动作，单视优先、补视封顶 3 视，`min_views` 未达仍补）。账本：`runs/<request_id>/ledger.json`。
+客户端（仅本节点）：`BeginScene`、`SurveyScene`、`BuildTargetModel`、`ExecuteTarget`、`CheckReachability`、`MoveTo`（`/peach_arm/move_to`，显式串行 fast 档补视/回拍照位）、`acknowledge_recovery`（`/peach_arm/acknowledge_recovery`，PREGRASP_ONLY 停驻 ACK，成功才消耗 `state_seq`）。
+
+`reconstruct_in_trajectory=true` 为默认：DISPATCH 起 Build 并确认绑定目标后，立即派配置档位的 `PREGRASP_ONLY` 或 `FULL`（`skip_observation=true`，身份 revision=`pending:*` 占位，不装尚未完成的 GraspDecision 令牌）。臂侧 `FinalizeAndValidate` 有界等同目标精化与许可，到齐并过质量门后才规划；并行指 Build 与臂侧等待，不允许用粗几何提前执行接触。默认避免 Build 已生成模型后继续串行观察消耗冻结的 `generated_at/valid_until` 有效窗，不通过心跳续签或放宽新鲜度门处理过期。周期收口取消并等 Build 结束，保留单槽约束。
+
+显式 `reconstruct_in_trajectory=false` 保留补视流程：conservative 为 Build 与 `OBSERVE_ONLY` 并行，fast 为 supervisor 直驱 MoveTo 补视（单视优先、封顶 3 视）；这两档在观察结束后等待 Build，过期模型仍由臂侧拒绝。默认并行路径不执行这段串行补视。需要多视配置时应复核实际模型生成与动作时序，不能借重新发送同一模型伪造新鲜度。
+
+批次策略与补采：`BatchPolicy`（target_harvest_ratio / per_target_timeout_s / sector_timeout_s / view_policy fast|conservative）随 RunHarvest goal 初值、`set_batch_policy` 运行期改；单果时限超时记 `target_timeout` 事件，`ratio_reached` 收批；补采清单落 `runs/<request_id>/rework_list.json`，账本为同目录 `ledger.json`。
 
 `RunHarvest.Result.success`：`PICK_ALL` / `PICK_SELECTED` 必须至少一个 `summary.succeeded`（目标 `FULL` 或 `PREGRASP_ONLY` 成功）；零成功均为 false / `no_targets_succeeded`，包括空场景和全过滤导致 `attempted=0`。`SURVEY_ONLY` 正常扫场结算可为 true，零目标不算失败。正常结算的批次态 `COMPLETED` 和 action 状态 `SUCCEEDED` 不代替该字段；取消或中止保持 false 与对应原因。
 
@@ -254,4 +268,18 @@ flowchart TB
 
 本包不提供管理服务；调度订阅 `/peach/lifecycle/managed_nodes_activated` 作为开批门。其生产方是 `peach_bringup` 的 flag bridge；管理服务使用 Nav2 类型，见 [系统 IO](../../peach_bringup/doc/io.md)。
 
-`/peach/reconstruction/diagnostics_debug` 的 `refined` JSON 另包含实际 `model_revision`、`fruit_prior_radius_m`、`cut_to_fruit_m` 与 `cut_distance_source`。`cut_distance_source=unavailable` 时 `cut_to_fruit_m=null`；`bag_surface_sphere_auxiliary` 表示外袋表面拟合所得的辅助估计，不能解释为内部果实的独立测量。该补充只读，不改 ROS IDL、令牌有效期、运动权限或许可计算。
+`/peach/reconstruction/diagnostics_debug` 的 `refined` JSON 另包含实际 `model_revision`、`fruit_prior_radius_m`、`cut_to_fruit_m` 与 `cut_distance_source`。`cut_distance_source=unavailable` 时 `cut_to_fruit_m=null`；`bag_surface_sphere_auxiliary` 表示外袋表面拟合所得的辅助估计，不能解释为内部果实的独立测量。该诊断不改 ROS IDL、令牌有效期或运动权限；剪切参考位置由外袋袋口与单次工艺偏置计算。
+
+## 模型生成时间、质量与许可
+
+同model_revision第一次产生的generated_at冻结：GraspDecision.header.stamp与Build结果TargetModel.generated_at/header.stamp一致，共用valid_until，周期心跳不续签、不把旧模型变新。diagnostics_debug顶层model_stamp为浮点秒，供排查模型真实年龄，不采用诊断接收时间替代。独立机位成功数为1时quality最多MEDIUM，至少2时才可HIGH；同机位连帧不升级质量，不改变既有CONTACT/TOOL能力门。Snapshot READY或accepted不等于全部四能力VALID，汇总allowed、运行使能与臂侧最终授权必须独立核对。
+
+重建场景世代由`target_observations.scene_epoch`事实及`BuildTargetModel.goal.scene_epoch`绑定，Build在启动采集前写入该身份；晚到的`HarvestState`调度镜像不得回写已绑定世代。`GraspDecision`与Build结果使用同一世代。Web镜像保留标定、配置修订和各独立能力枚举原值：`VALID=0`、`INVALID=1`、`UNKNOWN=2`；全零能力表示均有效，不是缺少判定。
+
+换批次或同批次推进场景世代时，重建立即清空采集帧、掩膜和成对模型产物并发布无许可状态。即使`target_id`保持相同，也不得将上一世代的READY几何重贴到新模型身份；后续模型必须重新采集和生成修订。
+
+采集内部使用进程内generation隔离异步TF查询与构云准备：reset、换世代、停用及Build取消/超时使旧token失效，提交前必须再次核对。该token不增加跨节点接口；同`target_id`重新采集也不能接纳上一轮锁外准备中的帧。
+
+执行使能在运行时由`SetEnables`覆盖本地`execution_enabled`参数；WAIT_LOCK完成、选果入口、可达性返回后claim前以及观察/FULL派发前均读取当前有效值，不沿用开批快照。关闭后未派发目标直接经FSM结算，已选目标在派发前关闭则记录`execution_disabled`跳过；不新增运行中运动取消语义，臂侧最终命令门保持权威。
+
+精确同戳RGB-D等待掩膜的FrameStore按曝光时间保留现有`capture.max_frame_age_s`窗口（部署2秒），同时限制64帧及RGB/深度数组合计96MiB（按`nbytes`计）。重复stamp替换并扣除旧数组计数，乱序输入按曝光时间淘汰最旧帧；单帧超预算不入缓存，reset清空引用及时间水位。该缓存窗不放宽帧新鲜度、掩膜时间容差或精确TF查询。`diagnostics_debug.frame_ring_bytes`报告当前保留数组字节数。

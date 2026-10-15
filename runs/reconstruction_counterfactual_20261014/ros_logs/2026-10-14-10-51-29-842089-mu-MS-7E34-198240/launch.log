@@ -1,0 +1,28 @@
+1791946289.8427274 [INFO] [launch]: All log files can be found below /home/mu/Desktop/aubo_e5_jazzy_ws/runs/reconstruction_counterfactual_20261014/ros_logs/2026-10-14-10-51-29-842089-mu-MS-7E34-198240
+1791946289.8428133 [INFO] [launch]: Default logging verbosity is set to INFO
+1791946290.3253140 [INFO] [robot_state_publisher-1]: process started with pid [198273]
+1791946290.3254797 [INFO] [ros2_control_node-2]: process started with pid [198274]
+1791946290.3255224 [INFO] [spawner-3]: process started with pid [198279]
+1791946290.3255551 [INFO] [spawner-4]: process started with pid [198280]
+1791946290.3255818 [INFO] [move_group-5]: process started with pid [198281]
+1791946290.3256066 [INFO] [extrinsics_publisher-6]: process started with pid [198282]
+1791946290.3256302 [INFO] [peach_harvester-7]: process started with pid [198283]
+1791946290.3256536 [INFO] [peach_arm-8]: process started with pid [198284]
+1791946290.3256762 [INFO] [peach_observability-9]: process started with pid [198285]
+1791946290.3256989 [INFO] [lifecycle_manager-10]: process started with pid [198286]
+1791946290.3257198 [INFO] [peach_lifecycle_flag_bridge-11]: process started with pid [198287]
+1791946290.7389636 [WARNING] [launch]: user interrupted with ctrl-c (SIGINT)
+1791946291.2964995 [INFO] [peach_lifecycle_flag_bridge-11]: sending signal 'SIGINT' to process[peach_lifecycle_flag_bridge-11]
+1791946291.2969019 [INFO] [spawner-3]: process has finished cleanly [pid 198279]
+1791946291.2969606 [ERROR] [peach_lifecycle_flag_bridge-11]: process has died [pid 198287, exit code -2, cmd '/home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_bringup/lib/peach_bringup/peach_lifecycle_flag_bridge --ros-args -r __node:=peach_lifecycle_flag_bridge -p use_sim_time:=False'].
+1791946291.2970018 [ERROR] [peach_observability-9]: process has died [pid 198285, exit code -2, cmd '/home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_observability/lib/peach_observability/peach_observability --ros-args -r __node:=peach_observability -r __ns:=/ -p use_sim_time:=False --params-file /tmp/launch_params_fwtsm_0v --params-file /tmp/launch_params_bxcsk71u'].
+1791946291.2970362 [ERROR] [peach_harvester-7]: process has died [pid 198283, exit code -2, cmd '/home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_harvester/lib/peach_harvester/peach_harvester --ros-args -r __ns:=/ -p use_sim_time:=False --params-file /tmp/launch_params_6zqkcdq7 --params-file /tmp/launch_params_ftri7dgf --params-file /tmp/launch_params_i2zxeqoi --params-file /tmp/peach_brain_overlay_du_1yddh.yaml'].
+1791946291.2970657 [ERROR] [extrinsics_publisher-6]: process has died [pid 198282, exit code -2, cmd '/home/mu/Desktop/aubo_e5_jazzy_ws/install/aubo_hand_eye_calibration/lib/aubo_hand_eye_calibration/extrinsics_publisher --ros-args -r __node:=hand_eye_extrinsics_publisher -p use_sim_time:=False'].
+1791946291.2970908 [INFO] [robot_state_publisher-1]: process has finished cleanly [pid 198273]
+1791946291.2972200 [INFO] [peach_arm-8]: process has finished cleanly [pid 198284]
+1791946291.2972467 [INFO] [ros2_control_node-2]: process has finished cleanly [pid 198274]
+1791946291.2972713 [INFO] [spawner-4]: process has finished cleanly [pid 198280]
+1791946291.2973900 [INFO] [lifecycle_manager-10]: sending signal 'SIGINT' to process[lifecycle_manager-10]
+1791946291.2988040 [INFO] [move_group-5]: sending signal 'SIGINT' to process[move_group-5]
+1791946291.6520448 [ERROR] [lifecycle_manager-10]: process has died [pid 198286, exit code -6, cmd '/opt/ros/jazzy/lib/nav2_lifecycle_manager/lifecycle_manager --ros-args -r __node:=peach_lifecycle_manager -p use_sim_time:=False --params-file /tmp/launch_params_vyifoajp'].
+1791946291.6785800 [ERROR] [move_group-5]: process has died [pid 198281, exit code -11, cmd '/opt/ros/jazzy/lib/moveit_ros_move_group/move_group --ros-args -p use_sim_time:=False --params-file /tmp/launch_params_93nnyffy --params-file /tmp/launch_params_c5z75_i3'].

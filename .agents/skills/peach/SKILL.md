@@ -36,7 +36,7 @@ description: >-
 
 ## 产品一句话
 
-固定座 AUBO E5 + RGB-D 套袋桃采摘。launch 默认：`camera_enabled:=false`；开相机时 `camera_frontend:=stereo`（percipio 显式备用）、`tool_profile:=adaptive_shear_v1`。干跑默认 **PREGRASP_ONLY**：到预抓取停住，不套入、不 SetIO、不回 `harvest_stow`。套入/剪切分档权威是 **GraspDecision 令牌**（CONTACT=sleeve/径向余量，TOOL=cut/轴向余量+预抓取残差）；`allowed` 只作汇总展示。感知 ACCEPT 只当初值/可视化。③层障碍=Survey 快照对象 `peach_scene_obstacles`（**不用 octomap updater**），只为保护相机。
+固定座 AUBO E5 + RGB-D 套袋桃采摘。launch 默认：`camera_enabled:=false`；开相机时 `camera_frontend:=stereo`（percipio 显式备用）、`tool_profile:=bite_shear_v1`（2026-10-13 起默认咬合式）。干跑默认 **PREGRASP_ONLY**：到预抓取停住，不套入、不 SetIO、不回 `harvest_stow`。套入/剪切分档权威是 **GraspDecision 令牌**（CONTACT=sleeve/径向余量，TOOL=cut/轴向余量+预抓取残差）；`allowed` 只作汇总展示。感知 ACCEPT 只当初值/可视化。③层障碍=Survey 快照对象 `peach_scene_obstacles`（**不用 octomap updater**），只为保护相机。
 
 ## 进程与节点（不要用包名当图名）
 
@@ -98,7 +98,7 @@ RGB-D → 感知(事实) → 观测/初值
 - Python：`peach_common.yaml_params.attach` + `config/<节点>.yaml`
 - C++ `peach_arm`：GPL `peach_arm.yaml`
 - 停位几何：`grasp_standoffs.yaml` 注入 scene/recon
-- 工具档案：`tool_profiles.py` 读 `aubo_description/config/<profile_id>.yaml`（`shear_v1` / `bite_shear_v1` / `adaptive_shear_v1`，默认 adaptive）
+- 工具档案：`tool_profiles.py` 读 `aubo_description/config/<profile_id>.yaml`（`shear_v1` / `bite_shear_v1` / `adaptive_shear_v1`，默认 bite_shear_v1）
 
 ## 验证
 

@@ -159,6 +159,14 @@ struct RefinedFittingUpdate
   bool accepted{false};
 };
 
+// 执行读侧快照：在同一把缓存锁下复制，避免多次 getter 拼出不同修订的数据。
+struct DecisionSnapshot
+{
+  ModelSnapshot model;
+  CachedRefined geometry;
+  QualitySnapshot quality;
+};
+
 // 目标数据缓存（纯逻辑，零 ROS）：目标观测/精化位姿/精化指标/抓取决策四源的
 // ID 一致性调和与快照访问，外加锁定集锚点缓存（id→几何，供 OBSERVE_ONLY 残局
 // 抬质量周期受理与执行）。时钟以 std::function 注入（秒），数据经方法传入，
@@ -195,6 +203,14 @@ public:
   // 模型快照只在 finalize 路径写入；诊断心跳不得调用。
   void replaceModelSnapshot(const ModelSnapshot & snapshot);
   ModelSnapshot modelSnapshot() const;
+  std::optional<DecisionSnapshot> decisionSnapshot() const;
+  // 同一消息携带的身份、几何和能力必须在同一临界区提交。
+  bool updateDecisionSnapshot(
+    const ModelSnapshot & model, const RefinedPoseUpdate & geometry,
+    double rmse_m, double inlier_ratio);
+  bool waitForDecision(
+    const std::string & target_id, double timeout_s,
+    const std::atomic_bool & cancel) const;
   // 精化位姿调和；返回 false 表示被拒（reject_reason 给出
   // "unrefined_hold" / "target_mismatch"，供日志如实归因）。
   bool updateRefinedPose(
@@ -280,6 +296,8 @@ private:
   double diagnostics_received_s_{0.0};
   ModelSnapshot model_;
   double model_generated_s_{0.0};
+  bool decision_revoked_{false};  // 保留撤销墓碑，迟到心跳不得恢复同一修订。
+  bool decision_committed_{false};  // 几何和许可已由同一消息原子提交。
   bool unrefined_hold_{false};
   double tool_d_inner_m_{0.0};  // 刀内径记录；不作为袋径拒绝门
 };

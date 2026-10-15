@@ -1,0 +1,108 @@
+[WARN] [1791944556.265481653] [rcl.logging_rosout]: Publisher already registered for node name: 'peach_arm'. If this is due to multiple nodes with the same name then all logs for the logger named 'peach_arm' will go out over the existing publisher. As soon as any node with that name is destructed it will unregister the publisher, preventing any further logs for that name from being published on the rosout topic.
+[WARN] [1791944556.267436489] [peach_arm]: scan.protected_zones 丢弃畸形盒: 盒#0 存在 min>=max 的轴（空盒/退化盒），已丢弃
+[WARN] [1791944557.729064747] [peach_arm]: scan.protected_zones 丢弃畸形盒: 盒#0 存在 min>=max 的轴（空盒/退化盒），已丢弃
+[WARN] [1791944557.763126997] [peach_arm]: scan.protected_zones 丢弃畸形盒: 盒#0 存在 min>=max 的轴（空盒/退化盒），已丢弃
+[WARN] [1791944557.764426704] [peach_arm]: scan.protected_zones 丢弃畸形盒: 盒#0 存在 min>=max 的轴（空盒/退化盒），已丢弃
+[WARN] [1791944557.765952323] [rcl.logging_rosout]: Publisher already registered for node name: 'peach_arm'. If this is due to multiple nodes with the same name then all logs for the logger named 'peach_arm' will go out over the existing publisher. As soon as any node with that name is destructed it will unregister the publisher, preventing any further logs for that name from being published on the rosout topic.
+[INFO] [1791944557.773127047] [peach_arm.moveit.ros.rdf_loader]: Loaded robot model in 0.00231863 seconds
+[INFO] [1791944557.773186450] [peach_arm.moveit.core.robot_model]: Loading robot model 'aubo_e5'...
+[INFO] [1791944557.773195081] [peach_arm.moveit.core.robot_model]: No root/virtual joint specified in SRDF. Assuming fixed joint
+[INFO] [1791944557.794482394] [peach_arm.moveit.kinematics.kdl_kinematics_plugin]: Joint weights for group 'manipulator_e5': 1 1 1 1 1 1
+[INFO] [1791944557.808394326] [peach_arm.moveit.ros.move_group_interface]: Ready to take commands for planning group manipulator_e5.
+[INFO] [1791944557.808445148] [peach_arm]: 主动视觉靠近节点 ready: group=manipulator_e5 base=base_link tip=tcp camera=camera_depth_optical_frame execution=plan_only grasp=disabled
+[INFO] [1791944557.808464671] [peach_arm]: [IDLE] 已配置；activate 后才开放运动输出权限
+[WARN] [1791944557.855445645] [peach_arm]: scan.protected_zones 丢弃畸形盒: 盒#0 存在 min>=max 的轴（空盒/退化盒），已丢弃
+[INFO] [1791944557.858414064] [peach_arm]: 节点已激活：运动输出权限开放
+[WARN] [1791944557.867908567] [rcl.logging_rosout]: Publisher already registered for node name: 'peach_arm'. If this is due to multiple nodes with the same name then all logs for the logger named 'peach_arm' will go out over the existing publisher. As soon as any node with that name is destructed it will unregister the publisher, preventing any further logs for that name from being published on the rosout topic.
+[WARN] [1791944557.878269169] [rcl.logging_rosout]: Publisher already registered for node name: 'peach_arm'. If this is due to multiple nodes with the same name then all logs for the logger named 'peach_arm' will go out over the existing publisher. As soon as any node with that name is destructed it will unregister the publisher, preventing any further logs for that name from being published on the rosout topic.
+[INFO] [1791944557.888484570] [peach_arm]: 场景障碍 ACM 豁免已应用: 28 条（含 <octomap> 保留名）
+[INFO] [1791944560.910300522] [peach_arm]: 场景障碍 ACM 豁免已应用: 28 条（含 <octomap> 保留名）
+[INFO] [1791944563.922386275] [peach_arm]: 场景障碍 ACM 豁免已应用: 28 条（含 <octomap> 保留名）
+[INFO] [1791944606.350771568] [peach_arm]: 使能切换到操作台广播源（/peach/batch/enables）
+[INFO] [1791944606.350798206] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests drive_harvest）
+[INFO] [1791944606.425317723] [peach_arm.moveit.ros.current_state_monitor]: Listening to joint states on topic 'joint_states'
+[INFO] [1791944606.834288922] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests drive_harvest）
+[INFO] [1791944607.833786361] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests drive_harvest）
+[INFO] [1791944608.836610455] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests drive_harvest）
+[INFO] [1791944609.839204458] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests drive_harvest）
+[INFO] [1791944610.836687618] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests drive_harvest）
+[INFO] [1791944611.834985120] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests drive_harvest）
+[INFO] [1791944612.835073434] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests drive_harvest）
+[INFO] [1791944613.833704947] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests drive_harvest）
+[INFO] [1791944614.834077463] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests drive_harvest）
+[INFO] [1791944615.839697075] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests drive_harvest）
+[INFO] [1791944616.834193207] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests drive_harvest）
+[INFO] [1791944617.833467660] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests drive_harvest）
+[INFO] [1791944618.838235327] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests drive_harvest）
+[INFO] [1791944619.835029771] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests drive_harvest）
+[INFO] [1791944620.836902763] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests drive_harvest）
+[INFO] [1791944621.833915638] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests drive_harvest）
+[INFO] [1791944622.834379597] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests drive_harvest）
+[INFO] [1791944623.838938743] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests drive_harvest）
+[INFO] [1791944624.993524748] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests drive_harvest）
+[INFO] [1791944625.611678649] [peach_arm]: [PLAN_OBSERVATION] 生成目标导向主动视点
+[INFO] [1791944625.612087296] [peach_arm]: [FINALIZE] 等待重建精化几何（BuildTargetModel）
+[INFO] [1791944625.842461546] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests drive_harvest）
+[INFO] [1791944626.835458191] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests drive_harvest）
+[INFO] [1791944627.833215705] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests drive_harvest）
+[INFO] [1791944628.833266132] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests drive_harvest）
+[INFO] [1791944629.833424045] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests drive_harvest）
+[INFO] [1791944630.834432945] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests drive_harvest）
+[INFO] [1791944631.836867759] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests drive_harvest）
+[INFO] [1791944632.834124695] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests drive_harvest）
+[INFO] [1791944633.838910692] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests drive_harvest）
+[INFO] [1791944634.838239850] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests drive_harvest）
+[INFO] [1791944635.838418593] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests drive_harvest）
+[INFO] [1791944636.841117506] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests drive_harvest）
+[INFO] [1791944637.834470201] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests drive_harvest）
+[INFO] [1791944638.836315530] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests drive_harvest）
+[INFO] [1791944639.836299014] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests drive_harvest）
+[INFO] [1791944640.844862271] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests drive_harvest）
+[INFO] [1791944641.833523225] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests drive_harvest）
+[INFO] [1791944642.845082493] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests drive_harvest）
+[INFO] [1791944643.837436249] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests drive_harvest）
+[INFO] [1791944644.836238881] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests drive_harvest）
+[INFO] [1791944645.833498005] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests drive_harvest）
+[INFO] [1791944646.833066137] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests drive_harvest）
+[INFO] [1791944647.839010067] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests drive_harvest）
+[INFO] [1791944648.833186998] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests drive_harvest）
+[INFO] [1791944649.835243892] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests drive_harvest）
+[INFO] [1791944650.835160739] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests drive_harvest）
+[INFO] [1791944651.840282267] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests drive_harvest）
+[INFO] [1791944652.834703526] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests drive_harvest）
+[INFO] [1791944653.842460811] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests drive_harvest）
+[INFO] [1791944654.834459257] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests drive_harvest）
+[WARN] [1791944655.612236621] [peach_arm]: grasp quality gate denied: reconstruction_not_ready (axis_angle_deg=-1.00 pregrasp_only=false)
+[WARN] [1791944655.612361129] [peach_arm]: [FAILED] GraspDecision.allowed=false，禁止降级接触: reconstruction_not_ready
+[WARN] [1791944655.612393636] [peach_arm]: [FAILED] GraspDecision.allowed=false，禁止降级接触: reconstruction_not_ready
+[INFO] [1791944655.833192527] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests drive_harvest）
+[INFO] [1791944656.833456455] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests drive_harvest）
+[INFO] [1791944657.833017527] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests drive_harvest）
+[INFO] [1791944658.834715535] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests drive_harvest）
+[INFO] [1791944659.835350970] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests drive_harvest）
+[INFO] [1791944660.834160224] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests drive_harvest）
+[INFO] [1791944661.833531148] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests drive_harvest）
+[INFO] [1791944662.843457537] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests drive_harvest）
+[INFO] [1791944663.833829170] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests drive_harvest）
+[INFO] [1791944664.833371337] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests drive_harvest）
+[INFO] [1791944665.845828374] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests drive_harvest）
+[INFO] [1791944666.833113629] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests drive_harvest）
+[INFO] [1791944667.839460388] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests drive_harvest）
+[INFO] [1791944668.837375335] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests drive_harvest）
+[INFO] [1791944669.840064476] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests drive_harvest）
+[INFO] [1791944670.833482151] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests drive_harvest）
+[INFO] [1791944671.840586993] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests drive_harvest）
+[INFO] [1791944672.835227150] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests drive_harvest）
+[INFO] [1791944673.834664527] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests drive_harvest）
+[INFO] [1791944674.838503092] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests drive_harvest）
+[INFO] [1791944675.834782520] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests drive_harvest）
+[INFO] [1791944676.840196836] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests drive_harvest）
+[INFO] [1791944677.840876860] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests drive_harvest）
+[INFO] [1791944678.834150407] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests drive_harvest）
+[INFO] [1791944679.835197815] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests drive_harvest）
+[INFO] [1791944680.840005920] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests drive_harvest）
+[INFO] [1791944681.834014250] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests drive_harvest）
+[INFO] [1791944682.835305787] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests drive_harvest）
+[INFO] [1791944683.837455483] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests drive_harvest）
+[INFO] [1791944684.834480384] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests drive_harvest）
+[INFO] [1791944685.833655653] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（peach_system_tests drive_harvest）

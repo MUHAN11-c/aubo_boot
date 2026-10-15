@@ -1,0 +1,45 @@
+.........FFFF                                                            [100%]
+=================================== FAILURES ===================================
+______________ test_historical_ready_uses_real_checks_and_domain _______________
+
+    def test_historical_ready_uses_real_checks_and_domain():
+        m = load()
+        state = history('complete')
+        assert 'stack_ready' not in state['task_executor']['state']
+>       assert m.startup_ready(state, 86)
+E       AttributeError: module 'live_camera_mock' has no attribute 'startup_ready'
+
+src/peach/peach_system_tests/test/test_live_camera_mock.py:124: AttributeError
+______ test_historical_hold_ack_precedes_batch_result_without_fake_ledger ______
+
+    def test_historical_hold_ack_precedes_batch_result_without_fake_ledger():
+        m = load()
+        state = history('hold')
+        task = state['task_executor']['state']
+        assert state['ledger']['live']['rows'] == []
+>       proof = m.ack_evidence(state, task['run_id'], task['target_id'])
+E       AttributeError: module 'live_camera_mock' has no attribute 'ack_evidence'. Did you mean: 'frame_evidence'?
+
+src/peach/peach_system_tests/test/test_live_camera_mock.py:133: AttributeError
+_________ test_bounded_stream_evidence_preserves_total_across_eviction _________
+
+    def test_bounded_stream_evidence_preserves_total_across_eviction():
+        m = load()
+>       stream = m.StreamEvidence(3)
+E       AttributeError: module 'live_camera_mock' has no attribute 'StreamEvidence'
+
+src/peach/peach_system_tests/test/test_live_camera_mock.py:142: AttributeError
+_____________ test_soak_failure_is_not_hidden_by_successful_rounds _____________
+
+    def test_soak_failure_is_not_hidden_by_successful_rounds():
+        m = load()
+>       assert not m.soak_passed(10, 2, [{'streams_fresh': True, 'rviz_alive': True}])
+E       AttributeError: module 'live_camera_mock' has no attribute 'soak_passed'
+
+src/peach/peach_system_tests/test/test_live_camera_mock.py:152: AttributeError
+=========================== short test summary info ============================
+FAILED src/peach/peach_system_tests/test/test_live_camera_mock.py::test_historical_ready_uses_real_checks_and_domain
+FAILED src/peach/peach_system_tests/test/test_live_camera_mock.py::test_historical_hold_ack_precedes_batch_result_without_fake_ledger
+FAILED src/peach/peach_system_tests/test/test_live_camera_mock.py::test_bounded_stream_evidence_preserves_total_across_eviction
+FAILED src/peach/peach_system_tests/test/test_live_camera_mock.py::test_soak_failure_is_not_hidden_by_successful_rounds
+4 failed, 9 passed in 0.06s

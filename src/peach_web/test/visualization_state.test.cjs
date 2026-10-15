@@ -87,3 +87,54 @@ test('an in-flight image cannot resurrect a stream invalidated by an encoder fai
   assert.equal(element('.viz-image-box img').src,undefined);
   view.dispose();
 });
+
+test('analysis displays unknown capabilities, signed margins and escaped failure evidence',()=> {
+  const html=visual.analysisHTML({metrics:{radial_margin_m:-0.004,axial_margin_m:null},
+    decision:{allowed:true,geometry_capability:0,sleeve_capability:1},
+    scene:{},points:[],flags:['<unsafe>'],consistency:false,
+    reachability:{tone:'bad',label:'规划失败',detail:'<script>fake</script>'}});
+  assert.match(html,/几何 · 有效/);assert.match(html,/套入 · 无效/);assert.match(html,/剪切 · 未知/);
+  assert.match(html,/-4.0 mm/);assert.match(html,/&lt;script&gt;/);assert.doesNotMatch(html,/<script>/);
+  assert.doesNotMatch(html,/style=/);
+});
+
+test('initial stale JPEG is displayed with stale frame metadata rather than a blank view',async()=> {
+  const elements=new Map();
+  const element=selector=>{
+    if(elements.has(selector))return elements.get(selector);
+    const e={hidden:false,style:{},dataset:{},textContent:'',innerHTML:'',addEventListener(){},removeEventListener(){},remove(){},appendChild(){},removeAttribute(){},querySelector:s=>element(selector+' '+s),querySelectorAll:()=>[],close(){this.open=false;}};
+    elements.set(selector,e);return e;
+  };
+  const panel=element('panel');panel.querySelector=element;
+  const window={};const context=vm.createContext({window,console,Date,Number,Math,AbortController,
+    document:{hidden:false,createElement:()=>panel,getElementById:()=>null},
+    setInterval:()=>1,clearInterval(){},setTimeout:()=>1,clearTimeout(){},
+    fetch:async()=>({ok:true,headers:{get:k=>k==='X-Frame-Age-S'?'2.5':null},blob:async()=>({})}),
+    URL:{createObjectURL:()=> 'blob:stale-frame',revokeObjectURL(){}}});
+  vm.runInContext(fs.readFileSync(path.join(__dirname,'../web/visualization.js'),'utf8'),context);
+  const view=window.PeachVisualization.create({appendChild(){}});
+  view.update({images:{perception:{available:false,error:'stale',stamp_sec:10,age_s:2.5,frame_id:'camera_optical'}}},{});
+  await new Promise(resolve=>setImmediate(resolve));
+  assert.equal(element('.viz-image-box img').hidden,false);
+  assert.equal(element('.viz-image-box img').src,'blob:stale-frame');
+  assert.match(element('[data-image-status]').textContent,/陈旧/);
+  view.dispose();
+});
+
+test('model status exposes a mismatched current identity and labels the diagnostic version', () => {
+  const summary = visual.modelInfo({ui:{selected_target_id:'new',selected_scene_epoch:8},
+    perception:{targets:{scene_epoch:8,harvest_run_id:'run'}}, reconstruction:{diagnostics:{
+      refined_context:{target_id:'old',scene_epoch:7,harvest_run_id:'run'},
+      refined:{model_revision:'old:7:1'}}}});
+  assert.match(summary,/身份不匹配/);
+  assert.match(summary,/当前目标 new/);
+  assert.match(summary,/诊断模型 old:7:1/);
+});
+
+test('image boolean and whitespace ages remain unknown instead of fresh zero', () => {
+  for (const age_s of [false, '  ']) {
+    const info = visual.frameInfo({available:true,stamp_sec:20,age_s}, null);
+    assert.equal(info.available, false);
+    assert.equal(info.age, null);
+  }
+});

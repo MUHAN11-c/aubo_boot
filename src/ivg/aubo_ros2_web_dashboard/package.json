@@ -3,9 +3,9 @@
   "private": true,
   "version": "0.4.0",
   "type": "module",
-  "description": "浏览器前端纯核单测（vitest）。协议帧/TF 数学/工具函数零 ROS 依赖可离线跑；渲染与传输集成验证走 mock 栈 E2E（test/ 与 README）。",
+  "description": "UI 层浏览器前端。2026-10-13 单源化：传输层 JS（transport/core/view3d/vendor 等）唯一源在 ros_web_link，其纯核单测也已随迁；本包仅保留 UI，vitest 允许无测试通过。",
   "scripts": {
-    "test": "vitest run",
+    "test": "vitest run --passWithNoTests",
     "test:watch": "vitest"
   },
   "devDependencies": {

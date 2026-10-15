@@ -1,0 +1,560 @@
+{
+  "mode": "FK/IK only; no action goal, enable request, motion or SetIO",
+  "orientation_source": "production peach_arm::alignFrameZRolled (Eigen)",
+  "initial_joints": [
+    0.425175,
+    0.194274,
+    1.679546,
+    1.462579,
+    -0.279948,
+    0.038859
+  ],
+  "launch_pid": 207480,
+  "initial_tcp": [
+    0.35878779463397137,
+    -0.24433533371781496,
+    0.6887775205336286
+  ],
+  "initial_tcp_quaternion": [
+    -0.0025098096397407526,
+    -0.00872629993429146,
+    0.07260204517166248,
+    0.997319655668092
+  ],
+  "cases": [
+    {
+      "name": "old_success_geometry",
+      "entry_m": [
+        0.3555516275074513,
+        -0.7974811844989048,
+        0.6057698647369985
+      ],
+      "axis": [
+        0.029855349392843535,
+        -0.4767421878167891,
+        0.8785360234323307
+      ],
+      "travel_m": 0.09986029506030245,
+      "rolls": [
+        {
+          "roll_deg": 0,
+          "staging": {
+            "error_code": 1,
+            "ik_ok": true
+          },
+          "mid": {
+            "error_code": 1,
+            "ik_ok": true
+          },
+          "pregrasp": {
+            "error_code": 1,
+            "ik_ok": true
+          },
+          "entry": {
+            "error_code": 1,
+            "ik_ok": true
+          },
+          "cut": {
+            "error_code": -31,
+            "ik_ok": false
+          }
+        },
+        {
+          "roll_deg": 30,
+          "staging": {
+            "error_code": 1,
+            "ik_ok": true
+          },
+          "mid": {
+            "error_code": 1,
+            "ik_ok": true
+          },
+          "pregrasp": {
+            "error_code": 1,
+            "ik_ok": true
+          },
+          "entry": {
+            "error_code": 1,
+            "ik_ok": true
+          },
+          "cut": {
+            "error_code": -31,
+            "ik_ok": false
+          }
+        },
+        {
+          "roll_deg": -30,
+          "staging": {
+            "error_code": 1,
+            "ik_ok": true
+          },
+          "mid": {
+            "error_code": 1,
+            "ik_ok": true
+          },
+          "pregrasp": {
+            "error_code": -31,
+            "ik_ok": false
+          },
+          "entry": {
+            "error_code": -31,
+            "ik_ok": false
+          },
+          "cut": {
+            "error_code": -31,
+            "ik_ok": false
+          }
+        },
+        {
+          "roll_deg": 60,
+          "staging": {
+            "error_code": 1,
+            "ik_ok": true
+          },
+          "mid": {
+            "error_code": 1,
+            "ik_ok": true
+          },
+          "pregrasp": {
+            "error_code": 1,
+            "ik_ok": true
+          },
+          "entry": {
+            "error_code": 1,
+            "ik_ok": true
+          },
+          "cut": {
+            "error_code": -31,
+            "ik_ok": false
+          }
+        },
+        {
+          "roll_deg": -60,
+          "staging": {
+            "error_code": -31,
+            "ik_ok": false
+          },
+          "mid": {
+            "error_code": -31,
+            "ik_ok": false
+          },
+          "pregrasp": {
+            "error_code": -31,
+            "ik_ok": false
+          },
+          "entry": {
+            "error_code": -31,
+            "ik_ok": false
+          },
+          "cut": {
+            "error_code": -31,
+            "ik_ok": false
+          }
+        }
+      ]
+    },
+    {
+      "name": "new_reconstruction_geometry",
+      "entry_m": [
+        0.36355062149934797,
+        -0.8499854405957693,
+        0.5867320677510485
+      ],
+      "axis": [
+        0.2557377061162473,
+        -0.21922295030577454,
+        0.9415622782002431
+      ],
+      "travel_m": 0.09365181551815796,
+      "rolls": [
+        {
+          "roll_deg": 0,
+          "staging": {
+            "error_code": 1,
+            "ik_ok": true
+          },
+          "mid": {
+            "error_code": 1,
+            "ik_ok": true
+          },
+          "pregrasp": {
+            "error_code": 1,
+            "ik_ok": true
+          },
+          "entry": {
+            "error_code": 1,
+            "ik_ok": true
+          },
+          "cut": {
+            "error_code": -31,
+            "ik_ok": false
+          }
+        },
+        {
+          "roll_deg": 30,
+          "staging": {
+            "error_code": 1,
+            "ik_ok": true
+          },
+          "mid": {
+            "error_code": 1,
+            "ik_ok": true
+          },
+          "pregrasp": {
+            "error_code": 1,
+            "ik_ok": true
+          },
+          "entry": {
+            "error_code": 1,
+            "ik_ok": true
+          },
+          "cut": {
+            "error_code": -31,
+            "ik_ok": false
+          }
+        },
+        {
+          "roll_deg": -30,
+          "staging": {
+            "error_code": 1,
+            "ik_ok": true
+          },
+          "mid": {
+            "error_code": 1,
+            "ik_ok": true
+          },
+          "pregrasp": {
+            "error_code": -31,
+            "ik_ok": false
+          },
+          "entry": {
+            "error_code": -31,
+            "ik_ok": false
+          },
+          "cut": {
+            "error_code": -31,
+            "ik_ok": false
+          }
+        },
+        {
+          "roll_deg": 60,
+          "staging": {
+            "error_code": 1,
+            "ik_ok": true
+          },
+          "mid": {
+            "error_code": 1,
+            "ik_ok": true
+          },
+          "pregrasp": {
+            "error_code": -31,
+            "ik_ok": false
+          },
+          "entry": {
+            "error_code": -31,
+            "ik_ok": false
+          },
+          "cut": {
+            "error_code": -31,
+            "ik_ok": false
+          }
+        },
+        {
+          "roll_deg": -60,
+          "staging": {
+            "error_code": -31,
+            "ik_ok": false
+          },
+          "mid": {
+            "error_code": -31,
+            "ik_ok": false
+          },
+          "pregrasp": {
+            "error_code": -31,
+            "ik_ok": false
+          },
+          "entry": {
+            "error_code": -31,
+            "ik_ok": false
+          },
+          "cut": {
+            "error_code": -31,
+            "ik_ok": false
+          }
+        }
+      ]
+    },
+    {
+      "name": "new_entry_old_axis",
+      "entry_m": [
+        0.36355062149934797,
+        -0.8499854405957693,
+        0.5867320677510485
+      ],
+      "axis": [
+        0.029855349392843535,
+        -0.4767421878167891,
+        0.8785360234323307
+      ],
+      "travel_m": 0.09365181551815796,
+      "rolls": [
+        {
+          "roll_deg": 0,
+          "staging": {
+            "error_code": 1,
+            "ik_ok": true
+          },
+          "mid": {
+            "error_code": 1,
+            "ik_ok": true
+          },
+          "pregrasp": {
+            "error_code": 1,
+            "ik_ok": true
+          },
+          "entry": {
+            "error_code": -31,
+            "ik_ok": false
+          },
+          "cut": {
+            "error_code": -31,
+            "ik_ok": false
+          }
+        },
+        {
+          "roll_deg": 30,
+          "staging": {
+            "error_code": 1,
+            "ik_ok": true
+          },
+          "mid": {
+            "error_code": 1,
+            "ik_ok": true
+          },
+          "pregrasp": {
+            "error_code": 1,
+            "ik_ok": true
+          },
+          "entry": {
+            "error_code": 1,
+            "ik_ok": true
+          },
+          "cut": {
+            "error_code": -31,
+            "ik_ok": false
+          }
+        },
+        {
+          "roll_deg": -30,
+          "staging": {
+            "error_code": 1,
+            "ik_ok": true
+          },
+          "mid": {
+            "error_code": 1,
+            "ik_ok": true
+          },
+          "pregrasp": {
+            "error_code": -31,
+            "ik_ok": false
+          },
+          "entry": {
+            "error_code": -31,
+            "ik_ok": false
+          },
+          "cut": {
+            "error_code": -31,
+            "ik_ok": false
+          }
+        },
+        {
+          "roll_deg": 60,
+          "staging": {
+            "error_code": 1,
+            "ik_ok": true
+          },
+          "mid": {
+            "error_code": 1,
+            "ik_ok": true
+          },
+          "pregrasp": {
+            "error_code": 1,
+            "ik_ok": true
+          },
+          "entry": {
+            "error_code": -31,
+            "ik_ok": false
+          },
+          "cut": {
+            "error_code": -31,
+            "ik_ok": false
+          }
+        },
+        {
+          "roll_deg": -60,
+          "staging": {
+            "error_code": -31,
+            "ik_ok": false
+          },
+          "mid": {
+            "error_code": -31,
+            "ik_ok": false
+          },
+          "pregrasp": {
+            "error_code": -31,
+            "ik_ok": false
+          },
+          "entry": {
+            "error_code": -31,
+            "ik_ok": false
+          },
+          "cut": {
+            "error_code": -31,
+            "ik_ok": false
+          }
+        }
+      ]
+    },
+    {
+      "name": "old_entry_new_axis",
+      "entry_m": [
+        0.3555516275074513,
+        -0.7974811844989048,
+        0.6057698647369985
+      ],
+      "axis": [
+        0.2557377061162473,
+        -0.21922295030577454,
+        0.9415622782002431
+      ],
+      "travel_m": 0.09986029506030245,
+      "rolls": [
+        {
+          "roll_deg": 0,
+          "staging": {
+            "error_code": 1,
+            "ik_ok": true
+          },
+          "mid": {
+            "error_code": 1,
+            "ik_ok": true
+          },
+          "pregrasp": {
+            "error_code": 1,
+            "ik_ok": true
+          },
+          "entry": {
+            "error_code": 1,
+            "ik_ok": true
+          },
+          "cut": {
+            "error_code": -31,
+            "ik_ok": false
+          }
+        },
+        {
+          "roll_deg": 30,
+          "staging": {
+            "error_code": 1,
+            "ik_ok": true
+          },
+          "mid": {
+            "error_code": 1,
+            "ik_ok": true
+          },
+          "pregrasp": {
+            "error_code": 1,
+            "ik_ok": true
+          },
+          "entry": {
+            "error_code": 1,
+            "ik_ok": true
+          },
+          "cut": {
+            "error_code": -31,
+            "ik_ok": false
+          }
+        },
+        {
+          "roll_deg": -30,
+          "staging": {
+            "error_code": 1,
+            "ik_ok": true
+          },
+          "mid": {
+            "error_code": 1,
+            "ik_ok": true
+          },
+          "pregrasp": {
+            "error_code": 1,
+            "ik_ok": true
+          },
+          "entry": {
+            "error_code": 1,
+            "ik_ok": true
+          },
+          "cut": {
+            "error_code": -31,
+            "ik_ok": false
+          }
+        },
+        {
+          "roll_deg": 60,
+          "staging": {
+            "error_code": 1,
+            "ik_ok": true
+          },
+          "mid": {
+            "error_code": 1,
+            "ik_ok": true
+          },
+          "pregrasp": {
+            "error_code": 1,
+            "ik_ok": true
+          },
+          "entry": {
+            "error_code": -31,
+            "ik_ok": false
+          },
+          "cut": {
+            "error_code": -31,
+            "ik_ok": false
+          }
+        },
+        {
+          "roll_deg": -60,
+          "staging": {
+            "error_code": -31,
+            "ik_ok": false
+          },
+          "mid": {
+            "error_code": -31,
+            "ik_ok": false
+          },
+          "pregrasp": {
+            "error_code": -31,
+            "ik_ok": false
+          },
+          "entry": {
+            "error_code": -31,
+            "ik_ok": false
+          },
+          "cut": {
+            "error_code": -31,
+            "ik_ok": false
+          }
+        }
+      ]
+    }
+  ],
+  "launch_exit_code": 0,
+  "interpretation_limits": [
+    "FK/IK endpoint queries only; no continuous path or FULL execution verified",
+    "0.2 s IK timeout, avoid_collisions=true, seed chained through earlier endpoints; no exhaustive random restart search",
+    "Prior and current geometry were from different captures; this does not isolate TSDF from depth/TF changes",
+    "Fixed camera extrinsics reused; physical base-frame target ground truth has not been remeasured"
+  ],
+  "last_live_snapshot_binding_to_refined_center_shift_mm": 1.7081707477490609,
+  "last_live_snapshot_binding_to_refined_axis_angle_deg": 10.64108348393847,
+  "snapshot_comparison_is_same_exposure": false
+}

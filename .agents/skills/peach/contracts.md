@@ -13,7 +13,7 @@ IDL 文件头仍写 `/peach_executor/…`、生产方 `peach_executor`。现行�
 | 节点 `peach_executor` | `peach_supervisor`（包仍是 peach_harvester） |
 | 技能进程 `manipulation_skills` | 图名 `peach_arm` |
 | 默认相机 percipio | launch 默认 **stereo**（0036） |
-| 默认工具 hollow_cylinder / adaptive_cylinder | **adaptive_shear_v1** |
+| 默认工具 hollow_cylinder / adaptive_cylinder | **bite_shear_v1**（2026-10-13） |
 
 改字段流程：IDL 注释（单位/frame/stamp）→ manifest → io.md → 各端 pub/sub → **先编接口包**。
 

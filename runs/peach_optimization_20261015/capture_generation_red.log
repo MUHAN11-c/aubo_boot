@@ -1,0 +1,66 @@
+.FF                                                                      [100%]
+=================================== FAILURES ===================================
+__________ test_prepared_frame_must_keep_its_capture_generation[True] __________
+
+reset_during_prepare = True
+
+    @pytest.mark.parametrize('reset_during_prepare', [False, True])
+    def test_prepared_frame_must_keep_its_capture_generation(reset_during_prepare):
+        """模拟准备期间reset后同ID重新COLLECTING，旧payload必须丢弃."""
+        committed = []
+        host = SimpleNamespace(
+            _state_lock=threading.RLock(), _capture_generation=1,
+            _last_captured_stamp_sec=-1., _algo_clock=SimpleNamespace(now=lambda: 1.),
+            collector=SimpleNamespace(state='COLLECTING', target_id='t1',
+                                      auto_capture_decision=lambda *_args: ('capture', '')),
+            _logger=SimpleNamespace(debug=lambda *_args: None),
+            _publish_all=lambda: None,
+        )
+    
+        def prepare(*_args):
+            if reset_during_prepare:
+                host._capture_generation += 1
+            return 'prepared', ''
+    
+        host._prepare_frame = prepare
+        host._commit_prepared_frame = lambda *_args: (committed.append('frame') or True, '')
+        context = (None, None, None, 1., None, None, None)
+        ReconstructionCore._auto_capture_commit(
+            host, SimpleNamespace(action=GATE_ALLOW), context, 't1')
+>       assert committed == ([] if reset_during_prepare else ['frame'])
+E       AssertionError: assert ['frame'] == []
+E         Left contains one more item: 'frame'
+E         Use -v to get more diff
+
+src/peach/peach_harvester/test/test_reconstruction_capture_generation.py:33: AssertionError
+________________ test_tf_query_cannot_cross_capture_generation _________________
+
+    def test_tf_query_cannot_cross_capture_generation():
+        """TF查询期间会话改变时，不再用原始图像上下文执行finish/commit."""
+        finished = []
+        host = SimpleNamespace(
+            _state_lock=threading.RLock(), _capture_generation=1,
+            collector=SimpleNamespace(state='COLLECTING', target_id='t1', frames=[],
+                                      should_auto_finalize=lambda: False),
+            params=SimpleNamespace(capture=SimpleNamespace(max_views=10)),
+            _gated_capture_begin=lambda **_kwargs: (None, 'tf_request'),
+        )
+    
+        def query(_request):
+            host._capture_generation += 1
+            return 'old_tf'
+    
+        host._gated_capture_query_tf = query
+        host._gated_capture_finish = lambda **_kwargs: (finished.append('finish'), None)
+        host._auto_capture_commit = lambda *_args: None
+        ReconstructionCore._auto_drive(host)
+>       assert finished == []
+E       AssertionError: assert ['finish'] == []
+E         Left contains one more item: 'finish'
+E         Use -v to get more diff
+
+src/peach/peach_harvester/test/test_reconstruction_capture_generation.py:55: AssertionError
+=========================== short test summary info ============================
+FAILED src/peach/peach_harvester/test/test_reconstruction_capture_generation.py::test_prepared_frame_must_keep_its_capture_generation[True]
+FAILED src/peach/peach_harvester/test/test_reconstruction_capture_generation.py::test_tf_query_cannot_cross_capture_generation
+2 failed, 1 passed in 0.39s

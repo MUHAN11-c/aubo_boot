@@ -37,8 +37,9 @@ amcl:
     save_pose_rate: 0.5
     set_initial_pose: true
     initial_pose:
-      # 重建果园出生（generate_field 首个有袋站，field_stations.yaml spawn 同源）
-      x: -6.498
+      # 重建果园出生（field_stations.yaml spawn 同源 = 首行走廊中点；
+      # 站位是作业位贴树，出生会压树干膨胀圈导致 MPPI 无法起步）
+      x: -2.968
       y: 1.486
       z: 0.0
       yaw: 0.0

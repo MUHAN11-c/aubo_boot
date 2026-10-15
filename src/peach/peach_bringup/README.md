@@ -18,3 +18,7 @@ bag 回放另加 `use_sim_time:=true`，并先 `ros2 bag play --clock`。其余�
 ## 构建 / 测试 / 许可
 
 随工作区 `colcon build --packages-select peach_bringup`。零 ROS 预检：`peach_system_tests/test/test_preflight.py`。BSD-3-Clause。
+
+## 当前维护入口
+
+职责、源码地图、参数来源、生命周期/并发与失败处理见 [包架构](doc/architecture.md)。运行环境、分层验证、冻结回放、30组模型/10轮/30分钟验收与精确清理见 [测试指导](../peach_system_tests/doc/testing.md)。本包测试通过不代表现场采摘成功；未授权不得真机运动或SetIO，硬件急停不经ROS，程序结束必须清本轮进程。

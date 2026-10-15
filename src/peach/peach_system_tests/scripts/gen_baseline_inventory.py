@@ -21,9 +21,11 @@ SCHEMA_VERSION = 1
 
 
 def _peach_pkg_roots():
-    """v1 包根列表（2026-10-10 分组后：src/peach/peach_* 嵌套 + peach_sim 顶层）."""
+    """v1 包根列表（2026-10-10 分组后：src/peach/peach_* 嵌套；2026-10-13 起
+    sim 组在 src/sim/sim_*——漏掉会静默丢 sim 面）."""
     src = ROOT / 'src'
-    return sorted(src.glob('peach/peach_*')) + sorted(src.glob('peach_*'))
+    return sorted(set(src.glob('peach/peach_*')) | set(src.glob('peach_*'))
+                  | set(src.glob('sim/sim_*')))
 
 
 def collect_parameters() -> list:

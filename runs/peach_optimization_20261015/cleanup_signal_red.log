@@ -1,0 +1,23 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+__________ test_launch_cleanup_delivers_sigint_once_via_launch_leader __________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x71dde60288c0>
+
+    def test_launch_cleanup_delivers_sigint_once_via_launch_leader(monkeypatch):
+        from types import SimpleNamespace
+        m = load()
+        calls = []
+        monkeypatch.setattr(m.os, 'kill', lambda pid, sig: calls.append(('pid', pid, sig)))
+        monkeypatch.setattr(m.os, 'killpg', lambda pid, sig: calls.append(('group', pid, sig)))
+        owner = m.OwnedProcesses({})
+        launch = SimpleNamespace(pid=123, args=['ros2', 'launch', 'peach_bringup', 'harvest_system.launch.py'],
+                                 poll=lambda: None)
+        owner.processes = [launch]
+>       owner.interrupt(launch)
+E       AttributeError: 'OwnedProcesses' object has no attribute 'interrupt'
+
+src/peach/peach_system_tests/test/test_live_camera_mock.py:339: AttributeError
+=========================== short test summary info ============================
+FAILED src/peach/peach_system_tests/test/test_live_camera_mock.py::test_launch_cleanup_delivers_sigint_once_via_launch_leader
+1 failed, 33 deselected in 0.09s

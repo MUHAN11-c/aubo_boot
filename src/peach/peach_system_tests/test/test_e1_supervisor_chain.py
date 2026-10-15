@@ -103,6 +103,7 @@ def generate_test_description():
                     'camera_enabled': 'false',
                     'imu_enabled': 'false',
                     'moveit_enabled': 'true',
+                    'rviz': 'false',  # 无头集成测不启动显示端；RViz另做桌面联合验收。
                     'extrinsics_enabled': 'true',
                     'hand_eye_enabled': 'false',
                     'hand_eye_web_enabled': 'false',
@@ -215,34 +216,28 @@ class TestE1SupervisorChain(unittest.TestCase):
         self._assert_ledger(rid)
 
     # -- C02 ---------------------------------------------------------------
-    @unittest.skip(
-        'F-E1-2（09-24 实测，待产品裁定）：批中 param 关 execution_enabled '
-        '不拦派发——SetEnables 单旋钮同时置调度参数；受理期开→Begin 后关'
-        '（锁定前窗口）仍照发目标（RUNNING 出现）。EXECUTION_DISABLED-at-'
-        'SELECT 的真实可达路径（受理期即关？或 enables 语义需改活查？）'
-        '裁定后重写本例配方。证据：runs 09-24 E1 三轮 + events survey_failed')
     def test_c02_execution_disabled_settles_without_dispatch(self):
         sim = INJECTOR.sim
-        # 勘定（E1 首跑）：SetEnables 是单一旋钮（同时置调度 execution_enabled）。
-        # C02 配方：enables 开（Survey=TRANSIT 要动）→ Begin 后（epoch>0）
-        # param 关调度 execution_enabled → SELECT 期 EXECUTION_DISABLED 结算。
+        # Survey先有执行权；新Begin后、锁定前通过真正SetEnables关闭执行。
         self.assertTrue(
             sim.set_enables(execution=True),
             'SetEnables 失败（Survey=TRANSIT 运动需 execution）')
         rid = f'e1_c02_{uuid.uuid4().hex[:8]}'
         mark = len(INJECTOR.states)
+        sim.start(psim.Scenario(targets=_TWO_TARGETS, progress_s=180.0))
         goal_future = sim.send_harvest(rid, intent=0)  # PICK_ALL
         handle = self._wait_goal(goal_future, 30.0)
         self.assertIsNotNone(handle, 'RunHarvest goal 未被受理')
-        # 进度期拉长到 10s：Begin 后、锁定前有关开关的确定性窗口
-        sim.start(psim.Scenario(targets=_TWO_TARGETS, progress_s=10.0))
         deadline = time.monotonic() + 120.0
-        while time.monotonic() < deadline and sim.epoch == 0:
-            time.sleep(0.3)
-        self.assertGreater(sim.epoch, 0, 'BeginScene 未发生（survey 未完成）')
-        self.assertTrue(
-            sim.set_execution_enabled(False),
-            'execution_enabled 关闭失败（须落在锁定前的进度窗内）')
+        while time.monotonic() < deadline:
+            if sim.state and sim.state.run_id == rid and sim.epoch > 0:
+                break
+            time.sleep(0.1)
+        self.assertTrue(sim.state and sim.state.run_id == rid and sim.epoch > 0,
+                        '本轮BeginScene未发生（survey未完成）')
+        self.assertTrue(sim.set_enables(execution=False), 'SetEnables关闭失败')
+        # 确认关闭后再交付锁定集，避免依赖Survey耗时碰巧落在窗口内。
+        sim.start(psim.Scenario(targets=_TWO_TARGETS, progress_s=0.5))
         ok = INJECTOR.wait_state(
             lambda tail: any(s == 6 for _, s in tail),
             timeout=240.0, mark=mark)

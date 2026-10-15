@@ -1,0 +1,56 @@
+.......FF                                                                [100%]
+=================================== FAILURES ===================================
+____ test_decision_message_model_stamp_is_frozen_without_mutating_heartbeat ____
+
+    def test_decision_message_model_stamp_is_frozen_without_mutating_heartbeat():
+        from peach_harvester.vision.target_reconstruction.publish import (
+            grasp_decision_to_msg,
+        )
+        from builtin_interfaces.msg import Time
+        from std_msgs.msg import Header
+    
+        heartbeat = Header(stamp=Time(sec=1020), frame_id='base_link')
+        decision = {'generated_at': Time(sec=1000), 'valid_until': Time(sec=1030)}
+        msg = grasp_decision_to_msg(decision, heartbeat)
+>       assert msg.header.stamp.sec == 1000
+E       AssertionError: assert 1020 == 1000
+E        +  where 1020 = builtin_interfaces.msg.Time(sec=1020, nanosec=0).sec
+E        +    where builtin_interfaces.msg.Time(sec=1020, nanosec=0) = std_msgs.msg.Header(stamp=builtin_interfaces.msg.Time(sec=1020, nanosec=0), frame_id='base_link').stamp
+E        +      where std_msgs.msg.Header(stamp=builtin_interfaces.msg.Time(sec=1020, nanosec=0), frame_id='base_link') = peach_interfaces.msg.GraspDecision(header=std_msgs.msg.Header(stamp=builtin_interfaces.msg.Time(sec=1020, nanosec=0), ...m=0.0, cut_travel_m=0.0, radial_margin_m=0.0, axial_margin_m=0.0, corridor_clear=False, rmse_m=-1.0, inlier_ratio=-1.0).header
+
+src/peach/peach_harvester/test/test_reconstruction_decision_validity.py:216: AssertionError
+___________ test_target_model_uses_same_frozen_validity_as_decision ____________
+
+    def test_target_model_uses_same_frozen_validity_as_decision():
+        from peach_harvester.vision.target_reconstruction.publish import (
+            fill_target_model,
+        )
+        from builtin_interfaces.msg import Time
+        from peach_interfaces.msg import TargetModel
+        from rclpy.time import Time as RosTime
+    
+        model = TargetModel()
+        frozen = {'generated_at': Time(sec=1000), 'valid_until': Time(sec=1030)}
+>       fill_target_model(model, None, None, _params(), RosTime(seconds=1020),
+                          decision=frozen)
+E       TypeError: fill_target_model() got an unexpected keyword argument 'decision'
+
+src/peach/peach_harvester/test/test_reconstruction_decision_validity.py:230: TypeError
+=========================== short test summary info ============================
+FAILED src/peach/peach_harvester/test/test_reconstruction_decision_validity.py::test_decision_message_model_stamp_is_frozen_without_mutating_heartbeat
+FAILED src/peach/peach_harvester/test/test_reconstruction_decision_validity.py::test_target_model_uses_same_frozen_validity_as_decision
+2 failed, 7 passed in 0.39s
+.........F                                                               [100%]
+=================================== FAILURES ===================================
+______ test_single_pose_model_is_not_high_quality_even_when_fit_succeeds _______
+
+    def test_single_pose_model_is_not_high_quality_even_when_fit_succeeds():
+>       from peach_harvester.vision.target_reconstruction.publish import (
+            model_quality_level,
+        )
+E       ImportError: cannot import name 'model_quality_level' from 'peach_harvester.vision.target_reconstruction.publish' (/home/mu/Desktop/aubo_e5_jazzy_ws/src/peach/peach_harvester/peach_harvester/vision/target_reconstruction/publish.py)
+
+src/peach/peach_harvester/test/test_reconstruction_decision_validity.py:238: ImportError
+=========================== short test summary info ============================
+FAILED src/peach/peach_harvester/test/test_reconstruction_decision_validity.py::test_single_pose_model_is_not_high_quality_even_when_fit_succeeds
+1 failed, 9 passed in 0.38s

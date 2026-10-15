@@ -1,0 +1,58 @@
+{
+  "date": "2026-10-13",
+  "scope": "离线Web界面与功能设计原型",
+  "pages": 10,
+  "designed_features": 50,
+  "debug_templates": 6,
+  "fault_scenarios": 10,
+  "layout_checks": [
+    {
+      "width": 390,
+      "pages": 10,
+      "document_horizontal_overflow": false
+    },
+    {
+      "width": 768,
+      "pages": 10,
+      "document_horizontal_overflow": false
+    },
+    {
+      "width": 1440,
+      "pages": 10,
+      "document_horizontal_overflow": false
+    },
+    {
+      "width": 1920,
+      "pages": 10,
+      "document_horizontal_overflow": false
+    }
+  ],
+  "browser_interactions_passed": [
+    "创建草稿",
+    "上下文变化拒绝旧确认",
+    "发起演示任务",
+    "访客拒绝写",
+    "回放拒绝写",
+    "未连接真机拒绝写",
+    "未知结果允许查询",
+    "未知结果允许取消",
+    "取消有演示终态",
+    "筛选可操作目标",
+    "查看不改变执行绑定",
+    "试验标明未物理验收",
+    "模块契约可查",
+    "事件游标回放",
+    "证据标记来源",
+    "证据导出下载",
+    "查看目标不符时禁止推进",
+    "10个异常均拦截推进并保留演示取消"
+  ],
+  "javascript_syntax": "passed",
+  "robot_api": "none",
+  "file_protocol_check": "Playwright禁止file协议；交互验收通过临时HTTP服务完成",
+  "physical_robot_validation": false,
+  "screenshots": [
+    "../diagrams/web-operations-ui.png",
+    "../diagrams/web-debug-ui.png"
+  ]
+}

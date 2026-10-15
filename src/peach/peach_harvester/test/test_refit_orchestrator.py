@@ -15,6 +15,7 @@ from peach_harvester.vision.target_reconstruction.refine import (
 from peach_harvester.vision.target_reconstruction.refit_orchestrator import (
     RefitOrchestrator,
 )
+import pytest
 
 
 class _FakeRefitter:
@@ -92,10 +93,32 @@ def _make(refitter, clock_values=None):
         RefitConfig(), TimingStats(), _Logger(), now=lambda: next(clock))
 
 
+def test_accepted_reconstruction_axis_owns_landmarks_despite_noisy_live_hint():
+    primary = _ok_refit()
+    primary.center = np.array([0.0, 0.0, 0.5])
+    hint = np.array([0.8, 0.0, 0.6])
+    first = _silhouette_frame()
+    second = _silhouette_frame()
+    second.T_base_camera = second.T_base_camera.copy()
+    second.T_base_camera[0, 3] = .1
+    second.camera_position_base = second.T_base_camera[:3, 3]
+    second.target_mask = np.roll(second.target_mask, -80, axis=1)
+    result, fused = _make(_FakeRefitter(product=primary)).run(
+        tsdf_xyz=_bag_cloud(), frames=[first, second], target_center=[0.0, 0.0, 0.5],
+        kind='cylinder', kind_defaulted=False, bound_axis_hint=hint,
+        target_id='t1', entry_standoff_m=0.0, pregrasp_standoff_m=0.03,
+        budget_params=ToolBudgetParams(), mark_final=True)
+    assert result.ok
+    assert fused.ok
+    np.testing.assert_allclose(fused.axis, [0.0, 0.0, 1.0], atol=1e-9)
+    np.testing.assert_allclose(fused.cut_pose[:2], [0.0, 0.0], atol=1e-9)
+    assert 'axis_from_reconstruction' in result.flags
+
+
 def test_run_success_path_merges_and_marks_final():
     refitter = _FakeRefitter(product=_ok_refit())
     orch = _make(refitter)
-    xyz = np.random.default_rng(2).random((600, 3)) * 0.04 + [0, 0, 0.4]
+    xyz = _bag_cloud(n=600)
     result, fused = orch.run(
         tsdf_xyz=xyz, frames=_frames(), target_center=np.zeros(3),
         kind='bag', kind_defaulted=False, bound_axis_hint=None,
@@ -134,7 +157,8 @@ def test_run_exception_path_records_timing_and_fuses():
         kind='bag', kind_defaulted=False, bound_axis_hint=None,
         target_id='t', entry_standoff_m=0.0, pregrasp_standoff_m=0.0,
         budget_params=ToolBudgetParams())
-    assert result.reason.startswith('exception:')
+    assert result.reason == 'bag_axis_unobservable'
+    assert not result.ok
     assert any('refit 异常' in msg for _, msg in orch._logger.records)
     assert orch._timing.snapshot()['refit_ms_last'] == 0.0
 
@@ -241,13 +265,33 @@ def test_revision_counter_survives_reset_and_target_switch():
     assert counters == sorted(counters) == [1, 2, 3]
 
 
-def test_run_passes_configured_fused_refit_axis_gate_and_does_not_log_retention():
+def test_run_passes_configured_fused_refit_axis_gate_and_does_not_log_retention(monkeypatch):
     refit = _ok_refit()
     refit.axis = np.array([np.sin(np.deg2rad(25)), 0.0, np.cos(np.deg2rad(25))])
     orch = _make(_FakeRefitter(product=refit))
     orch._refit_config.max_axis_angle_deg = 10.0
+    # Independently contradictory endpoint evidence must still be rejected.
+    from peach_harvester.vision.common.bag_landmarks import BagLandmarks
+    from peach_harvester.vision.target_reconstruction import refit_orchestrator
+    monkeypatch.setattr(refit_orchestrator, 'collect_bag_views', lambda *_, **__: [
+        BagLandmarks(bottom_center=np.array([0.0, 0.0, 0.4]),
+                     neck_center=np.array([0.0, 0.0, 0.6]),
+                     bag_axis=np.array([0.0, 0.0, 1.0]), d95_m=0.07)])
+    refit.center = np.array([0.0, 0.0, 0.5])
+    frame = _silhouette_frame()
+    y, x = np.ogrid[:320, :320]
+    angle = np.deg2rad(25.0)
+    along = np.sin(angle) * (x - 160) - np.cos(angle) * (y - 160)
+    across = np.cos(angle) * (x - 160) + np.sin(angle) * (y - 160)
+    frame.target_mask = ((np.abs(along) < 80) & (np.abs(across) < 28)).astype(np.uint8)
+    second = _silhouette_frame()
+    second.T_base_camera = second.T_base_camera.copy()
+    second.T_base_camera[0, 3] = .1
+    second.camera_position_base = second.T_base_camera[:3, 3]
+    second.target_mask = np.roll(frame.target_mask, -80, axis=1)
     result, fused = orch.run(**_run_kwargs(
-        tsdf_xyz=_bag_cloud(), previous=_ok_refit()))
+        tsdf_xyz=_bag_cloud(), frames=[frame, second], target_center=[0, 0, .5],
+        previous=_ok_refit()))
     assert result.reason == 'fused_axis_conflict'
     assert not result.ok
     assert not result.budget
@@ -273,3 +317,200 @@ def test_unavailable_pose_coverage_does_not_claim_distinct_views():
     assert not result.fusion_consistency_available
     assert result.fusion_landmark_scatter_rmse_m is None
     assert result.fusion_landmark_inlier_ratio is None
+
+
+def _silhouette_frame():
+    from types import SimpleNamespace
+    mask = np.zeros((320, 320), dtype=np.uint8)
+    mask[80:240, 132:188] = 255
+    transform = np.eye(4)
+    transform[:3, :3] = [[1, 0, 0], [0, 0, 1], [0, -1, 0]]
+    transform[:3, 3] = [0, -0.5, 0.5]
+    return SimpleNamespace(
+        target_mask=mask, camera_K={'fx': 400, 'fy': 400, 'cx': 160, 'cy': 160},
+        T_base_camera=transform, camera_position_base=transform[:3, 3],
+        valid_depth_ratio=0.8, cloud_base=_bag_cloud(), stamp=2.0,
+        registration={}, diagnostic_flags=[])
+
+
+def test_low_residual_crosswise_refit_cannot_replace_observed_bag_axis():
+    primary = _ok_refit()
+    primary.center = np.array([0.0, 0.0, 0.5])
+    primary.axis = np.array([1.0, 0.0, 0.0])
+    result, fused = _make(_FakeRefitter(product=primary)).run(
+        tsdf_xyz=_bag_cloud(), frames=[_silhouette_frame()],
+        target_center=[0.0, 0.0, 0.5], kind='cylinder', kind_defaulted=False,
+        bound_axis_hint=np.array([0.0, 0.0, 1.0]), target_id='t1',
+        entry_standoff_m=0.0, pregrasp_standoff_m=0.03,
+        budget_params=ToolBudgetParams(), mark_final=True)
+    assert fused.ok
+    assert fused.axis[2] > np.cos(np.radians(3.0))
+    assert result.ok
+    assert 'refit_axis_silhouette_conflict' in result.flags
+    assert 'axis_from_reconstruction' not in result.flags
+    np.testing.assert_allclose(result.refit_axis, [1.0, 0.0, 0.0])
+
+
+def test_refit_without_image_evidence_does_not_own_the_axis():
+    primary = _ok_refit()
+    primary.center = np.array([0.0, 0.0, 0.5])
+    primary.axis = np.array([1.0, 0.0, 0.0])
+    result, fused = _make(_FakeRefitter(product=primary)).run(
+        tsdf_xyz=_bag_cloud(), frames=_frames(1), target_center=[0.0, 0.0, 0.5],
+        kind='cylinder', kind_defaulted=False, bound_axis_hint=[0.0, 0.0, 1.0],
+        target_id='t1', entry_standoff_m=0.0, pregrasp_standoff_m=0.03,
+        budget_params=ToolBudgetParams(), mark_final=True)
+    assert fused.ok
+    assert fused.axis[2] > np.cos(np.radians(3.0))
+    assert 'axis_from_reconstruction' not in result.flags
+    assert 'refit_axis_support_unavailable' in result.flags
+
+
+def test_parallel_axis_outside_original_silhouette_is_not_supported():
+    from peach_harvester.vision.target_reconstruction.refit_orchestrator import (
+        reconstruction_axis_image_support,
+    )
+    fit = _ok_refit()
+    fit.center = np.array([0.1, 0.0, 0.5])
+    angle, invalid_views = reconstruction_axis_image_support([_silhouette_frame()], fit)
+    assert angle == 90.0
+    assert invalid_views == 0
+
+
+def test_single_view_keeps_observed_center_when_local_fit_center_changes():
+    primary = _ok_refit()
+    fit_center = np.array([0., -.025, .5])
+    primary.center = fit_center.copy()
+    primary.axis = np.array([.35, 0., np.sqrt(1. - .35**2)])
+    result, fused = _make(_FakeRefitter(product=primary)).run(
+        **_run_kwargs(tsdf_xyz=_bag_cloud(), frames=[_silhouette_frame()],
+                      target_center=[0, 0, .5], bound_axis_hint=[0, 0, 1]))
+    assert result.ok
+    assert 'axis_from_captured_shape' in result.flags
+    assert fused.axis[2] > np.cos(np.radians(3.0))
+    assert abs(float(fused.bottom[1] - fit_center[1])) > .015
+    np.testing.assert_allclose(result.refit_center, [0., -.025, .5])
+    assert np.degrees(np.arccos(np.dot(result.refit_axis, result.axis))) > 15
+
+
+def test_auxiliary_single_view_cylinder_does_not_veto_valid_observed_shape():
+    primary = _ok_refit()
+    primary.center = np.array([0., 0., .5])
+    primary.axis = np.array([0., -.8, .6])
+    result, fused = _make(_FakeRefitter(product=primary)).run(
+        **_run_kwargs(tsdf_xyz=_bag_cloud(), frames=[_silhouette_frame()],
+                      target_center=[0, 0, .5], bound_axis_hint=[0, 0, 1]))
+    assert result.refit_ok
+    assert result.fused_refit_axis_angle_deg > 35
+    assert result.ok
+    assert fused.allowed
+    assert 'axis_from_captured_shape' in result.flags
+
+
+def test_same_view_burst_cannot_outvote_an_independent_silhouette_conflict():
+    frames = []
+    for x in (0., .003, .006):
+        frame = _silhouette_frame()
+        frame.T_base_camera = frame.T_base_camera.copy()
+        frame.T_base_camera[0, 3] = x
+        frame.camera_position_base = frame.T_base_camera[:3, 3]
+        frame.target_mask = np.roll(frame.target_mask, -int(round(800*x)), axis=1)
+        frames.append(frame)
+    second = _silhouette_frame()
+    second.T_base_camera = second.T_base_camera.copy()
+    second.T_base_camera[0, 3] = .1
+    second.camera_position_base = second.T_base_camera[:3, 3]
+    second.target_mask = np.zeros((320, 320), np.uint8)
+    second.target_mask[132:188, :160] = 255
+    frames.append(second)
+    refit = _ok_refit()
+    refit.center = np.array([0., 0., .5])
+    result, fused = _make(_FakeRefitter(product=refit)).run(
+        **_run_kwargs(tsdf_xyz=_bag_cloud(), frames=frames,
+                      target_center=[0, 0, .5], bound_axis_hint=[0, 0, 1]))
+    assert not result.ok
+    assert not fused.allowed
+    assert result.reason == 'fused_axis_silhouette_conflict'
+
+
+def test_unobservable_second_view_cannot_certify_multiview_refit_axis():
+    from peach_harvester.vision.target_reconstruction.refit_orchestrator import (
+        reconstruction_axis_image_support,
+    )
+    first = _silhouette_frame()
+    second = _silhouette_frame()
+    second.T_base_camera = second.T_base_camera.copy()
+    second.T_base_camera[0, 3] = .1
+    second.camera_position_base = second.T_base_camera[:3, 3]
+    y, x = np.ogrid[:320, :320]
+    second.target_mask = ((x-80)**2+(y-160)**2 < 45**2).astype(np.uint8)
+    refit = _ok_refit()
+    refit.center = np.array([0., 0., .5])
+    angle, invalid = reconstruction_axis_image_support(
+        [first, second], refit, min_supported_views=2)
+    assert angle is None
+    assert invalid == 0
+
+
+def test_round_silhouette_cannot_certify_refit_axis():
+    from peach_harvester.vision.target_reconstruction.refit_orchestrator import (
+        reconstruction_axis_image_support,
+    )
+    frame = _silhouette_frame()
+    frame.target_mask.fill(0)
+    y, x = np.ogrid[:320, :320]
+    frame.target_mask[(x - 160)**2 + (y - 160)**2 < 50**2] = 255
+    fit = _ok_refit()
+    fit.center = np.array([0.0, 0.0, 0.5])
+    assert reconstruction_axis_image_support([frame], fit) == (None, 0)
+
+
+def test_failed_refit_fallback_must_still_agree_with_original_silhouette():
+    frame = _silhouette_frame()
+    frame.cloud_base = _bag_cloud()[:, [2, 1, 0]] + [-.5, 0, .5]
+    result, fused = _make(_FakeRefitter(product=RefitResult(
+        ok=False, reason='cylinder_fit_failed', flags=['refit_failed']))).run(
+            **_run_kwargs(tsdf_xyz=frame.cloud_base, frames=[frame],
+                          target_center=[0, 0, .5], bound_axis_hint=[1, 0, 0]))
+    assert not result.ok
+    assert not fused.allowed
+    assert not result.budget
+    assert result.reason == 'fused_axis_silhouette_conflict'
+
+
+def test_failed_refit_and_unconditioned_envelope_cannot_authorize_contact():
+    from peach_harvester.vision.target_reconstruction.refine import (
+        CONTACT_GEOMETRY_INVALID_REASONS,
+    )
+    bottom = np.array([0., 0., .4])
+    neck = np.array([0., 0., .5])
+    fused = BagModel(
+        ok=True, bottom=bottom, neck=neck, axis=np.array([0., 0., 1.]),
+        entry=bottom, pregrasp=bottom, cut_pose=neck, cut_plane_point=neck,
+        cut_travel_m=.1, length_m=.1, d95_m=.11, envelope_conditioned=False,
+        envelope_reason='envelope_axis_ill_conditioned',
+        budget={'allowed': True}, allowed=True)
+    result = merge_fused_bag_model(
+        RefitResult(ok=False, reason='cylinder_fit_failed'),
+        fused, 1, [0, 0, 1], 't')
+    assert not result.ok
+    assert not fused.allowed
+    assert result.reason == 'bag_axis_unobservable'
+    assert result.reason in CONTACT_GEOMETRY_INVALID_REASONS
+
+
+@pytest.mark.parametrize('bad_field', ['transform', 'intrinsics', 'mask'])
+def test_malformed_image_metadata_does_not_abort_refit(bad_field):
+    from peach_harvester.vision.target_reconstruction.refit_orchestrator import (
+        reconstruction_axis_image_support,
+    )
+    frame = _silhouette_frame()
+    if bad_field == 'transform':
+        frame.T_base_camera = np.zeros((4, 4))
+    elif bad_field == 'intrinsics':
+        frame.camera_K = {'fx': 400, 'fy': 400, 'cy': 160}
+    else:
+        frame.target_mask = np.zeros((4, 4, 4))
+    fit = _ok_refit()
+    fit.center = np.array([0.0, 0.0, 0.5])
+    assert reconstruction_axis_image_support([frame], fit) == (None, 1)

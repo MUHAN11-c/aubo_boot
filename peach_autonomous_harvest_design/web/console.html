@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="console.css">
+  <title>Peach · 产品控制台与研发调试设计</title>
+</head>
+<body>
+  <header>
+    <div class="brand"><span class="mark">P</span><div><p class="kicker">PEACH / ORCHARD OPERATIONS</p><h1>自主导航采摘工作台</h1></div></div>
+    <div class="header-controls">
+      <label>角色<select id="role"><option value="operator">作业员</option><option value="engineer">研发人员</option><option value="maintainer">维护人员</option><option value="viewer">访客 · 只读</option></select></label>
+      <label>数据来源<select id="source"><option value="demo">演示</option><option value="simulation">仿真方案演示</option><option value="replay">回放 · 只读</option><option value="real">真机 · 未连接</option></select></label>
+      <a href="../index.html">整体设计</a>
+    </div>
+  </header>
+  <div class="prototype-strip"><b>离线交互原型</b><span>任务、数值和操作结果均为演示数据，不连接机器人；历史图像只作布局参考。</span><a href="../08_web_ui_and_functions.md">功能设计</a><a href="../09_debug_workbench_design.md">调试设计</a></div>
+  <div class="context-bar" id="context" aria-live="polite"></div>
+  <div class="app-shell">
+    <nav class="side-nav" aria-label="工作页面" id="nav"></nav>
+    <main>
+      <div class="page-title"><div><p class="kicker" id="page-id"></p><h2 id="page-name"></h2><p class="subtitle" id="page-question"></p></div><div class="row"><label class="scenario-label">演示情境<select id="scenario" aria-label="演示情境"></select></label><button id="reset-demo">重置演示</button></div></div>
+      <div class="blocker-strip" id="blocker" role="status"></div>
+      <div id="screen"></div>
+    </main>
+    <aside class="inspector" id="inspector" aria-label="对象与操作检查区"></aside>
+  </div>
+  <section class="event-dock">
+    <div class="dock-top"><div class="row"><h3>事件 / 操作回读</h3><span class="tag">本页演示记录</span></div><div class="row"><button id="dock-toggle">收起事件</button><button id="export-events">导出演示证据包</button></div></div>
+    <div class="event-body" id="events" aria-live="polite"></div>
+  </section>
+  <footer><span id="footer-state"></span><div class="row"><button class="cancel" id="cancel-action">演示取消当前动作</button><button class="cancel" id="cancel-task">演示取消任务</button></div><small>应用取消与硬件急停不同；原型不发送控制请求。</small></footer>
+  <dialog id="action-dialog" aria-labelledby="dialog-title">
+    <form id="action-form">
+      <div class="dialog-head"><div><p class="kicker">OPERATION REVIEW / DEMO ONLY</p><h2 id="dialog-title"></h2></div><button type="button" id="dialog-close" aria-label="关闭确认">×</button></div>
+      <div id="dialog-content"></div>
+      <label class="field">操作说明<input id="action-reason" required maxlength="160" value="设计原型流程核对"></label>
+      <p class="notice" id="dialog-status" role="status"></p>
+      <div class="dialog-buttons"><button type="button" id="invalidate-context">演示上下文变化</button><button type="button" id="dialog-dismiss">返回检查</button><button class="primary" type="submit" id="dialog-confirm">确认演示操作</button></div>
+    </form>
+  </dialog>
+  <dialog id="mission-dialog" aria-labelledby="mission-title"><form id="mission-form"><div class="dialog-head"><h2 id="mission-title">创建演示任务草稿</h2><button type="button" id="mission-close" aria-label="关闭任务草稿">×</button></div><div class="form-grid"><label class="field">任务名称<input name="title" required maxlength="80" value="示例果园选择性采摘"></label><label class="field">作业区域<select name="zone"><option>示意区域 A</option><option>示意区域 B</option></select></label><label class="field">工艺档案<select name="process"><option>套袋桃 · 剪切与承接</option><option>只观察 · 不采摘</option></select></label><label class="field">工作点策略<select name="strategy"><option>按审核顺序推进</option><option>优先补采工作点</option></select></label></div><p class="notice">保存为本页草稿，不创建真实机器人任务。</p><div class="dialog-buttons"><button type="submit" class="primary">保存演示草稿</button></div></form></dialog>
+  <script src="data.js"></script>
+  <script src="console.js"></script>
+</body>
+</html>

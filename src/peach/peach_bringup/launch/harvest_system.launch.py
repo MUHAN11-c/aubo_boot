@@ -182,9 +182,9 @@ def generate_launch_description():
             'robot_ip', default_value='169.254.10.98',
             description='AUBO 控制器 IP；mock 模式不使用'),
         DeclareLaunchArgument(
-            'tool_profile', default_value='adaptive_shear_v1',
+            'tool_profile', default_value='bite_shear_v1',
             choices=['shear_v1', 'bite_shear_v1', 'adaptive_shear_v1'],
-            description='末端工具档案'),
+            description='末端工具档案；默认 bite_shear_v1（2026-10-13 操作员裁定）'),
         DeclareLaunchArgument(
             'mock_initial_positions',
             default_value='0.425083,0.195177,1.677740,1.461739,-0.500161,0.038621',

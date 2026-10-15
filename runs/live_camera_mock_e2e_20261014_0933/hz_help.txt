@@ -1,0 +1,25 @@
+usage: ros2 topic hz [-h] [--window WINDOW] [--filter EXPR] [--wall-time]
+                     [--spin-time SPIN_TIME] [-s]
+                     topic_name
+
+Print the average receiving rate to screen.
+
+note:
+  This rate reflects the receiving rate on subscription, which might be affected by platform resources and QoS configuration, and may not exactly match the publisher's rate.
+
+positional arguments:
+  topic_name            Name of the ROS topic to listen to (e.g. '/chatter')
+
+options:
+  -h, --help            show this help message and exit
+  --window WINDOW, -w WINDOW
+                        window size, in # of messages, for calculating rate
+                        (default: 10000)
+  --filter EXPR         only measure messages matching the specified Python
+                        expression
+  --wall-time           calculates rate using wall time which can be helpful
+                        when clock is not published during simulation
+  --spin-time SPIN_TIME
+                        Spin time in seconds to wait for discovery (only
+                        applies when not using an already running daemon)
+  -s, --use-sim-time    Enable ROS simulation time

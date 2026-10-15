@@ -5,7 +5,7 @@
 | 你要查的 | 在哪 |
 |----------|------|
 | 管子叫什么、谁发谁订、QoS | 下面「接线」+ [`config/interface_manifest.yaml`](config/interface_manifest.yaml) |
-| 管子里每个字段什么意思 | `msg/` `srv/` `action/` 文件头（话题/谁发谁订）+ 字段行内注释；下表是同一套说明 |
+| 管子里每个字段什么意思 | `msg/` `srv/` `action/` 字段定义与注释；图名、生产消费方和QoS以manifest为准 |
 | 算法阈值、后撤距离、选果窗 | **不在本包**。见文末「运行参数在哪」 |
 | 一批谁先叫谁 | [doc/io.md](doc/io.md)（本包）与 [系统 io](../peach_bringup/doc/io.md) §1；架构 [doc/architecture.md](doc/architecture.md) 与 [系统架构](../peach_bringup/doc/architecture.md) §3 |
 
@@ -21,7 +21,7 @@ python3 src/peach/peach_interfaces/scripts/check_interface_manifest.py
 
 没有 `*_parameters.yaml`，节点也不会 `declare_parameter`。清单里的 `qos:` 是**跨包必须对齐的传输约定**，不是可调阈值。
 
-真正的运行参数在能力包 `config/<节点>.yaml`（部署事实源）+ 手写 params 模块（决策 0017 起；Python 侧 0024 改 yaml 直读 `attach`）。C++ 执行合同另有 generate_parameter_library yaml。
+真正的运行参数在能力包 `config/<节点>.yaml`（部署事实源）+ `peach_common.yaml_params.attach` 与包内规则模块。C++ 执行合同另有 generate_parameter_library yaml。
 
 | 文件 | 管什么 |
 |------|--------|
@@ -403,3 +403,9 @@ Goal：`pose`、`site_id`。现行固定座调度直通 `NAV_OK`，**不发送**
 `MoveTo.action`（`/peach_arm/move_to`，已接线 2b；supervisor 为消费方——fast 档观察补视/回拍照位，stow 仍走接触周期内 PTP）、`Clearance.msg`（接触许可令牌，随 `ExecuteTarget` goal）、`SetEnables.srv` / `SetBatchPolicy.srv`（`/peach_supervisor/*`，已接线 3；8090 页面转发未接——人工 `ros2 service call` 可用）、`FireStep.srv`（服务端已接线；现行仅 PHOTO 档实现走 MoveTo，其余档位占位调用即拒）。`RunHarvest` 已附加 `INTENT_*` 常量与批次策略字段（`target_harvest_ratio` / `per_target_timeout_s` / `sector_timeout_s` / `view_policy`）；`ExecuteTarget` 已附加 `clearance` / `profile` 与 `CK_*` 检查点常量（AT_STAGING→…→CUT_CONFIRMED→RETAINED→RETREATED→STOWED）。均已登记 manifest 现行区；状态与语义详见 [doc/io.md](doc/io.md) 的「清洁重写轮契约接线状态」表。
 
 旁路视觉抓取走 `ivg_interfaces`，不进本清单、不进 `harvest_system`。
+
+## 当前维护入口
+
+职责、源码地图、参数来源、生命周期/并发与失败处理见 [包架构](doc/architecture.md)。运行环境、分层验证、冻结回放、30组模型/10轮/30分钟验收与精确清理见 [测试指导](../peach_system_tests/doc/testing.md)。本包测试通过不代表现场采摘成功；未授权不得真机运动或SetIO，硬件急停不经ROS，程序结束必须清本轮进程。
+
+同revision模型时间约定：GraspDecision.header.stamp与TargetModel.generated_at/header.stamp共用首次生成时间，valid_until冻结，心跳不续签。独立单机位成功最多MEDIUM，至少2独立机位才可HIGH；READY/accepted不替代四能力或臂侧运行授权。

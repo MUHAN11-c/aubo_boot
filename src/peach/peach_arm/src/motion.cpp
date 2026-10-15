@@ -218,6 +218,10 @@ double ManipulationSkillsNode::insertionTravel(const CachedRefined & refined) co
   // TCP 是工具圆柱前端面圆心，也就是物理剪切点。精化给出入口到剪切
   // 参考的行程时优先采用；否则按袋颈减颈部余量回退。
   double travel = refined.suggested_travel_m;
+  if (!std::isfinite(travel) || travel < 0.0 || travel > 1.0e-6) {
+    return validatedCutTravel(travel, params_.grasp.minimum_travel_m,
+      params_.grasp.maximum_travel_m).value_or(0.0);
+  }
   const bool has_refined_geometry =
     refined.entry.allFinite() &&
     refined.bottom.allFinite() &&
@@ -445,6 +449,13 @@ void ManipulationSkillsNode::onCheckReachability(
   CheckReachability::Response::SharedPtr response)
 {
   const ScopedTimer timer(get_logger(), "check_reachability", &callback_timing_);
+  evaluateReachability(request, response);
+}
+
+void ManipulationSkillsNode::evaluateReachability(
+  const CheckReachability::Request::SharedPtr request,
+  CheckReachability::Response::SharedPtr response)
+{
   response->reachable.resize(request->tcp_poses.size(), false);
   response->error_codes.resize(request->tcp_poses.size(), "");
   if (!move_group_) {
@@ -478,6 +489,8 @@ void ManipulationSkillsNode::onCheckReachability(
     current_tip = seed.getGlobalLinkTransform(params_.frames.tip);
     have_current_tip = current_tip.matrix().allFinite();
   }
+  const double ik_timeout_s = std::isfinite(request->timeout_s) && request->timeout_s > 0.0 ?
+    std::min(request->timeout_s, kStagingIkSolveTimeoutS) : kQuickIkProbeTimeoutS;
   for (std::size_t i = 0; i < request->tcp_poses.size(); ++i) {
     const auto & stamped = request->tcp_poses[i];
     geometry_msgs::msg::Pose pose = stamped.pose;
@@ -508,7 +521,7 @@ void ManipulationSkillsNode::onCheckReachability(
     const auto try_ik =
       [&](const Eigen::Isometry3d & pose, moveit::core::RobotState * out) {
         moveit::core::RobotState probe = seed;
-        if (probe.setFromIK(group, pose, params_.frames.tip, kQuickIkProbeTimeoutS)) {
+        if (probe.setFromIK(group, pose, params_.frames.tip, ik_timeout_s)) {
           if (out != nullptr) {
             *out = probe;
           }
@@ -526,7 +539,7 @@ void ManipulationSkillsNode::onCheckReachability(
             Eigen::AngleAxisd(roll, Eigen::Vector3d::UnitZ());
           probe = seed;
           if (probe.setFromIK(
-              group, probe_pose, params_.frames.tip, kQuickIkProbeTimeoutS))
+              group, probe_pose, params_.frames.tip, ik_timeout_s))
           {
             if (out != nullptr) {
               *out = probe;
@@ -536,7 +549,7 @@ void ManipulationSkillsNode::onCheckReachability(
         }
         return false;
       };
-    // 预抓取停位（keep-roll 先行，失败才 ±30°/±60°；滚转表与 staging
+    // 预抓取停位（keep-roll 先行，失败才 ±15°/±30°/±45°；滚转表与 staging
     // 接近扫描同源=grasp_geometry.hpp 的 toolRollsRad()）。
     // 圆筒套袋的刀口滚转是自由参数，keep-roll 单姿态无解 ≠ 全滚转无解。
     moveit::core::RobotState pregrasp_state = seed;
@@ -547,10 +560,15 @@ void ManipulationSkillsNode::onCheckReachability(
       const double suggested =
         (i < request->suggested_travel_m.size()) ?
         request->suggested_travel_m[i] : 0.0;
-      const double travel = clampInsertionTravel(
-        suggested,
-        params_.grasp.minimum_travel_m,
-        params_.grasp.maximum_travel_m);
+      const auto exact_travel = validatedCutTravel(
+        suggested, params_.grasp.minimum_travel_m, params_.grasp.maximum_travel_m);
+      if ((!std::isfinite(suggested) || suggested != 0.0) && !exact_travel) {
+        response->reachable[i] = false;
+        response->error_codes[i] = "cut_travel_out_of_range";
+        continue;
+      }
+      const double travel = exact_travel.value_or(clampInsertionTravel(
+        suggested, params_.grasp.minimum_travel_m, params_.grasp.maximum_travel_m));
       const Eigen::Matrix3d tip_R =
         have_current_tip ? current_tip.linear() : entry.linear();
       Eigen::Isometry3d sleeve =

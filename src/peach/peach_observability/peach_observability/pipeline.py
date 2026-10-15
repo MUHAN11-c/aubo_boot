@@ -233,3 +233,33 @@ class LedgerWatch:
         totals['attempted'] = len(rows)
         totals['claimed'] = len(claimed)
         return totals
+
+
+def refined_source_context(raw: dict, targets: dict) -> dict | None:
+    """只由同时匹配的批次、目标和感知世代绑定原始精化来源."""
+    run, target = raw.get('harvest_run_id'), raw.get('target_id')
+    epoch = targets.get('scene_epoch')
+    if (not isinstance(run, str) or not run
+            or not isinstance(target, str) or not target
+            or run != targets.get('harvest_run_id')
+            or not isinstance(epoch, int) or isinstance(epoch, bool) or epoch <= 0):
+        return None
+    if not any(item.get('target_id') == target
+               for item in targets.get('observations', []) if isinstance(item, dict)):
+        return None
+    return {'target_id': target, 'harvest_run_id': run, 'scene_epoch': epoch}
+
+
+def merge_reconstruction_diagnostics(raw: dict, typed: dict,
+                                     decision: dict | None,
+                                     source_context: dict | None,
+                                     current_context: dict | None) -> dict:
+    """投影观测镜像；新世代不能追溯重贴旧原始精化的来源身份."""
+    merged = dict(raw)
+    merged.pop('refined_context', None)
+    merged.update(typed)
+    if source_context is not None and source_context == current_context:
+        merged['refined_context'] = dict(source_context)
+    if decision is not None:
+        merged['grasp_decision'] = decision
+    return merged

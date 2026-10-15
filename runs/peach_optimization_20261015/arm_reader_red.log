@@ -1,0 +1,21 @@
+Running main() from /opt/ros/jazzy/src/gtest_vendor/src/gtest_main.cc
+Note: Google Test filter = *ExecutionSnapshot*
+[==========] Running 1 test from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 1 test from TargetCache
+[ RUN      ] TargetCache.ExecutionSnapshotKeepsGeometryAndModelInOneRead
+/home/mu/Desktop/aubo_e5_jazzy_ws/src/peach/peach_arm/test/test_target_cache.cpp:579: Failure
+Value of: snapshot
+  Actual: false
+Expected: true
+
+[  FAILED  ] TargetCache.ExecutionSnapshotKeepsGeometryAndModelInOneRead (0 ms)
+[----------] 1 test from TargetCache (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 1 test from 1 test suite ran. (0 ms total)
+[  PASSED  ] 0 tests.
+[  FAILED  ] 1 test, listed below:
+[  FAILED  ] TargetCache.ExecutionSnapshotKeepsGeometryAndModelInOneRead
+
+ 1 FAILED TEST

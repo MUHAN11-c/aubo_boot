@@ -1,0 +1,32 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+_____________ test_repeated_stop_signals_cannot_interrupt_cleanup ______________
+
+    def test_repeated_stop_signals_cannot_interrupt_cleanup():
+        import subprocess
+        import sys
+        script = f'''
+    import importlib.util, os, signal
+    spec = importlib.util.spec_from_file_location('runner', {str(SCRIPT)!r})
+    m = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(m)
+    old = signal.getsignal(signal.SIGINT)
+    with m.defer_stop_signals():
+        os.kill(os.getpid(), signal.SIGINT)
+        os.kill(os.getpid(), signal.SIGTERM)
+        print('cleanup completed')
+    assert signal.getsignal(signal.SIGINT) == old
+    '''
+        result = subprocess.run([sys.executable, '-c', script], capture_output=True, text=True, timeout=5)
+>       assert result.returncode == 0, result.stderr
+E       AssertionError: Traceback (most recent call last):
+E           File "<string>", line 7, in <module>
+E         AttributeError: module 'runner' has no attribute 'defer_stop_signals'
+E         
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['/usr/bin/python3', '-c', "\nimport importlib.util, os, signal\nspec = importlib.util.spec_from...\n  File "<string>", line 7, in <module>\nAttributeError: module \'runner\' has no attribute \'defer_stop_signals\'\n').returncode
+
+src/peach/peach_system_tests/test/test_live_camera_mock.py:397: AssertionError
+=========================== short test summary info ============================
+FAILED src/peach/peach_system_tests/test/test_live_camera_mock.py::test_repeated_stop_signals_cannot_interrupt_cleanup
+1 failed, 36 deselected in 0.10s

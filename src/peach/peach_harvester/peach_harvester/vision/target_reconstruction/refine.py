@@ -34,6 +34,7 @@ from peach_harvester.vision.common.tool_budget import ToolBudgetParams
 from peach_harvester.vision.domain.budget import (
     CAPABILITY_INVALID,
     CAPABILITY_UNKNOWN,
+    CAPABILITY_VALID,
     evaluate_capabilities,
 )
 from peach_harvester.vision.domain.evidence import (
@@ -46,6 +47,13 @@ from peach_harvester.vision.target_reconstruction.integrate import (
     require_open3d,
     summarize_view_coverage,
 )
+
+
+CONTACT_GEOMETRY_INVALID_REASONS = frozenset({
+    'fused_axis_conflict', 'bag_axis_invalid', 'bag_endpoints_invalid',
+    'cut_reference_invalid', 'fusion_failed', 'landmark_axis_conflict',
+    'bag_axis_unobservable', 'fused_axis_silhouette_conflict',
+})
 
 
 _STATUS_ACCEPT = 0
@@ -287,6 +295,8 @@ class RefitResult:
     """融合前点云 refit 门控状态；未 merge 为 None."""
     refit_axis: Optional[np.ndarray] = None
     """融合前点云 refit 轴，独立保留以核对方向冲突."""
+    refit_center: Optional[np.ndarray] = None
+    """融合前局部拟合中心；与观测外袋中心分开，禁止隐式切换."""
     refit_rmse: float = -1.0
     """融合前点云拟合 RMSE [m]."""
     refit_inlier_ratio: float = -1.0
@@ -340,6 +350,7 @@ class RefitResult:
             'refit_ok': bool(self.refit_ok),
             'refit_status': self.refit_status,
             'refit_axis': self._xyz(self.refit_axis),
+            'refit_center': self._xyz(self.refit_center),
             'refit_rmse': float(self.refit_rmse),
             'refit_inlier_ratio': float(self.refit_inlier_ratio),
             'fused_refit_axis_angle_deg': self.fused_refit_axis_angle_deg,
@@ -433,7 +444,7 @@ class BagModel:
     fusion_pose_count: int = 0
     """朝向多数表决后参与融合的独立机位数."""
     fusion_lateral_shift_m: float = 0.0
-    """截面质心 snap 的侧向平移量 [m]."""
+    """融合侧向平移诊断 [m]；保留主轴中心线时为 0."""
     axis_conflict_deg: float = 0.0
     """关键点轴 vs 包络轴夹角 [deg]."""
     envelope_conditioned: bool = False
@@ -907,7 +918,7 @@ def envelope_axis_from_cloud(
     沿关键点轴切 TSDF/点云截面，用截面质心拟合包络主方向.
 
     接触轴仍由关键点融合给出。本函数只回答体积是否沿该轴延伸。
-    轴向跨度小于直径或切片不足时 conditioned=False，不得用 12° 否决.
+    轴向跨度小于直径或切片不足时 conditioned=False；夹角仅诊断.
     """
     empty = {
         'conditioned': False, 'axis': None, 'span_m': 0.0, 'd95_m': 0.0,
@@ -1005,7 +1016,7 @@ def _cut_station(
             'cut_to_fruit_m': 0.0,
             'safe_band': False,
         }
-    t_cut = t_neck
+    t_cut = t_neck + float(params.cut_reference_offset_m)
     t_min = 0.0
     if fruit_center is not None and float(fruit_r) > 1e-6:
         t_fruit = float(
@@ -1064,11 +1075,11 @@ def fuse_bag_views(
     融合多视角袋关键点.
 
     方向：袋底→袋颈 Huber，且只许上半球（左右最多水平）。口底对打的视角否决不平均。
-    定位：体积截面质心只改侧向。
-    剪切站：袋口 / 分割贴检测框极限；果距不足只否决 allowed，不挪刀。
-    包络长径比不足则跳过 12° 否决。检测轴夹角只诊断，不进接触预算。
+    定位：保留关键点主轴中心线，不贴到单侧可见表面质心。
+    剪切站：袋口加一次工艺偏置；辅助球不作为袋内果实观测或许可条件。
+    包络轴与检测轴夹角只诊断，不进接触预算。
     后撤量由调用方传入（节点从 ROS 参数读，不在本函数写死米数）。
-    views 应为各独立机位代表关键点；散布统计在 snap/口底调整前计算，
+    views 应为各独立机位代表关键点；散布统计在口底调整前计算，
     侧移独立计量；单机位散布不可用。无可用机位覆盖的逐帧 fallback
     由编排器把 fusion_consistency_available 置假。
     W4：返回 BagModel（§7 消费表裁掉 detection_conflict_deg /
@@ -1080,6 +1091,18 @@ def fuse_bag_views(
              and item.bottom_center is not None]
     if not items:
         return BagModel(ok=False, reason='no_landmark_views', allowed=False)
+    for item in items:
+        bottom_v = np.asarray(item.bottom_center, dtype=np.float64)
+        neck_v = np.asarray(item.neck_center, dtype=np.float64)
+        if (bottom_v.shape != (3,) or neck_v.shape != (3,)
+                or not np.isfinite(bottom_v).all()
+                or not np.isfinite(neck_v).all()
+                or float(np.linalg.norm(neck_v - bottom_v)) < 0.03):
+            return BagModel(ok=False, reason='bag_endpoints_invalid', allowed=False)
+        declared_axis = _unit(item.bag_axis)
+        if (declared_axis is None
+                or float((neck_v - bottom_v) @ declared_axis) <= 0.0):
+            return BagModel(ok=False, reason='bag_axis_invalid', allowed=False)
     aligned = _majority_sense_views(items)
     if not aligned:
         return BagModel(ok=False, reason='landmark_axis_conflict', allowed=False)
@@ -1095,10 +1118,10 @@ def fuse_bag_views(
     bottom = _huber_mean(bottoms)
     neck = _huber_mean(necks)
     axis = _unit(neck - bottom)
-    if axis is None and axes:
-        axis = _unit(np.mean(np.stack(axes), axis=0))
     if bottom is None or neck is None or axis is None:
         return BagModel(ok=False, reason='fusion_failed', allowed=False)
+    if float(np.linalg.norm(neck - bottom)) < 0.03:
+        return BagModel(ok=False, reason='bag_endpoints_invalid', allowed=False)
     # 多视散布只衡量逐机位端点之间的差异：必须先于侧移/口底调整。
     # 单机位残差为零是恒等式，不是多视一致性证据。
     consistency_available = len(items) >= 2
@@ -1120,19 +1143,8 @@ def fuse_bag_views(
         axis = -axis
         length = -length
         bottom, neck = neck, bottom
-    mid = slice_centroid(cloud_xyz, axis, bottom, 0.5 * max(length, 0.02))
-    if mid is None:
-        mid = slice_centroid(cloud_xyz, axis, bottom, 0.0)
-    if mid is not None:
-        raw_bottom = bottom.copy()
-        bottom = snap_lateral(bottom, axis, mid)
-        neck = snap_lateral(neck, axis, mid)
-        lateral_shift_m = float(np.linalg.norm(bottom - raw_bottom))
-        length = float(np.dot(neck - bottom, axis))
-        if length < 0.0:
-            axis = -axis
-            length = -length
-            bottom, neck = neck, bottom
+    # A single visible surface is not the bag centreline. Keep the fused
+    # landmark line; translating it to a surface centroid moves the cut point.
     bottom, neck, axis, width_flipped = enforce_wide_bottom(
         bottom, neck, axis, cloud_xyz)
     bottom, neck, axis, up_flipped = clamp_upper_hemisphere(
@@ -1162,7 +1174,8 @@ def fuse_bag_views(
     axis_conflict_deg = 0.0
     if envelope.get('conditioned'):
         axis_conflict_deg = _signed_angle_deg(axis, envelope.get('axis'))
-    axis_error_deg = max(sig_a, axis_conflict_deg)
+    # A single-sided surface envelope is not independent centreline truth.
+    axis_error_deg = sig_a
     env_d95 = float(envelope.get('d95_m') or 0.0)
     if env_d95 > 1e-6:
         d95 = max(d95, env_d95) if d95 > 1e-6 else env_d95
@@ -1181,6 +1194,9 @@ def fuse_bag_views(
     entry = bottom - standoff * axis
     pregrasp = entry - float(pregrasp_standoff_m) * axis
     cut_travel = float(np.dot(cut['cut'] - entry, axis))
+    if (not np.isfinite(cut['cut']).all()
+            or not np.isfinite(cut_travel) or cut_travel <= 0.0):
+        return BagModel(ok=False, reason='cut_reference_invalid', allowed=False)
     if d95 <= 1e-6:
         # 无任何径向尺度证据（逐视角 d95 与体积包络全缺）：d_bag95=0 会拿到
         # 最宽松的径向预算（袋当零宽），保守拒绝而不是放行。12=几何超限族。
@@ -1215,14 +1231,14 @@ def fuse_bag_views(
             envelope.get('reason') or 'envelope_axis_ill_conditioned'))
     if envelope.get('conditioned') and axis_conflict_deg > 12.0:
         flags.append('keypoint_cloud_axis_conflict')
-        budget['sleeve_capability'] = CAPABILITY_INVALID
-        budget['reason'] = 'keypoint_cloud_axis_conflict'
-        budget['failure_code'] = 3
-    if not cut['safe_band']:
-        flags.append('cut_band_unavailable')
-        budget['cut_capability'] = CAPABILITY_INVALID
-        budget['reason'] = 'cut_plane_fruit_clearance'
-        budget['failure_code'] = 16
+    # An auxiliary sphere from bag surface points cannot certify the hidden
+    # fruit. The observed finite bag mouth is the cutting reference.
+    if d95 > 1e-6:
+        budget['cut_capability'] = CAPABILITY_VALID
+        budget['cut_ok'] = True
+        budget['cut_feasible'] = True
+        budget['reason'] = 'bag_mouth_geometry'
+        budget['failure_code'] = 0
     if occlusion in (
             OCCLUSION_BRANCH, OCCLUSION_NEIGHBOR, OCCLUSION_DAMAGED,
             OCCLUSION_UNKNOWN):
@@ -1285,7 +1301,8 @@ def fuse_bag_views(
 
 
 def collect_bag_views(frames, target_center,
-                      on_view: Optional[Callable] = None) -> List[BagLandmarks]:
+                      on_view: Optional[Callable] = None,
+                      axis_hint=None, axis_origin=None) -> List[BagLandmarks]:
     """
     Extract bag landmarks, one cloud per camera pose cluster.
 
@@ -1331,7 +1348,8 @@ def collect_bag_views(frames, target_center,
         landmarks = estimate_bag_landmarks(
             cloud,
             gravity=np.array([0.0, 0.0, -1.0], dtype=np.float64),
-            valid_depth_ratio=float(frame.valid_depth_ratio))
+            valid_depth_ratio=float(frame.valid_depth_ratio), axis_hint=axis_hint,
+            axis_origin=axis_origin)
         views.append(landmarks)
         if on_view is not None:
             on_view(landmarks, frame)
@@ -1372,6 +1390,8 @@ def merge_fused_bag_model(result: RefitResult, fused: BagModel,
         result.refit_status = int(result.status)
         result.refit_axis = (
             None if result.axis is None else np.asarray(result.axis).copy())
+        result.refit_center = (
+            None if result.center is None else np.asarray(result.center).copy())
         result.refit_rmse = float(result.rmse)
         result.refit_inlier_ratio = float(result.inlier_ratio)
     if not fused.ok:
@@ -1429,20 +1449,27 @@ def merge_fused_bag_model(result: RefitResult, fused: BagModel,
     result.cut_to_fruit_m = float(fused.cut_to_fruit_m or 0.0)
     reliable_refit = (
         result.refit_ok and result.refit_status == STATUS_ACCEPT
-        and _unit(result.refit_axis) is not None)
+        and _unit(result.refit_axis) is not None
+        and 'axis_from_captured_shape' not in result.flags
+        and 'refit_axis_silhouette_conflict' not in result.flags
+        and 'refit_axis_support_unavailable' not in result.flags)
     refit_conflict = (
         reliable_refit and result.fused_refit_axis_angle_deg is not None
         and result.fused_refit_axis_angle_deg > float(max_axis_angle_deg))
     hint_conflict = (
         not reliable_refit and result.fused_axis_angle_deg is not None
         and result.fused_axis_angle_deg > 90.0)
+    unobservable_axis = (
+        not reliable_refit
+        and fused.envelope_reason == 'envelope_axis_ill_conditioned')
     if (result.fused_axis_angle_deg is not None
             and result.fused_axis_angle_deg > float(max_axis_angle_deg)):
         result.flags.append('fused_perception_axis_mismatch')
-    if refit_conflict or hint_conflict:
+    if refit_conflict or hint_conflict or unobservable_axis:
         # 否决不能被 keep_last_good 恢复许可；节点按此稳定标记失效旧缓存。
-        result.flags.append('fused_axis_conflict')
-        result.reason = 'fused_axis_conflict'
+        reason = 'bag_axis_unobservable' if unobservable_axis else 'fused_axis_conflict'
+        result.flags.append(reason)
+        result.reason = reason
         result.ok = False
         result.status = STATUS_REOBSERVE
         result.budget = {}
@@ -1450,7 +1477,8 @@ def merge_fused_bag_model(result: RefitResult, fused: BagModel,
         fused.ok = False
         fused.budget = {}
         fused.allowed = False
-        fused.reason = 'fused_axis_conflict'
+        fused.reason = reason
+        fused.flags.append(reason)
     return result
 
 

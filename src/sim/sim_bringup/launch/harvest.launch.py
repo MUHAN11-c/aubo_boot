@@ -24,6 +24,8 @@ begin_scene 锁集 → build_target_model → tcp 沿袋轴接近 0.12 m → 下
 
 from pathlib import Path
 
+import yaml
+
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
 from launch.actions import (
@@ -32,10 +34,8 @@ from launch.actions import (
     OpaqueFunction,
     SetEnvironmentVariable,
 )
-from launch.conditions import IfCondition
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration
-from launch_ros.actions import Node
 
 
 def generate_launch_description() -> LaunchDescription:
@@ -95,6 +95,7 @@ def generate_launch_description() -> LaunchDescription:
 def _setup(context, *args, **kwargs):
     """按 field/程序化预设解析 world/map/params/spawn 后组装."""
     bringup_share = Path(get_package_share_directory('sim_bringup'))
+    worlds_share = Path(get_package_share_directory('sim_worlds'))
     use_sim_time = LaunchConfiguration('use_sim_time')
     slam = LaunchConfiguration('slam')
     gui = LaunchConfiguration('gui')
@@ -113,16 +114,27 @@ def _setup(context, *args, **kwargs):
                           ('nav2_params_field.yaml' if field
                            else 'nav2_params.yaml'))
     sim_args = {'gui': gui, 'moveit': moveit,
-                'use_sim_time': use_sim_time}
+                'use_sim_time': use_sim_time,
+                # RViz 经 sim→moveit_sim 链起（带 robot_description_semantic，
+                # moveit 显示层需要；直接在此起裸 RViz 会报 SRDF 解析失败）
+                'rviz': rviz,
+                'rviz_config': str(bringup_share / 'config' /
+                                   'sim_harvest.rviz')}
     if field:
-        # generate_field 站位同源（maps/field_stations.yaml spawn）；
-        # 重建世界不受程序化 scene 几何约束，spawn 显式给定
-        sim_args.update({'spawn_x': '-6.498', 'spawn_y': '1.486',
-                         'spawn_yaw': '0.0'})
+        # generate_field 站位同源：spawn 读 field_stations.yaml 的 spawn 段
+        # （走廊中点，非首站——站位是作业位贴树，出生会压膨胀圈）。
+        # AMCL initial_pose（nav2_params_field.yaml）须与此同值。
+        stations = yaml.safe_load(
+            (worlds_share / 'maps' / 'field_stations.yaml')
+            .read_text(encoding='utf-8'))
+        spawn = stations['spawn']
+        sim_args.update({'spawn_x': str(spawn['x']),
+                         'spawn_y': str(spawn['y']),
+                         'spawn_yaw': str(spawn.get('yaw', 0.0))})
     else:
         sim_args['spawn'] = 'corridor'
 
-    return [
+    nodes = [
         IncludeLaunchDescription(
             PythonLaunchDescriptionSource(
                 str(bringup_share / 'launch' / 'sim.launch.py')),
@@ -141,13 +153,5 @@ def _setup(context, *args, **kwargs):
                 'use_sim_time': use_sim_time,
                 'autostart': 'true',
             }.items()),
-        Node(
-            package='rviz2',
-            executable='rviz2',
-            name='rviz2',
-            output='screen',
-            condition=IfCondition(rviz),
-            arguments=['-d', str(bringup_share / 'config' /
-                                 'sim_harvest.rviz')],
-            parameters=[{'use_sim_time': use_sim_time}]),
     ]
+    return nodes

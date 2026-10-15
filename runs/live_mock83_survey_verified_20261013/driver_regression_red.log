@@ -1,0 +1,357 @@
+FFFFFFFF                                                                 [100%]
+=================================== FAILURES ===================================
+__________ test_result_uses_current_idl_and_product_success[4-True-0] __________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x787bcc44e000>
+capsys = <_pytest.capture.CaptureFixture object at 0x787bcc44e0f0>, status = 4
+success = True, expected = 0
+
+    @pytest.mark.parametrize('status,success,expected', [(4, True, 0),
+                                                       (4, False, 3), (5, True, 3)])
+    def test_result_uses_current_idl_and_product_success(monkeypatch, capsys,
+                                                        status, success, expected):
+        result = RunHarvest.Result(success=success, termination_reason='completed')
+        result.summary.elapsed.sec = 12
+        _case(monkeypatch, SimpleNamespace(status=status, result=result))
+>       assert driver.main() == expected
+
+src/peach/peach_system_tests/test/test_drive_harvest.py:47: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    def main() -> int:
+        parser = argparse.ArgumentParser(description=__doc__)
+        parser.add_argument('--request-id', required=True, help='批次 id（不复用）')
+        parser.add_argument(
+            '--intent', type=int, default=0,
+            help='0=FULL（execute_pregrasp_only 时止于预抓取） 2=SURVEY_ONLY')
+        parser.add_argument('--scene-key', default='lab')
+        parser.add_argument('--profile', default='default')
+        parser.add_argument('--grasp', action='store_true', help='使能 grasp（PREVIEW/接近链需要）')
+        parser.add_argument('--reason', default='peach_system_tests drive_harvest')
+        parser.add_argument('--skip-enables', action='store_true', help='只发 goal 不动使能')
+        parser.add_argument('--timeout', type=float, default=420.0)
+        args = parser.parse_args()
+    
+        rclpy.init()
+        node = Node('drive_harvest')
+        try:
+            if not args.skip_enables:
+                if not _send_enables(node, args.grasp, args.reason):
+                    return 1
+            action_client = ActionClient(node, RunHarvest, '/peach_supervisor/run_harvest')
+            if not action_client.wait_for_server(timeout_sec=10.0):
+                print('run_harvest ACTION_UNAVAILABLE')
+                return 1
+            goal = RunHarvest.Goal()
+            goal.request_id = args.request_id
+            goal.scene_key = args.scene_key
+            goal.profile_id = args.profile
+            goal.intent = args.intent
+            print(f'goal: request_id={args.request_id} intent={args.intent}')
+            future = action_client.send_goal_async(goal)
+            rclpy.spin_until_future_complete(node, future, timeout_sec=30.0)
+            handle = future.result()
+            if handle is None or not handle.accepted:
+                print('goal REJECTED')
+                return 1
+            result_future = handle.get_result_async()
+            rclpy.spin_until_future_complete(node, result_future, timeout_sec=args.timeout)
+            wrapper = result_future.result()
+            if wrapper is None:
+                print(f'goal TIMEOUT(>={args.timeout}s) 或中断')
+                return 2
+            status_names = {
+                0: 'STATUS_UNKNOWN', 1: 'STATUS_ACCEPTED', 2: 'STATUS_EXECUTING',
+                3: 'STATUS_CANCELED', 4: 'STATUS_SUCCEEDED', 5: 'STATUS_ABORTED',
+            }
+            status = status_names.get(wrapper.status, str(wrapper.status))
+            result = wrapper.result
+>           elapsed = result.elapsed.sec + result.elapsed.nanosec * 1e-9
+E           AttributeError: 'RunHarvest_Result' object has no attribute 'elapsed'
+
+src/peach/peach_system_tests/scripts/drive_harvest.py:92: AttributeError
+----------------------------- Captured stdout call -----------------------------
+goal: request_id=offline intent=0
+_________ test_result_uses_current_idl_and_product_success[4-False-3] __________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x787bcc44e120>
+capsys = <_pytest.capture.CaptureFixture object at 0x787bcc44e3c0>, status = 4
+success = False, expected = 3
+
+    @pytest.mark.parametrize('status,success,expected', [(4, True, 0),
+                                                       (4, False, 3), (5, True, 3)])
+    def test_result_uses_current_idl_and_product_success(monkeypatch, capsys,
+                                                        status, success, expected):
+        result = RunHarvest.Result(success=success, termination_reason='completed')
+        result.summary.elapsed.sec = 12
+        _case(monkeypatch, SimpleNamespace(status=status, result=result))
+>       assert driver.main() == expected
+
+src/peach/peach_system_tests/test/test_drive_harvest.py:47: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    def main() -> int:
+        parser = argparse.ArgumentParser(description=__doc__)
+        parser.add_argument('--request-id', required=True, help='批次 id（不复用）')
+        parser.add_argument(
+            '--intent', type=int, default=0,
+            help='0=FULL（execute_pregrasp_only 时止于预抓取） 2=SURVEY_ONLY')
+        parser.add_argument('--scene-key', default='lab')
+        parser.add_argument('--profile', default='default')
+        parser.add_argument('--grasp', action='store_true', help='使能 grasp（PREVIEW/接近链需要）')
+        parser.add_argument('--reason', default='peach_system_tests drive_harvest')
+        parser.add_argument('--skip-enables', action='store_true', help='只发 goal 不动使能')
+        parser.add_argument('--timeout', type=float, default=420.0)
+        args = parser.parse_args()
+    
+        rclpy.init()
+        node = Node('drive_harvest')
+        try:
+            if not args.skip_enables:
+                if not _send_enables(node, args.grasp, args.reason):
+                    return 1
+            action_client = ActionClient(node, RunHarvest, '/peach_supervisor/run_harvest')
+            if not action_client.wait_for_server(timeout_sec=10.0):
+                print('run_harvest ACTION_UNAVAILABLE')
+                return 1
+            goal = RunHarvest.Goal()
+            goal.request_id = args.request_id
+            goal.scene_key = args.scene_key
+            goal.profile_id = args.profile
+            goal.intent = args.intent
+            print(f'goal: request_id={args.request_id} intent={args.intent}')
+            future = action_client.send_goal_async(goal)
+            rclpy.spin_until_future_complete(node, future, timeout_sec=30.0)
+            handle = future.result()
+            if handle is None or not handle.accepted:
+                print('goal REJECTED')
+                return 1
+            result_future = handle.get_result_async()
+            rclpy.spin_until_future_complete(node, result_future, timeout_sec=args.timeout)
+            wrapper = result_future.result()
+            if wrapper is None:
+                print(f'goal TIMEOUT(>={args.timeout}s) 或中断')
+                return 2
+            status_names = {
+                0: 'STATUS_UNKNOWN', 1: 'STATUS_ACCEPTED', 2: 'STATUS_EXECUTING',
+                3: 'STATUS_CANCELED', 4: 'STATUS_SUCCEEDED', 5: 'STATUS_ABORTED',
+            }
+            status = status_names.get(wrapper.status, str(wrapper.status))
+            result = wrapper.result
+>           elapsed = result.elapsed.sec + result.elapsed.nanosec * 1e-9
+E           AttributeError: 'RunHarvest_Result' object has no attribute 'elapsed'
+
+src/peach/peach_system_tests/scripts/drive_harvest.py:92: AttributeError
+----------------------------- Captured stdout call -----------------------------
+goal: request_id=offline intent=0
+__________ test_result_uses_current_idl_and_product_success[5-True-3] __________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x787bcfbcb710>
+capsys = <_pytest.capture.CaptureFixture object at 0x787bcc206630>, status = 5
+success = True, expected = 3
+
+    @pytest.mark.parametrize('status,success,expected', [(4, True, 0),
+                                                       (4, False, 3), (5, True, 3)])
+    def test_result_uses_current_idl_and_product_success(monkeypatch, capsys,
+                                                        status, success, expected):
+        result = RunHarvest.Result(success=success, termination_reason='completed')
+        result.summary.elapsed.sec = 12
+        _case(monkeypatch, SimpleNamespace(status=status, result=result))
+>       assert driver.main() == expected
+
+src/peach/peach_system_tests/test/test_drive_harvest.py:47: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    def main() -> int:
+        parser = argparse.ArgumentParser(description=__doc__)
+        parser.add_argument('--request-id', required=True, help='批次 id（不复用）')
+        parser.add_argument(
+            '--intent', type=int, default=0,
+            help='0=FULL（execute_pregrasp_only 时止于预抓取） 2=SURVEY_ONLY')
+        parser.add_argument('--scene-key', default='lab')
+        parser.add_argument('--profile', default='default')
+        parser.add_argument('--grasp', action='store_true', help='使能 grasp（PREVIEW/接近链需要）')
+        parser.add_argument('--reason', default='peach_system_tests drive_harvest')
+        parser.add_argument('--skip-enables', action='store_true', help='只发 goal 不动使能')
+        parser.add_argument('--timeout', type=float, default=420.0)
+        args = parser.parse_args()
+    
+        rclpy.init()
+        node = Node('drive_harvest')
+        try:
+            if not args.skip_enables:
+                if not _send_enables(node, args.grasp, args.reason):
+                    return 1
+            action_client = ActionClient(node, RunHarvest, '/peach_supervisor/run_harvest')
+            if not action_client.wait_for_server(timeout_sec=10.0):
+                print('run_harvest ACTION_UNAVAILABLE')
+                return 1
+            goal = RunHarvest.Goal()
+            goal.request_id = args.request_id
+            goal.scene_key = args.scene_key
+            goal.profile_id = args.profile
+            goal.intent = args.intent
+            print(f'goal: request_id={args.request_id} intent={args.intent}')
+            future = action_client.send_goal_async(goal)
+            rclpy.spin_until_future_complete(node, future, timeout_sec=30.0)
+            handle = future.result()
+            if handle is None or not handle.accepted:
+                print('goal REJECTED')
+                return 1
+            result_future = handle.get_result_async()
+            rclpy.spin_until_future_complete(node, result_future, timeout_sec=args.timeout)
+            wrapper = result_future.result()
+            if wrapper is None:
+                print(f'goal TIMEOUT(>={args.timeout}s) 或中断')
+                return 2
+            status_names = {
+                0: 'STATUS_UNKNOWN', 1: 'STATUS_ACCEPTED', 2: 'STATUS_EXECUTING',
+                3: 'STATUS_CANCELED', 4: 'STATUS_SUCCEEDED', 5: 'STATUS_ABORTED',
+            }
+            status = status_names.get(wrapper.status, str(wrapper.status))
+            result = wrapper.result
+>           elapsed = result.elapsed.sec + result.elapsed.nanosec * 1e-9
+E           AttributeError: 'RunHarvest_Result' object has no attribute 'elapsed'
+
+src/peach/peach_system_tests/scripts/drive_harvest.py:92: AttributeError
+----------------------------- Captured stdout call -----------------------------
+goal: request_id=offline intent=0
+______________ test_timeout_requests_cancel_before_node_shutdown _______________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x787bcc2072f0>
+
+    def test_timeout_requests_cancel_before_node_shutdown(monkeypatch):
+        handle = _case(monkeypatch, None)
+        assert driver.main() == 2
+>       assert handle.canceled
+E       assert False
+E        +  where False = namespace(accepted=True, canceled=False, get_result_async=<function _case.<locals>.<lambda> at 0x787bcc20f1a0>, cancel...ection_mode=0, target_ids=[], target_harvest_ratio=0.0, per_target_timeout_s=0.0, sector_timeout_s=0.0, view_policy=0)).canceled
+
+src/peach/peach_system_tests/test/test_drive_harvest.py:54: AssertionError
+----------------------------- Captured stdout call -----------------------------
+goal: request_id=offline intent=0
+goal TIMEOUT(>=180.0s) 或中断
+__________________ test_goal_carries_server_side_time_budgets __________________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x787bcc207080>
+
+    def test_goal_carries_server_side_time_budgets(monkeypatch):
+        result = RunHarvest.Result(success=True)
+        handle = _case(monkeypatch, SimpleNamespace(status=4, result=result), '90')
+>       assert driver.main() == 0
+
+src/peach/peach_system_tests/test/test_drive_harvest.py:60: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    def main() -> int:
+        parser = argparse.ArgumentParser(description=__doc__)
+        parser.add_argument('--request-id', required=True, help='批次 id（不复用）')
+        parser.add_argument(
+            '--intent', type=int, default=0,
+            help='0=FULL（execute_pregrasp_only 时止于预抓取） 2=SURVEY_ONLY')
+        parser.add_argument('--scene-key', default='lab')
+        parser.add_argument('--profile', default='default')
+        parser.add_argument('--grasp', action='store_true', help='使能 grasp（PREVIEW/接近链需要）')
+        parser.add_argument('--reason', default='peach_system_tests drive_harvest')
+        parser.add_argument('--skip-enables', action='store_true', help='只发 goal 不动使能')
+        parser.add_argument('--timeout', type=float, default=420.0)
+        args = parser.parse_args()
+    
+        rclpy.init()
+        node = Node('drive_harvest')
+        try:
+            if not args.skip_enables:
+                if not _send_enables(node, args.grasp, args.reason):
+                    return 1
+            action_client = ActionClient(node, RunHarvest, '/peach_supervisor/run_harvest')
+            if not action_client.wait_for_server(timeout_sec=10.0):
+                print('run_harvest ACTION_UNAVAILABLE')
+                return 1
+            goal = RunHarvest.Goal()
+            goal.request_id = args.request_id
+            goal.scene_key = args.scene_key
+            goal.profile_id = args.profile
+            goal.intent = args.intent
+            print(f'goal: request_id={args.request_id} intent={args.intent}')
+            future = action_client.send_goal_async(goal)
+            rclpy.spin_until_future_complete(node, future, timeout_sec=30.0)
+            handle = future.result()
+            if handle is None or not handle.accepted:
+                print('goal REJECTED')
+                return 1
+            result_future = handle.get_result_async()
+            rclpy.spin_until_future_complete(node, result_future, timeout_sec=args.timeout)
+            wrapper = result_future.result()
+            if wrapper is None:
+                print(f'goal TIMEOUT(>={args.timeout}s) 或中断')
+                return 2
+            status_names = {
+                0: 'STATUS_UNKNOWN', 1: 'STATUS_ACCEPTED', 2: 'STATUS_EXECUTING',
+                3: 'STATUS_CANCELED', 4: 'STATUS_SUCCEEDED', 5: 'STATUS_ABORTED',
+            }
+            status = status_names.get(wrapper.status, str(wrapper.status))
+            result = wrapper.result
+>           elapsed = result.elapsed.sec + result.elapsed.nanosec * 1e-9
+E           AttributeError: 'RunHarvest_Result' object has no attribute 'elapsed'
+
+src/peach/peach_system_tests/scripts/drive_harvest.py:92: AttributeError
+----------------------------- Captured stdout call -----------------------------
+goal: request_id=offline intent=0
+____________________ test_invalid_cycle_budget_rejected[0] _____________________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x787bcc262660>
+timeout = '0'
+
+    @pytest.mark.parametrize('timeout', ['0', '181'])
+    def test_invalid_cycle_budget_rejected(monkeypatch, timeout):
+        _case(monkeypatch, None, timeout)
+>       with pytest.raises(SystemExit) as exc:
+E       Failed: DID NOT RAISE <class 'SystemExit'>
+
+src/peach/peach_system_tests/test/test_drive_harvest.py:68: Failed
+----------------------------- Captured stdout call -----------------------------
+goal: request_id=offline intent=0
+goal TIMEOUT(>=0.0s) 或中断
+___________________ test_invalid_cycle_budget_rejected[181] ____________________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x787bcc262720>
+timeout = '181'
+
+    @pytest.mark.parametrize('timeout', ['0', '181'])
+    def test_invalid_cycle_budget_rejected(monkeypatch, timeout):
+        _case(monkeypatch, None, timeout)
+>       with pytest.raises(SystemExit) as exc:
+E       Failed: DID NOT RAISE <class 'SystemExit'>
+
+src/peach/peach_system_tests/test/test_drive_harvest.py:68: Failed
+----------------------------- Captured stdout call -----------------------------
+goal: request_id=offline intent=0
+goal TIMEOUT(>=181.0s) 或中断
+______________ test_rejected_enables_are_not_reported_as_success _______________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x787bcc263920>
+
+    def test_rejected_enables_are_not_reported_as_success(monkeypatch):
+        response = SimpleNamespace(accepted=False, message='dependency refused')
+        client = SimpleNamespace(wait_for_service=lambda **kw: True,
+                                 call_async=lambda req: SimpleNamespace(result=lambda: response))
+        node = SimpleNamespace(create_client=lambda *a: client)
+        monkeypatch.setattr(driver.rclpy, 'spin_until_future_complete', lambda *a, **k: None)
+>       assert not driver._send_enables(node, True, 'offline check')
+E       AssertionError: assert not True
+E        +  where True = <function _send_enables at 0x787bc7b054e0>(namespace(create_client=<function test_rejected_enables_are_not_reported_as_success.<locals>.<lambda> at 0x787bcc25c220>), True, 'offline check')
+E        +    where <function _send_enables at 0x787bc7b054e0> = driver._send_enables
+
+src/peach/peach_system_tests/test/test_drive_harvest.py:79: AssertionError
+----------------------------- Captured stdout call -----------------------------
+enables(execution=True grasp=True tool=False): OK
+=========================== short test summary info ============================
+FAILED src/peach/peach_system_tests/test/test_drive_harvest.py::test_result_uses_current_idl_and_product_success[4-True-0]
+FAILED src/peach/peach_system_tests/test/test_drive_harvest.py::test_result_uses_current_idl_and_product_success[4-False-3]
+FAILED src/peach/peach_system_tests/test/test_drive_harvest.py::test_result_uses_current_idl_and_product_success[5-True-3]
+FAILED src/peach/peach_system_tests/test/test_drive_harvest.py::test_timeout_requests_cancel_before_node_shutdown
+FAILED src/peach/peach_system_tests/test/test_drive_harvest.py::test_goal_carries_server_side_time_budgets
+FAILED src/peach/peach_system_tests/test/test_drive_harvest.py::test_invalid_cycle_budget_rejected[0]
+FAILED src/peach/peach_system_tests/test/test_drive_harvest.py::test_invalid_cycle_budget_rejected[181]
+FAILED src/peach/peach_system_tests/test/test_drive_harvest.py::test_rejected_enables_are_not_reported_as_success
+8 failed in 0.19s

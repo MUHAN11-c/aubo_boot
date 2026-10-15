@@ -11,6 +11,7 @@ from __future__ import annotations
 
 from peach_bringup.params import attach_flag_bridge
 import rclpy
+from rclpy.executors import ExternalShutdownException, SingleThreadedExecutor
 from rclpy.node import Node
 from rclpy.qos import (
     DurabilityPolicy,
@@ -75,9 +76,14 @@ def main(argv=None) -> None:
     """Entry point for the lifecycle flag bridge node."""
     rclpy.init(args=argv)
     node = LifecycleFlagBridge()
+    executor = SingleThreadedExecutor()
+    executor.add_node(node)
     try:
-        rclpy.spin(node)
+        executor.spin()
+    except (KeyboardInterrupt, ExternalShutdownException):
+        pass
     finally:
+        executor.shutdown()
         node.destroy_node()
         if rclpy.ok():
             rclpy.shutdown()

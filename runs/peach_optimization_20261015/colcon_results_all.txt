@@ -1,0 +1,633 @@
+[0.133s] ERROR:colcon.colcon_test_result.test_result.xunit:Skipping 'build/camera_calibration/package.xml': [Errno 2] No such file or directory: 'build/camera_calibration/package.xml'
+Traceback (most recent call last):
+  File "/usr/lib/python3/dist-packages/colcon_test_result/test_result/xunit.py", line 47, in get_test_results
+    result = parse_xunit_xml(
+             ^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3/dist-packages/colcon_test_result/test_result/xunit.py", line 86, in parse_xunit_xml
+    root = tree.parse(path)
+           ^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/xml/etree/ElementTree.py", line 558, in parse
+    source = open(source, "rb")
+             ^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: 'build/camera_calibration/package.xml'
+
+[0.151s] ERROR:colcon.colcon_test_result.test_result.xunit:Skipping 'build/peach2_perception/package.xml': [Errno 2] No such file or directory: 'build/peach2_perception/package.xml'
+Traceback (most recent call last):
+  File "/usr/lib/python3/dist-packages/colcon_test_result/test_result/xunit.py", line 47, in get_test_results
+    result = parse_xunit_xml(
+             ^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3/dist-packages/colcon_test_result/test_result/xunit.py", line 86, in parse_xunit_xml
+    root = tree.parse(path)
+           ^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/xml/etree/ElementTree.py", line 558, in parse
+    source = open(source, "rb")
+             ^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: 'build/peach2_perception/package.xml'
+
+[0.161s] ERROR:colcon.colcon_test_result.test_result.xunit:Skipping 'build/peach2_target_model/package.xml': [Errno 2] No such file or directory: 'build/peach2_target_model/package.xml'
+Traceback (most recent call last):
+  File "/usr/lib/python3/dist-packages/colcon_test_result/test_result/xunit.py", line 47, in get_test_results
+    result = parse_xunit_xml(
+             ^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3/dist-packages/colcon_test_result/test_result/xunit.py", line 86, in parse_xunit_xml
+    root = tree.parse(path)
+           ^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/xml/etree/ElementTree.py", line 558, in parse
+    source = open(source, "rb")
+             ^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: 'build/peach2_target_model/package.xml'
+
+build/aubo_dashboard/Testing/20261010-0111/Test.xml: 5 tests, 0 errors, 2 failures, 0 skipped
+- copyright
+  <<< failure message
+    -- run_test.py: invoking following command in '/home/mu/Desktop/aubo_e5_jazzy_ws/src/aubo_dashboard':
+     - /opt/ros/jazzy/bin/ament_copyright --xunit-file /home/mu/Desktop/aubo_e5_jazzy_ws/build/aubo_dashboard/test_results/aubo_dashboard/copyright.xunit.xml
+    src/aubo_dashboard_node.cpp: could not find copyright notice
+    1 errors, checked 1 files
+    -- run_test.py: return code 1
+    -- run_test.py: verify result file '/home/mu/Desktop/aubo_e5_jazzy_ws/build/aubo_dashboard/test_results/aubo_dashboard/copyright.xunit.xml'
+  >>>
+- cpplint
+  <<< failure message
+    -- run_test.py: invoking following command in '/home/mu/Desktop/aubo_e5_jazzy_ws/src/aubo_dashboard':
+     - /opt/ros/jazzy/bin/ament_cpplint --xunit-file /home/mu/Desktop/aubo_e5_jazzy_ws/build/aubo_dashboard/test_results/aubo_dashboard/cpplint.xunit.xml
+    /home/mu/Desktop/aubo_e5_jazzy_ws/src/aubo_dashboard/src/aubo_dashboard_node.cpp:0:  No copyright message found.  You should have a line: "Copyright [year] <Copyright Owner>"  [legal/copyright] [5]
+    Category 'legal/copyright' errors found: 1
+    Total errors found: 1
+    Using '--root=/home/mu/Desktop/aubo_e5_jazzy_ws/src/aubo_dashboard/src' argument
+    
+    Done processing /home/mu/Desktop/aubo_e5_jazzy_ws/src/aubo_dashboard/src/aubo_dashboard_node.cpp
+    
+    -- run_test.py: return code 1
+    -- run_test.py: verify result file '/home/mu/Desktop/aubo_e5_jazzy_ws/build/aubo_dashboard/test_results/aubo_dashboard/cpplint.xunit.xml'
+  >>>
+build/aubo_dashboard/test_results/aubo_dashboard/copyright.xunit.xml: 1 test, 0 errors, 1 failure, 0 skipped
+- aubo_dashboard.copyright src/aubo_dashboard_node.cpp
+  <<< failure message
+    could not find copyright notice
+  >>>
+build/aubo_dashboard/test_results/aubo_dashboard/cpplint.xunit.xml: 1 test, 0 errors, 1 failure, 0 skipped
+- aubo_dashboard.cpplint legal/copyright [5] (/home/mu/Desktop/aubo_e5_jazzy_ws/src/aubo_dashboard/src/aubo_dashboard_node.cpp:0)
+  <<< failure message
+    No copyright message found.  You should have a line: "Copyright [year] <Copyright Owner>"
+  >>>
+build/aubo_e5_bringup/Testing/20260928-0157/Test.xml: 3 tests, 0 errors, 1 failure, 0 skipped
+- copyright
+  <<< failure message
+    -- run_test.py: invoking following command in '/home/mu/Desktop/aubo_e5_jazzy_ws/src/aubo_e5_bringup':
+     - /opt/ros/jazzy/bin/ament_copyright --xunit-file /home/mu/Desktop/aubo_e5_jazzy_ws/build/aubo_e5_bringup/test_results/aubo_e5_bringup/copyright.xunit.xml
+    launch/bringup.launch.py: could not find copyright notice
+    1 errors, checked 1 files
+    -- run_test.py: return code 1
+    -- run_test.py: verify result file '/home/mu/Desktop/aubo_e5_jazzy_ws/build/aubo_e5_bringup/test_results/aubo_e5_bringup/copyright.xunit.xml'
+  >>>
+build/aubo_e5_bringup/test_results/aubo_e5_bringup/copyright.xunit.xml: 1 test, 0 errors, 1 failure, 0 skipped
+- aubo_e5_bringup.copyright launch/bringup.launch.py
+  <<< failure message
+    could not find copyright notice
+  >>>
+build/aubo_e5_hardware/Testing/20261010-0111/Test.xml: 5 tests, 0 errors, 2 failures, 0 skipped
+- copyright
+  <<< failure message
+    -- run_test.py: invoking following command in '/home/mu/Desktop/aubo_e5_jazzy_ws/src/aubo_e5_hardware':
+     - /opt/ros/jazzy/bin/ament_copyright --xunit-file /home/mu/Desktop/aubo_e5_jazzy_ws/build/aubo_e5_hardware/test_results/aubo_e5_hardware/copyright.xunit.xml
+    include/aubo_e5_hardware/aubo_e5_hardware.hpp: could not find copyright notice
+    src/aubo_e5_hardware.cpp: could not find copyright notice
+    2 errors, checked 2 files
+    -- run_test.py: return code 1
+    -- run_test.py: verify result file '/home/mu/Desktop/aubo_e5_jazzy_ws/build/aubo_e5_hardware/test_results/aubo_e5_hardware/copyright.xunit.xml'
+  >>>
+- cpplint
+  <<< failure message
+    -- run_test.py: invoking following command in '/home/mu/Desktop/aubo_e5_jazzy_ws/src/aubo_e5_hardware':
+     - /opt/ros/jazzy/bin/ament_cpplint --xunit-file /home/mu/Desktop/aubo_e5_jazzy_ws/build/aubo_e5_hardware/test_results/aubo_e5_hardware/cpplint.xunit.xml
+    /home/mu/Desktop/aubo_e5_jazzy_ws/src/aubo_e5_hardware/include/aubo_e5_hardware/aubo_e5_hardware.hpp:0:  No copyright message found.  You should have a line: "Copyright [year] <Copyright Owner>"  [legal/copyright] [5]
+    /home/mu/Desktop/aubo_e5_jazzy_ws/src/aubo_e5_hardware/src/aubo_e5_hardware.cpp:0:  No copyright message found.  You should have a line: "Copyright [year] <Copyright Owner>"  [legal/copyright] [5]
+    Category 'legal/copyright' errors found: 2
+    Total errors found: 2
+    Using '--root=/home/mu/Desktop/aubo_e5_jazzy_ws/src/aubo_e5_hardware/include' argument
+    
+    Done processing /home/mu/Desktop/aubo_e5_jazzy_ws/src/aubo_e5_hardware/include/aubo_e5_hardware/aubo_e5_hardware.hpp
+    
+    Using '--root=/home/mu/Desktop/aubo_e5_jazzy_ws/src/aubo_e5_hardware/src' argument
+    
+    Done processing /home/mu/Desktop/aubo_e5_jazzy_ws/src/aubo_e5_hardware/src/aubo_e5_hardware.cpp
+    
+    -- run_test.py: return code 1
+    -- run_test.py: verify result file '/home/mu/Desktop/aubo_e5_jazzy_ws/build/aubo_e5_hardware/test_results/aubo_e5_hardware/cpplint.xunit.xml'
+  >>>
+build/aubo_e5_hardware/test_results/aubo_e5_hardware/copyright.xunit.xml: 2 tests, 0 errors, 2 failures, 0 skipped
+- aubo_e5_hardware.copyright include/aubo_e5_hardware/aubo_e5_hardware.hpp
+  <<< failure message
+    could not find copyright notice
+  >>>
+- aubo_e5_hardware.copyright src/aubo_e5_hardware.cpp
+  <<< failure message
+    could not find copyright notice
+  >>>
+build/aubo_e5_hardware/test_results/aubo_e5_hardware/cpplint.xunit.xml: 2 tests, 0 errors, 2 failures, 0 skipped
+- aubo_e5_hardware.cpplint legal/copyright [5] (/home/mu/Desktop/aubo_e5_jazzy_ws/src/aubo_e5_hardware/include/aubo_e5_hardware/aubo_e5_hardware.hpp:0)
+  <<< failure message
+    No copyright message found.  You should have a line: "Copyright [year] <Copyright Owner>"
+  >>>
+- aubo_e5_hardware.cpplint legal/copyright [5] (/home/mu/Desktop/aubo_e5_jazzy_ws/src/aubo_e5_hardware/src/aubo_e5_hardware.cpp:0)
+  <<< failure message
+    No copyright message found.  You should have a line: "Copyright [year] <Copyright Owner>"
+  >>>
+build/peach2_system_tests/test_results/peach2_system_tests/flake8.xunit.xml: 10 tests, 0 errors, 10 failures, 0 skipped
+- peach2_system_tests.flake8 I100 (./scripts/drive_frozen_grasp.py:36:1)
+  <<< failure message
+    Import statements are in the wrong order. 'from photo_pose import photo_tcp_pose, tf_to_T' should be before 'import tf2_ros':
+    from photo_pose import photo_tcp_pose, tf_to_T
+  >>>
+- peach2_system_tests.flake8 D205 (./scripts/drive_frozen_grasp.py:210:1)
+  <<< failure message
+    1 blank line required between summary line and description:
+            """Send a MoveTo goal, replanning once on planning failure (OMPL
+            seed luck near the reach boundary). Returns the last result, or
+            None on transport failure (replay pause state stays with the
+            caller, which must resume it on any exit path)."""
+  >>>
+- peach2_system_tests.flake8 D209 (./scripts/drive_frozen_grasp.py:210:1)
+  <<< failure message
+    Multi-line docstring closing quotes should be on a separate line:
+            """Send a MoveTo goal, replanning once on planning failure (OMPL
+            seed luck near the reach boundary). Returns the last result, or
+            None on transport failure (replay pause state stays with the
+            caller, which must resume it on any exit path)."""
+  >>>
+- peach2_system_tests.flake8 D400 (./scripts/drive_frozen_grasp.py:210:1)
+  <<< failure message
+    First line should end with a period:
+            """Send a MoveTo goal, replanning once on planning failure (OMPL
+            seed luck near the reach boundary). Returns the last result, or
+            None on transport failure (replay pause state stays with the
+            caller, which must resume it on any exit path)."""
+  >>>
+- peach2_system_tests.flake8 D205 (./scripts/drive_frozen_grasp.py:241:1)
+  <<< failure message
+    1 blank line required between summary line and description:
+            """Photo pose with a frozen transit: sense at the stow pose (arm
+            stationary, clean anchors, full-precision model axis — the goal sits
+            near the wrist-center reach boundary, so the exact axis matters),
+            PAUSE the replay, MoveTo (no frames ⇒ the frozen image cannot drift
+            the models along the arm), then RESUME at the stationary photo pose so
+            the batch survey re-anchors there. Freeze watchers pause again on
+            survey anchor or first motion."""
+  >>>
+- peach2_system_tests.flake8 D209 (./scripts/drive_frozen_grasp.py:241:1)
+  <<< failure message
+    Multi-line docstring closing quotes should be on a separate line:
+            """Photo pose with a frozen transit: sense at the stow pose (arm
+            stationary, clean anchors, full-precision model axis — the goal sits
+            near the wrist-center reach boundary, so the exact axis matters),
+            PAUSE the replay, MoveTo (no frames ⇒ the frozen image cannot drift
+            the models along the arm), then RESUME at the stationary photo pose so
+            the batch survey re-anchors there. Freeze watchers pause again on
+            survey anchor or first motion."""
+  >>>
+- peach2_system_tests.flake8 D400 (./scripts/drive_frozen_grasp.py:241:1)
+  <<< failure message
+    First line should end with a period:
+            """Photo pose with a frozen transit: sense at the stow pose (arm
+            stationary, clean anchors, full-precision model axis — the goal sits
+            near the wrist-center reach boundary, so the exact axis matters),
+            PAUSE the replay, MoveTo (no frames ⇒ the frozen image cannot drift
+            the models along the arm), then RESUME at the stationary photo pose so
+            the batch survey re-anchors there. Freeze watchers pause again on
+            survey anchor or first motion."""
+  >>>
+- peach2_system_tests.flake8 D205 (./scripts/drive_frozen_grasp.py:326:1)
+  <<< failure message
+    1 blank line required between summary line and description:
+            """Daemon thread: once the batch leaves the survey phase (BeginScene
+            has cleared the stale tracks and fresh anchors exist), pause the
+            replay on the first harvest motion (>2 mm joint deviation from the
+            phase-entry baseline). Frozen frame × live wrist TF would otherwise
+            drift the fresh models along the arm during staging/insert. Survey-
+            phase motion is intentionally NOT frozen: BeginScene clears whatever
+            drifted there and re-anchors at the (stationary) survey pose."""
+  >>>
+- peach2_system_tests.flake8 D209 (./scripts/drive_frozen_grasp.py:326:1)
+  <<< failure message
+    Multi-line docstring closing quotes should be on a separate line:
+            """Daemon thread: once the batch leaves the survey phase (BeginScene
+            has cleared the stale tracks and fresh anchors exist), pause the
+            replay on the first harvest motion (>2 mm joint deviation from the
+            phase-entry baseline). Frozen frame × live wrist TF would otherwise
+            drift the fresh models along the arm during staging/insert. Survey-
+            phase motion is intentionally NOT frozen: BeginScene clears whatever
+            drifted there and re-anchors at the (stationary) survey pose."""
+  >>>
+- peach2_system_tests.flake8 D400 (./scripts/drive_frozen_grasp.py:326:1)
+  <<< failure message
+    First line should end with a period:
+            """Daemon thread: once the batch leaves the survey phase (BeginScene
+            has cleared the stale tracks and fresh anchors exist), pause the
+            replay on the first harvest motion (>2 mm joint deviation from the
+            phase-entry baseline). Frozen frame × live wrist TF would otherwise
+            drift the fresh models along the arm during staging/insert. Survey-
+            phase motion is intentionally NOT frozen: BeginScene clears whatever
+            drifted there and re-anchors at the (stationary) survey pose."""
+  >>>
+build/peach2_system_tests/test_results/peach2_system_tests/pep257.xunit.xml: 25 tests, 0 errors, 17 failures, 0 skipped
+- peach2_system_tests.pep257 D205 (./scripts/drive_frozen_grasp.py:210)
+  <<< failure message
+    D205: 1 blank line required between summary line and description (found 0)
+  >>>
+- peach2_system_tests.pep257 D209 (./scripts/drive_frozen_grasp.py:210)
+  <<< failure message
+    D209: Multi-line docstring closing quotes should be on a separate line
+  >>>
+- peach2_system_tests.pep257 D213 (./scripts/drive_frozen_grasp.py:210)
+  <<< failure message
+    D213: Multi-line docstring summary should start at the second line
+  >>>
+- peach2_system_tests.pep257 D400 (./scripts/drive_frozen_grasp.py:210)
+  <<< failure message
+    D400: First line should end with a period (not 'L')
+  >>>
+- peach2_system_tests.pep257 D415 (./scripts/drive_frozen_grasp.py:210)
+  <<< failure message
+    D415: First line should end with a period, question mark, or exclamation point (not 'L')
+  >>>
+- peach2_system_tests.pep257 D205 (./scripts/drive_frozen_grasp.py:241)
+  <<< failure message
+    D205: 1 blank line required between summary line and description (found 0)
+  >>>
+- peach2_system_tests.pep257 D209 (./scripts/drive_frozen_grasp.py:241)
+  <<< failure message
+    D209: Multi-line docstring closing quotes should be on a separate line
+  >>>
+- peach2_system_tests.pep257 D213 (./scripts/drive_frozen_grasp.py:241)
+  <<< failure message
+    D213: Multi-line docstring summary should start at the second line
+  >>>
+- peach2_system_tests.pep257 D400 (./scripts/drive_frozen_grasp.py:241)
+  <<< failure message
+    D400: First line should end with a period (not 'm')
+  >>>
+- peach2_system_tests.pep257 D415 (./scripts/drive_frozen_grasp.py:241)
+  <<< failure message
+    D415: First line should end with a period, question mark, or exclamation point (not 'm')
+  >>>
+- peach2_system_tests.pep257 D205 (./scripts/drive_frozen_grasp.py:326)
+  <<< failure message
+    D205: 1 blank line required between summary line and description (found 0)
+  >>>
+- peach2_system_tests.pep257 D209 (./scripts/drive_frozen_grasp.py:326)
+  <<< failure message
+    D209: Multi-line docstring closing quotes should be on a separate line
+  >>>
+- peach2_system_tests.pep257 D213 (./scripts/drive_frozen_grasp.py:326)
+  <<< failure message
+    D213: Multi-line docstring summary should start at the second line
+  >>>
+- peach2_system_tests.pep257 D400 (./scripts/drive_frozen_grasp.py:326)
+  <<< failure message
+    D400: First line should end with a period (not 'e')
+  >>>
+- peach2_system_tests.pep257 D415 (./scripts/drive_frozen_grasp.py:326)
+  <<< failure message
+    D415: First line should end with a period, question mark, or exclamation point (not 'e')
+  >>>
+- peach2_system_tests.pep257 D213 (./scripts/photo_pose.py:2)
+  <<< failure message
+    D213: Multi-line docstring summary should start at the second line
+  >>>
+- peach2_system_tests.pep257 D213 (./scripts/photo_pose.py:71)
+  <<< failure message
+    D213: Multi-line docstring summary should start at the second line
+  >>>
+build/peach2_system_tests/test_results/peach2_system_tests/test_test_pregrasp_mock_exec.py.xunit.xml: 9 tests, 0 errors, 3 failures, 0 skipped
+- peach2_system_tests.TestPregraspMockExec test_3_run_batch_reaches_pregrasp_and_waits_for_ack
+  <<< failure message
+    Traceback (most recent call last):
+      File "/home/mu/Desktop/aubo_e5_jazzy_ws/src/peach2/peach2_system_tests/test/test_pregrasp_mock_exec.py", line 111, in test_3_run_batch_reaches_pregrasp_and_waits_for_ack
+        self.fail(f'batch ended before ACK: {r.termination_reason} '
+    AssertionError: batch ended before ACK: DEPENDENCY_UNAVAILABLE:check_reachability:timeout:no response within 10.000000 s []
+  >>>
+- peach2_system_tests.TestPregraspMockExec test_4_ack_finishes_batch
+  <<< failure message
+    Traceback (most recent call last):
+      File "/home/mu/Desktop/aubo_e5_jazzy_ws/src/peach2/peach2_system_tests/test/test_pregrasp_mock_exec.py", line 137, in test_4_ack_finishes_batch
+        self.assertEqual(len(result.results), 1, summary)
+    AssertionError: 0 != 1 : []
+  >>>
+- peach2_system_tests.TestPregraspMockExec test_4b_reached_is_pregrasp
+  <<< failure message
+    Traceback (most recent call last):
+      File "/home/mu/Desktop/aubo_e5_jazzy_ws/src/peach2/peach2_system_tests/test/test_pregrasp_mock_exec.py", line 151, in test_4b_reached_is_pregrasp
+        self.assertIsNotNone(r, 'no harvest result from test_4')
+    AssertionError: unexpectedly None : no harvest result from test_4
+  >>>
+build/peach_harvester/pytest.xml: 323 tests, 0 errors, 1 failure, 4 skipped
+- peach_harvester.test.test_flake8 test_flake8
+  <<< failure message
+    AssertionError: Found 1 code style errors / warnings:
+      ./peach_harvester/vision/target_reconstruction/publish.py:12:1: I100 Import statements are in the wrong order. 'from copy import deepcopy' should be before 'import time'
+    assert 1 == 0
+  >>>
+build/peach_system_tests/test_results/peach_system_tests/test_test_e1_supervisor_chain.py.xunit.xml: 4 tests, 0 errors, 2 failures, 1 skipped
+- peach_system_tests.TestE1SupervisorChain test_c03_pregrasp_park_requires_ack
+  <<< failure message
+    Traceback (most recent call last):
+      File "/home/mu/Desktop/aubo_e5_jazzy_ws/src/peach/peach_system_tests/test/test_e1_supervisor_chain.py", line 274, in test_c03_pregrasp_park_requires_ack
+        self.assertTrue(ok, 'C03 未到 RECOVERY_REQUIRED；states=%s' % tail_states)
+    AssertionError: False is not true : C03 未到 RECOVERY_REQUIRED；states=[1, 1, 1, 1, 2, 2, 2, 1, 1, 6, 6]
+  >>>
+- peach_system_tests.TestE1Shutdown test_exit_codes
+  <<< failure message
+    Traceback (most recent call last):
+      File "/home/mu/Desktop/aubo_e5_jazzy_ws/src/peach/peach_system_tests/test/test_e1_supervisor_chain.py", line 333, in test_exit_codes
+        self.assertIn(
+    AssertionError: -6 not found in (0, -2, -9, -15) : peach_arm-11 exited -6
+  >>>
+build/sim_description/Testing/20261014-0358/Test.xml: 2 tests, 0 errors, 2 failures, 0 skipped
+- test_urdf_mobile
+  <<< failure message
+    -- run_test.py: invoking following command in '/home/mu/Desktop/aubo_e5_jazzy_ws/build/sim_description':
+     - /usr/bin/python3 -u -m pytest /home/mu/Desktop/aubo_e5_jazzy_ws/src/sim/sim_description/test/test_urdf_mobile.py -o cache_dir=/home/mu/Desktop/aubo_e5_jazzy_ws/build/sim_description/ament_cmake_pytest/test_urdf_mobile/.cache --junit-xml=/home/mu/Desktop/aubo_e5_jazzy_ws/build/sim_description/test_results/sim_description/test_urdf_mobile.xunit.xml --junit-prefix=sim_description
+    ============================= test session starts ==============================
+    platform linux -- Python 3.12.3, pytest-7.4.4, pluggy-1.4.0
+    cachedir: build/sim_description/ament_cmake_pytest/test_urdf_mobile/.cache
+    rootdir: /home/mu/Desktop/aubo_e5_jazzy_ws
+    plugins: ament-lint-0.17.5, ament-xmllint-0.17.5, ament-copyright-0.17.5, launch-pytest-3.4.12, launch-testing-3.4.12, launch-testing-ros-0.26.13, ament-pep257-0.17.5, ament-flake8-0.17.5, anyio-4.15.1, typeguard-4.1.5, colcon-core-0.21.3, cov-4.1.0
+    collected 2 items
+    
+    ../../src/sim/sim_description/test/test_urdf_mobile.py .F                [100%]
+    
+    =================================== FAILURES ===================================
+    __________________ test_mobile_mode_is_platform_only_drivable __________________
+    
+        def test_mobile_mode_is_platform_only_drivable():
+            """mobile:=true：纯平台（无臂链/world），根 platform_base_link 可驾驶."""
+            root = _expand('true')
+            links, joints, roots = _links_joints(root)
+            assert roots == ['platform_base_link']
+            assert 'world' not in links  # world_joint 的世界锚定不得存在
+            assert 'platform_mount' not in joints
+            assert 'shoulder_joint' not in joints  # 无臂链
+            assert joints['lidar_mount_joint'] == ('platform_base_link', 'lidar_mount')
+        
+            plugins = list(root.iter('plugin'))
+    >       diff = next(item for item in plugins
+                        if item.get('filename') == 'gz-sim-diff-drive-system')
+    E       StopIteration
+    
+    ../../src/sim/sim_description/test/test_urdf_mobile.py:62: StopIteration
+    - generated xml file: /home/mu/Desktop/aubo_e5_jazzy_ws/build/sim_description/test_results/sim_description/test_urdf_mobile.xunit.xml -
+    =========================== short test summary info ============================
+    FAILED ../../src/sim/sim_description/test/test_urdf_mobile.py::test_mobile_mode_is_platform_only_drivable
+    ========================= 1 failed, 1 passed in 0.16s ==========================
+    -- run_test.py: return code 1
+    -- run_test.py: verify result file '/home/mu/Desktop/aubo_e5_jazzy_ws/build/sim_description/test_results/sim_description/test_urdf_mobile.xunit.xml'
+  >>>
+- test_urdf_unified
+  <<< failure message
+    -- run_test.py: invoking following command in '/home/mu/Desktop/aubo_e5_jazzy_ws/build/sim_description':
+     - /usr/bin/python3 -u -m pytest /home/mu/Desktop/aubo_e5_jazzy_ws/src/sim/sim_description/test/test_urdf_unified.py -o cache_dir=/home/mu/Desktop/aubo_e5_jazzy_ws/build/sim_description/ament_cmake_pytest/test_urdf_unified/.cache --junit-xml=/home/mu/Desktop/aubo_e5_jazzy_ws/build/sim_description/test_results/sim_description/test_urdf_unified.xunit.xml --junit-prefix=sim_description
+    ============================= test session starts ==============================
+    platform linux -- Python 3.12.3, pytest-7.4.4, pluggy-1.4.0
+    cachedir: build/sim_description/ament_cmake_pytest/test_urdf_unified/.cache
+    rootdir: /home/mu/Desktop/aubo_e5_jazzy_ws
+    plugins: ament-lint-0.17.5, ament-xmllint-0.17.5, ament-copyright-0.17.5, launch-pytest-3.4.12, launch-testing-3.4.12, launch-testing-ros-0.26.13, ament-pep257-0.17.5, ament-flake8-0.17.5, anyio-4.15.1, typeguard-4.1.5, colcon-core-0.21.3, cov-4.1.0
+    collected 7 items
+    
+    ../../src/sim/sim_description/test/test_urdf_unified.py ...F...          [100%]
+    
+    =================================== FAILURES ===================================
+    ______________________ test_drivetrain_and_lidar_survived ______________________
+    
+        def test_drivetrain_and_lidar_survived():
+            """履带 DiffDrive 与前桅杆激光随 mobile 分支保留."""
+            root = _expand()
+            names = [p.get('name') for p in root.iter('plugin')]
+    >       assert 'gz::sim::systems::DiffDrive' in names
+    E       AssertionError: assert 'gz::sim::systems::DiffDrive' in ['gz::sim::systems::VelocityControl', 'gz::sim::systems::OdometryPublisher', None, 'gz_ros2_control::GazeboSimROS2ControlPlugin']
+    
+    ../../src/sim/sim_description/test/test_urdf_unified.py:85: AssertionError
+    - generated xml file: /home/mu/Desktop/aubo_e5_jazzy_ws/build/sim_description/test_results/sim_description/test_urdf_unified.xunit.xml -
+    =========================== short test summary info ============================
+    FAILED ../../src/sim/sim_description/test/test_urdf_unified.py::test_drivetrain_and_lidar_survived
+    ========================= 1 failed, 6 passed in 0.72s ==========================
+    -- run_test.py: return code 1
+    -- run_test.py: verify result file '/home/mu/Desktop/aubo_e5_jazzy_ws/build/sim_description/test_results/sim_description/test_urdf_unified.xunit.xml'
+  >>>
+build/sim_description/test_results/sim_description/test_urdf_mobile.xunit.xml: 2 tests, 0 errors, 1 failure, 0 skipped
+- sim_description.src.sim.sim_description.test.test_urdf_mobile test_mobile_mode_is_platform_only_drivable
+  <<< failure message
+    StopIteration
+  >>>
+build/sim_description/test_results/sim_description/test_urdf_unified.xunit.xml: 7 tests, 0 errors, 1 failure, 0 skipped
+- sim_description.src.sim.sim_description.test.test_urdf_unified test_drivetrain_and_lidar_survived
+  <<< failure message
+    AssertionError: assert 'gz::sim::systems::DiffDrive' in ['gz::sim::systems::VelocityControl', 'gz::sim::systems::OdometryPublisher', None, 'gz_ros2_control::GazeboSimROS2ControlPlugin']
+  >>>
+build/sim_worlds/pytest.xml: 76 tests, 0 errors, 2 failures, 0 skipped
+- sim_worlds.test.test_flake8 test_flake8
+  <<< failure message
+    AssertionError: Found 194 code style errors / warnings:
+      ./reconstruction/analyze_reference.py:3:1: I100 Import statements are in the wrong order. 'import argparse' should be before 'from pathlib import Path'
+      ./reconstruction/analyze_reference.py:6:1: I201 Missing newline between import groups. 'import numpy' is identified as Third Party and 'import xml.etree.ElementTree' is identified as Stdlib.
+      ./reconstruction/analyze_reference.py:32:23: E225 missing whitespace around operator
+      ./reconstruction/analyze_reference.py:32:35: E231 missing whitespace after ','
+      ./reconstruction/analyze_reference.py:32:63: E231 missing whitespace after ','
+      ./reconstruction/analyze_reference.py:33:20: E225 missing whitespace around operator
+      ./reconstruction/analyze_reference.py:33:50: E225 missing whitespace around operator
+      ./reconstruction/analyze_reference.py:34:22: E225 missing whitespace around operator
+      ./reconstruction/analyze_reference.py:34:69: E225 missing whitespace around operator
+      ./reconstruction/analyze_reference.py:35:37: E231 missing whitespace after ','
+      ./reconstruction/analyze_reference.py:35:60: E231 missing whitespace after ','
+      ./reconstruction/analyze_reference.py:35:64: E231 missing whitespace after ','
+      ./reconstruction/analyze_reference.py:35:87: E231 missing whitespace after ','
+      ./reconstruction/analyze_reference.py:35:92: E231 missing whitespace after ','
+      ./reconstruction/analyze_reference.py:35:100: E501 line too long (103 > 99 characters)
+      ./reconstruction/analyze_reference.py:36:12: C408 Unnecessary dict call - rewrite as a literal.
+      ./reconstruction/analyze_reference.py:67:100: E501 line too long (135 > 99 characters)
+      ./reconstruction/analyze_reference.py:68:100: E501 line too long (143 > 99 characters)
+      ./reconstruction/analyze_reference.py:69:100: E501 line too long (130 > 99 characters)
+      ./reconstruction/analyze_reference.py:71:100: E501 line too long (128 > 99 characters)
+      ./reconstruction/analyze_reference.py:80:100: E501 line too long (117 > 99 characters)
+      ./reconstruction/analyze_reference.py:117:100: E501 line too long (165 > 99 characters)
+      ./reconstruction/analyze_reference.py:118:100: E501 line too long (159 > 99 characters)
+      ./reconstruction/audit_sources.py:3:1: I100 Import statements are in the wrong order. 'import json' should be before 'from pathlib import Path'
+      ./reconstruction/audit_sources.py:4:1: I201 Missing newline between import groups. 'import numpy' is identified as Third Party and 'import json' is identified as Stdlib.
+      ./reconstruction/audit_sources.py:15:100: E501 line too long (112 > 99 characters)
+      ./reconstruction/audit_sources.py:65:100: E501 line too long (101 > 99 characters)
+      ./reconstruction/audit_sources.py:66:100: E501 line too long (138 > 99 characters)
+      ./reconstruction/audit_sources.py:67:100: E501 line too long (107 > 99 characters)
+      ./reconstruction/audit_sources.py:68:100: E501 line too long (107 > 99 characters)
+      ./reconstruction/audit_sources.py:69:100: E501 line too long (136 > 99 characters)
+      ./reconstruction/audit_sources.py:70:100: E501 line too long (125 > 99 characters)
+      ./reconstruction/audit_sources.py:71:100: E501 line too long (104 > 99 characters)
+      ./reconstruction/audit_sources.py:72:100: E501 line too long (104 > 99 characters)
+      ./reconstruction/audit_sources.py:73:100: E501 line too long (133 > 99 characters)
+      ./reconstruction/audit_sources.py:82:1: I100 Import statements are in the wrong order. 'from measure_reference_leaves import main' should be before 'from PIL import Image, ImageDraw, ImageOps'
+      ./reconstruction/build_scene.py:106:1: D205 1 blank line required between summary line and description
+      ./reconstruction/build_scene.py:106:1: D400 First line should end with a period
+      ./reconstruction/build_scene.py:229:1: D401 First line should be in imperative mood
+      ./reconstruction/build_scene.py:478:16: E225 missing whitespace around operator
+      ./reconstruction/build_scene.py:478:96: E231 missing whitespace after ','
+      ./reconstruction/build_scene.py:478:100: E501 line too long (114 > 99 characters)
+      ./reconstruction/build_scene.py:479:15: E225 missing whitespace around operator
+      ./reconstruction/build_scene.py:479:31: E702 multiple statements on one line (semicolon)
+      ./reconstruction/build_scene.py:479:31: E231 missing whitespace after ';'
+      ./reconstruction/build_scene.py:479:37: E225 missing whitespace around operator
+      ./reconstruction/build_scene.py:479:61: E702 multiple statements on one line (semicolon)
+      ./reconstruction/build_scene.py:479:61: E231 missing whitespace after ';'
+      ./reconstruction/build_scene.py:479:71: E225 missing whitespace around operator
+      ./reconstruction/build_scene.py:479:80: E231 missing whitespace after ','
+      ./reconstruction/build_scene.py:480:14: E225 missing whitespace around operator
+      ./reconstruction/build_scene.py:480:36: E231 missing whitespace after ','
+      ./reconstruction/build_scene.py:481:27: E701 multiple statements on one line (colon)
+      ./reconstruction/build_scene.py:481:27: E231 missing whitespace after ':'
+      ./reconstruction/build_scene.py:482:18: E225 missing whitespace around operator
+      ./reconstruction/build_scene.py:482:52: E231 missing whitespace after ','
+      ./reconstruction/build_scene.py:482:71: E231 missing whitespace after ','
+      ./reconstruction/build_scene.py:482:85: E231 missing whitespace after ','
+      ./reconstruction/build_scene.py:483:18: E225 missing whitespace around operator
+      ./reconstruction/build_scene.py:483:36: E231 missing whitespace after ','
+      ./reconstruction/build_scene.py:484:18: E225 missing whitespace around operator
+      ./reconstruction/build_scene.py:484:47: E231 missing whitespace after ','
+      ./reconstruction/build_scene.py:484:49: E231 missing whitespace after ','
+      ./reconstruction/build_scene.py:484:62: E231 missing whitespace after ','
+      ./reconstruction/build_scene.py:484:75: E231 missing whitespace after ','
+      ./reconstruction/build_scene.py:485:14: E225 missing whitespace around operator
+      ./reconstruction/build_scene.py:486:17: E231 missing whitespace after ','
+      ./reconstruction/build_scene.py:486:22: E231 missing whitespace after ','
+      ./reconstruction/build_scene.py:486:28: E231 missing whitespace after ','
+      ./reconstruction/build_scene.py:486:31: E231 missing whitespace after ','
+      ./reconstruction/build_scene.py:486:52: E231 missing whitespace after ','
+      ./reconstruction/build_scene.py:487:14: E225 missing whitespace around operator
+      ./reconstruction/build_scene.py:487:23: E231 missing whitespace after ','
+      ./reconstruction/build_scene.py:488:14: E225 missing whitespace around operator
+      ./reconstruction/build_scene.py:489:14: E225 missing whitespace around operator
+      ./reconstruction/build_scene.py:490:28: E231 missing whitespace after ','
+      ./reconstruction/build_scene.py:490:30: E231 missing whitespace after ','
+      ./reconstruction/build_scene.py:490:32: E231 missing whitespace after ','
+      ./reconstruction/build_scene.py:490:45: E231 missing whitespace after ','
+      ./reconstruction/build_scene.py:492:18: E225 missing whitespace around operator
+      ./reconstruction/build_scene.py:492:27: E231 missing whitespace after ':'
+      ./reconstruction/build_scene.py:492:30: E231 missing whitespace after ','
+      ./reconstruction/build_scene.py:492:41: E231 missing whitespace after ':'
+      ./reconstruction/build_scene.py:493:26: E225 missing whitespace around operator
+      ./reconstruction/build_scene.py:494:14: E231 missing whitespace after ','
+      ./reconstruction/build_scene.py:494:16: E231 missing whitespace after ','
+      ./reconstruction/build_scene.py:494:18: E231 missing whitespace after ','
+      ./reconstruction/build_scene.py:494:24: E231 missing whitespace after ','
+      ./reconstruction/build_scene.py:494:30: E225 missing whitespace around operator
+      ./reconstruction/build_scene.py:494:40: E702 multiple statements on one line (semicolon)
+      ./reconstruction/build_scene.py:494:40: E231 missing whitespace after ';'
+      ./reconstruction/build_scene.py:494:42: E225 missing whitespace around operator
+      ./reconstruction/build_scene.py:494:51: E231 missing whitespace after ','
+      ./reconstruction/build_scene.py:495:35: E231 missing whitespace after ','
+      ./reconstruction/build_scene.py:495:37: E231 missing whitespace after ','
+      ./reconstruction/build_scene.py:495:43: E231 missing whitespace after ','
+      ./reconstruction/build_scene.py:495:49: E231 missing whitespace after ','
+      ./reconstruction/build_scene.py:495:59: E231 missing whitespace after ','
+      ./reconstruction/build_scene.py:495:64: E231 missing whitespace after ','
+      ./reconstruction/build_scene.py:495:66: E231 missing whitespace after ','
+      ./reconstruction/build_scene.py:495:72: E231 missing whitespace after ','
+      ./reconstruction/build_scene.py:495:78: E231 missing whitespace after ','
+      ./reconstruction/build_scene.py:496:31: E225 missing whitespace around operator
+      ./reconstruction/build_scene.py:497:26: E225 missing whitespace around operator
+      ./reconstruction/build_scene.py:498:14: E231 missing whitespace after ','
+      ./reconstruction/build_scene.py:498:16: E231 missing whitespace after ','
+      ./reconstruction/build_scene.py:498:18: E231 missing whitespace after ','
+      ./reconstruction/build_scene.py:498:24: E231 missing whitespace after ','
+      ./reconstruction/build_scene.py:498:30: E225 missing whitespace around operator
+      ./reconstruction/build_scene.py:498:39: E702 multiple statements on one line (semicolon)
+      ./reconstruction/build_scene.py:498:39: E231 missing whitespace after ';'
+      ./reconstruction/build_scene.py:498:41: E225 missing whitespace around operator
+      ./reconstruction/build_scene.py:498:50: E231 missing whitespace after ','
+      ./reconstruction/build_scene.py:499:18: E225 missing whitespace around operator
+      ./reconstruction/build_scene.py:499:24: E231 missing whitespace after ','
+      ./reconstruction/build_scene.py:499:26: E231 missing whitespace after ','
+      ./reconstruction/build_scene.py:499:32: E231 missing whitespace after ','
+      ./reconstruction/build_scene.py:499:38: E231 missing whitespace after ','
+      ./reconstruction/build_scene.py:499:49: E231 missing whitespace after ','
+      ./reconstruction/build_scene.py:499:57: E231 missing whitespace after ','
+      ./reconstruction/build_scene.py:499:59: E231 missing whitespace after ','
+      ./reconstruction/build_scene.py:499:61: E231 missing whitespace after ','
+      ./reconstruction/build_scene.py:499:67: E231 missing whitespace after ','
+      ./reconstruction/build_scene.py:500:34: E225 missing whitespace around operator
+      ./reconstruction/build_scene.py:506:100: E501 line too long (138 > 99 characters)
+      ./reconstruction/build_scene.py:507:100: E501 line too long (292 > 99 characters)
+      ./reconstruction/build_scene.py:507:218: E231 missing whitespace after ','
+      ./reconstruction/build_scene.py:507:244: E231 missing whitespace after ':'
+      ./reconstruction/build_scene.py:507:254: E231 missing whitespace after ','
+      ./reconstruction/build_scene.py:507:274: E231 missing whitespace after ':'
+      ./reconstruction/build_scene.py:511:31: E225 missing whitespace around operator
+      ./reconstruction/build_scene.py:516:5: F841 local variable 'leaves' is assigned to but never used
+      ./reconstruction/build_scene.py:525:20: E225 missing whitespace around operator
+      ./reconstruction/build_scene.py:525:35: E231 missing whitespace after ','
+      ./reconstruction/build_scene.py:526:5: E306 expected 1 blank line before a nested definition, found 0
+      ./reconstruction/build_scene.py:527:19: E225 missing whitespace around operator
+      ./reconstruction/build_scene.py:528:14: E231 missing whitespace after ','
+      ./reconstruction/build_scene.py:529:14: E231 missing whitespace after ','
+      ./reconstruction/build_scene.py:529:21: E225 missing whitespace around operator
+      ./reconstruction/build_scene.py:529:48: E231 missing whitespace after ','
+      ./reconstruction/build_scene.py:529:50: E231 missing whitespace after ','
+      ./reconstruction/build_scene.py:530:14: E225 missing whitespace around operator
+      ./reconstruction/build_scene.py:530:23: E231 missing whitespace after ','
+      ./reconstruction/build_scene.py:530:29: E231 missing whitespace after ','
+      ./reconstruction/build_scene.py:530:35: E231 missing whitespace after ','
+      ./reconstruction/build_scene.py:532:30: E231 missing whitespace after ','
+      ./reconstruction/build_scene.py:532:43: E231 missing whitespace after ':'
+      ./reconstruction/build_scene.py:546:39: E231 missing whitespace after ','
+      ./reconstruction/build_scene.py:873:100: E501 line too long (123 > 99 characters)
+      ./reconstruction/compare_dataset_depth.py:25:1: I100 Import statements are in the wrong order. 'import sys' should be before 'from PIL import Image' and in a different group.
+      ./reconstruction/compare_dataset_depth.py:27:1: I201 Missing newline between import groups. 'from depth_io import camera_look_axis, optical_depth_m' is identified as Third Party and 'import sys' is identified as Stdlib.
+      ./reconstruction/compare_dataset_depth.py:28:1: I101 Imported names are in the wrong order. Should be _boxes, _percentiles, DATASET, FX, FY, H, W
+      ./reconstruction/compare_dataset_depth.py:39:1: D401 First line should be in imperative mood; try rephrasing
+      ./reconstruction/compare_dataset_depth.py:40:5: F841 local variable 'rgb_dir' is assigned to but never used
+      ./reconstruction/compare_dataset_depth.py:104:19: C401 Unnecessary generator - rewrite as a set comprehension.
+      ./reconstruction/compare_dataset_depth.py:198:5: F841 local variable 'd' is assigned to but never used
+      ./reconstruction/compare_reference_scene.py:62:41: E128 continuation line under-indented for visual indent
+      ./reconstruction/evaluate_matrix.py:19:1: I100 Import statements are in the wrong order. 'from collections import defaultdict' should be before 'import sys'
+      ./reconstruction/evaluate_matrix.py:30:1: I100 Import statements are in the wrong order. 'from depth_io import to_uint16_mm' should be before 'import numpy'
+      ./reconstruction/evaluate_matrix.py:319:14: Q000 Double quotes found but single quotes preferred
+      ./reconstruction/evaluate_matrix.py:320:14: Q000 Double quotes found but single quotes preferred
+      ./reconstruction/geometry.py:5:1: I201 Missing newline between import groups. 'import bpy' is identified as Third Party and 'import random' is identified as Stdlib.
+      ./reconstruction/geometry.py:8:1: I101 Imported names are in the wrong order. Should be fruit_center_z, FRUIT_SEAT_M, wrap_half_at, wrap_radius
+      ./reconstruction/geometry.py:214:1: D401 First line should be in imperative mood
+      ./reconstruction/make_appearance_board.py:10:1: I100 Import statements are in the wrong order. 'import json' should be before 'import random'
+      ./reconstruction/make_textures.py:12:1: I100 Import statements are in the wrong order. 'import numpy' should be before 'from PIL import Image'
+      ./reconstruction/materials.py:26:5: E741 ambiguous variable name 'l'
+      ./reconstruction/materials.py:66:1: D205 1 blank line required between summary line and description
+      ./reconstruction/materials.py:66:1: D209 Multi-line docstring closing quotes should be on a separate line
+      ./reconstruction/materials.py:66:1: D400 First line should end with a period
+      ./reconstruction/materials.py:86:5: E741 ambiguous variable name 'l'
+      ./reconstruction/materials.py:166:9: E741 ambiguous variable name 'l'
+      ./reconstruction/measure_reference_leaves.py:47:36: E128 continuation line under-indented for visual indent
+      ./reconstruction/render_feature_details.py:57:100: E501 line too long (103 > 99 characters)
+      ./reconstruction/run_matrix.py:17:1: I100 Import statements are in the wrong order. 'from collections import defaultdict' should be before 'import time'
+      ./reconstruction/run_matrix.py:25:1: I100 Import statements are in the wrong order. 'from build_scene import _enable_gpu' should be before 'from mathutils import Vector'
+      ./reconstruction/test_measurement.py:3:1: I201 Missing newline between import groups. 'import numpy' is identified as Third Party and 'import unittest' is identified as Stdlib.
+      ./reconstruction/test_measurement.py:4:1: I100 Import statements are in the wrong order. 'from analyze_reference import measure' should be before 'import numpy'
+      ./reconstruction/validate_perception.py:2:1: F401 'PIL.ImageOps' imported but unused
+      ./reconstruction/validate_perception.py:3:1: I100 Import statements are in the wrong order. 'import numpy' should be before 'from PIL import Image, ImageDraw, ImageOps'
+      ./reconstruction/validate_perception.py:4:1: I100 Import statements are in the wrong order. 'import json' should be before 'import numpy' and in a different group.
+      ./reconstruction/validate_perception.py:4:1: I201 Missing newline between import groups. 'import json' is identified as Stdlib and 'import numpy' is identified as Third Party.
+      ./reconstruction/validate_perception.py:5:1: I100 Import statements are in the wrong order. 'import argparse' should be before 'import json'
+      ./reconstruction/validate_perception.py:8:1: I100 Import statements are in the wrong order. 'import os' should be before 'from pathlib import Path'
+      ./reconstruction/validate_perception.py:10:1: I201 Missing newline between import groups. 'import cv2' is identified as Third Party and 'import os' is identified as Stdlib.
+      ./reconstruction/validate_perception.py:41:5: F841 local variable 'measure' is assigned to but never used
+      ./reconstruction/validate_perception.py:62:16: E225 missing whitespace around operator
+      ./reconstruction/validate_perception.py:62:18: Q000 Double quotes found but single quotes preferred
+      ./reconstruction/validate_perception.py:62:40: E231 missing whitespace after ','
+      ./reconstruction/validate_perception.py:62:48: E225 missing whitespace around operator
+      ./reconstruction/validate_perception.py:62:55: E231 missing whitespace after ','
+      ./reconstruction/validate_perception.py:63:30: Q000 Double quotes found but single quotes preferred
+      ./reconstruction/validate_perception.py:139:100: E501 line too long (128 > 99 characters)
+      ./reconstruction/validate_perception.py:140:100: E501 line too long (135 > 99 characters)
+    assert 1 == 0
+  >>>
+- sim_worlds.test.test_pep257 test_pep257
+  <<< failure message
+    AssertionError: Found code style errors / warnings
+    assert 1 == 0
+  >>>
+
+Summary: 3237 tests, 0 errors, 51 failures, 303 skipped

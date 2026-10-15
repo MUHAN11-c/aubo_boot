@@ -1,0 +1,63 @@
+FFFF                                                                     [100%]
+=================================== FAILURES ===================================
+____ test_delayed_mask_retains_exact_frame_within_existing_freshness_window ____
+
+    def test_delayed_mask_retains_exact_frame_within_existing_freshness_window():
+        store = _store()
+        original = _frame(10.)
+        store._push_frame_ring(original)
+        for i in range(1, 18):
+            store._push_frame_ring(_frame(10. + i / 11.))
+        store._target_masks = {10000000000: object()}
+>       assert store._select_cached_frame() is original
+E       AssertionError: assert (array([0, 0, 0, 0, 0, 0, 0, 0], dtype=uint8), array([0, 0, 0, 0, 0, 0, 0, 0], dtype=uint16), {}, builtin_interfaces.msg.Time(sec=11, nanosec=545454545), 11.545454545454545, 'camera_optical') is (array([0, 0, 0, 0, 0, 0, 0, 0], dtype=uint8), array([0, 0, 0, 0, 0, 0, 0, 0], dtype=uint16), {}, builtin_interfaces.msg.Time(sec=10, nanosec=0), 10.0, 'camera_optical')
+E        +  where (array([0, 0, 0, 0, 0, 0, 0, 0], dtype=uint8), array([0, 0, 0, 0, 0, 0, 0, 0], dtype=uint16), {}, builtin_interfaces.msg.Time(sec=11, nanosec=545454545), 11.545454545454545, 'camera_optical') = <bound method ReconstructionCore._select_cached_frame of <peach_harvester.vision.target_reconstruction.reconstruction_core.ReconstructionCore object at 0x727d5e099670>>()
+E        +    where <bound method ReconstructionCore._select_cached_frame of <peach_harvester.vision.target_reconstruction.reconstruction_core.ReconstructionCore object at 0x727d5e099670>> = <peach_harvester.vision.target_reconstruction.reconstruction_core.ReconstructionCore object at 0x727d5e099670>._select_cached_frame
+
+src/peach/peach_harvester/test/test_reconstruction_frame_store.py:31: AssertionError
+_________ test_age_horizon_and_out_of_order_eviction_use_exposure_time _________
+
+    def test_age_horizon_and_out_of_order_eviction_use_exposure_time():
+        store = _store()
+        for stamp in (10., 11.9, 11., 12.01, 9.):
+            store._push_frame_ring(_frame(stamp))
+>       assert 10000000000 not in store._frame_ring
+E       AssertionError: assert 10000000000 not in {9000000000: (array([0, 0, 0, 0, 0, 0, 0, 0], dtype=uint8), array([0, 0, 0, 0, 0, 0, 0, 0], dtype=uint16), {}, builtin..., 0, 0, 0, 0], dtype=uint16), {}, builtin_interfaces.msg.Time(sec=11, nanosec=900000000), 11.9, 'camera_optical'), ...}
+E        +  where {9000000000: (array([0, 0, 0, 0, 0, 0, 0, 0], dtype=uint8), array([0, 0, 0, 0, 0, 0, 0, 0], dtype=uint16), {}, builtin..., 0, 0, 0, 0], dtype=uint16), {}, builtin_interfaces.msg.Time(sec=11, nanosec=900000000), 11.9, 'camera_optical'), ...} = <peach_harvester.vision.target_reconstruction.reconstruction_core.ReconstructionCore object at 0x727d5e04bb90>._frame_ring
+
+src/peach/peach_harvester/test/test_reconstruction_frame_store.py:39: AssertionError
+________ test_byte_limit_and_duplicate_stamp_replacement_are_accounted _________
+
+    def test_byte_limit_and_duplicate_stamp_replacement_are_accounted():
+        store = _store()
+        store._frame_ring_max_bytes = 60
+        for stamp in (10., 10.1, 10.2):
+            store._push_frame_ring(_frame(stamp))  # each 24 bytes
+>       assert sorted(store._frame_ring) == [10100000000, 10200000000]
+E       assert [10000000000,..., 10200000000] == [10100000000, 10200000000]
+E         At index 0 diff: 10000000000 != 10100000000
+E         Left contains one more item: 10200000000
+E         Use -v to get more diff
+
+src/peach/peach_harvester/test/test_reconstruction_frame_store.py:50: AssertionError
+_________ test_frame_cap_and_clear_release_ring_and_latest_references __________
+
+    def test_frame_cap_and_clear_release_ring_and_latest_references():
+        store = _store()
+        store._frame_ring_max = 3
+        for stamp in (10., 10.1, 10.2, 10.3):
+            store._push_frame_ring(_frame(stamp))
+        assert len(store._frame_ring) == 3
+        reference = weakref.ref(store._latest_frame[0])
+        store._clear_frame_ring()
+        assert reference() is None
+>       assert store._frame_ring_bytes == 0
+E       AttributeError: 'ReconstructionCore' object has no attribute '_frame_ring_bytes'. Did you mean: '_frame_ring_max'?
+
+src/peach/peach_harvester/test/test_reconstruction_frame_store.py:68: AttributeError
+=========================== short test summary info ============================
+FAILED src/peach/peach_harvester/test/test_reconstruction_frame_store.py::test_delayed_mask_retains_exact_frame_within_existing_freshness_window
+FAILED src/peach/peach_harvester/test/test_reconstruction_frame_store.py::test_age_horizon_and_out_of_order_eviction_use_exposure_time
+FAILED src/peach/peach_harvester/test/test_reconstruction_frame_store.py::test_byte_limit_and_duplicate_stamp_replacement_are_accounted
+FAILED src/peach/peach_harvester/test/test_reconstruction_frame_store.py::test_frame_cap_and_clear_release_ring_and_latest_references
+4 failed in 0.44s

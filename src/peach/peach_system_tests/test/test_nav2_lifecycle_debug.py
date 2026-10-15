@@ -1,11 +1,13 @@
 """Isolated lifecycle debug bridge against a Nav2-typed service."""
+import os
 import sys
+import tempfile
 import threading
 import time
 import unittest
 
 import launch
-from launch.actions import ExecuteProcess
+from launch.actions import ExecuteProcess, SetEnvironmentVariable
 import launch_testing
 from launch_testing.actions import ReadyToTest
 import launch_testing.asserts
@@ -22,9 +24,13 @@ SERVICE = '/peach_lifecycle_manager/manage_nodes'
 @pytest.mark.launch_test
 def generate_test_description():
     """Run only a fake lifecycle server; no robot or camera driver."""
+    runs = tempfile.mkdtemp(prefix='peach_lifecycle_lt_')
     server = ExecuteProcess(
         cmd=[sys.executable, __file__, '--server'], output='screen')
-    return launch.LaunchDescription([server, ReadyToTest()]), {'server': server}
+    return launch.LaunchDescription([
+        SetEnvironmentVariable('ROS_HOME', os.path.join(runs, 'ros_home')),
+        server, ReadyToTest(),
+    ]), {'server': server}
 
 
 class TestLifecycleDebug(unittest.TestCase):

@@ -46,3 +46,5 @@ python3 src/peach/peach_interfaces/scripts/check_interface_manifest.py
 ```
 
 接线验证及bag封口/精确PID清理见 [测试指导](../../peach_system_tests/doc/testing.md)。清单通过只证明静态一致，节点集成、许可身份与实际终态仍须独立验收。
+
+联合runner的report.json按阶段原子更新，soak只在RViz存活及相机/关节新鲜流成立时计为健康，失效立即终止验收并清理。自动bag报告子进程继承本轮进程组，有界30+2+2秒回收，超时/非零须离线重算；bag可读不代表动作或稳定性验收成功。相机SDK发现需注明网络环境：隔离网络的0设备与主机网络可发现并不矛盾，实际取帧及模型/动作仍须独立证明。

@@ -42,7 +42,7 @@ class DiagnosticsPanel {
       $('diag-count').textContent = '';
       return;
     }
-    const topic = $('diag-topic').value.trim() || '/rwl_viz/diagnostics';
+    const topic = $('diag-topic').value.trim() || '/diagnostics';
     this._rows.clear();
     this._handle = this._client.subscribe(topic, '', (m) => {
       this._stamp(m.data?.header);
@@ -87,7 +87,7 @@ class DiagnosticsPanel {
 
   snapshot() {
     return {
-      topic: this._enabled ? ($('diag-topic').value.trim() || '/rwl_viz/diagnostics') : null,
+      topic: this._enabled ? ($('diag-topic').value.trim() || '/diagnostics') : null,
       stampNs: this._lastStampNs ?? null,
       rows: [...this._rows.entries()].map(([name, r]) => ({ name, ...r })),
     };

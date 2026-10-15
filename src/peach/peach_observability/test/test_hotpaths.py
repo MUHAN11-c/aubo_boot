@@ -121,6 +121,54 @@ class _StubNode:
         self.destroyed_subs.append(sub)
 
 
+def test_perception_media_waits_for_result_segment():
+    """点云和感知图在结果窗口外不进袋；窗口内约 1Hz。轨迹不受这扇窗限制."""
+    recorder = Recorder(
+        root_dir='/tmp/peach_obs_unused', enabled=False, queue_depth=8)
+    try:
+        assert recorder._control_flow_throttled(
+            '/peach/reconstruction/preview_cloud')
+        assert recorder._control_flow_throttled(
+            '/peach/perception/debug_image')
+        assert not recorder._control_flow_throttled(
+            '/joint_trajectory_controller/follow_joint_trajectory')
+        recorder.mark_perception_segment()
+        assert not recorder._control_flow_throttled(
+            '/peach/reconstruction/tsdf_cloud')
+        assert recorder._control_flow_throttled(
+            '/peach/reconstruction/tsdf_cloud')
+    finally:
+        recorder.close(timeout_s=0.2)
+
+
+def test_full_queue_keeps_arm_trajectory_over_cloud():
+    """队列满时丢掉点云，已下发轨迹仍挤进去."""
+    recorder = Recorder(
+        root_dir='/tmp/peach_obs_unused', enabled=False, queue_depth=1)
+    try:
+        recorder._enqueue(('msg', '/peach/reconstruction/preview_cloud', 1, 1))
+        recorder._enqueue((
+            'msg', '/display_planned_path', 2, 2))
+        kept = recorder._queue.get_nowait()
+        recorder._queue.task_done()
+        assert kept[1] == '/display_planned_path'
+    finally:
+        recorder.close(timeout_s=0.2)
+
+
+def test_std_catch_all_skips_camera_raw():
+    """默认档不订阅相机原流，避免整段图像和点云进袋."""
+    recorder = CatchAllRecorder(None, None, level='std')
+    assert not recorder._allow('/camera/color/image_raw')
+    assert not recorder._allow('/camera/depth_registered/points')
+    assert recorder._allow('/joint_states')
+    assert recorder._allow('/peach/reconstruction/preview_cloud')
+    assert recorder._allow('/peach/reconstruction/grasp_decision')
+    assert not recorder._allow('/peach/perception/debug_image_raw')
+    assert not recorder._allow('/peach/perception/single_cloud')
+    assert not recorder._allow('/controller_manager/statistics/values')
+
+
 def test_catch_all_stop_destroys_subscriptions():
     """停止发现并销毁全部通配订阅/timer，清发现态且幂等."""
     node = _StubNode()

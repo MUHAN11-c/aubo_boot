@@ -87,8 +87,9 @@ JS（`/js/...`，ES Modules 直引，无构建步骤）：
 # E2E 通信矩阵（自动起桥+网关+fixture，随机域+随机端口，测完即清）
 ./aubo_py3.12/bin/python -m pytest src/ros_web_link/test -k comm_matrix -v
 
-# E2E 可视化消息（rwl_viz_fixture：Image/PointCloud2/LaserScan/Odometry/Marker…15 类）
-./aubo_py3.12/bin/python -m pytest src/ros_web_link/test -k visualization -v
+# E2E 官方仿真真实数据（turtlebot3 官方仿真 + 官方 nav2 + ros2/examples 官方示例，
+# 16 用例：scan/odom/相机/点云/AMCL 粒子云/web 规划闭环；需已克隆并构建官方仓库）
+./aubo_py3.12/bin/python -m pytest src/ros_web_link/test -k sim -v
 
 # E2E MoveIt 2 官方 Panda 示例（latched URDF/IK/OMPL 规划/执行轨迹/PlanningScene）
 ./aubo_py3.12/bin/python -m pytest src/ros_web_link/test -k moveit -v
@@ -97,7 +98,7 @@ JS（`/js/...`，ES Modules 直引，无构建步骤）：
 # rclpy 序列化真值 vs JS codec 离线解码，覆盖 16 类常用可视化消息）
 cd src/ros_web_link && node_modules/.bin/vitest run
 
-# 重新生成 CDR 黄金 fixtures（改 viz_fixture 值或升级 ROS 后）
+# 重新生成 CDR 黄金 fixtures（升级 ROS 后）
 ./aubo_py3.12/bin/python src/ros_web_link/test/generate_viz_golden.py
 
 # 组合网关验证（dashboard UI + 逐文件合并的传输层）

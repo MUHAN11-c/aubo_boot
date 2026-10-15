@@ -290,7 +290,7 @@ class RefitOrchestrator:
             support_angle, invalid_views = reconstruction_axis_image_support(frames, result)
             reason = ''
             if support_angle is None or invalid_views:
-                reason = 'bag_axis_unobservable'
+                reason = 'bag_axis_silhouette_unobservable'
             elif support_angle > self._refit_config.max_axis_angle_deg:
                 reason = 'fused_axis_silhouette_conflict'
             if reason:

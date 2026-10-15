@@ -1,0 +1,19 @@
+.....F                                                                   [100%]
+=================================== FAILURES ===================================
+_ test_oversized_frame_does_not_advance_time_watermark_or_evict_waiting_frame __
+
+    def test_oversized_frame_does_not_advance_time_watermark_or_evict_waiting_frame():
+        store = _store()
+        store._frame_ring_max_bytes = 60
+        waiting = _frame(10.)
+        store._push_frame_ring(waiting)
+        store._push_frame_ring(_frame(13., size=30))  # 90B不能进入60B缓存。
+>       assert store._select_cached_frame(10.) is waiting
+E       AssertionError: assert None is (array([0, 0, 0, 0, 0, 0, 0, 0], dtype=uint8), array([0, 0, 0, 0, 0, 0, 0, 0], dtype=uint16), {}, builtin_interfaces.msg.Time(sec=10, nanosec=0), 10.0, 'camera_optical')
+E        +  where None = <bound method ReconstructionCore._select_cached_frame of <peach_harvester.vision.target_reconstruction.reconstruction_core.ReconstructionCore object at 0x7f50d9ed5d90>>(10.0)
+E        +    where <bound method ReconstructionCore._select_cached_frame of <peach_harvester.vision.target_reconstruction.reconstruction_core.ReconstructionCore object at 0x7f50d9ed5d90>> = <peach_harvester.vision.target_reconstruction.reconstruction_core.ReconstructionCore object at 0x7f50d9ed5d90>._select_cached_frame
+
+src/peach/peach_harvester/test/test_reconstruction_frame_store.py:92: AssertionError
+=========================== short test summary info ============================
+FAILED src/peach/peach_harvester/test/test_reconstruction_frame_store.py::test_oversized_frame_does_not_advance_time_watermark_or_evict_waiting_frame
+1 failed, 5 passed in 0.41s

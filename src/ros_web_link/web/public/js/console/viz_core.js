@@ -154,3 +154,142 @@ export function createPresetStore(storage) {
     },
   };
 }
+
+// ── Displays 实例配置（RViz Add-Display 语义；sim_demo 官方数据面默认值） ───
+
+/** 显示类型注册表：singleton=单实例不可增删；topic=官方数据面默认话题 */
+export const DISPLAY_TYPES = {
+  grid:    { label: '网格 Grid', singleton: true },
+  robot:   { label: 'RobotModel URDF', singleton: true, topic: '/robot_description', props: ['ghost'] },
+  tf:      { label: 'TF 坐标轴', singleton: true, topic: '/tf', props: ['labels'] },
+  map:     { label: '地图 OccupancyGrid', topic: '/map', props: ['opacity'] },
+  costmap: { label: '代价地图 Costmap', topic: '/global_costmap/costmap', props: ['opacity'] },
+  cloud:   { label: '点云 PointCloud2', topic: '/test_cloud', props: ['size'] },
+  scan3d:  { label: '激光 3D LaserScan', topic: '/scan' },
+  marker:  { label: '标记 MarkerArray', topic: '' },
+  path:    { label: '路径 Path', topic: '/plan' },
+  poses:   { label: '位姿数组 PoseArray', topic: '/particle_cloud' },
+  odom:    { label: '里程 Odometry', topic: '/odom', props: ['trail', 'trailLen'] },
+  range:   { label: '测距 Range', topic: '' },
+  wrench:  { label: '力/力矩 Wrench', topic: '', props: ['scale'] },
+  posecov: { label: '协方差位姿 PoseCov', topic: '/amcl_pose' },
+  image:   { label: '相机 Image', topic: '/camera/image_raw' },
+  imagec:  { label: '压缩图 CompressedImage', topic: '/camera/image_raw/compressed' },
+};
+
+const INSTANCE_DEFAULT_PROPS = {
+  robot: { ghost: false },
+  tf: { labels: true },
+  map: { opacity: 0.85 },
+  costmap: { opacity: 0.5 },
+  cloud: { size: 0.035 },
+  odom: { trail: true, trailLen: 300 },
+  wrench: { scale: 0.2 },
+};
+
+export function makeInstance(id, type, name, overrides = {}) {
+  const spec = DISPLAY_TYPES[type];
+  return { id, type, name, on: true, topic: spec.topic || '',
+    ...(INSTANCE_DEFAULT_PROPS[type] || {}), ...overrides };
+}
+
+export function defaultInstances() {
+  return [
+    makeInstance('grid', 'grid', '网格'),
+    makeInstance('robot', 'robot', 'RobotModel'),
+    makeInstance('tf', 'tf', 'TF'),
+    makeInstance('map1', 'map', '地图'),
+    makeInstance('gcm1', 'costmap', '全局代价地图'),
+    makeInstance('lcm1', 'costmap', '局部代价地图',
+      { topic: '/local_costmap/costmap' }),
+    makeInstance('cloud1', 'cloud', '点云'),
+    makeInstance('scan1', 'scan3d', '激光'),
+    makeInstance('path1', 'path', '路径'),
+    makeInstance('poses1', 'poses', '粒子云'),
+    makeInstance('odom1', 'odom', '里程'),
+    makeInstance('posecov1', 'posecov', 'AMCL 位姿'),
+    makeInstance('image1', 'image', '相机'),
+  ];
+}
+
+export function defaultGlobal() {
+  // fixedFrame ''=自动（TF 树根）；follow ''=自由视角，否则跟随 TF 帧（Foxglove 语义）
+  return { fixedFrame: '', bg: '', follow: '' };
+}
+
+export function defaultCfg() {
+  return { global: defaultGlobal(), instances: defaultInstances() };
+}
+
+/** v3 固定键配置 → v4 实例数组迁移（保留用户自定义 topic/on/属性） */
+export function migrateCfg(raw) {
+  const base = defaultCfg();
+  if (raw && Array.isArray(raw.instances)) {
+    return { global: { ...defaultGlobal(), ...(raw.global || {}) },
+      instances: raw.instances };
+  }
+  if (raw) {
+    for (const inst of base.instances) {
+      const old = raw[inst.type];
+      if (!old) continue;
+      inst.topic = old.topic || inst.topic;
+      inst.on = old.on !== false;
+      for (const k of Object.keys(INSTANCE_DEFAULT_PROPS[inst.type] || {})) {
+        if (old[k] !== undefined) inst[k] = old[k];
+      }
+    }
+  }
+  return base;
+}
+
+/**
+ * OccupancyGrid 地图语义像素（RViz2 Map 显示色板）。
+ * -1=未知(灰) / 0=自由(白,低α) / ≥65=占据(黑) / 其余=灰。
+ * 返回 [r, g, b, a]。
+ */
+export function mapGridPixel(v) {
+  if (v < 0) return [127, 127, 127, 120];
+  if (v === 0) return [255, 255, 255, 40];
+  if (v >= 65) return [10, 10, 10, 255];
+  return [127, 127, 127, 200];
+}
+
+/**
+ * Costmap 代价语义像素（RViz2 Costmap 显示色带）：
+ * -1=未知(暗灰) / 0=自由(淡蓝,极低α) / 1..100=代价蓝→红渐变(α 随代价升高)。
+ */
+export function costmapPixel(v) {
+  if (v < 0) return [80, 80, 80, 90];
+  if (v === 0) return [70, 130, 220, 16];
+  const t = Math.min(1, v / 100);
+  return [
+    Math.round(30 + 225 * t),
+    Math.round(90 - 50 * t),
+    Math.round(255 - 225 * t),
+    Math.round(80 + 160 * t),
+  ];
+}
+
+/**
+ * Teleop 命令混合器（键盘集合 → Twist 速度；纯函数，vitest 可测）。
+ * keys: Set<string>（'w'/'a'/'s'/'d'/'arrowup'…小写）；maxLin m/s、maxAng rad/s。
+ * 松键（空集）= 零速急停。
+ */
+export function mixTeleopCommand(keys, maxLin, maxAng) {
+  let x = 0;
+  let w = 0;
+  if (keys.has('w') || keys.has('arrowup')) x += maxLin;
+  if (keys.has('s') || keys.has('arrowdown')) x -= maxLin * 0.6;
+  if (keys.has('a') || keys.has('arrowleft')) w += maxAng;
+  if (keys.has('d') || keys.has('arrowright')) w -= maxAng;
+  if (keys.has('q')) w += maxAng;
+  if (keys.has('e')) w -= maxAng;
+  const r3 = (v) => Math.round(v * 1000) / 1000;
+  return {
+    active: x !== 0 || w !== 0,
+    twist: {
+      linear: { x: r3(x), y: 0, z: 0 },
+      angular: { x: 0, y: 0, z: r3(w) },
+    },
+  };
+}

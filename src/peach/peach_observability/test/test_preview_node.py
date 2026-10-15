@@ -46,7 +46,7 @@ def test_preview_subscriptions_without_recording():
 
 
 def test_same_callback_previews_and_conditionally_records():
-    """同一消息只读预览常开，bag 保存仍服从原有门控."""
+    """预览常开。稳定识别图可进袋；即时检测图只在 all 档进袋."""
     node = node_stub()
     received, recorded = [], []
     node._image_preview = SimpleNamespace(submit=lambda *args: received.append(args))
@@ -56,8 +56,15 @@ def test_same_callback_previews_and_conditionally_records():
     callback(message)
     assert received == [('raw', message)] and not recorded
     node._params.record_enabled = node._params.record_save_images = True
+    node._params.record_level = 'std'
     callback(message)
-    assert recorded == [('debug_image_raw_topic', message)]
+    assert recorded == []
+    stable = node._image_cb('perception', 'debug_image_topic')
+    stable(message)
+    assert recorded == [('debug_image_topic', message)]
+    node._params.record_level = 'all'
+    callback(message)
+    assert recorded[-1] == ('debug_image_raw_topic', message)
 
 
 def test_tool_frames_real_tf_fields_and_missing_stale():

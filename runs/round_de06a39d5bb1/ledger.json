@@ -1,0 +1,29 @@
+{
+  "claimed": [
+    "target_1"
+  ],
+  "outcomes": [
+    {
+      "target_id": "target_1",
+      "outcome": 3,
+      "reason": "full_failed: 返回 global_photo_pose 失败: 拍照位姿拒绝绕行轨迹: 累计关节行程 6.00125rad > 6rad",
+      "quality_score": 0.0,
+      "elapsed_s": 24.454,
+      "failure_code": "full_failed",
+      "failure_code_n": 8,
+      "completion_level": 6,
+      "stage_names": [
+        "reconfirm",
+        "approach_insert",
+        "tool",
+        "retreat"
+      ],
+      "stage_durations": [
+        0.434,
+        18.006,
+        0.0,
+        4.813
+      ]
+    }
+  ]
+}

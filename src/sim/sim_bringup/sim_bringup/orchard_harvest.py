@@ -1,4 +1,5 @@
-"""``orchard_harvest`` 自主导航采摘编排（仿真演示，thin 接线层）.
+"""
+``orchard_harvest`` 自主导航采摘编排（仿真演示，thin 接线层）.
 
 参考口径：导航全走 Nav2 官方 ``nav2_simple_commander``（同 ``orchard_tour``）；
 臂运动走 MoveGroup action（同 peach_arm ``MoveGroupInterface`` 的 goal 语义：
@@ -46,11 +47,10 @@ from rclpy.action import ActionClient
 from rclpy.node import Node
 from rclpy.parameter import Parameter
 from shape_msgs.msg import SolidPrimitive
-import yaml
-
 from sim_worlds.cli import default_share
 from sim_worlds.params import check_params, params_from_dict
 from sim_worlds.tour_core import stations_by_row
+import yaml
 
 ARM_JOINTS = ('shoulder_joint', 'upperArm_joint', 'foreArm_joint',
               'wrist1_joint', 'wrist2_joint', 'wrist3_joint')
@@ -103,7 +103,8 @@ class HarvestRunner:
             self.scene_epoch = msg.scene_epoch
 
     def wait_observations_lock(self, timeout_s: float) -> list[str]:
-        """等当前世代窗口锁集，两层防竞态.
+        """
+        等当前世代窗口锁集，两层防竞态.
 
         两层防竞态：按 scene_epoch 过滤旧世代；且必须先见过本世代
         ``collecting``（未锁）消息——begin_scene 会立刻广播一条新 epoch、
@@ -204,7 +205,10 @@ class HarvestRunner:
 
     def move_to_named(self, state_name: str, timeout_s: float = 60.0) -> bool:
         """Move PTP 到 SRDF 命名态（关节约束自展开，值快照见 SRDF_STATES）."""
-        assert state_name in SRDF_STATES, state_name
+        if state_name not in SRDF_STATES:
+            raise ValueError(
+                f'未知 SRDF 命名态 {state_name!r}（可选：'
+                f'{sorted(SRDF_STATES)}）')
         req = self._ptp_request()
         constraints = Constraints()
         for joint, value in zip(ARM_JOINTS, SRDF_STATES[state_name]):
@@ -332,8 +336,10 @@ class HarvestRunner:
             self.stats['models_ok'] += 1
             if self.approach(tag, target_id, model):
                 self.stats['approach_ok'] += 1
-        self.move_to_named('global_photo_pose')
-        self.move_to_named('harvest_stow')
+        if not self.move_to_named('global_photo_pose'):
+            self.log.warning(f'{tag} 收尾回拍照位失败')
+        if not self.move_to_named('harvest_stow'):
+            self.log.warning(f'{tag} 收尾收纳位失败，带当前臂姿去下一站')
 
     def approach(self, tag: str, target_id: str, model) -> bool:
         """接近点 = 袋底沿袋轴（bottom→neck 反向）后退 standoff."""
@@ -397,9 +403,11 @@ def main(argv: list[str] | None = None) -> int:
         default=share / 'worlds' / 'peach_orchard.manifest.yaml',
         help='目标清单 GT（reachable 过滤用；generate_orchard 产物）')
     parser.add_argument(
-        '--stations-file', type=Path, default='',
+        '--stations-file', type=Path, default=None,
         help='停靠位 yaml（generate_field 产物；给出则替代 tour_core 计算，'
-             'field 世界模式）')
+             'field 世界模式）。default 须为 None 而非空串：Path("")=='
+             'Path(".") 恒真值，空串默认会误入 field 分支并对目录 '
+             'read_text 抛 IsADirectoryError（2026-10-15 实测）')
     args = parser.parse_args(argv)
 
     raw = yaml.safe_load(args.params.read_text(encoding='utf-8'))

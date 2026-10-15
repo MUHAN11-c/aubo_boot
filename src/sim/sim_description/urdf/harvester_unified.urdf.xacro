@@ -12,7 +12,7 @@
   模型：根 = platform_base_link（REP-105）；臂链拷贝自 aubo_description（见
   aubo_e5_arm.xacro 头注释，绕开 world_joint 世界锚定）；base_link 经转台
   fixed joint 挂车体顶面（arm_mount_height，垫台逻辑同 tracked_platform）。
-  驱动：履带 = gz DiffDrive 滚筒；臂 = gz_ros2_control（JSB + JTC，
+  驱动：履带 = gz VelocityControl（box 碰撞接地，履带 fixed 挂接，P4b 口径）；臂 = gz_ros2_control（JSB + JTC，
   config/gz_controllers.yaml）——/joint_states 由 JSB 原生发布（AUBO 六关节
   名、sim 时间戳），不再用 gz JointStatePublisher/JointPositionController。
   相机帧链 = peach 感知契约（camera_link→{color,depth}_frame→*_optical_frame），

@@ -11,9 +11,11 @@
     mobile:=false 时车体挂在臂座（parent，= base_link）下方 arm_mount_height、
     反向转台偏航，world 为模型根（SDF 保留帧名，非根会被 gz 拒建）。
     mobile:=false（默认，锚定建模轮）：整车锚在作业位，履带不可驾驶。
-    mobile:=true（自主导航轮，REP-105）：履带 = 滚筒驱动轮（continuous 关节 +
-    圆柱碰撞体，盒体仅视觉），gz DiffDrive 驱动（官方 TB3/TB4 仿真同款），
-    发布 /odom 与 odom→platform_base_link TF（关节积分里程计）；
+    mobile:=true（自主导航轮，REP-105）：履带 fixed 挂接 + box 碰撞接地，
+    gz VelocityControl 直接速度驱动（P4b 起，对齐 AgileX planar_move 口径；
+    原 DiffDrive+滚筒方案因各向同性 μ 侧滑已否，见下方驱动块注记）；
+    OdometryPublisher 从世界位姿发 /odom（ROS 侧 odom→platform_base_link
+    TF 由 sim_bringup/odom_tf_relay 补发——gz 侧 TF 帧名/stamp 不可控）；
     mobile 时转台偏航由 launch 归零，world 与 platform 同向无恒定偏差。
     前桅杆 2D 激光（±95°，车体自遮挡裁剪后）供 Nav2 使用；
     map→odom 由 AMCL/SLAM 发布，不在此 URDF。

@@ -890,6 +890,8 @@ def main(argv=None) -> int:
     parser.add_argument('--base-frame', default='base_link')
     parser.add_argument('--tip-frame', default='tcp')
     parser.add_argument('--ledger-root', default='', help='账本根（默认 bag 上一级的上一级）')
+    parser.add_argument('--max-total-bag-gb', type=float, default=0.0,
+                        help='报告完成后执行既有bag预算回收；0禁用')
     args = parser.parse_args(argv)
     bag_path = Path(args.bag)
     ledger_root = args.ledger_root or str(bag_path.parent.parent)
@@ -897,10 +899,14 @@ def main(argv=None) -> int:
         result = generate_session_report(
             bag_path, out_dir=args.out or None,
             base_frame=args.base_frame, tip_frame=args.tip_frame,
-            ledger_root=ledger_root)
+            ledger_root=ledger_root, max_total_bag_gb=args.max_total_bag_gb)
     except Exception as error:  # noqa: BLE001 CLI 顶层兜底
         print(f'报告生成失败: {error}')
         return 1
     print(f"markdown: {result['markdown']}")
     print(f"json: {result['json']}")
     return 0
+
+
+if __name__ == '__main__':
+    raise SystemExit(main())

@@ -8,6 +8,7 @@ from typing import Callable, List, Optional, Tuple
 
 import numpy as np
 from peach_common.event_meter import EventMeter
+from scipy.spatial import cKDTree
 from sim_perception.vision.common.geometry import (
     angle_between_deg,
     invert_transform,
@@ -15,7 +16,6 @@ from sim_perception.vision.common.geometry import (
     unit_vector as _safe_unit,
 )
 from sim_perception.vision.common.runtime import ScalarEma
-from scipy.spatial import cKDTree
 
 _logger = logging.getLogger(__name__)
 # P1 纯核决策点观测：ICP 回退/拒绝此前零日志（经 ros_log_bridge 进 /rosout）

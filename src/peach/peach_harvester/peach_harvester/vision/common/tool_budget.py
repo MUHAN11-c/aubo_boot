@@ -89,8 +89,10 @@ def evaluate_sleeve_cut(
     diagnostic_mismatch = float(axis_error_deg) > cfg.diagnostic_axis_deg
     too_wide = available <= 0.0
     fruit_ok = float(cut_to_fruit_m) > cfg.fruit_safety_clearance
-    # 袋径相对刀内径、径向/轴向余量仍计算并写入结果，给机械对尚未更新的
-    # 刀具常数。这些数不作为套入或剪切许可：负余量不得把 allowed 打成 false。
+    # 果距 cut_to_fruit_m 与径向余量只作数据参考，不构成套入或剪切约束，
+    # 不得据此把 allowed 打成 false。套袋桃看不见内部果实，果距只能估计。
+    # 径向余量是静态开口相对袋径的初步查看标记：接触时袋和刀具都有弹性、
+    # 会动，目前只记录；以后若要当约束，须另立接触过程中的动态判据。
     sleeve_ok = True
     cut_ok = bool(fruit_ok)
     reason = 'dynamic_budget_accept'

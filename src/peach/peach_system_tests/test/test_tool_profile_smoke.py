@@ -13,6 +13,7 @@ import tempfile
 import time
 import unittest
 
+from ament_index_python.packages import get_package_share_directory
 import launch
 from launch.actions import IncludeLaunchDescription
 from launch.actions import SetEnvironmentVariable
@@ -21,6 +22,7 @@ from launch.launch_description_sources import PythonLaunchDescriptionSource
 import launch_testing
 from launch_testing.actions import ReadyToTest
 from launch_testing.util import resolveProcesses
+from peach_bringup.preflight import running_stack_pids
 import pytest
 from rclpy.qos import DurabilityPolicy
 from rclpy.qos import HistoryPolicy
@@ -28,9 +30,6 @@ from rclpy.qos import QoSProfile
 from rclpy.qos import ReliabilityPolicy
 from std_msgs.msg import Bool
 
-from ament_index_python.packages import get_package_share_directory
-
-from peach_bringup.preflight import running_stack_pids
 
 # TF 对账容差：档案测量核定值 vs RSP 数值（09-28 实测两者一致，留 2mm 余量）
 _TF_TOLERANCE_M = 0.002
@@ -78,6 +77,7 @@ def generate_test_description():
         launch.LaunchDescription([
             SetEnvironmentVariable('QT_QPA_PLATFORM', 'offscreen'),
             SetEnvironmentVariable('AUBO_RUNS_DIR', runs),
+            SetEnvironmentVariable('ROS_HOME', os.path.join(runs, 'ros_home')),
             IncludeLaunchDescription(
                 PythonLaunchDescriptionSource(harvest),
                 launch_arguments={

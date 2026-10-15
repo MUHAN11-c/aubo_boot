@@ -268,7 +268,7 @@ flowchart TB
 
 本包不提供管理服务；调度订阅 `/peach/lifecycle/managed_nodes_activated` 作为开批门。其生产方是 `peach_bringup` 的 flag bridge；管理服务使用 Nav2 类型，见 [系统 IO](../../peach_bringup/doc/io.md)。
 
-`/peach/reconstruction/diagnostics_debug` 的 `refined` JSON 另包含实际 `model_revision`、`fruit_prior_radius_m`、`cut_to_fruit_m` 与 `cut_distance_source`。`cut_distance_source=unavailable` 时 `cut_to_fruit_m=null`；`bag_surface_sphere_auxiliary` 表示外袋表面拟合所得的辅助估计，不能解释为内部果实的独立测量。该诊断不改 ROS IDL、令牌有效期或运动权限；剪切参考位置由外袋袋口与单次工艺偏置计算。
+`/peach/reconstruction/diagnostics_debug` 的 `refined` JSON 另包含实际 `model_revision`、`fruit_prior_radius_m`、`cut_to_fruit_m` 与 `cut_distance_source`。`cut_distance_source=unavailable` 时 `cut_to_fruit_m=null`；`bag_surface_sphere_auxiliary` 表示外袋表面拟合所得的辅助估计，不能解释为内部果实的独立测量。套袋桃看不见内部果实，果距只能估计，和静态径向余量一样只作数据参考，不构成接触约束。径向余量是开口相对袋径的初步查看标记：接触时袋和刀具有弹性、会动，目前只记录，以后若启用须另立动态判据。该诊断不改 ROS IDL、令牌有效期或运动权限；剪切参考位置由外袋袋口与单次工艺偏置计算。
 
 ## 模型生成时间、质量与许可
 
@@ -283,3 +283,7 @@ flowchart TB
 执行使能在运行时由`SetEnables`覆盖本地`execution_enabled`参数；WAIT_LOCK完成、选果入口、可达性返回后claim前以及观察/FULL派发前均读取当前有效值，不沿用开批快照。关闭后未派发目标直接经FSM结算，已选目标在派发前关闭则记录`execution_disabled`跳过；不新增运行中运动取消语义，臂侧最终命令门保持权威。
 
 精确同戳RGB-D等待掩膜的FrameStore按曝光时间保留现有`capture.max_frame_age_s`窗口（部署2秒），同时限制64帧及RGB/深度数组合计96MiB（按`nbytes`计）。重复stamp替换并扣除旧数组计数，乱序输入按曝光时间淘汰最旧帧；单帧超预算不入缓存，reset清空引用及时间水位。该缓存窗不放宽帧新鲜度、掩膜时间容差或精确TF查询。`diagnostics_debug.frame_ring_bytes`报告当前保留数组字节数。
+
+单视Build在`min_views=1`、实际只有一个独立机位时，对`bag_axis_envelope_ill_conditioned`（3D包络轴条件不足）或`bag_axis_silhouette_unobservable`（2D轮廓轴证据不足）最多采集3次：首拍加两次新曝光替换。所有尝试共用原`capture.build_timeout_s`截止时间；每次拒绝的曝光stamp、模型修订、次数与具体原因写`build_quality_rejected`事件。替换时清帧与TSDF、失效generation、保留末次曝光水位，禁止重复积分同帧或把同机位重复帧算成多视。其他质量拒因立即失败，永久不可观测在次数/时间任一耗尽时明确失败；不改变几何质量门和CONTACT/TOOL能力门。
+
+并行Build失败时，调度不会再派新的FULL；已在等待模型的FULL收到取消并收口。账本以现有`FailureCode.BUILD_FAILED`保留上述具体质量拒因，不以`decision_snapshot_unavailable`掩盖已知Build失败。尚未完成的Build不会被当作拒绝。

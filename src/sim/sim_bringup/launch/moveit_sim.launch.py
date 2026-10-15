@@ -1,4 +1,5 @@
-"""统一机体 MoveIt 前端（P4）：规划帧 = platform_base_link.
+"""
+统一机体 MoveIt 前端（P4）：规划帧 = platform_base_link.
 
 与 aubo_e5_moveit_config/moveit.launch.py 的唯一差别：robot_description 用
 ``sim_description/harvester_unified.urdf.xacro``（履带平台 + 臂，根
@@ -12,17 +13,20 @@ SRDF/IK/Pilz/控制器映射全部复用 aubo_e5_moveit_config（chain base_link
 
 from pathlib import Path
 
-import yaml
-
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, OpaqueFunction
+from launch.actions import (
+    DeclareLaunchArgument,
+    OpaqueFunction,
+    SetParameter,
+)
 from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
 
 from moveit_configs_utils import MoveItConfigsBuilder
 
-from sim_worlds.params import params_from_dict
+from sim_worlds.params import params_from_dict, xacro_mappings
+import yaml
 
 # 与 aubo moveit.launch 同口径：MTC/Pilz sequence 能力
 _MOVE_GROUP_CAPABILITIES = (
@@ -41,24 +45,12 @@ def launch_setup(context):
     if problems:
         raise RuntimeError(
             f'{scene_path} 场景参数不合法：' + '；'.join(problems))
-    platform = params.platform
 
     desc_share = Path(get_package_share_directory('sim_description'))
     unified_xacro = str(desc_share / 'urdf' / 'harvester_unified.urdf.xacro')
-    # 与 sim.launch 的 RSP 展开逐参同值（防 move_group 模型与 TF 分叉）
-    mappings = {
-        'tool_profile': tool_profile,
-        'arm_mount_height': str(platform.arm_mount_height),
-        'arm_mount_yaw_deg': str(platform.arm_mount_yaw_deg),
-        'body_x': str(platform.body_size[0]),
-        'body_y': str(platform.body_size[1]),
-        'body_z': str(platform.body_size[2]),
-        'body_bottom': str(platform.body_bottom),
-        'track_length': str(platform.track_length),
-        'track_width': str(platform.track_width),
-        'track_height': str(platform.track_height),
-        'track_separation': str(platform.track_separation),
-    }
+    # 映射单源：sim.launch 的 RSP 展开与这里共用 sim_worlds.params.xacro_mappings
+    # （两处逐键同值，否则 move_group 模型与 TF 分叉）
+    mappings = xacro_mappings(params, tool_profile)
 
     moveit_config = (
         MoveItConfigsBuilder(
@@ -79,6 +71,8 @@ def launch_setup(context):
         .to_moveit_configs())
 
     nodes = [
+        # 单独起本入口也统一 sim 时钟（include 时由 sim.launch 透传覆盖）
+        SetParameter('use_sim_time', LaunchConfiguration('use_sim_time')),
         Node(
             package='moveit_ros_move_group',
             executable='move_group',
@@ -92,27 +86,23 @@ def launch_setup(context):
         # 带 MoveIt 参数（robot_description/_semantic 等）起 RViz——
         # moveit_rviz_plugin 显示层需要 SRDF；裸起会报
         # "Could not parse the SRDF XML / did not receive robot_description_semantic"
-        if rviz_config:
-            nodes.append(
-                Node(
-                    package='rviz2',
-                    executable='rviz2',
-                    output='screen',
-                    arguments=['-d', rviz_config],
-                    parameters=[moveit_config.to_dict()]))
-        else:
-            nodes.append(
-                Node(
-                    package='rviz2',
-                    executable='rviz2',
-                    output='screen',
-                    parameters=[moveit_config.to_dict()]))
+        nodes.append(
+            Node(
+                package='rviz2',
+                executable='rviz2',
+                output='screen',
+                # 空 rviz_config = 仅 MoveIt 参数裸起
+                arguments=['-d', rviz_config] if rviz_config else [],
+                parameters=[moveit_config.to_dict()]))
     return nodes
 
 
 def generate_launch_description() -> LaunchDescription:
     worlds_share = Path(get_package_share_directory('sim_worlds'))
     return LaunchDescription([
+        DeclareLaunchArgument(
+            'use_sim_time', default_value='true',
+            description='仿真时钟（与 sim.launch 同源 /clock；单独起本入口勿关）'),
         DeclareLaunchArgument(
             'scene_params',
             default_value=str(worlds_share / 'config' / 'orchard.yaml'),

@@ -15,12 +15,16 @@ ros2 launch sim_bringup sim.launch.py gui:=true rviz:=True  # gz GUI + RViz（�
 # spawn 显式同源）；field:=false = 程序化世界（确定性回归，spawn:=corridor）。
 # 采摘编排在独立终端跑（不在 launch 内自动发起，与真机意图纪律一致）：
 ros2 launch sim_bringup harvest.launch.py                   # 等 1-2 分钟世界首载 + AMCL 就绪
-ros2 run sim_bringup orchard_harvest --rows 2 --max-stations 3
 # 每站节拍：harvest_stow 行驶 → NavigateToPose 到站 → global_photo_pose 拍照位
 # → begin_scene 锁集 → build_target_model → tcp 沿袋轴接近 0.12 m → 下一站。
+# field 预设（launch 默认）须显式带 --stations-file（tour_core 坐标是程序化
+# 世界的，与重建果园不对应；2026-10-15 前空串默认会误入 field 分支崩溃，已修）：
+ros2 run sim_bringup orchard_harvest --max-stations 3 \
+  --stations-file $(ros2 pkg prefix sim_worlds)/share/sim_worlds/maps/field_stations.yaml
+# 程序化世界（field:=false）才用 --rows 选行（默认全部行、只访有果站）：
+ros2 run sim_bringup orchard_harvest --rows 2 --max-stations 3
 # 常用参数：--max-targets（默认 1）、--all-stations（默认只访 manifest
-# reachable>0 的有果站）、--stations-file（generate_field 产物；field 模式默认
-# 同源 maps/field_stations.yaml）、--nav/--scene/--build-timeout（低 RTF 放宽）。
+# reachable>0 的有果站）、--nav/--scene/--build-timeout（低 RTF 放宽）。
 
 # 感知闭环（P3，与 sim.launch.py 同生命周期起）：
 ros2 launch sim_bringup perception.launch.py
@@ -70,6 +74,9 @@ ros2 launch sim_bringup orchard_sim.launch.py \
   统一机体 URDF、规划帧 `platform_base_link` 接 map/odom 主 TF 树；SRDF/IK/
   Pilz/控制器映射复用 `aubo_e5_moveit_config`（`controllers_mock.yaml`）。
 - 场景参数唯一事实源在 `sim_worlds/config/orchard.yaml`；机体在 `sim_description`。
+- 自测：`colcon test --packages-select sim_bringup`（flake8/pep257 +
+  `test_nav_config.py` 零 ROS 一致性门：桥接清单 / Nav2 参数 / 地图三处对齐）；
+  P2 整栈验收门在 `sim_system_tests`（launch_testing，重世界分钟级）。
 
 测完 Ctrl+C 停栈并 `pgrep -af 'gz sim|ros2|rviz'` 清残留（MUST）。
 许可 BSD-3-Clause。

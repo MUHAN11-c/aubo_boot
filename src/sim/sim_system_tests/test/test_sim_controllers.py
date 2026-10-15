@@ -6,12 +6,13 @@
 重世界（368 模型）首载 40-90 s，超时预算 300 s。
 """
 
+import os
 import unittest
 from pathlib import Path
 
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
-from launch.actions import IncludeLaunchDescription
+from launch.actions import IncludeLaunchDescription, SetEnvironmentVariable
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch_testing.actions import ReadyToTest
 
@@ -32,7 +33,25 @@ def generate_test_description():
         PythonLaunchDescriptionSource(
             str(bringup_share / 'launch' / 'sim.launch.py')),
         launch_arguments={'gui': 'false', 'moveit': 'false'}.items())
-    return LaunchDescription([sim_launch, ReadyToTest()]), {}
+    # 本机并发 gz 实例（用户侧探针/其它栈）共享 gz-transport 默认分区时，
+    # create 请求会被别的 server 应答（实体建进别人的世界），本域永远等不到
+    # controller_manager（2026-10-15 实证）。与 ROS_DOMAIN_ID 同理，launch
+    # 测试须按进程唯一隔离两套总线；pid 派生避免并发波次互相撞车。
+    isolation = [
+        SetEnvironmentVariable(
+            'GZ_PARTITION', f'sim_system_tests_{os.getpid()}'),
+        SetEnvironmentVariable(
+            'ROS_DOMAIN_ID', str((os.getpid() % 74) + 25)),
+        # FastDDS SHM 端口文件是机器级（跨 ROS domain 共享）：并发栈并存时
+        # init_port fastrtps_port7018 open_and_lock_file failed，域内服务调用
+        # （spawner→list_controllers）静默失联（2026-10-15 实测 300s 超时）。
+        # 测试子树整体改 UDPv4（ROS 2 CI 同款口径），代价是回环带宽、换确定性。
+        SetEnvironmentVariable('FASTDDS_BUILTIN_TRANSPORTS', 'UDPv4'),
+    ]
+    # launch_testing 父进程（本 pytest）自身也须退出 SHM，否则其订户与
+    # UDPv4 子树互通不受影响、但与其他栈仍可能抢 SHM 端口文件。
+    os.environ.setdefault('FASTDDS_BUILTIN_TRANSPORTS', 'UDPv4')
+    return LaunchDescription([*isolation, sim_launch, ReadyToTest()]), {}
 
 
 class TestUnifiedControllers(unittest.TestCase):
@@ -71,10 +90,13 @@ class TestUnifiedControllers(unittest.TestCase):
 
         def _poll() -> bool:
             future = client.call_async(ListControllers.Request())
-            rclpy.spin_until_future_complete(self.node, future, timeout_sec=10.0)
+            rclpy.spin_until_future_complete(self.node, future, timeout_sec=20.0)
+            response = future.result()
+            if response is None:
+                # 高负载下单次服务往返可超时：不算失败，下一轮重试
+                return False
             states.clear()
-            states.update({c.name: c.state
-                           for c in future.result().controller})
+            states.update({c.name: c.state for c in response.controller})
             want = {'joint_state_broadcaster', 'joint_trajectory_controller'}
             return want <= states.keys() and all(
                 states[name] == 'active' for name in want)

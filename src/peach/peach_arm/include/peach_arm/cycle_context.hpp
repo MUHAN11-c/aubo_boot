@@ -185,7 +185,7 @@ struct CycleContext
   rclcpp::Time clearance_valid_until{0, 0, RCL_ROS_TIME};  ///< 过期后不得执行。
   rclcpp::Time clearance_model_stamp{0, 0, RCL_ROS_TIME};  ///< 模型新鲜度戳。
   double clearance_fresh_window_s{0.0};  ///< >0 时启用 stamp 新鲜度复检 [s]。
-  double clearance_radial_margin_m{0.0};  ///< 令牌径向余量 [m]，只记录，不拦套入。
+  double clearance_radial_margin_m{0.0};  ///< 静态径向余量 [m]，初步查看标记，只记录。接触有弹性，目前不拦套入。
   double clearance_axial_margin_m{0.0};  ///< 令牌轴向余量 [m]，只记录，不拦剪切。
   std::optional<CachedTarget> target;    ///< 感知初始几何快照。
   std::optional<CachedRefined> refined;  ///< 重建精化几何快照。

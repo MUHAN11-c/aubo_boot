@@ -16,8 +16,7 @@ setup(
         (os.path.join('share', package_name, 'launch'),
          glob('launch/*.launch.py')),
         (os.path.join('share', package_name, 'config'),
-         glob('config/*.yaml') + glob('config/*.config')
-         + glob('config/*.rviz')),
+         glob('config/*.yaml') + glob('config/*.rviz')),
     ],
     install_requires=['setuptools'],
     extras_require={'test': ['pytest']},

@@ -1,7 +1,7 @@
-"""官方示例演示栈 — 官方组件为主、本包 fixture 只补合成传感器流.
+"""官方示例演示栈 — 纯 apt 官方组件（无合成数据源）.
 
-官方优先原则（2026-10-15 用户裁定）：官方生态能提供的数据面一律用官方组件，
-viz_fixture 退守官方无法提供的合成流（无相机/激光硬件与仿真时）：
+官方优先原则（2026-10-15 用户裁定；2026-10-15 起合成可视化流 viz_fixture 已删除，
+传感器数据面由官方仿真真实项目数据承担，见 sim_demo.launch.py）：
 
   robot_description / TF    官方 robot_state_publisher + MoveIt2 官方 panda URDF
                             （moveit_resources_panda_description，官方 ros2 分支）
@@ -9,7 +9,6 @@ viz_fixture 退守官方无法提供的合成流（无相机/激光硬件与仿�
   /map                       官方 nav2_map_server + 官方地图 tb3_sandbox
   /diagnostics               官方 nav2_lifecycle_manager（Nav2 Health）
   /rosout                    各官方节点自带
-  传感器合成流               viz_fixture（Image/PointCloud2/LaserScan/Odometry/…）
   通信矩阵被测端             comm_fixture（example_interfaces 官方类型）
 
 启动（需 source 工作区 install）：
@@ -76,9 +75,6 @@ def generate_launch_description():
             'port': port,
             'gateway_port': gateway_port,
             'fixture': fixture,
-            'viz_fixture': 'true',
-            # 官方 RSP 已提供 /robot_description——fixture 演示 URDF 让位（防 latched 双源）
-            'viz_publish_urdf': 'false',
         }.items())
 
     return LaunchDescription([

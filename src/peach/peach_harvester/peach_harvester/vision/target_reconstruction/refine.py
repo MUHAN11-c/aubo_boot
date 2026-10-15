@@ -52,7 +52,8 @@ from peach_harvester.vision.target_reconstruction.integrate import (
 CONTACT_GEOMETRY_INVALID_REASONS = frozenset({
     'fused_axis_conflict', 'bag_axis_invalid', 'bag_endpoints_invalid',
     'cut_reference_invalid', 'fusion_failed', 'landmark_axis_conflict',
-    'bag_axis_unobservable', 'fused_axis_silhouette_conflict',
+    'bag_axis_unobservable', 'bag_axis_envelope_ill_conditioned',
+    'bag_axis_silhouette_unobservable', 'fused_axis_silhouette_conflict',
 })
 
 
@@ -244,7 +245,7 @@ class RefitResult:
     cut_travel_m: float = 0.0
     """入口沿轴到剪切参考的行程 [m]."""
     cut_to_fruit_m: float = 0.0
-    """剪切参考到果包络上缘的轴向距离 [m]."""
+    """估计的剪切参考到果上缘距离 [m]。套袋看不见果，只作数据参考，不构成约束."""
     radius: float = -1.0
     """半径 [m]；merge 后 = 0.5×d95（无效 -1）."""
     diameter: float = -1.0
@@ -260,7 +261,7 @@ class RefitResult:
     n_points: int = 0
     """输入点数."""
     radial_margin_m: float = 0.0
-    """径向预算余量 [m]（仅 merge 写入）."""
+    """静态径向余量 [m]，初步查看标记。接触有弹性，目前只记录，不构成约束."""
     axial_margin_m: float = 0.0
     """轴向预算余量 [m]（仅 merge 写入）."""
     corridor_clear: bool = False
@@ -418,7 +419,7 @@ class BagModel:
     cut_pose: Optional[np.ndarray] = None
     """(3,) 剪切参考点 [m]."""
     cut_to_fruit_m: float = 0.0
-    """剪切参考到果上缘距离 [m]."""
+    """估计的剪切参考到果上缘距离 [m]。只作数据参考，不构成约束."""
     cut_travel_m: float = 0.0
     """入口到剪切参考行程 [m]."""
     d95_m: float = 0.0
@@ -462,7 +463,7 @@ class BagModel:
     allowed: bool = False
     """接触许可（budget.allowed 投影）."""
     radial_margin_m: float = 0.0
-    """径向预算余量 [m]."""
+    """静态径向余量 [m]，初步查看标记。接触有弹性，目前只记录，不构成约束."""
     axial_margin_m: float = 0.0
     """轴向预算余量 [m]."""
     corridor_clear: bool = False
@@ -1001,8 +1002,8 @@ def _cut_station(
     """
     轴上剪切参考：袋口（分割贴检测框极限），不取果包络与袋颈中点.
 
-    果距不足时刀仍放在口，只把 safe_band 置假（拦套入，不挪刀）。
-    看不见果先验时给出袋口参考，但不宣称果距。
+    套袋桃看不见内部果实，果距只能估计，只作数据参考，不拦套入、不挪刀。
+    看不见果先验时给出袋口参考，果距留空，不把 0 当成测到的净空。
     """
     del neck_margin_m
     bottom_v = np.asarray(bottom, dtype=np.float64).reshape(3)
@@ -1231,8 +1232,8 @@ def fuse_bag_views(
             envelope.get('reason') or 'envelope_axis_ill_conditioned'))
     if envelope.get('conditioned') and axis_conflict_deg > 12.0:
         flags.append('keypoint_cloud_axis_conflict')
-    # An auxiliary sphere from bag surface points cannot certify the hidden
-    # fruit. The observed finite bag mouth is the cutting reference.
+    # 外袋表面的球不能证明里面的果实。套袋看不见果，果距只估计、只记录。
+    # 看得到的袋口才是剪切参考；有袋径即可，果距不参与许可。
     if d95 > 1e-6:
         budget['cut_capability'] = CAPABILITY_VALID
         budget['cut_ok'] = True
@@ -1467,7 +1468,8 @@ def merge_fused_bag_model(result: RefitResult, fused: BagModel,
         result.flags.append('fused_perception_axis_mismatch')
     if refit_conflict or hint_conflict or unobservable_axis:
         # 否决不能被 keep_last_good 恢复许可；节点按此稳定标记失效旧缓存。
-        reason = 'bag_axis_unobservable' if unobservable_axis else 'fused_axis_conflict'
+        reason = ('bag_axis_envelope_ill_conditioned' if unobservable_axis
+                  else 'fused_axis_conflict')
         result.flags.append(reason)
         result.reason = reason
         result.ok = False

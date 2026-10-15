@@ -21,6 +21,21 @@ import numpy as np
 from peach_common.lifecycle import break_bond, create_bond
 from peach_common.qos import latched, stream
 from peach_common.ros_log_bridge import bridge_module_loggers
+from peach_interfaces.msg import (
+    BagFittingArray,
+    BagGraspCandidateArray,
+    HarvestState,
+    PeachTargetObservation,
+    PeachTargetObservationArray,
+)
+from peach_interfaces.srv import BeginScene
+import rclpy
+from rclpy.callback_groups import MutuallyExclusiveCallbackGroup
+from rclpy.duration import Duration
+from rclpy.executors import MultiThreadedExecutor
+from rclpy.lifecycle import LifecycleNode, TransitionCallbackReturn
+from rclpy.time import Time
+from sensor_msgs.msg import CameraInfo, Image, PointCloud2
 from sim_perception.vision.common.geometry import (
     gravity_camera_from_R,
     normalize_depth_to_uint16_mm,
@@ -45,21 +60,6 @@ from sim_perception.vision.scene_perception.plan_updater import (
     harvest_state_dict,
     PlanUpdater,
 )
-from peach_interfaces.msg import (
-    BagFittingArray,
-    BagGraspCandidateArray,
-    HarvestState,
-    PeachTargetObservation,
-    PeachTargetObservationArray,
-)
-from peach_interfaces.srv import BeginScene
-import rclpy
-from rclpy.callback_groups import MutuallyExclusiveCallbackGroup
-from rclpy.duration import Duration
-from rclpy.executors import MultiThreadedExecutor
-from rclpy.lifecycle import LifecycleNode, TransitionCallbackReturn
-from rclpy.time import Time
-from sensor_msgs.msg import CameraInfo, Image, PointCloud2
 from std_msgs.msg import Header, String
 from tf2_ros import Buffer, TransformException, TransformListener
 from vision_msgs.msg import Detection2DArray

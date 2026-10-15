@@ -2,7 +2,7 @@
 //
 // 依赖 VizPanel（含 _teach/_armJointNames/_urdfRobot）。轨迹发送：
 // FollowJointTrajectory action 真执行（经 ros_client action 组合），
-// 失败（无 schema/超时）自动低级回退=逐点 joint_cmd 墙钟调度（Rebot-Arm
+// 失败（无 schema/超时）提示控制器未在环（viz_fixture 删除后无低级回退；Rebot-Arm
 // replayTrajectoryLowLevel 同构）。guardedCall：交互锁 + 确认弹窗。
 
 import { foxgloveRosClient } from '../transport/foxglove/ros_client.js';
@@ -44,22 +44,6 @@ function secsToRosTime(s) {
 }
 
 let lowLevelCancel = false;
-
-/** 低级回退：逐点 joint_cmd 墙钟调度（参考 replayTrajectoryLowLevel） */
-async function replayLowLevel(points, jointNames) {
-  lowLevelCancel = false;
-  const started = performance.now();
-  $('btn-traj-cancel').disabled = false;
-  for (const pt of points) {
-    if (lowLevelCancel) break;
-    const waitMs = Math.max(0, pt.seconds * 1000 - (performance.now() - started));
-    if (waitMs > 0) await new Promise((r) => setTimeout(r, waitMs));
-    client.publish('/rwl_viz/joint_cmd', 'sensor_msgs/msg/JointState', {
-      name: jointNames, position: pt.positions,
-    });
-  }
-  $('btn-traj-cancel').disabled = true;
-}
 
 function initTrajectoryPanel(viz) {
   const refreshStats = () => {
@@ -132,13 +116,11 @@ function initTrajectoryPanel(viz) {
     }, 'FJT 执行中…');
     const p = send();
     if (!p) return;
-    p.catch(() => {
-      // 低级回退（wall-clock 逐点 joint_cmd）
-      $('traj-state').textContent = '低级回退（逐点 joint_cmd）';
-      replayLowLevel(points, jointNames).then(() => {
-        $('traj-state').textContent = '✓ 低级回放完成';
-        $('traj-state').style.color = 'var(--green)';
-      });
+    p.catch((e) => {
+      // viz_fixture 删除后无 joint_cmd 低级回退：FJT 需官方控制器在环
+      // （TB3: /joint_trajectory_controller；panda: /panda_arm_controller）
+      $('traj-state').textContent = '✗ FJT 失败（控制器在环？）' + String(e.message || e).slice(0, 40);
+      $('traj-state').style.color = 'var(--red)';
     });
   });
   $('btn-traj-cancel').addEventListener('click', () => { lowLevelCancel = true; });
@@ -253,7 +235,23 @@ function initTopology(viz, topicsCard) {
   });
   setInterval(() => {
     if (!client.isConnected) return;
-    try { graph.update(client.getGraph()); } catch (_) { /* 无 capability */ }
+    try {
+      let g = client.getGraph();
+      // rqt_graph 语义过滤：服务显隐 + 名称搜索（拓扑图 SVG 内按文本淡化）
+      const svc = $('topo-show-svc');
+      if (svc && !svc.checked && g) {
+        g = { ...g, advertisedServices: {} };
+      }
+      graph.update(g);
+      const q = ($('topo-search')?.value || '').trim().toLowerCase();
+      const svg = document.querySelector('#topo-container svg');
+      if (svg) {
+        svg.querySelectorAll('text').forEach((t) => {
+          t.setAttribute('opacity',
+            !q || (t.textContent || '').toLowerCase().includes(q) ? '1' : '0.15');
+        });
+      }
+    } catch (_) { /* 无 capability */ }
   }, 3000);
 }
 
@@ -262,6 +260,19 @@ function initSplitter() {
   const splitter = $('col-splitter');
   const grid = document.querySelector('main.app-grid');
   if (!splitter || !grid) return;
+  // 分割条位置持久化 + 布局快照钩子（__rwl_getSplit/__rwl_setSplit）
+  window.__rwl_getSplit = () => {
+    const right = parseFloat(
+      getComputedStyle(grid).gridTemplateColumns.split(' ')[2]) || 380;
+    return Math.round((1 - right / window.innerWidth) * 100);
+  };
+  window.__rwl_setSplit = (pct) => {
+    const vw = window.innerWidth || 1600;
+    const right = Math.max(240, vw * (1 - Math.min(80, Math.max(30, pct)) / 100));
+    grid.style.gridTemplateColumns = `minmax(0, ${pct}fr) 6px ${right}px`;
+  };
+  const saved = parseFloat(localStorage.getItem('rwl-split') || '');
+  if (!Number.isNaN(saved)) window.__rwl_setSplit(saved);
   splitter.addEventListener('pointerdown', (e) => {
     e.preventDefault();
     splitter.setPointerCapture(e.pointerId);
@@ -279,6 +290,8 @@ function initSplitter() {
         Math.max(240, startRight - delta)}px`;
     };
     const up = () => {
+      const pct = window.__rwl_getSplit();
+      try { localStorage.setItem('rwl-split', String(pct)); } catch (_) {}
       splitter.releasePointerCapture(e.pointerId);
       splitter.classList.remove('active');
       document.body.style.userSelect = '';

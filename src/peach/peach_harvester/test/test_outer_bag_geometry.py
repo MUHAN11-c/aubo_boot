@@ -209,7 +209,8 @@ def test_fusion_does_not_move_cut_point_to_single_visible_side():
 @pytest.mark.parametrize('reason', [
     'bag_axis_invalid', 'bag_endpoints_invalid', 'cut_reference_invalid',
     'fusion_failed', 'landmark_axis_conflict',
-    'bag_axis_unobservable', 'fused_axis_silhouette_conflict',
+    'bag_axis_unobservable', 'bag_axis_envelope_ill_conditioned',
+    'bag_axis_silhouette_unobservable', 'fused_axis_silhouette_conflict',
 ])
 def test_new_invalid_geometry_revokes_previous_node_contact_authority(reason):
     from peach_harvester.vision.target_reconstruction.refine import BagModel, RefitResult

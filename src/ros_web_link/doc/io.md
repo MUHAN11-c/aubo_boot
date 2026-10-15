@@ -81,58 +81,73 @@ uvicorn+websockets==12，仓库根 requirements.txt）；launch 中 `python3` �
 | 参数 `comm_fixture.rwl.answer`（int，默认 42）、`rwl.step_s`（double） | — | 参数服务读写 |
 | `/tf`：`rwl_demo_base` → `rwl_demo_marker` @1Hz TRANSIENT_LOCAL | tf2_msgs/TFMessage | TF 面 |
 
-## viz_fixture 图名（`/rwl_viz` 命名空间，@1Hz，TRANSIENT_LOCAL）
+## 官方仿真真实数据面（sim_demo.launch.py，2026-10-15 viz_fixture 删除）
 
-常用可视化消息独立被测端（`ros2 run ros_web_link rwl_viz_fixture`；console 话题回显可直接订阅查看）：
+viz_fixture 合成流已删除（用户裁定）：可视化验证数据面全部来自 GitHub 官方仓库
+（克隆进本项目：src/turtlebot3_msgs、src/turtlebot3_simulations、src/ros2_examples；
+external/navigation2 为 Nav2 基线克隆，未参与构建）与 ros2/moveit2/nav2 官方示例，
+本地自写项目不参与验证。`ros2 launch ros_web_link sim_demo.launch.py` 一键起：
 
-| 话题 | 类型 | 覆盖的 CDR 形态 |
+| 话题 | 类型 | 来源（全部官方） |
 |---|---|---|
-| `/rwl_viz/image` | sensor_msgs/Image（mono8 棋盘 64×48） | uint8 blob + 帧序号嵌入首像素 |
-| `/rwl_viz/image_compressed` | sensor_msgs/CompressedImage | 真实可解码棋盘 JPEG（两相位交替；`_jpeg_frames.py` 内嵌，web 端实解渲染） |
-| `/rwl_viz/camera_info` | sensor_msgs/CameraInfo | float64[9] 定长矩阵 + 变长 d |
-| `/rwl_viz/points` | sensor_msgs/PointCloud2（XYZ×128） | 嵌套 PointField[] + data blob |
-| `/rwl_viz/scan` | sensor_msgs/LaserScan（181 点） | float32[] 含 inf |
-| `/rwl_viz/range` | sensor_msgs/Range | 标量 + 枚举 |
-| `/rwl_viz/odom` | nav_msgs/Odometry | 嵌套 Pose/Twist + float64[36]×2；圆周轨迹（0.15 rad/s 弦长>0.1m 采样阈） |
-| `/rwl_viz/path` `/pose_array` `/pose` | nav_msgs/Path, geometry_msgs/PoseArray/PoseStamped | 嵌套位姿数组 |
-| `/rwl_viz/pose_cov` | geometry_msgs/PoseWithCovarianceStamped | 位姿 + 摆动协方差（95% 椭圆显示；float64[36] CDR 解码为 Float64Array） |
-| `/rwl_viz/wrench` | geometry_msgs/WrenchStamped | 嵌套向量 |
-| `/rwl_viz/marker` `/markers` | visualization_msgs/Marker(SPHERE_LIST)/MarkerArray | points+colors 嵌套数组、UTF-8 文本 |
-| `/rwl_viz/diagnostics` | diagnostic_msgs/DiagnosticArray | 嵌套 status/KeyValue、int8 标量（rclpy 侧为 bytes） |
-| `/rwl_viz/joint_states` | sensor_msgs/JointState | 变长并行数组（6 关节） |
-| `/tf`（rwl_viz_base→rwl_viz_marker） | tf2_msgs/TFMessage | 动态 TF |
-| `/rwl_viz/clicked_point` | geometry_msgs/PointStamped | 存活发布（Publish Point 工具的 schema 前置），真实点击由 web 端发布 |
-| `/initialpose`（PoseWithCovarianceStamped）、`/goal_pose`（PoseStamped） | geometry_msgs | Nav2/RViz 交互目标话题存活发布；web「2D 初始位姿 / 2D Goal Pose」工具同型 schema |
-| `/rosout`（rcl_interfaces/Log） | — | 各节点 rosout；fixture 每 5s 一条 INFO（rqt_console 面板数据源） |
+| `/robot_description` `/tf` `/joint_states` | String/TFMessage/JointState | turtlebot3_gazebo（官方 RSP + gz 关节桥，waffle_pi 轮关节） |
+| `/scan` | sensor_msgs/LaserScan（360 点） | gz 激光（ros_gz_bridge，官方 TB3 仿真） |
+| `/odom` | nav_msgs/Odometry | gz DiffDrive |
+| `/imu` | sensor_msgs/Imu | gz IMU |
+| `/camera/image_raw` `/camera/camera_info` | Image/CameraInfo（640×480 rgb8） | gz 相机（官方 image_bridge） |
+| `/camera/image_raw/compressed` | CompressedImage（JPEG） | 官方 image_transport republish |
+| `/test_cloud` | sensor_msgs/PointCloud2 | ros2/examples 官方点云示例 |
+| `/topic` | std_msgs/String | ros2/examples 官方 talker 示例 |
+| `/map` | OccupancyGrid（tb3_sandbox 384²@0.05m） | 官方 nav2 map_server |
+| `/amcl_pose` `/particle_cloud` | PoseWithCovarianceStamped/PoseArray | 官方 AMCL（web 发 /initialpose 激活） |
+| `/plan` | nav_msgs/Path | 官方 NavFn 规划器（web 发 /compute_path_to_pose action 触发） |
+| `/diagnostics` | DiagnosticArray | 官方 lifecycle_manager（Nav2 Health） |
+| `/initialpose` `/goal_pose` `/clicked_point` | geometry_msgs | web 工具发布（Nav2/RViz 标准交互话题） |
+| `/rosout` | rcl_interfaces/Log | 各官方节点自带 |
 
-验证面：Python E2E（`test/test_e2e_visualization.py`，14 用例，rclpy 交叉解码）、
-CDR 黄金字节（`viz_golden.json` + vitest 15 用例，rclpy 序列化真值 vs JS codec）、
-浏览器实测（console 订阅抽验）。
+验证面：Python E2E（`test/test_e2e_sim.py`，16 用例，官方栈经网关 + web↔官方
+initialpose 定位闭环 / compute_path_to_pose 规划闭环）、CDR 黄金字节
+（`viz_golden.json` + vitest，rclpy 序列化真值 vs JS codec）、浏览器实测
+（console Displays 默认即官方数据面）。
 
-## 实时可视化（console.html「实时可视化」区，RViz2/rqt 风格）
+纯 apt 官方示例栈（panda RSP + nav2 map_server/lifecycle，无仿真）另见
+`official_demo.launch.py` 与 `test/test_e2e_official.py`（7 用例）；
+MoveIt2 官方 panda 全栈见 `panda_moveit_web.launch.py` 与
+`test/test_e2e_moveit.py`（6 用例，moveit_resources 克隆于 src/）。
 
-连接后按 **Displays 面板**配置订阅并渲染（`js/console/viz.js` + `plot.js` + `topo.js`，
-three.js 经 robotwebtools importmap 裸名引入）：
+## 实时可视化（console.html「实时可视化」区，RViz2/rqt/Foxglove 风格）
+
+连接后按 **Displays 面板**配置订阅并渲染（`js/console/viz.js` + `plot.js` + `topo.js`
++ `teleop.js`，three.js 经 robotwebtools importmap 裸名引入）。
+2026-10-15 升级轮：**Displays 多实例化**（cfg v4 实例数组，RViz Add/Remove Display
+语义；Grid/RobotModel/TF 单例，其余可增删）+ **Global Options**（Fixed Frame 下拉/
+背景色/跟随帧）+ **命名布局快照**（存/删/导出/导入 JSON）+ **Teleop 面板**
+（WASD 键盘遥控发布 /cmd_vel TwistStamped，仅限仿真）+ **参数面板**
+（rqt_reconfigure 简化版：节点全量参数读取+类型内联编辑+写回）+ 快捷键
+（F=适配/G=网格/1·2·3=视角/M=测距/Esc=退出）。
 
 | 组件 | 内容 |
 |---|---|
 | 工具栏 | 测距、发布点、2D Goal Pose、**2D 初始位姿（/initialpose + RViz 标准协方差）**、等轴/俯视/侧视/保存恢复、**TCP 拖拽**/录制、ROS Time |
-| Displays 面板 | 每显示项：启用 / 话题（datalist）/ 属性（点大小、TF 名签、幽灵、odom 轨迹、wrench 缩放）/ 状态；配置持久化 |
-| 3D 视口 | Grid、RobotModel（mesh 经 robot-mesh 路由 + **幽灵预览** + **TCP 示教拖拽** + DLS IK 伺服 + **工作空间包络线框**）、OccupancyGrid、TF（**tf_buffer 全精度链路累积**）、PointCloud2（**fields offset 解析**，与渲染岛共用 pointcloud_parse）、LaserScan 3D、Marker、Path、PoseArray/PoseStamped（箭头）、**Odometry（箭头+0.1m 阈值轨迹环）**、**Range（±fov 扇形）**、**Wrench（force 红/torque 蓝箭头）**、**PoseWithCovarianceStamped（95% 协方差椭圆）**——数据组按 `header.frame_id` 经 TF 摆位（RViz 帧语义） |
-| 2D 视口 | Image（mono8/rgb8/bgr8）+ **CompressedImage（createImageBitmap 实解 JPEG/PNG，与 raw 共卡）**、LaserScan 扇形、JointState 关节条（**镜像防环 v2** + **跟踪误差读数** + TCP HUD 毫米读数） |
+| Global Options | Fixed Frame（TF 树根+map/odom）、背景色、跟随帧（相机随 TF 帧位移，Foxglove 语义） |
+| Displays 面板 | **实例驱动**：＋添加（类型下拉）/删除/启用/话题（datalist）/属性（点大小、透明度、代价地图样式、TF 名签、幽灵、odom 轨迹长度、wrench 缩放）/状态；配置持久化 `rwl-viz-cfg-v4` |
+| 3D 视口 | Grid、RobotModel（mesh 经 robot-mesh 路由 + **幽灵预览** + **TCP 示教拖拽** + DLS IK 伺服 + **工作空间包络线框**）、OccupancyGrid/**Costmap（RViz 蓝→红代价色带，/map+/global_costmap+/local_costmap 三层叠层）**、TF（**tf_buffer 全精度链路累积**）、PointCloud2（**多实例**，fields offset 解析）、LaserScan 3D、Marker、Path、PoseArray/PoseStamped（箭头）、**Odometry（箭头+轨迹环）**、**Range（±fov 扇形）**、**Wrench（force 红/torque 蓝箭头）**、**PoseWithCovarianceStamped（95% 协方差椭圆）**——数据组按 `header.frame_id` 经 TF 摆位（RViz 帧语义） |
+| 2D 视口 | Image（mono8/rgb8/bgr8，**滚轮缩放/拖拽平移/适配/1:1 + overlay（分辨率/fps/stamp 时延）**）+ **CompressedImage（createImageBitmap 实解 JPEG/PNG，与 raw 共卡）**、LaserScan 扇形、JointState 关节条（**镜像防环 v2** + **跟踪误差读数** + TCP HUD 毫米读数） |
+| Teleop | WASD/方向键合键 + 线速/角速滑条 + 松键急停 + 停止钮 → `/cmd_vel`（TwistStamped，TB3 gz 桥约定）；**仅限仿真** |
 | 字段绘图（rqt_plot） | 任意字段路径 + **计算字段**（`_computed_min/max/avg`）、暂停/时间窗、EMA Hz |
-| 诊断面板（rqt_runtime_monitor） | DiagnosticArray 按级别三色列表（话题可配，默认 /rwl_viz/diagnostics，真机改 /diagnostics）；`__rwl_diag()` |
+| 诊断面板（rqt_runtime_monitor） | DiagnosticArray 按级别三色列表（话题可配，默认 /diagnostics）；`__rwl_diag()` |
 | ROS 日志面板（rqt_console） | /rosout 订阅、级别过滤（DEBUG+/INFO+/WARN+/ERROR+）、暂停/清空、上限 500；`__rwl_roslog()` |
-| 拓扑图 | SVG 节点/话题/服务四层 + 流动粒子 + Hz 徽标 + 滚轮缩放/拖拽/fit |
-| 示教/轨迹面板 | 航点录制（90ms+4mm）/导出 JSON/**本地回放（段时长 80-900ms 钳制 + easeInOutQuad）**/**姿态预设（内置零位+用户存档，easeInOutCubic 850ms，armed 时 45ms 节流写 joint_cmd）**/**FollowJointTrajectory 真执行**（失败→低级逐点 joint_cmd 回退）+ 交互锁 guardedCall |
-| 分割条 | 左右列间拖拽（30-80%） |
+| 参数面板 | 节点全量参数读取（get_parameters）+ 类型内联编辑（bool/num/str）+ set_parameters 写回；节点 datalist 来自连接图 |
+| 拓扑图 | SVG 节点/话题/服务四层 + 流动粒子 + Hz 徽标 + **服务显隐/名称过滤** + 滚轮缩放/拖拽/fit |
+| 示教/轨迹面板 | 航点录制（90ms+4mm）/导出 JSON/**本地回放（段时长 80-900ms 钳制 + easeInOutQuad）**/**姿态预设（内置零位+用户存档，easeInOutCubic 850ms）**/**FollowJointTrajectory 真执行**（需官方控制器在环：TB3 `/joint_trajectory_controller`、panda `/panda_arm_controller`）+ 交互锁 guardedCall |
+| 分割条 | 左右列间拖拽（30-80%），位置随布局快照持久化 |
 
-`/rwl_viz/clicked_point`、`/goal_pose`、`/initialpose`（PoseWithCovarianceStamped）、
-`/robot_description`（7 links / 6 revolute joints 演示箱链，joint_0..5 与 joint_states 同名）、
-`/rwl_viz/joint_cmd`（关节命令闭环）均由 viz_fixture 提供存活/latched 发布（浏览器发布的
-schema 前置；RViz 亦为持续 advertise 语义）。**关节闭环**：web 滑块 → `/joint_cmd` →
-fixture 3s 内跟随 → `joint_states` → URDF 模型（Rebot-Arm 镜像模式最小版）。
-快照：`window.__rwl_viz_stats()`（含 fps/objectCount/jointCmdSent/odom/range/wrench/posecov/imagec）、
+web 写出（浏览器 → ROS，全官方标准话题）：`/clicked_point`（Publish Point 工具，RViz 语义）、
+`/goal_pose`、`/initialpose`（2D 工具，官方 AMCL/Nav2 交互话题）、`/cmd_vel`（Teleop，
+TwistStamped）。viz_fixture 删除后 web 无 joint_cmd 写出——动臂走
+FollowJointTrajectory action（官方控制器在环）；armed 交互锁仅驱动本地模型动画
+（镜像保持防 /joint_states 回读抖动）。
+快照：`window.__rwl_viz_stats()`（含 fps/objectCount/vertexCount/odom/range/wrench/posecov/imagec）、
 `window.__rwl_plot()`、`window.__rwl_topics()`、`window.__rwl_diag()`、`window.__rwl_roslog()`。
 
 ### 前端设计参考来源（2026-10-14 深读移植轮）

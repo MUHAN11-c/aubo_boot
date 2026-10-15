@@ -14,6 +14,7 @@ if(BUILD_TESTING)
   ament_add_pytest_test(test_drive_harvest test/test_drive_harvest.py)
   ament_add_pytest_test(test_live_camera_mock test/test_live_camera_mock.py)
   ament_add_pytest_test(test_run_frozen_grasp test/test_run_frozen_grasp.py)
+  ament_add_pytest_test(test_rviz_monitor_profile test/test_rviz_monitor_profile.py)
   # Jazzy 的 launch_testing_ament_cmake 无 add_ros_isolated_launch_test
   # （Kilted+ 新增宏）；用 add_launch_test 的 ENV 注入实现等效隔离域。
   # 域 89：mock 冒烟；域 90：E1 批次链（注入器 perception_sim + RunHarvest）。

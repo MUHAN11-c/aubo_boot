@@ -1,0 +1,10 @@
+build/peach_harvester/pytest.xml: 376 tests, 0 errors, 1 failure, 0 skipped
+- peach_harvester.test.test_flake8 test_flake8
+  <<< failure message
+    AssertionError: Found 2 code style errors / warnings:
+      ./test/test_reconstruction_build_retry.py:52:36: E128 continuation line under-indented for visual indent
+      ./test/test_supervisor_build_failure.py:76:100: E501 line too long (100 > 99 characters)
+    assert 1 == 0
+  >>>
+
+Summary: 376 tests, 0 errors, 1 failure, 0 skipped

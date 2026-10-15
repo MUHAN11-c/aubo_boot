@@ -396,3 +396,34 @@ assert signal.getsignal(signal.SIGINT) == old
     result = subprocess.run([sys.executable, '-c', script], capture_output=True, text=True, timeout=5)
     assert result.returncode == 0, result.stderr
     assert 'cleanup completed' in result.stdout
+
+
+def test_soak_failure_is_reported_before_waiting_for_end():
+    m = load()
+    with pytest.raises(RuntimeError, match='RViz'):
+        m.validate_soak_sample({'rviz_alive': False, 'streams_fresh': True})
+    with pytest.raises(RuntimeError, match='camera/joint'):
+        m.validate_soak_sample({'rviz_alive': True, 'streams_fresh': False})
+    m.validate_soak_sample({'rviz_alive': True, 'streams_fresh': True})
+
+
+def test_report_checkpoint_is_atomic_and_retains_failure_before_cleanup(tmp_path):
+    m = load()
+    report = {'errors': ['RViz exited'], 'rounds': []}
+    m.checkpoint(tmp_path, report, 'cleaning')
+    import json
+    saved = json.loads((tmp_path / 'report.json').read_text())
+    assert saved['phase'] == 'cleaning'
+    assert saved['errors'] == ['RViz exited']
+    assert not (tmp_path / 'report.json.tmp').exists()
+
+
+def test_owned_runtime_isolates_ros_locks_and_bounds_default_numeric_threads(tmp_path):
+    m = load()
+    source = {'ROS_HOME': '/external/task/ros', 'OMP_NUM_THREADS': '3'}
+    env = m.owned_runtime_environment(source, tmp_path, 87)
+    assert env['ROS_HOME'] == str(tmp_path / 'ros_home')
+    assert env['ROS_DOMAIN_ID'] == '87'
+    assert env['OMP_NUM_THREADS'] == '3'
+    assert env['OPENBLAS_NUM_THREADS'] == env['MKL_NUM_THREADS'] == '1'
+    assert source == {'ROS_HOME': '/external/task/ros', 'OMP_NUM_THREADS': '3'}

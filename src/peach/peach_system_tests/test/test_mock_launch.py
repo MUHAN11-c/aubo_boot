@@ -66,6 +66,7 @@ def generate_test_description():
         launch.LaunchDescription([
             SetEnvironmentVariable('QT_QPA_PLATFORM', 'offscreen'),
             SetEnvironmentVariable('AUBO_RUNS_DIR', runs),
+            SetEnvironmentVariable('ROS_HOME', os.path.join(runs, 'ros_home')),
             IncludeLaunchDescription(
                 PythonLaunchDescriptionSource(harvest),
                 launch_arguments={
@@ -178,17 +179,23 @@ class TestMockHarvestSystem(unittest.TestCase):
         if owned_init:
             rclpy.init()
         probe = rclpy.create_node('bond_test_probe')
+
+        def on_bond(msg):
+            seen_ids.add(str(msg.id))
+            if msg.id == 'peach_arm':
+                counts['bond'] += 1
+
         try:
             probe.create_subscription(
                 BondStatus, '/bond',
-                lambda msg: (counts.__setitem__('bond', counts['bond'] + 1),
-                             seen_ids.add(str(msg.id))), _BOND_QOS)
+                on_bond, _BOND_QOS)
             probe.create_subscription(
                 JointState, '/joint_states',
                 lambda msg: counts.__setitem__('joints', counts['joints'] + 1),
                 qos_profile_sensor_data)
             deadline = time.monotonic() + 90.0
-            while time.monotonic() < deadline and counts['bond'] < 3:
+            while time.monotonic() < deadline and (
+                    counts['bond'] < 3 or counts['joints'] == 0):
                 rclpy.spin_once(probe, timeout_sec=0.5)
         finally:
             probe.destroy_node()

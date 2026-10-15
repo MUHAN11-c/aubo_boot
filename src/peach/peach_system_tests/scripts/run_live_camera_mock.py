@@ -22,6 +22,15 @@ import yaml
 DISPLAY_KEYS = ('DISPLAY', 'XAUTHORITY', 'XDG_RUNTIME_DIR', 'DBUS_SESSION_BUS_ADDRESS')
 
 
+def owned_runtime_environment(base, output, domain):
+    """DDS域之外也隔离spawner文件锁；测试默认限制数值库过量并行."""
+    env = dict(base, ROS_DOMAIN_ID=str(domain), ROS_LOCALHOST_ONLY='1',
+               ROS_HOME=str(output / 'ros_home'))
+    for key in ('OMP_NUM_THREADS', 'OPENBLAS_NUM_THREADS', 'MKL_NUM_THREADS'):
+        env.setdefault(key, '1')
+    return env
+
+
 @contextmanager
 def defer_stop_signals():
     """Finish bounded cancel/disable/bag cleanup even after repeated stop requests."""
@@ -199,6 +208,13 @@ def soak_passed(requested, elapsed, resources):
     return requested == 0 or (elapsed >= requested and bool(resources)
         and all(row.get('streams_fresh') and row.get('rviz_alive') for row in resources))
 
+
+def validate_soak_sample(row):
+    if row.get('rviz_alive') is not True:
+        raise RuntimeError('RViz exited during soak')
+    if row.get('streams_fresh') is not True:
+        raise RuntimeError('camera/joint flow lost during soak')
+
 def proc_env(pid):
     try:
         return dict(part.decode(errors='replace').split('=', 1) for part in Path(f'/proc/{pid}/environ').read_bytes().split(b'\0') if b'=' in part)
@@ -323,7 +339,15 @@ def snapshot():
 
 
 def save(path, data):
-    path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding='utf-8')
+    temporary = path.with_name(path.name + '.tmp')
+    temporary.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding='utf-8')
+    temporary.replace(path)
+
+
+def checkpoint(output, report, phase):
+    report['phase'] = phase
+    report['updated_at'] = time.time()
+    save(output / 'report.json', report)
 
 
 class RosDriver:
@@ -549,10 +573,13 @@ def run(args):
     output.mkdir(parents=True, exist_ok=False)
     cfg_dir = config_directory()
     profile = yaml.safe_load((cfg_dir / 'live_camera_mock.yaml').read_text())
-    env = dict(os.environ, ROS_DOMAIN_ID=str(args.domain), ROS_LOCALHOST_ONLY='1')
+    env = owned_runtime_environment(os.environ, output, args.domain)
     report = {'hardware_mode': 'mock', 'profile': profile, 'rounds': [], 'models': [],
               'model_attempts': [], 'resources': [], 'acks': [], 'errors': [], 'rviz_requested': args.rviz}
     report['owned_process_groups'] = []
+    report['runtime_environment'] = {key: env[key] for key in (
+        'ROS_DOMAIN_ID', 'ROS_HOME', 'OMP_NUM_THREADS',
+        'OPENBLAS_NUM_THREADS', 'MKL_NUM_THREADS')}
     def audit_started(pgid):
         report['owned_process_groups'].append(pgid)
         save(output / 'report.json', report)
@@ -688,6 +715,7 @@ def run(args):
             save(output / 'report.json', report)
         driver.enables(False, False)
         soak_started = time.monotonic()
+        report['soak_started_monotonic'] = soak_started
         until = soak_started + args.soak_seconds
         while time.monotonic() < until:
             soak_before = {key: value.total for key, value in driver.stamps.items()}
@@ -698,7 +726,9 @@ def run(args):
                                         'streams_fresh': all(v['fresh_stamp'] for v in frame_evidence(driver, soak_before).values()),
                                         'streams': frame_evidence(driver, soak_before),
                                         'rviz_alive': not args.rviz or rviz.poll() is None})
-            save(output / 'report.json', report)
+            report['soak_elapsed_s'] = time.monotonic() - soak_started
+            checkpoint(output, report, 'soaking')
+            validate_soak_sample(report['resources'][-1])
         rviz_tick()
         report['rviz_lifetime_ok'] = True
         report['soak_elapsed_s'] = time.monotonic() - soak_started
@@ -706,8 +736,10 @@ def run(args):
         report['errors'].append(str(exc) or type(exc).__name__)
     finally:
         with defer_stop_signals():
+            checkpoint(output, report, 'cleaning')
             if driver:
                 cleanup_driver(driver, report['errors'])
+            checkpoint(output, report, 'stopping_processes')
             report['owned_process_groups'] = [p.pid for p in owner.processes]
             report['residual_pids'] = owner.cleanup()
             report['domain_processes_after'] = domain_processes(args.domain)
@@ -737,7 +769,7 @@ def run(args):
             if not report['soak_passed']:
                 report['errors'].append('Soak incomplete or camera/joint/RViz liveness failed')
             report['passed'] = report.get('rviz_lifetime_ok', False) and not report['errors'] and not report['residual_pids'] and report['model_count'] == args.models and report['full_level6_rounds'] == args.rounds
-            save(output / 'report.json', report)
+            checkpoint(output, report, 'finished')
         print(json.dumps({'output': str(output), 'passed': report['passed'], 'errors': report['errors']}, ensure_ascii=False))
     return 0 if report['passed'] else 1
 

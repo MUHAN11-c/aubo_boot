@@ -18,7 +18,7 @@ uint8 geometry_capability
 uint8 pregrasp_capability
 uint8 sleeve_capability
 uint8 cut_capability
-bool allowed              # 汇总位=geometry∧sleeve∧cut（历史语义）。批次4 起臂侧分档：CONTACT 看 sleeve/radial_margin，TOOL 看 cut/axial_margin+预备位残差；allowed 只作汇总展示与调度过滤，不再单条放行剪切
+bool allowed              # 汇总位=geometry∧sleeve∧cut（pregrasp 不进）。果距与径向余量不进这三位，只作数据参考。false 时仍可有几何；预抓取可以走。TOOL 另要预备位残差与 tool.enabled
 string reason             # 许可/拒绝原因（稳定短语，不是自由散文）
 uint32 failure_code       # FailureCode.*；0=NONE 无失败
 
@@ -31,7 +31,7 @@ float64 diameter_m              # 袋径 [m]
 float64 d95_m                   # 径向 D95 [m]
 float64 travel_m                # 建议插入行程 [m]
 float64 cut_travel_m            # 剪切相关行程 [m]
-float64 radial_margin_m         # 径向余量 [m]；记录给机械，负值不拦套入
+float64 radial_margin_m         # 静态径向余量 [m]，初步查看标记，只作数据参考。接触时弹性会动，目前不构成约束；以后若启用须另立动态判据
 float64 axial_margin_m          # 轴向余量 [m]；记录给机械，负值不拦剪切
 bool corridor_clear             # 插入走廊是否清空
 float64 rmse_m                  # 融合拟合 RMSE [m]

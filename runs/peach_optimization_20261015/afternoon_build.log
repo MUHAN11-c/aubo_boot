@@ -1,0 +1,64 @@
+[0.544s] colcon.colcon_core.package_selection WARNING Some selected packages are already built in one or more underlay workspaces:
+	'peach_interfaces' is in: /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_interfaces
+	'peach_stereo' is in: /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_stereo
+If a package in a merged underlay workspace is overridden and it installs headers, then all packages in the overlay must sort their include directories by workspace order. Failure to do so may result in build failures or undefined behavior at run time.
+If the overridden package is used by another package in any underlay, then the overriding package in the overlay must be API and ABI compatible or undefined behavior at run time may occur.
+
+If you understand the risks and want to override a package anyways, add the following to the command line:
+	--allow-overriding peach_interfaces peach_stereo
+
+This may be promoted to an error in a future release of colcon-override-check.
+Starting >>> peach_common
+Starting >>> peach_interfaces
+Starting >>> peach_web
+Starting >>> peach_stereo
+Finished <<< peach_web [0.62s]
+Finished <<< peach_interfaces [0.75s]
+Finished <<< peach_common [1.08s]
+Starting >>> peach_harvester
+Starting >>> peach_observability
+[1.645s] colcon.colcon_core.shell WARNING The following packages are in the workspace but haven't been built:
+- nav2_common
+- nav2_msgs
+They are being used from the following locations instead:
+- /opt/ros/jazzy
+- /opt/ros/jazzy
+To suppress this warning ignore these packages in the workspace:
+--packages-ignore nav2_common nav2_msgs
+Starting >>> peach_vegetation
+Finished <<< peach_stereo [1.61s]
+Finished <<< peach_observability [1.35s]
+Finished <<< peach_vegetation [1.35s]
+Finished <<< peach_harvester [1.42s]
+Starting >>> peach_arm
+Finished <<< peach_arm [14.9s]
+Starting >>> peach_bringup
+[17.932s] colcon.colcon_core.shell WARNING The following packages are in the workspace but haven't been built:
+- nav2_common
+- nav2_msgs
+- nav2_util
+- nav2_lifecycle_manager
+They are being used from the following locations instead:
+- /opt/ros/jazzy
+- /opt/ros/jazzy
+- /opt/ros/jazzy
+- /opt/ros/jazzy
+To suppress this warning ignore these packages in the workspace:
+--packages-ignore nav2_common nav2_msgs nav2_util nav2_lifecycle_manager
+Finished <<< peach_bringup [1.43s]
+Starting >>> peach_system_tests
+[19.354s] colcon.colcon_core.shell WARNING The following packages are in the workspace but haven't been built:
+- nav2_common
+- nav2_msgs
+- nav2_util
+- nav2_lifecycle_manager
+They are being used from the following locations instead:
+- /opt/ros/jazzy
+- /opt/ros/jazzy
+- /opt/ros/jazzy
+- /opt/ros/jazzy
+To suppress this warning ignore these packages in the workspace:
+--packages-ignore nav2_common nav2_msgs nav2_util nav2_lifecycle_manager
+Finished <<< peach_system_tests [9.17s]
+
+Summary: 10 packages finished [28.4s]

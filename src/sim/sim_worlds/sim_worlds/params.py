@@ -462,3 +462,27 @@ def check_params(params: OrchardParams) -> list[str]:
             f'({half_width:.2f}) + 0.15 m 安全间隙'
         )
     return problems
+
+
+def xacro_mappings(params: OrchardParams, tool_profile: str) -> dict[str, str]:
+    """
+    统一机体 xacro 展开映射（sim.launch RSP 与 moveit_sim 单源）.
+
+    两处展开（robot_state_publisher 的 Command 与 MoveItConfigsBuilder 的
+    mappings）必须逐键同值，否则 move_group 模型与 TF 静默分叉——映射表
+    只在此出现一次（AGENTS「映射表单源」）。
+    """
+    platform = params.platform
+    return {
+        'tool_profile': tool_profile,
+        'arm_mount_height': str(platform.arm_mount_height),
+        'arm_mount_yaw_deg': str(platform.arm_mount_yaw_deg),
+        'body_x': str(platform.body_size[0]),
+        'body_y': str(platform.body_size[1]),
+        'body_z': str(platform.body_size[2]),
+        'body_bottom': str(platform.body_bottom),
+        'track_length': str(platform.track_length),
+        'track_width': str(platform.track_width),
+        'track_height': str(platform.track_height),
+        'track_separation': str(platform.track_separation),
+    }

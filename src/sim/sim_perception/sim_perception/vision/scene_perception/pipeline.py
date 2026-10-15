@@ -11,6 +11,7 @@ import threading
 from typing import List, Optional, Tuple
 
 import numpy as np
+from peach_interfaces.msg import BagFittingArray, BagGraspCandidateArray
 from sim_perception.vision.common.geometry import (
     crop_mask_to_bbox,
     invert_transform,
@@ -54,7 +55,6 @@ from sim_perception.vision.scene_perception.stream_metrics import (
     RateEstimator,
     TimingMetrics,
 )
-from peach_interfaces.msg import BagFittingArray, BagGraspCandidateArray
 from std_msgs.msg import Header
 from visualization_msgs.msg import Marker, MarkerArray
 

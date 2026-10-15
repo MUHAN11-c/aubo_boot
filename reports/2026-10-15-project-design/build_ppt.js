@@ -112,7 +112,8 @@ function pic(slide, file, x, y, w, h) {
 function picFit(slide, file, x, y, w, h) { // contain
   const meta = { "rviz_fullchain.png":[1400,900], "stereo_cmp.png":[1920,976], "masks_mid.png":[640,480],
     "percipio_view.png":[1228,866], "sim_detail.png":[1280,720], "sim_lighting.jpg":[1920,1950],
-    "sim_lighting_wide.jpg":[1920,819],
+    "sim_lighting_wide.jpg":[1920,819], "stereo_cmp_crop.png":[1036,460],
+    "percipio_cloud_crop.png":[705,728], "final_cmp_live.png":[1280,960],
     "web_console.png":[1440,900], "yolo_val.jpg":[1920,1100], "v2_topics.png":[1418,814] }[file];
   const [iw, ih] = meta, ar = iw / ih, boxAr = w / h;
   let dw = w, dh = h;
@@ -427,12 +428,12 @@ async function main() {
     titleBar(s, "03 PERCEPTION", "感知系统：停走式节拍 · 事实产出", 9);
     // 左上 stereo 对比图
     card(s, 0.62, 1.7, 6.6, 3.4, { shadow: true });
-    s.addText("立体深度对比（深度伪彩 + 点云）", { x: 0.88, y: 1.84, w: 5.9, h: 0.36, fontFace: BODY_FONT, fontSize: 11.5, bold: true, color: C.text, margin: 0 });
-    picFit(s, "stereo_cmp.png", 0.82, 2.24, 6.2, 2.75);
-    // 左下 masks
+    s.addText("点云密度对比：密集（左）vs 稀疏（右）· 裁自实拍链路", { x: 0.88, y: 1.84, w: 5.9, h: 0.36, fontFace: BODY_FONT, fontSize: 11.5, bold: true, color: C.text, margin: 0 });
+    picFit(s, "stereo_cmp_crop.png", 0.82, 2.24, 6.2, 2.75);
+    // 左下 实拍对照
     card(s, 0.62, 5.3, 3.2, 1.72, { shadow: true });
-    s.addText("相机流 RViz 窗口（Percipio 前端）", { x: 0.8, y: 5.4, w: 2.9, h: 0.32, fontFace: BODY_FONT, fontSize: 10, bold: true, color: C.text, margin: 0 });
-    picFit(s, "percipio_view.png", 0.78, 5.74, 2.9, 1.2);
+    s.addText("实拍同帧对照：立体链 vs 设备深度", { x: 0.8, y: 5.4, w: 2.9, h: 0.32, fontFace: BODY_FONT, fontSize: 10, bold: true, color: C.text, margin: 0 });
+    picFit(s, "final_cmp_live.png", 0.78, 5.74, 2.9, 1.2);
     card(s, 3.98, 5.3, 3.24, 1.72, { shadow: true });
     s.addText("YOLO 目标检测验证", { x: 4.16, y: 5.4, w: 2.9, h: 0.32, fontFace: BODY_FONT, fontSize: 10, bold: true, color: C.text, margin: 0 });
     picFit(s, "yolo_val.jpg", 4.14, 5.74, 2.92, 1.2);

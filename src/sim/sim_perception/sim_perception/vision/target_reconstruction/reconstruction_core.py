@@ -18,6 +18,13 @@ from typing import Optional, Tuple
 
 from geometry_msgs.msg import Point, Pose, Quaternion, Vector3, Vector3Stamped
 import numpy as np
+from peach_interfaces.msg import (
+    BagFitting,
+    BagFittingArray,
+    BagGraspCandidate,
+    BagGraspCandidateArray,
+    ShapeHypothesis,
+)
 from sim_perception.vision.common.runtime import HarvestDataStore
 from sim_perception.vision.domain.model_contract import (
     allowed_from_decision,
@@ -53,13 +60,6 @@ from sim_perception.vision.target_reconstruction.refine import (
     candidate_axis_hint,
     RefitResult,
     STATUS_REJECT,
-)
-from peach_interfaces.msg import (
-    BagFitting,
-    BagFittingArray,
-    BagGraspCandidate,
-    BagGraspCandidateArray,
-    ShapeHypothesis,
 )
 from std_msgs.msg import Header, String
 

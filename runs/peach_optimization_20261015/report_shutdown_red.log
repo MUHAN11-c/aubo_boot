@@ -1,0 +1,78 @@
+FFFF                                                                     [100%]
+=================================== FAILURES ===================================
+____________ test_report_process_uses_current_python_and_sealed_bag ____________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x781073764b90>
+tmp_path = PosixPath('/tmp/pytest-of-mu/pytest-84/test_report_process_uses_curre0')
+
+    def test_report_process_uses_current_python_and_sealed_bag(monkeypatch, tmp_path):
+        process = Mock()
+        process.poll.return_value = None
+        spawn = Mock(return_value=process)
+        monkeypatch.setattr(module, 'subprocess', SimpleNamespace(Popen=spawn), raising=False)
+        monkeypatch.setattr(bag_report, 'generate_session_report', lambda *a, **kw: None)
+        node = SimpleNamespace(_report_process=None, _report_thread=None, _params=None,
+                               get_logger=lambda: SimpleNamespace(info=lambda s: None,
+                                                                  warning=lambda s: None))
+        module.ObservabilityNode._spawn_report(node, tmp_path / 'bag')
+>       args = spawn.call_args.args[0]
+E       AttributeError: 'NoneType' object has no attribute 'args'
+
+src/peach/peach_observability/test/test_report_shutdown.py:22: AttributeError
+_________ test_report_shutdown_reaps_child_even_when_analysis_hangs[0] _________
+
+timeout_count = 0
+capsys = <_pytest.capture.CaptureFixture object at 0x781042bb6d50>
+
+    @pytest.mark.parametrize('timeout_count', [0, 1, 2])
+    def test_report_shutdown_reaps_child_even_when_analysis_hangs(timeout_count, capsys):
+        process = Mock()
+        process.wait.side_effect = [subprocess.TimeoutExpired('report', 1)] * timeout_count + [0]
+        node = SimpleNamespace(_report_process=process, _report_thread=None)
+        module.ObservabilityNode.join_report(node, timeout=.01)
+>       assert process.wait.call_count == timeout_count + 1
+E       AssertionError: assert 0 == (0 + 1)
+E        +  where 0 = <Mock name='mock.wait' id='132011502707312'>.call_count
+E        +    where <Mock name='mock.wait' id='132011502707312'> = <Mock id='132011991455920'>.wait
+
+src/peach/peach_observability/test/test_report_shutdown.py:35: AssertionError
+_________ test_report_shutdown_reaps_child_even_when_analysis_hangs[1] _________
+
+timeout_count = 1
+capsys = <_pytest.capture.CaptureFixture object at 0x78106fdb5430>
+
+    @pytest.mark.parametrize('timeout_count', [0, 1, 2])
+    def test_report_shutdown_reaps_child_even_when_analysis_hangs(timeout_count, capsys):
+        process = Mock()
+        process.wait.side_effect = [subprocess.TimeoutExpired('report', 1)] * timeout_count + [0]
+        node = SimpleNamespace(_report_process=process, _report_thread=None)
+        module.ObservabilityNode.join_report(node, timeout=.01)
+>       assert process.wait.call_count == timeout_count + 1
+E       AssertionError: assert 0 == (1 + 1)
+E        +  where 0 = <Mock name='mock.wait' id='132011991456112'>.call_count
+E        +    where <Mock name='mock.wait' id='132011991456112'> = <Mock id='132011991455056'>.wait
+
+src/peach/peach_observability/test/test_report_shutdown.py:35: AssertionError
+_________ test_report_shutdown_reaps_child_even_when_analysis_hangs[2] _________
+
+timeout_count = 2
+capsys = <_pytest.capture.CaptureFixture object at 0x78106fdb5d90>
+
+    @pytest.mark.parametrize('timeout_count', [0, 1, 2])
+    def test_report_shutdown_reaps_child_even_when_analysis_hangs(timeout_count, capsys):
+        process = Mock()
+        process.wait.side_effect = [subprocess.TimeoutExpired('report', 1)] * timeout_count + [0]
+        node = SimpleNamespace(_report_process=process, _report_thread=None)
+        module.ObservabilityNode.join_report(node, timeout=.01)
+>       assert process.wait.call_count == timeout_count + 1
+E       AssertionError: assert 0 == (2 + 1)
+E        +  where 0 = <Mock name='mock.wait' id='132011991457360'>.call_count
+E        +    where <Mock name='mock.wait' id='132011991457360'> = <Mock id='132011991456832'>.wait
+
+src/peach/peach_observability/test/test_report_shutdown.py:35: AssertionError
+=========================== short test summary info ============================
+FAILED src/peach/peach_observability/test/test_report_shutdown.py::test_report_process_uses_current_python_and_sealed_bag
+FAILED src/peach/peach_observability/test/test_report_shutdown.py::test_report_shutdown_reaps_child_even_when_analysis_hangs[0]
+FAILED src/peach/peach_observability/test/test_report_shutdown.py::test_report_shutdown_reaps_child_even_when_analysis_hangs[1]
+FAILED src/peach/peach_observability/test/test_report_shutdown.py::test_report_shutdown_reaps_child_even_when_analysis_hangs[2]
+4 failed in 0.59s

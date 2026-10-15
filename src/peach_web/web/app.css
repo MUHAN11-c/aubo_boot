@@ -93,6 +93,12 @@ b, strong { font-variant-numeric: tabular-nums; }
 }
 .view-tabs button.active { color: var(--accent); border-color: var(--line); border-top: 2px solid var(--accent); border-bottom-color: var(--panel); font-weight: 600; }
 .view-tabs button span { margin-left: 14px; opacity: .5; font-size: 11px; }
+.view-tabs a.view-link {
+  background: var(--panel); border: 1px solid var(--line); color: var(--muted);
+  text-decoration: none; border-radius: 6px 6px 0 0; padding: 10px 20px;
+  font-size: 13px;
+}
+.view-tabs a.view-link span { margin-left: 14px; opacity: .5; font-size: 11px; }
 
 /* ---------- 通用面板 ---------- */
 .panel {
@@ -620,6 +626,7 @@ button, input, select, summary { transition: border-color .15s, background-color
   #monitor-visualization-host, #flow-panel, #log-panel, #system-panel { grid-column:1/-1; }
 }
 [hidden] { display:none !important; }
+
 .operation-panel { padding:10px 14px; }
 .operation-head h2 { font-size:14px; }
 .operation-panel .debug-notice { margin:6px 0 0; padding:6px 10px; }

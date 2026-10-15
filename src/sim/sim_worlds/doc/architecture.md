@@ -19,7 +19,9 @@ sim_worlds/                 # Gazebo Harmonic 果园场景包（场景生成+巡
 
 ## 关节状态现状（区别于真机臂栈）
 
-本包固定工位模式包含完整臂链：六关节由 URDF `hold_joint`（harvester_robot.urdf.xacro，shoulder/upperArm/foreArm/wrist1-3）保持拍照位，gz 侧 `gz-sim-joint-state-publisher-system` 发布 `/peach_sim/joint_states`，经 `ros_gz_bridge` 出 `/joint_states`（**不是** `joint_state_broadcaster`，`gz_ros2_control` 未接）。移动模式只有底盘，不包含机械臂，发布履带关节状态。消费侧按名字对齐。
+本包固定工位模式包含完整臂链：六关节由 URDF `hold_joint`（harvester_robot.urdf.xacro，shoulder/upperArm/foreArm/wrist1-3）保持拍照位，gz 侧 `gz-sim-joint-state-publisher-system` 发布 `/peach_sim/joint_states`，经 `ros_gz_bridge` 出 `/joint_states`（**不是** `joint_state_broadcaster`，`gz_ros2_control` 未接）。移动模式只有底盘、不含臂链；履带 P4b 起为 fixed 挂接（gz VelocityControl 直驱），无可发布的履带关节。消费侧按名字对齐（带臂驾驶以 sim.launch 统一机体 JSB 为准）。
+
+**odom TF 双源裁决（未决，2026-10-15）**：统一机体的 `odom→platform_base_link` 目前有两个潜在来源——gz `OdometryPublisher` 经 `sim_bridge.yaml` 桥入的 `/tf`，与 `odom_tf_relay` 节点（订 `/odom` 转发）。两路数值恒等所以能跑，但违反单一 TF 源原则。裁决程序（须安静机器、无并发 gz/探针）：起 `sim.launch.py` → `ros2 topic echo /tf --once` 看 `odom→platform_base_link` 是否双流及桥出帧名是否正确 → 留一路（桥正确则删 relay；桥帧名错误则删 bridge 的 tf 条目）。当日三次探针均被外部 SIGKILL 打断，未裁决。
 
 ## 固定工位查看外观
 
@@ -167,6 +169,12 @@ colcon test --packages-select sim_worlds sim_description sim_bringup \
   --pytest-args -q -k 'urdf_mobile or nav_config'
 colcon test-result --test-result-base build/sim_worlds --verbose
 ```
+
+sim 组五包全量验收门（2026-10-15 标准化轮起）：`sim_perception` 已移植
+peach_harvester 纯核行为测试（基线=fork 点，见其 README）；`sim_system_tests`
+launch_test 依赖 `test_depend` 声明被启动的包（否则隔离环境解析不到
+`sim_bringup`），同机多栈时以 `FASTDDS_BUILTIN_TRANSPORTS=UDPv4` 绕开机器级
+SHM 端口互扰（详见其 README 隔离段）。
 
 混用普通安装与 `--symlink-install` 时，现有 colcon/setuptools 的数据安装
 可能在新文件处报 `No such file or directory`，或在已有普通文件处报

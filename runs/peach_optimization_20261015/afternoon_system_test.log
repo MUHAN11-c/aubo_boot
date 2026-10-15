@@ -1,0 +1,39 @@
+Starting >>> peach_harvester
+--- stderr: peach_harvester
+
+=============================== warnings summary ===============================
+test/test_flake8.py: 20 warnings
+  Warning: This process (pid=588814) is multi-threaded, use of fork() may lead to deadlocks in the child.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+---
+Finished <<< peach_harvester [9.72s]
+Starting >>> peach_system_tests
+[10.615s] colcon.colcon_core.shell WARNING The following packages are in the workspace but haven't been built:
+- nav2_common
+- nav2_msgs
+- nav2_util
+- nav2_lifecycle_manager
+They are being used from the following locations instead:
+- /opt/ros/jazzy
+- /opt/ros/jazzy
+- /opt/ros/jazzy
+- /opt/ros/jazzy
+To suppress this warning ignore these packages in the workspace:
+--packages-ignore nav2_common nav2_msgs nav2_util nav2_lifecycle_manager
+--- stderr: peach_system_tests
+Errors while running CTest
+Output from these tests are in: /home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_system_tests/Testing/Temporary/LastTest.log
+Use "--rerun-failed --output-on-failure" to re-run the failed cases verbosely.
+---
+[Processing: peach_system_tests]
+[Processing: peach_system_tests]
+[Processing: peach_system_tests]
+[Processing: peach_system_tests]
+[Processing: peach_system_tests]
+[Processing: peach_system_tests]
+Finished <<< peach_system_tests [3min 11s]	[ with test failures ]
+
+Summary: 2 packages finished [3min 21s]
+  2 packages had stderr output: peach_harvester peach_system_tests
+  1 package had test failures: peach_system_tests

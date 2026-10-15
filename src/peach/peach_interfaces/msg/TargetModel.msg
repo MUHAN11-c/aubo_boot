@@ -26,7 +26,7 @@ bool fruit_prior_auxiliary             # true=球先验仅辅助，不是主几�
 float64[9] bottom_covariance           # 袋底 3×3，行优先；未知填 0
 float64[9] neck_covariance             # 袋颈 3×3，行优先；未知填 0
 float64[9] axis_covariance             # 轴向 3×3，行优先；未知填 0
-float32 radial_margin_m                # 径向余量 [m]
+float32 radial_margin_m                # 静态径向余量 [m]，初步查看标记，只作数据参考，目前不构成约束
 float32 axial_margin_m                 # 轴向余量 [m]
 bool corridor_clear                    # 插入走廊是否清空
 string occlusion_class                 # 遮挡档（空=未评）

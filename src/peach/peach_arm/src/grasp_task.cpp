@@ -571,11 +571,10 @@ std::unique_ptr<mtc::SerialContainer> GraspTask::makeApproachInsertSequence(
 
 std::unique_ptr<mtc::Task> GraspTask::makeTaskShell(const std::string & task_name) const
 {
-  auto task = std::make_unique<mtc::Task>(task_name);
-  // MTC 解显示默认关闭：滚转扫描每个候选解都会实时发 RViz，被护栏拒掉
-  // 的候选在臂动之前反复闪跳（轨迹抖动）。事后 enable 不会重建发布器，
-  // 故整体关闭；轨迹可视化走 observability TCP Path 与 RobotState。
-  task->enableIntrospection(false);
+  // 必须从构造时关闭。先默认启动 introspection 再关闭，会在它的 executor
+  // 尚未开始 spin 时 cancel + join；Jazzy spin 会重新置 true，可能堵至 shutdown。
+  // 被护栏拒掉的滚转候选也不应发成执行轨迹；可视化走实际 TCP Path/RobotState。
+  auto task = std::make_unique<mtc::Task>(task_name, false);
   task->loadRobotModel(node_);
   task->setProperty("group", config_.planning_group);
   task->add(std::make_unique<mtc::stages::CurrentState>("current robot state"));
@@ -891,17 +890,38 @@ bool GraspTask::tryRolledApproach(
   GraspTaskResult & last)
 {
   split.kind = kind;
+  const auto generation = cancel_generation_.load();
   for (const double roll : toolRollsRad()) {
+    if (!rclcpp::ok() || cancel_generation_.load() != generation) {
+      last.retry_forbidden = true;
+      last.reason = "approach candidate search canceled";
+      return true;
+    }
     ApproachSplit rolled = withToolRoll(split, roll);
+    const double roll_deg = roll * 180.0 / static_cast<double>(EIGEN_PI);
     rolled.kind = kind;
     if (kind == ApproachSplit::Kind::LIN &&
       (std::abs(roll) > 1.0e-6 || split.need_align))
     {
       rolled.kind = ApproachSplit::Kind::LIN_ALIGN_THEN_LIN;
     }
+    const auto started = std::chrono::steady_clock::now();
+    RCLCPP_INFO(
+      node_->get_logger(), "%s接近候选开始: kind=%s roll=%.0fdeg",
+      tctx().c_str(), approachKindName(rolled.kind), roll_deg);
+    auto task = makeApproachOnlyTask(task_name, entry_tip_pose, insertion_axis, rolled);
+    RCLCPP_INFO(
+      node_->get_logger(), "%s接近候选任务已建立: elapsed=%.3fs",
+      tctx().c_str(), std::chrono::duration<double>(
+        std::chrono::steady_clock::now() - started).count());
     auto result = planAndMaybeExecute(
-      makeApproachOnlyTask(task_name, entry_tip_pose, insertion_axis, rolled),
+      std::move(task),
       execute, config_.approach_execution_gate, true, 0U);
+    RCLCPP_INFO(
+      node_->get_logger(), "%s接近候选结束: roll=%.0fdeg elapsed=%.3fs success=%s reason=%s",
+      tctx().c_str(), roll_deg,
+      std::chrono::duration<double>(std::chrono::steady_clock::now() - started).count(),
+      result.success ? "true" : "false", result.reason.c_str());
     if (result.success || result.execution_started || result.retry_forbidden) {
       if (std::abs(roll) > 1.0e-6) {
         RCLCPP_INFO(
@@ -1468,6 +1488,7 @@ GraspTaskResult GraspTask::planAndMaybeExecute(
     active = active_task_.get();
   }
   GraspTaskResult output;
+  const auto plan_started = std::chrono::steady_clock::now();
   try {
     if (guard_approach) {
       planned_approach_parts_.clear();
@@ -1475,6 +1496,11 @@ GraspTaskResult GraspTask::planAndMaybeExecute(
     output = planTaskOnly(
       active, guard_approach, guard_skip_tail, staging_guard,
       execute ? 1U : 0U, cartesian_per_part);
+    RCLCPP_INFO(
+      node_->get_logger(), "%sMTC规划检查已返回: elapsed=%.3fs success=%s",
+      tctx().c_str(), std::chrono::duration<double>(
+        std::chrono::steady_clock::now() - plan_started).count(),
+      output.success ? "true" : "false");
     if (cancel_generation_.load() != generation) {
       output.success = false;
       output.retry_forbidden = true;
@@ -1500,7 +1526,13 @@ GraspTaskResult GraspTask::planAndMaybeExecute(
       static_cast<void>(active_task_.release());
       task_abandoned_ = false;
     } else {
+      const auto reset_started = std::chrono::steady_clock::now();
+      RCLCPP_DEBUG(node_->get_logger(), "%sMTC任务开始释放", tctx().c_str());
       active_task_.reset();
+      RCLCPP_INFO(
+        node_->get_logger(), "%sMTC任务已释放: elapsed=%.3fs",
+        tctx().c_str(), std::chrono::duration<double>(
+          std::chrono::steady_clock::now() - reset_started).count());
     }
   }
   return output;

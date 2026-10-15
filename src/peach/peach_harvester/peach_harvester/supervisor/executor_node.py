@@ -23,6 +23,7 @@ from peach_interfaces.action import (
 from peach_interfaces.msg import (
     CanonicalEvent,
     Enables,
+    FailureCode,
     GraspDecision,
     HarvestState,
     PeachTargetObservationArray,
@@ -98,6 +99,20 @@ from ..cycle_core.batch_policy import (
     TargetDeadline,
 )
 from ..cycle_core.view_policy import ViewSignals
+
+
+def _failed_build_reason(future) -> str | None:
+    """只读取已终结Build的明确失败，不把尚未完成当作拒绝."""
+    if future is None or not future.done():
+        return None
+    try:
+        wrapped = future.result()
+        result = getattr(wrapped, 'result', wrapped)
+        if bool(getattr(result, 'success', False)) and int(getattr(wrapped, 'status', 4)) == 4:
+            return None
+        return str(getattr(result, 'message', '') or 'build_failed')
+    except Exception as exc:  # noqa: BLE001
+        return f'build_result_error: {exc}'
 
 
 class TaskExecutorNode(LifecycleNode):
@@ -1542,9 +1557,12 @@ class TaskExecutorNode(LifecycleNode):
         full.config_revision = str(self._last_config_revision or '')
         full.plan_id = str(self._cycle_plan_id or '')
         full.generation = int(self._action_generation)
+        build_handle = getattr(self, '_in_flight_build_handle', None)
+        build_future = build_handle.get_result_async() if build_handle is not None else None
         executed = self._send_action(
             self._exec, full, timeout, feedback=True,
-            goal_handle=self._run_goal_handle)
+            goal_handle=self._run_goal_handle, prerequisite_future=build_future)
+        build_failure = _failed_build_reason(build_future)
         operator_skip = self._take_skip()
         outcome = TargetOutcome()
         outcome.target_id = target_id
@@ -1585,6 +1603,11 @@ class TaskExecutorNode(LifecycleNode):
                 # 读-改-写须持锁，否则可能把已 ACK 的恢复门写回 True。
                 self._recovery_required = self._recovery_required or bool(
                     getattr(executed, 'recovery_required', False))
+        if build_failure and not operator_skip:
+            outcome.outcome = TargetOutcome.SKIPPED_QUALITY
+            outcome.reason = f'build_failed: {build_failure}'
+            extra['failure_code'] = 'build_failed'
+            extra['failure_code_n'] = FailureCode.BUILD_FAILED
         started = self._cycle_dispatch_t0 or t0
         set_elapsed(outcome, time.monotonic() - started)
         # 变体A（批次6）：并行 Build 句柄收口——FULL 结果已落，Build 无论
@@ -1997,7 +2020,7 @@ class TaskExecutorNode(LifecycleNode):
     def _wait_result(
             self, handle, timeout_s: float,
             interrupt_on_pause: bool = False, goal_handle=None,
-            want_status: bool = False):
+            want_status: bool = False, prerequisite_future=None):
         """等动作结果；可轮询 RunHarvest goal 的取消请求及时止损."""
         if handle is None:
             # 早退路径与正常收口同样清旗标，避免 HarvestState.action_active
@@ -2012,7 +2035,16 @@ class TaskExecutorNode(LifecycleNode):
             """Optionally pair the action result with GoalStatus."""
             return (result, status) if want_status else result
 
+        prerequisite_checked = False
         while not result_fut.done():
+            if (not prerequisite_checked and prerequisite_future is not None
+                    and prerequisite_future.done()):
+                prerequisite_checked = True
+                build_failure = _failed_build_reason(prerequisite_future)
+                if build_failure:
+                    self.get_logger().warning(f'并行Build质量拒绝，取消等待中的FULL: {build_failure}')
+                    self._cancel_handle(handle)
+                    deadline = min(deadline, time.monotonic() + 10.0)
             if time.monotonic() >= deadline:
                 self.get_logger().warning('action result timeout')
                 self._cancel_handle(handle)
@@ -2039,8 +2071,11 @@ class TaskExecutorNode(LifecycleNode):
     def _send_action(self, client, goal_msg, timeout_s: float,
                      feedback: bool = False, interrupt_on_pause: bool = False,
                      goal_handle=None, want_status: bool = False,
-                     feedback_cb=None):
+                     feedback_cb=None, prerequisite_future=None):
         """一站式动作调用：_send_goal + _wait_result + 清 in-flight."""
+        if _failed_build_reason(prerequisite_future):
+            self._action_active = False
+            return (None, 0) if want_status else None
         handle = self._send_goal(
             client, goal_msg, timeout_s, feedback=feedback,
             feedback_cb=feedback_cb)
@@ -2048,7 +2083,8 @@ class TaskExecutorNode(LifecycleNode):
             self._in_flight.append(handle)
         result = self._wait_result(
             handle, timeout_s, interrupt_on_pause=interrupt_on_pause,
-            goal_handle=goal_handle, want_status=want_status)
+            goal_handle=goal_handle, want_status=want_status,
+            prerequisite_future=prerequisite_future)
         self._forget_handle(handle)
         return result
 

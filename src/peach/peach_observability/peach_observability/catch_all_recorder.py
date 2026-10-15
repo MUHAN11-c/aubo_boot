@@ -5,15 +5,15 @@
 设计（09-17 用户口径"整个 peach 过程全量录制，便于仿真复现与问题分析"）：
 - 不枚举话题——activate 后周期扫描 `get_topic_names_and_types()`，新话题
   自动建 bag 专用订阅（消息类型运行期 import），删掉话题不再重订。
-- 大流护栏：camera raw 图像/点云（/camera/ 前缀 + image/points/depth）在
-  `level=std` 档限 1Hz（首帧必录 + 周期限速）；`level=all` 不限速（真全量，
-  stereo 13.4fps 约 50MB/s，100GB 预算约 30+ 分钟，超预算靠既有 retention 回收）。
+- 大流护栏：`level=std`（默认）只订阅关键话题：关节、TF、已下发轨迹、
+  调度/重建结果。感知图和点云仍由 Recorder 只在结果关键段进袋。
+  不订阅相机原流、控制器统计、即时检测图和单帧点云。
+  `level=all` 仍录域内全部话题（真全量，约 50MB/s）。
 - 排除：/rosout（专用订阅已录）、/parameter_events（噪声）。
 """
 from __future__ import annotations
 
 import threading
-import time
 
 from rclpy.qos import (
     DurabilityPolicy,
@@ -24,6 +24,33 @@ from rclpy.qos import (
 
 EXCLUDE_TOPICS = {'/rosout', '/parameter_events', '/clock'}
 RAW_PATTERNS = ('/image_raw', '/image_rect', '/points', '/depth', '/ir')
+# 默认档只订这些。相机原流、控制器统计和重复点云不进袋。
+STD_KEEP = (
+    '/joint_states',
+    '/tf',
+    'follow_joint_trajectory',
+    'execute_trajectory',
+    '/display_planned_path',
+    '/peach/observability/tcp_path',
+    '/peach_arm/execute_target',
+    '/peach_arm/status',
+    '/peach_supervisor/state',
+    '/peach_supervisor/events',
+    '/peach_supervisor/run_harvest',
+    '/peach_supervisor/scene_snapshot',
+    '/peach/reconstruction/grasp_decision',
+    '/peach/reconstruction/refined_',
+    '/peach/reconstruction/status',
+    '/peach/reconstruction/diagnostics',
+    '/peach/reconstruction/preview_cloud',
+    '/peach/reconstruction/tsdf_cloud',
+    '/peach/reconstruction/local_cloud',
+    '/peach/perception/debug_image',
+    '/peach/perception/masks',
+    '/peach/perception/target_observations',
+    '/peach/batch/enables',
+    '/peach_target_reconstruction_node/build_target_model',
+)
 SCAN_PERIOD_S = 2.0
 
 
@@ -41,6 +68,15 @@ def _is_raw_camera(topic: str) -> bool:
         p in topic for p in RAW_PATTERNS)
 
 
+def _std_keep(topic: str) -> bool:
+    """默认档白名单。即时检测图和单帧点云即使名字包含保留片段也不订."""
+    if topic.endswith('debug_image_raw') or topic.endswith('/single_cloud'):
+        return False
+    if 'statistics' in topic or 'introspection' in topic:
+        return False
+    return any(part in topic for part in STD_KEEP)
+
+
 class CatchAllRecorder:
     """通配话题发现 → bag 专用订阅（线程安全，activate 期启动）."""
 
@@ -51,7 +87,6 @@ class CatchAllRecorder:
         self._level = level
         self._subs = []
         self._recorded = set()
-        self._last_raw_ts: dict[str, float] = {}
         self._timer = None
         self._lock = threading.Lock()
 
@@ -73,7 +108,6 @@ class CatchAllRecorder:
         with self._lock:
             subs, self._subs = self._subs, []
             self._recorded.clear()
-            self._last_raw_ts.clear()
         for sub in subs:
             self._node.destroy_subscription(sub)
 
@@ -83,6 +117,10 @@ class CatchAllRecorder:
             return False
         if self._level == 'core':
             return False
+        if self._level != 'all':
+            if _is_raw_camera(topic):
+                return False
+            return _std_keep(topic)
         return True
 
     def _scan(self) -> None:
@@ -129,11 +167,6 @@ class CatchAllRecorder:
         def callback(message) -> None:
             if self._recorder is None:
                 return
-            if self._level != 'all' and _is_raw_camera(topic):
-                now = time.monotonic()
-                if now - self._last_raw_ts.get(topic, 0.0) < 1.0:
-                    return  # std 档：相机 raw 大流限 1Hz（首帧必录）
-                self._last_raw_ts[topic] = now
             try:
                 self._recorder.handle_raw(topic, message)
             except Exception as error:  # noqa: BLE001 录制失败不拖垮订阅

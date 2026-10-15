@@ -1,14 +1,14 @@
 // console/viz.js — 常用可视化内容实时渲染（RViz2 风格 Displays + 工具栏）
 //
-// 参考 RViz2 的 Displays 面板（每显示项：启用开关 / 话题选择 / 状态 / 属性）与
-// 工具栏（测距、Publish Point、视角保存恢复），rqt 的多插件观测思路：
-//   3D：Grid、TF（轴+名签可开关）、PointCloud2（点大小属性）、LaserScan 3D 投影、
-//       Marker(SPHERE_LIST/CUBE/TEXT)、Path、PoseArray/PoseStamped
-//   2D：Image(mono8/rgb8/bgr8)、LaserScan 扇形、JointState 条
-//   工具：测距（两点击）、发布点（发布 PointStamped，走 clientPublish 链路）、
-//         视角保存/恢复（localStorage）+ 预设机位；ROS Time（各流 header 最新）
-// 渲染优化：three 脏标记 RAF；图像/激光节流 100ms；点云 BufferGeometry 复用。
-// 快照 window.__rwl_viz_stats()；显示配置持久化 localStorage('rwl-viz-cfg-v2')。
+// 参考 RViz2 的 Displays 面板（可增删的显示项实例：启用/话题/属性 + Global Options：
+// Fixed Frame/背景色/跟随帧）与工具栏（测距、Publish Point、2D Goal Pose、
+// 2D 初始位姿、视角保存恢复 + 跟随相机 + 键盘快捷键），rqt 的多插件观测思路：
+//   3D：Grid、TF（轴+名签）、PointCloud2/LaserScan/OccupancyGrid（地图/代价地图
+//       双样式多实例叠层——官方 nav2 /map + /global_costmap + /local_costmap）、
+//       Marker、Path、PoseArray、Odometry(轨迹)、Range、Wrench、协方差位姿
+//   2D：Image(mono8/rgb8/bgr8，缩放/平移/overlay)、LaserScan 扇形、JointState 条
+// 渲染优化：three 脏标记 RAF；图像/激光节流 100ms。
+// 快照 window.__rwl_viz_stats()；显示配置持久化 localStorage('rwl-viz-cfg-v4')。
 
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
@@ -19,11 +19,18 @@ import { emitCommand, onCommand } from './bus.js';
 import { TeachController } from './teach.js';
 import { foxgloveTfTree, lookupLatest } from '../view3d/tf_buffer.js';
 import { parsePointCloud2 } from '../view3d/pointcloud_parse.js';
-import { covarianceEllipse, createJointMotion, createOdomTrail } from './viz_core.js';
+import { covarianceEllipse, createJointMotion, createOdomTrail,
+  mapGridPixel, costmapPixel } from './viz_core.js';
 
 const $ = (id) => document.getElementById(id);
 const MAX_POINTS = 4096;
-const CFG_KEY = 'rwl-viz-cfg-v2';
+const CFG_KEY = 'rwl-viz-cfg-v4';
+const LAYOUTS_KEY = 'rwl-layouts-v1';
+
+// 显示类型注册表/默认实例/迁移逻辑在 viz_core.js（纯核，vitest 可测）；
+// 此处仅导入使用并 re-export（app.js 添加下拉依赖）。
+import { DISPLAY_TYPES, makeInstance, migrateCfg } from './viz_core.js';
+export { DISPLAY_TYPES };
 
 function makeTextSprite(text, color = '#8b93a7', size = 42) {
   const c = document.createElement('canvas');
@@ -41,30 +48,34 @@ function makeTextSprite(text, color = '#8b93a7', size = 42) {
   return sp;
 }
 
-/** 默认 Displays 配置（localStorage 覆盖） */
+/** 默认 Displays 配置（localStorage 覆盖；官方数据面 sim_demo.launch.py） */
 function defaultCfg() {
   return {
     grid: { on: true },
     robot: { on: true, topic: '/robot_description', ghost: false },
-    map: { on: false, topic: '/map' },
+    map: { on: true, topic: '/map' },
     tf: { on: true, labels: true, topic: '/tf' },
-    cloud: { on: true, topic: '/rwl_viz/points', size: 0.035 },
-    scan3d: { on: true, topic: '/rwl_viz/scan' },
-    markers: { on: true, topic: '/rwl_viz/markers' },
-    path: { on: true, topic: '/rwl_viz/path' },
-    poses: { on: true, topic: '/rwl_viz/pose_array' },
-    odom: { on: true, topic: '/rwl_viz/odom', trail: true },
-    range: { on: true, topic: '/rwl_viz/range' },
-    wrench: { on: true, topic: '/rwl_viz/wrench', scale: 0.2 },
-    posecov: { on: true, topic: '/rwl_viz/pose_cov' },
-    image: { on: true, topic: '/rwl_viz/image' },
-    imagec: { on: false, topic: '/rwl_viz/image_compressed' },
+    // ros2/examples 官方点云示例（sim_demo 栈）
+    cloud: { on: true, topic: '/test_cloud', size: 0.035 },
+    scan3d: { on: true, topic: '/scan' },
+    // 官方栈无 marker/range/wrench 数据源：默认关，topic 留空可手填
+    markers: { on: false, topic: '' },
+    path: { on: true, topic: '/plan' },
+    poses: { on: true, topic: '/particle_cloud' },
+    odom: { on: true, topic: '/odom', trail: true },
+    range: { on: false, topic: '' },
+    wrench: { on: false, topic: '', scale: 0.2 },
+    posecov: { on: true, topic: '/amcl_pose' },
+    image: { on: true, topic: '/camera/image_raw' },
+    imagec: { on: false, topic: '/camera/image_raw/compressed' },
   };
 }
 
 class VizPanel {
   constructor() {
-    this.cfg = { ...defaultCfg(), ...JSON.parse(localStorage.getItem(CFG_KEY) || '{}') };
+    let raw = null;
+    try { raw = JSON.parse(localStorage.getItem(CFG_KEY) || 'null'); } catch (_) { /* 坏档 */ }
+    this.cfg = migrateCfg(raw);
     this.stats = {
       connectedAt: null, rosTimeNs: null,
       fps: null, objectCount: null,
@@ -88,14 +99,19 @@ class VizPanel {
       tool: null, lastMeasure: null, lastPublishPoint: null, lastGoalPose: null,
       lastInitialPose: null,
     };
-    this._handles = {};          // displayKey → 订阅句柄
-    this._msgs = {};             // displayKey → 计数
+    this._handles = {};          // 实例 id → 订阅句柄
+    this._msgs = {};             // 实例 id → 计数
+    this._instGroups = new Map(); // 实例 id → THREE.Group（_rosFrame 内）
+    this._instState = new Map(); // 实例 id → 渲染状态（点云缓冲/轨迹/网格面）
+    this._instSeq = 0;           // 实例 id 序号（避免弱随机）
+    // 布局静态方法的实例绑定（app.js 经面板实例调用）
+    this.listLayouts = VizPanel.listLayouts;
+    this.saveLayout = (name, snap) => VizPanel.saveLayout(name, snap);
+    this.deleteLayout = (name) => VizPanel.deleteLayout(name);
     this._dirty = true;
     this._started = false;
     this._tool = null;           // null | 'measure' | 'point' | 'goal' | 'poseest'
     this._measurePts = [];
-    // 里程计轨迹（0.1m 位移阈值 + 100 点环形上限，RVIZ-RQT Scene3D:1807-1817）
-    this._odomTrail = createOdomTrail(100, 0.1);
     // 关节预设缓动（moveToAtoms 语义：easeInOutCubic；viz_core 纯核）
     this._motion = createJointMotion();
     this._motionStart = 0;
@@ -164,15 +180,11 @@ class VizPanel {
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
     this.groups = {
-      tf: new THREE.Group(), robot: new THREE.Group(), cloud: new THREE.Group(),
-      scan: new THREE.Group(), markers: new THREE.Group(), path: new THREE.Group(),
-      poses: new THREE.Group(), map: new THREE.Group(), tools: new THREE.Group(),
-      odom: new THREE.Group(), range: new THREE.Group(), wrench: new THREE.Group(),
-      posecov: new THREE.Group(),
+      tf: new THREE.Group(), robot: new THREE.Group(), tools: new THREE.Group(),
     };
     // 统一 ROS Z-up 世界：TF 轴（_tfFrame）与 URDF（_robotFrame）各自已有 Z-up 容器，
-    // 数据组（cloud/scan/markers/path/poses/map）共享 _rosFrame——消息里的 ROS 坐标
-    // 直接写入组内，header.frame_id → root 的 TF 变换落在组上（RViz 语义）。
+    // 数据组按显示实例各建一个（_instGroups，加进 _rosFrame）——消息里的 ROS 坐标
+    // 直接写入组内，header.frame_id → fixed frame 的 TF 变换落在组上（RViz 语义）。
     // tools 组除外（测距/发布点是 three 场景坐标交互产物）
     this._tfFrame = new THREE.Group();
     this._tfFrame.rotation.x = -Math.PI / 2;
@@ -180,10 +192,6 @@ class VizPanel {
     this._rosFrame = new THREE.Group();
     this._rosFrame.rotation.x = -Math.PI / 2;
     scene.add(this._rosFrame);
-    for (const key of ['cloud', 'scan', 'markers', 'path', 'poses', 'map',
-      'odom', 'range', 'wrench', 'posecov']) {
-      this._rosFrame.add(this.groups[key]);
-    }
     this._tfRootFrame = null;   // TF 树根帧（每次 TF 更新重解析）
     this._urdfLoader = new URDFLoaderDefault();
     // mesh 解析链（对齐 dashboard urdf_island / Rebot-Arm server 的 /api/meshes 模式）：
@@ -214,24 +222,6 @@ class VizPanel {
     this._urdfText = null;
     Object.values(this.groups).forEach((g) => scene.add(g));
     this._tfObjects = new Map();
-
-    const posArr = new Float32Array(MAX_POINTS * 3);
-    const geo = new THREE.BufferGeometry();
-    geo.setAttribute('position', new THREE.BufferAttribute(posArr, 3));
-    geo.setDrawRange(0, 0);
-    this._cloudPos = posArr;
-    this.cloudPoints = new THREE.Points(geo,
-      new THREE.PointsMaterial({ color: 0x4f8cff, size: this.cfg.cloud.size }));
-    this.groups.cloud.add(this.cloudPoints);
-
-    // 3D 激光：预分配（扇形最大 720 波束）
-    this._scanPos = new Float32Array(720 * 3);
-    const sgeo = new THREE.BufferGeometry();
-    sgeo.setAttribute('position', new THREE.BufferAttribute(this._scanPos, 3));
-    sgeo.setDrawRange(0, 0);
-    this.scanPoints = new THREE.Points(sgeo,
-      new THREE.PointsMaterial({ color: 0x2ecc71, size: 0.03 }));
-    this.groups.scan.add(this.scanPoints);
 
     this.renderer = renderer;
     this.scene = scene;
@@ -344,21 +334,29 @@ class VizPanel {
       }
       this._lastTick = now;
       controls.update();
+      this._followStep();
       this._stepMotion(now);
       if (!this._dirty) return;
       this._dirty = false;
       renderer.render(scene, camera);
     };
     loop();
-    // HUD：FPS + 场景对象数（1s 节流，scene.traverse 计数）
+    // HUD：FPS + 场景对象数/顶点数（1s 节流，scene.traverse 计数）
     setInterval(() => {
       let objs = 0;
-      scene.traverse(() => { objs++; });
+      let verts = 0;
+      scene.traverse((o) => {
+        objs++;
+        const n = o.geometry?.attributes?.position?.count;
+        if (n) verts += n;
+      });
       this.stats.objectCount = objs;
+      this.stats.vertexCount = verts;
       this.stats.fps = this._fpsEma == null ? null : Math.round(this._fpsEma);
-      const f = $('hud-fps'), o = $('hud-objs');
+      const f = $('hud-fps'), o = $('hud-objs'), v = $('hud-verts');
       if (f) f.textContent = this.stats.fps ?? '—';
       if (o) o.textContent = objs;
+      if (v) v.textContent = verts > 1000 ? (verts / 1000).toFixed(1) + 'k' : verts;
     }, 1000);
   }
 
@@ -367,6 +365,66 @@ class VizPanel {
     this._scanCtx = $('viz-scan').getContext('2d');
     this._imgLastDraw = 0;
     this._scanLastDraw = 0;
+    // 图像查看器（rqt_image_view/Foxglove Image 语义）：滚轮缩放 + 拖拽平移
+    this._imgView = { scale: 1, ox: 0, oy: 0 };
+    this._imgOff = document.createElement('canvas');
+    const cv = $('viz-image');
+    cv.addEventListener('wheel', (e) => {
+      e.preventDefault();
+      const v = this._imgView;
+      const k = e.deltaY < 0 ? 1.15 : 1 / 1.15;
+      v.scale = Math.min(12, Math.max(1, v.scale * k));
+      v.scale = Math.round(v.scale * 100) / 100;
+      if (v.scale === 1) { v.ox = 0; v.oy = 0; }
+      this._redrawImage();
+    }, { passive: false });
+    let drag = null;
+    cv.addEventListener('pointerdown', (e) => {
+      if (this._imgView.scale <= 1) return;
+      drag = { x: e.clientX, y: e.clientY, ox: this._imgView.ox, oy: this._imgView.oy };
+      cv.setPointerCapture(e.pointerId);
+    });
+    cv.addEventListener('pointermove', (e) => {
+      if (!drag) return;
+      this._imgView.ox = drag.ox + (e.clientX - drag.x);
+      this._imgView.oy = drag.oy + (e.clientY - drag.y);
+      this._redrawImage();
+    });
+    cv.addEventListener('pointerup', () => { drag = null; });
+    const fit = () => { this._imgView = { scale: 1, ox: 0, oy: 0 }; this._redrawImage(); };
+    $('img-fit')?.addEventListener('click', fit);
+    $('img-1x')?.addEventListener('click', () => {
+      this._imgView.scale = 1; this._imgView.ox = 0; this._imgView.oy = 0;
+      this._redrawImage();
+    });
+  }
+
+  /** 图像重绘（缩放/平移变换 + HUD overlay：分辨率/编码/fps/stamp 时延） */
+  _redrawImage() {
+    const cv = $('viz-image');
+    const ctx = this._imgCtx;
+    const { scale, ox, oy } = this._imgView;
+    const v = this._imgView;
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.fillStyle = '#0c0e12';
+    ctx.fillRect(0, 0, cv.width, cv.height);
+    if (!this._imgOff.width) return;
+    ctx.save();
+    ctx.translate(cv.width / 2 + v.ox, cv.height / 2 + v.oy);
+    ctx.scale(scale, scale);
+    ctx.drawImage(this._imgOff, -cv.width / 2, -cv.height / 2);
+    ctx.restore();
+    const i = this.stats.image;
+    const age = this.stats.rosTimeNs && i.stampNs
+      ? Math.max(0, Math.round((this.stats.rosTimeNs - i.stampNs) / 1e6)) : null;
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.fillStyle = 'rgba(12,14,18,.62)';
+    ctx.fillRect(4, 4, Math.min(cv.width - 8, 190), 18);
+    ctx.fillStyle = '#d7dee8';
+    ctx.font = '11px ui-monospace, monospace';
+    ctx.fillText(
+      `${i.w}×${i.h} ${i.enc} · ${i.fps ?? '—'}fps` + (age != null ? ` · Δ${age}ms` : '')
+      + (scale > 1 ? ` · ${scale}×` : ''), 8, 17);
   }
 
   // ── 工具栏（RViz 风格） ─────────────────────────────────────────────────
@@ -374,32 +432,16 @@ class VizPanel {
   _initToolbar() {
     document.querySelectorAll('[data-tool]').forEach((b) => {
       b.addEventListener('click', () => {
-        const t = b.dataset.tool;
-        this._tool = this._tool === t ? null : t;
-        this.stats.tool = this._tool;
-        document.querySelectorAll('[data-tool]').forEach((x) =>
-          x.classList.toggle('active', x.dataset.tool === this._tool));
-        $('hud-tool').textContent = this._tool === 'measure'
-          ? '测距：在 3D 中点击两个点'
-          : this._tool === 'point' ? '发布点：在 3D 中点击一个点'
-          : this._tool === 'goal' ? '2D Goal Pose：按下拖拽定航向，松开发布 /goal_pose'
-          : this._tool === 'poseest' ? '2D 初始位姿：按下拖拽定航向，松开发布 /initialpose'
-          : '';
-        if (!this._tool) this._clearTools();
+        this._setTool(this._tool === b.dataset.tool ? null : b.dataset.tool);
       });
     });
-    const VIEWS = {
+    this.VIEWS = {
       iso: { p: [3.0, 2.4, 3.2], t: [0.4, 0.4, 0] },
       top: { p: [0.5, 6.5, 0.01], t: [0.5, 0, 0] },
       side: { p: [0.5, 0.8, 5.5], t: [0.5, 0.5, 0] },
     };
-    const applyView = (v) => {
-      this.camera.position.set(...v.p);
-      this.controls.target.set(...v.t);
-      this._dirty = true;
-    };
     document.querySelectorAll('[data-view]').forEach((b) => {
-      b.addEventListener('click', () => applyView(VIEWS[b.dataset.view]));
+      b.addEventListener('click', () => this._applyView(b.dataset.view));
     });
     $('btn-view-save').addEventListener('click', () => {
       localStorage.setItem('rwl-viz-view', JSON.stringify({
@@ -408,8 +450,83 @@ class VizPanel {
     });
     $('btn-view-restore').addEventListener('click', () => {
       const v = JSON.parse(localStorage.getItem('rwl-viz-view') || 'null');
-      if (v) applyView({ p: v.p, t: v.t });
+      if (v) {
+        this.camera.position.fromArray(v.p);
+        this.controls.target.fromArray(v.t);
+        this._dirty = true;
+      }
     });
+    this._initShortcuts();
+  }
+
+  _setTool(t) {
+    this._tool = this._tool === t ? null : t;
+    this.stats.tool = this._tool;
+    document.querySelectorAll('[data-tool]').forEach((x) =>
+      x.classList.toggle('active', x.dataset.tool === this._tool));
+    $('hud-tool').textContent = this._tool === 'measure'
+      ? '测距：在 3D 中点击两个点（M）'
+      : this._tool === 'point' ? '发布点：在 3D 中点击一个点'
+      : this._tool === 'goal' ? '2D Goal Pose：按下拖拽定航向，松开发布 /goal_pose'
+      : this._tool === 'poseest' ? '2D 初始位姿：按下拖拽定航向，松开发布 /initialpose'
+      : '';
+    if (!this._tool) this._clearTools();
+  }
+
+  _applyView(name) {
+    const v = this.VIEWS[name];
+    if (!v) return;
+    this.camera.position.set(...v.p);
+    this.controls.target.set(...v.t);
+    this._dirty = true;
+  }
+
+  /** 键盘快捷键（输入控件聚焦时忽略）——RViz/Foxglove 常用键位 */
+  _initShortcuts() {
+    window.addEventListener('keydown', (e) => {
+      const tag = e.target?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT'
+        || e.target?.isContentEditable || e.metaKey || e.ctrlKey || e.altKey) return;
+      switch (e.key.toLowerCase()) {
+        case 'f':
+          this._fitCameraToRobot();
+          $('hud-tool').textContent = '已适配机器人视角（F）';
+          break;
+        case 'g': {
+          const gi = this._inst('grid');
+          if (gi) { gi.on = !gi.on; this._persistCfg(); this._applyDisplayCfg(gi.id);
+            this._renderDisplaysPanel(); }
+          break;
+        }
+        case '1': this._applyView('iso'); break;
+        case '2': this._applyView('top'); break;
+        case '3': this._applyView('side'); break;
+        case 'm': this._setTool(this._tool === 'measure' ? null : 'measure'); break;
+        case 'escape':
+          this._setTool(null);
+          if (document.fullscreenElement) document.exitFullscreen?.();
+          break;
+        default:
+          return;
+      }
+      e.preventDefault();
+    });
+  }
+
+  /** 跟随相机（Foxglove 语义）：target 随 TF 帧位移，相机保持相对偏移 */
+  _followStep() {
+    const f = this.cfg.global?.follow;
+    if (!f) return;
+    const tfm = this._tree ? lookupLatest(this._tree, f, this._fixedFrame()) : null;
+    if (!tfm) return;
+    // ROS(x,y,z) → 场景(x, z, -y)（_rosFrame 的 -90°x 容器约定）
+    const target = new THREE.Vector3(
+      Number(tfm.translation.x), Number(tfm.translation.z), -Number(tfm.translation.y));
+    const delta = target.sub(this.controls.target);
+    if (delta.lengthSq() < 1e-10) return;
+    this.controls.target.add(delta);
+    this.camera.position.add(delta);
+    this._dirty = true;
   }
 
   _clearTools() {
@@ -417,16 +534,43 @@ class VizPanel {
     this._measurePts = [];
   }
 
-  /** 工具发布坐标系：TF 树根（RViz fixed-frame 语义；Nav2 场景=map），缺省 rwl_viz */
+  // ── 实例/全局配置辅助 ───────────────────────────────────────────────────
+
+  _inst(id) {
+    return this.cfg.instances.find((i) => i.id === id);
+  }
+
+  _persistCfg() {
+    try { localStorage.setItem(CFG_KEY, JSON.stringify(this.cfg)); } catch (_) {}
+  }
+
+  /** 实例的 3D 组（懒建，挂 _rosFrame；RViz 每显示项独立变换） */
+  _groupOf(id) {
+    let g = this._instGroups.get(id);
+    if (!g) {
+      g = new THREE.Group();
+      this._instGroups.set(id, g);
+      this._rosFrame.add(g);
+    }
+    return g;
+  }
+
+  /** 实例渲染状态（点云缓冲/轨迹/网格面等跨消息复用物） */
+  _stateFor(id, init) {
+    if (!this._instState.has(id)) this._instState.set(id, init ? init() : {});
+    return this._instState.get(id);
+  }
+
+  /** 工具发布坐标系：Global Fixed Frame（RViz 语义；空=TF 树根，Nav2 场景=map） */
   _fixedFrame() {
-    return this._tfRoot() || 'rwl_viz';
+    return this.cfg.global?.fixedFrame || this._tfRoot() || 'map';
   }
 
   _onToolClick(pt) {
     if (this._tool === 'point') {
-      // Publish Point（RViz 工具语义）：发布 PointStamped + 场景闪现标记
+      // Publish Point（RViz 工具语义，官方 /clicked_point）：发布 PointStamped + 场景闪现标记
       //（点击发生在 y=0 地面：ROS x = scene x，ROS y = -scene z）
-      const ok = this._client.publish('/rwl_viz/clicked_point',
+      const ok = this._client.publish('/clicked_point',
         'geometry_msgs/msg/PointStamped', {
           header: { frame_id: this._fixedFrame() },
           point: { x: pt.x, y: -pt.z, z: 0 },
@@ -465,120 +609,273 @@ class VizPanel {
     this._dirty = true;
   }
 
-  // ── Displays 面板（RViz 风格） ──────────────────────────────────────────
+  // ── Displays 面板（RViz 风格：实例表 + Global Options） ─────────────────
 
   _renderDisplaysPanel() {
-    const rows = [
-      ['grid', '网格 Grid', null, []],
-      ['robot', 'RobotModel URDF', null, [['ghost', '幽灵']]],
-      ['map', '地图 OccupancyGrid', this.cfg.map.topic, []],
-      ['tf', 'TF 坐标轴', null, [['labels', '名签']]],
-      ['cloud', '点云 PointCloud2', this.cfg.cloud.topic, [['size', '点大小']]],
-      ['scan3d', '激光 3D LaserScan', this.cfg.scan3d.topic, []],
-      ['markers', '标记 MarkerArray', this.cfg.markers.topic, []],
-      ['path', '路径 Path', this.cfg.path.topic, []],
-      ['poses', '位姿数组 PoseArray', this.cfg.poses.topic, []],
-      ['odom', '里程 Odometry', this.cfg.odom.topic, [['trail', '轨迹']]],
-      ['range', '测距 Range', this.cfg.range.topic, []],
-      ['wrench', '力/力矩 Wrench', this.cfg.wrench.topic, [['scale', '缩放']]],
-      ['posecov', '协方差位姿 PoseCov', this.cfg.posecov.topic, []],
-      ['image', '相机 Image', this.cfg.image.topic, []],
-      ['imagec', '压缩图 CompressedImage', this.cfg.imagec.topic, []],
-    ];
+    this._renderGlobalPanel();
     const tb = $('viz-displays').querySelector('tbody');
-    tb.innerHTML = rows.map(([key, name, topic, props]) => `
-      <tr data-display="${key}">
-        <td><input type="checkbox" data-cfg="on" ${this.cfg[key].on ? 'checked' : ''}></td>
-        <td>${name}</td>
-        <td>${topic === null
-          ? '<span style="color:var(--muted)">' + (key === 'tf' ? '/tf（固定）' : key === 'robot' ? '/robot_description（固定）' : '内置') + '</span>'
-          : `<input class="dtopic" list="rwl-topics" value="${this.cfg[key].topic}">`}</td>
-        <td class="props">${props.map(([p, label]) => p === 'size'
-          ? `<label class="mini">${label} <input type="range" min="0.01" max="0.12" step="0.005" data-cfg="size" value="${this.cfg.cloud.size}"></label>`
-          : p === 'scale'
-          ? `<label class="mini">${label} <input type="range" min="0.05" max="1" step="0.05" data-cfg="scale" value="${this.cfg.wrench.scale}"></label>`
-          : `<label class="mini"><input type="checkbox" data-cfg="${p}" ${this.cfg[key][p] ? 'checked' : ''}>${label}</label>`).join('')}</td>
-        <td class="dst" id="viz-st-${key}">—</td>
-      </tr>`).join('');
+    tb.innerHTML = this.cfg.instances.map((inst) => {
+      const spec = DISPLAY_TYPES[inst.type] || {};
+      const topicCell = spec.singleton
+        ? `<span style="color:var(--muted)">${inst.topic || '内置'}</span>`
+        : `<input class="dtopic" list="rwl-topics" value="${inst.topic || ''}">`;
+      const props = (spec.props || []).map(([p, label]) => {
+        if (p === 'size') {
+          return `<label class="mini">${label} <input type="range" min="0.01" max="0.12" step="0.005" data-prop="size" value="${inst.size ?? 0.035}"></label>`;
+        }
+        if (p === 'scale') {
+          return `<label class="mini">${label} <input type="range" min="0.05" max="1" step="0.05" data-prop="scale" value="${inst.scale ?? 0.2}"></label>`;
+        }
+        if (p === 'opacity') {
+          return `<label class="mini">${label} <input type="range" min="0.1" max="1" step="0.05" data-prop="opacity" value="${inst.opacity ?? 0.8}"></label>`;
+        }
+        if (p === 'trailLen') {
+          return `<label class="mini">${label} <input type="number" min="20" max="2000" step="20" data-prop="trailLen" value="${inst.trailLen ?? 300}" style="width:64px"></label>`;
+        }
+        return `<label class="mini"><input type="checkbox" data-prop="${p}" ${inst[p] ? 'checked' : ''}>${label}</label>`;
+      }).join('');
+      const del = spec.singleton
+        ? ''
+        : `<button class="ghost" data-del="${inst.id}" title="删除显示项">✕</button>`;
+      return `
+      <tr data-display="${inst.id}">
+        <td><input type="checkbox" data-cfg="on" ${inst.on ? 'checked' : ''}></td>
+        <td>${inst.name || spec.label}<span class="mini" style="color:var(--muted)"> ${inst.type}</span></td>
+        <td>${topicCell}</td>
+        <td class="props">${props}</td>
+        <td class="dst" id="viz-st-${inst.id}">—</td>
+        <td>${del}</td>
+      </tr>`;
+    }).join('');
     tb.querySelectorAll('tr[data-display]').forEach((tr) => {
-      const key = tr.dataset.display;
+      const id = tr.dataset.display;
+      const inst = this._inst(id);
+      if (!inst) return;
       tr.querySelectorAll('[data-cfg]').forEach((el) => {
-        el.addEventListener(el.type === 'range' ? 'input' : 'change', () => {
-          const p = el.dataset.cfg;
-          this.cfg[key][p] = el.type === 'checkbox' ? el.checked : parseFloat(el.value);
-          localStorage.setItem(CFG_KEY, JSON.stringify(this.cfg));
-          this._applyDisplayCfg(key);
+        el.addEventListener('change', () => {
+          inst.on = el.checked;
+          this._persistCfg();
+          this._applyDisplayCfg(id);
         });
+      });
+      tr.querySelectorAll('[data-prop]').forEach((el) => {
+        const p = el.dataset.prop;
+        const apply = () => {
+          inst[p] = el.type === 'checkbox' ? el.checked : parseFloat(el.value);
+          this._persistCfg();
+          this._applyDisplayCfg(id);
+        };
+        el.addEventListener(el.type === 'checkbox' ? 'change' : 'input', apply);
       });
       const topicEl = tr.querySelector('.dtopic');
       if (topicEl) {
         topicEl.addEventListener('change', () => {
-          this.cfg[key].topic = topicEl.value.trim();
-          localStorage.setItem(CFG_KEY, JSON.stringify(this.cfg));
-          this._applyDisplayCfg(key);
+          inst.topic = topicEl.value.trim();
+          this._persistCfg();
+          this._applyDisplayCfg(id);
         });
       }
+      const del = tr.querySelector('[data-del]');
+      if (del) del.addEventListener('click', () => this._removeInstance(id));
     });
     // 话题候选（datalist）周期刷新自图谱
-    const refreshTopics = () => {
-      const chans = this._client?.player?.channels;
-      if (!chans) return;
-      $('rwl-topics').innerHTML = [...chans.keys()]
-        .map((t) => `<option value="${t}">`).join('');
-    };
-    setInterval(refreshTopics, 2000);
-    refreshTopics();
+    if (!this._topicsDatalistTimer) {
+      this._topicsDatalistTimer = setInterval(() => {
+        const chans = this._client?.player?.channels;
+        if (chans) {
+          $('rwl-topics').innerHTML = [...chans.keys()]
+            .map((t) => `<option value="${t}">`).join('');
+        }
+      }, 2000);
+    }
   }
 
-  _applyDisplayCfg(key) {
-    const c = this.cfg[key];
-    if (key === 'grid') { this.grid.visible = c.on; this._dirty = true; return; }
-    const g = this.groups[key === 'scan3d' ? 'scan' : key];
-    if (g) g.visible = c.on;
-    if (key === 'cloud' && c.size) this.cloudPoints.material.size = c.size;
-    if (key === 'robot' && this._ghostRobot) {
-      this._ghostRobot.visible = !!c.ghost;
+  /** Global Options（RViz 语义：Fixed Frame / 背景 / 跟随帧） */
+  _renderGlobalPanel() {
+    const box = $('viz-global');
+    if (!box) return;
+    const g = this.cfg.global;
+    const fx = this._fixedFrame();
+    box.innerHTML = `
+      <label class="mini">Fixed Frame
+        <select id="gopt-fixed"></select></label>
+      <label class="mini">背景
+        <input type="color" id="gopt-bg" value="${g.bg || '#eceef0'}"></label>
+      <label class="mini">跟随
+        <select id="gopt-follow"><option value="">（自由）</option></select></label>`;
+    $('gopt-fixed').addEventListener('change', (e) => {
+      this.cfg.global.fixedFrame = e.target.value;
+      this._persistCfg();
+      this._onFixedFrameChanged();
+    });
+    $('gopt-bg').addEventListener('input', (e) => {
+      this.cfg.global.bg = e.target.value;
+      this._persistCfg();
+      this.scene.background.set(e.target.value);
       this._dirty = true;
+    });
+    $('gopt-follow').addEventListener('change', (e) => {
+      this.cfg.global.follow = e.target.value;
+      this._persistCfg();
+    });
+    this._refreshGlobalFrames();
+    if (!this._framesTimer) {
+      this._framesTimer = setInterval(() => this._refreshGlobalFrames(), 3000);
     }
-    if (key === 'tf' && this._tfObjects.size) {
-      for (const obj of this._tfObjects.values()) obj.children[1].visible = c.labels;
+  }
+
+  /** 周期刷新 Fixed/跟随下拉的帧候选（TF 树连接后逐步长出；跳过焦点元素） */
+  _refreshGlobalFrames() {
+    const frames = ['map', 'odom'];
+    if (this._tree) {
+      for (const f of this._tree.frames().values()) {
+        if (!frames.includes(f.id)) frames.push(f.id);
+        if (frames.length > 14) break;
+      }
     }
-    this._subscribeDisplay(key, true);
+    const fill = (selId, cur) => {
+      const sel = $(selId);
+      if (!sel || document.activeElement === sel) return;
+      const vals = frames.includes(cur) ? frames : [cur, ...frames];
+      if (sel.options.length === vals.length
+        && [...sel.options].every((o, i) => o.value === vals[i])) return;
+      sel.innerHTML = vals.map((f) =>
+        `<option ${f === cur ? 'selected' : ''}>${f}</option>`).join('');
+    };
+    fill('gopt-fixed', this._fixedFrame());
+    fill('gopt-follow', this.cfg.global.follow || '');
+  }
+
+  /** Fixed Frame 变更：TF 重投影 + 各实例用最后一条消息重渲染（RViz 全局重摆语义） */
+  _onFixedFrameChanged() {
+    this._onTf();
+    for (const inst of this.cfg.instances) {
+      const st = this._instState.get(inst.id);
+      if (st?.lastMsg) {
+        const handler = this._handlerFor(inst);
+        if (handler) handler(st.lastMsg, inst);
+      }
+    }
     this._dirty = true;
   }
 
-  _subscribeDisplay(key, force = false) {
-    const c = this.cfg[key];
-    if (!this._client?.isConnected) return;
-    if (this._handles[key]) {
-      if (!force) return;
-      try { this._handles[key].cancel(); } catch (_) {}
-      this._handles[key] = null;
-    }
-    if (!c.on || !c.topic) return;
-    const handler = {
+  _handlerFor(c) {
+    return {
       robot: (m) => this._onRobotDescription(m.data),
-      map: (m) => this._onOccupancyGrid(m.data),
+      map: (m, cc) => this._renderGrid(cc, m.data, 'map'),
+      costmap: (m, cc) => this._renderGrid(cc, m.data, 'costmap'),
       tf: () => this._onTf(),
-      cloud: (m) => this._onCloud(m.data),
-      scan3d: (m) => { this._onScan(m.data); this._onScan3d(m.data); },
-      markers: (m) => this._onMarkers(m.data.markers || [m.data]),
-      path: (m) => this._onPath(m.data),
-      poses: (m) => this._onPoseArray(m.data),
-      odom: (m) => this._onOdom(m.data),
-      range: (m) => this._onRange(m.data),
-      wrench: (m) => this._onWrench(m.data),
-      posecov: (m) => this._onPoseCov(m.data),
+      cloud: (m, cc) => this._onCloud(m.data, cc),
+      scan3d: (m, cc) => { this._onScan(m.data); this._onScan3d(m.data, cc); },
+      marker: (m, cc) => this._onMarkers(m.data.markers || [m.data], cc),
+      path: (m, cc) => this._onPath(m.data, cc),
+      poses: (m, cc) => this._onPoseArray(m.data, cc),
+      odom: (m, cc) => this._onOdom(m.data, cc),
+      range: (m, cc) => this._onRange(m.data, cc),
+      wrench: (m, cc) => this._onWrench(m.data, cc),
+      posecov: (m, cc) => this._onPoseCov(m.data, cc),
       image: (m) => this._onImage(m.data),
       imagec: (m) => this._onCompressedImage(m.data),
-    }[key];
+    }[c.type];
+  }
+
+  /** 增加显示项实例（RViz Add Display）；返回实例或 null */
+  addInstance(type) {
+    const spec = DISPLAY_TYPES[type];
+    if (!spec || spec.singleton) return null;
+    const n = this.cfg.instances.filter((i) => i.type === type).length + 1;
+    const inst = makeInstance(
+      `${type}_${Date.now().toString(36)}_${this._instSeq++}`, type,
+      spec.label + (n > 1 ? ' ' + n : ''));
+    this.cfg.instances.push(inst);
+    this._persistCfg();
+    this._renderDisplaysPanel();
+    this._applyDisplayCfg(inst.id);
+    return inst;
+  }
+
+  _removeInstance(id) {
+    const inst = this._inst(id);
+    if (!inst || DISPLAY_TYPES[inst.type]?.singleton) return;
+    this.cfg.instances = this.cfg.instances.filter((i) => i.id !== id);
+    const h = this._handles[id];
+    if (h) { try { h.cancel(); } catch (_) {} delete this._handles[id]; }
+    const g = this._instGroups.get(id);
+    if (g) { VizPanel._clearGroup(g); g.removeFromParent(); this._instGroups.delete(id); }
+    this._instState.delete(id);
+    delete this._msgs[id];
+    this._persistCfg();
+    this._renderDisplaysPanel();
+    this._dirty = true;
+  }
+
+  /** 按消息类型启用/新增显示项（topics.js「一键可视化」入口） */
+  addOrEnable(type, topic) {
+    if (!DISPLAY_TYPES[type] || !topic) return false;
+    let inst = this.cfg.instances.find((i) => i.type === type && i.topic === topic);
+    if (!inst) {
+      inst = makeInstance(
+        `${type}_${Date.now().toString(36)}_${this._instSeq++}`, type,
+        DISPLAY_TYPES[type].label, { topic });
+      this.cfg.instances.push(inst);
+    }
+    inst.on = true;
+    this._persistCfg();
+    this._renderDisplaysPanel();
+    this._applyDisplayCfg(inst.id);
+    return true;
+  }
+
+  _applyDisplayCfg(id) {
+    const c = this._inst(id);
+    if (!c) return;
+    if (c.type === 'grid') { this.grid.visible = c.on; this._dirty = true; return; }
+    if (c.type !== 'image' && c.type !== 'imagec' && c.type !== 'robot') {
+      const g = this._groupOf(id);
+      g.visible = c.on;
+    }
+    if (c.type === 'cloud') {
+      const st = this._stateFor(c.id);
+      if (st.points) st.points.material.size = c.size || 0.035;
+    }
+    if ((c.type === 'map' || c.type === 'costmap')) {
+      const st = this._stateFor(c.id);
+      if (st.plane) st.plane.material.opacity = c.opacity ?? 0.8;
+    }
+    if (c.type === 'robot' && this._ghostRobot) {
+      this._ghostRobot.visible = !!c.ghost;
+      this._dirty = true;
+    }
+    if (c.type === 'tf' && this._tfObjects.size) {
+      for (const obj of this._tfObjects.values()) obj.children[1].visible = c.labels;
+    }
+    this._subscribeDisplay(id, true);
+    this._dirty = true;
+  }
+
+  _subscribeDisplay(id, force = false) {
+    const c = this._inst(id);
+    if (!c || !this._client?.isConnected) return;
+    if (this._handles[id]) {
+      if (!force) return;
+      try { this._handles[id].cancel(); } catch (_) {}
+      this._handles[id] = null;
+    }
+    if (!c.on || !c.topic) return;
+    const handler = this._handlerFor(c);
     if (!handler) return;
-    if (key === 'odom') this._odomTrail.clear();   // 换话题/重订时轨迹清零
-    this._msgs[key] = 0;
-    this._handles[key] = this._client.subscribe(c.topic, '', (m) => {
-      this._msgs[key]++;
+    if (c.type === 'odom') {
+      // 换话题/重订时轨迹清零（trailLen 属性一并生效）
+      this._stateFor(c.id, () => ({})).trail =
+        createOdomTrail(c.trailLen || 300, 0.1);
+    }
+    this._msgs[id] = 0;
+    this._handles[id] = this._client.subscribe(c.topic, '', (m) => {
+      this._msgs[id]++;
       this._stamp(m.data?.header);
-      handler(m);
+      const st = this._stateFor(c.id);
+      st.lastMsg = m;
+      handler(m, c);
     }, { dispatchMode: 'latest' });
   }
 
@@ -595,25 +892,28 @@ class VizPanel {
     if (this._started) return;
     this._started = true;
     this.stats.connectedAt = new Date().toISOString();
-    // JointState 固定流（关节条形图）+ PoseStamped（单箭头并入 poses 组，限量防堆积）
-    for (const jsTopic of ['/rwl_viz/joint_states', '/joint_states']) {
+    // JointState 固定流（关节条形图）+ PoseStamped（nav2 goal，并入 poses 组）
+    for (const jsTopic of ['/joint_states']) {
       this._client.subscribe(jsTopic, '', (m) => {
         this._stamp(m.data?.header);
         this._onJoints(m.data);
         this._onJointStatesForRobot(m.data);  // RobotModel 关节动画
       }, { dispatchMode: 'latest' });
     }
-    this._client.subscribe('/rwl_viz/pose', '', (m) => {
+    this._client.subscribe('/goal_pose', '', (m) => {
       this._stamp(m.data?.header);
-      if (this.groups.poses.children.length > 16) VizPanel._clearGroup(this.groups.poses);
+      const posesInst = this.cfg.instances.find((i) => i.type === 'poses')
+        || this.cfg.instances.find((i) => i.type === 'path');
+      const g = posesInst ? this._groupOf(posesInst.id) : this.groups.tools;
+      if (g.children.length > 16) VizPanel._clearGroup(g);
       const arrow = this._arrow(m.data.pose, 0xe74c3c);
       const frameTf = this._frameToRoot(m.data?.header?.frame_id);
       if (frameTf) arrow.applyMatrix4(frameTf);
-      this.groups.poses.add(arrow);
+      g.add(arrow);
       this._dirty = true;
     }, { dispatchMode: 'latest' });
-    for (const key of Object.keys(this.cfg)) {
-      if (key !== 'grid' && key !== 'tf') this._subscribeDisplay(key, true);
+    for (const inst of this.cfg.instances) {
+      this._subscribeDisplay(inst.id, true);
     }
     this._subscribeDisplay('tf', true);
     // TF 树单源：foxgloveTfTree() 自订 /tf（latest）+ /tf_static（immediate，
@@ -630,15 +930,23 @@ class VizPanel {
     if (!this._started) return;
     const st = this.stats.rosTimeNs;
     $('viz-rostime').textContent = st ? new Date(st / 1e6).toISOString().slice(11, 23) : '—';
-    for (const key of Object.keys(this._msgs)) {
-      const el = $('viz-st-' + key);
+    for (const id of Object.keys(this._msgs)) {
+      const el = $('viz-st-' + id);
       if (!el) continue;
-      const n = this._msgs[key];
-      el.textContent = this.cfg[key].on ? (n > 0 ? `✓ ${n}` : '…') : '关';
-      el.className = 'dst ' + (!this.cfg[key].on ? '' : n > 0 ? 'ok' : 'warn');
+      const inst = this._inst(id);
+      const n = this._msgs[id];
+      el.textContent = inst?.on ? (n > 0 ? `✓ ${n}` : '…') : '关';
+      el.className = 'dst ' + (!inst?.on ? '' : n > 0 ? 'ok' : 'warn');
     }
     const i = this.stats.image;
-    $('viz-img-cap').textContent = i.frames ? `${i.w}×${i.h} ${i.enc} · ${i.frames} 帧` : '—';
+    if (this._imgFpsPrev) {
+      const dt = (Date.now() - this._imgFpsPrev.t) / 1000;
+      if (dt > 0) i.fps = Math.max(0, Math.round((i.frames - this._imgFpsPrev.n) / dt));
+    }
+    this._imgFpsPrev = { t: Date.now(), n: i.frames };
+    $('viz-img-cap').textContent = i.frames
+      ? `${i.w}×${i.h} ${i.enc} · ${i.frames} 帧${i.fps ? ' · ' + i.fps + 'fps' : ''}`
+      : '—';
     const s = this.stats.scan;
     $('viz-scan-cap').textContent = s.frames ? `${s.beams} 波束 · ${s.frames} 帧` : '—';
     $('viz-joints-cap').textContent = this.stats.joints.frames
@@ -789,13 +1097,13 @@ class VizPanel {
     return root;
   }
 
-  /** frame → root 的最新变换（THREE.Matrix4）；frame 缺省/不可解析 → null */
+  /** frame → Fixed Frame 的最新变换（THREE.Matrix4）；frame 缺省/不可解析 → null */
   _frameToRoot(frameId) {
     if (!frameId) return null;
-    const root = this._tfRoot();
-    if (!root || frameId === root) return null;
-    if (!this._tree.hasFrame(frameId)) return null;
-    const tfm = lookupLatest(this._tree, frameId, root);
+    const fx = this._fixedFrame();
+    if (frameId === fx) return null;
+    if (!this._tree?.hasFrame(frameId)) return null;
+    const tfm = lookupLatest(this._tree, frameId, fx);
     if (!tfm) return null;
     const m = new THREE.Matrix4();
     const q = tfm.rotation;
@@ -840,7 +1148,7 @@ class VizPanel {
         obj.add(new THREE.AxesHelper(0.22));
         const label = makeTextSprite(name, '#2ecc71');
         label.position.set(0, 0, 0.14);  // Z-up 容器内"上"= Z
-        label.visible = this.cfg.tf.labels;
+        label.visible = this._inst('tf')?.labels !== false;
         obj.add(label);
         this._tfFrame.add(obj);  // Z-up 容器
         this._tfObjects.set(name, obj);
@@ -857,31 +1165,62 @@ class VizPanel {
       obj.quaternion.set(Number(q.x), Number(q.y), Number(q.z), Number(q.w));
     }
     this.stats.tf = { frames: [...this._tfObjects.keys()], lastAt: Date.now() };
+    // RobotModel 整体位姿跟随 TF（RViz 语义）：模型按 odom→base 摆位而非钉在
+    // 场景原点——机器人开动后模型随行，Fixed Frame 切换也一致（无该 TF 的栈
+    // 如 panda 保持原位，不回归）
+    if (this._robotFrame) {
+      const baseTf = this._frameToRoot('base_footprint')
+        || this._frameToRoot('base_link');
+      if (baseTf) {
+        baseTf.decompose(this._robotFrame.position,
+          this._robotFrame.quaternion, new THREE.Vector3());
+      }
+    }
     this._dirty = true;
   }
 
-  _onCloud(data) {
+  _onCloud(data, c) {
     // 解析单源 pointcloud_parse.js：fields[].offset + DataView 读 float32
-    //（旧实现逐字节读 data → 渲染出的是字节值而非坐标）
+    const st = this._stateFor(c.id, () => ({ posArr: new Float32Array(MAX_POINTS * 3) }));
+    const g = this._groupOf(c.id);
+    if (!st.points) {
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute('position', new THREE.BufferAttribute(st.posArr, 3));
+      geo.setDrawRange(0, 0);
+      st.points = new THREE.Points(geo, new THREE.PointsMaterial({
+        color: 0x4f8cff, size: c.size || 0.035 }));
+      g.add(st.points);
+    }
+    st.points.material.size = c.size || 0.035;
     const { count, error } = parsePointCloud2(data,
-      { positions: this._cloudPos, maxPoints: MAX_POINTS });
+      { positions: st.posArr, maxPoints: MAX_POINTS });
     if (error) {
-      if (!this._cloudWarned) {
-        this._cloudWarned = true;
+      if (!st.warned) {
+        st.warned = true;
         console.warn('[viz] PointCloud2 解析失败:', error === 'data' ? 'data 字段不可解析' : '无 xyz 字段');
       }
-      this.cloudPoints.geometry.setDrawRange(0, 0);
+      st.points.geometry.setDrawRange(0, 0);
       return;
     }
-    this.cloudPoints.geometry.attributes.position.needsUpdate = true;
-    this.cloudPoints.geometry.setDrawRange(0, count);
-    this._applyFrameToGroup(this.groups.cloud, data?.header?.frame_id, 'cloud');
+    st.points.geometry.attributes.position.needsUpdate = true;
+    st.points.geometry.setDrawRange(0, count);
+    this._applyFrameToGroup(g, data?.header?.frame_id, 'cloud:' + c.id);
     this.stats.cloud = { points: count, lastAt: Date.now() };
     this._dirty = true;
   }
 
-  _onScan3d(data) {
+  _onScan3d(data, c) {
     // RViz LaserScan 3D 语义：ROS 坐标（z-up 容器内）x=cos·r 前向、y=sin·r 左向
+    const st = this._stateFor(c.id, () => ({ posArr: new Float32Array(720 * 3) }));
+    const g = this._groupOf(c.id);
+    if (!st.points) {
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute('position', new THREE.BufferAttribute(st.posArr, 3));
+      geo.setDrawRange(0, 0);
+      st.points = new THREE.Points(geo,
+        new THREE.PointsMaterial({ color: 0x2ecc71, size: 0.03 }));
+      g.add(st.points);
+    }
     const ranges = data.ranges || [];
     const n = Math.min(ranges.length, 720);
     let i3 = 0;
@@ -889,22 +1228,61 @@ class VizPanel {
       const r = ranges[i];
       if (isFinite(r)) {
         const a = (data.angle_min || 0) + i * (data.angle_increment || 0);
-        this._scanPos[i3++] = Math.cos(a) * r;
-        this._scanPos[i3++] = Math.sin(a) * r;
-        this._scanPos[i3++] = 0.02;
+        st.posArr[i3++] = Math.cos(a) * r;
+        st.posArr[i3++] = Math.sin(a) * r;
+        st.posArr[i3++] = 0.02;
       } else {
-        this._scanPos[i3] = 0; this._scanPos[i3 + 1] = 0; this._scanPos[i3 + 2] = 0;
+        st.posArr[i3] = 0; st.posArr[i3 + 1] = 0; st.posArr[i3 + 2] = 0;
         i3 += 3;
       }
     }
-    this.scanPoints.geometry.attributes.position.needsUpdate = true;
-    this.scanPoints.geometry.setDrawRange(0, n);
-    this._applyFrameToGroup(this.groups.scan, data?.header?.frame_id, 'scan3d');
+    st.points.geometry.attributes.position.needsUpdate = true;
+    st.points.geometry.setDrawRange(0, n);
+    this._applyFrameToGroup(g, data?.header?.frame_id, 'scan3d:' + c.id);
     this._dirty = true;
   }
 
-  _onMarkers(markers) {
-    const g = this.groups.markers;
+  /** OccupancyGrid / Costmap 渲染（map=RViz Map 色板，costmap=代价色带；多实例叠层） */
+  _renderGrid(c, data, style) {
+    const g = this._groupOf(c.id);
+    VizPanel._clearGroup(g);
+    const w = data?.info?.width, h = data?.info?.height;
+    const res = data?.info?.resolution;
+    if (!w || !h || !res) return;
+    const cv = document.createElement('canvas');
+    cv.width = w; cv.height = h;
+    const ctx = cv.getContext('2d');
+    const img = ctx.createImageData(w, h);
+    const px = img.data;
+    const colorOf = style === 'costmap' ? costmapPixel : mapGridPixel;
+    for (let i = 0; i < w * h; i++) {
+      const [r, gg, b, a] = colorOf(data.data[i]);
+      px[i * 4] = r; px[i * 4 + 1] = gg; px[i * 4 + 2] = b; px[i * 4 + 3] = a;
+    }
+    ctx.putImageData(img, 0, 0);
+    const tex = new THREE.CanvasTexture(cv);
+    tex.flipY = true;
+    tex.minFilter = THREE.LinearFilter;
+    tex.wrapS = tex.wrapT = THREE.ClampToEdgeWrapping;
+    const plane = new THREE.Mesh(
+      new THREE.PlaneGeometry(w * res, h * res),
+      new THREE.MeshBasicMaterial({ map: tex, transparent: true,
+        opacity: c.opacity ?? 0.8, side: THREE.DoubleSide, depthWrite: false }));
+    const o = data.info.origin?.position;
+    // ROS XY 平面（z-up 容器内即默认平面），中心 = origin + size/2；
+    // costmap 叠层微抬 z 防止与地图 z-fight（RViz 堆叠语义）
+    plane.position.set(
+      (o?.x ?? 0) + w * res / 2, (o?.y ?? 0) + h * res / 2,
+      (o?.z ?? 0) + (style === 'costmap' ? 0.02 : 0.001));
+    g.add(plane);
+    const st = this._stateFor(c.id);
+    st.plane = plane;
+    this._applyFrameToGroup(g, data?.header?.frame_id, style + ':' + c.id);
+    this._dirty = true;
+  }
+
+  _onMarkers(markers, c) {
+    const g = this._groupOf(c.id);
     VizPanel._clearGroup(g);
     let count = 0;
     for (const mk of markers) {
@@ -947,8 +1325,8 @@ class VizPanel {
     this._dirty = true;
   }
 
-  _onPath(data) {
-    const g = this.groups.path;
+  _onPath(data, c) {
+    const g = this._groupOf(c.id);
     VizPanel._clearGroup(g);
     const frameTf = this._frameToRoot(data?.header?.frame_id);
     const pts = (data.poses || []).map((p) => {
@@ -974,8 +1352,8 @@ class VizPanel {
     return new THREE.ArrowHelper(dir, new THREE.Vector3(p.x, p.y, p.z), 0.25, color, 0.08, 0.04);
   }
 
-  _onPoseArray(data) {
-    const g = this.groups.poses;
+  _onPoseArray(data, c) {
+    const g = this._groupOf(c.id);
     VizPanel._clearGroup(g);
     const frameTf = this._frameToRoot(data?.header?.frame_id);
     (data.poses || []).forEach((p) => {
@@ -986,29 +1364,32 @@ class VizPanel {
     this._dirty = true;
   }
 
-  /** Odometry（RViz 语义）：位姿箭头 + 轨迹（0.1m 阈值 + 100 点环形上限） */
-  _onOdom(data) {
-    const g = this.groups.odom;
+  /** Odometry（RViz 语义）：位姿箭头 + 轨迹（0.1m 阈值 + trailLen 环形上限） */
+  _onOdom(data, c) {
+    const g = this._groupOf(c.id);
     VizPanel._clearGroup(g);
     const pose = data?.pose?.pose;
     if (!pose) return;
     g.add(this._arrow(pose, 0x00b4d8));
+    const st = this._stateFor(c.id, () => ({
+      trail: createOdomTrail(c.trailLen || 300, 0.1) }));
+    if (!st.trail) st.trail = createOdomTrail(c.trailLen || 300, 0.1);
     const p = pose.position;
-    this._odomTrail.push(Number(p.x), Number(p.y), Number(p.z));
-    if (this.cfg.odom.trail && this._odomTrail.points.length >= 2) {
-      const pts = this._odomTrail.points.map(([x, y, z]) => new THREE.Vector3(x, y, z));
+    st.trail.push(Number(p.x), Number(p.y), Number(p.z));
+    if (c.trail && st.trail.points.length >= 2) {
+      const pts = st.trail.points.map(([x, y, z]) => new THREE.Vector3(x, y, z));
       g.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts),
         new THREE.LineBasicMaterial({ color: 0x00b4d8, transparent: true, opacity: 0.55 })));
     }
-    this._applyFrameToGroup(g, data?.header?.frame_id, 'odom');
-    this.stats.odom = { points: this._odomTrail.points.length,
+    this._applyFrameToGroup(g, data?.header?.frame_id, 'odom:' + c.id);
+    this.stats.odom = { points: st.trail.points.length,
       frames: (this.stats.odom?.frames || 0) + 1, lastAt: Date.now() };
     this._dirty = true;
   }
 
   /** Range（RViz 语义）：传感器原点扇形（±fov/2）+ 距离弧 + 端点球，x 前向 */
-  _onRange(data) {
-    const g = this.groups.range;
+  _onRange(data, c) {
+    const g = this._groupOf(c.id);
     VizPanel._clearGroup(g);
     const r = Number(data?.range);
     if (!Number.isFinite(r) || r <= 0) return;
@@ -1037,12 +1418,12 @@ class VizPanel {
   }
 
   /** Wrench（RViz 语义）：force 红箭头 + torque 蓝箭头（scale 属性缩放，长度钳 0.06~1.2m） */
-  _onWrench(data) {
-    const g = this.groups.wrench;
+  _onWrench(data, c) {
+    const g = this._groupOf(c.id);
     VizPanel._clearGroup(g);
     const w = data?.wrench;
     if (!w) return;
-    const scale = this.cfg.wrench.scale || 0.2;
+    const scale = c.scale || 0.2;
     const mkArrow = (v, color, k) => {
       const mag = Math.hypot(Number(v?.x) || 0, Number(v?.y) || 0, Number(v?.z) || 0);
       if (mag < 1e-9) return null;
@@ -1065,8 +1446,8 @@ class VizPanel {
   }
 
   /** PoseWithCovarianceStamped（AMCL 语义）：位姿箭头 + XY 95% 协方差椭圆 */
-  _onPoseCov(data) {
-    const g = this.groups.posecov;
+  _onPoseCov(data, c) {
+    const g = this._groupOf(c.id);
     VizPanel._clearGroup(g);
     const pose = data?.pose?.pose;
     if (!pose) return;
@@ -1110,11 +1491,18 @@ class VizPanel {
       const w = bmp.width, h = bmp.height;
       const cv = $('viz-image');
       if (cv.width !== w || cv.height !== h) { cv.width = w; cv.height = h; }
-      this._imgCtx.drawImage(bmp, 0, 0);
+      // 离屏画布持有最新帧（缩放/平移重绘不依赖解码时机）
+      this._imgOff.width = w; this._imgOff.height = h;
+      this._imgOff.getContext('2d').drawImage(bmp, 0, 0);
       bmp.close?.();
-      this.stats.image = { w, h, enc: fmt,
+      if (data.header?.stamp) {
+        this.stats.image.stampNs = Number(data.header.stamp.sec) * 1e9
+          + Number(data.header.stamp.nanosec);
+      }
+      this.stats.image = { ...this.stats.image, w, h, enc: fmt,
         frames: this.stats.image.frames + 1, lastAt: Date.now() };
       this.stats.imagec = { frames: (this.stats.imagec?.frames || 0) + 1, lastAt: Date.now() };
+      this._redrawImage();
     } catch (e) {
       if (!this._imagecWarned) {
         this._imagecWarned = true;
@@ -1127,12 +1515,14 @@ class VizPanel {
     const now = performance.now();
     if (now - this._imgLastDraw < 100) return;
     this._imgLastDraw = now;
-    const cv = $('viz-image');
     const w = data.width, h = data.height;
-    if (cv.width !== w || cv.height !== h) { cv.width = w; cv.height = h; }
-    const raw = data.data;
-    const img = this._imgCtx.createImageData(w, h);
+    if (this._imgOff.width !== w || this._imgOff.height !== h) {
+      this._imgOff.width = w; this._imgOff.height = h;
+    }
+    const off = this._imgOff.getContext('2d');
+    const img = off.createImageData(w, h);
     const px = img.data;
+    const raw = data.data;
     const enc = data.encoding;
     if (enc === 'mono8') {
       for (let i = 0, j = 0; i < w * h; i++, j += 4) {
@@ -1148,8 +1538,14 @@ class VizPanel {
     } else {
       return;
     }
-    this._imgCtx.putImageData(img, 0, 0);
-    this.stats.image = { w, h, enc, frames: this.stats.image.frames + 1, lastAt: Date.now() };
+    off.putImageData(img, 0, 0);
+    if (data.header?.stamp) {
+      this.stats.image.stampNs = Number(data.header.stamp.sec) * 1e9
+        + Number(data.header.stamp.nanosec);
+    }
+    this.stats.image = { ...this.stats.image, w, h, enc,
+      frames: this.stats.image.frames + 1, lastAt: Date.now() };
+    this._redrawImage();
   }
 
   _onScan(data) {
@@ -1218,14 +1614,10 @@ class VizPanel {
           if (now - lastSent < 45) return;  // 命令节流 45ms（COMMAND_INTERVAL_MS）
           lastSent = now;
           // 镜像防环 v2：武装一次性 hold（1800ms 或到位 0.025 rad 即删）
+          //（viz_fixture 删除后无 joint_cmd 写出目标：滑块驱动本地模型动画，
+          //  动臂走 FJT action，见 panel.js）
           this.stats._mirrorHoldUntil.set(name, now + 1800);
           this.stats._mirrorTargets.set(name, v);
-          const ok = this._client.publish('/rwl_viz/joint_cmd', 'sensor_msgs/msg/JointState', {
-            name: names, position: names.map((n2) =>
-              n2 === name ? v : (parseFloat(
-                box.querySelector(`[data-joint="${n2}"] input`)?.value ?? '0') || 0)),
-          });
-          if (ok) this.stats.jointCmdSent++;
         });
       });
     }
@@ -1280,44 +1672,6 @@ class VizPanel {
     this._syncGhostToRobot();
   }
 
-  /** OccupancyGrid 话题显示（RVIZ-RQT Scene3D:2976-3173 定位数学照搬） */
-  _onOccupancyGrid(data) {
-    const w = Number(data?.info?.width ?? 0), h = Number(data?.info?.height ?? 0);
-    const res = Number(data?.info?.resolution ?? 0.05);
-    if (!w || !h) return;
-    const raw = data.data;
-    const cv = document.createElement('canvas');
-    cv.width = w; cv.height = h;
-    const ctx = cv.getContext('2d');
-    const img = ctx.createImageData(w, h);
-    for (let i = 0; i < w * h; i++) {
-      const v = Number(raw[i]);
-      const j = i * 4;
-      if (v < 0) { img.data[j] = 128; img.data[j + 1] = 128; img.data[j + 2] = 128; img.data[j + 3] = 120; }
-      else if (v === 0) { img.data[j] = 255; img.data[j + 1] = 255; img.data[j + 2] = 255; img.data[j + 3] = 40; }
-      else if (v >= 65) { img.data[j] = 20; img.data[j + 1] = 20; img.data[j + 2] = 20; img.data[j + 3] = 255; }
-      else { img.data[j] = 160; img.data[j + 1] = 160; img.data[j + 2] = 160; img.data[j + 3] = 200; }
-    }
-    ctx.putImageData(img, 0, 0);
-    const tex = new THREE.CanvasTexture(cv);
-    tex.flipY = true;
-    tex.minFilter = THREE.LinearFilter;
-    tex.wrapS = tex.wrapT = THREE.ClampToEdgeWrapping;
-    // groups.map 已在 _init3d 预建并挂 _rosFrame（Z-up 容器，ROS XY 水平铺开）
-    VizPanel._clearGroup(this.groups.map);
-    const mesh = new THREE.Mesh(
-      new THREE.PlaneGeometry(w * res, h * res),
-      new THREE.MeshBasicMaterial({
-        map: tex, transparent: true, opacity: 0.8, side: THREE.DoubleSide }));
-    const o = data.info.origin?.position;
-    // ROS XY 平面（z-up 容器内即默认平面），中心 = origin + size/2
-    mesh.position.set(
-      (o?.x ?? 0) + w * res / 2, (o?.y ?? 0) + h * res / 2, o?.z ?? 0.001);
-    this.groups.map.add(mesh);
-    this.stats.occupancy = { w, h, res, lastAt: Date.now() };
-    this._dirty = true;
-  }
-
   // ── 关节预设缓动（moveToAngles 语义，rebot-sim.js:876-903） ──────────────
 
   /** RAF 帧驱动：本地插值写 URDF（bus source='trajectory'）+ 45ms 节流发布 joint_cmd */
@@ -1335,7 +1689,7 @@ class VizPanel {
     }
   }
 
-  /** 启动一次关节缓动（easeInOutCubic）；armed 时动画帧同步节流写 /rwl_viz/joint_cmd */
+  /** 启动一次关节缓动（easeInOutCubic）；armed 时镜像 hold 抑制回读抖动 */
   _animateTo(target, durationMs = 850, label = 'preset') {
     if (!this._armJointNames?.length) return false;
     const current = {};
@@ -1351,7 +1705,8 @@ class VizPanel {
     return true;
   }
 
-  /** 关节命令发布（与滑块写回同链路：镜像 hold 记账 + armed 门） */
+  /** 关节命令记账（viz_fixture 删除后无 joint_cmd 写出目标；本地模型动画
+   * 仍需镜像 hold 防止 /joint_states 回读抖动——动臂走 FJT action，见 panel.js） */
   _publishJointCmd(joints) {
     if (!document.body.classList.contains('armed')) return false;
     const names = Object.keys(joints);
@@ -1361,11 +1716,77 @@ class VizPanel {
       this.stats._mirrorHoldUntil.set(n, now + 1800);
       this.stats._mirrorTargets.set(n, joints[n]);
     }
-    const ok = this._client.publish('/rwl_viz/joint_cmd', 'sensor_msgs/msg/JointState', {
-      name: names, position: names.map((n) => joints[n]),
-    });
-    if (ok) this.stats.jointCmdSent++;
-    return ok;
+    return true;
+  }
+
+  // ── 布局命名快照（Foxglove 布局持久化语义的网格快照版） ──────────────────
+
+  /** 快照：Displays 实例+Global / 相机视角 / 分割条 / 活动 tab / plot 序列 */
+  snapshotLayout() {
+    return {
+      v: 1,
+      savedAt: new Date().toISOString(),
+      cfg: JSON.parse(JSON.stringify(this.cfg)),
+      view: { p: this.camera.position.toArray(), t: this.controls.target.toArray() },
+      splitter: window.__rwl_getSplit?.() ?? null,
+      tab: localStorage.getItem('rwl-panel-tab') || 'viz',
+      plot: window.__rwl_plot ? window.__rwl_plot().series : [],
+    };
+  }
+
+  /** 恢复快照：重订全部实例 + 相机/分割条/tab/plot 回放 */
+  applyLayout(s) {
+    if (!s?.cfg?.instances) return false;
+    this.cfg = migrateCfg(s.cfg);
+    this._persistCfg();
+    for (const h of Object.values(this._handles)) {
+      try { h.cancel(); } catch (_) { /* 已取消 */ }
+    }
+    this._handles = {};
+    for (const [id, g] of [...this._instGroups]) {
+      if (!this._inst(id)) {
+        VizPanel._clearGroup(g);
+        g.removeFromParent();
+        this._instGroups.delete(id);
+        this._instState.delete(id);
+        delete this._msgs[id];
+      }
+    }
+    this._renderDisplaysPanel();
+    for (const inst of this.cfg.instances) this._subscribeDisplay(inst.id, true);
+    if (s.view) {
+      this.camera.position.fromArray(s.view.p);
+      this.controls.target.fromArray(s.view.t);
+    }
+    if (s.splitter != null) window.__rwl_setSplit?.(s.splitter);
+    if (s.tab) {
+      document.querySelector(`.panel-tabs button[data-tab="${s.tab}"]`)?.click();
+    }
+    if (s.plot?.length && window.__rwl_plot_restore) {
+      window.__rwl_plot_restore(s.plot);
+    }
+    if (this.cfg.global.bg) this.scene.background.set(this.cfg.global.bg);
+    this._dirty = true;
+    return true;
+  }
+
+  static listLayouts() {
+    try { return JSON.parse(localStorage.getItem(LAYOUTS_KEY) || '{}'); }
+    catch (_) { return {}; }
+  }
+
+  static saveLayout(name, snap) {
+    if (!name) return false;
+    const all = VizPanel.listLayouts();
+    all[name] = snap;
+    try { localStorage.setItem(LAYOUTS_KEY, JSON.stringify(all)); return true; }
+    catch (_) { return false; }
+  }
+
+  static deleteLayout(name) {
+    const all = VizPanel.listLayouts();
+    delete all[name];
+    try { localStorage.setItem(LAYOUTS_KEY, JSON.stringify(all)); } catch (_) {}
   }
 
   static _clearGroup(g) {
@@ -1389,5 +1810,6 @@ export function initViz() {
   window.__rwl_viz_stats = () => JSON.parse(JSON.stringify(_panel.stats,
     (_k, v) => (typeof v === 'bigint' ? Number(v) : v)));
   window.__rwl_viz_panel = _panel;
+  window.__rwl_client = _panel._client;  // teleop/参数/服务面板共用同一 WS 客户端
   return _panel;
 }

@@ -52,6 +52,7 @@ from peach_harvester.vision.target_reconstruction.publish import (
 from peach_harvester.vision.target_reconstruction.refine import (
     axis_angle_deg,
     candidate_axis_hint,
+    CONTACT_GEOMETRY_INVALID_REASONS,
     RefitResult,
     STATUS_REJECT,
 )
@@ -301,6 +302,8 @@ class ReconstructionCore:
         stamp_ns = self._stamp_ns(frame_tuple[3])
         array_bytes = self._frame_array_bytes(frame_tuple)
         with self._state_lock:
+            if array_bytes > self._frame_ring_max_bytes:
+                return
             newest = self._frame_ring_latest_stamp_ns
             newest = stamp_ns if newest is None else max(newest, stamp_ns)
             self._frame_ring_latest_stamp_ns = newest
@@ -961,7 +964,7 @@ class ReconstructionCore:
         }
         result = self._refined
         if self.collector.state != 'READY':
-            if result is not None and result.reason == 'fused_axis_conflict':
+            if result is not None and result.reason in CONTACT_GEOMETRY_INVALID_REASONS:
                 decision['reason'] = result.reason
             return decision
         if result is None or not result.ok:

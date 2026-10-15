@@ -1390,6 +1390,54 @@ class TargetReconstructionNode(
             self._view_progress.clear()
         return 'timeout', pose_count, bound
 
+    def _restart_single_view_build(self, target_id: str, failed_stamp: float) -> None:
+        """调用方持状态锁：替换失败单视，不累计重复机位或重用同一曝光."""
+        center = self.collector.target_center
+        self._reset_capture_session()
+        self._target_masks.clear()
+        self.collector.start(target_id, center)
+        self._target_kind_memory.bind(target_id)
+        self._last_captured_stamp_sec = failed_stamp
+        self._reset_products(create_volume=True)
+        self._bound_axis_hint = candidate_axis_hint(self._latest_candidates, target_id)
+        self._publish_all()
+
+    def _collect_and_finalize_build(self, goal_handle, target_id: str):
+        """首拍加至多两次新曝光替换，共用原Build时间预算及全部质量门."""
+        max_attempts = 3
+        retryable = {'bag_axis_envelope_ill_conditioned', 'bag_axis_silhouette_unobservable'}
+        deadline = self._algo_clock.now() + float(self.params.capture.build_timeout_s)
+        attempts, last_reason = 0, ''
+        while True:
+            status, pose_count, _bound = self._wait_min_views(
+                goal_handle, target_id, timeout_s=max(0., deadline - self._algo_clock.now()))
+            if status != 'ready':
+                detail = f'{status}: {last_reason}; attempts={attempts}' if last_reason else status
+                return status, pose_count, False, detail
+            with self._state_lock:
+                ok, message = self._finalize_now()
+                attempts += 1
+                if ok:
+                    return 'ready', pose_count, True, message
+                reason = str(getattr(self._refined, 'reason', '') or 'build_quality_rejected')
+                stamp = max((float(frame.stamp) for frame in self.collector.frames), default=-1.)
+                self._harvest_data.append_event({
+                    'source': 'reconstruction', 'event': 'build_quality_rejected',
+                    'target_id': target_id, 'attempt': attempts,
+                    'max_attempts': max_attempts, 'stamp_sec': stamp,
+                    'model_revision': str(getattr(self._refined, 'model_revision', '') or ''),
+                    'reason': reason})
+                last_reason = reason
+                if (int(self.params.capture.min_views) != 1 or pose_count != 1
+                        or reason not in retryable or attempts >= max_attempts):
+                    return ('quality_rejected', pose_count, False,
+                            f'{reason}; attempts={attempts}; {message}')
+                if self._algo_clock.now() >= deadline:
+                    return 'timeout', pose_count, False, f'timeout: {reason}; attempts={attempts}'
+                self.get_logger().warning(
+                    f'单视质量拒绝，替换新曝光 {attempts}/{max_attempts}: {reason}')
+                self._restart_single_view_build(target_id, stamp)
+
     def _on_build_target_model(self, goal_handle):
         """BuildTargetModel：reset 后绑定 goal.target_id，等机位数再 finalize."""
         try:
@@ -1438,16 +1486,15 @@ class TargetReconstructionNode(
         started.view_count = 0
         started.status = bound_state
         goal_handle.publish_feedback(started)
-        status, pose_count, _bound = self._wait_min_views(
-            goal_handle, goal.target_id,
-            timeout_s=float(self.params.capture.build_timeout_s))
+        status, pose_count, ok, message = self._collect_and_finalize_build(
+            goal_handle, goal.target_id)
         if status in ('canceled', 'timeout'):
             with self._state_lock:
                 self._reset_capture_session()
                 self._publish_all()
             result = BuildTargetModel.Result()
             result.success = False
-            result.message = status
+            result.message = message
             result.failure_code = (
                 FailureCode.CANCELED if status == 'canceled'
                 else FailureCode.BUILD_FAILED)
@@ -1456,7 +1503,7 @@ class TargetReconstructionNode(
             model.target_id = goal.target_id
             model.scene_epoch = goal.scene_epoch
             model.accepted = False
-            model.message = status
+            model.message = message
             model.quality.level = result.quality_level
             model.view_count = pose_count
             result.model = model
@@ -1465,8 +1512,6 @@ class TargetReconstructionNode(
             else:
                 goal_handle.abort()
             return result
-        with self._state_lock:
-            ok, message = self._finalize_now()
         result = BuildTargetModel.Result()
         result.success = bool(ok)
         result.message = message

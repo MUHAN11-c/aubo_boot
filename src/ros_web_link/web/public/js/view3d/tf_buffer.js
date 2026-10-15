@@ -51,6 +51,12 @@ function _ingest(tfMessage, isStatic) {
 	const tree = _tree;
 	for (const t of tfMessage.transforms) {
 		if (!t || !t.header || !t.child_frame_id) continue;
+		// 帧名归一化：剥掉一颗前导 '/'。gz 桥 /tf 帧名带斜杠（'/base_footprint'），
+		// RSP/AMCL 不带（'base_footprint'）——不合并会裂成两棵树，
+		// map↔odom↔base 链断、机器人与地图分家显示（2026-10-15 实证）。
+		const child = String(t.child_frame_id).replace(/^\//, '');
+		const parent = String(t.header?.frame_id || '').replace(/^\//, '');
+		if (!child || !parent) continue;
 		const stamp = t.header.stamp || {};
 		// 静态变换无历史语义：时间归 0（单条目，任意时刻为真）
 		const sec = isStatic ? 0n : BigInt(stamp.sec ?? 0);
@@ -65,7 +71,7 @@ function _ingest(tfMessage, isStatic) {
 			[Number(p.x) || 0, Number(p.y) || 0, Number(p.z) || 0],
 			[Number(q.x) || 0, Number(q.y) || 0, Number(q.z) || 0, Number(q.w) || 1],
 		);
-		tree.addTransform(t.child_frame_id, t.header.frame_id, time, transform);
+		tree.addTransform(child, parent, time, transform);
 	}
 }
 

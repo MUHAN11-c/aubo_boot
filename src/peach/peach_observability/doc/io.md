@@ -24,16 +24,16 @@ flowchart LR
 | `/peach/observability/metrics` | topic | 性能采样 String JSON（1s） | peach_observability | 会话 bag（同上） |
 | `/peach/observability/selfcheck_passed` | topic | **启动自检裁决闩锁**（Bool，TL d1；P0 观测性轮新增）。初次（托管栈激活+静置后）与每 30s 周期复检，或 8090 `POST /api/debug/selfcheck` 手动触发；无 FAIL 即 true。检查项全只读：生命周期/控制器/关节序/joint_states 流/TF 对档案/相机探针接收到达率（低率仅 WARN，不拦开批）/move_group/四动作服务端/robot_status（真机）/IMU/磁盘/权重文件/参数一致性/vegetation 在图新鲜度（不在图 SKIP） | peach_observability | peach_bringup（autostart 硬等） |
 
-监控+调试 HTTP（默认 `127.0.0.1:8090`）+ 会话 bag 录制（随栈启停开合；2026-09-24 起进袋限速三族：控制流 20 Hz／PlanningScene 1 Hz／感知派生 2 Hz，决策 0031，只限进袋不影响实时流）。过程页只订不发；调试 POST 无令牌。`debug.enabled` 默认 true（false→503）；运动类另需 `debug.motion_enabled`（默认 false→423）。健康走 `/diagnostics`（W15 双轨 + 2026-09-29 扩充：`session_recorder` 队列/丢帧、`ingest_liveness` 摄入活度、`selfcheck` 裁决；`/diagnostics` 全栈订阅聚合进 `/api/state`）。会话工件（2026-09-29 新增）：`runs/session_*/startup.json`（launch 注入的启动事实：模式/档案/相机/git 提交/域 ID——离线排障回答"当时跑的什么配置"）、`selfcheck.json` + `selfcheck_history.jsonl`（历次自检报告）。
+监控+调试 HTTP（默认 `127.0.0.1:8090`）+ 会话 bag 录制（随栈启停开合。进袋：控制流 20 Hz，PlanningScene 1 Hz。默认 `std` 不订阅相机原流。感知图、观测和点云只在结果关键段约 3 秒、段内 1 Hz。关节、TF 与已下发轨迹全程记录，队列满时不被图像或点云挤掉。只限进袋，不影响实时流）。过程页只订不发；调试 POST 无令牌。`debug.enabled` 默认 true（false→503）；运动类另需 `debug.motion_enabled`（默认 false→423）。健康走 `/diagnostics`（W15 双轨 + 2026-09-29 扩充：`session_recorder` 队列/丢帧、`ingest_liveness` 摄入活度、`selfcheck` 裁决；`/diagnostics` 全栈订阅聚合进 `/api/state`）。会话工件（2026-09-29 新增）：`runs/session_*/startup.json`（launch 注入的启动事实：模式/档案/相机/git 提交/域 ID——离线排障回答"当时跑的什么配置"）、`selfcheck.json` + `selfcheck_history.jsonl`（历次自检报告）。
 
 | 参数 | 含义 |
 |------|------|
 | `host` / `port` | HTTP 监听；默认回环 8090。局域网须显式 `0.0.0.0` |
 | `record.enabled` | 会话 bag 录制总开关（默认 true；关则不建录制订阅） |
-| `record.level` | 录制档：`std`=通配发现全话题+相机 raw 限 1Hz（默认）；`all`=相机 raw 不限速（限速族仍生效，决策 0031）；`core`=仅固定订阅集（镜像订阅+派生 job/metrics） |
+| `record.level` | 录制档：`std`=默认，只留关节/TF/已下发轨迹、调度与重建结果；感知图和点云只在结果关键段约 3 秒、段内 1 Hz。不录相机原流、控制器统计、即时检测图和单帧点云。`all`=全部话题且不按关键段丢弃；`core`=仅固定订阅集 |
 | `record.max_total_bag_gb` | bag 二进制总量预算（GB，默认 100；0=禁用回收）：超限从最旧删 `session_*/bag` 与旧 `mcap_*`，报告/账本/文本永不删，逐条审计。分析完成后 `retention.purge_analyzed_sessions`（Python API，审计 reason=analyzed_purge；原 `scripts/purge_analyzed_bags.py` 已随 scripts/ 删除）删 MCAP 留 `bag_report` |
 | `record.queue_depth` | bag 写队列深度上限（默认 512）：盘速掉队时丢最旧保最新，丢帧计数进 `/api/state` 的 `record.info.drops` |
-| `record.save_images` / `record.save_clouds` | 调试图/TSDF 点云进 bag 的门控（键名沿用，语义已从「落 jpg/ply 文件」改为「进 bag」） |
+| `record.save_images` / `record.save_clouds` | 感知图与 TSDF 点云允许进 bag。`std` 下仍只在感知结果关键段留样，不把整段图像或点云写入 |
 | `trajectory.enabled` | latest TF 采 TCP 轨迹给 Web/RViz（bag 侧由 `/tf` 离线重算，同源） |
 | `joint_states_topic` / `joint_status_topic` | 硬件表：实际角/速度与柜侧电流（SDK 原单位）/温度/跟随误差；镜像只在 Web，原始话题随 bag 录制 |
 | `debug.enabled` | 调试 POST 总开关；默认 true |
@@ -50,18 +50,18 @@ HTTP `/api/state` 区段：`perception` / `reconstruction` / `refined` / `manipu
 |------|------|
 | 账本 | `runs/<request_id>/ledger.json` |
 | 会话 bag | `runs/session_<YYYYMMDD>_<HHMMSS>/bag/`（`bag_0.mcap` + `metadata.yaml`；节点启动开、关闭收尾，非正常退出可 `ros2 bag reindex` 恢复） |
-| 会话报告 | `runs/session_*/bag_report.md` + `bag_report.json`（停栈自动生成；写盘原子 tmp+rename，停栈窗内未完成则留「无新报告」而非半份，`ros2 run peach_observability peach_bag_report <bag>` 可复跑；observability 进程 SIGTERM 窗放宽至 60s 对齐报告线程；按 request_id 分批还原 outcome/阶段耗时/验收门对照/TCP 轨迹；回读对 DDS 侧按 msg 命名空间登记的 action 生成类型（如 `msg/RunHarvest_FeedbackMessage`）回退 action 命名空间解析，仍未知类型折叠为仅时间戳，不断整份报告） |
+| 会话报告 | `runs/session_*/bag_report.md` + `bag_report.json`（bag封口后子进程生成；写盘原子tmp+rename。退出默认等30秒，再terminate/kill并回收；超时保留完整bag并明确报错，`ros2 run peach_observability peach_bag_report <bag>`可复跑。子进程继承本轮launch进程组，不遗留后台分析。按request_id还原outcome/阶段耗时/验收门/TCP轨迹；DDS action生成类型从msg命名空间回退action解析，未知类型仅记时间戳） |
 | 回收审计 | `runs/retention_audit.jsonl`（逐条记录删除目录/字节数/预算） |
 | 重建 session | 同根；含 `geometry.jsonl`（袋底/颈/轴/剪切点/D95/预算/单帧 flags；复算脚本已归档 `_archive/offline_2026-09/`，写入保留）。三维点按 `list[float]` 写，缺失用 `is None` 回退，不得对 ndarray 用 Python `or`（真值歧义会把已积分体积回滚，RViz TSDF Cloud 变空） |
 
 根：工作区 `runs/`（`peach_harvester.vision.common.runtime.default_runs_root`）。历史 `_archive/runs/`，不要删。录制生命周期绑定节点启停（决策 0019）：`on_configure` 开会话 bag、`on_shutdown`/`destroy_node` 收尾并自动出报告 + 按预算回收；批次边界由消息自带 `request_id` 还原，不再由记录器开合目录。归档里若有 `approach.jsonl`，那是旧技能状态文件名；`runs/run_*`（9 路 jsonl）是 2026-09-15 前的旧格式，历史数据不迁移。
 
-会话 bag 录制话题（固定订阅集，2026-09-20 起 `record.bag_topics` 键已删、档位由 `record.level` 门控）：`events`、`state`、`scene_snapshot`、`target_observations`（含 mask）、`harvest_state`、`recon_status`、`recon_diagnostics`、`recon_debug`、`grasp_decision`、`refined_pose`、`refined_axis`、`refined_diagnostics`、`manipulation_status`、`grasp_hypothesis`、`tf`、`tf_static`、`joint_states`、`robot_status`、`joint_status`、`job`、`metrics`、`debug_image`、`debug_image_raw`（后两者受 `record.save_images`）、`tsdf_cloud`（受 `record.save_clouds`）、`rosout`（受 `record.rosout`，默认开）；`scene_snapshot` 落盘订阅用 transient_local（M13：单发闩锁话题，VOLATILE 会在记录节点晚启时永久丢快照）；别名→话题/类型注册表（报告读取侧）见 `observability/bag_reader.py`。`std`/`all` 档另加通配发现订阅域内其余话题。报告侧离线重算：作业票/许可合并体照 `observability_node` 镜像逻辑重放，TCP 轨迹由 `/tf`+`/tf_static` 树合成（3mm 静止门槛，同在线采样器）。
+会话 bag 录制话题（固定订阅集，2026-09-20 起 `record.bag_topics` 键已删、档位由 `record.level` 门控）：`events`、`state`、`scene_snapshot`、`target_observations`（含 mask，只在感知结果关键段）、`harvest_state`、`recon_status`、`recon_diagnostics`、`recon_debug`、`grasp_decision`、`refined_pose`、`refined_axis`、`refined_diagnostics`、`manipulation_status`、`grasp_hypothesis`、`tf`、`tf_static`、`joint_states`、`robot_status`、`joint_status`、`job`、`metrics`、`debug_image`、`debug_image_raw`（后两者受 `record.save_images`，且 `std` 只在关键段）、`tsdf_cloud`（受 `record.save_clouds`，且 `std` 只在关键段）、`rosout`（受 `record.rosout`，默认开）；`scene_snapshot` 落盘订阅用 transient_local（M13：单发闩锁话题，VOLATILE 会在记录节点晚启时永久丢快照）；别名→话题/类型注册表（报告读取侧）见 `observability/bag_reader.py`。`std`/`all` 档另加通配发现订阅域内其余话题，但 `std` 不订阅 `/camera/` 原流，点云话题同样只在关键段进袋。关节、TF 与已下发轨迹不按这段窗口丢弃。报告侧离线重算：作业票/许可合并体照 `observability_node` 镜像逻辑重放，TCP 轨迹由 `/tf`+`/tf_static` 树合成（3mm 静止门槛，同在线采样器）。
 
 
 ## Web 客户端状态（2026-10-12）
 
-静态页面由顶层 `peach_web` 提供，入口与 ROS API 不变。首屏显示自检/诊断/使能摘要与当前作业；作业票内用条形对照沿袋轴的长度和入口/剪切点离原点的距离（`job.analysis`）。顶栏固定当前阶段（批次态、目标阶段、技能周期、目标 id）。硬件与系统/自检/诊断默认展开。节点日志只读，不增加 SetIO 或运动按钮。状态/轨迹请求各自单在途、有限等待；5 s 无新状态或失联时呈现最后快照并暂停普通操作，取消独立。确认框返回后发送前再次核对新鲜度；后退恢复页面会恢复轮询。
+静态页面由顶层 `peach_web` 提供，入口与 ROS API 不变。另有独立页 `/analysis.html`：从 `runs/` 选择已有测试目录后解析账本、几何和图片，不写入、不改过程监控与单步调试。首屏显示自检/诊断/使能摘要与当前作业；作业票内用条形对照沿袋轴的长度和入口/剪切点离原点的距离（`job.analysis`）。顶栏固定当前阶段（批次态、目标阶段、技能周期、目标 id）。硬件与系统/自检/诊断默认展开。节点日志只读，不增加 SetIO 或运动按钮。状态/轨迹请求各自单在途、有限等待；5 s 无新状态或失联时呈现最后快照并暂停普通操作，取消独立。确认框返回后发送前再次核对新鲜度；后退恢复页面会恢复轮询。
 
 操作反馈按实际响应区分：`accepted=true` 不等于操作成功，`result.success=false` 显示失败；后端动作 HTTP 202（`result.goal_handle_kept=true`）显示仍在执行，并呈现 `result.message` 中的查询/取消提示；HTTP 504/502/500 或网络异常显示结果未知。POST不自动重发，浏览器等待超时/退出不代表 ROS goal 已取消；在途终态须通过现行状态与取消流程核对。授权仍由后端和臂侧强制，未增加网页授权/SetIO入口。前端测试与浏览器验收方法见 [peach_web README](../../../peach_web/README.md)。
 

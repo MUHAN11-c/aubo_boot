@@ -7,6 +7,7 @@
 """
 import os
 import subprocess
+import tempfile
 import threading
 import time
 import unittest
@@ -16,7 +17,7 @@ import launch
 from launch.actions import SetEnvironmentVariable
 import launch_ros.actions
 import launch_testing
-from launch_testing.actions import ReadyToTest
+from moveit_msgs.srv import ApplyPlanningScene
 import pytest
 import rclpy
 from rclpy.node import Node
@@ -27,7 +28,6 @@ from sensor_msgs_py import point_cloud2 as pc2
 from std_msgs.msg import Empty, String
 import tf2_ros
 
-from moveit_msgs.srv import ApplyPlanningScene
 from peach_interfaces.msg import BagGraspCandidate, BagGraspCandidateArray
 from sensor_msgs.msg import PointField
 from std_msgs.msg import Header
@@ -101,7 +101,9 @@ def _candidate(target_id, bottom, neck):
 @pytest.mark.launch_test
 def generate_test_description():
     """Start only peach_scene_obstacles（假数据全由测试进程喂）."""
+    runs = tempfile.mkdtemp(prefix='peach_scene_lt_')
     return launch.LaunchDescription([
+        SetEnvironmentVariable('ROS_HOME', os.path.join(runs, 'ros_home')),
         SetEnvironmentVariable('QT_QPA_PLATFORM', 'offscreen'),
         launch_ros.actions.Node(
             package='peach_harvester',
@@ -171,8 +173,11 @@ class TestSceneObstacles(unittest.TestCase):
         rclpy.shutdown()
 
     def _start_streaming(self, candidates):
-        """发 latched 三件套并确保后台流线程在跑（贴近真实相机流，
-        跨过 DDS 建联延迟；URDF 只发一次，refined 每次按最新目标集发）."""
+        """发 latched 三件套并确保后台流线程在跑.
+
+        贴近真实相机流，跨过 DDS 建联延迟；URDF 只发一次，
+        refined 每次按最新目标集发。
+        """
         if not self.urdf_sent:
             self.urdf_sent = True
             description = String()

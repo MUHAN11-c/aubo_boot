@@ -1,0 +1,72 @@
+{
+  "owner_pid": 669542,
+  "processes": [
+    {
+      "pid": 669543,
+      "pgid": 669543,
+      "command": [
+        "ros2",
+        "launch",
+        "peach_bringup",
+        "harvest_system.launch.py",
+        "hardware_mode:=mock",
+        "camera_enabled:=true",
+        "camera_frontend:=stereo",
+        "extrinsics_enabled:=false",
+        "imu_enabled:=false",
+        "autostart:=false",
+        "use_sim_time:=false",
+        "rviz:=false",
+        "tool_profile:=bite_shear_v1",
+        "mock_initial_positions:=0.425175,0.194274,1.679546,1.462579,-0.279948,0.038859",
+        "brain_params_overlay:=/home/mu/Desktop/aubo_e5_jazzy_ws/runs/live_mock_repeat_20261015_r2/brain_overlay.yaml"
+      ],
+      "started_at": 1792051100.4034555,
+      "ros_domain_id": "88"
+    },
+    {
+      "pid": 669544,
+      "pgid": 669544,
+      "command": [
+        "ros2",
+        "run",
+        "tf2_ros",
+        "static_transform_publisher",
+        "--x",
+        "0.3780573326439316",
+        "--y",
+        "-0.07547177076037584",
+        "--z",
+        "0.7666632351254871",
+        "--qx",
+        "-0.0036889994433193067",
+        "--qy",
+        "-7.498157537607713e-06",
+        "--qz",
+        "-0.6576092061184594",
+        "--qw",
+        "0.753350199611797",
+        "--frame-id",
+        "base_link",
+        "--child-frame-id",
+        "camera_link"
+      ],
+      "started_at": 1792051100.404184,
+      "ros_domain_id": "88"
+    },
+    {
+      "pid": 670413,
+      "pgid": 670413,
+      "command": [
+        "rviz2",
+        "-d",
+        "/home/mu/Desktop/aubo_e5_jazzy_ws/src/peach/peach_system_tests/config/live_camera_mock.rviz",
+        "--ros-args",
+        "--params-file",
+        "/home/mu/Desktop/aubo_e5_jazzy_ws/runs/live_mock_repeat_20261015_r2/rviz_model_params.yaml"
+      ],
+      "started_at": 1792051112.4975722,
+      "ros_domain_id": "88"
+    }
+  ]
+}

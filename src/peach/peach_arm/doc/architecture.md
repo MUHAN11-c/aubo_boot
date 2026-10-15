@@ -31,3 +31,9 @@ onDecision从同一GraspDecision原子提交完整模型身份、entry/cut/axis�
 工具Z轴滚转候选为0、±15°、±30°、±45°。IK候选列表先按绝对滚转、再按腕轴加权关节代价排序，逐候选验证完整接近走廊；仅IK有解不能宣称轨迹可用，以减少拧腕。较小绝对滚转候选的完整轨迹通过后才停止；完整PTP轨迹守卫失败且尚未运动时可继续下一候选。45°仅限制工具Z轴滚转；110°仍为倾斜与滚转共同产生的整体TCP姿态测地线门。该排序不放宽碰撞或轨迹门。
 
 接近轨迹优先完整直线，必要时仅使用原有冠内两段LIN之间2cm blend平滑连接；没有新增CIRC或OMPL接触兜底。PTP是关节空间路径，不能声称TCP走精确圆弧。fallback只允许在尚未运动、未取消且未因授权拒绝时继续。
+
+## MTC任务生命周期
+
+`grasp_task.cpp::makeTaskShell`直接以`Task(task_name, false)`构造，从创建时关闭introspection。不能先默认构造再`enableIntrospection(false)`：MTC IntrospectionExecutor线程可能尚未spin便被cancel并join，而Jazzy executor启动spin会重新置运行标志，导致销毁等待拖至ROS shutdown。该修正针对任务生命周期，不改变规划、安全门或轨迹形状；候选可视化使用实际TCP/RobotState，不把遭拒的候选发布成执行轨迹。
+
+候选日志分别记录任务建立、plan及reset耗时；每次滚转迭代检查cancel_generation，取消后不继续搜索更大滚转。独立重复创建/销毁探针验证了构造方式差异，证据解释与联合测试边界见测试指导；它不能替代真实相机抓取成功或全路径线程安全验收。

@@ -79,14 +79,19 @@ def test_gz_ros2_control_block_and_controllers_file():
 
 
 def test_drivetrain_and_lidar_survived():
-    """履带 DiffDrive 与前桅杆激光随 mobile 分支保留."""
+    """
+    履带 VelocityControl 驱动与前桅杆激光随 mobile 分支保留.
+
+    P4b 修正口径：VelocityControl 直接控制机体速度（对齐 AgileX
+    planar_move），履带挂接 fixed（碰撞足迹，无滚筒物理）。
+    """
     root = _expand()
     names = [p.get('name') for p in root.iter('plugin')]
-    assert 'gz::sim::systems::DiffDrive' in names
+    assert 'gz::sim::systems::VelocityControl' in names
     sensors = {s.get('name'): s.get('type') for s in root.iter('sensor')}
     assert sensors.get('orchard_scan') == 'gpu_lidar'
     joints = _joints(root)
-    assert joints['left_track_mount'].get('type') == 'continuous'
+    assert joints['left_track_mount'].get('type') == 'fixed'
 
 
 def test_camera_frame_chain_matches_peach_contract():

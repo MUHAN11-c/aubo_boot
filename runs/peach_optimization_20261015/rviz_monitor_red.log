@@ -1,0 +1,30 @@
+FF.                                                                      [100%]
+=================================== FAILURES ===================================
+________ test_monitor_has_only_one_robot_renderer_and_no_planning_panel ________
+
+    def test_monitor_has_only_one_robot_renderer_and_no_planning_panel():
+        items = displays()
+>       assert not any(item['Class'] == 'moveit_rviz_plugin/MotionPlanning' for item in items)
+E       assert not True
+E        +  where True = any(<generator object test_monitor_has_only_one_robot_renderer_and_no_planning_panel.<locals>.<genexpr> at 0x7744e5811ff0>)
+
+src/peach/peach_system_tests/test/test_rviz_monitor_profile.py:29: AssertionError
+___ test_live_tcp_tool_frames_and_keypoint_trajectory_markers_remain_visible ___
+
+    def test_live_tcp_tool_frames_and_keypoint_trajectory_markers_remain_visible():
+        enabled = [item for item in displays() if item.get('Enabled')]
+        topics = {item.get('Topic', {}).get('Value') for item in enabled}
+        assert '/peach/observability/markers' in topics
+        assert '/peach/perception/markers' in topics
+        assert '/peach_arm/planned_views' in topics
+        transform = next(item for item in enabled if item['Class'] == 'rviz_default_plugins/TF')
+        assert transform['Show Axes']
+        for frame in ('tcp', 'tool_axis', 'sleeve_mouth', 'cutting_plane'):
+>           assert transform['Frames'][frame]['Value']
+E           assert False
+
+src/peach/peach_system_tests/test/test_rviz_monitor_profile.py:44: AssertionError
+=========================== short test summary info ============================
+FAILED src/peach/peach_system_tests/test/test_rviz_monitor_profile.py::test_monitor_has_only_one_robot_renderer_and_no_planning_panel
+FAILED src/peach/peach_system_tests/test/test_rviz_monitor_profile.py::test_live_tcp_tool_frames_and_keypoint_trajectory_markers_remain_visible
+2 failed, 1 passed in 0.07s

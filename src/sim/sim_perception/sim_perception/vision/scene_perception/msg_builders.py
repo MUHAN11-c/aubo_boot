@@ -12,6 +12,14 @@ from typing import List
 
 from geometry_msgs.msg import Point, Pose, Quaternion, Vector3
 import numpy as np
+from peach_interfaces.msg import (
+    BagFitting,
+    BagGrasp2D as BagGrasp2DMsg,
+    BagGraspCandidate,
+    PeachTargetObservation,
+)
+from sensor_msgs.msg import PointCloud2, PointField
+from sensor_msgs_py import point_cloud2 as pc2
 from sim_perception.vision.common.geometry import (
     bbox_cloud_xyzrgb,  # noqa: F401  W3 单实现落 geometry，此处 re-export 公开面
     QuaternionValue,
@@ -24,14 +32,6 @@ from sim_perception.vision.scene_perception.identity import (
     STATUS_OCCLUDED,
     STATUS_OUT_OF_VIEW,
 )
-from peach_interfaces.msg import (
-    BagFitting,
-    BagGrasp2D as BagGrasp2DMsg,
-    BagGraspCandidate,
-    PeachTargetObservation,
-)
-from sensor_msgs.msg import PointCloud2, PointField
-from sensor_msgs_py import point_cloud2 as pc2
 from std_msgs.msg import Header
 from vision_msgs.msg import Detection2D, ObjectHypothesisWithPose
 from visualization_msgs.msg import Marker

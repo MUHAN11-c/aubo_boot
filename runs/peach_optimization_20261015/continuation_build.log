@@ -1,0 +1,98 @@
+Starting >>> peach_observability
+[0.569s] WARNING:colcon.colcon_core.shell:The following packages are in the workspace but haven't been built:
+- nav2_common
+- nav2_msgs
+They are being used from the following locations instead:
+- /opt/ros/jazzy
+- /opt/ros/jazzy
+To suppress this warning ignore these packages in the workspace:
+--packages-ignore nav2_common nav2_msgs
+running egg_info
+writing ../../../build/peach_observability/peach_observability.egg-info/PKG-INFO
+writing dependency_links to ../../../build/peach_observability/peach_observability.egg-info/dependency_links.txt
+writing entry points to ../../../build/peach_observability/peach_observability.egg-info/entry_points.txt
+writing requirements to ../../../build/peach_observability/peach_observability.egg-info/requires.txt
+writing top-level names to ../../../build/peach_observability/peach_observability.egg-info/top_level.txt
+reading manifest file '../../../build/peach_observability/peach_observability.egg-info/SOURCES.txt'
+adding license file 'LICENSE'
+writing manifest file '../../../build/peach_observability/peach_observability.egg-info/SOURCES.txt'
+running build
+running build_py
+copying peach_observability/bag_report.py -> /home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_observability/build/lib/peach_observability
+copying peach_observability/observability_node.py -> /home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_observability/build/lib/peach_observability
+running install
+running install_lib
+copying /home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_observability/build/lib/peach_observability/bag_report.py -> /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_observability/lib/python3.12/site-packages/peach_observability
+copying /home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_observability/build/lib/peach_observability/observability_node.py -> /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_observability/lib/python3.12/site-packages/peach_observability
+byte-compiling /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_observability/lib/python3.12/site-packages/peach_observability/bag_report.py to bag_report.cpython-312.pyc
+byte-compiling /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_observability/lib/python3.12/site-packages/peach_observability/observability_node.py to observability_node.cpython-312.pyc
+running install_data
+running install_egg_info
+removing '/home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_observability/lib/python3.12/site-packages/peach_observability-0.1.0-py3.12.egg-info' (and everything under it)
+Copying ../../../build/peach_observability/peach_observability.egg-info to /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_observability/lib/python3.12/site-packages/peach_observability-0.1.0-py3.12.egg-info
+running install_scripts
+Installing peach_bag_report script to /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_observability/lib/peach_observability
+Installing peach_observability script to /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_observability/lib/peach_observability
+writing list of installed files to '/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_observability/install.log'
+Finished <<< peach_observability [1.12s]
+Starting >>> peach_system_tests
+[1.681s] WARNING:colcon.colcon_core.shell:The following packages are in the workspace but haven't been built:
+- nav2_common
+- nav2_msgs
+- nav2_util
+- nav2_lifecycle_manager
+They are being used from the following locations instead:
+- /opt/ros/jazzy
+- /opt/ros/jazzy
+- /opt/ros/jazzy
+- /opt/ros/jazzy
+To suppress this warning ignore these packages in the workspace:
+--packages-ignore nav2_common nav2_msgs nav2_util nav2_lifecycle_manager
+-- Found ament_cmake: 2.5.6 (/opt/ros/jazzy/share/ament_cmake/cmake)
+-- Override CMake install command with custom implementation using symlinks instead of copying resources
+-- Found ament_cmake_pytest: 2.5.6 (/opt/ros/jazzy/share/ament_cmake_pytest/cmake)
+-- Found launch_testing_ament_cmake: 3.4.12 (/opt/ros/jazzy/share/launch_testing_ament_cmake/cmake)
+-- Found python_cmake_module: 0.11.1 (/opt/ros/jazzy/share/python_cmake_module/cmake)
+-- Configuring done (6.9s)
+-- Generating done (0.0s)
+-- Build files have been written to: /home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_system_tests
+-- Install configuration: "Release"
+-- Execute custom install script
+-- Up-to-date symlink: /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_system_tests/share/peach_system_tests/launch/frozen_camera_grasp.launch.py
+-- Up-to-date symlink: /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_system_tests/share/peach_system_tests/config/frozen_one_view.yaml
+-- Up-to-date symlink: /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_system_tests/share/peach_system_tests/config/live_camera_mock.rviz
+-- Up-to-date symlink: /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_system_tests/share/peach_system_tests/config/live_camera_mock.yaml
+-- Up-to-date symlink: /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_system_tests/share/ament_index/resource_index/package_run_dependencies/peach_system_tests
+-- Up-to-date symlink: /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_system_tests/share/ament_index/resource_index/parent_prefix_path/peach_system_tests
+-- Up-to-date symlink: /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_system_tests/share/peach_system_tests/environment/ament_prefix_path.sh
+-- Up-to-date symlink: /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_system_tests/share/peach_system_tests/environment/ament_prefix_path.dsv
+-- Up-to-date symlink: /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_system_tests/share/peach_system_tests/environment/path.sh
+-- Up-to-date symlink: /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_system_tests/share/peach_system_tests/environment/path.dsv
+-- Up-to-date symlink: /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_system_tests/share/peach_system_tests/local_setup.bash
+-- Up-to-date symlink: /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_system_tests/share/peach_system_tests/local_setup.sh
+-- Up-to-date symlink: /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_system_tests/share/peach_system_tests/local_setup.zsh
+-- Up-to-date symlink: /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_system_tests/share/peach_system_tests/local_setup.dsv
+-- Symlinking: /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_system_tests/share/peach_system_tests/package.dsv
+-- Up-to-date symlink: /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_system_tests/share/ament_index/resource_index/packages/peach_system_tests
+-- Up-to-date symlink: /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_system_tests/share/peach_system_tests/cmake/peach_system_testsConfig.cmake
+-- Up-to-date symlink: /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_system_tests/share/peach_system_tests/cmake/peach_system_testsConfig-version.cmake
+-- Up-to-date symlink: /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_system_tests/share/peach_system_tests/package.xml
+-- Up-to-date: /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_system_tests/lib/peach_system_tests
+-- Up-to-date: /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_system_tests/lib/peach_system_tests/gen_baseline_inventory.py
+-- Up-to-date: /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_system_tests/lib/peach_system_tests/run_frozen_grasp.py
+-- Up-to-date: /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_system_tests/lib/peach_system_tests/drive_frozen_grasp.py
+-- Up-to-date: /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_system_tests/lib/peach_system_tests/check_planning_scene.py
+-- Up-to-date: /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_system_tests/lib/peach_system_tests/probe_topics.py
+-- Up-to-date: /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_system_tests/lib/peach_system_tests/drive_harvest.py
+-- Up-to-date: /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_system_tests/lib/peach_system_tests/__pycache__
+-- Up-to-date: /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_system_tests/lib/peach_system_tests/__pycache__/frozen_camera_replay.cpython-312.pyc
+-- Up-to-date: /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_system_tests/lib/peach_system_tests/__pycache__/run_frozen_grasp.cpython-312.pyc
+-- Up-to-date: /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_system_tests/lib/peach_system_tests/__pycache__/gen_baseline_inventory.cpython-312.pyc
+-- Installing: /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_system_tests/lib/peach_system_tests/__pycache__/run_live_camera_mock.cpython-312.pyc
+-- Up-to-date: /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_system_tests/lib/peach_system_tests/__pycache__/drive_frozen_grasp.cpython-312.pyc
+-- Up-to-date: /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_system_tests/lib/peach_system_tests/__pycache__/drive_harvest.cpython-312.pyc
+-- Up-to-date: /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_system_tests/lib/peach_system_tests/frozen_camera_replay.py
+-- Installing: /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_system_tests/lib/peach_system_tests/run_live_camera_mock.py
+Finished <<< peach_system_tests [7.05s]
+
+Summary: 2 packages finished [8.64s]

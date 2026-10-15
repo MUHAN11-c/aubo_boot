@@ -1,4 +1,4 @@
-"""导航配置一致性测试（零 ROS）：桥接清单 / Nav2 参数 / 地图三处对齐."""
+"""导航配置一致性测试（零 ROS）：桥接清单 / Nav2 参数 / 地图 / 站位对齐."""
 
 from pathlib import Path
 
@@ -7,10 +7,12 @@ import yaml
 PKG_DIR = Path(__file__).resolve().parents[1]
 BRIDGE = PKG_DIR / 'config' / 'orchard_bridge.yaml'
 NAV2 = PKG_DIR / 'config' / 'nav2_params.yaml'
+NAV2_FIELD = PKG_DIR / 'config' / 'nav2_params_field.yaml'
 # 地图与场景参数在兄弟包 sim_worlds（src/sim/ 组内源码树相对定位）
 WORLDS = PKG_DIR.parent / 'sim_worlds'
 MAP = WORLDS / 'maps' / 'orchard_map.yaml'
 CONFIG = WORLDS / 'config' / 'orchard.yaml'
+FIELD_STATIONS = WORLDS / 'maps' / 'field_stations.yaml'
 
 BASE_FRAME = 'platform_base_link'
 
@@ -34,7 +36,7 @@ def test_bridge_topics_match_urdf_plugins():
     assert by_ros['odom']['gz_type_name'] == 'gz.msgs.Odometry'
     assert by_ros['tf']['gz_type_name'] == 'gz.msgs.Pose_V'
     assert by_ros['scan']['gz_type_name'] == 'gz.msgs.LaserScan'
-    # gz 侧话题与 URDF DiffDrive 插件 <topic>/<odom_topic>/<tf_topic> 对齐
+    # gz 侧话题与 URDF VelocityControl/OdometryPublisher 插件 <topic> 对齐
     for name in ('odom', 'tf', 'scan', 'cmd_vel'):
         assert by_ros[name]['gz_topic_name'] == f'/{name}'
 
@@ -75,6 +77,20 @@ def test_amcl_initial_pose_matches_manifest_spawn():
                                  / 2.0)) < 1e-4
 
 
+def test_field_amcl_initial_pose_matches_stations_spawn():
+    """
+    Field 预设：AMCL initial_pose = field_stations.yaml spawn（双写防漂移门）.
+
+    harvest.launch 读 stations spawn 下发 gz 出生位姿，AMCL 初值则是
+    nav2_params_field.yaml 手写——两处必须同值，否则定位起步就漂。
+    """
+    initial = _load(NAV2_FIELD)['amcl']['ros__parameters']['initial_pose']
+    spawn = _load(FIELD_STATIONS)['spawn']
+    assert abs(initial['x'] - spawn['x']) < 1e-6
+    assert abs(initial['y'] - spawn['y']) < 1e-6
+    assert abs(initial['yaw'] - spawn.get('yaw', 0.0)) < 1e-6
+
+
 def test_map_yaml_matches_generator_convention():
     """地图 yaml 与生成器口径一致：分辨率 0.05、原点 = 地面左下角."""
     ground = _load(CONFIG)['ground']
@@ -87,7 +103,7 @@ def test_map_yaml_matches_generator_convention():
 
 
 def test_nav2_speeds_within_track_plugin_limits():
-    """Nav2 限速不超出 URDF TrackedVehicle 限幅（vx≤0.8、wz≤1.2）."""
+    """Nav2 限速不超出底盘驱动口径（VelocityControl：vx≤0.8、wz≤1.2）."""
     doc = _load(NAV2)
     velocity = doc['velocity_smoother']['ros__parameters']
     assert velocity['max_velocity'][0] <= 0.8

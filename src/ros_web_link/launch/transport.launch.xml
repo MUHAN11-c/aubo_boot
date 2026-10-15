@@ -3,10 +3,6 @@
   <arg name="gateway_port" default="8095"/>
   <!-- 通信矩阵演示/验证节点：/rwl_demo/*（console.html 自检与 E2E 的被测端） -->
   <arg name="fixture" default="false"/>
-  <!-- 常用可视化消息演示节点：/rwl_viz/*（Image/PointCloud2/LaserScan/Marker…） -->
-  <arg name="viz_fixture" default="false"/>
-  <!-- viz_fixture 是否发演示 URDF（官方栈自带 /robot_description 时置 false，防 latched 双源） -->
-  <arg name="viz_publish_urdf" default="true"/>
 
   <!-- foxglove_bridge -->
   <include file="$(find-pkg-share ivg_foxglove_bridge)/launch/ivg_foxglove_bridge.launch.xml">
@@ -20,8 +16,5 @@
   <!-- fixture:=true 时起通信矩阵被测端（诊断/演示用，不进任何生产栈） -->
   <group if="$(var fixture)">
     <executable cmd="python3 -m ros_web_link.comm_fixture" output="screen"/>
-  </group>
-  <group if="$(var viz_fixture)">
-    <executable cmd="python3 -m ros_web_link.viz_fixture --ros-args -p publish_urdf:=$(var viz_publish_urdf)" output="screen"/>
   </group>
 </launch>

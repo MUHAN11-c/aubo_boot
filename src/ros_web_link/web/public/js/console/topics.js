@@ -8,13 +8,13 @@ import { foxgloveRosClient } from '../transport/foxglove/ros_client.js';
 
 const $ = (id) => document.getElementById(id);
 
-// schemaName 后缀 → Displays key（可视化映射）
+// schemaName 后缀 → Displays 类型（可视化映射；v4 实例化语义）
 const TYPE_TO_DISPLAY = {
   'PointCloud2': 'cloud', 'LaserScan': 'scan3d', 'Image': 'image',
-  'CompressedImage': 'imagec', 'MarkerArray': 'markers', 'Marker': 'markers',
-  'Path': 'path', 'PoseArray': 'poses', 'TFMessage': 'tf',
-  'Odometry': 'odom', 'Range': 'range', 'WrenchStamped': 'wrench',
-  'PoseWithCovarianceStamped': 'posecov',
+  'CompressedImage': 'imagec', 'MarkerArray': 'marker', 'Marker': 'marker',
+  'Path': 'path', 'PoseArray': 'poses', 'OccupancyGrid': 'map',
+  'TFMessage': 'tf', 'Odometry': 'odom', 'Range': 'range',
+  'WrenchStamped': 'wrench', 'PoseWithCovarianceStamped': 'posecov',
 };
 
 class TopicCard {
@@ -46,22 +46,13 @@ class TopicCard {
     this._render();
   }
 
-  /** 「可视化」：类型映射 Displays 话题并启用 */
+  /** 「可视化」：类型映射 Displays 话题并启用（v4：启用既有实例或新建） */
   visualize(topic) {
     const ch = this._client.player?.channels?.get(topic);
     const short = (ch?.schemaName || '').split('/').pop();
     const key = TYPE_TO_DISPLAY[short];
     if (!key || !this._panel) return false;
-    const p = this._panel;
-    if (!p.cfg[key]) return false;
-    p.cfg[key].topic = topic;
-    p.cfg[key].on = true;
-    localStorage.setItem('rwl-viz-cfg-v2', JSON.stringify(p.cfg));
-    p._applyDisplayCfg(key);
-    // 刷新 Displays 表行内的话题显示
-    const row = document.querySelector(`tr[data-display="${key}"] .dtopic`);
-    if (row) row.value = topic;
-    return true;
+    return this._panel.addOrEnable(key, topic);
   }
 
   _tick() {

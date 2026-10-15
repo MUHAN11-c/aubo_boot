@@ -115,7 +115,7 @@ ros2 run peach_system_tests check_planning_scene.py
 
 RViz Fixed Frame=base_link，检查RGB、深度点云、感知/融合轴、预抓取/剪切参考与实际工具TF。界面几何与数值必须对应同目标同场景；共同主轴构造出的0°不是独立真值。tool始终false，重建保留，不能用放宽漂移/多视门凑通过。只读探针均需有限时间，完成即退出。
 
-历史试验只完成3轮中的2轮level6，曾出现Web allowed而臂侧拒绝及RViz Ogre `Cannot create GL index buffer`。本轮实现更新后短测完成1/1轮level6，RViz存活，清理报告cleanup=[]；这只覆盖该短测。正式10轮/30模型/1800秒验收尚未完成，不能记为全通过或由短测证明所有历史故障已消除。新联合入口及测试专用校准见下节；新增实现本身不代表这些验收已通过。
+当前联合验收未通过：已记录30组模型，10轮抓取中6轮达到level6、4轮质量门跳过；soak只有253条资源采样、约21分钟，RViz已退出，不满足30分钟可视化稳定性要求。模型、执行和稳定性须分别判定，不能用模型配额或早先短测成功替代整项通过。RViz监控配置和退出处理已更新，仍须按新配置重新完成验收。新主机网络monitor probe已完成3组模型，RViz在15秒观察窗内存活；抓取轮在180秒预算后FAILED，bag已封口且无本轮进程残留。它只证明该次模型/短时显示/收尾，不能算抓取或完整验收成功。
 
 ### 真实相机联合入口
 
@@ -130,9 +130,11 @@ ros2 run peach_system_tests run_live_camera_mock.py \
 
 RViz默认开启，`--no-rviz`只用于无头排障，不能算可视化验收。先构建测试包以安装脚本/config，再执行；输出目录须为本轮新目录，域86、相机与8090端口须空闲。
 
-`config/live_camera_mock.yaml`保存test-only固定采集位校准，来源为20261013固定相机记录，用户确认相机未动；parent=base_link、child=camera_link，mock初始关节也由该配置提供。该校准只用于本测试，不注入产品手眼文件；相机一旦移动必须重测，不继续沿用。`config/live_camera_mock.rviz`是本轮显示配置。产物包括report.json、stack.log、camera_tf.log、rviz.log、rviz_model_params.yaml、startup_state.json、model_N_state.json、round_N_state.json和测试专用brain_overlay.yaml。owned_processes.json在每次创建进程组后立即保存owner PID、PID/PGID、命令、域与时间，信号退出按cancel→disable→close→自有组清理顺序处理。
+`config/live_camera_mock.yaml`保存test-only固定采集位校准，来源为20261013固定相机记录，用户确认相机未动；parent=base_link、child=camera_link，mock初始关节也由该配置提供。该校准只用于本测试，不注入产品手眼文件；相机一旦移动必须重测，不继续沿用。`config/live_camera_mock.rviz`是本轮显示配置。产物包括report.json、stack.log、camera_tf.log、rviz.log、rviz_model_params.yaml、startup_state.json、model_N_state.json、round_N_state.json和测试专用brain_overlay.yaml。owned_processes.json在每次创建进程组后立即保存owner PID、PID/PGID、命令、域与时间，信号退出按cancel→disable→close→自有组清理顺序处理。report.json采用同目录临时文件后原子replace，在启动/模型/动作/soak/清理等阶段写入phase与updated_at检查点；中断时保留最后完整状态。soak每次资源采样先落检查点，再检查RViz存活和相机/关节新鲜帧；任一失效立即失败并进入清理，不继续累计成合格时长。通过还要求实际采样时长达到预算且全部样本健康。
 
 RViz重建点云默认订阅 `/peach/reconstruction/preview_cloud`（标准PointCloud2，最多50000点，保留采样点颜色，TSDF优先、否则局部累加云）。原local_cloud/tsdf_cloud仍完整发布，算法输入不变；RViz不同时启用这两条完整云。此预算只约束重建预览，DetectionCloud保持原固定分辨率stride输出，Image/PointCloud2仍使用BEST_EFFORT、queue1、decay0。
+
+联合长测采用监控专用RViz配置：仅一份RobotModel，移除会另建场景机器人/规划机器人/交互标记的MotionPlanning显示插件；规划和操作入口仍在Web。保留两路图像、Detection/50k重建预览、感知关键点、实际TCP轨迹及工具轴/套筒口/剪切平面TF。该简化是针对Ogre顶点缓冲异常的A/B候选，不能仅凭配置测试就宣称GL故障已消除；须重新记录全程RViz存活、渲染错误和进程/资源证据。重复初始化订阅日志不等于运行中存在重复Display，Ogre无时间戳异常行也不能用来确定崩溃时刻。
 
 模型阶段只BeginScene一次，在固定epoch轮换有效目标；Build结果身份包含target/epoch/revision/generated_at/valid_until，并有界等待Web同revision和diag.model_stamp对应，不能以refined接收时间替代。重复Build使用新request及新生成时间去重；最多models×3次尝试，配额不足判失败。models≥3时每个已采目标至少3样本，统计同目标D95、entry、cut及轴角P95。动作各轮新scene，mockACK仅依据当前request/target的终态证据发出，避免预抓取恢复锁死锁。
 
@@ -158,7 +160,7 @@ PREGRASP_ONLY到位应SUCCEEDED并recovery_required，停在预抓取等人工AC
 
 ## 9. 停栈、bag封口与精确清理
 
-有在途批次先通过现有取消入口取消，等终态；ControlTask.CANCEL_NOW=4，ACK/RESUME不等于取消。关闭execution/grasp/tool，停止探针、回放、注入器和采集器；launch终端Ctrl+C，等待observability报告与bag写盘，退出窗口可到60秒。
+有在途批次先通过现有取消入口取消，等终态；ControlTask.CANCEL_NOW=4，ACK/RESUME不等于取消。关闭execution/grasp/tool，停止探针、回放、注入器和采集器；launch终端Ctrl+C，先等待bag封口。自动报告使用继承本轮进程组的独立subprocess，不再依赖非守护分析线程；默认等待30秒，超时TERM后等2秒，仍不退出则KILL并等2秒回收。超时/非零会保留已封口bag并提示离线重算；这不是报告成功，不应无限等待，也不能在bag未封口时跳过记录器收尾。
 
 ```bash
 pgrep -af 'ros2 launch|component_container|extrinsics_publisher|ros2 run|ros2 bag|move_group|ros2_control_node|robot_state_publisher|peach_|lifecycle_manager|rviz2'
@@ -175,11 +177,19 @@ bag封口后检查metadata及可读性：`ros2 bag info <本轮bag目录>`，报
 
 ## 10. 排障顺序
 
-- **无帧**：设备独占/IP→发布者→QoS→帧stamp/年龄→订阅数/残留bag；传输探针用probe_topics，不把timeout结束当收到帧。
+- **无帧**：先区分主机网络与隔离网络，确认SDK发现设备，再查设备独占/IP→实际取帧→发布者→QoS→帧stamp/年龄→订阅数/残留bag。主机SDK当前可发现相机，先前probe的0设备来自隔离网络环境，不能据此判相机损坏或产品无设备；发现成功也不等于新probe已成功取帧。传输探针用probe_topics，不把timeout结束当收到帧。
 - **重建无积分**：绑定目标/scene_epoch→精确stamp TF→关节静止门→深度单位→采帧窗口；不以latest TF补积分。
 - **Web允许而臂拒绝**：对照同一request/run/cycle/target及模型修订、clearance与valid_until，查臂侧最近拒因与enables心跳；页面显示不能替代命令门。
 - **不可达/规划失败**：先check_reachability逐项错误码，再查PlanningScene world/ACM、工具档/关节序和接近日志；不修改驱动兜底。
 - **RViz GL错误**：保存Ogre日志、显示/驱动环境、点云/marker规模和截图，检查是否残留重复RViz；明确记录渲染失败，不计入可视化验收通过。
 - **退出卡住**：先区分报告写盘与动作线程滞留，按本轮PID/域清理，保留LastTest.log和进程证据；不能因post_shutdown豁免退出码而忽略残留。
 
-当前长测中间基线：已收集30组模型并有1轮level6成功；模型轴角最大1.502°、入口最大单轴range 3.88mm、剪切参考2.12mm、袋径3.34mm。该轮P95为17.09秒，使用旧5帧缓存；已SIGINT保留基线，不能当最终配置或10轮/30分钟通过。新帧缓存保留原2秒年龄门，并设64帧/96MiB双上限；最终重启结果须独立记录，不与旧缓存轮混计。
+新帧缓存保留原2秒年龄门，并设64帧/96MiB双上限；不同缓存/显示配置的验收结果不得混计。历史性能与本轮验收数据保留在各自runs产物，不把中间测量复制成产品精度保证。
+
+### 有界诊断与复验边界
+
+MTC任务销毁问题用独立100次创建/销毁探针隔离，`runs/peach_optimization_20261015/mtc_lifecycle_comparison.json`保留对照：默认构造后关闭introspection的旧方式约12秒超时，SIGINT后才退出；直接`Task(task_name,false)`约0.115秒退出且未超时。结合MTC IntrospectionExecutor及本机Jazzy rclcpp启动/取消源码核对，该证据针对cancel-before-spin/join竞态，不代表抓取链已通过。排障先对齐候选create/plan/reset计时及cancel generation，再判断阻塞阶段。
+
+模型采集为0帧时先对齐曝光到处理延迟与原2秒帧龄门。数值库默认线程过多可与感知负载竞争，本轮仅用OMP/BLAS/MKL各1线程的实验命令做对照；尚未设为产品默认，也不降低帧龄或几何门。比较时保留线程数、主机CPU/load、处理耗时、曝光stamp和captured计数，不能将环境过载记作几何通过或靠放宽门补帧。
+
+UI布局/行为证据沿用已有截图验证。本轮CUA浏览器策略拒绝访问，未绕过该限制，不能声称已用新浏览器会话复验当前UI。RViz存活、浏览器UI与真实抓取分别记录。

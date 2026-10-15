@@ -3,7 +3,7 @@
 
 组成：
 1. Include 本包 ``orchard_sim.launch.py mobile:=true``：可驾驶履带平台
-   （gz DiffDrive 滚筒履带 + 2D 激光）+ RSP + spawn + 完整桥接；
+   （gz VelocityControl 履带 + 2D 激光）+ RSP + spawn + 完整桥接；
 2. Include ``nav2_bringup bringup_launch.py``：AMCL + map_server（默认吃
    ``sim_worlds/maps/orchard_map.yaml`` 确定性生成图）或 ``slam:=True`` 在线
    建图，MPPI 控制器 + NavFn 规划器，参数文件 ``config/nav2_params.yaml``；

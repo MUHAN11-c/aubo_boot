@@ -63,7 +63,7 @@ RunHarvest → Survey 到拍照位 → BeginScene → 等锁定集 → 从 targe
 
 Python 参数源为各包 config YAML + `peach_common.yaml_params.attach`，规则留在能力包；arm 声明/校验由 GPL `src/arm_parameters.yaml` 生成，部署值在 config。停位几何单源为 harvester `grasp_standoffs.yaml`，工具几何来自只读 aubo_description 档案。话题接线使用 remap。
 
-诊断走 `/diagnostics`，事件/账本保留作业身份，observability 会话落 `runs/session_*`。每批 request_id 唯一。网页 allowed、重建 ACCEPT、执行完成级别与真实剪切结果分别核对；level 6 不等于 level 7。既有联合试验有未完成轮次、Web/臂许可不一致及 RViz GL 错误，不能宣称已全过。
+诊断走 `/diagnostics`，事件/账本保留作业身份，observability 会话落 `runs/session_*`。每批 request_id 唯一。网页 allowed、重建 ACCEPT、执行完成级别与真实剪切结果分别核对；level 6 不等于 level 7。当前联合验收已记录30组模型，但10轮中仅6轮level6、4轮质量跳过；253条soak采样约21分钟且RViz退出，不能宣称10轮/30分钟可视化验收通过。监控RViz profile只保留一份RobotModel并移除MotionPlanning重复机器人显示，是GL异常排障候选，尚未证实Ogre根因或修复效果。
 
 本栈不具有功能安全认证；mock 不证明真机安全或接触精度。相机物理固定而 mock 腕移动时必须使用经核对的固定采集位锚定，不能把模拟腕 TF 当新视点。测试与程序结束必须停栈、等 bag 封口并核对本轮 PID 无残留。
 
@@ -76,4 +76,4 @@ Python 参数源为各包 config YAML + `peach_common.yaml_params.attach`，规�
 
 测试先执行 `colcon test --packages-select peach_bringup --return-code-on-test-failure`，系统接线再按测试包 isolated-domain 入口验证；预检失败不得通过删除检查来绕过。
 
-当前调度在on_stack_ready就绪值改变时立即广播状态，使界面与客户端及时看到转换。reconstruct_in_trajectory默认true走已有并行路径：Build先绑定，臂侧等待Finalize及同目标精化/许可，再开始规划；execute_pregrasp_only默认true，TTL和安全门不放宽。本轮短测1/1达到level6、RViz存活且cleanup=[]，正式10轮/30模型/1800秒尚未完成。
+当前调度在on_stack_ready就绪值改变时立即广播状态，使界面与客户端及时看到转换。reconstruct_in_trajectory默认true走已有并行路径：Build先绑定，臂侧等待Finalize及同目标精化/许可，再开始规划；execute_pregrasp_only默认true，TTL和安全门不放宽。联合runner通过原子阶段检查点保留中间证据，soak检测RViz退出或相机/关节断流立即失败清理。自动报告为继承本轮进程组的subprocess，默认30秒等待、TERM后2秒、KILL后2秒回收；报告失败保留封口bag供离线重算。主机网络SDK能发现相机；隔离网络probe的0设备不能外推为相机故障，新主机网络probe完成3组模型及15秒RViz存活观察，但抓取180秒FAILED；bag封口且无残留，只证明该次短时显示与收尾，不构成抓取或完整验收通过。

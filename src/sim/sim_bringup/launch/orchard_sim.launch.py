@@ -10,7 +10,8 @@
 4. ``mobile:=true``（自主导航轮，被 ``orchard_nav.launch.py`` Include）：
    xacro 根翻转为 ``platform_base_link``（REP-105），spawn 用车体中心位姿，
    桥接换 ``orchard_bridge.yaml``（增 odom/tf/scan 入、cmd_vel 出），
-   履带驱动由 gz DiffDrive 实现（TrackedVehicle 方案已否，见 sim_worlds README）。
+   履带驱动由 gz VelocityControl 实现（P4b 起，对齐 AgileX planar_move 口径；
+   DiffDrive 滚筒与 TrackedVehicle 方案均已否，见 tracked_platform.xacro 注记）。
 
 包拆分（src/sim/ 组）：场景参数与世界在 ``sim_worlds``、机体 xacro 与网格在
 ``sim_description``、launch 与桥接配置在 ``sim_bringup``（本包）。
@@ -54,7 +55,6 @@ def _resource_path(aubo_share: Path, desc_share: Path) -> str:
 
 
 def _setup(context, *args, **kwargs):
-    worlds_share = Path(get_package_share_directory('sim_worlds'))
     desc_share = Path(get_package_share_directory('sim_description'))
     aubo_share = Path(get_package_share_directory('aubo_description'))
     scene_path = Path(LaunchConfiguration('scene_params').perform(context))

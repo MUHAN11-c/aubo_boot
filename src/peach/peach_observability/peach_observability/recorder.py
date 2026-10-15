@@ -51,13 +51,49 @@ PLANNING_SCENE_TOPICS = {
     '/moveit_servo/publish_planning_scene', '/monitored_planning_scene',
 }
 PLANNING_SCENE_MIN_INTERVAL_S = 1.0
-# 感知派生诊断族（S4 轮实测占袋 79%：debug_image 3.0G+raw 1.9G+
-# target_observations 1.2G+masks 0.9G / 12min）：进袋 2Hz 已足够复盘相变
-# （密集视觉证据另有 45s 截图与 RViz 视频）；实时流不受影响，仅限进袋。
-DERIVED_STREAM_SUBSTRINGS = (
-    'debug_image', 'masks', 'target_observations',
+# 末端路径每次发布都带上全部历史点，20Hz 会把同一条轨迹反复写入。
+PATH_VIZ_SUBSTRINGS = (
+    '/peach/observability/tcp_path', '/peach/observability/markers',
 )
-DERIVED_STREAM_MIN_INTERVAL_S = 0.5
+PATH_VIZ_MIN_INTERVAL_S = 1.0
+# 感知结果的图像、掩膜、观测和点云只在「关键段」进袋：重建进入采集或
+# 就绪、或许可身份变化时打开，持续数秒、段内 1Hz。相机原流在 std 不订阅。
+# 实时预览不受影响。机械臂轨迹不在此列。
+PERCEPTION_MEDIA_SUBSTRINGS = (
+    'debug_image', 'masks', 'target_observations',
+    '_cloud', '/points', 'point_cloud',
+)
+PERCEPTION_SEGMENT_S = 3.0
+PERCEPTION_SEGMENT_MIN_INTERVAL_S = 1.0
+# 机械臂轨迹必须留下。队列满时图像类消息让路，不把关节/TF/轨迹挤掉。
+TRAJECTORY_TOPICS = {
+    '/joint_states', '/tf', '/tf_static', '/dynamic_joint_states',
+    '/peach/observability/tcp_path',
+}
+TRAJECTORY_SUBSTRINGS = (
+    'display_planned_path', 'follow_joint_trajectory',
+    'joint_trajectory_controller', 'execute_trajectory', 'controller_state',
+)
+
+
+def _is_arm_trajectory(topic: str) -> bool:
+    """关节、TF 与已下发轨迹。这些话题队列满时也要留下."""
+    return topic in TRAJECTORY_TOPICS or any(
+        part in topic for part in TRAJECTORY_SUBSTRINGS)
+
+
+def _is_perception_media(topic: str) -> bool:
+    """图像、掩膜和点云。机械臂轨迹即使话题名里带 cloud 也不算."""
+    if _is_arm_trajectory(topic):
+        return False
+    if topic.startswith('/camera/'):
+        return True
+    return any(part in topic for part in PERCEPTION_MEDIA_SUBSTRINGS)
+
+
+def _is_bulky_perception(topic: str) -> bool:
+    """图像和点云。队列满时丢掉，不挤轨迹."""
+    return _is_perception_media(topic)
 
 
 class Recorder:
@@ -65,7 +101,8 @@ class Recorder:
 
     def __init__(self, root_dir='runs', enabled: bool = True,
                  on_info=None, log_warning=lambda msg: None,
-                 now: float | None = None, queue_depth: int = 512):
+                 now: float | None = None, queue_depth: int = 512,
+                 limit_perception_media: bool = True):
         """
         初始化并启动写线程；enabled 时入队开会话 bag（on_info 回调状态）.
 
@@ -82,6 +119,9 @@ class Recorder:
         self._drops = 0
         self._drop_warn_t = 0.0
         self._throttle_ts: dict[str, float] = {}  # O1 控制流族限速时间戳
+        self._perception_until = 0.0  # 感知关键段截止（monotonic）
+        # std 只留关键段；all 档保留图像/点云全量，供短时复现。
+        self._limit_perception_media = bool(limit_perception_media)
         self._stop = threading.Event()
         self._closed = threading.Event()
         self._session_dir: Path | None = None
@@ -120,6 +160,11 @@ class Recorder:
                 'drops': self._drops,
             }
 
+    def mark_perception_segment(self) -> None:
+        """打开一小段感知结果进袋窗口。相机原流不因这次调用而开录."""
+        with self._lock:
+            self._perception_until = time.monotonic() + PERCEPTION_SEGMENT_S
+
     def handle_raw(self, topic: str, message,
                    timestamp_ns: int | None = None) -> None:
         """原始消息入队写 bag；未启用或打开失败时静默丢弃（监控优先）."""
@@ -132,33 +177,52 @@ class Recorder:
             'msg', topic, message,
             int(timestamp_ns if timestamp_ns is not None else time.time_ns())))
 
+    def _perception_segment_open(self, now: float) -> bool:
+        with self._lock:
+            return now < self._perception_until
+
     def _control_flow_throttled(self, topic: str) -> bool:
-        """限速族：控制流 20Hz / 派生诊断 2Hz / PlanningScene 1Hz；其余全量."""
-        if topic == '/tf_static':
-            return False
+        """限速族：控制流 20Hz / 感知关键段 1Hz / PlanningScene 1Hz；轨迹不丢."""
+        if topic == '/tf_static' or _is_arm_trajectory(topic):
+            if topic == '/tf_static':
+                return False
+            # 关节与 TF 仍按控制流 20Hz 留轨迹；规划/执行轨迹消息本身稀疏，不限。
+            if topic not in CONTROL_FLOW_TOPICS and not any(
+                    part in topic for part in CONTROL_FLOW_SUBSTRINGS):
+                return False
+        now = time.monotonic()
+        media = (
+            self._limit_perception_media and _is_perception_media(topic))
+        if media and not self._perception_segment_open(now):
+            return True
         if topic in PLANNING_SCENE_TOPICS:
             min_interval = PLANNING_SCENE_MIN_INTERVAL_S
-        elif any(s in topic for s in DERIVED_STREAM_SUBSTRINGS):
-            min_interval = DERIVED_STREAM_MIN_INTERVAL_S
+        elif any(part in topic for part in PATH_VIZ_SUBSTRINGS):
+            min_interval = PATH_VIZ_MIN_INTERVAL_S
+        elif media:
+            min_interval = PERCEPTION_SEGMENT_MIN_INTERVAL_S
         elif topic in CONTROL_FLOW_TOPICS or any(
-            s in topic for s in CONTROL_FLOW_SUBSTRINGS
+            part in topic for part in CONTROL_FLOW_SUBSTRINGS
         ):
             min_interval = CONTROL_FLOW_MIN_INTERVAL_S
         else:
             return False
-        now = time.monotonic()
         if now - self._throttle_ts.get(topic, 0.0) < min_interval:
             return True
         self._throttle_ts[topic] = now
         return False
 
     def _enqueue(self, item) -> None:
-        """有界入队：满时丢最旧保最新（宁丢旧帧不撑内存）."""
+        """有界入队。图像类满队列时丢掉自己；轨迹满队列时仍丢最旧挤进去."""
         try:
             self._queue.put_nowait(item)
             return
         except queue.Full:
             pass
+        topic = item[1] if item and item[0] == 'msg' and len(item) > 1 else ''
+        if _is_bulky_perception(str(topic)) and not _is_arm_trajectory(str(topic)):
+            self._note_drop()
+            return
         try:
             self._queue.get_nowait()
             # 被丢的那条也要销账，否则 close() 的 queue.join() 永远等不齐

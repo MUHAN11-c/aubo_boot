@@ -13,8 +13,11 @@
 
 ```bash
 ros2 launch sim_bringup harvest.launch.py
-# 另开终端（等 1-2 分钟世界首载 + 控制器/AMCL 就绪）：
-ros2 run sim_bringup orchard_harvest --rows 2 --max-stations 3
+# 另开终端（等 1-2 分钟世界首载 + 控制器/AMCL 就绪）。
+# field 预设（默认）须带 --stations-file（tour_core 坐标是程序化世界的，
+# 与重建果园不对应）；程序化世界（field:=false）才用 --rows 选行：
+ros2 run sim_bringup orchard_harvest --max-stations 3 \
+  --stations-file $(ros2 pkg prefix sim_worlds)/share/sim_worlds/maps/field_stations.yaml
 ```
 
 每站节拍：harvest_stow 行驶 → NavigateToPose 到站 → global_photo_pose →
@@ -23,8 +26,6 @@ begin_scene 锁集 → build_target_model → tcp 沿袋轴接近 0.12 m → 下
 """
 
 from pathlib import Path
-
-import yaml
 
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
@@ -36,22 +37,11 @@ from launch.actions import (
 )
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration
+import yaml
 
 
 def generate_launch_description() -> LaunchDescription:
-    bringup_share = Path(get_package_share_directory('sim_bringup'))
     worlds_share = Path(get_package_share_directory('sim_worlds'))
-    nav2_share = Path(get_package_share_directory('nav2_bringup'))
-
-    use_sim_time = LaunchConfiguration('use_sim_time')
-    slam = LaunchConfiguration('slam')
-    params_file = LaunchConfiguration('nav2_params')
-    gui = LaunchConfiguration('gui')
-    moveit = LaunchConfiguration('moveit')
-    rviz = LaunchConfiguration('rviz')
-    field = LaunchConfiguration('field')
-    world = LaunchConfiguration('world')
-    map_yaml = LaunchConfiguration('map')
 
     field_world = str(worlds_share / 'worlds' / 'field_no_grass.sdf')
     field_map = str(worlds_share / 'maps' / 'field_map.yaml')
@@ -115,6 +105,10 @@ def _setup(context, *args, **kwargs):
                            else 'nav2_params.yaml'))
     sim_args = {'gui': gui, 'moveit': moveit,
                 'use_sim_time': use_sim_time,
+                # world 必须显式转发：sim.launch 默认是程序化 peach_orchard，
+                # field 模式地图/站位/世界三者须同源（此前漏传导致
+                # field 地图 + 程序化物理世界错配）
+                'world': world,
                 # RViz 经 sim→moveit_sim 链起（带 robot_description_semantic，
                 # moveit 显示层需要；直接在此起裸 RViz 会报 SRDF 解析失败）
                 'rviz': rviz,

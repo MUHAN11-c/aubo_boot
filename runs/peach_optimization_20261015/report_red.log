@@ -1,0 +1,26 @@
+.FF                                                                      [100%]
+=================================== FAILURES ===================================
+_____________ test_soak_failure_is_reported_before_waiting_for_end _____________
+
+    def test_soak_failure_is_reported_before_waiting_for_end():
+        m = load()
+        with pytest.raises(RuntimeError, match='RViz'):
+>           m.validate_soak_sample({'rviz_alive': False, 'streams_fresh': True})
+E           AttributeError: module 'live_camera_mock' has no attribute 'validate_soak_sample'
+
+src/peach/peach_system_tests/test/test_live_camera_mock.py:404: AttributeError
+_____ test_report_checkpoint_is_atomic_and_retains_failure_before_cleanup ______
+
+tmp_path = PosixPath('/tmp/pytest-of-mu/pytest-80/test_report_checkpoint_is_atom0')
+
+    def test_report_checkpoint_is_atomic_and_retains_failure_before_cleanup(tmp_path):
+        m = load()
+        report = {'errors': ['RViz exited'], 'rounds': []}
+>       m.checkpoint(tmp_path, report, 'cleaning')
+E       AttributeError: module 'live_camera_mock' has no attribute 'checkpoint'
+
+src/peach/peach_system_tests/test/test_live_camera_mock.py:413: AttributeError
+=========================== short test summary info ============================
+FAILED src/peach/peach_system_tests/test/test_live_camera_mock.py::test_soak_failure_is_reported_before_waiting_for_end
+FAILED src/peach/peach_system_tests/test/test_live_camera_mock.py::test_report_checkpoint_is_atomic_and_retains_failure_before_cleanup
+2 failed, 1 passed, 36 deselected in 0.06s

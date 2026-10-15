@@ -33,6 +33,7 @@ setup(
         ('share/' + package_name + '/config', ['config/defaults.yaml']),
         ('share/' + package_name + '/launch', ['launch/transport.launch.xml',
                                                'launch/official_demo.launch.py',
+                                               'launch/sim_demo.launch.py',
                                                'launch/panda_moveit_web.launch.py']),
     ] + _web_data_files(),
     install_requires=['setuptools'],
@@ -48,7 +49,6 @@ setup(
         'console_scripts': [
             'ros_web_link_gateway = ros_web_link.cli:main',
             'rwl_comm_fixture = ros_web_link.comm_fixture:main',
-            'rwl_viz_fixture = ros_web_link.viz_fixture:main',
         ],
     },
 )

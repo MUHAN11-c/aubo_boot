@@ -1,0 +1,62 @@
+FFFFF                                                                    [100%]
+=================================== FAILURES ===================================
+___ test_transient_single_view_rejection_retries_new_exposure_then_succeeds ____
+
+    def test_transient_single_view_rejection_retries_new_exposure_then_succeeds():
+        host, waits, retries, events = _host(['bag_axis_envelope_ill_conditioned', ''])
+>       status, count, ok, message = TargetReconstructionNode._collect_and_finalize_build(
+            host, object(), 't1')
+E       AttributeError: type object 'TargetReconstructionNode' has no attribute '_collect_and_finalize_build'
+
+src/peach/peach_harvester/test/test_reconstruction_build_retry.py:42: AttributeError
+_ test_permanent_unobservable_is_rejected_after_three_total_attempts[bag_axis_envelope_ill_conditioned] _
+
+reason = 'bag_axis_envelope_ill_conditioned'
+
+    @pytest.mark.parametrize('reason', ['bag_axis_envelope_ill_conditioned',
+                                       'bag_axis_silhouette_unobservable'])
+    def test_permanent_unobservable_is_rejected_after_three_total_attempts(reason):
+        host, waits, retries, events = _host([reason] * 3)
+>       status, count, ok, message = TargetReconstructionNode._collect_and_finalize_build(
+            host, object(), 't1')
+E       AttributeError: type object 'TargetReconstructionNode' has no attribute '_collect_and_finalize_build'
+
+src/peach/peach_harvester/test/test_reconstruction_build_retry.py:55: AttributeError
+_ test_permanent_unobservable_is_rejected_after_three_total_attempts[bag_axis_silhouette_unobservable] _
+
+reason = 'bag_axis_silhouette_unobservable'
+
+    @pytest.mark.parametrize('reason', ['bag_axis_envelope_ill_conditioned',
+                                       'bag_axis_silhouette_unobservable'])
+    def test_permanent_unobservable_is_rejected_after_three_total_attempts(reason):
+        host, waits, retries, events = _host([reason] * 3)
+>       status, count, ok, message = TargetReconstructionNode._collect_and_finalize_build(
+            host, object(), 't1')
+E       AttributeError: type object 'TargetReconstructionNode' has no attribute '_collect_and_finalize_build'
+
+src/peach/peach_harvester/test/test_reconstruction_build_retry.py:55: AttributeError
+__________ test_single_deadline_is_not_reset_for_replacement_capture ___________
+
+    def test_single_deadline_is_not_reset_for_replacement_capture():
+        host, waits, retries, events = _host(['bag_axis_envelope_ill_conditioned'], budget=3.)
+>       status, _count, ok, message = TargetReconstructionNode._collect_and_finalize_build(
+            host, object(), 't1')
+E       AttributeError: type object 'TargetReconstructionNode' has no attribute '_collect_and_finalize_build'
+
+src/peach/peach_harvester/test/test_reconstruction_build_retry.py:65: AttributeError
+_______ test_non_retryable_quality_rejection_stops_after_first_exposure ________
+
+    def test_non_retryable_quality_rejection_stops_after_first_exposure():
+        host, waits, retries, _events = _host(['fused_axis_conflict'])
+>       status, _count, ok, message = TargetReconstructionNode._collect_and_finalize_build(
+            host, object(), 't1')
+E       AttributeError: type object 'TargetReconstructionNode' has no attribute '_collect_and_finalize_build'
+
+src/peach/peach_harvester/test/test_reconstruction_build_retry.py:75: AttributeError
+=========================== short test summary info ============================
+FAILED src/peach/peach_harvester/test/test_reconstruction_build_retry.py::test_transient_single_view_rejection_retries_new_exposure_then_succeeds
+FAILED src/peach/peach_harvester/test/test_reconstruction_build_retry.py::test_permanent_unobservable_is_rejected_after_three_total_attempts[bag_axis_envelope_ill_conditioned]
+FAILED src/peach/peach_harvester/test/test_reconstruction_build_retry.py::test_permanent_unobservable_is_rejected_after_three_total_attempts[bag_axis_silhouette_unobservable]
+FAILED src/peach/peach_harvester/test/test_reconstruction_build_retry.py::test_single_deadline_is_not_reset_for_replacement_capture
+FAILED src/peach/peach_harvester/test/test_reconstruction_build_retry.py::test_non_retryable_quality_rejection_stops_after_first_exposure
+5 failed in 0.51s

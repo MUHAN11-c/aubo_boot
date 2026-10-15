@@ -25,3 +25,5 @@ brain入口将 `KeyboardInterrupt` 和 `ExternalShutdownException` 作为正常�
 ## 模型时间与单视质量
 
 `vision/target_reconstruction/publish.py`固定同model_revision首次generated_at；GraspDecision.header.stamp使用该值，心跳不改model_stamp或valid_until。Build结果TargetModel复用相同生成时间/截止时间，diagnostics_debug顶层model_stamp为浮点秒。独立单机位成功最多MEDIUM，至少2个独立机位才可HIGH；连帧数不代替机位数，质量档变化不另改GraspDecision接触门。READY/accepted表示模型状态，不自动授予套入、剪切或真机运动。
+
+重建Build的有界采集/终检编排由`_collect_and_finalize_build`负责：最多三次单机位新曝光、一个既有时间预算，失败输入经`_restart_single_view_build`替换，不累加重复视角。`_finalize_now`及几何函数继续执行原质量检查；三维包络与二维轮廓不可观测使用不同文本拒因。调度等待动作的公共路径可监视并行Build结果，明确失败即取消依赖它的FULL，保留质量证据到终局账本。

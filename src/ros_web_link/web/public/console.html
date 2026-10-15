@@ -182,6 +182,8 @@
     padding: 2px 6px; border-bottom: 1px solid var(--line); }
   table.disp td { padding: 3.5px 6px; border-bottom: 1px dashed var(--line); }
   table.disp .dst.ok { color: var(--green); } table.disp .dst.warn { color: var(--amber); }
+  table.disp .dst { min-width: 52px; font-variant-numeric: tabular-nums; }
+  table.disp td, table.disp th { white-space: nowrap; }
   table.disp .dtopic { background: var(--bg); border: 1px solid var(--line); color: var(--text);
     border-radius: 4px; padding: 2px 6px; font: 11px var(--mono); width: 168px; }
   label.mini { font-size: 11px; color: var(--muted); margin-right: 8px; white-space: nowrap;
@@ -283,6 +285,34 @@
   @keyframes spin { to { transform: rotate(360deg); } }
   footer { color: var(--muted); font-size: 11px; padding: 4px 16px 8px;
     border-top: 1px solid var(--line); background: var(--surface); }
+
+  /* ── 顶部导航栏（RViz 菜单栏语义：按工作区切换，面板不再拥挤） ── */
+  .top-nav { display: flex; gap: 4px; padding: 6px 16px; align-items: center;
+    background: var(--surface); border-bottom: 1px solid var(--line); }
+  .top-nav button { border: 1px solid transparent; background: transparent;
+    color: var(--muted); padding: 5px 16px; border-radius: 6px; cursor: pointer;
+    font-size: 12.5px; }
+  .top-nav button:hover { color: var(--text); }
+  .top-nav button.active { color: var(--teal); border-color: var(--line);
+    background: var(--bg); }
+  .top-nav .nav-spacer { flex: 1; }
+  .top-nav .nav-note { color: var(--muted); font-size: 11px; }
+
+  /* 卡片默认隐藏，按导航成员显示（!important 压过 sec-viz 的内联 display） */
+  .col-viz > .card:not(.in-view), .col-panel > .card:not(.in-view) {
+    display: none !important; }
+  .col-viz > .card.in-view { display: flex; flex-direction: column; }
+  .col-panel > .card.in-view { display: block; }
+  #sec-viz.in-view { display: flex; flex-direction: column; }
+
+  /* 非可视化视图：扁平双列网格（col 容器 display:contents 参与主网格） */
+  main.app-grid.col-flat { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px; padding: 12px; overflow: auto; align-items: start; }
+  main.app-grid.col-flat > .col-viz, main.app-grid.col-flat > .col-panel { display: contents; }
+  main.app-grid.col-flat > .col-splitter { display: none !important; }
+  main.app-grid.col-flat > .card.in-view { display: block; }
+  main.app-grid.col-flat > #sec-viz.in-view { display: flex; flex-direction: column; }
+  main.app-grid.col-flat > #sec-2d.in-view { display: block; }
 </style>
 </head>
 <body>
@@ -290,7 +320,7 @@
   <h1>ros_web_link · 传输诊断台</h1>
   <span class="pill" id="conn-pill" title="点击连接/断开"><span class="dot"></span><span id="conn-pill-text">未连接</span></span>
   <span class="pill" id="caps-pill" title="服务器能力">caps: —</span>
-  <label class="lock-row" id="lock-row" title="开启后关节滑块可写回 /rwl_viz/joint_cmd（演示闭环，非真机）">
+  <label class="lock-row" id="lock-row" title="开启后关节滑块驱动本地模型动画（镜像保持；动臂走 FJT action）">
     <input type="checkbox" id="interact-lock">交互锁
   </label>
   <span class="chip-btn" id="theme-toggle" title="切换浅色/深色主题" style="margin-left:10px;">🌙 深色</span>
@@ -298,11 +328,21 @@
   <button id="btn-selftest-mini" class="primary" style="margin:0;">运行自检</button>
 </header>
 
-<main class="app-grid">
+<nav class="top-nav" id="top-nav">
+  <button data-nav="viz" class="active">可视化</button>
+  <button data-nav="data">数据</button>
+  <button data-nav="monitor">监控</button>
+  <button data-nav="tools">工具</button>
+  <button data-nav="conn">连接</button>
+  <span class="nav-spacer"></span>
+  <span class="nav-note">RViz 风格工作区 · 官方数据面</span>
+</nav>
+
+<main class="app-grid" data-nav="viz">
   <!-- ═════════ 左列：可视化主视口 ═════════ -->
   <div class="col-viz">
     <section class="card" id="sec-viz" style="flex:1;display:flex;flex-direction:column;min-height:0;">
-      <h2>实时可视化 <span class="n">RViz 风格 · /rwl_viz/* + /tf</span>
+      <h2>实时可视化 <span class="n">RViz 风格 · 官方数据面 + /tf</span>
         <span class="kv" id="viz-status" style="margin-left:auto;">连接后自动订阅</span>
         <button class="fs-btn" data-fs="sec-viz" title="全屏（ESC 退出）">⛶</button>
       </h2>
@@ -324,7 +364,7 @@
       </div>
       <div class="viz-3d" id="viz-3d">
         <div class="badge3d">拖拽旋转 / 滚轮缩放 · Displays 在右栏</div>
-        <div class="hud" id="hud-stats"><b id="hud-fps">—</b> fps · <b id="hud-objs">—</b> 对象 · <span id="tracking-error" style="color:var(--muted)"></span> <span id="hud-tcp" style="color:var(--muted)"></span></div>
+        <div class="hud" id="hud-stats"><b id="hud-fps">—</b> fps · <b id="hud-objs">—</b> 对象 · <b id="hud-verts">—</b> 顶点 · <span id="tracking-error" style="color:var(--muted)"></span> <span id="hud-tcp" style="color:var(--muted)"></span></div>
         <div class="hud" id="hud-tool"></div>
         <div class="loading-mask" id="robot-loading-mask">
           <div>
@@ -333,10 +373,15 @@
           </div>
         </div>
       </div>
-      <div class="viz-row" style="margin-top:12px;">
+    </section>
+
+    <section class="card" id="sec-2d">
+      <div class="viz-row" style="margin:0;">
         <div class="viz-card">
-          <div class="cap"><span>相机 Image</span><span id="viz-img-cap">—</span></div>
-          <canvas id="viz-image" width="64" height="48"></canvas>
+          <div class="cap"><span>相机 Image</span><span id="viz-img-cap">—</span>
+            <button id="img-fit" class="ghost" style="min-height:20px;padding:0 6px;margin-left:6px;" title="适配窗口">适配</button>
+            <button id="img-1x" class="ghost" style="min-height:20px;padding:0 6px;" title="1:1 像素">1:1</button></div>
+          <canvas id="viz-image" width="64" height="48" style="cursor:grab;"></canvas>
         </div>
         <div class="viz-card">
           <div class="cap"><span>激光 LaserScan</span><span id="viz-scan-cap">—</span></div>
@@ -352,26 +397,31 @@
 
   <div class="col-splitter" id="col-splitter" title="拖拽调整列宽"></div>
 
-  <!-- ═════════ 右列：控制面板（标签页分组，非活动组隐藏以减少拥挤） ═════════ -->
+  <!-- ═════════ 右列：控制面板（顶部导航切换成员，面板不再拥挤） ═════════ -->
   <div class="col-panel">
-    <div class="panel-tabs" id="panel-tabs">
-      <button data-tab="viz" class="active">可视化</button>
-      <button data-tab="monitor">监控</button>
-      <button data-tab="tools">工具</button>
-    </div>
 
-    <!-- ── 标签组：可视化（Displays + 话题） ── -->
-    <div class="panel-tab-group active" data-group="viz">
-
-    <section class="card">
+    <section class="card" id="sec-displays">
       <h2>Displays <span class="n">RViz 风格显示项</span><button class="fs-btn" data-fs>⛶</button></h2>
+      <div id="viz-global" class="kv" style="display:flex;gap:10px;flex-wrap:wrap;margin:0 0 6px;"></div>
+      <div style="display:flex;gap:6px;align-items:center;margin-bottom:6px;">
+        <select id="disp-add-type" style="flex:1;min-width:0;">
+          <option value="">＋ 添加显示项…</option>
+        </select>
+        <select id="layout-select" style="flex:1;min-width:0;" title="命名布局">
+          <option value="">布局：默认</option>
+        </select>
+        <button id="layout-save" class="ghost" title="保存当前布局（Displays/相机/分割条/绘图）">存</button>
+        <button id="layout-del" class="ghost" title="删除选中布局">删</button>
+        <button id="layout-export" class="ghost" title="导出布局 JSON（复制到剪贴板）">出</button>
+        <button id="layout-import" class="ghost" title="导入布局 JSON（从剪贴板）">入</button>
+      </div>
       <table class="disp" id="viz-displays">
-        <thead><tr><th></th><th>显示项</th><th>话题</th><th>属性</th><th>状态</th></tr></thead>
+        <thead><tr><th></th><th>显示项</th><th>话题</th><th>属性</th><th>状态</th><th></th></tr></thead>
         <tbody></tbody>
       </table>
     </section>
 
-    <section class="card">
+    <section class="card" id="sec-topics">
       <h2>话题 <span class="n">订阅树 + 一键可视化</span>
         <span class="kv" id="topics-count" style="margin-left:auto;"></span>
         <button class="fs-btn" data-fs>⛶</button></h2>
@@ -384,16 +434,37 @@
     </section>
 
     <details class="card" id="sec-topo">
-      <summary>拓扑图 <span class="n">节点/话题/服务 + 流向粒子</span></summary>
+      <summary>拓扑图 <span class="n">节点/话题/服务/动作 + 流向粒子</span>
+        <span style="margin-left:auto;display:flex;gap:8px;" class="mini">
+          <label><input type="checkbox" id="topo-show-svc" checked>服务</label>
+          <label><input type="checkbox" id="topo-show-act" checked>动作</label>
+          <input type="search" id="topo-search" placeholder="过滤节点/话题" style="width:110px;">
+        </span>
+      </summary>
       <div class="topo-wrap" id="topo-container"></div>
     </details>
 
-    </div>
+    <section class="card" id="sec-teleop">
+      <h2>Teleop <span class="n">键盘遥控 · 仅限仿真</span>
+        <label class="mini" style="margin-left:auto;"><input type="checkbox" id="teleop-arm">使能</label></h2>
+      <div class="kv" style="display:flex;flex-direction:column;gap:6px;">
+        <div style="display:flex;gap:10px;align-items:center;">
+          <label class="mini" style="flex:1;">线速 <input type="range" id="teleop-lin" min="0.05" max="0.5" step="0.05" value="0.2">
+            <b id="teleop-lin-v">0.20</b> m/s</label>
+          <label class="mini" style="flex:1;">角速 <input type="range" id="teleop-ang" min="0.2" max="2" step="0.1" value="1.0">
+            <b id="teleop-ang-v">1.0</b> rad/s</label>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <span class="mini" style="color:var(--muted)">W/A/S/D 或方向键（卡片悬停时生效；松键即停，Q/E 原地转）</span>
+          <button id="teleop-stop" class="ghost" style="margin-left:auto;color:var(--red);border-color:var(--red);">■ 停止</button>
+        </div>
+        <div class="mini" id="teleop-state" style="color:var(--muted)">未使能 · 未发布</div>
+      </div>
+    </section>
 
-    <!-- ── 标签组：监控（传输监控 + 绘图） ── -->
-    <div class="panel-tab-group" data-group="monitor">
+    <!-- ── 监控成员 ── -->
 
-    <section class="card">
+    <section class="card" id="sec-mon">
       <h2>传输监控 <span class="n">Transport &amp; Interaction</span><button class="fs-btn" data-fs>⛶</button></h2>
       <div class="cards" id="mon-cards">
         <div class="dcard"><div class="k">心跳 RTT</div><div class="v" id="mon-rtt">—</div></div>
@@ -415,10 +486,10 @@
       </div>
     </section>
 
-    <section class="card">
+    <section class="card" id="sec-plot">
       <h2>字段绘图 <span class="n">rqt_plot</span><button class="fs-btn" data-fs>⛶</button></h2>
       <div class="plot-controls">
-        <div class="pc"><input id="plot-topic" list="plot-topics" placeholder="话题（/rwl_viz/joint_states）" spellcheck="false"></div>
+        <div class="pc"><input id="plot-topic" list="plot-topics" placeholder="话题（/joint_states）" spellcheck="false"></div>
         <div class="pc"><input id="plot-field" list="plot-fields" placeholder="字段（选话题后出候选）" spellcheck="false"></div>
         <button id="btn-plot-add" style="margin:0;">添加</button>
         <button id="btn-plot-clear" class="ghost" style="margin:0;">清空</button>
@@ -432,17 +503,17 @@
       <div id="plot-legend"></div>
     </section>
 
-    <section class="card">
+    <section class="card" id="sec-diag">
       <h2>诊断 <span class="n">rqt_runtime_monitor</span><button class="fs-btn" data-fs>⛶</button></h2>
       <div class="plot-controls" style="margin-bottom:6px;">
-        <div class="pc"><input id="diag-topic" value="/rwl_viz/diagnostics" list="rwl-topics" spellcheck="false"></div>
+        <div class="pc"><input id="diag-topic" value="/diagnostics" list="rwl-topics" spellcheck="false"></div>
         <label class="mini" style="margin:0 6px 0 0;"><input type="checkbox" id="diag-enable" checked>启用</label>
         <span class="kv" id="diag-count"></span>
       </div>
       <div class="feed" id="diag-list" style="max-height:190px;white-space:normal;"></div>
     </section>
 
-    <section class="card">
+    <section class="card" id="sec-roslog">
       <h2>ROS 日志 <span class="n">rqt_console · /rosout</span><button class="fs-btn" data-fs>⛶</button></h2>
       <div class="plot-controls" style="margin-bottom:6px;">
         <select id="roslog-level" style="width:auto;margin:0;">
@@ -456,12 +527,11 @@
       <div class="feed" id="roslog-list" style="max-height:190px;white-space:normal;"></div>
     </section>
 
-    </div>
+    </section>
 
-    <!-- ── 标签组：工具（示教轨迹 + 自检 + 操作台 + 图谱 + 连接） ── -->
-    <div class="panel-tab-group" data-group="tools">
+    <!-- ── 工具成员 ── -->
 
-    <section class="card">
+    <section class="card" id="sec-traj">
       <h2>示教与轨迹 <span class="n">Teach &amp; Trajectory</span>
         <button class="fs-btn" data-fs>⛶</button></h2>
       <div class="traj-stats">
@@ -473,7 +543,7 @@
       <div class="row" style="gap:6px;margin-bottom:6px;">
         <div style="flex:2;min-width:130px;"><label style="margin:0;">姿态预设</label>
           <select id="preset-select" style="width:100%;"></select></div>
-        <button id="btn-preset-apply" style="margin:0;min-height:30px;padding:4px 12px;" title="easeInOutCubic 850ms 缓动（交互锁开启时同步写 /rwl_viz/joint_cmd）">应用</button>
+        <button id="btn-preset-apply" style="margin:0;min-height:30px;padding:4px 12px;" title="easeInOutCubic 850ms 缓动（本地模型动画；动臂走 FJT action）">应用</button>
         <button id="btn-preset-save" class="ghost" style="margin:0;min-height:30px;padding:4px 10px;" title="把当前关节角存为预设">存当前</button>
         <button id="btn-preset-del" class="ghost" style="margin:0;min-height:30px;padding:4px 10px;">删</button>
       </div>
@@ -493,10 +563,22 @@
       <pre id="traj-out" style="max-height:90px;">—</pre>
     </section>
 
+    <details class="card" id="sec-params">
+      <summary>参数 <span class="n">rqt_reconfigure 风格读写</span></summary>
+      <div class="row" style="gap:6px;align-items:center;">
+        <input id="param-node" value="/" spellcheck="false" style="flex:1;min-width:0;" placeholder="节点名（如 /amcl）" list="rwl-nodes">
+        <button id="btn-param-load" class="ghost">读取参数</button>
+      </div>
+      <datalist id="rwl-nodes"></datalist>
+      <div id="param-list" style="max-height:260px;overflow:auto;margin-top:6px;display:flex;flex-direction:column;gap:4px;">
+        <span class="mini" style="color:var(--muted)">读取后按类型内联编辑；修改即写回（set_parameters）</span>
+      </div>
+    </details>
+
     <details class="card" id="sec-selftest">
       <summary>全链路自检 <span class="n">Communication Matrix</span></summary>
       <p class="kv" style="margin:4px 0 6px;">
-        被测端：<code>ros2 launch ros_web_link transport.launch.xml fixture:=true viz_fixture:=true</code>
+        被测端：<code>ros2 launch ros_web_link transport.launch.xml fixture:=true</code>
       </p>
       <button id="btn-selftest">运行自检</button>
       <button id="btn-selftest-cancel" class="ghost" disabled>取消 action</button>
@@ -523,6 +605,7 @@
 
       <label>服务调用</label>
       <input id="svc-name" value="/rwl_demo/add_two_ints" spellcheck="false">
+      <select id="svc-hist" style="max-width:120px;" title="调用历史（选择即回填）"></select>
       <textarea id="svc-json" spellcheck="false">{ "a": 20, "b": 22 }</textarea>
       <button id="btn-svc" style="min-height:30px;">调用</button>
       <pre id="svc-out" style="max-height:110px;">—</pre>
@@ -555,6 +638,7 @@
       <div class="tabs" style="display:flex;gap:6px;margin:6px 0;">
         <button data-tab="topics" class="active" style="min-height:26px;padding:2px 12px;">话题</button>
         <button data-tab="services" style="min-height:26px;padding:2px 12px;">服务</button>
+        <button data-tab="actions" style="min-height:26px;padding:2px 12px;">动作</button>
         <button data-tab="nodes" style="min-height:26px;padding:2px 12px;">节点</button>
       </div>
       <ul class="list" id="graph-list" style="list-style:none;margin:0;padding:0;max-height:200px;overflow:auto;font:11px var(--mono);"></ul>
@@ -575,8 +659,6 @@
       </div>
       <div class="kv" id="conn-detail-2" style="margin-top:6px;">session: —</div>
     </details>
-
-    </div>
   </div>
 </main>
 

@@ -1,0 +1,65 @@
+Starting >>> peach_common
+Starting >>> peach_interfaces
+Starting >>> peach_web
+Starting >>> peach_stereo
+Finished <<< peach_common [1.72s]
+Starting >>> peach_vegetation
+Finished <<< peach_web [2.12s]
+Finished <<< peach_interfaces [3.91s]
+Starting >>> peach_harvester
+Starting >>> peach_observability
+[4.630s] colcon.colcon_core.shell WARNING The following packages are in the workspace but haven't been built:
+- nav2_common
+- nav2_msgs
+They are being used from the following locations instead:
+- /opt/ros/jazzy
+- /opt/ros/jazzy
+To suppress this warning ignore these packages in the workspace:
+--packages-ignore nav2_common nav2_msgs
+Finished <<< peach_stereo [4.87s]
+Finished <<< peach_vegetation [6.34s]
+--- stderr: peach_harvester
+=============================== warnings summary ===============================
+test/test_flake8.py: 20 warnings
+  Warning: This process (pid=573687) is multi-threaded, use of fork() may lead to deadlocks in the child.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+---
+Finished <<< peach_harvester [10.4s]	[ with test failures ]
+Starting >>> peach_arm
+--- stderr: peach_observability
+
+=============================== warnings summary ===============================
+test/test_flake8.py: 20 warnings
+  Warning: This process (pid=573690) is multi-threaded, use of fork() may lead to deadlocks in the child.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+---
+Finished <<< peach_observability [13.1s]
+Finished <<< peach_arm [6.54s]
+Starting >>> peach_bringup
+[21.579s] colcon.colcon_core.shell WARNING The following packages are in the workspace but haven't been built:
+- nav2_common
+- nav2_msgs
+- nav2_util
+- nav2_lifecycle_manager
+They are being used from the following locations instead:
+- /opt/ros/jazzy
+- /opt/ros/jazzy
+- /opt/ros/jazzy
+- /opt/ros/jazzy
+To suppress this warning ignore these packages in the workspace:
+--packages-ignore nav2_common nav2_msgs nav2_util nav2_lifecycle_manager
+--- stderr: peach_bringup
+
+=============================== warnings summary ===============================
+test/test_flake8.py: 20 warnings
+  Warning: This process (pid=575673) is multi-threaded, use of fork() may lead to deadlocks in the child.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+---
+Finished <<< peach_bringup [1.89s]
+
+Summary: 9 packages finished [23.3s]
+  3 packages had stderr output: peach_bringup peach_harvester peach_observability
+  1 package had test failures: peach_harvester

@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Peach · 数据分析</title>
+  <link rel="stylesheet" href="/app.css">
+  <link rel="stylesheet" href="/analysis.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <div><p class="eyebrow">PEACH / RECORD ANALYSIS</p><h1>测试记录分析</h1></div>
+    </div>
+    <a class="back-link" href="/">返回过程控制台</a>
+  </header>
+  <main class="analysis-page">
+    <section class="panel">
+      <div class="section-head">
+        <div><p class="kicker">RECORD</p><h2>选择记录</h2></div>
+      </div>
+      <form id="pick">
+        <label>记录路径
+          <input id="path" list="records" placeholder="例如 live_mock_20261015_1536 或 round_..." required>
+        </label>
+        <datalist id="records"></datalist>
+        <button type="submit">解析</button>
+      </form>
+      <p id="status" class="empty">从 runs 目录选择一次测试记录。过程监控页不会因此改变。</p>
+    </section>
+    <section class="panel" id="result" hidden>
+      <div class="section-head">
+        <div><p class="kicker">SUMMARY</p><h2 id="result-title">分析结果</h2></div>
+      </div>
+      <div id="stats" class="stat-grid"></div>
+      <h3>结束情况</h3>
+      <div id="outcomes"></div>
+      <h3>参考点</h3>
+      <p class="empty">坐标在 base_link，单位米。径向余量和果距只作记录。</p>
+      <div class="analysis-split">
+        <svg id="plot" viewBox="0 0 360 280" role="img" aria-label="参考点平面位置"></svg>
+        <div id="images"></div>
+      </div>
+      <table>
+        <thead><tr><th>目标</th><th>点</th><th>x</th><th>y</th><th>z</th></tr></thead>
+        <tbody id="points"></tbody>
+      </table>
+    </section>
+  </main>
+  <script src="/analysis.js"></script>
+</body>
+</html>

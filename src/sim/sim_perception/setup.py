@@ -31,7 +31,7 @@ setup(
     zip_safe=True,
     maintainer='wjz',
     maintainer_email='2155413529@qq.com',
-    description='Sim-sub-workspace snapshot of the peach vision stack (perception + reconstruction).',
+    description='Sim snapshot of the peach vision stack (perception + reconstruction).',
     license='BSD-3-Clause',
     entry_points={
         'console_scripts': [

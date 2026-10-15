@@ -1,4 +1,5 @@
-"""odom→platform_base_link TF 中继（OdometryPublisher 的 gz 帧名不可控）.
+"""
+odom→platform_base_link TF 中继（OdometryPublisher 的 gz 帧名不可控）.
 
 gz-sim OdometryPublisher 的 TF 子帧用模型 canonical link 名
 （harvester/base_footprint），不能通过 <robot_frame> 参数覆盖为
@@ -6,11 +7,11 @@ platform_base_link。本节点订 /odom 并转发正确的 TF——标准 ROS 2
 导航栈模式（Nav2 官方 tutorial 同类：odom_tf_broadcaster）。
 """
 
+from geometry_msgs.msg import TransformStamped
+from nav_msgs.msg import Odometry
 import rclpy
 from rclpy.node import Node
-from nav_msgs.msg import Odometry
 from tf2_ros import TransformBroadcaster
-from geometry_msgs.msg import TransformStamped
 
 
 class OdomTfRelay(Node):
@@ -40,7 +41,9 @@ def main(args=None):
         rclpy.spin(node)
     finally:
         node.destroy_node()
-        rclpy.shutdown()
+        # SIGINT 时 rclpy 信号处理器已 shutdown，重复调用会抛 RCLError
+        if rclpy.ok():
+            rclpy.shutdown()
 
 
 if __name__ == '__main__':

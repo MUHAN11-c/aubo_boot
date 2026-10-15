@@ -1,0 +1,13 @@
+[0.732s] WARNING:colcon.colcon_core.package_selection:Some selected packages are already built in one or more underlay workspaces:
+	'peach_arm' is in: /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_arm
+If a package in a merged underlay workspace is overridden and it installs headers, then all packages in the overlay must sort their include directories by workspace order. Failure to do so may result in build failures or undefined behavior at run time.
+If the overridden package is used by another package in any underlay, then the overriding package in the overlay must be API and ABI compatible or undefined behavior at run time may occur.
+
+If you understand the risks and want to override a package anyways, add the following to the command line:
+	--allow-overriding peach_arm
+
+This may be promoted to an error in a future release of colcon-override-check.
+Starting >>> peach_arm
+Finished <<< peach_arm [29.8s]
+
+Summary: 1 package finished [30.4s]

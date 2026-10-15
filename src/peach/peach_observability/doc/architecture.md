@@ -14,7 +14,7 @@
 
 ## 生命周期、并发与失败
 
-Lifecycle节点自激活，不进系统四节点名单；双线程executor外有HTTP、编码、发现、报告等工作线程。HTTP只读缓存图像/TF，不阻塞ROS获取新帧；每流最新槽、公平编码总计最多5Hz。cleanup/destroy停止线程、订阅、timer并封口bag。报告可能需要较长退出窗口；写盘未完不能立刻强杀。accepted仅代表受理，202仍在途，网络/超时是结果未知，POST不自动重发。allowed不证明臂侧许可，level6不是level7；陈旧/身份缺失明确标记，不能推断成有效模型。
+Lifecycle节点自激活，不进系统四节点名单；双线程executor外有HTTP、编码、发现等工作线程。HTTP只读缓存图像/TF，不阻塞ROS获取新帧；每流最新槽、公平编码总计最多5Hz。cleanup/destroy停止线程、订阅、timer并封口bag。自动报告在封口后用当前Python启动子进程，继承launch进程组；默认等30秒，超时先terminate、2秒后kill并回收，保留已封口bag供离线重算，报告失败不伪装成功。accepted仅代表受理，202仍在途，网络/超时是结果未知，POST不自动重发。allowed不证明臂侧许可，level6不是level7；陈旧/身份缺失明确标记，不能推断成有效模型。
 
 ## 验证与限制
 

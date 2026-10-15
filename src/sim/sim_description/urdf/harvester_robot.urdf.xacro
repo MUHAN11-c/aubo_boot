@@ -9,8 +9,9 @@
     真机拍照位（photo_joints，field_pregrasp_cases.yaml）。
     mobile:=true（自主导航轮，REP-105）：不含臂链（world_joint 的世界锚定
     无法在只读 aubo_description 之外解除；本轮导航不动臂）。根 =
-    platform_base_link，spawn 落地 z=0；驱动 = gz DiffDrive（履带滚筒轮），
-    发布 /odom 与 odom→platform_base_link TF；帧树
+    platform_base_link，spawn 落地 z=0；驱动 = gz VelocityControl（履带
+    fixed 挂接，P4b 口径），OdometryPublisher 发 /odom（ROS 侧 TF 由
+    odom_tf_relay 补发）；帧树
     map→odom→platform_base_link→{left,right}_track/lidar_mount，
     map→odom 由 Nav2 AMCL/SLAM 发布。
     不改 aubo_description 只读面；gz_ros2_control 接臂属后续轮。 -->
@@ -91,7 +92,9 @@
   </xacro:unless>
 
   <!-- 关节状态出 gz（ros_gz_bridge: gz.msgs.Model → sensor_msgs/JointState）；
-       mobile 模式发布履带滚筒关节角，锚定模式发布臂关节角 -->
+       锚定模式发布 hold_joint 钉住的臂关节角。mobile 模式履带为 fixed 挂接
+       （VelocityControl 口径）、臂链不含入，无可发布的活动关节——
+       关节状态消费（带臂驾驶）以 sim.launch 统一机体的 JSB 为准 -->
   <gazebo>
     <plugin name="gz::sim::systems::JointStatePublisher"
           filename="gz-sim-joint-state-publisher-system">

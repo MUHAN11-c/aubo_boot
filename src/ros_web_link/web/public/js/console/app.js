@@ -9,11 +9,12 @@
 
 import { foxgloveRosClient } from '../transport/foxglove/ros_client.js';
 import { createActionClient } from '../transport/foxglove/action_client.js';
-import { initViz } from './viz.js';
+import { initViz, DISPLAY_TYPES } from './viz.js';
 import { initPlot } from './plot.js';
 import { initTopics } from './topics.js';
 import { initPanels } from './panel.js';
 import { initMonPanels } from './monpanels.js';
+import { initTeleop } from './teleop.js';
 
 const $ = (id) => document.getElementById(id);
 const fmt = (v) => {
@@ -145,7 +146,13 @@ function refreshGraph() {
   let items = [];
   if (graphTab === 'topics') items = snap.topics.map((t) => [t, '']);
   else if (graphTab === 'services') items = snap.services.map((s) => [s, '']);
-  else items = snap.nodes.map((n) => [n, '']);
+  else if (graphTab === 'actions') {
+    // 动作名从 action 内部话题推导（rqt 动作列表语义；bridge 图谱无独立动作实体）
+    const acts = new Set(snap.topics
+      .filter((t) => t.includes('/_action/'))
+      .map((t) => t.split('/_action/')[0]));
+    items = [...acts].map((a) => [a, '']);
+  } else items = snap.nodes.map((n) => [n, '']);
   $('graph-hint').textContent = `${items.length} 项 · 点击带入表单`;
   for (const [name] of items) {
     const li = document.createElement('li');
@@ -235,6 +242,34 @@ $('btn-pub').addEventListener('click', () => {
 
 // ── 服务调用 ────────────────────────────────────────────────────────────────
 
+// ── 服务调用（历史可重发，rqt_service_caller 语义） ─────────────────────────
+
+const SVC_HIST_KEY = 'rwl-svc-hist-v1';
+function svcHist() {
+  try { return JSON.parse(localStorage.getItem(SVC_HIST_KEY) || '[]'); }
+  catch (_) { return []; }
+}
+function svcHistPush(entry) {
+  const all = svcHist().filter((h) => h.name !== entry.name);
+  all.unshift(entry);
+  try { localStorage.setItem(SVC_HIST_KEY, JSON.stringify(all.slice(0, 20))); } catch (_) {}
+  refreshSvcHist();
+}
+function refreshSvcHist() {
+  const sel = $('svc-hist');
+  if (!sel) return;
+  const all = svcHist();
+  sel.innerHTML = `<option value="">历史（${all.length}）</option>`
+    + all.map((h, i) => `<option value="${i}">${h.name}</option>`).join('');
+}
+refreshSvcHist();
+$('svc-hist')?.addEventListener('change', (e) => {
+  const h = svcHist()[+e.target.value];
+  if (!h) return;
+  $('svc-name').value = h.name;
+  $('svc-json').value = JSON.stringify(h.req, null, 1);
+});
+
 $('btn-svc').addEventListener('click', async () => {
   if (!client.isConnected) return alert('先连接');
   const name = $('svc-name').value.trim();
@@ -248,6 +283,7 @@ $('btn-svc').addEventListener('click', async () => {
   try {
     const resp = await client.callService(name, req, { timeoutMs: 15000 });
     $('svc-out').textContent = fmt(resp);
+    svcHistPush({ name, req, at: new Date().toISOString() });
   } catch (e) {
     $('svc-out').textContent = '失败: ' + (e.message || e);
   }
@@ -778,22 +814,175 @@ initPlot();                     // rqt_plot 风格字段绘图
 const topicsCard = initTopics(vizPanel);   // 话题卡（订阅树 + 一键可视化）
 initPanels(vizPanel, topicsCard);          // 示教/轨迹/拓扑图/分割条
 initMonPanels();                // 诊断（runtime_monitor）+ ROS 日志（rqt_console）
-// ── 右栏标签页切换（减少拥挤：同类面板归一组，非活动组 display:none） ──────
-(function panelTabsInit() {
-  const tabsBar = document.getElementById('panel-tabs');
-  if (!tabsBar) return;
-  const saved = localStorage.getItem('rwl-panel-tab') || 'viz';
-  const activate = (name) => {
-    tabsBar.querySelectorAll('button').forEach((b) =>
-      b.classList.toggle('active', b.dataset.tab === name));
-    document.querySelectorAll('.panel-tab-group').forEach((g) =>
-      g.classList.toggle('active', g.dataset.group === name));
-    localStorage.setItem('rwl-panel-tab', name);
+// ── 顶部导航栏（RViz 菜单栏语义：按工作区切换成员卡片，主网格扁平重排） ──────
+(function navInit() {
+  const bar = document.getElementById('top-nav');
+  const main = document.querySelector('main.app-grid');
+  if (!bar || !main) return;
+  const MEMBERS = {
+    viz: ['sec-viz', 'sec-displays', 'sec-topics', 'sec-teleop'],
+    data: ['sec-2d', 'sec-plot'],
+    monitor: ['sec-mon', 'sec-diag', 'sec-roslog'],
+    tools: ['sec-traj', 'sec-params', 'sec-ops', 'sec-selftest'],
+    conn: ['sec-conn', 'sec-graph', 'sec-topo'],
   };
-  tabsBar.querySelectorAll('button').forEach((b) => {
-    b.addEventListener('click', () => activate(b.dataset.tab));
+  const apply = (name) => {
+    main.dataset.nav = name;
+    main.classList.toggle('col-flat', name !== 'viz');
+    for (const ids of Object.values(MEMBERS)) {
+      for (const id of ids) {
+        document.getElementById(id)?.classList.remove('in-view');
+      }
+    }
+    for (const id of MEMBERS[name] || []) {
+      document.getElementById(id)?.classList.add('in-view');
+    }
+    localStorage.setItem('rwl-nav', name);
+  };
+  bar.querySelectorAll('button[data-nav]').forEach((b) => {
+    b.addEventListener('click', () => apply(b.dataset.nav));
   });
-  activate(saved);
+  apply(localStorage.getItem('rwl-nav') || 'viz');
+})();
+
+// ── RViz2/Foxglove 升级轮：Displays 添加 / 布局快照 / Teleop / 参数面板 ─────
+(function extendedPanels() {
+  // ＋添加显示项（RViz Add Display）
+  const addSel = document.getElementById('disp-add-type');
+  if (addSel) {
+    addSel.innerHTML = '<option value="">＋ 添加显示项…</option>'
+      + Object.entries(DISPLAY_TYPES)
+        .filter(([, s]) => !s.singleton)
+        .map(([k, s]) => `<option value="${k}">${s.label}</option>`).join('');
+    addSel.addEventListener('change', () => {
+      if (addSel.value) { vizPanel.addInstance(addSel.value); addSel.value = ''; }
+    });
+  }
+
+  // 布局命名快照（保存/恢复/删除/导入导出）
+  const layoutSel = document.getElementById('layout-select');
+  const refreshLayouts = () => {
+    if (!layoutSel) return;
+    const all = vizPanel.listLayouts();
+    layoutSel.innerHTML = '<option value="">布局：默认</option>'
+      + Object.keys(all).map((n) => `<option value="${n}">${n}</option>`).join('');
+  };
+  refreshLayouts();
+  layoutSel?.addEventListener('change', () => {
+    const name = layoutSel.value;
+    if (!name) return;
+    const snap = vizPanel.listLayouts()[name];
+    if (snap && vizPanel.applyLayout(snap)) {
+      const h = document.getElementById('hud-tool');
+      if (h) h.textContent = `布局「${name}」已恢复`;
+    }
+  });
+  document.getElementById('layout-save')?.addEventListener('click', () => {
+    const fallback = '布局 ' + new Date().toLocaleString();
+    const name = window.prompt('布局名称', layoutSel?.value || fallback) || fallback;
+    vizPanel.saveLayout(name, vizPanel.snapshotLayout());
+    refreshLayouts();
+    if (layoutSel) layoutSel.value = name;
+  });
+  document.getElementById('layout-del')?.addEventListener('click', () => {
+    const name = layoutSel?.value;
+    if (!name) return;
+    vizPanel.deleteLayout(name);
+    refreshLayouts();
+  });
+  document.getElementById('layout-export')?.addEventListener('click', async () => {
+    const json = JSON.stringify(vizPanel.snapshotLayout(), null, 1);
+    try {
+      await navigator.clipboard.writeText(json);
+      const h = document.getElementById('hud-tool');
+      if (h) h.textContent = '布局 JSON 已复制到剪贴板';
+    } catch (_) {
+      window.prompt('复制布局 JSON：', json);
+    }
+  });
+  document.getElementById('layout-import')?.addEventListener('click', () => {
+    const txt = window.prompt('粘贴布局 JSON：');
+    if (!txt) return;
+    try {
+      if (vizPanel.applyLayout(JSON.parse(txt))) refreshLayouts();
+    } catch (e) {
+      alert('导入失败: ' + (e.message || e));
+    }
+  });
+
+  // Teleop（官方 TB3 /cmd_vel；仅限仿真）
+  initTeleop(() => window.__rwl_client);
+
+  // 参数面板（rqt_reconfigure 简化版：节点 → 全量参数 → 类型内联编辑 → 写回）
+  const esc = (s) => String(s).replace(/[&<>"]/g,
+    (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
+  document.getElementById('btn-param-load')?.addEventListener('click', async () => {
+    const node = document.getElementById('param-node').value.trim() || '/';
+    const box = document.getElementById('param-list');
+    box.textContent = '读取中…';
+    try {
+      const params = await client.getParams(node);
+      const names = Object.keys(params);
+      if (!names.length) {
+        box.textContent = '（节点无参数或不可达）';
+        return;
+      }
+      box.innerHTML = '';
+      for (const name of names) {
+        const v = params[name];
+        const row = document.createElement('div');
+        row.style.cssText = 'display:flex;gap:6px;align-items:center;';
+        const nameCell = `<span class="mini" style="width:170px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(name)}">${esc(name)}</span>`;
+        const type = typeof v;
+        if (type === 'boolean') {
+          row.innerHTML = `${nameCell}
+            <input type="checkbox" data-pn="${esc(name)}" ${v ? 'checked' : ''}>
+            <span class="mini dst ok">bool</span>`;
+          row.querySelector('input').addEventListener('change', async (e) => {
+            const r = await client.setParam(node, name, e.target.checked);
+            const d = row.querySelector('.dst');
+            d.textContent = r.successful ? '✓ 已写' : '✗ ' + (r.reason || '失败');
+            d.className = 'mini dst ' + (r.successful ? 'ok' : 'warn');
+          });
+        } else if (type === 'number' || type === 'bigint') {
+          row.innerHTML = `${nameCell}
+            <input type="number" step="any" value="${v}" data-pn="${esc(name)}" style="width:130px;">
+            <span class="mini dst ok">num</span>`;
+          row.querySelector('input').addEventListener('change', async (e) => {
+            const r = await client.setParam(node, name, parseFloat(e.target.value));
+            const d = row.querySelector('.dst');
+            d.textContent = r.successful ? '✓ 已写' : '✗ ' + (r.reason || '失败');
+            d.className = 'mini dst ' + (r.successful ? 'ok' : 'warn');
+          });
+        } else if (type === 'string') {
+          row.innerHTML = `${nameCell}
+            <input type="text" value="${esc(v)}" data-pn="${esc(name)}" style="flex:1;min-width:0;">
+            <span class="mini dst ok">str</span>`;
+          row.querySelector('input').addEventListener('change', async (e) => {
+            const r = await client.setParam(node, name, e.target.value);
+            const d = row.querySelector('.dst');
+            d.textContent = r.successful ? '✓ 已写' : '✗ ' + (r.reason || '失败');
+            d.className = 'mini dst ' + (r.successful ? 'ok' : 'warn');
+          });
+        } else {
+          row.innerHTML = `${nameCell}
+            <span class="mini" style="flex:1;overflow:hidden;text-overflow:ellipsis">${esc(JSON.stringify(v)).slice(0, 70)}</span>
+            <span class="mini dst">${type}</span>`;
+        }
+        box.appendChild(row);
+      }
+    } catch (e) {
+      box.textContent = '读取失败: ' + (e.message || e);
+    }
+  });
+  // 节点 datalist（连接图节点；周期刷新）
+  setInterval(() => {
+    const dl = document.getElementById('rwl-nodes');
+    let graph = null;
+    try { graph = client.getGraph(); } catch (_) { return; }
+    if (!dl || !graph?.nodes) return;
+    dl.innerHTML = [...graph.nodes].map((n) => `<option value="${n}">`).join('');
+  }, 4000);
 })();
 
 // 页面加载即自动连接（诊断台默认行为）

@@ -15,11 +15,11 @@ from typing import (
 
 import numpy as np
 from peach_common.event_meter import EventMeter
+from scipy.optimize import linear_sum_assignment
 from sim_perception.vision.common.geometry import (
     grasp_frame_from_axis,
     rotation_to_quat,
 )
-from scipy.optimize import linear_sum_assignment
 
 from .contracts import compute_entry_start, LockEvent, MatchResult
 

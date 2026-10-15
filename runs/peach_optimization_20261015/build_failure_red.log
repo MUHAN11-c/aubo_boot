@@ -1,0 +1,64 @@
+FFF                                                                      [100%]
+=================================== FAILURES ===================================
+______ test_waiting_full_is_canceled_only_if_parallel_build_fails[False] _______
+
+success = False
+
+    @pytest.mark.parametrize('success', [False, True])
+    def test_waiting_full_is_canceled_only_if_parallel_build_fails(success):
+        result = object()
+        arm_future = _Future(SimpleNamespace(result=result, status=5), done=False)
+        build_future = _Future(SimpleNamespace(result=SimpleNamespace(
+            success=success, message='bag_axis_envelope_ill_conditioned; attempts=3')))
+        handle = SimpleNamespace(get_result_async=lambda: arm_future)
+        canceled = []
+        host = SimpleNamespace(
+            _cancel=False, _paused=False, _peek_skip=lambda: False, _poke=lambda: None,
+            _idle=lambda *_args: setattr(arm_future, 'ready', True),
+            _cancel_handle=lambda actual: canceled.append(actual),
+            get_logger=lambda: SimpleNamespace(warning=lambda *_args: None),
+        )
+>       actual = TaskExecutorNode._wait_result(
+            host, handle, 5., prerequisite_future=build_future)
+E       TypeError: TaskExecutorNode._wait_result() got an unexpected keyword argument 'prerequisite_future'
+
+src/peach/peach_harvester/test/test_supervisor_build_failure.py:36: TypeError
+_______ test_waiting_full_is_canceled_only_if_parallel_build_fails[True] _______
+
+success = True
+
+    @pytest.mark.parametrize('success', [False, True])
+    def test_waiting_full_is_canceled_only_if_parallel_build_fails(success):
+        result = object()
+        arm_future = _Future(SimpleNamespace(result=result, status=5), done=False)
+        build_future = _Future(SimpleNamespace(result=SimpleNamespace(
+            success=success, message='bag_axis_envelope_ill_conditioned; attempts=3')))
+        handle = SimpleNamespace(get_result_async=lambda: arm_future)
+        canceled = []
+        host = SimpleNamespace(
+            _cancel=False, _paused=False, _peek_skip=lambda: False, _poke=lambda: None,
+            _idle=lambda *_args: setattr(arm_future, 'ready', True),
+            _cancel_handle=lambda actual: canceled.append(actual),
+            get_logger=lambda: SimpleNamespace(warning=lambda *_args: None),
+        )
+>       actual = TaskExecutorNode._wait_result(
+            host, handle, 5., prerequisite_future=build_future)
+E       TypeError: TaskExecutorNode._wait_result() got an unexpected keyword argument 'prerequisite_future'
+
+src/peach/peach_harvester/test/test_supervisor_build_failure.py:36: TypeError
+___________ test_already_failed_build_prevents_sending_new_full_goal ___________
+
+    def test_already_failed_build_prevents_sending_new_full_goal():
+        build = _Future(SimpleNamespace(result=SimpleNamespace(
+            success=False, message='bag_axis_silhouette_unobservable; attempts=3')))
+        host = SimpleNamespace(_send_goal=lambda *_args, **_kwargs: pytest.fail('sent FULL'))
+>       result = TaskExecutorNode._send_action(
+            host, object(), object(), 5., prerequisite_future=build)
+E       TypeError: TaskExecutorNode._send_action() got an unexpected keyword argument 'prerequisite_future'
+
+src/peach/peach_harvester/test/test_supervisor_build_failure.py:46: TypeError
+=========================== short test summary info ============================
+FAILED src/peach/peach_harvester/test/test_supervisor_build_failure.py::test_waiting_full_is_canceled_only_if_parallel_build_fails[False]
+FAILED src/peach/peach_harvester/test/test_supervisor_build_failure.py::test_waiting_full_is_canceled_only_if_parallel_build_fails[True]
+FAILED src/peach/peach_harvester/test/test_supervisor_build_failure.py::test_already_failed_build_prevents_sending_new_full_goal
+3 failed in 0.30s

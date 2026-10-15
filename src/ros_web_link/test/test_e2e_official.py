@@ -47,10 +47,13 @@ _TIMEOUT = 12.0
 
 @pytest.fixture(scope='module')
 def stack():
-    st = Stack(fixtures=('ros_web_link.comm_fixture', 'ros_web_link.viz_fixture'),
-               official=True)
+    st = Stack(fixtures=('ros_web_link.comm_fixture',), official=True)
     try:
         st.start()
+        # 高负载下 lifecycle_manager 拉起 map_server 可能超过 60s：套件级
+        # 预激活（ generous 预算），后续用例不再各自等待
+        assert st.ensure_map_active(timeout_s=90), \
+            'map_server 未在 90s 内到 active（机器高负载）'
     except Exception:
         st.stop()
         raise

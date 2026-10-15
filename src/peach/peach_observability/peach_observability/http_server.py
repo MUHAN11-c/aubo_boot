@@ -15,7 +15,7 @@ import json
 from pathlib import Path
 import threading
 from typing import Protocol
-from urllib.parse import urlparse
+from urllib.parse import parse_qs, urlparse
 
 # 调试请求体上限（字节）：调试载荷只有 ID/枚举/坐标数组，64KB 富余
 _MAX_BODY_BYTES = 65536
@@ -99,6 +99,34 @@ class ObservabilityHttpHandler(BaseHTTPRequestHandler):
             getter = getattr(self.server.backend, 'trajectory', None)
             self._json(getter() if callable(getter) else {})
             return
+        query = parse_qs(parsed.query)
+        if path == '/api/analysis/records':
+            getter = getattr(self.server.backend, 'analysis_records', None)
+            self._json(getter() if callable(getter) else {'records': []})
+            return
+        if path == '/api/analysis':
+            getter = getattr(self.server.backend, 'analysis_report', None)
+            if not callable(getter):
+                self._json({'error': 'analysis_unavailable'}, HTTPStatus.NOT_FOUND)
+                return
+            try:
+                self._json(getter((query.get('path') or [''])[0]))
+            except ValueError as error:
+                self._json({'error': str(error)}, HTTPStatus.BAD_REQUEST)
+            return
+        if path == '/api/analysis/image':
+            getter = getattr(self.server.backend, 'analysis_image', None)
+            data = getter(
+                (query.get('path') or [''])[0],
+                (query.get('name') or [''])[0],
+            ) if callable(getter) else None
+            if not data:
+                self._json({'error': 'no_image'}, HTTPStatus.NOT_FOUND)
+            else:
+                kind = 'image/png' if str(
+                    (query.get('name') or [''])[0]).lower().endswith('.png') else 'image/jpeg'
+                self._send(HTTPStatus.OK, kind, data, cache='no-store')
+            return
         images = {'/api/images/perception.jpg': 'perception',
                   '/api/images/raw.jpg': 'raw'}
         if path in images:
@@ -124,8 +152,10 @@ class ObservabilityHttpHandler(BaseHTTPRequestHandler):
                          'monitor-renderers.js', 'trajectory-renderers.js',
                          'request-runtime.js'):
             assets['/' + filename] = (filename, 'text/javascript; charset=utf-8')
-        for filename in ('visualization.css', 'workbench.css'):
+        for filename in ('visualization.css', 'workbench.css', 'analysis.css'):
             assets['/' + filename] = (filename, 'text/css; charset=utf-8')
+        assets['/analysis.html'] = ('analysis.html', 'text/html; charset=utf-8')
+        assets['/analysis.js'] = ('analysis.js', 'text/javascript; charset=utf-8')
         asset = assets.get(path)
         if asset is None:
             self.send_error(HTTPStatus.NOT_FOUND)

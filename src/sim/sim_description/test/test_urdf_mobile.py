@@ -44,7 +44,9 @@ def test_anchored_mode_keeps_world_root():
     assert 'shoulder_joint' in joints  # 臂链存在（锚定建模）
     assert 'lidar_mount' not in links
     filenames = {item.get('filename') for item in root.iter('plugin')}
-    assert 'gz-sim-diff-drive-system' not in filenames
+    # 锚定模式无驱动插件（VelocityControl/OdometryPublisher 均随 mobile 分支）
+    assert 'gz-sim-velocity-control-system' not in filenames
+    assert 'gz-sim-odometry-publisher-system' not in filenames
     assert not list(root.iter('sensor'))
 
 
@@ -59,18 +61,22 @@ def test_mobile_mode_is_platform_only_drivable():
     assert joints['lidar_mount_joint'] == ('platform_base_link', 'lidar_mount')
 
     plugins = list(root.iter('plugin'))
-    diff = next(item for item in plugins
-                if item.get('filename') == 'gz-sim-diff-drive-system')
-    # TB4 官方口径：left/right_joint 指向履带 continuous 关节，话题与帧显式指定
-    assert diff.find('left_joint').text == 'left_track_mount'
-    assert diff.find('right_joint').text == 'right_track_mount'
-    assert diff.find('child_frame_id').text == 'platform_base_link'
-    assert diff.find('frame_id').text == 'odom'
-    assert diff.find('topic').text == '/cmd_vel'
-    assert diff.find('odom_topic').text == '/odom'
-    # 履带关节必须可转（continuous），否则 URDF→SDF 固定关节合并后无从驱动
+    # P4b 口径：VelocityControl 直接控制机体速度（对齐 AgileX planar_move），
+    # 不模拟滚轮物理；履带 = 碰撞足迹 + 视觉箱体，挂接 fixed
+    velocity = next(item for item in plugins
+                    if item.get('filename') == 'gz-sim-velocity-control-system')
+    assert velocity.find('topic').text == '/cmd_vel'
+    odom = next(item for item in plugins
+                if item.get('filename') == 'gz-sim-odometry-publisher-system')
+    assert odom.find('odom_frame').text == 'odom'
+    assert odom.find('robot_frame').text == 'platform_base_link'
+    # 履带挂接 fixed：VelocityControl 不需要旋转关节（DiffDrive 才需要滚筒）
+    joint_types = {item.get('name'): item.get('type')
+                   for item in root.findall('joint')}
     assert joints['left_track_mount'] == ('platform_base_link', 'left_track')
     assert joints['right_track_mount'] == ('platform_base_link', 'right_track')
+    assert joint_types['left_track_mount'] == 'fixed'
+    assert joint_types['right_track_mount'] == 'fixed'
 
     sensor = next(root.iter('sensor'))
     assert sensor.get('type') == 'gpu_lidar'

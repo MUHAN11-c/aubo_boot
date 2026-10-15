@@ -14,6 +14,8 @@ from __future__ import annotations
 from collections import deque
 import json
 from pathlib import Path
+import subprocess
+import sys
 import threading
 import time
 
@@ -52,7 +54,6 @@ from tf2_ros.buffer import Buffer
 from tf2_ros.transform_listener import TransformListener
 from visualization_msgs.msg import MarkerArray
 
-from . import bag_report
 from . import http_server
 from . import pipeline
 from . import retention
@@ -267,8 +268,8 @@ class ObservabilityNode(LifecycleNode):
         self._job_pub = None
         self._metrics_pub = None
         self._last_job_key = None
-        # 栈停自动报告线程（bag 收尾后生成 bag_report.md/json + 体积回收）
-        self._report_thread: threading.Thread | None = None
+        # 分析仅在 bag 封口后启动；独立进程可在停栈预算内终止并回收。
+        self._report_process: subprocess.Popen | None = None
         # 调试 POST（debug.enabled=true 才建桥）
         self._debug_bridge: DebugBridge | None = None
         self._debug_audit: DebugAudit | None = None
@@ -314,7 +315,8 @@ class ObservabilityNode(LifecycleNode):
             enabled=self._params.record_enabled,
             queue_depth=self._params.record_queue_depth,
             on_info=lambda info: self._state.update('record', 'info', info),
-            log_warning=lambda msg: self.get_logger().warning(msg))
+            log_warning=lambda msg: self.get_logger().warning(msg),
+            limit_perception_media=self._params.record_level != 'all')
         self._spawn_startup_facts_writer(runs_root)
         if self._params.selfcheck_enabled:
             self._selfcheck = SelfCheckRunner(
@@ -377,6 +379,12 @@ class ObservabilityNode(LifecycleNode):
             return
         self._recorder.handle_raw(self._topic(topic_parameter), message)
 
+    def _mark_perception_segment(self) -> None:
+        """结果出现时打开数秒感知进袋窗口。实时预览不走这里."""
+        recorder = self._recorder
+        if recorder is not None:
+            recorder.mark_perception_segment()
+
     def _raw_cb(self, topic_parameter: str):
         """订阅回调工厂：原样把消息送进会话 bag（bag 专用订阅用）."""
         def callback(message) -> None:
@@ -390,9 +398,11 @@ class ObservabilityNode(LifecycleNode):
             if preview is not None:
                 preview.submit(stream, message)
             if (self._params is not None and self._params.record_enabled
-                    and (self._params.record_save_images
-                         or getattr(self._params, 'record_level', 'core')
-                         in ('std', 'all'))):
+                    and getattr(self._params, 'record_level', 'core') == 'all'):
+                self._record_raw(topic_parameter, message)
+            elif (self._params is not None and self._params.record_enabled
+                    and stream != 'raw' and self._params.record_save_images):
+                # 稳定识别图只在结果关键段进袋；即时检测图只留给页面预览。
                 self._record_raw(topic_parameter, message)
         return callback
 
@@ -605,6 +615,11 @@ class ObservabilityNode(LifecycleNode):
         self._recon_typed_value = to_reconstruction_status(message)
         self._publish_recon_diagnostics()
         self._record_raw('reconstruction_diagnostics_topic', message)
+        state = str(getattr(message, 'state', '') or '')
+        previous = getattr(self, '_recon_record_state', '')
+        if state != previous and state in ('COLLECTING', 'READY'):
+            self._mark_perception_segment()
+        self._recon_record_state = state
 
     def _raw_refined_context(self) -> dict | None:
         """仅原始身份与当下感知观察一致时绑定只读来源，不猜 revision."""
@@ -639,6 +654,13 @@ class ObservabilityNode(LifecycleNode):
         self._traj_landmarks['target_id'] = value.get('target_id') or ''
         self._state.update('reconstruction', 'grasp_decision', value)
         self._record_raw('grasp_decision_topic', message)
+        identity = (
+            str(value.get('target_id') or ''),
+            str(value.get('model_revision') or ''))
+        if (identity[0] and identity[1]
+                and identity != getattr(self, '_decision_record_key', None)):
+            self._decision_record_key = identity
+            self._mark_perception_segment()
         self._publish_job()
 
     def _refined_pose_callback(self, message) -> None:
@@ -1255,6 +1277,26 @@ class ObservabilityNode(LifecycleNode):
             return None, self._images_now()[stream]
         return preview.jpeg(stream, self.get_clock().now().nanoseconds * 1e-9)
 
+    def _runs_root(self):
+        return resolve_runs_root(
+            self._params.record_root_dir if self._params else None)
+
+    def analysis_records(self) -> dict:
+        """列出 runs 里可解析的测试目录。不改监控状态."""
+        from .record_analysis import list_records
+        root = self._runs_root()
+        return {'root': str(root), 'records': list_records(root)}
+
+    def analysis_report(self, relative: str) -> dict:
+        """解析用户选定的记录目录."""
+        from .record_analysis import analyze_record
+        return analyze_record(self._runs_root(), relative)
+
+    def analysis_image(self, relative: str, name: str) -> bytes | None:
+        """返回该记录目录里已列入分析的一张图."""
+        from .record_analysis import read_record_image
+        return read_record_image(self._runs_root(), relative, name)
+
     def trajectory(self) -> dict:
         """末端轨迹 + 当前作业票路标（GET /api/trajectory）."""
         payload = {
@@ -1424,7 +1466,7 @@ class ObservabilityNode(LifecycleNode):
         self._params = None
 
     # ------------------------------------------------------------------
-    # 会话收尾：bag 关闭 → 后台线程自动出报告 + 体积回收（决策 0019）
+    # 会话收尾：bag 封口后由同进程组子进程分析，退出等待有界。
     # ------------------------------------------------------------------
     def _stop_recording(self) -> None:
         """先停通配订阅再关 bag：否则 close 的 join 会被持续入队撑死."""
@@ -1441,41 +1483,43 @@ class ObservabilityNode(LifecycleNode):
         return recorder.close()
 
     def _spawn_report(self, bag_dir) -> None:
-        """收尾后起报告线程（自动出 bag_report 并按预算回收）；无 bag 跳过."""
+        """封口后启动独立分析进程，重活不得阻止 ROS 节点退出."""
         if bag_dir is None or (
-                self._report_thread is not None
-                and self._report_thread.is_alive()):
+                self._report_process is not None
+                and self._report_process.poll() is None):
             return
         params = self._params
         runs_root = str(
             resolve_runs_root(params.record_root_dir)) if params else str(
             Path(bag_dir).parent.parent)
 
-        def finalize() -> None:
+        command = [sys.executable, '-m', 'peach_observability.bag_report',
+                   str(bag_dir), '--ledger-root', runs_root,
+                   '--base-frame', params.trajectory_base_frame if params else 'base_link',
+                   '--tip-frame', params.trajectory_tip_frame if params else 'tcp',
+                   '--max-total-bag-gb', str(params.record_max_total_bag_gb if params else 0.0)]
+        # 继承 launch 进程组，自动报告同样归属本轮退出清理，不脱离成为后台任务。
+        self._report_process = subprocess.Popen(command, start_new_session=False)
+
+    def join_report(self, timeout: float = 30.0) -> None:
+        """有界等分析，再终止/回收；超时仍保留已封口 bag 供离线重算."""
+        process = self._report_process
+        if process is None:
+            return
+        try:
+            code = process.wait(timeout=timeout)
+        except subprocess.TimeoutExpired:
+            print('bag 自动分析超时；保留已封口 bag，请离线重算报告',
+                  file=sys.stderr, flush=True)
+            process.terminate()
             try:
-                bag_report.generate_session_report(
-                    bag_dir,
-                    base_frame=(
-                        params.trajectory_base_frame if params
-                        else 'base_link'),
-                    tip_frame=(
-                        params.trajectory_tip_frame if params else 'tcp'),
-                    ledger_root=runs_root,
-                    max_total_bag_gb=(
-                        params.record_max_total_bag_gb if params else 0.0),
-                    keep=[Path(bag_dir)],
-                    log=lambda msg: self.get_logger().info(str(msg)))
-            except Exception as error:  # noqa: BLE001 报告失败不阻塞退出
-                self.get_logger().warning(f'bag 自动报告失败: {error}')
-
-        self._report_thread = threading.Thread(
-            target=finalize, name='peach-bag-report', daemon=False)
-        self._report_thread.start()
-
-    def join_report(self, timeout: float = 55.0) -> None:
-        """进程退出前等报告线程收尾（防悬挂；上限对齐 launch 停栈窗 60s）."""
-        if self._report_thread is not None:
-            self._report_thread.join(timeout=timeout)
+                code = process.wait(timeout=2.0)
+            except subprocess.TimeoutExpired:
+                process.kill()
+                code = process.wait(timeout=2.0)
+        if code != 0:
+            print(f'bag 自动分析退出码 {code}；请离线重算报告', file=sys.stderr, flush=True)
+        self._report_process = None
 
     def destroy_node(self):
         """停止 HTTP/性能采样，先停通配录制再收尾 bag 并起自动报告后销毁 ROS 节点."""

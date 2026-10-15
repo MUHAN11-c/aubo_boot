@@ -41,7 +41,7 @@ from launch.substitutions import Command, LaunchConfiguration
 from launch_ros.actions import Node, SetParameter
 from launch_ros.parameter_descriptions import ParameterValue
 
-from sim_worlds.params import params_from_dict
+from sim_worlds.params import params_from_dict, xacro_mappings
 from sim_worlds.scene import PLATFORM_MODEL, work_pose
 
 import yaml
@@ -57,7 +57,6 @@ def _resource_path(aubo_share: Path, desc_share: Path) -> str:
 
 
 def _setup(context, *args, **kwargs):
-    worlds_share = Path(get_package_share_directory('sim_worlds'))
     desc_share = Path(get_package_share_directory('sim_description'))
     aubo_share = Path(get_package_share_directory('aubo_description'))
     scene_path = Path(LaunchConfiguration('scene_params').perform(context))
@@ -73,23 +72,11 @@ def _setup(context, *args, **kwargs):
         raise RuntimeError(
             f'{scene_path} 场景参数不合法：' + '；'.join(problems))
     pose = work_pose(params)
-    platform = params.platform
 
     robot_description = ParameterValue(
-        Command([
-            'xacro ', str(desc_share / 'urdf' / 'harvester_unified.urdf.xacro'),
-            ' tool_profile:=', tool_profile,
-            ' arm_mount_height:=', str(platform.arm_mount_height),
-            ' arm_mount_yaw_deg:=', str(platform.arm_mount_yaw_deg),
-            ' body_x:=', str(platform.body_size[0]),
-            ' body_y:=', str(platform.body_size[1]),
-            ' body_z:=', str(platform.body_size[2]),
-            ' body_bottom:=', str(platform.body_bottom),
-            ' track_length:=', str(platform.track_length),
-            ' track_width:=', str(platform.track_width),
-            ' track_height:=', str(platform.track_height),
-            ' track_separation:=', str(platform.track_separation),
-        ]),
+        Command(['xacro ', str(desc_share / 'urdf' / 'harvester_unified.urdf.xacro')]
+                + [f' {key}:={value}'
+                   for key, value in xacro_mappings(params, tool_profile).items()]),
         value_type=str)
 
     gz_args = ['-r', str(world_path)]
@@ -122,7 +109,8 @@ def _setup(context, *args, **kwargs):
         SetEnvironmentVariable(
             name='GZ_SIM_RESOURCE_PATH',
             value=_resource_path(aubo_share, desc_share)),
-        SetParameter('use_sim_time', True),
+        # 仿真全图统一 sim 时钟（harvest 透传；单独跑默认 true）
+        SetParameter('use_sim_time', LaunchConfiguration('use_sim_time')),
         LogInfo(msg=[
             f'统一机体场景：{world_path}；spawn xyz=({spawn_xyz[0]:.3f}, '
             f'{spawn_xyz[1]:.3f}, {spawn_xyz[2]:.3f}) yaw={spawn_yaw:.3f} rad；',
@@ -133,10 +121,7 @@ def _setup(context, *args, **kwargs):
             package='robot_state_publisher',
             executable='robot_state_publisher',
             output='screen',
-            parameters=[{
-                'robot_description': robot_description,
-                'use_sim_time': True,
-            }]),
+            parameters=[{'robot_description': robot_description}]),
         Node(
             package='ros_gz_sim',
             executable='create',
@@ -155,15 +140,16 @@ def _setup(context, *args, **kwargs):
             output='screen',
             parameters=[{
                 'config_file': str(Path(get_package_share_directory('sim_bringup'))
-                                   / 'config' / 'sim_bridge.yaml'),
-                'use_sim_time': True}]),
-        # odom→platform_base_link TF 中继：OdometryPublisher 的 gz 帧名
-        # （harvester/base_footprint）与 ROS 帧名不一致，TF 树在此断裂
+                                   / 'config' / 'sim_bridge.yaml')}]),
+        # odom→platform_base_link TF 中继：OdometryPublisher 的 gz 侧 TF
+        # 帧名/stamp 不可控（见 odom_tf_relay 模块注记），由本节点补发正确 TF。
+        # 注意：sim_bridge.yaml 仍桥出 gz /tf——与 relay 是否构成同一 child 的
+        # 双广播器，须安静机器起栈后 `ros2 topic echo /tf --once` 裁决留一路
+        # （2026-10-15 三次探针均被外部 SIGKILL 打断，未裁决）。
         Node(
             package='sim_bringup',
             executable='odom_tf_relay',
-            output='screen',
-            parameters=[{'use_sim_time': True}]),
+            output='screen'),
         # 控制器加载在实体生成之后（重世界首载 40-60 s；gz 内 controller_manager
         # 冷启动服务调用 >10s，必须拉长 spawner 超时，否则 load 重试撞 already-loaded）
         TimerAction(
@@ -190,11 +176,12 @@ def _setup(context, *args, **kwargs):
             IncludeLaunchDescription(
                 PythonLaunchDescriptionSource(
                     str(Path(get_package_share_directory('sim_bringup'))
-                         / 'launch' / 'moveit_sim.launch.py')),
+                        / 'launch' / 'moveit_sim.launch.py')),
                 launch_arguments={
                     'scene_params': str(scene_path),
                     'tool_profile': tool_profile,
                     'controllers_file': 'controllers_mock.yaml',
+                    'use_sim_time': LaunchConfiguration('use_sim_time'),
                     'rviz': LaunchConfiguration('rviz'),
                     'rviz_config': LaunchConfiguration('rviz_config'),
                 }.items()))
@@ -214,6 +201,9 @@ def _setup(context, *args, **kwargs):
 def generate_launch_description() -> LaunchDescription:
     worlds_share = Path(get_package_share_directory('sim_worlds'))
     return LaunchDescription([
+        DeclareLaunchArgument(
+            'use_sim_time', default_value='true',
+            description='仿真时钟（全图统一；勿在仿真栈关掉）'),
         DeclareLaunchArgument(
             'scene_params',
             default_value=str(worlds_share / 'config' / 'orchard.yaml'),

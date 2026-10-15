@@ -46,6 +46,35 @@ import message_filters
 import numpy as np
 from peach_common.lifecycle import break_bond, create_bond
 from peach_common.ros_log_bridge import bridge_module_loggers
+from peach_interfaces.action import BuildTargetModel
+from peach_interfaces.msg import (
+    BagFittingArray,
+    BagGraspCandidateArray,
+    FailureCode,
+    GraspDecision,
+    HarvestState,
+    PeachTargetObservationArray,
+    PregraspVerification,
+    ReconstructionStatus,
+    ShapeHypothesis,
+    TargetModel,
+    TargetQuality,
+)
+import rclpy
+from rclpy.action import ActionServer, CancelResponse, GoalResponse
+from rclpy.callback_groups import ReentrantCallbackGroup
+from rclpy.duration import Duration
+from rclpy.event_handler import PublisherEventCallbacks
+from rclpy.executors import MultiThreadedExecutor
+from rclpy.lifecycle import LifecycleNode, TransitionCallbackReturn
+from rclpy.qos import (
+    DurabilityPolicy,
+    HistoryPolicy,
+    QoSProfile,
+    ReliabilityPolicy,
+)
+from rclpy.time import Time
+from sensor_msgs.msg import CameraInfo, Image, JointState, PointCloud2
 from sim_perception.vision.common.geometry import (
     transform_msg_to_matrix,
     transform_points,
@@ -112,35 +141,6 @@ from sim_perception.vision.target_reconstruction.session_recorder import (
     save_session,
     SessionRecorder,
 )
-from peach_interfaces.action import BuildTargetModel
-from peach_interfaces.msg import (
-    BagFittingArray,
-    BagGraspCandidateArray,
-    FailureCode,
-    GraspDecision,
-    HarvestState,
-    PeachTargetObservationArray,
-    PregraspVerification,
-    ReconstructionStatus,
-    ShapeHypothesis,
-    TargetModel,
-    TargetQuality,
-)
-import rclpy
-from rclpy.action import ActionServer, CancelResponse, GoalResponse
-from rclpy.callback_groups import ReentrantCallbackGroup
-from rclpy.duration import Duration
-from rclpy.event_handler import PublisherEventCallbacks
-from rclpy.executors import MultiThreadedExecutor
-from rclpy.lifecycle import LifecycleNode, TransitionCallbackReturn
-from rclpy.qos import (
-    DurabilityPolicy,
-    HistoryPolicy,
-    QoSProfile,
-    ReliabilityPolicy,
-)
-from rclpy.time import Time
-from sensor_msgs.msg import CameraInfo, Image, JointState, PointCloud2
 from std_msgs.msg import String
 from std_srvs.srv import Trigger
 from tf2_ros import Buffer, TransformException, TransformListener

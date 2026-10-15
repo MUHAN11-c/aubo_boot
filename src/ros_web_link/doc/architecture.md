@@ -40,8 +40,8 @@ ROS 2 图（rclpy/rclcpp 任意节点；演示被测端 = 本包 comm_fixture）
 | JS 纯核 | vitest（复用 dashboard node_modules） | 协议帧/参数助手/TF 数学/**CDR 黄金字节交叉验证**（rclpy 序列化真值 vs JS codec，17 类常用可视化消息，含 PoseWithCovarianceStamped）/**PointCloud2 共享解析器**/**viz_core（缓动/运动动画器/协方差椭圆/odom 轨迹/回放段/预设存取）** 共 108 用例 |
 | Python 单元 | pytest（venv） | 路由挂载 / 组合模式 / health+console 回归 / 配置默认值 / robot_mesh 解析与 symlink 防穿越 / 静态文件类 / 上游重试 helper 共 16 用例 || E2E 通信矩阵 | pytest（自起桥+网关+fixture，随机域/端口） | 订阅/发布 roundtrip/服务/action(goal+feedback+cancel+result)/参数 get-set-get/TF/图谱/健康(含桥组件探测)/视频代理负例/停机端口复核 11 用例（栈编排复用 e2e_harness） |
 | E2E 官方示例 | pytest（`Stack(official=True)`：官方 RSP/panda + 官方 CLI joint_states 驱动 + 官方 map_server/lifecycle_manager） | 官方 panda /robot_description、官方 /tf_static、**web JointState（带时间戳）→官方 RSP→/tf 关节角闭环**、官方 /map 384²、官方生命周期服务 GetState/LoadMap、官方 /diagnostics+/rosout 共 7 用例（panda 资源缺失整组 skip） |
-| E2E 可视化 | pytest（同 harness + rwl_viz_fixture） | Image/CompressedImage(真 JPEG)/CameraInfo/PointCloud2/LaserScan(含 inf)/Range/Odometry(圆轨迹+协方差)/Path/PoseArray/PoseStamped/PoseWithCovarianceStamped/Wrench/Marker/MarkerArray/Diagnostics/JointState/TF 共 15 用例，rclpy 交叉解码 |
-| 人工/自动化 | console.html「运行自检」+ 话题回显 | 浏览器内同矩阵（`window.__rwl_selftest`，9 项）+ 任意 /rwl_viz 话题直接回显 |
+| E2E 官方仿真数据 | pytest（`LaunchStack` 整仓拉起 `sim_demo.launch.py`） | turtlebot3 官方仿真 + 官方 nav2 + ros2/examples 官方示例经网关：robot_description/joint_states/scan/odom/imu/tf/相机+Info/压缩图/官方点云/talker/map/amcl_pose/粒子云/诊断共 16 用例，含 **web→AMCL 定位闭环** 与 **web→NavFn 规划闭环**（`test_e2e_sim.py`，替代已删的合成流可视化套件） |
+| 人工/自动化 | console.html「运行自检」+ 话题回显 | 浏览器内同矩阵（`window.__rwl_selftest`，9 项）+ 任意话题直接回显 |
 
 黄金字节生成器 `test/generate_viz_golden.py`：schema 文本与桥 message_definition_cache
 同构（根 .msg + DFS 首见序依赖 + `====…MSG: pkg/Type` 分隔；同包裸名按同包解析，
@@ -61,7 +61,17 @@ E2E 编排注意（与工作区 MUST 对齐）：`asyncio.create_subprocess_exec
 - **官方优先原则（2026-10-15 用户裁定）**：官方生态能提供的数据面一律用官方组件
   （RSP/panda、map_server、CLI、lifecycle），自研 fixture 退守合成传感器流与传输矩阵
   被测端；入口 `official_demo.launch.py`，测试面 `test_e2e_official.py`（7 用例）。
-  viz_fixture 增 `publish_urdf` 参数（官方栈下让位官方 /robot_description）。
+- **viz_fixture 全删、数据面上移官方仿真（2026-10-15 二次裁定）**：合成传感器流
+  fixture 整体删除；验证数据面 = GitHub 热门官方仓库（克隆进项目：
+  src/turtlebot3_msgs、src/turtlebot3_simulations、src/ros2_examples；
+  external/navigation2 基线克隆不参与构建）+ ros2/moveit2/nav2 官方示例；
+  本地自写项目（sim/peach/ivg）不参与验证。入口 `sim_demo.launch.py`
+  （官方 TB3 gz 仿真 + 官方 nav2 + ros2/examples + 官方 republish + 传输栈），
+  测试面 `test_e2e_sim.py`（16 用例，`LaunchStack` 整仓拉起）。
+  console Displays 默认 topic 全部指向官方数据面（/scan /odom /plan
+  /particle_cloud /amcl_pose /camera/image_raw /test_cloud /map）；
+  marker/range/wrench 官方无来源，默认关、topic 留空。
+  web 不再有 joint_cmd 写出（viz_fixture 是其唯一消费者）——动臂走 FJT action。
 - **测试超时硬上限 30s（2026-10-15 用户约束）**：harness 就绪门 30s、服务/规划/执行
   单次等待 ≤30s、xacro 展开 20s——任何单次等待不得超过。
 - **多行 URDF 禁止经 `-p name:=<value>` 直传**：execve 路径下 rcl 参数 YAML 解析
@@ -84,6 +94,22 @@ E2E 编排注意（与工作区 MUST 对齐）：`asyncio.create_subprocess_exec
   不变、action 仍 SUCCEEDED（ros2_control 上游行为；JSB 为连续发布 ~60Hz，
   直连 DDS 观测可判别非 web 传输问题）。执行用例先经
   `/controller_manager/list_controllers` 确认 active 再留 1s 稳定期。
+- **已知环境问题：sim_demo 组合栈中 TB3 对 /cmd_vel 无物理响应（2026-10-15）**：
+  vanilla turtlebot3_gazebo 同桥配置可正常驱动（CLI 实测 2.2m/4s），sim_demo
+  组合（nav2 on/off、examples/transport on/off、GUI on/off、gz 分区隔离 on/off）
+  均静态——桥订阅在（/cmd_vel TwistStamped RELIABLE）、/odom /scan /joint_states
+  正常出流。已排除：gz 分区串扰（默认分区多仿真交叉发布，须设 GZ_PARTITION）、
+  消息类型（Twist/TwistStamped 均试）、nav2 零速帧（无）。**根因已定位并修复**：
+  spawn_turtlebot3 默认出生位姿 (0,0) 是 turtlebot3_world 中心柱——机器人出生即
+  卡死在障碍物内，DiffDrive 指令全部无效；sim_demo 已显式传 (-2.0,-0.5) 修复。
+  GUI 网格测试（web-gui-tester 轮）复核通过。
+- **GUI 网格测试发现（2026-10-15 web-gui-tester 轮）**：
+  ① Fixed Frame 选非根帧（如 base_footprint）时 3D 视口空白，切回 map 恢复——
+  `_frameToFixed` 对"根→叶"反向查找疑似返回空，待修（显示链问题，数据流正常）；
+  ② 官方桥高吞吐下事件流刷 `Send buffer limit reached`（桥→WS 背压，与
+  BEST_EFFORT 丢帧同源，Foxglove 语义下属预期降级）；
+  ③ 机器高负载（演示栈 GUI + pytest 双栈并发）会拉低 gz 实时因子，teleop 物理
+  断言窗口已加长到 4.8s 并保持 2 轮重试。
 - **foxglove-only，不起 rosbridge**：协议更省带宽（CDR 二进制 + 点云），rviz_web 同路线；
   生态能力（service/action/param）经组合层补齐，不再维护第二条 WS 传输。
 - **`/ws/rosbridge` 不存在是刻意的**：`test_gateway.py` 有负例断言防止回归。

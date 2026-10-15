@@ -192,6 +192,13 @@ void ManipulationSkillsNode::onDecision(
     RCLCPP_DEBUG(
       get_logger(), "忽略不完整或非当前身份的 grasp_decision: target=%s revision=%s",
       identity.target_id.c_str(), identity.model_revision.c_str());
+  } else if (!message->allowed) {
+    // 只解释已被缓存接纳的当前决策；旧身份消息不得冒充本周期拒因。
+    RCLCPP_WARN_THROTTLE(
+      get_logger(), *get_clock(), 5000,
+      "当前抓取决策未许可: target=%s revision=%s reason=%s geometry=%u sleeve=%u cut=%u",
+      identity.target_id.c_str(), identity.model_revision.c_str(), message->reason.c_str(),
+      message->geometry_capability, message->sleeve_capability, message->cut_capability);
   }
 }
 

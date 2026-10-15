@@ -35,9 +35,9 @@ from .contracts import (
     BagObservation,
     compute_entry_start,
     compute_travel_range,
-    travel_is_too_short,
     TOOL_GEOMETRY,
     ToolGeometry,
+    travel_is_too_short,
 )
 from .identity import estimate_pose_covariance
 from .image_gates import clip_bbox, foreground_mask, valid_depth_mask

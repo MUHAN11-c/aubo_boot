@@ -324,11 +324,11 @@ Goal：`pose`、`site_id`。现行固定座调度直通 `NAV_OK`，**不发送**
 
 | 字段 | 含义 |
 |------|------|
-| `allowed` | **汇总位**=geometry∧sleeve∧cut（pregrasp 不进），只拦套入和 SetIO。径向/轴向余量不进这三位。false 时仍可有几何，预抓取可以走，禁止降级接触。TOOL 另要预备位残差与 `tool.enabled` |
+| `allowed` | **汇总位**=geometry∧sleeve∧cut（pregrasp 不进），只拦套入和 SetIO。果距与径向余量不进这三位，只作数据参考。false 时仍可有几何，预抓取可以走，禁止降级接触。TOOL 另要预备位残差与 `tool.enabled` |
 | `reason` / `failure_code` | 原因；`FailureCode.*`，0=无失败 |
 | `entry` / `pregrasp` / `cut_pose` / `axis` | base 系入口、预抓取、剪切参考、袋轴。无融合时入口/轴填零 |
 | `diameter_m` / `d95_m` / `travel_m` / `cut_travel_m` | 直径、D95、插入/剪切行程 |
-| `radial_margin_m` / `axial_margin_m` | 径向/轴向余量，记录给机械对尚未更新的刀具常数。负值不拦套入或剪切 |
+| `radial_margin_m` / `axial_margin_m` | 径向余量是静态开口相对袋径的初步查看标记，和轴向余量一样只作数据参考。接触时袋和刀具有弹性、会动，目前不构成约束；以后若启用径向余量，须另立动态判据。负值不拦套入或剪切 |
 | `corridor_clear` / `rmse_m` / `inlier_ratio` | 走廊、拟合误差、内点比 |
 | `harvest_run_id` / `target_id` / `model_revision` / `tool_profile_id` | 身份与剖面（`tool_profile_id` 由重建按节点 `tool.profile_id` 填，整栈=launch `tool_profile` 档案） |
 

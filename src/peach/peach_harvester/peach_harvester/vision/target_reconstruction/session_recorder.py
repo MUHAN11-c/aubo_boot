@@ -276,6 +276,7 @@ class SessionRecorder:
                 'envelope_conditioned': bool(fused.envelope_conditioned),
                 'envelope_reason': str(fused.envelope_reason or ''),
                 'cut_pose': _xyz_list(cut_pose),
+                # 果距与径向余量只作数据参考，不构成许可约束。
                 'cut_to_fruit_m': (
                     float(fused.cut_to_fruit_m)
                     if fused.fruit_prior_radius_m > 0.0 else None),

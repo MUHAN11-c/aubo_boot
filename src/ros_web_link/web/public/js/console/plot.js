@@ -239,7 +239,7 @@ class FieldPlot {
     if (clear || !this.series.length) {
       ctx.fillStyle = '#8b93a7';
       ctx.font = '12px ui-monospace, monospace';
-      ctx.fillText('添加 话题+字段 开始绘图（如 /rwl_viz/joint_states + position[0]）', 12, h / 2);
+      ctx.fillText('添加 话题+字段 开始绘图（如 /joint_states + position[0]）', 12, h / 2);
       return;
     }
     let min = Infinity, max = -Infinity;

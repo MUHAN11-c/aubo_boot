@@ -1,0 +1,62 @@
+[INFO] [1792048521.269731667] [controller_manager]: Using Steady (Monotonic) clock for triggering controller manager cycles.
+[INFO] [1792048521.278357978] [controller_manager]: Subscribing to '/robot_description' topic for robot description.
+[INFO] [1792048521.278429222] [controller_manager]: update rate is 200 Hz
+[INFO] [1792048521.278434112] [controller_manager]: Overruns handling is : enabled
+[INFO] [1792048521.278437251] [controller_manager]: Spawning controller_manager RT thread with scheduler priority: 50
+[INFO] [1792048521.278487580] [controller_manager]: Successful set up FIFO RT scheduling policy with priority 50.
+[INFO] [1792048521.442723314] [controller_manager]: Received robot description from topic.
+[INFO] [1792048521.442804891] [controller_manager]: Enforcing command limits is disabled. Command limits from URDF will be ignored.
+[INFO] [1792048521.447204842] [controller_manager]: Loading hardware 'AuboE5System' 
+[INFO] [1792048521.453671616] [controller_manager]: Loaded hardware 'AuboE5System' from plugin 'mock_components/GenericSystem'
+[INFO] [1792048521.453799472] [controller_manager]: Initialize hardware 'AuboE5System' 
+[INFO] [1792048521.483978867] [controller_manager]: Successful initialization of hardware 'AuboE5System'
+[INFO] [1792048521.487006630] [controller_manager]: Activating component 'AuboE5System'.
+[INFO] [1792048521.487053333] [resource_manager]: 'configure' hardware 'AuboE5System' 
+[INFO] [1792048521.487074148] [resource_manager]: Successful 'configure' of hardware 'AuboE5System'
+[INFO] [1792048521.487089942] [resource_manager]: 'activate' hardware 'AuboE5System' 
+[INFO] [1792048521.487096304] [resource_manager]: Successful 'activate' of hardware 'AuboE5System'
+[INFO] [1792048521.487163199] [controller_manager]: Registering statistics for : AuboE5System
+[INFO] [1792048521.487364650] [controller_manager]: Resource Manager has been successfully initialized. Starting Controller Manager services...
+[INFO] [1792048521.737927113] [controller_manager]: Loading controller : 'joint_state_broadcaster' of type 'joint_state_broadcaster/JointStateBroadcaster'
+[INFO] [1792048521.737971011] [controller_manager]: Loading controller 'joint_state_broadcaster'
+[INFO] [1792048521.742049970] [controller_manager]: Controller 'joint_state_broadcaster' node arguments: --ros-args -p use_sim_time:=False --params-file /tmp/launch_params_m8rknal6 --params-file /home/mu/Desktop/aubo_e5_jazzy_ws/install/aubo_e5_bringup/share/aubo_e5_bringup/config/controllers.yaml 
+[INFO] [1792048521.764690460] [controller_manager]: Configuring controller: 'joint_state_broadcaster'
+[INFO] [1792048521.765017776] [joint_state_broadcaster]: 'joints' or 'interfaces' parameter is empty. All available state interfaces will be published
+[INFO] [1792048521.873362369] [controller_manager]: Activating controllers: [ joint_state_broadcaster ]
+[INFO] [1792048521.874010192] [controller_manager]: Successfully switched controllers!
+[INFO] [1792048522.321833932] [controller_manager]: Loading controller : 'joint_trajectory_controller' of type 'joint_trajectory_controller/JointTrajectoryController'
+[INFO] [1792048522.321905891] [controller_manager]: Loading controller 'joint_trajectory_controller'
+[INFO] [1792048522.324059670] [controller_manager]: Controller 'joint_trajectory_controller' node arguments: --ros-args -p use_sim_time:=False --params-file /tmp/launch_params_m8rknal6 --params-file /home/mu/Desktop/aubo_e5_jazzy_ws/install/aubo_e5_bringup/share/aubo_e5_bringup/config/controllers.yaml 
+[INFO] [1792048522.341042538] [controller_manager]: Configuring controller: 'joint_trajectory_controller'
+[INFO] [1792048522.341226477] [joint_trajectory_controller]: No specific joint names are used for command interfaces. Using 'joints' parameter.
+[INFO] [1792048522.341253144] [joint_trajectory_controller]: Command interfaces are [position] and state interfaces are [position velocity].
+[INFO] [1792048522.341276867] [joint_trajectory_controller]: Using 'splines' interpolation method.
+[INFO] [1792048522.343009645] [joint_trajectory_controller]: Action status changes will be monitored at 20.00 Hz.
+[INFO] [1792048522.347813235] [joint_trajectory_controller]: Setting initial scaling factor to 1.000000
+[INFO] [1792048522.347854362] [joint_trajectory_controller]: No scaling interface set. This controller will not read speed scaling from the hardware.
+[INFO] [1792048522.433441882] [controller_manager]: Activating controllers: [ joint_trajectory_controller ]
+[INFO] [1792048522.438819776] [controller_manager]: Successfully switched controllers!
+[INFO] [1792048561.772649197] [joint_trajectory_controller]: Received new action goal
+[INFO] [1792048561.772707286] [joint_trajectory_controller]: Accepted new action goal
+[INFO] [1792048568.713632581] [joint_trajectory_controller]: Goal reached, success!
+[INFO] [1792048568.782991641] [joint_trajectory_controller]: Received new action goal
+[INFO] [1792048568.783106549] [joint_trajectory_controller]: Accepted new action goal
+[INFO] [1792048572.783617364] [joint_trajectory_controller]: Goal reached, success!
+[INFO] [1792048573.434455893] [joint_trajectory_controller]: Received new action goal
+[INFO] [1792048573.434511473] [joint_trajectory_controller]: Accepted new action goal
+[INFO] [1792048578.033619763] [joint_trajectory_controller]: Goal reached, success!
+[INFO] [1792048578.233086590] [joint_trajectory_controller]: Received new action goal
+[INFO] [1792048578.233181263] [joint_trajectory_controller]: Accepted new action goal
+[INFO] [1792048582.828631486] [joint_trajectory_controller]: Goal reached, success!
+[INFO] [1792048602.170316893] [rclcpp]: signal_handler(SIGINT/SIGTERM)
+[INFO] [1792048602.170432680] [controller_manager]: Shutdown request received....
+[INFO] [1792048602.170465439] [controller_manager]: Shutting down all controllers in the controller manager.
+[INFO] [1792048602.170483368] [controller_manager]: Deactivating controller 'joint_trajectory_controller'
+[INFO] [1792048602.170532037] [controller_manager]: Shutting down controller 'joint_trajectory_controller'
+[INFO] [1792048602.170611136] [controller_manager]: Deactivating controller 'joint_state_broadcaster'
+[INFO] [1792048602.170635630] [controller_manager]: Shutting down controller 'joint_state_broadcaster'
+[INFO] [1792048602.170660440] [resource_manager]: 'deactivate' hardware 'AuboE5System' 
+[INFO] [1792048602.170668096] [resource_manager]: Successful 'deactivate' of hardware 'AuboE5System'
+[INFO] [1792048602.170669862] [resource_manager]: 'shutdown' hardware 'AuboE5System' 
+[INFO] [1792048602.170671334] [resource_manager]: Successful 'shutdown' of hardware 'AuboE5System'
+[INFO] [1792048602.170723059] [controller_manager]: Shutting down the controller manager.

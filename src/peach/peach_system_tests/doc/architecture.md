@@ -14,7 +14,7 @@
 
 ## 生命周期、并发与失败
 
-普通 pytest 不启动默认 DDS 域；ROS 测试使用 CMake 指定隔离域。测试拥有的进程必须 finally/post_shutdown 收口，仍须核对残留。runner 非零、skip、无匹配测试及 action 结果未知均分别记录；不能把进程退出0直接记为采摘成功。
+普通 pytest 不启动默认 DDS 域；ROS 测试使用 CMake 指定隔离域。每个 launch_testing 入口另设独立临时 run 目录下的 `ROS_HOME=…/ros_home`：Jazzy controller_manager spawner 的锁位于 `$ROS_HOME/locks`，不随 DDS 域隔离；测试不删除其他会话的锁。测试拥有的进程必须 finally/post_shutdown 收口，仍须核对残留。runner 非零、skip、无匹配测试及 action 结果未知均分别记录；不能把进程退出0直接记为采摘成功。
 
 ## 验证与限制
 

@@ -1,4 +1,5 @@
-"""重建果园 GT 纯核（零 ROS）：scene_manifest → 停靠位 / 导航地图 / 作业位.
+"""
+重建果园 GT 纯核（零 ROS）：scene_manifest → 停靠位 / 导航地图 / 作业位.
 
 数据源 ``reconstruction/output/field_no_grass_20261009/scene_manifest.json``
 （v11 建模轮，24 树 / 395 袋全 3D GT）。布局实测：8 行（y≈1.5..22.5，行距
@@ -14,6 +15,7 @@ import json
 import math
 from pathlib import Path
 import re
+import sys
 
 from .nav_map import (
     BORDER_M,
@@ -92,7 +94,8 @@ def _rows(trunks: dict[int, tuple[float, float]],
 
 def field_stations(gt: FieldGT, row_gap: float = 0.9,
                    side: int = 1) -> list[FieldStation]:
-    """每树一个停靠位（作业道侧 row_gap，蛇形行序，车头沿行进方向）.
+    """
+    每树一个停靠位（作业道侧 row_gap，蛇形行序，车头沿行进方向）.
 
     side=+1 站树 +x 侧、-1 站 -x 侧；行末不插换行航点（由 conductor 的
     Nav2 全局规划走 headland 自由区，重建世界无棚架端柱约束）。
@@ -114,7 +117,8 @@ def field_stations(gt: FieldGT, row_gap: float = 0.9,
 
 def build_field_nav_map(gt: FieldGT, margin: float = 4.0,
                         trunk_radius: float = 0.25) -> NavMap:
-    """树干致命盘 + 外沿致命环栅格（NavMap 口径：行 0 = 最高 y）.
+    """
+    树干致命盘 + 外沿致命环栅格（NavMap 口径：行 0 = 最高 y）.
 
     margin = 树包络外的地面余量（行驶 headland）；origin = 左下角世界坐标。
     """
@@ -170,7 +174,7 @@ def main(argv: list[str] | None = None) -> int:
 
     gt = parse_field_manifest(args.manifest)
     if not gt.trunks:
-        print(f'{args.manifest}: 未解析到树 GT', file=__import__('sys').stderr)
+        print(f'{args.manifest}: 未解析到树 GT', file=sys.stderr)
         return 2
     stations = field_stations(gt, row_gap=args.row_gap, side=args.side)
     nav_map = build_field_nav_map(gt)
@@ -202,7 +206,7 @@ def main(argv: list[str] | None = None) -> int:
         '不作 spawn）',
         f'  x: {spawn_x}',
         f'  y: {first.y}',
-        f'  yaw: 0.0',
+        '  yaw: 0.0',
         'stations:',
     ]
     for s in stations:

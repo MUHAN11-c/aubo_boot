@@ -10,7 +10,9 @@ RunHarvest→Survey→BeginScene→WAIT_LOCK→锁定→结算，全程零 Execu
 """
 import json
 import os
+from pathlib import Path
 import re
+import sys
 import tempfile
 import threading
 import time
@@ -25,15 +27,14 @@ from launch.actions import TimerAction
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 import launch_testing
 from launch_testing.actions import ReadyToTest
+from peach_bringup.preflight import running_stack_pids
 import pytest
 from rclpy.qos import DurabilityPolicy, QoSProfile, ReliabilityPolicy
+import yaml as _yaml
 
-import sys
-from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-import perception_sim as psim  # noqa: E402
+import perception_sim as psim  # noqa: E402, I100, I201
 
-from peach_bringup.preflight import running_stack_pids  # noqa: E402
 
 _LATCHED = QoSProfile(
     depth=1, reliability=ReliabilityPolicy.RELIABLE,
@@ -47,7 +48,6 @@ _EVENTS = QoSProfile(
 
 # 几何取 grid 夹具 known-good 例（typical_1757：巷中/轴近竖/现行在达对照，
 # 过护栏；合成几何实测会撞 MTC short-path 护栏——果胶囊间隙模型不显然）。
-import yaml as _yaml
 _GRID = _yaml.safe_load(
     (Path(__file__).resolve().parents[2] / 'peach_arm' / 'test' / 'fixtures'
      / 'perception_constraint_grid.yaml').read_text())
@@ -81,7 +81,7 @@ def _ledger_path(rid: str) -> str:
 
 @pytest.mark.launch_test
 def generate_test_description():
-    """mock harvest_system + 感知注入由用例内节点承担；不发自动意图."""
+    """Mock harvest_system + 感知注入由用例内节点承担；不发自动意图."""
     stale = running_stack_pids()
     if stale:
         lines = [f'{pid} {cmd}' for pid, cmd in stale[:8]]
@@ -96,6 +96,7 @@ def generate_test_description():
         launch.LaunchDescription([
             SetEnvironmentVariable('QT_QPA_PLATFORM', 'offscreen'),
             SetEnvironmentVariable('AUBO_RUNS_DIR', runs),
+            SetEnvironmentVariable('ROS_HOME', os.path.join(runs, 'ros_home')),
             IncludeLaunchDescription(
                 PythonLaunchDescriptionSource(harvest),
                 launch_arguments={
@@ -250,9 +251,11 @@ class TestE1SupervisorChain(unittest.TestCase):
 
     # -- C03 ---------------------------------------------------------------
     def test_c03_pregrasp_park_requires_ack(self):
-        """PREGRASP_ONLY 停驻：SUCCEEDED+recovery_required+completion=2，
+        """PREGRASP_ONLY 停驻：SUCCEEDED+recovery_required+completion=2.
+
         批次停 RECOVERY_REQUIRED(7) 且无 ACK 不得回 DISCOVERY。
-        使能=execution+grasp（PREGRASP 属接触规划类，E1 二跑勘定），tool 恒关。"""
+        使能=execution+grasp（PREGRASP 属接触规划类，E1 二跑勘定），tool 恒关。
+        """
         sim = INJECTOR.sim
         self.assertTrue(sim.set_enables(execution=True, grasp=True))
         rid = f'e1_c03_{uuid.uuid4().hex[:8]}'

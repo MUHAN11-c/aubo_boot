@@ -8,8 +8,7 @@
 
 official=True 时额外起官方组件（2026-10-15 官方优先轮）：
   robot_state_publisher（MoveIt2 官方 panda URDF）+ `ros2 topic pub /joint_states`
-  （官方 CLI 驱动）+ nav2_map_server + nav2_lifecycle_manager（官方地图）；
-  viz_fixture 以 publish_urdf:=false 让位官方 /robot_description。
+  （官方 CLI 驱动）+ nav2_map_server + nav2_lifecycle_manager（官方地图）。
 """
 from __future__ import annotations
 
@@ -37,7 +36,7 @@ _READINESS_TIMEOUT_S = 30.0  # 任何单次等待 ≤30s（2026-10-15 用户约�
 _SRAND = SystemRandom()
 
 # fixture 附加进程的模块名清单（Stack(fixtures=[...])）
-KNOWN_FIXTURES = ('ros_web_link.comm_fixture', 'ros_web_link.viz_fixture')
+KNOWN_FIXTURES = ('ros_web_link.comm_fixture',)
 
 # 官方组件常量（固定绝对路径；robot_state_publisher 的 URDF 插件需要 vendor 库链：
 # sdformat14→gz-math7、ompl —— 见 doc/architecture.md 已知坑）
@@ -258,8 +257,6 @@ class Stack:
                 procs.append((cmd, official_env(env)))
         for f in self.fixtures:
             cmd = [py, '-m', f]
-            if f.endswith('viz_fixture') and self.official:
-                cmd += ['--ros-args', '-p', 'publish_urdf:=false']
             procs.append((cmd, env))
 
         self._loop = asyncio.new_event_loop()
@@ -376,6 +373,208 @@ class Stack:
     @property
     def ws_url(self) -> str:
         return self._gateway_ws_url
+
+
+class LaunchStack:
+    """整仓 launch 子进程编排：ros2 launch <pkg> <file>（sim_demo 等官方组合栈）.
+
+    与 Stack（直编桥/网关/官方进程）不同，这里整仓 launch 一次拉起（栈内部自己
+    组合官方组件）；环境补齐 vendor 库链与工作区前缀，域名/端口随机避让。
+    """
+
+    def __init__(self, launch_file: str, args: dict | None = None,
+                 port_arg: str = 'port', gateway_arg: str = 'gateway_port') -> None:
+        self.launch_file = launch_file
+        self.args = args or {}
+        self._port_arg = port_arg
+        self._gateway_arg = gateway_arg
+        self.gateway_port = free_port()
+        self.bridge_port = free_port()
+        self._domain_s = str(free_domain())
+        self._loop: asyncio.AbstractEventLoop | None = None
+        self._thread: threading.Thread | None = None
+        self._proc = None
+        self._log_path = None
+        self._keep_log = False
+        self._last_have: set[str] = set()
+
+    def _env(self) -> dict:
+        env = os.environ.copy()
+        ws_installs = [
+            'ros_web_link', 'ivg_foxglove_bridge', 'moveit_resources_panda_description',
+            'turtlebot3_gazebo', 'turtlebot3_msgs',
+            'examples_rclpy_pointcloud_publisher', 'examples_rclpy_minimal_publisher',
+        ]
+        env.update({
+            'ROS_DOMAIN_ID': self._domain_s,
+            'ROS_DISTRO': 'jazzy',
+            'TURTLEBOT3_MODEL': 'waffle_pi',
+            'AMENT_PREFIX_PATH': ':'.join(
+                [str(_WS_ROOT / 'install' / p) for p in ws_installs] + ['/opt/ros/jazzy']),
+            'PYTHONPATH': os.pathsep.join(
+                ['/opt/ros/jazzy/lib/python3.12/site-packages', str(_PKG_ROOT)]
+                + [str(_WS_ROOT / 'install' / p
+                   / 'lib' / 'python3.12' / 'site-packages')
+                   for p in ws_installs]
+                # ament_python symlink-install 是 egg-link 开发安装：
+                # importlib.metadata 需要源/build 目录（含 egg-info）直接在
+                # sys.path 上（PYTHONPATH 条目不处理 .pth）
+                + [str(_WS_ROOT / 'build' / p) for p in (
+                    'examples_rclpy_pointcloud_publisher',
+                    'examples_rclpy_minimal_publisher')]),
+            'LD_LIBRARY_PATH': ':'.join(
+                sorted(glob.glob('/opt/ros/jazzy/opt/*/lib'))
+                + ['/opt/ros/jazzy/lib', '/opt/ros/jazzy/lib/x86_64-linux-gnu',
+                   str(_WS_ROOT / 'install' / 'ivg_foxglove_bridge' / 'lib')]),
+            # gz 工具链（source setup.bash 的等价最小集）
+            'GZ_CONFIG_PATH': '/opt/ros/jazzy/opt/gz_sim_vendor/share/gz',
+            'PATH': ':'.join([
+                str(_VENV_PY.parent), '/opt/ros/jazzy/opt/gz_tools_vendor/bin',
+                '/opt/ros/jazzy/bin', '/usr/bin', '/bin']),
+        })
+        return env
+
+    def start(self, readiness_topics: tuple[str, ...] = (),
+              readiness_budget_s: float = 150.0) -> None:
+        import subprocess
+        import tempfile
+        self._loop = asyncio.new_event_loop()
+        self._thread = threading.Thread(
+            target=self._loop.run_forever, name='rwl-launch-stack', daemon=True)
+        self._thread.start()
+
+        async def spawn():
+            fh = tempfile.NamedTemporaryFile(
+                prefix='rwl_launch_', suffix='.log', delete=False)
+            self._log_path = fh.name
+            argv = [_ROS2_BIN, 'launch', 'ros_web_link', self.launch_file,
+                    f'{self._gateway_arg}:={self.gateway_port}',
+                    f'{self._port_arg}:={self.bridge_port}',
+                    # gz-transport 分区隔离：本机其他 gz 仿真（如 peach 果园）
+                    # 常驻默认分区，不隔离会交叉发布 /odom /scan（实证串扰）
+                    f'gz_partition:=rwl_{self._domain_s}']
+            for k, v in self.args.items():
+                argv.append(f'{k}:={v}')
+            self._proc = await asyncio.create_subprocess_exec(
+                *argv, env=self._env(), start_new_session=True,
+                stdout=fh, stderr=subprocess.STDOUT)
+
+        asyncio.run_coroutine_threadsafe(spawn(), self._loop).result(timeout=30.0)
+        self._wait_gateway()
+        if readiness_topics:
+            if not self._wait_topics(readiness_topics, readiness_budget_s):
+                missing = sorted(set(readiness_topics) - self._last_have)
+                tail = ''
+                if self._log_path and os.path.exists(self._log_path):
+                    try:
+                        with open(self._log_path, encoding='utf-8',
+                                  errors='replace') as f:
+                            tail = f.read()[-1500:]
+                    except OSError:
+                        pass
+                self.stop()
+                raise RuntimeError(
+                    f'官方栈就绪超时（{readiness_budget_s}s）：缺 {missing}；'
+                    f'日志 {self._log_path}\n[launch 日志尾]\n{tail}')
+
+    def _wait_gateway(self) -> None:
+        deadline = time.monotonic() + _READINESS_TIMEOUT_S
+        last = None
+        while time.monotonic() < deadline:
+            try:
+                with loopback_client(self.gateway_port) as c:
+                    if c.get(_HEALTH_PATH).status_code == 200:
+                        return
+            except Exception as exc:  # noqa: BLE001
+                last = exc
+            time.sleep(0.5)
+        self._keep_log = True
+        self.stop()
+        tail = ''
+        if self._log_path and os.path.exists(self._log_path):
+            try:
+                with open(self._log_path, encoding='utf-8', errors='replace') as f:
+                    tail = f.read()[-2000:]
+            except OSError:
+                pass
+        raise RuntimeError(f'gateway 未就绪 ({self._log_path}): ' + repr(last)
+                           + '\n[launch 日志尾]\n' + tail)
+
+    async def _run_cli(self, *argv: str, timeout_s: float = 20.0) -> tuple[int, str]:
+        proc = await asyncio.create_subprocess_exec(
+            _ROS2_BIN, *argv, env=self._env(),
+            stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.DEVNULL)
+        try:
+            out, _ = await asyncio.wait_for(proc.communicate(), timeout_s)
+            return proc.returncode, out.decode(errors='replace')
+        except asyncio.TimeoutError:
+            proc.kill()
+            await proc.wait()
+            return -1, ''
+
+    def _wait_topics(self, topics: tuple[str, ...],
+                     budget_s: float) -> bool:
+        """轮询 ros2 topic list 直到全部出现（单次 CLI ≤20s，符合 30s 上限约束）."""
+
+        async def run():
+            deadline = time.monotonic() + budget_s
+            last_have: set[str] = set()
+            while time.monotonic() < deadline:
+                rc, out = await self._run_cli('topic', 'list')
+                if rc == 0:
+                    last_have = {line.strip() for line in out.splitlines()
+                                 if line.strip()}
+                    if all(t in last_have for t in topics):
+                        return True
+                await asyncio.sleep(2.0)
+            self._last_have = last_have
+            return False
+
+        ok = asyncio.run_coroutine_threadsafe(run(), self._loop).result(
+            timeout=budget_s + 30.0)
+        if not ok:
+            self._keep_log = True
+        return ok
+
+    def stop(self) -> None:
+        import signal
+        loop, self._loop = self._loop, None
+        thread, self._thread = self._thread, None
+        proc = self._proc
+        if loop is not None and thread is not None:
+            async def shutdown():
+                if proc is not None and proc.returncode is None:
+                    try:
+                        os.killpg(proc.pid, signal.SIGINT)
+                    except (ProcessLookupError, PermissionError):
+                        proc.terminate()
+                    try:
+                        await asyncio.wait_for(proc.wait(), 20.0)
+                    except asyncio.TimeoutError:
+                        try:
+                            os.killpg(proc.pid, signal.SIGKILL)
+                        except (ProcessLookupError, PermissionError):
+                            proc.kill()
+                        await proc.wait()
+            try:
+                asyncio.run_coroutine_threadsafe(
+                    shutdown(), loop).result(timeout=30.0)
+            finally:
+                loop.call_soon_threadsafe(loop.stop)
+                thread.join(timeout=5.0)
+                loop.close()
+                if self._log_path and os.path.exists(self._log_path) \
+                        and not self._keep_log:
+                    try:
+                        os.unlink(self._log_path)
+                    except OSError:
+                        pass
+        left = [p.pid for p in [self._proc] if p is not None and p.returncode is None]
+        assert not left, '清理后仍有存活子进程: ' + str(left)
+
+    @property
+    def ws_url(self) -> str:
+        return 'ws://' + _LOOPBACK + ':' + str(self.gateway_port) + '/ws/foxglove'
 
 
 class Connected:

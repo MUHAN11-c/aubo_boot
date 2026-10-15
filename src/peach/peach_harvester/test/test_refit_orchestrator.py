@@ -157,7 +157,7 @@ def test_run_exception_path_records_timing_and_fuses():
         kind='bag', kind_defaulted=False, bound_axis_hint=None,
         target_id='t', entry_standoff_m=0.0, pregrasp_standoff_m=0.0,
         budget_params=ToolBudgetParams())
-    assert result.reason == 'bag_axis_unobservable'
+    assert result.reason == 'bag_axis_envelope_ill_conditioned'
     assert not result.ok
     assert any('refit 异常' in msg for _, msg in orch._logger.records)
     assert orch._timing.snapshot()['refit_ms_last'] == 0.0
@@ -495,7 +495,7 @@ def test_failed_refit_and_unconditioned_envelope_cannot_authorize_contact():
         fused, 1, [0, 0, 1], 't')
     assert not result.ok
     assert not fused.allowed
-    assert result.reason == 'bag_axis_unobservable'
+    assert result.reason == 'bag_axis_envelope_ill_conditioned'
     assert result.reason in CONTACT_GEOMETRY_INVALID_REASONS
 
 

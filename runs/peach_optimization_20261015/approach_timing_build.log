@@ -1,0 +1,42 @@
+[0.687s] WARNING:colcon.colcon_core.package_selection:Some selected packages are already built in one or more underlay workspaces:
+	'peach_arm' is in: /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_arm
+If a package in a merged underlay workspace is overridden and it installs headers, then all packages in the overlay must sort their include directories by workspace order. Failure to do so may result in build failures or undefined behavior at run time.
+If the overridden package is used by another package in any underlay, then the overriding package in the overlay must be API and ABI compatible or undefined behavior at run time may occur.
+
+If you understand the risks and want to override a package anyways, add the following to the command line:
+	--allow-overriding peach_arm
+
+This may be promoted to an error in a future release of colcon-override-check.
+Starting >>> peach_arm
+--- stderr: peach_arm
+In file included from /opt/ros/jazzy/include/tf2/tf2/buffer_core.hpp:52,
+                 from /opt/ros/jazzy/include/tf2_ros/tf2_ros/async_buffer_interface.hpp:39,
+                 from /opt/ros/jazzy/include/tf2_ros/tf2_ros/buffer.hpp:44,
+                 from /opt/ros/jazzy/include/tf2_eigen/tf2_eigen/tf2_eigen.hpp:45,
+                 from /home/mu/Desktop/aubo_e5_jazzy_ws/src/peach/peach_arm/include/peach_arm/grasp_task.hpp:25,
+                 from /home/mu/Desktop/aubo_e5_jazzy_ws/src/peach/peach_arm/src/grasp_task.cpp:7:
+/home/mu/Desktop/aubo_e5_jazzy_ws/src/peach/peach_arm/src/grasp_task.cpp: In member function ‘bool peach_arm::GraspTask::tryRolledApproach(const std::string&, const Eigen::Isometry3d&, const Eigen::Vector3d&, peach_arm::ApproachSplit, peach_arm::ApproachSplit::Kind, bool, peach_arm::GraspTaskResult&)’:
+/home/mu/Desktop/aubo_e5_jazzy_ws/src/peach/peach_arm/src/grasp_task.cpp:910:28: warning: format ‘%f’ expects argument of type ‘double’, but argument 7 has type ‘long double’ [-Wformat=]
+  910 |       node_->get_logger(), "%s接近候选开始: kind=%s roll=%.0fdeg",
+      |                            ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/mu/Desktop/aubo_e5_jazzy_ws/src/peach/peach_arm/src/grasp_task.cpp:910:61: note: format string is defined here
+  910 |       node_->get_logger(), "%s接近候选开始: kind=%s roll=%.0fdeg",
+      |                                                          ~~~^
+      |                                                             |
+      |                                                             double
+      |                                                          %.0Lf
+/home/mu/Desktop/aubo_e5_jazzy_ws/src/peach/peach_arm/src/grasp_task.cpp:921:28: warning: format ‘%f’ expects argument of type ‘double’, but argument 6 has type ‘long double’ [-Wformat=]
+  921 |       node_->get_logger(), "%s接近候选结束: roll=%.0fdeg elapsed=%.3fs success=%s reason=%s",
+      |                            ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/mu/Desktop/aubo_e5_jazzy_ws/src/peach/peach_arm/src/grasp_task.cpp:921:53: note: format string is defined here
+  921 |       node_->get_logger(), "%s接近候选结束: roll=%.0fdeg elapsed=%.3fs success=%s reason=%s",
+      |                                                  ~~~^
+      |                                                     |
+      |                                                     double
+      |                                                  %.0Lf
+---
+[Processing: peach_arm]
+Finished <<< peach_arm [33.3s]
+
+Summary: 1 package finished [33.8s]
+  1 package had stderr output: peach_arm

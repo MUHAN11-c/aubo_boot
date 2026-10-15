@@ -135,8 +135,8 @@ bool ManipulationSkillsNode::authorizeStage(
         return false;
       }
     }
-    // 径向/轴向余量仍随令牌记录，给机械对刀具常数。常数未更新前，
-    // 负余量不拒绝套入或剪切。TOOL 仍要求预备位残差和 tool.enabled。
+    // 果距与径向余量只随令牌记录，供查看。径向余量是静态初步标记：
+    // 接触时弹性会动，目前不拒绝套入或剪切。TOOL 仍要求预备位残差和 tool.enabled。
     if (stage == MotionStage::TOOL) {
       if (!ctx.pregrasp_verified) {
         why = "预备位残差未过门不得开刀（pregrasp_verified=false）";

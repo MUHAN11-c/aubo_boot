@@ -81,3 +81,14 @@ def test_low_rate_horizon_and_reset_accept_new_clock_origin():
     store._push_frame_ring(restarted)
     assert store._select_cached_frame() is restarted
     assert store._frame_ring_bytes == 24
+
+
+def test_oversized_frame_does_not_advance_time_watermark_or_evict_waiting_frame():
+    store = _store()
+    store._frame_ring_max_bytes = 60
+    waiting = _frame(10.)
+    store._push_frame_ring(waiting)
+    store._push_frame_ring(_frame(13., size=30))  # 90B不能进入60B缓存。
+    assert store._select_cached_frame(10.) is waiting
+    store._push_frame_ring(_frame(10.1))
+    assert len(store._frame_ring) == 2

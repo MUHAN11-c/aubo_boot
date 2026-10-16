@@ -31,6 +31,11 @@
     const observation = (targets.observations || []).find(item => sameTarget(item.target_id, target));
     const initial = observation && epochMatches && targets.frame_id === 'base_link'
       ? candidateGeometry(observation.candidate || {}, targets) : null;
+    if (initial && (observation.diagnostic_flags || []).includes('anchor_from_memory')) {
+      initial.diagnostic = true;
+      initial.reason = 'anchor_from_memory';
+      initial.stamp = null;
+    }
     const diagnostics = state.reconstruction?.diagnostics || {};
     const refined = diagnostics.refined;
     const poseSource = state.refined?.pose || {};
@@ -229,7 +234,7 @@
         dot(value.center, c, `${prefix}中心`);
         line([value.bottom, value.neck], c, diagnostic); axis(value.bottom || value.center || value.entry, value.axis, c, diagnostic);
         ring(value.neck, value.axis, value.diameter, c, diagnostic);
-        if (diagnostic) label('错轴 / 拟合拒绝诊断', value.center || value.bottom || value.entry, c);
+        if (diagnostic) label(value.reason === 'anchor_from_memory' ? '记忆锚点 / 无本帧拟合' : '错轴 / 拟合拒绝诊断', value.center || value.bottom || value.entry, c);
       }
       function fit(view = 'center') {
         const bounds = new T.Box3().setFromObject(group);

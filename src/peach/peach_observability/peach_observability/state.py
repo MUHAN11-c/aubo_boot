@@ -67,8 +67,10 @@ def to_point(point_message) -> list[float]:
     ]
 
 
-def to_candidate(candidate_message) -> dict:
+def to_candidate(candidate_message) -> dict | None:
     """转换抓取候选，保留浏览器需要的几何与版本信息."""
+    if not candidate_message.target_id:
+        return None
     pose = candidate_message.entry_pose
     return {
         'target_id': candidate_message.target_id,
@@ -94,12 +96,14 @@ def to_candidate(candidate_message) -> dict:
     }
 
 
-def to_fitting(fitting_message) -> dict:
-    """转换几何拟合质量消息."""
+def to_fitting(fitting_message) -> dict | None:
+    """空身份表示未关联消息；不得把默认 status=0 解释为拟合成功."""
+    if not fitting_message.target_id:
+        return None
     diameter = float(fitting_message.bag_diameter_upper_m)
     if diameter <= 0.0 and float(fitting_message.fruit_radius_m) > 0.0:
         diameter = 2.0 * float(fitting_message.fruit_radius_m)
-    return {
+    result = {
         'target_id': fitting_message.target_id,
         'target_kind': fitting_message.target_kind,
         'status': _STATUS_NAMES.get(
@@ -118,12 +122,27 @@ def to_fitting(fitting_message) -> dict:
         ),
         'diagnostic_flags': list(fitting_message.diagnostic_flags),
     }
+    # BagFitting 约定无效标量 <0；零仍是合法的比例、点数或误差。
+    for key, value in result.items():
+        if isinstance(value, (float, int)) and (
+                not math.isfinite(value) or value < 0):
+            result[key] = None
+    return result
 
 
 def to_target_observations(message) -> dict:
     """转换全局目标快照；故意排除大体积 mask 像素."""
     observations = []
     for item in message.observations:
+        candidate = to_candidate(item.candidate) if (
+            item.candidate.target_id == item.target_id) else None
+        fitting = to_fitting(item.fitting) if (
+            item.fitting.target_id == item.target_id) else None
+        memory_anchor = 'anchor_from_memory' in item.diagnostic_flags
+        if memory_anchor and candidate is not None:
+            # 身份锚点只有历史位置，生产端没有填本帧尺寸或质量。
+            for key in ('confidence', 'diameter_m', 'travel_m'):
+                candidate[key] = None
         observations.append({
             'target_id': item.target_id,
             'priority': int(item.priority),
@@ -132,10 +151,12 @@ def to_target_observations(message) -> dict:
             'harvest_status': item.harvest_status,
             'tracking_status': _TRACKING_NAMES.get(
                 int(item.tracking_status), str(item.tracking_status)),
-            'camera_distance_m': float(item.camera_distance_m),
-            'confidence': float(item.confidence),
-            'candidate': to_candidate(item.candidate),
-            'fitting': to_fitting(item.fitting),
+            'camera_distance_m': None if memory_anchor or candidate is None
+            else float(item.camera_distance_m),
+            'confidence': None if memory_anchor or candidate is None
+            else float(item.confidence),
+            'candidate': candidate,
+            'fitting': fitting,
             'mask': {
                 'width': int(item.mask.width),
                 'height': int(item.mask.height),
@@ -163,7 +184,8 @@ def to_candidate_array(message) -> dict:
     return {
         'stamp': stamp_seconds(message.header),
         'frame_id': message.header.frame_id,
-        'candidates': [to_candidate(item) for item in message.candidates],
+        'candidates': [to_candidate(item) for item in message.candidates
+                       if item.target_id],
     }
 
 
@@ -172,7 +194,8 @@ def to_fitting_array(message) -> dict:
     return {
         'stamp': stamp_seconds(message.header),
         'frame_id': message.header.frame_id,
-        'fittings': [to_fitting(item) for item in message.fittings],
+        'fittings': [to_fitting(item) for item in message.fittings
+                     if item.target_id],
     }
 
 

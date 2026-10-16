@@ -294,8 +294,8 @@ class CollectLockPolicy:
     max_collect_s: float
     """窗口最长时长 [s]；超时空集也关."""
 
-    def __init__(self, min_collect_frames: int = 10,
-                 lock_settle_frames: int = 5, max_collect_s: float = 25.0):
+    def __init__(self, min_collect_frames: int = 4,
+                 lock_settle_frames: int = 2, max_collect_s: float = 12.0):
         """建未关闭的收齐窗口（帧数≥1/静止帧数≥0/时长>0 校验）."""
         if min_collect_frames < 1:
             raise ValueError('min_collect_frames 须 ≥ 1')
@@ -414,8 +414,8 @@ class GlobalHarvestPlan:
     dropped_ids: set
     """LOST 超 drop 阈值后从计划移除的 ID."""
 
-    def __init__(self, max_targets: int = 20, min_collect_frames: int = 10,
-                 lock_settle_frames: int = 5, max_collect_s: float = 25.0,
+    def __init__(self, max_targets: int = 20, min_collect_frames: int = 4,
+                 lock_settle_frames: int = 2, max_collect_s: float = 12.0,
                  prefer_lower_first: bool = True,
                  anchor_max_age_frames: int = 150,
                  anchor_drop_frames: int = 600,

@@ -31,5 +31,12 @@ inline bool retryStagingCandidate(
 {
   return !success && !execution_started && !canceled && !retry_forbidden;
 }
+
+/// 同一笛卡尔 LIN 连续两档滚转都规划失败则停梯子。拍照位到预抓取的
+/// LIN 超速失败与刀口滚转无关（同一笛卡尔弦），继续扫只会重复关节速度极限。
+inline bool abandonRolledLinSearch(int consecutive_plan_failures)
+{
+  return consecutive_plan_failures >= 2;
+}
 }  // namespace peach_arm
 #endif  // PEACH_ARM__STAGING_CANDIDATES_HPP_

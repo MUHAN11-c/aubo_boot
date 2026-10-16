@@ -1,0 +1,74 @@
+{
+  "owner_pid": 767610,
+  "processes": [
+    {
+      "pid": 767611,
+      "pgid": 767611,
+      "command": [
+        "ros2",
+        "launch",
+        "peach_bringup",
+        "harvest_system.launch.py",
+        "hardware_mode:=mock",
+        "camera_enabled:=true",
+        "camera_frontend:=stereo",
+        "extrinsics_enabled:=false",
+        "imu_enabled:=false",
+        "autostart:=false",
+        "use_sim_time:=false",
+        "rviz:=false",
+        "tool_profile:=bite_shear_v1",
+        "mock_initial_positions:=0.425175,0.194274,1.679546,1.462579,-0.279948,0.038859",
+        "brain_params_overlay:=/home/mu/Desktop/aubo_e5_jazzy_ws/runs/live_mock_20261016_183842/brain_overlay.yaml",
+        "arm_params_overlay:=/home/mu/Desktop/aubo_e5_jazzy_ws/runs/live_mock_20261016_183842/arm_overlay.yaml",
+        "observability_port:=8090"
+      ],
+      "started_at": 1792147122.9022832,
+      "ros_domain_id": "86"
+    },
+    {
+      "pid": 767612,
+      "pgid": 767612,
+      "command": [
+        "ros2",
+        "run",
+        "tf2_ros",
+        "static_transform_publisher",
+        "--x",
+        "0.3780573326439316",
+        "--y",
+        "-0.07547177076037584",
+        "--z",
+        "0.7666632351254871",
+        "--qx",
+        "-0.0036889994433193067",
+        "--qy",
+        "-7.498157537607713e-06",
+        "--qz",
+        "-0.6576092061184594",
+        "--qw",
+        "0.753350199611797",
+        "--frame-id",
+        "base_link",
+        "--child-frame-id",
+        "camera_link"
+      ],
+      "started_at": 1792147122.9027147,
+      "ros_domain_id": "86"
+    },
+    {
+      "pid": 768486,
+      "pgid": 768486,
+      "command": [
+        "rviz2",
+        "-d",
+        "/home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_system_tests/share/peach_system_tests/config/live_camera_mock.rviz",
+        "--ros-args",
+        "--params-file",
+        "/home/mu/Desktop/aubo_e5_jazzy_ws/runs/live_mock_20261016_183842/rviz_model_params.yaml"
+      ],
+      "started_at": 1792147134.9212277,
+      "ros_domain_id": "86"
+    }
+  ]
+}

@@ -330,10 +330,12 @@ function renderPlan(perception, taskExecutor) {
         ? "已结算 · 采摘证据待确认" : item.harvest_status;
       const rowClass = `${item.target_id === selectedId || item.selected ? "selected" : ""} ${confirmed ? "harvested" : ""}`;
       const entry = xyzCells((item.candidate || {}).entry_position);
+      const memory = (item.diagnostic_flags || []).includes("anchor_from_memory");
+      const evidence = memory ? "记忆锚点 · 无本帧拟合" : item.fitting == null ? "无本帧拟合" : "";
       return `<tr class="${rowClass}">
         <td><b>${safe(item.target_id)}</b></td>
         <td>${chip(status, confirmed ? "ok" : result || item.harvest_status === "HARVESTED" ? "warn" : harvestChip[item.harvest_status] ?? "")}</td>
-        <td>${chip(item.tracking_status, trackingChip[item.tracking_status] ?? "")}</td>
+        <td>${chip(item.tracking_status, trackingChip[item.tracking_status] ?? "")}${evidence ? `<small>${safe(evidence)}</small>` : ""}</td>
         <td>${percent(item.confidence)}</td>
         <td class="mono">${entry[0]}, ${entry[1]}, ${entry[2]}</td>
       </tr>`;

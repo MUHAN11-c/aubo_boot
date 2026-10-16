@@ -1,0 +1,171 @@
+[INFO] [1792113337.441018605] [peach_scene_perception_node]: YOLO=/home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_harvester/share/peach_harvester/model/best.pt
+[INFO] [1792113337.441312575] [peach_scene_perception_node]: SAM=/home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_harvester/share/peach_harvester/model/mobile_sam.pt
+[INFO] [1792113338.272352612] [peach_scene_perception_node]: Subscribed color=/camera/color/image_raw depth=/camera/depth/image_raw info=/camera/color/camera_info slop=0.05s optical=camera_color_optical_frame output=base_link depth_scale_unit=0.25 gravity_mode=tf calib=percipio-640x480-chessboard|hand_eye:import_humble_20260128T114006
+[INFO] [1792113338.272573401] [peach_scene_perception_node]: 目标身份记忆已启用：match_radius=0.06 m, max_targets=50, ema=0.3
+[INFO] [1792113338.283916942] [peach_target_reconstruction_node]: peach_target_reconstruction_node ready: base=base_link color=/camera/color/image_raw depth=/camera/depth/image_raw slop=0.05s depth_scale_unit=0.25 views(min/rec/max)=1/5/24 require_static=True auto_mode=True session_root=/home/mu/Desktop/aubo_e5_jazzy_ws/runs
+[INFO] [1792113338.457483452] [peach_supervisor]: task executor configured; will not auto-start harvest
+[INFO] [1792113338.459728130] [peach_scene_perception_node]: perception Active：开始处理 RGB-D
+[INFO] [1792113338.462910559] [peach_target_reconstruction_node]: reconstruction Active：开始积分
+[WARN] [1792113340.735795814] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 2（处理跟不上到达率，排查热路径耗时或降低到达率）
+[INFO] [1792113340.742420735] [peach_scene_perception_node]: CameraInfo K fx=466.175 fy=465.557 cx=326.071 cy=244.789 640x480
+[WARN] [1792113340.744143617] [peach_target_reconstruction_node]: 重建 worker 队列已满，拒绝新帧以保持积分顺序
+[INFO] [1792113346.214115995] [peach_scene_perception_node]: peach_harvester.vision.scene_perception.identity: 目标注册 累计 1 次（最近: target_0 cls=0 累计表规模 1）
+[INFO] [1792113346.216641963] [peach_scene_perception_node]: 目标注册表在册 1 个目标（累计注册 1、累计命中 0）
+[WARN] [1792113346.221702691] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 79（处理跟不上到达率，排查热路径耗时或降低到达率）
+[WARN] [1792113348.907827578] [peach_target_reconstruction_node]: New subscription discovered on topic '/peach/reconstruction/preview_cloud', requesting incompatible QoS. No messages will be sent to it. Last incompatible policy: RELIABILITY
+[WARN] [1792113351.267016174] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 124（处理跟不上到达率，排查热路径耗时或降低到达率）
+[INFO] [1792113353.016959349] [peach_supervisor]: 操作台使能: execution=False grasp=False tool=False（live_camera_mock owned test）
+[INFO] [1792113356.343766018] [peach_scene_perception_node]: 目标注册表在册 1 个目标（累计注册 1、累计命中 45）
+[WARN] [1792113356.353043132] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 170（处理跟不上到达率，排查热路径耗时或降低到达率）
+[WARN] [1792113361.441685404] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 215（处理跟不上到达率，排查热路径耗时或降低到达率）
+[INFO] [1792113363.375845158] [peach_target_reconstruction_node]: 已清空，回 IDLE
+[INFO] [1792113364.701801362] [peach_target_reconstruction_node]: 自动开始：开始重建，绑定目标 target_0
+[WARN] [1792113364.712462165] [peach_target_reconstruction_node]: 自动采帧跳过 [no_frame]：尚无同步 RGB-D 帧（确认相机/回放在线）
+[WARN] [1792113364.788533364] [peach_target_reconstruction_node]: 重建 worker 队列已满，拒绝新帧以保持积分顺序
+[INFO] [1792113365.697956263] [peach_target_reconstruction_node]: REFINING：几何二次拟合开始（kind=bag，1478 点）
+[WARN] [1792113365.784015106] [peach_target_reconstruction_node]: REFINING：无接触权威几何（bag_axis_silhouette_unobservable）
+[INFO] [1792113365.784242229] [peach_target_reconstruction_node]: 已采第 1/5 视角，本帧 5275 点，有效深度占比 1.00，位姿=fk
+[INFO] [1792113365.816009447] [peach_target_reconstruction_node]: REFINING：几何二次拟合开始（kind=bag，1478 点）
+[WARN] [1792113365.930735755] [peach_target_reconstruction_node]: REFINING：无接触权威几何（bag_axis_silhouette_unobservable）
+[WARN] [1792113365.931068590] [peach_target_reconstruction_node]: 局部重建完成：1 帧，5275 点（少于推荐 5 帧）；重叠指标需 ≥2 帧，本批次不可用；TSDF 1478 点 / mesh 2506 顶点（累计积分 0.01s）；refit 失败（bag_axis_silhouette_unobservable）；refit 未产出可用几何
+[WARN] [1792113365.955651075] [peach_target_reconstruction_node]: 单视质量拒绝，替换新曝光 1/3: bag_axis_silhouette_unobservable
+[WARN] [1792113365.998037991] [peach_target_reconstruction_node]: 自动采帧跳过 [missing_mask]：缺少所选 target_id 的容差内掩膜
+[INFO] [1792113366.065295622] [peach_target_reconstruction_node]: REFINING：几何二次拟合开始（kind=bag，1371 点）
+[WARN] [1792113366.153805512] [peach_target_reconstruction_node]: REFINING：无接触权威几何（bag_axis_silhouette_unobservable）
+[INFO] [1792113366.154198105] [peach_target_reconstruction_node]: 已采第 1/5 视角，本帧 5280 点，有效深度占比 1.00，位姿=fk
+[INFO] [1792113366.180478071] [peach_target_reconstruction_node]: 已采第 2/5 视角，本帧 5280 点，有效深度占比 1.00，位姿=fk
+[INFO] [1792113366.220809494] [peach_target_reconstruction_node]: REFINING：几何二次拟合开始（kind=bag，1371 点）
+[WARN] [1792113366.326373816] [peach_target_reconstruction_node]: REFINING：无接触权威几何（bag_axis_silhouette_unobservable）
+[WARN] [1792113366.326833153] [peach_target_reconstruction_node]: 局部重建完成：2 帧，10560 点（少于推荐 5 帧）；重叠 mean=0.0mm p95=0.0mm；TSDF 1371 点 / mesh 2526 顶点（累计积分 0.01s）；refit 失败（bag_axis_silhouette_unobservable）；refit 未产出可用几何
+[WARN] [1792113366.357764275] [peach_target_reconstruction_node]: 单视质量拒绝，替换新曝光 2/3: bag_axis_silhouette_unobservable
+[INFO] [1792113366.413559566] [peach_target_reconstruction_node]: REFINING：几何二次拟合开始（kind=bag，1489 点）
+[WARN] [1792113366.512835922] [peach_target_reconstruction_node]: REFINING：无接触权威几何（bag_axis_silhouette_unobservable）
+[INFO] [1792113366.513549774] [peach_target_reconstruction_node]: 已采第 1/5 视角，本帧 5298 点，有效深度占比 1.00，位姿=fk
+[INFO] [1792113366.519451154] [peach_target_reconstruction_node]: 已采第 2/5 视角，本帧 5296 点，有效深度占比 1.00，位姿=fk
+[INFO] [1792113366.547477136] [peach_target_reconstruction_node]: REFINING：几何二次拟合开始（kind=bag，1487 点）
+[WARN] [1792113366.649805220] [peach_target_reconstruction_node]: REFINING：无接触权威几何（bag_axis_silhouette_unobservable）
+[WARN] [1792113366.654417573] [peach_target_reconstruction_node]: 局部重建完成：2 帧，10594 点（少于推荐 5 帧）；重叠 mean=0.1mm p95=1.0mm；TSDF 1487 点 / mesh 2543 顶点（累计积分 0.00s）；refit 失败（bag_axis_silhouette_unobservable）；refit 未产出可用几何
+[INFO] [1792113366.655279047] [peach_scene_perception_node]: 目标注册表在册 1 个目标（累计注册 1、累计命中 85）
+[WARN] [1792113366.689289637] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 269（处理跟不上到达率，排查热路径耗时或降低到达率）
+[INFO] [1792113366.763572831] [peach_target_reconstruction_node]: 已清空，回 IDLE
+[INFO] [1792113366.768368347] [peach_target_reconstruction_node]: 自动开始：开始重建，绑定目标 target_0
+[WARN] [1792113366.806953335] [peach_target_reconstruction_node]: 重建 worker 队列已满，拒绝新帧以保持积分顺序
+[WARN] [1792113367.062831442] [peach_target_reconstruction_node]: 自动采帧跳过 [joint_state_unavailable]：曝光时刻关节状态过旧或时间戳不匹配
+[INFO] [1792113368.016869776] [peach_target_reconstruction_node]: REFINING：几何二次拟合开始（kind=bag，1363 点）
+[WARN] [1792113368.083334551] [peach_target_reconstruction_node]: REFINING：无接触权威几何（bag_axis_silhouette_unobservable）
+[INFO] [1792113368.083624603] [peach_target_reconstruction_node]: 已采第 1/5 视角，本帧 5283 点，有效深度占比 1.00，位姿=fk
+[INFO] [1792113368.108039014] [peach_target_reconstruction_node]: REFINING：几何二次拟合开始（kind=bag，1363 点）
+[WARN] [1792113368.237872114] [peach_target_reconstruction_node]: REFINING：无接触权威几何（bag_axis_silhouette_unobservable）
+[WARN] [1792113368.239631639] [peach_target_reconstruction_node]: 局部重建完成：1 帧，5283 点（少于推荐 5 帧）；重叠指标需 ≥2 帧，本批次不可用；TSDF 1363 点 / mesh 2514 顶点（累计积分 0.00s）；refit 失败（bag_axis_silhouette_unobservable）；refit 未产出可用几何
+[WARN] [1792113368.288478852] [peach_target_reconstruction_node]: 单视质量拒绝，替换新曝光 1/3: bag_axis_silhouette_unobservable
+[WARN] [1792113368.318224371] [peach_target_reconstruction_node]: 自动采帧跳过 [no_frame]：尚无同步 RGB-D 帧（确认相机/回放在线）
+[WARN] [1792113368.390800286] [peach_target_reconstruction_node]: 重建 worker 队列已满，拒绝新帧以保持积分顺序
+[INFO] [1792113368.439226721] [peach_target_reconstruction_node]: REFINING：几何二次拟合开始（kind=bag，1438 点）
+[WARN] [1792113368.524075406] [peach_target_reconstruction_node]: REFINING：无接触权威几何（bag_axis_silhouette_unobservable）
+[INFO] [1792113368.524522897] [peach_target_reconstruction_node]: 已采第 1/5 视角，本帧 5288 点，有效深度占比 1.00，位姿=fk
+[INFO] [1792113368.555132007] [peach_target_reconstruction_node]: REFINING：几何二次拟合开始（kind=bag，1438 点）
+[WARN] [1792113368.663697924] [peach_target_reconstruction_node]: REFINING：无接触权威几何（bag_axis_silhouette_unobservable）
+[WARN] [1792113368.664227942] [peach_target_reconstruction_node]: 局部重建完成：1 帧，5288 点（少于推荐 5 帧）；重叠指标需 ≥2 帧，本批次不可用；TSDF 1438 点 / mesh 2508 顶点（累计积分 0.01s）；refit 失败（bag_axis_silhouette_unobservable）；refit 未产出可用几何
+[WARN] [1792113368.697643925] [peach_target_reconstruction_node]: 单视质量拒绝，替换新曝光 2/3: bag_axis_silhouette_unobservable
+[INFO] [1792113368.860428219] [peach_target_reconstruction_node]: REFINING：几何二次拟合开始（kind=bag，1365 点）
+[WARN] [1792113368.949754027] [peach_target_reconstruction_node]: REFINING：无接触权威几何（bag_axis_silhouette_unobservable）
+[INFO] [1792113368.950570395] [peach_target_reconstruction_node]: 已采第 1/5 视角，本帧 5280 点，有效深度占比 1.00，位姿=fk
+[INFO] [1792113368.962517067] [peach_target_reconstruction_node]: REFINING：几何二次拟合开始（kind=bag，1365 点）
+[WARN] [1792113369.083221140] [peach_target_reconstruction_node]: REFINING：无接触权威几何（bag_axis_silhouette_unobservable）
+[WARN] [1792113369.083545761] [peach_target_reconstruction_node]: 局部重建完成：1 帧，5280 点（少于推荐 5 帧）；重叠指标需 ≥2 帧，本批次不可用；TSDF 1365 点 / mesh 2508 顶点（累计积分 0.00s）；refit 失败（bag_axis_silhouette_unobservable）；refit 未产出可用几何
+[INFO] [1792113369.179668458] [peach_target_reconstruction_node]: 已清空，回 IDLE
+[INFO] [1792113369.186820165] [peach_target_reconstruction_node]: 自动开始：开始重建，绑定目标 target_0
+[INFO] [1792113369.247879323] [peach_target_reconstruction_node]: REFINING：几何二次拟合开始（kind=bag，1332 点）
+[WARN] [1792113369.320825576] [peach_target_reconstruction_node]: REFINING：无接触权威几何（bag_axis_silhouette_unobservable）
+[INFO] [1792113369.321149407] [peach_target_reconstruction_node]: 已采第 1/5 视角，本帧 5296 点，有效深度占比 1.00，位姿=fk
+[INFO] [1792113369.340367276] [peach_target_reconstruction_node]: REFINING：几何二次拟合开始（kind=bag，1332 点）
+[WARN] [1792113369.442975303] [peach_target_reconstruction_node]: REFINING：无接触权威几何（bag_axis_silhouette_unobservable）
+[WARN] [1792113369.443314118] [peach_target_reconstruction_node]: 局部重建完成：1 帧，5296 点（少于推荐 5 帧）；重叠指标需 ≥2 帧，本批次不可用；TSDF 1332 点 / mesh 2536 顶点（累计积分 0.00s）；refit 失败（bag_axis_silhouette_unobservable）；refit 未产出可用几何
+[WARN] [1792113369.464631930] [peach_target_reconstruction_node]: 单视质量拒绝，替换新曝光 1/3: bag_axis_silhouette_unobservable
+[WARN] [1792113369.474203893] [peach_target_reconstruction_node]: 重建 worker 队列已满，拒绝新帧以保持积分顺序
+[WARN] [1792113369.490304884] [peach_target_reconstruction_node]: 自动采帧跳过 [missing_mask]：缺少所选 target_id 的容差内掩膜
+[INFO] [1792113369.715408141] [peach_target_reconstruction_node]: REFINING：几何二次拟合开始（kind=bag，1322 点）
+[WARN] [1792113369.822180019] [peach_target_reconstruction_node]: REFINING：无接触权威几何（bag_axis_silhouette_unobservable）
+[INFO] [1792113369.824238962] [peach_target_reconstruction_node]: 已采第 1/5 视角，本帧 5277 点，有效深度占比 1.00，位姿=fk
+[INFO] [1792113369.838304559] [peach_target_reconstruction_node]: REFINING：几何二次拟合开始（kind=bag，1322 点）
+[WARN] [1792113369.949627194] [peach_target_reconstruction_node]: REFINING：无接触权威几何（bag_axis_silhouette_unobservable）
+[WARN] [1792113369.950573822] [peach_target_reconstruction_node]: 局部重建完成：1 帧，5277 点（少于推荐 5 帧）；重叠指标需 ≥2 帧，本批次不可用；TSDF 1322 点 / mesh 2519 顶点（累计积分 0.01s）；refit 失败（bag_axis_silhouette_unobservable）；refit 未产出可用几何
+[WARN] [1792113369.970953165] [peach_target_reconstruction_node]: 单视质量拒绝，替换新曝光 2/3: bag_axis_silhouette_unobservable
+[WARN] [1792113370.507631877] [peach_target_reconstruction_node]: 自动采帧跳过 [joint_state_unavailable]：曝光时刻关节状态过旧或时间戳不匹配
+[INFO] [1792113371.009035428] [peach_target_reconstruction_node]: REFINING：几何二次拟合开始（kind=bag，1482 点）
+[WARN] [1792113371.129175511] [peach_target_reconstruction_node]: REFINING：无接触权威几何（bag_axis_silhouette_unobservable）
+[INFO] [1792113371.130132150] [peach_target_reconstruction_node]: 已采第 1/5 视角，本帧 5282 点，有效深度占比 1.00，位姿=fk
+[INFO] [1792113371.165247409] [peach_target_reconstruction_node]: REFINING：几何二次拟合开始（kind=bag，1482 点）
+[WARN] [1792113371.312847386] [peach_target_reconstruction_node]: REFINING：无接触权威几何（bag_axis_silhouette_unobservable）
+[WARN] [1792113371.313743510] [peach_target_reconstruction_node]: 局部重建完成：1 帧，5282 点（少于推荐 5 帧）；重叠指标需 ≥2 帧，本批次不可用；TSDF 1482 点 / mesh 2509 顶点（累计积分 0.00s）；refit 失败（bag_axis_silhouette_unobservable）；refit 未产出可用几何
+[INFO] [1792113371.353495935] [peach_target_reconstruction_node]: 已采第 2/5 视角，本帧 5282 点，有效深度占比 1.00，位姿=icp
+[INFO] [1792113371.370182702] [peach_supervisor]: 操作台使能: execution=True grasp=True tool=False（live_camera_mock owned test）
+[INFO] [1792113371.482420548] [peach_target_reconstruction_node]: REFINING：几何二次拟合开始（kind=bag，1495 点）
+[WARN] [1792113371.583555714] [peach_target_reconstruction_node]: REFINING：无接触权威几何（bag_axis_silhouette_unobservable）
+[INFO] [1792113371.585369315] [peach_target_reconstruction_node]: 已采第 3/5 视角，本帧 5281 点，有效深度占比 1.00，位姿=icp
+[INFO] [1792113371.595994412] [peach_target_reconstruction_node]: 已采第 4/5 视角，本帧 5281 点，有效深度占比 1.00，位姿=icp
+[WARN] [1792113371.631604523] [peach_target_reconstruction_node]: 重建 worker 队列已满，拒绝新帧以保持积分顺序
+[WARN] [1792113371.649675158] [peach_target_reconstruction_node]: 自动采帧跳过 [same_stamp]：缓存帧未更新（与上次采帧同帧），请等下一帧
+[INFO] [1792113371.943968190] [peach_scene_perception_node]: peach_harvester.vision.scene_perception.identity: 目标注册 累计 2 次（最近: target_1 cls=0 累计表规模 1）
+[WARN] [1792113371.962492004] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 326（处理跟不上到达率，排查热路径耗时或降低到达率）
+[INFO] [1792113376.801675167] [peach_scene_perception_node]: 目标注册表在册 1 个目标（累计注册 2、累计命中 119）
+[WARN] [1792113377.028911523] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 373（处理跟不上到达率，排查热路径耗时或降低到达率）
+[WARN] [1792113382.090855716] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 420（处理跟不上到达率，排查热路径耗时或降低到达率）
+[INFO] [1792113382.282863471] [peach_supervisor]: Survey 进行中: moving_to_photo_pose
+[INFO] [1792113382.284336337] [peach_supervisor]: Survey 进行中: waiting_snapshot
+[INFO] [1792113386.930029878] [peach_scene_perception_node]: 目标注册表在册 1 个目标（累计注册 2、累计命中 159）
+[WARN] [1792113387.127894943] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 467（处理跟不上到达率，排查热路径耗时或降低到达率）
+[WARN] [1792113392.330906210] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 514（处理跟不上到达率，排查热路径耗时或降低到达率）
+[INFO] [1792113396.797544500] [peach_target_reconstruction_node]: 已清空，回 IDLE
+[INFO] [1792113396.801635415] [peach_target_reconstruction_node]: 自动开始：开始重建，绑定目标 target_1
+[WARN] [1792113396.822121788] [peach_target_reconstruction_node]: 自动采帧跳过 [missing_mask]：缺少所选 target_id 的容差内掩膜
+[INFO] [1792113396.822289450] [peach_supervisor]: reconstruct_in_trajectory: Build 并行，启动臂侧精化等待 target=target_1（skip_observation）
+[INFO] [1792113397.089770462] [peach_scene_perception_node]: 目标注册表在册 1 个目标（累计注册 2、累计命中 205）
+[WARN] [1792113397.501118502] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 562（处理跟不上到达率，排查热路径耗时或降低到达率）
+[INFO] [1792113397.523315365] [peach_target_reconstruction_node]: REFINING：几何二次拟合开始（kind=bag，1458 点）
+[WARN] [1792113397.602305258] [peach_target_reconstruction_node]: REFINING：无接触权威几何（bag_axis_silhouette_unobservable）
+[INFO] [1792113397.602587946] [peach_target_reconstruction_node]: 已采第 1/5 视角，本帧 5287 点，有效深度占比 1.00，位姿=fk
+[INFO] [1792113397.613950024] [peach_target_reconstruction_node]: REFINING：几何二次拟合开始（kind=bag，1458 点）
+[WARN] [1792113397.721075442] [peach_target_reconstruction_node]: REFINING：无接触权威几何（bag_axis_silhouette_unobservable）
+[WARN] [1792113397.721452095] [peach_target_reconstruction_node]: 局部重建完成：1 帧，5287 点（少于推荐 5 帧）；重叠指标需 ≥2 帧，本批次不可用；TSDF 1458 点 / mesh 2502 顶点（累计积分 0.00s）；refit 失败（bag_axis_silhouette_unobservable）；refit 未产出可用几何
+[WARN] [1792113397.754954641] [peach_target_reconstruction_node]: 单视质量拒绝，替换新曝光 1/3: bag_axis_silhouette_unobservable
+[WARN] [1792113397.823315422] [peach_target_reconstruction_node]: 自动采帧跳过 [missing_mask]：缺少所选 target_id 的容差内掩膜
+[INFO] [1792113398.055878734] [peach_target_reconstruction_node]: REFINING：几何二次拟合开始（kind=bag，1379 点）
+[WARN] [1792113398.169077109] [peach_target_reconstruction_node]: REFINING：无接触权威几何（bag_axis_silhouette_unobservable）
+[INFO] [1792113398.169646008] [peach_target_reconstruction_node]: 已采第 1/5 视角，本帧 5302 点，有效深度占比 1.00，位姿=fk
+[INFO] [1792113398.216422628] [peach_target_reconstruction_node]: REFINING：几何二次拟合开始（kind=bag，1379 点）
+[WARN] [1792113398.316487071] [peach_target_reconstruction_node]: REFINING：无接触权威几何（bag_axis_silhouette_unobservable）
+[WARN] [1792113398.316754206] [peach_target_reconstruction_node]: 局部重建完成：1 帧，5302 点（少于推荐 5 帧）；重叠指标需 ≥2 帧，本批次不可用；TSDF 1379 点 / mesh 2536 顶点（累计积分 0.01s）；refit 失败（bag_axis_silhouette_unobservable）；refit 未产出可用几何
+[WARN] [1792113398.350676801] [peach_target_reconstruction_node]: 单视质量拒绝，替换新曝光 2/3: bag_axis_silhouette_unobservable
+[WARN] [1792113398.861880962] [peach_target_reconstruction_node]: 自动采帧跳过 [missing_mask]：缺少所选 target_id 的容差内掩膜
+[INFO] [1792113399.319427580] [peach_target_reconstruction_node]: REFINING：几何二次拟合开始（kind=bag，1476 点）
+[WARN] [1792113399.403900667] [peach_target_reconstruction_node]: REFINING：无接触权威几何（bag_axis_silhouette_unobservable）
+[INFO] [1792113399.404733729] [peach_target_reconstruction_node]: 已采第 1/5 视角，本帧 5295 点，有效深度占比 1.00，位姿=fk
+[INFO] [1792113399.420788657] [peach_target_reconstruction_node]: REFINING：几何二次拟合开始（kind=bag，1476 点）
+[WARN] [1792113399.547856368] [peach_target_reconstruction_node]: REFINING：无接触权威几何（bag_axis_silhouette_unobservable）
+[WARN] [1792113399.548343139] [peach_target_reconstruction_node]: 局部重建完成：1 帧，5295 点（少于推荐 5 帧）；重叠指标需 ≥2 帧，本批次不可用；TSDF 1476 点 / mesh 2538 顶点（累计积分 0.01s）；refit 失败（bag_axis_silhouette_unobservable）；refit 未产出可用几何
+[WARN] [1792113399.852543836] [peach_supervisor]: 并行Build质量拒绝，取消等待中的FULL: bag_axis_silhouette_unobservable; attempts=3; 局部重建完成：1 帧，5295 点（少于推荐 5 帧）；重叠指标需 ≥2 帧，本批次不可用；TSDF 1476 点 / mesh 2538 顶点（累计积分 0.01s）；refit 失败（bag_axis_silhouette_unobservable）；refit 未产出可用几何
+[WARN] [1792113399.863975675] [peach_target_reconstruction_node]: 重建 worker 队列已满，拒绝新帧以保持积分顺序
+[WARN] [1792113399.864138790] [peach_target_reconstruction_node]: 自动采帧跳过 [same_stamp]：缓存帧未更新（与上次采帧同帧），请等下一帧
+[INFO] [1792113400.098775660] [peach_supervisor]: Survey 进行中: moving_to_photo_pose
+[INFO] [1792113400.100094291] [peach_supervisor]: Survey 进行中: waiting_snapshot
+[WARN] [1792113400.927240157] [peach_target_reconstruction_node]: 自动采帧跳过 [near_duplicate]：近重复视角不积分：平移 0.0 mm / 旋转 0.00 deg
+[WARN] [1792113401.927991366] [peach_target_reconstruction_node]: 自动采帧跳过 [near_duplicate]：近重复视角不积分：平移 0.0 mm / 旋转 0.00 deg
+[WARN] [1792113402.927595410] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 622（处理跟不上到达率，排查热路径耗时或降低到达率）
+[WARN] [1792113402.938518112] [peach_target_reconstruction_node]: 自动采帧跳过 [near_duplicate]：近重复视角不积分：平移 0.0 mm / 旋转 0.00 deg
+[WARN] [1792113403.970284821] [peach_target_reconstruction_node]: 自动采帧跳过 [near_duplicate]：近重复视角不积分：平移 0.0 mm / 旋转 0.00 deg
+[WARN] [1792113405.022895701] [peach_target_reconstruction_node]: 自动采帧跳过 [near_duplicate]：近重复视角不积分：平移 0.0 mm / 旋转 0.00 deg
+[WARN] [1792113406.060477055] [peach_target_reconstruction_node]: 自动采帧跳过 [near_duplicate]：近重复视角不积分：平移 0.0 mm / 旋转 0.00 deg
+[WARN] [1792113407.129981430] [peach_target_reconstruction_node]: 自动采帧跳过 [near_duplicate]：近重复视角不积分：平移 0.0 mm / 旋转 0.00 deg
+[INFO] [1792113407.143076908] [peach_scene_perception_node]: 目标注册表在册 1 个目标（累计注册 2、累计命中 229）
+[WARN] [1792113407.942131827] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 677（处理跟不上到达率，排查热路径耗时或降低到达率）
+[INFO] [1792113408.118744894] [peach_supervisor]: Survey 进行中: moving_to_photo_pose
+[INFO] [1792113408.123994941] [peach_supervisor]: Survey 进行中: waiting_snapshot
+[WARN] [1792113408.144298407] [peach_target_reconstruction_node]: 自动采帧跳过 [near_duplicate]：近重复视角不积分：平移 0.0 mm / 旋转 0.00 deg
+[WARN] [1792113409.149063410] [peach_target_reconstruction_node]: 自动采帧跳过 [near_duplicate]：近重复视角不积分：平移 0.0 mm / 旋转 0.00 deg
+[WARN] [1792113410.177177931] [peach_target_reconstruction_node]: 自动采帧跳过 [missing_mask]：缺少所选 target_id 的容差内掩膜
+[INFO] [1792113410.325375258] [peach_target_reconstruction_node]: 跟随计划切换重建目标: target_1 -> （空）（放弃 COLLECTING 会话）
+[WARN] [1792113412.977605346] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 680（处理跟不上到达率，排查热路径耗时或降低到达率）
+[WARN] [1792113415.033832296] [peach_target_reconstruction_node]: 重建 worker 队列已满，拒绝新帧以保持积分顺序
+[INFO] [1792113415.971474286] [peach_supervisor]: 操作台使能: execution=False grasp=False tool=False（live_camera_mock owned test）
+[INFO] [1792113416.060967641] [peach_supervisor]: 操作台使能: execution=False grasp=False tool=False（live_camera_mock owned test）

@@ -1,0 +1,39 @@
+Running main() from /opt/ros/jazzy/src/gtest_vendor/src/gtest_main.cc
+[==========] Running 15 tests from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 15 tests from TrajectoryGuard
+[ RUN      ] TrajectoryGuard.ConcatStitchesTimeAxisAndDedupsSeam
+[       OK ] TrajectoryGuard.ConcatStitchesTimeAxisAndDedupsSeam (0 ms)
+[ RUN      ] TrajectoryGuard.ConcatRejectsNameMismatchAndEmpty
+[       OK ] TrajectoryGuard.ConcatRejectsNameMismatchAndEmpty (0 ms)
+[ RUN      ] TrajectoryGuard.ExecutedApproachRetainsTransitCorridorAndCorrection
+[       OK ] TrajectoryGuard.ExecutedApproachRetainsTransitCorridorAndCorrection (0 ms)
+[ RUN      ] TrajectoryGuard.InvalidExecutedContinuationInvalidatesWholeReturn
+[       OK ] TrajectoryGuard.InvalidExecutedContinuationInvalidatesWholeReturn (0 ms)
+[ RUN      ] TrajectoryGuard.ReversePreservesAccelerationAndZeroesEndpointVelocities
+[       OK ] TrajectoryGuard.ReversePreservesAccelerationAndZeroesEndpointVelocities (0 ms)
+[ RUN      ] TrajectoryGuard.ReverseShortTrajectoryKeepsNames
+[       OK ] TrajectoryGuard.ReverseShortTrajectoryKeepsNames (0 ms)
+[ RUN      ] TrajectoryGuard.InspectApproachCountsTravelIncludingSeam
+[       OK ] TrajectoryGuard.InspectApproachCountsTravelIncludingSeam (0 ms)
+[ RUN      ] TrajectoryGuard.InspectApproachRejectsTravelAndDuration
+[       OK ] TrajectoryGuard.InspectApproachRejectsTravelAndDuration (0 ms)
+[ RUN      ] TrajectoryGuard.InspectApproachRejectsMalformed
+[       OK ] TrajectoryGuard.InspectApproachRejectsMalformed (0 ms)
+[ RUN      ] TrajectoryGuard.InspectCartesianDetourStraightLinePasses
+[       OK ] TrajectoryGuard.InspectCartesianDetourStraightLinePasses (0 ms)
+[ RUN      ] TrajectoryGuard.InspectCartesianDetourRejectsDetourRatio
+[       OK ] TrajectoryGuard.InspectCartesianDetourRejectsDetourRatio (0 ms)
+[ RUN      ] TrajectoryGuard.InspectCartesianDetourRejectsRecedeAndDeviation
+[       OK ] TrajectoryGuard.InspectCartesianDetourRejectsRecedeAndDeviation (0 ms)
+[ RUN      ] TrajectoryGuard.QuatGeodesicHandlesIdentityAndSign
+[       OK ] TrajectoryGuard.QuatGeodesicHandlesIdentityAndSign (0 ms)
+[ RUN      ] TrajectoryGuard.QuatGeodesicMatchesEigenAngularDistance
+[       OK ] TrajectoryGuard.QuatGeodesicMatchesEigenAngularDistance (0 ms)
+[ RUN      ] TrajectoryGuard.OrientationTravelCapAndSlack
+[       OK ] TrajectoryGuard.OrientationTravelCapAndSlack (0 ms)
+[----------] 15 tests from TrajectoryGuard (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 15 tests from 1 test suite ran. (0 ms total)
+[  PASSED  ] 15 tests.

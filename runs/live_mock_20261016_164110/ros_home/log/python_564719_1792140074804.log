@@ -1,0 +1,37 @@
+[INFO] [1792140074.958946117] [peach_scene_perception_node]: YOLO=/home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_harvester/share/peach_harvester/model/best.pt
+[INFO] [1792140074.959203295] [peach_scene_perception_node]: SAM=/home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_harvester/share/peach_harvester/model/mobile_sam.pt
+[INFO] [1792140077.888038274] [peach_scene_perception_node]: Subscribed color=/camera/color/image_raw depth=/camera/depth/image_raw info=/camera/color/camera_info slop=0.05s optical=camera_color_optical_frame output=base_link depth_scale_unit=0.25 gravity_mode=tf calib=percipio-640x480-chessboard|hand_eye:import_humble_20260128T114006
+[INFO] [1792140077.888477070] [peach_scene_perception_node]: 目标身份记忆已启用：match_radius=0.06 m, max_targets=50, ema=0.3
+[INFO] [1792140077.919193069] [peach_target_reconstruction_node]: peach_target_reconstruction_node ready: base=base_link color=/camera/color/image_raw depth=/camera/depth/image_raw slop=0.05s depth_scale_unit=0.25 views(min/rec/max)=1/5/24 require_static=True auto_mode=True session_root=/home/mu/Desktop/aubo_e5_jazzy_ws/runs
+[INFO] [1792140078.685435472] [peach_supervisor]: task executor configured; will not auto-start harvest
+[INFO] [1792140078.698940349] [peach_scene_perception_node]: perception Active：开始处理 RGB-D
+[INFO] [1792140078.717570103] [peach_target_reconstruction_node]: reconstruction Active：开始积分
+[INFO] [1792140078.888138206] [peach_scene_perception_node]: CameraInfo K fx=466.175 fy=465.557 cx=326.071 cy=244.789 640x480
+[WARN] [1792140089.508795314] [peach_target_reconstruction_node]: New subscription discovered on topic '/peach/reconstruction/preview_cloud', requesting incompatible QoS. No messages will be sent to it. Last incompatible policy: RELIABILITY
+[INFO] [1792140091.617823698] [peach_supervisor]: 操作台使能: execution=False grasp=False tool=False（live_camera_mock owned test）
+[INFO] [1792140101.946951064] [peach_scene_perception_node]: peach_harvester.vision.scene_perception.identity: 目标注册 累计 1 次（最近: target_0 cls=0 累计表规模 1）
+[INFO] [1792140101.974872650] [peach_scene_perception_node]: 目标注册表在册 1 个目标（累计注册 1、累计命中 0）
+[WARN] [1792140101.976955851] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 158（处理跟不上到达率，排查热路径耗时或降低到达率）
+[WARN] [1792140110.565363583] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 207（处理跟不上到达率，排查热路径耗时或降低到达率）
+[INFO] [1792140118.829538471] [peach_scene_perception_node]: 目标注册表在册 1 个目标（累计注册 1、累计命中 2）
+[WARN] [1792140118.831268874] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 253（处理跟不上到达率，排查热路径耗时或降低到达率）
+[WARN] [1792140127.652147914] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 303（处理跟不上到达率，排查热路径耗时或降低到达率）
+[INFO] [1792140133.166808082] [peach_scene_perception_node]: 目标注册表在册 1 个目标（累计注册 1、累计命中 4）
+[WARN] [1792140133.188875631] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 338（处理跟不上到达率，排查热路径耗时或降低到达率）
+[INFO] [1792140136.825599500] [peach_supervisor]: 操作台使能: execution=False grasp=False tool=False（live_camera_mock owned test）
+[ERROR] [1792140141.825359598] [peach_scene_perception_node]: peach_harvester.vision.common.runtime: bounded-worker 任务处理异常（连续第 1 次）:
+Traceback (most recent call last):
+  File "/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_harvester/peach_harvester/vision/common/runtime.py", line 138, in _run
+    self._process(item)
+  File "/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_harvester/peach_harvester/vision/scene_perception/scene_perception_node.py", line 636, in _process_rgbd
+    self._publish_frame(synced, out)
+  File "/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_harvester/peach_harvester/vision/scene_perception/scene_perception_node.py", line 672, in _publish_frame
+    self.pub_norm_dets.publish(det_msg)
+  File "/opt/ros/jazzy/lib/python3.12/site-packages/rclpy/lifecycle/managed_entity.py", line 77, in only_when_enabled_wrapper
+    wrapped(self, *args, **kwargs)
+  File "/opt/ros/jazzy/lib/python3.12/site-packages/rclpy/lifecycle/publisher.py", line 37, in publish
+    Publisher.publish(self, msg)
+  File "/opt/ros/jazzy/lib/python3.12/site-packages/rclpy/publisher.py", line 70, in publish
+    self.__publisher.publish(msg)
+rclpy._rclpy_pybind11.RCLError: Failed to publish: publisher's context is invalid, at ./src/rcl/publisher.c:423
+

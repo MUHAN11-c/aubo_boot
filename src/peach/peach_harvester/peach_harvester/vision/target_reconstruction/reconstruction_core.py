@@ -111,8 +111,10 @@ class ReconstructionCore:
         self._state_lock = threading.RLock()
         self._lifecycle_active = False
         # —— FrameStore 状态 ——
-        self._frame_ring_max = 64
-        self._frame_ring_max_bytes = 96 * 1024 * 1024
+        # 12 Hz 深度 × 感知 ~5 s 滞后：须能保留匹配曝光直到掩膜到达。
+        # 640×480 RGB+uint16 ≈ 1.5 MiB/帧，96 帧 ≈ 144 MiB，192 MiB 留余量。
+        self._frame_ring_max = 96
+        self._frame_ring_max_bytes = 192 * 1024 * 1024
         self._frame_ring_bytes = 0
         self._frame_ring_latest_stamp_ns = None
         # 同步 RGB-D 帧环：按 stamp_ns 保留最近若干帧，供掩膜滞后对齐。
@@ -294,11 +296,11 @@ class ReconstructionCore:
 
     @staticmethod
     def _frame_array_bytes(frame_tuple) -> int:
-        """仅RGB与深度数组占大内存；元数据由64帧硬上限约束."""
+        """仅RGB与深度数组占大内存；元数据由帧数硬上限约束."""
         return sum(int(getattr(array, 'nbytes', 0)) for array in frame_tuple[:2])
 
     def _push_frame_ring(self, frame_tuple) -> None:
-        """在既有采帧新鲜度窗内等精确同戳掩膜，最多64帧/96MiB数组."""
+        """在既有采帧新鲜度窗内等精确同戳掩膜，最多96帧/192MiB数组."""
         stamp_ns = self._stamp_ns(frame_tuple[3])
         array_bytes = self._frame_array_bytes(frame_tuple)
         with self._state_lock:
@@ -329,10 +331,11 @@ class ReconstructionCore:
     def _select_cached_frame(
             self, prefer_stamp_sec=None, prefer_cam_frame=None):
         """
-        取采帧缓存：优先指定 stamp；否则取「有同戳掩膜的最新帧」.
+        取采帧缓存：优先指定 stamp；否则取「有掩膜配对的最新环内帧」.
 
-        严格同戳语义不变：不回退 latest TF。掩膜尚未到达的最新帧留在环
-        内，等感知回调再驱动。环空返回 None。
+        先精确同戳，再 ``mask_stamp_tolerance_s`` 最近邻。没有配对才回退
+        环内最新帧（该路径会被掩膜门 skip，不回退 latest TF）。环空
+        返回 None。
         """
         if prefer_stamp_sec is not None:
             # 持锁遍历：_push_frame_ring 与本读同锁（写侧注释见上）
@@ -344,12 +347,29 @@ class ReconstructionCore:
                     continue
                 return frame
             return None
-        for stamp_ns in sorted(self._frame_ring, reverse=True):
-            if stamp_ns in self._target_masks:
-                return self._frame_ring[stamp_ns]
+        chosen_ns = self._mask_aligned_stamp_ns()
+        if chosen_ns is not None:
+            return self._frame_ring[chosen_ns]
         if self._frame_ring:
             return self._frame_ring[max(self._frame_ring)]
         return self._latest_frame
+
+    def _mask_aligned_stamp_ns(self):
+        """环内最新可与掩膜配对的曝光 stamp；无配对返回 None."""
+        if not self._frame_ring or not self._target_masks:
+            return None
+        tolerance_ns = round(max(0.0, float(getattr(
+            self.params.capture, 'mask_stamp_tolerance_s', 0.0) or 0.0)) * 1e9)
+        nearest_ns = None
+        for stamp_ns in sorted(self._frame_ring, reverse=True):
+            if stamp_ns in self._target_masks:
+                return stamp_ns
+            if nearest_ns is None and tolerance_ns > 0:
+                delta = min(
+                    abs(mask_ns - stamp_ns) for mask_ns in self._target_masks)
+                if delta <= tolerance_ns:
+                    nearest_ns = stamp_ns
+        return nearest_ns
 
     @staticmethod
     def _candidate_center(candidate):
@@ -550,6 +570,14 @@ class ReconstructionCore:
         self._logger.warning(
             f'自动采帧跳过 [{code}]：{reason}',
             throttle_duration_sec=1.0)
+        skipped = self.collector.skipped_views
+        if skipped > 0 and skipped % 20 == 0:
+            parts = ', '.join(
+                f'{k}={v}' for k, v in sorted(
+                    self.collector.skip_reasons.items()))
+            self._logger.info(
+                f'采帧跳过累计 {skipped} 次：{parts} '
+                f'target={self.collector.target_id}')
         self._harvest_data.append_event({
             'source': 'reconstruction', 'event': 'frame_skipped',
             'target_id': self.collector.target_id,

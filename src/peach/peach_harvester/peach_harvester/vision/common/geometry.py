@@ -1142,7 +1142,10 @@ def mask_axis_disagreement(mask, bottom_px, neck_px):
     pixels = np.column_stack([xs, ys]).astype(float)
     pixels -= pixels.mean(axis=0)
     values, vectors = np.linalg.eigh(pixels.T @ pixels / len(pixels))
-    if values[-1] < 2.5 * max(values[0], 1e-9):
+    # 二阶矩比 2.5 约等于长短轴 1.6:1。套袋桃挂着时轮廓是 1.4:1 量级
+    # （实测 70×103 px，比值 2.3），不是圆，但会被 2.5 判成不可观测。
+    # 1.6 仍拒绝接近圆形的掩膜（比值约 1）。
+    if values[-1] < 1.6 * max(values[0], 1e-9):
         return None
     cosine = abs(float(axis @ vectors[:, -1]))
     return float(np.degrees(np.arccos(np.clip(cosine, 0.0, 1.0))))

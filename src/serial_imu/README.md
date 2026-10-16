@@ -13,6 +13,8 @@ serial_imu/
   serial_imu/frame.py          # 无 ROS：坐标系修正（倒装 Rx）+ parent 对齐
   serial_imu/force_node.py     # 节点：5 点力串口、逐帧打印 kgf、牛顿话题
   serial_imu/force_protocol.py # 无 ROS：0xA5 力帧切帧、校验、kgf 缩放
+  scripts/force_web.py         # 调试 Web：订 /force/points，SSE 推浏览器按圆盘点位实时显示
+  scripts/force_web.html       # 上面的页面（正五边形顶点：5 上、7 右上、3 右下、2 左下、1 左上）
   config/serial_imu.yaml
   config/serial_force.yaml
   launch/serial_imu.launch.py
@@ -284,15 +286,15 @@ RViz **TF** 显示默认会画出当前图里**所有** `/tf`。本配置白名�
 
 ### 通道 → 咬合末端点位
 
-从 CAD 截图读出（图分辨率有限，**2/5 与 3/7 两组有误读可能**）。现场逐点按压打印流核对，错了改 `channel_labels` 参数，不动代码：
+2026-10-16 用户裁定：**五点在正五边形顶点（等角等距），5 在正上方顶点**（取代 09-29 CAD 截图读数）。核对/修改走 `channel_labels` 参数，不动代码：
 
-| 通道 | 圆盘点位（面对安装板） |
+| 通道 | 圆盘位置（正五边形顶点） |
 |------|------------------------|
-| 1 | 左中（≈9 点钟） |
-| 2 | 左下（≈7 点钟） |
-| 3 | 右下（≈5 点钟） |
-| 5 | 右上（≈1–2 点钟） |
-| 7 | 左上（≈11–12 点钟） |
+| 5 | 上（最上方顶点） |
+| 7 | 右上 |
+| 3 | 右下 |
+| 2 | 左下 |
+| 1 | 左上 |
 
 ### 启动与输出
 
@@ -306,12 +308,15 @@ ros2 launch serial_imu serial_imu.launch.py use_rviz:=false force_print:=true
 
 # 用法二：只看力（勿与整栈/serial_imu 并行，抢同一口）：
 ros2 launch serial_imu serial_force.launch.py
+
+# 用法三：Web 实时页（只订话题不碰串口，可与用法一/二任一并行）：
+python3 scripts/force_web.py            # 浏览器开 http://127.0.0.1:8099
 ```
 
 打印每帧一行（100Hz；`print_decimate` / `force_print_decimate` 每 N 帧打一条）。用法一前缀 `#F`，用法二前缀 `#`：
 
 ```
-#F123 F1[左中(9点)]=+0.00 F2[左下(7点)]=+0.20 F3[右下(5点)]=+2.10 F5[右上(1-2点)]=+0.55 F7[左上(11-12点)]=+1.99 kgf
+#F123 F1[左上]=+0.00 F2[左下]=+0.20 F3[右下]=+2.10 F5[上]=+0.55 F7[右上]=+1.99 kgf
 ```
 
 两种用法都发话题 `/force/points`（`std_msgs/Float64MultiArray`，Reliable+Volatile）——按 **REP-103 SI 牛顿**发 5 值，顺序同通道 1/2/3/5/7；`ros2 topic hz /force/points` 验 100Hz。打印用协议原生 **kgf**（与量程 50g–2kg 同单位），换算 N ×9.80665。`/diagnostics`：串口开闭 + 帧率（用法二期望 100Hz，窗 0.6×–1.4×）。

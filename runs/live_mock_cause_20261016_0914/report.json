@@ -1,0 +1,717 @@
+{
+  "hardware_mode": "mock",
+  "profile": {
+    "schema_version": 1,
+    "profile_id": "fixed_camera_mock_20261013",
+    "hardware_mode": "mock",
+    "camera_frontend": "stereo",
+    "autostart": false,
+    "tool_enabled": false,
+    "reconstruct_in_trajectory": true,
+    "camera_calibration": {
+      "parent_frame": "base_link",
+      "child_frame": "camera_link",
+      "xyz_m": [
+        0.3780573326439316,
+        -0.07547177076037584,
+        0.7666632351254871
+      ],
+      "quaternion_xyzw": [
+        -0.0036889994433193067,
+        -7.498157537607713e-06,
+        -0.6576092061184594,
+        0.753350199611797
+      ],
+      "provenance": "20261013 fixed camera record; user confirmed camera unmoved; reused by live_camera_rviz_repeat_20261014_1632",
+      "scope": "test-only frozen calibration; never injected into product calibration files"
+    },
+    "mock_initial_positions": [
+      0.425175,
+      0.194274,
+      1.679546,
+      1.462579,
+      -0.279948,
+      0.038859
+    ]
+  },
+  "rounds": [
+    {
+      "request_id": "round_059b5707111c",
+      "success": false,
+      "target_id": "target_1",
+      "scene_epoch": 2,
+      "entry_position": [
+        0.4121737883777943,
+        -0.6584669160275952,
+        0.665603075005587
+      ],
+      "action": {
+        "accepted": true,
+        "status": 4,
+        "result": {
+          "success": false,
+          "termination_reason": "no_targets_succeeded",
+          "summary": {
+            "run_id": "round_059b5707111c",
+            "discovered": 1,
+            "attempted": 1,
+            "succeeded": 0,
+            "skipped_quality": 1,
+            "skipped_unreachable": 0,
+            "failed": 0,
+            "canceled": 0,
+            "elapsed": {
+              "sec": 33,
+              "nanosec": 46725468
+            },
+            "outcomes": [
+              {
+                "target_id": "target_1",
+                "outcome": 1,
+                "reason": "build_failed: bag_axis_silhouette_unobservable; attempts=3; 局部重建完成：1 帧，5295 点（少于推荐 5 帧）；重叠指标需 ≥2 帧，本批次不可用；TSDF 1476 点 / mesh 2538 顶点（累计积分 0.01s）；refit 失败（bag_axis_silhouette_unobservable）；refit 未产出可用几何",
+                "quality_score": 0.0,
+                "elapsed": {
+                  "sec": 3,
+                  "nanosec": 220483827
+                }
+              }
+            ]
+          }
+        }
+      },
+      "ledger": {
+        "request_id": "round_059b5707111c",
+        "path": "/home/mu/Desktop/aubo_e5_jazzy_ws/runs/round_059b5707111c/ledger.json",
+        "mtime": 1792113415.3272903,
+        "error": null,
+        "claimed": [
+          "target_1"
+        ],
+        "rows": [
+          {
+            "target_id": "target_1",
+            "outcome": 1,
+            "outcome_name": "SKIPPED_QUALITY",
+            "reason": "build_failed: bag_axis_silhouette_unobservable; attempts=3; 局部重建完成：1 帧，5295 点（少于推荐 5 帧）；重叠指标需 ≥2 帧，本批次不可用；TSDF 1476 点 / mesh 2538 顶点（累计积分 0.01s）；refit 失败（bag_axis_silhouette_unobservable）；refit 未产出可用几何",
+            "quality_score": 0.0,
+            "elapsed_s": 3.22,
+            "stages": [],
+            "failure_code": "build_failed",
+            "completion_level": 0,
+            "failure_code_n": 2
+          }
+        ],
+        "totals": {
+          "SUCCEEDED": 0,
+          "SKIPPED_QUALITY": 1,
+          "SKIPPED_UNREACHABLE": 0,
+          "FAILED": 0,
+          "CANCELED": 0,
+          "attempted": 1,
+          "claimed": 1
+        }
+      },
+      "elapsed_s": 44.51387294999995,
+      "streams": {
+        "camera": {
+          "first": 1792113352.702195,
+          "last": 1792113415.314475,
+          "new_frames": 22,
+          "fresh_stamp": true
+        },
+        "joints": {
+          "first": 1792113415.6793942,
+          "last": 1792113415.8343568,
+          "new_frames": 8704,
+          "fresh_stamp": true
+        }
+      }
+    }
+  ],
+  "models": [],
+  "model_attempts": [
+    {
+      "request_id": "model_c2bd099512e9",
+      "accepted": true,
+      "status": 6,
+      "result": {
+        "success": false,
+        "quality_level": 0,
+        "message": "bag_axis_silhouette_unobservable; attempts=3; 局部重建完成：2 帧，10594 点（少于推荐 5 帧）；重叠 mean=0.1mm p95=1.0mm；TSDF 1487 点 / mesh 2543 顶点（累计积分 0.00s）；refit 失败（bag_axis_silhouette_unobservable）；refit 未产出可用几何",
+        "failure_code": 2,
+        "model": {
+          "header": {
+            "stamp": {
+              "sec": 1792113338,
+              "nanosec": 462009518
+            },
+            "frame_id": ""
+          },
+          "target_id": "target_0",
+          "scene_epoch": 1,
+          "model_revision": "target_0:1:6",
+          "tool_profile_id": "bite_shear_v1",
+          "algorithm_version": "",
+          "calibration_version": "unspecified",
+          "shape": {
+            "header": {
+              "stamp": {
+                "sec": 0,
+                "nanosec": 0
+              },
+              "frame_id": ""
+            },
+            "target_id": "",
+            "scene_epoch": 0,
+            "center": {
+              "x": 0.0,
+              "y": 0.0,
+              "z": 0.0
+            },
+            "axis": {
+              "x": 0.0,
+              "y": 0.0,
+              "z": 0.0
+            },
+            "diameter_m": 0.0,
+            "length_m": 0.0,
+            "position_covariance": [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            "direction_covariance": [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            "confidence": 0.0,
+            "model_kind": ""
+          },
+          "quality": {
+            "level": 0,
+            "score": 0.0,
+            "reason": ""
+          },
+          "view_count": 1,
+          "accepted": false,
+          "message": "bag_axis_silhouette_unobservable; attempts=3; 局部重建完成：2 帧，10594 点（少于推荐 5 帧）；重叠 mean=0.1mm p95=1.0mm；TSDF 1487 点 / mesh 2543 顶点（累计积分 0.00s）；refit 失败（bag_axis_silhouette_unobservable）；refit 未产出可用几何",
+          "bag_bottom": {
+            "x": 0.0,
+            "y": 0.0,
+            "z": 0.0
+          },
+          "bag_neck": {
+            "x": 0.0,
+            "y": 0.0,
+            "z": 0.0
+          },
+          "cut_plane_point": {
+            "x": 0.0,
+            "y": 0.0,
+            "z": 0.0
+          },
+          "bag_axis": {
+            "x": 0.0,
+            "y": 0.0,
+            "z": 0.0
+          },
+          "cut_normal": {
+            "x": 0.0,
+            "y": 0.0,
+            "z": 0.0
+          },
+          "d95_m": 0.0,
+          "fruit_prior_radius_m": 0.0,
+          "fruit_prior_auxiliary": false,
+          "bottom_covariance": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "neck_covariance": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "axis_covariance": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "radial_margin_m": 0.0,
+          "axial_margin_m": 0.0,
+          "corridor_clear": false,
+          "occlusion_class": "",
+          "source_start": {
+            "sec": 0,
+            "nanosec": 0
+          },
+          "source_end": {
+            "sec": 0,
+            "nanosec": 0
+          },
+          "run_id": "harvest_20261016T091603_193939_s1",
+          "calibration_revision": "unspecified",
+          "config_revision": "bite_shear_v1",
+          "capture_start": {
+            "sec": 1792113338,
+            "nanosec": 462009518
+          },
+          "capture_end": {
+            "sec": 1792113338,
+            "nanosec": 462009518
+          },
+          "generated_at": {
+            "sec": 1792113338,
+            "nanosec": 462009518
+          },
+          "valid_until": {
+            "sec": 1792113458,
+            "nanosec": 462009429
+          },
+          "geometry_capability": 2,
+          "pregrasp_capability": 2,
+          "sleeve_capability": 2,
+          "cut_capability": 2
+        }
+      },
+      "error": "BuildTargetModel failed: bag_axis_silhouette_unobservable; attempts=3; 局部重建完成：2 帧，10594 点（少于推荐 5 帧）；重叠 mean=0.1mm p95=1.0mm；TSDF 1487 点 / mesh 2543 顶点（累计积分 0.00s）；refit 失败（bag_axis_silhouette_unobservable）；refit 未产出可用几何",
+      "traceback": "Traceback (most recent call last):\n  File \"/home/mu/Desktop/aubo_e5_jazzy_ws/src/peach/peach_system_tests/scripts/run_live_camera_mock.py\", line 669, in run\n    raise RuntimeError('BuildTargetModel failed: ' + str(section(result, 'result').get('message')))\nRuntimeError: BuildTargetModel failed: bag_axis_silhouette_unobservable; attempts=3; 局部重建完成：2 帧，10594 点（少于推荐 5 帧）；重叠 mean=0.1mm p95=1.0mm；TSDF 1487 点 / mesh 2543 顶点（累计积分 0.00s）；refit 失败（bag_axis_silhouette_unobservable）；refit 未产出可用几何\n",
+      "elapsed_s": 3.4159532720000243
+    },
+    {
+      "request_id": "model_725e370537aa",
+      "accepted": true,
+      "status": 6,
+      "result": {
+        "success": false,
+        "quality_level": 0,
+        "message": "bag_axis_silhouette_unobservable; attempts=3; 局部重建完成：1 帧，5280 点（少于推荐 5 帧）；重叠指标需 ≥2 帧，本批次不可用；TSDF 1365 点 / mesh 2508 顶点（累计积分 0.00s）；refit 失败（bag_axis_silhouette_unobservable）；refit 未产出可用几何",
+        "failure_code": 2,
+        "model": {
+          "header": {
+            "stamp": {
+              "sec": 1792113338,
+              "nanosec": 462009518
+            },
+            "frame_id": ""
+          },
+          "target_id": "target_0",
+          "scene_epoch": 1,
+          "model_revision": "target_0:1:12",
+          "tool_profile_id": "bite_shear_v1",
+          "algorithm_version": "",
+          "calibration_version": "unspecified",
+          "shape": {
+            "header": {
+              "stamp": {
+                "sec": 0,
+                "nanosec": 0
+              },
+              "frame_id": ""
+            },
+            "target_id": "",
+            "scene_epoch": 0,
+            "center": {
+              "x": 0.0,
+              "y": 0.0,
+              "z": 0.0
+            },
+            "axis": {
+              "x": 0.0,
+              "y": 0.0,
+              "z": 0.0
+            },
+            "diameter_m": 0.0,
+            "length_m": 0.0,
+            "position_covariance": [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            "direction_covariance": [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            "confidence": 0.0,
+            "model_kind": ""
+          },
+          "quality": {
+            "level": 0,
+            "score": 0.0,
+            "reason": ""
+          },
+          "view_count": 1,
+          "accepted": false,
+          "message": "bag_axis_silhouette_unobservable; attempts=3; 局部重建完成：1 帧，5280 点（少于推荐 5 帧）；重叠指标需 ≥2 帧，本批次不可用；TSDF 1365 点 / mesh 2508 顶点（累计积分 0.00s）；refit 失败（bag_axis_silhouette_unobservable）；refit 未产出可用几何",
+          "bag_bottom": {
+            "x": 0.0,
+            "y": 0.0,
+            "z": 0.0
+          },
+          "bag_neck": {
+            "x": 0.0,
+            "y": 0.0,
+            "z": 0.0
+          },
+          "cut_plane_point": {
+            "x": 0.0,
+            "y": 0.0,
+            "z": 0.0
+          },
+          "bag_axis": {
+            "x": 0.0,
+            "y": 0.0,
+            "z": 0.0
+          },
+          "cut_normal": {
+            "x": 0.0,
+            "y": 0.0,
+            "z": 0.0
+          },
+          "d95_m": 0.0,
+          "fruit_prior_radius_m": 0.0,
+          "fruit_prior_auxiliary": false,
+          "bottom_covariance": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "neck_covariance": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "axis_covariance": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "radial_margin_m": 0.0,
+          "axial_margin_m": 0.0,
+          "corridor_clear": false,
+          "occlusion_class": "",
+          "source_start": {
+            "sec": 0,
+            "nanosec": 0
+          },
+          "source_end": {
+            "sec": 0,
+            "nanosec": 0
+          },
+          "run_id": "harvest_20261016T091603_193939_s1",
+          "calibration_revision": "unspecified",
+          "config_revision": "bite_shear_v1",
+          "capture_start": {
+            "sec": 1792113338,
+            "nanosec": 462009518
+          },
+          "capture_end": {
+            "sec": 1792113338,
+            "nanosec": 462009518
+          },
+          "generated_at": {
+            "sec": 1792113338,
+            "nanosec": 462009518
+          },
+          "valid_until": {
+            "sec": 1792113458,
+            "nanosec": 462009429
+          },
+          "geometry_capability": 2,
+          "pregrasp_capability": 2,
+          "sleeve_capability": 2,
+          "cut_capability": 2
+        }
+      },
+      "error": "BuildTargetModel failed: bag_axis_silhouette_unobservable; attempts=3; 局部重建完成：1 帧，5280 点（少于推荐 5 帧）；重叠指标需 ≥2 帧，本批次不可用；TSDF 1365 点 / mesh 2508 顶点（累计积分 0.00s）；refit 失败（bag_axis_silhouette_unobservable）；refit 未产出可用几何",
+      "traceback": "Traceback (most recent call last):\n  File \"/home/mu/Desktop/aubo_e5_jazzy_ws/src/peach/peach_system_tests/scripts/run_live_camera_mock.py\", line 669, in run\n    raise RuntimeError('BuildTargetModel failed: ' + str(section(result, 'result').get('message')))\nRuntimeError: BuildTargetModel failed: bag_axis_silhouette_unobservable; attempts=3; 局部重建完成：1 帧，5280 点（少于推荐 5 帧）；重叠指标需 ≥2 帧，本批次不可用；TSDF 1365 点 / mesh 2508 顶点（累计积分 0.00s）；refit 失败（bag_axis_silhouette_unobservable）；refit 未产出可用几何\n",
+      "elapsed_s": 2.426391039000009
+    },
+    {
+      "request_id": "model_c3cd74005f09",
+      "accepted": true,
+      "status": 6,
+      "result": {
+        "success": false,
+        "quality_level": 0,
+        "message": "bag_axis_silhouette_unobservable; attempts=3; 局部重建完成：1 帧，5282 点（少于推荐 5 帧）；重叠指标需 ≥2 帧，本批次不可用；TSDF 1482 点 / mesh 2509 顶点（累计积分 0.00s）；refit 失败（bag_axis_silhouette_unobservable）；refit 未产出可用几何",
+        "failure_code": 2,
+        "model": {
+          "header": {
+            "stamp": {
+              "sec": 1792113338,
+              "nanosec": 462009518
+            },
+            "frame_id": ""
+          },
+          "target_id": "target_0",
+          "scene_epoch": 1,
+          "model_revision": "target_0:1:18",
+          "tool_profile_id": "bite_shear_v1",
+          "algorithm_version": "",
+          "calibration_version": "unspecified",
+          "shape": {
+            "header": {
+              "stamp": {
+                "sec": 0,
+                "nanosec": 0
+              },
+              "frame_id": ""
+            },
+            "target_id": "",
+            "scene_epoch": 0,
+            "center": {
+              "x": 0.0,
+              "y": 0.0,
+              "z": 0.0
+            },
+            "axis": {
+              "x": 0.0,
+              "y": 0.0,
+              "z": 0.0
+            },
+            "diameter_m": 0.0,
+            "length_m": 0.0,
+            "position_covariance": [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            "direction_covariance": [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            "confidence": 0.0,
+            "model_kind": ""
+          },
+          "quality": {
+            "level": 0,
+            "score": 0.0,
+            "reason": ""
+          },
+          "view_count": 1,
+          "accepted": false,
+          "message": "bag_axis_silhouette_unobservable; attempts=3; 局部重建完成：1 帧，5282 点（少于推荐 5 帧）；重叠指标需 ≥2 帧，本批次不可用；TSDF 1482 点 / mesh 2509 顶点（累计积分 0.00s）；refit 失败（bag_axis_silhouette_unobservable）；refit 未产出可用几何",
+          "bag_bottom": {
+            "x": 0.0,
+            "y": 0.0,
+            "z": 0.0
+          },
+          "bag_neck": {
+            "x": 0.0,
+            "y": 0.0,
+            "z": 0.0
+          },
+          "cut_plane_point": {
+            "x": 0.0,
+            "y": 0.0,
+            "z": 0.0
+          },
+          "bag_axis": {
+            "x": 0.0,
+            "y": 0.0,
+            "z": 0.0
+          },
+          "cut_normal": {
+            "x": 0.0,
+            "y": 0.0,
+            "z": 0.0
+          },
+          "d95_m": 0.0,
+          "fruit_prior_radius_m": 0.0,
+          "fruit_prior_auxiliary": false,
+          "bottom_covariance": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "neck_covariance": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "axis_covariance": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "radial_margin_m": 0.0,
+          "axial_margin_m": 0.0,
+          "corridor_clear": false,
+          "occlusion_class": "",
+          "source_start": {
+            "sec": 0,
+            "nanosec": 0
+          },
+          "source_end": {
+            "sec": 0,
+            "nanosec": 0
+          },
+          "run_id": "harvest_20261016T091603_193939_s1",
+          "calibration_revision": "unspecified",
+          "config_revision": "bite_shear_v1",
+          "capture_start": {
+            "sec": 1792113338,
+            "nanosec": 462009518
+          },
+          "capture_end": {
+            "sec": 1792113338,
+            "nanosec": 462009518
+          },
+          "generated_at": {
+            "sec": 1792113338,
+            "nanosec": 462009518
+          },
+          "valid_until": {
+            "sec": 1792113458,
+            "nanosec": 462009429
+          },
+          "geometry_capability": 2,
+          "pregrasp_capability": 2,
+          "sleeve_capability": 2,
+          "cut_capability": 2
+        }
+      },
+      "error": "BuildTargetModel failed: bag_axis_silhouette_unobservable; attempts=3; 局部重建完成：1 帧，5282 点（少于推荐 5 帧）；重叠指标需 ≥2 帧，本批次不可用；TSDF 1482 点 / mesh 2509 顶点（累计积分 0.00s）；refit 失败（bag_axis_silhouette_unobservable）；refit 未产出可用几何",
+      "traceback": "Traceback (most recent call last):\n  File \"/home/mu/Desktop/aubo_e5_jazzy_ws/src/peach/peach_system_tests/scripts/run_live_camera_mock.py\", line 669, in run\n    raise RuntimeError('BuildTargetModel failed: ' + str(section(result, 'result').get('message')))\nRuntimeError: BuildTargetModel failed: bag_axis_silhouette_unobservable; attempts=3; 局部重建完成：1 帧，5282 点（少于推荐 5 帧）；重叠指标需 ≥2 帧，本批次不可用；TSDF 1482 点 / mesh 2509 顶点（累计积分 0.00s）；refit 失败（bag_axis_silhouette_unobservable）；refit 未产出可用几何\n",
+      "elapsed_s": 2.2271561719999227
+    }
+  ],
+  "resources": [],
+  "acks": [],
+  "errors": [],
+  "rviz_requested": true,
+  "owned_process_groups": [
+    90191,
+    90192,
+    91250
+  ],
+  "runtime_environment": {
+    "ROS_DOMAIN_ID": "87",
+    "ROS_HOME": "/home/mu/Desktop/aubo_e5_jazzy_ws/runs/live_mock_cause_20261016_0914/ros_home",
+    "OMP_NUM_THREADS": "1",
+    "OPENBLAS_NUM_THREADS": "1",
+    "MKL_NUM_THREADS": "1"
+  },
+  "rviz_started": true,
+  "soak_started_monotonic": 2016.852913698,
+  "rviz_lifetime_ok": true,
+  "soak_elapsed_s": 1.0948999943138915e-05,
+  "phase": "finished",
+  "updated_at": 1792113421.9559193,
+  "residual_pids": [],
+  "domain_processes_after": [],
+  "model_count": 0,
+  "full_level6_rounds": 0,
+  "model_elapsed_s": {
+    "count": 0,
+    "min": null,
+    "max": null,
+    "p95": null,
+    "range": null
+  },
+  "geometry_statistics": {},
+  "model_samples_per_target": {},
+  "per_target_outcomes": {
+    "target_1": {
+      "SKIPPED_QUALITY": 1
+    }
+  },
+  "physical_bag_level6_coverage": {},
+  "soak_passed": true,
+  "passed": false
+}

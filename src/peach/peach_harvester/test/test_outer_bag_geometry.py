@@ -210,6 +210,7 @@ def test_fusion_does_not_move_cut_point_to_single_visible_side():
     'bag_axis_invalid', 'bag_endpoints_invalid', 'cut_reference_invalid',
     'fusion_failed', 'landmark_axis_conflict',
     'bag_axis_unobservable', 'bag_axis_envelope_ill_conditioned',
+    'bag_axis_envelope_unavailable',
     'bag_axis_silhouette_unobservable', 'fused_axis_silhouette_conflict',
 ])
 def test_new_invalid_geometry_revokes_previous_node_contact_authority(reason):
@@ -235,3 +236,32 @@ def test_new_invalid_geometry_revokes_previous_node_contact_authority(reason):
     assert host._refined is failed
     assert host._bag_model is bad_model
     assert not host._bag_model.allowed
+
+
+@pytest.mark.parametrize('reason', [
+    'envelope_cloud_insufficient', 'envelope_too_few_slices', 'envelope_axis_undefined',
+])
+def test_unavailable_envelope_without_independent_fit_revokes_contact(reason):
+    from peach_harvester.vision.target_reconstruction.refine import (
+        RefitResult, merge_fused_bag_model,
+    )
+    fused = fuse_bag_views([_view()])
+    fused.envelope_conditioned = False
+    fused.envelope_reason = reason
+    result = RefitResult(ok=False, reason='cylinder_fit_failed')
+    merged = merge_fused_bag_model(result, fused, 1, np.array([0., 0., 1.]))
+    assert not merged.ok and not fused.allowed
+    assert merged.reason == 'bag_axis_envelope_unavailable'
+    assert merged.budget == {} and fused.budget == {}
+
+
+def test_available_envelope_keeps_landmark_axis_when_auxiliary_fit_fails():
+    from peach_harvester.vision.target_reconstruction.refine import (
+        RefitResult, merge_fused_bag_model,
+    )
+    fused = fuse_bag_views([_view()], cloud_xyz=_surface())
+    assert fused.envelope_conditioned
+    result = RefitResult(ok=False, reason='cylinder_fit_failed')
+    merged = merge_fused_bag_model(result, fused, 1, np.array([0., 0., 1.]))
+    assert merged.ok and fused.allowed
+    np.testing.assert_allclose(merged.axis, [0., 0., 1.])

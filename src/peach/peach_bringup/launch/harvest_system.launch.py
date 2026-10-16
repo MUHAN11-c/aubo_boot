@@ -250,6 +250,14 @@ def generate_launch_description():
             'brain_params_overlay', default_value='',
             description='透传 peach_harvester brain params_overlay；空=不装。'
                         '冻结相机系统测用来把 reconstruction min_views 置 1'),
+        DeclareLaunchArgument(
+            'arm_params_overlay', default_value='',
+            description='透传 peach_arm params_overlay；空=不装。'
+                        '真实相机+mock 联合测用来提高 mock 速度缩放，不改产品 yaml'),
+        DeclareLaunchArgument(
+            'observability_port', default_value='0',
+            description='透传 peach_observability HTTP 端口；0=用 YAML 8090。'
+                        '他人占用 8090 时测试入口可改 8091，不清理其他进程'),
         # 须在所有 Node / Include 之前：included launch 里的节点同样吃到
         SetParameter(name='use_sim_time', value=LaunchConfiguration('use_sim_time')),
         # 启动事实采集（须在全部 DeclareLaunchArgument 之后；结果进
@@ -336,10 +344,13 @@ def generate_launch_description():
                     ["'false' if '", hardware_mode, "' == 'mock' else 'true'"]),
                 'allow_unrefined_geometry': LaunchConfiguration(
                     'skip_reconstruction'),
+                'params_overlay': LaunchConfiguration(
+                    'arm_params_overlay'),
             }),
         _include('peach_observability', 'observability.launch.py', {
             # 启动事实注入（startup.json 工件 + 自检 facts 单通道推导）
             'startup_facts': LaunchConfiguration('peach_startup_facts'),
+            'port': LaunchConfiguration('observability_port'),
         }),
         # 阶段 5：nav2_lifecycle_manager 替自研件（bond_timeout 参数化，
         # 默认 0 关；名单顺序=场景→重建→技能→调度；进程死检=watchdog/bond）

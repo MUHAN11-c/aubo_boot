@@ -57,7 +57,7 @@ peach_scene_perception_node:
       max_targets: 50  # 目标表容量上限；超限按最久未见淘汰
       position_ema: 0.3  # 命中后位置/轴/直径的 EMA 平滑系数 α (0,1]，越大越跟随最新观测
       recovery_scale: 1.0  # 马氏门 Σ 膨胀倍率 (≥1)：节点不传 covariance 时 σ=(match_radius/3)×本值。帧路径只走 identity.assign_detections（χ² 门），不走欧氏两段 SpatialEmaMatcher.match。默认 1.0。2026-08-13 真机：拍照/环绕锚点差 15.7cm，旧欧氏 recovery 3.5 才稳、易误合并，故马氏下保持 1.0
-      confirm_frames: 5  # 目标确认帧数：累计命中 ≥ 本值才计入锁定/候选话题/3D Marker；短暂闪现不转正；1=立即确认
+      confirm_frames: 2  # 目标确认帧数：累计命中 ≥ 本值才计入锁定/候选话题/3D Marker。5 按 ~7.5 fps 约 0.7 s；感知 1 Hz 量级时变成 5–25 s，把单果周期顶出 40 s。2=拒绝单帧闪现，墙钟约两帧。
       tentative_ttl_frames: 20  # 未确认目标存活时限（帧）：连续超本帧数未再命中即清除（瞬时误检不占身份；按帧计，帧率以运行状态为准）。09-17 A/B 实测按帧计的 TTL 随前端帧率缩短墙钟：percipio 端 2.43fps×8≈3.3s，peach_stereo 端 ~7.5fps×8 仅 1.1s（遮挡/闪检目标过快被弃），上调 20 帧维持 ~2.7s 墙钟语义；percipio 前端下本值偏保守无害
       anchor_max_age_s: 30.0  # 锁定集 LOST 目标锚点新鲜度上限 (s)：超龄打 anchor_stale 旗标且视为不可选（不移除）；运行期按实测帧间隔 EMA 折算帧数判定（I4）
       anchor_drop_s: 120.0  # 锁定集 LOST 目标移除上限 (s)：超龄从计划移除并记 target_dropped 事件（编排侧按 SKIPPED_UNREACHABLE 入账）；同按帧率折算
@@ -70,7 +70,7 @@ peach_scene_perception_node:
       min_conf_mean: 0.3  # 光照质量：锁定集目标检测置信度均值 EMA 下限
       bad_frames: 5  # 光照质量低质判定的连续帧数
     harvest:
-      min_collect_frames: 10  # 全局目标收齐窗口的最少累积帧数：达到后才允许按静止条件关闭窗口、锁定目标集合
-      lock_settle_frames: 5  # 连续无新增确认 ID 的帧数：与最少帧数联合判定目标集合已稳定，关闭收齐窗口
-      max_collect_s: 25.0  # 收齐窗口最长时长 (s) 配置基准：运行期按实测帧间隔 EMA 自适应为 (min_collect+settle+3)×帧间隔（帧率以运行状态为准），下限为本值×0.4——低帧率自动放大防误锁空集、高帧率收紧提速；超时强制关闭窗口兜底（空集也锁定，target_count=0）
+      min_collect_frames: 4  # 全局目标收齐窗口的最少累积帧数。10+5 在 1 Hz 感知下约 15 帧才锁，WAIT_LOCK 吃满 survey_wait_s。4+2 约 6 帧，单果预算内仍拒绝闪现集合。
+      lock_settle_frames: 2  # 连续无新增确认 ID 的帧数：与最少帧数联合判定目标集合已稳定，关闭收齐窗口
+      max_collect_s: 12.0  # 收齐窗口最长时长 (s) 配置基准：运行期按实测帧间隔 EMA 自适应为 (min_collect+settle+3)×帧间隔，下限为本值×0.4。超时强制关闭（空集也锁定）。12 s 低于 supervisor survey_wait_s=15，避免锁窗把单果周期顶出 40 s。
       priority_prefer_lower_first: true  # 优先级排序启用高度键：先低后高，避免摘高处目标时碰落低处果实；false 则高度不参与排序

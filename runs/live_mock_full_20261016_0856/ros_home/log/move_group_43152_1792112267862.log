@@ -1,0 +1,140 @@
+[INFO] [1792112267.885292130] [move_group.moveit.moveit.ros.rdf_loader]: Loaded robot model in 0.00251507 seconds
+[INFO] [1792112267.885397315] [move_group.moveit.moveit.core.robot_model]: Loading robot model 'aubo_e5'...
+[INFO] [1792112267.885406909] [move_group.moveit.moveit.core.robot_model]: No root/virtual joint specified in SRDF. Assuming fixed joint
+[INFO] [1792112267.914029921] [move_group.moveit.moveit.kinematics.kdl_kinematics_plugin]: Joint weights for group 'manipulator_e5': 1 1 1 1 1 1
+[INFO] [1792112267.987206815] [move_group.moveit.moveit.ros.planning_scene_monitor]: Publishing maintained planning scene on 'monitored_planning_scene'
+[INFO] [1792112267.987336329] [move_group.moveit.moveit.ros.moveit_cpp]: Listening to 'joint_states' for joint states
+[INFO] [1792112267.987783133] [move_group.moveit.moveit.ros.current_state_monitor]: Listening to joint states on topic 'joint_states'
+[INFO] [1792112267.988034011] [move_group.moveit.moveit.ros.planning_scene_monitor]: Listening to '/attached_collision_object' for attached collision objects
+[INFO] [1792112267.988040746] [move_group.moveit.moveit.ros.planning_scene_monitor]: Stopping existing planning scene publisher.
+[INFO] [1792112267.988117931] [move_group.moveit.moveit.ros.planning_scene_monitor]: Stopped publishing maintained planning scene.
+[INFO] [1792112267.988272249] [move_group.moveit.moveit.ros.planning_scene_monitor]: Publishing maintained planning scene on 'monitored_planning_scene'
+[INFO] [1792112267.988311580] [move_group.moveit.moveit.ros.planning_scene_monitor]: Starting planning scene monitor
+[INFO] [1792112267.988476930] [move_group.moveit.moveit.ros.planning_scene_monitor]: Listening to '/planning_scene'
+[INFO] [1792112267.988481700] [move_group.moveit.moveit.ros.planning_scene_monitor]: Starting world geometry update monitor for collision objects, attached objects, octomap updates.
+[INFO] [1792112267.988898311] [move_group.moveit.moveit.ros.planning_scene_monitor]: Listening to 'collision_object'
+[INFO] [1792112267.989060321] [move_group.moveit.moveit.ros.planning_scene_monitor]: Listening to 'planning_scene_world' for planning scene world geometry
+[WARN] [1792112267.989471513] [move_group.moveit.moveit.ros.occupancy_map_monitor]: Resolution not specified for Octomap. Assuming resolution = 0.1 instead
+[ERROR] [1792112267.989480383] [move_group.moveit.moveit.ros.occupancy_map_monitor]: No 3D sensor plugin(s) defined for octomap updates
+[INFO] [1792112268.029070009] [move_group.moveit.moveit.ros.planning_pipeline]: Successfully loaded planner 'OMPL'
+[INFO] [1792112268.030012714] [move_group]: Try loading adapter 'default_planning_request_adapters/ResolveConstraintFrames'
+[INFO] [1792112268.030483845] [move_group]: Loaded adapter 'default_planning_request_adapters/ResolveConstraintFrames'
+[INFO] [1792112268.030489176] [move_group]: Try loading adapter 'default_planning_request_adapters/ValidateWorkspaceBounds'
+[INFO] [1792112268.030607151] [move_group]: Loaded adapter 'default_planning_request_adapters/ValidateWorkspaceBounds'
+[INFO] [1792112268.030609839] [move_group]: Try loading adapter 'default_planning_request_adapters/CheckStartStateBounds'
+[INFO] [1792112268.030619345] [move_group]: Loaded adapter 'default_planning_request_adapters/CheckStartStateBounds'
+[INFO] [1792112268.030620940] [move_group]: Try loading adapter 'default_planning_request_adapters/CheckStartStateCollision'
+[INFO] [1792112268.030625309] [move_group]: Loaded adapter 'default_planning_request_adapters/CheckStartStateCollision'
+[INFO] [1792112268.031454343] [move_group]: Try loading adapter 'default_planning_response_adapters/AddTimeOptimalParameterization'
+[INFO] [1792112268.032411387] [move_group]: Loaded adapter 'default_planning_response_adapters/AddTimeOptimalParameterization'
+[INFO] [1792112268.032416608] [move_group]: Try loading adapter 'default_planning_response_adapters/AddRuckigTrajectorySmoothing'
+[INFO] [1792112268.032422412] [move_group]: Loaded adapter 'default_planning_response_adapters/AddRuckigTrajectorySmoothing'
+[INFO] [1792112268.032424088] [move_group]: Try loading adapter 'default_planning_response_adapters/ValidateSolution'
+[INFO] [1792112268.033404000] [move_group]: Loaded adapter 'default_planning_response_adapters/ValidateSolution'
+[INFO] [1792112268.035144517] [move_group.moveit.moveit.planners.pilz.joint_limits_aggregator]: Reading limits from namespace robot_description_planning
+[INFO] [1792112268.036500369] [move_group.moveit.moveit.planners.pilz.command_planner]: Available plugins: pilz_industrial_motion_planner/PlanningContextLoaderCIRC pilz_industrial_motion_planner/PlanningContextLoaderLIN pilz_industrial_motion_planner/PlanningContextLoaderPTP 
+[INFO] [1792112268.036513751] [move_group.moveit.moveit.planners.pilz.command_planner]: About to load: pilz_industrial_motion_planner/PlanningContextLoaderCIRC
+[INFO] [1792112268.037200498] [move_group.moveit.moveit.planners.pilz.command_planner]: Registered Algorithm [CIRC]
+[INFO] [1792112268.037210615] [move_group.moveit.moveit.planners.pilz.command_planner]: About to load: pilz_industrial_motion_planner/PlanningContextLoaderLIN
+[INFO] [1792112268.037642410] [move_group.moveit.moveit.planners.pilz.command_planner]: Registered Algorithm [LIN]
+[INFO] [1792112268.037648498] [move_group.moveit.moveit.planners.pilz.command_planner]: About to load: pilz_industrial_motion_planner/PlanningContextLoaderPTP
+[INFO] [1792112268.038050815] [move_group.moveit.moveit.planners.pilz.command_planner]: Registered Algorithm [PTP]
+[INFO] [1792112268.038058369] [move_group.moveit.moveit.ros.planning_pipeline]: Successfully loaded planner 'Pilz Industrial Motion Planner'
+[INFO] [1792112268.038941969] [move_group]: Try loading adapter 'default_planning_request_adapters/ResolveConstraintFrames'
+[INFO] [1792112268.039037961] [move_group]: Loaded adapter 'default_planning_request_adapters/ResolveConstraintFrames'
+[INFO] [1792112268.039040127] [move_group]: Try loading adapter 'default_planning_request_adapters/ValidateWorkspaceBounds'
+[INFO] [1792112268.039139272] [move_group]: Loaded adapter 'default_planning_request_adapters/ValidateWorkspaceBounds'
+[INFO] [1792112268.039143008] [move_group]: Try loading adapter 'default_planning_request_adapters/CheckStartStateBounds'
+[INFO] [1792112268.039150777] [move_group]: Loaded adapter 'default_planning_request_adapters/CheckStartStateBounds'
+[INFO] [1792112268.039152542] [move_group]: Try loading adapter 'default_planning_request_adapters/CheckStartStateCollision'
+[INFO] [1792112268.039157621] [move_group]: Loaded adapter 'default_planning_request_adapters/CheckStartStateCollision'
+[INFO] [1792112268.039995799] [move_group]: Try loading adapter 'default_planning_response_adapters/ValidateSolution'
+[INFO] [1792112268.041199791] [move_group]: Loaded adapter 'default_planning_response_adapters/ValidateSolution'
+[INFO] [1792112268.043156970] [move_group.moveit.moveit.ros.planning_pipeline]: Successfully loaded planner 'STOMP'
+[INFO] [1792112268.043993271] [move_group]: Try loading adapter 'default_planning_request_adapters/ResolveConstraintFrames'
+[INFO] [1792112268.044080795] [move_group]: Loaded adapter 'default_planning_request_adapters/ResolveConstraintFrames'
+[INFO] [1792112268.044082987] [move_group]: Try loading adapter 'default_planning_request_adapters/ValidateWorkspaceBounds'
+[INFO] [1792112268.044141409] [move_group]: Loaded adapter 'default_planning_request_adapters/ValidateWorkspaceBounds'
+[INFO] [1792112268.044143674] [move_group]: Try loading adapter 'default_planning_request_adapters/CheckStartStateBounds'
+[INFO] [1792112268.044150927] [move_group]: Loaded adapter 'default_planning_request_adapters/CheckStartStateBounds'
+[INFO] [1792112268.044152444] [move_group]: Try loading adapter 'default_planning_request_adapters/CheckStartStateCollision'
+[INFO] [1792112268.044157250] [move_group]: Loaded adapter 'default_planning_request_adapters/CheckStartStateCollision'
+[INFO] [1792112268.044945967] [move_group]: Try loading adapter 'default_planning_response_adapters/AddTimeOptimalParameterization'
+[INFO] [1792112268.045150649] [move_group]: Loaded adapter 'default_planning_response_adapters/AddTimeOptimalParameterization'
+[INFO] [1792112268.045153427] [move_group]: Try loading adapter 'default_planning_response_adapters/ValidateSolution'
+[INFO] [1792112268.045372931] [move_group]: Loaded adapter 'default_planning_response_adapters/ValidateSolution'
+[INFO] [1792112268.045377224] [move_group]: Try loading adapter 'default_planning_response_adapters/DisplayMotionPath'
+[INFO] [1792112268.045642956] [move_group]: Loaded adapter 'default_planning_response_adapters/DisplayMotionPath'
+[INFO] [1792112268.062195453] [move_group.moveit.moveit.plugins.simple_controller_manager]: Added FollowJointTrajectory controller for joint_trajectory_controller
+[INFO] [1792112268.062336193] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[INFO] [1792112268.062350787] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[INFO] [1792112268.062624788] [move_group.moveit.moveit.ros.trajectory_execution_manager]: Trajectory execution is not managing controllers
+[INFO] [1792112268.062635108] [move_group]: MoveGroup debug mode is ON
+[INFO] [1792112268.077214475] [move_group.moveit.moveit.planners.pilz.move_group_sequence_action]: initialize move group sequence action
+[INFO] [1792112268.078562610] [move_group.moveit.moveit.planners.pilz.joint_limits_aggregator]: Reading limits from namespace robot_description_planning
+[INFO] [1792112268.078671420] [move_group.moveit.moveit.planners.pilz.joint_limits_aggregator]: Reading limits from namespace robot_description_planning
+[INFO] [1792112268.079011907] [move_group.moveit.moveit.ros.move_group.executable]: 
+
+********************************************************
+* MoveGroup using: 
+*     - apply_planning_scene_service
+*     - clear_octomap_service
+*     - ExecuteTaskSolution
+*     - get_group_urdf
+*     - load_geometry_from_file
+*     - CartesianPathService
+*     - execute_trajectory_action
+*     - get_planning_scene_service
+*     - kinematics_service
+*     - move_action
+*     - motion_plan_service
+*     - query_planners_service
+*     - state_validation_service
+*     - save_geometry_to_file
+*     - SequenceAction
+*     - SequenceService
+********************************************************
+
+[INFO] [1792112268.079034702] [move_group.moveit.moveit.ros.move_group.context]: MoveGroup context using pipeline pilz_industrial_motion_planner
+[INFO] [1792112268.079039460] [move_group.moveit.moveit.ros.move_group.context]: MoveGroup context initialization complete
+[WARN] [1792112525.736480567] [move_group.moveit.moveit.core.planning_scene]: Tried to remove world object 'peach_scene_obstacles', but it does not exist in this scene.
+[INFO] [1792112538.447171078] [move_group.moveit.moveit.ros.trajectory_execution_manager]: Received event 'stop'
+[WARN] [1792112546.738582476] [move_group.moveit.moveit.core.planning_scene]: Tried to remove world object 'peach_scene_obstacles', but it does not exist in this scene.
+[WARN] [1792112554.235755959] [move_group.moveit.moveit.core.planning_scene]: Tried to remove world object 'peach_scene_obstacles', but it does not exist in this scene.
+[WARN] [1792112570.235893719] [move_group.moveit.moveit.core.planning_scene]: Tried to remove world object 'peach_scene_obstacles', but it does not exist in this scene.
+[INFO] [1792112582.145995059] [move_group.moveit.moveit.ros.trajectory_execution_manager]: Received event 'stop'
+[WARN] [1792112590.236037958] [move_group.moveit.moveit.core.planning_scene]: Tried to remove world object 'peach_scene_obstacles', but it does not exist in this scene.
+[WARN] [1792112597.736494037] [move_group.moveit.moveit.core.planning_scene]: Tried to remove world object 'peach_scene_obstacles', but it does not exist in this scene.
+[WARN] [1792112614.235688170] [move_group.moveit.moveit.core.planning_scene]: Tried to remove world object 'peach_scene_obstacles', but it does not exist in this scene.
+[INFO] [1792112626.248693599] [move_group.moveit.moveit.ros.trajectory_execution_manager]: Received event 'stop'
+[WARN] [1792112633.235648892] [move_group.moveit.moveit.core.planning_scene]: Tried to remove world object 'peach_scene_obstacles', but it does not exist in this scene.
+[WARN] [1792112640.735703611] [move_group.moveit.moveit.core.planning_scene]: Tried to remove world object 'peach_scene_obstacles', but it does not exist in this scene.
+[WARN] [1792112656.238259904] [move_group.moveit.moveit.core.planning_scene]: Tried to remove world object 'peach_scene_obstacles', but it does not exist in this scene.
+[INFO] [1792112667.832319690] [move_group.moveit.moveit.ros.trajectory_execution_manager]: Received event 'stop'
+[WARN] [1792112675.236586281] [move_group.moveit.moveit.core.planning_scene]: Tried to remove world object 'peach_scene_obstacles', but it does not exist in this scene.
+[WARN] [1792112682.236500715] [move_group.moveit.moveit.core.planning_scene]: Tried to remove world object 'peach_scene_obstacles', but it does not exist in this scene.
+[WARN] [1792112698.239432478] [move_group.moveit.moveit.core.planning_scene]: Tried to remove world object 'peach_scene_obstacles', but it does not exist in this scene.
+[INFO] [1792112710.120739059] [move_group.moveit.moveit.ros.trajectory_execution_manager]: Received event 'stop'
+[WARN] [1792112717.736316451] [move_group.moveit.moveit.core.planning_scene]: Tried to remove world object 'peach_scene_obstacles', but it does not exist in this scene.
+[WARN] [1792112724.737870111] [move_group.moveit.moveit.core.planning_scene]: Tried to remove world object 'peach_scene_obstacles', but it does not exist in this scene.
+[WARN] [1792112740.235804381] [move_group.moveit.moveit.core.planning_scene]: Tried to remove world object 'peach_scene_obstacles', but it does not exist in this scene.
+[INFO] [1792112754.333993170] [move_group.moveit.moveit.ros.trajectory_execution_manager]: Received event 'stop'
+[WARN] [1792112761.736244359] [move_group.moveit.moveit.core.planning_scene]: Tried to remove world object 'peach_scene_obstacles', but it does not exist in this scene.
+[WARN] [1792112768.235857962] [move_group.moveit.moveit.core.planning_scene]: Tried to remove world object 'peach_scene_obstacles', but it does not exist in this scene.
+[WARN] [1792112783.735863054] [move_group.moveit.moveit.core.planning_scene]: Tried to remove world object 'peach_scene_obstacles', but it does not exist in this scene.
+[INFO] [1792112796.595916769] [move_group.moveit.moveit.ros.trajectory_execution_manager]: Received event 'stop'
+[WARN] [1792112803.737566174] [move_group.moveit.moveit.core.planning_scene]: Tried to remove world object 'peach_scene_obstacles', but it does not exist in this scene.
+[WARN] [1792112810.735969793] [move_group.moveit.moveit.core.planning_scene]: Tried to remove world object 'peach_scene_obstacles', but it does not exist in this scene.
+[WARN] [1792112826.735831713] [move_group.moveit.moveit.core.planning_scene]: Tried to remove world object 'peach_scene_obstacles', but it does not exist in this scene.
+[INFO] [1792112838.453443417] [move_group.moveit.moveit.ros.trajectory_execution_manager]: Received event 'stop'
+[WARN] [1792112845.735606330] [move_group.moveit.moveit.core.planning_scene]: Tried to remove world object 'peach_scene_obstacles', but it does not exist in this scene.
+[WARN] [1792112853.235722121] [move_group.moveit.moveit.core.planning_scene]: Tried to remove world object 'peach_scene_obstacles', but it does not exist in this scene.
+[WARN] [1792112868.735653585] [move_group.moveit.moveit.core.planning_scene]: Tried to remove world object 'peach_scene_obstacles', but it does not exist in this scene.
+[INFO] [1792112883.526967784] [move_group.moveit.moveit.ros.trajectory_execution_manager]: Received event 'stop'
+[WARN] [1792112891.735990994] [move_group.moveit.moveit.core.planning_scene]: Tried to remove world object 'peach_scene_obstacles', but it does not exist in this scene.
+[WARN] [1792112898.236396517] [move_group.moveit.moveit.core.planning_scene]: Tried to remove world object 'peach_scene_obstacles', but it does not exist in this scene.
+[WARN] [1792112913.236007352] [move_group.moveit.moveit.core.planning_scene]: Tried to remove world object 'peach_scene_obstacles', but it does not exist in this scene.
+[INFO] [1792112924.812251176] [move_group.moveit.moveit.ros.trajectory_execution_manager]: Received event 'stop'
+[WARN] [1792112931.735974968] [move_group.moveit.moveit.core.planning_scene]: Tried to remove world object 'peach_scene_obstacles', but it does not exist in this scene.
+[WARN] [1792112939.738129068] [move_group.moveit.moveit.core.planning_scene]: Tried to remove world object 'peach_scene_obstacles', but it does not exist in this scene.
+[INFO] [1792112960.698603436] [rclcpp]: signal_handler(SIGINT/SIGTERM)

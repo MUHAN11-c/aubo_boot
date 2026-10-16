@@ -329,8 +329,13 @@ class FoxglovePlayer {
 
 	/**
 	 * @param {string} topic
-	 * @param {{dispatchMode?: 'immediate'|'latest'}} [opts]
-	 * @param {(msg: {topic, type, data, timestampMs, bridge}) => void} callback
+	 * @param {{dispatchMode?: 'immediate'|'latest'|'raw'}} [opts]
+	 *   immediate：解码后同步派发（低频控制面）；latest：微任务合并仅保留最新帧后解码
+	 *   （状态/图像/点云）；raw：同 latest 的合并策略但**不解码**——回调拿到原始
+	 *   CDR 载荷（data=Uint8Array, raw=true）。统计-only 订阅（话题卡 Hz/流量表）
+	 *   用 raw 可跳过大消息的全量 CDR 解码，主线程零解码开销（Lichtblick
+	 *   parsedMessageCache 语义：字节记账 + 丢旧帧解码）。
+	 * @param {(msg: {topic, type, data, raw?, timestampMs, bridge}) => void} callback
 	 * @returns {{cancel(): void}}
 	 */
 	subscribe(topic, callback, opts = {}) {
@@ -370,7 +375,9 @@ class FoxglovePlayer {
 		if (!channel || !this.isConnected) return; // 等 advertise / serverInfo 到达后补发
 		sub.subscriptionId = this._nextSubscriptionId++;
 		this._subById.set(sub.subscriptionId, { topic, sub });
-		sub.codec = this._codec.channelCodec(channel);
+		// raw 模式永不解码：跳过 codec 构建（大 schema 的 MessageReader 构建也省掉）
+		sub.codec = sub.dispatchMode === 'raw'
+			? null : this._codec.channelCodec(channel);
 		this._proto.subscribe(sub.subscriptionId, channel.id);
 	}
 
@@ -415,7 +422,7 @@ class FoxglovePlayer {
 		entry.stats.messages++;
 		entry.stats.bytes += m.payload.byteLength;
 
-		if (entry.dispatchMode === 'latest') {
+		if (entry.dispatchMode === 'latest' || entry.dispatchMode === 'raw') {
 			entry.stash = { payload: m.payload, timestampNs: m.timestamp };
 			if (!entry.flushScheduled) {
 				entry.flushScheduled = true;
@@ -423,11 +430,32 @@ class FoxglovePlayer {
 					entry.flushScheduled = false;
 					const stash = entry.stash;
 					entry.stash = null;
-					if (stash) this._decodeAndDispatch(topic, entry, stash.payload, stash.timestampNs);
+					if (!stash) return;
+					if (entry.dispatchMode === 'raw') {
+						this._dispatchRaw(topic, entry, stash.payload, stash.timestampNs);
+					} else {
+						this._decodeAndDispatch(topic, entry, stash.payload, stash.timestampNs);
+					}
 				});
 			}
 		} else {
 			this._decodeAndDispatch(topic, entry, m.payload, m.timestamp);
+		}
+	}
+
+	/** raw 模式派发：不做 CDR 解码，载荷原样交给回调（统计-only 订阅热路径）。 */
+	_dispatchRaw(topic, entry, payload, timestampNs) {
+		const channel = this._channelsByTopic.get(topic);
+		const typed = {
+			topic,
+			type: channel ? channel.schemaName : undefined,
+			data: payload,
+			raw: true,
+			timestampMs: Math.floor(timestampNs / 1e6),
+			bridge: 'foxglove',
+		};
+		for (const cb of [...entry.callbacks]) {
+			try { cb(typed); } catch (e) { console.error(`[fgplayer] ${topic} callback error:`, e); }
 		}
 	}
 

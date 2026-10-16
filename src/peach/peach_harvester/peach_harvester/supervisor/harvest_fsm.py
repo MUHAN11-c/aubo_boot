@@ -246,6 +246,8 @@ _TABLE: dict[tuple, Reaction] = {
         RUNNING, TARGET_SKIPPED, Command.NONE, 'target_skipped', 'running'),
     (RUNNING, Event.CYCLE_DONE): Reaction(
         DISCOVERY, TARGET_IDLE, Command.SURVEY, '', 'discovery'),
+    (RUNNING, Event.EMPTY_LIMIT): Reaction(
+        COMPLETED, TARGET_IDLE, Command.SETTLE, '', 'completed'),
 }
 
 

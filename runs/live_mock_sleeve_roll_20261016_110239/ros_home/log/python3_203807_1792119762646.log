@@ -1,0 +1,408 @@
+[INFO] [1792119762.884566101] [peach_scene_perception_node]: YOLO=/home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_harvester/share/peach_harvester/model/best.pt
+[INFO] [1792119762.884785377] [peach_scene_perception_node]: SAM=/home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_harvester/share/peach_harvester/model/mobile_sam.pt
+[INFO] [1792119764.692751978] [peach_scene_perception_node]: Subscribed color=/camera/color/image_raw depth=/camera/depth/image_raw info=/camera/color/camera_info slop=0.05s optical=camera_color_optical_frame output=base_link depth_scale_unit=0.25 gravity_mode=tf calib=percipio-640x480-chessboard|hand_eye:import_humble_20260128T114006
+[INFO] [1792119764.692975851] [peach_scene_perception_node]: 目标身份记忆已启用：match_radius=0.06 m, max_targets=50, ema=0.3
+[INFO] [1792119764.707910567] [peach_target_reconstruction_node]: peach_target_reconstruction_node ready: base=base_link color=/camera/color/image_raw depth=/camera/depth/image_raw slop=0.05s depth_scale_unit=0.25 views(min/rec/max)=1/5/24 require_static=True auto_mode=True session_root=/home/mu/Desktop/aubo_e5_jazzy_ws/runs
+[INFO] [1792119764.930476856] [peach_supervisor]: task executor configured; will not auto-start harvest
+[INFO] [1792119764.935378972] [peach_scene_perception_node]: perception Active：开始处理 RGB-D
+[INFO] [1792119764.949319704] [peach_target_reconstruction_node]: reconstruction Active：开始积分
+[INFO] [1792119766.168356698] [peach_scene_perception_node]: CameraInfo K fx=466.175 fy=465.557 cx=326.071 cy=244.789 640x480
+[WARN] [1792119766.247738697] [peach_target_reconstruction_node]: 重建 worker 队列已满，拒绝新帧以保持积分顺序
+[WARN] [1792119770.573171489] [peach_scene_perception_node]: peach_harvester.vision.scene_perception.inference: YOLO 权重迁移到 cuda:0 失败（predict 仍显式传 device，可能回退 CPU）: CUDA error: out of memory
+Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+For more detailed error information, run with CUDA_LOG_FILE=stderr
+
+[WARN] [1792119771.043698626] [peach_scene_perception_node]: peach_harvester.vision.scene_perception.inference: YOLO warmup 失败（不阻断，首帧照常推理）: CUDA error: out of memory
+Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+For more detailed error information, run with CUDA_LOG_FILE=stderr
+
+[ERROR] [1792119771.456636666] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+For more detailed error information, run with CUDA_LOG_FILE=stderr
+
+[WARN] [1792119771.468099781] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 38（处理跟不上到达率，排查热路径耗时或降低到达率）
+[ERROR] [1792119771.911887186] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+For more detailed error information, run with CUDA_LOG_FILE=stderr
+
+[ERROR] [1792119772.351142717] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+For more detailed error information, run with CUDA_LOG_FILE=stderr
+
+[ERROR] [1792119772.991800659] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+For more detailed error information, run with CUDA_LOG_FILE=stderr
+
+[ERROR] [1792119773.485041582] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+For more detailed error information, run with CUDA_LOG_FILE=stderr
+
+[ERROR] [1792119774.256051371] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+For more detailed error information, run with CUDA_LOG_FILE=stderr
+
+[ERROR] [1792119774.550508690] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+For more detailed error information, run with CUDA_LOG_FILE=stderr
+
+[ERROR] [1792119775.083288961] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+For more detailed error information, run with CUDA_LOG_FILE=stderr
+
+[ERROR] [1792119775.582539705] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+For more detailed error information, run with CUDA_LOG_FILE=stderr
+
+[ERROR] [1792119776.007831292] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+For more detailed error information, run with CUDA_LOG_FILE=stderr
+
+[WARN] [1792119776.147362783] [peach_target_reconstruction_node]: New subscription discovered on topic '/peach/reconstruction/preview_cloud', requesting incompatible QoS. No messages will be sent to it. Last incompatible policy: RELIABILITY
+[ERROR] [1792119776.607118985] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+For more detailed error information, run with CUDA_LOG_FILE=stderr
+
+[WARN] [1792119776.616051952] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 71（处理跟不上到达率，排查热路径耗时或降低到达率）
+[ERROR] [1792119777.155041657] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+For more detailed error information, run with CUDA_LOG_FILE=stderr
+
+[ERROR] [1792119777.926320873] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+For more detailed error information, run with CUDA_LOG_FILE=stderr
+
+[ERROR] [1792119778.472590859] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+For more detailed error information, run with CUDA_LOG_FILE=stderr
+
+[ERROR] [1792119779.057124274] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+For more detailed error information, run with CUDA_LOG_FILE=stderr
+
+[INFO] [1792119779.186984240] [peach_supervisor]: 操作台使能: execution=False grasp=False tool=False（live_camera_mock owned test）
+[ERROR] [1792119779.549007047] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+For more detailed error information, run with CUDA_LOG_FILE=stderr
+
+[ERROR] [1792119780.165366681] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+For more detailed error information, run with CUDA_LOG_FILE=stderr
+
+[ERROR] [1792119780.629110053] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+For more detailed error information, run with CUDA_LOG_FILE=stderr
+
+[ERROR] [1792119781.167899291] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+For more detailed error information, run with CUDA_LOG_FILE=stderr
+
+[ERROR] [1792119781.731014917] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+For more detailed error information, run with CUDA_LOG_FILE=stderr
+
+[WARN] [1792119781.763963432] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 97（处理跟不上到达率，排查热路径耗时或降低到达率）
+[ERROR] [1792119782.313028456] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+For more detailed error information, run with CUDA_LOG_FILE=stderr
+
+[ERROR] [1792119783.226621861] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+For more detailed error information, run with CUDA_LOG_FILE=stderr
+
+[ERROR] [1792119783.966999257] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+For more detailed error information, run with CUDA_LOG_FILE=stderr
+
+[ERROR] [1792119784.516023588] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+For more detailed error information, run with CUDA_LOG_FILE=stderr
+
+[ERROR] [1792119784.995543020] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+For more detailed error information, run with CUDA_LOG_FILE=stderr
+
+[ERROR] [1792119785.417218782] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+For more detailed error information, run with CUDA_LOG_FILE=stderr
+
+[ERROR] [1792119785.967063530] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+For more detailed error information, run with CUDA_LOG_FILE=stderr
+
+[ERROR] [1792119786.487277932] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+For more detailed error information, run with CUDA_LOG_FILE=stderr
+
+[ERROR] [1792119786.921345954] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+For more detailed error information, run with CUDA_LOG_FILE=stderr
+
+[WARN] [1792119786.928076806] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 121（处理跟不上到达率，排查热路径耗时或降低到达率）
+[ERROR] [1792119787.805226037] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+For more detailed error information, run with CUDA_LOG_FILE=stderr
+
+[ERROR] [1792119788.400766135] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+For more detailed error information, run with CUDA_LOG_FILE=stderr
+
+[ERROR] [1792119788.910885802] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+For more detailed error information, run with CUDA_LOG_FILE=stderr
+
+[ERROR] [1792119789.446974158] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+For more detailed error information, run with CUDA_LOG_FILE=stderr
+
+[ERROR] [1792119790.073153264] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+For more detailed error information, run with CUDA_LOG_FILE=stderr
+
+[ERROR] [1792119790.601760900] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+For more detailed error information, run with CUDA_LOG_FILE=stderr
+
+[ERROR] [1792119791.128184158] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+For more detailed error information, run with CUDA_LOG_FILE=stderr
+
+[ERROR] [1792119791.851301320] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+For more detailed error information, run with CUDA_LOG_FILE=stderr
+
+[ERROR] [1792119792.464141423] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+For more detailed error information, run with CUDA_LOG_FILE=stderr
+
+[WARN] [1792119792.479984299] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 148（处理跟不上到达率，排查热路径耗时或降低到达率）
+[ERROR] [1792119793.017186459] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+For more detailed error information, run with CUDA_LOG_FILE=stderr
+
+[ERROR] [1792119793.704350269] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+For more detailed error information, run with CUDA_LOG_FILE=stderr
+
+[ERROR] [1792119794.212607502] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+For more detailed error information, run with CUDA_LOG_FILE=stderr
+
+[ERROR] [1792119794.739379342] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+For more detailed error information, run with CUDA_LOG_FILE=stderr
+
+[ERROR] [1792119795.321731133] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+For more detailed error information, run with CUDA_LOG_FILE=stderr
+
+[ERROR] [1792119795.796057122] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+For more detailed error information, run with CUDA_LOG_FILE=stderr
+
+[ERROR] [1792119796.573179630] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+For more detailed error information, run with CUDA_LOG_FILE=stderr
+
+[ERROR] [1792119797.146728410] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+For more detailed error information, run with CUDA_LOG_FILE=stderr
+
+[ERROR] [1792119797.731200944] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+For more detailed error information, run with CUDA_LOG_FILE=stderr
+
+[WARN] [1792119797.737951045] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 174（处理跟不上到达率，排查热路径耗时或降低到达率）
+[ERROR] [1792119798.443284465] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+For more detailed error information, run with CUDA_LOG_FILE=stderr
+
+[ERROR] [1792119799.230336422] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+For more detailed error information, run with CUDA_LOG_FILE=stderr
+
+[ERROR] [1792119799.951954134] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+For more detailed error information, run with CUDA_LOG_FILE=stderr
+
+[ERROR] [1792119800.590061698] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+For more detailed error information, run with CUDA_LOG_FILE=stderr
+
+[ERROR] [1792119801.152008041] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+For more detailed error information, run with CUDA_LOG_FILE=stderr
+
+[ERROR] [1792119802.171120674] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+For more detailed error information, run with CUDA_LOG_FILE=stderr
+
+[ERROR] [1792119802.897690500] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+For more detailed error information, run with CUDA_LOG_FILE=stderr
+
+[WARN] [1792119802.911410404] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 201（处理跟不上到达率，排查热路径耗时或降低到达率）
+[ERROR] [1792119803.575937905] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+For more detailed error information, run with CUDA_LOG_FILE=stderr
+
+[ERROR] [1792119804.105151234] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+For more detailed error information, run with CUDA_LOG_FILE=stderr
+
+[ERROR] [1792119804.730872979] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+For more detailed error information, run with CUDA_LOG_FILE=stderr
+
+[ERROR] [1792119805.369913656] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+For more detailed error information, run with CUDA_LOG_FILE=stderr
+
+[ERROR] [1792119805.926254868] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+For more detailed error information, run with CUDA_LOG_FILE=stderr
+
+[ERROR] [1792119806.380210483] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+For more detailed error information, run with CUDA_LOG_FILE=stderr
+
+[ERROR] [1792119807.196198939] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+For more detailed error information, run with CUDA_LOG_FILE=stderr
+
+[ERROR] [1792119808.014001001] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+For more detailed error information, run with CUDA_LOG_FILE=stderr
+
+[WARN] [1792119808.026597838] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 227（处理跟不上到达率，排查热路径耗时或降低到达率）
+[ERROR] [1792119808.581979488] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+For more detailed error information, run with CUDA_LOG_FILE=stderr
+
+[ERROR] [1792119809.192213923] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+For more detailed error information, run with CUDA_LOG_FILE=stderr
+
+[ERROR] [1792119809.762322783] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+For more detailed error information, run with CUDA_LOG_FILE=stderr
+
+[ERROR] [1792119810.305217585] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+For more detailed error information, run with CUDA_LOG_FILE=stderr
+
+[ERROR] [1792119810.800031945] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+For more detailed error information, run with CUDA_LOG_FILE=stderr
+
+[ERROR] [1792119811.343240885] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+For more detailed error information, run with CUDA_LOG_FILE=stderr
+
+[ERROR] [1792119812.109244182] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+For more detailed error information, run with CUDA_LOG_FILE=stderr
+
+[ERROR] [1792119812.639040939] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+For more detailed error information, run with CUDA_LOG_FILE=stderr
+
+[ERROR] [1792119813.170922175] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+For more detailed error information, run with CUDA_LOG_FILE=stderr
+
+[WARN] [1792119813.172343077] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 251（处理跟不上到达率，排查热路径耗时或降低到达率）
+[ERROR] [1792119813.617842311] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+For more detailed error information, run with CUDA_LOG_FILE=stderr
+
+[ERROR] [1792119814.186418747] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+For more detailed error information, run with CUDA_LOG_FILE=stderr
+
+[ERROR] [1792119814.795531769] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+For more detailed error information, run with CUDA_LOG_FILE=stderr
+
+[ERROR] [1792119815.382590592] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+For more detailed error information, run with CUDA_LOG_FILE=stderr
+
+[ERROR] [1792119815.836334601] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+For more detailed error information, run with CUDA_LOG_FILE=stderr
+
+[ERROR] [1792119816.470431103] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+For more detailed error information, run with CUDA_LOG_FILE=stderr
+
+[ERROR] [1792119816.943062497] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+For more detailed error information, run with CUDA_LOG_FILE=stderr
+
+[ERROR] [1792119817.533705315] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+For more detailed error information, run with CUDA_LOG_FILE=stderr
+
+[ERROR] [1792119818.203115260] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+For more detailed error information, run with CUDA_LOG_FILE=stderr
+
+[WARN] [1792119818.208178740] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 273（处理跟不上到达率，排查热路径耗时或降低到达率）
+[ERROR] [1792119818.847561744] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+For more detailed error information, run with CUDA_LOG_FILE=stderr
+
+[ERROR] [1792119819.185349336] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+For more detailed error information, run with CUDA_LOG_FILE=stderr
+
+[ERROR] [1792119819.546793854] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+For more detailed error information, run with CUDA_LOG_FILE=stderr
+
+[ERROR] [1792119819.840521675] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+For more detailed error information, run with CUDA_LOG_FILE=stderr
+
+[ERROR] [1792119820.440898799] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+For more detailed error information, run with CUDA_LOG_FILE=stderr
+
+[ERROR] [1792119820.910279355] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+For more detailed error information, run with CUDA_LOG_FILE=stderr
+
+[ERROR] [1792119821.482161346] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+For more detailed error information, run with CUDA_LOG_FILE=stderr
+
+[ERROR] [1792119821.893360165] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+For more detailed error information, run with CUDA_LOG_FILE=stderr
+
+[ERROR] [1792119822.699454569] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+For more detailed error information, run with CUDA_LOG_FILE=stderr
+
+[ERROR] [1792119823.157544630] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+For more detailed error information, run with CUDA_LOG_FILE=stderr
+
+[ERROR] [1792119823.731139186] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+For more detailed error information, run with CUDA_LOG_FILE=stderr
+
+[WARN] [1792119823.738283002] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 308（处理跟不上到达率，排查热路径耗时或降低到达率）
+[ERROR] [1792119824.234141311] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+For more detailed error information, run with CUDA_LOG_FILE=stderr
+
+[INFO] [1792119824.694876260] [peach_supervisor]: 操作台使能: execution=False grasp=False tool=False（live_camera_mock owned test）
+[ERROR] [1792119825.126462447] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+For more detailed error information, run with CUDA_LOG_FILE=stderr
+
+[ERROR] [1792119825.626986832] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+For more detailed error information, run with CUDA_LOG_FILE=stderr
+

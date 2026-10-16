@@ -62,6 +62,7 @@ from .batch import (
     ledger_file,
     load_ledger,
     merge_cycle_extra,
+    named_targets_exhausted,
     next_target,
     reach_queries,
     save_ledger,
@@ -170,6 +171,8 @@ class TaskExecutorNode(LifecycleNode):
     def __init__(self):
         """构造：状态与缓存初始化；ROS 实体在 on_configure 建."""
         super().__init__('peach_supervisor')
+        self._log_batch = self.get_logger().get_child('batch')
+        self._log_contact = self.get_logger().get_child('contact')
         self._lock = threading.Lock()
         self._state_seq = 0
         self._paused = False
@@ -981,6 +984,12 @@ class TaskExecutorNode(LifecycleNode):
             if self._cancel:
                 continue
             cmd = reaction.command
+            self._log_batch.info(
+                'command=%s batch=%s target=%s message=%s' % (
+                    cmd,
+                    BATCH_NAMES.get(reaction.batch_state, ''),
+                    self._current_target_id or '-',
+                    reaction.message or ''))
             if cmd in (
                     Command.SELECT, Command.DISPATCH, Command.EXECUTE_FULL,
                     Command.NONE):
@@ -1159,9 +1168,12 @@ class TaskExecutorNode(LifecycleNode):
         return reaction, True
 
     def _cmd_cycle_done(self, goal, reaction):
-        """NONE 分支（原循环分支逐字搬运）：本目标周期收口回选果."""
-        reaction = self._react(Event.CYCLE_DONE)
+        """NONE 分支：本目标周期收口；点名已摘完则结算，否则回访拍照位."""
         self._current_target_id = ''
+        if named_targets_exhausted(goal.target_ids, self._claimed):
+            reaction = self._react(Event.EMPTY_LIMIT)
+        else:
+            reaction = self._react(Event.CYCLE_DONE)
         self._apply(reaction, goal.request_id)
         return reaction, True
 
@@ -1193,7 +1205,7 @@ class TaskExecutorNode(LifecycleNode):
         return reaction, True
 
     def _cmd_dispatch(self, goal, reaction):
-        """DISPATCH 分支（原循环分支逐字搬运）：单果时限门 + 观察周期派发."""
+        """DISPATCH：时限门后起 Build。默认 reconstruct_in_trajectory 立刻派臂。"""
         request_id = goal.request_id
         if not self._execution_enabled_effective():
             return self._fail_dispatch(
@@ -1264,7 +1276,8 @@ class TaskExecutorNode(LifecycleNode):
                 reason='build_start_timeout: reconstruction not COLLECTING',
                 failure_code='build_start_timeout', dispatch_t0=dispatch_t0,
                 extra=build_details(self._build_feedback, dispatch_t0, None))
-        # 默认路径：Build 已 COLLECTING 即派臂侧周期（skip_observation），
+        # 部署 peach_supervisor.yaml 默认 true。getattr 缺字段才回退 False
+        #（走下方补视）。Build 已 COLLECTING 即派臂侧周期（skip_observation），
         # 不额外串行观察而消耗冻结的模型有效窗。FinalizeAndValidate 有界
         # 等待同目标精化/许可，通过后才规划；Build 句柄随周期收口取消。
         if bool(getattr(self._params, 'reconstruct_in_trajectory', False)):
@@ -1977,6 +1990,10 @@ class TaskExecutorNode(LifecycleNode):
         for row, ok, code in zip(
                 queries, response.reachable, response.error_codes):
             results[row[0]] = (bool(ok), str(code or ''))
+            travel = float(row[2]) if len(row) > 2 else 0.0
+            self._log_contact.info(
+                'caller=SELECT target=%s travel=%.3fm reachable=%s code=%s'
+                % (row[0], travel, bool(ok), code or 'ok'))
         note = str(response.message or '')
         return results, note
 

@@ -10,6 +10,8 @@ src/ros2_examples、external/navigation2）与 ros2/moveit2/nav2 官方示例，
     /joint_states /odom /tf /imu /scan /camera/image_raw /camera/camera_info /clock
   nav2_bringup（官方 apt；navigation2 jazzy 浅克隆于 external/ 做基线）
     /map /amcl_pose /particle_cloud /plan /diagnostics（localization + navigation）
+    地图 = 官方包自带配套图（turtlebot3_navigation2/map，与仿真世界同一环境）
+    nav2 参数 = 官方 param/waffle_pi.yaml（rviz:=true 时随官方 RViz 一起起）
   examples_rclpy_pointcloud_publisher（ros2/examples 官方点云示例）
     /test_cloud  PointCloud2
   examples_rclpy_minimal_publisher（ros2/examples 官方话题示例）
@@ -34,9 +36,10 @@ from launch import LaunchDescription
 from launch.actions import (AppendEnvironmentVariable, DeclareLaunchArgument,
                             IncludeLaunchDescription, SetEnvironmentVariable)
 from launch.conditions import IfCondition
+from launch.substitutions import (LaunchConfiguration, PathJoinSubstitution,
+                                  PythonExpression)
 from launch.launch_description_sources import (FrontendLaunchDescriptionSource,
                                                PythonLaunchDescriptionSource)
-from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
 from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
 
@@ -89,21 +92,30 @@ def generate_launch_description():
             'y_pose': LaunchConfiguration('y_pose'),
         }.items())
 
-    # 官方 nav2：AMCL 定位（tb3_sandbox 官方地图）+ 规划/控制全栈
-    nav2_localization = IncludeLaunchDescription(
+    # 官方 nav2（ROBOTIS turtlebot3_navigation2 参数路径，2026-10-16 官方化修正）：
+    #   rviz:=true  → 官方 navigation2.launch.py 全官方形态（bringup_launch +
+    #                param/waffle_pi.yaml 官方调参 + 官方 RViz tb3_navigation2.rviz）
+    #   默认无头    → 同一 bringup_launch + 同一官方参数/官方配套 map，仅省 RViz
+    # 此前用 nav2_bringup 分段 localization/navigation launch + 默认参数（按
+    # tb3_sandbox 场景调）——AMCL 与 TB3 雷达不匹配，定位漂移会"穿出障碍物"。
+    # 地图 = 官方包自带 map/map.yaml（与 turtlebot3_world 仿真同一环境）。
+    tb3_nav_share = get_package_share_directory('turtlebot3_navigation2')
+    nav2_full = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(PathJoinSubstitution(
-            [nav2_bringup_share, 'launch', 'localization_launch.py'])),
-        launch_arguments={
-            'map': PathJoinSubstitution(
-                [nav2_bringup_share, 'maps', 'tb3_sandbox.yaml']),
-            'use_sim_time': 'true',
-        }.items(),
-        condition=IfCondition(nav2))
-    nav2_navigation = IncludeLaunchDescription(
-        PythonLaunchDescriptionSource(PathJoinSubstitution(
-            [nav2_bringup_share, 'launch', 'navigation_launch.py'])),
+            [tb3_nav_share, 'launch', 'navigation2.launch.py'])),
         launch_arguments={'use_sim_time': 'true'}.items(),
-        condition=IfCondition(nav2))
+        condition=IfCondition(rviz))
+    nav2_headless = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(PathJoinSubstitution(
+            [nav2_bringup_share, 'launch', 'bringup_launch.py'])),
+        launch_arguments={
+            'map': PathJoinSubstitution([tb3_nav_share, 'map', 'map.yaml']),
+            'use_sim_time': 'true',
+            'params_file': PathJoinSubstitution(
+                [tb3_nav_share, 'param', 'waffle_pi.yaml']),
+        }.items(),
+        condition=IfCondition(PythonExpression(
+            ["'", nav2, "' == 'true' and '", rviz, "' == 'false'"])))
 
     # ros2 官方示例节点（ros2/examples，克隆于 src/ros2_examples）
     examples_on = IfCondition(examples)
@@ -132,20 +144,15 @@ def generate_launch_description():
         }.items(),
         condition=IfCondition(transport))
 
-    nav2_rviz = Node(
-        package='rviz2', executable='rviz2', name='rviz2',
-        condition=IfCondition(rviz),
-        arguments=['-d', PathJoinSubstitution(
-            [nav2_bringup_share, 'rviz', 'nav2_default_view.rviz'])],
-        parameters=[{'use_sim_time': True}],
-        output='screen')
-
     return LaunchDescription([
         DeclareLaunchArgument('port', default_value='8765'),
         DeclareLaunchArgument('gateway_port', default_value='8095'),
         DeclareLaunchArgument('gui', default_value='true',
                               description='gz 图形客户端（界面正常打开）'),
-        DeclareLaunchArgument('rviz', default_value='false'),
+        DeclareLaunchArgument('rviz', default_value='false',
+                              description='true=官方 navigation2.launch.py 全官方形态'
+                              '（官方 waffle_pi.yaml 参数 + 官方 RViz）；'
+                              'false=同参数无头（E2E）'),
         DeclareLaunchArgument('fixture', default_value='false',
                               description='comm_fixture 通信矩阵被测端'),
         DeclareLaunchArgument('gz_partition', default_value='',
@@ -168,11 +175,10 @@ def generate_launch_description():
         gzclient,
         spawn_tb3,
         rsp,
-        nav2_localization,
-        nav2_navigation,
         pointcloud,
         talker,
         republish,
         transport,
-        nav2_rviz,
+        nav2_full,
+        nav2_headless,
     ])

@@ -7,9 +7,12 @@ import numpy as np
 from peach_harvester.vision.target_reconstruction.reconstruction_core import ReconstructionCore
 
 
-def _store():
-    params = SimpleNamespace(capture=SimpleNamespace(max_frame_age_s=2.),
-                             local_volume=SimpleNamespace(size_x=.3, size_y=.3, size_z=.4))
+def _store(max_frame_age_s=2., mask_stamp_tolerance_s=0.):
+    params = SimpleNamespace(
+        capture=SimpleNamespace(
+            max_frame_age_s=max_frame_age_s,
+            mask_stamp_tolerance_s=mask_stamp_tolerance_s),
+        local_volume=SimpleNamespace(size_x=.3, size_y=.3, size_z=.4))
     return ReconstructionCore(
         collector=None, mask_gate=None, kind_memory=None, params=params,
         algo_clock=None, logger=None, timing=None, throttle=None, icp_target_cache=None)
@@ -81,6 +84,25 @@ def test_low_rate_horizon_and_reset_accept_new_clock_origin():
     store._push_frame_ring(restarted)
     assert store._select_cached_frame() is restarted
     assert store._frame_ring_bytes == 24
+
+
+def test_lagged_mask_kept_across_perception_latency():
+    store = _store(max_frame_age_s=8.)
+    original = _frame(10.)
+    store._push_frame_ring(original)
+    for i in range(1, 70):
+        store._push_frame_ring(_frame(10. + i / 12.))
+    store._target_masks = {10000000000: object()}
+    assert store._select_cached_frame() is original
+
+
+def test_select_cached_frame_uses_mask_tolerance_not_latest():
+    store = _store(mask_stamp_tolerance_s=0.45)
+    early = _frame(10.)
+    store._push_frame_ring(early)
+    store._push_frame_ring(_frame(10.5))
+    store._target_masks = {10020000000: object()}
+    assert store._select_cached_frame() is early
 
 
 def test_oversized_frame_does_not_advance_time_watermark_or_evict_waiting_frame():

@@ -64,7 +64,7 @@ flowchart TB
 - YOLO 异常：整帧跳过，不炸 worker。无框不补假框。
 - SAM 只出像素掩膜。截断超 16 框的目标常变 OCCLUDED。前景几何只用 `hybrid_dilated`；SAM 缺失或交后像素 < `min_mask_points` 给 `mask_unavailable` / REOBSERVE，**不**走深度-only 几何回退。`depth_fallback` 只出现在构造 hybrid 时的深度连通域标签。
 - 单帧门（2026-09-21 第二轮起）：`status` 只看**门控类** flag（净空/行程/误差预算/有效深度/截断/2D 校验/长度一致性等）；过程类 flag（`taper_*`/`polarity_*`/`axis_from_pca`/`fruit_prior_auxiliary`/`*_from_band`/`gravity_defaulted`/`length_extended_from_2d`）只进 `diagnostic_flags` 供追溯、不再压状态——修正前生产 56/56 恒 REOBSERVE（过程 flag 全帧在场）、refine 的 ACCEPT 偏好分支死码。`valid_depth_ratio` 同轮改**目标级口径** |SAM∩valid|/|SAM|（旧 ROI 均值被窗外背景稀释一个量级，连带压垮 confidence/σ/遮挡分类）；袋长塌缩新增显式 `axis_length_inconsistent` 门（3D 长度 vs 框 2D 展程×深度/焦距粗测）。**袋长 2D+3D 融合**（09-21 第三轮）：点云只覆盖有深度的可见段，袋长以原始 SAM 剪影沿投影轴的展程为准、被检测框限幅（`raw_mask` 经 build_masks 透传），两端只延不缩——修掉活流对拍 len −29% 的系统性偏短；直径不融合（径向 P95 稳健且直接进净空安全门）。
-- 身份：整帧一次全局 1-1 分配（`identity.assign_detections`：同类 + 马氏 χ² 门 9≈3σ + 歧义比 1.2）。节点不传 `covariance`，σ=`match_radius/3`×`recovery_scale`。`SpatialEmaMatcher` 欧氏两段匹配**不**走帧路径（只提供半径属性）。`tf_unavailable` 与 `tf_stale` 均不改权威身份。确认 `confirm_frames=5`；贴边帧不攒确认。摆动连续 3 帧残差 >0.03 m → `target_swinging`（不可选）。
+- 身份：整帧一次全局 1-1 分配（`identity.assign_detections`：同类 + 马氏 χ² 门 9≈3σ + 歧义比 1.2）。节点不传 `covariance`，σ=`match_radius/3`×`recovery_scale`。`SpatialEmaMatcher` 欧氏两段匹配**不**走帧路径（只提供半径属性）。`tf_unavailable` 与 `tf_stale` 均不改权威身份。确认 `confirm_frames=2`（拒绝单帧闪现；5 帧在 1 Hz 感知下会把 WAIT_LOCK 顶满 15 s）；贴边帧不攒确认。摆动连续 3 帧残差 >0.03 m → `target_swinging`（不可选）。
 - 跟踪 token：OUT_OF_VIEW / LOST / OCCLUDED / DEPTH_VOID / OBSERVED。
 - 锁定：`CollectLockPolicy`；`tf_stale` / `tf_unavailable` / `target_untracked` / `target_swinging` / `bbox_edge` 不可选。锁定后新 ID 不入集。`observations[]` 只发锁定 ID；锁定前数组空。
 
@@ -139,11 +139,11 @@ flowchart TB
 | `/peach_target_reconstruction_node/save_session` | 显式落盘会话工件（`runs/session_*/`） |
 | `/peach_target_reconstruction_node/query_reconstruction_state` | 只读返回当前重建与数据关联 JSON |
 
-重建会话有原始目标掩膜时，同帧另存 `frame_NN_target_mask.npy`；与 RGB、毫米深度、内参和曝光 TF 一起复算原始轮廓检查。最终融合的 `fused_axis_silhouette_conflict` 与 `bag_axis_unobservable` 是许可撤销原因，不允许旧模型缓存恢复接触许可。
+重建会话有原始目标掩膜时，同帧另存 `frame_NN_target_mask.npy`；与 RGB、毫米深度、内参和曝光 TF 一起复算原始轮廓检查。最终融合的 `fused_axis_silhouette_conflict` 与 `bag_axis_unobservable` 是许可撤销原因；独立精化轴不可靠时，包络证据缺失同样否决——`bag_axis_envelope_ill_conditioned`（体积未沿该轴延伸）与 `bag_axis_envelope_unavailable`（点云不足、切片过少或轴未定义，本就没有包络证据，2026-10-16 新增）。两类否决都不允许旧模型缓存恢复接触许可。
 
 轮廓支持按曝光 TF 复用独立机位聚类，簇内取稳健角度、跨独立机位取最坏冲突；连拍帧数不能压过另一机位。至少两个独立、可观测的机位支持后，才能授予多视图 refit 主轴权威。
 
-采帧门（`target_reconstruction/capture.py`，自动失败=skip）：满栈 → 无帧 → 掩膜 → 同 stamp → 帧龄>2 s → 静止（按图像曝光 stamp 查 `/joint_states` 历史前后两条六轴证据——`joint_state_tolerance_s` 0.1 s、Cache 1024 条、时钟回退重建；两侧最大 `|vel|`>0.03 rad/s 或证据缺失/过旧/非有限值拒帧，不回退处理时刻速度）→ 空 frame_id → **精确 TF**。
+采帧门（`target_reconstruction/capture.py`，自动失败=skip）：满栈 → 无帧 → 掩膜 → 掩膜 stamp 最近邻（容差 `mask_stamp_tolerance_s` 0.45 s）→ 帧龄>12 s（停走式按曝光查关节；8 s 曾拒 8.42 s 已配对帧）→ 静止（曝光前后 `/joint_states`，`joint_state_tolerance_s` 0.1 s、Cache 8192 条）→ 空 frame_id → **精确 TF**。跳过按原因码累计。
 
 ```mermaid
 flowchart TB
@@ -163,7 +163,7 @@ flowchart TB
   budget --> gd
 ```
 
-**读图：** 重建把多机位收成「这一颗怎么套」。过采帧门才积分；ICP 拒了就丢这一帧，不硬套进模型。下面分岔：左边融合几何给预抓取评方向；右边包络轴只诊断，不授权或否决。最下菱形 `allowed` **只决定能不能套入/剪切**，关了仍可去预抓取。
+**读图：** 重建把多机位收成「这一颗怎么套」。过采帧门才积分；ICP 拒了就丢这一帧，不硬套进模型。下面分岔：左边融合几何给预抓取评方向；右边包络轴本身不授权、对打夹角只诊断不否决，但独立精化轴不可靠时，包络病态或证据缺失会以 `bag_axis_envelope_ill_conditioned` / `bag_axis_envelope_unavailable` 否决本帧融合。最下菱形 `allowed` **只决定能不能套入/剪切**，关了仍可去预抓取。
 
 **两层三态不要混：**
 
@@ -237,7 +237,7 @@ flowchart TB
   ctl["ControlTask PAUSE/SKIP/CANCEL/ACK"] -.-> recov
 ```
 
-**读图：** 调度是唯一动作客户端。开批先看 lifecycle 旗标（软件就绪，不是柜侧上电）；到位无导航动作。**先到拍照位再开收齐窗**；锁定后才选果。默认停预抓取，须 ACK 才再 Survey（回访不 Begin）。状态机细节见 [architecture.md](architecture.md) 图 C。虚线是人工 `ControlTask`，监控不发。
+**读图：** 调度是唯一动作客户端。开批先看 lifecycle 旗标（软件就绪，不是柜侧上电）；到位无导航动作。**先到拍照位再开收齐窗**；锁定后才选果。默认停预抓取，须 ACK 才再 Survey（回访不 Begin）。状态机细节见 [architecture.md](architecture.md)。虚线是人工 `ControlTask`，监控不发。rqt_console 过滤 `peach_supervisor.batch`（逐步命令）与 `peach_supervisor.contact`（`caller=SELECT`）。文件在 `$ROS_HOME/log`。
 
 | 名字 | 种类 | 含义 | 生产 | 消费 |
 |------|------|------|------|------|
@@ -282,7 +282,7 @@ flowchart TB
 
 执行使能在运行时由`SetEnables`覆盖本地`execution_enabled`参数；WAIT_LOCK完成、选果入口、可达性返回后claim前以及观察/FULL派发前均读取当前有效值，不沿用开批快照。关闭后未派发目标直接经FSM结算，已选目标在派发前关闭则记录`execution_disabled`跳过；不新增运行中运动取消语义，臂侧最终命令门保持权威。
 
-精确同戳RGB-D等待掩膜的FrameStore按曝光时间保留现有`capture.max_frame_age_s`窗口（部署2秒），同时限制64帧及RGB/深度数组合计96MiB（按`nbytes`计）。重复stamp替换并扣除旧数组计数，乱序输入按曝光时间淘汰最旧帧；单帧超预算不入缓存，reset清空引用及时间水位。该缓存窗不放宽帧新鲜度、掩膜时间容差或精确TF查询。`diagnostics_debug.frame_ring_bytes`报告当前保留数组字节数。
+精确同戳RGB-D等待掩膜的FrameStore按曝光时间保留`capture.max_frame_age_s`窗口（部署12秒，覆盖一帧感知滞后），同时限制96帧及RGB/深度数组合计192MiB（按`nbytes`计）。选帧先精确同戳再`mask_stamp_tolerance_s`最近邻，不把无掩膜的最新深度硬配旧掩膜。重复stamp替换并扣除旧数组计数，乱序输入按曝光时间淘汰最旧帧；单帧超预算不入缓存，reset清空引用及时间水位。运动中仍由静止门拒采，精确TF不回退latest。`diagnostics_debug.frame_ring_bytes`报告当前保留数组字节数。
 
 单视Build在`min_views=1`、实际只有一个独立机位时，对`bag_axis_envelope_ill_conditioned`（3D包络轴条件不足）或`bag_axis_silhouette_unobservable`（2D轮廓轴证据不足）最多采集3次：首拍加两次新曝光替换。所有尝试共用原`capture.build_timeout_s`截止时间；每次拒绝的曝光stamp、模型修订、次数与具体原因写`build_quality_rejected`事件。替换时清帧与TSDF、失效generation、保留末次曝光水位，禁止重复积分同帧或把同机位重复帧算成多视。其他质量拒因立即失败，永久不可观测在次数/时间任一耗尽时明确失败；不改变几何质量门和CONTACT/TOOL能力门。
 

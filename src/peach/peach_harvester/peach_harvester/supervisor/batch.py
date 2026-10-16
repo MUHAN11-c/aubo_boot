@@ -212,6 +212,15 @@ def next_target(
     return '', filtered
 
 
+def named_targets_exhausted(target_ids, claimed):
+    """点名名单非空且全部已入账时为真（隐式选果返回假，继续回访）."""
+    names = tuple(str(tid) for tid in (target_ids or ()) if str(tid))
+    if not names:
+        return False
+    claimed = set(claimed)
+    return all(tid in claimed for tid in names)
+
+
 def apply_control(
         state_seq: int, expected: int, command: int, paused: bool,
         allowed=None):

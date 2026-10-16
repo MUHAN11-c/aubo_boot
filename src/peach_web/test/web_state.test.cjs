@@ -53,6 +53,17 @@ test('lighting renders observed components instead of object coercion', async ()
   assert.match(html, /0\.87/);
 });
 
+test('lost target memory anchor is labeled and missing confidence stays unknown', async () => {
+  const b = await browser();
+  b.run(`realRenderPlan({targets:{observations:[{target_id:'bag1',priority:0,
+    tracking_status:'LOST',confidence:null,diagnostic_flags:['anchor_from_memory'],
+    candidate:{entry_position:[0.4,0.1,0.5]},fitting:null}]}},{state:{}})`);
+  const html = b.elements.get('target-list').innerHTML;
+  assert.match(html, /记忆锚点/);
+  assert.match(html, /无本帧拟合/);
+  assert.doesNotMatch(html, /0%/);
+});
+
 async function browser() {
   const elements = new Map();
   const requests = [];

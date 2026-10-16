@@ -58,6 +58,9 @@ _CLI_MAP: dict[str, str] = {
     "gateway_ws_per_message_deflate": "gateway.ws_per_message_deflate",
     "proxy_upstream_connect_attempts": "proxy.upstream_connect_attempts",
     "proxy_upstream_connect_retry_ms": "proxy.upstream_connect_retry_ms",
+    "proxy_upstream_max_queue": "proxy.upstream_max_queue",
+    "proxy_data_lane_bytes": "proxy.data_lane_bytes",
+    "proxy_egress_max_age_s": "proxy.egress_max_age_s",
     "web_video_host": "web_video.host",
     "web_video_port": "web_video.port",
     "proxy_video_connect_timeout": "proxy.video_connect_timeout",
@@ -197,3 +200,23 @@ def proxy_upstream_connect_attempts() -> int:
 def proxy_upstream_connect_retry_ms() -> float:
     """重试基础间隔（毫秒），实际间隔加 ±50% 抖动."""
     return float(_g("proxy.upstream_connect_retry_ms", 250))
+
+
+def proxy_upstream_max_queue() -> int:
+    """上游腿 websockets 接收队列上限（消息条数）。小值=慢客户端时更早把
+    背压传给桥（桥在其 send buffer 超限处丢帧），避免网关内无界积压."""
+    return max(1, int(_g("proxy.upstream_max_queue", 4)))
+
+
+def proxy_data_lane_bytes() -> int:
+    """出站数据通道字节预算（二进制 messageData 帧可丢最旧；JSON 控制帧永不丢）。
+    0=禁用（旧版无界行为）。默认 4 MiB：30Hz×0.9MB 图像流下约 4 帧余量，
+    慢客户端超过预算即丢最旧，端到端延迟不随积压增长。"""
+    return max(0, int(_g("proxy.data_lane_bytes", 4194304)))
+
+
+def proxy_egress_max_age_s() -> float:
+    """出口年龄门（秒）：messageData 帧推送前若已早于该年龄则直接丢弃。
+    0=关闭。默认 2.0s——慢客户端恢复后排积压时不送陈旧帧；彻底的 latest-wins
+    由浏览器 player 的 latest 合并兜底（内核套接字缓冲的已提交积压服务端不可回收）。"""
+    return max(0.0, float(_g("proxy.egress_max_age_s", 2.0)))

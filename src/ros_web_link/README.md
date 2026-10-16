@@ -56,7 +56,10 @@ UI 组合模式（面板）见 `aubo_ros2_web_dashboard`；组合网关下本包
 > 网关 Python 依赖（fastapi/uvicorn/websockets/httpx）钉在仓库根 `requirements.txt`，
 > 装进 `aubo_py3.12` venv；launch 中的 `python3` 须指向该 venv。
 > WS 传输默认值（2026-10-14 起）：心跳 20s 开、permessage-deflate 关、上游连接
-> 有限重试+抖动——全部可在 `config/defaults.yaml` / CLI 覆盖（见 `doc/io.md` 配置表）。
+> 有限重试+抖动。大数据稳定传输默认值（2026-10-16 起）：出站有界数据通道
+> 4MiB 字节预算（超限丢最旧二进制帧，控制帧永不丢）+ 出口年龄门 2s +
+> 上游 max_queue 4——慢客户端丢帧不积延迟；转发统计在 `GET /api/ivg/ws/stats`。
+> 全部可在 `config/defaults.yaml` / CLI 覆盖（见 `doc/io.md` 配置表）。
 
 ## 公有 API
 
@@ -88,14 +91,20 @@ JS（`/js/...`，ES Modules 直引，无构建步骤）：
 ./aubo_py3.12/bin/python -m pytest src/ros_web_link/test -k comm_matrix -v
 
 # E2E 官方仿真真实数据（turtlebot3 官方仿真 + 官方 nav2 + ros2/examples 官方示例，
-# 16 用例：scan/odom/相机/点云/AMCL 粒子云/web 规划闭环；需已克隆并构建官方仓库）
+# 19 用例：scan/odom/相机/点云/AMCL 粒子云/web 规划闭环 + 真实相机/点云流速率与
+# 新鲜度（延迟门）；需已克隆并构建官方仓库）
 ./aubo_py3.12/bin/python -m pytest src/ros_web_link/test -k sim -v
+
+# E2E 大图/点云稳定传输（30Hz 0.92MB 图 + 10Hz 50k 点云经网关：
+# 快客户端吞吐/新鲜度 + 停顿-恢复有界积压 + 网关丢帧证据）
+./aubo_py3.12/bin/python -m pytest src/ros_web_link/test -k bigdata -v
 
 # E2E MoveIt 2 官方 Panda 示例（latched URDF/IK/OMPL 规划/执行轨迹/PlanningScene）
 ./aubo_py3.12/bin/python -m pytest src/ros_web_link/test -k moveit -v
 
-# JS 纯核单测（66 用例：协议帧/TF 数学/工具函数 + CDR 黄金字节交叉验证——
-# rclpy 序列化真值 vs JS codec 离线解码，覆盖 16 类常用可视化消息）
+# JS 纯核单测（122 用例：协议帧/TF 数学/工具函数 + CDR 黄金字节交叉验证——
+# rclpy 序列化真值 vs JS codec 离线解码，覆盖 16 类常用可视化消息；
+# 点云共享解析器含 stride 采样；player raw 派发模式）
 cd src/ros_web_link && node_modules/.bin/vitest run
 
 # 重新生成 CDR 黄金 fixtures（升级 ROS 后）
@@ -113,6 +122,7 @@ ros2 launch aubo_ros2_web_dashboard web_dashboard.launch.py
 
 - 架构与决策：[doc/architecture.md](doc/architecture.md)
 - 输入输出与端点：[doc/io.md](doc/io.md)
+- 测试流程与延迟验收口径：[doc/testing.md](doc/testing.md)
 
 ## 许可
 

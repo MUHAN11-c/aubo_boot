@@ -45,9 +45,13 @@ export function parsePointCloud2(pc2, out) {
 	const dv = new DataView(rawData.buffer, rawData.byteOffset, rawData.byteLength);
 
 	const fields = pc2.fields || [];
-	const pointStep = pc2.point_step || 0;
+	const pointStep = Number(pc2.point_step) || 0;
+	if (pointStep <= 0) return { count: 0, error: 'fields' };
 	const total = (pc2.height || 1) * (pc2.width || 0);
-	const n = Math.min(total, maxPoints);
+
+	// 超上限用 stride 空间均匀采样（旧实现截断尾部：organized 云 height>1 时
+	// 直接丢掉下半幅画面；stride 保住视野覆盖，rviz 稠密云同理降采样显示）
+	const stride = total > maxPoints ? Math.ceil(total / maxPoints) : 1;
 
 	let xOff = -1, yOff = -1, zOff = -1, iOff = -1;
 	let hasRgb = false, hasIntensity = false;
@@ -81,37 +85,40 @@ export function parsePointCloud2(pc2, out) {
 	const intensityScale = (intensityType === 2 || intensityType === 4 || intensityType === 6)
 		? 255 : 1; // 整型 intensity 归一到 0..1（浮型假定已在 0..1）
 
-	for (let i = 0; i < n; i++) {
+	let o = 0;
+	for (let i = 0; i < total && o < maxPoints; i += stride) {
 		const base = i * pointStep;
+		if (base + pointStep > rawData.byteLength) break; // data 短于声明（坏帧）即止
 		const x = xyzFloat64 ? dv.getFloat64(base + xOff, true) : dv.getFloat32(base + xOff, true);
 		const y = xyzFloat64 ? dv.getFloat64(base + yOff, true) : dv.getFloat32(base + yOff, true);
 		const z = xyzFloat64 ? dv.getFloat64(base + zOff, true) : dv.getFloat32(base + zOff, true);
-		positions[i * 3] = x;
-		positions[i * 3 + 1] = y;
-		positions[i * 3 + 2] = z;
+		positions[o * 3] = x;
+		positions[o * 3 + 1] = y;
+		positions[o * 3 + 2] = z;
 
 		if (colors) {
 			if (iOff >= 0 && hasRgb) {
 				// PCL 惯例：rgb 字段以 float32 存储，按位重解释为 packed uint32
 				const packed = dv.getUint32(base + iOff, true) >>> 0;
-				colors[i * 3] = (packed & 0xff) / 255;
-				colors[i * 3 + 1] = ((packed >>> 8) & 0xff) / 255;
-				colors[i * 3 + 2] = ((packed >>> 16) & 0xff) / 255;
+				colors[o * 3] = (packed & 0xff) / 255;
+				colors[o * 3 + 1] = ((packed >>> 8) & 0xff) / 255;
+				colors[o * 3 + 2] = ((packed >>> 16) & 0xff) / 255;
 			} else if (iOff >= 0 && hasIntensity) {
 				const v = readScalar(base + iOff, intensityType) / intensityScale;
-				colors[i * 3] = v;
-				colors[i * 3 + 1] = v;
-				colors[i * 3 + 2] = v;
+				colors[o * 3] = v;
+				colors[o * 3 + 1] = v;
+				colors[o * 3 + 2] = v;
 			} else {
 				// Z 高度伪彩（与旧 pointcloud_island 同规则）
 				let t = (z + 0.5) / 1.5;
 				if (t < 0) t = 0;
 				if (t > 1) t = 1;
-				colors[i * 3] = 0.2 + 0.3 * t;
-				colors[i * 3 + 1] = 0.5 + 0.5 * (1 - t);
-				colors[i * 3 + 2] = 1.0 - 0.5 * t;
+				colors[o * 3] = 0.2 + 0.3 * t;
+				colors[o * 3 + 1] = 0.5 + 0.5 * (1 - t);
+				colors[o * 3 + 2] = 1.0 - 0.5 * t;
 			}
 		}
+		o++;
 	}
-	return { count: n, error: null };
+	return { count: o, error: null };
 }

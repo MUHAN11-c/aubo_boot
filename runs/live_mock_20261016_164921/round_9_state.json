@@ -1,0 +1,6221 @@
+{
+  "perception": {
+    "harvest": {
+      "harvest_run_id": "harvest_20261016T170633_026539_s19",
+      "snapshot_id": 19,
+      "target_set_locked": true,
+      "target_count": 1,
+      "collecting_count": 1,
+      "pending_count": 0,
+      "target_ids": [
+        "target_9"
+      ],
+      "completed_target_ids": [
+        "target_9"
+      ],
+      "priorities": {
+        "target_9": 1
+      },
+      "selected_target_id": "",
+      "anchor_stale_target_ids": [],
+      "out_of_view_target_ids": [],
+      "dropped_target_ids": [],
+      "lighting": {
+        "depth_ratio": 0.9963305695304006,
+        "conf_mean": 0.9503408806524376,
+        "bad_streak": 0,
+        "low_quality": false
+      },
+      "low_light_quality": false,
+      "scene_epoch": 19,
+      "timing": {
+        "detect_ms": 153.886,
+        "geometry_ms": 2.678,
+        "segment_ms": 0.073,
+        "total_ms": 174.528,
+        "fps": 2.87
+      },
+      "data": {
+        "run_dir": "/home/mu/Desktop/aubo_e5_jazzy_ws/runs/round_141b74e39d39/perception_data/harvest_20261016T170633_026539_s19",
+        "latest": {
+          "source": "perception",
+          "event": "frame_observations",
+          "stamp_ns": 1792141646694849000,
+          "observed_target_ids": [],
+          "selected_target_id": "",
+          "recorded_at": "2026-10-16T09:07:27.466833+00:00"
+        }
+      }
+    },
+    "targets": {
+      "stamp": 1792141646.895004,
+      "frame_id": "base_link",
+      "snapshot_id": 19,
+      "scene_epoch": 19,
+      "harvest_run_id": "harvest_20261016T170633_026539_s19",
+      "target_set_locked": true,
+      "target_count": 1,
+      "selected_target_id": "",
+      "collecting_count": 1,
+      "pending_count": 0,
+      "observations": [
+        {
+          "target_id": "target_9",
+          "priority": 1,
+          "confirmed": true,
+          "selected": false,
+          "harvest_status": "HARVESTED",
+          "tracking_status": "LOST",
+          "camera_distance_m": null,
+          "confidence": null,
+          "candidate": {
+            "target_id": "target_9",
+            "entry_position": [
+              0.40716477903789206,
+              -0.5376323730416704,
+              0.6898948169980782
+            ],
+            "entry_quaternion_xyzw": [
+              0.16461839346762017,
+              0.022937834568721584,
+              0.7067346430912369,
+              0.6876778202996952
+            ],
+            "bag_bottom": [
+              0.40716477903789206,
+              -0.5376323730416704,
+              0.6898948169980782
+            ],
+            "bag_neck": [
+              0.42749971687421184,
+              -0.5525614158667448,
+              0.7626017969194357
+            ],
+            "translation_direction": [
+              0.26423072326440955,
+              -0.19398691134767865,
+              0.9447492805548755
+            ],
+            "diameter_m": null,
+            "travel_m": null,
+            "confidence": null,
+            "status": "REOBSERVE",
+            "diagnostic_flags": [],
+            "strategy_id": "",
+            "model_version": "",
+            "calibration_version": "",
+            "tool_version": ""
+          },
+          "fitting": null,
+          "mask": {
+            "width": 0,
+            "height": 0,
+            "stamp": 0.0
+          },
+          "diagnostic_flags": [
+            "target_temporarily_lost",
+            "anchor_from_memory"
+          ]
+        }
+      ]
+    }
+  },
+  "reconstruction": {
+    "status": {
+      "state": "IDLE"
+    },
+    "diagnostics": {
+      "harvest_run_id": "harvest_20261016T170633_026539_s19",
+      "selected_target_id": "",
+      "target_mask_cache_size": 0,
+      "state": "IDLE",
+      "target_id": "",
+      "target_center_base": null,
+      "bound_axis_hint": null,
+      "captured_views": 0,
+      "pose_count": 0,
+      "rejected_views": 0,
+      "tf_failures": 0,
+      "skipped_views": 0,
+      "skip_reasons": {},
+      "last_skip_code": "",
+      "last_skip_reason": "",
+      "frame_ring_size": 24,
+      "frame_ring_bytes": 36864000,
+      "tf_latency_ms": 0.095367431640625,
+      "valid_depth_ratio": null,
+      "cloud_points": 0,
+      "last_rel_translation_m": null,
+      "last_rel_rotation_deg": null,
+      "overlap": null,
+      "tsdf": null,
+      "registration": {
+        "accepted": 0,
+        "latest": null,
+        "target_refresh_period": 1,
+        "target_points": 0,
+        "target_full_refreshes": 78,
+        "target_incremental_appends": 1
+      },
+      "view_coverage": {
+        "max_baseline_deg": null,
+        "mean_nearest_baseline_deg": null,
+        "valid_depth_ratio_mean": null
+      },
+      "refined": null,
+      "grasp_decision": {
+        "stamp": 1792141640.300434,
+        "harvest_run_id": "harvest_20261016T170633_026539_s19",
+        "target_id": "",
+        "tool_profile_id": "",
+        "allowed": false,
+        "reason": "reconstruction_not_ready",
+        "valid_until": 1792141760.300434,
+        "model_revision": "",
+        "calibration_revision": "",
+        "config_revision": "",
+        "scene_epoch": 0,
+        "failure_code": 0,
+        "frame_id": "base_link",
+        "corridor_clear": false,
+        "geometry_capability": 2,
+        "pregrasp_capability": 2,
+        "sleeve_capability": 2,
+        "cut_capability": 2
+      },
+      "timing": {
+        "icp_ms_ema": 0.04964036398388491,
+        "tsdf_integrate_ms_ema": 15.111703756742456,
+        "frame_total_ms_ema": 120.86151805680842,
+        "refit_ms_last": 47.007083892822266,
+        "finalize_ms_last": 104.55560684204102,
+        "frames_timed": 40
+      },
+      "model_stamp": 1792141640.300434,
+      "stamp": 1792141647.780748,
+      "view_directions": []
+    },
+    "grasp_decision": {
+      "stamp": 1792141640.300434,
+      "harvest_run_id": "harvest_20261016T170633_026539_s19",
+      "target_id": "",
+      "tool_profile_id": "",
+      "allowed": false,
+      "reason": "reconstruction_not_ready",
+      "valid_until": 1792141760.300434,
+      "model_revision": "",
+      "calibration_revision": "",
+      "config_revision": "",
+      "scene_epoch": 0,
+      "failure_code": 0,
+      "frame_id": "base_link",
+      "corridor_clear": false,
+      "geometry_capability": 2,
+      "pregrasp_capability": 2,
+      "sleeve_capability": 2,
+      "cut_capability": 2
+    }
+  },
+  "refined": {
+    "pose": {
+      "stamp": 1792141640.3001254,
+      "frame_id": "base_link",
+      "candidates": []
+    },
+    "axis": {
+      "stamp": 1792141640.3001254,
+      "frame_id": "base_link",
+      "xyz": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    "diagnostics": {
+      "stamp": 1792141640.3001254,
+      "frame_id": "base_link",
+      "fittings": []
+    }
+  },
+  "manipulation": {
+    "status": {
+      "callback_timing": {
+        "action_goal": {
+          "count": 9,
+          "last_ms": 0.003291,
+          "max_ms": 0.006738,
+          "total_ms": 0.039656000000000004
+        },
+        "check_reachability": {
+          "count": 9,
+          "last_ms": 4.470861,
+          "max_ms": 11.621135,
+          "total_ms": 45.050399000000006
+        },
+        "go_to_photo_pose": {
+          "count": 28,
+          "last_ms": 3.728514,
+          "max_ms": 1944.332184,
+          "total_ms": 13647.119761
+        },
+        "start_cycle": {
+          "count": 9,
+          "last_ms": 0.035673,
+          "max_ms": 0.064358,
+          "total_ms": 0.33333799999999997
+        }
+      },
+      "contact_recovery_required": false,
+      "execution_armed": false,
+      "execution_enabled": true,
+      "grasp_enabled": true,
+      "message": "decision_geometry_unavailable: pregrasp_geometry_ready",
+      "quality": {
+        "axis_angle_deg": 13.81760633984779,
+        "captured_views": 1,
+        "grasp_allowed": true,
+        "max_baseline_deg": 0.0,
+        "mean_depth_ratio": 0.9970410553569227,
+        "mean_nearest_baseline_deg": 0.0,
+        "reconstruction_target_id": "target_9",
+        "refined_inlier_ratio": 0.5585384041759881,
+        "refined_rmse_m": 0.0016912436593507192,
+        "refined_target_id": "target_9",
+        "selected_target_id": "target_9",
+        "station_count": 1
+      },
+      "running": false,
+      "state": "FAILED",
+      "target_id": "target_9"
+    },
+    "hypothesis": {
+      "stamp": 1792141400.050376,
+      "frame_id": "base_link",
+      "target_id": "target_7",
+      "entry_position": [
+        0.4133529869679225,
+        -0.534132333796783,
+        0.6863018645083921
+      ],
+      "entry_quaternion_xyzw": [
+        0.1473982675557228,
+        0.015634209266019453,
+        0.07304672329857183,
+        0.9862522488884574
+      ],
+      "standoff_m": 0.0,
+      "travel_m": 0.09513373672962189,
+      "envelope_clearance_m": 0.0,
+      "rank_score": 1.0,
+      "diagnostic_flags": []
+    }
+  },
+  "task_executor": {
+    "state": {
+      "revision": 2166,
+      "state_seq": 2166,
+      "run_id": "round_141b74e39d39",
+      "cycle_id": "round_141b74e39d39:target_9",
+      "target_id": "",
+      "operation_mode": 0,
+      "batch_state": 6,
+      "target_phase": 0,
+      "action_active": false,
+      "auto_start_enabled": false,
+      "execution_enabled": true,
+      "grasp_enabled": true,
+      "tool_enabled": false,
+      "recovery_required": false,
+      "progress": 1.0,
+      "message": "completed",
+      "blockers": [],
+      "scene_epoch": 19
+    },
+    "events": [
+      {
+        "stamp": 1792140579.3514535,
+        "sequence": 0,
+        "severity": 3,
+        "severity_name": "AUDIT",
+        "code": "enables_changed",
+        "message": "{\"code\": \"enables_changed\", \"execution\": false, \"grasp\": false, \"tool\": false, \"reason\": \"live_camera_mock owned test\"}",
+        "request_id": "",
+        "run_id": "",
+        "cycle_id": "",
+        "state_seq": 2,
+        "target_id": "",
+        "details": {}
+      },
+      {
+        "stamp": 1792140742.2687306,
+        "sequence": 0,
+        "severity": 3,
+        "severity_name": "AUDIT",
+        "code": "enables_changed",
+        "message": "{\"code\": \"enables_changed\", \"execution\": true, \"grasp\": true, \"tool\": false, \"reason\": \"live_camera_mock owned test\"}",
+        "request_id": "",
+        "run_id": "",
+        "cycle_id": "",
+        "state_seq": 3,
+        "target_id": "",
+        "details": {}
+      },
+      {
+        "stamp": 1792140761.6725545,
+        "sequence": 0,
+        "severity": 0,
+        "severity_name": "INFO",
+        "code": "photo_pose_reached",
+        "message": "{\"code\": \"photo_pose_reached\"}",
+        "request_id": "round_383f214ddcc8",
+        "run_id": "round_383f214ddcc8",
+        "cycle_id": "",
+        "state_seq": 7,
+        "target_id": "",
+        "details": {}
+      },
+      {
+        "stamp": 1792140773.1171272,
+        "sequence": 0,
+        "severity": 0,
+        "severity_name": "INFO",
+        "code": "round_locked",
+        "message": "{\"code\": \"round_locked\"}",
+        "request_id": "round_383f214ddcc8",
+        "run_id": "round_383f214ddcc8",
+        "cycle_id": "",
+        "state_seq": 10,
+        "target_id": "",
+        "details": {}
+      },
+      {
+        "stamp": 1792140773.1498804,
+        "sequence": 0,
+        "severity": 0,
+        "severity_name": "INFO",
+        "code": "target_dispatched",
+        "message": "{\"code\": \"target_dispatched\"}",
+        "request_id": "round_383f214ddcc8",
+        "run_id": "round_383f214ddcc8",
+        "cycle_id": "",
+        "state_seq": 11,
+        "target_id": "target_1",
+        "details": {}
+      },
+      {
+        "stamp": 1792140815.753631,
+        "sequence": 0,
+        "severity": 0,
+        "severity_name": "INFO",
+        "code": "target_succeeded",
+        "message": "{\"code\": \"target_succeeded\", \"stage_names\": [\"reconfirm\", \"approach_insert\", \"tool\", \"retreat\"], \"stage_durations\": [1.437, 15.442, 0.0, 15.633], \"harvest_confirmed\": false, \"completion_level\": 6}",
+        "request_id": "round_383f214ddcc8",
+        "run_id": "round_383f214ddcc8",
+        "cycle_id": "",
+        "state_seq": 225,
+        "target_id": "target_1",
+        "details": {}
+      },
+      {
+        "stamp": 1792140815.7643228,
+        "sequence": 0,
+        "severity": 3,
+        "severity_name": "AUDIT",
+        "code": "recovery_required",
+        "message": "{\"code\": \"recovery_required\"}",
+        "request_id": "round_383f214ddcc8",
+        "run_id": "round_383f214ddcc8",
+        "cycle_id": "",
+        "state_seq": 226,
+        "target_id": "target_1",
+        "details": {}
+      },
+      {
+        "stamp": 1792140816.0505614,
+        "sequence": 0,
+        "severity": 3,
+        "severity_name": "AUDIT",
+        "code": "recovery_acknowledged",
+        "message": "{\"code\": \"recovery_acknowledged\", \"reason\": \"mock only; current target terminal evidence verified\"}",
+        "request_id": "round_383f214ddcc8",
+        "run_id": "round_383f214ddcc8",
+        "cycle_id": "",
+        "state_seq": 227,
+        "target_id": "target_1",
+        "details": {}
+      },
+      {
+        "stamp": 1792140826.0970879,
+        "sequence": 0,
+        "severity": 0,
+        "severity_name": "INFO",
+        "code": "photo_pose_reached",
+        "message": "{\"code\": \"photo_pose_reached\"}",
+        "request_id": "round_383f214ddcc8",
+        "run_id": "round_383f214ddcc8",
+        "cycle_id": "",
+        "state_seq": 230,
+        "target_id": "",
+        "details": {}
+      },
+      {
+        "stamp": 1792140828.170101,
+        "sequence": 0,
+        "severity": 0,
+        "severity_name": "INFO",
+        "code": "round_locked",
+        "message": "{\"code\": \"round_locked\"}",
+        "request_id": "round_383f214ddcc8",
+        "run_id": "round_383f214ddcc8",
+        "cycle_id": "",
+        "state_seq": 231,
+        "target_id": "",
+        "details": {}
+      },
+      {
+        "stamp": 1792140836.2013593,
+        "sequence": 0,
+        "severity": 0,
+        "severity_name": "INFO",
+        "code": "photo_pose_reached",
+        "message": "{\"code\": \"photo_pose_reached\"}",
+        "request_id": "round_383f214ddcc8",
+        "run_id": "round_383f214ddcc8",
+        "cycle_id": "",
+        "state_seq": 233,
+        "target_id": "",
+        "details": {}
+      },
+      {
+        "stamp": 1792140838.2091331,
+        "sequence": 0,
+        "severity": 0,
+        "severity_name": "INFO",
+        "code": "round_locked",
+        "message": "{\"code\": \"round_locked\"}",
+        "request_id": "round_383f214ddcc8",
+        "run_id": "round_383f214ddcc8",
+        "cycle_id": "",
+        "state_seq": 234,
+        "target_id": "",
+        "details": {}
+      },
+      {
+        "stamp": 1792140859.7110965,
+        "sequence": 0,
+        "severity": 0,
+        "severity_name": "INFO",
+        "code": "photo_pose_reached",
+        "message": "{\"code\": \"photo_pose_reached\"}",
+        "request_id": "round_2661656bceda",
+        "run_id": "round_2661656bceda",
+        "cycle_id": "",
+        "state_seq": 240,
+        "target_id": "",
+        "details": {}
+      },
+      {
+        "stamp": 1792140871.7946649,
+        "sequence": 0,
+        "severity": 0,
+        "severity_name": "INFO",
+        "code": "round_locked",
+        "message": "{\"code\": \"round_locked\"}",
+        "request_id": "round_2661656bceda",
+        "run_id": "round_2661656bceda",
+        "cycle_id": "",
+        "state_seq": 243,
+        "target_id": "",
+        "details": {}
+      },
+      {
+        "stamp": 1792140871.8550372,
+        "sequence": 0,
+        "severity": 0,
+        "severity_name": "INFO",
+        "code": "target_dispatched",
+        "message": "{\"code\": \"target_dispatched\"}",
+        "request_id": "round_2661656bceda",
+        "run_id": "round_2661656bceda",
+        "cycle_id": "",
+        "state_seq": 244,
+        "target_id": "target_2",
+        "details": {}
+      },
+      {
+        "stamp": 1792140916.4130042,
+        "sequence": 0,
+        "severity": 0,
+        "severity_name": "INFO",
+        "code": "target_succeeded",
+        "message": "{\"code\": \"target_succeeded\", \"stage_names\": [\"reconfirm\", \"approach_insert\", \"tool\", \"retreat\"], \"stage_durations\": [1.278, 20.204, 0.0, 19.731], \"harvest_confirmed\": false, \"completion_level\": 6}",
+        "request_id": "round_2661656bceda",
+        "run_id": "round_2661656bceda",
+        "cycle_id": "",
+        "state_seq": 468,
+        "target_id": "target_2",
+        "details": {}
+      },
+      {
+        "stamp": 1792140916.4340086,
+        "sequence": 0,
+        "severity": 3,
+        "severity_name": "AUDIT",
+        "code": "recovery_required",
+        "message": "{\"code\": \"recovery_required\"}",
+        "request_id": "round_2661656bceda",
+        "run_id": "round_2661656bceda",
+        "cycle_id": "",
+        "state_seq": 469,
+        "target_id": "target_2",
+        "details": {}
+      },
+      {
+        "stamp": 1792140917.4881613,
+        "sequence": 0,
+        "severity": 3,
+        "severity_name": "AUDIT",
+        "code": "recovery_acknowledged",
+        "message": "{\"code\": \"recovery_acknowledged\", \"reason\": \"mock only; current target terminal evidence verified\"}",
+        "request_id": "round_2661656bceda",
+        "run_id": "round_2661656bceda",
+        "cycle_id": "",
+        "state_seq": 470,
+        "target_id": "target_2",
+        "details": {}
+      },
+      {
+        "stamp": 1792140927.5664053,
+        "sequence": 0,
+        "severity": 0,
+        "severity_name": "INFO",
+        "code": "photo_pose_reached",
+        "message": "{\"code\": \"photo_pose_reached\"}",
+        "request_id": "round_2661656bceda",
+        "run_id": "round_2661656bceda",
+        "cycle_id": "",
+        "state_seq": 473,
+        "target_id": "",
+        "details": {}
+      },
+      {
+        "stamp": 1792140929.6560335,
+        "sequence": 0,
+        "severity": 0,
+        "severity_name": "INFO",
+        "code": "round_locked",
+        "message": "{\"code\": \"round_locked\"}",
+        "request_id": "round_2661656bceda",
+        "run_id": "round_2661656bceda",
+        "cycle_id": "",
+        "state_seq": 474,
+        "target_id": "",
+        "details": {}
+      },
+      {
+        "stamp": 1792140937.7276113,
+        "sequence": 0,
+        "severity": 0,
+        "severity_name": "INFO",
+        "code": "photo_pose_reached",
+        "message": "{\"code\": \"photo_pose_reached\"}",
+        "request_id": "round_2661656bceda",
+        "run_id": "round_2661656bceda",
+        "cycle_id": "",
+        "state_seq": 476,
+        "target_id": "",
+        "details": {}
+      },
+      {
+        "stamp": 1792140939.8313513,
+        "sequence": 0,
+        "severity": 0,
+        "severity_name": "INFO",
+        "code": "round_locked",
+        "message": "{\"code\": \"round_locked\"}",
+        "request_id": "round_2661656bceda",
+        "run_id": "round_2661656bceda",
+        "cycle_id": "",
+        "state_seq": 477,
+        "target_id": "",
+        "details": {}
+      },
+      {
+        "stamp": 1792140960.9090667,
+        "sequence": 0,
+        "severity": 0,
+        "severity_name": "INFO",
+        "code": "photo_pose_reached",
+        "message": "{\"code\": \"photo_pose_reached\"}",
+        "request_id": "round_321866cf73d8",
+        "run_id": "round_321866cf73d8",
+        "cycle_id": "",
+        "state_seq": 483,
+        "target_id": "",
+        "details": {}
+      },
+      {
+        "stamp": 1792140971.964178,
+        "sequence": 0,
+        "severity": 0,
+        "severity_name": "INFO",
+        "code": "round_locked",
+        "message": "{\"code\": \"round_locked\"}",
+        "request_id": "round_321866cf73d8",
+        "run_id": "round_321866cf73d8",
+        "cycle_id": "",
+        "state_seq": 486,
+        "target_id": "",
+        "details": {}
+      },
+      {
+        "stamp": 1792140972.0085933,
+        "sequence": 0,
+        "severity": 0,
+        "severity_name": "INFO",
+        "code": "target_dispatched",
+        "message": "{\"code\": \"target_dispatched\"}",
+        "request_id": "round_321866cf73d8",
+        "run_id": "round_321866cf73d8",
+        "cycle_id": "",
+        "state_seq": 487,
+        "target_id": "target_3",
+        "details": {}
+      },
+      {
+        "stamp": 1792141023.01228,
+        "sequence": 0,
+        "severity": 0,
+        "severity_name": "INFO",
+        "code": "target_succeeded",
+        "message": "{\"code\": \"target_succeeded\", \"stage_names\": [\"reconfirm\", \"approach_insert\", \"tool\", \"retreat\"], \"stage_durations\": [1.242, 19.784, 0.0, 19.716], \"harvest_confirmed\": false, \"completion_level\": 6}",
+        "request_id": "round_321866cf73d8",
+        "run_id": "round_321866cf73d8",
+        "cycle_id": "",
+        "state_seq": 743,
+        "target_id": "target_3",
+        "details": {}
+      },
+      {
+        "stamp": 1792141023.024572,
+        "sequence": 0,
+        "severity": 3,
+        "severity_name": "AUDIT",
+        "code": "recovery_required",
+        "message": "{\"code\": \"recovery_required\"}",
+        "request_id": "round_321866cf73d8",
+        "run_id": "round_321866cf73d8",
+        "cycle_id": "",
+        "state_seq": 744,
+        "target_id": "target_3",
+        "details": {}
+      },
+      {
+        "stamp": 1792141023.8616216,
+        "sequence": 0,
+        "severity": 3,
+        "severity_name": "AUDIT",
+        "code": "recovery_acknowledged",
+        "message": "{\"code\": \"recovery_acknowledged\", \"reason\": \"mock only; current target terminal evidence verified\"}",
+        "request_id": "round_321866cf73d8",
+        "run_id": "round_321866cf73d8",
+        "cycle_id": "",
+        "state_seq": 745,
+        "target_id": "target_3",
+        "details": {}
+      },
+      {
+        "stamp": 1792141033.9034638,
+        "sequence": 0,
+        "severity": 0,
+        "severity_name": "INFO",
+        "code": "photo_pose_reached",
+        "message": "{\"code\": \"photo_pose_reached\"}",
+        "request_id": "round_321866cf73d8",
+        "run_id": "round_321866cf73d8",
+        "cycle_id": "",
+        "state_seq": 748,
+        "target_id": "",
+        "details": {}
+      },
+      {
+        "stamp": 1792141035.9191496,
+        "sequence": 0,
+        "severity": 0,
+        "severity_name": "INFO",
+        "code": "round_locked",
+        "message": "{\"code\": \"round_locked\"}",
+        "request_id": "round_321866cf73d8",
+        "run_id": "round_321866cf73d8",
+        "cycle_id": "",
+        "state_seq": 749,
+        "target_id": "",
+        "details": {}
+      },
+      {
+        "stamp": 1792141043.9848278,
+        "sequence": 0,
+        "severity": 0,
+        "severity_name": "INFO",
+        "code": "photo_pose_reached",
+        "message": "{\"code\": \"photo_pose_reached\"}",
+        "request_id": "round_321866cf73d8",
+        "run_id": "round_321866cf73d8",
+        "cycle_id": "",
+        "state_seq": 751,
+        "target_id": "",
+        "details": {}
+      },
+      {
+        "stamp": 1792141046.0617895,
+        "sequence": 0,
+        "severity": 0,
+        "severity_name": "INFO",
+        "code": "round_locked",
+        "message": "{\"code\": \"round_locked\"}",
+        "request_id": "round_321866cf73d8",
+        "run_id": "round_321866cf73d8",
+        "cycle_id": "",
+        "state_seq": 752,
+        "target_id": "",
+        "details": {}
+      },
+      {
+        "stamp": 1792141068.2364876,
+        "sequence": 0,
+        "severity": 0,
+        "severity_name": "INFO",
+        "code": "photo_pose_reached",
+        "message": "{\"code\": \"photo_pose_reached\"}",
+        "request_id": "round_0558b556c213",
+        "run_id": "round_0558b556c213",
+        "cycle_id": "",
+        "state_seq": 758,
+        "target_id": "",
+        "details": {}
+      },
+      {
+        "stamp": 1792141079.5698798,
+        "sequence": 0,
+        "severity": 0,
+        "severity_name": "INFO",
+        "code": "round_locked",
+        "message": "{\"code\": \"round_locked\"}",
+        "request_id": "round_0558b556c213",
+        "run_id": "round_0558b556c213",
+        "cycle_id": "",
+        "state_seq": 761,
+        "target_id": "",
+        "details": {}
+      },
+      {
+        "stamp": 1792141079.591391,
+        "sequence": 0,
+        "severity": 0,
+        "severity_name": "INFO",
+        "code": "target_dispatched",
+        "message": "{\"code\": \"target_dispatched\"}",
+        "request_id": "round_0558b556c213",
+        "run_id": "round_0558b556c213",
+        "cycle_id": "",
+        "state_seq": 762,
+        "target_id": "target_4",
+        "details": {}
+      },
+      {
+        "stamp": 1792141127.558614,
+        "sequence": 0,
+        "severity": 0,
+        "severity_name": "INFO",
+        "code": "target_succeeded",
+        "message": "{\"code\": \"target_succeeded\", \"stage_names\": [\"reconfirm\", \"approach_insert\", \"tool\", \"retreat\"], \"stage_durations\": [1.477, 19.617, 0.0, 17.859], \"harvest_confirmed\": false, \"completion_level\": 6}",
+        "request_id": "round_0558b556c213",
+        "run_id": "round_0558b556c213",
+        "cycle_id": "",
+        "state_seq": 1003,
+        "target_id": "target_4",
+        "details": {}
+      },
+      {
+        "stamp": 1792141127.574698,
+        "sequence": 0,
+        "severity": 3,
+        "severity_name": "AUDIT",
+        "code": "recovery_required",
+        "message": "{\"code\": \"recovery_required\"}",
+        "request_id": "round_0558b556c213",
+        "run_id": "round_0558b556c213",
+        "cycle_id": "",
+        "state_seq": 1004,
+        "target_id": "target_4",
+        "details": {}
+      },
+      {
+        "stamp": 1792141127.6926758,
+        "sequence": 0,
+        "severity": 3,
+        "severity_name": "AUDIT",
+        "code": "recovery_acknowledged",
+        "message": "{\"code\": \"recovery_acknowledged\", \"reason\": \"mock only; current target terminal evidence verified\"}",
+        "request_id": "round_0558b556c213",
+        "run_id": "round_0558b556c213",
+        "cycle_id": "",
+        "state_seq": 1005,
+        "target_id": "target_4",
+        "details": {}
+      },
+      {
+        "stamp": 1792141137.762435,
+        "sequence": 0,
+        "severity": 0,
+        "severity_name": "INFO",
+        "code": "photo_pose_reached",
+        "message": "{\"code\": \"photo_pose_reached\"}",
+        "request_id": "round_0558b556c213",
+        "run_id": "round_0558b556c213",
+        "cycle_id": "",
+        "state_seq": 1008,
+        "target_id": "",
+        "details": {}
+      },
+      {
+        "stamp": 1792141139.8339021,
+        "sequence": 0,
+        "severity": 0,
+        "severity_name": "INFO",
+        "code": "round_locked",
+        "message": "{\"code\": \"round_locked\"}",
+        "request_id": "round_0558b556c213",
+        "run_id": "round_0558b556c213",
+        "cycle_id": "",
+        "state_seq": 1009,
+        "target_id": "",
+        "details": {}
+      },
+      {
+        "stamp": 1792141147.8949537,
+        "sequence": 0,
+        "severity": 0,
+        "severity_name": "INFO",
+        "code": "photo_pose_reached",
+        "message": "{\"code\": \"photo_pose_reached\"}",
+        "request_id": "round_0558b556c213",
+        "run_id": "round_0558b556c213",
+        "cycle_id": "",
+        "state_seq": 1011,
+        "target_id": "",
+        "details": {}
+      },
+      {
+        "stamp": 1792141149.929654,
+        "sequence": 0,
+        "severity": 0,
+        "severity_name": "INFO",
+        "code": "round_locked",
+        "message": "{\"code\": \"round_locked\"}",
+        "request_id": "round_0558b556c213",
+        "run_id": "round_0558b556c213",
+        "cycle_id": "",
+        "state_seq": 1012,
+        "target_id": "",
+        "details": {}
+      },
+      {
+        "stamp": 1792141170.8490705,
+        "sequence": 0,
+        "severity": 0,
+        "severity_name": "INFO",
+        "code": "photo_pose_reached",
+        "message": "{\"code\": \"photo_pose_reached\"}",
+        "request_id": "round_689c797fe0d8",
+        "run_id": "round_689c797fe0d8",
+        "cycle_id": "",
+        "state_seq": 1018,
+        "target_id": "",
+        "details": {}
+      },
+      {
+        "stamp": 1792141182.9225802,
+        "sequence": 0,
+        "severity": 0,
+        "severity_name": "INFO",
+        "code": "round_locked",
+        "message": "{\"code\": \"round_locked\"}",
+        "request_id": "round_689c797fe0d8",
+        "run_id": "round_689c797fe0d8",
+        "cycle_id": "",
+        "state_seq": 1021,
+        "target_id": "",
+        "details": {}
+      },
+      {
+        "stamp": 1792141182.9667902,
+        "sequence": 0,
+        "severity": 0,
+        "severity_name": "INFO",
+        "code": "target_dispatched",
+        "message": "{\"code\": \"target_dispatched\"}",
+        "request_id": "round_689c797fe0d8",
+        "run_id": "round_689c797fe0d8",
+        "cycle_id": "",
+        "state_seq": 1022,
+        "target_id": "target_5",
+        "details": {}
+      },
+      {
+        "stamp": 1792141224.704852,
+        "sequence": 0,
+        "severity": 0,
+        "severity_name": "INFO",
+        "code": "target_succeeded",
+        "message": "{\"code\": \"target_succeeded\", \"stage_names\": [\"reconfirm\", \"approach_insert\", \"tool\", \"retreat\"], \"stage_durations\": [1.351, 15.578, 0.0, 15.607], \"harvest_confirmed\": false, \"completion_level\": 6}",
+        "request_id": "round_689c797fe0d8",
+        "run_id": "round_689c797fe0d8",
+        "cycle_id": "",
+        "state_seq": 1232,
+        "target_id": "target_5",
+        "details": {}
+      },
+      {
+        "stamp": 1792141224.7094383,
+        "sequence": 0,
+        "severity": 3,
+        "severity_name": "AUDIT",
+        "code": "recovery_required",
+        "message": "{\"code\": \"recovery_required\"}",
+        "request_id": "round_689c797fe0d8",
+        "run_id": "round_689c797fe0d8",
+        "cycle_id": "",
+        "state_seq": 1233,
+        "target_id": "target_5",
+        "details": {}
+      },
+      {
+        "stamp": 1792141225.579598,
+        "sequence": 0,
+        "severity": 3,
+        "severity_name": "AUDIT",
+        "code": "recovery_acknowledged",
+        "message": "{\"code\": \"recovery_acknowledged\", \"reason\": \"mock only; current target terminal evidence verified\"}",
+        "request_id": "round_689c797fe0d8",
+        "run_id": "round_689c797fe0d8",
+        "cycle_id": "",
+        "state_seq": 1234,
+        "target_id": "target_5",
+        "details": {}
+      },
+      {
+        "stamp": 1792141235.634547,
+        "sequence": 0,
+        "severity": 0,
+        "severity_name": "INFO",
+        "code": "photo_pose_reached",
+        "message": "{\"code\": \"photo_pose_reached\"}",
+        "request_id": "round_689c797fe0d8",
+        "run_id": "round_689c797fe0d8",
+        "cycle_id": "",
+        "state_seq": 1237,
+        "target_id": "",
+        "details": {}
+      },
+      {
+        "stamp": 1792141237.669669,
+        "sequence": 0,
+        "severity": 0,
+        "severity_name": "INFO",
+        "code": "round_locked",
+        "message": "{\"code\": \"round_locked\"}",
+        "request_id": "round_689c797fe0d8",
+        "run_id": "round_689c797fe0d8",
+        "cycle_id": "",
+        "state_seq": 1238,
+        "target_id": "",
+        "details": {}
+      },
+      {
+        "stamp": 1792141245.7443712,
+        "sequence": 0,
+        "severity": 0,
+        "severity_name": "INFO",
+        "code": "photo_pose_reached",
+        "message": "{\"code\": \"photo_pose_reached\"}",
+        "request_id": "round_689c797fe0d8",
+        "run_id": "round_689c797fe0d8",
+        "cycle_id": "",
+        "state_seq": 1240,
+        "target_id": "",
+        "details": {}
+      },
+      {
+        "stamp": 1792141247.745549,
+        "sequence": 0,
+        "severity": 0,
+        "severity_name": "INFO",
+        "code": "round_locked",
+        "message": "{\"code\": \"round_locked\"}",
+        "request_id": "round_689c797fe0d8",
+        "run_id": "round_689c797fe0d8",
+        "cycle_id": "",
+        "state_seq": 1241,
+        "target_id": "",
+        "details": {}
+      },
+      {
+        "stamp": 1792141269.8286595,
+        "sequence": 0,
+        "severity": 0,
+        "severity_name": "INFO",
+        "code": "photo_pose_reached",
+        "message": "{\"code\": \"photo_pose_reached\"}",
+        "request_id": "round_ea83bc4c7973",
+        "run_id": "round_ea83bc4c7973",
+        "cycle_id": "",
+        "state_seq": 1247,
+        "target_id": "",
+        "details": {}
+      },
+      {
+        "stamp": 1792141283.0878017,
+        "sequence": 0,
+        "severity": 0,
+        "severity_name": "INFO",
+        "code": "round_locked",
+        "message": "{\"code\": \"round_locked\"}",
+        "request_id": "round_ea83bc4c7973",
+        "run_id": "round_ea83bc4c7973",
+        "cycle_id": "",
+        "state_seq": 1250,
+        "target_id": "",
+        "details": {}
+      },
+      {
+        "stamp": 1792141283.1288416,
+        "sequence": 0,
+        "severity": 0,
+        "severity_name": "INFO",
+        "code": "target_dispatched",
+        "message": "{\"code\": \"target_dispatched\"}",
+        "request_id": "round_ea83bc4c7973",
+        "run_id": "round_ea83bc4c7973",
+        "cycle_id": "",
+        "state_seq": 1251,
+        "target_id": "target_6",
+        "details": {}
+      },
+      {
+        "stamp": 1792141328.8995426,
+        "sequence": 0,
+        "severity": 0,
+        "severity_name": "INFO",
+        "code": "target_succeeded",
+        "message": "{\"code\": \"target_succeeded\", \"stage_names\": [\"reconfirm\", \"approach_insert\", \"tool\", \"retreat\"], \"stage_durations\": [1.34, 19.718, 0.0, 19.491], \"harvest_confirmed\": false, \"completion_level\": 6}",
+        "request_id": "round_ea83bc4c7973",
+        "run_id": "round_ea83bc4c7973",
+        "cycle_id": "",
+        "state_seq": 1481,
+        "target_id": "target_6",
+        "details": {}
+      },
+      {
+        "stamp": 1792141328.9165142,
+        "sequence": 0,
+        "severity": 3,
+        "severity_name": "AUDIT",
+        "code": "recovery_required",
+        "message": "{\"code\": \"recovery_required\"}",
+        "request_id": "round_ea83bc4c7973",
+        "run_id": "round_ea83bc4c7973",
+        "cycle_id": "",
+        "state_seq": 1482,
+        "target_id": "target_6",
+        "details": {}
+      },
+      {
+        "stamp": 1792141329.63651,
+        "sequence": 0,
+        "severity": 3,
+        "severity_name": "AUDIT",
+        "code": "recovery_acknowledged",
+        "message": "{\"code\": \"recovery_acknowledged\", \"reason\": \"mock only; current target terminal evidence verified\"}",
+        "request_id": "round_ea83bc4c7973",
+        "run_id": "round_ea83bc4c7973",
+        "cycle_id": "",
+        "state_seq": 1483,
+        "target_id": "target_6",
+        "details": {}
+      },
+      {
+        "stamp": 1792141339.641419,
+        "sequence": 0,
+        "severity": 0,
+        "severity_name": "INFO",
+        "code": "photo_pose_reached",
+        "message": "{\"code\": \"photo_pose_reached\"}",
+        "request_id": "round_ea83bc4c7973",
+        "run_id": "round_ea83bc4c7973",
+        "cycle_id": "",
+        "state_seq": 1486,
+        "target_id": "",
+        "details": {}
+      },
+      {
+        "stamp": 1792141341.738694,
+        "sequence": 0,
+        "severity": 0,
+        "severity_name": "INFO",
+        "code": "round_locked",
+        "message": "{\"code\": \"round_locked\"}",
+        "request_id": "round_ea83bc4c7973",
+        "run_id": "round_ea83bc4c7973",
+        "cycle_id": "",
+        "state_seq": 1487,
+        "target_id": "",
+        "details": {}
+      },
+      {
+        "stamp": 1792141349.755841,
+        "sequence": 0,
+        "severity": 0,
+        "severity_name": "INFO",
+        "code": "photo_pose_reached",
+        "message": "{\"code\": \"photo_pose_reached\"}",
+        "request_id": "round_ea83bc4c7973",
+        "run_id": "round_ea83bc4c7973",
+        "cycle_id": "",
+        "state_seq": 1489,
+        "target_id": "",
+        "details": {}
+      },
+      {
+        "stamp": 1792141351.8072884,
+        "sequence": 0,
+        "severity": 0,
+        "severity_name": "INFO",
+        "code": "round_locked",
+        "message": "{\"code\": \"round_locked\"}",
+        "request_id": "round_ea83bc4c7973",
+        "run_id": "round_ea83bc4c7973",
+        "cycle_id": "",
+        "state_seq": 1490,
+        "target_id": "",
+        "details": {}
+      },
+      {
+        "stamp": 1792141373.3071864,
+        "sequence": 0,
+        "severity": 0,
+        "severity_name": "INFO",
+        "code": "photo_pose_reached",
+        "message": "{\"code\": \"photo_pose_reached\"}",
+        "request_id": "round_cb74fb024880",
+        "run_id": "round_cb74fb024880",
+        "cycle_id": "",
+        "state_seq": 1496,
+        "target_id": "",
+        "details": {}
+      },
+      {
+        "stamp": 1792141386.1411035,
+        "sequence": 0,
+        "severity": 0,
+        "severity_name": "INFO",
+        "code": "round_locked",
+        "message": "{\"code\": \"round_locked\"}",
+        "request_id": "round_cb74fb024880",
+        "run_id": "round_cb74fb024880",
+        "cycle_id": "",
+        "state_seq": 1499,
+        "target_id": "",
+        "details": {}
+      },
+      {
+        "stamp": 1792141386.1884615,
+        "sequence": 0,
+        "severity": 0,
+        "severity_name": "INFO",
+        "code": "target_dispatched",
+        "message": "{\"code\": \"target_dispatched\"}",
+        "request_id": "round_cb74fb024880",
+        "run_id": "round_cb74fb024880",
+        "cycle_id": "",
+        "state_seq": 1500,
+        "target_id": "target_7",
+        "details": {}
+      },
+      {
+        "stamp": 1792141432.5423014,
+        "sequence": 0,
+        "severity": 0,
+        "severity_name": "INFO",
+        "code": "target_succeeded",
+        "message": "{\"code\": \"target_succeeded\", \"stage_names\": [\"reconfirm\", \"approach_insert\", \"tool\", \"retreat\"], \"stage_durations\": [1.318, 15.661, 0.0, 15.395], \"harvest_confirmed\": false, \"completion_level\": 6}",
+        "request_id": "round_cb74fb024880",
+        "run_id": "round_cb74fb024880",
+        "cycle_id": "",
+        "state_seq": 1733,
+        "target_id": "target_7",
+        "details": {}
+      },
+      {
+        "stamp": 1792141432.5440722,
+        "sequence": 0,
+        "severity": 3,
+        "severity_name": "AUDIT",
+        "code": "recovery_required",
+        "message": "{\"code\": \"recovery_required\"}",
+        "request_id": "round_cb74fb024880",
+        "run_id": "round_cb74fb024880",
+        "cycle_id": "",
+        "state_seq": 1734,
+        "target_id": "target_7",
+        "details": {}
+      },
+      {
+        "stamp": 1792141433.1133323,
+        "sequence": 0,
+        "severity": 3,
+        "severity_name": "AUDIT",
+        "code": "recovery_acknowledged",
+        "message": "{\"code\": \"recovery_acknowledged\", \"reason\": \"mock only; current target terminal evidence verified\"}",
+        "request_id": "round_cb74fb024880",
+        "run_id": "round_cb74fb024880",
+        "cycle_id": "",
+        "state_seq": 1735,
+        "target_id": "target_7",
+        "details": {}
+      },
+      {
+        "stamp": 1792141443.1549876,
+        "sequence": 0,
+        "severity": 0,
+        "severity_name": "INFO",
+        "code": "photo_pose_reached",
+        "message": "{\"code\": \"photo_pose_reached\"}",
+        "request_id": "round_cb74fb024880",
+        "run_id": "round_cb74fb024880",
+        "cycle_id": "",
+        "state_seq": 1738,
+        "target_id": "",
+        "details": {}
+      },
+      {
+        "stamp": 1792141445.2223804,
+        "sequence": 0,
+        "severity": 0,
+        "severity_name": "INFO",
+        "code": "round_locked",
+        "message": "{\"code\": \"round_locked\"}",
+        "request_id": "round_cb74fb024880",
+        "run_id": "round_cb74fb024880",
+        "cycle_id": "",
+        "state_seq": 1739,
+        "target_id": "",
+        "details": {}
+      },
+      {
+        "stamp": 1792141453.2412229,
+        "sequence": 0,
+        "severity": 0,
+        "severity_name": "INFO",
+        "code": "photo_pose_reached",
+        "message": "{\"code\": \"photo_pose_reached\"}",
+        "request_id": "round_cb74fb024880",
+        "run_id": "round_cb74fb024880",
+        "cycle_id": "",
+        "state_seq": 1741,
+        "target_id": "",
+        "details": {}
+      },
+      {
+        "stamp": 1792141455.2722073,
+        "sequence": 0,
+        "severity": 0,
+        "severity_name": "INFO",
+        "code": "round_locked",
+        "message": "{\"code\": \"round_locked\"}",
+        "request_id": "round_cb74fb024880",
+        "run_id": "round_cb74fb024880",
+        "cycle_id": "",
+        "state_seq": 1742,
+        "target_id": "",
+        "details": {}
+      },
+      {
+        "stamp": 1792141478.0168085,
+        "sequence": 0,
+        "severity": 0,
+        "severity_name": "INFO",
+        "code": "photo_pose_reached",
+        "message": "{\"code\": \"photo_pose_reached\"}",
+        "request_id": "round_f69d06620af6",
+        "run_id": "round_f69d06620af6",
+        "cycle_id": "",
+        "state_seq": 1748,
+        "target_id": "",
+        "details": {}
+      },
+      {
+        "stamp": 1792141493.0479095,
+        "sequence": 0,
+        "severity": 0,
+        "severity_name": "INFO",
+        "code": "round_locked",
+        "message": "{\"code\": \"round_locked\"}",
+        "request_id": "round_f69d06620af6",
+        "run_id": "round_f69d06620af6",
+        "cycle_id": "",
+        "state_seq": 1751,
+        "target_id": "",
+        "details": {}
+      },
+      {
+        "stamp": 1792141493.333767,
+        "sequence": 0,
+        "severity": 0,
+        "severity_name": "INFO",
+        "code": "photo_pose_reached",
+        "message": "{\"code\": \"photo_pose_reached\"}",
+        "request_id": "round_f69d06620af6",
+        "run_id": "round_f69d06620af6",
+        "cycle_id": "",
+        "state_seq": 1753,
+        "target_id": "",
+        "details": {}
+      },
+      {
+        "stamp": 1792141495.3895154,
+        "sequence": 0,
+        "severity": 0,
+        "severity_name": "INFO",
+        "code": "round_locked",
+        "message": "{\"code\": \"round_locked\"}",
+        "request_id": "round_f69d06620af6",
+        "run_id": "round_f69d06620af6",
+        "cycle_id": "",
+        "state_seq": 1754,
+        "target_id": "",
+        "details": {}
+      },
+      {
+        "stamp": 1792141495.4101918,
+        "sequence": 0,
+        "severity": 0,
+        "severity_name": "INFO",
+        "code": "target_dispatched",
+        "message": "{\"code\": \"target_dispatched\"}",
+        "request_id": "round_f69d06620af6",
+        "run_id": "round_f69d06620af6",
+        "cycle_id": "",
+        "state_seq": 1755,
+        "target_id": "target_8",
+        "details": {}
+      },
+      {
+        "stamp": 1792141538.006039,
+        "sequence": 0,
+        "severity": 0,
+        "severity_name": "INFO",
+        "code": "target_skipped",
+        "message": "{\"code\": \"target_skipped\", \"failure_code\": \"skipped_quality\", \"harvest_confirmed\": false, \"completion_level\": 0, \"failure_code_n\": 14}",
+        "request_id": "round_f69d06620af6",
+        "run_id": "round_f69d06620af6",
+        "cycle_id": "",
+        "state_seq": 1969,
+        "target_id": "target_8",
+        "details": {}
+      },
+      {
+        "stamp": 1792141546.0699534,
+        "sequence": 0,
+        "severity": 0,
+        "severity_name": "INFO",
+        "code": "photo_pose_reached",
+        "message": "{\"code\": \"photo_pose_reached\"}",
+        "request_id": "round_f69d06620af6",
+        "run_id": "round_f69d06620af6",
+        "cycle_id": "",
+        "state_seq": 1971,
+        "target_id": "",
+        "details": {}
+      },
+      {
+        "stamp": 1792141548.0729425,
+        "sequence": 0,
+        "severity": 0,
+        "severity_name": "INFO",
+        "code": "round_locked",
+        "message": "{\"code\": \"round_locked\"}",
+        "request_id": "round_f69d06620af6",
+        "run_id": "round_f69d06620af6",
+        "cycle_id": "",
+        "state_seq": 1972,
+        "target_id": "",
+        "details": {}
+      },
+      {
+        "stamp": 1792141556.1168644,
+        "sequence": 0,
+        "severity": 0,
+        "severity_name": "INFO",
+        "code": "photo_pose_reached",
+        "message": "{\"code\": \"photo_pose_reached\"}",
+        "request_id": "round_f69d06620af6",
+        "run_id": "round_f69d06620af6",
+        "cycle_id": "",
+        "state_seq": 1974,
+        "target_id": "",
+        "details": {}
+      },
+      {
+        "stamp": 1792141558.1740198,
+        "sequence": 0,
+        "severity": 0,
+        "severity_name": "INFO",
+        "code": "round_locked",
+        "message": "{\"code\": \"round_locked\"}",
+        "request_id": "round_f69d06620af6",
+        "run_id": "round_f69d06620af6",
+        "cycle_id": "",
+        "state_seq": 1975,
+        "target_id": "",
+        "details": {}
+      },
+      {
+        "stamp": 1792141580.1873436,
+        "sequence": 0,
+        "severity": 0,
+        "severity_name": "INFO",
+        "code": "photo_pose_reached",
+        "message": "{\"code\": \"photo_pose_reached\"}",
+        "request_id": "round_141b74e39d39",
+        "run_id": "round_141b74e39d39",
+        "cycle_id": "",
+        "state_seq": 1981,
+        "target_id": "",
+        "details": {}
+      },
+      {
+        "stamp": 1792141593.0359013,
+        "sequence": 0,
+        "severity": 0,
+        "severity_name": "INFO",
+        "code": "round_locked",
+        "message": "{\"code\": \"round_locked\"}",
+        "request_id": "round_141b74e39d39",
+        "run_id": "round_141b74e39d39",
+        "cycle_id": "",
+        "state_seq": 1984,
+        "target_id": "",
+        "details": {}
+      },
+      {
+        "stamp": 1792141593.0756621,
+        "sequence": 0,
+        "severity": 0,
+        "severity_name": "INFO",
+        "code": "target_dispatched",
+        "message": "{\"code\": \"target_dispatched\"}",
+        "request_id": "round_141b74e39d39",
+        "run_id": "round_141b74e39d39",
+        "cycle_id": "",
+        "state_seq": 1985,
+        "target_id": "target_9",
+        "details": {}
+      },
+      {
+        "stamp": 1792141627.2834706,
+        "sequence": 0,
+        "severity": 0,
+        "severity_name": "INFO",
+        "code": "target_skipped",
+        "message": "{\"code\": \"target_skipped\", \"failure_code\": \"skipped_quality\", \"harvest_confirmed\": false, \"completion_level\": 0, \"failure_code_n\": 14}",
+        "request_id": "round_141b74e39d39",
+        "run_id": "round_141b74e39d39",
+        "cycle_id": "",
+        "state_seq": 2157,
+        "target_id": "target_9",
+        "details": {}
+      },
+      {
+        "stamp": 1792141635.383565,
+        "sequence": 0,
+        "severity": 0,
+        "severity_name": "INFO",
+        "code": "photo_pose_reached",
+        "message": "{\"code\": \"photo_pose_reached\"}",
+        "request_id": "round_141b74e39d39",
+        "run_id": "round_141b74e39d39",
+        "cycle_id": "",
+        "state_seq": 2159,
+        "target_id": "",
+        "details": {}
+      },
+      {
+        "stamp": 1792141637.4032845,
+        "sequence": 0,
+        "severity": 0,
+        "severity_name": "INFO",
+        "code": "round_locked",
+        "message": "{\"code\": \"round_locked\"}",
+        "request_id": "round_141b74e39d39",
+        "run_id": "round_141b74e39d39",
+        "cycle_id": "",
+        "state_seq": 2160,
+        "target_id": "",
+        "details": {}
+      },
+      {
+        "stamp": 1792141645.4933877,
+        "sequence": 0,
+        "severity": 0,
+        "severity_name": "INFO",
+        "code": "photo_pose_reached",
+        "message": "{\"code\": \"photo_pose_reached\"}",
+        "request_id": "round_141b74e39d39",
+        "run_id": "round_141b74e39d39",
+        "cycle_id": "",
+        "state_seq": 2162,
+        "target_id": "",
+        "details": {}
+      },
+      {
+        "stamp": 1792141647.5707896,
+        "sequence": 0,
+        "severity": 0,
+        "severity_name": "INFO",
+        "code": "round_locked",
+        "message": "{\"code\": \"round_locked\"}",
+        "request_id": "round_141b74e39d39",
+        "run_id": "round_141b74e39d39",
+        "cycle_id": "",
+        "state_seq": 2163,
+        "target_id": "",
+        "details": {}
+      }
+    ]
+  },
+  "pipeline": {
+    "fsm": [
+      {
+        "batch_state": 0,
+        "target_phase": 0,
+        "message": "waiting_ready",
+        "run_id": "",
+        "cycle_id": "",
+        "target_id": "",
+        "recovery_required": false,
+        "execution_enabled": false,
+        "grasp_enabled": false,
+        "tool_enabled": false,
+        "state_seq": 1,
+        "t": 1792140564.894128,
+        "dur_s": 177.39
+      },
+      {
+        "batch_state": 0,
+        "target_phase": 0,
+        "message": "waiting_ready",
+        "run_id": "",
+        "cycle_id": "",
+        "target_id": "",
+        "recovery_required": false,
+        "execution_enabled": true,
+        "grasp_enabled": false,
+        "tool_enabled": false,
+        "state_seq": 4,
+        "t": 1792140742.2837338,
+        "dur_s": 11.358
+      },
+      {
+        "batch_state": 1,
+        "target_phase": 0,
+        "message": "preparing",
+        "run_id": "round_383f214ddcc8",
+        "cycle_id": "round_383f214ddcc8",
+        "target_id": "",
+        "recovery_required": false,
+        "execution_enabled": true,
+        "grasp_enabled": false,
+        "tool_enabled": false,
+        "state_seq": 5,
+        "t": 1792140753.6415339,
+        "dur_s": 19.478
+      },
+      {
+        "batch_state": 1,
+        "target_phase": 1,
+        "message": "discovery",
+        "run_id": "round_383f214ddcc8",
+        "cycle_id": "round_383f214ddcc8",
+        "target_id": "",
+        "recovery_required": false,
+        "execution_enabled": true,
+        "grasp_enabled": false,
+        "tool_enabled": false,
+        "state_seq": 10,
+        "t": 1792140773.1199598,
+        "dur_s": 0.118
+      },
+      {
+        "batch_state": 2,
+        "target_phase": 4,
+        "message": "已配置；activate 后才开放运动输出权限",
+        "run_id": "round_383f214ddcc8",
+        "cycle_id": "round_383f214ddcc8:target_1",
+        "target_id": "target_1",
+        "recovery_required": false,
+        "execution_enabled": true,
+        "grasp_enabled": true,
+        "tool_enabled": false,
+        "state_seq": 13,
+        "t": 1792140773.2383795,
+        "dur_s": 0.194
+      },
+      {
+        "batch_state": 2,
+        "target_phase": 3,
+        "message": "等待重建精化几何（BuildTargetModel）",
+        "run_id": "round_383f214ddcc8",
+        "cycle_id": "round_383f214ddcc8:target_1",
+        "target_id": "target_1",
+        "recovery_required": false,
+        "execution_enabled": true,
+        "grasp_enabled": true,
+        "tool_enabled": false,
+        "state_seq": 14,
+        "t": 1792140773.432802,
+        "dur_s": 9.9
+      },
+      {
+        "batch_state": 2,
+        "target_phase": 4,
+        "message": "抓取前再确认：等待新鲜观测复核身份/锚点漂移/摆动平息",
+        "run_id": "round_383f214ddcc8",
+        "cycle_id": "round_383f214ddcc8:target_1",
+        "target_id": "target_1",
+        "recovery_required": false,
+        "execution_enabled": true,
+        "grasp_enabled": true,
+        "tool_enabled": false,
+        "state_seq": 63,
+        "t": 1792140783.3328025,
+        "dur_s": 1.128
+      },
+      {
+        "batch_state": 2,
+        "target_phase": 5,
+        "message": "拍照位再最短路径到预抓取",
+        "run_id": "round_383f214ddcc8",
+        "cycle_id": "round_383f214ddcc8:target_1",
+        "target_id": "target_1",
+        "recovery_required": false,
+        "execution_enabled": true,
+        "grasp_enabled": true,
+        "tool_enabled": false,
+        "state_seq": 69,
+        "t": 1792140784.4605641,
+        "dur_s": 9.626
+      },
+      {
+        "batch_state": 2,
+        "target_phase": 4,
+        "message": "预抓取停稳验证（不 SetIO）",
+        "run_id": "round_383f214ddcc8",
+        "cycle_id": "round_383f214ddcc8:target_1",
+        "target_id": "target_1",
+        "recovery_required": true,
+        "execution_enabled": true,
+        "grasp_enabled": true,
+        "tool_enabled": false,
+        "state_seq": 117,
+        "t": 1792140794.0863078,
+        "dur_s": 0.203
+      },
+      {
+        "batch_state": 2,
+        "target_phase": 5,
+        "message": "预规划套入与反向撤退",
+        "run_id": "round_383f214ddcc8",
+        "cycle_id": "round_383f214ddcc8:target_1",
+        "target_id": "target_1",
+        "recovery_required": true,
+        "execution_enabled": true,
+        "grasp_enabled": true,
+        "tool_enabled": false,
+        "state_seq": 118,
+        "t": 1792140794.2889404,
+        "dur_s": 0.204
+      },
+      {
+        "batch_state": 2,
+        "target_phase": 5,
+        "message": "沿轴 LIN 套入",
+        "run_id": "round_383f214ddcc8",
+        "cycle_id": "round_383f214ddcc8:target_1",
+        "target_id": "target_1",
+        "recovery_required": true,
+        "execution_enabled": true,
+        "grasp_enabled": true,
+        "tool_enabled": false,
+        "state_seq": 119,
+        "t": 1792140794.4930727,
+        "dur_s": 5.615
+      },
+      {
+        "batch_state": 2,
+        "target_phase": 7,
+        "message": "MTC 沿插入反方向保持直线撤离",
+        "run_id": "round_383f214ddcc8",
+        "cycle_id": "round_383f214ddcc8:target_1",
+        "target_id": "target_1",
+        "recovery_required": true,
+        "execution_enabled": true,
+        "grasp_enabled": true,
+        "tool_enabled": false,
+        "state_seq": 147,
+        "t": 1792140800.1082716,
+        "dur_s": 5.81
+      },
+      {
+        "batch_state": 2,
+        "target_phase": 7,
+        "message": "返回 harvest_stow",
+        "run_id": "round_383f214ddcc8",
+        "cycle_id": "round_383f214ddcc8:target_1",
+        "target_id": "target_1",
+        "recovery_required": true,
+        "execution_enabled": true,
+        "grasp_enabled": true,
+        "tool_enabled": false,
+        "state_seq": 176,
+        "t": 1792140805.9182563,
+        "dur_s": 9.837
+      },
+      {
+        "batch_state": 2,
+        "target_phase": 9,
+        "message": "返回 harvest_stow",
+        "run_id": "round_383f214ddcc8",
+        "cycle_id": "round_383f214ddcc8:target_1",
+        "target_id": "target_1",
+        "recovery_required": true,
+        "execution_enabled": true,
+        "grasp_enabled": true,
+        "tool_enabled": false,
+        "state_seq": 225,
+        "t": 1792140815.754892,
+        "dur_s": 0.011
+      },
+      {
+        "batch_state": 7,
+        "target_phase": 9,
+        "message": "recovery_required",
+        "run_id": "round_383f214ddcc8",
+        "cycle_id": "round_383f214ddcc8:target_1",
+        "target_id": "target_1",
+        "recovery_required": true,
+        "execution_enabled": true,
+        "grasp_enabled": true,
+        "tool_enabled": false,
+        "state_seq": 226,
+        "t": 1792140815.7659197,
+        "dur_s": 0.287
+      },
+      {
+        "batch_state": 7,
+        "target_phase": 9,
+        "message": "recovery_required",
+        "run_id": "round_383f214ddcc8",
+        "cycle_id": "round_383f214ddcc8:target_1",
+        "target_id": "target_1",
+        "recovery_required": false,
+        "execution_enabled": true,
+        "grasp_enabled": true,
+        "tool_enabled": false,
+        "state_seq": 227,
+        "t": 1792140816.0525372,
+        "dur_s": 0.07
+      },
+      {
+        "batch_state": 2,
+        "target_phase": 9,
+        "message": "返回 harvest_stow",
+        "run_id": "round_383f214ddcc8",
+        "cycle_id": "round_383f214ddcc8:target_1",
+        "target_id": "target_1",
+        "recovery_required": false,
+        "execution_enabled": true,
+        "grasp_enabled": true,
+        "tool_enabled": false,
+        "state_seq": 228,
+        "t": 1792140816.1226423,
+        "dur_s": 12.053
+      },
+      {
+        "batch_state": 1,
+        "target_phase": 1,
+        "message": "discovery",
+        "run_id": "round_383f214ddcc8",
+        "cycle_id": "round_383f214ddcc8:target_1",
+        "target_id": "",
+        "recovery_required": false,
+        "execution_enabled": true,
+        "grasp_enabled": true,
+        "tool_enabled": false,
+        "state_seq": 231,
+        "t": 1792140828.175385,
+        "dur_s": 10.046
+      },
+      {
+        "batch_state": 6,
+        "target_phase": 0,
+        "message": "completed",
+        "run_id": "round_383f214ddcc8",
+        "cycle_id": "round_383f214ddcc8:target_1",
+        "target_id": "",
+        "recovery_required": false,
+        "execution_enabled": true,
+        "grasp_enabled": true,
+        "tool_enabled": false,
+        "state_seq": 237,
+        "t": 1792140838.2210996,
+        "dur_s": 13.446
+      },
+      {
+        "batch_state": 1,
+        "target_phase": 0,
+        "message": "preparing",
+        "run_id": "round_2661656bceda",
+        "cycle_id": "round_2661656bceda",
+        "target_id": "",
+        "recovery_required": false,
+        "execution_enabled": true,
+        "grasp_enabled": true,
+        "tool_enabled": false,
+        "state_seq": 238,
+        "t": 1792140851.6668704,
+        "dur_s": 20.129
+      },
+      {
+        "batch_state": 1,
+        "target_phase": 1,
+        "message": "discovery",
+        "run_id": "round_2661656bceda",
+        "cycle_id": "round_2661656bceda",
+        "target_id": "",
+        "recovery_required": false,
+        "execution_enabled": true,
+        "grasp_enabled": true,
+        "tool_enabled": false,
+        "state_seq": 243,
+        "t": 1792140871.7962766,
+        "dur_s": 0.108
+      },
+      {
+        "batch_state": 2,
+        "target_phase": 4,
+        "message": "已记录现场人工撤离确认；本服务不发送任何运动命令",
+        "run_id": "round_2661656bceda",
+        "cycle_id": "round_2661656bceda:target_2",
+        "target_id": "target_2",
+        "recovery_required": false,
+        "execution_enabled": true,
+        "grasp_enabled": true,
+        "tool_enabled": false,
+        "state_seq": 246,
+        "t": 1792140871.9045987,
+        "dur_s": 0.207
+      },
+      {
+        "batch_state": 2,
+        "target_phase": 3,
+        "message": "等待重建精化几何（BuildTargetModel）",
+        "run_id": "round_2661656bceda",
+        "cycle_id": "round_2661656bceda:target_2",
+        "target_id": "target_2",
+        "recovery_required": false,
+        "execution_enabled": true,
+        "grasp_enabled": true,
+        "tool_enabled": false,
+        "state_seq": 247,
+        "t": 1792140872.1111965,
+        "dur_s": 3.037
+      },
+      {
+        "batch_state": 2,
+        "target_phase": 4,
+        "message": "抓取前再确认：等待新鲜观测复核身份/锚点漂移/摆动平息",
+        "run_id": "round_2661656bceda",
+        "cycle_id": "round_2661656bceda:target_2",
+        "target_id": "target_2",
+        "recovery_required": false,
+        "execution_enabled": true,
+        "grasp_enabled": true,
+        "tool_enabled": false,
+        "state_seq": 262,
+        "t": 1792140875.1483445,
+        "dur_s": 1.176
+      },
+      {
+        "batch_state": 2,
+        "target_phase": 5,
+        "message": "拍照位再最短路径到预抓取",
+        "run_id": "round_2661656bceda",
+        "cycle_id": "round_2661656bceda:target_2",
+        "target_id": "target_2",
+        "recovery_required": false,
+        "execution_enabled": true,
+        "grasp_enabled": true,
+        "tool_enabled": false,
+        "state_seq": 268,
+        "t": 1792140876.324161,
+        "dur_s": 13.827
+      },
+      {
+        "batch_state": 2,
+        "target_phase": 4,
+        "message": "预抓取停稳验证（不 SetIO）",
+        "run_id": "round_2661656bceda",
+        "cycle_id": "round_2661656bceda:target_2",
+        "target_id": "target_2",
+        "recovery_required": true,
+        "execution_enabled": true,
+        "grasp_enabled": true,
+        "tool_enabled": false,
+        "state_seq": 337,
+        "t": 1792140890.1509302,
+        "dur_s": 0.203
+      },
+      {
+        "batch_state": 2,
+        "target_phase": 5,
+        "message": "预规划套入与反向撤退",
+        "run_id": "round_2661656bceda",
+        "cycle_id": "round_2661656bceda:target_2",
+        "target_id": "target_2",
+        "recovery_required": true,
+        "execution_enabled": true,
+        "grasp_enabled": true,
+        "tool_enabled": false,
+        "state_seq": 338,
+        "t": 1792140890.3537154,
+        "dur_s": 0.195
+      },
+      {
+        "batch_state": 2,
+        "target_phase": 5,
+        "message": "沿轴 LIN 套入",
+        "run_id": "round_2661656bceda",
+        "cycle_id": "round_2661656bceda:target_2",
+        "target_id": "target_2",
+        "recovery_required": true,
+        "execution_enabled": true,
+        "grasp_enabled": true,
+        "tool_enabled": false,
+        "state_seq": 339,
+        "t": 1792140890.5489688,
+        "dur_s": 6.02
+      },
+      {
+        "batch_state": 2,
+        "target_phase": 7,
+        "message": "MTC 沿插入反方向保持直线撤离",
+        "run_id": "round_2661656bceda",
+        "cycle_id": "round_2661656bceda:target_2",
+        "target_id": "target_2",
+        "recovery_required": true,
+        "execution_enabled": true,
+        "grasp_enabled": true,
+        "tool_enabled": false,
+        "state_seq": 369,
+        "t": 1792140896.5685987,
+        "dur_s": 6.201
+      },
+      {
+        "batch_state": 2,
+        "target_phase": 7,
+        "message": "返回 harvest_stow",
+        "run_id": "round_2661656bceda",
+        "cycle_id": "round_2661656bceda:target_2",
+        "target_id": "target_2",
+        "recovery_required": true,
+        "execution_enabled": true,
+        "grasp_enabled": true,
+        "tool_enabled": false,
+        "state_seq": 400,
+        "t": 1792140902.769631,
+        "dur_s": 13.645
+      },
+      {
+        "batch_state": 2,
+        "target_phase": 9,
+        "message": "返回 harvest_stow",
+        "run_id": "round_2661656bceda",
+        "cycle_id": "round_2661656bceda:target_2",
+        "target_id": "target_2",
+        "recovery_required": true,
+        "execution_enabled": true,
+        "grasp_enabled": true,
+        "tool_enabled": false,
+        "state_seq": 468,
+        "t": 1792140916.4151132,
+        "dur_s": 0.03
+      },
+      {
+        "batch_state": 7,
+        "target_phase": 9,
+        "message": "recovery_required",
+        "run_id": "round_2661656bceda",
+        "cycle_id": "round_2661656bceda:target_2",
+        "target_id": "target_2",
+        "recovery_required": true,
+        "execution_enabled": true,
+        "grasp_enabled": true,
+        "tool_enabled": false,
+        "state_seq": 469,
+        "t": 1792140916.4447346,
+        "dur_s": 1.053
+      },
+      {
+        "batch_state": 7,
+        "target_phase": 9,
+        "message": "recovery_required",
+        "run_id": "round_2661656bceda",
+        "cycle_id": "round_2661656bceda:target_2",
+        "target_id": "target_2",
+        "recovery_required": false,
+        "execution_enabled": true,
+        "grasp_enabled": true,
+        "tool_enabled": false,
+        "state_seq": 470,
+        "t": 1792140917.4972494,
+        "dur_s": 0.068
+      },
+      {
+        "batch_state": 2,
+        "target_phase": 9,
+        "message": "返回 harvest_stow",
+        "run_id": "round_2661656bceda",
+        "cycle_id": "round_2661656bceda:target_2",
+        "target_id": "target_2",
+        "recovery_required": false,
+        "execution_enabled": true,
+        "grasp_enabled": true,
+        "tool_enabled": false,
+        "state_seq": 471,
+        "t": 1792140917.5655982,
+        "dur_s": 12.093
+      },
+      {
+        "batch_state": 1,
+        "target_phase": 1,
+        "message": "discovery",
+        "run_id": "round_2661656bceda",
+        "cycle_id": "round_2661656bceda:target_2",
+        "target_id": "",
+        "recovery_required": false,
+        "execution_enabled": true,
+        "grasp_enabled": true,
+        "tool_enabled": false,
+        "state_seq": 474,
+        "t": 1792140929.6584897,
+        "dur_s": 10.178
+      },
+      {
+        "batch_state": 6,
+        "target_phase": 0,
+        "message": "completed",
+        "run_id": "round_2661656bceda",
+        "cycle_id": "round_2661656bceda:target_2",
+        "target_id": "",
+        "recovery_required": false,
+        "execution_enabled": true,
+        "grasp_enabled": true,
+        "tool_enabled": false,
+        "state_seq": 479,
+        "t": 1792140939.836868,
+        "dur_s": 13.049
+      },
+      {
+        "batch_state": 1,
+        "target_phase": 0,
+        "message": "preparing",
+        "run_id": "round_321866cf73d8",
+        "cycle_id": "round_321866cf73d8",
+        "target_id": "",
+        "recovery_required": false,
+        "execution_enabled": true,
+        "grasp_enabled": true,
+        "tool_enabled": false,
+        "state_seq": 481,
+        "t": 1792140952.8853729,
+        "dur_s": 19.084
+      },
+      {
+        "batch_state": 1,
+        "target_phase": 1,
+        "message": "discovery",
+        "run_id": "round_321866cf73d8",
+        "cycle_id": "round_321866cf73d8",
+        "target_id": "",
+        "recovery_required": false,
+        "execution_enabled": true,
+        "grasp_enabled": true,
+        "tool_enabled": false,
+        "state_seq": 486,
+        "t": 1792140971.9689596,
+        "dur_s": 0.11
+      },
+      {
+        "batch_state": 2,
+        "target_phase": 4,
+        "message": "已记录现场人工撤离确认；本服务不发送任何运动命令",
+        "run_id": "round_321866cf73d8",
+        "cycle_id": "round_321866cf73d8:target_3",
+        "target_id": "target_3",
+        "recovery_required": false,
+        "execution_enabled": true,
+        "grasp_enabled": true,
+        "tool_enabled": false,
+        "state_seq": 489,
+        "t": 1792140972.0791228,
+        "dur_s": 0.188
+      },
+      {
+        "batch_state": 2,
+        "target_phase": 3,
+        "message": "等待重建精化几何（BuildTargetModel）",
+        "run_id": "round_321866cf73d8",
+        "cycle_id": "round_321866cf73d8:target_3",
+        "target_id": "target_3",
+        "recovery_required": false,
+        "execution_enabled": true,
+        "grasp_enabled": true,
+        "tool_enabled": false,
+        "state_seq": 490,
+        "t": 1792140972.267107,
+        "dur_s": 10.036
+      },
+      {
+        "batch_state": 2,
+        "target_phase": 4,
+        "message": "抓取前再确认：等待新鲜观测复核身份/锚点漂移/摆动平息",
+        "run_id": "round_321866cf73d8",
+        "cycle_id": "round_321866cf73d8:target_3",
+        "target_id": "target_3",
+        "recovery_required": false,
+        "execution_enabled": true,
+        "grasp_enabled": true,
+        "tool_enabled": false,
+        "state_seq": 540,
+        "t": 1792140982.3036032,
+        "dur_s": 0.99
+      },
+      {
+        "batch_state": 2,
+        "target_phase": 5,
+        "message": "拍照位再最短路径到预抓取",
+        "run_id": "round_321866cf73d8",
+        "cycle_id": "round_321866cf73d8:target_3",
+        "target_id": "target_3",
+        "recovery_required": false,
+        "execution_enabled": true,
+        "grasp_enabled": true,
+        "tool_enabled": false,
+        "state_seq": 545,
+        "t": 1792140983.2938,
+        "dur_s": 13.653
+      },
+      {
+        "batch_state": 2,
+        "target_phase": 4,
+        "message": "预抓取停稳验证（不 SetIO）",
+        "run_id": "round_321866cf73d8",
+        "cycle_id": "round_321866cf73d8:target_3",
+        "target_id": "target_3",
+        "recovery_required": true,
+        "execution_enabled": true,
+        "grasp_enabled": true,
+        "tool_enabled": false,
+        "state_seq": 613,
+        "t": 1792140996.9464166,
+        "dur_s": 0.199
+      },
+      {
+        "batch_state": 2,
+        "target_phase": 5,
+        "message": "预规划套入与反向撤退",
+        "run_id": "round_321866cf73d8",
+        "cycle_id": "round_321866cf73d8:target_3",
+        "target_id": "target_3",
+        "recovery_required": true,
+        "execution_enabled": true,
+        "grasp_enabled": true,
+        "tool_enabled": false,
+        "state_seq": 614,
+        "t": 1792140997.145569,
+        "dur_s": 0.191
+      },
+      {
+        "batch_state": 2,
+        "target_phase": 5,
+        "message": "沿轴 LIN 套入",
+        "run_id": "round_321866cf73d8",
+        "cycle_id": "round_321866cf73d8:target_3",
+        "target_id": "target_3",
+        "recovery_required": true,
+        "execution_enabled": true,
+        "grasp_enabled": true,
+        "tool_enabled": false,
+        "state_seq": 615,
+        "t": 1792140997.3361433,
+        "dur_s": 6.015
+      },
+      {
+        "batch_state": 2,
+        "target_phase": 7,
+        "message": "MTC 沿插入反方向保持直线撤离",
+        "run_id": "round_321866cf73d8",
+        "cycle_id": "round_321866cf73d8:target_3",
+        "target_id": "target_3",
+        "recovery_required": true,
+        "execution_enabled": true,
+        "grasp_enabled": true,
+        "tool_enabled": false,
+        "state_seq": 645,
+        "t": 1792141003.3515632,
+        "dur_s": 6.023
+      },
+      {
+        "batch_state": 2,
+        "target_phase": 7,
+        "message": "返回 harvest_stow",
+        "run_id": "round_321866cf73d8",
+        "cycle_id": "round_321866cf73d8:target_3",
+        "target_id": "target_3",
+        "recovery_required": true,
+        "execution_enabled": true,
+        "grasp_enabled": true,
+        "tool_enabled": false,
+        "state_seq": 675,
+        "t": 1792141009.3749568,
+        "dur_s": 13.638
+      },
+      {
+        "batch_state": 2,
+        "target_phase": 9,
+        "message": "返回 harvest_stow",
+        "run_id": "round_321866cf73d8",
+        "cycle_id": "round_321866cf73d8:target_3",
+        "target_id": "target_3",
+        "recovery_required": true,
+        "execution_enabled": true,
+        "grasp_enabled": true,
+        "tool_enabled": false,
+        "state_seq": 743,
+        "t": 1792141023.0133762,
+        "dur_s": 0.013
+      },
+      {
+        "batch_state": 7,
+        "target_phase": 9,
+        "message": "recovery_required",
+        "run_id": "round_321866cf73d8",
+        "cycle_id": "round_321866cf73d8:target_3",
+        "target_id": "target_3",
+        "recovery_required": true,
+        "execution_enabled": true,
+        "grasp_enabled": true,
+        "tool_enabled": false,
+        "state_seq": 744,
+        "t": 1792141023.0264444,
+        "dur_s": 0.837
+      },
+      {
+        "batch_state": 7,
+        "target_phase": 9,
+        "message": "recovery_required",
+        "run_id": "round_321866cf73d8",
+        "cycle_id": "round_321866cf73d8:target_3",
+        "target_id": "target_3",
+        "recovery_required": false,
+        "execution_enabled": true,
+        "grasp_enabled": true,
+        "tool_enabled": false,
+        "state_seq": 745,
+        "t": 1792141023.8634071,
+        "dur_s": 0.021
+      },
+      {
+        "batch_state": 2,
+        "target_phase": 9,
+        "message": "返回 harvest_stow",
+        "run_id": "round_321866cf73d8",
+        "cycle_id": "round_321866cf73d8:target_3",
+        "target_id": "target_3",
+        "recovery_required": false,
+        "execution_enabled": true,
+        "grasp_enabled": true,
+        "tool_enabled": false,
+        "state_seq": 746,
+        "t": 1792141023.8841062,
+        "dur_s": 12.071
+      },
+      {
+        "batch_state": 1,
+        "target_phase": 1,
+        "message": "discovery",
+        "run_id": "round_321866cf73d8",
+        "cycle_id": "round_321866cf73d8:target_3",
+        "target_id": "",
+        "recovery_required": false,
+        "execution_enabled": true,
+        "grasp_enabled": true,
+        "tool_enabled": false,
+        "state_seq": 749,
+        "t": 1792141035.95533,
+        "dur_s": 10.146
+      },
+      {
+        "batch_state": 6,
+        "target_phase": 0,
+        "message": "completed",
+        "run_id": "round_321866cf73d8",
+        "cycle_id": "round_321866cf73d8:target_3",
+        "target_id": "",
+        "recovery_required": false,
+        "execution_enabled": true,
+        "grasp_enabled": true,
+        "tool_enabled": false,
+        "state_seq": 755,
+        "t": 1792141046.1011071,
+        "dur_s": 14.113
+      },
+      {
+        "batch_state": 1,
+        "target_phase": 0,
+        "message": "preparing",
+        "run_id": "round_0558b556c213",
+        "cycle_id": "round_0558b556c213",
+        "target_id": "",
+        "recovery_required": false,
+        "execution_enabled": true,
+        "grasp_enabled": true,
+        "tool_enabled": false,
+        "state_seq": 756,
+        "t": 1792141060.214484,
+        "dur_s": 19.359
+      },
+      {
+        "batch_state": 1,
+        "target_phase": 1,
+        "message": "discovery",
+        "run_id": "round_0558b556c213",
+        "cycle_id": "round_0558b556c213",
+        "target_id": "",
+        "recovery_required": false,
+        "execution_enabled": true,
+        "grasp_enabled": true,
+        "tool_enabled": false,
+        "state_seq": 761,
+        "t": 1792141079.573351,
+        "dur_s": 0.261
+      },
+      {
+        "batch_state": 2,
+        "target_phase": 3,
+        "message": "等待重建精化几何（BuildTargetModel）",
+        "run_id": "round_0558b556c213",
+        "cycle_id": "round_0558b556c213:target_4",
+        "target_id": "target_4",
+        "recovery_required": false,
+        "execution_enabled": true,
+        "grasp_enabled": true,
+        "tool_enabled": false,
+        "state_seq": 765,
+        "t": 1792141079.8343298,
+        "dur_s": 8.765
+      },
+      {
+        "batch_state": 2,
+        "target_phase": 4,
+        "message": "抓取前再确认：等待新鲜观测复核身份/锚点漂移/摆动平息",
+        "run_id": "round_0558b556c213",
+        "cycle_id": "round_0558b556c213:target_4",
+        "target_id": "target_4",
+        "recovery_required": false,
+        "execution_enabled": true,
+        "grasp_enabled": true,
+        "tool_enabled": false,
+        "state_seq": 808,
+        "t": 1792141088.599701,
+        "dur_s": 1.26
+      },
+      {
+        "batch_state": 2,
+        "target_phase": 5,
+        "message": "拍照位再最短路径到预抓取",
+        "run_id": "round_0558b556c213",
+        "cycle_id": "round_0558b556c213:target_4",
+        "target_id": "target_4",
+        "recovery_required": false,
+        "execution_enabled": true,
+        "grasp_enabled": true,
+        "tool_enabled": false,
+        "state_seq": 815,
+        "t": 1792141089.859409,
+        "dur_s": 14.034
+      },
+      {
+        "batch_state": 2,
+        "target_phase": 4,
+        "message": "预抓取停稳验证（不 SetIO）",
+        "run_id": "round_0558b556c213",
+        "cycle_id": "round_0558b556c213:target_4",
+        "target_id": "target_4",
+        "recovery_required": true,
+        "execution_enabled": true,
+        "grasp_enabled": true,
+        "tool_enabled": false,
+        "state_seq": 885,
+        "t": 1792141103.8929784,
+        "dur_s": 0.201
+      },
+      {
+        "batch_state": 2,
+        "target_phase": 5,
+        "message": "预规划套入与反向撤退",
+        "run_id": "round_0558b556c213",
+        "cycle_id": "round_0558b556c213:target_4",
+        "target_id": "target_4",
+        "recovery_required": true,
+        "execution_enabled": true,
+        "grasp_enabled": true,
+        "tool_enabled": false,
+        "state_seq": 886,
+        "t": 1792141104.0936975,
+        "dur_s": 0.204
+      },
+      {
+        "batch_state": 2,
+        "target_phase": 5,
+        "message": "沿轴 LIN 套入",
+        "run_id": "round_0558b556c213",
+        "cycle_id": "round_0558b556c213:target_4",
+        "target_id": "target_4",
+        "recovery_required": true,
+        "execution_enabled": true,
+        "grasp_enabled": true,
+        "tool_enabled": false,
+        "state_seq": 887,
+        "t": 1792141104.2974014,
+        "dur_s": 5.411
+      },
+      {
+        "batch_state": 2,
+        "target_phase": 7,
+        "message": "MTC 沿插入反方向保持直线撤离",
+        "run_id": "round_0558b556c213",
+        "cycle_id": "round_0558b556c213:target_4",
+        "target_id": "target_4",
+        "recovery_required": true,
+        "execution_enabled": true,
+        "grasp_enabled": true,
+        "tool_enabled": false,
+        "state_seq": 914,
+        "t": 1792141109.708887,
+        "dur_s": 5.21
+      },
+      {
+        "batch_state": 2,
+        "target_phase": 7,
+        "message": "返回 harvest_stow",
+        "run_id": "round_0558b556c213",
+        "cycle_id": "round_0558b556c213:target_4",
+        "target_id": "target_4",
+        "recovery_required": true,
+        "execution_enabled": true,
+        "grasp_enabled": true,
+        "tool_enabled": false,
+        "state_seq": 940,
+        "t": 1792141114.9193234,
+        "dur_s": 12.644
+      },
+      {
+        "batch_state": 2,
+        "target_phase": 9,
+        "message": "返回 harvest_stow",
+        "run_id": "round_0558b556c213",
+        "cycle_id": "round_0558b556c213:target_4",
+        "target_id": "target_4",
+        "recovery_required": true,
+        "execution_enabled": true,
+        "grasp_enabled": true,
+        "tool_enabled": false,
+        "state_seq": 1003,
+        "t": 1792141127.563387,
+        "dur_s": 0.013
+      },
+      {
+        "batch_state": 7,
+        "target_phase": 9,
+        "message": "recovery_required",
+        "run_id": "round_0558b556c213",
+        "cycle_id": "round_0558b556c213:target_4",
+        "target_id": "target_4",
+        "recovery_required": true,
+        "execution_enabled": true,
+        "grasp_enabled": true,
+        "tool_enabled": false,
+        "state_seq": 1004,
+        "t": 1792141127.5760255,
+        "dur_s": 0.13
+      },
+      {
+        "batch_state": 7,
+        "target_phase": 9,
+        "message": "recovery_required",
+        "run_id": "round_0558b556c213",
+        "cycle_id": "round_0558b556c213:target_4",
+        "target_id": "target_4",
+        "recovery_required": false,
+        "execution_enabled": true,
+        "grasp_enabled": true,
+        "tool_enabled": false,
+        "state_seq": 1005,
+        "t": 1792141127.7060475,
+        "dur_s": 0.084
+      },
+      {
+        "batch_state": 2,
+        "target_phase": 9,
+        "message": "返回 harvest_stow",
+        "run_id": "round_0558b556c213",
+        "cycle_id": "round_0558b556c213:target_4",
+        "target_id": "target_4",
+        "recovery_required": false,
+        "execution_enabled": true,
+        "grasp_enabled": true,
+        "tool_enabled": false,
+        "state_seq": 1006,
+        "t": 1792141127.7898564,
+        "dur_s": 12.052
+      },
+      {
+        "batch_state": 1,
+        "target_phase": 1,
+        "message": "discovery",
+        "run_id": "round_0558b556c213",
+        "cycle_id": "round_0558b556c213:target_4",
+        "target_id": "",
+        "recovery_required": false,
+        "execution_enabled": true,
+        "grasp_enabled": true,
+        "tool_enabled": false,
+        "state_seq": 1009,
+        "t": 1792141139.842232,
+        "dur_s": 10.099
+      },
+      {
+        "batch_state": 6,
+        "target_phase": 0,
+        "message": "completed",
+        "run_id": "round_0558b556c213",
+        "cycle_id": "round_0558b556c213:target_4",
+        "target_id": "",
+        "recovery_required": false,
+        "execution_enabled": true,
+        "grasp_enabled": true,
+        "tool_enabled": false,
+        "state_seq": 1014,
+        "t": 1792141149.9416528,
+        "dur_s": 12.88
+      },
+      {
+        "batch_state": 1,
+        "target_phase": 0,
+        "message": "preparing",
+        "run_id": "round_689c797fe0d8",
+        "cycle_id": "round_689c797fe0d8",
+        "target_id": "",
+        "recovery_required": false,
+        "execution_enabled": true,
+        "grasp_enabled": true,
+        "tool_enabled": false,
+        "state_seq": 1016,
+        "t": 1792141162.8220394,
+        "dur_s": 20.103
+      },
+      {
+        "batch_state": 1,
+        "target_phase": 1,
+        "message": "discovery",
+        "run_id": "round_689c797fe0d8",
+        "cycle_id": "round_689c797fe0d8",
+        "target_id": "",
+        "recovery_required": false,
+        "execution_enabled": true,
+        "grasp_enabled": true,
+        "tool_enabled": false,
+        "state_seq": 1021,
+        "t": 1792141182.9251113,
+        "dur_s": 0.286
+      },
+      {
+        "batch_state": 2,
+        "target_phase": 3,
+        "message": "等待重建精化几何（BuildTargetModel）",
+        "run_id": "round_689c797fe0d8",
+        "cycle_id": "round_689c797fe0d8:target_5",
+        "target_id": "target_5",
+        "recovery_required": false,
+        "execution_enabled": true,
+        "grasp_enabled": true,
+        "tool_enabled": false,
+        "state_seq": 1025,
+        "t": 1792141183.2114217,
+        "dur_s": 9.016
+      },
+      {
+        "batch_state": 2,
+        "target_phase": 4,
+        "message": "抓取前再确认：等待新鲜观测复核身份/锚点漂移/摆动平息",
+        "run_id": "round_689c797fe0d8",
+        "cycle_id": "round_689c797fe0d8:target_5",
+        "target_id": "target_5",
+        "recovery_required": false,
+        "execution_enabled": true,
+        "grasp_enabled": true,
+        "tool_enabled": false,
+        "state_seq": 1070,
+        "t": 1792141192.227099,
+        "dur_s": 1.202
+      },
+      {
+        "batch_state": 2,
+        "target_phase": 5,
+        "message": "拍照位再最短路径到预抓取",
+        "run_id": "round_689c797fe0d8",
+        "cycle_id": "round_689c797fe0d8:target_5",
+        "target_id": "target_5",
+        "recovery_required": false,
+        "execution_enabled": true,
+        "grasp_enabled": true,
+        "tool_enabled": false,
+        "state_seq": 1076,
+        "t": 1792141193.4291832,
+        "dur_s": 9.621
+      },
+      {
+        "batch_state": 2,
+        "target_phase": 4,
+        "message": "预抓取停稳验证（不 SetIO）",
+        "run_id": "round_689c797fe0d8",
+        "cycle_id": "round_689c797fe0d8:target_5",
+        "target_id": "target_5",
+        "recovery_required": true,
+        "execution_enabled": true,
+        "grasp_enabled": true,
+        "tool_enabled": false,
+        "state_seq": 1124,
+        "t": 1792141203.0501087,
+        "dur_s": 0.2
+      },
+      {
+        "batch_state": 2,
+        "target_phase": 5,
+        "message": "沿轴 LIN 套入",
+        "run_id": "round_689c797fe0d8",
+        "cycle_id": "round_689c797fe0d8:target_5",
+        "target_id": "target_5",
+        "recovery_required": true,
+        "execution_enabled": true,
+        "grasp_enabled": true,
+        "tool_enabled": false,
+        "state_seq": 1125,
+        "t": 1792141203.2496696,
+        "dur_s": 5.819
+      },
+      {
+        "batch_state": 2,
+        "target_phase": 7,
+        "message": "MTC 沿插入反方向保持直线撤离",
+        "run_id": "round_689c797fe0d8",
+        "cycle_id": "round_689c797fe0d8:target_5",
+        "target_id": "target_5",
+        "recovery_required": true,
+        "execution_enabled": true,
+        "grasp_enabled": true,
+        "tool_enabled": false,
+        "state_seq": 1154,
+        "t": 1792141209.068955,
+        "dur_s": 5.807
+      },
+      {
+        "batch_state": 2,
+        "target_phase": 7,
+        "message": "返回 harvest_stow",
+        "run_id": "round_689c797fe0d8",
+        "cycle_id": "round_689c797fe0d8:target_5",
+        "target_id": "target_5",
+        "recovery_required": true,
+        "execution_enabled": true,
+        "grasp_enabled": true,
+        "tool_enabled": false,
+        "state_seq": 1183,
+        "t": 1792141214.8762465,
+        "dur_s": 9.834
+      },
+      {
+        "batch_state": 7,
+        "target_phase": 9,
+        "message": "recovery_required",
+        "run_id": "round_689c797fe0d8",
+        "cycle_id": "round_689c797fe0d8:target_5",
+        "target_id": "target_5",
+        "recovery_required": true,
+        "execution_enabled": true,
+        "grasp_enabled": true,
+        "tool_enabled": false,
+        "state_seq": 1233,
+        "t": 1792141224.7098796,
+        "dur_s": 0.875
+      },
+      {
+        "batch_state": 7,
+        "target_phase": 9,
+        "message": "recovery_required",
+        "run_id": "round_689c797fe0d8",
+        "cycle_id": "round_689c797fe0d8:target_5",
+        "target_id": "target_5",
+        "recovery_required": false,
+        "execution_enabled": true,
+        "grasp_enabled": true,
+        "tool_enabled": false,
+        "state_seq": 1234,
+        "t": 1792141225.5848389,
+        "dur_s": 0.094
+      },
+      {
+        "batch_state": 2,
+        "target_phase": 9,
+        "message": "返回 harvest_stow",
+        "run_id": "round_689c797fe0d8",
+        "cycle_id": "round_689c797fe0d8:target_5",
+        "target_id": "target_5",
+        "recovery_required": false,
+        "execution_enabled": true,
+        "grasp_enabled": true,
+        "tool_enabled": false,
+        "state_seq": 1235,
+        "t": 1792141225.6787562,
+        "dur_s": 12.001
+      },
+      {
+        "batch_state": 1,
+        "target_phase": 1,
+        "message": "discovery",
+        "run_id": "round_689c797fe0d8",
+        "cycle_id": "round_689c797fe0d8:target_5",
+        "target_id": "",
+        "recovery_required": false,
+        "execution_enabled": true,
+        "grasp_enabled": true,
+        "tool_enabled": false,
+        "state_seq": 1238,
+        "t": 1792141237.6794827,
+        "dur_s": 10.071
+      },
+      {
+        "batch_state": 6,
+        "target_phase": 0,
+        "message": "completed",
+        "run_id": "round_689c797fe0d8",
+        "cycle_id": "round_689c797fe0d8:target_5",
+        "target_id": "",
+        "recovery_required": false,
+        "execution_enabled": true,
+        "grasp_enabled": true,
+        "tool_enabled": false,
+        "state_seq": 1244,
+        "t": 1792141247.7500293,
+        "dur_s": 14.013
+      },
+      {
+        "batch_state": 1,
+        "target_phase": 0,
+        "message": "preparing",
+        "run_id": "round_ea83bc4c7973",
+        "cycle_id": "round_ea83bc4c7973",
+        "target_id": "",
+        "recovery_required": false,
+        "execution_enabled": true,
+        "grasp_enabled": true,
+        "tool_enabled": false,
+        "state_seq": 1245,
+        "t": 1792141261.7630868,
+        "dur_s": 21.332
+      },
+      {
+        "batch_state": 1,
+        "target_phase": 1,
+        "message": "discovery",
+        "run_id": "round_ea83bc4c7973",
+        "cycle_id": "round_ea83bc4c7973",
+        "target_id": "",
+        "recovery_required": false,
+        "execution_enabled": true,
+        "grasp_enabled": true,
+        "tool_enabled": false,
+        "state_seq": 1250,
+        "t": 1792141283.0953538,
+        "dur_s": 0.094
+      },
+      {
+        "batch_state": 2,
+        "target_phase": 4,
+        "message": "已记录现场人工撤离确认；本服务不发送任何运动命令",
+        "run_id": "round_ea83bc4c7973",
+        "cycle_id": "round_ea83bc4c7973:target_6",
+        "target_id": "target_6",
+        "recovery_required": false,
+        "execution_enabled": true,
+        "grasp_enabled": true,
+        "tool_enabled": false,
+        "state_seq": 1253,
+        "t": 1792141283.1898313,
+        "dur_s": 0.212
+      },
+      {
+        "batch_state": 2,
+        "target_phase": 3,
+        "message": "等待重建精化几何（BuildTargetModel）",
+        "run_id": "round_ea83bc4c7973",
+        "cycle_id": "round_ea83bc4c7973:target_6",
+        "target_id": "target_6",
+        "recovery_required": false,
+        "execution_enabled": true,
+        "grasp_enabled": true,
+        "tool_enabled": false,
+        "state_seq": 1254,
+        "t": 1792141283.401811,
+        "dur_s": 4.801
+      },
+      {
+        "batch_state": 2,
+        "target_phase": 4,
+        "message": "抓取前再确认：等待新鲜观测复核身份/锚点漂移/摆动平息",
+        "run_id": "round_ea83bc4c7973",
+        "cycle_id": "round_ea83bc4c7973:target_6",
+        "target_id": "target_6",
+        "recovery_required": false,
+        "execution_enabled": true,
+        "grasp_enabled": true,
+        "tool_enabled": false,
+        "state_seq": 1278,
+        "t": 1792141288.2027256,
+        "dur_s": 1.195
+      },
+      {
+        "batch_state": 2,
+        "target_phase": 5,
+        "message": "拍照位再最短路径到预抓取",
+        "run_id": "round_ea83bc4c7973",
+        "cycle_id": "round_ea83bc4c7973:target_6",
+        "target_id": "target_6",
+        "recovery_required": false,
+        "execution_enabled": true,
+        "grasp_enabled": true,
+        "tool_enabled": false,
+        "state_seq": 1284,
+        "t": 1792141289.3978138,
+        "dur_s": 13.619
+      },
+      {
+        "batch_state": 2,
+        "target_phase": 4,
+        "message": "预抓取停稳验证（不 SetIO）",
+        "run_id": "round_ea83bc4c7973",
+        "cycle_id": "round_ea83bc4c7973:target_6",
+        "target_id": "target_6",
+        "recovery_required": true,
+        "execution_enabled": true,
+        "grasp_enabled": true,
+        "tool_enabled": false,
+        "state_seq": 1352,
+        "t": 1792141303.0168717,
+        "dur_s": 0.204
+      },
+      {
+        "batch_state": 2,
+        "target_phase": 5,
+        "message": "预规划套入与反向撤退",
+        "run_id": "round_ea83bc4c7973",
+        "cycle_id": "round_ea83bc4c7973:target_6",
+        "target_id": "target_6",
+        "recovery_required": true,
+        "execution_enabled": true,
+        "grasp_enabled": true,
+        "tool_enabled": false,
+        "state_seq": 1353,
+        "t": 1792141303.2212663,
+        "dur_s": 0.199
+      },
+      {
+        "batch_state": 2,
+        "target_phase": 5,
+        "message": "沿轴 LIN 套入",
+        "run_id": "round_ea83bc4c7973",
+        "cycle_id": "round_ea83bc4c7973:target_6",
+        "target_id": "target_6",
+        "recovery_required": true,
+        "execution_enabled": true,
+        "grasp_enabled": true,
+        "tool_enabled": false,
+        "state_seq": 1354,
+        "t": 1792141303.4200554,
+        "dur_s": 5.813
+      },
+      {
+        "batch_state": 2,
+        "target_phase": 7,
+        "message": "MTC 沿插入反方向保持直线撤离",
+        "run_id": "round_ea83bc4c7973",
+        "cycle_id": "round_ea83bc4c7973:target_6",
+        "target_id": "target_6",
+        "recovery_required": true,
+        "execution_enabled": true,
+        "grasp_enabled": true,
+        "tool_enabled": false,
+        "state_seq": 1383,
+        "t": 1792141309.2325568,
+        "dur_s": 6.012
+      },
+      {
+        "batch_state": 2,
+        "target_phase": 7,
+        "message": "返回 harvest_stow",
+        "run_id": "round_ea83bc4c7973",
+        "cycle_id": "round_ea83bc4c7973:target_6",
+        "target_id": "target_6",
+        "recovery_required": true,
+        "execution_enabled": true,
+        "grasp_enabled": true,
+        "tool_enabled": false,
+        "state_seq": 1413,
+        "t": 1792141315.2447495,
+        "dur_s": 13.656
+      },
+      {
+        "batch_state": 2,
+        "target_phase": 9,
+        "message": "返回 harvest_stow",
+        "run_id": "round_ea83bc4c7973",
+        "cycle_id": "round_ea83bc4c7973:target_6",
+        "target_id": "target_6",
+        "recovery_required": true,
+        "execution_enabled": true,
+        "grasp_enabled": true,
+        "tool_enabled": false,
+        "state_seq": 1481,
+        "t": 1792141328.9009848,
+        "dur_s": 0.016
+      },
+      {
+        "batch_state": 7,
+        "target_phase": 9,
+        "message": "recovery_required",
+        "run_id": "round_ea83bc4c7973",
+        "cycle_id": "round_ea83bc4c7973:target_6",
+        "target_id": "target_6",
+        "recovery_required": true,
+        "execution_enabled": true,
+        "grasp_enabled": true,
+        "tool_enabled": false,
+        "state_seq": 1482,
+        "t": 1792141328.9166994,
+        "dur_s": 0.735
+      },
+      {
+        "batch_state": 7,
+        "target_phase": 9,
+        "message": "recovery_required",
+        "run_id": "round_ea83bc4c7973",
+        "cycle_id": "round_ea83bc4c7973:target_6",
+        "target_id": "target_6",
+        "recovery_required": false,
+        "execution_enabled": true,
+        "grasp_enabled": true,
+        "tool_enabled": false,
+        "state_seq": 1483,
+        "t": 1792141329.6521783,
+        "dur_s": 0.054
+      },
+      {
+        "batch_state": 2,
+        "target_phase": 9,
+        "message": "返回 harvest_stow",
+        "run_id": "round_ea83bc4c7973",
+        "cycle_id": "round_ea83bc4c7973:target_6",
+        "target_id": "target_6",
+        "recovery_required": false,
+        "execution_enabled": true,
+        "grasp_enabled": true,
+        "tool_enabled": false,
+        "state_seq": 1484,
+        "t": 1792141329.7063234,
+        "dur_s": 12.047
+      },
+      {
+        "batch_state": 1,
+        "target_phase": 1,
+        "message": "discovery",
+        "run_id": "round_ea83bc4c7973",
+        "cycle_id": "round_ea83bc4c7973:target_6",
+        "target_id": "",
+        "recovery_required": false,
+        "execution_enabled": true,
+        "grasp_enabled": true,
+        "tool_enabled": false,
+        "state_seq": 1487,
+        "t": 1792141341.753424,
+        "dur_s": 10.074
+      },
+      {
+        "batch_state": 6,
+        "target_phase": 0,
+        "message": "completed",
+        "run_id": "round_ea83bc4c7973",
+        "cycle_id": "round_ea83bc4c7973:target_6",
+        "target_id": "",
+        "recovery_required": false,
+        "execution_enabled": true,
+        "grasp_enabled": true,
+        "tool_enabled": false,
+        "state_seq": 1492,
+        "t": 1792141351.827737,
+        "dur_s": 13.416
+      },
+      {
+        "batch_state": 1,
+        "target_phase": 0,
+        "message": "preparing",
+        "run_id": "round_cb74fb024880",
+        "cycle_id": "round_cb74fb024880",
+        "target_id": "",
+        "recovery_required": false,
+        "execution_enabled": true,
+        "grasp_enabled": true,
+        "tool_enabled": false,
+        "state_seq": 1494,
+        "t": 1792141365.244225,
+        "dur_s": 20.898
+      },
+      {
+        "batch_state": 1,
+        "target_phase": 1,
+        "message": "discovery",
+        "run_id": "round_cb74fb024880",
+        "cycle_id": "round_cb74fb024880",
+        "target_id": "",
+        "recovery_required": false,
+        "execution_enabled": true,
+        "grasp_enabled": true,
+        "tool_enabled": false,
+        "state_seq": 1499,
+        "t": 1792141386.1423283,
+        "dur_s": 0.105
+      },
+      {
+        "batch_state": 2,
+        "target_phase": 4,
+        "message": "已记录现场人工撤离确认；本服务不发送任何运动命令",
+        "run_id": "round_cb74fb024880",
+        "cycle_id": "round_cb74fb024880:target_7",
+        "target_id": "target_7",
+        "recovery_required": false,
+        "execution_enabled": true,
+        "grasp_enabled": true,
+        "tool_enabled": false,
+        "state_seq": 1502,
+        "t": 1792141386.2473457,
+        "dur_s": 0.196
+      },
+      {
+        "batch_state": 2,
+        "target_phase": 3,
+        "message": "等待重建精化几何（BuildTargetModel）",
+        "run_id": "round_cb74fb024880",
+        "cycle_id": "round_cb74fb024880:target_7",
+        "target_id": "target_7",
+        "recovery_required": false,
+        "execution_enabled": true,
+        "grasp_enabled": true,
+        "tool_enabled": false,
+        "state_seq": 1503,
+        "t": 1792141386.4432964,
+        "dur_s": 13.639
+      },
+      {
+        "batch_state": 2,
+        "target_phase": 4,
+        "message": "抓取前再确认：等待新鲜观测复核身份/锚点漂移/摆动平息",
+        "run_id": "round_cb74fb024880",
+        "cycle_id": "round_cb74fb024880:target_7",
+        "target_id": "target_7",
+        "recovery_required": false,
+        "execution_enabled": true,
+        "grasp_enabled": true,
+        "tool_enabled": false,
+        "state_seq": 1571,
+        "t": 1792141400.0821035,
+        "dur_s": 1.191
+      },
+      {
+        "batch_state": 2,
+        "target_phase": 5,
+        "message": "拍照位再最短路径到预抓取",
+        "run_id": "round_cb74fb024880",
+        "cycle_id": "round_cb74fb024880:target_7",
+        "target_id": "target_7",
+        "recovery_required": false,
+        "execution_enabled": true,
+        "grasp_enabled": true,
+        "tool_enabled": false,
+        "state_seq": 1577,
+        "t": 1792141401.2726164,
+        "dur_s": 9.62
+      },
+      {
+        "batch_state": 2,
+        "target_phase": 4,
+        "message": "预抓取停稳验证（不 SetIO）",
+        "run_id": "round_cb74fb024880",
+        "cycle_id": "round_cb74fb024880:target_7",
+        "target_id": "target_7",
+        "recovery_required": true,
+        "execution_enabled": true,
+        "grasp_enabled": true,
+        "tool_enabled": false,
+        "state_seq": 1625,
+        "t": 1792141410.8925266,
+        "dur_s": 0.205
+      },
+      {
+        "batch_state": 2,
+        "target_phase": 5,
+        "message": "预规划套入与反向撤退",
+        "run_id": "round_cb74fb024880",
+        "cycle_id": "round_cb74fb024880:target_7",
+        "target_id": "target_7",
+        "recovery_required": true,
+        "execution_enabled": true,
+        "grasp_enabled": true,
+        "tool_enabled": false,
+        "state_seq": 1626,
+        "t": 1792141411.0971496,
+        "dur_s": 0.198
+      },
+      {
+        "batch_state": 2,
+        "target_phase": 5,
+        "message": "沿轴 LIN 套入",
+        "run_id": "round_cb74fb024880",
+        "cycle_id": "round_cb74fb024880:target_7",
+        "target_id": "target_7",
+        "recovery_required": true,
+        "execution_enabled": true,
+        "grasp_enabled": true,
+        "tool_enabled": false,
+        "state_seq": 1627,
+        "t": 1792141411.295459,
+        "dur_s": 5.813
+      },
+      {
+        "batch_state": 2,
+        "target_phase": 7,
+        "message": "MTC 沿插入反方向保持直线撤离",
+        "run_id": "round_cb74fb024880",
+        "cycle_id": "round_cb74fb024880:target_7",
+        "target_id": "target_7",
+        "recovery_required": true,
+        "execution_enabled": true,
+        "grasp_enabled": true,
+        "tool_enabled": false,
+        "state_seq": 1656,
+        "t": 1792141417.1085625,
+        "dur_s": 5.603
+      },
+      {
+        "batch_state": 2,
+        "target_phase": 7,
+        "message": "返回 harvest_stow",
+        "run_id": "round_cb74fb024880",
+        "cycle_id": "round_cb74fb024880:target_7",
+        "target_id": "target_7",
+        "recovery_required": true,
+        "execution_enabled": true,
+        "grasp_enabled": true,
+        "tool_enabled": false,
+        "state_seq": 1684,
+        "t": 1792141422.7118466,
+        "dur_s": 9.833
+      },
+      {
+        "batch_state": 7,
+        "target_phase": 9,
+        "message": "recovery_required",
+        "run_id": "round_cb74fb024880",
+        "cycle_id": "round_cb74fb024880:target_7",
+        "target_id": "target_7",
+        "recovery_required": true,
+        "execution_enabled": true,
+        "grasp_enabled": true,
+        "tool_enabled": false,
+        "state_seq": 1734,
+        "t": 1792141432.544866,
+        "dur_s": 0.586
+      },
+      {
+        "batch_state": 7,
+        "target_phase": 9,
+        "message": "recovery_required",
+        "run_id": "round_cb74fb024880",
+        "cycle_id": "round_cb74fb024880:target_7",
+        "target_id": "target_7",
+        "recovery_required": false,
+        "execution_enabled": true,
+        "grasp_enabled": true,
+        "tool_enabled": false,
+        "state_seq": 1735,
+        "t": 1792141433.1306565,
+        "dur_s": 0.025
+      },
+      {
+        "batch_state": 2,
+        "target_phase": 9,
+        "message": "返回 harvest_stow",
+        "run_id": "round_cb74fb024880",
+        "cycle_id": "round_cb74fb024880:target_7",
+        "target_id": "target_7",
+        "recovery_required": false,
+        "execution_enabled": true,
+        "grasp_enabled": true,
+        "tool_enabled": false,
+        "state_seq": 1736,
+        "t": 1792141433.1556563,
+        "dur_s": 12.068
+      },
+      {
+        "batch_state": 1,
+        "target_phase": 1,
+        "message": "discovery",
+        "run_id": "round_cb74fb024880",
+        "cycle_id": "round_cb74fb024880:target_7",
+        "target_id": "",
+        "recovery_required": false,
+        "execution_enabled": true,
+        "grasp_enabled": true,
+        "tool_enabled": false,
+        "state_seq": 1739,
+        "t": 1792141445.2232292,
+        "dur_s": 10.1
+      },
+      {
+        "batch_state": 6,
+        "target_phase": 0,
+        "message": "completed",
+        "run_id": "round_cb74fb024880",
+        "cycle_id": "round_cb74fb024880:target_7",
+        "target_id": "",
+        "recovery_required": false,
+        "execution_enabled": true,
+        "grasp_enabled": true,
+        "tool_enabled": false,
+        "state_seq": 1745,
+        "t": 1792141455.3231583,
+        "dur_s": 14.666
+      },
+      {
+        "batch_state": 1,
+        "target_phase": 0,
+        "message": "preparing",
+        "run_id": "round_f69d06620af6",
+        "cycle_id": "round_f69d06620af6",
+        "target_id": "",
+        "recovery_required": false,
+        "execution_enabled": true,
+        "grasp_enabled": true,
+        "tool_enabled": false,
+        "state_seq": 1746,
+        "t": 1792141469.9892964,
+        "dur_s": 23.064
+      },
+      {
+        "batch_state": 1,
+        "target_phase": 1,
+        "message": "discovery",
+        "run_id": "round_f69d06620af6",
+        "cycle_id": "round_f69d06620af6",
+        "target_id": "",
+        "recovery_required": false,
+        "execution_enabled": true,
+        "grasp_enabled": true,
+        "tool_enabled": false,
+        "state_seq": 1751,
+        "t": 1792141493.053047,
+        "dur_s": 2.625
+      },
+      {
+        "batch_state": 2,
+        "target_phase": 3,
+        "message": "等待重建精化几何（BuildTargetModel）",
+        "run_id": "round_f69d06620af6",
+        "cycle_id": "round_f69d06620af6:target_8",
+        "target_id": "target_8",
+        "recovery_required": false,
+        "execution_enabled": true,
+        "grasp_enabled": true,
+        "tool_enabled": false,
+        "state_seq": 1758,
+        "t": 1792141495.6784756,
+        "dur_s": 42.329
+      },
+      {
+        "batch_state": 2,
+        "target_phase": 10,
+        "message": "等待重建精化几何（BuildTargetModel）",
+        "run_id": "round_f69d06620af6",
+        "cycle_id": "round_f69d06620af6:target_8",
+        "target_id": "target_8",
+        "recovery_required": false,
+        "execution_enabled": true,
+        "grasp_enabled": true,
+        "tool_enabled": false,
+        "state_seq": 1969,
+        "t": 1792141538.0072932,
+        "dur_s": 10.068
+      },
+      {
+        "batch_state": 1,
+        "target_phase": 1,
+        "message": "discovery",
+        "run_id": "round_f69d06620af6",
+        "cycle_id": "round_f69d06620af6:target_8",
+        "target_id": "",
+        "recovery_required": false,
+        "execution_enabled": true,
+        "grasp_enabled": true,
+        "tool_enabled": false,
+        "state_seq": 1972,
+        "t": 1792141548.0756562,
+        "dur_s": 10.119
+      },
+      {
+        "batch_state": 6,
+        "target_phase": 0,
+        "message": "completed",
+        "run_id": "round_f69d06620af6",
+        "cycle_id": "round_f69d06620af6:target_8",
+        "target_id": "",
+        "recovery_required": false,
+        "execution_enabled": true,
+        "grasp_enabled": true,
+        "tool_enabled": false,
+        "state_seq": 1977,
+        "t": 1792141558.1946096,
+        "dur_s": 13.94
+      },
+      {
+        "batch_state": 1,
+        "target_phase": 0,
+        "message": "preparing",
+        "run_id": "round_141b74e39d39",
+        "cycle_id": "round_141b74e39d39",
+        "target_id": "",
+        "recovery_required": false,
+        "execution_enabled": true,
+        "grasp_enabled": true,
+        "tool_enabled": false,
+        "state_seq": 1979,
+        "t": 1792141572.1350796,
+        "dur_s": 20.904
+      },
+      {
+        "batch_state": 1,
+        "target_phase": 1,
+        "message": "discovery",
+        "run_id": "round_141b74e39d39",
+        "cycle_id": "round_141b74e39d39",
+        "target_id": "",
+        "recovery_required": false,
+        "execution_enabled": true,
+        "grasp_enabled": true,
+        "tool_enabled": false,
+        "state_seq": 1984,
+        "t": 1792141593.0389016,
+        "dur_s": 0.118
+      },
+      {
+        "batch_state": 2,
+        "target_phase": 11,
+        "message": "decision_geometry_unavailable: pregrasp_geometry_ready",
+        "run_id": "round_141b74e39d39",
+        "cycle_id": "round_141b74e39d39:target_9",
+        "target_id": "target_9",
+        "recovery_required": false,
+        "execution_enabled": true,
+        "grasp_enabled": true,
+        "tool_enabled": false,
+        "state_seq": 1987,
+        "t": 1792141593.1567726,
+        "dur_s": 0.214
+      },
+      {
+        "batch_state": 2,
+        "target_phase": 3,
+        "message": "等待重建精化几何（BuildTargetModel）",
+        "run_id": "round_141b74e39d39",
+        "cycle_id": "round_141b74e39d39:target_9",
+        "target_id": "target_9",
+        "recovery_required": false,
+        "execution_enabled": true,
+        "grasp_enabled": true,
+        "tool_enabled": false,
+        "state_seq": 1988,
+        "t": 1792141593.3711867,
+        "dur_s": 33.918
+      },
+      {
+        "batch_state": 2,
+        "target_phase": 10,
+        "message": "等待重建精化几何（BuildTargetModel）",
+        "run_id": "round_141b74e39d39",
+        "cycle_id": "round_141b74e39d39:target_9",
+        "target_id": "target_9",
+        "recovery_required": false,
+        "execution_enabled": true,
+        "grasp_enabled": true,
+        "tool_enabled": false,
+        "state_seq": 2157,
+        "t": 1792141627.2891448,
+        "dur_s": 10.119
+      },
+      {
+        "batch_state": 1,
+        "target_phase": 1,
+        "message": "discovery",
+        "run_id": "round_141b74e39d39",
+        "cycle_id": "round_141b74e39d39:target_9",
+        "target_id": "",
+        "recovery_required": false,
+        "execution_enabled": true,
+        "grasp_enabled": true,
+        "tool_enabled": false,
+        "state_seq": 2160,
+        "t": 1792141637.4079223,
+        "dur_s": 10.17
+      },
+      {
+        "batch_state": 6,
+        "target_phase": 0,
+        "message": "completed",
+        "run_id": "round_141b74e39d39",
+        "cycle_id": "round_141b74e39d39:target_9",
+        "target_id": "",
+        "recovery_required": false,
+        "execution_enabled": true,
+        "grasp_enabled": true,
+        "tool_enabled": false,
+        "state_seq": 2166,
+        "t": 1792141647.5781915,
+        "dur_s": 0.0,
+        "current": true
+      }
+    ],
+    "arm": [
+      {
+        "state": "IDLE",
+        "message": "已配置；activate 后才开放运动输出权限",
+        "target_id": "",
+        "running": false,
+        "recovery": false,
+        "t": 1792140564.8887246,
+        "dur_s": 208.348
+      },
+      {
+        "state": "FINALIZE",
+        "message": "等待重建精化几何（BuildTargetModel）",
+        "target_id": "target_1",
+        "running": true,
+        "recovery": false,
+        "t": 1792140773.2366366,
+        "dur_s": 9.917
+      },
+      {
+        "state": "RECONFIRM",
+        "message": "抓取前再确认：等待新鲜观测复核身份/锚点漂移/摆动平息",
+        "target_id": "target_1",
+        "running": true,
+        "recovery": false,
+        "t": 1792140783.1537418,
+        "dur_s": 1.238
+      },
+      {
+        "state": "MTC_APPROACH_INSERT",
+        "message": "拍照位再最短路径到预抓取",
+        "target_id": "target_1",
+        "running": true,
+        "recovery": false,
+        "t": 1792140784.391339,
+        "dur_s": 9.576
+      },
+      {
+        "state": "RECONFIRM",
+        "message": "预抓取停稳验证（不 SetIO）",
+        "target_id": "target_1",
+        "running": true,
+        "recovery": true,
+        "t": 1792140793.9677086,
+        "dur_s": 0.195
+      },
+      {
+        "state": "PREVIEW_CONTACT_PLANNING",
+        "message": "预规划套入与反向撤退",
+        "target_id": "target_1",
+        "running": true,
+        "recovery": true,
+        "t": 1792140794.1626294,
+        "dur_s": 0.129
+      },
+      {
+        "state": "MTC_APPROACH_INSERT",
+        "message": "沿轴 LIN 套入",
+        "target_id": "target_1",
+        "running": true,
+        "recovery": true,
+        "t": 1792140794.2913554,
+        "dur_s": 5.743
+      },
+      {
+        "state": "MTC_RETREAT",
+        "message": "MTC 沿插入反方向保持直线撤离",
+        "target_id": "target_1",
+        "running": true,
+        "recovery": true,
+        "t": 1792140800.0341885,
+        "dur_s": 5.852
+      },
+      {
+        "state": "MTC_RETREAT",
+        "message": "返回 harvest_stow",
+        "target_id": "target_1",
+        "running": true,
+        "recovery": false,
+        "t": 1792140805.8862033,
+        "dur_s": 9.781
+      },
+      {
+        "state": "SUCCEEDED",
+        "message": "周期完成；tool.enabled=false 或未宣称采摘成功",
+        "target_id": "target_1",
+        "running": false,
+        "recovery": false,
+        "t": 1792140815.667193,
+        "dur_s": 0.381
+      },
+      {
+        "state": "IDLE",
+        "message": "已记录现场人工撤离确认；本服务不发送任何运动命令",
+        "target_id": "",
+        "running": false,
+        "recovery": false,
+        "t": 1792140816.0481853,
+        "dur_s": 0.837
+      },
+      {
+        "state": "IDLE",
+        "message": "已记录现场人工撤离确认；本服务不发送任何运动命令",
+        "target_id": "",
+        "running": true,
+        "recovery": false,
+        "t": 1792140816.8847954,
+        "dur_s": 1.201
+      },
+      {
+        "state": "IDLE",
+        "message": "已记录现场人工撤离确认；本服务不发送任何运动命令",
+        "target_id": "",
+        "running": false,
+        "recovery": false,
+        "t": 1792140818.086229,
+        "dur_s": 53.817
+      },
+      {
+        "state": "FINALIZE",
+        "message": "等待重建精化几何（BuildTargetModel）",
+        "target_id": "target_2",
+        "running": true,
+        "recovery": false,
+        "t": 1792140871.9028265,
+        "dur_s": 3.175
+      },
+      {
+        "state": "RECONFIRM",
+        "message": "抓取前再确认：等待新鲜观测复核身份/锚点漂移/摆动平息",
+        "target_id": "target_2",
+        "running": true,
+        "recovery": false,
+        "t": 1792140875.077352,
+        "dur_s": 1.079
+      },
+      {
+        "state": "MTC_APPROACH_INSERT",
+        "message": "拍照位再最短路径到预抓取",
+        "target_id": "target_2",
+        "running": true,
+        "recovery": false,
+        "t": 1792140876.1559877,
+        "dur_s": 13.984
+      },
+      {
+        "state": "RECONFIRM",
+        "message": "预抓取停稳验证（不 SetIO）",
+        "target_id": "target_2",
+        "running": true,
+        "recovery": true,
+        "t": 1792140890.139958,
+        "dur_s": 0.192
+      },
+      {
+        "state": "PREVIEW_CONTACT_PLANNING",
+        "message": "预规划套入与反向撤退",
+        "target_id": "target_2",
+        "running": true,
+        "recovery": true,
+        "t": 1792140890.3320975,
+        "dur_s": 0.15
+      },
+      {
+        "state": "MTC_APPROACH_INSERT",
+        "message": "沿轴 LIN 套入",
+        "target_id": "target_2",
+        "running": true,
+        "recovery": true,
+        "t": 1792140890.4818275,
+        "dur_s": 6.073
+      },
+      {
+        "state": "MTC_RETREAT",
+        "message": "MTC 沿插入反方向保持直线撤离",
+        "target_id": "target_2",
+        "running": true,
+        "recovery": true,
+        "t": 1792140896.5550256,
+        "dur_s": 6.104
+      },
+      {
+        "state": "MTC_RETREAT",
+        "message": "返回 harvest_stow",
+        "target_id": "target_2",
+        "running": true,
+        "recovery": false,
+        "t": 1792140902.6591873,
+        "dur_s": 13.635
+      },
+      {
+        "state": "SUCCEEDED",
+        "message": "周期完成；tool.enabled=false 或未宣称采摘成功",
+        "target_id": "target_2",
+        "running": false,
+        "recovery": false,
+        "t": 1792140916.294149,
+        "dur_s": 1.202
+      },
+      {
+        "state": "IDLE",
+        "message": "已记录现场人工撤离确认；本服务不发送任何运动命令",
+        "target_id": "",
+        "running": false,
+        "recovery": false,
+        "t": 1792140917.4964843,
+        "dur_s": 0.374
+      },
+      {
+        "state": "IDLE",
+        "message": "已记录现场人工撤离确认；本服务不发送任何运动命令",
+        "target_id": "",
+        "running": true,
+        "recovery": false,
+        "t": 1792140917.8701065,
+        "dur_s": 1.692
+      },
+      {
+        "state": "IDLE",
+        "message": "已记录现场人工撤离确认；本服务不发送任何运动命令",
+        "target_id": "",
+        "running": false,
+        "recovery": false,
+        "t": 1792140919.5620177,
+        "dur_s": 52.505
+      },
+      {
+        "state": "FINALIZE",
+        "message": "等待重建精化几何（BuildTargetModel）",
+        "target_id": "target_3",
+        "running": true,
+        "recovery": false,
+        "t": 1792140972.067478,
+        "dur_s": 10.079
+      },
+      {
+        "state": "RECONFIRM",
+        "message": "抓取前再确认：等待新鲜观测复核身份/锚点漂移/摆动平息",
+        "target_id": "target_3",
+        "running": true,
+        "recovery": false,
+        "t": 1792140982.1465874,
+        "dur_s": 1.042
+      },
+      {
+        "state": "MTC_APPROACH_INSERT",
+        "message": "拍照位再最短路径到预抓取",
+        "target_id": "target_3",
+        "running": true,
+        "recovery": false,
+        "t": 1792140983.1881692,
+        "dur_s": 13.578
+      },
+      {
+        "state": "RECONFIRM",
+        "message": "预抓取停稳验证（不 SetIO）",
+        "target_id": "target_3",
+        "running": true,
+        "recovery": true,
+        "t": 1792140996.76606,
+        "dur_s": 0.208
+      },
+      {
+        "state": "PREVIEW_CONTACT_PLANNING",
+        "message": "预规划套入与反向撤退",
+        "target_id": "target_3",
+        "running": true,
+        "recovery": true,
+        "t": 1792140996.9736943,
+        "dur_s": 0.257
+      },
+      {
+        "state": "MTC_APPROACH_INSERT",
+        "message": "沿轴 LIN 套入",
+        "target_id": "target_3",
+        "running": true,
+        "recovery": true,
+        "t": 1792140997.230748,
+        "dur_s": 5.94
+      },
+      {
+        "state": "MTC_RETREAT",
+        "message": "MTC 沿插入反方向保持直线撤离",
+        "target_id": "target_3",
+        "running": true,
+        "recovery": true,
+        "t": 1792141003.1712074,
+        "dur_s": 6.093
+      },
+      {
+        "state": "MTC_RETREAT",
+        "message": "返回 harvest_stow",
+        "target_id": "target_3",
+        "running": true,
+        "recovery": false,
+        "t": 1792141009.2645788,
+        "dur_s": 13.64
+      },
+      {
+        "state": "SUCCEEDED",
+        "message": "周期完成；tool.enabled=false 或未宣称采摘成功",
+        "target_id": "target_3",
+        "running": false,
+        "recovery": false,
+        "t": 1792141022.9047236,
+        "dur_s": 0.952
+      },
+      {
+        "state": "IDLE",
+        "message": "已记录现场人工撤离确认；本服务不发送任何运动命令",
+        "target_id": "",
+        "running": false,
+        "recovery": false,
+        "t": 1792141023.8568075,
+        "dur_s": 1.02
+      },
+      {
+        "state": "IDLE",
+        "message": "已记录现场人工撤离确认；本服务不发送任何运动命令",
+        "target_id": "",
+        "running": true,
+        "recovery": false,
+        "t": 1792141024.8767838,
+        "dur_s": 0.972
+      },
+      {
+        "state": "IDLE",
+        "message": "已记录现场人工撤离确认；本服务不发送任何运动命令",
+        "target_id": "",
+        "running": false,
+        "recovery": false,
+        "t": 1792141025.8484883,
+        "dur_s": 53.791
+      },
+      {
+        "state": "FINALIZE",
+        "message": "等待重建精化几何（BuildTargetModel）",
+        "target_id": "target_4",
+        "running": true,
+        "recovery": false,
+        "t": 1792141079.6395526,
+        "dur_s": 8.774
+      },
+      {
+        "state": "RECONFIRM",
+        "message": "抓取前再确认：等待新鲜观测复核身份/锚点漂移/摆动平息",
+        "target_id": "target_4",
+        "running": true,
+        "recovery": false,
+        "t": 1792141088.413354,
+        "dur_s": 1.28
+      },
+      {
+        "state": "MTC_APPROACH_INSERT",
+        "message": "拍照位再最短路径到预抓取",
+        "target_id": "target_4",
+        "running": true,
+        "recovery": false,
+        "t": 1792141089.6937385,
+        "dur_s": 14.033
+      },
+      {
+        "state": "RECONFIRM",
+        "message": "预抓取停稳验证（不 SetIO）",
+        "target_id": "target_4",
+        "running": true,
+        "recovery": true,
+        "t": 1792141103.7270868,
+        "dur_s": 0.197
+      },
+      {
+        "state": "PREVIEW_CONTACT_PLANNING",
+        "message": "预规划套入与反向撤退",
+        "target_id": "target_4",
+        "running": true,
+        "recovery": true,
+        "t": 1792141103.9236693,
+        "dur_s": 0.245
+      },
+      {
+        "state": "MTC_APPROACH_INSERT",
+        "message": "沿轴 LIN 套入",
+        "target_id": "target_4",
+        "running": true,
+        "recovery": true,
+        "t": 1792141104.1684637,
+        "dur_s": 5.342
+      },
+      {
+        "state": "MTC_RETREAT",
+        "message": "MTC 沿插入反方向保持直线撤离",
+        "target_id": "target_4",
+        "running": true,
+        "recovery": true,
+        "t": 1792141109.5100815,
+        "dur_s": 5.318
+      },
+      {
+        "state": "MTC_RETREAT",
+        "message": "返回 harvest_stow",
+        "target_id": "target_4",
+        "running": true,
+        "recovery": false,
+        "t": 1792141114.828309,
+        "dur_s": 12.541
+      },
+      {
+        "state": "SUCCEEDED",
+        "message": "周期完成；tool.enabled=false 或未宣称采摘成功",
+        "target_id": "target_4",
+        "running": false,
+        "recovery": false,
+        "t": 1792141127.3695426,
+        "dur_s": 0.313
+      },
+      {
+        "state": "IDLE",
+        "message": "已记录现场人工撤离确认；本服务不发送任何运动命令",
+        "target_id": "",
+        "running": false,
+        "recovery": false,
+        "t": 1792141127.6823938,
+        "dur_s": 0.192
+      },
+      {
+        "state": "IDLE",
+        "message": "已记录现场人工撤离确认；本服务不发送任何运动命令",
+        "target_id": "",
+        "running": true,
+        "recovery": false,
+        "t": 1792141127.8742576,
+        "dur_s": 1.873
+      },
+      {
+        "state": "IDLE",
+        "message": "已记录现场人工撤离确认；本服务不发送任何运动命令",
+        "target_id": "",
+        "running": false,
+        "recovery": false,
+        "t": 1792141129.746911,
+        "dur_s": 53.261
+      },
+      {
+        "state": "FINALIZE",
+        "message": "等待重建精化几何（BuildTargetModel）",
+        "target_id": "target_5",
+        "running": true,
+        "recovery": false,
+        "t": 1792141183.0077448,
+        "dur_s": 9.098
+      },
+      {
+        "state": "RECONFIRM",
+        "message": "抓取前再确认：等待新鲜观测复核身份/锚点漂移/摆动平息",
+        "target_id": "target_5",
+        "running": true,
+        "recovery": false,
+        "t": 1792141192.1054354,
+        "dur_s": 1.152
+      },
+      {
+        "state": "MTC_APPROACH_INSERT",
+        "message": "拍照位再最短路径到预抓取",
+        "target_id": "target_5",
+        "running": true,
+        "recovery": false,
+        "t": 1792141193.2572753,
+        "dur_s": 9.657
+      },
+      {
+        "state": "RECONFIRM",
+        "message": "预抓取停稳验证（不 SetIO）",
+        "target_id": "target_5",
+        "running": true,
+        "recovery": true,
+        "t": 1792141202.9146652,
+        "dur_s": 0.202
+      },
+      {
+        "state": "PREVIEW_CONTACT_PLANNING",
+        "message": "预规划套入与反向撤退",
+        "target_id": "target_5",
+        "running": true,
+        "recovery": true,
+        "t": 1792141203.1167133,
+        "dur_s": 0.126
+      },
+      {
+        "state": "MTC_APPROACH_INSERT",
+        "message": "沿轴 LIN 套入",
+        "target_id": "target_5",
+        "running": true,
+        "recovery": true,
+        "t": 1792141203.242465,
+        "dur_s": 5.794
+      },
+      {
+        "state": "MTC_RETREAT",
+        "message": "MTC 沿插入反方向保持直线撤离",
+        "target_id": "target_5",
+        "running": true,
+        "recovery": true,
+        "t": 1792141209.0364718,
+        "dur_s": 5.821
+      },
+      {
+        "state": "MTC_RETREAT",
+        "message": "返回 harvest_stow",
+        "target_id": "target_5",
+        "running": true,
+        "recovery": false,
+        "t": 1792141214.857867,
+        "dur_s": 9.807
+      },
+      {
+        "state": "SUCCEEDED",
+        "message": "周期完成；tool.enabled=false 或未宣称采摘成功",
+        "target_id": "target_5",
+        "running": false,
+        "recovery": false,
+        "t": 1792141224.6646037,
+        "dur_s": 0.914
+      },
+      {
+        "state": "IDLE",
+        "message": "已记录现场人工撤离确认；本服务不发送任何运动命令",
+        "target_id": "",
+        "running": false,
+        "recovery": false,
+        "t": 1792141225.5783365,
+        "dur_s": 0.293
+      },
+      {
+        "state": "IDLE",
+        "message": "已记录现场人工撤离确认；本服务不发送任何运动命令",
+        "target_id": "",
+        "running": true,
+        "recovery": false,
+        "t": 1792141225.8712268,
+        "dur_s": 1.755
+      },
+      {
+        "state": "IDLE",
+        "message": "已记录现场人工撤离确认；本服务不发送任何运动命令",
+        "target_id": "",
+        "running": false,
+        "recovery": false,
+        "t": 1792141227.6257963,
+        "dur_s": 55.561
+      },
+      {
+        "state": "FINALIZE",
+        "message": "等待重建精化几何（BuildTargetModel）",
+        "target_id": "target_6",
+        "running": true,
+        "recovery": false,
+        "t": 1792141283.1868367,
+        "dur_s": 4.954
+      },
+      {
+        "state": "RECONFIRM",
+        "message": "抓取前再确认：等待新鲜观测复核身份/锚点漂移/摆动平息",
+        "target_id": "target_6",
+        "running": true,
+        "recovery": false,
+        "t": 1792141288.1408844,
+        "dur_s": 1.142
+      },
+      {
+        "state": "MTC_APPROACH_INSERT",
+        "message": "拍照位再最短路径到预抓取",
+        "target_id": "target_6",
+        "running": true,
+        "recovery": false,
+        "t": 1792141289.2829213,
+        "dur_s": 13.667
+      },
+      {
+        "state": "RECONFIRM",
+        "message": "预抓取停稳验证（不 SetIO）",
+        "target_id": "target_6",
+        "running": true,
+        "recovery": true,
+        "t": 1792141302.949994,
+        "dur_s": 0.188
+      },
+      {
+        "state": "PREVIEW_CONTACT_PLANNING",
+        "message": "预规划套入与反向撤退",
+        "target_id": "target_6",
+        "running": true,
+        "recovery": true,
+        "t": 1792141303.1382072,
+        "dur_s": 0.256
+      },
+      {
+        "state": "MTC_APPROACH_INSERT",
+        "message": "沿轴 LIN 套入",
+        "target_id": "target_6",
+        "running": true,
+        "recovery": true,
+        "t": 1792141303.394291,
+        "dur_s": 5.802
+      },
+      {
+        "state": "MTC_RETREAT",
+        "message": "MTC 沿插入反方向保持直线撤离",
+        "target_id": "target_6",
+        "running": true,
+        "recovery": true,
+        "t": 1792141309.1961515,
+        "dur_s": 5.862
+      },
+      {
+        "state": "MTC_RETREAT",
+        "message": "返回 harvest_stow",
+        "target_id": "target_6",
+        "running": true,
+        "recovery": false,
+        "t": 1792141315.0578387,
+        "dur_s": 13.684
+      },
+      {
+        "state": "SUCCEEDED",
+        "message": "周期完成；tool.enabled=false 或未宣称采摘成功",
+        "target_id": "target_6",
+        "running": false,
+        "recovery": false,
+        "t": 1792141328.7418842,
+        "dur_s": 0.908
+      },
+      {
+        "state": "IDLE",
+        "message": "已记录现场人工撤离确认；本服务不发送任何运动命令",
+        "target_id": "",
+        "running": false,
+        "recovery": false,
+        "t": 1792141329.6494408,
+        "dur_s": 0.235
+      },
+      {
+        "state": "IDLE",
+        "message": "已记录现场人工撤离确认；本服务不发送任何运动命令",
+        "target_id": "",
+        "running": true,
+        "recovery": false,
+        "t": 1792141329.8846607,
+        "dur_s": 1.754
+      },
+      {
+        "state": "IDLE",
+        "message": "已记录现场人工撤离确认；本服务不发送任何运动命令",
+        "target_id": "",
+        "running": false,
+        "recovery": false,
+        "t": 1792141331.6382637,
+        "dur_s": 54.6
+      },
+      {
+        "state": "FINALIZE",
+        "message": "等待重建精化几何（BuildTargetModel）",
+        "target_id": "target_7",
+        "running": true,
+        "recovery": false,
+        "t": 1792141386.2387147,
+        "dur_s": 13.814
+      },
+      {
+        "state": "RECONFIRM",
+        "message": "抓取前再确认：等待新鲜观测复核身份/锚点漂移/摆动平息",
+        "target_id": "target_7",
+        "running": true,
+        "recovery": false,
+        "t": 1792141400.0526805,
+        "dur_s": 1.119
+      },
+      {
+        "state": "MTC_APPROACH_INSERT",
+        "message": "拍照位再最短路径到预抓取",
+        "target_id": "target_7",
+        "running": true,
+        "recovery": false,
+        "t": 1792141401.17212,
+        "dur_s": 9.69
+      },
+      {
+        "state": "RECONFIRM",
+        "message": "预抓取停稳验证（不 SetIO）",
+        "target_id": "target_7",
+        "running": true,
+        "recovery": true,
+        "t": 1792141410.8624969,
+        "dur_s": 0.195
+      },
+      {
+        "state": "PREVIEW_CONTACT_PLANNING",
+        "message": "预规划套入与反向撤退",
+        "target_id": "target_7",
+        "running": true,
+        "recovery": true,
+        "t": 1792141411.057521,
+        "dur_s": 0.224
+      },
+      {
+        "state": "MTC_APPROACH_INSERT",
+        "message": "沿轴 LIN 套入",
+        "target_id": "target_7",
+        "running": true,
+        "recovery": true,
+        "t": 1792141411.281226,
+        "dur_s": 5.752
+      },
+      {
+        "state": "MTC_RETREAT",
+        "message": "MTC 沿插入反方向保持直线撤离",
+        "target_id": "target_7",
+        "running": true,
+        "recovery": true,
+        "t": 1792141417.0328686,
+        "dur_s": 5.663
+      },
+      {
+        "state": "MTC_RETREAT",
+        "message": "返回 harvest_stow",
+        "target_id": "target_7",
+        "running": true,
+        "recovery": false,
+        "t": 1792141422.6961558,
+        "dur_s": 9.738
+      },
+      {
+        "state": "SUCCEEDED",
+        "message": "周期完成；tool.enabled=false 或未宣称采摘成功",
+        "target_id": "target_7",
+        "running": false,
+        "recovery": false,
+        "t": 1792141432.434,
+        "dur_s": 0.678
+      },
+      {
+        "state": "IDLE",
+        "message": "已记录现场人工撤离确认；本服务不发送任何运动命令",
+        "target_id": "",
+        "running": false,
+        "recovery": false,
+        "t": 1792141433.112142,
+        "dur_s": 0.762
+      },
+      {
+        "state": "IDLE",
+        "message": "已记录现场人工撤离确认；本服务不发送任何运动命令",
+        "target_id": "",
+        "running": true,
+        "recovery": false,
+        "t": 1792141433.874581,
+        "dur_s": 1.236
+      },
+      {
+        "state": "IDLE",
+        "message": "已记录现场人工撤离确认；本服务不发送任何运动命令",
+        "target_id": "",
+        "running": false,
+        "recovery": false,
+        "t": 1792141435.1104674,
+        "dur_s": 60.361
+      },
+      {
+        "state": "FINALIZE",
+        "message": "等待重建精化几何（BuildTargetModel）",
+        "target_id": "target_8",
+        "running": true,
+        "recovery": false,
+        "t": 1792141495.471305,
+        "dur_s": 42.454
+      },
+      {
+        "state": "FAILED",
+        "message": "decision_geometry_unavailable: pregrasp_geometry_ready",
+        "target_id": "target_8",
+        "running": false,
+        "recovery": false,
+        "t": 1792141537.925664,
+        "dur_s": 55.228
+      },
+      {
+        "state": "FINALIZE",
+        "message": "等待重建精化几何（BuildTargetModel）",
+        "target_id": "target_9",
+        "running": true,
+        "recovery": false,
+        "t": 1792141593.1536171,
+        "dur_s": 33.992
+      },
+      {
+        "state": "FAILED",
+        "message": "decision_geometry_unavailable: pregrasp_geometry_ready",
+        "target_id": "target_9",
+        "running": false,
+        "recovery": false,
+        "t": 1792141627.1454532,
+        "dur_s": 0.0,
+        "current": true
+      }
+    ]
+  },
+  "ledger": {
+    "live": {
+      "request_id": "round_141b74e39d39",
+      "path": "/home/mu/Desktop/aubo_e5_jazzy_ws/runs/round_141b74e39d39/ledger.json",
+      "mtime": 1792141637.4145033,
+      "error": null,
+      "claimed": [
+        "target_9"
+      ],
+      "rows": [
+        {
+          "target_id": "target_9",
+          "outcome": 1,
+          "outcome_name": "SKIPPED_QUALITY",
+          "reason": "skipped_quality: decision_geometry_unavailable: pregrasp_geometry_ready",
+          "quality_score": 0.0,
+          "elapsed_s": 34.104,
+          "stages": [],
+          "failure_code": "skipped_quality",
+          "completion_level": 0,
+          "failure_code_n": 14
+        }
+      ],
+      "totals": {
+        "SUCCEEDED": 0,
+        "SKIPPED_QUALITY": 1,
+        "SKIPPED_UNREACHABLE": 0,
+        "FAILED": 0,
+        "CANCELED": 0,
+        "attempted": 1,
+        "claimed": 1
+      }
+    }
+  },
+  "robot": {
+    "status": {},
+    "tcp": {
+      "frame_id": "base_link",
+      "tip_frame": "tcp",
+      "tf_ok": true,
+      "tf_failures": 2,
+      "xyz": [
+        0.3588,
+        -0.2443,
+        0.6888
+      ],
+      "quat": [
+        -0.00251,
+        -0.00873,
+        0.0726,
+        0.99732
+      ],
+      "stamp": 1792141647.554,
+      "count": 80,
+      "path_length_m": 0.0,
+      "chord_m": 0.0,
+      "detour_ratio": null,
+      "max_dev_m": 0.0,
+      "z_min_m": 0.6888,
+      "z_max_m": 0.6888,
+      "dz_m": 0.0
+    },
+    "joints": {
+      "rows": [
+        {
+          "name": "shoulder_joint",
+          "position": 0.42517499999999997,
+          "velocity": 0.0,
+          "effort": null,
+          "current": null,
+          "temperature": null,
+          "tag_pos": null,
+          "tag_vel": null,
+          "following_error": null,
+          "error_code": 0
+        },
+        {
+          "name": "upperArm_joint",
+          "position": 0.194274,
+          "velocity": 0.0,
+          "effort": null,
+          "current": null,
+          "temperature": null,
+          "tag_pos": null,
+          "tag_vel": null,
+          "following_error": null,
+          "error_code": 0
+        },
+        {
+          "name": "foreArm_joint",
+          "position": 1.679546,
+          "velocity": 0.0,
+          "effort": null,
+          "current": null,
+          "temperature": null,
+          "tag_pos": null,
+          "tag_vel": null,
+          "following_error": null,
+          "error_code": 0
+        },
+        {
+          "name": "wrist1_joint",
+          "position": 1.462579,
+          "velocity": 0.0,
+          "effort": null,
+          "current": null,
+          "temperature": null,
+          "tag_pos": null,
+          "tag_vel": null,
+          "following_error": null,
+          "error_code": 0
+        },
+        {
+          "name": "wrist2_joint",
+          "position": -0.279948,
+          "velocity": 0.0,
+          "effort": null,
+          "current": null,
+          "temperature": null,
+          "tag_pos": null,
+          "tag_vel": null,
+          "following_error": null,
+          "error_code": 0
+        },
+        {
+          "name": "wrist3_joint",
+          "position": 0.03885899999999999,
+          "velocity": 0.0,
+          "effort": null,
+          "current": null,
+          "temperature": null,
+          "tag_pos": null,
+          "tag_vel": null,
+          "following_error": null,
+          "error_code": 0
+        }
+      ],
+      "stamp": 1792141648.028658
+    }
+  },
+  "metrics": {
+    "sample": {
+      "stamp": 1792141647.9205408,
+      "cpu_percent": 49.6,
+      "memory_percent": 52.4,
+      "memory_used_mb": 16468.6,
+      "memory_total_mb": 31457.4,
+      "load1": 20.93,
+      "load5": 20.92,
+      "load15": 20.31,
+      "gpu": {
+        "utilization_percent": 20.0,
+        "memory_used_mb": 2339.0,
+        "memory_total_mb": 24576.0
+      },
+      "processes": [
+        {
+          "name": "peach_arm",
+          "pid": 576859,
+          "cpu_percent": 6.3,
+          "rss_mb": 307.2
+        },
+        {
+          "name": "ros2_control_node",
+          "pid": 576852,
+          "cpu_percent": 6.2,
+          "rss_mb": 61.6
+        },
+        {
+          "name": "percipio",
+          "pid": 2226,
+          "cpu_percent": 0.0,
+          "rss_mb": 0.4
+        }
+      ]
+    }
+  },
+  "record": {
+    "info": {
+      "enabled": true,
+      "directory": "/home/mu/Desktop/aubo_e5_jazzy_ws/runs/session_20261016_164923/bag",
+      "session": "/home/mu/Desktop/aubo_e5_jazzy_ws/runs/session_20261016_164923",
+      "queue_size": 0,
+      "queue_depth": 512,
+      "drops": 0
+    }
+  },
+  "startup": {
+    "facts": {
+      "launched_at": "2026-10-16T16:49:22",
+      "hardware_mode": "mock",
+      "robot_ip": "169.254.10.98",
+      "tool_profile": "bite_shear_v1",
+      "moveit_enabled": "true",
+      "camera_enabled": "true",
+      "camera_frontend": "stereo",
+      "camera_ip": "169.254.10.110",
+      "extrinsics_enabled": "false",
+      "imu_enabled": "false",
+      "bond_timeout": "0.0",
+      "use_sim_time": "false",
+      "skip_reconstruction": "false",
+      "autostart": "false",
+      "require_robot_status": "false",
+      "expected_tcp_norm_m": 0.1682400297194458,
+      "ros_domain_id": "86",
+      "git": {
+        "root": "/home/mu/Desktop/aubo_e5_jazzy_ws",
+        "branch": "20260924-full-sync",
+        "commit": "432cbbab3645"
+      }
+    }
+  },
+  "selfcheck": {
+    "report": {
+      "trigger": "periodic",
+      "checked_at": "2026-10-16T17:07:23",
+      "duration_s": 0.003,
+      "facts": {
+        "launched_at": "2026-10-16T16:49:22",
+        "hardware_mode": "mock",
+        "robot_ip": "169.254.10.98",
+        "tool_profile": "bite_shear_v1",
+        "moveit_enabled": "true",
+        "camera_enabled": "true",
+        "camera_frontend": "stereo",
+        "camera_ip": "169.254.10.110",
+        "extrinsics_enabled": "false",
+        "imu_enabled": "false",
+        "bond_timeout": "0.0",
+        "use_sim_time": "false",
+        "skip_reconstruction": "false",
+        "autostart": "false",
+        "require_robot_status": "false",
+        "expected_tcp_norm_m": 0.1682400297194458,
+        "ros_domain_id": "86",
+        "git": {
+          "root": "/home/mu/Desktop/aubo_e5_jazzy_ws",
+          "branch": "20260924-full-sync",
+          "commit": "432cbbab3645"
+        }
+      },
+      "checks": [
+        {
+          "name": "managed_lifecycle",
+          "status": "pass",
+          "detail": "托管节点已激活",
+          "value": true
+        },
+        {
+          "name": "controllers",
+          "status": "pass",
+          "detail": "期望控制器均 active",
+          "value": {
+            "joint_state_broadcaster": "active",
+            "joint_trajectory_controller": "active"
+          }
+        },
+        {
+          "name": "joint_states_flow",
+          "status": "pass",
+          "detail": "帧率 199.60Hz",
+          "value": 199.6
+        },
+        {
+          "name": "joint_order",
+          "status": "pass",
+          "detail": "六关节名集合一致",
+          "value": [
+            "foreArm_joint",
+            "shoulder_joint",
+            "upperArm_joint",
+            "wrist1_joint",
+            "wrist2_joint",
+            "wrist3_joint"
+          ]
+        },
+        {
+          "name": "tcp_frame",
+          "status": "pass",
+          "detail": "|tcp|=168.2mm 对档案",
+          "value": 0.16824
+        },
+        {
+          "name": "camera_color_rate",
+          "status": "pass",
+          "detail": "图像探针接收帧率 8.20Hz（仅诊断，不拦开批）",
+          "value": 8.2
+        },
+        {
+          "name": "camera_depth_rate",
+          "status": "pass",
+          "detail": "图像探针接收帧率 9.20Hz（仅诊断，不拦开批）",
+          "value": 9.2
+        },
+        {
+          "name": "move_group",
+          "status": "pass",
+          "detail": "GetPlanningScene 可用",
+          "value": true
+        },
+        {
+          "name": "action_run_harvest",
+          "status": "pass",
+          "detail": "服务端就绪",
+          "value": true
+        },
+        {
+          "name": "action_survey_scene",
+          "status": "pass",
+          "detail": "服务端就绪",
+          "value": true
+        },
+        {
+          "name": "action_execute_target",
+          "status": "pass",
+          "detail": "服务端就绪",
+          "value": true
+        },
+        {
+          "name": "action_build_target_model",
+          "status": "pass",
+          "detail": "服务端就绪",
+          "value": true
+        },
+        {
+          "name": "robot_status",
+          "status": "skip",
+          "detail": "mock 模式不要求",
+          "value": null
+        },
+        {
+          "name": "imu_topic",
+          "status": "skip",
+          "detail": "imu_enabled=false",
+          "value": null
+        },
+        {
+          "name": "disk_free",
+          "status": "pass",
+          "detail": "剩余 178.5GB",
+          "value": 191610994688
+        },
+        {
+          "name": "model_files",
+          "status": "skip",
+          "detail": "未配置检查清单",
+          "value": null
+        },
+        {
+          "name": "param_consistency",
+          "status": "pass",
+          "detail": "启动参数组合自洽",
+          "value": null
+        },
+        {
+          "name": "vegetation_status",
+          "status": "skip",
+          "detail": "vegetation 不在图",
+          "value": null
+        }
+      ],
+      "status": "pass",
+      "passed": true,
+      "failed": [],
+      "warned": [],
+      "skipped": [
+        "robot_status",
+        "imu_topic",
+        "model_files",
+        "vegetation_status"
+      ],
+      "summary": "14/18 通过，跳过: robot_status, imu_topic, model_files, vegetation_status"
+    }
+  },
+  "diagnostics": {
+    "nodes": {
+      "peach_stereo_camera": {
+        "level": 0,
+        "tasks": {
+          "peach_stereo_camera_node: stereo_health": {
+            "level": 0,
+            "message": "streaming 12.1 gps",
+            "values": {
+              "device_open": "true",
+              "rate_gps": "12.1263",
+              "groups": "13115",
+              "published": "13115",
+              "drop_stream_status": "0",
+              "drop_incomplete": "0",
+              "drop_no_stamp": "0",
+              "drop_depth": "0",
+              "laser_config_ok": "true"
+            }
+          }
+        },
+        "stamp": 1792141648
+      }
+    }
+  },
+  "params": {
+    "/peach_arm": {
+      "moveit.velocity_scaling": 0.1,
+      "moveit.acceleration_scaling": 0.1,
+      "moveit.transit_velocity_scaling": 0.1,
+      "moveit.transit_acceleration_scaling": 0.1,
+      "scan.observation_radius_m": 0.45,
+      "scan.minimum_radius_m": 0.42,
+      "scan.frame_wait_s": 4.0,
+      "scan.maximum_moves": 2,
+      "quality.minimum_views": 1,
+      "quality.minimum_baseline_deg": 0.0,
+      "execution.enabled": false,
+      "grasp.enabled": false,
+      "tool.enabled": false,
+      "photo_pose_joint_tolerance_rad": 0.05,
+      "photo_pose_max_joint_vel_rad_s": 0.05
+    },
+    "/peach_scene_perception_node": {
+      "yolo_conf": 0.35,
+      "min_detection_conf": 0.4,
+      "target_memory.match_radius_m": 0.06,
+      "target_memory.recovery_scale": 1.0,
+      "target_memory.confirm_frames": 5,
+      "harvest.min_collect_frames": 10,
+      "harvest.lock_settle_frames": 5,
+      "harvest.max_collect_s": 25.0,
+      "harvest.priority_prefer_lower_first": true
+    },
+    "/peach_target_reconstruction_node": {
+      "capture.min_views": 1,
+      "capture.recommended_views": 5,
+      "capture.min_mask_depth_ratio": 0.35,
+      "capture.require_target_mask": true,
+      "icp.enable": true,
+      "tsdf.enable": true,
+      "capture.require_robot_static": true,
+      "capture.static_joint_vel_thresh": 0.03,
+      "capture.joint_state_tolerance_s": 0.1,
+      "capture.max_frame_age_s": 2.0,
+      "refit.max_axis_angle_deg": 35.0
+    },
+    "/peach_supervisor": {
+      "execution_enabled": false,
+      "survey_wait_s": 15.0,
+      "survey_dwell_s": 2.0,
+      "execute_pregrasp_only": false,
+      "reconstruct_in_trajectory": true,
+      "empty_survey_limit": 2,
+      "persist_ledger": true
+    }
+  },
+  "system": {
+    "revision": 52685,
+    "server_time": 1792141648.1184118,
+    "uptime_s": 1084.3675663471222,
+    "topic_age_s": {
+      "record.info": 1084.328,
+      "startup.facts": 1084.359,
+      "robot.tcp": 0.029,
+      "diagnostics.nodes": 0.093,
+      "metrics.sample": 0.075,
+      "robot.joints": 0.085,
+      "reconstruction.status": 0.335,
+      "reconstruction.diagnostics": 0.204,
+      "reconstruction.grasp_decision": 0.335,
+      "refined.pose": 7.814,
+      "refined.axis": 7.814,
+      "refined.diagnostics": 7.814,
+      "manipulation.status": 0.244,
+      "pipeline.arm": 20.973,
+      "task_executor.state": 0.54,
+      "pipeline.fsm": 0.54,
+      "params./peach_arm": 1.231,
+      "params./peach_scene_perception_node": 1.231,
+      "params./peach_target_reconstruction_node": 1.231,
+      "params./peach_supervisor": 1.231,
+      "perception.targets": 0.204,
+      "perception.harvest": 0.203,
+      "selfcheck.report": 4.194,
+      "task_executor.events": 0.544,
+      "ledger.live": 10.219,
+      "manipulation.hypothesis": 248.065
+    }
+  },
+  "job": {
+    "target_id": "target_9",
+    "cycle_id": "round_141b74e39d39:target_9",
+    "batch_state": 6,
+    "target_phase": 0,
+    "active_id": "observe",
+    "why": "尚未到达预抓取 · SKIPPED_QUALITY",
+    "completion": {
+      "target_id": "target_9",
+      "outcome": 1,
+      "outcome_name": "SKIPPED_QUALITY",
+      "reason": "skipped_quality: decision_geometry_unavailable: pregrasp_geometry_ready",
+      "quality_score": 0.0,
+      "elapsed_s": 34.104,
+      "stages": [],
+      "failure_code": "skipped_quality",
+      "completion_level": 0,
+      "failure_code_n": 14
+    },
+    "flags": {
+      "execution_enabled": true,
+      "grasp_enabled": true,
+      "tool_enabled": false,
+      "skill_grasp_enabled": true,
+      "skill_execution_enabled": true
+    },
+    "stages": [
+      {
+        "id": "discover",
+        "label": "发现",
+        "status": "done",
+        "detail": ""
+      },
+      {
+        "id": "photo",
+        "label": "拍照",
+        "status": "done",
+        "detail": ""
+      },
+      {
+        "id": "lock",
+        "label": "锁定",
+        "status": "done",
+        "detail": ""
+      },
+      {
+        "id": "observe",
+        "label": "观察",
+        "status": "failed",
+        "detail": "FAILED"
+      },
+      {
+        "id": "permit",
+        "label": "许可",
+        "status": "skipped",
+        "detail": "reconstruction_not_ready"
+      },
+      {
+        "id": "approach",
+        "label": "靠近",
+        "status": "skipped",
+        "detail": ""
+      },
+      {
+        "id": "tool",
+        "label": "工具",
+        "status": "skipped",
+        "detail": ""
+      },
+      {
+        "id": "retreat",
+        "label": "撤离",
+        "status": "skipped",
+        "detail": ""
+      },
+      {
+        "id": "done",
+        "label": "完成",
+        "status": "done",
+        "detail": ""
+      }
+    ],
+    "coords": {
+      "frame_id": "base_link",
+      "perception_entry": [
+        0.40716477903789206,
+        -0.5376323730416704,
+        0.6898948169980782
+      ],
+      "perception_bottom": [
+        0.40716477903789206,
+        -0.5376323730416704,
+        0.6898948169980782
+      ],
+      "perception_neck": [
+        0.42749971687421184,
+        -0.5525614158667448,
+        0.7626017969194357
+      ],
+      "reconstruction_center": null,
+      "refined_axis": null,
+      "grasp_entry": null,
+      "grasp_pregrasp": null,
+      "hypothesis_entry": [
+        0.4133529869679225,
+        -0.534132333796783,
+        0.6863018645083921
+      ],
+      "hypothesis_travel_m": 0.09513373672962189,
+      "camera_distance_m": null
+    },
+    "grasp": {
+      "allowed": false,
+      "reason": "reconstruction_not_ready",
+      "target_id": "",
+      "entry": null,
+      "pregrasp": null,
+      "axis": null,
+      "cut_pose": null,
+      "diameter_m": null,
+      "d95_m": null,
+      "travel_m": null,
+      "cut_travel_m": null,
+      "radial_margin_m": null,
+      "axial_margin_m": null,
+      "rmse_m": null,
+      "inlier_ratio": null
+    },
+    "motion": {
+      "state": "FAILED",
+      "message": "decision_geometry_unavailable: pregrasp_geometry_ready",
+      "running": false
+    },
+    "reconstruction": {
+      "state": "IDLE",
+      "captured_views": 0,
+      "rejected_views": 0,
+      "max_baseline_deg": 0.0,
+      "mean_nearest_baseline_deg": null
+    },
+    "perception": {
+      "locked": true,
+      "target_count": 1,
+      "harvest_status": "HARVESTED",
+      "tracking_status": "LOST",
+      "confidence": null
+    },
+    "analysis": {
+      "bottom_neck_m": 0.07695902121106131,
+      "entry_cut_m": null,
+      "cut_travel_m": null,
+      "travel_m": null,
+      "d95_m": null,
+      "entry_radius_m": null,
+      "cut_radius_m": null,
+      "radial_margin_m": null,
+      "axial_margin_m": null,
+      "valid_depth_ratio": null,
+      "n_points": null,
+      "tool_profile_id": "",
+      "flags": [
+        "target_temporarily_lost",
+        "anchor_from_memory"
+      ]
+    }
+  },
+  "images": {
+    "perception": {
+      "available": false,
+      "stamp_sec": 1792141646.6948493,
+      "stamp_ns": "1792141646694849000",
+      "frame_id": "camera_color_optical_frame",
+      "width": 640,
+      "height": 480,
+      "error": "stale",
+      "age_s": 1.4236698150634766
+    },
+    "raw": {
+      "available": false,
+      "stamp_sec": 1792141646.895004,
+      "stamp_ns": "1792141646895004000",
+      "frame_id": "camera_color_optical_frame",
+      "width": 640,
+      "height": 480,
+      "error": "stale",
+      "age_s": 1.2235150337219238
+    }
+  },
+  "debug": {
+    "enabled": true,
+    "motion_enabled": false,
+    "recent": []
+  },
+  "logs": [
+    {
+      "stamp": 1792141515.8535762,
+      "level": 30,
+      "name": "peach_target_reconstruction_node",
+      "msg": "重建 worker 队列已满，拒绝新帧以保持积分顺序"
+    },
+    {
+      "stamp": 1792141516.7877636,
+      "level": 30,
+      "name": "peach_target_reconstruction_node",
+      "msg": "自动采帧跳过 [missing_mask]：缺少所选 target_id 的容差内掩膜"
+    },
+    {
+      "stamp": 1792141517.4713178,
+      "level": 30,
+      "name": "peach_scene_perception_node",
+      "msg": "感知 worker 满队丢帧累计 10534（处理跟不上到达率，排查热路径耗时或降低到达率）"
+    },
+    {
+      "stamp": 1792141517.9890487,
+      "level": 30,
+      "name": "peach_target_reconstruction_node",
+      "msg": "自动采帧跳过 [missing_mask]：缺少所选 target_id 的容差内掩膜"
+    },
+    {
+      "stamp": 1792141518.2307844,
+      "level": 30,
+      "name": "peach_target_reconstruction_node",
+      "msg": "重建 worker 队列已满，拒绝新帧以保持积分顺序"
+    },
+    {
+      "stamp": 1792141518.993011,
+      "level": 30,
+      "name": "peach_target_reconstruction_node",
+      "msg": "自动采帧跳过 [stale_frame]：缓存帧龄期 2.35 s > max_frame_age_s=2.0（陈帧拒采）"
+    },
+    {
+      "stamp": 1792141520.048621,
+      "level": 30,
+      "name": "peach_target_reconstruction_node",
+      "msg": "自动采帧跳过 [missing_mask]：缺少所选 target_id 的容差内掩膜"
+    },
+    {
+      "stamp": 1792141520.6285713,
+      "level": 20,
+      "name": "peach_scene_perception_node",
+      "msg": "目标注册表在册 1 个目标（累计注册 9、累计命中 653）"
+    },
+    {
+      "stamp": 1792141520.9651084,
+      "level": 30,
+      "name": "peach_target_reconstruction_node",
+      "msg": "重建 worker 队列已满，拒绝新帧以保持积分顺序"
+    },
+    {
+      "stamp": 1792141521.4809256,
+      "level": 30,
+      "name": "peach_target_reconstruction_node",
+      "msg": "自动采帧跳过 [missing_mask]：缺少所选 target_id 的容差内掩膜"
+    },
+    {
+      "stamp": 1792141521.4907253,
+      "level": 20,
+      "name": "camera.peach_stereo_camera_node",
+      "msg": "groups=11600 published=11600 rate=12.1 gps drop(stream=0 incomplete=0 nostamp=0 depth=0)"
+    },
+    {
+      "stamp": 1792141522.5513132,
+      "level": 30,
+      "name": "peach_target_reconstruction_node",
+      "msg": "自动采帧跳过 [stale_frame]：缓存帧龄期 2.91 s > max_frame_age_s=2.0（陈帧拒采）"
+    },
+    {
+      "stamp": 1792141523.451441,
+      "level": 30,
+      "name": "peach_target_reconstruction_node",
+      "msg": "重建 worker 队列已满，拒绝新帧以保持积分顺序"
+    },
+    {
+      "stamp": 1792141523.7276232,
+      "level": 30,
+      "name": "peach_target_reconstruction_node",
+      "msg": "自动采帧跳过 [stale_frame]：缓存帧龄期 2.49 s > max_frame_age_s=2.0（陈帧拒采）"
+    },
+    {
+      "stamp": 1792141523.7458744,
+      "level": 30,
+      "name": "peach_scene_perception_node",
+      "msg": "感知 worker 满队丢帧累计 10604（处理跟不上到达率，排查热路径耗时或降低到达率）"
+    },
+    {
+      "stamp": 1792141523.924443,
+      "level": 20,
+      "name": "peach_observability",
+      "msg": "自检[periodic] 14/18 通过，跳过: robot_status, imu_topic, model_files, vegetation_status"
+    },
+    {
+      "stamp": 1792141524.7557266,
+      "level": 30,
+      "name": "peach_target_reconstruction_node",
+      "msg": "自动采帧跳过 [missing_mask]：缺少所选 target_id 的容差内掩膜"
+    },
+    {
+      "stamp": 1792141524.8542058,
+      "level": 30,
+      "name": "peach_target_reconstruction_node",
+      "msg": "重建 worker 队列已满，拒绝新帧以保持积分顺序"
+    },
+    {
+      "stamp": 1792141525.7630117,
+      "level": 30,
+      "name": "peach_target_reconstruction_node",
+      "msg": "自动采帧跳过 [stale_frame]：缓存帧龄期 2.79 s > max_frame_age_s=2.0（陈帧拒采）"
+    },
+    {
+      "stamp": 1792141526.0233307,
+      "level": 30,
+      "name": "peach_target_reconstruction_node",
+      "msg": "重建 worker 队列已满，拒绝新帧以保持积分顺序"
+    },
+    {
+      "stamp": 1792141526.8107264,
+      "level": 30,
+      "name": "peach_target_reconstruction_node",
+      "msg": "自动采帧跳过 [stale_frame]：缓存帧龄期 2.42 s > max_frame_age_s=2.0（陈帧拒采）"
+    },
+    {
+      "stamp": 1792141527.3581846,
+      "level": 30,
+      "name": "peach_target_reconstruction_node",
+      "msg": "重建 worker 队列已满，拒绝新帧以保持积分顺序"
+    },
+    {
+      "stamp": 1792141527.8301697,
+      "level": 30,
+      "name": "peach_target_reconstruction_node",
+      "msg": "自动采帧跳过 [missing_mask]：缺少所选 target_id 的容差内掩膜"
+    },
+    {
+      "stamp": 1792141528.9406621,
+      "level": 30,
+      "name": "peach_target_reconstruction_node",
+      "msg": "自动采帧跳过 [missing_mask]：缺少所选 target_id 的容差内掩膜"
+    },
+    {
+      "stamp": 1792141529.9088979,
+      "level": 20,
+      "name": "camera.peach_stereo_camera_node",
+      "msg": "groups=11700 published=11700 rate=12.1 gps drop(stream=0 incomplete=0 nostamp=0 depth=0)"
+    },
+    {
+      "stamp": 1792141529.909013,
+      "level": 30,
+      "name": "peach_scene_perception_node",
+      "msg": "感知 worker 满队丢帧累计 10669（处理跟不上到达率，排查热路径耗时或降低到达率）"
+    },
+    {
+      "stamp": 1792141529.963973,
+      "level": 30,
+      "name": "peach_target_reconstruction_node",
+      "msg": "自动采帧跳过 [stale_frame]：缓存帧龄期 2.24 s > max_frame_age_s=2.0（陈帧拒采）"
+    },
+    {
+      "stamp": 1792141529.9903746,
+      "level": 30,
+      "name": "peach_target_reconstruction_node",
+      "msg": "重建 worker 队列已满，拒绝新帧以保持积分顺序"
+    },
+    {
+      "stamp": 1792141531.15973,
+      "level": 30,
+      "name": "peach_target_reconstruction_node",
+      "msg": "自动采帧跳过 [missing_mask]：缺少所选 target_id 的容差内掩膜"
+    },
+    {
+      "stamp": 1792141531.3252912,
+      "level": 20,
+      "name": "peach_scene_perception_node",
+      "msg": "目标注册表在册 1 个目标（累计注册 9、累计命中 660）"
+    },
+    {
+      "stamp": 1792141531.6859772,
+      "level": 30,
+      "name": "peach_target_reconstruction_node",
+      "msg": "重建 worker 队列已满，拒绝新帧以保持积分顺序"
+    },
+    {
+      "stamp": 1792141532.4408815,
+      "level": 30,
+      "name": "peach_target_reconstruction_node",
+      "msg": "自动采帧跳过 [missing_mask]：缺少所选 target_id 的容差内掩膜"
+    },
+    {
+      "stamp": 1792141533.32972,
+      "level": 30,
+      "name": "peach_target_reconstruction_node",
+      "msg": "重建 worker 队列已满，拒绝新帧以保持积分顺序"
+    },
+    {
+      "stamp": 1792141533.572729,
+      "level": 30,
+      "name": "peach_target_reconstruction_node",
+      "msg": "自动采帧跳过 [missing_mask]：缺少所选 target_id 的容差内掩膜"
+    },
+    {
+      "stamp": 1792141535.1071987,
+      "level": 30,
+      "name": "peach_target_reconstruction_node",
+      "msg": "自动采帧跳过 [stale_frame]：缓存帧龄期 3.06 s > max_frame_age_s=2.0（陈帧拒采）"
+    },
+    {
+      "stamp": 1792141535.4685502,
+      "level": 30,
+      "name": "peach_target_reconstruction_node",
+      "msg": "重建 worker 队列已满，拒绝新帧以保持积分顺序"
+    },
+    {
+      "stamp": 1792141536.123273,
+      "level": 30,
+      "name": "peach_target_reconstruction_node",
+      "msg": "自动采帧跳过 [missing_mask]：缺少所选 target_id 的容差内掩膜"
+    },
+    {
+      "stamp": 1792141536.1631277,
+      "level": 30,
+      "name": "peach_scene_perception_node",
+      "msg": "感知 worker 满队丢帧累计 10748（处理跟不上到达率，排查热路径耗时或降低到达率）"
+    },
+    {
+      "stamp": 1792141537.140261,
+      "level": 30,
+      "name": "peach_target_reconstruction_node",
+      "msg": "自动采帧跳过 [missing_mask]：缺少所选 target_id 的容差内掩膜"
+    },
+    {
+      "stamp": 1792141537.7006872,
+      "level": 20,
+      "name": "peach_target_reconstruction_node",
+      "msg": "REFINING：几何二次拟合开始（kind=bag，1344 点）"
+    },
+    {
+      "stamp": 1792141537.7841098,
+      "level": 20,
+      "name": "peach_target_reconstruction_node",
+      "msg": "REFINING 完成：cylinder status=ACCEPT final=False axis=[0.0528, -0.3092, 0.9495] diameter=87.6mm"
+    },
+    {
+      "stamp": 1792141537.7850769,
+      "level": 20,
+      "name": "peach_target_reconstruction_node",
+      "msg": "已采第 1/5 视角，本帧 7834 点，有效深度占比 1.00，位姿=fk"
+    },
+    {
+      "stamp": 1792141537.81577,
+      "level": 20,
+      "name": "peach_target_reconstruction_node",
+      "msg": "REFINING：几何二次拟合开始（kind=bag，1344 点）"
+    },
+    {
+      "stamp": 1792141537.920392,
+      "level": 20,
+      "name": "peach_target_reconstruction_node",
+      "msg": "REFINING 完成：cylinder status=ACCEPT final=True axis=[0.0528, -0.3092, 0.9495] diameter=87.6mm"
+    },
+    {
+      "stamp": 1792141537.9211707,
+      "level": 20,
+      "name": "peach_target_reconstruction_node",
+      "msg": "局部重建完成：1 帧，7834 点（少于推荐 5 帧）；重叠指标需 ≥2 帧，本批次不可用；TSDF 1344 点 / mesh 2375 顶点（累计积分 0.00s）；refit ACCEPT（袋模型 1 视）"
+    },
+    {
+      "stamp": 1792141538.0195096,
+      "level": 20,
+      "name": "peach_supervisor.batch",
+      "msg": "command=none batch=running target=target_8 message=running"
+    },
+    {
+      "stamp": 1792141538.0204415,
+      "level": 20,
+      "name": "peach_supervisor.batch",
+      "msg": "command=survey batch=discovery target=- message=discovery"
+    },
+    {
+      "stamp": 1792141538.0379567,
+      "level": 20,
+      "name": "peach_supervisor",
+      "msg": "Survey 进行中: moving_to_photo_pose"
+    },
+    {
+      "stamp": 1792141538.0596426,
+      "level": 20,
+      "name": "peach_supervisor",
+      "msg": "Survey 进行中: waiting_snapshot"
+    },
+    {
+      "stamp": 1792141538.280724,
+      "level": 20,
+      "name": "camera.peach_stereo_camera_node",
+      "msg": "groups=11800 published=11800 rate=12.1 gps drop(stream=0 incomplete=0 nostamp=0 depth=0)"
+    },
+    {
+      "stamp": 1792141541.7021997,
+      "level": 20,
+      "name": "peach_scene_perception_node",
+      "msg": "目标注册表在册 1 个目标（累计注册 9、累计命中 667）"
+    },
+    {
+      "stamp": 1792141541.712028,
+      "level": 30,
+      "name": "peach_scene_perception_node",
+      "msg": "感知 worker 满队丢帧累计 10810（处理跟不上到达率，排查热路径耗时或降低到达率）"
+    },
+    {
+      "stamp": 1792141546.7327933,
+      "level": 20,
+      "name": "camera.peach_stereo_camera_node",
+      "msg": "groups=11900 published=11900 rate=12.1 gps drop(stream=0 incomplete=0 nostamp=0 depth=0)"
+    },
+    {
+      "stamp": 1792141546.9624865,
+      "level": 30,
+      "name": "peach_scene_perception_node",
+      "msg": "感知 worker 满队丢帧累计 10868（处理跟不上到达率，排查热路径耗时或降低到达率）"
+    },
+    {
+      "stamp": 1792141548.0940042,
+      "level": 20,
+      "name": "peach_supervisor.batch",
+      "msg": "command=select batch=discovery target=- message=discovery"
+    },
+    {
+      "stamp": 1792141548.1019013,
+      "level": 20,
+      "name": "peach_supervisor.batch",
+      "msg": "command=survey batch=discovery target=- message=discovery"
+    },
+    {
+      "stamp": 1792141548.1078427,
+      "level": 20,
+      "name": "peach_supervisor",
+      "msg": "Survey 进行中: waiting_snapshot"
+    },
+    {
+      "stamp": 1792141548.1171722,
+      "level": 20,
+      "name": "peach_supervisor",
+      "msg": "Survey 进行中: moving_to_photo_pose"
+    },
+    {
+      "stamp": 1792141548.34497,
+      "level": 30,
+      "name": "move_group.moveit.moveit.core.planning_scene",
+      "msg": "Tried to remove world object 'peach_scene_obstacles', but it does not exist in this scene."
+    },
+    {
+      "stamp": 1792141548.3953907,
+      "level": 20,
+      "name": "peach_scene_obstacles",
+      "msg": "场景障碍已关闭，不把枝叶写入碰撞场景"
+    },
+    {
+      "stamp": 1792141550.410601,
+      "level": 20,
+      "name": "peach_target_reconstruction_node",
+      "msg": "跟随计划切换重建目标: target_8 -> （空）（放弃 READY 会话）"
+    },
+    {
+      "stamp": 1792141551.7375488,
+      "level": 20,
+      "name": "peach_scene_perception_node",
+      "msg": "目标注册表在册 1 个目标（累计注册 9、累计命中 672）"
+    },
+    {
+      "stamp": 1792141552.1031694,
+      "level": 30,
+      "name": "peach_scene_perception_node",
+      "msg": "感知 worker 满队丢帧累计 10910（处理跟不上到达率，排查热路径耗时或降低到达率）"
+    },
+    {
+      "stamp": 1792141553.930174,
+      "level": 20,
+      "name": "peach_observability",
+      "msg": "自检[periodic] 14/18 通过，跳过: robot_status, imu_topic, model_files, vegetation_status"
+    },
+    {
+      "stamp": 1792141554.9546022,
+      "level": 20,
+      "name": "camera.peach_stereo_camera_node",
+      "msg": "groups=12000 published=12000 rate=12.1 gps drop(stream=0 incomplete=0 nostamp=0 depth=0)"
+    },
+    {
+      "stamp": 1792141557.251987,
+      "level": 30,
+      "name": "peach_scene_perception_node",
+      "msg": "感知 worker 满队丢帧累计 10947（处理跟不上到达率，排查热路径耗时或降低到达率）"
+    },
+    {
+      "stamp": 1792141558.1917996,
+      "level": 20,
+      "name": "peach_supervisor.batch",
+      "msg": "command=select batch=discovery target=- message=discovery"
+    },
+    {
+      "stamp": 1792141558.3493376,
+      "level": 30,
+      "name": "move_group.moveit.moveit.core.planning_scene",
+      "msg": "Tried to remove world object 'peach_scene_obstacles', but it does not exist in this scene."
+    },
+    {
+      "stamp": 1792141558.397862,
+      "level": 20,
+      "name": "peach_scene_obstacles",
+      "msg": "场景障碍已关闭，不把枝叶写入碰撞场景"
+    },
+    {
+      "stamp": 1792141559.9180245,
+      "level": 20,
+      "name": "peach_scene_perception_node",
+      "msg": "peach_harvester.vision.scene_perception.identity: 目标注册 累计 10 次（最近: target_9 cls=0 累计表规模 1）"
+    },
+    {
+      "stamp": 1792141562.4278007,
+      "level": 20,
+      "name": "peach_scene_perception_node",
+      "msg": "目标注册表在册 1 个目标（累计注册 10、累计命中 674）"
+    },
+    {
+      "stamp": 1792141562.4298677,
+      "level": 30,
+      "name": "peach_scene_perception_node",
+      "msg": "感知 worker 满队丢帧累计 10997（处理跟不上到达率，排查热路径耗时或降低到达率）"
+    },
+    {
+      "stamp": 1792141563.2668757,
+      "level": 20,
+      "name": "camera.peach_stereo_camera_node",
+      "msg": "groups=12100 published=12100 rate=12.1 gps drop(stream=0 incomplete=0 nostamp=0 depth=0)"
+    },
+    {
+      "stamp": 1792141567.5583444,
+      "level": 30,
+      "name": "peach_scene_perception_node",
+      "msg": "感知 worker 满队丢帧累计 11054（处理跟不上到达率，排查热路径耗时或降低到达率）"
+    },
+    {
+      "stamp": 1792141571.6539683,
+      "level": 20,
+      "name": "camera.peach_stereo_camera_node",
+      "msg": "groups=12200 published=12200 rate=12.1 gps drop(stream=0 incomplete=0 nostamp=0 depth=0)"
+    },
+    {
+      "stamp": 1792141572.1508262,
+      "level": 20,
+      "name": "peach_supervisor.batch",
+      "msg": "command=navigate batch=discovery target=- message=preparing"
+    },
+    {
+      "stamp": 1792141572.1761272,
+      "level": 20,
+      "name": "peach_supervisor.batch",
+      "msg": "command=survey batch=discovery target=- message=surveying"
+    },
+    {
+      "stamp": 1792141572.2075553,
+      "level": 20,
+      "name": "peach_supervisor",
+      "msg": "Survey 进行中: waiting_snapshot"
+    },
+    {
+      "stamp": 1792141572.2094636,
+      "level": 20,
+      "name": "peach_supervisor",
+      "msg": "Survey 进行中: moving_to_photo_pose"
+    },
+    {
+      "stamp": 1792141572.9316797,
+      "level": 20,
+      "name": "peach_scene_perception_node",
+      "msg": "目标注册表在册 1 个目标（累计注册 10、累计命中 682）"
+    },
+    {
+      "stamp": 1792141572.9408123,
+      "level": 30,
+      "name": "peach_scene_perception_node",
+      "msg": "感知 worker 满队丢帧累计 11114（处理跟不上到达率，排查热路径耗时或降低到达率）"
+    },
+    {
+      "stamp": 1792141578.366844,
+      "level": 30,
+      "name": "peach_scene_perception_node",
+      "msg": "感知 worker 满队丢帧累计 11174（处理跟不上到达率，排查热路径耗时或降低到达率）"
+    },
+    {
+      "stamp": 1792141580.1930737,
+      "level": 20,
+      "name": "peach_supervisor.batch",
+      "msg": "command=begin_scene batch=discovery target=- message=preparing"
+    },
+    {
+      "stamp": 1792141580.209776,
+      "level": 20,
+      "name": "camera.peach_stereo_camera_node",
+      "msg": "groups=12300 published=12300 rate=12.1 gps drop(stream=0 incomplete=0 nostamp=0 depth=0)"
+    },
+    {
+      "stamp": 1792141580.213096,
+      "level": 20,
+      "name": "peach_supervisor.batch",
+      "msg": "command=wait_lock batch=discovery target=- message=collecting"
+    },
+    {
+      "stamp": 1792141580.3455145,
+      "level": 30,
+      "name": "move_group.moveit.moveit.core.planning_scene",
+      "msg": "Tried to remove world object 'peach_scene_obstacles', but it does not exist in this scene."
+    },
+    {
+      "stamp": 1792141580.3949318,
+      "level": 20,
+      "name": "peach_scene_obstacles",
+      "msg": "场景障碍已关闭，不把枝叶写入碰撞场景"
+    },
+    {
+      "stamp": 1792141583.9220428,
+      "level": 20,
+      "name": "peach_observability",
+      "msg": "自检[periodic] 14/18 通过，跳过: robot_status, imu_topic, model_files, vegetation_status"
+    },
+    {
+      "stamp": 1792141583.8817732,
+      "level": 20,
+      "name": "peach_scene_perception_node",
+      "msg": "目标注册表在册 1 个目标（累计注册 10、累计命中 690）"
+    },
+    {
+      "stamp": 1792141583.8922777,
+      "level": 30,
+      "name": "peach_scene_perception_node",
+      "msg": "感知 worker 满队丢帧累计 11234（处理跟不上到达率，排查热路径耗时或降低到达率）"
+    },
+    {
+      "stamp": 1792141588.7918947,
+      "level": 20,
+      "name": "camera.peach_stereo_camera_node",
+      "msg": "groups=12400 published=12400 rate=12.1 gps drop(stream=0 incomplete=0 nostamp=0 depth=0)"
+    },
+    {
+      "stamp": 1792141588.973486,
+      "level": 30,
+      "name": "peach_scene_perception_node",
+      "msg": "感知 worker 满队丢帧累计 11290（处理跟不上到达率，排查热路径耗时或降低到达率）"
+    },
+    {
+      "stamp": 1792141593.0643377,
+      "level": 20,
+      "name": "peach_supervisor.batch",
+      "msg": "command=select batch=discovery target=- message=discovery"
+    },
+    {
+      "stamp": 1792141593.0755155,
+      "level": 20,
+      "name": "peach_supervisor.contact",
+      "msg": "caller=SELECT target=target_9 travel=0.030m reachable=True code=ok"
+    },
+    {
+      "stamp": 1792141593.0772462,
+      "level": 20,
+      "name": "peach_supervisor.batch",
+      "msg": "command=dispatch batch=running target=target_9 message=running"
+    },
+    {
+      "stamp": 1792141593.0864394,
+      "level": 20,
+      "name": "peach_target_reconstruction_node",
+      "msg": "已清空，回 IDLE"
+    },
+    {
+      "stamp": 1792141593.094406,
+      "level": 20,
+      "name": "peach_target_reconstruction_node",
+      "msg": "自动开始：开始重建，绑定目标 target_9"
+    },
+    {
+      "stamp": 1792141593.1337957,
+      "level": 20,
+      "name": "peach_supervisor",
+      "msg": "reconstruct_in_trajectory: Build 并行，启动臂侧精化等待 target=target_9（skip_observation）"
+    },
+    {
+      "stamp": 1792141593.1395202,
+      "level": 30,
+      "name": "peach_target_reconstruction_node",
+      "msg": "自动采帧跳过 [missing_mask]：缺少所选 target_id 的容差内掩膜"
+    },
+    {
+      "stamp": 1792141593.1500804,
+      "level": 20,
+      "name": "peach_supervisor.batch",
+      "msg": "command=execute_full batch=running target=target_9 message=running"
+    },
+    {
+      "stamp": 1792141594.1491714,
+      "level": 30,
+      "name": "peach_target_reconstruction_node",
+      "msg": "自动采帧跳过 [missing_mask]：缺少所选 target_id 的容差内掩膜"
+    },
+    {
+      "stamp": 1792141594.64621,
+      "level": 20,
+      "name": "peach_scene_perception_node",
+      "msg": "目标注册表在册 1 个目标（累计注册 10、累计命中 698）"
+    },
+    {
+      "stamp": 1792141594.6578846,
+      "level": 30,
+      "name": "peach_scene_perception_node",
+      "msg": "感知 worker 满队丢帧累计 11353（处理跟不上到达率，排查热路径耗时或降低到达率）"
+    },
+    {
+      "stamp": 1792141595.198817,
+      "level": 30,
+      "name": "peach_target_reconstruction_node",
+      "msg": "自动采帧跳过 [missing_mask]：缺少所选 target_id 的容差内掩膜"
+    },
+    {
+      "stamp": 1792141596.2441676,
+      "level": 30,
+      "name": "peach_target_reconstruction_node",
+      "msg": "自动采帧跳过 [missing_mask]：缺少所选 target_id 的容差内掩膜"
+    },
+    {
+      "stamp": 1792141597.2227325,
+      "level": 20,
+      "name": "camera.peach_stereo_camera_node",
+      "msg": "groups=12500 published=12500 rate=12.1 gps drop(stream=0 incomplete=0 nostamp=0 depth=0)"
+    },
+    {
+      "stamp": 1792141597.2708852,
+      "level": 30,
+      "name": "peach_target_reconstruction_node",
+      "msg": "自动采帧跳过 [missing_mask]：缺少所选 target_id 的容差内掩膜"
+    },
+    {
+      "stamp": 1792141598.2722998,
+      "level": 30,
+      "name": "peach_target_reconstruction_node",
+      "msg": "自动采帧跳过 [stale_frame]：缓存帧龄期 2.38 s > max_frame_age_s=2.0（陈帧拒采）"
+    },
+    {
+      "stamp": 1792141599.3466766,
+      "level": 30,
+      "name": "peach_target_reconstruction_node",
+      "msg": "自动采帧跳过 [missing_mask]：缺少所选 target_id 的容差内掩膜"
+    },
+    {
+      "stamp": 1792141600.4390543,
+      "level": 30,
+      "name": "peach_target_reconstruction_node",
+      "msg": "自动采帧跳过 [missing_mask]：缺少所选 target_id 的容差内掩膜"
+    },
+    {
+      "stamp": 1792141601.2530904,
+      "level": 30,
+      "name": "peach_scene_perception_node",
+      "msg": "感知 worker 满队丢帧累计 11428（处理跟不上到达率，排查热路径耗时或降低到达率）"
+    },
+    {
+      "stamp": 1792141601.4399428,
+      "level": 30,
+      "name": "peach_target_reconstruction_node",
+      "msg": "自动采帧跳过 [stale_frame]：缓存帧龄期 2.28 s > max_frame_age_s=2.0（陈帧拒采）"
+    },
+    {
+      "stamp": 1792141602.5697353,
+      "level": 30,
+      "name": "peach_target_reconstruction_node",
+      "msg": "自动采帧跳过 [missing_mask]：缺少所选 target_id 的容差内掩膜"
+    },
+    {
+      "stamp": 1792141602.62046,
+      "level": 30,
+      "name": "peach_target_reconstruction_node",
+      "msg": "重建 worker 队列已满，拒绝新帧以保持积分顺序"
+    },
+    {
+      "stamp": 1792141603.586245,
+      "level": 30,
+      "name": "peach_target_reconstruction_node",
+      "msg": "自动采帧跳过 [stale_frame]：缓存帧龄期 2.76 s > max_frame_age_s=2.0（陈帧拒采）"
+    },
+    {
+      "stamp": 1792141604.3168972,
+      "level": 30,
+      "name": "peach_target_reconstruction_node",
+      "msg": "重建 worker 队列已满，拒绝新帧以保持积分顺序"
+    },
+    {
+      "stamp": 1792141605.305738,
+      "level": 30,
+      "name": "peach_target_reconstruction_node",
+      "msg": "自动采帧跳过 [missing_mask]：缺少所选 target_id 的容差内掩膜"
+    },
+    {
+      "stamp": 1792141605.5452375,
+      "level": 20,
+      "name": "camera.peach_stereo_camera_node",
+      "msg": "groups=12600 published=12600 rate=12.1 gps drop(stream=0 incomplete=0 nostamp=0 depth=0)"
+    },
+    {
+      "stamp": 1792141605.908349,
+      "level": 20,
+      "name": "peach_scene_perception_node",
+      "msg": "目标注册表在册 1 个目标（累计注册 10、累计命中 705）"
+    },
+    {
+      "stamp": 1792141606.4363396,
+      "level": 30,
+      "name": "peach_target_reconstruction_node",
+      "msg": "自动采帧跳过 [missing_mask]：缺少所选 target_id 的容差内掩膜"
+    },
+    {
+      "stamp": 1792141606.5059624,
+      "level": 30,
+      "name": "peach_target_reconstruction_node",
+      "msg": "重建 worker 队列已满，拒绝新帧以保持积分顺序"
+    },
+    {
+      "stamp": 1792141607.3105443,
+      "level": 30,
+      "name": "peach_scene_perception_node",
+      "msg": "感知 worker 满队丢帧累计 11488（处理跟不上到达率，排查热路径耗时或降低到达率）"
+    },
+    {
+      "stamp": 1792141607.511183,
+      "level": 30,
+      "name": "peach_target_reconstruction_node",
+      "msg": "自动采帧跳过 [stale_frame]：缓存帧龄期 2.54 s > max_frame_age_s=2.0（陈帧拒采）"
+    },
+    {
+      "stamp": 1792141607.5726483,
+      "level": 30,
+      "name": "peach_target_reconstruction_node",
+      "msg": "重建 worker 队列已满，拒绝新帧以保持积分顺序"
+    },
+    {
+      "stamp": 1792141608.5385807,
+      "level": 30,
+      "name": "peach_target_reconstruction_node",
+      "msg": "自动采帧跳过 [missing_mask]：缺少所选 target_id 的容差内掩膜"
+    },
+    {
+      "stamp": 1792141608.6066191,
+      "level": 30,
+      "name": "peach_target_reconstruction_node",
+      "msg": "重建 worker 队列已满，拒绝新帧以保持积分顺序"
+    },
+    {
+      "stamp": 1792141609.606555,
+      "level": 30,
+      "name": "peach_target_reconstruction_node",
+      "msg": "自动采帧跳过 [missing_mask]：缺少所选 target_id 的容差内掩膜"
+    },
+    {
+      "stamp": 1792141610.4851198,
+      "level": 30,
+      "name": "peach_target_reconstruction_node",
+      "msg": "重建 worker 队列已满，拒绝新帧以保持积分顺序"
+    },
+    {
+      "stamp": 1792141610.635642,
+      "level": 30,
+      "name": "peach_target_reconstruction_node",
+      "msg": "自动采帧跳过 [missing_mask]：缺少所选 target_id 的容差内掩膜"
+    },
+    {
+      "stamp": 1792141612.0508974,
+      "level": 30,
+      "name": "peach_target_reconstruction_node",
+      "msg": "自动采帧跳过 [missing_mask]：缺少所选 target_id 的容差内掩膜"
+    },
+    {
+      "stamp": 1792141612.2855713,
+      "level": 30,
+      "name": "peach_target_reconstruction_node",
+      "msg": "重建 worker 队列已满，拒绝新帧以保持积分顺序"
+    },
+    {
+      "stamp": 1792141613.3345156,
+      "level": 30,
+      "name": "peach_target_reconstruction_node",
+      "msg": "自动采帧跳过 [missing_mask]：缺少所选 target_id 的容差内掩膜"
+    },
+    {
+      "stamp": 1792141613.4773312,
+      "level": 30,
+      "name": "peach_target_reconstruction_node",
+      "msg": "重建 worker 队列已满，拒绝新帧以保持积分顺序"
+    },
+    {
+      "stamp": 1792141613.670689,
+      "level": 30,
+      "name": "peach_scene_perception_node",
+      "msg": "感知 worker 满队丢帧累计 11566（处理跟不上到达率，排查热路径耗时或降低到达率）"
+    },
+    {
+      "stamp": 1792141613.8765404,
+      "level": 20,
+      "name": "camera.peach_stereo_camera_node",
+      "msg": "groups=12700 published=12700 rate=12.1 gps drop(stream=0 incomplete=0 nostamp=0 depth=0)"
+    },
+    {
+      "stamp": 1792141613.9254627,
+      "level": 20,
+      "name": "peach_observability",
+      "msg": "自检[periodic] 14/18 通过，跳过: robot_status, imu_topic, model_files, vegetation_status"
+    },
+    {
+      "stamp": 1792141614.3716092,
+      "level": 30,
+      "name": "peach_target_reconstruction_node",
+      "msg": "自动采帧跳过 [missing_mask]：缺少所选 target_id 的容差内掩膜"
+    },
+    {
+      "stamp": 1792141615.2773366,
+      "level": 30,
+      "name": "peach_target_reconstruction_node",
+      "msg": "重建 worker 队列已满，拒绝新帧以保持积分顺序"
+    },
+    {
+      "stamp": 1792141615.4108486,
+      "level": 30,
+      "name": "peach_target_reconstruction_node",
+      "msg": "自动采帧跳过 [missing_mask]：缺少所选 target_id 的容差内掩膜"
+    },
+    {
+      "stamp": 1792141616.5584066,
+      "level": 30,
+      "name": "peach_target_reconstruction_node",
+      "msg": "自动采帧跳过 [missing_mask]：缺少所选 target_id 的容差内掩膜"
+    },
+    {
+      "stamp": 1792141616.6838138,
+      "level": 30,
+      "name": "peach_target_reconstruction_node",
+      "msg": "重建 worker 队列已满，拒绝新帧以保持积分顺序"
+    },
+    {
+      "stamp": 1792141616.8233156,
+      "level": 20,
+      "name": "peach_scene_perception_node",
+      "msg": "目标注册表在册 1 个目标（累计注册 10、累计命中 712）"
+    },
+    {
+      "stamp": 1792141617.573634,
+      "level": 30,
+      "name": "peach_target_reconstruction_node",
+      "msg": "自动采帧跳过 [missing_mask]：缺少所选 target_id 的容差内掩膜"
+    },
+    {
+      "stamp": 1792141618.5064788,
+      "level": 30,
+      "name": "peach_target_reconstruction_node",
+      "msg": "重建 worker 队列已满，拒绝新帧以保持积分顺序"
+    },
+    {
+      "stamp": 1792141618.577423,
+      "level": 30,
+      "name": "peach_target_reconstruction_node",
+      "msg": "自动采帧跳过 [missing_mask]：缺少所选 target_id 的容差内掩膜"
+    },
+    {
+      "stamp": 1792141619.7648346,
+      "level": 30,
+      "name": "peach_target_reconstruction_node",
+      "msg": "自动采帧跳过 [stale_frame]：缓存帧龄期 2.52 s > max_frame_age_s=2.0（陈帧拒采）"
+    },
+    {
+      "stamp": 1792141619.7725577,
+      "level": 30,
+      "name": "peach_scene_perception_node",
+      "msg": "感知 worker 满队丢帧累计 11631（处理跟不上到达率，排查热路径耗时或降低到达率）"
+    },
+    {
+      "stamp": 1792141620.087857,
+      "level": 30,
+      "name": "peach_target_reconstruction_node",
+      "msg": "重建 worker 队列已满，拒绝新帧以保持积分顺序"
+    },
+    {
+      "stamp": 1792141620.924288,
+      "level": 30,
+      "name": "peach_target_reconstruction_node",
+      "msg": "自动采帧跳过 [missing_mask]：缺少所选 target_id 的容差内掩膜"
+    },
+    {
+      "stamp": 1792141621.6134615,
+      "level": 30,
+      "name": "peach_target_reconstruction_node",
+      "msg": "重建 worker 队列已满，拒绝新帧以保持积分顺序"
+    },
+    {
+      "stamp": 1792141622.3177164,
+      "level": 20,
+      "name": "camera.peach_stereo_camera_node",
+      "msg": "groups=12800 published=12800 rate=12.1 gps drop(stream=0 incomplete=0 nostamp=0 depth=0)"
+    },
+    {
+      "stamp": 1792141622.459032,
+      "level": 30,
+      "name": "peach_target_reconstruction_node",
+      "msg": "自动采帧跳过 [missing_mask]：缺少所选 target_id 的容差内掩膜"
+    },
+    {
+      "stamp": 1792141622.7941055,
+      "level": 30,
+      "name": "peach_target_reconstruction_node",
+      "msg": "重建 worker 队列已满，拒绝新帧以保持积分顺序"
+    },
+    {
+      "stamp": 1792141623.478391,
+      "level": 30,
+      "name": "peach_target_reconstruction_node",
+      "msg": "自动采帧跳过 [missing_mask]：缺少所选 target_id 的容差内掩膜"
+    },
+    {
+      "stamp": 1792141624.2883427,
+      "level": 30,
+      "name": "peach_target_reconstruction_node",
+      "msg": "重建 worker 队列已满，拒绝新帧以保持积分顺序"
+    },
+    {
+      "stamp": 1792141624.5143976,
+      "level": 30,
+      "name": "peach_target_reconstruction_node",
+      "msg": "自动采帧跳过 [missing_mask]：缺少所选 target_id 的容差内掩膜"
+    },
+    {
+      "stamp": 1792141625.4046369,
+      "level": 30,
+      "name": "peach_target_reconstruction_node",
+      "msg": "重建 worker 队列已满，拒绝新帧以保持积分顺序"
+    },
+    {
+      "stamp": 1792141625.5983078,
+      "level": 30,
+      "name": "peach_target_reconstruction_node",
+      "msg": "自动采帧跳过 [missing_mask]：缺少所选 target_id 的容差内掩膜"
+    },
+    {
+      "stamp": 1792141625.6049576,
+      "level": 30,
+      "name": "peach_scene_perception_node",
+      "msg": "感知 worker 满队丢帧累计 11701（处理跟不上到达率，排查热路径耗时或降低到达率）"
+    },
+    {
+      "stamp": 1792141626.8942926,
+      "level": 20,
+      "name": "peach_scene_perception_node",
+      "msg": "目标注册表在册 1 个目标（累计注册 10、累计命中 719）"
+    },
+    {
+      "stamp": 1792141626.9307783,
+      "level": 20,
+      "name": "peach_target_reconstruction_node",
+      "msg": "REFINING：几何二次拟合开始（kind=bag，1341 点）"
+    },
+    {
+      "stamp": 1792141627.0291114,
+      "level": 20,
+      "name": "peach_target_reconstruction_node",
+      "msg": "REFINING 完成：cylinder status=ACCEPT final=False axis=[0.0539, -0.3085, 0.9497] diameter=87.9mm"
+    },
+    {
+      "stamp": 1792141627.030058,
+      "level": 20,
+      "name": "peach_target_reconstruction_node",
+      "msg": "已采第 1/5 视角，本帧 7870 点，有效深度占比 1.00，位姿=fk"
+    },
+    {
+      "stamp": 1792141627.0599802,
+      "level": 20,
+      "name": "peach_target_reconstruction_node",
+      "msg": "REFINING：几何二次拟合开始（kind=bag，1341 点）"
+    },
+    {
+      "stamp": 1792141627.135534,
+      "level": 20,
+      "name": "peach_target_reconstruction_node",
+      "msg": "REFINING 完成：cylinder status=ACCEPT final=True axis=[0.0539, -0.3085, 0.9497] diameter=87.9mm"
+    },
+    {
+      "stamp": 1792141627.13621,
+      "level": 20,
+      "name": "peach_target_reconstruction_node",
+      "msg": "局部重建完成：1 帧，7870 点（少于推荐 5 帧）；重叠指标需 ≥2 帧，本批次不可用；TSDF 1341 点 / mesh 2372 顶点（累计积分 0.01s）；refit ACCEPT（袋模型 1 视）"
+    },
+    {
+      "stamp": 1792141627.2711282,
+      "level": 30,
+      "name": "peach_target_reconstruction_node",
+      "msg": "重建 worker 队列已满，拒绝新帧以保持积分顺序"
+    },
+    {
+      "stamp": 1792141627.2984693,
+      "level": 20,
+      "name": "peach_supervisor.batch",
+      "msg": "command=none batch=running target=target_9 message=running"
+    },
+    {
+      "stamp": 1792141627.3225977,
+      "level": 20,
+      "name": "peach_supervisor.batch",
+      "msg": "command=survey batch=discovery target=- message=discovery"
+    },
+    {
+      "stamp": 1792141627.3377867,
+      "level": 20,
+      "name": "peach_supervisor",
+      "msg": "Survey 进行中: moving_to_photo_pose"
+    },
+    {
+      "stamp": 1792141627.338009,
+      "level": 20,
+      "name": "peach_supervisor",
+      "msg": "Survey 进行中: waiting_snapshot"
+    },
+    {
+      "stamp": 1792141628.7120078,
+      "level": 30,
+      "name": "peach_target_reconstruction_node",
+      "msg": "重建 worker 队列已满，拒绝新帧以保持积分顺序"
+    },
+    {
+      "stamp": 1792141630.4894536,
+      "level": 30,
+      "name": "peach_target_reconstruction_node",
+      "msg": "重建 worker 队列已满，拒绝新帧以保持积分顺序"
+    },
+    {
+      "stamp": 1792141630.6692061,
+      "level": 20,
+      "name": "camera.peach_stereo_camera_node",
+      "msg": "groups=12900 published=12900 rate=12.1 gps drop(stream=0 incomplete=0 nostamp=0 depth=0)"
+    },
+    {
+      "stamp": 1792141630.8074794,
+      "level": 30,
+      "name": "peach_scene_perception_node",
+      "msg": "感知 worker 满队丢帧累计 11761（处理跟不上到达率，排查热路径耗时或降低到达率）"
+    },
+    {
+      "stamp": 1792141633.005008,
+      "level": 30,
+      "name": "peach_target_reconstruction_node",
+      "msg": "重建 worker 队列已满，拒绝新帧以保持积分顺序"
+    },
+    {
+      "stamp": 1792141636.2985964,
+      "level": 30,
+      "name": "peach_target_reconstruction_node",
+      "msg": "重建 worker 队列已满，拒绝新帧以保持积分顺序"
+    },
+    {
+      "stamp": 1792141637.3848176,
+      "level": 30,
+      "name": "peach_target_reconstruction_node",
+      "msg": "重建 worker 队列已满，拒绝新帧以保持积分顺序"
+    },
+    {
+      "stamp": 1792141637.4246461,
+      "level": 20,
+      "name": "peach_supervisor.batch",
+      "msg": "command=select batch=discovery target=- message=discovery"
+    },
+    {
+      "stamp": 1792141637.4391408,
+      "level": 20,
+      "name": "peach_supervisor.batch",
+      "msg": "command=survey batch=discovery target=- message=discovery"
+    },
+    {
+      "stamp": 1792141637.4539897,
+      "level": 20,
+      "name": "peach_supervisor",
+      "msg": "Survey 进行中: moving_to_photo_pose"
+    },
+    {
+      "stamp": 1792141637.4575753,
+      "level": 20,
+      "name": "peach_supervisor",
+      "msg": "Survey 进行中: waiting_snapshot"
+    },
+    {
+      "stamp": 1792141637.8452911,
+      "level": 30,
+      "name": "move_group.moveit.moveit.core.planning_scene",
+      "msg": "Tried to remove world object 'peach_scene_obstacles', but it does not exist in this scene."
+    },
+    {
+      "stamp": 1792141637.89809,
+      "level": 20,
+      "name": "peach_scene_obstacles",
+      "msg": "场景障碍已关闭，不把枝叶写入碰撞场景"
+    },
+    {
+      "stamp": 1792141638.980937,
+      "level": 20,
+      "name": "camera.peach_stereo_camera_node",
+      "msg": "groups=13000 published=13000 rate=12.1 gps drop(stream=0 incomplete=0 nostamp=0 depth=0)"
+    },
+    {
+      "stamp": 1792141639.0372732,
+      "level": 30,
+      "name": "peach_target_reconstruction_node",
+      "msg": "重建 worker 队列已满，拒绝新帧以保持积分顺序"
+    },
+    {
+      "stamp": 1792141636.901584,
+      "level": 20,
+      "name": "peach_scene_perception_node",
+      "msg": "目标注册表在册 1 个目标（累计注册 10、累计命中 727）"
+    },
+    {
+      "stamp": 1792141636.9051037,
+      "level": 30,
+      "name": "peach_scene_perception_node",
+      "msg": "感知 worker 满队丢帧累计 11822（处理跟不上到达率，排查热路径耗时或降低到达率）"
+    },
+    {
+      "stamp": 1792141640.2999237,
+      "level": 20,
+      "name": "peach_target_reconstruction_node",
+      "msg": "跟随计划切换重建目标: target_9 -> （空）（放弃 READY 会话）"
+    },
+    {
+      "stamp": 1792141640.4243803,
+      "level": 30,
+      "name": "peach_target_reconstruction_node",
+      "msg": "重建 worker 队列已满，拒绝新帧以保持积分顺序"
+    },
+    {
+      "stamp": 1792141641.9588692,
+      "level": 30,
+      "name": "peach_scene_perception_node",
+      "msg": "感知 worker 满队丢帧累计 11873（处理跟不上到达率，排查热路径耗时或降低到达率）"
+    },
+    {
+      "stamp": 1792141643.4760394,
+      "level": 30,
+      "name": "peach_target_reconstruction_node",
+      "msg": "重建 worker 队列已满，拒绝新帧以保持积分顺序"
+    },
+    {
+      "stamp": 1792141643.9238803,
+      "level": 20,
+      "name": "peach_observability",
+      "msg": "自检[periodic] 14/18 通过，跳过: robot_status, imu_topic, model_files, vegetation_status"
+    },
+    {
+      "stamp": 1792141646.477588,
+      "level": 30,
+      "name": "peach_target_reconstruction_node",
+      "msg": "重建 worker 队列已满，拒绝新帧以保持积分顺序"
+    },
+    {
+      "stamp": 1792141646.8220534,
+      "level": 20,
+      "name": "camera.peach_stereo_camera_node",
+      "msg": "groups=13100 published=13100 rate=12.1 gps drop(stream=0 incomplete=0 nostamp=0 depth=0)"
+    },
+    {
+      "stamp": 1792141647.126467,
+      "level": 30,
+      "name": "peach_scene_perception_node",
+      "msg": "感知 worker 满队丢帧累计 11918（处理跟不上到达率，排查热路径耗时或降低到达率）"
+    },
+    {
+      "stamp": 1792141647.5759194,
+      "level": 20,
+      "name": "peach_supervisor.batch",
+      "msg": "command=select batch=discovery target=- message=discovery"
+    },
+    {
+      "stamp": 1792141647.8528693,
+      "level": 30,
+      "name": "move_group.moveit.moveit.core.planning_scene",
+      "msg": "Tried to remove world object 'peach_scene_obstacles', but it does not exist in this scene."
+    },
+    {
+      "stamp": 1792141647.9028945,
+      "level": 20,
+      "name": "peach_scene_obstacles",
+      "msg": "场景障碍已关闭，不把枝叶写入碰撞场景"
+    },
+    {
+      "stamp": 1792141648.0102248,
+      "level": 30,
+      "name": "peach_target_reconstruction_node",
+      "msg": "重建 worker 队列已满，拒绝新帧以保持积分顺序"
+    }
+  ]
+}

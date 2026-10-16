@@ -814,6 +814,7 @@ initPlot();                     // rqt_plot 风格字段绘图
 const topicsCard = initTopics(vizPanel);   // 话题卡（订阅树 + 一键可视化）
 initPanels(vizPanel, topicsCard);          // 示教/轨迹/拓扑图/分割条
 initMonPanels();                // 诊断（runtime_monitor）+ ROS 日志（rqt_console）
+window.__rwl_viz = vizPanel;    // 浏览器自动化入口（addOrEnable/快照；同 __rwl_topics 模式）
 // ── 顶部导航栏（RViz 菜单栏语义：按工作区切换成员卡片，主网格扁平重排） ──────
 (function navInit() {
   const bar = document.getElementById('top-nav');

@@ -10,7 +10,7 @@
 
 ## 入口、输入输出与参数
 
-不进入产品 launch。完整命令与判据见 [testing.md](testing.md)；安装脚本用 ros2 run peach_system_tests，参数先看对应 --help。冻结 FULL 需要 bag/GPU，不属于默认无设备通过证据。
+不进入产品 launch。完整命令与判据见 [testing.md](testing.md)；安装脚本用 ros2 run peach_system_tests，参数先看对应 --help。`run_live_camera_mock.py` 短测（`--rounds 5 --models 0 --soak-seconds 0`）2026-10-16 5/5 已记在 testing.md；10×30×1800 联合长测仍未通过。冻结 FULL 需要 bag/GPU，不属于默认无设备通过证据。
 
 ## 生命周期、并发与失败
 

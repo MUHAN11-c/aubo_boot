@@ -69,7 +69,7 @@ IDL 唯一契约包，不跑节点。`config/interface_manifest.yaml` + `scripts
 | `src/manipulation_skills_node.cpp` | Lifecycle / staging IK 梯子 / ACM 激活重试 |
 | `src/cycle.cpp` | 动作受理、authorizeStage、Survey、executeAction |
 | `src/stages.cpp` | executeCycle 阶段序列 |
-| `src/grasp_task.cpp` | MTC；**tryStagingTransit = v4 接近真源** |
+| `src/grasp_task.cpp` | MTC；`planToPregrasp` 先 LIN 再 `tryStagingTransit` |
 | `src/motion.cpp` | MoveIt 接口、拍照位、接触检测接线 |
 | `src/move_to.cpp` | MoveTo + authorizeTransit + enables 心跳 |
 | `src/target_cache.cpp` | selected/locked/refined/decision |

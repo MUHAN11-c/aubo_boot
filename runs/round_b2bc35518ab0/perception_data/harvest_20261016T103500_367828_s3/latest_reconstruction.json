@@ -1,0 +1,127 @@
+{
+  "source": "reconstruction",
+  "event": "reconstruction_finalized",
+  "target_id": "target_1",
+  "captured_views": 1,
+  "pose_count": 1,
+  "refined": {
+    "ok": true,
+    "kind": "cylinder",
+    "status": 0,
+    "reason": "",
+    "center": [
+      0.42673534157566073,
+      -0.6671838662288612,
+      0.7291446449647221
+    ],
+    "axis": [
+      0.0355407430509297,
+      -0.24861805804821624,
+      0.9679493358620179
+    ],
+    "bottom": [
+      0.4250576844514429,
+      -0.6554481561539168,
+      0.6834537854105518
+    ],
+    "neck": [
+      0.42841299869987864,
+      -0.6789195763038056,
+      0.7748355045188925
+    ],
+    "diameter": 0.09174800493811802,
+    "span_m": 0.09440754357970575,
+    "rmse": 0.0016196051751660627,
+    "inlier_ratio": 0.5554728220402085,
+    "refit_ok": true,
+    "refit_status": 0,
+    "refit_axis": [
+      0.34717533353608737,
+      -0.04162036713010044,
+      0.9368762099787048
+    ],
+    "refit_center": [
+      0.4323755210518801,
+      -0.6955450416574579,
+      0.7148316390689515
+    ],
+    "refit_rmse": 0.0016196051751660627,
+    "refit_inlier_ratio": 0.5554728220402085,
+    "fused_refit_axis_angle_deg": 21.63753113893152,
+    "fusion_landmark_scatter_rmse_m": null,
+    "fusion_landmark_inlier_ratio": null,
+    "fusion_consistency_available": false,
+    "fusion_pose_count": 1,
+    "fusion_lateral_shift_m": 0.0,
+    "model_revision": "target_1:1:4",
+    "fruit_prior_radius_m": 0.0,
+    "cut_to_fruit_m": null,
+    "cut_distance_source": "unavailable",
+    "n_points": 1343,
+    "flags": [
+      "axis_from_captured_shape",
+      "corridor_not_clear"
+    ],
+    "axis_angle_deg": 11.190321001334352,
+    "refit_axis_angle_deg": 10.889717782986844,
+    "fused_axis_angle_deg": 11.190321001334352,
+    "axis_conflict_deg": 8.26038979698855,
+    "envelope_conditioned": true,
+    "envelope_reason": "ok",
+    "perception_axis": [
+      0.2170624345597291,
+      -0.17785177078279163,
+      0.9598190699983142
+    ],
+    "final": true
+  },
+  "grasp_decision": {
+    "harvest_run_id": "harvest_20261016T103500_367828_s3",
+    "target_id": "target_1",
+    "allowed": true,
+    "geometry_valid": true,
+    "reason": "bag_mouth_geometry",
+    "axis_angle_deg": 11.190321001334352,
+    "diagnostic_axis_mismatch": false,
+    "entry": [
+      0.4250576844514429,
+      -0.6554481561539168,
+      0.6834537854105518
+    ],
+    "axis": [
+      0.0355407430509297,
+      -0.24861805804821624,
+      0.9679493358620179
+    ],
+    "pregrasp": [
+      0.42399146215991496,
+      -0.6479896144124704,
+      0.6544153053346913
+    ],
+    "cut_pose": [
+      0.42841299869987864,
+      -0.6789195763038056,
+      0.7748355045188925
+    ],
+    "diameter_m": 0.09174800493811802,
+    "d95_m": 0.09174800493811802,
+    "travel_m": 0.09440754357970575,
+    "cut_travel_m": 0.09440754357970575,
+    "radial_margin_m": -0.016814911538850306,
+    "axial_margin_m": -0.002,
+    "corridor_clear": false,
+    "rmse_m": 0.0016196051751660627,
+    "inlier_ratio": 0.5554728220402085,
+    "model_revision": "target_1:1:4",
+    "tool_profile_id": "bite_shear_v1",
+    "scene_epoch": 3,
+    "calibration_revision": "unspecified",
+    "config_revision": "bite_shear_v1",
+    "geometry_capability": 0,
+    "pregrasp_capability": 0,
+    "sleeve_capability": 0,
+    "cut_capability": 0,
+    "failure_code": 0
+  },
+  "recorded_at": "2026-10-16T02:35:01.416907+00:00"
+}

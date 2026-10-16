@@ -351,7 +351,11 @@ def test_web_compute_path_plan(stack):
 
 
 def test_nav2_map(stack):
-    """官方 nav2 map_server：tb3_sandbox 384²@0.05m。"""
+    """官方 nav2 map_server：ROBOTIS 配套 turtlebot3_world 图 384²@0.05m.
+
+    （2026-10-16 修正：tb3_sandbox 与仿真世界非同一环境，换官方配套图后
+    激光点与地图墙可对齐；尺寸/分辨率/origin 约定与 tb3_sandbox 相同）
+    """
     async def run():
         async with Connected(stack) as c:
             m = await _first(c, '/map', OccupancyGrid)
@@ -383,6 +387,61 @@ def test_nav2_diagnostics(stack):
             finally:
                 await sub.cancel()
     _run(run())
+
+
+# ── 真实大数据流速率与新鲜度（web↔官方仿真链路"无延迟"的直接证据） ────────
+
+
+def _measure_real_stream(stack, topic: str, duration_s: float = 6.0):
+    """裸 WS 持续消费真实流 duration_s，返回 (fps, 各帧年龄列表).
+
+    复用 bigdata 基准的裸 websockets 计数/测龄助手（max_queue=2，消费速率
+    掌握在测试手里）；帧年龄 = 本地墙钟 − 桥接收时刻（logTime，桥不设
+    use_sim_time，恒为墙钟）——无界积压会随时间线性增长，健康链路稳定在
+    百毫秒级。
+    """
+    from .test_e2e_bigdata import (_next_data_frame, _raw_connect,
+                                   _subscribe, _wait_channel)
+
+    async def run():
+        ws = await _raw_connect(stack.ws_url)
+        channels: dict = {}
+        try:
+            ch = (await _wait_channel(ws, topic, channels))['id']
+            await _subscribe(ws, ch, 1)
+            frames = 0
+            ages = []
+            t_end = time.monotonic() + duration_s
+            while time.monotonic() < t_end:
+                _, log_ns, _size = await _next_data_frame(ws, channels, 5.0)
+                frames += 1
+                ages.append(time.time() - log_ns / 1e9)
+        finally:
+            await ws.close()
+        return frames / duration_s, ages
+
+    return asyncio.run(run())
+
+
+def test_tb3_camera_stream_rate_and_freshness(stack):
+    """真实 gz 相机流（640×480 rgb8 ≈0.92MB/帧，名义 30Hz）持续 6s 经网关.
+
+    与 bigdata 合成基准互补：这是官方仿真真实产流（gz 传感器线程 → gz 桥 →
+    DDS → foxglove 桥 → 网关 → WS 全链）。阈值取名义率 50%——gz 实时因子
+    受机器负载影响；首帧含传感器慢启动，6s 窗口足以摊薄。
+    """
+    fps, ages = _measure_real_stream(stack, '/camera/image_raw')
+    assert fps >= 15.0, f'相机流 {fps:.1f}fps < 15'
+    assert sum(ages) / len(ages) < 0.3, f'mean age {sum(ages) / len(ages):.3f}s'
+    assert max(ages) < 1.0, f'max age {max(ages):.3f}s'
+
+
+def test_tb3_pointcloud_stream_rate_and_freshness(stack):
+    """官方点云示例流（ros2/examples 100×100 点，名义 30Hz）持续 6s 经网关."""
+    fps, ages = _measure_real_stream(stack, '/test_cloud')
+    assert fps >= 18.0, f'点云流 {fps:.1f}fps < 18'
+    assert sum(ages) / len(ages) < 0.3, f'mean age {sum(ages) / len(ages):.3f}s'
+    assert max(ages) < 1.0, f'max age {max(ages):.3f}s'
 
 
 def test_teleop_drives_tb3(stack):

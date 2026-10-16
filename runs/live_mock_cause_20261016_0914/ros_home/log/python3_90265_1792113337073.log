@@ -1,0 +1,43 @@
+[WARN] [1792113337.577572731] [peach_observability]: *** 调试操作面已启用：运动类操作=默认拒绝。技能侧既有安全门照常生效；请保持 HTTP 回环绑定 ***
+[INFO] [1792113337.580685117] [peach_observability]: 感知抓取过程页（过程监控+单步调试）: http://127.0.0.1:8090
+[INFO] [1792113337.582197588] [peach_observability]: 全量录制订阅: /joint_states [sensor_msgs/msg/JointState]
+[INFO] [1792113337.625343056] [peach_observability]: 全量录制订阅: /joint_trajectory_controller/follow_joint_trajectory/_action/feedback [control_msgs/action/FollowJointTrajectory_FeedbackMessage]
+[INFO] [1792113337.625941895] [peach_observability]: 全量录制订阅: /joint_trajectory_controller/follow_joint_trajectory/_action/status [action_msgs/msg/GoalStatusArray]
+[INFO] [1792113337.626504111] [peach_observability]: 全量录制订阅: /peach/observability/tcp_path [nav_msgs/msg/Path]
+[INFO] [1792113337.626894854] [peach_observability]: 全量录制订阅: /peach/perception/target_observations [peach_interfaces/msg/PeachTargetObservationArray]
+[INFO] [1792113337.627241720] [peach_observability]: 全量录制订阅: /peach/reconstruction/diagnostics [peach_interfaces/msg/ReconstructionStatus]
+[INFO] [1792113337.627779665] [peach_observability]: 全量录制订阅: /peach/reconstruction/diagnostics_debug [std_msgs/msg/String]
+[INFO] [1792113337.628224981] [peach_observability]: 全量录制订阅: /peach/reconstruction/grasp_decision [peach_interfaces/msg/GraspDecision]
+[INFO] [1792113337.628621715] [peach_observability]: 全量录制订阅: /peach/reconstruction/refined_axis [geometry_msgs/msg/Vector3Stamped]
+[INFO] [1792113337.629133712] [peach_observability]: 全量录制订阅: /peach/reconstruction/refined_diagnostics [peach_interfaces/msg/BagFittingArray]
+[INFO] [1792113337.629474998] [peach_observability]: 全量录制订阅: /peach/reconstruction/refined_pose [peach_interfaces/msg/BagGraspCandidateArray]
+[INFO] [1792113337.629947794] [peach_observability]: 全量录制订阅: /peach/reconstruction/status [std_msgs/msg/String]
+[INFO] [1792113337.630432394] [peach_observability]: 全量录制订阅: /peach/reconstruction/tsdf_cloud [sensor_msgs/msg/PointCloud2]
+[INFO] [1792113337.630908194] [peach_observability]: 全量录制订阅: /peach_arm/execute_target/_action/feedback [peach_interfaces/action/ExecuteTarget_FeedbackMessage]
+[INFO] [1792113337.631398722] [peach_observability]: 全量录制订阅: /peach_arm/execute_target/_action/status [action_msgs/msg/GoalStatusArray]
+[INFO] [1792113337.631870082] [peach_observability]: 全量录制订阅: /peach_arm/status [std_msgs/msg/String]
+[INFO] [1792113337.632421939] [peach_observability]: 全量录制订阅: /peach_supervisor/events [peach_interfaces/msg/CanonicalEvent]
+[INFO] [1792113337.632916217] [peach_observability]: 全量录制订阅: /peach_supervisor/run_harvest/_action/feedback [peach_interfaces/action/RunHarvest_FeedbackMessage]
+[INFO] [1792113337.633392946] [peach_observability]: 全量录制订阅: /peach_supervisor/run_harvest/_action/status [action_msgs/msg/GoalStatusArray]
+[INFO] [1792113337.633839848] [peach_observability]: 全量录制订阅: /peach_supervisor/scene_snapshot [peach_interfaces/msg/SceneSnapshot]
+[INFO] [1792113337.634295605] [peach_observability]: 全量录制订阅: /peach_supervisor/state [peach_interfaces/msg/HarvestState]
+[INFO] [1792113337.634777637] [peach_observability]: 全量录制订阅: /peach_target_reconstruction_node/build_target_model/_action/feedback [peach_interfaces/action/BuildTargetModel_FeedbackMessage]
+[INFO] [1792113337.635249799] [peach_observability]: 全量录制订阅: /peach_target_reconstruction_node/build_target_model/_action/status [action_msgs/msg/GoalStatusArray]
+[INFO] [1792113337.635623065] [peach_observability]: 全量录制订阅: /tf [tf2_msgs/msg/TFMessage]
+[INFO] [1792113337.636067624] [peach_observability]: 全量录制订阅: /tf_static [tf2_msgs/msg/TFMessage]
+[INFO] [1792113339.642387546] [peach_observability]: 全量录制订阅: /display_planned_path [moveit_msgs/msg/DisplayTrajectory]
+[INFO] [1792113339.746413547] [peach_observability]: 全量录制订阅: /execute_trajectory/_action/feedback [moveit_msgs/action/ExecuteTrajectory_FeedbackMessage]
+[INFO] [1792113339.747298612] [peach_observability]: 全量录制订阅: /execute_trajectory/_action/status [action_msgs/msg/GoalStatusArray]
+[INFO] [1792113339.748209884] [peach_observability]: 全量录制订阅: /peach/batch/enables [peach_interfaces/msg/Enables]
+[INFO] [1792113339.748774765] [peach_observability]: 全量录制订阅: /peach/perception/masks [sensor_msgs/msg/Image]
+[INFO] [1792113339.749267059] [peach_observability]: 全量录制订阅: /peach/reconstruction/local_cloud [sensor_msgs/msg/PointCloud2]
+[INFO] [1792113339.749816445] [peach_observability]: 全量录制订阅: /peach/reconstruction/preview_cloud [sensor_msgs/msg/PointCloud2]
+[INFO] [1792113347.583996868] [peach_observability]: 自检[initial] 14/18 通过，跳过: robot_status, imu_topic, model_files, vegetation_status
+[WARN] [1792113363.378381798] [rosbag2_cpp]: Message definition for topic '/peach_target_reconstruction_node/build_target_model/_action/status' with type 'action_msgs/msg/GoalStatusArray' not found. Message definition will be left empty in bag.
+[WARN] [1792113364.707891142] [rosbag2_cpp]: Message definition for topic '/peach_target_reconstruction_node/build_target_model/_action/feedback' with type 'peach_interfaces/msg/BuildTargetModel_FeedbackMessage' not found. Message definition will be left empty in bag.
+[INFO] [1792113367.583096876] [peach_observability]: 自检[periodic] 14/18 通过，跳过: robot_status, imu_topic, model_files, vegetation_status
+[WARN] [1792113382.265299748] [rosbag2_cpp]: Message definition for topic '/peach_supervisor/run_harvest/_action/status' with type 'action_msgs/msg/GoalStatusArray' not found. Message definition will be left empty in bag.
+[WARN] [1792113382.274753704] [rosbag2_cpp]: Message definition for topic '/peach_supervisor/run_harvest/_action/feedback' with type 'peach_interfaces/msg/RunHarvest_FeedbackMessage' not found. Message definition will be left empty in bag.
+[WARN] [1792113396.838206606] [rosbag2_cpp]: Message definition for topic '/peach_arm/execute_target/_action/feedback' with type 'peach_interfaces/msg/ExecuteTarget_FeedbackMessage' not found. Message definition will be left empty in bag.
+[WARN] [1792113396.838350537] [rosbag2_cpp]: Message definition for topic '/peach_arm/execute_target/_action/status' with type 'action_msgs/msg/GoalStatusArray' not found. Message definition will be left empty in bag.
+[INFO] [1792113397.589867167] [peach_observability]: 自检[periodic] 14/18 通过，跳过: robot_status, imu_topic, model_files, vegetation_status

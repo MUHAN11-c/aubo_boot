@@ -125,6 +125,7 @@ public:
 
   // 记录刚执行成功、且从拍照位出发的接近轨迹，供下次回拍照位原路返程。
   void rememberPhotoApproach(trajectory_msgs::msg::JointTrajectory trajectory);
+  void appendPhotoApproach(trajectory_msgs::msg::JointTrajectory trajectory);
   void clearPhotoApproach();
 
 private:

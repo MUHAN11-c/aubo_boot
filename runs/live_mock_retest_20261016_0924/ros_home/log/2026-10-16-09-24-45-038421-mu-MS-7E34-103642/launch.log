@@ -1,0 +1,43 @@
+1792113885.0390735 [INFO] [launch]: All log files can be found below /home/mu/Desktop/aubo_e5_jazzy_ws/runs/live_mock_retest_20261016_0924/ros_home/log/2026-10-16-09-24-45-038421-mu-MS-7E34-103642
+1792113885.0391598 [INFO] [launch]: Default logging verbosity is set to INFO
+1792113885.4882598 [INFO] [stereo_camera_node-1]: process started with pid [103732]
+1792113885.4883716 [INFO] [peach_scene_obstacles-2]: process started with pid [103733]
+1792113885.4884105 [INFO] [robot_state_publisher-3]: process started with pid [103734]
+1792113885.4884408 [INFO] [ros2_control_node-4]: process started with pid [103735]
+1792113885.4884665 [INFO] [spawner-5]: process started with pid [103736]
+1792113885.4884915 [INFO] [spawner-6]: process started with pid [103737]
+1792113885.4885137 [INFO] [move_group-7]: process started with pid [103738]
+1792113885.4885361 [INFO] [peach_harvester-8]: process started with pid [103739]
+1792113885.4885569 [INFO] [peach_arm-9]: process started with pid [103740]
+1792113885.4885778 [INFO] [peach_observability-10]: process started with pid [103741]
+1792113885.4885983 [INFO] [lifecycle_manager-11]: process started with pid [103742]
+1792113885.4886174 [INFO] [peach_lifecycle_flag_bridge-12]: process started with pid [103743]
+1792113886.2095027 [INFO] [spawner-6]: process has finished cleanly [pid 103737]
+1792113887.4247093 [INFO] [spawner-5]: process has finished cleanly [pid 103736]
+1792114020.3754964 [WARNING] [launch]: user interrupted with ctrl-c (SIGINT)
+1792114020.5244334 [INFO] [peach_lifecycle_flag_bridge-12]: sending signal 'SIGINT' to process[peach_lifecycle_flag_bridge-12]
+1792114020.5248735 [INFO] [lifecycle_manager-11]: sending signal 'SIGINT' to process[lifecycle_manager-11]
+1792114020.5252545 [INFO] [peach_observability-10]: sending signal 'SIGINT' to process[peach_observability-10]
+1792114020.5255959 [INFO] [peach_arm-9]: sending signal 'SIGINT' to process[peach_arm-9]
+1792114020.5261950 [INFO] [peach_harvester-8]: sending signal 'SIGINT' to process[peach_harvester-8]
+1792114020.5265551 [INFO] [move_group-7]: sending signal 'SIGINT' to process[move_group-7]
+1792114020.5270195 [INFO] [ros2_control_node-4]: sending signal 'SIGINT' to process[ros2_control_node-4]
+1792114020.5273752 [INFO] [robot_state_publisher-3]: sending signal 'SIGINT' to process[robot_state_publisher-3]
+1792114020.5277283 [INFO] [peach_scene_obstacles-2]: sending signal 'SIGINT' to process[peach_scene_obstacles-2]
+1792114020.5280869 [INFO] [stereo_camera_node-1]: sending signal 'SIGINT' to process[stereo_camera_node-1]
+1792114020.6019113 [ERROR] [peach_scene_obstacles-2]: process has died [pid 103733, exit code -2, cmd '/home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_harvester/lib/peach_harvester/peach_scene_obstacles --ros-args -p use_sim_time:=False'].
+1792114020.6405313 [INFO] [peach_arm-9]: process has finished cleanly [pid 103740]
+1792114020.6422608 [INFO] [robot_state_publisher-3]: process has finished cleanly [pid 103734]
+1792114020.6748762 [INFO] [ros2_control_node-4]: process has finished cleanly [pid 103735]
+1792114020.6913188 [INFO] [peach_lifecycle_flag_bridge-12]: process has finished cleanly [pid 103743]
+1792114020.7865465 [INFO] [stereo_camera_node-1]: process has finished cleanly [pid 103732]
+1792114021.0376046 [ERROR] [peach_harvester-8]: process has died [pid 103739, exit code 1, cmd '/home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_harvester/lib/peach_harvester/peach_harvester --ros-args -r __ns:=/ -p use_sim_time:=False --params-file /tmp/launch_params_hqt2s_nb --params-file /tmp/launch_params_h543ccms --params-file /tmp/launch_params_ikgnh02p --params-file /tmp/peach_brain_overlay_xz7he88d.yaml --params-file /tmp/launch_params_of9ccqrk'].
+1792114022.5840199 [INFO] [peach_observability-10]: process has finished cleanly [pid 103741]
+1792114025.5385928 [ERROR] [lifecycle_manager-11]: process[lifecycle_manager-11] failed to terminate '5' seconds after receiving 'SIGINT', escalating to 'SIGTERM'
+1792114025.5389037 [ERROR] [move_group-7]: process[move_group-7] failed to terminate '5' seconds after receiving 'SIGINT', escalating to 'SIGTERM'
+1792114025.5390711 [INFO] [lifecycle_manager-11]: sending signal 'SIGTERM' to process[lifecycle_manager-11]
+1792114025.5394926 [INFO] [move_group-7]: sending signal 'SIGTERM' to process[move_group-7]
+1792114025.5433342 [ERROR] [move_group-7]: process has died [pid 103738, exit code -15, cmd '/opt/ros/jazzy/lib/moveit_ros_move_group/move_group --ros-args -p use_sim_time:=False --params-file /tmp/launch_params_jn0iydfp --params-file /tmp/launch_params_4axcc6df'].
+1792114030.5496466 [ERROR] [lifecycle_manager-11]: process[lifecycle_manager-11] failed to terminate '10.0' seconds after receiving 'SIGTERM', escalating to 'SIGKILL'
+1792114030.5498970 [INFO] [lifecycle_manager-11]: sending signal 'SIGKILL' to process[lifecycle_manager-11]
+1792114030.5520673 [ERROR] [lifecycle_manager-11]: process has died [pid 103742, exit code -9, cmd '/opt/ros/jazzy/lib/nav2_lifecycle_manager/lifecycle_manager --ros-args -r __node:=peach_lifecycle_manager -p use_sim_time:=False --params-file /tmp/launch_params_s0tieqnk'].

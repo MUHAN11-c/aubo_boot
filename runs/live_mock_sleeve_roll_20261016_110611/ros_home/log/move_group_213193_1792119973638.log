@@ -1,0 +1,100 @@
+[INFO] [1792119973.676566463] [move_group.moveit.moveit.ros.rdf_loader]: Loaded robot model in 0.00246835 seconds
+[INFO] [1792119973.676677624] [move_group.moveit.moveit.core.robot_model]: Loading robot model 'aubo_e5'...
+[INFO] [1792119973.676689683] [move_group.moveit.moveit.core.robot_model]: No root/virtual joint specified in SRDF. Assuming fixed joint
+[INFO] [1792119973.748863607] [move_group.moveit.moveit.kinematics.kdl_kinematics_plugin]: Joint weights for group 'manipulator_e5': 1 1 1 1 1 1
+[INFO] [1792119973.935592287] [move_group.moveit.moveit.ros.planning_scene_monitor]: Publishing maintained planning scene on 'monitored_planning_scene'
+[INFO] [1792119973.935695958] [move_group.moveit.moveit.ros.moveit_cpp]: Listening to 'joint_states' for joint states
+[INFO] [1792119973.937034012] [move_group.moveit.moveit.ros.current_state_monitor]: Listening to joint states on topic 'joint_states'
+[INFO] [1792119973.938634641] [move_group.moveit.moveit.ros.planning_scene_monitor]: Listening to '/attached_collision_object' for attached collision objects
+[INFO] [1792119973.938670630] [move_group.moveit.moveit.ros.planning_scene_monitor]: Stopping existing planning scene publisher.
+[INFO] [1792119973.940746497] [move_group.moveit.moveit.ros.planning_scene_monitor]: Stopped publishing maintained planning scene.
+[INFO] [1792119973.941303076] [move_group.moveit.moveit.ros.planning_scene_monitor]: Publishing maintained planning scene on 'monitored_planning_scene'
+[INFO] [1792119973.941447718] [move_group.moveit.moveit.ros.planning_scene_monitor]: Starting planning scene monitor
+[INFO] [1792119973.941910193] [move_group.moveit.moveit.ros.planning_scene_monitor]: Listening to '/planning_scene'
+[INFO] [1792119973.941918580] [move_group.moveit.moveit.ros.planning_scene_monitor]: Starting world geometry update monitor for collision objects, attached objects, octomap updates.
+[INFO] [1792119973.944764980] [move_group.moveit.moveit.ros.planning_scene_monitor]: Listening to 'collision_object'
+[INFO] [1792119973.945036633] [move_group.moveit.moveit.ros.planning_scene_monitor]: Listening to 'planning_scene_world' for planning scene world geometry
+[WARN] [1792119973.948493276] [move_group.moveit.moveit.ros.occupancy_map_monitor]: Resolution not specified for Octomap. Assuming resolution = 0.1 instead
+[ERROR] [1792119973.948522525] [move_group.moveit.moveit.ros.occupancy_map_monitor]: No 3D sensor plugin(s) defined for octomap updates
+[INFO] [1792119974.086490581] [move_group.moveit.moveit.ros.planning_pipeline]: Successfully loaded planner 'OMPL'
+[INFO] [1792119974.092636699] [move_group]: Try loading adapter 'default_planning_request_adapters/ResolveConstraintFrames'
+[INFO] [1792119974.096431897] [move_group]: Loaded adapter 'default_planning_request_adapters/ResolveConstraintFrames'
+[INFO] [1792119974.096473719] [move_group]: Try loading adapter 'default_planning_request_adapters/ValidateWorkspaceBounds'
+[INFO] [1792119974.098493908] [move_group]: Loaded adapter 'default_planning_request_adapters/ValidateWorkspaceBounds'
+[INFO] [1792119974.098751451] [move_group]: Try loading adapter 'default_planning_request_adapters/CheckStartStateBounds'
+[INFO] [1792119974.098771374] [move_group]: Loaded adapter 'default_planning_request_adapters/CheckStartStateBounds'
+[INFO] [1792119974.098773178] [move_group]: Try loading adapter 'default_planning_request_adapters/CheckStartStateCollision'
+[INFO] [1792119974.098777912] [move_group]: Loaded adapter 'default_planning_request_adapters/CheckStartStateCollision'
+[INFO] [1792119974.100513825] [move_group]: Try loading adapter 'default_planning_response_adapters/AddTimeOptimalParameterization'
+[INFO] [1792119974.117998645] [move_group]: Loaded adapter 'default_planning_response_adapters/AddTimeOptimalParameterization'
+[INFO] [1792119974.118021438] [move_group]: Try loading adapter 'default_planning_response_adapters/AddRuckigTrajectorySmoothing'
+[INFO] [1792119974.118030569] [move_group]: Loaded adapter 'default_planning_response_adapters/AddRuckigTrajectorySmoothing'
+[INFO] [1792119974.118032420] [move_group]: Try loading adapter 'default_planning_response_adapters/ValidateSolution'
+[INFO] [1792119974.134716950] [move_group]: Loaded adapter 'default_planning_response_adapters/ValidateSolution'
+[INFO] [1792119974.150088937] [move_group.moveit.moveit.planners.pilz.joint_limits_aggregator]: Reading limits from namespace robot_description_planning
+[INFO] [1792119974.152042122] [move_group.moveit.moveit.planners.pilz.command_planner]: Available plugins: pilz_industrial_motion_planner/PlanningContextLoaderCIRC pilz_industrial_motion_planner/PlanningContextLoaderLIN pilz_industrial_motion_planner/PlanningContextLoaderPTP 
+[INFO] [1792119974.152058451] [move_group.moveit.moveit.planners.pilz.command_planner]: About to load: pilz_industrial_motion_planner/PlanningContextLoaderCIRC
+[INFO] [1792119974.153719295] [move_group.moveit.moveit.planners.pilz.command_planner]: Registered Algorithm [CIRC]
+[INFO] [1792119974.153733389] [move_group.moveit.moveit.planners.pilz.command_planner]: About to load: pilz_industrial_motion_planner/PlanningContextLoaderLIN
+[INFO] [1792119974.158046764] [move_group.moveit.moveit.planners.pilz.command_planner]: Registered Algorithm [LIN]
+[INFO] [1792119974.158063548] [move_group.moveit.moveit.planners.pilz.command_planner]: About to load: pilz_industrial_motion_planner/PlanningContextLoaderPTP
+[INFO] [1792119974.158981245] [move_group.moveit.moveit.planners.pilz.command_planner]: Registered Algorithm [PTP]
+[INFO] [1792119974.158994436] [move_group.moveit.moveit.ros.planning_pipeline]: Successfully loaded planner 'Pilz Industrial Motion Planner'
+[INFO] [1792119974.159902513] [move_group]: Try loading adapter 'default_planning_request_adapters/ResolveConstraintFrames'
+[INFO] [1792119974.160011214] [move_group]: Loaded adapter 'default_planning_request_adapters/ResolveConstraintFrames'
+[INFO] [1792119974.160014141] [move_group]: Try loading adapter 'default_planning_request_adapters/ValidateWorkspaceBounds'
+[INFO] [1792119974.160963917] [move_group]: Loaded adapter 'default_planning_request_adapters/ValidateWorkspaceBounds'
+[INFO] [1792119974.160978430] [move_group]: Try loading adapter 'default_planning_request_adapters/CheckStartStateBounds'
+[INFO] [1792119974.160993402] [move_group]: Loaded adapter 'default_planning_request_adapters/CheckStartStateBounds'
+[INFO] [1792119974.160995261] [move_group]: Try loading adapter 'default_planning_request_adapters/CheckStartStateCollision'
+[INFO] [1792119974.161001233] [move_group]: Loaded adapter 'default_planning_request_adapters/CheckStartStateCollision'
+[INFO] [1792119974.161951645] [move_group]: Try loading adapter 'default_planning_response_adapters/ValidateSolution'
+[INFO] [1792119974.165833325] [move_group]: Loaded adapter 'default_planning_response_adapters/ValidateSolution'
+[INFO] [1792119974.173588929] [move_group.moveit.moveit.ros.planning_pipeline]: Successfully loaded planner 'STOMP'
+[INFO] [1792119974.174609657] [move_group]: Try loading adapter 'default_planning_request_adapters/ResolveConstraintFrames'
+[INFO] [1792119974.174711106] [move_group]: Loaded adapter 'default_planning_request_adapters/ResolveConstraintFrames'
+[INFO] [1792119974.174713674] [move_group]: Try loading adapter 'default_planning_request_adapters/ValidateWorkspaceBounds'
+[INFO] [1792119974.175407588] [move_group]: Loaded adapter 'default_planning_request_adapters/ValidateWorkspaceBounds'
+[INFO] [1792119974.175416128] [move_group]: Try loading adapter 'default_planning_request_adapters/CheckStartStateBounds'
+[INFO] [1792119974.175428257] [move_group]: Loaded adapter 'default_planning_request_adapters/CheckStartStateBounds'
+[INFO] [1792119974.175430003] [move_group]: Try loading adapter 'default_planning_request_adapters/CheckStartStateCollision'
+[INFO] [1792119974.175434949] [move_group]: Loaded adapter 'default_planning_request_adapters/CheckStartStateCollision'
+[INFO] [1792119974.176276093] [move_group]: Try loading adapter 'default_planning_response_adapters/AddTimeOptimalParameterization'
+[INFO] [1792119974.176474790] [move_group]: Loaded adapter 'default_planning_response_adapters/AddTimeOptimalParameterization'
+[INFO] [1792119974.176477823] [move_group]: Try loading adapter 'default_planning_response_adapters/ValidateSolution'
+[INFO] [1792119974.179605603] [move_group]: Loaded adapter 'default_planning_response_adapters/ValidateSolution'
+[INFO] [1792119974.179622682] [move_group]: Try loading adapter 'default_planning_response_adapters/DisplayMotionPath'
+[INFO] [1792119974.181223628] [move_group]: Loaded adapter 'default_planning_response_adapters/DisplayMotionPath'
+[INFO] [1792119974.250508709] [move_group.moveit.moveit.plugins.simple_controller_manager]: Added FollowJointTrajectory controller for joint_trajectory_controller
+[INFO] [1792119974.250675553] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[INFO] [1792119974.250693241] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[INFO] [1792119974.251062553] [move_group.moveit.moveit.ros.trajectory_execution_manager]: Trajectory execution is not managing controllers
+[INFO] [1792119974.251079420] [move_group]: MoveGroup debug mode is ON
+[INFO] [1792119974.292522838] [move_group.moveit.moveit.planners.pilz.move_group_sequence_action]: initialize move group sequence action
+[INFO] [1792119974.297876858] [move_group.moveit.moveit.planners.pilz.joint_limits_aggregator]: Reading limits from namespace robot_description_planning
+[INFO] [1792119974.298003658] [move_group.moveit.moveit.planners.pilz.joint_limits_aggregator]: Reading limits from namespace robot_description_planning
+[INFO] [1792119974.298353571] [move_group.moveit.moveit.ros.move_group.executable]: 
+
+********************************************************
+* MoveGroup using: 
+*     - apply_planning_scene_service
+*     - clear_octomap_service
+*     - ExecuteTaskSolution
+*     - get_group_urdf
+*     - load_geometry_from_file
+*     - CartesianPathService
+*     - execute_trajectory_action
+*     - get_planning_scene_service
+*     - kinematics_service
+*     - move_action
+*     - motion_plan_service
+*     - query_planners_service
+*     - state_validation_service
+*     - save_geometry_to_file
+*     - SequenceAction
+*     - SequenceService
+********************************************************
+
+[INFO] [1792119974.298380437] [move_group.moveit.moveit.ros.move_group.context]: MoveGroup context using pipeline pilz_industrial_motion_planner
+[INFO] [1792119974.298384861] [move_group.moveit.moveit.ros.move_group.context]: MoveGroup context initialization complete
+[INFO] [1792120037.777015760] [rclcpp]: signal_handler(SIGINT/SIGTERM)

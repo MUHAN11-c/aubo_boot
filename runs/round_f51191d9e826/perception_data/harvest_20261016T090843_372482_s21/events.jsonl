@@ -1,0 +1,408 @@
+{"source": "perception", "event": "global_targets_locked", "target_count": 1, "selected_target_id": "target_10", "recorded_at": "2026-10-16T01:08:43.373603+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112922325662000, "observed_target_ids": ["target_10"], "selected_target_id": "", "recorded_at": "2026-10-16T01:08:43.377227+00:00"}
+{"source": "reconstruction", "event": "reconstruction_linked", "recorded_at": "2026-10-16T01:08:43.383014+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112922459099000, "observed_target_ids": ["target_10"], "selected_target_id": "", "recorded_at": "2026-10-16T01:08:43.616217+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_10", "code": "no_frame", "reason": "尚无同步 RGB-D 帧（确认相机/回放在线）", "recorded_at": "2026-10-16T01:08:43.634833+00:00"}
+{"source": "reconstruction", "event": "frame_accepted", "target_id": "target_10", "stamp_ns": 1792112922525816832, "view_index": 1, "mask_depth_ratio": 0.9998157700810612, "registration": {"mode": "fk", "reason": "model_warmup", "fitness": -1.0, "rmse_m": -1.0, "translation_m": 0.0, "rotation_deg": 0.0}, "recorded_at": "2026-10-16T01:08:43.817011+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112922659254000, "observed_target_ids": ["target_10"], "selected_target_id": "target_10", "recorded_at": "2026-10-16T01:08:43.916035+00:00"}
+{"source": "reconstruction", "event": "build_quality_rejected", "target_id": "target_10", "attempt": 1, "max_attempts": 3, "stamp_sec": 1792112922.525817, "model_revision": "target_10:1:596", "reason": "bag_axis_silhouette_unobservable", "recorded_at": "2026-10-16T01:08:43.979911+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_10", "code": "missing_mask", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-10-16T01:08:44.005879+00:00"}
+{"source": "reconstruction", "event": "frame_accepted", "target_id": "target_10", "stamp_ns": 1792112922659254016, "view_index": 1, "mask_depth_ratio": 0.9994477172312224, "registration": {"mode": "fk", "reason": "model_warmup", "fitness": -1.0, "rmse_m": -1.0, "translation_m": 0.0, "rotation_deg": 0.0}, "recorded_at": "2026-10-16T01:08:44.152022+00:00"}
+{"source": "reconstruction", "event": "frame_accepted", "target_id": "target_10", "stamp_ns": 1792112922659254016, "view_index": 2, "mask_depth_ratio": 0.9994477172312224, "registration": {"mode": "fk", "reason": "model_warmup", "fitness": -1.0, "rmse_m": -1.0, "translation_m": 0.0, "rotation_deg": 0.0}, "recorded_at": "2026-10-16T01:08:44.159620+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112923193002000, "observed_target_ids": ["target_10"], "selected_target_id": "target_10", "recorded_at": "2026-10-16T01:08:44.245109+00:00"}
+{"source": "reconstruction", "event": "build_quality_rejected", "target_id": "target_10", "attempt": 2, "max_attempts": 3, "stamp_sec": 1792112922.659254, "model_revision": "target_10:1:598", "reason": "bag_axis_silhouette_unobservable", "recorded_at": "2026-10-16T01:08:44.325838+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_10", "code": "no_frame", "reason": "尚无同步 RGB-D 帧（确认相机/回放在线）", "recorded_at": "2026-10-16T01:08:44.357506+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_10", "code": "missing_mask", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-10-16T01:08:44.370725+00:00"}
+{"source": "reconstruction", "event": "frame_accepted", "target_id": "target_10", "stamp_ns": 1792112923259720960, "view_index": 1, "mask_depth_ratio": 0.9994465965688988, "registration": {"mode": "fk", "reason": "model_warmup", "fitness": -1.0, "rmse_m": -1.0, "translation_m": 0.0, "rotation_deg": 0.0}, "recorded_at": "2026-10-16T01:08:44.565162+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112923259721000, "observed_target_ids": ["target_10"], "selected_target_id": "target_10", "recorded_at": "2026-10-16T01:08:44.642468+00:00"}
+{"source": "reconstruction", "event": "build_quality_rejected", "target_id": "target_10", "attempt": 3, "max_attempts": 3, "stamp_sec": 1792112923.259721, "model_revision": "target_10:1:600", "reason": "bag_axis_silhouette_unobservable", "recorded_at": "2026-10-16T01:08:44.725454+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_10", "code": "missing_mask", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-10-16T01:08:44.761576+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_10", "code": "same_stamp", "reason": "缓存帧未更新（与上次采帧同帧），请等下一帧", "recorded_at": "2026-10-16T01:08:44.773018+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_10", "code": "same_stamp", "reason": "缓存帧未更新（与上次采帧同帧），请等下一帧", "recorded_at": "2026-10-16T01:08:44.787818+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_10", "code": "same_stamp", "reason": "缓存帧未更新（与上次采帧同帧），请等下一帧", "recorded_at": "2026-10-16T01:08:44.800155+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112924127065000, "observed_target_ids": ["target_10"], "selected_target_id": "target_10", "recorded_at": "2026-10-16T01:08:45.010429+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_10", "code": "same_stamp", "reason": "缓存帧未更新（与上次采帧同帧），请等下一帧", "recorded_at": "2026-10-16T01:08:45.026366+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_10", "code": "same_stamp", "reason": "缓存帧未更新（与上次采帧同帧），请等下一帧", "recorded_at": "2026-10-16T01:08:45.112097+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_10", "code": "same_stamp", "reason": "缓存帧未更新（与上次采帧同帧），请等下一帧", "recorded_at": "2026-10-16T01:08:45.143522+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_10", "code": "same_stamp", "reason": "缓存帧未更新（与上次采帧同帧），请等下一帧", "recorded_at": "2026-10-16T01:08:45.155897+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_10", "code": "same_stamp", "reason": "缓存帧未更新（与上次采帧同帧），请等下一帧", "recorded_at": "2026-10-16T01:08:45.164149+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_10", "code": "same_stamp", "reason": "缓存帧未更新（与上次采帧同帧），请等下一帧", "recorded_at": "2026-10-16T01:08:45.177572+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_10", "code": "same_stamp", "reason": "缓存帧未更新（与上次采帧同帧），请等下一帧", "recorded_at": "2026-10-16T01:08:45.187531+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112924193784000, "observed_target_ids": ["target_10"], "selected_target_id": "target_10", "recorded_at": "2026-10-16T01:08:45.327537+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_10", "code": "joint_state_unavailable", "reason": "曝光时刻关节状态过旧或时间戳不匹配", "recorded_at": "2026-10-16T01:08:45.355079+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112924622307000, "observed_target_ids": ["target_10"], "selected_target_id": "target_10", "recorded_at": "2026-10-16T01:08:45.566601+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_10", "code": "joint_state_unavailable", "reason": "曝光时刻关节状态过旧或时间戳不匹配", "recorded_at": "2026-10-16T01:08:45.585398+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_10", "code": "joint_state_unavailable", "reason": "曝光时刻关节状态过旧或时间戳不匹配", "recorded_at": "2026-10-16T01:08:45.694383+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_10", "code": "joint_state_unavailable", "reason": "曝光时刻关节状态过旧或时间戳不匹配", "recorded_at": "2026-10-16T01:08:45.702505+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_10", "code": "joint_state_unavailable", "reason": "曝光时刻关节状态过旧或时间戳不匹配", "recorded_at": "2026-10-16T01:08:45.941445+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_10", "code": "joint_state_unavailable", "reason": "曝光时刻关节状态过旧或时间戳不匹配", "recorded_at": "2026-10-16T01:08:45.963656+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_10", "code": "joint_state_unavailable", "reason": "曝光时刻关节状态过旧或时间戳不匹配", "recorded_at": "2026-10-16T01:08:45.975206+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_10", "code": "joint_state_unavailable", "reason": "曝光时刻关节状态过旧或时间戳不匹配", "recorded_at": "2026-10-16T01:08:45.999121+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_10", "code": "joint_state_unavailable", "reason": "曝光时刻关节状态过旧或时间戳不匹配", "recorded_at": "2026-10-16T01:08:46.020287+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_10", "code": "joint_state_unavailable", "reason": "曝光时刻关节状态过旧或时间戳不匹配", "recorded_at": "2026-10-16T01:08:46.030971+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_10", "code": "joint_state_unavailable", "reason": "曝光时刻关节状态过旧或时间戳不匹配", "recorded_at": "2026-10-16T01:08:46.047910+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112924689025000, "observed_target_ids": ["target_10"], "selected_target_id": "target_10", "recorded_at": "2026-10-16T01:08:46.057270+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_10", "code": "joint_state_unavailable", "reason": "曝光时刻关节状态过旧或时间戳不匹配", "recorded_at": "2026-10-16T01:08:46.070578+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112925418535000, "observed_target_ids": ["target_10"], "selected_target_id": "target_10", "recorded_at": "2026-10-16T01:08:46.272277+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_10", "code": "joint_state_unavailable", "reason": "曝光时刻关节状态过旧或时间戳不匹配", "recorded_at": "2026-10-16T01:08:46.283248+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_10", "code": "joint_state_unavailable", "reason": "曝光时刻关节状态过旧或时间戳不匹配", "recorded_at": "2026-10-16T01:08:46.428853+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112925485253000, "observed_target_ids": ["target_10"], "selected_target_id": "target_10", "recorded_at": "2026-10-16T01:08:46.639889+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_10", "code": "near_duplicate", "reason": "近重复视角不积分：平移 0.0 mm / 旋转 0.00 deg", "recorded_at": "2026-10-16T01:08:46.694825+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_10", "code": "near_duplicate", "reason": "近重复视角不积分：平移 0.0 mm / 旋转 0.00 deg", "recorded_at": "2026-10-16T01:08:46.722905+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_10", "code": "near_duplicate", "reason": "近重复视角不积分：平移 0.0 mm / 旋转 0.00 deg", "recorded_at": "2026-10-16T01:08:46.735080+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_10", "code": "near_duplicate", "reason": "近重复视角不积分：平移 0.0 mm / 旋转 0.00 deg", "recorded_at": "2026-10-16T01:08:46.770866+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_10", "code": "near_duplicate", "reason": "近重复视角不积分：平移 0.0 mm / 旋转 0.00 deg", "recorded_at": "2026-10-16T01:08:46.800484+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_10", "code": "near_duplicate", "reason": "近重复视角不积分：平移 0.0 mm / 旋转 0.00 deg", "recorded_at": "2026-10-16T01:08:46.834159+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_10", "code": "near_duplicate", "reason": "近重复视角不积分：平移 0.0 mm / 旋转 0.00 deg", "recorded_at": "2026-10-16T01:08:46.858684+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_10", "code": "near_duplicate", "reason": "近重复视角不积分：平移 0.0 mm / 旋转 0.00 deg", "recorded_at": "2026-10-16T01:08:46.880465+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112925618690000, "observed_target_ids": ["target_10"], "selected_target_id": "target_10", "recorded_at": "2026-10-16T01:08:47.050162+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_10", "code": "near_duplicate", "reason": "近重复视角不积分：平移 0.0 mm / 旋转 0.00 deg", "recorded_at": "2026-10-16T01:08:47.066936+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_10", "code": "near_duplicate", "reason": "近重复视角不积分：平移 0.0 mm / 旋转 0.00 deg", "recorded_at": "2026-10-16T01:08:47.185512+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_10", "code": "near_duplicate", "reason": "近重复视角不积分：平移 0.0 mm / 旋转 0.00 deg", "recorded_at": "2026-10-16T01:08:47.207829+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112926219157000, "observed_target_ids": ["target_10"], "selected_target_id": "target_10", "recorded_at": "2026-10-16T01:08:47.324869+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_10", "code": "near_duplicate", "reason": "近重复视角不积分：平移 0.0 mm / 旋转 0.00 deg", "recorded_at": "2026-10-16T01:08:47.345444+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_10", "code": "near_duplicate", "reason": "近重复视角不积分：平移 0.0 mm / 旋转 0.00 deg", "recorded_at": "2026-10-16T01:08:47.561746+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_10", "code": "near_duplicate", "reason": "近重复视角不积分：平移 0.0 mm / 旋转 0.00 deg", "recorded_at": "2026-10-16T01:08:47.585584+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_10", "code": "near_duplicate", "reason": "近重复视角不积分：平移 0.0 mm / 旋转 0.00 deg", "recorded_at": "2026-10-16T01:08:47.616242+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112926352594000, "observed_target_ids": ["target_10"], "selected_target_id": "target_10", "recorded_at": "2026-10-16T01:08:47.637036+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_10", "code": "near_duplicate", "reason": "近重复视角不积分：平移 0.0 mm / 旋转 0.00 deg", "recorded_at": "2026-10-16T01:08:47.645851+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_10", "code": "near_duplicate", "reason": "近重复视角不积分：平移 0.0 mm / 旋转 0.00 deg", "recorded_at": "2026-10-16T01:08:47.662820+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112926819623000, "observed_target_ids": ["target_10"], "selected_target_id": "target_10", "recorded_at": "2026-10-16T01:08:47.855720+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_10", "code": "near_duplicate", "reason": "近重复视角不积分：平移 0.0 mm / 旋转 0.00 deg", "recorded_at": "2026-10-16T01:08:47.874159+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_10", "code": "near_duplicate", "reason": "近重复视角不积分：平移 0.0 mm / 旋转 0.00 deg", "recorded_at": "2026-10-16T01:08:47.981867+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_10", "code": "near_duplicate", "reason": "近重复视角不积分：平移 0.0 mm / 旋转 0.00 deg", "recorded_at": "2026-10-16T01:08:48.005169+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_10", "code": "near_duplicate", "reason": "近重复视角不积分：平移 0.0 mm / 旋转 0.00 deg", "recorded_at": "2026-10-16T01:08:48.024350+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_10", "code": "near_duplicate", "reason": "近重复视角不积分：平移 0.0 mm / 旋转 0.00 deg", "recorded_at": "2026-10-16T01:08:48.055919+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_10", "code": "near_duplicate", "reason": "近重复视角不积分：平移 0.0 mm / 旋转 0.00 deg", "recorded_at": "2026-10-16T01:08:48.118908+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_10", "code": "near_duplicate", "reason": "近重复视角不积分：平移 0.0 mm / 旋转 0.00 deg", "recorded_at": "2026-10-16T01:08:48.136144+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_10", "code": "near_duplicate", "reason": "近重复视角不积分：平移 0.0 mm / 旋转 0.00 deg", "recorded_at": "2026-10-16T01:08:48.157772+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_10", "code": "near_duplicate", "reason": "近重复视角不积分：平移 0.0 mm / 旋转 0.00 deg", "recorded_at": "2026-10-16T01:08:48.173077+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_10", "code": "near_duplicate", "reason": "近重复视角不积分：平移 0.0 mm / 旋转 0.00 deg", "recorded_at": "2026-10-16T01:08:48.201254+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_10", "code": "near_duplicate", "reason": "近重复视角不积分：平移 0.0 mm / 旋转 0.00 deg", "recorded_at": "2026-10-16T01:08:48.213836+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112926886342000, "observed_target_ids": ["target_10"], "selected_target_id": "target_10", "recorded_at": "2026-10-16T01:08:48.364743+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_10", "code": "near_duplicate", "reason": "近重复视角不积分：平移 0.0 mm / 旋转 0.00 deg", "recorded_at": "2026-10-16T01:08:48.376635+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112927620251000, "observed_target_ids": ["target_10"], "selected_target_id": "target_10", "recorded_at": "2026-10-16T01:08:48.561839+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_10", "code": "near_duplicate", "reason": "近重复视角不积分：平移 0.0 mm / 旋转 0.00 deg", "recorded_at": "2026-10-16T01:08:48.582573+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_10", "code": "near_duplicate", "reason": "近重复视角不积分：平移 0.0 mm / 旋转 0.00 deg", "recorded_at": "2026-10-16T01:08:48.714508+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_10", "code": "near_duplicate", "reason": "近重复视角不积分：平移 0.0 mm / 旋转 0.00 deg", "recorded_at": "2026-10-16T01:08:48.902005+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_10", "code": "near_duplicate", "reason": "近重复视角不积分：平移 0.0 mm / 旋转 0.00 deg", "recorded_at": "2026-10-16T01:08:48.954650+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_10", "code": "near_duplicate", "reason": "近重复视角不积分：平移 0.0 mm / 旋转 0.00 deg", "recorded_at": "2026-10-16T01:08:48.973186+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_10", "code": "near_duplicate", "reason": "近重复视角不积分：平移 0.0 mm / 旋转 0.00 deg", "recorded_at": "2026-10-16T01:08:48.996879+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_10", "code": "near_duplicate", "reason": "近重复视角不积分：平移 0.0 mm / 旋转 0.00 deg", "recorded_at": "2026-10-16T01:08:49.012768+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112927686970000, "observed_target_ids": ["target_10"], "selected_target_id": "target_10", "recorded_at": "2026-10-16T01:08:49.017688+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_10", "code": "near_duplicate", "reason": "近重复视角不积分：平移 0.0 mm / 旋转 0.00 deg", "recorded_at": "2026-10-16T01:08:49.035067+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112928354155000, "observed_target_ids": ["target_10"], "selected_target_id": "target_10", "recorded_at": "2026-10-16T01:08:49.219883+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_10", "code": "near_duplicate", "reason": "近重复视角不积分：平移 0.0 mm / 旋转 0.00 deg", "recorded_at": "2026-10-16T01:08:49.238938+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_10", "code": "near_duplicate", "reason": "近重复视角不积分：平移 0.0 mm / 旋转 0.00 deg", "recorded_at": "2026-10-16T01:08:49.424645+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_10", "code": "near_duplicate", "reason": "近重复视角不积分：平移 0.0 mm / 旋转 0.00 deg", "recorded_at": "2026-10-16T01:08:49.457564+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_10", "code": "near_duplicate", "reason": "近重复视角不积分：平移 0.0 mm / 旋转 0.00 deg", "recorded_at": "2026-10-16T01:08:49.580037+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_10", "code": "near_duplicate", "reason": "近重复视角不积分：平移 0.0 mm / 旋转 0.00 deg", "recorded_at": "2026-10-16T01:08:49.598756+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_10", "code": "near_duplicate", "reason": "近重复视角不积分：平移 0.0 mm / 旋转 0.00 deg", "recorded_at": "2026-10-16T01:08:49.618621+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_10", "code": "near_duplicate", "reason": "近重复视角不积分：平移 0.0 mm / 旋转 0.00 deg", "recorded_at": "2026-10-16T01:08:49.641526+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_10", "code": "near_duplicate", "reason": "近重复视角不积分：平移 0.0 mm / 旋转 0.00 deg", "recorded_at": "2026-10-16T01:08:49.667013+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112928420873000, "observed_target_ids": ["target_10"], "selected_target_id": "target_10", "recorded_at": "2026-10-16T01:08:49.764673+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_10", "code": "near_duplicate", "reason": "近重复视角不积分：平移 0.0 mm / 旋转 0.00 deg", "recorded_at": "2026-10-16T01:08:49.781822+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112929021340000, "observed_target_ids": ["target_10"], "selected_target_id": "target_10", "recorded_at": "2026-10-16T01:08:50.005753+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_10", "code": "near_duplicate", "reason": "近重复视角不积分：平移 0.0 mm / 旋转 0.00 deg", "recorded_at": "2026-10-16T01:08:50.023484+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_10", "code": "near_duplicate", "reason": "近重复视角不积分：平移 0.0 mm / 旋转 0.00 deg", "recorded_at": "2026-10-16T01:08:50.133528+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_10", "code": "near_duplicate", "reason": "近重复视角不积分：平移 0.0 mm / 旋转 0.00 deg", "recorded_at": "2026-10-16T01:08:50.318954+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_10", "code": "near_duplicate", "reason": "近重复视角不积分：平移 0.0 mm / 旋转 0.00 deg", "recorded_at": "2026-10-16T01:08:50.355524+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_10", "code": "near_duplicate", "reason": "近重复视角不积分：平移 0.0 mm / 旋转 0.00 deg", "recorded_at": "2026-10-16T01:08:50.390394+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_10", "code": "near_duplicate", "reason": "近重复视角不积分：平移 0.0 mm / 旋转 0.00 deg", "recorded_at": "2026-10-16T01:08:50.419579+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_10", "code": "near_duplicate", "reason": "近重复视角不积分：平移 0.0 mm / 旋转 0.00 deg", "recorded_at": "2026-10-16T01:08:50.525118+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112929154777000, "observed_target_ids": ["target_10"], "selected_target_id": "target_10", "recorded_at": "2026-10-16T01:08:50.540311+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_10", "code": "near_duplicate", "reason": "近重复视角不积分：平移 0.0 mm / 旋转 0.00 deg", "recorded_at": "2026-10-16T01:08:50.550177+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_10", "code": "near_duplicate", "reason": "近重复视角不积分：平移 0.0 mm / 旋转 0.00 deg", "recorded_at": "2026-10-16T01:08:50.583238+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_10", "code": "near_duplicate", "reason": "近重复视角不积分：平移 0.0 mm / 旋转 0.00 deg", "recorded_at": "2026-10-16T01:08:50.611573+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112929955401000, "observed_target_ids": ["target_10"], "selected_target_id": "target_10", "recorded_at": "2026-10-16T01:08:50.865391+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_10", "code": "near_duplicate", "reason": "近重复视角不积分：平移 0.0 mm / 旋转 0.00 deg", "recorded_at": "2026-10-16T01:08:50.891501+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_10", "code": "near_duplicate", "reason": "近重复视角不积分：平移 0.0 mm / 旋转 0.00 deg", "recorded_at": "2026-10-16T01:08:51.125096+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_10", "code": "near_duplicate", "reason": "近重复视角不积分：平移 0.0 mm / 旋转 0.00 deg", "recorded_at": "2026-10-16T01:08:51.146656+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_10", "code": "near_duplicate", "reason": "近重复视角不积分：平移 0.0 mm / 旋转 0.00 deg", "recorded_at": "2026-10-16T01:08:51.289793+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_10", "code": "near_duplicate", "reason": "近重复视角不积分：平移 0.0 mm / 旋转 0.00 deg", "recorded_at": "2026-10-16T01:08:51.338766+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_10", "code": "near_duplicate", "reason": "近重复视角不积分：平移 0.0 mm / 旋转 0.00 deg", "recorded_at": "2026-10-16T01:08:51.363351+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_10", "code": "near_duplicate", "reason": "近重复视角不积分：平移 0.0 mm / 旋转 0.00 deg", "recorded_at": "2026-10-16T01:08:51.391733+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_10", "code": "near_duplicate", "reason": "近重复视角不积分：平移 0.0 mm / 旋转 0.00 deg", "recorded_at": "2026-10-16T01:08:51.424679+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112930022119000, "observed_target_ids": ["target_10"], "selected_target_id": "target_10", "recorded_at": "2026-10-16T01:08:51.509870+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_10", "code": "near_duplicate", "reason": "近重复视角不积分：平移 0.0 mm / 旋转 0.00 deg", "recorded_at": "2026-10-16T01:08:51.537026+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112930756023000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:08:51.589204+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_10", "code": "near_duplicate", "reason": "近重复视角不积分：平移 0.0 mm / 旋转 0.00 deg", "recorded_at": "2026-10-16T01:08:51.944461+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_10", "code": "near_duplicate", "reason": "近重复视角不积分：平移 0.0 mm / 旋转 0.00 deg", "recorded_at": "2026-10-16T01:08:51.959919+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_10", "code": "near_duplicate", "reason": "近重复视角不积分：平移 0.0 mm / 旋转 0.00 deg", "recorded_at": "2026-10-16T01:08:51.982105+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_10", "code": "near_duplicate", "reason": "近重复视角不积分：平移 0.0 mm / 旋转 0.00 deg", "recorded_at": "2026-10-16T01:08:52.014595+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_10", "code": "stale_frame", "reason": "缓存帧龄期 2.01 s > max_frame_age_s=2.0（陈帧拒采）", "recorded_at": "2026-10-16T01:08:52.029095+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_10", "code": "stale_frame", "reason": "缓存帧龄期 2.01 s > max_frame_age_s=2.0（陈帧拒采）", "recorded_at": "2026-10-16T01:08:52.036732+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112930822741000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:08:52.068931+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112931356820000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:08:52.107301+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_10", "code": "stale_frame", "reason": "缓存帧龄期 2.42 s > max_frame_age_s=2.0（陈帧拒采）", "recorded_at": "2026-10-16T01:08:52.444668+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_10", "code": "stale_frame", "reason": "缓存帧龄期 2.44 s > max_frame_age_s=2.0（陈帧拒采）", "recorded_at": "2026-10-16T01:08:52.465569+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_10", "code": "stale_frame", "reason": "缓存帧龄期 2.45 s > max_frame_age_s=2.0（陈帧拒采）", "recorded_at": "2026-10-16T01:08:52.478595+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_10", "code": "stale_frame", "reason": "缓存帧龄期 2.46 s > max_frame_age_s=2.0（陈帧拒采）", "recorded_at": "2026-10-16T01:08:52.487703+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112931423539000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:08:52.524729+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112931623694000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:08:52.552264+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_10", "code": "stale_frame", "reason": "缓存帧龄期 2.77 s > max_frame_age_s=2.0（陈帧拒采）", "recorded_at": "2026-10-16T01:08:52.799754+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_10", "code": "stale_frame", "reason": "缓存帧龄期 2.79 s > max_frame_age_s=2.0（陈帧拒采）", "recorded_at": "2026-10-16T01:08:52.820290+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_10", "code": "stale_frame", "reason": "缓存帧龄期 2.81 s > max_frame_age_s=2.0（陈帧拒采）", "recorded_at": "2026-10-16T01:08:52.838354+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_10", "code": "stale_frame", "reason": "缓存帧龄期 2.82 s > max_frame_age_s=2.0（陈帧拒采）", "recorded_at": "2026-10-16T01:08:52.843237+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_10", "code": "missing_mask", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-10-16T01:08:52.854738+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_10", "code": "missing_mask", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-10-16T01:08:52.887740+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112931690413000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:08:52.921415+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112932090724000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:08:52.974859+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_10", "code": "missing_mask", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-10-16T01:08:53.148709+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_10", "code": "missing_mask", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-10-16T01:08:53.184481+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_10", "code": "missing_mask", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-10-16T01:08:53.196790+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_10", "code": "missing_mask", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-10-16T01:08:53.215130+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_10", "code": "missing_mask", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-10-16T01:08:53.227970+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112932157442000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:08:53.291047+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112932424316000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:08:53.349033+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_10", "code": "missing_mask", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-10-16T01:08:53.643224+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_10", "code": "missing_mask", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-10-16T01:08:53.655966+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_10", "code": "missing_mask", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-10-16T01:08:53.671559+00:00"}
+{"source": "reconstruction", "event": "frame_skipped", "target_id": "target_10", "code": "missing_mask", "reason": "缺少所选 target_id 的容差内掩膜", "recorded_at": "2026-10-16T01:08:53.684604+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112932491035000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:08:53.727713+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112932757909000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:08:53.766376+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112932824627000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:08:53.979314+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112933224938000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:08:54.009843+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112933291658000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:08:54.121514+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112933625250000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:08:54.149695+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112933691969000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:08:54.709117+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112933758687000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:08:54.902224+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112934292435000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:08:54.960942+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112934425872000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:08:55.457031+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112934626028000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:08:55.503770+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112934692746000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:08:55.834397+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112935093057000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:08:55.874759+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112935159776000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:08:56.170026+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112935426653000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:08:56.199972+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112935493371000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:08:56.555420+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112935760245000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:08:56.591620+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112935893682000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:08:56.927047+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112936093838000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:08:56.950754+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112936160556000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:08:57.150086+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112936627586000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:08:57.171267+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112936694304000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:08:57.646506+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112936761023000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:08:57.879733+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112937294710000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:08:57.921471+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112937428147000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:08:58.361367+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112937494865000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:08:58.389001+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112937628302000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:08:58.664542+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112938162050000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:08:58.696687+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112938228769000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:08:59.064809+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112938428924000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:08:59.081343+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112938495643000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:08:59.592614+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112938629080000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:08:59.627453+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112938695798000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:08:59.699816+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112939229546000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:08:59.754309+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112939296267000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:00.121143+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112939362985000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:00.137161+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112939496422000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:00.386258+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112939629859000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:00.411228+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112939830015000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:00.844270+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112940230326000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:00.885045+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112940363763000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:01.396767+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112940430481000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:01.418433+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112940497200000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:01.582038+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112941030948000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:01.616480+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112941097666000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:02.131883+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112941164385000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:02.156625+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112941231103000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:02.285133+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112941764852000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:02.344187+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112941831571000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:02.870790+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112942165163000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:02.903800+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112942298600000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:03.134840+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112942498756000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:03.164626+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112942565474000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:03.413731+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112942632193000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:03.445271+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112942698911000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:03.724762+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112942765630000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:03.755819+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112942832348000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:03.941352+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112943362126000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:03.980066+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112943428845000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:04.524135+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112943495563000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:04.680412+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112944096030000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:04.719211+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112944162748000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:05.202970+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112944229467000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:05.295817+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112944296185000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:05.393375+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112944896652000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:05.415190+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112944963370000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:06.160025+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112945697276000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:06.210655+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112945763994000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:06.856425+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112946297742000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:06.886668+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112946364461000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:07.107113+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112946431179000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:07.589491+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112946497898000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:07.632826+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112946564616000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:07.769932+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112947231801000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:07.806159+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112947298521000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:08.020344+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112947365239000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:08.164836+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112947698832000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:08.185273+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112947765550000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:08.230051+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112947832269000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:08.320059+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112947898987000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:08.391532+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112947965706000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:08.440844+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112948032424000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:08.535595+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112948099143000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:08.601257+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112948165861000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:08.658883+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112948232580000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:08.751309+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112948366017000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:08.827145+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112948432735000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:08.896155+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112948499454000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:08.936787+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112948566172000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:09.036739+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112948632891000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:09.094645+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112948699609000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:09.185231+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112948833046000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:09.270529+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112948899765000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:09.310483+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112948966483000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:09.394106+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112949033202000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:09.485916+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112949099920000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:09.570513+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112949166639000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:09.656328+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112949233357000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:09.706820+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112949304380000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:09.776780+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112949371098000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:09.872500+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112949437817000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:09.907072+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112949504535000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:10.011881+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112949637972000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:10.048907+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112949704691000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:10.153066+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112949771409000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:10.239198+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112949838128000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:10.270418+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112949904846000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:10.344259+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112949971565000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:10.440326+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112950038283000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:10.491243+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112950105002000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:10.584651+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112950171720000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:10.636386+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112950305157000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:10.712107+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112950371876000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:10.786252+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112950438594000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:10.860318+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112950505313000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:10.936032+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112950572031000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:11.009659+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112950638750000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:11.084459+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112950705468000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:11.150794+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112950772187000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:11.227650+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112950905624000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:11.300596+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112950972342000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:11.401957+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112951039061000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:11.486764+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112951105779000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:11.528327+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112951172498000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:11.613547+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112951239216000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:11.662365+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112951305935000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:11.750517+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112951372653000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:11.813097+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112951439372000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:11.882276+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112951506090000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:11.961936+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112951572809000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:12.015309+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112951706246000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:12.117134+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112951772964000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:12.176807+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112951839683000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:12.240014+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112951906401000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:12.311917+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112951973120000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:12.406719+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112952039838000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:12.460690+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112952106557000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:12.538840+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112952173275000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:12.622059+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112952306712000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:12.690816+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112952373431000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:12.745561+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112952440149000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:12.836112+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112952506868000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:12.920500+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112952573586000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:12.966154+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112952640305000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:13.036794+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112952707023000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:13.110675+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112952773742000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:13.217949+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112952840460000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:13.256594+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112952907179000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:13.359993+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112952973897000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:13.396118+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112953040616000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:13.475934+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112953174053000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:13.544543+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112953240771000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:13.628489+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112953307494000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:13.705629+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112953374212000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:13.773589+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112953440931000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:13.837196+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112953507649000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:13.915651+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112953574368000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:14.009616+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112953641086000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:14.062074+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112953707805000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:14.138564+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112953841242000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:14.218677+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112953907960000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:14.285433+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112953974679000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:14.369104+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112954041397000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:14.421811+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112954108116000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:14.496857+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112954174834000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:14.594889+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112954241553000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:14.649440+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112954308271000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:14.740517+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112954374990000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:14.815015+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112954441708000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:14.883012+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112954508427000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:14.949892+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112954575145000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:15.027850+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112954641864000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:15.105285+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112954708582000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:15.167840+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112954842019000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:15.221748+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112954908738000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:15.316193+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112954975456000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:15.370359+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112955042175000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:15.457663+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112955108893000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:15.527970+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112955175612000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:15.588668+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112955242330000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:15.680664+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112955309221000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:15.744533+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112955375939000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:15.801614+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112955442658000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:15.892328+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112955509376000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:15.960398+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112955576095000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:16.038186+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112955709532000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:16.091905+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112955776250000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:16.161364+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112955842969000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:16.234643+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112955909687000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:16.341746+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112955976406000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:16.388967+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112956043124000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:16.465915+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112956109843000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:16.534094+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112956176561000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:16.594723+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112956243280000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:16.709738+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112956309998000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:16.740222+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112956443435000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:16.840965+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112956510154000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:16.933564+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112956576872000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:17.001997+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112956643591000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:17.086011+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112956710309000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:17.128826+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112956777028000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:17.201815+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112956843746000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:17.315566+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112956910465000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:17.385086+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112957043902000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:17.550837+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112957110620000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:17.588133+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112957244057000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:17.674935+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112957310777000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:17.749528+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112957377495000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:17.823506+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112957444214000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:17.924532+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112957510932000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:17.978766+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112957577651000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:18.039798+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112957644369000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:18.146476+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112957777806000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:18.196118+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112957844525000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:18.285507+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112957911243000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:18.361799+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112957977962000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:18.409742+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112958044680000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:18.484217+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112958111399000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:18.581888+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112958178117000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:18.640389+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112958244836000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:18.715661+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112958311554000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:18.787922+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112958378273000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:18.863784+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112958444991000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:18.962780+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112958511710000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:19.044625+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112958711865000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:19.111172+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112958778584000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:19.147809+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112958845302000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:19.252358+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112958912021000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:19.359917+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112958978739000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:19.400823+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112959045458000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:19.440129+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112959112176000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:19.527267+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112959178895000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:19.590676+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112959245613000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:19.689821+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112959312335000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:19.739473+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112959445772000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:19.800848+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112959512490000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:19.890073+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112959579209000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:19.940252+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112959645927000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:20.021333+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112959712646000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:20.106815+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112959779364000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:20.164541+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112959846083000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:20.230138+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112959912801000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:20.301715+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112959979520000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:20.397532+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112960046238000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:20.464841+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112960112957000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:20.571290+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112960179675000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:20.625767+00:00"}
+{"source": "perception", "event": "frame_observations", "stamp_ns": 1792112960246394000, "observed_target_ids": [], "selected_target_id": "", "recorded_at": "2026-10-16T01:09:20.682404+00:00"}

@@ -1,0 +1,583 @@
+{
+  "hardware_mode": "mock",
+  "profile": {
+    "schema_version": 1,
+    "profile_id": "fixed_camera_mock_20261013",
+    "hardware_mode": "mock",
+    "camera_frontend": "stereo",
+    "autostart": false,
+    "tool_enabled": false,
+    "reconstruct_in_trajectory": true,
+    "camera_calibration": {
+      "parent_frame": "base_link",
+      "child_frame": "camera_link",
+      "xyz_m": [
+        0.3780573326439316,
+        -0.07547177076037584,
+        0.7666632351254871
+      ],
+      "quaternion_xyzw": [
+        -0.0036889994433193067,
+        -7.498157537607713e-06,
+        -0.6576092061184594,
+        0.753350199611797
+      ],
+      "provenance": "20261013 fixed camera record; user confirmed camera unmoved; reused by live_camera_rviz_repeat_20261014_1632",
+      "scope": "test-only frozen calibration; never injected into product calibration files"
+    },
+    "mock_initial_positions": [
+      0.425175,
+      0.194274,
+      1.679546,
+      1.462579,
+      -0.279948,
+      0.038859
+    ]
+  },
+  "rounds": [
+    {
+      "request_id": "round_888777f66e63",
+      "success": true,
+      "target_id": "target_0",
+      "scene_epoch": 1,
+      "entry_position": [
+        0.40070071234121596,
+        -0.5331311057038647,
+        0.6678980454107964
+      ],
+      "action": {
+        "accepted": true,
+        "status": 4,
+        "result": {
+          "success": true,
+          "termination_reason": "completed",
+          "summary": {
+            "run_id": "round_888777f66e63",
+            "discovered": 1,
+            "attempted": 1,
+            "succeeded": 1,
+            "skipped_quality": 0,
+            "skipped_unreachable": 0,
+            "failed": 0,
+            "canceled": 0,
+            "elapsed": {
+              "sec": 75,
+              "nanosec": 526510641
+            },
+            "outcomes": [
+              {
+                "target_id": "target_0",
+                "outcome": 0,
+                "reason": "周期完成；tool.enabled=false 或未宣称采摘成功",
+                "quality_score": 0.0,
+                "elapsed": {
+                  "sec": 30,
+                  "nanosec": 78622781
+                }
+              }
+            ]
+          }
+        }
+      },
+      "ledger": {
+        "request_id": "round_888777f66e63",
+        "path": "/home/mu/Desktop/aubo_e5_jazzy_ws/runs/round_888777f66e63/ledger.json",
+        "mtime": 1792145238.078287,
+        "error": null,
+        "claimed": [
+          "target_0"
+        ],
+        "rows": [
+          {
+            "target_id": "target_0",
+            "outcome": 0,
+            "outcome_name": "SUCCEEDED",
+            "reason": "周期完成；tool.enabled=false 或未宣称采摘成功",
+            "quality_score": 0.0,
+            "elapsed_s": 30.079,
+            "stages": [
+              {
+                "name": "reconfirm",
+                "dur_s": 1.36
+              },
+              {
+                "name": "approach_insert",
+                "dur_s": 10.359
+              },
+              {
+                "name": "tool",
+                "dur_s": 0.0
+              },
+              {
+                "name": "retreat",
+                "dur_s": 10.251
+              }
+            ],
+            "completion_level": 6
+          }
+        ],
+        "totals": {
+          "SUCCEEDED": 1,
+          "SKIPPED_QUALITY": 0,
+          "SKIPPED_UNREACHABLE": 0,
+          "FAILED": 0,
+          "CANCELED": 0,
+          "attempted": 1,
+          "claimed": 1
+        }
+      },
+      "elapsed_s": 90.65873361800186,
+      "streams": {
+        "camera": {
+          "first": 1792145241.594501,
+          "last": 1792145247.533896,
+          "new_frames": 161,
+          "fresh_stamp": true
+        },
+        "joints": {
+          "first": 1792145248.5455494,
+          "last": 1792145248.700562,
+          "new_frames": 17484,
+          "fresh_stamp": true
+        }
+      }
+    },
+    {
+      "request_id": "round_87ea6c57c077",
+      "success": false,
+      "target_id": "target_1",
+      "scene_epoch": 3,
+      "entry_position": [
+        0.40089636720814953,
+        -0.5332510193444364,
+        0.6678870657837047
+      ],
+      "action": {
+        "accepted": true,
+        "status": 4,
+        "result": {
+          "success": false,
+          "termination_reason": "no_targets_succeeded",
+          "summary": {
+            "run_id": "round_87ea6c57c077",
+            "discovered": 1,
+            "attempted": 1,
+            "succeeded": 0,
+            "skipped_quality": 1,
+            "skipped_unreachable": 0,
+            "failed": 0,
+            "canceled": 0,
+            "elapsed": {
+              "sec": 72,
+              "nanosec": 413877075
+            },
+            "outcomes": [
+              {
+                "target_id": "target_1",
+                "outcome": 1,
+                "reason": "skipped_quality: decision_snapshot_unavailable: 同目标模型与许可未在时限内到齐或已过期 elapsed=30.000233s timeout=30.000000s",
+                "quality_score": 0.0,
+                "elapsed": {
+                  "sec": 30,
+                  "nanosec": 76271548
+                }
+              }
+            ]
+          }
+        }
+      },
+      "ledger": {
+        "request_id": "round_87ea6c57c077",
+        "path": "/home/mu/Desktop/aubo_e5_jazzy_ws/runs/round_87ea6c57c077/ledger.json",
+        "mtime": 1792145325.0812793,
+        "error": null,
+        "claimed": [
+          "target_1"
+        ],
+        "rows": [
+          {
+            "target_id": "target_1",
+            "outcome": 1,
+            "outcome_name": "SKIPPED_QUALITY",
+            "reason": "skipped_quality: decision_snapshot_unavailable: 同目标模型与许可未在时限内到齐或已过期 elapsed=30.000233s timeout=30.000000s",
+            "quality_score": 0.0,
+            "elapsed_s": 30.076,
+            "stages": [],
+            "failure_code": "skipped_quality",
+            "completion_level": 0,
+            "failure_code_n": 3
+          }
+        ],
+        "totals": {
+          "SUCCEEDED": 0,
+          "SKIPPED_QUALITY": 1,
+          "SKIPPED_UNREACHABLE": 0,
+          "FAILED": 0,
+          "CANCELED": 0,
+          "attempted": 1,
+          "claimed": 1
+        }
+      },
+      "elapsed_s": 87.04497706300026,
+      "streams": {
+        "camera": {
+          "first": 1792145279.853952,
+          "last": 1792145332.526855,
+          "new_frames": 121,
+          "fresh_stamp": true
+        },
+        "joints": {
+          "first": 1792145335.5905805,
+          "last": 1792145335.7455528,
+          "new_frames": 16788,
+          "fresh_stamp": true
+        }
+      }
+    },
+    {
+      "request_id": "round_fe395f8d34d9",
+      "success": false,
+      "target_id": "target_2",
+      "scene_epoch": 5,
+      "entry_position": [
+        0.3997983175373461,
+        -0.5332793318679254,
+        0.6669784107040557
+      ],
+      "action": {
+        "accepted": true,
+        "status": 4,
+        "result": {
+          "success": false,
+          "termination_reason": "no_targets_succeeded",
+          "summary": {
+            "run_id": "round_fe395f8d34d9",
+            "discovered": 1,
+            "attempted": 1,
+            "succeeded": 0,
+            "skipped_quality": 1,
+            "skipped_unreachable": 0,
+            "failed": 0,
+            "canceled": 0,
+            "elapsed": {
+              "sec": 71,
+              "nanosec": 931694016
+            },
+            "outcomes": [
+              {
+                "target_id": "target_2",
+                "outcome": 1,
+                "reason": "skipped_quality: decision_snapshot_unavailable: 同目标模型与许可未在时限内到齐或已过期 elapsed=30.000068s timeout=30.000000s",
+                "quality_score": 0.0,
+                "elapsed": {
+                  "sec": 30,
+                  "nanosec": 80136513
+                }
+              }
+            ]
+          }
+        }
+      },
+      "ledger": {
+        "request_id": "round_fe395f8d34d9",
+        "path": "/home/mu/Desktop/aubo_e5_jazzy_ws/runs/round_fe395f8d34d9/ledger.json",
+        "mtime": 1792145412.9577997,
+        "error": null,
+        "claimed": [
+          "target_2"
+        ],
+        "rows": [
+          {
+            "target_id": "target_2",
+            "outcome": 1,
+            "outcome_name": "SKIPPED_QUALITY",
+            "reason": "skipped_quality: decision_snapshot_unavailable: 同目标模型与许可未在时限内到齐或已过期 elapsed=30.000068s timeout=30.000000s",
+            "quality_score": 0.0,
+            "elapsed_s": 30.08,
+            "stages": [],
+            "failure_code": "skipped_quality",
+            "completion_level": 0,
+            "failure_code_n": 3
+          }
+        ],
+        "totals": {
+          "SUCCEEDED": 0,
+          "SKIPPED_QUALITY": 1,
+          "SKIPPED_UNREACHABLE": 0,
+          "FAILED": 0,
+          "CANCELED": 0,
+          "attempted": 1,
+          "claimed": 1
+        }
+      },
+      "elapsed_s": 87.81402887700096,
+      "streams": {
+        "camera": {
+          "first": 1792145405.948696,
+          "last": 1792145421.227629,
+          "new_frames": 247,
+          "fresh_stamp": true
+        },
+        "joints": {
+          "first": 1792145423.3805377,
+          "last": 1792145423.535537,
+          "new_frames": 16941,
+          "fresh_stamp": true
+        }
+      }
+    },
+    {
+      "request_id": "round_79d37aabe4c1",
+      "success": false,
+      "target_id": "target_3",
+      "scene_epoch": 7,
+      "entry_position": [
+        0.3976110349652461,
+        -0.5329491670032641,
+        0.6660038076290261
+      ],
+      "action": {
+        "accepted": true,
+        "status": 4,
+        "result": {
+          "success": false,
+          "termination_reason": "no_targets_succeeded",
+          "summary": {
+            "run_id": "round_79d37aabe4c1",
+            "discovered": 1,
+            "attempted": 1,
+            "succeeded": 0,
+            "skipped_quality": 1,
+            "skipped_unreachable": 0,
+            "failed": 0,
+            "canceled": 0,
+            "elapsed": {
+              "sec": 71,
+              "nanosec": 641891381
+            },
+            "outcomes": [
+              {
+                "target_id": "target_3",
+                "outcome": 1,
+                "reason": "skipped_quality: decision_snapshot_unavailable: 同目标模型与许可未在时限内到齐或已过期 elapsed=30.001788s timeout=30.000000s",
+                "quality_score": 0.0,
+                "elapsed": {
+                  "sec": 30,
+                  "nanosec": 71677943
+                }
+              }
+            ]
+          }
+        }
+      },
+      "ledger": {
+        "request_id": "round_79d37aabe4c1",
+        "path": "/home/mu/Desktop/aubo_e5_jazzy_ws/runs/round_79d37aabe4c1/ledger.json",
+        "mtime": 1792145500.2568371,
+        "error": null,
+        "claimed": [
+          "target_3"
+        ],
+        "rows": [
+          {
+            "target_id": "target_3",
+            "outcome": 1,
+            "outcome_name": "SKIPPED_QUALITY",
+            "reason": "skipped_quality: decision_snapshot_unavailable: 同目标模型与许可未在时限内到齐或已过期 elapsed=30.001788s timeout=30.000000s",
+            "quality_score": 0.0,
+            "elapsed_s": 30.072,
+            "stages": [],
+            "failure_code": "skipped_quality",
+            "completion_level": 0,
+            "failure_code_n": 3
+          }
+        ],
+        "totals": {
+          "SUCCEEDED": 0,
+          "SKIPPED_QUALITY": 1,
+          "SKIPPED_UNREACHABLE": 0,
+          "FAILED": 0,
+          "CANCELED": 0,
+          "attempted": 1,
+          "claimed": 1
+        }
+      },
+      "elapsed_s": 87.30605738099985,
+      "streams": {
+        "camera": {
+          "first": 1792145502.754054,
+          "last": 1792145510.426201,
+          "new_frames": 149,
+          "fresh_stamp": true
+        },
+        "joints": {
+          "first": 1792145510.6905441,
+          "last": 1792145510.8455236,
+          "new_frames": 16840,
+          "fresh_stamp": true
+        }
+      }
+    },
+    {
+      "request_id": "round_83f39eae8a08",
+      "success": false,
+      "target_id": "target_4",
+      "scene_epoch": 9,
+      "entry_position": [
+        0.3978328067834578,
+        -0.5329255222438244,
+        0.6660002042214128
+      ],
+      "action": {
+        "accepted": true,
+        "status": 4,
+        "result": {
+          "success": false,
+          "termination_reason": "no_targets_succeeded",
+          "summary": {
+            "run_id": "round_83f39eae8a08",
+            "discovered": 1,
+            "attempted": 1,
+            "succeeded": 0,
+            "skipped_quality": 1,
+            "skipped_unreachable": 0,
+            "failed": 0,
+            "canceled": 0,
+            "elapsed": {
+              "sec": 72,
+              "nanosec": 382132660
+            },
+            "outcomes": [
+              {
+                "target_id": "target_4",
+                "outcome": 1,
+                "reason": "skipped_quality: decision_snapshot_unavailable: 同目标模型与许可未在时限内到齐或已过期 elapsed=30.000070s timeout=30.000000s",
+                "quality_score": 0.0,
+                "elapsed": {
+                  "sec": 30,
+                  "nanosec": 85966243
+                }
+              }
+            ]
+          }
+        }
+      },
+      "ledger": {
+        "request_id": "round_83f39eae8a08",
+        "path": "/home/mu/Desktop/aubo_e5_jazzy_ws/runs/round_83f39eae8a08/ledger.json",
+        "mtime": 1792145587.7475092,
+        "error": null,
+        "claimed": [
+          "target_4"
+        ],
+        "rows": [
+          {
+            "target_id": "target_4",
+            "outcome": 1,
+            "outcome_name": "SKIPPED_QUALITY",
+            "reason": "skipped_quality: decision_snapshot_unavailable: 同目标模型与许可未在时限内到齐或已过期 elapsed=30.000070s timeout=30.000000s",
+            "quality_score": 0.0,
+            "elapsed_s": 30.086,
+            "stages": [],
+            "failure_code": "skipped_quality",
+            "completion_level": 0,
+            "failure_code_n": 3
+          }
+        ],
+        "totals": {
+          "SUCCEEDED": 0,
+          "SKIPPED_QUALITY": 1,
+          "SKIPPED_UNREACHABLE": 0,
+          "FAILED": 0,
+          "CANCELED": 0,
+          "attempted": 1,
+          "claimed": 1
+        }
+      },
+      "elapsed_s": 87.52193597799487,
+      "streams": {
+        "camera": {
+          "first": 1792145547.683794,
+          "last": 1792145597.554501,
+          "new_frames": 148,
+          "fresh_stamp": true
+        },
+        "joints": {
+          "first": 1792145598.2155645,
+          "last": 1792145598.370534,
+          "new_frames": 16869,
+          "fresh_stamp": true
+        }
+      }
+    }
+  ],
+  "models": [],
+  "model_attempts": [],
+  "resources": [],
+  "acks": [
+    {
+      "request_id": "round_888777f66e63",
+      "state_seq": 164,
+      "accepted": true,
+      "message": "已记录现场人工撤离确认；本服务不发送任何运动命令",
+      "evidence": {
+        "source": "ledger",
+        "completion_level": 6
+      }
+    }
+  ],
+  "errors": [],
+  "rviz_requested": true,
+  "owned_process_groups": [
+    696451,
+    696452,
+    697621
+  ],
+  "runtime_environment": {
+    "ROS_DOMAIN_ID": "86",
+    "ROS_HOME": "/home/mu/Desktop/aubo_e5_jazzy_ws/runs/live_mock_20261016_180540/ros_home",
+    "OMP_NUM_THREADS": "1",
+    "OPENBLAS_NUM_THREADS": "1",
+    "MKL_NUM_THREADS": "1"
+  },
+  "web_port": 8090,
+  "rviz_started": true,
+  "soak_started_monotonic": 34199.430724973,
+  "rviz_lifetime_ok": true,
+  "soak_elapsed_s": 1.4327000826597214e-05,
+  "phase": "finished",
+  "updated_at": 1792145604.0640616,
+  "residual_pids": [],
+  "domain_processes_after": [],
+  "model_count": 0,
+  "full_level6_rounds": 1,
+  "model_elapsed_s": {
+    "count": 0,
+    "min": null,
+    "max": null,
+    "p95": null,
+    "range": null
+  },
+  "geometry_statistics": {},
+  "model_samples_per_target": {},
+  "per_target_outcomes": {
+    "target_0": {
+      "SUCCEEDED": 1
+    },
+    "target_1": {
+      "SKIPPED_QUALITY": 1
+    },
+    "target_2": {
+      "SKIPPED_QUALITY": 1
+    },
+    "target_3": {
+      "SKIPPED_QUALITY": 1
+    },
+    "target_4": {
+      "SKIPPED_QUALITY": 1
+    }
+  },
+  "physical_bag_level6_coverage": {},
+  "soak_passed": true,
+  "passed": false
+}

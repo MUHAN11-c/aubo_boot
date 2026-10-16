@@ -287,9 +287,9 @@ class TargetReconstructionNode(
         self._executor_state_seen = False
         self._target_observation_seen = False
         # Cache 只按 header stamp 留历史；Jazzy 实现无内部锁，读写共用
-        # _state_lock。1024 条覆盖正常控制频率下的 2s 最大图像处理延迟。
+        # _state_lock。8192 条在 mock ~250 Hz 下约 30 s，覆盖感知滞后曝光。
         self._joint_state_cache = message_filters.Cache(
-            message_filters.SimpleFilter(), cache_size=1024)
+            message_filters.SimpleFilter(), cache_size=8192)
         # BuildTargetModel 单槽重入护栏（goal 回调置位，执行体 finally 清零）
         self._build_goal_active = False
         # ROS 实体（发布器/订阅/服务/ActionServer/TF/心跳）统一在 on_configure
@@ -407,7 +407,7 @@ class TargetReconstructionNode(
             BagFittingArray, '/peach/perception/diagnostics',
             self._on_perception_diagnostics, default_qos)
         self._joint_state_cache = message_filters.Cache(
-            message_filters.SimpleFilter(), cache_size=1024)
+            message_filters.SimpleFilter(), cache_size=8192)
         self._sub_joint = self.create_subscription(
             JointState, '/joint_states', self._on_joint_states, default_qos)
         self._cb = ReentrantCallbackGroup()
@@ -819,7 +819,7 @@ class TargetReconstructionNode(
                 # 安装的 Jazzy Cache.add 按到达顺序 append；回放重启或
                 # 乱序都保守重建，不把旧域消息误作曝光时刻证据。
                 self._joint_state_cache = message_filters.Cache(
-                    message_filters.SimpleFilter(), cache_size=1024)
+                    message_filters.SimpleFilter(), cache_size=8192)
             self._joint_state_cache.add(msg)
 
     def _joint_velocity_at_frame(self, stamp_msg):
@@ -1648,9 +1648,17 @@ class TargetReconstructionNode(
             decision=self._lock_decision_validity(self._grasp_decision()))
 
     def destroy_node(self):
-        """停止重建单写者 worker 与事件落盘线程后销毁 ROS 节点."""
-        self._frame_worker.close(drain=False)
-        self._harvest_data.close(drain=True)
+        """停止重建单写者 worker 与事件落盘线程后销毁 ROS 节点.
+
+        worker 在 on_configure 的 _wire_ros 里才创建。生命周期未完成
+        configure 就拆栈时（例如 change_state 应答丢失）这里必须可调用。
+        """
+        worker = getattr(self, '_frame_worker', None)
+        if worker is not None:
+            worker.close(drain=False)
+        harvest = getattr(self, '_harvest_data', None)
+        if harvest is not None:
+            harvest.close(drain=True)
         return LifecycleNode.destroy_node(self)
 
 

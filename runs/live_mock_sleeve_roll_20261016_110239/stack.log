@@ -1,0 +1,917 @@
+[INFO] [launch]: All log files can be found below /home/mu/Desktop/aubo_e5_jazzy_ws/runs/live_mock_sleeve_roll_20261016_110239/ros_home/log/2026-10-16-11-02-40-330124-mu-MS-7E34-203665
+[INFO] [launch]: Default logging verbosity is set to INFO
+[preflight] ROS_DOMAIN_ID=87
+[WARN] [1792119761.208860653] [rcl]: ROS_LOCALHOST_ONLY is deprecated but still honored if it is enabled. Use ROS_AUTOMATIC_DISCOVERY_RANGE and ROS_STATIC_PEERS instead.
+[WARN] [1792119761.208880846] [rcl]: 'localhost_only' is enabled, 'automatic_discovery_range' and 'static_peers' will be ignored.
+[INFO] [stereo_camera_node-1]: process started with pid [203800]
+[INFO] [peach_scene_obstacles-2]: process started with pid [203801]
+[INFO] [robot_state_publisher-3]: process started with pid [203802]
+[INFO] [ros2_control_node-4]: process started with pid [203803]
+[INFO] [spawner-5]: process started with pid [203804]
+[INFO] [spawner-6]: process started with pid [203805]
+[INFO] [move_group-7]: process started with pid [203806]
+[INFO] [peach_harvester-8]: process started with pid [203807]
+[INFO] [peach_arm-9]: process started with pid [203808]
+[INFO] [peach_observability-10]: process started with pid [203809]
+[INFO] [lifecycle_manager-11]: process started with pid [203810]
+[INFO] [peach_lifecycle_flag_bridge-12]: process started with pid [203811]
+[robot_state_publisher-3] [WARN] [1792119761.511881662] [rcl]: ROS_LOCALHOST_ONLY is deprecated but still honored if it is enabled. Use ROS_AUTOMATIC_DISCOVERY_RANGE and ROS_STATIC_PEERS instead.
+[robot_state_publisher-3] [WARN] [1792119761.511892504] [rcl]: 'localhost_only' is enabled, 'automatic_discovery_range' and 'static_peers' will be ignored.
+[ros2_control_node-4] [WARN] [1792119761.528725055] [rcl]: ROS_LOCALHOST_ONLY is deprecated but still honored if it is enabled. Use ROS_AUTOMATIC_DISCOVERY_RANGE and ROS_STATIC_PEERS instead.
+[ros2_control_node-4] [WARN] [1792119761.528743140] [rcl]: 'localhost_only' is enabled, 'automatic_discovery_range' and 'static_peers' will be ignored.
+[lifecycle_manager-11] [WARN] [1792119761.546586421] [rcl]: ROS_LOCALHOST_ONLY is deprecated but still honored if it is enabled. Use ROS_AUTOMATIC_DISCOVERY_RANGE and ROS_STATIC_PEERS instead.
+[lifecycle_manager-11] [WARN] [1792119761.546602573] [rcl]: 'localhost_only' is enabled, 'automatic_discovery_range' and 'static_peers' will be ignored.
+[robot_state_publisher-3] [INFO] [1792119761.574400742] [robot_state_publisher]: Robot initialized
+[lifecycle_manager-11] [INFO] [1792119761.575996392] [peach_lifecycle_manager]: Creating
+[ros2_control_node-4] [INFO] [1792119761.580110826] [controller_manager]: Using Steady (Monotonic) clock for triggering controller manager cycles.
+[move_group-7] [WARN] [1792119761.590045791] [rcl]: ROS_LOCALHOST_ONLY is deprecated but still honored if it is enabled. Use ROS_AUTOMATIC_DISCOVERY_RANGE and ROS_STATIC_PEERS instead.
+[move_group-7] [WARN] [1792119761.590055956] [rcl]: 'localhost_only' is enabled, 'automatic_discovery_range' and 'static_peers' will be ignored.
+[lifecycle_manager-11] [INFO] [1792119761.595751862] [peach_lifecycle_manager]: [34m[1mCreating and initializing lifecycle service clients[0m[0m
+[ros2_control_node-4] [INFO] [1792119761.597135379] [controller_manager]: Subscribing to '/robot_description' topic for robot description.
+[ros2_control_node-4] [INFO] [1792119761.597193186] [controller_manager]: update rate is 200 Hz
+[ros2_control_node-4] [INFO] [1792119761.597197673] [controller_manager]: Overruns handling is : enabled
+[ros2_control_node-4] [INFO] [1792119761.597200580] [controller_manager]: Spawning controller_manager RT thread with scheduler priority: 50
+[ros2_control_node-4] [INFO] [1792119761.597274767] [controller_manager]: Successful set up FIFO RT scheduling policy with priority 50.
+[ros2_control_node-4] [INFO] [1792119761.609767897] [controller_manager]: Received robot description from topic.
+[ros2_control_node-4] [INFO] [1792119761.609810121] [controller_manager]: Enforcing command limits is disabled. Command limits from URDF will be ignored.
+[ros2_control_node-4] [INFO] [1792119761.615970476] [controller_manager]: Loading hardware 'AuboE5System' 
+[ros2_control_node-4] [INFO] [1792119761.617035910] [controller_manager]: Loaded hardware 'AuboE5System' from plugin 'mock_components/GenericSystem'
+[ros2_control_node-4] [INFO] [1792119761.617110859] [controller_manager]: Initialize hardware 'AuboE5System' 
+[peach_arm-9] [WARN] [1792119761.618472136] [rcl]: ROS_LOCALHOST_ONLY is deprecated but still honored if it is enabled. Use ROS_AUTOMATIC_DISCOVERY_RANGE and ROS_STATIC_PEERS instead.
+[peach_arm-9] [WARN] [1792119761.618488304] [rcl]: 'localhost_only' is enabled, 'automatic_discovery_range' and 'static_peers' will be ignored.
+[ros2_control_node-4] [INFO] [1792119761.626783366] [controller_manager]: Successful initialization of hardware 'AuboE5System'
+[ros2_control_node-4] [INFO] [1792119761.631860599] [controller_manager]: Activating component 'AuboE5System'.
+[ros2_control_node-4] [INFO] [1792119761.631919707] [resource_manager]: 'configure' hardware 'AuboE5System' 
+[ros2_control_node-4] [INFO] [1792119761.631943056] [resource_manager]: Successful 'configure' of hardware 'AuboE5System'
+[ros2_control_node-4] [INFO] [1792119761.631960040] [resource_manager]: 'activate' hardware 'AuboE5System' 
+[ros2_control_node-4] [INFO] [1792119761.631968330] [resource_manager]: Successful 'activate' of hardware 'AuboE5System'
+[ros2_control_node-4] [INFO] [1792119761.632044137] [controller_manager]: Registering statistics for : AuboE5System
+[ros2_control_node-4] [INFO] [1792119761.634327542] [controller_manager]: Resource Manager has been successfully initialized. Starting Controller Manager services...
+[move_group-7] [INFO] [1792119761.640044880] [move_group.moveit.moveit.ros.rdf_loader]: Loaded robot model in 0.00462806 seconds
+[move_group-7] [INFO] [1792119761.640131765] [move_group.moveit.moveit.core.robot_model]: Loading robot model 'aubo_e5'...
+[move_group-7] [INFO] [1792119761.640139514] [move_group.moveit.moveit.core.robot_model]: No root/virtual joint specified in SRDF. Assuming fixed joint
+[peach_arm-9] [WARN] [1792119761.674144641] [rcl.logging_rosout]: Publisher already registered for node name: 'peach_arm'. If this is due to multiple nodes with the same name then all logs for the logger named 'peach_arm' will go out over the existing publisher. As soon as any node with that name is destructed it will unregister the publisher, preventing any further logs for that name from being published on the rosout topic.
+[peach_arm-9] [WARN] [1792119761.681151220] [peach_arm]: scan.protected_zones 丢弃畸形盒: 盒#0 存在 min>=max 的轴（空盒/退化盒），已丢弃
+[move_group-7] [INFO] [1792119761.703800910] [move_group.moveit.moveit.kinematics.kdl_kinematics_plugin]: Joint weights for group 'manipulator_e5': 1 1 1 1 1 1
+[stereo_camera_node-1] [WARN] [1792119761.733923941] [rcl]: ROS_LOCALHOST_ONLY is deprecated but still honored if it is enabled. Use ROS_AUTOMATIC_DISCOVERY_RANGE and ROS_STATIC_PEERS instead.
+[stereo_camera_node-1] [WARN] [1792119761.733948229] [rcl]: 'localhost_only' is enabled, 'automatic_discovery_range' and 'static_peers' will be ignored.
+[stereo_camera_node-1] [INFO] [1792119761.756034669] [camera.peach_stereo_camera_node]: color camera_info override from /home/mu/Desktop/aubo_e5_jazzy_ws/install/percipio_camera/share/percipio_camera/config/color_camera_info.yaml (camera=camera_color)
+[stereo_camera_node-1] [INFO] [1792119761.783247895] [camera.peach_stereo_camera_node]: interface list: status=0 count=4
+[move_group-7] [INFO] [1792119761.818383984] [move_group.moveit.moveit.ros.planning_scene_monitor]: Publishing maintained planning scene on 'monitored_planning_scene'
+[move_group-7] [INFO] [1792119761.818543158] [move_group.moveit.moveit.ros.moveit_cpp]: Listening to 'joint_states' for joint states
+[move_group-7] [INFO] [1792119761.819354809] [move_group.moveit.moveit.ros.current_state_monitor]: Listening to joint states on topic 'joint_states'
+[move_group-7] [INFO] [1792119761.819645370] [move_group.moveit.moveit.ros.planning_scene_monitor]: Listening to '/attached_collision_object' for attached collision objects
+[move_group-7] [INFO] [1792119761.819654075] [move_group.moveit.moveit.ros.planning_scene_monitor]: Stopping existing planning scene publisher.
+[move_group-7] [INFO] [1792119761.820353749] [move_group.moveit.moveit.ros.planning_scene_monitor]: Stopped publishing maintained planning scene.
+[move_group-7] [INFO] [1792119761.820616225] [move_group.moveit.moveit.ros.planning_scene_monitor]: Publishing maintained planning scene on 'monitored_planning_scene'
+[move_group-7] [INFO] [1792119761.820680966] [move_group.moveit.moveit.ros.planning_scene_monitor]: Starting planning scene monitor
+[move_group-7] [INFO] [1792119761.820866706] [move_group.moveit.moveit.ros.planning_scene_monitor]: Listening to '/planning_scene'
+[move_group-7] [INFO] [1792119761.820873162] [move_group.moveit.moveit.ros.planning_scene_monitor]: Starting world geometry update monitor for collision objects, attached objects, octomap updates.
+[move_group-7] [INFO] [1792119761.821293255] [move_group.moveit.moveit.ros.planning_scene_monitor]: Listening to 'collision_object'
+[move_group-7] [INFO] [1792119761.821439830] [move_group.moveit.moveit.ros.planning_scene_monitor]: Listening to 'planning_scene_world' for planning scene world geometry
+[move_group-7] [WARN] [1792119761.822846420] [move_group.moveit.moveit.ros.occupancy_map_monitor]: Resolution not specified for Octomap. Assuming resolution = 0.1 instead
+[move_group-7] [ERROR] [1792119761.822861582] [move_group.moveit.moveit.ros.occupancy_map_monitor]: No 3D sensor plugin(s) defined for octomap updates
+[spawner-5] [WARN] [1792119761.856647141] [rcl]: ROS_LOCALHOST_ONLY is deprecated but still honored if it is enabled. Use ROS_AUTOMATIC_DISCOVERY_RANGE and ROS_STATIC_PEERS instead.
+[spawner-5] [WARN] [1792119761.856656567] [rcl]: 'localhost_only' is enabled, 'automatic_discovery_range' and 'static_peers' will be ignored.
+[move_group-7] [INFO] [1792119761.893392951] [move_group.moveit.moveit.ros.planning_pipeline]: Successfully loaded planner 'OMPL'
+[move_group-7] [INFO] [1792119761.894360204] [move_group]: Try loading adapter 'default_planning_request_adapters/ResolveConstraintFrames'
+[move_group-7] [INFO] [1792119761.895509185] [move_group]: Loaded adapter 'default_planning_request_adapters/ResolveConstraintFrames'
+[move_group-7] [INFO] [1792119761.895518032] [move_group]: Try loading adapter 'default_planning_request_adapters/ValidateWorkspaceBounds'
+[move_group-7] [INFO] [1792119761.895773624] [move_group]: Loaded adapter 'default_planning_request_adapters/ValidateWorkspaceBounds'
+[move_group-7] [INFO] [1792119761.895776962] [move_group]: Try loading adapter 'default_planning_request_adapters/CheckStartStateBounds'
+[move_group-7] [INFO] [1792119761.895788254] [move_group]: Loaded adapter 'default_planning_request_adapters/CheckStartStateBounds'
+[move_group-7] [INFO] [1792119761.895789910] [move_group]: Try loading adapter 'default_planning_request_adapters/CheckStartStateCollision'
+[move_group-7] [INFO] [1792119761.895794464] [move_group]: Loaded adapter 'default_planning_request_adapters/CheckStartStateCollision'
+[move_group-7] [INFO] [1792119761.896613812] [move_group]: Try loading adapter 'default_planning_response_adapters/AddTimeOptimalParameterization'
+[move_group-7] [INFO] [1792119761.902496125] [move_group]: Loaded adapter 'default_planning_response_adapters/AddTimeOptimalParameterization'
+[move_group-7] [INFO] [1792119761.902514788] [move_group]: Try loading adapter 'default_planning_response_adapters/AddRuckigTrajectorySmoothing'
+[move_group-7] [INFO] [1792119761.902524418] [move_group]: Loaded adapter 'default_planning_response_adapters/AddRuckigTrajectorySmoothing'
+[move_group-7] [INFO] [1792119761.902526281] [move_group]: Try loading adapter 'default_planning_response_adapters/ValidateSolution'
+[move_group-7] [INFO] [1792119761.906550205] [move_group]: Loaded adapter 'default_planning_response_adapters/ValidateSolution'
+[move_group-7] [INFO] [1792119761.912595624] [move_group.moveit.moveit.planners.pilz.joint_limits_aggregator]: Reading limits from namespace robot_description_planning
+[move_group-7] [INFO] [1792119761.917482539] [move_group.moveit.moveit.planners.pilz.command_planner]: Available plugins: pilz_industrial_motion_planner/PlanningContextLoaderCIRC pilz_industrial_motion_planner/PlanningContextLoaderLIN pilz_industrial_motion_planner/PlanningContextLoaderPTP 
+[move_group-7] [INFO] [1792119761.917495837] [move_group.moveit.moveit.planners.pilz.command_planner]: About to load: pilz_industrial_motion_planner/PlanningContextLoaderCIRC
+[move_group-7] [INFO] [1792119761.919014844] [move_group.moveit.moveit.planners.pilz.command_planner]: Registered Algorithm [CIRC]
+[move_group-7] [INFO] [1792119761.919032368] [move_group.moveit.moveit.planners.pilz.command_planner]: About to load: pilz_industrial_motion_planner/PlanningContextLoaderLIN
+[move_group-7] [INFO] [1792119761.921866509] [move_group.moveit.moveit.planners.pilz.command_planner]: Registered Algorithm [LIN]
+[move_group-7] [INFO] [1792119761.921874115] [move_group.moveit.moveit.planners.pilz.command_planner]: About to load: pilz_industrial_motion_planner/PlanningContextLoaderPTP
+[move_group-7] [INFO] [1792119761.922743649] [move_group.moveit.moveit.planners.pilz.command_planner]: Registered Algorithm [PTP]
+[move_group-7] [INFO] [1792119761.922752553] [move_group.moveit.moveit.ros.planning_pipeline]: Successfully loaded planner 'Pilz Industrial Motion Planner'
+[move_group-7] [INFO] [1792119761.923750222] [move_group]: Try loading adapter 'default_planning_request_adapters/ResolveConstraintFrames'
+[move_group-7] [INFO] [1792119761.923859651] [move_group]: Loaded adapter 'default_planning_request_adapters/ResolveConstraintFrames'
+[move_group-7] [INFO] [1792119761.923862695] [move_group]: Try loading adapter 'default_planning_request_adapters/ValidateWorkspaceBounds'
+[move_group-7] [INFO] [1792119761.925196866] [move_group]: Loaded adapter 'default_planning_request_adapters/ValidateWorkspaceBounds'
+[move_group-7] [INFO] [1792119761.925202024] [move_group]: Try loading adapter 'default_planning_request_adapters/CheckStartStateBounds'
+[move_group-7] [INFO] [1792119761.925211782] [move_group]: Loaded adapter 'default_planning_request_adapters/CheckStartStateBounds'
+[move_group-7] [INFO] [1792119761.925213898] [move_group]: Try loading adapter 'default_planning_request_adapters/CheckStartStateCollision'
+[move_group-7] [INFO] [1792119761.925220414] [move_group]: Loaded adapter 'default_planning_request_adapters/CheckStartStateCollision'
+[move_group-7] [INFO] [1792119761.926117524] [move_group]: Try loading adapter 'default_planning_response_adapters/ValidateSolution'
+[move_group-7] [INFO] [1792119761.926814880] [move_group]: Loaded adapter 'default_planning_response_adapters/ValidateSolution'
+[peach_lifecycle_flag_bridge-12] [WARN] [1792119761.929629313] [rcl]: ROS_LOCALHOST_ONLY is deprecated but still honored if it is enabled. Use ROS_AUTOMATIC_DISCOVERY_RANGE and ROS_STATIC_PEERS instead.
+[peach_lifecycle_flag_bridge-12] [WARN] [1792119761.929638271] [rcl]: 'localhost_only' is enabled, 'automatic_discovery_range' and 'static_peers' will be ignored.
+[move_group-7] [INFO] [1792119761.936410284] [move_group.moveit.moveit.ros.planning_pipeline]: Successfully loaded planner 'STOMP'
+[move_group-7] [INFO] [1792119761.937350498] [move_group]: Try loading adapter 'default_planning_request_adapters/ResolveConstraintFrames'
+[move_group-7] [INFO] [1792119761.937560000] [move_group]: Loaded adapter 'default_planning_request_adapters/ResolveConstraintFrames'
+[move_group-7] [INFO] [1792119761.937564542] [move_group]: Try loading adapter 'default_planning_request_adapters/ValidateWorkspaceBounds'
+[move_group-7] [INFO] [1792119761.937635703] [move_group]: Loaded adapter 'default_planning_request_adapters/ValidateWorkspaceBounds'
+[move_group-7] [INFO] [1792119761.937638092] [move_group]: Try loading adapter 'default_planning_request_adapters/CheckStartStateBounds'
+[move_group-7] [INFO] [1792119761.937645605] [move_group]: Loaded adapter 'default_planning_request_adapters/CheckStartStateBounds'
+[move_group-7] [INFO] [1792119761.937647367] [move_group]: Try loading adapter 'default_planning_request_adapters/CheckStartStateCollision'
+[move_group-7] [INFO] [1792119761.937652172] [move_group]: Loaded adapter 'default_planning_request_adapters/CheckStartStateCollision'
+[move_group-7] [INFO] [1792119761.938512184] [move_group]: Try loading adapter 'default_planning_response_adapters/AddTimeOptimalParameterization'
+[move_group-7] [INFO] [1792119761.944345142] [move_group]: Loaded adapter 'default_planning_response_adapters/AddTimeOptimalParameterization'
+[move_group-7] [INFO] [1792119761.944368690] [move_group]: Try loading adapter 'default_planning_response_adapters/ValidateSolution'
+[move_group-7] [INFO] [1792119761.944669086] [move_group]: Loaded adapter 'default_planning_response_adapters/ValidateSolution'
+[move_group-7] [INFO] [1792119761.944674786] [move_group]: Try loading adapter 'default_planning_response_adapters/DisplayMotionPath'
+[move_group-7] [INFO] [1792119761.944987015] [move_group]: Loaded adapter 'default_planning_response_adapters/DisplayMotionPath'
+[spawner-5] [INFO] [1792119761.981058685] [spawner_joint_state_broadcaster]: waiting for service /controller_manager/list_controllers to become available...
+[spawner-6] [WARN] [1792119761.995396975] [rcl]: ROS_LOCALHOST_ONLY is deprecated but still honored if it is enabled. Use ROS_AUTOMATIC_DISCOVERY_RANGE and ROS_STATIC_PEERS instead.
+[spawner-6] [WARN] [1792119761.995405345] [rcl]: 'localhost_only' is enabled, 'automatic_discovery_range' and 'static_peers' will be ignored.
+[move_group-7] [INFO] [1792119762.000641807] [move_group.moveit.moveit.plugins.simple_controller_manager]: Added FollowJointTrajectory controller for joint_trajectory_controller
+[move_group-7] [INFO] [1792119762.000757976] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[move_group-7] [INFO] [1792119762.000773457] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[move_group-7] [INFO] [1792119762.001089018] [move_group.moveit.moveit.ros.trajectory_execution_manager]: Trajectory execution is not managing controllers
+[move_group-7] [INFO] [1792119762.001103859] [move_group]: MoveGroup debug mode is ON
+[move_group-7] [INFO] [1792119762.051041839] [move_group.moveit.moveit.planners.pilz.move_group_sequence_action]: initialize move group sequence action
+[move_group-7] [INFO] [1792119762.059592421] [move_group.moveit.moveit.planners.pilz.joint_limits_aggregator]: Reading limits from namespace robot_description_planning
+[move_group-7] [INFO] [1792119762.059751209] [move_group.moveit.moveit.planners.pilz.joint_limits_aggregator]: Reading limits from namespace robot_description_planning
+[move_group-7] [INFO] [1792119762.061843011] [move_group.moveit.moveit.ros.move_group.executable]: 
+[move_group-7] 
+[move_group-7] ********************************************************
+[move_group-7] * MoveGroup using: 
+[move_group-7] *     - apply_planning_scene_service
+[move_group-7] *     - clear_octomap_service
+[move_group-7] *     - ExecuteTaskSolution
+[move_group-7] *     - get_group_urdf
+[move_group-7] *     - load_geometry_from_file
+[move_group-7] *     - CartesianPathService
+[move_group-7] *     - execute_trajectory_action
+[move_group-7] *     - get_planning_scene_service
+[move_group-7] *     - kinematics_service
+[move_group-7] *     - move_action
+[move_group-7] *     - motion_plan_service
+[move_group-7] *     - query_planners_service
+[move_group-7] *     - state_validation_service
+[move_group-7] *     - save_geometry_to_file
+[move_group-7] *     - SequenceAction
+[move_group-7] *     - SequenceService
+[move_group-7] ********************************************************
+[move_group-7] 
+[move_group-7] [INFO] [1792119762.061886051] [move_group.moveit.moveit.ros.move_group.context]: MoveGroup context using pipeline pilz_industrial_motion_planner
+[move_group-7] [INFO] [1792119762.061893671] [move_group.moveit.moveit.ros.move_group.context]: MoveGroup context initialization complete
+[move_group-7] [96mLoading 'move_group/ApplyPlanningSceneService'...[0m
+[move_group-7] [96mLoading 'move_group/ClearOctomapService'...[0m
+[move_group-7] [96mLoading 'move_group/ExecuteTaskSolutionCapability'...[0m
+[move_group-7] [96mLoading 'move_group/GetUrdfService'...[0m
+[move_group-7] [96mLoading 'move_group/LoadGeometryFromFileService'...[0m
+[move_group-7] [96mLoading 'move_group/MoveGroupCartesianPathService'...[0m
+[move_group-7] [96mLoading 'move_group/MoveGroupExecuteTrajectoryAction'...[0m
+[move_group-7] [96mLoading 'move_group/MoveGroupGetPlanningSceneService'...[0m
+[move_group-7] [96mLoading 'move_group/MoveGroupKinematicsService'...[0m
+[move_group-7] [96mLoading 'move_group/MoveGroupMoveAction'...[0m
+[move_group-7] [96mLoading 'move_group/MoveGroupPlanService'...[0m
+[move_group-7] [96mLoading 'move_group/MoveGroupQueryPlannersService'...[0m
+[move_group-7] [96mLoading 'move_group/MoveGroupStateValidationService'...[0m
+[move_group-7] [96mLoading 'move_group/SaveGeometryToFileService'...[0m
+[move_group-7] [96mLoading 'pilz_industrial_motion_planner/MoveGroupSequenceAction'...[0m
+[move_group-7] [96mLoading 'pilz_industrial_motion_planner/MoveGroupSequenceService'...[0m
+[move_group-7] 
+[move_group-7] [92mYou can start planning now![0m
+[move_group-7] 
+[ros2_control_node-4] [INFO] [1792119762.238812680] [controller_manager]: Loading controller : 'joint_state_broadcaster' of type 'joint_state_broadcaster/JointStateBroadcaster'
+[ros2_control_node-4] [INFO] [1792119762.238848434] [controller_manager]: Loading controller 'joint_state_broadcaster'
+[ros2_control_node-4] [INFO] [1792119762.242571582] [controller_manager]: Controller 'joint_state_broadcaster' node arguments: --ros-args -p use_sim_time:=False --params-file /tmp/launch_params_w7g9k2dq --params-file /home/mu/Desktop/aubo_e5_jazzy_ws/install/aubo_e5_bringup/share/aubo_e5_bringup/config/controllers.yaml 
+[spawner-5] [INFO] [1792119762.263462930] [spawner_joint_state_broadcaster]: Loaded joint_state_broadcaster
+[ros2_control_node-4] [INFO] [1792119762.264471236] [controller_manager]: Configuring controller: 'joint_state_broadcaster'
+[ros2_control_node-4] [INFO] [1792119762.264595037] [joint_state_broadcaster]: 'joints' or 'interfaces' parameter is empty. All available state interfaces will be published
+[ros2_control_node-4] [INFO] [1792119762.276080050] [controller_manager]: Activating controllers: [ joint_state_broadcaster ]
+[ros2_control_node-4] [INFO] [1792119762.277497597] [controller_manager]: Successfully switched controllers!
+[peach_scene_obstacles-2] [WARN] [1792119762.280758278] [rcl]: ROS_LOCALHOST_ONLY is deprecated but still honored if it is enabled. Use ROS_AUTOMATIC_DISCOVERY_RANGE and ROS_STATIC_PEERS instead.
+[peach_scene_obstacles-2] [WARN] [1792119762.280765319] [rcl]: 'localhost_only' is enabled, 'automatic_discovery_range' and 'static_peers' will be ignored.
+[spawner-5] [INFO] [1792119762.286507231] [spawner_joint_state_broadcaster]: Configured and activated joint_state_broadcaster
+[INFO] [spawner-5]: process has finished cleanly [pid 203804]
+[peach_observability-10] [WARN] [1792119762.548318590] [rcl]: ROS_LOCALHOST_ONLY is deprecated but still honored if it is enabled. Use ROS_AUTOMATIC_DISCOVERY_RANGE and ROS_STATIC_PEERS instead.
+[peach_observability-10] [WARN] [1792119762.548330666] [rcl]: 'localhost_only' is enabled, 'automatic_discovery_range' and 'static_peers' will be ignored.
+[peach_harvester-8] [WARN] [1792119762.646221699] [rcl]: ROS_LOCALHOST_ONLY is deprecated but still honored if it is enabled. Use ROS_AUTOMATIC_DISCOVERY_RANGE and ROS_STATIC_PEERS instead.
+[peach_harvester-8] [WARN] [1792119762.646234092] [rcl]: 'localhost_only' is enabled, 'automatic_discovery_range' and 'static_peers' will be ignored.
+[spawner-6] [INFO] [1792119762.747718084] [spawner_joint_trajectory_controller]: waiting for service /controller_manager/list_controllers to become available...
+[peach_scene_obstacles-2] [INFO] [1792119762.836849211] [peach_scene_obstacles]: scene obstacles snapshot node ready (waits refresh trigger)
+[peach_harvester-8] [INFO] [1792119762.884566101] [peach_scene_perception_node]: YOLO=/home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_harvester/share/peach_harvester/model/best.pt
+[peach_harvester-8] [INFO] [1792119762.884785377] [peach_scene_perception_node]: SAM=/home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_harvester/share/peach_harvester/model/mobile_sam.pt
+[peach_observability-10] [WARN] [1792119763.397744174] [peach_observability]: *** 调试操作面已启用：运动类操作=默认拒绝。技能侧既有安全门照常生效；请保持 HTTP 回环绑定 ***
+[peach_observability-10] [INFO] [1792119763.408724688] [peach_observability]: 感知抓取过程页（过程监控+单步调试）: http://127.0.0.1:8091
+[peach_observability-10] [INFO] [1792119763.421737069] [peach_observability]: 全量录制订阅: /display_planned_path [moveit_msgs/msg/DisplayTrajectory]
+[peach_observability-10] [INFO] [1792119763.529786639] [peach_observability]: 全量录制订阅: /execute_trajectory/_action/feedback [moveit_msgs/action/ExecuteTrajectory_FeedbackMessage]
+[peach_observability-10] [INFO] [1792119763.530986331] [peach_observability]: 全量录制订阅: /execute_trajectory/_action/status [action_msgs/msg/GoalStatusArray]
+[peach_observability-10] [INFO] [1792119763.531463012] [peach_observability]: 全量录制订阅: /joint_states [sensor_msgs/msg/JointState]
+[peach_observability-10] [INFO] [1792119763.532026480] [peach_observability]: 全量录制订阅: /peach/observability/tcp_path [nav_msgs/msg/Path]
+[peach_observability-10] [INFO] [1792119763.532545602] [peach_observability]: 全量录制订阅: /peach/perception/target_observations [peach_interfaces/msg/PeachTargetObservationArray]
+[peach_observability-10] [INFO] [1792119763.533014745] [peach_observability]: 全量录制订阅: /peach/reconstruction/diagnostics [peach_interfaces/msg/ReconstructionStatus]
+[peach_observability-10] [INFO] [1792119763.533545248] [peach_observability]: 全量录制订阅: /peach/reconstruction/diagnostics_debug [std_msgs/msg/String]
+[peach_observability-10] [INFO] [1792119763.534041747] [peach_observability]: 全量录制订阅: /peach/reconstruction/grasp_decision [peach_interfaces/msg/GraspDecision]
+[peach_observability-10] [INFO] [1792119763.534591561] [peach_observability]: 全量录制订阅: /peach/reconstruction/refined_axis [geometry_msgs/msg/Vector3Stamped]
+[peach_observability-10] [INFO] [1792119763.535104698] [peach_observability]: 全量录制订阅: /peach/reconstruction/refined_diagnostics [peach_interfaces/msg/BagFittingArray]
+[peach_observability-10] [INFO] [1792119763.535614451] [peach_observability]: 全量录制订阅: /peach/reconstruction/refined_pose [peach_interfaces/msg/BagGraspCandidateArray]
+[peach_observability-10] [INFO] [1792119763.536132411] [peach_observability]: 全量录制订阅: /peach/reconstruction/status [std_msgs/msg/String]
+[peach_observability-10] [INFO] [1792119763.536558176] [peach_observability]: 全量录制订阅: /peach/reconstruction/tsdf_cloud [sensor_msgs/msg/PointCloud2]
+[peach_observability-10] [INFO] [1792119763.537055869] [peach_observability]: 全量录制订阅: /peach_arm/execute_target/_action/feedback [peach_interfaces/action/ExecuteTarget_FeedbackMessage]
+[peach_observability-10] [INFO] [1792119763.537571968] [peach_observability]: 全量录制订阅: /peach_arm/execute_target/_action/status [action_msgs/msg/GoalStatusArray]
+[peach_observability-10] [INFO] [1792119763.538017630] [peach_observability]: 全量录制订阅: /peach_arm/status [std_msgs/msg/String]
+[peach_observability-10] [INFO] [1792119763.538528719] [peach_observability]: 全量录制订阅: /peach_supervisor/events [peach_interfaces/msg/CanonicalEvent]
+[peach_observability-10] [INFO] [1792119763.539044254] [peach_observability]: 全量录制订阅: /peach_supervisor/run_harvest/_action/feedback [peach_interfaces/action/RunHarvest_FeedbackMessage]
+[peach_observability-10] [INFO] [1792119763.539529474] [peach_observability]: 全量录制订阅: /peach_supervisor/run_harvest/_action/status [action_msgs/msg/GoalStatusArray]
+[peach_observability-10] [INFO] [1792119763.539976408] [peach_observability]: 全量录制订阅: /peach_supervisor/scene_snapshot [peach_interfaces/msg/SceneSnapshot]
+[peach_observability-10] [INFO] [1792119763.540456982] [peach_observability]: 全量录制订阅: /peach_supervisor/state [peach_interfaces/msg/HarvestState]
+[peach_observability-10] [INFO] [1792119763.540942215] [peach_observability]: 全量录制订阅: /peach_target_reconstruction_node/build_target_model/_action/feedback [peach_interfaces/action/BuildTargetModel_FeedbackMessage]
+[peach_observability-10] [INFO] [1792119763.541403364] [peach_observability]: 全量录制订阅: /peach_target_reconstruction_node/build_target_model/_action/status [action_msgs/msg/GoalStatusArray]
+[peach_observability-10] [INFO] [1792119763.541916481] [peach_observability]: 全量录制订阅: /tf [tf2_msgs/msg/TFMessage]
+[peach_observability-10] [INFO] [1792119763.542430431] [peach_observability]: 全量录制订阅: /tf_static [tf2_msgs/msg/TFMessage]
+[ros2_control_node-4] [INFO] [1792119764.002654218] [controller_manager]: Loading controller : 'joint_trajectory_controller' of type 'joint_trajectory_controller/JointTrajectoryController'
+[ros2_control_node-4] [INFO] [1792119764.002705124] [controller_manager]: Loading controller 'joint_trajectory_controller'
+[ros2_control_node-4] [INFO] [1792119764.006777036] [controller_manager]: Controller 'joint_trajectory_controller' node arguments: --ros-args -p use_sim_time:=False --params-file /tmp/launch_params_w7g9k2dq --params-file /home/mu/Desktop/aubo_e5_jazzy_ws/install/aubo_e5_bringup/share/aubo_e5_bringup/config/controllers.yaml 
+[spawner-6] [INFO] [1792119764.023145993] [spawner_joint_trajectory_controller]: Loaded joint_trajectory_controller
+[ros2_control_node-4] [INFO] [1792119764.024554484] [controller_manager]: Configuring controller: 'joint_trajectory_controller'
+[ros2_control_node-4] [INFO] [1792119764.024708621] [joint_trajectory_controller]: No specific joint names are used for command interfaces. Using 'joints' parameter.
+[ros2_control_node-4] [INFO] [1792119764.024730648] [joint_trajectory_controller]: Command interfaces are [position] and state interfaces are [position velocity].
+[ros2_control_node-4] [INFO] [1792119764.024749347] [joint_trajectory_controller]: Using 'splines' interpolation method.
+[ros2_control_node-4] [INFO] [1792119764.026372528] [joint_trajectory_controller]: Action status changes will be monitored at 20.00 Hz.
+[ros2_control_node-4] [INFO] [1792119764.029334984] [joint_trajectory_controller]: Setting initial scaling factor to 1.000000
+[ros2_control_node-4] [INFO] [1792119764.029560630] [joint_trajectory_controller]: No scaling interface set. This controller will not read speed scaling from the hardware.
+[ros2_control_node-4] [INFO] [1792119764.035278549] [controller_manager]: Activating controllers: [ joint_trajectory_controller ]
+[ros2_control_node-4] [INFO] [1792119764.037635463] [controller_manager]: Successfully switched controllers!
+[spawner-6] [INFO] [1792119764.043105239] [spawner_joint_trajectory_controller]: Configured and activated joint_trajectory_controller
+[INFO] [spawner-6]: process has finished cleanly [pid 203805]
+[peach_harvester-8] [INFO] [1792119764.692751978] [peach_scene_perception_node]: Subscribed color=/camera/color/image_raw depth=/camera/depth/image_raw info=/camera/color/camera_info slop=0.05s optical=camera_color_optical_frame output=base_link depth_scale_unit=0.25 gravity_mode=tf calib=percipio-640x480-chessboard|hand_eye:import_humble_20260128T114006
+[peach_harvester-8] [INFO] [1792119764.692975851] [peach_scene_perception_node]: 目标身份记忆已启用：match_radius=0.06 m, max_targets=50, ema=0.3
+[peach_harvester-8] [INFO] [1792119764.707910567] [peach_target_reconstruction_node]: peach_target_reconstruction_node ready: base=base_link color=/camera/color/image_raw depth=/camera/depth/image_raw slop=0.05s depth_scale_unit=0.25 views(min/rec/max)=1/5/24 require_static=True auto_mode=True session_root=/home/mu/Desktop/aubo_e5_jazzy_ws/runs
+[lifecycle_manager-11] [INFO] [1792119764.756085128] [peach_lifecycle_manager]: [34m[1mStarting managed nodes bringup...[0m[0m
+[lifecycle_manager-11] [INFO] [1792119764.756141949] [peach_lifecycle_manager]: [34m[1mConfiguring peach_scene_perception_node[0m[0m
+[lifecycle_manager-11] [INFO] [1792119764.790443825] [peach_lifecycle_manager]: [34m[1mConfiguring peach_target_reconstruction_node[0m[0m
+[stereo_camera_node-1] [INFO] [1792119764.795956334] [camera.peach_stereo_camera_node]: iface eth-fc:9d:05:6c:6f:a00b0afea9: 1 device(s)
+[stereo_camera_node-1] [INFO] [1792119764.796024316] [camera.peach_stereo_camera_node]:   dev 207000152740 model PS800-E1 ip 169.254.10.110
+[lifecycle_manager-11] [INFO] [1792119764.808791771] [peach_lifecycle_manager]: [34m[1mConfiguring peach_arm[0m[0m
+[peach_arm-9] [WARN] [1792119764.809780507] [peach_arm]: scan.protected_zones 丢弃畸形盒: 盒#0 存在 min>=max 的轴（空盒/退化盒），已丢弃
+[peach_arm-9] [WARN] [1792119764.840365258] [peach_arm]: scan.protected_zones 丢弃畸形盒: 盒#0 存在 min>=max 的轴（空盒/退化盒），已丢弃
+[peach_arm-9] [WARN] [1792119764.840504049] [peach_arm]: scan.protected_zones 丢弃畸形盒: 盒#0 存在 min>=max 的轴（空盒/退化盒），已丢弃
+[peach_arm-9] [WARN] [1792119764.842035251] [rcl.logging_rosout]: Publisher already registered for node name: 'peach_arm'. If this is due to multiple nodes with the same name then all logs for the logger named 'peach_arm' will go out over the existing publisher. As soon as any node with that name is destructed it will unregister the publisher, preventing any further logs for that name from being published on the rosout topic.
+[peach_arm-9] [INFO] [1792119764.847791055] [peach_arm.moveit.ros.rdf_loader]: Loaded robot model in 0.00249934 seconds
+[peach_arm-9] [INFO] [1792119764.847863869] [peach_arm.moveit.core.robot_model]: Loading robot model 'aubo_e5'...
+[peach_arm-9] [INFO] [1792119764.847874762] [peach_arm.moveit.core.robot_model]: No root/virtual joint specified in SRDF. Assuming fixed joint
+[peach_arm-9] [INFO] [1792119764.876090974] [peach_arm.moveit.kinematics.kdl_kinematics_plugin]: Joint weights for group 'manipulator_e5': 1 1 1 1 1 1
+[peach_arm-9] [INFO] [1792119764.885840038] [peach_arm.moveit.ros.move_group_interface]: Ready to take commands for planning group manipulator_e5.
+[peach_arm-9] [INFO] [1792119764.886147207] [peach_arm]: 主动视觉靠近节点 ready: group=manipulator_e5 base=base_link tip=tcp camera=camera_depth_optical_frame execution=plan_only grasp=disabled
+[peach_arm-9] [INFO] [1792119764.886463741] [peach_arm]: [IDLE] 已配置；activate 后才开放运动输出权限
+[lifecycle_manager-11] [INFO] [1792119764.888324325] [peach_lifecycle_manager]: [34m[1mConfiguring peach_supervisor[0m[0m
+[peach_harvester-8] [INFO] [1792119764.930476856] [peach_supervisor]: task executor configured; will not auto-start harvest
+[lifecycle_manager-11] [INFO] [1792119764.934312591] [peach_lifecycle_manager]: [34m[1mActivating peach_scene_perception_node[0m[0m
+[peach_harvester-8] [INFO] [1792119764.935378972] [peach_scene_perception_node]: perception Active：开始处理 RGB-D
+[stereo_camera_node-1] [INFO] [1792119764.939126980] [camera.peach_stereo_camera_node]: open device 207000152740: status=0
+[lifecycle_manager-11] [INFO] [1792119764.945352536] [peach_lifecycle_manager]: [34m[1mActivating peach_target_reconstruction_node[0m[0m
+[peach_harvester-8] [INFO] [1792119764.949319704] [peach_target_reconstruction_node]: reconstruction Active：开始积分
+[lifecycle_manager-11] [INFO] [1792119764.955298691] [peach_lifecycle_manager]: [34m[1mActivating peach_arm[0m[0m
+[peach_arm-9] [WARN] [1792119764.955687290] [peach_arm]: scan.protected_zones 丢弃畸形盒: 盒#0 存在 min>=max 的轴（空盒/退化盒），已丢弃
+[peach_arm-9] [INFO] [1792119764.958890535] [peach_arm]: 节点已激活：运动输出权限开放
+[lifecycle_manager-11] [INFO] [1792119764.962119313] [peach_lifecycle_manager]: [34m[1mActivating peach_supervisor[0m[0m
+[peach_arm-9] [WARN] [1792119764.962432526] [rcl.logging_rosout]: Publisher already registered for node name: 'peach_arm'. If this is due to multiple nodes with the same name then all logs for the logger named 'peach_arm' will go out over the existing publisher. As soon as any node with that name is destructed it will unregister the publisher, preventing any further logs for that name from being published on the rosout topic.
+[lifecycle_manager-11] [INFO] [1792119764.965301517] [peach_lifecycle_manager]: [34m[1mManaged nodes are active[0m[0m
+[peach_arm-9] [WARN] [1792119764.967595284] [rcl.logging_rosout]: Publisher already registered for node name: 'peach_arm'. If this is due to multiple nodes with the same name then all logs for the logger named 'peach_arm' will go out over the existing publisher. As soon as any node with that name is destructed it will unregister the publisher, preventing any further logs for that name from being published on the rosout topic.
+[peach_arm-9] [INFO] [1792119764.974397763] [peach_arm]: 场景障碍 ACM 豁免已应用: 28 条（含 <octomap> 保留名）
+[peach_lifecycle_flag_bridge-12] [INFO] [1792119764.976520860] [peach_lifecycle_flag_bridge]: 托管栈 Active=True（桥自 nav2_lm is_active）
+[stereo_camera_node-1] [INFO] [1792119765.006241766] [camera.peach_stereo_camera_node]: rectify: R1=2.65deg f=548.9px B=62.2mm proc=640x480 numDisp=128 med=3 mode=3 tk=3
+[stereo_camera_node-1] [INFO] [1792119765.007656160] [camera.peach_stereo_camera_node]: color mode set: yuyv 640x480
+[peach_observability-10] [INFO] [1792119765.635735028] [peach_observability]: 全量录制订阅: /joint_trajectory_controller/follow_joint_trajectory/_action/feedback [control_msgs/action/FollowJointTrajectory_FeedbackMessage]
+[peach_observability-10] [INFO] [1792119765.636792078] [peach_observability]: 全量录制订阅: /joint_trajectory_controller/follow_joint_trajectory/_action/status [action_msgs/msg/GoalStatusArray]
+[peach_observability-10] [INFO] [1792119765.637911568] [peach_observability]: 全量录制订阅: /peach/batch/enables [peach_interfaces/msg/Enables]
+[peach_observability-10] [INFO] [1792119765.638588186] [peach_observability]: 全量录制订阅: /peach/perception/masks [sensor_msgs/msg/Image]
+[peach_observability-10] [INFO] [1792119765.639239149] [peach_observability]: 全量录制订阅: /peach/reconstruction/local_cloud [sensor_msgs/msg/PointCloud2]
+[peach_observability-10] [INFO] [1792119765.639996879] [peach_observability]: 全量录制订阅: /peach/reconstruction/preview_cloud [sensor_msgs/msg/PointCloud2]
+[peach_harvester-8] [INFO] [1792119766.168356698] [peach_scene_perception_node]: CameraInfo K fx=466.175 fy=465.557 cx=326.071 cy=244.789 640x480
+[peach_harvester-8] [WARN] [1792119766.247738697] [peach_target_reconstruction_node]: 重建 worker 队列已满，拒绝新帧以保持积分顺序
+[peach_harvester-8] /home/mu/Desktop/aubo_e5_jazzy_ws/aubo_py3.12/lib/python3.12/site-packages/matplotlib/projections/__init__.py:63: UserWarning: Unable to import Axes3D. This may be due to multiple versions of Matplotlib being installed (e.g. as a system package and as a pip package). As a result, the 3D projection is not available.
+[peach_harvester-8]   warnings.warn("Unable to import Axes3D. This may be due to multiple versions of "
+[peach_arm-9] [INFO] [1792119768.009138595] [peach_arm]: 场景障碍 ACM 豁免已应用: 28 条（含 <octomap> 保留名）
+[peach_harvester-8] [WARN] [1792119770.573171489] [peach_scene_perception_node]: peach_harvester.vision.scene_perception.inference: YOLO 权重迁移到 cuda:0 失败（predict 仍显式传 device，可能回退 CPU）: CUDA error: out of memory
+[peach_harvester-8] Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+[peach_harvester-8] For more detailed error information, run with CUDA_LOG_FILE=stderr
+[peach_harvester-8] 
+[peach_harvester-8] [WARN] [1792119771.043698626] [peach_scene_perception_node]: peach_harvester.vision.scene_perception.inference: YOLO warmup 失败（不阻断，首帧照常推理）: CUDA error: out of memory
+[peach_harvester-8] Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+[peach_harvester-8] For more detailed error information, run with CUDA_LOG_FILE=stderr
+[peach_harvester-8] 
+[peach_harvester-8] Ultralytics 8.3.0 🚀 Python-3.12.3 torch-2.13.0+cu130 CUDA:0 (NVIDIA GeForce RTX 3090, 24117MiB)
+[peach_arm-9] [INFO] [1792119771.084355236] [peach_arm]: 场景障碍 ACM 豁免已应用: 28 条（含 <octomap> 保留名）
+[peach_harvester-8] [ERROR] [1792119771.456636666] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+[peach_harvester-8] Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+[peach_harvester-8] For more detailed error information, run with CUDA_LOG_FILE=stderr
+[peach_harvester-8] 
+[peach_harvester-8] [WARN] [1792119771.468099781] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 38（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-8] Ultralytics 8.3.0 🚀 Python-3.12.3 torch-2.13.0+cu130 CUDA:0 (NVIDIA GeForce RTX 3090, 24117MiB)
+[peach_harvester-8] [ERROR] [1792119771.911887186] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+[peach_harvester-8] Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+[peach_harvester-8] For more detailed error information, run with CUDA_LOG_FILE=stderr
+[peach_harvester-8] 
+[peach_harvester-8] Ultralytics 8.3.0 🚀 Python-3.12.3 torch-2.13.0+cu130 CUDA:0 (NVIDIA GeForce RTX 3090, 24117MiB)
+[peach_harvester-8] [ERROR] [1792119772.351142717] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+[peach_harvester-8] Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+[peach_harvester-8] For more detailed error information, run with CUDA_LOG_FILE=stderr
+[peach_harvester-8] 
+[peach_harvester-8] Ultralytics 8.3.0 🚀 Python-3.12.3 torch-2.13.0+cu130 CUDA:0 (NVIDIA GeForce RTX 3090, 24117MiB)
+[peach_harvester-8] [ERROR] [1792119772.991800659] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+[peach_harvester-8] Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+[peach_harvester-8] For more detailed error information, run with CUDA_LOG_FILE=stderr
+[peach_harvester-8] 
+[peach_harvester-8] Ultralytics 8.3.0 🚀 Python-3.12.3 torch-2.13.0+cu130 CUDA:0 (NVIDIA GeForce RTX 3090, 24117MiB)
+[peach_observability-10] [INFO] [1792119773.418823152] [peach_observability]: 自检[initial] 14/18 通过，跳过: robot_status, imu_topic, model_files, vegetation_status
+[peach_harvester-8] [ERROR] [1792119773.485041582] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+[peach_harvester-8] Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+[peach_harvester-8] For more detailed error information, run with CUDA_LOG_FILE=stderr
+[peach_harvester-8] 
+[peach_harvester-8] Ultralytics 8.3.0 🚀 Python-3.12.3 torch-2.13.0+cu130 CUDA:0 (NVIDIA GeForce RTX 3090, 24117MiB)
+[peach_harvester-8] [ERROR] [1792119774.256051371] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+[peach_harvester-8] Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+[peach_harvester-8] For more detailed error information, run with CUDA_LOG_FILE=stderr
+[peach_harvester-8] 
+[peach_harvester-8] Ultralytics 8.3.0 🚀 Python-3.12.3 torch-2.13.0+cu130 CUDA:0 (NVIDIA GeForce RTX 3090, 24117MiB)
+[peach_harvester-8] [ERROR] [1792119774.550508690] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+[peach_harvester-8] Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+[peach_harvester-8] For more detailed error information, run with CUDA_LOG_FILE=stderr
+[peach_harvester-8] 
+[peach_harvester-8] Ultralytics 8.3.0 🚀 Python-3.12.3 torch-2.13.0+cu130 CUDA:0 (NVIDIA GeForce RTX 3090, 24117MiB)
+[peach_harvester-8] [ERROR] [1792119775.083288961] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+[peach_harvester-8] Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+[peach_harvester-8] For more detailed error information, run with CUDA_LOG_FILE=stderr
+[peach_harvester-8] 
+[peach_harvester-8] Ultralytics 8.3.0 🚀 Python-3.12.3 torch-2.13.0+cu130 CUDA:0 (NVIDIA GeForce RTX 3090, 24117MiB)
+[peach_harvester-8] [ERROR] [1792119775.582539705] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+[peach_harvester-8] Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+[peach_harvester-8] For more detailed error information, run with CUDA_LOG_FILE=stderr
+[peach_harvester-8] 
+[peach_harvester-8] Ultralytics 8.3.0 🚀 Python-3.12.3 torch-2.13.0+cu130 CUDA:0 (NVIDIA GeForce RTX 3090, 24117MiB)
+[peach_harvester-8] [ERROR] [1792119776.007831292] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+[peach_harvester-8] Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+[peach_harvester-8] For more detailed error information, run with CUDA_LOG_FILE=stderr
+[peach_harvester-8] 
+[peach_harvester-8] Ultralytics 8.3.0 🚀 Python-3.12.3 torch-2.13.0+cu130 CUDA:0 (NVIDIA GeForce RTX 3090, 24117MiB)
+[peach_harvester-8] [WARN] [1792119776.147362783] [peach_target_reconstruction_node]: New subscription discovered on topic '/peach/reconstruction/preview_cloud', requesting incompatible QoS. No messages will be sent to it. Last incompatible policy: RELIABILITY
+[peach_harvester-8] [ERROR] [1792119776.607118985] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+[peach_harvester-8] Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+[peach_harvester-8] For more detailed error information, run with CUDA_LOG_FILE=stderr
+[peach_harvester-8] 
+[peach_harvester-8] [WARN] [1792119776.616051952] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 71（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-8] Ultralytics 8.3.0 🚀 Python-3.12.3 torch-2.13.0+cu130 CUDA:0 (NVIDIA GeForce RTX 3090, 24117MiB)
+[peach_harvester-8] [ERROR] [1792119777.155041657] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+[peach_harvester-8] Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+[peach_harvester-8] For more detailed error information, run with CUDA_LOG_FILE=stderr
+[peach_harvester-8] 
+[peach_harvester-8] Ultralytics 8.3.0 🚀 Python-3.12.3 torch-2.13.0+cu130 CUDA:0 (NVIDIA GeForce RTX 3090, 24117MiB)
+[peach_harvester-8] [ERROR] [1792119777.926320873] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+[peach_harvester-8] Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+[peach_harvester-8] For more detailed error information, run with CUDA_LOG_FILE=stderr
+[peach_harvester-8] 
+[peach_harvester-8] Ultralytics 8.3.0 🚀 Python-3.12.3 torch-2.13.0+cu130 CUDA:0 (NVIDIA GeForce RTX 3090, 24117MiB)
+[peach_harvester-8] [ERROR] [1792119778.472590859] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+[peach_harvester-8] Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+[peach_harvester-8] For more detailed error information, run with CUDA_LOG_FILE=stderr
+[peach_harvester-8] 
+[peach_harvester-8] Ultralytics 8.3.0 🚀 Python-3.12.3 torch-2.13.0+cu130 CUDA:0 (NVIDIA GeForce RTX 3090, 24117MiB)
+[stereo_camera_node-1] [INFO] [1792119778.955912483] [camera.peach_stereo_camera_node]: groups=100 published=100 rate=7.3 gps drop(stream=0 incomplete=0 nostamp=0 depth=0)
+[peach_harvester-8] [ERROR] [1792119779.057124274] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+[peach_harvester-8] Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+[peach_harvester-8] For more detailed error information, run with CUDA_LOG_FILE=stderr
+[peach_harvester-8] 
+[peach_harvester-8] Ultralytics 8.3.0 🚀 Python-3.12.3 torch-2.13.0+cu130 CUDA:0 (NVIDIA GeForce RTX 3090, 24117MiB)
+[peach_arm-9] [INFO] [1792119779.184620881] [peach_arm]: 使能切换到操作台广播源（/peach/batch/enables）
+[peach_arm-9] [INFO] [1792119779.184750036] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_harvester-8] [INFO] [1792119779.186984240] [peach_supervisor]: 操作台使能: execution=False grasp=False tool=False（live_camera_mock owned test）
+[peach_harvester-8] [ERROR] [1792119779.549007047] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+[peach_harvester-8] Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+[peach_harvester-8] For more detailed error information, run with CUDA_LOG_FILE=stderr
+[peach_harvester-8] 
+[peach_harvester-8] Ultralytics 8.3.0 🚀 Python-3.12.3 torch-2.13.0+cu130 CUDA:0 (NVIDIA GeForce RTX 3090, 24117MiB)
+[peach_arm-9] [INFO] [1792119779.924686941] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_harvester-8] [ERROR] [1792119780.165366681] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+[peach_harvester-8] Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+[peach_harvester-8] For more detailed error information, run with CUDA_LOG_FILE=stderr
+[peach_harvester-8] 
+[peach_harvester-8] Ultralytics 8.3.0 🚀 Python-3.12.3 torch-2.13.0+cu130 CUDA:0 (NVIDIA GeForce RTX 3090, 24117MiB)
+[peach_harvester-8] [ERROR] [1792119780.629110053] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+[peach_harvester-8] Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+[peach_harvester-8] For more detailed error information, run with CUDA_LOG_FILE=stderr
+[peach_harvester-8] 
+[peach_harvester-8] Ultralytics 8.3.0 🚀 Python-3.12.3 torch-2.13.0+cu130 CUDA:0 (NVIDIA GeForce RTX 3090, 24117MiB)
+[peach_arm-9] [INFO] [1792119780.921558950] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_harvester-8] [ERROR] [1792119781.167899291] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+[peach_harvester-8] Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+[peach_harvester-8] For more detailed error information, run with CUDA_LOG_FILE=stderr
+[peach_harvester-8] 
+[peach_harvester-8] Ultralytics 8.3.0 🚀 Python-3.12.3 torch-2.13.0+cu130 CUDA:0 (NVIDIA GeForce RTX 3090, 24117MiB)
+[peach_harvester-8] [ERROR] [1792119781.731014917] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+[peach_harvester-8] Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+[peach_harvester-8] For more detailed error information, run with CUDA_LOG_FILE=stderr
+[peach_harvester-8] 
+[peach_harvester-8] [WARN] [1792119781.763963432] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 97（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-8] Ultralytics 8.3.0 🚀 Python-3.12.3 torch-2.13.0+cu130 CUDA:0 (NVIDIA GeForce RTX 3090, 24117MiB)
+[peach_arm-9] [INFO] [1792119781.922522658] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_harvester-8] [ERROR] [1792119782.313028456] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+[peach_harvester-8] Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+[peach_harvester-8] For more detailed error information, run with CUDA_LOG_FILE=stderr
+[peach_harvester-8] 
+[peach_harvester-8] Ultralytics 8.3.0 🚀 Python-3.12.3 torch-2.13.0+cu130 CUDA:0 (NVIDIA GeForce RTX 3090, 24117MiB)
+[peach_arm-9] [INFO] [1792119782.921148400] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_harvester-8] [ERROR] [1792119783.226621861] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+[peach_harvester-8] Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+[peach_harvester-8] For more detailed error information, run with CUDA_LOG_FILE=stderr
+[peach_harvester-8] 
+[peach_harvester-8] Ultralytics 8.3.0 🚀 Python-3.12.3 torch-2.13.0+cu130 CUDA:0 (NVIDIA GeForce RTX 3090, 24117MiB)
+[peach_arm-9] [INFO] [1792119783.925236631] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_harvester-8] [ERROR] [1792119783.966999257] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+[peach_harvester-8] Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+[peach_harvester-8] For more detailed error information, run with CUDA_LOG_FILE=stderr
+[peach_harvester-8] 
+[peach_harvester-8] Ultralytics 8.3.0 🚀 Python-3.12.3 torch-2.13.0+cu130 CUDA:0 (NVIDIA GeForce RTX 3090, 24117MiB)
+[peach_harvester-8] [ERROR] [1792119784.516023588] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+[peach_harvester-8] Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+[peach_harvester-8] For more detailed error information, run with CUDA_LOG_FILE=stderr
+[peach_harvester-8] 
+[peach_harvester-8] Ultralytics 8.3.0 🚀 Python-3.12.3 torch-2.13.0+cu130 CUDA:0 (NVIDIA GeForce RTX 3090, 24117MiB)
+[peach_arm-9] [INFO] [1792119784.926223775] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_harvester-8] [ERROR] [1792119784.995543020] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+[peach_harvester-8] Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+[peach_harvester-8] For more detailed error information, run with CUDA_LOG_FILE=stderr
+[peach_harvester-8] 
+[peach_harvester-8] Ultralytics 8.3.0 🚀 Python-3.12.3 torch-2.13.0+cu130 CUDA:0 (NVIDIA GeForce RTX 3090, 24117MiB)
+[peach_harvester-8] [ERROR] [1792119785.417218782] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+[peach_harvester-8] Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+[peach_harvester-8] For more detailed error information, run with CUDA_LOG_FILE=stderr
+[peach_harvester-8] 
+[peach_harvester-8] Ultralytics 8.3.0 🚀 Python-3.12.3 torch-2.13.0+cu130 CUDA:0 (NVIDIA GeForce RTX 3090, 24117MiB)
+[peach_arm-9] [INFO] [1792119785.921637418] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_harvester-8] [ERROR] [1792119785.967063530] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+[peach_harvester-8] Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+[peach_harvester-8] For more detailed error information, run with CUDA_LOG_FILE=stderr
+[peach_harvester-8] 
+[peach_harvester-8] Ultralytics 8.3.0 🚀 Python-3.12.3 torch-2.13.0+cu130 CUDA:0 (NVIDIA GeForce RTX 3090, 24117MiB)
+[peach_harvester-8] [ERROR] [1792119786.487277932] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+[peach_harvester-8] Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+[peach_harvester-8] For more detailed error information, run with CUDA_LOG_FILE=stderr
+[peach_harvester-8] 
+[peach_harvester-8] Ultralytics 8.3.0 🚀 Python-3.12.3 torch-2.13.0+cu130 CUDA:0 (NVIDIA GeForce RTX 3090, 24117MiB)
+[peach_harvester-8] [ERROR] [1792119786.921345954] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+[peach_harvester-8] Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+[peach_harvester-8] For more detailed error information, run with CUDA_LOG_FILE=stderr
+[peach_harvester-8] 
+[peach_arm-9] [INFO] [1792119786.924458970] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_harvester-8] [WARN] [1792119786.928076806] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 121（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-8] Ultralytics 8.3.0 🚀 Python-3.12.3 torch-2.13.0+cu130 CUDA:0 (NVIDIA GeForce RTX 3090, 24117MiB)
+[peach_harvester-8] [ERROR] [1792119787.805226037] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+[peach_harvester-8] Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+[peach_harvester-8] For more detailed error information, run with CUDA_LOG_FILE=stderr
+[peach_harvester-8] 
+[peach_harvester-8] Ultralytics 8.3.0 🚀 Python-3.12.3 torch-2.13.0+cu130 CUDA:0 (NVIDIA GeForce RTX 3090, 24117MiB)
+[peach_arm-9] [INFO] [1792119787.927526653] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_harvester-8] [ERROR] [1792119788.400766135] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+[peach_harvester-8] Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+[peach_harvester-8] For more detailed error information, run with CUDA_LOG_FILE=stderr
+[peach_harvester-8] 
+[peach_harvester-8] Ultralytics 8.3.0 🚀 Python-3.12.3 torch-2.13.0+cu130 CUDA:0 (NVIDIA GeForce RTX 3090, 24117MiB)
+[peach_harvester-8] [ERROR] [1792119788.910885802] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+[peach_harvester-8] Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+[peach_harvester-8] For more detailed error information, run with CUDA_LOG_FILE=stderr
+[peach_harvester-8] 
+[peach_harvester-8] Ultralytics 8.3.0 🚀 Python-3.12.3 torch-2.13.0+cu130 CUDA:0 (NVIDIA GeForce RTX 3090, 24117MiB)
+[peach_arm-9] [INFO] [1792119788.931035647] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_harvester-8] [ERROR] [1792119789.446974158] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+[peach_harvester-8] Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+[peach_harvester-8] For more detailed error information, run with CUDA_LOG_FILE=stderr
+[peach_harvester-8] 
+[peach_harvester-8] Ultralytics 8.3.0 🚀 Python-3.12.3 torch-2.13.0+cu130 CUDA:0 (NVIDIA GeForce RTX 3090, 24117MiB)
+[peach_arm-9] [INFO] [1792119789.925238022] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_harvester-8] [ERROR] [1792119790.073153264] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+[peach_harvester-8] Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+[peach_harvester-8] For more detailed error information, run with CUDA_LOG_FILE=stderr
+[peach_harvester-8] 
+[peach_harvester-8] Ultralytics 8.3.0 🚀 Python-3.12.3 torch-2.13.0+cu130 CUDA:0 (NVIDIA GeForce RTX 3090, 24117MiB)
+[peach_harvester-8] [ERROR] [1792119790.601760900] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+[peach_harvester-8] Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+[peach_harvester-8] For more detailed error information, run with CUDA_LOG_FILE=stderr
+[peach_harvester-8] 
+[peach_harvester-8] Ultralytics 8.3.0 🚀 Python-3.12.3 torch-2.13.0+cu130 CUDA:0 (NVIDIA GeForce RTX 3090, 24117MiB)
+[peach_arm-9] [INFO] [1792119790.925237510] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_harvester-8] [ERROR] [1792119791.128184158] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+[peach_harvester-8] Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+[peach_harvester-8] For more detailed error information, run with CUDA_LOG_FILE=stderr
+[peach_harvester-8] 
+[peach_harvester-8] Ultralytics 8.3.0 🚀 Python-3.12.3 torch-2.13.0+cu130 CUDA:0 (NVIDIA GeForce RTX 3090, 24117MiB)
+[peach_harvester-8] [ERROR] [1792119791.851301320] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+[peach_harvester-8] Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+[peach_harvester-8] For more detailed error information, run with CUDA_LOG_FILE=stderr
+[peach_harvester-8] 
+[peach_harvester-8] Ultralytics 8.3.0 🚀 Python-3.12.3 torch-2.13.0+cu130 CUDA:0 (NVIDIA GeForce RTX 3090, 24117MiB)
+[peach_arm-9] [INFO] [1792119791.921633262] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_harvester-8] [ERROR] [1792119792.464141423] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+[peach_harvester-8] Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+[peach_harvester-8] For more detailed error information, run with CUDA_LOG_FILE=stderr
+[peach_harvester-8] 
+[peach_harvester-8] [WARN] [1792119792.479984299] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 148（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-8] Ultralytics 8.3.0 🚀 Python-3.12.3 torch-2.13.0+cu130 CUDA:0 (NVIDIA GeForce RTX 3090, 24117MiB)
+[peach_arm-9] [INFO] [1792119792.923024761] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_harvester-8] [ERROR] [1792119793.017186459] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+[peach_harvester-8] Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+[peach_harvester-8] For more detailed error information, run with CUDA_LOG_FILE=stderr
+[peach_harvester-8] 
+[peach_harvester-8] Ultralytics 8.3.0 🚀 Python-3.12.3 torch-2.13.0+cu130 CUDA:0 (NVIDIA GeForce RTX 3090, 24117MiB)
+[peach_observability-10] [INFO] [1792119793.422634999] [peach_observability]: 自检[periodic] 14/18 通过，跳过: robot_status, imu_topic, model_files, vegetation_status
+[peach_harvester-8] [ERROR] [1792119793.704350269] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+[peach_harvester-8] Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+[peach_harvester-8] For more detailed error information, run with CUDA_LOG_FILE=stderr
+[peach_harvester-8] 
+[peach_harvester-8] Ultralytics 8.3.0 🚀 Python-3.12.3 torch-2.13.0+cu130 CUDA:0 (NVIDIA GeForce RTX 3090, 24117MiB)
+[peach_arm-9] [INFO] [1792119793.921751722] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[stereo_camera_node-1] [INFO] [1792119794.191718385] [camera.peach_stereo_camera_node]: groups=200 published=200 rate=6.9 gps drop(stream=0 incomplete=0 nostamp=0 depth=0)
+[peach_harvester-8] [ERROR] [1792119794.212607502] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+[peach_harvester-8] Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+[peach_harvester-8] For more detailed error information, run with CUDA_LOG_FILE=stderr
+[peach_harvester-8] 
+[peach_harvester-8] Ultralytics 8.3.0 🚀 Python-3.12.3 torch-2.13.0+cu130 CUDA:0 (NVIDIA GeForce RTX 3090, 24117MiB)
+[peach_harvester-8] [ERROR] [1792119794.739379342] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+[peach_harvester-8] Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+[peach_harvester-8] For more detailed error information, run with CUDA_LOG_FILE=stderr
+[peach_harvester-8] 
+[peach_harvester-8] Ultralytics 8.3.0 🚀 Python-3.12.3 torch-2.13.0+cu130 CUDA:0 (NVIDIA GeForce RTX 3090, 24117MiB)
+[peach_arm-9] [INFO] [1792119794.925982115] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_harvester-8] [ERROR] [1792119795.321731133] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+[peach_harvester-8] Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+[peach_harvester-8] For more detailed error information, run with CUDA_LOG_FILE=stderr
+[peach_harvester-8] 
+[peach_harvester-8] Ultralytics 8.3.0 🚀 Python-3.12.3 torch-2.13.0+cu130 CUDA:0 (NVIDIA GeForce RTX 3090, 24117MiB)
+[peach_harvester-8] [ERROR] [1792119795.796057122] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+[peach_harvester-8] Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+[peach_harvester-8] For more detailed error information, run with CUDA_LOG_FILE=stderr
+[peach_harvester-8] 
+[peach_harvester-8] Ultralytics 8.3.0 🚀 Python-3.12.3 torch-2.13.0+cu130 CUDA:0 (NVIDIA GeForce RTX 3090, 24117MiB)
+[peach_arm-9] [INFO] [1792119796.129658991] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_harvester-8] [ERROR] [1792119796.573179630] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+[peach_harvester-8] Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+[peach_harvester-8] For more detailed error information, run with CUDA_LOG_FILE=stderr
+[peach_harvester-8] 
+[peach_harvester-8] Ultralytics 8.3.0 🚀 Python-3.12.3 torch-2.13.0+cu130 CUDA:0 (NVIDIA GeForce RTX 3090, 24117MiB)
+[peach_arm-9] [INFO] [1792119796.925968901] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_harvester-8] [ERROR] [1792119797.146728410] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+[peach_harvester-8] Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+[peach_harvester-8] For more detailed error information, run with CUDA_LOG_FILE=stderr
+[peach_harvester-8] 
+[peach_harvester-8] Ultralytics 8.3.0 🚀 Python-3.12.3 torch-2.13.0+cu130 CUDA:0 (NVIDIA GeForce RTX 3090, 24117MiB)
+[peach_harvester-8] [ERROR] [1792119797.731200944] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+[peach_harvester-8] Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+[peach_harvester-8] For more detailed error information, run with CUDA_LOG_FILE=stderr
+[peach_harvester-8] 
+[peach_harvester-8] [WARN] [1792119797.737951045] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 174（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-8] Ultralytics 8.3.0 🚀 Python-3.12.3 torch-2.13.0+cu130 CUDA:0 (NVIDIA GeForce RTX 3090, 24117MiB)
+[peach_arm-9] [INFO] [1792119797.922110248] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_harvester-8] [ERROR] [1792119798.443284465] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+[peach_harvester-8] Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+[peach_harvester-8] For more detailed error information, run with CUDA_LOG_FILE=stderr
+[peach_harvester-8] 
+[peach_harvester-8] Ultralytics 8.3.0 🚀 Python-3.12.3 torch-2.13.0+cu130 CUDA:0 (NVIDIA GeForce RTX 3090, 24117MiB)
+[peach_arm-9] [INFO] [1792119798.923158032] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_harvester-8] [ERROR] [1792119799.230336422] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+[peach_harvester-8] Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+[peach_harvester-8] For more detailed error information, run with CUDA_LOG_FILE=stderr
+[peach_harvester-8] 
+[peach_harvester-8] Ultralytics 8.3.0 🚀 Python-3.12.3 torch-2.13.0+cu130 CUDA:0 (NVIDIA GeForce RTX 3090, 24117MiB)
+[peach_arm-9] [INFO] [1792119799.921720213] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_harvester-8] [ERROR] [1792119799.951954134] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+[peach_harvester-8] Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+[peach_harvester-8] For more detailed error information, run with CUDA_LOG_FILE=stderr
+[peach_harvester-8] 
+[peach_harvester-8] Ultralytics 8.3.0 🚀 Python-3.12.3 torch-2.13.0+cu130 CUDA:0 (NVIDIA GeForce RTX 3090, 24117MiB)
+[peach_harvester-8] [ERROR] [1792119800.590061698] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+[peach_harvester-8] Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+[peach_harvester-8] For more detailed error information, run with CUDA_LOG_FILE=stderr
+[peach_harvester-8] 
+[peach_harvester-8] Ultralytics 8.3.0 🚀 Python-3.12.3 torch-2.13.0+cu130 CUDA:0 (NVIDIA GeForce RTX 3090, 24117MiB)
+[peach_arm-9] [INFO] [1792119800.926161242] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_harvester-8] [ERROR] [1792119801.152008041] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+[peach_harvester-8] Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+[peach_harvester-8] For more detailed error information, run with CUDA_LOG_FILE=stderr
+[peach_harvester-8] 
+[peach_harvester-8] Ultralytics 8.3.0 🚀 Python-3.12.3 torch-2.13.0+cu130 CUDA:0 (NVIDIA GeForce RTX 3090, 24117MiB)
+[peach_arm-9] [INFO] [1792119801.924284402] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_harvester-8] [ERROR] [1792119802.171120674] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+[peach_harvester-8] Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+[peach_harvester-8] For more detailed error information, run with CUDA_LOG_FILE=stderr
+[peach_harvester-8] 
+[peach_harvester-8] Ultralytics 8.3.0 🚀 Python-3.12.3 torch-2.13.0+cu130 CUDA:0 (NVIDIA GeForce RTX 3090, 24117MiB)
+[peach_harvester-8] [ERROR] [1792119802.897690500] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+[peach_harvester-8] Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+[peach_harvester-8] For more detailed error information, run with CUDA_LOG_FILE=stderr
+[peach_harvester-8] 
+[peach_harvester-8] [WARN] [1792119802.911410404] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 201（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-8] Ultralytics 8.3.0 🚀 Python-3.12.3 torch-2.13.0+cu130 CUDA:0 (NVIDIA GeForce RTX 3090, 24117MiB)
+[peach_arm-9] [INFO] [1792119802.925769105] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_harvester-8] [ERROR] [1792119803.575937905] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+[peach_harvester-8] Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+[peach_harvester-8] For more detailed error information, run with CUDA_LOG_FILE=stderr
+[peach_harvester-8] 
+[peach_harvester-8] Ultralytics 8.3.0 🚀 Python-3.12.3 torch-2.13.0+cu130 CUDA:0 (NVIDIA GeForce RTX 3090, 24117MiB)
+[peach_arm-9] [INFO] [1792119803.931051971] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_harvester-8] [ERROR] [1792119804.105151234] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+[peach_harvester-8] Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+[peach_harvester-8] For more detailed error information, run with CUDA_LOG_FILE=stderr
+[peach_harvester-8] 
+[peach_harvester-8] Ultralytics 8.3.0 🚀 Python-3.12.3 torch-2.13.0+cu130 CUDA:0 (NVIDIA GeForce RTX 3090, 24117MiB)
+[peach_harvester-8] [ERROR] [1792119804.730872979] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+[peach_harvester-8] Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+[peach_harvester-8] For more detailed error information, run with CUDA_LOG_FILE=stderr
+[peach_harvester-8] 
+[peach_harvester-8] Ultralytics 8.3.0 🚀 Python-3.12.3 torch-2.13.0+cu130 CUDA:0 (NVIDIA GeForce RTX 3090, 24117MiB)
+[peach_arm-9] [INFO] [1792119804.921417903] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_harvester-8] [ERROR] [1792119805.369913656] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+[peach_harvester-8] Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+[peach_harvester-8] For more detailed error information, run with CUDA_LOG_FILE=stderr
+[peach_harvester-8] 
+[peach_harvester-8] Ultralytics 8.3.0 🚀 Python-3.12.3 torch-2.13.0+cu130 CUDA:0 (NVIDIA GeForce RTX 3090, 24117MiB)
+[peach_arm-9] [INFO] [1792119805.920896038] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_harvester-8] [ERROR] [1792119805.926254868] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+[peach_harvester-8] Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+[peach_harvester-8] For more detailed error information, run with CUDA_LOG_FILE=stderr
+[peach_harvester-8] 
+[peach_harvester-8] Ultralytics 8.3.0 🚀 Python-3.12.3 torch-2.13.0+cu130 CUDA:0 (NVIDIA GeForce RTX 3090, 24117MiB)
+[peach_harvester-8] [ERROR] [1792119806.380210483] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+[peach_harvester-8] Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+[peach_harvester-8] For more detailed error information, run with CUDA_LOG_FILE=stderr
+[peach_harvester-8] 
+[peach_harvester-8] Ultralytics 8.3.0 🚀 Python-3.12.3 torch-2.13.0+cu130 CUDA:0 (NVIDIA GeForce RTX 3090, 24117MiB)
+[peach_arm-9] [INFO] [1792119806.923185746] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_harvester-8] [ERROR] [1792119807.196198939] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+[peach_harvester-8] Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+[peach_harvester-8] For more detailed error information, run with CUDA_LOG_FILE=stderr
+[peach_harvester-8] 
+[peach_harvester-8] Ultralytics 8.3.0 🚀 Python-3.12.3 torch-2.13.0+cu130 CUDA:0 (NVIDIA GeForce RTX 3090, 24117MiB)
+[peach_arm-9] [INFO] [1792119807.926459743] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_harvester-8] [ERROR] [1792119808.014001001] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+[peach_harvester-8] Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+[peach_harvester-8] For more detailed error information, run with CUDA_LOG_FILE=stderr
+[peach_harvester-8] 
+[peach_harvester-8] [WARN] [1792119808.026597838] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 227（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-8] Ultralytics 8.3.0 🚀 Python-3.12.3 torch-2.13.0+cu130 CUDA:0 (NVIDIA GeForce RTX 3090, 24117MiB)
+[peach_harvester-8] [ERROR] [1792119808.581979488] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+[peach_harvester-8] Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+[peach_harvester-8] For more detailed error information, run with CUDA_LOG_FILE=stderr
+[peach_harvester-8] 
+[peach_harvester-8] Ultralytics 8.3.0 🚀 Python-3.12.3 torch-2.13.0+cu130 CUDA:0 (NVIDIA GeForce RTX 3090, 24117MiB)
+[peach_arm-9] [INFO] [1792119808.925386518] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_harvester-8] [ERROR] [1792119809.192213923] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+[peach_harvester-8] Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+[peach_harvester-8] For more detailed error information, run with CUDA_LOG_FILE=stderr
+[peach_harvester-8] 
+[peach_harvester-8] Ultralytics 8.3.0 🚀 Python-3.12.3 torch-2.13.0+cu130 CUDA:0 (NVIDIA GeForce RTX 3090, 24117MiB)
+[stereo_camera_node-1] [INFO] [1792119809.431049248] [camera.peach_stereo_camera_node]: groups=300 published=300 rate=6.8 gps drop(stream=0 incomplete=0 nostamp=0 depth=0)
+[peach_harvester-8] [ERROR] [1792119809.762322783] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+[peach_harvester-8] Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+[peach_harvester-8] For more detailed error information, run with CUDA_LOG_FILE=stderr
+[peach_harvester-8] 
+[peach_harvester-8] Ultralytics 8.3.0 🚀 Python-3.12.3 torch-2.13.0+cu130 CUDA:0 (NVIDIA GeForce RTX 3090, 24117MiB)
+[peach_arm-9] [INFO] [1792119809.926741310] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_harvester-8] [ERROR] [1792119810.305217585] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+[peach_harvester-8] Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+[peach_harvester-8] For more detailed error information, run with CUDA_LOG_FILE=stderr
+[peach_harvester-8] 
+[peach_harvester-8] Ultralytics 8.3.0 🚀 Python-3.12.3 torch-2.13.0+cu130 CUDA:0 (NVIDIA GeForce RTX 3090, 24117MiB)
+[peach_harvester-8] [ERROR] [1792119810.800031945] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+[peach_harvester-8] Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+[peach_harvester-8] For more detailed error information, run with CUDA_LOG_FILE=stderr
+[peach_harvester-8] 
+[peach_harvester-8] Ultralytics 8.3.0 🚀 Python-3.12.3 torch-2.13.0+cu130 CUDA:0 (NVIDIA GeForce RTX 3090, 24117MiB)
+[peach_arm-9] [INFO] [1792119810.923104332] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_harvester-8] [ERROR] [1792119811.343240885] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+[peach_harvester-8] Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+[peach_harvester-8] For more detailed error information, run with CUDA_LOG_FILE=stderr
+[peach_harvester-8] 
+[peach_harvester-8] Ultralytics 8.3.0 🚀 Python-3.12.3 torch-2.13.0+cu130 CUDA:0 (NVIDIA GeForce RTX 3090, 24117MiB)
+[peach_arm-9] [INFO] [1792119811.923510089] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_harvester-8] [ERROR] [1792119812.109244182] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+[peach_harvester-8] Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+[peach_harvester-8] For more detailed error information, run with CUDA_LOG_FILE=stderr
+[peach_harvester-8] 
+[peach_harvester-8] Ultralytics 8.3.0 🚀 Python-3.12.3 torch-2.13.0+cu130 CUDA:0 (NVIDIA GeForce RTX 3090, 24117MiB)
+[peach_harvester-8] [ERROR] [1792119812.639040939] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+[peach_harvester-8] Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+[peach_harvester-8] For more detailed error information, run with CUDA_LOG_FILE=stderr
+[peach_harvester-8] 
+[peach_harvester-8] Ultralytics 8.3.0 🚀 Python-3.12.3 torch-2.13.0+cu130 CUDA:0 (NVIDIA GeForce RTX 3090, 24117MiB)
+[peach_arm-9] [INFO] [1792119812.922416197] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_harvester-8] [ERROR] [1792119813.170922175] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+[peach_harvester-8] Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+[peach_harvester-8] For more detailed error information, run with CUDA_LOG_FILE=stderr
+[peach_harvester-8] 
+[peach_harvester-8] [WARN] [1792119813.172343077] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 251（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-8] Ultralytics 8.3.0 🚀 Python-3.12.3 torch-2.13.0+cu130 CUDA:0 (NVIDIA GeForce RTX 3090, 24117MiB)
+[peach_harvester-8] [ERROR] [1792119813.617842311] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+[peach_harvester-8] Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+[peach_harvester-8] For more detailed error information, run with CUDA_LOG_FILE=stderr
+[peach_harvester-8] 
+[peach_harvester-8] Ultralytics 8.3.0 🚀 Python-3.12.3 torch-2.13.0+cu130 CUDA:0 (NVIDIA GeForce RTX 3090, 24117MiB)
+[peach_arm-9] [INFO] [1792119813.924581323] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_harvester-8] [ERROR] [1792119814.186418747] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+[peach_harvester-8] Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+[peach_harvester-8] For more detailed error information, run with CUDA_LOG_FILE=stderr
+[peach_harvester-8] 
+[peach_harvester-8] Ultralytics 8.3.0 🚀 Python-3.12.3 torch-2.13.0+cu130 CUDA:0 (NVIDIA GeForce RTX 3090, 24117MiB)
+[peach_harvester-8] [ERROR] [1792119814.795531769] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+[peach_harvester-8] Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+[peach_harvester-8] For more detailed error information, run with CUDA_LOG_FILE=stderr
+[peach_harvester-8] 
+[peach_harvester-8] Ultralytics 8.3.0 🚀 Python-3.12.3 torch-2.13.0+cu130 CUDA:0 (NVIDIA GeForce RTX 3090, 24117MiB)
+[peach_arm-9] [INFO] [1792119814.921470926] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_harvester-8] [ERROR] [1792119815.382590592] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+[peach_harvester-8] Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+[peach_harvester-8] For more detailed error information, run with CUDA_LOG_FILE=stderr
+[peach_harvester-8] 
+[peach_harvester-8] Ultralytics 8.3.0 🚀 Python-3.12.3 torch-2.13.0+cu130 CUDA:0 (NVIDIA GeForce RTX 3090, 24117MiB)
+[peach_harvester-8] [ERROR] [1792119815.836334601] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+[peach_harvester-8] Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+[peach_harvester-8] For more detailed error information, run with CUDA_LOG_FILE=stderr
+[peach_harvester-8] 
+[peach_harvester-8] Ultralytics 8.3.0 🚀 Python-3.12.3 torch-2.13.0+cu130 CUDA:0 (NVIDIA GeForce RTX 3090, 24117MiB)
+[peach_arm-9] [INFO] [1792119816.095205091] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_harvester-8] [ERROR] [1792119816.470431103] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+[peach_harvester-8] Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+[peach_harvester-8] For more detailed error information, run with CUDA_LOG_FILE=stderr
+[peach_harvester-8] 
+[peach_harvester-8] Ultralytics 8.3.0 🚀 Python-3.12.3 torch-2.13.0+cu130 CUDA:0 (NVIDIA GeForce RTX 3090, 24117MiB)
+[peach_arm-9] [INFO] [1792119816.923297465] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_harvester-8] [ERROR] [1792119816.943062497] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+[peach_harvester-8] Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+[peach_harvester-8] For more detailed error information, run with CUDA_LOG_FILE=stderr
+[peach_harvester-8] 
+[peach_harvester-8] Ultralytics 8.3.0 🚀 Python-3.12.3 torch-2.13.0+cu130 CUDA:0 (NVIDIA GeForce RTX 3090, 24117MiB)
+[peach_harvester-8] [ERROR] [1792119817.533705315] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+[peach_harvester-8] Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+[peach_harvester-8] For more detailed error information, run with CUDA_LOG_FILE=stderr
+[peach_harvester-8] 
+[peach_harvester-8] Ultralytics 8.3.0 🚀 Python-3.12.3 torch-2.13.0+cu130 CUDA:0 (NVIDIA GeForce RTX 3090, 24117MiB)
+[ros2_control_node-4] [WARN] [1792119817.853779673] [controller_manager]: Overrun detected! The controller manager missed its desired rate of 200 Hz. The loop took 41.194073 ms (missed cycles : 9).
+[peach_arm-9] [INFO] [1792119817.921089990] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_harvester-8] [ERROR] [1792119818.203115260] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+[peach_harvester-8] Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+[peach_harvester-8] For more detailed error information, run with CUDA_LOG_FILE=stderr
+[peach_harvester-8] 
+[peach_harvester-8] [WARN] [1792119818.208178740] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 273（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-8] Ultralytics 8.3.0 🚀 Python-3.12.3 torch-2.13.0+cu130 CUDA:0 (NVIDIA GeForce RTX 3090, 24117MiB)
+[peach_harvester-8] [ERROR] [1792119818.847561744] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+[peach_harvester-8] Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+[peach_harvester-8] For more detailed error information, run with CUDA_LOG_FILE=stderr
+[peach_harvester-8] 
+[peach_harvester-8] Ultralytics 8.3.0 🚀 Python-3.12.3 torch-2.13.0+cu130 CUDA:0 (NVIDIA GeForce RTX 3090, 24117MiB)
+[peach_arm-9] [INFO] [1792119818.925339972] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_harvester-8] [ERROR] [1792119819.185349336] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+[peach_harvester-8] Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+[peach_harvester-8] For more detailed error information, run with CUDA_LOG_FILE=stderr
+[peach_harvester-8] 
+[peach_harvester-8] Ultralytics 8.3.0 🚀 Python-3.12.3 torch-2.13.0+cu130 CUDA:0 (NVIDIA GeForce RTX 3090, 24117MiB)
+[peach_harvester-8] [ERROR] [1792119819.546793854] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+[peach_harvester-8] Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+[peach_harvester-8] For more detailed error information, run with CUDA_LOG_FILE=stderr
+[peach_harvester-8] 
+[peach_harvester-8] Ultralytics 8.3.0 🚀 Python-3.12.3 torch-2.13.0+cu130 CUDA:0 (NVIDIA GeForce RTX 3090, 24117MiB)
+[peach_harvester-8] [ERROR] [1792119819.840521675] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+[peach_harvester-8] Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+[peach_harvester-8] For more detailed error information, run with CUDA_LOG_FILE=stderr
+[peach_harvester-8] 
+[peach_harvester-8] Ultralytics 8.3.0 🚀 Python-3.12.3 torch-2.13.0+cu130 CUDA:0 (NVIDIA GeForce RTX 3090, 24117MiB)
+[peach_arm-9] [INFO] [1792119820.092868558] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_harvester-8] [ERROR] [1792119820.440898799] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+[peach_harvester-8] Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+[peach_harvester-8] For more detailed error information, run with CUDA_LOG_FILE=stderr
+[peach_harvester-8] 
+[peach_harvester-8] Ultralytics 8.3.0 🚀 Python-3.12.3 torch-2.13.0+cu130 CUDA:0 (NVIDIA GeForce RTX 3090, 24117MiB)
+[peach_harvester-8] [ERROR] [1792119820.910279355] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+[peach_harvester-8] Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+[peach_harvester-8] For more detailed error information, run with CUDA_LOG_FILE=stderr
+[peach_harvester-8] 
+[peach_harvester-8] Ultralytics 8.3.0 🚀 Python-3.12.3 torch-2.13.0+cu130 CUDA:0 (NVIDIA GeForce RTX 3090, 24117MiB)
+[peach_arm-9] [INFO] [1792119820.921795675] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_harvester-8] [ERROR] [1792119821.482161346] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+[peach_harvester-8] Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+[peach_harvester-8] For more detailed error information, run with CUDA_LOG_FILE=stderr
+[peach_harvester-8] 
+[peach_harvester-8] Ultralytics 8.3.0 🚀 Python-3.12.3 torch-2.13.0+cu130 CUDA:0 (NVIDIA GeForce RTX 3090, 24117MiB)
+[peach_harvester-8] [ERROR] [1792119821.893360165] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+[peach_harvester-8] Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+[peach_harvester-8] For more detailed error information, run with CUDA_LOG_FILE=stderr
+[peach_harvester-8] 
+[peach_harvester-8] Ultralytics 8.3.0 🚀 Python-3.12.3 torch-2.13.0+cu130 CUDA:0 (NVIDIA GeForce RTX 3090, 24117MiB)
+[peach_arm-9] [INFO] [1792119821.929515970] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_harvester-8] [ERROR] [1792119822.699454569] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+[peach_harvester-8] Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+[peach_harvester-8] For more detailed error information, run with CUDA_LOG_FILE=stderr
+[peach_harvester-8] 
+[peach_harvester-8] Ultralytics 8.3.0 🚀 Python-3.12.3 torch-2.13.0+cu130 CUDA:0 (NVIDIA GeForce RTX 3090, 24117MiB)
+[peach_arm-9] [INFO] [1792119822.925071364] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_harvester-8] [ERROR] [1792119823.157544630] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+[peach_harvester-8] Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+[peach_harvester-8] For more detailed error information, run with CUDA_LOG_FILE=stderr
+[peach_harvester-8] 
+[peach_harvester-8] Ultralytics 8.3.0 🚀 Python-3.12.3 torch-2.13.0+cu130 CUDA:0 (NVIDIA GeForce RTX 3090, 24117MiB)
+[peach_observability-10] [INFO] [1792119823.428193515] [peach_observability]: 自检[periodic] 14/18 通过，跳过: robot_status, imu_topic, model_files, vegetation_status
+[stereo_camera_node-1] [INFO] [1792119823.657421019] [camera.peach_stereo_camera_node]: groups=400 published=400 rate=6.8 gps drop(stream=0 incomplete=0 nostamp=0 depth=0)
+[peach_harvester-8] [ERROR] [1792119823.731139186] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+[peach_harvester-8] Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+[peach_harvester-8] For more detailed error information, run with CUDA_LOG_FILE=stderr
+[peach_harvester-8] 
+[peach_harvester-8] [WARN] [1792119823.738283002] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 308（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-8] Ultralytics 8.3.0 🚀 Python-3.12.3 torch-2.13.0+cu130 CUDA:0 (NVIDIA GeForce RTX 3090, 24117MiB)
+[peach_arm-9] [INFO] [1792119823.922601546] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_harvester-8] [ERROR] [1792119824.234141311] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+[peach_harvester-8] Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+[peach_harvester-8] For more detailed error information, run with CUDA_LOG_FILE=stderr
+[peach_harvester-8] 
+[peach_harvester-8] Ultralytics 8.3.0 🚀 Python-3.12.3 torch-2.13.0+cu130 CUDA:0 (NVIDIA GeForce RTX 3090, 24117MiB)
+[peach_arm-9] [INFO] [1792119824.692547856] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_harvester-8] [INFO] [1792119824.694876260] [peach_supervisor]: 操作台使能: execution=False grasp=False tool=False（live_camera_mock owned test）
+[WARNING] [launch]: user interrupted with ctrl-c (SIGINT)
+[INFO] [peach_lifecycle_flag_bridge-12]: sending signal 'SIGINT' to process[peach_lifecycle_flag_bridge-12]
+[INFO] [lifecycle_manager-11]: sending signal 'SIGINT' to process[lifecycle_manager-11]
+[INFO] [peach_observability-10]: sending signal 'SIGINT' to process[peach_observability-10]
+[INFO] [peach_arm-9]: sending signal 'SIGINT' to process[peach_arm-9]
+[INFO] [peach_harvester-8]: sending signal 'SIGINT' to process[peach_harvester-8]
+[INFO] [move_group-7]: sending signal 'SIGINT' to process[move_group-7]
+[INFO] [ros2_control_node-4]: sending signal 'SIGINT' to process[ros2_control_node-4]
+[INFO] [robot_state_publisher-3]: sending signal 'SIGINT' to process[robot_state_publisher-3]
+[INFO] [peach_scene_obstacles-2]: sending signal 'SIGINT' to process[peach_scene_obstacles-2]
+[INFO] [stereo_camera_node-1]: sending signal 'SIGINT' to process[stereo_camera_node-1]
+[peach_arm-9] [INFO] [1792119824.923460383] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[lifecycle_manager-11] [INFO] [1792119825.120615448] [rclcpp]: signal_handler(SIGINT/SIGTERM)
+[peach_arm-9] [INFO] [1792119825.121485247] [rclcpp]: signal_handler(SIGINT/SIGTERM)
+[lifecycle_manager-11] [INFO] [1792119825.121982689] [peach_lifecycle_manager]: Running Nav2 LifecycleManager rcl preshutdown (peach_lifecycle_manager)
+[move_group-7] [INFO] [1792119825.123019512] [rclcpp]: signal_handler(SIGINT/SIGTERM)
+[ros2_control_node-4] [INFO] [1792119825.123462644] [rclcpp]: signal_handler(SIGINT/SIGTERM)
+[ros2_control_node-4] [INFO] [1792119825.125383879] [controller_manager]: Shutdown request received....
+[ros2_control_node-4] [INFO] [1792119825.125774089] [controller_manager]: Shutting down all controllers in the controller manager.
+[robot_state_publisher-3] [INFO] [1792119825.125711639] [rclcpp]: signal_handler(SIGINT/SIGTERM)
+[ros2_control_node-4] [INFO] [1792119825.126080444] [controller_manager]: Deactivating controller 'joint_trajectory_controller'
+[peach_harvester-8] [ERROR] [1792119825.126462447] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+[peach_harvester-8] Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+[peach_harvester-8] For more detailed error information, run with CUDA_LOG_FILE=stderr
+[peach_harvester-8] 
+[peach_harvester-8] Failed to publish log message to rosout: publisher's context is invalid, at ./src/rcl/publisher.c:423
+[ros2_control_node-4] [INFO] [1792119825.130803864] [controller_manager]: Shutting down controller 'joint_trajectory_controller'
+[ros2_control_node-4] [INFO] [1792119825.131307241] [controller_manager]: Deactivating controller 'joint_state_broadcaster'
+[ros2_control_node-4] [INFO] [1792119825.131337736] [controller_manager]: Shutting down controller 'joint_state_broadcaster'
+[ros2_control_node-4] [INFO] [1792119825.131873877] [resource_manager]: 'deactivate' hardware 'AuboE5System' 
+[ros2_control_node-4] [INFO] [1792119825.131889575] [resource_manager]: Successful 'deactivate' of hardware 'AuboE5System'
+[ros2_control_node-4] [INFO] [1792119825.131891198] [resource_manager]: 'shutdown' hardware 'AuboE5System' 
+[ros2_control_node-4] [INFO] [1792119825.131892759] [resource_manager]: Successful 'shutdown' of hardware 'AuboE5System'
+[ros2_control_node-4] [INFO] [1792119825.132791206] [controller_manager]: Shutting down the controller manager.
+[peach_arm-9] [INFO] [1792119825.132839013] [peach_arm]: requestCancelAll: 停止当前执行（来源：deactivate 收口）
+[ros2_control_node-4] [ERROR] [1792119825.133995194] [controller_manager.pal_statistics]: Exception in publisher thread: context cannot be slept with because it's invalid!. Aborting!
+[stereo_camera_node-1] [INFO] [1792119825.138794972] [rclcpp]: signal_handler(SIGINT/SIGTERM)
+[lifecycle_manager-11] [INFO] [1792119825.139152327] [peach_lifecycle_manager]: Destroying peach_lifecycle_manager
+[peach_harvester-8] Ultralytics 8.3.0 🚀 Python-3.12.3 torch-2.13.0+cu130 CUDA:0 (NVIDIA GeForce RTX 3090, 24117MiB)
+[ros2_control_node-4] [INFO] [1792119825.145375656] [controller_manager.pal_statistics]: Async messages lost 0
+[ros2_control_node-4] [INFO] [1792119825.145387685] [controller_manager.pal_statistics]: publish_async_failures_ 1
+[ros2_control_node-4] [INFO] [1792119825.152905567] [controller_manager.pal_statistics]: Async messages lost 0
+[ros2_control_node-4] [INFO] [1792119825.152918550] [controller_manager.pal_statistics]: publish_async_failures_ 0
+[peach_scene_obstacles-2] Traceback (most recent call last):
+[peach_scene_obstacles-2]   File "/home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_harvester/lib/peach_harvester/peach_scene_obstacles", line 33, in <module>
+[peach_scene_obstacles-2]     sys.exit(load_entry_point('peach-harvester', 'console_scripts', 'peach_scene_obstacles')())
+[peach_scene_obstacles-2]              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[peach_scene_obstacles-2]   File "/home/mu/Desktop/aubo_e5_jazzy_ws/build/peach_harvester/peach_harvester/vision/scene_obstacles/node.py", line 367, in main
+[peach_scene_obstacles-2]     rclpy.spin(node)
+[peach_scene_obstacles-2]   File "/opt/ros/jazzy/lib/python3.12/site-packages/rclpy/__init__.py", line 247, in spin
+[peach_scene_obstacles-2]     executor.spin_once()
+[peach_scene_obstacles-2]   File "/opt/ros/jazzy/lib/python3.12/site-packages/rclpy/executors.py", line 926, in spin_once
+[peach_scene_obstacles-2]     self._spin_once_impl(timeout_sec)
+[peach_scene_obstacles-2]   File "/opt/ros/jazzy/lib/python3.12/site-packages/rclpy/executors.py", line 907, in _spin_once_impl
+[peach_scene_obstacles-2]     handler, entity, node = self.wait_for_ready_callbacks(
+[peach_scene_obstacles-2]                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[peach_scene_obstacles-2]   File "/opt/ros/jazzy/lib/python3.12/site-packages/rclpy/executors.py", line 877, in wait_for_ready_callbacks
+[peach_scene_obstacles-2]     return next(self._cb_iter)
+[peach_scene_obstacles-2]            ^^^^^^^^^^^^^^^^^^^
+[peach_scene_obstacles-2]   File "/opt/ros/jazzy/lib/python3.12/site-packages/rclpy/executors.py", line 781, in _wait_for_ready_callbacks
+[peach_scene_obstacles-2]     wait_set.wait(timeout_nsec)
+[peach_scene_obstacles-2] KeyboardInterrupt
+[move_group-7] Stack trace (most recent call last):
+[move_group-7] #6    Object "", at 0xffffffffffffffff, in 
+[stereo_camera_node-1] [INFO] [1792119825.287656570] [camera.peach_stereo_camera_node]: device closed, laser restored
+[INFO] [lifecycle_manager-11]: process has finished cleanly [pid 203810]
+[INFO] [robot_state_publisher-3]: process has finished cleanly [pid 203802]
+[INFO] [ros2_control_node-4]: process has finished cleanly [pid 203803]
+[INFO] [peach_arm-9]: process has finished cleanly [pid 203808]
+[ERROR] [peach_scene_obstacles-2]: process has died [pid 203801, exit code -2, cmd '/home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_harvester/lib/peach_harvester/peach_scene_obstacles --ros-args -p use_sim_time:=False'].
+[INFO] [stereo_camera_node-1]: process has finished cleanly [pid 203800]
+[INFO] [peach_lifecycle_flag_bridge-12]: process has finished cleanly [pid 203811]
+[peach_harvester-8] [ERROR] [1792119825.626986832] [peach_scene_perception_node]: YOLO 检测异常，跳过本帧: CUDA error: out of memory
+[peach_harvester-8] Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+[peach_harvester-8] For more detailed error information, run with CUDA_LOG_FILE=stderr
+[peach_harvester-8] 
+[peach_harvester-8] Failed to publish log message to rosout: publisher's context is invalid, at ./src/rcl/publisher.c:423
+[peach_observability-10] bag 分析报告已生成：/home/mu/Desktop/aubo_e5_jazzy_ws/runs/session_20261016_110242/bag_report.md
+[peach_observability-10] markdown: /home/mu/Desktop/aubo_e5_jazzy_ws/runs/session_20261016_110242/bag_report.md
+[peach_observability-10] json: /home/mu/Desktop/aubo_e5_jazzy_ws/runs/session_20261016_110242/bag_report.json
+[INFO] [peach_harvester-8]: process has finished cleanly [pid 203807]
+[INFO] [peach_observability-10]: process has finished cleanly [pid 203809]
+[ERROR] [move_group-7]: process[move_group-7] failed to terminate '5' seconds after receiving 'SIGINT', escalating to 'SIGTERM'
+[INFO] [move_group-7]: sending signal 'SIGTERM' to process[move_group-7]
+[ERROR] [move_group-7]: process has died [pid 203806, exit code -15, cmd '/opt/ros/jazzy/lib/moveit_ros_move_group/move_group --ros-args -p use_sim_time:=False --params-file /tmp/launch_params_darm9lon --params-file /tmp/launch_params_bxu4ii38'].

@@ -215,6 +215,10 @@ private:
   void evaluateReachability(
     const CheckReachability::Request::SharedPtr request,
     CheckReachability::Response::SharedPtr response);
+  /// 某刀口滚转能否从预抓取沿轴插完 travel（门槛 mtc_cartesian_min_fraction）。
+  bool probeSleeveInsert(
+    double roll_rad, const Eigen::Isometry3d & entry, double travel_m,
+    double * fraction_out);
 
   // 数据快照与安全门薄壳：锁内组装纯值样本后委托 cache_/safety_gate_ 纯核。
   QualitySnapshot qualitySnapshot();
@@ -397,6 +401,19 @@ private:
   rclcpp::Publisher<peach_interfaces::msg::ToolState>::SharedPtr tool_state_pub_;
   rclcpp::Subscription<std_msgs::msg::Float64>::SharedPtr imu_progress_sub_;
   std::atomic<double> imu_insert_travel_{0.0};  // 批次5 回退判据（目标积分）
+
+  // /rosout 子 logger：rqt_console 按 peach_arm.cycle / peach_arm.contact 过滤。
+  // 必须持有对象，临时 get_child() 析构会注销子 logger。
+  std::optional<rclcpp::Logger> cycle_logger_;
+  std::optional<rclcpp::Logger> contact_logger_;
+  rclcpp::Logger cycleLogger() const
+  {
+    return cycle_logger_ ? *cycle_logger_ : get_logger();
+  }
+  rclcpp::Logger contactLogger() const
+  {
+    return contact_logger_ ? *contact_logger_ : get_logger();
+  }
 
   // MoveIt/MTC 伴随节点（声明在所有 MoveIt 资源之前，保证析构时最后释放）。
   rclcpp::Node::SharedPtr moveit_node_;

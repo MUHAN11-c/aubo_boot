@@ -1,0 +1,112 @@
+...........................................F..FFF....................... [ 18%]
+........................................................................ [ 37%]
+........................................................................ [ 56%]
+........................................................................ [ 75%]
+........................................................................ [ 94%]
+...................                                                      [100%]
+=================================== FAILURES ===================================
+_ test_new_invalid_geometry_revokes_previous_node_contact_authority[bag_axis_envelope_unavailable] _
+
+reason = 'bag_axis_envelope_unavailable'
+
+    @pytest.mark.parametrize('reason', [
+        'bag_axis_invalid', 'bag_endpoints_invalid', 'cut_reference_invalid',
+        'fusion_failed', 'landmark_axis_conflict',
+        'bag_axis_unobservable', 'bag_axis_envelope_ill_conditioned',
+        'bag_axis_envelope_unavailable',
+        'bag_axis_silhouette_unobservable', 'fused_axis_silhouette_conflict',
+    ])
+    def test_new_invalid_geometry_revokes_previous_node_contact_authority(reason):
+        from peach_harvester.vision.target_reconstruction.refine import BagModel, RefitResult
+        from peach_harvester.vision.target_reconstruction.target_reconstruction_node import (
+            TargetReconstructionNode,
+        )
+        previous = RefitResult(ok=True, budget={'allowed': True})
+        failed = RefitResult(ok=False, reason=reason)
+        bad_model = BagModel(ok=False, reason=reason, allowed=False)
+        host = SimpleNamespace(
+            _refined=previous, _bag_model=BagModel(ok=True, allowed=True),
+            _tsdf_cloud_cache=None, _bound_axis_hint=np.array([0.0, 0.0, 1.0]),
+            collector=SimpleNamespace(frames=[], target_center=None, target_id='t1'),
+            params=SimpleNamespace(
+                refit=SimpleNamespace(entry_standoff_m=0.0, pregrasp_standoff_m=0.03),
+                tool=SimpleNamespace(budget=ToolBudgetParams())),
+            _resolve_target_kind=lambda: ('bag', False),
+            _refit_orchestrator=SimpleNamespace(run=lambda **_: (failed, bad_model)),
+            _on_view_geometry=lambda *_: None, _log_geometry_row=lambda *_: None,
+            _bump_products_version=lambda: None, _products_force_publish=False)
+        TargetReconstructionNode._run_refit(host, keep_last_good=True)
+>       assert host._refined is failed
+E       AssertionError: assert RefitResult(ok=True, reason='', kind='', status=2, center=None, axis=None, bottom=None, neck=None, entry=None, pregras...fusion_landmark_inlier_ratio=None, fusion_consistency_available=False, fusion_pose_count=0, fusion_lateral_shift_m=0.0) is RefitResult(ok=False, reason='bag_axis_envelope_unavailable', kind='', status=2, center=None, axis=None, bottom=None, ...fusion_landmark_inlier_ratio=None, fusion_consistency_available=False, fusion_pose_count=0, fusion_lateral_shift_m=0.0)
+E        +  where RefitResult(ok=True, reason='', kind='', status=2, center=None, axis=None, bottom=None, neck=None, entry=None, pregras...fusion_landmark_inlier_ratio=None, fusion_consistency_available=False, fusion_pose_count=0, fusion_lateral_shift_m=0.0) = namespace(_refined=RefitResult(ok=True, reason='', kind='', status=2, center=None, axis=None, bottom=None, neck=None, ...d_geometry_revokes_previous_node_contact_authority.<locals>.<lambda> at 0x7bc383467d80>, _products_force_publish=False)._refined
+
+src/peach/peach_harvester/test/test_outer_bag_geometry.py:236: AssertionError
+_ test_unavailable_envelope_without_independent_fit_revokes_contact[envelope_cloud_insufficient] _
+
+reason = 'envelope_cloud_insufficient'
+
+    @pytest.mark.parametrize('reason', [
+        'envelope_cloud_insufficient', 'envelope_too_few_slices', 'envelope_axis_undefined',
+    ])
+    def test_unavailable_envelope_without_independent_fit_revokes_contact(reason):
+        from peach_harvester.vision.target_reconstruction.refine import (
+            RefitResult, merge_fused_bag_model,
+        )
+        fused = fuse_bag_views([_view()])
+        fused.envelope_conditioned = False
+        fused.envelope_reason = reason
+        result = RefitResult(ok=False, reason='cylinder_fit_failed')
+        merged = merge_fused_bag_model(result, fused, 1, np.array([0., 0., 1.]))
+>       assert not merged.ok and not fused.allowed
+E       AssertionError: assert (not True)
+E        +  where True = RefitResult(ok=True, reason='cylinder_fit_failed', kind='', status=0, center=array([0. , 0. , 0.5]), axis=array([0., 0...fusion_landmark_inlier_ratio=None, fusion_consistency_available=False, fusion_pose_count=1, fusion_lateral_shift_m=0.0).ok
+
+src/peach/peach_harvester/test/test_outer_bag_geometry.py:253: AssertionError
+_ test_unavailable_envelope_without_independent_fit_revokes_contact[envelope_too_few_slices] _
+
+reason = 'envelope_too_few_slices'
+
+    @pytest.mark.parametrize('reason', [
+        'envelope_cloud_insufficient', 'envelope_too_few_slices', 'envelope_axis_undefined',
+    ])
+    def test_unavailable_envelope_without_independent_fit_revokes_contact(reason):
+        from peach_harvester.vision.target_reconstruction.refine import (
+            RefitResult, merge_fused_bag_model,
+        )
+        fused = fuse_bag_views([_view()])
+        fused.envelope_conditioned = False
+        fused.envelope_reason = reason
+        result = RefitResult(ok=False, reason='cylinder_fit_failed')
+        merged = merge_fused_bag_model(result, fused, 1, np.array([0., 0., 1.]))
+>       assert not merged.ok and not fused.allowed
+E       AssertionError: assert (not True)
+E        +  where True = RefitResult(ok=True, reason='cylinder_fit_failed', kind='', status=0, center=array([0. , 0. , 0.5]), axis=array([0., 0...fusion_landmark_inlier_ratio=None, fusion_consistency_available=False, fusion_pose_count=1, fusion_lateral_shift_m=0.0).ok
+
+src/peach/peach_harvester/test/test_outer_bag_geometry.py:253: AssertionError
+_ test_unavailable_envelope_without_independent_fit_revokes_contact[envelope_axis_undefined] _
+
+reason = 'envelope_axis_undefined'
+
+    @pytest.mark.parametrize('reason', [
+        'envelope_cloud_insufficient', 'envelope_too_few_slices', 'envelope_axis_undefined',
+    ])
+    def test_unavailable_envelope_without_independent_fit_revokes_contact(reason):
+        from peach_harvester.vision.target_reconstruction.refine import (
+            RefitResult, merge_fused_bag_model,
+        )
+        fused = fuse_bag_views([_view()])
+        fused.envelope_conditioned = False
+        fused.envelope_reason = reason
+        result = RefitResult(ok=False, reason='cylinder_fit_failed')
+        merged = merge_fused_bag_model(result, fused, 1, np.array([0., 0., 1.]))
+>       assert not merged.ok and not fused.allowed
+E       AssertionError: assert (not True)
+E        +  where True = RefitResult(ok=True, reason='cylinder_fit_failed', kind='', status=0, center=array([0. , 0. , 0.5]), axis=array([0., 0...fusion_landmark_inlier_ratio=None, fusion_consistency_available=False, fusion_pose_count=1, fusion_lateral_shift_m=0.0).ok
+
+src/peach/peach_harvester/test/test_outer_bag_geometry.py:253: AssertionError
+=========================== short test summary info ============================
+FAILED src/peach/peach_harvester/test/test_outer_bag_geometry.py::test_new_invalid_geometry_revokes_previous_node_contact_authority[bag_axis_envelope_unavailable]
+FAILED src/peach/peach_harvester/test/test_outer_bag_geometry.py::test_unavailable_envelope_without_independent_fit_revokes_contact[envelope_cloud_insufficient]
+FAILED src/peach/peach_harvester/test/test_outer_bag_geometry.py::test_unavailable_envelope_without_independent_fit_revokes_contact[envelope_too_few_slices]
+FAILED src/peach/peach_harvester/test/test_outer_bag_geometry.py::test_unavailable_envelope_without_independent_fit_revokes_contact[envelope_axis_undefined]
+4 failed, 375 passed, 2 deselected in 2.65s

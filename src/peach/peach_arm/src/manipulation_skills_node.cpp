@@ -69,6 +69,8 @@ ManipulationSkillsNode::ManipulationSkillsNode(const rclcpp::NodeOptions & optio
   tf_listener_(tf_buffer_),
   cache_([this]() {return now().seconds();})
 {
+  cycle_logger_ = get_logger().get_child("cycle");
+  contact_logger_ = get_logger().get_child("contact");
   // MoveIt/MTC 伴随节点：同名（launch 参数文件按节点名匹配，同名即继承同一套
   // robot_description/管线参数；进程内 __node 重映射对两者一致生效）；
   // 覆盖参数自动声明（robot_description 等非本节点参数由 MoveIt/MTC 直接读）；
@@ -530,6 +532,7 @@ void ManipulationSkillsNode::rebuildGraspTask()
     return;
   }
   GraspTaskConfig task_config = toGraspTaskConfig(params_);
+  task_config.contact_logger = contact_logger_;
   task_config.lookup_current_tip = [this]() {
       return motion_->lookupTransform(params_.frames.base, params_.frames.tip);
     };
@@ -699,6 +702,18 @@ void ManipulationSkillsNode::rebuildGraspTask()
         attempts, ik_failed, bounds_failed, self_collision, corridor_failed, valid_candidates);
       sortStagingCandidates(candidates);
       return candidates;
+    };
+  task_config.sleeve_roll_feasible = [this](
+    double roll_rad, const Eigen::Isometry3d & entry, double travel_m) {
+      double fraction = -1.0;
+      const bool ok = probeSleeveInsert(roll_rad, entry, travel_m, &fraction);
+      if (!ok) {
+        RCLCPP_DEBUG(
+          get_logger(),
+          "套入直线滚转 %.0f° 未过门 fraction=%.3f",
+          static_cast<double>(roll_rad * 180.0 / EIGEN_PI), fraction);
+      }
+      return ok;
     };
   task_config.protected_zones = protected_zones_;
   // 执行边界 = 授权矩阵公共级 + execution + grasp（GraspTask 门内显式加查）；

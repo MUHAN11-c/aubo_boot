@@ -36,6 +36,14 @@ proxy:
   # WS 上游连接重试（桥重启窗口内的有限重试 + 抖动，防重连风暴）
   upstream_connect_attempts: 3     # 总尝试次数（含首次）
   upstream_connect_retry_ms: 250   # 基础间隔，实际 ±50% 抖动
+  # 上游腿 websockets 接收队列（消息条数）：小值让慢客户端背压更早传给桥
+  upstream_max_queue: 4
+  # 出站数据通道字节预算：二进制 messageData 帧超预算丢最旧（丢至 80% 滞回），
+  # JSON 控制帧永不丢；0=禁用（无界旧行为）。4 MiB ≈ 30Hz 0.9MB 图像流 4 帧余量
+  data_lane_bytes: 4194304
+  # 出口年龄门（秒）：推送前已早于该年龄的 messageData 帧直接丢；0=关闭。
+  # 慢客户端恢复排积压时不送陈旧帧；latest-wins 显示语义由浏览器 player 兜底
+  egress_max_age_s: 2.0
   video_connect_timeout: 10.0
   video_read_timeout: 30.0
   video_pool_timeout: 10.0

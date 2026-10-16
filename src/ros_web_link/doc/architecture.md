@@ -37,11 +37,12 @@ ROS 2 图（rclpy/rclcpp 任意节点；演示被测端 = 本包 comm_fixture）
 
 | 层 | 工具 | 内容 |
 |---|---|---|
-| JS 纯核 | vitest（复用 dashboard node_modules） | 协议帧/参数助手/TF 数学/**CDR 黄金字节交叉验证**（rclpy 序列化真值 vs JS codec，17 类常用可视化消息，含 PoseWithCovarianceStamped）/**PointCloud2 共享解析器**/**viz_core（缓动/运动动画器/协方差椭圆/odom 轨迹/回放段/预设存取）** 共 108 用例 |
+| JS 纯核 | vitest（复用 dashboard node_modules） | 协议帧/参数助手/TF 数学/**CDR 黄金字节交叉验证**（rclpy 序列化真值 vs JS codec，17 类常用可视化消息，含 PoseWithCovarianceStamped）/**PointCloud2 共享解析器（含 stride 采样/organized 行覆盖）**/**player raw 派发**/**viz_core（缓动/运动动画器/协方差椭圆/odom 轨迹/回放段/预设存取）** 共 122 用例 |
 | Python 单元 | pytest（venv） | 路由挂载 / 组合模式 / health+console 回归 / 配置默认值 / robot_mesh 解析与 symlink 防穿越 / 静态文件类 / 上游重试 helper 共 16 用例 || E2E 通信矩阵 | pytest（自起桥+网关+fixture，随机域/端口） | 订阅/发布 roundtrip/服务/action(goal+feedback+cancel+result)/参数 get-set-get/TF/图谱/健康(含桥组件探测)/视频代理负例/停机端口复核 11 用例（栈编排复用 e2e_harness） |
 | E2E 官方示例 | pytest（`Stack(official=True)`：官方 RSP/panda + 官方 CLI joint_states 驱动 + 官方 map_server/lifecycle_manager） | 官方 panda /robot_description、官方 /tf_static、**web JointState（带时间戳）→官方 RSP→/tf 关节角闭环**、官方 /map 384²、官方生命周期服务 GetState/LoadMap、官方 /diagnostics+/rosout 共 7 用例（panda 资源缺失整组 skip） |
-| E2E 官方仿真数据 | pytest（`LaunchStack` 整仓拉起 `sim_demo.launch.py`） | turtlebot3 官方仿真 + 官方 nav2 + ros2/examples 官方示例经网关：robot_description/joint_states/scan/odom/imu/tf/相机+Info/压缩图/官方点云/talker/map/amcl_pose/粒子云/诊断共 16 用例，含 **web→AMCL 定位闭环** 与 **web→NavFn 规划闭环**（`test_e2e_sim.py`，替代已删的合成流可视化套件） |
+| E2E 官方仿真数据 | pytest（`LaunchStack` 整仓拉起 `sim_demo.launch.py`） | turtlebot3 官方仿真 + 官方 nav2 + ros2/examples 官方示例经网关：robot_description/joint_states/scan/odom/imu/tf/相机+Info/压缩图/官方点云/talker/map/amcl_pose/粒子云/诊断共 19 用例，含 **web→AMCL 定位闭环**、**web→NavFn 规划闭环** 与 **真实流速率/新鲜度**（2026-10-16 增，`test_e2e_sim.py`，替代已删的合成流可视化套件） |
 | 人工/自动化 | console.html「运行自检」+ 话题回显 | 浏览器内同矩阵（`window.__rwl_selftest`，9 项）+ 任意话题直接回显 |
+| E2E 大数据稳定传输 | pytest（`Stack` + fixture `rwl.bigdata:=true`，裸 websockets 客户端） | 快客户端吞吐/新鲜度 + 停顿-恢复有界积压/新鲜恢复/网关丢帧证据（`test_e2e_bigdata.py`，2 用例） |
 
 黄金字节生成器 `test/generate_viz_golden.py`：schema 文本与桥 message_definition_cache
 同构（根 .msg + DFS 首见序依赖 + `====…MSG: pkg/Type` 分隔；同包裸名按同包解析，
@@ -67,7 +68,7 @@ E2E 编排注意（与工作区 MUST 对齐）：`asyncio.create_subprocess_exec
   external/navigation2 基线克隆不参与构建）+ ros2/moveit2/nav2 官方示例；
   本地自写项目（sim/peach/ivg）不参与验证。入口 `sim_demo.launch.py`
   （官方 TB3 gz 仿真 + 官方 nav2 + ros2/examples + 官方 republish + 传输栈），
-  测试面 `test_e2e_sim.py`（16 用例，`LaunchStack` 整仓拉起）。
+  测试面 `test_e2e_sim.py`（19 用例，`LaunchStack` 整仓拉起）。
   console Displays 默认 topic 全部指向官方数据面（/scan /odom /plan
   /particle_cloud /amcl_pose /camera/image_raw /test_cloud /map）；
   marker/range/wrench 官方无来源，默认关、topic 留空。
@@ -104,10 +105,13 @@ E2E 编排注意（与工作区 MUST 对齐）：`asyncio.create_subprocess_exec
   卡死在障碍物内，DiffDrive 指令全部无效；sim_demo 已显式传 (-2.0,-0.5) 修复。
   GUI 网格测试（web-gui-tester 轮）复核通过。
 - **GUI 网格测试发现（2026-10-15 web-gui-tester 轮）**：
-  ① Fixed Frame 选非根帧（如 base_footprint）时 3D 视口空白，切回 map 恢复——
-  `_frameToFixed` 对"根→叶"反向查找疑似返回空，待修（显示链问题，数据流正常）；
+  ① ~~Fixed Frame 选非根帧（如 base_footprint）时 3D 视口空白~~ **已修（2026-10-16）**：
+  `_onTf` 的 TF 轴改按 Fixed Frame 摆位（原按树根，与数据组两套参照系不一致），
+  浏览器实测叶帧 fixed 下点云/TF/网格全渲染；
   ② 官方桥高吞吐下事件流刷 `Send buffer limit reached`（桥→WS 背压，与
-  BEST_EFFORT 丢帧同源，Foxglove 语义下属预期降级）；
+  BEST_EFFORT 丢帧同源，Foxglove 语义下属预期降级）——**2026-10-16 起网关层
+  有界通道+年龄门已缓解**（慢客户端丢帧发生在网关且计数可见，桥缓冲不再
+  先灌满；桥侧根因未修，vendored C++ 本轮不动）；
   ③ 机器高负载（演示栈 GUI + pytest 双栈并发）会拉低 gz 实时因子，teleop 物理
   断言窗口已加长到 4.8s 并保持 2 轮重试。
 - **foxglove-only，不起 rosbridge**：协议更省带宽（CDR 二进制 + 点云），rviz_web 同路线；
@@ -201,7 +205,163 @@ tf2_web_republisher、foxglove_bridge 参数面与 urdf-loaders 后的裁定与�
 entities/ui_state_store、components/topic_browser、core/{ros_connector,settings}、
 view3d/hints；本包 config 移除未用的 package_version_fallback。
 
+## 大数据稳定传输轮（2026-10-16，深读 ws-protocol / Lichtblick / rosbridge / rviz2）
+
+深读 foxglove ws-protocol spec（messageData 帧格式 + 背压语义属实现自定）、
+Lichtblick FoxgloveWebSocketPlayer（parsedMessages 字节记账 + 超限丢最旧至 80%）、
+rosbridge websocket_handler（write_queue 满丢出站 + 入站 deque(maxlen) 丢最旧）、
+rviz2（ImageDisplay latest-wins 纹理、PointCloud 状态行）与 vendored 桥
+（send buffer 超限丢新帧，10MB）后的裁定与实施：
+
+- **网关出站有界数据通道**（`_BoundedForwardLane`）：字节预算 4MiB + 丢最旧
+  （滞回 80%），JSON 控制帧永不丢、全局保序。此前慢客户端会在
+  网关→浏览器腿无界积压（桥 send buffer 10MB + 内核套接字缓冲逐帧灌满），
+  延迟随积压线性增长。三处官方实现同构（rosbridge write_queue /
+  Lichtblick parsedMessageCache / 桥 send-buffer），语义对齐。
+- **出口年龄门**（`egress_max_age_s` 默认 2.0s）：推送前已陈旧的 messageData
+  帧直接丢。慢客户端恢复排积压时不送旧帧；内核套接字缓冲里「已提交」的
+  积压服务端不可回收（TCP 物理现实，`ss -tm` 实证 w4.2MB 打满），彻底的
+  latest-wins 显示由浏览器 player 的 latest 合并模式兜底（Lichtblick 同款）。
+- **上游 `max_queue` 16→4**：慢客户端背压更早传给桥，减少网关内大帧堆积。
+- **WS 转发统计**：连接级 forwarded/dropped/droppedStale/queued + 进程累计，
+  `GET /api/ivg/ws/stats`（totals 仅连接断开时归账，活跃数在 active[]——
+  console 监控卡两者求和）。console 监控区新增「网关丢帧 / 网关积压」卡。
+- **player `raw` 派发模式**：同 latest 的微任务合并但零解码（回调拿原始
+  CDR 载荷），codec 也不构建。话题卡 Hz/流量统计-only 订阅改用 raw——
+  大消息（图像/点云）全量 CDR 解码曾是主线程纯浪费。
+- **点云 stride 采样**：超 maxPoints 用 stride 空间均匀采样（旧实现截断尾部，
+  organized 云 height>1 时直接丢下半幅画面）。
+- **Fixed Frame 统一**（GUI 网格测试遗留问题 ①修复）：`_onTf` 的 TF 轴过去按
+  树根摆位而数据组按 Fixed Frame 摆位——Fixed Frame 选非根帧时两套参照系
+  不一致致视口"空白"。统一为 fixed（RViz 语义：视口世界即 fixed frame），
+  浏览器实测 fixed=rwl_demo_marker（叶帧）点云/TF/网格全渲染。
+- **点云/激光显示 state 惰性确保**（浏览器实测抓出的渲染级 bug）：
+  `_subscribeDisplay` 订阅回调先以无 init 的 `_stateFor` 创建空 state，
+  `_onCloud`/`_onScan3d` 的 init 闭包从此不生效 → `BufferAttribute(undefined)`
+  → 每帧回调抛错零渲染。改 handler 内惰性确保字段。
+- **无 URDF 栈蒙层兜底**：6s 内图上无 /robot_description 通道即收起
+  「加载机器人模型…」蒙层（纯传感器栈 3D 视口曾被永久遮挡）。
+- **图像解码零分配**：ImageData 按 (w,h) 复用（原每帧 createImageData）；
+  增补 rgba8/bgra8 编码。Displays 点云状态带 stamp 时延（rviz Delay 语义）。
+- **comm_fixture 大数据源**（`-p rwl.bigdata:=true`）：`/rwl_demo/big_image`
+  640×480 rgb8 @30Hz（~0.92MB/帧）+ `/rwl_demo/big_cloud` 50k 点 @10Hz；
+  E2E `test_e2e_bigdata.py`：快客户端吞吐≥65% 名称率、年龄毫秒级、丢帧率<5%；
+  停顿 4s 恢复后停顿窗内帧送达数有硬上限（<60，无界旧行为≈120）+
+  追上直播的首帧新鲜（<1.5s）+ 网关丢帧计数可见。
+- **console 自动化入口**：`window.__rwl_viz`（addOrEnable/内部状态，诊断用，
+  同 `__rwl_topics` 模式）。
+
+证据面（2026-10-16 浏览器实测，浏览器全速消费）：/rwl_demo/big_image +
+big_cloud 双流并行 25MB/s、RTT 2ms、重连 0、解码失败 0、网关丢帧 0、
+积压 0 帧、单连接累计转发 5.37GB；测试塔 vitest 122 + pytest 单元 21 +
+comm_matrix 11 + official 7 + moveit 8 + sim 17 + bigdata 2 全绿。
+
+## 官方示例 E2E 轮（2026-10-16 二弧）：gz 相机火流发现与压缩流默认
+
+以官方示例项目（TB3+nav2+examples+Panda MoveIt）为数据面的全量 E2E + 浏览器实测轮
+（流程与验收口径固化在 [testing.md](testing.md)；新增真实流延迟用例
+`test_tb3_{camera,pointcloud}_stream_rate_and_freshness`）：
+
+- **发现：gz Harmonic 无头相机不按 SDF `update_rate` 节流**。waffle_pi 相机 SDF 声明
+  30Hz，实测 DDS 侧 ~4.7kHz / 5.2GB/s（物理配速正常：/scan 8.8Hz≈10Hz sim、/clock
+  781Hz——仅渲染传感器失控，gz-sim 8.15 上游行为）。该火流下网关传输仍健康：
+  快客户端收到 755fps / 695MB/s、帧龄 5ms、积压有界（按设计丢帧）；受控 30Hz 场景
+  由 bigdata 合成基准覆盖（丢帧 <5%）。
+- **发现：火流订阅会饿死服务响应（浏览器实测根因定位）**。console 默认订阅原始
+  相机流时，桥→网关发送缓冲持续打满（`Send buffer limit reached` 刷屏），桥"丢新帧"
+  降级不区分帧类型——**服务响应帧被一并丢弃**，浏览器自检服务/动作项 10~25s 超时
+  （DDS 直调同服务 42 即回，排除 fixture；关掉相机订阅后自检 9/9、服务 22ms——
+  因果实验闭环）。桥侧丢帧语义（vendored C++）本轮不动，记录为已知问题。
+- **修复：console 默认相机显示项改走官方 republish 压缩流**（`imagec1` →
+  `/camera/image_raw/compressed`，~15fps×20KB；原始流 `image1` 默认关、可手动开启）。
+  实测浏览器连接 **0 丢帧 / 0 积压 / 0 陈旧丢弃**（此前 70,613 帧丢弃）、自检 9/9、
+  压缩图 640×480 真实画面渲染、激光/点云/代价地图全渲染。单源真身在
+  `viz_core.js defaultInstances()`（viz.js 里的 dict 副本是漂移死代码，已删）。
+  （更正：本段初版曾记"机器人 mesh 全渲染"——当时 mesh 实际全部 404、视觉
+  分析把激光点/TF 轴簇误读为机器人本体；真相见下节 URDF 检查轮。）
+- **真实流基准数值**（sim_demo 栈，8s 裸 WS 客户端）：/camera/image_raw 754.8fps、
+  帧龄 5.1ms；/test_cloud 29.9fps、3.8ms；/camera/image_raw/compressed 15.0fps、3.6ms。
+- 浏览器自动化经验：`playwright.evaluate` 的字符串按**表达式**求值（`() => {}` 只会
+  返回函数对象，须写成 IIFE）；IAB 模块缓存换血须关旧标签+新标签+清
+  `rwl-viz-cfg-v4`（Displays cfg 会被旧模块页重新持久化，先清再导航）。
+
+## URDF 显示检查轮（2026-10-16 三弧）：robot-mesh symlink 误杀修复
+
+对 RobotModel 显示链（/robot_description → URDF 解析 → robot-mesh 服务 → 渲染 →
+TF 对齐 → 驱动跟动）做专项检查，抓到并修复一个真实缺陷：
+
+- **robot-mesh 全 404（resolve-based containment 误杀 colcon 布局）**：TB3 URDF 的
+  4 个 mesh（waffle_pi_base/left_tire/right_tire/lds .stl）请求全 404——`_is_under`
+  两侧 resolve() 比对，而 `--symlink-install` 布局下 install share 树内资源目录
+  合法 symlink 回 src 树，候选路径 resolve 后落在 install 树外被判越界。与
+  SymlinkStaticFiles（starlette realpath containment）同款坑第二次出现。**修复**：
+  改词法 containment（normpath 折叠 `..` 后树下比较，不 resolve）；穿越防线不变
+  （路由拒 URL `..` + normpath 检查），盘上 symlink 目标位置不再作为拒绝依据。
+  单测 `test_robot_mesh_symlink_layout_and_traversal` 同步翻转语义并加 colcon
+  布局回归。修复后 curl 实测 200 / model/stl / 7.9MB。
+- **验证面**（浏览器实测）：mesh 4×200 加载、TF 树 12 帧 = URDF 全部 11 链节 +
+  odom（100% 对齐）、TF 轴与 Fixed Frame 下拉 14 项正常、机器人实体网格视觉确认
+  （底盘+双轮胎+上层结构）、经 `/cmd_vel` 驱动 0.786m 模型随 TF 移动且 odom 轨迹
+  线正确延伸。修复后全量 66/66 绿。
+- **TF 轴位置数值核验（2026-10-16 TF 轮）**：11 帧轴世界坐标逐项对上 waffle_pi
+  URDF 真值（base_link 高 10mm、轮 ±144mm/高 33mm、雷达 (−64,0,132)mm、相机
+  (73,−11,94)mm、IMU 高 78mm），方向映射无反转；标签位置语义修复一处——
+  TF 帧标签原挂帧 Group（继承帧姿态）沿**局部 +Z** 上浮，光学帧
+  （camera_rgb_optical_frame，Z 朝前）标签会水平飘到轴前方 0.14m；改挂 Z-up
+  世界容器沿**世界 +Z** 上浮（帧姿态不参与），实测三帧（含光学帧）偏移统一
+  (0, 0.14, 0)。探针换算：three 世界系 three.y=ROS z、three.z=−ROS y
+  （_rosFrame 旋转）；读矩阵免 THREE 全局用 `obj.matrixWorld.elements[12..14]`。
+- **机器人姿态与 Fixed 根双修复（2026-10-16 姿态轮，用户实测反馈"机器人侧倒/
+  TF 不准"）**：① `_onTf` 的 `baseTf.decompose` 曾直接写 `_robotFrame` 的
+  quaternion，把创建时的 -90°x Z-up 补偿整个覆写——第一条 /tf 后 URDF 即侧倒、
+  与 TF 轴差 90°（数值实锤 quaternion=[0,0,0,1]）。改为内层 `_robotBase` 承载
+  ROS 基座位姿、`_robotFrame` 恒保补偿（ghost 同挂 _robotBase）。② `_tfRoot()`
+  按树插入序取首个 isRoot 并**锁定**——树生长早期（仅 RSP 关节变换时 base_link
+  是根）会把链中帧钉成 fixed，世界参照系错位。改为按 RViz 惯例优先 map → odom
+  且仅锁定首选根，退解根不缓存待树长全重评。终验（同刻同读）：odom 真值
+  (5.75, 0.42, −156.8°) = 模型 = base_footprint 轴，位置姿态全等；俯视截图
+  确认立正（轮胎左右圆形完整、雷达顶部居中偏后）。另注：按需渲染
+  （_dirty 门控）下 `matrixWorld` 非实时，探针读数前须手动
+  `updateWorldMatrix(true,false)`。
+- **教训（自动化方法）**：① 页面内探针读 `_tree.frames()`/`_tfObjects` 这类
+  **Map** 结构时 `Object.keys()` 恒空，须用 `.size`/`[...m.values()]`（本轮曾因此
+  误报"TF 帧丢失"）；Fixed Frame 下拉真 id 是 `gopt-fixed`。② 视觉分析工具会把
+  激光点/TF 轴簇"脑补"成机器人本体——mesh 类验证必须以 HTTP 状态码/字节数为
+  硬证据，视觉只作旁证。③ JS `client.publish` 是三参 `(topic, msgType, message)`
+  （对齐 teleop.js），两参调用静默无效。
+
+## nav2 官方化轮（2026-10-16 四弧，用户裁定"参考原始官方启动调试测试方法"）
+
+用户实测反馈"机器人超出地图的障碍物"。根因：sim_demo 的 nav2 段此前用
+nav2_bringup 分段 localization/navigation launch + **默认参数（按 tb3_sandbox
+场景调）**——AMCL 参数与 TB3 雷达/世界不匹配，定位漂移即"穿出障碍物"。
+按官方原始方法整段官方化：
+
+- **官方 `turtlebot3_navigation2` 包进工作区**（ROBOTIS-GIT/turtlebot3 jazzy
+  分支，external/ 克隆 + src/ symlink 构建；纯安装 launch/param/rviz/map）。
+- **sim_demo nav2 段**：`rviz:=true` → Include 官方 `navigation2.launch.py`
+  全官方形态（bringup_launch + **param/waffle_pi.yaml 官方调参** + 官方 RViz
+  tb3_navigation2.rviz）；默认无头 → 同一 bringup_launch + 同一官方参数与
+  官方配套 map（PythonExpression 组合 nav2∧¬rviz 条件——Jazzy 无 AndCondition）。
+  此前自拷的 maps/ 目录删除（官方包单源）。
+- **官方调试流程验证**（ros2 CLI = RViz 2D Pose Estimate / Nav2 Goal 话题等价）：
+  /initialpose 一次即精确收敛（−2.00,−0.50）；目标 (1,1) 落在障碍柱占据区时
+  Nav2 投影到最近可达点停稳（**不穿障碍**）；空闲目标 (−1.2,0.8) 精确到达
+  (−1.19,0.81)，全程位姿连续无跳变。web console 经网关同流程同样秒收敛。
+- 回归：sim 19/19、全量 66/66 全绿。e2e_harness 白名单加 turtlebot3_navigation2；
+  ament_cmake 包构建须补 PYTHONPATH（ament_package）。
+- 教训：launch 复合条件 Jazzy 用 `IfCondition(PythonExpression(...))`；
+  TaskStop/kill 主进程后 nav2 组件容器会孤儿残留，须按进程名补刀清理。
+
 ## 已知问题（演示/长跑注意）
+
+
+
+- **gz 无头相机火流**（2026-10-16 实证，见上节）：gz-sim 8.15 无头模式相机渲染不按
+  SDF update_rate 节流（~4.7kHz/5GB/s DDS），抬高整机负载且订阅原始流会饿死服务
+  响应。缓解已落地（console 默认压缩流）；桥侧丢帧不区分帧类型为上游缺口
+  （vendored C++，暂不动）。
+
 
 - **FastDDS SHM 段随反复起栈累积**（/dev/shm/fastrtps_* 今日达 114 个）：长命桥遇
   「fixture 重启后的新参与者」会丢数据面（订阅成功但 0 消息，CLI 同域可收）；

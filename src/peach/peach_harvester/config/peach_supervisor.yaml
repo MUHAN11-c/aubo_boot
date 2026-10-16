@@ -8,7 +8,7 @@ peach_supervisor:
     survey_dwell_s: 2.0  # 已锁回访到位后驻留秒数，让几何来自拍照位（snapshot_id 不变）。
     service_timeout_s: 30.0  # BeginScene 等服务等待上限。
     action_timeout_s: 180.0  # Survey/Build/Execute 动作等待上限。
-    empty_survey_limit: 2  # 连续空扫次数上限，达到则结算批次。
+    empty_survey_limit: 2  # 连续空扫次数上限，达到则结算批次。goal.target_ids 非空且已全部入账时 CYCLE_DONE 直接结算，不计入本上限。
     persist_ledger: true  # 是否把 TargetOutcome 写入 runs/ 账本。
     reconstruction_min_views: 1  # OBSERVE 成功后 Build 至少应有的机位数。1=当前拍照位即可派接触，不足才 observe_build_view_race。
     skip_reconstruction: false  # true 时 DISPATCH 不发 Build/补视，用锁定集场景几何进 PREGRASP/FULL（身份 revision=unrefined:*）。默认关。mock+相机不跟随时验证接触用；真机 KEEP false。须与 peach_arm quality.allow_unrefined_geometry 同开。

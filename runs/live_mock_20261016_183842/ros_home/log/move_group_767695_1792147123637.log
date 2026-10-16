@@ -1,0 +1,823 @@
+[INFO] [1792147123.661066632] [move_group.moveit.moveit.ros.rdf_loader]: Loaded robot model in 0.00337692 seconds
+[INFO] [1792147123.661160744] [move_group.moveit.moveit.core.robot_model]: Loading robot model 'aubo_e5'...
+[INFO] [1792147123.661170401] [move_group.moveit.moveit.core.robot_model]: No root/virtual joint specified in SRDF. Assuming fixed joint
+[INFO] [1792147123.689980617] [move_group.moveit.moveit.kinematics.kdl_kinematics_plugin]: Joint weights for group 'manipulator_e5': 1 1 1 1 1 1
+[INFO] [1792147123.761664366] [move_group.moveit.moveit.ros.planning_scene_monitor]: Publishing maintained planning scene on 'monitored_planning_scene'
+[INFO] [1792147123.761781846] [move_group.moveit.moveit.ros.moveit_cpp]: Listening to 'joint_states' for joint states
+[INFO] [1792147123.762623754] [move_group.moveit.moveit.ros.current_state_monitor]: Listening to joint states on topic 'joint_states'
+[INFO] [1792147123.763108221] [move_group.moveit.moveit.ros.planning_scene_monitor]: Listening to '/attached_collision_object' for attached collision objects
+[INFO] [1792147123.763119283] [move_group.moveit.moveit.ros.planning_scene_monitor]: Stopping existing planning scene publisher.
+[INFO] [1792147123.763191528] [move_group.moveit.moveit.ros.planning_scene_monitor]: Stopped publishing maintained planning scene.
+[INFO] [1792147123.763369677] [move_group.moveit.moveit.ros.planning_scene_monitor]: Publishing maintained planning scene on 'monitored_planning_scene'
+[INFO] [1792147123.763408276] [move_group.moveit.moveit.ros.planning_scene_monitor]: Starting planning scene monitor
+[INFO] [1792147123.763797326] [move_group.moveit.moveit.ros.planning_scene_monitor]: Listening to '/planning_scene'
+[INFO] [1792147123.763905320] [move_group.moveit.moveit.ros.planning_scene_monitor]: Starting world geometry update monitor for collision objects, attached objects, octomap updates.
+[INFO] [1792147123.764183139] [move_group.moveit.moveit.ros.planning_scene_monitor]: Listening to 'collision_object'
+[INFO] [1792147123.764369672] [move_group.moveit.moveit.ros.planning_scene_monitor]: Listening to 'planning_scene_world' for planning scene world geometry
+[WARN] [1792147123.765604485] [move_group.moveit.moveit.ros.occupancy_map_monitor]: Resolution not specified for Octomap. Assuming resolution = 0.1 instead
+[ERROR] [1792147123.765733750] [move_group.moveit.moveit.ros.occupancy_map_monitor]: No 3D sensor plugin(s) defined for octomap updates
+[INFO] [1792147123.813867043] [move_group.moveit.moveit.ros.planning_pipeline]: Successfully loaded planner 'OMPL'
+[INFO] [1792147123.815266466] [move_group]: Try loading adapter 'default_planning_request_adapters/ResolveConstraintFrames'
+[INFO] [1792147123.815985044] [move_group]: Loaded adapter 'default_planning_request_adapters/ResolveConstraintFrames'
+[INFO] [1792147123.815996138] [move_group]: Try loading adapter 'default_planning_request_adapters/ValidateWorkspaceBounds'
+[INFO] [1792147123.816149960] [move_group]: Loaded adapter 'default_planning_request_adapters/ValidateWorkspaceBounds'
+[INFO] [1792147123.816155807] [move_group]: Try loading adapter 'default_planning_request_adapters/CheckStartStateBounds'
+[INFO] [1792147123.816169416] [move_group]: Loaded adapter 'default_planning_request_adapters/CheckStartStateBounds'
+[INFO] [1792147123.816171966] [move_group]: Try loading adapter 'default_planning_request_adapters/CheckStartStateCollision'
+[INFO] [1792147123.816178010] [move_group]: Loaded adapter 'default_planning_request_adapters/CheckStartStateCollision'
+[INFO] [1792147123.817445419] [move_group]: Try loading adapter 'default_planning_response_adapters/AddTimeOptimalParameterization'
+[INFO] [1792147123.818868252] [move_group]: Loaded adapter 'default_planning_response_adapters/AddTimeOptimalParameterization'
+[INFO] [1792147123.818880932] [move_group]: Try loading adapter 'default_planning_response_adapters/AddRuckigTrajectorySmoothing'
+[INFO] [1792147123.818889611] [move_group]: Loaded adapter 'default_planning_response_adapters/AddRuckigTrajectorySmoothing'
+[INFO] [1792147123.818892144] [move_group]: Try loading adapter 'default_planning_response_adapters/ValidateSolution'
+[INFO] [1792147123.820496099] [move_group]: Loaded adapter 'default_planning_response_adapters/ValidateSolution'
+[INFO] [1792147123.822926369] [move_group.moveit.moveit.planners.pilz.joint_limits_aggregator]: Reading limits from namespace robot_description_planning
+[INFO] [1792147123.824313569] [move_group.moveit.moveit.planners.pilz.command_planner]: Available plugins: pilz_industrial_motion_planner/PlanningContextLoaderCIRC pilz_industrial_motion_planner/PlanningContextLoaderLIN pilz_industrial_motion_planner/PlanningContextLoaderPTP 
+[INFO] [1792147123.824326181] [move_group.moveit.moveit.planners.pilz.command_planner]: About to load: pilz_industrial_motion_planner/PlanningContextLoaderCIRC
+[INFO] [1792147123.825031608] [move_group.moveit.moveit.planners.pilz.command_planner]: Registered Algorithm [CIRC]
+[INFO] [1792147123.825039995] [move_group.moveit.moveit.planners.pilz.command_planner]: About to load: pilz_industrial_motion_planner/PlanningContextLoaderLIN
+[INFO] [1792147123.825489014] [move_group.moveit.moveit.planners.pilz.command_planner]: Registered Algorithm [LIN]
+[INFO] [1792147123.825495233] [move_group.moveit.moveit.planners.pilz.command_planner]: About to load: pilz_industrial_motion_planner/PlanningContextLoaderPTP
+[INFO] [1792147123.825915232] [move_group.moveit.moveit.planners.pilz.command_planner]: Registered Algorithm [PTP]
+[INFO] [1792147123.825923187] [move_group.moveit.moveit.ros.planning_pipeline]: Successfully loaded planner 'Pilz Industrial Motion Planner'
+[INFO] [1792147123.826824172] [move_group]: Try loading adapter 'default_planning_request_adapters/ResolveConstraintFrames'
+[INFO] [1792147123.826935904] [move_group]: Loaded adapter 'default_planning_request_adapters/ResolveConstraintFrames'
+[INFO] [1792147123.826939540] [move_group]: Try loading adapter 'default_planning_request_adapters/ValidateWorkspaceBounds'
+[INFO] [1792147123.827041061] [move_group]: Loaded adapter 'default_planning_request_adapters/ValidateWorkspaceBounds'
+[INFO] [1792147123.827045928] [move_group]: Try loading adapter 'default_planning_request_adapters/CheckStartStateBounds'
+[INFO] [1792147123.827055468] [move_group]: Loaded adapter 'default_planning_request_adapters/CheckStartStateBounds'
+[INFO] [1792147123.827057814] [move_group]: Try loading adapter 'default_planning_request_adapters/CheckStartStateCollision'
+[INFO] [1792147123.827063640] [move_group]: Loaded adapter 'default_planning_request_adapters/CheckStartStateCollision'
+[INFO] [1792147123.827907753] [move_group]: Try loading adapter 'default_planning_response_adapters/ValidateSolution'
+[INFO] [1792147123.828432539] [move_group]: Loaded adapter 'default_planning_response_adapters/ValidateSolution'
+[INFO] [1792147123.831485559] [move_group.moveit.moveit.ros.planning_pipeline]: Successfully loaded planner 'STOMP'
+[INFO] [1792147123.832387074] [move_group]: Try loading adapter 'default_planning_request_adapters/ResolveConstraintFrames'
+[INFO] [1792147123.832486565] [move_group]: Loaded adapter 'default_planning_request_adapters/ResolveConstraintFrames'
+[INFO] [1792147123.832489085] [move_group]: Try loading adapter 'default_planning_request_adapters/ValidateWorkspaceBounds'
+[INFO] [1792147123.832554233] [move_group]: Loaded adapter 'default_planning_request_adapters/ValidateWorkspaceBounds'
+[INFO] [1792147123.832556650] [move_group]: Try loading adapter 'default_planning_request_adapters/CheckStartStateBounds'
+[INFO] [1792147123.832563610] [move_group]: Loaded adapter 'default_planning_request_adapters/CheckStartStateBounds'
+[INFO] [1792147123.832565271] [move_group]: Try loading adapter 'default_planning_request_adapters/CheckStartStateCollision'
+[INFO] [1792147123.832569777] [move_group]: Loaded adapter 'default_planning_request_adapters/CheckStartStateCollision'
+[INFO] [1792147123.833422214] [move_group]: Try loading adapter 'default_planning_response_adapters/AddTimeOptimalParameterization'
+[INFO] [1792147123.833632636] [move_group]: Loaded adapter 'default_planning_response_adapters/AddTimeOptimalParameterization'
+[INFO] [1792147123.833636254] [move_group]: Try loading adapter 'default_planning_response_adapters/ValidateSolution'
+[INFO] [1792147123.833895638] [move_group]: Loaded adapter 'default_planning_response_adapters/ValidateSolution'
+[INFO] [1792147123.833900636] [move_group]: Try loading adapter 'default_planning_response_adapters/DisplayMotionPath'
+[INFO] [1792147123.834247351] [move_group]: Loaded adapter 'default_planning_response_adapters/DisplayMotionPath'
+[INFO] [1792147123.852287035] [move_group.moveit.moveit.plugins.simple_controller_manager]: Added FollowJointTrajectory controller for joint_trajectory_controller
+[INFO] [1792147123.852421733] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[INFO] [1792147123.852437338] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[INFO] [1792147123.852721787] [move_group.moveit.moveit.ros.trajectory_execution_manager]: Trajectory execution is not managing controllers
+[INFO] [1792147123.852737226] [move_group]: MoveGroup debug mode is ON
+[INFO] [1792147123.870233332] [move_group.moveit.moveit.planners.pilz.move_group_sequence_action]: initialize move group sequence action
+[INFO] [1792147123.871517928] [move_group.moveit.moveit.planners.pilz.joint_limits_aggregator]: Reading limits from namespace robot_description_planning
+[INFO] [1792147123.871632723] [move_group.moveit.moveit.planners.pilz.joint_limits_aggregator]: Reading limits from namespace robot_description_planning
+[INFO] [1792147123.871985336] [move_group.moveit.moveit.ros.move_group.executable]: 
+
+********************************************************
+* MoveGroup using: 
+*     - apply_planning_scene_service
+*     - clear_octomap_service
+*     - ExecuteTaskSolution
+*     - get_group_urdf
+*     - load_geometry_from_file
+*     - CartesianPathService
+*     - execute_trajectory_action
+*     - get_planning_scene_service
+*     - kinematics_service
+*     - move_action
+*     - motion_plan_service
+*     - query_planners_service
+*     - state_validation_service
+*     - save_geometry_to_file
+*     - SequenceAction
+*     - SequenceService
+********************************************************
+
+[INFO] [1792147123.872010000] [move_group.moveit.moveit.ros.move_group.context]: MoveGroup context using pipeline pilz_industrial_motion_planner
+[INFO] [1792147123.872014833] [move_group.moveit.moveit.ros.move_group.context]: MoveGroup context initialization complete
+[WARN] [1792147153.519596924] [move_group.moveit.moveit.core.planning_scene]: Tried to remove world object 'peach_scene_obstacles', but it does not exist in this scene.
+[WARN] [1792147170.118362528] [moveit_task_constructor_visualization.execute_task_solution]: The trajectory of stage '0' from task '' does not have any controllers specified for trajectory execution. This might lead to unexpected controller selection.
+[INFO] [1792147170.118388137] [moveit_task_constructor_visualization.execute_task_solution]: Executing TaskSolution
+[INFO] [1792147170.118437890] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[INFO] [1792147170.118470436] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[INFO] [1792147170.118525753] [move_group.moveit.moveit.ros.trajectory_execution_manager]: Validating trajectory with allowed_start_tolerance 0.15
+[INFO] [1792147170.121140006] [move_group.moveit.moveit.ros.trajectory_execution_manager]: Starting trajectory execution ...
+[INFO] [1792147170.121287779] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[INFO] [1792147170.121308424] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[INFO] [1792147170.121891821] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[INFO] [1792147170.121904749] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[INFO] [1792147170.122169885] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: sending trajectory to joint_trajectory_controller
+[INFO] [1792147170.123162888] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: joint_trajectory_controller started execution
+[INFO] [1792147170.123188146] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: Goal request accepted!
+[INFO] [1792147171.523395925] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: Controller 'joint_trajectory_controller' successfully finished
+[INFO] [1792147171.534847625] [move_group.moveit.moveit.ros.trajectory_execution_manager]: Completed trajectory execution with status SUCCEEDED ...
+[INFO] [1792147171.569190955] [move_group.moveit.moveit.ros.move_group.capability]: Using planning pipeline 'pilz_industrial_motion_planner'
+[INFO] [1792147171.569407294] [move_group]: Calling PlanningRequestAdapter 'ResolveConstraintFrames'
+[INFO] [1792147171.569609298] [move_group]: Calling PlanningRequestAdapter 'ValidateWorkspaceBounds'
+[WARN] [1792147171.569623073] [move_group.moveit.moveit.ros.validate_workspace_bounds]: It looks like the planning volume was not specified. Using default values.
+[INFO] [1792147171.569636349] [move_group]: Calling PlanningRequestAdapter 'CheckStartStateBounds'
+[ERROR] [1792147171.569675994] [move_group.moveit.moveit.core.conversions]: Found empty JointState message
+[INFO] [1792147171.569729805] [move_group]: Calling PlanningRequestAdapter 'CheckStartStateCollision'
+[ERROR] [1792147171.569739365] [move_group.moveit.moveit.core.conversions]: Found empty JointState message
+[INFO] [1792147171.569884536] [move_group]: Calling Planner 'Pilz Industrial Motion Planner'
+[INFO] [1792147171.569913822] [move_group.moveit.moveit.planners.pilz.trajectory_generator]: Generating LIN trajectory...
+[ERROR] [1792147171.570015297] [move_group.moveit.moveit.core.conversions]: Found empty JointState message
+[INFO] [1792147171.570768271] [move_group]: Calling PlanningResponseAdapter 'ValidateSolution'
+[INFO] [1792147171.570963542] [move_group]: Calling PlanningRequestAdapter 'ResolveConstraintFrames'
+[INFO] [1792147171.570974594] [move_group]: Calling PlanningRequestAdapter 'ValidateWorkspaceBounds'
+[WARN] [1792147171.570978774] [move_group.moveit.moveit.ros.validate_workspace_bounds]: It looks like the planning volume was not specified. Using default values.
+[INFO] [1792147171.570987025] [move_group]: Calling PlanningRequestAdapter 'CheckStartStateBounds'
+[INFO] [1792147171.570998718] [move_group]: Calling PlanningRequestAdapter 'CheckStartStateCollision'
+[INFO] [1792147171.571028273] [move_group]: Calling Planner 'Pilz Industrial Motion Planner'
+[INFO] [1792147171.571034635] [move_group.moveit.moveit.planners.pilz.trajectory_generator]: Generating LIN trajectory...
+[INFO] [1792147171.571412602] [move_group]: Calling PlanningResponseAdapter 'ValidateSolution'
+[INFO] [1792147171.571544632] [move_group.moveit.moveit.planners.pilz.trajectory_blender_transition_window]: Start trajectory blending using transition window.
+[INFO] [1792147171.571564043] [move_group.moveit.moveit.planners.pilz.trajectory_blender_transition_window]: Search for start and end point of blending trajectory.
+[INFO] [1792147171.571575403] [move_group.moveit.moveit.planners.pilz.trajectory_blender_transition_window]: Intersection point of first trajectory found, index: 4
+[INFO] [1792147171.571582464] [move_group.moveit.moveit.planners.pilz.trajectory_blender_transition_window]: Intersection point of second trajectory found, index: 3
+[INFO] [1792147171.574219541] [move_group.moveit.moveit.ros.move_group.clear_octomap_service]: Execution request received
+[INFO] [1792147171.574277721] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[INFO] [1792147171.574308268] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[INFO] [1792147171.574385272] [move_group.moveit.moveit.ros.trajectory_execution_manager]: Validating trajectory with allowed_start_tolerance 0.15
+[INFO] [1792147171.575308880] [move_group.moveit.moveit.ros.trajectory_execution_manager]: Starting trajectory execution ...
+[INFO] [1792147171.575536617] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[INFO] [1792147171.575644035] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[INFO] [1792147171.575911165] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: sending trajectory to joint_trajectory_controller
+[INFO] [1792147171.577346614] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: joint_trajectory_controller started execution
+[INFO] [1792147171.577357350] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: Goal request accepted!
+[INFO] [1792147172.827834645] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: Controller 'joint_trajectory_controller' successfully finished
+[INFO] [1792147172.840258110] [move_group.moveit.moveit.ros.trajectory_execution_manager]: Completed trajectory execution with status SUCCEEDED ...
+[INFO] [1792147172.840428951] [move_group.moveit.moveit.ros.move_group.clear_octomap_service]: Execution completed: SUCCEEDED
+[WARN] [1792147173.478816998] [moveit_task_constructor_visualization.execute_task_solution]: The trajectory of stage '0' from task '' does not have any controllers specified for trajectory execution. This might lead to unexpected controller selection.
+[INFO] [1792147173.478838170] [moveit_task_constructor_visualization.execute_task_solution]: Executing TaskSolution
+[INFO] [1792147173.478887550] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[INFO] [1792147173.478922360] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[INFO] [1792147173.478959713] [move_group.moveit.moveit.ros.trajectory_execution_manager]: Validating trajectory with allowed_start_tolerance 0.15
+[INFO] [1792147173.479708628] [move_group.moveit.moveit.ros.trajectory_execution_manager]: Starting trajectory execution ...
+[INFO] [1792147173.479753426] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[INFO] [1792147173.479769354] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[INFO] [1792147173.480514758] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[INFO] [1792147173.480524361] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[INFO] [1792147173.480713830] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: sending trajectory to joint_trajectory_controller
+[INFO] [1792147173.481088684] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: joint_trajectory_controller started execution
+[INFO] [1792147173.481096743] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: Goal request accepted!
+[INFO] [1792147178.731205117] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: Controller 'joint_trajectory_controller' successfully finished
+[INFO] [1792147178.745122195] [move_group.moveit.moveit.ros.trajectory_execution_manager]: Completed trajectory execution with status SUCCEEDED ...
+[WARN] [1792147178.934976476] [moveit_task_constructor_visualization.execute_task_solution]: The trajectory of stage '0' from task '' does not have any controllers specified for trajectory execution. This might lead to unexpected controller selection.
+[INFO] [1792147178.935000751] [moveit_task_constructor_visualization.execute_task_solution]: Executing TaskSolution
+[INFO] [1792147178.935040749] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[INFO] [1792147178.935077344] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[INFO] [1792147178.935108354] [move_group.moveit.moveit.ros.trajectory_execution_manager]: Validating trajectory with allowed_start_tolerance 0.15
+[INFO] [1792147178.940121309] [move_group.moveit.moveit.ros.trajectory_execution_manager]: Starting trajectory execution ...
+[INFO] [1792147178.940225392] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[INFO] [1792147178.940245627] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[INFO] [1792147178.941296052] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[INFO] [1792147178.941329491] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[INFO] [1792147178.941541223] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: sending trajectory to joint_trajectory_controller
+[INFO] [1792147178.945226931] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: joint_trajectory_controller started execution
+[INFO] [1792147178.945247275] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: Goal request accepted!
+[INFO] [1792147184.195309044] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: Controller 'joint_trajectory_controller' successfully finished
+[INFO] [1792147184.209779694] [move_group.moveit.moveit.ros.trajectory_execution_manager]: Completed trajectory execution with status SUCCEEDED ...
+[INFO] [1792147184.272903700] [move_group.moveit.moveit.ros.move_group.clear_octomap_service]: Execution request received
+[INFO] [1792147184.272967478] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[INFO] [1792147184.272982085] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[INFO] [1792147184.273031879] [move_group.moveit.moveit.ros.trajectory_execution_manager]: Validating trajectory with allowed_start_tolerance 0.15
+[INFO] [1792147184.274962893] [move_group.moveit.moveit.ros.trajectory_execution_manager]: Starting trajectory execution ...
+[INFO] [1792147184.275072754] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[INFO] [1792147184.275093128] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[INFO] [1792147184.275334349] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: sending trajectory to joint_trajectory_controller
+[INFO] [1792147184.275921965] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: joint_trajectory_controller started execution
+[INFO] [1792147184.275933359] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: Goal request accepted!
+[INFO] [1792147186.876428194] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: Controller 'joint_trajectory_controller' successfully finished
+[INFO] [1792147186.891618359] [move_group.moveit.moveit.ros.trajectory_execution_manager]: Completed trajectory execution with status SUCCEEDED ...
+[INFO] [1792147186.892325702] [move_group.moveit.moveit.ros.move_group.clear_octomap_service]: Execution completed: SUCCEEDED
+[INFO] [1792147186.907999682] [move_group.moveit.moveit.ros.move_group.move_action]: MoveGroupMoveAction: Received request
+[INFO] [1792147186.908201214] [move_group.moveit.moveit.ros.move_group.move_action]: executing..
+[INFO] [1792147186.911669533] [move_group.moveit.moveit.ros.move_group.move_action]: Planning request received for MoveGroup action. Forwarding to planning pipeline.
+[INFO] [1792147186.911739854] [move_group.moveit.moveit.ros.move_group.capability]: Using planning pipeline 'pilz_industrial_motion_planner'
+[INFO] [1792147186.911857947] [move_group]: Calling PlanningRequestAdapter 'ResolveConstraintFrames'
+[INFO] [1792147186.911878414] [move_group]: Calling PlanningRequestAdapter 'ValidateWorkspaceBounds'
+[WARN] [1792147186.911884922] [move_group.moveit.moveit.ros.validate_workspace_bounds]: It looks like the planning volume was not specified. Using default values.
+[INFO] [1792147186.911894945] [move_group]: Calling PlanningRequestAdapter 'CheckStartStateBounds'
+[INFO] [1792147186.911909896] [move_group]: Calling PlanningRequestAdapter 'CheckStartStateCollision'
+[INFO] [1792147186.912028404] [move_group.moveit.moveit.planners.pilz.trajectory_generator.ptp]: Initialized Point-to-Point Trajectory Generator.
+[INFO] [1792147186.912056754] [move_group]: Calling Planner 'Pilz Industrial Motion Planner'
+[INFO] [1792147186.912071117] [move_group.moveit.moveit.planners.pilz.trajectory_generator]: Generating PTP trajectory...
+[INFO] [1792147186.912189962] [move_group]: Calling PlanningResponseAdapter 'ValidateSolution'
+[INFO] [1792147186.912470317] [move_group.moveit.moveit.ros.move_group.move_action]: Motion plan was computed successfully.
+[INFO] [1792147186.917089621] [move_group.moveit.moveit.ros.move_group.clear_octomap_service]: Execution request received
+[INFO] [1792147186.917131291] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[INFO] [1792147186.917145200] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[INFO] [1792147186.917222865] [move_group.moveit.moveit.ros.trajectory_execution_manager]: Validating trajectory with allowed_start_tolerance 0.15
+[INFO] [1792147186.919974816] [move_group.moveit.moveit.ros.trajectory_execution_manager]: Starting trajectory execution ...
+[INFO] [1792147186.920055603] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[INFO] [1792147186.920076990] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[INFO] [1792147186.920318002] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: sending trajectory to joint_trajectory_controller
+[INFO] [1792147186.921388099] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: joint_trajectory_controller started execution
+[INFO] [1792147186.921399830] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: Goal request accepted!
+[INFO] [1792147187.621403560] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: Controller 'joint_trajectory_controller' successfully finished
+[INFO] [1792147187.636034941] [move_group.moveit.moveit.ros.trajectory_execution_manager]: Completed trajectory execution with status SUCCEEDED ...
+[INFO] [1792147187.636317956] [move_group.moveit.moveit.ros.move_group.clear_octomap_service]: Execution completed: SUCCEEDED
+[INFO] [1792147197.812955421] [move_group.moveit.moveit.ros.move_group.move_action]: MoveGroupMoveAction: Received request
+[INFO] [1792147197.813160148] [move_group.moveit.moveit.ros.move_group.move_action]: executing..
+[INFO] [1792147197.817675918] [move_group.moveit.moveit.ros.move_group.move_action]: Planning request received for MoveGroup action. Forwarding to planning pipeline.
+[INFO] [1792147197.817747938] [move_group.moveit.moveit.ros.move_group.capability]: Using planning pipeline 'pilz_industrial_motion_planner'
+[INFO] [1792147197.817897880] [move_group]: Calling PlanningRequestAdapter 'ResolveConstraintFrames'
+[INFO] [1792147197.818153743] [move_group]: Calling PlanningRequestAdapter 'ValidateWorkspaceBounds'
+[WARN] [1792147197.818172830] [move_group.moveit.moveit.ros.validate_workspace_bounds]: It looks like the planning volume was not specified. Using default values.
+[INFO] [1792147197.818189856] [move_group]: Calling PlanningRequestAdapter 'CheckStartStateBounds'
+[INFO] [1792147197.818212901] [move_group]: Calling PlanningRequestAdapter 'CheckStartStateCollision'
+[INFO] [1792147197.818339570] [move_group.moveit.moveit.planners.pilz.trajectory_generator.ptp]: Initialized Point-to-Point Trajectory Generator.
+[INFO] [1792147197.818367792] [move_group]: Calling Planner 'Pilz Industrial Motion Planner'
+[INFO] [1792147197.818380179] [move_group.moveit.moveit.planners.pilz.trajectory_generator]: Generating PTP trajectory...
+[INFO] [1792147197.818482644] [move_group]: Calling PlanningResponseAdapter 'ValidateSolution'
+[INFO] [1792147197.818688500] [move_group.moveit.moveit.ros.move_group.move_action]: Motion plan was computed successfully.
+[INFO] [1792147197.824321687] [move_group.moveit.moveit.ros.move_group.clear_octomap_service]: Execution request received
+[INFO] [1792147197.824377120] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[INFO] [1792147197.824393890] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[INFO] [1792147197.824431751] [move_group.moveit.moveit.ros.trajectory_execution_manager]: Validating trajectory with allowed_start_tolerance 0.15
+[INFO] [1792147197.825441733] [move_group.moveit.moveit.ros.trajectory_execution_manager]: Starting trajectory execution ...
+[INFO] [1792147197.825572008] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[INFO] [1792147197.825600132] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[INFO] [1792147197.826089496] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: sending trajectory to joint_trajectory_controller
+[INFO] [1792147197.827469706] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: joint_trajectory_controller started execution
+[INFO] [1792147197.827483023] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: Goal request accepted!
+[INFO] [1792147198.528260867] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: Controller 'joint_trajectory_controller' successfully finished
+[INFO] [1792147198.539995904] [move_group.moveit.moveit.ros.trajectory_execution_manager]: Completed trajectory execution with status SUCCEEDED ...
+[INFO] [1792147198.540085384] [move_group.moveit.moveit.ros.move_group.clear_octomap_service]: Execution completed: SUCCEEDED
+[WARN] [1792147207.019677414] [move_group.moveit.moveit.core.planning_scene]: Tried to remove world object 'peach_scene_obstacles', but it does not exist in this scene.
+[WARN] [1792147219.165458022] [moveit_task_constructor_visualization.execute_task_solution]: The trajectory of stage '0' from task '' does not have any controllers specified for trajectory execution. This might lead to unexpected controller selection.
+[INFO] [1792147219.165481085] [moveit_task_constructor_visualization.execute_task_solution]: Executing TaskSolution
+[INFO] [1792147219.165513950] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[INFO] [1792147219.165547979] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[INFO] [1792147219.165575073] [move_group.moveit.moveit.ros.trajectory_execution_manager]: Validating trajectory with allowed_start_tolerance 0.15
+[INFO] [1792147219.169757503] [move_group.moveit.moveit.ros.trajectory_execution_manager]: Starting trajectory execution ...
+[INFO] [1792147219.169843724] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[INFO] [1792147219.169868778] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[INFO] [1792147219.170487727] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[INFO] [1792147219.170516506] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[INFO] [1792147219.170817242] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: sending trajectory to joint_trajectory_controller
+[INFO] [1792147219.171881462] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: joint_trajectory_controller started execution
+[INFO] [1792147219.171894039] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: Goal request accepted!
+[INFO] [1792147220.774092931] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: Controller 'joint_trajectory_controller' successfully finished
+[INFO] [1792147220.787764919] [move_group.moveit.moveit.ros.trajectory_execution_manager]: Completed trajectory execution with status SUCCEEDED ...
+[INFO] [1792147220.818237912] [move_group.moveit.moveit.ros.move_group.capability]: Using planning pipeline 'pilz_industrial_motion_planner'
+[INFO] [1792147220.818353453] [move_group]: Calling PlanningRequestAdapter 'ResolveConstraintFrames'
+[INFO] [1792147220.818394621] [move_group]: Calling PlanningRequestAdapter 'ValidateWorkspaceBounds'
+[WARN] [1792147220.818401333] [move_group.moveit.moveit.ros.validate_workspace_bounds]: It looks like the planning volume was not specified. Using default values.
+[INFO] [1792147220.818412155] [move_group]: Calling PlanningRequestAdapter 'CheckStartStateBounds'
+[ERROR] [1792147220.818427982] [move_group.moveit.moveit.core.conversions]: Found empty JointState message
+[INFO] [1792147220.818468032] [move_group]: Calling PlanningRequestAdapter 'CheckStartStateCollision'
+[ERROR] [1792147220.818476550] [move_group.moveit.moveit.core.conversions]: Found empty JointState message
+[INFO] [1792147220.818574005] [move_group]: Calling Planner 'Pilz Industrial Motion Planner'
+[INFO] [1792147220.818585961] [move_group.moveit.moveit.planners.pilz.trajectory_generator]: Generating LIN trajectory...
+[ERROR] [1792147220.818613085] [move_group.moveit.moveit.core.conversions]: Found empty JointState message
+[INFO] [1792147220.819134054] [move_group]: Calling PlanningResponseAdapter 'ValidateSolution'
+[INFO] [1792147220.819638927] [move_group]: Calling PlanningRequestAdapter 'ResolveConstraintFrames'
+[INFO] [1792147220.819677077] [move_group]: Calling PlanningRequestAdapter 'ValidateWorkspaceBounds'
+[WARN] [1792147220.819684381] [move_group.moveit.moveit.ros.validate_workspace_bounds]: It looks like the planning volume was not specified. Using default values.
+[INFO] [1792147220.819696819] [move_group]: Calling PlanningRequestAdapter 'CheckStartStateBounds'
+[INFO] [1792147220.819854746] [move_group]: Calling PlanningRequestAdapter 'CheckStartStateCollision'
+[INFO] [1792147220.820028198] [move_group]: Calling Planner 'Pilz Industrial Motion Planner'
+[INFO] [1792147220.820050716] [move_group.moveit.moveit.planners.pilz.trajectory_generator]: Generating LIN trajectory...
+[INFO] [1792147220.820954681] [move_group]: Calling PlanningResponseAdapter 'ValidateSolution'
+[INFO] [1792147220.821269834] [move_group.moveit.moveit.planners.pilz.trajectory_blender_transition_window]: Start trajectory blending using transition window.
+[INFO] [1792147220.821303930] [move_group.moveit.moveit.planners.pilz.trajectory_blender_transition_window]: Search for start and end point of blending trajectory.
+[INFO] [1792147220.821319067] [move_group.moveit.moveit.planners.pilz.trajectory_blender_transition_window]: Intersection point of first trajectory found, index: 4
+[INFO] [1792147220.821452676] [move_group.moveit.moveit.planners.pilz.trajectory_blender_transition_window]: Intersection point of second trajectory found, index: 3
+[INFO] [1792147220.825648221] [move_group.moveit.moveit.ros.move_group.clear_octomap_service]: Execution request received
+[INFO] [1792147220.825683756] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[INFO] [1792147220.825696078] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[INFO] [1792147220.825728578] [move_group.moveit.moveit.ros.trajectory_execution_manager]: Validating trajectory with allowed_start_tolerance 0.15
+[INFO] [1792147220.831446990] [move_group.moveit.moveit.ros.trajectory_execution_manager]: Starting trajectory execution ...
+[INFO] [1792147220.831592144] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[INFO] [1792147220.831615387] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[INFO] [1792147220.831884867] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: sending trajectory to joint_trajectory_controller
+[INFO] [1792147220.832553920] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: joint_trajectory_controller started execution
+[INFO] [1792147220.832561346] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: Goal request accepted!
+[INFO] [1792147222.082609056] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: Controller 'joint_trajectory_controller' successfully finished
+[INFO] [1792147222.095145706] [move_group.moveit.moveit.ros.trajectory_execution_manager]: Completed trajectory execution with status SUCCEEDED ...
+[INFO] [1792147222.095367046] [move_group.moveit.moveit.ros.move_group.clear_octomap_service]: Execution completed: SUCCEEDED
+[WARN] [1792147222.686119329] [moveit_task_constructor_visualization.execute_task_solution]: The trajectory of stage '0' from task '' does not have any controllers specified for trajectory execution. This might lead to unexpected controller selection.
+[INFO] [1792147222.686163797] [moveit_task_constructor_visualization.execute_task_solution]: Executing TaskSolution
+[INFO] [1792147222.686232371] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[INFO] [1792147222.686296565] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[INFO] [1792147222.686340201] [move_group.moveit.moveit.ros.trajectory_execution_manager]: Validating trajectory with allowed_start_tolerance 0.15
+[INFO] [1792147222.692482200] [move_group.moveit.moveit.ros.trajectory_execution_manager]: Starting trajectory execution ...
+[INFO] [1792147222.692755623] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[INFO] [1792147222.692799188] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[INFO] [1792147222.694057319] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[INFO] [1792147222.694118492] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[INFO] [1792147222.694631190] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: sending trajectory to joint_trajectory_controller
+[INFO] [1792147222.696076834] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: joint_trajectory_controller started execution
+[INFO] [1792147222.696095146] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: Goal request accepted!
+[INFO] [1792147227.847118477] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: Controller 'joint_trajectory_controller' successfully finished
+[INFO] [1792147227.863339646] [move_group.moveit.moveit.ros.trajectory_execution_manager]: Completed trajectory execution with status SUCCEEDED ...
+[WARN] [1792147228.063391684] [moveit_task_constructor_visualization.execute_task_solution]: The trajectory of stage '0' from task '' does not have any controllers specified for trajectory execution. This might lead to unexpected controller selection.
+[INFO] [1792147228.063423853] [moveit_task_constructor_visualization.execute_task_solution]: Executing TaskSolution
+[INFO] [1792147228.063478402] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[INFO] [1792147228.063532647] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[INFO] [1792147228.063575805] [move_group.moveit.moveit.ros.trajectory_execution_manager]: Validating trajectory with allowed_start_tolerance 0.15
+[INFO] [1792147228.064909129] [move_group.moveit.moveit.ros.trajectory_execution_manager]: Starting trajectory execution ...
+[INFO] [1792147228.064993780] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[INFO] [1792147228.065020032] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[INFO] [1792147228.066112935] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[INFO] [1792147228.066138881] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[INFO] [1792147228.066427472] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: sending trajectory to joint_trajectory_controller
+[INFO] [1792147228.066762608] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: joint_trajectory_controller started execution
+[INFO] [1792147228.066773912] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: Goal request accepted!
+[INFO] [1792147233.217033198] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: Controller 'joint_trajectory_controller' successfully finished
+[INFO] [1792147233.230693562] [move_group.moveit.moveit.ros.trajectory_execution_manager]: Completed trajectory execution with status SUCCEEDED ...
+[INFO] [1792147233.277384306] [move_group.moveit.moveit.ros.move_group.clear_octomap_service]: Execution request received
+[INFO] [1792147233.277434343] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[INFO] [1792147233.277449767] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[INFO] [1792147233.277495109] [move_group.moveit.moveit.ros.trajectory_execution_manager]: Validating trajectory with allowed_start_tolerance 0.15
+[INFO] [1792147233.280495300] [move_group.moveit.moveit.ros.trajectory_execution_manager]: Starting trajectory execution ...
+[INFO] [1792147233.280685957] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[INFO] [1792147233.280724830] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[INFO] [1792147233.281254845] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: sending trajectory to joint_trajectory_controller
+[INFO] [1792147233.283154393] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: joint_trajectory_controller started execution
+[INFO] [1792147233.283172669] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: Goal request accepted!
+[INFO] [1792147236.084512840] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: Controller 'joint_trajectory_controller' successfully finished
+[INFO] [1792147236.100040844] [move_group.moveit.moveit.ros.trajectory_execution_manager]: Completed trajectory execution with status SUCCEEDED ...
+[INFO] [1792147236.100156189] [move_group.moveit.moveit.ros.move_group.clear_octomap_service]: Execution completed: SUCCEEDED
+[INFO] [1792147236.110751951] [move_group.moveit.moveit.ros.move_group.move_action]: MoveGroupMoveAction: Received request
+[INFO] [1792147236.110897855] [move_group.moveit.moveit.ros.move_group.move_action]: executing..
+[INFO] [1792147236.115491718] [move_group.moveit.moveit.ros.move_group.move_action]: Planning request received for MoveGroup action. Forwarding to planning pipeline.
+[INFO] [1792147236.115572312] [move_group.moveit.moveit.ros.move_group.capability]: Using planning pipeline 'pilz_industrial_motion_planner'
+[INFO] [1792147236.115677347] [move_group]: Calling PlanningRequestAdapter 'ResolveConstraintFrames'
+[INFO] [1792147236.115699139] [move_group]: Calling PlanningRequestAdapter 'ValidateWorkspaceBounds'
+[WARN] [1792147236.115705453] [move_group.moveit.moveit.ros.validate_workspace_bounds]: It looks like the planning volume was not specified. Using default values.
+[INFO] [1792147236.115717186] [move_group]: Calling PlanningRequestAdapter 'CheckStartStateBounds'
+[INFO] [1792147236.115734772] [move_group]: Calling PlanningRequestAdapter 'CheckStartStateCollision'
+[INFO] [1792147236.115866954] [move_group.moveit.moveit.planners.pilz.trajectory_generator.ptp]: Initialized Point-to-Point Trajectory Generator.
+[INFO] [1792147236.115894490] [move_group]: Calling Planner 'Pilz Industrial Motion Planner'
+[INFO] [1792147236.115905325] [move_group.moveit.moveit.planners.pilz.trajectory_generator]: Generating PTP trajectory...
+[INFO] [1792147236.116003326] [move_group]: Calling PlanningResponseAdapter 'ValidateSolution'
+[INFO] [1792147236.116202108] [move_group.moveit.moveit.ros.move_group.move_action]: Motion plan was computed successfully.
+[INFO] [1792147236.118033061] [move_group.moveit.moveit.ros.move_group.clear_octomap_service]: Execution request received
+[INFO] [1792147236.118088077] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[INFO] [1792147236.118107796] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[INFO] [1792147236.118157425] [move_group.moveit.moveit.ros.trajectory_execution_manager]: Validating trajectory with allowed_start_tolerance 0.15
+[INFO] [1792147236.120806077] [move_group.moveit.moveit.ros.trajectory_execution_manager]: Starting trajectory execution ...
+[INFO] [1792147236.120932489] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[INFO] [1792147236.120975415] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[INFO] [1792147236.121355429] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: sending trajectory to joint_trajectory_controller
+[INFO] [1792147236.121648707] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: joint_trajectory_controller started execution
+[INFO] [1792147236.121658158] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: Goal request accepted!
+[INFO] [1792147236.822351781] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: Controller 'joint_trajectory_controller' successfully finished
+[INFO] [1792147236.835670720] [move_group.moveit.moveit.ros.trajectory_execution_manager]: Completed trajectory execution with status SUCCEEDED ...
+[INFO] [1792147236.835807537] [move_group.moveit.moveit.ros.move_group.clear_octomap_service]: Execution completed: SUCCEEDED
+[INFO] [1792147244.830740912] [move_group.moveit.moveit.ros.move_group.move_action]: MoveGroupMoveAction: Received request
+[INFO] [1792147244.830863616] [move_group.moveit.moveit.ros.move_group.move_action]: executing..
+[INFO] [1792147244.834879825] [move_group.moveit.moveit.ros.move_group.move_action]: Planning request received for MoveGroup action. Forwarding to planning pipeline.
+[INFO] [1792147244.834955724] [move_group.moveit.moveit.ros.move_group.capability]: Using planning pipeline 'pilz_industrial_motion_planner'
+[INFO] [1792147244.835043699] [move_group]: Calling PlanningRequestAdapter 'ResolveConstraintFrames'
+[INFO] [1792147244.835067880] [move_group]: Calling PlanningRequestAdapter 'ValidateWorkspaceBounds'
+[WARN] [1792147244.835074932] [move_group.moveit.moveit.ros.validate_workspace_bounds]: It looks like the planning volume was not specified. Using default values.
+[INFO] [1792147244.835084410] [move_group]: Calling PlanningRequestAdapter 'CheckStartStateBounds'
+[INFO] [1792147244.835100819] [move_group]: Calling PlanningRequestAdapter 'CheckStartStateCollision'
+[INFO] [1792147244.835222241] [move_group.moveit.moveit.planners.pilz.trajectory_generator.ptp]: Initialized Point-to-Point Trajectory Generator.
+[INFO] [1792147244.835250684] [move_group]: Calling Planner 'Pilz Industrial Motion Planner'
+[INFO] [1792147244.835263505] [move_group.moveit.moveit.planners.pilz.trajectory_generator]: Generating PTP trajectory...
+[INFO] [1792147244.835369688] [move_group]: Calling PlanningResponseAdapter 'ValidateSolution'
+[INFO] [1792147244.835606224] [move_group.moveit.moveit.ros.move_group.move_action]: Motion plan was computed successfully.
+[INFO] [1792147244.842458425] [move_group.moveit.moveit.ros.move_group.clear_octomap_service]: Execution request received
+[INFO] [1792147244.842495399] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[INFO] [1792147244.842510879] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[INFO] [1792147244.842546974] [move_group.moveit.moveit.ros.trajectory_execution_manager]: Validating trajectory with allowed_start_tolerance 0.15
+[INFO] [1792147244.844944852] [move_group.moveit.moveit.ros.trajectory_execution_manager]: Starting trajectory execution ...
+[INFO] [1792147244.845036889] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[INFO] [1792147244.845060824] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[INFO] [1792147244.845507652] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: sending trajectory to joint_trajectory_controller
+[INFO] [1792147244.849741625] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: joint_trajectory_controller started execution
+[INFO] [1792147244.849767528] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: Goal request accepted!
+[INFO] [1792147245.548742140] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: Controller 'joint_trajectory_controller' successfully finished
+[INFO] [1792147245.559857935] [move_group.moveit.moveit.ros.trajectory_execution_manager]: Completed trajectory execution with status SUCCEEDED ...
+[INFO] [1792147245.559959997] [move_group.moveit.moveit.ros.move_group.clear_octomap_service]: Execution completed: SUCCEEDED
+[WARN] [1792147254.026606735] [move_group.moveit.moveit.core.planning_scene]: Tried to remove world object 'peach_scene_obstacles', but it does not exist in this scene.
+[WARN] [1792147263.576742614] [moveit_task_constructor_visualization.execute_task_solution]: The trajectory of stage '0' from task '' does not have any controllers specified for trajectory execution. This might lead to unexpected controller selection.
+[INFO] [1792147263.576778986] [moveit_task_constructor_visualization.execute_task_solution]: Executing TaskSolution
+[INFO] [1792147263.576825594] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[INFO] [1792147263.576882002] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[INFO] [1792147263.576917640] [move_group.moveit.moveit.ros.trajectory_execution_manager]: Validating trajectory with allowed_start_tolerance 0.15
+[INFO] [1792147263.579784388] [move_group.moveit.moveit.ros.trajectory_execution_manager]: Starting trajectory execution ...
+[INFO] [1792147263.579842442] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[INFO] [1792147263.579860414] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[INFO] [1792147263.580291368] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[INFO] [1792147263.580315300] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[INFO] [1792147263.580736866] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: sending trajectory to joint_trajectory_controller
+[INFO] [1792147263.582191750] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: joint_trajectory_controller started execution
+[INFO] [1792147263.582206582] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: Goal request accepted!
+[INFO] [1792147264.882540157] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: Controller 'joint_trajectory_controller' successfully finished
+[INFO] [1792147264.894837122] [move_group.moveit.moveit.ros.trajectory_execution_manager]: Completed trajectory execution with status SUCCEEDED ...
+[INFO] [1792147264.925741240] [move_group.moveit.moveit.ros.move_group.capability]: Using planning pipeline 'pilz_industrial_motion_planner'
+[INFO] [1792147264.925952274] [move_group]: Calling PlanningRequestAdapter 'ResolveConstraintFrames'
+[INFO] [1792147264.926019925] [move_group]: Calling PlanningRequestAdapter 'ValidateWorkspaceBounds'
+[WARN] [1792147264.926028128] [move_group.moveit.moveit.ros.validate_workspace_bounds]: It looks like the planning volume was not specified. Using default values.
+[INFO] [1792147264.926043855] [move_group]: Calling PlanningRequestAdapter 'CheckStartStateBounds'
+[ERROR] [1792147264.926061210] [move_group.moveit.moveit.core.conversions]: Found empty JointState message
+[INFO] [1792147264.926142443] [move_group]: Calling PlanningRequestAdapter 'CheckStartStateCollision'
+[ERROR] [1792147264.926152841] [move_group.moveit.moveit.core.conversions]: Found empty JointState message
+[INFO] [1792147264.926330116] [move_group]: Calling Planner 'Pilz Industrial Motion Planner'
+[INFO] [1792147264.926346911] [move_group.moveit.moveit.planners.pilz.trajectory_generator]: Generating LIN trajectory...
+[ERROR] [1792147264.926397126] [move_group.moveit.moveit.core.conversions]: Found empty JointState message
+[INFO] [1792147264.926975247] [move_group]: Calling PlanningResponseAdapter 'ValidateSolution'
+[INFO] [1792147264.927185310] [move_group]: Calling PlanningRequestAdapter 'ResolveConstraintFrames'
+[INFO] [1792147264.927217736] [move_group]: Calling PlanningRequestAdapter 'ValidateWorkspaceBounds'
+[WARN] [1792147264.927222666] [move_group.moveit.moveit.ros.validate_workspace_bounds]: It looks like the planning volume was not specified. Using default values.
+[INFO] [1792147264.927232321] [move_group]: Calling PlanningRequestAdapter 'CheckStartStateBounds'
+[INFO] [1792147264.927246676] [move_group]: Calling PlanningRequestAdapter 'CheckStartStateCollision'
+[INFO] [1792147264.927303981] [move_group]: Calling Planner 'Pilz Industrial Motion Planner'
+[INFO] [1792147264.927311094] [move_group.moveit.moveit.planners.pilz.trajectory_generator]: Generating LIN trajectory...
+[INFO] [1792147264.927728701] [move_group]: Calling PlanningResponseAdapter 'ValidateSolution'
+[INFO] [1792147264.927954753] [move_group.moveit.moveit.planners.pilz.trajectory_blender_transition_window]: Start trajectory blending using transition window.
+[INFO] [1792147264.927968435] [move_group.moveit.moveit.planners.pilz.trajectory_blender_transition_window]: Search for start and end point of blending trajectory.
+[INFO] [1792147264.928023105] [move_group.moveit.moveit.planners.pilz.trajectory_blender_transition_window]: Intersection point of first trajectory found, index: 4
+[INFO] [1792147264.928032223] [move_group.moveit.moveit.planners.pilz.trajectory_blender_transition_window]: Intersection point of second trajectory found, index: 3
+[INFO] [1792147264.932915212] [move_group.moveit.moveit.ros.move_group.clear_octomap_service]: Execution request received
+[INFO] [1792147264.932950426] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[INFO] [1792147264.932962516] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[INFO] [1792147264.932992570] [move_group.moveit.moveit.ros.trajectory_execution_manager]: Validating trajectory with allowed_start_tolerance 0.15
+[INFO] [1792147264.934818429] [move_group.moveit.moveit.ros.trajectory_execution_manager]: Starting trajectory execution ...
+[INFO] [1792147264.934879930] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[INFO] [1792147264.934900148] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[INFO] [1792147264.935097545] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: sending trajectory to joint_trajectory_controller
+[INFO] [1792147264.935873838] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: joint_trajectory_controller started execution
+[INFO] [1792147264.935884419] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: Goal request accepted!
+[INFO] [1792147266.185934506] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: Controller 'joint_trajectory_controller' successfully finished
+[INFO] [1792147266.199744289] [move_group.moveit.moveit.ros.trajectory_execution_manager]: Completed trajectory execution with status SUCCEEDED ...
+[INFO] [1792147266.201313294] [move_group.moveit.moveit.ros.move_group.clear_octomap_service]: Execution completed: SUCCEEDED
+[WARN] [1792147266.671040622] [moveit_task_constructor_visualization.execute_task_solution]: The trajectory of stage '0' from task '' does not have any controllers specified for trajectory execution. This might lead to unexpected controller selection.
+[INFO] [1792147266.671065893] [moveit_task_constructor_visualization.execute_task_solution]: Executing TaskSolution
+[INFO] [1792147266.671136219] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[INFO] [1792147266.671176508] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[INFO] [1792147266.671224006] [move_group.moveit.moveit.ros.trajectory_execution_manager]: Validating trajectory with allowed_start_tolerance 0.15
+[INFO] [1792147266.675006806] [move_group.moveit.moveit.ros.trajectory_execution_manager]: Starting trajectory execution ...
+[INFO] [1792147266.675085229] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[INFO] [1792147266.675109246] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[INFO] [1792147266.677729447] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[INFO] [1792147266.677776750] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[INFO] [1792147266.678022546] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: sending trajectory to joint_trajectory_controller
+[INFO] [1792147266.678705496] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: joint_trajectory_controller started execution
+[INFO] [1792147266.678716559] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: Goal request accepted!
+[INFO] [1792147273.931523199] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: Controller 'joint_trajectory_controller' successfully finished
+[INFO] [1792147273.945383517] [move_group.moveit.moveit.ros.trajectory_execution_manager]: Completed trajectory execution with status SUCCEEDED ...
+[WARN] [1792147274.117910638] [moveit_task_constructor_visualization.execute_task_solution]: The trajectory of stage '0' from task '' does not have any controllers specified for trajectory execution. This might lead to unexpected controller selection.
+[INFO] [1792147274.117942077] [moveit_task_constructor_visualization.execute_task_solution]: Executing TaskSolution
+[INFO] [1792147274.117996210] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[INFO] [1792147274.118045550] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[INFO] [1792147274.118089925] [move_group.moveit.moveit.ros.trajectory_execution_manager]: Validating trajectory with allowed_start_tolerance 0.15
+[INFO] [1792147274.122556587] [move_group.moveit.moveit.ros.trajectory_execution_manager]: Starting trajectory execution ...
+[INFO] [1792147274.122698429] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[INFO] [1792147274.122726244] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[INFO] [1792147274.124158431] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[INFO] [1792147274.124203081] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[INFO] [1792147274.124663830] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: sending trajectory to joint_trajectory_controller
+[INFO] [1792147274.127814386] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: joint_trajectory_controller started execution
+[INFO] [1792147274.127830765] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: Goal request accepted!
+[INFO] [1792147281.377856849] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: Controller 'joint_trajectory_controller' successfully finished
+[INFO] [1792147281.390510734] [move_group.moveit.moveit.ros.trajectory_execution_manager]: Completed trajectory execution with status SUCCEEDED ...
+[INFO] [1792147281.453435849] [move_group.moveit.moveit.ros.move_group.clear_octomap_service]: Execution request received
+[INFO] [1792147281.453500899] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[INFO] [1792147281.453518345] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[INFO] [1792147281.453564074] [move_group.moveit.moveit.ros.trajectory_execution_manager]: Validating trajectory with allowed_start_tolerance 0.15
+[INFO] [1792147281.454831227] [move_group.moveit.moveit.ros.trajectory_execution_manager]: Starting trajectory execution ...
+[INFO] [1792147281.454887015] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[INFO] [1792147281.454907366] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[INFO] [1792147281.455171644] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: sending trajectory to joint_trajectory_controller
+[INFO] [1792147281.455509645] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: joint_trajectory_controller started execution
+[INFO] [1792147281.455517055] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: Goal request accepted!
+[INFO] [1792147283.955723845] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: Controller 'joint_trajectory_controller' successfully finished
+[INFO] [1792147283.970334065] [move_group.moveit.moveit.ros.trajectory_execution_manager]: Completed trajectory execution with status SUCCEEDED ...
+[INFO] [1792147283.970516670] [move_group.moveit.moveit.ros.move_group.clear_octomap_service]: Execution completed: SUCCEEDED
+[INFO] [1792147283.980071707] [move_group.moveit.moveit.ros.move_group.move_action]: MoveGroupMoveAction: Received request
+[INFO] [1792147283.980215011] [move_group.moveit.moveit.ros.move_group.move_action]: executing..
+[INFO] [1792147283.984717654] [move_group.moveit.moveit.ros.move_group.move_action]: Planning request received for MoveGroup action. Forwarding to planning pipeline.
+[INFO] [1792147283.984754768] [move_group.moveit.moveit.ros.move_group.capability]: Using planning pipeline 'pilz_industrial_motion_planner'
+[INFO] [1792147283.984832501] [move_group]: Calling PlanningRequestAdapter 'ResolveConstraintFrames'
+[INFO] [1792147283.984851871] [move_group]: Calling PlanningRequestAdapter 'ValidateWorkspaceBounds'
+[WARN] [1792147283.984859126] [move_group.moveit.moveit.ros.validate_workspace_bounds]: It looks like the planning volume was not specified. Using default values.
+[INFO] [1792147283.984869868] [move_group]: Calling PlanningRequestAdapter 'CheckStartStateBounds'
+[INFO] [1792147283.984884860] [move_group]: Calling PlanningRequestAdapter 'CheckStartStateCollision'
+[INFO] [1792147283.984975996] [move_group.moveit.moveit.planners.pilz.trajectory_generator.ptp]: Initialized Point-to-Point Trajectory Generator.
+[INFO] [1792147283.984996856] [move_group]: Calling Planner 'Pilz Industrial Motion Planner'
+[INFO] [1792147283.985007880] [move_group.moveit.moveit.planners.pilz.trajectory_generator]: Generating PTP trajectory...
+[INFO] [1792147283.985105559] [move_group]: Calling PlanningResponseAdapter 'ValidateSolution'
+[INFO] [1792147283.985899040] [move_group.moveit.moveit.ros.move_group.move_action]: Motion plan was computed successfully.
+[INFO] [1792147283.988781314] [move_group.moveit.moveit.ros.move_group.clear_octomap_service]: Execution request received
+[INFO] [1792147283.988836335] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[INFO] [1792147283.988858154] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[INFO] [1792147283.988932078] [move_group.moveit.moveit.ros.trajectory_execution_manager]: Validating trajectory with allowed_start_tolerance 0.15
+[INFO] [1792147283.990041095] [move_group.moveit.moveit.ros.trajectory_execution_manager]: Starting trajectory execution ...
+[INFO] [1792147283.990112410] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[INFO] [1792147283.990133537] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[INFO] [1792147283.990484143] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: sending trajectory to joint_trajectory_controller
+[INFO] [1792147283.991554720] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: joint_trajectory_controller started execution
+[INFO] [1792147283.991570460] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: Goal request accepted!
+[INFO] [1792147284.691169966] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: Controller 'joint_trajectory_controller' successfully finished
+[INFO] [1792147284.705237029] [move_group.moveit.moveit.ros.trajectory_execution_manager]: Completed trajectory execution with status SUCCEEDED ...
+[INFO] [1792147284.709030251] [move_group.moveit.moveit.ros.move_group.clear_octomap_service]: Execution completed: SUCCEEDED
+[INFO] [1792147293.612180659] [move_group.moveit.moveit.ros.move_group.move_action]: MoveGroupMoveAction: Received request
+[INFO] [1792147293.612398589] [move_group.moveit.moveit.ros.move_group.move_action]: executing..
+[INFO] [1792147293.614960567] [move_group.moveit.moveit.ros.move_group.move_action]: Planning request received for MoveGroup action. Forwarding to planning pipeline.
+[INFO] [1792147293.615046000] [move_group.moveit.moveit.ros.move_group.capability]: Using planning pipeline 'pilz_industrial_motion_planner'
+[INFO] [1792147293.615144316] [move_group]: Calling PlanningRequestAdapter 'ResolveConstraintFrames'
+[INFO] [1792147293.615170662] [move_group]: Calling PlanningRequestAdapter 'ValidateWorkspaceBounds'
+[WARN] [1792147293.615177338] [move_group.moveit.moveit.ros.validate_workspace_bounds]: It looks like the planning volume was not specified. Using default values.
+[INFO] [1792147293.615188928] [move_group]: Calling PlanningRequestAdapter 'CheckStartStateBounds'
+[INFO] [1792147293.615207296] [move_group]: Calling PlanningRequestAdapter 'CheckStartStateCollision'
+[INFO] [1792147293.615346338] [move_group.moveit.moveit.planners.pilz.trajectory_generator.ptp]: Initialized Point-to-Point Trajectory Generator.
+[INFO] [1792147293.615377321] [move_group]: Calling Planner 'Pilz Industrial Motion Planner'
+[INFO] [1792147293.615390120] [move_group.moveit.moveit.planners.pilz.trajectory_generator]: Generating PTP trajectory...
+[INFO] [1792147293.615501835] [move_group]: Calling PlanningResponseAdapter 'ValidateSolution'
+[INFO] [1792147293.615717214] [move_group.moveit.moveit.ros.move_group.move_action]: Motion plan was computed successfully.
+[INFO] [1792147293.616525478] [move_group.moveit.moveit.ros.move_group.clear_octomap_service]: Execution request received
+[INFO] [1792147293.616562319] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[INFO] [1792147293.616576199] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[INFO] [1792147293.616614843] [move_group.moveit.moveit.ros.trajectory_execution_manager]: Validating trajectory with allowed_start_tolerance 0.15
+[INFO] [1792147293.620426388] [move_group.moveit.moveit.ros.trajectory_execution_manager]: Starting trajectory execution ...
+[INFO] [1792147293.620542815] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[INFO] [1792147293.620571131] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[INFO] [1792147293.621026017] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: sending trajectory to joint_trajectory_controller
+[INFO] [1792147293.621941753] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: joint_trajectory_controller started execution
+[INFO] [1792147293.621954568] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: Goal request accepted!
+[INFO] [1792147294.322037628] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: Controller 'joint_trajectory_controller' successfully finished
+[INFO] [1792147294.335045419] [move_group.moveit.moveit.ros.trajectory_execution_manager]: Completed trajectory execution with status SUCCEEDED ...
+[INFO] [1792147294.335181300] [move_group.moveit.moveit.ros.move_group.clear_octomap_service]: Execution completed: SUCCEEDED
+[WARN] [1792147302.518613275] [move_group.moveit.moveit.core.planning_scene]: Tried to remove world object 'peach_scene_obstacles', but it does not exist in this scene.
+[WARN] [1792147314.911462942] [moveit_task_constructor_visualization.execute_task_solution]: The trajectory of stage '0' from task '' does not have any controllers specified for trajectory execution. This might lead to unexpected controller selection.
+[INFO] [1792147314.912544051] [moveit_task_constructor_visualization.execute_task_solution]: Executing TaskSolution
+[INFO] [1792147314.913330484] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[INFO] [1792147314.913722812] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[INFO] [1792147314.913777282] [move_group.moveit.moveit.ros.trajectory_execution_manager]: Validating trajectory with allowed_start_tolerance 0.15
+[INFO] [1792147314.916642026] [move_group.moveit.moveit.ros.trajectory_execution_manager]: Starting trajectory execution ...
+[INFO] [1792147314.916824431] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[INFO] [1792147314.916850574] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[INFO] [1792147314.917418434] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[INFO] [1792147314.917438770] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[INFO] [1792147314.917830204] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: sending trajectory to joint_trajectory_controller
+[INFO] [1792147314.918346572] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: joint_trajectory_controller started execution
+[INFO] [1792147314.918355909] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: Goal request accepted!
+[INFO] [1792147316.318830441] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: Controller 'joint_trajectory_controller' successfully finished
+[INFO] [1792147316.330663067] [move_group.moveit.moveit.ros.trajectory_execution_manager]: Completed trajectory execution with status SUCCEEDED ...
+[INFO] [1792147316.370671656] [move_group.moveit.moveit.ros.move_group.capability]: Using planning pipeline 'pilz_industrial_motion_planner'
+[INFO] [1792147316.370805703] [move_group]: Calling PlanningRequestAdapter 'ResolveConstraintFrames'
+[INFO] [1792147316.370845884] [move_group]: Calling PlanningRequestAdapter 'ValidateWorkspaceBounds'
+[WARN] [1792147316.370856414] [move_group.moveit.moveit.ros.validate_workspace_bounds]: It looks like the planning volume was not specified. Using default values.
+[INFO] [1792147316.370898653] [move_group]: Calling PlanningRequestAdapter 'CheckStartStateBounds'
+[ERROR] [1792147316.370929397] [move_group.moveit.moveit.core.conversions]: Found empty JointState message
+[INFO] [1792147316.370963761] [move_group]: Calling PlanningRequestAdapter 'CheckStartStateCollision'
+[ERROR] [1792147316.370971494] [move_group.moveit.moveit.core.conversions]: Found empty JointState message
+[INFO] [1792147316.371064071] [move_group]: Calling Planner 'Pilz Industrial Motion Planner'
+[INFO] [1792147316.371075427] [move_group.moveit.moveit.planners.pilz.trajectory_generator]: Generating LIN trajectory...
+[ERROR] [1792147316.371101598] [move_group.moveit.moveit.core.conversions]: Found empty JointState message
+[INFO] [1792147316.371565872] [move_group]: Calling PlanningResponseAdapter 'ValidateSolution'
+[INFO] [1792147316.371714284] [move_group]: Calling PlanningRequestAdapter 'ResolveConstraintFrames'
+[INFO] [1792147316.371724274] [move_group]: Calling PlanningRequestAdapter 'ValidateWorkspaceBounds'
+[WARN] [1792147316.371728576] [move_group.moveit.moveit.ros.validate_workspace_bounds]: It looks like the planning volume was not specified. Using default values.
+[INFO] [1792147316.371735274] [move_group]: Calling PlanningRequestAdapter 'CheckStartStateBounds'
+[INFO] [1792147316.371745649] [move_group]: Calling PlanningRequestAdapter 'CheckStartStateCollision'
+[INFO] [1792147316.371772828] [move_group]: Calling Planner 'Pilz Industrial Motion Planner'
+[INFO] [1792147316.371779877] [move_group.moveit.moveit.planners.pilz.trajectory_generator]: Generating LIN trajectory...
+[INFO] [1792147316.372285780] [move_group]: Calling PlanningResponseAdapter 'ValidateSolution'
+[INFO] [1792147316.372424372] [move_group.moveit.moveit.planners.pilz.trajectory_blender_transition_window]: Start trajectory blending using transition window.
+[INFO] [1792147316.372436127] [move_group.moveit.moveit.planners.pilz.trajectory_blender_transition_window]: Search for start and end point of blending trajectory.
+[INFO] [1792147316.372445217] [move_group.moveit.moveit.planners.pilz.trajectory_blender_transition_window]: Intersection point of first trajectory found, index: 4
+[INFO] [1792147316.372453435] [move_group.moveit.moveit.planners.pilz.trajectory_blender_transition_window]: Intersection point of second trajectory found, index: 3
+[INFO] [1792147316.375306971] [move_group.moveit.moveit.ros.move_group.clear_octomap_service]: Execution request received
+[INFO] [1792147316.375342891] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[INFO] [1792147316.375355391] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[INFO] [1792147316.375386835] [move_group.moveit.moveit.ros.trajectory_execution_manager]: Validating trajectory with allowed_start_tolerance 0.15
+[INFO] [1792147316.380088244] [move_group.moveit.moveit.ros.trajectory_execution_manager]: Starting trajectory execution ...
+[INFO] [1792147316.380186045] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[INFO] [1792147316.380208299] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[INFO] [1792147316.380553492] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: sending trajectory to joint_trajectory_controller
+[INFO] [1792147316.380899498] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: joint_trajectory_controller started execution
+[INFO] [1792147316.380910054] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: Goal request accepted!
+[INFO] [1792147317.631058359] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: Controller 'joint_trajectory_controller' successfully finished
+[INFO] [1792147317.646756480] [move_group.moveit.moveit.ros.trajectory_execution_manager]: Completed trajectory execution with status SUCCEEDED ...
+[INFO] [1792147317.646914546] [move_group.moveit.moveit.ros.move_group.clear_octomap_service]: Execution completed: SUCCEEDED
+[WARN] [1792147318.148120294] [moveit_task_constructor_visualization.execute_task_solution]: The trajectory of stage '0' from task '' does not have any controllers specified for trajectory execution. This might lead to unexpected controller selection.
+[INFO] [1792147318.148146790] [moveit_task_constructor_visualization.execute_task_solution]: Executing TaskSolution
+[INFO] [1792147318.148185741] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[INFO] [1792147318.148225269] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[INFO] [1792147318.148258058] [move_group.moveit.moveit.ros.trajectory_execution_manager]: Validating trajectory with allowed_start_tolerance 0.15
+[INFO] [1792147318.150373723] [move_group.moveit.moveit.ros.trajectory_execution_manager]: Starting trajectory execution ...
+[INFO] [1792147318.150435549] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[INFO] [1792147318.150453374] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[INFO] [1792147318.151385174] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[INFO] [1792147318.151415482] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[INFO] [1792147318.151620329] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: sending trajectory to joint_trajectory_controller
+[INFO] [1792147318.152012687] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: joint_trajectory_controller started execution
+[INFO] [1792147318.152021862] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: Goal request accepted!
+[INFO] [1792147323.352241150] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: Controller 'joint_trajectory_controller' successfully finished
+[INFO] [1792147323.367111439] [move_group.moveit.moveit.ros.trajectory_execution_manager]: Completed trajectory execution with status SUCCEEDED ...
+[WARN] [1792147323.531099920] [moveit_task_constructor_visualization.execute_task_solution]: The trajectory of stage '0' from task '' does not have any controllers specified for trajectory execution. This might lead to unexpected controller selection.
+[INFO] [1792147323.531151995] [moveit_task_constructor_visualization.execute_task_solution]: Executing TaskSolution
+[INFO] [1792147323.531220254] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[INFO] [1792147323.531292077] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[INFO] [1792147323.531352849] [move_group.moveit.moveit.ros.trajectory_execution_manager]: Validating trajectory with allowed_start_tolerance 0.15
+[INFO] [1792147323.534861980] [move_group.moveit.moveit.ros.trajectory_execution_manager]: Starting trajectory execution ...
+[INFO] [1792147323.534951447] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[INFO] [1792147323.534973892] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[INFO] [1792147323.537845628] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[INFO] [1792147323.537977840] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[INFO] [1792147323.538474962] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: sending trajectory to joint_trajectory_controller
+[INFO] [1792147323.539802502] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: joint_trajectory_controller started execution
+[INFO] [1792147323.539821112] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: Goal request accepted!
+[INFO] [1792147328.740509708] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: Controller 'joint_trajectory_controller' successfully finished
+[INFO] [1792147328.758570819] [move_group.moveit.moveit.ros.trajectory_execution_manager]: Completed trajectory execution with status SUCCEEDED ...
+[INFO] [1792147328.805589480] [move_group.moveit.moveit.ros.move_group.clear_octomap_service]: Execution request received
+[INFO] [1792147328.805635102] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[INFO] [1792147328.805648590] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[INFO] [1792147328.805684776] [move_group.moveit.moveit.ros.trajectory_execution_manager]: Validating trajectory with allowed_start_tolerance 0.15
+[INFO] [1792147328.809941624] [move_group.moveit.moveit.ros.trajectory_execution_manager]: Starting trajectory execution ...
+[INFO] [1792147328.810073281] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[INFO] [1792147328.810104770] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[INFO] [1792147328.810355869] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: sending trajectory to joint_trajectory_controller
+[INFO] [1792147328.811381115] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: joint_trajectory_controller started execution
+[INFO] [1792147328.811391252] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: Goal request accepted!
+[INFO] [1792147331.411614476] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: Controller 'joint_trajectory_controller' successfully finished
+[INFO] [1792147331.425732643] [move_group.moveit.moveit.ros.trajectory_execution_manager]: Completed trajectory execution with status SUCCEEDED ...
+[INFO] [1792147331.425879968] [move_group.moveit.moveit.ros.move_group.clear_octomap_service]: Execution completed: SUCCEEDED
+[INFO] [1792147331.435501200] [move_group.moveit.moveit.ros.move_group.move_action]: MoveGroupMoveAction: Received request
+[INFO] [1792147331.435624233] [move_group.moveit.moveit.ros.move_group.move_action]: executing..
+[INFO] [1792147331.440385740] [move_group.moveit.moveit.ros.move_group.move_action]: Planning request received for MoveGroup action. Forwarding to planning pipeline.
+[INFO] [1792147331.440417957] [move_group.moveit.moveit.ros.move_group.capability]: Using planning pipeline 'pilz_industrial_motion_planner'
+[INFO] [1792147331.440496005] [move_group]: Calling PlanningRequestAdapter 'ResolveConstraintFrames'
+[INFO] [1792147331.440514782] [move_group]: Calling PlanningRequestAdapter 'ValidateWorkspaceBounds'
+[WARN] [1792147331.440520996] [move_group.moveit.moveit.ros.validate_workspace_bounds]: It looks like the planning volume was not specified. Using default values.
+[INFO] [1792147331.440530288] [move_group]: Calling PlanningRequestAdapter 'CheckStartStateBounds'
+[INFO] [1792147331.440544189] [move_group]: Calling PlanningRequestAdapter 'CheckStartStateCollision'
+[INFO] [1792147331.440629323] [move_group.moveit.moveit.planners.pilz.trajectory_generator.ptp]: Initialized Point-to-Point Trajectory Generator.
+[INFO] [1792147331.440652426] [move_group]: Calling Planner 'Pilz Industrial Motion Planner'
+[INFO] [1792147331.440663121] [move_group.moveit.moveit.planners.pilz.trajectory_generator]: Generating PTP trajectory...
+[INFO] [1792147331.440738849] [move_group]: Calling PlanningResponseAdapter 'ValidateSolution'
+[INFO] [1792147331.440914745] [move_group.moveit.moveit.ros.move_group.move_action]: Motion plan was computed successfully.
+[INFO] [1792147331.441898321] [move_group.moveit.moveit.ros.move_group.clear_octomap_service]: Execution request received
+[INFO] [1792147331.441925206] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[INFO] [1792147331.441936216] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[INFO] [1792147331.441985023] [move_group.moveit.moveit.ros.trajectory_execution_manager]: Validating trajectory with allowed_start_tolerance 0.15
+[INFO] [1792147331.445343552] [move_group.moveit.moveit.ros.trajectory_execution_manager]: Starting trajectory execution ...
+[INFO] [1792147331.445412707] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[INFO] [1792147331.445436207] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[INFO] [1792147331.445743416] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: sending trajectory to joint_trajectory_controller
+[INFO] [1792147331.447327768] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: joint_trajectory_controller started execution
+[INFO] [1792147331.447331658] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: Goal request accepted!
+[INFO] [1792147332.147224398] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: Controller 'joint_trajectory_controller' successfully finished
+[INFO] [1792147332.159965654] [move_group.moveit.moveit.ros.trajectory_execution_manager]: Completed trajectory execution with status SUCCEEDED ...
+[INFO] [1792147332.160070259] [move_group.moveit.moveit.ros.move_group.clear_octomap_service]: Execution completed: SUCCEEDED
+[INFO] [1792147341.672294674] [move_group.moveit.moveit.ros.move_group.move_action]: MoveGroupMoveAction: Received request
+[INFO] [1792147341.672501725] [move_group.moveit.moveit.ros.move_group.move_action]: executing..
+[INFO] [1792147341.675340058] [move_group.moveit.moveit.ros.move_group.move_action]: Planning request received for MoveGroup action. Forwarding to planning pipeline.
+[INFO] [1792147341.675434650] [move_group.moveit.moveit.ros.move_group.capability]: Using planning pipeline 'pilz_industrial_motion_planner'
+[INFO] [1792147341.675534722] [move_group]: Calling PlanningRequestAdapter 'ResolveConstraintFrames'
+[INFO] [1792147341.675561066] [move_group]: Calling PlanningRequestAdapter 'ValidateWorkspaceBounds'
+[WARN] [1792147341.675568915] [move_group.moveit.moveit.ros.validate_workspace_bounds]: It looks like the planning volume was not specified. Using default values.
+[INFO] [1792147341.675579603] [move_group]: Calling PlanningRequestAdapter 'CheckStartStateBounds'
+[INFO] [1792147341.675597818] [move_group]: Calling PlanningRequestAdapter 'CheckStartStateCollision'
+[INFO] [1792147341.675787074] [move_group.moveit.moveit.planners.pilz.trajectory_generator.ptp]: Initialized Point-to-Point Trajectory Generator.
+[INFO] [1792147341.675832342] [move_group]: Calling Planner 'Pilz Industrial Motion Planner'
+[INFO] [1792147341.675846387] [move_group.moveit.moveit.planners.pilz.trajectory_generator]: Generating PTP trajectory...
+[INFO] [1792147341.675952271] [move_group]: Calling PlanningResponseAdapter 'ValidateSolution'
+[INFO] [1792147341.676133912] [move_group.moveit.moveit.ros.move_group.move_action]: Motion plan was computed successfully.
+[INFO] [1792147341.677957993] [move_group.moveit.moveit.ros.move_group.clear_octomap_service]: Execution request received
+[INFO] [1792147341.678038023] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[INFO] [1792147341.678083911] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[INFO] [1792147341.678144487] [move_group.moveit.moveit.ros.trajectory_execution_manager]: Validating trajectory with allowed_start_tolerance 0.15
+[INFO] [1792147341.679931150] [move_group.moveit.moveit.ros.trajectory_execution_manager]: Starting trajectory execution ...
+[INFO] [1792147341.679981927] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[INFO] [1792147341.680003205] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[INFO] [1792147341.680258313] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: sending trajectory to joint_trajectory_controller
+[INFO] [1792147341.680702473] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: joint_trajectory_controller started execution
+[INFO] [1792147341.680709765] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: Goal request accepted!
+[INFO] [1792147342.383269011] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: Controller 'joint_trajectory_controller' successfully finished
+[INFO] [1792147342.394933705] [move_group.moveit.moveit.ros.trajectory_execution_manager]: Completed trajectory execution with status SUCCEEDED ...
+[INFO] [1792147342.395532544] [move_group.moveit.moveit.ros.move_group.clear_octomap_service]: Execution completed: SUCCEEDED
+[WARN] [1792147350.518157933] [move_group.moveit.moveit.core.planning_scene]: Tried to remove world object 'peach_scene_obstacles', but it does not exist in this scene.
+[WARN] [1792147361.846487132] [moveit_task_constructor_visualization.execute_task_solution]: The trajectory of stage '0' from task '' does not have any controllers specified for trajectory execution. This might lead to unexpected controller selection.
+[INFO] [1792147361.846520802] [moveit_task_constructor_visualization.execute_task_solution]: Executing TaskSolution
+[INFO] [1792147361.846560038] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[INFO] [1792147361.846596803] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[INFO] [1792147361.846624759] [move_group.moveit.moveit.ros.trajectory_execution_manager]: Validating trajectory with allowed_start_tolerance 0.15
+[INFO] [1792147361.852485987] [move_group.moveit.moveit.ros.trajectory_execution_manager]: Starting trajectory execution ...
+[INFO] [1792147361.852585575] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[INFO] [1792147361.852609194] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[INFO] [1792147361.853116354] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[INFO] [1792147361.853137466] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[INFO] [1792147361.853497441] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: sending trajectory to joint_trajectory_controller
+[INFO] [1792147361.855126138] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: joint_trajectory_controller started execution
+[INFO] [1792147361.855146994] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: Goal request accepted!
+[INFO] [1792147363.455792740] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: Controller 'joint_trajectory_controller' successfully finished
+[INFO] [1792147363.472576210] [move_group.moveit.moveit.ros.trajectory_execution_manager]: Completed trajectory execution with status SUCCEEDED ...
+[INFO] [1792147363.510815149] [move_group.moveit.moveit.ros.move_group.capability]: Using planning pipeline 'pilz_industrial_motion_planner'
+[INFO] [1792147363.510988121] [move_group]: Calling PlanningRequestAdapter 'ResolveConstraintFrames'
+[INFO] [1792147363.511057717] [move_group]: Calling PlanningRequestAdapter 'ValidateWorkspaceBounds'
+[WARN] [1792147363.511066307] [move_group.moveit.moveit.ros.validate_workspace_bounds]: It looks like the planning volume was not specified. Using default values.
+[INFO] [1792147363.511081559] [move_group]: Calling PlanningRequestAdapter 'CheckStartStateBounds'
+[ERROR] [1792147363.511106192] [move_group.moveit.moveit.core.conversions]: Found empty JointState message
+[INFO] [1792147363.511172415] [move_group]: Calling PlanningRequestAdapter 'CheckStartStateCollision'
+[ERROR] [1792147363.511181636] [move_group.moveit.moveit.core.conversions]: Found empty JointState message
+[INFO] [1792147363.511428531] [move_group]: Calling Planner 'Pilz Industrial Motion Planner'
+[INFO] [1792147363.511455875] [move_group.moveit.moveit.planners.pilz.trajectory_generator]: Generating LIN trajectory...
+[ERROR] [1792147363.511529412] [move_group.moveit.moveit.core.conversions]: Found empty JointState message
+[INFO] [1792147363.512355527] [move_group]: Calling PlanningResponseAdapter 'ValidateSolution'
+[INFO] [1792147363.512561278] [move_group]: Calling PlanningRequestAdapter 'ResolveConstraintFrames'
+[INFO] [1792147363.512574481] [move_group]: Calling PlanningRequestAdapter 'ValidateWorkspaceBounds'
+[WARN] [1792147363.512580303] [move_group.moveit.moveit.ros.validate_workspace_bounds]: It looks like the planning volume was not specified. Using default values.
+[INFO] [1792147363.512590445] [move_group]: Calling PlanningRequestAdapter 'CheckStartStateBounds'
+[INFO] [1792147363.512604661] [move_group]: Calling PlanningRequestAdapter 'CheckStartStateCollision'
+[INFO] [1792147363.512645674] [move_group]: Calling Planner 'Pilz Industrial Motion Planner'
+[INFO] [1792147363.512655685] [move_group.moveit.moveit.planners.pilz.trajectory_generator]: Generating LIN trajectory...
+[INFO] [1792147363.513125509] [move_group]: Calling PlanningResponseAdapter 'ValidateSolution'
+[INFO] [1792147363.513304368] [move_group.moveit.moveit.planners.pilz.trajectory_blender_transition_window]: Start trajectory blending using transition window.
+[INFO] [1792147363.513320683] [move_group.moveit.moveit.planners.pilz.trajectory_blender_transition_window]: Search for start and end point of blending trajectory.
+[INFO] [1792147363.513334262] [move_group.moveit.moveit.planners.pilz.trajectory_blender_transition_window]: Intersection point of first trajectory found, index: 4
+[INFO] [1792147363.513343686] [move_group.moveit.moveit.planners.pilz.trajectory_blender_transition_window]: Intersection point of second trajectory found, index: 3
+[INFO] [1792147363.519440463] [move_group.moveit.moveit.ros.move_group.clear_octomap_service]: Execution request received
+[INFO] [1792147363.519502340] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[INFO] [1792147363.519520406] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[INFO] [1792147363.519567552] [move_group.moveit.moveit.ros.trajectory_execution_manager]: Validating trajectory with allowed_start_tolerance 0.15
+[INFO] [1792147363.527001337] [move_group.moveit.moveit.ros.trajectory_execution_manager]: Starting trajectory execution ...
+[INFO] [1792147363.527090488] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[INFO] [1792147363.527114393] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[INFO] [1792147363.527438442] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: sending trajectory to joint_trajectory_controller
+[INFO] [1792147363.527822886] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: joint_trajectory_controller started execution
+[INFO] [1792147363.527860416] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: Goal request accepted!
+[INFO] [1792147364.778135062] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: Controller 'joint_trajectory_controller' successfully finished
+[INFO] [1792147364.789721238] [move_group.moveit.moveit.ros.trajectory_execution_manager]: Completed trajectory execution with status SUCCEEDED ...
+[INFO] [1792147364.789838931] [move_group.moveit.moveit.ros.move_group.clear_octomap_service]: Execution completed: SUCCEEDED
+[WARN] [1792147365.288210215] [moveit_task_constructor_visualization.execute_task_solution]: The trajectory of stage '0' from task '' does not have any controllers specified for trajectory execution. This might lead to unexpected controller selection.
+[INFO] [1792147365.288285133] [moveit_task_constructor_visualization.execute_task_solution]: Executing TaskSolution
+[INFO] [1792147365.288328544] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[INFO] [1792147365.288363863] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[INFO] [1792147365.288388329] [move_group.moveit.moveit.ros.trajectory_execution_manager]: Validating trajectory with allowed_start_tolerance 0.15
+[INFO] [1792147365.290721543] [move_group.moveit.moveit.ros.trajectory_execution_manager]: Starting trajectory execution ...
+[INFO] [1792147365.290792382] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[INFO] [1792147365.290810830] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[INFO] [1792147365.291757973] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[INFO] [1792147365.291787586] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[INFO] [1792147365.291953140] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: sending trajectory to joint_trajectory_controller
+[INFO] [1792147365.293878443] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: joint_trajectory_controller started execution
+[INFO] [1792147365.293887643] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: Goal request accepted!
+[INFO] [1792147370.293848830] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: Controller 'joint_trajectory_controller' successfully finished
+[INFO] [1792147370.306689075] [move_group.moveit.moveit.ros.trajectory_execution_manager]: Completed trajectory execution with status SUCCEEDED ...
+[WARN] [1792147370.501376228] [moveit_task_constructor_visualization.execute_task_solution]: The trajectory of stage '0' from task '' does not have any controllers specified for trajectory execution. This might lead to unexpected controller selection.
+[INFO] [1792147370.501407636] [moveit_task_constructor_visualization.execute_task_solution]: Executing TaskSolution
+[INFO] [1792147370.501447967] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[INFO] [1792147370.501481313] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[INFO] [1792147370.501507822] [move_group.moveit.moveit.ros.trajectory_execution_manager]: Validating trajectory with allowed_start_tolerance 0.15
+[INFO] [1792147370.505067044] [move_group.moveit.moveit.ros.trajectory_execution_manager]: Starting trajectory execution ...
+[INFO] [1792147370.505151090] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[INFO] [1792147370.505177135] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[INFO] [1792147370.506171789] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[INFO] [1792147370.506197697] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[INFO] [1792147370.506397927] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: sending trajectory to joint_trajectory_controller
+[INFO] [1792147370.506898681] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: joint_trajectory_controller started execution
+[INFO] [1792147370.506907764] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: Goal request accepted!
+[INFO] [1792147375.508394827] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: Controller 'joint_trajectory_controller' successfully finished
+[INFO] [1792147375.520288901] [move_group.moveit.moveit.ros.trajectory_execution_manager]: Completed trajectory execution with status SUCCEEDED ...
+[INFO] [1792147375.570761275] [move_group.moveit.moveit.ros.move_group.clear_octomap_service]: Execution request received
+[INFO] [1792147375.570807399] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[INFO] [1792147375.570821477] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[INFO] [1792147375.570861103] [move_group.moveit.moveit.ros.trajectory_execution_manager]: Validating trajectory with allowed_start_tolerance 0.15
+[INFO] [1792147375.575468350] [move_group.moveit.moveit.ros.trajectory_execution_manager]: Starting trajectory execution ...
+[INFO] [1792147375.575539931] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[INFO] [1792147375.575558772] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[INFO] [1792147375.575749885] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: sending trajectory to joint_trajectory_controller
+[INFO] [1792147375.576104528] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: joint_trajectory_controller started execution
+[INFO] [1792147375.576111880] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: Goal request accepted!
+[INFO] [1792147378.376251363] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: Controller 'joint_trajectory_controller' successfully finished
+[INFO] [1792147378.389819155] [move_group.moveit.moveit.ros.trajectory_execution_manager]: Completed trajectory execution with status SUCCEEDED ...
+[INFO] [1792147378.390025653] [move_group.moveit.moveit.ros.move_group.clear_octomap_service]: Execution completed: SUCCEEDED
+[INFO] [1792147378.410534058] [move_group.moveit.moveit.ros.move_group.move_action]: MoveGroupMoveAction: Received request
+[INFO] [1792147378.410871145] [move_group.moveit.moveit.ros.move_group.move_action]: executing..
+[INFO] [1792147378.417359293] [move_group.moveit.moveit.ros.move_group.move_action]: Planning request received for MoveGroup action. Forwarding to planning pipeline.
+[INFO] [1792147378.417463992] [move_group.moveit.moveit.ros.move_group.capability]: Using planning pipeline 'pilz_industrial_motion_planner'
+[INFO] [1792147378.417644090] [move_group]: Calling PlanningRequestAdapter 'ResolveConstraintFrames'
+[INFO] [1792147378.417675807] [move_group]: Calling PlanningRequestAdapter 'ValidateWorkspaceBounds'
+[WARN] [1792147378.417683117] [move_group.moveit.moveit.ros.validate_workspace_bounds]: It looks like the planning volume was not specified. Using default values.
+[INFO] [1792147378.417704658] [move_group]: Calling PlanningRequestAdapter 'CheckStartStateBounds'
+[INFO] [1792147378.417731957] [move_group]: Calling PlanningRequestAdapter 'CheckStartStateCollision'
+[INFO] [1792147378.417886050] [move_group.moveit.moveit.planners.pilz.trajectory_generator.ptp]: Initialized Point-to-Point Trajectory Generator.
+[INFO] [1792147378.417912006] [move_group]: Calling Planner 'Pilz Industrial Motion Planner'
+[INFO] [1792147378.417932443] [move_group.moveit.moveit.planners.pilz.trajectory_generator]: Generating PTP trajectory...
+[INFO] [1792147378.418038663] [move_group]: Calling PlanningResponseAdapter 'ValidateSolution'
+[INFO] [1792147378.418314897] [move_group.moveit.moveit.ros.move_group.move_action]: Motion plan was computed successfully.
+[INFO] [1792147378.422445300] [move_group.moveit.moveit.ros.move_group.clear_octomap_service]: Execution request received
+[INFO] [1792147378.422504494] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[INFO] [1792147378.422523365] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[INFO] [1792147378.422618148] [move_group.moveit.moveit.ros.trajectory_execution_manager]: Validating trajectory with allowed_start_tolerance 0.15
+[INFO] [1792147378.425327427] [move_group.moveit.moveit.ros.trajectory_execution_manager]: Starting trajectory execution ...
+[INFO] [1792147378.425445158] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[INFO] [1792147378.425475512] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[INFO] [1792147378.425778206] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: sending trajectory to joint_trajectory_controller
+[INFO] [1792147378.426135585] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: joint_trajectory_controller started execution
+[INFO] [1792147378.426143392] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: Goal request accepted!
+[INFO] [1792147379.126400647] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: Controller 'joint_trajectory_controller' successfully finished
+[INFO] [1792147379.139798571] [move_group.moveit.moveit.ros.trajectory_execution_manager]: Completed trajectory execution with status SUCCEEDED ...
+[INFO] [1792147379.140344056] [move_group.moveit.moveit.ros.move_group.clear_octomap_service]: Execution completed: SUCCEEDED
+[INFO] [1792147380.893421849] [rclcpp]: signal_handler(SIGINT/SIGTERM)

@@ -9,12 +9,15 @@
 #include <cmath>
 #include <cstddef>
 #include <future>
+#include <iomanip>
+#include <limits>
 #include <memory>
 #include <mutex>
 #include <optional>
 #include <sstream>
 #include <string>
 #include <utility>
+#include <vector>
 
 #include <geometry_msgs/msg/pose_stamped.hpp>
 #include <moveit/robot_state/conversions.hpp>
@@ -61,6 +64,60 @@ double sleeve_cartesian_fraction(
     moveit::core::GroupStateValidityCallbackFn(),
     kinematics::KinematicsQueryOptions());
   return fraction.value;
+}
+
+struct SleeveRollProbe
+{
+  bool pregrasp_ik{false};
+  bool sleeve_ik{false};
+  double fraction{-1.0};
+};
+
+Eigen::Isometry3d pose_with_tool_z_roll(
+  const Eigen::Isometry3d & pose, double roll_rad)
+{
+  if (std::abs(roll_rad) < 1.0e-12) {
+    return pose;
+  }
+  Eigen::Isometry3d out = pose;
+  out.linear() = pose.linear() * Eigen::AngleAxisd(roll_rad, Eigen::Vector3d::UnitZ());
+  return out;
+}
+
+SleeveRollProbe probe_sleeve_roll(
+  const moveit::core::RobotState & seed,
+  const moveit::core::JointModelGroup * group,
+  const moveit::core::LinkModel * tip_link,
+  const std::string & tip_name,
+  const Eigen::Isometry3d & pregrasp_pose,
+  const Eigen::Isometry3d & sleeve_pose,
+  double roll_rad,
+  double ik_timeout_s,
+  double step_m,
+  double precision_m)
+{
+  SleeveRollProbe out;
+  if (group == nullptr) {
+    return out;
+  }
+  const Eigen::Isometry3d rolled = pose_with_tool_z_roll(pregrasp_pose, roll_rad);
+  moveit::core::RobotState probe = seed;
+  if (!probe.setFromIK(group, rolled, tip_name, ik_timeout_s)) {
+    return out;
+  }
+  out.pregrasp_ik = true;
+  Eigen::Isometry3d sleeve = sleeve_pose;
+  const Eigen::Isometry3d pre_tcp = probe.getGlobalLinkTransform(tip_name);
+  if (pre_tcp.matrix().allFinite()) {
+    sleeve.linear() = pre_tcp.linear();
+  }
+  moveit::core::RobotState sleeve_probe = seed;
+  out.sleeve_ik = sleeve_probe.setFromIK(group, sleeve, tip_name, ik_timeout_s);
+  if (tip_link != nullptr) {
+    out.fraction = sleeve_cartesian_fraction(
+      probe, group, tip_link, sleeve, step_m, precision_m);
+  }
+  return out;
 }
 
 }  // namespace
@@ -549,14 +606,16 @@ void ManipulationSkillsNode::evaluateReachability(
         }
         return false;
       };
-    // 预抓取停位（keep-roll 先行，失败才 ±15°/±30°/±45°；滚转表与 staging
-    // 接近扫描同源=grasp_geometry.hpp 的 toolRollsRad()）。
-    // 圆筒套袋的刀口滚转是自由参数，keep-roll 单姿态无解 ≠ 全滚转无解。
+    // 预抓取停位：keep-roll 先行，失败才 ±15°/±30°/±45°（toolRollsRad）。
+    // require_sleeve 时不能停在第一组预抓取 IK：直线套入必须从该组关节
+    // 走满阈值，否则换下一档滚转（2026-10-16：0° 走 88%，+15° 走满）。
     moveit::core::RobotState pregrasp_state = seed;
-    const bool pregrasp_ok = try_ik(target, &pregrasp_state);
+    bool pregrasp_ok = false;
     bool sleeve_ok = true;
     bool cartesian_ok = true;
-    if (request->require_sleeve && pregrasp_ok) {
+    if (!request->require_sleeve) {
+      pregrasp_ok = try_ik(target, &pregrasp_state);
+    } else {
       const double suggested =
         (i < request->suggested_travel_m.size()) ?
         request->suggested_travel_m[i] : 0.0;
@@ -569,35 +628,143 @@ void ManipulationSkillsNode::evaluateReachability(
       }
       const double travel = exact_travel.value_or(clampInsertionTravel(
         suggested, params_.grasp.minimum_travel_m, params_.grasp.maximum_travel_m));
-      const Eigen::Matrix3d tip_R =
-        have_current_tip ? current_tip.linear() : entry.linear();
-      Eigen::Isometry3d sleeve =
+      Eigen::Matrix3d tip_R = entry.linear();
+      if (have_current_tip) {
+        tip_R = current_tip.linear();
+      }
+      const Eigen::Isometry3d sleeve =
         sleeveFromEntryKeepRoll(entry, tip_R, travel);
-      // 笛卡尔段与接触 LIN 同形：姿态跟预抓取 IK 解（含滚转扫描），只沿轴平移。
-      if (robot_model->hasLinkModel(params_.frames.tip)) {
-        const Eigen::Isometry3d pregrasp_tcp =
-          pregrasp_state.getGlobalLinkTransform(params_.frames.tip);
-        if (pregrasp_tcp.matrix().allFinite()) {
-          sleeve.linear() = pregrasp_tcp.linear();
+      const auto * tip_link = robot_model->hasLinkModel(params_.frames.tip) ?
+        robot_model->getLinkModel(params_.frames.tip) : nullptr;
+      sleeve_ok = false;
+      cartesian_ok = false;
+      double fraction = -1.0;
+      double chosen_roll = 0.0;
+      std::ostringstream rolls;
+      for (const double roll : toolRollsRad()) {
+        const int deg = static_cast<int>(std::lround(roll * 180.0 / EIGEN_PI));
+        const auto probe = probe_sleeve_roll(
+          seed, group, tip_link, params_.frames.tip, target, sleeve, roll,
+          ik_timeout_s, params_.moveit.mtc_cartesian_step_m,
+          params_.moveit.mtc_cartesian_precision_m);
+        if (!probe.pregrasp_ik) {
+          rolls << ' ' << deg << "deg=no_ik";
+          continue;
+        }
+        pregrasp_ok = true;
+        if (probe.sleeve_ik) {
+          sleeve_ok = true;
+        }
+        rolls << ' ' << deg << "deg=" << std::fixed << std::setprecision(3)
+              << probe.fraction;
+        const bool this_cartesian = probe.fraction + 1.0e-9 >=
+          params_.moveit.mtc_cartesian_min_fraction;
+        if (this_cartesian) {
+          sleeve_ok = true;
+          cartesian_ok = true;
+          fraction = probe.fraction;
+          chosen_roll = roll;
+          break;
+        }
+        if (probe.fraction > fraction) {
+          fraction = probe.fraction;
         }
       }
-      sleeve_ok = try_ik(sleeve, nullptr);
-      if (sleeve_ok) {
-        const auto * tip_link = robot_model->hasLinkModel(params_.frames.tip) ?
-          robot_model->getLinkModel(params_.frames.tip) : nullptr;
-        const double fraction = sleeve_cartesian_fraction(
-          pregrasp_state, group, tip_link, sleeve,
-          params_.moveit.mtc_cartesian_step_m,
-          params_.moveit.mtc_cartesian_precision_m);
-        cartesian_ok = fraction + 1.0e-9 >=
-          params_.moveit.mtc_cartesian_min_fraction;
+      Eigen::Vector3d seed_p = Eigen::Vector3d::Zero();
+      if (have_current_tip) {
+        seed_p = current_tip.translation();
+      }
+      const Eigen::Vector3d pre_p = target.translation();
+      const Eigen::Vector3d sleeve_p = sleeve.translation();
+      RCLCPP_INFO(
+        contactLogger(),
+        "CheckReachability 套入直线预检 pregrasp_ik=%d sleeve_ik=%d "
+        "cartesian=%d fraction=%.3f roll=%.0fdeg threshold=%.2f travel=%.3fm "
+        "path=%.3fm seed=[%.3f %.3f %.3f] pre=[%.3f %.3f %.3f] "
+        "sleeve=[%.3f %.3f %.3f]",
+        static_cast<int>(pregrasp_ok), static_cast<int>(sleeve_ok),
+        static_cast<int>(cartesian_ok), fraction,
+        static_cast<double>(chosen_roll * 180.0 / EIGEN_PI),
+        params_.moveit.mtc_cartesian_min_fraction, travel,
+        (sleeve_p - pre_p).norm(),
+        seed_p.x(), seed_p.y(), seed_p.z(),
+        pre_p.x(), pre_p.y(), pre_p.z(),
+        sleeve_p.x(), sleeve_p.y(), sleeve_p.z());
+      if (!cartesian_ok) {
+        RCLCPP_WARN(
+          contactLogger(),
+          "CheckReachability 套入直线未走满 各滚转 fraction:%s",
+          rolls.str().c_str());
+      } else if (std::abs(chosen_roll) > 1.0e-6) {
+        RCLCPP_INFO(
+          contactLogger(),
+          "CheckReachability 套入直线改用刀口滚转 %.0f°（keep-roll 未走满）",
+          static_cast<double>(chosen_roll * 180.0 / EIGEN_PI));
       }
     }
     const char * code = sleeveReachabilityCode(
       pregrasp_ok, sleeve_ok, cartesian_ok);
     response->reachable[i] = (code[0] == '\0');
     response->error_codes[i] = code;
+    const double logged_travel =
+      (i < request->suggested_travel_m.size()) ?
+      request->suggested_travel_m[i] : 0.0;
+    RCLCPP_INFO(
+      contactLogger(),
+      "CheckReachability idx=%zu require_sleeve=%d travel=%.3fm "
+      "reachable=%s code=%s",
+      i, static_cast<int>(request->require_sleeve), logged_travel,
+      response->reachable[i] ? "true" : "false",
+      (code[0] == '\0') ? "ok" : code);
   }
+}
+
+bool ManipulationSkillsNode::probeSleeveInsert(
+  double roll_rad, const Eigen::Isometry3d & entry, double travel_m,
+  double * fraction_out)
+{
+  if (fraction_out != nullptr) {
+    *fraction_out = -1.0;
+  }
+  if (travel_m <= 1.0e-6) {
+    return true;
+  }
+  if (!move_group_) {
+    return false;
+  }
+  const auto robot_model = move_group_->getRobotModel();
+  const auto group = robot_model->getJointModelGroup(params_.moveit.planning_group);
+  const auto current_state = move_group_->getCurrentState();
+  if (group == nullptr || !current_state) {
+    return false;
+  }
+  Eigen::Isometry3d current_tip = Eigen::Isometry3d::Identity();
+  bool have_current_tip = false;
+  if (robot_model->hasLinkModel(params_.frames.tip)) {
+    current_tip = current_state->getGlobalLinkTransform(params_.frames.tip);
+    have_current_tip = current_tip.matrix().allFinite();
+  }
+  Eigen::Isometry3d pregrasp = entry;
+  if (have_current_tip) {
+    pregrasp = pregraspFromEntryKeepRoll(
+      entry, current_tip.linear(), params_.moveit.mtc_approach_along_axis_m);
+  }
+  Eigen::Matrix3d tip_R = entry.linear();
+  if (have_current_tip) {
+    tip_R = current_tip.linear();
+  }
+  const Eigen::Isometry3d sleeve = sleeveFromEntryKeepRoll(entry, tip_R, travel_m);
+  const auto * tip_link = robot_model->hasLinkModel(params_.frames.tip) ?
+    robot_model->getLinkModel(params_.frames.tip) : nullptr;
+  const auto probe = probe_sleeve_roll(
+    *current_state, group, tip_link, params_.frames.tip, pregrasp, sleeve,
+    roll_rad, kQuickIkProbeTimeoutS, params_.moveit.mtc_cartesian_step_m,
+    params_.moveit.mtc_cartesian_precision_m);
+  if (fraction_out != nullptr) {
+    *fraction_out = probe.fraction;
+  }
+  return probe.pregrasp_ik &&
+         probe.fraction + 1.0e-9 >= params_.moveit.mtc_cartesian_min_fraction;
 }
 
 // 全局拍照位姿：批次编排器在发现/复扫轮次开始前调用，把机械臂送到 SRDF
@@ -865,20 +1032,25 @@ bool MoveItMotionInterface::goToPhotoPose(
     last_photo_approach_->points.size() >= 2U)
   {
     const auto current = move_group_->getCurrentState();
-    if (current &&
-      jointsMatchTrajectoryPoint(
-        *current, last_photo_approach_->joint_names,
-        last_photo_approach_->points.back().positions) &&
-      namedTargetMatchesPoint(
-        named_target, last_photo_approach_->joint_names,
-        last_photo_approach_->points.front().positions))
-    {
+    const bool at_approach_end = current && jointsMatchTrajectoryPoint(
+      *current, last_photo_approach_->joint_names,
+      last_photo_approach_->points.back().positions);
+    const bool names_approach_start = namedTargetMatchesPoint(
+      named_target, last_photo_approach_->joint_names,
+      last_photo_approach_->points.front().positions);
+    if (at_approach_end && names_approach_start) {
       if (reverseLastApproachToPhoto(named_target, message)) {
         last_photo_approach_.reset();
         return true;
       }
+      last_photo_approach_.reset();
       return false;
     }
+    RCLCPP_WARN(
+      logger_, "原路返程缓存端点不符：current_matches_end=%d target_matches_start=%d，重新规划",
+      at_approach_end ? 1 : 0, names_approach_start ? 1 : 0);
+    // 任一端点对不上即丢弃，不能在稍后周期碰巧重合时复用旧路径。
+    last_photo_approach_.reset();
   }
   move_group_->setStartStateToCurrentState();
   if (!move_group_->setNamedTarget(named_target)) {
@@ -946,11 +1118,31 @@ bool MoveItMotionInterface::goToPhotoPose(
 void MoveItMotionInterface::rememberPhotoApproach(
   trajectory_msgs::msg::JointTrajectory trajectory)
 {
-  if (trajectory.joint_names.empty() || trajectory.points.size() < 2U) {
+  std::vector<trajectory_msgs::msg::JointTrajectory> parts;
+  if (!appendExecutedJointTrajectories(
+      parts, {std::move(trajectory)}, config_.photo_pose_joint_tolerance_rad))
+  {
     last_photo_approach_.reset();
     return;
   }
-  last_photo_approach_ = std::move(trajectory);
+  last_photo_approach_ = std::move(parts.front());
+}
+
+void MoveItMotionInterface::appendPhotoApproach(
+  trajectory_msgs::msg::JointTrajectory trajectory)
+{
+  if (!last_photo_approach_) {
+    return;
+  }
+  std::vector<trajectory_msgs::msg::JointTrajectory> parts{*last_photo_approach_};
+  if (!appendExecutedJointTrajectories(
+      parts, {std::move(trajectory)}, config_.photo_pose_joint_tolerance_rad))
+  {
+    last_photo_approach_.reset();
+    RCLCPP_WARN(logger_, "预抓取修正返程缓存失效：轨迹或接缝不合法");
+    return;
+  }
+  last_photo_approach_ = concatJointTrajectories(parts);
 }
 
 void MoveItMotionInterface::clearPhotoApproach()
@@ -1007,6 +1199,7 @@ bool MoveItMotionInterface::reverseLastApproachToPhoto(
     return false;
   }
   auto reversed = reverseJointTrajectory(*last_photo_approach_);
+  last_photo_approach_.reset();
   if (reversed.points.size() < 2U) {
     message = "拍照位姿原路返程失败: 倒放轨迹无效";
     return false;

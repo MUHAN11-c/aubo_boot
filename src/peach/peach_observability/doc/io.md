@@ -114,6 +114,15 @@ CSP 维持同源脚本与 `object-src 'none'`，仅图像增加 `blob:` 以显�
 
 ## 投影单源与前端模块
 
+`perception.targets.observations[].candidate/fitting` 只有非空目标身份且与外层
+`target_id` 一致时才投影为对象，否则为 JSON `null`；数组形式的候选/拟合则排除
+空身份项。ROS 默认嵌套消息的 `status=0` 不代表已经取得 ACCEPT 证据。
+有身份的 `ACCEPT=0`、零点数和零有效深度比例保留原值；BagFitting 中约定的
+负值无效标量及非有限值转为 `null`。`anchor_from_memory` 仍保留历史关键点，
+但其未测的置信度、相机距离、袋径和行程为 `null`，Web 标注“记忆锚点 · 无本帧拟合”，
+三维按诊断几何绘制；不将新观测消息的时间戳当成历史锚点的测量时间。
+这些投影只解释已有身份和诊断标记，不影响 ROS 原消息或许可门。
+
 原始精化来源绑定及typed/raw/decision合并由pipeline.py完成，ROS回调仅接线。身份未知、旧模型及模型年龄不能因新诊断心跳而更新成可执行。静态白名单新增`/ui-common.js`、`/monitor-renderers.js`、`/trajectory-renderers.js`、`/request-runtime.js`，均为同源静态资源，CSP及ROS授权边界不变。Snapshot READY、页面allowed与臂侧授权是不同证据，不能相互替代。
 
 `reconstruction.grasp_decision`镜像保留生产消息的完整模型身份（含`scene_epoch`、`calibration_revision`和`config_revision`）及独立能力原值。能力枚举`0=VALID`、`1=INVALID`、`2=UNKNOWN`；不得将零解释为未发布或以汇总`allowed`伪造各能力。

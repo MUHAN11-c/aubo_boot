@@ -23,10 +23,10 @@ DISPLAY_KEYS = ('DISPLAY', 'XAUTHORITY', 'XDG_RUNTIME_DIR', 'DBUS_SESSION_BUS_AD
 
 
 def owned_runtime_environment(base, output, domain):
-    """DDS域之外也隔离spawner文件锁；测试默认限制数值库过量并行."""
+    """DDS域之外也隔离spawner文件锁；BLAS 单线程，不钉 OpenMP（SGBM 需要）。"""
     env = dict(base, ROS_DOMAIN_ID=str(domain), ROS_LOCALHOST_ONLY='1',
                ROS_HOME=str(output / 'ros_home'))
-    for key in ('OMP_NUM_THREADS', 'OPENBLAS_NUM_THREADS', 'MKL_NUM_THREADS'):
+    for key in ('OPENBLAS_NUM_THREADS', 'MKL_NUM_THREADS'):
         env.setdefault(key, '1')
     return env
 
@@ -204,6 +204,14 @@ class StreamEvidence:
                 and time.monotonic() - self.last_received <= 3}
 
 
+def _report_attempt_error(exc: Exception) -> None:
+    """预期的重建/抓取失败只打一行；意外异常仍保留堆栈."""
+    if isinstance(exc, RuntimeError):
+        print(exc, flush=True)
+        return
+    traceback.print_exc()
+
+
 def soak_passed(requested, elapsed, resources):
     return requested == 0 or (elapsed >= requested and bool(resources)
         and all(row.get('streams_fresh') and row.get('rviz_alive') for row in resources))
@@ -333,9 +341,22 @@ class OwnedProcesses:
         return self.residuals()
 
 
+_web_port = 8090
+
+
 def snapshot():
-    with urllib.request.urlopen('http://127.0.0.1:8090/api/state', timeout=5) as response:
+    with urllib.request.urlopen(
+            f'http://127.0.0.1:{_web_port}/api/state', timeout=5) as response:
         return json.load(response)
+
+
+def choose_web_port():
+    # 8099 留给 force-web，不占用、不清理。
+    for port in range(8090, 8099):
+        with socket.socket() as probe:
+            if probe.connect_ex(('127.0.0.1', port)) != 0:
+                return port
+    raise RuntimeError('8090-8098 已占用；拒绝启动，不清理其他进程')
 
 
 def save(path, data):
@@ -578,8 +599,10 @@ def run(args):
               'model_attempts': [], 'resources': [], 'acks': [], 'errors': [], 'rviz_requested': args.rviz}
     report['owned_process_groups'] = []
     report['runtime_environment'] = {key: env[key] for key in (
-        'ROS_DOMAIN_ID', 'ROS_HOME', 'OMP_NUM_THREADS',
-        'OPENBLAS_NUM_THREADS', 'MKL_NUM_THREADS')}
+        'ROS_DOMAIN_ID', 'ROS_HOME',
+        'OPENBLAS_NUM_THREADS', 'MKL_NUM_THREADS') if key in env}
+    if 'OMP_NUM_THREADS' in env:
+        report['runtime_environment']['OMP_NUM_THREADS'] = env['OMP_NUM_THREADS']
     def audit_started(pgid):
         report['owned_process_groups'].append(pgid)
         save(output / 'report.json', report)
@@ -590,9 +613,11 @@ def run(args):
         if stale:
             report['preexisting_processes'] = stale
             raise RuntimeError('域内已有采摘进程；拒绝启动，不清理其他进程')
-        with socket.socket() as probe:
-            if probe.connect_ex(('127.0.0.1', 8090)) == 0:
-                raise RuntimeError('8090 已占用；拒绝启动')
+        global _web_port
+        _web_port = choose_web_port()
+        report['web_port'] = _web_port
+        if _web_port != 8090:
+            print(f'8090 已被他人占用，本轮监控改 {_web_port}', flush=True)
         gui = gui_environment(env) if args.rviz else None
         os.environ['ROS_DOMAIN_ID'] = str(args.domain)
         os.environ['ROS_LOCALHOST_ONLY'] = '1'
@@ -600,12 +625,22 @@ def run(args):
         overlay.write_text(yaml.safe_dump({'/peach_supervisor': {'ros__parameters': {
             'execute_pregrasp_only': False,
             'reconstruct_in_trajectory': profile['reconstruct_in_trajectory']}}}))
+        arm_overlay = output / 'arm_overlay.yaml'
+        arm_overlay.write_text(yaml.safe_dump({
+            '/peach_arm': {'ros__parameters': {'moveit': {
+                'velocity_scaling': 0.8,
+                'acceleration_scaling': 0.8,
+                'transit_velocity_scaling': 0.8,
+                'transit_acceleration_scaling': 0.8,
+            }}}}, sort_keys=False))
         command = ['ros2', 'launch', 'peach_bringup', 'harvest_system.launch.py',
                    'hardware_mode:=mock', 'camera_enabled:=true', 'camera_frontend:=stereo',
                    'extrinsics_enabled:=false', 'imu_enabled:=false', 'autostart:=false',
                    'use_sim_time:=false', 'rviz:=false', 'tool_profile:=bite_shear_v1',
                    'mock_initial_positions:=' + ','.join(map(str, profile['mock_initial_positions'])),
-                   'brain_params_overlay:=' + str(overlay)]
+                   'brain_params_overlay:=' + str(overlay),
+                   'arm_params_overlay:=' + str(arm_overlay),
+                   'observability_port:=' + str(_web_port)]
         owner.start(command, output / 'stack.log')
         tf = profile['camera_calibration']
         xyz, quat = tf['xyz_m'], tf['quaternion_xyzw']
@@ -677,7 +712,7 @@ def run(args):
             except Exception as exc:
                 item['error'] = str(exc)
                 item['traceback'] = traceback.format_exc()
-                traceback.print_exc()
+                _report_attempt_error(exc)
             item['elapsed_s'] = time.monotonic() - started
             report['model_attempts'].append(item)
             save(output / 'report.json', report)
@@ -706,7 +741,7 @@ def run(args):
             except Exception as exc:
                 record['error'] = str(exc)
                 record['traceback'] = traceback.format_exc()
-                traceback.print_exc()
+                _report_attempt_error(exc)
             record['elapsed_s'] = time.monotonic() - started
             record['streams'] = frame_evidence(driver, before)
             if not all(value['fresh_stamp'] for value in record['streams'].values()):

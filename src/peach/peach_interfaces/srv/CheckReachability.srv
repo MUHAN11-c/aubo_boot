@@ -7,8 +7,11 @@
 # 服务端预抓取停位：沿 −Z 后撤 mtc_approach_along_axis_m（grasp_standoffs.yaml，
 # 现行 0.03 m）；姿态=alignFrameZ(当前 TCP, 袋轴)，不抄感知滚转。
 # require_sleeve=true（FULL / 非 execute_pregrasp_only）时再检套入终点：
-# 入口沿袋轴 + clamp(suggested_travel_m, grasp min/max）；同姿态滚转扫描；
-# 再从预抓取 IK 解沿轴 interpolate（步长/完成比与接触 LIN 同参）。
+# 入口沿袋轴 + 明确行程须落在 grasp min/max（越界 cut_travel_out_of_range，
+# 空/0 才夹到 min）；刀口滚转 0、±15°、±30°、±45°。
+# 每档：预抓取 IK → 套入终点 IK → 从该档预抓取沿轴 interpolate
+# （步长/完成比与接触 LIN 同参）。取第一档完成比达标的滚转；
+# 仅两端 IK、直线走不满 → sleeve_no_cartesian。与接近共用此规则。
 # 空 suggested_travel_m 或长度不够用服务端 minimum_travel_m。
 # 后撤为 0 则预抓取只改姿态。非 base_link 由服务端 TF 转换。
 

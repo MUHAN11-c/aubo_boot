@@ -185,6 +185,11 @@ bool ManipulationSkillsNode::waitForRefined(const std::string & target_id)
 bool ManipulationSkillsNode::failStage(CycleContext & ctx, const std::string & reason)
 {
   ctx.failure_reason = reason;
+  RCLCPP_WARN(
+    contactLogger(),
+    "failure_code=%u target=%s reason=%s",
+    static_cast<unsigned>(ctx.failure_code),
+    ctx.target_id.c_str(), reason.c_str());
   setState(CycleState::FAILED, reason, ctx.target_id);
   return false;
 }
@@ -727,24 +732,58 @@ bool ManipulationSkillsNode::stageAcquireViews(CycleContext & ctx)
 bool ManipulationSkillsNode::stageFinalizeAndValidate(CycleContext & ctx)
 {
   setState(CycleState::FINALIZE, "等待重建精化几何（BuildTargetModel）", ctx.target_id);
-  const bool refined_arrived = waitForRefined(ctx.target_id);
+  const double wait_s = effectiveRefinedWaitS();
+  const auto wait_started = std::chrono::steady_clock::now();
+  auto waitElapsedS = [&wait_started]() {
+      return std::chrono::duration<double>(
+        std::chrono::steady_clock::now() - wait_started).count();
+    };
+  bool refined_arrived = false;
   if (ctx.observe_only) {
+    RCLCPP_INFO(
+      cycleLogger(),
+      "[FINALIZE] 观察周期等精化几何 timeout=%.1fs target=%s rec_state=%s",
+      wait_s, ctx.target_id.c_str(),
+      qualitySnapshot().reconstruction_state.c_str());
+    refined_arrived = waitForRefined(ctx.target_id);
     if (!refined_arrived) {
       pending_outcome_.store(ExecuteTarget::Result::SKIPPED_QUALITY);
       return failStage(
         ctx, FailureCode::BUILD_FAILED,
-        "observe_only 未等到绑定目标的 TSDF/精化几何: " + ctx.target_id);
+        "observe_only 未等到绑定目标的 TSDF/精化几何: " + ctx.target_id +
+        " elapsed=" + std::to_string(waitElapsedS()) + "s");
     }
+    RCLCPP_INFO(
+      cycleLogger(),
+      "[FINALIZE] 精化几何已到 elapsed=%.2fs", waitElapsedS());
     return true;
   }
-  // 精化位姿和决策是不同话题，READY 不保证许可已到。等待同目标原子快照，
-  // 明确拒绝也属于“已到”，由分档能力门给出拒因，不把传输时序误报成质量差。
-  if (!params_.quality.allow_unrefined_geometry &&
-    !cache_.waitForDecision(ctx.target_id, effectiveRefinedWaitS(), cancel_requested_))
-  {
-    return failStage(
-      ctx, ExecuteTarget::Result::SKIPPED_QUALITY, FailureCode::DECISION_REJECTED,
-      "decision_snapshot_unavailable: 同目标模型与许可未在时限内到齐或已过期");
+  // 非观察周期：GraspDecision 提交时已写入精化几何。先等决策，避免
+  // waitForRefined 先超时把 refined_arrived 钉成 false，随后决策到达仍
+  // 因该布尔合取跳过、臂完全不动（2026-10-16 真实相机+mock：轮 8/9）。
+  if (!params_.quality.allow_unrefined_geometry) {
+    RCLCPP_INFO(
+      cycleLogger(),
+      "[FINALIZE] 等 GraspDecision（含精化几何）timeout=%.1fs target=%s rec_state=%s",
+      wait_s, ctx.target_id.c_str(),
+      qualitySnapshot().reconstruction_state.c_str());
+    if (!cache_.waitForDecision(ctx.target_id, wait_s, cancel_requested_)) {
+      return failStage(
+        ctx, ExecuteTarget::Result::SKIPPED_QUALITY, FailureCode::DECISION_REJECTED,
+        "decision_snapshot_unavailable: 同目标模型与许可未在时限内到齐或已过期"
+        " elapsed=" + std::to_string(waitElapsedS()) + "s timeout=" +
+        std::to_string(wait_s) + "s");
+    }
+  } else {
+    RCLCPP_INFO(
+      cycleLogger(),
+      "[FINALIZE] allow_unrefined：等精化几何 timeout=%.1fs target=%s",
+      wait_s, ctx.target_id.c_str());
+    refined_arrived = waitForRefined(ctx.target_id);
+    RCLCPP_INFO(
+      cycleLogger(),
+      "[FINALIZE] 精化等待结束 arrived=%s elapsed=%.2fs",
+      refined_arrived ? "true" : "false", waitElapsedS());
   }
   const auto decision = cache_.decisionSnapshot();
   if (!decision && !params_.quality.allow_unrefined_geometry) {
@@ -753,10 +792,21 @@ bool ManipulationSkillsNode::stageFinalizeAndValidate(CycleContext & ctx)
       ctx, ExecuteTarget::Result::SKIPPED_QUALITY, FailureCode::DECISION_REJECTED,
       "decision_snapshot_expired_or_revoked");
   }
+  if (decision) {
+    refined_arrived = refined_arrived || decision->geometry.valid;
+    RCLCPP_INFO(
+      cycleLogger(),
+      "[FINALIZE] GraspDecision 已到 elapsed=%.2fs geometry_valid=%s "
+      "decision_target=%s",
+      waitElapsedS(),
+      decision->geometry.valid ? "true" : "false",
+      graspDecisionTargetSnapshot().c_str());
+  }
   QualitySnapshot snapshot = decision ? decision->quality : qualitySnapshot();
   // skip_observation：编排已钉死 goal.target_id（锁定集），感知 selected
   // 心跳可能尚未跟上。质量门用 selected 字段当身份，空 selected 会把已
   // ACCEPT 的精化打成 selected_target_missing（reconstruct_in_trajectory）。
+  // 决策快照已带几何时也回填 refined_target_id，不再依赖 waitForRefined 布尔。
   if (ctx.skip_observation && !ctx.target_id.empty()) {
     if (snapshot.selected_target_id.empty()) {
       snapshot.selected_target_id = ctx.target_id;
@@ -764,7 +814,9 @@ bool ManipulationSkillsNode::stageFinalizeAndValidate(CycleContext & ctx)
     if (snapshot.reconstruction_target_id.empty()) {
       snapshot.reconstruction_target_id = ctx.target_id;
     }
-    if (snapshot.refined_target_id.empty() && refined_arrived) {
+    if (snapshot.refined_target_id.empty() &&
+      (refined_arrived || (decision && decision->geometry.valid)))
+    {
       snapshot.refined_target_id = ctx.target_id;
     }
   }
@@ -773,21 +825,46 @@ bool ManipulationSkillsNode::stageFinalizeAndValidate(CycleContext & ctx)
   const GateResult gate = quality_gate_->readyToApproach(snapshot);
   if (!gate.allowed) {
     RCLCPP_WARN(
-      get_logger(),
-      "grasp quality gate denied: %s (axis_angle_deg=%.2f pregrasp_only=%s)",
+      contactLogger(),
+      "[FINALIZE] 质量门拒绝 gate=%s axis_angle_deg=%.2f pregrasp_only=%s "
+      "rec_state=%s rec_id=%s refined_id=%s views=%zu",
       gate.reason.c_str(), snapshot.axis_angle_deg,
-      ctx.pregrasp_only ? "true" : "false");
+      ctx.pregrasp_only ? "true" : "false",
+      snapshot.reconstruction_state.c_str(),
+      snapshot.reconstruction_target_id.c_str(),
+      snapshot.refined_target_id.c_str(),
+      snapshot.station_count > 0 ? snapshot.station_count : snapshot.captured_views);
   }
-  const bool grasp_ready = refined_arrived && gate.allowed &&
-    (ctx.pregrasp_only ||
-    graspDecisionTargetSnapshot() == ctx.target_id);
+  const bool geometry_ready = refined_arrived ||
+    (decision && decision->geometry.valid) || refinedSnapshot().has_value();
+  const std::string decision_target = graspDecisionTargetSnapshot();
+  const bool decision_target_ok =
+    ctx.pregrasp_only || decision_target == ctx.target_id;
+  const bool grasp_ready = geometry_ready && gate.allowed && decision_target_ok;
+  RCLCPP_INFO(
+    cycleLogger(),
+    "[FINALIZE] 合取 geometry_ready=%s gate.allowed=%s(%s) "
+    "decision_target_ok=%s pregrasp_only=%s ctx=%s decision_target=%s "
+    "rec_state=%s rec_id=%s refined_id=%s",
+    geometry_ready ? "true" : "false",
+    gate.allowed ? "true" : "false", gate.reason.c_str(),
+    decision_target_ok ? "true" : "false",
+    ctx.pregrasp_only ? "true" : "false",
+    ctx.target_id.c_str(), decision_target.c_str(),
+    snapshot.reconstruction_state.c_str(),
+    snapshot.reconstruction_target_id.c_str(),
+    snapshot.refined_target_id.c_str());
   const auto tip_from_tool = motion_->lookupTransform(params_.frames.tip, params_.frames.tool);
   if (!tip_from_tool) {
     return failStage(
       ctx, FailureCode::EXACT_TF_MISSING, "无法取得 tip 到 tool 的变换");
   }
   if (grasp_ready) {
-    ctx.refined = decision ? std::optional<CachedRefined>(decision->geometry) : refinedSnapshot();
+    if (decision && decision->geometry.valid) {
+      ctx.refined = decision->geometry;
+    } else {
+      ctx.refined = refinedSnapshot();
+    }
     if (decision) {
       ctx.bound_model = decision->model.identity;
     }
@@ -824,9 +901,21 @@ bool ManipulationSkillsNode::stageFinalizeAndValidate(CycleContext & ctx)
     request->timeout_s = 0.2;
     auto response = std::make_shared<CheckReachability::Response>();
     evaluateReachability(request, response);
-    if (response->reachable.empty() || !response->reachable.front()) {
-      const std::string code = response->error_codes.empty() ?
-        "reachability_unavailable" : response->error_codes.front();
+    const bool reachable =
+      !response->reachable.empty() && response->reachable.front();
+    std::string code = "reachability_unavailable";
+    if (!response->error_codes.empty()) {
+      code = response->error_codes.front().empty() ?
+        "ok" : response->error_codes.front();
+    }
+    RCLCPP_INFO(
+      contactLogger(),
+      "caller=FINALIZE target=%s travel=%.3fm require_sleeve=%d "
+      "reachable=%s code=%s",
+      ctx.target_id.c_str(), ctx.travel_m,
+      static_cast<int>(request->require_sleeve),
+      reachable ? "true" : "false", code.c_str());
+    if (!reachable) {
       return failStage(
         ctx, ExecuteTarget::Result::SKIPPED_UNREACHABLE,
         FailureCode::SLEEVE_PLAN_FAILED, "精化几何可达性未通过: " + code);
@@ -852,12 +941,29 @@ bool ManipulationSkillsNode::stageFinalizeAndValidate(CycleContext & ctx)
     }
     return true;
   }
+  std::string why;
+  if (!geometry_ready) {
+    why += "geometry_missing";
+  }
+  if (!gate.allowed) {
+    if (!why.empty()) {
+      why += "; ";
+    }
+    why += "gate=" + gate.reason;
+  }
+  if (!decision_target_ok) {
+    if (!why.empty()) {
+      why += "; ";
+    }
+    why += "decision_target=" + decision_target + " ctx=" + ctx.target_id;
+  }
+  if (why.empty()) {
+    why = "unknown_conjunct";
+  }
   return failStage(
     ctx, ExecuteTarget::Result::SKIPPED_QUALITY,
     FailureCode::DEGRADED_CONTACT_FORBIDDEN,
-    ctx.pregrasp_only ?
-    ("预抓取缺少融合几何: " + gate.reason) :
-    ("decision_geometry_unavailable: " + gate.reason));
+    (ctx.pregrasp_only ? "预抓取未就绪: " : "接近未就绪: ") + why);
 }
 
 bool ManipulationSkillsNode::stageReconfirmTarget(CycleContext & ctx)
@@ -1007,8 +1113,14 @@ bool ManipulationSkillsNode::stageMovePregrasp(CycleContext & ctx)
   }
   const FruitCapsule fruit = fruitCapsuleFor(*ctx.refined);
   startContactGuard();
+  const double insert_travel = ctx.pregrasp_only ? 0.0 : ctx.travel_m;
+  RCLCPP_INFO(
+    contactLogger(),
+    "接近筛滚转 target=%s insert_travel=%.3fm pregrasp_only=%s",
+    ctx.target_id.c_str(), insert_travel,
+    ctx.pregrasp_only ? "true" : "false");
   auto result = grasp_task_->moveToPregrasp(
-    ctx.entry_tip_pose, ctx.refined->axis, fruit, true);
+    ctx.entry_tip_pose, ctx.refined->axis, fruit, true, insert_travel);
   stopContactGuard();
   if (contactAbortSuspected()) {
     motion_->clearPhotoApproach();
@@ -1026,7 +1138,7 @@ bool ManipulationSkillsNode::stageMovePregrasp(CycleContext & ctx)
         "当前位到预抓取失败（%s），已回拍照位再规划: %s",
         result.reason.c_str(), photo_msg.c_str());
       result = grasp_task_->moveToPregrasp(
-        ctx.entry_tip_pose, ctx.refined->axis, fruit, true);
+        ctx.entry_tip_pose, ctx.refined->axis, fruit, true, insert_travel);
     }
   }
   if (!result.success) {
@@ -1157,9 +1269,16 @@ bool ManipulationSkillsNode::stageVerifyPregrasp(CycleContext & ctx)
       setState(CycleState::RECONFIRM, "预抓取短修正（停—看，不 SetIO）", ctx.target_id);
       const auto fix = grasp_task_->moveToPregrasp(
         ctx.entry_tip_pose, ctx.refined->axis, fruitCapsuleFor(*ctx.refined),
-        true);
+        true, ctx.pregrasp_only ? 0.0 : ctx.travel_m);
       if (!fix.success) {
+        if (motion_) {
+          motion_->clearPhotoApproach();
+        }
         break;
+      }
+      if (motion_ && fix.execution_started) {
+        // 修正后终点已变；返程必须先倒放本次实际成功修正，再走原接近。
+        motion_->appendPhotoApproach(grasp_task_->lastApproachTrajectory());
       }
       continue;
     }

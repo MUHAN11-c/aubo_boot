@@ -35,6 +35,60 @@ def test_transport_defaults():
     assert cfg.proxy_upstream_connect_retry_ms() == 250.0
 
 
+def test_proxy_lane_defaults():
+    """有界数据通道默认值：4MiB 预算 + 上游 max_queue=4（慢客户端背压前置）."""
+    assert cfg.proxy_data_lane_bytes() == 4194304
+    assert cfg.proxy_upstream_max_queue() == 4
+
+
+def _lane_cls():
+    from ros_web_link.routes.foxglove_proxy import _BoundedForwardLane
+    return _BoundedForwardLane
+
+
+def test_bounded_lane_drop_oldest_keeps_control():
+    """超字节预算丢最旧数据帧；JSON 控制帧永不丢、相对顺序保持."""
+    lane = _lane_cls()(300)
+    lane.put(b'A' * 100)
+    lane.put('mid')           # 控制帧
+    lane.put(b'B' * 100)
+    lane.put(b'C' * 100)
+    lane.put(b'D' * 50)       # 350 > 300 预算 → 触发丢最旧（丢至 80%）
+    assert lane.dropped_data >= 1
+    seq = [it[1] if isinstance(it[1], str) else it[1][:1] for it in lane._dq]
+    assert seq[0] == 'mid'                        # 控制帧保留在原位
+    assert seq[1:] == [b'C', b'D']                # 最旧的 A/B 被丢
+    assert lane.queued_bytes == 150
+
+
+def test_bounded_lane_oversized_frame_drops_newest():
+    """单帧大于预算且无可丢旧帧 → 丢该新帧（rosbridge 丢出站语义），控制帧不碰."""
+    lane = _lane_cls()(100)
+    lane.put('c' * 150)
+    lane.put(b'D' * 150)
+    assert lane.dropped_data == 1
+    assert len(lane) == 1 and lane._dq[0][1] == 'c' * 150
+
+
+def test_bounded_lane_unlimited_when_budget_zero():
+    """预算 0 = 旧版无界行为（供对拍/特殊部署）。"""
+    lane = _lane_cls()(0)
+    for _ in range(100):
+        lane.put(b'x' * 1000)
+    assert lane.dropped_data == 0 and len(lane) == 100
+
+
+def test_ws_stats_route_registered():
+    """连接级/累计转发统计端点注册（诊断台「网关丢帧/积压」数据面）."""
+    if not _fastapi_ok():
+        pytest.skip("fastapi/starlette 版本不兼容（系统包路径优先）")
+    pytest.importorskip('fastapi')
+    from ros_web_link.app import create_app
+    app = create_app()
+    paths = {r.path for r in app.routes}
+    assert '/api/ivg/ws/stats' in paths
+
+
 def test_config_defaults_without_yaml(monkeypatch):
     """yaml 全空时访问器回退硬编码默认（PyYAML 缺失场景）."""
     monkeypatch.setattr(cfg, '_cfg', {})
@@ -187,20 +241,35 @@ def test_robot_mesh_resolve(tmp_path):
     assert _resolve_mesh(share, '') is None
 
 
-def test_robot_mesh_symlink_containment(tmp_path):
-    """share 树内指向外部的符号链接不得穿越（resolve-based containment）."""
+def test_robot_mesh_symlink_layout_and_traversal(tmp_path):
+    """词法 containment：colcon symlink-install 合法布局放行，`..` 穿越仍拒.
+
+    resolve-based containment 会把 install share 树内指回源码树的合法符号
+    链接误判越界（TB3 URDF mesh 全 404 实证，2026-10-16）；穿越防线 =
+    URL `..` 拒绝 + normpath 树下检查，与 SymlinkStaticFiles 同款裁量和先例。
+    """
     pytest.importorskip('ament_index_python')
     from ros_web_link.routes.robot_mesh import _is_under, _resolve_mesh
 
     share = tmp_path / 'share'
+    src_tree = tmp_path / 'src' / 'pkg'
     outside = tmp_path / 'outside'
     (share / 'meshes').mkdir(parents=True)
+    (src_tree / 'meshes').mkdir(parents=True)
     outside.mkdir()
+    (src_tree / 'meshes' / 'base.stl').write_text('ok', encoding='utf-8')
     (outside / 'evil.stl').write_text('evil', encoding='utf-8')
-    (share / 'meshes' / 'evil.stl').symlink_to(outside / 'evil.stl')
+    # colcon --symlink-install：资源目录 symlink 回源码树 → 应命中
+    (share / 'models').symlink_to(src_tree / 'meshes')
+    # share 树内单文件 symlink 指向外部（词法在 share 下）→ 按布局语义放行
+    (share / 'meshes' / 'linked.stl').symlink_to(outside / 'evil.stl')
 
-    assert _resolve_mesh(share, 'meshes/evil.stl') is None
-    assert not _is_under(share / 'meshes' / 'evil.stl', share)
+    assert _resolve_mesh(share, 'models/base.stl') is not None
+    assert _is_under(share / 'meshes' / 'linked.stl', share)
+    # URL 穿越仍拒：`..` 经 normpath 折叠后逃出 share 树
+    assert _resolve_mesh(share, '../outside/evil.stl') is None
+    assert not _is_under(share / '..' / 'outside' / 'evil.stl', share)
+    assert _resolve_mesh(share, 'meshes/../..') is None
 
 
 # ═══════════════════════════════ 静态文件类 ═══════════════════════════════

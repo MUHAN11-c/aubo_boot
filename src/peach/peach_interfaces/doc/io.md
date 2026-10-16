@@ -15,7 +15,7 @@
 | 服务 | 服务端所在包 | 含义 |
 |------|--------------|------|
 | `BeginScene` | `peach_harvester`（vision） | **重启收齐窗。** 推进 `scene_epoch`。同 `scene_key` 保留身份；换场才清表。非 Active 拒绝。调度仅 DISCOVERY 首巡 Survey 到位后调用一次 |
-| `CheckReachability` | `peach_arm` | **选果：预抓取停位 IK；FULL 时再检套入终点 IK 与沿轴笛卡尔。** 预抓取后撤 `mtc_approach_along_axis_m`，姿态 `alignFrameZ` 不抄感知滚转；keep-roll 无解再 ±30°/±60° 滚转。`require_sleeve`（调度在非 `execute_pregrasp_only` 时置位）时套入终点 = 入口沿袋轴 + clamp(travel)，再从预抓取 IK 解沿轴 interpolate（步长/完成比与接触 LIN 同参）。不装配 MTC、不动臂。失败码 `no_ik` / `sleeve_no_ik` / `sleeve_no_cartesian`。服务不可用时调度回退半径窗（FULL 另卡套入终点半径） |
+| `CheckReachability` | `peach_arm` | **选果：预抓取停位 IK。** 默认 `execute_pregrasp_only=true` 不检套入。仅显式套入（调度 `execute_pregrasp_only=false`，或臂侧 Finalize 非 PREGRASP_ONLY）才 `require_sleeve`：套入终点 IK + 沿轴笛卡尔。预抓取后撤 `mtc_approach_along_axis_m`，姿态 `alignFrameZ` 不抄感知滚转；滚转梯子 {0,±15°,±30°,±45°}。套入终点 = 入口沿袋轴 + clamp(travel)，从该档预抓取 IK 解沿轴 interpolate（步长/完成比与接触 LIN 同参），取第一档完成比 ≥ `mtc_cartesian_min_fraction` 的滚转（与接近共用）。不装配 MTC、不动臂。失败码 `no_ik` / `sleeve_no_ik` / `sleeve_no_cartesian`。服务不可用时调度回退半径窗 |
 | `ControlTask` | `peach_harvester`（supervisor） | **人工控批（监控不发）。** PAUSE / RESUME / CANCEL_NOW / SKIP_TARGET / ACKNOWLEDGE_RECOVERY。`expected_state_seq` 须对上，防过期点击。`CANCEL_NOW` 只置 `_cancel`；客户端未发 action cancel 时终局 `abort()`，不得从 EXECUTING 直接 `canceled()` |
 | `nav2_msgs/srv/ManageLifecycleNodes` | Nav2 管理器 `/peach_lifecycle_manager/manage_nodes` | 8090 调试桥/人工；STARTUP、PAUSE、RESUME、RESET、SHUTDOWN，不发 RunHarvest |
 
@@ -31,7 +31,7 @@
 | `GraspDecision` | **融合几何 + 套入许可。** 身份元组 + 能力三态；`allowed` 只由 geometry∧sleeve∧cut VALID 派生（pregrasp 不进，以免拦 PREGRASP_ONLY；dict 诊断侧同源派生，M11），只拦套入/剪切——批次4 起为汇总位：径向/轴向余量只记录，不拦套入或剪切；TOOL 另要预备位残差与 tool.enabled；`valid_until` 心跳不得续签（窗口 2026-09-20 参数化 `decision.validity_s` 默认 120s——G1：原 5s 与接近链时长错配）；`model_revision` 含单调 finalize 计数（G3，消费方按不透明字符串比较） |
 | `PregraspVerification` | 重建侧预抓取残差观测；技能 VerifyPregrasp **未订**本话题，用工具 TF |
 | `TargetModel` / `TargetQuality` | Build 结果模型与质量档；含 `run_id` / 修订 / `generated_at` / `valid_until` / 能力三态 |
-| `FailureCode` | 失败码枚举（0-23；21-23 为 2026-09-29 观测性轮新增：`TRANSIT_FAILED` / `START_NOT_READY` / `CANCELED`） |
+| `FailureCode` | 失败码枚举（0-23；21-23 为 2026-09-29 观测性轮新增：`TRANSIT_FAILED` / `START_NOT_READY` / `CANCELED`）。臂侧失败打 `peach_arm.contact` 的 `failure_code=` 数值，禁止只解析自由文本 |
 | `ShapeHypothesis` | 契约预留形状假说；重建发，尚未当批次门 |
 | `GraspHypothesis` | 技能本周期抓取假说；监控订阅，尚未当批次门 |
 | 保留/低频：`BagGrasp2D` / `HarvestResult` / `DepositResult` / `Verification` | 像素键点 / 周期结果（EvidenceTarget）/ 卸果站预留（W7 起不随 ExecuteTarget.Result 携带）/ 周期验证块——字段见 README，勿当已删 |

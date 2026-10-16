@@ -71,12 +71,76 @@ inline trajectory_msgs::msg::JointTrajectory concatJointTrajectories(
   return out;
 }
 
-// 接近轨迹原路返程：点序倒放、时间轴从 0 起、速度/加速度取反。
+// 只接纳调用者已确认执行成功的轨迹。任何坏接缝使整条返程失效，不能
+// 静默留下旧前缀再声称“原路”。容差由调用者给出，单位 rad，不对有界关节取模。
+inline bool appendExecutedJointTrajectories(
+  std::vector<trajectory_msgs::msg::JointTrajectory> & history,
+  const std::vector<trajectory_msgs::msg::JointTrajectory> & continuation,
+  double max_seam_error_rad)
+{
+  auto combined = history;
+  combined.insert(combined.end(), continuation.begin(), continuation.end());
+  auto reject = [&history]() {history.clear(); return false;};
+  if (combined.empty() || continuation.empty() ||
+    !std::isfinite(max_seam_error_rad) || max_seam_error_rad < 0.0)
+  {
+    return reject();
+  }
+  const auto & names = combined.front().joint_names;
+  if (names.empty()) {
+    return reject();
+  }
+  auto sorted_names = names;
+  std::sort(sorted_names.begin(), sorted_names.end());
+  if (std::adjacent_find(sorted_names.begin(), sorted_names.end()) != sorted_names.end()) {
+    return reject();
+  }
+  const auto finite = [](const std::vector<double> & values) {
+      return std::all_of(values.begin(), values.end(), [](double v) {return std::isfinite(v);});
+    };
+  const std::vector<double> * previous_end = nullptr;
+  for (const auto & part : combined) {
+    if (part.joint_names != names || part.points.size() < 2U) {
+      return reject();
+    }
+    double previous_time = -1.0;
+    for (const auto & point : part.points) {
+      const double time = durationToSec(point.time_from_start);
+      if (point.time_from_start.nanosec >= 1000000000U ||
+        !std::isfinite(time) || time < 0.0 || time <= previous_time ||
+        point.positions.size() != names.size() || !finite(point.positions))
+      {
+        return reject();
+      }
+      for (const auto * values : {&point.velocities, &point.accelerations, &point.effort}) {
+        if (!values->empty() && (values->size() != names.size() || !finite(*values))) {
+          return reject();
+        }
+      }
+      previous_time = time;
+    }
+    if (previous_end != nullptr) {
+      for (std::size_t i = 0; i < names.size(); ++i) {
+        if (std::abs((*previous_end)[i] - part.points.front().positions[i]) >
+          max_seam_error_rad)
+        {
+          return reject();
+        }
+      }
+    }
+    previous_end = &part.points.back().positions;
+  }
+  history = std::move(combined);
+  return true;
+}
+
+// 时间反演 q(T-t)：点序倒放、时间从 0 起、速度取反而加速度保持。
 inline trajectory_msgs::msg::JointTrajectory reverseJointTrajectory(
   const trajectory_msgs::msg::JointTrajectory & forward)
 {
   trajectory_msgs::msg::JointTrajectory out;
   out.header = forward.header;
+  out.header.stamp = builtin_interfaces::msg::Time();
   out.joint_names = forward.joint_names;
   if (forward.points.size() < 2U) {
     return out;
@@ -89,9 +153,6 @@ inline trajectory_msgs::msg::JointTrajectory reverseJointTrajectory(
     point.time_from_start = secToDuration(t_end - durationToSec(src.time_from_start));
     for (double & v : point.velocities) {
       v = -v;
-    }
-    for (double & a : point.accelerations) {
-      a = -a;
     }
     out.points.push_back(std::move(point));
   }

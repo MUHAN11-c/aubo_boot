@@ -1,0 +1,79 @@
+{
+  "hardware_mode": "mock",
+  "profile": {
+    "schema_version": 1,
+    "profile_id": "fixed_camera_mock_20261013",
+    "hardware_mode": "mock",
+    "camera_frontend": "stereo",
+    "autostart": false,
+    "tool_enabled": false,
+    "reconstruct_in_trajectory": true,
+    "camera_calibration": {
+      "parent_frame": "base_link",
+      "child_frame": "camera_link",
+      "xyz_m": [
+        0.3780573326439316,
+        -0.07547177076037584,
+        0.7666632351254871
+      ],
+      "quaternion_xyzw": [
+        -0.0036889994433193067,
+        -7.498157537607713e-06,
+        -0.6576092061184594,
+        0.753350199611797
+      ],
+      "provenance": "20261013 fixed camera record; user confirmed camera unmoved; reused by live_camera_rviz_repeat_20261014_1632",
+      "scope": "test-only frozen calibration; never injected into product calibration files"
+    },
+    "mock_initial_positions": [
+      0.425175,
+      0.194274,
+      1.679546,
+      1.462579,
+      -0.279948,
+      0.038859
+    ]
+  },
+  "rounds": [],
+  "models": [],
+  "model_attempts": [],
+  "resources": [],
+  "acks": [],
+  "errors": [
+    "Unable to convert call argument '0' to Python object (#define PYBIND11_DETAILED_ERROR_MESSAGES or compile in debug mode for details)",
+    "disable: ROS request timeout; outcome unknown"
+  ],
+  "rviz_requested": true,
+  "owned_process_groups": [
+    218739,
+    218740,
+    219905
+  ],
+  "runtime_environment": {
+    "ROS_DOMAIN_ID": "87",
+    "ROS_HOME": "/home/mu/Desktop/aubo_e5_jazzy_ws/runs/live_mock_sleeve_roll_20261016_110827/ros_home",
+    "OMP_NUM_THREADS": "1",
+    "OPENBLAS_NUM_THREADS": "1",
+    "MKL_NUM_THREADS": "1"
+  },
+  "web_port": 8091,
+  "phase": "finished",
+  "updated_at": 1792120144.9775827,
+  "residual_pids": [],
+  "domain_processes_after": [],
+  "model_count": 0,
+  "full_level6_rounds": 0,
+  "model_elapsed_s": {
+    "count": 0,
+    "min": null,
+    "max": null,
+    "p95": null,
+    "range": null
+  },
+  "geometry_statistics": {},
+  "model_samples_per_target": {},
+  "per_target_outcomes": {},
+  "physical_bag_level6_coverage": {},
+  "soak_passed": true,
+  "passed": false
+}

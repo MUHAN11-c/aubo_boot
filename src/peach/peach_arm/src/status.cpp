@@ -60,10 +60,10 @@ void ManipulationSkillsNode::setState(
     state == CycleState::RECOVERY_REQUIRED)
   {
     RCLCPP_WARN(
-      get_logger(), "[%s] %s", toString(state).c_str(), message.c_str());
+      cycleLogger(), "[%s] %s", toString(state).c_str(), message.c_str());
   } else {
     RCLCPP_INFO(
-      get_logger(), "[%s] %s", toString(state).c_str(), message.c_str());
+      cycleLogger(), "[%s] %s", toString(state).c_str(), message.c_str());
   }
 }
 

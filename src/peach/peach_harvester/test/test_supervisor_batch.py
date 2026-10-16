@@ -98,6 +98,14 @@ def _observations(items, locked=True):
     return SimpleNamespace(target_set_locked=locked, observations=items)
 
 
+def test_named_targets_exhausted_requires_nonempty_claimed_set():
+    assert batch.named_targets_exhausted((), {'t1'}) is False
+    assert batch.named_targets_exhausted(['t1'], set()) is False
+    assert batch.named_targets_exhausted(['t1'], {'t1'}) is True
+    assert batch.named_targets_exhausted(['t1', 't2'], {'t1'}) is False
+    assert batch.named_targets_exhausted(['t1', 't2'], {'t1', 't2', 't3'}) is True
+
+
 def test_preferred_eligible_passes_through():
     obs = _observations([_item('t1')])
     target_id, filtered = batch.next_target(

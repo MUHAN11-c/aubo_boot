@@ -1,0 +1,17 @@
+In file included from /opt/ros/jazzy/src/gtest_vendor/include/gtest/gtest-printers.h:122,
+                 from /opt/ros/jazzy/src/gtest_vendor/include/gtest/gtest-matchers.h:49,
+                 from /opt/ros/jazzy/src/gtest_vendor/include/gtest/internal/gtest-death-test-internal.h:47,
+                 from /opt/ros/jazzy/src/gtest_vendor/include/gtest/gtest-death-test.h:43,
+                 from /opt/ros/jazzy/src/gtest_vendor/include/gtest/gtest.h:65,
+                 from src/peach/peach_arm/test/test_trajectory_guard.cpp:4:
+src/peach/peach_arm/test/test_trajectory_guard.cpp: In member function ‘virtual void TrajectoryGuard_ExecutedApproachRetainsTransitCorridorAndCorrection_Test::TestBody()’:
+src/peach/peach_arm/test/test_trajectory_guard.cpp:120:26: error: ‘appendExecutedJointTrajectories’ is not a member of ‘peach_arm’; did you mean ‘concatJointTrajectories’?
+  120 |   ASSERT_TRUE(peach_arm::appendExecutedJointTrajectories(history, {corridor}, 0.05));
+      |                          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+src/peach/peach_arm/test/test_trajectory_guard.cpp:123:26: error: ‘appendExecutedJointTrajectories’ is not a member of ‘peach_arm’; did you mean ‘concatJointTrajectories’?
+  123 |   ASSERT_TRUE(peach_arm::appendExecutedJointTrajectories(history, {correction}, 0.05));
+      |                          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+src/peach/peach_arm/test/test_trajectory_guard.cpp: In lambda function:
+src/peach/peach_arm/test/test_trajectory_guard.cpp:140:31: error: ‘appendExecutedJointTrajectories’ is not a member of ‘peach_arm’; did you mean ‘concatJointTrajectories’?
+  140 |       EXPECT_FALSE(peach_arm::appendExecutedJointTrajectories(history, {bad}, 0.05));
+      |                               ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

@@ -48,29 +48,6 @@ function makeTextSprite(text, color = '#8b93a7', size = 42) {
   return sp;
 }
 
-/** 默认 Displays 配置（localStorage 覆盖；官方数据面 sim_demo.launch.py） */
-function defaultCfg() {
-  return {
-    grid: { on: true },
-    robot: { on: true, topic: '/robot_description', ghost: false },
-    map: { on: true, topic: '/map' },
-    tf: { on: true, labels: true, topic: '/tf' },
-    // ros2/examples 官方点云示例（sim_demo 栈）
-    cloud: { on: true, topic: '/test_cloud', size: 0.035 },
-    scan3d: { on: true, topic: '/scan' },
-    // 官方栈无 marker/range/wrench 数据源：默认关，topic 留空可手填
-    markers: { on: false, topic: '' },
-    path: { on: true, topic: '/plan' },
-    poses: { on: true, topic: '/particle_cloud' },
-    odom: { on: true, topic: '/odom', trail: true },
-    range: { on: false, topic: '' },
-    wrench: { on: false, topic: '', scale: 0.2 },
-    posecov: { on: true, topic: '/amcl_pose' },
-    image: { on: true, topic: '/camera/image_raw' },
-    imagec: { on: false, topic: '/camera/image_raw/compressed' },
-  };
-}
-
 class VizPanel {
   constructor() {
     let raw = null;
@@ -923,6 +900,20 @@ class VizPanel {
     this._client.subscribe('/tf_static', 'tf2_msgs/msg/TFMessage', () => {
       this._onTf();
     }, { dispatchMode: 'immediate' });
+    // 无 URDF 栈兜底：6s 内图上没有 /robot_description 通道即收起加载蒙层，
+    // 避免纯传感器栈（comm_fixture 等）3D 视口被蒙层永久遮挡（2026-10-16 实测）
+    setTimeout(() => {
+      const mask = document.getElementById('robot-loading-mask');
+      if (!mask || mask.classList.contains('hidden') || this._urdfText) return;
+      if (!this._client.player?.channels?.has('/robot_description')) {
+        mask.classList.add('hidden');
+      } else {
+        // 通道在但消息未到（大 URDF 解析/加载中）：再宽限一个周期
+        setTimeout(() => {
+          if (!this._urdfText) mask.classList.add('hidden');
+        }, 6000);
+      }
+    }, 6000);
     $('viz-status').textContent = '可视化流已订阅（Displays 面板可调）';
   }
 
@@ -969,10 +960,15 @@ class VizPanel {
     if (mask) mask.classList.remove('hidden');
     try {
       this._urdfRobot = this._urdfLoader.parse(text);
-      // ROS Z-up 容器（rebot-sim.js:251 同构）：ROS z→three y，网格/灯光保持默认
+      // ROS Z-up 容器（rebot-sim.js:251 同构）：ROS z→three y，网格/灯光保持默认。
+      // 基座位姿落**内层** _robotBase：_onTf 的 decompose 曾直接写 _robotFrame
+      // 的 quaternion，把这里的 -90°x 补偿整个覆写掉——URDF 侧倒、与 TF 轴差
+      // 90°（2026-10-16 用户实测反馈，数值实锤 quaternion=[0,0,0,1]）。
       this._robotFrame = new THREE.Group();
       this._robotFrame.rotation.x = -Math.PI / 2;
-      this._robotFrame.add(this._urdfRobot);
+      this._robotBase = new THREE.Group();
+      this._robotBase.add(this._urdfRobot);
+      this._robotFrame.add(this._robotBase);
       this.groups.robot.add(this._robotFrame);
       this.stats.robotModel = {
         links: Object.keys(this._urdfRobot.links || {}).length,
@@ -1029,7 +1025,8 @@ class VizPanel {
       }
     });
     this._ghostRobot.visible = false;
-    this._robotFrame.add(this._ghostRobot);
+    // 挂 _robotBase 与本体同享基座位姿（挂 _robotFrame 会漏掉 odom→base 摆位）
+    this._robotBase.add(this._ghostRobot);
   }
 
   _syncGhostToRobot() {
@@ -1088,11 +1085,21 @@ class VizPanel {
     if (!this._tree) return null;
     let root = this._tfRootFrame;
     if (!root || !this._tree.hasFrame(root)) {
-      root = null;
-      for (const f of this._tree.frames().values()) {
-        if (f.isRoot()) { root = f.id; break; }
+      // 多根树并存（官方仿真 + comm_fixture）时按 RViz 惯例优先 map → odom；
+      // **仅锁定首选根**——树生长早期（如仅 RSP 关节变换到达）的退解根
+      // （base_link 等）不缓存，待 odom/map 入树后自动重评（2026-10-16 实测：
+      // 部分树根被钉住 → fixed 恒为链中帧，世界参照系错位）
+      const frames = [...this._tree.frames().values()];
+      const preferred = frames.find((f) => f.id === 'map' && f.isRoot())
+        || frames.find((f) => f.id === 'odom' && f.isRoot());
+      if (preferred) {
+        root = preferred.id;
+        this._tfRootFrame = root;            // 首选根：锁定
+      } else {
+        const any = frames.find((f) => f.isRoot());
+        root = any ? any.id : null;          // 退解根：不锁定，下次重评
+        this._tfRootFrame = null;
       }
-      this._tfRootFrame = root;
     }
     return root;
   }
@@ -1133,12 +1140,15 @@ class VizPanel {
 
   _onTf() {
     // TF 树由 foxgloveTfTree() 单源维护（/tf + /tf_static 全精度累积）；
-    // 此处只做显示：遍历树帧，lookupLatest(frame, root) 取世界位姿（平移+旋转）。
+    // 此处只做显示：遍历树帧，lookupLatest(frame, fixed) 取 fixed 帧位姿。
     // 修复记录：旧实现 (1) 只叠平移、四元数取本条局部旋转（中间帧姿态错）
     // (2) /tf_static 从未进树（回调传参 bug）
+    // (3) 2026-10-16：TF 轴过去按树根（rootId）摆位而数据组按 Fixed Frame 摆位
+    //     ——Fixed Frame 选非根帧（如 base_footprint）时两套参照系不一致，
+    //     数据被搬到 fixed 坐标而世界轴留在根坐标，视口"空白"。统一为 fixed。
     if (!this._tree) this._tree = foxgloveTfTree();
-    const rootId = this._tfRoot();
-    if (!rootId) return;
+    const fx = this._fixedFrame();
+    if (!fx) return;
 
     for (const f of this._tree.frames().values()) {
       const name = f.id;
@@ -1146,42 +1156,57 @@ class VizPanel {
       if (!obj) {
         obj = new THREE.Group();
         obj.add(new THREE.AxesHelper(0.22));
+        // 标签挂 Z-up 世界容器而非帧 Group：沿世界 +Z 上浮。帧局部 +Z 对光学帧
+        // （Z 朝前）会把标签水平飘到轴前方（camera_rgb_optical_frame 实测，
+        // 2026-10-16）——帧姿态不应影响标签的"上方"语义。
         const label = makeTextSprite(name, '#2ecc71');
-        label.position.set(0, 0, 0.14);  // Z-up 容器内"上"= Z
+        label.position.set(0, 0, 0.14);
         label.visible = this._inst('tf')?.labels !== false;
-        obj.add(label);
+        this._tfFrame.add(label);
+        obj.userData.label = label;
         this._tfFrame.add(obj);  // Z-up 容器
         this._tfObjects.set(name, obj);
       }
-      if (name === rootId) {
+      if (name === fx) {
         obj.position.set(0, 0, 0);
         obj.quaternion.identity();
-        continue;
+      } else {
+        const tfm = lookupLatest(this._tree, name, fx);
+        if (!tfm) continue;  // 与 fixed 不同树：保持上次位姿（RViz 同样不猜）
+        obj.position.set(tfm.translation.x, tfm.translation.y, tfm.translation.z);
+        const q = tfm.rotation;
+        obj.quaternion.set(Number(q.x), Number(q.y), Number(q.z), Number(q.w));
       }
-      const tfm = lookupLatest(this._tree, name, rootId);
-      if (!tfm) continue;
-      obj.position.set(tfm.translation.x, tfm.translation.y, tfm.translation.z);
-      const q = tfm.rotation;
-      obj.quaternion.set(Number(q.x), Number(q.y), Number(q.z), Number(q.w));
+      // 标签跟随轴平移（仅 +Z 上浮分量随世界系），不继承帧姿态
+      const lbl = obj.userData.label;
+      if (lbl) {
+        lbl.position.set(obj.position.x, obj.position.y, obj.position.z + 0.14);
+        lbl.visible = this._inst('tf')?.labels !== false;
+      }
     }
     this.stats.tf = { frames: [...this._tfObjects.keys()], lastAt: Date.now() };
     // RobotModel 整体位姿跟随 TF（RViz 语义）：模型按 odom→base 摆位而非钉在
     // 场景原点——机器人开动后模型随行，Fixed Frame 切换也一致（无该 TF 的栈
-    // 如 panda 保持原位，不回归）
-    if (this._robotFrame) {
+    // 如 panda 保持原位，不回归）。位姿写**内层** _robotBase（ROS 坐标语义），
+    // 不碰 _robotFrame 的 -90°x Z-up 补偿
+    if (this._robotBase) {
       const baseTf = this._frameToRoot('base_footprint')
         || this._frameToRoot('base_link');
       if (baseTf) {
-        baseTf.decompose(this._robotFrame.position,
-          this._robotFrame.quaternion, new THREE.Vector3());
+        baseTf.decompose(this._robotBase.position,
+          this._robotBase.quaternion, new THREE.Vector3());
       }
     }
     this._dirty = true;
   }
 
   _onCloud(data, c) {
-    // 解析单源 pointcloud_parse.js：fields[].offset + DataView 读 float32
-    const st = this._stateFor(c.id, () => ({ posArr: new Float32Array(MAX_POINTS * 3) }));
+    // 解析单源 pointcloud_parse.js：fields[].offset + DataView 读 float32。
+    // posArr/points 惰性确保（而非仅靠 init 闭包）：订阅回调 _subscribeDisplay
+    // 会先以无 init 的 _stateFor 创建空 state，init 闭包从此不再生效——
+    // 曾致 BufferAttribute(undefined)、点云每帧回调抛错零渲染（2026-10-16 实测）
+    const st = this._stateFor(c.id);
+    if (!st.posArr) st.posArr = new Float32Array(MAX_POINTS * 3);
     const g = this._groupOf(c.id);
     if (!st.points) {
       const geo = new THREE.BufferGeometry();
@@ -1205,13 +1230,20 @@ class VizPanel {
     st.points.geometry.attributes.position.needsUpdate = true;
     st.points.geometry.setDrawRange(0, count);
     this._applyFrameToGroup(g, data?.header?.frame_id, 'cloud:' + c.id);
-    this.stats.cloud = { points: count, lastAt: Date.now() };
+    // stamp 时延（rviz Delay 语义：rosTime - header.stamp）；无 /clock 时退化为 null
+    const stampNs = data?.header?.stamp
+      ? Number(data.header.stamp.sec) * 1e9 + Number(data.header.stamp.nanosec) : null;
+    this.stats.cloud = { points: count, lastAt: Date.now(), stampNs,
+      ageMs: (stampNs && this.stats.rosTimeNs)
+        ? Math.max(0, Math.round((this.stats.rosTimeNs - stampNs) / 1e6)) : null };
     this._dirty = true;
   }
 
   _onScan3d(data, c) {
     // RViz LaserScan 3D 语义：ROS 坐标（z-up 容器内）x=cos·r 前向、y=sin·r 左向
-    const st = this._stateFor(c.id, () => ({ posArr: new Float32Array(720 * 3) }));
+    // posArr 惰性确保（同 _onCloud：订阅回调可能先建空 state）
+    const st = this._stateFor(c.id);
+    if (!st.posArr) st.posArr = new Float32Array(720 * 3);
     const g = this._groupOf(c.id);
     if (!st.points) {
       const geo = new THREE.BufferGeometry();
@@ -1520,24 +1552,42 @@ class VizPanel {
       this._imgOff.width = w; this._imgOff.height = h;
     }
     const off = this._imgOff.getContext('2d');
-    const img = off.createImageData(w, h);
+    // ImageData 按 (w,h) 复用（30Hz 逐帧 createImageData 是纯 GC 压力）
+    if (!this._imgImageData || this._imgImageData.width !== w || this._imgImageData.height !== h) {
+      this._imgImageData = off.createImageData(w, h);
+    }
+    const img = this._imgImageData;
     const px = img.data;
     const raw = data.data;
     const enc = data.encoding;
+    let ok = false;
     if (enc === 'mono8') {
       for (let i = 0, j = 0; i < w * h; i++, j += 4) {
         const v = raw[i];
         px[j] = px[j + 1] = px[j + 2] = v; px[j + 3] = 255;
       }
+      ok = true;
     } else if (enc === 'rgb8' || enc === 'bgr8') {
-      const [R, G, B] = enc === 'rgb8' ? [0, 1, 2] : [2, 1, 0];
+      const R = enc === 'rgb8' ? 0 : 2, G = 1, B = enc === 'rgb8' ? 2 : 0;
       for (let i = 0, j = 0; i < w * h; i++, j += 4) {
         const o = i * 3;
         px[j] = raw[o + R]; px[j + 1] = raw[o + G]; px[j + 2] = raw[o + B]; px[j + 3] = 255;
       }
-    } else {
-      return;
+      ok = true;
+    } else if (enc === 'rgba8' || enc === 'bgra8') {
+      const R = enc === 'rgba8' ? 0 : 2, G = 1, B = enc === 'rgba8' ? 2 : 0;
+      // 4 通道：按 32 位整块重排（同字节序下 RGBA 逐字拷贝；BGRA 通道交换）
+      if (enc === 'rgba8') {
+        px.set(raw.subarray(0, w * h * 4));
+      } else {
+        for (let i = 0, j = 0; i < w * h; i++, j += 4) {
+          const o = i * 4;
+          px[j] = raw[o + R]; px[j + 1] = raw[o + G]; px[j + 2] = raw[o + B]; px[j + 3] = raw[o + 3];
+        }
+      }
+      ok = true;
     }
+    if (!ok) return;
     off.putImageData(img, 0, 0);
     if (data.header?.stamp) {
       this.stats.image.stampNs = Number(data.header.stamp.sec) * 1e9

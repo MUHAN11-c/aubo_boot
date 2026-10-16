@@ -11,7 +11,7 @@ ros2 launch peach_arm peach_arm.launch.py
 #  execution.require_robot_status:=false，否则 Survey 直接 robot_status_missing）
 ```
 
-默认 `execution.enabled` / `grasp.enabled` / `tool.enabled` 全关；真运动须与调度 `execution_enabled` 同时开并经人工授权。工具几何权威在 `aubo_description` 工具档案（整栈 `tool_profile` 参数，默认 `bite_shear_v1`）。自适应 FULL 在预抓取→套入→回预抓取窗内调 imu_follow；非 IMU 末端走 MTC LIN 且不建 `/imu_follow` 客户端。接近先在几何允许直连时验证完整LIN（含必要对轴）；仅在未运动、未取消且未因授权拒绝时回退。树冠外路径是 PTP 关节空间到中段点正下方（树冠外，滚转梯子 {0,±15°,±30°,±45°} IK）+ 世界垂直 LIN 入冠 + 沿轴 LIN 对轴进入预抓取（冠内两段 LIN 优先 Pilz sequence blend 0.02 平滑连续）；已在果下方且直连不穿囊的短修正走直连 LIN（滚转梯子扫刀口）。场景障碍快照避障（`moveit.obstacle_guard_enabled` 默认 true，避障只为保护相机，见 doc/io.md）全程生效。节点回调只抽字段委托 `cache_`；周期走 `executeCycle`。测试：`colcon test --packages-select peach_arm`（gtest 纯核套件 + 回放塔语料在 `test/fixtures/`，流程见 v1 测试指导）。
+默认 `execution.enabled` / `grasp.enabled` / `tool.enabled` 全关；真运动须与调度 `execution_enabled` 同时开并经人工授权。工具几何权威在 `aubo_description` 工具档案（整栈 `tool_profile` 参数，默认 `bite_shear_v1`）。自适应 FULL 在预抓取→套入→回预抓取窗内调 imu_follow；非 IMU 末端走 MTC LIN 且不建 `/imu_follow` 客户端。接近先在几何允许直连时验证完整LIN（含必要对轴）；仅在未运动、未取消且未因授权拒绝时回退。树冠外路径是 PTP 关节空间到中段点正下方（树冠外，滚转梯子 {0,±15°,±30°,±45°} IK）+ 世界垂直 LIN 入冠 + 沿轴 LIN 对轴进入预抓取（冠内两段 LIN 优先 Pilz sequence blend 0.02 平滑连续）；已在果下方且直连不穿囊的短修正走直连 LIN（滚转梯子扫刀口）。场景障碍快照避障（部署 `moveit.obstacle_guard_enabled=false`，树冠太密；true 才让相机连杆受查，见 doc/io.md）。节点回调只抽字段委托 `cache_`；周期走 `executeCycle`。测试：`colcon test --packages-select peach_arm`（gtest 纯核套件 + 回放塔语料在 `test/fixtures/`，流程见 v1 测试指导）。
 
 ## 当前维护入口
 

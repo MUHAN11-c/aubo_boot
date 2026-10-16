@@ -1,0 +1,618 @@
+{
+  "hardware_mode": "mock",
+  "profile": {
+    "schema_version": 1,
+    "profile_id": "fixed_camera_mock_20261013",
+    "hardware_mode": "mock",
+    "camera_frontend": "stereo",
+    "autostart": false,
+    "tool_enabled": false,
+    "reconstruct_in_trajectory": true,
+    "camera_calibration": {
+      "parent_frame": "base_link",
+      "child_frame": "camera_link",
+      "xyz_m": [
+        0.3780573326439316,
+        -0.07547177076037584,
+        0.7666632351254871
+      ],
+      "quaternion_xyzw": [
+        -0.0036889994433193067,
+        -7.498157537607713e-06,
+        -0.6576092061184594,
+        0.753350199611797
+      ],
+      "provenance": "20261013 fixed camera record; user confirmed camera unmoved; reused by live_camera_rviz_repeat_20261014_1632",
+      "scope": "test-only frozen calibration; never injected into product calibration files"
+    },
+    "mock_initial_positions": [
+      0.425175,
+      0.194274,
+      1.679546,
+      1.462579,
+      -0.279948,
+      0.038859
+    ]
+  },
+  "rounds": [
+    {
+      "request_id": "round_edc37972a073",
+      "success": false,
+      "target_id": "target_1",
+      "scene_epoch": 2,
+      "entry_position": [
+        0.41282901069416506,
+        -0.6520020729266414,
+        0.6648182161891004
+      ],
+      "action": {
+        "accepted": true,
+        "status": 4,
+        "result": {
+          "success": false,
+          "termination_reason": "no_targets_succeeded",
+          "summary": {
+            "run_id": "round_edc37972a073",
+            "discovered": 2,
+            "attempted": 1,
+            "succeeded": 0,
+            "skipped_quality": 0,
+            "skipped_unreachable": 1,
+            "failed": 0,
+            "canceled": 0,
+            "elapsed": {
+              "sec": 28,
+              "nanosec": 405590644
+            },
+            "outcomes": [
+              {
+                "target_id": "target_1",
+                "outcome": 2,
+                "reason": "skipped_unreachable: 精化几何可达性未通过: sleeve_no_cartesian",
+                "quality_score": 0.0,
+                "elapsed": {
+                  "sec": 1,
+                  "nanosec": 207861468
+                }
+              }
+            ]
+          }
+        }
+      },
+      "ledger": {
+        "request_id": "round_edc37972a073",
+        "path": "/home/mu/Desktop/aubo_e5_jazzy_ws/runs/round_edc37972a073/ledger.json",
+        "mtime": 1792115974.715353,
+        "error": null,
+        "claimed": [
+          "target_1"
+        ],
+        "rows": [
+          {
+            "target_id": "target_1",
+            "outcome": 2,
+            "outcome_name": "SKIPPED_UNREACHABLE",
+            "reason": "skipped_unreachable: 精化几何可达性未通过: sleeve_no_cartesian",
+            "quality_score": 0.0,
+            "elapsed_s": 1.208,
+            "stages": [],
+            "failure_code": "skipped_unreachable",
+            "completion_level": 0,
+            "failure_code_n": 5
+          }
+        ],
+        "totals": {
+          "SUCCEEDED": 0,
+          "SKIPPED_QUALITY": 0,
+          "SKIPPED_UNREACHABLE": 1,
+          "FAILED": 0,
+          "CANCELED": 0,
+          "attempted": 1,
+          "claimed": 1
+        }
+      },
+      "elapsed_s": 39.45586634200026,
+      "streams": {
+        "camera": {
+          "first": 1792115915.810959,
+          "last": 1792115973.55608,
+          "new_frames": 10,
+          "fresh_stamp": false
+        },
+        "joints": {
+          "first": 1792115981.541896,
+          "last": 1792115981.6968853,
+          "new_frames": 7878,
+          "fresh_stamp": true
+        }
+      }
+    }
+  ],
+  "models": [
+    {
+      "identity": [
+        "target_0",
+        1,
+        "target_0:1:2"
+      ],
+      "sample_identity": [
+        "target_0",
+        1,
+        "target_0:1:2",
+        1792115941.7145267,
+        1792116061.7145267
+      ],
+      "model": {
+        "header": {
+          "stamp": {
+            "sec": 1792115941,
+            "nanosec": 714526579
+          },
+          "frame_id": ""
+        },
+        "target_id": "target_0",
+        "scene_epoch": 1,
+        "model_revision": "target_0:1:2",
+        "tool_profile_id": "bite_shear_v1",
+        "algorithm_version": "",
+        "calibration_version": "unspecified",
+        "shape": {
+          "header": {
+            "stamp": {
+              "sec": 0,
+              "nanosec": 0
+            },
+            "frame_id": ""
+          },
+          "target_id": "",
+          "scene_epoch": 0,
+          "center": {
+            "x": 0.0,
+            "y": 0.0,
+            "z": 0.0
+          },
+          "axis": {
+            "x": 0.0,
+            "y": 0.0,
+            "z": 0.0
+          },
+          "diameter_m": 0.0,
+          "length_m": 0.0,
+          "position_covariance": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "direction_covariance": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "confidence": 0.0,
+          "model_kind": ""
+        },
+        "quality": {
+          "level": 1,
+          "score": 0.0,
+          "reason": ""
+        },
+        "view_count": 1,
+        "accepted": true,
+        "message": "局部重建完成：1 帧，5435 点（少于推荐 5 帧）；重叠指标需 ≥2 帧，本批次不可用；TSDF 1358 点 / mesh 2582 顶点（累计积分 0.00s）；refit ACCEPT（袋模型 1 视）",
+        "bag_bottom": {
+          "x": 0.4254222425906016,
+          "y": -0.6554043895377208,
+          "z": 0.6849521509492635
+        },
+        "bag_neck": {
+          "x": 0.42818964729622067,
+          "y": -0.679816158478167,
+          "z": 0.7771214527392846
+        },
+        "cut_plane_point": {
+          "x": 0.42818964729622067,
+          "y": -0.679816158478167,
+          "z": 0.7771214527392846
+        },
+        "bag_axis": {
+          "x": 0.029012239607289114,
+          "y": -0.2559221238223497,
+          "z": 0.9662619502449774
+        },
+        "cut_normal": {
+          "x": 0.029012239607289114,
+          "y": -0.2559221238223497,
+          "z": 0.9662619502449774
+        },
+        "d95_m": 0.0926111713051796,
+        "fruit_prior_radius_m": 0.0,
+        "fruit_prior_auxiliary": true,
+        "bottom_covariance": [
+          6.4e-05,
+          0.0,
+          0.0,
+          0.0,
+          6.4e-05,
+          0.0,
+          0.0,
+          0.0,
+          6.4e-05
+        ],
+        "neck_covariance": [
+          6.4e-05,
+          0.0,
+          0.0,
+          0.0,
+          6.4e-05,
+          0.0,
+          0.0,
+          0.0,
+          6.4e-05
+        ],
+        "axis_covariance": [
+          0.002741556778080377,
+          0.0,
+          0.0,
+          0.0,
+          0.002741556778080377,
+          0.0,
+          0.0,
+          0.0,
+          0.002741556778080377
+        ],
+        "radial_margin_m": -0.017297780141234398,
+        "axial_margin_m": -0.0020000000949949026,
+        "corridor_clear": false,
+        "occlusion_class": "clear",
+        "source_start": {
+          "sec": 0,
+          "nanosec": 0
+        },
+        "source_end": {
+          "sec": 0,
+          "nanosec": 0
+        },
+        "run_id": "harvest_20261016T095858_625880_s1",
+        "calibration_revision": "unspecified",
+        "config_revision": "bite_shear_v1",
+        "capture_start": {
+          "sec": 1792115941,
+          "nanosec": 714526579
+        },
+        "capture_end": {
+          "sec": 1792115941,
+          "nanosec": 714526579
+        },
+        "generated_at": {
+          "sec": 1792115941,
+          "nanosec": 714526579
+        },
+        "valid_until": {
+          "sec": 1792116061,
+          "nanosec": 714526653
+        },
+        "geometry_capability": 0,
+        "pregrasp_capability": 0,
+        "sleeve_capability": 0,
+        "cut_capability": 0
+      },
+      "geometry": {
+        "d95_m": 0.09261116848187353,
+        "entry": [
+          0.4254222425906016,
+          -0.6554043895377208,
+          0.6849521509492635
+        ],
+        "cut_pose": [
+          0.42818964729622067,
+          -0.679816158478167,
+          0.7771214527392846
+        ],
+        "axis": [
+          0.029012239607289114,
+          -0.2559221238223497,
+          0.9662619502449774
+        ]
+      },
+      "elapsed_s": 3.369574642999396
+    }
+  ],
+  "model_attempts": [
+    {
+      "request_id": "model_54f8174b7607",
+      "accepted": true,
+      "status": 4,
+      "result": {
+        "success": true,
+        "quality_level": 1,
+        "message": "局部重建完成：1 帧，5435 点（少于推荐 5 帧）；重叠指标需 ≥2 帧，本批次不可用；TSDF 1358 点 / mesh 2582 顶点（累计积分 0.00s）；refit ACCEPT（袋模型 1 视）",
+        "failure_code": 0,
+        "model": {
+          "header": {
+            "stamp": {
+              "sec": 1792115941,
+              "nanosec": 714526579
+            },
+            "frame_id": ""
+          },
+          "target_id": "target_0",
+          "scene_epoch": 1,
+          "model_revision": "target_0:1:2",
+          "tool_profile_id": "bite_shear_v1",
+          "algorithm_version": "",
+          "calibration_version": "unspecified",
+          "shape": {
+            "header": {
+              "stamp": {
+                "sec": 0,
+                "nanosec": 0
+              },
+              "frame_id": ""
+            },
+            "target_id": "",
+            "scene_epoch": 0,
+            "center": {
+              "x": 0.0,
+              "y": 0.0,
+              "z": 0.0
+            },
+            "axis": {
+              "x": 0.0,
+              "y": 0.0,
+              "z": 0.0
+            },
+            "diameter_m": 0.0,
+            "length_m": 0.0,
+            "position_covariance": [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            "direction_covariance": [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            "confidence": 0.0,
+            "model_kind": ""
+          },
+          "quality": {
+            "level": 1,
+            "score": 0.0,
+            "reason": ""
+          },
+          "view_count": 1,
+          "accepted": true,
+          "message": "局部重建完成：1 帧，5435 点（少于推荐 5 帧）；重叠指标需 ≥2 帧，本批次不可用；TSDF 1358 点 / mesh 2582 顶点（累计积分 0.00s）；refit ACCEPT（袋模型 1 视）",
+          "bag_bottom": {
+            "x": 0.4254222425906016,
+            "y": -0.6554043895377208,
+            "z": 0.6849521509492635
+          },
+          "bag_neck": {
+            "x": 0.42818964729622067,
+            "y": -0.679816158478167,
+            "z": 0.7771214527392846
+          },
+          "cut_plane_point": {
+            "x": 0.42818964729622067,
+            "y": -0.679816158478167,
+            "z": 0.7771214527392846
+          },
+          "bag_axis": {
+            "x": 0.029012239607289114,
+            "y": -0.2559221238223497,
+            "z": 0.9662619502449774
+          },
+          "cut_normal": {
+            "x": 0.029012239607289114,
+            "y": -0.2559221238223497,
+            "z": 0.9662619502449774
+          },
+          "d95_m": 0.0926111713051796,
+          "fruit_prior_radius_m": 0.0,
+          "fruit_prior_auxiliary": true,
+          "bottom_covariance": [
+            6.4e-05,
+            0.0,
+            0.0,
+            0.0,
+            6.4e-05,
+            0.0,
+            0.0,
+            0.0,
+            6.4e-05
+          ],
+          "neck_covariance": [
+            6.4e-05,
+            0.0,
+            0.0,
+            0.0,
+            6.4e-05,
+            0.0,
+            0.0,
+            0.0,
+            6.4e-05
+          ],
+          "axis_covariance": [
+            0.002741556778080377,
+            0.0,
+            0.0,
+            0.0,
+            0.002741556778080377,
+            0.0,
+            0.0,
+            0.0,
+            0.002741556778080377
+          ],
+          "radial_margin_m": -0.017297780141234398,
+          "axial_margin_m": -0.0020000000949949026,
+          "corridor_clear": false,
+          "occlusion_class": "clear",
+          "source_start": {
+            "sec": 0,
+            "nanosec": 0
+          },
+          "source_end": {
+            "sec": 0,
+            "nanosec": 0
+          },
+          "run_id": "harvest_20261016T095858_625880_s1",
+          "calibration_revision": "unspecified",
+          "config_revision": "bite_shear_v1",
+          "capture_start": {
+            "sec": 1792115941,
+            "nanosec": 714526579
+          },
+          "capture_end": {
+            "sec": 1792115941,
+            "nanosec": 714526579
+          },
+          "generated_at": {
+            "sec": 1792115941,
+            "nanosec": 714526579
+          },
+          "valid_until": {
+            "sec": 1792116061,
+            "nanosec": 714526653
+          },
+          "geometry_capability": 0,
+          "pregrasp_capability": 0,
+          "sleeve_capability": 0,
+          "cut_capability": 0
+        }
+      },
+      "elapsed_s": 3.370537549999426
+    }
+  ],
+  "resources": [],
+  "acks": [],
+  "errors": [],
+  "rviz_requested": true,
+  "owned_process_groups": [
+    133072,
+    133073,
+    133852
+  ],
+  "runtime_environment": {
+    "ROS_DOMAIN_ID": "87",
+    "ROS_HOME": "/home/mu/Desktop/aubo_e5_jazzy_ws/runs/live_mock_stage_20261016_095831/ros_home",
+    "OMP_NUM_THREADS": "1",
+    "OPENBLAS_NUM_THREADS": "1",
+    "MKL_NUM_THREADS": "1"
+  },
+  "rviz_started": true,
+  "soak_started_monotonic": 4582.687365246,
+  "rviz_lifetime_ok": true,
+  "soak_elapsed_s": 1.0311000551155303e-05,
+  "phase": "finished",
+  "updated_at": 1792115988.1111276,
+  "residual_pids": [],
+  "domain_processes_after": [],
+  "model_count": 1,
+  "full_level6_rounds": 0,
+  "model_elapsed_s": {
+    "count": 1,
+    "min": 3.369574642999396,
+    "max": 3.369574642999396,
+    "p95": 3.369574642999396,
+    "range": 0.0
+  },
+  "geometry_statistics": {
+    "target_0": {
+      "d95_m": {
+        "count": 1,
+        "min": 0.09261116848187353,
+        "max": 0.09261116848187353,
+        "p95": 0.09261116848187353,
+        "range": 0.0
+      },
+      "entry_0_m": {
+        "count": 1,
+        "min": 0.4254222425906016,
+        "max": 0.4254222425906016,
+        "p95": 0.4254222425906016,
+        "range": 0.0
+      },
+      "entry_1_m": {
+        "count": 1,
+        "min": -0.6554043895377208,
+        "max": -0.6554043895377208,
+        "p95": -0.6554043895377208,
+        "range": 0.0
+      },
+      "entry_2_m": {
+        "count": 1,
+        "min": 0.6849521509492635,
+        "max": 0.6849521509492635,
+        "p95": 0.6849521509492635,
+        "range": 0.0
+      },
+      "cut_pose_0_m": {
+        "count": 1,
+        "min": 0.42818964729622067,
+        "max": 0.42818964729622067,
+        "p95": 0.42818964729622067,
+        "range": 0.0
+      },
+      "cut_pose_1_m": {
+        "count": 1,
+        "min": -0.679816158478167,
+        "max": -0.679816158478167,
+        "p95": -0.679816158478167,
+        "range": 0.0
+      },
+      "cut_pose_2_m": {
+        "count": 1,
+        "min": 0.7771214527392846,
+        "max": 0.7771214527392846,
+        "p95": 0.7771214527392846,
+        "range": 0.0
+      },
+      "axis_angle_from_first_deg": {
+        "count": 1,
+        "min": 0.0,
+        "max": 0.0,
+        "p95": 0.0,
+        "range": 0.0
+      }
+    }
+  },
+  "model_samples_per_target": {
+    "target_0": 1
+  },
+  "per_target_outcomes": {
+    "target_1": {
+      "SKIPPED_UNREACHABLE": 1
+    }
+  },
+  "physical_bag_level6_coverage": {
+    "target_0": 0
+  },
+  "soak_passed": true,
+  "passed": false
+}

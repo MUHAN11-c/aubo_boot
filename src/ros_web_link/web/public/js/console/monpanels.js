@@ -184,6 +184,71 @@ function escapeHtml(s) {
   })[c]);
 }
 
+// 网关 WS 转发统计（/api/ivg/ws/stats）：丢帧与积压是「慢客户端是否被限流」的
+// 直接证据面（字节预算 + 丢最旧策略；Lichtblick parsedMessageCache 同语义）。
+class GatewayStatsPanel {
+  constructor() {
+    this.last = null;
+    this.dropped = 0;
+    this.queuedFrames = 0;
+    this.queuedBytes = 0;
+    this._err = 0;
+    setInterval(() => this._poll(), 1000);
+  }
+
+  async _poll() {
+    try {
+      const r = await fetch('/api/ivg/ws/stats', { cache: 'no-store' });
+      if (!r.ok) throw new Error(r.status);
+      const s = await r.json();
+      this.last = s;
+      // totals 只在连接断开时归账——活跃连接的实时数在 active[] 里，两者求和
+      const sum = (key) => (s.totals?.[key] ?? 0)
+        + (s.active || []).reduce((acc, c) => acc + (c[key] ?? 0), 0);
+      this.dropped = sum('droppedData');
+      this.droppedStale = sum('droppedStale');
+      let qf = 0, qb = 0;
+      for (const c of s.active || []) {
+        qf = Math.max(qf, c.queued ?? 0);
+        qb = Math.max(qb, c.queuedBytes ?? 0);
+      }
+      this.queuedFrames = qf;
+      this.queuedBytes = qb;
+      this._err = 0;
+    } catch (_) {
+      this._err++;
+      if (this._err > 5) this.last = null; // 网关不可达期不再显示旧值
+    }
+    this._render();
+  }
+
+  _render() {
+    const drop = $('mon-gwdrop');
+    if (drop) {
+      drop.textContent = String(this.dropped);
+      drop.style.color = this.dropped > 0 ? 'var(--amber, #e67e22)' : '';
+    }
+    const q = $('mon-gwqueue');
+    if (q) {
+      q.textContent = this.queuedFrames
+        ? `${this.queuedFrames} 帧 · ${(this.queuedBytes / 1048576).toFixed(1)}MB`
+        : '0 帧';
+      q.style.color = this.queuedFrames > 0 ? 'var(--amber, #e67e22)' : '';
+    }
+  }
+
+  snapshot() {
+    return {
+      droppedData: this.dropped,
+      droppedStale: this.droppedStale ?? 0,
+      queuedFrames: this.queuedFrames,
+      queuedBytes: this.queuedBytes,
+      activeConnections: this.last?.active?.length ?? 0,
+      totals: this.last?.totals ?? null,
+    };
+  }
+}
+
 let _inited = false;
 
 /** 初始化诊断与日志面板（幂等；连接后按开关订阅） */
@@ -192,6 +257,8 @@ export function initMonPanels() {
   _inited = true;
   const diag = new DiagnosticsPanel();
   const roslog = new RosLogPanel();
+  const gwstats = new GatewayStatsPanel();
   window.__rwl_diag = () => diag.snapshot();
   window.__rwl_roslog = () => roslog.snapshot();
+  window.__rwl_gwstats = () => gwstats.snapshot();
 }

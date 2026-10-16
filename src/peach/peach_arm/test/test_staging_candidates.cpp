@@ -19,6 +19,14 @@ TEST(StagingCandidates, GuardFailureCanTryNextWithoutMotion)
   EXPECT_FALSE(peach_arm::retryStagingCandidate(false, false, false, true));
 }
 
+TEST(StagingCandidates, AbandonRolledLinAfterTwoPlanFailures)
+{
+  EXPECT_FALSE(peach_arm::abandonRolledLinSearch(0));
+  EXPECT_FALSE(peach_arm::abandonRolledLinSearch(1));
+  EXPECT_TRUE(peach_arm::abandonRolledLinSearch(2));
+  EXPECT_TRUE(peach_arm::abandonRolledLinSearch(3));
+}
+
 TEST(StagingCandidates, EqualMagnitudeChoosesJointCostWithoutLosingOtherRolls)
 {
   std::vector<peach_arm::StagingCandidate> values{

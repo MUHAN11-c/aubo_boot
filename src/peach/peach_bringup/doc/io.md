@@ -39,6 +39,8 @@ scene_obstacles在Survey后按刷新触发生成快照，仅写PlanningScene wor
 
 `/diagnostics`提供标准健康流，observability聚合到8090；状态/事件带作业身份，会话bag位于runs/session_*，每批ledger在runs/<request_id>。静态页面属于peach_web。调试POST委托现有ROS入口，默认运动调试关闭；不得新增SetIO或旁路门。
 
+排障用 ROS 2 日志：rqt_console 过滤 `peach_supervisor.batch` / `peach_supervisor.contact` / `peach_arm.cycle` / `peach_arm.contact`；目录 `$ROS_HOME/log`（联测 `runs/<本轮>/ros_home/log`）。SELECT 与 Finalize 各打一条 `caller=`，行程不同是预期。读法见 [architecture.md 一批怎么走](architecture.md) 与 [测试指导 §10](../../peach_system_tests/doc/testing.md)。
+
 修改IDL/图名后先构建interfaces及消费包，再运行：
 
 ```bash

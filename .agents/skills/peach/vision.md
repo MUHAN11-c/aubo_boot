@@ -14,7 +14,7 @@
 4. `make_pipeline`：`bag` = `RobustBagPosePipeline`（圆柱 RANSAC 定轴）；`fruit` = `RobustFruitPosePipeline`（球拟合+梗洼定向）。产品执行范围是套袋；裸果可显示，不进选果
 5. 单帧状态 ACCEPT / REOBSERVE / REJECT——**不得据此接触**
 6. `identity.TargetRegistry`：世界系 χ²≤9 + 匈牙利 1-1 + 类别 + 歧义比 1.2。新目标 `target_{N}`；`clear()` **不复位**计数
-7. `CollectLockPolicy` / `GlobalHarvestPlan`：收齐窗关闭锁定，`snapshot_id` +1，`harvest_run_id` 每轮重铸
+7. `CollectLockPolicy` / `GlobalHarvestPlan`：`confirm_frames=2`、`min_collect_frames=4`、`lock_settle_frames=2`、`max_collect_s=12`；关窗锁定，`snapshot_id` +1，`harvest_run_id` 每轮重铸
 8. 发布：`/peach/perception/target_observations`（调度选果+重建+臂缓存）、`initial_pose`（**只进重建**）、diagnostics、debug_image
 
 BeginScene：Active 才受理；`scene_epoch++`；换 `scene_key` 清身份表。调度 `HarvestState.target_id` 反哺覆盖感知 selected，旧目标 `mark_completed`。
@@ -28,7 +28,7 @@ BeginScene：Active 才受理；`scene_epoch++`；换 `scene_key` 清身份表�
 流程：
 
 1. `BuildTargetModel` 或 `initial_pose` 自动绑定（`capture.auto_mode`）
-2. 每唯一 RGB-D stamp：锁外查 **base←camera 精确时刻 TF**（失败跳帧，禁止运动中 latest）
+2. 每唯一 RGB-D stamp：帧环 12 s / 96 帧 / 192 MiB，掩膜 stamp 最近邻（容差 0.45 s），关节 Cache 8192；锁外查 **base←camera 精确时刻 TF**（失败跳帧，禁止运动中 latest）
 3. 质量门 `StrictMaskGate`（五道）→ FK 变到 base → 有界 ICP → 在线 TSDF
 4. finalize：抽网格 + 柱/球 refit（`refine.py` 的 `REFITTERS_BY_IMPL`，UNWIND dict）
 5. 动态径向/轴向预算 `tool_budget.py`（内径随 `tool.budget.d_inner` 档案注入）→ `GraspDecision`

@@ -42,13 +42,13 @@ struct GateResult
   bool axis_mismatch{false};     ///< 轴夹角超 maximum_axis_angle_deg（仅诊断，不拒）。
 };
 
-// 默认值以 config/peach_arm.yaml 为权威源，此处仅为直接构造兜底
-// （yaml：当前位+一次 0.15 m 短移，覆盖门 8°）。
+// 部署以 config/peach_arm.yaml 为准（minimum_views=1、角基线 0°）。
+// 此处结构默认仅单测/未注入 yaml 时使用。
 struct QualityGateConfig
 {
-  std::size_t minimum_views{2};                        ///< 最少机位数（station_count 优先）。
-  double minimum_baseline_deg{8.0};                    ///< 最大基线角下限 [deg]（0.15 m 短移实测口径）。
-  double minimum_mean_nearest_baseline_deg{6.0};       ///< 平均最近基线下限 [deg]（视角分布）。
+  std::size_t minimum_views{2};  ///< 未注入 yaml 时结构默认 2；部署 1（单机位可通过）。
+  double minimum_baseline_deg{8.0};  ///< 未注入 yaml 时的结构默认；部署 peach_arm.yaml 为 0（单视可通过）。
+  double minimum_mean_nearest_baseline_deg{6.0};  ///< 未注入 yaml 时结构默认 6°；部署 0。
   double minimum_mean_depth_ratio{0.40};               ///< 平均有效深度比例下限 [0,1]。
   double maximum_data_age_s{3.0};                      ///< 质量证据最大年龄 [s]（低帧率诊断心跳口径）。
   double maximum_axis_angle_deg{35.0};                 ///< 完全错轴诊断上限 [deg]（只诊断不拒接触）。

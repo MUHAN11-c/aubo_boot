@@ -106,9 +106,60 @@ TEST(TrajectoryGuard, ConcatRejectsNameMismatchAndEmpty)
     peach_arm::concatJointTrajectories({first, no_points}).points.empty());
 }
 
-// ---------- reverseJointTrajectory：倒放、速度/加速度取反、端点清零 ----------
+// PTP 与实际走完的走廊必须共同组成返程，不能只留最后一段或 PTP。
+TEST(TrajectoryGuard, ExecutedApproachRetainsTransitCorridorAndCorrection)
+{
+  using Trajectory = trajectory_msgs::msg::JointTrajectory;
+  Trajectory ptp;
+  ptp.joint_names = {"j1"};
+  ptp.points = {trajectoryPoint(0.0, {0.0}), trajectoryPoint(2.0, {1.0})};
+  Trajectory corridor;
+  corridor.joint_names = ptp.joint_names;
+  corridor.points = {trajectoryPoint(0.0, {1.0}), trajectoryPoint(3.0, {1.5})};
+  std::vector<Trajectory> history{ptp};
+  ASSERT_TRUE(peach_arm::appendExecutedJointTrajectories(history, {corridor}, 0.05));
+  Trajectory correction = corridor;
+  correction.points = {trajectoryPoint(0.0, {1.5}), trajectoryPoint(1.0, {1.6})};
+  ASSERT_TRUE(peach_arm::appendExecutedJointTrajectories(history, {correction}, 0.05));
+  const auto reversed = peach_arm::reverseJointTrajectory(
+    peach_arm::concatJointTrajectories(history));
+  ASSERT_EQ(reversed.points.size(), 4U);
+  EXPECT_DOUBLE_EQ(reversed.points.front().positions[0], 1.6);
+  EXPECT_DOUBLE_EQ(reversed.points.back().positions[0], 0.0);
+  EXPECT_NEAR(peach_arm::durationToSec(reversed.points.back().time_from_start), 6.0, 1e-9);
+}
 
-TEST(TrajectoryGuard, ReverseInvertsOrderSignsAndZeroesEndpoints)
+TEST(TrajectoryGuard, InvalidExecutedContinuationInvalidatesWholeReturn)
+{
+  using Trajectory = trajectory_msgs::msg::JointTrajectory;
+  const auto prefix = singleJointTrajectory();
+  auto continuation = prefix;
+  continuation.points = {trajectoryPoint(0.0, {3.0}), trajectoryPoint(1.0, {3.1})};
+  const auto expect_invalid = [&](const Trajectory & bad) {
+      std::vector<Trajectory> history{prefix};
+      EXPECT_FALSE(peach_arm::appendExecutedJointTrajectories(history, {bad}, 0.05));
+      EXPECT_TRUE(history.empty());
+    };
+  auto bad = continuation;
+  bad.joint_names = {"other"};
+  expect_invalid(bad);
+  bad = continuation;
+  bad.points.front().positions[0] = 3.1;  // 超出已有拍照位关节匹配容差。
+  expect_invalid(bad);
+  bad = continuation;
+  bad.points.back().time_from_start = peach_arm::secToDuration(0.0);
+  expect_invalid(bad);
+  bad = continuation;
+  bad.points.back().positions.clear();
+  expect_invalid(bad);
+  bad = continuation;
+  bad.points.back().velocities = {std::numeric_limits<double>::quiet_NaN()};
+  expect_invalid(bad);
+}
+
+// ---------- reverseJointTrajectory：倒放、速度取反、加速度保持、端点停稳 ----------
+
+TEST(TrajectoryGuard, ReversePreservesAccelerationAndZeroesEndpointVelocities)
 {
   const trajectory_msgs::msg::JointTrajectory reversed =
     peach_arm::reverseJointTrajectory(singleJointTrajectory());
@@ -130,10 +181,10 @@ TEST(TrajectoryGuard, ReverseInvertsOrderSignsAndZeroesEndpoints)
   EXPECT_NEAR(reversed.points[0].velocities[0], 0.0, 1e-12);
   EXPECT_NEAR(reversed.points[1].velocities[0], -2.0, 1e-12);
   EXPECT_NEAR(reversed.points[2].velocities[0], 0.0, 1e-12);
-  // 加速度全程取反（端点速度才清零，加速度保留符号语义）。
-  EXPECT_NEAR(reversed.points[0].accelerations[0], -0.125, 1e-12);
-  EXPECT_NEAR(reversed.points[1].accelerations[0], 0.25, 1e-12);
-  EXPECT_NEAR(reversed.points[2].accelerations[0], -0.5, 1e-12);
+  // q(T-t) 的一阶导数取反，二阶导数保持；与 MoveIt RobotTrajectory::reverse 一致。
+  EXPECT_NEAR(reversed.points[0].accelerations[0], 0.125, 1e-12);
+  EXPECT_NEAR(reversed.points[1].accelerations[0], -0.25, 1e-12);
+  EXPECT_NEAR(reversed.points[2].accelerations[0], 0.5, 1e-12);
 }
 
 TEST(TrajectoryGuard, ReverseShortTrajectoryKeepsNames)

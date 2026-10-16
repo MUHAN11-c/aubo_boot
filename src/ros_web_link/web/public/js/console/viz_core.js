@@ -208,7 +208,12 @@ export function defaultInstances() {
     makeInstance('poses1', 'poses', '粒子云'),
     makeInstance('odom1', 'odom', '里程'),
     makeInstance('posecov1', 'posecov', 'AMCL 位姿'),
-    makeInstance('image1', 'image', '相机'),
+    // 原始相机流默认关：gz Harmonic 无头相机不按 SDF update_rate 节流（实测 ~4.7kHz/5GB/s
+    // 火流，2026-10-16），默认订阅会持续灌满桥发送缓冲，桥"丢新帧"降级会把服务响应帧
+    // 一并丢弃（浏览器自检服务/动作项超时的实证根因）。瘦客户端默认走官方 republish
+    // 压缩流（~15fps×20KB）；原始流可手动开启（快速消费方仍毫秒级新鲜）。
+    makeInstance('image1', 'image', '相机', { on: false }),
+    makeInstance('imagec1', 'imagec', '压缩图'),
   ];
 }
 

@@ -53,6 +53,7 @@ CONTACT_GEOMETRY_INVALID_REASONS = frozenset({
     'fused_axis_conflict', 'bag_axis_invalid', 'bag_endpoints_invalid',
     'cut_reference_invalid', 'fusion_failed', 'landmark_axis_conflict',
     'bag_axis_unobservable', 'bag_axis_envelope_ill_conditioned',
+    'bag_axis_envelope_unavailable',
     'bag_axis_silhouette_unobservable', 'fused_axis_silhouette_conflict',
 })
 
@@ -1463,13 +1464,18 @@ def merge_fused_bag_model(result: RefitResult, fused: BagModel,
     unobservable_axis = (
         not reliable_refit
         and fused.envelope_reason == 'envelope_axis_ill_conditioned')
+    unavailable_axis_evidence = (
+        not reliable_refit and fused.envelope_reason in {
+            'envelope_cloud_insufficient', 'envelope_too_few_slices',
+            'envelope_axis_undefined'})
     if (result.fused_axis_angle_deg is not None
             and result.fused_axis_angle_deg > float(max_axis_angle_deg)):
         result.flags.append('fused_perception_axis_mismatch')
-    if refit_conflict or hint_conflict or unobservable_axis:
+    if refit_conflict or hint_conflict or unobservable_axis or unavailable_axis_evidence:
         # 否决不能被 keep_last_good 恢复许可；节点按此稳定标记失效旧缓存。
-        reason = ('bag_axis_envelope_ill_conditioned' if unobservable_axis
-                  else 'fused_axis_conflict')
+        reason = ('bag_axis_envelope_ill_conditioned' if unobservable_axis else
+                  'bag_axis_envelope_unavailable' if unavailable_axis_evidence else
+                  'fused_axis_conflict')
         result.flags.append(reason)
         result.reason = reason
         result.ok = False

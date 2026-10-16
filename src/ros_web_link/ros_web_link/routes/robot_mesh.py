@@ -6,6 +6,7 @@
 """
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 from ament_index_python.packages import PackageNotFoundError, get_package_share_directory
@@ -28,16 +29,18 @@ def _media_type(path: Path) -> str:
 
 
 def _is_under(candidate: Path, parent: Path) -> bool:
-    """检查 candidate 是否在 parent 目录树下（防路径穿越）.
+    """检查 candidate 是否在 parent 目录树下（防 URL 路径穿越）.
 
-    两侧都 resolve()：share 树内若有指向外部的符号链接，
-    仅拼字符串 containment 会被穿越（absolute() 不解析符号链接）。
+    词法检查（normpath 折叠 .. 后比较），**不做 resolve()**：colcon
+    --symlink-install 布局下 install share 树内的资源目录合法地符号链接回
+    源码树，resolve() 会把候选路径解析到 install 树之外而误判越界
+    （TB3 URDF mesh 全 404 的实证根因，与 SymlinkStaticFiles 同款坑）。
+    穿越防线 = 路由层拒绝 URL `..` 段 + 本处 normpath 后的树下检查；
+    盘上符号链接的目标位置不作为拒绝依据。
     """
-    try:
-        candidate.resolve().relative_to(parent.resolve())
-        return True
-    except ValueError:
-        return False
+    c = os.path.normpath(str(candidate))
+    p = os.path.normpath(str(parent))
+    return c.startswith(p + os.sep)
 
 
 def _resolve_mesh(share: Path, rel_path: str) -> Path | None:

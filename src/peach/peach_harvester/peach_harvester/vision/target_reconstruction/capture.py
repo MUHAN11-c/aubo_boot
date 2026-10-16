@@ -644,6 +644,10 @@ class FrameCollector:
         msg = f'局部重建完成：{n} 帧，{cloud.shape[0]} 点'
         if n < self.config.recommended_views:
             msg += f'（少于推荐 {self.config.recommended_views} 帧）'
+        if self.skip_reasons:
+            parts = ', '.join(
+                f'{k}={v}' for k, v in sorted(self.skip_reasons.items()))
+            msg += f'；跳过 {self.skipped_views} 次（{parts}）'
         return True, msg, cloud
 
 
@@ -707,7 +711,7 @@ class StrictMaskGate:
                  max_target_drift_m: float = 0.04,
                  min_neighbor_gap_m: float = 0.15,
                  neighbor_gap_area_ratio: float = 2.0,
-                 mask_stamp_tolerance_s: float = 0.08):
+                 mask_stamp_tolerance_s: float = 0.45):
         """
         注入六道门配置（值与 capture.* 参数一致）.
 

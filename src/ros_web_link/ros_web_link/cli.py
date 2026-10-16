@@ -66,6 +66,10 @@ def build_parser() -> argparse.ArgumentParser:
     g.add_argument("--ws-permessage-deflate", action="store_true",
                    default=cfg.gateway_ws_per_message_deflate(),
                    help="客户端腿开启 permessage-deflate（默认关）")
+    g.add_argument("--upstream-max-queue", type=int, default=cfg.proxy_upstream_max_queue(),
+                   help="上游腿接收队列上限（消息条数，默认 4；慢客户端更早背压给桥）")
+    g.add_argument("--data-lane-bytes", type=int, default=cfg.proxy_data_lane_bytes(),
+                   help="出站数据通道字节预算（默认 4MiB；超限丢最旧二进制帧，0=禁用）")
     return p
 
 
@@ -92,6 +96,8 @@ def main(args: list[str] | None = None) -> None:
         "gateway_ws_ping_interval": ws_ping_interval,
         "gateway_ws_ping_timeout": ws_ping_timeout,
         "gateway_ws_per_message_deflate": ns.ws_permessage_deflate,
+        "proxy_upstream_max_queue": ns.upstream_max_queue,
+        "proxy_data_lane_bytes": ns.data_lane_bytes,
     })
 
     _check_port_free(ns.bind, ns.port)

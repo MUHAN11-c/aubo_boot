@@ -5,6 +5,7 @@ from peach_harvester.supervisor.harvest_fsm import (
     CMD_PAUSE,
     CMD_RESUME,
     Command,
+    COMPLETED,
     DISCOVERY,
     Event,
     EventHold,
@@ -49,6 +50,13 @@ def test_cycle_done_returns_to_survey():
     hit = react(RUNNING, Event.CYCLE_DONE)
     assert hit.batch_state == DISCOVERY
     assert hit.command == Command.SURVEY
+    assert hit.target_phase == TARGET_IDLE
+
+
+def test_empty_limit_from_running_settles():
+    hit = react(RUNNING, Event.EMPTY_LIMIT)
+    assert hit.batch_state == COMPLETED
+    assert hit.command == Command.SETTLE
     assert hit.target_phase == TARGET_IDLE
 
 

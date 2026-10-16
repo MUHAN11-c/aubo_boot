@@ -147,7 +147,7 @@ describe('parsePointCloud2', () => {
 		expect(positions[2]).toBeCloseTo(-0.75);
 	});
 
-	it('maxPoints 截断 + height×width 总数语义', () => {
+	it('maxPoints 超限 stride 采样（不再截尾）+ height×width 总数语义', () => {
 		const cloud = makeCloud({
 			width: 4, height: 2, pointStep: 12,   // 8 点
 			fields: [
@@ -159,7 +159,31 @@ describe('parsePointCloud2', () => {
 		});
 		const positions = new Float32Array(30);
 		const { count } = parsePointCloud2(cloud, { positions, maxPoints: 5 });
-		expect(count).toBe(5);
+		// stride=ceil(8/5)=2 → 采 i=0,2,4,6（空间均匀，count=4 ≤ maxPoints）
+		expect(count).toBe(4);
+		const xs = [...positions].filter((_, k) => k % 3 === 0);
+		expect(xs.slice(0, count)).toEqual([0, 2, 4, 6]);
+	});
+
+	it('organized 云（height>1）stride 采样覆盖全部行（旧截断会丢下半幅）', () => {
+		const cloud = makeCloud({
+			width: 4, height: 4, pointStep: 12,   // 16 点，行 r = floor(i/4)
+			fields: [
+				{ name: 'x', offset: 0, datatype: F32 },
+				{ name: 'y', offset: 4, datatype: F32 },
+				{ name: 'z', offset: 8, datatype: F32 },
+			],
+			points: Array.from({ length: 16 }, (_, i) => ({ x: i, y: 0, z: 0 })),
+		});
+		const positions = new Float32Array(64);
+		const { count } = parsePointCloud2(cloud, { positions, maxPoints: 8 });
+		// stride=2 → i=0,2,…,14：4 行各贡献 2 点
+		expect(count).toBe(8);
+		const xs = [...positions.slice(0, count * 3)].filter((_, k) => k % 3 === 0);
+		expect(xs).toEqual([0, 2, 4, 6, 8, 10, 12, 14]);
+		// 每行都有采样点（旧行为截断到前 8 点只剩第 0/1 行）
+		const rows = xs.map((x) => Math.floor(x / 4));
+		expect(new Set(rows).size).toBe(4);
 	});
 
 	it('缺 xyz 字段 → error=fields；data 缺失 → error=data', () => {

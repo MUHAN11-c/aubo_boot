@@ -14,7 +14,7 @@
 | 官方面 | 组件 | 验证内容 |
 |---|---|---|
 | MoveIt 2 | `moveit_resources_panda`（官方 ros2 分支） | E2E 6 用例：latched /robot_description → /joint_states → /compute_ik → OMPL /plan_kinematic_path → /panda_arm_controller/follow_joint_trajectory 执行 SUCCEEDED → /monitored_planning_scene（`test_e2e_moveit.py`） |
-| Nav2 | `nav2_map_server` + `nav2_lifecycle_manager` + 官方地图 `tb3_sandbox`（384²@0.05m） | /map OccupancyGrid 浏览器渲染；官方生命周期服务经网关调用（GetState→active、LoadMap 重载成功）；`ros2 lifecycle set` 官方 CLI 兜底拉起（`Stack.ensure_map_active`） |
+| Nav2 | `nav2_bringup/bringup_launch.py` + **官方 `turtlebot3_navigation2` param/waffle_pi.yaml + 官方配套 map**（2026-10-16 官方化；此前 nav2_bringup 分段 launch + 默认参数，AMCL 与 TB3 雷达不匹配会定位漂移） | /map OccupancyGrid 浏览器渲染；官方生命周期服务经网关调用；`rviz:=true` 走官方 navigation2.launch.py（含官方 RViz） |
 | 官方 RSP | `robot_state_publisher`（panda URDF） | 官方 /robot_description + /tf_static；**web 发布 JointState（带时间戳）→ 官方 RSP → /tf 反映关节角**（浏览器实测 z=0.38942 vs 期望 sin(0.4)=0.38942 全精度；`test_e2e_official.py` 7 用例） |
 | ROS 2 官方工具 | `ros2 topic pub/echo`、`ros2 run tf2_ros static_transform_publisher`、`ros2 lifecycle set` | 官方 pub /chatter → 浏览器回显 ✓；浏览器发布 /chatter → 官方 echo 捕获 ✓；**2D Goal Pose 位姿比特级往返**（float64 全精度）；官方 static TF（map→odom）进 TF 显示并把工具 fixed-frame 切到 `map`（RViz 语义） |
 | 官方诊断/日志 | lifecycle transition /diagnostics、/rosout | 诊断面板「Nav2 Health」；rqt_console 面板收官方节点日志 |
@@ -64,7 +64,8 @@ uvicorn+websockets==12，仓库根 requirements.txt）；launch 中 `python3` �
 | 端点 | 方法 | 方向 | 语义 |
 |---|---|---|---|
 | `/health` | GET | 诊断 | `{status, static_root, foxglove_bridge, web_video}`；桥/视频 TCP 探测（1s 超时，2s 缓存）；桥 down → `status=degraded`（仍 200） |
-| `/ws/foxglove` | WS | 浏览器→桥 | 子协议 `foxglove.websocket.v1`（归一 sdk.v1）；CDR 二进制；上游有限重试+抖动，全失败 close 1011 |
+| `/ws/foxglove` | WS | 浏览器→桥 | 子协议 `foxglove.websocket.v1`（归一 sdk.v1）；CDR 二进制；上游有限重试+抖动，全失败 close 1011；出站经有界数据通道（字节预算+丢最旧+出口年龄门，见配置单源） |
+| `/api/ivg/ws/stats` | GET | 诊断 | WS 转发统计：`{dataLaneBytes, active[按连接], totals 累计}`——forwarded/dropped/droppedStale/queued；console 监控卡与压测证据面 |
 | `/api/ivg/proxy/web-video/{path}` | GET/HEAD | 浏览器→web_video_server | MJPEG 流/JPEG 快照；上游不可达 502/504（共享 httpx 连接池） |
 | `/api/ivg/robot-mesh/{pkg}/{rel}` | GET | 浏览器→ament share | STL/DAE/OBJ；防路径穿越（resolve-based，含 symlink）；缓存 1d |
 | `/console.html`（纯传输）或 `/rwl/console.html`（组合） | GET | 诊断台 | 生态通信矩阵人工验证 |
@@ -80,6 +81,8 @@ uvicorn+websockets==12，仓库根 requirements.txt）；launch 中 `python3` �
 | `/rwl_demo/fibonacci` | example_interfaces/action/Fibonacci | 0.15s/步 feedback，支持 cancel |
 | 参数 `comm_fixture.rwl.answer`（int，默认 42）、`rwl.step_s`（double） | — | 参数服务读写 |
 | `/tf`：`rwl_demo_base` → `rwl_demo_marker` @1Hz TRANSIENT_LOCAL | tf2_msgs/TFMessage | TF 面 |
+| `/rwl_demo/big_image` | sensor_msgs/Image 640×480 rgb8 @30Hz | 大数据源（`-p rwl.bigdata:=true` 启用；~0.92MB/帧，稳定传输压测被测端） |
+| `/rwl_demo/big_cloud` | sensor_msgs/PointCloud2 50k 点×16B @10Hz | 大数据源（同上；xyz f32 + packed rgb，正弦环图案） |
 
 ## 官方仿真真实数据面（sim_demo.launch.py，2026-10-15 viz_fixture 删除）
 
@@ -98,7 +101,7 @@ external/navigation2 为 Nav2 基线克隆，未参与构建）与 ros2/moveit2/
 | `/camera/image_raw/compressed` | CompressedImage（JPEG） | 官方 image_transport republish |
 | `/test_cloud` | sensor_msgs/PointCloud2 | ros2/examples 官方点云示例 |
 | `/topic` | std_msgs/String | ros2/examples 官方 talker 示例 |
-| `/map` | OccupancyGrid（tb3_sandbox 384²@0.05m） | 官方 nav2 map_server |
+| `/map` | OccupancyGrid（turtlebot3_world 官方配套图 384²@0.05m） | 官方 nav2 map_server（地图与参数均来自官方 turtlebot3_navigation2 包） |
 | `/amcl_pose` `/particle_cloud` | PoseWithCovarianceStamped/PoseArray | 官方 AMCL（web 发 /initialpose 激活） |
 | `/plan` | nav_msgs/Path | 官方 NavFn 规划器（web 发 /compute_path_to_pose action 触发） |
 | `/diagnostics` | DiagnosticArray | 官方 lifecycle_manager（Nav2 Health） |
@@ -261,6 +264,14 @@ FollowJointTrajectory action（官方控制器在环）；armed 交互锁仅驱�
 | `foxglove_bridge.ws_path` | `/` | 上游 WS 路径（vendored 桥服务根路径；旧默认 `/ws/foxglove` 是悬空旋钮已修） |
 | `proxy.upstream_connect_attempts` | 3 | 上游连接总尝试次数（含首次） |
 | `proxy.upstream_connect_retry_ms` | 250 | 重试基础间隔（实际 ±50% 抖动错峰） |
+
+2026-10-16 大数据稳定传输默认值（有界出站通道，见 architecture.md 同日轮）：
+
+| 键 | 默认 | 说明 |
+|---|---|---|
+| `proxy.upstream_max_queue` | 4 | 上游腿 websockets 接收队列（消息条数）；小值让慢客户端背压更早传给桥 |
+| `proxy.data_lane_bytes` | 4 MiB | 出站数据通道字节预算：二进制 messageData 帧超预算丢最旧（丢至 80% 滞回），JSON 控制帧永不丢；0=禁用（无界旧行为） |
+| `proxy.egress_max_age_s` | 2.0 | 出口年龄门：推送前已早于该年龄的 messageData 帧直接丢；0=关闭 |
 
 启动预检：CLI bind 失败即打印明确错误退出（launch respawn=true 下端口被占
 不再静默死循环）。

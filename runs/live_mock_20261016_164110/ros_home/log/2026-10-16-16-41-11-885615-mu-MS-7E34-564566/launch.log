@@ -1,0 +1,41 @@
+1792140071.8870270 [INFO] [launch]: All log files can be found below /home/mu/Desktop/aubo_e5_jazzy_ws/runs/live_mock_20261016_164110/ros_home/log/2026-10-16-16-41-11-885615-mu-MS-7E34-564566
+1792140071.8871713 [INFO] [launch]: Default logging verbosity is set to INFO
+1792140073.2707515 [INFO] [stereo_camera_node-1]: process started with pid [564712]
+1792140073.2709110 [INFO] [peach_scene_obstacles-2]: process started with pid [564713]
+1792140073.2709644 [INFO] [robot_state_publisher-3]: process started with pid [564714]
+1792140073.2710123 [INFO] [ros2_control_node-4]: process started with pid [564715]
+1792140073.2710533 [INFO] [spawner-5]: process started with pid [564716]
+1792140073.2710860 [INFO] [spawner-6]: process started with pid [564717]
+1792140073.2711196 [INFO] [move_group-7]: process started with pid [564718]
+1792140073.2711535 [INFO] [peach_harvester-8]: process started with pid [564719]
+1792140073.2711880 [INFO] [peach_arm-9]: process started with pid [564720]
+1792140073.2712224 [INFO] [peach_observability-10]: process started with pid [564721]
+1792140073.2712543 [INFO] [lifecycle_manager-11]: process started with pid [564725]
+1792140073.2712884 [INFO] [peach_lifecycle_flag_bridge-12]: process started with pid [564727]
+1792140074.3942981 [INFO] [spawner-6]: process has finished cleanly [pid 564717]
+1792140078.0436623 [INFO] [spawner-5]: process has finished cleanly [pid 564716]
+1792140136.8542676 [WARNING] [launch]: user interrupted with ctrl-c (SIGINT)
+1792140137.8359089 [INFO] [peach_lifecycle_flag_bridge-12]: sending signal 'SIGINT' to process[peach_lifecycle_flag_bridge-12]
+1792140137.8365886 [INFO] [lifecycle_manager-11]: sending signal 'SIGINT' to process[lifecycle_manager-11]
+1792140137.8400850 [INFO] [peach_observability-10]: sending signal 'SIGINT' to process[peach_observability-10]
+1792140137.8424764 [INFO] [peach_arm-9]: sending signal 'SIGINT' to process[peach_arm-9]
+1792140137.8430188 [INFO] [peach_harvester-8]: sending signal 'SIGINT' to process[peach_harvester-8]
+1792140137.8469338 [INFO] [move_group-7]: sending signal 'SIGINT' to process[move_group-7]
+1792140137.8478456 [INFO] [ros2_control_node-4]: sending signal 'SIGINT' to process[ros2_control_node-4]
+1792140137.8483911 [INFO] [robot_state_publisher-3]: sending signal 'SIGINT' to process[robot_state_publisher-3]
+1792140137.8488324 [INFO] [peach_scene_obstacles-2]: sending signal 'SIGINT' to process[peach_scene_obstacles-2]
+1792140137.8501945 [INFO] [stereo_camera_node-1]: sending signal 'SIGINT' to process[stereo_camera_node-1]
+1792140137.9925547 [INFO] [robot_state_publisher-3]: process has finished cleanly [pid 564714]
+1792140137.9981632 [INFO] [lifecycle_manager-11]: process has finished cleanly [pid 564725]
+1792140138.0529706 [INFO] [ros2_control_node-4]: process has finished cleanly [pid 564715]
+1792140138.0545771 [ERROR] [peach_scene_obstacles-2]: process has died [pid 564713, exit code -2, cmd '/home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_harvester/lib/peach_harvester/peach_scene_obstacles --ros-args -p use_sim_time:=False'].
+1792140138.1646540 [INFO] [peach_lifecycle_flag_bridge-12]: process has finished cleanly [pid 564727]
+1792140138.1730015 [INFO] [peach_arm-9]: process has finished cleanly [pid 564720]
+1792140138.3423748 [INFO] [stereo_camera_node-1]: process has finished cleanly [pid 564712]
+1792140140.8301678 [INFO] [peach_observability-10]: process has finished cleanly [pid 564721]
+1792140142.8417308 [ERROR] [peach_harvester-8]: process[peach_harvester-8] failed to terminate '5' seconds after receiving 'SIGINT', escalating to 'SIGTERM'
+1792140142.8454504 [ERROR] [move_group-7]: process[move_group-7] failed to terminate '5' seconds after receiving 'SIGINT', escalating to 'SIGTERM'
+1792140142.8457255 [INFO] [peach_harvester-8]: sending signal 'SIGTERM' to process[peach_harvester-8]
+1792140142.8460948 [INFO] [move_group-7]: sending signal 'SIGTERM' to process[move_group-7]
+1792140142.8618896 [ERROR] [move_group-7]: process has died [pid 564718, exit code -15, cmd '/opt/ros/jazzy/lib/moveit_ros_move_group/move_group --ros-args -p use_sim_time:=False --params-file /tmp/launch_params_k_6t93wh --params-file /tmp/launch_params_e5bq2mo2'].
+1792140143.9917715 [INFO] [peach_harvester-8]: process has finished cleanly [pid 564719]

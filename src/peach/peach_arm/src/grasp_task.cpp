@@ -1,9 +1,7 @@
-// 功能：MTC 接触。接近主路径 = 斜直线（面内一跳到预抓取下方轴上）+
-// + 沿轴垂直进入；斜插 keep-roll 对轴）；规划失败才
-// PTP staging 兜底。已对轴/已在袋底侧的短修正走直连 LIN。沿轴套入与撤退；
-// 返程倒放同一接近轨迹。
-// G/under 单弦档已删（photo→G 弦 fraction 0.41–0.73，2026-09-10）。
-// 刀具 IO 不在此文件。
+// 功能：MTC 接触。planToPregrasp：几何允许时先 tryRolledApproach 完整 LIN
+// （含对轴）；失败且未运动才 tryStagingTransit（PTP 到中段点正下方 +
+// 世界垂直 LIN 入冠 + 沿轴 LIN）。已对轴/袋底侧短修正走直连 LIN。
+// 套入/撤退沿轴；返程倒放同一接近轨迹。G/under 已删。刀具 IO 不在此。
 #include "peach_arm/grasp_task.hpp"
 #include "execution_guard.hpp"
 #include "peach_arm/acm_policy.hpp"
@@ -104,6 +102,19 @@ ApproachSplit withToolRoll(ApproachSplit split, double roll_rad)
     split.kind = ApproachSplit::Kind::LIN_ALIGN_THEN_LIN;
   }
   return split;
+}
+
+std::vector<Eigen::Isometry3d> sleeveAwareCorridor(
+  const StagingWaypoints & waypoints,
+  const Eigen::Isometry3d & entry,
+  const Eigen::Vector3d & axis,
+  double insert_m)
+{
+  std::vector<Eigen::Isometry3d> corridor{waypoints.mid, waypoints.pregrasp};
+  if (insert_m > 1.0e-6) {
+    corridor.push_back(sleeveAlongAxis(entry, axis, insert_m));
+  }
+  return corridor;
 }
 
 // 接近分档：主路径 STAGING=PTP 关节空间+沿轴垂直进入。SKIP=已对轴
@@ -234,6 +245,7 @@ GraspTask::GraspTask(rclcpp::Node::SharedPtr node, GraspTaskConfig config)
 : node_(std::move(node)), config_(std::move(config)),
   retiring_(std::make_unique<RetireBucket>())
 {
+  contact_logger_ = config_.contact_logger;
 }
 
 GraspTask::~GraspTask()
@@ -781,6 +793,9 @@ GraspTaskResult GraspTask::executeBlendedCorridor(
     output.retry_forbidden = true;
     return output;
   }
+  const auto transit_parts = last_approach_parts_;
+  // 从提交执行意图起结果可能未知；只有完整成功才能恢复完整历史。
+  last_approach_parts_.clear();
   output.execution_started = true;
   rclcpp_action::Client<moveit_msgs::action::ExecuteTrajectory>::SharedPtr
     exec_cli = rclcpp_action::create_client<moveit_msgs::action::ExecuteTrajectory>(
@@ -818,6 +833,19 @@ GraspTaskResult GraspTask::executeBlendedCorridor(
     config_.execution_stop, nullptr, config_.execute_timeout_s,
     node_->get_logger(), *retiring_, &abandoned);
   output.success = rc == moveit::core::MoveItErrorCode::SUCCESS && !abandoned;
+  if (output.success) {
+    // 追加实际执行的混合 LIN，不能只缓存 PTP。0.05 rad 与拍照位
+    // 关节匹配容差一致，不放宽行程护栏。
+    last_approach_parts_ = transit_parts;
+    if (!appendExecutedJointTrajectories(last_approach_parts_, parts, 0.05)) {
+      output.success = false;
+      output.retry_forbidden = true;
+      output.reason = "executed corridor history has invalid seam";
+      return output;
+    }
+  } else {
+    last_approach_parts_.clear();
+  }
   output.reason = output.success ?
     "blended corridor succeeded" : "blended corridor failed";
   if (!output.success) {
@@ -848,7 +876,8 @@ GraspTaskResult GraspTask::planToPregrasp(
   const Eigen::Vector3d & insertion_axis,
   const ApproachSplit & split,
   const FruitCapsule & fruit,
-  bool execute)
+  bool execute,
+  double insert_travel_m)
 {
   pending_fruit_ = fruit;
   inspect_fruit_ = true;
@@ -866,7 +895,7 @@ GraspTaskResult GraspTask::planToPregrasp(
   {
     if (tryRolledApproach(
         task_name, entry_tip_pose, insertion_axis, split, split.kind, execute,
-        last))
+        last, insert_travel_m))
     {
       inspect_fruit_ = false;
       return last;
@@ -874,7 +903,8 @@ GraspTaskResult GraspTask::planToPregrasp(
   }
   if (!last.execution_started && !last.retry_forbidden) {
     tryStagingTransit(
-      task_name, entry_tip_pose, insertion_axis, split, execute, last);
+      task_name, entry_tip_pose, insertion_axis, split, execute, last,
+      insert_travel_m);
   }
   inspect_fruit_ = false;
   return last;
@@ -887,15 +917,26 @@ bool GraspTask::tryRolledApproach(
   ApproachSplit split,
   ApproachSplit::Kind kind,
   bool execute,
-  GraspTaskResult & last)
+  GraspTaskResult & last,
+  double insert_travel_m)
 {
   split.kind = kind;
   const auto generation = cancel_generation_.load();
+  int consecutive_lin_plan_fails = 0;
   for (const double roll : toolRollsRad()) {
     if (!rclcpp::ok() || cancel_generation_.load() != generation) {
       last.retry_forbidden = true;
       last.reason = "approach candidate search canceled";
       return true;
+    }
+    if (insert_travel_m > 1.0e-6 && config_.sleeve_roll_feasible &&
+      !config_.sleeve_roll_feasible(roll, entry_tip_pose, insert_travel_m))
+    {
+      RCLCPP_INFO(
+        contactLogger(),
+        "%s跳过接近滚转 %.0f°：该档套入直线未走满",
+        tctx().c_str(), roll * 180.0 / static_cast<double>(EIGEN_PI));
+      continue;
     }
     ApproachSplit rolled = withToolRoll(split, roll);
     const double roll_deg = roll * 180.0 / static_cast<double>(EIGEN_PI);
@@ -933,6 +974,14 @@ bool GraspTask::tryRolledApproach(
       return true;
     }
     last = result;
+    ++consecutive_lin_plan_fails;
+    if (abandonRolledLinSearch(consecutive_lin_plan_fails)) {
+      RCLCPP_WARN(
+        contactLogger(),
+        "%s笛卡尔 LIN 连续 %d 档规划失败（最近: %s），停止滚转搜索，改走 PTP",
+        tctx().c_str(), consecutive_lin_plan_fails, result.reason.c_str());
+      break;
+    }
   }
   return false;
 }
@@ -943,12 +992,13 @@ bool GraspTask::tryStagingTransit(
   const Eigen::Vector3d & insertion_axis,
   const ApproachSplit & split,
   bool execute,
-  GraspTaskResult & last)
+  GraspTaskResult & last,
+  double insert_travel_m)
 {
-  // 接近主路径（唯一路径，2026-09-23 定型四版）：Pilz PTP 关节空间落到
+  // 树冠外/入冠路径（直连 LIN 失败后，2026-09-23 定型）：Pilz PTP 落到
   // 中段点正下方（世界垂直线上、树冠外，滚转梯子 IK），世界垂直 LIN 上行
-  // 入冠到中段点（伸进果树里），再沿轴 LIN 对轴进入预抓取。PTP 弧过
-  // 果实胶囊审查（staging_guard）。候选仅在规划/守卫拒绝且未运动时递进。
+  // 入冠到中段点，再沿轴 LIN 对轴进入预抓取。PTP 弧过果实胶囊审查。
+  // 候选仅在规划/守卫拒绝且未运动时递进。
   if (!split.current_tip || !config_.staging_ik) {
     last.reason = "PTP 接近不可用：无当前 TCP 或 IK 钩子缺席";
     return false;
@@ -970,12 +1020,18 @@ bool GraspTask::tryStagingTransit(
     config_.approach_along_axis_m, config_.approach_final_axial_m,
     config_.approach_canopy_entry_m);
   const auto generation = cancel_generation_.load();
-  const auto candidates = config_.staging_ik(probe_pose, {unrolled.mid, unrolled.pregrasp});
+  const auto candidates = config_.staging_ik(
+    probe_pose, sleeveAwareCorridor(unrolled, entry_tip_pose, axis, insert_travel_m));
   if (candidates.empty()) {
     last.reason = "入冠落点滚转梯子 IK 无解";
     return false;
   }
-  for (const auto & candidate : candidates) {
+  RCLCPP_INFO(
+    contactLogger(),
+    "%sPTP 入冠候选 %zu 个（按 |roll| 再关节代价排序）",
+    tctx().c_str(), candidates.size());
+  for (std::size_t i = 0; i < candidates.size(); ++i) {
+    const auto & candidate = candidates[i];
     if (cancel_generation_.load() != generation) {
       last.reason = "staging candidate search canceled";
       last.retry_forbidden = true;
@@ -983,15 +1039,27 @@ bool GraspTask::tryStagingTransit(
     }
     const auto & joints = candidate.joints;
     const double roll = candidate.roll_rad;
+    if (insert_travel_m > 1.0e-6 && config_.sleeve_roll_feasible &&
+      !config_.sleeve_roll_feasible(roll, entry_tip_pose, insert_travel_m))
+    {
+      RCLCPP_INFO(
+        contactLogger(),
+        "%s跳过入冠滚转 %.0f°：该档套入直线未走满",
+        tctx().c_str(), roll * 180.0 / static_cast<double>(EIGEN_PI));
+      last.reason = "入冠滚转档套入直线未走满";
+      continue;
+    }
     const auto w = stagingWaypoints(
       entry_tip_pose, axis, split.current_tip->linear(), roll,
       config_.approach_along_axis_m, config_.approach_final_axial_m,
       config_.approach_canopy_entry_m);
     RCLCPP_INFO(
-      node_->get_logger(),
-      "PTP 接近（主路径）：关节空间到中段点正下方 + 垂直入冠 %.3fm + 沿轴 %.3fm（滚转 %.0f°）",
-      config_.approach_canopy_entry_m, config_.approach_final_axial_m,
-      roll * 180.0 / static_cast<double>(EIGEN_PI));
+      contactLogger(),
+      "%sPTP 候选 %zu/%zu roll=%.0f° joint_cost=%.3f：关节空间到中段点正下方 + "
+      "垂直入冠 %.3fm + 沿轴 %.3fm",
+      tctx().c_str(), i + 1, candidates.size(),
+      roll * 180.0 / static_cast<double>(EIGEN_PI), candidate.joint_cost,
+      config_.approach_canopy_entry_m, config_.approach_final_axial_m);
     // v4d：PTP 段走 MTC（守卫含 PTP 弧），冠内两段 LIN 优先走 sequence
     // 混合（平滑连续）；sequence 失败降级回单任务 MTC LIN（形状同、不平滑）。
     auto ptp_only = makeTaskShell(task_name + "_ptp");
@@ -1015,6 +1083,10 @@ bool GraspTask::tryStagingTransit(
       true);
     if (!(result.success || result.execution_started)) {
       last = result;
+      RCLCPP_WARN(
+        contactLogger(),
+        "%sPTP 候选 %zu/%zu 未采用：%s",
+        tctx().c_str(), i + 1, candidates.size(), result.reason.c_str());
       if (!retryStagingCandidate(
           result.success, result.execution_started,
           cancel_generation_.load() != generation, result.retry_forbidden))
@@ -1023,6 +1095,11 @@ bool GraspTask::tryStagingTransit(
       }
       continue;
     }
+    RCLCPP_INFO(
+      contactLogger(),
+      "%s采用 PTP 候选 %zu/%zu roll=%.0f°",
+      tctx().c_str(), i + 1, candidates.size(),
+      roll * 180.0 / static_cast<double>(EIGEN_PI));
     if (!execute) {
       last = result;
       return true;
@@ -1045,9 +1122,21 @@ bool GraspTask::tryStagingTransit(
     appendLinToPose(*seq, w.mid, "vertical canopy entry lin", true);
     appendLinToPose(*seq, w.pregrasp, "lin to on-axis pregrasp", true);
     lin_task->add(std::move(seq));
+    const auto transit_parts = last_approach_parts_;
     auto lin_result = planAndMaybeExecute(
       std::move(lin_task), execute, config_.approach_execution_gate, true, 0U,
       true);
+    if (lin_result.success && lin_result.execution_started) {
+      auto complete_parts = transit_parts;
+      if (!appendExecutedJointTrajectories(complete_parts, last_approach_parts_, 0.05)) {
+        lin_result.success = false;
+        lin_result.retry_forbidden = true;
+        lin_result.reason = "executed unblended corridor history has invalid seam";
+      }
+      last_approach_parts_ = std::move(complete_parts);
+    } else {
+      last_approach_parts_.clear();
+    }
     // The PTP already moved. A later planning failure must not erase that
     // evidence or restart an approach from the original photo-pose snapshot.
     lin_result.execution_started = lin_result.execution_started || result.execution_started;
@@ -1086,7 +1175,7 @@ GraspTaskResult GraspTask::approachAndInsert(
   if (split.need_lin) {
     auto to_pregrasp = planToPregrasp(
       "peach_approach_pregrasp", entry_tip_pose, insertion_axis, split, fruit,
-      false);
+      false, insertion_distance_m);
     if (!to_pregrasp.success) {
       to_pregrasp.reason = "到轴上预抓取失败: " + to_pregrasp.reason;
       return to_pregrasp;
@@ -1138,7 +1227,9 @@ GraspTaskResult GraspTask::previewFullContact(
       entry_tip_pose, axis, split.current_tip->linear(), 0.0,
       config_.approach_along_axis_m, config_.approach_final_axial_m,
       config_.approach_canopy_entry_m);
-    candidates = config_.staging_ik(unrolled.staging, {unrolled.mid, unrolled.pregrasp});
+    candidates = config_.staging_ik(
+      unrolled.staging,
+      sleeveAwareCorridor(unrolled, entry_tip_pose, axis, insertion_distance_m));
     if (candidates.empty()) {
       result.reason = "预览：入冠落点滚转梯子 IK 无解";
       return result;
@@ -1153,6 +1244,17 @@ GraspTaskResult GraspTask::previewFullContact(
       result.reason = "staging preview canceled";
       result.retry_forbidden = true;
       break;
+    }
+    if (staging && insertion_distance_m > 1.0e-6 && config_.sleeve_roll_feasible &&
+      !config_.sleeve_roll_feasible(
+        candidate.roll_rad, entry_tip_pose, insertion_distance_m))
+    {
+      RCLCPP_INFO(
+        contactLogger(),
+        "预览跳过入冠滚转 %.0f°：该档套入直线未走满",
+        candidate.roll_rad * 180.0 / static_cast<double>(EIGEN_PI));
+      result.reason = "预览：该档套入直线未走满";
+      continue;
     }
     auto task = makeTaskShell("peach_full_contact_preview");
     auto cartesian = makeCartesianSolver(config_.approach_near_velocity_scaling);
@@ -1190,8 +1292,13 @@ GraspTaskResult GraspTask::moveToPregrasp(
   const Eigen::Isometry3d & entry_tip_pose,
   const Eigen::Vector3d & insertion_axis,
   const FruitCapsule & fruit,
-  bool execute)
+  bool execute,
+  double insert_travel_m)
 {
+  if (execute) {
+    // 一次新的接近拥有独立执行历史；被拒候选/上个目标不能成为本次返程。
+    last_approach_parts_.clear();
+  }
   const ApproachSplit split =
     classifyApproach(config_, entry_tip_pose, insertion_axis, fruit);
   logApproachSplit(node_->get_logger(), entry_tip_pose, split);
@@ -1203,7 +1310,7 @@ GraspTaskResult GraspTask::moveToPregrasp(
   }
   return planToPregrasp(
     "peach_move_pregrasp", entry_tip_pose, insertion_axis, split, fruit,
-    execute);
+    execute, insert_travel_m);
 }
 
 GraspTaskResult GraspTask::sleeveLinear(
@@ -1373,6 +1480,15 @@ GraspTaskResult GraspTask::planTaskOnly(
           cart_report.allowed ? "true" : "false", cart_report.path_m,
           cart_report.chord_m, cart_report.detour_ratio, cart_report.max_dev_m,
           cart_report.max_recede_m, cart_report.reason.c_str());
+          if (!cart_report.allowed) {
+            RCLCPP_WARN(
+              contactLogger(),
+              "%s拒绝大弧 PTP：ratio=%.2f max_dev=%.3fm recede=%.3fm "
+              "门=%.2f/%.3fm/%.3fm，试下一 IK 候选",
+              tctx().c_str(), cart_report.detour_ratio, cart_report.max_dev_m,
+              cart_report.max_recede_m, cart.max_detour_ratio,
+              cart.max_chord_deviation_m, cart.max_recede_m);
+          }
           return !cart_report.allowed;
         };
       if (cartesian_per_part) {

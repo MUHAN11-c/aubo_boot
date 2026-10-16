@@ -36,6 +36,8 @@ _READINESS_TIMEOUT_S = 30.0  # 任何单次等待 ≤30s（2026-10-15 用户约�
 _SRAND = SystemRandom()
 
 # fixture 附加进程的模块名清单（Stack(fixtures=[...])）
+# 支持 'module#args' 形态把参数传给该 fixture（如
+# 'ros_web_link.comm_fixture#-p rwl.bigdata:=true'）；KNOWN_FIXTURES 只校验模块段。
 KNOWN_FIXTURES = ('ros_web_link.comm_fixture',)
 
 # 官方组件常量（固定绝对路径；robot_state_publisher 的 URDF 插件需要 vendor 库链：
@@ -184,7 +186,7 @@ class Stack:
 
     def __init__(self, fixtures: tuple[str, ...] = (), official: bool = False) -> None:
         for f in fixtures:
-            if f not in KNOWN_FIXTURES:
+            if f.partition('#')[0] not in KNOWN_FIXTURES:
                 raise ValueError(f'未知 fixture: {f}（已知 {KNOWN_FIXTURES}）')
         self.fixtures = fixtures
         self.official = official
@@ -256,7 +258,8 @@ class Stack:
             for _, cmd in self._official_procs(env):
                 procs.append((cmd, official_env(env)))
         for f in self.fixtures:
-            cmd = [py, '-m', f]
+            mod, _, extra = f.partition('#')
+            cmd = [py, '-m', mod] + (extra.split() if extra else [])
             procs.append((cmd, env))
 
         self._loop = asyncio.new_event_loop()
@@ -402,7 +405,7 @@ class LaunchStack:
         env = os.environ.copy()
         ws_installs = [
             'ros_web_link', 'ivg_foxglove_bridge', 'moveit_resources_panda_description',
-            'turtlebot3_gazebo', 'turtlebot3_msgs',
+            'turtlebot3_gazebo', 'turtlebot3_msgs', 'turtlebot3_navigation2',
             'examples_rclpy_pointcloud_publisher', 'examples_rclpy_minimal_publisher',
         ]
         env.update({

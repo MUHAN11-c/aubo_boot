@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>咬合末端 5 点力 · 实时</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root { --fg:#d8e0e6; --dim:#7a8790; --bg:#101418; --dot:clamp(22px,3.4vmin,42px); }
+  * { box-sizing:border-box; }
+  html, body { height:100%; }
+  body { margin:0; background:var(--bg); color:var(--fg); overflow:hidden;
+         display:flex; flex-direction:column;
+         font:14px/1.5 system-ui,"Noto Sans CJK SC",sans-serif; }
+  header { flex:none; display:flex; align-items:baseline; gap:14px;
+           padding:12px 22px 6px; flex-wrap:wrap; }
+  h1 { font-size:clamp(16px,2.2vmin,24px); margin:0; font-weight:600; }
+  .sub { color:var(--dim); font-size:clamp(11px,1.5vmin,14px); }
+  .status { margin-left:auto; font-variant-numeric:tabular-nums;
+            font-size:clamp(13px,1.8vmin,18px); }
+  .dotled { display:inline-block; width:9px; height:9px; border-radius:50%;
+            background:#555; margin-right:6px; }
+  .dotled.live { background:#3ad07a; box-shadow:0 0 6px #3ad07a; }
+  .dotled.stale { background:#e05555; }
+  main { flex:1; min-height:0; display:flex; flex-wrap:wrap; gap:3vmin;
+         padding:2px 22px 4px; align-items:center; justify-content:center; }
+  .discwrap { flex:none; height:100%; aspect-ratio:1; }
+  .disc { position:relative; width:100%; height:100%; border-radius:50%;
+          background:radial-gradient(circle at 38% 30%, #7aa89b, #5d8a7d 68%, #496e62);
+          box-shadow:inset 0 0 46px rgba(0,0,0,.35), 0 8px 34px rgba(0,0,0,.5); }
+  .pt { position:absolute; width:var(--dot); height:var(--dot);
+        transform:translate(-50%,-50%); }
+  .pt .btn { width:100%; height:100%; border-radius:50%;
+             border:2px solid rgba(255,255,255,.78); background:#cfd6d4;
+             box-shadow:0 2px 5px rgba(0,0,0,.45);
+             transition:transform .08s, background .12s; }
+  .lbl { position:absolute; white-space:nowrap; font-size:clamp(12px,1.7vmin,18px);
+         color:#f2f7f5; text-shadow:0 1px 2px rgba(0,0,0,.75); }
+  .lbl .val { font:700 clamp(19px,3.4vmin,38px)/1.25 ui-monospace,Menlo,Consolas,monospace;
+              color:#fff; font-variant-numeric:tabular-nums;
+              text-shadow:0 0 14px rgba(255,255,255,.28), 0 1px 3px rgba(0,0,0,.85); }
+  .lbl .val small { display:block; font-weight:500; font-size:clamp(12px,1.9vmin,20px);
+                    color:#e3ece8; }
+  .lbl .peak { font-size:clamp(10px,1.5vmin,16px); color:#ffd479;
+               font-variant-numeric:tabular-nums; }
+  .lbl .peak small { display:block; font-weight:400; }
+  .lbl.above { bottom:calc(var(--dot) * 0.85); left:50%;
+               transform:translateX(-50%); text-align:center; }
+  .lbl.below { top:calc(var(--dot) * 0.85); left:50%;
+               transform:translateX(-50%); text-align:center; }
+  .lbl.left  { right:calc(var(--dot) * 0.85); top:50%;
+               transform:translateY(-50%); text-align:right; }
+  .lbl.right { left:calc(var(--dot) * 0.85); top:50%;
+               transform:translateY(-50%); text-align:left; }
+  .panel { flex:1; min-width:min(340px, 94vw); max-width:680px; }
+  .panel .head { display:flex; align-items:center; gap:10px; margin-bottom:8px; }
+  .panel h2 { font-size:clamp(13px,1.8vmin,18px); margin:0; font-weight:600; }
+  .row { margin:clamp(8px,1.4vmin,14px) 0; }
+  .row .t { display:flex; justify-content:space-between; align-items:baseline;
+            font-size:clamp(12px,1.6vmin,16px); color:var(--dim); margin-bottom:4px; }
+  .row .t b { color:#fff; font-variant-numeric:tabular-nums; font-weight:700;
+              font-size:clamp(15px,2.3vmin,24px);
+              text-shadow:0 0 10px rgba(255,255,255,.18); }
+  .bar { position:relative; height:clamp(10px,1.6vmin,16px);
+         background:#1c2329; border-radius:6px; }
+  .bar .fill { position:absolute; top:0; bottom:0; left:0; width:0%;
+               background:linear-gradient(90deg,#2f9e5f,#e0c34d 62%,#e05555);
+               border-radius:6px; }
+  .bar .tick { position:absolute; top:-3px; bottom:-3px; width:2px;
+               background:#7fd6a0; opacity:.8; left:2.5%; }
+  .row .pk { font-size:clamp(10px,1.4vmin,14px); color:#8a97a0; margin-top:3px;
+             font-variant-numeric:tabular-nums; }
+  .legend { font-size:clamp(10px,1.4vmin,13px); color:var(--dim); margin-top:12px;
+            line-height:1.7; }
+  button { background:#22303a; color:var(--fg); border:1px solid #35434f;
+           border-radius:6px; padding:4px 14px; cursor:pointer;
+           font-size:clamp(12px,1.6vmin,15px); }
+  button:hover { background:#2c3d4a; }
+  footer { flex:none; padding:4px 22px 10px; color:var(--dim);
+           font-size:clamp(10px,1.4vmin,13px); }
+</style>
+</head>
+<body>
+<header>
+  <h1>咬合末端 5 点力 · 实时</h1>
+  <span class="sub">/force/points · 牛顿（REP-103）· IMS-C04A 量程 50g–2kg</span>
+  <span class="status"><span class="dotled" id="led"></span><span id="stat">连接中…</span></span>
+</header>
+<main>
+  <div class="discwrap"><div class="disc" id="disc"></div></div>
+  <div class="panel">
+    <div class="head">
+      <h2>各通道（满量程 2kg，绿刻度 = 50g 灵敏度下限）</h2>
+      <button id="reset">清峰值</button>
+    </div>
+    <div id="bars"></div>
+    <div class="legend" id="legend"></div>
+  </div>
+</main>
+<footer>话题 /force/points = std_msgs/Float64MultiArray（Reliable+Volatile，100Hz，牛顿）；
+打印与换算：kgf = N ÷ 9.80665。五点在正五边形顶点，5 在正上方（2026-10-16 裁定）。</footer>
+<script>
+'use strict';
+const FS_N = 2 * 9.80665, MIN_N = 0.05 * 9.80665;
+// msg.data 顺序即通道 1/2/3/5/7。点位 = 正五边形顶点（2026-10-16 用户裁定，5 在正上方）：
+// 5 上（0°）、7 右上（72°）、3 右下（144°）、2 左下（216°）、1 左上（288°）。
+// PENT_R 为顶点到圆心距离（占圆盘盒 20% ≈ 半径的 40%）。
+const PENT_R = 20;
+const pent = deg => [50 + PENT_R * Math.sin(deg * Math.PI / 180),
+                     50 - PENT_R * Math.cos(deg * Math.PI / 180)];
+const CH = [
+  {ch:1, ang:288, pos:'左上', lp:'left'},
+  {ch:2, ang:216, pos:'左下', lp:'below'},
+  {ch:3, ang:144, pos:'右下', lp:'below'},
+  {ch:5, ang:0,   pos:'上',   lp:'above'},
+  {ch:7, ang:72,  pos:'右上', lp:'right'},
+].map(c => { const [x, y] = pent(c.ang); return { ...c, x: +x.toFixed(1), y: +y.toFixed(1) }; });
+const disc = document.getElementById('disc'), bars = document.getElementById('bars');
+const ui = CH.map(c => {
+  const pt = document.createElement('div');
+  pt.className = 'pt';
+  pt.style.left = c.x + '%'; pt.style.top = c.y + '%';
+  pt.innerHTML = `<div class="btn"></div>
+    <div class="lbl ${c.lp}"><div class="name">${c.ch} · ${c.pos}</div>
+      <div class="val">--<small>-- kgf</small></div>
+      <div class="peak"></div></div>`;
+  disc.appendChild(pt);
+  const row = document.createElement('div');
+  row.className = 'row';
+  row.innerHTML = `<div class="t"><span>通道 ${c.ch}（${c.pos}）</span>
+    <b>-- N</b></div><div class="bar"><div class="fill"></div><div class="tick"></div></div>
+    <div class="pk">峰值 --</div>`;
+  bars.appendChild(row);
+  return { btn: pt.querySelector('.btn'), val: pt.querySelector('.val'),
+           peak: pt.querySelector('.peak'), num: row.querySelector('b'),
+           fill: row.querySelector('.fill'), pk: row.querySelector('.pk'), peakN: 0 };
+});
+document.getElementById('legend').textContent =
+  '五点在正五边形顶点（等角 72° 等距）：5=上（顶点）、7=右上、3=右下、2=左下、1=左上。' +
+  '圆点大小与颜色随力变化（绿→红），条形按 0–2kg 满量程。';
+document.getElementById('reset').onclick = () => ui.forEach(u => { u.peakN = 0; });
+
+const led = document.getElementById('led'), stat = document.getElementById('stat');
+function render(d) {
+  const live = d.age_ms != null && d.age_ms < 500 && d.v;
+  led.className = 'dotled ' + (live ? 'live' : 'stale');
+  stat.textContent = live ? `实时 ${d.hz} Hz · 帧 ${d.frames}`
+                          : `无数据（${d.age_ms == null ? '未收到' : d.age_ms + ' ms'}）`;
+  if (!live) return;
+  d.v.forEach((n, i) => {
+    const u = ui[i], f = Math.max(0, Math.min(1, n / FS_N));
+    const hot = n >= MIN_N ? Math.min(1, (n - MIN_N) / (FS_N - MIN_N)) : 0;
+    u.btn.style.transform = `scale(${1 + 0.7 * f})`;
+    u.btn.style.background = n < MIN_N ? '#cfd6d4'
+      : `hsl(${Math.round(135 - 135 * hot)},72%,${58 - 14 * hot}%)`;
+    u.val.innerHTML = `${n.toFixed(2)} N<small>${(n / 9.80665).toFixed(3)} kgf</small>`;
+    u.num.textContent = n.toFixed(2) + ' N';
+    u.fill.style.width = (f * 100).toFixed(1) + '%';
+    if (n > u.peakN) u.peakN = n;
+    u.peak.innerHTML = u.peakN > 0
+      ? `峰值 ${u.peakN.toFixed(2)} N<small>${(u.peakN / 9.80665).toFixed(3)} kgf</small>` : '';
+    u.pk.textContent = u.peakN > 0
+      ? `峰值 ${u.peakN.toFixed(2)} N / ${(u.peakN / 9.80665).toFixed(3)} kgf` : '峰值 --';
+  });
+}
+const es = new EventSource('/stream');
+es.onmessage = e => render(JSON.parse(e.data));
+es.onerror = () => { led.className = 'dotled stale'; stat.textContent = '连接断开，重连中…'; };
+</script>
+</body>
+</html>

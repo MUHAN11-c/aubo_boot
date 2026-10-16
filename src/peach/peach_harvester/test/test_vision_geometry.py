@@ -247,3 +247,17 @@ def test_crop_mask_to_bbox_matches_both_legacy_impls():
         cx1, cy1, cx2, cy2 = clip_bbox(bbox, full.shape)
         legacy_slice = full[cy1:cy2, cx1:cx2]
         np.testing.assert_array_equal(keep, legacy_slice)
+
+
+def test_hanging_bag_silhouette_is_measurable():
+    """70×103 的套袋轮廓不是圆，主轴应可测且接近竖直."""
+    from peach_harvester.vision.common.geometry import mask_axis_disagreement
+    mask = np.zeros((160, 120), dtype=np.uint8)
+    mask[20:123, 25:95] = 1
+    angle = mask_axis_disagreement(mask, (60, 120), (60, 25))
+    assert angle is not None
+    assert angle < 15.0
+    round_mask = np.zeros((80, 80), dtype=np.uint8)
+    yy, xx = np.ogrid[:80, :80]
+    round_mask[(xx - 40) ** 2 + (yy - 40) ** 2 <= 30 ** 2] = 1
+    assert mask_axis_disagreement(round_mask, (40, 55), (40, 25)) is None

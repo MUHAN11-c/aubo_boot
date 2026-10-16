@@ -278,6 +278,19 @@ inline const char * sleeveReachabilityCode(
   return "";
 }
 
+/// 刀口滚转梯子上第一个套入直线完成比例达标的下标。fractions 与
+/// toolRollsRad() 对齐；非有限值视为该档无解。全不达标返回 nullopt。
+inline std::optional<std::size_t> firstRollWithSleeveFraction(
+  const std::vector<double> & fractions, double min_fraction)
+{
+  for (std::size_t i = 0; i < fractions.size(); ++i) {
+    if (std::isfinite(fractions[i]) && fractions[i] + 1.0e-9 >= min_fraction) {
+      return i;
+    }
+  }
+  return std::nullopt;
+}
+
 // 果实胶囊（2026-09-14 约束重设计）：感知拟合圆柱 bottom→neck 的有限段
 // + 逐目标半径（直径/2 + 固定膨胀）。保护果实的口径是「工具有限圆柱不
 // 与本胶囊在轴向投影重叠区内相交」；从下方接近由反爬规则（锚定果底

@@ -10,13 +10,31 @@
 
 ## 入口、输入输出与参数
 
-整栈使用 brain.launch.py；独立台架入口以 setup.py console_scripts 为准。输入RGB-D、精确stamp TF、关节及作业状态；输出观测/初值、模型/许可、批次状态/事件/账本。scene_obstacles仅写world collision objects。参数通过 config YAML + attach；grasp_standoffs为共用停位几何源。接口详见 [io.md](io.md)。
+整栈使用 brain.launch.py；独立台架入口以 setup.py console_scripts 为准。输入RGB-D、精确stamp TF、关节及作业状态；输出观测/初值、模型/许可、批次状态/事件/账本。scene_obstacles仅写world collision objects。参数通过 config YAML + attach；grasp_standoffs为共用停位几何源。工具档案由 `harvest_system` 默认 `bite_shear_v1` 注入；独立 brain.launch 声明默认仍 adaptive。接口详见 [io.md](io.md)。一批实现流程见 [系统源码设计](../../peach_bringup/doc/design.md)。
 
 ## 生命周期、并发与失败
 
-brain三节点共享MultiThreadedExecutor，节点内默认互斥组、节点间可并行，重活在线程中运行；保持Unconfigured，由系统管理器按感知→重建→臂→调度激活。scene_obstacles独立不进名单。批次态只经harvest_fsm.react/reducer/_apply；唯一选果输入是target_observations，grasp_decision仅缓存许可。Survey成功才Begin。默认 `reconstruct_in_trajectory=true`：Build绑定后启动臂侧周期，FinalizeAndValidate等同目标精化/许可到齐并过质量门后才规划，避免串行观察消耗冻结的模型有效窗；显式false保留fast/conservative补视，过期仍拒绝。默认PREGRASP_ONLY等待ACK。重建积分必须精确stamp，失帧/旧TF/身份漂移拒收，不能用latest补积分。失败写稳定原因，ledger由调度维护；固定相机+mock腕不提供新机位。
+brain三节点共享MultiThreadedExecutor，节点内默认互斥组、节点间可并行，重活在线程中运行；保持Unconfigured，由系统管理器按感知→重建→臂→调度激活。scene_obstacles独立不进名单。批次态只经harvest_fsm.react/reducer/_apply；唯一选果输入是target_observations，grasp_decision仅缓存许可。Survey成功才Begin。默认 `reconstruct_in_trajectory=true`：Build绑定后启动臂侧周期，FinalizeAndValidate非观察周期先等同目标GraspDecision（含精化几何）并过质量门后才规划，避免 `waitForRefined` 先超时导致决策到达后仍跳过；显式false保留fast/conservative补视，过期仍拒绝。默认PREGRASP_ONLY等待ACK。重建积分必须精确stamp，失帧/旧TF/身份漂移拒收，不能用latest补积分。失败写稳定原因，ledger由调度维护；固定相机+mock腕不提供新机位。
 
 brain入口将 `KeyboardInterrupt` 和 `ExternalShutdownException` 作为正常停栈；先 `executor.shutdown()` 等工作回调退出，再销毁节点，最后仅在上下文仍有效时关闭。其他异常仍向上传播，不能把回调故障伪装成正常退出。
+
+## 批次命令、选果与参数
+
+调度命令循环每步走 ROS 2 子 logger `peach_supervisor.batch`（消息 `command=` / `batch` / `target` / `message`）。状态只经 `harvest_fsm.react` / reducer / `_apply`。首巡：Survey 成功且 `scene_epoch==0` → BeginScene → WAIT_LOCK。回访：Survey 成功后直接 SELECT，不再 Begin。
+
+| 命令 | 含义 | 关键参数（部署默认） |
+|------|------|----------------------|
+| navigate | 固定座直接 NAV_OK | 无底盘动作 |
+| survey | 去拍照位；成功刷新场景障碍 | `action_timeout_s=180` |
+| begin_scene | 仅首巡开收齐窗 | `service_timeout_s=30` |
+| wait_lock | 等本世代锁定集 | `survey_wait_s=15` / `survey_dwell_s=2` |
+| select | 深度窗 ∩ CheckReachability | `selection_depth_min_m=0.3` / `max=1.6`；`execute_pregrasp_only=true` |
+| dispatch | 绑定 Build 后派臂 | `reconstruct_in_trajectory=true`（不再串行补视） |
+| execute_full | PREGRASP_ONLY 或 FULL | 同上 `execute_pregrasp_only`；`execution_enabled` 默认 false |
+
+选果输入只有 `target_observations`。资格：已锁定、已确认、未入账、非裸果、非贴边、非 `tool_clearance_failed`。点名 `goal.target_ids` 过同一资格，但不受深度/IK 窗。CheckReachability 不可用才回退 `selection_reach_min_m=0.15` / `max_m=0.88` 半径窗。SELECT 用感知建议行程；默认 `execute_pregrasp_only=true` 只检预抓取停位 IK。仅显式套入（`execute_pregrasp_only=false`）才 `require_sleeve`。臂侧 Finalize 用精化行程再检一次，且同样仅非预抓取才检套入直线。
+
+选果预检走 `peach_supervisor.contact`，消息 `caller=SELECT target=… travel=… reachable=… code=…`。`code=ok` 才入选。默认不检套入；`sleeve_no_cartesian` 只在显式套入预检出现，表示预抓取和套入终点都有 IK、沿轴直线未走满——看同秒臂侧 `peach_arm.contact` 的 `CheckReachability` 各滚转 `fraction`。无候选则 `empty_survey_limit=2` 次回访后结算。`goal.target_ids` 非空且已全部入账时 CYCLE_DONE 发 `EMPTY_LIMIT` 立即结算，不再空扫。单果墙钟预算 40 s（相对人工偏保守）：收齐 `confirm_frames=2` / `min_collect_frames=4` / `lock_settle_frames=2` / `max_collect_s=12`；重建帧环 12 s / 96 帧 / 192 MiB。2026-10-16 真实相机+mock 短测 5/5 见 [测试指导](../../peach_system_tests/doc/testing.md)（账本 24–27 s，RunHarvest 38–43 s）。rqt_console 按 logger 名过滤；文件在 `$ROS_HOME/log`。
 
 ## 验证与限制
 

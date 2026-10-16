@@ -106,3 +106,23 @@ def test_collector_accumulated_points_count_tracks_stack():
     assert collector.accumulated_points_count == 100
     collector.reset()
     assert collector.accumulated_points_count == 0
+
+
+def test_collector_finalize_includes_skip_summary():
+    collector = FrameCollector(CollectorConfig(min_views=1, max_views=8))
+
+    class _Frame:
+        def __init__(self):
+            self.cloud_base = np.zeros((4, 3))
+            self.valid_depth_ratio = 0.8
+            self.stamp = 1.0
+
+    collector.start('t1')
+    assert collector.add_frame(_Frame())
+    collector.note_skip('missing_mask', 'no mask')
+    collector.note_skip('stale_frame', 'old')
+    ok, msg, _cloud = collector.finalize()
+    assert ok
+    assert '跳过 2 次' in msg
+    assert 'missing_mask=1' in msg
+    assert 'stale_frame=1' in msg

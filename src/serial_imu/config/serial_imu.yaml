@@ -33,4 +33,5 @@ serial_imu:
     # 调试时 launch 传 force_print:=true。
     force_print: false
     force_print_decimate: 1
-    force_channel_labels: [左中(9点), 左下(7点), 右下(5点), 右上(1-2点), 左上(11-12点)]
+    # 2026-10-16 用户裁定：五点在正五边形顶点（等角等距），5 在正上方顶点。
+    force_channel_labels: [左上, 左下, 右下, 上, 右上]

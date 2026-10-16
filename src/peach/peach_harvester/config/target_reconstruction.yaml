@@ -22,12 +22,12 @@ peach_target_reconstruction_node:
       require_robot_static: true  # 观察到位后才积分；false 时连续运动中每个唯一时间戳都会入栈（现场重影后圆柱轴可偏 ~90°）
       static_joint_vel_thresh: 0.03  # 到位后残余速度阈值 (rad/s)；转移中仍是 0.4–1.5 rad/s
       joint_state_tolerance_s: 0.1  # 曝光前后关节状态各自最大间距(s)；缺失/过旧/无速度拒帧，不回退处理时刻速度
-      max_frame_age_s: 2.0  # 缓存帧龄期上限 (s)，超过视为陈帧拒采
+      max_frame_age_s: 12.0  # 缓存帧龄期上限 (s)。停走式+require_robot_static：按曝光时刻查关节。8.0 在 2026-10-16 live_mock 对上掩膜后仍拒 8.42 s 陈帧；12 s 覆盖一帧感知滞后。运动中仍由静止门拒采。
       auto_mode: true  # 有候选自动开始，每个唯一同步帧进入质量门；false = 纯手动 Trigger 服务流
       auto_finalize_at_max: false  # 默认由用户在覆盖充分后 finalize
       auto_min_interval_s: 0.0  # 每个唯一相机时间戳均进入质量门
       require_target_mask: true  # 只积分所选稳定 ID 的掩膜（F1 后=容差内最近邻配对）
-      mask_stamp_tolerance_s: 0.08  # [s] 掩膜 stamp 最近邻容差（F1：stereo 13.6fps 深度 ≫ 7.5fps 掩膜时精确查表必失配；须 < 掩膜流周期之半；0=回精确匹配）
+      mask_stamp_tolerance_s: 0.45  # [s] 掩膜 stamp 最近邻容差（F1：须 < 掩膜流周期之半；0=回精确匹配）。2026-10-16 真实相机+mock：感知约 1 Hz、深度 12 Hz，0.08 按 7.5 fps 掩膜设计会 missing_mask 饿死采帧；1 Hz 半周期=0.5，本值 0.45。上限见 params 0.5。
       min_mask_pixels: 300  # 过小视为远距小目标或严重遮挡
       min_mask_depth_ratio: 0.35  # 强光/反光造成深度空洞时跳帧
       max_target_drift_m: 0.04  # [m] 风吹目标漂移过大时跳帧：0.06 档吸纳正常风摆（峰峰 5~6cm）仍能拦住跨目标误绑。e2e25 轮（09-17）曾在 mock 下放宽到 0.25 解锁（mock 下相机固定而 TF 按眼在手上算，视点一动 base 系锚必偏 ~220mm，纯伪影）；用户裁定 mock 测试作废转真机后已回调 0.04。本节点门配置 configure 期冻结，ros2 param set 运行时改不生效（须重启）。

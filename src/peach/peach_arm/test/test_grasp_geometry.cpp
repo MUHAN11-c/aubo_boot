@@ -7,6 +7,7 @@
 
 #include <cmath>
 #include <cstddef>
+#include <limits>
 #include <vector>
 
 // 工具筒体尺寸（W5-6 起由 yaml tool.body_* 注入；测试用原硬编码默认值）。
@@ -233,6 +234,22 @@ TEST(GraspGeometry, PregraspOnlyFromGoalModeFullWinsOverDefaultHold)
   EXPECT_FALSE(pregraspOnlyFromGoal(kExecutePregraspOnly, kProfileFull));
   EXPECT_FALSE(pregraspOnlyFromGoal(kExecuteObserveOnly, kProfilePregraspHold));
   EXPECT_FALSE(pregraspOnlyFromGoal(kExecutePreview, kProfilePregraspHold));
+}
+
+TEST(GraspGeometry, FirstRollWithSleeveFractionPicksFirstComplete)
+{
+  using peach_arm::firstRollWithSleeveFraction;
+  const auto keep_roll_short = firstRollWithSleeveFraction(
+    {0.880, 1.000, 0.640, 1.000}, 0.95);
+  ASSERT_TRUE(keep_roll_short.has_value());
+  EXPECT_EQ(*keep_roll_short, 1U);
+  EXPECT_EQ(*firstRollWithSleeveFraction({1.000, 0.500}, 0.95), 0U);
+  EXPECT_FALSE(
+    firstRollWithSleeveFraction({0.880, 0.640, 0.200}, 0.95).has_value());
+  const auto nan_then_ok = firstRollWithSleeveFraction(
+    {std::numeric_limits<double>::quiet_NaN(), 1.000}, 0.95);
+  ASSERT_TRUE(nan_then_ok.has_value());
+  EXPECT_EQ(*nan_then_ok, 1U);
 }
 
 TEST(GraspGeometry, SleeveReachabilityCodePriority)

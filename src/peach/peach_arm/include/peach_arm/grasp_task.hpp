@@ -1,11 +1,10 @@
-// 功能：MTC 接触。约束四层（2026-09-14 重设计）：①果实胶囊审查（工具
-// 有限圆柱 vs 感知果实胶囊，仅接近段）+②从下方半空间（反爬锚定果底）
-// 在 grasp_geometry；③octomap 场景碰撞（臂/相机受查、工具链豁免）在
-// moveit 配置与 scene ACM；④近果低速档（本文件 solver 档位）与接触检测
-// （节点侧 contact_monitor，默认关）。接近主路径 = PTP 关节空间到轴上
-// （面内斜插 keep-roll 对轴 + 沿轴垂直进入）；
-// 规划失败才 PTP staging 兜底。套入/撤退沿轴；返程倒放同一接近轨迹。
-// G/under 单弦档已删。
+// 功能：MTC 接触。约束四层：①果实胶囊审查（工具有限圆柱 vs 感知果实
+// 胶囊，仅接近段）+②从下方半空间（反爬锚定果底）在 grasp_geometry；
+// ③场景障碍快照 ACM（保护相机；updater 关闭，<octomap> 保留名无害）
+// 在 acm_policy；④近果低速档（本文件 solver）与接触检测（节点侧
+// contact_monitor，默认关）。接近：几何允许直连时先完整 LIN（含对轴）；
+// 未运动、未取消、未授权拒绝才回退 PTP 到中段点正下方 + 世界垂直 LIN
+// 入冠 + 沿轴 LIN。套入/撤退沿轴；返程倒放同一接近轨迹。G/under 已删。
 // 刀具 IO 不在此。
 #ifndef PEACH_MANIPULATION__GRASP_TASK_HPP_
 #define PEACH_MANIPULATION__GRASP_TASK_HPP_
@@ -83,8 +82,8 @@ inline moveit_msgs::msg::Constraints makeOrientationGate(
 
 // 接近分档结论（只出结论，不规划）。同一 (config, entry, axis) 每条公共入口算一次，
 // 下游装配/预览复用，避免周期内重复 classifyApproach。
-// STAGING=主路径（PTP 关节空间+沿轴垂直进入）；LIN/LIN_ALIGN_THEN_LIN=
-// 已在袋底侧的直连短修正；G/under 单弦档已删（见文件头）。
+// STAGING=树冠外 PTP+入冠两段 LIN（直连 LIN 失败后）；LIN/LIN_ALIGN_THEN_LIN=
+// 几何允许的直连（含对轴）；G/under 已删。
 struct ApproachSplit
 {
   bool need_lin{true};     ///< True=需要沿轴 LIN。
@@ -94,7 +93,7 @@ struct ApproachSplit
     SKIP,                 ///< 已在入口，无需接近。
     LIN,                  ///< 已齐，直连 LIN。
     LIN_ALIGN_THEN_LIN,   ///< 先短 LIN 对轴再插入。
-    STAGING,              ///< 主路径：PTP 关节空间到轴上 staging + 沿轴垂直进入。
+    STAGING,              ///< 树冠外回退：PTP 到中段点正下方 + 入冠两段 LIN。
     BLOCKED               ///< 无法接近。
   } kind{
     Kind::STAGING};
@@ -127,11 +126,11 @@ struct GraspTaskConfig
   double approach_max_duration_s{0.0};    ///< 接近时限 [s]；0=不限。
   double approach_max_total_joint_travel_rad{12.0};   ///< 接近总关节行程上限 [rad]。
   double approach_max_single_joint_travel_rad{6.1};   ///< 单关节行程上限 [rad]。
-  double approach_max_detour_ratio{1.8};              ///< 笛卡尔绕行比；≤0 跳过。
-  double approach_max_chord_deviation_m{0.25};        ///< 弦偏差上限 [m]。
+  double approach_max_detour_ratio{1.5};              ///< 笛卡尔绕行比；≤0 跳过。
+  double approach_max_chord_deviation_m{0.12};        ///< 弦偏差上限 [m]。
   double approach_max_recede_m{0.08};                 ///< 回退上限 [m]。
-  double staging_max_detour_ratio{1.8};
-  double staging_max_chord_deviation_m{0.25};
+  double staging_max_detour_ratio{1.5};
+  double staging_max_chord_deviation_m{0.12};
   double staging_max_recede_m{0.08};
   double approach_max_tcp_rotation_deg{110.0};        ///< TCP 转角上限 [deg]。
   double approach_tcp_rotation_slack_deg{20.0};       ///< 转角松弛 [deg]。
@@ -170,6 +169,10 @@ struct GraspTaskConfig
   std::function<std::vector<StagingCandidate>(
       const Eigen::Isometry3d & staging_pose,
       const std::vector<Eigen::Isometry3d> & corridor)> staging_ik;
+  /// 某刀口滚转从预抓取沿轴插完 travel 是否达标（与 CheckReachability 同形）。
+  /// 空或不调用 = 接近不筛套入直线（仅预抓取）。
+  std::function<bool(
+      double roll_rad, const Eigen::Isometry3d & entry, double travel_m)> sleeve_roll_feasible;
   std::vector<ProtectedZone> protected_zones;  // base 系 AABB → planning scene
   std::function<bool(std::string &)> approach_execution_gate;  // 下发接近轨迹前
   std::function<bool(std::string &)> retreat_execution_gate;   // 撤离不依赖视觉
@@ -177,6 +180,8 @@ struct GraspTaskConfig
   // （节点注入 move_group_->stop()，MGI stop 打节点级停止服务）兜底。
   std::function<void()> execution_stop;
   double execute_timeout_s{90.0};  ///< MTC 解执行有界等待 [s]。
+  /// 接触链 /rosout 子 logger（peach_arm.contact）；空则回退 node logger。
+  std::optional<rclcpp::Logger> contact_logger;
 };
 
 struct GraspTaskResult
@@ -220,7 +225,8 @@ public:
     const Eigen::Isometry3d & entry_tip_pose,
     const Eigen::Vector3d & insertion_axis,
     const FruitCapsule & fruit,
-    bool execute);
+    bool execute,
+    double insert_travel_m = 0.0);
 
   GraspTaskResult sleeveLinear(
     const Eigen::Vector3d & insertion_axis,
@@ -296,21 +302,24 @@ private:
     ApproachSplit split,
     ApproachSplit::Kind kind,
     bool execute,
-    GraspTaskResult & last);
+    GraspTaskResult & last,
+    double insert_travel_m);
   bool tryStagingTransit(
     const std::string & task_name,
     const Eigen::Isometry3d & entry_tip_pose,
     const Eigen::Vector3d & insertion_axis,
     const ApproachSplit & split,
     bool execute,
-    GraspTaskResult & last);
+    GraspTaskResult & last,
+    double insert_travel_m);
   GraspTaskResult planToPregrasp(
     const std::string & task_name,
     const Eigen::Isometry3d & entry_tip_pose,
     const Eigen::Vector3d & insertion_axis,
     const ApproachSplit & split,
     const FruitCapsule & fruit,
-    bool execute);
+    bool execute,
+    double insert_travel_m = 0.0);
   std::unique_ptr<moveit::task_constructor::Task> makeInsertOnlyTask(
     const std::string & task_name,
     const Eigen::Vector3d & insertion_axis,
@@ -407,6 +416,11 @@ private:
   ContactAcmStage pending_acm_stage_{ContactAcmStage::Transit};
   std::string target_context_;  ///< 当前周期 target_id（仅日志上下文，不参与判定）
   std::string tctx() const;  ///< 日志前缀 "[target_id] "；无周期上下文为空串
+  std::optional<rclcpp::Logger> contact_logger_;
+  rclcpp::Logger contactLogger() const
+  {
+    return contact_logger_ ? *contact_logger_ : node_->get_logger();
+  }
   mutable std::vector<std::string> published_keepout_ids_;  // 上次写入 scene 的 id
   std::vector<trajectory_msgs::msg::JointTrajectory> planned_approach_parts_;
   std::vector<trajectory_msgs::msg::JointTrajectory> last_approach_parts_;

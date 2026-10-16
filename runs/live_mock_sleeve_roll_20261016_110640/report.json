@@ -1,0 +1,172 @@
+{
+  "hardware_mode": "mock",
+  "profile": {
+    "schema_version": 1,
+    "profile_id": "fixed_camera_mock_20261013",
+    "hardware_mode": "mock",
+    "camera_frontend": "stereo",
+    "autostart": false,
+    "tool_enabled": false,
+    "reconstruct_in_trajectory": true,
+    "camera_calibration": {
+      "parent_frame": "base_link",
+      "child_frame": "camera_link",
+      "xyz_m": [
+        0.3780573326439316,
+        -0.07547177076037584,
+        0.7666632351254871
+      ],
+      "quaternion_xyzw": [
+        -0.0036889994433193067,
+        -7.498157537607713e-06,
+        -0.6576092061184594,
+        0.753350199611797
+      ],
+      "provenance": "20261013 fixed camera record; user confirmed camera unmoved; reused by live_camera_rviz_repeat_20261014_1632",
+      "scope": "test-only frozen calibration; never injected into product calibration files"
+    },
+    "mock_initial_positions": [
+      0.425175,
+      0.194274,
+      1.679546,
+      1.462579,
+      -0.279948,
+      0.038859
+    ]
+  },
+  "rounds": [],
+  "models": [],
+  "model_attempts": [],
+  "resources": [],
+  "acks": [],
+  "errors": [
+    "域内已有采摘进程；拒绝启动，不清理其他进程"
+  ],
+  "rviz_requested": true,
+  "owned_process_groups": [],
+  "runtime_environment": {
+    "ROS_DOMAIN_ID": "87",
+    "ROS_HOME": "/home/mu/Desktop/aubo_e5_jazzy_ws/runs/live_mock_sleeve_roll_20261016_110640/ros_home",
+    "OMP_NUM_THREADS": "1",
+    "OPENBLAS_NUM_THREADS": "1",
+    "MKL_NUM_THREADS": "1"
+  },
+  "preexisting_processes": [
+    {
+      "pid": 213030,
+      "command": "/usr/bin/python3 /opt/ros/jazzy/bin/ros2 launch peach_bringup harvest_system.launch.py hardware_mode:=mock camera_enabled:=true camera_frontend:=stereo extrinsics_enabled:=false imu_enabled:=false autostart:=false use_sim_time:=false rviz:=false tool_profile:=bite_shear_v1 mock_initial_positions:=0.425175,0.194274,1.679546,1.462579,-0.279948,0.038859 brain_params_overlay:=/home/mu/Desktop/aubo_e5_jazzy_ws/runs/live_mock_sleeve_roll_20261016_110611/brain_overlay.yaml observability_port:=8091 "
+    },
+    {
+      "pid": 213187,
+      "command": "/home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_stereo/lib/peach_stereo/stereo_camera_node --ros-args -r __node:=peach_stereo_camera_node -r __ns:=/camera -p use_sim_time:=False --params-file /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_stereo/share/peach_stereo/config/stereo_camera.yaml --params-file /tmp/launch_params_ngzci8j8 --params-file /tmp/launch_params_jfo5enuc "
+    },
+    {
+      "pid": 213188,
+      "command": "/usr/bin/python3 /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_harvester/lib/peach_harvester/peach_scene_obstacles --ros-args -p use_sim_time:=False "
+    },
+    {
+      "pid": 213189,
+      "command": "/opt/ros/jazzy/lib/robot_state_publisher/robot_state_publisher --ros-args -p use_sim_time:=False --params-file /tmp/launch_params_uimlxj8f "
+    },
+    {
+      "pid": 213190,
+      "command": "/opt/ros/jazzy/lib/controller_manager/ros2_control_node --ros-args -p use_sim_time:=False --params-file /tmp/launch_params_72om9b7f --params-file /home/mu/Desktop/aubo_e5_jazzy_ws/install/aubo_e5_bringup/share/aubo_e5_bringup/config/controllers.yaml "
+    },
+    {
+      "pid": 213193,
+      "command": "/opt/ros/jazzy/lib/moveit_ros_move_group/move_group --ros-args -p use_sim_time:=False --params-file /tmp/launch_params_ppqq4e1t --params-file /tmp/launch_params_5gs41cml "
+    },
+    {
+      "pid": 213194,
+      "command": "/usr/bin/python3 /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_harvester/lib/peach_harvester/peach_harvester --ros-args -r __ns:=/ -p use_sim_time:=False --params-file /tmp/launch_params_riqn1sea --params-file /tmp/launch_params_zej5ksre --params-file /tmp/launch_params_mg8hbjrq --params-file /tmp/peach_brain_overlay_jd7y50nw.yaml --params-file /tmp/launch_params_u5rq221u "
+    },
+    {
+      "pid": 213196,
+      "command": "/home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_arm/lib/peach_arm/peach_arm --ros-args -r __node:=peach_arm -r __ns:=/ -p use_sim_time:=False --params-file /tmp/launch_params_q68erlwr --params-file /tmp/launch_params_h9dx_r60 --params-file /tmp/launch_params_hjh4k51l --params-file /tmp/launch_params_8k0nlecr --params-file /tmp/launch_params_rn4pius7 --params-file /tmp/launch_params_3u79qs4o --params-file /tmp/launch_params_sua8aghg --params-file /tmp/launch_params_q6xh90ud --params-file /tmp/launch_params_4gwmwggp --params-file /tmp/launch_params_ass2nfmj --params-file /tmp/launch_params_9i3ypg0i --params-file /tmp/launch_params_o488oac0 "
+    },
+    {
+      "pid": 213198,
+      "command": "/usr/bin/python3 /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_observability/lib/peach_observability/peach_observability --ros-args -r __node:=peach_observability -r __ns:=/ -p use_sim_time:=False --params-file /tmp/launch_params_0o507zm3 --params-file /tmp/launch_params_cpd4txq0 "
+    },
+    {
+      "pid": 213199,
+      "command": "/opt/ros/jazzy/lib/nav2_lifecycle_manager/lifecycle_manager --ros-args -r __node:=peach_lifecycle_manager -p use_sim_time:=False --params-file /tmp/launch_params_6q7lf59u "
+    },
+    {
+      "pid": 213200,
+      "command": "/usr/bin/python3 /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_bringup/lib/peach_bringup/peach_lifecycle_flag_bridge --ros-args -r __node:=peach_lifecycle_flag_bridge -p use_sim_time:=False "
+    },
+    {
+      "pid": 214230,
+      "command": "rviz2 -d /home/mu/Desktop/aubo_e5_jazzy_ws/src/peach/peach_system_tests/config/live_camera_mock.rviz --ros-args --params-file /home/mu/Desktop/aubo_e5_jazzy_ws/runs/live_mock_sleeve_roll_20261016_110611/rviz_model_params.yaml "
+    }
+  ],
+  "phase": "finished",
+  "updated_at": 1792120000.9574401,
+  "residual_pids": [],
+  "domain_processes_after": [
+    {
+      "pid": 213030,
+      "command": "/usr/bin/python3 /opt/ros/jazzy/bin/ros2 launch peach_bringup harvest_system.launch.py hardware_mode:=mock camera_enabled:=true camera_frontend:=stereo extrinsics_enabled:=false imu_enabled:=false autostart:=false use_sim_time:=false rviz:=false tool_profile:=bite_shear_v1 mock_initial_positions:=0.425175,0.194274,1.679546,1.462579,-0.279948,0.038859 brain_params_overlay:=/home/mu/Desktop/aubo_e5_jazzy_ws/runs/live_mock_sleeve_roll_20261016_110611/brain_overlay.yaml observability_port:=8091 "
+    },
+    {
+      "pid": 213187,
+      "command": "/home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_stereo/lib/peach_stereo/stereo_camera_node --ros-args -r __node:=peach_stereo_camera_node -r __ns:=/camera -p use_sim_time:=False --params-file /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_stereo/share/peach_stereo/config/stereo_camera.yaml --params-file /tmp/launch_params_ngzci8j8 --params-file /tmp/launch_params_jfo5enuc "
+    },
+    {
+      "pid": 213188,
+      "command": "/usr/bin/python3 /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_harvester/lib/peach_harvester/peach_scene_obstacles --ros-args -p use_sim_time:=False "
+    },
+    {
+      "pid": 213189,
+      "command": "/opt/ros/jazzy/lib/robot_state_publisher/robot_state_publisher --ros-args -p use_sim_time:=False --params-file /tmp/launch_params_uimlxj8f "
+    },
+    {
+      "pid": 213190,
+      "command": "/opt/ros/jazzy/lib/controller_manager/ros2_control_node --ros-args -p use_sim_time:=False --params-file /tmp/launch_params_72om9b7f --params-file /home/mu/Desktop/aubo_e5_jazzy_ws/install/aubo_e5_bringup/share/aubo_e5_bringup/config/controllers.yaml "
+    },
+    {
+      "pid": 213193,
+      "command": "/opt/ros/jazzy/lib/moveit_ros_move_group/move_group --ros-args -p use_sim_time:=False --params-file /tmp/launch_params_ppqq4e1t --params-file /tmp/launch_params_5gs41cml "
+    },
+    {
+      "pid": 213194,
+      "command": "/usr/bin/python3 /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_harvester/lib/peach_harvester/peach_harvester --ros-args -r __ns:=/ -p use_sim_time:=False --params-file /tmp/launch_params_riqn1sea --params-file /tmp/launch_params_zej5ksre --params-file /tmp/launch_params_mg8hbjrq --params-file /tmp/peach_brain_overlay_jd7y50nw.yaml --params-file /tmp/launch_params_u5rq221u "
+    },
+    {
+      "pid": 213196,
+      "command": "/home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_arm/lib/peach_arm/peach_arm --ros-args -r __node:=peach_arm -r __ns:=/ -p use_sim_time:=False --params-file /tmp/launch_params_q68erlwr --params-file /tmp/launch_params_h9dx_r60 --params-file /tmp/launch_params_hjh4k51l --params-file /tmp/launch_params_8k0nlecr --params-file /tmp/launch_params_rn4pius7 --params-file /tmp/launch_params_3u79qs4o --params-file /tmp/launch_params_sua8aghg --params-file /tmp/launch_params_q6xh90ud --params-file /tmp/launch_params_4gwmwggp --params-file /tmp/launch_params_ass2nfmj --params-file /tmp/launch_params_9i3ypg0i --params-file /tmp/launch_params_o488oac0 "
+    },
+    {
+      "pid": 213198,
+      "command": "/usr/bin/python3 /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_observability/lib/peach_observability/peach_observability --ros-args -r __node:=peach_observability -r __ns:=/ -p use_sim_time:=False --params-file /tmp/launch_params_0o507zm3 --params-file /tmp/launch_params_cpd4txq0 "
+    },
+    {
+      "pid": 213199,
+      "command": "/opt/ros/jazzy/lib/nav2_lifecycle_manager/lifecycle_manager --ros-args -r __node:=peach_lifecycle_manager -p use_sim_time:=False --params-file /tmp/launch_params_6q7lf59u "
+    },
+    {
+      "pid": 213200,
+      "command": "/usr/bin/python3 /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_bringup/lib/peach_bringup/peach_lifecycle_flag_bridge --ros-args -r __node:=peach_lifecycle_flag_bridge -p use_sim_time:=False "
+    },
+    {
+      "pid": 214230,
+      "command": "rviz2 -d /home/mu/Desktop/aubo_e5_jazzy_ws/src/peach/peach_system_tests/config/live_camera_mock.rviz --ros-args --params-file /home/mu/Desktop/aubo_e5_jazzy_ws/runs/live_mock_sleeve_roll_20261016_110611/rviz_model_params.yaml "
+    }
+  ],
+  "model_count": 0,
+  "full_level6_rounds": 0,
+  "model_elapsed_s": {
+    "count": 0,
+    "min": null,
+    "max": null,
+    "p95": null,
+    "range": null
+  },
+  "geometry_statistics": {},
+  "model_samples_per_target": {},
+  "per_target_outcomes": {},
+  "physical_bag_level6_coverage": {},
+  "soak_passed": true,
+  "passed": false
+}

@@ -36,8 +36,10 @@ class TopicCard {
 
   toggle(topic, on) {
     if (on && !this._handles.has(topic)) {
+      // raw 模式：本卡只做 Hz/流量统计，不做解码——大消息（图像/点云）
+      // 全量 CDR 解码纯属浪费（player._dispatchRaw 跳过解码热路径）
       this._handles.set(topic, this._client.subscribe(topic, '', () => {},
-        { dispatchMode: 'latest' }));
+        { dispatchMode: 'raw' }));
     } else if (!on && this._handles.has(topic)) {
       try { this._handles.get(topic).cancel(); } catch (_) {}
       this._handles.delete(topic);

@@ -70,6 +70,15 @@ describe('cfg v4 迁移', () => {
     expect(map1.opacity).toBeCloseTo(0.85);
   });
 
+  it('默认相机走官方压缩流（gz 无头相机不节流的火流防护）', () => {
+    const cfg = defaultCfg();
+    const img = cfg.instances.find((i) => i.type === 'image');
+    const imgc = cfg.instances.find((i) => i.type === 'imagec');
+    expect(img.on).toBe(false);          // 原始流默认关（可手动开启）
+    expect(imgc.on).toBe(true);
+    expect(imgc.topic).toBe('/camera/image_raw/compressed');
+  });
+
   it('v3 固定键 → v4 实例：保留自定义 topic 与开关', () => {
     const v3 = {
       grid: { on: true },

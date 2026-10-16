@@ -1,0 +1,26 @@
+........................................................................ [ 18%]
+........................................................................ [ 37%]
+.......F................................................................ [ 56%]
+........................................................................ [ 75%]
+........................................................................ [ 94%]
+...................                                                      [100%]
+=================================== FAILURES ===================================
+_________________ test_run_no_tsdf_cloud_fuses_from_views_only _________________
+
+    def test_run_no_tsdf_cloud_fuses_from_views_only():
+        refitter = _FakeRefitter(product=_ok_refit())
+        orch = _make(refitter)
+        result, fused = orch.run(
+            tsdf_xyz=None, frames=_frames(), target_center=np.zeros(3),
+            kind='bag', kind_defaulted=False, bound_axis_hint=None,
+            target_id='t', entry_standoff_m=0.0, pregrasp_standoff_m=0.0,
+            budget_params=ToolBudgetParams())
+        assert refitter.calls == []  # 无云不跑拟合线
+>       assert fused.ok
+E       AssertionError: assert False
+E        +  where False = BagModel(ok=False, reason='bag_axis_envelope_unavailable', bottom=array([0.02128531, 0.00323594, 0.41913494]), neck=ar...ilable'], budget={}, allowed=False, radial_margin_m=-0.026467379653448683, axial_margin_m=-0.002, corridor_clear=False).ok
+
+src/peach/peach_harvester/test/test_refit_orchestrator.py:147: AssertionError
+=========================== short test summary info ============================
+FAILED src/peach/peach_harvester/test/test_refit_orchestrator.py::test_run_no_tsdf_cloud_fuses_from_views_only
+1 failed, 378 passed, 2 deselected in 2.51s

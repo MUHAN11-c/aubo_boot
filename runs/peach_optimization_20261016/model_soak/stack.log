@@ -1,0 +1,1330 @@
+[INFO] [launch]: All log files can be found below /home/mu/Desktop/aubo_e5_jazzy_ws/runs/peach_optimization_20261016/model_soak/ros_home/log/2026-10-16-08-47-13-419518-mu-MS-7E34-15590
+[INFO] [launch]: Default logging verbosity is set to INFO
+[preflight] ROS_DOMAIN_ID=87
+[WARN] [1792111633.736661129] [rcl]: ROS_LOCALHOST_ONLY is deprecated but still honored if it is enabled. Use ROS_AUTOMATIC_DISCOVERY_RANGE and ROS_STATIC_PEERS instead.
+[WARN] [1792111633.736675050] [rcl]: 'localhost_only' is enabled, 'automatic_discovery_range' and 'static_peers' will be ignored.
+[INFO] [stereo_camera_node-1]: process started with pid [15656]
+[INFO] [peach_scene_obstacles-2]: process started with pid [15657]
+[INFO] [robot_state_publisher-3]: process started with pid [15658]
+[INFO] [ros2_control_node-4]: process started with pid [15659]
+[INFO] [spawner-5]: process started with pid [15660]
+[INFO] [spawner-6]: process started with pid [15661]
+[INFO] [move_group-7]: process started with pid [15662]
+[INFO] [peach_harvester-8]: process started with pid [15663]
+[INFO] [peach_arm-9]: process started with pid [15664]
+[INFO] [peach_observability-10]: process started with pid [15665]
+[INFO] [lifecycle_manager-11]: process started with pid [15666]
+[INFO] [peach_lifecycle_flag_bridge-12]: process started with pid [15667]
+[robot_state_publisher-3] [WARN] [1792111633.874374322] [rcl]: ROS_LOCALHOST_ONLY is deprecated but still honored if it is enabled. Use ROS_AUTOMATIC_DISCOVERY_RANGE and ROS_STATIC_PEERS instead.
+[robot_state_publisher-3] [WARN] [1792111633.874382672] [rcl]: 'localhost_only' is enabled, 'automatic_discovery_range' and 'static_peers' will be ignored.
+[ros2_control_node-4] [WARN] [1792111633.887244731] [rcl]: ROS_LOCALHOST_ONLY is deprecated but still honored if it is enabled. Use ROS_AUTOMATIC_DISCOVERY_RANGE and ROS_STATIC_PEERS instead.
+[ros2_control_node-4] [WARN] [1792111633.887252807] [rcl]: 'localhost_only' is enabled, 'automatic_discovery_range' and 'static_peers' will be ignored.
+[lifecycle_manager-11] [WARN] [1792111633.889421416] [rcl]: ROS_LOCALHOST_ONLY is deprecated but still honored if it is enabled. Use ROS_AUTOMATIC_DISCOVERY_RANGE and ROS_STATIC_PEERS instead.
+[lifecycle_manager-11] [WARN] [1792111633.889428582] [rcl]: 'localhost_only' is enabled, 'automatic_discovery_range' and 'static_peers' will be ignored.
+[robot_state_publisher-3] [INFO] [1792111633.891410363] [robot_state_publisher]: Robot initialized
+[lifecycle_manager-11] [INFO] [1792111633.898393509] [peach_lifecycle_manager]: Creating
+[lifecycle_manager-11] [INFO] [1792111633.902549398] [peach_lifecycle_manager]: [34m[1mCreating and initializing lifecycle service clients[0m[0m
+[ros2_control_node-4] [INFO] [1792111633.914825569] [controller_manager]: Using Steady (Monotonic) clock for triggering controller manager cycles.
+[ros2_control_node-4] [INFO] [1792111633.923044123] [controller_manager]: Subscribing to '/robot_description' topic for robot description.
+[ros2_control_node-4] [INFO] [1792111633.923096062] [controller_manager]: update rate is 200 Hz
+[ros2_control_node-4] [INFO] [1792111633.923099286] [controller_manager]: Overruns handling is : enabled
+[ros2_control_node-4] [INFO] [1792111633.923101448] [controller_manager]: Spawning controller_manager RT thread with scheduler priority: 50
+[ros2_control_node-4] [INFO] [1792111633.923155930] [controller_manager]: Successful set up FIFO RT scheduling policy with priority 50.
+[move_group-7] [WARN] [1792111633.935801023] [rcl]: ROS_LOCALHOST_ONLY is deprecated but still honored if it is enabled. Use ROS_AUTOMATIC_DISCOVERY_RANGE and ROS_STATIC_PEERS instead.
+[move_group-7] [WARN] [1792111633.935814742] [rcl]: 'localhost_only' is enabled, 'automatic_discovery_range' and 'static_peers' will be ignored.
+[peach_arm-9] [WARN] [1792111633.939787030] [rcl]: ROS_LOCALHOST_ONLY is deprecated but still honored if it is enabled. Use ROS_AUTOMATIC_DISCOVERY_RANGE and ROS_STATIC_PEERS instead.
+[peach_arm-9] [WARN] [1792111633.939798085] [rcl]: 'localhost_only' is enabled, 'automatic_discovery_range' and 'static_peers' will be ignored.
+[move_group-7] [INFO] [1792111633.956482937] [move_group.moveit.moveit.ros.rdf_loader]: Loaded robot model in 0.00189013 seconds
+[move_group-7] [INFO] [1792111633.956557447] [move_group.moveit.moveit.core.robot_model]: Loading robot model 'aubo_e5'...
+[move_group-7] [INFO] [1792111633.956566442] [move_group.moveit.moveit.core.robot_model]: No root/virtual joint specified in SRDF. Assuming fixed joint
+[peach_arm-9] [WARN] [1792111633.957319729] [rcl.logging_rosout]: Publisher already registered for node name: 'peach_arm'. If this is due to multiple nodes with the same name then all logs for the logger named 'peach_arm' will go out over the existing publisher. As soon as any node with that name is destructed it will unregister the publisher, preventing any further logs for that name from being published on the rosout topic.
+[peach_arm-9] [WARN] [1792111633.959449235] [peach_arm]: scan.protected_zones 丢弃畸形盒: 盒#0 存在 min>=max 的轴（空盒/退化盒），已丢弃
+[move_group-7] [INFO] [1792111633.990973775] [move_group.moveit.moveit.kinematics.kdl_kinematics_plugin]: Joint weights for group 'manipulator_e5': 1 1 1 1 1 1
+[stereo_camera_node-1] [WARN] [1792111634.020998589] [rcl]: ROS_LOCALHOST_ONLY is deprecated but still honored if it is enabled. Use ROS_AUTOMATIC_DISCOVERY_RANGE and ROS_STATIC_PEERS instead.
+[stereo_camera_node-1] [WARN] [1792111634.021008069] [rcl]: 'localhost_only' is enabled, 'automatic_discovery_range' and 'static_peers' will be ignored.
+[stereo_camera_node-1] [INFO] [1792111634.031666054] [camera.peach_stereo_camera_node]: color camera_info override from /home/mu/Desktop/aubo_e5_jazzy_ws/install/percipio_camera/share/percipio_camera/config/color_camera_info.yaml (camera=camera_color)
+[stereo_camera_node-1] [INFO] [1792111634.038724019] [camera.peach_stereo_camera_node]: interface list: status=0 count=4
+[spawner-6] [WARN] [1792111634.073269830] [rcl]: ROS_LOCALHOST_ONLY is deprecated but still honored if it is enabled. Use ROS_AUTOMATIC_DISCOVERY_RANGE and ROS_STATIC_PEERS instead.
+[spawner-6] [WARN] [1792111634.073278862] [rcl]: 'localhost_only' is enabled, 'automatic_discovery_range' and 'static_peers' will be ignored.
+[spawner-5] [WARN] [1792111634.075050294] [rcl]: ROS_LOCALHOST_ONLY is deprecated but still honored if it is enabled. Use ROS_AUTOMATIC_DISCOVERY_RANGE and ROS_STATIC_PEERS instead.
+[spawner-5] [WARN] [1792111634.075056272] [rcl]: 'localhost_only' is enabled, 'automatic_discovery_range' and 'static_peers' will be ignored.
+[peach_lifecycle_flag_bridge-12] [WARN] [1792111634.080205223] [rcl]: ROS_LOCALHOST_ONLY is deprecated but still honored if it is enabled. Use ROS_AUTOMATIC_DISCOVERY_RANGE and ROS_STATIC_PEERS instead.
+[peach_lifecycle_flag_bridge-12] [WARN] [1792111634.080213108] [rcl]: 'localhost_only' is enabled, 'automatic_discovery_range' and 'static_peers' will be ignored.
+[move_group-7] [INFO] [1792111634.081271878] [move_group.moveit.moveit.ros.planning_scene_monitor]: Publishing maintained planning scene on 'monitored_planning_scene'
+[move_group-7] [INFO] [1792111634.081402146] [move_group.moveit.moveit.ros.moveit_cpp]: Listening to 'joint_states' for joint states
+[move_group-7] [INFO] [1792111634.082046003] [move_group.moveit.moveit.ros.current_state_monitor]: Listening to joint states on topic 'joint_states'
+[move_group-7] [INFO] [1792111634.082251506] [move_group.moveit.moveit.ros.planning_scene_monitor]: Listening to '/attached_collision_object' for attached collision objects
+[move_group-7] [INFO] [1792111634.082258525] [move_group.moveit.moveit.ros.planning_scene_monitor]: Stopping existing planning scene publisher.
+[move_group-7] [INFO] [1792111634.082326845] [move_group.moveit.moveit.ros.planning_scene_monitor]: Stopped publishing maintained planning scene.
+[move_group-7] [INFO] [1792111634.082496809] [move_group.moveit.moveit.ros.planning_scene_monitor]: Publishing maintained planning scene on 'monitored_planning_scene'
+[move_group-7] [INFO] [1792111634.082537798] [move_group.moveit.moveit.ros.planning_scene_monitor]: Starting planning scene monitor
+[move_group-7] [INFO] [1792111634.082721334] [move_group.moveit.moveit.ros.planning_scene_monitor]: Listening to '/planning_scene'
+[move_group-7] [INFO] [1792111634.082726953] [move_group.moveit.moveit.ros.planning_scene_monitor]: Starting world geometry update monitor for collision objects, attached objects, octomap updates.
+[move_group-7] [INFO] [1792111634.083040898] [move_group.moveit.moveit.ros.planning_scene_monitor]: Listening to 'collision_object'
+[ros2_control_node-4] [INFO] [1792111634.083093408] [controller_manager]: Received robot description from topic.
+[ros2_control_node-4] [INFO] [1792111634.083134220] [controller_manager]: Enforcing command limits is disabled. Command limits from URDF will be ignored.
+[move_group-7] [INFO] [1792111634.083189396] [move_group.moveit.moveit.ros.planning_scene_monitor]: Listening to 'planning_scene_world' for planning scene world geometry
+[move_group-7] [WARN] [1792111634.084247964] [move_group.moveit.moveit.ros.occupancy_map_monitor]: Resolution not specified for Octomap. Assuming resolution = 0.1 instead
+[move_group-7] [ERROR] [1792111634.084262029] [move_group.moveit.moveit.ros.occupancy_map_monitor]: No 3D sensor plugin(s) defined for octomap updates
+[ros2_control_node-4] [INFO] [1792111634.085772864] [controller_manager]: Loading hardware 'AuboE5System' 
+[ros2_control_node-4] [INFO] [1792111634.086816516] [controller_manager]: Loaded hardware 'AuboE5System' from plugin 'mock_components/GenericSystem'
+[ros2_control_node-4] [INFO] [1792111634.086883110] [controller_manager]: Initialize hardware 'AuboE5System' 
+[ros2_control_node-4] [INFO] [1792111634.092262289] [controller_manager]: Successful initialization of hardware 'AuboE5System'
+[ros2_control_node-4] [INFO] [1792111634.092658873] [controller_manager]: Activating component 'AuboE5System'.
+[ros2_control_node-4] [INFO] [1792111634.092668796] [resource_manager]: 'configure' hardware 'AuboE5System' 
+[ros2_control_node-4] [INFO] [1792111634.092677208] [resource_manager]: Successful 'configure' of hardware 'AuboE5System'
+[ros2_control_node-4] [INFO] [1792111634.092690698] [resource_manager]: 'activate' hardware 'AuboE5System' 
+[ros2_control_node-4] [INFO] [1792111634.092696026] [resource_manager]: Successful 'activate' of hardware 'AuboE5System'
+[ros2_control_node-4] [INFO] [1792111634.092754098] [controller_manager]: Registering statistics for : AuboE5System
+[ros2_control_node-4] [INFO] [1792111634.092786235] [controller_manager]: Resource Manager has been successfully initialized. Starting Controller Manager services...
+[move_group-7] [INFO] [1792111634.130733367] [move_group.moveit.moveit.ros.planning_pipeline]: Successfully loaded planner 'OMPL'
+[spawner-6] [INFO] [1792111634.131164357] [spawner_joint_trajectory_controller]: waiting for service /controller_manager/list_controllers to become available...
+[move_group-7] [INFO] [1792111634.131691717] [move_group]: Try loading adapter 'default_planning_request_adapters/ResolveConstraintFrames'
+[move_group-7] [INFO] [1792111634.132606244] [move_group]: Loaded adapter 'default_planning_request_adapters/ResolveConstraintFrames'
+[move_group-7] [INFO] [1792111634.132612996] [move_group]: Try loading adapter 'default_planning_request_adapters/ValidateWorkspaceBounds'
+[move_group-7] [INFO] [1792111634.132805039] [move_group]: Loaded adapter 'default_planning_request_adapters/ValidateWorkspaceBounds'
+[move_group-7] [INFO] [1792111634.132808084] [move_group]: Try loading adapter 'default_planning_request_adapters/CheckStartStateBounds'
+[move_group-7] [INFO] [1792111634.132818535] [move_group]: Loaded adapter 'default_planning_request_adapters/CheckStartStateBounds'
+[move_group-7] [INFO] [1792111634.132820279] [move_group]: Try loading adapter 'default_planning_request_adapters/CheckStartStateCollision'
+[move_group-7] [INFO] [1792111634.132824471] [move_group]: Loaded adapter 'default_planning_request_adapters/CheckStartStateCollision'
+[move_group-7] [INFO] [1792111634.133634870] [move_group]: Try loading adapter 'default_planning_response_adapters/AddTimeOptimalParameterization'
+[move_group-7] [INFO] [1792111634.135027855] [move_group]: Loaded adapter 'default_planning_response_adapters/AddTimeOptimalParameterization'
+[move_group-7] [INFO] [1792111634.135033986] [move_group]: Try loading adapter 'default_planning_response_adapters/AddRuckigTrajectorySmoothing'
+[move_group-7] [INFO] [1792111634.135040062] [move_group]: Loaded adapter 'default_planning_response_adapters/AddRuckigTrajectorySmoothing'
+[move_group-7] [INFO] [1792111634.135041850] [move_group]: Try loading adapter 'default_planning_response_adapters/ValidateSolution'
+[move_group-7] [INFO] [1792111634.137148777] [move_group]: Loaded adapter 'default_planning_response_adapters/ValidateSolution'
+[move_group-7] [INFO] [1792111634.139822613] [move_group.moveit.moveit.planners.pilz.joint_limits_aggregator]: Reading limits from namespace robot_description_planning
+[move_group-7] [INFO] [1792111634.141938857] [move_group.moveit.moveit.planners.pilz.command_planner]: Available plugins: pilz_industrial_motion_planner/PlanningContextLoaderCIRC pilz_industrial_motion_planner/PlanningContextLoaderLIN pilz_industrial_motion_planner/PlanningContextLoaderPTP 
+[move_group-7] [INFO] [1792111634.141950698] [move_group.moveit.moveit.planners.pilz.command_planner]: About to load: pilz_industrial_motion_planner/PlanningContextLoaderCIRC
+[move_group-7] [INFO] [1792111634.143231833] [move_group.moveit.moveit.planners.pilz.command_planner]: Registered Algorithm [CIRC]
+[move_group-7] [INFO] [1792111634.143241535] [move_group.moveit.moveit.planners.pilz.command_planner]: About to load: pilz_industrial_motion_planner/PlanningContextLoaderLIN
+[move_group-7] [INFO] [1792111634.143926739] [move_group.moveit.moveit.planners.pilz.command_planner]: Registered Algorithm [LIN]
+[move_group-7] [INFO] [1792111634.143933140] [move_group.moveit.moveit.planners.pilz.command_planner]: About to load: pilz_industrial_motion_planner/PlanningContextLoaderPTP
+[move_group-7] [INFO] [1792111634.144613327] [move_group.moveit.moveit.planners.pilz.command_planner]: Registered Algorithm [PTP]
+[move_group-7] [INFO] [1792111634.144625223] [move_group.moveit.moveit.ros.planning_pipeline]: Successfully loaded planner 'Pilz Industrial Motion Planner'
+[move_group-7] [INFO] [1792111634.145461730] [move_group]: Try loading adapter 'default_planning_request_adapters/ResolveConstraintFrames'
+[move_group-7] [INFO] [1792111634.145554909] [move_group]: Loaded adapter 'default_planning_request_adapters/ResolveConstraintFrames'
+[move_group-7] [INFO] [1792111634.145557682] [move_group]: Try loading adapter 'default_planning_request_adapters/ValidateWorkspaceBounds'
+[move_group-7] [INFO] [1792111634.145646284] [move_group]: Loaded adapter 'default_planning_request_adapters/ValidateWorkspaceBounds'
+[move_group-7] [INFO] [1792111634.145649251] [move_group]: Try loading adapter 'default_planning_request_adapters/CheckStartStateBounds'
+[move_group-7] [INFO] [1792111634.145655843] [move_group]: Loaded adapter 'default_planning_request_adapters/CheckStartStateBounds'
+[move_group-7] [INFO] [1792111634.145657361] [move_group]: Try loading adapter 'default_planning_request_adapters/CheckStartStateCollision'
+[move_group-7] [INFO] [1792111634.145690079] [move_group]: Loaded adapter 'default_planning_request_adapters/CheckStartStateCollision'
+[move_group-7] [INFO] [1792111634.146511784] [move_group]: Try loading adapter 'default_planning_response_adapters/ValidateSolution'
+[move_group-7] [INFO] [1792111634.146949665] [move_group]: Loaded adapter 'default_planning_response_adapters/ValidateSolution'
+[move_group-7] [INFO] [1792111634.149571373] [move_group.moveit.moveit.ros.planning_pipeline]: Successfully loaded planner 'STOMP'
+[move_group-7] [INFO] [1792111634.150498144] [move_group]: Try loading adapter 'default_planning_request_adapters/ResolveConstraintFrames'
+[move_group-7] [INFO] [1792111634.150588207] [move_group]: Loaded adapter 'default_planning_request_adapters/ResolveConstraintFrames'
+[move_group-7] [INFO] [1792111634.150591130] [move_group]: Try loading adapter 'default_planning_request_adapters/ValidateWorkspaceBounds'
+[move_group-7] [INFO] [1792111634.150650917] [move_group]: Loaded adapter 'default_planning_request_adapters/ValidateWorkspaceBounds'
+[move_group-7] [INFO] [1792111634.150653127] [move_group]: Try loading adapter 'default_planning_request_adapters/CheckStartStateBounds'
+[move_group-7] [INFO] [1792111634.150659832] [move_group]: Loaded adapter 'default_planning_request_adapters/CheckStartStateBounds'
+[move_group-7] [INFO] [1792111634.150661413] [move_group]: Try loading adapter 'default_planning_request_adapters/CheckStartStateCollision'
+[move_group-7] [INFO] [1792111634.150665771] [move_group]: Loaded adapter 'default_planning_request_adapters/CheckStartStateCollision'
+[move_group-7] [INFO] [1792111634.151501363] [move_group]: Try loading adapter 'default_planning_response_adapters/AddTimeOptimalParameterization'
+[move_group-7] [INFO] [1792111634.151777884] [move_group]: Loaded adapter 'default_planning_response_adapters/AddTimeOptimalParameterization'
+[move_group-7] [INFO] [1792111634.151781673] [move_group]: Try loading adapter 'default_planning_response_adapters/ValidateSolution'
+[move_group-7] [INFO] [1792111634.151971095] [move_group]: Loaded adapter 'default_planning_response_adapters/ValidateSolution'
+[move_group-7] [INFO] [1792111634.151975305] [move_group]: Try loading adapter 'default_planning_response_adapters/DisplayMotionPath'
+[move_group-7] [INFO] [1792111634.152214611] [move_group]: Loaded adapter 'default_planning_response_adapters/DisplayMotionPath'
+[move_group-7] [INFO] [1792111634.173992174] [move_group.moveit.moveit.plugins.simple_controller_manager]: Added FollowJointTrajectory controller for joint_trajectory_controller
+[move_group-7] [INFO] [1792111634.174109847] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[move_group-7] [INFO] [1792111634.174123957] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[move_group-7] [INFO] [1792111634.174393790] [move_group.moveit.moveit.ros.trajectory_execution_manager]: Trajectory execution is not managing controllers
+[move_group-7] [INFO] [1792111634.174407522] [move_group]: MoveGroup debug mode is ON
+[move_group-7] [INFO] [1792111634.193491499] [move_group.moveit.moveit.planners.pilz.move_group_sequence_action]: initialize move group sequence action
+[move_group-7] [INFO] [1792111634.195010507] [move_group.moveit.moveit.planners.pilz.joint_limits_aggregator]: Reading limits from namespace robot_description_planning
+[move_group-7] [INFO] [1792111634.195126976] [move_group.moveit.moveit.planners.pilz.joint_limits_aggregator]: Reading limits from namespace robot_description_planning
+[move_group-7] [INFO] [1792111634.195511845] [move_group.moveit.moveit.ros.move_group.executable]: 
+[move_group-7] 
+[move_group-7] ********************************************************
+[move_group-7] * MoveGroup using: 
+[move_group-7] *     - apply_planning_scene_service
+[move_group-7] *     - clear_octomap_service
+[move_group-7] *     - ExecuteTaskSolution
+[move_group-7] *     - get_group_urdf
+[move_group-7] *     - load_geometry_from_file
+[move_group-7] *     - CartesianPathService
+[move_group-7] *     - execute_trajectory_action
+[move_group-7] *     - get_planning_scene_service
+[move_group-7] *     - kinematics_service
+[move_group-7] *     - move_action
+[move_group-7] *     - motion_plan_service
+[move_group-7] *     - query_planners_service
+[move_group-7] *     - state_validation_service
+[move_group-7] *     - save_geometry_to_file
+[move_group-7] *     - SequenceAction
+[move_group-7] *     - SequenceService
+[move_group-7] ********************************************************
+[move_group-7] 
+[move_group-7] [INFO] [1792111634.195537225] [move_group.moveit.moveit.ros.move_group.context]: MoveGroup context using pipeline pilz_industrial_motion_planner
+[move_group-7] [INFO] [1792111634.195542055] [move_group.moveit.moveit.ros.move_group.context]: MoveGroup context initialization complete
+[move_group-7] [96mLoading 'move_group/ApplyPlanningSceneService'...[0m
+[move_group-7] [96mLoading 'move_group/ClearOctomapService'...[0m
+[move_group-7] [96mLoading 'move_group/ExecuteTaskSolutionCapability'...[0m
+[move_group-7] [96mLoading 'move_group/GetUrdfService'...[0m
+[move_group-7] [96mLoading 'move_group/LoadGeometryFromFileService'...[0m
+[move_group-7] [96mLoading 'move_group/MoveGroupCartesianPathService'...[0m
+[move_group-7] [96mLoading 'move_group/MoveGroupExecuteTrajectoryAction'...[0m
+[move_group-7] [96mLoading 'move_group/MoveGroupGetPlanningSceneService'...[0m
+[move_group-7] [96mLoading 'move_group/MoveGroupKinematicsService'...[0m
+[move_group-7] [96mLoading 'move_group/MoveGroupMoveAction'...[0m
+[move_group-7] [96mLoading 'move_group/MoveGroupPlanService'...[0m
+[move_group-7] [96mLoading 'move_group/MoveGroupQueryPlannersService'...[0m
+[move_group-7] [96mLoading 'move_group/MoveGroupStateValidationService'...[0m
+[move_group-7] [96mLoading 'move_group/SaveGeometryToFileService'...[0m
+[move_group-7] [96mLoading 'pilz_industrial_motion_planner/MoveGroupSequenceAction'...[0m
+[move_group-7] [96mLoading 'pilz_industrial_motion_planner/MoveGroupSequenceService'...[0m
+[move_group-7] 
+[move_group-7] [92mYou can start planning now![0m
+[move_group-7] 
+[peach_scene_obstacles-2] [WARN] [1792111634.228328389] [rcl]: ROS_LOCALHOST_ONLY is deprecated but still honored if it is enabled. Use ROS_AUTOMATIC_DISCOVERY_RANGE and ROS_STATIC_PEERS instead.
+[peach_scene_obstacles-2] [WARN] [1792111634.228335950] [rcl]: 'localhost_only' is enabled, 'automatic_discovery_range' and 'static_peers' will be ignored.
+[peach_scene_obstacles-2] [INFO] [1792111634.314670944] [peach_scene_obstacles]: scene obstacles snapshot node ready (waits refresh trigger)
+[peach_observability-10] [WARN] [1792111634.334293735] [rcl]: ROS_LOCALHOST_ONLY is deprecated but still honored if it is enabled. Use ROS_AUTOMATIC_DISCOVERY_RANGE and ROS_STATIC_PEERS instead.
+[peach_observability-10] [WARN] [1792111634.334301375] [rcl]: 'localhost_only' is enabled, 'automatic_discovery_range' and 'static_peers' will be ignored.
+[ros2_control_node-4] [INFO] [1792111634.384257608] [controller_manager]: Loading controller : 'joint_trajectory_controller' of type 'joint_trajectory_controller/JointTrajectoryController'
+[ros2_control_node-4] [INFO] [1792111634.384294793] [controller_manager]: Loading controller 'joint_trajectory_controller'
+[ros2_control_node-4] [INFO] [1792111634.388482127] [controller_manager]: Controller 'joint_trajectory_controller' node arguments: --ros-args -p use_sim_time:=False --params-file /tmp/launch_params_73x8gv0c --params-file /home/mu/Desktop/aubo_e5_jazzy_ws/install/aubo_e5_bringup/share/aubo_e5_bringup/config/controllers.yaml 
+[peach_harvester-8] [WARN] [1792111634.393216353] [rcl]: ROS_LOCALHOST_ONLY is deprecated but still honored if it is enabled. Use ROS_AUTOMATIC_DISCOVERY_RANGE and ROS_STATIC_PEERS instead.
+[peach_harvester-8] [WARN] [1792111634.393223161] [rcl]: 'localhost_only' is enabled, 'automatic_discovery_range' and 'static_peers' will be ignored.
+[spawner-6] [INFO] [1792111634.399806868] [spawner_joint_trajectory_controller]: Loaded joint_trajectory_controller
+[ros2_control_node-4] [INFO] [1792111634.400628838] [controller_manager]: Configuring controller: 'joint_trajectory_controller'
+[ros2_control_node-4] [INFO] [1792111634.400772402] [joint_trajectory_controller]: No specific joint names are used for command interfaces. Using 'joints' parameter.
+[ros2_control_node-4] [INFO] [1792111634.400785834] [joint_trajectory_controller]: Command interfaces are [position] and state interfaces are [position velocity].
+[ros2_control_node-4] [INFO] [1792111634.400798471] [joint_trajectory_controller]: Using 'splines' interpolation method.
+[ros2_control_node-4] [INFO] [1792111634.403840073] [joint_trajectory_controller]: Action status changes will be monitored at 20.00 Hz.
+[ros2_control_node-4] [INFO] [1792111634.406396892] [joint_trajectory_controller]: Setting initial scaling factor to 1.000000
+[ros2_control_node-4] [INFO] [1792111634.406409958] [joint_trajectory_controller]: No scaling interface set. This controller will not read speed scaling from the hardware.
+[ros2_control_node-4] [INFO] [1792111634.409603901] [controller_manager]: Activating controllers: [ joint_trajectory_controller ]
+[ros2_control_node-4] [INFO] [1792111634.413491434] [controller_manager]: Successfully switched controllers!
+[spawner-6] [INFO] [1792111634.419267783] [spawner_joint_trajectory_controller]: Configured and activated joint_trajectory_controller
+[peach_harvester-8] [INFO] [1792111634.455392393] [peach_scene_perception_node]: YOLO=/home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_harvester/share/peach_harvester/model/best.pt
+[peach_harvester-8] [INFO] [1792111634.455570474] [peach_scene_perception_node]: SAM=/home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_harvester/share/peach_harvester/model/mobile_sam.pt
+[spawner-5] [INFO] [1792111634.496859734] [spawner_joint_state_broadcaster]: waiting for service /controller_manager/list_controllers to become available...
+[peach_observability-10] [WARN] [1792111634.524602190] [peach_observability]: *** 调试操作面已启用：运动类操作=默认拒绝。技能侧既有安全门照常生效；请保持 HTTP 回环绑定 ***
+[peach_observability-10] [INFO] [1792111634.527287877] [peach_observability]: 感知抓取过程页（过程监控+单步调试）: http://127.0.0.1:8090
+[peach_observability-10] [INFO] [1792111634.533092508] [peach_observability]: 全量录制订阅: /joint_states [sensor_msgs/msg/JointState]
+[peach_observability-10] [INFO] [1792111634.533544034] [peach_observability]: 全量录制订阅: /peach/observability/tcp_path [nav_msgs/msg/Path]
+[peach_observability-10] [INFO] [1792111634.533923250] [peach_observability]: 全量录制订阅: /peach/perception/target_observations [peach_interfaces/msg/PeachTargetObservationArray]
+[peach_observability-10] [INFO] [1792111634.534319853] [peach_observability]: 全量录制订阅: /peach/reconstruction/diagnostics [peach_interfaces/msg/ReconstructionStatus]
+[peach_observability-10] [INFO] [1792111634.534696198] [peach_observability]: 全量录制订阅: /peach/reconstruction/diagnostics_debug [std_msgs/msg/String]
+[peach_observability-10] [INFO] [1792111634.535048580] [peach_observability]: 全量录制订阅: /peach/reconstruction/grasp_decision [peach_interfaces/msg/GraspDecision]
+[peach_observability-10] [INFO] [1792111634.535390344] [peach_observability]: 全量录制订阅: /peach/reconstruction/refined_axis [geometry_msgs/msg/Vector3Stamped]
+[peach_observability-10] [INFO] [1792111634.535851545] [peach_observability]: 全量录制订阅: /peach/reconstruction/refined_diagnostics [peach_interfaces/msg/BagFittingArray]
+[peach_observability-10] [INFO] [1792111634.536210243] [peach_observability]: 全量录制订阅: /peach/reconstruction/refined_pose [peach_interfaces/msg/BagGraspCandidateArray]
+[peach_observability-10] [INFO] [1792111634.536562946] [peach_observability]: 全量录制订阅: /peach/reconstruction/status [std_msgs/msg/String]
+[peach_observability-10] [INFO] [1792111634.536911622] [peach_observability]: 全量录制订阅: /peach/reconstruction/tsdf_cloud [sensor_msgs/msg/PointCloud2]
+[peach_observability-10] [INFO] [1792111634.537266209] [peach_observability]: 全量录制订阅: /peach_arm/execute_target/_action/feedback [peach_interfaces/action/ExecuteTarget_FeedbackMessage]
+[peach_observability-10] [INFO] [1792111634.537611646] [peach_observability]: 全量录制订阅: /peach_arm/execute_target/_action/status [action_msgs/msg/GoalStatusArray]
+[peach_observability-10] [INFO] [1792111634.537955247] [peach_observability]: 全量录制订阅: /peach_arm/status [std_msgs/msg/String]
+[peach_observability-10] [INFO] [1792111634.538307884] [peach_observability]: 全量录制订阅: /peach_supervisor/events [peach_interfaces/msg/CanonicalEvent]
+[peach_observability-10] [INFO] [1792111634.538668426] [peach_observability]: 全量录制订阅: /peach_supervisor/run_harvest/_action/feedback [peach_interfaces/action/RunHarvest_FeedbackMessage]
+[peach_observability-10] [INFO] [1792111634.538997459] [peach_observability]: 全量录制订阅: /peach_supervisor/run_harvest/_action/status [action_msgs/msg/GoalStatusArray]
+[peach_observability-10] [INFO] [1792111634.539334811] [peach_observability]: 全量录制订阅: /peach_supervisor/scene_snapshot [peach_interfaces/msg/SceneSnapshot]
+[peach_observability-10] [INFO] [1792111634.539688829] [peach_observability]: 全量录制订阅: /peach_supervisor/state [peach_interfaces/msg/HarvestState]
+[peach_observability-10] [INFO] [1792111634.540064204] [peach_observability]: 全量录制订阅: /peach_target_reconstruction_node/build_target_model/_action/feedback [peach_interfaces/action/BuildTargetModel_FeedbackMessage]
+[peach_observability-10] [INFO] [1792111634.540401611] [peach_observability]: 全量录制订阅: /peach_target_reconstruction_node/build_target_model/_action/status [action_msgs/msg/GoalStatusArray]
+[peach_observability-10] [INFO] [1792111634.540759818] [peach_observability]: 全量录制订阅: /tf [tf2_msgs/msg/TFMessage]
+[peach_observability-10] [INFO] [1792111634.541112414] [peach_observability]: 全量录制订阅: /tf_static [tf2_msgs/msg/TFMessage]
+[INFO] [spawner-6]: process has finished cleanly [pid 15661]
+[ros2_control_node-4] [INFO] [1792111635.499549403] [controller_manager]: Loading controller : 'joint_state_broadcaster' of type 'joint_state_broadcaster/JointStateBroadcaster'
+[ros2_control_node-4] [INFO] [1792111635.499588326] [controller_manager]: Loading controller 'joint_state_broadcaster'
+[ros2_control_node-4] [INFO] [1792111635.501548762] [controller_manager]: Controller 'joint_state_broadcaster' node arguments: --ros-args -p use_sim_time:=False --params-file /tmp/launch_params_73x8gv0c --params-file /home/mu/Desktop/aubo_e5_jazzy_ws/install/aubo_e5_bringup/share/aubo_e5_bringup/config/controllers.yaml 
+[spawner-5] [INFO] [1792111635.509249459] [spawner_joint_state_broadcaster]: Loaded joint_state_broadcaster
+[ros2_control_node-4] [INFO] [1792111635.509971028] [controller_manager]: Configuring controller: 'joint_state_broadcaster'
+[ros2_control_node-4] [INFO] [1792111635.510026229] [joint_state_broadcaster]: 'joints' or 'interfaces' parameter is empty. All available state interfaces will be published
+[ros2_control_node-4] [INFO] [1792111635.514544361] [controller_manager]: Activating controllers: [ joint_state_broadcaster ]
+[ros2_control_node-4] [INFO] [1792111635.518548945] [controller_manager]: Successfully switched controllers!
+[spawner-5] [INFO] [1792111635.524167276] [spawner_joint_state_broadcaster]: Configured and activated joint_state_broadcaster
+[INFO] [spawner-5]: process has finished cleanly [pid 15660]
+[peach_harvester-8] [INFO] [1792111635.693319531] [peach_scene_perception_node]: Subscribed color=/camera/color/image_raw depth=/camera/depth/image_raw info=/camera/color/camera_info slop=0.05s optical=camera_color_optical_frame output=base_link depth_scale_unit=0.25 gravity_mode=tf calib=percipio-640x480-chessboard|hand_eye:import_humble_20260128T114006
+[peach_harvester-8] [INFO] [1792111635.693619668] [peach_scene_perception_node]: 目标身份记忆已启用：match_radius=0.06 m, max_targets=50, ema=0.3
+[peach_harvester-8] [INFO] [1792111635.705896836] [peach_target_reconstruction_node]: peach_target_reconstruction_node ready: base=base_link color=/camera/color/image_raw depth=/camera/depth/image_raw slop=0.05s depth_scale_unit=0.25 views(min/rec/max)=1/5/24 require_static=True auto_mode=True session_root=/home/mu/Desktop/aubo_e5_jazzy_ws/runs
+[lifecycle_manager-11] [INFO] [1792111635.745617845] [peach_lifecycle_manager]: [34m[1mStarting managed nodes bringup...[0m[0m
+[lifecycle_manager-11] [INFO] [1792111635.745661868] [peach_lifecycle_manager]: [34m[1mConfiguring peach_scene_perception_node[0m[0m
+[lifecycle_manager-11] [INFO] [1792111635.782621431] [peach_lifecycle_manager]: [34m[1mConfiguring peach_target_reconstruction_node[0m[0m
+[lifecycle_manager-11] [INFO] [1792111635.798138741] [peach_lifecycle_manager]: [34m[1mConfiguring peach_arm[0m[0m
+[peach_arm-9] [WARN] [1792111635.798558778] [peach_arm]: scan.protected_zones 丢弃畸形盒: 盒#0 存在 min>=max 的轴（空盒/退化盒），已丢弃
+[peach_arm-9] [WARN] [1792111635.820652930] [peach_arm]: scan.protected_zones 丢弃畸形盒: 盒#0 存在 min>=max 的轴（空盒/退化盒），已丢弃
+[peach_arm-9] [WARN] [1792111635.820762601] [peach_arm]: scan.protected_zones 丢弃畸形盒: 盒#0 存在 min>=max 的轴（空盒/退化盒），已丢弃
+[peach_arm-9] [WARN] [1792111635.822183880] [rcl.logging_rosout]: Publisher already registered for node name: 'peach_arm'. If this is due to multiple nodes with the same name then all logs for the logger named 'peach_arm' will go out over the existing publisher. As soon as any node with that name is destructed it will unregister the publisher, preventing any further logs for that name from being published on the rosout topic.
+[peach_arm-9] [INFO] [1792111635.827320918] [peach_arm.moveit.ros.rdf_loader]: Loaded robot model in 0.00197646 seconds
+[peach_arm-9] [INFO] [1792111635.827371067] [peach_arm.moveit.core.robot_model]: Loading robot model 'aubo_e5'...
+[peach_arm-9] [INFO] [1792111635.827381329] [peach_arm.moveit.core.robot_model]: No root/virtual joint specified in SRDF. Assuming fixed joint
+[peach_arm-9] [INFO] [1792111635.847137942] [peach_arm.moveit.kinematics.kdl_kinematics_plugin]: Joint weights for group 'manipulator_e5': 1 1 1 1 1 1
+[peach_arm-9] [INFO] [1792111635.854276431] [peach_arm.moveit.ros.move_group_interface]: Ready to take commands for planning group manipulator_e5.
+[peach_arm-9] [INFO] [1792111635.854622373] [peach_arm]: 主动视觉靠近节点 ready: group=manipulator_e5 base=base_link tip=tcp camera=camera_depth_optical_frame execution=plan_only grasp=disabled
+[peach_arm-9] [INFO] [1792111635.854736393] [peach_arm]: [IDLE] 已配置；activate 后才开放运动输出权限
+[lifecycle_manager-11] [INFO] [1792111635.855233400] [peach_lifecycle_manager]: [34m[1mConfiguring peach_supervisor[0m[0m
+[peach_harvester-8] [INFO] [1792111635.882404169] [peach_supervisor]: task executor configured; will not auto-start harvest
+[lifecycle_manager-11] [INFO] [1792111635.884457380] [peach_lifecycle_manager]: [34m[1mActivating peach_scene_perception_node[0m[0m
+[peach_harvester-8] [INFO] [1792111635.887173799] [peach_scene_perception_node]: perception Active：开始处理 RGB-D
+[lifecycle_manager-11] [INFO] [1792111635.889508293] [peach_lifecycle_manager]: [34m[1mActivating peach_target_reconstruction_node[0m[0m
+[peach_harvester-8] [INFO] [1792111635.894510052] [peach_target_reconstruction_node]: reconstruction Active：开始积分
+[lifecycle_manager-11] [INFO] [1792111635.896230747] [peach_lifecycle_manager]: [34m[1mActivating peach_arm[0m[0m
+[peach_arm-9] [WARN] [1792111635.896501618] [peach_arm]: scan.protected_zones 丢弃畸形盒: 盒#0 存在 min>=max 的轴（空盒/退化盒），已丢弃
+[peach_arm-9] [INFO] [1792111635.902117258] [peach_arm]: 节点已激活：运动输出权限开放
+[lifecycle_manager-11] [INFO] [1792111635.902510364] [peach_lifecycle_manager]: [34m[1mActivating peach_supervisor[0m[0m
+[lifecycle_manager-11] [INFO] [1792111635.905089603] [peach_lifecycle_manager]: [34m[1mManaged nodes are active[0m[0m
+[peach_arm-9] [WARN] [1792111635.906228276] [rcl.logging_rosout]: Publisher already registered for node name: 'peach_arm'. If this is due to multiple nodes with the same name then all logs for the logger named 'peach_arm' will go out over the existing publisher. As soon as any node with that name is destructed it will unregister the publisher, preventing any further logs for that name from being published on the rosout topic.
+[peach_arm-9] [WARN] [1792111635.911023323] [rcl.logging_rosout]: Publisher already registered for node name: 'peach_arm'. If this is due to multiple nodes with the same name then all logs for the logger named 'peach_arm' will go out over the existing publisher. As soon as any node with that name is destructed it will unregister the publisher, preventing any further logs for that name from being published on the rosout topic.
+[peach_lifecycle_flag_bridge-12] [INFO] [1792111635.915132782] [peach_lifecycle_flag_bridge]: 托管栈 Active=True（桥自 nav2_lm is_active）
+[peach_arm-9] [INFO] [1792111635.999348650] [peach_arm]: 场景障碍 ACM 豁免已应用: 28 条（含 <octomap> 保留名）
+[peach_observability-10] [INFO] [1792111636.548985407] [peach_observability]: 全量录制订阅: /display_planned_path [moveit_msgs/msg/DisplayTrajectory]
+[peach_observability-10] [INFO] [1792111636.596319414] [peach_observability]: 全量录制订阅: /execute_trajectory/_action/feedback [moveit_msgs/action/ExecuteTrajectory_FeedbackMessage]
+[peach_observability-10] [INFO] [1792111636.596959143] [peach_observability]: 全量录制订阅: /execute_trajectory/_action/status [action_msgs/msg/GoalStatusArray]
+[peach_observability-10] [INFO] [1792111636.646540392] [peach_observability]: 全量录制订阅: /joint_trajectory_controller/follow_joint_trajectory/_action/feedback [control_msgs/action/FollowJointTrajectory_FeedbackMessage]
+[peach_observability-10] [INFO] [1792111636.647683609] [peach_observability]: 全量录制订阅: /joint_trajectory_controller/follow_joint_trajectory/_action/status [action_msgs/msg/GoalStatusArray]
+[peach_observability-10] [INFO] [1792111636.648582409] [peach_observability]: 全量录制订阅: /peach/batch/enables [peach_interfaces/msg/Enables]
+[peach_observability-10] [INFO] [1792111636.649715475] [peach_observability]: 全量录制订阅: /peach/perception/masks [sensor_msgs/msg/Image]
+[peach_observability-10] [INFO] [1792111636.650297187] [peach_observability]: 全量录制订阅: /peach/reconstruction/local_cloud [sensor_msgs/msg/PointCloud2]
+[peach_observability-10] [INFO] [1792111636.650848776] [peach_observability]: 全量录制订阅: /peach/reconstruction/preview_cloud [sensor_msgs/msg/PointCloud2]
+[stereo_camera_node-1] [INFO] [1792111637.060183748] [camera.peach_stereo_camera_node]: iface eth-fc:9d:05:6c:6f:a00b0afea9: 1 device(s)
+[stereo_camera_node-1] [INFO] [1792111637.060236664] [camera.peach_stereo_camera_node]:   dev 207000152740 model PS800-E1 ip 169.254.10.110
+[stereo_camera_node-1] [INFO] [1792111637.210397141] [camera.peach_stereo_camera_node]: open device 207000152740: status=0
+[stereo_camera_node-1] [INFO] [1792111637.311478425] [camera.peach_stereo_camera_node]: rectify: R1=2.65deg f=548.9px B=62.2mm proc=640x480 numDisp=128 med=3 mode=3 tk=3
+[stereo_camera_node-1] [INFO] [1792111637.312787470] [camera.peach_stereo_camera_node]: color mode set: yuyv 640x480
+[peach_harvester-8] [INFO] [1792111638.291414310] [peach_scene_perception_node]: CameraInfo K fx=466.175 fy=465.557 cx=326.071 cy=244.789 640x480
+[peach_harvester-8] [WARN] [1792111638.292787348] [peach_target_reconstruction_node]: 重建 worker 队列已满，拒绝新帧以保持积分顺序
+[peach_harvester-8] /home/mu/Desktop/aubo_e5_jazzy_ws/aubo_py3.12/lib/python3.12/site-packages/matplotlib/projections/__init__.py:63: UserWarning: Unable to import Axes3D. This may be due to multiple versions of Matplotlib being installed (e.g. as a system package and as a pip package). As a result, the 3D projection is not available.
+[peach_harvester-8]   warnings.warn("Unable to import Axes3D. This may be due to multiple versions of "
+[peach_arm-9] [INFO] [1792111639.016852359] [peach_arm]: 场景障碍 ACM 豁免已应用: 28 条（含 <octomap> 保留名）
+[peach_arm-9] [INFO] [1792111642.037122480] [peach_arm]: 场景障碍 ACM 豁免已应用: 28 条（含 <octomap> 保留名）
+[peach_harvester-8] [INFO] [1792111643.213992069] [peach_scene_perception_node]: 目标注册表在册 0 个目标（累计注册 0、累计命中 0）
+[peach_harvester-8] [WARN] [1792111643.216420346] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 73（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-8] [INFO] [1792111643.844290205] [peach_scene_perception_node]: peach_harvester.vision.scene_perception.identity: 目标注册 累计 1 次（最近: target_0 cls=0 累计表规模 1）
+[peach_observability-10] [INFO] [1792111644.529935532] [peach_observability]: 自检[initial] 14/18 通过，跳过: robot_status, imu_topic, model_files, vegetation_status
+[stereo_camera_node-1] [INFO] [1792111644.945900603] [camera.peach_stereo_camera_node]: groups=100 published=100 rate=13.6 gps drop(stream=0 incomplete=0 nostamp=0 depth=0)
+[peach_harvester-8] [WARN] [1792111645.291901446] [peach_target_reconstruction_node]: New subscription discovered on topic '/peach/reconstruction/preview_cloud', requesting incompatible QoS. No messages will be sent to it. Last incompatible policy: RELIABILITY
+[peach_harvester-8] [WARN] [1792111648.338334796] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 117（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-8] [INFO] [1792111649.692273780] [peach_supervisor]: 操作台使能: execution=False grasp=False tool=False（live_camera_mock owned test）
+[peach_arm-9] [INFO] [1792111649.694492478] [peach_arm]: 使能切换到操作台广播源（/peach/batch/enables）
+[peach_arm-9] [INFO] [1792111649.694531397] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_arm-9] [INFO] [1792111649.879425591] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_arm-9] [INFO] [1792111650.878170923] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_observability-10] [WARN] [1792111651.764815306] [rosbag2_cpp]: Message definition for topic '/peach_target_reconstruction_node/build_target_model/_action/status' with type 'action_msgs/msg/GoalStatusArray' not found. Message definition will be left empty in bag.
+[peach_harvester-8] [INFO] [1792111651.775789689] [peach_target_reconstruction_node]: 已清空，回 IDLE
+[peach_arm-9] [INFO] [1792111651.908448516] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_harvester-8] [INFO] [1792111652.156920872] [peach_scene_perception_node]: peach_harvester.vision.scene_perception.identity: 目标注册 累计 2 次（最近: target_1 cls=0 累计表规模 2）
+[stereo_camera_node-1] [INFO] [1792111652.174422637] [camera.peach_stereo_camera_node]: groups=200 published=200 rate=13.7 gps drop(stream=0 incomplete=0 nostamp=0 depth=0)
+[peach_arm-9] [INFO] [1792111652.880677026] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_harvester-8] [INFO] [1792111653.391004123] [peach_scene_perception_node]: 目标注册表在册 2 个目标（累计注册 2、累计命中 48）
+[peach_harvester-8] [WARN] [1792111653.395382781] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 164（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-8] [INFO] [1792111653.495573260] [peach_target_reconstruction_node]: 自动开始：开始重建，绑定目标 target_0
+[peach_observability-10] [WARN] [1792111653.503533514] [rosbag2_cpp]: Message definition for topic '/peach_target_reconstruction_node/build_target_model/_action/feedback' with type 'peach_interfaces/msg/BuildTargetModel_FeedbackMessage' not found. Message definition will be left empty in bag.
+[peach_harvester-8] [WARN] [1792111653.525505810] [peach_target_reconstruction_node]: diagnostics 心跳超过 offered deadline 1.5s（累计违约 1 次）：节点执行器疑似卡滞
+[peach_harvester-8] [WARN] [1792111653.533488039] [peach_target_reconstruction_node]: 自动采帧跳过 [no_frame]：尚无同步 RGB-D 帧（确认相机/回放在线）
+[peach_harvester-8] [WARN] [1792111653.635486150] [peach_target_reconstruction_node]: 重建 worker 队列已满，拒绝新帧以保持积分顺序
+[peach_arm-9] [INFO] [1792111653.878734074] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_harvester-8] [INFO] [1792111654.350261140] [peach_target_reconstruction_node]: REFINING：几何二次拟合开始（kind=bag，25 点）
+[peach_harvester-8] [WARN] [1792111654.361907207] [peach_target_reconstruction_node]: REFINING：无接触权威几何（no_landmark_views）
+[peach_harvester-8] [INFO] [1792111654.362176696] [peach_target_reconstruction_node]: 已采第 1/5 视角，本帧 336 点，有效深度占比 0.70，位姿=fk
+[peach_harvester-8] [INFO] [1792111654.390376509] [peach_target_reconstruction_node]: REFINING：几何二次拟合开始（kind=bag，25 点）
+[peach_harvester-8] [WARN] [1792111654.399053172] [peach_target_reconstruction_node]: REFINING：无接触权威几何（no_landmark_views）
+[peach_harvester-8] [WARN] [1792111654.399358510] [peach_target_reconstruction_node]: 局部重建完成：1 帧，336 点（少于推荐 5 帧）；重叠指标需 ≥2 帧，本批次不可用；TSDF 25 点 / mesh 32 顶点（累计积分 0.00s）；refit 失败（no_landmark_views）；refit 未产出可用几何
+[peach_harvester-8] [INFO] [1792111654.424469954] [peach_target_reconstruction_node]: 已清空，回 IDLE
+[peach_harvester-8] [INFO] [1792111654.432667470] [peach_target_reconstruction_node]: 自动开始：开始重建，绑定目标 target_0
+[peach_harvester-8] [WARN] [1792111654.586624746] [peach_target_reconstruction_node]: 自动采帧跳过 [missing_mask]：缺少所选 target_id 的容差内掩膜
+[peach_arm-9] [INFO] [1792111654.877226351] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_harvester-8] [INFO] [1792111654.960064540] [peach_target_reconstruction_node]: REFINING：几何二次拟合开始（kind=bag，25 点）
+[peach_harvester-8] [WARN] [1792111654.967814604] [peach_target_reconstruction_node]: REFINING：无接触权威几何（no_landmark_views）
+[peach_harvester-8] [INFO] [1792111654.968449188] [peach_target_reconstruction_node]: 已采第 1/5 视角，本帧 335 点，有效深度占比 0.69，位姿=fk
+[peach_harvester-8] [INFO] [1792111654.980305691] [peach_target_reconstruction_node]: REFINING：几何二次拟合开始（kind=bag，25 点）
+[peach_harvester-8] [WARN] [1792111654.991610472] [peach_target_reconstruction_node]: REFINING：无接触权威几何（no_landmark_views）
+[peach_harvester-8] [WARN] [1792111654.992072722] [peach_target_reconstruction_node]: 局部重建完成：1 帧，335 点（少于推荐 5 帧）；重叠指标需 ≥2 帧，本批次不可用；TSDF 25 点 / mesh 28 顶点（累计积分 0.00s）；refit 失败（no_landmark_views）；refit 未产出可用几何
+[peach_harvester-8] [INFO] [1792111655.016422812] [peach_target_reconstruction_node]: 已清空，回 IDLE
+[peach_harvester-8] [INFO] [1792111655.019309568] [peach_target_reconstruction_node]: 自动开始：开始重建，绑定目标 target_0
+[peach_harvester-8] [INFO] [1792111655.501592632] [peach_target_reconstruction_node]: REFINING：几何二次拟合开始（kind=bag，29 点）
+[peach_harvester-8] [WARN] [1792111655.516041386] [peach_target_reconstruction_node]: REFINING：无接触权威几何（no_landmark_views）
+[peach_harvester-8] [INFO] [1792111655.516329211] [peach_target_reconstruction_node]: 已采第 1/5 视角，本帧 362 点，有效深度占比 0.71，位姿=fk
+[peach_harvester-8] [INFO] [1792111655.533290530] [peach_target_reconstruction_node]: REFINING：几何二次拟合开始（kind=bag，29 点）
+[peach_harvester-8] [WARN] [1792111655.554923713] [peach_target_reconstruction_node]: REFINING：无接触权威几何（no_landmark_views）
+[peach_harvester-8] [WARN] [1792111655.555301400] [peach_target_reconstruction_node]: 局部重建完成：1 帧，362 点（少于推荐 5 帧）；重叠指标需 ≥2 帧，本批次不可用；TSDF 29 点 / mesh 39 顶点（累计积分 0.00s）；refit 失败（no_landmark_views）；refit 未产出可用几何
+[peach_harvester-8] [INFO] [1792111655.570456034] [peach_target_reconstruction_node]: 已清空，回 IDLE
+[peach_harvester-8] [INFO] [1792111655.573341399] [peach_target_reconstruction_node]: 自动开始：开始重建，绑定目标 target_0
+[peach_harvester-8] [WARN] [1792111655.655306359] [peach_target_reconstruction_node]: 自动采帧跳过 [missing_mask]：缺少所选 target_id 的容差内掩膜
+[peach_arm-9] [INFO] [1792111655.880014727] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_harvester-8] [INFO] [1792111655.964825586] [peach_target_reconstruction_node]: REFINING：几何二次拟合开始（kind=bag，27 点）
+[peach_harvester-8] [WARN] [1792111655.973922487] [peach_target_reconstruction_node]: REFINING：无接触权威几何（no_landmark_views）
+[peach_harvester-8] [INFO] [1792111655.974167179] [peach_target_reconstruction_node]: 已采第 1/5 视角，本帧 356 点，有效深度占比 0.70，位姿=fk
+[peach_harvester-8] [INFO] [1792111655.992358725] [peach_target_reconstruction_node]: REFINING：几何二次拟合开始（kind=bag，27 点）
+[peach_harvester-8] [WARN] [1792111655.998931988] [peach_target_reconstruction_node]: REFINING：无接触权威几何（no_landmark_views）
+[peach_harvester-8] [WARN] [1792111655.999220571] [peach_target_reconstruction_node]: 局部重建完成：1 帧，356 点（少于推荐 5 帧）；重叠指标需 ≥2 帧，本批次不可用；TSDF 27 点 / mesh 39 顶点（累计积分 0.00s）；refit 失败（no_landmark_views）；refit 未产出可用几何
+[peach_harvester-8] [INFO] [1792111656.020997339] [peach_target_reconstruction_node]: 已清空，回 IDLE
+[peach_harvester-8] [INFO] [1792111656.024966952] [peach_target_reconstruction_node]: 自动开始：开始重建，绑定目标 target_0
+[peach_harvester-8] [INFO] [1792111656.600707427] [peach_target_reconstruction_node]: REFINING：几何二次拟合开始（kind=bag，29 点）
+[peach_harvester-8] [WARN] [1792111656.625471593] [peach_target_reconstruction_node]: REFINING：无接触权威几何（no_landmark_views）
+[peach_harvester-8] [INFO] [1792111656.625734772] [peach_target_reconstruction_node]: 已采第 1/5 视角，本帧 350 点，有效深度占比 0.71，位姿=fk
+[peach_harvester-8] [INFO] [1792111656.642084153] [peach_target_reconstruction_node]: REFINING：几何二次拟合开始（kind=bag，29 点）
+[peach_harvester-8] [WARN] [1792111656.670530234] [peach_target_reconstruction_node]: REFINING：无接触权威几何（no_landmark_views）
+[peach_harvester-8] [WARN] [1792111656.671364547] [peach_target_reconstruction_node]: 局部重建完成：1 帧，350 点（少于推荐 5 帧）；重叠指标需 ≥2 帧，本批次不可用；TSDF 29 点 / mesh 41 顶点（累计积分 0.00s）；refit 失败（no_landmark_views）；refit 未产出可用几何
+[peach_harvester-8] [WARN] [1792111656.695429343] [peach_target_reconstruction_node]: 自动采帧跳过 [same_stamp]：缓存帧未更新（与上次采帧同帧），请等下一帧
+[peach_harvester-8] [INFO] [1792111656.699126061] [peach_target_reconstruction_node]: 已清空，回 IDLE
+[peach_harvester-8] [INFO] [1792111656.702679962] [peach_target_reconstruction_node]: 自动开始：开始重建，绑定目标 target_0
+[peach_arm-9] [INFO] [1792111656.881793649] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_harvester-8] [INFO] [1792111657.142009551] [peach_target_reconstruction_node]: REFINING：几何二次拟合开始（kind=bag，29 点）
+[peach_harvester-8] [WARN] [1792111657.174100518] [peach_target_reconstruction_node]: REFINING：无接触权威几何（no_landmark_views）
+[peach_harvester-8] [INFO] [1792111657.174485838] [peach_target_reconstruction_node]: 已采第 1/5 视角，本帧 365 点，有效深度占比 0.70，位姿=fk
+[peach_harvester-8] [INFO] [1792111657.193773245] [peach_target_reconstruction_node]: REFINING：几何二次拟合开始（kind=bag，29 点）
+[peach_harvester-8] [WARN] [1792111657.222364342] [peach_target_reconstruction_node]: REFINING：无接触权威几何（no_landmark_views）
+[peach_harvester-8] [WARN] [1792111657.222705403] [peach_target_reconstruction_node]: 局部重建完成：1 帧，365 点（少于推荐 5 帧）；重叠指标需 ≥2 帧，本批次不可用；TSDF 29 点 / mesh 45 顶点（累计积分 0.00s）；refit 失败（no_landmark_views）；refit 未产出可用几何
+[peach_harvester-8] [INFO] [1792111657.251586101] [peach_target_reconstruction_node]: 已清空，回 IDLE
+[peach_harvester-8] [INFO] [1792111657.256581902] [peach_target_reconstruction_node]: 自动开始：开始重建，绑定目标 target_0
+[peach_harvester-8] [WARN] [1792111657.746828713] [peach_target_reconstruction_node]: 自动采帧跳过 [missing_mask]：缺少所选 target_id 的容差内掩膜
+[peach_harvester-8] [INFO] [1792111657.768894486] [peach_target_reconstruction_node]: REFINING：几何二次拟合开始（kind=bag，25 点）
+[peach_harvester-8] [WARN] [1792111657.789929093] [peach_target_reconstruction_node]: REFINING：无接触权威几何（no_landmark_views）
+[peach_harvester-8] [INFO] [1792111657.790687974] [peach_target_reconstruction_node]: 已采第 1/5 视角，本帧 321 点，有效深度占比 0.69，位姿=fk
+[peach_harvester-8] [INFO] [1792111657.813122594] [peach_target_reconstruction_node]: REFINING：几何二次拟合开始（kind=bag，25 点）
+[peach_harvester-8] [WARN] [1792111657.819311608] [peach_target_reconstruction_node]: REFINING：无接触权威几何（no_landmark_views）
+[peach_harvester-8] [WARN] [1792111657.819650601] [peach_target_reconstruction_node]: 局部重建完成：1 帧，321 点（少于推荐 5 帧）；重叠指标需 ≥2 帧，本批次不可用；TSDF 25 点 / mesh 30 顶点（累计积分 0.00s）；refit 失败（no_landmark_views）；refit 未产出可用几何
+[peach_harvester-8] [INFO] [1792111657.839747771] [peach_target_reconstruction_node]: 已清空，回 IDLE
+[peach_harvester-8] [INFO] [1792111657.844183657] [peach_target_reconstruction_node]: 自动开始：开始重建，绑定目标 target_0
+[peach_arm-9] [INFO] [1792111657.881184263] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_harvester-8] [INFO] [1792111658.338345408] [peach_target_reconstruction_node]: REFINING：几何二次拟合开始（kind=bag，25 点）
+[peach_harvester-8] [WARN] [1792111658.351781987] [peach_target_reconstruction_node]: REFINING：无接触权威几何（no_landmark_views）
+[peach_harvester-8] [INFO] [1792111658.352159180] [peach_target_reconstruction_node]: 已采第 1/5 视角，本帧 316 点，有效深度占比 0.69，位姿=fk
+[peach_harvester-8] [INFO] [1792111658.375982143] [peach_target_reconstruction_node]: REFINING：几何二次拟合开始（kind=bag，25 点）
+[peach_harvester-8] [WARN] [1792111658.385301842] [peach_target_reconstruction_node]: REFINING：无接触权威几何（no_landmark_views）
+[peach_harvester-8] [WARN] [1792111658.385579958] [peach_target_reconstruction_node]: 局部重建完成：1 帧，316 点（少于推荐 5 帧）；重叠指标需 ≥2 帧，本批次不可用；TSDF 25 点 / mesh 30 顶点（累计积分 0.00s）；refit 失败（no_landmark_views）；refit 未产出可用几何
+[peach_harvester-8] [INFO] [1792111658.420512420] [peach_target_reconstruction_node]: 已清空，回 IDLE
+[peach_harvester-8] [INFO] [1792111658.423776493] [peach_target_reconstruction_node]: 自动开始：开始重建，绑定目标 target_0
+[peach_harvester-8] [WARN] [1792111658.733265378] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 221（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-8] [WARN] [1792111658.751185130] [peach_target_reconstruction_node]: 自动采帧跳过 [missing_mask]：缺少所选 target_id 的容差内掩膜
+[peach_arm-9] [INFO] [1792111658.883087609] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_harvester-8] [INFO] [1792111658.998579273] [peach_target_reconstruction_node]: REFINING：几何二次拟合开始（kind=bag，24 点）
+[peach_harvester-8] [WARN] [1792111659.005708473] [peach_target_reconstruction_node]: REFINING：无接触权威几何（no_landmark_views）
+[peach_harvester-8] [INFO] [1792111659.005901540] [peach_target_reconstruction_node]: 已采第 1/5 视角，本帧 335 点，有效深度占比 0.70，位姿=fk
+[peach_harvester-8] [INFO] [1792111659.025013541] [peach_target_reconstruction_node]: REFINING：几何二次拟合开始（kind=bag，24 点）
+[peach_harvester-8] [WARN] [1792111659.031530002] [peach_target_reconstruction_node]: REFINING：无接触权威几何（no_landmark_views）
+[peach_harvester-8] [WARN] [1792111659.031801284] [peach_target_reconstruction_node]: 局部重建完成：1 帧，335 点（少于推荐 5 帧）；重叠指标需 ≥2 帧，本批次不可用；TSDF 24 点 / mesh 40 顶点（累计积分 0.00s）；refit 失败（no_landmark_views）；refit 未产出可用几何
+[peach_harvester-8] [INFO] [1792111659.056239781] [peach_target_reconstruction_node]: 已清空，回 IDLE
+[peach_harvester-8] [INFO] [1792111659.059066798] [peach_target_reconstruction_node]: 自动开始：开始重建，绑定目标 target_0
+[stereo_camera_node-1] [INFO] [1792111659.364526307] [camera.peach_stereo_camera_node]: groups=300 published=300 rate=13.8 gps drop(stream=0 incomplete=0 nostamp=0 depth=0)
+[peach_harvester-8] [INFO] [1792111659.564417687] [peach_target_reconstruction_node]: REFINING：几何二次拟合开始（kind=bag，25 点）
+[peach_harvester-8] [WARN] [1792111659.579408176] [peach_target_reconstruction_node]: REFINING：无接触权威几何（no_landmark_views）
+[peach_harvester-8] [INFO] [1792111659.579661756] [peach_target_reconstruction_node]: 已采第 1/5 视角，本帧 336 点，有效深度占比 0.70，位姿=fk
+[peach_harvester-8] [INFO] [1792111659.598225586] [peach_target_reconstruction_node]: REFINING：几何二次拟合开始（kind=bag，25 点）
+[peach_harvester-8] [WARN] [1792111659.606038228] [peach_target_reconstruction_node]: REFINING：无接触权威几何（no_landmark_views）
+[peach_harvester-8] [WARN] [1792111659.606311386] [peach_target_reconstruction_node]: 局部重建完成：1 帧，336 点（少于推荐 5 帧）；重叠指标需 ≥2 帧，本批次不可用；TSDF 25 点 / mesh 35 顶点（累计积分 0.00s）；refit 失败（no_landmark_views）；refit 未产出可用几何
+[peach_harvester-8] [INFO] [1792111659.633667203] [peach_target_reconstruction_node]: 已清空，回 IDLE
+[peach_harvester-8] [INFO] [1792111659.636392981] [peach_target_reconstruction_node]: 自动开始：开始重建，绑定目标 target_0
+[peach_harvester-8] [INFO] [1792111659.646148417] [peach_target_reconstruction_node]: 自动开始：开始重建，绑定目标 target_0
+[peach_harvester-8] [WARN] [1792111659.815639526] [peach_target_reconstruction_node]: 自动采帧跳过 [missing_mask]：缺少所选 target_id 的容差内掩膜
+[peach_arm-9] [INFO] [1792111659.878125262] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_harvester-8] [INFO] [1792111660.107875170] [peach_target_reconstruction_node]: REFINING：几何二次拟合开始（kind=bag，29 点）
+[peach_harvester-8] [WARN] [1792111660.136649018] [peach_target_reconstruction_node]: REFINING：无接触权威几何（no_landmark_views）
+[peach_harvester-8] [INFO] [1792111660.136930739] [peach_target_reconstruction_node]: 已采第 1/5 视角，本帧 347 点，有效深度占比 0.70，位姿=fk
+[peach_harvester-8] [INFO] [1792111660.146835683] [peach_target_reconstruction_node]: REFINING：几何二次拟合开始（kind=bag，29 点）
+[peach_harvester-8] [WARN] [1792111660.170164547] [peach_target_reconstruction_node]: REFINING：无接触权威几何（no_landmark_views）
+[peach_harvester-8] [WARN] [1792111660.170447795] [peach_target_reconstruction_node]: 局部重建完成：1 帧，347 点（少于推荐 5 帧）；重叠指标需 ≥2 帧，本批次不可用；TSDF 29 点 / mesh 37 顶点（累计积分 0.00s）；refit 失败（no_landmark_views）；refit 未产出可用几何
+[peach_harvester-8] [INFO] [1792111660.210600404] [peach_target_reconstruction_node]: 已清空，回 IDLE
+[peach_harvester-8] [INFO] [1792111660.215947071] [peach_target_reconstruction_node]: 自动开始：开始重建，绑定目标 target_0
+[peach_harvester-8] [INFO] [1792111660.683638378] [peach_target_reconstruction_node]: REFINING：几何二次拟合开始（kind=bag，26 点）
+[peach_harvester-8] [WARN] [1792111660.690071792] [peach_target_reconstruction_node]: REFINING：无接触权威几何（no_landmark_views）
+[peach_harvester-8] [INFO] [1792111660.690305761] [peach_target_reconstruction_node]: 已采第 1/5 视角，本帧 332 点，有效深度占比 0.69，位姿=fk
+[peach_harvester-8] [INFO] [1792111660.713803683] [peach_target_reconstruction_node]: REFINING：几何二次拟合开始（kind=bag，26 点）
+[peach_harvester-8] [WARN] [1792111660.719439970] [peach_target_reconstruction_node]: REFINING：无接触权威几何（no_landmark_views）
+[peach_harvester-8] [WARN] [1792111660.719735504] [peach_target_reconstruction_node]: 局部重建完成：1 帧，332 点（少于推荐 5 帧）；重叠指标需 ≥2 帧，本批次不可用；TSDF 26 点 / mesh 35 顶点（累计积分 0.00s）；refit 失败（no_landmark_views）；refit 未产出可用几何
+[peach_harvester-8] [INFO] [1792111660.763666229] [peach_target_reconstruction_node]: 已清空，回 IDLE
+[peach_harvester-8] [INFO] [1792111660.775639832] [peach_target_reconstruction_node]: 自动开始：开始重建，绑定目标 target_0
+[peach_arm-9] [INFO] [1792111660.883118605] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_harvester-8] [WARN] [1792111660.897572657] [peach_target_reconstruction_node]: 自动采帧跳过 [missing_mask]：缺少所选 target_id 的容差内掩膜
+[peach_harvester-8] [INFO] [1792111661.209396554] [peach_target_reconstruction_node]: REFINING：几何二次拟合开始（kind=bag，27 点）
+[peach_harvester-8] [WARN] [1792111661.215184437] [peach_target_reconstruction_node]: REFINING：无接触权威几何（no_landmark_views）
+[peach_harvester-8] [INFO] [1792111661.215463384] [peach_target_reconstruction_node]: 已采第 1/5 视角，本帧 344 点，有效深度占比 0.70，位姿=fk
+[peach_harvester-8] [INFO] [1792111661.232740236] [peach_target_reconstruction_node]: REFINING：几何二次拟合开始（kind=bag，27 点）
+[peach_harvester-8] [WARN] [1792111661.244496952] [peach_target_reconstruction_node]: REFINING：无接触权威几何（no_landmark_views）
+[peach_harvester-8] [WARN] [1792111661.244818821] [peach_target_reconstruction_node]: 局部重建完成：1 帧，344 点（少于推荐 5 帧）；重叠指标需 ≥2 帧，本批次不可用；TSDF 27 点 / mesh 37 顶点（累计积分 0.00s）；refit 失败（no_landmark_views）；refit 未产出可用几何
+[peach_harvester-8] [INFO] [1792111661.273458365] [peach_target_reconstruction_node]: 已清空，回 IDLE
+[peach_harvester-8] [INFO] [1792111661.276071058] [peach_target_reconstruction_node]: 自动开始：开始重建，绑定目标 target_0
+[peach_harvester-8] [INFO] [1792111661.766864001] [peach_target_reconstruction_node]: REFINING：几何二次拟合开始（kind=bag，25 点）
+[peach_harvester-8] [WARN] [1792111661.777679370] [peach_target_reconstruction_node]: REFINING：无接触权威几何（no_landmark_views）
+[peach_harvester-8] [INFO] [1792111661.778322211] [peach_target_reconstruction_node]: 已采第 1/5 视角，本帧 355 点，有效深度占比 0.70，位姿=fk
+[peach_harvester-8] [INFO] [1792111661.788463861] [peach_target_reconstruction_node]: REFINING：几何二次拟合开始（kind=bag，25 点）
+[peach_harvester-8] [WARN] [1792111661.797694235] [peach_target_reconstruction_node]: REFINING：无接触权威几何（no_landmark_views）
+[peach_harvester-8] [WARN] [1792111661.798032178] [peach_target_reconstruction_node]: 局部重建完成：1 帧，355 点（少于推荐 5 帧）；重叠指标需 ≥2 帧，本批次不可用；TSDF 25 点 / mesh 37 顶点（累计积分 0.00s）；refit 失败（no_landmark_views）；refit 未产出可用几何
+[peach_harvester-8] [INFO] [1792111661.829039822] [peach_target_reconstruction_node]: 已清空，回 IDLE
+[peach_harvester-8] [INFO] [1792111661.832050457] [peach_target_reconstruction_node]: 自动开始：开始重建，绑定目标 target_0
+[peach_arm-9] [INFO] [1792111661.879926335] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_harvester-8] [WARN] [1792111661.965959574] [peach_target_reconstruction_node]: 自动采帧跳过 [missing_mask]：缺少所选 target_id 的容差内掩膜
+[peach_harvester-8] [INFO] [1792111662.128551918] [peach_target_reconstruction_node]: REFINING：几何二次拟合开始（kind=bag，23 点）
+[peach_harvester-8] [WARN] [1792111662.141990215] [peach_target_reconstruction_node]: REFINING：无接触权威几何（no_landmark_views）
+[peach_harvester-8] [INFO] [1792111662.142202309] [peach_target_reconstruction_node]: 已采第 1/5 视角，本帧 323 点，有效深度占比 0.69，位姿=fk
+[peach_harvester-8] [INFO] [1792111662.157954949] [peach_target_reconstruction_node]: REFINING：几何二次拟合开始（kind=bag，23 点）
+[peach_harvester-8] [WARN] [1792111662.164084965] [peach_target_reconstruction_node]: REFINING：无接触权威几何（no_landmark_views）
+[peach_harvester-8] [WARN] [1792111662.164344601] [peach_target_reconstruction_node]: 局部重建完成：1 帧，323 点（少于推荐 5 帧）；重叠指标需 ≥2 帧，本批次不可用；TSDF 23 点 / mesh 29 顶点（累计积分 0.01s）；refit 失败（no_landmark_views）；refit 未产出可用几何
+[peach_harvester-8] [INFO] [1792111662.212731163] [peach_target_reconstruction_node]: 已清空，回 IDLE
+[peach_harvester-8] [INFO] [1792111662.219119819] [peach_target_reconstruction_node]: 自动开始：开始重建，绑定目标 target_0
+[peach_harvester-8] [INFO] [1792111662.224509489] [peach_target_reconstruction_node]: 自动开始：开始重建，绑定目标 target_0
+[peach_harvester-8] [INFO] [1792111662.676652674] [peach_target_reconstruction_node]: REFINING：几何二次拟合开始（kind=bag，30 点）
+[peach_harvester-8] [WARN] [1792111662.693328985] [peach_target_reconstruction_node]: REFINING：无接触权威几何（no_landmark_views）
+[peach_harvester-8] [INFO] [1792111662.693903772] [peach_target_reconstruction_node]: 已采第 1/5 视角，本帧 353 点，有效深度占比 0.70，位姿=fk
+[peach_harvester-8] [INFO] [1792111662.714782128] [peach_target_reconstruction_node]: REFINING：几何二次拟合开始（kind=bag，30 点）
+[peach_harvester-8] [WARN] [1792111662.736173998] [peach_target_reconstruction_node]: REFINING：无接触权威几何（no_landmark_views）
+[peach_harvester-8] [WARN] [1792111662.736518528] [peach_target_reconstruction_node]: 局部重建完成：1 帧，353 点（少于推荐 5 帧）；重叠指标需 ≥2 帧，本批次不可用；TSDF 30 点 / mesh 40 顶点（累计积分 0.00s）；refit 失败（no_landmark_views）；refit 未产出可用几何
+[peach_harvester-8] [INFO] [1792111662.766831382] [peach_target_reconstruction_node]: 已清空，回 IDLE
+[peach_harvester-8] [INFO] [1792111662.775587484] [peach_target_reconstruction_node]: 自动开始：开始重建，绑定目标 target_0
+[peach_arm-9] [INFO] [1792111662.878160479] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_harvester-8] [WARN] [1792111662.998239593] [peach_target_reconstruction_node]: 自动采帧跳过 [missing_mask]：缺少所选 target_id 的容差内掩膜
+[peach_harvester-8] [INFO] [1792111663.353276411] [peach_target_reconstruction_node]: REFINING：几何二次拟合开始（kind=bag，28 点）
+[peach_harvester-8] [WARN] [1792111663.370703873] [peach_target_reconstruction_node]: REFINING：无接触权威几何（no_landmark_views）
+[peach_harvester-8] [INFO] [1792111663.371711192] [peach_target_reconstruction_node]: 已采第 1/5 视角，本帧 335 点，有效深度占比 0.70，位姿=fk
+[peach_harvester-8] [INFO] [1792111663.384232352] [peach_target_reconstruction_node]: REFINING：几何二次拟合开始（kind=bag，28 点）
+[peach_harvester-8] [WARN] [1792111663.406947552] [peach_target_reconstruction_node]: REFINING：无接触权威几何（no_landmark_views）
+[peach_harvester-8] [WARN] [1792111663.407240378] [peach_target_reconstruction_node]: 局部重建完成：1 帧，335 点（少于推荐 5 帧）；重叠指标需 ≥2 帧，本批次不可用；TSDF 28 点 / mesh 36 顶点（累计积分 0.00s）；refit 失败（no_landmark_views）；refit 未产出可用几何
+[peach_harvester-8] [INFO] [1792111663.436372374] [peach_target_reconstruction_node]: 已清空，回 IDLE
+[peach_harvester-8] [INFO] [1792111663.438702875] [peach_target_reconstruction_node]: 自动开始：开始重建，绑定目标 target_0
+[peach_harvester-8] [INFO] [1792111663.682480597] [peach_scene_perception_node]: 目标注册表在册 2 个目标（累计注册 2、累计命中 83）
+[peach_harvester-8] [INFO] [1792111663.721396064] [peach_target_reconstruction_node]: REFINING：几何二次拟合开始（kind=bag，23 点）
+[peach_harvester-8] [WARN] [1792111663.726651661] [peach_target_reconstruction_node]: REFINING：无接触权威几何（no_landmark_views）
+[peach_harvester-8] [INFO] [1792111663.726847593] [peach_target_reconstruction_node]: 已采第 1/5 视角，本帧 328 点，有效深度占比 0.69，位姿=fk
+[peach_harvester-8] [INFO] [1792111663.737391991] [peach_target_reconstruction_node]: REFINING：几何二次拟合开始（kind=bag，23 点）
+[peach_harvester-8] [WARN] [1792111663.752834621] [peach_target_reconstruction_node]: REFINING：无接触权威几何（no_landmark_views）
+[peach_harvester-8] [WARN] [1792111663.753462651] [peach_target_reconstruction_node]: 局部重建完成：1 帧，328 点（少于推荐 5 帧）；重叠指标需 ≥2 帧，本批次不可用；TSDF 23 点 / mesh 36 顶点（累计积分 0.00s）；refit 失败（no_landmark_views）；refit 未产出可用几何
+[peach_harvester-8] [INFO] [1792111663.788584231] [peach_target_reconstruction_node]: 已清空，回 IDLE
+[peach_harvester-8] [INFO] [1792111663.791296521] [peach_target_reconstruction_node]: 自动开始：开始重建，绑定目标 target_0
+[peach_arm-9] [INFO] [1792111663.879751460] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_harvester-8] [WARN] [1792111664.002003022] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 276（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-8] [WARN] [1792111664.053089939] [peach_target_reconstruction_node]: 自动采帧跳过 [missing_mask]：缺少所选 target_id 的容差内掩膜
+[peach_harvester-8] [INFO] [1792111664.253864133] [peach_target_reconstruction_node]: REFINING：几何二次拟合开始（kind=bag，23 点）
+[peach_harvester-8] [WARN] [1792111664.259490002] [peach_target_reconstruction_node]: REFINING：无接触权威几何（no_landmark_views）
+[peach_harvester-8] [INFO] [1792111664.259724205] [peach_target_reconstruction_node]: 已采第 1/5 视角，本帧 335 点，有效深度占比 0.70，位姿=fk
+[peach_harvester-8] [INFO] [1792111664.278132032] [peach_target_reconstruction_node]: REFINING：几何二次拟合开始（kind=bag，23 点）
+[peach_harvester-8] [WARN] [1792111664.297100300] [peach_target_reconstruction_node]: REFINING：无接触权威几何（no_landmark_views）
+[peach_harvester-8] [WARN] [1792111664.297365899] [peach_target_reconstruction_node]: 局部重建完成：1 帧，335 点（少于推荐 5 帧）；重叠指标需 ≥2 帧，本批次不可用；TSDF 23 点 / mesh 38 顶点（累计积分 0.00s）；refit 失败（no_landmark_views）；refit 未产出可用几何
+[peach_harvester-8] [INFO] [1792111664.432873260] [peach_target_reconstruction_node]: 已清空，回 IDLE
+[peach_harvester-8] [INFO] [1792111664.440023106] [peach_target_reconstruction_node]: 自动开始：开始重建，绑定目标 target_0
+[peach_observability-10] [INFO] [1792111664.530314276] [peach_observability]: 自检[periodic] 14/18 通过，跳过: robot_status, imu_topic, model_files, vegetation_status
+[peach_harvester-8] [INFO] [1792111664.766532910] [peach_target_reconstruction_node]: REFINING：几何二次拟合开始（kind=bag，22 点）
+[peach_harvester-8] [WARN] [1792111664.774208084] [peach_target_reconstruction_node]: REFINING：无接触权威几何（no_landmark_views）
+[peach_harvester-8] [INFO] [1792111664.774660208] [peach_target_reconstruction_node]: 已采第 1/5 视角，本帧 325 点，有效深度占比 0.69，位姿=fk
+[peach_harvester-8] [INFO] [1792111664.787516670] [peach_target_reconstruction_node]: REFINING：几何二次拟合开始（kind=bag，22 点）
+[peach_harvester-8] [WARN] [1792111664.792892701] [peach_target_reconstruction_node]: REFINING：无接触权威几何（no_landmark_views）
+[peach_harvester-8] [WARN] [1792111664.793125175] [peach_target_reconstruction_node]: 局部重建完成：1 帧，325 点（少于推荐 5 帧）；重叠指标需 ≥2 帧，本批次不可用；TSDF 22 点 / mesh 35 顶点（累计积分 0.00s）；refit 失败（no_landmark_views）；refit 未产出可用几何
+[peach_harvester-8] [INFO] [1792111664.817991950] [peach_target_reconstruction_node]: 已清空，回 IDLE
+[peach_harvester-8] [INFO] [1792111664.821388044] [peach_target_reconstruction_node]: 自动开始：开始重建，绑定目标 target_0
+[peach_arm-9] [INFO] [1792111664.885433469] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_harvester-8] [WARN] [1792111665.117132783] [peach_target_reconstruction_node]: 自动采帧跳过 [missing_mask]：缺少所选 target_id 的容差内掩膜
+[peach_harvester-8] [INFO] [1792111665.329620098] [peach_target_reconstruction_node]: REFINING：几何二次拟合开始（kind=bag，27 点）
+[peach_harvester-8] [WARN] [1792111665.359982201] [peach_target_reconstruction_node]: REFINING：无接触权威几何（no_landmark_views）
+[peach_harvester-8] [INFO] [1792111665.360236913] [peach_target_reconstruction_node]: 已采第 1/5 视角，本帧 326 点，有效深度占比 0.69，位姿=fk
+[peach_harvester-8] [INFO] [1792111665.366736816] [peach_target_reconstruction_node]: REFINING：几何二次拟合开始（kind=bag，27 点）
+[peach_harvester-8] [WARN] [1792111665.396521365] [peach_target_reconstruction_node]: REFINING：无接触权威几何（no_landmark_views）
+[peach_harvester-8] [WARN] [1792111665.396845099] [peach_target_reconstruction_node]: 局部重建完成：1 帧，326 点（少于推荐 5 帧）；重叠指标需 ≥2 帧，本批次不可用；TSDF 27 点 / mesh 32 顶点（累计积分 0.00s）；refit 失败（no_landmark_views）；refit 未产出可用几何
+[peach_harvester-8] [INFO] [1792111665.425735305] [peach_target_reconstruction_node]: 已清空，回 IDLE
+[peach_harvester-8] [INFO] [1792111665.429694738] [peach_target_reconstruction_node]: 自动开始：开始重建，绑定目标 target_0
+[peach_arm-9] [INFO] [1792111665.879783226] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_harvester-8] [INFO] [1792111665.992515792] [peach_target_reconstruction_node]: REFINING：几何二次拟合开始（kind=bag，23 点）
+[peach_harvester-8] [WARN] [1792111666.003062348] [peach_target_reconstruction_node]: REFINING：无接触权威几何（no_landmark_views）
+[peach_harvester-8] [INFO] [1792111666.003922273] [peach_target_reconstruction_node]: 已采第 1/5 视角，本帧 311 点，有效深度占比 0.69，位姿=fk
+[peach_harvester-8] [INFO] [1792111666.014238397] [peach_target_reconstruction_node]: REFINING：几何二次拟合开始（kind=bag，23 点）
+[peach_harvester-8] [WARN] [1792111666.022777670] [peach_target_reconstruction_node]: REFINING：无接触权威几何（no_landmark_views）
+[peach_harvester-8] [WARN] [1792111666.023492759] [peach_target_reconstruction_node]: 局部重建完成：1 帧，311 点（少于推荐 5 帧）；重叠指标需 ≥2 帧，本批次不可用；TSDF 23 点 / mesh 27 顶点（累计积分 0.00s）；refit 失败（no_landmark_views）；refit 未产出可用几何
+[peach_harvester-8] [INFO] [1792111666.054833398] [peach_target_reconstruction_node]: 已清空，回 IDLE
+[peach_harvester-8] [INFO] [1792111666.057990587] [peach_target_reconstruction_node]: 自动开始：开始重建，绑定目标 target_0
+[peach_harvester-8] [WARN] [1792111666.158584108] [peach_target_reconstruction_node]: 自动采帧跳过 [missing_mask]：缺少所选 target_id 的容差内掩膜
+[stereo_camera_node-1] [INFO] [1792111666.539687626] [camera.peach_stereo_camera_node]: groups=400 published=400 rate=13.8 gps drop(stream=0 incomplete=0 nostamp=0 depth=0)
+[peach_harvester-8] [INFO] [1792111666.602061269] [peach_target_reconstruction_node]: REFINING：几何二次拟合开始（kind=bag，31 点）
+[peach_harvester-8] [WARN] [1792111666.630006188] [peach_target_reconstruction_node]: REFINING：无接触权威几何（no_landmark_views）
+[peach_harvester-8] [INFO] [1792111666.630384840] [peach_target_reconstruction_node]: 已采第 1/5 视角，本帧 352 点，有效深度占比 0.69，位姿=fk
+[peach_harvester-8] [INFO] [1792111666.635729633] [peach_target_reconstruction_node]: REFINING：几何二次拟合开始（kind=bag，31 点）
+[peach_harvester-8] [WARN] [1792111666.665198023] [peach_target_reconstruction_node]: REFINING：无接触权威几何（no_landmark_views）
+[peach_harvester-8] [WARN] [1792111666.666441779] [peach_target_reconstruction_node]: 局部重建完成：1 帧，352 点（少于推荐 5 帧）；重叠指标需 ≥2 帧，本批次不可用；TSDF 31 点 / mesh 36 顶点（累计积分 0.00s）；refit 失败（no_landmark_views）；refit 未产出可用几何
+[peach_harvester-8] [INFO] [1792111666.695538177] [peach_target_reconstruction_node]: 已清空，回 IDLE
+[peach_harvester-8] [INFO] [1792111666.703384582] [peach_target_reconstruction_node]: 自动开始：开始重建，绑定目标 target_0
+[peach_arm-9] [INFO] [1792111666.884628539] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_harvester-8] [INFO] [1792111667.115037649] [peach_target_reconstruction_node]: REFINING：几何二次拟合开始（kind=bag，21 点）
+[peach_harvester-8] [WARN] [1792111667.131755625] [peach_target_reconstruction_node]: REFINING：无接触权威几何（no_landmark_views）
+[peach_harvester-8] [INFO] [1792111667.131970624] [peach_target_reconstruction_node]: 已采第 1/5 视角，本帧 335 点，有效深度占比 0.69，位姿=fk
+[peach_harvester-8] [INFO] [1792111667.137485861] [peach_target_reconstruction_node]: REFINING：几何二次拟合开始（kind=bag，21 点）
+[peach_harvester-8] [WARN] [1792111667.150522734] [peach_target_reconstruction_node]: REFINING：无接触权威几何（no_landmark_views）
+[peach_harvester-8] [WARN] [1792111667.150916132] [peach_target_reconstruction_node]: 局部重建完成：1 帧，335 点（少于推荐 5 帧）；重叠指标需 ≥2 帧，本批次不可用；TSDF 21 点 / mesh 36 顶点（累计积分 0.00s）；refit 失败（no_landmark_views）；refit 未产出可用几何
+[peach_harvester-8] [WARN] [1792111667.178046438] [peach_target_reconstruction_node]: 自动采帧跳过 [same_stamp]：缓存帧未更新（与上次采帧同帧），请等下一帧
+[peach_harvester-8] [INFO] [1792111667.190505258] [peach_target_reconstruction_node]: 已清空，回 IDLE
+[peach_harvester-8] [INFO] [1792111667.194795743] [peach_target_reconstruction_node]: 自动开始：开始重建，绑定目标 target_0
+[peach_harvester-8] [INFO] [1792111667.838774326] [peach_target_reconstruction_node]: REFINING：几何二次拟合开始（kind=bag，21 点）
+[peach_harvester-8] [WARN] [1792111667.845261197] [peach_target_reconstruction_node]: REFINING：无接触权威几何（no_landmark_views）
+[peach_harvester-8] [INFO] [1792111667.845600539] [peach_target_reconstruction_node]: 已采第 1/5 视角，本帧 309 点，有效深度占比 0.69，位姿=fk
+[peach_harvester-8] [INFO] [1792111667.857165236] [peach_target_reconstruction_node]: REFINING：几何二次拟合开始（kind=bag，21 点）
+[peach_harvester-8] [WARN] [1792111667.871341427] [peach_target_reconstruction_node]: REFINING：无接触权威几何（no_landmark_views）
+[peach_harvester-8] [WARN] [1792111667.871673097] [peach_target_reconstruction_node]: 局部重建完成：1 帧，309 点（少于推荐 5 帧）；重叠指标需 ≥2 帧，本批次不可用；TSDF 21 点 / mesh 26 顶点（累计积分 0.00s）；refit 失败（no_landmark_views）；refit 未产出可用几何
+[peach_arm-9] [INFO] [1792111667.882518752] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_harvester-8] [INFO] [1792111667.907391769] [peach_target_reconstruction_node]: 已清空，回 IDLE
+[peach_harvester-8] [INFO] [1792111667.911625732] [peach_target_reconstruction_node]: 自动开始：开始重建，绑定目标 target_0
+[peach_harvester-8] [WARN] [1792111668.203041894] [peach_target_reconstruction_node]: 自动采帧跳过 [missing_mask]：缺少所选 target_id 的容差内掩膜
+[peach_harvester-8] [INFO] [1792111668.294003103] [peach_target_reconstruction_node]: REFINING：几何二次拟合开始（kind=bag，26 点）
+[peach_harvester-8] [WARN] [1792111668.299893520] [peach_target_reconstruction_node]: REFINING：无接触权威几何（no_landmark_views）
+[peach_harvester-8] [INFO] [1792111668.300194779] [peach_target_reconstruction_node]: 已采第 1/5 视角，本帧 305 点，有效深度占比 0.68，位姿=fk
+[peach_harvester-8] [INFO] [1792111668.308648656] [peach_target_reconstruction_node]: REFINING：几何二次拟合开始（kind=bag，26 点）
+[peach_harvester-8] [WARN] [1792111668.316883093] [peach_target_reconstruction_node]: REFINING：无接触权威几何（no_landmark_views）
+[peach_harvester-8] [WARN] [1792111668.317276761] [peach_target_reconstruction_node]: 局部重建完成：1 帧，305 点（少于推荐 5 帧）；重叠指标需 ≥2 帧，本批次不可用；TSDF 26 点 / mesh 25 顶点（累计积分 0.00s）；refit 失败（no_landmark_views）；refit 未产出可用几何
+[peach_harvester-8] [INFO] [1792111668.438367105] [peach_target_reconstruction_node]: 已清空，回 IDLE
+[peach_harvester-8] [INFO] [1792111668.442268281] [peach_target_reconstruction_node]: 自动开始：开始重建，绑定目标 target_0
+[peach_arm-9] [INFO] [1792111668.886204346] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_harvester-8] [INFO] [1792111668.887342569] [peach_target_reconstruction_node]: REFINING：几何二次拟合开始（kind=bag，25 点）
+[peach_harvester-8] [WARN] [1792111668.896436486] [peach_target_reconstruction_node]: REFINING：无接触权威几何（no_landmark_views）
+[peach_harvester-8] [INFO] [1792111668.896796585] [peach_target_reconstruction_node]: 已采第 1/5 视角，本帧 335 点，有效深度占比 0.69，位姿=fk
+[peach_harvester-8] [INFO] [1792111668.901567849] [peach_target_reconstruction_node]: 已采第 2/5 视角，本帧 335 点，有效深度占比 0.69，位姿=fk
+[peach_harvester-8] [INFO] [1792111668.921150830] [peach_target_reconstruction_node]: REFINING：几何二次拟合开始（kind=bag，25 点）
+[peach_harvester-8] [WARN] [1792111668.934942730] [peach_target_reconstruction_node]: REFINING：无接触权威几何（no_landmark_views）
+[peach_harvester-8] [WARN] [1792111668.935227855] [peach_target_reconstruction_node]: 局部重建完成：2 帧，670 点（少于推荐 5 帧）；重叠 mean=0.0mm p95=0.0mm；TSDF 25 点 / mesh 33 顶点（累计积分 0.01s）；refit 失败（no_landmark_views）；refit 未产出可用几何
+[peach_harvester-8] [INFO] [1792111668.971198243] [peach_target_reconstruction_node]: 已清空，回 IDLE
+[peach_harvester-8] [INFO] [1792111668.974496667] [peach_target_reconstruction_node]: 自动开始：开始重建，绑定目标 target_0
+[peach_harvester-8] [WARN] [1792111669.190675593] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 330（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-8] [WARN] [1792111669.212630337] [peach_target_reconstruction_node]: 自动采帧跳过 [missing_mask]：缺少所选 target_id 的容差内掩膜
+[peach_harvester-8] [INFO] [1792111669.467420056] [peach_target_reconstruction_node]: REFINING：几何二次拟合开始（kind=bag，27 点）
+[peach_harvester-8] [WARN] [1792111669.481970097] [peach_target_reconstruction_node]: REFINING：无接触权威几何（no_landmark_views）
+[peach_harvester-8] [INFO] [1792111669.482291175] [peach_target_reconstruction_node]: 已采第 1/5 视角，本帧 319 点，有效深度占比 0.68，位姿=fk
+[peach_harvester-8] [INFO] [1792111669.490541876] [peach_target_reconstruction_node]: REFINING：几何二次拟合开始（kind=bag，27 点）
+[peach_harvester-8] [WARN] [1792111669.517506859] [peach_target_reconstruction_node]: REFINING：无接触权威几何（no_landmark_views）
+[peach_harvester-8] [WARN] [1792111669.517791508] [peach_target_reconstruction_node]: 局部重建完成：1 帧，319 点（少于推荐 5 帧）；重叠指标需 ≥2 帧，本批次不可用；TSDF 27 点 / mesh 25 顶点（累计积分 0.00s）；refit 失败（no_landmark_views）；refit 未产出可用几何
+[peach_harvester-8] [INFO] [1792111669.553116863] [peach_target_reconstruction_node]: 已清空，回 IDLE
+[peach_harvester-8] [INFO] [1792111669.558438726] [peach_target_reconstruction_node]: 自动开始：开始重建，绑定目标 target_0
+[peach_arm-9] [INFO] [1792111669.884874369] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_harvester-8] [INFO] [1792111670.116102278] [peach_target_reconstruction_node]: REFINING：几何二次拟合开始（kind=bag，23 点）
+[peach_harvester-8] [WARN] [1792111670.125412588] [peach_target_reconstruction_node]: REFINING：无接触权威几何（no_landmark_views）
+[peach_harvester-8] [INFO] [1792111670.125792736] [peach_target_reconstruction_node]: 已采第 1/5 视角，本帧 318 点，有效深度占比 0.69，位姿=fk
+[peach_harvester-8] [INFO] [1792111670.143710640] [peach_target_reconstruction_node]: REFINING：几何二次拟合开始（kind=bag，23 点）
+[peach_harvester-8] [WARN] [1792111670.152382605] [peach_target_reconstruction_node]: REFINING：无接触权威几何（no_landmark_views）
+[peach_harvester-8] [WARN] [1792111670.152689536] [peach_target_reconstruction_node]: 局部重建完成：1 帧，318 点（少于推荐 5 帧）；重叠指标需 ≥2 帧，本批次不可用；TSDF 23 点 / mesh 32 顶点（累计积分 0.00s）；refit 失败（no_landmark_views）；refit 未产出可用几何
+[peach_harvester-8] [INFO] [1792111670.201182156] [peach_target_reconstruction_node]: 已清空，回 IDLE
+[peach_harvester-8] [INFO] [1792111670.204755635] [peach_target_reconstruction_node]: 自动开始：开始重建，绑定目标 target_0
+[peach_harvester-8] [WARN] [1792111670.218439096] [peach_target_reconstruction_node]: 自动采帧跳过 [missing_mask]：缺少所选 target_id 的容差内掩膜
+[peach_arm-9] [INFO] [1792111670.877476287] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_harvester-8] [INFO] [1792111670.944419892] [peach_target_reconstruction_node]: REFINING：几何二次拟合开始（kind=bag，21 点）
+[peach_harvester-8] [WARN] [1792111670.953856206] [peach_target_reconstruction_node]: REFINING：无接触权威几何（no_landmark_views）
+[peach_harvester-8] [INFO] [1792111670.954414397] [peach_target_reconstruction_node]: 已采第 1/5 视角，本帧 329 点，有效深度占比 0.70，位姿=fk
+[peach_harvester-8] [INFO] [1792111670.961094411] [peach_target_reconstruction_node]: REFINING：几何二次拟合开始（kind=bag，21 点）
+[peach_harvester-8] [WARN] [1792111670.968453341] [peach_target_reconstruction_node]: REFINING：无接触权威几何（no_landmark_views）
+[peach_harvester-8] [WARN] [1792111670.968822968] [peach_target_reconstruction_node]: 局部重建完成：1 帧，329 点（少于推荐 5 帧）；重叠指标需 ≥2 帧，本批次不可用；TSDF 21 点 / mesh 38 顶点（累计积分 0.01s）；refit 失败（no_landmark_views）；refit 未产出可用几何
+[peach_harvester-8] [INFO] [1792111671.006558919] [peach_target_reconstruction_node]: 已清空，回 IDLE
+[peach_harvester-8] [INFO] [1792111671.018591413] [peach_target_reconstruction_node]: 自动开始：开始重建，绑定目标 target_0
+[peach_harvester-8] [WARN] [1792111671.282382091] [peach_target_reconstruction_node]: 自动采帧跳过 [missing_mask]：缺少所选 target_id 的容差内掩膜
+[peach_harvester-8] [WARN] [1792111671.566800822] [peach_target_reconstruction_node]: 自动采帧未入库：配准拒帧：insufficient_source_points，fitness=-1.000 rmse=-1000.0mm，修正=0.0mm/0.00deg
+[peach_arm-9] [INFO] [1792111671.880366087] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_harvester-8] [INFO] [1792111671.881723582] [peach_target_reconstruction_node]: REFINING：几何二次拟合开始（kind=bag，22 点）
+[peach_harvester-8] [WARN] [1792111671.891041510] [peach_target_reconstruction_node]: REFINING：无接触权威几何（no_landmark_views）
+[peach_harvester-8] [INFO] [1792111671.891508013] [peach_target_reconstruction_node]: 已采第 1/5 视角，本帧 331 点，有效深度占比 0.70，位姿=fk
+[peach_harvester-8] [INFO] [1792111671.900790589] [peach_target_reconstruction_node]: REFINING：几何二次拟合开始（kind=bag，22 点）
+[peach_harvester-8] [WARN] [1792111671.917398269] [peach_target_reconstruction_node]: REFINING：无接触权威几何（no_landmark_views）
+[peach_harvester-8] [WARN] [1792111671.917987964] [peach_target_reconstruction_node]: 局部重建完成：1 帧，331 点（少于推荐 5 帧）；重叠指标需 ≥2 帧，本批次不可用；TSDF 22 点 / mesh 38 顶点（累计积分 0.00s）；refit 失败（no_landmark_views）；refit 未产出可用几何
+[peach_harvester-8] [INFO] [1792111671.962359921] [peach_target_reconstruction_node]: 已清空，回 IDLE
+[peach_harvester-8] [INFO] [1792111671.969251621] [peach_target_reconstruction_node]: 自动开始：开始重建，绑定目标 target_0
+[peach_harvester-8] [WARN] [1792111672.323588152] [peach_target_reconstruction_node]: 自动采帧跳过 [missing_mask]：缺少所选 target_id 的容差内掩膜
+[peach_harvester-8] [INFO] [1792111672.522974430] [peach_scene_perception_node]: peach_harvester.vision.scene_perception.identity: 目标注册 累计 3 次（最近: target_2 cls=0 累计表规模 2）
+[peach_harvester-8] [WARN] [1792111672.700447133] [peach_target_reconstruction_node]: 自动采帧未入库：配准拒帧：insufficient_source_points，fitness=-1.000 rmse=-1000.0mm，修正=0.0mm/0.00deg
+[peach_arm-9] [INFO] [1792111672.878467476] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_harvester-8] [INFO] [1792111673.155799191] [peach_target_reconstruction_node]: REFINING：几何二次拟合开始（kind=bag，25 点）
+[peach_harvester-8] [WARN] [1792111673.177878888] [peach_target_reconstruction_node]: REFINING：无接触权威几何（no_landmark_views）
+[peach_harvester-8] [INFO] [1792111673.178896162] [peach_target_reconstruction_node]: 已采第 1/5 视角，本帧 335 点，有效深度占比 0.70，位姿=fk
+[peach_harvester-8] [INFO] [1792111673.214063972] [peach_target_reconstruction_node]: REFINING：几何二次拟合开始（kind=bag，25 点）
+[peach_harvester-8] [WARN] [1792111673.225421967] [peach_target_reconstruction_node]: REFINING：无接触权威几何（no_landmark_views）
+[peach_harvester-8] [WARN] [1792111673.229845132] [peach_target_reconstruction_node]: 局部重建完成：1 帧，335 点（少于推荐 5 帧）；重叠指标需 ≥2 帧，本批次不可用；TSDF 25 点 / mesh 35 顶点（累计积分 0.01s）；refit 失败（no_landmark_views）；refit 未产出可用几何
+[peach_harvester-8] [INFO] [1792111673.277794429] [peach_target_reconstruction_node]: 已清空，回 IDLE
+[peach_harvester-8] [INFO] [1792111673.283433794] [peach_target_reconstruction_node]: 自动开始：开始重建，绑定目标 target_0
+[peach_harvester-8] [WARN] [1792111673.338744588] [peach_target_reconstruction_node]: 自动采帧跳过 [missing_mask]：缺少所选 target_id 的容差内掩膜
+[peach_harvester-8] [INFO] [1792111673.820562448] [peach_scene_perception_node]: 目标注册表在册 2 个目标（累计注册 3、累计命中 114）
+[peach_arm-9] [INFO] [1792111673.881392044] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_harvester-8] [WARN] [1792111674.216567460] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 377（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-8] [INFO] [1792111674.237708804] [peach_target_reconstruction_node]: REFINING：几何二次拟合开始（kind=bag，20 点）
+[peach_harvester-8] [WARN] [1792111674.253644541] [peach_target_reconstruction_node]: REFINING：无接触权威几何（no_landmark_views）
+[peach_harvester-8] [INFO] [1792111674.254055151] [peach_target_reconstruction_node]: 已采第 1/5 视角，本帧 313 点，有效深度占比 0.68，位姿=fk
+[peach_harvester-8] [INFO] [1792111674.271973168] [peach_target_reconstruction_node]: REFINING：几何二次拟合开始（kind=bag，20 点）
+[peach_harvester-8] [WARN] [1792111674.278365669] [peach_target_reconstruction_node]: REFINING：无接触权威几何（no_landmark_views）
+[peach_harvester-8] [WARN] [1792111674.278967812] [peach_target_reconstruction_node]: 局部重建完成：1 帧，313 点（少于推荐 5 帧）；重叠指标需 ≥2 帧，本批次不可用；TSDF 20 点 / mesh 37 顶点（累计积分 0.00s）；refit 失败（no_landmark_views）；refit 未产出可用几何
+[peach_harvester-8] [INFO] [1792111674.310942598] [peach_target_reconstruction_node]: 已清空，回 IDLE
+[peach_harvester-8] [INFO] [1792111674.315710543] [peach_target_reconstruction_node]: 自动开始：开始重建，绑定目标 target_0
+[stereo_camera_node-1] [INFO] [1792111674.384226105] [camera.peach_stereo_camera_node]: groups=500 published=500 rate=13.6 gps drop(stream=0 incomplete=0 nostamp=0 depth=0)
+[peach_harvester-8] [WARN] [1792111674.408587159] [peach_target_reconstruction_node]: 自动采帧跳过 [missing_mask]：缺少所选 target_id 的容差内掩膜
+[peach_harvester-8] [INFO] [1792111674.826835272] [peach_target_reconstruction_node]: REFINING：几何二次拟合开始（kind=bag，28 点）
+[peach_harvester-8] [WARN] [1792111674.860586920] [peach_target_reconstruction_node]: REFINING：无接触权威几何（no_landmark_views）
+[peach_harvester-8] [INFO] [1792111674.860975528] [peach_target_reconstruction_node]: 已采第 1/5 视角，本帧 339 点，有效深度占比 0.70，位姿=fk
+[peach_arm-9] [INFO] [1792111674.877365472] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_harvester-8] [INFO] [1792111674.877948961] [peach_target_reconstruction_node]: REFINING：几何二次拟合开始（kind=bag，28 点）
+[peach_harvester-8] [WARN] [1792111674.918324993] [peach_target_reconstruction_node]: REFINING：无接触权威几何（no_landmark_views）
+[peach_harvester-8] [WARN] [1792111674.918808907] [peach_target_reconstruction_node]: 局部重建完成：1 帧，339 点（少于推荐 5 帧）；重叠指标需 ≥2 帧，本批次不可用；TSDF 28 点 / mesh 39 顶点（累计积分 0.00s）；refit 失败（no_landmark_views）；refit 未产出可用几何
+[peach_harvester-8] [INFO] [1792111674.957583472] [peach_target_reconstruction_node]: 已清空，回 IDLE
+[peach_harvester-8] [INFO] [1792111674.961219540] [peach_target_reconstruction_node]: 自动开始：开始重建，绑定目标 target_0
+[peach_harvester-8] [WARN] [1792111675.411614177] [peach_target_reconstruction_node]: 自动采帧跳过 [missing_mask]：缺少所选 target_id 的容差内掩膜
+[peach_arm-9] [INFO] [1792111675.892325938] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_harvester-8] [INFO] [1792111676.266272936] [peach_target_reconstruction_node]: REFINING：几何二次拟合开始（kind=bag，28 点）
+[peach_harvester-8] [WARN] [1792111676.293806522] [peach_target_reconstruction_node]: REFINING：无接触权威几何（no_landmark_views）
+[peach_harvester-8] [INFO] [1792111676.294224728] [peach_target_reconstruction_node]: 已采第 1/5 视角，本帧 346 点，有效深度占比 0.69，位姿=fk
+[peach_harvester-8] [INFO] [1792111676.305577099] [peach_target_reconstruction_node]: REFINING：几何二次拟合开始（kind=bag，28 点）
+[peach_harvester-8] [WARN] [1792111676.334181597] [peach_target_reconstruction_node]: REFINING：无接触权威几何（no_landmark_views）
+[peach_harvester-8] [WARN] [1792111676.335041813] [peach_target_reconstruction_node]: 局部重建完成：1 帧，346 点（少于推荐 5 帧）��重叠指标需 ≥2 帧，本批次不可用；TSDF 28 点 / mesh 37 顶点（累计积分 0.01s）；refit 失败（no_landmark_views）；refit 未产出可用几何
+[peach_harvester-8] [INFO] [1792111676.374653059] [peach_target_reconstruction_node]: 已清空，回 IDLE
+[peach_harvester-8] [INFO] [1792111676.381851366] [peach_target_reconstruction_node]: 自动开始：开始重建，绑定目标 target_0
+[peach_harvester-8] [WARN] [1792111676.455538954] [peach_target_reconstruction_node]: 自动采帧跳过 [missing_mask]：缺少所选 target_id 的容差内掩膜
+[peach_harvester-8] [INFO] [1792111676.758496701] [peach_target_reconstruction_node]: REFINING：几何二次拟合开始（kind=bag，24 点）
+[peach_harvester-8] [WARN] [1792111676.764807427] [peach_target_reconstruction_node]: REFINING：无接触权威几何（no_landmark_views）
+[peach_harvester-8] [INFO] [1792111676.765058137] [peach_target_reconstruction_node]: 已采第 1/5 视角，本帧 338 点，有效深度占比 0.70，位姿=fk
+[peach_harvester-8] [INFO] [1792111676.776149261] [peach_target_reconstruction_node]: REFINING：几何二次拟合开始（kind=bag，24 点）
+[peach_harvester-8] [WARN] [1792111676.782232289] [peach_target_reconstruction_node]: REFINING：无接触权威几何（no_landmark_views）
+[peach_harvester-8] [WARN] [1792111676.782771475] [peach_target_reconstruction_node]: 局部重建完成：1 帧，338 点（少于推荐 5 帧）��重叠指标需 ≥2 帧，本批次不可用；TSDF 24 点 / mesh 37 顶点（累计积分 0.00s）；refit 失败（no_landmark_views）；refit 未产出可用几何
+[peach_harvester-8] [INFO] [1792111676.825048712] [peach_target_reconstruction_node]: 已清空，回 IDLE
+[peach_harvester-8] [INFO] [1792111676.835958416] [peach_target_reconstruction_node]: 自动开始：开始重建，绑定目标 target_0
+[peach_arm-9] [INFO] [1792111676.877077544] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_harvester-8] [INFO] [1792111677.331000611] [peach_target_reconstruction_node]: REFINING：几何二次拟合开始（kind=bag，26 点）
+[peach_harvester-8] [WARN] [1792111677.349334078] [peach_target_reconstruction_node]: REFINING：无接触权威几何（no_landmark_views）
+[peach_harvester-8] [INFO] [1792111677.349602709] [peach_target_reconstruction_node]: 已采第 1/5 视角，本帧 335 点，有效深度占比 0.69，位姿=fk
+[peach_harvester-8] [INFO] [1792111677.359326402] [peach_target_reconstruction_node]: REFINING：几何二次拟合开始（kind=bag，26 点）
+[peach_harvester-8] [WARN] [1792111677.370397400] [peach_target_reconstruction_node]: REFINING：无接触权威几何（no_landmark_views）
+[peach_harvester-8] [WARN] [1792111677.370695413] [peach_target_reconstruction_node]: 局部重建完成：1 帧，335 点（少于推荐 5 帧）；重叠指标需 ≥2 帧，本批次不可用；TSDF 26 点 / mesh 35 顶点（累计积分 0.00s）；refit 失败（no_landmark_views）；refit 未产出可用几何
+[peach_harvester-8] [INFO] [1792111677.401983830] [peach_target_reconstruction_node]: 已清空，回 IDLE
+[peach_harvester-8] [INFO] [1792111677.409746600] [peach_target_reconstruction_node]: 自动开始：开始重建，绑定目标 target_0
+[peach_harvester-8] [WARN] [1792111677.526524628] [peach_target_reconstruction_node]: 自动采帧跳过 [missing_mask]：缺少所选 target_id 的容差内掩膜
+[peach_arm-9] [INFO] [1792111677.878218321] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_harvester-8] [INFO] [1792111677.880133886] [peach_target_reconstruction_node]: REFINING：几何二次拟合开始（kind=bag，24 点）
+[peach_harvester-8] [WARN] [1792111677.886263461] [peach_target_reconstruction_node]: REFINING：无接触权威几何（no_landmark_views）
+[peach_harvester-8] [INFO] [1792111677.886596173] [peach_target_reconstruction_node]: 已采第 1/5 视角，本帧 337 点，有效深度占比 0.70，位姿=fk
+[peach_harvester-8] [INFO] [1792111677.899262056] [peach_target_reconstruction_node]: REFINING：几何二次拟合开始（kind=bag，24 点）
+[peach_harvester-8] [WARN] [1792111677.909850827] [peach_target_reconstruction_node]: REFINING：无接触权威几何（no_landmark_views）
+[peach_harvester-8] [WARN] [1792111677.910182322] [peach_target_reconstruction_node]: 局部重建完成：1 帧，337 点（少于推荐 5 帧）；重叠指标需 ≥2 帧，本批次不可用；TSDF 24 点 / mesh 37 顶点（累计积分 0.01s）；refit 失败（no_landmark_views）；refit 未产出可用几何
+[peach_harvester-8] [INFO] [1792111677.943743824] [peach_target_reconstruction_node]: 已清空，回 IDLE
+[peach_harvester-8] [INFO] [1792111677.949598039] [peach_target_reconstruction_node]: 自动开始：开始重建，绑定目标 target_0
+[peach_harvester-8] [INFO] [1792111678.381463722] [peach_target_reconstruction_node]: REFINING：几何二次拟合开始（kind=bag，23 点）
+[peach_harvester-8] [WARN] [1792111678.402595328] [peach_target_reconstruction_node]: REFINING：无接触权威几何（no_landmark_views）
+[peach_harvester-8] [INFO] [1792111678.403000999] [peach_target_reconstruction_node]: 已采第 1/5 视角，本帧 327 点，有效深度占比 0.69，位姿=fk
+[peach_harvester-8] [INFO] [1792111678.428336635] [peach_target_reconstruction_node]: REFINING：几何二次拟合开始（kind=bag，23 点）
+[peach_harvester-8] [WARN] [1792111678.434893528] [peach_target_reconstruction_node]: REFINING：无接触权威几何（no_landmark_views）
+[peach_harvester-8] [WARN] [1792111678.435244658] [peach_target_reconstruction_node]: 局部重建完成：1 帧，327 点（少于推荐 5 帧）；重叠指标需 ≥2 帧，本批次不可用；TSDF 23 点 / mesh 38 顶点（累计积分 0.00s）；refit 失败（no_landmark_views）；refit 未产出可用几何
+[peach_harvester-8] [INFO] [1792111678.483832616] [peach_target_reconstruction_node]: 已清空，回 IDLE
+[peach_harvester-8] [INFO] [1792111678.499182487] [peach_target_reconstruction_node]: 自动开始：开始重建，绑定目标 target_0
+[peach_harvester-8] [WARN] [1792111678.543376157] [peach_target_reconstruction_node]: 自动采帧跳过 [missing_mask]：缺少所选 target_id 的容差内掩膜
+[peach_arm-9] [INFO] [1792111678.879391457] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_harvester-8] [INFO] [1792111678.974980362] [peach_target_reconstruction_node]: REFINING：几何二次拟合开始（kind=bag，20 点）
+[peach_harvester-8] [WARN] [1792111678.981187902] [peach_target_reconstruction_node]: REFINING：无接触权威几何（no_landmark_views）
+[peach_harvester-8] [INFO] [1792111678.981457571] [peach_target_reconstruction_node]: 已采第 1/5 视角，本帧 317 点，有效深度占比 0.69，位姿=fk
+[peach_harvester-8] [INFO] [1792111678.992895490] [peach_target_reconstruction_node]: REFINING：几何二次拟合开始（kind=bag，20 点）
+[peach_harvester-8] [WARN] [1792111678.998818010] [peach_target_reconstruction_node]: REFINING：无接触权威几何（no_landmark_views）
+[peach_harvester-8] [WARN] [1792111678.999198865] [peach_target_reconstruction_node]: 局部重建完成：1 帧，317 点（少于推荐 5 帧）；重叠指标需 ≥2 帧，本批次不可用；TSDF 20 点 / mesh 33 顶点（累计积分 0.00s）；refit 失败（no_landmark_views）；refit 未产出可用几何
+[peach_harvester-8] [INFO] [1792111679.032292207] [peach_target_reconstruction_node]: 已清空，回 IDLE
+[peach_harvester-8] [INFO] [1792111679.040302172] [peach_target_reconstruction_node]: 自动开始：开始重建，绑定目标 target_0
+[peach_harvester-8] [WARN] [1792111679.252011277] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 427（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-8] [INFO] [1792111679.541834408] [peach_target_reconstruction_node]: REFINING：几何二次拟合开始（kind=bag，29 点）
+[peach_harvester-8] [WARN] [1792111679.552859996] [peach_target_reconstruction_node]: REFINING：无接触权威几何（no_landmark_views）
+[peach_harvester-8] [INFO] [1792111679.553101256] [peach_target_reconstruction_node]: 已采第 1/5 视角，本帧 319 点，有效深度占比 0.69，位姿=fk
+[peach_harvester-8] [INFO] [1792111679.562853150] [peach_target_reconstruction_node]: REFINING：几何二次拟合开始（kind=bag，29 点）
+[peach_harvester-8] [WARN] [1792111679.580289380] [peach_target_reconstruction_node]: REFINING：无接触权威几何（no_landmark_views）
+[peach_harvester-8] [WARN] [1792111679.580569918] [peach_target_reconstruction_node]: 局部重建完成：1 帧，319 点（少于推荐 5 帧）；重叠指标需 ≥2 帧，本批次不可用；TSDF 29 点 / mesh 39 顶点（累计积分 0.00s）；refit 失败（no_landmark_views）；refit 未产出可用几何
+[peach_harvester-8] [WARN] [1792111679.614005556] [peach_target_reconstruction_node]: 自动采帧跳过 [same_stamp]：缓存帧未更新（与上次采帧同帧），请等下一帧
+[peach_harvester-8] [INFO] [1792111679.619803834] [peach_target_reconstruction_node]: 已清空，回 IDLE
+[peach_harvester-8] [INFO] [1792111679.622482092] [peach_target_reconstruction_node]: 自动开始：开始重建，绑定目标 target_0
+[peach_arm-9] [INFO] [1792111679.880074340] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_harvester-8] [INFO] [1792111680.185482001] [peach_target_reconstruction_node]: REFINING：几何二次拟合开始（kind=bag，28 点）
+[peach_harvester-8] [WARN] [1792111680.202870890] [peach_target_reconstruction_node]: REFINING：无接触权威几何（no_landmark_views）
+[peach_harvester-8] [INFO] [1792111680.203592146] [peach_target_reconstruction_node]: 已采第 1/5 视角，本帧 337 点，有效深度占比 0.70，位姿=fk
+[peach_harvester-8] [INFO] [1792111680.210775792] [peach_target_reconstruction_node]: REFINING：几何二次拟合开始（kind=bag，28 点）
+[peach_harvester-8] [WARN] [1792111680.233258125] [peach_target_reconstruction_node]: REFINING：无接触权威几何（no_landmark_views）
+[peach_harvester-8] [WARN] [1792111680.233944768] [peach_target_reconstruction_node]: 局部重建完成：1 帧，337 点（少于推荐 5 帧）；重叠指标需 ≥2 帧，本批次不可用；TSDF 28 点 / mesh 40 顶点（累计积分 0.00s）；refit 失败（no_landmark_views）；refit 未产出可用几何
+[peach_harvester-8] [INFO] [1792111680.286137851] [peach_target_reconstruction_node]: 已清空，回 IDLE
+[peach_harvester-8] [INFO] [1792111680.295757840] [peach_target_reconstruction_node]: 自动开始：开始重建，绑定目标 target_0
+[peach_harvester-8] [WARN] [1792111680.635931918] [peach_target_reconstruction_node]: 自动采帧跳过 [missing_mask]：缺少所选 target_id 的容差内掩膜
+[peach_arm-9] [INFO] [1792111680.877952159] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_harvester-8] [INFO] [1792111681.044565930] [peach_target_reconstruction_node]: REFINING：几何二次拟合开始（kind=bag，23 点）
+[peach_harvester-8] [WARN] [1792111681.054208855] [peach_target_reconstruction_node]: REFINING：无接触权威几何（no_landmark_views）
+[peach_harvester-8] [INFO] [1792111681.054473106] [peach_target_reconstruction_node]: 已采第 1/5 视角，本帧 334 点，有效深度占比 0.70，位姿=fk
+[peach_harvester-8] [INFO] [1792111681.060014033] [peach_target_reconstruction_node]: REFINING：几何二次拟合开始（kind=bag，23 点）
+[peach_harvester-8] [WARN] [1792111681.074564916] [peach_target_reconstruction_node]: REFINING：无接触权威几何（no_landmark_views）
+[peach_harvester-8] [WARN] [1792111681.075110865] [peach_target_reconstruction_node]: 局部重建完成：1 帧，334 点（少于推荐 5 帧）；重叠指标需 ≥2 帧，本批次不可用；TSDF 23 点 / mesh 35 顶点（累计积分 0.00s）；refit 失败（no_landmark_views）；refit 未产出可用几何
+[peach_harvester-8] [INFO] [1792111681.108815865] [peach_target_reconstruction_node]: 已清空，回 IDLE
+[peach_harvester-8] [INFO] [1792111681.120126542] [peach_target_reconstruction_node]: 自动开始：开始重建，绑定目标 target_0
+[peach_harvester-8] [WARN] [1792111681.697727425] [peach_target_reconstruction_node]: 自动采帧跳过 [missing_mask]：缺少所选 target_id 的容差内掩膜
+[peach_harvester-8] [INFO] [1792111681.857876018] [peach_target_reconstruction_node]: REFINING：几何二次拟合开始（kind=bag，21 点）
+[peach_harvester-8] [WARN] [1792111681.872131116] [peach_target_reconstruction_node]: REFINING：无接触权威几何（no_landmark_views）
+[peach_harvester-8] [INFO] [1792111681.872600734] [peach_target_reconstruction_node]: 已采第 1/5 视角，本帧 337 点，有效深度占比 0.70，位姿=fk
+[peach_arm-9] [INFO] [1792111681.878644694] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_harvester-8] [INFO] [1792111681.879102532] [peach_target_reconstruction_node]: 已采第 2/5 视角，本帧 337 点，有效深度占比 0.70，位姿=fk
+[peach_harvester-8] [INFO] [1792111681.896358003] [peach_target_reconstruction_node]: REFINING：几何二次拟合开始（kind=bag，21 点）
+[peach_harvester-8] [WARN] [1792111681.903884150] [peach_target_reconstruction_node]: REFINING：无接触权威几何（no_landmark_views）
+[peach_harvester-8] [WARN] [1792111681.904645122] [peach_target_reconstruction_node]: 局部重建完成：2 帧，674 点（少于推荐 5 帧）；重叠 mean=0.0mm p95=0.0mm；TSDF 21 点 / mesh 40 顶点（累计积分 0.00s）；refit 失败（no_landmark_views）；refit 未产出可用几何
+[peach_harvester-8] [INFO] [1792111681.989180796] [peach_target_reconstruction_node]: 已清空，回 IDLE
+[peach_harvester-8] [INFO] [1792111681.992580329] [peach_target_reconstruction_node]: 自动开始：开始重建，绑定目标 target_0
+[stereo_camera_node-1] [INFO] [1792111682.005736255] [camera.peach_stereo_camera_node]: groups=600 published=600 rate=13.5 gps drop(stream=0 incomplete=0 nostamp=0 depth=0)
+[peach_harvester-8] [INFO] [1792111682.349851070] [peach_target_reconstruction_node]: REFINING：几何二次拟合开始（kind=bag，25 点）
+[peach_harvester-8] [WARN] [1792111682.355032692] [peach_target_reconstruction_node]: REFINING：无接触权威几何（no_landmark_views）
+[peach_harvester-8] [INFO] [1792111682.355243010] [peach_target_reconstruction_node]: 已采第 1/5 视角，本帧 326 点，有效深度占比 0.69，位姿=fk
+[peach_harvester-8] [INFO] [1792111682.364892217] [peach_target_reconstruction_node]: REFINING：几何二次拟合开始（kind=bag，25 点）
+[peach_harvester-8] [WARN] [1792111682.378309570] [peach_target_reconstruction_node]: REFINING：无接触权威几何（no_landmark_views）
+[peach_harvester-8] [WARN] [1792111682.378602753] [peach_target_reconstruction_node]: 局部重建完成：1 帧，326 点（少于推荐 5 帧）；重叠指标需 ≥2 帧，本批次不可用；TSDF 25 点 / mesh 36 顶点（累计积分 0.00s）；refit 失败（no_landmark_views）；refit 未产出可用几何
+[peach_harvester-8] [INFO] [1792111682.418943593] [peach_target_reconstruction_node]: 已清空，回 IDLE
+[peach_harvester-8] [INFO] [1792111682.420879140] [peach_target_reconstruction_node]: 自动开始：开始重建，绑定目标 target_0
+[peach_harvester-8] [WARN] [1792111682.723109144] [peach_target_reconstruction_node]: 自动采帧跳过 [missing_mask]：缺少所选 target_id 的容差内掩膜
+[peach_arm-9] [INFO] [1792111682.878033285] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_harvester-8] [INFO] [1792111683.229161824] [peach_target_reconstruction_node]: REFINING：几何二次拟合开始（kind=bag，22 点）
+[peach_harvester-8] [WARN] [1792111683.238806715] [peach_target_reconstruction_node]: REFINING：无接触权威几何（no_landmark_views）
+[peach_harvester-8] [INFO] [1792111683.239062124] [peach_target_reconstruction_node]: 已采第 1/5 视角，本帧 313 点，有效深度占比 0.69，位姿=fk
+[peach_harvester-8] [INFO] [1792111683.253760363] [peach_target_reconstruction_node]: REFINING：几何二次拟合开始（kind=bag，22 点）
+[peach_harvester-8] [WARN] [1792111683.263408492] [peach_target_reconstruction_node]: REFINING：无接触权威几何（no_landmark_views）
+[peach_harvester-8] [WARN] [1792111683.263805311] [peach_target_reconstruction_node]: 局部重建完成：1 帧，313 点（少于推荐 5 帧）；重叠指标需 ≥2 帧，本批次不可用；TSDF 22 点 / mesh 39 顶点（累计积分 0.00s）；refit 失败（no_landmark_views）；refit 未产出可用几何
+[peach_harvester-8] [INFO] [1792111683.297636040] [peach_target_reconstruction_node]: 已清空，回 IDLE
+[peach_harvester-8] [INFO] [1792111683.300839429] [peach_target_reconstruction_node]: 自动开始：开始重建，绑定目标 target_0
+[peach_harvester-8] [WARN] [1792111683.729716042] [peach_target_reconstruction_node]: 自动采帧跳过 [missing_mask]：缺少所选 target_id 的容差内掩膜
+[peach_arm-9] [INFO] [1792111683.896168072] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_harvester-8] [INFO] [1792111684.382182799] [peach_scene_perception_node]: 目标注册表在册 2 个目标（累计注册 3、累计命中 145）
+[peach_harvester-8] [WARN] [1792111684.397183128] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 479（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-8] [INFO] [1792111684.427048951] [peach_target_reconstruction_node]: REFINING：几何二次拟合开始（kind=bag，20 点）
+[peach_harvester-8] [WARN] [1792111684.440560239] [peach_target_reconstruction_node]: REFINING：无接触权威几何（no_landmark_views）
+[peach_harvester-8] [INFO] [1792111684.440842661] [peach_target_reconstruction_node]: 已采第 1/5 视角，本帧 322 点，有效深度占比 0.69，位姿=fk
+[peach_harvester-8] [INFO] [1792111684.473644450] [peach_target_reconstruction_node]: REFINING：几何二次拟合开始（kind=bag，20 点）
+[peach_harvester-8] [WARN] [1792111684.487098230] [peach_target_reconstruction_node]: REFINING：无接触权威几何（no_landmark_views）
+[peach_harvester-8] [WARN] [1792111684.487534641] [peach_target_reconstruction_node]: 局部重建完成：1 帧，322 点（少于推荐 5 帧）；重叠指标需 ≥2 帧，本批次不可用；TSDF 20 点 / mesh 35 顶点（累计积分 0.00s）；refit 失败（no_landmark_views）；refit 未产出可用几何
+[peach_harvester-8] [INFO] [1792111684.554703584] [peach_target_reconstruction_node]: 已清空，回 IDLE
+[peach_harvester-8] [INFO] [1792111684.559272347] [peach_target_reconstruction_node]: 自动开始：开始重建，绑定目标 target_0
+[peach_harvester-8] [WARN] [1792111684.756950908] [peach_target_reconstruction_node]: 自动采帧跳过 [missing_mask]：缺少所选 target_id 的容差内掩膜
+[peach_arm-9] [INFO] [1792111684.877568632] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_harvester-8] [INFO] [1792111685.153663490] [peach_target_reconstruction_node]: REFINING：几何二次拟合开始（kind=bag，26 点）
+[peach_harvester-8] [WARN] [1792111685.159424036] [peach_target_reconstruction_node]: REFINING：无接触权威几何（no_landmark_views）
+[peach_harvester-8] [INFO] [1792111685.161592608] [peach_target_reconstruction_node]: 已采第 1/5 视角，本帧 338 点，有效深度占比 0.70，位姿=fk
+[peach_harvester-8] [INFO] [1792111685.185153399] [peach_target_reconstruction_node]: REFINING：几何二次拟合开始（kind=bag，26 点）
+[peach_harvester-8] [WARN] [1792111685.190974852] [peach_target_reconstruction_node]: REFINING：无接触权威几何（no_landmark_views）
+[peach_harvester-8] [WARN] [1792111685.191263074] [peach_target_reconstruction_node]: 局部重建完成：1 帧，338 点（少于推荐 5 帧）；重叠指标需 ≥2 帧，本批次不可用；TSDF 26 点 / mesh 44 顶点（累计积分 0.00s）；refit 失败（no_landmark_views）；refit 未产出可用几何
+[peach_harvester-8] [INFO] [1792111685.230473185] [peach_target_reconstruction_node]: 已清空，回 IDLE
+[peach_harvester-8] [INFO] [1792111685.243287297] [peach_target_reconstruction_node]: 自动开始：开始重建，绑定目标 target_0
+[peach_harvester-8] [WARN] [1792111685.808802589] [peach_target_reconstruction_node]: 自动采帧跳过 [missing_mask]：缺少所选 target_id 的容差内掩膜
+[peach_arm-9] [INFO] [1792111685.884394623] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_harvester-8] [INFO] [1792111686.014562119] [peach_target_reconstruction_node]: REFINING：几何二次拟合开始（kind=bag，31 点）
+[peach_harvester-8] [WARN] [1792111686.038579016] [peach_target_reconstruction_node]: REFINING：无接触权威几何（no_landmark_views）
+[peach_harvester-8] [INFO] [1792111686.038866829] [peach_target_reconstruction_node]: 已采第 1/5 视角，本帧 345 点，有效深度占比 0.70，位姿=fk
+[peach_harvester-8] [INFO] [1792111686.053609014] [peach_target_reconstruction_node]: REFINING：几何二次拟合开始（kind=bag，31 点）
+[peach_harvester-8] [WARN] [1792111686.074088287] [peach_target_reconstruction_node]: REFINING：无接触权威几何（no_landmark_views）
+[peach_harvester-8] [WARN] [1792111686.074445458] [peach_target_reconstruction_node]: 局部重建完成：1 帧，345 点（少于推荐 5 帧）；重叠指标需 ≥2 帧，本批次不可用；TSDF 31 点 / mesh 48 顶点（累计积分 0.00s）；refit 失败（no_landmark_views）；refit 未产出可用几何
+[peach_harvester-8] [INFO] [1792111686.118447866] [peach_target_reconstruction_node]: 已清空，回 IDLE
+[peach_harvester-8] [INFO] [1792111686.121307870] [peach_target_reconstruction_node]: 自动开始：开始重建，绑定目标 target_0
+[peach_harvester-8] [INFO] [1792111686.682724848] [peach_target_reconstruction_node]: REFINING：几何二次拟合开始（kind=bag，25 点）
+[peach_harvester-8] [WARN] [1792111686.688408816] [peach_target_reconstruction_node]: REFINING：无接触权威几何（no_landmark_views）
+[peach_harvester-8] [INFO] [1792111686.691379138] [peach_target_reconstruction_node]: 已采第 1/5 视角，本帧 338 点，有效深度占比 0.70，位姿=fk
+[peach_harvester-8] [INFO] [1792111686.710421066] [peach_target_reconstruction_node]: REFINING：几何二次拟合开始（kind=bag，25 点）
+[peach_harvester-8] [WARN] [1792111686.717318022] [peach_target_reconstruction_node]: REFINING：无接触权威几何（no_landmark_views）
+[peach_harvester-8] [WARN] [1792111686.717654340] [peach_target_reconstruction_node]: 局部重建完成：1 帧，338 点（少于推荐 5 帧）；重叠指标需 ≥2 帧，本批次不可用；TSDF 25 点 / mesh 42 顶点（累计积分 0.01s）；refit 失败（no_landmark_views）；refit 未产出可用几何
+[peach_harvester-8] [INFO] [1792111686.754296641] [peach_target_reconstruction_node]: 已清空，回 IDLE
+[peach_harvester-8] [INFO] [1792111686.758277542] [peach_target_reconstruction_node]: 自动开始：开始重建，绑定目标 target_0
+[peach_arm-9] [INFO] [1792111686.878753305] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_harvester-8] [WARN] [1792111686.933705306] [peach_target_reconstruction_node]: 自动采帧跳过 [missing_mask]：缺少所选 target_id 的容差内掩膜
+[peach_harvester-8] [INFO] [1792111687.223859782] [peach_target_reconstruction_node]: REFINING：几何二次拟合开始（kind=bag，32 点）
+[peach_harvester-8] [WARN] [1792111687.244782403] [peach_target_reconstruction_node]: REFINING：无接触权威几何（no_landmark_views）
+[peach_harvester-8] [INFO] [1792111687.245717569] [peach_target_reconstruction_node]: 已采第 1/5 视角，本帧 349 点，有效深度占比 0.70，位姿=fk
+[peach_harvester-8] [INFO] [1792111687.259803465] [peach_target_reconstruction_node]: REFINING：几何二次拟合开始（kind=bag，32 点）
+[peach_harvester-8] [WARN] [1792111687.285031987] [peach_target_reconstruction_node]: REFINING：无接触权威几何（no_landmark_views）
+[peach_harvester-8] [WARN] [1792111687.285317270] [peach_target_reconstruction_node]: 局部重建完成：1 帧，349 点（少于推荐 5 帧）；重叠指标需 ≥2 帧，本批次不可用；TSDF 32 点 / mesh 46 顶点（累计积分 0.00s）；refit 失败（no_landmark_views）；refit 未产出可用几何
+[peach_harvester-8] [INFO] [1792111687.339269472] [peach_target_reconstruction_node]: 已清空，回 IDLE
+[peach_harvester-8] [INFO] [1792111687.342539594] [peach_target_reconstruction_node]: 自动开始：开始重建，绑定目标 target_0
+[peach_arm-9] [INFO] [1792111687.882404973] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_harvester-8] [INFO] [1792111687.887312072] [peach_target_reconstruction_node]: REFINING：几何二次拟合开始（kind=bag，22 点）
+[peach_harvester-8] [WARN] [1792111687.895970907] [peach_target_reconstruction_node]: REFINING：无接触权威几何（no_landmark_views）
+[peach_harvester-8] [INFO] [1792111687.896254594] [peach_target_reconstruction_node]: 已采第 1/5 视角，本帧 334 点，有效深度占比 0.71，位姿=fk
+[peach_harvester-8] [INFO] [1792111687.909516534] [peach_target_reconstruction_node]: REFINING：几何二次拟合开始（kind=bag，22 点）
+[peach_harvester-8] [WARN] [1792111687.927412808] [peach_target_reconstruction_node]: REFINING：无接触权威几何（no_landmark_views）
+[peach_harvester-8] [WARN] [1792111687.928569882] [peach_target_reconstruction_node]: 局部重建完成：1 帧，334 点（少于推荐 5 帧）；重叠指标需 ≥2 帧，本批次不可用；TSDF 22 点 / mesh 56 顶点（累计积分 0.00s）；refit 失败（no_landmark_views）；refit 未产出可用几何
+[peach_harvester-8] [WARN] [1792111687.961084491] [peach_target_reconstruction_node]: 自动采帧跳过 [same_stamp]：缓存帧未更新（与上次采帧同帧），请等下一帧
+[peach_harvester-8] [INFO] [1792111687.972122454] [peach_target_reconstruction_node]: 已清空，回 IDLE
+[peach_harvester-8] [INFO] [1792111687.978060958] [peach_target_reconstruction_node]: 自动开始：开始重建，绑定目标 target_0
+[peach_harvester-8] [INFO] [1792111688.436093920] [peach_target_reconstruction_node]: REFINING：几何二次拟合开始（kind=bag，28 点）
+[peach_harvester-8] [INFO] [1792111688.484251751] [peach_target_reconstruction_node]: REFINING 完成： status=ACCEPT final=False axis=[-0.2117, -0.3593, 0.9089] diameter=19.8mm
+[peach_harvester-8] [INFO] [1792111688.484860267] [peach_target_reconstruction_node]: 已采第 1/5 视角，本帧 325 点，有效深度占比 0.72，位姿=fk
+[peach_harvester-8] [INFO] [1792111688.509928184] [peach_target_reconstruction_node]: REFINING：几何二次拟合开始（kind=bag，28 点）
+[peach_harvester-8] [INFO] [1792111688.545602990] [peach_target_reconstruction_node]: REFINING 完成： status=ACCEPT final=True axis=[-0.2117, -0.3593, 0.9089] diameter=19.8mm
+[peach_harvester-8] [INFO] [1792111688.546537685] [peach_target_reconstruction_node]: 局部重建完成：1 帧，325 点（少于推荐 5 帧）��重叠指标需 ≥2 帧，本批次不可用；TSDF 28 点 / mesh 57 顶点（累计积分 0.00s）；refit ACCEPT（袋模型 1 视）
+[peach_arm-9] [WARN] [1792111688.549584978] [peach_arm]: 忽略 refined pose（authoritative_decision）: gate= actual=target_0
+[peach_arm-9] [WARN] [1792111688.550256096] [peach_arm]: 忽略 refined diagnostics（authoritative_decision）: expected=target_0 actual=target_0
+[peach_arm-9] [INFO] [1792111688.882196300] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_harvester-8] [INFO] [1792111689.106799721] [peach_target_reconstruction_node]: 已清空，回 IDLE
+[peach_harvester-8] [INFO] [1792111689.113242453] [peach_target_reconstruction_node]: 自动开始：开始重建，绑定目标 target_0
+[peach_harvester-8] [WARN] [1792111689.148633907] [peach_target_reconstruction_node]: 自动采帧跳过 [missing_mask]：缺少所选 target_id 的容差内掩膜
+[stereo_camera_node-1] [INFO] [1792111689.472093606] [camera.peach_stereo_camera_node]: groups=700 published=700 rate=13.5 gps drop(stream=0 incomplete=0 nostamp=0 depth=0)
+[peach_harvester-8] [WARN] [1792111689.624102277] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 534（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-8] [INFO] [1792111689.634098575] [peach_target_reconstruction_node]: REFINING：几何二次拟合开始（kind=bag，23 点）
+[peach_harvester-8] [WARN] [1792111689.648938360] [peach_target_reconstruction_node]: REFINING：无接触权威几何（no_landmark_views）
+[peach_harvester-8] [INFO] [1792111689.649254073] [peach_target_reconstruction_node]: 已采第 1/5 视角，本帧 330 点，有效深度占比 0.72，位姿=fk
+[peach_harvester-8] [INFO] [1792111689.660579928] [peach_target_reconstruction_node]: REFINING：几何二次拟合开始（kind=bag，23 点）
+[peach_harvester-8] [WARN] [1792111689.666510549] [peach_target_reconstruction_node]: REFINING：无接触权威几何（no_landmark_views）
+[peach_harvester-8] [WARN] [1792111689.667007061] [peach_target_reconstruction_node]: 局部重建完成：1 帧，330 点（少于推荐 5 帧）；重叠指标需 ≥2 帧，本批次不可用；TSDF 23 点 / mesh 47 顶点（累计积分 0.00s）；refit 失败（no_landmark_views）；refit 未产出可用几何
+[peach_harvester-8] [INFO] [1792111689.718395078] [peach_target_reconstruction_node]: 已清空，回 IDLE
+[peach_harvester-8] [INFO] [1792111689.730204615] [peach_target_reconstruction_node]: 自动开始：开始重建，绑定目标 target_0
+[peach_arm-9] [INFO] [1792111689.877682753] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_harvester-8] [WARN] [1792111690.154986847] [peach_target_reconstruction_node]: 自动采帧跳过 [missing_mask]：缺少所选 target_id 的容差内掩膜
+[peach_harvester-8] [INFO] [1792111690.273967694] [peach_target_reconstruction_node]: REFINING：几何二次拟合开始（kind=bag，24 点）
+[peach_harvester-8] [INFO] [1792111690.320643306] [peach_target_reconstruction_node]: REFINING 完成： status=ACCEPT final=False axis=[-0.1985, -0.2813, 0.9389] diameter=18.0mm
+[peach_harvester-8] [INFO] [1792111690.321061034] [peach_target_reconstruction_node]: 已采第 1/5 视角，本帧 336 点，有效深度占比 0.69，位姿=fk
+[peach_harvester-8] [INFO] [1792111690.335099141] [peach_target_reconstruction_node]: REFINING：几何二次拟合开始（kind=bag，24 点）
+[peach_harvester-8] [INFO] [1792111690.372491621] [peach_target_reconstruction_node]: REFINING 完成： status=ACCEPT final=True axis=[-0.1985, -0.2813, 0.9389] diameter=18.0mm
+[peach_harvester-8] [INFO] [1792111690.373051726] [peach_target_reconstruction_node]: 局部重建完成：1 帧，336 点（少于推荐 5 帧）；重叠指标需 ≥2 帧，本批次不可用；TSDF 24 点 / mesh 45 顶点（累计积分 0.00s）；refit ACCEPT（袋模型 1 视）
+[peach_arm-9] [INFO] [1792111690.877197689] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_harvester-8] [INFO] [1792111690.994650641] [peach_target_reconstruction_node]: 已清空，回 IDLE
+[peach_harvester-8] [INFO] [1792111690.997341254] [peach_target_reconstruction_node]: 自动开始：开始重建，绑定目标 target_0
+[peach_harvester-8] [WARN] [1792111691.156078175] [peach_target_reconstruction_node]: 自动采帧跳过 [missing_mask]：缺少所选 target_id 的容差内掩膜
+[peach_harvester-8] [INFO] [1792111691.767354728] [peach_target_reconstruction_node]: REFINING：几何二次拟合开始（kind=bag，31 点）
+[peach_harvester-8] [WARN] [1792111691.787718490] [peach_target_reconstruction_node]: REFINING：无接触权威几何（no_landmark_views）
+[peach_harvester-8] [INFO] [1792111691.788012096] [peach_target_reconstruction_node]: 已采第 1/5 视角，本帧 349 点，有效深度占比 0.70，位姿=fk
+[peach_harvester-8] [INFO] [1792111691.815442920] [peach_target_reconstruction_node]: REFINING：几何二次拟合开始（kind=bag，31 点）
+[peach_harvester-8] [WARN] [1792111691.836297379] [peach_target_reconstruction_node]: REFINING：无接触权威几何（no_landmark_views）
+[peach_harvester-8] [WARN] [1792111691.837275294] [peach_target_reconstruction_node]: 局部重建完成：1 帧，349 点（少于推荐 5 帧）；重叠指标需 ≥2 帧，本批次不可用；TSDF 31 点 / mesh 44 顶点（累计积分 0.00s）；refit 失败（no_landmark_views）；refit 未产出可用几何
+[peach_arm-9] [INFO] [1792111691.886508786] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_harvester-8] [INFO] [1792111691.974022165] [peach_target_reconstruction_node]: 已清空，回 IDLE
+[peach_harvester-8] [INFO] [1792111691.981637349] [peach_target_reconstruction_node]: 自动开始：开始重建，绑定目标 target_0
+[peach_harvester-8] [WARN] [1792111692.165313039] [peach_target_reconstruction_node]: 自动采帧跳过 [missing_mask]：缺少所选 target_id 的容差内掩膜
+[peach_harvester-8] [INFO] [1792111692.647231660] [peach_target_reconstruction_node]: REFINING：几何二次拟合开始（kind=bag，32 点）
+[peach_harvester-8] [WARN] [1792111692.653791354] [peach_target_reconstruction_node]: REFINING：无接触权威几何（no_landmark_views）
+[peach_harvester-8] [INFO] [1792111692.654267372] [peach_target_reconstruction_node]: 已采第 1/5 视角，本帧 344 点，有效深度占比 0.70，位姿=fk
+[peach_harvester-8] [INFO] [1792111692.664053986] [peach_target_reconstruction_node]: REFINING：几何二次拟合开始（kind=bag，32 点）
+[peach_harvester-8] [WARN] [1792111692.674154256] [peach_target_reconstruction_node]: REFINING：无接触权威几何（no_landmark_views）
+[peach_harvester-8] [WARN] [1792111692.674666568] [peach_target_reconstruction_node]: 局部重建完成：1 帧，344 点（少于推荐 5 帧）；重叠指标需 ≥2 帧，本批次不可用；TSDF 32 点 / mesh 54 顶点（累计积分 0.00s）；refit 失败（no_landmark_views）；refit 未产出可用几何
+[peach_harvester-8] [INFO] [1792111692.720635049] [peach_target_reconstruction_node]: 已清空，回 IDLE
+[peach_harvester-8] [INFO] [1792111692.728413609] [peach_target_reconstruction_node]: 自动开始：开始重建，绑定目标 target_0
+[peach_arm-9] [INFO] [1792111692.877727409] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_harvester-8] [WARN] [1792111693.206891579] [peach_target_reconstruction_node]: 自动采帧跳过 [missing_mask]：缺少所选 target_id 的容差内掩膜
+[peach_harvester-8] [INFO] [1792111693.444237062] [peach_target_reconstruction_node]: REFINING：几何二次拟合开始（kind=bag，26 点）
+[peach_harvester-8] [WARN] [1792111693.458188062] [peach_target_reconstruction_node]: REFINING：无接触权威几何（no_landmark_views）
+[peach_harvester-8] [INFO] [1792111693.458872144] [peach_target_reconstruction_node]: 已采第 1/5 视角，本帧 339 点，有效深度占比 0.71，位姿=fk
+[peach_harvester-8] [INFO] [1792111693.473045007] [peach_target_reconstruction_node]: REFINING：几何二次拟合开始（kind=bag，26 点）
+[peach_harvester-8] [WARN] [1792111693.484369285] [peach_target_reconstruction_node]: REFINING：无接触权威几何（no_landmark_views）
+[peach_harvester-8] [WARN] [1792111693.484784288] [peach_target_reconstruction_node]: 局部重建完成：1 帧，339 点（少于推荐 5 帧）；重叠指标需 ≥2 帧，本批次不可用；TSDF 26 点 / mesh 65 顶点（累计积分 0.00s）；refit 失败（no_landmark_views）；refit 未产出可用几何
+[peach_harvester-8] [INFO] [1792111693.520860820] [peach_target_reconstruction_node]: 已清空，回 IDLE
+[peach_harvester-8] [INFO] [1792111693.524869713] [peach_target_reconstruction_node]: 自动开始：开始重建，绑定目标 target_0
+[peach_arm-9] [INFO] [1792111693.882495896] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_harvester-8] [INFO] [1792111693.925413015] [peach_target_reconstruction_node]: REFINING：几何二次拟合开始（kind=bag，31 点）
+[peach_harvester-8] [WARN] [1792111693.962113438] [peach_target_reconstruction_node]: REFINING：无接触权威几何（no_landmark_views）
+[peach_harvester-8] [INFO] [1792111693.963200876] [peach_target_reconstruction_node]: 已采第 1/5 视角，本帧 339 点，有效深度占比 0.71，位姿=fk
+[peach_harvester-8] [INFO] [1792111693.984792426] [peach_target_reconstruction_node]: REFINING：几何二次拟合开始（kind=bag，31 点）
+[peach_harvester-8] [WARN] [1792111693.998120149] [peach_target_reconstruction_node]: REFINING：无接触权威几何（no_landmark_views）
+[peach_harvester-8] [WARN] [1792111694.001343466] [peach_target_reconstruction_node]: 局部重建完成：1 帧，339 点（少于推荐 5 帧）；重叠指标需 ≥2 帧，本批次不可用；TSDF 31 点 / mesh 59 顶点（累计积分 0.00s）；refit 失败（no_landmark_views）；refit 未产出可用几何
+[peach_harvester-8] [INFO] [1792111694.047869320] [peach_target_reconstruction_node]: 已清空，回 IDLE
+[peach_harvester-8] [INFO] [1792111694.050616635] [peach_target_reconstruction_node]: 自动开始：开始重建，绑定目标 target_0
+[peach_harvester-8] [WARN] [1792111694.223335084] [peach_target_reconstruction_node]: 自动采帧跳过 [missing_mask]：缺少所选 target_id 的容差内掩膜
+[peach_harvester-8] [INFO] [1792111694.511312865] [peach_scene_perception_node]: 目标注册表在册 2 个目标（累计注册 3、累计命中 180）
+[peach_observability-10] [INFO] [1792111694.536077551] [peach_observability]: 自检[periodic] 14/18 通过，跳过: robot_status, imu_topic, model_files, vegetation_status
+[peach_harvester-8] [WARN] [1792111694.792823895] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 586（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_arm-9] [INFO] [1792111694.878856084] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_harvester-8] [INFO] [1792111695.236775902] [peach_target_reconstruction_node]: REFINING：几何二次拟合开始（kind=bag，26 点）
+[peach_harvester-8] [WARN] [1792111695.241445570] [peach_target_reconstruction_node]: REFINING：无接触权威几何（no_landmark_views）
+[peach_harvester-8] [INFO] [1792111695.241621418] [peach_target_reconstruction_node]: 已采第 1/5 视角，本帧 342 点，有效深度占比 0.72，位姿=fk
+[peach_harvester-8] [INFO] [1792111695.256735857] [peach_target_reconstruction_node]: REFINING：几何二次拟合开始（kind=bag，26 点）
+[peach_harvester-8] [WARN] [1792111695.273591896] [peach_target_reconstruction_node]: REFINING：无接触权威几何（no_landmark_views）
+[peach_harvester-8] [WARN] [1792111695.273883421] [peach_target_reconstruction_node]: 局部重建完成：1 帧，342 点（少于推荐 5 帧）；重叠指标需 ≥2 帧，本批次不可用；TSDF 26 点 / mesh 51 顶点（累计积分 0.00s）；refit 失败（no_landmark_views）；refit 未产出可用几何
+[peach_harvester-8] [INFO] [1792111695.307690340] [peach_target_reconstruction_node]: 已清空，回 IDLE
+[peach_harvester-8] [INFO] [1792111695.316000895] [peach_target_reconstruction_node]: 自动开始：开始重建，绑定目标 target_0
+[peach_harvester-8] [WARN] [1792111695.322133485] [peach_target_reconstruction_node]: 自动采帧跳过 [missing_mask]：缺少所选 target_id 的容差内掩膜
+[peach_harvester-8] [INFO] [1792111695.327346245] [peach_target_reconstruction_node]: 自动开始：开始重建，绑定目标 target_0
+[peach_arm-9] [INFO] [1792111695.879927325] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_harvester-8] [WARN] [1792111696.366334906] [peach_target_reconstruction_node]: 自动采帧跳过 [missing_mask]：缺少所选 target_id 的容差内掩膜
+[stereo_camera_node-1] [INFO] [1792111696.781731262] [camera.peach_stereo_camera_node]: groups=800 published=800 rate=13.5 gps drop(stream=0 incomplete=0 nostamp=0 depth=0)
+[peach_arm-9] [INFO] [1792111696.883704039] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_harvester-8] [INFO] [1792111697.050661065] [peach_target_reconstruction_node]: REFINING：几何二次拟合开始（kind=bag，28 点）
+[peach_harvester-8] [WARN] [1792111697.070495692] [peach_target_reconstruction_node]: REFINING：无接触权威几何（no_landmark_views）
+[peach_harvester-8] [INFO] [1792111697.070716701] [peach_target_reconstruction_node]: 已采第 1/5 视角，本帧 339 点，有效深度占比 0.72，位姿=fk
+[peach_harvester-8] [INFO] [1792111697.077144631] [peach_target_reconstruction_node]: REFINING：几何二次拟合开始（kind=bag，28 点）
+[peach_harvester-8] [WARN] [1792111697.103347576] [peach_target_reconstruction_node]: REFINING：无接触权威几何（no_landmark_views）
+[peach_harvester-8] [WARN] [1792111697.103882123] [peach_target_reconstruction_node]: 局部重建完成：1 帧，339 点（少于推荐 5 帧）；重叠指标需 ≥2 帧，本批次不可用；TSDF 28 点 / mesh 59 顶点（累计积分 0.00s）；refit 失败（no_landmark_views）；refit 未产出可用几何
+[peach_harvester-8] [INFO] [1792111697.147123334] [peach_target_reconstruction_node]: 已清空，回 IDLE
+[peach_harvester-8] [INFO] [1792111697.150989002] [peach_target_reconstruction_node]: 自动开始：开始重建，绑定目标 target_0
+[peach_harvester-8] [WARN] [1792111697.384013385] [peach_target_reconstruction_node]: 自动采帧跳过 [missing_mask]：缺少所选 target_id 的容差内掩膜
+[peach_arm-9] [INFO] [1792111697.878160886] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_harvester-8] [WARN] [1792111698.401907433] [peach_target_reconstruction_node]: 自动采帧跳过 [missing_mask]：缺少所选 target_id 的容差内掩膜
+[peach_harvester-8] [INFO] [1792111698.596670017] [peach_target_reconstruction_node]: REFINING：几何二次拟合开始（kind=bag，27 点）
+[peach_harvester-8] [WARN] [1792111698.602434850] [peach_target_reconstruction_node]: REFINING：无接触权威几何（no_landmark_views）
+[peach_harvester-8] [INFO] [1792111698.602632766] [peach_target_reconstruction_node]: 已采第 1/5 视角，本帧 333 点，有效深度占比 0.72，位姿=fk
+[peach_harvester-8] [INFO] [1792111698.629073710] [peach_target_reconstruction_node]: REFINING：几何二次拟合开始（kind=bag，27 点）
+[peach_harvester-8] [WARN] [1792111698.635746055] [peach_target_reconstruction_node]: REFINING：无接触权威几何（no_landmark_views）
+[peach_harvester-8] [WARN] [1792111698.636352598] [peach_target_reconstruction_node]: 局部重建完成：1 帧，333 点（少于推荐 5 帧）；重叠指标需 ≥2 帧，本批次不可用；TSDF 27 点 / mesh 56 顶点（累计积分 0.00s）；refit 失败（no_landmark_views）；refit 未产出可用几何
+[peach_harvester-8] [INFO] [1792111698.666884152] [peach_target_reconstruction_node]: 已清空，回 IDLE
+[peach_harvester-8] [INFO] [1792111698.669848541] [peach_target_reconstruction_node]: 自动开始：开始重建，绑定目标 target_0
+[peach_arm-9] [INFO] [1792111698.879365334] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_harvester-8] [INFO] [1792111699.414783836] [peach_target_reconstruction_node]: REFINING：几何二次拟合开始（kind=bag，25 点）
+[peach_harvester-8] [WARN] [1792111699.420550987] [peach_target_reconstruction_node]: REFINING：无接触权威几何（no_landmark_views）
+[peach_harvester-8] [INFO] [1792111699.420816908] [peach_target_reconstruction_node]: 已采第 1/5 视角，本帧 336 点，有效深度占比 0.72，位姿=fk
+[peach_harvester-8] [INFO] [1792111699.433494489] [peach_target_reconstruction_node]: REFINING：几何二次拟合开始（kind=bag，25 点）
+[peach_harvester-8] [WARN] [1792111699.446944465] [peach_target_reconstruction_node]: REFINING：无接触权威几何（no_landmark_views）
+[peach_harvester-8] [WARN] [1792111699.447203737] [peach_target_reconstruction_node]: 局部重建完成：1 帧，336 点（少于推荐 5 帧）；重叠指标需 ≥2 帧，本批次不可用；TSDF 25 点 / mesh 53 顶点（累计积分 0.00s）；refit 失败（no_landmark_views）；refit 未产出可用几何
+[peach_harvester-8] [WARN] [1792111699.462980148] [peach_target_reconstruction_node]: 自动采帧跳过 [same_stamp]：缓存帧未更新（与上次采帧同帧），请等下一帧
+[peach_harvester-8] [INFO] [1792111699.495792464] [peach_target_reconstruction_node]: 已清空，回 IDLE
+[peach_harvester-8] [INFO] [1792111699.500034415] [peach_target_reconstruction_node]: 自动开始：开始重建，绑定目标 target_0
+[peach_arm-9] [INFO] [1792111699.879428101] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_harvester-8] [WARN] [1792111700.031205923] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 638（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-8] [INFO] [1792111700.073158592] [peach_target_reconstruction_node]: REFINING：几何二次拟合开始（kind=bag，34 点）
+[peach_harvester-8] [WARN] [1792111700.094772832] [peach_target_reconstruction_node]: REFINING：无接触权威几何（no_landmark_views）
+[peach_harvester-8] [INFO] [1792111700.094989224] [peach_target_reconstruction_node]: 已采第 1/5 视角，本帧 338 点，有效深度占比 0.72，位姿=fk
+[peach_harvester-8] [INFO] [1792111700.102662775] [peach_target_reconstruction_node]: REFINING：几何二次拟合开始（kind=bag，34 点）
+[peach_harvester-8] [WARN] [1792111700.127089274] [peach_target_reconstruction_node]: REFINING：无接触权威几何（no_landmark_views）
+[peach_harvester-8] [WARN] [1792111700.129715491] [peach_target_reconstruction_node]: 局部重建完成：1 帧，338 点（少于推荐 5 帧）；重叠指标需 ≥2 帧，本批次不可用；TSDF 34 点 / mesh 53 顶点（累计积分 0.00s）；refit 失败（no_landmark_views）；refit 未产出可用几何
+[peach_harvester-8] [INFO] [1792111700.174464826] [peach_target_reconstruction_node]: 已清空，回 IDLE
+[peach_harvester-8] [INFO] [1792111700.177729338] [peach_target_reconstruction_node]: 自动开始：开始重建，绑定目标 target_0
+[peach_harvester-8] [WARN] [1792111700.499650019] [peach_target_reconstruction_node]: 自动采帧跳过 [missing_mask]：缺少所选 target_id 的容差内掩膜
+[peach_arm-9] [INFO] [1792111700.880715843] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_harvester-8] [WARN] [1792111701.511993372] [peach_target_reconstruction_node]: 自动采帧跳过 [missing_mask]：缺少所选 target_id 的容差内掩膜
+[peach_arm-9] [INFO] [1792111701.878792981] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_harvester-8] [WARN] [1792111702.546940621] [peach_target_reconstruction_node]: 自动采帧跳过 [missing_mask]：缺少所选 target_id 的容差内掩膜
+[peach_arm-9] [INFO] [1792111702.877148192] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_harvester-8] [WARN] [1792111703.551343201] [peach_target_reconstruction_node]: 自动采帧跳过 [missing_mask]：缺少所选 target_id 的容差内掩膜
+[peach_arm-9] [INFO] [1792111703.879029048] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[stereo_camera_node-1] [INFO] [1792111704.017857093] [camera.peach_stereo_camera_node]: groups=900 published=900 rate=13.6 gps drop(stream=0 incomplete=0 nostamp=0 depth=0)
+[peach_harvester-8] [INFO] [1792111704.061939072] [peach_target_reconstruction_node]: REFINING：几何二次拟合开始（kind=bag，27 点）
+[peach_harvester-8] [WARN] [1792111704.074283685] [peach_target_reconstruction_node]: REFINING：无接触权威几何（no_landmark_views）
+[peach_harvester-8] [INFO] [1792111704.074562127] [peach_target_reconstruction_node]: 已采第 1/5 视角，本帧 340 点，有效深度占比 0.72，位姿=fk
+[peach_harvester-8] [INFO] [1792111704.081287016] [peach_target_reconstruction_node]: REFINING：几何二次拟合开始（kind=bag，27 点）
+[peach_harvester-8] [WARN] [1792111704.087833855] [peach_target_reconstruction_node]: REFINING：无接触权威几何（no_landmark_views）
+[peach_harvester-8] [WARN] [1792111704.088251465] [peach_target_reconstruction_node]: 局部重建完成：1 帧，340 点（少于推荐 5 帧）；重叠指标需 ≥2 帧，本批次不可用；TSDF 27 点 / mesh 51 顶点（累计积分 0.00s）；refit 失败（no_landmark_views）；refit 未产出可用几何
+[peach_harvester-8] [INFO] [1792111704.138207460] [peach_target_reconstruction_node]: 已清空，回 IDLE
+[peach_harvester-8] [INFO] [1792111704.143794864] [peach_target_reconstruction_node]: 自动开始：开始重建，绑定目标 target_0
+[peach_harvester-8] [WARN] [1792111704.554745533] [peach_target_reconstruction_node]: 自动采帧跳过 [missing_mask]：缺少所选 target_id 的容差内掩膜
+[peach_harvester-8] [INFO] [1792111704.663728477] [peach_scene_perception_node]: 目标注册表在册 2 个目标（累计注册 3、累计命中 217）
+[peach_arm-9] [INFO] [1792111704.880145569] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_harvester-8] [WARN] [1792111705.125247117] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 691（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-8] [INFO] [1792111705.148106186] [peach_target_reconstruction_node]: REFINING：几何二次拟合开始（kind=bag，37 点）
+[peach_harvester-8] [WARN] [1792111705.182196918] [peach_target_reconstruction_node]: REFINING：无接触权威几何（bag_axis_envelope_ill_conditioned）
+[peach_harvester-8] [INFO] [1792111705.182485146] [peach_target_reconstruction_node]: 已采第 1/5 视角，本帧 359 点，有效深度占比 0.72，位姿=fk
+[peach_harvester-8] [INFO] [1792111705.197188461] [peach_target_reconstruction_node]: REFINING：几何二次拟合开始（kind=bag，37 点）
+[peach_harvester-8] [WARN] [1792111705.233051506] [peach_target_reconstruction_node]: REFINING：无接触权威几何（bag_axis_envelope_ill_conditioned）
+[peach_harvester-8] [WARN] [1792111705.233317025] [peach_target_reconstruction_node]: 局部重建完成：1 帧，359 点（少于推荐 5 帧）；重叠指标需 ≥2 帧，本批次不可用；TSDF 37 点 / mesh 72 顶点（累计积分 0.00s）；refit 失败（bag_axis_envelope_ill_conditioned）；refit 未产出可用几何
+[peach_harvester-8] [WARN] [1792111705.239303217] [peach_target_reconstruction_node]: 单视质量拒绝，替换新曝光 1/3: bag_axis_envelope_ill_conditioned
+[peach_harvester-8] [WARN] [1792111705.574246255] [peach_target_reconstruction_node]: 自动采帧跳过 [missing_mask]：缺少所选 target_id 的容差内掩膜
+[peach_arm-9] [INFO] [1792111705.879122852] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_harvester-8] [INFO] [1792111706.632467704] [peach_target_reconstruction_node]: REFINING：几何二次拟合开始（kind=bag，26 点）
+[peach_harvester-8] [INFO] [1792111706.655973812] [peach_target_reconstruction_node]: REFINING 完成： status=ACCEPT final=False axis=[-0.1908, -0.3041, 0.9333] diameter=19.9mm
+[peach_harvester-8] [INFO] [1792111706.656824884] [peach_target_reconstruction_node]: 已采第 1/5 视角，本帧 346 点，有效深度占比 0.72，位姿=fk
+[peach_harvester-8] [INFO] [1792111706.665040395] [peach_target_reconstruction_node]: REFINING：几何二次拟合开始（kind=bag，26 点）
+[peach_harvester-8] [INFO] [1792111706.691414648] [peach_target_reconstruction_node]: REFINING 完成： status=ACCEPT final=True axis=[-0.1908, -0.3041, 0.9333] diameter=19.9mm
+[peach_harvester-8] [INFO] [1792111706.692899853] [peach_target_reconstruction_node]: 局部重建完成：1 帧，346 点（少于推荐 5 帧）；重叠指标需 ≥2 帧，本批次不可用；TSDF 26 点 / mesh 59 顶点（累计积分 0.01s）；refit ACCEPT（袋模型 1 视）
+[peach_arm-9] [WARN] [1792111706.700064328] [peach_arm]: 忽略 refined pose（authoritative_decision）: gate= actual=target_0
+[peach_arm-9] [WARN] [1792111706.700126205] [peach_arm]: 忽略 refined diagnostics（authoritative_decision）: expected=target_0 actual=target_0
+[peach_arm-9] [INFO] [1792111706.877862661] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_harvester-8] [INFO] [1792111707.226733494] [peach_target_reconstruction_node]: 已清空，回 IDLE
+[peach_harvester-8] [INFO] [1792111707.231072097] [peach_target_reconstruction_node]: 自动开始：开始重建，绑定目标 target_0
+[peach_harvester-8] [WARN] [1792111707.259911226] [peach_target_reconstruction_node]: 自动采帧跳过 [missing_mask]：缺少所选 target_id 的容差内掩膜
+[peach_arm-9] [INFO] [1792111707.882883812] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_harvester-8] [INFO] [1792111707.974530065] [peach_target_reconstruction_node]: REFINING：几何二次拟合开始（kind=bag，30 点）
+[peach_harvester-8] [WARN] [1792111708.004214500] [peach_target_reconstruction_node]: REFINING：无接触权威几何（no_landmark_views）
+[peach_harvester-8] [INFO] [1792111708.004749907] [peach_target_reconstruction_node]: 已采第 1/5 视角，本帧 337 点，有效深度占比 0.70，位姿=fk
+[peach_harvester-8] [INFO] [1792111708.017782125] [peach_target_reconstruction_node]: REFINING：几何二次拟合开始（kind=bag，30 点）
+[peach_harvester-8] [WARN] [1792111708.038711990] [peach_target_reconstruction_node]: REFINING：无接触权威几何（no_landmark_views）
+[peach_harvester-8] [WARN] [1792111708.039273392] [peach_target_reconstruction_node]: 局部重建完成：1 帧，337 点（少于推荐 5 帧）；重叠指标需 ≥2 帧，本批次不可用；TSDF 30 点 / mesh 41 顶点（累计积分 0.00s）；refit 失败（no_landmark_views）；refit 未产出可用几何
+[peach_harvester-8] [INFO] [1792111708.074929050] [peach_target_reconstruction_node]: 已清空，回 IDLE
+[peach_harvester-8] [INFO] [1792111708.078914847] [peach_target_reconstruction_node]: 自动开始：开始重建，绑定目标 target_0
+[peach_harvester-8] [WARN] [1792111708.322379030] [peach_target_reconstruction_node]: 自动采帧跳过 [missing_mask]：缺少所选 target_id 的容差内掩膜
+[peach_arm-9] [INFO] [1792111708.885229853] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_harvester-8] [INFO] [1792111708.886061294] [peach_target_reconstruction_node]: REFINING：几何二次拟合开始（kind=bag，27 点）
+[peach_harvester-8] [INFO] [1792111708.915791566] [peach_target_reconstruction_node]: REFINING 完成： status=ACCEPT final=False axis=[-0.1895, -0.362, 0.9127] diameter=24.0mm
+[peach_harvester-8] [INFO] [1792111708.916858094] [peach_target_reconstruction_node]: 已采第 1/5 视角，本帧 345 点，有效深度占比 0.72，位姿=fk
+[peach_harvester-8] [INFO] [1792111708.923979391] [peach_target_reconstruction_node]: REFINING：几何二次拟合开始（kind=bag，27 点）
+[peach_harvester-8] [INFO] [1792111708.954254075] [peach_target_reconstruction_node]: REFINING 完成： status=ACCEPT final=True axis=[-0.1895, -0.362, 0.9127] diameter=24.0mm
+[peach_harvester-8] [INFO] [1792111708.954781065] [peach_target_reconstruction_node]: 局部重建完成：1 帧，345 点（少于推荐 5 帧）；重叠指标需 ≥2 帧，本批次不可用；TSDF 27 点 / mesh 66 顶点（累计积分 0.00s）；refit ACCEPT（袋模型 1 视）
+[peach_arm-9] [INFO] [1792111709.878505462] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_harvester-8] [WARN] [1792111710.237652122] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 739（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_arm-9] [INFO] [1792111710.239562515] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[peach_harvester-8] [INFO] [1792111710.247218033] [peach_supervisor]: 操作台使能: execution=True grasp=True tool=False（live_camera_mock owned test）
+[peach_arm-9] [INFO] [1792111710.253459732] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_harvester-8] [INFO] [1792111710.259725972] [peach_supervisor]: 操作台使能: execution=False grasp=False tool=False（live_camera_mock owned test）
+[peach_arm-9] [INFO] [1792111710.881676664] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[stereo_camera_node-1] [INFO] [1792111711.339906514] [camera.peach_stereo_camera_node]: groups=1000 published=1000 rate=13.6 gps drop(stream=0 incomplete=0 nostamp=0 depth=0)
+[peach_arm-9] [INFO] [1792111711.881768942] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_harvester-8] [INFO] [1792111712.526868246] [peach_target_reconstruction_node]: 跟随计划切换重建目标: target_0 -> （空）（放弃 READY 会话）
+[peach_arm-9] [INFO] [1792111712.877798191] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_arm-9] [INFO] [1792111713.878671212] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_harvester-8] [INFO] [1792111714.727140216] [peach_scene_perception_node]: 目标注册表在册 2 个目标（累计注册 3、累计命中 262）
+[peach_arm-9] [INFO] [1792111714.877392551] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_harvester-8] [WARN] [1792111715.281179858] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 783（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_arm-9] [INFO] [1792111715.879936555] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_arm-9] [INFO] [1792111716.883565903] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_arm-9] [INFO] [1792111717.888304557] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[stereo_camera_node-1] [INFO] [1792111718.642852394] [camera.peach_stereo_camera_node]: groups=1100 published=1100 rate=13.6 gps drop(stream=0 incomplete=0 nostamp=0 depth=0)
+[peach_arm-9] [INFO] [1792111718.878254695] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_arm-9] [INFO] [1792111719.878223987] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_harvester-8] [WARN] [1792111720.462793361] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 830（处理跟不上到达率，���查热路径耗时或降低到达率）
+[peach_arm-9] [INFO] [1792111720.883118305] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_arm-9] [INFO] [1792111721.877396917] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_arm-9] [INFO] [1792111722.879262560] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_arm-9] [INFO] [1792111723.877433435] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_observability-10] [INFO] [1792111724.530446185] [peach_observability]: 自检[periodic] 14/18 通过，跳过: robot_status, imu_topic, model_files, vegetation_status
+[peach_harvester-8] [INFO] [1792111724.873737727] [peach_scene_perception_node]: 目标注册表在册 2 个目标（累计注册 3、累计命中 310）
+[peach_arm-9] [INFO] [1792111724.878806713] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_harvester-8] [WARN] [1792111725.485643770] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 875（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_arm-9] [INFO] [1792111725.877877778] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[stereo_camera_node-1] [INFO] [1792111725.956713375] [camera.peach_stereo_camera_node]: groups=1200 published=1200 rate=13.6 gps drop(stream=0 incomplete=0 nostamp=0 depth=0)
+[peach_arm-9] [INFO] [1792111726.877404681] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_arm-9] [INFO] [1792111727.877421259] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_arm-9] [INFO] [1792111728.879345045] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_arm-9] [INFO] [1792111729.880683476] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_harvester-8] [WARN] [1792111730.849520212] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 918（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_arm-9] [INFO] [1792111730.884245916] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_harvester-8] [WARN] [1792111731.435091124] [peach_target_reconstruction_node]: 重建 worker 队列已满，拒绝新帧以保持积分顺序
+[peach_arm-9] [INFO] [1792111731.879295030] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_arm-9] [INFO] [1792111732.882692134] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[stereo_camera_node-1] [INFO] [1792111733.289494725] [camera.peach_stereo_camera_node]: groups=1300 published=1300 rate=13.6 gps drop(stream=0 incomplete=0 nostamp=0 depth=0)
+[peach_arm-9] [INFO] [1792111733.881872375] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_harvester-8] [WARN] [1792111734.055153370] [peach_target_reconstruction_node]: 重建 worker 队列已满，拒绝新帧以保持积分顺序
+[peach_arm-9] [INFO] [1792111734.878543548] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_harvester-8] [WARN] [1792111735.168112775] [peach_target_reconstruction_node]: 重建 worker 队列已满，拒绝新帧以保持积分顺序
+[peach_harvester-8] [INFO] [1792111735.370048345] [peach_scene_perception_node]: 目标注册表在册 2 个目标（累计注册 3、累计命中 350）
+[peach_arm-9] [INFO] [1792111735.877218796] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_harvester-8] [WARN] [1792111736.087516431] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 978（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_arm-9] [INFO] [1792111736.878049697] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_harvester-8] [WARN] [1792111737.450069694] [peach_target_reconstruction_node]: 重建 worker 队列已满，拒绝新帧以保持积分顺序
+[peach_arm-9] [INFO] [1792111737.879179905] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_arm-9] [INFO] [1792111738.879148980] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_harvester-8] [WARN] [1792111739.137431287] [peach_target_reconstruction_node]: 重建 worker 队列已满，拒绝新帧以保持积分顺序
+[peach_arm-9] [INFO] [1792111739.879410928] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_harvester-8] [WARN] [1792111740.462968744] [peach_target_reconstruction_node]: 重建 worker 队列已满，拒绝新帧以保持积分顺序
+[stereo_camera_node-1] [INFO] [1792111740.537736432] [camera.peach_stereo_camera_node]: groups=1400 published=1400 rate=13.6 gps drop(stream=0 incomplete=0 nostamp=0 depth=0)
+[peach_arm-9] [INFO] [1792111740.877128232] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_harvester-8] [WARN] [1792111741.132907971] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 1028（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_arm-9] [INFO] [1792111741.877379527] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_harvester-8] [WARN] [1792111741.950648615] [peach_target_reconstruction_node]: 重建 worker 队列已满，拒绝新帧以保持积分顺序
+[peach_arm-9] [INFO] [1792111742.877630497] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_harvester-8] [WARN] [1792111742.976205915] [peach_target_reconstruction_node]: 重建 worker 队列已满，拒绝新帧以保持积分顺序
+[peach_arm-9] [INFO] [1792111743.879509090] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_harvester-8] [WARN] [1792111744.233379369] [peach_target_reconstruction_node]: 重建 worker 队列已满，拒绝新帧以保持积分顺序
+[peach_arm-9] [INFO] [1792111744.877365669] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_harvester-8] [INFO] [1792111745.658330033] [peach_scene_perception_node]: 目标注册表在册 2 个目标（累计注册 3、累计命中 382）
+[peach_harvester-8] [WARN] [1792111745.757081834] [peach_target_reconstruction_node]: 重建 worker 队列已满，拒绝新帧以保持积分顺序
+[peach_arm-9] [INFO] [1792111745.878672974] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_harvester-8] [WARN] [1792111746.442034986] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 1083（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_arm-9] [INFO] [1792111746.882053452] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_harvester-8] [WARN] [1792111747.239162052] [peach_target_reconstruction_node]: 重建 worker 队列已满，拒绝新帧以保持积分顺序
+[stereo_camera_node-1] [INFO] [1792111747.810766790] [camera.peach_stereo_camera_node]: groups=1500 published=1500 rate=13.6 gps drop(stream=0 incomplete=0 nostamp=0 depth=0)
+[peach_arm-9] [INFO] [1792111747.878703848] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_harvester-8] [WARN] [1792111748.653440193] [peach_target_reconstruction_node]: 重建 worker 队列已满，拒绝新帧以保持积分顺序
+[peach_arm-9] [INFO] [1792111748.878439520] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_arm-9] [INFO] [1792111749.877590094] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_harvester-8] [WARN] [1792111750.135487753] [peach_target_reconstruction_node]: 重建 worker 队列已满，拒绝新帧以保持积分顺序
+[peach_arm-9] [INFO] [1792111750.887536346] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_arm-9] [INFO] [1792111751.877076642] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_harvester-8] [WARN] [1792111751.972514820] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 1144（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-8] [WARN] [1792111752.145551824] [peach_target_reconstruction_node]: 重建 worker 队列已满，拒绝新帧以保持积分顺序
+[peach_arm-9] [INFO] [1792111752.877338574] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_arm-9] [INFO] [1792111753.877101997] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_harvester-8] [WARN] [1792111754.140562871] [peach_target_reconstruction_node]: 重建 worker 队列已满，拒绝新帧以保持积分顺序
+[peach_observability-10] [INFO] [1792111754.539266054] [peach_observability]: 自检[periodic] 14/18 通过，跳过: robot_status, imu_topic, model_files, vegetation_status
+[peach_arm-9] [INFO] [1792111754.879462280] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[stereo_camera_node-1] [INFO] [1792111755.085304129] [camera.peach_stereo_camera_node]: groups=1600 published=1600 rate=13.6 gps drop(stream=0 incomplete=0 nostamp=0 depth=0)
+[peach_harvester-8] [WARN] [1792111755.150697569] [peach_target_reconstruction_node]: 重建 worker 队列已满，拒绝新帧以保持积分顺序
+[peach_harvester-8] [INFO] [1792111755.661946563] [peach_scene_perception_node]: 目标注册表在册 2 个目标（累计注册 3、累计命中 411）
+[peach_arm-9] [INFO] [1792111755.879104363] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_arm-9] [INFO] [1792111756.877304864] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_harvester-8] [WARN] [1792111757.176620455] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 1199（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-8] [WARN] [1792111757.275595966] [peach_target_reconstruction_node]: 重建 worker 队列已满，拒绝新帧以保持积分顺序
+[peach_arm-9] [INFO] [1792111757.877295255] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_arm-9] [INFO] [1792111758.877075983] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_harvester-8] [WARN] [1792111759.315633169] [peach_target_reconstruction_node]: 重建 worker 队列已满，拒绝新帧以保持积分顺序
+[peach_arm-9] [INFO] [1792111759.882460057] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_arm-9] [INFO] [1792111760.881961093] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_harvester-8] [WARN] [1792111761.041110953] [peach_target_reconstruction_node]: 重建 worker 队列已满，拒绝新帧以保持积分顺序
+[peach_arm-9] [INFO] [1792111761.877742621] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[stereo_camera_node-1] [INFO] [1792111762.351469092] [camera.peach_stereo_camera_node]: groups=1700 published=1700 rate=13.6 gps drop(stream=0 incomplete=0 nostamp=0 depth=0)
+[peach_harvester-8] [WARN] [1792111762.375865109] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 1254（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_arm-9] [INFO] [1792111762.880248349] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_harvester-8] [WARN] [1792111763.272442137] [peach_target_reconstruction_node]: 重建 worker 队列已满，拒绝新帧以保持积分顺序
+[peach_arm-9] [INFO] [1792111763.877430718] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_arm-9] [INFO] [1792111764.877823495] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_harvester-8] [INFO] [1792111765.678915803] [peach_scene_perception_node]: 目标注册表在册 2 个目标（累计注册 3、累计命中 444）
+[peach_arm-9] [INFO] [1792111765.877284421] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_harvester-8] [WARN] [1792111766.743019411] [peach_target_reconstruction_node]: 重建 worker 队列已满，拒绝新帧以保持积分顺序
+[peach_arm-9] [INFO] [1792111766.879548040] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_harvester-8] [WARN] [1792111767.445844870] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 1306（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_arm-9] [INFO] [1792111767.882378596] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_arm-9] [INFO] [1792111768.878137809] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_harvester-8] [WARN] [1792111769.075265941] [peach_target_reconstruction_node]: 重建 worker 队列已满，拒绝新帧以保持积分顺序
+[stereo_camera_node-1] [INFO] [1792111769.570641876] [camera.peach_stereo_camera_node]: groups=1800 published=1800 rate=13.6 gps drop(stream=0 incomplete=0 nostamp=0 depth=0)
+[peach_arm-9] [INFO] [1792111769.877695821] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_harvester-8] [WARN] [1792111770.499106775] [peach_target_reconstruction_node]: 重建 worker 队列已满，拒绝新帧以保持积分顺序
+[peach_arm-9] [INFO] [1792111770.879091355] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_arm-9] [INFO] [1792111771.881827591] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_harvester-8] [WARN] [1792111772.078195591] [peach_target_reconstruction_node]: 重建 worker 队列已满，拒绝新帧以保持积分顺序
+[peach_harvester-8] [WARN] [1792111772.587479086] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 1362（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_arm-9] [INFO] [1792111772.878695372] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_harvester-8] [WARN] [1792111773.434538455] [peach_target_reconstruction_node]: 重建 worker 队列已满，拒绝新帧以保持积分顺序
+[peach_arm-9] [INFO] [1792111773.877574443] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_arm-9] [INFO] [1792111774.877356068] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_harvester-8] [WARN] [1792111775.058106976] [peach_target_reconstruction_node]: 重建 worker 队列已满，拒绝新帧以保持积分顺序
+[peach_arm-9] [INFO] [1792111775.880987151] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_harvester-8] [INFO] [1792111776.058036988] [peach_scene_perception_node]: 目标注册表在册 2 个目标（累计注册 3、累计命中 476）
+[stereo_camera_node-1] [INFO] [1792111776.761085188] [camera.peach_stereo_camera_node]: groups=1900 published=1900 rate=13.7 gps drop(stream=0 incomplete=0 nostamp=0 depth=0)
+[peach_arm-9] [INFO] [1792111777.041604591] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_arm-9] [INFO] [1792111777.877113355] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_harvester-8] [WARN] [1792111777.924045975] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 1422（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-8] [WARN] [1792111778.115114985] [peach_target_reconstruction_node]: 重建 worker 队列已满，拒绝新帧以保持积分顺序
+[peach_arm-9] [INFO] [1792111778.878434806] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_arm-9] [INFO] [1792111779.880458835] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_arm-9] [INFO] [1792111780.877103145] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_harvester-8] [WARN] [1792111780.975483561] [peach_target_reconstruction_node]: 重建 worker 队列已满，拒绝新帧以保持积分顺序
+[peach_arm-9] [INFO] [1792111781.879955511] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_harvester-8] [WARN] [1792111782.489005595] [peach_target_reconstruction_node]: 重建 worker 队列已满，拒绝新帧以保持积分顺序
+[peach_arm-9] [INFO] [1792111782.877309620] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_harvester-8] [WARN] [1792111783.238571728] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 1480（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_arm-9] [INFO] [1792111783.879547367] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[stereo_camera_node-1] [INFO] [1792111784.044952521] [camera.peach_stereo_camera_node]: groups=2000 published=2000 rate=13.7 gps drop(stream=0 incomplete=0 nostamp=0 depth=0)
+[peach_harvester-8] [WARN] [1792111784.071429200] [peach_target_reconstruction_node]: 重建 worker 队列已满，拒绝新帧以保持积分顺序
+[peach_observability-10] [INFO] [1792111784.534884128] [peach_observability]: 自检[periodic] 14/18 通过，跳过: robot_status, imu_topic, model_files, vegetation_status
+[peach_arm-9] [INFO] [1792111784.883686833] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_harvester-8] [WARN] [1792111785.658587554] [peach_target_reconstruction_node]: 重建 worker 队列已满，拒绝新帧以保持积分顺序
+[peach_arm-9] [INFO] [1792111785.881127238] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_harvester-8] [INFO] [1792111786.536562369] [peach_scene_perception_node]: 目标注册表在册 2 个目标（累计注册 3、累计命中 505）
+[peach_arm-9] [INFO] [1792111786.879359413] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_harvester-8] [WARN] [1792111787.217012674] [peach_target_reconstruction_node]: 重建 worker 队列已满，拒绝新帧以保持积分顺序
+[peach_arm-9] [INFO] [1792111787.877265684] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_harvester-8] [WARN] [1792111788.449173844] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 1539（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_harvester-8] [WARN] [1792111788.524732380] [peach_target_reconstruction_node]: 重建 worker 队列已满，拒绝新帧以保持积分顺序
+[peach_arm-9] [INFO] [1792111788.879193055] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_arm-9] [INFO] [1792111789.877347337] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_harvester-8] [WARN] [1792111790.089884680] [peach_target_reconstruction_node]: 重建 worker 队列已满，拒绝新帧以保持积分顺序
+[peach_arm-9] [INFO] [1792111790.882967760] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[stereo_camera_node-1] [INFO] [1792111791.305022937] [camera.peach_stereo_camera_node]: groups=2100 published=2100 rate=13.7 gps drop(stream=0 incomplete=0 nostamp=0 depth=0)
+[peach_harvester-8] [WARN] [1792111791.485265154] [peach_target_reconstruction_node]: 重建 worker 队列已满，拒绝新帧以保持积分顺序
+[peach_arm-9] [INFO] [1792111791.877906046] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_arm-9] [INFO] [1792111792.878135781] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_harvester-8] [WARN] [1792111793.599986501] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 1594（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_arm-9] [INFO] [1792111793.877883901] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_harvester-8] [WARN] [1792111794.176303940] [peach_target_reconstruction_node]: 重建 worker 队列已满，拒绝新帧以保持积分顺序
+[peach_arm-9] [INFO] [1792111794.878966641] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_harvester-8] [WARN] [1792111795.265179037] [peach_target_reconstruction_node]: 重建 worker 队列已满，拒绝新帧以保持积分顺序
+[peach_arm-9] [INFO] [1792111795.877293266] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_harvester-8] [WARN] [1792111796.807803756] [peach_target_reconstruction_node]: 重建 worker 队列已满，拒绝新帧以保持积分顺序
+[peach_arm-9] [INFO] [1792111796.880819632] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_harvester-8] [INFO] [1792111796.940477693] [peach_scene_perception_node]: 目标注册表在册 2 个目标（累计注册 3、累计命中 538）
+[peach_arm-9] [INFO] [1792111797.880740899] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_harvester-8] [WARN] [1792111798.227483075] [peach_target_reconstruction_node]: 重建 worker 队列已满，拒绝新帧以保持积分顺序
+[stereo_camera_node-1] [INFO] [1792111798.535317241] [camera.peach_stereo_camera_node]: groups=2200 published=2200 rate=13.7 gps drop(stream=0 incomplete=0 nostamp=0 depth=0)
+[peach_arm-9] [INFO] [1792111798.877081507] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_harvester-8] [WARN] [1792111798.917844106] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 1649（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_arm-9] [INFO] [1792111799.878903165] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_arm-9] [INFO] [1792111800.878457893] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_harvester-8] [WARN] [1792111801.258227779] [peach_target_reconstruction_node]: 重建 worker 队列已满，拒绝新帧以保持积分顺序
+[peach_arm-9] [INFO] [1792111801.881620859] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_arm-9] [INFO] [1792111802.877170801] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_harvester-8] [WARN] [1792111803.526817840] [peach_target_reconstruction_node]: 重建 worker 队列已满，拒绝新帧以保持积分顺序
+[peach_arm-9] [INFO] [1792111803.881142647] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_harvester-8] [WARN] [1792111804.215935396] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 1704（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_arm-9] [INFO] [1792111804.877637146] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_harvester-8] [WARN] [1792111805.178947732] [peach_target_reconstruction_node]: 重建 worker 队列已满，拒绝新帧以保持积分顺序
+[stereo_camera_node-1] [INFO] [1792111805.839535432] [camera.peach_stereo_camera_node]: groups=2300 published=2300 rate=13.7 gps drop(stream=0 incomplete=0 nostamp=0 depth=0)
+[peach_arm-9] [INFO] [1792111805.879596472] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_harvester-8] [WARN] [1792111806.479334363] [peach_target_reconstruction_node]: 重建 worker 队列已满，拒绝新帧以保持积分顺序
+[peach_arm-9] [INFO] [1792111806.877517414] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_harvester-8] [INFO] [1792111807.351015794] [peach_scene_perception_node]: 目标注册表在册 2 个目标（累计注册 3、累计命中 571）
+[peach_harvester-8] [WARN] [1792111807.669552620] [peach_target_reconstruction_node]: 重建 worker 队列已满，拒绝新帧以保持积分顺序
+[peach_arm-9] [INFO] [1792111807.877349157] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_arm-9] [INFO] [1792111808.878416074] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_harvester-8] [WARN] [1792111809.249028575] [peach_target_reconstruction_node]: 重建 worker 队列已满，拒绝新帧以保持积分顺序
+[peach_harvester-8] [WARN] [1792111809.348376919] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 1759（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_arm-9] [INFO] [1792111809.878624665] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_harvester-8] [WARN] [1792111810.372597086] [peach_target_reconstruction_node]: 重建 worker 队列已满，拒绝新帧以保持积分顺序
+[peach_arm-9] [INFO] [1792111810.877035351] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_arm-9] [INFO] [1792111811.878766305] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_arm-9] [INFO] [1792111812.878130611] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[stereo_camera_node-1] [INFO] [1792111813.036521459] [camera.peach_stereo_camera_node]: groups=2400 published=2400 rate=13.7 gps drop(stream=0 incomplete=0 nostamp=0 depth=0)
+[peach_harvester-8] [WARN] [1792111813.247282867] [peach_target_reconstruction_node]: 重建 worker 队列已满，拒绝新帧以保持积分顺序
+[peach_arm-9] [INFO] [1792111813.877373157] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_observability-10] [INFO] [1792111814.531014132] [peach_observability]: 自检[periodic] 14/18 通过，跳过: robot_status, imu_topic, model_files, vegetation_status
+[peach_harvester-8] [WARN] [1792111814.851545623] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 1816（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_arm-9] [INFO] [1792111814.878964805] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_harvester-8] [WARN] [1792111815.096880221] [peach_target_reconstruction_node]: 重建 worker 队列已满，拒绝新帧以保持积分顺序
+[peach_arm-9] [INFO] [1792111815.877397120] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_arm-9] [INFO] [1792111816.877330913] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_harvester-8] [WARN] [1792111816.939218178] [peach_target_reconstruction_node]: 重建 worker 队列已满，拒绝新帧以保持积分顺序
+[peach_harvester-8] [INFO] [1792111817.500217317] [peach_scene_perception_node]: 目标注册表在册 2 个目标（累计注册 3、累计命中 605）
+[peach_arm-9] [INFO] [1792111817.877037763] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_harvester-8] [WARN] [1792111818.417577860] [peach_target_reconstruction_node]: 重建 worker 队列已满，拒绝新帧以保持积分顺序
+[peach_arm-9] [INFO] [1792111818.880476548] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_harvester-8] [WARN] [1792111819.872565802] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 1870（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_arm-9] [INFO] [1792111819.878327800] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[stereo_camera_node-1] [INFO] [1792111820.289017556] [camera.peach_stereo_camera_node]: groups=2500 published=2500 rate=13.7 gps drop(stream=0 incomplete=0 nostamp=0 depth=0)
+[peach_arm-9] [INFO] [1792111820.878901219] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_arm-9] [INFO] [1792111821.877070897] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_arm-9] [INFO] [1792111822.877238921] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_arm-9] [INFO] [1792111823.877482236] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_arm-9] [INFO] [1792111824.880404907] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_harvester-8] [WARN] [1792111824.916980056] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 1883（处理跟不上到达率，排查热路径耗时或降低到达率）
+[peach_arm-9] [INFO] [1792111825.593062970] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[peach_harvester-8] [INFO] [1792111825.593736782] [peach_supervisor]: 操作台使能: execution=False grasp=False tool=False（live_camera_mock owned test）
+[WARNING] [launch]: user interrupted with ctrl-c (SIGINT)
+[INFO] [peach_lifecycle_flag_bridge-12]: sending signal 'SIGINT' to process[peach_lifecycle_flag_bridge-12]
+[INFO] [lifecycle_manager-11]: sending signal 'SIGINT' to process[lifecycle_manager-11]
+[INFO] [peach_observability-10]: sending signal 'SIGINT' to process[peach_observability-10]
+[INFO] [peach_arm-9]: sending signal 'SIGINT' to process[peach_arm-9]
+[INFO] [peach_harvester-8]: sending signal 'SIGINT' to process[peach_harvester-8]
+[INFO] [move_group-7]: sending signal 'SIGINT' to process[move_group-7]
+[INFO] [ros2_control_node-4]: sending signal 'SIGINT' to process[ros2_control_node-4]
+[INFO] [robot_state_publisher-3]: sending signal 'SIGINT' to process[robot_state_publisher-3]
+[INFO] [peach_scene_obstacles-2]: sending signal 'SIGINT' to process[peach_scene_obstacles-2]
+[INFO] [stereo_camera_node-1]: sending signal 'SIGINT' to process[stereo_camera_node-1]
+[peach_arm-9] [INFO] [1792111825.877406882] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[lifecycle_manager-11] [INFO] [1792111825.995486974] [rclcpp]: signal_handler(SIGINT/SIGTERM)
+[lifecycle_manager-11] [INFO] [1792111825.995585656] [peach_lifecycle_manager]: Running Nav2 LifecycleManager rcl preshutdown (peach_lifecycle_manager)
+[peach_arm-9] [INFO] [1792111825.996534579] [rclcpp]: signal_handler(SIGINT/SIGTERM)
+[move_group-7] [INFO] [1792111825.997049504] [rclcpp]: signal_handler(SIGINT/SIGTERM)
+[robot_state_publisher-3] [INFO] [1792111825.997927025] [rclcpp]: signal_handler(SIGINT/SIGTERM)
+[ros2_control_node-4] [INFO] [1792111825.998400180] [rclcpp]: signal_handler(SIGINT/SIGTERM)
+[ros2_control_node-4] [INFO] [1792111825.998465008] [controller_manager]: Shutdown request received....
+[ros2_control_node-4] [INFO] [1792111825.998518365] [controller_manager]: Shutting down all controllers in the controller manager.
+[ros2_control_node-4] [INFO] [1792111825.998540575] [controller_manager]: Deactivating controller 'joint_state_broadcaster'
+[ros2_control_node-4] [INFO] [1792111825.998587375] [controller_manager]: Shutting down controller 'joint_state_broadcaster'
+[ros2_control_node-4] [INFO] [1792111825.998703770] [controller_manager]: Deactivating controller 'joint_trajectory_controller'
+[ros2_control_node-4] [INFO] [1792111825.998751215] [controller_manager]: Shutting down controller 'joint_trajectory_controller'
+[ros2_control_node-4] [INFO] [1792111825.998792966] [resource_manager]: 'deactivate' hardware 'AuboE5System' 
+[ros2_control_node-4] [INFO] [1792111825.998803859] [resource_manager]: Successful 'deactivate' of hardware 'AuboE5System'
+[ros2_control_node-4] [INFO] [1792111825.998805801] [resource_manager]: 'shutdown' hardware 'AuboE5System' 
+[ros2_control_node-4] [INFO] [1792111825.998806988] [resource_manager]: Successful 'shutdown' of hardware 'AuboE5System'
+[ros2_control_node-4] [INFO] [1792111825.998858959] [controller_manager]: Shutting down the controller manager.
+[stereo_camera_node-1] [INFO] [1792111825.998858007] [rclcpp]: signal_handler(SIGINT/SIGTERM)
+[ros2_control_node-4] [ERROR] [1792111825.998935225] [controller_manager.pal_statistics]: Exception in publisher thread: context cannot be slept with because it's invalid!. Aborting!
+[ros2_control_node-4] [ERROR] [1792111825.998968832] [controller_manager.pal_statistics]: Exception in publisher thread: context cannot be slept with because it's invalid!. Aborting!
+[peach_arm-9] [INFO] [1792111825.999883150] [peach_arm]: requestCancelAll: 停止当前执行（来源：deactivate 收口）
+[lifecycle_manager-11] [INFO] [1792111826.001651657] [peach_lifecycle_manager]: Destroying peach_lifecycle_manager
+[ros2_control_node-4] [INFO] [1792111826.003440393] [controller_manager.pal_statistics]: Async messages lost 0
+[ros2_control_node-4] [INFO] [1792111826.003448330] [controller_manager.pal_statistics]: publish_async_failures_ 0
+[ros2_control_node-4] [INFO] [1792111826.008655866] [controller_manager.pal_statistics]: Async messages lost 0
+[ros2_control_node-4] [INFO] [1792111826.008668222] [controller_manager.pal_statistics]: publish_async_failures_ 0
+[peach_scene_obstacles-2] Traceback (most recent call last):
+[peach_scene_obstacles-2]   File "/opt/ros/jazzy/lib/python3.12/site-packages/rclpy/task.py", line 286, in _execute_coroutine_step
+[peach_scene_obstacles-2]     result = coro.send(None)
+[peach_scene_obstacles-2]              ^^^^^^^^^^^^^^^
+[peach_scene_obstacles-2] StopIteration
+[peach_scene_obstacles-2] 
+[peach_scene_obstacles-2] During handling of the above exception, another exception occurred:
+[peach_scene_obstacles-2] 
+[peach_scene_obstacles-2] Traceback (most recent call last):
+[peach_scene_obstacles-2]   File "/home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_harvester/lib/peach_harvester/peach_scene_obstacles", line 33, in <module>
+[peach_scene_obstacles-2]     sys.exit(load_entry_point('peach-harvester==0.1.0', 'console_scripts', 'peach_scene_obstacles')())
+[peach_scene_obstacles-2]              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[peach_scene_obstacles-2]   File "/home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_harvester/lib/python3.12/site-packages/peach_harvester/vision/scene_obstacles/node.py", line 367, in main
+[peach_scene_obstacles-2]     rclpy.spin(node)
+[peach_scene_obstacles-2]   File "/opt/ros/jazzy/lib/python3.12/site-packages/rclpy/__init__.py", line 247, in spin
+[peach_scene_obstacles-2]     executor.spin_once()
+[peach_scene_obstacles-2]   File "/opt/ros/jazzy/lib/python3.12/site-packages/rclpy/executors.py", line 926, in spin_once
+[peach_scene_obstacles-2]     self._spin_once_impl(timeout_sec)
+[peach_scene_obstacles-2]   File "/opt/ros/jazzy/lib/python3.12/site-packages/rclpy/executors.py", line 916, in _spin_once_impl
+[peach_scene_obstacles-2]     handler()
+[peach_scene_obstacles-2]   File "/opt/ros/jazzy/lib/python3.12/site-packages/rclpy/task.py", line 270, in __call__
+[peach_scene_obstacles-2]     self._execute_coroutine_step(self._handler)
+[peach_scene_obstacles-2]   File "/opt/ros/jazzy/lib/python3.12/site-packages/rclpy/task.py", line 289, in _execute_coroutine_step
+[peach_scene_obstacles-2]     self.set_result(e.value)
+[peach_scene_obstacles-2]   File "/opt/ros/jazzy/lib/python3.12/site-packages/rclpy/task.py", line 121, in set_result
+[peach_scene_obstacles-2]     def set_result(self, result):
+[peach_scene_obstacles-2] 
+[peach_scene_obstacles-2] KeyboardInterrupt
+[move_group-7] Stack trace (most recent call last):
+[move_group-7] #6    Object "", at 0xffffffffffffffff, in 
+[move_group-7] #5    Object "/opt/ros/jazzy/lib/moveit_ros_move_group/move_group", at 0x63a0861aca14, in _start
+[ERROR] [peach_scene_obstacles-2]: process has died [pid 15657, exit code -2, cmd '/home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_harvester/lib/peach_harvester/peach_scene_obstacles --ros-args -p use_sim_time:=False'].
+[move_group-7] #4    Source "../csu/libc-start.c", line 360, in __libc_start_main_impl [0x7d8ab7e2a28a]
+[move_group-7] #3    Source "../sysdeps/nptl/libc_start_call_main.h", line 58, in __libc_start_call_main [0x7d8ab7e2a1c9]
+[move_group-7] #2    Object "/opt/ros/jazzy/lib/moveit_ros_move_group/move_group", at 0x63a0861ab4e7, in main
+[move_group-7] #1    Object "/opt/ros/jazzy/lib/librclcpp.so", at 0x7d8ab87162f7, in rclcpp::Executor::~Executor()
+[move_group-7] #0    Object "/opt/ros/jazzy/lib/librclcpp.so", at 0x7d8ab8710dde, in 
+[move_group-7] Segmentation fault (Address not mapped to object [0x7d8a88bf0170])
+[INFO] [lifecycle_manager-11]: process has finished cleanly [pid 15666]
+[INFO] [robot_state_publisher-3]: process has finished cleanly [pid 15658]
+[INFO] [ros2_control_node-4]: process has finished cleanly [pid 15659]
+[INFO] [peach_arm-9]: process has finished cleanly [pid 15664]
+[ERROR] [move_group-7]: process has died [pid 15662, exit code -11, cmd '/opt/ros/jazzy/lib/moveit_ros_move_group/move_group --ros-args -p use_sim_time:=False --params-file /tmp/launch_params_74z27zq1 --params-file /tmp/launch_params_69fmyhrq'].
+[INFO] [peach_lifecycle_flag_bridge-12]: process has finished cleanly [pid 15667]
+[stereo_camera_node-1] [INFO] [1792111826.161988705] [camera.peach_stereo_camera_node]: device closed, laser restored
+[peach_harvester-8] The following exception was never retrieved: cannot use Destroyable because destruction was requested
+[peach_harvester-8] The following exception was never retrieved: cannot use Destroyable because destruction was requested
+[peach_harvester-8] The following exception was never retrieved: cannot use Destroyable because destruction was requested
+[INFO] [stereo_camera_node-1]: process has finished cleanly [pid 15656]
+[INFO] [peach_harvester-8]: process has finished cleanly [pid 15663]
+[peach_observability-10] bag 分析报告已生成：/home/mu/Desktop/aubo_e5_jazzy_ws/runs/session_20261016_084714/bag_report.md
+[peach_observability-10] markdown: /home/mu/Desktop/aubo_e5_jazzy_ws/runs/session_20261016_084714/bag_report.md
+[peach_observability-10] json: /home/mu/Desktop/aubo_e5_jazzy_ws/runs/session_20261016_084714/bag_report.json
+[INFO] [peach_observability-10]: process has finished cleanly [pid 15665]

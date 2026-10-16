@@ -60,28 +60,32 @@ def launch_setup(context):
     """tool_profile 须 perform 后再拼 Builder（xacro 映射构建期展开）."""
     tool_profile = LaunchConfiguration('tool_profile').perform(context)
     params_file = LaunchConfiguration('params_file')
+    overlay = LaunchConfiguration('params_overlay').perform(context).strip()
     # 字符串 launch 参数勿直接 ParameterValue(bool)：非空 'false' 会被当成 True。
     require_robot_status = LaunchConfiguration(
         'require_robot_status').perform(context).lower() in ('true', '1', 'yes')
     allow_unrefined_geometry = LaunchConfiguration(
         'allow_unrefined_geometry').perform(context).lower() in (
             'true', '1', 'yes')
+    parameters = [
+        ParameterFile(params_file, allow_substs=True),
+        manipulation_overlay(),
+        tool_profile_id_params(LaunchConfiguration('tool_profile')),
+        tool_profile_d_inner_params(LaunchConfiguration('tool_profile')),
+        tool_profile_body_params(LaunchConfiguration('tool_profile')),
+        *_skills_moveit_params(tool_profile),
+        {'execution.require_robot_status': require_robot_status},
+        {'quality.allow_unrefined_geometry': allow_unrefined_geometry},
+    ]
+    if overlay:
+        parameters.append(ParameterFile(overlay, allow_substs=True))
     node = LifecycleNode(
         package='peach_arm',
         executable='peach_arm',
         name='peach_arm',
         namespace='',
         output='screen',
-        parameters=[
-            ParameterFile(params_file, allow_substs=True),
-            manipulation_overlay(),
-            tool_profile_id_params(LaunchConfiguration('tool_profile')),
-            tool_profile_d_inner_params(LaunchConfiguration('tool_profile')),
-            tool_profile_body_params(LaunchConfiguration('tool_profile')),
-            *_skills_moveit_params(tool_profile),
-            {'execution.require_robot_status': require_robot_status},
-            {'quality.allow_unrefined_geometry': allow_unrefined_geometry},
-        ],
+        parameters=parameters,
     )
     autostart = LaunchConfiguration('autostart')
     configure = EmitEvent(
@@ -127,5 +131,9 @@ def generate_launch_description():
             'allow_unrefined_geometry', default_value='false',
             description='true 时用场景观测几何代替重建精化；'
                         'harvest_system skip_reconstruction:=true 时传入 true'),
+        DeclareLaunchArgument(
+            'params_overlay', default_value='',
+            description='可选额外 ParameterFile（后装覆盖 peach_arm.yaml）；'
+                        '空=不装。真实相机+mock 联合测用来提高 mock 速度缩放'),
         OpaqueFunction(function=launch_setup),
     ])

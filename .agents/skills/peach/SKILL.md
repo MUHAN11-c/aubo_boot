@@ -19,7 +19,7 @@ description: >-
 | 怎么改 | [`AGENTS.md`](../../../AGENTS.md) | MUST / DEFAULT / KEEP / UNWIND |
 | 现在跑什么 | [`peach_bringup/doc/architecture.md`](../../../src/peach/peach_bringup/doc/architecture.md) + [`doc/io.md`](../../../src/peach/peach_bringup/doc/io.md) + 两测试包 `doc/testing.md` | SNAPSHOT（2026-10-10 拆包入库）；改行为同轮改对应包文档 |
 | 图名/QoS | [`interface_manifest.yaml`](../../../src/peach/peach_interfaces/config/interface_manifest.yaml) | **高于 IDL 文件头注释**（头注释常残留 `peach_executor`） |
-| 接近路径 | `grasp_task.cpp::tryStagingTransit` | **高于** `grasp_task.hpp` / `peach_arm/README.md` 文件头（仍写斜插兜底，已过期） |
+| 接近路径 | `grasp_task.cpp::planToPregrasp` | 几何允许时先 `tryRolledApproach` 完整 LIN；未运动才 `tryStagingTransit` |
 | 本技能 | 本目录 | 读哪几个文件、谁调谁、禁区 |
 
 冲突时：MUST > 源码+清单 > 包级活文档 > 本技能。IDL 注释与清单打架以清单为准。头注释与 `.cpp` 打架以实现函数为准。

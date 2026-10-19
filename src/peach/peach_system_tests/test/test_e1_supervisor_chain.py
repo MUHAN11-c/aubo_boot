@@ -102,7 +102,7 @@ def generate_test_description():
                 launch_arguments={
                     'hardware_mode': 'mock',
                     'camera_enabled': 'false',
-                    'imu_enabled': 'false',
+                    'force_enabled': 'false',
                     'moveit_enabled': 'true',
                     'rviz': 'false',  # 无头集成测不启动显示端；RViz另做桌面联合验收。
                     'extrinsics_enabled': 'true',

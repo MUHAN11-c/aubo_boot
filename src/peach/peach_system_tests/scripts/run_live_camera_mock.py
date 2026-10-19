@@ -635,7 +635,7 @@ def run(args):
             }}}}, sort_keys=False))
         command = ['ros2', 'launch', 'peach_bringup', 'harvest_system.launch.py',
                    'hardware_mode:=mock', 'camera_enabled:=true', 'camera_frontend:=stereo',
-                   'extrinsics_enabled:=false', 'imu_enabled:=false', 'autostart:=false',
+                   'extrinsics_enabled:=false', 'force_enabled:=false', 'autostart:=false',
                    'use_sim_time:=false', 'rviz:=false', 'tool_profile:=bite_shear_v1',
                    'mock_initial_positions:=' + ','.join(map(str, profile['mock_initial_positions'])),
                    'brain_params_overlay:=' + str(overlay),

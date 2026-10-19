@@ -1,8 +1,8 @@
 """官方示例真实仿真数据面演示栈 — turtlebot3 官方仿真 + nav2 官方栈 + ros2 官方示例.
 
 2026-10-15 用户裁定：viz_fixture 合成流删除；验证数据面全部来自 GitHub 热门官方
-仓库（克隆进本项目：src/turtlebot3_msgs、src/turtlebot3_simulations、
-src/ros2_examples、external/navigation2）与 ros2/moveit2/nav2 官方示例，
+仓库（克隆进本项目：src/examples/turtlebot3_msgs、src/examples/turtlebot3_simulations、
+src/examples/ros2_examples、external/navigation2）与 ros2/moveit2/nav2 官方示例，
 本地自写项目不参与验证。
 
 数据源（全部官方）：
@@ -117,7 +117,7 @@ def generate_launch_description():
         condition=IfCondition(PythonExpression(
             ["'", nav2, "' == 'true' and '", rviz, "' == 'false'"])))
 
-    # ros2 官方示例节点（ros2/examples，克隆于 src/ros2_examples）
+    # ros2 官方示例节点（ros2/examples，克隆于 src/examples/ros2_examples）
     examples_on = IfCondition(examples)
     pointcloud = Node(
         package='examples_rclpy_pointcloud_publisher',

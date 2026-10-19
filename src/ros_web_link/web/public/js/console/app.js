@@ -54,7 +54,9 @@ function refreshConnInfo() {
     `session: ${st.sessionId ?? '—'} · 消息: ${st.messagesReceived} · ` +
     `字节: ${st.bytesReceived} · 服务调用: ${st.serviceCalls} · 重连: ${st.reconnects}`;
   const caps = client.isConnected ? (client.player?.capabilities || []) : [];
-  $('caps-pill').textContent = 'caps: ' + (caps.length ? caps.join(', ') : '—');
+  // 头部空间：只显示数量，完整能力列表放 title（避免长 caps 串把工具栏挤换行）
+  $('caps-pill').textContent = 'caps: ' + (caps.length ? String(caps.length) : '—');
+  $('caps-pill').title = '服务器能力：' + (caps.length ? caps.join(', ') : '—');
 }
 
 async function connect() {
@@ -174,6 +176,13 @@ function refreshGraph() {
     list.appendChild(li);
   }
 }
+
+// 图谱列表周期刷新（连接后 connectionGraph 才逐步完整；切到图谱时也可立即刷新）
+setInterval(() => {
+  if (client.isConnected && document.querySelector('main.app-grid')?.dataset.nav === 'graph') {
+    refreshGraph();
+  }
+}, 5000);
 
 // ── 话题回显 ────────────────────────────────────────────────────────────────
 
@@ -333,7 +342,7 @@ $('btn-act-cancel').addEventListener('click', async () => {
 
 $('btn-param-get').addEventListener('click', async () => {
   if (!client.isConnected) return alert('先连接');
-  const node = $('param-node').value.trim();
+  const node = $('param-node-ops').value.trim();
   const pname = $('param-name').value.trim();
   try {
     const values = await client.getParams(node, pname ? [pname] : []);
@@ -345,7 +354,7 @@ $('btn-param-get').addEventListener('click', async () => {
 
 $('btn-param-set').addEventListener('click', async () => {
   if (!client.isConnected) return alert('先连接');
-  const node = $('param-node').value.trim();
+  const node = $('param-node-ops').value.trim();
   const pname = $('param-name').value.trim();
   if (!pname) return ($('param-out').textContent = '设置需指定参数名');
   let raw = $('param-value').value;
@@ -824,8 +833,9 @@ window.__rwl_viz = vizPanel;    // 浏览器自动化入口（addOrEnable/快照
     viz: ['sec-viz', 'sec-displays', 'sec-topics', 'sec-teleop'],
     data: ['sec-2d', 'sec-plot'],
     monitor: ['sec-mon', 'sec-diag', 'sec-roslog'],
+    graph: ['sec-topo', 'sec-graph'],
     tools: ['sec-traj', 'sec-params', 'sec-ops', 'sec-selftest'],
-    conn: ['sec-conn', 'sec-graph', 'sec-topo'],
+    conn: ['sec-conn'],
   };
   const apply = (name) => {
     main.dataset.nav = name;
@@ -839,6 +849,13 @@ window.__rwl_viz = vizPanel;    // 浏览器自动化入口（addOrEnable/快照
       document.getElementById(id)?.classList.add('in-view');
     }
     localStorage.setItem('rwl-nav', name);
+    // 图谱区从隐藏变为可见后容器尺寸才有效：下一帧重排 + fit
+    if (name === 'graph') {
+      setTimeout(() => {
+        window.__rwl_topology?.fit();
+        refreshGraph();
+      }, 60);
+    }
   };
   bar.querySelectorAll('button[data-nav]').forEach((b) => {
     b.addEventListener('click', () => apply(b.dataset.nav));

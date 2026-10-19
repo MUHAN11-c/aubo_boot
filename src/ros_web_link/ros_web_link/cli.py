@@ -9,6 +9,8 @@ import uvicorn
 
 from . import config as cfg
 
+__all__ = ['main', 'build_parser']
+
 
 def _check_port_free(bind: str, port: int) -> None:
     """启动前端口占用预检.

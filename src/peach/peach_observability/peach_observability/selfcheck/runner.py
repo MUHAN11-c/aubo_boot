@@ -314,8 +314,8 @@ class SelfCheckRunner:
             probes['robot_status'].age(mono) if p.robot_status_probe_enabled
             else None, 2.0, 'robot_status',
             skip_reason='mock 模式不要求'))
-        # 8) IMU 话题在场
-        checks.append(self._check_imu(p))
+        # 8) 5 点力话题在场
+        checks.append(self._check_force(p))
         # 9) 磁盘余量
         free = None
         try:
@@ -386,18 +386,19 @@ class SelfCheckRunner:
         except Exception:  # noqa: BLE001
             return False
 
-    def _check_imu(self, p) -> CheckResult:
-        if not p.selfcheck_imu_expected:
-            return CheckResult('imu_topic', 'skip', 'imu_enabled=false', None)
+    def _check_force(self, p) -> CheckResult:
+        if not p.selfcheck_force_expected:
+            return CheckResult(
+                'force_topic', 'skip', 'force_enabled=false', None)
         found = ''
         for name, _ in self._node.get_topic_names_and_types():
-            if 'imu' in name.lower():
+            if name == '/force/points':
                 found = name
                 break
         if found:
             return CheckResult(
-                'imu_topic', 'pass', f'话题在场: {found}', found)
-        return CheckResult('imu_topic', 'fail', '图上无 imu 话题', None)
+                'force_topic', 'pass', f'话题在场: {found}', found)
+        return CheckResult('force_topic', 'fail', '图上无 /force/points', None)
 
     # ------------------------------------------------------------------
     # 出口：日志 + 闩锁 Bool + /api/state + 会话工件

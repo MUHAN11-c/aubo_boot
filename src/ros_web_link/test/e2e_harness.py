@@ -184,7 +184,8 @@ def loopback_client(port: int) -> httpx.Client:
 class Stack:
     """子进程编排：桥 → 网关 → 官方组件（可选）→ fixtures；asyncio 子进程 + 常驻后台事件循环."""
 
-    def __init__(self, fixtures: tuple[str, ...] = (), official: bool = False) -> None:
+    def __init__(self, fixtures: tuple[str, ...] = (), official: bool = False,
+                 domain: int | str | None = None) -> None:
         for f in fixtures:
             if f.partition('#')[0] not in KNOWN_FIXTURES:
                 raise ValueError(f'未知 fixture: {f}（已知 {KNOWN_FIXTURES}）')
@@ -197,7 +198,7 @@ class Stack:
         self.gateway_port = free_port()
         self._bridge_port_s = str(self.bridge_port)
         self._gateway_port_s = str(self.gateway_port)
-        self._domain_s = str(free_domain())
+        self._domain_s = str(domain) if domain is not None else str(free_domain())
         self._bridge_port_arg = 'port:=' + self._bridge_port_s
         self._bridge_addr_arg = 'address:=' + _LOOPBACK
         self._bridge_caps_arg = 'capabilities:=[clientPublish,services,connectionGraph]'
@@ -386,14 +387,16 @@ class LaunchStack:
     """
 
     def __init__(self, launch_file: str, args: dict | None = None,
-                 port_arg: str = 'port', gateway_arg: str = 'gateway_port') -> None:
+                 port_arg: str = 'port', gateway_arg: str = 'gateway_port',
+                 domain: int | None = None) -> None:
         self.launch_file = launch_file
         self.args = args or {}
         self._port_arg = port_arg
         self._gateway_arg = gateway_arg
         self.gateway_port = free_port()
         self.bridge_port = free_port()
-        self._domain_s = str(free_domain())
+        self.domain = int(domain) if domain is not None else free_domain()
+        self._domain_s = str(self.domain)
         self._loop: asyncio.AbstractEventLoop | None = None
         self._thread: threading.Thread | None = None
         self._proc = None
@@ -431,14 +434,17 @@ class LaunchStack:
                    str(_WS_ROOT / 'install' / 'ivg_foxglove_bridge' / 'lib')]),
             # gz 工具链（source setup.bash 的等价最小集）
             'GZ_CONFIG_PATH': '/opt/ros/jazzy/opt/gz_sim_vendor/share/gz',
-            'PATH': ':'.join([
-                str(_VENV_PY.parent), '/opt/ros/jazzy/opt/gz_tools_vendor/bin',
-                '/opt/ros/jazzy/bin', '/usr/bin', '/bin']),
+            'PATH': ':'.join(
+                ([os.environ['RWL_GZ_WRAPPER_DIR']]
+                 if os.environ.get('RWL_GZ_WRAPPER_DIR') else [])
+                + [str(_VENV_PY.parent), '/opt/ros/jazzy/opt/gz_tools_vendor/bin',
+                   '/opt/ros/jazzy/bin', '/usr/bin', '/bin']),
         })
         return env
 
     def start(self, readiness_topics: tuple[str, ...] = (),
-              readiness_budget_s: float = 150.0) -> None:
+              readiness_budget_s: float = 150.0,
+              wait_gateway: bool = True) -> None:
         import subprocess
         import tempfile
         self._loop = asyncio.new_event_loop()
@@ -463,7 +469,8 @@ class LaunchStack:
                 stdout=fh, stderr=subprocess.STDOUT)
 
         asyncio.run_coroutine_threadsafe(spawn(), self._loop).result(timeout=30.0)
-        self._wait_gateway()
+        if wait_gateway:
+            self._wait_gateway()
         if readiness_topics:
             if not self._wait_topics(readiness_topics, readiness_budget_s):
                 missing = sorted(set(readiness_topics) - self._last_have)

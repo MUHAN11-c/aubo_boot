@@ -54,7 +54,7 @@ def test_from_params_flattens_topics_and_endpoints():
                                 'foreArm_joint', 'wrist1_joint',
                                 'wrist2_joint', 'wrist3_joint'],
             'expected_tcp_norm_m': -1.0, 'moveit_expected': True,
-            'imu_expected': True, 'model_paths': '',
+            'force_expected': True, 'model_paths': '',
             'color_image_topic': '/camera/color/image_raw',
             'depth_image_topic': '/camera/depth/image_raw'},
     }

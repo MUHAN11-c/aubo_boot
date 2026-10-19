@@ -1,12 +1,12 @@
 """E2E 官方示例真实数据测试 — GitHub 官方栈为数据面，web 传输为被测面.
 
 栈 = ``sim_demo.launch.py``（gui:=false，整官方组合）：
-  turtlebot3 官方仿真（ROBOTIS-GIT/turtlebot3_simulations，已克隆 src/）
+  turtlebot3 官方仿真（ROBOTIS-GIT/turtlebot3_simulations，已克隆 src/examples/）
     /robot_description /joint_states /odom /tf /imu /scan /camera/image_raw
     /camera/camera_info
   官方 nav2（apt nav2_bringup；navigation2 克隆于 external/）
     /map /amcl_pose /particle_cloud /plan /diagnostics /initialpose /goal_pose
-  ros2/examples 官方示例（克隆 src/ros2_examples）
+  ros2/examples 官方示例（克隆 src/examples/ros2_examples）
     /test_cloud（官方点云示例） /topic（官方 talker 示例）
   官方 image_transport republish
     /camera/image_raw/compressed

@@ -1,6 +1,6 @@
 # peach_bringup
 
-整栈组合入口。Include 只读 `aubo_e5_bringup`，再拉相机前端（`camera_frontend:=stereo` 默认 / `percipio` / `replay`）、大脑（`peach_harvester` brain：感知+重建+调度一进程三节点）、技能 / 观测 / 场景障碍（`peach_scene_obstacles`）、可选 `serial_imu` 与 `imu_follow`（仅 adaptive 档）、`nav2_lifecycle_manager` 托管（名单：场景 → 重建 → 技能 → 调度）。**默认不自动 RunHarvest**；`autostart:=true` 为部署选配档——栈就绪且硬等 `selfcheck_passed=true` 后自动开批（授权=操作员发起 real launch）。
+整栈组合入口。Include 只读 `aubo_e5_bringup`，再拉相机前端（`camera_frontend:=stereo` 默认 / `percipio` / `replay`）、大脑（`peach_harvester` brain：感知+重建+调度一进程三节点）、技能 / 观测 / 场景障碍（`peach_scene_obstacles`）、可选 `serial_force`（5 点力传感器）、`nav2_lifecycle_manager` 托管（名单：场景 → 重建 → 技能 → 调度）。**默认不自动 RunHarvest**；`autostart:=true` 为部署选配档——栈就绪且硬等 `selfcheck_passed=true` 后自动开批（授权=操作员发起 real launch）。
 
 ## 公有入口
 

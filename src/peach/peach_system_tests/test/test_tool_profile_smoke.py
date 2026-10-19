@@ -1,10 +1,8 @@
-"""Isolated launch_testing: per-tool-profile mock smoke（TF 对档案/标签/跟随接线）.
+"""Isolated launch_testing: per-tool-profile mock smoke（TF 对档案 / 标签）.
 
 三把末端（shear_v1 / bite_shear_v1 / adaptive_shear_v1）逐档起 mock harvest_system：
   - TF wrist3_Link→tcp 平移 == 档案 frames.tool_axis.xyz（aub_description 单一事实源）
   - /peach_arm tool.profile_id 标签与档名一致（testing.md P0 门的自动化）
-  - /imu_follow/* 服务：仅 adaptive_shear_v1 在图（launch 条件 Include + C++
-    usesImuFollowContact 名单；bite/shear 不起跟随、走 MTC LIN 套入/撤退）
 收编 09-28 手工 _tools/smoke_shear.sh（域 91 手跑对账）进 colcon test 常驻回归。
 档位由 PEACH_LT_TOOL_PROFILE 注入（CMake 三注册；直接单跑默认 adaptive_shear_v1）。
 """
@@ -33,8 +31,6 @@ from std_msgs.msg import Bool
 
 # TF 对账容差：档案测量核定值 vs RSP 数值（09-28 实测两者一致，留 2mm 余量）
 _TF_TOLERANCE_M = 0.002
-# 仅 adaptive 名单内（peach_arm grasp_geometry.hpp usesImuFollowContact）
-_IMU_FOLLOW_PROFILES = ('adaptive_shear_v1',)
 
 _LATCHED = QoSProfile(
     history=HistoryPolicy.KEEP_LAST,
@@ -83,7 +79,7 @@ def generate_test_description():
                 launch_arguments={
                     'hardware_mode': 'mock',
                     'camera_enabled': 'false',
-                    'imu_enabled': 'false',
+                    'force_enabled': 'false',
                     'moveit_enabled': 'true',
                     'rviz': 'false',  # 无头集成测不启动显示端；RViz另做桌面联合验收。
                     'extrinsics_enabled': 'true',
@@ -99,9 +95,9 @@ def generate_test_description():
 
 
 class TestToolProfileSmoke(unittest.TestCase):
-    """Per-profile wiring: TCP frame vs archive, label, imu_follow presence."""
+    """Per-profile wiring: TCP frame vs archive, label."""
 
-    def test_tcp_label_and_imu_wiring(self):
+    def test_tcp_label_wiring(self):
         profile = _active_profile()
         # 1) readiness：托管节点全部 Active（latch 一次即可）
         import rclpy
@@ -166,27 +162,6 @@ class TestToolProfileSmoke(unittest.TestCase):
                 label, profile,
                 'stack label %r != requested profile %r (整栈须同 arg 重启)'
                 % (label, profile))
-
-            # 4) /imu_follow/* 服务：adaptive 档在图；bite/shear 档必须不在
-            expect_imu = profile in _IMU_FOLLOW_PROFILES
-            grace = time.monotonic() + (30.0 if expect_imu else 6.0)
-            found = []
-            while time.monotonic() < grace:
-                rclpy.spin_once(probe, timeout_sec=0.5)
-                found = [name for name, _ in probe.get_service_names_and_types()
-                         if name.startswith('/imu_follow/')]
-                if expect_imu and found:
-                    break
-            if expect_imu:
-                self.assertTrue(
-                    found,
-                    'profile=%s 应随栈 Include imu_follow_servo，图上无 /imu_follow/*'
-                    % profile)
-            else:
-                self.assertFalse(
-                    found,
-                    'profile=%s 不应起 imu_follow（图上发现 %s；忘传 tool_profile?）'
-                    % (profile, found))
         finally:
             probe.destroy_node()
             if owned_init:

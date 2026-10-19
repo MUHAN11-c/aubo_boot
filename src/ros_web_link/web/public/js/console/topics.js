@@ -121,7 +121,9 @@ class TopicCard {
 
   _updateNumbers() {
     const tb = $('topics-table');
-    for (const tr of tb.querySelectorAll('tr')) {
+    // 只遍历数据行：thead 的 <tr> 没有 data-cell，曾导致每 tick 抛
+    // "Cannot set properties of null (setting 'textContent')"
+    for (const tr of tb.querySelectorAll('tbody tr')) {
       const t = tr.dataset.topic;
       const e = this._ema.get(t);
       const hzCell = tr.querySelector('[data-cell="hz"]');

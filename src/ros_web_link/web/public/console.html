@@ -9,7 +9,7 @@
 <link rel="icon" href="data:," />
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-<title>ros_web_link · 传输诊断台</title>
+<title>ros_web_link · LIVE STUDIO · 传输诊断台</title>
 <script src="/js/robotwebtools/importmap.js"></script>
 <style>
   /* ── 设计令牌（白色主题默认，蒸馏 Rebot-Arm 令牌系统）────────────────── */
@@ -313,11 +313,498 @@
   main.app-grid.col-flat > .card.in-view { display: block; }
   main.app-grid.col-flat > #sec-viz.in-view { display: flex; flex-direction: column; }
   main.app-grid.col-flat > #sec-2d.in-view { display: block; }
+
+  /* ══════════════════════════════════════════════════════════════════════
+     2026-10-19 「Starlit Console」白色二次元商业主题
+     - 白底 + 樱粉/星紫/天青渐变，圆角卡片与贴纸式徽章；
+     - 保留原有布局令牌与全部 id/JS 契约，只做视觉层；
+     - 深色主题保留（data-theme='dark'），默认白色。
+     ══════════════════════════════════════════════════════════════════════ */
+  :root {
+    --bg: #fbfbff;
+    --surface: #ffffff;
+    --surface-2: #f4f5ff;
+    --line: #ebecf8;
+    --line-2: #dcdff2;
+    --text: #1d2033;
+    --muted: #777d96;
+    --pink: #ff4f9a;
+    --pink-2: #ff86bd;
+    --violet: #7367ff;
+    --cyan: #28b8e8;
+    --mint: #0fb894;
+    --teal: var(--pink);
+    --amber: #e99a16;
+    --red: #ef4d64;
+    --green: var(--mint);
+    --blue: var(--violet);
+    --acc: var(--pink);
+    --glass: rgba(255, 255, 255, .78);
+    --r-ctl: 10px;
+    --r-card: 18px;
+    --shadow-card: 0 10px 30px rgba(70, 78, 140, .07), 0 1px 0 rgba(255,255,255,.9) inset;
+    --shadow-pop: 0 16px 44px rgba(70, 78, 140, .14);
+    --viz-bg: #eef2ff;
+  }
+  body[data-theme='dark'] {
+    --bg: #12131f; --surface: #1a1c2c; --surface-2: #23263a;
+    --line: rgba(255,255,255,.09); --line-2: rgba(255,255,255,.18);
+    --text: #f2f3ff; --muted: #a4a9c4;
+    --pink: #ff77b4; --violet: #9c90ff; --cyan: #5ed4ff; --mint: #35d7b4;
+    --teal: var(--pink); --green: var(--mint); --blue: var(--violet);
+    --glass: rgba(26, 28, 44, .8);
+    --viz-bg: #0e1020;
+    --shadow-card: 0 10px 30px rgba(0,0,0,.32);
+  }
+  body {
+    font-family: "Segoe UI", "Microsoft YaHei UI", "Microsoft YaHei",
+      "Noto Sans SC", "Droid Sans Fallback", system-ui, sans-serif;
+    background:
+      radial-gradient(1000px 560px at 4% -12%, rgba(255, 133, 190, .20), transparent 62%),
+      radial-gradient(820px 520px at 100% -8%, rgba(115, 103, 255, .17), transparent 60%),
+      radial-gradient(760px 620px at 52% 118%, rgba(40, 184, 232, .13), transparent 64%),
+      var(--bg);
+    background-attachment: fixed;
+  }
+  body::before {
+    content: ""; position: fixed; inset: 0; z-index: 0; pointer-events: none;
+    background-image: radial-gradient(rgba(115, 103, 255, .10) 1px, transparent 1.2px);
+    background-size: 22px 22px;
+    -webkit-mask-image: linear-gradient(180deg, rgba(0,0,0,.7), transparent 46%);
+    mask-image: linear-gradient(180deg, rgba(0,0,0,.7), transparent 46%);
+  }
+  header.app-header, nav.top-nav, main.app-grid, footer { position: relative; z-index: 1; }
+
+  /* ── 品牌头部 ───────────────────────────────────────────────────────── */
+  header.app-header {
+    gap: 14px; padding: 10px 22px 9px;
+    background: linear-gradient(180deg, rgba(255,255,255,.94), rgba(255,255,255,.78));
+    backdrop-filter: blur(14px) saturate(1.25);
+    -webkit-backdrop-filter: blur(14px) saturate(1.25);
+    border-bottom: 1px solid var(--line);
+    box-shadow: 0 6px 24px rgba(84, 92, 160, .05);
+  }
+  header.app-header::after {
+    content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 2px;
+    background: linear-gradient(90deg, transparent, var(--pink-2), var(--violet),
+      var(--cyan), transparent);
+    opacity: .55;
+  }
+  .brand { display: flex; align-items: center; gap: 11px; min-width: 0; }
+  .brand-badge {
+    width: 46px; height: 46px; border-radius: 15px; flex: 0 0 auto;
+    display: grid; place-items: center; position: relative;
+    background: linear-gradient(145deg, #fff2f8, #e9ecff 62%, #e4fbff);
+    border: 1px solid #f3d9e8;
+    box-shadow: 0 7px 18px rgba(255, 79, 154, .16), 0 1px 0 #fff inset;
+    animation: rwl-float 4.2s ease-in-out infinite;
+  }
+  .brand-badge::after {
+    content: ""; position: absolute; inset: -4px; border-radius: 19px;
+    border: 1px dashed rgba(115, 103, 255, .28); pointer-events: none;
+  }
+  .brand-badge svg { width: 36px; height: 36px; display: block; }
+  .brand-text { min-width: 0; }
+  header.app-header h1 {
+    font-size: 19px; font-weight: 800; letter-spacing: .2px; line-height: 1.12;
+    display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap;
+    background: linear-gradient(92deg, #2a2540 8%, var(--pink) 48%, var(--violet) 92%);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  header.app-header h1 .brand-jp {
+    font-size: 9.5px; font-weight: 700; letter-spacing: .16em; color: var(--violet);
+    background: rgba(115, 103, 255, .09); border: 1px solid rgba(115, 103, 255, .18);
+    border-radius: 999px; padding: 2px 8px; -webkit-text-fill-color: currentColor;
+  }
+  header.app-header .brand-sub {
+    margin-top: 2px; font-size: 10.5px; color: var(--muted); letter-spacing: .02em;
+  }
+  header.app-header .brand-sub b { color: var(--pink); font-weight: 700; }
+  .brand-chips { display: flex; gap: 5px; flex-wrap: wrap; align-items: center; }
+  .brand-chips span {
+    font: 600 9.5px/1 var(--mono); color: var(--violet);
+    background: rgba(115, 103, 255, .07); border: 1px solid rgba(115, 103, 255, .16);
+    border-radius: 999px; padding: 4px 8px; letter-spacing: .04em; white-space: nowrap;
+  }
+  .brand-chips span.pink { color: var(--pink); background: rgba(255,79,154,.07);
+    border-color: rgba(255,79,154,.18); }
+  .brand-chips span.cyan { color: #0d9cc9; background: rgba(40,184,232,.08);
+    border-color: rgba(40,184,232,.2); }
+
+  /* 头部控件贴纸化 */
+  .pill { padding: 4px 12px; background: #fff; border-color: var(--line-2);
+    box-shadow: 0 2px 8px rgba(80, 90, 160, .05); font-weight: 600; }
+  .pill.on { color: #0a9a7d; border-color: rgba(15, 184, 148, .34);
+    background: linear-gradient(180deg, #f0fffa, #e6fbf5); }
+  .pill.on .dot { background: #0fb894; box-shadow: 0 0 9px rgba(15,184,148,.8); }
+  .pill.err { background: #fff2f4; }
+  .pill.warn { background: #fff8ea; }
+  .lock-row { padding: 4px 10px; border-radius: 999px; background: #fff;
+    border: 1px solid var(--line-2); }
+  .lock-row.armed { background: #fff7e6; border-color: rgba(233,154,22,.4); }
+  .rostime { font-family: var(--mono); color: var(--muted); }
+  header.app-header #btn-selftest-mini {
+    background: linear-gradient(120deg, var(--pink), var(--violet));
+    border: 0; color: #fff; border-radius: 999px; padding: 7px 18px;
+    box-shadow: 0 8px 20px rgba(255, 79, 154, .28); font-weight: 700;
+  }
+  header.app-header #btn-selftest-mini:hover { filter: brightness(1.05);
+    transform: translateY(-1px); }
+
+  /* ── 导航（分段胶囊）───────────────────────────────────────────────── */
+  nav.top-nav {
+    gap: 6px; padding: 8px 22px; background: rgba(255,255,255,.72);
+    backdrop-filter: blur(10px); border-bottom: 1px solid var(--line);
+  }
+  .top-nav button {
+    border: 1px solid transparent; border-radius: 999px; padding: 6px 18px;
+    font-size: 12.5px; font-weight: 600; color: var(--muted);
+    transition: all .16s ease;
+  }
+  .top-nav button:hover { color: var(--violet); background: rgba(115,103,255,.07); }
+  .top-nav button.active {
+    color: #fff; border-color: transparent;
+    background: linear-gradient(120deg, var(--pink), var(--violet));
+    box-shadow: 0 7px 18px rgba(115, 103, 255, .26);
+  }
+  .top-nav .nav-note { color: var(--muted); font-size: 10.5px; letter-spacing: .03em; }
+  .top-nav .nav-note::before { content: "✦ "; color: var(--pink); }
+
+  /* ── 卡片 / 标题 ───────────────────────────────────────────────────── */
+  section.card, details.card {
+    background: linear-gradient(180deg, #ffffff, #fdfdff);
+    border: 1px solid var(--line);
+    border-radius: var(--r-card);
+    box-shadow: var(--shadow-card);
+    transition: box-shadow .2s ease, border-color .2s ease, transform .2s ease;
+  }
+  section.card:hover, details.card:hover { border-color: #e2e4f6;
+    box-shadow: 0 14px 36px rgba(70, 78, 140, .10); }
+  section.card > h2, details.card > summary {
+    font-size: 12.5px; font-weight: 800; letter-spacing: .04em;
+    color: var(--ink, var(--text)); margin-bottom: 9px;
+  }
+  section.card > h2::before, details.card > summary::before {
+    content: ""; width: 7px; height: 7px; border-radius: 50%;
+    background: linear-gradient(135deg, var(--pink), var(--violet));
+    box-shadow: 0 0 0 3px rgba(255,79,154,.12); flex: 0 0 auto;
+  }
+  section.card > h2 .n, details.card summary .n {
+    color: var(--muted); font-weight: 500; letter-spacing: 0; font-size: 10.5px;
+  }
+  .kv { font-family: var(--mono); font-size: 10.8px; }
+  .mini { font-size: 10.8px; }
+
+  /* ── 控件 ───────────────────────────────────────────────────────────── */
+  input, select, textarea {
+    background: #fbfbff; border: 1px solid var(--line-2); border-radius: var(--r-ctl);
+    padding: 7px 10px; transition: border-color .15s, box-shadow .15s;
+  }
+  input:hover, select:hover, textarea:hover { border-color: #cfd3ee; }
+  input:focus, select:focus, textarea:focus {
+    border-color: var(--pink); box-shadow: 0 0 0 3px rgba(255, 79, 154, .13);
+  }
+  button {
+    background: #fff; border: 1px solid var(--line-2); border-radius: 999px;
+    padding: 6px 15px; font-weight: 600; color: #454b66;
+    transition: all .15s ease;
+  }
+  button:hover { border-color: var(--violet); color: var(--violet);
+    box-shadow: 0 5px 14px rgba(115,103,255,.14); transform: translateY(-1px); }
+  button.primary, button.active-tool {
+    background: linear-gradient(120deg, var(--pink), var(--violet));
+    border-color: transparent; color: #fff;
+    box-shadow: 0 7px 18px rgba(255, 79, 154, .24);
+  }
+  button.primary:hover, button.active-tool:hover { color: #fff; filter: brightness(1.06); }
+  button.ghost { background: rgba(255,255,255,.7); }
+  button:disabled { opacity: .45; transform: none; box-shadow: none; }
+  .chip-btn { border-radius: 999px; padding: 4px 12px; background: #fff; }
+  .chip-btn:hover { color: var(--pink); border-color: rgba(255,79,154,.4); }
+  .fs-btn { border-radius: 999px; }
+
+  /* ── 3D 视口 / 2D 卡片 ─────────────────────────────────────────────── */
+  .viz-3d {
+    border-radius: 16px; border: 1px solid #dde1f6;
+    background: linear-gradient(160deg, #f3f6ff, #eef7ff 55%, #fdf3fa);
+    box-shadow: 0 10px 26px rgba(70, 78, 140, .08) inset, var(--shadow-card);
+    overflow: hidden;
+  }
+  .viz-3d::before {
+    content: ""; position: absolute; inset: 0; pointer-events: none; z-index: 2;
+    border-radius: 16px; padding: 1px;
+    background: linear-gradient(135deg, rgba(255,79,154,.5),
+      rgba(115,103,255,.35), rgba(40,184,232,.4));
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor; mask-composite: exclude;
+  }
+  .viz-3d .badge3d {
+    background: rgba(255,255,255,.8); backdrop-filter: blur(6px);
+    border: 1px solid var(--line); border-radius: 999px; padding: 4px 10px;
+    color: var(--muted); box-shadow: 0 3px 10px rgba(80,90,160,.06);
+  }
+  .hud {
+    background: rgba(255,255,255,.84); backdrop-filter: blur(8px);
+    border: 1px solid var(--line); border-radius: 999px; padding: 5px 12px;
+    box-shadow: 0 4px 14px rgba(80,90,160,.07);
+  }
+  .viz-card {
+    border-radius: 14px; background: #fff; border: 1px solid var(--line);
+    box-shadow: 0 6px 18px rgba(80,90,160,.05); padding: 9px 10px;
+  }
+  .viz-card .cap { font-size: 10.5px; letter-spacing: .02em; }
+  .viz-card .cap span:first-child { color: var(--violet); font-weight: 700; }
+  .loading-mask { background: linear-gradient(160deg, #f6f8ff, #fdf4fa); }
+  .loader { border-top-color: var(--pink); border-right-color: var(--violet); }
+
+  /* ── Displays / 表格 ───────────────────────────────────────────────── */
+  table.disp th, table.topics th {
+    text-transform: uppercase; letter-spacing: .09em; font-size: 9.5px;
+    color: #9a9fb5; padding: 5px 6px;
+  }
+  table.disp tr, table.topics tr { transition: background .12s; }
+  table.disp tbody tr:hover, table.topics tbody tr:hover {
+    background: linear-gradient(90deg, rgba(255,79,154,.04), rgba(115,103,255,.05));
+  }
+  table.disp .dtopic { border-radius: 8px; background: #fafaff; }
+  .type-tag { border-radius: 999px; padding: 1px 7px; }
+  .hz-badge { border-radius: 999px; }
+  .panel-tabs { border-bottom-color: var(--line); }
+  .panel-tabs button { border-radius: 10px 10px 0 0; font-weight: 600; }
+  .panel-tabs button.active { color: var(--pink); border-bottom-color: var(--pink); }
+
+  /* ── 监控卡 / 图表 / 日志 ──────────────────────────────────────────── */
+  .dcard {
+    border-radius: 13px; background: #fff; border: 1px solid var(--line);
+    box-shadow: 0 4px 12px rgba(80,90,160,.04);
+  }
+  .dcard .k { color: #9a9fb5; letter-spacing: .03em; }
+  .dcard .v { font-weight: 700; color: #2c3048; }
+  .dcard .v.ok { color: var(--mint); }
+  .mon-chart, .feed { border-radius: 12px; background: #fbfbff; }
+  .feed div { border-bottom-color: #f0f1fb; }
+  .topo-wrap { border-radius: 14px; background: #fbfbff; }
+  .st-row.pass .mark { color: var(--mint); }
+  .st-row.fail .mark { color: var(--red); }
+
+  /* ── 页脚 + 滚动条 ─────────────────────────────────────────────────── */
+  footer {
+    background: linear-gradient(180deg, rgba(255,255,255,.8), #fff);
+    border-top: 1px solid var(--line); color: var(--muted);
+    font-size: 10.5px; padding: 8px 22px 10px;
+  }
+  footer::before { content: "✦ "; color: var(--pink); }
+  ::-webkit-scrollbar { width: 9px; height: 9px; }
+  ::-webkit-scrollbar-thumb {
+    background: linear-gradient(180deg, #ffc2da, #cfc9ff); border-radius: 999px;
+    border: 2px solid transparent; background-clip: padding-box;
+  }
+  ::-webkit-scrollbar-thumb:hover { background: linear-gradient(180deg, var(--pink), var(--violet));
+    background-clip: padding-box; border: 2px solid transparent; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::selection { background: rgba(255, 79, 154, .2); }
+  @keyframes rwl-float {
+    0%, 100% { transform: translateY(0) rotate(-1.5deg); }
+    50% { transform: translateY(-3px) rotate(1.5deg); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .brand-badge { animation: none; }
+    button, section.card, details.card { transition: none; }
+  }
+  @media (max-width: 1080px) {
+    header.app-header { padding: 9px 12px; }
+    nav.top-nav { padding: 7px 12px; }
+  }
+
+  /* ══════════════════════════════════════════════════════════════════════
+     2026-10-19 rqt_graph / RViz2 / Rebot-Arm 布局增强
+     - 右栏加宽到 clamp(380..480)，Displays 表固定列宽不裁切；
+     - 数据页 12 列网格，相机卡放大；
+     - 图谱工作区：大尺寸 rqt_graph + 图例/统计。
+     ══════════════════════════════════════════════════════════════════════ */
+  main.app-grid {
+    grid-template-columns: minmax(0, 1fr) 6px clamp(380px, 28vw, 480px);
+  }
+  @media (max-width: 1500px) {
+    main.app-grid { grid-template-columns: minmax(0, 1fr) 6px 440px; }
+  }
+  @media (max-width: 1250px) {
+    main.app-grid { grid-template-columns: minmax(0, 1fr) 6px 400px; }
+  }
+  @media (max-width: 1080px) {
+    main.app-grid { grid-template-columns: 1fr; }
+  }
+
+  /* Displays 固定列宽：topic 输入自适应，属性控件换行，不再横向裁切 */
+  #sec-displays table.disp { table-layout: fixed; }
+  #sec-displays table.disp th:nth-child(1),
+  #sec-displays table.disp td:nth-child(1) { width: 24px; }
+  #sec-displays table.disp th:nth-child(2),
+  #sec-displays table.disp td:nth-child(2) { width: 96px; overflow: hidden; text-overflow: ellipsis; }
+  #sec-displays table.disp th:nth-child(3),
+  #sec-displays table.disp td:nth-child(3) { width: 96px; }
+  #sec-displays table.disp th:nth-child(4),
+  #sec-displays table.disp td:nth-child(4) { width: auto; white-space: normal; }
+  #sec-displays table.disp th:nth-child(5),
+  #sec-displays table.disp td:nth-child(5) { width: 34px; }
+  #sec-displays table.disp th:nth-child(6),
+  #sec-displays table.disp td:nth-child(6) { width: 24px; }
+  #sec-displays table.disp .dtopic { width: 100%; min-width: 0; }
+  #sec-displays table.disp td.props { white-space: normal; line-height: 2; }
+  #sec-displays table.disp td.props label.mini { margin-right: 6px; }
+  #sec-displays table.disp td.props input[type="range"] { width: 56px; }
+  #sec-displays table.disp td:nth-child(2) .mini { display: none; }
+
+  /* 数据页：12 列，相机大卡 + 绘图侧栏；小屏回落单列 */
+  main.app-grid.col-flat[data-nav="data"] {
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+  }
+  main.app-grid.col-flat[data-nav="data"] #sec-2d { grid-column: span 9; }
+  main.app-grid.col-flat[data-nav="data"] #sec-plot { grid-column: span 3; }
+  #sec-2d .viz-row { grid-template-columns: 1.5fr 1fr 0.8fr; align-items: stretch; }
+  #sec-2d .viz-card { display: flex; flex-direction: column; min-width: 0; }
+  #sec-2d .viz-card canvas { height: auto; aspect-ratio: 4 / 3; }
+  #sec-2d #viz-joints { overflow: auto; max-height: 260px; }
+  @media (max-width: 1200px) {
+    main.app-grid.col-flat[data-nav="data"] { grid-template-columns: 1fr; }
+    main.app-grid.col-flat[data-nav="data"] #sec-2d,
+    main.app-grid.col-flat[data-nav="data"] #sec-plot { grid-column: span 1; }
+    #sec-2d .viz-row { grid-template-columns: 1fr; }
+  }
+
+  /* 图谱工作区：左侧大图 + 右侧列表 */
+  main.app-grid.col-flat[data-nav="graph"] {
+    grid-template-columns: minmax(0, 1fr) 380px;
+    align-items: stretch;
+  }
+  main.app-grid.col-flat[data-nav="graph"] #sec-topo { grid-column: 1; }
+  main.app-grid.col-flat[data-nav="graph"] #sec-graph { grid-column: 2; }
+  main.app-grid.col-flat[data-nav="graph"] #sec-topo { display: flex; flex-direction: column; min-height: 0; }
+  main.app-grid.col-flat[data-nav="graph"] #sec-topo .topo-wrap {
+    flex: 1; height: calc(100vh - 300px); min-height: 440px;
+  }
+  main.app-grid.col-flat[data-nav="graph"] #sec-graph { max-height: calc(100vh - 220px); overflow: auto; }
+  @media (max-width: 1100px) {
+    main.app-grid.col-flat[data-nav="graph"] { grid-template-columns: 1fr; }
+    main.app-grid.col-flat[data-nav="graph"] #sec-topo,
+    main.app-grid.col-flat[data-nav="graph"] #sec-graph { grid-column: 1; }
+    main.app-grid.col-flat[data-nav="graph"] #sec-topo .topo-wrap { height: 60vh; }
+  }
+
+  .topo-controls { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin: 0 0 8px; }
+  .topo-controls .mini { margin: 0; display: inline-flex; align-items: center; gap: 4px; }
+  .topo-controls #topo-search { flex: 1; min-width: 150px; max-width: 260px; padding: 5px 9px; }
+  .topo-controls #topo-mode { width: auto; padding: 5px 7px; font-size: 11px; }
+  .topo-controls button { margin: 0; min-height: 28px; padding: 3px 12px; }
+  .topo-legend { display: flex; gap: 12px; flex-wrap: wrap; align-items: center;
+    margin-top: 8px; color: var(--muted); font: 10.5px var(--mono); }
+  .topo-legend .tl { display: inline-block; width: 9px; height: 9px; margin-right: 4px;
+    border-radius: 3px; vertical-align: -1px; }
+  .topo-legend .tl.node { border-radius: 50%; background: #eef1ff; border: 1.5px solid #5a6661; }
+  .topo-legend .tl.topic { background: #bde7bd; border: 1px solid #67a06b; }
+  .topo-legend .tl.service { background: #eee0f5; border: 1px solid #9c74b8; }
+  .topo-legend .tl.pub { background: #3e9c31; }
+  .topo-legend .tl.sub { background: #2563c9; }
+  .topo-legend .tl-hint { margin-left: auto; }
+  #sec-topo.resizing .topo-wrap { pointer-events: none; }
+
+  /* header 在中小屏不换行 */
+  @media (max-width: 1500px) { .brand-chips { display: none; } }
+
+  /* 3D HUD：场景状态（左上）+ 坐标图例（右下）+ 工具提示（底部居中） */
+  .scene-hud { top: 10px; left: 10px; display: flex; flex-direction: column;
+    gap: 1px; min-width: 150px; border-radius: 12px; }
+  .scene-hud .hud-kicker { color: var(--pink); font-size: 8.5px; font-weight: 800;
+    letter-spacing: .14em; }
+  .scene-hud b { font: 700 12px var(--mono); color: var(--text); }
+  .scene-hud #hud-scene-meta { color: var(--muted); font: 10.5px var(--mono); }
+  .scene-hud #hud-frame { color: var(--violet); font: 9.5px var(--mono); }
+  .axes-hud { bottom: 10px; right: 10px; display: flex; gap: 9px; align-items: center; }
+  .axes-hud span { display: inline-flex; align-items: center; gap: 3px; font: 10.5px var(--mono); }
+  .axis-dot { width: 7px; height: 7px; border-radius: 50%; display: inline-block; }
+  .axis-dot.x { background: #ef5a4d; } .axis-dot.y { background: #3e9c31; }
+  .axis-dot.z { background: #2563c9; }
+  #hud-tool { bottom: 10px; left: 50%; right: auto; transform: translateX(-50%);
+    max-width: 52%; text-align: center; }
+  .viz-toolbar button.active { border-color: var(--violet); color: var(--violet);
+    background: rgba(115,103,255,.08); }
+
+  @media (max-width: 1500px) {
+    #sec-displays table.disp th:nth-child(1),
+    #sec-displays table.disp td:nth-child(1) { width: 20px; }
+    #sec-displays table.disp th:nth-child(2),
+    #sec-displays table.disp td:nth-child(2) { width: 86px; }
+    #sec-displays table.disp th:nth-child(3),
+    #sec-displays table.disp td:nth-child(3) { width: 82px; }
+    #sec-displays table.disp th:nth-child(5),
+    #sec-displays table.disp td:nth-child(5) { width: 30px; }
+    #sec-displays table.disp th:nth-child(6),
+    #sec-displays table.disp td:nth-child(6) { width: 20px; }
+    #sec-displays table.disp td.props label.mini {
+      font-size: 10px; margin: 1px 0; display: block; white-space: nowrap;
+    }
+    #sec-displays table.disp td.props input[type="range"] { width: 52px; }
+    #sec-displays table.disp td.props input[type="number"] { width: 48px !important; }
+    #sec-displays table.disp .dtopic { font-size: 10px; }
+  }
+
+  #sec-displays table.disp td:nth-child(6) button {
+    margin: 0; padding: 0; width: 20px; min-width: 20px; min-height: 22px;
+    font-size: 11px; line-height: 1;
+  }
+  #sec-displays table.disp { overflow: hidden; }
+
+  #sec-displays .disp-ico {
+    display: inline-block; width: 7px; height: 7px; border-radius: 2px;
+    margin-right: 5px; vertical-align: 0; flex: none;
+  }
+  #sec-displays td:nth-child(2) { white-space: nowrap; position: relative; }
+  #sec-displays .disp-dup {
+    position: absolute; right: 0; top: 50%; transform: translateY(-50%);
+    margin: 0; padding: 0; width: 12px; min-width: 12px;
+    min-height: 14px; line-height: 1; font-size: 10px; border: 0;
+    background: var(--bg); color: var(--muted); opacity: 0;
+    transition: opacity .12s;
+  }
+  #sec-displays tr:hover .disp-dup { opacity: 1; }
+  #sec-displays .disp-dup:hover { color: var(--violet); background: transparent; }
 </style>
 </head>
 <body>
 <header class="app-header">
-  <h1>ros_web_link · 传输诊断台</h1>
+  <div class="brand">
+    <div class="brand-badge" aria-hidden="true">
+      <svg viewBox="0 0 64 64" role="img">
+        <defs>
+          <linearGradient id="rwl-face" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0" stop-color="#fff7fb"/><stop offset="1" stop-color="#e9ecff"/>
+          </linearGradient>
+          <linearGradient id="rwl-accent" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0" stop-color="#ff4f9a"/><stop offset="1" stop-color="#7367ff"/>
+          </linearGradient>
+        </defs>
+        <path d="M32 7v6" stroke="#7367ff" stroke-width="3" stroke-linecap="round"/>
+        <circle cx="32" cy="6" r="3.6" fill="#ff4f9a"/>
+        <rect x="11" y="15" width="42" height="35" rx="13" fill="url(#rwl-face)" stroke="url(#rwl-accent)" stroke-width="2.4"/>
+        <rect x="6" y="26" width="7" height="15" rx="3.5" fill="url(#rwl-accent)"/>
+        <rect x="51" y="26" width="7" height="15" rx="3.5" fill="url(#rwl-accent)"/>
+        <ellipse cx="24" cy="31" rx="4.2" ry="5.2" fill="#3b2b66"/>
+        <ellipse cx="40" cy="31" rx="4.2" ry="5.2" fill="#3b2b66"/>
+        <circle cx="25.4" cy="29.4" r="1.5" fill="#fff"/>
+        <circle cx="41.4" cy="29.4" r="1.5" fill="#fff"/>
+        <path d="M26 41c2 2.4 10 2.4 12 0" stroke="#ff4f9a" stroke-width="2.4" stroke-linecap="round" fill="none"/>
+        <circle cx="18" cy="38" r="2" fill="#ffb0d0" opacity=".8"/>
+        <circle cx="46" cy="38" r="2" fill="#ffb0d0" opacity=".8"/>
+      </svg>
+    </div>
+    <div class="brand-text">
+      <h1>ros_web_link <span class="brand-jp">LIVE STUDIO</span></h1>
+      <div class="brand-sub"><b>传输诊断台</b> · Web ↔ ROS 2 监控 / 调试 / 可视化</div>
+    </div>
+  </div>
+  <div class="brand-chips" aria-hidden="true">
+    <span class="pink">FOXGLOVE v1</span><span>ROS 2 JAZZY</span><span class="cyan">ZERO-BUILD ESM</span>
+  </div>
   <span class="pill" id="conn-pill" title="点击连接/断开"><span class="dot"></span><span id="conn-pill-text">未连接</span></span>
   <span class="pill" id="caps-pill" title="服务器能力">caps: —</span>
   <label class="lock-row" id="lock-row" title="开启后关节滑块驱动本地模型动画（镜像保持；动臂走 FJT action）">
@@ -332,17 +819,18 @@
   <button data-nav="viz" class="active">可视化</button>
   <button data-nav="data">数据</button>
   <button data-nav="monitor">监控</button>
+  <button data-nav="graph">图谱</button>
   <button data-nav="tools">工具</button>
   <button data-nav="conn">连接</button>
   <span class="nav-spacer"></span>
-  <span class="nav-note">RViz 风格工作区 · 官方数据面</span>
+  <span class="nav-note">RViz 风格工作区 · 数据面自动适配</span>
 </nav>
 
 <main class="app-grid" data-nav="viz">
   <!-- ═════════ 左列：可视化主视口 ═════════ -->
   <div class="col-viz">
     <section class="card" id="sec-viz" style="flex:1;display:flex;flex-direction:column;min-height:0;">
-      <h2>实时可视化 <span class="n">RViz 风格 · 官方数据面 + /tf</span>
+      <h2>实时可视化 <span class="n">RViz 风格 · 自动数据面 + /tf</span>
         <span class="kv" id="viz-status" style="margin-left:auto;">连接后自动订阅</span>
         <button class="fs-btn" data-fs="sec-viz" title="全屏（ESC 退出）">⛶</button>
       </h2>
@@ -353,9 +841,12 @@
         <button data-tool="goal" title="拖拽发布 PoseStamped 到 /goal_pose（Nav2 目标）">2D Goal Pose</button>
         <button data-tool="poseest" title="拖拽发布 PoseWithCovarianceStamped 到 /initialpose（RViz 初始位姿）">2D 初始位姿</button>
         <span class="sep"></span>
+        <button id="btn-view-fit" class="ghost" title="适配机器人+云+激光包围盒（F）">适配全部</button>
         <button data-view="iso" class="ghost">等轴</button>
         <button data-view="top" class="ghost">俯视</button>
         <button data-view="side" class="ghost">侧视</button>
+        <button id="btn-grid-toggle" class="ghost" title="显示/隐藏网格（G）">网格</button>
+        <button id="btn-axes-toggle" class="ghost" title="显示/隐藏世界坐标轴">坐标轴</button>
         <button id="btn-view-save" class="ghost">保存视角</button>
         <button id="btn-view-restore" class="ghost">恢复视角</button>
         <span class="sep"></span>
@@ -363,9 +854,19 @@
         <button id="btn-teach-record" class="ghost" title="录制航点">录制</button>
       </div>
       <div class="viz-3d" id="viz-3d">
-        <div class="badge3d">拖拽旋转 / 滚轮缩放 · Displays 在右栏</div>
+        <div class="hud scene-hud" id="hud-scene">
+          <span class="hud-kicker">3D SCENE</span>
+          <b id="hud-scene-main">等待数据</b>
+          <span id="hud-scene-meta">0 TF · 0 pts</span>
+          <span id="hud-frame">Fixed: auto</span>
+        </div>
         <div class="hud" id="hud-stats"><b id="hud-fps">—</b> fps · <b id="hud-objs">—</b> 对象 · <b id="hud-verts">—</b> 顶点 · <span id="tracking-error" style="color:var(--muted)"></span> <span id="hud-tcp" style="color:var(--muted)"></span></div>
         <div class="hud" id="hud-tool"></div>
+        <div class="hud axes-hud" id="hud-axes">
+          <span><i class="axis-dot x"></i>X</span>
+          <span><i class="axis-dot y"></i>Y</span>
+          <span><i class="axis-dot z"></i>Z</span>
+        </div>
         <div class="loading-mask" id="robot-loading-mask">
           <div>
             <div class="loader" style="margin:0 auto 10px;"></div>
@@ -433,16 +934,32 @@
       </div>
     </section>
 
-    <details class="card" id="sec-topo">
-      <summary>拓扑图 <span class="n">节点/话题/服务/动作 + 流向粒子</span>
-        <span style="margin-left:auto;display:flex;gap:8px;" class="mini">
-          <label><input type="checkbox" id="topo-show-svc" checked>服务</label>
-          <label><input type="checkbox" id="topo-show-act" checked>动作</label>
-          <input type="search" id="topo-search" placeholder="过滤节点/话题" style="width:110px;">
-        </span>
-      </summary>
+    <section class="card" id="sec-topo">
+      <h2>节点图 <span class="n">rqt_graph · 节点/话题/服务 + 流向</span>
+        <span class="kv" id="topo-stats" style="margin-left:auto;">—</span>
+        <button class="fs-btn" data-fs>⛶</button>
+      </h2>
+      <div class="topo-controls">
+        <label class="mini"><input type="checkbox" id="topo-show-svc">服务</label>
+        <label class="mini"><input type="checkbox" id="topo-show-act">动作话题</label>
+        <label class="mini"><input type="checkbox" id="topo-hide-debug" checked>隐藏调试</label>
+        <select id="topo-mode" title="rqt_graph 图模式">
+          <option value="all">节点+话题</option>
+          <option value="nodes">仅节点</option>
+        </select>
+        <input type="search" id="topo-search" placeholder="过滤节点/话题" spellcheck="false">
+        <button id="topo-fit" class="ghost">适配</button>
+      </div>
       <div class="topo-wrap" id="topo-container"></div>
-    </details>
+      <div class="topo-legend">
+        <span><i class="tl node"></i>节点</span>
+        <span><i class="tl topic"></i>话题</span>
+        <span><i class="tl service"></i>服务</span>
+        <span><i class="tl pub"></i>发布</span>
+        <span><i class="tl sub"></i>订阅</span>
+        <span class="tl-hint">悬停高亮 · 拖拽平移 · 滚轮缩放 · 点击话题</span>
+      </div>
+    </section>
 
     <section class="card" id="sec-teleop">
       <h2>Teleop <span class="n">键盘遥控 · 仅限仿真</span>
@@ -454,9 +971,16 @@
           <label class="mini" style="flex:1;">角速 <input type="range" id="teleop-ang" min="0.2" max="2" step="0.1" value="1.0">
             <b id="teleop-ang-v">1.0</b> rad/s</label>
         </div>
-        <div style="display:flex;gap:8px;align-items:center;">
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
           <span class="mini" style="color:var(--muted)">W/A/S/D 或方向键（卡片悬停时生效；松键即停，Q/E 原地转）</span>
-          <button id="teleop-stop" class="ghost" style="margin-left:auto;color:var(--red);border-color:var(--red);">■ 停止</button>
+          <label class="mini" style="margin:0 0 0 auto;display:inline-flex;align-items:center;gap:5px;">消息
+            <select id="teleop-msg-type" style="width:auto;margin:0;padding:4px 8px;">
+              <option value="auto" selected>自动</option>
+              <option value="Twist">Twist</option>
+              <option value="TwistStamped">TwistStamped</option>
+            </select>
+          </label>
+          <button id="teleop-stop" class="ghost" style="color:var(--red);border-color:var(--red);">■ 停止</button>
         </div>
         <div class="mini" id="teleop-state" style="color:var(--muted)">未使能 · 未发布</div>
       </div>
@@ -527,8 +1051,6 @@
         <span class="kv" id="roslog-count"></span>
       </div>
       <div class="feed" id="roslog-list" style="max-height:190px;white-space:normal;"></div>
-    </section>
-
     </section>
 
     <!-- ── 工具成员 ── -->
@@ -621,7 +1143,7 @@
 
       <label>参数读写</label>
       <div class="row">
-        <div><input id="param-node" value="/comm_fixture" spellcheck="false"></div>
+        <div><input id="param-node-ops" value="/comm_fixture" spellcheck="false"></div>
         <div><input id="param-name" value="rwl.answer" spellcheck="false"></div>
       </div>
       <input id="param-value" value="42" placeholder="新值（设置时用）">
@@ -635,7 +1157,7 @@
       <ul class="list" id="tf-list" style="list-style:none;margin:6px 0 0;padding:0;max-height:140px;overflow:auto;font:11px var(--mono);"></ul>
     </details>
 
-    <details class="card" id="sec-graph">
+    <details class="card" id="sec-graph" open>
       <summary>图谱列表 <span class="n">connectionGraph</span></summary>
       <div class="tabs" style="display:flex;gap:6px;margin:6px 0;">
         <button data-tab="topics" class="active" style="min-height:26px;padding:2px 12px;">话题</button>

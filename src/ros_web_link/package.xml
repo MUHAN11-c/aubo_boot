@@ -1,11 +1,13 @@
 <?xml version="1.0"?>
 <package format="3">
   <name>ros_web_link</name>
-  <version>1.0.0</version>
+  <version>1.1.0</version>
   <description>
-    Web↔ROS 2 通信层独立包（对标 rosbridge_suite 分包架构）：
-    Python 网关（纯传输：WS 代理/视频代理/mesh）+ JS 客户端库（transport/view3d/vendor）。
-    UI 面板（aubo_ros2_web_dashboard）经 create_app() 组合本包的网关与 JS 资产。
+    Web↔ROS 2 通信与独立监控包（对标 rosbridge_suite 分包架构）：
+    Python 网关（纯传输：WS 代理/视频代理/mesh）+ JS 客户端库（transport/view3d/vendor）
+    + 白色主题独立监控台（console.html，数据面自动适配）。
+    monitor.launch.py 可独立附着运行中的仿真/真机；UI 面板可经 create_app() 组合。
+    core 仅需本包 + ivg_foxglove_bridge；official_demo/sim_demo/panda 为可选示例。
   </description>
   <maintainer email="wangxiaoyun@iscas.ac.cn">muhan11</maintainer>
   <license>Apache-2.0</license>
@@ -20,6 +22,7 @@
   <exec_depend>launch</exec_depend>
   <exec_depend>launch_ros</exec_depend>
   <exec_depend>nav_msgs</exec_depend>
+  <exec_depend>rcl_interfaces</exec_depend>
   <exec_depend>rclpy</exec_depend>
   <exec_depend>ros2launch</exec_depend>
   <exec_depend>sensor_msgs</exec_depend>

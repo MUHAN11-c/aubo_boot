@@ -44,7 +44,24 @@ class TopologyGraph {
     const punit = () => { pseed = (pseed * 1103515245 + 12345) & 0x7fffffff; return pseed / 0x7fffffff; };
     this._raf = 0;
     this._lastT = 0;
+    this._fitted = false;
+    this.mode = 'all';
+    this._lastGraph = null;
+    this._filter = '';
+    this._nodeEls = new Map();
+    this._labelEls = new Map();
+    this._hzEls = new Map();
+    this._edgeEls = [];
+    this._userInteracted = false;
     this._build();
+    if (typeof ResizeObserver !== 'undefined') {
+      this._ro = new ResizeObserver(() => {
+        const w = this.opts.container.clientWidth;
+        const h = this.opts.container.clientHeight;
+        if (this.nodes.length && w > 0 && h > 0 && !this._userInteracted) this.fit();
+      });
+      this._ro.observe(this.opts.container);
+    }
     this._bindEvents();
     this._startParticles();
   }
@@ -86,12 +103,38 @@ class TopologyGraph {
 
   // ── 数据 → 图 ─────────────────────────────────────────────────────────
 
+  /** rqt_graph 模式：all=节点+话题/服务；nodes=仅节点（publisher→subscriber 直连） */
+  setMode(mode) {
+    const next = mode === 'nodes' ? 'nodes' : 'all';
+    if (next === this.mode) return;
+    this.mode = next;
+    this._signature = '';
+    if (this._lastGraph) this.update(this._lastGraph);
+  }
+
   /**
    * @param {{publishedTopics: Object, subscribedTopics: Object,
    *          advertisedServices: Object}} graph connectionGraph 快照
    */
   update(graph) {
     if (!graph) return;
+    this._lastGraph = graph;
+    const stable = (obj) => Object.keys(obj || {}).sort()
+      .map((k) => [k, [...(obj[k] || [])].sort()]);
+    const sig = JSON.stringify({
+      p: stable(graph.publishedTopics),
+      s: stable(graph.subscribedTopics),
+      a: stable(graph.advertisedServices),
+      t: [...new Set([...Object.keys(graph.publishedTopics || {}),
+        ...Object.keys(graph.subscribedTopics || {})])].sort()
+        .map((t) => [t, this.opts.schemaOf?.(t) || '']),
+      mode: this.mode,
+    });
+    if (sig === this._signature) {
+      this._updateHz();
+      return;
+    }
+    this._signature = sig;
     const nodeSet = new Map();  // nodeName → {pubs:Set, subs:Set, srvs:Set}
     const addNode = (name) => {
       if (!nodeSet.has(name)) nodeSet.set(name, { pubs: new Set(), subs: new Set(), srvs: new Set() });
@@ -113,6 +156,42 @@ class TopologyGraph {
     ]);
     const services = new Set(Object.keys(graph.advertisedServices || {}));
 
+    // rqt_graph "Nodes only"：隐藏话题/服务节点，把每个 topic 的
+    // publisher→subscriber 直接连成边；节点按网格铺开，避免 100+ 话题针尖图。
+    if (this.mode === 'nodes') {
+      const list = [...nodeSet.keys()].sort();
+      const cols = Math.max(3, Math.min(8, Math.ceil(Math.sqrt(list.length || 1))));
+      const colW = 180, rowH = 74;
+      this.nodes = list.map((id, i) => ({
+        id, kind: 'node', x: 60 + (i % cols) * colW,
+        y: 55 + Math.floor(i / cols) * rowH, w: 100, h: 42,
+        label: id.split('/').pop() || id,
+      }));
+      const byId = new Map(this.nodes.map((n) => [n.id, n]));
+      this.connections = [];
+      const seen = new Set();
+      let ci = 0;
+      for (const [topic, pubs] of Object.entries(graph.publishedTopics || {})) {
+        const subs = graph.subscribedTopics?.[topic] || [];
+        for (const p of pubs) {
+          for (const q of subs) {
+            if (p === q) continue;
+            const key = p + '\u0000' + q;
+            if (seen.has(key)) continue;
+            seen.add(key);
+            const from = byId.get(p), to = byId.get(q);
+            if (from && to) this.connections.push({ id: 'c' + ci++, from, to, type: 'pub' });
+          }
+        }
+      }
+      this._render();
+      if (!this._fitted) {
+        this.fit();
+        this._fitted = true;
+      }
+      return;
+    }
+
     // 布局（层次简化版）：源节点层 → 话题层（>6 按 4 切行）→ 订阅者层
     const sources = [...nodeSet.entries()]
       .filter(([, d]) => d.pubs.size > d.subs.size).map(([n]) => n);
@@ -124,14 +203,22 @@ class TopologyGraph {
     const NODE_W = 100, NODE_H = 42, TOPIC_W = 120, TOPIC_H = 26;
     const rows = [];
     const topicList = [...topics].sort();
-    for (let i = 0; i < topicList.length; i += 4) rows.push(topicList.slice(i, i + 4));
+    // rqt_graph 风格：列数随话题数自适应（3..7），避免固定 4 列在高密度图上
+    // 横向过宽 / 纵向过深；fit 会按容器缩放。
+    const topicCols = Math.max(3, Math.min(7, Math.ceil(Math.sqrt(topicList.length || 1))));
+    const canvasW = Math.max(760, topicCols * 165);
+    for (let i = 0; i < topicList.length; i += topicCols) {
+      rows.push(topicList.slice(i, i + topicCols));
+    }
 
     this.nodes = [];
     const place = (list, y, kind, w, h) => {
-      const spacing = Math.max(w + 30, 720 / Math.max(list.length, 1));
+      const spacing = Math.max(w + 30, canvasW / Math.max(list.length, 1));
       list.forEach((id, i) => {
         this.nodes.push({
-          id, kind, x: (i + 0.5) * spacing, y, w, h, label: id.split('/').pop() || id,
+          id, kind, x: (i + 0.5) * spacing, y, w, h,
+          label: id.split('/').pop() || id,
+          schema: kind === 'topic' ? this.opts.schemaOf?.(id) : undefined,
         });
       });
     };
@@ -161,7 +248,10 @@ class TopologyGraph {
       }
     }
     this._render();
-    this.fit();
+    if (!this._fitted) {
+      this.fit();
+      this._fitted = true;
+    }
   }
 
   _render() {
@@ -170,18 +260,24 @@ class TopologyGraph {
     layers.connections.innerHTML = '';
     layers.shapes.innerHTML = '';
     layers.labels.innerHTML = '';
+    layers.particles.innerHTML = '';
     this._particles = [];
+    this._edgeEls = [];
+    this._nodeEls = new Map();
+    this._labelEls = new Map();
+    this._hzEls = new Map();
     let pseed = 42;  // 确定性伪随机（粒子相位/大小，非加密用途）
     const punit = () => { pseed = (pseed * 1103515245 + 12345) & 0x7fffffff; return pseed / 0x7fffffff; };
 
     for (const c of connections) {
-      el('line', {
+      const line = el('line', {
         x1: c.from.x, y1: c.from.y, x2: c.to.x, y2: c.to.y,
         stroke: c.type === 'pub' ? '#6b7a74' : '#9aa5a0',
         'stroke-width': c.type === 'pub' ? 1.4 : 1,
         opacity: c.type === 'pub' ? 0.7 : 0.5,
         'marker-end': 'url(#topo-arrow)',
       }, layers.connections);
+      this._edgeEls.push({ c, el: line });
       for (let i = 0; i < 3; i++) {
         const p = el('circle', {
           r: 2 + punit() * 1.5, fill: c.type === 'pub' ? '#3e9c31' : '#2563c9',
@@ -195,7 +291,15 @@ class TopologyGraph {
     }
 
     for (const n of this.nodes) {
-      const g = el('g', { transform: `translate(${n.x},${n.y})`, cursor: 'pointer' }, layers.shapes);
+      const g = el('g', {
+        transform: `translate(${n.x},${n.y})`, cursor: 'pointer',
+        'data-id': n.id, 'data-kind': n.kind,
+      }, layers.shapes);
+      this._nodeEls.set(n.id, g);
+      const tip = el('title', {}, g);
+      tip.textContent = `${n.id}\n${n.kind}`;
+      g.addEventListener('mouseenter', () => this._highlight(n));
+      g.addEventListener('mouseleave', () => this._clearHighlight());
       if (n.kind === 'node') {
         el('ellipse', {
           rx: n.w / 2, ry: n.h / 2, fill: 'var(--surface)',
@@ -209,6 +313,7 @@ class TopologyGraph {
         }, g);
       }
       const lg = el('g', { transform: `translate(${n.x},${n.y})` }, layers.labels);
+      this._labelEls.set(n.id, lg);
       const label = el('text', {
         y: n.kind === 'node' ? 0 : 4, 'text-anchor': 'middle',
         'font-size': n.kind === 'node' ? 10.5 : 9.5,
@@ -217,22 +322,79 @@ class TopologyGraph {
         'font-family': 'var(--mono)',
       }, lg);
       label.textContent = n.label.length > 16 ? n.label.slice(0, 15) + '…' : n.label;
-      if (n.kind === 'topic' && this.opts.hzOf) {
-        const hz = this.opts.hzOf(n.id);
-        if (hz != null && hz > 0.05) {
-          const hzText = el('text', {
-            y: 15, 'text-anchor': 'middle', 'font-size': 8,
-            fill: hz >= 5 ? '#2e7d32' : hz >= 0.5 ? '#8a6d00' : '#66706b',
-            'font-family': 'var(--mono)',
-          }, lg);
-          hzText.textContent = hz.toFixed(1) + 'Hz';
-        }
+      if (n.kind === 'topic') {
+        const hzText = el('text', {
+          y: 15, 'text-anchor': 'middle', 'font-size': 8,
+          fill: 'var(--muted)', 'font-family': 'var(--mono)',
+        }, lg);
+        this._hzEls.set(n.id, hzText);
       }
       g.addEventListener('click', (e) => {
         e.stopPropagation();
         if (n.kind === 'topic') this.opts.onTopicClick?.(n.id);
       });
     }
+    this._updateHz();
+    this._applyFilter(this._filter);
+  }
+
+  _updateHz() {
+    if (!this.opts.hzOf) return;
+    for (const [id, txt] of this._hzEls) {
+      const hz = this.opts.hzOf(id);
+      if (hz != null && hz > 0.05) {
+        txt.textContent = hz.toFixed(1) + 'Hz';
+        txt.setAttribute('fill', hz >= 5 ? '#2e7d32' : hz >= 0.5 ? '#8a6d00' : 'var(--muted)');
+      } else {
+        txt.textContent = '';
+      }
+    }
+  }
+
+  /** rqt_graph 风格过滤：命中节点/边高亮，未命中淡化（不重建布局） */
+  setFilter(q) {
+    this._filter = (q || '').trim().toLowerCase();
+    this._applyFilter(this._filter);
+  }
+
+  _applyFilter(q) {
+    if (!q) {
+      for (const g of this._nodeEls.values()) g.style.opacity = '1';
+      for (const lg of this._labelEls.values()) lg.style.opacity = '1';
+      for (const e of this._edgeEls) e.el.style.opacity = e.c.type === 'pub' ? '0.7' : '0.5';
+      return;
+    }
+    const hit = new Set();
+    for (const n of this.nodes) {
+      const ok = (n.id || '').toLowerCase().includes(q)
+        || (n.label || '').toLowerCase().includes(q);
+      if (ok) hit.add(n.id);
+      this._nodeEls.get(n.id).style.opacity = ok ? '1' : '0.16';
+      this._labelEls.get(n.id).style.opacity = ok ? '1' : '0.16';
+    }
+    for (const e of this._edgeEls) {
+      const ok = hit.has(e.c.from.id) || hit.has(e.c.to.id);
+      e.el.style.opacity = ok ? '0.9' : '0.06';
+    }
+  }
+
+  _highlight(n) {
+    for (const g of this._nodeEls.values()) g.style.opacity = '0.18';
+    for (const lg of this._labelEls.values()) lg.style.opacity = '0.18';
+    const related = new Set([n.id]);
+    for (const e of this._edgeEls) {
+      const ok = e.c.from.id === n.id || e.c.to.id === n.id;
+      e.el.style.opacity = ok ? '1' : '0.05';
+      if (ok) { related.add(e.c.from.id); related.add(e.c.to.id); }
+    }
+    for (const id of related) {
+      this._nodeEls.get(id).style.opacity = '1';
+      this._labelEls.get(id).style.opacity = '1';
+    }
+  }
+
+  _clearHighlight() {
+    this._applyFilter(this._filter);
   }
 
   // ── 变换与交互（GraphInteraction 核心） ───────────────────────────────
@@ -243,6 +405,7 @@ class TopologyGraph {
   }
 
   fit() {
+    this._userInteracted = false;
     const svg = this.svg;
     const W = svg.clientWidth || 600, H = svg.clientHeight || 300;
     if (!this.nodes.length) return;
@@ -280,11 +443,13 @@ class TopologyGraph {
     svg.addEventListener('wheel', (e) => {
       e.preventDefault();
       const r = svg.getBoundingClientRect();
+      this._userInteracted = true;
       this._zoomBy(e.deltaY > 0 ? 0.9 : 1.1, e.clientX - r.left, e.clientY - r.top);
     }, { passive: false });
 
     let panning = false, start = null, startT = null;
     svg.addEventListener('mousedown', (e) => {
+      this._userInteracted = true;
       panning = true;
       svg.classList.add('panning');
       start = { x: e.clientX, y: e.clientY };
@@ -325,6 +490,7 @@ class TopologyGraph {
   }
 
   destroy() {
+    this._ro?.disconnect();
     cancelAnimationFrame(this._raf);
     this.svg.remove();
     this.opts.container.innerHTML = '';

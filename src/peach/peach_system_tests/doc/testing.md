@@ -58,7 +58,7 @@ colcon test-result --test-result-base build/peach_system_tests --verbose
 
 - 域89：test_mock_launch，使能默认关、无自动goal、关节序和Active。
 - 域90：test_e1_supervisor_chain，合成观测+RunHarvest，包含预抓取等待ACK。
-- 域91/92/93：三工具profile的TF、参数和imu_follow接线。
+- 域91/92/93：三工具profile的TF、参数与标签。
 - 域94：test_scene_obstacles，合成点云/目标/假PlanningScene服务。
 - 域98：test_nav2_lifecycle_debug，生命周期调试。
 
@@ -76,7 +76,7 @@ colcon test-result --test-result-base build/peach_system_tests --verbose
 export ROS_DOMAIN_ID=81
 export ROS_LOCALHOST_ONLY=1
 ros2 launch peach_bringup harvest_system.launch.py hardware_mode:=mock \
-  camera_enabled:=false imu_enabled:=false rviz:=false autostart:=false
+  camera_enabled:=false force_enabled:=false rviz:=false autostart:=false
 ```
 
 无相机栈只能证明启动。完整合成动作链优先使用E1测试夹具，不拿零目标正常结算当抓取成功。固定关节序：shoulder_joint、upperArm_joint、foreArm_joint、wrist1_joint、wrist2_joint、wrist3_joint。
@@ -106,7 +106,7 @@ runner默认无头（rviz=false），需桌面时显式`--rviz`，`--no-rviz`显
 
 ```bash
 ros2 launch peach_bringup harvest_system.launch.py hardware_mode:=mock \
-  camera_enabled:=true camera_frontend:=stereo imu_enabled:=false \
+  camera_enabled:=true camera_frontend:=stereo force_enabled:=false \
   extrinsics_enabled:=false autostart:=false rviz:=true
 # 另一同域终端，固定锚定已由本轮独立入口提供后检查
 ros2 run peach_system_tests probe_topics.py --duration 10
@@ -166,7 +166,7 @@ PREGRASP_ONLY到位应SUCCEEDED并recovery_required，停在预抓取等人工AC
 
 先完成mock并确认操作员授权范围，现场无人/隔离、硬件急停可及、工具状态已知、示教器就绪。real参数为hardware_mode:=real、camera_enabled:=true、robot_ip:=169.254.10.98；保持autostart=false与所有门关闭，确认机器人状态/关节/TF/深度后才按授权逐档开启。不得通过8090按钮或YAML true推定授权。
 
-先预抓取评方向定位，再独立授权套入/工具；刀具、电流、急停回路和人在环不是mock覆盖项。adaptive的imu_follow运动存在独立授权边界，禁止与MTC同时写控制器。真机不得套用冻结overlay、allow_stale_anchor或关闭质量/碰撞门。
+先预抓取评方向定位，再独立授权套入/工具；刀具、电流、急停回路和人在环不是mock覆盖项。真机不得套用冻结overlay、allow_stale_anchor或关闭质量/碰撞门。
 
 ## 9. 停栈、bag封口与精确清理
 

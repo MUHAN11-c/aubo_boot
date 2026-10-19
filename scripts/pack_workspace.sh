@@ -101,7 +101,7 @@ EXC_ANCHOR=(
   "$NAME/_tools/blender-*"
   "$NAME/_tools/cadenv"
   "$NAME/_tools/shear_pipeline"
-  "$NAME/src/sim/sim_worlds/reconstruction/matrix"
+  "$NAME/src/peach_sim/sim_worlds/reconstruction/matrix"
   "$NAME/src/ivg/ivg_pose_estimation/models/*.onnx"
   "$NAME/src/ivg/ivg_pose_estimation/models/*.pt"
   "$NAME/src/ivg/ivg_pose_estimation/models/*.pth"
@@ -114,7 +114,7 @@ EXC_ANCHOR=(
 # （图/清单，64M）在 gitignore 兜底行之前已入库、必须随包完整迁移。手工模式追不上
 # （如根级 matrix_report.md 被跟踪而 matrix*/ 子目录没有），改为按 git 索引现算：
 # 完全未跟踪的目录整目录排除，混合目录中的未跟踪文件逐个排除。
-OUT_REL=src/sim/sim_worlds/reconstruction/output
+OUT_REL=src/peach_sim/sim_worlds/reconstruction/output
 while IFS= read -r -d '' f; do
   EXC_ANCHOR+=("$NAME/$f")
 done < <(git -C "$WS" ls-files --others --ignored --exclude-standard -z -- "$OUT_REL")
@@ -184,7 +184,7 @@ echo "包含顶层  : ${PATHS[*]}"
 echo "排除锚点（存在者，含大小上界）:"
 for p in _archive build install log aubo_py3.12 runs \
          _tools/blender-4.5.14-linux-x64 _tools/cadenv _tools/shear_pipeline \
-         src/sim/sim_worlds/reconstruction/output src/sim/sim_worlds/reconstruction/matrix \
+         src/peach_sim/sim_worlds/reconstruction/output src/peach_sim/sim_worlds/reconstruction/matrix \
          src/ivg/ivg_pose_estimation/models src/ivg/ivg_sim/models \
          src/aubo_hand_eye_calibration/hand_eye/candidates mobileclip2_b.ts; do
   [[ -e "$WS/$p" ]] && du -sh "$WS/$p" | sed 's/^/  /'

@@ -8,4 +8,6 @@
 网关只做传输（WS 代理/视频代理/mesh/health）；UI 面板的 BFF 路由以 sub_routers 注入。
 """
 
-__version__ = '1.0.0'
+__version__ = '1.1.0'
+
+__all__ = ['__version__']

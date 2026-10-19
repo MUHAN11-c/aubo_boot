@@ -232,27 +232,75 @@ function initTopology(viz, topicsCard) {
       const row = snap.find((r) => r.topic === topic);
       return row ? row.hz : null;
     },
+    schemaOf: (topic) => client.player?.channels?.get?.(topic)?.schemaName || '',
   });
-  setInterval(() => {
+
+  const stripActionTopics = (m) => Object.fromEntries(
+    Object.entries(m || {}).filter(([topic]) => !topic.includes('/_action/')));
+  // rqt_graph 的 "hide debug topics"：事件/统计/内部更新话题默认隐藏，避免 100+
+  // 话题把节点图压成不可读的针尖；取消勾选可看全量。
+  const DEBUG_RE = /\/(transition_event|parameter_events|rosout|bond|behavior_tree_log|route_graph|controller_manager\/(introspection_data|statistics)|(global|local)_costmap\/.*_(raw_)?updates|map_updates|costmap_raw_updates)\//;
+  const stripDebug = (m) => Object.fromEntries(
+    Object.entries(m || {}).filter(([topic]) => !DEBUG_RE.test(topic + '/')));
+
+  function refresh() {
     if (!client.isConnected) return;
     try {
       let g = client.getGraph();
-      // rqt_graph 语义过滤：服务显隐 + 名称搜索（拓扑图 SVG 内按文本淡化）
+      // rqt_graph 语义过滤：服务显隐 + 动作内部话题显隐 + 名称搜索
       const svc = $('topo-show-svc');
       if (svc && !svc.checked && g) {
         g = { ...g, advertisedServices: {} };
       }
-      graph.update(g);
-      const q = ($('topo-search')?.value || '').trim().toLowerCase();
-      const svg = document.querySelector('#topo-container svg');
-      if (svg) {
-        svg.querySelectorAll('text').forEach((t) => {
-          t.setAttribute('opacity',
-            !q || (t.textContent || '').toLowerCase().includes(q) ? '1' : '0.15');
-        });
+      const act = $('topo-show-act');
+      if (act && !act.checked && g) {
+        g = {
+          ...g,
+          publishedTopics: stripActionTopics(g.publishedTopics),
+          subscribedTopics: stripActionTopics(g.subscribedTopics),
+        };
       }
-    } catch (_) { /* 无 capability */ }
-  }, 3000);
+      if ($('topo-hide-debug')?.checked && g) {
+        g = {
+          ...g,
+          publishedTopics: stripDebug(g.publishedTopics),
+          subscribedTopics: stripDebug(g.subscribedTopics),
+        };
+      }
+      graph.update(g);
+      const stats = $('topo-stats');
+      if (stats) {
+        const topicSet = new Set([
+          ...Object.keys(g.publishedTopics || {}),
+          ...Object.keys(g.subscribedTopics || {}),
+        ]);
+        const serviceSet = new Set(Object.keys(g.advertisedServices || {}));
+        const shownSvc = Math.min(8, serviceSet.size);
+        const svcText = serviceSet.size ? `${shownSvc}/${serviceSet.size} 服务` : '服务 off';
+        const nodeCount = graph.nodes.filter((n) => n.kind === 'node').length;
+        stats.textContent = graph.mode === 'nodes'
+          ? `${nodeCount} 节点 · ${graph.connections.length} 连线 · 仅节点`
+          : `${nodeCount} 节点 · ${topicSet.size} 话题 · ${svcText}`;
+      }
+      graph.setFilter($('topo-search')?.value || '');
+    } catch (_) { /* 无 connectionGraph capability */ }
+  }
+
+  $('topo-search')?.addEventListener('input', () => {
+    graph.setFilter($('topo-search')?.value || '');
+  });
+  $('topo-mode')?.addEventListener('change', () => {
+    graph.setMode($('topo-mode').value);
+    refresh();
+  });
+  $('topo-show-svc')?.addEventListener('change', refresh);
+  $('topo-show-act')?.addEventListener('change', refresh);
+  $('topo-hide-debug')?.addEventListener('change', refresh);
+  $('topo-fit')?.addEventListener('click', () => graph.fit());
+  window.__rwl_topology = graph;  // 浏览器自动化/nav 切换 fit 用
+
+  refresh();
+  setInterval(refresh, 3000);
 }
 
 /** 列间分割条（MainLayout.vue:826-867 同构：30-80% 钳制） */

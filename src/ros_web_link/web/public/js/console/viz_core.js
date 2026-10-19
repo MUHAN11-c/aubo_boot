@@ -164,7 +164,7 @@ export const DISPLAY_TYPES = {
   tf:      { label: 'TF 坐标轴', singleton: true, topic: '/tf', props: ['labels'] },
   map:     { label: '地图 OccupancyGrid', topic: '/map', props: ['opacity'] },
   costmap: { label: '代价地图 Costmap', topic: '/global_costmap/costmap', props: ['opacity'] },
-  cloud:   { label: '点云 PointCloud2', topic: '/test_cloud', props: ['size'] },
+  cloud:   { label: '点云 PointCloud2', topic: '/test_cloud', props: ['size', 'colorBy'] },
   scan3d:  { label: '激光 3D LaserScan', topic: '/scan' },
   marker:  { label: '标记 MarkerArray', topic: '' },
   path:    { label: '路径 Path', topic: '/plan' },
@@ -179,10 +179,13 @@ export const DISPLAY_TYPES = {
 
 const INSTANCE_DEFAULT_PROPS = {
   robot: { ghost: false },
-  tf: { labels: true },
+  // 默认只画坐标轴：12+ 帧名签在世界系里互相遮挡（尤其近景），需要时在
+  // Displays 属性里开「名签」。RViz2 TF Display 默认也不显示 names。
+  tf: { labels: false },
   map: { opacity: 0.85 },
   costmap: { opacity: 0.5 },
-  cloud: { size: 0.035 },
+  // RViz2 PointCloud2 默认 Size (Pixels): 3；axis=按 Z 彩虹（Use rainbow）
+  cloud: { size: 3, colorBy: 'axis' },
   odom: { trail: true, trailLen: 300 },
   wrench: { scale: 0.2 },
 };
@@ -217,21 +220,127 @@ export function defaultInstances() {
   ];
 }
 
+
+// ── 数据面自动适配（独立监控模式：不假设 TB3 / 果园 / 真机某一种话题命名）──
+//
+// 2026-10-19 独立包监控轮：ros_web_link 附着到任意运行中的 ROS 2 图。
+// 首次连接且用户没有已保存布局时，按图上真实存在的话题重定向默认 Displays：
+//   - 压缩图优先（带宽友好）；没有压缩流则回落原始 RGB；
+//   - 点云优先 /test_cloud（官方示例），其次腕载深度点云 / 感知单帧云；
+//   - 果园仿真的 /peach/** 标记自动加两条 Marker 显示项。
+// 纯函数（不改入参），vitest 覆盖；用户保存过布局后不再自动改写。
+
+const DATA_PLANE_CANDIDATES = {
+  compressed: ['/camera/image_raw/compressed', '/camera/color/image_raw/compressed'],
+  rawImage: ['/camera/image_raw', '/camera/color/image_raw', '/camera/depth/image_raw'],
+  cloud: ['/test_cloud', '/camera/depth_registered/points',
+    '/peach/perception/single_cloud', '/peach/reconstruction/preview_cloud'],
+  map: ['/map'],
+  globalCostmap: ['/global_costmap/costmap'],
+  localCostmap: ['/local_costmap/costmap'],
+  path: ['/plan', '/plan_smoothed', '/transformed_global_plan'],
+  poses: ['/particle_cloud'],
+  posecov: ['/amcl_pose'],
+  scan: ['/scan'],
+  odom: ['/odom'],
+};
+
+/**
+ * 按图上话题重定向默认显示项。
+ * @param {Array<object>} instances defaultInstances() 形态的实例数组
+ * @param {Iterable<string>} topics 图上话题名
+ * @returns {Array<object>} 新实例数组（保持不变时也返回新数组副本）
+ */
+export function adaptInstancesToDataPlane(instances, topics) {
+  const have = new Set(topics || []);
+  const pick = (key) => DATA_PLANE_CANDIDATES[key].find((t) => have.has(t));
+  const out = instances.map((i) => ({ ...i }));
+  const byType = (type) => out.filter((i) => i.type === type);
+
+  const compressed = pick('compressed');
+  const raw = pick('rawImage');
+  const imagec = byType('imagec')[0];
+  const image = byType('image')[0];
+  if (compressed && imagec) {
+    imagec.topic = compressed;
+    imagec.on = true;
+    if (image) image.on = false;
+  } else if (raw && image) {
+    image.topic = raw;
+    image.on = true;
+    if (imagec) imagec.on = false;
+  }
+
+  const retarget = (type, key, { enable = true } = {}) => {
+    const inst = byType(type)[0];
+    const topic = pick(key);
+    if (!inst || !topic) return;
+    inst.topic = topic;
+    if (enable) inst.on = true;
+  };
+  retarget('cloud', 'cloud');
+  retarget('map', 'map');
+  retarget('path', 'path');
+  retarget('poses', 'poses');
+  retarget('posecov', 'posecov');
+  retarget('scan3d', 'scan');
+  retarget('odom', 'odom');
+
+  // 同一类型可能有多个实例（全局/局部代价地图）
+  const costmaps = byType('costmap');
+  const gc = pick('globalCostmap');
+  const lc = pick('localCostmap');
+  if (gc && costmaps[0]) { costmaps[0].topic = gc; costmaps[0].on = true; }
+  if (lc && costmaps[1]) { costmaps[1].topic = lc; costmaps[1].on = true; }
+
+  // 果园仿真：/peach/** MarkerArray（感知目标 / 重建调试）
+  const seen = new Set(out.map((i) => i.topic));
+  for (const topic of ['/peach/perception/markers', '/peach/reconstruction/markers']) {
+    if (!have.has(topic) || seen.has(topic)) continue;
+    out.push(makeInstance('marker' + out.length, 'marker',
+      topic.includes('reconstruction') ? '重建标记' : '感知标记', { topic, on: true }));
+    seen.add(topic);
+  }
+  return out;
+}
+
 export function defaultGlobal() {
   // fixedFrame ''=自动（TF 树根）；follow ''=自由视角，否则跟随 TF 帧（Foxglove 语义）
   return { fixedFrame: '', bg: '', follow: '' };
 }
 
 export function defaultCfg() {
-  return { global: defaultGlobal(), instances: defaultInstances() };
+  return { v: 5, global: defaultGlobal(), instances: defaultInstances() };
 }
 
-/** v3 固定键配置 → v4 实例数组迁移（保留用户自定义 topic/on/属性） */
+/**
+ * v4 米制点大小 → v5 像素点大小（RViz2 Size (Pixels) 语义）。
+ * 旧默认 0.035 → 3；旧自定义 0.05 → 4；新配置 1..12 原样 clamp。
+ */
+function _cloudSizePx(raw) {
+  const n = Number(raw);
+  if (!Number.isFinite(n)) return 3;
+  if (n < 1) return Math.min(12, Math.max(1, Math.round(n * 80)));
+  return Math.min(12, Math.max(1, n));
+}
+
+function _normalizeInstances(instances) {
+  return instances.map((inst) => {
+    const out = { ...inst };
+    if (out.type === 'cloud') {
+      if (out.colorBy === undefined) out.colorBy = 'axis';
+      out.size = _cloudSizePx(out.size);
+    }
+    return out;
+  });
+}
+
+/** v3 固定键 / v4 实例数组 → v5（保留用户自定义 topic/on/属性） */
 export function migrateCfg(raw) {
   const base = defaultCfg();
   if (raw && Array.isArray(raw.instances)) {
-    return { global: { ...defaultGlobal(), ...(raw.global || {}) },
-      instances: raw.instances };
+    return { v: 5, global: { ...defaultGlobal(), ...(raw.global || {}) },
+      instances: _normalizeInstances(raw.instances) };
   }
   if (raw) {
     for (const inst of base.instances) {
@@ -244,6 +353,7 @@ export function migrateCfg(raw) {
       }
     }
   }
+  base.instances = _normalizeInstances(base.instances);
   return base;
 }
 
@@ -273,6 +383,19 @@ export function costmapPixel(v) {
     Math.round(255 - 225 * t),
     Math.round(80 + 160 * t),
   ];
+}
+
+/**
+ * Teleop 消息体（/cmd_vel 的两种 ROS 2 方言）：
+ *   Twist        —— 果园仿真桥 / 传统 teleop（geometry_msgs/msg/Twist）
+ *   TwistStamped —— nav2 velocity_smoother / TB3 官方栈
+ * @param {'Twist'|'TwistStamped'} type
+ */
+export function teleopMessage(type, twist, frameId = 'base_link') {
+  if (type === 'TwistStamped') {
+    return { header: { frame_id: frameId }, twist };
+  }
+  return { linear: twist.linear, angular: twist.angular };
 }
 
 /**

@@ -1,7 +1,6 @@
 # 自适应剪切手档案（adaptive_shear_v1，桃子采摘末端执行器）。
-# Ø136 圆盘+拉钩弹簧组被动自适应贴果，MPU6050 挂壳体（serial_imu 随栈起，
-# tf_parent_frame:=tcp + align_to_parent）；套入期间臂姿态经 imu_follow 跟随 IMU
-# 弥补视觉误差（usesImuFollowContact 名单含本 profile）。
+# Ø136 圆盘+拉钩弹簧组被动自适应贴果；原 MPU6050 + imu_follow 姿态跟随已删除
+# （2026-10-19，历史在 git），三档末端统一走 MTC LIN。
 # TCP=采摘手外壳工作口圆心 (0, 47, 168.66) mm（总装测量核定：ΔY 47.00/ΔZ 168.66/
 # 中心距 175.09 自洽，2026-09-28 用户核定）——与旧 adaptive_cylinder_v1 设计基准
 # 完全一致，感知/预抓取/手眼标定链几何零漂移；开口 +Y（Rx(−90°) 传承）。

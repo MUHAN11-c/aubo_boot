@@ -11,7 +11,7 @@ import time
 
 from fastapi import APIRouter, Request
 
-from .. import config as cfg
+from .. import __version__, config as cfg
 
 router = APIRouter(tags=["ops"])
 
@@ -53,6 +53,8 @@ async def health(request: Request) -> dict[str, str]:
         "web_video", cfg.web_video_host(), cfg.web_video_port())
     return {
         "status": "ok" if bridge_ok else "degraded",
+        "version": __version__,
+        "protocol": "foxglove.websocket.v1",
         "static_root": getattr(request.app.state, "static_root", ""),
         "foxglove_bridge": "ok" if bridge_ok else "down",
         "web_video": "ok" if video_ok else "down",

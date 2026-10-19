@@ -97,9 +97,9 @@ IDL 唯一契约包，不跑节点。`config/interface_manifest.yaml` + `scripts
 
 默认相机前端（`camera_frontend:=stereo`）。话题与 Percipio 同构，点云多 `confidence`。与 percipio **互斥**；include 必须在 aubo bringup **之前**。
 
-## 仿真组（src/sim/，2026-10-13 自顶层 peach_sim 拆五包）
+## 仿真组（src/peach_sim/，2026-10-13 自顶层 peach_sim 拆五包）
 
-Blender 果园重建 + Gazebo 仿真（sim_worlds/sim_description/sim_bringup/sim_perception/sim_system_tests），**不进 harvest_system**。重建入口 `src/sim/sim_worlds/reconstruction/`（`blender_orchard/` 已并入）；旧锚定模式只桥 `/clock` 与 `/joint_states`。纯核与 `cycle_core/view_policy.py` 补视几何对拍。
+Blender 果园重建 + Gazebo 仿真（sim_worlds/sim_description/sim_bringup/sim_perception/sim_system_tests），**不进 harvest_system**。重建入口 `src/peach_sim/sim_worlds/reconstruction/`（`blender_orchard/` 已并入）；旧锚定模式只桥 `/clock` 与 `/joint_states`。纯核与 `cycle_core/view_policy.py` 补视几何对拍。
 
 ## peach_system_tests
 

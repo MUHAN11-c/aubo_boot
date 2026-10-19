@@ -43,7 +43,7 @@ flowchart TB
   arm --> obs
 ```
 
-stereo include 位于 aubo include 之前，保持 launch 参数作用域。`serial_imu` 按开关启动；只有 adaptive 工具档 Include `imu_follow`，其运动默认关闭，真机启用须另授权。IVG、仿真场景、枝叶分割不属于本业务核。peach2 已归档，不作为活动入口。
+stereo include 位于 aubo include 之前，保持 launch 参数作用域。`serial_force` 按开关启动（5 点力传感器；IMU / `imu_follow` 已于 2026-10-19 删除，历史在 git）。IVG、仿真场景、枝叶分割不属于本业务核。peach2 已归档，不作为活动入口。
 
 ## 生命周期与并发
 

@@ -1,0 +1,1151 @@
+from __future__ import annotations
+"""几何原语：拟合、深度单位、TF、点云 RGB 打包。"""
+
+from dataclasses import dataclass
+from typing import Optional, Tuple
+
+import numpy as np
+from scipy.optimize import least_squares, minimize
+from scipy.spatial.transform import Rotation
+
+
+# ═══════════════════════════════════════════════════════════════
+# 向量/轴线原语（各子模块共用）
+# ═══════════════════════════════════════════════════════════════
+
+# 四元数模长平方回退阈值：与原 tf_transformations.quaternion_matrix 的
+# _EPS（numpy.finfo(float64).eps）一致；低于此值回退单位旋转。
+_QUAT_NORM_EPS = float(np.finfo(np.float64).eps)
+
+
+def unit_vector(vector) -> Optional[np.ndarray]:
+    """
+    有限非零向量 → 单位向量；None/非三维/含非有限/近零 → None.
+
+    近零判废阈值为 norm < 1e-9（收敛自各处 ``_unit`` 的多数口径；
+    refine 侧原 ``<= 1.0e-9`` 为浮点测度零的等值边界差，随统一收敛，
+    见 refine.py 对应辅助函数的边界注）。
+
+    Args:
+        vector: 长度 3 序列；None 原样返回 None.
+
+    Returns
+    -------
+        (3,) float64 单位向量，或 None（不可用输入）.
+
+    """
+    if vector is None:
+        return None
+    value = np.asarray(vector, dtype=np.float64).reshape(-1)
+    if value.size != 3 or not np.all(np.isfinite(value)):
+        return None
+    norm = float(np.linalg.norm(value))
+    if norm < 1e-9:
+        return None
+    return value / norm
+
+
+def angle_between_deg(first, second) -> Optional[float]:
+    """
+    两向量夹角 [deg]（arccos 点积，不取绝对值）；退化输入 → None.
+
+    Args:
+        first / second: 长度 3 向量（内部各自归一化）.
+
+    Returns
+    -------
+        夹角 [deg] ∈ [0, 180]；任一向量 unit_vector 判不可用时 None.
+
+    """
+    a = unit_vector(first)
+    b = unit_vector(second)
+    if a is None or b is None:
+        return None
+    cosine = float(np.clip(np.dot(a, b), -1.0, 1.0))
+    return float(np.degrees(np.arccos(cosine)))
+
+
+def axis_radial_distance(points: np.ndarray, axis: np.ndarray,
+                         origin) -> np.ndarray:
+    """
+    点集到轴线（过 origin、方向 axis）的垂直距离.
+
+    理论: delta = p − origin 的垂直分量模 ‖delta − (delta·a)a‖；origin
+    只需在轴线上（取截面质心或锚点均可，浮点末位级差异）。
+
+    Args:
+        points: (N, 3) 点.
+        axis: (3,) 单位轴向.
+        origin: (3,) 轴上一点（如截面质心/锚点）.
+
+    Returns
+    -------
+        (N,) float64 距离（与输入同单位）.
+
+    """
+    delta = np.asarray(points, dtype=np.float64) - np.asarray(
+        origin, dtype=np.float64)
+    return np.linalg.norm(delta - np.outer(delta @ axis, axis), axis=1)
+
+
+# ═══════════════════════════════════════════════════════════════
+# 法线估计（有序深度图邻域叉积）
+# ═══════════════════════════════════════════════════════════════
+
+
+def estimate_normals(depth_roi: np.ndarray, xoff: int, yoff: int, K: dict,
+                     depth_jump_mm: int = 30) -> Tuple[np.ndarray, np.ndarray]:
+    """
+    有序深度图 → 单位法线图 (h, w, 3)，统一朝向相机.
+
+    理论: 表面切向量 ≈ 相邻像素 3D 点差，法线 = 两切向叉积。
+    深度突变（遮挡边缘）处法线不可靠，置无效。
+
+    Args:
+        depth_roi: (h, w) uint16 深度（毫米）.
+        xoff: ROI 在全图中的 x 像素偏移.
+        yoff: ROI 在全图中的 y 像素偏移.
+        K: 相机内参 {"fx","fy","cx","cy"}（像素单位）.
+        depth_jump_mm: 相邻像素深度差超过该值（毫米）视为边缘，法线置无效.
+
+    Returns
+    -------
+        (normals, normal_valid)：(h, w, 3) float64 单位法线（相机系）与
+        (h, w) bool 有效标记（图边缘一圈恒无效）.
+
+    """
+    h, w = depth_roi.shape
+    # 反投影内联段已提取为 _backproject_grid（公式与 backproject 同源）
+    X, Y, z, valid = _backproject_grid(depth_roi, xoff, yoff, K)
+
+    # 中心差分切向量（边缘退化为前/后向差分，numpy 自动处理）
+    du = np.zeros((h, w, 3))
+    dv = np.zeros((h, w, 3))
+    du[:, 1:-1, 0] = X[:, 2:] - X[:, :-2]
+    du[:, 1:-1, 1] = Y[:, 2:] - Y[:, :-2]
+    du[:, 1:-1, 2] = z[:, 2:] - z[:, :-2]
+    dv[1:-1, :, 0] = X[2:, :] - X[:-2, :]
+    dv[1:-1, :, 1] = Y[2:, :] - Y[:-2, :]
+    dv[1:-1, :, 2] = z[2:, :] - z[:-2, :]
+
+    n = np.cross(du, dv)
+    norm = np.linalg.norm(n, axis=2)
+    with np.errstate(invalid='ignore', divide='ignore'):
+        n = n / np.where(norm > 1e-12, norm, 1.0)[..., None]
+
+    # 朝向相机（相机在原点看 +Z，可见面法线应指向原点）
+    dot = n[..., 0] * X + n[..., 1] * Y + n[..., 2] * z
+    flip = dot > 0
+    n[flip] = -n[flip]
+
+    # 邻域有效 + 深度连续 + 范数正常
+    jump_u = np.zeros((h, w), bool)
+    jump_v = np.zeros((h, w), bool)
+    jump_u[:, 1:-1] = (np.abs(depth_roi[:, 2:].astype(np.int32)
+                              - depth_roi[:, :-2].astype(np.int32)) > depth_jump_mm)
+    jump_v[1:-1, :] = (np.abs(depth_roi[2:, :].astype(np.int32)
+                              - depth_roi[:-2, :].astype(np.int32)) > depth_jump_mm)
+    neighbors_valid = np.zeros((h, w), dtype=bool)
+    neighbors_valid[1:-1, 1:-1] = (
+        valid[1:-1, :-2] & valid[1:-1, 2:]
+        & valid[:-2, 1:-1] & valid[2:, 1:-1])
+    nvalid = valid & neighbors_valid & (norm > 1e-12) & ~jump_u & ~jump_v
+    nvalid[[0, -1], :] = False
+    nvalid[:, [0, -1]] = False
+    return n, nvalid
+
+
+# ═══════════════════════════════════════════════════════════════
+# 球拟合: 点+法线 RANSAC + 几何 LM 抛光
+# ═══════════════════════════════════════════════════════════════
+
+def _sphere_inliers(points: np.ndarray, center: np.ndarray, radius: float,
+                    thresh: float) -> np.ndarray:
+    """
+    球面内点索引：|‖p−c‖ − r| ≤ thresh.
+
+    Args:
+        points: (N, 3) 点（米）.
+        center: (3,) 球心（米）.
+        radius: 半径（米）.
+        thresh: 径向残差阈值（米）.
+
+    Returns
+    -------
+        内点下标 int 数组.
+
+    """
+    d = np.linalg.norm(points - center, axis=1)
+    return np.where(np.abs(d - radius) <= thresh)[0]
+
+
+def ransac_sphere(points: np.ndarray, normals: Optional[np.ndarray] = None,
+                  radius_prior: Optional[float] = None,
+                  radius_range: Tuple[float, float] = (0.025, 0.045),
+                  thresh: float = 0.004, max_iter: int = 300,
+                  seed: int = 0) -> Optional[dict]:
+    """
+    球 RANSAC：法线可用时 1–2 点采样，否则 4 点采样；半径夹紧.
+
+    理论: c = p − r·n（射线约束）；半径已知 → 最小采样 1 点（迭代数 ~7）；
+    半径未知 → 2 点+法线，r = |p₁−p₂|² / ((n₁−n₂)·(p₁−p₂))。
+    打分两段式（preemptive）：全部假设先在固定种子子样本（≤512 点）上
+    粗排，仅前 16 名回全点集复核（动机见 _preempt_screen 注释）。
+
+    Args:
+        points: (N, 3) 点（米）；N<10 直接 None.
+        normals: (N, 3) 单位法线；None 或含非有限值时退化 4 点采样.
+        radius_prior: 半径先验（米）；给定时单点采样.
+        radius_range: 接受的半径区间 (min, max)（米），区间外假设丢弃.
+        thresh: 内点径向残差阈值（米）.
+        max_iter: RANSAC 迭代次数.
+        seed: 随机种子（保证可复现）.
+
+    Returns
+    -------
+        dict(center, radius, inliers, inlier_ratio, rms)；内点 <10 给 None.
+
+    """
+    rng = np.random.default_rng(seed)
+    n = len(points)
+    if n < 10:
+        return None
+    use_normals = (normals is not None and len(normals) == n
+                   and np.isfinite(normals).all())
+    screen = _preempt_screen(points, rng)
+    # 假设生成与旧版逐字一致（同一 rng 消费序）；打分换子样本粗排
+    candidates = []  # (screen_count, iter_idx, center, radius)
+    for it in range(max_iter):
+        center = radius = None
+        if use_normals and radius_prior is not None:
+            i = rng.integers(n)
+            center = points[i] - radius_prior * normals[i]
+            radius = radius_prior
+        elif use_normals:
+            i, j = rng.choice(n, size=2, replace=False)
+            dn = normals[i] - normals[j]
+            dp = points[i] - points[j]
+            denom = float(dn @ dp)
+            if abs(denom) < 1e-9:
+                continue
+            radius = float(dp @ dp) / denom
+            if not (radius_range[0] <= radius <= radius_range[1]):
+                continue
+            center = points[i] - radius * normals[i]
+        else:
+            idx = rng.choice(n, size=min(4, n), replace=False)
+            pts = points[idx]
+            a = np.column_stack((2.0 * pts, np.ones(len(pts))))
+            b = np.einsum('ij,ij->i', pts, pts)
+            sol, *_ = np.linalg.lstsq(a, b, rcond=None)
+            t = sol[3] + float(sol[:3] @ sol[:3])
+            if t <= 0:
+                continue
+            center, radius = sol[:3], float(np.sqrt(t))
+            if not (radius_range[0] <= radius <= radius_range[1]):
+                continue
+
+        d_screen = np.linalg.norm(screen - center, axis=1)
+        count = int(np.count_nonzero(np.abs(d_screen - radius) <= thresh))
+        candidates.append((count, it, center, radius))
+
+    if not candidates:
+        return None
+    # 粗排：子样本计数降序、迭代序升序（并列先到先得，等价旧 `>` 语义）
+    candidates.sort(key=lambda c: (-c[0], c[1]))
+    best = None
+    for _cnt, _it, center, radius in candidates[:_PREEMPT_FINALISTS]:
+        inl = _sphere_inliers(points, center, radius, thresh)
+        if best is None or len(inl) > len(best['inliers']):
+            best = {'center': center, 'radius': radius, 'inliers': inl}
+
+    if best is None or len(best['inliers']) < 10:
+        return None
+    d = np.linalg.norm(points[best['inliers']] - best['center'], axis=1)
+    best['inlier_ratio'] = len(best['inliers']) / n
+    best['rms'] = float(np.sqrt(np.mean((d - best['radius']) ** 2)))
+    return best
+
+
+def polish_sphere_lm(points: np.ndarray, center0: np.ndarray,
+                     radius: float, fixed_radius: bool = True) -> Tuple[np.ndarray, float]:
+    """
+    几何正交距离 LM 抛光（MLE）。fixed_radius=True 时只估 3 DOF 球心.
+
+    理论: min Σ(||p_i−c|| − r)² 是各向同性高斯噪声的最大似然；固定半径
+    删除 Fisher 信息矩阵最病态方向，CRLB 严格下降。
+
+    Args:
+        points: (N, 3) 内点（米）.
+        center0: (3,) 初始球心（米）.
+        radius: 半径（米）；fixed_radius 时固定为该值.
+        fixed_radius: True 只估球心（3 DOF）；False 球心+半径联估（4 DOF）.
+
+    Returns
+    -------
+        (center (3,), radius)：抛光后的球心与半径（米）.
+
+    """
+    if fixed_radius:
+        def residuals(c):
+            return np.linalg.norm(points - c, axis=1) - radius
+        sol = least_squares(residuals, center0, method='lm')
+        return sol.x, radius
+
+    def residuals(cr):
+        return np.linalg.norm(points - cr[:3], axis=1) - cr[3]
+    sol = least_squares(residuals, np.append(center0, radius), method='lm')
+    return sol.x[:3], float(sol.x[3])
+
+
+def fit_sphere_robust(points: np.ndarray, normals: Optional[np.ndarray] = None,
+                      radius_prior: Optional[float] = 0.035,
+                      radius_range: Tuple[float, float] = (0.025, 0.045),
+                      thresh: float = 0.004, max_iter: int = 300,
+                      seed: int = 0) -> Optional[dict]:
+    """
+    完整球拟合: RANSAC → 内点 LM 抛光 → 重计内点与统计量.
+
+    Args:
+        points: (N, 3) 点（米）.
+        normals: (N, 3) 单位法线；None 退化 4 点采样.
+        radius_prior: 固定半径先验（米），有无法线均在抛光时执行；
+            None 表示半径自由（抛光亦放开）.
+        radius_range: 接受的半径区间（米），抛光后越界判失败.
+        thresh: 内点径向残差阈值（米）.
+        max_iter: RANSAC 迭代次数.
+        seed: 随机种子.
+
+    Returns
+    -------
+        dict(center, radius, inliers, inlier_ratio, rms)；失败给 None.
+
+    """
+    est = ransac_sphere(points, normals, radius_prior, radius_range,
+                        thresh, max_iter, seed)
+    if est is None:
+        return None
+    inl_pts = points[est['inliers']]
+    center, radius = polish_sphere_lm(
+        inl_pts, est['center'], (
+            float(radius_prior) if radius_prior is not None else est['radius']),
+        fixed_radius=radius_prior is not None)
+    if not (radius_range[0] <= radius <= radius_range[1]):
+        return None
+    inl = _sphere_inliers(points, center, radius, thresh)
+    if len(inl) < 10:
+        return None
+    d = np.linalg.norm(points[inl] - center, axis=1)
+    return {'center': center, 'radius': radius, 'inliers': inl,
+            'inlier_ratio': len(inl) / len(points),
+            'rms': float(np.sqrt(np.mean((d - radius) ** 2)))}
+
+
+# ═══════════════════════════════════════════════════════════════
+# 圆柱拟合: 2 点+2 法线 RANSAC + Eberly 轴向抛光
+# ═══════════════════════════════════════════════════════════════
+
+# 预筛两段式打分（Nistér 2003 preemptive RANSAC 同构；PCL 实践先降采样
+# 云再 RANSAC 也是同一动机）：max_iter 个假设先在固定种子子样本上粗排，
+# 仅前 _PREEMPT_FINALISTS 名进全点集复核。打分成本从 O(iter×N) 降到
+# O(iter×screen + finalists×N)，封死近距大掩膜（N 可达数万）时打分随时
+# 间线性膨胀的尾延。N ≤ screen 时不抽子样本——rng 流与逐假设打分均与
+# 单段版本逐数一致（排序后仍按 (计数, 迭代序) 先到先得，等价原 `>` 语义）。
+_PREEMPT_SCREEN_N = 512
+_PREEMPT_FINALISTS = 16
+
+
+def _preempt_screen(points: np.ndarray, rng) -> np.ndarray:
+    """
+    打分子样本：N 超过 _PREEMPT_SCREEN_N 时固定种子均匀抽取.
+
+    Args:
+        points: (N, 3) 点（米）.
+        rng: 已种子化的 Generator（抽取只发生一次，在假设循环之前）.
+
+    Returns
+    -------
+        (≤ _PREEMPT_SCREEN_N, 3) 打分点集；N 不超限时原样返回（零 rng 消耗）.
+
+    """
+    n = len(points)
+    if n <= _PREEMPT_SCREEN_N:
+        return points
+    return points[rng.choice(n, _PREEMPT_SCREEN_N, replace=False)]
+
+
+def _cylinder_radial_dist(points: np.ndarray, q0: np.ndarray, axis: np.ndarray) -> np.ndarray:
+    """
+    点到圆柱轴的径向距离.
+
+    Args:
+        points: (N, 3) 点（米）.
+        q0: (3,) 轴上一点（米）.
+        axis: (3,) 单位轴向.
+
+    Returns
+    -------
+        (N,) 径向距离（米）.
+
+    """
+    rel = points - q0
+    perp = rel - np.outer(rel @ axis, axis)
+    return np.linalg.norm(perp, axis=1)
+
+
+def ransac_cylinder(points: np.ndarray, normals: np.ndarray,
+                    radius_range: Tuple[float, float] = (0.025, 0.050),
+                    thresh: float = 0.0035, max_iter: int = 300,
+                    seed: int = 0) -> Optional[dict]:
+    """
+    圆柱 RANSAC（PCL SACMODEL_CYLINDER 同款构造，clean-room 实现）.
+
+    理论: 圆柱法线 ⊥ 轴 → a = (n₁×n₂)/|n₁×n₂|；投影 ⊥a 平面退化为 2D 圆，
+    圆心 = 两射线 p'₁+α·n'₁ 与 p'₂+β·n'₂ 的交点；半径夹紧剪掉退化假设。
+    打分两段式（preemptive）：全部假设先在固定种子子样本（≤512 点）上
+    粗排，仅前 16 名回全点集复核（动机见 _preempt_screen 注释）。
+
+    Args:
+        points: (N, 3) 点（米）；N<20 直接 None.
+        normals: (N, 3) 单位法线；None 或数量不符直接 None.
+        radius_range: 接受的半径区间 (min, max)（米），区间外假设丢弃.
+        thresh: 内点径向残差阈值（米）.
+        max_iter: RANSAC 迭代次数.
+        seed: 随机种子.
+
+    Returns
+    -------
+        dict(axis, q0, radius, inliers, inlier_ratio, rms)；内点 <20 给 None.
+
+    """
+    rng = np.random.default_rng(seed)
+    n = len(points)
+    if n < 20 or normals is None or len(normals) != n:
+        return None
+    screen = _preempt_screen(points, rng)
+    # 假设生成与旧版逐字一致（同一 rng 消费序）；打分换子样本粗排
+    candidates = []  # (screen_count, iter_idx, axis, q0, radius)
+    for it in range(max_iter):
+        i, j = rng.choice(n, size=2, replace=False)
+        n1, n2 = normals[i], normals[j]
+        a = np.cross(n1, n2)
+        la = np.linalg.norm(a)
+        if la < 0.17:  # sin(10°)：近平行法线无法定轴
+            continue
+        a = a / la
+        p1p = points[i] - (points[i] @ a) * a
+        p2p = points[j] - (points[j] @ a) * a
+        n1p = n1 - (n1 @ a) * a
+        n2p = n2 - (n2 @ a) * a
+        m = np.column_stack((n1p, -n2p))  # 3x2
+        # 最小二乘解 2 维射线参数（两射线一般异面，取最近点中点）
+        alpha_beta, *_ = np.linalg.lstsq(m, p2p - p1p, rcond=None)
+        c1 = p1p + alpha_beta[0] * n1p
+        c2 = p2p + alpha_beta[1] * n2p
+        center2d = 0.5 * (c1 + c2)
+        radius = 0.5 * (np.linalg.norm(p1p - center2d) + np.linalg.norm(p2p - center2d))
+        if not (radius_range[0] <= radius <= radius_range[1]):
+            continue
+
+        d_screen = _cylinder_radial_dist(screen, center2d, a)
+        count = int(np.count_nonzero(np.abs(d_screen - radius) <= thresh))
+        candidates.append((count, it, a, center2d, radius))
+
+    if not candidates:
+        return None
+    # 粗排：子样本计数降序、迭代序升序（并列先到先得，等价旧 `>` 语义）
+    candidates.sort(key=lambda c: (-c[0], c[1]))
+    best = None
+    for _cnt, _it, a, center2d, radius in candidates[:_PREEMPT_FINALISTS]:
+        d = _cylinder_radial_dist(points, center2d, a)
+        inl = np.where(np.abs(d - radius) <= thresh)[0]
+        if best is None or len(inl) > len(best['inliers']):
+            best = {'axis': a, 'q0': center2d, 'radius': radius, 'inliers': inl}
+
+    if best is None or len(best['inliers']) < 20:
+        return None
+    d = _cylinder_radial_dist(points[best['inliers']], best['q0'], best['axis'])
+    best['inlier_ratio'] = len(best['inliers']) / n
+    best['rms'] = float(np.sqrt(np.mean((d - best['radius']) ** 2)))
+    return best
+
+
+# ── Eberly 圆柱抛光（BSD 3-Clause, 改编自 xingjiepan/cylinder_fitting）──
+
+def _eberly_direction(theta: float, phi: float) -> np.ndarray:
+    """
+    球坐标 (theta, phi) → 单位方向向量（Eberly 参数化）.
+
+    Args:
+        theta: 与 +Z 的极角 (rad).
+        phi: 绕 Z 的方位角 (rad).
+
+    Returns
+    -------
+        (3,) 单位向量.
+
+    """
+    return np.array([np.cos(phi) * np.sin(theta), np.sin(phi) * np.sin(theta),
+                     np.cos(theta)])
+
+
+def _eberly_G(w: np.ndarray, X: np.ndarray) -> float:
+    """
+    Eberly 目标函数 G(w)：方向 w 下的代数残差能量.
+
+    Args:
+        w: (3,) 单位轴向.
+        X: (N, 3) 已去均值点（米）.
+
+    Returns
+    -------
+        能量标量；退化（分母≈0）给 inf.
+
+    """
+    P = np.eye(3) - np.outer(w, w)
+    Y = X @ P.T
+    A = Y.T @ Y
+    S = np.array([[0, -w[2], w[1]], [w[2], 0, -w[0]], [-w[1], w[0], 0]])
+    A_hat = S @ A @ S.T
+    u = float(np.mean(np.einsum('ij,ij->i', Y, Y)))
+    num = A_hat @ (np.einsum('ij,ij->i', Y, Y)[:, None] * Y).sum(axis=0)
+    den = np.trace(A_hat @ A)
+    if abs(den) < 1e-18:
+        return float('inf')
+    v = num / den
+    return float(np.sum((np.einsum('ij,ij->i', Y, Y) - u - 2.0 * Y @ v) ** 2))
+
+
+def _eberly_center(w: np.ndarray, X: np.ndarray) -> np.ndarray:
+    """
+    Eberly 闭式轴心 C(w)（消元结果，见 cylinder_fitting/fitting.py）.
+
+    Args:
+        w: (3,) 单位轴向.
+        X: (N, 3) 已去均值点（米）.
+
+    Returns
+    -------
+        (3,) 轴心（去均值坐标系下；分母退化时给零向量）.
+
+    """
+    P = np.eye(3) - np.outer(w, w)
+    Y = X @ P.T
+    A = Y.T @ Y
+    S = np.array([[0, -w[2], w[1]], [w[2], 0, -w[0]], [-w[1], w[0], 0]])
+    A_hat = S @ A @ S.T
+    num = A_hat @ (np.einsum('ij,ij->i', Y, Y)[:, None] * Y).sum(axis=0)
+    den = np.trace(A_hat @ A)
+    if abs(den) < 1e-18:
+        return np.zeros(3)
+    return num / den
+
+
+def polish_cylinder_axis(points: np.ndarray,
+                         axis_hint: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
+    """
+    Eberly 轴向抛光：5 维消元为 2 维，以 axis_hint 为起点 Powell 优化.
+
+    单起点 + 救援：RANSAC 提示起点先跑；结果非有限（提示落入退化盆）才
+    补跑三个 canonical 起点。实测定点数据上四起点收敛到同一 G 极小
+    （hint 与 canonical 差 <10%、轴差在优化容差内），常态下三起点是
+    纯冗余（scipy Powell 每起点 ~5ms 封装成本）；救援路径保留原鲁棒性.
+
+    Args:
+        points: (N, 3) 点（米）.
+        axis_hint: (3,) 初始轴向（内部归一化；结果与之同向，防符号翻转）.
+
+    Returns
+    -------
+        (axis, q0)：(3,) 单位轴向与 (3,) 轴上一点（米）.
+
+    """
+    t = points.mean(axis=0)
+    X = points - t
+    hint = axis_hint / np.linalg.norm(axis_hint)
+    theta0 = float(np.arccos(np.clip(hint[2], -1.0, 1.0)))
+    phi0 = float(np.arctan2(hint[1], hint[0]))
+    rescue_starts = [(0.0, 0.0),
+                     (np.pi / 2, 0.0), (np.pi / 2, np.pi / 2)]
+    best_w, best_g = None, float('inf')
+    res = minimize(lambda x: _eberly_G(_eberly_direction(x[0], x[1]), X),
+                   (theta0, phi0), method='Powell', tol=1e-6)
+    if res.fun < best_g:
+        best_g, best_w = res.fun, _eberly_direction(res.x[0], res.x[1])
+    if best_w is None or not np.isfinite(best_g):
+        # 救援：提示起点退化（G 非有限）时才启用 canonical 起点
+        for sp in rescue_starts:
+            res = minimize(
+                lambda x: _eberly_G(_eberly_direction(x[0], x[1]), X),
+                sp, method='Powell', tol=1e-6)
+            if res.fun < best_g:
+                best_g, best_w = res.fun, _eberly_direction(
+                    res.x[0], res.x[1])
+    if best_w is None:
+        return hint, t
+    # 与 hint 同向，避免符号翻转
+    if best_w @ hint < 0:
+        best_w = -best_w
+    # 轴上一点 = Eberly 闭式轴心（平移回原坐标系）
+    q0 = _eberly_center(best_w, X) + t
+    return best_w, q0
+
+
+def fit_cylinder_robust(points: np.ndarray, normals: np.ndarray,
+                        radius_range: Tuple[float, float] = (0.025, 0.050),
+                        thresh: float = 0.0035, max_iter: int = 300,
+                        polish: bool = True, seed: int = 0) -> Optional[dict]:
+    """
+    完整圆柱拟合: RANSAC → Eberly 轴向抛光 → 半径几何重估 → 重计统计量.
+
+    半径用 mean(d_i) 重估（Eberly 代数残差导致 ~1.9mm 系统性半径偏差，
+    轴向不受此影响，见 references/notes_fitting_algorithms.md §2.2）。
+
+    Args:
+        points: (N, 3) 点（米）.
+        normals: (N, 3) 单位法线.
+        radius_range: 接受的半径区间 (min, max)（米）.
+        thresh: 内点径向残差阈值（米）.
+        max_iter: RANSAC 迭代次数.
+        polish: True 时做 Eberly 轴向抛光（内点抽稀到 800）.
+        seed: 随机种子.
+
+    Returns
+    -------
+        dict(axis, q0, radius, inliers, inlier_ratio, rms)；失败给 None.
+
+    """
+    est = ransac_cylinder(points, normals, radius_range, thresh, max_iter, seed)
+    if est is None:
+        return None
+    inl = est['inliers']
+    axis, q0 = est['axis'], est['q0']
+    if polish and len(inl) >= 20:
+        # 抛光代价随点数线性增长，内点抽稀到 800（精度损失可忽略）
+        polish_idx = inl if len(inl) <= 800 else inl[np.linspace(
+            0, len(inl) - 1, 800, dtype=int)]
+        axis, q0 = polish_cylinder_axis(points[polish_idx], axis)
+        # 重选内点（轴向更新后）
+        d = _cylinder_radial_dist(points, q0, axis)
+        radius = float(np.median(d[inl]))
+        inl = np.where(np.abs(d - radius) <= thresh)[0]
+        if len(inl) < 20:
+            return None
+    d = _cylinder_radial_dist(points[inl], q0, axis)
+    radius = float(np.mean(d))
+    # RANSAC bounds only its initial hypothesis. Axis/center polishing and
+    # geometric radius re-estimation must also respect the caller's range.
+    if not np.isfinite(radius) or not radius_range[0] <= radius <= radius_range[1]:
+        return None
+    rms = float(np.sqrt(np.mean((d - radius) ** 2)))
+    return {'axis': axis, 'q0': q0, 'radius': radius, 'inliers': inl,
+            'inlier_ratio': len(inl) / len(points), 'rms': rms}
+
+
+# ═══════════════════════════════════════════════════════════════
+# 深度单位
+# ═══════════════════════════════════════════════════════════════
+
+_UINT16_MAX_MM = 65535.0  # uint16 深度上限（毫米）；饱和值下游视为无效
+
+
+def normalize_depth_to_uint16_mm(depth: np.ndarray,
+                                 depth_scale_unit: float) -> np.ndarray:
+    """
+    深度图归一化为 uint16 毫米（管线统一输入约定）.
+
+    uint16 路径：``raw × depth_scale_unit`` = 毫米（Percipio 常见 0.25；
+    数据集回放的真毫米深度设 1.0），round + clip 到 [0, 65535]；
+    scale==1.0 时原样返回（零拷贝）。
+
+    浮点路径（32FC1 等）：输入视为「米」，×1000 转毫米，depth_scale_unit
+    不生效；NaN/±Inf/负值一律置 0（无效深度），round + clip 到 uint16。
+
+    Args:
+        depth: (H, W) 深度图，uint16（原始值）或浮点（米）.
+        depth_scale_unit: uint16 路径的比例因子（毫米/单位）；浮点路径忽略.
+
+    Returns
+    -------
+        (H, W) uint16 深度，单位毫米.
+
+    Raises
+    ------
+        ValueError: 不支持的 dtype（既非 uint16 也非浮点）.
+
+    """
+    if depth.dtype == np.uint16:
+        if abs(depth_scale_unit - 1.0) > 1e-9:
+            return np.clip(
+                np.round(depth.astype(np.float32) * depth_scale_unit),
+                0.0, _UINT16_MAX_MM).astype(np.uint16)
+        return depth
+    if np.issubdtype(depth.dtype, np.floating):
+        mm = depth.astype(np.float64) * 1000.0
+        mm = np.where(np.isfinite(mm) & (mm > 0.0), mm, 0.0)
+        return np.clip(np.round(mm), 0.0, _UINT16_MAX_MM).astype(np.uint16)
+    raise ValueError(f'不支持的深度 dtype {depth.dtype}（仅支持 uint16/浮点）')
+
+
+# ═══════════════════════════════════════════════════════════════
+# 针孔反投影（W3 单实现：原三份手写反投影收敛于此）
+# ═══════════════════════════════════════════════════════════════
+
+def backproject(depth_mm: np.ndarray, mask: np.ndarray, K: dict, *,
+                min_depth_m: Optional[float] = None,
+                max_depth_m: Optional[float] = None,
+                stride: int = 1,
+                rgb_bgr: Optional[np.ndarray] = None,
+                xoff: int = 0, yoff: int = 0,
+                valid_mask: Optional[np.ndarray] = None
+                ) -> Tuple[np.ndarray, Optional[np.ndarray]]:
+    """
+    针孔反投影单实现：mask ∧ 有效深度像素 → 相机系 3D 点（米）+ 可选 BGR.
+
+    x = (u − cx)·z/fx、y = (v − cy)·z/fy、z = depth/1000（毫米→米）；
+    u/v 为全图像素坐标（ROI 输入时由 xoff/yoff 补偿）。无效深度
+    （0 / 饱和 65535）恒剔除；距离窗 min/max_depth_m 为开区间
+    （None = 不设窗），窗比较沿用 image_gates.valid_depth_mask 的
+    float32 口径（边界毫米值的取舍与旧三份实现逐位一致，对拍锚点）。
+
+    Args:
+        depth_mm: (H, W) uint16 深度（毫米）.
+        mask: (H, W) bool 掩膜（选中像素；内部再与有效深度求交）.
+        K: 相机内参 {"fx","fy","cx","cy"}（像素单位）.
+        min_depth_m: 有效深度下限 (m)；None 不设窗.
+        max_depth_m: 有效深度上限 (m)；None 不设窗.
+        stride: 全图网格抽稀步长（``sel[::stride, ::stride]``，锚在 (0,0)）；
+            逐检测框锚定的抽稀由调用方在 mask 构造期完成（见
+            bbox_cloud_xyzrgb），此处 1 = 不抽稀.
+        rgb_bgr: (H, W, 3) uint8 BGR 图；给定时按选中像素采集颜色.
+        xoff / yoff: ROI 在全图中的像素偏移（0 = 全图输入）.
+        valid_mask: 预计算的有效深度掩膜；给定时直接用作有效判定
+            （忽略 min/max_depth_m，避免重复算窗——estimate 复用
+            valid_roi 的路径）.
+
+    Returns
+    -------
+        (xyz_cam, colors_bgr_or_None)：xyz 为 (N, 3) float64 相机系点
+        （米）；rgb_bgr 给定时 colors 为 (N, 3) uint8 BGR，否则 None；
+        无有效点时 xyz 为 (0, 3) 空数组.
+
+    """
+    depth = np.asarray(depth_mm)
+    if valid_mask is not None:
+        valid = np.asarray(valid_mask, dtype=bool)
+    else:
+        valid = (depth > 0) & (depth < _UINT16_MAX_MM)
+        if min_depth_m is not None or max_depth_m is not None:
+            # 与 image_gates.valid_depth_mask 同口径：mm→m 在 float32 下比较
+            z32 = depth.astype(np.float32) / 1000.0
+            if min_depth_m is not None:
+                valid = valid & (z32 > float(min_depth_m))
+            if max_depth_m is not None:
+                valid = valid & (z32 < float(max_depth_m))
+    selected = np.asarray(mask, dtype=bool) & valid
+    if stride > 1:
+        step = int(stride)
+        # 子采样视图上的 nonzero 是子网格坐标，须放大回全图像素坐标
+        vs, us = np.nonzero(selected[::step, ::step])
+        vs = vs * step
+        us = us * step
+    else:
+        vs, us = np.nonzero(selected)
+    if vs.size == 0:
+        empty_colors = (
+            np.zeros((0, 3), dtype=np.uint8) if rgb_bgr is not None else None)
+        return np.zeros((0, 3), dtype=np.float64), empty_colors
+    z = depth[vs, us].astype(np.float64) / 1000.0
+    fx, fy = float(K['fx']), float(K['fy'])
+    cx, cy = float(K['cx']), float(K['cy'])
+    u = us.astype(np.float64) + float(xoff)
+    v = vs.astype(np.float64) + float(yoff)
+    xyz = np.column_stack(((u - cx) * z / fx, (v - cy) * z / fy, z))
+    colors = None if rgb_bgr is None else np.asarray(rgb_bgr)[vs, us]
+    return xyz, colors
+
+
+def project_point(point, K: dict):
+    """
+    相机系 3D 点 → 像素 (u, v)（backproject 的对偶单点版）.
+
+    u = fx·x/z + cx、v = fy·y/z + cy（z 单位米，K 像素单位）；
+    语义与原 pose_pipelines._project 逐字一致（None 透传、z≤1e-8 不可投影）。
+
+    Args:
+        point: (3,) 相机系点（米）；None 原样返回 None.
+        K: 相机内参 {"fx","fy","cx","cy"}（像素单位）.
+
+    Returns
+    -------
+        (u, v) float 像素；不可投影返回 None.
+
+    """
+    if point is None or point[2] <= 1e-8:
+        return None
+    return (float(point[0] * K['fx'] / point[2] + K['cx']),
+            float(point[1] * K['fy'] / point[2] + K['cy']))
+
+
+def _backproject_grid(depth_roi: np.ndarray, xoff: int, yoff: int, K: dict
+                      ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    """
+    有序深度图全网格反投影（estimate_normals 专用内联段提取）.
+
+    公式与 :func:`backproject` 同源（x=(u−cx)·z/fx）；区别仅在形态：
+    本函数返回 (h, w) 稠密网格（法线差分需要邻域），backproject 返回
+    选中像素点列。0/65535 无效位一并返回。
+
+    Args:
+        depth_roi: (h, w) uint16 深度（毫米）.
+        xoff / yoff: ROI 在全图中的像素偏移.
+        K: 相机内参 {"fx","fy","cx","cy"}.
+
+    Returns
+    -------
+        (X, Y, z, valid)：X/Y/z 为 (h, w) float64 网格（z 米），
+        valid 为 (h, w) bool（0/65535 剔除）.
+
+    """
+    z = depth_roi.astype(np.float64) / 1000.0
+    valid = (depth_roi > 0) & (depth_roi < _UINT16_MAX_MM)
+    us = np.arange(depth_roi.shape[1])[None, :] + int(xoff)
+    vs = np.arange(depth_roi.shape[0])[:, None] + int(yoff)
+    X = (us - K['cx']) * z / K['fx']
+    Y = (vs - K['cy']) * z / K['fy']
+    return X, Y, z, valid
+
+
+def crop_mask_to_bbox(mask: np.ndarray, bbox) -> np.ndarray:
+    """
+    掩膜裁剪原语（W3 合一）：返回 bbox ROI 切片，越界侧先钳到图内.
+
+    pipeline._crop_mask_to_bbox（全图清零式）与 inference._crop_mask
+    （ROI 切片式）共用的像素裁剪核；本函数只做切片，形状语义由调用方
+    包装（全图清零 / ROI 尺寸校验）。
+
+    Args:
+        mask: (H, W) 掩膜（bool/uint8，dtype 保留）.
+        bbox: (x1, y1, x2, y2) 像素框（可越界；负侧与图外侧截断）.
+
+    Returns
+    -------
+        (y2'−y1', x2'−x1') 掩膜视图（钳位后的 ROI 切片）.
+
+    """
+    x1, y1, x2, y2 = (int(v) for v in bbox)
+    return mask[max(y1, 0):max(y2, 0), max(x1, 0):max(x2, 0)]
+
+
+def bbox_cloud_xyzrgb(rgb_bgr: np.ndarray, depth_mm: np.ndarray, K: dict,
+                      bboxes, stride: int = 1
+                      ) -> Tuple[np.ndarray, np.ndarray]:
+    """
+    检测框内像素反投影成彩色点云：返回 (N,3) xyz（米）与 (N,) 打包 rgb.
+
+    depth_mm 为毫米单位 uint16（Percipio 原始值已 × depth_scale_unit）；
+    剔除无效深度（0/饱和 65535），无距离窗（全窗直通）。stride 为
+    **逐框锚定**抽稀（``mask[y1:y2:stride, x1:x2:stride]``，锚在各框
+    左上角，与 W3 前旧实现逐像素一致）；backproject 的 stride 参数是
+    全图网格锚定，两者语义不同，故此处在 mask 构造期完成抽稀后以
+    stride=1 调用。
+
+    Args:
+        rgb_bgr: (H, W, 3) uint8 BGR 图，与深度对齐.
+        depth_mm: (H, W) uint16 深度，单位毫米.
+        K: 相机内参 {"fx","fy","cx","cy"}（像素单位）.
+        bboxes: 检测框列表 [(x1, y1, x2, y2)]（像素，自动裁剪到图内）.
+        stride: 逐框降采样步长（像素）；1 为不降采样.
+
+    Returns
+    -------
+        (xyz, rgb_packed)：xyz 为 (N, 3) float64 相机系点（米），
+        rgb_packed 为 (N,) float32 打包颜色；无有效点时均为空数组.
+
+    """
+    h, w = depth_mm.shape[:2]
+    mask = np.zeros((h, w), dtype=bool)
+    for bbox in bboxes:
+        x1, y1, x2, y2 = [int(v) for v in bbox]
+        x1 = max(0, min(w - 1, x1))
+        x2 = max(0, min(w, x2))
+        y1 = max(0, min(h - 1, y1))
+        y2 = max(0, min(h, y2))
+        if x2 <= x1 or y2 <= y1:
+            continue
+        mask[y1:y2:stride, x1:x2:stride] = True
+    xyz, colors = backproject(depth_mm, mask, K, rgb_bgr=rgb_bgr)
+    if colors is None:
+        return xyz, np.zeros((0,), dtype=np.float32)
+    return xyz, pack_rgb_bgr(colors)
+
+
+def grasp_frame_from_axis(axis) -> np.ndarray:
+    """
+    由袋轴构造右手抓取系 R=[Xg,Yg,Zg]（无点云时的定向回退）.
+
+    Zg=axis（归一化，近零回退 +Z）；Xg 取 Zg 与参考轴叉积（|x|<0.9 用
+    +X，否则 +Z，避免共线退化）且 x 分量取正（视角对称约定）；
+    Yg=Zg×Xg。（W3 自 pose_pipelines 迁入：identity.memory_grasp 与
+    位姿线共用，迁 common 后消除 identity↔pose_pipelines 循环依赖；
+    pose_pipelines 旧路径 re-export。）
+
+    Args:
+        axis: (3,) 轴向（内部归一化；近零回退 [0,0,1]）.
+
+    Returns
+    -------
+        (3, 3) 旋转矩阵 [Xg, Yg, Zg]，Zg=归一化轴.
+
+    """
+    zg = np.asarray(axis, dtype=np.float64)
+    norm = float(np.linalg.norm(zg))
+    zg = zg / norm if norm > 1e-9 else np.array([0.0, 0.0, 1.0])
+    ref = (np.array([1.0, 0.0, 0.0]) if abs(zg[0]) < 0.9
+           else np.array([0.0, 0.0, 1.0]))
+    xg = np.cross(zg, ref)
+    xg /= np.linalg.norm(xg)
+    if xg[0] < 0:
+        xg = -xg
+    yg = np.cross(zg, xg)
+    return np.column_stack((xg, yg, zg))
+
+
+# ═══════════════════════════════════════════════════════════════
+# TF 与点云 RGB 打包
+# ═══════════════════════════════════════════════════════════════
+
+@dataclass(frozen=True)
+class QuaternionValue:
+    """
+    单位四元数不可变值对象（geometry_msgs/Quaternion 的纯核替代）.
+
+    纯核不得 import geometry_msgs，故 rotation_to_quat 返回本值对象；
+    字段语义与消息一致 (x, y, z, w)。编排层需要消息时自行构造：
+    ``Quaternion(x=q.x, y=q.y, z=q.z, w=q.w)``。
+    """
+
+    x: float
+    y: float
+    z: float
+    w: float
+
+    def as_tuple(self) -> tuple:
+        """返回 (x, y, z, w) 元组，供 scipy Rotation 等数组接口使用."""
+        return (self.x, self.y, self.z, self.w)
+
+
+def transform_msg_to_matrix(transform) -> np.ndarray:
+    """
+    Transform（鸭子类型）→ 4×4 齐次矩阵 T（p_out = R@p_in + t）.
+
+    有限且模长平方 ≥ float64 eps 的四元数走官方 scipy Rotation 组合
+    （与原 tf_transformations 组合在 1e-12 内数值等价——该等价仅对此
+    类输入成立）；零/亚 eps 范数四元数回退单位旋转、仅保留平移（沿用
+    tf_transformations quaternion_matrix 的同阈值回退语义，区别于
+    scipy from_quat 对零范数抛 ValueError）。非有限四元数同样回退单位
+    旋转：旧实现会产出 NaN 矩阵污染下游，属未定义垃圾路径，不再保留。
+    统一自原 peach_perception.scene_perception.tf_utils._transform_msg_to_matrix
+    与 peach_perception.target_reconstruction.tf_utils.transform_msg_to_matrix。
+
+    Args:
+        transform: 带 .translation.x/y/z 与 .rotation.x/y/z/w 的对象.
+
+    Returns
+    -------
+        (4, 4) float64 齐次矩阵（平移单位随消息，通常为米）.
+
+    """
+    tr = transform.translation
+    q = transform.rotation
+    qv = np.asarray([q.x, q.y, q.z, q.w], dtype=np.float64)
+    T = np.eye(4, dtype=np.float64)
+    if np.all(np.isfinite(qv)) and float(qv @ qv) >= _QUAT_NORM_EPS:
+        T[:3, :3] = Rotation.from_quat(qv).as_matrix()
+    T[:3, 3] = (tr.x, tr.y, tr.z)
+    return T
+
+
+def invert_transform(T: np.ndarray) -> np.ndarray:
+    """
+    4×4 齐次矩阵求逆：T_camera_base = inv(T_base_camera).
+
+    官方 np.linalg.inv（通用 4×4 求逆）：刚体矩阵上数值误差 ~1e-16，
+    与手写 [R.T, -R.T@t] 在测试锚点精度（atol=1e-12）内无差别；
+    输入的刚性由 test_tf_utils 正逆互反用例守门，无需自造刚体特化。
+    （实现沿用原 peach_perception.target_reconstruction.tf_utils.invert_transform。）
+
+    Args:
+        T: (4, 4) 齐次矩阵.
+
+    Returns
+    -------
+        (4, 4) float64 逆矩阵.
+
+    """
+    return np.linalg.inv(np.asarray(T, dtype=np.float64))
+
+
+def relative_motion(T_a: np.ndarray, T_b: np.ndarray) -> tuple:
+    """
+    两个 base←camera 位姿间的相对运动量（视角过滤用）.
+
+    保留 numpy 闭式（官方无更直等价物）：须绕四元数或 Rotation 对象
+    才能取「两旋转夹角」，反而多一次构造往返；trace 闭式
+    R_rel→arccos((tr−1)/2) 是教科书标准式，单次矩阵乘即得。
+    （实现沿用原 peach_perception.target_reconstruction.tf_utils.relative_motion。）
+
+    Args:
+        T_a: (4, 4) 本帧位姿.
+        T_b: (4, 4) 参考帧位姿（上一已采帧）.
+
+    Returns
+    -------
+        (translation_m, rotation_deg)：平移差范数 [m] 与相对旋转角 [deg].
+
+    """
+    R_rel = T_a[:3, :3] @ T_b[:3, :3].T
+    cos_angle = float(np.clip((np.trace(R_rel) - 1.0) / 2.0, -1.0, 1.0))
+    rotation_deg = float(np.degrees(np.arccos(cos_angle)))
+    translation_m = float(np.linalg.norm(T_a[:3, 3] - T_b[:3, 3]))
+    return translation_m, rotation_deg
+
+
+def rotation_to_quat(R: np.ndarray) -> QuaternionValue:
+    """
+    3×3 旋转矩阵 → 单位四元数值对象（官方 scipy Rotation.as_quat）.
+
+    Args:
+        R: (3, 3) 旋转矩阵（非正交输入的行为随官方实现，调用方保证刚性）.
+
+    Returns
+    -------
+        QuaternionValue（x, y, z, w），模长为 1.
+
+    """
+    q = Rotation.from_matrix(np.asarray(R, dtype=float)).as_quat()  # [x, y, z, w]
+    return QuaternionValue(
+        x=float(q[0]), y=float(q[1]), z=float(q[2]), w=float(q[3]))
+
+
+def transform_point(T: np.ndarray, point) -> np.ndarray:
+    """
+    点按齐次矩阵变换：p_out = R@p_in + t（None 透传）.
+
+    Args:
+        T: (4, 4) 齐次矩阵，输出系←输入系.
+        point: (3,) 点坐标（米），None 原样返回.
+
+    Returns
+    -------
+        (3,) float64 输出系点坐标；输入 None 时返回 None.
+
+    """
+    if point is None:
+        return None
+    return T[:3, :3] @ np.asarray(point, dtype=float) + T[:3, 3]
+
+
+def transform_direction(T: np.ndarray, direction) -> np.ndarray:
+    """
+    方向向量按齐次矩阵变换：只乘 R 不加平移，并重新归一化（None 透传）.
+
+    平移不影响方向；近零退化向量不归一化（防除零），原样返回旋转结果。
+
+    Args:
+        T: (4, 4) 齐次矩阵，输出系←输入系.
+        direction: (3,) 方向向量，None 原样返回.
+
+    Returns
+    -------
+        (3,) float64 输出系单位方向向量；输入 None 时返回 None.
+
+    """
+    if direction is None:
+        return None
+    d = T[:3, :3] @ np.asarray(direction, dtype=float)
+    n = float(np.linalg.norm(d))
+    return d / n if n > 1e-9 else d
+
+
+def gravity_camera_from_R(R_out_cam: np.ndarray) -> np.ndarray:
+    """
+    由 output←camera 旋转反推相机系重力方向（gravity_mode='tf' 用）.
+
+    约定 output_frame（如 base_link）内重力向量为 [0, 0, -1]（竖直向下）；
+    方向向量只乘旋转、不加平移：g_cam = normalize(R_out_cam.T @ g_out)。
+    （实现沿用原 peach_perception.scene_perception.tf_utils._gravity_camera_from_R。）
+
+    Args:
+        R_out_cam: (3, 3) 旋转矩阵，output_frame←相机系.
+
+    Returns
+    -------
+        (3,) 相机系单位重力向量；退化（近零）时原样返回.
+
+    """
+    g = np.asarray(R_out_cam, dtype=float).T @ np.array([0.0, 0.0, -1.0])
+    n = float(np.linalg.norm(g))
+    return g / n if n > 1e-9 else g
+
+
+def pack_rgb_bgr(colors_bgr: np.ndarray) -> np.ndarray:
+    """
+    (N, 3) uint8 BGR → (N,) float32 位打包（0xRRGGBB，RViz RGB8 约定）.
+
+    Args:
+        colors_bgr: (N, 3) uint8 数组，列序为 B、G、R（OpenCV 惯例）.
+
+    Returns
+    -------
+        (N,) float32 视图（位内容为 0xRRGGBB）；空输入给 (0,) 空数组.
+
+    """
+    colors = np.asarray(colors_bgr, dtype=np.uint8).reshape(-1, 3)
+    if colors.shape[0] == 0:
+        return np.zeros((0,), dtype=np.float32)
+    b = colors[:, 0].astype(np.uint32)
+    g = colors[:, 1].astype(np.uint32)
+    r = colors[:, 2].astype(np.uint32)
+    packed = (r << 16) | (g << 8) | b
+    return packed.view(np.float32)
+
+
+def transform_points(points: np.ndarray, transform: np.ndarray) -> np.ndarray:
+    """
+    对 (N, 3) 点应用齐次刚体变换 p_out = R@p_in + t，不修改输入.
+
+    Args:
+        points: (N, 3) 点.
+        transform: (4, 4) 齐次矩阵，输出系←输入系.
+
+    Returns
+    -------
+        (N, 3) float64 变换后点；空输入给 (0, 3) 空数组.
+
+    """
+    xyz = np.asarray(points, dtype=np.float64).reshape(-1, 3)
+    T = np.asarray(transform, dtype=np.float64)
+    return xyz @ T[:3, :3].T + T[:3, 3]
+
+
+def mask_axis_disagreement(mask, bottom_px, neck_px):
+    """Independent silhouette/axis angle [deg]; None for an unobservable axis."""
+    ys, xs = np.where(mask)
+    if len(xs) < 30:
+        return None
+    axis = np.asarray(neck_px, dtype=float) - np.asarray(bottom_px, dtype=float)
+    length = float(np.linalg.norm(axis))
+    if not np.isfinite(length) or length < 5.0:
+        return None
+    axis /= length
+    pixels = np.column_stack([xs, ys]).astype(float)
+    pixels -= pixels.mean(axis=0)
+    values, vectors = np.linalg.eigh(pixels.T @ pixels / len(pixels))
+    # 二阶矩比 2.5 约等于长短轴 1.6:1。套袋桃挂着时轮廓是 1.4:1 量级
+    # （实测 70×103 px，比值 2.3），不是圆，但会被 2.5 判成不可观测。
+    # 1.6 仍拒绝接近圆形的掩膜（比值约 1）。
+    if values[-1] < 1.6 * max(values[0], 1e-9):
+        return None
+    cosine = abs(float(axis @ vectors[:, -1]))
+    return float(np.degrees(np.arccos(np.clip(cosine, 0.0, 1.0))))

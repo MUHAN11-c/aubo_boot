@@ -455,18 +455,6 @@ TEST(GraspGeometry, ToolSweepHitsFruitAlongSweep)
       kToolLen, kToolRad));
 }
 
-TEST(GraspGeometry, UsesImuFollowContactOnlyAdaptive)
-{
-  EXPECT_TRUE(peach_arm::usesImuFollowContact("adaptive_shear_v1"));
-  EXPECT_FALSE(peach_arm::usesImuFollowContact("bite_shear_v1"));
-  EXPECT_FALSE(peach_arm::usesImuFollowContact("shear_v1"));
-  EXPECT_FALSE(peach_arm::usesImuFollowContact(""));
-  EXPECT_FALSE(peach_arm::usesImuFollowContact("adaptive_shear_v2"));
-  EXPECT_NEAR(peach_arm::imuFollowTravelWaitS(0.06, 0.01), 6.5, 1e-9);
-  EXPECT_NEAR(peach_arm::imuFollowTravelWaitS(0.0, 0.01), 0.5, 1e-9);
-  EXPECT_LE(peach_arm::imuFollowTravelWaitS(10.0, 0.01), 25.0);
-}
-
 TEST(GraspGeometry, HarvestStowNamedHopsViaPhotoThenStow)
 {
   const auto hops = peach_arm::harvestStowNamedHops(

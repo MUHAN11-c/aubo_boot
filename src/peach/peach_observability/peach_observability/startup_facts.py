@@ -13,7 +13,7 @@ from typing import Any, Mapping
 FACT_KEYS = (
     'launched_at', 'hardware_mode', 'robot_ip', 'tool_profile',
     'moveit_enabled', 'camera_enabled', 'camera_frontend', 'camera_ip',
-    'extrinsics_enabled', 'imu_enabled', 'bond_timeout', 'use_sim_time',
+    'extrinsics_enabled', 'force_enabled', 'bond_timeout', 'use_sim_time',
     'skip_reconstruction', 'autostart', 'require_robot_status',
     'expected_tcp_norm_m', 'ros_domain_id', 'git',
 )
@@ -58,9 +58,9 @@ def selfcheck_overrides_from_facts(facts: Mapping) -> dict[str, Any]:
     if 'moveit_enabled' in facts:
         overrides['selfcheck_moveit_expected'] = (
             str(facts['moveit_enabled']) == 'true')
-    if 'imu_enabled' in facts:
-        overrides['selfcheck_imu_expected'] = (
-            str(facts['imu_enabled']) == 'true')
+    if 'force_enabled' in facts:
+        overrides['selfcheck_force_expected'] = (
+            str(facts['force_enabled']) == 'true')
     tcp = facts.get('expected_tcp_norm_m')
     if isinstance(tcp, (int, float)) and not isinstance(tcp, bool) \
             and float(tcp) > 0.0:

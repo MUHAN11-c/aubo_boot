@@ -33,9 +33,13 @@ from typing import Any, Callable, Optional
 import websockets
 from websockets.exceptions import ConnectionClosed
 
+from rcl_interfaces.msg import Parameter, ParameterType, ParameterValue
+from rcl_interfaces.srv import GetParameters, SetParameters
 from rclpy.serialization import deserialize_message, serialize_message
 
 _logger = logging.getLogger('foxglove_ws_client')
+
+__all__ = ['FoxgloveClientError', 'Subscription', 'FoxgloveWsClient', 'SUBPROTOCOL']
 
 SUBPROTOCOL = 'foxglove.websocket.v1'
 
@@ -394,6 +398,98 @@ class FoxgloveWsClient:
         finally:
             self._pending_calls.pop(call_id, None)
         return deserialize_message(bytes(resp_payload), response_type)
+
+    # ── 参数（标准 ~/get_parameters / ~/set_parameters 服务）─────────────
+
+    @staticmethod
+    def _value_from_parameter_value(pv: ParameterValue):
+        """rcl_interfaces ParameterValue → Python 值（未知类型返回 None）."""
+        t = int(pv.type)
+        if t == ParameterType.PARAMETER_BOOL:
+            return bool(pv.bool_value)
+        if t == ParameterType.PARAMETER_INTEGER:
+            return int(pv.integer_value)
+        if t == ParameterType.PARAMETER_DOUBLE:
+            return float(pv.double_value)
+        if t == ParameterType.PARAMETER_STRING:
+            return pv.string_value
+        if t == ParameterType.PARAMETER_BYTE_ARRAY:
+            return bytes(pv.byte_array_value)
+        if t == ParameterType.PARAMETER_BOOL_ARRAY:
+            return list(pv.bool_array_value)
+        if t == ParameterType.PARAMETER_INTEGER_ARRAY:
+            return [int(v) for v in pv.integer_array_value]
+        if t == ParameterType.PARAMETER_DOUBLE_ARRAY:
+            return [float(v) for v in pv.double_array_value]
+        if t == ParameterType.PARAMETER_STRING_ARRAY:
+            return list(pv.string_array_value)
+        return None
+
+    @staticmethod
+    def _parameter_value_from(value) -> ParameterValue:
+        """Python 值 → rcl_interfaces ParameterValue（类型推断，对齐 JS 门面）."""
+        if isinstance(value, bool):
+            return ParameterValue(type=ParameterType.PARAMETER_BOOL,
+                                  bool_value=value)
+        if isinstance(value, int):
+            return ParameterValue(type=ParameterType.PARAMETER_INTEGER,
+                                  integer_value=value)
+        if isinstance(value, float):
+            return ParameterValue(type=ParameterType.PARAMETER_DOUBLE,
+                                  double_value=value)
+        if isinstance(value, str):
+            return ParameterValue(type=ParameterType.PARAMETER_STRING,
+                                  string_value=value)
+        if isinstance(value, (bytes, bytearray)):
+            return ParameterValue(type=ParameterType.PARAMETER_BYTE_ARRAY,
+                                  byte_array_value=list(value))
+        if isinstance(value, (list, tuple)):
+            vals = list(value)
+            if not vals:
+                return ParameterValue(type=ParameterType.PARAMETER_NOT_SET)
+            if all(isinstance(v, bool) for v in vals):
+                return ParameterValue(type=ParameterType.PARAMETER_BOOL_ARRAY,
+                                      bool_array_value=vals)
+            if all(isinstance(v, int) and not isinstance(v, bool) for v in vals):
+                return ParameterValue(type=ParameterType.PARAMETER_INTEGER_ARRAY,
+                                      integer_array_value=vals)
+            if all(isinstance(v, (int, float)) and not isinstance(v, bool)
+                   for v in vals):
+                return ParameterValue(type=ParameterType.PARAMETER_DOUBLE_ARRAY,
+                                      double_array_value=[float(v) for v in vals])
+            if all(isinstance(v, str) for v in vals):
+                return ParameterValue(type=ParameterType.PARAMETER_STRING_ARRAY,
+                                      string_array_value=vals)
+        return ParameterValue(type=ParameterType.PARAMETER_NOT_SET)
+
+    async def get_params(self, node: str, names: list[str] | tuple[str, ...] = (),
+                         timeout: float = 10.0) -> dict:
+        """读取节点参数（names 为空 = 全部）；返回 {name: value}."""
+        node = node.rstrip('/') or '/'
+        req = GetParameters.Request(names=list(names))
+        resp = await self.call_service(
+            f'{node}/get_parameters', req, GetParameters.Response, timeout=timeout)
+        out = {}
+        for i, pv in enumerate(resp.values):
+            name = names[i] if i < len(names) else f'#{i}'
+            out[name] = self._value_from_parameter_value(pv)
+        return out
+
+    async def set_param(self, node: str, name: str, value,
+                        timeout: float = 10.0):
+        """写回节点参数；返回 SetParameters 的单个 result（失败抛异常）."""
+        node = node.rstrip('/') or '/'
+        req = SetParameters.Request(parameters=[
+            Parameter(name=name, value=self._parameter_value_from(value))])
+        resp = await self.call_service(
+            f'{node}/set_parameters', req, SetParameters.Response, timeout=timeout)
+        if not resp.results:
+            raise FoxgloveClientError(f'set_param 无结果: {node}/{name}')
+        result = resp.results[0]
+        if not result.successful:
+            raise FoxgloveClientError(
+                f'set_param 失败: {node}/{name}: {result.reason}')
+        return result
 
     # ── 连接图 ────────────────────────────────────────────────────────────
 

@@ -190,6 +190,12 @@ def test_health_endpoint_via_testclient(monkeypatch):
         page = client.get('/console.html')
         assert page.status_code == 200
         assert '传输诊断台' in page.text
+        # 独立入口 / → /console.html；白色二次元商业主题品牌锚点
+        root = client.get('/', follow_redirects=False)
+        assert root.status_code in (307, 308)
+        assert root.headers['location'].endswith('/console.html')
+        assert 'LIVE STUDIO' in page.text
+        assert '自动数据面' in page.text
 
         # 桥探测失败 → 整体 degraded（仍 200，不破坏现有监控）
         monkeypatch.setattr(health_mod, '_probe_cached', probe_all_down)

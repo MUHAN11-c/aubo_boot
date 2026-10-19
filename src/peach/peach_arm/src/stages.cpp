@@ -2,7 +2,6 @@
 // 预抓取验证、套入、刀具、原路撤退。不写账本、不调重建 Trigger。接触走
 // GraspTask；刀具 IO 只在本文件。阶段调用序列与原 behavior_tree.xml 主树
 // 遍历严格同构（映射表见 executeCycle 注释）。
-#include "peach_arm/insert_progress.hpp"
 #include "peach_arm/manipulation_skills_node.hpp"
 #include "peach_arm/math_utils.hpp"
 #include "peach_arm/pregrasp_level.hpp"
@@ -290,123 +289,6 @@ bool ManipulationSkillsNode::requireStageAuthority(
     ctx, label + "被拒绝（" + motionStageName(stage) + "）: " + why);
 }
 
-bool ManipulationSkillsNode::usesImuFollowContact() const
-{
-  return peach_arm::usesImuFollowContact(params_.tool.profile_id);
-}
-
-bool ManipulationSkillsNode::callImuFollowTrigger(
-  const rclcpp::Client<Trigger>::SharedPtr & client,
-  const char * name, std::string & why)
-{
-  if (!client) {
-    why = std::string(name) + " 客户端未建";
-    return false;
-  }
-  const double wait_s = std::max(8.0, params_.timeouts.service_s);
-  if (!client->wait_for_service(std::chrono::duration<double>(wait_s))) {
-    why = std::string(name) +
-      " 不可用（adaptive FULL 须 harvest_system Include imu_follow；"
-      "hollow 不得走到这里）";
-    return false;
-  }
-  auto future = client->async_send_request(std::make_shared<Trigger::Request>());
-  if (future.wait_for(std::chrono::duration<double>(params_.timeouts.service_s)) !=
-    std::future_status::ready)
-  {
-    why = std::string(name) + " 超时";
-    return false;
-  }
-  const auto resp = future.get();
-  if (!resp || !resp->success) {
-    why = std::string(name) + " 失败: " + (resp ? resp->message : "空响应");
-    return false;
-  }
-  return true;
-}
-
-bool ManipulationSkillsNode::waitImuFollowTravel(
-  double travel_m, const Eigen::Vector3d & axis, bool retract, std::string & why)
-{
-  // 批次5（2026-09-23 重构，§11.3）：实测行程判据替换计时——主判据=臂侧
-  // FK（wait 起点 TCP 沿锁定轴向的位移投影），回退=/imu_follow/insert_progress
-  // （目标积分）；时间只作截止，停滞窗（3s 增益 <1mm）收口 UNKNOWN。
-  const auto tip_start = motion_ ?
-    motion_->lookupTransform(params_.frames.base, params_.frames.tip) :
-    std::optional<Eigen::Isometry3d>{};
-  const auto t0 = std::chrono::steady_clock::now();
-  const double seconds = imuFollowTravelWaitS(
-    travel_m, kImuFollowInsertSpeedMps) + 2.0;  // 截止=名义+余量（非到位证明）
-  const auto deadline = t0 + std::chrono::duration<double>(seconds);
-  double measured = 0.0;
-  double last_gain_measured = 0.0;
-  auto last_gain_t = t0;
-  constexpr double kTolM = 0.005;
-  constexpr double kStallWindowS = 3.0;
-  constexpr double kMinGainM = 0.001;
-  while (true) {
-    if (cancel_requested_.load()) {
-      why = "周期已取消";
-      return false;
-    }
-    if (contactAbortSuspected()) {
-      why = "疑似硬接触（接触检测止损）";
-      return false;
-    }
-    // 实测行程：FK 投影（推进=正向位移；撤退=反向位移回参考）
-    if (tip_start.has_value()) {
-      const auto tip_now = motion_->lookupTransform(
-        params_.frames.base, params_.frames.tip);
-      if (tip_now.has_value()) {
-        const Eigen::Vector3d delta =
-          tip_now->translation() - tip_start->translation();
-        measured = retract ? std::max(0.0, -delta.dot(axis)) :
-          std::max(0.0, delta.dot(axis));
-      }
-    } else {
-      // FK 不可用回退：imu_follow 进度话题（目标积分，弱一等）
-      measured = imu_insert_travel_.load();
-    }
-    if (measured > last_gain_measured + kMinGainM) {
-      last_gain_measured = measured;
-      last_gain_t = std::chrono::steady_clock::now();
-    }
-    const double remain = std::chrono::duration<double>(
-      deadline - std::chrono::steady_clock::now()).count();
-    const double gain_since = std::chrono::duration<double>(
-      std::chrono::steady_clock::now() - last_gain_t).count();
-    const auto verdict = insertProgressDecision(
-      measured, travel_m, kTolM, gain_since, kStallWindowS, kMinGainM, remain);
-    if (verdict == InsertProgress::DONE) {
-      RCLCPP_INFO(
-        get_logger(), "IMU 跟随实测行程到位：%.3f/%.3f m（%s）",
-        measured, travel_m, retract ? "撤退" : "套入");
-      return true;
-    }
-    if (verdict == InsertProgress::STALLED) {
-      why = "IMU 跟随无进展（停滞窗内实测增益 <1mm），收口 UNKNOWN";
-      return false;
-    }
-    if (verdict == InsertProgress::DEADLINE) {
-      why = "IMU 跟随截止到（实测 " + std::to_string(measured) + "/" +
-        std::to_string(travel_m) + " m，未达目标按 UNKNOWN 收口）";
-      return false;
-    }
-    std::this_thread::sleep_for(50ms);
-  }
-}
-
-void ManipulationSkillsNode::releaseImuFollowSession(CycleContext & ctx)
-{
-  if (!ctx.imu_follow_session) {
-    return;
-  }
-  std::string why;
-  if (!callImuFollowTrigger(imu_follow_disable_client_, "/imu_follow/disable", why)) {
-    RCLCPP_WARN(get_logger(), "imu_follow 会话收口失败: %s", why.c_str());
-  }
-  ctx.imu_follow_session = false;
-}
 
 // 阶段调用序列（与原 behavior_tree.xml 主树遍历严格同构；BT 节点→阶段函数
 // 映射见包内重构说明）：PrepareCycle →（IsPlanOnly→PlanObservationPreview |
@@ -418,7 +300,6 @@ void ManipulationSkillsNode::releaseImuFollowSession(CycleContext & ctx)
 void ManipulationSkillsNode::executeCycle(CycleContext & ctx)
 {
   const auto finish = [this, &ctx](CycleState state, const std::string & message) {
-      releaseImuFollowSession(ctx);
       execution_armed_.store(false);
       // 先落终态再解除 running：executeAction 以 running==false 作为周期结束信号，
       // 这样它读到的状态一定是终态而不是上一个中间态。
@@ -510,7 +391,6 @@ bool ManipulationSkillsNode::stagePrepareCycle(CycleContext & ctx)
   ctx.cut_command_accepted = false;
   ctx.cut_confirmed = false;
   ctx.retreat_confirmed = false;
-  ctx.imu_follow_session = false;
   ctx.completion_level = 0;
   ctx.failure_code = FailureCode::NONE;
   ctx.pregrasp_msg = peach_interfaces::msg::PregraspVerification();
@@ -1332,17 +1212,6 @@ bool ManipulationSkillsNode::stagePlanSleeveAndReverseRetreat(CycleContext & ctx
     return failStage(
       ctx, FailureCode::DEGRADED_CONTACT_FORBIDDEN, "套入预规划无几何");
   }
-  if (usesImuFollowContact()) {
-    // 自适应：套入/回预抓取由 imu_follow 接管，不装配 MTC CartesianPath
-    //（禁止与 Servo 同时写控制器）。SELECT 已做过沿轴笛卡尔预检。
-    ctx.sleeve_planned = true;
-    markCheckpoint(ExecuteTarget::Goal::CK_SLEEVE_PLANNED, "自适应接触窗：跳过 MTC 套入预规划");
-    RCLCPP_INFO(
-      get_logger(),
-      "adaptive IMU 跟随接管套入/回预抓取，跳过 MTC CartesianPath（profile=%s）",
-      params_.tool.profile_id.c_str());
-    return true;
-  }
   if (!grasp_task_) {
     return failStage(
       ctx, FailureCode::DEGRADED_CONTACT_FORBIDDEN, "套入预规划无几何");
@@ -1366,58 +1235,6 @@ bool ManipulationSkillsNode::stageSleeveLinear(CycleContext & ctx)
   // 套入执行前授权（CONTACT 级）：GraspDecision 复检不通过 → skipped_quality。
   if (!requireStageAuthority(ctx, MotionStage::CONTACT, "沿轴套入")) {
     return false;
-  }
-  if (usesImuFollowContact()) {
-    setState(CycleState::MTC_APPROACH_INSERT, "IMU 跟随沿轴套入", ctx.target_id);
-    if (!ctx.sleeve_planned || !ctx.refined) {
-      return failStage(
-        ctx, FailureCode::SLEEVE_PLAN_FAILED, "套入前未完成接触窗预规划");
-    }
-    startContactGuard();
-    std::string why;
-    if (!callImuFollowTrigger(
-        imu_follow_enable_client_, "/imu_follow/enable", why))
-    {
-      stopContactGuard();
-      return failStage(
-        ctx, FailureCode::SLEEVE_PLAN_FAILED,
-        "imu_follow enable 失败（须 /imu/data 与 servo）：" + why);
-    }
-    ctx.imu_follow_session = true;
-    if (!callImuFollowTrigger(
-        imu_follow_insert_start_client_, "/imu_follow/insert_start", why))
-    {
-      stopContactGuard();
-      contact_recovery_required_.store(true);
-      ctx.sleeve_partial = true;
-      return failStage(
-        ctx, FailureCode::SLEEVE_PLAN_FAILED, "imu_follow insert_start 失败: " + why);
-    }
-    contact_recovery_required_.store(true);
-    if (!waitImuFollowTravel(
-        ctx.travel_m, ctx.refined->axis, false, why))
-    {
-      stopContactGuard();
-      pending_outcome_.store(ExecuteTarget::Result::FAILED);
-      ctx.failure_code = FailureCode::SLEEVE_PLAN_FAILED;
-      ctx.sleeve_partial = true;
-      return failStage(ctx, "IMU 跟随套入中止: " + why);
-    }
-    (void)callImuFollowTrigger(
-      imu_follow_insert_stop_client_, "/imu_follow/insert_stop", why);
-    stopContactGuard();
-    if (contactAbortSuspected()) {
-      pending_outcome_.store(ExecuteTarget::Result::FAILED);
-      ctx.failure_code = FailureCode::SLEEVE_PLAN_FAILED;
-      ctx.sleeve_partial = true;
-      return failStage(ctx, "疑似硬接触（接触检测止损）：套入已取消，须现场确认后 ACK");
-    }
-    ctx.sleeve_partial = false;
-    ctx.completion_level = std::max(
-      ctx.completion_level,
-      ExecuteTarget::Result::LEVEL_SLEEVE_COMPLETED);
-    markCheckpoint(ExecuteTarget::Goal::CK_SLEEVED, "IMU 跟随沿轴套入到位");
-    return true;
   }
   setState(CycleState::MTC_APPROACH_INSERT, "沿轴 LIN 套入", ctx.target_id);
   if (grasp_task_) {
@@ -1562,34 +1379,6 @@ bool ManipulationSkillsNode::stageReleasePayload(CycleContext & ctx)
 
 bool ManipulationSkillsNode::stageExecuteReservedReverseRetreat(CycleContext & ctx)
 {
-  if (usesImuFollowContact()) {
-    setState(CycleState::MTC_RETREAT, "IMU 跟随沿插入反方向回到预抓取", ctx.target_id);
-    if (!ctx.imu_follow_session) {
-      ctx.failure_code = FailureCode::RETREAT_FAILED;
-      return failStage(ctx, "自适应撤退前无 imu_follow 会话");
-    }
-    std::string why;
-    if (!callImuFollowTrigger(
-        imu_follow_insert_retract_client_, "/imu_follow/insert_retract", why))
-    {
-      ctx.failure_code = FailureCode::RETREAT_FAILED;
-      return failStage(ctx, "imu_follow insert_retract 失败: " + why);
-    }
-    if (!waitImuFollowTravel(
-        ctx.travel_m, ctx.refined->axis, true, why))
-    {
-      ctx.failure_code = FailureCode::RETREAT_FAILED;
-      return failStage(ctx, "IMU 跟随回预抓取中止: " + why);
-    }
-    releaseImuFollowSession(ctx);
-    contact_recovery_required_.store(false);
-    ctx.retreat_confirmed = true;
-    ctx.completion_level = std::max(
-      ctx.completion_level,
-      ExecuteTarget::Result::LEVEL_RETREAT_CONFIRMED);
-    markCheckpoint(ExecuteTarget::Goal::CK_RETREATED, "IMU 跟随撤回预抓取");
-    return true;
-  }
   setState(CycleState::MTC_RETREAT, "MTC 沿插入反方向保持直线撤离", ctx.target_id);
   if (grasp_task_) {
     grasp_task_->setContactAcm(ctx.target_id, ContactAcmStage::Retreat);

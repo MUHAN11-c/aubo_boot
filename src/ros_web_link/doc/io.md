@@ -2,6 +2,18 @@
 
 本包对外的全部端点、话题、服务与进程边界。
 
+> 完整签名/请求响应/错误语义见 [api/http-ws.md](api/http-ws.md)、
+> [api/python.md](api/python.md)、[api/launch.md](api/launch.md)；本文只做速查。
+
+## 独立监控模式（2026-10-19）
+
+`ros2 launch ros_web_link monitor.launch.py` = 只起 Foxglove 桥 + 网关，附着到
+**已在运行**的 ROS 2 图（完整仿真/真机）。不启动任何演示/仿真节点，不发布运动
+指令；浏览器 `http://127.0.0.1:8095/` 307 跳转到 `/console.html`。首次连接且无
+用户布局时，`viz_core.adaptInstancesToDataPlane` 按图上真实话题重定向 Displays
+（压缩图优先、`/test_cloud`→腕载点云、`/peach/**` 标记可选识别等）；用户保存过
+布局后不再改写。测试数据面只用 `src/examples` 官方项目，本地 peach 不参与。
+
 ## 官方示例互操作验证（2026-10-15，用户指定验收面）
 
 与 ROS 2 生态**官方组件**的双向互操作（非 fixture，全部经网关 /ws/foxglove）。
@@ -55,6 +67,7 @@ joint_states 反映终点）→ `/monitored_planning_scene`（触发规划后收
 | 网关 | `ros_web_link_gateway` / `python3 -m ros_web_link.cli` | 8095（bind 0.0.0.0） | 8090 归 peach_observability，不可占 |
 | 上游桥 | `ivg_foxglove_bridge`（本包 launch Include） | 8765 | 唯一 ROS WebSocket 传输面 |
 | 演示节点 | `rwl_comm_fixture`（launch `fixture:=true`） | — | `/rwl_demo/*`，验证/演示用 |
+| 独立监控 | `monitor.launch.py`（`start_bridge:=false` 可复用外部桥） | 桥 18766 / 网关 8095 | 不拥有仿真；附着到运行中的图（8765 常被 preview_server 占） |
 
 环境要求：网关须在 `aubo_py3.12` venv 下运行（fastapi==0.101+starlette==0.27+
 uvicorn+websockets==12，仓库根 requirements.txt）；launch 中 `python3` 指向该 venv。
@@ -63,12 +76,13 @@ uvicorn+websockets==12，仓库根 requirements.txt）；launch 中 `python3` �
 
 | 端点 | 方法 | 方向 | 语义 |
 |---|---|---|---|
-| `/health` | GET | 诊断 | `{status, static_root, foxglove_bridge, web_video}`；桥/视频 TCP 探测（1s 超时，2s 缓存）；桥 down → `status=degraded`（仍 200） |
+| `/health` | GET | 诊断 | `{status, version, protocol, static_root, foxglove_bridge, web_video}`；桥/视频 TCP 探测（1s 超时，2s 缓存）；桥 down → `status=degraded`（仍 200） |
 | `/ws/foxglove` | WS | 浏览器→桥 | 子协议 `foxglove.websocket.v1`（归一 sdk.v1）；CDR 二进制；上游有限重试+抖动，全失败 close 1011；出站经有界数据通道（字节预算+丢最旧+出口年龄门，见配置单源） |
 | `/api/ivg/ws/stats` | GET | 诊断 | WS 转发统计：`{dataLaneBytes, active[按连接], totals 累计}`——forwarded/dropped/droppedStale/queued；console 监控卡与压测证据面 |
 | `/api/ivg/proxy/web-video/{path}` | GET/HEAD | 浏览器→web_video_server | MJPEG 流/JPEG 快照；上游不可达 502/504（共享 httpx 连接池） |
 | `/api/ivg/robot-mesh/{pkg}/{rel}` | GET | 浏览器→ament share | STL/DAE/OBJ；防路径穿越（resolve-based，含 symlink）；缓存 1d |
-| `/console.html`（纯传输）或 `/rwl/console.html`（组合） | GET | 诊断台 | 生态通信矩阵人工验证 |
+| `/`（纯传输模式） | GET | 入口 | 307 → `/console.html`（组合模式 `/` 归 UI 层） |
+| `/console.html`（纯传输）或 `/rwl/console.html`（组合） | GET | 诊断台 | 白色二次元商业主题；数据面自动适配；生态通信矩阵人工验证 |
 | `/js/**`（纯传输模式） | GET | 静态 | 通信层 JS 资产 |
 
 ## comm_fixture 图名（`/rwl_demo` 命名空间，全部故意避开生产命名）
@@ -87,7 +101,7 @@ uvicorn+websockets==12，仓库根 requirements.txt）；launch 中 `python3` �
 ## 官方仿真真实数据面（sim_demo.launch.py，2026-10-15 viz_fixture 删除）
 
 viz_fixture 合成流已删除（用户裁定）：可视化验证数据面全部来自 GitHub 官方仓库
-（克隆进本项目：src/turtlebot3_msgs、src/turtlebot3_simulations、src/ros2_examples；
+（克隆进本项目：src/examples/turtlebot3_msgs、src/examples/turtlebot3_simulations、src/examples/ros2_examples；
 external/navigation2 为 Nav2 基线克隆，未参与构建）与 ros2/moveit2/nav2 官方示例，
 本地自写项目不参与验证。`ros2 launch ros_web_link sim_demo.launch.py` 一键起：
 
@@ -116,13 +130,13 @@ initialpose 定位闭环 / compute_path_to_pose 规划闭环）、CDR 黄金字�
 纯 apt 官方示例栈（panda RSP + nav2 map_server/lifecycle，无仿真）另见
 `official_demo.launch.py` 与 `test/test_e2e_official.py`（7 用例）；
 MoveIt2 官方 panda 全栈见 `panda_moveit_web.launch.py` 与
-`test/test_e2e_moveit.py`（6 用例，moveit_resources 克隆于 src/）。
+`test/test_e2e_moveit.py`（6 用例，moveit_resources 克隆于 src/examples/）。
 
 ## 实时可视化（console.html「实时可视化」区，RViz2/rqt/Foxglove 风格）
 
 连接后按 **Displays 面板**配置订阅并渲染（`js/console/viz.js` + `plot.js` + `topo.js`
 + `teleop.js`，three.js 经 robotwebtools importmap 裸名引入）。
-2026-10-15 升级轮：**Displays 多实例化**（cfg v4 实例数组，RViz Add/Remove Display
+2026-10-15 升级轮：**Displays 多实例化**（cfg v5 实例数组，RViz Add/Remove Display
 语义；Grid/RobotModel/TF 单例，其余可增删）+ **Global Options**（Fixed Frame 下拉/
 背景色/跟随帧）+ **命名布局快照**（存/删/导出/导入 JSON）+ **Teleop 面板**
 （WASD 键盘遥控发布 /cmd_vel TwistStamped，仅限仿真）+ **参数面板**
@@ -133,15 +147,15 @@ MoveIt2 官方 panda 全栈见 `panda_moveit_web.launch.py` 与
 |---|---|
 | 工具栏 | 测距、发布点、2D Goal Pose、**2D 初始位姿（/initialpose + RViz 标准协方差）**、等轴/俯视/侧视/保存恢复、**TCP 拖拽**/录制、ROS Time |
 | Global Options | Fixed Frame（TF 树根+map/odom）、背景色、跟随帧（相机随 TF 帧位移，Foxglove 语义） |
-| Displays 面板 | **实例驱动**：＋添加（类型下拉）/删除/启用/话题（datalist）/属性（点大小、透明度、代价地图样式、TF 名签、幽灵、odom 轨迹长度、wrench 缩放）/状态；配置持久化 `rwl-viz-cfg-v4` |
-| 3D 视口 | Grid、RobotModel（mesh 经 robot-mesh 路由 + **幽灵预览** + **TCP 示教拖拽** + DLS IK 伺服 + **工作空间包络线框**）、OccupancyGrid/**Costmap（RViz 蓝→红代价色带，/map+/global_costmap+/local_costmap 三层叠层）**、TF（**tf_buffer 全精度链路累积**）、PointCloud2（**多实例**，fields offset 解析）、LaserScan 3D、Marker、Path、PoseArray/PoseStamped（箭头）、**Odometry（箭头+轨迹环）**、**Range（±fov 扇形）**、**Wrench（force 红/torque 蓝箭头）**、**PoseWithCovarianceStamped（95% 协方差椭圆）**——数据组按 `header.frame_id` 经 TF 摆位（RViz 帧语义） |
+| Displays 面板 | **实例驱动**：＋添加（类型下拉）/删除/悬停复制（RViz Duplicate 语义）/启用/话题（datalist）/类型色标/属性（点大小 px、点云着色 Z/RGB/强度、透明度、TF 名签、幽灵、odom 轨迹长度、wrench 缩放）/状态；配置持久化 `rwl-viz-cfg-v5`（v4 自动迁移） |
+| 3D 视口 | Grid、RobotModel（mesh 经 robot-mesh 路由 + **幽灵预览** + **TCP 示教拖拽** + DLS IK 伺服 + **工作空间包络线框**）、OccupancyGrid/**Costmap（RViz 蓝→红代价色带，/map+/global_costmap+/local_costmap 三层叠层）**、TF（**tf_buffer 全精度链路累积**）、PointCloud2（**多实例**；**圆点精灵 + Size(Pixels) + Z 轴彩虹/RGB/强度着色**，RViz2 AxisColor 语义）、LaserScan 3D（range 冷暖色）、Marker、Path、PoseArray/PoseStamped（箭头）、**Odometry（箭头+轨迹环）**、**Range（±fov 扇形）**、**Wrench（force 红/torque 蓝箭头）**、**PoseWithCovarianceStamped（95% 协方差椭圆）**——数据组按 `header.frame_id` 经 TF 摆位（RViz 帧语义）；HUD：场景状态/坐标图例/适配全部/网格/坐标轴 |
 | 2D 视口 | Image（mono8/rgb8/bgr8，**滚轮缩放/拖拽平移/适配/1:1 + overlay（分辨率/fps/stamp 时延）**）+ **CompressedImage（createImageBitmap 实解 JPEG/PNG，与 raw 共卡）**、LaserScan 扇形、JointState 关节条（**镜像防环 v2** + **跟踪误差读数** + TCP HUD 毫米读数） |
 | Teleop | WASD/方向键合键 + 线速/角速滑条 + 松键急停 + 停止钮 → `/cmd_vel`（TwistStamped，TB3 gz 桥约定）；**仅限仿真** |
 | 字段绘图（rqt_plot） | 任意字段路径 + **计算字段**（`_computed_min/max/avg`）、暂停/时间窗、EMA Hz |
 | 诊断面板（rqt_runtime_monitor） | DiagnosticArray 按级别三色列表（话题可配，默认 /diagnostics）；`__rwl_diag()` |
 | ROS 日志面板（rqt_console） | /rosout 订阅、级别过滤（DEBUG+/INFO+/WARN+/ERROR+）、暂停/清空、上限 500；`__rwl_roslog()` |
 | 参数面板 | 节点全量参数读取（get_parameters）+ 类型内联编辑（bool/num/str）+ set_parameters 写回；节点 datalist 来自连接图 |
-| 拓扑图 | SVG 节点/话题/服务四层 + 流动粒子 + Hz 徽标 + **服务显隐/名称过滤** + 滚轮缩放/拖拽/fit |
+| 节点图（图谱工作区） | rqt_graph 风格 SVG：**节点+话题 / 仅节点** 两种模式（仅节点时 publisher→subscriber 直连）+ 流动粒子 + Hz 徽标 + **服务/动作/调试话题过滤** + 搜索淡化 + 悬停邻域高亮 + 滚轮缩放/拖拽/fit + 统计；`window.__rwl_topology` 自动化入口 |
 | 示教/轨迹面板 | 航点录制（90ms+4mm）/导出 JSON/**本地回放（段时长 80-900ms 钳制 + easeInOutQuad）**/**姿态预设（内置零位+用户存档，easeInOutCubic 850ms）**/**FollowJointTrajectory 真执行**（需官方控制器在环：TB3 `/joint_trajectory_controller`、panda `/panda_arm_controller`）+ 交互锁 guardedCall |
 | 分割条 | 左右列间拖拽（30-80%），位置随布局快照持久化 |
 

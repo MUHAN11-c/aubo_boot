@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#f4f7f8">
+  <meta name="theme-color" content="#f3efe6">
   <title>Peach · 采摘控制台</title>
   <link rel="stylesheet" href="/app.css">
   <link rel="stylesheet" href="/visualization.css">
@@ -22,12 +22,14 @@
       <div class="feed-status"><div class="connection" id="connection" role="status" aria-live="polite"><i></i><span>正在连接</span></div><small id="state-updated">尚未收到状态快照</small></div>
     </div>
   </header>
-  <div class="record-strip" id="record-strip">bag：<b id="record-dir">—</b></div>
-  <nav class="view-tabs" role="tablist" aria-label="工作视图">
-    <button type="button" id="tab-monitor" data-view="monitor" role="tab" aria-controls="view-monitor" aria-selected="true" class="active">过程监控 <span>01</span></button>
-    <button type="button" id="tab-debug" data-view="debug" role="tab" aria-controls="view-debug" aria-selected="false" tabindex="-1">单步调试 <span>02</span></button>
-    <a class="view-link" href="/analysis.html">数据分析 <span>03</span></a>
-  </nav>
+  <div class="header-lower">
+    <nav class="view-tabs" role="tablist" aria-label="工作视图">
+      <button type="button" id="tab-monitor" data-view="monitor" role="tab" aria-controls="view-monitor" aria-selected="true" class="active">过程监控 <span>01</span></button>
+      <button type="button" id="tab-debug" data-view="debug" role="tab" aria-controls="view-debug" aria-selected="false" tabindex="-1">单步调试 <span>02</span></button>
+      <a class="view-link" href="/analysis.html">数据分析 <span>03</span></a>
+    </nav>
+    <div class="record-strip" id="record-strip">bag：<b id="record-dir">—</b></div>
+  </div>
   </div>
   <p id="feed-alert" class="feed-alert" role="status">等待状态连接，操作将在数据就绪后开放。</p>
   <section class="overview" aria-label="运行摘要">

@@ -34,13 +34,13 @@ def test_facts_valid_requires_mode():
 def test_overrides_from_facts():
     overrides = selfcheck_overrides_from_facts({
         'camera_enabled': 'true', 'require_robot_status': 'false',
-        'moveit_enabled': 'true', 'imu_enabled': 'false',
+        'moveit_enabled': 'true', 'force_enabled': 'false',
         'expected_tcp_norm_m': 0.17509})
     assert overrides == {
         'selfcheck_camera_probe_enabled': True,
         'robot_status_probe_enabled': False,
         'selfcheck_moveit_expected': True,
-        'selfcheck_imu_expected': False,
+        'selfcheck_force_expected': False,
         'selfcheck_expected_tcp_norm_m': 0.17509,
     }
     assert selfcheck_overrides_from_facts({}) == {}

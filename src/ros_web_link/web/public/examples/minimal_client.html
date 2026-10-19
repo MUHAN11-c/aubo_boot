@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ros_web_link · minimal client</title>
+  <style>
+    :root { color-scheme: light; --bg:#fbfbff; --surface:#fff; --line:#e8e9f6;
+      --text:#20233a; --muted:#777d96; --pink:#ff4f9a; --violet:#7367ff; }
+    * { box-sizing: border-box; }
+    body { margin:0; padding:32px; background:radial-gradient(900px 500px at 0 0,#ffe9f4,transparent 60%),
+      radial-gradient(800px 500px at 100% 0,#e9ecff,transparent 55%),var(--bg);
+      color:var(--text); font:14px/1.5 "Segoe UI","Microsoft YaHei",system-ui,sans-serif; }
+    main { max-width:980px; margin:0 auto; }
+    h1 { margin:0 0 4px; font-size:24px; letter-spacing:.2px; }
+    .sub { color:var(--muted); margin-bottom:20px; }
+    .card { background:var(--surface); border:1px solid var(--line); border-radius:18px;
+      box-shadow:0 12px 34px rgba(70,78,140,.08); padding:16px; margin-bottom:14px; }
+    .row { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+    input, select, button { font:inherit; border-radius:10px; border:1px solid #dcdff2;
+      padding:7px 10px; background:#fff; color:var(--text); }
+    input { flex:1; min-width:220px; font-family:ui-monospace,monospace; font-size:12px; }
+    button { cursor:pointer; font-weight:600; }
+    button.primary { color:#fff; border:0; background:linear-gradient(120deg,var(--pink),var(--violet)); }
+    button:hover { border-color:var(--violet); }
+    .pill { display:inline-flex; align-items:center; gap:6px; padding:3px 10px; border-radius:999px;
+      border:1px solid var(--line); color:var(--muted); font-size:12px; }
+    .pill.on { color:#0a9a7d; border-color:#a8e6d8; background:#f0fffb; }
+    .dot { width:7px; height:7px; border-radius:50%; background:#9aa0b5; }
+    .pill.on .dot { background:#0fb894; box-shadow:0 0 8px #0fb894; }
+    pre { margin:10px 0 0; padding:12px; min-height:180px; max-height:420px; overflow:auto;
+      background:#f7f8ff; border:1px solid var(--line); border-radius:12px;
+      font:11.5px/1.55 ui-monospace,monospace; white-space:pre-wrap; }
+    .grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:14px; }
+    @media (max-width:760px) { .grid { grid-template-columns:1fr; } body { padding:16px; } }
+    label { display:block; color:var(--muted); font-size:12px; margin-bottom:4px; }
+  </style>
+</head>
+<body>
+<main>
+  <h1>ros_web_link <span style="color:var(--pink)">minimal client</span></h1>
+  <div class="sub">浏览器端最小调用示例：ES Modules 直引 <code>/js/ros_web_link.js</code>，无构建步骤。</div>
+
+  <section class="card">
+    <div class="row">
+      <input id="url" value="" spellcheck="false" />
+      <button id="connect" class="primary">连接</button>
+      <button id="disconnect">断开</button>
+      <span class="pill" id="state"><span class="dot"></span><span id="state-text">未连接</span></span>
+    </div>
+    <div class="row" style="margin-top:8px;color:var(--muted);font-size:12px;">
+      默认连接当前页面同源的 <code>/ws/foxglove</code>（经网关）。
+    </div>
+  </section>
+
+  <div class="grid">
+    <section class="card">
+      <label>订阅话题</label>
+      <div class="row">
+        <input id="topic" value="/rwl_demo/chatter" spellcheck="false" />
+        <button id="subscribe">订阅</button>
+        <button id="unsubscribe">停止</button>
+      </div>
+      <pre id="sub-log">—</pre>
+    </section>
+
+    <section class="card">
+      <label>发布 / 服务 / 参数</label>
+      <div class="row">
+        <input id="echo" value="hello from browser" spellcheck="false" />
+        <button id="publish">发布 echo</button>
+        <button id="service">调用 add_two_ints</button>
+      </div>
+      <div class="row" style="margin-top:8px;">
+        <input id="node" value="/comm_fixture" spellcheck="false" />
+        <input id="param" value="rwl.answer" spellcheck="false" />
+        <button id="params">读取参数</button>
+      </div>
+      <pre id="op-log">—</pre>
+    </section>
+  </div>
+
+  <section class="card">
+    <label>Action（JS action_client 组合 send_goal/feedback/result）</label>
+    <div class="row">
+      <input id="action" value="/rwl_demo/fibonacci" spellcheck="false" />
+      <button id="action-send">发送 goal</button>
+    </div>
+    <pre id="action-log">—</pre>
+  </section>
+</main>
+<script type="module" src="/examples/minimal_client.js"></script>
+</body>
+</html>

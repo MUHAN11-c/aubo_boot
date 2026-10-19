@@ -21,7 +21,7 @@ from typing import Optional
 
 from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
 from fastapi.middleware.gzip import GZipMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.routing import WebSocketRoute
@@ -30,6 +30,8 @@ from . import config as cfg
 from .routes.health import router as health_router
 from .routes.foxglove_proxy import ws_router, http_proxy_router
 from .routes.robot_mesh import router as mesh_router
+
+__all__ = ['create_app']
 
 
 class SecurityHeadersMiddleware(BaseHTTPMiddleware):
@@ -170,7 +172,13 @@ def create_app(
     if not html_root and all_js_roots:
         app.mount("/js", MultiStaticFiles(directories=all_js_roots), name="js")
 
-    # 4) HTML 静态
+    # 4) 纯传输模式入口：/ → 诊断台（操作员只记一个地址；组合模式 / 归 UI 层）
+    if not html_root:
+        @app.get("/", include_in_schema=False)
+        async def _root_redirect():
+            return RedirectResponse(url="/console.html", status_code=307)
+
+    # 5) HTML 静态
     if html_root and os.path.isdir(html_root):
         # 组合模式：UI 层独占 /；本包诊断页挂 /rwl（console.html 仍可从 UI 域访问）。
         # 用 SymlinkStaticFiles：install 树符号链接形态下原生 StaticFiles 全 404

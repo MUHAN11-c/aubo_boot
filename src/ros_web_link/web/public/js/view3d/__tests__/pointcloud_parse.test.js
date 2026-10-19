@@ -208,3 +208,83 @@ describe('parsePointCloud2', () => {
 		expect(toUint8Array(null)).toBeNull();
 	});
 });
+
+describe('colorBy 色彩模式（RViz2 AxisColor / Intensity）', () => {
+	it('axis：按 Z 动态彩虹，忽略 intensity', () => {
+		const cloud = makeCloud({
+			width: 2, height: 1, pointStep: 16,
+			fields: [
+				{ name: 'x', offset: 0, datatype: F32 },
+				{ name: 'y', offset: 4, datatype: F32 },
+				{ name: 'z', offset: 8, datatype: F32 },
+				{ name: 'intensity', offset: 12, datatype: F32 },
+			],
+			points: [
+				{ x: 0, y: 0, z: 0, intensity: 0.99 },
+				{ x: 1, y: 0, z: 1, intensity: 0.01 },
+			],
+		});
+		const positions = new Float32Array(6);
+		const colors = new Float32Array(6);
+		parsePointCloud2(cloud, { positions, colors, colorBy: 'axis' });
+		// 低 Z 偏蓝、高 Z 偏红；不是 intensity 灰度
+		expect(colors[2]).toBeGreaterThan(colors[0]);   // 低 Z 蓝：b > r
+		expect(colors[3]).toBeGreaterThan(colors[5]);   // 高 Z 红：r > b
+	});
+
+	it('intensity：负值/超 1 范围自动归一化', () => {
+		const cloud = makeCloud({
+			width: 2, height: 1, pointStep: 16,
+			fields: [
+				{ name: 'x', offset: 0, datatype: F32 },
+				{ name: 'y', offset: 4, datatype: F32 },
+				{ name: 'z', offset: 8, datatype: F32 },
+				{ name: 'intensity', offset: 12, datatype: F32 },
+			],
+			points: [
+				{ x: 0, y: 0, z: 0, intensity: -1 },
+				{ x: 1, y: 0, z: 0, intensity: 1 },
+			],
+		});
+		const positions = new Float32Array(6);
+		const colors = new Float32Array(6);
+		parsePointCloud2(cloud, { positions, colors, colorBy: 'intensity' });
+		expect(colors[0]).toBeCloseTo(0);
+		expect(colors[3]).toBeCloseTo(1);
+		expect(colors[0]).toBeCloseTo(colors[1]);
+	});
+
+	it('intensity 常量 → 中灰，不出现全黑', () => {
+		const cloud = makeCloud({
+			width: 1, height: 1, pointStep: 16,
+			fields: [
+				{ name: 'x', offset: 0, datatype: F32 },
+				{ name: 'y', offset: 4, datatype: F32 },
+				{ name: 'z', offset: 8, datatype: F32 },
+				{ name: 'intensity', offset: 12, datatype: F32 },
+			],
+			points: [{ x: 0, y: 0, z: 0, intensity: 42 }],
+		});
+		const positions = new Float32Array(3);
+		const colors = new Float32Array(3);
+		parsePointCloud2(cloud, { positions, colors, colorBy: 'intensity' });
+		expect(colors[0]).toBeCloseTo(0.5);
+	});
+
+	it('rgb 缺失时回退 axis（不抛错）', () => {
+		const cloud = makeCloud({
+			width: 2, height: 1, pointStep: 12,
+			fields: [
+				{ name: 'x', offset: 0, datatype: F32 },
+				{ name: 'y', offset: 4, datatype: F32 },
+				{ name: 'z', offset: 8, datatype: F32 },
+			],
+			points: [{ x: 0, y: 0, z: 0 }, { x: 1, y: 0, z: 1 }],
+		});
+		const positions = new Float32Array(6);
+		const colors = new Float32Array(6);
+		const { error } = parsePointCloud2(cloud, { positions, colors, colorBy: 'rgb' });
+		expect(error).toBeNull();
+		expect(colors[3]).toBeGreaterThan(colors[0]);   // 高 Z 红轴
+	});
+});

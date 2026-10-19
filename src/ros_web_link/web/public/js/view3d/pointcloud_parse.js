@@ -13,6 +13,21 @@
 const FLOAT32 = 7;
 const FLOAT64 = 8;
 
+/** HSL(0..1, 0..1, 0..1) → [r,g,b] 0..1（axis 彩虹用，与 RViz AxisColor 同语义） */
+function hslToRgb(h, s, l) {
+	const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+	const p = 2 * l - q;
+	const f = (t) => {
+		if (t < 0) t += 1;
+		if (t > 1) t -= 1;
+		if (t < 1 / 6) return p + (q - p) * 6 * t;
+		if (t < 1 / 2) return q;
+		if (t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6;
+		return p;
+	};
+	return [f(h + 1 / 3), f(h), f(h - 1 / 3)];
+}
+
 export function toUint8Array(data) {
 	if (data instanceof Uint8Array) return data;
 	if (data && data.buffer instanceof ArrayBuffer) {
@@ -32,7 +47,10 @@ export function toUint8Array(data) {
 /**
  * 解析 PointCloud2 到调用方缓冲。
  * @param {*} pc2 foxglove CDR 解码后的 PointCloud2 对象
- * @param {{positions: Float32Array, colors?: Float32Array|null, maxPoints?: number}} out
+ * @param {{positions: Float32Array, colors?: Float32Array|null, maxPoints?: number,
+ *          colorBy?: 'auto'|'axis'|'rgb'|'intensity'}} out
+ *   colorBy 缺省 auto（rgb > intensity > axis，保持旧行为）；
+ *   'axis' 按本帧 Z 的 min/max 做蓝→红彩虹（RViz AxisColor / Use rainbow）
  * @returns {{count: number, error: string|null}}
  */
 export function parsePointCloud2(pc2, out) {
@@ -83,7 +101,16 @@ export function parsePointCloud2(pc2, out) {
 		}
 	};
 	const intensityScale = (intensityType === 2 || intensityType === 4 || intensityType === 6)
-		? 255 : 1; // 整型 intensity 归一到 0..1（浮型假定已在 0..1）
+		? 255 : 1; // 整型 intensity 归一到 0..1（浮型下面按实际范围再归一）
+
+	const requested = out.colorBy || 'auto';
+	let colorMode = requested;
+	if (colorMode === 'auto') {
+		colorMode = hasRgb ? 'rgb' : (hasIntensity ? 'intensity' : 'axis');
+	}
+	if (colorMode === 'rgb' && !hasRgb) colorMode = 'axis';
+	if (colorMode === 'intensity' && !hasIntensity) colorMode = 'axis';
+	if (!['rgb', 'intensity', 'axis'].includes(colorMode)) colorMode = 'axis';
 
 	let o = 0;
 	for (let i = 0; i < total && o < maxPoints; i += stride) {
@@ -96,29 +123,57 @@ export function parsePointCloud2(pc2, out) {
 		positions[o * 3 + 1] = y;
 		positions[o * 3 + 2] = z;
 
-		if (colors) {
-			if (iOff >= 0 && hasRgb) {
-				// PCL 惯例：rgb 字段以 float32 存储，按位重解释为 packed uint32
-				const packed = dv.getUint32(base + iOff, true) >>> 0;
-				colors[o * 3] = (packed & 0xff) / 255;
-				colors[o * 3 + 1] = ((packed >>> 8) & 0xff) / 255;
-				colors[o * 3 + 2] = ((packed >>> 16) & 0xff) / 255;
-			} else if (iOff >= 0 && hasIntensity) {
-				const v = readScalar(base + iOff, intensityType) / intensityScale;
-				colors[o * 3] = v;
-				colors[o * 3 + 1] = v;
-				colors[o * 3 + 2] = v;
-			} else {
-				// Z 高度伪彩（与旧 pointcloud_island 同规则）
-				let t = (z + 0.5) / 1.5;
-				if (t < 0) t = 0;
-				if (t > 1) t = 1;
-				colors[o * 3] = 0.2 + 0.3 * t;
-				colors[o * 3 + 1] = 0.5 + 0.5 * (1 - t);
-				colors[o * 3 + 2] = 1.0 - 0.5 * t;
-			}
+		if (colors && colorMode === 'rgb' && iOff >= 0 && hasRgb) {
+			// PCL 惯例：rgb 字段以 float32 存储，按位重解释为 packed uint32
+			const packed = dv.getUint32(base + iOff, true) >>> 0;
+			colors[o * 3] = (packed & 0xff) / 255;
+			colors[o * 3 + 1] = ((packed >>> 8) & 0xff) / 255;
+			colors[o * 3 + 2] = ((packed >>> 16) & 0xff) / 255;
+		} else if (colors && colorMode === 'intensity' && iOff >= 0 && hasIntensity) {
+			const v = readScalar(base + iOff, intensityType) / intensityScale;
+			colors[o * 3] = v;
+			colors[o * 3 + 1] = v;
+			colors[o * 3 + 2] = v;
 		}
 		o++;
+	}
+
+	if (colors && o > 0) {
+		if (colorMode === 'axis') {
+			let zmin = Infinity, zmax = -Infinity;
+			for (let i = 0; i < o; i++) {
+				const z = positions[i * 3 + 2];
+				if (z < zmin) zmin = z;
+				if (z > zmax) zmax = z;
+			}
+			const span = zmax - zmin;
+			for (let i = 0; i < o; i++) {
+				const t = span > 0 ? (positions[i * 3 + 2] - zmin) / span : 0.5;
+				// RViz AxisColor + Use rainbow：低蓝(240°) → 高红(0°)，s/l 固定
+				const [r, g, b] = hslToRgb((1 - t) * 0.6666667, 0.78, 0.58);
+				colors[i * 3] = r;
+				colors[i * 3 + 1] = g;
+				colors[i * 3 + 2] = b;
+			}
+		} else if (colorMode === 'intensity') {
+			let imin = Infinity, imax = -Infinity;
+			for (let i = 0; i < o; i++) {
+				const v = colors[i * 3];
+				if (v < imin) imin = v;
+				if (v > imax) imax = v;
+			}
+			if (imax - imin < 1e-9) {
+				for (let i = 0; i < o; i++) {
+					colors[i * 3] = colors[i * 3 + 1] = colors[i * 3 + 2] = 0.5;
+				}
+			} else if (imin < 0 || imax > 1) {
+				const span = imax - imin;
+				for (let i = 0; i < o; i++) {
+					const v = (colors[i * 3] - imin) / span;
+					colors[i * 3] = colors[i * 3 + 1] = colors[i * 3 + 2] = v;
+				}
+			}
+		}
 	}
 	return { count: o, error: null };
 }

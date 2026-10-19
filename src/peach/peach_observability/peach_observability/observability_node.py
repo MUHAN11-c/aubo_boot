@@ -1050,7 +1050,7 @@ class ObservabilityNode(LifecycleNode):
         """启动事实落盘 runs/session_*/startup.json（离线排障回答"当时跑的什么配置"）."""
         facts = normalize_facts(_parse_facts_json(self._params.startup_facts))
         self._state.update('startup', 'facts', facts)
-        # facts 单通道推导自检开关（camera/robot_status/moveit/imu/tcp 档案）
+        # facts 单通道推导自检开关（camera/robot_status/moveit/force/tcp 档案）
         for key, value in selfcheck_overrides_from_facts(facts).items():
             setattr(self._params, key, value)
         if not facts_valid(facts):

@@ -143,7 +143,7 @@ def _collect_startup_facts(context):
         'camera_frontend': cfg.get('camera_frontend', 'stereo'),
         'camera_ip': cfg.get('camera_ip', ''),
         'extrinsics_enabled': cfg.get('extrinsics_enabled', 'true'),
-        'imu_enabled': cfg.get('imu_enabled', 'true'),
+        'force_enabled': cfg.get('force_enabled', 'true'),
         'bond_timeout': cfg.get('bond_timeout', '0.0'),
         'use_sim_time': cfg.get('use_sim_time', 'false'),
         'skip_reconstruction': cfg.get('skip_reconstruction', 'false'),
@@ -229,8 +229,8 @@ def generate_launch_description():
             'hand_eye_web_enabled', default_value='false',
             description='启动手眼标定 Web'),
         DeclareLaunchArgument(
-            'imu_enabled', default_value='true',
-            description='启动 USB 串口 IMU；不进 lifecycle'),
+            'force_enabled', default_value='true',
+            description='启动 USB 串口 5 点力传感器；不进 lifecycle'),
         DeclareLaunchArgument(
             'use_sim_time', default_value='false',
             description='true 时全图跟 /clock（bag play --clock 回放）；'
@@ -305,23 +305,8 @@ def generate_launch_description():
                 'hand_eye_web_enabled': hand_eye_web_enabled,
             }),
         _include(
-            'serial_imu', 'serial_imu.launch.py', {
-                'use_rviz': 'false',
-                'tf_parent_frame': 'tcp',
-                'align_to_parent': 'true',
-            },
-            condition=IfCondition(LaunchConfiguration('imu_enabled'))),
-        # 自适应末端接触窗：预抓取→套入→回预抓取走 imu_follow+Servo。
-        # 非 IMU 工具不起本 Include（进程隔离）；peach 永不自动 motion.enabled。
-        # 未 enable 时 follow_node pause servo，避免与 Survey/MovePregrasp MTC
-        # 同时写 JTC。
-        _include(
-            'imu_follow', 'imu_follow_servo.launch.py', {
-                'tool_profile': tool_profile,
-                'motion_enabled': 'false',
-            },
-            condition=IfCondition(PythonExpression(
-                ["'", tool_profile, "' == 'adaptive_shear_v1'"]))),
+            'serial_force', 'serial_force.launch.py', {},
+            condition=IfCondition(LaunchConfiguration('force_enabled'))),
         _include(
             'peach_harvester', 'brain.launch.py',
             {

@@ -33,11 +33,72 @@ ROS 2 图（rclpy/rclcpp 任意节点；演示被测端 = 本包 comm_fixture）
 - **Python 测试客户端** `foxglove_ws_client.py`：与 JS protocol.js 同帧格式
   （与 vendored 服务器源码逐字节核对过），仅测试/诊断用，不进浏览器链路。
 
+## 独立监控轮（2026-10-19，用户目标：独立包 + 完整官方仿真 + 白色二次元商业主题）
+
+用户裁定：`ros_web_link` 作为**独立功能包**存在；测试时正常启动**完整仿真项目**
+（数据面只用 `src/examples` 官方组件，本地 peach 不参与），再让本包独立附着做
+监控/调试/可视化；Web 采用**白色二次元商业风格**。落地：
+
+- **独立入口** `launch/monitor.launch.py`：只起桥+网关（`start_bridge:=false` 可复用
+  外部桥），不拥有仿真；`ros2 launch ros_web_link monitor.launch.py` 即可附着。
+  纯传输模式 `/` 307 → `/console.html`（操作员只记一个地址）。
+- **数据面自动适配** `viz_core.adaptInstancesToDataPlane(instances, topics)`：无用户
+  布局时按图上真实话题重定向默认 Displays（压缩图优先→原始 RGB 回落；点云按
+  `/test_cloud`→腕载深度点云→感知单帧云；可选 `/peach/**` Marker）。用户保存过布局
+  后不再改写；单测覆盖官方 TB3 与通用 RGB/深度两种数据面。
+- **浏览器 E2E 抓出的真实缺陷**：
+  ① `topics.js _updateNumbers` 把 `thead` 的 `<tr>` 当数据行 → 每 tick
+  `Cannot set properties of null (setting 'textContent')`；改 `tbody tr`。
+  ② HTML 两个 `#param-node` 重复 id，操作台参数读写误用参数面板输入；操作台改
+  `#param-node-ops`。
+  ③ Teleop `/cmd_vel` 方言硬编码 TwistStamped；增 `teleopMessage()` 纯核 + 自动识别
+  （仿真桥 Twist / nav2 TwistStamped）+ 手动选择。
+- **UI 主题**：白底 + 樱粉/星紫/天青渐变、圆角卡片、贴纸徽章、内联 chibi 机器人
+  mascot；保留暗色切换与所有既有 id/JS 契约。品牌锚点 `LIVE STUDIO` / `自动数据面`。
+- **RViz2/rqt 表现轮（2026-10-19 续）**：PointCloud2 改 **Size(Pixels)=3 + 圆点精灵 +
+  Z 轴彩虹**（cfg v5；v4 米制尺寸 ×80 迁移），LaserScan 圆点/range 冷暖，场景 HUD/
+  坐标图例/固定帧/适配全部/网格/坐标轴；新增 **图谱** 工作区（rqt_graph 风格节点/话题/
+  服务，**节点+话题 / 仅节点**、服务/动作/隐藏调试过滤、搜索淡化、悬停邻域、统计、
+  `window.__rwl_topology`）；Displays 增加类型色标/悬停复制（RViz Duplicate 语义）。
+  参考窗口截图见 `gui-test-screenshots/reference/`（rviz2_tb3 / gazebo_gui / rqt_graph）。
+- **E2E 编排**：`Stack(domain=...)` 附着到指定 ROS 域；`LaunchStack(..., domain=...)`
+  + `wait_gateway=False` 支持"完整仿真 transport:=false"与监控分起。
+  `test_e2e_full_sim.py` 8 用例：正常启动 `sim_demo.launch.py transport:=false`
+  （官方 TB3+nav2+ros2/examples）→ 另起桥/网关 → robot_description/joints/TF/scan/
+  相机+Info/压缩图/点云/map/topic/图谱/mesh 路由 + HTTP/入口/主题锚点全绿。
+  默认 `RWL_FULL_SIM=1` 才跑；本地 peach 不参与。
+
+## 独立包 API/示例收口轮（2026-10-19，对标 rosbridge_suite / Foxglove）
+
+用户要求把本包收口为**可独立安装、可独立调用**的 ROS 包，并提供调用示例/API，
+参考 rosbridge_suite 的 library/server/client 分层与 Foxglove 的 bridge/protocol/
+client 分层。落地：
+
+- **core vs optional**：core = 网关 + JS 客户端 + console + `monitor.launch.py` +
+  `transport.launch.xml` + comm fixture；official/sim/panda demo 为 optional。
+  core 只依赖本包 + `ivg_foxglove_bridge` + ROS 基础包 + Python 网关依赖；
+  UI 组合包不是运行前提。`start_bridge:=false` 可复用任意 Foxglove v1 兼容桥。
+- **稳定入口**：Python 保持 `create_app` / `FoxgloveWsClient`；新增
+  `python -m ros_web_link` 与 `get_params/set_param`。JS 新增
+  `/js/ros_web_link.js` 与 `transport/foxglove/index.js` barrel，应用不再深路径导入。
+- **API 文档**：`doc/api/{README,python,js,http-ws,launch}.md`；新增 `doc/install.md`、
+  `doc/README.md` 索引。`/health` additive 增加 `version`/`protocol`。
+- **协议对照**：新增 `doc/protocol.md`，按 rosbridge_suite 的
+  `ROSBRIDGE_PROTOCOL.md` 体例写包映射/操作映射/roslibjs 迁移；明确本包是 Foxglove
+  v1 + CDR，**不是 rosbridge wire 兼容**（无 `/ws/rosbridge`）。
+- **示例**：`examples/python/{01..05}.py`、`examples/http`、`examples/launch`、
+  `web/public/examples/minimal_client.{html,js}`；示例 E2E 在 comm fixture 上验证
+  subscribe/publish/service/params/graph，不依赖仿真/peach。
+- **独立安装**：`examples/`、`doc/`、`README.md`、`CHANGELOG.rst` 随包安装到 share；
+  demo 脚本去 `/home/mu` 硬编码，版本升 1.1.0（additive）。
+- **门禁**：`test_api_surface.py`/`test_examples.py`/`test_docs_links.py`/
+  `test_package_independence.py` 防签名、示例、链接、硬编码漂移。
+
 ## 通信矩阵验证（本包的验收面）
 
 | 层 | 工具 | 内容 |
 |---|---|---|
-| JS 纯核 | vitest（复用 dashboard node_modules） | 协议帧/参数助手/TF 数学/**CDR 黄金字节交叉验证**（rclpy 序列化真值 vs JS codec，17 类常用可视化消息，含 PoseWithCovarianceStamped）/**PointCloud2 共享解析器（含 stride 采样/organized 行覆盖）**/**player raw 派发**/**viz_core（缓动/运动动画器/协方差椭圆/odom 轨迹/回放段/预设存取）** 共 122 用例 |
+| JS 纯核 | vitest（本包自包含 devDependencies） | 协议帧/参数助手/TF 数学/**CDR 黄金字节交叉验证**（rclpy 序列化真值 vs JS codec，17 类常用可视化消息，含 PoseWithCovarianceStamped）/**PointCloud2 共享解析器（含 stride 采样/organized 行覆盖）**/**player raw 派发**/**viz_core（缓动/运动动画器/协方差椭圆/odom 轨迹/回放段/预设存取）** 共 135 用例 |
 | Python 单元 | pytest（venv） | 路由挂载 / 组合模式 / health+console 回归 / 配置默认值 / robot_mesh 解析与 symlink 防穿越 / 静态文件类 / 上游重试 helper 共 16 用例 || E2E 通信矩阵 | pytest（自起桥+网关+fixture，随机域/端口） | 订阅/发布 roundtrip/服务/action(goal+feedback+cancel+result)/参数 get-set-get/TF/图谱/健康(含桥组件探测)/视频代理负例/停机端口复核 11 用例（栈编排复用 e2e_harness） |
 | E2E 官方示例 | pytest（`Stack(official=True)`：官方 RSP/panda + 官方 CLI joint_states 驱动 + 官方 map_server/lifecycle_manager） | 官方 panda /robot_description、官方 /tf_static、**web JointState（带时间戳）→官方 RSP→/tf 关节角闭环**、官方 /map 384²、官方生命周期服务 GetState/LoadMap、官方 /diagnostics+/rosout 共 7 用例（panda 资源缺失整组 skip） |
 | E2E 官方仿真数据 | pytest（`LaunchStack` 整仓拉起 `sim_demo.launch.py`） | turtlebot3 官方仿真 + 官方 nav2 + ros2/examples 官方示例经网关：robot_description/joint_states/scan/odom/imu/tf/相机+Info/压缩图/官方点云/talker/map/amcl_pose/粒子云/诊断共 19 用例，含 **web→AMCL 定位闭环**、**web→NavFn 规划闭环** 与 **真实流速率/新鲜度**（2026-10-16 增，`test_e2e_sim.py`，替代已删的合成流可视化套件） |
@@ -64,7 +125,7 @@ E2E 编排注意（与工作区 MUST 对齐）：`asyncio.create_subprocess_exec
   被测端；入口 `official_demo.launch.py`，测试面 `test_e2e_official.py`（7 用例）。
 - **viz_fixture 全删、数据面上移官方仿真（2026-10-15 二次裁定）**：合成传感器流
   fixture 整体删除；验证数据面 = GitHub 热门官方仓库（克隆进项目：
-  src/turtlebot3_msgs、src/turtlebot3_simulations、src/ros2_examples；
+  src/examples/turtlebot3_msgs、src/examples/turtlebot3_simulations、src/examples/ros2_examples；
   external/navigation2 基线克隆不参与构建）+ ros2/moveit2/nav2 官方示例；
   本地自写项目（sim/peach/ivg）不参与验证。入口 `sim_demo.launch.py`
   （官方 TB3 gz 仿真 + 官方 nav2 + ros2/examples + 官方 republish + 传输栈），
@@ -253,7 +314,7 @@ rviz2（ImageDisplay latest-wins 纹理、PointCloud 状态行）与 vendored �
 
 证据面（2026-10-16 浏览器实测，浏览器全速消费）：/rwl_demo/big_image +
 big_cloud 双流并行 25MB/s、RTT 2ms、重连 0、解码失败 0、网关丢帧 0、
-积压 0 帧、单连接累计转发 5.37GB；测试塔 vitest 122 + pytest 单元 21 +
+积压 0 帧、单连接累计转发 5.37GB；测试塔 vitest 135 + pytest 非仿真门 45 +
 comm_matrix 11 + official 7 + moveit 8 + sim 17 + bigdata 2 全绿。
 
 ## 官方示例 E2E 轮（2026-10-16 二弧）：gz 相机火流发现与压缩流默认
@@ -338,7 +399,7 @@ nav2_bringup 分段 localization/navigation launch + **默认参数（按 tb3_sa
 按官方原始方法整段官方化：
 
 - **官方 `turtlebot3_navigation2` 包进工作区**（ROBOTIS-GIT/turtlebot3 jazzy
-  分支，external/ 克隆 + src/ symlink 构建；纯安装 launch/param/rviz/map）。
+  分支，external/ 克隆 + src/examples/ symlink 构建；纯安装 launch/param/rviz/map）。
 - **sim_demo nav2 段**：`rviz:=true` → Include 官方 `navigation2.launch.py`
   全官方形态（bringup_launch + **param/waffle_pi.yaml 官方调参** + 官方 RViz
   tb3_navigation2.rviz）；默认无头 → 同一 bringup_launch + 同一官方参数与

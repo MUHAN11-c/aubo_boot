@@ -124,15 +124,6 @@ inline StagingWaypoints stagingWaypoints(
 
 inline constexpr char kShearProfileId[] = "shear_v1";
 inline constexpr char kBiteShearProfileId[] = "bite_shear_v1";
-inline constexpr char kAdaptiveShearProfileId[] = "adaptive_shear_v1";
-/// imu_follow insert.speed_m_s 部署默认；peach 用它估等待，不读对方参数。
-inline constexpr double kImuFollowInsertSpeedMps = 0.01;
-
-/// 仅自适应剪切手在预抓取→套入→回预抓取窗内走 imu_follow；其余末端永远 false。
-inline bool usesImuFollowContact(const std::string & profile_id)
-{
-  return profile_id == kAdaptiveShearProfileId;
-}
 
 /// FULL 回收纳命名目标序列：先拍照位（可倒放已过门的接近，不过 transit_max），
 /// 再 harvest_stow。二者同名或 stow 空则一跳。禁止从预抓取直 PTP stow——
@@ -149,13 +140,6 @@ inline std::vector<std::string> harvestStowNamedHops(
     return {photo};
   }
   return {photo, stow};
-}
-
-inline double imuFollowTravelWaitS(double travel_m, double speed_m_s)
-{
-  const double speed = speed_m_s > 1.0e-9 ? speed_m_s : kImuFollowInsertSpeedMps;
-  const double travel = travel_m > 0.0 ? travel_m : 0.0;
-  return std::min(25.0, travel / speed + 0.5);
 }
 
 // SELECT / CheckReachability 与 MovePregrasp 同一停位：请求当入口（Z=袋轴），

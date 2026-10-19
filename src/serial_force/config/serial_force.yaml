@@ -1,0 +1,15 @@
+serial_force:
+  ros__parameters:
+    # QinHeng USB 转串（CH340/CH343）；udev 规则把适配器固定为 /dev/force。
+    # 一个口只有一个拥有者：勿并行起两个 serial_force 节点。
+    port: /dev/force
+    port_fallbacks:
+      - /dev/ttyUSB0
+      - /dev/ttyACM0
+    baudrate: 115200
+    read_period_s: 0.005
+    expected_rate_hz: 100.0  # 力板 100Hz 主动上报；诊断窗 0.6×–1.4×
+    print_data: true
+    print_decimate: 1
+    # 2026-10-16 用户裁定：五点在正五边形顶点（等角等距），5 在正上方顶点（取代 09-29 CAD 截图读数）。
+    channel_labels: [左上, 左下, 右下, 上, 右上]

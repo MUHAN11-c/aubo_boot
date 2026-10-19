@@ -33,7 +33,7 @@ URDF负责固定工具链；单一extrinsics_publisher发布腕到相机外参�
 
 应用Include只读aubo_e5_bringup；mock使用GenericSystem+标准JTC，real使用厂商硬件/透传控制器。柜状态/SetIO使用aubo_msgs，规划/FK/IK使用MoveIt。关节序冻结为shoulder_joint、upperArm_joint、foreArm_joint、wrist1_joint、wrist2_joint、wrist3_joint。不开dashboard、不远程上电；工具IO只能经臂侧门。硬件急停不经ROS。
 
-scene_obstacles在Survey后按刷新触发生成快照，仅写PlanningScene world.collision_objects；arm仅写ACM diff，不能相互覆盖分域。该快照保护相机，不是安全扫描器。vegetation仅出二维掩膜，不写PlanningScene。serial_imu按开关随栈；imu_follow仅adaptive档Include，motion默认false，启用真机运动另授权且不可与MTC同时写控制器。IVG/仿真场景独立运行，不能共占设备/域；导航与peach2归档不作为本栈活动入口。
+scene_obstacles在Survey后按刷新触发生成快照，仅写PlanningScene world.collision_objects；arm仅写ACM diff，不能相互覆盖分域。该快照保护相机，不是安全扫描器。vegetation仅出二维掩膜，不写PlanningScene。serial_force按开关随栈（只出力传感器，IMU 已删）。IVG/仿真场景独立运行，不能共占设备/域；导航与peach2归档不作为本栈活动入口。
 
 ## 观测与验证
 

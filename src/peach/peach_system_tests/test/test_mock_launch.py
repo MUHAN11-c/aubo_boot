@@ -72,7 +72,7 @@ def generate_test_description():
                 launch_arguments={
                     'hardware_mode': 'mock',
                     'camera_enabled': 'false',
-                    'imu_enabled': 'false',
+                    'force_enabled': 'false',
                     'moveit_enabled': 'true',
                     # 驱动已有无头参数；保留 move_group，避免显示端缺 GLX 崩溃。
                     'rviz': 'false',

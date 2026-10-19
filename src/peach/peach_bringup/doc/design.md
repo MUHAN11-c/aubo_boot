@@ -67,7 +67,7 @@ flowchart TB
 | `peach_system_tests` | isolated mock / 回放 | 不进生产 launch |
 | 顶层 `peach_web` | 8090 静态页 | 由 observability 托管 |
 
-驱动（`aubo_e5_hardware` 等）MUST 只读。`imu_follow` 仅 `tool_profile:=adaptive_shear_v1` 随栈 Include，`motion.enabled` 默认 false。IVG / `src/sim` 不进 harvest 业务核。
+驱动（`aubo_e5_hardware` 等）MUST 只读。IVG / `src/peach_sim` 不进 harvest 业务核。
 
 ### 2.2 整栈入口
 
@@ -80,16 +80,15 @@ Include 顺序（源码）：
 1. `peach_stereo`（`camera_enabled ∧ camera_frontend=stereo`；须在 aubo **之前**）
 2. `peach_scene_obstacles`（`camera_enabled`）
 3. `aubo_e5_bringup`（mock=`GenericSystem`+标准 JTC；stereo 时压掉 percipio）
-4. `serial_imu`（`imu_enabled`）
-5. `imu_follow_servo`（仅 adaptive）
-6. `peach_harvester/brain.launch.py`（`require_managed_stack:=true`，透传 `tool_profile`）
-7. `peach_arm.launch.py`（mock 时 `require_robot_status:=false`）
-8. `peach_observability`
-9. Nav2 `lifecycle_manager` 名 `peach_lifecycle_manager`
-10. `peach_lifecycle_flag_bridge`
-11. 可选 `peach_autostart_client`（默认关）
+4. `serial_force`（`force_enabled`）
+5. `peach_harvester/brain.launch.py`（`require_managed_stack:=true`，透传 `tool_profile`）
+6. `peach_arm.launch.py`（mock 时 `require_robot_status:=false`）
+7. `peach_observability`
+8. Nav2 `lifecycle_manager` 名 `peach_lifecycle_manager`
+9. `peach_lifecycle_flag_bridge`
+10. 可选 `peach_autostart_client`（默认关）
 
-默认 launch 参数（`harvest_system.launch.py` 声明）：`hardware_mode:=mock`、`robot_ip:=169.254.10.98`、`camera_enabled:=false`、`camera_frontend:=stereo`（另 `percipio` / `replay`）、`tool_profile:=bite_shear_v1`、`autostart:=false`、`bond_timeout:=0.0`、`imu_enabled:=true`、`extrinsics_enabled:=true`、`hand_eye_enabled:=false`、`use_sim_time:=false`、`skip_reconstruction:=false`（同时注入臂 `allow_unrefined_geometry`）、`observability_port:=0`（0=yaml 8090）。`execute_pregrasp_only` 不在 launch 声明，由 `peach_supervisor.yaml` 默认 `true`。
+默认 launch 参数（`harvest_system.launch.py` 声明）：`hardware_mode:=mock`、`robot_ip:=169.254.10.98`、`camera_enabled:=false`、`camera_frontend:=stereo`（另 `percipio` / `replay`）、`tool_profile:=bite_shear_v1`、`autostart:=false`、`bond_timeout:=0.0`、`force_enabled:=true`、`extrinsics_enabled:=true`、`hand_eye_enabled:=false`、`use_sim_time:=false`、`skip_reconstruction:=false`（同时注入臂 `allow_unrefined_geometry`）、`observability_port:=0`（0=yaml 8090）。`execute_pregrasp_only` 不在 launch 声明，由 `peach_supervisor.yaml` 默认 `true`。
 
 覆盖易混：`peach_supervisor.yaml` 里 `require_managed_stack: false`、`tool.profile_id: adaptive_shear_v1`；**整栈** `harvest_system` 给 brain `require_managed_stack:=true` 并把 `tool_profile` 注入 bite。独立 `peach_arm.launch.py` / `brain.launch.py` 声明默认仍 adaptive；`peach_executor.launch.py` 的 `require_managed_stack` 默认 false。以入口 launch 实传为准。
 
@@ -489,7 +488,7 @@ Reconfirm（`allow_stale_anchor` 默认 false）：`ReconfirmPolicy` 容差 `rec
 
 ### 10.4 套入档
 
-`shear_v1` / `bite_shear_v1`：MTC 沿轴 LIN。`adaptive_shear_v1`：预抓取验证后 `imu_follow` 窗 enable→insert_start→套入到位 best-effort insert_stop→剪切→insert_retract→disable；**禁止与 MTC 同时写 JTC**。未 enable 时 follow_node pause servo。行程主判据 FK 沿锁定轴投影；回退 `/imu_follow/insert_progress`；时间只作截止。
+三档末端（`shear_v1` / `bite_shear_v1` / `adaptive_shear_v1`）统一走 MTC 沿轴 LIN。IMU 跟随接触窗（`imu_follow`）已删除（2026-10-19，历史在 git），不再有 Servo 与 MTC 双写面。
 
 ---
 
@@ -682,7 +681,7 @@ Staging IK 排序：先绝对滚转小，再腕轴加权关节代价（`preferSt
 ## 18. 明确不在本文范围
 
 - 驱动 SystemInterface / dashboard / 远程上电（只读、不起）。
-- `peach_vegetation`、IVG、`src/sim` 仿真五包（有各自入口与文档）。
+- `peach_vegetation`、IVG、`src/peach_sim` 仿真五包（有各自入口与文档）。
 - 已归档 peach2、`peach_navigation`。
 - 田间对错的最终权威仍是真机 KEEP；包测试绿不等于套袋成功。
 - 功能安全认证、Nav2 Collision Monitor 级现场安全（本仓没有）。

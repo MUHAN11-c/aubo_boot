@@ -76,13 +76,28 @@
     const minY = Math.min(...ys), maxY = Math.max(...ys);
     const span = Math.max(maxX - minX, maxY - minY, 0.05);
     const mapX = (value) => 30 + ((value - minX) / span) * 280;
-    const mapY = (value) => 250 - ((value - minY) / span) * 220;
+    const mapY = (value) => 220 - ((value - minY) / span) * 190;
     const colors = {袋底: '#087e58', 袋口: '#096e72', 剪切参考: '#bc3348'};
-    plot.innerHTML = marks.map((item) =>
-      '<circle cx="' + mapX(item.x).toFixed(1) + '" cy="' + mapY(item.y).toFixed(1) +
-      '" r="5" fill="' + (colors[item.name] || '#21343e') + '"></circle><text x="' +
-      (mapX(item.x) + 8).toFixed(1) + '" y="' + mapY(item.y).toFixed(1) + '">' +
-      esc(item.name) + '</text>').join('') +
+    const occupied = [];
+    const labelY = (x, y) => {
+      let candidate = y;
+      for (let attempt = 0; attempt < 6; attempt += 1) {
+        if (!occupied.some((box) => Math.abs(box.x - x) < 46 && Math.abs(box.y - candidate) < 12)) break;
+        candidate += 12;
+      }
+      candidate = Math.min(candidate, 250);
+      occupied.push({x, y: candidate});
+      return candidate;
+    };
+    plot.innerHTML = marks.map((item) => {
+      const px = mapX(item.x);
+      const py = mapY(item.y);
+      const tx = Math.min(px + 8, 296);
+      return '<circle cx="' + px.toFixed(1) + '" cy="' + py.toFixed(1) +
+        '" r="5" fill="' + (colors[item.name] || '#21343e') + '"></circle><text x="' +
+        tx.toFixed(1) + '" y="' + labelY(px, py).toFixed(1) + '">' +
+        esc(item.name) + '</text>';
+    }).join('') +
       '<text x="16" y="268" fill="#5c707b">平面是 base_link 的 x / y，不是图像像素</text>';
   }
 

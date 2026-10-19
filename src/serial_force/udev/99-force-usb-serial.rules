@@ -1,0 +1,7 @@
+# QinHeng USB-serial adapters, two chips in the field:
+#   1a86:7523 CH340  -> ttyUSB* (no unique serial)
+#   1a86:55d3 CH343 "USB Single Serial" -> ttyACM* (has serial; by-id is unique)
+# Both plugged at once: both rules claim /dev/force, last-added wins.
+# After install: /dev/force -> ttyUSB* / ttyACM*
+SUBSYSTEM=="tty", ATTRS{idVendor}=="1a86", ATTRS{idProduct}=="7523", SYMLINK+="force", MODE="0660", GROUP="dialout"
+SUBSYSTEM=="tty", ATTRS{idVendor}=="1a86", ATTRS{idProduct}=="55d3", SYMLINK+="force", MODE="0660", GROUP="dialout"

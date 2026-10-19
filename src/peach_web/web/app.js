@@ -160,7 +160,7 @@ function updateDebugControls() {
       JSON.parse(el.dataset.payload || "{}");
     const busy = pendingDebug.has(debugRequestKey(action, payload));
     const block = debugBlockReason(action, action === "execute_action"
-      ? {...payload, mode: $("exec-mode").value} : payload);
+      ? {...payload, mode: $("exec-mode")?.value || "PREVIEW"} : payload);
     if (!el.dataset.label) el.dataset.label = el.textContent;
     el.disabled = !enabled || (!stateIsFresh() && !isCancelControl(el)) || busy || Boolean(block);
     el.setAttribute("aria-busy", String(busy));
@@ -305,17 +305,12 @@ function bindDebugControls() {
   updateDebugControls();
 }
 
+function debugField(id) {
+  return $(id)?.value?.trim?.() || "";
+}
+
 function buildDebugPayload(action, el) {
-  const requestId = $("dbg-request-id").value.trim();
-  const sceneKey = $("dbg-scene-key").value.trim() || "lab";
-  const targetId = $("dbg-target-id").value.trim();
-  if (action === "run_harvest_action") {
-    if (!requestId) { window.alert("request_id 必填（同时是账本目录名，不得复用）"); return null; }
-    const intent = $("run-intent").value;
-    const targets = $("run-target-ids").value.split(",").map((s) => s.trim()).filter(Boolean);
-    return {request_id: requestId, scene_key: sceneKey, intent,
-      selection_mode: targets.length ? "MANUAL" : "AUTO", target_ids: targets};
-  }
+  // 常用操作条只发送自带 payload 的命令；旧调试栅格的输入框可缺省。
   if (action === "control_service") {
     const command = el.dataset.payload ? JSON.parse(el.dataset.payload).command : "CANCEL_NOW";
     // 降险类命令（暂停/立即取消）不带序号防过期拦截；恢复/跳过/ACK 带
@@ -329,6 +324,19 @@ function buildDebugPayload(action, el) {
     const data = el.dataset.payload ? JSON.parse(el.dataset.payload).data : true;
     return {data: data === true};
   }
+  if (action === "photo_pose_service" || action === "cancel") {
+    return {};
+  }
+  const requestId = debugField("dbg-request-id");
+  const sceneKey = debugField("dbg-scene-key") || "lab";
+  const targetId = debugField("dbg-target-id");
+  if (action === "run_harvest_action") {
+    if (!requestId) { window.alert("request_id 必填（同时是账本目录名，不得复用）"); return null; }
+    const intent = debugField("run-intent") || "PICK_ALL";
+    const targets = debugField("run-target-ids").split(",").map((s) => s.trim()).filter(Boolean);
+    return {request_id: requestId, scene_key: sceneKey, intent,
+      selection_mode: targets.length ? "MANUAL" : "AUTO", target_ids: targets};
+  }
   if (action === "begin_scene_service") {
     return {request_id: requestId || "dev", scene_key: sceneKey};
   }
@@ -338,12 +346,13 @@ function buildDebugPayload(action, el) {
   if (action === "build_action") {
     if (!targetId) { window.alert("target_id 必填"); return null; }
     return {request_id: requestId || "dev", target_id: targetId,
-      scene_epoch: Number($("dbg-epoch").value) || 0};
+      scene_epoch: Number(debugField("dbg-epoch")) || 0};
   }
   if (action === "execute_action") {
     if (!targetId) { window.alert("target_id 必填"); return null; }
     return {request_id: requestId || "dev", target_id: targetId,
-      mode: $("exec-mode").value, skip_observation: $("exec-skip-obs").checked};
+      mode: debugField("exec-mode") || "PREVIEW",
+      skip_observation: $("exec-skip-obs")?.checked === true};
   }
   const inline = el.dataset.payload ? JSON.parse(el.dataset.payload) : null;
   return inline && typeof inline === "object" ? inline : {};

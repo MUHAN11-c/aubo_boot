@@ -403,11 +403,6 @@ void ManipulationSkillsNode::releaseResources()
   marker_pub_.reset();
   grasp_hyp_pub_.reset();
   tool_io_client_.reset();
-  imu_follow_enable_client_.reset();
-  imu_follow_disable_client_.reset();
-  imu_follow_insert_start_client_.reset();
-  imu_follow_insert_stop_client_.reset();
-  imu_follow_insert_retract_client_.reset();
   grasp_task_.reset();
   motion_.reset();
   move_group_.reset();
@@ -823,12 +818,6 @@ void ManipulationSkillsNode::createSubscriptions()
   // move_group 可用性探针（诊断只读；不做规划请求）
   planning_scene_client_ = create_client<moveit_msgs::srv::GetPlanningScene>(
     "/get_planning_scene");
-  // 批次5：imu_follow 插入进度（FK 不可用时的回退判据；目标积分）
-  imu_progress_sub_ = create_subscription<std_msgs::msg::Float64>(
-    "/imu_follow/insert_progress", 10,
-    [this](const std_msgs::msg::Float64::SharedPtr msg) {
-      imu_insert_travel_.store(msg->data);
-    });
   status_pub_ = create_publisher<std_msgs::msg::String>("~/status", latched);
   marker_pub_ = create_publisher<visualization_msgs::msg::MarkerArray>(
     "~/planned_views", latched);
@@ -885,18 +874,6 @@ void ManipulationSkillsNode::createServices()
       std::placeholders::_1, std::placeholders::_2));
   tool_io_client_ = create_client<aubo_msgs::srv::SetIO>(
     "/aubo_io_controller/set_io");
-  // 仅自适应档案建客户端。空心也 create_client 会在 FastDDS 图上挂出
-  // /imu_follow/* 名（无服务端），隔离验收会误判栈已起跟随。
-  if (usesImuFollowContact()) {
-    imu_follow_enable_client_ = create_client<Trigger>("/imu_follow/enable");
-    imu_follow_disable_client_ = create_client<Trigger>("/imu_follow/disable");
-    imu_follow_insert_start_client_ = create_client<Trigger>(
-      "/imu_follow/insert_start");
-    imu_follow_insert_stop_client_ = create_client<Trigger>(
-      "/imu_follow/insert_stop");
-    imu_follow_insert_retract_client_ = create_client<Trigger>(
-      "/imu_follow/insert_retract");
-  }
   tool_actuator_.setSendIo(
     [this](std::string & reason) {
       if (!commandToolClose()) {

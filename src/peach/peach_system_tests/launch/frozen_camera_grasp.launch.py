@@ -58,7 +58,7 @@ def generate_launch_description() -> LaunchDescription:
                 'camera_frontend': 'replay',
                 'skip_reconstruction': 'false',
                 'brain_params_overlay': overlay,
-                'imu_enabled': 'false',
+                'force_enabled': 'false',
                 'moveit_enabled': 'true',
                 'rviz': LaunchConfiguration('rviz'),
                 'extrinsics_enabled': 'true',

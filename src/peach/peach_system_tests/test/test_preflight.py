@@ -28,7 +28,7 @@ def test_preflight_patterns_cover_current_topology():
             'peach_harvester', 'peach_lifecycle_flag_bridge',
             'peach_autostart_client', 'stereo_camera_node',
             'peach_scene_obstacles',
-            'imu_follow_node', 'servo_node', 'lifecycle_manager', 'rviz2'):
+            'serial_force_node', 'lifecycle_manager', 'rviz2'):
         assert pattern in PREFLIGHT_PATTERNS, pattern
 
 
@@ -116,10 +116,9 @@ def test_bringup_launch_does_not_auto_run_harvest():
         ).read_text(encoding='utf-8')
     assert 'ros2 action send_goal' not in text
     assert 'send_goal(' not in text
-    assert "'imu_follow'" in text
-    assert "imu_follow_servo.launch.py" in text
+    assert "'serial_force'" in text
+    assert "serial_force.launch.py" in text
     assert "adaptive_shear_v1" in text
-    assert "'motion_enabled': 'false'" in text
 
 
 def test_executor_enable_default_off():
@@ -198,6 +197,5 @@ def test_industrial_ci_ignores_vendor_sidecars():
         None)
     assert workflow is not None, 'repo root (.github) not found above src'
     text = workflow.read_text(encoding='utf-8')
-    assert 'src/imu_follow/COLCON_IGNORE' in text
     assert 'src/percipio_camera/COLCON_IGNORE' in text
     assert 'src/ivg/ivg_graspnet/COLCON_IGNORE' in text

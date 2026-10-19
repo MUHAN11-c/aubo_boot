@@ -1,9 +1,12 @@
 {
   "name": "ros_web_link-web",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "private": true,
-  "description": "ros_web_link 浏览器通信层（vitest 纯核单测复用 dashboard node_modules，本包不装依赖）",
+  "description": "ros_web_link 浏览器通信层 + 独立监控台（零构建 ESM；本包自包含 vitest 开发依赖）",
   "scripts": {
     "test": "vitest run"
+  },
+  "devDependencies": {
+    "vitest": "4.1.7"
   }
 }

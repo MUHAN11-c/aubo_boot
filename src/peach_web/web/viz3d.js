@@ -146,7 +146,7 @@
     try {
       renderer = new T.WebGLRenderer({antialias: true, alpha: true});
       renderer.setPixelRatio(Math.min(root.devicePixelRatio || 1, 2));
-      renderer.setClearColor(0xf8fafb, 1);
+      renderer.setClearColor(0xfaf7f0, 1);
       renderer.domElement.setAttribute('aria-label', 'base_link 坐标系三维几何，单位米，Z 向上');
       container.appendChild(renderer.domElement);
       scene = new T.Scene();
@@ -155,7 +155,7 @@
       controls = new OrbitControls(camera, renderer.domElement);
       controls.enableDamping = false; controls.autoRotate = false;
       controls.minDistance = 0.025; controls.maxDistance = 10;
-      const grid = new T.GridHelper(2, 20, 0xc1d0d5, 0xe1e8eb);
+      const grid = new T.GridHelper(2, 20, 0xcfc5b5, 0xe9e2d7);
       grid.rotation.x = Math.PI / 2; scene.add(grid);
       scene.add(new T.AxesHelper(0.16));
       const group = new T.Group(); scene.add(group);

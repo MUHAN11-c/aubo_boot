@@ -23,13 +23,15 @@ import { covarianceEllipse, createJointMotion, createOdomTrail,
   mapGridPixel, costmapPixel } from './viz_core.js';
 
 const $ = (id) => document.getElementById(id);
-const MAX_POINTS = 4096;
-const CFG_KEY = 'rwl-viz-cfg-v4';
+const MAX_POINTS = 12000;
+const CFG_KEY = 'rwl-viz-cfg-v5';
+const CFG_KEY_V4 = 'rwl-viz-cfg-v4';
 const LAYOUTS_KEY = 'rwl-layouts-v1';
 
 // 显示类型注册表/默认实例/迁移逻辑在 viz_core.js（纯核，vitest 可测）；
 // 此处仅导入使用并 re-export（app.js 添加下拉依赖）。
-import { DISPLAY_TYPES, makeInstance, migrateCfg } from './viz_core.js';
+import { DISPLAY_TYPES, makeInstance, migrateCfg,
+  adaptInstancesToDataPlane } from './viz_core.js';
 export { DISPLAY_TYPES };
 
 function makeTextSprite(text, color = '#8b93a7', size = 42) {
@@ -48,15 +50,47 @@ function makeTextSprite(text, color = '#8b93a7', size = 42) {
   return sp;
 }
 
+// 点云/激光圆点精灵（共享 CanvasTexture）：方块点在大场景里像马赛克，
+// RViz2 默认 Points + Size (Pixels)；圆点 + alphaTest 更接近成熟可视化观感。
+let _pointTexture = null;
+function pointTexture() {
+  if (_pointTexture) return _pointTexture;
+  const c = document.createElement('canvas');
+  c.width = 32; c.height = 32;
+  const ctx = c.getContext('2d');
+  const g = ctx.createRadialGradient(16, 16, 0, 16, 16, 16);
+  g.addColorStop(0, 'rgba(255,255,255,1)');
+  g.addColorStop(0.55, 'rgba(255,255,255,0.95)');
+  g.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, 32, 32);
+  _pointTexture = new THREE.CanvasTexture(c);
+  _pointTexture.colorSpace = THREE.SRGBColorSpace;
+  return _pointTexture;
+}
+
+// RViz Displays 类型色标（视觉分组，不影响功能）
+const DISPLAY_COLORS = {
+  grid: '#8a9490', robot: '#4f8cff', tf: '#f2a541', map: '#f39c12',
+  costmap: '#e74c3c', cloud: '#20c9d6', scan3d: '#2ecc71', marker: '#ff8fab',
+  path: '#7367ff', poses: '#ff4f9a', odom: '#00a6a6', range: '#e67e22',
+  wrench: '#d35400', posecov: '#9b59b6', image: '#ff9f43', imagec: '#ff9f43',
+};
+
 class VizPanel {
   constructor() {
     let raw = null;
-    try { raw = JSON.parse(localStorage.getItem(CFG_KEY) || 'null'); } catch (_) { /* 坏档 */ }
+    try {
+      raw = JSON.parse(localStorage.getItem(CFG_KEY) || 'null')
+        || JSON.parse(localStorage.getItem(CFG_KEY_V4) || 'null');
+    } catch (_) { /* 坏档 */ }
     this.cfg = migrateCfg(raw);
+    // 首次连接且无用户布局时，按图上真实话题自动适配一次（不写回 localStorage）
+    this._autoAdapt = raw === null;
     this.stats = {
       connectedAt: null, rosTimeNs: null,
       fps: null, objectCount: null,
-      cloud: { points: 0, lastAt: null },
+      cloud: { points: 0, colorBy: 'axis', sizePx: 3, lastAt: null },
       image: { w: 0, h: 0, enc: '', frames: 0, lastAt: null },
       scan: { beams: 0, frames: 0, lastAt: null },
       joints: { names: [], position: [], frames: 0, lastAt: null },
@@ -122,14 +156,27 @@ class VizPanel {
     scene.background = new THREE.Color(
       getComputedStyle(document.body).getPropertyValue('--viz-bg').trim() || '#eceef0');
     window.addEventListener('rwl-theme', () => {
-      scene.background.set(
-        getComputedStyle(document.body).getPropertyValue('--viz-bg').trim() || '#eceef0');
+      const bg = getComputedStyle(document.body).getPropertyValue('--viz-bg').trim() || '#eceef0';
+      scene.background.set(bg);
+      if (scene.fog) scene.fog.color.set(bg);
       this._dirty = true;
     });
-    this.grid = new THREE.GridHelper(4, 8, 0x9aa5a0, 0xc5ccc7);
+    // RViz2 Grid：更细的 0.5m 网格 + 低透明度；配合浅色主题不抢数据
+    this.grid = new THREE.GridHelper(8, 16, 0xc3cce6, 0xe2e7f7);
     this.grid.receiveShadow = true;
+    this.grid.material.transparent = true;
+    this.grid.material.opacity = 0.55;
     scene.add(this.grid);
-    scene.add(new THREE.AxesHelper(0.6));
+    this._axesHelper = new THREE.AxesHelper(0.6);
+    scene.add(this._axesHelper);
+    // 接触阴影：数据/机器人落地感（Rebot-Arm 同款柔光阴影的轻量版）
+    const shadowPlane = new THREE.Mesh(
+      new THREE.PlaneGeometry(14, 14),
+      new THREE.ShadowMaterial({ color: 0x4a4f78, opacity: 0.14 }));
+    shadowPlane.rotation.x = -Math.PI / 2;
+    shadowPlane.position.y = -0.002;
+    shadowPlane.receiveShadow = true;
+    scene.add(shadowPlane);
     const rootLabel = makeTextSprite('root', '#8b93a7');
     rootLabel.position.set(0, 0.1, 0);
     scene.add(rootLabel);
@@ -155,6 +202,15 @@ class VizPanel {
     scene.add(fill);
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    // 色彩/色调：Neutral 比 ACES 更少改变数据颜色；点云/地图材质 toneMapped=false
+    if ('outputColorSpace' in renderer) renderer.outputColorSpace = THREE.SRGBColorSpace;
+    if ('toneMapping' in renderer) {
+      renderer.toneMapping = THREE.NeutralToneMapping ?? THREE.NoToneMapping;
+      renderer.toneMappingExposure = 1.0;
+    }
+    scene.fog = new THREE.Fog(
+      getComputedStyle(document.body).getPropertyValue('--viz-bg').trim() || '#eceef0',
+      9, 22);
 
     this.groups = {
       tf: new THREE.Group(), robot: new THREE.Group(), tools: new THREE.Group(),
@@ -420,6 +476,13 @@ class VizPanel {
     document.querySelectorAll('[data-view]').forEach((b) => {
       b.addEventListener('click', () => this._applyView(b.dataset.view));
     });
+    $('btn-view-fit')?.addEventListener('click', () => {
+      this._fitCameraToAll();
+      $('hud-tool').textContent = '已适配全部（机器人 + 点云 + 激光）';
+    });
+    $('btn-grid-toggle')?.addEventListener('click', () => this._toggleGrid());
+    $('btn-axes-toggle')?.addEventListener('click', () => this._toggleAxes());
+    this._syncToolbarToggles();
     $('btn-view-save').addEventListener('click', () => {
       localStorage.setItem('rwl-viz-view', JSON.stringify({
         p: this.camera.position.toArray(), t: this.controls.target.toArray() }));
@@ -434,6 +497,34 @@ class VizPanel {
       }
     });
     this._initShortcuts();
+  }
+
+  _syncToolbarToggles() {
+    const grid = this._inst('grid');
+    $('btn-grid-toggle')?.classList.toggle('active', !!grid?.on);
+    $('btn-axes-toggle')?.classList.toggle('active', this.cfg.global?.axes !== false);
+      if (this._axesHelper) this._axesHelper.visible = this.cfg.global?.axes !== false;
+  }
+
+  _toggleGrid() {
+    const inst = this._inst('grid');
+    if (!inst) return;
+    inst.on = !inst.on;
+    this.grid.visible = inst.on;
+    this._persistCfg();
+    this._renderDisplaysPanel();
+    this._syncToolbarToggles();
+    $('hud-tool').textContent = inst.on ? '网格已开启（G）' : '网格已关闭（G）';
+    this._dirty = true;
+  }
+
+  _toggleAxes() {
+    this.cfg.global.axes = this.cfg.global?.axes === false;
+    this._persistCfg();
+    if (this._axesHelper) this._axesHelper.visible = this.cfg.global.axes;
+    this._syncToolbarToggles();
+    $('hud-tool').textContent = this.cfg.global.axes ? '世界坐标轴已开启' : '世界坐标轴已关闭';
+    this._dirty = true;
   }
 
   _setTool(t) {
@@ -466,15 +557,17 @@ class VizPanel {
         || e.target?.isContentEditable || e.metaKey || e.ctrlKey || e.altKey) return;
       switch (e.key.toLowerCase()) {
         case 'f':
-          this._fitCameraToRobot();
-          $('hud-tool').textContent = '已适配机器人视角（F）';
+          if (e.shiftKey) {
+            this._fitCameraToRobot();
+            $('hud-tool').textContent = '已适配机器人视角（Shift+F）';
+          } else {
+            this._fitCameraToAll();
+            $('hud-tool').textContent = '已适配全部（F）';
+          }
           break;
-        case 'g': {
-          const gi = this._inst('grid');
-          if (gi) { gi.on = !gi.on; this._persistCfg(); this._applyDisplayCfg(gi.id);
-            this._renderDisplaysPanel(); }
+        case 'g':
+          this._toggleGrid();
           break;
-        }
         case '1': this._applyView('iso'); break;
         case '2': this._applyView('top'); break;
         case '3': this._applyView('side'); break;
@@ -596,9 +689,20 @@ class VizPanel {
       const topicCell = spec.singleton
         ? `<span style="color:var(--muted)">${inst.topic || '内置'}</span>`
         : `<input class="dtopic" list="rwl-topics" value="${inst.topic || ''}">`;
-      const props = (spec.props || []).map(([p, label]) => {
+      const PROP_LABELS = {
+        size: '点大小', colorBy: '着色', ghost: '幽灵', labels: '名签',
+        opacity: '透明度', trail: '轨迹', trailLen: '轨迹长度', scale: '缩放',
+      };
+      const props = (spec.props || []).map((p) => {
+        const label = PROP_LABELS[p] || p;
         if (p === 'size') {
-          return `<label class="mini">${label} <input type="range" min="0.01" max="0.12" step="0.005" data-prop="size" value="${inst.size ?? 0.035}"></label>`;
+          return `<label class="mini">${label} <input type="range" min="1" max="12" step="0.5" data-prop="size" value="${inst.size ?? 3}"> <b>${inst.size ?? 3}px</b></label>`;
+        }
+        if (p === 'colorBy') {
+          const opts = [['axis', 'Z 轴彩虹'], ['rgb', 'RGB'], ['intensity', '强度']];
+          return `<label class="mini">${label} <select data-prop="colorBy" style="width:auto;padding:2px 4px;">${
+            opts.map(([v, t]) => `<option value="${v}" ${(inst.colorBy || 'axis') === v ? 'selected' : ''}>${t}</option>`).join('')
+          }</select></label>`;
         }
         if (p === 'scale') {
           return `<label class="mini">${label} <input type="range" min="0.05" max="1" step="0.05" data-prop="scale" value="${inst.scale ?? 0.2}"></label>`;
@@ -614,10 +718,14 @@ class VizPanel {
       const del = spec.singleton
         ? ''
         : `<button class="ghost" data-del="${inst.id}" title="删除显示项">✕</button>`;
+      const dup = spec.singleton
+        ? ''
+        : `<button class="ghost disp-dup" data-dup="${inst.id}" title="复制显示项">⧉</button>`;
+      const icon = `<i class="disp-ico" style="background:${DISPLAY_COLORS[inst.type] || '#9aa5a0'}"></i>`;
       return `
       <tr data-display="${inst.id}">
         <td><input type="checkbox" data-cfg="on" ${inst.on ? 'checked' : ''}></td>
-        <td>${inst.name || spec.label}<span class="mini" style="color:var(--muted)"> ${inst.type}</span></td>
+        <td title="${inst.name || spec.label} · ${inst.topic || '内置'}">${icon}${inst.name || spec.label}${dup}</td>
         <td>${topicCell}</td>
         <td class="props">${props}</td>
         <td class="dst" id="viz-st-${inst.id}">—</td>
@@ -638,8 +746,14 @@ class VizPanel {
       tr.querySelectorAll('[data-prop]').forEach((el) => {
         const p = el.dataset.prop;
         const apply = () => {
-          inst[p] = el.type === 'checkbox' ? el.checked : parseFloat(el.value);
+          inst[p] = el.type === 'checkbox'
+            ? el.checked
+            : (el.tagName === 'SELECT' ? el.value : parseFloat(el.value));
           this._persistCfg();
+          // 点大小/着色变化即时反映到已有点云材质
+          if (p === 'size' && el.nextElementSibling?.tagName === 'B') {
+            el.nextElementSibling.textContent = `${inst[p]}px`;
+          }
           this._applyDisplayCfg(id);
         };
         el.addEventListener(el.type === 'checkbox' ? 'change' : 'input', apply);
@@ -654,6 +768,8 @@ class VizPanel {
       }
       const del = tr.querySelector('[data-del]');
       if (del) del.addEventListener('click', () => this._removeInstance(id));
+      const dup = tr.querySelector('[data-dup]');
+      if (dup) dup.addEventListener('click', () => this._duplicateInstance(id));
     });
     // 话题候选（datalist）周期刷新自图谱
     if (!this._topicsDatalistTimer) {
@@ -771,6 +887,23 @@ class VizPanel {
     return inst;
   }
 
+  _duplicateInstance(id) {
+    const src = this._inst(id);
+    const spec = src && DISPLAY_TYPES[src.type];
+    if (!src || !spec || spec.singleton) return;
+    const idx = this.cfg.instances.findIndex((x) => x.id === id);
+    const copy = {
+      ...src,
+      id: `${src.type}-${Date.now().toString(36)}`,
+      name: `${src.name || spec.label} 副本`,
+    };
+    this.cfg.instances.splice(idx + 1, 0, copy);
+    this._persistCfg();
+    this._renderDisplaysPanel();
+    this._applyDisplayCfg(copy.id);
+    this._dirty = true;
+  }
+
   _removeInstance(id) {
     const inst = this._inst(id);
     if (!inst || DISPLAY_TYPES[inst.type]?.singleton) return;
@@ -813,7 +946,7 @@ class VizPanel {
     }
     if (c.type === 'cloud') {
       const st = this._stateFor(c.id);
-      if (st.points) st.points.material.size = c.size || 0.035;
+      if (st.points) st.points.material.size = c.size || 3;
     }
     if ((c.type === 'map' || c.type === 'costmap')) {
       const st = this._stateFor(c.id);
@@ -865,10 +998,38 @@ class VizPanel {
 
   // ── 订阅入口 ────────────────────────────────────────────────────────────
 
+  /** 首次连接的数据面自动适配（话题可能晚于 connected 事件到达，最多重试 6 次） */
+  _adaptDataPlane(attempt, initial = false) {
+    if (!this._autoAdapt) return;
+    const chans = this._client?.player?.channels;
+    const topics = chans && typeof chans.keys === 'function' ? [...chans.keys()] : [];
+    if (!topics.length) {
+      if (attempt < 6) setTimeout(() => this._adaptDataPlane(attempt + 1, initial), 500);
+      return;
+    }
+    const before = JSON.stringify(this.cfg.instances);
+    this.cfg.instances = adaptInstancesToDataPlane(this.cfg.instances, topics);
+    if (JSON.stringify(this.cfg.instances) === before) return;
+    this._autoAdapt = false;
+    this._renderDisplaysPanel();
+    if (!initial || attempt > 0) this._resubscribeAll();
+    $('viz-status').textContent = `数据面已自动适配（${topics.length} 个话题）`;
+  }
+
+  _resubscribeAll() {
+    for (const h of Object.values(this._handles)) {
+      try { h.cancel(); } catch (_) { /* 已取消 */ }
+    }
+    this._handles = {};
+    for (const inst of this.cfg.instances) this._subscribeDisplay(inst.id, true);
+    this._subscribeDisplay('tf', true);
+  }
+
   start() {
     if (this._started) return;
     this._started = true;
     this.stats.connectedAt = new Date().toISOString();
+    this._adaptDataPlane(0, true);
     // JointState 固定流（关节条形图）+ PoseStamped（nav2 goal，并入 poses 组）
     for (const jsTopic of ['/joint_states']) {
       this._client.subscribe(jsTopic, '', (m) => {
@@ -921,6 +1082,22 @@ class VizPanel {
     if (!this._started) return;
     const st = this.stats.rosTimeNs;
     $('viz-rostime').textContent = st ? new Date(st / 1e6).toISOString().slice(11, 23) : '—';
+    const tfN = this.stats.tf?.frames?.length || 0;
+    const pts = this.stats.cloud?.points || 0;
+    const sceneMain = $('hud-scene-main');
+    const sceneMeta = $('hud-scene-meta');
+    if (sceneMain) {
+      sceneMain.textContent = this.stats.robotModel?.error ? '模型加载失败'
+        : (this._urdfRobot ? '机器人已就绪' : (pts ? '传感器流' : '等待数据'));
+    }
+    if (sceneMeta) {
+      sceneMeta.textContent = `${tfN} TF · ${pts > 1000 ? (pts / 1000).toFixed(1) + 'k' : pts} pts`
+        + ` · ${this.stats.fps ?? '—'} fps`;
+    }
+    const hudFrame = $('hud-frame');
+    if (hudFrame) {
+      hudFrame.textContent = `Fixed: ${this._fixedFrame()}`;
+    }
     for (const id of Object.keys(this._msgs)) {
       const el = $('viz-st-' + id);
       if (!el) continue;
@@ -1001,6 +1178,33 @@ class VizPanel {
     const radius = Math.max(size.x, size.y, size.z) / 2;
     const dist = Math.max(1.2, radius * 3);
     // 相机放斜 45° 俯角 30°（RViz 默认机位风格）
+    this.camera.position.set(
+      center.x + dist * 0.55,
+      center.y + dist * 0.45,
+      center.z + dist * 0.7);
+    this.controls.target.copy(center);
+    this.controls.update();
+    this._dirty = true;
+  }
+
+  /** 适配全部：机器人 + 已启用云/激光（排除 map/costmap，避免被地图平面拉远） */
+  _fitCameraToAll() {
+    const box = new THREE.Box3();
+    const add = (obj) => {
+      if (!obj) return;
+      obj.updateWorldMatrix?.(true, true);
+      box.expandByObject(obj);
+    };
+    add(this._robotFrame);
+    for (const inst of this.cfg.instances) {
+      if (inst.type !== 'cloud' && inst.type !== 'scan3d') continue;
+      if (!inst.on) continue;
+      add(this._instGroups.get(inst.id));
+    }
+    if (box.isEmpty()) return this._fitCameraToRobot();
+    const sphere = box.getBoundingSphere(new THREE.Sphere());
+    const center = sphere.center;
+    const dist = Math.max(1.2, sphere.radius * 3.2);
     this.camera.position.set(
       center.x + dist * 0.55,
       center.y + dist * 0.45,
@@ -1207,18 +1411,24 @@ class VizPanel {
     // 曾致 BufferAttribute(undefined)、点云每帧回调抛错零渲染（2026-10-16 实测）
     const st = this._stateFor(c.id);
     if (!st.posArr) st.posArr = new Float32Array(MAX_POINTS * 3);
+    if (!st.colArr) st.colArr = new Float32Array(MAX_POINTS * 3);
     const g = this._groupOf(c.id);
     if (!st.points) {
       const geo = new THREE.BufferGeometry();
       geo.setAttribute('position', new THREE.BufferAttribute(st.posArr, 3));
+      geo.setAttribute('color', new THREE.BufferAttribute(st.colArr, 3));
       geo.setDrawRange(0, 0);
       st.points = new THREE.Points(geo, new THREE.PointsMaterial({
-        color: 0x4f8cff, size: c.size || 0.035 }));
+        color: 0xffffff, size: c.size || 3, sizeAttenuation: false,
+        vertexColors: true, map: pointTexture(), transparent: true,
+        alphaTest: 0.08, depthWrite: true, toneMapped: false }));
       g.add(st.points);
     }
-    st.points.material.size = c.size || 0.035;
+    st.points.material.size = c.size || 3;
+    const colorBy = c.colorBy || 'axis';
     const { count, error } = parsePointCloud2(data,
-      { positions: st.posArr, maxPoints: MAX_POINTS });
+      { positions: st.posArr, colors: st.colArr,
+        maxPoints: MAX_POINTS, colorBy });
     if (error) {
       if (!st.warned) {
         st.warned = true;
@@ -1228,12 +1438,14 @@ class VizPanel {
       return;
     }
     st.points.geometry.attributes.position.needsUpdate = true;
+    st.points.geometry.attributes.color.needsUpdate = true;
     st.points.geometry.setDrawRange(0, count);
     this._applyFrameToGroup(g, data?.header?.frame_id, 'cloud:' + c.id);
     // stamp 时延（rviz Delay 语义：rosTime - header.stamp）；无 /clock 时退化为 null
     const stampNs = data?.header?.stamp
       ? Number(data.header.stamp.sec) * 1e9 + Number(data.header.stamp.nanosec) : null;
-    this.stats.cloud = { points: count, lastAt: Date.now(), stampNs,
+    this.stats.cloud = { points: count, colorBy, sizePx: c.size || 3,
+      lastAt: Date.now(), stampNs,
       ageMs: (stampNs && this.stats.rosTimeNs)
         ? Math.max(0, Math.round((this.stats.rosTimeNs - stampNs) / 1e6)) : null };
     this._dirty = true;
@@ -1244,18 +1456,25 @@ class VizPanel {
     // posArr 惰性确保（同 _onCloud：订阅回调可能先建空 state）
     const st = this._stateFor(c.id);
     if (!st.posArr) st.posArr = new Float32Array(720 * 3);
+    if (!st.colArr) st.colArr = new Float32Array(720 * 3);
     const g = this._groupOf(c.id);
     if (!st.points) {
       const geo = new THREE.BufferGeometry();
       geo.setAttribute('position', new THREE.BufferAttribute(st.posArr, 3));
+      geo.setAttribute('color', new THREE.BufferAttribute(st.colArr, 3));
       geo.setDrawRange(0, 0);
-      st.points = new THREE.Points(geo,
-        new THREE.PointsMaterial({ color: 0x2ecc71, size: 0.03 }));
+      st.points = new THREE.Points(geo, new THREE.PointsMaterial({
+        color: 0xffffff, size: 3, sizeAttenuation: false, vertexColors: true,
+        map: pointTexture(), transparent: true, alphaTest: 0.08,
+        toneMapped: false }));
       g.add(st.points);
     }
     const ranges = data.ranges || [];
     const n = Math.min(ranges.length, 720);
     let i3 = 0;
+    let maxRange = 1;
+    for (const r of ranges) if (isFinite(r) && r > maxRange) maxRange = r;
+    const cobj = new THREE.Color();
     for (let i = 0; i < n; i++) {
       const r = ranges[i];
       if (isFinite(r)) {
@@ -1263,12 +1482,19 @@ class VizPanel {
         st.posArr[i3++] = Math.cos(a) * r;
         st.posArr[i3++] = Math.sin(a) * r;
         st.posArr[i3++] = 0.02;
+        const t = Math.max(0, Math.min(1, r / maxRange));
+        cobj.setHSL(0.55 * (1 - t), 0.75, 0.55);  // 近暖/远冷（rqt_rviz 风格）
+        st.colArr[i3 - 3] = cobj.r;
+        st.colArr[i3 - 2] = cobj.g;
+        st.colArr[i3 - 1] = cobj.b;
       } else {
         st.posArr[i3] = 0; st.posArr[i3 + 1] = 0; st.posArr[i3 + 2] = 0;
+        st.colArr[i3] = st.colArr[i3 + 1] = st.colArr[i3 + 2] = 0;
         i3 += 3;
       }
     }
     st.points.geometry.attributes.position.needsUpdate = true;
+    st.points.geometry.attributes.color.needsUpdate = true;
     st.points.geometry.setDrawRange(0, n);
     this._applyFrameToGroup(g, data?.header?.frame_id, 'scan3d:' + c.id);
     this._dirty = true;
@@ -1298,7 +1524,7 @@ class VizPanel {
     tex.wrapS = tex.wrapT = THREE.ClampToEdgeWrapping;
     const plane = new THREE.Mesh(
       new THREE.PlaneGeometry(w * res, h * res),
-      new THREE.MeshBasicMaterial({ map: tex, transparent: true,
+      new THREE.MeshBasicMaterial({ map: tex, transparent: true, toneMapped: false,
         opacity: c.opacity ?? 0.8, side: THREE.DoubleSide, depthWrite: false }));
     const o = data.info.origin?.position;
     // ROS XY 平面（z-up 容器内即默认平面），中心 = origin + size/2；

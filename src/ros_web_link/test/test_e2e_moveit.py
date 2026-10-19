@@ -8,7 +8,7 @@ moveit_resources_panda（mock_components）：
   4. /plan_kinematic_path（GetMotionPlan）—— OMPL 规划经 web
   5. /panda_arm_controller/follow_joint_trajectory —— 执行 planned 轨迹经 web
   6. /monitored_planning_scene —— PlanningScene 快照（displayPlannedPath 等场景树）
-运行前提：moveit_resources_panda_* 已构建（本工作区 src/），aubo_py3.12 venv。
+运行前提：moveit_resources_panda_* 已构建（本工作区 src/examples/），aubo_py3.12 venv。
 """
 from __future__ import annotations
 

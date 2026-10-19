@@ -182,8 +182,8 @@ class ObservabilityParams:
     """wrist3_Link→tcp 平移模长期望 [m]；-1=跳过档案比对."""
     selfcheck_moveit_expected: bool
     """是否要求 move_group 在场."""
-    selfcheck_imu_expected: bool
-    """是否要求 IMU 话题在场."""
+    selfcheck_force_expected: bool
+    """是否要求 /force/points 在场."""
     selfcheck_model_paths: Tuple[str, ...]
     """启动期须在位的模型权重路径清单（空=SKIP）."""
     selfcheck_color_image_topic: str
@@ -268,7 +268,7 @@ def from_params(raw) -> ObservabilityParams:
         selfcheck_expected_tcp_norm_m=float(
             raw.selfcheck.expected_tcp_norm_m),
         selfcheck_moveit_expected=bool(raw.selfcheck.moveit_expected),
-        selfcheck_imu_expected=bool(raw.selfcheck.imu_expected),
+        selfcheck_force_expected=bool(raw.selfcheck.force_expected),
         selfcheck_model_paths=tuple(
             item.strip() for item in str(raw.selfcheck.model_paths).split(',')
             if item.strip()),

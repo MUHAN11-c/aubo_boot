@@ -6,7 +6,7 @@
 //   - 使能开关 + 红色停止钮；卡片失焦自动停止
 // 纯核 mixTeleopCommand 在 viz_core.js（vitest 覆盖），本模块只做 I/O 接线。
 
-import { mixTeleopCommand } from './viz_core.js';
+import { mixTeleopCommand, teleopMessage } from './viz_core.js';
 
 const $ = (id) => document.getElementById(id);
 const PUB_MS = 50;
@@ -31,13 +31,18 @@ export function initTeleop(getClient) {
       state().textContent = '未连接 · 未发布';
       return;
     }
-    // TB3 gz 桥的 ROS 侧是 TwistStamped（nav2 velocity_smoother 同款约定）
-    const ok = c.publish('/cmd_vel', 'geometry_msgs/msg/TwistStamped', {
-      header: { frame_id: 'base_link' },
-      twist,
-    });
+    // 方言自动识别：果园仿真桥 /cmd_vel 是 Twist；nav2/TB3 常为 TwistStamped。
+    // 选择器可强制；auto 时读图上 /cmd_vel 的 schema，再回退 Twist。
+    const sel = $('teleop-msg-type')?.value || 'auto';
+    let type = sel;
+    if (sel === 'auto') {
+      const schema = c.player?.channels?.get?.('/cmd_vel')?.schemaName || '';
+      type = schema.endsWith('TwistStamped') ? 'TwistStamped' : 'Twist';
+    }
+    const msg = teleopMessage(type, twist, 'base_link');
+    const ok = c.publish('/cmd_vel', 'geometry_msgs/msg/' + type, msg);
     state().textContent = (ok ? '发布中' : '发布失败')
-      + ` · vx=${twist.linear.x} wz=${twist.angular.z}`;
+      + ` · ${type} · vx=${twist.linear.x} wz=${twist.angular.z}`;
   };
 
   const tick = () => {

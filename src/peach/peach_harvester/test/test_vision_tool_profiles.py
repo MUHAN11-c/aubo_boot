@@ -24,7 +24,7 @@ def test_parse_extracts_fields():
 
 def test_parse_shear_baseline():
     # 基础剪切手基线：镜像 aubo_description/config/shear_v1.yaml 几何档
-    # （三把里唯一与 bite 同代码路径的档：无 imu_follow，套入/撤退走 MTC LIN）
+    # （三档末端同一套 MTC LIN 套入/撤退路径）
     data = _archive(profile_id='shear_v1', d_inner=0.080)
     data['geometry_m'].update(L_insert=0.030, L_blade=0.030,
                               body_length=0.120, body_radius=0.100)

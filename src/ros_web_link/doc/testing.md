@@ -7,18 +7,25 @@
 ## 0. 被测对象与官方示例数据面
 
 被测 = 本包传输链（JS transport → 网关 `/ws/foxglove` → ivg_foxglove_bridge → ROS 2 图）。
-**数据面全部用官方标准项目**（2026-10-15 用户裁定：本地自写 sim/peach/ivg 栈不参与验证）：
+两种编排：
+- **独立监控（2026-10-19 用户裁定，推荐）**：先按项目正常方式启动完整仿真，再
+  `ros2 launch ros_web_link monitor.launch.py` 另起桥+网关；本包不拥有/不干预仿真；
+- 自含演示栈（`sim_demo.launch.py` 等）仅用于一键复现，不改变"被测数据面来自官方项目"。
+
+**数据面全部用 `src/examples` 官方标准项目**（2026-10-15 / 2026-10-19 用户裁定：
+本地 peach 项目不参与验证）：
 
 | 官方项目 | 来源 | 提供的数据流（经网关） |
 |---|---|---|
-| turtlebot3_gazebo（waffle_pi） | ROBOTIS-GIT/turtlebot3_simulations jazzy 分支，克隆于 `src/turtlebot3_simulations` | `/camera/image_raw` 640×480 rgb8 @30Hz ≈0.92MB/帧、`/camera/image_raw/compressed`(JPEG)、`/scan` 360 点 @10Hz、`/odom` `/imu` `/tf` `/joint_states` `/robot_description` |
-| turtlebot3_navigation2 | ROBOTIS-GIT/turtlebot3 jazzy 分支，官方包（src/ symlink 构建） | 官方配套 `/map`(384²) + 官方 nav2 全参数 param/waffle_pi.yaml（AMCL 按 TB3 调参）；`rviz:=true` 时官方 RViz 随栈起 |
+| turtlebot3_gazebo（waffle_pi） | ROBOTIS-GIT/turtlebot3_simulations jazzy 分支，克隆于 `src/examples/turtlebot3_simulations` | `/camera/image_raw` 640×480 rgb8 @30Hz ≈0.92MB/帧、`/camera/image_raw/compressed`(JPEG)、`/scan` 360 点 @10Hz、`/odom` `/imu` `/tf` `/joint_states` `/robot_description` |
+| turtlebot3_navigation2 | ROBOTIS-GIT/turtlebot3 jazzy 分支，官方包（src/examples/ symlink 构建） | 官方配套 `/map`(384²) + 官方 nav2 全参数 param/waffle_pi.yaml（AMCL 按 TB3 调参）；`rviz:=true` 时官方 RViz 随栈起 |
 | nav2_bringup | 官方 apt | bringup_launch.py 载体；`/amcl_pose`、`/particle_cloud`、`/plan`、`/diagnostics`；action `/compute_path_to_pose` |
-| examples_rclpy_pointcloud_publisher / minimal_publisher | ros2/examples，克隆于 `src/ros2_examples` | `/test_cloud` 100×100 点云 @30Hz、`/topic`(String) |
+| examples_rclpy_pointcloud_publisher / minimal_publisher | ros2/examples，克隆于 `src/examples/ros2_examples` | `/test_cloud` 100×100 点云 @30Hz、`/topic`(String) |
 | image_transport republish | 官方 apt | raw → compressed 转发链 |
-| moveit_resources_panda_moveit_config | moveit/moveit_resources ros2 分支，克隆于 `src/panda_moveit_config` | latched `/robot_description`、`/joint_states`(9 关节 @~60Hz)、`/monitored_planning_scene`、`/display_planned_path`；服务 `/compute_ik` `/plan_kinematic_path`；action `/panda_arm_controller/follow_joint_trajectory` |
+| moveit_resources_panda_moveit_config | moveit/moveit_resources ros2 分支，克隆于 `src/examples/panda_moveit_config` | latched `/robot_description`、`/joint_states`(9 关节 @~60Hz)、`/monitored_planning_scene`、`/display_planned_path`；服务 `/compute_ik` `/plan_kinematic_path`；action `/panda_arm_controller/follow_joint_trajectory` |
 
-组合入口：`ros2 launch ros_web_link sim_demo.launch.py`（TB3+nav2+examples+传输栈，一键）、
+组合入口：`ros2 launch ros_web_link sim_demo.launch.py`（TB3+nav2+examples+传输栈，一键；
+`transport:=false` 时只起完整仿真，供独立 monitor 附着）、
 `ros2 launch ros_web_link panda_moveit_web.launch.py`（MoveIt 栈 + 传输栈）。
 合成大数据基准用本包 `comm_fixture -p rwl.bigdata:=true`（`/rwl_demo/big_image` 30Hz +
 `/rwl_demo/big_cloud` 50k 点 10Hz）——合成源只用于受控延迟基准，真实流验收走官方仿真。
@@ -26,7 +33,7 @@
 ## 1. 环境前置（每轮开始前）
 
 ```bash
-cd /home/mu/Desktop/aubo_e5_jazzy_ws
+cd /path/to/aubo_e5_jazzy_ws     # 或设置 WS=<workspace> 后 cd "$WS"
 # ① venv 完好（网关/测试必须 venv；系统 python 缺 websockets 会 skip）
 ./aubo_py3.12/bin/python -c 'import websockets, fastapi'
 # ② 无残留进程（MUST：前清后清）
@@ -34,6 +41,10 @@ pgrep -af 'ros2 launch|gz sim|component_container|ivg_foxglove_bridge|ros_web_li
 # ③ 桥默认端口空闲（真机 8765 常被 preview_server 占；测试栈用随机端口不受影响）
 ss -tlnp | grep 8765 || echo free
 ```
+
+容器/沙箱环境还需 `/dev/shm`（FastDDS 共享内存，缺则 official 的 lifecycle
+map_server 90s 不激活）与 `/dev/dri`（gz 渲染，缺则相机/点云无数据）。两者被拒时
+请在宿主/完整权限 shell 下跑对应 E2E，不要改产品代码规避。
 
 E2E 套件自起栈（`e2e_harness`）：随机 ROS 域（`free_domain()` 读 /proc 排除占用域）+
 随机端口（`free_port()` 避开临时端口段）+ 唯一 `GZ_PARTITION`，测完 SIGINT 整组收尾并断言端口释放。
@@ -53,7 +64,13 @@ PYTHONPATH=/opt/ros/jazzy/lib/python3.12/site-packages \
 LD_LIBRARY_PATH=/opt/ros/jazzy/lib ROS_DISTRO=jazzy \
 ./aubo_py3.12/bin/python -m pytest src/ros_web_link/test -k "gateway or js_units" -q
 
-# ② JS 纯核：协议帧/TF 数学/CDR 黄金字节交叉验证/点云解析（122）
+# ①b 独立包/API/示例/文档链接门（不依赖仿真；examples 用 comm fixture）
+PYTHONPATH=/opt/ros/jazzy/lib/python3.12/site-packages \
+LD_LIBRARY_PATH=/opt/ros/jazzy/lib ROS_DISTRO=jazzy \
+./aubo_py3.12/bin/python -m pytest src/ros_web_link/test \
+  -k "api_surface or examples or docs_links or package_independence" -q
+
+# ② JS 纯核：协议帧/TF 数学/CDR 黄金字节/点云/数据面自动适配/barrel/色彩模式（135）
 cd src/ros_web_link && node_modules/.bin/vitest run; cd ../..
 
 # ③ E2E 通信矩阵：订阅/发布/服务/action/参数/TF/图谱/健康（11）
@@ -70,7 +87,23 @@ cd src/ros_web_link && node_modules/.bin/vitest run; cd ../..
 
 # ⑦ E2E 官方组件（官方 RSP/panda + map_server/lifecycle，7）
 ./aubo_py3.12/bin/python -m pytest src/ros_web_link/test -k official -v
+
+# ⑧ E2E 独立监控附着（完整官方仿真正常启动 + 另起桥/网关，8；默认跳过，较慢）
+RWL_FULL_SIM=1 ./aubo_py3.12/bin/python -m pytest src/ros_web_link/test -k full_sim -v
 ```
+
+**完整仿真正常启动 + 独立监控（手工 E2E，等价 ⑧ 的编排）**：
+
+```bash
+# 终端 A：完整官方仿真（不带传输栈）
+ros2 launch ros_web_link sim_demo.launch.py transport:=false
+# 终端 B：独立监控（桥/网关，不干预仿真）
+ros2 launch ros_web_link monitor.launch.py
+# 浏览器：http://127.0.0.1:8095/（自动跳转 /console.html）
+```
+
+无 X/GLX 的 CI 机器给 `gz sim` 注入 `--headless-rendering`（`RWL_GZ_WRAPPER_DIR`
+指向包装器目录；仅测试编排，不改变产品 launch）。
 
 CDR 黄金字节 fixtures 升级 ROS 后重生成：
 `./aubo_py3.12/bin/python src/ros_web_link/test/generate_viz_golden.py`。
@@ -97,8 +130,14 @@ console 监控区「网关丢帧 / 网关积压」卡。
 ## 4. 浏览器页面验证（人工/自动化）
 
 ```bash
-ros2 launch ros_web_link sim_demo.launch.py        # 需 source 工作区 install
-xdg-open http://127.0.0.1:8095/console.html         # 自动连接；点「运行自检」
+# 推荐：完整仿真 + 独立监控（两终端）
+ros2 launch ros_web_link sim_demo.launch.py transport:=false
+ros2 launch ros_web_link monitor.launch.py
+# 浏览器 http://127.0.0.1:8095/ → /console.html（自动连接；点「运行自检」）
+# 浏览器示例 http://127.0.0.1:8095/examples/minimal_client.html
+# 主题：白色二次元商业风格（LIVE STUDIO / 樱粉-星紫渐变 / 圆角卡片）；
+# 首次连接无用户布局时按图上话题自动适配 Displays（官方 TB3 的压缩图/test_cloud
+# 与任意仿真的 RGB/腕载点云都识别）。
 ```
 
 核对项（自动化钩子同名）：
@@ -110,13 +149,23 @@ xdg-open http://127.0.0.1:8095/console.html         # 自动连接；点「运�
    ，2026-10-16 起默认——原始流默认关，gz 无头相机不节流会灌满桥缓冲饿死服务响应，
    见 architecture.md)、PointCloud2(/test_cloud)、OccupancyGrid(/map)、LaserScan3D(/scan)、
    RobotModel(mesh 经 robot-mesh 服务，**以 mesh 请求 200 为硬证据**——视觉分析会把
-   点云簇误读为机器人本体)、TF；自动化经 `window.__rwl_viz`（cfg/内部状态）。
+   点云簇误读为机器人本体)、TF；点云应为**小圆点 + Z 轴彩虹**（RViz2 Size(Pixels)
+   语义，不应出现大蓝方块），`window.__rwl_viz_stats().cloud` 应含
+   `colorBy:'axis'`/`sizePx:3`/`points≈10k`；自动化经 `window.__rwl_viz`。
 3. **渲染与传输健康**：`window.__rwl_viz_stats`（FPS/点数）、监控卡「网关丢帧/网关积压」
    应为 0（快消费者）；图像/点云 stamp 时延（rviz Delay 语义）秒级以内。
 4. **浏览器 console 无错误**；改过 JS 后必须**新开标签**（IAB 模块缓存不重验证，带 `?v=`）。
-5. 交互闭环抽测：发布 `/initialpose` → `/particle_cloud` 出流；teleop W 键 → `/odom` 位移。
+5. **图谱工作区**：点顶部「图谱」，核对 `#topo-stats`（节点/话题/服务或仅节点连线）、
+   方向粒子、服务/动作/隐藏调试过滤、搜索淡化、悬停邻域高亮、适配按钮；
+   切换「节点+话题 / 仅节点」，仅节点模式不应残留话题节点或旧粒子；
+   `window.__rwl_topology` 为自动化入口。
+6. **RViz 参考细节**：Displays 行有类型色标；悬停行出现 `⧉` 复制；复制点云后
+   实例数 +1 且两路独立订阅。
+7. 交互闭环抽测：发布 `/initialpose` → `/particle_cloud` 出流；teleop W 键 → `/odom` 位移。
 
-截图存证放 `gui-test-screenshots/`。
+截图存证放 `gui-test-screenshots/`；参考窗口（RViz2 / Gazebo / rqt_graph）在
+`gui-test-screenshots/reference/`。注意 `rqt_graph` 启动后若画布空白，点工具栏左侧
+「Refresh ROS graph」；`rqt_plot` 的 `QLayout::removeWidget` 是上游 Qt 警告，不影响绘图。
 
 ## 5. 验收口径
 

@@ -19,7 +19,7 @@ peach_observability:
       expected_joints: [shoulder_joint, upperArm_joint, foreArm_joint, wrist1_joint, wrist2_joint, wrist3_joint]  # MUST 冻结序（AGENTS 第 1 章）
       expected_tcp_norm_m: -1.0  # wrist3_Link→tcp 平移模长期望（米）；-1=跳过；harvest_system 从 aubo_description 工具档案算好注入
       moveit_expected: true  # 是否要求 move_group 在场（launch 按 moveit_enabled 注入）
-      imu_expected: true  # 是否要求 IMU 话题在场（launch 按 imu_enabled 注入）
+      force_expected: true  # 是否要求 /force/points 在场（launch 按 force_enabled 注入）
       model_paths: ''  # 启动期须在位的模型权重路径（逗号分隔；空=SKIP；部署档可填 yolo/sam 权重绝对路径）
       color_image_topic: /camera/color/image_raw  # 相机帧率探针 color 话题
       depth_image_topic: /camera/depth/image_raw  # 相机帧率探针 depth 话题

@@ -340,18 +340,6 @@ private:
   bool stageReturnHarvestStow(CycleContext & ctx);
   bool stageVerifyHarvestOutcome(CycleContext & ctx);
   bool stageCompleteTarget(CycleContext & ctx);
-  /// 自适应档案才 true；空心末端永不走 imu_follow。
-  bool usesImuFollowContact() const;
-  /// 同步调 /imu_follow Trigger；服务缺失或失败写 why。
-  bool callImuFollowTrigger(
-    const rclcpp::Client<Trigger>::SharedPtr & client,
-    const char * name, std::string & why);
-  /// 按行程/速度睡等待插入或回退；取消或接触止损返回 false。
-  bool waitImuFollowTravel(
-    double travel_m, const Eigen::Vector3d & axis, bool retract,
-    std::string & why);
-  /// 最佳努力 ~/disable；幂等。MTC 回 stow 前必须先停 Servo。
-  void releaseImuFollowSession(CycleContext & ctx);
 
   /// 只画已走到的视点；candidates 空则清场（未执行候选不发箭头）。
   void publishViewMarkers(
@@ -399,8 +387,6 @@ private:
   CycleContext tool_authority_ctx_{};
   rclcpp::Subscription<aubo_msgs::msg::IOState>::SharedPtr io_state_sub_;
   rclcpp::Publisher<peach_interfaces::msg::ToolState>::SharedPtr tool_state_pub_;
-  rclcpp::Subscription<std_msgs::msg::Float64>::SharedPtr imu_progress_sub_;
-  std::atomic<double> imu_insert_travel_{0.0};  // 批次5 回退判据（目标积分）
 
   // /rosout 子 logger：rqt_console 按 peach_arm.cycle / peach_arm.contact 过滤。
   // 必须持有对象，临时 get_child() 析构会注销子 logger。
@@ -607,12 +593,6 @@ private:
   // executeAction 受理→终局同一 action 线程内写读，无需原子。
   std::uint32_t pending_accept_failure_code_{0};
   rclcpp::Client<aubo_msgs::srv::SetIO>::SharedPtr tool_io_client_;  ///< 刀具 SetIO 客户端（伴随节点侧）。
-  /// 自适应接触窗：仅 adaptive_shear_v1 FULL 调用；其余末端永不 send。
-  rclcpp::Client<Trigger>::SharedPtr imu_follow_enable_client_;
-  rclcpp::Client<Trigger>::SharedPtr imu_follow_disable_client_;
-  rclcpp::Client<Trigger>::SharedPtr imu_follow_insert_start_client_;
-  rclcpp::Client<Trigger>::SharedPtr imu_follow_insert_stop_client_;
-  rclcpp::Client<Trigger>::SharedPtr imu_follow_insert_retract_client_;
 };
 
 }  // namespace peach_arm

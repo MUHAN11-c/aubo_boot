@@ -30,11 +30,9 @@ PREFLIGHT_PATTERNS = (
     'joint_state_publisher',
     'joint_state_publisher_gui',
     'extrinsics_publisher',
-    'serial_imu_node',
+    'serial_force_node',
     'stereo_camera_node',
     'peach_scene_obstacles',
-    'imu_follow_node',
-    'servo_node',
     'rviz2',
 )
 

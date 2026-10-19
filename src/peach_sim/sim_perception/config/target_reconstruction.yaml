@@ -1,0 +1,103 @@
+# peach_target_reconstruction_node 参数全量清单（nav2 式：launch 以 ParameterFile 装入，部署值即事实源）
+# 节点 TargetReconstructionParams.attach 按本文件声明叶子；ros2 param set 原地刷新。
+# 键名冻结。跨包轴向后撤由 grasp_standoffs.yaml 经 launch 注入覆盖。
+peach_target_reconstruction_node:
+  ros__parameters:
+    frames:
+      base_frame: base_link  # 重建输出坐标系（点云/Marker/诊断的 frame_id）
+    camera:
+      color_topic: /camera/color/image_raw  # 彩色图话题（bgr8）
+      depth_topic: /camera/depth/image_raw  # 深度图话题（uint16 或 32FC1）
+      camera_info_topic: /camera/color/camera_info  # 彩色相机内参话题（只用 K 矩阵）
+    sync_slop_s: 0.05  # RGB/深度/内参三路近似时间同步允差 (s)
+    tf_timeout_sec: 1.0  # 按 depth.header.stamp 精确查询 TF 的最长等待 (s)；连续运动时严禁回退 latest TF，否则深度与机器人位姿错时会产生重影
+    depth_scale_unit: 0.25  # 深度比例因子（仅 uint16 原始深度生效）：raw × 本值 = 毫米（Percipio 常见 0.25）；数据集回放(真毫米)设 1.0；32FC1 浮点深度按（米）×1000，本参数不生效
+    capture:
+      min_views: 1  # finalize 所需最少机位数。单视即可收口，不为凑第二机位再移臂（效率优先）；同机位连帧不加机位
+      recommended_views: 5  # 推荐视角数（不足仅提示，不阻塞 finalize）
+      max_views: 24  # 帧栈上限（不是节拍）：percipio 端约 2.5 FPS 时有效视角常 4–6；peach_stereo 端（09-17 A/B 实测感知处理 ~7.5fps）单停帧密度约 3 倍，同视角去重靠 view_filter，本上限无需改动
+      minimum_baseline_deg: 0.0  # 机位角基线门 (deg)。0=单视可 finalize，不强制再移一个视点
+      minimum_mean_nearest_baseline_deg: 0.0  # 视角集合平均最近基线角门限 (deg)。0=不要求多视张角
+      minimum_mean_depth_ratio: 0.4  # 视角集合平均有效深度占比门限
+      require_robot_static: true  # 观察到位后才积分；false 时连续运动中每个唯一时间戳都会入栈（现场重影后圆柱轴可偏 ~90°）
+      static_joint_vel_thresh: 0.03  # 到位后残余速度阈值 (rad/s)；转移中仍是 0.4–1.5 rad/s
+      joint_state_tolerance_s: 0.1  # 曝光前后关节状态各自最大间距(s)；缺失/过旧/无速度拒帧，不回退处理时刻速度
+      # sim 分叉：感知 worker 约 0.3–0.5 fps，掩膜比深度晚数秒。2 s 窗会把
+      # 对应深度帧丢掉，重建只剩 missing_mask。真机掩膜更快，保持 2 s。
+      max_frame_age_s: 8.0
+      auto_mode: true  # 有候选自动开始，每个唯一同步帧进入质量门；false = 纯手动 Trigger 服务流
+      auto_finalize_at_max: false  # 默认由用户在覆盖充分后 finalize
+      auto_min_interval_s: 0.0  # 每个唯一相机时间戳均进入质量门
+      require_target_mask: true  # 只积分所选稳定 ID 的掩膜（F1 后=容差内最近邻配对）
+      # sim 分叉：YOLO+SAM 约 0.3–0.5 fps，掩膜 stamp 比深度晚 1–3 s。
+      # 真机 0.08 s（半个掩膜周期）在这里对不上，采帧全是 missing_mask。
+      mask_stamp_tolerance_s: 3.0
+      min_mask_pixels: 300  # 过小视为远距小目标或严重遮挡
+      min_mask_depth_ratio: 0.35  # 强光/反光造成深度空洞时跳帧
+      max_target_drift_m: 0.04  # [m] 风吹目标漂移过大时跳帧：0.06 档吸纳正常风摆（峰峰 5~6cm）仍能拦住跨目标误绑。e2e25 轮（09-17）曾在 mock 下放宽到 0.25 解锁（mock 下相机固定而 TF 按眼在手上算，视点一动 base 系锚必偏 ~220mm，纯伪影）；用户裁定 mock 测试作废转真机后已回调 0.04。本节点门配置 configure 期冻结，ros2 param set 运行时改不生效（须重启）。
+      min_neighbor_gap_m: 0.15  # [m] 绑定锚点与其他锁定目标锚点的最小间距（邻目标串扰门）：更近的邻居锚点在场时拒帧，防邻近点云混入形成 TSDF 不可回滚双层表面（I6）；≤0 关闭本门
+      neighbor_gap_area_ratio: 2.0  # 串扰门小框豁免比；邻居检测框面积×本值 < 绑定框面积时该邻居不计入间距（叶片遮挡残片/误检）；≤0 关闭豁免
+      build_timeout_s: 180.0  # BuildTargetModel 等 min_views 上限 (s)；超时不 finalize
+    bind:
+      switch_holdoff_s: 2.0  # [s] selected 切换防抖：selected_target_id 变化（含变空）须持续超过本时长才放弃进行中会话重绑；holdoff 内切回原 ID 取消挂起，旧会话继续采帧
+    view_filter:
+      min_translation: 0.002  # [m] 与旋转同时低于阈值则不重复积分
+      min_rotation_deg: 1.0  # [deg] 与平移同时低于阈值则不重复积分
+    icp:
+      # sim 分叉：袋点云常少于 300，ICP 把首帧也拒掉（insufficient_source_points），
+      # 窗口里一帧都进不了模型。仿真用 FK 位姿积分；真机 peach_harvester 仍开 ICP。
+      enable: false
+      min_points: 300  # ICP 最小点数
+      coarse_voxel: 0.006  # [m] 粗配准体素
+      fine_voxel: 0.003  # [m] 精配准体素
+      coarse_correspondence: 0.015  # [m] 粗配准对应点距离
+      fine_correspondence: 0.007  # [m] 精配准对应点距离
+      coarse_iterations: 20  # 粗配准迭代数
+      fine_iterations: 10  # 精配准迭代数
+      min_fitness: 0.35  # 最小 fitness
+      max_rmse: 0.008  # [m] 最大 RMSE
+      max_translation: 0.01  # [m] 最大平移修正，超出说明不是小修正
+      max_rotation_deg: 3.0  # [deg] 最大旋转修正
+      target_refresh_min_period: 1  # [帧] ICP target 全量刷新周期 k 下限；1=每帧全量提取（旧行为）
+      target_refresh_max_period: 5  # [帧] k 上限（修正量长期稳定才拉长到此）
+      target_refresh_drift_ratio: 0.5  # 漂移判定比：修正量 EMA ≥ max_translation×本值（或出现 fk 回退/拒帧）→ k 收回下限；≤ 1/4×该阈值 → k 拉长到上限；中间为迟滞保持带防抖，新会话无修正量证据前 k=下限（逐帧全量）
+    local_volume:
+      size_x: 0.3  # [m] 局部体素盒 X 边长（TSDF 云 ROI 裁剪）
+      size_y: 0.3  # [m] 局部体素盒 Y 边长
+      size_z: 0.4  # [m] 局部体素盒 Z 边长
+    tsdf:
+      enable: true  # false=只做原始点云累加（不跑 TSDF）
+      voxel_length: 0.003  # [m] 体素边长
+      sdf_trunc: 0.012  # [m] 截断距离
+      depth_trunc: 1.5  # [m] 深度截断（更远的深度不积分）
+    cloud_filter:
+      voxel_size: 0.003  # [m] 体素降采样（≤0 不降）
+      enable_statistical_filter: true  # 统计离群剔除（20 邻域 2σ）
+    decision:
+      validity_s: 120.0  # [s] GraspDecision/TargetModel 有效窗（G1 2026-09-20 参数化，原硬编码 5s 与接近链时长错配）：须覆盖 finalize→套入全链——真机单段 LIN 实测 7.5s，FULL 链（reconfirm 2-6s→回拍照→PTP+LIN→残差验证）全程 30-60s，120 留裕量。模型陈旧性主要由 model_revision 单调性把关（0022 心跳不续签语义不变），本窗口是第二道界
+    refit:
+      enable: true  # false=不做几何 refit
+      cylinder_inlier_min: 0.35  # ACCEPT 门控：内点率下限（圆柱/球共用）
+      rmse_max_m: 0.005  # [m] ACCEPT 门控：拟合 RMSE 上限
+      entry_standoff_m: 0.0  # [m] entry_pose 自 bottom 沿 −axis 后撤量；0=入口在拟合袋底。整栈数值以 grasp_standoffs.yaml 为准。
+      pregrasp_standoff_m: 0.0  # [m] GraspDecision.pregrasp 自入口沿 −axis 后撤；0=与入口重合。由 grasp_standoffs.yaml 与技能 mtc_approach_along_axis_m 同值注入。
+      max_axis_angle_deg: 35.0  # [deg] 可靠 ACCEPT 点云拟合轴 vs 融合轴超此角=fused_axis_conflict（REOBSERVE、清预算与旧缓存许可）；hint 超此角只打 fused_perception_axis_mismatch 诊断旗标，无可靠拟合且 hint>90° 才保守拒绝
+    publish:
+      on_change_only: true  # false=回退逐次全发旧行为（点云/Marker 大消息仅内容版本变化且过最小间隔才发布）
+      min_interval_s: 0.2  # [s] 最小发布间隔；≤0 关闭间隔门
+    refitter:
+      cylinder_impl: cylinder_refit  # 袋桃圆柱 refit 映射名（REFITTERS_BY_IMPL；默认 CylinderRefitter）
+      sphere_impl: sphere_refit  # 裸桃球 refit 映射名（REFITTERS_BY_IMPL；默认 SphereRefitter）
+    session:
+      root_dir: ''  # session 落盘根；空=工作区 runs/（与账本、观测 JSONL 同一根）
+    tool:
+      budget:
+        cut_reference_offset_m: 0.0  # [m] 袋口→刀口工艺偏置（沿袋底→袋口）；默认刀口对袋口，±30mm 内另行实测标定；不重复扣 L_blade
+        d_inner: 0.120  # [m] GraspDecision 动态预算许可的工具开口径。基础值=自适应剪切手；整栈由 launch tool_profile 档案注入覆盖（三把剪切手 0.030/0.080/0.120）
+        blade_capture_half_width: 0.008  # [m] 刀口捕获半宽。provenance=档案名义值；M0 台架按柄径×倾角×袋材扫描后重标定（±20mm 轴向偏移取 95% 捕获半宽）
+        axial_safety_margin: 0.0  # [m] 轴向安全余量。批次2 起 0（与 fruit_safety_clearance 历史重复扣减，G1 根因③）；旧值 0.004 可临时恢复对拍
+        blade_plane_calibration_error95: 0.002  # [m] 刀平面标定残差。provenance=逐工具 TCP↔刀口面标定（待 M0）
+        robot_axial_error95: 0.002  # [m] 沿轴 LIN 重复精度。provenance=trajectory_watchdog 台架采集（待 M0）
+        target_motion95: 0.003  # [m] 目标运动（风动）。provenance=identity swing 统计回灌（P1-3 后动态化；现为保守常数）
+        axial_neck_floor_m: 0.003  # [m] 袋颈轴向散布下限（区别于横向 6mm 下限；G1 维度拆分）
+      profile_id: adaptive_shear_v1  # 当前末端工具档案标签（消息 tool_profile_id）。整栈由 launch tool_profile 档案注入覆盖

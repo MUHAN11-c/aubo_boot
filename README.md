@@ -64,7 +64,7 @@ ros2 launch peach_bringup harvest_system.launch.py \
 
 | 路径 | 内容 |
 |------|------|
-| `src/` | v1 采摘栈九包（`src/peach/`，含公共库与相机前端）+ v2 孵化十二包（`src/peach2/`）+ IVG 演示九包（`src/ivg/`）+ 臂/相机驱动九包 + 过程页静态资源 `peach_web` 1 + 仿真 `peach_sim` 1 + 可选 USB IMU / IMU 跟随 2 + 夹爪描述 `robotiq_description` 1 |
+| `src/` | v1 采摘栈九包（`src/peach/`，含公共库与相机前端）+ v2 孵化十二包（`src/peach2/`）+ IVG 演示九包（`src/ivg/`）+ 臂/相机驱动九包 + 过程页静态资源 `peach_web` 1 + 仿真 `peach_sim` 1 + 5 点力传感器 `serial_force` 1 + 官方示例 `src/examples/`（ros2/examples / TurtleBot3 / MoveIt panda）+ 夹爪描述 `robotiq_description` 1 |
 | `docs/` | v1/v2 方案书与架构图交付件（非活文档）；现行架构、IO 与测试指导在各包 `doc/` |
 | `scripts/` | 工作区打包与架构图生成工具；业务、采集与测试入口在所属包 |
 | `runs/` | 过程数据唯一根（文本按 `.gitignore` 可入库，bag/图像等二进制留本地） |

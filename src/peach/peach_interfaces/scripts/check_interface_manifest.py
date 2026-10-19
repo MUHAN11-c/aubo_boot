@@ -107,10 +107,12 @@ _GENERATED_PARAM_MODULES = {
 
 
 def _iter_sources(src_root: Path):
-    # 2026-10-10 子工作空间分组：v1 包嵌套在 src/peach/ 下；2026-10-13 起 sim 组在
-    # src/sim/sim_*、IVG 在 src/ivg/——均不匹配本 glob，不在反向扫描面。
-    # 名字过滤天然排除 peach2_*（peach2_ 前缀）。
-    packages = sorted(set(src_root.glob('peach_*')) | set(src_root.glob('*/peach_*')))
+    # 2026-10-10 子工作空间分组：v1 包嵌套在 src/peach/ 下。sim 五包在
+    # src/peach_sim/sim_*、IVG 在 src/ivg/，不在反向扫描面。组目录名 peach_sim
+    # 会命中顶层 peach_*，必须剔除，否则整棵仿真树被扫进来。
+    packages = sorted(
+        path for path in set(src_root.glob('peach_*')) | set(src_root.glob('*/peach_*'))
+        if path.name != 'peach_sim')
     for package in packages:
         for path in package.rglob('*'):
             if path.suffix not in {'.py', '.cpp', '.hpp', '.xml', '.yaml'}:

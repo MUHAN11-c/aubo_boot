@@ -1,0 +1,218 @@
+[INFO] [1792578394.890409009] [controller_manager]: Using Steady (Monotonic) clock for triggering controller manager cycles.
+[INFO] [1792578394.893695402] [controller_manager]: Subscribing to '/robot_description' topic for robot description.
+[INFO] [1792578394.893741086] [controller_manager]: update rate is 200 Hz
+[INFO] [1792578394.893744360] [controller_manager]: Overruns handling is : enabled
+[INFO] [1792578394.893746402] [controller_manager]: Spawning controller_manager RT thread with scheduler priority: 50
+[INFO] [1792578394.893793142] [controller_manager]: Successful set up FIFO RT scheduling policy with priority 50.
+[INFO] [1792578395.167105254] [controller_manager]: Received robot description from topic.
+[INFO] [1792578395.167154466] [controller_manager]: Enforcing command limits is disabled. Command limits from URDF will be ignored.
+[INFO] [1792578395.169464441] [controller_manager]: Loading hardware 'AuboE5System' 
+[INFO] [1792578395.169857194] [controller_manager]: Loaded hardware 'AuboE5System' from plugin 'mock_components/GenericSystem'
+[INFO] [1792578395.169905317] [controller_manager]: Initialize hardware 'AuboE5System' 
+[INFO] [1792578395.177001079] [controller_manager]: Successful initialization of hardware 'AuboE5System'
+[INFO] [1792578395.177370929] [controller_manager]: Activating component 'AuboE5System'.
+[INFO] [1792578395.177378597] [resource_manager]: 'configure' hardware 'AuboE5System' 
+[INFO] [1792578395.177385133] [resource_manager]: Successful 'configure' of hardware 'AuboE5System'
+[INFO] [1792578395.177396489] [resource_manager]: 'activate' hardware 'AuboE5System' 
+[INFO] [1792578395.177401150] [resource_manager]: Successful 'activate' of hardware 'AuboE5System'
+[INFO] [1792578395.177450968] [controller_manager]: Registering statistics for : AuboE5System
+[INFO] [1792578395.177481741] [controller_manager]: Resource Manager has been successfully initialized. Starting Controller Manager services...
+[INFO] [1792578395.866509294] [controller_manager]: Loading controller : 'joint_state_broadcaster' of type 'joint_state_broadcaster/JointStateBroadcaster'
+[INFO] [1792578395.866553195] [controller_manager]: Loading controller 'joint_state_broadcaster'
+[INFO] [1792578395.869001956] [controller_manager]: Controller 'joint_state_broadcaster' node arguments: --ros-args -p use_sim_time:=False --params-file /tmp/launch_params_94zehaqj --params-file /home/mu/Desktop/aubo_e5_jazzy_ws/install/aubo_e5_bringup/share/aubo_e5_bringup/config/controllers.yaml 
+[INFO] [1792578395.961595923] [controller_manager]: Configuring controller: 'joint_state_broadcaster'
+[INFO] [1792578395.961738020] [joint_state_broadcaster]: 'joints' or 'interfaces' parameter is empty. All available state interfaces will be published
+[INFO] [1792578395.970542481] [controller_manager]: Activating controllers: [ joint_state_broadcaster ]
+[INFO] [1792578395.974152943] [controller_manager]: Successfully switched controllers!
+[INFO] [1792578396.580580170] [controller_manager]: Loading controller : 'joint_trajectory_controller' of type 'joint_trajectory_controller/JointTrajectoryController'
+[INFO] [1792578396.580626293] [controller_manager]: Loading controller 'joint_trajectory_controller'
+[INFO] [1792578396.582236746] [controller_manager]: Controller 'joint_trajectory_controller' node arguments: --ros-args -p use_sim_time:=False --params-file /tmp/launch_params_94zehaqj --params-file /home/mu/Desktop/aubo_e5_jazzy_ws/install/aubo_e5_bringup/share/aubo_e5_bringup/config/controllers.yaml 
+[INFO] [1792578396.595696126] [controller_manager]: Configuring controller: 'joint_trajectory_controller'
+[INFO] [1792578396.595818983] [joint_trajectory_controller]: No specific joint names are used for command interfaces. Using 'joints' parameter.
+[INFO] [1792578396.595836852] [joint_trajectory_controller]: Command interfaces are [position] and state interfaces are [position velocity].
+[INFO] [1792578396.595853704] [joint_trajectory_controller]: Using 'splines' interpolation method.
+[INFO] [1792578396.597316306] [joint_trajectory_controller]: Action status changes will be monitored at 20.00 Hz.
+[INFO] [1792578396.600197549] [joint_trajectory_controller]: Setting initial scaling factor to 1.000000
+[INFO] [1792578396.600212260] [joint_trajectory_controller]: No scaling interface set. This controller will not read speed scaling from the hardware.
+[INFO] [1792578396.605339812] [controller_manager]: Activating controllers: [ joint_trajectory_controller ]
+[INFO] [1792578396.609119065] [controller_manager]: Successfully switched controllers!
+[INFO] [1792578424.400467329] [joint_trajectory_controller]: Received new action goal
+[INFO] [1792578424.400508466] [joint_trajectory_controller]: Accepted new action goal
+[INFO] [1792578426.173922799] [joint_trajectory_controller]: Goal reached, success!
+[INFO] [1792578426.259634766] [joint_trajectory_controller]: Received new action goal
+[INFO] [1792578426.259673768] [joint_trajectory_controller]: Accepted new action goal
+[INFO] [1792578427.858917228] [joint_trajectory_controller]: Goal reached, success!
+[INFO] [1792578428.305440655] [joint_trajectory_controller]: Received new action goal
+[INFO] [1792578428.305476608] [joint_trajectory_controller]: Accepted new action goal
+[INFO] [1792578431.778921505] [joint_trajectory_controller]: Goal reached, success!
+[INFO] [1792578432.065804669] [joint_trajectory_controller]: Received new action goal
+[INFO] [1792578432.065832634] [joint_trajectory_controller]: Accepted new action goal
+[INFO] [1792578435.539085642] [joint_trajectory_controller]: Goal reached, success!
+[INFO] [1792578435.634998786] [joint_trajectory_controller]: Received new action goal
+[INFO] [1792578435.635043208] [joint_trajectory_controller]: Accepted new action goal
+[INFO] [1792578439.008900355] [joint_trajectory_controller]: Goal reached, success!
+[INFO] [1792578439.070401367] [joint_trajectory_controller]: Received new action goal
+[INFO] [1792578439.070440482] [joint_trajectory_controller]: Accepted new action goal
+[INFO] [1792578439.733903442] [joint_trajectory_controller]: Goal reached, success!
+[INFO] [1792578440.615348748] [joint_trajectory_controller]: Received new action goal
+[INFO] [1792578440.615389807] [joint_trajectory_controller]: Accepted new action goal
+[INFO] [1792578441.278938676] [joint_trajectory_controller]: Goal reached, success!
+[INFO] [1792578457.320231495] [joint_trajectory_controller]: Received new action goal
+[INFO] [1792578457.320266059] [joint_trajectory_controller]: Accepted new action goal
+[INFO] [1792578458.938926042] [joint_trajectory_controller]: Goal reached, success!
+[INFO] [1792578459.109616946] [joint_trajectory_controller]: Received new action goal
+[INFO] [1792578459.109652733] [joint_trajectory_controller]: Accepted new action goal
+[INFO] [1792578460.708933920] [joint_trajectory_controller]: Goal reached, success!
+[INFO] [1792578461.365411535] [joint_trajectory_controller]: Received new action goal
+[INFO] [1792578461.365447343] [joint_trajectory_controller]: Accepted new action goal
+[INFO] [1792578466.089036189] [joint_trajectory_controller]: Goal reached, success!
+[INFO] [1792578466.380341026] [joint_trajectory_controller]: Received new action goal
+[INFO] [1792578466.380376655] [joint_trajectory_controller]: Accepted new action goal
+[INFO] [1792578471.108963484] [joint_trajectory_controller]: Goal reached, success!
+[INFO] [1792578471.189868207] [joint_trajectory_controller]: Received new action goal
+[INFO] [1792578471.189902320] [joint_trajectory_controller]: Accepted new action goal
+[INFO] [1792578474.408958521] [joint_trajectory_controller]: Goal reached, success!
+[INFO] [1792578474.481768799] [joint_trajectory_controller]: Received new action goal
+[INFO] [1792578474.481827268] [joint_trajectory_controller]: Accepted new action goal
+[INFO] [1792578475.143905348] [joint_trajectory_controller]: Goal reached, success!
+[INFO] [1792578475.976503353] [joint_trajectory_controller]: Received new action goal
+[INFO] [1792578475.976563518] [joint_trajectory_controller]: Accepted new action goal
+[INFO] [1792578476.638979595] [joint_trajectory_controller]: Goal reached, success!
+[INFO] [1792578489.237446237] [joint_trajectory_controller]: Received new action goal
+[INFO] [1792578489.237484282] [joint_trajectory_controller]: Accepted new action goal
+[INFO] [1792578490.853914440] [joint_trajectory_controller]: Goal reached, success!
+[INFO] [1792578491.025450033] [joint_trajectory_controller]: Received new action goal
+[INFO] [1792578491.025496489] [joint_trajectory_controller]: Accepted new action goal
+[INFO] [1792578492.628927455] [joint_trajectory_controller]: Goal reached, success!
+[INFO] [1792578493.136540271] [joint_trajectory_controller]: Received new action goal
+[INFO] [1792578493.136577431] [joint_trajectory_controller]: Accepted new action goal
+[INFO] [1792578497.043892940] [joint_trajectory_controller]: Goal reached, success!
+[INFO] [1792578497.355731372] [joint_trajectory_controller]: Received new action goal
+[INFO] [1792578497.355781151] [joint_trajectory_controller]: Accepted new action goal
+[INFO] [1792578501.263917731] [joint_trajectory_controller]: Goal reached, success!
+[INFO] [1792578501.365250691] [joint_trajectory_controller]: Received new action goal
+[INFO] [1792578501.365293820] [joint_trajectory_controller]: Accepted new action goal
+[INFO] [1792578504.583972479] [joint_trajectory_controller]: Goal reached, success!
+[INFO] [1792578504.655790614] [joint_trajectory_controller]: Received new action goal
+[INFO] [1792578504.655829466] [joint_trajectory_controller]: Accepted new action goal
+[INFO] [1792578505.318898778] [joint_trajectory_controller]: Goal reached, success!
+[INFO] [1792578506.264973000] [joint_trajectory_controller]: Received new action goal
+[INFO] [1792578506.265003137] [joint_trajectory_controller]: Accepted new action goal
+[INFO] [1792578506.928985285] [joint_trajectory_controller]: Goal reached, success!
+[INFO] [1792578519.265496150] [joint_trajectory_controller]: Received new action goal
+[INFO] [1792578519.265533898] [joint_trajectory_controller]: Accepted new action goal
+[INFO] [1792578521.148943269] [joint_trajectory_controller]: Goal reached, success!
+[INFO] [1792578521.311592544] [joint_trajectory_controller]: Received new action goal
+[INFO] [1792578521.311644597] [joint_trajectory_controller]: Accepted new action goal
+[INFO] [1792578522.913898268] [joint_trajectory_controller]: Goal reached, success!
+[INFO] [1792578523.421133826] [joint_trajectory_controller]: Received new action goal
+[INFO] [1792578523.421190240] [joint_trajectory_controller]: Accepted new action goal
+[INFO] [1792578526.298922113] [joint_trajectory_controller]: Goal reached, success!
+[INFO] [1792578526.499294153] [joint_trajectory_controller]: Received new action goal
+[INFO] [1792578526.499349193] [joint_trajectory_controller]: Accepted new action goal
+[INFO] [1792578529.378959361] [joint_trajectory_controller]: Goal reached, success!
+[INFO] [1792578529.459650535] [joint_trajectory_controller]: Received new action goal
+[INFO] [1792578529.459698305] [joint_trajectory_controller]: Accepted new action goal
+[INFO] [1792578532.943984876] [joint_trajectory_controller]: Goal reached, success!
+[INFO] [1792578532.998195943] [joint_trajectory_controller]: Received new action goal
+[INFO] [1792578532.998295845] [joint_trajectory_controller]: Accepted new action goal
+[INFO] [1792578533.658900708] [joint_trajectory_controller]: Goal reached, success!
+[INFO] [1792578534.594887332] [joint_trajectory_controller]: Received new action goal
+[INFO] [1792578534.594990724] [joint_trajectory_controller]: Accepted new action goal
+[INFO] [1792578535.258936356] [joint_trajectory_controller]: Goal reached, success!
+[INFO] [1792578569.268662238] [joint_trajectory_controller]: Received new action goal
+[INFO] [1792578569.268736445] [joint_trajectory_controller]: Accepted new action goal
+[INFO] [1792578570.883915840] [joint_trajectory_controller]: Goal reached, success!
+[INFO] [1792578570.981794498] [joint_trajectory_controller]: Received new action goal
+[INFO] [1792578570.981837738] [joint_trajectory_controller]: Accepted new action goal
+[INFO] [1792578572.578965319] [joint_trajectory_controller]: Goal reached, success!
+[INFO] [1792578573.130739100] [joint_trajectory_controller]: Received new action goal
+[INFO] [1792578573.130779906] [joint_trajectory_controller]: Accepted new action goal
+[INFO] [1792578578.173936345] [joint_trajectory_controller]: Goal reached, success!
+[INFO] [1792578578.355570978] [joint_trajectory_controller]: Received new action goal
+[INFO] [1792578578.355608140] [joint_trajectory_controller]: Accepted new action goal
+[INFO] [1792578583.398923659] [joint_trajectory_controller]: Goal reached, success!
+[INFO] [1792578583.465487470] [joint_trajectory_controller]: Received new action goal
+[INFO] [1792578583.465532371] [joint_trajectory_controller]: Accepted new action goal
+[INFO] [1792578586.683927279] [joint_trajectory_controller]: Goal reached, success!
+[INFO] [1792578586.749856664] [joint_trajectory_controller]: Received new action goal
+[INFO] [1792578586.749891794] [joint_trajectory_controller]: Accepted new action goal
+[INFO] [1792578587.413950448] [joint_trajectory_controller]: Goal reached, success!
+[INFO] [1792578588.569540209] [joint_trajectory_controller]: Received new action goal
+[INFO] [1792578588.569564845] [joint_trajectory_controller]: Accepted new action goal
+[INFO] [1792578589.233926907] [joint_trajectory_controller]: Goal reached, success!
+[INFO] [1792578605.000716109] [joint_trajectory_controller]: Received new action goal
+[INFO] [1792578605.000757320] [joint_trajectory_controller]: Accepted new action goal
+[INFO] [1792578606.503908343] [joint_trajectory_controller]: Goal reached, success!
+[INFO] [1792578606.694699038] [joint_trajectory_controller]: Received new action goal
+[INFO] [1792578606.694730300] [joint_trajectory_controller]: Accepted new action goal
+[INFO] [1792578608.298930530] [joint_trajectory_controller]: Goal reached, success!
+[INFO] [1792578608.796364407] [joint_trajectory_controller]: Received new action goal
+[INFO] [1792578608.796407430] [joint_trajectory_controller]: Accepted new action goal
+[INFO] [1792578612.933921242] [joint_trajectory_controller]: Goal reached, success!
+[INFO] [1792578613.290523318] [joint_trajectory_controller]: Received new action goal
+[INFO] [1792578613.290560316] [joint_trajectory_controller]: Accepted new action goal
+[INFO] [1792578617.428960910] [joint_trajectory_controller]: Goal reached, success!
+[INFO] [1792578617.502404171] [joint_trajectory_controller]: Received new action goal
+[INFO] [1792578617.502450649] [joint_trajectory_controller]: Accepted new action goal
+[INFO] [1792578620.603916014] [joint_trajectory_controller]: Goal reached, success!
+[INFO] [1792578620.684712332] [joint_trajectory_controller]: Received new action goal
+[INFO] [1792578620.684829862] [joint_trajectory_controller]: Accepted new action goal
+[INFO] [1792578621.348916110] [joint_trajectory_controller]: Goal reached, success!
+[INFO] [1792578621.974804841] [joint_trajectory_controller]: Received new action goal
+[INFO] [1792578621.974840168] [joint_trajectory_controller]: Accepted new action goal
+[INFO] [1792578622.638901747] [joint_trajectory_controller]: Goal reached, success!
+[INFO] [1792578635.639876264] [joint_trajectory_controller]: Received new action goal
+[INFO] [1792578635.639903032] [joint_trajectory_controller]: Accepted new action goal
+[INFO] [1792578637.363900581] [joint_trajectory_controller]: Goal reached, success!
+[INFO] [1792578637.524553372] [joint_trajectory_controller]: Received new action goal
+[INFO] [1792578637.524590215] [joint_trajectory_controller]: Accepted new action goal
+[INFO] [1792578639.223967166] [joint_trajectory_controller]: Goal reached, success!
+[INFO] [1792578639.855588617] [joint_trajectory_controller]: Received new action goal
+[INFO] [1792578639.855622962] [joint_trajectory_controller]: Accepted new action goal
+[INFO] [1792578643.363921753] [joint_trajectory_controller]: Goal reached, success!
+[INFO] [1792578643.646182665] [joint_trajectory_controller]: Received new action goal
+[INFO] [1792578643.646223443] [joint_trajectory_controller]: Accepted new action goal
+[INFO] [1792578647.153914773] [joint_trajectory_controller]: Goal reached, success!
+[INFO] [1792578647.260118669] [joint_trajectory_controller]: Received new action goal
+[INFO] [1792578647.260156659] [joint_trajectory_controller]: Accepted new action goal
+[INFO] [1792578650.683918945] [joint_trajectory_controller]: Goal reached, success!
+[INFO] [1792578650.754199203] [joint_trajectory_controller]: Received new action goal
+[INFO] [1792578650.754249985] [joint_trajectory_controller]: Accepted new action goal
+[INFO] [1792578651.418914215] [joint_trajectory_controller]: Goal reached, success!
+[INFO] [1792578652.535820696] [joint_trajectory_controller]: Received new action goal
+[INFO] [1792578652.535861852] [joint_trajectory_controller]: Accepted new action goal
+[INFO] [1792578653.198925536] [joint_trajectory_controller]: Goal reached, success!
+[INFO] [1792578666.980041100] [joint_trajectory_controller]: Received new action goal
+[INFO] [1792578666.980075084] [joint_trajectory_controller]: Accepted new action goal
+[INFO] [1792578668.708901217] [joint_trajectory_controller]: Goal reached, success!
+[INFO] [1792578668.884777085] [joint_trajectory_controller]: Received new action goal
+[INFO] [1792578668.884807945] [joint_trajectory_controller]: Accepted new action goal
+[INFO] [1792578670.483927974] [joint_trajectory_controller]: Goal reached, success!
+[INFO] [1792578671.055311570] [joint_trajectory_controller]: Received new action goal
+[INFO] [1792578671.055358828] [joint_trajectory_controller]: Accepted new action goal
+[INFO] [1792578674.298904953] [joint_trajectory_controller]: Goal reached, success!
+[INFO] [1792578674.475915658] [joint_trajectory_controller]: Received new action goal
+[INFO] [1792578674.475964359] [joint_trajectory_controller]: Accepted new action goal
+[INFO] [1792578677.718919583] [joint_trajectory_controller]: Goal reached, success!
+[INFO] [1792578677.791486252] [joint_trajectory_controller]: Received new action goal
+[INFO] [1792578677.791530068] [joint_trajectory_controller]: Accepted new action goal
+[INFO] [1792578681.118969166] [joint_trajectory_controller]: Goal reached, success!
+[INFO] [1792578681.176739250] [joint_trajectory_controller]: Received new action goal
+[INFO] [1792578681.176805896] [joint_trajectory_controller]: Accepted new action goal
+[INFO] [1792578681.838918830] [joint_trajectory_controller]: Goal reached, success!
+[INFO] [1792578682.950100026] [joint_trajectory_controller]: Received new action goal
+[INFO] [1792578682.950140879] [joint_trajectory_controller]: Accepted new action goal
+[INFO] [1792578683.613896212] [joint_trajectory_controller]: Goal reached, success!
+[INFO] [1792578705.447713449] [rclcpp]: signal_handler(SIGINT/SIGTERM)
+[INFO] [1792578705.447765836] [controller_manager]: Shutdown request received....
+[INFO] [1792578705.447824152] [controller_manager]: Shutting down all controllers in the controller manager.
+[INFO] [1792578705.447842994] [controller_manager]: Deactivating controller 'joint_trajectory_controller'
+[INFO] [1792578705.447879433] [controller_manager]: Shutting down controller 'joint_trajectory_controller'
+[INFO] [1792578705.447952450] [controller_manager]: Deactivating controller 'joint_state_broadcaster'
+[INFO] [1792578705.447972180] [controller_manager]: Shutting down controller 'joint_state_broadcaster'
+[INFO] [1792578705.447991384] [resource_manager]: 'deactivate' hardware 'AuboE5System' 
+[INFO] [1792578705.447999482] [resource_manager]: Successful 'deactivate' of hardware 'AuboE5System'
+[INFO] [1792578705.448001167] [resource_manager]: 'shutdown' hardware 'AuboE5System' 
+[INFO] [1792578705.448002535] [resource_manager]: Successful 'shutdown' of hardware 'AuboE5System'
+[INFO] [1792578705.448044575] [controller_manager]: Shutting down the controller manager.

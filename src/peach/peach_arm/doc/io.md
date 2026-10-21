@@ -103,7 +103,7 @@ flowchart TB
 | `max_camera_step_m` | 下一视点沿当前相机直线截步（默认 0.15 m） |
 | `maximum_moves` | 观察移动次数封顶；覆盖达标即停 |
 | `quality.minimum_baseline_deg` | 覆盖门，部署 0°（单视可通过）；纯核未注入 yaml 时结构默认 8° 仅单测 |
-| `quality.allow_unrefined_geometry` | 默认 false；true 时用场景观测当精化入口并钉住 `grasp_allowed` 与 `bag_diameter_upper_m`（`skip_reconstruction` 打开） |
+| `quality.allow_unrefined_geometry` | 默认 false；true 时用场景观测当精化入口并钉住 `grasp_allowed`。钉扎期间，滞后的选中帧和重建 `GraspDecision(allowed=false)` 不撤套入许可（`skip_reconstruction` 打开）。promote 把 `suggested_travel_m` 置 0，`insertionTravel` 走 `(neck-entry)-neck_margin_m` 回退（2026-10-21 实测 0.05–0.10 m），不再采信旧 `L_insert=0.03` 封顶；全重建仍用融合 cut travel |
 | `photo_pose_named_target` | Survey / 回拍照位的 SRDF 名（`global_photo_pose`） |
 | `photo_pose_joint_tolerance_rad` / `photo_pose_max_joint_vel_rad_s` | `goToPhotoPose` 成功出口每轴 \|Δq\| / \|qdot\| 上限（默认 0.05） |
 | `execution_contract.robot_status_timeout_s` | robot_status 断流判据（安全门 stale + 诊断阈值；GPL 默认 0.5 s，config 未部署） |
@@ -114,7 +114,7 @@ flowchart TB
 
 ## 决策提交、READY与许可边界
 
-`target_observers.cpp::onDecision`将同一GraspDecision的身份、entry/cut/axis、质量和四能力一次提交TargetCache，`status.cpp`承接状态/诊断。FULL在精化到达后有界等待同目标已提交且未过期的决策快照，失败为`decision_snapshot_unavailable`，不是用单独refined_pose或READY心跳补许可。提交完整且geometry有效的Snapshot可READY；sleeve/cut无效时仍可有可预抓取几何，CONTACT/TOOL各自复检能力与运行门。模型年龄按generated_at计算，心跳不刷新生成时间，同revision不能续签有效期。Web allowed与臂侧最终授权分别记录。
+`target_observers.cpp::onDecision`将同一GraspDecision的身份、entry/cut/axis、质量和四能力一次提交TargetCache，`status.cpp`承接状态/诊断。FULL在精化到达后有界等待同目标已提交且未过期的决策快照（`timeouts.refined_s`，重建仍在 COLLECTING 时用满该上限，现行 5s），失败为`decision_snapshot_unavailable`。单条轨迹执行等待 `moveit.execute_timeout_s` 现行 5s，超时后停轨宽限 5s，不是用单独refined_pose或READY心跳补许可。提交完整且geometry有效的Snapshot可READY；sleeve/cut无效时仍可有可预抓取几何，CONTACT/TOOL各自复检能力与运行门。模型年龄按generated_at计算，心跳不刷新生成时间，同revision不能续签有效期。Web allowed与臂侧最终授权分别记录。
 
 接近候选排序：IK候选列表先按工具Z轴绝对滚转、再按腕轴加权关节代价排序，随后逐候选验证完整PTP走廊与轨迹门。候选范围为0、±15°、±30°、±45°；较小绝对滚转候选的完整轨迹通过后才停止；完整PTP轨迹守卫失败且尚未运动时可继续下一候选。FULL 另跳过套入直线未走满的滚转档，与 CheckReachability 同形。±45°是工具Z轴滚转限制，110°仍是整体TCP姿态测地线门。排序不改变授权、碰撞及完整走廊判据。
 

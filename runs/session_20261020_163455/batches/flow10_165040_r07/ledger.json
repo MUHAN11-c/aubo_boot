@@ -1,0 +1,80 @@
+{
+  "claimed": [
+    "target_32",
+    "target_33",
+    "target_34",
+    "target_35"
+  ],
+  "outcomes": [
+    {
+      "target_id": "target_33",
+      "outcome": 0,
+      "reason": "周期完成；tool.enabled=false 或未宣称采摘成功",
+      "quality_score": 0.0,
+      "elapsed_s": 18.648,
+      "completion_level": 6,
+      "stage_names": [
+        "reconfirm",
+        "approach_insert",
+        "tool",
+        "retreat"
+      ],
+      "stage_durations": [
+        0.344,
+        6.72,
+        0.0,
+        7.007
+      ]
+    },
+    {
+      "target_id": "target_32",
+      "outcome": 0,
+      "reason": "周期完成；tool.enabled=false 或未宣称采摘成功",
+      "quality_score": 0.0,
+      "elapsed_s": 18.824,
+      "completion_level": 6,
+      "stage_names": [
+        "reconfirm",
+        "approach_insert",
+        "tool",
+        "retreat"
+      ],
+      "stage_durations": [
+        0.372,
+        8.274,
+        0.0,
+        7.906
+      ]
+    },
+    {
+      "target_id": "target_34",
+      "outcome": 0,
+      "reason": "周期完成；tool.enabled=false 或未宣称采摘成功",
+      "quality_score": 0.0,
+      "elapsed_s": 16.618,
+      "completion_level": 6,
+      "stage_names": [
+        "reconfirm",
+        "approach_insert",
+        "tool",
+        "retreat"
+      ],
+      "stage_durations": [
+        0.43,
+        7.536,
+        0.0,
+        7.114
+      ]
+    },
+    {
+      "target_id": "target_35",
+      "outcome": 1,
+      "reason": "build_failed: fused_axis_conflict; attempts=1; 局部重建完成：1 帧，494 点（少于推荐 5 帧）；跳过 8 次（target_drift=8）；重叠指标需 ≥2 帧，本批次不可用；TSDF 179 点 / mesh 238 顶点（累计积分 0.00s）；refit 失败（fused_axis_conflict）；refit 未产出可用几何",
+      "quality_score": 0.0,
+      "elapsed_s": 1.012,
+      "failure_code": "build_failed",
+      "failure_code_n": 2,
+      "completion_level": 0
+    }
+  ]
+}

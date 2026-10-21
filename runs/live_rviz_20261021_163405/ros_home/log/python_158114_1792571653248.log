@@ -1,0 +1,60 @@
+[WARN] [1792571653.433427632] [peach_observability]: *** 调试操作面已启用：运动类操作=默认拒绝。技能侧既有安全门照常生效；请保持 HTTP 回环绑定 ***
+[INFO] [1792571653.435965435] [peach_observability]: 感知抓取过程页（过程监控+单步调试）: http://127.0.0.1:8090
+[INFO] [1792571653.439399921] [peach_observability]: 全量录制订阅: /display_planned_path [moveit_msgs/msg/DisplayTrajectory]
+[INFO] [1792571653.483212368] [peach_observability]: 全量录制订阅: /execute_trajectory/_action/feedback [moveit_msgs/action/ExecuteTrajectory_FeedbackMessage]
+[INFO] [1792571653.483740853] [peach_observability]: 全量录制订阅: /execute_trajectory/_action/status [action_msgs/msg/GoalStatusArray]
+[INFO] [1792571653.484161720] [peach_observability]: 全量录制订阅: /joint_states [sensor_msgs/msg/JointState]
+[INFO] [1792571653.528776408] [peach_observability]: 全量录制订阅: /joint_trajectory_controller/follow_joint_trajectory/_action/feedback [control_msgs/action/FollowJointTrajectory_FeedbackMessage]
+[INFO] [1792571653.529223379] [peach_observability]: 全量录制订阅: /joint_trajectory_controller/follow_joint_trajectory/_action/status [action_msgs/msg/GoalStatusArray]
+[INFO] [1792571653.529755630] [peach_observability]: 全量录制订阅: /peach/observability/tcp_path [nav_msgs/msg/Path]
+[INFO] [1792571653.530259085] [peach_observability]: 全量录制订阅: /peach/perception/target_observations [peach_interfaces/msg/PeachTargetObservationArray]
+[INFO] [1792571653.530724828] [peach_observability]: 全量录制订阅: /peach/reconstruction/diagnostics [peach_interfaces/msg/ReconstructionStatus]
+[INFO] [1792571653.531206427] [peach_observability]: 全量录制订阅: /peach/reconstruction/diagnostics_debug [std_msgs/msg/String]
+[INFO] [1792571653.531550568] [peach_observability]: 全量录制订阅: /peach/reconstruction/grasp_decision [peach_interfaces/msg/GraspDecision]
+[INFO] [1792571653.531913465] [peach_observability]: 全量录制订阅: /peach/reconstruction/refined_axis [geometry_msgs/msg/Vector3Stamped]
+[INFO] [1792571653.532269986] [peach_observability]: 全量录制订阅: /peach/reconstruction/refined_diagnostics [peach_interfaces/msg/BagFittingArray]
+[INFO] [1792571653.532721807] [peach_observability]: 全量录制订阅: /peach/reconstruction/refined_pose [peach_interfaces/msg/BagGraspCandidateArray]
+[INFO] [1792571653.533158972] [peach_observability]: 全量录制订阅: /peach/reconstruction/status [std_msgs/msg/String]
+[INFO] [1792571653.533618801] [peach_observability]: 全量录制订阅: /peach/reconstruction/tsdf_cloud [sensor_msgs/msg/PointCloud2]
+[INFO] [1792571653.533988980] [peach_observability]: 全量录制订阅: /peach_arm/execute_target/_action/feedback [peach_interfaces/action/ExecuteTarget_FeedbackMessage]
+[INFO] [1792571653.534482272] [peach_observability]: 全量录制订阅: /peach_arm/execute_target/_action/status [action_msgs/msg/GoalStatusArray]
+[INFO] [1792571653.534942030] [peach_observability]: 全量录制订阅: /peach_arm/status [std_msgs/msg/String]
+[INFO] [1792571653.535436041] [peach_observability]: 全量录制订阅: /peach_supervisor/events [peach_interfaces/msg/CanonicalEvent]
+[INFO] [1792571653.535942088] [peach_observability]: 全量录制订阅: /peach_supervisor/run_harvest/_action/feedback [peach_interfaces/action/RunHarvest_FeedbackMessage]
+[INFO] [1792571653.536294636] [peach_observability]: 全量录制订阅: /peach_supervisor/run_harvest/_action/status [action_msgs/msg/GoalStatusArray]
+[INFO] [1792571653.536729524] [peach_observability]: 全量录制订阅: /peach_supervisor/scene_snapshot [peach_interfaces/msg/SceneSnapshot]
+[INFO] [1792571653.537072812] [peach_observability]: 全量录制订阅: /peach_supervisor/state [peach_interfaces/msg/HarvestState]
+[INFO] [1792571653.537557821] [peach_observability]: 全量录制订阅: /peach_target_reconstruction_node/build_target_model/_action/feedback [peach_interfaces/action/BuildTargetModel_FeedbackMessage]
+[INFO] [1792571653.537962393] [peach_observability]: 全量录制订阅: /peach_target_reconstruction_node/build_target_model/_action/status [action_msgs/msg/GoalStatusArray]
+[INFO] [1792571653.538363801] [peach_observability]: 全量录制订阅: /tf [tf2_msgs/msg/TFMessage]
+[INFO] [1792571653.538893416] [peach_observability]: 全量录制订阅: /tf_static [tf2_msgs/msg/TFMessage]
+[INFO] [1792571655.541442614] [peach_observability]: 全量录制订阅: /peach/batch/enables [peach_interfaces/msg/Enables]
+[INFO] [1792571655.541922301] [peach_observability]: 全量录制订阅: /peach/perception/masks [sensor_msgs/msg/Image]
+[INFO] [1792571655.542546181] [peach_observability]: 全量录制订阅: /peach/reconstruction/local_cloud [sensor_msgs/msg/PointCloud2]
+[INFO] [1792571655.543034044] [peach_observability]: 全量录制订阅: /peach/reconstruction/preview_cloud [sensor_msgs/msg/PointCloud2]
+[INFO] [1792571663.438384722] [peach_observability]: 自检[initial] 14/18 通过，跳过: robot_status, force_topic, model_files, vegetation_status
+[INFO] [1792571683.445029568] [peach_observability]: 自检[periodic] 14/18 通过，跳过: robot_status, force_topic, model_files, vegetation_status
+[WARN] [1792571692.048474822] [rosbag2_cpp]: Message definition for topic '/peach_supervisor/run_harvest/_action/status' with type 'action_msgs/msg/GoalStatusArray' not found. Message definition will be left empty in bag.
+[WARN] [1792571698.954484358] [rosbag2_cpp]: Message definition for topic '/peach_supervisor/run_harvest/_action/feedback' with type 'peach_interfaces/msg/RunHarvest_FeedbackMessage' not found. Message definition will be left empty in bag.
+[WARN] [1792571701.554960350] [rosbag2_cpp]: Message definition for topic '/peach_arm/execute_target/_action/feedback' with type 'peach_interfaces/msg/ExecuteTarget_FeedbackMessage' not found. Message definition will be left empty in bag.
+[WARN] [1792571701.555123437] [rosbag2_cpp]: Message definition for topic '/peach_arm/execute_target/_action/status' with type 'action_msgs/msg/GoalStatusArray' not found. Message definition will be left empty in bag.
+[WARN] [1792571704.011238883] [rosbag2_cpp]: Message definition for topic '/joint_trajectory_controller/follow_joint_trajectory/_action/status' with type 'action_msgs/msg/GoalStatusArray' not found. Message definition will be left empty in bag.
+[WARN] [1792571704.066226911] [rosbag2_cpp]: Message definition for topic '/joint_trajectory_controller/follow_joint_trajectory/_action/feedback' with type 'control_msgs/msg/FollowJointTrajectory_FeedbackMessage' not found. Message definition will be left empty in bag.
+[WARN] [1792571705.265724255] [rosbag2_cpp]: Message definition for topic '/execute_trajectory/_action/feedback' with type 'moveit_msgs/msg/ExecuteTrajectory_FeedbackMessage' not found. Message definition will be left empty in bag.
+[WARN] [1792571705.265809687] [rosbag2_cpp]: Message definition for topic '/execute_trajectory/_action/status' with type 'action_msgs/msg/GoalStatusArray' not found. Message definition will be left empty in bag.
+[INFO] [1792571713.440716520] [peach_observability]: 自检[periodic] 14/18 通过，跳过: robot_status, force_topic, model_files, vegetation_status
+[INFO] [1792571743.440352035] [peach_observability]: 自检[periodic] 14/18 通过，跳过: robot_status, force_topic, model_files, vegetation_status
+[INFO] [1792571773.438677365] [peach_observability]: 自检[periodic] 14/18 通过，跳过: robot_status, force_topic, model_files, vegetation_status
+[INFO] [1792571803.453454575] [peach_observability]: 自检[periodic] 14/18 通过，跳过: robot_status, force_topic, model_files, vegetation_status
+[INFO] [1792571833.440692241] [peach_observability]: 自检[periodic] 14/18 通过，跳过: robot_status, force_topic, model_files, vegetation_status
+[INFO] [1792571863.440394605] [peach_observability]: 自检[periodic] 14/18 通过，跳过: robot_status, force_topic, model_files, vegetation_status
+[INFO] [1792571893.438397583] [peach_observability]: 自检[periodic] 14/18 通过，跳过: robot_status, force_topic, model_files, vegetation_status
+[INFO] [1792571923.439458854] [peach_observability]: 自检[periodic] 14/18 通过，跳过: robot_status, force_topic, model_files, vegetation_status
+[INFO] [1792571953.437794655] [peach_observability]: 自检[periodic] 14/18 通过，跳过: robot_status, force_topic, model_files, vegetation_status
+[INFO] [1792571983.439634400] [peach_observability]: 自检[periodic] 14/18 通过，跳过: robot_status, force_topic, model_files, vegetation_status
+[INFO] [1792572013.442563368] [peach_observability]: 自检[periodic] 14/18 通过，跳过: robot_status, force_topic, model_files, vegetation_status
+[INFO] [1792572043.438162935] [peach_observability]: 自检[periodic] 14/18 通过，跳过: robot_status, force_topic, model_files, vegetation_status
+[INFO] [1792572073.439816045] [peach_observability]: 自检[periodic] 14/18 通过，跳过: robot_status, force_topic, model_files, vegetation_status
+[INFO] [1792572103.441174759] [peach_observability]: 自检[periodic] 14/18 通过，跳过: robot_status, force_topic, model_files, vegetation_status
+[INFO] [1792572133.437766140] [peach_observability]: 自检[periodic] 14/18 通过，跳过: robot_status, force_topic, model_files, vegetation_status
+[INFO] [1792572163.437894166] [peach_observability]: 自检[periodic] 14/18 通过，跳过: robot_status, force_topic, model_files, vegetation_status

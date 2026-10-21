@@ -17,7 +17,10 @@ from peach_harvester.vision.common.geometry import (
 )
 from peach_harvester.vision.domain.evidence import may_commit_identity
 from peach_harvester.vision.scene_perception.contracts import BagObservation
-from peach_harvester.vision.scene_perception.debug_draw import draw_debug
+from peach_harvester.vision.scene_perception.debug_draw import (
+    draw_debug,
+    grasp_order_by_id,
+)
 from peach_harvester.vision.scene_perception.identity import (
     bbox_touches_image_edge,
     CollectLockPolicy,
@@ -25,6 +28,7 @@ from peach_harvester.vision.scene_perception.identity import (
     GlobalHarvestPlan,
     SpatialEmaMatcher,
     TargetRegistry,
+    tilt_from_vertical_deg,
 )
 from peach_harvester.vision.scene_perception.image_gates import (
     plan_segmentation_bboxes,
@@ -98,7 +102,7 @@ class PerceptionResult:
     mask_canvas: np.ndarray
     """全图 uint16 实例掩膜，像素值=检测序号+1."""
     debug: Optional[np.ndarray]
-    """仅已确认目标叠加；None=未开 publish_debug_image."""
+    """每帧全部检测框和分割。确认锁定后标签 id 是抓取顺序。None=未开 publish_debug_image."""
     debug_raw: Optional[np.ndarray]
     """全量检测叠加（含未确认灰框）."""
     candidates: BagGraspCandidateArray
@@ -351,14 +355,25 @@ class PerceptionPipeline:
         t_seg = self.clock.now()
         frame_bboxes = self.segmentation_bboxes(
             kept, T_out_cam, K, executor_target_id)
+        # 位姿和重建仍按锁定门控用框。调试图要每帧都有分割，所以显示开着时
+        # 其余检测框也做一次 SAM，掩膜只进画面，不进候选和积分。
+        pose_bboxes = {tuple(bbox) for bbox in frame_bboxes}
+        segment_bboxes = list(frame_bboxes)
+        if debug is not None or debug_raw is not None:
+            seen = set(pose_bboxes)
+            for det in kept:
+                bbox = tuple(det['bbox'])
+                if bbox not in seen:
+                    seen.add(bbox)
+                    segment_bboxes.append(bbox)
         mask_by_bbox = {}
-        if frame_bboxes:
+        if segment_bboxes:
             try:
-                segs = self.engine.segment(rgb, frame_bboxes)
+                segs = self.engine.segment(rgb, segment_bboxes)
             except Exception as exc:  # noqa: BLE001
                 self._log.warning(f'SAM 批量分割异常，回退逐目标调用: {exc}')
                 segs = []
-                for fallback_bbox in frame_bboxes:
+                for fallback_bbox in segment_bboxes:
                     try:
                         segs.extend(self.engine.segment(rgb, [fallback_bbox]))
                     except Exception as exc_single:  # noqa: BLE001
@@ -372,7 +387,8 @@ class PerceptionPipeline:
         pending = []
         for i, det in enumerate(kept):
             bbox = tuple(det['bbox'])
-            sam_mask = mask_by_bbox.get(bbox)
+            overlay_mask = mask_by_bbox.get(bbox)
+            sam_mask = overlay_mask if bbox in pose_bboxes else None
             if sam_mask is not None:
                 sam_mask = _crop_mask_to_bbox(sam_mask, bbox)
                 mask_canvas[sam_mask > 0] = np.uint16(i + 1)
@@ -401,6 +417,7 @@ class PerceptionPipeline:
                                result.grasp_3d.translation_direction))
             pending.append({
                 'i': i, 'det': det, 'bbox': bbox, 'sam_mask': sam_mask,
+                'overlay_mask': overlay_mask,
                 'result': result, 'camera_distance_m': camera_distance_m,
                 # W3 去重：贴边判定同帧只算一次（at_edge 双消费：
                 # 身份分配入参 + bbox_at_edge 旁路缓存）
@@ -427,8 +444,9 @@ class PerceptionPipeline:
                 assigned_ids = self.target_registry.match_or_register_frame(
                     assign_items, now=self.clock.now())
 
+        overlays = []
         for p, (tid, is_new) in zip(pending, assigned_ids):
-            det, bbox, sam_mask = p['det'], p['bbox'], p['sam_mask']
+            det, sam_mask = p['det'], p['sam_mask']
             result = p['result']
             if self.target_registry is not None:
                 if track:
@@ -477,6 +495,8 @@ class PerceptionPipeline:
             }
             if base_anchor is not None:
                 record['base_height_m'] = float(base_anchor[2])
+            record['axis_tilt_from_vertical_deg'] = tilt_from_vertical_deg(
+                g3.translation_direction)
             harvest_records.append(record)
             if confirmed:
                 confirmed_bboxes.append(det['bbox'])
@@ -498,10 +518,31 @@ class PerceptionPipeline:
                 markers.markers.extend(to_markers(
                     header, tid, p['i'], result,
                     tool_d_inner=float(params.tool.d_inner_m)))
-            if debug_raw is not None:
-                draw_debug(debug_raw, det, g2, sam_mask, tid, confirmed=confirmed)
-            if debug is not None and confirmed:
-                draw_debug(debug, det, g2, sam_mask, tid, confirmed=True)
+            overlays.append({
+                'det': det, 'grasp_2d': g2, 'mask': p['overlay_mask'],
+                'tid': tid, 'confirmed': confirmed,
+            })
+
+        if debug is not None or debug_raw is not None:
+            with self.plan_lock:
+                orders = grasp_order_by_id(
+                    self.harvest_plan.locked,
+                    dict(self.harvest_plan.priorities))
+            # 序号小的后画，最先抓的标签留在最上层。
+            overlays.sort(key=lambda item: (
+                bool(item['confirmed']),
+                -(orders.get(str(item['tid'])) or 0),
+            ))
+            for item in overlays:
+                order = orders.get(str(item['tid']))
+                if debug_raw is not None:
+                    draw_debug(
+                        debug_raw, item['det'], item['grasp_2d'], item['mask'],
+                        item['tid'], confirmed=item['confirmed'], order=order)
+                if debug is not None:
+                    draw_debug(
+                        debug, item['det'], item['grasp_2d'], item['mask'],
+                        item['tid'], confirmed=item['confirmed'], order=order)
 
         self.timing.record('geometry_ms', (self.clock.now() - t_geom) * 1e3)
         return PerceptionResult(

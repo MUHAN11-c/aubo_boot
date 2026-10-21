@@ -97,7 +97,7 @@ inline moveit::core::MoveItErrorCode settleResult(
 }
 
 /// 有界执行：execute_fn 在独立线程运行并写入 promise；等待环 100ms 轮询，
-/// 取消探针或超时先到即 stop_fn() 并给 10s 宽限；宽限后仍未完结则弃等
+/// 取消探针或超时先到即 stop_fn() 并给 5s 宽限；宽限后仍未完结则弃等
 /// （线程移交 retiring，闭包只持有自己的捕获）。返回终态错误码；弃等
 /// 返回 FAILURE 且 *abandoned=true（宿主据此处置所有权，如泄漏任务）。
 template<typename ExecFn>
@@ -146,14 +146,14 @@ moveit::core::MoveItErrorCode runBoundedExecute(
   // 触发点留痕（P0 观测性）：此前超时移交只体现为调用方的失败 reason
   if (by_timeout) {
     RCLCPP_WARN(
-      logger, "有界执行超时（%.1fs），已发起停止并进入 10s 宽限", timeout_s);
+      logger, "有界执行超时（%.1fs），已发起停止并进入 5s 宽限", timeout_s);
   } else {
-    RCLCPP_INFO(logger, "有界执行收到取消，已发起停止并进入 10s 宽限");
+    RCLCPP_INFO(logger, "有界执行收到取消，已发起停止并进入 5s 宽限");
   }
   if (stop_fn) {
     stop_fn();
   }
-  if (shared_result.wait_for(std::chrono::seconds(10)) ==
+  if (shared_result.wait_for(std::chrono::seconds(5)) ==
     std::future_status::ready)
   {
     worker.join();
@@ -163,7 +163,7 @@ moveit::core::MoveItErrorCode runBoundedExecute(
   *abandoned = true;
   RCLCPP_WARN(
     logger,
-    "有界执行弃等：10s 宽限后执行线程未完结，移交 retire 桶（%s）",
+    "有界执行弃等：5s 宽限后执行线程未完结，移交 retire 桶（%s）",
     by_timeout ? "超时" : "取消");
   return moveit::core::MoveItErrorCode::FAILURE;
 }

@@ -1,0 +1,38 @@
+[WARN] [1792572915.035849801] [rcl]: ROS_LOCALHOST_ONLY is deprecated but still honored if it is enabled. Use ROS_AUTOMATIC_DISCOVERY_RANGE and ROS_STATIC_PEERS instead.
+[WARN] [1792572915.035859758] [rcl]: 'localhost_only' is enabled, 'automatic_discovery_range' and 'static_peers' will be ignored.
+enables execution=True grasp=True tool=False accepted=True 已广播 /peach/batch/enables
+ROUND 1/3 goal flow10_165515_r01
+r1 batch=0 target=- msg=waiting_ready
+r1 batch=1 target=- msg=preparing
+r1 batch=2 target=target_0 msg=动臂前规划套入与撤退
+r1 batch=2 target=target_0 msg=返回 harvest_stow
+r1 batch=7 target=target_0 msg=recovery_required
+ack target=target_0 seq=98 accepted=True 已记录现场人工撤离确认；本服务不发送任何运动命令
+r1 batch=2 target=target_0 msg=返回 harvest_stow
+r1 batch=2 target=target_1 msg=动臂前规划套入与撤退
+r1 batch=2 target=target_1 msg=动臂前规划套入与撤退
+r1 batch=2 target=target_2 msg=抓取前再确认：等待新鲜观测复核身份/锚点漂移/摆动平息
+r1 batch=2 target=target_3 msg=抓取前再确认：等待新鲜观测复核身份/锚点漂移/摆动平息
+r1 batch=2 target=target_3 msg=动臂前规划套入与撤退
+r1 batch=1 target=- msg=discovery
+ROUND 1 RESULT success=True reason=completed elapsed=94.2s discovered=4 attempted=4 succeeded=1 skipped_quality=0 failed=0
+  target_0 outcome=0 周期完成；tool.enabled=false 或未宣称采摘成功
+  target_1 outcome=2 skipped_unreachable: 完整套入未规划通过，未执行接近: MTC planning failed: Failing stage(s):
+lin align tool z (0/1)
+  target_2 outcome=2 skipped_unreachable: 完整套入未规划通过，未执行接近: MTC planning failed: Failing stage(s):
+lin align tool z (0/1)
+  target_3 outcome=2 skipped_unreachable: 完整套入未规划通过，未执行接近: MTC planning failed: Failing stage(s):
+lin to on-axis pregrasp (0/1)
+PROGRESS 1/1
+ROUND 2/3 goal flow10_165650_r02
+r2 batch=6 target=- msg=completed
+r2 batch=2 target=target_4 msg=动臂前规划套入与撤退
+r2 batch=2 target=target_4 msg=沿轴 LIN 套入
+r2 batch=2 target=target_4 msg=返回 harvest_stow
+ack target=target_4 seq=278 accepted=True 已记录现场人工撤离确认；本服务不发送任何运动命令
+r2 batch=2 target=target_4 msg=返回 harvest_stow
+r2 batch=2 target=target_5 msg=动臂前规划套入与撤退
+r2 batch=2 target=target_6 msg=抓取前再确认：等待新鲜观测复核身份/锚点漂移/摆动平息
+r2 batch=2 target=target_6 msg=抓取前再确认：等待新鲜观测复核身份/锚点漂移/摆动平息
+r2 batch=2 target=target_7 msg=抓取前再确认：等待新鲜观测复核身份/锚点漂移/摆动平息
+r2 batch=1 target=- msg=discovery

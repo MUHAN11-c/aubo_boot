@@ -69,7 +69,7 @@ struct MoveItMotionConfig
   double photo_pose_max_joint_vel_rad_s{0.05};    ///< 出口任一轴 |qdot| 上限 [rad/s]（未静止即 mismatch）。
   // 执行有界等待：move_group TEM 异常（2026-09-23 travel_max 的 stop 事件
   // 风暴）会让同步 execute 永久阻塞且不理取消，一次即永久卡死动作通道。
-  double execute_timeout_s{90.0};  ///< 单条轨迹执行有界等待 [s]；超时 stop() 并判失败。
+  double execute_timeout_s{5.0};  ///< 单条轨迹执行有界等待 [s]；超时 stop() 并判失败。
 };
 
 // MoveIt 运动接口：tip/camera 位姿规划执行、TF 查询、拍照位往返。

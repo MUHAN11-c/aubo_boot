@@ -1,0 +1,59 @@
+{
+  "claimed": [
+    "target_0",
+    "target_1",
+    "target_2"
+  ],
+  "outcomes": [
+    {
+      "target_id": "target_2",
+      "outcome": 0,
+      "reason": "周期完成；tool.enabled=false 或未宣称采摘成功",
+      "quality_score": 0.0,
+      "elapsed_s": 15.025,
+      "completion_level": 6,
+      "stage_names": [
+        "reconfirm",
+        "approach_insert",
+        "tool",
+        "retreat"
+      ],
+      "stage_durations": [
+        0.419,
+        6.947,
+        0.0,
+        7.053
+      ]
+    },
+    {
+      "target_id": "target_1",
+      "outcome": 0,
+      "reason": "周期完成；tool.enabled=false 或未宣称采摘成功",
+      "quality_score": 0.0,
+      "elapsed_s": 19.429,
+      "completion_level": 6,
+      "stage_names": [
+        "reconfirm",
+        "approach_insert",
+        "tool",
+        "retreat"
+      ],
+      "stage_durations": [
+        0.309,
+        9.086,
+        0.0,
+        8.032
+      ]
+    },
+    {
+      "target_id": "target_0",
+      "outcome": 1,
+      "reason": "skipped_quality: decision_snapshot_unavailable: 同目标模型与许可未在时限内到齐或已过期 elapsed=30.000233s timeout=30.000000s",
+      "quality_score": 0.0,
+      "elapsed_s": 30.075,
+      "failure_code": "skipped_quality",
+      "failure_code_n": 3,
+      "completion_level": 0
+    }
+  ]
+}

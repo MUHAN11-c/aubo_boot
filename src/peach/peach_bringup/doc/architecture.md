@@ -94,7 +94,7 @@ flowchart LR
 
 联测产物在 `runs/<本轮>/ros_home/log/`；整栈默认 `~/.ros/log/`。8090 日志环同样订 `/rosout`，`name` 列即上表。
 
-SELECT 用感知 `suggested_travel_m`（常约 3 cm）；Finalize 用重建精确行程（可到 9 cm 量级）。同一颗桃两次 CheckReachability 行程不同是预期。FULL 套入要求沿轴笛卡尔完成比 ≥ `mtc_cartesian_min_fraction`（0.95）；刀口滚转 0、±15°、±30°、±45°，取**第一档能走满插入**的滚转。两端有 IK 但直线走不满记 `sleeve_no_cartesian`。
+SELECT 用感知 `suggested_travel_m`（现行 `(neck-entry)-margin_neck`，实测约 0.05–0.10 m；**不再按 `L_insert=0.03` 封顶**，2026-10-21 改正）；Finalize 用重建融合 cut travel（实测约 0.07–0.09 m）或 skip 档的同一几何回退。同一颗桃两次行程不同是预期，但差约 0.01 m 量级来自融合修剪，不是旧 0.03 vs 0.09 的封顶差。FULL 套入要求沿轴笛卡尔完成比 ≥ `mtc_cartesian_min_fraction`（0.95）；刀口滚转 0、±15°、±30°、±45°，取**第一档能走满插入**的滚转。两端有 IK 但直线走不满记 `sleeve_no_cartesian`。
 
 约束分层（不要把参考量当门）：
 
@@ -121,7 +121,7 @@ SELECT 用感知 `suggested_travel_m`（常约 3 cm）；Finalize 用重建精�
 
 Python 参数源为各包 config YAML + `peach_common.yaml_params.attach`，规则留在能力包；arm 声明/校验由 GPL `src/arm_parameters.yaml` 生成，部署值在 config。停位几何单源为 harvester `grasp_standoffs.yaml`，工具几何来自只读 aubo_description 档案。话题接线使用 remap。
 
-诊断走 `/diagnostics`，事件/账本保留作业身份，observability 会话落 `runs/session_*`。每批 request_id 唯一。网页 allowed、重建 ACCEPT、执行完成级别与真实剪切结果分别核对；level 6 不等于 level 7。当前联合验收已记录30组模型，但10轮中仅6轮level6、4轮质量跳过；253条soak采样约21分钟且RViz退出，不能宣称10轮/30分钟可视化验收通过。监控RViz profile只保留一份RobotModel并移除MotionPlanning重复机器人显示，是GL异常排障候选，尚未证实Ogre根因或修复效果。
+诊断走 `/diagnostics`，事件/账本保留作业身份，observability 会话落 `runs/session_*`；runner 跑完把本轮 `session_*`/`harvest_*`/`round_*` 收进 `output/records/`（一跑一文件夹，分析页一跑一个顶层选项）。每批 request_id 唯一。网页 allowed、重建 ACCEPT、执行完成级别与真实剪切结果分别核对；level 6 不等于 level 7。当前联合验收已记录30组模型，但10轮中仅6轮level6、4轮质量跳过；253条soak采样约21分钟且RViz退出，不能宣称10轮/30分钟可视化验收通过。2026-10-21 行程修正后统一 skip 3/3、A/B（A 全重建目标级 33.3%、B skip 100%）见 testing.md，不替代上述 10×30×1800。监控RViz profile只保留一份RobotModel并移除MotionPlanning重复机器人显示，是GL异常排障候选，尚未证实Ogre根因或修复效果。
 
 本栈不具有功能安全认证；mock 不证明真机安全或接触精度。相机物理固定而 mock 腕移动时必须使用经核对的固定采集位锚定，不能把模拟腕 TF 当新视点。测试与程序结束必须停栈、等 bag 封口并核对本轮 PID 无残留。
 

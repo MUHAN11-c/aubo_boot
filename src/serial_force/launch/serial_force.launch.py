@@ -1,4 +1,4 @@
-"""USB 串口 5 点力传感器：驱动，逐帧打印 kgf（无 RViz）."""
+"""USB 串口 5 点力传感器：驱动，逐帧打印 N/行程（无 RViz）."""
 
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument

@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
 """
-给 force_web.html 生成两张果实侧渲染（均 1:1，盘心居中）.
+给 force_web.html 生成两张 +Z 侧渲染（均 1:1，盘心居中）.
 
   src/serial_force/scripts/face_fruit.png   72 mm 视场（盘面视图）
   src/serial_force/scripts/face_full.png   220 mm 视场（整机视图）
 
-网页按 R=16.35 mm 在同一 tcp 坐标上叠加五点；臂侧只是 CSS 镜像。
+网页按 R=16.35 mm 在同一 tcp 坐标上叠加五点；果实侧是同一渲染的 CSS 镜像
+（与 render_force_pads.py 的 ③ 同向），臂侧是直接视图。
 """
 from __future__ import annotations
 

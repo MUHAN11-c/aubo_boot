@@ -2,7 +2,7 @@
 
 > 2026-10-10 用户裁定自仓库级 `docs/io.md` 拆写入包：本包四节点（scene_perception / target_reconstruction / supervisor / lifecycle_manager）与独立进程 `peach_scene_obstacles` 的话题、服务、动作与参数。相机契约（/camera/* 前端选择）与跨包边界在 [peach_bringup/doc/io.md](../../peach_bringup/doc/io.md)；字段级 IDL 在 [peach_interfaces/README.md](../../peach_interfaces/README.md)。**源码与本文互相更新，改接口须同一轮改另一边**。
 
-本节描述brain中的vision两节点（看 + 建）；同包另有supervisor及独立scene_obstacles。不发运动、不选下一颗、不写 `ledger.json`（可向 `runs/<request_id>/perception_data/` 追加 `HarvestDataStore` 事件）。感知几何优先 stamp TF，失败 latest 并 `tf_stale`；重建积分必须图像时刻精确 TF，禁止 latest。
+本节描述brain中的vision两节点（看 + 建）；同包另有supervisor及独立scene_obstacles。不发运动、不选下一颗、不写 `ledger.json`（可向 `runs/<request_id>/perception_data/` 追加 `HarvestDataStore` 事件；选中目标只在用到检测的阶段各留一帧：观察（`target_phase=OBSERVING`）和再确认（`VALIDATING`）各写 `colors/<stamp>_<target_id>.png`、`masks/<stamp>_<target_id>.png`、`debug/<stamp>_<target_id>.png`。调试图与 `/peach/perception/debug_image` 同一张画布：每帧画出全部检测框和分割。目标集确认锁定之后，图上的 id 就是抓取顺序（1 最先抓），不再写 `target_id`；锁定前只画框、分割和置信度。`publish_debug_image` 关闭时没有调试图。接近、剪切和撤离不存这些图。跳过或失败且前面没有检测帧时，补一张现场彩色图和调试图。没有掩膜的观察帧不占名额）。感知几何优先 stamp TF，失败 latest 并 `tf_stale`；重建积分必须图像时刻精确 TF，禁止 latest。
 
 ### 3.1 `peach_scene_perception_node`（看）
 
@@ -29,7 +29,7 @@ flowchart TB
 | `/peach/perception/initial_pose` | topic | 单帧袋入口/轴初值。重建当起点；不授权运动 | peach_scene_perception | peach_target_reconstruction |
 | `/peach/perception/diagnostics` | topic | 单帧拟合诊断（直径/RMSE/内点） | peach_scene_perception | peach_target_reconstruction |
 | `/peach/perception/harvest_state` | topic | 感知侧计划 JSON（锁定集镜像，给监控） | peach_scene_perception | peach_observability |
-| `/peach/perception/debug_image` | topic | 检/分割叠加（confirmed-only，进 RViz） | peach_scene_perception | peach_observability |
+| `/peach/perception/debug_image` | topic | 每帧全部检测框和分割；确认锁定后 id 为抓取顺序，进 RViz | peach_scene_perception | peach_observability |
 
 清单未列、源码仍发（可视化豁免）：
 
@@ -66,7 +66,7 @@ flowchart TB
 - 单帧门（2026-09-21 第二轮起）：`status` 只看**门控类** flag（净空/行程/误差预算/有效深度/截断/2D 校验/长度一致性等）；过程类 flag（`taper_*`/`polarity_*`/`axis_from_pca`/`fruit_prior_auxiliary`/`*_from_band`/`gravity_defaulted`/`length_extended_from_2d`）只进 `diagnostic_flags` 供追溯、不再压状态——修正前生产 56/56 恒 REOBSERVE（过程 flag 全帧在场）、refine 的 ACCEPT 偏好分支死码。`valid_depth_ratio` 同轮改**目标级口径** |SAM∩valid|/|SAM|（旧 ROI 均值被窗外背景稀释一个量级，连带压垮 confidence/σ/遮挡分类）；袋长塌缩新增显式 `axis_length_inconsistent` 门（3D 长度 vs 框 2D 展程×深度/焦距粗测）。**袋长 2D+3D 融合**（09-21 第三轮）：点云只覆盖有深度的可见段，袋长以原始 SAM 剪影沿投影轴的展程为准、被检测框限幅（`raw_mask` 经 build_masks 透传），两端只延不缩——修掉活流对拍 len −29% 的系统性偏短；直径不融合（径向 P95 稳健且直接进净空安全门）。
 - 身份：整帧一次全局 1-1 分配（`identity.assign_detections`：同类 + 马氏 χ² 门 9≈3σ + 歧义比 1.2）。节点不传 `covariance`，σ=`match_radius/3`×`recovery_scale`。`SpatialEmaMatcher` 欧氏两段匹配**不**走帧路径（只提供半径属性）。`tf_unavailable` 与 `tf_stale` 均不改权威身份。确认 `confirm_frames=2`（拒绝单帧闪现；5 帧在 1 Hz 感知下会把 WAIT_LOCK 顶满 15 s）；贴边帧不攒确认。摆动连续 3 帧残差 >0.03 m → `target_swinging`（不可选）。
 - 跟踪 token：OUT_OF_VIEW / LOST / OCCLUDED / DEPTH_VOID / OBSERVED。
-- 锁定：`CollectLockPolicy`；`tf_stale` / `tf_unavailable` / `target_untracked` / `target_swinging` / `bbox_edge` 不可选。锁定后新 ID 不入集。`observations[]` 只发锁定 ID；锁定前数组空。
+- 锁定：`CollectLockPolicy`；`tf_stale` / `tf_unavailable` / `target_untracked` / `target_swinging` / `bbox_edge` 不可选。锁定后新 ID 不入集。抓取顺序在锁定时排定：袋轴越接近竖直越靠前，其后才是距离和高度。`observations[]` 只发锁定 ID；锁定前数组空。
 
 作业参数（部署值 `config/scene_perception.yaml`；`ScenePerceptionParams.attach`）：
 
@@ -83,7 +83,7 @@ flowchart TB
 | `sync_slop_s` | RGB-D 近似同步允差（0.05 s） |
 | `tool.entry_d_tool` / `entry_d_s` | 入口相对袋底。由 `grasp_standoffs.yaml` 注入，勿只改这里 |
 | `tool.D_inner` | 工具内径（径向走廊门）。整栈由 launch `tool_profile` 档案注入覆盖（`aubo_description/config/<profile>.yaml` 单一事实源；三把剪切手 bite/shear/adaptive = 0.104/0.080/0.120，基础值=adaptive_shear_v1 0.120；bite 0.104 为 2026-09-30 裁定——几何权威在 URDF/机械设计，按设计意图登记，机械定型后实测核回） |
-| `tool.L_insert` / `tool.L_blade` | 最大插入深度 / 档案机械刀具长度（TCP 与剪切平面重合，感知 blade_offset_m=0）。整栈由档案注入覆盖（三把 0.030/0.030/0.090 与 0.037/0.030/0.079，基础值=adaptive 档案；2026-09-29 扩注入面） |
+| `tool.L_insert` / `tool.L_blade` | 档案刀口行程 / 机械刀具长度（TCP 与剪切平面重合，感知 `blade_offset_m=0`）。**`L_insert=0.030` 不再作为感知行程上限**：2026-10-21 旧 `s_max=min(s_safe,L_insert)` 把约 0.09 m 的袋内行程压到 0.03 m，与全重建 `cut_travel` 0.067–0.091 及臂 `maximum_travel_m=0.20` 不一致；感知 `suggested_travel_m=(neck-entry)-margin_neck`，执行上限由臂夹紧。整栈由档案注入覆盖（三把 0.030/0.030/0.090 与 0.037/0.030/0.079，基础值=adaptive 档案；2026-09-29 扩注入面） |
 
 ### 3.2 `peach_target_reconstruction_node`（建）
 
@@ -185,7 +185,7 @@ flowchart TB
 | `capture.max_views` | 帧栈上限，不是节拍 |
 | `capture.require_robot_static` | 按图像曝光 stamp 查询 `/joint_states` 历史两侧完整六轴速度；最大 \|vel\| 超门则跳帧，缺失/过旧/非有限值拒帧 |
 | `capture.joint_state_tolerance_s` | 前后状态各距曝光最多 0.1s；Cache 1024 条，时钟回退重建历史，不使用处理时刻速度 |
-| `capture.min_neighbor_gap_m` / `neighbor_gap_area_ratio` | 邻锚过近拒帧；小框面积比豁免，近距双检不互锁 |
+| `capture.min_neighbor_gap_m` / `neighbor_gap_area_ratio` | 默认 0：成串套袋不因锚点距离拒帧，TSDF 只积分所选目标掩膜。>0 才按间距整帧拒采；小框面积比豁免仍只在该门打开时生效 |
 | `tf_timeout_sec` | 按深度 stamp 精确查 TF；失败跳帧，禁止 latest |
 | `refit.entry_standoff_m` / `refit.pregrasp_standoff_m` | 入口相对袋底、预抓取相对入口。只改 `grasp_standoffs.yaml` |
 | `tool.budget.cut_reference_offset_m` | 袋口到剪切参考的轴向工艺偏置；默认 0，允许 [-0.03,0.03] m；正向沿袋底到袋口，不重复计 L_blade |

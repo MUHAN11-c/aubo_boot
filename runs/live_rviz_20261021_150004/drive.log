@@ -1,0 +1,88 @@
+[WARN] [1792566096.498062369] [rcl]: ROS_LOCALHOST_ONLY is deprecated but still honored if it is enabled. Use ROS_AUTOMATIC_DISCOVERY_RANGE and ROS_STATIC_PEERS instead.
+[WARN] [1792566096.498093687] [rcl]: 'localhost_only' is enabled, 'automatic_discovery_range' and 'static_peers' will be ignored.
+enables execution=True grasp=True tool=False accepted=True 已广播 /peach/batch/enables
+ROUND 1/3 goal flow10_150138_r01
+r1 batch=0 target=- msg=waiting_ready
+r1 batch=1 target=- msg=preparing
+r1 batch=2 target=target_2 msg=拍照位再最短路径到预抓取
+r1 batch=2 target=target_2 msg=MTC 沿插入反方向保持直线撤离
+r1 batch=7 target=target_2 msg=recovery_required
+ack target=target_2 seq=101 accepted=True 已记录现场人工撤离确认；本服务不发送任何运动命令
+r1 batch=2 target=target_3 msg=等待重建精化几何（BuildTargetModel）
+r1 batch=2 target=target_3 msg=沿轴 LIN 套入
+r1 batch=2 target=target_3 msg=返回 harvest_stow
+r1 batch=7 target=target_3 msg=recovery_required
+ack target=target_3 seq=202 accepted=True 已记录现场人工撤离确认；本服务不发送任何运动命令
+r1 batch=2 target=target_1 msg=等待重建精化几何（BuildTargetModel）
+r1 batch=2 target=target_1 msg=沿轴 LIN 套入
+r1 batch=2 target=target_1 msg=MTC 沿插入反方向保持直线撤离
+r1 batch=7 target=target_1 msg=recovery_required
+ack target=target_1 seq=313 accepted=True 已记录现场人工撤离确认；本服务不发送任何运动命令
+r1 batch=2 target=target_0 msg=等待重建精化几何（BuildTargetModel）
+r1 batch=2 target=target_0 msg=等待重建精化几何（BuildTargetModel）
+r1 batch=2 target=target_0 msg=等待重建精化几何（BuildTargetModel）
+r1 batch=2 target=target_0 msg=等待重建精化几何（BuildTargetModel）
+r1 batch=2 target=target_0 msg=等待重建精化几何（BuildTargetModel）
+r1 batch=1 target=- msg=discovery
+ROUND 1 RESULT success=True reason=completed elapsed=151.9s discovered=4 attempted=4 succeeded=3 skipped_quality=1 failed=0
+  target_2 outcome=0 周期完成；tool.enabled=false 或未宣称采摘成功
+  target_3 outcome=0 周期完成；tool.enabled=false 或未宣称采摘成功
+  target_1 outcome=0 周期完成；tool.enabled=false 或未宣称采摘成功
+  target_0 outcome=1 skipped_quality: decision_snapshot_unavailable: 同目标模型与许可未在时限内到齐或已过期 elapsed=30.000065s timeout=30.000000s
+PROGRESS 1/1
+ROUND 2/3 goal flow10_150409_r02
+r2 batch=6 target=- msg=completed
+r2 batch=1 target=- msg=preparing
+r2 batch=2 target=target_6 msg=等待重建精化几何（BuildTargetModel）
+r2 batch=2 target=target_6 msg=等待重建精化几何（BuildTargetModel）
+r2 batch=2 target=target_7 msg=等待重建精化几何（BuildTargetModel）
+r2 batch=2 target=target_7 msg=等待重建精化几何（BuildTargetModel）
+r2 batch=2 target=target_7 msg=等待重建精化几何（BuildTargetModel）
+r2 batch=2 target=target_7 msg=等待重建精化几何（BuildTargetModel）
+r2 batch=2 target=target_7 msg=等待重建精化几何（BuildTargetModel）
+r2 batch=2 target=target_5 msg=沿轴 LIN 套入
+r2 batch=2 target=target_5 msg=MTC 沿插入反方向保持直线撤离
+r2 batch=2 target=target_5 msg=返回 harvest_stow
+r2 batch=7 target=target_5 msg=recovery_required
+ack target=target_5 seq=795 accepted=True 已记录现场人工撤离确认；本服务不发送任何运动命令
+r2 batch=2 target=target_4 msg=等待重建精化几何（BuildTargetModel）
+r2 batch=2 target=target_4 msg=等待重建精化几何（BuildTargetModel）
+r2 batch=2 target=target_4 msg=等待重建精化几何（BuildTargetModel）
+r2 batch=2 target=target_4 msg=等待重建精化几何（BuildTargetModel）
+r2 batch=2 target=target_4 msg=等待重建精化几何（BuildTargetModel）
+r2 batch=1 target=- msg=discovery
+ROUND 2 RESULT success=True reason=completed elapsed=148.3s discovered=4 attempted=4 succeeded=1 skipped_quality=3 failed=0
+  target_6 outcome=1 build_failed: bag_axis_envelope_ill_conditioned; attempts=3; 局部重建完成：1 帧，4605 点（少于推荐 5 帧）；跳过 29 次（joint_state_unavailable=14, missing_mask=15）；重叠指标需 ≥2 帧，本批次不可用；TSDF 1147 点 / mesh 1789 顶点（累计积分 0.01s）；refit 失败（bag_axis_envelope_ill_conditioned）；refit 未产出可用几何
+  target_7 outcome=1 skipped_quality: decision_snapshot_unavailable: 同目标模型与许可未在时限内到齐或已过期 elapsed=30.000064s timeout=30.000000s
+  target_5 outcome=0 周期完成；tool.enabled=false 或未宣称采摘成功
+  target_4 outcome=1 skipped_quality: decision_snapshot_unavailable: 同目标模型与许可未在时限内到齐或已过期 elapsed=30.000284s timeout=30.000000s
+PROGRESS 2/2
+ROUND 3/3 goal flow10_150638_r03
+r3 batch=6 target=- msg=completed
+r3 batch=1 target=- msg=preparing
+r3 batch=2 target=target_10 msg=等待重建精化几何（BuildTargetModel）
+r3 batch=2 target=target_11 msg=等待重建精化几何（BuildTargetModel）
+r3 batch=2 target=target_11 msg=沿轴 LIN 套入
+r3 batch=2 target=target_11 msg=返回 harvest_stow
+r3 batch=7 target=target_11 msg=recovery_required
+ack target=target_11 seq=1090 accepted=True 已记录现场人工撤离确认；本服务不发送任何运动命令
+r3 batch=2 target=target_9 msg=等待重建精化几何（BuildTargetModel）
+r3 batch=2 target=target_9 msg=沿轴 LIN 套入
+r3 batch=2 target=target_9 msg=MTC 沿插入反方向保持直线撤离
+r3 batch=7 target=target_9 msg=recovery_required
+ack target=target_9 seq=1204 accepted=True 已记录现场人工撤离确认；本服务不发送任何运动命令
+r3 batch=2 target=target_8 msg=等待重建精化几何（BuildTargetModel）
+r3 batch=2 target=target_8 msg=等待重建精化几何（BuildTargetModel）
+r3 batch=2 target=target_8 msg=等待重建精化几何（BuildTargetModel）
+r3 batch=2 target=target_8 msg=等待重建精化几何（BuildTargetModel）
+r3 batch=2 target=target_8 msg=等待重建精化几何（BuildTargetModel）
+r3 batch=1 target=- msg=discovery
+r3 batch=1 target=- msg=discovery
+ROUND 3 RESULT success=True reason=completed elapsed=138.0s discovered=4 attempted=4 succeeded=2 skipped_quality=2 failed=0
+  target_10 outcome=1 build_failed: bag_axis_envelope_ill_conditioned; attempts=3; 局部重建完成：1 帧，4589 点（少于推荐 5 帧）；跳过 6 次（missing_mask=6）；重叠指标需 ≥2 帧，本批次不可用；TSDF 1124 点 / mesh 1771 顶点（累计积分 0.01s）；refit 失败（bag_axis_envelope_ill_conditioned）；refit 未产出可用几何
+  target_11 outcome=0 周期完成；tool.enabled=false 或未宣称采摘成功
+  target_9 outcome=0 周期完成；tool.enabled=false 或未宣称采摘成功
+  target_8 outcome=1 skipped_quality: decision_snapshot_unavailable: 同目标模型与许可未在时限内到齐或已过期 elapsed=30.000083s timeout=30.000000s
+PROGRESS 3/3
+SUMMARY passed_rounds=3/3
+enables execution=False grasp=False tool=False accepted=True 已广播 /peach/batch/enables

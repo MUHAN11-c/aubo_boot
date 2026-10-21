@@ -40,13 +40,14 @@ Z0 = 0.1655                                          # 盘心 z（wrist3）
 PLATE_HALF = 0.0275                                  # 盖板 55 × 55
 PAD_Z = -0.07229                                     # 膜片平面（tcp z）
 
-# CAD 件号 -> (tcp 系 xyz / m, 自 +Y 顺时针角 / deg, 推定通道)
+# CAD 件号 -> (tcp 系 xyz / m, 自 +Y 顺时针角 / deg, 通道)
+# 2026-10-21 用户确认果实侧映射：1↔7、2↔3（5 在上）。
 PADS = {
     '000': ((0.0, 0.01645, PAD_Z), 0.0, 5),
-    '001': ((0.01575, 0.00430, PAD_Z), 74.7, 7),
-    '002': ((0.00945, -0.01330, PAD_Z), 144.6, 3),
-    '004': ((-0.00965, -0.01315, PAD_Z), 216.3, 2),
-    '003': ((-0.01570, 0.00455, PAD_Z), 286.2, 1),
+    '001': ((0.01575, 0.00430, PAD_Z), 74.7, 1),
+    '002': ((0.00945, -0.01330, PAD_Z), 144.6, 2),
+    '004': ((-0.00965, -0.01315, PAD_Z), 216.3, 3),
+    '003': ((-0.01570, 0.00455, PAD_Z), 286.2, 7),
 }
 ORDER = ['000', '001', '002', '004', '003']           # 顺时针
 
@@ -123,11 +124,11 @@ def render(tris, right, up, fwd, win, size=1200, ss=2, bg=(0.050, 0.068, 0.082))
     return img.reshape(H // ss, ss, W // ss, ss, 3).mean(axis=(1, 3))
 
 
-# 果实侧：相机在 +Z_tcp 看 -Z_tcp；右=+X_tcp、上=+Y_tcp
+# 臂侧：相机在 +Z_tcp 看 -Z_tcp；右=+X_tcp、上=+Y_tcp
 R_F = np.array([1.0, 0.0, 0.0])
 U_F = np.array([0.0, 0.0, -1.0])
 F_F = np.array([0.0, -1.0, 0.0])
-R_A = np.array([-1.0, 0.0, 0.0])                      # 臂侧：右=-X_tcp
+R_A = np.array([-1.0, 0.0, 0.0])                      # 果实侧：右=-X_tcp
 
 FULL = (-0.105, 0.105, -Z0 - 0.105, -Z0 + 0.105)
 ZOOM = (-0.036, 0.036, -Z0 - 0.036, -Z0 + 0.036)
@@ -207,7 +208,7 @@ def pad_overlay(ax, win, mirror=False):
 
 # ① 整机正面
 ax = fig.add_subplot(gs[0, 0])
-show(ax, full, FULL, '① 咬合末端正面（沿 −Z_tcp 看）')
+show(ax, full, FULL, '① 咬合末端 · 果实侧（沿 −Z_tcp 看）')
 ax.add_patch(Rectangle((-PLATE_HALF, -Z0 - PLATE_HALF), 2 * PLATE_HALF, 2 * PLATE_HALF,
                        fill=False, ec=ACC, lw=1.8, ls=(0, (4, 3))))
 # 把五点直接叠到整机视图上（同一 tcp 坐标，换到 wrist3 的 x/z）
@@ -240,7 +241,7 @@ pad_overlay(ax, ZOOM)
 
 # ③ 臂侧镜像
 ax = fig.add_subplot(gs[1, 0])
-show(ax, mirror, ZOOM, '③ 同一盘 · 从臂侧看（左右镜像）')
+show(ax, mirror, ZOOM, '③ 同一盘 · 从臂侧看（左右镜像；1↔7、2↔3）')
 pad_overlay(ax, ZOOM, mirror=True)
 
 # ④ 轴向关系
@@ -271,12 +272,13 @@ ax.text(30.24, -1.10, 'TCP\ny = +30.24', color='white', fontsize=10.2, ha='cente
         va='top', linespacing=1.4)
 ax.text(0.0, -0.62, 'TCP 在膜片前方（果实侧）72.29 mm', color=FG, fontsize=10.2,
         ha='center', va='center')
-ax.text(41, 1.35, '果实侧 →', color=DIM, fontsize=9.5, ha='right', va='bottom')
+ax.text(41, 1.50, '果实侧（+Z）→', color=DIM, fontsize=9.5, ha='right', va='bottom')
+ax.text(-80, 1.50, '← 臂侧（−Z）', color=DIM, fontsize=9.5, ha='left', va='bottom')
 
 fig.text(0.5, 0.963, '咬合末端 5 点力：膜片位置 × 网页点位核对', color=FG, fontsize=20,
          ha='center', va='center', fontweight='bold')
 fig.text(0.5, 0.033,
-         'tcp 系：+Z = 开口，+Y = 盘面“上”，+X = 盘面“右”。② 从果实侧看（与 force_web.html 同向）；'
+         'tcp 系：+Z = 果实侧，−Z = 臂侧；+Y = 盘面“上”，+X = 果实侧盘面“右”。② 从果实侧看（与 web 果实侧同向）；'
          '③ 从臂侧看：上下不变，1 ↔ 7、2 ↔ 3 左右互换。',
          color=DIM, fontsize=9.6, ha='center', va='center')
 fig.text(0.5, 0.014,

@@ -1,0 +1,86 @@
+{
+  "claimed": [
+    "target_0",
+    "target_1",
+    "target_2",
+    "target_3"
+  ],
+  "outcomes": [
+    {
+      "target_id": "target_1",
+      "outcome": 0,
+      "reason": "周期完成；tool.enabled=false 或未宣称采摘成功",
+      "quality_score": 0.0,
+      "elapsed_s": 20.432,
+      "completion_level": 6,
+      "stage_names": [
+        "finalize",
+        "reconfirm",
+        "approach_insert",
+        "tool",
+        "retreat"
+      ],
+      "stage_durations": [
+        2.84,
+        0.453,
+        8.936,
+        0.0,
+        8.14
+      ]
+    },
+    {
+      "target_id": "target_3",
+      "outcome": 0,
+      "reason": "周期完成；tool.enabled=false 或未宣称采摘成功",
+      "quality_score": 0.0,
+      "elapsed_s": 23.421,
+      "completion_level": 6,
+      "stage_names": [
+        "finalize",
+        "reconfirm",
+        "approach_insert",
+        "tool",
+        "retreat"
+      ],
+      "stage_durations": [
+        1.448,
+        0.245,
+        11.105,
+        0.0,
+        10.52
+      ]
+    },
+    {
+      "target_id": "target_2",
+      "outcome": 1,
+      "reason": "build_failed: bag_axis_silhouette_unobservable; attempts=3; 局部重建完成：1 帧，4189 点（少于推荐 5 帧）；跳过 14 次（joint_state_unavailable=7, missing_mask=7）；重叠指标需 ≥2 帧，本批次不可用；TSDF 864 点 / mesh 1519 顶点（累计积分 0.00s）；refit 失败（bag_axis_silhouette_unobservable）；refit 未产出可用几何",
+      "quality_score": 0.0,
+      "elapsed_s": 3.227,
+      "failure_code": "build_failed",
+      "failure_code_n": 2,
+      "completion_level": 0,
+      "stage_names": [
+        "finalize"
+      ],
+      "stage_durations": [
+        3.074
+      ]
+    },
+    {
+      "target_id": "target_0",
+      "outcome": 1,
+      "reason": "build_failed: bag_axis_envelope_ill_conditioned; attempts=3; 局部重建完成：1 帧，6775 点（少于推荐 5 帧）；跳过 7 次（missing_mask=7）；重叠指标需 ≥2 帧，本批次不可用；TSDF 1314 点 / mesh 2067 顶点（累计积分 0.01s）；refit 失败（bag_axis_envelope_ill_conditioned）；refit 未产出可用几何",
+      "quality_score": 0.0,
+      "elapsed_s": 2.617,
+      "failure_code": "build_failed",
+      "failure_code_n": 2,
+      "completion_level": 0,
+      "stage_names": [
+        "finalize"
+      ],
+      "stage_durations": [
+        2.458
+      ]
+    }
+  ]
+}

@@ -201,14 +201,19 @@ def compute_travel_range(P_entry_start: np.ndarray, P_neck: np.ndarray,
 
     Returns
     -------
-        (travel_min, travel_max): 建议行程区间 (m)；travel_min 为 0.8 倍
-        已封顶安全行程的保守下限，travel_max 受 insert_length_m 封顶.
+        (travel_min, travel_max): 建议行程区间 (m)；travel_max = s_safe
+        （袋颈前留 margin_neck），不再按工具档案 L_insert 封顶。执行上限
+        由臂侧 grasp.minimum/maximum_travel_m 夹紧；全重建的 cut_travel
+        （0.067-0.091，实测到颈）也不封顶，二者同一套计算。
 
     """
     s_neck = float(np.dot(P_neck - P_entry_start, Z_tool) - tool.blade_offset_m)
     s_safe = max(0.0, s_neck - tool.margin_neck)
-    s_max = min(s_safe, tool.insert_length_m)  # 上限受工具长度约束
-    s_min = max(0.0, s_max * 0.8)   # 封顶后派生下限，避免区间倒置
+    # 2026-10-21：L_insert=0.03 是刀口行程/机械尺寸，不是袋内最大插入；
+    # 旧 min(s_safe, L_insert) 把 0.09-0.10 m 的袋内行程压到 0.03 m，与
+    # 全重建 cut_travel 及臂 maximum_travel_m=0.20 不一致。上限交给臂侧。
+    s_max = s_safe
+    s_min = max(0.0, s_max * 0.8)   # 派生下限，避免区间倒置
     return (s_min, s_max)
 
 

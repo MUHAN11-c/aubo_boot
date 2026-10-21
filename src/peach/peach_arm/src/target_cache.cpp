@@ -113,7 +113,19 @@ void TargetCache::updateSelectedTarget(const SelectedTargetUpdate & update)
     !update.harvest_run_id.empty() && target_.harvest_run_id != update.harvest_run_id;
   const bool model_run_changed = !model_.identity.run_id.empty() &&
     !update.harvest_run_id.empty() && model_.identity.run_id != update.harvest_run_id;
-  if (target_changed || refined_changed || decision_changed || run_changed || model_run_changed) {
+  // 未精化钉扎的身份是 grasp_decision_target_id_。上一颗留下的 target_.id
+  // 或 harvest_run_id 还没跟上时，同目标新帧会看起来像换目标或换批次，
+  // 把刚钉住的套入许可清掉。别的目标的选中帧也不许冲掉当前钉扎。
+  const bool pinned = unrefined_hold_ && !grasp_decision_target_id_.empty();
+  if (pinned && update.selected_id != grasp_decision_target_id_) {
+    return;
+  }
+  const bool same_pin = pinned &&
+    update.selected_id == grasp_decision_target_id_;
+  if (!same_pin &&
+    (target_changed || refined_changed || decision_changed || run_changed ||
+    model_run_changed))
+  {
     model_ = ModelSnapshot();
     model_generated_s_ = 0.0;
     decision_committed_ = false;
@@ -627,7 +639,13 @@ bool TargetCache::promoteUnrefinedGeometry(
   refined_.bottom = src->bottom;
   refined_.neck = src->neck;
   refined_.axis = src->initial_axis.normalized();
-  refined_.suggested_travel_m = src->suggested_travel_m;
+  // 感知的 suggested_travel_m 是 compute_travel_range 的保守值：先减
+  // L_blade(37mm)、再减 margin_neck(15mm)，最后被 L_insert(30mm) 封顶；
+  // 重建的 cut_travel 是 (neck-entry)·axis（不减、不封顶）。skip 档直接
+  // 采信会把 0.08-0.09m 的切点压到 0.03m（2026-10-21 17:45 实测）。
+  // 置 0 让臂侧 insertionTravel 走几何回退：
+  //   (neck-entry)·axis - grasp.neck_margin_m（约 0.09m）。
+  refined_.suggested_travel_m = 0.0;
   refined_.bag_diameter_upper_m = src->bag_diameter_upper_m;
   refined_.valid = nonzeroFinite(refined_.axis) && refined_.entry.allFinite();
   if (!refined_.valid) {

@@ -1,0 +1,833 @@
+[INFO] [launch]: All log files can be found below /home/mu/Desktop/aubo_e5_jazzy_ws/runs/live_rviz_20261021_092814/ros_home/log/2026-10-21-09-28-14-644176-mu-MS-7E34-21648
+[INFO] [launch]: Default logging verbosity is set to INFO
+[preflight] ROS_DOMAIN_ID=86
+[WARN] [1792546094.998928196] [rcl]: ROS_LOCALHOST_ONLY is deprecated but still honored if it is enabled. Use ROS_AUTOMATIC_DISCOVERY_RANGE and ROS_STATIC_PEERS instead.
+[WARN] [1792546094.998945852] [rcl]: 'localhost_only' is enabled, 'automatic_discovery_range' and 'static_peers' will be ignored.
+[INFO] [stereo_camera_node-1]: process started with pid [21688]
+[INFO] [peach_scene_obstacles-2]: process started with pid [21689]
+[INFO] [robot_state_publisher-3]: process started with pid [21690]
+[INFO] [ros2_control_node-4]: process started with pid [21691]
+[INFO] [spawner-5]: process started with pid [21692]
+[INFO] [spawner-6]: process started with pid [21693]
+[INFO] [move_group-7]: process started with pid [21694]
+[INFO] [peach_harvester-8]: process started with pid [21695]
+[INFO] [peach_arm-9]: process started with pid [21696]
+[INFO] [peach_observability-10]: process started with pid [21697]
+[INFO] [lifecycle_manager-11]: process started with pid [21698]
+[INFO] [peach_lifecycle_flag_bridge-12]: process started with pid [21699]
+[robot_state_publisher-3] [WARN] [1792546095.144999767] [rcl]: ROS_LOCALHOST_ONLY is deprecated but still honored if it is enabled. Use ROS_AUTOMATIC_DISCOVERY_RANGE and ROS_STATIC_PEERS instead.
+[robot_state_publisher-3] [WARN] [1792546095.145013619] [rcl]: 'localhost_only' is enabled, 'automatic_discovery_range' and 'static_peers' will be ignored.
+[ros2_control_node-4] [WARN] [1792546095.154263610] [rcl]: ROS_LOCALHOST_ONLY is deprecated but still honored if it is enabled. Use ROS_AUTOMATIC_DISCOVERY_RANGE and ROS_STATIC_PEERS instead.
+[ros2_control_node-4] [WARN] [1792546095.154280710] [rcl]: 'localhost_only' is enabled, 'automatic_discovery_range' and 'static_peers' will be ignored.
+[lifecycle_manager-11] [WARN] [1792546095.158734329] [rcl]: ROS_LOCALHOST_ONLY is deprecated but still honored if it is enabled. Use ROS_AUTOMATIC_DISCOVERY_RANGE and ROS_STATIC_PEERS instead.
+[lifecycle_manager-11] [WARN] [1792546095.158747142] [rcl]: 'localhost_only' is enabled, 'automatic_discovery_range' and 'static_peers' will be ignored.
+[lifecycle_manager-11] [INFO] [1792546095.168111614] [peach_lifecycle_manager]: Creating
+[lifecycle_manager-11] [INFO] [1792546095.173241539] [peach_lifecycle_manager]: [34m[1mCreating and initializing lifecycle service clients[0m[0m
+[robot_state_publisher-3] [INFO] [1792546095.176179641] [robot_state_publisher]: Robot initialized
+[move_group-7] [WARN] [1792546095.186793476] [rcl]: ROS_LOCALHOST_ONLY is deprecated but still honored if it is enabled. Use ROS_AUTOMATIC_DISCOVERY_RANGE and ROS_STATIC_PEERS instead.
+[move_group-7] [WARN] [1792546095.186806810] [rcl]: 'localhost_only' is enabled, 'automatic_discovery_range' and 'static_peers' will be ignored.
+[peach_arm-9] [WARN] [1792546095.187182616] [rcl]: ROS_LOCALHOST_ONLY is deprecated but still honored if it is enabled. Use ROS_AUTOMATIC_DISCOVERY_RANGE and ROS_STATIC_PEERS instead.
+[peach_arm-9] [WARN] [1792546095.187191388] [rcl]: 'localhost_only' is enabled, 'automatic_discovery_range' and 'static_peers' will be ignored.
+[ros2_control_node-4] [INFO] [1792546095.188650403] [controller_manager]: Using Steady (Monotonic) clock for triggering controller manager cycles.
+[ros2_control_node-4] [INFO] [1792546095.196571228] [controller_manager]: Subscribing to '/robot_description' topic for robot description.
+[ros2_control_node-4] [INFO] [1792546095.196630790] [controller_manager]: update rate is 200 Hz
+[ros2_control_node-4] [INFO] [1792546095.196635342] [controller_manager]: Overruns handling is : enabled
+[ros2_control_node-4] [INFO] [1792546095.196638274] [controller_manager]: Spawning controller_manager RT thread with scheduler priority: 50
+[ros2_control_node-4] [INFO] [1792546095.196698602] [controller_manager]: Successful set up FIFO RT scheduling policy with priority 50.
+[peach_arm-9] [WARN] [1792546095.202545625] [rcl.logging_rosout]: Publisher already registered for node name: 'peach_arm'. If this is due to multiple nodes with the same name then all logs for the logger named 'peach_arm' will go out over the existing publisher. As soon as any node with that name is destructed it will unregister the publisher, preventing any further logs for that name from being published on the rosout topic.
+[peach_arm-9] [WARN] [1792546095.204703090] [peach_arm]: scan.protected_zones 丢弃畸形盒: 盒#0 存在 min>=max 的轴（空盒/退化盒），已丢弃
+[move_group-7] [INFO] [1792546095.206982035] [move_group.moveit.moveit.ros.rdf_loader]: Loaded robot model in 0.0028459 seconds
+[move_group-7] [INFO] [1792546095.207055424] [move_group.moveit.moveit.core.robot_model]: Loading robot model 'aubo_e5'...
+[move_group-7] [INFO] [1792546095.207064494] [move_group.moveit.moveit.core.robot_model]: No root/virtual joint specified in SRDF. Assuming fixed joint
+[move_group-7] [INFO] [1792546095.244991540] [move_group.moveit.moveit.kinematics.kdl_kinematics_plugin]: Joint weights for group 'manipulator_e5': 1 1 1 1 1 1
+[stereo_camera_node-1] [WARN] [1792546095.299746726] [rcl]: ROS_LOCALHOST_ONLY is deprecated but still honored if it is enabled. Use ROS_AUTOMATIC_DISCOVERY_RANGE and ROS_STATIC_PEERS instead.
+[stereo_camera_node-1] [WARN] [1792546095.299761074] [rcl]: 'localhost_only' is enabled, 'automatic_discovery_range' and 'static_peers' will be ignored.
+[stereo_camera_node-1] [INFO] [1792546095.312707294] [camera.peach_stereo_camera_node]: color camera_info override from /home/mu/Desktop/aubo_e5_jazzy_ws/install/percipio_camera/share/percipio_camera/config/color_camera_info.yaml (camera=camera_color)
+[stereo_camera_node-1] [INFO] [1792546095.321665028] [camera.peach_stereo_camera_node]: interface list: status=0 count=1
+[stereo_camera_node-1] [FATAL] [1792546095.321690427] [camera.peach_stereo_camera_node]: open device 169.254.10.110 failed
+[stereo_camera_node-1] terminate called after throwing an instance of 'std::runtime_error'
+[stereo_camera_node-1]   what():  open device failed
+[move_group-7] [INFO] [1792546095.332087328] [move_group.moveit.moveit.ros.planning_scene_monitor]: Publishing maintained planning scene on 'monitored_planning_scene'
+[move_group-7] [INFO] [1792546095.332228116] [move_group.moveit.moveit.ros.moveit_cpp]: Listening to 'joint_states' for joint states
+[move_group-7] [INFO] [1792546095.332984956] [move_group.moveit.moveit.ros.current_state_monitor]: Listening to joint states on topic 'joint_states'
+[move_group-7] [INFO] [1792546095.333258655] [move_group.moveit.moveit.ros.planning_scene_monitor]: Listening to '/attached_collision_object' for attached collision objects
+[move_group-7] [INFO] [1792546095.333268965] [move_group.moveit.moveit.ros.planning_scene_monitor]: Stopping existing planning scene publisher.
+[move_group-7] [INFO] [1792546095.333353972] [move_group.moveit.moveit.ros.planning_scene_monitor]: Stopped publishing maintained planning scene.
+[move_group-7] [INFO] [1792546095.333550467] [move_group.moveit.moveit.ros.planning_scene_monitor]: Publishing maintained planning scene on 'monitored_planning_scene'
+[move_group-7] [INFO] [1792546095.333604887] [move_group.moveit.moveit.ros.planning_scene_monitor]: Starting planning scene monitor
+[move_group-7] [INFO] [1792546095.334004931] [move_group.moveit.moveit.ros.planning_scene_monitor]: Listening to '/planning_scene'
+[move_group-7] [INFO] [1792546095.334013503] [move_group.moveit.moveit.ros.planning_scene_monitor]: Starting world geometry update monitor for collision objects, attached objects, octomap updates.
+[move_group-7] [INFO] [1792546095.334198408] [move_group.moveit.moveit.ros.planning_scene_monitor]: Listening to 'collision_object'
+[move_group-7] [INFO] [1792546095.334383281] [move_group.moveit.moveit.ros.planning_scene_monitor]: Listening to 'planning_scene_world' for planning scene world geometry
+[move_group-7] [WARN] [1792546095.335710762] [move_group.moveit.moveit.ros.occupancy_map_monitor]: Resolution not specified for Octomap. Assuming resolution = 0.1 instead
+[move_group-7] [ERROR] [1792546095.335731470] [move_group.moveit.moveit.ros.occupancy_map_monitor]: No 3D sensor plugin(s) defined for octomap updates
+[spawner-6] [WARN] [1792546095.342630349] [rcl]: ROS_LOCALHOST_ONLY is deprecated but still honored if it is enabled. Use ROS_AUTOMATIC_DISCOVERY_RANGE and ROS_STATIC_PEERS instead.
+[spawner-6] [WARN] [1792546095.342637935] [rcl]: 'localhost_only' is enabled, 'automatic_discovery_range' and 'static_peers' will be ignored.
+[peach_lifecycle_flag_bridge-12] [WARN] [1792546095.346307128] [rcl]: ROS_LOCALHOST_ONLY is deprecated but still honored if it is enabled. Use ROS_AUTOMATIC_DISCOVERY_RANGE and ROS_STATIC_PEERS instead.
+[peach_lifecycle_flag_bridge-12] [WARN] [1792546095.346315734] [rcl]: 'localhost_only' is enabled, 'automatic_discovery_range' and 'static_peers' will be ignored.
+[spawner-5] [WARN] [1792546095.370882545] [rcl]: ROS_LOCALHOST_ONLY is deprecated but still honored if it is enabled. Use ROS_AUTOMATIC_DISCOVERY_RANGE and ROS_STATIC_PEERS instead.
+[spawner-5] [WARN] [1792546095.370893519] [rcl]: 'localhost_only' is enabled, 'automatic_discovery_range' and 'static_peers' will be ignored.
+[move_group-7] [INFO] [1792546095.395913850] [move_group.moveit.moveit.ros.planning_pipeline]: Successfully loaded planner 'OMPL'
+[move_group-7] [INFO] [1792546095.397624312] [move_group]: Try loading adapter 'default_planning_request_adapters/ResolveConstraintFrames'
+[move_group-7] [INFO] [1792546095.398790362] [move_group]: Loaded adapter 'default_planning_request_adapters/ResolveConstraintFrames'
+[move_group-7] [INFO] [1792546095.398807419] [move_group]: Try loading adapter 'default_planning_request_adapters/ValidateWorkspaceBounds'
+[move_group-7] [INFO] [1792546095.398975043] [move_group]: Loaded adapter 'default_planning_request_adapters/ValidateWorkspaceBounds'
+[move_group-7] [INFO] [1792546095.398977655] [move_group]: Try loading adapter 'default_planning_request_adapters/CheckStartStateBounds'
+[move_group-7] [INFO] [1792546095.398988582] [move_group]: Loaded adapter 'default_planning_request_adapters/CheckStartStateBounds'
+[move_group-7] [INFO] [1792546095.398990163] [move_group]: Try loading adapter 'default_planning_request_adapters/CheckStartStateCollision'
+[move_group-7] [INFO] [1792546095.398994693] [move_group]: Loaded adapter 'default_planning_request_adapters/CheckStartStateCollision'
+[move_group-7] [INFO] [1792546095.400201815] [move_group]: Try loading adapter 'default_planning_response_adapters/AddTimeOptimalParameterization'
+[ERROR] [stereo_camera_node-1]: process has died [pid 21688, exit code -11, cmd '/home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_stereo/lib/peach_stereo/stereo_camera_node --ros-args -r __node:=peach_stereo_camera_node -r __ns:=/camera -p use_sim_time:=False --params-file /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_stereo/share/peach_stereo/config/stereo_camera.yaml --params-file /tmp/launch_params_7ysvn_q4 --params-file /tmp/launch_params_newndejg'].
+[move_group-7] [INFO] [1792546095.402921599] [move_group]: Loaded adapter 'default_planning_response_adapters/AddTimeOptimalParameterization'
+[move_group-7] [INFO] [1792546095.402934773] [move_group]: Try loading adapter 'default_planning_response_adapters/AddRuckigTrajectorySmoothing'
+[move_group-7] [INFO] [1792546095.402942479] [move_group]: Loaded adapter 'default_planning_response_adapters/AddRuckigTrajectorySmoothing'
+[move_group-7] [INFO] [1792546095.402944404] [move_group]: Try loading adapter 'default_planning_response_adapters/ValidateSolution'
+[move_group-7] [INFO] [1792546095.404613246] [move_group]: Loaded adapter 'default_planning_response_adapters/ValidateSolution'
+[spawner-6] [INFO] [1792546095.407150909] [spawner_joint_trajectory_controller]: waiting for service /controller_manager/list_controllers to become available...
+[move_group-7] [INFO] [1792546095.407567459] [move_group.moveit.moveit.planners.pilz.joint_limits_aggregator]: Reading limits from namespace robot_description_planning
+[move_group-7] [INFO] [1792546095.409268047] [move_group.moveit.moveit.planners.pilz.command_planner]: Available plugins: pilz_industrial_motion_planner/PlanningContextLoaderCIRC pilz_industrial_motion_planner/PlanningContextLoaderLIN pilz_industrial_motion_planner/PlanningContextLoaderPTP 
+[move_group-7] [INFO] [1792546095.409278355] [move_group.moveit.moveit.planners.pilz.command_planner]: About to load: pilz_industrial_motion_planner/PlanningContextLoaderCIRC
+[move_group-7] [INFO] [1792546095.410570671] [move_group.moveit.moveit.planners.pilz.command_planner]: Registered Algorithm [CIRC]
+[move_group-7] [INFO] [1792546095.410580086] [move_group.moveit.moveit.planners.pilz.command_planner]: About to load: pilz_industrial_motion_planner/PlanningContextLoaderLIN
+[move_group-7] [INFO] [1792546095.411293761] [move_group.moveit.moveit.planners.pilz.command_planner]: Registered Algorithm [LIN]
+[move_group-7] [INFO] [1792546095.411300331] [move_group.moveit.moveit.planners.pilz.command_planner]: About to load: pilz_industrial_motion_planner/PlanningContextLoaderPTP
+[move_group-7] [INFO] [1792546095.411990132] [move_group.moveit.moveit.planners.pilz.command_planner]: Registered Algorithm [PTP]
+[move_group-7] [INFO] [1792546095.411997120] [move_group.moveit.moveit.ros.planning_pipeline]: Successfully loaded planner 'Pilz Industrial Motion Planner'
+[move_group-7] [INFO] [1792546095.413139579] [move_group]: Try loading adapter 'default_planning_request_adapters/ResolveConstraintFrames'
+[move_group-7] [INFO] [1792546095.413263665] [move_group]: Loaded adapter 'default_planning_request_adapters/ResolveConstraintFrames'
+[move_group-7] [INFO] [1792546095.413266541] [move_group]: Try loading adapter 'default_planning_request_adapters/ValidateWorkspaceBounds'
+[move_group-7] [INFO] [1792546095.413621458] [move_group]: Loaded adapter 'default_planning_request_adapters/ValidateWorkspaceBounds'
+[move_group-7] [INFO] [1792546095.413629585] [move_group]: Try loading adapter 'default_planning_request_adapters/CheckStartStateBounds'
+[move_group-7] [INFO] [1792546095.413640267] [move_group]: Loaded adapter 'default_planning_request_adapters/CheckStartStateBounds'
+[move_group-7] [INFO] [1792546095.413642510] [move_group]: Try loading adapter 'default_planning_request_adapters/CheckStartStateCollision'
+[move_group-7] [INFO] [1792546095.413647907] [move_group]: Loaded adapter 'default_planning_request_adapters/CheckStartStateCollision'
+[move_group-7] [INFO] [1792546095.414797949] [move_group]: Try loading adapter 'default_planning_response_adapters/ValidateSolution'
+[move_group-7] [INFO] [1792546095.415268721] [move_group]: Loaded adapter 'default_planning_response_adapters/ValidateSolution'
+[move_group-7] [INFO] [1792546095.418221887] [move_group.moveit.moveit.ros.planning_pipeline]: Successfully loaded planner 'STOMP'
+[move_group-7] [INFO] [1792546095.419354332] [move_group]: Try loading adapter 'default_planning_request_adapters/ResolveConstraintFrames'
+[move_group-7] [INFO] [1792546095.419465329] [move_group]: Loaded adapter 'default_planning_request_adapters/ResolveConstraintFrames'
+[move_group-7] [INFO] [1792546095.419468177] [move_group]: Try loading adapter 'default_planning_request_adapters/ValidateWorkspaceBounds'
+[move_group-7] [INFO] [1792546095.419525317] [move_group]: Loaded adapter 'default_planning_request_adapters/ValidateWorkspaceBounds'
+[move_group-7] [INFO] [1792546095.419527664] [move_group]: Try loading adapter 'default_planning_request_adapters/CheckStartStateBounds'
+[move_group-7] [INFO] [1792546095.419534910] [move_group]: Loaded adapter 'default_planning_request_adapters/CheckStartStateBounds'
+[move_group-7] [INFO] [1792546095.419536323] [move_group]: Try loading adapter 'default_planning_request_adapters/CheckStartStateCollision'
+[move_group-7] [INFO] [1792546095.419540912] [move_group]: Loaded adapter 'default_planning_request_adapters/CheckStartStateCollision'
+[move_group-7] [INFO] [1792546095.420618483] [move_group]: Try loading adapter 'default_planning_response_adapters/AddTimeOptimalParameterization'
+[move_group-7] [INFO] [1792546095.420823060] [move_group]: Loaded adapter 'default_planning_response_adapters/AddTimeOptimalParameterization'
+[move_group-7] [INFO] [1792546095.420825791] [move_group]: Try loading adapter 'default_planning_response_adapters/ValidateSolution'
+[move_group-7] [INFO] [1792546095.421010002] [move_group]: Loaded adapter 'default_planning_response_adapters/ValidateSolution'
+[move_group-7] [INFO] [1792546095.421013894] [move_group]: Try loading adapter 'default_planning_response_adapters/DisplayMotionPath'
+[move_group-7] [INFO] [1792546095.421262787] [move_group]: Loaded adapter 'default_planning_response_adapters/DisplayMotionPath'
+[move_group-7] [INFO] [1792546095.442609458] [move_group.moveit.moveit.plugins.simple_controller_manager]: Added FollowJointTrajectory controller for joint_trajectory_controller
+[move_group-7] [INFO] [1792546095.442754671] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[move_group-7] [INFO] [1792546095.442769203] [move_group.moveit.moveit.plugins.simple_controller_manager]: Returned 1 controllers in list
+[move_group-7] [INFO] [1792546095.443064823] [move_group.moveit.moveit.ros.trajectory_execution_manager]: Trajectory execution is not managing controllers
+[move_group-7] [INFO] [1792546095.443080964] [move_group]: MoveGroup debug mode is ON
+[move_group-7] [INFO] [1792546095.460641233] [move_group.moveit.moveit.planners.pilz.move_group_sequence_action]: initialize move group sequence action
+[move_group-7] [INFO] [1792546095.461947604] [move_group.moveit.moveit.planners.pilz.joint_limits_aggregator]: Reading limits from namespace robot_description_planning
+[move_group-7] [INFO] [1792546095.462056873] [move_group.moveit.moveit.planners.pilz.joint_limits_aggregator]: Reading limits from namespace robot_description_planning
+[move_group-7] [INFO] [1792546095.462381388] [move_group.moveit.moveit.ros.move_group.executable]: 
+[move_group-7] 
+[move_group-7] ********************************************************
+[move_group-7] * MoveGroup using: 
+[move_group-7] *     - apply_planning_scene_service
+[move_group-7] *     - clear_octomap_service
+[move_group-7] *     - ExecuteTaskSolution
+[move_group-7] *     - get_group_urdf
+[move_group-7] *     - load_geometry_from_file
+[move_group-7] *     - CartesianPathService
+[move_group-7] *     - execute_trajectory_action
+[move_group-7] *     - get_planning_scene_service
+[move_group-7] *     - kinematics_service
+[move_group-7] *     - move_action
+[move_group-7] *     - motion_plan_service
+[move_group-7] *     - query_planners_service
+[move_group-7] *     - state_validation_service
+[move_group-7] *     - save_geometry_to_file
+[move_group-7] *     - SequenceAction
+[move_group-7] *     - SequenceService
+[move_group-7] ********************************************************
+[move_group-7] 
+[move_group-7] [INFO] [1792546095.462403729] [move_group.moveit.moveit.ros.move_group.context]: MoveGroup context using pipeline pilz_industrial_motion_planner
+[move_group-7] [INFO] [1792546095.462408416] [move_group.moveit.moveit.ros.move_group.context]: MoveGroup context initialization complete
+[move_group-7] [96mLoading 'move_group/ApplyPlanningSceneService'...[0m
+[move_group-7] [96mLoading 'move_group/ClearOctomapService'...[0m
+[move_group-7] [96mLoading 'move_group/ExecuteTaskSolutionCapability'...[0m
+[move_group-7] [96mLoading 'move_group/GetUrdfService'...[0m
+[move_group-7] [96mLoading 'move_group/LoadGeometryFromFileService'...[0m
+[move_group-7] [96mLoading 'move_group/MoveGroupCartesianPathService'...[0m
+[move_group-7] [96mLoading 'move_group/MoveGroupExecuteTrajectoryAction'...[0m
+[move_group-7] [96mLoading 'move_group/MoveGroupGetPlanningSceneService'...[0m
+[move_group-7] [96mLoading 'move_group/MoveGroupKinematicsService'...[0m
+[move_group-7] [96mLoading 'move_group/MoveGroupMoveAction'...[0m
+[move_group-7] [96mLoading 'move_group/MoveGroupPlanService'...[0m
+[move_group-7] [96mLoading 'move_group/MoveGroupQueryPlannersService'...[0m
+[move_group-7] [96mLoading 'move_group/MoveGroupStateValidationService'...[0m
+[move_group-7] [96mLoading 'move_group/SaveGeometryToFileService'...[0m
+[move_group-7] [96mLoading 'pilz_industrial_motion_planner/MoveGroupSequenceAction'...[0m
+[move_group-7] [96mLoading 'pilz_industrial_motion_planner/MoveGroupSequenceService'...[0m
+[move_group-7] 
+[move_group-7] [92mYou can start planning now![0m
+[move_group-7] 
+[ros2_control_node-4] [INFO] [1792546095.495233855] [controller_manager]: Received robot description from topic.
+[ros2_control_node-4] [INFO] [1792546095.495283897] [controller_manager]: Enforcing command limits is disabled. Command limits from URDF will be ignored.
+[ros2_control_node-4] [INFO] [1792546095.497271302] [controller_manager]: Loading hardware 'AuboE5System' 
+[ros2_control_node-4] [INFO] [1792546095.498346485] [controller_manager]: Loaded hardware 'AuboE5System' from plugin 'mock_components/GenericSystem'
+[ros2_control_node-4] [INFO] [1792546095.498393371] [controller_manager]: Initialize hardware 'AuboE5System' 
+[ros2_control_node-4] [INFO] [1792546095.502443512] [controller_manager]: Successful initialization of hardware 'AuboE5System'
+[ros2_control_node-4] [INFO] [1792546095.502792046] [controller_manager]: Activating component 'AuboE5System'.
+[ros2_control_node-4] [INFO] [1792546095.502799113] [resource_manager]: 'configure' hardware 'AuboE5System' 
+[ros2_control_node-4] [INFO] [1792546095.502805098] [resource_manager]: Successful 'configure' of hardware 'AuboE5System'
+[ros2_control_node-4] [INFO] [1792546095.502816208] [resource_manager]: 'activate' hardware 'AuboE5System' 
+[ros2_control_node-4] [INFO] [1792546095.502820253] [resource_manager]: Successful 'activate' of hardware 'AuboE5System'
+[ros2_control_node-4] [INFO] [1792546095.502864398] [controller_manager]: Registering statistics for : AuboE5System
+[ros2_control_node-4] [INFO] [1792546095.502893997] [controller_manager]: Resource Manager has been successfully initialized. Starting Controller Manager services...
+[peach_scene_obstacles-2] [WARN] [1792546095.522585772] [rcl]: ROS_LOCALHOST_ONLY is deprecated but still honored if it is enabled. Use ROS_AUTOMATIC_DISCOVERY_RANGE and ROS_STATIC_PEERS instead.
+[peach_scene_obstacles-2] [WARN] [1792546095.522593678] [rcl]: 'localhost_only' is enabled, 'automatic_discovery_range' and 'static_peers' will be ignored.
+[peach_observability-10] [WARN] [1792546095.604614910] [rcl]: ROS_LOCALHOST_ONLY is deprecated but still honored if it is enabled. Use ROS_AUTOMATIC_DISCOVERY_RANGE and ROS_STATIC_PEERS instead.
+[peach_observability-10] [WARN] [1792546095.604621432] [rcl]: 'localhost_only' is enabled, 'automatic_discovery_range' and 'static_peers' will be ignored.
+[peach_scene_obstacles-2] [INFO] [1792546095.613266800] [peach_scene_obstacles]: scene obstacles snapshot node ready (waits refresh trigger)
+[peach_harvester-8] [WARN] [1792546095.653573309] [rcl]: ROS_LOCALHOST_ONLY is deprecated but still honored if it is enabled. Use ROS_AUTOMATIC_DISCOVERY_RANGE and ROS_STATIC_PEERS instead.
+[peach_harvester-8] [WARN] [1792546095.653580984] [rcl]: 'localhost_only' is enabled, 'automatic_discovery_range' and 'static_peers' will be ignored.
+[ros2_control_node-4] [INFO] [1792546095.658849624] [controller_manager]: Loading controller : 'joint_trajectory_controller' of type 'joint_trajectory_controller/JointTrajectoryController'
+[ros2_control_node-4] [INFO] [1792546095.658880256] [controller_manager]: Loading controller 'joint_trajectory_controller'
+[ros2_control_node-4] [INFO] [1792546095.662515389] [controller_manager]: Controller 'joint_trajectory_controller' node arguments: --ros-args -p use_sim_time:=False --params-file /tmp/launch_params_jowb47qm --params-file /home/mu/Desktop/aubo_e5_jazzy_ws/install/aubo_e5_bringup/share/aubo_e5_bringup/config/controllers.yaml 
+[spawner-6] [INFO] [1792546095.675085744] [spawner_joint_trajectory_controller]: Loaded joint_trajectory_controller
+[ros2_control_node-4] [INFO] [1792546095.676024233] [controller_manager]: Configuring controller: 'joint_trajectory_controller'
+[ros2_control_node-4] [INFO] [1792546095.676158434] [joint_trajectory_controller]: No specific joint names are used for command interfaces. Using 'joints' parameter.
+[ros2_control_node-4] [INFO] [1792546095.676171016] [joint_trajectory_controller]: Command interfaces are [position] and state interfaces are [position velocity].
+[ros2_control_node-4] [INFO] [1792546095.676183277] [joint_trajectory_controller]: Using 'splines' interpolation method.
+[ros2_control_node-4] [INFO] [1792546095.679742678] [joint_trajectory_controller]: Action status changes will be monitored at 20.00 Hz.
+[ros2_control_node-4] [INFO] [1792546095.682478011] [joint_trajectory_controller]: Setting initial scaling factor to 1.000000
+[ros2_control_node-4] [INFO] [1792546095.682493901] [joint_trajectory_controller]: No scaling interface set. This controller will not read speed scaling from the hardware.
+[ros2_control_node-4] [INFO] [1792546095.691201080] [controller_manager]: Activating controllers: [ joint_trajectory_controller ]
+[ros2_control_node-4] [INFO] [1792546095.691942536] [controller_manager]: Successfully switched controllers!
+[spawner-6] [INFO] [1792546095.697611827] [spawner_joint_trajectory_controller]: Configured and activated joint_trajectory_controller
+[peach_harvester-8] [INFO] [1792546095.718564694] [peach_scene_perception_node]: YOLO=/home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_harvester/share/peach_harvester/model/best.pt
+[peach_harvester-8] [INFO] [1792546095.718757824] [peach_scene_perception_node]: SAM=/home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_harvester/share/peach_harvester/model/mobile_sam.pt
+[spawner-5] [INFO] [1792546095.777149919] [spawner_joint_state_broadcaster]: waiting for service /controller_manager/list_controllers to become available...
+[peach_observability-10] [WARN] [1792546095.813754947] [peach_observability]: *** 调试操作面已启用：运动类操作=默认拒绝。技能侧既有安全门照常生效；请保持 HTTP 回环绑定 ***
+[peach_observability-10] [INFO] [1792546095.817896911] [peach_observability]: 感知抓取过程页（过程监控+单步调试）: http://127.0.0.1:8090
+[INFO] [spawner-6]: process has finished cleanly [pid 21693]
+[peach_observability-10] [INFO] [1792546095.828112706] [peach_observability]: 全量录制订阅: /display_planned_path [moveit_msgs/msg/DisplayTrajectory]
+[peach_observability-10] [INFO] [1792546095.829312457] [peach_observability]: 全量录制订阅: /joint_states [sensor_msgs/msg/JointState]
+[peach_observability-10] [INFO] [1792546095.829891886] [peach_observability]: 全量录制订阅: /peach/observability/tcp_path [nav_msgs/msg/Path]
+[peach_observability-10] [INFO] [1792546095.830466151] [peach_observability]: 全量录制订阅: /peach/perception/target_observations [peach_interfaces/msg/PeachTargetObservationArray]
+[peach_observability-10] [INFO] [1792546095.830832080] [peach_observability]: 全量录制订阅: /peach/reconstruction/diagnostics [peach_interfaces/msg/ReconstructionStatus]
+[peach_observability-10] [INFO] [1792546095.831213802] [peach_observability]: 全量录制订阅: /peach/reconstruction/diagnostics_debug [std_msgs/msg/String]
+[peach_observability-10] [INFO] [1792546095.831582885] [peach_observability]: 全量录制订阅: /peach/reconstruction/grasp_decision [peach_interfaces/msg/GraspDecision]
+[peach_observability-10] [INFO] [1792546095.831947657] [peach_observability]: 全量录制订阅: /peach/reconstruction/refined_axis [geometry_msgs/msg/Vector3Stamped]
+[peach_observability-10] [INFO] [1792546095.832313432] [peach_observability]: 全量录制订阅: /peach/reconstruction/refined_diagnostics [peach_interfaces/msg/BagFittingArray]
+[peach_observability-10] [INFO] [1792546095.832682470] [peach_observability]: 全量录制订阅: /peach/reconstruction/refined_pose [peach_interfaces/msg/BagGraspCandidateArray]
+[peach_observability-10] [INFO] [1792546095.833043449] [peach_observability]: 全量录制订阅: /peach/reconstruction/status [std_msgs/msg/String]
+[peach_observability-10] [INFO] [1792546095.833412912] [peach_observability]: 全量录制订阅: /peach/reconstruction/tsdf_cloud [sensor_msgs/msg/PointCloud2]
+[peach_observability-10] [INFO] [1792546095.833791387] [peach_observability]: 全量录制订阅: /peach_arm/execute_target/_action/feedback [peach_interfaces/action/ExecuteTarget_FeedbackMessage]
+[peach_observability-10] [INFO] [1792546095.834154038] [peach_observability]: 全量录制订阅: /peach_arm/execute_target/_action/status [action_msgs/msg/GoalStatusArray]
+[peach_observability-10] [INFO] [1792546095.834553946] [peach_observability]: 全量录制订阅: /peach_arm/status [std_msgs/msg/String]
+[peach_observability-10] [INFO] [1792546095.834917560] [peach_observability]: 全量录制订阅: /peach_supervisor/events [peach_interfaces/msg/CanonicalEvent]
+[peach_observability-10] [INFO] [1792546095.835278659] [peach_observability]: 全量录制订阅: /peach_supervisor/run_harvest/_action/feedback [peach_interfaces/action/RunHarvest_FeedbackMessage]
+[peach_observability-10] [INFO] [1792546095.835797978] [peach_observability]: 全量录制订阅: /peach_supervisor/run_harvest/_action/status [action_msgs/msg/GoalStatusArray]
+[peach_observability-10] [INFO] [1792546095.838488732] [peach_observability]: 全量录制订阅: /peach_supervisor/scene_snapshot [peach_interfaces/msg/SceneSnapshot]
+[peach_observability-10] [INFO] [1792546095.839541350] [peach_observability]: 全量录制订阅: /peach_supervisor/state [peach_interfaces/msg/HarvestState]
+[peach_observability-10] [INFO] [1792546095.840572233] [peach_observability]: 全量录制订阅: /peach_target_reconstruction_node/build_target_model/_action/feedback [peach_interfaces/action/BuildTargetModel_FeedbackMessage]
+[peach_observability-10] [INFO] [1792546095.842245090] [peach_observability]: 全量录制订阅: /peach_target_reconstruction_node/build_target_model/_action/status [action_msgs/msg/GoalStatusArray]
+[peach_observability-10] [INFO] [1792546095.842907209] [peach_observability]: 全量录制订阅: /tf [tf2_msgs/msg/TFMessage]
+[peach_observability-10] [INFO] [1792546095.843499705] [peach_observability]: 全量录制订阅: /tf_static [tf2_msgs/msg/TFMessage]
+[ros2_control_node-4] [INFO] [1792546096.110679955] [controller_manager]: Loading controller : 'joint_state_broadcaster' of type 'joint_state_broadcaster/JointStateBroadcaster'
+[ros2_control_node-4] [INFO] [1792546096.110726025] [controller_manager]: Loading controller 'joint_state_broadcaster'
+[ros2_control_node-4] [INFO] [1792546096.112712633] [controller_manager]: Controller 'joint_state_broadcaster' node arguments: --ros-args -p use_sim_time:=False --params-file /tmp/launch_params_jowb47qm --params-file /home/mu/Desktop/aubo_e5_jazzy_ws/install/aubo_e5_bringup/share/aubo_e5_bringup/config/controllers.yaml 
+[spawner-5] [INFO] [1792546096.118301660] [spawner_joint_state_broadcaster]: Loaded joint_state_broadcaster
+[ros2_control_node-4] [INFO] [1792546096.119182499] [controller_manager]: Configuring controller: 'joint_state_broadcaster'
+[ros2_control_node-4] [INFO] [1792546096.119382272] [joint_state_broadcaster]: 'joints' or 'interfaces' parameter is empty. All available state interfaces will be published
+[ros2_control_node-4] [INFO] [1792546096.124144381] [controller_manager]: Activating controllers: [ joint_state_broadcaster ]
+[ros2_control_node-4] [INFO] [1792546096.126952396] [controller_manager]: Successfully switched controllers!
+[spawner-5] [INFO] [1792546096.132670209] [spawner_joint_state_broadcaster]: Configured and activated joint_state_broadcaster
+[INFO] [spawner-5]: process has finished cleanly [pid 21692]
+[peach_harvester-8] /home/mu/Desktop/aubo_e5_jazzy_ws/aubo_py3.12/lib/python3.12/site-packages/torch/cuda/__init__.py:188: UserWarning: CUDA initialization: Unexpected error from cudaGetDeviceCount(). Did you run some cuda functions before calling NumCudaDevices() that might have already set an error? Error 304: OS call failed or operation not supported on this OS (Triggered internally at /__w/pytorch/pytorch/c10/cuda/CUDAFunctions.cpp:119.)
+[peach_harvester-8]   return torch._C._cuda_getDeviceCount() > 0
+[peach_harvester-8] [INFO] [1792546096.789202663] [peach_scene_perception_node]: Subscribed color=/camera/color/image_raw depth=/camera/depth/image_raw info=/camera/color/camera_info slop=0.05s optical=camera_color_optical_frame output=base_link depth_scale_unit=0.25 gravity_mode=tf calib=percipio-640x480-chessboard|hand_eye:import_humble_20260128T114006
+[peach_harvester-8] [INFO] [1792546096.789422818] [peach_scene_perception_node]: 目标身份记忆已启用：match_radius=0.06 m, max_targets=50, ema=0.3
+[peach_harvester-8] [INFO] [1792546096.800270475] [peach_target_reconstruction_node]: peach_target_reconstruction_node ready: base=base_link color=/camera/color/image_raw depth=/camera/depth/image_raw slop=0.05s depth_scale_unit=0.25 views(min/rec/max)=1/5/24 require_static=True auto_mode=True session_root=/home/mu/Desktop/aubo_e5_jazzy_ws/runs
+[lifecycle_manager-11] [INFO] [1792546096.901673772] [peach_lifecycle_manager]: [34m[1mStarting managed nodes bringup...[0m[0m
+[lifecycle_manager-11] [INFO] [1792546096.901722953] [peach_lifecycle_manager]: [34m[1mConfiguring peach_scene_perception_node[0m[0m
+[lifecycle_manager-11] [INFO] [1792546096.939875378] [peach_lifecycle_manager]: [34m[1mConfiguring peach_target_reconstruction_node[0m[0m
+[lifecycle_manager-11] [INFO] [1792546096.958222569] [peach_lifecycle_manager]: [34m[1mConfiguring peach_arm[0m[0m
+[peach_arm-9] [WARN] [1792546096.959148407] [peach_arm]: scan.protected_zones 丢弃畸形盒: 盒#0 存在 min>=max 的轴（空盒/退化盒），已丢弃
+[peach_arm-9] [WARN] [1792546096.981349505] [peach_arm]: scan.protected_zones 丢弃畸形盒: 盒#0 存在 min>=max 的轴（空盒/退化盒），已丢弃
+[peach_arm-9] [WARN] [1792546096.981462855] [peach_arm]: scan.protected_zones 丢弃畸形盒: 盒#0 存在 min>=max 的轴（空盒/退化盒），已丢弃
+[peach_arm-9] [WARN] [1792546096.982811325] [rcl.logging_rosout]: Publisher already registered for node name: 'peach_arm'. If this is due to multiple nodes with the same name then all logs for the logger named 'peach_arm' will go out over the existing publisher. As soon as any node with that name is destructed it will unregister the publisher, preventing any further logs for that name from being published on the rosout topic.
+[peach_arm-9] [INFO] [1792546096.987531929] [peach_arm.moveit.ros.rdf_loader]: Loaded robot model in 0.00208519 seconds
+[peach_arm-9] [INFO] [1792546096.987573009] [peach_arm.moveit.core.robot_model]: Loading robot model 'aubo_e5'...
+[peach_arm-9] [INFO] [1792546096.987583633] [peach_arm.moveit.core.robot_model]: No root/virtual joint specified in SRDF. Assuming fixed joint
+[peach_arm-9] [INFO] [1792546097.007789418] [peach_arm.moveit.kinematics.kdl_kinematics_plugin]: Joint weights for group 'manipulator_e5': 1 1 1 1 1 1
+[peach_arm-9] [INFO] [1792546097.014435598] [peach_arm.moveit.ros.move_group_interface]: Ready to take commands for planning group manipulator_e5.
+[peach_arm-9] [INFO] [1792546097.014931355] [peach_arm]: 主动视觉靠近节点 ready: group=manipulator_e5 base=base_link tip=tcp camera=camera_depth_optical_frame execution=plan_only grasp=disabled
+[peach_arm-9] [INFO] [1792546097.015033557] [peach_arm.cycle]: [IDLE] 已配置；activate 后才开放运动输出权限
+[lifecycle_manager-11] [INFO] [1792546097.015735146] [peach_lifecycle_manager]: [34m[1mConfiguring peach_supervisor[0m[0m
+[peach_harvester-8] [INFO] [1792546097.032690378] [peach_supervisor]: task executor configured; will not auto-start harvest
+[lifecycle_manager-11] [INFO] [1792546097.034520142] [peach_lifecycle_manager]: [34m[1mActivating peach_scene_perception_node[0m[0m
+[peach_harvester-8] [INFO] [1792546097.035447670] [peach_scene_perception_node]: perception Active：开始处理 RGB-D
+[lifecycle_manager-11] [INFO] [1792546097.036099007] [peach_lifecycle_manager]: [34m[1mActivating peach_target_reconstruction_node[0m[0m
+[peach_harvester-8] [INFO] [1792546097.038064038] [peach_target_reconstruction_node]: reconstruction Active：开始积分
+[lifecycle_manager-11] [INFO] [1792546097.039106206] [peach_lifecycle_manager]: [34m[1mActivating peach_arm[0m[0m
+[peach_arm-9] [WARN] [1792546097.039247713] [peach_arm]: scan.protected_zones 丢弃畸形盒: 盒#0 存在 min>=max 的轴（空盒/退化盒），已丢弃
+[peach_arm-9] [INFO] [1792546097.041562359] [peach_arm]: 节点已激活：运动输出权限开放
+[lifecycle_manager-11] [INFO] [1792546097.042342207] [peach_lifecycle_manager]: [34m[1mActivating peach_supervisor[0m[0m
+[peach_arm-9] [WARN] [1792546097.045622595] [rcl.logging_rosout]: Publisher already registered for node name: 'peach_arm'. If this is due to multiple nodes with the same name then all logs for the logger named 'peach_arm' will go out over the existing publisher. As soon as any node with that name is destructed it will unregister the publisher, preventing any further logs for that name from being published on the rosout topic.
+[lifecycle_manager-11] [INFO] [1792546097.046538058] [peach_lifecycle_manager]: [34m[1mManaged nodes are active[0m[0m
+[peach_arm-9] [WARN] [1792546097.050297002] [rcl.logging_rosout]: Publisher already registered for node name: 'peach_arm'. If this is due to multiple nodes with the same name then all logs for the logger named 'peach_arm' will go out over the existing publisher. As soon as any node with that name is destructed it will unregister the publisher, preventing any further logs for that name from being published on the rosout topic.
+[peach_arm-9] [INFO] [1792546097.054227003] [peach_arm]: 场景障碍 ACM 豁免已应用: 28 条（含 <octomap> 保留名）
+[peach_lifecycle_flag_bridge-12] [INFO] [1792546097.056690077] [peach_lifecycle_flag_bridge]: 托管栈 Active=True（桥自 nav2_lm is_active）
+[peach_observability-10] [INFO] [1792546097.890427128] [peach_observability]: 全量录制订阅: /execute_trajectory/_action/feedback [moveit_msgs/action/ExecuteTrajectory_FeedbackMessage]
+[peach_observability-10] [INFO] [1792546097.891038511] [peach_observability]: 全量录制订阅: /execute_trajectory/_action/status [action_msgs/msg/GoalStatusArray]
+[peach_observability-10] [INFO] [1792546097.936719917] [peach_observability]: 全量录制订阅: /joint_trajectory_controller/follow_joint_trajectory/_action/feedback [control_msgs/action/FollowJointTrajectory_FeedbackMessage]
+[peach_observability-10] [INFO] [1792546097.939191401] [peach_observability]: 全量录制订阅: /joint_trajectory_controller/follow_joint_trajectory/_action/status [action_msgs/msg/GoalStatusArray]
+[peach_observability-10] [INFO] [1792546097.940200280] [peach_observability]: 全量录制订阅: /peach/batch/enables [peach_interfaces/msg/Enables]
+[peach_observability-10] [INFO] [1792546097.940909321] [peach_observability]: 全量录制订阅: /peach/perception/masks [sensor_msgs/msg/Image]
+[peach_observability-10] [INFO] [1792546097.941506702] [peach_observability]: 全量录制订阅: /peach/reconstruction/local_cloud [sensor_msgs/msg/PointCloud2]
+[peach_observability-10] [INFO] [1792546097.942148004] [peach_observability]: 全量录制订阅: /peach/reconstruction/preview_cloud [sensor_msgs/msg/PointCloud2]
+[INFO] [stereo_camera_node-1]: process started with pid [22111]
+[stereo_camera_node-1] [WARN] [1792546098.503134480] [rcl]: ROS_LOCALHOST_ONLY is deprecated but still honored if it is enabled. Use ROS_AUTOMATIC_DISCOVERY_RANGE and ROS_STATIC_PEERS instead.
+[stereo_camera_node-1] [WARN] [1792546098.503143705] [rcl]: 'localhost_only' is enabled, 'automatic_discovery_range' and 'static_peers' will be ignored.
+[stereo_camera_node-1] [INFO] [1792546098.512443021] [camera.peach_stereo_camera_node]: color camera_info override from /home/mu/Desktop/aubo_e5_jazzy_ws/install/percipio_camera/share/percipio_camera/config/color_camera_info.yaml (camera=camera_color)
+[stereo_camera_node-1] [INFO] [1792546098.518590345] [camera.peach_stereo_camera_node]: interface list: status=0 count=1
+[stereo_camera_node-1] [FATAL] [1792546098.518605475] [camera.peach_stereo_camera_node]: open device 169.254.10.110 failed
+[stereo_camera_node-1] terminate called after throwing an instance of 'std::runtime_error'
+[stereo_camera_node-1]   what():  open device failed
+[ERROR] [stereo_camera_node-1]: process has died [pid 22111, exit code -11, cmd '/home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_stereo/lib/peach_stereo/stereo_camera_node --ros-args -r __node:=peach_stereo_camera_node -r __ns:=/camera -p use_sim_time:=False --params-file /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_stereo/share/peach_stereo/config/stereo_camera.yaml --params-file /tmp/launch_params_7ysvn_q4 --params-file /tmp/launch_params_newndejg'].
+[peach_arm-9] [INFO] [1792546100.060525044] [peach_arm]: 场景障碍 ACM 豁免已应用: 28 条（含 <octomap> 保留名）
+[INFO] [stereo_camera_node-1]: process started with pid [22166]
+[stereo_camera_node-1] [WARN] [1792546101.683023275] [rcl]: ROS_LOCALHOST_ONLY is deprecated but still honored if it is enabled. Use ROS_AUTOMATIC_DISCOVERY_RANGE and ROS_STATIC_PEERS instead.
+[stereo_camera_node-1] [WARN] [1792546101.683032304] [rcl]: 'localhost_only' is enabled, 'automatic_discovery_range' and 'static_peers' will be ignored.
+[stereo_camera_node-1] [INFO] [1792546101.693816040] [camera.peach_stereo_camera_node]: color camera_info override from /home/mu/Desktop/aubo_e5_jazzy_ws/install/percipio_camera/share/percipio_camera/config/color_camera_info.yaml (camera=camera_color)
+[stereo_camera_node-1] [INFO] [1792546101.700416013] [camera.peach_stereo_camera_node]: interface list: status=0 count=1
+[stereo_camera_node-1] [FATAL] [1792546101.700431001] [camera.peach_stereo_camera_node]: open device 169.254.10.110 failed
+[stereo_camera_node-1] terminate called after throwing an instance of 'std::runtime_error'
+[stereo_camera_node-1]   what():  open device failed
+[ERROR] [stereo_camera_node-1]: process has died [pid 22166, exit code -11, cmd '/home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_stereo/lib/peach_stereo/stereo_camera_node --ros-args -r __node:=peach_stereo_camera_node -r __ns:=/camera -p use_sim_time:=False --params-file /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_stereo/share/peach_stereo/config/stereo_camera.yaml --params-file /tmp/launch_params_7ysvn_q4 --params-file /tmp/launch_params_newndejg'].
+[peach_arm-9] [INFO] [1792546103.068262639] [peach_arm]: 场景障碍 ACM 豁免已应用: 28 条（含 <octomap> 保留名）
+[INFO] [stereo_camera_node-1]: process started with pid [22249]
+[stereo_camera_node-1] [WARN] [1792546104.867605281] [rcl]: ROS_LOCALHOST_ONLY is deprecated but still honored if it is enabled. Use ROS_AUTOMATIC_DISCOVERY_RANGE and ROS_STATIC_PEERS instead.
+[stereo_camera_node-1] [WARN] [1792546104.867614615] [rcl]: 'localhost_only' is enabled, 'automatic_discovery_range' and 'static_peers' will be ignored.
+[stereo_camera_node-1] [INFO] [1792546104.877095595] [camera.peach_stereo_camera_node]: color camera_info override from /home/mu/Desktop/aubo_e5_jazzy_ws/install/percipio_camera/share/percipio_camera/config/color_camera_info.yaml (camera=camera_color)
+[stereo_camera_node-1] [INFO] [1792546104.883779252] [camera.peach_stereo_camera_node]: interface list: status=0 count=1
+[stereo_camera_node-1] [FATAL] [1792546104.883794235] [camera.peach_stereo_camera_node]: open device 169.254.10.110 failed
+[stereo_camera_node-1] terminate called after throwing an instance of 'std::runtime_error'
+[stereo_camera_node-1]   what():  open device failed
+[ERROR] [stereo_camera_node-1]: process has died [pid 22249, exit code -11, cmd '/home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_stereo/lib/peach_stereo/stereo_camera_node --ros-args -r __node:=peach_stereo_camera_node -r __ns:=/camera -p use_sim_time:=False --params-file /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_stereo/share/peach_stereo/config/stereo_camera.yaml --params-file /tmp/launch_params_7ysvn_q4 --params-file /tmp/launch_params_newndejg'].
+[peach_observability-10] [WARN] [1792546105.842730393] [peach_observability]: 自检[initial] 12/18 通过，警告: camera_color_rate, camera_depth_rate，跳过: robot_status, force_topic, model_files, vegetation_status
+[INFO] [stereo_camera_node-1]: process started with pid [22332]
+[stereo_camera_node-1] [WARN] [1792546108.054231645] [rcl]: ROS_LOCALHOST_ONLY is deprecated but still honored if it is enabled. Use ROS_AUTOMATIC_DISCOVERY_RANGE and ROS_STATIC_PEERS instead.
+[stereo_camera_node-1] [WARN] [1792546108.054240553] [rcl]: 'localhost_only' is enabled, 'automatic_discovery_range' and 'static_peers' will be ignored.
+[stereo_camera_node-1] [INFO] [1792546108.063444390] [camera.peach_stereo_camera_node]: color camera_info override from /home/mu/Desktop/aubo_e5_jazzy_ws/install/percipio_camera/share/percipio_camera/config/color_camera_info.yaml (camera=camera_color)
+[stereo_camera_node-1] [INFO] [1792546108.069778330] [camera.peach_stereo_camera_node]: interface list: status=0 count=1
+[stereo_camera_node-1] [FATAL] [1792546108.069795803] [camera.peach_stereo_camera_node]: open device 169.254.10.110 failed
+[stereo_camera_node-1] terminate called after throwing an instance of 'std::runtime_error'
+[stereo_camera_node-1]   what():  open device failed
+[ERROR] [stereo_camera_node-1]: process has died [pid 22332, exit code -11, cmd '/home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_stereo/lib/peach_stereo/stereo_camera_node --ros-args -r __node:=peach_stereo_camera_node -r __ns:=/camera -p use_sim_time:=False --params-file /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_stereo/share/peach_stereo/config/stereo_camera.yaml --params-file /tmp/launch_params_7ysvn_q4 --params-file /tmp/launch_params_newndejg'].
+[INFO] [stereo_camera_node-1]: process started with pid [22390]
+[stereo_camera_node-1] [WARN] [1792546111.240859507] [rcl]: ROS_LOCALHOST_ONLY is deprecated but still honored if it is enabled. Use ROS_AUTOMATIC_DISCOVERY_RANGE and ROS_STATIC_PEERS instead.
+[stereo_camera_node-1] [WARN] [1792546111.240868247] [rcl]: 'localhost_only' is enabled, 'automatic_discovery_range' and 'static_peers' will be ignored.
+[stereo_camera_node-1] [INFO] [1792546111.250101039] [camera.peach_stereo_camera_node]: color camera_info override from /home/mu/Desktop/aubo_e5_jazzy_ws/install/percipio_camera/share/percipio_camera/config/color_camera_info.yaml (camera=camera_color)
+[stereo_camera_node-1] [INFO] [1792546111.256275638] [camera.peach_stereo_camera_node]: interface list: status=0 count=1
+[stereo_camera_node-1] [FATAL] [1792546111.256291559] [camera.peach_stereo_camera_node]: open device 169.254.10.110 failed
+[stereo_camera_node-1] terminate called after throwing an instance of 'std::runtime_error'
+[stereo_camera_node-1]   what():  open device failed
+[ERROR] [stereo_camera_node-1]: process has died [pid 22390, exit code -11, cmd '/home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_stereo/lib/peach_stereo/stereo_camera_node --ros-args -r __node:=peach_stereo_camera_node -r __ns:=/camera -p use_sim_time:=False --params-file /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_stereo/share/peach_stereo/config/stereo_camera.yaml --params-file /tmp/launch_params_7ysvn_q4 --params-file /tmp/launch_params_newndejg'].
+[INFO] [stereo_camera_node-1]: process started with pid [22507]
+[stereo_camera_node-1] [WARN] [1792546114.430257095] [rcl]: ROS_LOCALHOST_ONLY is deprecated but still honored if it is enabled. Use ROS_AUTOMATIC_DISCOVERY_RANGE and ROS_STATIC_PEERS instead.
+[stereo_camera_node-1] [WARN] [1792546114.430266496] [rcl]: 'localhost_only' is enabled, 'automatic_discovery_range' and 'static_peers' will be ignored.
+[stereo_camera_node-1] [INFO] [1792546114.439588473] [camera.peach_stereo_camera_node]: color camera_info override from /home/mu/Desktop/aubo_e5_jazzy_ws/install/percipio_camera/share/percipio_camera/config/color_camera_info.yaml (camera=camera_color)
+[stereo_camera_node-1] [INFO] [1792546114.445833360] [camera.peach_stereo_camera_node]: interface list: status=0 count=1
+[stereo_camera_node-1] [FATAL] [1792546114.445850088] [camera.peach_stereo_camera_node]: open device 169.254.10.110 failed
+[stereo_camera_node-1] terminate called after throwing an instance of 'std::runtime_error'
+[stereo_camera_node-1]   what():  open device failed
+[ERROR] [stereo_camera_node-1]: process has died [pid 22507, exit code -11, cmd '/home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_stereo/lib/peach_stereo/stereo_camera_node --ros-args -r __node:=peach_stereo_camera_node -r __ns:=/camera -p use_sim_time:=False --params-file /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_stereo/share/peach_stereo/config/stereo_camera.yaml --params-file /tmp/launch_params_7ysvn_q4 --params-file /tmp/launch_params_newndejg'].
+[INFO] [stereo_camera_node-1]: process started with pid [22660]
+[stereo_camera_node-1] [WARN] [1792546117.617413404] [rcl]: ROS_LOCALHOST_ONLY is deprecated but still honored if it is enabled. Use ROS_AUTOMATIC_DISCOVERY_RANGE and ROS_STATIC_PEERS instead.
+[stereo_camera_node-1] [WARN] [1792546117.617422651] [rcl]: 'localhost_only' is enabled, 'automatic_discovery_range' and 'static_peers' will be ignored.
+[stereo_camera_node-1] [INFO] [1792546117.626651794] [camera.peach_stereo_camera_node]: color camera_info override from /home/mu/Desktop/aubo_e5_jazzy_ws/install/percipio_camera/share/percipio_camera/config/color_camera_info.yaml (camera=camera_color)
+[stereo_camera_node-1] [INFO] [1792546117.632724737] [camera.peach_stereo_camera_node]: interface list: status=0 count=1
+[stereo_camera_node-1] [FATAL] [1792546117.632739567] [camera.peach_stereo_camera_node]: open device 169.254.10.110 failed
+[stereo_camera_node-1] terminate called after throwing an instance of 'std::runtime_error'
+[stereo_camera_node-1]   what():  open device failed
+[ERROR] [stereo_camera_node-1]: process has died [pid 22660, exit code -11, cmd '/home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_stereo/lib/peach_stereo/stereo_camera_node --ros-args -r __node:=peach_stereo_camera_node -r __ns:=/camera -p use_sim_time:=False --params-file /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_stereo/share/peach_stereo/config/stereo_camera.yaml --params-file /tmp/launch_params_7ysvn_q4 --params-file /tmp/launch_params_newndejg'].
+[INFO] [stereo_camera_node-1]: process started with pid [22721]
+[stereo_camera_node-1] [WARN] [1792546120.791028282] [rcl]: ROS_LOCALHOST_ONLY is deprecated but still honored if it is enabled. Use ROS_AUTOMATIC_DISCOVERY_RANGE and ROS_STATIC_PEERS instead.
+[stereo_camera_node-1] [WARN] [1792546120.791036917] [rcl]: 'localhost_only' is enabled, 'automatic_discovery_range' and 'static_peers' will be ignored.
+[stereo_camera_node-1] [INFO] [1792546120.800749741] [camera.peach_stereo_camera_node]: color camera_info override from /home/mu/Desktop/aubo_e5_jazzy_ws/install/percipio_camera/share/percipio_camera/config/color_camera_info.yaml (camera=camera_color)
+[stereo_camera_node-1] [INFO] [1792546120.806970423] [camera.peach_stereo_camera_node]: interface list: status=0 count=1
+[stereo_camera_node-1] [FATAL] [1792546120.806985503] [camera.peach_stereo_camera_node]: open device 169.254.10.110 failed
+[stereo_camera_node-1] terminate called after throwing an instance of 'std::runtime_error'
+[stereo_camera_node-1]   what():  open device failed
+[ERROR] [stereo_camera_node-1]: process has died [pid 22721, exit code -11, cmd '/home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_stereo/lib/peach_stereo/stereo_camera_node --ros-args -r __node:=peach_stereo_camera_node -r __ns:=/camera -p use_sim_time:=False --params-file /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_stereo/share/peach_stereo/config/stereo_camera.yaml --params-file /tmp/launch_params_7ysvn_q4 --params-file /tmp/launch_params_newndejg'].
+[INFO] [stereo_camera_node-1]: process started with pid [22759]
+[stereo_camera_node-1] [WARN] [1792546123.977679354] [rcl]: ROS_LOCALHOST_ONLY is deprecated but still honored if it is enabled. Use ROS_AUTOMATIC_DISCOVERY_RANGE and ROS_STATIC_PEERS instead.
+[stereo_camera_node-1] [WARN] [1792546123.977689812] [rcl]: 'localhost_only' is enabled, 'automatic_discovery_range' and 'static_peers' will be ignored.
+[stereo_camera_node-1] [INFO] [1792546123.986981055] [camera.peach_stereo_camera_node]: color camera_info override from /home/mu/Desktop/aubo_e5_jazzy_ws/install/percipio_camera/share/percipio_camera/config/color_camera_info.yaml (camera=camera_color)
+[stereo_camera_node-1] [INFO] [1792546123.993243801] [camera.peach_stereo_camera_node]: interface list: status=0 count=1
+[stereo_camera_node-1] [FATAL] [1792546123.993259383] [camera.peach_stereo_camera_node]: open device 169.254.10.110 failed
+[stereo_camera_node-1] terminate called after throwing an instance of 'std::runtime_error'
+[stereo_camera_node-1]   what():  open device failed
+[ERROR] [stereo_camera_node-1]: process has died [pid 22759, exit code -11, cmd '/home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_stereo/lib/peach_stereo/stereo_camera_node --ros-args -r __node:=peach_stereo_camera_node -r __ns:=/camera -p use_sim_time:=False --params-file /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_stereo/share/peach_stereo/config/stereo_camera.yaml --params-file /tmp/launch_params_7ysvn_q4 --params-file /tmp/launch_params_newndejg'].
+[peach_observability-10] [WARN] [1792546125.820467249] [peach_observability]: 自检[periodic] 12/18 通过，警告: camera_color_rate, camera_depth_rate，跳过: robot_status, force_topic, model_files, vegetation_status
+[INFO] [stereo_camera_node-1]: process started with pid [22816]
+[stereo_camera_node-1] [WARN] [1792546127.156526163] [rcl]: ROS_LOCALHOST_ONLY is deprecated but still honored if it is enabled. Use ROS_AUTOMATIC_DISCOVERY_RANGE and ROS_STATIC_PEERS instead.
+[stereo_camera_node-1] [WARN] [1792546127.156535873] [rcl]: 'localhost_only' is enabled, 'automatic_discovery_range' and 'static_peers' will be ignored.
+[stereo_camera_node-1] [INFO] [1792546127.165708943] [camera.peach_stereo_camera_node]: color camera_info override from /home/mu/Desktop/aubo_e5_jazzy_ws/install/percipio_camera/share/percipio_camera/config/color_camera_info.yaml (camera=camera_color)
+[stereo_camera_node-1] [INFO] [1792546127.171902239] [camera.peach_stereo_camera_node]: interface list: status=0 count=1
+[stereo_camera_node-1] [FATAL] [1792546127.171917123] [camera.peach_stereo_camera_node]: open device 169.254.10.110 failed
+[stereo_camera_node-1] terminate called after throwing an instance of 'std::runtime_error'
+[stereo_camera_node-1]   what():  open device failed
+[ERROR] [stereo_camera_node-1]: process has died [pid 22816, exit code -11, cmd '/home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_stereo/lib/peach_stereo/stereo_camera_node --ros-args -r __node:=peach_stereo_camera_node -r __ns:=/camera -p use_sim_time:=False --params-file /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_stereo/share/peach_stereo/config/stereo_camera.yaml --params-file /tmp/launch_params_7ysvn_q4 --params-file /tmp/launch_params_newndejg'].
+[INFO] [stereo_camera_node-1]: process started with pid [22875]
+[stereo_camera_node-1] [WARN] [1792546130.342253121] [rcl]: ROS_LOCALHOST_ONLY is deprecated but still honored if it is enabled. Use ROS_AUTOMATIC_DISCOVERY_RANGE and ROS_STATIC_PEERS instead.
+[stereo_camera_node-1] [WARN] [1792546130.342262252] [rcl]: 'localhost_only' is enabled, 'automatic_discovery_range' and 'static_peers' will be ignored.
+[stereo_camera_node-1] [INFO] [1792546130.351739918] [camera.peach_stereo_camera_node]: color camera_info override from /home/mu/Desktop/aubo_e5_jazzy_ws/install/percipio_camera/share/percipio_camera/config/color_camera_info.yaml (camera=camera_color)
+[stereo_camera_node-1] [INFO] [1792546130.357977304] [camera.peach_stereo_camera_node]: interface list: status=0 count=1
+[stereo_camera_node-1] [FATAL] [1792546130.357993607] [camera.peach_stereo_camera_node]: open device 169.254.10.110 failed
+[stereo_camera_node-1] terminate called after throwing an instance of 'std::runtime_error'
+[stereo_camera_node-1]   what():  open device failed
+[ERROR] [stereo_camera_node-1]: process has died [pid 22875, exit code -11, cmd '/home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_stereo/lib/peach_stereo/stereo_camera_node --ros-args -r __node:=peach_stereo_camera_node -r __ns:=/camera -p use_sim_time:=False --params-file /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_stereo/share/peach_stereo/config/stereo_camera.yaml --params-file /tmp/launch_params_7ysvn_q4 --params-file /tmp/launch_params_newndejg'].
+[INFO] [stereo_camera_node-1]: process started with pid [22909]
+[stereo_camera_node-1] [WARN] [1792546133.528539606] [rcl]: ROS_LOCALHOST_ONLY is deprecated but still honored if it is enabled. Use ROS_AUTOMATIC_DISCOVERY_RANGE and ROS_STATIC_PEERS instead.
+[stereo_camera_node-1] [WARN] [1792546133.528549807] [rcl]: 'localhost_only' is enabled, 'automatic_discovery_range' and 'static_peers' will be ignored.
+[stereo_camera_node-1] [INFO] [1792546133.537792356] [camera.peach_stereo_camera_node]: color camera_info override from /home/mu/Desktop/aubo_e5_jazzy_ws/install/percipio_camera/share/percipio_camera/config/color_camera_info.yaml (camera=camera_color)
+[stereo_camera_node-1] [INFO] [1792546133.543990938] [camera.peach_stereo_camera_node]: interface list: status=0 count=1
+[stereo_camera_node-1] [FATAL] [1792546133.544009220] [camera.peach_stereo_camera_node]: open device 169.254.10.110 failed
+[stereo_camera_node-1] terminate called after throwing an instance of 'std::runtime_error'
+[stereo_camera_node-1]   what():  open device failed
+[ERROR] [stereo_camera_node-1]: process has died [pid 22909, exit code -11, cmd '/home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_stereo/lib/peach_stereo/stereo_camera_node --ros-args -r __node:=peach_stereo_camera_node -r __ns:=/camera -p use_sim_time:=False --params-file /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_stereo/share/peach_stereo/config/stereo_camera.yaml --params-file /tmp/launch_params_7ysvn_q4 --params-file /tmp/launch_params_newndejg'].
+[INFO] [stereo_camera_node-1]: process started with pid [22969]
+[stereo_camera_node-1] [WARN] [1792546136.715933441] [rcl]: ROS_LOCALHOST_ONLY is deprecated but still honored if it is enabled. Use ROS_AUTOMATIC_DISCOVERY_RANGE and ROS_STATIC_PEERS instead.
+[stereo_camera_node-1] [WARN] [1792546136.715943959] [rcl]: 'localhost_only' is enabled, 'automatic_discovery_range' and 'static_peers' will be ignored.
+[stereo_camera_node-1] [INFO] [1792546136.725442422] [camera.peach_stereo_camera_node]: color camera_info override from /home/mu/Desktop/aubo_e5_jazzy_ws/install/percipio_camera/share/percipio_camera/config/color_camera_info.yaml (camera=camera_color)
+[stereo_camera_node-1] [INFO] [1792546136.732041157] [camera.peach_stereo_camera_node]: interface list: status=0 count=1
+[stereo_camera_node-1] [FATAL] [1792546136.732239135] [camera.peach_stereo_camera_node]: open device 169.254.10.110 failed
+[stereo_camera_node-1] terminate called after throwing an instance of 'std::runtime_error'
+[stereo_camera_node-1]   what():  open device failed
+[ERROR] [stereo_camera_node-1]: process has died [pid 22969, exit code -11, cmd '/home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_stereo/lib/peach_stereo/stereo_camera_node --ros-args -r __node:=peach_stereo_camera_node -r __ns:=/camera -p use_sim_time:=False --params-file /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_stereo/share/peach_stereo/config/stereo_camera.yaml --params-file /tmp/launch_params_7ysvn_q4 --params-file /tmp/launch_params_newndejg'].
+[INFO] [stereo_camera_node-1]: process started with pid [22997]
+[stereo_camera_node-1] [WARN] [1792546139.904260967] [rcl]: ROS_LOCALHOST_ONLY is deprecated but still honored if it is enabled. Use ROS_AUTOMATIC_DISCOVERY_RANGE and ROS_STATIC_PEERS instead.
+[stereo_camera_node-1] [WARN] [1792546139.904272147] [rcl]: 'localhost_only' is enabled, 'automatic_discovery_range' and 'static_peers' will be ignored.
+[stereo_camera_node-1] [INFO] [1792546139.913667638] [camera.peach_stereo_camera_node]: color camera_info override from /home/mu/Desktop/aubo_e5_jazzy_ws/install/percipio_camera/share/percipio_camera/config/color_camera_info.yaml (camera=camera_color)
+[stereo_camera_node-1] [INFO] [1792546139.919802975] [camera.peach_stereo_camera_node]: interface list: status=0 count=1
+[stereo_camera_node-1] [FATAL] [1792546139.919820143] [camera.peach_stereo_camera_node]: open device 169.254.10.110 failed
+[stereo_camera_node-1] terminate called after throwing an instance of 'std::runtime_error'
+[stereo_camera_node-1]   what():  open device failed
+[ERROR] [stereo_camera_node-1]: process has died [pid 22997, exit code -11, cmd '/home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_stereo/lib/peach_stereo/stereo_camera_node --ros-args -r __node:=peach_stereo_camera_node -r __ns:=/camera -p use_sim_time:=False --params-file /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_stereo/share/peach_stereo/config/stereo_camera.yaml --params-file /tmp/launch_params_7ysvn_q4 --params-file /tmp/launch_params_newndejg'].
+[INFO] [stereo_camera_node-1]: process started with pid [23054]
+[stereo_camera_node-1] [WARN] [1792546143.094565566] [rcl]: ROS_LOCALHOST_ONLY is deprecated but still honored if it is enabled. Use ROS_AUTOMATIC_DISCOVERY_RANGE and ROS_STATIC_PEERS instead.
+[stereo_camera_node-1] [WARN] [1792546143.094576445] [rcl]: 'localhost_only' is enabled, 'automatic_discovery_range' and 'static_peers' will be ignored.
+[stereo_camera_node-1] [INFO] [1792546143.103850987] [camera.peach_stereo_camera_node]: color camera_info override from /home/mu/Desktop/aubo_e5_jazzy_ws/install/percipio_camera/share/percipio_camera/config/color_camera_info.yaml (camera=camera_color)
+[stereo_camera_node-1] [INFO] [1792546143.110602476] [camera.peach_stereo_camera_node]: interface list: status=0 count=1
+[stereo_camera_node-1] [FATAL] [1792546143.110621577] [camera.peach_stereo_camera_node]: open device 169.254.10.110 failed
+[stereo_camera_node-1] terminate called after throwing an instance of 'std::runtime_error'
+[stereo_camera_node-1]   what():  open device failed
+[ERROR] [stereo_camera_node-1]: process has died [pid 23054, exit code -11, cmd '/home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_stereo/lib/peach_stereo/stereo_camera_node --ros-args -r __node:=peach_stereo_camera_node -r __ns:=/camera -p use_sim_time:=False --params-file /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_stereo/share/peach_stereo/config/stereo_camera.yaml --params-file /tmp/launch_params_7ysvn_q4 --params-file /tmp/launch_params_newndejg'].
+[INFO] [stereo_camera_node-1]: process started with pid [23119]
+[stereo_camera_node-1] [WARN] [1792546146.282757249] [rcl]: ROS_LOCALHOST_ONLY is deprecated but still honored if it is enabled. Use ROS_AUTOMATIC_DISCOVERY_RANGE and ROS_STATIC_PEERS instead.
+[stereo_camera_node-1] [WARN] [1792546146.282766771] [rcl]: 'localhost_only' is enabled, 'automatic_discovery_range' and 'static_peers' will be ignored.
+[stereo_camera_node-1] [INFO] [1792546146.291937528] [camera.peach_stereo_camera_node]: color camera_info override from /home/mu/Desktop/aubo_e5_jazzy_ws/install/percipio_camera/share/percipio_camera/config/color_camera_info.yaml (camera=camera_color)
+[stereo_camera_node-1] [INFO] [1792546146.298391233] [camera.peach_stereo_camera_node]: interface list: status=0 count=1
+[stereo_camera_node-1] [FATAL] [1792546146.298408441] [camera.peach_stereo_camera_node]: open device 169.254.10.110 failed
+[stereo_camera_node-1] terminate called after throwing an instance of 'std::runtime_error'
+[stereo_camera_node-1]   what():  open device failed
+[ERROR] [stereo_camera_node-1]: process has died [pid 23119, exit code -11, cmd '/home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_stereo/lib/peach_stereo/stereo_camera_node --ros-args -r __node:=peach_stereo_camera_node -r __ns:=/camera -p use_sim_time:=False --params-file /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_stereo/share/peach_stereo/config/stereo_camera.yaml --params-file /tmp/launch_params_7ysvn_q4 --params-file /tmp/launch_params_newndejg'].
+[INFO] [stereo_camera_node-1]: process started with pid [23146]
+[stereo_camera_node-1] [WARN] [1792546149.474583030] [rcl]: ROS_LOCALHOST_ONLY is deprecated but still honored if it is enabled. Use ROS_AUTOMATIC_DISCOVERY_RANGE and ROS_STATIC_PEERS instead.
+[stereo_camera_node-1] [WARN] [1792546149.474591911] [rcl]: 'localhost_only' is enabled, 'automatic_discovery_range' and 'static_peers' will be ignored.
+[stereo_camera_node-1] [INFO] [1792546149.483814840] [camera.peach_stereo_camera_node]: color camera_info override from /home/mu/Desktop/aubo_e5_jazzy_ws/install/percipio_camera/share/percipio_camera/config/color_camera_info.yaml (camera=camera_color)
+[stereo_camera_node-1] [INFO] [1792546149.490036606] [camera.peach_stereo_camera_node]: interface list: status=0 count=1
+[stereo_camera_node-1] [FATAL] [1792546149.490052693] [camera.peach_stereo_camera_node]: open device 169.254.10.110 failed
+[stereo_camera_node-1] terminate called after throwing an instance of 'std::runtime_error'
+[stereo_camera_node-1]   what():  open device failed
+[ERROR] [stereo_camera_node-1]: process has died [pid 23146, exit code -11, cmd '/home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_stereo/lib/peach_stereo/stereo_camera_node --ros-args -r __node:=peach_stereo_camera_node -r __ns:=/camera -p use_sim_time:=False --params-file /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_stereo/share/peach_stereo/config/stereo_camera.yaml --params-file /tmp/launch_params_7ysvn_q4 --params-file /tmp/launch_params_newndejg'].
+[INFO] [stereo_camera_node-1]: process started with pid [23205]
+[stereo_camera_node-1] [WARN] [1792546152.660375573] [rcl]: ROS_LOCALHOST_ONLY is deprecated but still honored if it is enabled. Use ROS_AUTOMATIC_DISCOVERY_RANGE and ROS_STATIC_PEERS instead.
+[stereo_camera_node-1] [WARN] [1792546152.660384426] [rcl]: 'localhost_only' is enabled, 'automatic_discovery_range' and 'static_peers' will be ignored.
+[stereo_camera_node-1] [INFO] [1792546152.669561200] [camera.peach_stereo_camera_node]: color camera_info override from /home/mu/Desktop/aubo_e5_jazzy_ws/install/percipio_camera/share/percipio_camera/config/color_camera_info.yaml (camera=camera_color)
+[stereo_camera_node-1] [INFO] [1792546152.675773436] [camera.peach_stereo_camera_node]: interface list: status=0 count=1
+[stereo_camera_node-1] [FATAL] [1792546152.675788713] [camera.peach_stereo_camera_node]: open device 169.254.10.110 failed
+[stereo_camera_node-1] terminate called after throwing an instance of 'std::runtime_error'
+[stereo_camera_node-1]   what():  open device failed
+[ERROR] [stereo_camera_node-1]: process has died [pid 23205, exit code -11, cmd '/home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_stereo/lib/peach_stereo/stereo_camera_node --ros-args -r __node:=peach_stereo_camera_node -r __ns:=/camera -p use_sim_time:=False --params-file /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_stereo/share/peach_stereo/config/stereo_camera.yaml --params-file /tmp/launch_params_7ysvn_q4 --params-file /tmp/launch_params_newndejg'].
+[INFO] [stereo_camera_node-1]: process started with pid [23263]
+[peach_observability-10] [WARN] [1792546155.822514277] [peach_observability]: 自检[periodic] 12/18 通过，警告: camera_color_rate, camera_depth_rate，跳过: robot_status, force_topic, model_files, vegetation_status
+[stereo_camera_node-1] [WARN] [1792546155.847859981] [rcl]: ROS_LOCALHOST_ONLY is deprecated but still honored if it is enabled. Use ROS_AUTOMATIC_DISCOVERY_RANGE and ROS_STATIC_PEERS instead.
+[stereo_camera_node-1] [WARN] [1792546155.847868545] [rcl]: 'localhost_only' is enabled, 'automatic_discovery_range' and 'static_peers' will be ignored.
+[stereo_camera_node-1] [INFO] [1792546155.857038513] [camera.peach_stereo_camera_node]: color camera_info override from /home/mu/Desktop/aubo_e5_jazzy_ws/install/percipio_camera/share/percipio_camera/config/color_camera_info.yaml (camera=camera_color)
+[stereo_camera_node-1] [INFO] [1792546155.863418574] [camera.peach_stereo_camera_node]: interface list: status=0 count=1
+[stereo_camera_node-1] [FATAL] [1792546155.863435447] [camera.peach_stereo_camera_node]: open device 169.254.10.110 failed
+[stereo_camera_node-1] terminate called after throwing an instance of 'std::runtime_error'
+[stereo_camera_node-1]   what():  open device failed
+[ERROR] [stereo_camera_node-1]: process has died [pid 23263, exit code -11, cmd '/home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_stereo/lib/peach_stereo/stereo_camera_node --ros-args -r __node:=peach_stereo_camera_node -r __ns:=/camera -p use_sim_time:=False --params-file /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_stereo/share/peach_stereo/config/stereo_camera.yaml --params-file /tmp/launch_params_7ysvn_q4 --params-file /tmp/launch_params_newndejg'].
+[INFO] [stereo_camera_node-1]: process started with pid [23287]
+[stereo_camera_node-1] [WARN] [1792546159.035704959] [rcl]: ROS_LOCALHOST_ONLY is deprecated but still honored if it is enabled. Use ROS_AUTOMATIC_DISCOVERY_RANGE and ROS_STATIC_PEERS instead.
+[stereo_camera_node-1] [WARN] [1792546159.035714315] [rcl]: 'localhost_only' is enabled, 'automatic_discovery_range' and 'static_peers' will be ignored.
+[stereo_camera_node-1] [INFO] [1792546159.044870859] [camera.peach_stereo_camera_node]: color camera_info override from /home/mu/Desktop/aubo_e5_jazzy_ws/install/percipio_camera/share/percipio_camera/config/color_camera_info.yaml (camera=camera_color)
+[stereo_camera_node-1] [INFO] [1792546159.050968601] [camera.peach_stereo_camera_node]: interface list: status=0 count=1
+[stereo_camera_node-1] [FATAL] [1792546159.050983076] [camera.peach_stereo_camera_node]: open device 169.254.10.110 failed
+[stereo_camera_node-1] terminate called after throwing an instance of 'std::runtime_error'
+[stereo_camera_node-1]   what():  open device failed
+[ERROR] [stereo_camera_node-1]: process has died [pid 23287, exit code -11, cmd '/home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_stereo/lib/peach_stereo/stereo_camera_node --ros-args -r __node:=peach_stereo_camera_node -r __ns:=/camera -p use_sim_time:=False --params-file /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_stereo/share/peach_stereo/config/stereo_camera.yaml --params-file /tmp/launch_params_7ysvn_q4 --params-file /tmp/launch_params_newndejg'].
+[INFO] [stereo_camera_node-1]: process started with pid [23488]
+[stereo_camera_node-1] [WARN] [1792546162.211415425] [rcl]: ROS_LOCALHOST_ONLY is deprecated but still honored if it is enabled. Use ROS_AUTOMATIC_DISCOVERY_RANGE and ROS_STATIC_PEERS instead.
+[stereo_camera_node-1] [WARN] [1792546162.211427684] [rcl]: 'localhost_only' is enabled, 'automatic_discovery_range' and 'static_peers' will be ignored.
+[stereo_camera_node-1] [INFO] [1792546162.220601586] [camera.peach_stereo_camera_node]: color camera_info override from /home/mu/Desktop/aubo_e5_jazzy_ws/install/percipio_camera/share/percipio_camera/config/color_camera_info.yaml (camera=camera_color)
+[stereo_camera_node-1] [INFO] [1792546162.226786878] [camera.peach_stereo_camera_node]: interface list: status=0 count=1
+[stereo_camera_node-1] [FATAL] [1792546162.226803520] [camera.peach_stereo_camera_node]: open device 169.254.10.110 failed
+[stereo_camera_node-1] terminate called after throwing an instance of 'std::runtime_error'
+[stereo_camera_node-1]   what():  open device failed
+[ERROR] [stereo_camera_node-1]: process has died [pid 23488, exit code -11, cmd '/home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_stereo/lib/peach_stereo/stereo_camera_node --ros-args -r __node:=peach_stereo_camera_node -r __ns:=/camera -p use_sim_time:=False --params-file /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_stereo/share/peach_stereo/config/stereo_camera.yaml --params-file /tmp/launch_params_7ysvn_q4 --params-file /tmp/launch_params_newndejg'].
+[INFO] [stereo_camera_node-1]: process started with pid [23534]
+[stereo_camera_node-1] [WARN] [1792546165.399470793] [rcl]: ROS_LOCALHOST_ONLY is deprecated but still honored if it is enabled. Use ROS_AUTOMATIC_DISCOVERY_RANGE and ROS_STATIC_PEERS instead.
+[stereo_camera_node-1] [WARN] [1792546165.399479470] [rcl]: 'localhost_only' is enabled, 'automatic_discovery_range' and 'static_peers' will be ignored.
+[stereo_camera_node-1] [INFO] [1792546165.408810268] [camera.peach_stereo_camera_node]: color camera_info override from /home/mu/Desktop/aubo_e5_jazzy_ws/install/percipio_camera/share/percipio_camera/config/color_camera_info.yaml (camera=camera_color)
+[stereo_camera_node-1] [INFO] [1792546165.415081787] [camera.peach_stereo_camera_node]: interface list: status=0 count=1
+[stereo_camera_node-1] [FATAL] [1792546165.415096340] [camera.peach_stereo_camera_node]: open device 169.254.10.110 failed
+[stereo_camera_node-1] terminate called after throwing an instance of 'std::runtime_error'
+[stereo_camera_node-1]   what():  open device failed
+[ERROR] [stereo_camera_node-1]: process has died [pid 23534, exit code -11, cmd '/home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_stereo/lib/peach_stereo/stereo_camera_node --ros-args -r __node:=peach_stereo_camera_node -r __ns:=/camera -p use_sim_time:=False --params-file /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_stereo/share/peach_stereo/config/stereo_camera.yaml --params-file /tmp/launch_params_7ysvn_q4 --params-file /tmp/launch_params_newndejg'].
+[INFO] [stereo_camera_node-1]: process started with pid [23594]
+[stereo_camera_node-1] [WARN] [1792546168.586398364] [rcl]: ROS_LOCALHOST_ONLY is deprecated but still honored if it is enabled. Use ROS_AUTOMATIC_DISCOVERY_RANGE and ROS_STATIC_PEERS instead.
+[stereo_camera_node-1] [WARN] [1792546168.586407553] [rcl]: 'localhost_only' is enabled, 'automatic_discovery_range' and 'static_peers' will be ignored.
+[stereo_camera_node-1] [INFO] [1792546168.595805250] [camera.peach_stereo_camera_node]: color camera_info override from /home/mu/Desktop/aubo_e5_jazzy_ws/install/percipio_camera/share/percipio_camera/config/color_camera_info.yaml (camera=camera_color)
+[stereo_camera_node-1] [INFO] [1792546168.602100188] [camera.peach_stereo_camera_node]: interface list: status=0 count=1
+[stereo_camera_node-1] [FATAL] [1792546168.602114608] [camera.peach_stereo_camera_node]: open device 169.254.10.110 failed
+[stereo_camera_node-1] terminate called after throwing an instance of 'std::runtime_error'
+[stereo_camera_node-1]   what():  open device failed
+[ERROR] [stereo_camera_node-1]: process has died [pid 23594, exit code -11, cmd '/home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_stereo/lib/peach_stereo/stereo_camera_node --ros-args -r __node:=peach_stereo_camera_node -r __ns:=/camera -p use_sim_time:=False --params-file /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_stereo/share/peach_stereo/config/stereo_camera.yaml --params-file /tmp/launch_params_7ysvn_q4 --params-file /tmp/launch_params_newndejg'].
+[INFO] [stereo_camera_node-1]: process started with pid [23650]
+[stereo_camera_node-1] [WARN] [1792546171.776353602] [rcl]: ROS_LOCALHOST_ONLY is deprecated but still honored if it is enabled. Use ROS_AUTOMATIC_DISCOVERY_RANGE and ROS_STATIC_PEERS instead.
+[stereo_camera_node-1] [WARN] [1792546171.776362657] [rcl]: 'localhost_only' is enabled, 'automatic_discovery_range' and 'static_peers' will be ignored.
+[stereo_camera_node-1] [INFO] [1792546171.785463922] [camera.peach_stereo_camera_node]: color camera_info override from /home/mu/Desktop/aubo_e5_jazzy_ws/install/percipio_camera/share/percipio_camera/config/color_camera_info.yaml (camera=camera_color)
+[stereo_camera_node-1] [INFO] [1792546171.791663681] [camera.peach_stereo_camera_node]: interface list: status=0 count=1
+[stereo_camera_node-1] [FATAL] [1792546171.791678448] [camera.peach_stereo_camera_node]: open device 169.254.10.110 failed
+[stereo_camera_node-1] terminate called after throwing an instance of 'std::runtime_error'
+[stereo_camera_node-1]   what():  open device failed
+[ERROR] [stereo_camera_node-1]: process has died [pid 23650, exit code -11, cmd '/home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_stereo/lib/peach_stereo/stereo_camera_node --ros-args -r __node:=peach_stereo_camera_node -r __ns:=/camera -p use_sim_time:=False --params-file /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_stereo/share/peach_stereo/config/stereo_camera.yaml --params-file /tmp/launch_params_7ysvn_q4 --params-file /tmp/launch_params_newndejg'].
+[INFO] [stereo_camera_node-1]: process started with pid [23674]
+[stereo_camera_node-1] [WARN] [1792546174.962455482] [rcl]: ROS_LOCALHOST_ONLY is deprecated but still honored if it is enabled. Use ROS_AUTOMATIC_DISCOVERY_RANGE and ROS_STATIC_PEERS instead.
+[stereo_camera_node-1] [WARN] [1792546174.962466218] [rcl]: 'localhost_only' is enabled, 'automatic_discovery_range' and 'static_peers' will be ignored.
+[stereo_camera_node-1] [INFO] [1792546174.971737390] [camera.peach_stereo_camera_node]: color camera_info override from /home/mu/Desktop/aubo_e5_jazzy_ws/install/percipio_camera/share/percipio_camera/config/color_camera_info.yaml (camera=camera_color)
+[stereo_camera_node-1] [INFO] [1792546174.977934768] [camera.peach_stereo_camera_node]: interface list: status=0 count=1
+[stereo_camera_node-1] [FATAL] [1792546174.977951101] [camera.peach_stereo_camera_node]: open device 169.254.10.110 failed
+[stereo_camera_node-1] terminate called after throwing an instance of 'std::runtime_error'
+[stereo_camera_node-1]   what():  open device failed
+[ERROR] [stereo_camera_node-1]: process has died [pid 23674, exit code -11, cmd '/home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_stereo/lib/peach_stereo/stereo_camera_node --ros-args -r __node:=peach_stereo_camera_node -r __ns:=/camera -p use_sim_time:=False --params-file /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_stereo/share/peach_stereo/config/stereo_camera.yaml --params-file /tmp/launch_params_7ysvn_q4 --params-file /tmp/launch_params_newndejg'].
+[INFO] [stereo_camera_node-1]: process started with pid [23732]
+[stereo_camera_node-1] [WARN] [1792546178.147993454] [rcl]: ROS_LOCALHOST_ONLY is deprecated but still honored if it is enabled. Use ROS_AUTOMATIC_DISCOVERY_RANGE and ROS_STATIC_PEERS instead.
+[stereo_camera_node-1] [WARN] [1792546178.148195838] [rcl]: 'localhost_only' is enabled, 'automatic_discovery_range' and 'static_peers' will be ignored.
+[stereo_camera_node-1] [INFO] [1792546178.157410600] [camera.peach_stereo_camera_node]: color camera_info override from /home/mu/Desktop/aubo_e5_jazzy_ws/install/percipio_camera/share/percipio_camera/config/color_camera_info.yaml (camera=camera_color)
+[stereo_camera_node-1] [INFO] [1792546178.163657615] [camera.peach_stereo_camera_node]: interface list: status=0 count=1
+[stereo_camera_node-1] [FATAL] [1792546178.163672569] [camera.peach_stereo_camera_node]: open device 169.254.10.110 failed
+[stereo_camera_node-1] terminate called after throwing an instance of 'std::runtime_error'
+[stereo_camera_node-1]   what():  open device failed
+[ERROR] [stereo_camera_node-1]: process has died [pid 23732, exit code -11, cmd '/home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_stereo/lib/peach_stereo/stereo_camera_node --ros-args -r __node:=peach_stereo_camera_node -r __ns:=/camera -p use_sim_time:=False --params-file /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_stereo/share/peach_stereo/config/stereo_camera.yaml --params-file /tmp/launch_params_7ysvn_q4 --params-file /tmp/launch_params_newndejg'].
+[INFO] [stereo_camera_node-1]: process started with pid [23789]
+[stereo_camera_node-1] [WARN] [1792546181.332421340] [rcl]: ROS_LOCALHOST_ONLY is deprecated but still honored if it is enabled. Use ROS_AUTOMATIC_DISCOVERY_RANGE and ROS_STATIC_PEERS instead.
+[stereo_camera_node-1] [WARN] [1792546181.332431017] [rcl]: 'localhost_only' is enabled, 'automatic_discovery_range' and 'static_peers' will be ignored.
+[stereo_camera_node-1] [INFO] [1792546181.341563392] [camera.peach_stereo_camera_node]: color camera_info override from /home/mu/Desktop/aubo_e5_jazzy_ws/install/percipio_camera/share/percipio_camera/config/color_camera_info.yaml (camera=camera_color)
+[stereo_camera_node-1] [INFO] [1792546181.347840245] [camera.peach_stereo_camera_node]: interface list: status=0 count=1
+[stereo_camera_node-1] [FATAL] [1792546181.347857376] [camera.peach_stereo_camera_node]: open device 169.254.10.110 failed
+[stereo_camera_node-1] terminate called after throwing an instance of 'std::runtime_error'
+[stereo_camera_node-1]   what():  open device failed
+[ERROR] [stereo_camera_node-1]: process has died [pid 23789, exit code -11, cmd '/home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_stereo/lib/peach_stereo/stereo_camera_node --ros-args -r __node:=peach_stereo_camera_node -r __ns:=/camera -p use_sim_time:=False --params-file /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_stereo/share/peach_stereo/config/stereo_camera.yaml --params-file /tmp/launch_params_7ysvn_q4 --params-file /tmp/launch_params_newndejg'].
+[INFO] [stereo_camera_node-1]: process started with pid [23816]
+[stereo_camera_node-1] [WARN] [1792546184.517647044] [rcl]: ROS_LOCALHOST_ONLY is deprecated but still honored if it is enabled. Use ROS_AUTOMATIC_DISCOVERY_RANGE and ROS_STATIC_PEERS instead.
+[stereo_camera_node-1] [WARN] [1792546184.517655885] [rcl]: 'localhost_only' is enabled, 'automatic_discovery_range' and 'static_peers' will be ignored.
+[stereo_camera_node-1] [INFO] [1792546184.526887826] [camera.peach_stereo_camera_node]: color camera_info override from /home/mu/Desktop/aubo_e5_jazzy_ws/install/percipio_camera/share/percipio_camera/config/color_camera_info.yaml (camera=camera_color)
+[stereo_camera_node-1] [INFO] [1792546184.533125235] [camera.peach_stereo_camera_node]: interface list: status=0 count=1
+[stereo_camera_node-1] [FATAL] [1792546184.533141641] [camera.peach_stereo_camera_node]: open device 169.254.10.110 failed
+[stereo_camera_node-1] terminate called after throwing an instance of 'std::runtime_error'
+[stereo_camera_node-1]   what():  open device failed
+[ERROR] [stereo_camera_node-1]: process has died [pid 23816, exit code -11, cmd '/home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_stereo/lib/peach_stereo/stereo_camera_node --ros-args -r __node:=peach_stereo_camera_node -r __ns:=/camera -p use_sim_time:=False --params-file /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_stereo/share/peach_stereo/config/stereo_camera.yaml --params-file /tmp/launch_params_7ysvn_q4 --params-file /tmp/launch_params_newndejg'].
+[peach_observability-10] [WARN] [1792546185.820010366] [peach_observability]: 自检[periodic] 12/18 通过，警告: camera_color_rate, camera_depth_rate，跳过: robot_status, force_topic, model_files, vegetation_status
+[INFO] [stereo_camera_node-1]: process started with pid [23871]
+[stereo_camera_node-1] [WARN] [1792546187.698918739] [rcl]: ROS_LOCALHOST_ONLY is deprecated but still honored if it is enabled. Use ROS_AUTOMATIC_DISCOVERY_RANGE and ROS_STATIC_PEERS instead.
+[stereo_camera_node-1] [WARN] [1792546187.698928107] [rcl]: 'localhost_only' is enabled, 'automatic_discovery_range' and 'static_peers' will be ignored.
+[stereo_camera_node-1] [INFO] [1792546187.708400570] [camera.peach_stereo_camera_node]: color camera_info override from /home/mu/Desktop/aubo_e5_jazzy_ws/install/percipio_camera/share/percipio_camera/config/color_camera_info.yaml (camera=camera_color)
+[stereo_camera_node-1] [INFO] [1792546187.714773103] [camera.peach_stereo_camera_node]: interface list: status=0 count=1
+[stereo_camera_node-1] [FATAL] [1792546187.714788126] [camera.peach_stereo_camera_node]: open device 169.254.10.110 failed
+[stereo_camera_node-1] terminate called after throwing an instance of 'std::runtime_error'
+[stereo_camera_node-1]   what():  open device failed
+[ERROR] [stereo_camera_node-1]: process has died [pid 23871, exit code -11, cmd '/home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_stereo/lib/peach_stereo/stereo_camera_node --ros-args -r __node:=peach_stereo_camera_node -r __ns:=/camera -p use_sim_time:=False --params-file /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_stereo/share/peach_stereo/config/stereo_camera.yaml --params-file /tmp/launch_params_7ysvn_q4 --params-file /tmp/launch_params_newndejg'].
+[INFO] [stereo_camera_node-1]: process started with pid [23904]
+[stereo_camera_node-1] [WARN] [1792546190.887178629] [rcl]: ROS_LOCALHOST_ONLY is deprecated but still honored if it is enabled. Use ROS_AUTOMATIC_DISCOVERY_RANGE and ROS_STATIC_PEERS instead.
+[stereo_camera_node-1] [WARN] [1792546190.887187915] [rcl]: 'localhost_only' is enabled, 'automatic_discovery_range' and 'static_peers' will be ignored.
+[stereo_camera_node-1] [INFO] [1792546190.896753015] [camera.peach_stereo_camera_node]: color camera_info override from /home/mu/Desktop/aubo_e5_jazzy_ws/install/percipio_camera/share/percipio_camera/config/color_camera_info.yaml (camera=camera_color)
+[stereo_camera_node-1] [INFO] [1792546190.902991841] [camera.peach_stereo_camera_node]: interface list: status=0 count=1
+[stereo_camera_node-1] [FATAL] [1792546190.903008047] [camera.peach_stereo_camera_node]: open device 169.254.10.110 failed
+[stereo_camera_node-1] terminate called after throwing an instance of 'std::runtime_error'
+[stereo_camera_node-1]   what():  open device failed
+[ERROR] [stereo_camera_node-1]: process has died [pid 23904, exit code -11, cmd '/home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_stereo/lib/peach_stereo/stereo_camera_node --ros-args -r __node:=peach_stereo_camera_node -r __ns:=/camera -p use_sim_time:=False --params-file /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_stereo/share/peach_stereo/config/stereo_camera.yaml --params-file /tmp/launch_params_7ysvn_q4 --params-file /tmp/launch_params_newndejg'].
+[INFO] [stereo_camera_node-1]: process started with pid [23963]
+[stereo_camera_node-1] [WARN] [1792546194.075236904] [rcl]: ROS_LOCALHOST_ONLY is deprecated but still honored if it is enabled. Use ROS_AUTOMATIC_DISCOVERY_RANGE and ROS_STATIC_PEERS instead.
+[stereo_camera_node-1] [WARN] [1792546194.075442123] [rcl]: 'localhost_only' is enabled, 'automatic_discovery_range' and 'static_peers' will be ignored.
+[stereo_camera_node-1] [INFO] [1792546194.084649620] [camera.peach_stereo_camera_node]: color camera_info override from /home/mu/Desktop/aubo_e5_jazzy_ws/install/percipio_camera/share/percipio_camera/config/color_camera_info.yaml (camera=camera_color)
+[stereo_camera_node-1] [INFO] [1792546194.090821656] [camera.peach_stereo_camera_node]: interface list: status=0 count=1
+[stereo_camera_node-1] [FATAL] [1792546194.090838867] [camera.peach_stereo_camera_node]: open device 169.254.10.110 failed
+[stereo_camera_node-1] terminate called after throwing an instance of 'std::runtime_error'
+[stereo_camera_node-1]   what():  open device failed
+[ERROR] [stereo_camera_node-1]: process has died [pid 23963, exit code -11, cmd '/home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_stereo/lib/peach_stereo/stereo_camera_node --ros-args -r __node:=peach_stereo_camera_node -r __ns:=/camera -p use_sim_time:=False --params-file /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_stereo/share/peach_stereo/config/stereo_camera.yaml --params-file /tmp/launch_params_7ysvn_q4 --params-file /tmp/launch_params_newndejg'].
+[INFO] [stereo_camera_node-1]: process started with pid [24021]
+[stereo_camera_node-1] [WARN] [1792546197.262245610] [rcl]: ROS_LOCALHOST_ONLY is deprecated but still honored if it is enabled. Use ROS_AUTOMATIC_DISCOVERY_RANGE and ROS_STATIC_PEERS instead.
+[stereo_camera_node-1] [WARN] [1792546197.262254718] [rcl]: 'localhost_only' is enabled, 'automatic_discovery_range' and 'static_peers' will be ignored.
+[stereo_camera_node-1] [INFO] [1792546197.271386469] [camera.peach_stereo_camera_node]: color camera_info override from /home/mu/Desktop/aubo_e5_jazzy_ws/install/percipio_camera/share/percipio_camera/config/color_camera_info.yaml (camera=camera_color)
+[stereo_camera_node-1] [INFO] [1792546197.277689012] [camera.peach_stereo_camera_node]: interface list: status=0 count=1
+[stereo_camera_node-1] [FATAL] [1792546197.277709206] [camera.peach_stereo_camera_node]: open device 169.254.10.110 failed
+[stereo_camera_node-1] terminate called after throwing an instance of 'std::runtime_error'
+[stereo_camera_node-1]   what():  open device failed
+[ERROR] [stereo_camera_node-1]: process has died [pid 24021, exit code -11, cmd '/home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_stereo/lib/peach_stereo/stereo_camera_node --ros-args -r __node:=peach_stereo_camera_node -r __ns:=/camera -p use_sim_time:=False --params-file /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_stereo/share/peach_stereo/config/stereo_camera.yaml --params-file /tmp/launch_params_7ysvn_q4 --params-file /tmp/launch_params_newndejg'].
+[INFO] [stereo_camera_node-1]: process started with pid [24049]
+[stereo_camera_node-1] [WARN] [1792546200.449406256] [rcl]: ROS_LOCALHOST_ONLY is deprecated but still honored if it is enabled. Use ROS_AUTOMATIC_DISCOVERY_RANGE and ROS_STATIC_PEERS instead.
+[stereo_camera_node-1] [WARN] [1792546200.449415771] [rcl]: 'localhost_only' is enabled, 'automatic_discovery_range' and 'static_peers' will be ignored.
+[stereo_camera_node-1] [INFO] [1792546200.458758464] [camera.peach_stereo_camera_node]: color camera_info override from /home/mu/Desktop/aubo_e5_jazzy_ws/install/percipio_camera/share/percipio_camera/config/color_camera_info.yaml (camera=camera_color)
+[stereo_camera_node-1] [INFO] [1792546200.464967650] [camera.peach_stereo_camera_node]: interface list: status=0 count=1
+[stereo_camera_node-1] [FATAL] [1792546200.464984099] [camera.peach_stereo_camera_node]: open device 169.254.10.110 failed
+[stereo_camera_node-1] terminate called after throwing an instance of 'std::runtime_error'
+[stereo_camera_node-1]   what():  open device failed
+[ERROR] [stereo_camera_node-1]: process has died [pid 24049, exit code -11, cmd '/home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_stereo/lib/peach_stereo/stereo_camera_node --ros-args -r __node:=peach_stereo_camera_node -r __ns:=/camera -p use_sim_time:=False --params-file /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_stereo/share/peach_stereo/config/stereo_camera.yaml --params-file /tmp/launch_params_7ysvn_q4 --params-file /tmp/launch_params_newndejg'].
+[INFO] [stereo_camera_node-1]: process started with pid [24109]
+[stereo_camera_node-1] [WARN] [1792546203.635506694] [rcl]: ROS_LOCALHOST_ONLY is deprecated but still honored if it is enabled. Use ROS_AUTOMATIC_DISCOVERY_RANGE and ROS_STATIC_PEERS instead.
+[stereo_camera_node-1] [WARN] [1792546203.635515725] [rcl]: 'localhost_only' is enabled, 'automatic_discovery_range' and 'static_peers' will be ignored.
+[stereo_camera_node-1] [INFO] [1792546203.644599567] [camera.peach_stereo_camera_node]: color camera_info override from /home/mu/Desktop/aubo_e5_jazzy_ws/install/percipio_camera/share/percipio_camera/config/color_camera_info.yaml (camera=camera_color)
+[stereo_camera_node-1] [INFO] [1792546203.650801745] [camera.peach_stereo_camera_node]: interface list: status=0 count=1
+[stereo_camera_node-1] [FATAL] [1792546203.650818366] [camera.peach_stereo_camera_node]: open device 169.254.10.110 failed
+[stereo_camera_node-1] terminate called after throwing an instance of 'std::runtime_error'
+[stereo_camera_node-1]   what():  open device failed
+[ERROR] [stereo_camera_node-1]: process has died [pid 24109, exit code -11, cmd '/home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_stereo/lib/peach_stereo/stereo_camera_node --ros-args -r __node:=peach_stereo_camera_node -r __ns:=/camera -p use_sim_time:=False --params-file /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_stereo/share/peach_stereo/config/stereo_camera.yaml --params-file /tmp/launch_params_7ysvn_q4 --params-file /tmp/launch_params_newndejg'].
+[INFO] [stereo_camera_node-1]: process started with pid [24167]
+[stereo_camera_node-1] [WARN] [1792546206.820605521] [rcl]: ROS_LOCALHOST_ONLY is deprecated but still honored if it is enabled. Use ROS_AUTOMATIC_DISCOVERY_RANGE and ROS_STATIC_PEERS instead.
+[stereo_camera_node-1] [WARN] [1792546206.820614926] [rcl]: 'localhost_only' is enabled, 'automatic_discovery_range' and 'static_peers' will be ignored.
+[stereo_camera_node-1] [INFO] [1792546206.829891251] [camera.peach_stereo_camera_node]: color camera_info override from /home/mu/Desktop/aubo_e5_jazzy_ws/install/percipio_camera/share/percipio_camera/config/color_camera_info.yaml (camera=camera_color)
+[stereo_camera_node-1] [INFO] [1792546206.836199223] [camera.peach_stereo_camera_node]: interface list: status=0 count=1
+[stereo_camera_node-1] [FATAL] [1792546206.836213634] [camera.peach_stereo_camera_node]: open device 169.254.10.110 failed
+[stereo_camera_node-1] terminate called after throwing an instance of 'std::runtime_error'
+[stereo_camera_node-1]   what():  open device failed
+[ERROR] [stereo_camera_node-1]: process has died [pid 24167, exit code -11, cmd '/home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_stereo/lib/peach_stereo/stereo_camera_node --ros-args -r __node:=peach_stereo_camera_node -r __ns:=/camera -p use_sim_time:=False --params-file /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_stereo/share/peach_stereo/config/stereo_camera.yaml --params-file /tmp/launch_params_7ysvn_q4 --params-file /tmp/launch_params_newndejg'].
+[INFO] [stereo_camera_node-1]: process started with pid [24191]
+[stereo_camera_node-1] [WARN] [1792546210.007173000] [rcl]: ROS_LOCALHOST_ONLY is deprecated but still honored if it is enabled. Use ROS_AUTOMATIC_DISCOVERY_RANGE and ROS_STATIC_PEERS instead.
+[stereo_camera_node-1] [WARN] [1792546210.007182619] [rcl]: 'localhost_only' is enabled, 'automatic_discovery_range' and 'static_peers' will be ignored.
+[stereo_camera_node-1] [INFO] [1792546210.016539664] [camera.peach_stereo_camera_node]: color camera_info override from /home/mu/Desktop/aubo_e5_jazzy_ws/install/percipio_camera/share/percipio_camera/config/color_camera_info.yaml (camera=camera_color)
+[stereo_camera_node-1] [INFO] [1792546210.022721777] [camera.peach_stereo_camera_node]: interface list: status=0 count=1
+[stereo_camera_node-1] [FATAL] [1792546210.022738221] [camera.peach_stereo_camera_node]: open device 169.254.10.110 failed
+[stereo_camera_node-1] terminate called after throwing an instance of 'std::runtime_error'
+[stereo_camera_node-1]   what():  open device failed
+[ERROR] [stereo_camera_node-1]: process has died [pid 24191, exit code -11, cmd '/home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_stereo/lib/peach_stereo/stereo_camera_node --ros-args -r __node:=peach_stereo_camera_node -r __ns:=/camera -p use_sim_time:=False --params-file /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_stereo/share/peach_stereo/config/stereo_camera.yaml --params-file /tmp/launch_params_7ysvn_q4 --params-file /tmp/launch_params_newndejg'].
+[INFO] [stereo_camera_node-1]: process started with pid [24248]
+[stereo_camera_node-1] [WARN] [1792546213.193379019] [rcl]: ROS_LOCALHOST_ONLY is deprecated but still honored if it is enabled. Use ROS_AUTOMATIC_DISCOVERY_RANGE and ROS_STATIC_PEERS instead.
+[stereo_camera_node-1] [WARN] [1792546213.193397499] [rcl]: 'localhost_only' is enabled, 'automatic_discovery_range' and 'static_peers' will be ignored.
+[stereo_camera_node-1] [INFO] [1792546213.203186180] [camera.peach_stereo_camera_node]: color camera_info override from /home/mu/Desktop/aubo_e5_jazzy_ws/install/percipio_camera/share/percipio_camera/config/color_camera_info.yaml (camera=camera_color)
+[stereo_camera_node-1] [INFO] [1792546213.209456833] [camera.peach_stereo_camera_node]: interface list: status=0 count=1
+[stereo_camera_node-1] [FATAL] [1792546213.209478329] [camera.peach_stereo_camera_node]: open device 169.254.10.110 failed
+[stereo_camera_node-1] terminate called after throwing an instance of 'std::runtime_error'
+[stereo_camera_node-1]   what():  open device failed
+[ERROR] [stereo_camera_node-1]: process has died [pid 24248, exit code -11, cmd '/home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_stereo/lib/peach_stereo/stereo_camera_node --ros-args -r __node:=peach_stereo_camera_node -r __ns:=/camera -p use_sim_time:=False --params-file /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_stereo/share/peach_stereo/config/stereo_camera.yaml --params-file /tmp/launch_params_7ysvn_q4 --params-file /tmp/launch_params_newndejg'].
+[peach_observability-10] [WARN] [1792546215.826589017] [peach_observability]: 自检[periodic] 12/18 通过，警告: camera_color_rate, camera_depth_rate，跳过: robot_status, force_topic, model_files, vegetation_status
+[INFO] [stereo_camera_node-1]: process started with pid [24279]
+[stereo_camera_node-1] [WARN] [1792546216.370957780] [rcl]: ROS_LOCALHOST_ONLY is deprecated but still honored if it is enabled. Use ROS_AUTOMATIC_DISCOVERY_RANGE and ROS_STATIC_PEERS instead.
+[stereo_camera_node-1] [WARN] [1792546216.370967424] [rcl]: 'localhost_only' is enabled, 'automatic_discovery_range' and 'static_peers' will be ignored.
+[stereo_camera_node-1] [INFO] [1792546216.380398240] [camera.peach_stereo_camera_node]: color camera_info override from /home/mu/Desktop/aubo_e5_jazzy_ws/install/percipio_camera/share/percipio_camera/config/color_camera_info.yaml (camera=camera_color)
+[stereo_camera_node-1] [INFO] [1792546216.386596947] [camera.peach_stereo_camera_node]: interface list: status=0 count=1
+[stereo_camera_node-1] [FATAL] [1792546216.386612240] [camera.peach_stereo_camera_node]: open device 169.254.10.110 failed
+[stereo_camera_node-1] terminate called after throwing an instance of 'std::runtime_error'
+[stereo_camera_node-1]   what():  open device failed
+[ERROR] [stereo_camera_node-1]: process has died [pid 24279, exit code -11, cmd '/home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_stereo/lib/peach_stereo/stereo_camera_node --ros-args -r __node:=peach_stereo_camera_node -r __ns:=/camera -p use_sim_time:=False --params-file /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_stereo/share/peach_stereo/config/stereo_camera.yaml --params-file /tmp/launch_params_7ysvn_q4 --params-file /tmp/launch_params_newndejg'].
+[INFO] [stereo_camera_node-1]: process started with pid [24339]
+[stereo_camera_node-1] [WARN] [1792546219.559367470] [rcl]: ROS_LOCALHOST_ONLY is deprecated but still honored if it is enabled. Use ROS_AUTOMATIC_DISCOVERY_RANGE and ROS_STATIC_PEERS instead.
+[stereo_camera_node-1] [WARN] [1792546219.559376166] [rcl]: 'localhost_only' is enabled, 'automatic_discovery_range' and 'static_peers' will be ignored.
+[stereo_camera_node-1] [INFO] [1792546219.568858371] [camera.peach_stereo_camera_node]: color camera_info override from /home/mu/Desktop/aubo_e5_jazzy_ws/install/percipio_camera/share/percipio_camera/config/color_camera_info.yaml (camera=camera_color)
+[stereo_camera_node-1] [INFO] [1792546219.575018960] [camera.peach_stereo_camera_node]: interface list: status=0 count=1
+[stereo_camera_node-1] [FATAL] [1792546219.575034587] [camera.peach_stereo_camera_node]: open device 169.254.10.110 failed
+[stereo_camera_node-1] terminate called after throwing an instance of 'std::runtime_error'
+[stereo_camera_node-1]   what():  open device failed
+[ERROR] [stereo_camera_node-1]: process has died [pid 24339, exit code -11, cmd '/home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_stereo/lib/peach_stereo/stereo_camera_node --ros-args -r __node:=peach_stereo_camera_node -r __ns:=/camera -p use_sim_time:=False --params-file /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_stereo/share/peach_stereo/config/stereo_camera.yaml --params-file /tmp/launch_params_7ysvn_q4 --params-file /tmp/launch_params_newndejg'].
+[INFO] [stereo_camera_node-1]: process started with pid [24403]
+[stereo_camera_node-1] [WARN] [1792546222.746427150] [rcl]: ROS_LOCALHOST_ONLY is deprecated but still honored if it is enabled. Use ROS_AUTOMATIC_DISCOVERY_RANGE and ROS_STATIC_PEERS instead.
+[stereo_camera_node-1] [WARN] [1792546222.746439369] [rcl]: 'localhost_only' is enabled, 'automatic_discovery_range' and 'static_peers' will be ignored.
+[stereo_camera_node-1] [INFO] [1792546222.755849729] [camera.peach_stereo_camera_node]: color camera_info override from /home/mu/Desktop/aubo_e5_jazzy_ws/install/percipio_camera/share/percipio_camera/config/color_camera_info.yaml (camera=camera_color)
+[stereo_camera_node-1] [INFO] [1792546222.762108938] [camera.peach_stereo_camera_node]: interface list: status=0 count=1
+[stereo_camera_node-1] [FATAL] [1792546222.762125690] [camera.peach_stereo_camera_node]: open device 169.254.10.110 failed
+[stereo_camera_node-1] terminate called after throwing an instance of 'std::runtime_error'
+[stereo_camera_node-1]   what():  open device failed
+[ERROR] [stereo_camera_node-1]: process has died [pid 24403, exit code -11, cmd '/home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_stereo/lib/peach_stereo/stereo_camera_node --ros-args -r __node:=peach_stereo_camera_node -r __ns:=/camera -p use_sim_time:=False --params-file /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_stereo/share/peach_stereo/config/stereo_camera.yaml --params-file /tmp/launch_params_7ysvn_q4 --params-file /tmp/launch_params_newndejg'].
+[INFO] [stereo_camera_node-1]: process started with pid [24494]
+[stereo_camera_node-1] [WARN] [1792546225.934029068] [rcl]: ROS_LOCALHOST_ONLY is deprecated but still honored if it is enabled. Use ROS_AUTOMATIC_DISCOVERY_RANGE and ROS_STATIC_PEERS instead.
+[stereo_camera_node-1] [WARN] [1792546225.934041145] [rcl]: 'localhost_only' is enabled, 'automatic_discovery_range' and 'static_peers' will be ignored.
+[stereo_camera_node-1] [INFO] [1792546225.943766501] [camera.peach_stereo_camera_node]: color camera_info override from /home/mu/Desktop/aubo_e5_jazzy_ws/install/percipio_camera/share/percipio_camera/config/color_camera_info.yaml (camera=camera_color)
+[stereo_camera_node-1] [INFO] [1792546225.950308105] [camera.peach_stereo_camera_node]: interface list: status=0 count=1
+[stereo_camera_node-1] [FATAL] [1792546225.950509082] [camera.peach_stereo_camera_node]: open device 169.254.10.110 failed
+[stereo_camera_node-1] terminate called after throwing an instance of 'std::runtime_error'
+[stereo_camera_node-1]   what():  open device failed
+[ERROR] [stereo_camera_node-1]: process has died [pid 24494, exit code -11, cmd '/home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_stereo/lib/peach_stereo/stereo_camera_node --ros-args -r __node:=peach_stereo_camera_node -r __ns:=/camera -p use_sim_time:=False --params-file /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_stereo/share/peach_stereo/config/stereo_camera.yaml --params-file /tmp/launch_params_7ysvn_q4 --params-file /tmp/launch_params_newndejg'].
+[INFO] [stereo_camera_node-1]: process started with pid [24554]
+[stereo_camera_node-1] [WARN] [1792546229.123441209] [rcl]: ROS_LOCALHOST_ONLY is deprecated but still honored if it is enabled. Use ROS_AUTOMATIC_DISCOVERY_RANGE and ROS_STATIC_PEERS instead.
+[stereo_camera_node-1] [WARN] [1792546229.123452132] [rcl]: 'localhost_only' is enabled, 'automatic_discovery_range' and 'static_peers' will be ignored.
+[stereo_camera_node-1] [INFO] [1792546229.133465043] [camera.peach_stereo_camera_node]: color camera_info override from /home/mu/Desktop/aubo_e5_jazzy_ws/install/percipio_camera/share/percipio_camera/config/color_camera_info.yaml (camera=camera_color)
+[stereo_camera_node-1] [INFO] [1792546229.140021383] [camera.peach_stereo_camera_node]: interface list: status=0 count=1
+[stereo_camera_node-1] [FATAL] [1792546229.140219869] [camera.peach_stereo_camera_node]: open device 169.254.10.110 failed
+[stereo_camera_node-1] terminate called after throwing an instance of 'std::runtime_error'
+[stereo_camera_node-1]   what():  open device failed
+[ERROR] [stereo_camera_node-1]: process has died [pid 24554, exit code -11, cmd '/home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_stereo/lib/peach_stereo/stereo_camera_node --ros-args -r __node:=peach_stereo_camera_node -r __ns:=/camera -p use_sim_time:=False --params-file /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_stereo/share/peach_stereo/config/stereo_camera.yaml --params-file /tmp/launch_params_7ysvn_q4 --params-file /tmp/launch_params_newndejg'].
+[INFO] [stereo_camera_node-1]: process started with pid [24610]
+[stereo_camera_node-1] [WARN] [1792546232.312646573] [rcl]: ROS_LOCALHOST_ONLY is deprecated but still honored if it is enabled. Use ROS_AUTOMATIC_DISCOVERY_RANGE and ROS_STATIC_PEERS instead.
+[stereo_camera_node-1] [WARN] [1792546232.312655821] [rcl]: 'localhost_only' is enabled, 'automatic_discovery_range' and 'static_peers' will be ignored.
+[stereo_camera_node-1] [INFO] [1792546232.321802610] [camera.peach_stereo_camera_node]: color camera_info override from /home/mu/Desktop/aubo_e5_jazzy_ws/install/percipio_camera/share/percipio_camera/config/color_camera_info.yaml (camera=camera_color)
+[stereo_camera_node-1] [INFO] [1792546232.328107213] [camera.peach_stereo_camera_node]: interface list: status=0 count=1
+[stereo_camera_node-1] [FATAL] [1792546232.328123651] [camera.peach_stereo_camera_node]: open device 169.254.10.110 failed
+[stereo_camera_node-1] terminate called after throwing an instance of 'std::runtime_error'
+[stereo_camera_node-1]   what():  open device failed
+[ERROR] [stereo_camera_node-1]: process has died [pid 24610, exit code -11, cmd '/home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_stereo/lib/peach_stereo/stereo_camera_node --ros-args -r __node:=peach_stereo_camera_node -r __ns:=/camera -p use_sim_time:=False --params-file /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_stereo/share/peach_stereo/config/stereo_camera.yaml --params-file /tmp/launch_params_7ysvn_q4 --params-file /tmp/launch_params_newndejg'].
+[INFO] [stereo_camera_node-1]: process started with pid [24635]
+[stereo_camera_node-1] [WARN] [1792546235.501125594] [rcl]: ROS_LOCALHOST_ONLY is deprecated but still honored if it is enabled. Use ROS_AUTOMATIC_DISCOVERY_RANGE and ROS_STATIC_PEERS instead.
+[stereo_camera_node-1] [WARN] [1792546235.501134862] [rcl]: 'localhost_only' is enabled, 'automatic_discovery_range' and 'static_peers' will be ignored.
+[stereo_camera_node-1] [INFO] [1792546235.510993252] [camera.peach_stereo_camera_node]: color camera_info override from /home/mu/Desktop/aubo_e5_jazzy_ws/install/percipio_camera/share/percipio_camera/config/color_camera_info.yaml (camera=camera_color)
+[stereo_camera_node-1] [INFO] [1792546235.517443925] [camera.peach_stereo_camera_node]: interface list: status=0 count=1
+[stereo_camera_node-1] [FATAL] [1792546235.517462290] [camera.peach_stereo_camera_node]: open device 169.254.10.110 failed
+[stereo_camera_node-1] terminate called after throwing an instance of 'std::runtime_error'
+[stereo_camera_node-1]   what():  open device failed
+[ERROR] [stereo_camera_node-1]: process has died [pid 24635, exit code -11, cmd '/home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_stereo/lib/peach_stereo/stereo_camera_node --ros-args -r __node:=peach_stereo_camera_node -r __ns:=/camera -p use_sim_time:=False --params-file /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_stereo/share/peach_stereo/config/stereo_camera.yaml --params-file /tmp/launch_params_7ysvn_q4 --params-file /tmp/launch_params_newndejg'].
+[INFO] [stereo_camera_node-1]: process started with pid [24844]
+[stereo_camera_node-1] [WARN] [1792546238.689505759] [rcl]: ROS_LOCALHOST_ONLY is deprecated but still honored if it is enabled. Use ROS_AUTOMATIC_DISCOVERY_RANGE and ROS_STATIC_PEERS instead.
+[stereo_camera_node-1] [WARN] [1792546238.689514759] [rcl]: 'localhost_only' is enabled, 'automatic_discovery_range' and 'static_peers' will be ignored.
+[stereo_camera_node-1] [INFO] [1792546238.698890291] [camera.peach_stereo_camera_node]: color camera_info override from /home/mu/Desktop/aubo_e5_jazzy_ws/install/percipio_camera/share/percipio_camera/config/color_camera_info.yaml (camera=camera_color)
+[stereo_camera_node-1] [INFO] [1792546238.704954085] [camera.peach_stereo_camera_node]: interface list: status=0 count=1
+[stereo_camera_node-1] [FATAL] [1792546238.704969109] [camera.peach_stereo_camera_node]: open device 169.254.10.110 failed
+[stereo_camera_node-1] terminate called after throwing an instance of 'std::runtime_error'
+[stereo_camera_node-1]   what():  open device failed
+[ERROR] [stereo_camera_node-1]: process has died [pid 24844, exit code -11, cmd '/home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_stereo/lib/peach_stereo/stereo_camera_node --ros-args -r __node:=peach_stereo_camera_node -r __ns:=/camera -p use_sim_time:=False --params-file /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_stereo/share/peach_stereo/config/stereo_camera.yaml --params-file /tmp/launch_params_7ysvn_q4 --params-file /tmp/launch_params_newndejg'].
+[INFO] [stereo_camera_node-1]: process started with pid [24906]
+[stereo_camera_node-1] [WARN] [1792546241.869751523] [rcl]: ROS_LOCALHOST_ONLY is deprecated but still honored if it is enabled. Use ROS_AUTOMATIC_DISCOVERY_RANGE and ROS_STATIC_PEERS instead.
+[stereo_camera_node-1] [WARN] [1792546241.869762246] [rcl]: 'localhost_only' is enabled, 'automatic_discovery_range' and 'static_peers' will be ignored.
+[stereo_camera_node-1] [INFO] [1792546241.879130221] [camera.peach_stereo_camera_node]: color camera_info override from /home/mu/Desktop/aubo_e5_jazzy_ws/install/percipio_camera/share/percipio_camera/config/color_camera_info.yaml (camera=camera_color)
+[stereo_camera_node-1] [INFO] [1792546241.885434597] [camera.peach_stereo_camera_node]: interface list: status=0 count=1
+[stereo_camera_node-1] [FATAL] [1792546241.885451284] [camera.peach_stereo_camera_node]: open device 169.254.10.110 failed
+[stereo_camera_node-1] terminate called after throwing an instance of 'std::runtime_error'
+[stereo_camera_node-1]   what():  open device failed
+[ERROR] [stereo_camera_node-1]: process has died [pid 24906, exit code -11, cmd '/home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_stereo/lib/peach_stereo/stereo_camera_node --ros-args -r __node:=peach_stereo_camera_node -r __ns:=/camera -p use_sim_time:=False --params-file /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_stereo/share/peach_stereo/config/stereo_camera.yaml --params-file /tmp/launch_params_7ysvn_q4 --params-file /tmp/launch_params_newndejg'].
+[INFO] [stereo_camera_node-1]: process started with pid [24962]
+[stereo_camera_node-1] [WARN] [1792546245.057713033] [rcl]: ROS_LOCALHOST_ONLY is deprecated but still honored if it is enabled. Use ROS_AUTOMATIC_DISCOVERY_RANGE and ROS_STATIC_PEERS instead.
+[stereo_camera_node-1] [WARN] [1792546245.057722228] [rcl]: 'localhost_only' is enabled, 'automatic_discovery_range' and 'static_peers' will be ignored.
+[stereo_camera_node-1] [INFO] [1792546245.067188485] [camera.peach_stereo_camera_node]: color camera_info override from /home/mu/Desktop/aubo_e5_jazzy_ws/install/percipio_camera/share/percipio_camera/config/color_camera_info.yaml (camera=camera_color)
+[stereo_camera_node-1] [INFO] [1792546245.073502048] [camera.peach_stereo_camera_node]: interface list: status=0 count=1
+[stereo_camera_node-1] [FATAL] [1792546245.073518874] [camera.peach_stereo_camera_node]: open device 169.254.10.110 failed
+[stereo_camera_node-1] terminate called after throwing an instance of 'std::runtime_error'
+[stereo_camera_node-1]   what():  open device failed
+[ERROR] [stereo_camera_node-1]: process has died [pid 24962, exit code -11, cmd '/home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_stereo/lib/peach_stereo/stereo_camera_node --ros-args -r __node:=peach_stereo_camera_node -r __ns:=/camera -p use_sim_time:=False --params-file /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_stereo/share/peach_stereo/config/stereo_camera.yaml --params-file /tmp/launch_params_7ysvn_q4 --params-file /tmp/launch_params_newndejg'].
+[peach_observability-10] [WARN] [1792546245.822796207] [peach_observability]: 自检[periodic] 12/18 通过，警告: camera_color_rate, camera_depth_rate，跳过: robot_status, force_topic, model_files, vegetation_status
+[INFO] [stereo_camera_node-1]: process started with pid [25019]
+[stereo_camera_node-1] [WARN] [1792546248.242920432] [rcl]: ROS_LOCALHOST_ONLY is deprecated but still honored if it is enabled. Use ROS_AUTOMATIC_DISCOVERY_RANGE and ROS_STATIC_PEERS instead.
+[stereo_camera_node-1] [WARN] [1792546248.242929910] [rcl]: 'localhost_only' is enabled, 'automatic_discovery_range' and 'static_peers' will be ignored.
+[stereo_camera_node-1] [INFO] [1792546248.252193965] [camera.peach_stereo_camera_node]: color camera_info override from /home/mu/Desktop/aubo_e5_jazzy_ws/install/percipio_camera/share/percipio_camera/config/color_camera_info.yaml (camera=camera_color)
+[stereo_camera_node-1] [INFO] [1792546248.258452929] [camera.peach_stereo_camera_node]: interface list: status=0 count=1
+[stereo_camera_node-1] [FATAL] [1792546248.258470422] [camera.peach_stereo_camera_node]: open device 169.254.10.110 failed
+[stereo_camera_node-1] terminate called after throwing an instance of 'std::runtime_error'
+[stereo_camera_node-1]   what():  open device failed
+[ERROR] [stereo_camera_node-1]: process has died [pid 25019, exit code -11, cmd '/home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_stereo/lib/peach_stereo/stereo_camera_node --ros-args -r __node:=peach_stereo_camera_node -r __ns:=/camera -p use_sim_time:=False --params-file /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_stereo/share/peach_stereo/config/stereo_camera.yaml --params-file /tmp/launch_params_7ysvn_q4 --params-file /tmp/launch_params_newndejg'].
+[INFO] [stereo_camera_node-1]: process started with pid [25048]
+[stereo_camera_node-1] [WARN] [1792546251.432297458] [rcl]: ROS_LOCALHOST_ONLY is deprecated but still honored if it is enabled. Use ROS_AUTOMATIC_DISCOVERY_RANGE and ROS_STATIC_PEERS instead.
+[stereo_camera_node-1] [WARN] [1792546251.432306823] [rcl]: 'localhost_only' is enabled, 'automatic_discovery_range' and 'static_peers' will be ignored.
+[stereo_camera_node-1] [INFO] [1792546251.441529261] [camera.peach_stereo_camera_node]: color camera_info override from /home/mu/Desktop/aubo_e5_jazzy_ws/install/percipio_camera/share/percipio_camera/config/color_camera_info.yaml (camera=camera_color)
+[stereo_camera_node-1] [INFO] [1792546251.448031671] [camera.peach_stereo_camera_node]: interface list: status=0 count=1
+[stereo_camera_node-1] [FATAL] [1792546251.448047385] [camera.peach_stereo_camera_node]: open device 169.254.10.110 failed
+[stereo_camera_node-1] terminate called after throwing an instance of 'std::runtime_error'
+[stereo_camera_node-1]   what():  open device failed
+[ERROR] [stereo_camera_node-1]: process has died [pid 25048, exit code -11, cmd '/home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_stereo/lib/peach_stereo/stereo_camera_node --ros-args -r __node:=peach_stereo_camera_node -r __ns:=/camera -p use_sim_time:=False --params-file /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_stereo/share/peach_stereo/config/stereo_camera.yaml --params-file /tmp/launch_params_7ysvn_q4 --params-file /tmp/launch_params_newndejg'].
+[ros2_control_node-4] [INFO] [1792546252.367562974] [rclcpp]: signal_handler(SIGINT/SIGTERM)
+[ros2_control_node-4] [INFO] [1792546252.367620437] [controller_manager]: Shutdown request received....
+[robot_state_publisher-3] [INFO] [1792546252.367569613] [rclcpp]: signal_handler(SIGINT/SIGTERM)
+[ros2_control_node-4] [INFO] [1792546252.367656145] [controller_manager]: Shutting down all controllers in the controller manager.
+[ros2_control_node-4] [INFO] [1792546252.367672012] [controller_manager]: Deactivating controller 'joint_state_broadcaster'
+[ros2_control_node-4] [INFO] [1792546252.367708980] [controller_manager]: Shutting down controller 'joint_state_broadcaster'
+[ros2_control_node-4] [INFO] [1792546252.367786082] [controller_manager]: Deactivating controller 'joint_trajectory_controller'
+[ros2_control_node-4] [INFO] [1792546252.367807216] [controller_manager]: Shutting down controller 'joint_trajectory_controller'
+[ros2_control_node-4] [INFO] [1792546252.367830508] [resource_manager]: 'deactivate' hardware 'AuboE5System' 
+[ros2_control_node-4] [INFO] [1792546252.367838410] [resource_manager]: Successful 'deactivate' of hardware 'AuboE5System'
+[ros2_control_node-4] [INFO] [1792546252.367840175] [resource_manager]: 'shutdown' hardware 'AuboE5System' 
+[ros2_control_node-4] [INFO] [1792546252.367841730] [resource_manager]: Successful 'shutdown' of hardware 'AuboE5System'
+[ros2_control_node-4] [INFO] [1792546252.367880712] [controller_manager]: Shutting down the controller manager.
+[move_group-7] [INFO] [1792546252.367723083] [rclcpp]: signal_handler(SIGINT/SIGTERM)
+[peach_arm-9] [INFO] [1792546252.367875125] [rclcpp]: signal_handler(SIGINT/SIGTERM)
+[lifecycle_manager-11] [INFO] [1792546252.367912328] [rclcpp]: signal_handler(SIGINT/SIGTERM)
+[lifecycle_manager-11] [INFO] [1792546252.367969226] [peach_lifecycle_manager]: Running Nav2 LifecycleManager rcl preshutdown (peach_lifecycle_manager)
+[peach_arm-9] [INFO] [1792546252.368663687] [peach_arm]: requestCancelAll: 停止当前执行（来源：deactivate 收口）
+[lifecycle_manager-11] [INFO] [1792546252.372300664] [peach_lifecycle_manager]: Destroying peach_lifecycle_manager
+[ros2_control_node-4] [ERROR] [1792546252.377012894] [controller_manager.pal_statistics]: Exception in publisher thread: context cannot be slept with because it's invalid!. Aborting!
+[ros2_control_node-4] [ERROR] [1792546252.377012918] [controller_manager.pal_statistics]: Exception in publisher thread: context cannot be slept with because it's invalid!. Aborting!
+[ros2_control_node-4] [INFO] [1792546252.377086572] [controller_manager.pal_statistics]: Async messages lost 0
+[ros2_control_node-4] [INFO] [1792546252.377094857] [controller_manager.pal_statistics]: publish_async_failures_ 0
+[ros2_control_node-4] [INFO] [1792546252.377949367] [controller_manager.pal_statistics]: Async messages lost 0
+[ros2_control_node-4] [INFO] [1792546252.377953831] [controller_manager.pal_statistics]: publish_async_failures_ 0
+[move_group-7] Stack trace (most recent call last):
+[move_group-7] #6    Object "", at 0xffffffffffffffff, in 
+[move_group-7] #5    Object "/opt/ros/jazzy/lib/moveit_ros_move_group/move_group", at 0x5a9257b62a14, in _start
+[peach_scene_obstacles-2] Traceback (most recent call last):
+[peach_scene_obstacles-2]   File "/home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_harvester/lib/peach_harvester/peach_scene_obstacles", line 33, in <module>
+[peach_scene_obstacles-2]     sys.exit(load_entry_point('peach-harvester==0.1.0', 'console_scripts', 'peach_scene_obstacles')())
+[peach_scene_obstacles-2]              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[peach_scene_obstacles-2]   File "/home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_harvester/lib/python3.12/site-packages/peach_harvester/vision/scene_obstacles/node.py", line 367, in main
+[peach_scene_obstacles-2]     rclpy.spin(node)
+[peach_scene_obstacles-2]   File "/opt/ros/jazzy/lib/python3.12/site-packages/rclpy/__init__.py", line 247, in spin
+[peach_scene_obstacles-2]     executor.spin_once()
+[peach_scene_obstacles-2]   File "/opt/ros/jazzy/lib/python3.12/site-packages/rclpy/executors.py", line 926, in spin_once
+[peach_scene_obstacles-2]     self._spin_once_impl(timeout_sec)
+[peach_scene_obstacles-2]   File "/opt/ros/jazzy/lib/python3.12/site-packages/rclpy/executors.py", line 907, in _spin_once_impl
+[peach_scene_obstacles-2]     handler, entity, node = self.wait_for_ready_callbacks(
+[peach_scene_obstacles-2]                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[peach_scene_obstacles-2]   File "/opt/ros/jazzy/lib/python3.12/site-packages/rclpy/executors.py", line 877, in wait_for_ready_callbacks
+[peach_scene_obstacles-2]     return next(self._cb_iter)
+[peach_scene_obstacles-2]            ^^^^^^^^^^^^^^^^^^^
+[peach_scene_obstacles-2]   File "/opt/ros/jazzy/lib/python3.12/site-packages/rclpy/executors.py", line 785, in _wait_for_ready_callbacks
+[peach_scene_obstacles-2]     raise ExternalShutdownException()
+[peach_scene_obstacles-2] rclpy.executors.ExternalShutdownException
+[move_group-7] #4    Source "../csu/libc-start.c", line 360, in __libc_start_main_impl [0x755c2b02a28a]
+[move_group-7] #3    Source "../sysdeps/nptl/libc_start_call_main.h", line 58, in __libc_start_call_main [0x755c2b02a1c9]
+[move_group-7] #2    Object "/opt/ros/jazzy/lib/moveit_ros_move_group/move_group", at 0x5a9257b614e7, in main
+[move_group-7] #1    Object "/opt/ros/jazzy/lib/librclcpp.so", at 0x755c2b9162f7, in rclcpp::Executor::~Executor()
+[move_group-7] #0    Object "/opt/ros/jazzy/lib/librclcpp.so", at 0x755c2b910dde, in 
+[move_group-7] Segmentation fault (Address not mapped to object [0x755c080ef170])
+[ERROR] [move_group-7]: process has died [pid 21694, exit code 1, cmd '/opt/ros/jazzy/lib/moveit_ros_move_group/move_group --ros-args -p use_sim_time:=False --params-file /tmp/launch_params_tdo2c4rr --params-file /tmp/launch_params_7sm8ig4h'].
+[peach_harvester-8] The following exception was never retrieved: cannot use Destroyable because destruction was requested
+[INFO] [robot_state_publisher-3]: process has finished cleanly [pid 21690]
+[INFO] [lifecycle_manager-11]: process has finished cleanly [pid 21698]
+[INFO] [peach_arm-9]: process has finished cleanly [pid 21696]
+[INFO] [ros2_control_node-4]: process has finished cleanly [pid 21691]
+[INFO] [peach_lifecycle_flag_bridge-12]: process has finished cleanly [pid 21699]
+[ERROR] [peach_scene_obstacles-2]: process has died [pid 21689, exit code 1, cmd '/home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_harvester/lib/peach_harvester/peach_scene_obstacles --ros-args -p use_sim_time:=False'].
+[INFO] [peach_harvester-8]: process has finished cleanly [pid 21695]
+[INFO] [stereo_camera_node-1]: process started with pid [25165]
+[peach_observability-10] bag 分析报告已生成：/home/mu/Desktop/aubo_e5_jazzy_ws/runs/session_20261021_092815/bag_report.md
+[peach_observability-10] markdown: /home/mu/Desktop/aubo_e5_jazzy_ws/runs/session_20261021_092815/bag_report.md
+[peach_observability-10] json: /home/mu/Desktop/aubo_e5_jazzy_ws/runs/session_20261021_092815/bag_report.json
+[stereo_camera_node-1] [WARN] [1792546254.616393341] [rcl]: ROS_LOCALHOST_ONLY is deprecated but still honored if it is enabled. Use ROS_AUTOMATIC_DISCOVERY_RANGE and ROS_STATIC_PEERS instead.
+[stereo_camera_node-1] [WARN] [1792546254.616403696] [rcl]: 'localhost_only' is enabled, 'automatic_discovery_range' and 'static_peers' will be ignored.
+[stereo_camera_node-1] [INFO] [1792546254.625932032] [camera.peach_stereo_camera_node]: color camera_info override from /home/mu/Desktop/aubo_e5_jazzy_ws/install/percipio_camera/share/percipio_camera/config/color_camera_info.yaml (camera=camera_color)
+[stereo_camera_node-1] [INFO] [1792546254.632450238] [camera.peach_stereo_camera_node]: interface list: status=0 count=1
+[stereo_camera_node-1] [FATAL] [1792546254.632606361] [camera.peach_stereo_camera_node]: open device 169.254.10.110 failed
+[stereo_camera_node-1] terminate called after throwing an instance of 'std::runtime_error'
+[stereo_camera_node-1]   what():  open device failed
+[peach_observability-10] Traceback (most recent call last):
+[peach_observability-10]   File "/home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_observability/lib/peach_observability/peach_observability", line 33, in <module>
+[peach_observability-10]     sys.exit(load_entry_point('peach-observability==0.1.0', 'console_scripts', 'peach_observability')())
+[peach_observability-10]              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[peach_observability-10]   File "/home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_observability/lib/python3.12/site-packages/peach_observability/observability_node.py", line 1540, in main
+[peach_observability-10]     executor.spin()
+[peach_observability-10]   File "/opt/ros/jazzy/lib/python3.12/site-packages/rclpy/executors.py", line 359, in spin
+[peach_observability-10]     self._spin_once_impl()
+[peach_observability-10]   File "/opt/ros/jazzy/lib/python3.12/site-packages/rclpy/executors.py", line 991, in _spin_once_impl
+[peach_observability-10]     handler, entity, node = self.wait_for_ready_callbacks(
+[peach_observability-10]                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[peach_observability-10]   File "/opt/ros/jazzy/lib/python3.12/site-packages/rclpy/executors.py", line 877, in wait_for_ready_callbacks
+[peach_observability-10]     return next(self._cb_iter)
+[peach_observability-10]            ^^^^^^^^^^^^^^^^^^^
+[peach_observability-10]   File "/opt/ros/jazzy/lib/python3.12/site-packages/rclpy/executors.py", line 757, in _wait_for_ready_callbacks
+[peach_observability-10]     wait_set = _rclpy.WaitSet(
+[peach_observability-10]                ^^^^^^^^^^^^^^^
+[peach_observability-10] rclpy._rclpy_pybind11.RCLError: failed to initialize wait set: the given context is not valid, either rcl_init() was not called or rcl_shutdown() was called., at ./src/rcl/wait.c:130
+[peach_observability-10] The following exception was never retrieved: cannot use Destroyable because destruction was requested
+[peach_observability-10] The following exception was never retrieved: cannot use Destroyable because destruction was requested
+[peach_observability-10] The following exception was never retrieved: cannot use Destroyable because destruction was requested
+[ERROR] [stereo_camera_node-1]: process has died [pid 25165, exit code -11, cmd '/home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_stereo/lib/peach_stereo/stereo_camera_node --ros-args -r __node:=peach_stereo_camera_node -r __ns:=/camera -p use_sim_time:=False --params-file /home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_stereo/share/peach_stereo/config/stereo_camera.yaml --params-file /tmp/launch_params_7ysvn_q4 --params-file /tmp/launch_params_newndejg'].
+[ERROR] [peach_observability-10]: process has died [pid 21697, exit code 1, cmd '/home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_observability/lib/peach_observability/peach_observability --ros-args -r __node:=peach_observability -r __ns:=/ -p use_sim_time:=False --params-file /tmp/launch_params_z814qh2l --params-file /tmp/launch_params_jzly24f5'].

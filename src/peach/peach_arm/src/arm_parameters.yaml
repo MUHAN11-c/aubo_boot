@@ -87,8 +87,8 @@ peach_arm:
         lt_eq<>: [1.0]
     execute_timeout_s:
       type: double
-      default_value: 90.0
-      description: "单条轨迹/MTC 解执行有界等待 [s]；超时下发 stop 并判失败（move_group TEM 异常防线，2026-09-23 stop 事件风暴）"
+      default_value: 5.0
+      description: "单条轨迹/MTC 解执行有界等待 [s]；超时下发 stop 并判失败。正常段约 1–4 s"
       validation:
         gt<>: [1.0]
     obstacle_guard_enabled:
@@ -657,7 +657,7 @@ peach_arm:
         gt<>: [0.0]
     refined_s:
       type: double
-      default_value: 30.0
-      description: "精化等待超时 [s]"
+      default_value: 5.0
+      description: "精化等待超时 [s]。COLLECTING 时用满该上限；有效决策通常数秒内到达。"
       validation:
         gt<>: [0.0]

@@ -94,7 +94,7 @@ ros2 run peach_system_tests run_frozen_grasp.py \
 
 runner默认无头（rviz=false），需桌面时显式`--rviz`，`--no-rviz`显式保持无头；launch也默认关闭RViz并透传开关。runner在本域启动 frozen_camera_grasp.launch.py，出生于拍照位，冻结重发camera话题；离开拍照位后pause图像/点云。overlay单视配置、测试口径与关闭障碍门属于回放夹具，不可复制到real部署。`skip_reconstruction=false`、tool=false；ready预算与goal受理后的抓取预算分开。
 
-历史夹具曾将 `grasp.maximum_travel_m` 硬设为 0.02 m，当前 index 70 的合格候选建议行程约 0.03 m，在选果 `CheckReachability` 阶段即以 `cut_travel_out_of_range` 过滤，表现为 discovered=1 / attempted=0。这是夹具覆盖与产品门冲突，不是空感知或抓取成功。现已删除该行程覆盖，沿用产品正常范围；后续精化几何、IK、笛卡尔路径和有效期门仍须独立通过。冻结 bag 不能保证当前工具/模型下 FULL 成功，不得通过放宽产品门或点名绕过选果取得绿灯。
+历史夹具曾将 `grasp.maximum_travel_m` 硬设为 0.02 m，当前 index 70 的合格候选建议行程约 0.03 m（该冻结夹具记录的是旧 0.03 m；现行感知 `(neck-entry)-margin_neck` 为 0.05–0.10 m），在选果 `CheckReachability` 阶段即以 `cut_travel_out_of_range` 过滤，表现为 discovered=1 / attempted=0。这是夹具覆盖与产品门冲突，不是空感知或抓取成功。现已删除该行程覆盖，沿用产品正常范围；后续精化几何、IK、笛卡尔路径和有效期门仍须独立通过。冻结 bag 不能保证当前工具/模型下 FULL 成功，不得通过放宽产品门或点名绕过选果取得绿灯。
 
 冻结runner只清理自己创建的PGID；`--skip-launch`不停止外部栈，仅对自己request取消并关闭自身使用的使能，不按全域匹配清进程。取消/关闭使能真实失败会令wrapper退出非零；当前request已由外部作业替换时只记正常skip，不触碰对方。测试包test_frozen_camera_bag只验证overlay/数据条件，缺bag可skip；FULL联合驱动不属于默认无设备测试。回放只能证明固定数据与当前夹具下的链路。普通 `ros2 bag play --clock` 才使用use_sim_time=true；冻结重发runner按自身launch配置，不能任意混时钟。
 
@@ -113,7 +113,7 @@ ros2 run peach_system_tests probe_topics.py --duration 10
 ros2 run peach_system_tests check_planning_scene.py
 ```
 
-RViz Fixed Frame=base_link，检查RGB、深度点云、感知/融合轴、预抓取/剪切参考与实际工具TF。界面几何与数值必须对应同目标同场景；共同主轴构造出的0°不是独立真值。tool始终false，重建保留，不能用放宽漂移/多视门凑通过。只读探针均需有限时间，完成即退出。
+RViz Fixed Frame=base_link，检查RGB、深度点云、感知轴、预抓取/剪切参考与实际工具TF。界面几何与数值必须对应同目标同场景；共同主轴构造出的0°不是独立真值。tool始终false。本档相机固定、臂是 mock，腕动不会产生新机位，抓取轮 `skip_reconstruction:=true`：不发 Build，臂把锁定集感知的轴、袋心、袋底、袋口和袋径提升为接触入口并钉住 `grasp_allowed`。这不放宽漂移门或邻果门，也不改真机产品默认（真机仍重建精化）。只读探针均需有限时间，完成即退出。
 
 当前联合验收（`--rounds 10 --models 30 --soak-seconds 1800`）未通过：已记录30组模型，10轮抓取中6轮达到level6、4轮质量门跳过；soak只有253条资源采样、约21分钟，RViz已退出，不满足30分钟可视化稳定性要求。模型、执行和稳定性须分别判定，不能用模型配额或早先短测成功替代整项通过。RViz监控配置和退出处理已更新，仍须按新配置重新完成验收。新主机网络monitor probe已完成3组模型，RViz在15秒观察窗内存活；抓取轮在180秒预算后FAILED，bag已封口且无本轮进程残留。它只证明该次模型/短时显示/收尾，不能算抓取或完整验收成功。2026-10-16 短测 5 轮见下节，不替代本项。
 
@@ -130,7 +130,7 @@ ros2 run peach_system_tests run_live_camera_mock.py \
 
 RViz默认开启，`--no-rviz`只用于无头排障，不能算可视化验收。先构建测试包以安装脚本/config，再执行；输出目录须为本轮新目录，域86、相机须空闲。监控口优先 8090，已被他人占用则依次试 8091–8098 并透传 `observability_port`，不占用 8099、不清理其他进程。
 
-`config/live_camera_mock.yaml`保存test-only固定采集位校准，来源为20261013固定相机记录，用户确认相机未动；parent=base_link、child=camera_link，mock初始关节也由该配置提供。该校准只用于本测试，不注入产品手眼文件；相机一旦移动必须重测，不继续沿用。`config/live_camera_mock.rviz`是本轮显示配置。产物包括report.json、stack.log、camera_tf.log、rviz.log、rviz_model_params.yaml、startup_state.json、model_N_state.json、round_N_state.json、测试专用brain_overlay.yaml和arm_overlay.yaml（mock 接近/转移速度缩放到 0.8，把接近+撤离从约 20 s 压进单果 40 s 预算；产品 `peach_arm.yaml` 仍 0.1，真机不得高于 0.1；近果套入仍 0.05）。owned_processes.json在每次创建进程组后立即保存owner PID、PID/PGID、命令、域与时间，信号退出按cancel→disable→close→自有组清理顺序处理。report.json采用同目录临时文件后原子replace，在启动/模型/动作/soak/清理等阶段写入phase与updated_at检查点；中断时保留最后完整状态。soak每次资源采样先落检查点，再检查RViz存活和相机/关节新鲜帧；任一失效立即失败并进入清理，不继续累计成合格时长。通过还要求实际采样时长达到预算且全部样本健康。
+`config/live_camera_mock.yaml`保存test-only固定采集位校准，来源为20261013固定相机记录，用户确认相机未动；parent=base_link、child=camera_link，mock初始关节也由该配置提供。该校准只用于本测试，不注入产品手眼文件；相机一旦移动必须重测，不继续沿用。`config/live_camera_mock.rviz`是本轮显示配置。产物包括report.json、stack.log、camera_tf.log、rviz.log、rviz_model_params.yaml、startup_state.json、model_N_state.json、round_N_state.json、测试专用brain_overlay.yaml和arm_overlay.yaml（2026-10-21 起：接触 `velocity_scaling=0.4`，`appendLinToPose` 推导加速度档 `min(1,2v)=0.8`，避开 wrist1/3 的 3.0 rad/s² 上限；转移段仍 0.8；`execute_timeout_s=30`、`timeouts.refined_s=30`；产品 `peach_arm.yaml` 仍 0.1，真机不得高于 0.1；近果套入仍 0.05）。runner 新增 `--skip-reconstruction/--no-skip-reconstruction`（同日 A/B）与 `--pick-all`（PICK_ALL/AUTO 多目标，复现完整重建轮）；PICK_ALL 一轮内多次 recovery 的 ACK 按 `state_seq` 去重（旧实现按 request 去重会在第二颗 recovery 死锁）。跑完把本轮在 `runs/` 根新产生的 `session_*`/`harvest_*`/`round_*` 收进 `output/records/`，一次运行只留一个顶层文件夹；`report.json` 记 `consolidated_records`。owned_processes.json在每次创建进程组后立即保存owner PID、PID/PGID、命令、域与时间，信号退出按cancel→disable→close→自有组清理顺序处理。report.json采用同目录临时文件后原子replace，在启动/模型/动作/soak/清理等阶段写入phase与updated_at检查点；中断时保留最后完整状态。soak每次资源采样先落检查点，再检查RViz存活和相机/关节新鲜帧；任一失效立即失败并进入清理，不继续累计成合格时长。通过还要求实际采样时长达到预算且全部样本健康。
 
 RViz重建点云默认订阅 `/peach/reconstruction/preview_cloud`（标准PointCloud2，最多50000点，保留采样点颜色，TSDF优先、否则局部累加云）。原local_cloud/tsdf_cloud仍完整发布，算法输入不变；RViz不同时启用这两条完整云。此预算只约束重建预览，DetectionCloud保持原固定分辨率stride输出，Image/PointCloud2仍使用BEST_EFFORT、queue1、decay0。
 
@@ -138,7 +138,7 @@ RViz重建点云默认订阅 `/peach/reconstruction/preview_cloud`（标准Point
 
 模型阶段只BeginScene一次，在固定epoch轮换有效目标；Build结果身份包含target/epoch/revision/generated_at/valid_until，并有界等待Web同revision和diag.model_stamp对应，不能以refined接收时间替代。重复Build使用新request及新生成时间去重；最多models×3次尝试，配额不足判失败。models≥3时每个已采目标至少3样本，统计同目标D95、entry、cut及轴角P95。动作各轮新scene，mockACK仅依据当前request/target的终态证据发出，避免预抓取恢复锁死锁。
 
-产品reconstruct_in_trajectory默认true：Build绑定后启动臂侧Finalize等待，同目标精化与许可到齐才规划，不代表使用粗几何先运动；测试overlay显式true不改变TTL或接触能力门。按实际runner产物核对每组模型/每轮终态/采样时长和退出清理，不能仅看总返回码。
+抓取轮 `config/live_camera_mock.yaml` 的 `skip_reconstruction: true` 同时打开调度跳过 Build 和臂 `quality.allow_unrefined_geometry`。接触几何来自锁定集感知，不再等 TSDF 精化或 `GraspDecision`。臂侧 promote 把 `suggested_travel_m` 置 0，走 `(neck-entry)-neck_margin_m` 几何回退（实测 0.05–0.10 m），不再采信旧 `L_insert=0.03` 封顶；感知 `suggested_travel_m` 也改为 `(neck-entry)-margin_neck`，SELECT/CheckReachability 与实际执行同一量级。`--models` 大于 0 时，模型统计阶段仍单独调用 Build，与抓取轮无关。真机产品默认仍是重建精化。按实际 runner 产物核对每组模型、每轮终态、采样时长和退出清理，不能仅看总返回码。
 
 短测（不替代上面 10×30×1800）示例：
 
@@ -149,6 +149,22 @@ ros2 run peach_system_tests run_live_camera_mock.py \
 ```
 
 2026-10-16 `runs/live_mock_20261016_183842`：`--rounds 5 --models 0 --soak-seconds 0`，`passed=true`，5/5 level6，`residual_pids` 空。账本单果 24–27 s，RunHarvest 38–43 s（首轮 43 s，其后 38–40 s），相对人工偏保守的单果预算 40 s。runner 墙钟 45–51 s 含每轮 `new_scene`，不算产品节拍。点名 `target_ids` 摘完即 `EMPTY_LIMIT`，不再空扫。立体相机 `peach_stereo_camera_node` **12.0–13.1 gps、drop=0**（隔离 hh4 约 13.7；此前整栈钉 `OMP_NUM_THREADS=1` 时约 6.4 gps、仍 drop=0）。runner 不再默认钉 OpenMP，`OPENBLAS`/`MKL` 仍 1。mock overlay 速度 0.8，产品 `peach_arm.yaml` 仍 0.1。此项不证明 30 组模型、10 轮长测或 30 分钟 soak。
+
+### 2026-10-21 行程修正与 A/B（不替代 10×30×1800）
+
+`skip_reconstruction` 抓取轮在 17:45 轮 target_16 指令 0.030 m、实际 TCP 插入 29.5 mm，入口→袋颈 94.5 mm，TCP 距颈 65 mm；同场景全重建成功目标 travel 0.080–0.082、TCP 0.7576、距颈 15.3–15.4 mm，位置大致正确。根因是感知 `min(s_safe, L_insert=0.03)` 封顶，不是重建/感知两套算法；`blade_offset_m=0`（TCP 与剪切平面重合）。
+
+修正：`compute_travel_range` 去掉 `L_insert` 封顶（`s_max=s_safe`）；`promoteUnrefinedGeometry` 把 `suggested_travel_m` 置 0，臂走 `(neck-entry)-neck_margin` 回退。感知 SELECT 行程 0.05–0.10 m，与全重建 0.07–0.09 m 同量级；差约 0.01 m 为融合修剪，不是旧 0.03 vs 0.09 的封顶差。
+
+短测 `runs/live_mock_unified_rviz_20261021_1813`：3/3 level6，travel 0.079–0.091，TCP 0.703–0.763，距颈 15–24 mm，RViz 托管、camera 三轮新鲜、`passed=true`、`residual=[]`。
+
+A/B（每边 2 轮 PICK_ALL，RViz + 8090 实时）：
+
+- A 全重建 `runs/AB_A_full_20261021_1829`：6 次目标尝试、2 次 level6（target_1/5，33.3%），travel 0.080–0.082、TCP 0.7576、距颈 15.3/15.4 mm；失败 target_0/2/4 refit（`bag_axis_envelope_ill_conditioned`/`bag_axis_silhouette_unobservable`）、target_3 MTC short-path。
+- B skip `runs/AB_B_skip_20261021_1832`：8 次尝试、8 次 level6（100%），travel 0.054–0.092、TCP 0.691–0.763、距颈 15–32 mm（多数 15–26）。
+- 两跑 `passed=true`、`residual=[]`；产物在各自 `records/{session,harvest,round}`，一跑一文件夹；分析页每跑只列一个顶层选项。B 的 level6 仍不是 level7 真剪切（tool=false）。
+
+历史 30 mm 对照：`live_mock_20261021_1730/1745` 5/5 level6，但 TCP 0.69–0.704、长袋距颈 65–82 mm（仅 target_5 27 mm），不能把 level6 当到颈。A 的失败是固定相机多视不足导致的 refit，不是全重建不可行；同日 09:31 全重建 8/9、15:xx 50–55%。
 
 ## 7. 量化验收与结果口径
 

@@ -53,6 +53,6 @@ ros2 run peach_system_tests run_frozen_grasp.py
 
 职责、源码地图、参数来源、生命周期/并发与失败处理见 [包架构](doc/architecture.md)。运行环境、分层验证、冻结回放、30组模型/10轮/30分钟验收与精确清理见 [测试指导](../peach_system_tests/doc/testing.md)。本包测试通过不代表现场采摘成功；未授权不得真机运动或SetIO，硬件急停不经ROS，程序结束必须清本轮进程。
 
-真实相机+mock+RViz联合入口为`scripts/run_live_camera_mock.py`，测试专用固定校准与显示配置在`config/live_camera_mock.yaml`、`live_camera_mock.rviz`；CLI及30组模型/10轮/30分钟判据见测试指导。校准来自20261013固定相机记录及用户未移动确认，不写入产品标定；脚本新增不代表联合验收已通过。
+真实相机+mock+RViz联合入口为`scripts/run_live_camera_mock.py`，测试专用固定校准与显示配置在`config/live_camera_mock.yaml`、`live_camera_mock.rviz`。该档相机固定，抓取轮 `skip_reconstruction: true`，用感知几何进接触，不发 Build；真机产品默认仍重建。runner 默认托管 RViz，`--no-rviz` 无头；`--skip-reconstruction/--no-skip-reconstruction` 与 `--pick-all` 用于同日 A/B 和完整重建多目标；跑完本轮 `session_*`/`harvest_*`/`round_*` 收进 `output/records/`，一跑一个顶层文件夹。CLI及30组模型/10轮/30分钟判据见测试指导。校准来自20261013固定相机记录及用户未移动确认，不写入产品标定；脚本新增不代表联合验收已通过。
 
 冻结runner默认无头，显式--rviz才开桌面；只清自有PGID，--skip-launch保留外部栈。真实联合短测1/1达到level6、RViz存活、cleanup=[]，正式10轮/30模型/1800秒仍待完成。

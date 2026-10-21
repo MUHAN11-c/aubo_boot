@@ -146,6 +146,31 @@ class BoundedWorker(Generic[Item]):
                 consecutive_errors = 0
 
 
+# HarvestState.target_phase，与 peach_interfaces/msg/HarvestState.msg 同值。
+_PHASE_OBSERVING = 2
+_PHASE_VALIDATING = 4
+_PHASE_SKIPPED = 10
+_PHASE_FAILED = 11
+_DETECTION_STAGES = frozenset({'observing', 'reconfirm'})
+
+
+def view_stage_for_phase(phase: int, has_mask: bool, saved: set[str]) -> str | None:
+    """
+    决定当前目标这一帧要不要记视图.
+
+    观察记检测框、分割和方向；再确认再记一张新鲜观测。接近、剪切和
+    撤离不记。跳过或失败时，前面没有检测帧才补一张现场图。还没有掩膜
+    的观察/再确认帧先跳过，把唯一名额留给有分割的那一帧。
+    """
+    if phase == _PHASE_OBSERVING:
+        return 'observing' if has_mask else None
+    if phase == _PHASE_VALIDATING:
+        return 'reconfirm' if has_mask else None
+    if phase in (_PHASE_SKIPPED, _PHASE_FAILED) and not (_DETECTION_STAGES & set(saved)):
+        return None if 'outcome' in saved else 'outcome'
+    return None
+
+
 def default_runs_root() -> Path:
     """过程数据唯一根目录（W6-B 单源委托 peach_common.paths.runs_root）."""
     return _runs_root()
@@ -190,6 +215,8 @@ class HarvestDataStore:
         self.dropped_before_run = 0
         # target_id → 上次掩膜落盘的 time.monotonic() 时刻（save_mask 节流用）
         self._mask_last_saved = {}
+        # (target_id, stage) 已记过的视图；每个阶段只落一次
+        self._stage_saved: set[tuple[str, str]] = set()
         # V4：单后台写线程（daemon；close() 排空收口）
         self._write_queue: queue.Queue = queue.Queue(maxsize=self._WRITE_QUEUE_MAX)
         self._writer = threading.Thread(
@@ -215,10 +242,12 @@ class HarvestDataStore:
         if kind == 'event':
             record, run_dir = payload
             self._append_event_sync(record, run_dir)
-        else:
-            path, binary = payload
-            if not cv2.imwrite(str(path), binary):
-                _logger.error('掩膜保存失败: %s', path)
+            return
+        path, image = payload
+        path.parent.mkdir(parents=True, exist_ok=True)
+        label = {'color': '检测彩色图', 'debug': '检测调试图'}.get(kind, '掩膜')
+        if not cv2.imwrite(str(path), image):
+            _logger.error('%s保存失败: %s', label, path)
 
     def _enqueue_write(self, item) -> None:
         """入队；队列满时同步降级写（事件不丢）."""
@@ -259,6 +288,8 @@ class HarvestDataStore:
         self.run_dir = self._resolve(run_id)
         self.run_dir.mkdir(parents=True, exist_ok=False)
         (self.run_dir / 'masks').mkdir()
+        (self.run_dir / 'colors').mkdir()
+        (self.run_dir / 'debug').mkdir()
         document = dict(manifest)
         document['harvest_run_id'] = run_id
         document['created_at'] = datetime.now(timezone.utc).isoformat()
@@ -377,27 +408,68 @@ class HarvestDataStore:
                 pass
 
     def save_mask(self, target_id: str, stamp_ns: int,
-                  mask: np.ndarray, min_interval_s: float = 1.0) -> str:
+                  mask: np.ndarray | None = None, min_interval_s: float = 1.0,
+                  color: np.ndarray | None = None,
+                  debug: np.ndarray | None = None) -> str:
         """
-        保存选中目标的 mono8 PNG 掩膜并返回相对路径（V4：经写队列异步写）.
+        保存选中目标这一帧的掩膜、彩色图和检测调试图.
 
-        每目标按 monotonic 时钟节流（间隔 < min_interval_s 直接返回 ''），
-        防长观测期 masks/ 文件数无界；记账移至入队时刻（写失败由写线程
-        记日志，不再向调用方抛 OSError——异步路径无法回传异常；节流窗口
-        语义不变）。路径与相对名在调用线程按当时 run_dir 计算（事件归属
-        入队时的轮目录）。
+        彩色图是检测/分割用的 BGR 图。调试图是同一帧上的检测框、分割和
+        袋轴方向。没有掩膜时仍保存彩色图和调试图，文件名用同一
+        ``<stamp>_<target_id>.png``，分别放在 ``masks/``、``colors/``、
+        ``debug/``。每目标按 monotonic 时钟节流（间隔 < min_interval_s
+        直接返回 ''），给出的几种图同一决定。记账移至入队时刻（写失败由
+        写线程记日志）。路径按当时 run_dir 计算。
         """
-        if self.run_dir is None or mask is None:
+        if self.run_dir is None or (mask is None and color is None and debug is None):
             return ''
         now = time.monotonic()
         last = self._mask_last_saved.get(target_id)
         if last is not None and now - last < min_interval_s:
             return ''
-        binary = (np.asarray(mask) > 0).astype(np.uint8) * 255
-        path = self.run_dir / 'masks' / f'{stamp_ns}_{target_id}.png'
-        relative = str(path.relative_to(self.run_dir))
-        self._enqueue_write(('mask', (path, binary)))
+        name = f'{stamp_ns}_{target_id}.png'
+        relative = ''
+        if mask is not None:
+            path = self.run_dir / 'masks' / name
+            relative = str(path.relative_to(self.run_dir))
+            binary = (np.asarray(mask) > 0).astype(np.uint8) * 255
+            self._enqueue_write(('mask', (path, binary)))
+        if color is not None:
+            path = self.run_dir / 'colors' / name
+            relative = relative or str(path.relative_to(self.run_dir))
+            self._enqueue_write((
+                'color', (path, np.ascontiguousarray(color))))
+        if debug is not None:
+            path = self.run_dir / 'debug' / name
+            relative = relative or str(path.relative_to(self.run_dir))
+            self._enqueue_write((
+                'debug', (path, np.ascontiguousarray(debug))))
         self._mask_last_saved[target_id] = now
+        return relative
+
+    def saved_stages(self, target_id: str) -> set[str]:
+        """这个目标已经记过视图的阶段名。"""
+        target = str(target_id)
+        return {stage for tid, stage in self._stage_saved if tid == target}
+
+    def save_stage_view(self, target_id: str, stage: str, stamp_ns: int,
+                        mask: np.ndarray | None = None,
+                        color: np.ndarray | None = None,
+                        debug: np.ndarray | None = None) -> str:
+        """
+        为这个目标的一个阶段记一次视图.
+
+        同一目标同一阶段再次调用直接返回 ''，避免观察或再确认期间按帧
+        堆重复图。真正写盘仍走 ``save_mask``。
+        """
+        key = (str(target_id), str(stage))
+        if key in self._stage_saved:
+            return ''
+        relative = self.save_mask(
+            target_id, stamp_ns, mask, min_interval_s=0.0,
+            color=color, debug=debug)
+        if relative:
+            self._stage_saved.add(key)
         return relative
 
     def query(self) -> dict:

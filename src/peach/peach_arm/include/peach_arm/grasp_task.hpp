@@ -179,7 +179,7 @@ struct GraspTaskConfig
   // MTC 执行有界等待：MTC Task 不暴露 stop，超时/取消经 execution_stop
   // （节点注入 move_group_->stop()，MGI stop 打节点级停止服务）兜底。
   std::function<void()> execution_stop;
-  double execute_timeout_s{90.0};  ///< MTC 解执行有界等待 [s]。
+  double execute_timeout_s{5.0};  ///< MTC 解执行有界等待 [s]。
   /// 接触链 /rosout 子 logger（peach_arm.contact）；空则回退 node logger。
   std::optional<rclcpp::Logger> contact_logger;
 };

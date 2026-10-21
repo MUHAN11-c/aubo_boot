@@ -351,7 +351,7 @@ onDecision：臂从同一条 GraspDecision **原子**提交身份、entry/cut/ax
 
 时限门 / `execution_enabled` / skip / 目标须在锁定集之后：
 
-1. `skip_reconstruction=true`：不 Build、不观察，unrefined 七元组进接触（须臂 `allow_unrefined_geometry`）。身份 revision=`unrefined:*`。不把未融合 `allowed=false` 的 GraspDecision 装成 CONTACT 令牌。
+1. `skip_reconstruction=true`：不 Build、不观察，unrefined 七元组进接触（须臂 `allow_unrefined_geometry`）。身份 revision=`unrefined:*`。不把未融合 `allowed=false` 的 GraspDecision 装成 CONTACT 令牌。臂侧 promote 把 `suggested_travel_m` 置 0，走 `(neck-entry)-neck_margin` 回退（实测约 0.05–0.10 m），不再采信旧 `L_insert=0.03` 封顶。
 2. 否则发 `BuildTargetModel`，等 COLLECTING（`build_start_timeout_s=8`）。超时取消并**等该动作结束**再派下一颗（单槽）。
 3. **默认** `reconstruct_in_trajectory`：立刻 `READY_FULL`。goal `skip_observation=true`，revision=`pending:{epoch}:{target_id}` 占位（空 revision 会被臂以身份不完整 REJECT）。**不装尚未 finalize 的 GraspDecision**。臂 Finalize 等精化/许可。
 4. 显式 `reconstruct_in_trajectory=false`：
@@ -392,7 +392,7 @@ onDecision：臂从同一条 GraspDecision **原子**提交身份、entry/cut/ax
 
 次序：`priority` 升序，同级检测框面积降序（近距双检先做大框）。
 
-行程：SELECT 送感知 `suggested_travel_m`（常约 3 cm，服务端夹紧 0.02–0.20；缺失当 0 再用最小行程）。Finalize 用精化 `insertionTravel`（可到约 9 cm）。两次不同是预期。
+行程：SELECT 送感知 `suggested_travel_m` = `(neck-entry)-margin_neck`（**不再被 `L_insert=0.03` 封顶**；服务端夹紧 0.02–0.20，缺失当 0 用最小行程；2026-10-21 实测 0.05–0.10 m）。Finalize 用精化 `insertionTravel` = 融合 `(cut-entry)`（实测 0.07–0.09 m）或 skip 的同一几何回退。两次差约 0.01 m 来自融合修剪，不是旧 0.03 vs 0.09 的封顶差。
 
 `require_sleeve`：`not execute_pregrasp_only`。**默认 PREGRASP_ONLY 只检预抓取停位 IK**，选果日志不会出现 `sleeve_no_cartesian`。显式套入才检套入终点 IK + 沿轴笛卡尔。
 

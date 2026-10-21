@@ -12,4 +12,8 @@ serial_force:
     print_data: true
     print_decimate: 1
     # 2026-10-16 用户裁定：五点在正五边形顶点（等角等距），5 在正上方顶点（取代 09-29 CAD 截图读数）。
-    channel_labels: [左上, 左下, 右下, 上, 右上]
+    # AD >= 3000 判断线/悬空；6.0 mm/370 g 饱和仍为有效值。
+    open_ad_threshold: 3000.0
+    full_travel_mm: 5.95
+    # 按果实侧命名；臂侧镜像（1 ↔ 7、2 ↔ 3）。
+    channel_labels: [右上, 右下, 左下, 上, 左上]

@@ -71,4 +71,4 @@ BeginScene：Active 才受理；`scene_epoch++`；换 `scene_key` 清身份表�
 | `bite_shear_v1`（默认） | MTC 沿轴 LIN |
 | `adaptive_shear_v1` | 预抓取后 `imu_follow` 窗；禁止与 MTC 同时写控制器 |
 
-launch 注入：scene `tool.D_inner` / `L_insert` / `L_blade`；recon `tool.budget.d_inner` + `profile_id`；臂 `tool.body_*`。停位：`grasp_standoffs.yaml`（预抓取沿 −axis 后撤，现行 0.03 m）。
+launch 注入：scene `tool.D_inner` / `L_insert` / `L_blade`；recon `tool.budget.d_inner` + `profile_id`；臂 `tool.body_*`。停位：`grasp_standoffs.yaml`（预抓取沿 −axis 后撤，现行 0.03 m）。2026-10-21：`L_insert=0.03` 不再封顶感知行程；`suggested_travel_m=(neck-entry)-margin_neck`（实测 0.05–0.10 m），执行上限由臂 `maximum_travel_m=0.20` 夹紧；全重建 `cut_travel` 仍为融合 `(cut-entry)`，两者差约 0.01 m 是融合修剪。

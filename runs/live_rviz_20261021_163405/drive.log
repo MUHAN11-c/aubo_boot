@@ -1,0 +1,92 @@
+[WARN] [1792571691.437524782] [rcl]: ROS_LOCALHOST_ONLY is deprecated but still honored if it is enabled. Use ROS_AUTOMATIC_DISCOVERY_RANGE and ROS_STATIC_PEERS instead.
+[WARN] [1792571691.437534583] [rcl]: 'localhost_only' is enabled, 'automatic_discovery_range' and 'static_peers' will be ignored.
+enables execution=True grasp=True tool=False accepted=True 已广播 /peach/batch/enables
+ROUND 1/3 goal flow10_163452_r01
+r1 batch=0 target=- msg=waiting_ready
+r1 batch=1 target=- msg=preparing
+r1 batch=2 target=target_0 msg=沿轴 LIN 套入
+r1 batch=2 target=target_0 msg=返回 harvest_stow
+ack target=target_0 seq=85 accepted=True 已记录现场人工撤离确认；本服务不发送任何运动命令
+r1 batch=2 target=target_0 msg=返回 harvest_stow
+r1 batch=2 target=target_1 msg=拍照位再最短路径到预抓取
+r1 batch=2 target=target_1 msg=MTC 沿插入反方向保持直线撤离
+r1 batch=7 target=target_1 msg=recovery_required
+ack target=target_1 seq=194 accepted=True 已记录现场人工撤离确认；本服务不发送任何运动命令
+r1 batch=2 target=target_1 msg=返回 harvest_stow
+r1 batch=2 target=target_2 msg=拍照位再最短路径到预抓取
+r1 batch=2 target=target_2 msg=MTC 沿插入反方向保持直线撤离
+r1 batch=7 target=target_2 msg=recovery_required
+ack target=target_2 seq=291 accepted=True 已记录现场人工撤离确认；本服务不发送任何运动命令
+r1 batch=2 target=target_2 msg=返回 harvest_stow
+r1 batch=2 target=target_3 msg=拍照位再最短路径到预抓取
+r1 batch=2 target=target_3 msg=返回 harvest_stow
+r1 batch=7 target=target_3 msg=recovery_required
+ack target=target_3 seq=380 accepted=True 已记录现场人工撤离确认；本服务不发送任何运动命令
+r1 batch=2 target=target_3 msg=返回 harvest_stow
+r1 batch=1 target=- msg=discovery
+ROUND 1 RESULT success=True reason=completed elapsed=142.0s discovered=4 attempted=4 succeeded=3 skipped_quality=0 failed=1
+  target_0 outcome=3 full_failed: 已记录现场人工撤离确认；本服务不发送任何运动命令
+  target_1 outcome=0 周期完成；tool.enabled=false 或未宣称采摘成功
+  target_2 outcome=0 周期完成；tool.enabled=false 或未宣称采摘成功
+  target_3 outcome=0 周期完成；tool.enabled=false 或未宣称采摘成功
+PROGRESS 1/1
+ROUND 2/3 goal flow10_163714_r02
+r2 batch=6 target=- msg=completed
+r2 batch=2 target=target_4 msg=拍照位再最短路径到预抓取
+r2 batch=7 target=target_4 msg=recovery_required
+ack target=target_4 seq=429 accepted=True 已记录现场人工撤离确认；本服务不发送任何运动命令
+r2 batch=2 target=target_4 msg=预抓取停稳验证（不 SetIO）
+r2 batch=2 target=target_5 msg=抓取前再确认：等待新鲜观测复核身份/锚点漂移/摆动平息
+r2 batch=2 target=target_5 msg=沿轴 LIN 套入
+r2 batch=2 target=target_5 msg=返回 harvest_stow
+ack target=target_5 seq=535 accepted=True 已记录现场人工撤离确认；本服务不发送任何运动命令
+r2 batch=2 target=target_5 msg=返回 harvest_stow
+r2 batch=2 target=target_6 msg=拍照位再最短路径到预抓取
+r2 batch=2 target=target_6 msg=MTC 沿插入反方向保持直线撤离
+r2 batch=7 target=target_6 msg=recovery_required
+ack target=target_6 seq=636 accepted=True 已记录现场人工撤离确认；本服务不发送任何运动命令
+r2 batch=2 target=target_6 msg=返回 harvest_stow
+r2 batch=2 target=target_7 msg=沿轴 LIN 套入
+r2 batch=2 target=target_7 msg=返回 harvest_stow
+r2 batch=7 target=target_7 msg=recovery_required
+ack target=target_7 seq=720 accepted=True 已记录现场人工撤离确认；本服务不发送任何运动命令
+r2 batch=2 target=target_7 msg=返回 harvest_stow
+r2 batch=1 target=- msg=discovery
+ROUND 2 RESULT success=True reason=completed elapsed=134.2s discovered=4 attempted=4 succeeded=3 skipped_quality=1 failed=0
+  target_4 outcome=1 skipped_quality: 接触阶段取消或撤离未确认；保持停止，须现场人工撤离后确认恢复
+  target_5 outcome=0 周期完成；tool.enabled=false 或未宣称采摘成功
+  target_6 outcome=0 周期完成；tool.enabled=false 或未宣称采摘成功
+  target_7 outcome=0 周期完成；tool.enabled=false 或未宣称采摘成功
+PROGRESS 2/2
+ROUND 3/3 goal flow10_163928_r03
+r3 batch=6 target=- msg=completed
+r3 batch=2 target=target_8 msg=拍照位再最短路径到预抓取
+r3 batch=7 target=target_8 msg=recovery_required
+ack target=target_8 seq=768 accepted=True 已记录现场人工撤离确认；本服务不发送任何运动命令
+r3 batch=2 target=target_8 msg=预抓取停稳验证（不 SetIO）
+r3 batch=2 target=target_9 msg=抓取前再确认：等待新鲜观测复核身份/锚点漂移/摆动平息
+r3 batch=2 target=target_9 msg=沿轴 LIN 套入
+r3 batch=2 target=target_9 msg=返回 harvest_stow
+ack target=target_9 seq=873 accepted=False expected_state_seq mismatch
+r3 batch=7 target=target_9 msg=recovery_required
+ack target=target_9 seq=874 accepted=True 已记录现场人工撤离确认；本服务不发送任何运动命令
+r3 batch=2 target=target_9 msg=返回 harvest_stow
+r3 batch=2 target=target_10 msg=拍照位再最短路径到预抓取
+r3 batch=2 target=target_10 msg=MTC 沿插入反方向保持直线撤离
+r3 batch=7 target=target_10 msg=recovery_required
+ack target=target_10 seq=979 accepted=True 已记录现场人工撤离确认；本服务不发送任何运动命令
+r3 batch=2 target=target_10 msg=返回 harvest_stow
+r3 batch=2 target=target_11 msg=拍照位再最短路径到预抓取
+r3 batch=2 target=target_11 msg=返回 harvest_stow
+r3 batch=7 target=target_11 msg=recovery_required
+ack target=target_11 seq=1068 accepted=True 已记录现场人工撤离确认；本服务不发送任何运动命令
+r3 batch=2 target=target_11 msg=返回 harvest_stow
+r3 batch=1 target=- msg=discovery
+ROUND 3 RESULT success=True reason=completed elapsed=142.5s discovered=4 attempted=4 succeeded=3 skipped_quality=1 failed=0
+  target_8 outcome=1 skipped_quality: 接触阶段取消或撤离未确认；保持停止，须现场人工撤离后确认恢复
+  target_9 outcome=0 周期完成；tool.enabled=false 或未宣称采摘成功
+  target_10 outcome=0 周期完成；tool.enabled=false 或未宣称采摘成功
+  target_11 outcome=0 周期完成；tool.enabled=false 或未宣称采摘成功
+PROGRESS 3/3
+SUMMARY passed_rounds=3/3
+enables execution=False grasp=False tool=False accepted=True 已广播 /peach/batch/enables

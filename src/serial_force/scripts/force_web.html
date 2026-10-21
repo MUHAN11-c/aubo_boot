@@ -45,7 +45,6 @@
           background:#0b0f13; box-shadow:0 18px 60px rgba(0,0,0,.45); }
   .face img { position:absolute; inset:0; width:100%; height:100%; object-fit:cover;
               transition:transform .22s ease; }
-  .face.arm img { transform:scaleX(-1); }
   .facecap { text-align:center; font-size:clamp(10.5px,1.3vmin,12.5px); color:var(--dim); }
   .facecap b { color:#c9d4dd; font-weight:550; }
 
@@ -110,10 +109,11 @@
   .face.full .frame .ax.y::after,
   .face.full .frame .ax.z::before,
   .face.full .frame .fname { display:none; }
+  .face.mirror img { transform:scaleX(-1); }
   /* 臂侧：+X 在屏幕左边；+Z 指向果实侧 = 入屏（⊗） */
-  .face.arm .frame .ax.x { left:-30px; }
-  .face.arm .frame .ax.x::after { left:-11px; }
-  .face.arm .frame .ax.z::after { width:6px; height:6px; left:2px; top:2px; border-radius:0;
+  .face.mirror .frame .ax.x { left:-30px; }
+  .face.mirror .frame .ax.x::after { left:-11px; }
+  .face.mirror .frame .ax.z::after { width:6px; height:6px; left:2px; top:2px; border-radius:0;
     background:
       linear-gradient(45deg, transparent 44%, #58a6ff 44%, #58a6ff 56%, transparent 56%),
       linear-gradient(-45deg, transparent 44%, #58a6ff 44%, #58a6ff 56%, transparent 56%); }
@@ -135,7 +135,12 @@
            overflow:auto; padding:2px 4px 2px 0; }
   .panel .head { display:flex; align-items:center; gap:10px; margin-bottom:9px; }
   .panel h2 { font-size:clamp(13px,1.7vmin,17px); margin:0; font-weight:600; }
-  button.ghost { margin-left:auto; background:#18212a; color:var(--fg);
+  .head .total { margin-left:auto; color:#c9d4dd; font-variant-numeric:tabular-nums;
+                 font-size:clamp(11px,1.3vmin,13px); white-space:nowrap; }
+  .recstat { color:#8cc8ff; font-size:clamp(10px,1.2vmin,12px);
+             white-space:nowrap; }
+  .recstat a { color:#8cc8ff; }
+  button.ghost { margin-left:8px; background:#18212a; color:var(--fg);
                  border:1px solid var(--line); border-radius:7px; padding:5px 13px;
                  font:inherit; font-size:12.5px; cursor:pointer; }
   button.ghost:hover { background:#22303a; }
@@ -152,8 +157,10 @@
                border-radius:6px; clip-path:inset(0 100% 0 0);
                transition:clip-path .06s linear; }
   .bar .tick { position:absolute; top:0; bottom:0; width:2px;
-               background:#7fd6a0; opacity:.85; left:2.5%; }
+               background:#7fd6a0; opacity:.85; left:12.5%; }
   .row .pk { font-size:clamp(10px,1.2vmin,12px); color:#7f8d99; margin-top:3px;
+             font-variant-numeric:tabular-nums; }
+  .row .tr { font-size:clamp(10px,1.2vmin,12px); color:#8cc8ff; margin-top:1px;
              font-variant-numeric:tabular-nums; }
 
   .sideview { margin:14px 0 4px; }
@@ -171,7 +178,7 @@
 <header>
   <div>
     <h1>咬合末端 5 点力 · 实时</h1>
-    <div class="sub">/force/points · 牛顿（REP-103）· IMS-C04A 50g–2kg · 100 Hz</div>
+    <div class="sub">/force/points N · /force/travel mm · /force/ad raw · IMS-C04A 50–400 g/点（合计 2 kg）· 100 Hz</div>
   </div>
   <span class="vlabel">视角</span>
   <div class="views" role="group" aria-label="观察方向">
@@ -190,7 +197,7 @@
   <div class="facecol">
     <div class="facebar"><span id="fovtext">整机 220 mm 视场 · 五点 R 16.35 mm</span><span>↑ +Y<sub>tcp</sub> · 图心 = TCP</span></div>
     <div class="face full" id="face">
-      <img id="faceimg" src="/face_full.png" alt="咬合末端整机正面（果实侧）">
+      <img id="faceimg" src="/face_full.png" alt="咬合末端整机">
       <div class="plate" id="plate"></div>
       <div class="ring" id="ring"></div>
       <div class="frame" title="tcp 原点：wrist3 + (0, 30.24, 165.5) mm，Rx(−90°)；+Z 朝果实侧">
@@ -200,12 +207,15 @@
       <div class="callout">5 点力膜片<small>Ø55 · 五点 R 16.35</small></div>
       <div class="scale" id="scale"><span id="scaletxt">50 mm</span><i></i></div>
     </div>
-    <div class="facecap" id="viewcap">从果实侧看 · 右 = +X<sub>tcp</sub></div>
+    <div class="facecap" id="viewcap">从果实侧看 · 右 = +X<sub>tcp</sub> · +Z 出屏</div>
   </div>
 
   <section class="panel">
     <div class="head">
-      <h2>各通道（满量程 2 kg，绿刻度 = 50 g 下限）</h2>
+      <h2>各通道（单点满量程 400 g，绿刻度 = 50 g 下限）</h2>
+      <span class="total" id="total">合计 --</span>
+      <button type="button" class="ghost" id="rec">20 s 记录</button>
+      <span class="recstat" id="recstat"></span>
       <button type="button" class="ghost" id="reset">清峰值</button>
     </div>
     <div id="bars"></div>
@@ -224,6 +234,7 @@
         <text x="154.5" y="95" fill="#ff8b8b" font-size="11" text-anchor="middle">膜片平面 −42.05</text>
         <text x="466" y="95" fill="#e6edf3" font-size="11" text-anchor="middle">TCP +30.24</text>
         <text x="510" y="33" fill="#8b98a3" font-size="10.5" text-anchor="end">果实侧 = +Z_tcp →</text>
+        <text x="12" y="33" fill="#8b98a3" font-size="10.5">← 臂侧 = −Z_tcp</text>
         <text x="12" y="95" fill="#8b98a3" font-size="10.5">喉道 −229.5</text>
         <line x1="335.5" y1="44" x2="335.5" y2="64" stroke="#8b98a3" stroke-width="1" stroke-dasharray="2 2"/>
         <text x="335.5" y="72" fill="#8b98a3" font-size="10" text-anchor="middle">wrist3</text>
@@ -238,8 +249,10 @@
     </div>
 
     <div class="legend" id="legend">
-      圆点大小与颜色随力变化（绿→红），条形按 0–2 kg 满量程；整机视图里红点就是膜片五点在末端上的位置，
-      需要读数时切“盘面”。膜片在盖板内侧，盘面上的点是按 CAD 实测位置叠加的。
+      圆点大小与颜色随力变化（绿→红），条形按单点 0–400 g 满量程（五点合计 0–2 kg）；
+      整机视图里红点就是膜片五点在末端上的位置，需要读数时切“盘面”。膜片在盖板内侧，
+      盘面上的点是按 CAD 实测位置叠加的。条下“行程”来自帧内 mm 字段（0.1 mm），
+      “AD”是帧内原始测量值（未标定）；断线/超量程显示 --。
     </div>
   </section>
 </main>
@@ -249,7 +262,7 @@
   角度 0 / 74.7 / 144.6 / 216.3 / 286.2°（自 +Y<sub>tcp</sub> 顺时针）；膜片平面在 tcp z = −72.29 mm。
   通道号按 2026-10-16“5 = 顶点”推定。<br>
   话题 /force/points = std_msgs/Float64MultiArray（Reliable+Volatile，100 Hz，牛顿）；
-  kgf = N ÷ 9.80665。视角/视场切换只改显示，不改通道；臂侧是同一盘面的镜像。
+  kgf = N ÷ 9.80665。视角/视场切换只改显示，不改通道；臂侧是同一盘面的镜像（1 ↔ 7、2 ↔ 3）。
 </footer>
 
 <script>
@@ -258,16 +271,16 @@
 const R_MM = 16.35;          // 五点半径（CAD 实测均值）
 const FACE_FULL_MM = 220;    // 整机视场宽
 const FACE_DISC_MM = 72;     // 盘面视场宽
-const FS_N = 2 * 9.80665;    // 满量程 2 kg
+const FS_N = 0.4 * 9.80665;  // 单点满量程 400 g（五点合计 2 kg）
 const MIN_N = 0.05 * 9.80665;
 
 // 通道 1/2/3/5/7；ang = 自 +Y_tcp 顺时针角；cad = CAD 零件后缀
 const CH = [
   {ch:5, cad:'000', ang:0.0,   pos:'上',   lp:'above'},
-  {ch:7, cad:'001', ang:74.7,  pos:'右上', lp:'right'},
-  {ch:3, cad:'002', ang:144.6, pos:'右下', lp:'below'},
-  {ch:2, cad:'004', ang:216.3, pos:'左下', lp:'below'},
-  {ch:1, cad:'003', ang:286.2, pos:'左上', lp:'left'},
+  {ch:1, cad:'001', ang:74.7,  pos:'右上', lp:'right'},
+  {ch:2, cad:'002', ang:144.6, pos:'右下', lp:'below'},
+  {ch:3, cad:'004', ang:216.3, pos:'左下', lp:'below'},
+  {ch:7, cad:'003', ang:286.2, pos:'左上', lp:'left'},
 ];
 const IDX = {1:0, 2:1, 3:2, 5:3, 7:4};
 const MIRROR_POS = {'上':'上', '左上':'右上', '右上':'左上', '左下':'右下', '右下':'左下'};
@@ -300,7 +313,8 @@ const ui = CH.map(cfg => {
   row.className = 'row';
   row.innerHTML = `<div class="t"><span></span><b>-- N</b></div>
     <div class="bar"><div class="fill"></div><div class="tick"></div></div>
-    <div class="pk">峰值 --</div>`;
+    <div class="pk">峰值 --</div>
+    <div class="tr">行程 --</div>`;
   barsEl.appendChild(row);
 
   return {
@@ -314,6 +328,7 @@ const ui = CH.map(cfg => {
     num: row.querySelector('.t b'),
     fill: row.querySelector('.fill'),
     pk: row.querySelector('.pk'),
+    tr: row.querySelector('.tr'),
     peakN: 0,
   };
 });
@@ -327,7 +342,7 @@ function apply() {
 
   face.classList.toggle('full', full);
   face.classList.toggle('disc', !full);
-  face.classList.toggle('arm', side === 'arm');
+  face.classList.toggle('mirror', side === 'arm');
   faceimg.src = full ? '/face_full.png' : '/face.png';
 
   plate.style.width = plate.style.height = (55 / mm * 100).toFixed(2) + '%';
@@ -389,6 +404,40 @@ document.getElementById('reset').addEventListener('click', () => {
 
 const led = document.getElementById('led');
 const stat = document.getElementById('stat');
+const totalEl = document.getElementById('total');
+const recBtn = document.getElementById('rec');
+const recStat = document.getElementById('recstat');
+let recTimer = null;
+
+async function recPoll() {
+  try {
+    const j = await (await fetch('/record/status')).json();
+    if (j.active) {
+      recStat.textContent =
+        `记录中 ${j.elapsed.toFixed(0)}/${j.seconds}s · ${j.count} 帧`;
+      recTimer = setTimeout(recPoll, 400);
+      return;
+    }
+    if (j.file) {
+      recStat.innerHTML = `完成 ${j.count} 帧 · <a href="${j.file}">下载 CSV</a>`;
+      return;
+    }
+    recStat.textContent = '';
+  } catch (e) {
+    recStat.textContent = '记录服务不可用';
+  }
+}
+recBtn.addEventListener('click', async () => {
+  try {
+    const j = await (await fetch('/record/start?seconds=20')).json();
+    if (!j.ok) { recStat.textContent = j.error || '记录中'; return; }
+    recStat.textContent = '记录中…';
+    if (recTimer) clearTimeout(recTimer);
+    recPoll();
+  } catch (e) {
+    recStat.textContent = '记录启动失败';
+  }
+});
 
 function render(d) {
   const live = d.age_ms != null && d.age_ms < 500 && d.v;
@@ -396,11 +445,32 @@ function render(d) {
   stat.textContent = live
     ? `实时 ${d.hz} Hz · 帧 ${d.frames}`
     : `无数据（${d.age_ms == null ? '未收到' : d.age_ms + ' ms'}）`;
-  if (!live) return;
+  if (!live) { totalEl.textContent = '合计 --'; return; }
 
+  let totalN = 0, validN = 0;
   for (const u of ui) {
-    const n = Number(d.v[IDX[u.cfg.ch]]);
-    if (!Number.isFinite(n)) continue;
+    const rawN = d.v ? d.v[IDX[u.cfg.ch]] : null;
+    const rawT = d.t ? d.t[IDX[u.cfg.ch]] : null;
+    const rawA = d.a ? d.a[IDX[u.cfg.ch]] : null;
+    const n = rawN == null ? NaN : Number(rawN);
+    const tr = rawT == null ? NaN : Number(rawT);
+    const ad = rawA == null ? NaN : Number(rawA);
+    const rawS = d.s ? d.s[IDX[u.cfg.ch]] : 0;
+    const st = rawS == null ? 0 : Number(rawS);
+    if (st === 2 || !Number.isFinite(n)) {
+      u.btn.style.transform = 'scale(1)';
+      u.btn.style.background = '#3a2020';
+      u.btn.style.boxShadow = '0 0 10px #a33';
+      u.val.innerHTML = st === 2 ? '断线' : '无效';
+      u.num.textContent = st === 2 ? '断线' : '-- N';
+      u.fill.style.clipPath = 'inset(0 100% 0 0)';
+      u.peak.innerHTML = '';
+      u.pk.textContent = st === 2 ? '断线/悬空（AD 接近满量程）' : '通道无效';
+      u.tr.textContent = st === 2
+        ? `AD ${Number.isFinite(ad) ? ad.toFixed(0) : '--'} · 断线/悬空`
+        : '行程 -- · AD --';
+      continue;
+    }
     const f = Math.max(0, Math.min(1, n / FS_N));
     const hot = n >= MIN_N ? Math.min(1, (n - MIN_N) / (FS_N - MIN_N)) : 0;
     const col = n < MIN_N ? '#cfd6d4' : `hsl(${Math.round(135 - 135 * hot)},72%,${58 - 14 * hot}%)`;
@@ -415,9 +485,23 @@ function render(d) {
     if (n > u.peakN) u.peakN = n;
     u.peak.innerHTML = u.peakN > 0
       ? `峰值 ${u.peakN.toFixed(2)} N<small>${(u.peakN / 9.80665).toFixed(3)} kgf</small>` : '';
-    u.pk.textContent = u.peakN > 0
-      ? `峰值 ${u.peakN.toFixed(2)} N / ${(u.peakN / 9.80665).toFixed(3)} kgf` : '峰值 --';
+    if (st === 1) {
+      u.btn.style.background = '#ff9e3d';
+      u.btn.style.boxShadow = '0 0 14px #ff9e3d';
+      u.pk.textContent = '饱和 370 g / 6.0 mm（非断线）';
+      u.tr.textContent = `行程 6.0 mm · AD ${Number.isFinite(ad) ? ad.toFixed(0) : '--'} · 饱和`;
+    } else {
+      u.pk.textContent = u.peakN > 0
+        ? `峰值 ${u.peakN.toFixed(2)} N / ${(u.peakN / 9.80665).toFixed(3)} kgf` : '峰值 --';
+      u.tr.textContent = Number.isFinite(tr)
+        ? `行程 ${tr.toFixed(1)} mm · AD ${Number.isFinite(ad) ? ad.toFixed(0) : '--'}`
+        : '行程 -- · AD --';
+    }
+    totalN += n;
+    validN += 1;
   }
+  totalEl.textContent = validN
+    ? `合计 ${totalN.toFixed(2)} N / ${(totalN / 9.80665 * 1000).toFixed(0)} g` : '合计 --';
 }
 
 apply();

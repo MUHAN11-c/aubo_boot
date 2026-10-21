@@ -373,13 +373,29 @@ class CollectLockPolicy:
         self._closed = False
 
 
+def tilt_from_vertical_deg(axis) -> float:
+    """袋轴相对 base_link 竖直轴的夹角（度）。0 为竖直，缺轴或退化轴为 90."""
+    try:
+        vec = np.asarray(axis, dtype=float).reshape(-1)
+    except (TypeError, ValueError):
+        return 90.0
+    if vec.size != 3 or not np.isfinite(vec).all():
+        return 90.0
+    norm = float(np.linalg.norm(vec))
+    if norm < 1e-9:
+        return 90.0
+    align = min(1.0, abs(float(vec[2] / norm)))
+    return float(math.degrees(math.acos(align)))
+
+
 class GlobalHarvestPlan:
     """
     收齐窗口关闭后一次性锁定全局目标集合，锁定后按固定优先级推进.
 
     构造参数：max_targets 为锁定目标数量上限（≥1），超出按排序键截断；
-    prefer_lower_first 决定排序是否启用高度键（先低后高），False 时高度
-    不参与排序；lock_policy 为收齐窗口策略（None 时按
+    prefer_lower_first 决定排序是否在竖直程度之后再用高度键（先低后高），
+    False 时高度不参与排序。主序是袋轴相对 base_link 竖直方向的夹角，
+    越竖直越先抓；lock_policy 为收齐窗口策略（None 时按
     min_collect_frames / lock_settle_frames / max_collect_s 构造默认
     CollectLockPolicy——后三个参数仅在该路径生效）。
     anchor_max_age_frames / anchor_drop_frames（阶段 D1，协议 2.4）为锁定
@@ -394,7 +410,7 @@ class GlobalHarvestPlan:
     max_targets: int
     """锁定集容量上限；超出按优先级截断."""
     prefer_lower_first: bool
-    """True=先低后高，避免摘高处碰落低处."""
+    """竖直程度相同后，True=先低后高."""
     snapshot_id: int
     """锁定世代；reset 后递增."""
     locked_ids: tuple
@@ -519,21 +535,23 @@ class GlobalHarvestPlan:
 
         键序设计依据：
           1. status 升序——先 ACCEPT(0) 后 REOBSERVE(1)，REJECT(2) 垫底；
-          2. camera_distance_m——先近后远：先清外围目标，减少深入冠层时
-             碰枝与自遮挡；
-          3. base_height_m（仅 prefer_lower_first）——先低后高：避免摘高处
-             目标时碰落低处果实（Xiong 草莓采摘机实证顺序）；
-          4. -confidence——同距同高时置信度高者优先；
-          5. target_id——字符串确定性 tie-break，保证跨帧排序稳定。
-        record 缺键时按最差值兜底（距离/高度 inf、置信度 0、REJECT）。
+          2. axis_tilt_from_vertical_deg——越接近竖直越先抓。缺轴按 90°
+             垫后，不让没有方向的目标插到竖直袋前面；
+          3. camera_distance_m——同样竖直时先近后远；
+          4. base_height_m（仅 prefer_lower_first）——先低后高；
+          5. -confidence——同姿态同距同高时置信度高者优先；
+          6. target_id——字符串确定性 tie-break，保证跨帧排序稳定。
+        record 缺键时按最差值兜底（倾角 90°、距离/高度 inf、置信度 0、REJECT）。
         """
         status = int(record.get('status', _STATUS_REJECT))
+        tilt = _finite_or(
+            float(record.get('axis_tilt_from_vertical_deg', 90.0)), 90.0)
         distance = _finite_or(
             float(record.get('camera_distance_m', math.inf)), math.inf)
         if distance <= 0.0:
             distance = math.inf
         confidence = _finite_or(float(record.get('confidence', 0.0)), 0.0)
-        key = [status, distance]
+        key = [status, tilt, distance]
         if self.prefer_lower_first:
             key.append(_finite_or(
                 float(record.get('base_height_m', math.inf)), math.inf))

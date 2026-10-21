@@ -21,7 +21,7 @@ struct FrameRateTimeoutConfig
   double frame_wait_s{4.0};              ///< 等帧超时配置上限 [s]。
   double target_observation_max_age_config_s{3.0};  ///< 观测龄配置基准 [s]。
   double reconfirm_wait_s{6.0};          ///< 再确认等新鲜观测超时 [s]。
-  double refined_timeout_s{30.0};        ///< 精化等待超时 [s]。
+  double refined_timeout_s{5.0};         ///< 精化等待超时 [s]。COLLECTING 用满该上限。
 };
 
 class FrameRateTimeouts

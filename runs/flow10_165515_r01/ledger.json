@@ -1,0 +1,92 @@
+{
+  "claimed": [
+    "target_0",
+    "target_1",
+    "target_2",
+    "target_3"
+  ],
+  "outcomes": [
+    {
+      "target_id": "target_0",
+      "outcome": 0,
+      "reason": "周期完成；tool.enabled=false 或未宣称采摘成功",
+      "quality_score": 0.0,
+      "elapsed_s": 17.039,
+      "completion_level": 6,
+      "stage_names": [
+        "finalize",
+        "reconfirm",
+        "approach_insert",
+        "tool",
+        "retreat"
+      ],
+      "stage_durations": [
+        0.005,
+        0.65,
+        9.884,
+        0.0,
+        6.305
+      ]
+    },
+    {
+      "target_id": "target_1",
+      "outcome": 2,
+      "reason": "skipped_unreachable: 完整套入未规划通过，未执行接近: MTC planning failed: Failing stage(s):\nlin align tool z (0/1)",
+      "quality_score": 0.0,
+      "elapsed_s": 3.686,
+      "failure_code": "skipped_unreachable",
+      "failure_code_n": 5,
+      "completion_level": 0,
+      "stage_names": [
+        "finalize",
+        "reconfirm",
+        "approach_insert"
+      ],
+      "stage_durations": [
+        0.003,
+        3.363,
+        0.131
+      ]
+    },
+    {
+      "target_id": "target_2",
+      "outcome": 2,
+      "reason": "skipped_unreachable: 完整套入未规划通过，未执行接近: MTC planning failed: Failing stage(s):\nlin align tool z (0/1)",
+      "quality_score": 0.0,
+      "elapsed_s": 3.638,
+      "failure_code": "skipped_unreachable",
+      "failure_code_n": 5,
+      "completion_level": 0,
+      "stage_names": [
+        "finalize",
+        "reconfirm",
+        "approach_insert"
+      ],
+      "stage_durations": [
+        0.003,
+        3.427,
+        0.128
+      ]
+    },
+    {
+      "target_id": "target_3",
+      "outcome": 2,
+      "reason": "skipped_unreachable: 完整套入未规划通过，未执行接近: MTC planning failed: Failing stage(s):\nlin to on-axis pregrasp (0/1)",
+      "quality_score": 0.0,
+      "elapsed_s": 4.015,
+      "failure_code": "skipped_unreachable",
+      "failure_code_n": 5,
+      "completion_level": 0,
+      "stage_names": [
+        "finalize",
+        "reconfirm",
+        "approach_insert"
+      ],
+      "stage_durations": [
+        0.005,
+        3.703,
+        0.142
+      ]
+    }
+  ]
+}

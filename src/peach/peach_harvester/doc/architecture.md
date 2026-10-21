@@ -25,8 +25,8 @@ brain入口将 `KeyboardInterrupt` 和 `ExternalShutdownException` 作为正常�
 | 命令 | 含义 | 关键参数（部署默认） |
 |------|------|----------------------|
 | navigate | 固定座直接 NAV_OK | 无底盘动作 |
-| survey | 去拍照位；成功刷新场景障碍 | `action_timeout_s=180` |
-| begin_scene | 仅首巡开收齐窗 | `service_timeout_s=30` |
+| survey | 去拍照位；成功刷新场景障碍 | `action_timeout_s=40` |
+| begin_scene | 仅首巡开收齐窗 | `service_timeout_s=5` |
 | wait_lock | 等本世代锁定集 | `survey_wait_s=15` / `survey_dwell_s=2` |
 | select | 深度窗 ∩ CheckReachability | `selection_depth_min_m=0.3` / `max=1.6`；`execute_pregrasp_only=true` |
 | dispatch | 绑定 Build 后派臂 | `reconstruct_in_trajectory=true`（不再串行补视） |

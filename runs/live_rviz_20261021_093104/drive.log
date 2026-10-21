@@ -1,0 +1,71 @@
+[WARN] [1792546294.194843310] [rcl]: ROS_LOCALHOST_ONLY is deprecated but still honored if it is enabled. Use ROS_AUTOMATIC_DISCOVERY_RANGE and ROS_STATIC_PEERS instead.
+[WARN] [1792546294.194893364] [rcl]: 'localhost_only' is enabled, 'automatic_discovery_range' and 'static_peers' will be ignored.
+enables execution=True grasp=True tool=False accepted=True 已广播 /peach/batch/enables
+ROUND 1/3 goal flow10_093134_r01
+r1 batch=0 target=- msg=waiting_ready
+r1 batch=1 target=- msg=discovery
+r1 batch=2 target=target_2 msg=MTC 沿插入反方向保持直线撤离
+r1 batch=7 target=target_2 msg=recovery_required
+ack target=target_2 seq=88 accepted=True 已记录现场人工撤离确认；本服务不发送任何运动命令
+r1 batch=2 target=target_1 msg=等待重建精化几何（BuildTargetModel）
+r1 batch=2 target=target_1 msg=沿轴 LIN 套入
+r1 batch=2 target=target_1 msg=返回 harvest_stow
+r1 batch=7 target=target_1 msg=recovery_required
+ack target=target_1 seq=194 accepted=True 已记录现场人工撤离确认；本服务不发送任何运动命令
+r1 batch=2 target=target_0 msg=等待重建精化几何（BuildTargetModel）
+r1 batch=2 target=target_0 msg=等待重建精化几何（BuildTargetModel）
+r1 batch=2 target=target_0 msg=等待重建精化几何（BuildTargetModel）
+r1 batch=2 target=target_0 msg=等待重建精化几何（BuildTargetModel）
+r1 batch=2 target=target_0 msg=等待重建精化几何（BuildTargetModel）
+r1 batch=1 target=- msg=discovery
+ROUND 1 RESULT success=True reason=completed elapsed=108.2s discovered=4 attempted=3 succeeded=2 skipped_quality=1 failed=0
+  target_2 outcome=0 周期完成；tool.enabled=false 或未宣称采摘成功
+  target_1 outcome=0 周期完成；tool.enabled=false 或未宣称采摘成功
+  target_0 outcome=1 skipped_quality: decision_snapshot_unavailable: 同目标模型与许可未在时限内到齐或已过期 elapsed=30.000233s timeout=30.000000s
+PROGRESS 1/1
+ROUND 2/3 goal flow10_093323_r02
+r2 batch=6 target=- msg=completed
+r2 batch=1 target=- msg=preparing
+r2 batch=2 target=target_5 msg=沿轴 LIN 套入
+r2 batch=2 target=target_5 msg=返回 harvest_stow
+r2 batch=7 target=target_5 msg=recovery_required
+ack target=target_5 seq=448 accepted=True 已记录现场人工撤离确认；本服务不发送任何运动命令
+r2 batch=2 target=target_6 msg=等待重建精化几何（BuildTargetModel）
+r2 batch=2 target=target_6 msg=沿轴 LIN 套入
+r2 batch=7 target=target_6 msg=recovery_required
+ack target=target_6 seq=540 accepted=True 已记录现场人工撤离确认；本服务不发送任何运动命令
+r2 batch=2 target=target_4 msg=等待重建精化几何（BuildTargetModel）
+r2 batch=2 target=target_4 msg=沿轴 LIN 套入
+r2 batch=2 target=target_4 msg=返回 harvest_stow
+r2 batch=7 target=target_4 msg=recovery_required
+ack target=target_4 seq=638 accepted=True 已记录现场人工撤离确认；本服务不发送任何运动命令
+r2 batch=1 target=- msg=discovery
+ROUND 2 RESULT success=True reason=completed elapsed=102.0s discovered=3 attempted=3 succeeded=3 skipped_quality=0 failed=0
+  target_5 outcome=0 周期完成；tool.enabled=false 或未宣称采摘成功
+  target_6 outcome=0 周期完成；tool.enabled=false 或未宣称采摘成功
+  target_4 outcome=0 周期完成；tool.enabled=false 或未宣称采摘成功
+PROGRESS 2/2
+ROUND 3/3 goal flow10_093505_r03
+r3 batch=6 target=- msg=completed
+r3 batch=1 target=- msg=preparing
+r3 batch=2 target=target_8 msg=沿轴 LIN 套入
+r3 batch=2 target=target_8 msg=返回 harvest_stow
+r3 batch=7 target=target_8 msg=recovery_required
+ack target=target_8 seq=744 accepted=True 已记录现场人工撤离确认；本服务不发送任何运动命令
+r3 batch=2 target=target_9 msg=等待重建精化几何（BuildTargetModel）
+r3 batch=2 target=target_9 msg=沿轴 LIN 套入
+r3 batch=2 target=target_9 msg=返回 harvest_stow
+ack target=target_9 seq=839 accepted=True 已记录现场人工撤离确认；本服务不发送任何运动命令
+r3 batch=2 target=target_7 msg=等待重建精化几何（BuildTargetModel）
+r3 batch=2 target=target_7 msg=沿轴 LIN 套入
+r3 batch=2 target=target_7 msg=返回 harvest_stow
+r3 batch=7 target=target_7 msg=recovery_required
+ack target=target_7 seq=939 accepted=True 已记录现场人工撤离确认；本服务不发送任何运动命令
+r3 batch=1 target=- msg=discovery
+ROUND 3 RESULT success=True reason=completed elapsed=102.0s discovered=3 attempted=3 succeeded=3 skipped_quality=0 failed=0
+  target_8 outcome=0 周期完成；tool.enabled=false 或未宣称采摘成功
+  target_9 outcome=0 周期完成；tool.enabled=false 或未宣称采摘成功
+  target_7 outcome=0 周期完成；tool.enabled=false 或未宣称采摘成功
+PROGRESS 3/3
+SUMMARY passed_rounds=3/3
+enables execution=False grasp=False tool=False accepted=True 已广播 /peach/batch/enables

@@ -730,11 +730,9 @@ class TargetReconstructionNode(
         if bound_obs is not None:
             hint = axis_from_vector3(
                 bound_obs.candidate.translation_direction)
-        # E2 邻目标串扰门数据源：每条观测消息全量重建锁定集锚点缓存
-        # （绑定目标自身在 _target_mask_for_frame 组 MaskContext 时剔除；
-        # 未锁定时 observations 恒空，缓存随之为空）。同步记录检测框
-        # 面积（像素²）：串扰门对「远小于本目标的框」豁免——小框多为
-        # 叶片遮挡残片/误检（09-01 现场 58.5 mm 近距即此类），大框先行。
+        # 邻锚缓存：距离门默认关闭（min_neighbor_gap_m=0），成串套袋不拒帧。
+        # 绑定目标自身在组 MaskContext 时剔除。框面积只在该门被重新打开时
+        # 用于小框豁免。未锁定时 observations 恒空，缓存随之为空。
         centers = {}
         areas = {}
         for item in msg.observations:

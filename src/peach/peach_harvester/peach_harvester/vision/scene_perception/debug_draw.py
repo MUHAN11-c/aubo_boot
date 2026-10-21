@@ -59,56 +59,85 @@ _MASK_ALPHA = 0.40
 """官方 plot 同量级的半透明掩膜填充强度（0-1；纹理仍可透见）."""
 
 
-def draw_debug(img, det, grasp_2d, sam_mask, tid='', confirmed: bool = True):
+def grasp_order_by_id(locked, priorities) -> dict:
     """
-    叠检测框/掩膜填充+轮廓/底→颈箭头/剪切线/ID 置信度文字（原地改写 img，三态用颜色表达）.
+    确认锁定之后的抓取顺序，1 为最先抓.
+
+    锁定前还没有这套顺序，返回空表，画面上不编 id。
+    """
+    if not locked:
+        return {}
+    return {
+        str(target_id): int(order)
+        for target_id, order in priorities.items()
+        if int(order) > 0
+    }
+
+
+def _paint_mask(img, sam_mask, color):
+    """半透明填充分割并描轮廓。掩膜尺寸不符时最近邻放大到整图."""
+    h, w = img.shape[:2]
+    if sam_mask.shape[:2] != (h, w):
+        sam_mask = cv2.resize(
+            (sam_mask > 0).astype(np.uint8), (w, h),
+            interpolation=cv2.INTER_NEAREST)
+    mask_bool = np.asarray(sam_mask) > 0
+    if not np.any(mask_bool):
+        return
+    fill = np.zeros_like(img)
+    fill[mask_bool] = color
+    cv2.addWeighted(fill, _MASK_ALPHA, img, 1.0, 0, dst=img)
+    contours, _ = cv2.findContours(
+        mask_bool.astype(np.uint8),
+        cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    cv2.drawContours(img, contours, -1, color, 2)
+
+
+def _overlay_text(conf, order) -> str:
+    """确认后的 id 就是抓取顺序。锁定前只留检测置信度."""
+    if order:
+        return str(int(order))
+    return f'{float(conf):.2f}'
+
+
+def draw_debug(img, det, grasp_2d, sam_mask, tid='', confirmed: bool = True,
+               order=None):
+    """
+    叠检测框、分割、底→颈箭头、剪切线和抓取序号（原地改写 img）.
 
     Args:
         img: (H, W, 3) uint8 BGR，被原地改写.
         det: 检测 dict（bbox、class_id、conf；class 0 绿框，其他橙框）.
         grasp_2d: BagGrasp2D（提供关键点像素与状态）.
-        sam_mask: (H, W) 掩膜或 None（None 时不画掩膜）.
-        tid: 目标稳定 ID（target_registry 匹配结果；空串则不显示，
-            掩膜取色回退类别色）.
-        confirmed: False 时只画灰框+文字，不把突现误检画成正式目标.
+        sam_mask: (H, W) 掩膜或 None（None 时仍画检测框）.
+        tid: 目标稳定 ID（target_registry 匹配结果；空串则不显示）.
+        confirmed: False 时画灰框和分割，不画袋轴和剪切线.
+        order: 确认锁定后的抓取顺序，1 为最先抓。空则标签只写置信度.
 
     Returns
     -------
         无返回值（None）；叠加结果写回 img.
 
     """
-    h, w = img.shape[:2]
     x1, y1, x2, y2 = clip_bbox(det['bbox'], img.shape)
     # OpenCV 矩形角点含边界；clip_bbox 的 x2/y2 可等于 w/h（切片右开）
     x1d, y1d = _clamp_px(img, x1, y1)
     x2d, y2d = _clamp_px(img, max(x1, x2 - 1), max(y1, y2 - 1))
+    if tid:
+        idx = sum(str(tid).encode('utf-8')) % len(_PALETTE)
+    else:
+        idx = int(det.get('class_id', 0)) % len(_PALETTE)
+    mask_color = (160, 160, 160) if not confirmed else _PALETTE[idx]
+    if sam_mask is not None:
+        _paint_mask(img, sam_mask, mask_color)
     if not confirmed:
         cv2.rectangle(img, (x1d, y1d), (x2d, y2d), (160, 160, 160), 1)
-        label = f'{tid} {det.get("conf", 0.0):.2f}'.strip()
-        _draw_label(img, label, x1d, y1d, (180, 180, 180))
+        _draw_label(
+            img, _overlay_text(det.get('conf', 0.0), order),
+            x1d, y1d, (180, 180, 180))
         return
     color = (0, 220, 0) if det.get('class_id', 0) == 0 else (0, 180, 255)
     cv2.rectangle(img, (x1d, y1d), (x2d, y2d), color, 2)
-    if sam_mask is not None:
-        if sam_mask.shape[:2] != (h, w):
-            sam_mask = cv2.resize(
-                (sam_mask > 0).astype(np.uint8), (w, h),
-                interpolation=cv2.INTER_NEAREST)
-        # 官方 ultralytics plot 同风格：半透明逐实例色填充 + 轮廓描边
-        # （09-21 用户定版；填充强度 0.40 保纹理可透见，逐实例色可分辨
-        # 相邻目标；空 tid 回退类别色）
-        mask_bool = sam_mask > 0
-        if tid:
-            idx = sum(tid.encode('utf-8')) % len(_PALETTE)
-        else:
-            idx = int(det.get('class_id', 0)) % len(_PALETTE)
-        fill = np.zeros_like(img)
-        fill[mask_bool] = _PALETTE[idx]
-        cv2.addWeighted(fill, _MASK_ALPHA, img, 1.0, 0, dst=img)
-        contours, _ = cv2.findContours(
-            mask_bool.astype(np.uint8),
-            cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-        cv2.drawContours(img, contours, -1, _PALETTE[idx], 2)
     status = grasp_2d.status
     st_color = {
         'ACCEPT': (0, 220, 0), 'REOBSERVE': (0, 200, 255), 'REJECT': (0, 0, 220)
@@ -144,9 +173,7 @@ def draw_debug(img, det, grasp_2d, sam_mask, tid='', confirmed: bool = True):
                 _clamp_px(img, ex + px * half, ey + py * half),
                 (255, 0, 255), 2)
             cv2.circle(img, _clamp_px(img, ex, ey), 5, (255, 0, 255), 2)
-    # 稳定 ID + YOLO 检测置信度（det['conf']，与位姿管线 confidence 区分）。
-    # OpenCV putText 的 y 是基线：写在框顶上方会画出图外。贴在框内左上，
-    # 黑底保证绿/黄/红字在果面纹理上仍可读。
-    label = f'{tid} ' if tid else ''
-    label += f"{det.get('conf', 0.0):.2f}"
-    _draw_label(img, label.strip(), x1d, y1d, st_color)
+    # 确认锁定后，图上的 id 就是抓取顺序，1 最先抓。
+    _draw_label(
+        img, _overlay_text(det.get('conf', 0.0), order),
+        x1d, y1d, st_color)

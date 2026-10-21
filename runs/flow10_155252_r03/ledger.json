@@ -1,0 +1,86 @@
+{
+  "claimed": [
+    "target_10",
+    "target_11",
+    "target_8",
+    "target_9"
+  ],
+  "outcomes": [
+    {
+      "target_id": "target_9",
+      "outcome": 0,
+      "reason": "周期完成；tool.enabled=false 或未宣称采摘成功",
+      "quality_score": 0.0,
+      "elapsed_s": 20.43,
+      "completion_level": 6,
+      "stage_names": [
+        "finalize",
+        "reconfirm",
+        "approach_insert",
+        "tool",
+        "retreat"
+      ],
+      "stage_durations": [
+        3.277,
+        0.377,
+        8.924,
+        0.0,
+        7.808
+      ]
+    },
+    {
+      "target_id": "target_10",
+      "outcome": 0,
+      "reason": "周期完成；tool.enabled=false 或未宣称采摘成功",
+      "quality_score": 0.0,
+      "elapsed_s": 19.232,
+      "completion_level": 6,
+      "stage_names": [
+        "finalize",
+        "reconfirm",
+        "approach_insert",
+        "tool",
+        "retreat"
+      ],
+      "stage_durations": [
+        1.749,
+        0.291,
+        9.219,
+        0.0,
+        7.813
+      ]
+    },
+    {
+      "target_id": "target_11",
+      "outcome": 1,
+      "reason": "skipped_quality: decision_snapshot_unavailable: 同目标模型与许可未在时限内到齐或已过期 elapsed=5.000424s timeout=5.000000s",
+      "quality_score": 0.0,
+      "elapsed_s": 5.01,
+      "failure_code": "skipped_quality",
+      "failure_code_n": 3,
+      "completion_level": 0,
+      "stage_names": [
+        "finalize"
+      ],
+      "stage_durations": [
+        5.0
+      ]
+    },
+    {
+      "target_id": "target_8",
+      "outcome": 1,
+      "reason": "build_failed: bag_axis_envelope_ill_conditioned; attempts=3; 局部重建完成：1 帧，6440 点（少于推荐 5 帧）；跳过 25 次（joint_state_unavailable=14, missing_mask=11）；重叠指标需 ≥2 帧，本批次不可用；TSDF 1302 点 / mesh 2182 顶点（累计积分 0.00s）；refit 失败（bag_axis_envelope_ill_conditioned）；refit 未产出可用几何",
+      "quality_score": 0.0,
+      "elapsed_s": 4.446,
+      "failure_code": "build_failed",
+      "failure_code_n": 2,
+      "completion_level": 0,
+      "stage_names": [
+        "finalize"
+      ],
+      "stage_durations": [
+        4.338
+      ]
+    }
+  ]
+}

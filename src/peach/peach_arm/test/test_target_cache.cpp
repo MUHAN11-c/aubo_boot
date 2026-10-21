@@ -390,6 +390,48 @@ TEST(TargetCache, PromoteUnrefinedFromLockedAndHoldsAgainstDiagnostics)
   EXPECT_FALSE(cache.updateRefinedPose(refinedPoseUpdate("a")));
 }
 
+TEST(TargetCache, UnrefinedPinSurvivesLaggingSelectedTarget)
+{
+  double now = 100.0;
+  peach_arm::TargetCache cache([&now] {return now;});
+  cache.updateSelectedTarget(observedUpdate("previous"));
+  peach_arm::LockedTargetUpdate current;
+  current.target_id = "current";
+  current.observed = true;
+  current.bottom = Eigen::Vector3d(0.4, -0.6, 0.5);
+  current.neck = Eigen::Vector3d(0.45, -0.6, 0.7);
+  current.axis = (current.neck - current.bottom).normalized();
+  current.suggested_travel_m = 0.04;
+  current.bag_diameter_upper_m = 0.068;
+  current.entry_pose = Eigen::Isometry3d::Identity();
+  current.entry_pose.translation() = current.bottom - current.axis * 0.03;
+  cache.updateLockedTargets(true, "run1", {current});
+  ASSERT_TRUE(cache.promoteUnrefinedGeometry("current"));
+
+  cache.updateSelectedTarget(observedUpdate("current"));
+  EXPECT_TRUE(cache.qualitySnapshot().grasp_allowed);
+  EXPECT_EQ(cache.graspDecisionTarget(), "current");
+  ASSERT_TRUE(cache.refinedSnapshot().has_value());
+  EXPECT_EQ(cache.refinedSnapshot()->id, "current");
+
+  cache.updateSelectedTarget(observedUpdate("other"));
+  EXPECT_TRUE(cache.qualitySnapshot().grasp_allowed);
+  EXPECT_EQ(cache.graspDecisionTarget(), "current");
+
+  auto next_run = observedUpdate("current");
+  next_run.harvest_run_id = "run2";
+  cache.updateSelectedTarget(next_run);
+  EXPECT_TRUE(cache.qualitySnapshot().grasp_allowed);
+  EXPECT_EQ(cache.graspDecisionTarget(), "current");
+  ASSERT_TRUE(cache.refinedSnapshot().has_value());
+  EXPECT_EQ(cache.refinedSnapshot()->id, "current");
+
+  peach_arm::ModelIdentity deny;
+  deny.target_id = "current";
+  EXPECT_TRUE(cache.updateGraspDecision(deny, false));
+  EXPECT_TRUE(cache.qualitySnapshot().grasp_allowed);
+}
+
 // 模型有效期与数据年龄来自模型生成，不来自诊断心跳。
 TEST(TargetCache, DiagnosticsHeartbeatDoesNotRefreshModelAge)
 {

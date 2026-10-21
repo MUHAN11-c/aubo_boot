@@ -1,0 +1,46 @@
+{
+  "claimed": [
+    "target_5",
+    "target_6"
+  ],
+  "outcomes": [
+    {
+      "target_id": "target_5",
+      "outcome": 0,
+      "reason": "周期完成；tool.enabled=false 或未宣称采摘成功",
+      "quality_score": 0.0,
+      "elapsed_s": 18.631,
+      "completion_level": 6,
+      "stage_names": [
+        "finalize",
+        "reconfirm",
+        "approach_insert",
+        "tool",
+        "retreat"
+      ],
+      "stage_durations": [
+        1.266,
+        0.617,
+        8.833,
+        0.0,
+        7.855
+      ]
+    },
+    {
+      "target_id": "target_6",
+      "outcome": 1,
+      "reason": "build_failed: bag_axis_silhouette_unobservable; attempts=3; 局部重建完成：2 帧，8424 点（少于推荐 5 帧）；跳过 5 次（missing_mask=5）；重叠 mean=0.2mm p95=0.3mm；TSDF 872 点 / mesh 1540 顶点（累计积分 0.01s）；refit 失败（bag_axis_silhouette_unobservable）；refit 未产出可用几何",
+      "quality_score": 0.0,
+      "elapsed_s": 2.821,
+      "failure_code": "build_failed",
+      "failure_code_n": 2,
+      "completion_level": 0,
+      "stage_names": [
+        "finalize"
+      ],
+      "stage_durations": [
+        2.707
+      ]
+    }
+  ]
+}

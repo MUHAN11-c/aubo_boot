@@ -32,19 +32,44 @@
       <div class="section-head">
         <div><p class="kicker">SUMMARY</p><h2 id="result-title">分析结果</h2></div>
       </div>
-      <div id="stats" class="stat-grid"></div>
-      <h3>结束情况</h3>
-      <div id="outcomes"></div>
-      <h3>参考点</h3>
-      <p class="empty">坐标在 base_link，单位米。径向余量和果距只作记录。</p>
-      <div class="analysis-split">
-        <svg id="plot" viewBox="0 0 360 280" role="img" aria-label="参考点平面位置"></svg>
-        <div id="images"></div>
+      <div id="rates" class="rate-grid"></div>
+      <div class="chart-grid">
+        <div>
+          <h3>终局</h3>
+          <div id="outcome-bars" class="hbar-list"></div>
+        </div>
+        <div>
+          <h3>重建拒帧</h3>
+          <div id="skip-bars" class="hbar-list"></div>
+        </div>
       </div>
-      <table>
-        <thead><tr><th>目标</th><th>点</th><th>x</th><th>y</th><th>z</th></tr></thead>
-        <tbody id="points"></tbody>
-      </table>
+      <h3>周期构成</h3>
+      <div id="stage-bars"></div>
+      <p id="cycle-note" class="analysis-note"></p>
+      <h3>感知到抓取</h3>
+      <p class="analysis-note">每一行是一次完整周期，按轮次分组。先显示这一次的掩膜和检测调试图，再是终局和袋的几何。彩色原图只在记录目录。径向余量只作记录。</p>
+      <div class="table-scroll">
+        <table class="cycle-table">
+          <thead>
+            <tr>
+              <th class="sticky col-ord">序</th>
+              <th class="sticky col-id">目标</th>
+              <th>终局</th>
+              <th>用时</th>
+              <th>完成度</th>
+              <th>袋径</th>
+              <th>径向</th>
+              <th>轴向</th>
+              <th>袋心</th>
+              <th>袋底</th>
+              <th>袋口</th>
+              <th>剪切参考</th>
+              <th>视角</th>
+            </tr>
+          </thead>
+          <tbody id="cycles"></tbody>
+        </table>
+      </div>
     </section>
   </main>
   <script src="/analysis.js"></script>

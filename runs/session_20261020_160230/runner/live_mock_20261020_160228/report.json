@@ -1,0 +1,262 @@
+{
+  "hardware_mode": "mock",
+  "profile": {
+    "schema_version": 1,
+    "profile_id": "fixed_camera_mock_20261013",
+    "hardware_mode": "mock",
+    "camera_frontend": "stereo",
+    "autostart": false,
+    "tool_enabled": false,
+    "reconstruct_in_trajectory": true,
+    "camera_calibration": {
+      "parent_frame": "base_link",
+      "child_frame": "camera_link",
+      "xyz_m": [
+        0.3780573326439316,
+        -0.07547177076037584,
+        0.7666632351254871
+      ],
+      "quaternion_xyzw": [
+        -0.0036889994433193067,
+        -7.498157537607713e-06,
+        -0.6576092061184594,
+        0.753350199611797
+      ],
+      "provenance": "20261013 fixed camera record; user confirmed camera unmoved; reused by live_camera_rviz_repeat_20261014_1632",
+      "scope": "test-only frozen calibration; never injected into product calibration files"
+    },
+    "mock_initial_positions": [
+      0.425175,
+      0.194274,
+      1.679546,
+      1.462579,
+      -0.279948,
+      0.038859
+    ]
+  },
+  "rounds": [
+    {
+      "request_id": "round_be214cfe7bcd",
+      "success": false,
+      "target_id": "target_0",
+      "scene_epoch": 1,
+      "entry_position": [
+        0.44288955065334046,
+        -0.5045410946030373,
+        0.6681630499936544
+      ],
+      "action": {
+        "accepted": true,
+        "status": 4,
+        "result": {
+          "success": false,
+          "termination_reason": "no_targets_succeeded",
+          "summary": {
+            "run_id": "round_be214cfe7bcd",
+            "discovered": 4,
+            "attempted": 1,
+            "succeeded": 0,
+            "skipped_quality": 1,
+            "skipped_unreachable": 0,
+            "failed": 0,
+            "canceled": 0,
+            "elapsed": {
+              "sec": 42,
+              "nanosec": 211224071
+            },
+            "outcomes": [
+              {
+                "target_id": "target_0",
+                "outcome": 1,
+                "reason": "skipped_quality: decision_snapshot_unavailable: 同目标模型与许可未在时限内到齐或已过期 elapsed=30.001286s timeout=30.000000s",
+                "quality_score": 0.0,
+                "elapsed": {
+                  "sec": 30,
+                  "nanosec": 80475073
+                }
+              }
+            ]
+          }
+        }
+      },
+      "ledger": {
+        "request_id": "round_be214cfe7bcd",
+        "path": "/home/mu/Desktop/aubo_e5_jazzy_ws/runs/round_be214cfe7bcd/ledger.json",
+        "mtime": 1792483414.5127597,
+        "error": null,
+        "claimed": [
+          "target_0"
+        ],
+        "rows": [
+          {
+            "target_id": "target_0",
+            "outcome": 1,
+            "outcome_name": "SKIPPED_QUALITY",
+            "reason": "skipped_quality: decision_snapshot_unavailable: 同目标模型与许可未在时限内到齐或已过期 elapsed=30.001286s timeout=30.000000s",
+            "quality_score": 0.0,
+            "elapsed_s": 30.08,
+            "stages": [],
+            "failure_code": "skipped_quality",
+            "completion_level": 0,
+            "failure_code_n": 3
+          }
+        ],
+        "totals": {
+          "SUCCEEDED": 0,
+          "SKIPPED_QUALITY": 1,
+          "SKIPPED_UNREACHABLE": 0,
+          "FAILED": 0,
+          "CANCELED": 0,
+          "attempted": 1,
+          "claimed": 1
+        }
+      },
+      "elapsed_s": 50.452846854997915,
+      "streams": {
+        "camera": {
+          "first": 1792483361.345837,
+          "last": 1792483414.082676,
+          "new_frames": 27,
+          "fresh_stamp": true
+        },
+        "joints": {
+          "first": 1792483416.9109983,
+          "last": 1792483417.0659611,
+          "new_frames": 10083,
+          "fresh_stamp": true
+        }
+      }
+    }
+  ],
+  "models": [],
+  "model_attempts": [],
+  "resources": [
+    {
+      "monotonic": 26712.068766744,
+      "metrics": {
+        "sample": {
+          "stamp": 1792483421.6605425,
+          "cpu_percent": 30.0,
+          "memory_percent": 49.3,
+          "memory_used_mb": 15504.0,
+          "memory_total_mb": 31457.4,
+          "load1": 7.62,
+          "load5": 3.65,
+          "load15": 2.45,
+          "gpu": {
+            "utilization_percent": 12.0,
+            "memory_used_mb": 2097.0,
+            "memory_total_mb": 24576.0
+          },
+          "processes": [
+            {
+              "name": "peach_arm",
+              "pid": 125346,
+              "cpu_percent": 6.7,
+              "rss_mb": 102.0
+            },
+            {
+              "name": "ros2_control_node",
+              "pid": 125341,
+              "cpu_percent": 5.7,
+              "rss_mb": 60.7
+            },
+            {
+              "name": "percipio",
+              "pid": 2204,
+              "cpu_percent": 1.0,
+              "rss_mb": 23.8
+            }
+          ]
+        }
+      },
+      "topic_age_s": {
+        "record.info": 71.495,
+        "startup.facts": 71.523,
+        "robot.tcp": 0.004,
+        "robot.joints": 0.009,
+        "diagnostics.nodes": 0.204,
+        "metrics.sample": 0.475,
+        "reconstruction.status": 0.28,
+        "reconstruction.diagnostics": 0.044,
+        "reconstruction.grasp_decision": 0.279,
+        "refined.pose": 4.894,
+        "refined.axis": 4.894,
+        "refined.diagnostics": 4.894,
+        "manipulation.status": 0.208,
+        "pipeline.arm": 7.84,
+        "task_executor.state": 5.009,
+        "pipeline.fsm": 5.009,
+        "params./peach_scene_perception_node": 2.4,
+        "params./peach_target_reconstruction_node": 2.4,
+        "params./peach_arm": 2.403,
+        "params./peach_supervisor": 2.4,
+        "perception.targets": 0.044,
+        "perception.harvest": 0.06,
+        "selfcheck.report": 11.365,
+        "task_executor.events": 5.011,
+        "ledger.live": 5.404
+      },
+      "streams_fresh": false,
+      "streams": {
+        "camera": {
+          "first": 1792483361.812869,
+          "last": 1792483421.181246,
+          "new_frames": 1,
+          "fresh_stamp": false
+        },
+        "joints": {
+          "first": 1792483422.0111268,
+          "last": 1792483422.1660104,
+          "new_frames": 1000,
+          "fresh_stamp": true
+        }
+      },
+      "rviz_alive": true
+    }
+  ],
+  "acks": [],
+  "errors": [
+    "camera/joint flow lost during soak",
+    "Soak incomplete or camera/joint/RViz liveness failed"
+  ],
+  "rviz_requested": true,
+  "owned_process_groups": [
+    125266,
+    125267,
+    125802
+  ],
+  "runtime_environment": {
+    "ROS_DOMAIN_ID": "86",
+    "ROS_HOME": "/home/mu/Desktop/aubo_e5_jazzy_ws/runs/live_mock_20261020_160228/ros_home",
+    "OPENBLAS_NUM_THREADS": "1",
+    "MKL_NUM_THREADS": "1"
+  },
+  "web_port": 8090,
+  "rviz_started": true,
+  "soak_started_monotonic": 26707.055868254,
+  "soak_elapsed_s": 5.0129235700005665,
+  "phase": "finished",
+  "updated_at": 1792483427.3689015,
+  "residual_pids": [],
+  "domain_processes_after": [],
+  "model_count": 0,
+  "full_level6_rounds": 0,
+  "model_elapsed_s": {
+    "count": 0,
+    "min": null,
+    "max": null,
+    "p95": null,
+    "range": null
+  },
+  "geometry_statistics": {},
+  "model_samples_per_target": {},
+  "per_target_outcomes": {
+    "target_0": {
+      "SKIPPED_QUALITY": 1
+    }
+  },
+  "physical_bag_level6_coverage": {},
+  "soak_passed": false,
+  "passed": false
+}

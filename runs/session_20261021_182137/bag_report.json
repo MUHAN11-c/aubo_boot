@@ -1,0 +1,556 @@
+{
+  "session": {
+    "bag": "/home/mu/Desktop/aubo_e5_jazzy_ws/runs/session_20261021_182137/bag",
+    "session_dir": "/home/mu/Desktop/aubo_e5_jazzy_ws/runs/session_20261021_182137",
+    "started_at": 1792578098.23214,
+    "ended_at": 1792578160.5636184,
+    "duration_s": 62.3
+  },
+  "requests": [
+    {
+      "request_id": "round_93b15c28efb6",
+      "started_at": 1792578119.371,
+      "ended_at": 1792578139.749,
+      "batch_state": "RUNNING",
+      "terminal": false,
+      "outcome_counts": {
+        "skipped": 1,
+        "unfinished": 1
+      },
+      "targets": [
+        {
+          "target_id": "target_0",
+          "priority": 1,
+          "outcome": "skipped",
+          "reason": "build_failed",
+          "dispatched_at": 1792578125.2995615,
+          "finished_at": 1792578131.089452,
+          "duration_s": 5.79
+        },
+        {
+          "target_id": "target_1",
+          "priority": 2,
+          "outcome": "unfinished",
+          "reason": "",
+          "dispatched_at": 1792578139.74659,
+          "finished_at": null,
+          "duration_s": null
+        }
+      ],
+      "ledger": "/home/mu/Desktop/aubo_e5_jazzy_ws/runs/round_93b15c28efb6/ledger.json"
+    }
+  ],
+  "gates": {
+    "rows": [
+      [
+        "感知帧率 FPS",
+        0.56,
+        "≥ 2.0",
+        "✗"
+      ],
+      [
+        "重建 TF 失败次数",
+        0,
+        "= 0",
+        "✓"
+      ],
+      [
+        "到预抓取停住（succeeded）",
+        0,
+        "≥1（有派发目标时）",
+        "✗"
+      ]
+    ],
+    "fps": 0.56,
+    "tf_failures": 0,
+    "succeeded": 0
+  },
+  "targets": [
+    {
+      "target_id": "target_0",
+      "priority": 1,
+      "outcome": "skipped",
+      "reason": "build_failed",
+      "dispatched_at": 1792578125.2995615,
+      "finished_at": 1792578131.089452,
+      "duration_s": 5.79
+    },
+    {
+      "target_id": "target_1",
+      "priority": 2,
+      "outcome": "unfinished",
+      "reason": "",
+      "dispatched_at": 1792578139.74659,
+      "finished_at": null,
+      "duration_s": null
+    }
+  ],
+  "phase_durations": [
+    {
+      "cycle_id": "round_93b15c28efb6",
+      "target_id": "",
+      "phases": {
+        "SELECTING": 0.17
+      },
+      "total_s": 0.17
+    },
+    {
+      "cycle_id": "round_93b15c28efb6:target_0",
+      "target_id": "target_0",
+      "phases": {
+        "OBSERVING": 1.34,
+        "VALIDATING": 0.23,
+        "FINALIZING": 4.2
+      },
+      "total_s": 5.78
+    },
+    {
+      "cycle_id": "round_93b15c28efb6:target_0",
+      "target_id": "",
+      "phases": {
+        "SELECTING": 0.12
+      },
+      "total_s": 0.12
+    },
+    {
+      "cycle_id": "round_93b15c28efb6:target_1",
+      "target_id": "target_1",
+      "phases": {
+        "VALIDATING": 0.8,
+        "FINALIZING": 1.2,
+        "APPROACHING": 9.78,
+        "RETREATING": 8.8
+      },
+      "total_s": 20.59
+    }
+  ],
+  "events": {
+    "total": 18,
+    "by_code": {
+      "enables_changed": 4,
+      "photo_pose_reached": 4,
+      "round_locked": 4,
+      "target_dispatched": 4,
+      "target_skipped": 2
+    },
+    "by_severity": {
+      "AUDIT": 4,
+      "INFO": 14
+    }
+  },
+  "perception": {
+    "frames": 7,
+    "median_interval_s": 1.802,
+    "fps": 0.56,
+    "target_count_min": 4,
+    "target_count_max": 4
+  },
+  "reconstruction": {
+    "state": "READY",
+    "target_id": "target_1",
+    "captured_views": 1,
+    "rejected_views": 16,
+    "tf_failures": 0,
+    "tf_latency_ms": 0.07224082946777344,
+    "max_baseline_deg": 0.0,
+    "mean_nearest_baseline_deg": 0.0,
+    "grasp_allowed": true,
+    "grasp_reason": "bag_mouth_geometry"
+  },
+  "reconstruction_per_target": [
+    {
+      "target_id": "target_0",
+      "captured_views_max": 1,
+      "skipped_views_max": 0,
+      "skip_reasons": {},
+      "last_state": "COLLECTING"
+    },
+    {
+      "target_id": "target_1",
+      "captured_views_max": 1,
+      "skipped_views_max": 0,
+      "skip_reasons": {},
+      "last_state": "READY"
+    }
+  ],
+  "jobs": [
+    {
+      "target_id": "target_0",
+      "cycle_id": "round_93b15c28efb6:target_0",
+      "batch_state": 1,
+      "target_phase": 1,
+      "active_id": "permit",
+      "why": "重建COLLECTING，尚未给出抓取几何",
+      "completion": {},
+      "flags": {
+        "execution_enabled": true,
+        "grasp_enabled": true,
+        "tool_enabled": false,
+        "skill_grasp_enabled": true,
+        "skill_execution_enabled": true
+      },
+      "stages": [
+        {
+          "id": "discover",
+          "label": "发现",
+          "status": "done",
+          "detail": ""
+        },
+        {
+          "id": "photo",
+          "label": "拍照",
+          "status": "done",
+          "detail": ""
+        },
+        {
+          "id": "lock",
+          "label": "锁定",
+          "status": "done",
+          "detail": ""
+        },
+        {
+          "id": "observe",
+          "label": "观察",
+          "status": "done",
+          "detail": "FINALIZE"
+        },
+        {
+          "id": "permit",
+          "label": "许可",
+          "status": "active",
+          "detail": "reconstruction_not_ready"
+        },
+        {
+          "id": "approach",
+          "label": "靠近",
+          "status": "pending",
+          "detail": ""
+        },
+        {
+          "id": "tool",
+          "label": "工具",
+          "status": "gated",
+          "detail": "工具档关闭，不打 SetIO"
+        },
+        {
+          "id": "retreat",
+          "label": "撤离",
+          "status": "pending",
+          "detail": ""
+        },
+        {
+          "id": "done",
+          "label": "完成",
+          "status": "pending",
+          "detail": ""
+        }
+      ],
+      "coords": {
+        "frame_id": "base_link",
+        "perception_entry": [
+          0.5713072939986628,
+          -0.6075768208837404,
+          0.671761878990053
+        ],
+        "perception_bottom": [
+          0.5713072939986628,
+          -0.6075768208837404,
+          0.671761878990053
+        ],
+        "perception_neck": [
+          0.5647842437493852,
+          -0.6094360752232226,
+          0.7751824995011775
+        ],
+        "reconstruction_center": [
+          0.40291607436710325,
+          -0.6636734993197615,
+          0.7177964966551504
+        ],
+        "refined_axis": null,
+        "grasp_entry": null,
+        "grasp_pregrasp": null,
+        "hypothesis_entry": null,
+        "hypothesis_travel_m": null,
+        "camera_distance_m": 0.5675271153450012
+      },
+      "grasp": {
+        "allowed": false,
+        "reason": "reconstruction_not_ready",
+        "target_id": "target_1",
+        "entry": null,
+        "pregrasp": null,
+        "axis": null,
+        "cut_pose": null,
+        "diameter_m": null,
+        "d95_m": null,
+        "travel_m": null,
+        "cut_travel_m": null,
+        "radial_margin_m": null,
+        "axial_margin_m": null,
+        "rmse_m": null,
+        "inlier_ratio": null
+      },
+      "motion": {
+        "state": "FINALIZE",
+        "message": "等待重建精化几何（BuildTargetModel）",
+        "running": true
+      },
+      "reconstruction": {
+        "state": "COLLECTING",
+        "captured_views": 0,
+        "rejected_views": 0,
+        "max_baseline_deg": 0.0,
+        "mean_nearest_baseline_deg": null
+      },
+      "perception": {
+        "locked": true,
+        "target_count": 4,
+        "harvest_status": "SELECTED",
+        "tracking_status": "OBSERVED",
+        "confidence": 0.8131313323974609
+      },
+      "analysis": {
+        "bottom_neck_m": 0.1036428085211873,
+        "entry_cut_m": null,
+        "cut_travel_m": null,
+        "travel_m": null,
+        "d95_m": null,
+        "entry_radius_m": null,
+        "cut_radius_m": null,
+        "radial_margin_m": null,
+        "axial_margin_m": null,
+        "valid_depth_ratio": 1.0,
+        "n_points": 5635,
+        "tool_profile_id": "",
+        "flags": [
+          "axis_from_gravity_prior",
+          "taper_neck",
+          "length_extended_from_2d",
+          "error_budget_exceeded",
+          "foreground_truncated",
+          "target_matched"
+        ]
+      }
+    },
+    {
+      "target_id": "target_1",
+      "cycle_id": "round_93b15c28efb6:target_1",
+      "batch_state": 7,
+      "target_phase": 5,
+      "active_id": "approach",
+      "why": "接触恢复未确认，不派下一颗",
+      "completion": {},
+      "flags": {
+        "execution_enabled": true,
+        "grasp_enabled": true,
+        "tool_enabled": false,
+        "skill_grasp_enabled": true,
+        "skill_execution_enabled": true
+      },
+      "stages": [
+        {
+          "id": "discover",
+          "label": "发现",
+          "status": "done",
+          "detail": ""
+        },
+        {
+          "id": "photo",
+          "label": "拍照",
+          "status": "done",
+          "detail": ""
+        },
+        {
+          "id": "lock",
+          "label": "锁定",
+          "status": "done",
+          "detail": ""
+        },
+        {
+          "id": "observe",
+          "label": "观察",
+          "status": "done",
+          "detail": "MTC_RETREAT"
+        },
+        {
+          "id": "permit",
+          "label": "许可",
+          "status": "done",
+          "detail": "GraspDecision.allowed"
+        },
+        {
+          "id": "approach",
+          "label": "靠近",
+          "status": "active",
+          "detail": ""
+        },
+        {
+          "id": "tool",
+          "label": "工具",
+          "status": "gated",
+          "detail": "工具档关闭，不打 SetIO"
+        },
+        {
+          "id": "retreat",
+          "label": "撤离",
+          "status": "pending",
+          "detail": ""
+        },
+        {
+          "id": "done",
+          "label": "完成",
+          "status": "pending",
+          "detail": ""
+        }
+      ],
+      "coords": {
+        "frame_id": "base_link",
+        "perception_entry": [
+          0.4056092378013246,
+          -0.6579358354768473,
+          0.6626865981124628
+        ],
+        "perception_bottom": [
+          0.4056092378013246,
+          -0.6579358354768473,
+          0.6626865981124628
+        ],
+        "perception_neck": [
+          0.39963728896271294,
+          -0.6746418405695087,
+          0.7728442153741634
+        ],
+        "reconstruction_center": [
+          0.40291607436710325,
+          -0.6636734993197615,
+          0.7177964966551504
+        ],
+        "refined_axis": [
+          -0.02678292870994891,
+          -0.25620538443413426,
+          0.9662512487529707
+        ],
+        "grasp_entry": [
+          0.4019244687598048,
+          -0.6388990564342328,
+          0.6808961148323445
+        ],
+        "grasp_pregrasp": [
+          0.4027279566211033,
+          -0.6312128949012088,
+          0.6519085773697554
+        ],
+        "hypothesis_entry": [
+          0.4019244687598048,
+          -0.6388990564342328,
+          0.6808961148323445
+        ],
+        "hypothesis_travel_m": 0.07941977679729462,
+        "camera_distance_m": 0.5933458209037781
+      },
+      "grasp": {
+        "allowed": true,
+        "reason": "bag_mouth_geometry",
+        "target_id": "target_1",
+        "entry": [
+          0.4019244687598048,
+          -0.6388990564342328,
+          0.6808961148323445
+        ],
+        "pregrasp": [
+          0.4027279566211033,
+          -0.6312128949012088,
+          0.6519085773697554
+        ],
+        "axis": [
+          -0.02678292870994891,
+          -0.25620538443413426,
+          0.9662512487529707
+        ],
+        "cut_pose": [
+          0.39979737456112013,
+          -0.6592468306751875,
+          0.7576355725650156
+        ],
+        "diameter_m": 0.0959879672440678,
+        "d95_m": 0.0959879672440678,
+        "travel_m": 0.07941977599688475,
+        "cut_travel_m": 0.07941977599688475,
+        "radial_margin_m": -0.01815049354343127,
+        "axial_margin_m": -0.002,
+        "rmse_m": 0.0016571043498703076,
+        "inlier_ratio": 0.5332086061739943
+      },
+      "motion": {
+        "state": "MTC_RETREAT",
+        "message": "MTC 沿插入反方向保持直线撤离",
+        "running": true
+      },
+      "reconstruction": {
+        "state": "READY",
+        "captured_views": 1,
+        "rejected_views": 16,
+        "max_baseline_deg": 0.0,
+        "mean_nearest_baseline_deg": 0.0
+      },
+      "perception": {
+        "locked": true,
+        "target_count": 4,
+        "harvest_status": "SELECTED",
+        "tracking_status": "OBSERVED",
+        "confidence": 1.0
+      },
+      "analysis": {
+        "bottom_neck_m": 0.1115771276734723,
+        "entry_cut_m": 0.07941977599688475,
+        "cut_travel_m": 0.07941977599688475,
+        "travel_m": 0.07941977599688475,
+        "d95_m": 0.0959879672440678,
+        "entry_radius_m": 1.0165406052363013,
+        "cut_radius_m": 1.0809514259563946,
+        "radial_margin_m": -0.01815049354343127,
+        "axial_margin_m": -0.002,
+        "valid_depth_ratio": 1.0,
+        "n_points": 3711,
+        "tool_profile_id": "bite_shear_v1",
+        "flags": [
+          "axis_from_gravity_prior",
+          "taper_neck",
+          "length_extended_from_2d",
+          "target_matched"
+        ]
+      }
+    }
+  ],
+  "metrics": {
+    "samples": 58,
+    "cpu_percent": {
+      "mean": 29.58,
+      "max": 44.6
+    },
+    "memory_percent": {
+      "mean": 41.79,
+      "max": 43.8
+    },
+    "gpu_utilization_percent": {
+      "mean": 23.34,
+      "max": 50.0
+    },
+    "gpu_memory_used_mb": {
+      "mean": 2819.09,
+      "max": 2919.0
+    }
+  },
+  "tcp": {
+    "count": 151,
+    "path_length_m": 1.3161,
+    "chord_m": 0.0546,
+    "detour_ratio": 24.089,
+    "max_dev_m": 0.4218,
+    "z_min_m": 0.5543,
+    "z_max_m": 0.7557,
+    "dz_m": 0.0018,
+    "samples": 151
+  }
+}

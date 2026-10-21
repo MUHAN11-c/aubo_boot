@@ -1,0 +1,345 @@
+{
+  "session": {
+    "bag": "/home/mu/Desktop/aubo_e5_jazzy_ws/runs/session_20261021_160208/bag",
+    "session_dir": "/home/mu/Desktop/aubo_e5_jazzy_ws/runs/session_20261021_160208",
+    "started_at": 1792569729.104806,
+    "ended_at": 1792569996.2368937,
+    "duration_s": 267.1
+  },
+  "requests": [
+    {
+      "request_id": "flow10_160309_r01",
+      "started_at": 1792569796.976,
+      "ended_at": 1792569979.121,
+      "batch_state": "INTERRUPTED",
+      "terminal": true,
+      "outcome_counts": {
+        "failed": 1
+      },
+      "targets": [
+        {
+          "target_id": "target_0",
+          "priority": 1,
+          "outcome": "failed",
+          "reason": "full_failed",
+          "dispatched_at": 1792569798.9938884,
+          "finished_at": 1792569979.0207977,
+          "duration_s": 180.03
+        }
+      ],
+      "ledger": "/home/mu/Desktop/aubo_e5_jazzy_ws/runs/flow10_160309_r01/ledger.json"
+    },
+    {
+      "request_id": "flow10_160619_r02",
+      "started_at": 1792569979.231,
+      "ended_at": 1792569979.231,
+      "batch_state": "INTERRUPTED",
+      "terminal": true,
+      "outcome_counts": {},
+      "targets": [],
+      "ledger": "/home/mu/Desktop/aubo_e5_jazzy_ws/runs/flow10_160619_r02/ledger.json"
+    },
+    {
+      "request_id": "flow10_160619_r03",
+      "started_at": 1792569979.335,
+      "ended_at": 1792569979.335,
+      "batch_state": "INTERRUPTED",
+      "terminal": true,
+      "outcome_counts": {},
+      "targets": [],
+      "ledger": "/home/mu/Desktop/aubo_e5_jazzy_ws/runs/flow10_160619_r03/ledger.json"
+    }
+  ],
+  "gates": {
+    "rows": [
+      [
+        "感知帧率 FPS",
+        0.6,
+        "≥ 2.0",
+        "✗"
+      ],
+      [
+        "重建 TF 失败次数",
+        0,
+        "= 0",
+        "✓"
+      ],
+      [
+        "到预抓取停住（succeeded）",
+        0,
+        "≥1（有派发目标时）",
+        "✗"
+      ]
+    ],
+    "fps": 0.6,
+    "tf_failures": 0,
+    "succeeded": 0
+  },
+  "targets": [
+    {
+      "target_id": "target_0",
+      "priority": 1,
+      "outcome": "failed",
+      "reason": "full_failed",
+      "dispatched_at": 1792569798.9938884,
+      "finished_at": 1792569979.0207977,
+      "duration_s": 180.03
+    }
+  ],
+  "phase_durations": [
+    {
+      "cycle_id": "flow10_160309_r01",
+      "target_id": "",
+      "phases": {
+        "SELECTING": 0.24
+      },
+      "total_s": 0.24
+    },
+    {
+      "cycle_id": "flow10_160309_r01:target_0",
+      "target_id": "target_0",
+      "phases": {
+        "VALIDATING": 0.61,
+        "APPROACHING": 178.98
+      },
+      "total_s": 179.56
+    },
+    {
+      "cycle_id": "flow10_160309_r01:target_0",
+      "target_id": "",
+      "phases": {
+        "APPROACHING": 16.7
+      },
+      "total_s": 16.7
+    }
+  ],
+  "events": {
+    "total": 18,
+    "by_code": {
+      "enables_changed": 4,
+      "photo_pose_reached": 2,
+      "round_locked": 2,
+      "target_dispatched": 2,
+      "target_failed": 2,
+      "survey_failed": 6
+    },
+    "by_severity": {
+      "AUDIT": 4,
+      "INFO": 6,
+      "ERROR": 8
+    }
+  },
+  "perception": {
+    "frames": 2,
+    "median_interval_s": 1.669,
+    "fps": 0.6,
+    "target_count_min": 4,
+    "target_count_max": 4
+  },
+  "reconstruction": {
+    "state": "IDLE",
+    "target_id": "",
+    "captured_views": 0,
+    "rejected_views": 0,
+    "tf_failures": 0,
+    "tf_latency_ms": 0.11682510375976562,
+    "grasp_allowed": false,
+    "grasp_reason": "reconstruction_not_ready"
+  },
+  "reconstruction_per_target": [
+    {
+      "target_id": "target_0",
+      "captured_views_max": 1,
+      "skipped_views_max": 0,
+      "skip_reasons": {},
+      "last_state": "COLLECTING"
+    }
+  ],
+  "jobs": [
+    {
+      "target_id": "target_0",
+      "cycle_id": "flow10_160309_r01:target_0",
+      "batch_state": 8,
+      "target_phase": 5,
+      "active_id": "done",
+      "why": "interrupted",
+      "completion": {},
+      "flags": {
+        "execution_enabled": false,
+        "grasp_enabled": false,
+        "tool_enabled": false,
+        "skill_grasp_enabled": true,
+        "skill_execution_enabled": true
+      },
+      "stages": [
+        {
+          "id": "discover",
+          "label": "发现",
+          "status": "done",
+          "detail": ""
+        },
+        {
+          "id": "photo",
+          "label": "拍照",
+          "status": "done",
+          "detail": ""
+        },
+        {
+          "id": "lock",
+          "label": "锁定",
+          "status": "done",
+          "detail": ""
+        },
+        {
+          "id": "observe",
+          "label": "观察",
+          "status": "done",
+          "detail": "MTC_APPROACH_INSERT"
+        },
+        {
+          "id": "permit",
+          "label": "许可",
+          "status": "done",
+          "detail": "reconstruction_not_ready"
+        },
+        {
+          "id": "approach",
+          "label": "靠近",
+          "status": "done",
+          "detail": ""
+        },
+        {
+          "id": "tool",
+          "label": "工具",
+          "status": "done",
+          "detail": ""
+        },
+        {
+          "id": "retreat",
+          "label": "撤离",
+          "status": "done",
+          "detail": ""
+        },
+        {
+          "id": "done",
+          "label": "完成",
+          "status": "failed",
+          "detail": "本环节失败，后续未开始"
+        }
+      ],
+      "coords": {
+        "frame_id": "base_link",
+        "perception_entry": [
+          0.569603779300773,
+          -0.6077085328271977,
+          0.6748274900426595
+        ],
+        "perception_bottom": [
+          0.569603779300773,
+          -0.6077085328271977,
+          0.6748274900426595
+        ],
+        "perception_neck": [
+          0.5657479947406973,
+          -0.6078958260402038,
+          0.7670588179958483
+        ],
+        "reconstruction_center": null,
+        "refined_axis": null,
+        "grasp_entry": null,
+        "grasp_pregrasp": null,
+        "hypothesis_entry": [
+          0.5684804007228775,
+          -0.6076839761263831,
+          0.6736120117324086
+        ],
+        "hypothesis_travel_m": 0.029999999329447746,
+        "camera_distance_m": null
+      },
+      "grasp": {
+        "allowed": false,
+        "reason": "reconstruction_not_ready",
+        "target_id": "",
+        "entry": null,
+        "pregrasp": null,
+        "axis": null,
+        "cut_pose": null,
+        "diameter_m": null,
+        "d95_m": null,
+        "travel_m": null,
+        "cut_travel_m": null,
+        "radial_margin_m": null,
+        "axial_margin_m": null,
+        "rmse_m": null,
+        "inlier_ratio": null
+      },
+      "motion": {
+        "state": "MTC_APPROACH_INSERT",
+        "message": "拍照位再最短路径到预抓取",
+        "running": true
+      },
+      "reconstruction": {
+        "state": "IDLE",
+        "captured_views": 0,
+        "rejected_views": 0,
+        "max_baseline_deg": 0.0,
+        "mean_nearest_baseline_deg": null
+      },
+      "perception": {
+        "locked": true,
+        "target_count": 1,
+        "harvest_status": "HARVESTED",
+        "tracking_status": "LOST",
+        "confidence": null
+      },
+      "analysis": {
+        "bottom_neck_m": 0.0923120794334632,
+        "entry_cut_m": null,
+        "cut_travel_m": null,
+        "travel_m": null,
+        "d95_m": null,
+        "entry_radius_m": null,
+        "cut_radius_m": null,
+        "radial_margin_m": null,
+        "axial_margin_m": null,
+        "valid_depth_ratio": null,
+        "n_points": null,
+        "tool_profile_id": "",
+        "flags": [
+          "target_temporarily_lost",
+          "anchor_from_memory"
+        ]
+      }
+    }
+  ],
+  "metrics": {
+    "samples": 250,
+    "cpu_percent": {
+      "mean": 52.02,
+      "max": 79.8
+    },
+    "memory_percent": {
+      "mean": 50.38,
+      "max": 51.9
+    },
+    "gpu_utilization_percent": {
+      "mean": 24.79,
+      "max": 55.0
+    },
+    "gpu_memory_used_mb": {
+      "mean": 2738.78,
+      "max": 2922.0
+    }
+  },
+  "tcp": {
+    "count": 1,
+    "path_length_m": 0.0,
+    "chord_m": 0.0,
+    "detour_ratio": null,
+    "max_dev_m": 0.0,
+    "z_min_m": 0.6888,
+    "z_max_m": 0.6888,
+    "dz_m": 0.0,
+    "samples": 1
+  }
+}

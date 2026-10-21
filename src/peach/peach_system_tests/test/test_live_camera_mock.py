@@ -74,6 +74,7 @@ def test_test_profile_and_rviz_queues_are_bounded():
     assert profile['schema_version'] == 1
     assert profile['hardware_mode'] == 'mock'
     assert profile['tool_enabled'] is False
+    assert profile['skip_reconstruction'] is True
     assert len(profile['camera_calibration']['xyz_m']) == 3
     assert len(profile['mock_initial_positions']) == 6
     def check(node):

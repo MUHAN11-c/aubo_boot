@@ -1,0 +1,92 @@
+{
+  "claimed": [
+    "target_4",
+    "target_5",
+    "target_6",
+    "target_7"
+  ],
+  "outcomes": [
+    {
+      "target_id": "target_4",
+      "outcome": 0,
+      "reason": "周期完成；tool.enabled=false 或未宣称采摘成功",
+      "quality_score": 0.0,
+      "elapsed_s": 17.051,
+      "completion_level": 6,
+      "stage_names": [
+        "finalize",
+        "reconfirm",
+        "approach_insert",
+        "tool",
+        "retreat"
+      ],
+      "stage_durations": [
+        0.005,
+        0.771,
+        9.934,
+        0.0,
+        6.295
+      ]
+    },
+    {
+      "target_id": "target_5",
+      "outcome": 2,
+      "reason": "skipped_unreachable: 完整套入未规划通过，未执行接近: MTC planning failed: Failing stage(s):\nlin to on-axis pregrasp (0/1)",
+      "quality_score": 0.0,
+      "elapsed_s": 2.478,
+      "failure_code": "skipped_unreachable",
+      "failure_code_n": 5,
+      "completion_level": 0,
+      "stage_names": [
+        "finalize",
+        "reconfirm",
+        "approach_insert"
+      ],
+      "stage_durations": [
+        0.004,
+        2.102,
+        0.232
+      ]
+    },
+    {
+      "target_id": "target_6",
+      "outcome": 2,
+      "reason": "skipped_unreachable: 完整套入未规划通过，未执行接近: MTC planning failed: Failing stage(s):\nlin align tool z (0/1)",
+      "quality_score": 0.0,
+      "elapsed_s": 1.64,
+      "failure_code": "skipped_unreachable",
+      "failure_code_n": 5,
+      "completion_level": 0,
+      "stage_names": [
+        "finalize",
+        "reconfirm",
+        "approach_insert"
+      ],
+      "stage_durations": [
+        0.003,
+        1.414,
+        0.139
+      ]
+    },
+    {
+      "target_id": "target_7",
+      "outcome": 2,
+      "reason": "skipped_unreachable: 完整套入未规划通过，未执行接近: MTC planning failed: Failing stage(s):\nlin to on-axis pregrasp (0/1)",
+      "quality_score": 0.0,
+      "elapsed_s": 1.833,
+      "failure_code": "skipped_unreachable",
+      "failure_code_n": 5,
+      "completion_level": 0,
+      "stage_names": [
+        "finalize",
+        "reconfirm",
+        "approach_insert"
+      ],
+      "stage_durations": [
+        0.01,
+        1.666,
+        0.124
+      ]
+    }
+  ]
+}

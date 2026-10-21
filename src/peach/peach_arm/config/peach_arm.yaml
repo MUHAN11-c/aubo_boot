@@ -19,7 +19,7 @@ peach_arm:
       acceleration_scaling: 0.1  # 接触段加速度缩放（接近 LIN 段档位；v4 已无降速重试档）。
       transit_velocity_scaling: 0.1  # 自由空间转移速度缩放（环绕视点/拍照位姿往返）；高速度缩短高重力矩姿态持续时间，反而降低过流风险；真机初始验证不得高于 0.1。
       transit_acceleration_scaling: 0.1  # 自由空间转移加速度缩放（同 transit_velocity_scaling 的档位约束）。
-      execute_timeout_s: 90.0  # 单条轨迹/MTC 解执行有界等待（秒）；超时下发 stop 并判失败。move_group TEM 异常（stop 事件风暴，2026-09-23）时防动作通道永久堵死。
+      execute_timeout_s: 5.0  # 单条轨迹/MTC 解执行有界等待（秒）；超时下发 stop 并判失败。正常段约 1–4 s，不再用 90 s 空等死掉的 move_group。
       obstacle_guard_enabled: false  # 场景枝叶方块不参与避障。真实树冠太密，把叶墙当碰撞体会把套入直线判死；true 才让相机连杆受查。空闲 param set 生效
       obstacle_guard_links: [camera_body_link]  # guard 开时唯一受查连杆（避障目标=保护相机）
       obstacle_object_ids: [peach_scene_obstacles]  # 场景障碍对象 id（peach_scene_obstacles 快照节点写入）；豁免=tool.links×这些对象+<octomap>
@@ -127,4 +127,4 @@ peach_arm:
       profile_id: adaptive_shear_v1  # 当前末端工具档案标签（PregraspVerification.tool_profile_id）。基础值=自适应剪切手；整栈由 launch tool_profile 档案注入覆盖。
     timeouts:
       service_s: 3.0  # 普通服务调用超时（秒）。
-      refined_s: 30.0  # 等待精化结果的超时上限（秒）：须覆盖 BuildTargetModel 最终 TSDF 提取+refit。实测帧间隔 EMA 自适应，本值为未测得帧率时的回退值与上限。
+      refined_s: 5.0  # 等待精化结果的超时上限（秒）。COLLECTING 时用满这个上限。有效 GraspDecision 在约 2.4s 内到齐；到不了的不再空等。

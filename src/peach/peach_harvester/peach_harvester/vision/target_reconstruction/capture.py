@@ -709,7 +709,7 @@ class StrictMaskGate:
                  min_mask_pixels: int = 300,
                  min_mask_depth_ratio: float = 0.35,
                  max_target_drift_m: float = 0.04,
-                 min_neighbor_gap_m: float = 0.15,
+                 min_neighbor_gap_m: float = 0.0,
                  neighbor_gap_area_ratio: float = 2.0,
                  mask_stamp_tolerance_s: float = 0.45):
         """
@@ -721,7 +721,7 @@ class StrictMaskGate:
             min_mask_depth_ratio: 掩膜内有效深度占比下限.
             max_target_drift_m: 目标中心最大漂移 [m].
             min_neighbor_gap_m: 绑定锚点与其他锁定目标锚点的最小间距
-                [m]（E2 串扰门）；≤0 关闭本门.
+                [m]。0=不因成串套袋拒帧（隔离靠所选目标掩膜）；>0 才拒帧.
             neighbor_gap_area_ratio: 串扰门小框豁免比（≤0 关闭豁免）：
                 邻居检测框面积 < 绑定框面积/本值时视为遮挡残片/误检，
                 不计入串扰间距（近距双检常见同一颗袋的大框+残片小框，
@@ -798,9 +798,8 @@ class StrictMaskGate:
                     None,
                     f'目标漂移 {drift * 1000.0:.1f} mm > '
                     f'{self.max_target_drift_m * 1000.0:.1f} mm')
-        # 门 5（E2 邻目标串扰）：绑定锚点与其他锁定目标锚点过近时拒帧。
-        # 邻近目标的掩膜/点云会局部落入本目标 ROI，混入在线 TSDF 后形成
-        # 不可回滚双层表面（I6）；TSDF 无单帧撤销，宁可停采等视角拉开。
+        # 可选距离否决（默认关）。成串套袋仍采这颗自己的掩膜；
+        # TSDF 只积分掩膜内深度。min_neighbor_gap_m≤0 时本段不执行。
         # 小框豁免：面积远小于绑定框的邻居（叶片遮挡残片/误检）不计入
         # 间距——近距双检常见同一颗袋的大框+残片小框，不豁免则互相锁死。
         if bound is not None and self.min_neighbor_gap_m > 0.0:

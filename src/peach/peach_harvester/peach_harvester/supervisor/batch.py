@@ -453,7 +453,7 @@ def full_failure_code(outcome, operator_skip: bool) -> str:
 
 
 def merge_cycle_extra(observe_extra, full_extra) -> dict:
-    """合并 OBSERVE_ONLY 与 FULL 的阶段耗时；丢掉 FULL 里为零的观察段."""
+    """合并观察与接触阶段。FULL 里时长为 0 的识别/精化段丢掉，非 0 留在再确认前。"""
     merged = dict(observe_extra or {})
     full_extra = dict(full_extra or {})
     obs_names = [str(n) for n in list(merged.get('stage_names') or [])]
@@ -461,17 +461,19 @@ def merge_cycle_extra(observe_extra, full_extra) -> dict:
     while len(obs_durs) < len(obs_names):
         obs_durs.append(0.0)
     obs_durs = obs_durs[:len(obs_names)]
-    skip = {'prepare', 'observe', 'finalize'}
+    drop_zero = {'observe', 'finalize'}
     keep_names = []
     keep_durs = []
     full_names = [str(n) for n in list(full_extra.get('stage_names') or [])]
     full_durs = list(full_extra.get('stage_durations') or [])
     for index, name in enumerate(full_names):
-        if name in skip:
+        duration = float(full_durs[index]) if index < len(full_durs) else 0.0
+        if name == 'prepare':
+            continue
+        if name in drop_zero and (duration <= 0.0 or name in obs_names):
             continue
         keep_names.append(name)
-        keep_durs.append(
-            float(full_durs[index]) if index < len(full_durs) else 0.0)
+        keep_durs.append(duration)
     if obs_names or keep_names:
         merged['stage_names'] = obs_names + keep_names
         merged['stage_durations'] = [

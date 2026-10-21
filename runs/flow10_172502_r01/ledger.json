@@ -1,0 +1,80 @@
+{
+  "claimed": [
+    "target_0",
+    "target_1",
+    "target_2",
+    "target_3"
+  ],
+  "outcomes": [
+    {
+      "target_id": "target_1",
+      "outcome": 0,
+      "reason": "周期完成；tool.enabled=false 或未宣称采摘成功",
+      "quality_score": 0.0,
+      "elapsed_s": 15.416,
+      "completion_level": 6,
+      "stage_names": [
+        "reconfirm",
+        "approach_insert",
+        "tool",
+        "retreat"
+      ],
+      "stage_durations": [
+        0.369,
+        6.807,
+        0.0,
+        7.063
+      ]
+    },
+    {
+      "target_id": "target_0",
+      "outcome": 0,
+      "reason": "周期完成；tool.enabled=false 或未宣称采摘成功",
+      "quality_score": 0.0,
+      "elapsed_s": 17.821,
+      "completion_level": 6,
+      "stage_names": [
+        "reconfirm",
+        "approach_insert",
+        "tool",
+        "retreat"
+      ],
+      "stage_durations": [
+        0.364,
+        8.184,
+        0.0,
+        7.662
+      ]
+    },
+    {
+      "target_id": "target_2",
+      "outcome": 0,
+      "reason": "周期完成；tool.enabled=false 或未宣称采摘成功",
+      "quality_score": 0.0,
+      "elapsed_s": 17.22,
+      "completion_level": 6,
+      "stage_names": [
+        "reconfirm",
+        "approach_insert",
+        "tool",
+        "retreat"
+      ],
+      "stage_durations": [
+        0.392,
+        8.029,
+        0.0,
+        7.559
+      ]
+    },
+    {
+      "target_id": "target_3",
+      "outcome": 2,
+      "reason": "skipped_unreachable: 精化几何可达性未通过: no_ik",
+      "quality_score": 0.0,
+      "elapsed_s": 3.209,
+      "failure_code": "skipped_unreachable",
+      "failure_code_n": 5,
+      "completion_level": 0
+    }
+  ]
+}

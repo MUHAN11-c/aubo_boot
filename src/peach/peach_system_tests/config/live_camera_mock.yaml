@@ -4,7 +4,10 @@ hardware_mode: mock
 camera_frontend: stereo
 autostart: false
 tool_enabled: false
-reconstruct_in_trajectory: true  # test-only parallel Build/FULL path
+# 相机固定在 base_link，mock 腕动不产生新机位。抓取轮不发 Build，
+# 用锁定集感知几何进接触。真机产品默认仍是 skip_reconstruction false。
+skip_reconstruction: true
+reconstruct_in_trajectory: false
 camera_calibration:
   parent_frame: base_link
   child_frame: camera_link

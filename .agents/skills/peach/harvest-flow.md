@@ -69,7 +69,7 @@ RUNNING + EMPTY_LIMIT         → COMPLETED / SETTLE（点名 target_ids 全部�
 
 默认 `reconstruct_in_trajectory=true`（`peach_supervisor.yaml`）：Build 进 COLLECTING 后立刻 `READY_FULL` + `skip_observation`，不走下方补视。臂侧 Finalize 非观察周期先等 GraspDecision（提交含精化几何），不许用粗几何先动；不再因 `waitForRefined` 先超时而决策到达后仍跳过。
 
-`skip_reconstruction`：不 Build/不观察，unrefined 七元组进接触（须臂 `allow_unrefined_geometry`）。
+`skip_reconstruction`：不 Build/不观察，unrefined 七元组进接触（须臂 `allow_unrefined_geometry`）。臂侧 promote 把 `suggested_travel_m` 置 0，走 `(neck-entry)-neck_margin` 回退（实测 0.05–0.10 m）；感知 `suggested_travel_m` 也不再用 `L_insert=0.03` 封顶（2026-10-21）。
 
 仅显式 `reconstruct_in_trajectory=false` 才走观察两档：`BatchPolicy.view_policy` `VIEW_FAST=0` supervisor 直驱补视（`observe.py`，拍照位算 1 视、补视封顶 2、总视 ≤3）；`VIEW_CONSERVATIVE=1` 发臂 `ExecuteTarget OBSERVE_ONLY`（goal 被拒最多 4 次重试）。同时发 `BuildTargetModel`。等 COLLECTING 后观察，再 `_wait_build_after_observe`（`min_views` + grace）。失败走 `_fail_dispatch` 记 SKIPPED_QUALITY。
 

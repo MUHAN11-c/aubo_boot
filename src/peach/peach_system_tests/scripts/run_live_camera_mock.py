@@ -9,6 +9,7 @@ import json
 import math
 import os
 from pathlib import Path
+import shutil
 import signal
 import socket
 import subprocess
@@ -20,6 +21,32 @@ import uuid
 import yaml
 
 DISPLAY_KEYS = ('DISPLAY', 'XAUTHORITY', 'XDG_RUNTIME_DIR', 'DBUS_SESSION_BUS_ADDRESS')
+
+
+def consolidate_records(output, started_at):
+    """把本轮在 runs/ 根上新产生的记录目录收进 output/records（一个文件夹）."""
+    runs_root = output.parent
+    records = output / 'records'
+    moved = []
+    try:
+        children = list(runs_root.iterdir())
+    except OSError:
+        return moved
+    for child in children:
+        if child == output or not child.is_dir() or child.name.startswith('_'):
+            continue
+        try:
+            if child.stat().st_mtime < started_at - 5.0:
+                continue
+            records.mkdir(exist_ok=True)
+            destination = records / child.name
+            if destination.exists():
+                continue
+            shutil.move(str(child), str(destination))
+            moved.append(child.name)
+        except OSError:
+            continue
+    return moved
 
 
 def owned_runtime_environment(base, output, domain):
@@ -52,6 +79,14 @@ def parser():
     p.add_argument('--domain', type=int, default=86)
     p.add_argument('--output', type=Path, default=Path('runs') / ('live_mock_' + time.strftime('%Y%m%d_%H%M%S')))
     p.add_argument('--rviz', action=argparse.BooleanOptionalAction, default=True)
+    # None = 用 live_camera_mock.yaml 的 skip_reconstruction；显式覆盖用于
+    # 同日 A/B：同一相机/场景分别跑“跳过重建”和“完整重建”两条路径。
+    p.add_argument('--skip-reconstruction', action=argparse.BooleanOptionalAction,
+                   default=None,
+                   help='覆盖 profile 的 skip_reconstruction；--no-skip-reconstruction 走完整 Build/精化')
+    p.add_argument('--pick-all', action='store_true',
+                   help='每轮发 PICK_ALL/AUTO（多目标同场景，复现 drive_3 的完整 Build 轮），'
+                        '不是单目标点名；轮成功=至少一颗 level6')
     return p
 
 
@@ -124,6 +159,14 @@ def model_key(model):
 def full_cycle(ledger, request):
     rows = ledger.get('rows', [])
     return ledger.get('request_id') == request and bool(rows) and all(
+        r.get('outcome_name') == 'SUCCEEDED' and isinstance(r.get('completion_level'), int)
+        and r['completion_level'] >= 6 for r in rows)
+
+
+def any_cycle(ledger, request):
+    """PICK_ALL 轮：至少一颗 level6；其它目标允许 skip（诊断用，不是严格验收）。"""
+    rows = ledger.get('rows', [])
+    return ledger.get('request_id') == request and any(
         r.get('outcome_name') == 'SUCCEEDED' and isinstance(r.get('completion_level'), int)
         and r['completion_level'] >= 6 for r in rows)
 
@@ -509,20 +552,27 @@ def frame_evidence(driver, before):
 
 def ack_tick(driver, request, target, records):
     state = snapshot()
+    if not target:
+        target = section(state, 'task_executor', 'state').get('target_id') or ''
     proof = ack_evidence(state, request, target)
     if not proof:
         return
     # Retry only a stale-sequence rejection, taking a fresh snapshot each tick.
-    previous = [item for item in records if item.get('request_id') == request]
+    # PICK_ALL 一轮里有多个目标/多次 recovery，不能用 request 做唯一键（第一
+    # 颗 ACK 成功后会把后续目标全部去重掉，导致轮内死锁）；按 state_seq 去重。
+    task = state['task_executor']['state']
+    previous = [item for item in records
+                if item.get('request_id') == request
+                and item.get('state_seq') == task.get('state_seq')]
     if any(item.get('accepted') for item in previous) or len(previous) >= 3:
         return
     from peach_interfaces.srv import ControlTask
-    task = state['task_executor']['state']
     reply = driver.service(ControlTask, '/peach_supervisor/control', ControlTask.Request(
         request_id=request, command=6, expected_state_seq=task['state_seq'],
         reason='mock only; current target terminal evidence verified'))
     records.append({'request_id': request, 'state_seq': task['state_seq'],
-                    'accepted': reply.accepted, 'message': reply.message, 'evidence': proof})
+                    'target_id': target, 'accepted': reply.accepted,
+                    'message': reply.message, 'evidence': proof})
 
 
 def model_geometry(model, decision):
@@ -596,7 +646,8 @@ def run(args):
     profile = yaml.safe_load((cfg_dir / 'live_camera_mock.yaml').read_text())
     env = owned_runtime_environment(os.environ, output, args.domain)
     report = {'hardware_mode': 'mock', 'profile': profile, 'rounds': [], 'models': [],
-              'model_attempts': [], 'resources': [], 'acks': [], 'errors': [], 'rviz_requested': args.rviz}
+              'model_attempts': [], 'resources': [], 'acks': [], 'errors': [],
+              'rviz_requested': args.rviz, 'pick_all': args.pick_all}
     report['owned_process_groups'] = []
     report['runtime_environment'] = {key: env[key] for key in (
         'ROS_DOMAIN_ID', 'ROS_HOME',
@@ -607,6 +658,7 @@ def run(args):
         report['owned_process_groups'].append(pgid)
         save(output / 'report.json', report)
     owner = OwnedProcesses(env, output / 'owned_processes.json', on_start=audit_started)
+    run_started = time.time()
     driver = None
     try:
         stale = domain_processes(args.domain)
@@ -622,22 +674,46 @@ def run(args):
         os.environ['ROS_DOMAIN_ID'] = str(args.domain)
         os.environ['ROS_LOCALHOST_ONLY'] = '1'
         overlay = output / 'brain_overlay.yaml'
+        skip_reconstruction = (
+            bool(profile['skip_reconstruction'])
+            if args.skip_reconstruction is None else bool(args.skip_reconstruction))
+        # 不跳过重建时强制走产品默认的并行 Build（Finalize 等重建/许可）；
+        # profile 里的 false 是 skip 档的测试值，不能带到完整路径。
+        reconstruct_in_trajectory = (
+            bool(profile['reconstruct_in_trajectory']) if skip_reconstruction else True)
+        profile = dict(profile)
+        profile['skip_reconstruction'] = skip_reconstruction
+        profile['reconstruct_in_trajectory'] = reconstruct_in_trajectory
+        report['profile'] = profile
         overlay.write_text(yaml.safe_dump({'/peach_supervisor': {'ros__parameters': {
             'execute_pregrasp_only': False,
-            'reconstruct_in_trajectory': profile['reconstruct_in_trajectory']}}}))
+            'skip_reconstruction': skip_reconstruction,
+            'reconstruct_in_trajectory': reconstruct_in_trajectory}}}))
         arm_overlay = output / 'arm_overlay.yaml'
+        # 接触 LIN（appendLinToPose）的加速度档位由 min(1, 2*velocity) 推导，
+        # 不受 acceleration_scaling 控制；0.8 速度会推到 1.0 档，Pilz 在
+        # wrist1/3 的 3.0 rad/s^2 上限上实测 3.02–3.40 被拒（2026-10-21
+        # 16:54 轮 6/6 skip 的真因）。0.4 → 0.8 档留出余量；转移段仍 0.8。
+        # execute_timeout_s 同步放宽到 30 s：接近变慢后不能被产品 5 s 档误停。
+        # timeouts.refined_s=30 s：恢复 16:57 前的产品值，完整 Build 需要
+        # TSDF+refit 的时间；现行 5 s 只适合 skip 档。
         arm_overlay.write_text(yaml.safe_dump({
-            '/peach_arm': {'ros__parameters': {'moveit': {
-                'velocity_scaling': 0.8,
-                'acceleration_scaling': 0.8,
-                'transit_velocity_scaling': 0.8,
-                'transit_acceleration_scaling': 0.8,
-            }}}}, sort_keys=False))
+            '/peach_arm': {'ros__parameters': {
+                'moveit': {
+                    'velocity_scaling': 0.4,
+                    'acceleration_scaling': 0.4,
+                    'transit_velocity_scaling': 0.8,
+                    'transit_acceleration_scaling': 0.8,
+                    'execute_timeout_s': 30.0,
+                },
+                'timeouts': {'refined_s': 30.0},
+            }}}, sort_keys=False))
         command = ['ros2', 'launch', 'peach_bringup', 'harvest_system.launch.py',
                    'hardware_mode:=mock', 'camera_enabled:=true', 'camera_frontend:=stereo',
                    'extrinsics_enabled:=false', 'force_enabled:=false', 'autostart:=false',
                    'use_sim_time:=false', 'rviz:=false', 'tool_profile:=bite_shear_v1',
                    'mock_initial_positions:=' + ','.join(map(str, profile['mock_initial_positions'])),
+                   'skip_reconstruction:=' + ('true' if skip_reconstruction else 'false'),
                    'brain_params_overlay:=' + str(overlay),
                    'arm_params_overlay:=' + str(arm_overlay),
                    'observability_port:=' + str(_web_port)]
@@ -723,20 +799,35 @@ def run(args):
             started = time.monotonic()
             record = {'request_id': request, 'success': False}
             try:
-                epoch, target = new_scene(driver, request, request, index)
-                record.update(target_id=target, scene_epoch=epoch)
-                observations = section(snapshot(), 'perception', 'targets').get('observations', [])
-                selected = next((o for o in observations if o.get('target_id') == target), {})
-                record['entry_position'] = section(selected, 'candidate').get('entry_position')
-                result = driver.action(RunHarvest, '/peach_supervisor/run_harvest',
-                    RunHarvest.Goal(request_id=request, scene_key=request, intent=1,
-                                    selection_mode=1, target_ids=[target], per_target_timeout_s=180., sector_timeout_s=240.), 300,
-                    on_tick=lambda: round_tick(request, target))
+                if args.pick_all:
+                    # 复现 drive_3 的完整重建轮：不预调 BeginScene，交给
+                    # supervisor 首巡 Survey/BeginScene；PICK_ALL 让它按锁定集
+                    # 逐颗走完整 Build/精化，而不是单目标点名。
+                    record['target_id'] = 'PICK_ALL'
+                    goal = RunHarvest.Goal(
+                        request_id=request, scene_key=request,
+                        intent=RunHarvest.Goal.INTENT_PICK_ALL,
+                        selection_mode=RunHarvest.Goal.AUTO,
+                        per_target_timeout_s=180., sector_timeout_s=240.)
+                    result = driver.action(
+                        RunHarvest, '/peach_supervisor/run_harvest', goal, 300,
+                        on_tick=lambda: round_tick(request, None))
+                else:
+                    epoch, target = new_scene(driver, request, request, index)
+                    record.update(target_id=target, scene_epoch=epoch)
+                    observations = section(snapshot(), 'perception', 'targets').get('observations', [])
+                    selected = next((o for o in observations if o.get('target_id') == target), {})
+                    record['entry_position'] = section(selected, 'candidate').get('entry_position')
+                    result = driver.action(RunHarvest, '/peach_supervisor/run_harvest',
+                        RunHarvest.Goal(request_id=request, scene_key=request, intent=1,
+                                        selection_mode=1, target_ids=[target], per_target_timeout_s=180., sector_timeout_s=240.), 300,
+                        on_tick=lambda: round_tick(request, target))
                 record['action'] = result
                 state = wait_state(driver, lambda s: section(s, 'ledger', 'live').get('request_id') == request and bool(section(s, 'ledger', 'live').get('rows')), 10)
                 ledger = section(state, 'ledger', 'live')
                 record['ledger'] = ledger
-                record['success'] = result.get('status') == 4 and section(result, 'result').get('success') is True and full_cycle(ledger, request)
+                record['success'] = result.get('status') == 4 and section(result, 'result').get('success') is True and (
+                    any_cycle(ledger, request) if args.pick_all else full_cycle(ledger, request))
                 save(output / f'round_{index + 1}_state.json', state)
             except Exception as exc:
                 record['error'] = str(exc)
@@ -777,6 +868,7 @@ def run(args):
             checkpoint(output, report, 'stopping_processes')
             report['owned_process_groups'] = [p.pid for p in owner.processes]
             report['residual_pids'] = owner.cleanup()
+            report['consolidated_records'] = consolidate_records(output, run_started)
             report['domain_processes_after'] = domain_processes(args.domain)
             report['model_count'] = len(report['models'])
             report['full_level6_rounds'] = sum(r['success'] for r in report['rounds'])

@@ -15,7 +15,7 @@ peach_scene_perception_node:
     depth_scale_unit: 0.25  # 深度比例因子（仅 uint16 原始深度生效）：raw × 本值 = 毫米量级（Percipio 常见 0.25）；数据集回放（真毫米）设 1.0；32FC1 浮点深度按（米）×1000 转毫米，本参数不生效
     sync_slop_s: 0.05  # RGB-D 近似同步允差 (s)
     min_detection_conf: 0.4  # 检测框进入几何管线的置信度下限（第二级）
-    yolo_conf: 0.35  # YOLO 推理置信度阈值（第一级，低于此值的框不进入）；0.25 误检偏多，0.35 压闪框，逆光漏检再降，不要低于 0.30
+    yolo_conf: 0.30  # YOLO 推理置信度阈值（第一级，低于此值的框不进入）；0.25 误检偏多，0.35 压闪框，逆光漏检再降，不要低于 0.30
     yolo_nms_iou: 0.5  # YOLO NMS IoU 阈值：室外多果密排可调低防并框
     yolo_imgsz: 640  # YOLO 推理输入边长 (px，须为 32 的倍数)；640=现行为（ultralytics 默认）；构造期捕获，改后须重启
     yolo_half: false  # YOLO FP16 推理开关（档案化：false=现行为；仅在已验证半精度的设备上开）；构造期捕获
@@ -73,4 +73,4 @@ peach_scene_perception_node:
       min_collect_frames: 4  # 全局目标收齐窗口的最少累积帧数。10+5 在 1 Hz 感知下约 15 帧才锁，WAIT_LOCK 吃满 survey_wait_s。4+2 约 6 帧，单果预算内仍拒绝闪现集合。
       lock_settle_frames: 2  # 连续无新增确认 ID 的帧数：与最少帧数联合判定目标集合已稳定，关闭收齐窗口
       max_collect_s: 12.0  # 收齐窗口最长时长 (s) 配置基准：运行期按实测帧间隔 EMA 自适应为 (min_collect+settle+3)×帧间隔，下限为本值×0.4。超时强制关闭（空集也锁定）。12 s 低于 supervisor survey_wait_s=15，避免锁窗把单果周期顶出 40 s。
-      priority_prefer_lower_first: true  # 优先级排序启用高度键：先低后高，避免摘高处目标时碰落低处果实；false 则高度不参与排序
+      priority_prefer_lower_first: true  # 竖直程度相同之后的高度键：先低后高。主序是袋轴相对竖直的夹角，越竖直越先抓；false 则高度不再参与排序

@@ -5,13 +5,14 @@
 #   归档          _archive/
 #   编译产物      build/  install/  log/  （新环境重新 colcon build）
 #   虚拟环境      aubo_py3.12/ 与任意层 .venv* / venv / __pycache__（按 requirements.txt 重装）
+#   前端依赖      node_modules/（npm ci / npm install 再生；web/public 下 vendor 发行件保留）
 #   会话/运行输出 runs/  test_results/  rosbag2_* 等（含 *.mcap / *.db3 / *.bag）
 #   IDE/AI 工具态 .vscode .cursor .zcode .mimosa .serena .codegraph …
 #   可重下大件    _tools/blender-*（官方发行版）、ivg 模型权重 *.onnx/*.pt（见其
 #                 models/README.md 与 fetch_*.sh）、ivg_sim YCB meshes（fetch_ycb.sh）、
 #                 mobileclip2_b.ts
 #   可重渲/重建   output/ 内未跟踪的重渲大件（跟踪的验证产物随包迁移）、*.blend、
-#                 *.preview.png、.dinov2_index.npz
+#                 *.preview.png、.dinov2_index.npz、field_no_grass.glb（见 sim_worlds/README.md 重导出）
 #
 # 保留：src/ 全部源码与资产（含 sim_description/sim_worlds meshes、peach_harvester/model 自训练模型、
 #       驱动 vendor、web/public 前端 vendor JS——three.js/robotwebtools 的 build 发行件，
@@ -88,7 +89,7 @@ done
 # robotwebtools 前端 vendor 发行文件（importmap.js 引用、仓内无重下脚本），必须入包；
 # colcon 误在 src 包内留下的产物目录由下方打包时现查的锚定排除处理。
 EXC_ANY=(
-  __pycache__ .venv-yolo .venv venv .pytest_cache .cache Testing
+  __pycache__ .venv-yolo .venv venv node_modules .pytest_cache .cache Testing
   .vscode .codegraph .serena .mimosa .zcode .v2c .video_agent .codex .mimocode
   .remember .claude
   test_results harvest_runs web_runs peach_sessions validation_runs rosbag2_* depth_eval_out
@@ -106,6 +107,7 @@ EXC_ANCHOR=(
   "$NAME/src/ivg/ivg_pose_estimation/models/*.pt"
   "$NAME/src/ivg/ivg_pose_estimation/models/*.pth"
   "$NAME/src/ivg/ivg_sim/models/*/meshes"
+  "$NAME/src/peach_sim/*/meshes/field_no_grass.glb"
   "$NAME/src/aubo_hand_eye_calibration/hand_eye/candidates"
 )
 # 注意：peach_harvester/model/*.pt 是 git 跟踪的自训练模型，必须入包，勿加全局 *.pt 排除。

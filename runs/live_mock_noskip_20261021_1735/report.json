@@ -1,0 +1,382 @@
+{
+  "hardware_mode": "mock",
+  "profile": {
+    "schema_version": 1,
+    "profile_id": "fixed_camera_mock_20261013",
+    "hardware_mode": "mock",
+    "camera_frontend": "stereo",
+    "autostart": false,
+    "tool_enabled": false,
+    "skip_reconstruction": false,
+    "reconstruct_in_trajectory": true,
+    "camera_calibration": {
+      "parent_frame": "base_link",
+      "child_frame": "camera_link",
+      "xyz_m": [
+        0.3780573326439316,
+        -0.07547177076037584,
+        0.7666632351254871
+      ],
+      "quaternion_xyzw": [
+        -0.0036889994433193067,
+        -7.498157537607713e-06,
+        -0.6576092061184594,
+        0.753350199611797
+      ],
+      "provenance": "20261013 fixed camera record; user confirmed camera unmoved; reused by live_camera_rviz_repeat_20261014_1632",
+      "scope": "test-only frozen calibration; never injected into product calibration files"
+    },
+    "mock_initial_positions": [
+      0.425175,
+      0.194274,
+      1.679546,
+      1.462579,
+      -0.279948,
+      0.038859
+    ]
+  },
+  "rounds": [
+    {
+      "request_id": "round_bfd2188de3bd",
+      "success": false,
+      "target_id": "target_0",
+      "scene_epoch": 1,
+      "entry_position": [
+        0.5699591536741986,
+        -0.6073879777582067,
+        0.6730983579226556
+      ],
+      "action": {
+        "accepted": true,
+        "status": 4,
+        "result": {
+          "success": false,
+          "termination_reason": "no_targets_succeeded",
+          "summary": {
+            "run_id": "round_bfd2188de3bd",
+            "discovered": 4,
+            "attempted": 1,
+            "succeeded": 0,
+            "skipped_quality": 1,
+            "skipped_unreachable": 0,
+            "failed": 0,
+            "canceled": 0,
+            "elapsed": {
+              "sec": 17,
+              "nanosec": 950453995
+            },
+            "outcomes": [
+              {
+                "target_id": "target_0",
+                "outcome": 1,
+                "reason": "build_failed: bag_axis_envelope_ill_conditioned; attempts=3; 局部重建完成：1 帧，6305 点（少于推荐 5 帧）；跳过 22 次（joint_state_unavailable=11, missing_mask=11）；重叠指标需 ≥2 帧，本批次不可用；TSDF 1342 点 / mesh 2152 顶点（累计积分 0.01s）；refit 失败（bag_axis_envelope_ill_conditioned）；refit 未产出可用几何",
+                "quality_score": 0.0,
+                "elapsed": {
+                  "sec": 4,
+                  "nanosec": 425472481
+                }
+              }
+            ]
+          }
+        }
+      },
+      "ledger": {
+        "request_id": "round_bfd2188de3bd",
+        "path": "/home/mu/Desktop/aubo_e5_jazzy_ws/runs/round_bfd2188de3bd/ledger.json",
+        "mtime": 1792575555.2120655,
+        "error": null,
+        "claimed": [
+          "target_0"
+        ],
+        "rows": [
+          {
+            "target_id": "target_0",
+            "outcome": 1,
+            "outcome_name": "SKIPPED_QUALITY",
+            "reason": "build_failed: bag_axis_envelope_ill_conditioned; attempts=3; 局部重建完成：1 帧，6305 点（少于推荐 5 帧）；跳过 22 次（joint_state_unavailable=11, missing_mask=11）；重叠指标需 ≥2 帧，本批次不可用；TSDF 1342 点 / mesh 2152 顶点（累计积分 0.01s）；refit 失败（bag_axis_envelope_ill_conditioned）；refit 未产出可用几何",
+            "quality_score": 0.0,
+            "elapsed_s": 4.425,
+            "stages": [
+              {
+                "name": "finalize",
+                "dur_s": 4.301
+              }
+            ],
+            "failure_code": "build_failed",
+            "completion_level": 0,
+            "failure_code_n": 2
+          }
+        ],
+        "totals": {
+          "SUCCEEDED": 0,
+          "SKIPPED_QUALITY": 1,
+          "SKIPPED_UNREACHABLE": 0,
+          "FAILED": 0,
+          "CANCELED": 0,
+          "attempted": 1,
+          "claimed": 1
+        }
+      },
+      "elapsed_s": 26.557350000999577,
+      "streams": {
+        "camera": {
+          "first": 1792575519.323468,
+          "last": 1792575557.248411,
+          "new_frames": 13,
+          "fresh_stamp": true
+        },
+        "joints": {
+          "first": 1792575557.582902,
+          "last": 1792575557.737886,
+          "new_frames": 5308,
+          "fresh_stamp": true
+        }
+      }
+    },
+    {
+      "request_id": "round_03d7b684f2e2",
+      "success": false,
+      "target_id": "target_5",
+      "scene_epoch": 3,
+      "entry_position": [
+        0.2979582470251949,
+        -0.7200578555861136,
+        0.6262707233007936
+      ],
+      "action": {
+        "accepted": true,
+        "status": 4,
+        "result": {
+          "success": false,
+          "termination_reason": "no_targets_succeeded",
+          "summary": {
+            "run_id": "round_03d7b684f2e2",
+            "discovered": 4,
+            "attempted": 1,
+            "succeeded": 0,
+            "skipped_quality": 1,
+            "skipped_unreachable": 0,
+            "failed": 0,
+            "canceled": 0,
+            "elapsed": {
+              "sec": 16,
+              "nanosec": 458912278
+            },
+            "outcomes": [
+              {
+                "target_id": "target_5",
+                "outcome": 1,
+                "reason": "build_failed: bag_axis_silhouette_unobservable; attempts=3; 局部重建完成：2 帧，7328 点（少于推荐 5 帧）；跳过 2 次（missing_mask=2）；重叠 mean=0.0mm p95=0.0mm；TSDF 910 点 / mesh 1503 顶点（累计积分 0.01s）；refit 失败（bag_axis_silhouette_unobservable）；refit 未产出可用几何",
+                "quality_score": 0.0,
+                "elapsed": {
+                  "sec": 4,
+                  "nanosec": 428842987
+                }
+              }
+            ]
+          }
+        }
+      },
+      "ledger": {
+        "request_id": "round_03d7b684f2e2",
+        "path": "/home/mu/Desktop/aubo_e5_jazzy_ws/runs/round_03d7b684f2e2/ledger.json",
+        "mtime": 1792575581.797115,
+        "error": null,
+        "claimed": [
+          "target_5"
+        ],
+        "rows": [
+          {
+            "target_id": "target_5",
+            "outcome": 1,
+            "outcome_name": "SKIPPED_QUALITY",
+            "reason": "build_failed: bag_axis_silhouette_unobservable; attempts=3; 局部重建完成：2 帧，7328 点（少于推荐 5 帧）；跳过 2 次（missing_mask=2）；重叠 mean=0.0mm p95=0.0mm；TSDF 910 点 / mesh 1503 顶点（累计积分 0.01s）；refit 失败（bag_axis_silhouette_unobservable）；refit 未产出可用几何",
+            "quality_score": 0.0,
+            "elapsed_s": 4.429,
+            "stages": [
+              {
+                "name": "finalize",
+                "dur_s": 4.233
+              }
+            ],
+            "failure_code": "build_failed",
+            "completion_level": 0,
+            "failure_code_n": 2
+          }
+        ],
+        "totals": {
+          "SUCCEEDED": 0,
+          "SKIPPED_QUALITY": 1,
+          "SKIPPED_UNREACHABLE": 0,
+          "FAILED": 0,
+          "CANCELED": 0,
+          "attempted": 1,
+          "claimed": 1
+        }
+      },
+      "elapsed_s": 27.072574658999656,
+      "streams": {
+        "camera": {
+          "first": 1792575523.794436,
+          "last": 1792575583.002223,
+          "new_frames": 12,
+          "fresh_stamp": true
+        },
+        "joints": {
+          "first": 1792575584.6579268,
+          "last": 1792575584.8129144,
+          "new_frames": 5412,
+          "fresh_stamp": true
+        }
+      }
+    },
+    {
+      "request_id": "round_1412a7b8fa06",
+      "success": false,
+      "target_id": "target_8",
+      "scene_epoch": 5,
+      "entry_position": [
+        0.569459960742518,
+        -0.6075408370598396,
+        0.6727852938368374
+      ],
+      "action": {
+        "accepted": true,
+        "status": 4,
+        "result": {
+          "success": false,
+          "termination_reason": "no_targets_succeeded",
+          "summary": {
+            "run_id": "round_1412a7b8fa06",
+            "discovered": 4,
+            "attempted": 1,
+            "succeeded": 0,
+            "skipped_quality": 1,
+            "skipped_unreachable": 0,
+            "failed": 0,
+            "canceled": 0,
+            "elapsed": {
+              "sec": 18,
+              "nanosec": 46887592
+            },
+            "outcomes": [
+              {
+                "target_id": "target_8",
+                "outcome": 1,
+                "reason": "build_failed: bag_axis_envelope_ill_conditioned; attempts=3; 局部重建完成：1 帧，6369 点（少于推荐 5 帧）；跳过 39 次（joint_state_unavailable=34, missing_mask=5）；重叠指标需 ≥2 帧，本批次不可用；TSDF 1368 点 / mesh 2164 顶点（累计积分 0.01s）；refit 失败（bag_axis_envelope_ill_conditioned）；refit 未产出可用几何",
+                "quality_score": 0.0,
+                "elapsed": {
+                  "sec": 6,
+                  "nanosec": 238115187
+                }
+              }
+            ]
+          }
+        }
+      },
+      "ledger": {
+        "request_id": "round_1412a7b8fa06",
+        "path": "/home/mu/Desktop/aubo_e5_jazzy_ws/runs/round_1412a7b8fa06/ledger.json",
+        "mtime": 1792575609.452191,
+        "error": null,
+        "claimed": [
+          "target_8"
+        ],
+        "rows": [
+          {
+            "target_id": "target_8",
+            "outcome": 1,
+            "outcome_name": "SKIPPED_QUALITY",
+            "reason": "build_failed: bag_axis_envelope_ill_conditioned; attempts=3; 局部重建完成：1 帧，6369 点（少于推荐 5 帧）；跳过 39 次（joint_state_unavailable=34, missing_mask=5）；重叠指标需 ≥2 帧，本批次不可用；TSDF 1368 点 / mesh 2164 顶点（累计积分 0.01s）；refit 失败（bag_axis_envelope_ill_conditioned）；refit 未产出可用几何",
+            "quality_score": 0.0,
+            "elapsed_s": 6.238,
+            "stages": [
+              {
+                "name": "finalize",
+                "dur_s": 6.052
+              }
+            ],
+            "failure_code": "build_failed",
+            "completion_level": 0,
+            "failure_code_n": 2
+          }
+        ],
+        "totals": {
+          "SUCCEEDED": 0,
+          "SKIPPED_QUALITY": 1,
+          "SKIPPED_UNREACHABLE": 0,
+          "FAILED": 0,
+          "CANCELED": 0,
+          "attempted": 1,
+          "claimed": 1
+        }
+      },
+      "elapsed_s": 27.15324874900034,
+      "streams": {
+        "camera": {
+          "first": 1792575541.636439,
+          "last": 1792575608.319328,
+          "new_frames": 10,
+          "fresh_stamp": false
+        },
+        "joints": {
+          "first": 1792575611.807905,
+          "last": 1792575611.962872,
+          "new_frames": 5425,
+          "fresh_stamp": true
+        }
+      }
+    }
+  ],
+  "models": [],
+  "model_attempts": [],
+  "resources": [],
+  "acks": [],
+  "errors": [],
+  "rviz_requested": true,
+  "owned_process_groups": [
+    186011,
+    186012,
+    186479
+  ],
+  "runtime_environment": {
+    "ROS_DOMAIN_ID": "86",
+    "ROS_HOME": "/home/mu/Desktop/aubo_e5_jazzy_ws/runs/live_mock_noskip_20261021_1735/ros_home",
+    "OPENBLAS_NUM_THREADS": "1",
+    "MKL_NUM_THREADS": "1"
+  },
+  "web_port": 8090,
+  "rviz_started": true,
+  "soak_started_monotonic": 32525.863456756,
+  "rviz_lifetime_ok": true,
+  "soak_elapsed_s": 8.536000677850097e-06,
+  "phase": "finished",
+  "updated_at": 1792575617.469198,
+  "residual_pids": [],
+  "domain_processes_after": [],
+  "model_count": 0,
+  "full_level6_rounds": 0,
+  "model_elapsed_s": {
+    "count": 0,
+    "min": null,
+    "max": null,
+    "p95": null,
+    "range": null
+  },
+  "geometry_statistics": {},
+  "model_samples_per_target": {},
+  "per_target_outcomes": {
+    "target_0": {
+      "SKIPPED_QUALITY": 1
+    },
+    "target_5": {
+      "SKIPPED_QUALITY": 1
+    },
+    "target_8": {
+      "SKIPPED_QUALITY": 1
+    }
+  },
+  "physical_bag_level6_coverage": {},
+  "soak_passed": true,
+  "passed": false
+}

@@ -2,12 +2,14 @@
 import json
 import threading
 
+import cv2
 import numpy as np
 
 from peach_harvester.vision.common.runtime import (
     BoundedWorker,
     HarvestDataStore,
     ManualClock,
+    view_stage_for_phase,
 )
 from peach_harvester.vision.target_reconstruction.capture import (
     CollectorConfig,
@@ -83,6 +85,62 @@ def test_store_save_mask_throttles_per_target(tmp_path):
     store.close(drain=True)
     saved = sorted(p.name for p in (tmp_path / 'run1' / 'masks').iterdir())
     assert saved == ['100_t1.png', '102_t2.png']
+
+
+def test_store_save_mask_writes_matching_color(tmp_path):
+    store = _store_with_run(tmp_path)
+    mask = np.zeros((4, 4), dtype=np.uint8)
+    color = np.full((4, 4, 3), 30, dtype=np.uint8)
+    debug = np.full((4, 4, 3), 90, dtype=np.uint8)
+    relative = store.save_mask(
+        't1', 100, mask, color=color, debug=debug, min_interval_s=0.0)
+    assert relative == 'masks/100_t1.png'
+    assert store.save_mask(
+        't1', 101, mask, color=color, debug=debug, min_interval_s=60.0) == ''
+    store.close(drain=True)
+    run = tmp_path / 'run1'
+    assert (run / 'masks' / '100_t1.png').is_file()
+    assert (run / 'colors' / '100_t1.png').is_file()
+    assert (run / 'debug' / '100_t1.png').is_file()
+    assert not (run / 'colors' / '101_t1.png').exists()
+    assert not (run / 'debug' / '101_t1.png').exists()
+    saved = cv2.imread(str(run / 'colors' / '100_t1.png'))
+    overlay = cv2.imread(str(run / 'debug' / '100_t1.png'))
+    assert saved.shape == (4, 4, 3)
+    assert overlay.shape == (4, 4, 3)
+
+
+def test_store_save_view_without_mask(tmp_path):
+    store = _store_with_run(tmp_path)
+    color = np.full((4, 4, 3), 40, dtype=np.uint8)
+    debug = np.full((4, 4, 3), 80, dtype=np.uint8)
+    relative = store.save_mask(
+        't1', 100, None, color=color, debug=debug, min_interval_s=0.0)
+    assert relative == 'colors/100_t1.png'
+    store.close(drain=True)
+    run = tmp_path / 'run1'
+    assert not (run / 'masks' / '100_t1.png').exists()
+    assert (run / 'colors' / '100_t1.png').is_file()
+    assert (run / 'debug' / '100_t1.png').is_file()
+
+
+def test_stage_view_once_per_phase_and_not_during_approach(tmp_path):
+    assert view_stage_for_phase(2, True, set()) == 'observing'
+    assert view_stage_for_phase(2, False, set()) is None
+    assert view_stage_for_phase(5, True, set()) is None
+    assert view_stage_for_phase(4, True, {'observing'}) == 'reconfirm'
+    assert view_stage_for_phase(10, False, set()) == 'outcome'
+    assert view_stage_for_phase(11, False, {'observing'}) is None
+    store = _store_with_run(tmp_path)
+    color = np.full((4, 4, 3), 20, dtype=np.uint8)
+    first = store.save_stage_view('t1', 'observing', 100, color=color)
+    assert first == 'colors/100_t1.png'
+    assert store.save_stage_view('t1', 'observing', 101, color=color) == ''
+    second = store.save_stage_view('t1', 'reconfirm', 200, color=color)
+    assert second == 'colors/200_t1.png'
+    store.close(drain=True)
+    names = sorted(p.name for p in (tmp_path / 'run1' / 'colors').iterdir())
+    assert names == ['100_t1.png', '200_t1.png']
 
 
 def test_collector_accumulated_points_count_tracks_stack():

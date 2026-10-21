@@ -1,0 +1,153 @@
+[WARN] [1792575514.463134076] [rcl.logging_rosout]: Publisher already registered for node name: 'peach_arm'. If this is due to multiple nodes with the same name then all logs for the logger named 'peach_arm' will go out over the existing publisher. As soon as any node with that name is destructed it will unregister the publisher, preventing any further logs for that name from being published on the rosout topic.
+[WARN] [1792575514.465498015] [peach_arm]: scan.protected_zones 丢弃畸形盒: 盒#0 存在 min>=max 的轴（空盒/退化盒），已丢弃
+[WARN] [1792575515.895686355] [peach_arm]: scan.protected_zones 丢弃畸形盒: 盒#0 存在 min>=max 的轴（空盒/退化盒），已丢弃
+[WARN] [1792575515.911082583] [peach_arm]: scan.protected_zones 丢弃畸形盒: 盒#0 存在 min>=max 的轴（空盒/退化盒），已丢弃
+[WARN] [1792575515.911176165] [peach_arm]: scan.protected_zones 丢弃畸形盒: 盒#0 存在 min>=max 的轴（空盒/退化盒），已丢弃
+[WARN] [1792575515.912610503] [rcl.logging_rosout]: Publisher already registered for node name: 'peach_arm'. If this is due to multiple nodes with the same name then all logs for the logger named 'peach_arm' will go out over the existing publisher. As soon as any node with that name is destructed it will unregister the publisher, preventing any further logs for that name from being published on the rosout topic.
+[INFO] [1792575515.917642425] [peach_arm.moveit.ros.rdf_loader]: Loaded robot model in 0.00209137 seconds
+[INFO] [1792575515.917720905] [peach_arm.moveit.core.robot_model]: Loading robot model 'aubo_e5'...
+[INFO] [1792575515.917733042] [peach_arm.moveit.core.robot_model]: No root/virtual joint specified in SRDF. Assuming fixed joint
+[INFO] [1792575515.938124524] [peach_arm.moveit.kinematics.kdl_kinematics_plugin]: Joint weights for group 'manipulator_e5': 1 1 1 1 1 1
+[INFO] [1792575515.945225006] [peach_arm.moveit.ros.move_group_interface]: Ready to take commands for planning group manipulator_e5.
+[INFO] [1792575515.945268336] [peach_arm]: 主动视觉靠近节点 ready: group=manipulator_e5 base=base_link tip=tcp camera=camera_depth_optical_frame execution=plan_only grasp=disabled
+[INFO] [1792575515.945286815] [peach_arm.cycle]: [IDLE] 已配置；activate 后才开放运动输出权限
+[WARN] [1792575515.978425506] [peach_arm]: scan.protected_zones 丢弃畸形盒: 盒#0 存在 min>=max 的轴（空盒/退化盒），已丢弃
+[INFO] [1792575515.980766934] [peach_arm]: 节点已激活：运动输出权限开放
+[WARN] [1792575515.986277527] [rcl.logging_rosout]: Publisher already registered for node name: 'peach_arm'. If this is due to multiple nodes with the same name then all logs for the logger named 'peach_arm' will go out over the existing publisher. As soon as any node with that name is destructed it will unregister the publisher, preventing any further logs for that name from being published on the rosout topic.
+[WARN] [1792575515.993271560] [rcl.logging_rosout]: Publisher already registered for node name: 'peach_arm'. If this is due to multiple nodes with the same name then all logs for the logger named 'peach_arm' will go out over the existing publisher. As soon as any node with that name is destructed it will unregister the publisher, preventing any further logs for that name from being published on the rosout topic.
+[INFO] [1792575515.998751754] [peach_arm]: 场景障碍 ACM 豁免已应用: 28 条（含 <octomap> 保留名）
+[INFO] [1792575519.015291758] [peach_arm]: 场景障碍 ACM 豁免已应用: 28 条（含 <octomap> 保留名）
+[INFO] [1792575522.024485057] [peach_arm]: 场景障碍 ACM 豁免已应用: 28 条（含 <octomap> 保留名）
+[INFO] [1792575531.178136858] [peach_arm]: 使能切换到操作台广播源（/peach/batch/enables）
+[INFO] [1792575531.178158293] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[INFO] [1792575531.186337132] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792575531.964713262] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792575532.966287420] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792575533.964380271] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792575534.963740938] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792575535.964412251] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792575536.965002926] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792575537.280821753] [peach_arm.moveit.ros.current_state_monitor]: Listening to joint states on topic 'joint_states'
+[INFO] [1792575537.971402364] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792575538.966118116] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792575539.964436519] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792575540.963757614] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792575541.964445067] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792575542.967149776] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792575543.966244194] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792575544.965213329] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792575545.969173100] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792575546.963275371] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792575547.963591625] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792575548.964374534] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792575549.409758269] [peach_arm.contact]: CheckReachability 套入直线预检 pregrasp_ik=1 sleeve_ik=1 cartesian=1 fraction=1.000 roll=0deg threshold=0.95 travel=0.030m path=0.060m seed=[0.359 -0.244 0.689] pre=[0.570 -0.606 0.642] sleeve=[0.569 -0.609 0.702]
+[INFO] [1792575549.409781949] [peach_arm.contact]: CheckReachability idx=0 require_sleeve=1 travel=0.030m reachable=true code=ok
+[INFO] [1792575549.411383775] [peach_arm.contact]: CheckReachability 套入直线预检 pregrasp_ik=1 sleeve_ik=1 cartesian=1 fraction=1.000 roll=0deg threshold=0.95 travel=0.030m path=0.060m seed=[0.359 -0.244 0.689] pre=[0.408 -0.652 0.634] sleeve=[0.405 -0.659 0.693]
+[INFO] [1792575549.411405943] [peach_arm.contact]: CheckReachability idx=1 require_sleeve=1 travel=0.030m reachable=true code=ok
+[INFO] [1792575549.417634117] [peach_arm.contact]: CheckReachability 套入直线预检 pregrasp_ik=1 sleeve_ik=1 cartesian=1 fraction=1.000 roll=0deg threshold=0.95 travel=0.030m path=0.060m seed=[0.359 -0.244 0.689] pre=[0.297 -0.708 0.598] sleeve=[0.298 -0.725 0.656]
+[INFO] [1792575549.417658113] [peach_arm.contact]: CheckReachability idx=2 require_sleeve=1 travel=0.030m reachable=true code=ok
+[INFO] [1792575549.423057296] [peach_arm.contact]: CheckReachability 套入直线预检 pregrasp_ik=1 sleeve_ik=1 cartesian=1 fraction=1.000 roll=0deg threshold=0.95 travel=0.030m path=0.060m seed=[0.359 -0.244 0.689] pre=[0.220 -0.734 0.619] sleeve=[0.197 -0.752 0.672]
+[INFO] [1792575549.423070898] [peach_arm.contact]: CheckReachability idx=3 require_sleeve=1 travel=0.030m reachable=true code=ok
+[INFO] [1792575549.964185372] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792575550.732463197] [peach_arm.cycle]: [PLAN_OBSERVATION] 生成目标导向主动视点
+[INFO] [1792575550.732640961] [peach_arm.cycle]: [FINALIZE] 等待重建精化几何（BuildTargetModel）
+[INFO] [1792575550.732645372] [peach_arm.cycle]: [FINALIZE] 等 GraspDecision（含精化几何）timeout=30.0s target=target_0 rec_state=COLLECTING
+[INFO] [1792575550.966393135] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792575551.964019526] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792575552.964363883] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792575553.974633069] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792575554.963335007] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792575555.033324161] [peach_arm]: requestCancelAll: 停止当前执行（来源：ExecuteTarget 客户端取消）
+[WARN] [1792575555.033435286] [peach_arm.contact]: failure_code=3 target=target_0 reason=decision_snapshot_unavailable: 同目标模型与许可未在时限内到齐或已过期 elapsed=4.300782s timeout=30.000000s
+[WARN] [1792575555.033477834] [peach_arm.cycle]: [FAILED] decision_snapshot_unavailable: 同目标模型与许可未在时限内到齐或已过期 elapsed=4.300782s timeout=30.000000s
+[INFO] [1792575555.033501661] [peach_arm.cycle]: [CANCELED] 用户取消主动视觉/MTC 周期
+[INFO] [1792575555.989166122] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792575556.972300493] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792575557.965825332] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792575558.970703065] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792575559.968968579] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792575560.964222030] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792575561.963472656] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792575562.965015614] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792575563.963736999] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792575564.964221227] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792575565.963394544] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792575566.963967207] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792575567.965484185] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792575568.967288923] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792575569.963722730] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792575570.964339651] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792575571.965611177] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792575572.963988569] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792575573.963217835] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792575574.964379610] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792575575.966313904] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792575576.963769550] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792575577.283905747] [peach_arm.contact]: CheckReachability 套入直线预检 pregrasp_ik=1 sleeve_ik=1 cartesian=1 fraction=1.000 roll=0deg threshold=0.95 travel=0.030m path=0.060m seed=[0.359 -0.244 0.689] pre=[0.571 -0.607 0.642] sleeve=[0.569 -0.608 0.702]
+[INFO] [1792575577.283924602] [peach_arm.contact]: CheckReachability idx=0 require_sleeve=1 travel=0.030m reachable=true code=ok
+[INFO] [1792575577.284374072] [peach_arm.contact]: CheckReachability 套入直线预检 pregrasp_ik=1 sleeve_ik=1 cartesian=1 fraction=1.000 roll=0deg threshold=0.95 travel=0.030m path=0.060m seed=[0.359 -0.244 0.689] pre=[0.407 -0.655 0.633] sleeve=[0.403 -0.663 0.693]
+[INFO] [1792575577.284377690] [peach_arm.contact]: CheckReachability idx=1 require_sleeve=1 travel=0.030m reachable=true code=ok
+[INFO] [1792575577.285467726] [peach_arm.contact]: CheckReachability 套入直线预检 pregrasp_ik=1 sleeve_ik=1 cartesian=1 fraction=1.000 roll=0deg threshold=0.95 travel=0.030m path=0.060m seed=[0.359 -0.244 0.689] pre=[0.297 -0.709 0.598] sleeve=[0.299 -0.726 0.656]
+[INFO] [1792575577.285471391] [peach_arm.contact]: CheckReachability idx=2 require_sleeve=1 travel=0.030m reachable=true code=ok
+[INFO] [1792575577.289431695] [peach_arm.contact]: CheckReachability 套入直线预检 pregrasp_ik=1 sleeve_ik=1 cartesian=1 fraction=1.000 roll=0deg threshold=0.95 travel=0.030m path=0.060m seed=[0.359 -0.244 0.689] pre=[0.220 -0.734 0.620] sleeve=[0.197 -0.752 0.672]
+[INFO] [1792575577.289654376] [peach_arm.contact]: CheckReachability idx=3 require_sleeve=1 travel=0.030m reachable=true code=ok
+[INFO] [1792575577.338002298] [peach_arm.cycle]: [PLAN_OBSERVATION] 生成目标导向主动视点
+[INFO] [1792575577.338134924] [peach_arm.cycle]: [FINALIZE] 等待重建精化几何（BuildTargetModel）
+[INFO] [1792575577.338140023] [peach_arm.cycle]: [FINALIZE] 等 GraspDecision（含精化几何）timeout=30.0s target=target_5 rec_state=COLLECTING
+[INFO] [1792575577.963283185] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792575578.979482169] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792575579.969460034] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792575580.969309764] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792575581.571206808] [peach_arm]: requestCancelAll: 停止当前执行（来源：ExecuteTarget 客户端取消）
+[WARN] [1792575581.571262748] [peach_arm.contact]: failure_code=3 target=target_5 reason=decision_snapshot_unavailable: 同目标模型与许可未在时限内到齐或已过期 elapsed=4.233120s timeout=30.000000s
+[WARN] [1792575581.571335262] [peach_arm.cycle]: [FAILED] decision_snapshot_unavailable: 同目标模型与许可未在时限内到齐或已过期 elapsed=4.233120s timeout=30.000000s
+[INFO] [1792575581.571368375] [peach_arm.cycle]: [CANCELED] 用户取消主动视觉/MTC 周期
+[INFO] [1792575581.978354071] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792575582.963944909] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792575583.978228968] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792575584.964961304] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792575585.963323453] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792575586.966801795] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792575587.963536874] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792575588.964597223] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792575589.965105666] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792575590.964909395] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792575591.965021675] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792575592.963541061] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792575593.964362933] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792575594.967372130] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792575595.963812542] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792575596.966232781] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792575597.968198542] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792575598.964374471] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792575599.965463719] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792575600.964692666] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792575601.965923963] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792575602.963185463] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792575603.063845124] [peach_arm.contact]: CheckReachability 套入直线预检 pregrasp_ik=1 sleeve_ik=1 cartesian=1 fraction=1.000 roll=0deg threshold=0.95 travel=0.030m path=0.060m seed=[0.359 -0.244 0.689] pre=[0.421 -0.633 0.638] sleeve=[0.406 -0.643 0.695]
+[INFO] [1792575603.063858842] [peach_arm.contact]: CheckReachability idx=0 require_sleeve=1 travel=0.030m reachable=true code=ok
+[INFO] [1792575603.064247701] [peach_arm.contact]: CheckReachability 套入直线预检 pregrasp_ik=1 sleeve_ik=1 cartesian=1 fraction=1.000 roll=0deg threshold=0.95 travel=0.030m path=0.060m seed=[0.359 -0.244 0.689] pre=[0.568 -0.606 0.643] sleeve=[0.569 -0.609 0.703]
+[INFO] [1792575603.064252629] [peach_arm.contact]: CheckReachability idx=1 require_sleeve=1 travel=0.030m reachable=true code=ok
+[INFO] [1792575603.066834697] [peach_arm.contact]: CheckReachability 套入直线预检 pregrasp_ik=1 sleeve_ik=1 cartesian=1 fraction=1.000 roll=0deg threshold=0.95 travel=0.030m path=0.060m seed=[0.359 -0.244 0.689] pre=[0.296 -0.710 0.598] sleeve=[0.299 -0.726 0.656]
+[INFO] [1792575603.066840515] [peach_arm.contact]: CheckReachability idx=2 require_sleeve=1 travel=0.030m reachable=true code=ok
+[INFO] [1792575603.069375463] [peach_arm.contact]: CheckReachability 套入直线预检 pregrasp_ik=1 sleeve_ik=1 cartesian=1 fraction=1.000 roll=0deg threshold=0.95 travel=0.030m path=0.060m seed=[0.359 -0.244 0.689] pre=[0.219 -0.734 0.619] sleeve=[0.197 -0.752 0.672]
+[INFO] [1792575603.069380960] [peach_arm.contact]: CheckReachability idx=3 require_sleeve=1 travel=0.030m reachable=true code=ok
+[INFO] [1792575603.145631641] [peach_arm.cycle]: [PLAN_OBSERVATION] 生成目标导向主动视点
+[INFO] [1792575603.145722709] [peach_arm.cycle]: [FINALIZE] 等待重建精化几何（BuildTargetModel）
+[INFO] [1792575603.145725587] [peach_arm.cycle]: [FINALIZE] 等 GraspDecision（含精化几何）timeout=30.0s target=target_8 rec_state=COLLECTING
+[INFO] [1792575603.963640808] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792575604.966136694] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792575605.974454052] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792575606.977525996] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792575607.979582548] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792575608.963522743] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792575609.197593188] [peach_arm]: requestCancelAll: 停止当前执行（来源：ExecuteTarget 客户端取消）
+[WARN] [1792575609.197671185] [peach_arm.contact]: failure_code=3 target=target_8 reason=decision_snapshot_unavailable: 同目标模型与许可未在时限内到齐或已过期 elapsed=6.051942s timeout=30.000000s
+[WARN] [1792575609.197742594] [peach_arm.cycle]: [FAILED] decision_snapshot_unavailable: 同目标模型与许可未在时限内到齐或已过期 elapsed=6.051942s timeout=30.000000s
+[INFO] [1792575609.197777241] [peach_arm.cycle]: [CANCELED] 用户取消主动视觉/MTC 周期
+[INFO] [1792575609.974887056] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792575610.970387312] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792575611.964032016] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792575611.978134620] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[INFO] [1792575611.980841863] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[INFO] [1792575612.036261448] [rclcpp]: signal_handler(SIGINT/SIGTERM)

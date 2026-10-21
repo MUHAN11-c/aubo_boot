@@ -1,0 +1,110 @@
+[INFO] [1792577447.682983920] [controller_manager]: Using Steady (Monotonic) clock for triggering controller manager cycles.
+[INFO] [1792577447.688187683] [controller_manager]: Subscribing to '/robot_description' topic for robot description.
+[INFO] [1792577447.688236810] [controller_manager]: update rate is 200 Hz
+[INFO] [1792577447.688240122] [controller_manager]: Overruns handling is : enabled
+[INFO] [1792577447.688242318] [controller_manager]: Spawning controller_manager RT thread with scheduler priority: 50
+[INFO] [1792577447.688289257] [controller_manager]: Successful set up FIFO RT scheduling policy with priority 50.
+[INFO] [1792577447.796246541] [controller_manager]: Received robot description from topic.
+[INFO] [1792577447.796287132] [controller_manager]: Enforcing command limits is disabled. Command limits from URDF will be ignored.
+[INFO] [1792577447.798714580] [controller_manager]: Loading hardware 'AuboE5System' 
+[INFO] [1792577447.799140879] [controller_manager]: Loaded hardware 'AuboE5System' from plugin 'mock_components/GenericSystem'
+[INFO] [1792577447.799190918] [controller_manager]: Initialize hardware 'AuboE5System' 
+[INFO] [1792577447.804323933] [controller_manager]: Successful initialization of hardware 'AuboE5System'
+[INFO] [1792577447.804759732] [controller_manager]: Activating component 'AuboE5System'.
+[INFO] [1792577447.804768142] [resource_manager]: 'configure' hardware 'AuboE5System' 
+[INFO] [1792577447.804775229] [resource_manager]: Successful 'configure' of hardware 'AuboE5System'
+[INFO] [1792577447.804787136] [resource_manager]: 'activate' hardware 'AuboE5System' 
+[INFO] [1792577447.804791003] [resource_manager]: Successful 'activate' of hardware 'AuboE5System'
+[INFO] [1792577447.804832978] [controller_manager]: Registering statistics for : AuboE5System
+[INFO] [1792577447.804862112] [controller_manager]: Resource Manager has been successfully initialized. Starting Controller Manager services...
+[INFO] [1792577447.912069661] [controller_manager]: Loading controller : 'joint_state_broadcaster' of type 'joint_state_broadcaster/JointStateBroadcaster'
+[INFO] [1792577447.912095162] [controller_manager]: Loading controller 'joint_state_broadcaster'
+[INFO] [1792577447.914202953] [controller_manager]: Controller 'joint_state_broadcaster' node arguments: --ros-args -p use_sim_time:=False --params-file /tmp/launch_params_92avhviy --params-file /home/mu/Desktop/aubo_e5_jazzy_ws/install/aubo_e5_bringup/share/aubo_e5_bringup/config/controllers.yaml 
+[INFO] [1792577448.006054094] [controller_manager]: Configuring controller: 'joint_state_broadcaster'
+[INFO] [1792577448.006173624] [joint_state_broadcaster]: 'joints' or 'interfaces' parameter is empty. All available state interfaces will be published
+[INFO] [1792577448.014955694] [controller_manager]: Activating controllers: [ joint_state_broadcaster ]
+[INFO] [1792577448.018657250] [controller_manager]: Successfully switched controllers!
+[INFO] [1792577448.705697669] [controller_manager]: Loading controller : 'joint_trajectory_controller' of type 'joint_trajectory_controller/JointTrajectoryController'
+[INFO] [1792577448.705746316] [controller_manager]: Loading controller 'joint_trajectory_controller'
+[INFO] [1792577448.707487878] [controller_manager]: Controller 'joint_trajectory_controller' node arguments: --ros-args -p use_sim_time:=False --params-file /tmp/launch_params_92avhviy --params-file /home/mu/Desktop/aubo_e5_jazzy_ws/install/aubo_e5_bringup/share/aubo_e5_bringup/config/controllers.yaml 
+[INFO] [1792577448.720019111] [controller_manager]: Configuring controller: 'joint_trajectory_controller'
+[INFO] [1792577448.720119469] [joint_trajectory_controller]: No specific joint names are used for command interfaces. Using 'joints' parameter.
+[INFO] [1792577448.720132948] [joint_trajectory_controller]: Command interfaces are [position] and state interfaces are [position velocity].
+[INFO] [1792577448.720146827] [joint_trajectory_controller]: Using 'splines' interpolation method.
+[INFO] [1792577448.722015080] [joint_trajectory_controller]: Action status changes will be monitored at 20.00 Hz.
+[INFO] [1792577448.725280709] [joint_trajectory_controller]: Setting initial scaling factor to 1.000000
+[INFO] [1792577448.725298212] [joint_trajectory_controller]: No scaling interface set. This controller will not read speed scaling from the hardware.
+[INFO] [1792577448.729651522] [controller_manager]: Activating controllers: [ joint_trajectory_controller ]
+[INFO] [1792577448.733732848] [controller_manager]: Successfully switched controllers!
+[INFO] [1792577483.798725498] [joint_trajectory_controller]: Received new action goal
+[INFO] [1792577483.798793370] [joint_trajectory_controller]: Accepted new action goal
+[INFO] [1792577485.423529839] [joint_trajectory_controller]: Goal reached, success!
+[INFO] [1792577485.514331377] [joint_trajectory_controller]: Received new action goal
+[INFO] [1792577485.514360072] [joint_trajectory_controller]: Accepted new action goal
+[INFO] [1792577487.118526736] [joint_trajectory_controller]: Goal reached, success!
+[INFO] [1792577487.710039122] [joint_trajectory_controller]: Received new action goal
+[INFO] [1792577487.710073869] [joint_trajectory_controller]: Accepted new action goal
+[INFO] [1792577492.928535004] [joint_trajectory_controller]: Goal reached, success!
+[INFO] [1792577493.215857051] [joint_trajectory_controller]: Received new action goal
+[INFO] [1792577493.215899204] [joint_trajectory_controller]: Accepted new action goal
+[INFO] [1792577498.433541821] [joint_trajectory_controller]: Goal reached, success!
+[INFO] [1792577498.524951862] [joint_trajectory_controller]: Received new action goal
+[INFO] [1792577498.524993442] [joint_trajectory_controller]: Accepted new action goal
+[INFO] [1792577501.748520718] [joint_trajectory_controller]: Goal reached, success!
+[INFO] [1792577501.809816001] [joint_trajectory_controller]: Received new action goal
+[INFO] [1792577501.809857239] [joint_trajectory_controller]: Accepted new action goal
+[INFO] [1792577502.473537076] [joint_trajectory_controller]: Goal reached, success!
+[INFO] [1792577515.264189053] [joint_trajectory_controller]: Received new action goal
+[INFO] [1792577515.264266613] [joint_trajectory_controller]: Accepted new action goal
+[INFO] [1792577515.928557120] [joint_trajectory_controller]: Goal reached, success!
+[INFO] [1792577530.424828846] [joint_trajectory_controller]: Received new action goal
+[INFO] [1792577530.424867348] [joint_trajectory_controller]: Accepted new action goal
+[INFO] [1792577532.043530621] [joint_trajectory_controller]: Goal reached, success!
+[INFO] [1792577532.129628911] [joint_trajectory_controller]: Received new action goal
+[INFO] [1792577532.129667237] [joint_trajectory_controller]: Accepted new action goal
+[INFO] [1792577533.733571286] [joint_trajectory_controller]: Goal reached, success!
+[INFO] [1792577534.260704636] [joint_trajectory_controller]: Received new action goal
+[INFO] [1792577534.260736880] [joint_trajectory_controller]: Accepted new action goal
+[INFO] [1792577538.593532921] [joint_trajectory_controller]: Goal reached, success!
+[INFO] [1792577538.776754575] [joint_trajectory_controller]: Received new action goal
+[INFO] [1792577538.776790727] [joint_trajectory_controller]: Accepted new action goal
+[INFO] [1792577543.108525484] [joint_trajectory_controller]: Goal reached, success!
+[INFO] [1792577543.184343351] [joint_trajectory_controller]: Received new action goal
+[INFO] [1792577543.184377951] [joint_trajectory_controller]: Accepted new action goal
+[INFO] [1792577546.403554392] [joint_trajectory_controller]: Goal reached, success!
+[INFO] [1792577546.469010271] [joint_trajectory_controller]: Received new action goal
+[INFO] [1792577546.469054135] [joint_trajectory_controller]: Accepted new action goal
+[INFO] [1792577547.133534757] [joint_trajectory_controller]: Goal reached, success!
+[INFO] [1792577555.869260638] [joint_trajectory_controller]: Received new action goal
+[INFO] [1792577555.869287058] [joint_trajectory_controller]: Accepted new action goal
+[INFO] [1792577556.533526052] [joint_trajectory_controller]: Goal reached, success!
+[INFO] [1792577572.124772890] [joint_trajectory_controller]: Received new action goal
+[INFO] [1792577572.124806677] [joint_trajectory_controller]: Accepted new action goal
+[INFO] [1792577573.748518912] [joint_trajectory_controller]: Goal reached, success!
+[INFO] [1792577573.909039858] [joint_trajectory_controller]: Received new action goal
+[INFO] [1792577573.909069884] [joint_trajectory_controller]: Accepted new action goal
+[INFO] [1792577575.508561446] [joint_trajectory_controller]: Goal reached, success!
+[INFO] [1792577575.965433095] [joint_trajectory_controller]: Received new action goal
+[INFO] [1792577575.965463782] [joint_trajectory_controller]: Accepted new action goal
+[INFO] [1792577580.928520094] [joint_trajectory_controller]: Goal reached, success!
+[INFO] [1792577581.145188932] [joint_trajectory_controller]: Received new action goal
+[INFO] [1792577581.145219950] [joint_trajectory_controller]: Accepted new action goal
+[INFO] [1792577586.108531788] [joint_trajectory_controller]: Goal reached, success!
+[INFO] [1792577586.199554152] [joint_trajectory_controller]: Received new action goal
+[INFO] [1792577586.199584952] [joint_trajectory_controller]: Accepted new action goal
+[INFO] [1792577589.423608019] [joint_trajectory_controller]: Goal reached, success!
+[INFO] [1792577589.492463741] [joint_trajectory_controller]: Received new action goal
+[INFO] [1792577589.492533180] [joint_trajectory_controller]: Accepted new action goal
+[INFO] [1792577590.153524180] [joint_trajectory_controller]: Goal reached, success!
+[INFO] [1792577593.417174441] [rclcpp]: signal_handler(SIGINT/SIGTERM)
+[INFO] [1792577593.417214587] [controller_manager]: Shutdown request received....
+[INFO] [1792577593.417245239] [controller_manager]: Shutting down all controllers in the controller manager.
+[INFO] [1792577593.417259633] [controller_manager]: Deactivating controller 'joint_trajectory_controller'
+[INFO] [1792577593.417293636] [controller_manager]: Shutting down controller 'joint_trajectory_controller'
+[INFO] [1792577593.417373240] [controller_manager]: Deactivating controller 'joint_state_broadcaster'
+[INFO] [1792577593.417392063] [controller_manager]: Shutting down controller 'joint_state_broadcaster'
+[INFO] [1792577593.417415418] [resource_manager]: 'deactivate' hardware 'AuboE5System' 
+[INFO] [1792577593.417422971] [resource_manager]: Successful 'deactivate' of hardware 'AuboE5System'
+[INFO] [1792577593.417424858] [resource_manager]: 'shutdown' hardware 'AuboE5System' 
+[INFO] [1792577593.417426345] [resource_manager]: Successful 'shutdown' of hardware 'AuboE5System'
+[INFO] [1792577593.417467709] [controller_manager]: Shutting down the controller manager.

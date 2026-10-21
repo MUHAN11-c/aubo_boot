@@ -35,6 +35,19 @@ def test_outcome_whitelist_includes_full_extras():
         assert data.get(key) == extra[key], key
 
 
+def test_merge_cycle_keeps_nonzero_perception_stages():
+    """识别和精化有耗时就留在再确认前面；零时长和 prepare 丢掉。"""
+    merged = batch.merge_cycle_extra(
+        {},
+        {
+            'stage_names': [
+                'prepare', 'observe', 'finalize', 'reconfirm', 'retreat'],
+            'stage_durations': [0.01, 1.2, 0.0, 0.3, 7.0],
+        })
+    assert merged['stage_names'] == ['observe', 'reconfirm', 'retreat']
+    assert merged['stage_durations'] == [1.2, 0.3, 7.0]
+
+
 def test_outcome_whitelist_excludes_idl_doomed_bools():
     """cut/retreat/harvest_confirmed 三键不补——W7 起顶层镜像已删，证据单源 harvest/verification 块."""
     extra = {

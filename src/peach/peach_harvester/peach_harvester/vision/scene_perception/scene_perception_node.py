@@ -27,7 +27,11 @@ from peach_harvester.vision.common.geometry import (
     transform_msg_to_matrix,
 )
 from peach_harvester.vision.common.ros.clock_adapter import RclpyClockAdapter
-from peach_harvester.vision.common.runtime import BoundedWorker, HarvestDataStore
+from peach_harvester.vision.common.runtime import (
+    BoundedWorker,
+    HarvestDataStore,
+    view_stage_for_phase,
+)
 from peach_harvester.vision.scene_perception.msg_builders import (
     bbox_cloud_xyzrgb,
     best_axis_direction,
@@ -83,6 +87,8 @@ class ScenePerceptionNode(LifecycleNode):
     """调度 HarvestState.run_id，用于轮目录根."""
     _executor_target_id: str = ''
     """调度当前目标；覆盖感知 selected."""
+    _executor_phase: int = 0
+    """调度 HarvestState.target_phase；决定这一帧记不记视图."""
     _executor_state_seen: bool = False
     """True 后不再回退收齐窗口 cursor."""
     _scene_epoch: int = 0
@@ -331,6 +337,7 @@ class ScenePerceptionNode(LifecycleNode):
             self._executor_state_seen = True
             # 单根会话目录（R7）：批次 request_id 驱动 datastore 基目录
             self._executor_run_id = str(msg.run_id or '')
+            self._executor_phase = int(msg.target_phase)
             old = self._executor_target_id
             if old and old != new_id:
                 self.pipeline.harvest_plan.mark_completed(old)
@@ -390,7 +397,8 @@ class ScenePerceptionNode(LifecycleNode):
             executor_run_id=self._executor_run_id)
 
     def _publish_target_observations(
-            self, header, mask_header, records, payloads) -> None:
+            self, header, mask_header, records, payloads,
+            color_bgr=None, debug_bgr=None) -> None:
         """
         发布锁定 ID 的逐目标结果，并记录选中目标掩膜与状态事件.
 
@@ -451,12 +459,10 @@ class ScenePerceptionNode(LifecycleNode):
                         (spec.mask > 0).astype(np.uint8) * 255,
                         encoding='mono8')
                     item.mask.header = mask_header
-                    if item.selected:
-                        try:
-                            self.harvest_data.save_mask(
-                                spec.target_id, stamp_ns, spec.mask)
-                        except OSError as exc:
-                            self.get_logger().error(str(exc))
+                if item.selected:
+                    self._save_stage_view(
+                        spec.target_id, stamp_ns, spec.mask,
+                        color_bgr, debug_bgr)
                 if spec.anchor_fields is not None:
                     self._apply_memory_anchor(item, spec)
                 array.observations.append(item)
@@ -464,6 +470,19 @@ class ScenePerceptionNode(LifecycleNode):
             if outcome.frame_event is not None:
                 self.harvest_data.append_event(outcome.frame_event)
             self._publish_harvest_state()
+
+    def _save_stage_view(self, target_id, stamp_ns, mask, color, debug) -> None:
+        """观察和再确认各记一帧；接近、剪切、撤离不记."""
+        stage = view_stage_for_phase(
+            self._executor_phase, mask is not None,
+            self.harvest_data.saved_stages(target_id))
+        if stage is None:
+            return
+        try:
+            self.harvest_data.save_stage_view(
+                target_id, stage, stamp_ns, mask, color=color, debug=debug)
+        except OSError as exc:
+            self.get_logger().error(str(exc))
 
     @staticmethod
     def _apply_memory_anchor(item, spec) -> None:
@@ -672,7 +691,7 @@ class ScenePerceptionNode(LifecycleNode):
         self.pub_norm_dets.publish(det_msg)
         self._publish_target_observations(
             out.header, out.mask_header, out.harvest_records,
-            out.harvest_payloads)
+            out.harvest_payloads, synced.rgb, out.debug)
         self.pub_norm_pose.publish(out.candidates)
         self.pub_norm_diag.publish(out.fittings)
         self.pub_norm_markers.publish(out.markers)

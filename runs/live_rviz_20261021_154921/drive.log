@@ -1,0 +1,65 @@
+[WARN] [1792569003.471533480] [rcl]: ROS_LOCALHOST_ONLY is deprecated but still honored if it is enabled. Use ROS_AUTOMATIC_DISCOVERY_RANGE and ROS_STATIC_PEERS instead.
+[WARN] [1792569003.471556172] [rcl]: 'localhost_only' is enabled, 'automatic_discovery_range' and 'static_peers' will be ignored.
+enables execution=True grasp=True tool=False accepted=True 已广播 /peach/batch/enables
+ROUND 1/3 goal flow10_155004_r01
+r1 batch=0 target=- msg=waiting_ready
+r1 batch=2 target=target_1 msg=等待重建精化几何（BuildTargetModel）
+r1 batch=2 target=target_1 msg=沿轴 LIN 套入
+r1 batch=2 target=target_1 msg=MTC 沿插入反方向保持直线撤离
+r1 batch=7 target=target_1 msg=recovery_required
+ack target=target_1 seq=115 accepted=True 已记录现场人工撤离确认；本服务不发送任何运动命令
+r1 batch=2 target=target_3 msg=等待重建精化几何（BuildTargetModel）
+r1 batch=2 target=target_3 msg=沿轴 LIN 套入
+r1 batch=2 target=target_3 msg=MTC 沿插入反方向保持直线撤离
+r1 batch=7 target=target_3 msg=recovery_required
+ack target=target_3 seq=241 accepted=True 已记录现场人工撤离确认；本服务不发送任何运动命令
+r1 batch=2 target=target_2 msg=等待重建精化几何（BuildTargetModel）
+r1 batch=2 target=target_2 msg=等待重建精化几何（BuildTargetModel）
+r1 batch=2 target=target_0 msg=等待重建精化几何（BuildTargetModel）
+r1 batch=1 target=- msg=discovery
+r1 batch=1 target=- msg=discovery
+ROUND 1 RESULT success=True reason=completed elapsed=106.9s discovered=4 attempted=4 succeeded=2 skipped_quality=2 failed=0
+  target_1 outcome=0 周期完成；tool.enabled=false 或未宣称采摘成功
+  target_3 outcome=0 周期完成；tool.enabled=false 或未宣称采摘成功
+  target_2 outcome=1 build_failed: bag_axis_silhouette_unobservable; attempts=3; 局部重建完成：1 帧，4189 点（少于推荐 5 帧）；跳过 14 次（joint_state_unavailable=7, missing_mask=7）；重叠指标需 ≥2 帧，本批次不可用；TSDF 864 点 / mesh 1519 顶点（累计积分 0.00s）；refit 失败（bag_axis_silhouette_unobservable）；refit 未产出可用几何
+  target_0 outcome=1 build_failed: bag_axis_envelope_ill_conditioned; attempts=3; 局部重建完成：1 帧，6775 点（少于推荐 5 帧）；跳过 7 次（missing_mask=7）；重叠指标需 ≥2 帧，本批次不可用；TSDF 1314 点 / mesh 2067 顶点（累计积分 0.01s）；refit 失败（bag_axis_envelope_ill_conditioned）；refit 未产出可用几何
+PROGRESS 1/1
+ROUND 2/3 goal flow10_155151_r02
+r2 batch=6 target=- msg=completed
+r2 batch=2 target=target_5 msg=等待重建精化几何（BuildTargetModel）
+r2 batch=2 target=target_5 msg=沿轴 LIN 套入
+r2 batch=2 target=target_5 msg=返回 harvest_stow
+r2 batch=7 target=target_5 msg=recovery_required
+ack target=target_5 seq=396 accepted=True 已记录现场人工撤离确认；本服务不发送任何运动命令
+r2 batch=1 target=- msg=discovery
+r2 batch=2 target=target_6 msg=等待重建精化几何（BuildTargetModel）
+r2 batch=1 target=- msg=discovery
+ROUND 2 RESULT success=True reason=completed elapsed=61.2s discovered=4 attempted=2 succeeded=1 skipped_quality=1 failed=0
+  target_5 outcome=0 周期完成；tool.enabled=false 或未宣称采摘成功
+  target_6 outcome=1 build_failed: bag_axis_silhouette_unobservable; attempts=3; 局部重建完成：2 帧，8424 点（少于推荐 5 帧）；跳过 5 次（missing_mask=5）；重叠 mean=0.2mm p95=0.3mm；TSDF 872 点 / mesh 1540 顶点（累计积分 0.01s）；refit 失败（bag_axis_silhouette_unobservable）；refit 未产出可用几何
+PROGRESS 2/2
+ROUND 3/3 goal flow10_155252_r03
+r3 batch=6 target=- msg=completed
+r3 batch=2 target=target_9 msg=等待重建精化几何（BuildTargetModel）
+r3 batch=2 target=target_9 msg=沿轴 LIN 套入
+r3 batch=2 target=target_9 msg=返回 harvest_stow
+r3 batch=7 target=target_9 msg=recovery_required
+ack target=target_9 seq=539 accepted=True 已记录现场人工撤离确认；本服务不发送任何运动命令
+r3 batch=2 target=target_10 msg=等待重建精化几何（BuildTargetModel）
+r3 batch=2 target=target_10 msg=沿轴 LIN 套入
+r3 batch=2 target=target_10 msg=返回 harvest_stow
+r3 batch=7 target=target_10 msg=recovery_required
+ack target=target_10 seq=644 accepted=True 已记录现场人工撤离确认；本服务不发送任何运动命令
+r3 batch=2 target=target_11 msg=等待重建精化几何（BuildTargetModel）
+r3 batch=2 target=target_11 msg=等待重建精化几何（BuildTargetModel）
+r3 batch=2 target=target_8 msg=等待重建精化几何（BuildTargetModel）
+r3 batch=2 target=target_8 msg=等待重建精化几何（BuildTargetModel）
+r3 batch=1 target=- msg=discovery
+ROUND 3 RESULT success=True reason=completed elapsed=108.3s discovered=4 attempted=4 succeeded=2 skipped_quality=2 failed=0
+  target_9 outcome=0 周期完成；tool.enabled=false 或未宣称采摘成功
+  target_10 outcome=0 周期完成；tool.enabled=false 或未宣称采摘成功
+  target_11 outcome=1 skipped_quality: decision_snapshot_unavailable: 同目标模型与许可未在时限内到齐或已过期 elapsed=5.000424s timeout=5.000000s
+  target_8 outcome=1 build_failed: bag_axis_envelope_ill_conditioned; attempts=3; 局部重建完成：1 帧，6440 点（少于推荐 5 帧）；跳过 25 次（joint_state_unavailable=14, missing_mask=11）；重叠指标需 ≥2 帧，本批次不可用；TSDF 1302 点 / mesh 2182 顶点（累计积分 0.00s）；refit 失败（bag_axis_envelope_ill_conditioned）；refit 未产出可用几何
+PROGRESS 3/3
+SUMMARY passed_rounds=3/3
+enables execution=False grasp=False tool=False accepted=True 已广播 /peach/batch/enables

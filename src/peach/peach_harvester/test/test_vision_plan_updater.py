@@ -72,6 +72,26 @@ _PAYLOADS = {'target_0': {
     'candidate': _Candidate(), 'candidate_2d': None, 'fitting': None}}
 
 
+def test_lock_order_prefers_vertical_axis():
+    """更竖直的袋先锁定，近处的横袋不能插到前面."""
+    plan = GlobalHarvestPlan(
+        max_targets=10, prefer_lower_first=True,
+        lock_policy=CollectLockPolicy(
+            min_collect_frames=1, lock_settle_frames=1, max_collect_s=25.0))
+    records = [
+        {'target_id': 'flat', 'status': 0, 'confidence': 0.9,
+         'camera_distance_m': 0.4, 'base_height_m': 0.2, 'confirmed': True,
+         'axis_tilt_from_vertical_deg': 80.0},
+        {'target_id': 'upright', 'status': 0, 'confidence': 0.5,
+         'camera_distance_m': 0.9, 'base_height_m': 0.8, 'confirmed': True,
+         'axis_tilt_from_vertical_deg': 12.0},
+    ]
+    plan.update(records, 0.0)
+    plan.update(records, 1.0)
+    assert plan.locked_ids[0] == 'upright'
+    assert plan.priorities['upright'] == 1
+
+
 def test_update_locks_and_builds_observation_specs():
     updater, pipeline, clock = _updater()
     updater.update(_RECORDS, _PAYLOADS, 42, 'target_0', None)

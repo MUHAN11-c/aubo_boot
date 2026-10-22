@@ -28,6 +28,14 @@
       </form>
       <p id="status" class="empty">从 runs 目录选择一次测试记录。过程监控页不会因此改变。</p>
     </section>
+    <section class="panel">
+      <div class="section-head">
+        <div><p class="kicker">SUCCESS</p><h2>成功率</h2></div>
+      </div>
+      <div id="success-rates" class="rate-grid"></div>
+      <div id="success-sessions" class="hbar-list"></div>
+      <p id="success-note" class="analysis-note">一次抓取一条。成功率是终局成功且完成度至少 6。采摘确认才要完成度 7。</p>
+    </section>
     <section class="panel" id="result" hidden>
       <div class="section-head">
         <div><p class="kicker">SUMMARY</p><h2 id="result-title">分析结果</h2></div>

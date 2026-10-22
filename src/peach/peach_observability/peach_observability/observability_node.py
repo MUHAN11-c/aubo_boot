@@ -273,6 +273,7 @@ class ObservabilityNode(LifecycleNode):
         # 调试 POST（debug.enabled=true 才建桥）
         self._debug_bridge: DebugBridge | None = None
         self._debug_audit: DebugAudit | None = None
+        self._param_bridge = None
         # 全流程时序跟踪器（pipeline.py 纯核）：调度 FSM / 技能周期
         self._fsm_tracker = pipeline.StageTracker(limit=150)
         self._arm_tracker = pipeline.StageTracker(limit=150)
@@ -1171,6 +1172,13 @@ class ObservabilityNode(LifecycleNode):
             str(resolve_runs_root(self._params.record_root_dir)),
             self._params.debug_audit_enabled,
             lambda msg: self.get_logger().warning(msg))
+        from .param_panel import ParamBridge
+        self._param_bridge = ParamBridge(
+            self, self._debug_audit,
+            self._params.debug_motion_enabled,
+            self._on_param_change,
+            lambda msg: self.get_logger().warning(msg))
+        self._param_bridge.open_all()
         if not self._params.debug_enabled:
             self.get_logger().info('调试操作面未启用（debug.enabled=false）')
             return
@@ -1240,6 +1248,43 @@ class ObservabilityNode(LifecycleNode):
             self._debug_audit.record(row)
         return status, body
 
+    def _on_param_change(self, name: str, value) -> None:
+        """参数面板写入后同步节点缓存（否则 debug_command/快照仍读旧值）."""
+        if name == 'debug.enabled':
+            self._params.debug_enabled = bool(value)
+        elif name == 'debug.motion_enabled':
+            self._params.debug_motion_enabled = bool(value)
+            if self._debug_bridge is not None:
+                self._debug_bridge._motion_enabled = bool(value)
+        elif name == 'record.enabled':
+            self._params.record_enabled = bool(value)
+        elif name == 'record.level':
+            self._params.record_level = str(value)
+
+    def params_report(self) -> dict:
+        """调试台参数面板：只读列出白名单节点/参数当前值."""
+        if self._param_bridge is None:
+            return {'groups': [], 'error': '参数面板未启用'}
+        return self._param_bridge.report()
+
+    def params_set(self, payload: dict) -> tuple:
+        """调试台参数面板：白名单写入 + 运动门 + 审计；读走 params_report."""
+        if self._param_bridge is None:
+            return 503, {'accepted': False, 'message': '参数面板未启用'}
+        if self._params is None or not self._params.debug_enabled:
+            return 503, {'accepted': False,
+                         'message': 'debug.enabled=false，参数写入已关闭'}
+        changes = payload.get('changes') if isinstance(payload, dict) else None
+        status, body = self._param_bridge.set(changes)
+        if self._debug_audit is not None:
+            self._debug_audit.record({
+                'action': 'params', 'args': payload,
+                'accepted': bool(body.get('accepted')),
+                'status': status, 'message': body.get('message', ''),
+                'result': body,
+            })
+        return status, body
+
     # ------------------------------------------------------------------
     # HttpBackend 窄接口实现（http_server 只依赖这三个方法）
     # ------------------------------------------------------------------
@@ -1280,6 +1325,11 @@ class ObservabilityNode(LifecycleNode):
     def _runs_root(self):
         return resolve_runs_root(
             self._params.record_root_dir if self._params else None)
+
+    def analysis_success(self) -> dict:
+        """每次抓取的套入完成率。不改监控状态."""
+        from .record_analysis import success_summary
+        return success_summary(self._runs_root())
 
     def analysis_records(self) -> dict:
         """列出 runs 里可解析的测试目录。不改监控状态."""
@@ -1452,6 +1502,9 @@ class ObservabilityNode(LifecycleNode):
             self.destroy_client(client)
         self._param_clients.clear()
         self._param_inflight.clear()
+        if self._param_bridge is not None:
+            self._param_bridge.close()
+            self._param_bridge = None
         if self._debug_bridge is not None:
             self._debug_bridge.close()
             self._debug_bridge = None

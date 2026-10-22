@@ -1,0 +1,96 @@
+{
+  "claimed": [
+    "target_0",
+    "target_1",
+    "target_2",
+    "target_3"
+  ],
+  "outcomes": [
+    {
+      "target_id": "target_0",
+      "outcome": 0,
+      "reason": "周期完成；tool.enabled=false 或未宣称采摘成功",
+      "quality_score": 0.0,
+      "elapsed_s": 20.246,
+      "completion_level": 6,
+      "stage_names": [
+        "finalize",
+        "reconfirm",
+        "approach_insert",
+        "tool",
+        "retreat"
+      ],
+      "stage_durations": [
+        0.257,
+        0.341,
+        10.261,
+        0.0,
+        9.304
+      ]
+    },
+    {
+      "target_id": "target_1",
+      "outcome": 0,
+      "reason": "周期完成；tool.enabled=false 或未宣称采摘成功",
+      "quality_score": 0.0,
+      "elapsed_s": 20.765,
+      "completion_level": 6,
+      "stage_names": [
+        "finalize",
+        "reconfirm",
+        "approach_insert",
+        "tool",
+        "retreat"
+      ],
+      "stage_durations": [
+        0.006,
+        3.505,
+        8.734,
+        0.0,
+        8.201
+      ]
+    },
+    {
+      "target_id": "target_2",
+      "outcome": 0,
+      "reason": "周期完成；tool.enabled=false 或未宣称采摘成功",
+      "quality_score": 0.0,
+      "elapsed_s": 23.247,
+      "completion_level": 6,
+      "stage_names": [
+        "finalize",
+        "reconfirm",
+        "approach_insert",
+        "tool",
+        "retreat"
+      ],
+      "stage_durations": [
+        0.008,
+        4.802,
+        9.412,
+        0.0,
+        8.851
+      ]
+    },
+    {
+      "target_id": "target_3",
+      "outcome": 2,
+      "reason": "skipped_unreachable: 到预抓取失败: MTC short-path guard rejected: 工具筒体接触果实胶囊 s=0.276463m r=0.250344m 间隙=-0.0106128m (果半径 0.13m)",
+      "quality_score": 0.0,
+      "elapsed_s": 5.712,
+      "failure_code": "skipped_unreachable",
+      "failure_code_n": 5,
+      "completion_level": 0,
+      "stage_names": [
+        "finalize",
+        "reconfirm",
+        "approach_insert"
+      ],
+      "stage_durations": [
+        0.003,
+        2.28,
+        3.25
+      ]
+    }
+  ]
+}

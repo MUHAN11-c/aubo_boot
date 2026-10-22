@@ -1,0 +1,82 @@
+[WARN] [1792651639.971169042] [peach_observability]: *** 调试操作面已启用：运动类操作=默认拒绝。技能侧既有安全门照常生效；请保持 HTTP 回环绑定 ***
+[INFO] [1792651639.973822450] [peach_observability]: 感知抓取过程页（过程监控+单步调试）: http://127.0.0.1:8090
+[INFO] [1792651639.978099278] [peach_observability]: 全量录制订阅: /display_planned_path [moveit_msgs/msg/DisplayTrajectory]
+[INFO] [1792651640.021794023] [peach_observability]: 全量录制订阅: /execute_trajectory/_action/feedback [moveit_msgs/action/ExecuteTrajectory_FeedbackMessage]
+[INFO] [1792651640.022379071] [peach_observability]: 全量录制订阅: /execute_trajectory/_action/status [action_msgs/msg/GoalStatusArray]
+[INFO] [1792651640.022958694] [peach_observability]: 全量录制订阅: /joint_states [sensor_msgs/msg/JointState]
+[INFO] [1792651640.025343512] [peach_observability]: 全量录制订阅: /peach/observability/tcp_path [nav_msgs/msg/Path]
+[INFO] [1792651640.025780352] [peach_observability]: 全量录制订阅: /peach/perception/target_observations [peach_interfaces/msg/PeachTargetObservationArray]
+[INFO] [1792651640.026142908] [peach_observability]: 全量录制订阅: /peach/reconstruction/diagnostics [peach_interfaces/msg/ReconstructionStatus]
+[INFO] [1792651640.026668621] [peach_observability]: 全量录制订阅: /peach/reconstruction/diagnostics_debug [std_msgs/msg/String]
+[INFO] [1792651640.027018044] [peach_observability]: 全量录制订阅: /peach/reconstruction/grasp_decision [peach_interfaces/msg/GraspDecision]
+[INFO] [1792651640.027433024] [peach_observability]: 全量录制订阅: /peach/reconstruction/refined_axis [geometry_msgs/msg/Vector3Stamped]
+[INFO] [1792651640.027921507] [peach_observability]: 全量录制订阅: /peach/reconstruction/refined_diagnostics [peach_interfaces/msg/BagFittingArray]
+[INFO] [1792651640.028400701] [peach_observability]: 全量录制订阅: /peach/reconstruction/refined_pose [peach_interfaces/msg/BagGraspCandidateArray]
+[INFO] [1792651640.028961898] [peach_observability]: 全量录制订阅: /peach/reconstruction/status [std_msgs/msg/String]
+[INFO] [1792651640.029541234] [peach_observability]: 全量录制订阅: /peach/reconstruction/tsdf_cloud [sensor_msgs/msg/PointCloud2]
+[INFO] [1792651640.030034285] [peach_observability]: 全量录制订阅: /peach_arm/execute_target/_action/feedback [peach_interfaces/action/ExecuteTarget_FeedbackMessage]
+[INFO] [1792651640.030499900] [peach_observability]: 全量录制订阅: /peach_arm/execute_target/_action/status [action_msgs/msg/GoalStatusArray]
+[INFO] [1792651640.030934549] [peach_observability]: 全量录制订阅: /peach_arm/status [std_msgs/msg/String]
+[INFO] [1792651640.031296025] [peach_observability]: 全量录制订阅: /peach_supervisor/events [peach_interfaces/msg/CanonicalEvent]
+[INFO] [1792651640.031778770] [peach_observability]: 全量录制订阅: /peach_supervisor/run_harvest/_action/feedback [peach_interfaces/action/RunHarvest_FeedbackMessage]
+[INFO] [1792651640.032122599] [peach_observability]: 全量录制订阅: /peach_supervisor/run_harvest/_action/status [action_msgs/msg/GoalStatusArray]
+[INFO] [1792651640.032574635] [peach_observability]: 全量录制订阅: /peach_supervisor/scene_snapshot [peach_interfaces/msg/SceneSnapshot]
+[INFO] [1792651640.032981093] [peach_observability]: 全量录制订阅: /peach_supervisor/state [peach_interfaces/msg/HarvestState]
+[INFO] [1792651640.033413139] [peach_observability]: 全量录制订阅: /peach_target_reconstruction_node/build_target_model/_action/feedback [peach_interfaces/action/BuildTargetModel_FeedbackMessage]
+[INFO] [1792651640.033818348] [peach_observability]: 全量录制订阅: /peach_target_reconstruction_node/build_target_model/_action/status [action_msgs/msg/GoalStatusArray]
+[INFO] [1792651640.034243697] [peach_observability]: 全量录制订阅: /tf [tf2_msgs/msg/TFMessage]
+[INFO] [1792651640.034601559] [peach_observability]: 全量录制订阅: /tf_static [tf2_msgs/msg/TFMessage]
+[INFO] [1792651642.081194998] [peach_observability]: 全量录制订阅: /aubo_passthrough_trajectory_controller/follow_joint_trajectory/_action/feedback [control_msgs/action/FollowJointTrajectory_FeedbackMessage]
+[INFO] [1792651642.081960829] [peach_observability]: 全量录制订阅: /aubo_passthrough_trajectory_controller/follow_joint_trajectory/_action/status [action_msgs/msg/GoalStatusArray]
+[INFO] [1792651642.082636406] [peach_observability]: 全量录制订阅: /peach/batch/enables [peach_interfaces/msg/Enables]
+[INFO] [1792651642.083175077] [peach_observability]: 全量录制订阅: /peach/perception/masks [sensor_msgs/msg/Image]
+[INFO] [1792651642.083737292] [peach_observability]: 全量录制订阅: /peach/reconstruction/local_cloud [sensor_msgs/msg/PointCloud2]
+[INFO] [1792651642.084110740] [peach_observability]: 全量录制订阅: /peach/reconstruction/preview_cloud [sensor_msgs/msg/PointCloud2]
+[INFO] [1792651649.977089015] [peach_observability]: 自检[initial] 16/18 通过，跳过: model_files, vegetation_status
+[INFO] [1792651669.977602757] [peach_observability]: 自检[periodic] 16/18 通过，跳过: model_files, vegetation_status
+[INFO] [1792651699.975893993] [peach_observability]: 自检[periodic] 12/18 通过，跳过: tcp_frame, camera_color_rate, camera_depth_rate, robot_status, model_files, vegetation_status
+[INFO] [1792651729.976603609] [peach_observability]: 自检[periodic] 12/18 通过，跳过: tcp_frame, camera_color_rate, camera_depth_rate, robot_status, model_files, vegetation_status
+[INFO] [1792651759.977888956] [peach_observability]: 自检[periodic] 12/18 通过，跳过: tcp_frame, camera_color_rate, camera_depth_rate, robot_status, model_files, vegetation_status
+[WARN] [1792651774.949867518] [rosbag2_cpp]: Message definition for topic '/peach_supervisor/run_harvest/_action/feedback' with type 'peach_interfaces/msg/RunHarvest_FeedbackMessage' not found. Message definition will be left empty in bag.
+[WARN] [1792651774.949956797] [rosbag2_cpp]: Message definition for topic '/peach_supervisor/run_harvest/_action/status' with type 'action_msgs/msg/GoalStatusArray' not found. Message definition will be left empty in bag.
+[WARN] [1792651787.529993844] [rosbag2_cpp]: Message definition for topic '/peach_arm/execute_target/_action/feedback' with type 'peach_interfaces/msg/ExecuteTarget_FeedbackMessage' not found. Message definition will be left empty in bag.
+[WARN] [1792651787.530075765] [rosbag2_cpp]: Message definition for topic '/peach_arm/execute_target/_action/status' with type 'action_msgs/msg/GoalStatusArray' not found. Message definition will be left empty in bag.
+[WARN] [1792651789.249910400] [rosbag2_cpp]: Message definition for topic '/aubo_passthrough_trajectory_controller/follow_joint_trajectory/_action/status' with type 'action_msgs/msg/GoalStatusArray' not found. Message definition will be left empty in bag.
+[WARN] [1792651789.300461968] [rosbag2_cpp]: Message definition for topic '/aubo_passthrough_trajectory_controller/follow_joint_trajectory/_action/feedback' with type 'control_msgs/msg/FollowJointTrajectory_FeedbackMessage' not found. Message definition will be left empty in bag.
+[INFO] [1792651789.977951746] [peach_observability]: 自检[periodic] 12/18 通过，跳过: tcp_frame, camera_color_rate, camera_depth_rate, robot_status, model_files, vegetation_status
+[WARN] [1792651791.155085522] [rosbag2_cpp]: Message definition for topic '/execute_trajectory/_action/feedback' with type 'moveit_msgs/msg/ExecuteTrajectory_FeedbackMessage' not found. Message definition will be left empty in bag.
+[WARN] [1792651791.157208836] [rosbag2_cpp]: Message definition for topic '/execute_trajectory/_action/status' with type 'action_msgs/msg/GoalStatusArray' not found. Message definition will be left empty in bag.
+[INFO] [1792651819.987849289] [peach_observability]: 自检[periodic] 12/18 通过，跳过: tcp_frame, camera_color_rate, camera_depth_rate, robot_status, model_files, vegetation_status
+[INFO] [1792651849.976164910] [peach_observability]: 自检[periodic] 12/18 通过，跳过: tcp_frame, camera_color_rate, camera_depth_rate, robot_status, model_files, vegetation_status
+[INFO] [1792651880.000667885] [peach_observability]: 自检[periodic] 12/18 通过，跳过: tcp_frame, camera_color_rate, camera_depth_rate, robot_status, model_files, vegetation_status
+[INFO] [1792651909.984258928] [peach_observability]: 自检[periodic] 12/18 通过，跳过: tcp_frame, camera_color_rate, camera_depth_rate, robot_status, model_files, vegetation_status
+[INFO] [1792651939.981246313] [peach_observability]: 自检[periodic] 12/18 通过，跳过: tcp_frame, camera_color_rate, camera_depth_rate, robot_status, model_files, vegetation_status
+[INFO] [1792651969.978333502] [peach_observability]: 自检[periodic] 12/18 通过，跳过: tcp_frame, camera_color_rate, camera_depth_rate, robot_status, model_files, vegetation_status
+[INFO] [1792651999.976783156] [peach_observability]: 自检[periodic] 12/18 通过，跳过: tcp_frame, camera_color_rate, camera_depth_rate, robot_status, model_files, vegetation_status
+[INFO] [1792652029.976842323] [peach_observability]: 自检[periodic] 12/18 通过，跳过: tcp_frame, camera_color_rate, camera_depth_rate, robot_status, model_files, vegetation_status
+[INFO] [1792652059.977563221] [peach_observability]: 自检[periodic] 12/18 通过，跳过: tcp_frame, camera_color_rate, camera_depth_rate, robot_status, model_files, vegetation_status
+[INFO] [1792652089.976132914] [peach_observability]: 自检[periodic] 12/18 通过，跳过: tcp_frame, camera_color_rate, camera_depth_rate, robot_status, model_files, vegetation_status
+[INFO] [1792652119.980943529] [peach_observability]: 自检[periodic] 12/18 通过，跳过: tcp_frame, camera_color_rate, camera_depth_rate, robot_status, model_files, vegetation_status
+[INFO] [1792652149.981326817] [peach_observability]: 自检[periodic] 12/18 通过，跳过: tcp_frame, camera_color_rate, camera_depth_rate, robot_status, model_files, vegetation_status
+[INFO] [1792652179.976555988] [peach_observability]: 自检[periodic] 12/18 通过，跳过: tcp_frame, camera_color_rate, camera_depth_rate, robot_status, model_files, vegetation_status
+[INFO] [1792652209.979697320] [peach_observability]: 自检[periodic] 12/18 通过，跳过: tcp_frame, camera_color_rate, camera_depth_rate, robot_status, model_files, vegetation_status
+[INFO] [1792652239.992717381] [peach_observability]: 自检[periodic] 12/18 通过，跳过: tcp_frame, camera_color_rate, camera_depth_rate, robot_status, model_files, vegetation_status
+[INFO] [1792652270.019812260] [peach_observability]: 自检[periodic] 12/18 通过，跳过: tcp_frame, camera_color_rate, camera_depth_rate, robot_status, model_files, vegetation_status
+[INFO] [1792652299.984748333] [peach_observability]: 自检[periodic] 12/18 通过，跳过: tcp_frame, camera_color_rate, camera_depth_rate, robot_status, model_files, vegetation_status
+[INFO] [1792652329.977312514] [peach_observability]: 自检[periodic] 12/18 通过，跳过: tcp_frame, camera_color_rate, camera_depth_rate, robot_status, model_files, vegetation_status
+[INFO] [1792652359.976159497] [peach_observability]: 自检[periodic] 12/18 通过，跳过: tcp_frame, camera_color_rate, camera_depth_rate, robot_status, model_files, vegetation_status
+[INFO] [1792652389.982868236] [peach_observability]: 自检[periodic] 12/18 通过，跳过: tcp_frame, camera_color_rate, camera_depth_rate, robot_status, model_files, vegetation_status
+[INFO] [1792652419.976502335] [peach_observability]: 自检[periodic] 12/18 通过，跳过: tcp_frame, camera_color_rate, camera_depth_rate, robot_status, model_files, vegetation_status
+[INFO] [1792652449.979289913] [peach_observability]: 自检[periodic] 12/18 通过，跳过: tcp_frame, camera_color_rate, camera_depth_rate, robot_status, model_files, vegetation_status
+[INFO] [1792652479.976462564] [peach_observability]: 自检[periodic] 12/18 通过，跳过: tcp_frame, camera_color_rate, camera_depth_rate, robot_status, model_files, vegetation_status
+[INFO] [1792652509.980389327] [peach_observability]: 自检[periodic] 12/18 通过，跳过: tcp_frame, camera_color_rate, camera_depth_rate, robot_status, model_files, vegetation_status
+[INFO] [1792652539.976116594] [peach_observability]: 自检[periodic] 12/18 通过，跳过: tcp_frame, camera_color_rate, camera_depth_rate, robot_status, model_files, vegetation_status
+[INFO] [1792652569.978019592] [peach_observability]: 自检[periodic] 12/18 通过，跳过: tcp_frame, camera_color_rate, camera_depth_rate, robot_status, model_files, vegetation_status
+[INFO] [1792652599.977190768] [peach_observability]: 自检[periodic] 12/18 通过，跳过: tcp_frame, camera_color_rate, camera_depth_rate, robot_status, model_files, vegetation_status
+[INFO] [1792652629.977294336] [peach_observability]: 自检[periodic] 12/18 通过，跳过: tcp_frame, camera_color_rate, camera_depth_rate, robot_status, model_files, vegetation_status
+[INFO] [1792652659.977516416] [peach_observability]: 自检[periodic] 12/18 通过，跳过: tcp_frame, camera_color_rate, camera_depth_rate, robot_status, model_files, vegetation_status
+[INFO] [1792652689.990903126] [peach_observability]: 自检[periodic] 12/18 通过，跳过: tcp_frame, camera_color_rate, camera_depth_rate, robot_status, model_files, vegetation_status
+[INFO] [1792652719.978330320] [peach_observability]: 自检[periodic] 12/18 通过，跳过: tcp_frame, camera_color_rate, camera_depth_rate, robot_status, model_files, vegetation_status
+[INFO] [1792652749.982891499] [peach_observability]: 自检[periodic] 12/18 通过，跳过: tcp_frame, camera_color_rate, camera_depth_rate, robot_status, model_files, vegetation_status
+[INFO] [1792652779.979235783] [peach_observability]: 自检[periodic] 12/18 通过，跳过: tcp_frame, camera_color_rate, camera_depth_rate, robot_status, model_files, vegetation_status
+[INFO] [1792652809.979838217] [peach_observability]: 自检[periodic] 12/18 通过，跳过: tcp_frame, camera_color_rate, camera_depth_rate, robot_status, model_files, vegetation_status

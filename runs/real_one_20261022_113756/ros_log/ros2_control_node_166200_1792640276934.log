@@ -1,0 +1,63 @@
+[INFO] [1792640276.954242882] [controller_manager]: Using Steady (Monotonic) clock for triggering controller manager cycles.
+[INFO] [1792640276.958762172] [controller_manager]: Subscribing to '/robot_description' topic for robot description.
+[INFO] [1792640276.958815080] [controller_manager]: update rate is 200 Hz
+[INFO] [1792640276.958819281] [controller_manager]: Overruns handling is : enabled
+[INFO] [1792640276.958822548] [controller_manager]: Spawning controller_manager RT thread with scheduler priority: 50
+[INFO] [1792640276.958877833] [controller_manager]: Successful set up FIFO RT scheduling policy with priority 50.
+[INFO] [1792640277.297553138] [controller_manager]: Received robot description from topic.
+[INFO] [1792640277.297601535] [controller_manager]: Enforcing command limits is disabled. Command limits from URDF will be ignored.
+[INFO] [1792640277.299513453] [controller_manager]: Loading hardware 'AuboE5System' 
+[INFO] [1792640277.304214584] [controller_manager]: Loaded hardware 'AuboE5System' from plugin 'aubo_e5_hardware/AuboE5Hardware'
+[INFO] [1792640277.304297358] [controller_manager]: Initialize hardware 'AuboE5System' 
+[INFO] [1792640277.314017140] [AuboE5Hardware]: on_init OK (169.254.10.98:8899, rib_target=400, slowdown=300/350, batch=2..8, speed_guard=false)
+[INFO] [1792640277.314039612] [controller_manager]: Successful initialization of hardware 'AuboE5System'
+[INFO] [1792640277.314377346] [controller_manager]: Activating component 'AuboE5System'.
+[INFO] [1792640277.314384280] [resource_manager]: 'configure' hardware 'AuboE5System' 
+[INFO] [1792640277.398353075] [AuboE5Hardware]: Real robot detected
+[INFO] [1792640277.457916726] [AuboE5Hardware]: on_configure OK (dual login, push active)
+[INFO] [1792640277.457938664] [resource_manager]: Successful 'configure' of hardware 'AuboE5System'
+[INFO] [1792640277.457956585] [resource_manager]: 'activate' hardware 'AuboE5System' 
+[INFO] [1792640277.470781662] [AuboE5Hardware]: on_activate OK (TCP2CAN active, send + IO threads running)
+[INFO] [1792640277.470804554] [resource_manager]: Successful 'activate' of hardware 'AuboE5System'
+[INFO] [1792640277.470807451] [AuboE5Hardware.ioLoop]: ioLoop started
+[INFO] [1792640277.470872351] [controller_manager]: Registering statistics for : AuboE5System
+[INFO] [1792640277.470908939] [AuboE5Hardware.sendLoop]: sendLoop started
+[INFO] [1792640277.470922296] [controller_manager]: Resource Manager has been successfully initialized. Starting Controller Manager services...
+[INFO] [1792640277.673816670] [controller_manager]: Loading controller : 'joint_state_broadcaster' of type 'joint_state_broadcaster/JointStateBroadcaster'
+[INFO] [1792640277.673861257] [controller_manager]: Loading controller 'joint_state_broadcaster'
+[INFO] [1792640277.676224041] [controller_manager]: Controller 'joint_state_broadcaster' node arguments: --ros-args -p use_sim_time:=False --params-file /tmp/launch_params_75x7efoa --params-file /home/mu/Desktop/aubo_e5_jazzy_ws/install/aubo_e5_bringup/share/aubo_e5_bringup/config/controllers.yaml 
+[INFO] [1792640277.771488973] [controller_manager]: Configuring controller: 'joint_state_broadcaster'
+[INFO] [1792640277.771623183] [joint_state_broadcaster]: 'joints' or 'interfaces' parameter is empty. All available state interfaces will be published
+[INFO] [1792640277.780870478] [controller_manager]: Activating controllers: [ joint_state_broadcaster ]
+[INFO] [1792640277.784337021] [controller_manager]: Successfully switched controllers!
+[INFO] [1792640280.871833821] [controller_manager]: Loading controller : 'aubo_passthrough_trajectory_controller' of type 'aubo_e5_controllers/AuboPassthroughTrajectoryController'
+[INFO] [1792640280.871873517] [controller_manager]: Loading controller 'aubo_passthrough_trajectory_controller'
+[INFO] [1792640280.873811592] [controller_manager]: Controller 'aubo_passthrough_trajectory_controller' node arguments: --ros-args -p use_sim_time:=False --params-file /tmp/launch_params_75x7efoa --params-file /home/mu/Desktop/aubo_e5_jazzy_ws/install/aubo_e5_bringup/share/aubo_e5_bringup/config/controllers.yaml 
+[INFO] [1792640280.890399359] [controller_manager]: Configuring controller: 'aubo_passthrough_trajectory_controller'
+[INFO] [1792640280.895681252] [controller_manager]: Activating controllers: [ aubo_passthrough_trajectory_controller ]
+[INFO] [1792640280.899198779] [controller_manager]: Successfully switched controllers!
+[INFO] [1792640282.588890863] [controller_manager]: Loading controller : 'aubo_io_controller' of type 'aubo_e5_controllers/AuboIOController'
+[INFO] [1792640282.588948085] [controller_manager]: Loading controller 'aubo_io_controller'
+[INFO] [1792640282.589143411] [controller_manager]: Controller 'aubo_io_controller' node arguments: --ros-args -p use_sim_time:=False --params-file /tmp/launch_params_75x7efoa --params-file /home/mu/Desktop/aubo_e5_jazzy_ws/install/aubo_e5_bringup/share/aubo_e5_bringup/config/controllers.yaml 
+[INFO] [1792640282.603842290] [controller_manager]: Configuring controller: 'aubo_io_controller'
+[INFO] [1792640282.619000326] [controller_manager]: Activating controllers: [ aubo_io_controller ]
+[INFO] [1792640282.624309560] [controller_manager]: Successfully switched controllers!
+[INFO] [1792640410.807293518] [rclcpp]: signal_handler(SIGINT/SIGTERM)
+[INFO] [1792640410.807380497] [controller_manager]: Shutdown request received....
+[INFO] [1792640410.807477891] [controller_manager]: Shutting down all controllers in the controller manager.
+[INFO] [1792640410.807509113] [controller_manager]: Deactivating controller 'aubo_io_controller'
+[INFO] [1792640410.807600545] [controller_manager]: Shutting down controller 'aubo_io_controller'
+[INFO] [1792640410.807766967] [controller_manager]: Deactivating controller 'aubo_passthrough_trajectory_controller'
+[INFO] [1792640410.807820225] [controller_manager]: Shutting down controller 'aubo_passthrough_trajectory_controller'
+[INFO] [1792640410.807845714] [controller_manager]: Deactivating controller 'joint_state_broadcaster'
+[INFO] [1792640410.807872613] [controller_manager]: Shutting down controller 'joint_state_broadcaster'
+[INFO] [1792640410.807916044] [resource_manager]: 'deactivate' hardware 'AuboE5System' 
+[INFO] [1792640410.811164801] [AuboE5Hardware.sendLoop]: sendLoop exit (ok=0 fail=0)
+[INFO] [1792640410.874841001] [AuboE5Hardware.ioLoop]: RobotMoveStop done (on-board RIB points dropped)
+[INFO] [1792640410.894908439] [AuboE5Hardware.ioLoop]: ioLoop exit
+[INFO] [1792640410.898211412] [AuboE5Hardware]: on_deactivate OK (left TCP2CAN, teach pendant back in control)
+[INFO] [1792640410.898247043] [resource_manager]: Successful 'deactivate' of hardware 'AuboE5System'
+[INFO] [1792640410.898251351] [resource_manager]: 'shutdown' hardware 'AuboE5System' 
+[INFO] [1792640411.003349196] [AuboE5Hardware]: on_shutdown OK (teardown done)
+[INFO] [1792640411.003368978] [resource_manager]: Successful 'shutdown' of hardware 'AuboE5System'
+[INFO] [1792640411.003427712] [controller_manager]: Shutting down the controller manager.

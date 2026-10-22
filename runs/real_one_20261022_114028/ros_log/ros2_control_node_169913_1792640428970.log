@@ -1,0 +1,163 @@
+[INFO] [1792640428.991770265] [controller_manager]: Using Steady (Monotonic) clock for triggering controller manager cycles.
+[INFO] [1792640428.997562463] [controller_manager]: Subscribing to '/robot_description' topic for robot description.
+[INFO] [1792640428.997630028] [controller_manager]: update rate is 200 Hz
+[INFO] [1792640428.997634775] [controller_manager]: Overruns handling is : enabled
+[INFO] [1792640428.997637656] [controller_manager]: Spawning controller_manager RT thread with scheduler priority: 50
+[INFO] [1792640428.997707665] [controller_manager]: Successful set up FIFO RT scheduling policy with priority 50.
+[WARN] [1792640429.311620435] [controller_manager]: Overrun detected! The controller manager missed its desired rate of 200 Hz. The loop took 43.846615 ms (missed cycles : 9).
+[INFO] [1792640429.848528588] [controller_manager]: Received robot description from topic.
+[INFO] [1792640429.848587753] [controller_manager]: Enforcing command limits is disabled. Command limits from URDF will be ignored.
+[INFO] [1792640429.850750035] [controller_manager]: Loading hardware 'AuboE5System' 
+[INFO] [1792640429.854226717] [controller_manager]: Loaded hardware 'AuboE5System' from plugin 'aubo_e5_hardware/AuboE5Hardware'
+[INFO] [1792640429.854313734] [controller_manager]: Initialize hardware 'AuboE5System' 
+[INFO] [1792640429.862067134] [AuboE5Hardware]: on_init OK (169.254.10.98:8899, rib_target=400, slowdown=300/350, batch=2..8, speed_guard=false)
+[INFO] [1792640429.862090684] [controller_manager]: Successful initialization of hardware 'AuboE5System'
+[INFO] [1792640429.863051291] [controller_manager]: Activating component 'AuboE5System'.
+[INFO] [1792640429.863069068] [resource_manager]: 'configure' hardware 'AuboE5System' 
+[INFO] [1792640429.941753193] [AuboE5Hardware]: Real robot detected
+[INFO] [1792640430.004975163] [AuboE5Hardware]: on_configure OK (dual login, push active)
+[INFO] [1792640430.004996428] [resource_manager]: Successful 'configure' of hardware 'AuboE5System'
+[INFO] [1792640430.005013764] [resource_manager]: 'activate' hardware 'AuboE5System' 
+[INFO] [1792640430.008777167] [AuboE5Hardware]: on_activate OK (TCP2CAN active, send + IO threads running)
+[INFO] [1792640430.008786529] [AuboE5Hardware.sendLoop]: sendLoop started
+[INFO] [1792640430.008796571] [AuboE5Hardware.ioLoop]: ioLoop started
+[INFO] [1792640430.008801194] [resource_manager]: Successful 'activate' of hardware 'AuboE5System'
+[INFO] [1792640430.008900307] [controller_manager]: Registering statistics for : AuboE5System
+[INFO] [1792640430.008965918] [controller_manager]: Resource Manager has been successfully initialized. Starting Controller Manager services...
+[INFO] [1792640430.390444499] [controller_manager]: Loading controller : 'joint_state_broadcaster' of type 'joint_state_broadcaster/JointStateBroadcaster'
+[INFO] [1792640430.390500044] [controller_manager]: Loading controller 'joint_state_broadcaster'
+[INFO] [1792640430.392698398] [controller_manager]: Controller 'joint_state_broadcaster' node arguments: --ros-args -p use_sim_time:=False --params-file /tmp/launch_params_j9d38511 --params-file /home/mu/Desktop/aubo_e5_jazzy_ws/install/aubo_e5_bringup/share/aubo_e5_bringup/config/controllers.yaml 
+[INFO] [1792640430.404974824] [controller_manager]: Configuring controller: 'joint_state_broadcaster'
+[INFO] [1792640430.405066376] [joint_state_broadcaster]: 'joints' or 'interfaces' parameter is empty. All available state interfaces will be published
+[INFO] [1792640430.418971304] [controller_manager]: Activating controllers: [ joint_state_broadcaster ]
+[INFO] [1792640430.422929228] [controller_manager]: Successfully switched controllers!
+[INFO] [1792640433.512159887] [controller_manager]: Loading controller : 'aubo_io_controller' of type 'aubo_e5_controllers/AuboIOController'
+[INFO] [1792640433.512225549] [controller_manager]: Loading controller 'aubo_io_controller'
+[INFO] [1792640433.515815292] [controller_manager]: Controller 'aubo_io_controller' node arguments: --ros-args -p use_sim_time:=False --params-file /tmp/launch_params_j9d38511 --params-file /home/mu/Desktop/aubo_e5_jazzy_ws/install/aubo_e5_bringup/share/aubo_e5_bringup/config/controllers.yaml 
+[INFO] [1792640433.530081469] [controller_manager]: Configuring controller: 'aubo_io_controller'
+[INFO] [1792640433.622684265] [controller_manager]: Activating controllers: [ aubo_io_controller ]
+[INFO] [1792640433.628131026] [controller_manager]: Successfully switched controllers!
+[INFO] [1792640437.366993071] [controller_manager]: Loading controller : 'aubo_passthrough_trajectory_controller' of type 'aubo_e5_controllers/AuboPassthroughTrajectoryController'
+[INFO] [1792640437.367033158] [controller_manager]: Loading controller 'aubo_passthrough_trajectory_controller'
+[INFO] [1792640437.367281619] [controller_manager]: Controller 'aubo_passthrough_trajectory_controller' node arguments: --ros-args -p use_sim_time:=False --params-file /tmp/launch_params_j9d38511 --params-file /home/mu/Desktop/aubo_e5_jazzy_ws/install/aubo_e5_bringup/share/aubo_e5_bringup/config/controllers.yaml 
+[INFO] [1792640437.389956592] [controller_manager]: Configuring controller: 'aubo_passthrough_trajectory_controller'
+[INFO] [1792640437.496683383] [controller_manager]: Activating controllers: [ aubo_passthrough_trajectory_controller ]
+[INFO] [1792640437.497911271] [controller_manager]: Successfully switched controllers!
+[INFO] [1792640439.228765885] [AuboE5Hardware.ioLoop]: [AuboEvent] type=RobotEvent_RobotMoveControlStopDone(运动停止完成)(44) code=0 content={"code":0,"text":"RobotMoveControlStopDone."}
+[ERROR] [1792640439.289904710] [AuboE5Hardware.ioLoop]: [AuboEvent] type=RobotEventMoveEnterStopState(运动进入stop阶段)(1300) code=0 content={"code":0,"text":"robot controller enter stop state."}
+[ERROR] [1792640439.289949393] [AuboE5Hardware.ioLoop]: health not OK (2) -> read reports ERROR
+[ERROR] [1792640439.292795428] [AuboE5Hardware]: on_error summary: read_error_reason=3 (health FAULT latched by event/send path (see [AuboEvent]/sendLoop logs)), health=2, snapshot_age_ms=1, read_box_misses=0, last_event=RobotEventMoveEnterStopState(运动进入stop阶段)(1300) code=0, dropped_events=0
+[INFO] [1792640439.296529137] [AuboE5Hardware.sendLoop]: sendLoop exit (ok=0 fail=0)
+[INFO] [1792640439.358934240] [AuboE5Hardware.ioLoop]: RobotMoveStop done (on-board RIB points dropped)
+[INFO] [1792640439.379005860] [AuboE5Hardware.ioLoop]: ioLoop exit
+[INFO] [1792640439.475094997] [AuboE5Hardware]: on_error OK (teardown done)
+[ERROR] [1792640439.475161436] [controller_manager]: Deactivating following hardware components as their read cycle resulted in an error: [ AuboE5System ]
+[ERROR] [1792640439.475320814] [controller_manager]: Deactivating following controllers as their hardware components read cycle resulted in an error: [ joint_state_broadcaster aubo_io_controller aubo_passthrough_trajectory_controller ]
+[ERROR] [1792640439.475391405] [controller_manager]: Not acceptable command interfaces combination: 
+Start interfaces: 
+[
+]
+Stop interfaces: 
+[
+  aubo_io/do_0
+  aubo_io/do_1
+  aubo_io/do_2
+  aubo_io/do_3
+  aubo_io/do_4
+  aubo_io/do_5
+  aubo_io/do_6
+  aubo_io/do_7
+  aubo_io/do_8
+  aubo_io/do_9
+  aubo_io/do_10
+  aubo_io/do_11
+  aubo_io/do_12
+  aubo_io/do_13
+  aubo_io/do_14
+  aubo_io/do_15
+  aubo_io/ao_0
+  aubo_io/ao_1
+  aubo_io/ao_2
+  aubo_io/ao_3
+  aubo_io/tool_do_0
+  aubo_io/tool_do_1
+  aubo_io/tool_ao_0
+  aubo_io/tool_ao_1
+  aubo_io/set_io_async_success
+  trajectory_passthrough/setpoint_positions_0
+  trajectory_passthrough/setpoint_velocities_0
+  trajectory_passthrough/setpoint_accelerations_0
+  trajectory_passthrough/setpoint_positions_1
+  trajectory_passthrough/setpoint_velocities_1
+  trajectory_passthrough/setpoint_accelerations_1
+  trajectory_passthrough/setpoint_positions_2
+  trajectory_passthrough/setpoint_velocities_2
+  trajectory_passthrough/setpoint_accelerations_2
+  trajectory_passthrough/setpoint_positions_3
+  trajectory_passthrough/setpoint_velocities_3
+  trajectory_passthrough/setpoint_accelerations_3
+  trajectory_passthrough/setpoint_positions_4
+  trajectory_passthrough/setpoint_velocities_4
+  trajectory_passthrough/setpoint_accelerations_4
+  trajectory_passthrough/setpoint_positions_5
+  trajectory_passthrough/setpoint_velocities_5
+  trajectory_passthrough/setpoint_accelerations_5
+  trajectory_passthrough/abort
+  trajectory_passthrough/transfer_state
+  trajectory_passthrough/time_from_start
+  trajectory_passthrough/trajectory_size
+]
+Not available: 
+[
+ aubo_io/do_0
+ aubo_io/do_1
+ aubo_io/do_2
+ aubo_io/do_3
+ aubo_io/do_4
+ aubo_io/do_5
+ aubo_io/do_6
+ aubo_io/do_7
+ aubo_io/do_8
+ aubo_io/do_9
+ aubo_io/do_10
+ aubo_io/do_11
+ aubo_io/do_12
+ aubo_io/do_13
+ aubo_io/do_14
+ aubo_io/do_15
+ aubo_io/ao_0
+ aubo_io/ao_1
+ aubo_io/ao_2
+ aubo_io/ao_3
+ aubo_io/tool_do_0
+ aubo_io/tool_do_1
+ aubo_io/tool_ao_0
+ aubo_io/tool_ao_1
+ aubo_io/set_io_async_success
+ trajectory_passthrough/setpoint_positions_0
+ trajectory_passthrough/setpoint_velocities_0
+ trajectory_passthrough/setpoint_accelerations_0
+ trajectory_passthrough/setpoint_positions_1
+ trajectory_passthrough/setpoint_velocities_1
+ trajectory_passthrough/setpoint_accelerations_1
+ trajectory_passthrough/setpoint_positions_2
+ trajectory_passthrough/setpoint_velocities_2
+ trajectory_passthrough/setpoint_accelerations_2
+ trajectory_passthrough/setpoint_positions_3
+ trajectory_passthrough/setpoint_velocities_3
+ trajectory_passthrough/setpoint_accelerations_3
+ trajectory_passthrough/setpoint_positions_4
+ trajectory_passthrough/setpoint_velocities_4
+ trajectory_passthrough/setpoint_accelerations_4
+ trajectory_passthrough/setpoint_positions_5
+ trajectory_passthrough/setpoint_velocities_5
+ trajectory_passthrough/setpoint_accelerations_5
+ trajectory_passthrough/abort
+ trajectory_passthrough/transfer_state
+ trajectory_passthrough/time_from_start
+ trajectory_passthrough/trajectory_size
+]
+
+[ERROR] [1792640439.475419176] [controller_manager]: Error while attempting mode switch when deactivating controllers in read cycle!
+[WARN] [1792640439.475535095] [controller_manager]: Overrun might occur, Total time : 182738.213 us (Expected < 5000.000 us) --> Read time : 182718.557 us, Update time : 17.651 us, Write time : 2.005 us
+[WARN] [1792640439.475551792] [controller_manager]: Overrun detected! The controller manager missed its desired rate of 200 Hz. The loop took 182.778582 ms (missed cycles : 37).

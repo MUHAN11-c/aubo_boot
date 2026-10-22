@@ -1,0 +1,6 @@
+before [('target_1', 1), ('target_0', 2), ('target_2', 3), ('target_3', 4)]
+CLICK target_2
+scene {'accepted': True, 'message': 'scene_epoch=2 key=sim_click_1792640648 identity=cleared cleared=4 prev_run=harvest_20261022T114347_180774_s2', 'scene_epoch': 2}
+locked [('target_1', 1), ('target_0', 2), ('target_2', 3), ('target_3', 4)]
+HARVEST 165.0 {"accepted": true, "result": {"success": false, "termination_reason": "no_targets_succeeded", "summary_attempted": 1, "summary_succeeded": 0, "summary_failed": 1, "action_status": 4}}
+LEDGER [('target_2', 'FAILED', 6, 'full_failed: 返回 global_photo_pose 失败: 拍照位姿执行失败: PREEMPTED')]

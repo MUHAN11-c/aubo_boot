@@ -9,6 +9,44 @@
     }[ch]));
   }
 
+  // 页面 CSP 不允许 innerHTML 里的 style 属性生效，写进 CSSOM 才占到宽度。
+  function mount(host, html) {
+    host.innerHTML = html;
+    host.querySelectorAll('[style]').forEach((node) => {
+      node.style.cssText = node.getAttribute('style');
+    });
+  }
+
+  function rateCard(title, block, note) {
+    const rate = block && block.sleeve_rate != null ? percent(block.sleeve_ok, block.attempts) : '—';
+    const harvest = block && block.harvest_rate != null ? percent(block.harvest_ok, block.attempts) : '—';
+    const attempts = (block && block.attempts) || 0;
+    const sleeve = (block && block.sleeve_ok) || 0;
+    const cut = (block && block.harvest_ok) || 0;
+    return '<article><span>' + esc(title) + '</span><strong>' + esc(rate) +
+      '</strong><small>' + esc(note || (sleeve + '/' + attempts + ' · 采摘确认 ' + harvest + ' · ' + cut)) +
+      '</small></article>';
+  }
+
+  async function loadSuccess() {
+    const response = await fetch('/api/analysis/success');
+    const data = await response.json();
+    const host = $('success-rates');
+    if (!host) return;
+    host.innerHTML = rateCard('今天', data.today) + rateCard('全部记录', data.all);
+    const sessions = (data.sessions || []).filter((item) => item.attempts);
+    const box = $('success-sessions');
+    if (!box) return;
+    box.innerHTML = sessions.length ? sessions.map((item) => {
+      const width = (100 * item.sleeve_ok / item.attempts).toFixed(1);
+      return '<div class="hbar"><span>' + esc(item.name) +
+        '</span><span class="hbar-track"><i style="width:' + width +
+        '%"></i></span><b>' + esc(item.sleeve_ok + '/' + item.attempts) +
+        '</b></div>';
+    }).join('') : '<p class="empty">还没有逐次抓取记录</p>';
+    mount(box, box.innerHTML);
+  }
+
   async function loadList() {
     const response = await fetch('/api/analysis/records');
     const data = await response.json();
@@ -42,31 +80,133 @@
     return 'stage-' + String(name).replace(/[^a-z0-9_]/g, '');
   }
 
-  function renderCycle(host, stages) {
-    const keys = Object.keys(stages);
-    const values = keys.map((key) => Number(stages[key]) || 0);
-    const total = values.reduce((sum, value) => sum + value, 0);
-    if (!total) {
+  function stageRows(stages) {
+    if (Array.isArray(stages)) {
+      return stages.map((stage) => ({
+        name: stage.name,
+        s: Number(stage.s) || 0,
+      }));
+    }
+    return Object.keys(stages || {}).map((name) => ({
+      name, s: Number(stages[name]) || 0,
+    }));
+  }
+
+  function boundaryTicks(rows, total) {
+    let cursor = 0;
+    return rows.map((row) => {
+      cursor += row.s;
+      if (row.s <= 0 || cursor >= total - 0.05) return '';
+      return '<b class="tick" style="left:' + (100 * cursor / total).toFixed(1) + '%"></b>';
+    }).join('');
+  }
+
+  function forcePieces(item, total) {
+    const parts = (item.parts || []).filter((part) =>
+      Number(part.end_s) > Number(part.start_s));
+    const pieces = parts.length ? parts : [{
+      kind: 'span', start_s: item.start_s, end_s: item.end_s,
+    }];
+    const marks = pieces.map((part) => {
+      const start = Math.max(0, Number(part.start_s) || 0);
+      const end = Math.min(total, Number(part.end_s) || start);
+      if (end <= start) return '';
+      const kind = (part.kind === 'fall' ? 'force-fall' :
+        (part.kind === 'rise' ? 'force-rise' : 'force-span')) +
+        (pieces.length === 1 ? ' solo' : '');
+      const label = part.kind === 'fall' ? '下降' : (part.kind === 'rise' ? '上升' : '五点力');
+      return '<i class="' + kind + '" style="left:' + (100 * start / total).toFixed(3) +
+        '%;width:' + (100 * (end - start) / total).toFixed(3) +
+        '%" title="' + esc(label + ' ' + part.start_s + '–' + part.end_s + ' s') +
+        '"></i>';
+    }).join('');
+    const rise = parts.find((part) => part.kind === 'rise');
+    const fall = parts.find((part) => part.kind === 'fall');
+    const peak = rise && fall
+      ? '<b class="peak" style="left:' + (100 * Number(rise.end_s) / total).toFixed(3) +
+        '%" title="' + esc('峰值 ' + rise.end_s + ' s') + '"></b>'
+      : '';
+    return marks + peak;
+  }
+
+  function renderPlot(cycle) {
+    const rows = stageRows(cycle.stages);
+    const staged = rows.reduce((sum, row) => sum + row.s, 0);
+    const total = Math.max(Number(cycle.elapsed_s) || 0, staged);
+    if (!total) return '';
+    const segments = rows.filter((row) => row.s > 0).map((row) => {
+      const width = (100 * row.s / total).toFixed(1);
+      const label = Number(width) >= 16 ? esc(stageName[row.name] || row.name) : '';
+      return '<i class="' + stageClass(row.name) + '" style="flex:0 0 ' +
+        width + '%">' + label + '</i>';
+    }).join('');
+    const forces = cycle.force || [];
+    const ticks = boundaryTicks(rows, total);
+    const marks = forces.map((item) => forcePieces(item, total)).join('');
+    const legend = rows.map((row) =>
+      '<span><i class="' + stageClass(row.name) + '"></i>' +
+      esc(stageName[row.name] || row.name) + ' ' + esc(row.s) + ' s</span>').join('') +
+      '<span><i class="force-rise"></i>力上升</span>' +
+      '<span><i class="force-fall"></i>力下降</span>';
+    const notes = forces.map((item) => {
+      const where = (item.stages || []).map((name) => stageName[name] || name);
+      const peak = item.peak_n == null ? '' :
+        '峰值 ' + (item.peak_channel || '') + ' ' + item.peak_n + ' N。';
+      const place = where.length ? '落在' + where.join('和') + '。' : '';
+      const shaped = (item.parts || []).map((part) =>
+        (part.kind === 'fall' ? '下降' : '上升') + ' ' +
+        part.start_s + '–' + part.end_s + ' s').join('，');
+      const shape = shaped ? shaped + '。' : '';
+      return shape + place + peak;
+    });
+    const head = cycle.title ? '<p class="cycle-title">' + esc(cycle.title) + '</p>' : '';
+    const forceNote = notes.length ? notes.map((line) => esc(line)).join(' ') :
+      '这次没有对上的五点力接触段。';
+    return '<article class="cycle-plot">' + head +
+      '<div class="cycle-row"><span>阶段</span><div class="cycle-stack">' +
+      segments + ticks + '</div></div>' +
+      '<div class="cycle-row"><span>五点力</span><div class="cycle-force">' +
+      marks + ticks + '</div></div>' +
+      '<div class="cycle-row cycle-scale"><span></span><div><b>0</b><b>合计 ' +
+      total.toFixed(2) + ' s</b></div></div>' +
+      '<p class="cycle-force-note">' + forceNote + '</p>' +
+      '<div class="cycle-legend">' + legend + '</div></article>';
+  }
+
+  function renderCycle(host, report) {
+    const matched = report.force_cycles || [];
+    if (matched.length) {
+      const extra = (report.rates && report.rates.fruits > matched.length)
+        ? '<p class="analysis-note">周期条画的是和五点力对上的这一次抓取。上面的终局数字仍是所选时间窗里的全部批次，那条平均不能代表这一次力落在哪一段。</p>'
+        : '';
+      mount(host, extra + matched.map((cycle) => renderPlot({
+        title: (cycle.when ? cycle.when + ' · ' : '') +
+          (cycle.target_id || '目标') + (cycle.batch ? ' · ' + cycle.batch : ''),
+        stages: cycle.stages,
+        elapsed_s: cycle.elapsed_s,
+        force: cycle.force,
+      })).join(''));
+      return;
+    }
+    const mean = (report.rates || {}).stage_mean_s || {};
+    if (!Object.keys(mean).length) {
       host.innerHTML = '<p class="empty">没有数据</p>';
       return;
     }
-    host.innerHTML = '<div class="cycle-stack">' + keys.map((key, index) =>
-      '<i class="' + stageClass(key) + '" style="width:' +
-      (100 * values[index] / total).toFixed(1) + '%"></i>').join('') +
-      '</div><p class="cycle-total">合计 ' + total.toFixed(2) +
-      ' s</p><div class="cycle-legend">' + keys.map((key, index) =>
-      '<span><i class="' + stageClass(key) + '"></i>' +
-      esc(stageName[key] || key) + ' ' + esc(values[index]) + ' s</span>').join('') +
-      '</div>';
+    mount(host, renderPlot({
+      title: '成功周期平均',
+      stages: mean,
+      force: [],
+    }));
   }
 
   function bars(host, items, tone) {
     const max = Math.max(1, ...items.map((item) => item.value));
-    host.innerHTML = items.length ? items.map((item) =>
+    mount(host, items.length ? items.map((item) =>
       '<div class="hbar ' + (tone || '') + '"><span>' + esc(item.label) +
       '</span><span class="hbar-track"><i style="width:' +
       (100 * item.value / max).toFixed(1) + '%"></i></span><b>' +
-      esc(item.value) + '</b></div>').join('') : '<p class="empty">没有数据</p>';
+      esc(item.value) + '</b></div>').join('') : '<p class="empty">没有数据</p>');
   }
 
   function render(report) {
@@ -77,7 +217,8 @@
     const geometry = report.geometry || {};
     const d95 = geometry.d95_mm || {};
     const cards = [
-      ['运动周期完成', percent(rates.motion_completed, fruits), (rates.motion_completed || 0) + '/' + fruits],
+      ['这次成功率', percent(rates.motion_completed, fruits),
+        (rates.motion_completed || 0) + '/' + fruits + ' · 完成度 6'],
       ['不可达', percent(rates.unreachable, fruits), (rates.unreachable || 0) + ' 颗'],
       ['质量跳过', percent(rates.quality_skipped, fruits), (rates.quality_skipped || 0) + ' 颗'],
       ['失败', percent(rates.failed, fruits), (rates.failed || 0) + ' 颗'],
@@ -95,8 +236,8 @@
       tally[name] = (tally[name] || 0) + 1;
     });
     bars($('outcome-bars'), Object.keys(tally).map((label) => ({label, value: tally[label]})));
-    renderCycle($('stage-bars'), rates.stage_mean_s || {});
-    $('cycle-note').textContent = '精化等待是派发该目标到再确认之前的时间，主要是等模型和许可。开批时的检测不在这段里。运动周期完成是套入后的撤离确认；采摘确认才是完成度 7。';
+    renderCycle($('stage-bars'), report);
+    $('cycle-note').textContent = '阶段条从派发该目标到撤离。红色升到五点合力最大的那一帧，蓝色从这一帧降到仍不低于 0.08 N 的最后一帧；归零后的等待不画。竖线是阶段分界，力条上的黑线是峰值。';
     const skips = report.skip_codes || {};
     const skipItems = Object.keys(skips).map((key) => ({
       label: skipName[key] || key, value: skips[key],
@@ -144,9 +285,11 @@
     function stageBar(stages) {
       const total = (stages || []).reduce((sum, stage) => sum + Number(stage.s || 0), 0);
       if (!total) return '';
-      const bar = stages.map((stage) =>
-        '<i class="' + stageClass(stage.name) +
-        '" style="width:' + (100 * Number(stage.s || 0) / total).toFixed(1) + '%"></i>').join('');
+      const bar = stages.filter((stage) => Number(stage.s) > 0).map((stage) => {
+        const width = (100 * Number(stage.s) / total).toFixed(1);
+        return '<i class="' + stageClass(stage.name) +
+          '" style="flex:0 0 ' + width + '%"></i>';
+      }).join('');
       const caption = stages.map((stage) =>
         (stageName[stage.name] || stage.name) + ' ' + stage.s + ' s').join(' · ');
       return '<div class="stage-bar" title="' + esc(caption) + '">' + bar + '</div>';
@@ -197,7 +340,7 @@
       }).join('');
       return heading + lines;
     }).join('');
-    $('cycles').innerHTML = body || '<tr><td colspan="13">没有逐果账本。</td></tr>';
+    mount($('cycles'), body || '<tr><td colspan="13">没有逐果账本。</td></tr>');
   }
 
   $('pick').addEventListener('submit', async (event) => {
@@ -218,6 +361,10 @@
     }
   });
 
+  loadSuccess().catch((error) => {
+    const note = $('success-note');
+    if (note) note.textContent = '成功率不可用：' + error.message;
+  });
   loadList().catch((error) => {
     status.className = 'error';
     status.textContent = '记录列表不可用：' + error.message;

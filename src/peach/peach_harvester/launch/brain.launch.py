@@ -66,6 +66,8 @@ def launch_setup(context):
         'peach_target_reconstruction_node': {
             **reconstruction_overlay(),
             **reconstruction_tool_params(tool_profile),
+            # 跳过重建时不要自动积分，否则臂一动仍往 RViz 堆半成品体积。
+            'capture.auto_mode': not skip,
         },
         'peach_supervisor': {
             **tool_profile_id_params(tool_profile),

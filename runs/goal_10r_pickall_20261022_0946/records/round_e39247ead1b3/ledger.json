@@ -1,0 +1,96 @@
+{
+  "claimed": [
+    "target_0",
+    "target_1",
+    "target_2",
+    "target_3"
+  ],
+  "outcomes": [
+    {
+      "target_id": "target_0",
+      "outcome": 0,
+      "reason": "周期完成；tool.enabled=false 或未宣称采摘成功",
+      "quality_score": 0.0,
+      "elapsed_s": 20.671,
+      "completion_level": 6,
+      "stage_names": [
+        "finalize",
+        "reconfirm",
+        "approach_insert",
+        "tool",
+        "retreat"
+      ],
+      "stage_durations": [
+        0.256,
+        0.274,
+        10.587,
+        0.0,
+        9.324
+      ]
+    },
+    {
+      "target_id": "target_1",
+      "outcome": 0,
+      "reason": "周期完成；tool.enabled=false 或未宣称采摘成功",
+      "quality_score": 0.0,
+      "elapsed_s": 19.951,
+      "completion_level": 6,
+      "stage_names": [
+        "finalize",
+        "reconfirm",
+        "approach_insert",
+        "tool",
+        "retreat"
+      ],
+      "stage_durations": [
+        0.003,
+        2.895,
+        8.623,
+        0.0,
+        8.201
+      ]
+    },
+    {
+      "target_id": "target_2",
+      "outcome": 0,
+      "reason": "周期完成；tool.enabled=false 或未宣称采摘成功",
+      "quality_score": 0.0,
+      "elapsed_s": 18.26,
+      "completion_level": 6,
+      "stage_names": [
+        "finalize",
+        "reconfirm",
+        "approach_insert",
+        "tool",
+        "retreat"
+      ],
+      "stage_durations": [
+        0.007,
+        0.926,
+        8.596,
+        0.0,
+        8.561
+      ]
+    },
+    {
+      "target_id": "target_3",
+      "outcome": 2,
+      "reason": "skipped_unreachable: 到预抓取失败: MTC short-path guard rejected: TCP 相对弦偏离 0.17182m > 0.12m",
+      "quality_score": 0.0,
+      "elapsed_s": 5.288,
+      "failure_code": "skipped_unreachable",
+      "failure_code_n": 5,
+      "completion_level": 0,
+      "stage_names": [
+        "finalize",
+        "reconfirm",
+        "approach_insert"
+      ],
+      "stage_durations": [
+        0.007,
+        2.405,
+        2.676
+      ]
+    }
+  ]
+}

@@ -113,10 +113,14 @@ function switchView(name) {
     el.setAttribute("aria-selected", String(active));
     el.tabIndex = active ? 0 : -1;
   });
-  $("view-monitor").hidden = name !== "monitor";
-  $("view-debug").hidden = name !== "debug";
+  const monitorPanel = $("view-monitor");
+  const debugPanel = $("view-debug");
+  if (monitorPanel) monitorPanel.hidden = name !== "monitor";
+  if (debugPanel) debugPanel.hidden = name !== "debug";
   document.body.dataset.view = name;
-  labVisualization?.moveTo($(name === 'debug' ? 'debug-visualization-host' : 'monitor-visualization-host'));
+  const vizHost = $(name === "debug" && $("debug-visualization-host")
+    ? "debug-visualization-host" : "monitor-visualization-host");
+  if (vizHost) labVisualization?.moveTo(vizHost);
   if (name === "monitor" && trajectoryPayload) renderTcpMini(trajectoryPayload);
 }
 

@@ -1,13 +1,14 @@
 ---
 name: peach
 description: >-
-  Peach harvest stack source map (SNAPSHOT 2026-09-30): RunHarvest FSM,
-  vision (YOLO/SAM/TSDF), peach_scene_obstacles, peach_arm ExecuteTarget,
-  GraspDecision gates, shear tool profiles, IDL/QoS/TF, observability
-  four-layer diagnostics. Use when editing src/peach/peach_*, tracing harvest
-  flow, wiring topics/actions, changing harvest_fsm, scene perception,
-  reconstruction, scene_obstacles, manipulation_skills, GraspDecision,
-  FailureCode, or peach_interfaces.
+  Peach harvest stack source map (SNAPSHOT 2026-10-22): RunHarvest FSM,
+  perception/reconstruction (YOLO/SAM/TSDF), peach_scene_obstacles,
+  peach_arm ExecuteTarget, GraspDecision gates, three shear tool profiles,
+  5-point serial force, 8090 debug console/parameter API, and mock/real test
+  evidence. Use when editing src/peach/peach_*, src/serial_force, src/peach_web,
+  tracing harvest flow, wiring topics/actions, changing harvest_fsm, scene
+  perception, reconstruction, scene_obstacles, manipulation_skills,
+  GraspDecision, FailureCode, or peach_interfaces.
 ---
 
 # Peach 采摘栈 · AI 源码地图
@@ -17,7 +18,7 @@ description: >-
 | 权威 | 路径 | 写什么 |
 |------|------|--------|
 | 怎么改 | [`AGENTS.md`](../../../AGENTS.md) | MUST / DEFAULT / KEEP / UNWIND |
-| 现在跑什么 | [`peach_bringup/doc/architecture.md`](../../../src/peach/peach_bringup/doc/architecture.md) + [`doc/io.md`](../../../src/peach/peach_bringup/doc/io.md) + 两测试包 `doc/testing.md` | SNAPSHOT（2026-10-10 拆包入库）；改行为同轮改对应包文档 |
+| 现在跑什么 | [`peach_bringup/doc/architecture.md`](../../../src/peach/peach_bringup/doc/architecture.md) + [`doc/io.md`](../../../src/peach/peach_bringup/doc/io.md) + 测试包 `doc/testing.md` | SNAPSHOT（包级活文档）；改行为同轮改对应包文档 |
 | 图名/QoS | [`interface_manifest.yaml`](../../../src/peach/peach_interfaces/config/interface_manifest.yaml) | **高于 IDL 文件头注释**（头注释常残留 `peach_executor`） |
 | 接近路径 | `grasp_task.cpp::planToPregrasp` | 几何允许时先 `tryRolledApproach` 完整 LIN；未运动才 `tryStagingTransit` |
 | 本技能 | 本目录 | 读哪几个文件、谁调谁、禁区 |
@@ -28,15 +29,16 @@ description: >-
 
 | 任务 | 打开 |
 |------|------|
-| 一批怎么跑、FSM、选果 | [harvest-flow.md](harvest-flow.md) |
+| 一批怎么跑、FSM、选果、抓取顺序 | [harvest-flow.md](harvest-flow.md) |
 | 一帧感知 / 一颗重建 / 场景障碍快照 | [vision.md](vision.md) |
 | ExecuteTarget、授权门、v4 接近、ACM | [arm.md](arm.md) |
-| 改话题/动作/失败码/TF/身份 ID | [contracts.md](contracts.md) |
+| 改话题/动作/失败码/TF/身份 ID/力传感 | [contracts.md](contracts.md) |
+| 调试台、参数 API、runner、记录/力窗证据 | [debug-and-evidence.md](debug-and-evidence.md) |
 | 「这个文件干什么」 | [modules.md](modules.md) |
 
 ## 产品一句话
 
-固定座 AUBO E5 + RGB-D 套袋桃采摘。launch 默认：`camera_enabled:=false`；开相机时 `camera_frontend:=stereo`（percipio 显式备用）、`tool_profile:=bite_shear_v1`（2026-10-13 起默认咬合式）。干跑默认 **PREGRASP_ONLY**：到预抓取停住，不套入、不 SetIO、不回 `harvest_stow`。套入/剪切分档权威是 **GraspDecision 令牌**（CONTACT=sleeve/径向余量，TOOL=cut/轴向余量+预抓取残差）；`allowed` 只作汇总展示。感知 ACCEPT 只当初值/可视化。③层障碍=Survey 快照对象 `peach_scene_obstacles`（**不用 octomap updater**），只为保护相机。
+固定座 AUBO E5 + RGB-D 套袋桃采摘。整栈默认：`camera_enabled:=false`；开相机时 `camera_frontend:=stereo`（percipio 显式备用）、`tool_profile:=bite_shear_v1`（2026-10-13 起）、`force_enabled:=true`（5 点力，IMU 已删）。干跑默认 **PREGRASP_ONLY**：到预抓取停住，不套入、不 SetIO、不回 `harvest_stow`。套入/剪切分档权威是 **GraspDecision 令牌**（CONTACT=sleeve/径向余量，TOOL=cut/轴向余量+预抓取残差）；`allowed` 只作汇总展示。感知 ACCEPT 只当初值/可视化。③层障碍=Survey 快照对象 `peach_scene_obstacles`（**不用 octomap updater**），只为保护相机。调试入口 `/debug.html`（测试预设/参数/实时/分析/审计），不是第二控制面。
 
 ## 进程与节点（不要用包名当图名）
 
@@ -47,20 +49,20 @@ harvest_system
   peach_stereo             # camera_enabled∧camera_frontend=stereo；须在 aubo include 之前
   peach_scene_obstacles    # camera_enabled 才起；独立进程，不进 lifecycle
   aubo_e5_bringup          # 驱动只读；mock=GenericSystem+JTC；stereo 时压掉 percipio
-  serial_imu               # 不进 lifecycle
-  imu_follow_servo         # 仅 tool_profile=adaptive_shear_v1（shear/bite 不起）
+  serial_force             # force_enabled 默认 true；100 Hz，不进 lifecycle
   peach_harvester.brain    # 一进程三节点（图名不变）
       peach_scene_perception_node
       peach_target_reconstruction_node
       peach_supervisor
   peach_arm                # Lifecycle；MoveIt 伴随节点同 executor
-  peach_observability      # 8090 + 会话 bag + 启动自检；不发运动
+  peach_observability      # 8090 + /debug.html + 参数 API + 会话 bag；不发运动
+  peach_web                # 只装静态页；不跑节点
   nav2_lifecycle_manager 名 peach_lifecycle_manager
       名单：场景 → 重建 → 技能 → 调度
   peach_lifecycle_flag_bridge  → /peach/lifecycle/managed_nodes_activated
 ```
 
-`peach_vegetation` / `peach_sim` / IVG **不进** harvest 业务核。导航包已归档。`peach_stereo` 是相机前端，不是大脑节点。
+`serial_force_sim`（力闭环仿真）、`peach_vegetation`、`peach_sim`、IVG **不进** harvest 业务核。导航包已归档。`peach_stereo` 是相机前端，不是大脑节点。
 
 ## 数据单向（R2）
 
@@ -72,34 +74,40 @@ RGB-D → 感知(事实) → 观测/初值
 调度(选果/FSM/账本) --ExecuteTarget/Survey--> 臂(运动)
   Survey 成功 ──obstacles_refresh──▶ 场景障碍快照 → PlanningScene
                  ↑ CheckReachability 是唯一反向 IK 查询
+
+serial_force ──/force/{points,travel,ad,status}──▶ 观测/记录/分析（不参与许可）
 ```
 
-禁止：感知发运动；技能写 `ledger.json`；技能调重建 Trigger；用 `grasp_decision` / `initial_pose` **选果**（选果只订 `target_observations`）。调度**订** `grasp_decision` 仅作接触许可令牌缓存（装配 `goal.clearance`），不是选果输入。
+禁止：感知发运动；技能写 `ledger.json`；技能调重建 Trigger；用 `grasp_decision` / `initial_pose` **选果**（选果只订 `target_observations`）。调度**订** `grasp_decision` 仅作接触许可令牌缓存（装配 `goal.clearance`），不是选果输入。力值不参与抓取许可；只做记录/诊断。
 
 ## 改代码纪律（peach 特有）
 
 1. **批次态只经** `harvest_fsm.react` / reducer / `_apply`。节点禁止 `self._batch_state = …`。
 2. **跨包只走 IDL**。改名字：IDL → manifest → 包级 io 文档 → 各端；先编 `peach_interfaces`。
 3. **图名用相对名+launch remap**，禁止 `declare_parameter("image_topic")` 当主接线。
-4. **重建禁止 latest TF**（积分必须精确 stamp）。深度是 uint16 **毫米**，边界换成米。
+4. **重建禁止 latest TF**（积分必须精确 stamp）。深度是 uint16 **毫米或 0.25 mm**，按 `depth_scale_unit` 换米，不能只看类型。
 5. **新算法缝默认 pluginlib**；现存 `PIPELINES_BY_IMPL` / `REFITTERS_BY_IMPL` 是 UNWIND，不要再扩 dict。
-6. **纯核零 ROS**：FSM / 选果 / 位姿管线 / SafetyGate / scene_obstacles.core。节点只 decode / 调纯核 / publish。
+6. **纯核零 ROS**：FSM / 选果 / 位姿管线 / SafetyGate / scene_obstacles.core / force_protocol。节点只 decode / 调纯核 / publish。
 7. **驱动九包只读**。未授权不动真机、不 SetIO。软件停不得称 e-stop。
 8. **测完清进程**（见 AGENTS 第 9 章）。
 9. **PlanningScene 双写分域**：`peach_scene_obstacles` 只写 `world.collision_objects`；`peach_arm` 只写 ACM diff。
 10. **健康走 `/diagnostics`**（四层：L1 /rosout → L2 事件/账本 → L3 diagnostics → L4 `runs/session_*`）。8090 聚合 L3，不是第二控制面。
+11. **test-only 开关不得进真机**：`skip_reconstruction`、`quality.allow_unrefined_geometry`、`capture.auto_mode=false`、mock 速度 overlay（接触 0.4 / 转移 0.8）、`--pick-all` / `--first-target`。真机产品默认全重建、速度/加速度/转移 ≤ **0.1**。
+12. **成功口径**：mock `level 6`（套入+撤退，`tool=false`）只是干跑；真机须 `completion_level=7` / `harvest_confirmed`（切断+撤退，`tool=true`）。`passed=false` 可能只是相机证据门，先看账本终态。
 
 ## 身份四层（改 ID 前必看 contracts.md）
 
-`target_id`（感知注册表）→ `request_id/run_id/cycle_id`（批次）→ `plan_id`+模型七元组 → `clearance`（复用 target_id，不铸新 ID）。`valid_until` **冻结不续签**。
+`target_id`（感知注册表，按注册顺序 `target_N`）→ `request_id/run_id/cycle_id`（批次）→ `plan_id`+模型七元组 → `clearance`（复用 target_id，不铸新 ID）。`valid_until` **冻结不续签**。`BeginScene` 换场调用 `TargetRegistry.clear()`，2026-10-22 起 **同时把 `_next_index` 复位 0**，新一轮从 `target_0` 起；抓取顺序另由 `GlobalHarvestPlan.priorities`（`priority=1..N`）表达，2D 标签为 `target_N #order`。**注意**：当前 `target_id` 仍是注册顺序，不保证等于 `priority`；若要“发布 ID 本身就是抓取顺序”，需在锁定时做 ID 重映射并提供反查，尚未实现。
 
 ## 参数单源
 
 - Python：`peach_common.yaml_params.attach` + `config/<节点>.yaml`
 - C++ `peach_arm`：GPL `peach_arm.yaml`
 - 停位几何：`grasp_standoffs.yaml` 注入 scene/recon
-- 工具档案：`tool_profiles.py` 读 `aubo_description/config/<profile_id>.yaml`（`shear_v1` / `bite_shear_v1` / `adaptive_shear_v1`，默认 bite_shear_v1）
+- 工具档案：`tool_profiles.py` 读 `aubo_description/config/<profile_id>.yaml`（`shear_v1` / `bite_shear_v1` / `adaptive_shear_v1`，默认 bite_shear_v1；三档均 MTC LIN，无 IMU 跟随）
+- 力传感：`serial_force/config/serial_force.yaml`（`/dev/force`，100 Hz）
+- 调试参数白名单：`peach_observability/param_panel.py::PARAM_GROUPS`
 
 ## 验证
 
-受影响包 `colcon test --packages-select …`。改 IDL/接线再跑 `python3 src/peach/peach_interfaces/scripts/check_interface_manifest.py`。停栈后 `pgrep` 无残留。
+受影响包 `colcon test --packages-select …`。改 IDL/接线再跑 `python3 src/peach/peach_interfaces/scripts/check_interface_manifest.py`。真实相机+mock 用 `ros2 run peach_system_tests run_live_camera_mock.py`（mock-only；参数与证据见 [debug-and-evidence.md](debug-and-evidence.md)）；力协议 `pytest src/serial_force/test/test_force_protocol.py`；停栈后 `pgrep` 无残留。

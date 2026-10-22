@@ -53,6 +53,14 @@ class HttpBackend(Protocol):
         """
         ...
 
+    def params_report(self) -> dict:
+        """返回白名单节点/参数的当前值（GET /api/params）."""
+        ...
+
+    def params_set(self, payload: dict) -> tuple:
+        """按 change 列表写参数（POST /api/params）；白名单/门控在后端."""
+        ...
+
 
 class ObservabilityHttpHandler(BaseHTTPRequestHandler):
     """只读 GET handler（依赖全经 server 窄接口）."""
@@ -95,11 +103,19 @@ class ObservabilityHttpHandler(BaseHTTPRequestHandler):
         if path == '/api/state':
             self._json(self.server.backend.snapshot())
             return
+        if path == '/api/params':
+            getter = getattr(self.server.backend, 'params_report', None)
+            self._json(getter() if callable(getter) else {'groups': []})
+            return
         if path == '/api/trajectory':
             getter = getattr(self.server.backend, 'trajectory', None)
             self._json(getter() if callable(getter) else {})
             return
         query = parse_qs(parsed.query)
+        if path == '/api/analysis/success':
+            getter = getattr(self.server.backend, 'analysis_success', None)
+            self._json(getter() if callable(getter) else {'today': {}, 'all': {}, 'sessions': []})
+            return
         if path == '/api/analysis/records':
             getter = getattr(self.server.backend, 'analysis_records', None)
             self._json(getter() if callable(getter) else {'records': []})
@@ -156,6 +172,9 @@ class ObservabilityHttpHandler(BaseHTTPRequestHandler):
             assets['/' + filename] = (filename, 'text/css; charset=utf-8')
         assets['/analysis.html'] = ('analysis.html', 'text/html; charset=utf-8')
         assets['/analysis.js'] = ('analysis.js', 'text/javascript; charset=utf-8')
+        assets['/debug.html'] = ('debug.html', 'text/html; charset=utf-8')
+        assets['/debug.js'] = ('debug.js', 'text/javascript; charset=utf-8')
+        assets['/debug.css'] = ('debug.css', 'text/css; charset=utf-8')
         asset = assets.get(path)
         if asset is None:
             self.send_error(HTTPStatus.NOT_FOUND)
@@ -170,8 +189,11 @@ class ObservabilityHttpHandler(BaseHTTPRequestHandler):
             cache='public, max-age=60')
 
     def do_POST(self):
-        """调试操作面唯一入口：/api/debug/<action>；运动门控在后端."""
+        """调试操作面唯一入口：/api/debug/<action> 与 /api/params；门控在后端."""
         parsed = urlparse(self.path)
+        if parsed.path == '/api/params':
+            self._post_params()
+            return
         if not parsed.path.startswith('/api/debug/'):
             self._json(
                 {'accepted': False, 'message': '非调试端点（只读监控）'},
@@ -219,6 +241,47 @@ class ObservabilityHttpHandler(BaseHTTPRequestHandler):
             self._json(
                 {'accepted': False, 'message': f'调试处理失败: {exc}'},
                 HTTPStatus.INTERNAL_SERVER_ERROR)
+            return
+        try:
+            http_status = HTTPStatus(status)
+        except ValueError:
+            http_status = HTTPStatus.INTERNAL_SERVER_ERROR
+        self._json(response, http_status)
+
+
+    def _post_params(self):
+        """POST /api/params：解析 body → backend.params_set → 审计/门控在后端."""
+        try:
+            length = int(self.headers.get('Content-Length') or 0)
+        except (TypeError, ValueError):
+            self._json({'accepted': False, 'message': 'Content-Length 非法'},
+                       HTTPStatus.BAD_REQUEST)
+            return
+        if length < 0 or length > _MAX_BODY_BYTES:
+            self._json({'accepted': False, 'message': '请求体大小非法'},
+                       HTTPStatus.REQUEST_ENTITY_TOO_LARGE if length > 0 else HTTPStatus.BAD_REQUEST)
+            return
+        try:
+            raw = self.rfile.read(length) if length else b'{}'
+            payload = json.loads(raw or b'{}')
+        except ValueError:
+            self._json({'accepted': False, 'message': '请求体不是合法 JSON'},
+                       HTTPStatus.BAD_REQUEST)
+            return
+        if not isinstance(payload, dict):
+            self._json({'accepted': False, 'message': '请求体须为 JSON 对象'},
+                       HTTPStatus.BAD_REQUEST)
+            return
+        submit = getattr(self.server.backend, 'params_set', None)
+        if not callable(submit):
+            self._json({'accepted': False, 'message': '参数面板未启用'},
+                       HTTPStatus.SERVICE_UNAVAILABLE)
+            return
+        try:
+            status, response = submit(payload)
+        except (TypeError, ValueError, RuntimeError, OSError) as exc:
+            self._json({'accepted': False, 'message': f'参数处理失败: {exc}'},
+                       HTTPStatus.INTERNAL_SERVER_ERROR)
             return
         try:
             http_status = HTTPStatus(status)

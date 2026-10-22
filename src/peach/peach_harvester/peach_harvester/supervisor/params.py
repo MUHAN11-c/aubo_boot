@@ -24,6 +24,7 @@ _SUPERVISOR_RULES = {  # 键 -> 校验规则表（启动期非法即拒启；运
     'service_timeout_s': (('gt', 0.0),),
     'action_timeout_s': (('gt', 0.0),),
     'empty_survey_limit': (('gt_eq', 1),),
+    'selection_priority': (('gt_eq', 0), ('lt_eq', 30)),
     'reconstruction_min_views': (('gt_eq', 1),),
     'build_start_timeout_s': (('gt', 0.0),),
     'observe_build_grace_s': (('gt_eq', 0.0),),
@@ -66,6 +67,8 @@ class SupervisorParams:
     """Survey/Build/Execute 动作等待上限 [s]."""
     empty_survey_limit: int
     """连续空扫次数上限，达到则结算."""
+    selection_priority: int
+    """0=按 goal.target_ids 或自动第一颗；>0 时本批只抓锁定集里该 priority 的一颗."""
     persist_ledger: bool
     """是否把 TargetOutcome 写入 runs/ 账本."""
     reconstruction_min_views: int

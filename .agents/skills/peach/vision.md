@@ -9,17 +9,19 @@
 一帧：
 
 1. `message_filters` 同步 RGB + 深度（slop 0.05 s KEEP）
-2. 深度 uint16 **毫米**；有效窗裁前景
+2. 深度 uint16 **毫米或 0.25 mm**；按 `depth_scale_unit` 换米，不能只看类型；有效窗裁前景
 3. YOLO-det 检测 → 去重 → MobileSAM 实例掩膜（无 SAM 则深度带连通域降级，须标 `mask_source`）
 4. `make_pipeline`：`bag` = `RobustBagPosePipeline`（圆柱 RANSAC 定轴）；`fruit` = `RobustFruitPosePipeline`（球拟合+梗洼定向）。产品执行范围是套袋；裸果可显示，不进选果
 5. 单帧状态 ACCEPT / REOBSERVE / REJECT——**不得据此接触**
-6. `identity.TargetRegistry`：世界系 χ²≤9 + 匈牙利 1-1 + 类别 + 歧义比 1.2。新目标 `target_{N}`；`clear()` **不复位**计数
-7. `CollectLockPolicy` / `GlobalHarvestPlan`：`confirm_frames=2`、`min_collect_frames=4`、`lock_settle_frames=2`、`max_collect_s=12`；关窗锁定，`snapshot_id` +1，`harvest_run_id` 每轮重铸
+6. `identity.TargetRegistry`：世界系 χ²≤9 + 匈牙利 1-1 + 类别 + 歧义比 1.2。新目标按注册顺序 `target_{N}`；2026-10-22 起 `clear()` **同时复位 `_next_index=0`**（换场新一轮从 `target_0` 起）
+7. `CollectLockPolicy` / `GlobalHarvestPlan`：`confirm_frames=2`、`min_collect_frames=4`、`lock_settle_frames=2`、`max_collect_s=12`；关窗锁定，`snapshot_id` +1，`harvest_run_id` 每轮重铸；`priorities` 按 `_rank_key` 铸 `priority=1..N`
 8. 发布：`/peach/perception/target_observations`（调度选果+重建+臂缓存）、`initial_pose`（**只进重建**）、diagnostics、debug_image
 
-BeginScene：Active 才受理；`scene_epoch++`；换 `scene_key` 清身份表。调度 `HarvestState.target_id` 反哺覆盖感知 selected，旧目标 `mark_completed`。
+BeginScene：Active 才受理；`scene_epoch++`；换 `scene_key` 清身份表并把 `_next_index` 复位。调度 `HarvestState.target_id` 反哺覆盖感知 selected，旧目标 `mark_completed`。
 
 静止门 / 有效深度占比 / 贴边框不攒确认：`image_gates.py`。精确 stamp TF 失败则 `tf_status!='ok'`，**不进身份链**。
+
+ID 与抓取顺序分开：`target_N` 是注册顺序；`priority` 是锁定集排序（status → 轴倾角 → 相机距离 → 可选高度 → -confidence → target_id），`target_observations.priority` 下发。确认后 2D 调试图标 `target_N #order`，3D marker 只跟当前帧检测走（不补 memory/selected 目标）。
 
 ## 重建（L1 模型）
 
@@ -69,6 +71,6 @@ BeginScene：Active 才受理；`scene_epoch++`；换 `scene_key` 清身份表�
 |---------|------|
 | `shear_v1` | MTC 沿轴 LIN |
 | `bite_shear_v1`（默认） | MTC 沿轴 LIN |
-| `adaptive_shear_v1` | 预抓取后 `imu_follow` 窗；禁止与 MTC 同时写控制器 |
+| `adaptive_shear_v1` | MTC 沿轴 LIN（原 IMU/`imu_follow` 跟随已于 2026-10-19 删除；历史在 git） |
 
 launch 注入：scene `tool.D_inner` / `L_insert` / `L_blade`；recon `tool.budget.d_inner` + `profile_id`；臂 `tool.body_*`。停位：`grasp_standoffs.yaml`（预抓取沿 −axis 后撤，现行 0.03 m）。2026-10-21：`L_insert=0.03` 不再封顶感知行程；`suggested_travel_m=(neck-entry)-margin_neck`（实测 0.05–0.10 m），执行上限由臂 `maximum_travel_m=0.20` 夹紧；全重建 `cut_travel` 仍为融合 `(cut-entry)`，两者差约 0.01 m 是融合修剪。

@@ -140,6 +140,27 @@
   .recstat { color:#8cc8ff; font-size:clamp(10px,1.2vmin,12px);
              white-space:nowrap; }
   .recstat a { color:#8cc8ff; }
+
+  .copbar { display:flex; align-items:baseline; gap:10px; flex-wrap:wrap;
+            margin:0 0 9px; padding:7px 10px; border:1px solid #24303a;
+            border-radius:8px; background:#101820; font-variant-numeric:tabular-nums; }
+  .copbar .k { color:#8b98a3; font-size:clamp(10px,1.2vmin,12px); }
+  .copbar b { color:#ff8b8b; font-size:clamp(13px,1.6vmin,16px); font-weight:700; }
+  .copbar .hint { margin-left:auto; color:#7f8d99; font-size:clamp(9.5px,1.15vmin,11.5px); }
+
+  .copmark { position:absolute; width:14px; height:14px; z-index:5;
+             transform:translate(-50%,-50%); pointer-events:none;
+             transition:left .15s linear, top .15s linear; }
+  .copmark i { position:absolute; inset:0; border-radius:50%; background:#ff3b3b;
+               border:2px solid #fff; box-shadow:0 0 10px rgba(255,59,59,.9); }
+  .copmark::after { content:""; position:absolute; left:50%; top:50%; width:26px;
+                    height:26px; transform:translate(-50%,-50%); border-radius:50%;
+                    border:1px dashed rgba(255,255,255,.6); }
+  .copmark span { position:absolute; left:50%; top:calc(100% + 5px);
+                  transform:translateX(-50%); white-space:nowrap; font-size:10px;
+                  color:#ffb3b3; text-shadow:0 1px 2px #000; }
+  .copmark.off i { background:#ffb648; }
+  .face.full .copmark span { display:none; }
   button.ghost { margin-left:8px; background:#18212a; color:var(--fg);
                  border:1px solid var(--line); border-radius:7px; padding:5px 13px;
                  font:inherit; font-size:12.5px; cursor:pointer; }
@@ -178,7 +199,7 @@
 <header>
   <div>
     <h1>咬合末端 5 点力 · 实时</h1>
-    <div class="sub">/force/points N · /force/travel mm · /force/ad raw · IMS-C04A 50–400 g/点（合计 2 kg）· 100 Hz</div>
+    <div class="sub">/force/points N · /force/travel mm · /force/ad raw · CoP 实时 · IMS-C04A 50–400 g/点（合计 2 kg）· 100 Hz</div>
   </div>
   <span class="vlabel">视角</span>
   <div class="views" role="group" aria-label="观察方向">
@@ -200,6 +221,9 @@
       <img id="faceimg" src="/face_full.png" alt="咬合末端整机">
       <div class="plate" id="plate"></div>
       <div class="ring" id="ring"></div>
+      <div class="copmark" id="copmark" hidden title="CoP：5 点力加权中心（tcp 系）">
+        <i></i><span>CoP</span>
+      </div>
       <div class="frame" title="tcp 原点：wrist3 + (0, 30.24, 165.5) mm，Rx(−90°)；+Z 朝果实侧">
         <div class="dot"></div><div class="ax x"></div><div class="ax y"></div>
         <div class="ax z"></div><div class="fname">TCP</div>
@@ -216,7 +240,20 @@
       <span class="total" id="total">合计 --</span>
       <button type="button" class="ghost" id="rec">20 s 记录</button>
       <span class="recstat" id="recstat"></span>
+      <span class="recstat" id="episode">周期记录 待命</span>
       <button type="button" class="ghost" id="reset">清峰值</button>
+    </div>
+    <div class="copbar">
+      <span class="k">回放</span>
+      <select id="episodes"><option value="">选择已记录的接触段</option></select>
+      <button type="button" class="ghost" id="replay">播放</button>
+      <button type="button" class="ghost" id="livebtn">回到实时</button>
+      <input id="scrub" type="range" min="0" max="0" value="0" step="1" style="width:160px">
+    </div>
+    <div class="copbar">
+      <span class="k">CoP</span><b id="copxy">--</b>
+      <span class="k">|CoP|</span><b id="copn">--</b>
+      <span class="hint">tcp 系 · 5 点力加权 · 空载/断线显示 --</span>
     </div>
     <div id="bars"></div>
 
@@ -252,7 +289,9 @@
       圆点大小与颜色随力变化（绿→红），条形按单点 0–400 g 满量程（五点合计 0–2 kg）；
       整机视图里红点就是膜片五点在末端上的位置，需要读数时切“盘面”。膜片在盖板内侧，
       盘面上的点是按 CAD 实测位置叠加的。条下“行程”来自帧内 mm 字段（0.1 mm），
-      “AD”是帧内原始测量值（未标定）；断线/超量程显示 --。
+      “AD”是帧内原始测量值（未标定）；断线/超量程显示 --。<br>
+      红色 CoP 圆点是 5 点力加权中心（Σf·p / Σf，tcp 系 mm）；断线/无效通道不参与，
+      力大的点会把 CoP 拉过去。
     </div>
   </section>
 </main>
@@ -293,6 +332,10 @@ const face = document.getElementById('face');
 const faceimg = document.getElementById('faceimg');
 const plate = document.getElementById('plate');
 const ring = document.getElementById('ring');
+const copmark = document.getElementById('copmark');
+const copxy = document.getElementById('copxy');
+const copn = document.getElementById('copn');
+let lastCop = null;
 const scale = document.getElementById('scale');
 const scaletxt = document.getElementById('scaletxt');
 const fovtext = document.getElementById('fovtext');
@@ -336,6 +379,21 @@ const ui = CH.map(cfg => {
 function posText(cfg) { return side === 'fruit' ? cfg.pos : MIRROR_POS[cfg.pos]; }
 function lpText(cfg) { return side === 'fruit' ? cfg.lp : MIRROR_LP[cfg.lp]; }
 
+function placeCop() {
+  const mm = fov === 'full' ? FACE_FULL_MM : FACE_DISC_MM;
+  const sign = side === 'fruit' ? 1 : -1;
+  if (!lastCop) { copmark.hidden = true; return; }
+  let x = 50 + sign * (lastCop[0] / mm * 100);
+  let y = 50 - (lastCop[1] / mm * 100);
+  const off = Math.abs(x - 50) > 47 || Math.abs(y - 50) > 47;
+  x = Math.max(2, Math.min(98, x));
+  y = Math.max(2, Math.min(98, y));
+  copmark.classList.toggle('off', off);
+  copmark.style.left = x.toFixed(2) + '%';
+  copmark.style.top = y.toFixed(2) + '%';
+  copmark.hidden = false;
+}
+
 function apply() {
   const full = fov === 'full';
   const mm = full ? FACE_FULL_MM : FACE_DISC_MM;
@@ -371,6 +429,7 @@ function apply() {
   viewcap.innerHTML = side === 'fruit'
     ? '从果实侧看 · 右 = +X<sub>tcp</sub> · +Z 出屏'
     : '从臂侧看 · 右 = −X<sub>tcp</sub> · +Z 入屏（1 ↔ 7、2 ↔ 3 左右互换）';
+  placeCop();
 }
 
 function setSide(v) {
@@ -406,6 +465,7 @@ const led = document.getElementById('led');
 const stat = document.getElementById('stat');
 const totalEl = document.getElementById('total');
 const recBtn = document.getElementById('rec');
+const episodeEl = document.getElementById('episode');
 const recStat = document.getElementById('recstat');
 let recTimer = null;
 
@@ -439,13 +499,36 @@ recBtn.addEventListener('click', async () => {
   }
 });
 
+function renderEpisode(ep) {
+  if (!episodeEl || !ep) return;
+  if (ep.phase === 'recording') {
+    episodeEl.textContent = `周期记录中 ${Number(ep.elapsed_s).toFixed(2)} s`;
+    return;
+  }
+  const where = ep.session ? ` · ${ep.session}/force` : ' · 等采摘会话';
+  if (!ep.count) {
+    episodeEl.textContent = `周期记录 待命${where}`;
+    return;
+  }
+  const contact = ep.last_contact_s == null ? '--' : Number(ep.last_contact_s).toFixed(2);
+  episodeEl.textContent = `已封 ${ep.count} 段 · 上一段接触 ${contact} s${where}`;
+}
+
 function render(d) {
+  renderEpisode(d.episode);
   const live = d.age_ms != null && d.age_ms < 500 && d.v;
   led.className = 'dotled ' + (live ? 'live' : 'stale');
   stat.textContent = live
     ? `实时 ${d.hz} Hz · 帧 ${d.frames}`
     : `无数据（${d.age_ms == null ? '未收到' : d.age_ms + ' ms'}）`;
-  if (!live) { totalEl.textContent = '合计 --'; return; }
+  if (!live) {
+    totalEl.textContent = '合计 --';
+    lastCop = null;
+    placeCop();
+    copxy.textContent = '--';
+    copn.textContent = '--';
+    return;
+  }
 
   let totalN = 0, validN = 0;
   for (const u of ui) {
@@ -502,12 +585,103 @@ function render(d) {
   }
   totalEl.textContent = validN
     ? `合计 ${totalN.toFixed(2)} N / ${(totalN / 9.80665 * 1000).toFixed(0)} g` : '合计 --';
+  if (d.cop) {
+    lastCop = d.cop;
+    copxy.textContent = `(${d.cop[0].toFixed(1)}, ${d.cop[1].toFixed(1)}) mm`;
+    copn.textContent = `${Math.hypot(d.cop[0], d.cop[1]).toFixed(1)} mm`;
+  } else {
+    lastCop = null;
+    copxy.textContent = '--';
+    copn.textContent = '--';
+  }
+  placeCop();
 }
 
 apply();
 
+let replaying = false;
+let replayTimer = 0;
+let replayRows = [];
+const episodeSelect = document.getElementById('episodes');
+const scrub = document.getElementById('scrub');
+
+function replayFrame(row) {
+  return {
+    v: row.v, t: null, a: null, s: [0, 0, 0, 0, 0],
+    frames: 0, hz: 0, age_ms: 0, episode: null, cop: row.cop || null,
+  };
+}
+
+function showReplayIndex(index) {
+  if (!replayRows.length) return;
+  const i = Math.max(0, Math.min(replayRows.length - 1, index));
+  const row = replayRows[i];
+  scrub.max = String(replayRows.length - 1);
+  scrub.value = String(i);
+  render(replayFrame(row));
+  const end = replayRows[replayRows.length - 1].t;
+  stat.textContent = `回放 ${Number(row.t).toFixed(2)} / ${Number(end).toFixed(2)} s`;
+}
+
+function stopReplayClock() {
+  replaying = false;
+  if (replayTimer) cancelAnimationFrame(replayTimer);
+}
+
+async function refreshEpisodes() {
+  try {
+    const data = await (await fetch('/episodes')).json();
+    const current = episodeSelect.value;
+    const options = ['<option value="">选择已记录的接触段</option>'];
+    (data.episodes || []).forEach((ep) => {
+      const id = `${ep.session}/${ep.name}`;
+      const contact = ep.contact_s == null ? '' : ` · ${Number(ep.contact_s).toFixed(2)}s`;
+      const when = ep.wall_start ? ` ${String(ep.wall_start).slice(11, 19)}` : '';
+      options.push(`<option value="${id}">${ep.name}${contact}${when}</option>`);
+    });
+    episodeSelect.innerHTML = options.join('');
+    if (current) episodeSelect.value = current;
+  } catch (_) { /* 列表失败时保留当前选项 */ }
+}
+
+document.getElementById('replay').addEventListener('click', async () => {
+  const value = episodeSelect.value;
+  if (!value) return;
+  const parts = value.split('/');
+  const data = await (await fetch(
+    `/episodes/data?session=${encodeURIComponent(parts[0])}&name=${encodeURIComponent(parts[1])}`
+  )).json();
+  replayRows = data.samples || [];
+  if (!replayRows.length) return;
+  stopReplayClock();
+  replaying = true;
+  const t0 = performance.now();
+  const start = replayRows[0].t;
+  const tick = () => {
+    if (!replaying) return;
+    const elapsed = (performance.now() - t0) / 1000;
+    let i = 0;
+    while (i + 1 < replayRows.length && replayRows[i + 1].t - start <= elapsed) i += 1;
+    showReplayIndex(i);
+    if (i >= replayRows.length - 1) {
+      replaying = false;
+      return;
+    }
+    replayTimer = requestAnimationFrame(tick);
+  };
+  tick();
+});
+document.getElementById('livebtn').addEventListener('click', stopReplayClock);
+scrub.addEventListener('input', () => {
+  stopReplayClock();
+  replaying = true;
+  showReplayIndex(Number(scrub.value));
+});
+refreshEpisodes();
+setInterval(refreshEpisodes, 5000);
+
 const es = new EventSource('/stream');
-es.onmessage = e => render(JSON.parse(e.data));
+es.onmessage = e => { if (!replaying) render(JSON.parse(e.data)); };
 es.onerror = () => { led.className = 'dotled stale'; stat.textContent = '连接断开，重连中…'; };
 </script>
 </body>

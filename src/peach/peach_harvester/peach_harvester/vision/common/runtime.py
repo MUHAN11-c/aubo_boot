@@ -111,6 +111,14 @@ class BoundedWorker(Generic[Item]):
             self._condition.notify()
             return True
 
+    def discard_pending(self) -> int:
+        """丢掉还没开始的帧。正在算的那一帧停不掉。"""
+        with self._condition:
+            pending = len(self._queue)
+            self.dropped += pending
+            self._queue.clear()
+            return pending
+
     def close(self, *, drain: bool) -> None:
         """停止接收并等待线程；drain 决定是否处理剩余任务."""
         with self._condition:

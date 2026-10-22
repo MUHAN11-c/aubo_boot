@@ -25,8 +25,8 @@
   <div class="header-lower">
     <nav class="view-tabs" role="tablist" aria-label="工作视图">
       <button type="button" id="tab-monitor" data-view="monitor" role="tab" aria-controls="view-monitor" aria-selected="true" class="active">过程监控 <span>01</span></button>
-      <button type="button" id="tab-debug" data-view="debug" role="tab" aria-controls="view-debug" aria-selected="false" tabindex="-1">单步调试 <span>02</span></button>
-      <a class="view-link" href="/analysis.html">数据分析 <span>03</span></a>
+      <a class="debug-console-link" href="/debug.html" target="_blank" rel="noopener">单步调试 <span>02</span></a>
+      <a class="view-link" href="/analysis.html" target="_blank" rel="noopener">数据分析 <span>03</span></a>
     </nav>
     <div class="record-strip" id="record-strip">bag：<b id="record-dir">—</b></div>
   </div>
@@ -281,17 +281,10 @@
   </section>
   </main>
 
-  <main id="view-debug" role="tabpanel" aria-labelledby="tab-debug" hidden>
-    <section class="debug-runtime"><div id="debug-gates"></div></section>
-    <div id="workbench-host"></div>
-    <section class="panel debug-card"><details><summary>操作记录与完整响应 <span id="debug-recent-count">0 条</span></summary><div class="debug-results" id="debug-results"><p class="empty">尚无操作</p></div></details></section>
-  </main>
-
   <footer class="footer"><span>过程记录 · 监控 · 轨迹 · 单步调试 · 127.0.0.1:8090</span><span>上电与安全恢复由现场完成</span></footer>
   <script src="/vendor/peach-three.js"></script>
   <script src="/viz3d.js"></script>
   <script src="/visualization.js"></script>
-  <script src="/workbench.js"></script>
   <script src="/ui-common.js"></script>
   <script src="/monitor-renderers.js"></script>
   <script src="/trajectory-renderers.js"></script>

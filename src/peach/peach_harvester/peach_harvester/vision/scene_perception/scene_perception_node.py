@@ -32,6 +32,7 @@ from peach_harvester.vision.common.runtime import (
     HarvestDataStore,
     view_stage_for_phase,
 )
+from peach_harvester.vision.scene_perception.motion_gate import arm_is_settled
 from peach_harvester.vision.scene_perception.msg_builders import (
     bbox_cloud_xyzrgb,
     best_axis_direction,
@@ -63,7 +64,7 @@ from rclpy.duration import Duration
 from rclpy.executors import MultiThreadedExecutor
 from rclpy.lifecycle import LifecycleNode, TransitionCallbackReturn
 from rclpy.time import Time
-from sensor_msgs.msg import CameraInfo, Image, PointCloud2
+from sensor_msgs.msg import CameraInfo, Image, JointState, PointCloud2
 from std_msgs.msg import Header, String
 from tf2_ros import Buffer, TransformException, TransformListener
 from vision_msgs.msg import Detection2DArray
@@ -222,6 +223,10 @@ class ScenePerceptionNode(LifecycleNode):
             self._process_rgbd, capacity=1, drop_oldest=True)
         self._worker_dropped_reported = 0
         self._worker_drop_log_mono = 0.0
+        # 没有速度前先允许检测。臂一开始动就停送，避免把途中画面算完后才显示。
+        self._arm_settled = True
+        self._sub_joints = self.create_subscription(
+            JointState, '/joint_states', self._on_joint_states, 10)
         self.sync = message_filters.ApproximateTimeSynchronizer(
             [self._sub_rgb, self._sub_depth, self._sub_info],
             queue_size=10, slop=self.params.sync_slop_s)
@@ -249,7 +254,7 @@ class ScenePerceptionNode(LifecycleNode):
             pass
         try:
             for sub in (
-                    self._sub_exec_state, self._sub_rgb.sub,
+                    self._sub_exec_state, self._sub_joints, self._sub_rgb.sub,
                     self._sub_depth.sub, self._sub_info.sub):
                 self.destroy_subscription(sub)
         except Exception:  # noqa: BLE001
@@ -544,10 +549,20 @@ class ScenePerceptionNode(LifecycleNode):
                     f'TF 失败，输出退回相机系 {cam_frame}: {ex}')
                 return None, 'unavailable'
 
+    def _on_joint_states(self, msg: JointState) -> None:
+        """停稳才检测。离开静止时丢掉还没开始算的那一帧。"""
+        velocities = list(msg.velocity) if msg.velocity else None
+        settled = arm_is_settled(velocities)
+        if self._arm_settled and not settled:
+            self._frame_worker.discard_pending()
+        self._arm_settled = settled
+
     def _on_rgbd(self, rgb_msg: Image, depth_msg: Image, info: CameraInfo):
-        """将最新同步帧交给容量一推理 worker."""
+        """将最新同步帧交给容量一推理 worker。臂在动时不送。"""
         self._last_frame_mono = time.monotonic()
         if not self._lifecycle_active:
+            return
+        if not self._arm_settled:
             return
         if not self._frame_worker.submit((rgb_msg, depth_msg, info)):
             self.get_logger().warning('感知 worker 已停止，丢弃 RGB-D 帧')

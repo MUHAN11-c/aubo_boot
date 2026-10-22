@@ -14,6 +14,7 @@ IDL 文件头仍写 `/peach_executor/…`、生产方 `peach_executor`。现行�
 | 技能进程 `manipulation_skills` | 图名 `peach_arm` |
 | 默认相机 percipio | launch 默认 **stereo**（0036） |
 | 默认工具 hollow_cylinder / adaptive_cylinder | **bite_shear_v1**（2026-10-13） |
+| 默认力传感（旧 IMU） | `serial_force` 5 点力，`force_enabled:=true`；`/dev/force` |
 
 改字段流程：IDL 注释（单位/frame/stamp）→ manifest → io.md → 各端 pub/sub → **先编接口包**。
 
@@ -46,6 +47,17 @@ IDL 文件头仍写 `/peach_executor/…`、生产方 `peach_executor`。现行�
 | `/peach_scene_perception_node/begin_scene` | BeginScene | service | 感知 ← 调度 |
 | `/peach_target_reconstruction_node/build_target_model` | BuildTargetModel | action | 重建 ← 调度 |
 
+力传感不在 peach_interfaces，跨包只靠 `std_msgs` 话题（`serial_force` 发布）：
+
+| 名字 | 类型 | QoS | 谁→谁 |
+|------|------|-----|-------|
+| `/force/points` | Float64MultiArray | RELIABLE volatile | 力节点 → 观测/记录/force_web |
+| `/force/travel` | Float64MultiArray | RELIABLE volatile | 同上，mm |
+| `/force/ad` | Float64MultiArray | RELIABLE volatile | 同上，原始 AD |
+| `/force/status` | UInt8MultiArray | RELIABLE volatile | 同上，逐通道状态 |
+
+`RunHarvest.intent`：`PICK_ALL=0`、`PICK_SELECTED=1`、`SURVEY_ONLY=2`；`target_ids` 非空即优先按名单（仍过资格谓词）。单目标真机用 `1` + 一个锁定 ID。
+
 点云 `/camera/depth_registered/points`：两前端发布 **RELIABLE**；scene_obstacles 必须 RELIABLE 订，BE 订户会假性丢大帧。
 
 传感图像：BEST_EFFORT + volatile。命令/lifecycle：RELIABLE。`/tf` volatile；`/tf_static` transient_local。
@@ -56,13 +68,14 @@ IDL 文件头仍写 `/peach_executor/…`、生产方 `peach_executor`。现行�
 
 `FailureCode.msg`：NONE=0 … PLAN_MISMATCH=20，另 **TRANSIT_FAILED=21、START_NOT_READY=22、CANCELED=23**。事件、账本、GraspDecision、ExecuteTarget.Result 写常量。
 
-ExecuteTarget.outcome：SUCCEEDED=0、SKIPPED_QUALITY=1、SKIPPED_UNREACHABLE=2、FAILED=3、CANCELED=4。completion_level 是到达档，采摘成功另看 `HarvestResult.grasped`（切断+撤退均确认）。
+ExecuteTarget.outcome：SUCCEEDED=0、SKIPPED_QUALITY=1、SKIPPED_UNREACHABLE=2、FAILED=3、CANCELED=4。`completion_level>=6` 是套入/撤退干跑完成，`>=7` 才是切断+撤退确认；采摘成功另看 `HarvestResult.grasped`。
 
 ## 身份
 
 | ID | 铸造 | 失效 |
 |----|------|------|
-| `target_id` | `TargetRegistry._commit_match` → `target_{N}` | clear 不复位计数；贴边不攒确认 |
+| `target_id` | `TargetRegistry._commit_match` → `target_{N}`（注册顺序） | 2026-10-22 起 `clear()` 复位 `_next_index=0`，BeginScene 换场新一轮从 `target_0` 起；贴边不攒确认 |
+| `priority` | `GlobalHarvestPlan._lock_now` 按 `_rank_key` 排序 → `1..N` | 锁定后冻结；`target_observations.priority` 下发，是抓取顺序 |
 | `scene_epoch` | BeginScene +1 | 选果须观测世代==调度值且>0。臂 SurveyScene result **恒填 0**（ID-4） |
 | `request_id`/`run_id` | RunHarvest；空则 `auto_<时间戳>` | 账本目录名，不复用 |
 | `cycle_id` | `{run_id}:{target_id}` | 单颗 |
@@ -83,4 +96,4 @@ ExecuteTarget.outcome：SUCCEEDED=0、SKIPPED_QUALITY=1、SKIPPED_UNREACHABLE=2�
 
 ## 深度与单位
 
-Percipio / stereo 深度管线内部按 uint16 毫米处理（KEEP 产品例外）。IDL 新字段优先米。体轴 x 前 y 左 z 上。
+Percipio / stereo 深度管线内部按 uint16 毫米或 0.25 mm 处理；**按 `depth_scale_unit` 换算**，不能只看 uint16 类型。IDL 新字段优先米。体轴 x 前 y 左 z 上。调试 HTTP（`/api/state`、`/api/params`、`/api/analysis`）不是 ROS 契约，不替代话题/QoS。

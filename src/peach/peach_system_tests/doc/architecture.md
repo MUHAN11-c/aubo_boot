@@ -10,7 +10,7 @@
 
 ## 入口、输入输出与参数
 
-不进入产品 launch。完整命令与判据见 [testing.md](testing.md)；安装脚本用 ros2 run peach_system_tests，参数先看对应 --help。`run_live_camera_mock.py` 默认托管 RViz（`--no-rviz` 无头排障），抓取轮 `skip_reconstruction`（固定相机，接触用感知几何，不发 Build；真机产品默认仍重建）；另有 `--skip-reconstruction/--no-skip-reconstruction` 与 `--pick-all` 做同日 A/B、完整重建多目标，跑完把 `session_*`/`harvest_*`/`round_*` 收进 `output/records/`（一跑一个顶层文件夹）。短测（`--rounds 5 --models 0 --soak-seconds 0`）2026-10-16 5/5 已记在 testing.md；2026-10-21 统一行程 3/3、A/B（A 目标级 33.3%、B 100%）也已记在 testing.md；10×30×1800 联合长测仍未通过。冻结 FULL 需要 bag/GPU，不属于默认无设备通过证据。
+不进入产品 launch。完整命令与判据见 [testing.md](testing.md)；安装脚本用 ros2 run peach_system_tests，参数先看对应 --help。`run_live_camera_mock.py` 默认托管 RViz（`--no-rviz` 无头排障），抓取轮 `skip_reconstruction`（固定相机，接触用感知几何，不发 Build；真机产品默认仍重建）；另有 `--skip-reconstruction/--no-skip-reconstruction` 与 `--pick-all` 做同日 A/B、完整重建多目标，跑完把 `session_*`/`harvest_*`/`round_*` 收进 `output/records/`（一跑一个顶层文件夹）。短测（`--rounds 5 --models 0 --soak-seconds 0`）2026-10-16 5/5 已记在 testing.md；2026-10-21 统一行程 3/3、A/B（A 目标级 33.3%、B 100%）也已记在 testing.md；2026-10-22 priority 4-slot 4/4 ×2（8/8 level6；第二次相机证据 1/4 false，非抓取失败）；10×30×1800 联合长测仍未通过。冻结 FULL 需要 bag/GPU，不属于默认无设备通过证据。
 
 ## 生命周期、并发与失败
 

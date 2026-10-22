@@ -94,3 +94,4 @@ peach_observability:
       recon_finalize_service: /peach_target_reconstruction_node/finalize_reconstruction  # 重建手动 finalize Trigger 服务名
       recon_query_service: /peach_target_reconstruction_node/query_reconstruction_state  # 重建状态查询服务名
       manage_nodes_service: /peach_lifecycle_manager/manage_nodes  # 整栈生命周期管理服务名
+      set_enables_service: /peach_supervisor/set_enables  # 执行/抓取/工具运行期开关

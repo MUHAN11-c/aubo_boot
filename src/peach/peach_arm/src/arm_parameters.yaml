@@ -21,8 +21,8 @@ peach_arm:
       gt<>: [0.0]
   harvest_stow_named_target:
     type: string
-    default_value: harvest_stow
-    description: "周期终局回收纳位 SRDF group_state 名"
+    default_value: global_photo_pose
+    description: "周期终局收回的 SRDF group_state 名。与 photo_pose_named_target 相同时只回拍照位，不再去旧拍照位 harvest_stow。"
   frames:
     base:
       type: string

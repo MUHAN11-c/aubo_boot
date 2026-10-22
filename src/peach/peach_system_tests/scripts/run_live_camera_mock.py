@@ -81,6 +81,8 @@ def parser():
     p.add_argument('--rviz', action=argparse.BooleanOptionalAction, default=True)
     # None = 用 live_camera_mock.yaml 的 skip_reconstruction；显式覆盖用于
     # 同日 A/B：同一相机/场景分别跑“跳过重建”和“完整重建”两条路径。
+    p.add_argument('--first-target', action='store_true',
+                   help='每轮都抓当前场景 priority=1 的第一颗（同一位姿重复验证）')
     p.add_argument('--skip-reconstruction', action=argparse.BooleanOptionalAction,
                    default=None,
                    help='覆盖 profile 的 skip_reconstruction；--no-skip-reconstruction 走完整 Build/精化')
@@ -143,8 +145,24 @@ def rviz_parameters(values):
 
 
 def choose_target(targets, index):
+    """按场景 priority（抓取顺序 1..N）选目标，含 memory/LOST 候选.
+
+    旧实现按 target_id 排序后过滤 LOST/RETIRED；固定相机下只有前排目标
+    被跟踪，索引会反复选同一颗（2026-10-22 实测 target_0→8→15→16）。
+    场景 observations 已带 priority 与 candidate（LOST 时 anchor_from_memory），
+    按 priority 选才是“抓取顺序”；LOST 的 memory 候选是否可执行由下游门决定。
+    """
     targets = section(targets)
-    ids = sorted({t['target_id'] for t in targets.get('observations', [])
+    observations = targets.get('observations', [])
+    for item in observations:
+        try:
+            priority = int(item.get('priority') or 0)
+        except (TypeError, ValueError):
+            priority = 0
+        if priority == index + 1 and item.get('target_id') and item.get('candidate'):
+            return item['target_id']
+    # 兼容/模型阶段回退：只取当前跟踪中的目标
+    ids = sorted({t['target_id'] for t in observations
                   if t.get('target_id') and t.get('tracking_status') not in ('LOST', 'RETIRED')})
     return ids[index % len(ids)] if ids else None
 
@@ -813,7 +831,9 @@ def run(args):
                         RunHarvest, '/peach_supervisor/run_harvest', goal, 300,
                         on_tick=lambda: round_tick(request, None))
                 else:
-                    epoch, target = new_scene(driver, request, request, index)
+                    epoch, target = new_scene(driver, request, request, 0 if args.first_target else index)
+                    # 场景源 ID 就是 2D/3D/账本 ID；不再另造 grasp_id 重映射。
+                    record['grasp_slot'] = index + 1
                     record.update(target_id=target, scene_epoch=epoch)
                     observations = section(snapshot(), 'perception', 'targets').get('observations', [])
                     selected = next((o for o in observations if o.get('target_id') == target), {})
@@ -834,6 +854,8 @@ def run(args):
                 record['traceback'] = traceback.format_exc()
                 _report_attempt_error(exc)
             record['elapsed_s'] = time.monotonic() - started
+            # 证据采样前让驱动相机回调追上；3 s 新鲜门不放宽（真停流仍 false）。
+            driver.spin_for(0.5)
             record['streams'] = frame_evidence(driver, before)
             if not all(value['fresh_stamp'] for value in record['streams'].values()):
                 record['success'] = False

@@ -29,7 +29,7 @@ flowchart TB
 | `/peach/perception/initial_pose` | topic | 单帧袋入口/轴初值。重建当起点；不授权运动 | peach_scene_perception | peach_target_reconstruction |
 | `/peach/perception/diagnostics` | topic | 单帧拟合诊断（直径/RMSE/内点） | peach_scene_perception | peach_target_reconstruction |
 | `/peach/perception/harvest_state` | topic | 感知侧计划 JSON（锁定集镜像，给监控） | peach_scene_perception | peach_observability |
-| `/peach/perception/debug_image` | topic | 每帧全部检测框和分割；确认锁定后 id 为抓取顺序，进 RViz | peach_scene_perception | peach_observability |
+| `/peach/perception/debug_image` | topic | 每帧全部检测框和分割。当前锁定集里的抓取顺序会留在画面上：本帧没检出就沿用上一帧像素框；新锁定换了名单后旧号去掉。顺序已经在画面上时，锁定集以外的新号和裸置信度不再画，避免过程中叠到已有框上。进 RViz | peach_scene_perception | peach_observability |
 
 清单未列、源码仍发（可视化豁免）：
 
@@ -258,7 +258,7 @@ flowchart TB
 
 显式 `reconstruct_in_trajectory=false` 保留补视流程：conservative 为 Build 与 `OBSERVE_ONLY` 并行，fast 为 supervisor 直驱 MoveTo 补视（单视优先、封顶 3 视）；这两档在观察结束后等待 Build，过期模型仍由臂侧拒绝。默认并行路径不执行这段串行补视。需要多视配置时应复核实际模型生成与动作时序，不能借重新发送同一模型伪造新鲜度。
 
-批次策略与补采：`BatchPolicy`（target_harvest_ratio / per_target_timeout_s / sector_timeout_s / view_policy fast|conservative）随 RunHarvest goal 初值、`set_batch_policy` 运行期改；单果时限超时记 `target_timeout` 事件，`ratio_reached` 收批；补采清单落 `runs/<request_id>/rework_list.json`，账本为同目录 `ledger.json`。
+批次策略与补采：`BatchPolicy`（target_harvest_ratio / per_target_timeout_s / sector_timeout_s / view_policy fast|conservative）随 RunHarvest goal 初值、`set_batch_policy` 运行期改；单果时限超时记 `target_timeout` 事件，`ratio_reached` 收批；补采清单落 `runs/<request_id>/rework_list.json`，账本为同目录 `ledger.json`（断点恢复仍读这份）。正在录的采摘会话还会把每一颗终局再写进 `runs/session_<时间>/cycles/<终局时间>_<target_id>.json`（墙钟起止和阶段时长），和同目录的五点力放在这一次开栈里。
 
 `RunHarvest.Result.success`：`PICK_ALL` / `PICK_SELECTED` 必须至少一个 `summary.succeeded`（目标 `FULL` 或 `PREGRASP_ONLY` 成功）；零成功均为 false / `no_targets_succeeded`，包括空场景和全过滤导致 `attempted=0`。`SURVEY_ONLY` 正常扫场结算可为 true，零目标不算失败。正常结算的批次态 `COMPLETED` 和 action 状态 `SUCCEEDED` 不代替该字段；取消或中止保持 false 与对应原因。
 

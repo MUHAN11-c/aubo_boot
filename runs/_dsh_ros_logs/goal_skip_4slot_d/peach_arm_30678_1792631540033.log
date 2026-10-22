@@ -1,0 +1,1292 @@
+[WARN] [1792631540.050106642] [rcl.logging_rosout]: Publisher already registered for node name: 'peach_arm'. If this is due to multiple nodes with the same name then all logs for the logger named 'peach_arm' will go out over the existing publisher. As soon as any node with that name is destructed it will unregister the publisher, preventing any further logs for that name from being published on the rosout topic.
+[WARN] [1792631540.051709313] [peach_arm]: scan.protected_zones 丢弃畸形盒: 盒#0 存在 min>=max 的轴（空盒/退化盒），已丢弃
+[WARN] [1792631541.392572474] [peach_arm]: scan.protected_zones 丢弃畸形盒: 盒#0 存在 min>=max 的轴（空盒/退化盒），已丢弃
+[WARN] [1792631541.411190018] [peach_arm]: scan.protected_zones 丢弃畸形盒: 盒#0 存在 min>=max 的轴（空盒/退化盒），已丢弃
+[WARN] [1792631541.411400642] [peach_arm]: scan.protected_zones 丢弃畸形盒: 盒#0 存在 min>=max 的轴（空盒/退化盒），已丢弃
+[WARN] [1792631541.412864014] [rcl.logging_rosout]: Publisher already registered for node name: 'peach_arm'. If this is due to multiple nodes with the same name then all logs for the logger named 'peach_arm' will go out over the existing publisher. As soon as any node with that name is destructed it will unregister the publisher, preventing any further logs for that name from being published on the rosout topic.
+[INFO] [1792631541.418697445] [peach_arm.moveit.ros.rdf_loader]: Loaded robot model in 0.00217014 seconds
+[INFO] [1792631541.418746959] [peach_arm.moveit.core.robot_model]: Loading robot model 'aubo_e5'...
+[INFO] [1792631541.418756278] [peach_arm.moveit.core.robot_model]: No root/virtual joint specified in SRDF. Assuming fixed joint
+[INFO] [1792631541.438985679] [peach_arm.moveit.kinematics.kdl_kinematics_plugin]: Joint weights for group 'manipulator_e5': 1 1 1 1 1 1
+[INFO] [1792631541.446461272] [peach_arm.moveit.ros.move_group_interface]: Ready to take commands for planning group manipulator_e5.
+[INFO] [1792631541.446504740] [peach_arm]: 主动视觉靠近节点 ready: group=manipulator_e5 base=base_link tip=tcp camera=camera_depth_optical_frame execution=plan_only grasp=disabled
+[INFO] [1792631541.446524236] [peach_arm.cycle]: [IDLE] 已配置；activate 后才开放运动输出权限
+[WARN] [1792631541.482488377] [peach_arm]: scan.protected_zones 丢弃畸形盒: 盒#0 存在 min>=max 的轴（空盒/退化盒），已丢弃
+[INFO] [1792631541.484049790] [peach_arm]: 节点已激活：运动输出权限开放
+[WARN] [1792631541.487673292] [rcl.logging_rosout]: Publisher already registered for node name: 'peach_arm'. If this is due to multiple nodes with the same name then all logs for the logger named 'peach_arm' will go out over the existing publisher. As soon as any node with that name is destructed it will unregister the publisher, preventing any further logs for that name from being published on the rosout topic.
+[WARN] [1792631541.492082588] [rcl.logging_rosout]: Publisher already registered for node name: 'peach_arm'. If this is due to multiple nodes with the same name then all logs for the logger named 'peach_arm' will go out over the existing publisher. As soon as any node with that name is destructed it will unregister the publisher, preventing any further logs for that name from being published on the rosout topic.
+[INFO] [1792631541.497245904] [peach_arm]: 场景障碍 ACM 豁免已应用: 28 条（含 <octomap> 保留名）
+[INFO] [1792631544.509694493] [peach_arm]: 场景障碍 ACM 豁免已应用: 28 条（含 <octomap> 保留名）
+[INFO] [1792631547.523855245] [peach_arm]: 场景障碍 ACM 豁免已应用: 28 条（含 <octomap> 保留名）
+[INFO] [1792631555.701318332] [peach_arm]: 使能切换到操作台广播源（/peach/batch/enables）
+[INFO] [1792631555.701339320] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[INFO] [1792631555.707336002] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792631556.469667839] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792631557.464643724] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792631558.466948527] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792631559.466407612] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792631560.464858735] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792631561.464621851] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792631561.804581801] [peach_arm.moveit.ros.current_state_monitor]: Listening to joint states on topic 'joint_states'
+[INFO] [1792631562.468520502] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792631563.462750754] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792631564.463666821] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792631565.464034213] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792631566.469234088] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792631567.463505340] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792631568.463344289] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792631569.462939801] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792631570.464827963] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792631571.465726546] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792631572.465277721] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792631573.463761581] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792631574.463589698] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792631574.759580689] [peach_arm.contact]: CheckReachability 套入直线预检 pregrasp_ik=1 sleeve_ik=1 cartesian=1 fraction=1.000 roll=15deg threshold=0.95 travel=0.080m path=0.110m seed=[0.359 -0.244 0.689] pre=[0.571 -0.607 0.642] sleeve=[0.567 -0.610 0.752]
+[INFO] [1792631574.759610245] [peach_arm.contact]: CheckReachability 套入直线改用刀口滚转 15°（keep-roll 未走满）
+[INFO] [1792631574.759612410] [peach_arm.contact]: CheckReachability idx=0 require_sleeve=1 travel=0.080m reachable=true code=ok
+[INFO] [1792631574.760336255] [peach_arm.contact]: CheckReachability 套入直线预检 pregrasp_ik=1 sleeve_ik=1 cartesian=1 fraction=1.000 roll=0deg threshold=0.95 travel=0.096m path=0.126m seed=[0.359 -0.244 0.689] pre=[0.408 -0.650 0.634] sleeve=[0.402 -0.672 0.758]
+[INFO] [1792631574.760340286] [peach_arm.contact]: CheckReachability idx=1 require_sleeve=1 travel=0.096m reachable=true code=ok
+[INFO] [1792631574.763963070] [peach_arm.contact]: CheckReachability 套入直线预检 pregrasp_ik=1 sleeve_ik=1 cartesian=1 fraction=1.000 roll=0deg threshold=0.95 travel=0.079m path=0.109m seed=[0.359 -0.244 0.689] pre=[0.300 -0.708 0.598] sleeve=[0.299 -0.742 0.702]
+[INFO] [1792631574.763971989] [peach_arm.contact]: CheckReachability idx=2 require_sleeve=1 travel=0.079m reachable=true code=ok
+[INFO] [1792631574.766742445] [peach_arm.contact]: CheckReachability 套入直线预检 pregrasp_ik=1 sleeve_ik=1 cartesian=1 fraction=1.000 roll=0deg threshold=0.95 travel=0.070m path=0.100m seed=[0.359 -0.244 0.689] pre=[0.220 -0.736 0.619] sleeve=[0.184 -0.764 0.708]
+[INFO] [1792631574.766747568] [peach_arm.contact]: CheckReachability idx=3 require_sleeve=1 travel=0.070m reachable=true code=ok
+[INFO] [1792631574.793472179] [peach_arm.cycle]: [PLAN_OBSERVATION] 生成目标导向主动视点
+[INFO] [1792631574.793716328] [peach_arm.cycle]: [FINALIZE] 等待重建精化几何（BuildTargetModel）
+[INFO] [1792631574.793720775] [peach_arm.cycle]: [FINALIZE] allow_unrefined：等精化几何 timeout=3.8s target=target_0
+[WARN] [1792631574.793724906] [peach_arm]: quality.allow_unrefined_geometry: 用场景观测几何代替重建精化 target=target_0
+[INFO] [1792631574.793726776] [peach_arm.cycle]: [FINALIZE] 精化等待结束 arrived=true elapsed=0.00s
+[INFO] [1792631574.793731349] [peach_arm.cycle]: [FINALIZE] 合取 geometry_ready=true gate.allowed=true(pregrasp_geometry_ready) decision_target_ok=true pregrasp_only=false ctx=target_0 decision_target=target_0 rec_state=READY rec_id=target_0 refined_id=target_0
+[INFO] [1792631575.053890184] [peach_arm.contact]: CheckReachability 套入直线预检 pregrasp_ik=1 sleeve_ik=1 cartesian=1 fraction=1.000 roll=15deg threshold=0.95 travel=0.080m path=0.110m seed=[0.359 -0.244 0.689] pre=[0.571 -0.607 0.642] sleeve=[0.567 -0.610 0.752]
+[INFO] [1792631575.053908067] [peach_arm.contact]: CheckReachability 套入直线改用刀口滚转 15°（keep-roll 未走满）
+[INFO] [1792631575.053910210] [peach_arm.contact]: CheckReachability idx=0 require_sleeve=1 travel=0.080m reachable=true code=ok
+[INFO] [1792631575.053914694] [peach_arm.contact]: caller=FINALIZE target=target_0 travel=0.080m require_sleeve=1 reachable=true code=ok
+[INFO] [1792631575.053917728] [peach_arm]: 接触几何（核对方向） target=target_0 entry=[0.570 -0.608 0.672] axis=[-0.035 -0.029 0.999] travel=0.080m axis_angle_deg=-1.00
+[INFO] [1792631575.054015851] [peach_arm.cycle]: [RECONFIRM] 抓取前再确认：等待新鲜观测复核身份/锚点漂移/摆动平息
+[INFO] [1792631575.239864700] [peach_arm.cycle]: [MTC_APPROACH_INSERT] 拍照位再最短路径到预抓取
+[INFO] [1792631575.244176135] [peach_arm]: 预抓取从拍照位出发: 已在命名状态
+[INFO] [1792631575.244199425] [peach_arm.contact]: 接近筛滚转 target=target_0 insert_travel=0.080m pregrasp_only=false
+[INFO] [1792631575.244246939] [peach_arm]: 接近：距入口 0.420m 轴向 -0.013m 侧向 0.420m 夹角 2.1° 扫角 91.8° 半径 0.420m 沿轴LIN 0.030m 刀口滚转 0° 原语 staging
+[INFO] [1792631575.599829981] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792631576.474216770] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[WARN] [1792631576.783854113] [peach_arm]: 忽略 refined diagnostics（unrefined_hold）: expected=target_0 actual=target_0
+[INFO] [1792631577.186185168] [peach_arm]: staging IK 候选筛选成功 target=target_0 model_target= model_revision= frame=base_link group=manipulator_e5 tip=tcp position_m=[0.5726 -0.6053 0.5423] axis=[-0.0345 -0.0289 0.9990] attempts=28 ik_failed=8 bounds_failed=0 self_collision=4 corridor_failed=4 valid_candidates=12
+[INFO] [1792631577.186206539] [peach_arm.contact]: [target_0] PTP 入冠候选 12 个（按 |roll| 再关节代价排序）
+[INFO] [1792631577.188366879] [peach_arm.contact]: [target_0] PTP 候选 1/12 roll=15° joint_cost=4.990：关节空间到中段点正下方 + 垂直入冠 0.050m + 沿轴 0.050m
+[INFO] [1792631577.189401687] [peach_arm.moveit.ros.rdf_loader]: Loaded robot model in 0.000958111 seconds
+[INFO] [1792631577.189407533] [peach_arm.moveit.core.robot_model]: Loading robot model 'aubo_e5'...
+[INFO] [1792631577.189409936] [peach_arm.moveit.core.robot_model]: No root/virtual joint specified in SRDF. Assuming fixed joint
+[INFO] [1792631577.207756426] [peach_arm.moveit.kinematics.kdl_kinematics_plugin]: Joint weights for group 'manipulator_e5': 1 1 1 1 1 1
+[INFO] [1792631577.301268477] [peach_arm]: 场景障碍 ACM 豁免已应用: 28 条（含 <octomap> 保留名）
+[INFO] [1792631577.310551255] [peach_arm.moveit.planners.pilz.joint_limits_aggregator]: Reading limits from namespace robot_description_planning
+[INFO] [1792631577.311034311] [peach_arm.moveit.planners.pilz.command_planner]: Available plugins: pilz_industrial_motion_planner/PlanningContextLoaderCIRC pilz_industrial_motion_planner/PlanningContextLoaderLIN pilz_industrial_motion_planner/PlanningContextLoaderPTP 
+[INFO] [1792631577.311039715] [peach_arm.moveit.planners.pilz.command_planner]: About to load: pilz_industrial_motion_planner/PlanningContextLoaderCIRC
+[INFO] [1792631577.311779883] [peach_arm.moveit.planners.pilz.command_planner]: Registered Algorithm [CIRC]
+[INFO] [1792631577.311784674] [peach_arm.moveit.planners.pilz.command_planner]: About to load: pilz_industrial_motion_planner/PlanningContextLoaderLIN
+[INFO] [1792631577.312320345] [peach_arm.moveit.planners.pilz.command_planner]: Registered Algorithm [LIN]
+[INFO] [1792631577.312324815] [peach_arm.moveit.planners.pilz.command_planner]: About to load: pilz_industrial_motion_planner/PlanningContextLoaderPTP
+[INFO] [1792631577.312865469] [peach_arm.moveit.planners.pilz.command_planner]: Registered Algorithm [PTP]
+[INFO] [1792631577.312870854] [peach_arm.moveit.ros.planning_pipeline]: Successfully loaded planner 'Pilz Industrial Motion Planner'
+[INFO] [1792631577.313792726] [peach_arm]: Try loading adapter 'default_planning_request_adapters/ResolveConstraintFrames'
+[INFO] [1792631577.314317273] [peach_arm]: Loaded adapter 'default_planning_request_adapters/ResolveConstraintFrames'
+[INFO] [1792631577.314320688] [peach_arm]: Try loading adapter 'default_planning_request_adapters/ValidateWorkspaceBounds'
+[INFO] [1792631577.314359480] [peach_arm]: Loaded adapter 'default_planning_request_adapters/ValidateWorkspaceBounds'
+[INFO] [1792631577.314360755] [peach_arm]: Try loading adapter 'default_planning_request_adapters/CheckStartStateBounds'
+[INFO] [1792631577.314366159] [peach_arm]: Loaded adapter 'default_planning_request_adapters/CheckStartStateBounds'
+[INFO] [1792631577.314366908] [peach_arm]: Try loading adapter 'default_planning_request_adapters/CheckStartStateCollision'
+[INFO] [1792631577.314370081] [peach_arm]: Loaded adapter 'default_planning_request_adapters/CheckStartStateCollision'
+[INFO] [1792631577.315211176] [peach_arm]: Try loading adapter 'default_planning_response_adapters/ValidateSolution'
+[INFO] [1792631577.316461898] [peach_arm]: Loaded adapter 'default_planning_response_adapters/ValidateSolution'
+[INFO] [1792631577.386011711] [peach_arm]: Calling PlanningRequestAdapter 'ResolveConstraintFrames'
+[INFO] [1792631577.386242474] [peach_arm]: Calling PlanningRequestAdapter 'ValidateWorkspaceBounds'
+[WARN] [1792631577.386246831] [peach_arm.moveit.ros.validate_workspace_bounds]: It looks like the planning volume was not specified. Using default values.
+[INFO] [1792631577.386265095] [peach_arm]: Calling PlanningRequestAdapter 'CheckStartStateBounds'
+[INFO] [1792631577.386279997] [peach_arm]: Calling PlanningRequestAdapter 'CheckStartStateCollision'
+[INFO] [1792631577.386449096] [peach_arm.moveit.planners.pilz.trajectory_generator.ptp]: Initialized Point-to-Point Trajectory Generator.
+[INFO] [1792631577.386471309] [peach_arm]: Calling Planner 'Pilz Industrial Motion Planner'
+[INFO] [1792631577.386500495] [peach_arm.moveit.planners.pilz.trajectory_generator]: Generating PTP trajectory...
+[INFO] [1792631577.386813648] [peach_arm]: Calling PlanningResponseAdapter 'ValidateSolution'
+[INFO] [1792631577.387344099] [peach_arm]: MTC 接近短路径审查: segments=1 allowed=true points=18 duration=1.621s joint_total=3.520rad joint_max=1.144rad (短路径门通过)
+[INFO] [1792631577.387368524] [peach_arm]: MTC 接近果实胶囊审查(seg0 转移): allowed=true min_clearance=0.229m (果实胶囊审查通过)
+[INFO] [1792631577.387371727] [peach_arm]: MTC 接近笛卡尔审查: allowed=true path=0.474m chord=0.444m ratio=1.07 max_dev=0.070m recede=0.000m (笛卡尔短路径门通过)
+[INFO] [1792631577.387375267] [peach_arm]: MTC 接近姿态审查: allowed=true max_from_start=15.1deg (TCP 姿态行程通过)
+[INFO] [1792631577.387383655] [peach_arm]: [target_0] MTC规划检查已返回: elapsed=0.179s success=true
+[INFO] [1792631577.473457352] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792631578.468185206] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792631579.089279774] [peach_arm]: [target_0] MTC任务已释放: elapsed=0.005s
+[INFO] [1792631579.089296202] [peach_arm.contact]: [target_0] 采用 PTP 候选 1/12 roll=15°
+[INFO] [1792631579.093840988] [peach_arm]: sequence 冠内审查: segments=1 allowed=true points=17 duration=1.600s joint_total=0.541rad (短路径门通过)
+[INFO] [1792631579.468147039] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792631580.463401407] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792631580.768389119] [peach_arm]: 检查点 2（到预抓取）
+[INFO] [1792631580.768457878] [peach_arm.cycle]: [RECONFIRM] 预抓取停稳验证（不 SetIO）
+[INFO] [1792631580.968815351] [peach_arm.cycle]: [PREVIEW_CONTACT_PLANNING] 预规划套入与反向撤退
+[INFO] [1792631580.969924485] [peach_arm.moveit.ros.rdf_loader]: Loaded robot model in 0.00105137 seconds
+[INFO] [1792631580.969932389] [peach_arm.moveit.core.robot_model]: Loading robot model 'aubo_e5'...
+[INFO] [1792631580.969934722] [peach_arm.moveit.core.robot_model]: No root/virtual joint specified in SRDF. Assuming fixed joint
+[INFO] [1792631580.997615835] [peach_arm.moveit.kinematics.kdl_kinematics_plugin]: Joint weights for group 'manipulator_e5': 1 1 1 1 1 1
+[INFO] [1792631581.007128139] [peach_arm]: 场景障碍 ACM 豁免已应用: 28 条（含 <octomap> 保留名）
+[INFO] [1792631581.099343901] [peach_arm]: [target_0] MTC规划检查已返回: elapsed=0.102s success=true
+[INFO] [1792631581.099514964] [peach_arm]: [target_0] MTC任务已释放: elapsed=0.000s
+[INFO] [1792631581.099520737] [peach_arm]: 检查点 3（套入与反向撤退预规划过门）
+[INFO] [1792631581.099577190] [peach_arm.cycle]: [MTC_APPROACH_INSERT] 沿轴 LIN 套入
+[INFO] [1792631581.100620037] [peach_arm.moveit.ros.rdf_loader]: Loaded robot model in 0.00101764 seconds
+[INFO] [1792631581.100626299] [peach_arm.moveit.core.robot_model]: Loading robot model 'aubo_e5'...
+[INFO] [1792631581.100628724] [peach_arm.moveit.core.robot_model]: No root/virtual joint specified in SRDF. Assuming fixed joint
+[INFO] [1792631581.119403516] [peach_arm.moveit.kinematics.kdl_kinematics_plugin]: Joint weights for group 'manipulator_e5': 1 1 1 1 1 1
+[INFO] [1792631581.210940731] [peach_arm]: 场景障碍 ACM 豁免已应用: 28 条（含 <octomap> 保留名）
+[INFO] [1792631581.286706773] [peach_arm]: MTC 接近短路径审查: segments=1 allowed=true points=46 duration=4.423s joint_total=1.029rad joint_max=0.507rad (短路径门通过)
+[INFO] [1792631581.286759341] [peach_arm]: MTC 接近笛卡尔审查: allowed=true path=0.110m chord=0.110m ratio=1.00 max_dev=0.000m recede=0.000m (笛卡尔短路径门通过)
+[INFO] [1792631581.286764576] [peach_arm]: MTC 接近姿态审查: allowed=true max_from_start=0.0deg (TCP 姿态行程通过)
+[INFO] [1792631581.286777954] [peach_arm]: [target_0] MTC规划检查已返回: elapsed=0.167s success=true
+[INFO] [1792631581.465244663] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792631582.479113702] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[WARN] [1792631582.588051624] [rclcpp]: Failed to get parameters: moveit.velocity_scaling
+[INFO] [1792631583.465820006] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792631584.470372773] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792631585.475626264] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[WARN] [1792631585.582899698] [rclcpp]: Failed to get parameters: moveit.velocity_scaling
+[INFO] [1792631585.790704621] [peach_arm]: [target_0] MTC任务已释放: elapsed=0.005s
+[INFO] [1792631585.790724838] [peach_arm]: 检查点 4（沿轴套入到位）
+[INFO] [1792631585.790810262] [peach_arm.cycle]: [ACTUATE_TOOL] tool.enabled=false，跳过末端 IO
+[INFO] [1792631585.790827528] [peach_arm.cycle]: [MTC_RETREAT] MTC 沿插入反方向保持直线撤离
+[INFO] [1792631585.792126996] [peach_arm.moveit.ros.rdf_loader]: Loaded robot model in 0.00126632 seconds
+[INFO] [1792631585.792136539] [peach_arm.moveit.core.robot_model]: Loading robot model 'aubo_e5'...
+[INFO] [1792631585.792139618] [peach_arm.moveit.core.robot_model]: No root/virtual joint specified in SRDF. Assuming fixed joint
+[INFO] [1792631585.811442815] [peach_arm.moveit.kinematics.kdl_kinematics_plugin]: Joint weights for group 'manipulator_e5': 1 1 1 1 1 1
+[INFO] [1792631585.822356059] [peach_arm]: 场景障碍 ACM 豁免已应用: 28 条（含 <octomap> 保留名）
+[INFO] [1792631585.908617283] [peach_arm]: [target_0] MTC规划检查已返回: elapsed=0.097s success=true
+[INFO] [1792631586.470975802] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792631587.472937593] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792631588.467049023] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[WARN] [1792631588.586039708] [rclcpp]: Failed to get parameters: moveit.velocity_scaling
+[INFO] [1792631589.483244345] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792631590.423754907] [peach_arm]: [target_0] MTC任务已释放: elapsed=0.007s
+[INFO] [1792631590.423775617] [peach_arm]: 检查点 8（原路撤回预抓取）
+[INFO] [1792631590.423824334] [peach_arm.cycle]: [MTC_RETREAT] 返回 harvest_stow
+[INFO] [1792631590.432853776] [peach_arm]: 拍照位姿沿接近轨迹原路返程: points=34 duration=3.221s
+[INFO] [1792631590.438931917] [peach_arm.moveit.ros.move_group_interface]: Execute request accepted
+[INFO] [1792631590.467044908] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792631591.473885829] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792631592.463925394] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792631593.471048890] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792631593.713143809] [peach_arm.moveit.ros.move_group_interface]: Execute request success!
+[INFO] [1792631593.722943031] [peach_arm.moveit.ros.move_group_interface]: MoveGroup action client/server ready
+[INFO] [1792631593.723639550] [peach_arm.moveit.ros.move_group_interface]: Planning request accepted
+[INFO] [1792631593.728351811] [peach_arm.moveit.ros.move_group_interface]: Planning request complete!
+[INFO] [1792631593.729402666] [peach_arm.moveit.ros.move_group_interface]: time taken to generate plan: 5.8625e-05 seconds
+[INFO] [1792631593.730423355] [peach_arm.moveit.ros.move_group_interface]: Execute request accepted
+[INFO] [1792631594.448056990] [peach_arm.moveit.ros.move_group_interface]: Execute request success!
+[INFO] [1792631594.452781475] [peach_arm]: 检查点 9（回收纳位）
+[INFO] [1792631594.452865095] [peach_arm.cycle]: [SUCCEEDED] 周期完成；tool.enabled=false 或未宣称采摘成功
+[INFO] [1792631594.463162201] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792631595.173222874] [peach_arm.cycle]: [IDLE] 已记录现场人工撤离确认；本服务不发送任何运动命令
+[INFO] [1792631595.465713939] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792631596.472358176] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792631597.475055119] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792631598.476742070] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792631599.464741380] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792631600.466866754] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792631601.492284196] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792631602.465566893] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792631603.463465462] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792631604.462876327] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792631605.463655766] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792631606.467637232] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792631607.465537593] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792631608.463663649] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792631608.497806681] [peach_arm.moveit.ros.move_group_interface]: MoveGroup action client/server ready
+[INFO] [1792631608.498093561] [peach_arm.moveit.ros.move_group_interface]: Planning request accepted
+[INFO] [1792631608.507263135] [peach_arm.moveit.ros.move_group_interface]: Planning request complete!
+[INFO] [1792631608.507917300] [peach_arm.moveit.ros.move_group_interface]: time taken to generate plan: 6.1843e-05 seconds
+[INFO] [1792631608.510646918] [peach_arm.moveit.ros.move_group_interface]: Execute request accepted
+[INFO] [1792631609.233215507] [peach_arm.moveit.ros.move_group_interface]: Execute request success!
+[INFO] [1792631609.463931297] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792631610.463672405] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792631611.466779827] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792631612.462994654] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792631613.462868353] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792631614.463653308] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792631615.464027401] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792631616.466697553] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792631617.466013306] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792631618.465147811] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792631619.464671130] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792631620.465319591] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792631621.465897658] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792631621.485078845] [peach_arm.contact]: CheckReachability 套入直线预检 pregrasp_ik=1 sleeve_ik=1 cartesian=1 fraction=1.000 roll=15deg threshold=0.95 travel=0.079m path=0.109m seed=[0.359 -0.244 0.689] pre=[0.571 -0.607 0.642] sleeve=[0.567 -0.610 0.751]
+[INFO] [1792631621.485096245] [peach_arm.contact]: CheckReachability 套入直线改用刀口滚转 15°（keep-roll 未走满）
+[INFO] [1792631621.485098492] [peach_arm.contact]: CheckReachability idx=0 require_sleeve=1 travel=0.079m reachable=true code=ok
+[INFO] [1792631621.485819427] [peach_arm.contact]: CheckReachability 套入直线预检 pregrasp_ik=1 sleeve_ik=1 cartesian=1 fraction=1.000 roll=0deg threshold=0.95 travel=0.096m path=0.126m seed=[0.359 -0.244 0.689] pre=[0.408 -0.650 0.634] sleeve=[0.402 -0.672 0.758]
+[INFO] [1792631621.485825046] [peach_arm.contact]: CheckReachability idx=1 require_sleeve=1 travel=0.096m reachable=true code=ok
+[INFO] [1792631621.487693867] [peach_arm.contact]: CheckReachability 套入直线预检 pregrasp_ik=1 sleeve_ik=1 cartesian=1 fraction=1.000 roll=0deg threshold=0.95 travel=0.080m path=0.110m seed=[0.359 -0.244 0.689] pre=[0.298 -0.708 0.598] sleeve=[0.299 -0.742 0.702]
+[INFO] [1792631621.487698946] [peach_arm.contact]: CheckReachability idx=2 require_sleeve=1 travel=0.080m reachable=true code=ok
+[INFO] [1792631621.493232510] [peach_arm.contact]: CheckReachability 套入直线预检 pregrasp_ik=1 sleeve_ik=1 cartesian=1 fraction=1.000 roll=0deg threshold=0.95 travel=0.070m path=0.100m seed=[0.359 -0.244 0.689] pre=[0.220 -0.737 0.619] sleeve=[0.183 -0.764 0.708]
+[INFO] [1792631621.493237707] [peach_arm.contact]: CheckReachability idx=3 require_sleeve=1 travel=0.070m reachable=true code=ok
+[INFO] [1792631621.534220074] [peach_arm.cycle]: [PLAN_OBSERVATION] 生成目标导向主动视点
+[INFO] [1792631621.534460078] [peach_arm.cycle]: [FINALIZE] 等待重建精化几何（BuildTargetModel）
+[INFO] [1792631621.534465609] [peach_arm.cycle]: [FINALIZE] allow_unrefined：等精化几何 timeout=3.7s target=target_4
+[WARN] [1792631621.534474367] [peach_arm]: quality.allow_unrefined_geometry: 用场景观测几何代替重建精化 target=target_4
+[INFO] [1792631621.534476866] [peach_arm.cycle]: [FINALIZE] 精化等待结束 arrived=true elapsed=0.00s
+[INFO] [1792631621.534482167] [peach_arm.cycle]: [FINALIZE] 合取 geometry_ready=true gate.allowed=true(pregrasp_geometry_ready) decision_target_ok=true pregrasp_only=false ctx=target_4 decision_target=target_4 rec_state=READY rec_id=target_4 refined_id=target_4
+[INFO] [1792631621.539477595] [peach_arm.contact]: CheckReachability 套入直线预检 pregrasp_ik=1 sleeve_ik=1 cartesian=1 fraction=1.000 roll=0deg threshold=0.95 travel=0.096m path=0.126m seed=[0.359 -0.244 0.689] pre=[0.408 -0.650 0.634] sleeve=[0.402 -0.672 0.758]
+[INFO] [1792631621.539503910] [peach_arm.contact]: CheckReachability idx=0 require_sleeve=1 travel=0.096m reachable=true code=ok
+[INFO] [1792631621.539510922] [peach_arm.contact]: caller=FINALIZE target=target_4 travel=0.096m require_sleeve=1 reachable=true code=ok
+[INFO] [1792631621.539515773] [peach_arm]: 接触几何（核对方向） target=target_4 entry=[0.406 -0.655 0.663] axis=[-0.042 -0.176 0.983] travel=0.096m axis_angle_deg=8.51
+[INFO] [1792631621.539634463] [peach_arm.cycle]: [RECONFIRM] 抓取前再确认：等待新鲜观测复核身份/锚点漂移/摆动平息
+[INFO] [1792631621.960618221] [peach_arm.cycle]: [MTC_APPROACH_INSERT] 拍照位再最短路径到预抓取
+[INFO] [1792631621.965583256] [peach_arm]: 预抓取从拍照位出发: 已在命名状态
+[INFO] [1792631621.965597280] [peach_arm.contact]: 接近筛滚转 target=target_4 insert_travel=0.096m pregrasp_only=false
+[INFO] [1792631621.965650591] [peach_arm]: 接近：距入口 0.415m 轴向 0.046m 侧向 0.412m 夹角 10.5° 扫角 83.7° 半径 0.415m 沿轴LIN 0.030m 刀口滚转 0° 原语 LIN-align+LIN
+[INFO] [1792631621.968682058] [peach_arm]: [target_4] 接近候选开始: kind=LIN-align+LIN roll=0deg
+[INFO] [1792631621.969804707] [peach_arm.moveit.ros.rdf_loader]: Loaded robot model in 0.00107766 seconds
+[INFO] [1792631621.969811241] [peach_arm.moveit.core.robot_model]: Loading robot model 'aubo_e5'...
+[INFO] [1792631621.969813489] [peach_arm.moveit.core.robot_model]: No root/virtual joint specified in SRDF. Assuming fixed joint
+[INFO] [1792631621.986713674] [peach_arm.moveit.kinematics.kdl_kinematics_plugin]: Joint weights for group 'manipulator_e5': 1 1 1 1 1 1
+[INFO] [1792631621.986789271] [peach_arm]: [target_4] 接近候选任务已建立: elapsed=0.018s
+[INFO] [1792631621.996564877] [peach_arm]: 场景障碍 ACM 豁免已应用: 28 条（含 <octomap> 保留名）
+[INFO] [1792631622.006882225] [peach_arm.moveit.planners.pilz.joint_limits_aggregator]: Reading limits from namespace robot_description_planning
+[INFO] [1792631622.007280986] [peach_arm.moveit.planners.pilz.command_planner]: Available plugins: pilz_industrial_motion_planner/PlanningContextLoaderCIRC pilz_industrial_motion_planner/PlanningContextLoaderLIN pilz_industrial_motion_planner/PlanningContextLoaderPTP 
+[INFO] [1792631622.007285368] [peach_arm.moveit.planners.pilz.command_planner]: About to load: pilz_industrial_motion_planner/PlanningContextLoaderCIRC
+[INFO] [1792631622.008175553] [peach_arm.moveit.planners.pilz.command_planner]: Registered Algorithm [CIRC]
+[INFO] [1792631622.008180235] [peach_arm.moveit.planners.pilz.command_planner]: About to load: pilz_industrial_motion_planner/PlanningContextLoaderLIN
+[INFO] [1792631622.008765307] [peach_arm.moveit.planners.pilz.command_planner]: Registered Algorithm [LIN]
+[INFO] [1792631622.008769799] [peach_arm.moveit.planners.pilz.command_planner]: About to load: pilz_industrial_motion_planner/PlanningContextLoaderPTP
+[INFO] [1792631622.009282290] [peach_arm.moveit.planners.pilz.command_planner]: Registered Algorithm [PTP]
+[INFO] [1792631622.009285786] [peach_arm.moveit.ros.planning_pipeline]: Successfully loaded planner 'Pilz Industrial Motion Planner'
+[INFO] [1792631622.010177135] [peach_arm]: Try loading adapter 'default_planning_request_adapters/ResolveConstraintFrames'
+[INFO] [1792631622.010702286] [peach_arm]: Loaded adapter 'default_planning_request_adapters/ResolveConstraintFrames'
+[INFO] [1792631622.010704365] [peach_arm]: Try loading adapter 'default_planning_request_adapters/ValidateWorkspaceBounds'
+[INFO] [1792631622.010726457] [peach_arm]: Loaded adapter 'default_planning_request_adapters/ValidateWorkspaceBounds'
+[INFO] [1792631622.010727530] [peach_arm]: Try loading adapter 'default_planning_request_adapters/CheckStartStateBounds'
+[INFO] [1792631622.010732901] [peach_arm]: Loaded adapter 'default_planning_request_adapters/CheckStartStateBounds'
+[INFO] [1792631622.010733826] [peach_arm]: Try loading adapter 'default_planning_request_adapters/CheckStartStateCollision'
+[INFO] [1792631622.010736903] [peach_arm]: Loaded adapter 'default_planning_request_adapters/CheckStartStateCollision'
+[INFO] [1792631622.011563821] [peach_arm]: Try loading adapter 'default_planning_response_adapters/ValidateSolution'
+[INFO] [1792631622.013344261] [peach_arm]: Loaded adapter 'default_planning_response_adapters/ValidateSolution'
+[INFO] [1792631622.014684710] [peach_arm.moveit.planners.pilz.joint_limits_aggregator]: Reading limits from namespace robot_description_planning
+[INFO] [1792631622.014982150] [peach_arm.moveit.planners.pilz.command_planner]: Available plugins: pilz_industrial_motion_planner/PlanningContextLoaderCIRC pilz_industrial_motion_planner/PlanningContextLoaderLIN pilz_industrial_motion_planner/PlanningContextLoaderPTP 
+[INFO] [1792631622.014985748] [peach_arm.moveit.planners.pilz.command_planner]: About to load: pilz_industrial_motion_planner/PlanningContextLoaderCIRC
+[INFO] [1792631622.015064980] [peach_arm.moveit.planners.pilz.command_planner]: Registered Algorithm [CIRC]
+[INFO] [1792631622.015066892] [peach_arm.moveit.planners.pilz.command_planner]: About to load: pilz_industrial_motion_planner/PlanningContextLoaderLIN
+[INFO] [1792631622.015161205] [peach_arm.moveit.planners.pilz.command_planner]: Registered Algorithm [LIN]
+[INFO] [1792631622.015163088] [peach_arm.moveit.planners.pilz.command_planner]: About to load: pilz_industrial_motion_planner/PlanningContextLoaderPTP
+[INFO] [1792631622.015239054] [peach_arm.moveit.planners.pilz.command_planner]: Registered Algorithm [PTP]
+[INFO] [1792631622.015240900] [peach_arm.moveit.ros.planning_pipeline]: Successfully loaded planner 'Pilz Industrial Motion Planner'
+[INFO] [1792631622.016067235] [peach_arm]: Try loading adapter 'default_planning_request_adapters/ResolveConstraintFrames'
+[INFO] [1792631622.016154006] [peach_arm]: Loaded adapter 'default_planning_request_adapters/ResolveConstraintFrames'
+[INFO] [1792631622.016155083] [peach_arm]: Try loading adapter 'default_planning_request_adapters/ValidateWorkspaceBounds'
+[INFO] [1792631622.016163892] [peach_arm]: Loaded adapter 'default_planning_request_adapters/ValidateWorkspaceBounds'
+[INFO] [1792631622.016164804] [peach_arm]: Try loading adapter 'default_planning_request_adapters/CheckStartStateBounds'
+[INFO] [1792631622.016169496] [peach_arm]: Loaded adapter 'default_planning_request_adapters/CheckStartStateBounds'
+[INFO] [1792631622.016170328] [peach_arm]: Try loading adapter 'default_planning_request_adapters/CheckStartStateCollision'
+[INFO] [1792631622.016173817] [peach_arm]: Loaded adapter 'default_planning_request_adapters/CheckStartStateCollision'
+[INFO] [1792631622.016991461] [peach_arm]: Try loading adapter 'default_planning_response_adapters/ValidateSolution'
+[INFO] [1792631622.017369435] [peach_arm]: Loaded adapter 'default_planning_response_adapters/ValidateSolution'
+[INFO] [1792631622.087948868] [peach_arm]: Calling PlanningRequestAdapter 'ResolveConstraintFrames'
+[INFO] [1792631622.088004051] [peach_arm]: Calling PlanningRequestAdapter 'ValidateWorkspaceBounds'
+[WARN] [1792631622.088007478] [peach_arm.moveit.ros.validate_workspace_bounds]: It looks like the planning volume was not specified. Using default values.
+[INFO] [1792631622.088014075] [peach_arm]: Calling PlanningRequestAdapter 'CheckStartStateBounds'
+[INFO] [1792631622.088025693] [peach_arm]: Calling PlanningRequestAdapter 'CheckStartStateCollision'
+[INFO] [1792631622.088127228] [peach_arm]: Calling Planner 'Pilz Industrial Motion Planner'
+[INFO] [1792631622.088150159] [peach_arm.moveit.planners.pilz.trajectory_generator]: Generating LIN trajectory...
+[INFO] [1792631622.088729589] [peach_arm]: Calling PlanningResponseAdapter 'ValidateSolution'
+[INFO] [1792631622.089044439] [peach_arm]: Calling PlanningRequestAdapter 'ResolveConstraintFrames'
+[INFO] [1792631622.089087003] [peach_arm]: Calling PlanningRequestAdapter 'ValidateWorkspaceBounds'
+[WARN] [1792631622.089089592] [peach_arm.moveit.ros.validate_workspace_bounds]: It looks like the planning volume was not specified. Using default values.
+[INFO] [1792631622.089099168] [peach_arm]: Calling PlanningRequestAdapter 'CheckStartStateBounds'
+[INFO] [1792631622.089111355] [peach_arm]: Calling PlanningRequestAdapter 'CheckStartStateCollision'
+[INFO] [1792631622.089188916] [peach_arm]: Calling Planner 'Pilz Industrial Motion Planner'
+[INFO] [1792631622.089192923] [peach_arm.moveit.planners.pilz.trajectory_generator]: Generating LIN trajectory...
+[ERROR] [1792631622.092988504] [peach_arm.pilz_trajectory_functions]: Joint velocity limit of foreArm_joint violated. Set the velocity scaling factor lower! Actual joint velocity is 9.11599, while the limit is 2.5964. 
+[ERROR] [1792631622.093067120] [peach_arm.pilz_trajectory_functions]: Inverse kinematics solution at 1.4s violates the joint velocity/acceleration/deceleration limits.
+[ERROR] [1792631622.093142746] [peach_arm.moveit.planners.pilz.trajectory_generator]: Failed to generate valid joint trajectory from the Cartesian path
+[ERROR] [1792631622.093243660] [peach_arm]: Planner 'Pilz Industrial Motion Planner' failed with error code PLANNING_FAILED
+[INFO] [1792631622.093417416] [peach_arm]: [target_4] MTC规划检查已返回: elapsed=0.107s success=false
+[INFO] [1792631622.094636447] [peach_arm]: [target_4] MTC任务已释放: elapsed=0.001s
+[INFO] [1792631622.094647191] [peach_arm]: [target_4] 接近候选结束: roll=0deg elapsed=0.126s success=false reason=MTC planning failed: Failing stage(s):
+lin to on-axis pregrasp (0/1)
+[INFO] [1792631622.105088259] [peach_arm]: [target_4] 接近候选开始: kind=LIN-align+LIN roll=15deg
+[INFO] [1792631622.106340399] [peach_arm.moveit.ros.rdf_loader]: Loaded robot model in 0.00118681 seconds
+[INFO] [1792631622.106348240] [peach_arm.moveit.core.robot_model]: Loading robot model 'aubo_e5'...
+[INFO] [1792631622.106351146] [peach_arm.moveit.core.robot_model]: No root/virtual joint specified in SRDF. Assuming fixed joint
+[INFO] [1792631622.122604286] [peach_arm.moveit.kinematics.kdl_kinematics_plugin]: Joint weights for group 'manipulator_e5': 1 1 1 1 1 1
+[INFO] [1792631622.122680956] [peach_arm]: [target_4] 接近候选任务已建立: elapsed=0.018s
+[INFO] [1792631622.133090203] [peach_arm]: 场景障碍 ACM 豁免已应用: 28 条（含 <octomap> 保留名）
+[WARN] [1792631622.136234191] [peach_arm]: 忽略 refined pose（unrefined_hold）: gate=target_4 actual=target_4
+[WARN] [1792631622.136505001] [peach_arm]: 忽略 refined diagnostics（unrefined_hold）: expected=target_4 actual=target_4
+[INFO] [1792631622.144183141] [peach_arm.moveit.planners.pilz.joint_limits_aggregator]: Reading limits from namespace robot_description_planning
+[INFO] [1792631622.144626522] [peach_arm.moveit.planners.pilz.command_planner]: Available plugins: pilz_industrial_motion_planner/PlanningContextLoaderCIRC pilz_industrial_motion_planner/PlanningContextLoaderLIN pilz_industrial_motion_planner/PlanningContextLoaderPTP 
+[INFO] [1792631622.144633143] [peach_arm.moveit.planners.pilz.command_planner]: About to load: pilz_industrial_motion_planner/PlanningContextLoaderCIRC
+[INFO] [1792631622.145391285] [peach_arm.moveit.planners.pilz.command_planner]: Registered Algorithm [CIRC]
+[INFO] [1792631622.145396098] [peach_arm.moveit.planners.pilz.command_planner]: About to load: pilz_industrial_motion_planner/PlanningContextLoaderLIN
+[INFO] [1792631622.145930793] [peach_arm.moveit.planners.pilz.command_planner]: Registered Algorithm [LIN]
+[INFO] [1792631622.145934628] [peach_arm.moveit.planners.pilz.command_planner]: About to load: pilz_industrial_motion_planner/PlanningContextLoaderPTP
+[INFO] [1792631622.146432855] [peach_arm.moveit.planners.pilz.command_planner]: Registered Algorithm [PTP]
+[INFO] [1792631622.146436947] [peach_arm.moveit.ros.planning_pipeline]: Successfully loaded planner 'Pilz Industrial Motion Planner'
+[INFO] [1792631622.147315762] [peach_arm]: Try loading adapter 'default_planning_request_adapters/ResolveConstraintFrames'
+[INFO] [1792631622.147911004] [peach_arm]: Loaded adapter 'default_planning_request_adapters/ResolveConstraintFrames'
+[INFO] [1792631622.147913713] [peach_arm]: Try loading adapter 'default_planning_request_adapters/ValidateWorkspaceBounds'
+[INFO] [1792631622.147935413] [peach_arm]: Loaded adapter 'default_planning_request_adapters/ValidateWorkspaceBounds'
+[INFO] [1792631622.147936628] [peach_arm]: Try loading adapter 'default_planning_request_adapters/CheckStartStateBounds'
+[INFO] [1792631622.147941814] [peach_arm]: Loaded adapter 'default_planning_request_adapters/CheckStartStateBounds'
+[INFO] [1792631622.147942584] [peach_arm]: Try loading adapter 'default_planning_request_adapters/CheckStartStateCollision'
+[INFO] [1792631622.147945914] [peach_arm]: Loaded adapter 'default_planning_request_adapters/CheckStartStateCollision'
+[INFO] [1792631622.148788546] [peach_arm]: Try loading adapter 'default_planning_response_adapters/ValidateSolution'
+[INFO] [1792631622.150123226] [peach_arm]: Loaded adapter 'default_planning_response_adapters/ValidateSolution'
+[INFO] [1792631622.151507770] [peach_arm.moveit.planners.pilz.joint_limits_aggregator]: Reading limits from namespace robot_description_planning
+[INFO] [1792631622.151832709] [peach_arm.moveit.planners.pilz.command_planner]: Available plugins: pilz_industrial_motion_planner/PlanningContextLoaderCIRC pilz_industrial_motion_planner/PlanningContextLoaderLIN pilz_industrial_motion_planner/PlanningContextLoaderPTP 
+[INFO] [1792631622.151852062] [peach_arm.moveit.planners.pilz.command_planner]: About to load: pilz_industrial_motion_planner/PlanningContextLoaderCIRC
+[INFO] [1792631622.151932342] [peach_arm.moveit.planners.pilz.command_planner]: Registered Algorithm [CIRC]
+[INFO] [1792631622.151934197] [peach_arm.moveit.planners.pilz.command_planner]: About to load: pilz_industrial_motion_planner/PlanningContextLoaderLIN
+[INFO] [1792631622.152010281] [peach_arm.moveit.planners.pilz.command_planner]: Registered Algorithm [LIN]
+[INFO] [1792631622.152011980] [peach_arm.moveit.planners.pilz.command_planner]: About to load: pilz_industrial_motion_planner/PlanningContextLoaderPTP
+[INFO] [1792631622.152087230] [peach_arm.moveit.planners.pilz.command_planner]: Registered Algorithm [PTP]
+[INFO] [1792631622.152089521] [peach_arm.moveit.ros.planning_pipeline]: Successfully loaded planner 'Pilz Industrial Motion Planner'
+[INFO] [1792631622.152965874] [peach_arm]: Try loading adapter 'default_planning_request_adapters/ResolveConstraintFrames'
+[INFO] [1792631622.153050046] [peach_arm]: Loaded adapter 'default_planning_request_adapters/ResolveConstraintFrames'
+[INFO] [1792631622.153051161] [peach_arm]: Try loading adapter 'default_planning_request_adapters/ValidateWorkspaceBounds'
+[INFO] [1792631622.153059770] [peach_arm]: Loaded adapter 'default_planning_request_adapters/ValidateWorkspaceBounds'
+[INFO] [1792631622.153060699] [peach_arm]: Try loading adapter 'default_planning_request_adapters/CheckStartStateBounds'
+[INFO] [1792631622.153065495] [peach_arm]: Loaded adapter 'default_planning_request_adapters/CheckStartStateBounds'
+[INFO] [1792631622.153066454] [peach_arm]: Try loading adapter 'default_planning_request_adapters/CheckStartStateCollision'
+[INFO] [1792631622.153069749] [peach_arm]: Loaded adapter 'default_planning_request_adapters/CheckStartStateCollision'
+[INFO] [1792631622.153888846] [peach_arm]: Try loading adapter 'default_planning_response_adapters/ValidateSolution'
+[INFO] [1792631622.154317725] [peach_arm]: Loaded adapter 'default_planning_response_adapters/ValidateSolution'
+[INFO] [1792631622.216951323] [peach_arm]: Calling PlanningRequestAdapter 'ResolveConstraintFrames'
+[INFO] [1792631622.217013932] [peach_arm]: Calling PlanningRequestAdapter 'ValidateWorkspaceBounds'
+[WARN] [1792631622.217018747] [peach_arm.moveit.ros.validate_workspace_bounds]: It looks like the planning volume was not specified. Using default values.
+[INFO] [1792631622.217028072] [peach_arm]: Calling PlanningRequestAdapter 'CheckStartStateBounds'
+[INFO] [1792631622.217042973] [peach_arm]: Calling PlanningRequestAdapter 'CheckStartStateCollision'
+[INFO] [1792631622.217162784] [peach_arm]: Calling Planner 'Pilz Industrial Motion Planner'
+[INFO] [1792631622.217190559] [peach_arm.moveit.planners.pilz.trajectory_generator]: Generating LIN trajectory...
+[ERROR] [1792631622.218139353] [peach_arm.pilz_trajectory_functions]: Joint deceleration limit of wrist1_joint violated. Set the acceleration scaling factor lower! Actual joint deceleration is -3.30673, while the limit is -3. 
+[ERROR] [1792631622.218168081] [peach_arm.pilz_trajectory_functions]: Inverse kinematics solution at 1.8s violates the joint velocity/acceleration/deceleration limits.
+[ERROR] [1792631622.218195641] [peach_arm.moveit.planners.pilz.trajectory_generator]: Failed to generate valid joint trajectory from the Cartesian path
+[ERROR] [1792631622.218219695] [peach_arm]: Planner 'Pilz Industrial Motion Planner' failed with error code PLANNING_FAILED
+[INFO] [1792631622.218271631] [peach_arm]: [target_4] MTC规划检查已返回: elapsed=0.096s success=false
+[INFO] [1792631622.218827248] [peach_arm]: [target_4] MTC任务已释放: elapsed=0.001s
+[INFO] [1792631622.218833125] [peach_arm]: [target_4] 接近候选结束: roll=15deg elapsed=0.114s success=false reason=MTC planning failed: Failing stage(s):
+lin align tool z (0/1)
+[WARN] [1792631622.218836611] [peach_arm.contact]: [target_4] 笛卡尔 LIN 连续 2 档规划失败（最近: MTC planning failed: Failing stage(s):
+lin align tool z (0/1)），停止滚转搜索，改走 PTP
+[INFO] [1792631622.480637601] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792631622.828654437] [peach_arm]: staging IK 候选筛选成功 target=target_4 model_target= model_revision= frame=base_link group=manipulator_e5 tip=tcp position_m=[0.4098 -0.6414 0.5348] axis=[-0.0418 -0.1763 0.9834] attempts=28 ik_failed=0 bounds_failed=0 self_collision=2 corridor_failed=14 valid_candidates=12
+[INFO] [1792631622.828691417] [peach_arm.contact]: [target_4] PTP 入冠候选 12 个（按 |roll| 再关节代价排序）
+[INFO] [1792631622.834767947] [peach_arm.contact]: [target_4] PTP 候选 1/12 roll=0° joint_cost=4.025：关节空间到中段点正下方 + 垂直入冠 0.050m + 沿轴 0.050m
+[INFO] [1792631622.836170131] [peach_arm.moveit.ros.rdf_loader]: Loaded robot model in 0.00128696 seconds
+[INFO] [1792631622.836178629] [peach_arm.moveit.core.robot_model]: Loading robot model 'aubo_e5'...
+[INFO] [1792631622.836181279] [peach_arm.moveit.core.robot_model]: No root/virtual joint specified in SRDF. Assuming fixed joint
+[INFO] [1792631622.853636344] [peach_arm.moveit.kinematics.kdl_kinematics_plugin]: Joint weights for group 'manipulator_e5': 1 1 1 1 1 1
+[INFO] [1792631622.863140553] [peach_arm]: 场景障碍 ACM 豁免已应用: 28 条（含 <octomap> 保留名）
+[INFO] [1792631622.872993391] [peach_arm.moveit.planners.pilz.joint_limits_aggregator]: Reading limits from namespace robot_description_planning
+[INFO] [1792631622.873379171] [peach_arm.moveit.planners.pilz.command_planner]: Available plugins: pilz_industrial_motion_planner/PlanningContextLoaderCIRC pilz_industrial_motion_planner/PlanningContextLoaderLIN pilz_industrial_motion_planner/PlanningContextLoaderPTP 
+[INFO] [1792631622.873383284] [peach_arm.moveit.planners.pilz.command_planner]: About to load: pilz_industrial_motion_planner/PlanningContextLoaderCIRC
+[INFO] [1792631622.874113415] [peach_arm.moveit.planners.pilz.command_planner]: Registered Algorithm [CIRC]
+[INFO] [1792631622.874117047] [peach_arm.moveit.planners.pilz.command_planner]: About to load: pilz_industrial_motion_planner/PlanningContextLoaderLIN
+[INFO] [1792631622.874651775] [peach_arm.moveit.planners.pilz.command_planner]: Registered Algorithm [LIN]
+[INFO] [1792631622.874654490] [peach_arm.moveit.planners.pilz.command_planner]: About to load: pilz_industrial_motion_planner/PlanningContextLoaderPTP
+[INFO] [1792631622.875156016] [peach_arm.moveit.planners.pilz.command_planner]: Registered Algorithm [PTP]
+[INFO] [1792631622.875160535] [peach_arm.moveit.ros.planning_pipeline]: Successfully loaded planner 'Pilz Industrial Motion Planner'
+[INFO] [1792631622.876040431] [peach_arm]: Try loading adapter 'default_planning_request_adapters/ResolveConstraintFrames'
+[INFO] [1792631622.876577638] [peach_arm]: Loaded adapter 'default_planning_request_adapters/ResolveConstraintFrames'
+[INFO] [1792631622.876581326] [peach_arm]: Try loading adapter 'default_planning_request_adapters/ValidateWorkspaceBounds'
+[INFO] [1792631622.876601428] [peach_arm]: Loaded adapter 'default_planning_request_adapters/ValidateWorkspaceBounds'
+[INFO] [1792631622.876602444] [peach_arm]: Try loading adapter 'default_planning_request_adapters/CheckStartStateBounds'
+[INFO] [1792631622.876607631] [peach_arm]: Loaded adapter 'default_planning_request_adapters/CheckStartStateBounds'
+[INFO] [1792631622.876608407] [peach_arm]: Try loading adapter 'default_planning_request_adapters/CheckStartStateCollision'
+[INFO] [1792631622.876611834] [peach_arm]: Loaded adapter 'default_planning_request_adapters/CheckStartStateCollision'
+[INFO] [1792631622.877511732] [peach_arm]: Try loading adapter 'default_planning_response_adapters/ValidateSolution'
+[INFO] [1792631622.878651485] [peach_arm]: Loaded adapter 'default_planning_response_adapters/ValidateSolution'
+[INFO] [1792631622.944087627] [peach_arm]: Calling PlanningRequestAdapter 'ResolveConstraintFrames'
+[INFO] [1792631622.944154605] [peach_arm]: Calling PlanningRequestAdapter 'ValidateWorkspaceBounds'
+[WARN] [1792631622.944158835] [peach_arm.moveit.ros.validate_workspace_bounds]: It looks like the planning volume was not specified. Using default values.
+[INFO] [1792631622.944167835] [peach_arm]: Calling PlanningRequestAdapter 'CheckStartStateBounds'
+[INFO] [1792631622.944183259] [peach_arm]: Calling PlanningRequestAdapter 'CheckStartStateCollision'
+[INFO] [1792631622.944310200] [peach_arm.moveit.planners.pilz.trajectory_generator.ptp]: Initialized Point-to-Point Trajectory Generator.
+[INFO] [1792631622.944325895] [peach_arm]: Calling Planner 'Pilz Industrial Motion Planner'
+[INFO] [1792631622.944351668] [peach_arm.moveit.planners.pilz.trajectory_generator]: Generating PTP trajectory...
+[INFO] [1792631622.944553223] [peach_arm]: Calling PlanningResponseAdapter 'ValidateSolution'
+[INFO] [1792631622.944951440] [peach_arm]: MTC 接近短路径审查: segments=1 allowed=true points=17 duration=1.501s joint_total=3.007rad joint_max=1.019rad (短路径门通过)
+[INFO] [1792631622.944978185] [peach_arm]: MTC 接近果实胶囊审查(seg0 转移): allowed=true min_clearance=999.000m (果实胶囊审查通过)
+[INFO] [1792631622.944982037] [peach_arm]: MTC 接近笛卡尔审查: allowed=true path=0.455m chord=0.429m ratio=1.06 max_dev=0.065m recede=0.000m (笛卡尔短路径门通过)
+[INFO] [1792631622.944986005] [peach_arm]: MTC 接近姿态审查: allowed=true max_from_start=10.5deg (TCP 姿态行程通过)
+[INFO] [1792631622.944994570] [peach_arm]: [target_4] MTC规划检查已返回: elapsed=0.091s success=true
+[INFO] [1792631623.471240289] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792631624.474069822] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792631624.554824046] [peach_arm]: [target_4] MTC任务已释放: elapsed=0.007s
+[INFO] [1792631624.554843911] [peach_arm.contact]: [target_4] 采用 PTP 候选 1/12 roll=0°
+[INFO] [1792631624.559462618] [peach_arm]: sequence 冠内审查: segments=1 allowed=true points=17 duration=1.600s joint_total=0.602rad (短路径门通过)
+[INFO] [1792631625.463138440] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792631626.188731729] [peach_arm]: 检查点 2（到预抓取）
+[INFO] [1792631626.188793523] [peach_arm.cycle]: [RECONFIRM] 预抓取停稳验证（不 SetIO）
+[INFO] [1792631626.389543531] [peach_arm.cycle]: [PREVIEW_CONTACT_PLANNING] 预规划套入与反向撤退
+[INFO] [1792631626.391558059] [peach_arm.moveit.ros.rdf_loader]: Loaded robot model in 0.00193383 seconds
+[INFO] [1792631626.391567520] [peach_arm.moveit.core.robot_model]: Loading robot model 'aubo_e5'...
+[INFO] [1792631626.391570332] [peach_arm.moveit.core.robot_model]: No root/virtual joint specified in SRDF. Assuming fixed joint
+[INFO] [1792631626.417210420] [peach_arm.moveit.kinematics.kdl_kinematics_plugin]: Joint weights for group 'manipulator_e5': 1 1 1 1 1 1
+[INFO] [1792631626.428268478] [peach_arm]: 场景障碍 ACM 豁免已应用: 28 条（含 <octomap> 保留名）
+[INFO] [1792631626.469304787] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792631626.582130344] [peach_arm]: [target_4] MTC规划检查已返回: elapsed=0.165s success=true
+[INFO] [1792631626.582267721] [peach_arm]: [target_4] MTC任务已释放: elapsed=0.000s
+[INFO] [1792631626.582273173] [peach_arm]: 检查点 3（套入与反向撤退预规划过门）
+[INFO] [1792631626.582324521] [peach_arm.cycle]: [MTC_APPROACH_INSERT] 沿轴 LIN 套入
+[INFO] [1792631626.583844999] [peach_arm.moveit.ros.rdf_loader]: Loaded robot model in 0.001488 seconds
+[INFO] [1792631626.583852051] [peach_arm.moveit.core.robot_model]: Loading robot model 'aubo_e5'...
+[INFO] [1792631626.583854419] [peach_arm.moveit.core.robot_model]: No root/virtual joint specified in SRDF. Assuming fixed joint
+[INFO] [1792631626.601733756] [peach_arm.moveit.kinematics.kdl_kinematics_plugin]: Joint weights for group 'manipulator_e5': 1 1 1 1 1 1
+[INFO] [1792631626.611931643] [peach_arm]: 场景障碍 ACM 豁免已应用: 28 条（含 <octomap> 保留名）
+[INFO] [1792631626.693482264] [peach_arm]: MTC 接近短路径审查: segments=1 allowed=true points=52 duration=5.064s joint_total=1.263rad joint_max=0.590rad (短路径门通过)
+[INFO] [1792631626.693537737] [peach_arm]: MTC 接近笛卡尔审查: allowed=true path=0.126m chord=0.126m ratio=1.00 max_dev=0.000m recede=0.000m (笛卡尔短路径门通过)
+[INFO] [1792631626.693541443] [peach_arm]: MTC 接近姿态审查: allowed=true max_from_start=0.0deg (TCP 姿态行程通过)
+[INFO] [1792631626.693554125] [peach_arm]: [target_4] MTC规划检查已返回: elapsed=0.092s success=true
+[INFO] [1792631627.477253469] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[WARN] [1792631627.586726324] [rclcpp]: Failed to get parameters: moveit.velocity_scaling
+[INFO] [1792631628.470482609] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792631629.473049930] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792631630.471579057] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[WARN] [1792631630.580877343] [rclcpp]: Failed to get parameters: moveit.velocity_scaling
+[INFO] [1792631631.481112313] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792631631.859171339] [peach_arm]: [target_4] MTC任务已释放: elapsed=0.006s
+[INFO] [1792631631.859189162] [peach_arm]: 检查点 4（沿轴套入到位）
+[INFO] [1792631631.859264014] [peach_arm.cycle]: [ACTUATE_TOOL] tool.enabled=false，跳过末端 IO
+[INFO] [1792631631.859300851] [peach_arm.cycle]: [MTC_RETREAT] MTC 沿插入反方向保持直线撤离
+[INFO] [1792631631.860399827] [peach_arm.moveit.ros.rdf_loader]: Loaded robot model in 0.00105105 seconds
+[INFO] [1792631631.860407516] [peach_arm.moveit.core.robot_model]: Loading robot model 'aubo_e5'...
+[INFO] [1792631631.860409872] [peach_arm.moveit.core.robot_model]: No root/virtual joint specified in SRDF. Assuming fixed joint
+[INFO] [1792631631.887206562] [peach_arm.moveit.kinematics.kdl_kinematics_plugin]: Joint weights for group 'manipulator_e5': 1 1 1 1 1 1
+[INFO] [1792631631.896070874] [peach_arm]: 场景障碍 ACM 豁免已应用: 28 条（含 <octomap> 保留名）
+[INFO] [1792631631.976601235] [peach_arm]: [target_4] MTC规划检查已返回: elapsed=0.089s success=true
+[INFO] [1792631632.477093579] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792631633.473886660] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[WARN] [1792631633.588321237] [rclcpp]: Failed to get parameters: moveit.velocity_scaling
+[INFO] [1792631634.468786586] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792631635.473645811] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792631636.464769317] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[WARN] [1792631636.581550383] [rclcpp]: Failed to get parameters: moveit.velocity_scaling
+[INFO] [1792631637.129315365] [peach_arm]: [target_4] MTC任务已释放: elapsed=0.006s
+[INFO] [1792631637.129334949] [peach_arm]: 检查点 8（原路撤回预抓取）
+[INFO] [1792631637.129376194] [peach_arm.cycle]: [MTC_RETREAT] 返回 harvest_stow
+[INFO] [1792631637.142764074] [peach_arm]: 拍照位姿沿接近轨迹原路返程: points=33 duration=3.101s
+[INFO] [1792631637.151063877] [peach_arm.moveit.ros.move_group_interface]: Execute request accepted
+[INFO] [1792631637.469465619] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792631638.463555249] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792631639.471163470] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792631640.318753289] [peach_arm.moveit.ros.move_group_interface]: Execute request success!
+[INFO] [1792631640.327940612] [peach_arm.moveit.ros.move_group_interface]: MoveGroup action client/server ready
+[INFO] [1792631640.329908984] [peach_arm.moveit.ros.move_group_interface]: Planning request accepted
+[INFO] [1792631640.333577024] [peach_arm.moveit.ros.move_group_interface]: Planning request complete!
+[INFO] [1792631640.334838687] [peach_arm.moveit.ros.move_group_interface]: time taken to generate plan: 4.5647e-05 seconds
+[INFO] [1792631640.335385031] [peach_arm.moveit.ros.move_group_interface]: Execute request accepted
+[INFO] [1792631640.480645304] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792631641.062545856] [peach_arm.moveit.ros.move_group_interface]: Execute request success!
+[INFO] [1792631641.071647553] [peach_arm]: 检查点 9（回收纳位）
+[INFO] [1792631641.071764879] [peach_arm.cycle]: [SUCCEEDED] 周期完成；tool.enabled=false 或未宣称采摘成功
+[INFO] [1792631641.464232930] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792631641.831478393] [peach_arm.cycle]: [IDLE] 已记录现场人工撤离确认；本服务不发送任何运动命令
+[INFO] [1792631642.472881883] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792631643.466573249] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792631644.463204097] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792631645.463628991] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792631646.463679152] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792631647.463875365] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792631648.464573631] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792631649.464460583] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792631649.528043178] [peach_arm.moveit.ros.move_group_interface]: MoveGroup action client/server ready
+[INFO] [1792631649.528364554] [peach_arm.moveit.ros.move_group_interface]: Planning request accepted
+[INFO] [1792631649.533353429] [peach_arm.moveit.ros.move_group_interface]: Planning request complete!
+[INFO] [1792631649.533386204] [peach_arm.moveit.ros.move_group_interface]: time taken to generate plan: 4.4589e-05 seconds
+[INFO] [1792631649.533906631] [peach_arm.moveit.ros.move_group_interface]: Execute request accepted
+[INFO] [1792631650.253490885] [peach_arm.moveit.ros.move_group_interface]: Execute request success!
+[INFO] [1792631650.464121633] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792631651.462987242] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792631652.464167926] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792631653.463799059] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792631654.464409678] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792631655.462774311] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792631656.471980427] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792631657.470734259] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792631658.466135416] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792631659.463282722] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792631660.467258309] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792631661.463206250] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792631662.463483303] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792631662.614157782] [peach_arm.contact]: CheckReachability 套入直线预检 pregrasp_ik=1 sleeve_ik=1 cartesian=1 fraction=1.000 roll=15deg threshold=0.95 travel=0.079m path=0.109m seed=[0.359 -0.244 0.689] pre=[0.571 -0.607 0.642] sleeve=[0.567 -0.610 0.752]
+[INFO] [1792631662.614177021] [peach_arm.contact]: CheckReachability 套入直线改用刀口滚转 15°（keep-roll 未走满）
+[INFO] [1792631662.614179536] [peach_arm.contact]: CheckReachability idx=0 require_sleeve=1 travel=0.079m reachable=true code=ok
+[INFO] [1792631662.614913710] [peach_arm.contact]: CheckReachability 套入直线预检 pregrasp_ik=1 sleeve_ik=1 cartesian=1 fraction=1.000 roll=0deg threshold=0.95 travel=0.095m path=0.125m seed=[0.359 -0.244 0.689] pre=[0.407 -0.649 0.634] sleeve=[0.403 -0.672 0.757]
+[INFO] [1792631662.614918888] [peach_arm.contact]: CheckReachability idx=1 require_sleeve=1 travel=0.095m reachable=true code=ok
+[INFO] [1792631662.615953216] [peach_arm.contact]: CheckReachability 套入直线预检 pregrasp_ik=1 sleeve_ik=1 cartesian=1 fraction=1.000 roll=0deg threshold=0.95 travel=0.080m path=0.110m seed=[0.359 -0.244 0.689] pre=[0.299 -0.708 0.598] sleeve=[0.299 -0.742 0.702]
+[INFO] [1792631662.615957765] [peach_arm.contact]: CheckReachability idx=2 require_sleeve=1 travel=0.080m reachable=true code=ok
+[INFO] [1792631662.617857099] [peach_arm.contact]: CheckReachability 套入直线预检 pregrasp_ik=1 sleeve_ik=1 cartesian=1 fraction=1.000 roll=0deg threshold=0.95 travel=0.070m path=0.100m seed=[0.359 -0.244 0.689] pre=[0.220 -0.737 0.619] sleeve=[0.183 -0.764 0.708]
+[INFO] [1792631662.617861794] [peach_arm.contact]: CheckReachability idx=3 require_sleeve=1 travel=0.070m reachable=true code=ok
+[INFO] [1792631662.638253962] [peach_arm.cycle]: [PLAN_OBSERVATION] 生成目标导向主动视点
+[INFO] [1792631662.638461702] [peach_arm.cycle]: [FINALIZE] 等待重建精化几何（BuildTargetModel）
+[INFO] [1792631662.638477452] [peach_arm.cycle]: [FINALIZE] allow_unrefined：等精化几何 timeout=3.7s target=target_9
+[WARN] [1792631662.638483466] [peach_arm]: quality.allow_unrefined_geometry: 用场景观测几何代替重建精化 target=target_9
+[INFO] [1792631662.638485793] [peach_arm.cycle]: [FINALIZE] 精化等待结束 arrived=true elapsed=0.00s
+[INFO] [1792631662.638491132] [peach_arm.cycle]: [FINALIZE] 合取 geometry_ready=true gate.allowed=true(pregrasp_geometry_ready) decision_target_ok=true pregrasp_only=false ctx=target_9 decision_target=target_9 rec_state=READY rec_id=target_9 refined_id=target_9
+[INFO] [1792631662.646763865] [peach_arm.contact]: CheckReachability 套入直线预检 pregrasp_ik=1 sleeve_ik=1 cartesian=1 fraction=1.000 roll=0deg threshold=0.95 travel=0.080m path=0.110m seed=[0.359 -0.244 0.689] pre=[0.299 -0.708 0.598] sleeve=[0.299 -0.742 0.702]
+[INFO] [1792631662.646794216] [peach_arm.contact]: CheckReachability idx=0 require_sleeve=1 travel=0.080m reachable=true code=ok
+[INFO] [1792631662.646801560] [peach_arm.contact]: caller=FINALIZE target=target_9 travel=0.080m require_sleeve=1 reachable=true code=ok
+[INFO] [1792631662.646808596] [peach_arm]: 接触几何（核对方向） target=target_9 entry=[0.299 -0.718 0.627] axis=[0.001 -0.307 0.952] travel=0.080m axis_angle_deg=7.17
+[INFO] [1792631662.647107417] [peach_arm.cycle]: [RECONFIRM] 抓取前再确认：等待新鲜观测复核身份/锚点漂移/摆动平息
+[INFO] [1792631662.974994749] [peach_arm.cycle]: [MTC_APPROACH_INSERT] 拍照位再最短路径到预抓取
+[INFO] [1792631662.979602791] [peach_arm]: 预抓取从拍照位出发: 已在命名状态
+[INFO] [1792631662.979614629] [peach_arm.contact]: 接近筛滚转 target=target_9 insert_travel=0.080m pregrasp_only=false
+[INFO] [1792631662.979736301] [peach_arm]: 接近：距入口 0.481m 轴向 0.086m 侧向 0.473m 夹角 18.1° 扫角 79.7° 半径 0.481m 沿轴LIN 0.030m 刀口滚转 0° 原语 LIN-align+LIN
+[INFO] [1792631662.985099540] [peach_arm]: [target_9] 接近候选开始: kind=LIN-align+LIN roll=0deg
+[INFO] [1792631662.986197640] [peach_arm.moveit.ros.rdf_loader]: Loaded robot model in 0.00105912 seconds
+[INFO] [1792631662.986206049] [peach_arm.moveit.core.robot_model]: Loading robot model 'aubo_e5'...
+[INFO] [1792631662.986208755] [peach_arm.moveit.core.robot_model]: No root/virtual joint specified in SRDF. Assuming fixed joint
+[INFO] [1792631663.007381297] [peach_arm.moveit.kinematics.kdl_kinematics_plugin]: Joint weights for group 'manipulator_e5': 1 1 1 1 1 1
+[INFO] [1792631663.008349148] [peach_arm]: [target_9] 接近候选任务已建立: elapsed=0.023s
+[INFO] [1792631663.020714579] [peach_arm]: 场景障碍 ACM 豁免已应用: 28 条（含 <octomap> 保留名）
+[INFO] [1792631663.037039089] [peach_arm.moveit.planners.pilz.joint_limits_aggregator]: Reading limits from namespace robot_description_planning
+[INFO] [1792631663.037924851] [peach_arm.moveit.planners.pilz.command_planner]: Available plugins: pilz_industrial_motion_planner/PlanningContextLoaderCIRC pilz_industrial_motion_planner/PlanningContextLoaderLIN pilz_industrial_motion_planner/PlanningContextLoaderPTP 
+[INFO] [1792631663.037932148] [peach_arm.moveit.planners.pilz.command_planner]: About to load: pilz_industrial_motion_planner/PlanningContextLoaderCIRC
+[INFO] [1792631663.038763523] [peach_arm.moveit.planners.pilz.command_planner]: Registered Algorithm [CIRC]
+[INFO] [1792631663.038766956] [peach_arm.moveit.planners.pilz.command_planner]: About to load: pilz_industrial_motion_planner/PlanningContextLoaderLIN
+[INFO] [1792631663.039309813] [peach_arm.moveit.planners.pilz.command_planner]: Registered Algorithm [LIN]
+[INFO] [1792631663.039312154] [peach_arm.moveit.planners.pilz.command_planner]: About to load: pilz_industrial_motion_planner/PlanningContextLoaderPTP
+[INFO] [1792631663.040069897] [peach_arm.moveit.planners.pilz.command_planner]: Registered Algorithm [PTP]
+[INFO] [1792631663.040169105] [peach_arm.moveit.ros.planning_pipeline]: Successfully loaded planner 'Pilz Industrial Motion Planner'
+[INFO] [1792631663.041236036] [peach_arm]: Try loading adapter 'default_planning_request_adapters/ResolveConstraintFrames'
+[INFO] [1792631663.041899982] [peach_arm]: Loaded adapter 'default_planning_request_adapters/ResolveConstraintFrames'
+[INFO] [1792631663.042004327] [peach_arm]: Try loading adapter 'default_planning_request_adapters/ValidateWorkspaceBounds'
+[INFO] [1792631663.042109781] [peach_arm]: Loaded adapter 'default_planning_request_adapters/ValidateWorkspaceBounds'
+[INFO] [1792631663.042111870] [peach_arm]: Try loading adapter 'default_planning_request_adapters/CheckStartStateBounds'
+[INFO] [1792631663.042117825] [peach_arm]: Loaded adapter 'default_planning_request_adapters/CheckStartStateBounds'
+[INFO] [1792631663.042118608] [peach_arm]: Try loading adapter 'default_planning_request_adapters/CheckStartStateCollision'
+[INFO] [1792631663.042122228] [peach_arm]: Loaded adapter 'default_planning_request_adapters/CheckStartStateCollision'
+[INFO] [1792631663.043233285] [peach_arm]: Try loading adapter 'default_planning_response_adapters/ValidateSolution'
+[INFO] [1792631663.044558692] [peach_arm]: Loaded adapter 'default_planning_response_adapters/ValidateSolution'
+[INFO] [1792631663.046313501] [peach_arm.moveit.planners.pilz.joint_limits_aggregator]: Reading limits from namespace robot_description_planning
+[INFO] [1792631663.046621579] [peach_arm.moveit.planners.pilz.command_planner]: Available plugins: pilz_industrial_motion_planner/PlanningContextLoaderCIRC pilz_industrial_motion_planner/PlanningContextLoaderLIN pilz_industrial_motion_planner/PlanningContextLoaderPTP 
+[INFO] [1792631663.046625561] [peach_arm.moveit.planners.pilz.command_planner]: About to load: pilz_industrial_motion_planner/PlanningContextLoaderCIRC
+[INFO] [1792631663.046705123] [peach_arm.moveit.planners.pilz.command_planner]: Registered Algorithm [CIRC]
+[INFO] [1792631663.046720988] [peach_arm.moveit.planners.pilz.command_planner]: About to load: pilz_industrial_motion_planner/PlanningContextLoaderLIN
+[INFO] [1792631663.046798435] [peach_arm.moveit.planners.pilz.command_planner]: Registered Algorithm [LIN]
+[INFO] [1792631663.046799994] [peach_arm.moveit.planners.pilz.command_planner]: About to load: pilz_industrial_motion_planner/PlanningContextLoaderPTP
+[INFO] [1792631663.046876789] [peach_arm.moveit.planners.pilz.command_planner]: Registered Algorithm [PTP]
+[INFO] [1792631663.046878669] [peach_arm.moveit.ros.planning_pipeline]: Successfully loaded planner 'Pilz Industrial Motion Planner'
+[INFO] [1792631663.047833449] [peach_arm]: Try loading adapter 'default_planning_request_adapters/ResolveConstraintFrames'
+[INFO] [1792631663.047926612] [peach_arm]: Loaded adapter 'default_planning_request_adapters/ResolveConstraintFrames'
+[INFO] [1792631663.047927909] [peach_arm]: Try loading adapter 'default_planning_request_adapters/ValidateWorkspaceBounds'
+[INFO] [1792631663.047938332] [peach_arm]: Loaded adapter 'default_planning_request_adapters/ValidateWorkspaceBounds'
+[INFO] [1792631663.047939256] [peach_arm]: Try loading adapter 'default_planning_request_adapters/CheckStartStateBounds'
+[INFO] [1792631663.047944159] [peach_arm]: Loaded adapter 'default_planning_request_adapters/CheckStartStateBounds'
+[INFO] [1792631663.047944974] [peach_arm]: Try loading adapter 'default_planning_request_adapters/CheckStartStateCollision'
+[INFO] [1792631663.047948613] [peach_arm]: Loaded adapter 'default_planning_request_adapters/CheckStartStateCollision'
+[INFO] [1792631663.048777723] [peach_arm]: Try loading adapter 'default_planning_response_adapters/ValidateSolution'
+[INFO] [1792631663.049357537] [peach_arm]: Loaded adapter 'default_planning_response_adapters/ValidateSolution'
+[WARN] [1792631663.147223322] [peach_arm]: 忽略 refined diagnostics（unrefined_hold）: expected=target_9 actual=target_9
+[INFO] [1792631663.198192993] [peach_arm]: Calling PlanningRequestAdapter 'ResolveConstraintFrames'
+[INFO] [1792631663.198270217] [peach_arm]: Calling PlanningRequestAdapter 'ValidateWorkspaceBounds'
+[WARN] [1792631663.198275173] [peach_arm.moveit.ros.validate_workspace_bounds]: It looks like the planning volume was not specified. Using default values.
+[INFO] [1792631663.198284741] [peach_arm]: Calling PlanningRequestAdapter 'CheckStartStateBounds'
+[INFO] [1792631663.198308952] [peach_arm]: Calling PlanningRequestAdapter 'CheckStartStateCollision'
+[INFO] [1792631663.198436298] [peach_arm]: Calling Planner 'Pilz Industrial Motion Planner'
+[INFO] [1792631663.198464526] [peach_arm.moveit.planners.pilz.trajectory_generator]: Generating LIN trajectory...
+[INFO] [1792631663.199461175] [peach_arm]: Calling PlanningResponseAdapter 'ValidateSolution'
+[INFO] [1792631663.200175683] [peach_arm]: Calling PlanningRequestAdapter 'ResolveConstraintFrames'
+[INFO] [1792631663.200204673] [peach_arm]: Calling PlanningRequestAdapter 'ValidateWorkspaceBounds'
+[WARN] [1792631663.200206971] [peach_arm.moveit.ros.validate_workspace_bounds]: It looks like the planning volume was not specified. Using default values.
+[INFO] [1792631663.200215972] [peach_arm]: Calling PlanningRequestAdapter 'CheckStartStateBounds'
+[INFO] [1792631663.200227936] [peach_arm]: Calling PlanningRequestAdapter 'CheckStartStateCollision'
+[INFO] [1792631663.200278732] [peach_arm]: Calling Planner 'Pilz Industrial Motion Planner'
+[INFO] [1792631663.200282316] [peach_arm.moveit.planners.pilz.trajectory_generator]: Generating LIN trajectory...
+[ERROR] [1792631663.207997754] [peach_arm.pilz_trajectory_functions]: Joint velocity limit of foreArm_joint violated. Set the velocity scaling factor lower! Actual joint velocity is 10.1628, while the limit is 2.5964. 
+[ERROR] [1792631663.208032303] [peach_arm.pilz_trajectory_functions]: Inverse kinematics solution at 1.8s violates the joint velocity/acceleration/deceleration limits.
+[ERROR] [1792631663.208065261] [peach_arm.moveit.planners.pilz.trajectory_generator]: Failed to generate valid joint trajectory from the Cartesian path
+[ERROR] [1792631663.208111654] [peach_arm]: Planner 'Pilz Industrial Motion Planner' failed with error code PLANNING_FAILED
+[INFO] [1792631663.208182004] [peach_arm]: [target_9] MTC规划检查已返回: elapsed=0.200s success=false
+[INFO] [1792631663.208990774] [peach_arm]: [target_9] MTC任务已释放: elapsed=0.001s
+[INFO] [1792631663.208999953] [peach_arm]: [target_9] 接近候选结束: roll=0deg elapsed=0.224s success=false reason=MTC planning failed: Failing stage(s):
+lin to on-axis pregrasp (0/1)
+[INFO] [1792631663.214549673] [peach_arm]: [target_9] 接近候选开始: kind=LIN-align+LIN roll=15deg
+[INFO] [1792631663.215675631] [peach_arm.moveit.ros.rdf_loader]: Loaded robot model in 0.0010745 seconds
+[INFO] [1792631663.215683522] [peach_arm.moveit.core.robot_model]: Loading robot model 'aubo_e5'...
+[INFO] [1792631663.215686062] [peach_arm.moveit.core.robot_model]: No root/virtual joint specified in SRDF. Assuming fixed joint
+[INFO] [1792631663.235385453] [peach_arm.moveit.kinematics.kdl_kinematics_plugin]: Joint weights for group 'manipulator_e5': 1 1 1 1 1 1
+[INFO] [1792631663.235504961] [peach_arm]: [target_9] 接近候选任务已建立: elapsed=0.021s
+[INFO] [1792631663.246332706] [peach_arm]: 场景障碍 ACM 豁免已应用: 28 条（含 <octomap> 保留名）
+[INFO] [1792631663.255379783] [peach_arm.moveit.planners.pilz.joint_limits_aggregator]: Reading limits from namespace robot_description_planning
+[INFO] [1792631663.255818727] [peach_arm.moveit.planners.pilz.command_planner]: Available plugins: pilz_industrial_motion_planner/PlanningContextLoaderCIRC pilz_industrial_motion_planner/PlanningContextLoaderLIN pilz_industrial_motion_planner/PlanningContextLoaderPTP 
+[INFO] [1792631663.255825153] [peach_arm.moveit.planners.pilz.command_planner]: About to load: pilz_industrial_motion_planner/PlanningContextLoaderCIRC
+[INFO] [1792631663.256591161] [peach_arm.moveit.planners.pilz.command_planner]: Registered Algorithm [CIRC]
+[INFO] [1792631663.256596307] [peach_arm.moveit.planners.pilz.command_planner]: About to load: pilz_industrial_motion_planner/PlanningContextLoaderLIN
+[INFO] [1792631663.257151470] [peach_arm.moveit.planners.pilz.command_planner]: Registered Algorithm [LIN]
+[INFO] [1792631663.257155673] [peach_arm.moveit.planners.pilz.command_planner]: About to load: pilz_industrial_motion_planner/PlanningContextLoaderPTP
+[INFO] [1792631663.257686363] [peach_arm.moveit.planners.pilz.command_planner]: Registered Algorithm [PTP]
+[INFO] [1792631663.257691083] [peach_arm.moveit.ros.planning_pipeline]: Successfully loaded planner 'Pilz Industrial Motion Planner'
+[INFO] [1792631663.258590864] [peach_arm]: Try loading adapter 'default_planning_request_adapters/ResolveConstraintFrames'
+[INFO] [1792631663.259129215] [peach_arm]: Loaded adapter 'default_planning_request_adapters/ResolveConstraintFrames'
+[INFO] [1792631663.259133067] [peach_arm]: Try loading adapter 'default_planning_request_adapters/ValidateWorkspaceBounds'
+[INFO] [1792631663.259155009] [peach_arm]: Loaded adapter 'default_planning_request_adapters/ValidateWorkspaceBounds'
+[INFO] [1792631663.259156014] [peach_arm]: Try loading adapter 'default_planning_request_adapters/CheckStartStateBounds'
+[INFO] [1792631663.259161341] [peach_arm]: Loaded adapter 'default_planning_request_adapters/CheckStartStateBounds'
+[INFO] [1792631663.259162120] [peach_arm]: Try loading adapter 'default_planning_request_adapters/CheckStartStateCollision'
+[INFO] [1792631663.259165141] [peach_arm]: Loaded adapter 'default_planning_request_adapters/CheckStartStateCollision'
+[INFO] [1792631663.260597645] [peach_arm]: Try loading adapter 'default_planning_response_adapters/ValidateSolution'
+[INFO] [1792631663.262064896] [peach_arm]: Loaded adapter 'default_planning_response_adapters/ValidateSolution'
+[INFO] [1792631663.263695954] [peach_arm.moveit.planners.pilz.joint_limits_aggregator]: Reading limits from namespace robot_description_planning
+[INFO] [1792631663.264046325] [peach_arm.moveit.planners.pilz.command_planner]: Available plugins: pilz_industrial_motion_planner/PlanningContextLoaderCIRC pilz_industrial_motion_planner/PlanningContextLoaderLIN pilz_industrial_motion_planner/PlanningContextLoaderPTP 
+[INFO] [1792631663.264096093] [peach_arm.moveit.planners.pilz.command_planner]: About to load: pilz_industrial_motion_planner/PlanningContextLoaderCIRC
+[INFO] [1792631663.264206161] [peach_arm.moveit.planners.pilz.command_planner]: Registered Algorithm [CIRC]
+[INFO] [1792631663.264215785] [peach_arm.moveit.planners.pilz.command_planner]: About to load: pilz_industrial_motion_planner/PlanningContextLoaderLIN
+[INFO] [1792631663.264314802] [peach_arm.moveit.planners.pilz.command_planner]: Registered Algorithm [LIN]
+[INFO] [1792631663.264316695] [peach_arm.moveit.planners.pilz.command_planner]: About to load: pilz_industrial_motion_planner/PlanningContextLoaderPTP
+[INFO] [1792631663.264407351] [peach_arm.moveit.planners.pilz.command_planner]: Registered Algorithm [PTP]
+[INFO] [1792631663.264409742] [peach_arm.moveit.ros.planning_pipeline]: Successfully loaded planner 'Pilz Industrial Motion Planner'
+[INFO] [1792631663.265266400] [peach_arm]: Try loading adapter 'default_planning_request_adapters/ResolveConstraintFrames'
+[INFO] [1792631663.265369575] [peach_arm]: Loaded adapter 'default_planning_request_adapters/ResolveConstraintFrames'
+[INFO] [1792631663.265370946] [peach_arm]: Try loading adapter 'default_planning_request_adapters/ValidateWorkspaceBounds'
+[INFO] [1792631663.265382605] [peach_arm]: Loaded adapter 'default_planning_request_adapters/ValidateWorkspaceBounds'
+[INFO] [1792631663.265383516] [peach_arm]: Try loading adapter 'default_planning_request_adapters/CheckStartStateBounds'
+[INFO] [1792631663.265388086] [peach_arm]: Loaded adapter 'default_planning_request_adapters/CheckStartStateBounds'
+[INFO] [1792631663.265388840] [peach_arm]: Try loading adapter 'default_planning_request_adapters/CheckStartStateCollision'
+[INFO] [1792631663.265392345] [peach_arm]: Loaded adapter 'default_planning_request_adapters/CheckStartStateCollision'
+[INFO] [1792631663.266274733] [peach_arm]: Try loading adapter 'default_planning_response_adapters/ValidateSolution'
+[INFO] [1792631663.266763916] [peach_arm]: Loaded adapter 'default_planning_response_adapters/ValidateSolution'
+[INFO] [1792631663.330822372] [peach_arm]: Calling PlanningRequestAdapter 'ResolveConstraintFrames'
+[INFO] [1792631663.330892453] [peach_arm]: Calling PlanningRequestAdapter 'ValidateWorkspaceBounds'
+[WARN] [1792631663.330896511] [peach_arm.moveit.ros.validate_workspace_bounds]: It looks like the planning volume was not specified. Using default values.
+[INFO] [1792631663.330905464] [peach_arm]: Calling PlanningRequestAdapter 'CheckStartStateBounds'
+[INFO] [1792631663.330937470] [peach_arm]: Calling PlanningRequestAdapter 'CheckStartStateCollision'
+[INFO] [1792631663.331068393] [peach_arm]: Calling Planner 'Pilz Industrial Motion Planner'
+[INFO] [1792631663.331097742] [peach_arm.moveit.planners.pilz.trajectory_generator]: Generating LIN trajectory...
+[INFO] [1792631663.331994562] [peach_arm]: Calling PlanningResponseAdapter 'ValidateSolution'
+[INFO] [1792631663.332626992] [peach_arm]: Calling PlanningRequestAdapter 'ResolveConstraintFrames'
+[INFO] [1792631663.332678949] [peach_arm]: Calling PlanningRequestAdapter 'ValidateWorkspaceBounds'
+[WARN] [1792631663.332684011] [peach_arm.moveit.ros.validate_workspace_bounds]: It looks like the planning volume was not specified. Using default values.
+[INFO] [1792631663.332694929] [peach_arm]: Calling PlanningRequestAdapter 'CheckStartStateBounds'
+[INFO] [1792631663.332704800] [peach_arm]: Calling PlanningRequestAdapter 'CheckStartStateCollision'
+[INFO] [1792631663.332755669] [peach_arm]: Calling Planner 'Pilz Industrial Motion Planner'
+[INFO] [1792631663.332758363] [peach_arm.moveit.planners.pilz.trajectory_generator]: Generating LIN trajectory...
+[ERROR] [1792631663.333313307] [peach_arm.pilz_trajectory_functions]: Joint acceleration limit of wrist1_joint violated. Set the acceleration scaling factor lower! Actual joint acceleration is 3.63531, while the limit is 3. 
+[ERROR] [1792631663.333338818] [peach_arm.pilz_trajectory_functions]: Inverse kinematics solution at 0.2s violates the joint velocity/acceleration/deceleration limits.
+[ERROR] [1792631663.333362724] [peach_arm.moveit.planners.pilz.trajectory_generator]: Failed to generate valid joint trajectory from the Cartesian path
+[ERROR] [1792631663.333377637] [peach_arm]: Planner 'Pilz Industrial Motion Planner' failed with error code PLANNING_FAILED
+[INFO] [1792631663.333496364] [peach_arm]: [target_9] MTC规划检查已返回: elapsed=0.098s success=false
+[INFO] [1792631663.334088994] [peach_arm]: [target_9] MTC任务已释放: elapsed=0.001s
+[INFO] [1792631663.334094965] [peach_arm]: [target_9] 接近候选结束: roll=15deg elapsed=0.120s success=false reason=MTC planning failed: Failing stage(s):
+lin to on-axis pregrasp (0/1)
+[WARN] [1792631663.334098219] [peach_arm.contact]: [target_9] 笛卡尔 LIN 连续 2 档规划失败（最近: MTC planning failed: Failing stage(s):
+lin to on-axis pregrasp (0/1)），停止滚转搜索，改走 PTP
+[INFO] [1792631663.465466753] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792631663.551271016] [peach_arm]: staging IK 候选筛选成功 target=target_9 model_target= model_revision= frame=base_link group=manipulator_e5 tip=tcp position_m=[0.2985 -0.6930 0.5006] axis=[0.0015 -0.3072 0.9516] attempts=28 ik_failed=0 bounds_failed=0 self_collision=4 corridor_failed=6 valid_candidates=18
+[INFO] [1792631663.551293440] [peach_arm.contact]: [target_9] PTP 入冠候选 18 个（按 |roll| 再关节代价排序）
+[INFO] [1792631663.556106844] [peach_arm.contact]: [target_9] PTP 候选 1/18 roll=0° joint_cost=13.620：关节空间到中段点正下方 + 垂直入冠 0.050m + 沿轴 0.050m
+[INFO] [1792631663.557361370] [peach_arm.moveit.ros.rdf_loader]: Loaded robot model in 0.0012051 seconds
+[INFO] [1792631663.557371762] [peach_arm.moveit.core.robot_model]: Loading robot model 'aubo_e5'...
+[INFO] [1792631663.557374545] [peach_arm.moveit.core.robot_model]: No root/virtual joint specified in SRDF. Assuming fixed joint
+[INFO] [1792631663.574065258] [peach_arm.moveit.kinematics.kdl_kinematics_plugin]: Joint weights for group 'manipulator_e5': 1 1 1 1 1 1
+[WARN] [1792631663.581739159] [rclcpp]: Failed to get parameters: moveit.velocity_scaling
+[INFO] [1792631663.588623529] [peach_arm]: 场景障碍 ACM 豁免已应用: 28 条（含 <octomap> 保留名）
+[INFO] [1792631663.607333499] [peach_arm.moveit.planners.pilz.joint_limits_aggregator]: Reading limits from namespace robot_description_planning
+[INFO] [1792631663.607825120] [peach_arm.moveit.planners.pilz.command_planner]: Available plugins: pilz_industrial_motion_planner/PlanningContextLoaderCIRC pilz_industrial_motion_planner/PlanningContextLoaderLIN pilz_industrial_motion_planner/PlanningContextLoaderPTP 
+[INFO] [1792631663.607830236] [peach_arm.moveit.planners.pilz.command_planner]: About to load: pilz_industrial_motion_planner/PlanningContextLoaderCIRC
+[INFO] [1792631663.608607154] [peach_arm.moveit.planners.pilz.command_planner]: Registered Algorithm [CIRC]
+[INFO] [1792631663.608611192] [peach_arm.moveit.planners.pilz.command_planner]: About to load: pilz_industrial_motion_planner/PlanningContextLoaderLIN
+[INFO] [1792631663.609148515] [peach_arm.moveit.planners.pilz.command_planner]: Registered Algorithm [LIN]
+[INFO] [1792631663.609151095] [peach_arm.moveit.planners.pilz.command_planner]: About to load: pilz_industrial_motion_planner/PlanningContextLoaderPTP
+[INFO] [1792631663.609671557] [peach_arm.moveit.planners.pilz.command_planner]: Registered Algorithm [PTP]
+[INFO] [1792631663.609676021] [peach_arm.moveit.ros.planning_pipeline]: Successfully loaded planner 'Pilz Industrial Motion Planner'
+[INFO] [1792631663.610578923] [peach_arm]: Try loading adapter 'default_planning_request_adapters/ResolveConstraintFrames'
+[INFO] [1792631663.611107615] [peach_arm]: Loaded adapter 'default_planning_request_adapters/ResolveConstraintFrames'
+[INFO] [1792631663.611109985] [peach_arm]: Try loading adapter 'default_planning_request_adapters/ValidateWorkspaceBounds'
+[INFO] [1792631663.611134025] [peach_arm]: Loaded adapter 'default_planning_request_adapters/ValidateWorkspaceBounds'
+[INFO] [1792631663.611135020] [peach_arm]: Try loading adapter 'default_planning_request_adapters/CheckStartStateBounds'
+[INFO] [1792631663.611140633] [peach_arm]: Loaded adapter 'default_planning_request_adapters/CheckStartStateBounds'
+[INFO] [1792631663.611141425] [peach_arm]: Try loading adapter 'default_planning_request_adapters/CheckStartStateCollision'
+[INFO] [1792631663.611162364] [peach_arm]: Loaded adapter 'default_planning_request_adapters/CheckStartStateCollision'
+[INFO] [1792631663.612055503] [peach_arm]: Try loading adapter 'default_planning_response_adapters/ValidateSolution'
+[INFO] [1792631663.613288461] [peach_arm]: Loaded adapter 'default_planning_response_adapters/ValidateSolution'
+[INFO] [1792631663.681486464] [peach_arm]: Calling PlanningRequestAdapter 'ResolveConstraintFrames'
+[INFO] [1792631663.681608636] [peach_arm]: Calling PlanningRequestAdapter 'ValidateWorkspaceBounds'
+[WARN] [1792631663.681617501] [peach_arm.moveit.ros.validate_workspace_bounds]: It looks like the planning volume was not specified. Using default values.
+[INFO] [1792631663.681633359] [peach_arm]: Calling PlanningRequestAdapter 'CheckStartStateBounds'
+[INFO] [1792631663.681656823] [peach_arm]: Calling PlanningRequestAdapter 'CheckStartStateCollision'
+[INFO] [1792631663.681775301] [peach_arm.moveit.planners.pilz.trajectory_generator.ptp]: Initialized Point-to-Point Trajectory Generator.
+[INFO] [1792631663.681787994] [peach_arm]: Calling Planner 'Pilz Industrial Motion Planner'
+[INFO] [1792631663.681808892] [peach_arm.moveit.planners.pilz.trajectory_generator]: Generating PTP trajectory...
+[INFO] [1792631663.681969399] [peach_arm]: Calling PlanningResponseAdapter 'ValidateSolution'
+[INFO] [1792631663.682582945] [peach_arm]: MTC 接近短路径审查: segments=1 allowed=true points=21 duration=1.940s joint_total=5.862rad joint_max=1.475rad (短路径门通过)
+[INFO] [1792631663.682620843] [peach_arm]: MTC 接近果实胶囊审查(seg0 转移): allowed=true min_clearance=0.087m (果实胶囊审查通过)
+[INFO] [1792631663.682628184] [peach_arm]: MTC 接近笛卡尔审查: allowed=false path=0.830m chord=0.490m ratio=1.69 max_dev=0.274m recede=0.026m (TCP 相对弦偏离 0.273972m > 0.12m)
+[WARN] [1792631663.682631221] [peach_arm.contact]: [target_9] 拒绝大弧 PTP：ratio=1.69 max_dev=0.274m recede=0.026m 门=1.50/0.120m/0.080m，试下一 IK 候选
+[INFO] [1792631663.682638798] [peach_arm]: [target_9] MTC规划检查已返回: elapsed=0.109s success=false
+[INFO] [1792631663.683455136] [peach_arm]: [target_9] MTC任务已释放: elapsed=0.001s
+[WARN] [1792631663.683460513] [peach_arm.contact]: [target_9] PTP 候选 1/18 未采用：MTC short-path guard rejected: TCP 相对弦偏离 0.273972m > 0.12m
+[INFO] [1792631663.689126850] [peach_arm.contact]: [target_9] PTP 候选 2/18 roll=0° joint_cost=26.544：关节空间到中段点正下方 + 垂直入冠 0.050m + 沿轴 0.050m
+[INFO] [1792631663.690127517] [peach_arm.moveit.ros.rdf_loader]: Loaded robot model in 0.000964438 seconds
+[INFO] [1792631663.690134616] [peach_arm.moveit.core.robot_model]: Loading robot model 'aubo_e5'...
+[INFO] [1792631663.690136970] [peach_arm.moveit.core.robot_model]: No root/virtual joint specified in SRDF. Assuming fixed joint
+[INFO] [1792631663.706867975] [peach_arm.moveit.kinematics.kdl_kinematics_plugin]: Joint weights for group 'manipulator_e5': 1 1 1 1 1 1
+[INFO] [1792631663.716043246] [peach_arm]: 场景障碍 ACM 豁免已应用: 28 条（含 <octomap> 保留名）
+[INFO] [1792631663.726147800] [peach_arm.moveit.planners.pilz.joint_limits_aggregator]: Reading limits from namespace robot_description_planning
+[INFO] [1792631663.726579835] [peach_arm.moveit.planners.pilz.command_planner]: Available plugins: pilz_industrial_motion_planner/PlanningContextLoaderCIRC pilz_industrial_motion_planner/PlanningContextLoaderLIN pilz_industrial_motion_planner/PlanningContextLoaderPTP 
+[INFO] [1792631663.726584420] [peach_arm.moveit.planners.pilz.command_planner]: About to load: pilz_industrial_motion_planner/PlanningContextLoaderCIRC
+[INFO] [1792631663.727315696] [peach_arm.moveit.planners.pilz.command_planner]: Registered Algorithm [CIRC]
+[INFO] [1792631663.727318848] [peach_arm.moveit.planners.pilz.command_planner]: About to load: pilz_industrial_motion_planner/PlanningContextLoaderLIN
+[INFO] [1792631663.727923641] [peach_arm.moveit.planners.pilz.command_planner]: Registered Algorithm [LIN]
+[INFO] [1792631663.727940122] [peach_arm.moveit.planners.pilz.command_planner]: About to load: pilz_industrial_motion_planner/PlanningContextLoaderPTP
+[INFO] [1792631663.728457110] [peach_arm.moveit.planners.pilz.command_planner]: Registered Algorithm [PTP]
+[INFO] [1792631663.728460550] [peach_arm.moveit.ros.planning_pipeline]: Successfully loaded planner 'Pilz Industrial Motion Planner'
+[INFO] [1792631663.729347092] [peach_arm]: Try loading adapter 'default_planning_request_adapters/ResolveConstraintFrames'
+[INFO] [1792631663.729875341] [peach_arm]: Loaded adapter 'default_planning_request_adapters/ResolveConstraintFrames'
+[INFO] [1792631663.729877512] [peach_arm]: Try loading adapter 'default_planning_request_adapters/ValidateWorkspaceBounds'
+[INFO] [1792631663.729900181] [peach_arm]: Loaded adapter 'default_planning_request_adapters/ValidateWorkspaceBounds'
+[INFO] [1792631663.729901195] [peach_arm]: Try loading adapter 'default_planning_request_adapters/CheckStartStateBounds'
+[INFO] [1792631663.729906672] [peach_arm]: Loaded adapter 'default_planning_request_adapters/CheckStartStateBounds'
+[INFO] [1792631663.729907425] [peach_arm]: Try loading adapter 'default_planning_request_adapters/CheckStartStateCollision'
+[INFO] [1792631663.729911818] [peach_arm]: Loaded adapter 'default_planning_request_adapters/CheckStartStateCollision'
+[INFO] [1792631663.730795527] [peach_arm]: Try loading adapter 'default_planning_response_adapters/ValidateSolution'
+[INFO] [1792631663.731932817] [peach_arm]: Loaded adapter 'default_planning_response_adapters/ValidateSolution'
+[INFO] [1792631663.795228871] [peach_arm]: Calling PlanningRequestAdapter 'ResolveConstraintFrames'
+[INFO] [1792631663.795290986] [peach_arm]: Calling PlanningRequestAdapter 'ValidateWorkspaceBounds'
+[WARN] [1792631663.795295020] [peach_arm.moveit.ros.validate_workspace_bounds]: It looks like the planning volume was not specified. Using default values.
+[INFO] [1792631663.795304507] [peach_arm]: Calling PlanningRequestAdapter 'CheckStartStateBounds'
+[INFO] [1792631663.795318833] [peach_arm]: Calling PlanningRequestAdapter 'CheckStartStateCollision'
+[INFO] [1792631663.795444879] [peach_arm.moveit.planners.pilz.trajectory_generator.ptp]: Initialized Point-to-Point Trajectory Generator.
+[INFO] [1792631663.795460430] [peach_arm]: Calling Planner 'Pilz Industrial Motion Planner'
+[INFO] [1792631663.795484854] [peach_arm.moveit.planners.pilz.trajectory_generator]: Generating PTP trajectory...
+[INFO] [1792631663.795702080] [peach_arm]: Calling PlanningResponseAdapter 'ValidateSolution'
+[INFO] [1792631663.796377425] [peach_arm]: MTC 接近短路径审查: segments=1 allowed=true points=38 duration=3.606s joint_total=9.470rad joint_max=3.206rad (短路径门通过)
+[INFO] [1792631663.796404970] [peach_arm]: MTC 接近果实胶囊审查(seg0 转移): allowed=true min_clearance=0.048m (果实胶囊审查通过)
+[INFO] [1792631663.796410831] [peach_arm]: MTC 接近笛卡尔审查: allowed=false path=0.886m chord=0.490m ratio=1.81 max_dev=0.307m recede=0.034m (TCP 相对弦偏离 0.306973m > 0.12m)
+[WARN] [1792631663.796413575] [peach_arm.contact]: [target_9] 拒绝大弧 PTP：ratio=1.81 max_dev=0.307m recede=0.034m 门=1.50/0.120m/0.080m，试下一 IK 候选
+[INFO] [1792631663.796420962] [peach_arm]: [target_9] MTC规划检查已返回: elapsed=0.089s success=false
+[INFO] [1792631663.796881897] [peach_arm]: [target_9] MTC任务已释放: elapsed=0.000s
+[WARN] [1792631663.796885077] [peach_arm.contact]: [target_9] PTP 候选 2/18 未采用：MTC short-path guard rejected: TCP 相对弦偏离 0.306973m > 0.12m
+[INFO] [1792631663.804017668] [peach_arm.contact]: [target_9] PTP 候选 3/18 roll=0° joint_cost=38.325：关节空间到中段点正下方 + 垂直入冠 0.050m + 沿轴 0.050m
+[INFO] [1792631663.805772110] [peach_arm.moveit.ros.rdf_loader]: Loaded robot model in 0.00165823 seconds
+[INFO] [1792631663.805792789] [peach_arm.moveit.core.robot_model]: Loading robot model 'aubo_e5'...
+[INFO] [1792631663.805796008] [peach_arm.moveit.core.robot_model]: No root/virtual joint specified in SRDF. Assuming fixed joint
+[INFO] [1792631663.827542706] [peach_arm.moveit.kinematics.kdl_kinematics_plugin]: Joint weights for group 'manipulator_e5': 1 1 1 1 1 1
+[INFO] [1792631663.836892417] [peach_arm]: 场景障碍 ACM 豁免已应用: 28 条（含 <octomap> 保留名）
+[INFO] [1792631663.849581811] [peach_arm.moveit.planners.pilz.joint_limits_aggregator]: Reading limits from namespace robot_description_planning
+[INFO] [1792631663.850001154] [peach_arm.moveit.planners.pilz.command_planner]: Available plugins: pilz_industrial_motion_planner/PlanningContextLoaderCIRC pilz_industrial_motion_planner/PlanningContextLoaderLIN pilz_industrial_motion_planner/PlanningContextLoaderPTP 
+[INFO] [1792631663.850007253] [peach_arm.moveit.planners.pilz.command_planner]: About to load: pilz_industrial_motion_planner/PlanningContextLoaderCIRC
+[INFO] [1792631663.850738083] [peach_arm.moveit.planners.pilz.command_planner]: Registered Algorithm [CIRC]
+[INFO] [1792631663.850742670] [peach_arm.moveit.planners.pilz.command_planner]: About to load: pilz_industrial_motion_planner/PlanningContextLoaderLIN
+[INFO] [1792631663.851298213] [peach_arm.moveit.planners.pilz.command_planner]: Registered Algorithm [LIN]
+[INFO] [1792631663.851302068] [peach_arm.moveit.planners.pilz.command_planner]: About to load: pilz_industrial_motion_planner/PlanningContextLoaderPTP
+[INFO] [1792631663.851810303] [peach_arm.moveit.planners.pilz.command_planner]: Registered Algorithm [PTP]
+[INFO] [1792631663.851814463] [peach_arm.moveit.ros.planning_pipeline]: Successfully loaded planner 'Pilz Industrial Motion Planner'
+[INFO] [1792631663.852751397] [peach_arm]: Try loading adapter 'default_planning_request_adapters/ResolveConstraintFrames'
+[INFO] [1792631663.853324248] [peach_arm]: Loaded adapter 'default_planning_request_adapters/ResolveConstraintFrames'
+[INFO] [1792631663.853327524] [peach_arm]: Try loading adapter 'default_planning_request_adapters/ValidateWorkspaceBounds'
+[INFO] [1792631663.853347826] [peach_arm]: Loaded adapter 'default_planning_request_adapters/ValidateWorkspaceBounds'
+[INFO] [1792631663.853348834] [peach_arm]: Try loading adapter 'default_planning_request_adapters/CheckStartStateBounds'
+[INFO] [1792631663.853354320] [peach_arm]: Loaded adapter 'default_planning_request_adapters/CheckStartStateBounds'
+[INFO] [1792631663.853355041] [peach_arm]: Try loading adapter 'default_planning_request_adapters/CheckStartStateCollision'
+[INFO] [1792631663.853359123] [peach_arm]: Loaded adapter 'default_planning_request_adapters/CheckStartStateCollision'
+[INFO] [1792631663.854206429] [peach_arm]: Try loading adapter 'default_planning_response_adapters/ValidateSolution'
+[INFO] [1792631663.855475888] [peach_arm]: Loaded adapter 'default_planning_response_adapters/ValidateSolution'
+[INFO] [1792631663.920822727] [peach_arm]: Calling PlanningRequestAdapter 'ResolveConstraintFrames'
+[INFO] [1792631663.920912235] [peach_arm]: Calling PlanningRequestAdapter 'ValidateWorkspaceBounds'
+[WARN] [1792631663.920917026] [peach_arm.moveit.ros.validate_workspace_bounds]: It looks like the planning volume was not specified. Using default values.
+[INFO] [1792631663.920926793] [peach_arm]: Calling PlanningRequestAdapter 'CheckStartStateBounds'
+[INFO] [1792631663.920959854] [peach_arm]: Calling PlanningRequestAdapter 'CheckStartStateCollision'
+[INFO] [1792631663.921112924] [peach_arm.moveit.planners.pilz.trajectory_generator.ptp]: Initialized Point-to-Point Trajectory Generator.
+[INFO] [1792631663.921130250] [peach_arm]: Calling Planner 'Pilz Industrial Motion Planner'
+[INFO] [1792631663.921153081] [peach_arm.moveit.planners.pilz.trajectory_generator]: Generating PTP trajectory...
+[INFO] [1792631663.921371811] [peach_arm]: Calling PlanningResponseAdapter 'ValidateSolution'
+[INFO] [1792631663.922184039] [peach_arm]: MTC 接近短路径审查: segments=1 allowed=true points=37 duration=3.593s joint_total=9.042rad joint_max=3.193rad (短路径门通过)
+[INFO] [1792631663.922223306] [peach_arm]: MTC 接近果实胶囊审查(seg0 转移): allowed=false min_clearance=-0.022m (工具筒体接触果实胶囊 s=0.092355m r=0.122172m 间隙=-0.0218141m (果半径 0.0463546m))
+[INFO] [1792631663.922249736] [peach_arm]: [target_9] MTC规划检查已返回: elapsed=0.095s success=false
+[INFO] [1792631663.922884282] [peach_arm]: [target_9] MTC任务已释放: elapsed=0.001s
+[WARN] [1792631663.922889152] [peach_arm.contact]: [target_9] PTP 候选 3/18 未采用：MTC short-path guard rejected: 工具筒体接触果实胶囊 s=0.092355m r=0.122172m 间隙=-0.0218141m (果半径 0.0463546m)
+[INFO] [1792631663.931865835] [peach_arm.contact]: [target_9] PTP 候选 4/18 roll=-15° joint_cost=4.239：关节空间到中段点正下方 + 垂直入冠 0.050m + 沿轴 0.050m
+[INFO] [1792631663.932925806] [peach_arm.moveit.ros.rdf_loader]: Loaded robot model in 0.00102671 seconds
+[INFO] [1792631663.932932014] [peach_arm.moveit.core.robot_model]: Loading robot model 'aubo_e5'...
+[INFO] [1792631663.932934519] [peach_arm.moveit.core.robot_model]: No root/virtual joint specified in SRDF. Assuming fixed joint
+[INFO] [1792631663.951970306] [peach_arm.moveit.kinematics.kdl_kinematics_plugin]: Joint weights for group 'manipulator_e5': 1 1 1 1 1 1
+[INFO] [1792631663.962800398] [peach_arm]: 场景障碍 ACM 豁免已应用: 28 条（含 <octomap> 保留名）
+[INFO] [1792631663.972339985] [peach_arm.moveit.planners.pilz.joint_limits_aggregator]: Reading limits from namespace robot_description_planning
+[INFO] [1792631663.972807437] [peach_arm.moveit.planners.pilz.command_planner]: Available plugins: pilz_industrial_motion_planner/PlanningContextLoaderCIRC pilz_industrial_motion_planner/PlanningContextLoaderLIN pilz_industrial_motion_planner/PlanningContextLoaderPTP 
+[INFO] [1792631663.972813688] [peach_arm.moveit.planners.pilz.command_planner]: About to load: pilz_industrial_motion_planner/PlanningContextLoaderCIRC
+[INFO] [1792631663.973553138] [peach_arm.moveit.planners.pilz.command_planner]: Registered Algorithm [CIRC]
+[INFO] [1792631663.973556992] [peach_arm.moveit.planners.pilz.command_planner]: About to load: pilz_industrial_motion_planner/PlanningContextLoaderLIN
+[INFO] [1792631663.974086879] [peach_arm.moveit.planners.pilz.command_planner]: Registered Algorithm [LIN]
+[INFO] [1792631663.974090778] [peach_arm.moveit.planners.pilz.command_planner]: About to load: pilz_industrial_motion_planner/PlanningContextLoaderPTP
+[INFO] [1792631663.974595610] [peach_arm.moveit.planners.pilz.command_planner]: Registered Algorithm [PTP]
+[INFO] [1792631663.974600199] [peach_arm.moveit.ros.planning_pipeline]: Successfully loaded planner 'Pilz Industrial Motion Planner'
+[INFO] [1792631663.975475288] [peach_arm]: Try loading adapter 'default_planning_request_adapters/ResolveConstraintFrames'
+[INFO] [1792631663.976001471] [peach_arm]: Loaded adapter 'default_planning_request_adapters/ResolveConstraintFrames'
+[INFO] [1792631663.976004922] [peach_arm]: Try loading adapter 'default_planning_request_adapters/ValidateWorkspaceBounds'
+[INFO] [1792631663.976025264] [peach_arm]: Loaded adapter 'default_planning_request_adapters/ValidateWorkspaceBounds'
+[INFO] [1792631663.976026553] [peach_arm]: Try loading adapter 'default_planning_request_adapters/CheckStartStateBounds'
+[INFO] [1792631663.976032115] [peach_arm]: Loaded adapter 'default_planning_request_adapters/CheckStartStateBounds'
+[INFO] [1792631663.976032884] [peach_arm]: Try loading adapter 'default_planning_request_adapters/CheckStartStateCollision'
+[INFO] [1792631663.976036199] [peach_arm]: Loaded adapter 'default_planning_request_adapters/CheckStartStateCollision'
+[INFO] [1792631663.976883046] [peach_arm]: Try loading adapter 'default_planning_response_adapters/ValidateSolution'
+[INFO] [1792631663.978089407] [peach_arm]: Loaded adapter 'default_planning_response_adapters/ValidateSolution'
+[INFO] [1792631664.043713466] [peach_arm]: Calling PlanningRequestAdapter 'ResolveConstraintFrames'
+[INFO] [1792631664.043791525] [peach_arm]: Calling PlanningRequestAdapter 'ValidateWorkspaceBounds'
+[WARN] [1792631664.043796965] [peach_arm.moveit.ros.validate_workspace_bounds]: It looks like the planning volume was not specified. Using default values.
+[INFO] [1792631664.043867681] [peach_arm]: Calling PlanningRequestAdapter 'CheckStartStateBounds'
+[INFO] [1792631664.043922126] [peach_arm]: Calling PlanningRequestAdapter 'CheckStartStateCollision'
+[INFO] [1792631664.044138579] [peach_arm.moveit.planners.pilz.trajectory_generator.ptp]: Initialized Point-to-Point Trajectory Generator.
+[INFO] [1792631664.044163771] [peach_arm]: Calling Planner 'Pilz Industrial Motion Planner'
+[INFO] [1792631664.044206618] [peach_arm.moveit.planners.pilz.trajectory_generator]: Generating PTP trajectory...
+[INFO] [1792631664.044508658] [peach_arm]: Calling PlanningResponseAdapter 'ValidateSolution'
+[INFO] [1792631664.045619335] [peach_arm]: MTC 接近短路径审查: segments=1 allowed=true points=18 duration=1.607s joint_total=3.404rad joint_max=1.130rad (短路径门通过)
+[INFO] [1792631664.045645780] [peach_arm]: MTC 接近果实胶囊审查(seg0 转移): allowed=true min_clearance=999.000m (果实胶囊审查通过)
+[INFO] [1792631664.045649790] [peach_arm]: MTC 接近笛卡尔审查: allowed=true path=0.527m chord=0.490m ratio=1.07 max_dev=0.081m recede=0.000m (笛卡尔短路径门通过)
+[INFO] [1792631664.045654488] [peach_arm]: MTC 接近姿态审查: allowed=true max_from_start=23.5deg (TCP 姿态行程通过)
+[INFO] [1792631664.045663533] [peach_arm]: [target_9] MTC规划检查已返回: elapsed=0.094s success=true
+[INFO] [1792631664.469700897] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792631665.469308825] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792631665.751762601] [peach_arm]: [target_9] MTC任务已释放: elapsed=0.005s
+[INFO] [1792631665.751779782] [peach_arm.contact]: [target_9] 采用 PTP 候选 4/18 roll=-15°
+[INFO] [1792631665.754817945] [peach_arm]: sequence 冠内审查: segments=1 allowed=true points=17 duration=1.600s joint_total=0.668rad (短路径门通过)
+[INFO] [1792631666.470462601] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792631667.373589089] [peach_arm]: 检查点 2（到预抓取）
+[INFO] [1792631667.373679850] [peach_arm.cycle]: [RECONFIRM] 预抓取停稳验证（不 SetIO）
+[INFO] [1792631667.482728338] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792631667.573953400] [peach_arm.cycle]: [PREVIEW_CONTACT_PLANNING] 预规划套入与反向撤退
+[INFO] [1792631667.575192169] [peach_arm.moveit.ros.rdf_loader]: Loaded robot model in 0.00116483 seconds
+[INFO] [1792631667.575202628] [peach_arm.moveit.core.robot_model]: Loading robot model 'aubo_e5'...
+[INFO] [1792631667.575205278] [peach_arm.moveit.core.robot_model]: No root/virtual joint specified in SRDF. Assuming fixed joint
+[INFO] [1792631667.597233514] [peach_arm.moveit.kinematics.kdl_kinematics_plugin]: Joint weights for group 'manipulator_e5': 1 1 1 1 1 1
+[INFO] [1792631667.605210606] [peach_arm]: 场景障碍 ACM 豁免已应用: 28 条（含 <octomap> 保留名）
+[INFO] [1792631667.685403097] [peach_arm]: [target_9] MTC规划检查已返回: elapsed=0.088s success=true
+[INFO] [1792631667.685555249] [peach_arm]: [target_9] MTC任务已释放: elapsed=0.000s
+[INFO] [1792631667.685562147] [peach_arm]: 检查点 3（套入与反向撤退预规划过门）
+[INFO] [1792631667.685615291] [peach_arm.cycle]: [MTC_APPROACH_INSERT] 沿轴 LIN 套入
+[INFO] [1792631667.686625085] [peach_arm.moveit.ros.rdf_loader]: Loaded robot model in 0.000987537 seconds
+[INFO] [1792631667.686629542] [peach_arm.moveit.core.robot_model]: Loading robot model 'aubo_e5'...
+[INFO] [1792631667.686631998] [peach_arm.moveit.core.robot_model]: No root/virtual joint specified in SRDF. Assuming fixed joint
+[INFO] [1792631667.706553750] [peach_arm.moveit.kinematics.kdl_kinematics_plugin]: Joint weights for group 'manipulator_e5': 1 1 1 1 1 1
+[INFO] [1792631667.716705403] [peach_arm]: 场景障碍 ACM 豁免已应用: 28 条（含 <octomap> 保留名）
+[INFO] [1792631667.877609508] [peach_arm]: MTC 接近短路径审查: segments=1 allowed=true points=52 duration=5.030s joint_total=1.261rad joint_max=0.586rad (短路径门通过)
+[INFO] [1792631667.877650531] [peach_arm]: MTC 接近笛卡尔审查: allowed=true path=0.110m chord=0.110m ratio=1.00 max_dev=0.000m recede=0.000m (笛卡尔短路径门通过)
+[INFO] [1792631667.877654357] [peach_arm]: MTC 接近姿态审查: allowed=true max_from_start=0.0deg (TCP 姿态行程通过)
+[INFO] [1792631667.877667193] [peach_arm]: [target_9] MTC规划检查已返回: elapsed=0.171s success=true
+[INFO] [1792631668.487110989] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792631669.465351124] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[WARN] [1792631669.586968588] [rclcpp]: Failed to get parameters: moveit.velocity_scaling
+[INFO] [1792631670.482442273] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792631671.468297128] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792631672.464252368] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[WARN] [1792631672.581009370] [rclcpp]: Failed to get parameters: moveit.velocity_scaling
+[INFO] [1792631672.983607717] [peach_arm]: [target_9] MTC任务已释放: elapsed=0.007s
+[INFO] [1792631672.983645356] [peach_arm]: 检查点 4（沿轴套入到位）
+[INFO] [1792631672.983727908] [peach_arm.cycle]: [ACTUATE_TOOL] tool.enabled=false，跳过末端 IO
+[INFO] [1792631672.983749136] [peach_arm.cycle]: [MTC_RETREAT] MTC 沿插入反方向保持直线撤离
+[INFO] [1792631672.985477212] [peach_arm.moveit.ros.rdf_loader]: Loaded robot model in 0.00154243 seconds
+[INFO] [1792631672.985489502] [peach_arm.moveit.core.robot_model]: Loading robot model 'aubo_e5'...
+[INFO] [1792631672.985493131] [peach_arm.moveit.core.robot_model]: No root/virtual joint specified in SRDF. Assuming fixed joint
+[INFO] [1792631673.010352184] [peach_arm.moveit.kinematics.kdl_kinematics_plugin]: Joint weights for group 'manipulator_e5': 1 1 1 1 1 1
+[INFO] [1792631673.028039163] [peach_arm]: 场景障碍 ACM 豁免已应用: 28 条（含 <octomap> 保留名）
+[INFO] [1792631673.105725176] [peach_arm]: [target_9] MTC规划检查已返回: elapsed=0.095s success=true
+[INFO] [1792631673.474145739] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792631674.481483465] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792631675.467495275] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[WARN] [1792631675.580301221] [rclcpp]: Failed to get parameters: moveit.velocity_scaling
+[INFO] [1792631676.471670428] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792631677.470424232] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792631678.213824675] [peach_arm]: [target_9] MTC任务已释放: elapsed=0.006s
+[INFO] [1792631678.213844776] [peach_arm]: 检查点 8（原路撤回预抓取）
+[INFO] [1792631678.213985790] [peach_arm.cycle]: [MTC_RETREAT] 返回 harvest_stow
+[INFO] [1792631678.222806578] [peach_arm]: 拍照位姿沿接近轨迹原路返程: points=34 duration=3.207s
+[INFO] [1792631678.229712075] [peach_arm.moveit.ros.move_group_interface]: Execute request accepted
+[INFO] [1792631678.463938955] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792631679.464840323] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792631680.477541836] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792631681.469285844] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792631681.499113626] [peach_arm.moveit.ros.move_group_interface]: Execute request success!
+[INFO] [1792631681.507930985] [peach_arm.moveit.ros.move_group_interface]: MoveGroup action client/server ready
+[INFO] [1792631681.509157931] [peach_arm.moveit.ros.move_group_interface]: Planning request accepted
+[INFO] [1792631681.513653770] [peach_arm.moveit.ros.move_group_interface]: Planning request complete!
+[INFO] [1792631681.514652051] [peach_arm.moveit.ros.move_group_interface]: time taken to generate plan: 4.636e-05 seconds
+[INFO] [1792631681.518645086] [peach_arm.moveit.ros.move_group_interface]: Execute request accepted
+[INFO] [1792631682.238334956] [peach_arm.moveit.ros.move_group_interface]: Execute request success!
+[INFO] [1792631682.243087193] [peach_arm]: 检查点 9（回收纳位）
+[INFO] [1792631682.243190410] [peach_arm.cycle]: [SUCCEEDED] 周期完成；tool.enabled=false 或未宣称采摘成功
+[INFO] [1792631682.467247591] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792631682.831229032] [peach_arm.cycle]: [IDLE] 已记录现场人工撤离确认；本服务不发送任何运动命令
+[INFO] [1792631683.479628660] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792631684.481029659] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792631685.471698246] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792631686.470666385] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792631687.462869812] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792631688.469755907] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792631689.464728948] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792631690.464092764] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792631691.464542213] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792631692.072908948] [peach_arm.moveit.ros.move_group_interface]: MoveGroup action client/server ready
+[INFO] [1792631692.073880921] [peach_arm.moveit.ros.move_group_interface]: Planning request accepted
+[INFO] [1792631692.079338934] [peach_arm.moveit.ros.move_group_interface]: Planning request complete!
+[INFO] [1792631692.080394295] [peach_arm.moveit.ros.move_group_interface]: time taken to generate plan: 5.8158e-05 seconds
+[INFO] [1792631692.083406402] [peach_arm.moveit.ros.move_group_interface]: Execute request accepted
+[INFO] [1792631692.463725900] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792631692.802932361] [peach_arm.moveit.ros.move_group_interface]: Execute request success!
+[INFO] [1792631693.464121918] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792631694.466803568] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792631695.463438618] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792631696.462949683] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792631697.463970663] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792631698.464658329] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792631699.466215176] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792631700.465714488] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792631701.462945172] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792631702.464272502] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792631703.465409913] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792631704.464209163] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792631705.036550214] [peach_arm.contact]: CheckReachability 套入直线预检 pregrasp_ik=1 sleeve_ik=1 cartesian=1 fraction=1.000 roll=15deg threshold=0.95 travel=0.079m path=0.109m seed=[0.359 -0.244 0.689] pre=[0.571 -0.607 0.642] sleeve=[0.567 -0.610 0.751]
+[INFO] [1792631705.036568859] [peach_arm.contact]: CheckReachability 套入直线改用刀口滚转 15°（keep-roll 未走满）
+[INFO] [1792631705.036574368] [peach_arm.contact]: CheckReachability idx=0 require_sleeve=1 travel=0.079m reachable=true code=ok
+[INFO] [1792631705.037300224] [peach_arm.contact]: CheckReachability 套入直线预检 pregrasp_ik=1 sleeve_ik=1 cartesian=1 fraction=1.000 roll=0deg threshold=0.95 travel=0.096m path=0.126m seed=[0.359 -0.244 0.689] pre=[0.407 -0.649 0.634] sleeve=[0.403 -0.673 0.758]
+[INFO] [1792631705.037305614] [peach_arm.contact]: CheckReachability idx=1 require_sleeve=1 travel=0.096m reachable=true code=ok
+[INFO] [1792631705.038420782] [peach_arm.contact]: CheckReachability 套入直线预检 pregrasp_ik=1 sleeve_ik=1 cartesian=1 fraction=1.000 roll=0deg threshold=0.95 travel=0.079m path=0.109m seed=[0.359 -0.244 0.689] pre=[0.300 -0.707 0.599] sleeve=[0.299 -0.742 0.702]
+[INFO] [1792631705.038425438] [peach_arm.contact]: CheckReachability idx=2 require_sleeve=1 travel=0.079m reachable=true code=ok
+[INFO] [1792631705.040925129] [peach_arm.contact]: CheckReachability 套入直线预检 pregrasp_ik=1 sleeve_ik=1 cartesian=1 fraction=1.000 roll=0deg threshold=0.95 travel=0.070m path=0.100m seed=[0.359 -0.244 0.689] pre=[0.219 -0.737 0.619] sleeve=[0.184 -0.764 0.708]
+[INFO] [1792631705.040934465] [peach_arm.contact]: CheckReachability idx=3 require_sleeve=1 travel=0.070m reachable=true code=ok
+[INFO] [1792631705.097302680] [peach_arm.cycle]: [PLAN_OBSERVATION] 生成目标导向主动视点
+[INFO] [1792631705.097405322] [peach_arm.cycle]: [FINALIZE] 等待重建精化几何（BuildTargetModel）
+[INFO] [1792631705.097408831] [peach_arm.cycle]: [FINALIZE] allow_unrefined：等精化几何 timeout=3.7s target=target_14
+[WARN] [1792631705.097413610] [peach_arm]: quality.allow_unrefined_geometry: 用场景观测几何代替重建精化 target=target_14
+[INFO] [1792631705.097415462] [peach_arm.cycle]: [FINALIZE] 精化等待结束 arrived=true elapsed=0.00s
+[INFO] [1792631705.097419115] [peach_arm.cycle]: [FINALIZE] 合取 geometry_ready=true gate.allowed=true(pregrasp_geometry_ready) decision_target_ok=true pregrasp_only=false ctx=target_14 decision_target=target_14 rec_state=READY rec_id=target_14 refined_id=target_14
+[INFO] [1792631705.099395728] [peach_arm.contact]: CheckReachability 套入直线预检 pregrasp_ik=1 sleeve_ik=1 cartesian=1 fraction=1.000 roll=0deg threshold=0.95 travel=0.070m path=0.100m seed=[0.359 -0.244 0.689] pre=[0.219 -0.737 0.619] sleeve=[0.184 -0.764 0.708]
+[INFO] [1792631705.099407050] [peach_arm.contact]: CheckReachability idx=0 require_sleeve=1 travel=0.070m reachable=true code=ok
+[INFO] [1792631705.099411366] [peach_arm.contact]: caller=FINALIZE target=target_14 travel=0.070m require_sleeve=1 reachable=true code=ok
+[INFO] [1792631705.099413726] [peach_arm]: 接触几何（核对方向） target=target_14 entry=[0.209 -0.745 0.646] axis=[-0.356 -0.271 0.894] travel=0.070m axis_angle_deg=21.01
+[INFO] [1792631705.099486010] [peach_arm.cycle]: [RECONFIRM] 抓取前再确认：等待新鲜观测复核身份/锚点漂移/摆动平息
+[INFO] [1792631705.462787243] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792631705.545665610] [peach_arm.cycle]: [MTC_APPROACH_INSERT] 拍照位再最短路径到预抓取
+[INFO] [1792631705.547591686] [peach_arm]: 预抓取从拍照位出发: 已在命名状态
+[INFO] [1792631705.547598469] [peach_arm.contact]: 接近筛滚转 target=target_14 insert_travel=0.070m pregrasp_only=false
+[INFO] [1792631705.547650423] [peach_arm]: 接近：距入口 0.524m 轴向 0.150m 侧向 0.502m 夹角 25.9° 扫角 73.3° 半径 0.524m 沿轴LIN 0.030m 刀口滚转 0° 原语 LIN-align+LIN
+[INFO] [1792631705.554452482] [peach_arm]: [target_14] 接近候选开始: kind=LIN-align+LIN roll=0deg
+[INFO] [1792631705.557410331] [peach_arm.moveit.ros.rdf_loader]: Loaded robot model in 0.00291948 seconds
+[INFO] [1792631705.557418383] [peach_arm.moveit.core.robot_model]: Loading robot model 'aubo_e5'...
+[INFO] [1792631705.557420955] [peach_arm.moveit.core.robot_model]: No root/virtual joint specified in SRDF. Assuming fixed joint
+[INFO] [1792631705.578797836] [peach_arm.moveit.kinematics.kdl_kinematics_plugin]: Joint weights for group 'manipulator_e5': 1 1 1 1 1 1
+[INFO] [1792631705.579032777] [peach_arm]: [target_14] 接近候选任务已建立: elapsed=0.025s
+[INFO] [1792631705.592737392] [peach_arm]: 场景障碍 ACM 豁免已应用: 28 条（含 <octomap> 保留名）
+[INFO] [1792631705.606236581] [peach_arm.moveit.planners.pilz.joint_limits_aggregator]: Reading limits from namespace robot_description_planning
+[INFO] [1792631705.606856090] [peach_arm.moveit.planners.pilz.command_planner]: Available plugins: pilz_industrial_motion_planner/PlanningContextLoaderCIRC pilz_industrial_motion_planner/PlanningContextLoaderLIN pilz_industrial_motion_planner/PlanningContextLoaderPTP 
+[INFO] [1792631705.606861560] [peach_arm.moveit.planners.pilz.command_planner]: About to load: pilz_industrial_motion_planner/PlanningContextLoaderCIRC
+[INFO] [1792631705.608078760] [peach_arm.moveit.planners.pilz.command_planner]: Registered Algorithm [CIRC]
+[INFO] [1792631705.608197752] [peach_arm.moveit.planners.pilz.command_planner]: About to load: pilz_industrial_motion_planner/PlanningContextLoaderLIN
+[INFO] [1792631705.609084732] [peach_arm.moveit.planners.pilz.command_planner]: Registered Algorithm [LIN]
+[INFO] [1792631705.609340912] [peach_arm.moveit.planners.pilz.command_planner]: About to load: pilz_industrial_motion_planner/PlanningContextLoaderPTP
+[INFO] [1792631705.610434774] [peach_arm.moveit.planners.pilz.command_planner]: Registered Algorithm [PTP]
+[INFO] [1792631705.610441526] [peach_arm.moveit.ros.planning_pipeline]: Successfully loaded planner 'Pilz Industrial Motion Planner'
+[INFO] [1792631705.611653380] [peach_arm]: Try loading adapter 'default_planning_request_adapters/ResolveConstraintFrames'
+[INFO] [1792631705.612420393] [peach_arm]: Loaded adapter 'default_planning_request_adapters/ResolveConstraintFrames'
+[INFO] [1792631705.612532399] [peach_arm]: Try loading adapter 'default_planning_request_adapters/ValidateWorkspaceBounds'
+[INFO] [1792631705.612857605] [peach_arm]: Loaded adapter 'default_planning_request_adapters/ValidateWorkspaceBounds'
+[INFO] [1792631705.612860506] [peach_arm]: Try loading adapter 'default_planning_request_adapters/CheckStartStateBounds'
+[INFO] [1792631705.612867040] [peach_arm]: Loaded adapter 'default_planning_request_adapters/CheckStartStateBounds'
+[INFO] [1792631705.612867956] [peach_arm]: Try loading adapter 'default_planning_request_adapters/CheckStartStateCollision'
+[INFO] [1792631705.612871719] [peach_arm]: Loaded adapter 'default_planning_request_adapters/CheckStartStateCollision'
+[INFO] [1792631705.613802148] [peach_arm]: Try loading adapter 'default_planning_response_adapters/ValidateSolution'
+[INFO] [1792631705.615465387] [peach_arm]: Loaded adapter 'default_planning_response_adapters/ValidateSolution'
+[INFO] [1792631705.616986628] [peach_arm.moveit.planners.pilz.joint_limits_aggregator]: Reading limits from namespace robot_description_planning
+[INFO] [1792631705.617289463] [peach_arm.moveit.planners.pilz.command_planner]: Available plugins: pilz_industrial_motion_planner/PlanningContextLoaderCIRC pilz_industrial_motion_planner/PlanningContextLoaderLIN pilz_industrial_motion_planner/PlanningContextLoaderPTP 
+[INFO] [1792631705.617293218] [peach_arm.moveit.planners.pilz.command_planner]: About to load: pilz_industrial_motion_planner/PlanningContextLoaderCIRC
+[INFO] [1792631705.617374904] [peach_arm.moveit.planners.pilz.command_planner]: Registered Algorithm [CIRC]
+[INFO] [1792631705.617376851] [peach_arm.moveit.planners.pilz.command_planner]: About to load: pilz_industrial_motion_planner/PlanningContextLoaderLIN
+[INFO] [1792631705.617456564] [peach_arm.moveit.planners.pilz.command_planner]: Registered Algorithm [LIN]
+[INFO] [1792631705.617458223] [peach_arm.moveit.planners.pilz.command_planner]: About to load: pilz_industrial_motion_planner/PlanningContextLoaderPTP
+[INFO] [1792631705.617538177] [peach_arm.moveit.planners.pilz.command_planner]: Registered Algorithm [PTP]
+[INFO] [1792631705.617567714] [peach_arm.moveit.ros.planning_pipeline]: Successfully loaded planner 'Pilz Industrial Motion Planner'
+[INFO] [1792631705.618434619] [peach_arm]: Try loading adapter 'default_planning_request_adapters/ResolveConstraintFrames'
+[INFO] [1792631705.618526533] [peach_arm]: Loaded adapter 'default_planning_request_adapters/ResolveConstraintFrames'
+[INFO] [1792631705.618527843] [peach_arm]: Try loading adapter 'default_planning_request_adapters/ValidateWorkspaceBounds'
+[INFO] [1792631705.618537430] [peach_arm]: Loaded adapter 'default_planning_request_adapters/ValidateWorkspaceBounds'
+[INFO] [1792631705.618538369] [peach_arm]: Try loading adapter 'default_planning_request_adapters/CheckStartStateBounds'
+[INFO] [1792631705.618543616] [peach_arm]: Loaded adapter 'default_planning_request_adapters/CheckStartStateBounds'
+[INFO] [1792631705.618544453] [peach_arm]: Try loading adapter 'default_planning_request_adapters/CheckStartStateCollision'
+[INFO] [1792631705.618563323] [peach_arm]: Loaded adapter 'default_planning_request_adapters/CheckStartStateCollision'
+[INFO] [1792631705.619385766] [peach_arm]: Try loading adapter 'default_planning_response_adapters/ValidateSolution'
+[INFO] [1792631705.619818659] [peach_arm]: Loaded adapter 'default_planning_response_adapters/ValidateSolution'
+[INFO] [1792631705.686706283] [peach_arm]: Calling PlanningRequestAdapter 'ResolveConstraintFrames'
+[INFO] [1792631705.686773332] [peach_arm]: Calling PlanningRequestAdapter 'ValidateWorkspaceBounds'
+[WARN] [1792631705.686777628] [peach_arm.moveit.ros.validate_workspace_bounds]: It looks like the planning volume was not specified. Using default values.
+[INFO] [1792631705.686787420] [peach_arm]: Calling PlanningRequestAdapter 'CheckStartStateBounds'
+[INFO] [1792631705.686806155] [peach_arm]: Calling PlanningRequestAdapter 'CheckStartStateCollision'
+[INFO] [1792631705.686939440] [peach_arm]: Calling Planner 'Pilz Industrial Motion Planner'
+[INFO] [1792631705.686971685] [peach_arm.moveit.planners.pilz.trajectory_generator]: Generating LIN trajectory...
+[INFO] [1792631705.688852637] [peach_arm]: Calling PlanningResponseAdapter 'ValidateSolution'
+[INFO] [1792631705.689384794] [peach_arm]: Calling PlanningRequestAdapter 'ResolveConstraintFrames'
+[INFO] [1792631705.689404615] [peach_arm]: Calling PlanningRequestAdapter 'ValidateWorkspaceBounds'
+[WARN] [1792631705.689406582] [peach_arm.moveit.ros.validate_workspace_bounds]: It looks like the planning volume was not specified. Using default values.
+[INFO] [1792631705.689413583] [peach_arm]: Calling PlanningRequestAdapter 'CheckStartStateBounds'
+[INFO] [1792631705.689425292] [peach_arm]: Calling PlanningRequestAdapter 'CheckStartStateCollision'
+[INFO] [1792631705.689477143] [peach_arm]: Calling Planner 'Pilz Industrial Motion Planner'
+[INFO] [1792631705.689480475] [peach_arm.moveit.planners.pilz.trajectory_generator]: Generating LIN trajectory...
+[ERROR] [1792631705.694572591] [peach_arm.pilz_trajectory_functions]: Joint velocity limit of foreArm_joint violated. Set the velocity scaling factor lower! Actual joint velocity is -23.1855, while the limit is 2.5964. 
+[ERROR] [1792631705.694595951] [peach_arm.pilz_trajectory_functions]: Inverse kinematics solution at 1.4s violates the joint velocity/acceleration/deceleration limits.
+[ERROR] [1792631705.694624050] [peach_arm.moveit.planners.pilz.trajectory_generator]: Failed to generate valid joint trajectory from the Cartesian path
+[ERROR] [1792631705.694655543] [peach_arm]: Planner 'Pilz Industrial Motion Planner' failed with error code PLANNING_FAILED
+[INFO] [1792631705.694726633] [peach_arm]: [target_14] MTC规划检查已返回: elapsed=0.116s success=false
+[INFO] [1792631705.695353639] [peach_arm]: [target_14] MTC任务已释放: elapsed=0.001s
+[INFO] [1792631705.695359556] [peach_arm]: [target_14] 接近候选结束: roll=0deg elapsed=0.141s success=false reason=MTC planning failed: Failing stage(s):
+lin to on-axis pregrasp (0/1)
+[INFO] [1792631705.701452787] [peach_arm]: [target_14] 接近候选开始: kind=LIN-align+LIN roll=15deg
+[INFO] [1792631705.702428434] [peach_arm.moveit.ros.rdf_loader]: Loaded robot model in 0.000946279 seconds
+[INFO] [1792631705.702433620] [peach_arm.moveit.core.robot_model]: Loading robot model 'aubo_e5'...
+[INFO] [1792631705.702435965] [peach_arm.moveit.core.robot_model]: No root/virtual joint specified in SRDF. Assuming fixed joint
+[INFO] [1792631705.719304216] [peach_arm.moveit.kinematics.kdl_kinematics_plugin]: Joint weights for group 'manipulator_e5': 1 1 1 1 1 1
+[INFO] [1792631705.719421827] [peach_arm]: [target_14] 接近候选任务已建立: elapsed=0.018s
+[WARN] [1792631705.726847885] [peach_arm]: 忽略 refined pose（unrefined_hold）: gate=target_14 actual=target_14
+[WARN] [1792631705.726889174] [peach_arm]: 忽略 refined diagnostics（unrefined_hold）: expected=target_14 actual=target_14
+[INFO] [1792631705.737531855] [peach_arm]: 场景障碍 ACM 豁免已应用: 28 条（含 <octomap> 保留名）
+[INFO] [1792631705.747896912] [peach_arm.moveit.planners.pilz.joint_limits_aggregator]: Reading limits from namespace robot_description_planning
+[INFO] [1792631705.748377676] [peach_arm.moveit.planners.pilz.command_planner]: Available plugins: pilz_industrial_motion_planner/PlanningContextLoaderCIRC pilz_industrial_motion_planner/PlanningContextLoaderLIN pilz_industrial_motion_planner/PlanningContextLoaderPTP 
+[INFO] [1792631705.748382980] [peach_arm.moveit.planners.pilz.command_planner]: About to load: pilz_industrial_motion_planner/PlanningContextLoaderCIRC
+[INFO] [1792631705.749129074] [peach_arm.moveit.planners.pilz.command_planner]: Registered Algorithm [CIRC]
+[INFO] [1792631705.749133080] [peach_arm.moveit.planners.pilz.command_planner]: About to load: pilz_industrial_motion_planner/PlanningContextLoaderLIN
+[INFO] [1792631705.749709058] [peach_arm.moveit.planners.pilz.command_planner]: Registered Algorithm [LIN]
+[INFO] [1792631705.749712293] [peach_arm.moveit.planners.pilz.command_planner]: About to load: pilz_industrial_motion_planner/PlanningContextLoaderPTP
+[INFO] [1792631705.750224793] [peach_arm.moveit.planners.pilz.command_planner]: Registered Algorithm [PTP]
+[INFO] [1792631705.750228321] [peach_arm.moveit.ros.planning_pipeline]: Successfully loaded planner 'Pilz Industrial Motion Planner'
+[INFO] [1792631705.751111075] [peach_arm]: Try loading adapter 'default_planning_request_adapters/ResolveConstraintFrames'
+[INFO] [1792631705.751644325] [peach_arm]: Loaded adapter 'default_planning_request_adapters/ResolveConstraintFrames'
+[INFO] [1792631705.751647062] [peach_arm]: Try loading adapter 'default_planning_request_adapters/ValidateWorkspaceBounds'
+[INFO] [1792631705.751668213] [peach_arm]: Loaded adapter 'default_planning_request_adapters/ValidateWorkspaceBounds'
+[INFO] [1792631705.751669207] [peach_arm]: Try loading adapter 'default_planning_request_adapters/CheckStartStateBounds'
+[INFO] [1792631705.751675137] [peach_arm]: Loaded adapter 'default_planning_request_adapters/CheckStartStateBounds'
+[INFO] [1792631705.751675926] [peach_arm]: Try loading adapter 'default_planning_request_adapters/CheckStartStateCollision'
+[INFO] [1792631705.751679442] [peach_arm]: Loaded adapter 'default_planning_request_adapters/CheckStartStateCollision'
+[INFO] [1792631705.752506830] [peach_arm]: Try loading adapter 'default_planning_response_adapters/ValidateSolution'
+[INFO] [1792631705.753692563] [peach_arm]: Loaded adapter 'default_planning_response_adapters/ValidateSolution'
+[INFO] [1792631705.755343481] [peach_arm.moveit.planners.pilz.joint_limits_aggregator]: Reading limits from namespace robot_description_planning
+[INFO] [1792631705.755746507] [peach_arm.moveit.planners.pilz.command_planner]: Available plugins: pilz_industrial_motion_planner/PlanningContextLoaderCIRC pilz_industrial_motion_planner/PlanningContextLoaderLIN pilz_industrial_motion_planner/PlanningContextLoaderPTP 
+[INFO] [1792631705.755768558] [peach_arm.moveit.planners.pilz.command_planner]: About to load: pilz_industrial_motion_planner/PlanningContextLoaderCIRC
+[INFO] [1792631705.755853249] [peach_arm.moveit.planners.pilz.command_planner]: Registered Algorithm [CIRC]
+[INFO] [1792631705.755855116] [peach_arm.moveit.planners.pilz.command_planner]: About to load: pilz_industrial_motion_planner/PlanningContextLoaderLIN
+[INFO] [1792631705.755934839] [peach_arm.moveit.planners.pilz.command_planner]: Registered Algorithm [LIN]
+[INFO] [1792631705.755936841] [peach_arm.moveit.planners.pilz.command_planner]: About to load: pilz_industrial_motion_planner/PlanningContextLoaderPTP
+[INFO] [1792631705.756017699] [peach_arm.moveit.planners.pilz.command_planner]: Registered Algorithm [PTP]
+[INFO] [1792631705.756019828] [peach_arm.moveit.ros.planning_pipeline]: Successfully loaded planner 'Pilz Industrial Motion Planner'
+[INFO] [1792631705.756869197] [peach_arm]: Try loading adapter 'default_planning_request_adapters/ResolveConstraintFrames'
+[INFO] [1792631705.757164806] [peach_arm]: Loaded adapter 'default_planning_request_adapters/ResolveConstraintFrames'
+[INFO] [1792631705.757167105] [peach_arm]: Try loading adapter 'default_planning_request_adapters/ValidateWorkspaceBounds'
+[INFO] [1792631705.757177810] [peach_arm]: Loaded adapter 'default_planning_request_adapters/ValidateWorkspaceBounds'
+[INFO] [1792631705.757178892] [peach_arm]: Try loading adapter 'default_planning_request_adapters/CheckStartStateBounds'
+[INFO] [1792631705.757183851] [peach_arm]: Loaded adapter 'default_planning_request_adapters/CheckStartStateBounds'
+[INFO] [1792631705.757184600] [peach_arm]: Try loading adapter 'default_planning_request_adapters/CheckStartStateCollision'
+[INFO] [1792631705.757188095] [peach_arm]: Loaded adapter 'default_planning_request_adapters/CheckStartStateCollision'
+[INFO] [1792631705.758025026] [peach_arm]: Try loading adapter 'default_planning_response_adapters/ValidateSolution'
+[INFO] [1792631705.758535198] [peach_arm]: Loaded adapter 'default_planning_response_adapters/ValidateSolution'
+[INFO] [1792631705.904153203] [peach_arm]: Calling PlanningRequestAdapter 'ResolveConstraintFrames'
+[INFO] [1792631705.904206014] [peach_arm]: Calling PlanningRequestAdapter 'ValidateWorkspaceBounds'
+[WARN] [1792631705.904209361] [peach_arm.moveit.ros.validate_workspace_bounds]: It looks like the planning volume was not specified. Using default values.
+[INFO] [1792631705.904215628] [peach_arm]: Calling PlanningRequestAdapter 'CheckStartStateBounds'
+[INFO] [1792631705.904241254] [peach_arm]: Calling PlanningRequestAdapter 'CheckStartStateCollision'
+[INFO] [1792631705.904339414] [peach_arm]: Calling Planner 'Pilz Industrial Motion Planner'
+[INFO] [1792631705.904360514] [peach_arm.moveit.planners.pilz.trajectory_generator]: Generating LIN trajectory...
+[ERROR] [1792631705.905289147] [peach_arm.pilz_trajectory_functions]: Joint deceleration limit of wrist3_joint violated. Set the acceleration scaling factor lower! Actual joint deceleration is 3.03694, while the limit is -3. 
+[ERROR] [1792631705.905316024] [peach_arm.pilz_trajectory_functions]: Inverse kinematics solution at 2.85568s violates the joint velocity/acceleration/deceleration limits.
+[ERROR] [1792631705.905342287] [peach_arm.moveit.planners.pilz.trajectory_generator]: Failed to generate valid joint trajectory from the Cartesian path
+[ERROR] [1792631705.905363555] [peach_arm]: Planner 'Pilz Industrial Motion Planner' failed with error code PLANNING_FAILED
+[INFO] [1792631705.905417444] [peach_arm]: [target_14] MTC规划检查已返回: elapsed=0.186s success=false
+[INFO] [1792631705.906039480] [peach_arm]: [target_14] MTC任务已释放: elapsed=0.001s
+[INFO] [1792631705.906044482] [peach_arm]: [target_14] 接近候选结束: roll=15deg elapsed=0.205s success=false reason=MTC planning failed: Failing stage(s):
+lin align tool z (0/1)
+[WARN] [1792631705.906048076] [peach_arm.contact]: [target_14] 笛卡尔 LIN 连续 2 档规划失败（最近: MTC planning failed: Failing stage(s):
+lin align tool z (0/1)），停止滚转搜索，改走 PTP
+[INFO] [1792631706.163628351] [peach_arm]: staging IK 候选筛选成功 target=target_14 model_target= model_revision= frame=base_link group=manipulator_e5 tip=tcp position_m=[0.2372 -0.7233 0.5240] axis=[-0.3557 -0.2709 0.8945] attempts=28 ik_failed=0 bounds_failed=0 self_collision=1 corridor_failed=10 valid_candidates=17
+[INFO] [1792631706.163665565] [peach_arm.contact]: [target_14] PTP 入冠候选 17 个（按 |roll| 再关节代价排序）
+[INFO] [1792631706.170329761] [peach_arm.contact]: [target_14] PTP 候选 1/17 roll=0° joint_cost=13.234：关节空间到中段点正下方 + 垂直入冠 0.050m + 沿轴 0.050m
+[INFO] [1792631706.171354390] [peach_arm.moveit.ros.rdf_loader]: Loaded robot model in 0.000988437 seconds
+[INFO] [1792631706.171360443] [peach_arm.moveit.core.robot_model]: Loading robot model 'aubo_e5'...
+[INFO] [1792631706.171362902] [peach_arm.moveit.core.robot_model]: No root/virtual joint specified in SRDF. Assuming fixed joint
+[INFO] [1792631706.187448202] [peach_arm.moveit.kinematics.kdl_kinematics_plugin]: Joint weights for group 'manipulator_e5': 1 1 1 1 1 1
+[INFO] [1792631706.197287016] [peach_arm]: 场景障碍 ACM 豁免已应用: 28 条（含 <octomap> 保留名）
+[INFO] [1792631706.206114084] [peach_arm.moveit.planners.pilz.joint_limits_aggregator]: Reading limits from namespace robot_description_planning
+[INFO] [1792631706.206500502] [peach_arm.moveit.planners.pilz.command_planner]: Available plugins: pilz_industrial_motion_planner/PlanningContextLoaderCIRC pilz_industrial_motion_planner/PlanningContextLoaderLIN pilz_industrial_motion_planner/PlanningContextLoaderPTP 
+[INFO] [1792631706.206506123] [peach_arm.moveit.planners.pilz.command_planner]: About to load: pilz_industrial_motion_planner/PlanningContextLoaderCIRC
+[INFO] [1792631706.207229812] [peach_arm.moveit.planners.pilz.command_planner]: Registered Algorithm [CIRC]
+[INFO] [1792631706.207234679] [peach_arm.moveit.planners.pilz.command_planner]: About to load: pilz_industrial_motion_planner/PlanningContextLoaderLIN
+[INFO] [1792631706.207769011] [peach_arm.moveit.planners.pilz.command_planner]: Registered Algorithm [LIN]
+[INFO] [1792631706.207771930] [peach_arm.moveit.planners.pilz.command_planner]: About to load: pilz_industrial_motion_planner/PlanningContextLoaderPTP
+[INFO] [1792631706.208319146] [peach_arm.moveit.planners.pilz.command_planner]: Registered Algorithm [PTP]
+[INFO] [1792631706.208322096] [peach_arm.moveit.ros.planning_pipeline]: Successfully loaded planner 'Pilz Industrial Motion Planner'
+[INFO] [1792631706.209185563] [peach_arm]: Try loading adapter 'default_planning_request_adapters/ResolveConstraintFrames'
+[INFO] [1792631706.209711381] [peach_arm]: Loaded adapter 'default_planning_request_adapters/ResolveConstraintFrames'
+[INFO] [1792631706.209714729] [peach_arm]: Try loading adapter 'default_planning_request_adapters/ValidateWorkspaceBounds'
+[INFO] [1792631706.209733236] [peach_arm]: Loaded adapter 'default_planning_request_adapters/ValidateWorkspaceBounds'
+[INFO] [1792631706.209734214] [peach_arm]: Try loading adapter 'default_planning_request_adapters/CheckStartStateBounds'
+[INFO] [1792631706.209739630] [peach_arm]: Loaded adapter 'default_planning_request_adapters/CheckStartStateBounds'
+[INFO] [1792631706.209740508] [peach_arm]: Try loading adapter 'default_planning_request_adapters/CheckStartStateCollision'
+[INFO] [1792631706.209744363] [peach_arm]: Loaded adapter 'default_planning_request_adapters/CheckStartStateCollision'
+[INFO] [1792631706.210594793] [peach_arm]: Try loading adapter 'default_planning_response_adapters/ValidateSolution'
+[INFO] [1792631706.211643965] [peach_arm]: Loaded adapter 'default_planning_response_adapters/ValidateSolution'
+[INFO] [1792631706.272800887] [peach_arm]: Calling PlanningRequestAdapter 'ResolveConstraintFrames'
+[INFO] [1792631706.272858269] [peach_arm]: Calling PlanningRequestAdapter 'ValidateWorkspaceBounds'
+[WARN] [1792631706.272862207] [peach_arm.moveit.ros.validate_workspace_bounds]: It looks like the planning volume was not specified. Using default values.
+[INFO] [1792631706.272875129] [peach_arm]: Calling PlanningRequestAdapter 'CheckStartStateBounds'
+[INFO] [1792631706.272890197] [peach_arm]: Calling PlanningRequestAdapter 'CheckStartStateCollision'
+[INFO] [1792631706.273013884] [peach_arm.moveit.planners.pilz.trajectory_generator.ptp]: Initialized Point-to-Point Trajectory Generator.
+[INFO] [1792631706.273029233] [peach_arm]: Calling Planner 'Pilz Industrial Motion Planner'
+[INFO] [1792631706.273052112] [peach_arm.moveit.planners.pilz.trajectory_generator]: Generating PTP trajectory...
+[INFO] [1792631706.273235676] [peach_arm]: Calling PlanningResponseAdapter 'ValidateSolution'
+[INFO] [1792631706.273858291] [peach_arm]: MTC 接近短路径审查: segments=1 allowed=true points=21 duration=1.939s joint_total=6.007rad joint_max=1.474rad (短路径门通过)
+[INFO] [1792631706.273884541] [peach_arm]: MTC 接近果实胶囊审查(seg0 转移): allowed=true min_clearance=0.014m (果实胶囊审查通过)
+[INFO] [1792631706.273890387] [peach_arm]: MTC 接近笛卡尔审查: allowed=false path=0.826m chord=0.521m ratio=1.58 max_dev=0.266m recede=0.008m (TCP 相对弦偏离 0.266433m > 0.12m)
+[WARN] [1792631706.273893158] [peach_arm.contact]: [target_14] 拒绝大弧 PTP：ratio=1.58 max_dev=0.266m recede=0.008m 门=1.50/0.120m/0.080m，试下一 IK 候选
+[INFO] [1792631706.273899573] [peach_arm]: [target_14] MTC规划检查已返回: elapsed=0.086s success=false
+[INFO] [1792631706.274351432] [peach_arm]: [target_14] MTC任务已释放: elapsed=0.000s
+[WARN] [1792631706.274354482] [peach_arm.contact]: [target_14] PTP 候选 1/17 未采用：MTC short-path guard rejected: TCP 相对弦偏离 0.266433m > 0.12m
+[INFO] [1792631706.279735352] [peach_arm.contact]: [target_14] PTP 候选 2/17 roll=0° joint_cost=13.234：关节空间到中段点正下方 + 垂直入冠 0.050m + 沿轴 0.050m
+[INFO] [1792631706.280705896] [peach_arm.moveit.ros.rdf_loader]: Loaded robot model in 0.000949042 seconds
+[INFO] [1792631706.280712673] [peach_arm.moveit.core.robot_model]: Loading robot model 'aubo_e5'...
+[INFO] [1792631706.280714760] [peach_arm.moveit.core.robot_model]: No root/virtual joint specified in SRDF. Assuming fixed joint
+[INFO] [1792631706.296672555] [peach_arm.moveit.kinematics.kdl_kinematics_plugin]: Joint weights for group 'manipulator_e5': 1 1 1 1 1 1
+[INFO] [1792631706.309123668] [peach_arm]: 场景障碍 ACM 豁免已应用: 28 条（含 <octomap> 保留名）
+[INFO] [1792631706.325986350] [peach_arm.moveit.planners.pilz.joint_limits_aggregator]: Reading limits from namespace robot_description_planning
+[INFO] [1792631706.326379735] [peach_arm.moveit.planners.pilz.command_planner]: Available plugins: pilz_industrial_motion_planner/PlanningContextLoaderCIRC pilz_industrial_motion_planner/PlanningContextLoaderLIN pilz_industrial_motion_planner/PlanningContextLoaderPTP 
+[INFO] [1792631706.326383936] [peach_arm.moveit.planners.pilz.command_planner]: About to load: pilz_industrial_motion_planner/PlanningContextLoaderCIRC
+[INFO] [1792631706.327151583] [peach_arm.moveit.planners.pilz.command_planner]: Registered Algorithm [CIRC]
+[INFO] [1792631706.327155161] [peach_arm.moveit.planners.pilz.command_planner]: About to load: pilz_industrial_motion_planner/PlanningContextLoaderLIN
+[INFO] [1792631706.328064122] [peach_arm.moveit.planners.pilz.command_planner]: Registered Algorithm [LIN]
+[INFO] [1792631706.328069323] [peach_arm.moveit.planners.pilz.command_planner]: About to load: pilz_industrial_motion_planner/PlanningContextLoaderPTP
+[INFO] [1792631706.328636863] [peach_arm.moveit.planners.pilz.command_planner]: Registered Algorithm [PTP]
+[INFO] [1792631706.328640590] [peach_arm.moveit.ros.planning_pipeline]: Successfully loaded planner 'Pilz Industrial Motion Planner'
+[INFO] [1792631706.329572313] [peach_arm]: Try loading adapter 'default_planning_request_adapters/ResolveConstraintFrames'
+[INFO] [1792631706.330115660] [peach_arm]: Loaded adapter 'default_planning_request_adapters/ResolveConstraintFrames'
+[INFO] [1792631706.330118596] [peach_arm]: Try loading adapter 'default_planning_request_adapters/ValidateWorkspaceBounds'
+[INFO] [1792631706.330140520] [peach_arm]: Loaded adapter 'default_planning_request_adapters/ValidateWorkspaceBounds'
+[INFO] [1792631706.330141541] [peach_arm]: Try loading adapter 'default_planning_request_adapters/CheckStartStateBounds'
+[INFO] [1792631706.330147187] [peach_arm]: Loaded adapter 'default_planning_request_adapters/CheckStartStateBounds'
+[INFO] [1792631706.330147953] [peach_arm]: Try loading adapter 'default_planning_request_adapters/CheckStartStateCollision'
+[INFO] [1792631706.330151080] [peach_arm]: Loaded adapter 'default_planning_request_adapters/CheckStartStateCollision'
+[INFO] [1792631706.330996641] [peach_arm]: Try loading adapter 'default_planning_response_adapters/ValidateSolution'
+[INFO] [1792631706.332147832] [peach_arm]: Loaded adapter 'default_planning_response_adapters/ValidateSolution'
+[INFO] [1792631706.397984106] [peach_arm]: Calling PlanningRequestAdapter 'ResolveConstraintFrames'
+[INFO] [1792631706.398047395] [peach_arm]: Calling PlanningRequestAdapter 'ValidateWorkspaceBounds'
+[WARN] [1792631706.398051992] [peach_arm.moveit.ros.validate_workspace_bounds]: It looks like the planning volume was not specified. Using default values.
+[INFO] [1792631706.398061019] [peach_arm]: Calling PlanningRequestAdapter 'CheckStartStateBounds'
+[INFO] [1792631706.398086107] [peach_arm]: Calling PlanningRequestAdapter 'CheckStartStateCollision'
+[INFO] [1792631706.398213172] [peach_arm.moveit.planners.pilz.trajectory_generator.ptp]: Initialized Point-to-Point Trajectory Generator.
+[INFO] [1792631706.398228063] [peach_arm]: Calling Planner 'Pilz Industrial Motion Planner'
+[INFO] [1792631706.398263137] [peach_arm.moveit.planners.pilz.trajectory_generator]: Generating PTP trajectory...
+[INFO] [1792631706.398441420] [peach_arm]: Calling PlanningResponseAdapter 'ValidateSolution'
+[INFO] [1792631706.398965098] [peach_arm]: MTC 接近短路径审查: segments=1 allowed=true points=21 duration=1.939s joint_total=6.007rad joint_max=1.474rad (短路径门通过)
+[INFO] [1792631706.398991446] [peach_arm]: MTC 接近果实胶囊审查(seg0 转移): allowed=true min_clearance=0.014m (果实胶囊审查通过)
+[INFO] [1792631706.398997549] [peach_arm]: MTC 接近笛卡尔审查: allowed=false path=0.826m chord=0.521m ratio=1.58 max_dev=0.266m recede=0.008m (TCP 相对弦偏离 0.266433m > 0.12m)
+[WARN] [1792631706.399000593] [peach_arm.contact]: [target_14] 拒绝大弧 PTP：ratio=1.58 max_dev=0.266m recede=0.008m 门=1.50/0.120m/0.080m，试下一 IK 候选
+[INFO] [1792631706.399007833] [peach_arm]: [target_14] MTC规划检查已返回: elapsed=0.102s success=false
+[INFO] [1792631706.399464351] [peach_arm]: [target_14] MTC任务已释放: elapsed=0.000s
+[WARN] [1792631706.399467601] [peach_arm.contact]: [target_14] PTP 候选 2/17 未采用：MTC short-path guard rejected: TCP 相对弦偏离 0.266433m > 0.12m
+[INFO] [1792631706.406051093] [peach_arm.contact]: [target_14] PTP 候选 3/17 roll=-15° joint_cost=6.003：关节空间到中段点正下方 + 垂直入冠 0.050m + 沿轴 0.050m
+[INFO] [1792631706.407023505] [peach_arm.moveit.ros.rdf_loader]: Loaded robot model in 0.000946935 seconds
+[INFO] [1792631706.407030445] [peach_arm.moveit.core.robot_model]: Loading robot model 'aubo_e5'...
+[INFO] [1792631706.407032648] [peach_arm.moveit.core.robot_model]: No root/virtual joint specified in SRDF. Assuming fixed joint
+[INFO] [1792631706.424170326] [peach_arm.moveit.kinematics.kdl_kinematics_plugin]: Joint weights for group 'manipulator_e5': 1 1 1 1 1 1
+[INFO] [1792631706.432599233] [peach_arm]: 场景障碍 ACM 豁免已应用: 28 条（含 <octomap> 保留名）
+[INFO] [1792631706.443857232] [peach_arm.moveit.planners.pilz.joint_limits_aggregator]: Reading limits from namespace robot_description_planning
+[INFO] [1792631706.444273719] [peach_arm.moveit.planners.pilz.command_planner]: Available plugins: pilz_industrial_motion_planner/PlanningContextLoaderCIRC pilz_industrial_motion_planner/PlanningContextLoaderLIN pilz_industrial_motion_planner/PlanningContextLoaderPTP 
+[INFO] [1792631706.444279348] [peach_arm.moveit.planners.pilz.command_planner]: About to load: pilz_industrial_motion_planner/PlanningContextLoaderCIRC
+[INFO] [1792631706.445023219] [peach_arm.moveit.planners.pilz.command_planner]: Registered Algorithm [CIRC]
+[INFO] [1792631706.445028338] [peach_arm.moveit.planners.pilz.command_planner]: About to load: pilz_industrial_motion_planner/PlanningContextLoaderLIN
+[INFO] [1792631706.445563972] [peach_arm.moveit.planners.pilz.command_planner]: Registered Algorithm [LIN]
+[INFO] [1792631706.445566497] [peach_arm.moveit.planners.pilz.command_planner]: About to load: pilz_industrial_motion_planner/PlanningContextLoaderPTP
+[INFO] [1792631706.446069624] [peach_arm.moveit.planners.pilz.command_planner]: Registered Algorithm [PTP]
+[INFO] [1792631706.446072744] [peach_arm.moveit.ros.planning_pipeline]: Successfully loaded planner 'Pilz Industrial Motion Planner'
+[INFO] [1792631706.446973721] [peach_arm]: Try loading adapter 'default_planning_request_adapters/ResolveConstraintFrames'
+[INFO] [1792631706.447556978] [peach_arm]: Loaded adapter 'default_planning_request_adapters/ResolveConstraintFrames'
+[INFO] [1792631706.447559497] [peach_arm]: Try loading adapter 'default_planning_request_adapters/ValidateWorkspaceBounds'
+[INFO] [1792631706.447583716] [peach_arm]: Loaded adapter 'default_planning_request_adapters/ValidateWorkspaceBounds'
+[INFO] [1792631706.447584895] [peach_arm]: Try loading adapter 'default_planning_request_adapters/CheckStartStateBounds'
+[INFO] [1792631706.447590191] [peach_arm]: Loaded adapter 'default_planning_request_adapters/CheckStartStateBounds'
+[INFO] [1792631706.447591052] [peach_arm]: Try loading adapter 'default_planning_request_adapters/CheckStartStateCollision'
+[INFO] [1792631706.447594715] [peach_arm]: Loaded adapter 'default_planning_request_adapters/CheckStartStateCollision'
+[INFO] [1792631706.448451528] [peach_arm]: Try loading adapter 'default_planning_response_adapters/ValidateSolution'
+[INFO] [1792631706.449536423] [peach_arm]: Loaded adapter 'default_planning_response_adapters/ValidateSolution'
+[INFO] [1792631706.471163417] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792631706.511748908] [peach_arm]: Calling PlanningRequestAdapter 'ResolveConstraintFrames'
+[INFO] [1792631706.511812206] [peach_arm]: Calling PlanningRequestAdapter 'ValidateWorkspaceBounds'
+[WARN] [1792631706.511816409] [peach_arm.moveit.ros.validate_workspace_bounds]: It looks like the planning volume was not specified. Using default values.
+[INFO] [1792631706.511825757] [peach_arm]: Calling PlanningRequestAdapter 'CheckStartStateBounds'
+[INFO] [1792631706.511852854] [peach_arm]: Calling PlanningRequestAdapter 'CheckStartStateCollision'
+[INFO] [1792631706.511979716] [peach_arm.moveit.planners.pilz.trajectory_generator.ptp]: Initialized Point-to-Point Trajectory Generator.
+[INFO] [1792631706.511994643] [peach_arm]: Calling Planner 'Pilz Industrial Motion Planner'
+[INFO] [1792631706.512017771] [peach_arm.moveit.planners.pilz.trajectory_generator]: Generating PTP trajectory...
+[INFO] [1792631706.512196845] [peach_arm]: Calling PlanningResponseAdapter 'ValidateSolution'
+[INFO] [1792631706.512712510] [peach_arm]: MTC 接近短路径审查: segments=1 allowed=true points=19 duration=1.730s joint_total=3.957rad joint_max=1.258rad (短路径门通过)
+[INFO] [1792631706.512739473] [peach_arm]: MTC 接近果实胶囊审查(seg0 转移): allowed=true min_clearance=999.000m (果实胶囊审查通过)
+[INFO] [1792631706.513099631] [peach_arm]: MTC 接近笛卡尔审查: allowed=true path=0.562m chord=0.521m ratio=1.08 max_dev=0.090m recede=0.000m (笛卡尔短路径门通过)
+[INFO] [1792631706.513104413] [peach_arm]: MTC 接近姿态审查: allowed=true max_from_start=29.9deg (TCP 姿态行程通过)
+[INFO] [1792631706.513112817] [peach_arm]: [target_14] MTC规划检查已返回: elapsed=0.089s success=true
+[INFO] [1792631707.463615411] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792631708.315189171] [peach_arm]: [target_14] MTC任务已释放: elapsed=0.008s
+[INFO] [1792631708.315205647] [peach_arm.contact]: [target_14] 采用 PTP 候选 3/17 roll=-15°
+[INFO] [1792631708.319545078] [peach_arm]: sequence 冠内审查: segments=1 allowed=true points=17 duration=1.600s joint_total=0.660rad (短路径门通过)
+[INFO] [1792631708.463141307] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792631709.465250444] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792631709.938367131] [peach_arm]: 检查点 2（到预抓取）
+[INFO] [1792631709.938452903] [peach_arm.cycle]: [RECONFIRM] 预抓取停稳验证（不 SetIO）
+[INFO] [1792631710.138747001] [peach_arm.cycle]: [PREVIEW_CONTACT_PLANNING] 预规划套入与反向撤退
+[INFO] [1792631710.140116155] [peach_arm.moveit.ros.rdf_loader]: Loaded robot model in 0.00130782 seconds
+[INFO] [1792631710.140127157] [peach_arm.moveit.core.robot_model]: Loading robot model 'aubo_e5'...
+[INFO] [1792631710.140129696] [peach_arm.moveit.core.robot_model]: No root/virtual joint specified in SRDF. Assuming fixed joint
+[INFO] [1792631710.159501062] [peach_arm.moveit.kinematics.kdl_kinematics_plugin]: Joint weights for group 'manipulator_e5': 1 1 1 1 1 1
+[INFO] [1792631710.182770048] [peach_arm]: 场景障碍 ACM 豁免已应用: 28 条（含 <octomap> 保留名）
+[INFO] [1792631710.264744943] [peach_arm]: [target_14] MTC规划检查已返回: elapsed=0.105s success=true
+[INFO] [1792631710.264900168] [peach_arm]: [target_14] MTC任务已释放: elapsed=0.000s
+[INFO] [1792631710.264906877] [peach_arm]: 检查点 3（套入与反向撤退预规划过门）
+[INFO] [1792631710.264961464] [peach_arm.cycle]: [MTC_APPROACH_INSERT] 沿轴 LIN 套入
+[INFO] [1792631710.266022905] [peach_arm.moveit.ros.rdf_loader]: Loaded robot model in 0.001014 seconds
+[INFO] [1792631710.266031228] [peach_arm.moveit.core.robot_model]: Loading robot model 'aubo_e5'...
+[INFO] [1792631710.266034030] [peach_arm.moveit.core.robot_model]: No root/virtual joint specified in SRDF. Assuming fixed joint
+[INFO] [1792631710.284252614] [peach_arm.moveit.kinematics.kdl_kinematics_plugin]: Joint weights for group 'manipulator_e5': 1 1 1 1 1 1
+[INFO] [1792631710.298693271] [peach_arm]: 场景障碍 ACM 豁免已应用: 28 条（含 <octomap> 保留名）
+[INFO] [1792631710.376450145] [peach_arm]: MTC 接近短路径审查: segments=1 allowed=true points=39 duration=3.773s joint_total=1.022rad joint_max=0.422rad (短路径门通过)
+[INFO] [1792631710.376499551] [peach_arm]: MTC 接近笛卡尔审查: allowed=true path=0.100m chord=0.100m ratio=1.00 max_dev=0.000m recede=0.000m (笛卡尔短路径门通过)
+[INFO] [1792631710.376503533] [peach_arm]: MTC 接近姿态审查: allowed=true max_from_start=0.0deg (TCP 姿态行程通过)
+[INFO] [1792631710.376517575] [peach_arm]: [target_14] MTC规划检查已返回: elapsed=0.092s success=true
+[INFO] [1792631710.483759044] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792631711.471652187] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[WARN] [1792631711.585628491] [rclcpp]: Failed to get parameters: moveit.velocity_scaling
+[INFO] [1792631712.475341891] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792631713.484599545] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792631714.238128148] [peach_arm]: [target_14] MTC任务已释放: elapsed=0.010s
+[INFO] [1792631714.238153405] [peach_arm]: 检查点 4（沿轴套入到位）
+[INFO] [1792631714.238214150] [peach_arm.cycle]: [ACTUATE_TOOL] tool.enabled=false，跳过末端 IO
+[INFO] [1792631714.238241172] [peach_arm.cycle]: [MTC_RETREAT] MTC 沿插入反方向保持直线撤离
+[INFO] [1792631714.239896441] [peach_arm.moveit.ros.rdf_loader]: Loaded robot model in 0.00159909 seconds
+[INFO] [1792631714.239904852] [peach_arm.moveit.core.robot_model]: Loading robot model 'aubo_e5'...
+[INFO] [1792631714.239907337] [peach_arm.moveit.core.robot_model]: No root/virtual joint specified in SRDF. Assuming fixed joint
+[INFO] [1792631714.259062870] [peach_arm.moveit.kinematics.kdl_kinematics_plugin]: Joint weights for group 'manipulator_e5': 1 1 1 1 1 1
+[INFO] [1792631714.269796574] [peach_arm]: 场景障碍 ACM 豁免已应用: 28 条（含 <octomap> 保留名）
+[INFO] [1792631714.351405481] [peach_arm]: [target_14] MTC规划检查已返回: elapsed=0.092s success=true
+[INFO] [1792631714.472805038] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[WARN] [1792631714.591764561] [rclcpp]: Failed to get parameters: moveit.velocity_scaling
+[INFO] [1792631715.469614669] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792631716.473852837] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792631717.474721532] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[WARN] [1792631717.583469323] [rclcpp]: Failed to get parameters: moveit.velocity_scaling
+[INFO] [1792631718.207987287] [peach_arm]: [target_14] MTC任务已释放: elapsed=0.005s
+[INFO] [1792631718.208018242] [peach_arm]: 检查点 8（原路撤回预抓取）
+[INFO] [1792631718.208142168] [peach_arm.cycle]: [MTC_RETREAT] 返回 harvest_stow
+[INFO] [1792631718.217633618] [peach_arm]: 拍照位姿沿接近轨迹原路返程: points=35 duration=3.330s
+[INFO] [1792631718.226919320] [peach_arm.moveit.ros.move_group_interface]: Execute request accepted
+[INFO] [1792631718.468624858] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792631719.468835255] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792631720.470896569] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792631721.474026306] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792631721.594286829] [peach_arm.moveit.ros.move_group_interface]: Execute request success!
+[INFO] [1792631721.602997124] [peach_arm.moveit.ros.move_group_interface]: MoveGroup action client/server ready
+[INFO] [1792631721.603480515] [peach_arm.moveit.ros.move_group_interface]: Planning request accepted
+[INFO] [1792631721.608827478] [peach_arm.moveit.ros.move_group_interface]: Planning request complete!
+[INFO] [1792631721.609453885] [peach_arm.moveit.ros.move_group_interface]: time taken to generate plan: 3.8463e-05 seconds
+[INFO] [1792631721.609885452] [peach_arm.moveit.ros.move_group_interface]: Execute request accepted
+[INFO] [1792631722.331605961] [peach_arm.moveit.ros.move_group_interface]: Execute request success!
+[INFO] [1792631722.337648202] [peach_arm]: 检查点 9（回收纳位）
+[INFO] [1792631722.337721969] [peach_arm.cycle]: [SUCCEEDED] 周期完成；tool.enabled=false 或未宣称采摘成功
+[INFO] [1792631722.468023513] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792631723.345932137] [peach_arm.cycle]: [IDLE] 已记录现场人工撤离确认；本服务不发送任何运动命令
+[INFO] [1792631723.468486722] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792631724.479652653] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792631724.491748246] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[INFO] [1792631724.539514339] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[INFO] [1792631724.584453975] [rclcpp]: signal_handler(SIGINT/SIGTERM)

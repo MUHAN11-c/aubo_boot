@@ -1,0 +1,72 @@
+[INFO] [1792652831.995877891] [controller_manager]: Using Steady (Monotonic) clock for triggering controller manager cycles.
+[INFO] [1792652831.999148734] [controller_manager]: Subscribing to '/robot_description' topic for robot description.
+[INFO] [1792652831.999191667] [controller_manager]: update rate is 200 Hz
+[INFO] [1792652831.999194645] [controller_manager]: Overruns handling is : enabled
+[INFO] [1792652831.999196739] [controller_manager]: Spawning controller_manager RT thread with scheduler priority: 50
+[INFO] [1792652831.999238447] [controller_manager]: Successful set up FIFO RT scheduling policy with priority 50.
+[INFO] [1792652832.174700044] [controller_manager]: Received robot description from topic.
+[INFO] [1792652832.174742880] [controller_manager]: Enforcing command limits is disabled. Command limits from URDF will be ignored.
+[INFO] [1792652832.178701107] [controller_manager]: Loading hardware 'AuboE5System' 
+[INFO] [1792652832.185152755] [controller_manager]: Loaded hardware 'AuboE5System' from plugin 'aubo_e5_hardware/AuboE5Hardware'
+[INFO] [1792652832.185256632] [controller_manager]: Initialize hardware 'AuboE5System' 
+[INFO] [1792652832.196000216] [AuboE5Hardware]: on_init OK (169.254.10.98:8899, rib_target=400, slowdown=300/350, batch=2..8, speed_guard=false)
+[INFO] [1792652832.196028367] [controller_manager]: Successful initialization of hardware 'AuboE5System'
+[INFO] [1792652832.196532183] [controller_manager]: Activating component 'AuboE5System'.
+[INFO] [1792652832.196545984] [resource_manager]: 'configure' hardware 'AuboE5System' 
+[INFO] [1792652832.295596312] [AuboE5Hardware]: Real robot detected
+[INFO] [1792652832.357059195] [AuboE5Hardware]: on_configure OK (dual login, push active)
+[INFO] [1792652832.357085258] [resource_manager]: Successful 'configure' of hardware 'AuboE5System'
+[INFO] [1792652832.357107596] [resource_manager]: 'activate' hardware 'AuboE5System' 
+[INFO] [1792652832.373916369] [AuboE5Hardware]: on_activate OK (TCP2CAN active, send + IO threads running)
+[INFO] [1792652832.373928260] [AuboE5Hardware.sendLoop]: sendLoop started
+[INFO] [1792652832.373933853] [AuboE5Hardware.ioLoop]: ioLoop started
+[INFO] [1792652832.373947609] [resource_manager]: Successful 'activate' of hardware 'AuboE5System'
+[INFO] [1792652832.374049333] [controller_manager]: Registering statistics for : AuboE5System
+[INFO] [1792652832.374114441] [controller_manager]: Resource Manager has been successfully initialized. Starting Controller Manager services...
+[INFO] [1792652832.549673685] [controller_manager]: Loading controller : 'aubo_io_controller' of type 'aubo_e5_controllers/AuboIOController'
+[INFO] [1792652832.549706191] [controller_manager]: Loading controller 'aubo_io_controller'
+[INFO] [1792652832.552643062] [controller_manager]: Controller 'aubo_io_controller' node arguments: --ros-args -p use_sim_time:=False --params-file /tmp/launch_params_s4vtdxjw --params-file /home/mu/Desktop/aubo_e5_jazzy_ws/install/aubo_e5_bringup/share/aubo_e5_bringup/config/controllers.yaml 
+[INFO] [1792652832.565990200] [controller_manager]: Configuring controller: 'aubo_io_controller'
+[INFO] [1792652832.576006852] [controller_manager]: Activating controllers: [ aubo_io_controller ]
+[INFO] [1792652832.579505335] [controller_manager]: Successfully switched controllers!
+[INFO] [1792652835.676746042] [controller_manager]: Loading controller : 'aubo_passthrough_trajectory_controller' of type 'aubo_e5_controllers/AuboPassthroughTrajectoryController'
+[INFO] [1792652835.676778409] [controller_manager]: Loading controller 'aubo_passthrough_trajectory_controller'
+[INFO] [1792652835.676930969] [controller_manager]: Controller 'aubo_passthrough_trajectory_controller' node arguments: --ros-args -p use_sim_time:=False --params-file /tmp/launch_params_s4vtdxjw --params-file /home/mu/Desktop/aubo_e5_jazzy_ws/install/aubo_e5_bringup/share/aubo_e5_bringup/config/controllers.yaml 
+[INFO] [1792652835.686091667] [controller_manager]: Configuring controller: 'aubo_passthrough_trajectory_controller'
+[INFO] [1792652835.777796594] [controller_manager]: Activating controllers: [ aubo_passthrough_trajectory_controller ]
+[INFO] [1792652835.779605097] [controller_manager]: Successfully switched controllers!
+[INFO] [1792652836.361225188] [controller_manager]: Loading controller : 'joint_state_broadcaster' of type 'joint_state_broadcaster/JointStateBroadcaster'
+[INFO] [1792652836.361256916] [controller_manager]: Loading controller 'joint_state_broadcaster'
+[INFO] [1792652836.362851166] [controller_manager]: Controller 'joint_state_broadcaster' node arguments: --ros-args -p use_sim_time:=False --params-file /tmp/launch_params_s4vtdxjw --params-file /home/mu/Desktop/aubo_e5_jazzy_ws/install/aubo_e5_bringup/share/aubo_e5_bringup/config/controllers.yaml 
+[INFO] [1792652836.376242619] [controller_manager]: Configuring controller: 'joint_state_broadcaster'
+[INFO] [1792652836.376316007] [joint_state_broadcaster]: 'joints' or 'interfaces' parameter is empty. All available state interfaces will be published
+[INFO] [1792652836.462582780] [controller_manager]: Activating controllers: [ joint_state_broadcaster ]
+[INFO] [1792652836.464478533] [controller_manager]: Successfully switched controllers!
+[INFO] [1792652953.086476848] [aubo_passthrough_trajectory_controller]: Received new trajectory.
+[INFO] [1792652953.086584039] [aubo_passthrough_trajectory_controller]: Accepted new trajectory with 8 points.
+[INFO] [1792652953.086618056] [aubo_passthrough_trajectory_controller]: Effective goal time: 0 sec
+[INFO] [1792652954.399403133] [aubo_passthrough_trajectory_controller]: Trajectory executed successfully (goal-hold confirmed in 1.310014 s).
+[INFO] [1792652966.215999021] [aubo_passthrough_trajectory_controller]: Received new trajectory.
+[INFO] [1792652966.216052595] [aubo_passthrough_trajectory_controller]: Accepted new trajectory with 17 points.
+[INFO] [1792652966.216073988] [aubo_passthrough_trajectory_controller]: Effective goal time: 0 sec
+[INFO] [1792652968.224350751] [aubo_passthrough_trajectory_controller]: Trajectory executed successfully (goal-hold confirmed in 2.004998 s).
+[INFO] [1792652968.315138746] [aubo_passthrough_trajectory_controller]: Received new trajectory.
+[INFO] [1792652968.315195617] [aubo_passthrough_trajectory_controller]: Accepted new trajectory with 14 points.
+[INFO] [1792652968.315217888] [aubo_passthrough_trajectory_controller]: Effective goal time: 0 sec
+[INFO] [1792652970.074432054] [aubo_passthrough_trajectory_controller]: Trajectory executed successfully (goal-hold confirmed in 1.754942 s).
+[INFO] [1792652970.600888383] [aubo_passthrough_trajectory_controller]: Received new trajectory.
+[INFO] [1792652970.600955144] [aubo_passthrough_trajectory_controller]: Accepted new trajectory with 53 points.
+[INFO] [1792652970.600991451] [aubo_passthrough_trajectory_controller]: Effective goal time: 0 sec
+[INFO] [1792652976.089463978] [aubo_passthrough_trajectory_controller]: Trajectory executed successfully (goal-hold confirmed in 5.485087 s).
+[INFO] [1792652976.365782510] [aubo_passthrough_trajectory_controller]: Received new trajectory.
+[INFO] [1792652976.365839527] [aubo_passthrough_trajectory_controller]: Accepted new trajectory with 53 points.
+[INFO] [1792652976.365860873] [aubo_passthrough_trajectory_controller]: Effective goal time: 0 sec
+[INFO] [1792652981.879365186] [aubo_passthrough_trajectory_controller]: Trajectory executed successfully (goal-hold confirmed in 5.510008 s).
+[INFO] [1792652981.975175957] [aubo_passthrough_trajectory_controller]: Received new trajectory.
+[INFO] [1792652981.975243482] [aubo_passthrough_trajectory_controller]: Accepted new trajectory with 30 points.
+[INFO] [1792652981.975275097] [aubo_passthrough_trajectory_controller]: Effective goal time: 0 sec
+[INFO] [1792652985.104383921] [aubo_passthrough_trajectory_controller]: Trajectory executed successfully (goal-hold confirmed in 3.125022 s).
+[INFO] [1792652985.163761847] [aubo_passthrough_trajectory_controller]: Received new trajectory.
+[INFO] [1792652985.163858689] [aubo_passthrough_trajectory_controller]: Accepted new trajectory with 8 points.
+[INFO] [1792652985.163890898] [aubo_passthrough_trajectory_controller]: Effective goal time: 0 sec
+[INFO] [1792652986.279388374] [aubo_passthrough_trajectory_controller]: Trajectory executed successfully (goal-hold confirmed in 1.115021 s).

@@ -26,6 +26,12 @@ setup(
         (os.path.join('share', package_name), ['package.xml', 'LICENSE', 'README.md']),
         (os.path.join('share', package_name, 'config'), glob('config/*.yaml')),
         (os.path.join('share', package_name, 'launch'), glob('launch/*.launch.py')),
+        (os.path.join('share', package_name, 'web'), [
+            'scripts/force_web.py',
+            'scripts/force_web.html',
+            'scripts/face_fruit.png',
+            'scripts/face_full.png',
+        ]),
         (os.path.join('share', package_name, 'udev'), glob('udev/*.rules')),
     ],
     install_requires=['setuptools'],

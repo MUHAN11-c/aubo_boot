@@ -1,0 +1,77 @@
+PARAMS 11 []
+ENABLES True
+ROUND 1 priority_write 1 req sim4d_0_1792642721
+ACK 1 True 已记录现场人工撤离确认；本服务不发送任何运动命令
+DONE {"index": 1, "request": "sim4d_0_1792642721", "acked": true, "action_success": true, "attempted": 1, "succeeded": 1, "reason": "completed", "ledger_request": "sim4d_0_1792642721", "rows": [{"id": "target_5", "outcome": "SUCCEEDED", "level": 6}], "error": null}
+ROUND 2 priority_write 1 req sim4d_1_1792642754
+ACK 2 True 已记录现场人工撤离确认；本服务不发送任何运动命令
+DONE {"index": 2, "request": "sim4d_1_1792642754", "acked": true, "action_success": true, "attempted": 1, "succeeded": 1, "reason": "completed", "ledger_request": "sim4d_1_1792642754", "rows": [], "error": null}
+ROUND 3 priority_write 1 req sim4d_2_1792642785
+ACK 3 True 已记录现场人工撤离确认；本服务不发送任何运动命令
+DONE {"index": 3, "request": "sim4d_2_1792642785", "acked": true, "action_success": true, "attempted": 1, "succeeded": 1, "reason": "completed", "ledger_request": "sim4d_2_1792642785", "rows": [], "error": null}
+ROUND 4 priority_write 1 req sim4d_3_1792642822
+ACK 4 True 已记录现场人工撤离确认；本服务不发送任何运动命令
+DONE {"index": 4, "request": "sim4d_3_1792642822", "acked": true, "action_success": true, "attempted": 1, "succeeded": 1, "reason": "completed", "ledger_request": "sim4d_3_1792642822", "rows": [{"id": "target_3", "outcome": "SUCCEEDED", "level": 6}], "error": null}
+SUMMARY 2 / 4
+[
+  {
+    "index": 1,
+    "request": "sim4d_0_1792642721",
+    "acked": true,
+    "action_success": true,
+    "attempted": 1,
+    "succeeded": 1,
+    "reason": "completed",
+    "ledger_request": "sim4d_0_1792642721",
+    "rows": [
+      {
+        "id": "target_5",
+        "outcome": "SUCCEEDED",
+        "level": 6
+      }
+    ],
+    "error": null
+  },
+  {
+    "index": 2,
+    "request": "sim4d_1_1792642754",
+    "acked": true,
+    "action_success": true,
+    "attempted": 1,
+    "succeeded": 1,
+    "reason": "completed",
+    "ledger_request": "sim4d_1_1792642754",
+    "rows": [],
+    "error": null
+  },
+  {
+    "index": 3,
+    "request": "sim4d_2_1792642785",
+    "acked": true,
+    "action_success": true,
+    "attempted": 1,
+    "succeeded": 1,
+    "reason": "completed",
+    "ledger_request": "sim4d_2_1792642785",
+    "rows": [],
+    "error": null
+  },
+  {
+    "index": 4,
+    "request": "sim4d_3_1792642822",
+    "acked": true,
+    "action_success": true,
+    "attempted": 1,
+    "succeeded": 1,
+    "reason": "completed",
+    "ledger_request": "sim4d_3_1792642822",
+    "rows": [
+      {
+        "id": "target_3",
+        "outcome": "SUCCEEDED",
+        "level": 6
+      }
+    ],
+    "error": null
+  }
+]

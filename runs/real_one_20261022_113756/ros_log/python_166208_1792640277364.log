@@ -1,0 +1,82 @@
+[INFO] [1792640277.427241181] [peach_scene_perception_node]: YOLO=/home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_harvester/share/peach_harvester/model/best.pt
+[INFO] [1792640277.427419925] [peach_scene_perception_node]: SAM=/home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_harvester/share/peach_harvester/model/mobile_sam.pt
+[INFO] [1792640278.099547364] [peach_scene_perception_node]: Subscribed color=/camera/color/image_raw depth=/camera/depth/image_raw info=/camera/color/camera_info slop=0.05s optical=camera_color_optical_frame output=base_link depth_scale_unit=0.25 gravity_mode=tf calib=percipio-640x480-chessboard|hand_eye:import_humble_20260128T114006
+[INFO] [1792640278.099755269] [peach_scene_perception_node]: 目标身份记忆已启用：match_radius=0.06 m, max_targets=50, ema=0.3
+[INFO] [1792640278.111154152] [peach_target_reconstruction_node]: peach_target_reconstruction_node ready: base=base_link color=/camera/color/image_raw depth=/camera/depth/image_raw slop=0.05s depth_scale_unit=0.25 views(min/rec/max)=1/5/24 require_static=True auto_mode=True session_root=/home/mu/Desktop/aubo_e5_jazzy_ws/runs
+[INFO] [1792640278.338502381] [peach_supervisor]: task executor configured; will not auto-start harvest
+[INFO] [1792640278.340643114] [peach_scene_perception_node]: perception Active：开始处理 RGB-D
+[INFO] [1792640278.344099349] [peach_target_reconstruction_node]: reconstruction Active：开始积分
+[INFO] [1792640280.686289097] [peach_scene_perception_node]: CameraInfo K fx=466.175 fy=465.557 cx=326.071 cy=244.789 640x480
+[INFO] [1792640285.983862592] [peach_scene_perception_node]: peach_harvester.vision.scene_perception.identity: 目标注册 累计 1 次（最近: target_0 cls=0 累计表规模 1）
+[INFO] [1792640285.984057414] [peach_scene_perception_node]: peach_harvester.vision.scene_perception.identity: 目标注册 累计 2 次（最近: target_1 cls=0 累计表规模 2）
+[INFO] [1792640285.984193844] [peach_scene_perception_node]: peach_harvester.vision.scene_perception.identity: 目标注册 累计 3 次（最近: target_2 cls=0 累计表规模 3）
+[INFO] [1792640285.985564037] [peach_scene_perception_node]: peach_harvester.vision.scene_perception.identity: 目标注册 累计 4 次（最近: target_3 cls=0 累计表规模 4）
+[INFO] [1792640286.012350039] [peach_scene_perception_node]: 目标注册表在册 4 个目标（累计注册 4、累计命中 0）
+[WARN] [1792640286.013615105] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 72（处理跟不上到达率，排查热路径耗时或降低到达率）
+[WARN] [1792640291.211296738] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 132（处理跟不上到达率，排查热路径耗时或降低到达率）
+[INFO] [1792640293.999542570] [peach_supervisor]: 操作台使能: execution=False grasp=False tool=False（page smoke）
+[INFO] [1792640296.107357553] [peach_scene_perception_node]: 目标注册表在册 4 个目标（累计注册 4、累计命中 68）
+[WARN] [1792640296.683490330] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 202（处理跟不上到达率，排查热路径耗时或降低到达率）
+[WARN] [1792640302.263415644] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 268（处理跟不上到达率，排查热路径耗时或降低到达率）
+[INFO] [1792640306.682224655] [peach_scene_perception_node]: 目标注册表在册 4 个目标（累计注册 4、累计命中 140）
+[WARN] [1792640307.399968003] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 329（处理跟不上到达率，排查热路径耗时或降低到达率）
+[WARN] [1792640312.596994236] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 392（处理跟不上到达率，排查热路径耗时或降低到达率）
+[INFO] [1792640316.732019215] [peach_scene_perception_node]: 目标注册表在册 4 个目标（累计注册 4、累计命中 208）
+[WARN] [1792640318.152523654] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 460（处理跟不上到达率，排查热路径耗时或降低到达率）
+[WARN] [1792640323.362121514] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 523（处理跟不上到达率，排查热路径耗时或降低到达率）
+[INFO] [1792640326.741486048] [peach_scene_perception_node]: 目标注册表在册 4 个目标（累计注册 4、累计命中 274）
+[WARN] [1792640328.416311403] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 582（处理跟不上到达率，排查热路径耗时或降低到达率）
+[WARN] [1792640333.732739318] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 648（处理跟不上到达率，排查热路径耗时或降低到达率）
+[INFO] [1792640336.806078144] [peach_scene_perception_node]: 目标注册表在册 4 个目标（累计注册 4、累计命中 335）
+[WARN] [1792640339.077727178] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 712（处理跟不上到达率，排查热路径耗时或降低到达率）
+[WARN] [1792640344.211996607] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 774（处理跟不上到达率，排查热路径耗时或降低到达率）
+[INFO] [1792640346.997394999] [peach_scene_perception_node]: 目标注册表在册 4 个目标（累计注册 4、累计命中 400）
+[WARN] [1792640349.522221846] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 837（处理跟不上到达率，排查热路径耗时或降低到达率）
+[WARN] [1792640354.907728594] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 902（处理跟不上到达率，排查热路径耗时或降低到达率）
+[INFO] [1792640357.275280207] [peach_scene_perception_node]: 目标注册表在册 4 个目标（累计注册 4、累计命中 464）
+[WARN] [1792640360.329308677] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 965（处理跟不上到达率，排查热路径耗时或降低到达率）
+[WARN] [1792640365.776716866] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 1031（处理跟不上到达率，排查热路径耗时或降低到达率）
+[INFO] [1792640367.554181475] [peach_scene_perception_node]: 目标注册表在册 4 个目标（累计注册 4、累计命中 529）
+[WARN] [1792640370.852100544] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 1094（处理跟不上到达率，排查热路径耗时或降低到达率）
+[WARN] [1792640376.496601058] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 1163（处理跟不上到达率，排查热路径耗时或降低到达率）
+[INFO] [1792640377.895726014] [peach_scene_perception_node]: 目标注册表在册 4 个目标（累计注册 4、累计命中 589）
+[WARN] [1792640381.957044593] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 1224（处理跟不上到达率，排查热路径耗时或降低到达率）
+[WARN] [1792640382.928154454] [peach_target_reconstruction_node]: 重建 worker 队列已满，拒绝新帧以保持积分顺序
+[WARN] [1792640384.289087505] [peach_target_reconstruction_node]: 重建 worker 队列已满，拒绝新帧以保持积分顺序
+[WARN] [1792640386.083144703] [peach_target_reconstruction_node]: 重建 worker 队列已满，拒绝新帧以保持积分顺序
+[WARN] [1792640386.959022666] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 1285（处理跟不上到达率，排查热路径耗时或降低到达率）
+[WARN] [1792640387.394995620] [peach_target_reconstruction_node]: 重建 worker 队列已满，拒绝新帧以保持积分顺序
+[INFO] [1792640388.270878075] [peach_scene_perception_node]: 目标注册表在册 4 个目标（累计注册 4、累计命中 650）
+[WARN] [1792640388.999875176] [peach_target_reconstruction_node]: 重建 worker 队列已满，拒绝新帧以保持积分顺序
+[WARN] [1792640391.831156842] [peach_target_reconstruction_node]: 重建 worker 队列已满，拒绝新帧以保持积分顺序
+[WARN] [1792640392.492120360] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 1350（处理跟不上到达率，排查热路径耗时或降低到达率）
+[WARN] [1792640393.372275023] [peach_target_reconstruction_node]: 重建 worker 队列已满，拒绝新帧以保持积分顺序
+[WARN] [1792640396.395982137] [peach_target_reconstruction_node]: 重建 worker 队列已满，拒绝新帧以保持积分顺序
+[WARN] [1792640397.966506722] [peach_target_reconstruction_node]: 重建 worker 队列已满，拒绝新帧以保持积分顺序
+[WARN] [1792640398.082306926] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 1426（处理跟不上到达率，排查热路径耗时或降低到达率）
+[INFO] [1792640398.838301528] [peach_scene_perception_node]: 目标注册表在册 4 个目标（累计注册 4、累计命中 711）
+[WARN] [1792640399.181365357] [peach_target_reconstruction_node]: 重建 worker 队列已满，拒绝新帧以保持积分顺序
+[WARN] [1792640400.619534268] [peach_target_reconstruction_node]: 重建 worker 队列已满，拒绝新帧以保持积分顺序
+[WARN] [1792640402.408596800] [peach_target_reconstruction_node]: 重建 worker 队列已满，拒绝新帧以保持积分顺序
+[WARN] [1792640403.692221479] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 1489（处理跟不上到达率，排查热路径耗时或降低到达率）
+[WARN] [1792640405.396012703] [peach_target_reconstruction_node]: 重建 worker 队列已满，拒绝新帧以保持积分顺序
+[WARN] [1792640406.910254129] [peach_target_reconstruction_node]: 重建 worker 队列已满，拒绝新帧以保持积分顺序
+[WARN] [1792640409.035090773] [peach_target_reconstruction_node]: 重建 worker 队列已满，拒绝新帧以保持积分顺序
+[INFO] [1792640409.069664550] [peach_scene_perception_node]: 目标注册表在册 4 个目标（累计注册 4、累计命中 774）
+[WARN] [1792640409.073475943] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 1555（处理跟不上到达率，排查热路径耗时或降低到达率）
+[ERROR] [1792640410.991532029] [peach_scene_perception_node]: peach_harvester.vision.common.runtime: bounded-worker 任务处理异常（连续第 1 次）:
+Traceback (most recent call last):
+  File "/home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_harvester/lib/python3.12/site-packages/peach_harvester/vision/common/runtime.py", line 138, in _run
+    self._process(item)
+  File "/home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_harvester/lib/python3.12/site-packages/peach_harvester/vision/scene_perception/scene_perception_node.py", line 655, in _process_rgbd
+    self._publish_frame(synced, out)
+  File "/home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_harvester/lib/python3.12/site-packages/peach_harvester/vision/scene_perception/scene_perception_node.py", line 691, in _publish_frame
+    self.pub_norm_dets.publish(det_msg)
+  File "/opt/ros/jazzy/lib/python3.12/site-packages/rclpy/lifecycle/managed_entity.py", line 77, in only_when_enabled_wrapper
+    wrapped(self, *args, **kwargs)
+  File "/opt/ros/jazzy/lib/python3.12/site-packages/rclpy/lifecycle/publisher.py", line 37, in publish
+    Publisher.publish(self, msg)
+  File "/opt/ros/jazzy/lib/python3.12/site-packages/rclpy/publisher.py", line 70, in publish
+    self.__publisher.publish(msg)
+rclpy._rclpy_pybind11.RCLError: Failed to publish: publisher's context is invalid, at ./src/rcl/publisher.c:423
+

@@ -1405,10 +1405,10 @@ bool ManipulationSkillsNode::stageExecuteReservedReverseRetreat(CycleContext & c
 bool ManipulationSkillsNode::stageReturnHarvestStow(CycleContext & ctx)
 {
   // 回收纳位是接触后的自由空间转移（TRANSIT 级：不再做决策复检）。
-  if (!requireStageAuthority(ctx, MotionStage::TRANSIT, "返回 harvest_stow")) {
+  if (!requireStageAuthority(ctx, MotionStage::TRANSIT, "回拍照位")) {
     return false;
   }
-  setState(CycleState::MTC_RETREAT, "返回 harvest_stow", ctx.target_id);
+  setState(CycleState::MTC_RETREAT, "回拍照位", ctx.target_id);
   if (!motion_) {
     return failStage(ctx, "MoveIt 尚未初始化");
   }
@@ -1423,7 +1423,7 @@ bool ManipulationSkillsNode::stageReturnHarvestStow(CycleContext & ctx)
     }
   }
   contact_recovery_required_.store(false);
-  markCheckpoint(ExecuteTarget::Goal::CK_STOWED, "回收纳位");
+  markCheckpoint(ExecuteTarget::Goal::CK_STOWED, "回拍照位");
   return true;
 }
 

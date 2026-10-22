@@ -1,0 +1,35 @@
+[INFO] [1792632963.048159719] [peach_observability]: 无启动事实注入（独立起栈）；startup.json 不落盘
+[WARN] [1792632963.136531495] [peach_observability]: *** 调试操作面已启用：运动类操作=默认拒绝。技能侧既有安全门照常生效；请保持 HTTP 回环绑定 ***
+[INFO] [1792632963.139146954] [peach_observability]: 感知抓取过程页（过程监控+单步调试）: http://127.0.0.1:8090
+[INFO] [1792632963.140429966] [peach_observability]: 全量录制订阅: /joint_states [sensor_msgs/msg/JointState]
+[INFO] [1792632963.140897750] [peach_observability]: 全量录制订阅: /peach/observability/tcp_path [nav_msgs/msg/Path]
+[INFO] [1792632963.141334787] [peach_observability]: 全量录制订阅: /peach/perception/target_observations [peach_interfaces/msg/PeachTargetObservationArray]
+[INFO] [1792632963.141769539] [peach_observability]: 全量录制订阅: /peach/reconstruction/diagnostics [peach_interfaces/msg/ReconstructionStatus]
+[INFO] [1792632963.142076992] [peach_observability]: 全量录制订阅: /peach/reconstruction/diagnostics_debug [std_msgs/msg/String]
+[INFO] [1792632963.142376762] [peach_observability]: 全量录制订阅: /peach/reconstruction/grasp_decision [peach_interfaces/msg/GraspDecision]
+[INFO] [1792632963.142826666] [peach_observability]: 全量录制订阅: /peach/reconstruction/refined_axis [geometry_msgs/msg/Vector3Stamped]
+[INFO] [1792632963.143346725] [peach_observability]: 全量录制订阅: /peach/reconstruction/refined_diagnostics [peach_interfaces/msg/BagFittingArray]
+[INFO] [1792632963.143847820] [peach_observability]: 全量录制订阅: /peach/reconstruction/refined_pose [peach_interfaces/msg/BagGraspCandidateArray]
+[INFO] [1792632963.144314127] [peach_observability]: 全量录制订阅: /peach/reconstruction/status [std_msgs/msg/String]
+[INFO] [1792632963.144737380] [peach_observability]: 全量录制订阅: /peach/reconstruction/tsdf_cloud [sensor_msgs/msg/PointCloud2]
+[INFO] [1792632963.145202706] [peach_observability]: 全量录制订阅: /peach_arm/execute_target/_action/feedback [peach_interfaces/action/ExecuteTarget_FeedbackMessage]
+[INFO] [1792632963.145661637] [peach_observability]: 全量录制订阅: /peach_arm/execute_target/_action/status [action_msgs/msg/GoalStatusArray]
+[INFO] [1792632963.146125315] [peach_observability]: 全量录制订阅: /peach_arm/status [std_msgs/msg/String]
+[INFO] [1792632963.146552794] [peach_observability]: 全量录制订阅: /peach_supervisor/events [peach_interfaces/msg/CanonicalEvent]
+[INFO] [1792632963.147021262] [peach_observability]: 全量录制订阅: /peach_supervisor/run_harvest/_action/feedback [peach_interfaces/action/RunHarvest_FeedbackMessage]
+[INFO] [1792632963.147323900] [peach_observability]: 全量录制订阅: /peach_supervisor/run_harvest/_action/status [action_msgs/msg/GoalStatusArray]
+[INFO] [1792632963.147623238] [peach_observability]: 全量录制订阅: /peach_supervisor/scene_snapshot [peach_interfaces/msg/SceneSnapshot]
+[INFO] [1792632963.147923111] [peach_observability]: 全量录制订阅: /peach_supervisor/state [peach_interfaces/msg/HarvestState]
+[INFO] [1792632963.148217123] [peach_observability]: 全量录制订阅: /peach_target_reconstruction_node/build_target_model/_action/feedback [peach_interfaces/action/BuildTargetModel_FeedbackMessage]
+[INFO] [1792632963.148502265] [peach_observability]: 全量录制订阅: /peach_target_reconstruction_node/build_target_model/_action/status [action_msgs/msg/GoalStatusArray]
+[INFO] [1792632963.148809047] [peach_observability]: 全量录制订阅: /tf [tf2_msgs/msg/TFMessage]
+[INFO] [1792632963.149092942] [peach_observability]: 全量录制订阅: /tf_static [tf2_msgs/msg/TFMessage]
+[WARN] [1792633053.140656650] [peach_observability]: 自检[initial] 2/18 通过，失败: joint_states_flow, joint_order, move_group, action_run_harvest, action_survey_scene, action_execute_target, action_build_target_model, force_topic，警告: controllers，跳过: managed_lifecycle, tcp_frame, camera_color_rate, camera_depth_rate, robot_status, model_files, vegetation_status
+[WARN] [1792633053.143424189] [peach_observability]: 自检[periodic] 2/18 通过，失败: joint_states_flow, joint_order, move_group, action_run_harvest, action_survey_scene, action_execute_target, action_build_target_model, force_topic，警告: controllers，跳过: managed_lifecycle, tcp_frame, camera_color_rate, camera_depth_rate, robot_status, model_files, vegetation_status
+[WARN] [1792633083.141072175] [peach_observability]: 自检[periodic] 2/18 通过，失败: joint_states_flow, joint_order, move_group, action_run_harvest, action_survey_scene, action_execute_target, action_build_target_model, force_topic，警告: controllers，跳过: managed_lifecycle, tcp_frame, camera_color_rate, camera_depth_rate, robot_status, model_files, vegetation_status
+[WARN] [1792633113.140348242] [peach_observability]: 自检[periodic] 2/18 通过，失败: joint_states_flow, joint_order, move_group, action_run_harvest, action_survey_scene, action_execute_target, action_build_target_model, force_topic，警告: controllers，跳过: managed_lifecycle, tcp_frame, camera_color_rate, camera_depth_rate, robot_status, model_files, vegetation_status
+[WARN] [1792633143.140720096] [peach_observability]: 自检[periodic] 2/18 通过，失败: joint_states_flow, joint_order, move_group, action_run_harvest, action_survey_scene, action_execute_target, action_build_target_model, force_topic，警告: controllers，跳过: managed_lifecycle, tcp_frame, camera_color_rate, camera_depth_rate, robot_status, model_files, vegetation_status
+[WARN] [1792633173.141500655] [peach_observability]: 自检[periodic] 2/18 通过，失败: joint_states_flow, joint_order, move_group, action_run_harvest, action_survey_scene, action_execute_target, action_build_target_model, force_topic，警告: controllers，跳过: managed_lifecycle, tcp_frame, camera_color_rate, camera_depth_rate, robot_status, model_files, vegetation_status
+[WARN] [1792633203.140071290] [peach_observability]: 自检[periodic] 2/18 通过，失败: joint_states_flow, joint_order, move_group, action_run_harvest, action_survey_scene, action_execute_target, action_build_target_model, force_topic，警告: controllers，跳过: managed_lifecycle, tcp_frame, camera_color_rate, camera_depth_rate, robot_status, model_files, vegetation_status
+[WARN] [1792633233.141541792] [peach_observability]: 自检[periodic] 2/18 通过，失败: joint_states_flow, joint_order, move_group, action_run_harvest, action_survey_scene, action_execute_target, action_build_target_model, force_topic，警告: controllers，跳过: managed_lifecycle, tcp_frame, camera_color_rate, camera_depth_rate, robot_status, model_files, vegetation_status
+[WARN] [1792633233.141942911] [peach_observability]: 自检工件落盘失败: [Errno 2] No such file or directory: '/home/mu/Desktop/aubo_e5_jazzy_ws/runs/session_20261022_093603/selfcheck.json.tmp'

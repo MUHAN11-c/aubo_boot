@@ -1118,8 +1118,8 @@ class TargetRegistry:
 
         用途：物理场景切换时清掉上一轮锚点记忆，防陈旧锚点在新场景被
         恢复匹配误命中。计划/锁定集不在本类职责内，由节点保持不动。
-        序号计数器 _next_index 不复位：清空后新发 ID 仍全局单调，避免与
-        清空前已下发给下游的 target_id 撞号。
+        序号计数器 _next_index 在 BeginScene 换场时复位：物理场景
+        切换即一轮新启动/新抓取，新一轮 4 颗目标从 target_0 起，
 
         Returns
         -------
@@ -1128,6 +1128,9 @@ class TargetRegistry:
         """
         count = len(self._targets)
         self._targets.clear()
+        # 换场即新一轮启动/抓取：4 颗目标重新从 target_0 起，保证
+        # 2D/3D/报告同 ID（2026-10-22）。
+        self._next_index = 0
         self._frame_used.clear()
         return count
 

@@ -1,0 +1,57 @@
+ENABLES {'accepted': True, 'message': '已广播 /peach/batch/enables'}
+SCENE 0 True epoch 1
+ROUND 1 target_0 pri 1
+DONE {"index": 1, "target_id": "target_0", "priority": 1, "seconds": 180.1, "action_success": null, "outcome": "SUCCEEDED", "level": 6, "reason": "周期完成；tool.enabled=false 或未宣称采摘成功"}
+ACK 1 True
+SCENE 1 True epoch 3
+ROUND 2 target_1 pri 2
+DONE {"index": 2, "target_id": "target_1", "priority": 2, "seconds": 126.3, "action_success": true, "outcome": "SUCCEEDED", "level": 6, "reason": "周期完成；tool.enabled=false 或未宣称采摘成功"}
+SCENE 2 True epoch 5
+ROUND 3 target_2 pri 3
+DONE {"index": 3, "target_id": "target_2", "priority": 3, "seconds": 33.3, "action_success": true, "outcome": null, "level": null, "reason": ""}
+SCENE 3 True epoch 7
+ROUND 4 target_3 pri 4
+DONE {"index": 4, "target_id": "target_3", "priority": 4, "seconds": 109.2, "action_success": true, "outcome": "SUCCEEDED", "level": 6, "reason": "周期完成；tool.enabled=false 或未宣称采摘成功"}
+SUMMARY 3 / 4
+[
+  {
+    "index": 1,
+    "target_id": "target_0",
+    "priority": 1,
+    "seconds": 180.1,
+    "action_success": null,
+    "outcome": "SUCCEEDED",
+    "level": 6,
+    "reason": "周期完成；tool.enabled=false 或未宣称采摘成功"
+  },
+  {
+    "index": 2,
+    "target_id": "target_1",
+    "priority": 2,
+    "seconds": 126.3,
+    "action_success": true,
+    "outcome": "SUCCEEDED",
+    "level": 6,
+    "reason": "周期完成；tool.enabled=false 或未宣称采摘成功"
+  },
+  {
+    "index": 3,
+    "target_id": "target_2",
+    "priority": 3,
+    "seconds": 33.3,
+    "action_success": true,
+    "outcome": null,
+    "level": null,
+    "reason": ""
+  },
+  {
+    "index": 4,
+    "target_id": "target_3",
+    "priority": 4,
+    "seconds": 109.2,
+    "action_success": true,
+    "outcome": "SUCCEEDED",
+    "level": 6,
+    "reason": "周期完成；tool.enabled=false 或未宣称采摘成功"
+  }
+]

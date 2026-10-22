@@ -63,7 +63,7 @@ def grasp_order_by_id(locked, priorities) -> dict:
     """
     确认锁定之后的抓取顺序，1 为最先抓.
 
-    锁定前还没有这套顺序，返回空表，画面上不编 id。
+    锁定前还没有这套顺序，返回空表。画面上是否沿用上一套由 orders_for_image 决定。
     """
     if not locked:
         return {}
@@ -72,6 +72,63 @@ def grasp_order_by_id(locked, priorities) -> dict:
         for target_id, order in priorities.items()
         if int(order) > 0
     }
+
+
+def orders_for_image(locked, priorities, remembered=None) -> dict:
+    """画面上的抓取顺序：有新锁定用新的，否则沿用上一套同一坐标身份的顺序."""
+    current = grasp_order_by_id(locked, priorities)
+    if current:
+        return current
+    if not remembered:
+        return {}
+    return {
+        str(target_id): int(order)
+        for target_id, order in remembered.items()
+        if int(order) > 0
+    }
+
+
+def stick_labels(current, remembered, orders):
+    """
+    当前锁定集里已经标过的顺序留在画面上.
+
+    只保留 orders 里的 target_id。本帧又看见就更新框；这一帧没看见就沿用上一帧
+    的像素框。新锁定没再列入的号会拿掉，不再把旧号套到旁边的新检测上。
+    """
+    allowed = {
+        str(target_id): int(order)
+        for target_id, order in (orders or {}).items()
+        if int(order) > 0
+    }
+    memory = {}
+    for tid, item in (remembered or {}).items():
+        key = str(tid)
+        if key in allowed and item.get('bbox') is not None and item.get('det'):
+            kept = {k: v for k, v in item.items() if k != 'mask'}
+            kept['tid'] = key
+            kept['order'] = allowed[key]
+            memory[key] = kept
+    seen = set()
+    drawn = []
+    for item in current:
+        tid = str(item.get('tid') or '')
+        # 还没有抓取顺序时，检测和置信度都画。顺序已经在画面上之后，
+        # 锁定集以外的新号和裸置信度不再叠上去（过程中会盖住已有的 #n）。
+        if not allowed:
+            drawn.append(item)
+            continue
+        if tid not in allowed:
+            continue
+        updated = dict(item)
+        updated['tid'] = tid
+        updated['order'] = allowed[tid]
+        memory[tid] = {k: v for k, v in updated.items() if k != 'mask'}
+        seen.add(tid)
+        drawn.append(updated)
+    for tid, prev in memory.items():
+        if tid not in seen:
+            drawn.append(prev)
+    return drawn, memory
 
 
 def _paint_mask(img, sam_mask, color):
@@ -93,10 +150,11 @@ def _paint_mask(img, sam_mask, color):
     cv2.drawContours(img, contours, -1, color, 2)
 
 
-def _overlay_text(conf, order) -> str:
-    """确认后的 id 就是抓取顺序。锁定前只留检测置信度."""
+def _overlay_text(conf, order, tid='') -> str:
+    """确认后显示场景源 ID + 抓取序号；锁定前只留检测置信度."""
     if order:
-        return str(int(order))
+        order_text = f'#{int(order)}'
+        return f'{tid} {order_text}' if tid else order_text
     return f'{float(conf):.2f}'
 
 
@@ -133,7 +191,7 @@ def draw_debug(img, det, grasp_2d, sam_mask, tid='', confirmed: bool = True,
     if not confirmed:
         cv2.rectangle(img, (x1d, y1d), (x2d, y2d), (160, 160, 160), 1)
         _draw_label(
-            img, _overlay_text(det.get('conf', 0.0), order),
+            img, _overlay_text(det.get('conf', 0.0), order, tid),
             x1d, y1d, (180, 180, 180))
         return
     color = (0, 220, 0) if det.get('class_id', 0) == 0 else (0, 180, 255)
@@ -175,5 +233,5 @@ def draw_debug(img, det, grasp_2d, sam_mask, tid='', confirmed: bool = True,
             cv2.circle(img, _clamp_px(img, ex, ey), 5, (255, 0, 255), 2)
     # 确认锁定后，图上的 id 就是抓取顺序，1 最先抓。
     _draw_label(
-        img, _overlay_text(det.get('conf', 0.0), order),
+        img, _overlay_text(det.get('conf', 0.0), order, tid),
         x1d, y1d, st_color)

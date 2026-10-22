@@ -628,8 +628,11 @@ class TargetReconstructionNode(
              stamp_msg, stamp_sec, cam_frame))
         # 自动模式：每个新同步帧驱动一次（自动开始/采帧/完成）；
         # auto_mode=false 时不走这里，改用纯手动 Trigger 服务流
+        self.collector.config.auto_mode = bool(self.params.capture.auto_mode)
         if self.params.capture.auto_mode:
             self._auto_drive()
+        else:
+            self._stop_auto_collect()
 
     def _on_initial_pose(self, msg: BagGraspCandidateArray):
         """缓存最新感知候选（启动重建时绑定最优目标用）."""
@@ -776,8 +779,25 @@ class TargetReconstructionNode(
             return
         # 自动驱动可能执行精确时刻 TF 查询、采帧与 TSDF/refit；必须在外层
         # 观测缓存锁释放后进入。否则 BuildTargetModel 的 reset/bind 会被饿死。
+        self.collector.config.auto_mode = bool(self.params.capture.auto_mode)
         if self.params.capture.auto_mode:
             self._auto_drive()
+        else:
+            self._stop_auto_collect()
+
+    def _stop_auto_collect(self) -> None:
+        """自动采帧关掉时，停掉不是 Build 拉起的积分并清空体积."""
+        self.collector.config.auto_mode = bool(self.params.capture.auto_mode)
+        if self.params.capture.auto_mode or self._build_goal_active:
+            return
+        if self.collector.state == STATE_IDLE:
+            return
+        with self._state_lock:
+            if self._build_goal_active or self.collector.state == STATE_IDLE:
+                return
+            self._reset_capture_session()
+        self.get_logger().info('自动采帧已关，停止并清空进行中的积分')
+        self._publish_all()
 
     def _on_query_reconstruction_state(self, request, response):
         """~/query_reconstruction_state：返回当前重建和数据关联 JSON."""

@@ -77,7 +77,7 @@ IDL 唯一契约包，不跑节点。`config/interface_manifest.yaml` + `scripts
 | `src/tool_actuator.cpp` | SetIO；默认关 |
 | `src/safety_gate.cpp` `quality_gate.cpp` | 纯核门 |
 | `include/peach_arm/acm_policy.hpp` | ③层豁免条目纯核 |
-| `include/peach_arm/grasp_geometry.hpp` | 胶囊/反爬/`stagingWaypoints`/`usesImuFollowContact` |
+| `include/peach_arm/grasp_geometry.hpp` | 胶囊/反爬/`stagingWaypoints`（IMU 跟随字段已随 `imu_follow` 删除） |
 | `include/peach_arm/cycle_context.hpp` | CycleState / CycleContext |
 | `config/peach_arm.yaml` | GPL 参数（`obstacle_guard_*`） |
 
@@ -87,7 +87,26 @@ IDL 唯一契约包，不跑节点。`config/interface_manifest.yaml` + `scripts
 
 `observability_node.py`：8090（`http_server.py`、`debug_actions.py`）+ 会话 bag + **订 `/diagnostics` 聚合进 8090** + 启动自检。`selfcheck/`：探针、闩锁 `/peach/observability/selfcheck_passed`、`startup.json`。只读。调试 POST 运动须 `debug.motion_enabled`，仍过臂侧命令门。
 
-观测四层：L1 节点日志 → L2 CanonicalEvent/HarvestState/ledger → L3 `/diagnostics` → L4 `runs/session_*`。
+| 文件 | 作用 |
+|------|------|
+| `http_server.py` | HTTP 路由：`/api/state`、`/api/params`、`/api/analysis*`、`/api/debug/*`、静态白名单 |
+| `param_panel.py` | `PARAM_GROUPS` 白名单 + `ParamBridge`；本地/远程参数读写、运动/静态门 |
+| `record_analysis.py` | `/analysis` 只读解析：run report/嵌套 records、outcomes/fruits、level6/7 |
+| `state.py` / `job.py` / `pipeline.py` | 状态投影、作业票、FSM/技能阶段时序 |
+| `image_preview.py` / `tcp_trajectory.py` | JPEG 缓存 / TCP 与工具三帧 |
+| `recorder.py` / `catch_all_recorder.py` / `retention.py` | 会话 bag / 通配 / 回收 |
+| `bag_reader.py` / `bag_report.py` | 离线报告 |
+| `startup_facts.py` / `path_metrics.py` | 启动事实 / 路径度量 |
+
+观测四层：L1 节点日志 → L2 CanonicalEvent/HarvestState/ledger → L3 `/diagnostics` → L4 `runs/session_*`。调试台/参数 API 细节见 [debug-and-evidence.md](debug-and-evidence.md)。
+
+## peach_web
+
+顶层静态前端包，不跑节点。`web/index.html`+`app.js` 是过程监控；`web/analysis.html/js` 是一跑一文件夹的离线分析；`web/debug.html/js/css` 是 2026-10-22 调试台；`ui-common.js`/`monitor-renderers.js`/`trajectory-renderers.js`/`request-runtime.js` 为共享模块。CSP 同源、无 CDN，HTTP 白名单在 observability。
+
+## serial_force
+
+5 点力驱动，随整栈 `force_enabled` 起，不进 lifecycle。`force_node.py` 串口/话题/诊断；`force_protocol.py` 零 ROS 32 字节 v3 切帧；`force_status.py` 通道状态；`scripts/force_web.py` 是 8099 查看器（不是记录器）。`serial_force_sim` 是独立 mock 力闭环仿真，不读写串口。细节见 [debug-and-evidence.md](debug-and-evidence.md#5-点力)。
 
 ## peach_vegetation
 
@@ -103,7 +122,7 @@ Blender 果园重建 + Gazebo 仿真（sim_worlds/sim_description/sim_bringup/si
 
 ## peach_system_tests
 
-isolated mock launch_testing + 接近回放塔（`replay_oracle.py` 纯几何）。`test_e1_supervisor_chain.py`；`test_tool_profile_smoke.py`（三把末端，域 91/92/93）；`test_scene_obstacles.py`。脚本：`scripts/drive_harvest.py` / `probe_topics.py` / `check_planning_scene.py`。
+isolated mock launch_testing + 接近回放塔（`replay_oracle.py` 纯几何）。`test_e1_supervisor_chain.py`；`test_tool_profile_smoke.py`（三把末端，域 91/92/93）；`test_scene_obstacles.py`；`test_live_camera_mock.py`；`test_rviz_monitor_profile.py`。脚本：`run_live_camera_mock.py`（真实相机+mock，mock-only）、`drive_harvest.py`、`probe_topics.py`、`check_planning_scene.py`、`run_frozen_grasp.py`。证据口径见 [debug-and-evidence.md](debug-and-evidence.md)。
 
 ## 驱动（MUST 只读）
 
@@ -111,4 +130,4 @@ isolated mock launch_testing + 接近回放塔（`replay_oracle.py` 纯几何）
 
 ## 非 peach、勿混进核
 
-IVG 三包、`imu_follow`（仅 `adaptive_shear_v1` Include）、`peach_navigation`（已归档）。
+IVG 三包、`serial_force_sim`（力闭环仿真）、`peach_navigation`（已归档）。IMU/`imu_follow` 已于 2026-10-19 删除，别再按旧入口接线。

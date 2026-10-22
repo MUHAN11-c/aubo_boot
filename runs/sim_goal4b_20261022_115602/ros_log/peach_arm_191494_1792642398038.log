@@ -1,0 +1,171 @@
+[WARN] [1792642398.058476817] [rcl.logging_rosout]: Publisher already registered for node name: 'peach_arm'. If this is due to multiple nodes with the same name then all logs for the logger named 'peach_arm' will go out over the existing publisher. As soon as any node with that name is destructed it will unregister the publisher, preventing any further logs for that name from being published on the rosout topic.
+[WARN] [1792642398.061014902] [peach_arm]: scan.protected_zones 丢弃畸形盒: 盒#0 存在 min>=max 的轴（空盒/退化盒），已丢弃
+[WARN] [1792642399.100842409] [peach_arm]: scan.protected_zones 丢弃畸形盒: 盒#0 存在 min>=max 的轴（空盒/退化盒），已丢弃
+[WARN] [1792642399.117010461] [peach_arm]: scan.protected_zones 丢弃畸形盒: 盒#0 存在 min>=max 的轴（空盒/退化盒），已丢弃
+[WARN] [1792642399.117116568] [peach_arm]: scan.protected_zones 丢弃畸形盒: 盒#0 存在 min>=max 的轴（空盒/退化盒），已丢弃
+[WARN] [1792642399.118431285] [rcl.logging_rosout]: Publisher already registered for node name: 'peach_arm'. If this is due to multiple nodes with the same name then all logs for the logger named 'peach_arm' will go out over the existing publisher. As soon as any node with that name is destructed it will unregister the publisher, preventing any further logs for that name from being published on the rosout topic.
+[INFO] [1792642399.124065545] [peach_arm.moveit.ros.rdf_loader]: Loaded robot model in 0.00209599 seconds
+[INFO] [1792642399.124110708] [peach_arm.moveit.core.robot_model]: Loading robot model 'aubo_e5'...
+[INFO] [1792642399.124121160] [peach_arm.moveit.core.robot_model]: No root/virtual joint specified in SRDF. Assuming fixed joint
+[INFO] [1792642399.145013151] [peach_arm.moveit.kinematics.kdl_kinematics_plugin]: Joint weights for group 'manipulator_e5': 1 1 1 1 1 1
+[INFO] [1792642399.152339584] [peach_arm.moveit.ros.move_group_interface]: Ready to take commands for planning group manipulator_e5.
+[INFO] [1792642399.152381395] [peach_arm]: 主动视觉靠近节点 ready: group=manipulator_e5 base=base_link tip=tcp camera=camera_depth_optical_frame execution=plan_only grasp=disabled
+[INFO] [1792642399.152398823] [peach_arm.cycle]: [IDLE] 已配置；activate 后才开放运动输出权限
+[WARN] [1792642399.187860156] [peach_arm]: scan.protected_zones 丢弃畸形盒: 盒#0 存在 min>=max 的轴（空盒/退化盒），已丢弃
+[INFO] [1792642399.189232499] [peach_arm]: 节点已激活：运动输出权限开放
+[WARN] [1792642399.192916932] [rcl.logging_rosout]: Publisher already registered for node name: 'peach_arm'. If this is due to multiple nodes with the same name then all logs for the logger named 'peach_arm' will go out over the existing publisher. As soon as any node with that name is destructed it will unregister the publisher, preventing any further logs for that name from being published on the rosout topic.
+[WARN] [1792642399.198100607] [rcl.logging_rosout]: Publisher already registered for node name: 'peach_arm'. If this is due to multiple nodes with the same name then all logs for the logger named 'peach_arm' will go out over the existing publisher. As soon as any node with that name is destructed it will unregister the publisher, preventing any further logs for that name from being published on the rosout topic.
+[INFO] [1792642399.202619403] [peach_arm]: 场景障碍 ACM 豁免已应用: 28 条（含 <octomap> 保留名）
+[INFO] [1792642402.214607915] [peach_arm]: 场景障碍 ACM 豁免已应用: 28 条（含 <octomap> 保留名）
+[INFO] [1792642405.228207022] [peach_arm]: 场景障碍 ACM 豁免已应用: 28 条（含 <octomap> 保留名）
+[WARN] [1792642543.043174009] [peach_arm]: scan.protected_zones 丢弃畸形盒: 盒#0 存在 min>=max 的轴（空盒/退化盒），已丢弃
+[WARN] [1792642543.098320873] [peach_arm]: scan.protected_zones 丢弃畸形盒: 盒#0 存在 min>=max 的轴（空盒/退化盒），已丢弃
+[WARN] [1792642543.148697494] [peach_arm]: scan.protected_zones 丢弃畸形盒: 盒#0 存在 min>=max 的轴（空盒/退化盒），已丢弃
+[WARN] [1792642543.199258727] [peach_arm]: scan.protected_zones 丢弃畸形盒: 盒#0 存在 min>=max 的轴（空盒/退化盒），已丢弃
+[WARN] [1792642543.249671057] [peach_arm]: scan.protected_zones 丢弃畸形盒: 盒#0 存在 min>=max 的轴（空盒/退化盒），已丢弃
+[WARN] [1792642543.300210764] [peach_arm]: scan.protected_zones 丢弃畸形盒: 盒#0 存在 min>=max 的轴（空盒/退化盒），已丢弃
+[WARN] [1792642543.352206031] [peach_arm]: scan.protected_zones 丢弃畸形盒: 盒#0 存在 min>=max 的轴（空盒/退化盒），已丢弃
+[INFO] [1792642543.416005605] [peach_arm]: 使能切换到操作台广播源（/peach/batch/enables）
+[INFO] [1792642543.416030514] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（实验室成功测试）
+[INFO] [1792642543.580048648] [peach_arm.moveit.ros.current_state_monitor]: Listening to joint states on topic 'joint_states'
+[INFO] [1792642543.584804822] [peach_arm.moveit.ros.move_group_interface]: MoveGroup action client/server ready
+[INFO] [1792642543.585420528] [peach_arm.moveit.ros.move_group_interface]: Planning request accepted
+[INFO] [1792642543.591128583] [peach_arm.moveit.ros.move_group_interface]: Planning request complete!
+[INFO] [1792642543.591510166] [peach_arm.moveit.ros.move_group_interface]: time taken to generate plan: 0.000128984 seconds
+[INFO] [1792642543.592309745] [peach_arm.moveit.ros.move_group_interface]: Execute request accepted
+[INFO] [1792642544.174290560] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（实验室成功测试）
+[INFO] [1792642544.309904040] [peach_arm.moveit.ros.move_group_interface]: Execute request success!
+[INFO] [1792642545.169767688] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（实验室成功测试）
+[INFO] [1792642546.169775130] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（实验室成功测试）
+[INFO] [1792642547.171441543] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（实验室成功测试）
+[INFO] [1792642548.169763899] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（实验室成功测试）
+[INFO] [1792642549.170093924] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（实验室成功测试）
+[INFO] [1792642550.170287763] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（实验室成功测试）
+[INFO] [1792642551.171469696] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（实验室成功测试）
+[INFO] [1792642552.169776312] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（实验室成功测试）
+[INFO] [1792642553.171899247] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（实验室成功测试）
+[INFO] [1792642554.170365889] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（实验室成功测试）
+[INFO] [1792642555.170774190] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（实验室成功测试）
+[INFO] [1792642556.171588610] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（实验室成功测试）
+[INFO] [1792642557.173347892] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（实验室成功测试）
+[INFO] [1792642558.169991850] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（实验室成功测试）
+[INFO] [1792642559.171685022] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（实验室成功测试）
+[INFO] [1792642560.170077916] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（实验室成功测试）
+[INFO] [1792642561.173961232] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（实验室成功测试）
+[INFO] [1792642562.171728285] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（实验室成功测试）
+[INFO] [1792642563.169981835] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（实验室成功测试）
+[INFO] [1792642564.176560155] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（实验室成功测试）
+[INFO] [1792642565.170208630] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（实验室成功测试）
+[INFO] [1792642566.170407184] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（实验室成功测试）
+[INFO] [1792642567.174804134] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（实验室成功测试）
+[INFO] [1792642568.170422352] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（实验室成功测试）
+[INFO] [1792642569.171159141] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（实验室成功测试）
+[INFO] [1792642570.174443958] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（实验室成功测试）
+[INFO] [1792642571.183613423] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（实验室成功测试）
+[INFO] [1792642572.173477643] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（实验室成功测试）
+[INFO] [1792642573.169746104] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（实验室成功测试）
+[INFO] [1792642574.173043502] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（实验室成功测试）
+[INFO] [1792642575.170549317] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（实验室成功测试）
+[INFO] [1792642576.172348016] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（实验室成功测试）
+[INFO] [1792642577.175267093] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（实验室成功测试）
+[INFO] [1792642578.175338106] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（实验室成功测试）
+[INFO] [1792642579.169968164] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（实验室成功测试）
+[INFO] [1792642580.173337200] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（实验室成功测试）
+[INFO] [1792642581.173173343] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（实验室成功测试）
+[INFO] [1792642582.171117627] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（实验室成功测试）
+[INFO] [1792642583.170542378] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（实验室成功测试）
+[INFO] [1792642584.172020109] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（实验室成功测试）
+[INFO] [1792642585.171204727] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（实验室成功测试）
+[INFO] [1792642586.169847699] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（实验室成功测试）
+[INFO] [1792642587.170044952] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（实验室成功测试）
+[INFO] [1792642588.171117990] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（实验室成功测试）
+[INFO] [1792642589.170264178] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（实验室成功测试）
+[INFO] [1792642590.173146606] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（实验室成功测试）
+[INFO] [1792642591.170021592] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（实验室成功测试）
+[INFO] [1792642592.171180475] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（实验室成功测试）
+[INFO] [1792642593.169779099] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（实验室成功测试）
+[INFO] [1792642594.171409306] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（实验室成功测试）
+[INFO] [1792642595.170244033] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（实验室成功测试）
+[INFO] [1792642596.172105585] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（实验室成功测试）
+[INFO] [1792642597.171423479] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（实验室成功测试）
+[INFO] [1792642598.177195988] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（实验室成功测试）
+[INFO] [1792642599.169869967] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（实验室成功测试）
+[INFO] [1792642600.172274054] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（实验室成功测试）
+[INFO] [1792642601.169739417] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（实验室成功测试）
+[INFO] [1792642602.170170396] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（实验室成功测试）
+[INFO] [1792642603.170035643] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（实验室成功测试）
+[INFO] [1792642604.171954882] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（实验室成功测试）
+[INFO] [1792642605.170507812] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（实验室成功测试）
+[INFO] [1792642606.172300257] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（实验室成功测试）
+[INFO] [1792642607.169859376] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（实验室成功测试）
+[INFO] [1792642608.170393645] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（实验室成功测试）
+[INFO] [1792642609.189500480] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（实验室成功测试）
+[INFO] [1792642610.171367241] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（实验室成功测试）
+[INFO] [1792642611.171970905] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（实验室成功测试）
+[INFO] [1792642612.169751959] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（实验室成功测试）
+[INFO] [1792642613.171130595] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（实验室成功测试）
+[INFO] [1792642614.170917711] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（实验室成功测试）
+[INFO] [1792642615.170851875] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（实验室成功测试）
+[INFO] [1792642616.169796807] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（实验室成功测试）
+[INFO] [1792642617.170384495] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（实验室成功测试）
+[INFO] [1792642618.172796261] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（实验室成功测试）
+[INFO] [1792642619.172279234] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（实验室成功测试）
+[INFO] [1792642620.172317825] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（实验室成功测试）
+[INFO] [1792642621.170490130] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（实验室成功测试）
+[INFO] [1792642622.170183398] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（实验室成功测试）
+[INFO] [1792642623.170484141] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（实验室成功测试）
+[INFO] [1792642624.170599120] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（实验室成功测试）
+[INFO] [1792642625.170704708] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（实验室成功测试）
+[INFO] [1792642626.170163670] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（实验室成功测试）
+[INFO] [1792642627.169896376] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（实验室成功测试）
+[INFO] [1792642628.170047435] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（实验室成功测试）
+[INFO] [1792642629.171676872] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（实验室成功测试）
+[INFO] [1792642630.169893332] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（实验室成功测试）
+[INFO] [1792642631.171827358] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（实验室成功测试）
+[INFO] [1792642632.170462958] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（实验室成功测试）
+[INFO] [1792642633.169737705] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（实验室成功测试）
+[INFO] [1792642634.172934493] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（实验室成功测试）
+[INFO] [1792642635.173741161] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（实验室成功测试）
+[INFO] [1792642636.170966255] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（实验室成功测试）
+[INFO] [1792642637.170999544] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（实验室成功测试）
+[INFO] [1792642638.169853709] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（实验室成功测试）
+[INFO] [1792642639.173730025] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（实验室成功测试）
+[INFO] [1792642640.170552925] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（实验室成功测试）
+[INFO] [1792642641.173514194] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（实验室成功测试）
+[INFO] [1792642642.169891178] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（实验室成功测试）
+[INFO] [1792642643.170024857] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（实验室成功测试）
+[INFO] [1792642644.172901536] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（实验室成功测试）
+[INFO] [1792642645.169790612] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（实验室成功测试）
+[INFO] [1792642646.172612512] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（实验室成功测试）
+[INFO] [1792642647.173341081] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（实验室成功测试）
+[INFO] [1792642648.170216559] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（实验室成功测试）
+[INFO] [1792642649.170146655] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（实验室成功测试）
+[INFO] [1792642650.174619885] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（实验室成功测试）
+[INFO] [1792642651.169967441] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（实验室成功测试）
+[INFO] [1792642652.171798352] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（实验室成功测试）
+[INFO] [1792642653.170538363] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（实验室成功测试）
+[INFO] [1792642654.182747627] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（实验室成功测试）
+[INFO] [1792642655.170029266] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（实验室成功测试）
+[INFO] [1792642656.170196765] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（实验室成功测试）
+[INFO] [1792642657.169906226] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（实验室成功测试）
+[INFO] [1792642658.171280333] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（实验室成功测试）
+[INFO] [1792642659.170097466] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（实验室成功测试）
+[INFO] [1792642660.170139124] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（实验室成功测试）
+[INFO] [1792642661.170161896] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（实验室成功测试）
+[INFO] [1792642662.169953248] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（实验室成功测试）
+[INFO] [1792642663.171585490] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（实验室成功测试）
+[INFO] [1792642664.169834460] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（实验室成功测试）
+[INFO] [1792642665.170673209] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（实验室成功测试）
+[INFO] [1792642666.170233456] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（实验室成功测试）
+[INFO] [1792642667.178236854] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（实验室成功测试）
+[INFO] [1792642668.169975642] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（实验室成功测试）
+[INFO] [1792642669.170882439] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（实验室成功测试）
+[INFO] [1792642670.173180907] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（实验室成功测试）
+[INFO] [1792642671.170474145] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（实验室成功测试）
+[INFO] [1792642672.171882222] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（实验室成功测试）
+[INFO] [1792642673.169942163] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（实验室成功测试）
+[INFO] [1792642674.170729451] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（实验室成功测试）
+[INFO] [1792642675.170539894] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（实验室成功测试）
+[INFO] [1792642676.172099793] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（实验室成功测试）
+[INFO] [1792642677.171014207] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（实验室成功测试）
+[INFO] [1792642677.623282169] [rclcpp]: signal_handler(SIGINT/SIGTERM)

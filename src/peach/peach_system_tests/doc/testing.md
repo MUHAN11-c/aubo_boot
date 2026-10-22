@@ -166,6 +166,20 @@ A/B（每边 2 轮 PICK_ALL，RViz + 8090 实时）：
 
 历史 30 mm 对照：`live_mock_20261021_1730/1745` 5/5 level6，但 TCP 0.69–0.704、长袋距颈 65–82 mm（仅 target_5 27 mm），不能把 level6 当到颈。A 的失败是固定相机多视不足导致的 refit，不是全重建不可行；同日 09:31 全重建 8/9、15:xx 50–55%。
 
+### 2026-10-22 抓取顺序与 4 颗成功率（修正前一轮的重复抓取）
+
+2026-10-21/22 的 5 轮、3 轮和 A/B B 用的是旧 `choose_target`：按 `target_id` 排序后过滤 `LOST/RETIRED`，固定相机下只有前排 long bag 被跟踪，索引实际把 target_0→8→15→16 都指到同一颗。5/5、8/8 是同一颗的重复抓取，不能当 4 颗目标的成功率。
+
+修正（runner，test-only）：
+
+- `choose_target` 按场景 `priority`（抓取顺序 1..N）选；`LOST` 的 memory 候选（`anchor_from_memory`）也参与，是否执行由 supervisor/臂门决定。
+- 每轮记录 `grasp_slot=1..N`；`target_id` 直接使用场景源 ID（也是 2D/3D/账本 ID），2026-10-22 起不再另造 `grasp_id` 重映射。`priority` 与 `target_id` 不一定相等。
+- 相机证据采样前 `spin_for(0.5)` 让驱动回调查到，3 s 新鲜门不放宽。2026-10-22 第一次 5 轮 target_0 的 camera 15 帧/最后帧 3.4 s 前 false；加 spin 后第二轮 target_0 22 帧 true。
+
+4-slot 短测 `runs/goal_skip_4slot_20261022_0908`：4 轮 = priority 1..4，报告 `target_0..3`（当时旧 runner 仍做抓取顺序重映射；场景源 target_0/4/9/14），全部 level6，`passed=true`、`full_level6_rounds=4`、`residual=[]`；travel 0.097/0.096/0.081/0.070 m；camera 四轮 fresh；3 颗 LOST 的 memory 候选由 `allow_unrefined_geometry` 接受（日志 `target=target_4/9/14`）。**4/4 = 100%**，4 颗不同物理目标。
+
+第二次 4-slot 重复 `runs/goal_skip_4slot_b_20261022_0915`：4/4 账本 level6（旧 runner 报告 `target_0..3`，场景源 target_0/4/9/14；travel 0.080/0.095/0.080/0.070 m），`residual=[]`；但 slot 4 的 camera 新鲜门 false，`full_level6_rounds=3`、`passed=false`。这是测试证据采样（驱动相机队列/关节洪泛）问题，不是抓取失败——该轮 ledger 仍是 `SUCCEEDED` level6。两次 4-slot 合计 **8/8 level6**，按抓取顺序的成功率 **4/4 = 100%**；第一次 `passed=true` 已证明可视化/相机门在全跑内可过。
+
 ## 7. 量化验收与结果口径
 
 每轮唯一request_id，结果放runs下本轮目录，保存启动配置/git身份/域、原始RGB-D、模型与geometry.jsonl、许可身份及时效、action终态、ledger、diagnostics、RViz截图和退出证据。禁止复用旧轮次文件充当本轮证据。

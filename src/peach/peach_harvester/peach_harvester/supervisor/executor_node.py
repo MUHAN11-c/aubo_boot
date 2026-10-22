@@ -62,6 +62,7 @@ from .batch import (
     ledger_file,
     load_ledger,
     merge_cycle_extra,
+    ids_with_priority,
     named_targets_exhausted,
     next_target,
     reach_queries,
@@ -92,6 +93,7 @@ from .harvest_fsm import (
     WAITING_READY,
 )
 from .params import SupervisorParams
+from .run_folder import archive_open_session
 from ..cycle_core.batch_policy import (
     BatchPolicy,
     ratio_reached,
@@ -1124,8 +1126,15 @@ class TaskExecutorNode(LifecycleNode):
         else:
             ik_results, ik_note = self._query_reachability(
                 reach_queries(self._observations, self._claimed))
+            # selection_priority>0：本批只抓锁定集里该顺序号的一颗。
+            # 顺序号来自本批自己的拍照锁定，不使用开批前那份可能已经换代的 ID。
+            ordinal = int(getattr(self._params, 'selection_priority', 0) or 0)
+            preferred = list(goal.target_ids)
+            if ordinal > 0:
+                preferred = ids_with_priority(
+                    self._observations, self._claimed, ordinal)
             target_id, filtered = next_target(
-                self._observations, self._claimed, goal.target_ids,
+                self._observations, self._claimed, preferred,
                 depth_range=(
                     float(self._params.selection_depth_min_m),
                     float(self._params.selection_depth_max_m)),
@@ -1134,6 +1143,13 @@ class TaskExecutorNode(LifecycleNode):
                     float(self._params.selection_reach_min_m),
                     float(self._params.selection_reach_max_m)),
                 check_sleeve=not bool(self._params.execute_pregrasp_only))
+            if ordinal > 0 and target_id not in preferred:
+                target_id = ''
+            elif ordinal > 0 and target_id:
+                # 钉住这一颗，CYCLE_DONE 才收批，不会改去抓其余果。
+                goal.target_ids = [target_id]
+                self._log_batch.info(
+                    'selection_priority=%s target=%s' % (ordinal, target_id))
         if filtered or (
                 ik_note and ik_note != 'lock_set_not_ready'):
             details = {'filtered': filtered} if filtered else {}
@@ -2176,6 +2192,11 @@ class TaskExecutorNode(LifecycleNode):
         except OSError as exc:
             self._ledger_write_failures += 1
             self.get_logger().warning(f'ledger write failed: {exc}')
+            return
+        try:
+            archive_open_session(default_ledger_root(), self._run_id)
+        except OSError as exc:
+            self.get_logger().warning(f'周期归档失败: {exc}')
 
     def _call_service(self, client, request):
         """调用服务：切片等可用、取消可打断；超时/取消给 None."""

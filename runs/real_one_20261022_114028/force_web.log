@@ -1,0 +1,13 @@
+Traceback (most recent call last):
+  File "/home/mu/Desktop/aubo_e5_jazzy_ws/src/serial_force/scripts/force_web.py", line 436, in <module>
+    main()
+  File "/home/mu/Desktop/aubo_e5_jazzy_ws/src/serial_force/scripts/force_web.py", line 422, in main
+    server = ThreadingHTTPServer(('127.0.0.1', args.port), _Handler)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/socketserver.py", line 457, in __init__
+    self.server_bind()
+  File "/usr/lib/python3.12/http/server.py", line 136, in server_bind
+    socketserver.TCPServer.server_bind(self)
+  File "/usr/lib/python3.12/socketserver.py", line 473, in server_bind
+    self.socket.bind(self.server_address)
+OSError: [Errno 98] Address already in use

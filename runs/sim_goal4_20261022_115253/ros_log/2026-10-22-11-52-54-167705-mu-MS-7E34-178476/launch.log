@@ -1,0 +1,28 @@
+1792641174.1682112 [INFO] [launch]: All log files can be found below /home/mu/Desktop/aubo_e5_jazzy_ws/runs/sim_goal4_20261022_115253/ros_log/2026-10-22-11-52-54-167705-mu-MS-7E34-178476
+1792641174.1682773 [INFO] [launch]: Default logging verbosity is set to INFO
+1792641174.6180499 [INFO] [serial_force_node-10]: process started with pid [178530]
+1792641174.6183896 [INFO] [stereo_camera_node-1]: process started with pid [178521]
+1792641174.6184554 [INFO] [peach_scene_obstacles-2]: process started with pid [178522]
+1792641174.6184905 [INFO] [robot_state_publisher-3]: process started with pid [178523]
+1792641174.6185193 [INFO] [ros2_control_node-4]: process started with pid [178524]
+1792641174.6185551 [INFO] [spawner-5]: process started with pid [178525]
+1792641174.6185811 [INFO] [spawner-6]: process started with pid [178526]
+1792641174.6186061 [INFO] [move_group-7]: process started with pid [178527]
+1792641174.6186297 [INFO] [rviz2-8]: process started with pid [178528]
+1792641174.6186526 [INFO] [extrinsics_publisher-9]: process started with pid [178529]
+1792641174.6186800 [INFO] [peach_harvester-11]: process started with pid [178531]
+1792641174.6187034 [INFO] [peach_arm-12]: process started with pid [178532]
+1792641174.6187270 [INFO] [peach_observability-13]: process started with pid [178533]
+1792641174.6187499 [INFO] [lifecycle_manager-14]: process started with pid [178534]
+1792641174.6187732 [INFO] [peach_lifecycle_flag_bridge-15]: process started with pid [178550]
+1792641175.3019562 [INFO] [spawner-6]: process has finished cleanly [pid 178526]
+1792641175.7508106 [INFO] [spawner-5]: process has finished cleanly [pid 178525]
+1792641351.3154950 [INFO] [lifecycle_manager-14]: process has finished cleanly [pid 178534]
+1792641351.3170822 [INFO] [robot_state_publisher-3]: process has finished cleanly [pid 178523]
+1792641351.3282681 [INFO] [ros2_control_node-4]: process has finished cleanly [pid 178524]
+1792641351.3548598 [INFO] [peach_arm-12]: process has finished cleanly [pid 178532]
+1792641351.3550074 [INFO] [peach_lifecycle_flag_bridge-15]: process has finished cleanly [pid 178550]
+1792641351.3755138 [ERROR] [serial_force_node-10]: process has died [pid 178530, exit code 1, cmd '/home/mu/Desktop/aubo_e5_jazzy_ws/install/serial_force/lib/serial_force/serial_force_node --ros-args -r __node:=serial_force -p use_sim_time:=False --params-file /tmp/launch_params_qqdgrdie'].
+1792641351.3929064 [ERROR] [extrinsics_publisher-9]: process has died [pid 178529, exit code 1, cmd '/home/mu/Desktop/aubo_e5_jazzy_ws/install/aubo_hand_eye_calibration/lib/aubo_hand_eye_calibration/extrinsics_publisher --ros-args -r __node:=hand_eye_extrinsics_publisher -p use_sim_time:=False'].
+1792641351.3936007 [ERROR] [peach_scene_obstacles-2]: process has died [pid 178522, exit code 1, cmd '/home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_harvester/lib/peach_harvester/peach_scene_obstacles --ros-args -p use_sim_time:=False'].
+1792641351.4701016 [INFO] [stereo_camera_node-1]: process has finished cleanly [pid 178521]

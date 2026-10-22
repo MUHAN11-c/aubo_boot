@@ -1,0 +1,400 @@
+[INFO] [1792630603.105242234] [peach_scene_perception_node]: YOLO=/home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_harvester/share/peach_harvester/model/best.pt
+[INFO] [1792630603.105426305] [peach_scene_perception_node]: SAM=/home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_harvester/share/peach_harvester/model/mobile_sam.pt
+[INFO] [1792630603.899667030] [peach_scene_perception_node]: Subscribed color=/camera/color/image_raw depth=/camera/depth/image_raw info=/camera/color/camera_info slop=0.05s optical=camera_color_optical_frame output=base_link depth_scale_unit=0.25 gravity_mode=tf calib=percipio-640x480-chessboard|hand_eye:import_humble_20260128T114006
+[INFO] [1792630603.899879142] [peach_scene_perception_node]: 目标身份记忆已启用：match_radius=0.06 m, max_targets=50, ema=0.3
+[INFO] [1792630603.911013041] [peach_target_reconstruction_node]: peach_target_reconstruction_node ready: base=base_link color=/camera/color/image_raw depth=/camera/depth/image_raw slop=0.05s depth_scale_unit=0.25 views(min/rec/max)=1/5/24 require_static=True auto_mode=True session_root=/home/mu/Desktop/aubo_e5_jazzy_ws/runs
+[INFO] [1792630604.114521642] [peach_supervisor]: task executor configured; will not auto-start harvest
+[INFO] [1792630604.117950275] [peach_scene_perception_node]: perception Active：开始处理 RGB-D
+[INFO] [1792630604.122097482] [peach_target_reconstruction_node]: reconstruction Active：开始积分
+[INFO] [1792630606.405277383] [peach_scene_perception_node]: CameraInfo K fx=466.175 fy=465.557 cx=326.071 cy=244.789 640x480
+[INFO] [1792630610.951982390] [peach_scene_perception_node]: peach_harvester.vision.scene_perception.identity: 目标注册 累计 1 次（最近: target_0 cls=0 累计表规模 1）
+[INFO] [1792630610.952693966] [peach_scene_perception_node]: peach_harvester.vision.scene_perception.identity: 目标注册 累计 2 次（最近: target_1 cls=0 累计表规模 2）
+[INFO] [1792630610.952837544] [peach_scene_perception_node]: peach_harvester.vision.scene_perception.identity: 目标注册 累计 3 次（最近: target_2 cls=0 累计表规模 3）
+[INFO] [1792630610.952965711] [peach_scene_perception_node]: peach_harvester.vision.scene_perception.identity: 目标注册 累计 4 次（最近: target_3 cls=0 累计表规模 4）
+[INFO] [1792630610.986817722] [peach_scene_perception_node]: 目标注册表在册 4 个目标（累计注册 4、累计命中 0）
+[WARN] [1792630610.991103000] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 63（处理跟不上到达率，排查热路径耗时或降低到达率）
+[WARN] [1792630613.946357312] [peach_target_reconstruction_node]: New subscription discovered on topic '/peach/reconstruction/preview_cloud', requesting incompatible QoS. No messages will be sent to it. Last incompatible policy: RELIABILITY
+[WARN] [1792630616.484695449] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 129（处理跟不上到达率，排查热路径耗时或降低到达率）
+[INFO] [1792630618.342951985] [peach_supervisor]: 操作台使能: execution=False grasp=False tool=False（live_camera_mock owned test）
+[INFO] [1792630618.348660375] [peach_supervisor]: 操作台使能: execution=True grasp=True tool=False（live_camera_mock owned test）
+[INFO] [1792630621.479492581] [peach_scene_perception_node]: 目标注册表在册 4 个目标（累计注册 4、累计命中 80）
+[WARN] [1792630621.504911045] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 189（处理跟不上到达率，排查热路径耗时或降低到达率）
+[INFO] [1792630623.939069804] [peach_supervisor.batch]: command=navigate batch=discovery target=- message=preparing
+[INFO] [1792630623.939621605] [peach_supervisor.batch]: command=survey batch=discovery target=- message=surveying
+[INFO] [1792630623.951383325] [peach_supervisor]: Survey 进行中: moving_to_photo_pose
+[INFO] [1792630623.953155131] [peach_supervisor]: Survey 进行中: waiting_snapshot
+[WARN] [1792630626.824172451] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 252（处理跟不上到达率，排查热路径耗时或降低到达率）
+[INFO] [1792630630.304408951] [peach_supervisor.batch]: command=begin_scene batch=discovery target=- message=preparing
+[INFO] [1792630630.315102775] [peach_supervisor.batch]: command=wait_lock batch=discovery target=- message=collecting
+[INFO] [1792630631.700372455] [peach_scene_perception_node]: 目标注册表在册 4 个目标（累计注册 4、累计命中 156）
+[WARN] [1792630632.303498835] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 318（处理跟不上到达率，排查热路径耗时或降低到达率）
+[INFO] [1792630635.964096746] [peach_supervisor.batch]: command=select batch=discovery target=- message=discovery
+[INFO] [1792630636.129603036] [peach_supervisor.contact]: caller=SELECT target=target_0 travel=0.097m reachable=True code=ok
+[INFO] [1792630636.129853769] [peach_supervisor.contact]: caller=SELECT target=target_1 travel=0.096m reachable=True code=ok
+[INFO] [1792630636.130034994] [peach_supervisor.contact]: caller=SELECT target=target_2 travel=0.081m reachable=True code=ok
+[INFO] [1792630636.130209651] [peach_supervisor.contact]: caller=SELECT target=target_3 travel=0.070m reachable=True code=ok
+[INFO] [1792630636.138012018] [peach_supervisor.batch]: command=dispatch batch=running target=target_0 message=running
+[WARN] [1792630636.138288842] [peach_supervisor]: skip_reconstruction: 用未精化场景观测进接触 target=target_0 (no BuildTargetModel)
+[INFO] [1792630636.156416570] [peach_supervisor.batch]: command=execute_full batch=running target=target_0 message=running
+[WARN] [1792630637.619561146] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 382（处理跟不上到达率，排查热路径耗时或降低到达率）
+[INFO] [1792630637.636316632] [peach_target_reconstruction_node]: 自动开始：开始重建，绑定目标 target_0
+[INFO] [1792630637.875473975] [peach_target_reconstruction_node]: REFINING：几何二次拟合开始（kind=bag，1315 点）
+[WARN] [1792630637.961098846] [peach_target_reconstruction_node]: REFINING：无接触权威几何（bag_axis_envelope_ill_conditioned）
+[INFO] [1792630637.961384638] [peach_target_reconstruction_node]: 已采第 1/5 视角，本帧 6311 点，有效深度占比 1.00，位姿=fk
+[WARN] [1792630637.985920198] [peach_target_reconstruction_node]: diagnostics 心跳超过 offered deadline 1.5s（累计违约 1 次）：节点执行器疑似卡滞
+[WARN] [1792630638.016184205] [peach_target_reconstruction_node]: 自动采帧跳过 [same_stamp]：缓存帧未更新（与上次采帧同帧），请等下一帧
+[WARN] [1792630638.066568998] [peach_target_reconstruction_node]: 重建 worker 队列已满，拒绝新帧以保持积分顺序
+[INFO] [1792630638.927911812] [peach_target_reconstruction_node]: 采帧跳过累计 20 次：joint_state_unavailable=6, same_stamp=14 target=target_0
+[WARN] [1792630639.085201620] [peach_target_reconstruction_node]: 自动采帧跳过 [joint_state_unavailable]：曝光时刻关节状态过旧或时间戳不匹配
+[WARN] [1792630640.152757637] [peach_target_reconstruction_node]: 自动采帧跳过 [near_duplicate]：近重复视角不积分：平移 0.0 mm / 旋转 0.00 deg
+[INFO] [1792630640.369969676] [peach_target_reconstruction_node]: 采帧跳过累计 40 次：joint_state_unavailable=9, near_duplicate=17, same_stamp=14 target=target_0
+[WARN] [1792630641.209946397] [peach_target_reconstruction_node]: 自动采帧跳过 [near_duplicate]：近重复视角不积分：平移 0.0 mm / 旋转 0.00 deg
+[INFO] [1792630641.800387207] [peach_target_reconstruction_node]: 采帧跳过累计 60 次：joint_state_unavailable=9, near_duplicate=37, same_stamp=14 target=target_0
+[WARN] [1792630642.248160599] [peach_target_reconstruction_node]: 自动采帧跳过 [near_duplicate]：近重复视角不积分：平移 0.0 mm / 旋转 0.00 deg
+[INFO] [1792630643.147699821] [peach_target_reconstruction_node]: 采帧跳过累计 80 次：joint_state_unavailable=9, near_duplicate=57, same_stamp=14 target=target_0
+[WARN] [1792630643.273353897] [peach_target_reconstruction_node]: 自动采帧跳过 [near_duplicate]：近重复视角不积分：平移 0.0 mm / 旋转 0.00 deg
+[INFO] [1792630643.297354118] [peach_scene_perception_node]: 目标注册表在册 4 个目标（累计注册 4、累计命中 197）
+[WARN] [1792630643.319199573] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 457（处理跟不上到达率，排查热路径耗时或降低到达率）
+[WARN] [1792630644.299708663] [peach_target_reconstruction_node]: 自动采帧跳过 [near_duplicate]：近重复视角不积分：平移 0.0 mm / 旋转 0.00 deg
+[INFO] [1792630644.550556537] [peach_target_reconstruction_node]: 采帧跳过累计 100 次：joint_state_unavailable=9, near_duplicate=77, same_stamp=14 target=target_0
+[WARN] [1792630645.345853768] [peach_target_reconstruction_node]: 自动采帧跳过 [near_duplicate]：近重复视角不积分：平移 0.0 mm / 旋转 0.00 deg
+[INFO] [1792630645.972320891] [peach_target_reconstruction_node]: 采帧跳过累计 120 次：joint_state_unavailable=9, near_duplicate=97, same_stamp=14 target=target_0
+[WARN] [1792630646.422558295] [peach_target_reconstruction_node]: 自动采帧跳过 [near_duplicate]：近重复视角不积分：平移 0.0 mm / 旋转 0.00 deg
+[WARN] [1792630647.483802751] [peach_target_reconstruction_node]: 自动采帧跳过 [near_duplicate]：近重复视角不积分：平移 0.0 mm / 旋转 0.00 deg
+[INFO] [1792630647.484209970] [peach_target_reconstruction_node]: 采帧跳过累计 140 次：joint_state_unavailable=9, near_duplicate=117, same_stamp=14 target=target_0
+[WARN] [1792630648.490530496] [peach_target_reconstruction_node]: 自动采帧跳过 [near_duplicate]：近重复视角不积分：平移 0.0 mm / 旋转 0.00 deg
+[WARN] [1792630648.714965072] [peach_target_reconstruction_node]: 重建 worker 队列已满，拒绝新帧以保持积分顺序
+[INFO] [1792630648.911625763] [peach_target_reconstruction_node]: 采帧跳过累计 160 次：joint_state_unavailable=9, near_duplicate=137, same_stamp=14 target=target_0
+[WARN] [1792630649.491733942] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 540（处理跟不上到达率，排查热路径耗时或降低到达率）
+[WARN] [1792630649.596317404] [peach_target_reconstruction_node]: 自动采帧跳过 [near_duplicate]：近重复视角不积分：平移 0.0 mm / 旋转 0.00 deg
+[INFO] [1792630650.307309863] [peach_target_reconstruction_node]: 采帧跳过累计 180 次：joint_state_unavailable=9, near_duplicate=157, same_stamp=14 target=target_0
+[WARN] [1792630650.524657697] [peach_target_reconstruction_node]: 重建 worker 队列已满，拒绝新帧以保持积分顺序
+[WARN] [1792630650.663819513] [peach_target_reconstruction_node]: 自动采帧跳过 [near_duplicate]：近重复视角不积分：平移 0.0 mm / 旋转 0.00 deg
+[WARN] [1792630651.681123707] [peach_target_reconstruction_node]: 自动采帧跳过 [near_duplicate]：近重复视角不积分：平移 0.0 mm / 旋转 0.00 deg
+[INFO] [1792630651.760195991] [peach_target_reconstruction_node]: 采帧跳过累计 200 次：joint_state_unavailable=9, near_duplicate=177, same_stamp=14 target=target_0
+[WARN] [1792630652.113321567] [peach_target_reconstruction_node]: 重建 worker 队列已满，拒绝新帧以保持积分顺序
+[WARN] [1792630652.694050481] [peach_target_reconstruction_node]: 自动采帧跳过 [near_duplicate]：近重复视角不积分：平移 0.0 mm / 旋转 0.00 deg
+[INFO] [1792630653.211347351] [peach_target_reconstruction_node]: 采帧跳过累计 220 次：joint_state_unavailable=9, near_duplicate=197, same_stamp=14 target=target_0
+[WARN] [1792630653.747517461] [peach_target_reconstruction_node]: 自动采帧跳过 [near_duplicate]：近重复视角不积分：平移 0.0 mm / 旋转 0.00 deg
+[INFO] [1792630653.847359889] [peach_scene_perception_node]: 目标注册表在册 4 个目标（累计注册 4、累计命中 202）
+[WARN] [1792630653.999024606] [peach_target_reconstruction_node]: 重建 worker 队列已满，拒绝新帧以保持积分顺序
+[INFO] [1792630654.645738411] [peach_target_reconstruction_node]: 采帧跳过累计 240 次：joint_state_unavailable=9, near_duplicate=217, same_stamp=14 target=target_0
+[WARN] [1792630654.814693935] [peach_target_reconstruction_node]: 自动采帧跳过 [near_duplicate]：近重复视角不积分：平移 0.0 mm / 旋转 0.00 deg
+[WARN] [1792630655.839048722] [peach_target_reconstruction_node]: 自动采帧跳过 [near_duplicate]：近重复视角不积分：平移 0.0 mm / 旋转 0.00 deg
+[INFO] [1792630656.130563386] [peach_target_reconstruction_node]: 采帧跳过累计 260 次：joint_state_unavailable=9, near_duplicate=237, same_stamp=14 target=target_0
+[WARN] [1792630656.353956379] [peach_target_reconstruction_node]: 重建 worker 队列已满，拒绝新帧以保持积分顺序
+[WARN] [1792630656.619522273] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 636（处理跟不上到达率，排查热路径耗时或降低到达率）
+[WARN] [1792630656.861974787] [peach_target_reconstruction_node]: 自动采帧跳过 [near_duplicate]：近重复视角不积分：平移 0.0 mm / 旋转 0.00 deg
+[INFO] [1792630657.542828114] [peach_target_reconstruction_node]: 采帧跳过累计 280 次：joint_state_unavailable=9, near_duplicate=257, same_stamp=14 target=target_0
+[WARN] [1792630657.911629232] [peach_target_reconstruction_node]: 自动采帧跳过 [near_duplicate]：近重复视角不积分：平移 0.0 mm / 旋转 0.00 deg
+[INFO] [1792630658.002174884] [peach_supervisor.batch]: command=none batch=running target=target_0 message=running
+[WARN] [1792630658.957033297] [peach_target_reconstruction_node]: 自动采帧跳过 [near_duplicate]：近重复视角不积分：平移 0.0 mm / 旋转 0.00 deg
+[INFO] [1792630659.032966387] [peach_target_reconstruction_node]: 采帧跳过累计 300 次：joint_state_unavailable=9, near_duplicate=277, same_stamp=14 target=target_0
+[WARN] [1792630659.983716235] [peach_target_reconstruction_node]: 自动采帧跳过 [near_duplicate]：近重复视角不积分：平移 0.0 mm / 旋转 0.00 deg
+[INFO] [1792630660.458862594] [peach_target_reconstruction_node]: 采帧跳过累计 320 次：joint_state_unavailable=9, near_duplicate=297, same_stamp=14 target=target_0
+[WARN] [1792630661.031991541] [peach_target_reconstruction_node]: 自动采帧跳过 [near_duplicate]：近重复视角不积分：平移 0.0 mm / 旋转 0.00 deg
+[WARN] [1792630661.362118712] [peach_target_reconstruction_node]: 重建 worker 队列已满，拒绝新帧以保持积分顺序
+[INFO] [1792630661.986036145] [peach_target_reconstruction_node]: 采帧跳过累计 340 次：joint_state_unavailable=9, near_duplicate=317, same_stamp=14 target=target_0
+[WARN] [1792630662.064970229] [peach_target_reconstruction_node]: 自动采帧跳过 [near_duplicate]：近重复视角不积分：平移 0.0 mm / 旋转 0.00 deg
+[INFO] [1792630662.962257177] [peach_scene_perception_node]: peach_harvester.vision.scene_perception.identity: 目标注册 累计 5 次（最近: target_4 cls=0 累计表规模 1）
+[INFO] [1792630662.967730149] [peach_scene_perception_node]: peach_harvester.vision.scene_perception.identity: 目标注册 累计 6 次（最近: target_5 cls=0 累计表规模 2）
+[INFO] [1792630662.975744379] [peach_scene_perception_node]: peach_harvester.vision.scene_perception.identity: 目标注册 累计 7 次（最近: target_6 cls=0 累计表规模 3）
+[WARN] [1792630663.074511026] [peach_target_reconstruction_node]: 自动采帧跳过 [near_duplicate]：近重复视角不积分：平移 0.0 mm / 旋转 0.00 deg
+[WARN] [1792630663.212220209] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 724（处理跟不上到达率，排查热路径耗时或降低到达率）
+[INFO] [1792630663.876900346] [peach_scene_perception_node]: peach_harvester.vision.scene_perception.identity: 目标注册 累计 8 次（最近: target_7 cls=0 累计表规模 4）
+[INFO] [1792630663.908641303] [peach_scene_perception_node]: 目标注册表在册 4 个目标（累计注册 8、累计命中 207）
+[WARN] [1792630668.214549634] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 786（处理跟不上到达率，排查热路径耗时或降低到达率）
+[INFO] [1792630669.522968558] [peach_supervisor.batch]: command=navigate batch=discovery target=- message=preparing
+[INFO] [1792630669.525090971] [peach_supervisor.batch]: command=survey batch=discovery target=- message=surveying
+[INFO] [1792630669.528854238] [peach_supervisor]: Survey 进行中: moving_to_photo_pose
+[INFO] [1792630670.260074049] [peach_supervisor]: Survey 进行中: waiting_snapshot
+[WARN] [1792630673.377456639] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 849（处理跟不上到达率，排查热路径耗时或降低到达率）
+[INFO] [1792630673.986473973] [peach_scene_perception_node]: 目标注册表在册 4 个目标（累计注册 8、累计命中 275）
+[INFO] [1792630677.244952989] [peach_supervisor.batch]: command=begin_scene batch=discovery target=- message=preparing
+[INFO] [1792630677.257069052] [peach_supervisor.batch]: command=wait_lock batch=discovery target=- message=collecting
+[WARN] [1792630678.407992197] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 910（处理跟不上到达率，排查热路径耗时或降低到达率）
+[INFO] [1792630682.390123929] [peach_supervisor.batch]: command=select batch=discovery target=- message=discovery
+[INFO] [1792630682.555691782] [peach_supervisor.contact]: caller=SELECT target=target_7 travel=0.079m reachable=True code=ok
+[INFO] [1792630682.564930117] [peach_supervisor.contact]: caller=SELECT target=target_4 travel=0.096m reachable=True code=ok
+[INFO] [1792630682.566376618] [peach_supervisor.contact]: caller=SELECT target=target_5 travel=0.082m reachable=True code=ok
+[INFO] [1792630682.569675302] [peach_supervisor.contact]: caller=SELECT target=target_6 travel=0.070m reachable=True code=ok
+[INFO] [1792630682.574674952] [peach_supervisor.batch]: command=dispatch batch=running target=target_4 message=running
+[WARN] [1792630682.574859106] [peach_supervisor]: skip_reconstruction: 用未精化场景观测进接触 target=target_4 (no BuildTargetModel)
+[INFO] [1792630682.586638635] [peach_supervisor.batch]: command=execute_full batch=running target=target_4 message=running
+[INFO] [1792630682.941074339] [peach_target_reconstruction_node]: 自动开始：开始重建，绑定目标 target_4
+[WARN] [1792630682.997028446] [peach_target_reconstruction_node]: 自动采帧跳过 [missing_mask]：缺少所选 target_id 的容差内掩膜
+[INFO] [1792630683.081742620] [peach_target_reconstruction_node]: REFINING：几何二次拟合开始（kind=bag，1095 点）
+[WARN] [1792630683.175334553] [peach_target_reconstruction_node]: REFINING：无接触权威几何（bag_axis_envelope_ill_conditioned）
+[INFO] [1792630683.175601967] [peach_target_reconstruction_node]: 已采第 1/5 视角，本帧 4505 点，有效深度占比 1.00，位姿=fk
+[WARN] [1792630683.623628737] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 973（处理跟不上到达率，排查热路径耗时或降低到达率）
+[WARN] [1792630684.021559610] [peach_target_reconstruction_node]: 自动采帧跳过 [near_duplicate]：近重复视角不积分：平移 0.0 mm / 旋转 0.00 deg
+[INFO] [1792630684.485354191] [peach_target_reconstruction_node]: 采帧跳过累计 20 次：missing_mask=1, near_duplicate=11, same_stamp=8 target=target_4
+[WARN] [1792630685.080979354] [peach_target_reconstruction_node]: 自动采帧跳过 [near_duplicate]：近重复视角不积分：平移 0.0 mm / 旋转 0.00 deg
+[WARN] [1792630685.081554602] [peach_target_reconstruction_node]: 重建 worker 队列已满，拒绝新帧以保持积分顺序
+[INFO] [1792630685.971849648] [peach_scene_perception_node]: 目标注册表在册 4 个目标（累计注册 8、累计命中 341）
+[WARN] [1792630686.122509599] [peach_target_reconstruction_node]: 自动采帧跳过 [near_duplicate]：近重复视角不积分：平移 0.0 mm / 旋转 0.00 deg
+[INFO] [1792630686.123405418] [peach_target_reconstruction_node]: 采帧跳过累计 40 次：missing_mask=1, near_duplicate=31, same_stamp=8 target=target_4
+[WARN] [1792630686.264943786] [peach_target_reconstruction_node]: 重建 worker 队列已满，拒绝新帧以保持积分顺序
+[WARN] [1792630687.174967611] [peach_target_reconstruction_node]: 自动采帧跳过 [near_duplicate]：近重复视角不积分：平移 0.0 mm / 旋转 0.00 deg
+[WARN] [1792630687.270733053] [peach_target_reconstruction_node]: 重建 worker 队列已满，拒绝新帧以保持积分顺序
+[INFO] [1792630687.757562386] [peach_target_reconstruction_node]: 采帧跳过累计 60 次：missing_mask=1, near_duplicate=51, same_stamp=8 target=target_4
+[WARN] [1792630688.276948790] [peach_target_reconstruction_node]: 重建 worker 队列已满，拒绝新帧以保持积分顺序
+[WARN] [1792630688.282381176] [peach_target_reconstruction_node]: 自动采帧跳过 [near_duplicate]：近重复视角不积分：平移 0.0 mm / 旋转 0.00 deg
+[WARN] [1792630689.330137669] [peach_target_reconstruction_node]: 自动采帧跳过 [near_duplicate]：近重复视角不积分：平移 0.0 mm / 旋转 0.00 deg
+[INFO] [1792630689.410929801] [peach_target_reconstruction_node]: 采帧跳过累计 80 次：missing_mask=1, near_duplicate=71, same_stamp=8 target=target_4
+[WARN] [1792630690.123036008] [peach_target_reconstruction_node]: 重建 worker 队列已满，拒绝新帧以保持积分顺序
+[WARN] [1792630690.355471681] [peach_target_reconstruction_node]: 自动采帧跳过 [near_duplicate]：近重复视角不积分：平移 0.0 mm / 旋转 0.00 deg
+[INFO] [1792630691.050437492] [peach_target_reconstruction_node]: 采帧跳过累计 100 次：missing_mask=1, near_duplicate=91, same_stamp=8 target=target_4
+[WARN] [1792630691.211795712] [peach_target_reconstruction_node]: 重建 worker 队列已满，拒绝新帧以保持积分顺序
+[WARN] [1792630691.378787197] [peach_target_reconstruction_node]: 自动采帧跳过 [near_duplicate]：近重复视角不积分：平移 0.0 mm / 旋转 0.00 deg
+[WARN] [1792630691.524765681] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 1079（处理跟不上到达率，排查热路径耗时或降低到达率）
+[WARN] [1792630692.391914256] [peach_target_reconstruction_node]: 重建 worker 队列已满，拒绝新帧以保持积分顺序
+[WARN] [1792630692.438466916] [peach_target_reconstruction_node]: 自动采帧跳过 [near_duplicate]：近重复视角不积分：平移 0.0 mm / 旋转 0.00 deg
+[INFO] [1792630692.615189307] [peach_target_reconstruction_node]: 采帧跳过累计 120 次：missing_mask=1, near_duplicate=111, same_stamp=8 target=target_4
+[WARN] [1792630693.491797622] [peach_target_reconstruction_node]: 自动采帧跳过 [near_duplicate]：近重复视角不积分：平移 0.0 mm / 旋转 0.00 deg
+[WARN] [1792630693.725670893] [peach_target_reconstruction_node]: 重建 worker 队列已满，拒绝新帧以保持积分顺序
+[INFO] [1792630694.277806183] [peach_target_reconstruction_node]: 采帧跳过累计 140 次：missing_mask=1, near_duplicate=131, same_stamp=8 target=target_4
+[WARN] [1792630694.525825744] [peach_target_reconstruction_node]: 自动采帧跳过 [near_duplicate]：近重复视角不积分：平移 0.0 mm / 旋转 0.00 deg
+[WARN] [1792630695.074498207] [peach_target_reconstruction_node]: 重建 worker 队列已满，拒绝新帧以保持积分顺序
+[WARN] [1792630695.536893041] [peach_target_reconstruction_node]: 自动采帧跳过 [near_duplicate]：近重复视角不积分：平移 0.0 mm / 旋转 0.00 deg
+[INFO] [1792630696.007600242] [peach_target_reconstruction_node]: 采帧跳过累计 160 次：missing_mask=1, near_duplicate=151, same_stamp=8 target=target_4
+[INFO] [1792630696.197439373] [peach_scene_perception_node]: 目标注册表在册 4 个目标（累计注册 8、累计命中 345）
+[WARN] [1792630696.572544618] [peach_target_reconstruction_node]: 自动采帧跳过 [near_duplicate]：近重复视角不积分：平移 0.0 mm / 旋转 0.00 deg
+[WARN] [1792630696.573647251] [peach_target_reconstruction_node]: 重建 worker 队列已满，拒绝新帧以保持积分顺序
+[WARN] [1792630697.630830291] [peach_target_reconstruction_node]: 重建 worker 队列已满，拒绝新帧以保持积分顺序
+[WARN] [1792630697.659384461] [peach_target_reconstruction_node]: 自动采帧跳过 [near_duplicate]：近重复视角不积分：平移 0.0 mm / 旋转 0.00 deg
+[INFO] [1792630697.748202919] [peach_target_reconstruction_node]: 采帧跳过累计 180 次：missing_mask=1, near_duplicate=171, same_stamp=8 target=target_4
+[WARN] [1792630698.669446382] [peach_target_reconstruction_node]: 自动采帧跳过 [near_duplicate]：近重复视角不积分：平移 0.0 mm / 旋转 0.00 deg
+[WARN] [1792630698.893391907] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 1181（处理跟不上到达率，排查热路径耗时或降低到达率）
+[WARN] [1792630699.110052059] [peach_target_reconstruction_node]: 重建 worker 队列已满，拒绝新帧以保持积分顺序
+[INFO] [1792630699.438747548] [peach_target_reconstruction_node]: 采帧跳过累计 200 次：missing_mask=1, near_duplicate=191, same_stamp=8 target=target_4
+[WARN] [1792630699.710314381] [peach_target_reconstruction_node]: 自动采帧跳过 [near_duplicate]：近重复视角不积分：平移 0.0 mm / 旋转 0.00 deg
+[WARN] [1792630700.686456678] [peach_target_reconstruction_node]: 重建 worker 队列已满，拒绝新帧以保持积分顺序
+[WARN] [1792630700.777492914] [peach_target_reconstruction_node]: 自动采帧跳过 [near_duplicate]：近重复视角不积分：平移 0.0 mm / 旋转 0.00 deg
+[INFO] [1792630701.128369554] [peach_target_reconstruction_node]: 采帧跳过累计 220 次：missing_mask=1, near_duplicate=211, same_stamp=8 target=target_4
+[WARN] [1792630701.782867154] [peach_target_reconstruction_node]: 自动采帧跳过 [near_duplicate]：近重复视角不积分：平移 0.0 mm / 旋转 0.00 deg
+[WARN] [1792630701.783877380] [peach_target_reconstruction_node]: 重建 worker 队列已满，拒绝新帧以保持积分顺序
+[INFO] [1792630702.065865679] [peach_supervisor.batch]: command=none batch=running target=target_4 message=running
+[INFO] [1792630702.719298137] [peach_target_reconstruction_node]: 采帧跳过累计 240 次：missing_mask=1, near_duplicate=231, same_stamp=8 target=target_4
+[WARN] [1792630702.799479443] [peach_target_reconstruction_node]: 自动采帧跳过 [near_duplicate]：近重复视角不积分：平移 0.0 mm / 旋转 0.00 deg
+[WARN] [1792630703.469054032] [peach_target_reconstruction_node]: 重建 worker 队列已满，拒绝新帧以保持积分顺序
+[WARN] [1792630703.867224147] [peach_target_reconstruction_node]: 自动采帧跳过 [near_duplicate]：近重复视角不积分：平移 0.0 mm / 旋转 0.00 deg
+[INFO] [1792630704.324556158] [peach_target_reconstruction_node]: 采帧跳过累计 260 次：missing_mask=1, near_duplicate=251, same_stamp=8 target=target_4
+[WARN] [1792630704.871015269] [peach_target_reconstruction_node]: 自动采帧跳过 [near_duplicate]：近重复视角不积分：平移 0.0 mm / 旋转 0.00 deg
+[WARN] [1792630704.960588296] [peach_target_reconstruction_node]: 重建 worker 队列已满，拒绝新帧以保持积分顺序
+[WARN] [1792630705.887882120] [peach_target_reconstruction_node]: 自动采帧跳过 [near_duplicate]：近重复视角不积分：平移 0.0 mm / 旋转 0.00 deg
+[INFO] [1792630705.968752414] [peach_target_reconstruction_node]: 采帧跳过累计 280 次：missing_mask=1, near_duplicate=271, same_stamp=8 target=target_4
+[WARN] [1792630706.568290899] [peach_target_reconstruction_node]: 重建 worker 队列已满，拒绝新帧以保持积分顺序
+[WARN] [1792630706.910401443] [peach_target_reconstruction_node]: 自动采帧跳过 [near_duplicate]：近重复视角不积分：平移 0.0 mm / 旋转 0.00 deg
+[INFO] [1792630707.556518268] [peach_target_reconstruction_node]: 采帧跳过累计 300 次：missing_mask=1, near_duplicate=291, same_stamp=8 target=target_4
+[WARN] [1792630707.954733737] [peach_target_reconstruction_node]: 重建 worker 队列已满，拒绝新帧以保持积分顺序
+[WARN] [1792630707.955957180] [peach_target_reconstruction_node]: 自动采帧跳过 [near_duplicate]：近重复视角不积分：平移 0.0 mm / 旋转 0.00 deg
+[INFO] [1792630707.978609200] [peach_scene_perception_node]: peach_harvester.vision.scene_perception.identity: 目标注册 累计 9 次（最近: target_8 cls=0 累计表规模 1）
+[INFO] [1792630707.993472267] [peach_scene_perception_node]: peach_harvester.vision.scene_perception.identity: 目标注册 累计 10 次（最近: target_9 cls=0 累计表规模 2）
+[INFO] [1792630707.993893540] [peach_scene_perception_node]: peach_harvester.vision.scene_perception.identity: 目标注册 累计 11 次（最近: target_10 cls=0 累计表规模 3）
+[INFO] [1792630708.275393123] [peach_scene_perception_node]: 目标注册表在册 3 个目标（累计注册 11、累计命中 348）
+[WARN] [1792630708.279691612] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 1308（处理跟不上到达率，排查热路径耗时或降低到达率）
+[INFO] [1792630708.984243112] [peach_scene_perception_node]: peach_harvester.vision.scene_perception.identity: 目标注册 累计 12 次（最近: target_11 cls=0 累计表规模 4）
+[WARN] [1792630709.235186607] [peach_target_reconstruction_node]: 重建 worker 队列已满，拒绝新帧以保持积分顺序
+[WARN] [1792630711.310276051] [peach_target_reconstruction_node]: 重建 worker 队列已满，拒绝新帧以保持积分顺序
+[WARN] [1792630713.435243668] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 1362（处理跟不上到达率，排查热路径耗时或降低到达率）
+[WARN] [1792630713.642363901] [peach_target_reconstruction_node]: 重建 worker 队列已满，拒绝新帧以保持积分顺序
+[WARN] [1792630714.838792155] [peach_target_reconstruction_node]: 重建 worker 队列已满，拒绝新帧以保持积分顺序
+[INFO] [1792630715.107519176] [peach_supervisor.batch]: command=navigate batch=discovery target=- message=preparing
+[INFO] [1792630715.114173655] [peach_supervisor.batch]: command=survey batch=discovery target=- message=surveying
+[INFO] [1792630715.118271192] [peach_supervisor]: Survey 进行中: moving_to_photo_pose
+[INFO] [1792630715.850120594] [peach_supervisor]: Survey 进行中: waiting_snapshot
+[WARN] [1792630716.986385730] [peach_target_reconstruction_node]: 重建 worker 队列已满，拒绝新帧以保持积分顺序
+[INFO] [1792630718.598565377] [peach_scene_perception_node]: 目标注册表在册 4 个目标（累计注册 12、累计命中 419）
+[WARN] [1792630718.604574050] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 1426（处理跟不上到达率，排查热路径耗时或降低到达率）
+[WARN] [1792630718.931206339] [peach_target_reconstruction_node]: 重建 worker 队列已满，拒绝新帧以保持积分顺序
+[WARN] [1792630721.231434515] [peach_target_reconstruction_node]: 重建 worker 队列已满，拒绝新帧以保持积分顺序
+[INFO] [1792630722.581089043] [peach_supervisor.batch]: command=begin_scene batch=discovery target=- message=preparing
+[INFO] [1792630722.607999647] [peach_supervisor.batch]: command=wait_lock batch=discovery target=- message=collecting
+[WARN] [1792630722.952795363] [peach_target_reconstruction_node]: 重建 worker 队列已满，拒绝新帧以保持积分顺序
+[WARN] [1792630723.920858153] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 1487（处理跟不上到达率，排查热路径耗时或降低到达率）
+[WARN] [1792630724.961393981] [peach_target_reconstruction_node]: 重建 worker 队列已满，拒绝新帧以保持积分顺序
+[WARN] [1792630726.122060626] [peach_target_reconstruction_node]: 重建 worker 队列已满，拒绝新帧以保持积分顺序
+[INFO] [1792630728.095267185] [peach_supervisor.batch]: command=select batch=discovery target=- message=discovery
+[INFO] [1792630728.269242955] [peach_supervisor.contact]: caller=SELECT target=target_8 travel=0.089m reachable=True code=ok
+[INFO] [1792630728.269492676] [peach_supervisor.contact]: caller=SELECT target=target_11 travel=0.096m reachable=True code=ok
+[INFO] [1792630728.272470410] [peach_supervisor.contact]: caller=SELECT target=target_9 travel=0.081m reachable=True code=ok
+[INFO] [1792630728.272886612] [peach_supervisor.contact]: caller=SELECT target=target_10 travel=0.070m reachable=True code=ok
+[INFO] [1792630728.278431641] [peach_supervisor.batch]: command=dispatch batch=running target=target_9 message=running
+[WARN] [1792630728.278889527] [peach_supervisor]: skip_reconstruction: 用未精化场景观测进接触 target=target_9 (no BuildTargetModel)
+[INFO] [1792630728.291458016] [peach_supervisor.batch]: command=execute_full batch=running target=target_9 message=running
+[INFO] [1792630728.716599464] [peach_scene_perception_node]: 目标注册表在册 4 个目标（累计注册 12、累计命中 487）
+[INFO] [1792630728.728164141] [peach_target_reconstruction_node]: 自动开始：开始重建，绑定目标 target_9
+[INFO] [1792630728.822126344] [peach_target_reconstruction_node]: REFINING：几何二次拟合开始（kind=bag，985 点）
+[WARN] [1792630728.892321095] [peach_target_reconstruction_node]: REFINING：无接触权威几何（bag_axis_silhouette_unobservable）
+[INFO] [1792630728.892769454] [peach_target_reconstruction_node]: 已采第 1/5 视角，本帧 3660 点，有效深度占比 1.00，位姿=fk
+[WARN] [1792630728.961957005] [peach_target_reconstruction_node]: 自动采帧跳过 [same_stamp]：缓存帧未更新（与上次采帧同帧），请等下一帧
+[WARN] [1792630728.971227520] [peach_target_reconstruction_node]: 重建 worker 队列已满，拒绝新帧以保持积分顺序
+[WARN] [1792630729.268785454] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 1552（处理跟不上到达率，排查热路径耗时或降低到达率）
+[WARN] [1792630729.967064233] [peach_target_reconstruction_node]: 自动采帧跳过 [near_duplicate]：近重复视角不积分：平移 0.0 mm / 旋转 0.00 deg
+[WARN] [1792630730.331877296] [peach_target_reconstruction_node]: 重建 worker 队列已满，拒绝新帧以保持积分顺序
+[INFO] [1792630730.606590159] [peach_target_reconstruction_node]: 采帧跳过累计 20 次：near_duplicate=15, same_stamp=5 target=target_9
+[WARN] [1792630731.028037248] [peach_target_reconstruction_node]: 自动采帧跳过 [near_duplicate]：近重复视角不积分：平移 0.0 mm / 旋转 0.00 deg
+[WARN] [1792630732.074673099] [peach_target_reconstruction_node]: 自动采帧跳过 [near_duplicate]：近重复视角不积分：平移 0.0 mm / 旋转 0.00 deg
+[WARN] [1792630732.141732630] [peach_target_reconstruction_node]: 重建 worker 队列已满，拒绝新帧以保持积分顺序
+[INFO] [1792630732.913829836] [peach_target_reconstruction_node]: 采帧跳过累计 40 次：near_duplicate=35, same_stamp=5 target=target_9
+[WARN] [1792630733.317127006] [peach_target_reconstruction_node]: 重建 worker 队列已满，拒绝新帧以保持积分顺序
+[WARN] [1792630733.350534470] [peach_target_reconstruction_node]: 自动采帧跳过 [near_duplicate]：近重复视角不积分：平移 0.0 mm / 旋转 0.00 deg
+[WARN] [1792630734.375160393] [peach_target_reconstruction_node]: 自动采帧跳过 [near_duplicate]：近重复视角不积分：平移 0.0 mm / 旋转 0.00 deg
+[WARN] [1792630734.380303327] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 1622（处理跟不上到达率，排查热路径耗时或降低到达率）
+[WARN] [1792630734.945970287] [peach_target_reconstruction_node]: 重建 worker 队列已满，拒绝新帧以保持积分顺序
+[INFO] [1792630735.132427512] [peach_target_reconstruction_node]: 采帧跳过累计 60 次：near_duplicate=55, same_stamp=5 target=target_9
+[WARN] [1792630735.498834692] [peach_target_reconstruction_node]: 自动采帧跳过 [near_duplicate]：近重复视角不积分：平移 0.0 mm / 旋转 0.00 deg
+[WARN] [1792630736.424721823] [peach_target_reconstruction_node]: 重建 worker 队列已满，拒绝新帧以保持积分顺序
+[WARN] [1792630736.508420484] [peach_target_reconstruction_node]: 自动采帧跳过 [near_duplicate]：近重复视角不积分：平移 0.0 mm / 旋转 0.00 deg
+[INFO] [1792630737.185040922] [peach_target_reconstruction_node]: 采帧跳过累计 80 次：near_duplicate=75, same_stamp=5 target=target_9
+[WARN] [1792630737.735029648] [peach_target_reconstruction_node]: 自动采帧跳过 [near_duplicate]：近重复视角不积分：平移 0.0 mm / 旋转 0.00 deg
+[WARN] [1792630737.798690152] [peach_target_reconstruction_node]: 重建 worker 队列已满，拒绝新帧以保持积分顺序
+[WARN] [1792630738.890469439] [peach_target_reconstruction_node]: 自动采帧跳过 [near_duplicate]：近重复视角不积分：平移 0.0 mm / 旋转 0.00 deg
+[WARN] [1792630738.989566217] [peach_target_reconstruction_node]: 重建 worker 队列已满，拒绝新帧以保持积分顺序
+[INFO] [1792630739.347969287] [peach_target_reconstruction_node]: 采帧跳过累计 100 次：near_duplicate=95, same_stamp=5 target=target_9
+[INFO] [1792630739.751698492] [peach_scene_perception_node]: 目标注册表在册 4 个目标（累计注册 12、累计命中 500）
+[WARN] [1792630739.790765220] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 1687（处理跟不上到达率，排查热路径耗时或降低到达率）
+[WARN] [1792630740.122378174] [peach_target_reconstruction_node]: 自动采帧跳过 [near_duplicate]：近重复视角不积分：平移 0.0 mm / 旋转 0.00 deg
+[WARN] [1792630740.208860230] [peach_target_reconstruction_node]: 重建 worker 队列已满，拒绝新帧以保持积分顺序
+[WARN] [1792630741.160860610] [peach_target_reconstruction_node]: 自动采帧跳过 [near_duplicate]：近重复视角不积分：平移 0.0 mm / 旋转 0.00 deg
+[INFO] [1792630741.725699561] [peach_target_reconstruction_node]: 采帧跳过累计 120 次：near_duplicate=115, same_stamp=5 target=target_9
+[WARN] [1792630741.824500444] [peach_target_reconstruction_node]: 重建 worker 队列已满，拒绝新帧以保持积分顺序
+[WARN] [1792630742.338036429] [peach_target_reconstruction_node]: 自动采帧跳过 [near_duplicate]：近重复视角不积分：平移 0.0 mm / 旋转 0.00 deg
+[WARN] [1792630743.082894668] [peach_target_reconstruction_node]: 重建 worker 队列已满，拒绝新帧以保持积分顺序
+[WARN] [1792630743.346728780] [peach_target_reconstruction_node]: 自动采帧跳过 [near_duplicate]：近重复视角不积分：平移 0.0 mm / 旋转 0.00 deg
+[INFO] [1792630743.565502556] [peach_target_reconstruction_node]: 采帧跳过累计 140 次：near_duplicate=135, same_stamp=5 target=target_9
+[WARN] [1792630744.548557096] [peach_target_reconstruction_node]: 自动采帧跳过 [near_duplicate]：近重复视角不积分：平移 0.0 mm / 旋转 0.00 deg
+[WARN] [1792630744.754856685] [peach_target_reconstruction_node]: 重建 worker 队列已满，拒绝新帧以保持积分顺序
+[WARN] [1792630745.045789646] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 1757（处理跟不上到达率，排查热路径耗时或降低到达率）
+[WARN] [1792630745.576220670] [peach_target_reconstruction_node]: 自动采帧跳过 [near_duplicate]：近重复视角不积分：平移 0.0 mm / 旋转 0.00 deg
+[INFO] [1792630745.576422777] [peach_target_reconstruction_node]: 采帧跳过累计 160 次：near_duplicate=155, same_stamp=5 target=target_9
+[WARN] [1792630746.034057442] [peach_target_reconstruction_node]: 重建 worker 队列已满，拒绝新帧以保持积分顺序
+[WARN] [1792630746.589592298] [peach_target_reconstruction_node]: 自动采帧跳过 [near_duplicate]：近重复视角不积分：平移 0.0 mm / 旋转 0.00 deg
+[WARN] [1792630747.633277947] [peach_target_reconstruction_node]: 重建 worker 队列已满，拒绝新帧以保持积分顺序
+[WARN] [1792630747.673413774] [peach_target_reconstruction_node]: 自动采帧跳过 [near_duplicate]：近重复视角不积分：平移 0.0 mm / 旋转 0.00 deg
+[INFO] [1792630747.836043785] [peach_target_reconstruction_node]: 采帧跳过累计 180 次：near_duplicate=175, same_stamp=5 target=target_9
+[WARN] [1792630748.708920276] [peach_target_reconstruction_node]: 自动采帧跳过 [near_duplicate]：近重复视角不积分：平移 0.0 mm / 旋转 0.00 deg
+[WARN] [1792630749.040401488] [peach_target_reconstruction_node]: 重建 worker 队列已满，拒绝新帧以保持积分顺序
+[WARN] [1792630749.828411455] [peach_target_reconstruction_node]: 自动采帧跳过 [joint_state_unavailable]：曝光时刻关节状态过旧或时间戳不匹配
+[INFO] [1792630749.829376806] [peach_target_reconstruction_node]: 采帧跳过累计 200 次：joint_state_unavailable=2, near_duplicate=193, same_stamp=5 target=target_9
+[INFO] [1792630750.215980229] [peach_scene_perception_node]: 目标注册表在册 4 个目标（累计注册 12、累计命中 511）
+[WARN] [1792630750.218113044] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 1821（处理跟不上到达率，排查热路径耗时或降低到达率）
+[INFO] [1792630750.578820911] [peach_supervisor.batch]: command=none batch=running target=target_9 message=running
+[WARN] [1792630750.808100304] [peach_target_reconstruction_node]: 重建 worker 队列已满，拒绝新帧以保持积分顺序
+[WARN] [1792630750.913740578] [peach_target_reconstruction_node]: 自动采帧跳过 [near_duplicate]：近重复视角不积分：平移 0.0 mm / 旋转 0.00 deg
+[INFO] [1792630751.576863984] [peach_target_reconstruction_node]: 采帧跳过累计 220 次：joint_state_unavailable=10, near_duplicate=205, same_stamp=5 target=target_9
+[WARN] [1792630752.013322739] [peach_target_reconstruction_node]: 自动采帧跳过 [near_duplicate]：近重复视角不积分：平移 0.0 mm / 旋转 0.00 deg
+[WARN] [1792630752.072622647] [peach_target_reconstruction_node]: 重建 worker 队列已满，拒绝新帧以保持积分顺序
+[WARN] [1792630753.033052698] [peach_target_reconstruction_node]: 自动采帧跳过 [near_duplicate]：近重复视角不积分：平移 0.0 mm / 旋转 0.00 deg
+[INFO] [1792630753.810038148] [peach_target_reconstruction_node]: 采帧跳过累计 240 次：joint_state_unavailable=10, near_duplicate=225, same_stamp=5 target=target_9
+[WARN] [1792630753.818514930] [peach_target_reconstruction_node]: 重建 worker 队列已满，拒绝新帧以保持积分顺序
+[WARN] [1792630754.043707423] [peach_target_reconstruction_node]: 自动采帧跳过 [near_duplicate]：近重复视角不积分：平移 0.0 mm / 旋转 0.00 deg
+[INFO] [1792630754.890148549] [peach_scene_perception_node]: peach_harvester.vision.scene_perception.identity: 目标注册 累计 13 次（最近: target_12 cls=0 累计表规模 1）
+[INFO] [1792630754.890395550] [peach_scene_perception_node]: peach_harvester.vision.scene_perception.identity: 目标注册 累计 14 次（最近: target_13 cls=0 累计表规模 2）
+[INFO] [1792630754.890554557] [peach_scene_perception_node]: peach_harvester.vision.scene_perception.identity: 目标注册 累计 15 次（最近: target_14 cls=0 累计表规模 3）
+[WARN] [1792630755.091195441] [peach_target_reconstruction_node]: 自动采帧跳过 [near_duplicate]：近重复视角不积分：平移 0.0 mm / 旋转 0.00 deg
+[WARN] [1792630755.097869124] [peach_target_reconstruction_node]: 重建 worker 队列已满，拒绝新帧以保持积分顺序
+[INFO] [1792630755.788743482] [peach_scene_perception_node]: peach_harvester.vision.scene_perception.identity: 目标注册 累计 16 次（最近: target_15 cls=0 累计表规模 4）
+[WARN] [1792630755.824976306] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 1900（处理跟不上到达率，排查热路径耗时或降低到达率）
+[WARN] [1792630757.288252647] [peach_target_reconstruction_node]: 重建 worker 队列已满，拒绝新帧以保持积分顺序
+[WARN] [1792630759.559516060] [peach_target_reconstruction_node]: 重建 worker 队列已满，拒绝新帧以保持积分顺序
+[INFO] [1792630760.431915127] [peach_scene_perception_node]: 目标注册表在册 4 个目标（累计注册 16、累计命中 551）
+[WARN] [1792630761.011631635] [peach_target_reconstruction_node]: 重建 worker 队列已满，拒绝新帧以保持积分顺序
+[WARN] [1792630761.021398178] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 1961（处理跟不上到达率，排查热路径耗时或降低到达率）
+[INFO] [1792630761.219468894] [peach_supervisor.batch]: command=navigate batch=discovery target=- message=preparing
+[INFO] [1792630761.229184911] [peach_supervisor.batch]: command=survey batch=discovery target=- message=surveying
+[INFO] [1792630761.235380054] [peach_supervisor]: Survey 进行中: moving_to_photo_pose
+[INFO] [1792630761.973387298] [peach_supervisor]: Survey 进行中: waiting_snapshot
+[WARN] [1792630762.568405482] [peach_target_reconstruction_node]: 重建 worker 队列已满，拒绝新帧以保持积分顺序
+[WARN] [1792630764.093844328] [peach_target_reconstruction_node]: 重建 worker 队列已满，拒绝新帧以保持积分顺序
+[WARN] [1792630765.578669563] [peach_target_reconstruction_node]: 重建 worker 队列已满，拒绝新帧以保持积分顺序
+[WARN] [1792630766.414816649] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 2027（处理跟不上到达率，排查热路径耗时或降低到达率）
+[WARN] [1792630767.063861351] [peach_target_reconstruction_node]: 重建 worker 队列已满，拒绝新帧以保持积分顺序
+[INFO] [1792630768.752993364] [peach_supervisor.batch]: command=begin_scene batch=discovery target=- message=preparing
+[INFO] [1792630768.766266675] [peach_supervisor.batch]: command=wait_lock batch=discovery target=- message=collecting
+[WARN] [1792630770.068174770] [peach_target_reconstruction_node]: 重建 worker 队列已满，拒绝新帧以保持积分顺序
+[INFO] [1792630770.535563142] [peach_scene_perception_node]: 目标注册表在册 4 个目标（累计注册 16、累计命中 619）
+[WARN] [1792630771.714903713] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 2093（处理跟不上到达率，排查热路径耗时或降低到达率）
+[WARN] [1792630772.335779812] [peach_target_reconstruction_node]: 重建 worker 队列已满，拒绝新帧以保持积分顺序
+[INFO] [1792630774.569438926] [peach_supervisor.batch]: command=select batch=discovery target=- message=discovery
+[INFO] [1792630774.734243558] [peach_supervisor.contact]: caller=SELECT target=target_12 travel=0.080m reachable=True code=ok
+[INFO] [1792630774.734577312] [peach_supervisor.contact]: caller=SELECT target=target_13 travel=0.096m reachable=True code=ok
+[INFO] [1792630774.734916761] [peach_supervisor.contact]: caller=SELECT target=target_15 travel=0.081m reachable=True code=ok
+[INFO] [1792630774.735177206] [peach_supervisor.contact]: caller=SELECT target=target_14 travel=0.070m reachable=True code=ok
+[INFO] [1792630774.744611801] [peach_supervisor.batch]: command=dispatch batch=running target=target_14 message=running
+[WARN] [1792630774.744812192] [peach_supervisor]: skip_reconstruction: 用未精化场景观测进接触 target=target_14 (no BuildTargetModel)
+[INFO] [1792630774.752985337] [peach_supervisor.batch]: command=execute_full batch=running target=target_14 message=running
+[WARN] [1792630774.771995954] [peach_target_reconstruction_node]: 重建 worker 队列已满，拒绝新帧以保持积分顺序
+[INFO] [1792630775.261239443] [peach_target_reconstruction_node]: 自动开始：开始重建，绑定目标 target_14
+[INFO] [1792630775.352113636] [peach_target_reconstruction_node]: REFINING：几何二次拟合开始（kind=bag，801 点）
+[INFO] [1792630775.451723812] [peach_target_reconstruction_node]: REFINING 完成：cylinder status=ACCEPT final=False axis=[-0.2181, -0.5112, 0.8313] diameter=61.3mm
+[INFO] [1792630775.452319543] [peach_target_reconstruction_node]: 已采第 1/5 视角，本帧 2178 点，有效深度占比 1.00，位姿=fk
+[WARN] [1792630775.502228868] [peach_target_reconstruction_node]: 自动采帧跳过 [same_stamp]：缓存帧未更新（与上次采帧同帧），请等下一帧
+[WARN] [1792630776.199341593] [peach_target_reconstruction_node]: 重建 worker 队列已满，拒绝新帧以保持积分顺序
+[WARN] [1792630776.571985325] [peach_target_reconstruction_node]: 自动采帧跳过 [near_duplicate]：近重复视角不积分：平移 0.0 mm / 旋转 0.00 deg
+[WARN] [1792630776.819680660] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 2153（处理跟不上到达率，排查热路径耗时或降低到达率）
+[INFO] [1792630777.202948237] [peach_target_reconstruction_node]: 采帧跳过累计 20 次：near_duplicate=14, same_stamp=6 target=target_14
+[WARN] [1792630777.586093468] [peach_target_reconstruction_node]: 自动采帧跳过 [near_duplicate]：近重复视角不积分：平移 0.0 mm / 旋转 0.00 deg
+[WARN] [1792630777.669983295] [peach_target_reconstruction_node]: 重建 worker 队列已满，拒绝新帧以保持积分顺序
+[WARN] [1792630778.620340151] [peach_target_reconstruction_node]: 自动采帧跳过 [near_duplicate]：近重复视角不积分：平移 0.0 mm / 旋转 0.00 deg
+[WARN] [1792630779.114573629] [peach_target_reconstruction_node]: 重建 worker 队列已满，拒绝新帧以保持积分顺序
+[INFO] [1792630779.147809387] [peach_target_reconstruction_node]: 采帧跳过累计 40 次：near_duplicate=34, same_stamp=6 target=target_14
+[WARN] [1792630779.698872336] [peach_target_reconstruction_node]: 自动采帧跳过 [near_duplicate]：近重复视角不积分：平移 0.0 mm / 旋转 0.00 deg
+[WARN] [1792630780.461668603] [peach_target_reconstruction_node]: 重建 worker 队列已满，拒绝新帧以保持积分顺序
+[WARN] [1792630780.742072616] [peach_target_reconstruction_node]: 自动采帧跳过 [near_duplicate]：近重复视角不积分：平移 0.0 mm / 旋转 0.00 deg
+[INFO] [1792630781.188438863] [peach_scene_perception_node]: 目标注册表在册 4 个目标（累计注册 16、累计命中 658）
+[INFO] [1792630781.250106637] [peach_target_reconstruction_node]: 采帧跳过累计 60 次：near_duplicate=54, same_stamp=6 target=target_14
+[WARN] [1792630781.914424754] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 2211（处理跟不上到达率，排查热路径耗时或降低到达率）
+[WARN] [1792630781.953281251] [peach_target_reconstruction_node]: 自动采帧跳过 [near_duplicate]：近重复视角不积分：平移 0.0 mm / 旋转 0.00 deg
+[WARN] [1792630782.146806594] [peach_target_reconstruction_node]: 重建 worker 队列已满，拒绝新帧以保持积分顺序
+[WARN] [1792630782.954610258] [peach_target_reconstruction_node]: 自动采帧跳过 [near_duplicate]：近重复视角不积分：平移 0.0 mm / 旋转 0.00 deg
+[INFO] [1792630783.244421661] [peach_target_reconstruction_node]: 采帧跳过累计 80 次：near_duplicate=74, same_stamp=6 target=target_14
+[WARN] [1792630783.306101821] [peach_target_reconstruction_node]: 重建 worker 队列已满，拒绝新帧以保持积分顺序
+[WARN] [1792630784.001620469] [peach_target_reconstruction_node]: 自动采帧跳过 [near_duplicate]：近重复视角不积分：平移 0.0 mm / 旋转 0.00 deg
+[WARN] [1792630784.352305083] [peach_target_reconstruction_node]: 重建 worker 队列已满，拒绝新帧以保持积分顺序
+[WARN] [1792630785.055993133] [peach_target_reconstruction_node]: 自动采帧跳过 [near_duplicate]：近重复视角不积分：平移 0.0 mm / 旋转 0.00 deg
+[INFO] [1792630785.342711698] [peach_target_reconstruction_node]: 采帧跳过累计 100 次：near_duplicate=94, same_stamp=6 target=target_14
+[WARN] [1792630785.879377375] [peach_target_reconstruction_node]: 重建 worker 队列已满，拒绝新帧以保持积分顺序
+[WARN] [1792630786.111085163] [peach_target_reconstruction_node]: 自动采帧跳过 [near_duplicate]：近重复视角不积分：平移 0.0 mm / 旋转 0.00 deg
+[WARN] [1792630786.918512565] [peach_target_reconstruction_node]: 重建 worker 队列已满，拒绝新帧以保持积分顺序
+[WARN] [1792630787.140521169] [peach_target_reconstruction_node]: 自动采帧跳过 [near_duplicate]：近重复视角不积分：平移 0.0 mm / 旋转 0.00 deg
+[INFO] [1792630787.360592994] [peach_target_reconstruction_node]: 采帧跳过累计 120 次：near_duplicate=114, same_stamp=6 target=target_14
+[WARN] [1792630787.733749144] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 2287（处理跟不上到达率，排查热路径耗时或降低到达率）
+[WARN] [1792630788.007134255] [peach_target_reconstruction_node]: 重建 worker 队列已满，拒绝新帧以保持积分顺序
+[WARN] [1792630788.149215118] [peach_target_reconstruction_node]: 自动采帧跳过 [near_duplicate]：近重复视角不积分：平移 0.0 mm / 旋转 0.00 deg
+[WARN] [1792630789.173797072] [peach_target_reconstruction_node]: 自动采帧跳过 [near_duplicate]：近重复视角不积分：平移 0.0 mm / 旋转 0.00 deg
+[WARN] [1792630789.185736003] [peach_target_reconstruction_node]: 重建 worker 队列已满，拒绝新帧以保持积分顺序
+[INFO] [1792630789.257634729] [peach_target_reconstruction_node]: 采帧跳过累计 140 次：near_duplicate=134, same_stamp=6 target=target_14
+[WARN] [1792630790.214723541] [peach_target_reconstruction_node]: 重建 worker 队列已满，拒绝新帧以保持积分顺序
+[WARN] [1792630790.247211894] [peach_target_reconstruction_node]: 自动采帧跳过 [near_duplicate]：近重复视角不积分：平移 0.0 mm / 旋转 0.00 deg
+[INFO] [1792630791.183825491] [peach_target_reconstruction_node]: 采帧跳过累计 160 次：near_duplicate=154, same_stamp=6 target=target_14
+[WARN] [1792630791.263666511] [peach_target_reconstruction_node]: 自动采帧跳过 [near_duplicate]：近重复视角不积分：平移 0.0 mm / 旋转 0.00 deg
+[WARN] [1792630791.470564064] [peach_target_reconstruction_node]: 重建 worker 队列已满，拒绝新帧以保持积分顺序
+[INFO] [1792630791.638006424] [peach_supervisor.batch]: command=none batch=running target=target_14 message=running
+[INFO] [1792630791.897856933] [peach_scene_perception_node]: 目标注册表在册 4 个目标（累计注册 16、累计命中 668）
+[WARN] [1792630792.326887995] [peach_target_reconstruction_node]: 自动采帧跳过 [near_duplicate]：近重复视角不积分：平移 0.0 mm / 旋转 0.00 deg
+[WARN] [1792630793.029066328] [peach_target_reconstruction_node]: 重建 worker 队列已满，拒绝新帧以保持积分顺序
+[INFO] [1792630793.050753868] [peach_target_reconstruction_node]: 采帧跳过累计 180 次：near_duplicate=174, same_stamp=6 target=target_14
+[WARN] [1792630793.379182201] [peach_target_reconstruction_node]: 自动采帧跳过 [near_duplicate]：近重复视角不积分：平移 0.0 mm / 旋转 0.00 deg
+[WARN] [1792630793.551326194] [peach_scene_perception_node]: 感知 worker 满队丢帧累计 2365（处理跟不上到达率，排查热路径耗时或降低到达率）
+[INFO] [1792630793.692387649] [peach_supervisor]: 操作台使能: execution=False grasp=False tool=False（live_camera_mock owned test）
+[INFO] [1792630793.797052022] [peach_supervisor]: 操作台使能: execution=False grasp=False tool=False（live_camera_mock owned test）
+[WARN] [1792630794.141905749] [peach_target_reconstruction_node]: 重建 worker 队列已满，拒绝新帧以保持积分顺序
+[WARN] [1792630794.407213706] [peach_target_reconstruction_node]: 自动采帧跳过 [near_duplicate]：近重复视角不积分：平移 0.0 mm / 旋转 0.00 deg
+[ERROR] [1792630794.495534676] [peach_scene_perception_node]: peach_harvester.vision.common.runtime: bounded-worker 任务处理异常（连续第 1 次）:
+Traceback (most recent call last):
+  File "/home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_harvester/lib/python3.12/site-packages/peach_harvester/vision/common/runtime.py", line 138, in _run
+    self._process(item)
+  File "/home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_harvester/lib/python3.12/site-packages/peach_harvester/vision/scene_perception/scene_perception_node.py", line 655, in _process_rgbd
+    self._publish_frame(synced, out)
+  File "/home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_harvester/lib/python3.12/site-packages/peach_harvester/vision/scene_perception/scene_perception_node.py", line 691, in _publish_frame
+    self.pub_norm_dets.publish(det_msg)
+  File "/opt/ros/jazzy/lib/python3.12/site-packages/rclpy/lifecycle/managed_entity.py", line 77, in only_when_enabled_wrapper
+    wrapped(self, *args, **kwargs)
+  File "/opt/ros/jazzy/lib/python3.12/site-packages/rclpy/lifecycle/publisher.py", line 37, in publish
+    Publisher.publish(self, msg)
+  File "/opt/ros/jazzy/lib/python3.12/site-packages/rclpy/publisher.py", line 70, in publish
+    self.__publisher.publish(msg)
+rclpy._rclpy_pybind11.RCLError: Failed to publish: publisher's context is invalid, at ./src/rcl/publisher.c:423
+

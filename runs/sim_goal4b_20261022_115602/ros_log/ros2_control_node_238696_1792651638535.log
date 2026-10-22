@@ -1,0 +1,69 @@
+[INFO] [1792651638.551220313] [controller_manager]: Using Steady (Monotonic) clock for triggering controller manager cycles.
+[INFO] [1792651638.555147124] [controller_manager]: Subscribing to '/robot_description' topic for robot description.
+[INFO] [1792651638.555204975] [controller_manager]: update rate is 200 Hz
+[INFO] [1792651638.555208511] [controller_manager]: Overruns handling is : enabled
+[INFO] [1792651638.555211427] [controller_manager]: Spawning controller_manager RT thread with scheduler priority: 50
+[INFO] [1792651638.555253054] [controller_manager]: Successful set up FIFO RT scheduling policy with priority 50.
+[INFO] [1792651638.565568760] [controller_manager]: Received robot description from topic.
+[INFO] [1792651638.565612745] [controller_manager]: Enforcing command limits is disabled. Command limits from URDF will be ignored.
+[INFO] [1792651638.567579874] [controller_manager]: Loading hardware 'AuboE5System' 
+[INFO] [1792651638.570790078] [controller_manager]: Loaded hardware 'AuboE5System' from plugin 'aubo_e5_hardware/AuboE5Hardware'
+[INFO] [1792651638.570876654] [controller_manager]: Initialize hardware 'AuboE5System' 
+[INFO] [1792651638.573907185] [AuboE5Hardware]: on_init OK (169.254.10.98:8899, rib_target=400, slowdown=300/350, batch=2..8, speed_guard=false)
+[INFO] [1792651638.573925090] [controller_manager]: Successful initialization of hardware 'AuboE5System'
+[INFO] [1792651638.574342976] [controller_manager]: Activating component 'AuboE5System'.
+[INFO] [1792651638.574351524] [resource_manager]: 'configure' hardware 'AuboE5System' 
+[INFO] [1792651638.655027222] [AuboE5Hardware]: Real robot detected
+[INFO] [1792651638.712945109] [AuboE5Hardware]: on_configure OK (dual login, push active)
+[INFO] [1792651638.712968742] [resource_manager]: Successful 'configure' of hardware 'AuboE5System'
+[INFO] [1792651638.712990016] [resource_manager]: 'activate' hardware 'AuboE5System' 
+[INFO] [1792651638.716991745] [AuboE5Hardware]: on_activate OK (TCP2CAN active, send + IO threads running)
+[INFO] [1792651638.716994143] [AuboE5Hardware.sendLoop]: sendLoop started
+[INFO] [1792651638.717001497] [resource_manager]: Successful 'activate' of hardware 'AuboE5System'
+[INFO] [1792651638.717020118] [AuboE5Hardware.ioLoop]: ioLoop started
+[INFO] [1792651638.717100339] [controller_manager]: Registering statistics for : AuboE5System
+[INFO] [1792651638.717156471] [controller_manager]: Resource Manager has been successfully initialized. Starting Controller Manager services...
+[INFO] [1792651638.787378856] [controller_manager]: Loading controller : 'joint_state_broadcaster' of type 'joint_state_broadcaster/JointStateBroadcaster'
+[INFO] [1792651638.787405966] [controller_manager]: Loading controller 'joint_state_broadcaster'
+[INFO] [1792651638.790503950] [controller_manager]: Controller 'joint_state_broadcaster' node arguments: --ros-args -p use_sim_time:=False --params-file /tmp/launch_params_tkvo2x52 --params-file /home/mu/Desktop/aubo_e5_jazzy_ws/install/aubo_e5_bringup/share/aubo_e5_bringup/config/controllers.yaml 
+[INFO] [1792651638.894596096] [controller_manager]: Configuring controller: 'joint_state_broadcaster'
+[INFO] [1792651638.894694322] [joint_state_broadcaster]: 'joints' or 'interfaces' parameter is empty. All available state interfaces will be published
+[INFO] [1792651638.931762517] [controller_manager]: Activating controllers: [ joint_state_broadcaster ]
+[INFO] [1792651638.935758308] [controller_manager]: Successfully switched controllers!
+[INFO] [1792651639.778507906] [controller_manager]: Loading controller : 'aubo_io_controller' of type 'aubo_e5_controllers/AuboIOController'
+[INFO] [1792651639.778532138] [controller_manager]: Loading controller 'aubo_io_controller'
+[INFO] [1792651639.780095282] [controller_manager]: Controller 'aubo_io_controller' node arguments: --ros-args -p use_sim_time:=False --params-file /tmp/launch_params_tkvo2x52 --params-file /home/mu/Desktop/aubo_e5_jazzy_ws/install/aubo_e5_bringup/share/aubo_e5_bringup/config/controllers.yaml 
+[INFO] [1792651639.792493574] [controller_manager]: Configuring controller: 'aubo_io_controller'
+[INFO] [1792651639.801754105] [controller_manager]: Activating controllers: [ aubo_io_controller ]
+[INFO] [1792651639.806013243] [controller_manager]: Successfully switched controllers!
+[INFO] [1792651643.158249969] [controller_manager]: Loading controller : 'aubo_passthrough_trajectory_controller' of type 'aubo_e5_controllers/AuboPassthroughTrajectoryController'
+[INFO] [1792651643.158532838] [controller_manager]: Loading controller 'aubo_passthrough_trajectory_controller'
+[INFO] [1792651643.158953648] [controller_manager]: Controller 'aubo_passthrough_trajectory_controller' node arguments: --ros-args -p use_sim_time:=False --params-file /tmp/launch_params_tkvo2x52 --params-file /home/mu/Desktop/aubo_e5_jazzy_ws/install/aubo_e5_bringup/share/aubo_e5_bringup/config/controllers.yaml 
+[INFO] [1792651643.177356726] [controller_manager]: Configuring controller: 'aubo_passthrough_trajectory_controller'
+[INFO] [1792651643.181793655] [controller_manager]: Activating controllers: [ aubo_passthrough_trajectory_controller ]
+[INFO] [1792651643.185820166] [controller_manager]: Successfully switched controllers!
+[INFO] [1792651789.247185112] [aubo_passthrough_trajectory_controller]: Received new trajectory.
+[INFO] [1792651789.247296016] [aubo_passthrough_trajectory_controller]: Accepted new trajectory with 15 points.
+[INFO] [1792651789.247325345] [aubo_passthrough_trajectory_controller]: Effective goal time: 0 sec
+[INFO] [1792651791.075693290] [aubo_passthrough_trajectory_controller]: Trajectory executed successfully (goal-hold confirmed in 1.825012 s).
+[INFO] [1792651791.154365730] [aubo_passthrough_trajectory_controller]: Received new trajectory.
+[INFO] [1792651791.154436805] [aubo_passthrough_trajectory_controller]: Accepted new trajectory with 14 points.
+[INFO] [1792651791.154466422] [aubo_passthrough_trajectory_controller]: Effective goal time: 0 sec
+[INFO] [1792651792.885664865] [aubo_passthrough_trajectory_controller]: Trajectory executed successfully (goal-hold confirmed in 1.729999 s).
+[INFO] [1792651793.452074096] [aubo_passthrough_trajectory_controller]: Received new trajectory.
+[INFO] [1792651793.452175834] [aubo_passthrough_trajectory_controller]: Accepted new trajectory with 51 points.
+[INFO] [1792651793.452208525] [aubo_passthrough_trajectory_controller]: Effective goal time: 0 sec
+[INFO] [1792651798.745678087] [aubo_passthrough_trajectory_controller]: Trajectory executed successfully (goal-hold confirmed in 5.290009 s).
+[INFO] [1792651798.925591167] [aubo_passthrough_trajectory_controller]: Received new trajectory.
+[INFO] [1792651798.925829710] [aubo_passthrough_trajectory_controller]: Accepted new trajectory with 51 points.
+[INFO] [1792651798.925866721] [aubo_passthrough_trajectory_controller]: Effective goal time: 0 sec
+[INFO] [1792651804.175688250] [aubo_passthrough_trajectory_controller]: Trajectory executed successfully (goal-hold confirmed in 5.244983 s).
+[INFO] [1792651804.231406019] [aubo_passthrough_trajectory_controller]: Received new trajectory.
+[INFO] [1792651804.231455524] [aubo_passthrough_trajectory_controller]: Accepted new trajectory with 28 points.
+[INFO] [1792651804.231478691] [aubo_passthrough_trajectory_controller]: Effective goal time: 0 sec
+[INFO] [1792651807.295696170] [aubo_passthrough_trajectory_controller]: Trajectory executed successfully (goal-hold confirmed in 3.060022 s).
+[INFO] [1792651807.374140884] [aubo_passthrough_trajectory_controller]: Received new trajectory.
+[INFO] [1792651807.374264421] [aubo_passthrough_trajectory_controller]: Accepted new trajectory with 8 points.
+[INFO] [1792651807.374304392] [aubo_passthrough_trajectory_controller]: Effective goal time: 0 sec
+[INFO] [1792651808.505665898] [aubo_passthrough_trajectory_controller]: Trajectory executed successfully (goal-hold confirmed in 1.129988 s).
+[WARN] [1792651851.750215902] [controller_manager]: Overrun detected! The controller manager missed its desired rate of 200 Hz. The loop took 39.581561 ms (missed cycles : 8).

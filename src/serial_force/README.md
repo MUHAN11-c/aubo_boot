@@ -20,7 +20,7 @@ true），不进只读 bringup。
 serial_force/
   serial_force/force_node.py     # 节点：串口、逐帧打印 N/行程/AD、/force/points、/force/travel、/force/ad、/diagnostics
   serial_force/force_protocol.py # 无 ROS：0xA5 32 字节帧切帧、校验、克→牛、行程/AD/哨兵
-  scripts/force_web.py           # 调试 Web：订 /force/points，SSE 推浏览器按 CAD 实测点位显示
+  scripts/force_web.py           # 调试 Web：5 点力 + CoP，SSE 按 CAD 点位叠加显示
   scripts/force_web.html         # 上面的页面（整机 220mm/盘面 72mm + 五点 + tcp 三轴 + 侧视）
   scripts/face_fruit.png         # 盘面渲染（与 URDF 同一 visual STL，72 mm 视场）
   scripts/face_full.png          # 整机渲染（同一 STL，220 mm 视场）
@@ -144,6 +144,9 @@ Web（`force_web.html`）按同一组角度/半径把五点叠到末端渲染上
 1↔7、2↔3 左右互换，通道值不变）。图心画 **tcp 三轴**，侧视条标出
 `wrist3` 原点、`+Z_tcp` 果实侧与 `−Z_tcp` 臂侧方向。
 
+页面还实时显示 **5 点力 CoP**：`CoP = Σ fᵢ·pᵢ / Σ fᵢ`（tcp 系，mm），红点叠加在盘面/整机视图，
+面板给出 `(x, y)` 与 `|CoP|`；断线/无效通道不参与，力大的点会把 CoP 拉过去。
+
 坐标推导、数据链、渲染/Web 工具、复现命令与已知限制见
 **[doc/force_pad_positions.md](doc/force_pad_positions.md)**（含
 `doc/force_pads_on_tool.png` 四面板核对图）。
@@ -166,7 +169,17 @@ ros2 launch serial_force serial_force.launch.py
 
 # Web 实时页（只订话题不碰串口，可与驱动并行）：
 python3 src/serial_force/scripts/force_web.py   # http://127.0.0.1:8099
+# 真机整栈连同此页：ros2 launch peach_bringup real_web.launch.py
 ```
+
+网页除手动「20 s 记录」外，会自动把接触段写进**当前采摘会话**：
+`runs/session_*/force/episode_NNN.csv`（旁路同名 json，`index.jsonl` 汇总）。
+手动记录也在同一目录，文件名 `force_20s_<时间>.csv`。页面可回放已写入的
+`episode_*.csv`（选择接触段后播放或拖动），不必守着实时曲线。会话袋还在写才算当前这一轮；
+栈还没开会话时先留在内存，会话出现后再写入。不另开目录。抓取阶段的墙钟由调度写在同一会话的 `cycles/`，和这里的 `force/` 放在一起。
+只在任一路力达到约 0.15 N 时开始，回到约 0.08 N 并稳住 0.35 s 后封口；
+`contact_s` 是从出现变化到仍高于回到门的时长，`duration_s` 含归零尾段。
+空载不写。180 s 仍未归零会以 `max_duration` 封口。
 
 打印每帧一行（100Hz；`print_decimate` 每 N 帧打一条）：
 
@@ -183,7 +196,8 @@ python3 src/serial_force/scripts/force_web.py   # http://127.0.0.1:8099
 - `/force/ad`（同 QoS）：5 值，**原始 AD**，哨兵通道为 `NaN`。
 
 `ros2 topic hz /force/points` 验 100Hz。`/diagnostics`：串口开闭 + 帧率
-（期望 100Hz，窗 0.6×–1.4×）。Web 同时订阅三个话题，条下显示行程与 AD。
+（期望 100Hz，窗 0.6×–1.4×）。Web 同时订阅三个话题，条下显示行程与 AD，
+并实时计算 5 点 CoP。
 
 无输出时依次核对：波特率（默认 115200）、口是否已被另一个节点占用
 （`/dev/force` 只能开一份）、采集板供电与 Tx/Rx。

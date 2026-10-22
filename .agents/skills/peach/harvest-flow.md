@@ -51,7 +51,7 @@ RUNNING + EMPTY_LIMIT         → COMPLETED / SETTLE（点名 target_ids 全部�
 
 未知组合：保持原态，command=NONE。
 
-单果墙钟预算 40 s（相对人工偏保守）。点名 `target_ids` 摘完走 `EMPTY_LIMIT`，不再空扫。2026-10-16 真实相机+mock 5/5 见 `peach_system_tests/doc/testing.md`（账本 24–27 s，RunHarvest 38–43 s）。
+单果墙钟预算 40 s（相对人工偏保守）。点名 `target_ids` 摘完走 `EMPTY_LIMIT`，不再空扫。2026-10-16 真实相机+mock 5/5 是**旧 `choose_target`（按 target_id）重复同一颗**，不是 5 颗不同目标；不能再当多目标成功率。2026-10-22 按 `priority` 的 4-slot 两跑合计 8/8 level6（第二次 slot 4 相机证据 false，账本仍 level6），证据口径见 [debug-and-evidence.md](debug-and-evidence.md)。
 
 ## 选果（batch.next_target）
 
@@ -65,11 +65,18 @@ RUNNING + EMPTY_LIMIT         → COMPLETED / SETTLE（点名 target_ids 全部�
 
 跳过是策略不是失败：采收率达标 / 单果时限 / 人工 SKIP → 入 `ReworkList`。
 
+### 抓取顺序 vs ID
+
+- `target_id` 是感知注册表按**首次注册顺序**铸的 `target_N`；`BeginScene` 换场 `clear()` 时 2026-10-22 起连 `_next_index` 一起复位，所以新一轮又从 `target_0` 起。
+- `priority` 是 `GlobalHarvestPlan._lock_now` 按 `_rank_key` 排序后的 **1..N**（status → 轴倾角 → 相机距离 → 可选高度 → -confidence → target_id），由 `target_observations.priority` 下发；`next_target` 再在同一 priority 内按检测框面积降序。
+- 2D 调试图确认后显示 `target_N #order`；3D marker 只画当前帧检测，不把 memory/selected 目标补成第 5 颗（2026-10-22）。
+- runner 的 `grasp_slot=1..N` 是抓取顺序位置；`target_id` 直接使用场景源 ID（也是 2D/3D/账本 ID），2026-10-22 起不再另造 `grasp_id` 重映射。`priority` 与 `target_id` 不一定相等。
+
 ## DISPATCH
 
 默认 `reconstruct_in_trajectory=true`（`peach_supervisor.yaml`）：Build 进 COLLECTING 后立刻 `READY_FULL` + `skip_observation`，不走下方补视。臂侧 Finalize 非观察周期先等 GraspDecision（提交含精化几何），不许用粗几何先动；不再因 `waitForRefined` 先超时而决策到达后仍跳过。
 
-`skip_reconstruction`：不 Build/不观察，unrefined 七元组进接触（须臂 `allow_unrefined_geometry`）。臂侧 promote 把 `suggested_travel_m` 置 0，走 `(neck-entry)-neck_margin` 回退（实测 0.05–0.10 m）；感知 `suggested_travel_m` 也不再用 `L_insert=0.03` 封顶（2026-10-21）。
+`skip_reconstruction`：不 Build/不观察，unrefined 七元组进接触（须臂 `allow_unrefined_geometry`）。臂侧 promote 把 `suggested_travel_m` 置 0，走 `(neck-entry)-neck_margin` 回退（实测 0.05–0.10 m）；感知 `suggested_travel_m` 也不再用 `L_insert=0.03` 封顶（2026-10-21）。选目标按场景 `priority`（抓取顺序），LOST 的 memory 候选也可执行；2026-10-22 4-slot 两跑 8/8 level6，但第二次 slot 4 相机证据 false 使 `passed=false`。真机产品默认全重建，skip 是 test-only。
 
 仅显式 `reconstruct_in_trajectory=false` 才走观察两档：`BatchPolicy.view_policy` `VIEW_FAST=0` supervisor 直驱补视（`observe.py`，拍照位算 1 视、补视封顶 2、总视 ≤3）；`VIEW_CONSERVATIVE=1` 发臂 `ExecuteTarget OBSERVE_ONLY`（goal 被拒最多 4 次重试）。同时发 `BuildTargetModel`。等 COLLECTING 后观察，再 `_wait_build_after_observe`（`min_views` + grace）。失败走 `_fail_dispatch` 记 SKIPPED_QUALITY。
 
@@ -77,7 +84,9 @@ RUNNING + EMPTY_LIMIT         → COMPLETED / SETTLE（点名 target_ids 全部�
 
 goal 带：`run_id/cycle_id/target_id/scene_epoch`、三 revision、`plan_id={request_id}:{target_id}:{generation}`、`generation`。`skip_reconstruction` 或默认 `reconstruct_in_trajectory` 时 **不装** 未 finalize 的 GraspDecision 令牌（臂 Finalize 等精化后走快照复检）；仅串行补视路径且缓存 `target_id` 匹配才装配 `clearance`。臂侧双路：令牌优先，快照回退。
 
-outcome → `event_for_outcome`：0 SUCCEEDED / 1–2 SKIPPED / 3 FAILED / 4 CANCELED。PREGRASP 到位也 `recovery_required=true`。
+单目标人工触发用 `intent=INTENT_PICK_SELECTED=1` + `target_ids=["target_N"]`；名单仍过 `_eligible_locked_items` 资格谓词，但不受深度/IK 窗限（不合格会退回常规选果）。
+
+outcome → `event_for_outcome`：0 SUCCEEDED / 1–2 SKIPPED / 3 FAILED / 4 CANCELED。PREGRASP 到位也 `recovery_required=true`。`completion_level>=6` 只表示套入/撤退干跑完成，`>=7` 才是切断+撤退确认。
 
 ## ControlTask
 

@@ -125,10 +125,11 @@ inline StagingWaypoints stagingWaypoints(
 inline constexpr char kShearProfileId[] = "shear_v1";
 inline constexpr char kBiteShearProfileId[] = "bite_shear_v1";
 
-/// FULL 回收纳命名目标序列：先拍照位（可倒放已过门的接近，不过 transit_max），
-/// 再 harvest_stow。二者同名或 stow 空则一跳。禁止从预抓取直 PTP stow——
-/// SRDF 里 stow 与 global_photo_pose 已分叉（主要是 wrist2 ≈0.22 rad），
-/// goToPhotoPose(stow) 对不上接近起点，会新规划并误撞 6 rad 累计行程门。
+/// FULL 回收纳命名目标序列。现行拍照位是 global_photo_pose。
+/// SRDF 的 harvest_stow 是 2026-08-13 旧拍照位，部署名与拍照位相同时只回一跳。
+/// 名字不同才再去第二处；空 stow 同样只回拍照位。
+/// 禁止从预抓取直 PTP 一个与接近起点不同的命名状态：对不上倒放轨迹，
+/// 会新规划并误撞 6 rad 累计行程门。
 inline std::vector<std::string> harvestStowNamedHops(
   const std::string & photo_named,
   const std::string & stow_named)

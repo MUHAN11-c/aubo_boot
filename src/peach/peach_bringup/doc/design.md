@@ -127,7 +127,7 @@ peach_arm ──ACM diff──► PlanningScene（不覆盖 world 对象）
 
 能力包作业目标只认调度 `/peach_supervisor/state` 上的 `target_id`。FULL / PREGRASP 受理还要模型七元组非空（`identityComplete`：六个字符串非空；`scene_epoch` 参与 `identitiesMatch`，但 complete 检查不要求 epoch≠0）。
 
-- **`target_id`**：感知 `TargetRegistry` 铸造，形如 `target_0`、`target_1`（`tid = f'target_{self._next_index}'`）。无锚点检测标 `untracked_{i}`，歧义标 `ambiguous_*`，表满溢出标 `overflow_{n}`，三者**不入**注册表。`clear()` 清表但不复位 `_next_index`（换 `scene_key` 才清）。选果、ExecuteTarget、GraspDecision、ledger 都绑这个字符串。
+- **`target_id`**：感知 `TargetRegistry` 铸造，形如 `target_0`、`target_1`（`tid = f'target_{self._next_index}'`）。无锚点检测标 `untracked_{i}`，歧义标 `ambiguous_*`，表满溢出标 `overflow_{n}`，三者**不入**注册表。`clear()` 清表并把 `_next_index` 复位 0（2026-10-22；换 `scene_key` 时调用，新一轮从 `target_0` 起）。选果、ExecuteTarget、GraspDecision、ledger 都绑这个字符串。
 
 - **`scene_epoch`**：调度 `BeginScene` 成功后 +1（仅 `scene_epoch==0` 后做一次）。选果要求观测世代 == 调度值且 >0。臂 `SurveyScene` result **恒填 0**（巡航不改世代）。换世代立即清重建帧，不得把上一世代 READY 几何贴到新身份。
 
@@ -296,7 +296,7 @@ ControlTask（`apply_control`）：PAUSE=0 RESUME=1 ENTER_MAINTENANCE=2 EXIT_MAI
 3. `segmentation_bboxes` → SAM `engine.segment`；批量失败则逐框回退。掩膜裁进 bbox。
 4. 每个检测：`estimator.estimate_modes(..., hybrid_dilated)`。`bag` 缝=`RobustBagPosePipeline`（圆柱 RANSAC 定轴）；`fruit`=`RobustFruitPosePipeline`。产品执行范围是套袋。
 5. `tf_status!='ok'` 则打 `tf_stale` / `tf_unavailable`，`may_commit_identity` 为假，**本帧不进身份链**（`untracked_*`）。
-6. `TargetRegistry.begin_frame` 淘汰未确认超时项，同步清 `bbox_at_edge`。然后 `match_or_register_frame`：世界系 χ²≤9（`CHI2_GATE`）+ 匈牙利 1-1 + 同类 + 次优/最优比 1.2（`AMBIGUOUS_RATIO`）。新 ID `target_{_next_index}`。无 position → `untracked_{i}`；歧义 → `ambiguous_*`（不入表）；表满且无非保护项可逐出 → `overflow_{n}`。`clear()` 清表不复位计数。
+6. `TargetRegistry.begin_frame` 淘汰未确认超时项，同步清 `bbox_at_edge`。然后 `match_or_register_frame`：世界系 χ²≤9（`CHI2_GATE`）+ 匈牙利 1-1 + 同类 + 次优/最优比 1.2（`AMBIGUOUS_RATIO`）。新 ID `target_{_next_index}`。无 position → `untracked_{i}`；歧义 → `ambiguous_*`（不入表）；表满且无非保护项可逐出 → `overflow_{n}`。`clear()` 清表并复位 `_next_index`。
 7. 贴边 `bbox_touches_image_edge`：不攒 `obs_count`（P1-A），旗标 `bbox_edge`。`untracked_`/`ambiguous_` 强制 `confirmed=false`。
 8. `CollectLockPolicy.update`：只累积 `confirmed`。关窗二选一——静止：帧数≥`min_collect_frames=4` 且连续 `lock_settle_frames=2` 无新增确认 ID **且本帧无未确认在攒**；或超时 `max_collect_s=12`（运行期按帧间隔 EMA 自适应，下限为本值×0.4；**空集也关**）。关闭发一次 `LockEvent`。`GlobalHarvestPlan` 锁定后按优先级推进；超 `anchor_max_age` 打 `anchor_stale` 不可选，超 `anchor_drop` 从计划移除。单果墙钟预算 40 s（相对人工偏保守）。
 9. 发布 `target_observations`、`initial_pose`（只进重建）、diagnostics、debug_image。单帧 ACCEPT / REOBSERVE / REJECT **不得据此接触**。
@@ -456,7 +456,7 @@ stageFinalizeAndValidate     等精化/许可/质量门；非 PREGRASP 再 Check
       stageActuateCutter     TOOL（SetIO ACK ≠ 切断）
       stageVerifyCut         DI 新上升沿，超时 CUT_UNCONFIRMED 不撤退
       stageExecuteReservedReverseRetreat
-      stageReturnHarvestStow 先倒放回拍照位再短 PTP harvest_stow
+      stageReturnHarvestStow 倒放回 global_photo_pose（不再续旧拍照位 harvest_stow）
       stageReleasePayload    stow 后开刀释放
       VerifyHarvestOutcome / CompleteTarget
 ```
@@ -517,7 +517,7 @@ Reconfirm（`allow_stale_anchor` 默认 false）：`ReconfirmPolicy` 容差 `rec
 
 Staging IK 排序：先绝对滚转小，再腕轴加权关节代价（`preferStagingCandidate`）。仅 IK 有解不能宣称轨迹可用。
 
-返程：倒放同一接近轨迹回预抓取，再回拍照位，FULL 再短 PTP `harvest_stow`（与 photo 已分叉，禁止从预抓取直达 stow）。
+返程：倒放同一接近轨迹回预抓取，再回 `global_photo_pose`。`harvest_stow` 是 2026-08-13 旧拍照位，现行不再作为收回目标。
 
 ---
 

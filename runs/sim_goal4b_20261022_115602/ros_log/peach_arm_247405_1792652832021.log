@@ -1,0 +1,662 @@
+[WARN] [1792652832.036078288] [rcl.logging_rosout]: Publisher already registered for node name: 'peach_arm'. If this is due to multiple nodes with the same name then all logs for the logger named 'peach_arm' will go out over the existing publisher. As soon as any node with that name is destructed it will unregister the publisher, preventing any further logs for that name from being published on the rosout topic.
+[WARN] [1792652832.037681937] [peach_arm]: scan.protected_zones 丢弃畸形盒: 盒#0 存在 min>=max 的轴（空盒/退化盒），已丢弃
+[WARN] [1792652833.234197664] [peach_arm]: scan.protected_zones 丢弃畸形盒: 盒#0 存在 min>=max 的轴（空盒/退化盒），已丢弃
+[WARN] [1792652833.253481528] [peach_arm]: scan.protected_zones 丢弃畸形盒: 盒#0 存在 min>=max 的轴（空盒/退化盒），已丢弃
+[WARN] [1792652833.253563168] [peach_arm]: scan.protected_zones 丢弃畸形盒: 盒#0 存在 min>=max 的轴（空盒/退化盒），已丢弃
+[WARN] [1792652833.255226347] [rcl.logging_rosout]: Publisher already registered for node name: 'peach_arm'. If this is due to multiple nodes with the same name then all logs for the logger named 'peach_arm' will go out over the existing publisher. As soon as any node with that name is destructed it will unregister the publisher, preventing any further logs for that name from being published on the rosout topic.
+[INFO] [1792652833.260971916] [peach_arm.moveit.ros.rdf_loader]: Loaded robot model in 0.00224868 seconds
+[INFO] [1792652833.261026475] [peach_arm.moveit.core.robot_model]: Loading robot model 'aubo_e5'...
+[INFO] [1792652833.261040530] [peach_arm.moveit.core.robot_model]: No root/virtual joint specified in SRDF. Assuming fixed joint
+[INFO] [1792652833.281856514] [peach_arm.moveit.kinematics.kdl_kinematics_plugin]: Joint weights for group 'manipulator_e5': 1 1 1 1 1 1
+[INFO] [1792652833.289871888] [peach_arm.moveit.ros.move_group_interface]: Ready to take commands for planning group manipulator_e5.
+[INFO] [1792652833.289915396] [peach_arm]: 主动视觉靠近节点 ready: group=manipulator_e5 base=base_link tip=tcp camera=camera_depth_optical_frame execution=plan_only grasp=disabled
+[INFO] [1792652833.289934130] [peach_arm.cycle]: [IDLE] 已配置；activate 后才开放运动输出权限
+[WARN] [1792652833.323855385] [peach_arm]: scan.protected_zones 丢弃畸形盒: 盒#0 存在 min>=max 的轴（空盒/退化盒），已丢弃
+[INFO] [1792652833.325123522] [peach_arm]: 节点已激活：运动输出权限开放
+[WARN] [1792652833.329759206] [rcl.logging_rosout]: Publisher already registered for node name: 'peach_arm'. If this is due to multiple nodes with the same name then all logs for the logger named 'peach_arm' will go out over the existing publisher. As soon as any node with that name is destructed it will unregister the publisher, preventing any further logs for that name from being published on the rosout topic.
+[WARN] [1792652833.335935740] [rcl.logging_rosout]: Publisher already registered for node name: 'peach_arm'. If this is due to multiple nodes with the same name then all logs for the logger named 'peach_arm' will go out over the existing publisher. As soon as any node with that name is destructed it will unregister the publisher, preventing any further logs for that name from being published on the rosout topic.
+[INFO] [1792652833.341931394] [peach_arm]: 场景障碍 ACM 豁免已应用: 28 条（含 <octomap> 保留名）
+[INFO] [1792652836.355923755] [peach_arm]: 场景障碍 ACM 豁免已应用: 28 条（含 <octomap> 保留名）
+[INFO] [1792652839.448857949] [peach_arm]: 场景障碍 ACM 豁免已应用: 28 条（含 <octomap> 保留名）
+[WARN] [1792652937.880677465] [peach_arm]: scan.protected_zones 丢弃畸形盒: 盒#0 存在 min>=max 的轴（空盒/退化盒），已丢弃
+[WARN] [1792652937.931084660] [peach_arm]: scan.protected_zones 丢弃畸形盒: 盒#0 存在 min>=max 的轴（空盒/退化盒），已丢弃
+[WARN] [1792652937.981904847] [peach_arm]: scan.protected_zones 丢弃畸形盒: 盒#0 存在 min>=max 的轴（空盒/退化盒），已丢弃
+[WARN] [1792652938.038775295] [peach_arm]: scan.protected_zones 丢弃畸形盒: 盒#0 存在 min>=max 的轴（空盒/退化盒），已丢弃
+[WARN] [1792652938.089131488] [peach_arm]: scan.protected_zones 丢弃畸形盒: 盒#0 存在 min>=max 的轴（空盒/退化盒），已丢弃
+[WARN] [1792652938.140759817] [peach_arm]: scan.protected_zones 丢弃畸形盒: 盒#0 存在 min>=max 的轴（空盒/退化盒），已丢弃
+[WARN] [1792652938.191006351] [peach_arm]: scan.protected_zones 丢弃畸形盒: 盒#0 存在 min>=max 的轴（空盒/退化盒），已丢弃
+[INFO] [1792652938.249815008] [peach_arm]: 使能切换到操作台广播源（/peach/batch/enables）
+[INFO] [1792652938.249838762] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（实验室成功测试）
+[INFO] [1792652938.307866817] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（实验室成功测试）
+[INFO] [1792652939.308836877] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（实验室成功测试）
+[INFO] [1792652940.307289675] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（实验室成功测试）
+[INFO] [1792652941.314396434] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（实验室成功测试）
+[INFO] [1792652942.307203868] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（实验室成功测试）
+[INFO] [1792652943.308722485] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（实验室成功测试）
+[WARN] [1792652944.100437046] [peach_arm]: scan.protected_zones 丢弃畸形盒: 盒#0 存在 min>=max 的轴（空盒/退化盒），已丢弃
+[WARN] [1792652944.151294896] [peach_arm]: scan.protected_zones 丢弃畸形盒: 盒#0 存在 min>=max 的轴（空盒/退化盒），已丢弃
+[WARN] [1792652944.202097692] [peach_arm]: scan.protected_zones 丢弃畸形盒: 盒#0 存在 min>=max 的轴（空盒/退化盒），已丢弃
+[WARN] [1792652944.252692612] [peach_arm]: scan.protected_zones 丢弃畸形盒: 盒#0 存在 min>=max 的轴（空盒/退化盒），已丢弃
+[WARN] [1792652944.303354040] [peach_arm]: scan.protected_zones 丢弃畸形盒: 盒#0 存在 min>=max 的轴（空盒/退化盒），已丢弃
+[INFO] [1792652944.307200193] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（实验室成功测试）
+[WARN] [1792652944.353687970] [peach_arm]: scan.protected_zones 丢弃畸形盒: 盒#0 存在 min>=max 的轴（空盒/退化盒），已丢弃
+[WARN] [1792652944.405881410] [peach_arm]: scan.protected_zones 丢弃畸形盒: 盒#0 存在 min>=max 的轴（空盒/退化盒），已丢弃
+[INFO] [1792652944.475496982] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（实验室成功测试）
+[INFO] [1792652945.308761730] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（实验室成功测试）
+[INFO] [1792652946.315002342] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（实验室成功测试）
+[INFO] [1792652947.307637998] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（实验室成功测试）
+[WARN] [1792652947.742505126] [peach_arm]: scan.protected_zones 丢弃畸形盒: 盒#0 存在 min>=max 的轴（空盒/退化盒），已丢弃
+[INFO] [1792652947.802587873] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792652948.310951804] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792652949.307539689] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792652950.310646895] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792652951.307211543] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792652952.310130769] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792652953.070780245] [peach_arm.moveit.ros.current_state_monitor]: Listening to joint states on topic 'joint_states'
+[INFO] [1792652953.075806301] [peach_arm.moveit.ros.move_group_interface]: MoveGroup action client/server ready
+[INFO] [1792652953.076458834] [peach_arm.moveit.ros.move_group_interface]: Planning request accepted
+[INFO] [1792652953.081265695] [peach_arm.moveit.ros.move_group_interface]: Planning request complete!
+[INFO] [1792652953.082299294] [peach_arm.moveit.ros.move_group_interface]: time taken to generate plan: 0.000125708 seconds
+[INFO] [1792652953.082883090] [peach_arm.moveit.ros.move_group_interface]: Execute request accepted
+[INFO] [1792652953.307209578] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792652954.307227577] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792652954.450230156] [peach_arm.moveit.ros.move_group_interface]: Execute request success!
+[INFO] [1792652955.307889148] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792652956.307384982] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792652957.307144547] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792652958.307535004] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792652959.307686943] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792652960.307581567] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792652961.307390982] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792652962.307171132] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792652963.307900276] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792652964.199483056] [peach_arm.contact]: CheckReachability 套入直线预检 pregrasp_ik=1 sleeve_ik=1 cartesian=1 fraction=1.000 roll=15deg threshold=0.95 travel=0.077m path=0.107m seed=[0.359 -0.244 0.689] pre=[0.570 -0.606 0.644] sleeve=[0.569 -0.612 0.751]
+[INFO] [1792652964.199512741] [peach_arm.contact]: CheckReachability 套入直线改用刀口滚转 15°（keep-roll 未走满）
+[INFO] [1792652964.199515650] [peach_arm.contact]: CheckReachability idx=0 require_sleeve=1 travel=0.077m reachable=true code=ok
+[INFO] [1792652964.200252756] [peach_arm.contact]: CheckReachability 套入直线预检 pregrasp_ik=1 sleeve_ik=1 cartesian=1 fraction=1.000 roll=0deg threshold=0.95 travel=0.096m path=0.126m seed=[0.359 -0.244 0.689] pre=[0.400 -0.652 0.633] sleeve=[0.402 -0.672 0.757]
+[INFO] [1792652964.200257135] [peach_arm.contact]: CheckReachability idx=1 require_sleeve=1 travel=0.096m reachable=true code=ok
+[INFO] [1792652964.201080358] [peach_arm.contact]: CheckReachability 套入直线预检 pregrasp_ik=1 sleeve_ik=1 cartesian=1 fraction=1.000 roll=0deg threshold=0.95 travel=0.084m path=0.114m seed=[0.359 -0.244 0.689] pre=[0.304 -0.704 0.599] sleeve=[0.297 -0.748 0.704]
+[INFO] [1792652964.201084565] [peach_arm.contact]: CheckReachability idx=2 require_sleeve=1 travel=0.084m reachable=true code=ok
+[INFO] [1792652964.206548802] [peach_arm.contact]: CheckReachability 套入直线预检 pregrasp_ik=1 sleeve_ik=1 cartesian=1 fraction=1.000 roll=0deg threshold=0.95 travel=0.069m path=0.099m seed=[0.359 -0.244 0.689] pre=[0.222 -0.735 0.620] sleeve=[0.184 -0.766 0.706]
+[INFO] [1792652964.206555152] [peach_arm.contact]: CheckReachability idx=3 require_sleeve=1 travel=0.069m reachable=true code=ok
+[INFO] [1792652964.220376028] [peach_arm.cycle]: [PLAN_OBSERVATION] 生成目标导向主动视点
+[INFO] [1792652964.220583141] [peach_arm.cycle]: [FINALIZE] 等待重建精化几何（BuildTargetModel）
+[INFO] [1792652964.220588337] [peach_arm.cycle]: [FINALIZE] allow_unrefined：等精化几何 timeout=3.6s target=target_0
+[WARN] [1792652964.220593584] [peach_arm]: quality.allow_unrefined_geometry: 用场景观测几何代替重建精化 target=target_0
+[INFO] [1792652964.220595777] [peach_arm.cycle]: [FINALIZE] 精化等待结束 arrived=true elapsed=0.00s
+[INFO] [1792652964.220599785] [peach_arm.cycle]: [FINALIZE] 合取 geometry_ready=true gate.allowed=true(pregrasp_geometry_ready) decision_target_ok=true pregrasp_only=false ctx=target_0 decision_target=target_0 rec_state=READY rec_id=target_0 refined_id=target_0
+[INFO] [1792652964.226037356] [peach_arm.contact]: CheckReachability 套入直线预检 pregrasp_ik=1 sleeve_ik=1 cartesian=1 fraction=1.000 roll=0deg threshold=0.95 travel=0.096m path=0.126m seed=[0.359 -0.244 0.689] pre=[0.400 -0.652 0.633] sleeve=[0.402 -0.672 0.757]
+[INFO] [1792652964.226049959] [peach_arm.contact]: CheckReachability idx=0 require_sleeve=1 travel=0.096m reachable=true code=ok
+[INFO] [1792652964.226055065] [peach_arm.contact]: caller=FINALIZE target=target_0 travel=0.096m require_sleeve=1 reachable=true code=ok
+[INFO] [1792652964.226058163] [peach_arm]: 接触几何（核对方向） target=target_0 entry=[0.400 -0.657 0.663] axis=[0.021 -0.164 0.986] travel=0.096m axis_angle_deg=-1.00
+[INFO] [1792652964.226142863] [peach_arm.cycle]: [RECONFIRM] 抓取前再确认：等待新鲜观测复核身份/锚点漂移/摆动平息
+[INFO] [1792652964.308520984] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792652964.955660517] [peach_arm.cycle]: [MTC_APPROACH_INSERT] 拍照位再最短路径到预抓取
+[INFO] [1792652964.961621289] [peach_arm]: 预抓取从拍照位出发: 已在命名状态
+[INFO] [1792652964.961645248] [peach_arm.contact]: 接近筛滚转 target=target_0 insert_travel=0.096m pregrasp_only=false
+[INFO] [1792652964.961689371] [peach_arm]: 接近：距入口 0.415m 轴向 0.043m 侧向 0.413m 夹角 9.9° 扫角 84.1° 半径 0.415m 沿轴LIN 0.030m 刀口滚转 0° 原语 LIN-align+LIN
+[INFO] [1792652964.966610853] [peach_arm]: [target_0] 接近候选开始: kind=LIN-align+LIN roll=0deg
+[INFO] [1792652964.968222392] [peach_arm.moveit.ros.rdf_loader]: Loaded robot model in 0.0014673 seconds
+[INFO] [1792652964.968233259] [peach_arm.moveit.core.robot_model]: Loading robot model 'aubo_e5'...
+[INFO] [1792652964.968236317] [peach_arm.moveit.core.robot_model]: No root/virtual joint specified in SRDF. Assuming fixed joint
+[INFO] [1792652964.994583970] [peach_arm.moveit.kinematics.kdl_kinematics_plugin]: Joint weights for group 'manipulator_e5': 1 1 1 1 1 1
+[INFO] [1792652964.994710725] [peach_arm]: [target_0] 接近候选任务已建立: elapsed=0.028s
+[INFO] [1792652965.004663181] [peach_arm]: 场景障碍 ACM 豁免已应用: 28 条（含 <octomap> 保留名）
+[INFO] [1792652965.015662344] [peach_arm.moveit.planners.pilz.joint_limits_aggregator]: Reading limits from namespace robot_description_planning
+[INFO] [1792652965.020063792] [peach_arm.moveit.planners.pilz.command_planner]: Available plugins: pilz_industrial_motion_planner/PlanningContextLoaderCIRC pilz_industrial_motion_planner/PlanningContextLoaderLIN pilz_industrial_motion_planner/PlanningContextLoaderPTP 
+[INFO] [1792652965.020077235] [peach_arm.moveit.planners.pilz.command_planner]: About to load: pilz_industrial_motion_planner/PlanningContextLoaderCIRC
+[INFO] [1792652965.021049661] [peach_arm.moveit.planners.pilz.command_planner]: Registered Algorithm [CIRC]
+[INFO] [1792652965.021055677] [peach_arm.moveit.planners.pilz.command_planner]: About to load: pilz_industrial_motion_planner/PlanningContextLoaderLIN
+[INFO] [1792652965.021614450] [peach_arm.moveit.planners.pilz.command_planner]: Registered Algorithm [LIN]
+[INFO] [1792652965.021618926] [peach_arm.moveit.planners.pilz.command_planner]: About to load: pilz_industrial_motion_planner/PlanningContextLoaderPTP
+[INFO] [1792652965.022145463] [peach_arm.moveit.planners.pilz.command_planner]: Registered Algorithm [PTP]
+[INFO] [1792652965.022151750] [peach_arm.moveit.ros.planning_pipeline]: Successfully loaded planner 'Pilz Industrial Motion Planner'
+[INFO] [1792652965.024781159] [peach_arm]: Try loading adapter 'default_planning_request_adapters/ResolveConstraintFrames'
+[INFO] [1792652965.025720510] [peach_arm]: Loaded adapter 'default_planning_request_adapters/ResolveConstraintFrames'
+[INFO] [1792652965.025726815] [peach_arm]: Try loading adapter 'default_planning_request_adapters/ValidateWorkspaceBounds'
+[INFO] [1792652965.025822958] [peach_arm]: Loaded adapter 'default_planning_request_adapters/ValidateWorkspaceBounds'
+[INFO] [1792652965.025824150] [peach_arm]: Try loading adapter 'default_planning_request_adapters/CheckStartStateBounds'
+[INFO] [1792652965.025829986] [peach_arm]: Loaded adapter 'default_planning_request_adapters/CheckStartStateBounds'
+[INFO] [1792652965.025830912] [peach_arm]: Try loading adapter 'default_planning_request_adapters/CheckStartStateCollision'
+[INFO] [1792652965.025836581] [peach_arm]: Loaded adapter 'default_planning_request_adapters/CheckStartStateCollision'
+[INFO] [1792652965.026820879] [peach_arm]: Try loading adapter 'default_planning_response_adapters/ValidateSolution'
+[INFO] [1792652965.028349124] [peach_arm]: Loaded adapter 'default_planning_response_adapters/ValidateSolution'
+[INFO] [1792652965.029815636] [peach_arm.moveit.planners.pilz.joint_limits_aggregator]: Reading limits from namespace robot_description_planning
+[INFO] [1792652965.030152030] [peach_arm.moveit.planners.pilz.command_planner]: Available plugins: pilz_industrial_motion_planner/PlanningContextLoaderCIRC pilz_industrial_motion_planner/PlanningContextLoaderLIN pilz_industrial_motion_planner/PlanningContextLoaderPTP 
+[INFO] [1792652965.030155930] [peach_arm.moveit.planners.pilz.command_planner]: About to load: pilz_industrial_motion_planner/PlanningContextLoaderCIRC
+[INFO] [1792652965.030242536] [peach_arm.moveit.planners.pilz.command_planner]: Registered Algorithm [CIRC]
+[INFO] [1792652965.030259936] [peach_arm.moveit.planners.pilz.command_planner]: About to load: pilz_industrial_motion_planner/PlanningContextLoaderLIN
+[INFO] [1792652965.030339781] [peach_arm.moveit.planners.pilz.command_planner]: Registered Algorithm [LIN]
+[INFO] [1792652965.030341397] [peach_arm.moveit.planners.pilz.command_planner]: About to load: pilz_industrial_motion_planner/PlanningContextLoaderPTP
+[INFO] [1792652965.030421200] [peach_arm.moveit.planners.pilz.command_planner]: Registered Algorithm [PTP]
+[INFO] [1792652965.030423087] [peach_arm.moveit.ros.planning_pipeline]: Successfully loaded planner 'Pilz Industrial Motion Planner'
+[INFO] [1792652965.031831666] [peach_arm]: Try loading adapter 'default_planning_request_adapters/ResolveConstraintFrames'
+[INFO] [1792652965.031954435] [peach_arm]: Loaded adapter 'default_planning_request_adapters/ResolveConstraintFrames'
+[INFO] [1792652965.031956250] [peach_arm]: Try loading adapter 'default_planning_request_adapters/ValidateWorkspaceBounds'
+[INFO] [1792652965.031973963] [peach_arm]: Loaded adapter 'default_planning_request_adapters/ValidateWorkspaceBounds'
+[INFO] [1792652965.031975037] [peach_arm]: Try loading adapter 'default_planning_request_adapters/CheckStartStateBounds'
+[INFO] [1792652965.031980961] [peach_arm]: Loaded adapter 'default_planning_request_adapters/CheckStartStateBounds'
+[INFO] [1792652965.031981748] [peach_arm]: Try loading adapter 'default_planning_request_adapters/CheckStartStateCollision'
+[INFO] [1792652965.031985707] [peach_arm]: Loaded adapter 'default_planning_request_adapters/CheckStartStateCollision'
+[INFO] [1792652965.032850387] [peach_arm]: Try loading adapter 'default_planning_response_adapters/ValidateSolution'
+[INFO] [1792652965.033684524] [peach_arm]: Loaded adapter 'default_planning_response_adapters/ValidateSolution'
+[INFO] [1792652965.187337593] [peach_arm]: Calling PlanningRequestAdapter 'ResolveConstraintFrames'
+[INFO] [1792652965.187481779] [peach_arm]: Calling PlanningRequestAdapter 'ValidateWorkspaceBounds'
+[WARN] [1792652965.187486357] [peach_arm.moveit.ros.validate_workspace_bounds]: It looks like the planning volume was not specified. Using default values.
+[INFO] [1792652965.187498738] [peach_arm]: Calling PlanningRequestAdapter 'CheckStartStateBounds'
+[INFO] [1792652965.187515737] [peach_arm]: Calling PlanningRequestAdapter 'CheckStartStateCollision'
+[INFO] [1792652965.187679787] [peach_arm]: Calling Planner 'Pilz Industrial Motion Planner'
+[INFO] [1792652965.187701941] [peach_arm.moveit.planners.pilz.trajectory_generator]: Generating LIN trajectory...
+[INFO] [1792652965.189127719] [peach_arm]: Calling PlanningResponseAdapter 'ValidateSolution'
+[INFO] [1792652965.190147491] [peach_arm]: Calling PlanningRequestAdapter 'ResolveConstraintFrames'
+[INFO] [1792652965.190203535] [peach_arm]: Calling PlanningRequestAdapter 'ValidateWorkspaceBounds'
+[WARN] [1792652965.190206379] [peach_arm.moveit.ros.validate_workspace_bounds]: It looks like the planning volume was not specified. Using default values.
+[INFO] [1792652965.190217139] [peach_arm]: Calling PlanningRequestAdapter 'CheckStartStateBounds'
+[INFO] [1792652965.190229700] [peach_arm]: Calling PlanningRequestAdapter 'CheckStartStateCollision'
+[INFO] [1792652965.190293770] [peach_arm]: Calling Planner 'Pilz Industrial Motion Planner'
+[INFO] [1792652965.190297645] [peach_arm.moveit.planners.pilz.trajectory_generator]: Generating LIN trajectory...
+[ERROR] [1792652965.196576698] [peach_arm.pilz_trajectory_functions]: Joint velocity limit of foreArm_joint violated. Set the velocity scaling factor lower! Actual joint velocity is 8.75605, while the limit is 2.5964. 
+[ERROR] [1792652965.196640363] [peach_arm.pilz_trajectory_functions]: Inverse kinematics solution at 1.4s violates the joint velocity/acceleration/deceleration limits.
+[ERROR] [1792652965.196684255] [peach_arm.moveit.planners.pilz.trajectory_generator]: Failed to generate valid joint trajectory from the Cartesian path
+[ERROR] [1792652965.196763030] [peach_arm]: Planner 'Pilz Industrial Motion Planner' failed with error code PLANNING_FAILED
+[INFO] [1792652965.196866363] [peach_arm]: [target_0] MTC规划检查已返回: elapsed=0.202s success=false
+[INFO] [1792652965.197619271] [peach_arm]: [target_0] MTC任务已释放: elapsed=0.001s
+[INFO] [1792652965.197625966] [peach_arm]: [target_0] 接近候选结束: roll=0deg elapsed=0.231s success=false reason=MTC planning failed: Failing stage(s):
+lin to on-axis pregrasp (0/1)
+[INFO] [1792652965.201783083] [peach_arm]: [target_0] 接近候选开始: kind=LIN-align+LIN roll=15deg
+[INFO] [1792652965.202789798] [peach_arm.moveit.ros.rdf_loader]: Loaded robot model in 0.000985204 seconds
+[INFO] [1792652965.202795611] [peach_arm.moveit.core.robot_model]: Loading robot model 'aubo_e5'...
+[INFO] [1792652965.202798208] [peach_arm.moveit.core.robot_model]: No root/virtual joint specified in SRDF. Assuming fixed joint
+[INFO] [1792652965.220192263] [peach_arm.moveit.kinematics.kdl_kinematics_plugin]: Joint weights for group 'manipulator_e5': 1 1 1 1 1 1
+[INFO] [1792652965.220306528] [peach_arm]: [target_0] 接近候选任务已建立: elapsed=0.019s
+[INFO] [1792652965.308062801] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792652965.317870024] [peach_arm]: 场景障碍 ACM 豁免已应用: 28 条（含 <octomap> 保留名）
+[INFO] [1792652965.328029227] [peach_arm.moveit.planners.pilz.joint_limits_aggregator]: Reading limits from namespace robot_description_planning
+[INFO] [1792652965.328421643] [peach_arm.moveit.planners.pilz.command_planner]: Available plugins: pilz_industrial_motion_planner/PlanningContextLoaderCIRC pilz_industrial_motion_planner/PlanningContextLoaderLIN pilz_industrial_motion_planner/PlanningContextLoaderPTP 
+[INFO] [1792652965.328425840] [peach_arm.moveit.planners.pilz.command_planner]: About to load: pilz_industrial_motion_planner/PlanningContextLoaderCIRC
+[INFO] [1792652965.329180244] [peach_arm.moveit.planners.pilz.command_planner]: Registered Algorithm [CIRC]
+[INFO] [1792652965.329183469] [peach_arm.moveit.planners.pilz.command_planner]: About to load: pilz_industrial_motion_planner/PlanningContextLoaderLIN
+[INFO] [1792652965.329712445] [peach_arm.moveit.planners.pilz.command_planner]: Registered Algorithm [LIN]
+[INFO] [1792652965.329714953] [peach_arm.moveit.planners.pilz.command_planner]: About to load: pilz_industrial_motion_planner/PlanningContextLoaderPTP
+[INFO] [1792652965.330214146] [peach_arm.moveit.planners.pilz.command_planner]: Registered Algorithm [PTP]
+[INFO] [1792652965.330217061] [peach_arm.moveit.ros.planning_pipeline]: Successfully loaded planner 'Pilz Industrial Motion Planner'
+[INFO] [1792652965.331092607] [peach_arm]: Try loading adapter 'default_planning_request_adapters/ResolveConstraintFrames'
+[INFO] [1792652965.331607706] [peach_arm]: Loaded adapter 'default_planning_request_adapters/ResolveConstraintFrames'
+[INFO] [1792652965.331609659] [peach_arm]: Try loading adapter 'default_planning_request_adapters/ValidateWorkspaceBounds'
+[INFO] [1792652965.331629318] [peach_arm]: Loaded adapter 'default_planning_request_adapters/ValidateWorkspaceBounds'
+[INFO] [1792652965.331630368] [peach_arm]: Try loading adapter 'default_planning_request_adapters/CheckStartStateBounds'
+[INFO] [1792652965.331635457] [peach_arm]: Loaded adapter 'default_planning_request_adapters/CheckStartStateBounds'
+[INFO] [1792652965.331636208] [peach_arm]: Try loading adapter 'default_planning_request_adapters/CheckStartStateCollision'
+[INFO] [1792652965.331640232] [peach_arm]: Loaded adapter 'default_planning_request_adapters/CheckStartStateCollision'
+[INFO] [1792652965.332504074] [peach_arm]: Try loading adapter 'default_planning_response_adapters/ValidateSolution'
+[INFO] [1792652965.333645113] [peach_arm]: Loaded adapter 'default_planning_response_adapters/ValidateSolution'
+[INFO] [1792652965.334980048] [peach_arm.moveit.planners.pilz.joint_limits_aggregator]: Reading limits from namespace robot_description_planning
+[INFO] [1792652965.335283770] [peach_arm.moveit.planners.pilz.command_planner]: Available plugins: pilz_industrial_motion_planner/PlanningContextLoaderCIRC pilz_industrial_motion_planner/PlanningContextLoaderLIN pilz_industrial_motion_planner/PlanningContextLoaderPTP 
+[INFO] [1792652965.335301638] [peach_arm.moveit.planners.pilz.command_planner]: About to load: pilz_industrial_motion_planner/PlanningContextLoaderCIRC
+[INFO] [1792652965.335384890] [peach_arm.moveit.planners.pilz.command_planner]: Registered Algorithm [CIRC]
+[INFO] [1792652965.335386839] [peach_arm.moveit.planners.pilz.command_planner]: About to load: pilz_industrial_motion_planner/PlanningContextLoaderLIN
+[INFO] [1792652965.335465854] [peach_arm.moveit.planners.pilz.command_planner]: Registered Algorithm [LIN]
+[INFO] [1792652965.335467464] [peach_arm.moveit.planners.pilz.command_planner]: About to load: pilz_industrial_motion_planner/PlanningContextLoaderPTP
+[INFO] [1792652965.335547907] [peach_arm.moveit.planners.pilz.command_planner]: Registered Algorithm [PTP]
+[INFO] [1792652965.335549714] [peach_arm.moveit.ros.planning_pipeline]: Successfully loaded planner 'Pilz Industrial Motion Planner'
+[INFO] [1792652965.336403169] [peach_arm]: Try loading adapter 'default_planning_request_adapters/ResolveConstraintFrames'
+[INFO] [1792652965.336741557] [peach_arm]: Loaded adapter 'default_planning_request_adapters/ResolveConstraintFrames'
+[INFO] [1792652965.336744086] [peach_arm]: Try loading adapter 'default_planning_request_adapters/ValidateWorkspaceBounds'
+[INFO] [1792652965.336755559] [peach_arm]: Loaded adapter 'default_planning_request_adapters/ValidateWorkspaceBounds'
+[INFO] [1792652965.336756484] [peach_arm]: Try loading adapter 'default_planning_request_adapters/CheckStartStateBounds'
+[INFO] [1792652965.336761414] [peach_arm]: Loaded adapter 'default_planning_request_adapters/CheckStartStateBounds'
+[INFO] [1792652965.336762174] [peach_arm]: Try loading adapter 'default_planning_request_adapters/CheckStartStateCollision'
+[INFO] [1792652965.336765717] [peach_arm]: Loaded adapter 'default_planning_request_adapters/CheckStartStateCollision'
+[INFO] [1792652965.337629006] [peach_arm]: Try loading adapter 'default_planning_response_adapters/ValidateSolution'
+[INFO] [1792652965.338394854] [peach_arm]: Loaded adapter 'default_planning_response_adapters/ValidateSolution'
+[INFO] [1792652965.412061802] [peach_arm]: Calling PlanningRequestAdapter 'ResolveConstraintFrames'
+[INFO] [1792652965.412127000] [peach_arm]: Calling PlanningRequestAdapter 'ValidateWorkspaceBounds'
+[WARN] [1792652965.412131378] [peach_arm.moveit.ros.validate_workspace_bounds]: It looks like the planning volume was not specified. Using default values.
+[INFO] [1792652965.412141243] [peach_arm]: Calling PlanningRequestAdapter 'CheckStartStateBounds'
+[INFO] [1792652965.412163061] [peach_arm]: Calling PlanningRequestAdapter 'CheckStartStateCollision'
+[INFO] [1792652965.412279933] [peach_arm]: Calling Planner 'Pilz Industrial Motion Planner'
+[INFO] [1792652965.412306793] [peach_arm.moveit.planners.pilz.trajectory_generator]: Generating LIN trajectory...
+[ERROR] [1792652965.413145517] [peach_arm.pilz_trajectory_functions]: Joint deceleration limit of wrist3_joint violated. Set the acceleration scaling factor lower! Actual joint deceleration is 3.37816, while the limit is -3. 
+[ERROR] [1792652965.413177019] [peach_arm.pilz_trajectory_functions]: Inverse kinematics solution at 1.7s violates the joint velocity/acceleration/deceleration limits.
+[ERROR] [1792652965.413205216] [peach_arm.moveit.planners.pilz.trajectory_generator]: Failed to generate valid joint trajectory from the Cartesian path
+[ERROR] [1792652965.413228645] [peach_arm]: Planner 'Pilz Industrial Motion Planner' failed with error code PLANNING_FAILED
+[INFO] [1792652965.413283514] [peach_arm]: [target_0] MTC规划检查已返回: elapsed=0.193s success=false
+[INFO] [1792652965.413958824] [peach_arm]: [target_0] MTC任务已释放: elapsed=0.001s
+[INFO] [1792652965.413964934] [peach_arm]: [target_0] 接近候选结束: roll=15deg elapsed=0.212s success=false reason=MTC planning failed: Failing stage(s):
+lin align tool z (0/1)
+[WARN] [1792652965.413968349] [peach_arm.contact]: [target_0] 笛卡尔 LIN 连续 2 档规划失败（最近: MTC planning failed: Failing stage(s):
+lin align tool z (0/1)），停止滚转搜索，改走 PTP
+[INFO] [1792652965.998995908] [peach_arm]: staging IK 候选筛选成功 target=target_0 model_target= model_revision= frame=base_link group=manipulator_e5 tip=tcp position_m=[0.3986 -0.6436 0.5338] axis=[0.0212 -0.1637 0.9863] attempts=28 ik_failed=0 bounds_failed=0 self_collision=0 corridor_failed=9 valid_candidates=19
+[INFO] [1792652965.999022248] [peach_arm.contact]: [target_0] PTP 入冠候选 19 个（按 |roll| 再关节代价排序）
+[INFO] [1792652966.000251036] [peach_arm.contact]: [target_0] PTP 候选 1/19 roll=0° joint_cost=4.017：关节空间到中段点正下方 + 垂直入冠 0.050m + 沿轴 0.050m
+[INFO] [1792652966.001276577] [peach_arm.moveit.ros.rdf_loader]: Loaded robot model in 0.000992086 seconds
+[INFO] [1792652966.001281719] [peach_arm.moveit.core.robot_model]: Loading robot model 'aubo_e5'...
+[INFO] [1792652966.001284023] [peach_arm.moveit.core.robot_model]: No root/virtual joint specified in SRDF. Assuming fixed joint
+[INFO] [1792652966.021685913] [peach_arm.moveit.kinematics.kdl_kinematics_plugin]: Joint weights for group 'manipulator_e5': 1 1 1 1 1 1
+[INFO] [1792652966.112882630] [peach_arm]: 场景障碍 ACM 豁免已应用: 28 条（含 <octomap> 保留名）
+[INFO] [1792652966.122342793] [peach_arm.moveit.planners.pilz.joint_limits_aggregator]: Reading limits from namespace robot_description_planning
+[INFO] [1792652966.122761878] [peach_arm.moveit.planners.pilz.command_planner]: Available plugins: pilz_industrial_motion_planner/PlanningContextLoaderCIRC pilz_industrial_motion_planner/PlanningContextLoaderLIN pilz_industrial_motion_planner/PlanningContextLoaderPTP 
+[INFO] [1792652966.122767032] [peach_arm.moveit.planners.pilz.command_planner]: About to load: pilz_industrial_motion_planner/PlanningContextLoaderCIRC
+[INFO] [1792652966.123552396] [peach_arm.moveit.planners.pilz.command_planner]: Registered Algorithm [CIRC]
+[INFO] [1792652966.123555971] [peach_arm.moveit.planners.pilz.command_planner]: About to load: pilz_industrial_motion_planner/PlanningContextLoaderLIN
+[INFO] [1792652966.124134451] [peach_arm.moveit.planners.pilz.command_planner]: Registered Algorithm [LIN]
+[INFO] [1792652966.124136667] [peach_arm.moveit.planners.pilz.command_planner]: About to load: pilz_industrial_motion_planner/PlanningContextLoaderPTP
+[INFO] [1792652966.124688998] [peach_arm.moveit.planners.pilz.command_planner]: Registered Algorithm [PTP]
+[INFO] [1792652966.124692653] [peach_arm.moveit.ros.planning_pipeline]: Successfully loaded planner 'Pilz Industrial Motion Planner'
+[INFO] [1792652966.125598487] [peach_arm]: Try loading adapter 'default_planning_request_adapters/ResolveConstraintFrames'
+[INFO] [1792652966.126162521] [peach_arm]: Loaded adapter 'default_planning_request_adapters/ResolveConstraintFrames'
+[INFO] [1792652966.126164555] [peach_arm]: Try loading adapter 'default_planning_request_adapters/ValidateWorkspaceBounds'
+[INFO] [1792652966.126186209] [peach_arm]: Loaded adapter 'default_planning_request_adapters/ValidateWorkspaceBounds'
+[INFO] [1792652966.126187180] [peach_arm]: Try loading adapter 'default_planning_request_adapters/CheckStartStateBounds'
+[INFO] [1792652966.126192968] [peach_arm]: Loaded adapter 'default_planning_request_adapters/CheckStartStateBounds'
+[INFO] [1792652966.126193873] [peach_arm]: Try loading adapter 'default_planning_request_adapters/CheckStartStateCollision'
+[INFO] [1792652966.126197666] [peach_arm]: Loaded adapter 'default_planning_request_adapters/CheckStartStateCollision'
+[INFO] [1792652966.127060596] [peach_arm]: Try loading adapter 'default_planning_response_adapters/ValidateSolution'
+[INFO] [1792652966.128159475] [peach_arm]: Loaded adapter 'default_planning_response_adapters/ValidateSolution'
+[INFO] [1792652966.194134478] [peach_arm]: Calling PlanningRequestAdapter 'ResolveConstraintFrames'
+[INFO] [1792652966.194200133] [peach_arm]: Calling PlanningRequestAdapter 'ValidateWorkspaceBounds'
+[WARN] [1792652966.194204873] [peach_arm.moveit.ros.validate_workspace_bounds]: It looks like the planning volume was not specified. Using default values.
+[INFO] [1792652966.194217762] [peach_arm]: Calling PlanningRequestAdapter 'CheckStartStateBounds'
+[INFO] [1792652966.194238122] [peach_arm]: Calling PlanningRequestAdapter 'CheckStartStateCollision'
+[INFO] [1792652966.194393047] [peach_arm.moveit.planners.pilz.trajectory_generator.ptp]: Initialized Point-to-Point Trajectory Generator.
+[INFO] [1792652966.194444468] [peach_arm]: Calling Planner 'Pilz Industrial Motion Planner'
+[INFO] [1792652966.194470396] [peach_arm.moveit.planners.pilz.trajectory_generator]: Generating PTP trajectory...
+[INFO] [1792652966.194664303] [peach_arm]: Calling PlanningResponseAdapter 'ValidateSolution'
+[INFO] [1792652966.195080015] [peach_arm]: MTC 接近短路径审查: segments=1 allowed=true points=17 duration=1.510s joint_total=2.941rad joint_max=1.029rad (短路径门通过)
+[INFO] [1792652966.195104900] [peach_arm]: MTC 接近果实胶囊审查(seg0 转移): allowed=true min_clearance=999.000m (果实胶囊审查通过)
+[INFO] [1792652966.195108709] [peach_arm]: MTC 接近笛卡尔审查: allowed=true path=0.456m chord=0.430m ratio=1.06 max_dev=0.065m recede=0.000m (笛卡尔短路径门通过)
+[INFO] [1792652966.195112711] [peach_arm]: MTC 接近姿态审查: allowed=true max_from_start=9.9deg (TCP 姿态行程通过)
+[INFO] [1792652966.195120688] [peach_arm]: [target_0] MTC规划检查已返回: elapsed=0.173s success=true
+[INFO] [1792652966.309195757] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792652967.307203271] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[WARN] [1792652967.671743214] [rclcpp]: Failed to get parameters: moveit.velocity_scaling
+[INFO] [1792652968.305852103] [peach_arm]: [target_0] MTC任务已释放: elapsed=0.007s
+[INFO] [1792652968.305869185] [peach_arm.contact]: [target_0] 采用 PTP 候选 1/19 roll=0°
+[INFO] [1792652968.309560877] [peach_arm]: sequence 冠内审查: segments=1 allowed=true points=14 duration=1.250s joint_total=0.602rad (短路径门通过)
+[INFO] [1792652968.312572566] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792652969.307913256] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792652970.132106863] [peach_arm]: 检查点 2（到预抓取）
+[INFO] [1792652970.132166505] [peach_arm.cycle]: [RECONFIRM] 预抓取停稳验证（不 SetIO）
+[INFO] [1792652970.308010122] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792652970.332380558] [peach_arm.cycle]: [PREVIEW_CONTACT_PLANNING] 预规划套入与反向撤退
+[INFO] [1792652970.333706147] [peach_arm.moveit.ros.rdf_loader]: Loaded robot model in 0.00126865 seconds
+[INFO] [1792652970.333714198] [peach_arm.moveit.core.robot_model]: Loading robot model 'aubo_e5'...
+[INFO] [1792652970.333716970] [peach_arm.moveit.core.robot_model]: No root/virtual joint specified in SRDF. Assuming fixed joint
+[INFO] [1792652970.354834821] [peach_arm.moveit.kinematics.kdl_kinematics_plugin]: Joint weights for group 'manipulator_e5': 1 1 1 1 1 1
+[INFO] [1792652970.376962772] [peach_arm]: 场景障碍 ACM 豁免已应用: 28 条（含 <octomap> 保留名）
+[INFO] [1792652970.464760309] [peach_arm]: [target_0] MTC规划检查已返回: elapsed=0.110s success=true
+[INFO] [1792652970.464901699] [peach_arm]: [target_0] MTC任务已释放: elapsed=0.000s
+[INFO] [1792652970.464907110] [peach_arm]: 检查点 3（套入与反向撤退预规划过门）
+[INFO] [1792652970.464951997] [peach_arm.cycle]: [MTC_APPROACH_INSERT] 沿轴 LIN 套入
+[INFO] [1792652970.466014289] [peach_arm.moveit.ros.rdf_loader]: Loaded robot model in 0.00103944 seconds
+[INFO] [1792652970.466020773] [peach_arm.moveit.core.robot_model]: Loading robot model 'aubo_e5'...
+[INFO] [1792652970.466023196] [peach_arm.moveit.core.robot_model]: No root/virtual joint specified in SRDF. Assuming fixed joint
+[INFO] [1792652970.485859503] [peach_arm.moveit.kinematics.kdl_kinematics_plugin]: Joint weights for group 'manipulator_e5': 1 1 1 1 1 1
+[INFO] [1792652970.495424964] [peach_arm]: 场景障碍 ACM 豁免已应用: 28 条（含 <octomap> 保留名）
+[INFO] [1792652970.586761817] [peach_arm]: MTC 接近短路径审查: segments=1 allowed=true points=53 duration=5.137s joint_total=1.259rad joint_max=0.599rad (短路径门通过)
+[INFO] [1792652970.586799855] [peach_arm]: MTC 接近笛卡尔审查: allowed=true path=0.126m chord=0.126m ratio=1.00 max_dev=0.000m recede=0.000m (笛卡尔短路径门通过)
+[INFO] [1792652970.586803420] [peach_arm]: MTC 接近姿态审查: allowed=true max_from_start=0.0deg (TCP 姿态行程通过)
+[INFO] [1792652970.586814290] [peach_arm]: [target_0] MTC规划检查已返回: elapsed=0.101s success=true
+[WARN] [1792652970.675489002] [rclcpp]: Failed to get parameters: moveit.velocity_scaling
+[INFO] [1792652971.307278789] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792652972.311506782] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792652973.307310429] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[WARN] [1792652973.675924754] [rclcpp]: Failed to get parameters: moveit.velocity_scaling
+[INFO] [1792652974.310021772] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792652975.307243367] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792652976.138759645] [peach_arm]: [target_0] MTC任务已释放: elapsed=0.007s
+[INFO] [1792652976.138776395] [peach_arm]: 检查点 4（沿轴套入到位）
+[INFO] [1792652976.138826820] [peach_arm.cycle]: [ACTUATE_TOOL] tool.enabled=false，跳过末端 IO
+[INFO] [1792652976.138853462] [peach_arm.cycle]: [MTC_RETREAT] MTC 沿插入反方向保持直线撤离
+[INFO] [1792652976.140848932] [peach_arm.moveit.ros.rdf_loader]: Loaded robot model in 0.00193307 seconds
+[INFO] [1792652976.140861330] [peach_arm.moveit.core.robot_model]: Loading robot model 'aubo_e5'...
+[INFO] [1792652976.140863971] [peach_arm.moveit.core.robot_model]: No root/virtual joint specified in SRDF. Assuming fixed joint
+[INFO] [1792652976.166473851] [peach_arm.moveit.kinematics.kdl_kinematics_plugin]: Joint weights for group 'manipulator_e5': 1 1 1 1 1 1
+[INFO] [1792652976.183613405] [peach_arm]: 场景障碍 ACM 豁免已应用: 28 条（含 <octomap> 保留名）
+[INFO] [1792652976.310761619] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792652976.353539849] [peach_arm]: [target_0] MTC规划检查已返回: elapsed=0.187s success=true
+[WARN] [1792652976.670172884] [rclcpp]: Failed to get parameters: moveit.velocity_scaling
+[INFO] [1792652977.307121322] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792652978.307519511] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792652979.307269025] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[WARN] [1792652979.669382739] [rclcpp]: Failed to get parameters: moveit.velocity_scaling
+[INFO] [1792652980.309293653] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792652981.307261303] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792652981.954910135] [peach_arm]: [target_0] MTC任务已释放: elapsed=0.010s
+[INFO] [1792652981.954927532] [peach_arm]: 检查点 8（原路撤回预抓取）
+[INFO] [1792652981.954970456] [peach_arm.cycle]: [MTC_RETREAT] 返回 harvest_stow
+[INFO] [1792652981.964733834] [peach_arm]: 拍照位姿沿接近轨迹原路返程: points=30 duration=2.760s
+[INFO] [1792652981.970211161] [peach_arm.moveit.ros.move_group_interface]: Execute request accepted
+[INFO] [1792652982.308680463] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792652983.307714406] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792652984.310044712] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792652985.140423051] [peach_arm.moveit.ros.move_group_interface]: Execute request success!
+[INFO] [1792652985.149836427] [peach_arm.moveit.ros.move_group_interface]: MoveGroup action client/server ready
+[INFO] [1792652985.150048460] [peach_arm.moveit.ros.move_group_interface]: Planning request accepted
+[INFO] [1792652985.155589570] [peach_arm.moveit.ros.move_group_interface]: Planning request complete!
+[INFO] [1792652985.156248021] [peach_arm.moveit.ros.move_group_interface]: time taken to generate plan: 4.4885e-05 seconds
+[INFO] [1792652985.156651342] [peach_arm.moveit.ros.move_group_interface]: Execute request accepted
+[INFO] [1792652985.307134014] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792652986.310275533] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792652986.329749828] [peach_arm.moveit.ros.move_group_interface]: Execute request success!
+[INFO] [1792652986.334595718] [peach_arm]: 检查点 9（回收纳位）
+[INFO] [1792652986.334664835] [peach_arm.cycle]: [SUCCEEDED] 周期完成；tool.enabled=false 或未宣称采摘成功
+[INFO] [1792652986.558311008] [peach_arm.cycle]: [IDLE] 已记录现场人工撤离确认；本服务不发送任何运动命令
+[INFO] [1792652987.307802714] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792652988.307249389] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792652989.310139693] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792652990.310968605] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792652991.311316020] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792652992.308929425] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792652993.312510328] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792652994.307932202] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792652995.307610192] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792652996.308008099] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792652997.307774791] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792652998.307309985] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792652999.307746682] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653000.307331384] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653001.310586890] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653002.308182204] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653003.310697401] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653004.307192756] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653005.308558537] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653006.307324269] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653007.307430716] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653008.307631940] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653009.314283117] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653010.311795216] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653011.310061663] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653012.307393670] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653013.307774784] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653014.307151535] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653015.308808363] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653016.310250669] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653017.308835323] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653018.308159817] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653019.307715014] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653020.310330643] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653021.310267896] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653022.309617809] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653023.307663186] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653024.307167223] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653025.317032958] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653026.307259828] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653027.307360820] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653028.308218240] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653029.307989526] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653030.310380955] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653031.310435174] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653032.307667245] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653033.307316277] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653034.309355833] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653035.307187071] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653036.307764644] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653037.307499827] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653038.307381691] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653039.307546263] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653040.307375654] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653041.307147138] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653042.308450849] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653043.307160224] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653044.308011519] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653045.312190283] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653046.313476310] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653047.307139006] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653048.307164737] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653049.308471611] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653050.307682830] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653051.307173300] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653052.307612827] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653053.307985018] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653054.308364104] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653055.308809055] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653056.308952198] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653057.307110889] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653058.308100468] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653059.307493066] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653060.307419939] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653061.310893093] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653062.307799881] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653063.307139099] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653064.309703098] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653065.307930863] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653066.308503413] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653067.307957299] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653068.307709843] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653069.307382503] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653070.308283190] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653071.308161511] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653072.307862808] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653073.307435894] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653074.307228126] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653075.309790577] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653076.307414482] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653077.308298445] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653078.311198726] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653079.312505052] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653080.308644213] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653081.308535400] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653082.308857820] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653083.314845167] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653084.309301408] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653085.307816728] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653086.307309725] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653087.314061486] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653088.307117757] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653089.312147952] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653090.309532153] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653091.309069601] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653092.307964160] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653093.308481099] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653094.307252954] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653095.309353630] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653096.308856486] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653097.310295464] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653098.310886148] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653099.312582640] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653100.307566719] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653101.308280610] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653102.310965289] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653103.311180623] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653104.308262144] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653105.309609383] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653106.307744573] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653107.307702446] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653108.308135077] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653109.307482381] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653110.307958046] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653111.310239061] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653112.307240574] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653113.307584025] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653114.311350447] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653115.309390744] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653116.307459201] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653117.309572682] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653118.309392617] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653119.309063398] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653120.307328577] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653121.462272465] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653122.314678830] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653123.316273589] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653124.314609949] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653125.311978448] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653126.307914131] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653127.307950058] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653128.309505328] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653129.307517394] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653130.307325745] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653131.311618845] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653132.309544979] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653133.307178250] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653134.309544390] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653135.308033918] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653136.307518183] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653137.307294794] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653138.307394761] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653139.307497371] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653140.308763269] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653141.312144174] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653142.307343688] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653143.308510705] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653144.308290593] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653145.307135960] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653146.308164980] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653147.307654311] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653148.307853232] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653149.309382183] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653150.308109822] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653151.307201714] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653152.307905906] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653153.307432485] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653154.308815787] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653155.307445903] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653156.307676369] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653157.307071990] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653158.307824071] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653159.309450203] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653160.307849447] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653161.307944111] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653162.309531823] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653163.308031506] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653164.307961992] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653165.310176929] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653166.307827082] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653167.309364833] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653168.307816548] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653169.312682814] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653170.307792943] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653171.307676722] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653172.308416662] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653173.307205490] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653174.316409195] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653175.312540053] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653176.307528985] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653177.307329680] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653178.307546547] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653179.309233972] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653180.309109303] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653181.307926388] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653182.307495070] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653183.307285339] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653184.310699912] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653185.307186989] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653186.310906644] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653187.312788681] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653188.308037366] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653189.307202648] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653190.315718297] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653191.307246009] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653192.309464034] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653193.308547590] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653194.307482997] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653195.308568222] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653196.310257142] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653197.312499970] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653198.308077082] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653199.308189578] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653200.307664583] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653201.309901992] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653202.309750807] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653203.309199875] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653204.307889386] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653205.307170439] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653206.308291675] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653207.307188308] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653208.308552726] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653209.314782010] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653210.308825680] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653211.310980982] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653212.308096720] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653213.307340424] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653214.308857370] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653215.310016727] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653216.311099114] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653217.307503824] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653218.312450525] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653219.309267379] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653220.307708967] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653221.307118813] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653222.311487683] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653223.307471623] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653224.314211031] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653225.307903596] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653226.308608494] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653227.307352140] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653228.307279482] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653229.308846112] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653230.309552754] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653231.307569551] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653232.312215529] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653233.307893135] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653234.311816069] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653235.309876957] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653236.309645997] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653237.307162813] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653238.308726769] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653239.310585296] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653240.310319257] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653241.309322556] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653242.309893510] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653243.308943823] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653244.307325655] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653245.310403809] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653246.307465292] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653247.307165221] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653248.309937478] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653249.307478403] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653250.308776567] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653251.307197569] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653252.307476051] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653253.307411181] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653254.307462180] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653255.307642352] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653256.307130328] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653257.307186965] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653258.309529003] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653259.307367818] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653260.309737094] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653261.309040971] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653262.312180793] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653263.357030243] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653264.312767179] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653265.308232950] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653266.309821941] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653267.308268618] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653268.313618005] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653269.307424221] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653270.307705248] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653271.311809828] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653272.307575529] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653273.307217782] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653274.311115938] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653275.308231842] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653276.310213273] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653277.307336252] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653278.311355602] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653279.307937687] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653280.308613306] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653281.307568013] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653282.307978272] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653283.307481586] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653284.307461836] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653285.307336922] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653286.307912915] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653287.313363517] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653288.309464811] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653289.307257068] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653290.308091301] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653291.307439834] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653292.308801176] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653293.307865757] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653294.308389175] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653295.307610324] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653296.308127949] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653297.307239658] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653298.310702915] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653299.311585489] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653300.307654436] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653301.310444585] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653302.308847761] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653303.307371338] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（单步调试）
+[INFO] [1792653303.992018866] [rclcpp]: signal_handler(SIGINT/SIGTERM)

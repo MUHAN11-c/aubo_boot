@@ -1,0 +1,140 @@
+[WARN] [1792640276.971987147] [rcl.logging_rosout]: Publisher already registered for node name: 'peach_arm'. If this is due to multiple nodes with the same name then all logs for the logger named 'peach_arm' will go out over the existing publisher. As soon as any node with that name is destructed it will unregister the publisher, preventing any further logs for that name from being published on the rosout topic.
+[WARN] [1792640276.974058348] [peach_arm]: scan.protected_zones 丢弃畸形盒: 盒#0 存在 min>=max 的轴（空盒/退化盒），已丢弃
+[WARN] [1792640278.252333043] [peach_arm]: scan.protected_zones 丢弃畸形盒: 盒#0 存在 min>=max 的轴（空盒/退化盒），已丢弃
+[WARN] [1792640278.272356280] [peach_arm]: scan.protected_zones 丢弃畸形盒: 盒#0 存在 min>=max 的轴（空盒/退化盒），已丢弃
+[WARN] [1792640278.272455059] [peach_arm]: scan.protected_zones 丢弃畸形盒: 盒#0 存在 min>=max 的轴（空盒/退化盒），已丢弃
+[WARN] [1792640278.273857328] [rcl.logging_rosout]: Publisher already registered for node name: 'peach_arm'. If this is due to multiple nodes with the same name then all logs for the logger named 'peach_arm' will go out over the existing publisher. As soon as any node with that name is destructed it will unregister the publisher, preventing any further logs for that name from being published on the rosout topic.
+[INFO] [1792640278.280269364] [peach_arm.moveit.ros.rdf_loader]: Loaded robot model in 0.00226897 seconds
+[INFO] [1792640278.280315373] [peach_arm.moveit.core.robot_model]: Loading robot model 'aubo_e5'...
+[INFO] [1792640278.280323180] [peach_arm.moveit.core.robot_model]: No root/virtual joint specified in SRDF. Assuming fixed joint
+[INFO] [1792640278.301727495] [peach_arm.moveit.kinematics.kdl_kinematics_plugin]: Joint weights for group 'manipulator_e5': 1 1 1 1 1 1
+[INFO] [1792640278.310851198] [peach_arm.moveit.ros.move_group_interface]: Ready to take commands for planning group manipulator_e5.
+[INFO] [1792640278.310895918] [peach_arm]: 主动视觉靠近节点 ready: group=manipulator_e5 base=base_link tip=tcp camera=camera_depth_optical_frame execution=plan_only grasp=disabled
+[INFO] [1792640278.310915954] [peach_arm.cycle]: [IDLE] 已配置；activate 后才开放运动输出权限
+[WARN] [1792640278.346623718] [peach_arm]: scan.protected_zones 丢弃畸形盒: 盒#0 存在 min>=max 的轴（空盒/退化盒），已丢弃
+[INFO] [1792640278.348422936] [peach_arm]: 节点已激活：运动输出权限开放
+[WARN] [1792640278.356917171] [rcl.logging_rosout]: Publisher already registered for node name: 'peach_arm'. If this is due to multiple nodes with the same name then all logs for the logger named 'peach_arm' will go out over the existing publisher. As soon as any node with that name is destructed it will unregister the publisher, preventing any further logs for that name from being published on the rosout topic.
+[WARN] [1792640278.362579632] [rcl.logging_rosout]: Publisher already registered for node name: 'peach_arm'. If this is due to multiple nodes with the same name then all logs for the logger named 'peach_arm' will go out over the existing publisher. As soon as any node with that name is destructed it will unregister the publisher, preventing any further logs for that name from being published on the rosout topic.
+[INFO] [1792640278.367637179] [peach_arm]: 场景障碍 ACM 豁免已应用: 28 条（含 <octomap> 保留名）
+[INFO] [1792640281.380418211] [peach_arm]: 场景障碍 ACM 豁免已应用: 28 条（含 <octomap> 保留名）
+[INFO] [1792640284.392657172] [peach_arm]: 场景障碍 ACM 豁免已应用: 28 条（含 <octomap> 保留名）
+[INFO] [1792640293.993122911] [peach_arm]: 使能切换到操作台广播源（/peach/batch/enables）
+[INFO] [1792640293.993152082] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（page smoke）
+[INFO] [1792640294.332971097] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（page smoke）
+[INFO] [1792640295.333301987] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（page smoke）
+[INFO] [1792640296.333318076] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（page smoke）
+[INFO] [1792640297.332974128] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（page smoke）
+[INFO] [1792640298.335499779] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（page smoke）
+[INFO] [1792640299.338972966] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（page smoke）
+[INFO] [1792640300.332999094] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（page smoke）
+[INFO] [1792640301.334094175] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（page smoke）
+[INFO] [1792640302.333502567] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（page smoke）
+[INFO] [1792640303.333035607] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（page smoke）
+[INFO] [1792640304.333729238] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（page smoke）
+[INFO] [1792640305.333454707] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（page smoke）
+[INFO] [1792640306.333341759] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（page smoke）
+[INFO] [1792640307.337983488] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（page smoke）
+[INFO] [1792640308.333407729] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（page smoke）
+[INFO] [1792640309.334550228] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（page smoke）
+[INFO] [1792640310.334987513] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（page smoke）
+[INFO] [1792640311.333049075] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（page smoke）
+[INFO] [1792640312.332963881] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（page smoke）
+[INFO] [1792640313.333067078] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（page smoke）
+[INFO] [1792640314.333350876] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（page smoke）
+[INFO] [1792640315.333302567] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（page smoke）
+[INFO] [1792640316.335728688] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（page smoke）
+[INFO] [1792640317.335046483] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（page smoke）
+[INFO] [1792640318.334261738] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（page smoke）
+[INFO] [1792640319.333160417] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（page smoke）
+[INFO] [1792640320.336753398] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（page smoke）
+[INFO] [1792640321.333213330] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（page smoke）
+[INFO] [1792640322.333243300] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（page smoke）
+[INFO] [1792640323.333068901] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（page smoke）
+[INFO] [1792640324.333398114] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（page smoke）
+[INFO] [1792640325.332999034] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（page smoke）
+[INFO] [1792640326.333139284] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（page smoke）
+[INFO] [1792640327.564062751] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（page smoke）
+[INFO] [1792640328.333159790] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（page smoke）
+[INFO] [1792640329.333093163] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（page smoke）
+[INFO] [1792640330.336223954] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（page smoke）
+[INFO] [1792640331.333570900] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（page smoke）
+[INFO] [1792640332.333736196] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（page smoke）
+[INFO] [1792640333.334899894] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（page smoke）
+[INFO] [1792640334.334901247] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（page smoke）
+[INFO] [1792640335.333540576] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（page smoke）
+[INFO] [1792640336.338783091] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（page smoke）
+[INFO] [1792640337.333015155] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（page smoke）
+[INFO] [1792640338.335147051] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（page smoke）
+[INFO] [1792640339.333494091] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（page smoke）
+[INFO] [1792640340.333466140] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（page smoke）
+[INFO] [1792640341.333022590] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（page smoke）
+[INFO] [1792640342.334329337] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（page smoke）
+[INFO] [1792640343.333004557] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（page smoke）
+[INFO] [1792640344.333036666] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（page smoke）
+[INFO] [1792640345.333203898] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（page smoke）
+[INFO] [1792640346.333236993] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（page smoke）
+[INFO] [1792640347.332973658] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（page smoke）
+[INFO] [1792640348.333711627] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（page smoke）
+[INFO] [1792640349.333241361] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（page smoke）
+[INFO] [1792640350.333233724] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（page smoke）
+[INFO] [1792640351.333740416] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（page smoke）
+[INFO] [1792640352.333583665] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（page smoke）
+[INFO] [1792640353.333017811] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（page smoke）
+[INFO] [1792640354.337332116] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（page smoke）
+[INFO] [1792640355.334123223] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（page smoke）
+[INFO] [1792640356.338343668] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（page smoke）
+[INFO] [1792640357.333301065] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（page smoke）
+[INFO] [1792640358.339317846] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（page smoke）
+[INFO] [1792640359.332944586] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（page smoke）
+[INFO] [1792640360.334939086] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（page smoke）
+[INFO] [1792640361.334505009] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（page smoke）
+[INFO] [1792640362.333245076] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（page smoke）
+[INFO] [1792640363.333015452] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（page smoke）
+[INFO] [1792640364.332977311] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（page smoke）
+[INFO] [1792640365.333072850] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（page smoke）
+[INFO] [1792640366.332967689] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（page smoke）
+[INFO] [1792640367.334399793] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（page smoke）
+[INFO] [1792640368.333059961] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（page smoke）
+[INFO] [1792640369.333172812] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（page smoke）
+[INFO] [1792640370.333591160] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（page smoke）
+[INFO] [1792640371.333078431] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（page smoke）
+[INFO] [1792640372.333522174] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（page smoke）
+[INFO] [1792640373.333243267] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（page smoke）
+[INFO] [1792640374.333237900] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（page smoke）
+[INFO] [1792640375.333275233] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（page smoke）
+[INFO] [1792640376.337164771] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（page smoke）
+[INFO] [1792640377.333080591] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（page smoke）
+[INFO] [1792640378.333546517] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（page smoke）
+[INFO] [1792640379.332977564] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（page smoke）
+[INFO] [1792640380.336175678] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（page smoke）
+[INFO] [1792640381.333353696] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（page smoke）
+[INFO] [1792640382.333464956] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（page smoke）
+[INFO] [1792640383.333358105] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（page smoke）
+[INFO] [1792640384.333073859] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（page smoke）
+[INFO] [1792640385.333249594] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（page smoke）
+[INFO] [1792640386.333205399] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（page smoke）
+[INFO] [1792640387.336909808] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（page smoke）
+[INFO] [1792640388.335076945] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（page smoke）
+[INFO] [1792640389.333090762] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（page smoke）
+[INFO] [1792640390.335171129] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（page smoke）
+[INFO] [1792640391.334493104] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（page smoke）
+[INFO] [1792640392.339829230] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（page smoke）
+[INFO] [1792640393.338149427] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（page smoke）
+[INFO] [1792640394.333042994] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（page smoke）
+[INFO] [1792640395.333545800] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（page smoke）
+[INFO] [1792640396.335297669] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（page smoke）
+[INFO] [1792640397.335751816] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（page smoke）
+[INFO] [1792640398.333961335] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（page smoke）
+[INFO] [1792640399.333442496] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（page smoke）
+[INFO] [1792640400.332998380] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（page smoke）
+[INFO] [1792640401.334710358] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（page smoke）
+[INFO] [1792640402.335331883] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（page smoke）
+[INFO] [1792640403.333611111] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（page smoke）
+[INFO] [1792640404.333533654] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（page smoke）
+[INFO] [1792640405.333446094] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（page smoke）
+[INFO] [1792640406.333191466] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（page smoke）
+[INFO] [1792640407.340696195] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（page smoke）
+[INFO] [1792640408.333268436] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（page smoke）
+[INFO] [1792640409.333026349] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（page smoke）
+[INFO] [1792640410.333341749] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（page smoke）
+[INFO] [1792640410.807705636] [rclcpp]: signal_handler(SIGINT/SIGTERM)

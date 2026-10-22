@@ -22,6 +22,7 @@ from typing import Callable, Mapping
 
 from geometry_msgs.msg import PoseStamped
 from nav2_msgs.srv import ManageLifecycleNodes
+from peach_common.param_rules import check_enable_deps
 from peach_interfaces.action import (
     BuildTargetModel,
     ExecuteTarget,
@@ -32,6 +33,7 @@ from peach_interfaces.srv import (
     BeginScene,
     CheckReachability,
     ControlTask,
+    SetEnables,
 )
 from rclpy.action import ActionClient
 from rclpy.task import Future
@@ -82,6 +84,7 @@ _SERVICE_TYPES = {
     'recon_finalize_service': (Trigger, True),
     'recon_query_service': (Trigger, True),
     'manage_nodes_service': (ManageLifecycleNodes, False),
+    'set_enables_service': (SetEnables, False),
 }
 # 动作端点 → 动作类型
 _ACTION_TYPES = {
@@ -130,6 +133,9 @@ def is_motion(action: str, payload: dict) -> bool:
         return command in (
             ControlTask.Request.RESUME,
             ControlTask.Request.EXIT_MAINTENANCE)
+    if action == 'set_enables_service':
+        return bool(payload.get('execution') or payload.get('grasp')
+                    or payload.get('tool'))
     return False
 
 
@@ -151,6 +157,11 @@ def _validate_payload(action: str, payload: dict) -> str | None:
         command = str(payload.get('command', '')).upper()
         if command not in _LIFECYCLE:
             return f'未知 ManageNodes command: {command}'
+    if action == 'set_enables_service':
+        return check_enable_deps(
+            bool(payload.get('execution')),
+            bool(payload.get('grasp')),
+            bool(payload.get('tool')))
     return None
 
 
@@ -231,6 +242,13 @@ def _goal_for(action: str, payload: dict):
         request = ManageLifecycleNodes.Request()
         request.command = _LIFECYCLE.get(
             str(payload.get('command', '')).upper(), 255)
+        return request
+    if action == 'set_enables_service':
+        request = SetEnables.Request()
+        request.execution = bool(payload.get('execution', False))
+        request.grasp = bool(payload.get('grasp', False))
+        request.tool = bool(payload.get('tool', False))
+        request.reason = str(payload.get('reason') or '单步调试')
         return request
     # 其余全部 Trigger 形（无字段）
     return Trigger.Request()

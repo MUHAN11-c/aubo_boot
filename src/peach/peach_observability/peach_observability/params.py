@@ -97,6 +97,7 @@ DEBUG_ENDPOINTS = (
     'recon_finalize_service',
     'recon_query_service',
     'manage_nodes_service',
+    'set_enables_service',
 )
 
 

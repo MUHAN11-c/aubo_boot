@@ -119,6 +119,17 @@ def test_named_targets_exhausted_requires_nonempty_claimed_set():
     assert batch.named_targets_exhausted(['t1', 't2'], {'t1', 't2', 't3'}) is True
 
 
+def test_ids_with_priority_keeps_only_that_slot():
+    obs = _observations([
+        _item('a', prio=1),
+        _item('b', prio=2),
+        _item('c', prio=2, confirmed=False),
+    ])
+    assert batch.ids_with_priority(obs, set(), 2) == ['b']
+    assert batch.ids_with_priority(obs, {'b'}, 2) == []
+    assert batch.ids_with_priority(obs, set(), 0) == []
+
+
 def test_preferred_eligible_passes_through():
     obs = _observations([_item('t1')])
     target_id, filtered = batch.next_target(

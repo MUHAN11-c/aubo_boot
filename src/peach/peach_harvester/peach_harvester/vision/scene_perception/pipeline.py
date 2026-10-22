@@ -20,6 +20,8 @@ from peach_harvester.vision.scene_perception.contracts import BagObservation
 from peach_harvester.vision.scene_perception.debug_draw import (
     draw_debug,
     grasp_order_by_id,
+    orders_for_image,
+    stick_labels,
 )
 from peach_harvester.vision.scene_perception.identity import (
     bbox_touches_image_edge,
@@ -254,6 +256,8 @@ class PerceptionPipeline:
             min_conf_mean=params.lighting.min_conf_mean,
             bad_frames=params.lighting.bad_frames)
         self.bbox_at_edge = {}
+        self._grasp_orders = {}
+        self._image_labels = {}
         self.frame_rate = RateEstimator(alpha=0.3)
         self.collect_window_timeout = AdaptiveTimeout(
             lower=0.4 * params.harvest.max_collect_s, upper=float('inf'),
@@ -271,8 +275,11 @@ class PerceptionPipeline:
         """Reset lock window; clear identity only on physical scene change."""
         self.harvest_plan.reset()
         cleared = 0
-        if self.target_registry is not None and scene_changed:
-            cleared = self.target_registry.clear()
+        if scene_changed:
+            self._grasp_orders = {}
+            self._image_labels = {}
+            if self.target_registry is not None:
+                cleared = self.target_registry.clear()
         self.bbox_at_edge.clear()
         return cleared
 
@@ -515,34 +522,53 @@ class PerceptionPipeline:
                     'mask_depth_ratio': mask_depth_ratio,
                 }
                 cand_arr.candidates.append(candidate_msg)
-                markers.markers.extend(to_markers(
-                    header, tid, p['i'], result,
-                    tool_d_inner=float(params.tool.d_inner_m)))
             overlays.append({
                 'det': det, 'grasp_2d': g2, 'mask': p['overlay_mask'],
                 'tid': tid, 'confirmed': confirmed,
             })
+            # 3D marker 只跟当前检测走，和 2D 同一组 4 颗；不把 memory/selected
+            # 但本轮无检测的目标画成第 5 颗（2026-10-22）。
+            markers.markers.extend(to_markers(
+                header, tid, p['i'], result,
+                tool_d_inner=float(params.tool.d_inner_m)))
 
         if debug is not None or debug_raw is not None:
             with self.plan_lock:
-                orders = grasp_order_by_id(
+                fresh = grasp_order_by_id(
                     self.harvest_plan.locked,
                     dict(self.harvest_plan.priorities))
-            # 序号小的后画，最先抓的标签留在最上层。
-            overlays.sort(key=lambda item: (
-                bool(item['confirmed']),
-                -(orders.get(str(item['tid'])) or 0),
-            ))
+                if fresh:
+                    self._grasp_orders = fresh
+                orders = orders_for_image(
+                    self.harvest_plan.locked,
+                    dict(self.harvest_plan.priorities),
+                    self._grasp_orders)
+            current = []
             for item in overlays:
-                order = orders.get(str(item['tid']))
+                bbox = tuple(item['det']['bbox'])
+                current.append({
+                    **item,
+                    'bbox': bbox,
+                    'order': orders.get(str(item['tid'])) or 0,
+                })
+            draw_items, self._image_labels = stick_labels(
+                current, self._image_labels, orders)
+            draw_items.sort(key=lambda item: (
+                bool(item.get('confirmed')),
+                -int(item.get('order') or 0),
+            ))
+            for item in draw_items:
+                order = item.get('order') or None
                 if debug_raw is not None:
                     draw_debug(
-                        debug_raw, item['det'], item['grasp_2d'], item['mask'],
-                        item['tid'], confirmed=item['confirmed'], order=order)
+                        debug_raw, item['det'], item['grasp_2d'], item.get('mask'),
+                        item.get('tid') or '', confirmed=item.get('confirmed', True),
+                        order=order)
                 if debug is not None:
                     draw_debug(
-                        debug, item['det'], item['grasp_2d'], item['mask'],
-                        item['tid'], confirmed=item['confirmed'], order=order)
+                        debug, item['det'], item['grasp_2d'], item.get('mask'),
+                        item.get('tid') or '', confirmed=item.get('confirmed', True),
+                        order=order)
 
         self.timing.record('geometry_ms', (self.clock.now() - t_geom) * 1e3)
         return PerceptionResult(

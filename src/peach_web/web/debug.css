@@ -1,0 +1,74 @@
+/* 单步调试页附加：本轮开关与参数表。配色沿用过程页。 */
+.debug-page {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 8px 22px 40px;
+}
+.round-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px 22px;
+  margin: 8px 0 12px;
+}
+.round-grid .check,
+.round-grid label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text);
+}
+.round-grid input[type="number"] { width: 72px; }
+.target-picks { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0 12px; }
+.target-pick { display: flex; flex-direction: column; gap: 4px; min-width: 108px; }
+.target-pick small { display: block; color: var(--muted); font-size: 11px; }
+.target-pick button { text-align: left; }
+#single-panel.live { box-shadow: inset 3px 0 0 var(--warn); }
+.round-log { margin: 12px 0 0; padding-left: 18px; color: var(--text-2); }
+.round-log li { margin: 4px 0; }
+.param-group {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  margin-top: 12px;
+  overflow: hidden;
+}
+.param-head {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 10px 14px;
+  background: var(--panel-soft);
+  border-bottom: 1px solid var(--line);
+}
+.param-head .muted { margin-left: auto; }
+.param-row {
+  display: grid;
+  grid-template-columns: minmax(180px, 1.2fr) minmax(140px, 1fr) minmax(140px, 1fr);
+  gap: 12px;
+  align-items: center;
+  padding: 8px 14px;
+  border-bottom: 1px solid var(--line-soft);
+}
+.param-row:last-child { border-bottom: 0; }
+.param-row .name { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; }
+.param-row .label { color: var(--muted); font-size: 12px; margin-top: 2px; }
+.param-row input, .param-row select { width: 100%; }
+.param-row.changed { background: var(--warn-soft); }
+.param-row.unavailable { opacity: .55; }
+.badge {
+  display: inline-block;
+  margin-left: 6px;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  padding: 0 6px;
+  font-size: 10px;
+  color: var(--muted);
+}
+.badge.motion { color: var(--warn); }
+.badge.static { color: var(--info); }
+.note { color: var(--warn); font-size: 11px; margin-top: 2px; }
+@media (max-width: 820px) {
+  .debug-page { padding-left: 12px; padding-right: 12px; }
+  .param-row { grid-template-columns: 1fr; }
+}

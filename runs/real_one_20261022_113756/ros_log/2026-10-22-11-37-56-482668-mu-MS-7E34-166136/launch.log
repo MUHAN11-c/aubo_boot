@@ -1,0 +1,34 @@
+1792640276.4832153 [INFO] [launch]: All log files can be found below /home/mu/Desktop/aubo_e5_jazzy_ws/runs/real_one_20261022_113756/ros_log/2026-10-22-11-37-56-482668-mu-MS-7E34-166136
+1792640276.4832900 [INFO] [launch]: Default logging verbosity is set to INFO
+1792640276.9367599 [INFO] [serial_force_node-11]: process started with pid [166207]
+1792640276.9370964 [INFO] [stereo_camera_node-1]: process started with pid [166197]
+1792640276.9371636 [INFO] [peach_scene_obstacles-2]: process started with pid [166198]
+1792640276.9371994 [INFO] [robot_state_publisher-3]: process started with pid [166199]
+1792640276.9372272 [INFO] [ros2_control_node-4]: process started with pid [166200]
+1792640276.9372537 [INFO] [spawner-5]: process started with pid [166201]
+1792640276.9372783 [INFO] [spawner-6]: process started with pid [166202]
+1792640276.9373007 [INFO] [spawner-7]: process started with pid [166203]
+1792640276.9373219 [INFO] [move_group-8]: process started with pid [166204]
+1792640276.9373429 [INFO] [rviz2-9]: process started with pid [166205]
+1792640276.9373639 [INFO] [extrinsics_publisher-10]: process started with pid [166206]
+1792640276.9373877 [INFO] [peach_harvester-12]: process started with pid [166208]
+1792640276.9374108 [INFO] [peach_arm-13]: process started with pid [166209]
+1792640276.9374318 [INFO] [peach_observability-14]: process started with pid [166210]
+1792640276.9374523 [INFO] [lifecycle_manager-15]: process started with pid [166222]
+1792640276.9374712 [INFO] [peach_lifecycle_flag_bridge-16]: process started with pid [166232]
+1792640277.9254785 [INFO] [spawner-5]: process has finished cleanly [pid 166201]
+1792640281.0565195 [INFO] [spawner-7]: process has finished cleanly [pid 166203]
+1792640282.7693913 [INFO] [spawner-6]: process has finished cleanly [pid 166202]
+1792640410.9264510 [INFO] [robot_state_publisher-3]: process has finished cleanly [pid 166199]
+1792640410.9368873 [INFO] [lifecycle_manager-15]: process has finished cleanly [pid 166222]
+1792640410.9602466 [INFO] [serial_force_node-11]: process has finished cleanly [pid 166207]
+1792640410.9617524 [INFO] [peach_arm-13]: process has finished cleanly [pid 166209]
+1792640410.9621320 [INFO] [peach_lifecycle_flag_bridge-16]: process has finished cleanly [pid 166232]
+1792640411.0118477 [ERROR] [peach_scene_obstacles-2]: process has died [pid 166198, exit code 1, cmd '/home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_harvester/lib/peach_harvester/peach_scene_obstacles --ros-args -p use_sim_time:=False'].
+1792640411.0853741 [INFO] [stereo_camera_node-1]: process has finished cleanly [pid 166197]
+1792640411.1300967 [INFO] [ros2_control_node-4]: process has finished cleanly [pid 166200]
+1792640411.8851681 [ERROR] [peach_harvester-12]: process has died [pid 166208, exit code 1, cmd '/home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_harvester/lib/peach_harvester/peach_harvester --ros-args -r __ns:=/ -p use_sim_time:=False --params-file /tmp/launch_params_81zjge92 --params-file /tmp/launch_params_yj3xr7et --params-file /tmp/launch_params_i0c4e_44 --params-file /tmp/peach_brain_overlay_74t6iq2k.yaml'].
+1792640412.5648093 [ERROR] [extrinsics_publisher-10]: process has died [pid 166206, exit code 1, cmd '/home/mu/Desktop/aubo_e5_jazzy_ws/install/aubo_hand_eye_calibration/lib/aubo_hand_eye_calibration/extrinsics_publisher --ros-args -r __node:=hand_eye_extrinsics_publisher -p use_sim_time:=False'].
+1792640413.0292780 [ERROR] [peach_observability-14]: process has died [pid 166210, exit code 1, cmd '/home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_observability/lib/peach_observability/peach_observability --ros-args -r __node:=peach_observability -r __ns:=/ -p use_sim_time:=False --params-file /tmp/launch_params_zoaxfty9 --params-file /tmp/launch_params_tq_j2rvk'].
+1792640414.0916014 [INFO] [stereo_camera_node-1]: process started with pid [169618]
+1792640421.6667185 [ERROR] [move_group-8]: process has died [pid 166204, exit code -11, cmd '/opt/ros/jazzy/lib/moveit_ros_move_group/move_group --ros-args -p use_sim_time:=False --params-file /tmp/launch_params_f_wr7889 --params-file /tmp/launch_params_7uqjxe1t'].

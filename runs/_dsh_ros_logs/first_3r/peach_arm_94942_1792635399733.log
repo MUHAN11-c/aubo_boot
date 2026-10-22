@@ -1,0 +1,535 @@
+[WARN] [1792635399.747067934] [rcl.logging_rosout]: Publisher already registered for node name: 'peach_arm'. If this is due to multiple nodes with the same name then all logs for the logger named 'peach_arm' will go out over the existing publisher. As soon as any node with that name is destructed it will unregister the publisher, preventing any further logs for that name from being published on the rosout topic.
+[WARN] [1792635399.748726845] [peach_arm]: scan.protected_zones 丢弃畸形盒: 盒#0 存在 min>=max 的轴（空盒/退化盒），已丢弃
+[WARN] [1792635401.024143705] [peach_arm]: scan.protected_zones 丢弃畸形盒: 盒#0 存在 min>=max 的轴（空盒/退化盒），已丢弃
+[WARN] [1792635401.042205855] [peach_arm]: scan.protected_zones 丢弃畸形盒: 盒#0 存在 min>=max 的轴（空盒/退化盒），已丢弃
+[WARN] [1792635401.042303263] [peach_arm]: scan.protected_zones 丢弃畸形盒: 盒#0 存在 min>=max 的轴（空盒/退化盒），已丢弃
+[WARN] [1792635401.043659181] [rcl.logging_rosout]: Publisher already registered for node name: 'peach_arm'. If this is due to multiple nodes with the same name then all logs for the logger named 'peach_arm' will go out over the existing publisher. As soon as any node with that name is destructed it will unregister the publisher, preventing any further logs for that name from being published on the rosout topic.
+[INFO] [1792635401.048768152] [peach_arm.moveit.ros.rdf_loader]: Loaded robot model in 0.00204002 seconds
+[INFO] [1792635401.048818980] [peach_arm.moveit.core.robot_model]: Loading robot model 'aubo_e5'...
+[INFO] [1792635401.048831648] [peach_arm.moveit.core.robot_model]: No root/virtual joint specified in SRDF. Assuming fixed joint
+[INFO] [1792635401.069193907] [peach_arm.moveit.kinematics.kdl_kinematics_plugin]: Joint weights for group 'manipulator_e5': 1 1 1 1 1 1
+[INFO] [1792635401.076502139] [peach_arm.moveit.ros.move_group_interface]: Ready to take commands for planning group manipulator_e5.
+[INFO] [1792635401.076549835] [peach_arm]: 主动视觉靠近节点 ready: group=manipulator_e5 base=base_link tip=tcp camera=camera_depth_optical_frame execution=plan_only grasp=disabled
+[INFO] [1792635401.076571467] [peach_arm.cycle]: [IDLE] 已配置；activate 后才开放运动输出权限
+[WARN] [1792635401.108315415] [peach_arm]: scan.protected_zones 丢弃畸形盒: 盒#0 存在 min>=max 的轴（空盒/退化盒），已丢弃
+[INFO] [1792635401.111269165] [peach_arm]: 节点已激活：运动输出权限开放
+[WARN] [1792635401.115661710] [rcl.logging_rosout]: Publisher already registered for node name: 'peach_arm'. If this is due to multiple nodes with the same name then all logs for the logger named 'peach_arm' will go out over the existing publisher. As soon as any node with that name is destructed it will unregister the publisher, preventing any further logs for that name from being published on the rosout topic.
+[WARN] [1792635401.120909616] [rcl.logging_rosout]: Publisher already registered for node name: 'peach_arm'. If this is due to multiple nodes with the same name then all logs for the logger named 'peach_arm' will go out over the existing publisher. As soon as any node with that name is destructed it will unregister the publisher, preventing any further logs for that name from being published on the rosout topic.
+[INFO] [1792635401.125702623] [peach_arm]: 场景障碍 ACM 豁免已应用: 28 条（含 <octomap> 保留名）
+[INFO] [1792635404.136020116] [peach_arm]: 场景障碍 ACM 豁免已应用: 28 条（含 <octomap> 保留名）
+[INFO] [1792635407.237550618] [peach_arm]: 场景障碍 ACM 豁免已应用: 28 条（含 <octomap> 保留名）
+[INFO] [1792635415.392063422] [peach_arm]: 使能切换到操作台广播源（/peach/batch/enables）
+[INFO] [1792635415.392088359] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[INFO] [1792635415.479925961] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792635416.095547126] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792635417.095083329] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792635418.096039418] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792635419.096177250] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792635420.097980505] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792635421.102803702] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792635421.174406006] [peach_arm.moveit.ros.current_state_monitor]: Listening to joint states on topic 'joint_states'
+[INFO] [1792635422.095563501] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792635423.095836420] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792635424.103272821] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792635425.099100258] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792635426.095991205] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792635427.095530786] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792635428.096739193] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792635429.097909533] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792635430.095373805] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792635431.094960887] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792635432.096878474] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792635433.095017991] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792635433.431505406] [peach_arm.contact]: CheckReachability 套入直线预检 pregrasp_ik=1 sleeve_ik=1 cartesian=1 fraction=1.000 roll=15deg threshold=0.95 travel=0.084m path=0.114m seed=[0.359 -0.244 0.689] pre=[0.569 -0.606 0.644] sleeve=[0.568 -0.612 0.757]
+[INFO] [1792635433.431523955] [peach_arm.contact]: CheckReachability 套入直线改用刀口滚转 15°（keep-roll 未走满）
+[INFO] [1792635433.431527409] [peach_arm.contact]: CheckReachability idx=0 require_sleeve=1 travel=0.084m reachable=true code=ok
+[INFO] [1792635433.432255201] [peach_arm.contact]: CheckReachability 套入直线预检 pregrasp_ik=1 sleeve_ik=1 cartesian=1 fraction=1.000 roll=0deg threshold=0.95 travel=0.096m path=0.126m seed=[0.359 -0.244 0.689] pre=[0.407 -0.650 0.634] sleeve=[0.403 -0.672 0.758]
+[INFO] [1792635433.432259159] [peach_arm.contact]: CheckReachability idx=1 require_sleeve=1 travel=0.096m reachable=true code=ok
+[INFO] [1792635433.433312403] [peach_arm.contact]: CheckReachability 套入直线预检 pregrasp_ik=1 sleeve_ik=1 cartesian=1 fraction=1.000 roll=0deg threshold=0.95 travel=0.079m path=0.109m seed=[0.359 -0.244 0.689] pre=[0.299 -0.707 0.598] sleeve=[0.298 -0.738 0.703]
+[INFO] [1792635433.433316474] [peach_arm.contact]: CheckReachability idx=2 require_sleeve=1 travel=0.079m reachable=true code=ok
+[INFO] [1792635433.434781200] [peach_arm.contact]: CheckReachability 套入直线预检 pregrasp_ik=1 sleeve_ik=1 cartesian=1 fraction=1.000 roll=0deg threshold=0.95 travel=0.070m path=0.100m seed=[0.359 -0.244 0.689] pre=[0.220 -0.736 0.619] sleeve=[0.182 -0.763 0.708]
+[INFO] [1792635433.434785278] [peach_arm.contact]: CheckReachability idx=3 require_sleeve=1 travel=0.070m reachable=true code=ok
+[INFO] [1792635433.481985786] [peach_arm.cycle]: [PLAN_OBSERVATION] 生成目标导向主动视点
+[INFO] [1792635433.482169890] [peach_arm.cycle]: [FINALIZE] 等待重建精化几何（BuildTargetModel）
+[INFO] [1792635433.482177123] [peach_arm.cycle]: [FINALIZE] allow_unrefined：等精化几何 timeout=3.7s target=target_0
+[WARN] [1792635433.482180077] [peach_arm]: quality.allow_unrefined_geometry: 用场景观测几何代替重建精化 target=target_0
+[INFO] [1792635433.482181374] [peach_arm.cycle]: [FINALIZE] 精化等待结束 arrived=true elapsed=0.00s
+[INFO] [1792635433.482184253] [peach_arm.cycle]: [FINALIZE] 合取 geometry_ready=true gate.allowed=true(pregrasp_geometry_ready) decision_target_ok=true pregrasp_only=false ctx=target_0 decision_target=target_0 rec_state=READY rec_id=target_0 refined_id=target_0
+[INFO] [1792635433.737576985] [peach_arm.contact]: CheckReachability 套入直线预检 pregrasp_ik=1 sleeve_ik=1 cartesian=1 fraction=1.000 roll=15deg threshold=0.95 travel=0.084m path=0.114m seed=[0.359 -0.244 0.689] pre=[0.569 -0.606 0.644] sleeve=[0.568 -0.612 0.757]
+[INFO] [1792635433.737616486] [peach_arm.contact]: CheckReachability 套入直线改用刀口滚转 15°（keep-roll 未走满）
+[INFO] [1792635433.737619331] [peach_arm.contact]: CheckReachability idx=0 require_sleeve=1 travel=0.084m reachable=true code=ok
+[INFO] [1792635433.737632048] [peach_arm.contact]: caller=FINALIZE target=target_0 travel=0.084m require_sleeve=1 reachable=true code=ok
+[INFO] [1792635433.737638382] [peach_arm]: 接触几何（核对方向） target=target_0 entry=[0.568 -0.608 0.674] axis=[-0.011 -0.047 0.999] travel=0.084m axis_angle_deg=-1.00
+[INFO] [1792635433.737879856] [peach_arm.cycle]: [RECONFIRM] 抓取前再确认：等待新鲜观测复核身份/锚点漂移/摆动平息
+[INFO] [1792635433.951321328] [peach_arm.cycle]: [MTC_APPROACH_INSERT] 拍照位再最短路径到预抓取
+[INFO] [1792635433.954185341] [peach_arm]: 预抓取从拍照位出发: 已在命名状态
+[INFO] [1792635433.954198375] [peach_arm.contact]: 接近筛滚转 target=target_0 insert_travel=0.084m pregrasp_only=false
+[INFO] [1792635433.954244334] [peach_arm]: 接近：距入口 0.420m 轴向 -0.000m 侧向 0.420m 夹角 3.0° 扫角 90.0° 半径 0.420m 沿轴LIN 0.030m 刀口滚转 0° 原语 staging
+[INFO] [1792635434.307315546] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792635435.096433360] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[WARN] [1792635435.667890970] [peach_arm]: 忽略 refined diagnostics（unrefined_hold）: expected=target_0 actual=target_0
+[INFO] [1792635435.990022102] [peach_arm]: staging IK 候选筛选成功 target=target_0 model_target= model_revision= frame=base_link group=manipulator_e5 tip=tcp position_m=[0.5693 -0.6038 0.5437] axis=[-0.0110 -0.0474 0.9988] attempts=28 ik_failed=8 bounds_failed=0 self_collision=2 corridor_failed=6 valid_candidates=12
+[INFO] [1792635435.990048601] [peach_arm.contact]: [target_0] PTP 入冠候选 12 个（按 |roll| 再关节代价排序）
+[INFO] [1792635435.995453098] [peach_arm.contact]: [target_0] PTP 候选 1/12 roll=15° joint_cost=4.899：关节空间到中段点正下方 + 垂直入冠 0.050m + 沿轴 0.050m
+[INFO] [1792635435.996559883] [peach_arm.moveit.ros.rdf_loader]: Loaded robot model in 0.00101378 seconds
+[INFO] [1792635435.996568670] [peach_arm.moveit.core.robot_model]: Loading robot model 'aubo_e5'...
+[INFO] [1792635435.996570887] [peach_arm.moveit.core.robot_model]: No root/virtual joint specified in SRDF. Assuming fixed joint
+[INFO] [1792635436.024679368] [peach_arm.moveit.kinematics.kdl_kinematics_plugin]: Joint weights for group 'manipulator_e5': 1 1 1 1 1 1
+[INFO] [1792635436.035640601] [peach_arm]: 场景障碍 ACM 豁免已应用: 28 条（含 <octomap> 保留名）
+[INFO] [1792635436.047350315] [peach_arm.moveit.planners.pilz.joint_limits_aggregator]: Reading limits from namespace robot_description_planning
+[INFO] [1792635436.047918562] [peach_arm.moveit.planners.pilz.command_planner]: Available plugins: pilz_industrial_motion_planner/PlanningContextLoaderCIRC pilz_industrial_motion_planner/PlanningContextLoaderLIN pilz_industrial_motion_planner/PlanningContextLoaderPTP 
+[INFO] [1792635436.047924283] [peach_arm.moveit.planners.pilz.command_planner]: About to load: pilz_industrial_motion_planner/PlanningContextLoaderCIRC
+[INFO] [1792635436.048718576] [peach_arm.moveit.planners.pilz.command_planner]: Registered Algorithm [CIRC]
+[INFO] [1792635436.048722828] [peach_arm.moveit.planners.pilz.command_planner]: About to load: pilz_industrial_motion_planner/PlanningContextLoaderLIN
+[INFO] [1792635436.049323950] [peach_arm.moveit.planners.pilz.command_planner]: Registered Algorithm [LIN]
+[INFO] [1792635436.049327038] [peach_arm.moveit.planners.pilz.command_planner]: About to load: pilz_industrial_motion_planner/PlanningContextLoaderPTP
+[INFO] [1792635436.049855804] [peach_arm.moveit.planners.pilz.command_planner]: Registered Algorithm [PTP]
+[INFO] [1792635436.049859956] [peach_arm.moveit.ros.planning_pipeline]: Successfully loaded planner 'Pilz Industrial Motion Planner'
+[INFO] [1792635436.050763284] [peach_arm]: Try loading adapter 'default_planning_request_adapters/ResolveConstraintFrames'
+[INFO] [1792635436.051305816] [peach_arm]: Loaded adapter 'default_planning_request_adapters/ResolveConstraintFrames'
+[INFO] [1792635436.051308529] [peach_arm]: Try loading adapter 'default_planning_request_adapters/ValidateWorkspaceBounds'
+[INFO] [1792635436.051364598] [peach_arm]: Loaded adapter 'default_planning_request_adapters/ValidateWorkspaceBounds'
+[INFO] [1792635436.051365645] [peach_arm]: Try loading adapter 'default_planning_request_adapters/CheckStartStateBounds'
+[INFO] [1792635436.051371176] [peach_arm]: Loaded adapter 'default_planning_request_adapters/CheckStartStateBounds'
+[INFO] [1792635436.051371985] [peach_arm]: Try loading adapter 'default_planning_request_adapters/CheckStartStateCollision'
+[INFO] [1792635436.051375332] [peach_arm]: Loaded adapter 'default_planning_request_adapters/CheckStartStateCollision'
+[INFO] [1792635436.052377593] [peach_arm]: Try loading adapter 'default_planning_response_adapters/ValidateSolution'
+[INFO] [1792635436.053833394] [peach_arm]: Loaded adapter 'default_planning_response_adapters/ValidateSolution'
+[INFO] [1792635436.111098756] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792635436.129805077] [peach_arm]: Calling PlanningRequestAdapter 'ResolveConstraintFrames'
+[INFO] [1792635436.129993503] [peach_arm]: Calling PlanningRequestAdapter 'ValidateWorkspaceBounds'
+[WARN] [1792635436.129997375] [peach_arm.moveit.ros.validate_workspace_bounds]: It looks like the planning volume was not specified. Using default values.
+[INFO] [1792635436.130009886] [peach_arm]: Calling PlanningRequestAdapter 'CheckStartStateBounds'
+[INFO] [1792635436.130020541] [peach_arm]: Calling PlanningRequestAdapter 'CheckStartStateCollision'
+[INFO] [1792635436.130143807] [peach_arm.moveit.planners.pilz.trajectory_generator.ptp]: Initialized Point-to-Point Trajectory Generator.
+[INFO] [1792635436.130153946] [peach_arm]: Calling Planner 'Pilz Industrial Motion Planner'
+[INFO] [1792635436.130176426] [peach_arm.moveit.planners.pilz.trajectory_generator]: Generating PTP trajectory...
+[INFO] [1792635436.130387488] [peach_arm]: Calling PlanningResponseAdapter 'ValidateSolution'
+[INFO] [1792635436.131359507] [peach_arm]: MTC 接近短路径审查: segments=1 allowed=true points=18 duration=1.622s joint_total=3.447rad joint_max=1.145rad (短路径门通过)
+[INFO] [1792635436.131383577] [peach_arm]: MTC 接近果实胶囊审查(seg0 转移): allowed=true min_clearance=0.273m (果实胶囊审查通过)
+[INFO] [1792635436.131387039] [peach_arm]: MTC 接近笛卡尔审查: allowed=true path=0.470m chord=0.441m ratio=1.07 max_dev=0.069m recede=0.000m (笛卡尔短路径门通过)
+[INFO] [1792635436.131390985] [peach_arm]: MTC 接近姿态审查: allowed=true max_from_start=15.3deg (TCP 姿态行程通过)
+[INFO] [1792635436.131399542] [peach_arm]: [target_0] MTC规划检查已返回: elapsed=0.107s success=true
+[WARN] [1792635436.315767511] [rclcpp]: Failed to get parameters: moveit.velocity_scaling
+[INFO] [1792635437.096038869] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792635437.835449134] [peach_arm]: [target_0] MTC任务已释放: elapsed=0.010s
+[INFO] [1792635437.835465591] [peach_arm.contact]: [target_0] 采用 PTP 候选 1/12 roll=15°
+[INFO] [1792635437.843865587] [peach_arm]: sequence 冠内审查: segments=1 allowed=true points=17 duration=1.600s joint_total=0.561rad (短路径门通过)
+[INFO] [1792635438.100736145] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792635439.104238394] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792635439.519534890] [peach_arm]: 检查点 2（到预抓取）
+[INFO] [1792635439.519600903] [peach_arm.cycle]: [RECONFIRM] 预抓取停稳验证（不 SetIO）
+[INFO] [1792635439.719913501] [peach_arm.cycle]: [PREVIEW_CONTACT_PLANNING] 预规划套入与反向撤退
+[INFO] [1792635439.723017162] [peach_arm.moveit.ros.rdf_loader]: Loaded robot model in 0.0029912 seconds
+[INFO] [1792635439.723044230] [peach_arm.moveit.core.robot_model]: Loading robot model 'aubo_e5'...
+[INFO] [1792635439.723049278] [peach_arm.moveit.core.robot_model]: No root/virtual joint specified in SRDF. Assuming fixed joint
+[INFO] [1792635439.754369847] [peach_arm.moveit.kinematics.kdl_kinematics_plugin]: Joint weights for group 'manipulator_e5': 1 1 1 1 1 1
+[INFO] [1792635439.770260204] [peach_arm]: 场景障碍 ACM 豁免已应用: 28 条（含 <octomap> 保留名）
+[INFO] [1792635439.853471688] [peach_arm]: [target_0] MTC规划检查已返回: elapsed=0.099s success=true
+[INFO] [1792635439.853656505] [peach_arm]: [target_0] MTC任务已释放: elapsed=0.000s
+[INFO] [1792635439.853664259] [peach_arm]: 检查点 3（套入与反向撤退预规划过门）
+[INFO] [1792635439.853735758] [peach_arm.cycle]: [MTC_APPROACH_INSERT] 沿轴 LIN 套入
+[INFO] [1792635439.854966135] [peach_arm.moveit.ros.rdf_loader]: Loaded robot model in 0.00120092 seconds
+[INFO] [1792635439.854974497] [peach_arm.moveit.core.robot_model]: Loading robot model 'aubo_e5'...
+[INFO] [1792635439.854976971] [peach_arm.moveit.core.robot_model]: No root/virtual joint specified in SRDF. Assuming fixed joint
+[INFO] [1792635439.876850738] [peach_arm.moveit.kinematics.kdl_kinematics_plugin]: Joint weights for group 'manipulator_e5': 1 1 1 1 1 1
+[INFO] [1792635439.887199605] [peach_arm]: 场景障碍 ACM 豁免已应用: 28 条（含 <octomap> 保留名）
+[INFO] [1792635439.966503899] [peach_arm]: MTC 接近短路径审查: segments=1 allowed=true points=52 duration=5.056s joint_total=1.197rad joint_max=0.589rad (短路径门通过)
+[INFO] [1792635439.966543489] [peach_arm]: MTC 接近笛卡尔审查: allowed=true path=0.114m chord=0.114m ratio=1.00 max_dev=0.000m recede=0.000m (笛卡尔短路径门通过)
+[INFO] [1792635439.966546800] [peach_arm]: MTC 接近姿态审查: allowed=true max_from_start=0.0deg (TCP 姿态行程通过)
+[INFO] [1792635439.966557813] [peach_arm]: [target_0] MTC规划检查已返回: elapsed=0.090s success=true
+[INFO] [1792635440.094725177] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792635441.103172320] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792635442.102110500] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[WARN] [1792635442.319412024] [rclcpp]: Failed to get parameters: moveit.velocity_scaling
+[INFO] [1792635443.099038418] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792635444.103353515] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792635445.105085402] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792635445.116848100] [peach_arm]: [target_0] MTC任务已释放: elapsed=0.007s
+[INFO] [1792635445.116875412] [peach_arm]: 检查点 4（沿轴套入到位）
+[INFO] [1792635445.116932914] [peach_arm.cycle]: [ACTUATE_TOOL] tool.enabled=false，跳过末端 IO
+[INFO] [1792635445.116950086] [peach_arm.cycle]: [MTC_RETREAT] MTC 沿插入反方向保持直线撤离
+[INFO] [1792635445.118205592] [peach_arm.moveit.ros.rdf_loader]: Loaded robot model in 0.00115369 seconds
+[INFO] [1792635445.118218559] [peach_arm.moveit.core.robot_model]: Loading robot model 'aubo_e5'...
+[INFO] [1792635445.118223423] [peach_arm.moveit.core.robot_model]: No root/virtual joint specified in SRDF. Assuming fixed joint
+[INFO] [1792635445.138474907] [peach_arm.moveit.kinematics.kdl_kinematics_plugin]: Joint weights for group 'manipulator_e5': 1 1 1 1 1 1
+[INFO] [1792635445.235779542] [peach_arm]: 场景障碍 ACM 豁免已应用: 28 条（含 <octomap> 保留名）
+[INFO] [1792635445.345609590] [peach_arm]: [target_0] MTC规划检查已返回: elapsed=0.207s success=true
+[INFO] [1792635446.104320346] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792635447.111004931] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792635448.110828188] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[WARN] [1792635448.316780296] [rclcpp]: Failed to get parameters: moveit.velocity_scaling
+[INFO] [1792635449.102506455] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792635450.103018370] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792635450.496831836] [peach_arm]: [target_0] MTC任务已释放: elapsed=0.009s
+[INFO] [1792635450.496856114] [peach_arm]: 检查点 8（原路撤回预抓取）
+[INFO] [1792635450.496906946] [peach_arm.cycle]: [MTC_RETREAT] 返回 harvest_stow
+[INFO] [1792635450.504735814] [peach_arm]: 拍照位姿沿接近轨迹原路返程: points=34 duration=3.222s
+[INFO] [1792635450.509397848] [peach_arm.moveit.ros.move_group_interface]: Execute request accepted
+[INFO] [1792635451.104372701] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792635452.104951197] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792635453.096666415] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792635453.778749835] [peach_arm.moveit.ros.move_group_interface]: Execute request success!
+[INFO] [1792635453.788613827] [peach_arm.moveit.ros.move_group_interface]: MoveGroup action client/server ready
+[INFO] [1792635453.789185616] [peach_arm.moveit.ros.move_group_interface]: Planning request accepted
+[INFO] [1792635453.794794580] [peach_arm.moveit.ros.move_group_interface]: Planning request complete!
+[INFO] [1792635453.796187937] [peach_arm.moveit.ros.move_group_interface]: time taken to generate plan: 6.8256e-05 seconds
+[INFO] [1792635453.798041959] [peach_arm.moveit.ros.move_group_interface]: Execute request accepted
+[INFO] [1792635454.106103451] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792635454.515198923] [peach_arm.moveit.ros.move_group_interface]: Execute request success!
+[INFO] [1792635454.519121211] [peach_arm]: 检查点 9（回收纳位）
+[INFO] [1792635454.519216894] [peach_arm.cycle]: [SUCCEEDED] 周期完成；tool.enabled=false 或未宣称采摘成功
+[INFO] [1792635455.107475898] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792635455.523806359] [peach_arm.cycle]: [IDLE] 已记录现场人工撤离确认；本服务不发送任何运动命令
+[INFO] [1792635456.113444704] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792635457.126443302] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792635458.097822563] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792635459.096289310] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792635460.100669986] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792635461.107309015] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792635462.101318326] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792635463.095334705] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792635464.103983615] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792635465.096096946] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792635466.099118227] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792635467.095828968] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792635468.095980076] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792635468.898724602] [peach_arm.moveit.ros.move_group_interface]: MoveGroup action client/server ready
+[INFO] [1792635468.899419868] [peach_arm.moveit.ros.move_group_interface]: Planning request accepted
+[INFO] [1792635468.905549393] [peach_arm.moveit.ros.move_group_interface]: Planning request complete!
+[INFO] [1792635468.906432552] [peach_arm.moveit.ros.move_group_interface]: time taken to generate plan: 4.609e-05 seconds
+[INFO] [1792635468.907097126] [peach_arm.moveit.ros.move_group_interface]: Execute request accepted
+[INFO] [1792635469.097803961] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792635469.624177072] [peach_arm.moveit.ros.move_group_interface]: Execute request success!
+[INFO] [1792635470.095274347] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792635471.095310173] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792635472.099795400] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792635473.098590375] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792635474.095550344] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792635475.097260424] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792635476.095013916] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792635477.096268006] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792635478.095464593] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792635479.096445299] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792635480.097143306] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792635481.095656081] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792635482.095661505] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792635483.095333375] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792635483.515369186] [peach_arm.contact]: CheckReachability 套入直线预检 pregrasp_ik=1 sleeve_ik=1 cartesian=1 fraction=1.000 roll=15deg threshold=0.95 travel=0.086m path=0.116m seed=[0.359 -0.244 0.689] pre=[0.569 -0.606 0.642] sleeve=[0.568 -0.612 0.758]
+[INFO] [1792635483.515407699] [peach_arm.contact]: CheckReachability 套入直线改用刀口滚转 15°（keep-roll 未走满）
+[INFO] [1792635483.515410581] [peach_arm.contact]: CheckReachability idx=0 require_sleeve=1 travel=0.086m reachable=true code=ok
+[INFO] [1792635483.516226820] [peach_arm.contact]: CheckReachability 套入直线预检 pregrasp_ik=1 sleeve_ik=1 cartesian=1 fraction=1.000 roll=0deg threshold=0.95 travel=0.096m path=0.126m seed=[0.359 -0.244 0.689] pre=[0.407 -0.650 0.634] sleeve=[0.402 -0.671 0.758]
+[INFO] [1792635483.516232854] [peach_arm.contact]: CheckReachability idx=1 require_sleeve=1 travel=0.096m reachable=true code=ok
+[INFO] [1792635483.518686205] [peach_arm.contact]: CheckReachability 套入直线预检 pregrasp_ik=1 sleeve_ik=1 cartesian=1 fraction=1.000 roll=0deg threshold=0.95 travel=0.079m path=0.109m seed=[0.359 -0.244 0.689] pre=[0.299 -0.707 0.599] sleeve=[0.299 -0.739 0.702]
+[INFO] [1792635483.518692282] [peach_arm.contact]: CheckReachability idx=2 require_sleeve=1 travel=0.079m reachable=true code=ok
+[INFO] [1792635483.520696670] [peach_arm.contact]: CheckReachability 套入直线预检 pregrasp_ik=1 sleeve_ik=1 cartesian=1 fraction=1.000 roll=0deg threshold=0.95 travel=0.069m path=0.099m seed=[0.359 -0.244 0.689] pre=[0.220 -0.737 0.619] sleeve=[0.182 -0.763 0.707]
+[INFO] [1792635483.520701678] [peach_arm.contact]: CheckReachability idx=3 require_sleeve=1 travel=0.069m reachable=true code=ok
+[INFO] [1792635483.553992699] [peach_arm.cycle]: [PLAN_OBSERVATION] 生成目标导向主动视点
+[INFO] [1792635483.554108139] [peach_arm.cycle]: [FINALIZE] 等待重建精化几何（BuildTargetModel）
+[INFO] [1792635483.554112039] [peach_arm.cycle]: [FINALIZE] allow_unrefined：等精化几何 timeout=3.9s target=target_3
+[WARN] [1792635483.554117112] [peach_arm]: quality.allow_unrefined_geometry: 用场景观测几何代替重建精化 target=target_3
+[INFO] [1792635483.554118757] [peach_arm.cycle]: [FINALIZE] 精化等待结束 arrived=true elapsed=0.00s
+[INFO] [1792635483.554122319] [peach_arm.cycle]: [FINALIZE] 合取 geometry_ready=true gate.allowed=true(pregrasp_geometry_ready) decision_target_ok=true pregrasp_only=false ctx=target_3 decision_target=target_3 rec_state=READY rec_id=target_3 refined_id=target_3
+[INFO] [1792635483.810283497] [peach_arm.contact]: CheckReachability 套入直线预检 pregrasp_ik=1 sleeve_ik=1 cartesian=1 fraction=1.000 roll=15deg threshold=0.95 travel=0.086m path=0.116m seed=[0.359 -0.244 0.689] pre=[0.569 -0.606 0.642] sleeve=[0.568 -0.612 0.758]
+[INFO] [1792635483.810307604] [peach_arm.contact]: CheckReachability 套入直线改用刀口滚转 15°（keep-roll 未走满）
+[INFO] [1792635483.810309978] [peach_arm.contact]: CheckReachability idx=0 require_sleeve=1 travel=0.086m reachable=true code=ok
+[INFO] [1792635483.810315059] [peach_arm.contact]: caller=FINALIZE target=target_3 travel=0.086m require_sleeve=1 reachable=true code=ok
+[INFO] [1792635483.810318715] [peach_arm]: 接触几何（核对方向） target=target_3 entry=[0.569 -0.608 0.672] axis=[-0.010 -0.046 0.999] travel=0.086m axis_angle_deg=1.05
+[INFO] [1792635483.810411320] [peach_arm.cycle]: [RECONFIRM] 抓取前再确认：等待新鲜观测复核身份/锚点漂移/摆动平息
+[INFO] [1792635484.081673321] [peach_arm.cycle]: [MTC_APPROACH_INSERT] 拍照位再最短路径到预抓取
+[INFO] [1792635484.083894521] [peach_arm]: 预抓取从拍照位出发: 已在命名状态
+[INFO] [1792635484.084022364] [peach_arm.contact]: 接近筛滚转 target=target_3 insert_travel=0.086m pregrasp_only=false
+[INFO] [1792635484.084070603] [peach_arm]: 接近：距入口 0.420m 轴向 -0.002m 侧向 0.420m 夹角 2.9° 扫角 90.2° 半径 0.420m 沿轴LIN 0.030m 刀口滚转 0° 原语 staging
+[INFO] [1792635484.107774787] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[WARN] [1792635484.248919119] [peach_arm]: 忽略 refined diagnostics（unrefined_hold）: expected=target_3 actual=target_3
+[INFO] [1792635485.094879558] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792635486.074565772] [peach_arm]: staging IK 候选筛选成功 target=target_3 model_target= model_revision= frame=base_link group=manipulator_e5 tip=tcp position_m=[0.5699 -0.6039 0.5425] axis=[-0.0103 -0.0461 0.9989] attempts=28 ik_failed=8 bounds_failed=0 self_collision=2 corridor_failed=6 valid_candidates=12
+[INFO] [1792635486.074591221] [peach_arm.contact]: [target_3] PTP 入冠候选 12 个（按 |roll| 再关节代价排序）
+[INFO] [1792635486.079142077] [peach_arm.contact]: [target_3] PTP 候选 1/12 roll=15° joint_cost=4.903：关节空间到中段点正下方 + 垂直入冠 0.050m + 沿轴 0.050m
+[INFO] [1792635486.080178813] [peach_arm.moveit.ros.rdf_loader]: Loaded robot model in 0.00100221 seconds
+[INFO] [1792635486.080185023] [peach_arm.moveit.core.robot_model]: Loading robot model 'aubo_e5'...
+[INFO] [1792635486.080187235] [peach_arm.moveit.core.robot_model]: No root/virtual joint specified in SRDF. Assuming fixed joint
+[INFO] [1792635486.095977742] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792635486.097452575] [peach_arm.moveit.kinematics.kdl_kinematics_plugin]: Joint weights for group 'manipulator_e5': 1 1 1 1 1 1
+[INFO] [1792635486.109468238] [peach_arm]: 场景障碍 ACM 豁免已应用: 28 条（含 <octomap> 保留名）
+[INFO] [1792635486.128099659] [peach_arm.moveit.planners.pilz.joint_limits_aggregator]: Reading limits from namespace robot_description_planning
+[INFO] [1792635486.128501669] [peach_arm.moveit.planners.pilz.command_planner]: Available plugins: pilz_industrial_motion_planner/PlanningContextLoaderCIRC pilz_industrial_motion_planner/PlanningContextLoaderLIN pilz_industrial_motion_planner/PlanningContextLoaderPTP 
+[INFO] [1792635486.128507645] [peach_arm.moveit.planners.pilz.command_planner]: About to load: pilz_industrial_motion_planner/PlanningContextLoaderCIRC
+[INFO] [1792635486.129247363] [peach_arm.moveit.planners.pilz.command_planner]: Registered Algorithm [CIRC]
+[INFO] [1792635486.129251973] [peach_arm.moveit.planners.pilz.command_planner]: About to load: pilz_industrial_motion_planner/PlanningContextLoaderLIN
+[INFO] [1792635486.129796751] [peach_arm.moveit.planners.pilz.command_planner]: Registered Algorithm [LIN]
+[INFO] [1792635486.129800653] [peach_arm.moveit.planners.pilz.command_planner]: About to load: pilz_industrial_motion_planner/PlanningContextLoaderPTP
+[INFO] [1792635486.130310152] [peach_arm.moveit.planners.pilz.command_planner]: Registered Algorithm [PTP]
+[INFO] [1792635486.130313712] [peach_arm.moveit.ros.planning_pipeline]: Successfully loaded planner 'Pilz Industrial Motion Planner'
+[INFO] [1792635486.131195677] [peach_arm]: Try loading adapter 'default_planning_request_adapters/ResolveConstraintFrames'
+[INFO] [1792635486.131729679] [peach_arm]: Loaded adapter 'default_planning_request_adapters/ResolveConstraintFrames'
+[INFO] [1792635486.131731987] [peach_arm]: Try loading adapter 'default_planning_request_adapters/ValidateWorkspaceBounds'
+[INFO] [1792635486.131775179] [peach_arm]: Loaded adapter 'default_planning_request_adapters/ValidateWorkspaceBounds'
+[INFO] [1792635486.131776221] [peach_arm]: Try loading adapter 'default_planning_request_adapters/CheckStartStateBounds'
+[INFO] [1792635486.131781857] [peach_arm]: Loaded adapter 'default_planning_request_adapters/CheckStartStateBounds'
+[INFO] [1792635486.131782625] [peach_arm]: Try loading adapter 'default_planning_request_adapters/CheckStartStateCollision'
+[INFO] [1792635486.131785857] [peach_arm]: Loaded adapter 'default_planning_request_adapters/CheckStartStateCollision'
+[INFO] [1792635486.132624124] [peach_arm]: Try loading adapter 'default_planning_response_adapters/ValidateSolution'
+[INFO] [1792635486.133757182] [peach_arm]: Loaded adapter 'default_planning_response_adapters/ValidateSolution'
+[INFO] [1792635486.199468985] [peach_arm]: Calling PlanningRequestAdapter 'ResolveConstraintFrames'
+[INFO] [1792635486.199520608] [peach_arm]: Calling PlanningRequestAdapter 'ValidateWorkspaceBounds'
+[WARN] [1792635486.199549146] [peach_arm.moveit.ros.validate_workspace_bounds]: It looks like the planning volume was not specified. Using default values.
+[INFO] [1792635486.199556771] [peach_arm]: Calling PlanningRequestAdapter 'CheckStartStateBounds'
+[INFO] [1792635486.199569756] [peach_arm]: Calling PlanningRequestAdapter 'CheckStartStateCollision'
+[INFO] [1792635486.199670667] [peach_arm.moveit.planners.pilz.trajectory_generator.ptp]: Initialized Point-to-Point Trajectory Generator.
+[INFO] [1792635486.199682262] [peach_arm]: Calling Planner 'Pilz Industrial Motion Planner'
+[INFO] [1792635486.199701275] [peach_arm.moveit.planners.pilz.trajectory_generator]: Generating PTP trajectory...
+[INFO] [1792635486.199841514] [peach_arm]: Calling PlanningResponseAdapter 'ValidateSolution'
+[INFO] [1792635486.200199352] [peach_arm]: MTC 接近短路径审查: segments=1 allowed=true points=18 duration=1.621s joint_total=3.450rad joint_max=1.145rad (短路径门通过)
+[INFO] [1792635486.200218515] [peach_arm]: MTC 接近果实胶囊审查(seg0 转移): allowed=true min_clearance=0.262m (果实胶囊审查通过)
+[INFO] [1792635486.200221797] [peach_arm]: MTC 接近笛卡尔审查: allowed=true path=0.471m chord=0.442m ratio=1.07 max_dev=0.069m recede=0.000m (笛卡尔短路径门通过)
+[INFO] [1792635486.200225675] [peach_arm]: MTC 接近姿态审查: allowed=true max_from_start=15.3deg (TCP 姿态行程通过)
+[INFO] [1792635486.200234381] [peach_arm]: [target_3] MTC规划检查已返回: elapsed=0.103s success=true
+[INFO] [1792635487.105656577] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[WARN] [1792635487.314168744] [rclcpp]: Failed to get parameters: moveit.velocity_scaling
+[INFO] [1792635487.898005208] [peach_arm]: [target_3] MTC任务已释放: elapsed=0.006s
+[INFO] [1792635487.898021594] [peach_arm.contact]: [target_3] 采用 PTP 候选 1/12 roll=15°
+[INFO] [1792635487.986462443] [peach_arm]: sequence 冠内审查: segments=1 allowed=true points=17 duration=1.600s joint_total=0.559rad (短路径门通过)
+[INFO] [1792635488.100389333] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792635489.095129247] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792635489.663511127] [peach_arm]: 检查点 2（到预抓取）
+[INFO] [1792635489.663607833] [peach_arm.cycle]: [RECONFIRM] 预抓取停稳验证（不 SetIO）
+[INFO] [1792635489.863854637] [peach_arm.cycle]: [PREVIEW_CONTACT_PLANNING] 预规划套入与反向撤退
+[INFO] [1792635489.865916935] [peach_arm.moveit.ros.rdf_loader]: Loaded robot model in 0.00182428 seconds
+[INFO] [1792635489.865940915] [peach_arm.moveit.core.robot_model]: Loading robot model 'aubo_e5'...
+[INFO] [1792635489.865945475] [peach_arm.moveit.core.robot_model]: No root/virtual joint specified in SRDF. Assuming fixed joint
+[INFO] [1792635489.888498894] [peach_arm.moveit.kinematics.kdl_kinematics_plugin]: Joint weights for group 'manipulator_e5': 1 1 1 1 1 1
+[INFO] [1792635489.900991454] [peach_arm]: 场景障碍 ACM 豁免已应用: 28 条（含 <octomap> 保留名）
+[INFO] [1792635489.977575193] [peach_arm]: [target_3] MTC规划检查已返回: elapsed=0.089s success=true
+[INFO] [1792635489.977717866] [peach_arm]: [target_3] MTC任务已释放: elapsed=0.000s
+[INFO] [1792635489.977723857] [peach_arm]: 检查点 3（套入与反向撤退预规划过门）
+[INFO] [1792635489.977772999] [peach_arm.cycle]: [MTC_APPROACH_INSERT] 沿轴 LIN 套入
+[INFO] [1792635489.978815758] [peach_arm.moveit.ros.rdf_loader]: Loaded robot model in 0.00101427 seconds
+[INFO] [1792635489.978821654] [peach_arm.moveit.core.robot_model]: Loading robot model 'aubo_e5'...
+[INFO] [1792635489.978824170] [peach_arm.moveit.core.robot_model]: No root/virtual joint specified in SRDF. Assuming fixed joint
+[INFO] [1792635489.998432016] [peach_arm.moveit.kinematics.kdl_kinematics_plugin]: Joint weights for group 'manipulator_e5': 1 1 1 1 1 1
+[INFO] [1792635490.008890883] [peach_arm]: 场景障碍 ACM 豁免已应用: 28 条（含 <octomap> 保留名）
+[INFO] [1792635490.109666098] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792635490.175036690] [peach_arm]: MTC 接近短路径审查: segments=1 allowed=true points=54 duration=5.205s joint_total=1.235rad joint_max=0.608rad (短路径门通过)
+[INFO] [1792635490.175081848] [peach_arm]: MTC 接近笛卡尔审查: allowed=true path=0.116m chord=0.116m ratio=1.00 max_dev=0.000m recede=0.000m (笛卡尔短路径门通过)
+[INFO] [1792635490.175086586] [peach_arm]: MTC 接近姿态审查: allowed=true max_from_start=0.0deg (TCP 姿态行程通过)
+[INFO] [1792635490.175098048] [peach_arm]: [target_3] MTC规划检查已返回: elapsed=0.177s success=true
+[WARN] [1792635490.306749649] [rclcpp]: Failed to get parameters: moveit.velocity_scaling
+[INFO] [1792635491.108329581] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792635492.096406358] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792635493.095313055] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[WARN] [1792635493.309021858] [rclcpp]: Failed to get parameters: moveit.velocity_scaling
+[INFO] [1792635494.116475020] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792635495.100114044] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792635495.481679509] [peach_arm]: [target_3] MTC任务已释放: elapsed=0.009s
+[INFO] [1792635495.481700584] [peach_arm]: 检查点 4（沿轴套入到位）
+[INFO] [1792635495.481744785] [peach_arm.cycle]: [ACTUATE_TOOL] tool.enabled=false，跳过末端 IO
+[INFO] [1792635495.481761826] [peach_arm.cycle]: [MTC_RETREAT] MTC 沿插入反方向保持直线撤离
+[INFO] [1792635495.482907585] [peach_arm.moveit.ros.rdf_loader]: Loaded robot model in 0.00107801 seconds
+[INFO] [1792635495.482915143] [peach_arm.moveit.core.robot_model]: Loading robot model 'aubo_e5'...
+[INFO] [1792635495.482917457] [peach_arm.moveit.core.robot_model]: No root/virtual joint specified in SRDF. Assuming fixed joint
+[INFO] [1792635495.506134318] [peach_arm.moveit.kinematics.kdl_kinematics_plugin]: Joint weights for group 'manipulator_e5': 1 1 1 1 1 1
+[INFO] [1792635495.521761037] [peach_arm]: 场景障碍 ACM 豁免已应用: 28 条（含 <octomap> 保留名）
+[INFO] [1792635495.693649649] [peach_arm]: [target_3] MTC规划检查已返回: elapsed=0.187s success=true
+[INFO] [1792635496.096024812] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[WARN] [1792635496.307756611] [rclcpp]: Failed to get parameters: moveit.velocity_scaling
+[INFO] [1792635497.103445537] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792635498.106017080] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792635499.112079177] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[WARN] [1792635499.318142959] [rclcpp]: Failed to get parameters: moveit.velocity_scaling
+[INFO] [1792635500.112184117] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792635500.996979629] [peach_arm]: [target_3] MTC任务已释放: elapsed=0.005s
+[INFO] [1792635500.997000290] [peach_arm]: 检查点 8（原路撤回预抓取）
+[INFO] [1792635500.997160894] [peach_arm.cycle]: [MTC_RETREAT] 返回 harvest_stow
+[INFO] [1792635501.003787886] [peach_arm]: 拍照位姿沿接近轨迹原路返程: points=34 duration=3.221s
+[INFO] [1792635501.011575157] [peach_arm.moveit.ros.move_group_interface]: Execute request accepted
+[INFO] [1792635501.103313152] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792635502.128399103] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792635503.106019437] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792635504.114045615] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792635504.279836991] [peach_arm.moveit.ros.move_group_interface]: Execute request success!
+[INFO] [1792635504.288710862] [peach_arm.moveit.ros.move_group_interface]: MoveGroup action client/server ready
+[INFO] [1792635504.289052985] [peach_arm.moveit.ros.move_group_interface]: Planning request accepted
+[INFO] [1792635504.296647955] [peach_arm.moveit.ros.move_group_interface]: Planning request complete!
+[INFO] [1792635504.297505847] [peach_arm.moveit.ros.move_group_interface]: time taken to generate plan: 4.6404e-05 seconds
+[INFO] [1792635504.298273490] [peach_arm.moveit.ros.move_group_interface]: Execute request accepted
+[INFO] [1792635505.018823064] [peach_arm.moveit.ros.move_group_interface]: Execute request success!
+[INFO] [1792635505.023459754] [peach_arm]: 检查点 9（回收纳位）
+[INFO] [1792635505.023538683] [peach_arm.cycle]: [SUCCEEDED] 周期完成；tool.enabled=false 或未宣称采摘成功
+[INFO] [1792635505.104021943] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792635506.097665370] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792635506.180302879] [peach_arm.cycle]: [IDLE] 已记录现场人工撤离确认；本服务不发送任何运动命令
+[INFO] [1792635507.097533150] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792635508.097688697] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792635509.096379509] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792635510.099163216] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792635511.096775765] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792635512.095712656] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792635513.098012557] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792635514.099159419] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792635514.898545059] [peach_arm.moveit.ros.move_group_interface]: MoveGroup action client/server ready
+[INFO] [1792635514.899300761] [peach_arm.moveit.ros.move_group_interface]: Planning request accepted
+[INFO] [1792635514.905470288] [peach_arm.moveit.ros.move_group_interface]: Planning request complete!
+[INFO] [1792635514.905870041] [peach_arm.moveit.ros.move_group_interface]: time taken to generate plan: 4.8415e-05 seconds
+[INFO] [1792635514.906431528] [peach_arm.moveit.ros.move_group_interface]: Execute request accepted
+[INFO] [1792635515.096573029] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792635515.623700160] [peach_arm.moveit.ros.move_group_interface]: Execute request success!
+[INFO] [1792635516.101423593] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792635517.095180444] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792635518.095002043] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792635519.095438475] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792635520.096304908] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792635521.097584702] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792635522.096216756] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792635523.095421527] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792635524.096810622] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792635525.096194097] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792635526.096092602] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792635527.097731665] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792635528.096633011] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792635529.095867949] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792635529.401371976] [peach_arm.contact]: CheckReachability 套入直线预检 pregrasp_ik=1 sleeve_ik=1 cartesian=1 fraction=1.000 roll=15deg threshold=0.95 travel=0.091m path=0.121m seed=[0.359 -0.244 0.689] pre=[0.571 -0.608 0.642] sleeve=[0.564 -0.608 0.763]
+[INFO] [1792635529.401401105] [peach_arm.contact]: CheckReachability 套入直线改用刀口滚转 15°（keep-roll 未走满）
+[INFO] [1792635529.401404114] [peach_arm.contact]: CheckReachability idx=0 require_sleeve=1 travel=0.091m reachable=true code=ok
+[INFO] [1792635529.402269900] [peach_arm.contact]: CheckReachability 套入直线预检 pregrasp_ik=1 sleeve_ik=1 cartesian=1 fraction=1.000 roll=0deg threshold=0.95 travel=0.096m path=0.126m seed=[0.359 -0.244 0.689] pre=[0.407 -0.650 0.634] sleeve=[0.402 -0.672 0.758]
+[INFO] [1792635529.402278289] [peach_arm.contact]: CheckReachability idx=1 require_sleeve=1 travel=0.096m reachable=true code=ok
+[INFO] [1792635529.405231298] [peach_arm.contact]: CheckReachability 套入直线预检 pregrasp_ik=1 sleeve_ik=1 cartesian=1 fraction=1.000 roll=0deg threshold=0.95 travel=0.080m path=0.110m seed=[0.359 -0.244 0.689] pre=[0.298 -0.705 0.599] sleeve=[0.301 -0.742 0.702]
+[INFO] [1792635529.405242495] [peach_arm.contact]: CheckReachability idx=2 require_sleeve=1 travel=0.080m reachable=true code=ok
+[INFO] [1792635529.407984063] [peach_arm.contact]: CheckReachability 套入直线预检 pregrasp_ik=1 sleeve_ik=1 cartesian=1 fraction=1.000 roll=0deg threshold=0.95 travel=0.070m path=0.100m seed=[0.359 -0.244 0.689] pre=[0.221 -0.737 0.619] sleeve=[0.181 -0.763 0.707]
+[INFO] [1792635529.407990299] [peach_arm.contact]: CheckReachability idx=3 require_sleeve=1 travel=0.070m reachable=true code=ok
+[INFO] [1792635529.456068815] [peach_arm.cycle]: [PLAN_OBSERVATION] 生成目标导向主动视点
+[INFO] [1792635529.456189449] [peach_arm.cycle]: [FINALIZE] 等待重建精化几何（BuildTargetModel）
+[INFO] [1792635529.456193225] [peach_arm.cycle]: [FINALIZE] allow_unrefined：等精化几何 timeout=4.0s target=target_3
+[WARN] [1792635529.456197681] [peach_arm]: quality.allow_unrefined_geometry: 用场景观测几何代替重建精化 target=target_3
+[INFO] [1792635529.456199726] [peach_arm.cycle]: [FINALIZE] 精化等待结束 arrived=true elapsed=0.00s
+[INFO] [1792635529.456203231] [peach_arm.cycle]: [FINALIZE] 合取 geometry_ready=true gate.allowed=true(pregrasp_geometry_ready) decision_target_ok=true pregrasp_only=false ctx=target_3 decision_target=target_3 rec_state=READY rec_id=target_3 refined_id=target_3
+[INFO] [1792635529.667715889] [peach_arm.contact]: CheckReachability 套入直线预检 pregrasp_ik=1 sleeve_ik=1 cartesian=1 fraction=1.000 roll=15deg threshold=0.95 travel=0.091m path=0.121m seed=[0.359 -0.244 0.689] pre=[0.571 -0.608 0.642] sleeve=[0.564 -0.608 0.763]
+[INFO] [1792635529.667734597] [peach_arm.contact]: CheckReachability 套入直线改用刀口滚转 15°（keep-roll 未走满）
+[INFO] [1792635529.667736866] [peach_arm.contact]: CheckReachability idx=0 require_sleeve=1 travel=0.091m reachable=true code=ok
+[INFO] [1792635529.667743395] [peach_arm.contact]: caller=FINALIZE target=target_3 travel=0.091m require_sleeve=1 reachable=true code=ok
+[INFO] [1792635529.667747695] [peach_arm]: 接触几何（核对方向） target=target_3 entry=[0.570 -0.608 0.672] axis=[-0.063 0.003 0.998] travel=0.091m axis_angle_deg=4.36
+[INFO] [1792635529.667848535] [peach_arm.cycle]: [RECONFIRM] 抓取前再确认：等待新鲜观测复核身份/锚点漂移/摆动平息
+[INFO] [1792635530.163944774] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792635530.266090944] [peach_arm.cycle]: [MTC_APPROACH_INSERT] 拍照位再最短路径到预抓取
+[INFO] [1792635530.268653933] [peach_arm]: 预抓取从拍照位出发: 已在命名状态
+[INFO] [1792635530.268665724] [peach_arm.contact]: 接近筛滚转 target=target_3 insert_travel=0.091m pregrasp_only=false
+[INFO] [1792635530.268700428] [peach_arm]: 接近：距入口 0.421m 轴向 -0.031m 侧向 0.419m 夹角 2.6° 扫角 94.3° 半径 0.421m 沿轴LIN 0.030m 刀口滚转 0° 原语 staging
+[WARN] [1792635530.453927753] [peach_arm]: 忽略 refined diagnostics（unrefined_hold）: expected=target_3 actual=target_3
+[INFO] [1792635531.098886729] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792635532.115080762] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792635532.245156549] [peach_arm]: staging IK 候选筛选成功 target=target_3 model_target= model_revision= frame=base_link group=manipulator_e5 tip=tcp position_m=[0.5746 -0.6083 0.5420] axis=[-0.0630 0.0033 0.9980] attempts=28 ik_failed=8 bounds_failed=0 self_collision=2 corridor_failed=6 valid_candidates=12
+[INFO] [1792635532.245205197] [peach_arm.contact]: [target_3] PTP 入冠候选 12 个（按 |roll| 再关节代价排序）
+[INFO] [1792635532.249073373] [peach_arm.contact]: [target_3] PTP 候选 1/12 roll=15° joint_cost=5.169：关节空间到中段点正下方 + 垂直入冠 0.050m + 沿轴 0.050m
+[INFO] [1792635532.250281512] [peach_arm.moveit.ros.rdf_loader]: Loaded robot model in 0.00116145 seconds
+[INFO] [1792635532.250289352] [peach_arm.moveit.core.robot_model]: Loading robot model 'aubo_e5'...
+[INFO] [1792635532.250292485] [peach_arm.moveit.core.robot_model]: No root/virtual joint specified in SRDF. Assuming fixed joint
+[INFO] [1792635532.268794531] [peach_arm.moveit.kinematics.kdl_kinematics_plugin]: Joint weights for group 'manipulator_e5': 1 1 1 1 1 1
+[INFO] [1792635532.278929701] [peach_arm]: 场景障碍 ACM 豁免已应用: 28 条（含 <octomap> 保留名）
+[INFO] [1792635532.289411184] [peach_arm.moveit.planners.pilz.joint_limits_aggregator]: Reading limits from namespace robot_description_planning
+[INFO] [1792635532.289825688] [peach_arm.moveit.planners.pilz.command_planner]: Available plugins: pilz_industrial_motion_planner/PlanningContextLoaderCIRC pilz_industrial_motion_planner/PlanningContextLoaderLIN pilz_industrial_motion_planner/PlanningContextLoaderPTP 
+[INFO] [1792635532.289829993] [peach_arm.moveit.planners.pilz.command_planner]: About to load: pilz_industrial_motion_planner/PlanningContextLoaderCIRC
+[INFO] [1792635532.290601183] [peach_arm.moveit.planners.pilz.command_planner]: Registered Algorithm [CIRC]
+[INFO] [1792635532.290604178] [peach_arm.moveit.planners.pilz.command_planner]: About to load: pilz_industrial_motion_planner/PlanningContextLoaderLIN
+[INFO] [1792635532.291148563] [peach_arm.moveit.planners.pilz.command_planner]: Registered Algorithm [LIN]
+[INFO] [1792635532.291150974] [peach_arm.moveit.planners.pilz.command_planner]: About to load: pilz_industrial_motion_planner/PlanningContextLoaderPTP
+[INFO] [1792635532.291660343] [peach_arm.moveit.planners.pilz.command_planner]: Registered Algorithm [PTP]
+[INFO] [1792635532.291663867] [peach_arm.moveit.ros.planning_pipeline]: Successfully loaded planner 'Pilz Industrial Motion Planner'
+[INFO] [1792635532.293263637] [peach_arm]: Try loading adapter 'default_planning_request_adapters/ResolveConstraintFrames'
+[INFO] [1792635532.294087692] [peach_arm]: Loaded adapter 'default_planning_request_adapters/ResolveConstraintFrames'
+[INFO] [1792635532.294092239] [peach_arm]: Try loading adapter 'default_planning_request_adapters/ValidateWorkspaceBounds'
+[INFO] [1792635532.294124106] [peach_arm]: Loaded adapter 'default_planning_request_adapters/ValidateWorkspaceBounds'
+[INFO] [1792635532.294125236] [peach_arm]: Try loading adapter 'default_planning_request_adapters/CheckStartStateBounds'
+[INFO] [1792635532.294147183] [peach_arm]: Loaded adapter 'default_planning_request_adapters/CheckStartStateBounds'
+[INFO] [1792635532.294148141] [peach_arm]: Try loading adapter 'default_planning_request_adapters/CheckStartStateCollision'
+[INFO] [1792635532.294151970] [peach_arm]: Loaded adapter 'default_planning_request_adapters/CheckStartStateCollision'
+[INFO] [1792635532.295089329] [peach_arm]: Try loading adapter 'default_planning_response_adapters/ValidateSolution'
+[INFO] [1792635532.296410738] [peach_arm]: Loaded adapter 'default_planning_response_adapters/ValidateSolution'
+[INFO] [1792635532.368022536] [peach_arm]: Calling PlanningRequestAdapter 'ResolveConstraintFrames'
+[INFO] [1792635532.368097977] [peach_arm]: Calling PlanningRequestAdapter 'ValidateWorkspaceBounds'
+[WARN] [1792635532.368102120] [peach_arm.moveit.ros.validate_workspace_bounds]: It looks like the planning volume was not specified. Using default values.
+[INFO] [1792635532.368109892] [peach_arm]: Calling PlanningRequestAdapter 'CheckStartStateBounds'
+[INFO] [1792635532.368123280] [peach_arm]: Calling PlanningRequestAdapter 'CheckStartStateCollision'
+[INFO] [1792635532.368243595] [peach_arm.moveit.planners.pilz.trajectory_generator.ptp]: Initialized Point-to-Point Trajectory Generator.
+[INFO] [1792635532.368258365] [peach_arm]: Calling Planner 'Pilz Industrial Motion Planner'
+[INFO] [1792635532.368280500] [peach_arm.moveit.planners.pilz.trajectory_generator]: Generating PTP trajectory...
+[INFO] [1792635532.368435888] [peach_arm]: Calling PlanningResponseAdapter 'ValidateSolution'
+[INFO] [1792635532.368797029] [peach_arm]: MTC 接近短路径审查: segments=1 allowed=true points=18 duration=1.623s joint_total=3.635rad joint_max=1.146rad (短路径门通过)
+[INFO] [1792635532.368824266] [peach_arm]: MTC 接近果实胶囊审查(seg0 转移): allowed=true min_clearance=0.167m (果实胶囊审查通过)
+[INFO] [1792635532.368827682] [peach_arm]: MTC 接近笛卡尔审查: allowed=true path=0.478m chord=0.448m ratio=1.07 max_dev=0.072m recede=0.000m (笛卡尔短路径门通过)
+[INFO] [1792635532.368831562] [peach_arm]: MTC 接近姿态审查: allowed=true max_from_start=15.2deg (TCP 姿态行程通过)
+[INFO] [1792635532.368840530] [peach_arm]: [target_3] MTC规划检查已返回: elapsed=0.100s success=true
+[INFO] [1792635533.102976037] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792635534.082923138] [peach_arm]: [target_3] MTC任务已释放: elapsed=0.009s
+[INFO] [1792635534.082940836] [peach_arm.contact]: [target_3] 采用 PTP 候选 1/12 roll=15°
+[INFO] [1792635534.086599295] [peach_arm]: sequence 冠内审查: segments=1 allowed=true points=18 duration=1.700s joint_total=0.518rad (短路径门通过)
+[INFO] [1792635534.107229177] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792635535.103196576] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792635535.809253547] [peach_arm]: 检查点 2（到预抓取）
+[INFO] [1792635535.809324933] [peach_arm.cycle]: [RECONFIRM] 预抓取停稳验证（不 SetIO）
+[INFO] [1792635536.009882715] [peach_arm.cycle]: [PREVIEW_CONTACT_PLANNING] 预规划套入与反向撤退
+[INFO] [1792635536.011085427] [peach_arm.moveit.ros.rdf_loader]: Loaded robot model in 0.00110762 seconds
+[INFO] [1792635536.011095576] [peach_arm.moveit.core.robot_model]: Loading robot model 'aubo_e5'...
+[INFO] [1792635536.011098178] [peach_arm.moveit.core.robot_model]: No root/virtual joint specified in SRDF. Assuming fixed joint
+[INFO] [1792635536.029418240] [peach_arm.moveit.kinematics.kdl_kinematics_plugin]: Joint weights for group 'manipulator_e5': 1 1 1 1 1 1
+[INFO] [1792635536.038407646] [peach_arm]: 场景障碍 ACM 豁免已应用: 28 条（含 <octomap> 保留名）
+[INFO] [1792635536.098586721] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792635536.122728022] [peach_arm]: [target_3] MTC规划检查已返回: elapsed=0.093s success=true
+[INFO] [1792635536.123169256] [peach_arm]: [target_3] MTC任务已释放: elapsed=0.000s
+[INFO] [1792635536.123291658] [peach_arm]: 检查点 3（套入与反向撤退预规划过门）
+[INFO] [1792635536.123476813] [peach_arm.cycle]: [MTC_APPROACH_INSERT] 沿轴 LIN 套入
+[INFO] [1792635536.124610034] [peach_arm.moveit.ros.rdf_loader]: Loaded robot model in 0.00100647 seconds
+[INFO] [1792635536.124732326] [peach_arm.moveit.core.robot_model]: Loading robot model 'aubo_e5'...
+[INFO] [1792635536.124816124] [peach_arm.moveit.core.robot_model]: No root/virtual joint specified in SRDF. Assuming fixed joint
+[INFO] [1792635536.146661640] [peach_arm.moveit.kinematics.kdl_kinematics_plugin]: Joint weights for group 'manipulator_e5': 1 1 1 1 1 1
+[INFO] [1792635536.158061340] [peach_arm]: 场景障碍 ACM 豁免已应用: 28 条（含 <octomap> 保留名）
+[INFO] [1792635536.322603617] [peach_arm]: MTC 接近短路径审查: segments=1 allowed=true points=48 duration=4.624s joint_total=1.077rad joint_max=0.533rad (短路径门通过)
+[INFO] [1792635536.322643607] [peach_arm]: MTC 接近笛卡尔审查: allowed=true path=0.121m chord=0.121m ratio=1.00 max_dev=0.000m recede=0.000m (笛卡尔短路径门通过)
+[INFO] [1792635536.322647157] [peach_arm]: MTC 接近姿态审查: allowed=true max_from_start=0.0deg (TCP 姿态行程通过)
+[INFO] [1792635536.322658722] [peach_arm]: [target_3] MTC规划检查已返回: elapsed=0.176s success=true
+[INFO] [1792635537.109711998] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792635538.102194988] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[WARN] [1792635538.314656525] [rclcpp]: Failed to get parameters: moveit.velocity_scaling
+[INFO] [1792635539.096689695] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792635540.107995300] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792635541.026078010] [peach_arm]: [target_3] MTC任务已释放: elapsed=0.010s
+[INFO] [1792635541.026109495] [peach_arm]: 检查点 4（沿轴套入到位）
+[INFO] [1792635541.026185955] [peach_arm.cycle]: [ACTUATE_TOOL] tool.enabled=false，跳过末端 IO
+[INFO] [1792635541.026207814] [peach_arm.cycle]: [MTC_RETREAT] MTC 沿插入反方向保持直线撤离
+[INFO] [1792635541.027796468] [peach_arm.moveit.ros.rdf_loader]: Loaded robot model in 0.00145869 seconds
+[INFO] [1792635541.027806090] [peach_arm.moveit.core.robot_model]: Loading robot model 'aubo_e5'...
+[INFO] [1792635541.027808849] [peach_arm.moveit.core.robot_model]: No root/virtual joint specified in SRDF. Assuming fixed joint
+[INFO] [1792635541.052643045] [peach_arm.moveit.kinematics.kdl_kinematics_plugin]: Joint weights for group 'manipulator_e5': 1 1 1 1 1 1
+[INFO] [1792635541.070317246] [peach_arm]: 场景障碍 ACM 豁免已应用: 28 条（含 <octomap> 保留名）
+[INFO] [1792635541.105813025] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792635541.164142000] [peach_arm]: [target_3] MTC规划检查已返回: elapsed=0.111s success=true
+[WARN] [1792635541.319064744] [rclcpp]: Failed to get parameters: moveit.velocity_scaling
+[INFO] [1792635542.100424212] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792635543.096724223] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792635544.101285228] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[WARN] [1792635544.310627699] [rclcpp]: Failed to get parameters: moveit.velocity_scaling
+[INFO] [1792635545.096344089] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792635545.870368600] [peach_arm]: [target_3] MTC任务已释放: elapsed=0.005s
+[INFO] [1792635545.870402258] [peach_arm]: 检查点 8（原路撤回预抓取）
+[INFO] [1792635545.870479583] [peach_arm.cycle]: [MTC_RETREAT] 返回 harvest_stow
+[INFO] [1792635545.882794494] [peach_arm]: 拍照位姿沿接近轨迹原路返程: points=35 duration=3.323s
+[INFO] [1792635545.888739009] [peach_arm.moveit.ros.move_group_interface]: Execute request accepted
+[INFO] [1792635546.098174071] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792635547.119974380] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792635548.097517449] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792635549.098718988] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792635549.263925769] [peach_arm.moveit.ros.move_group_interface]: Execute request success!
+[INFO] [1792635549.277277170] [peach_arm.moveit.ros.move_group_interface]: MoveGroup action client/server ready
+[INFO] [1792635549.281874839] [peach_arm.moveit.ros.move_group_interface]: Planning request accepted
+[INFO] [1792635549.284420660] [peach_arm.moveit.ros.move_group_interface]: Planning request complete!
+[INFO] [1792635549.284932233] [peach_arm.moveit.ros.move_group_interface]: time taken to generate plan: 4.6238e-05 seconds
+[INFO] [1792635549.287627713] [peach_arm.moveit.ros.move_group_interface]: Execute request accepted
+[INFO] [1792635550.005424304] [peach_arm.moveit.ros.move_group_interface]: Execute request success!
+[INFO] [1792635550.008528833] [peach_arm]: 检查点 9（回收纳位）
+[INFO] [1792635550.008610031] [peach_arm.cycle]: [SUCCEEDED] 周期完成；tool.enabled=false 或未宣称采摘成功
+[INFO] [1792635550.110143323] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792635550.242859208] [peach_arm.cycle]: [IDLE] 已记录现场人工撤离确认；本服务不发送任何运动命令
+[INFO] [1792635551.098504051] [peach_arm]: 操作台使能: execution=1 grasp=1 tool=0（live_camera_mock owned test）
+[INFO] [1792635551.496194866] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[INFO] [1792635551.607827487] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[INFO] [1792635552.096676657] [peach_arm]: 操作台使能: execution=0 grasp=0 tool=0（live_camera_mock owned test）
+[INFO] [1792635552.201451639] [rclcpp]: signal_handler(SIGINT/SIGTERM)

@@ -138,6 +138,20 @@ def _pregrasp_radius(item):
     return (pose[0] ** 2 + pose[1] ** 2 + pose[2] ** 2) ** 0.5
 
 
+def ids_with_priority(observations, claimed, ordinal: int):
+    """锁定集里 priority 等于 ordinal 的可执行目标（按观测顺序）.
+
+    ordinal<=0 表示不按顺序号点名。未确认、裸果、贴边、已入账都不在列。
+    """
+    wanted = int(ordinal or 0)
+    if wanted <= 0:
+        return []
+    return [
+        tid for tid, item in _eligible_locked_items(observations, claimed)
+        if int(getattr(item, 'priority', 0) or 0) == wanted
+    ]
+
+
 def next_target(
         observations, claimed, preferred=(),
         depth_range=(0.30, 1.60), ik_results=None,

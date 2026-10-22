@@ -32,7 +32,7 @@ brain入口将 `KeyboardInterrupt` 和 `ExternalShutdownException` 作为正常�
 | dispatch | 绑定 Build 后派臂 | `reconstruct_in_trajectory=true`（不再串行补视） |
 | execute_full | PREGRASP_ONLY 或 FULL | 同上 `execute_pregrasp_only`；`execution_enabled` 默认 false |
 
-选果输入只有 `target_observations`。资格：已锁定、已确认、未入账、非裸果、非贴边、非 `tool_clearance_failed`。点名 `goal.target_ids` 过同一资格，但不受深度/IK 窗。CheckReachability 不可用才回退 `selection_reach_min_m=0.15` / `max_m=0.88` 半径窗。SELECT 用感知建议行程；默认 `execute_pregrasp_only=true` 只检预抓取停位 IK。仅显式套入（`execute_pregrasp_only=false`）才 `require_sleeve`。臂侧 Finalize 用精化行程再检一次，且同样仅非预抓取才检套入直线。
+选果输入只有 `target_observations`。资格：已锁定、已确认、未入账、非裸果、非贴边、非 `tool_clearance_failed`。点名 `goal.target_ids` 过同一资格，但不受深度/IK 窗。`selection_priority` 默认 0：仍按点名或自动第一颗。大于 0 时本批只抓锁定集里 `priority` 等于该值的一颗，并把它写回 `goal.target_ids`，抓完即收批；点名名单不参与。调试页「每轮按顺序」每轮改这个数，顺序号来自本批拍照锁定，不用开批前那份可能已换代的 ID。CheckReachability 不可用才回退 `selection_reach_min_m=0.15` / `max_m=0.88` 半径窗。SELECT 用感知建议行程；默认 `execute_pregrasp_only=true` 只检预抓取停位 IK。仅显式套入（`execute_pregrasp_only=false`）才 `require_sleeve`。臂侧 Finalize 用精化行程再检一次，且同样仅非预抓取才检套入直线。
 
 选果预检走 `peach_supervisor.contact`，消息 `caller=SELECT target=… travel=… reachable=… code=…`。`code=ok` 才入选。默认不检套入；`sleeve_no_cartesian` 只在显式套入预检出现，表示预抓取和套入终点都有 IK、沿轴直线未走满——看同秒臂侧 `peach_arm.contact` 的 `CheckReachability` 各滚转 `fraction`。无候选则 `empty_survey_limit=2` 次回访后结算。`goal.target_ids` 非空且已全部入账时 CYCLE_DONE 发 `EMPTY_LIMIT` 立即结算，不再空扫。单果墙钟预算 40 s（相对人工偏保守）：收齐 `confirm_frames=2` / `min_collect_frames=4` / `lock_settle_frames=2` / `max_collect_s=12`；重建帧环 12 s / 96 帧 / 192 MiB。2026-10-16 真实相机+mock 短测 5/5 见 [测试指导](../../peach_system_tests/doc/testing.md)（账本 24–27 s，RunHarvest 38–43 s）。rqt_console 按 logger 名过滤；文件在 `$ROS_HOME/log`。
 

@@ -50,6 +50,8 @@ HTTP `/api/state` 区段：`perception` / `reconstruction` / `refined` / `manipu
 |------|------|
 | 账本 | `runs/<request_id>/ledger.json` |
 | 会话 bag | `runs/session_<YYYYMMDD>_<HHMMSS>/bag/`（`bag_0.mcap` + `metadata.yaml`；节点启动开、关闭收尾，非正常退出可 `ros2 bag reindex` 恢复） |
+| 五点力接触段 | 同一会话目录 `force/`（`force_web` 写入，不进 bag）：`episode_NNN.csv` + json，`index.jsonl` 的 `contact_s` 是离开空载到归零前的时长；手动 20 s 记录同目录。袋文件仍在更新才算当前会话 |
+| 抓取周期 | 同一会话目录 `cycles/<终局时间>_<target_id>.json`（调度在账本落盘后写入）：`wall_start` / `wall_end`、阶段时长、`request_id`。一次开栈从启动到结束都在这个 `session_<时间>/` 里，分析页不再把其中的 `web_*` / `grasp_*` 账本目录另列一条 |
 | 会话报告 | `runs/session_*/bag_report.md` + `bag_report.json`（bag封口后子进程生成；写盘原子tmp+rename。退出默认等30秒，再terminate/kill并回收；超时保留完整bag并明确报错，`ros2 run peach_observability peach_bag_report <bag>`可复跑。子进程继承本轮launch进程组，不遗留后台分析。按request_id还原outcome/阶段耗时/验收门/TCP轨迹；DDS action生成类型从msg命名空间回退action解析，未知类型仅记时间戳） |
 | 回收审计 | `runs/retention_audit.jsonl`（逐条记录删除目录/字节数/预算） |
 | 重建 session | 同根；含 `geometry.jsonl`（袋底/颈/轴/剪切点/D95/预算/单帧 flags；复算脚本已归档 `_archive/offline_2026-09/`，写入保留）。三维点按 `list[float]` 写，缺失用 `is None` 回退，不得对 ndarray 用 Python `or`（真值歧义会把已积分体积回滚，RViz TSDF Cloud 变空） |
@@ -61,7 +63,11 @@ HTTP `/api/state` 区段：`perception` / `reconstruction` / `refined` / `manipu
 
 ## Web 客户端状态（2026-10-12）
 
-静态页面由顶层 `peach_web` 提供，入口与 ROS API 不变。另有独立页 `/analysis.html`：从 `runs/` 选择已有测试目录后解析账本、几何和图片，不写入、不改过程监控与单步调试。选中 `session_*` 时连同时间窗内同一次启动的批次目录，显示运动周期完成率、不可达、质量跳过、失败、采摘确认（完成度 7，须切断证据和撤离证据）、单果中位、周期构成和重建拒帧。同一次感知到抓取合成一张表，按轮次分组，每一行是一颗：批次、目标、终局、用时和阶段、完成度、袋径、径向/轴向余量、袋心、袋底、袋口、剪切参考，先显示这一次的掩膜和检测调试图，再是终局和几何。袋心是袋底与袋口中点在 base_link 的 x、y（米）。周期构成从派发该目标画到撤离。已有记录没有单独的精化段，再确认之前的差额标为精化等待，不是开批检测。之后的记录保留臂侧非零的观察段和精化段。彩色原图只留在记录目录的 `colors/`，不进分析页。首屏显示自检/诊断/使能摘要与当前作业；作业票内用条形对照沿袋轴的长度和入口/剪切点离原点的距离（`job.analysis`）。顶栏固定当前阶段（批次态、目标阶段、技能周期、目标 id）。硬件与系统/自检/诊断默认展开。节点日志只读，不增加 SetIO 或运动按钮。状态/轨迹请求各自单在途、有限等待；5 s 无新状态或失联时呈现最后快照并暂停普通操作，取消独立。确认框返回后发送前再次核对新鲜度；后退恢复页面会恢复轮询。
+静态页面由顶层 `peach_web` 提供，入口与 ROS API 不变。另有独立页 `/analysis.html`：从 `runs/` 选择已有测试目录后解析账本、几何和图片，不写入、不改过程监控与单步调试。选中 `session_*` 时连同时间窗内同一次启动的批次目录，显示运动周期完成率、不可达、质量跳过、失败、采摘确认（完成度 7，须切断证据和撤离证据）、单果中位、周期构成和重建拒帧。同一次感知到抓取合成一张表，按轮次分组，每一行是一颗：批次、目标、终局、用时和阶段、完成度、袋径、径向/轴向余量、袋心、袋底、袋口、剪切参考，先显示这一次的掩膜和检测调试图，再是终局和几何。袋心是袋底与袋口中点在 base_link 的 x、y（米）。周期构成从派发该目标画到撤离；阶段条下面用同一条时间轴画五点力，红色是合力上升到峰值，蓝色是峰值之后下降到回到空载，竖线对齐阶段分界。优先读该会话 `cycles/*.json` 的 `start_unix`。力段起点在 `wall_start` 带小数时用该值；只有整秒时用 CSV 写入时间减去最后一帧 `t_s`，避免偏到该秒开头。上升止于五点合力最大的那一帧，下降止于仍不低于 0.08 N 的最后一帧，不含其后的归零等待。多颗共用一份账本、又没有 `cycles/` 时，不把一段力画到平均条上。已有记录没有单独的精化段，再确认之前的差额标为精化等待，不是开批检测。之后的记录保留臂侧非零的观察段和精化段。彩色原图只留在记录目录的 `colors/`，不进分析页。首屏显示自检/诊断/使能摘要与当前作业；作业票内用条形对照沿袋轴的长度和入口/剪切点离原点的距离（`job.analysis`）。顶栏固定当前阶段（批次态、目标阶段、技能周期、目标 id）。硬件与系统/自检/诊断默认展开。节点日志只读，不增加 SetIO 或运动按钮。状态/轨迹请求各自单在途、有限等待；5 s 无新状态或失联时呈现最后快照并暂停普通操作，取消独立。确认框返回后发送前再次核对新鲜度；后退恢复页面会恢复轮询。
+
+2026-10-22 单步调试页 `/debug.html`：本轮开关、单轮点选、几轮抓取、参数表。单轮启动后保持，点锁定集里的顺序号即点名该 `target_id` 抓一轮，同一 `scene_key` 不换场，抓完继续等下一次点选；几轮按轮数自动跑，按顺序时第 i 轮写 `selection_priority=i`。过程监控与逐轮分析不在此页（`/` 与 `/analysis.html`，新窗口打开）。`POST /api/debug/set_enables_service` 转发 `/peach_supervisor/set_enables`；任一项为 true 算运动类，须 `debug.motion_enabled`，全 false 放行。参数 API `GET/POST /api/params` 白名单见 `param_panel.PARAM_GROUPS`（含 `execute_pregrasp_only`）。运动类（臂速度/加速度/行程/位姿门）须 `debug.motion_enabled`，静态参数标注重启，写操作进 `runs/debug_audit`。观测节点参数走本地 `set_parameters`，其余走 `/<node>/{list,get,set}_parameters`；写入后同步节点缓存（`_on_param_change`）。静态资源 `debug.html/debug.js/debug.css` 由 `peach_web` 提供。
+
+分析页「成功率」读 `GET /api/analysis/success`：一次抓取一条，终局成功且完成度至少 6 算套入完成，完成度至少 7 另计采摘确认。会话 `cycles/*.json` 优先，同一 `request_id` 的账本不重复计。
 
 2026-10-21 记录聚合：runner 输出目录把本轮 `session_*`/`harvest_*`/`round_*` 收进 `output/records/`，分析页只列 `runs/` 顶层的 run report（`report.json`），不再把同一次运行的 session 和 round 分成第二、第三个选项。`/api/analysis` 用 run report 的 `request_id` 关联 `records/` 下的 round 账本（`_related_roots`）；有 run report 的 session 去重；无 `startup.json` 的独立 observability 自会话不列；目录名支持 HHMM（如 `..._20261021_1813`）。所以一跑一条记录，选中后 outcomes/rates/geometry 是整跑聚合；顶层的旧 `round_*` 若已被某个 run report 点名也不再单列。
 

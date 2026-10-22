@@ -36,6 +36,13 @@ stageFinalizeAndValidate   等精化、质量门
 
 终局优先级：接触 recovery（PREGRASP 成功除外）> 取消 > 成功 > 失败。
 
+## 行程与速度
+
+- 精化 `suggested_travel_m` 非零优先；`skip_reconstruction` 时 `promoteUnrefinedGeometry` 把它置 0，`insertionTravel` 回退 `(neck-entry)·axis - neck_margin_m`（2026-10-21 实测 0.05–0.10 m），再由 `grasp.minimum_travel_m` / `maximum_travel_m=0.20` 夹紧。
+- 感知侧不再用 `L_insert=0.03` 封顶；SELECT 用感知 `(neck-entry)-margin_neck`，FINALIZE 用融合 `(cut-entry)`。两者差约 0.01 m 是融合修剪，不是门。
+- 产品/真机 `velocity_scaling=acceleration_scaling=transit_*=0.1`；真实相机+mock 的 overlay 可到接触 0.4 / 转移 0.8，只用于测试。近果套入档 `approach_near_velocity_scaling=0.05`。
+- `execute_timeout_s` 产品 5.0 s；mock 联合测 overlay 30 s 是测试值，不得带进真机。
+
 ## authorizeStage（命令门）
 
 TRANSIT / PREGRASP → `authorizeTransit`（使能×Active×robotReady×¬cancel；**不**复检 GraspDecision）。MoveTo 失败用 `TRANSIT_FAILED`，不要挪用 `SLEEVE_PLAN_FAILED`。
@@ -66,7 +73,7 @@ CONTACT / TOOL：
 
 不走 CIRC/STOMP/OMPL 兜底接触。护栏：①果实胶囊（仅接近段）②反爬 ③场景障碍 ACM ④近果降速 + ContactMonitor（默认关）。
 
-套入：`shear_v1`/`bite_shear_v1` = MTC 沿轴 LIN；`adaptive_shear_v1` = `imu_follow` enable→insert→cut→retract→disable，**禁止与 MTC 同时写 JTC**。
+套入：`shear_v1`/`bite_shear_v1`/`adaptive_shear_v1` 三档均 MTC 沿轴 LIN；2026-10-19 已删除 IMU/`imu_follow`，不要按旧文档接 `enable/insert/cut/retract/disable` 或与 MTC 并行写 JTC。`skip_reconstruction` 的 unrefined 接触还要 `quality.allow_unrefined_geometry=true`，仅测试档。
 
 ## ③层障碍 ACM（避障只为保护相机）
 

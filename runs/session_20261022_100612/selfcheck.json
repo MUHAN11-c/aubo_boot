@@ -1,0 +1,141 @@
+{
+  "trigger": "periodic",
+  "checked_at": "2026-10-22T10:16:12",
+  "duration_s": 0.0,
+  "facts": {},
+  "checks": [
+    {
+      "name": "managed_lifecycle",
+      "status": "skip",
+      "detail": "未启用",
+      "value": null
+    },
+    {
+      "name": "controllers",
+      "status": "warn",
+      "detail": "controller_manager 查询未返回",
+      "value": null
+    },
+    {
+      "name": "joint_states_flow",
+      "status": "fail",
+      "detail": "帧率 0.00Hz < 10.0Hz",
+      "value": 0.0
+    },
+    {
+      "name": "joint_order",
+      "status": "fail",
+      "detail": "未收到 joint_states",
+      "value": null
+    },
+    {
+      "name": "tcp_frame",
+      "status": "skip",
+      "detail": "未提供档案期望值",
+      "value": null
+    },
+    {
+      "name": "camera_color_rate",
+      "status": "skip",
+      "detail": "camera_enabled=false",
+      "value": null
+    },
+    {
+      "name": "camera_depth_rate",
+      "status": "skip",
+      "detail": "camera_enabled=false",
+      "value": null
+    },
+    {
+      "name": "move_group",
+      "status": "fail",
+      "detail": "move_group / get_planning_scene 不可用",
+      "value": false
+    },
+    {
+      "name": "action_run_harvest",
+      "status": "fail",
+      "detail": "动作服务端未就绪",
+      "value": false
+    },
+    {
+      "name": "action_survey_scene",
+      "status": "fail",
+      "detail": "动作服务端未就绪",
+      "value": false
+    },
+    {
+      "name": "action_execute_target",
+      "status": "fail",
+      "detail": "动作服务端未就绪",
+      "value": false
+    },
+    {
+      "name": "action_build_target_model",
+      "status": "fail",
+      "detail": "动作服务端未就绪",
+      "value": false
+    },
+    {
+      "name": "robot_status",
+      "status": "skip",
+      "detail": "mock 模式不要求",
+      "value": null
+    },
+    {
+      "name": "force_topic",
+      "status": "fail",
+      "detail": "图上无 /force/points",
+      "value": null
+    },
+    {
+      "name": "disk_free",
+      "status": "pass",
+      "detail": "剩余 266.9GB",
+      "value": 286582112256
+    },
+    {
+      "name": "model_files",
+      "status": "skip",
+      "detail": "未配置检查清单",
+      "value": null
+    },
+    {
+      "name": "param_consistency",
+      "status": "pass",
+      "detail": "启动参数组合自洽",
+      "value": null
+    },
+    {
+      "name": "vegetation_status",
+      "status": "skip",
+      "detail": "vegetation 不在图",
+      "value": null
+    }
+  ],
+  "status": "fail",
+  "passed": false,
+  "failed": [
+    "joint_states_flow",
+    "joint_order",
+    "move_group",
+    "action_run_harvest",
+    "action_survey_scene",
+    "action_execute_target",
+    "action_build_target_model",
+    "force_topic"
+  ],
+  "warned": [
+    "controllers"
+  ],
+  "skipped": [
+    "managed_lifecycle",
+    "tcp_frame",
+    "camera_color_rate",
+    "camera_depth_rate",
+    "robot_status",
+    "model_files",
+    "vegetation_status"
+  ],
+  "summary": "2/18 通过，失败: joint_states_flow, joint_order, move_group, action_run_harvest, action_survey_scene, action_execute_target, action_build_target_model, force_topic，警告: controllers，跳过: managed_lifecycle, tcp_frame, camera_color_rate, camera_depth_rate, robot_status, model_files, vegetation_status"
+}

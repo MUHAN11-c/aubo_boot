@@ -1,0 +1,75 @@
+{
+  "owner_pid": 16229,
+  "processes": [
+    {
+      "pid": 16233,
+      "pgid": 16233,
+      "command": [
+        "ros2",
+        "launch",
+        "peach_bringup",
+        "harvest_system.launch.py",
+        "hardware_mode:=mock",
+        "camera_enabled:=true",
+        "camera_frontend:=stereo",
+        "extrinsics_enabled:=false",
+        "force_enabled:=false",
+        "autostart:=false",
+        "use_sim_time:=false",
+        "rviz:=false",
+        "tool_profile:=bite_shear_v1",
+        "mock_initial_positions:=0.425175,0.194274,1.679546,1.462579,-0.279948,0.038859",
+        "skip_reconstruction:=true",
+        "brain_params_overlay:=/home/mu/Desktop/aubo_e5_jazzy_ws/runs/goal_skip_4slot_20261022_0908/brain_overlay.yaml",
+        "arm_params_overlay:=/home/mu/Desktop/aubo_e5_jazzy_ws/runs/goal_skip_4slot_20261022_0908/arm_overlay.yaml",
+        "observability_port:=8090"
+      ],
+      "started_at": 1792630602.0322647,
+      "ros_domain_id": "86"
+    },
+    {
+      "pid": 16234,
+      "pgid": 16234,
+      "command": [
+        "ros2",
+        "run",
+        "tf2_ros",
+        "static_transform_publisher",
+        "--x",
+        "0.3780573326439316",
+        "--y",
+        "-0.07547177076037584",
+        "--z",
+        "0.7666632351254871",
+        "--qx",
+        "-0.0036889994433193067",
+        "--qy",
+        "-7.498157537607713e-06",
+        "--qz",
+        "-0.6576092061184594",
+        "--qw",
+        "0.753350199611797",
+        "--frame-id",
+        "base_link",
+        "--child-frame-id",
+        "camera_link"
+      ],
+      "started_at": 1792630602.0327928,
+      "ros_domain_id": "86"
+    },
+    {
+      "pid": 16656,
+      "pgid": 16656,
+      "command": [
+        "rviz2",
+        "-d",
+        "/home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_system_tests/share/peach_system_tests/config/live_camera_mock.rviz",
+        "--ros-args",
+        "--params-file",
+        "/home/mu/Desktop/aubo_e5_jazzy_ws/runs/goal_skip_4slot_20261022_0908/rviz_model_params.yaml"
+      ],
+      "started_at": 1792630613.3172462,
+      "ros_domain_id": "86"
+    }
+  ]
+}

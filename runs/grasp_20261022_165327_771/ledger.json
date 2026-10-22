@@ -1,0 +1,98 @@
+{
+  "claimed": [
+    "target_0",
+    "target_1",
+    "target_2",
+    "target_3"
+  ],
+  "outcomes": [
+    {
+      "target_id": "target_1",
+      "outcome": 0,
+      "reason": "周期完成；tool.enabled=false 或未宣称采摘成功",
+      "quality_score": 0.0,
+      "elapsed_s": 18.459,
+      "completion_level": 6,
+      "stage_names": [
+        "finalize",
+        "reconfirm",
+        "approach_insert",
+        "tool",
+        "retreat"
+      ],
+      "stage_durations": [
+        0.002,
+        0.756,
+        9.588,
+        0.0,
+        7.961
+      ]
+    },
+    {
+      "target_id": "target_0",
+      "outcome": 0,
+      "reason": "周期完成；tool.enabled=false 或未宣称采摘成功",
+      "quality_score": 0.0,
+      "elapsed_s": 21.09,
+      "completion_level": 6,
+      "stage_names": [
+        "finalize",
+        "reconfirm",
+        "approach_insert",
+        "tool",
+        "retreat"
+      ],
+      "stage_durations": [
+        0.256,
+        0.371,
+        11.556,
+        0.0,
+        8.654
+      ]
+    },
+    {
+      "target_id": "target_2",
+      "outcome": 0,
+      "reason": "周期完成；tool.enabled=false 或未宣称采摘成功",
+      "quality_score": 0.0,
+      "elapsed_s": 17.04,
+      "completion_level": 6,
+      "stage_names": [
+        "observe",
+        "finalize",
+        "reconfirm",
+        "approach_insert",
+        "tool",
+        "retreat"
+      ],
+      "stage_durations": [
+        0.001,
+        0.002,
+        0.555,
+        8.503,
+        0.0,
+        7.831
+      ]
+    },
+    {
+      "target_id": "target_3",
+      "outcome": 1,
+      "reason": "skipped_quality: 接触阶段取消或撤离未确认；保持停止，须现场人工撤离后确认恢复",
+      "quality_score": 0.0,
+      "elapsed_s": 6.444,
+      "failure_code": "skipped_quality",
+      "failure_code_n": 4,
+      "completion_level": 1,
+      "stage_names": [
+        "finalize",
+        "reconfirm",
+        "approach_insert"
+      ],
+      "stage_durations": [
+        0.007,
+        0.729,
+        5.641
+      ]
+    }
+  ]
+}

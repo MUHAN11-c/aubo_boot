@@ -1,0 +1,723 @@
+{
+  "hardware_mode": "mock",
+  "profile": {
+    "schema_version": 1,
+    "profile_id": "fixed_camera_mock_20261013",
+    "hardware_mode": "mock",
+    "camera_frontend": "stereo",
+    "autostart": false,
+    "tool_enabled": false,
+    "skip_reconstruction": true,
+    "reconstruct_in_trajectory": false,
+    "camera_calibration": {
+      "parent_frame": "base_link",
+      "child_frame": "camera_link",
+      "xyz_m": [
+        0.3780573326439316,
+        -0.07547177076037584,
+        0.7666632351254871
+      ],
+      "quaternion_xyzw": [
+        -0.0036889994433193067,
+        -7.498157537607713e-06,
+        -0.6576092061184594,
+        0.753350199611797
+      ],
+      "provenance": "20261013 fixed camera record; user confirmed camera unmoved; reused by live_camera_rviz_repeat_20261014_1632",
+      "scope": "test-only frozen calibration; never injected into product calibration files"
+    },
+    "mock_initial_positions": [
+      0.425175,
+      0.194274,
+      1.679546,
+      1.462579,
+      -0.279948,
+      0.038859
+    ]
+  },
+  "rounds": [
+    {
+      "request_id": "round_8199a93b9ff3",
+      "success": false,
+      "target_id": "target_0",
+      "scene_epoch": 1,
+      "entry_position": [
+        0.40643487431559455,
+        -0.6564895181067886,
+        0.6632438971782191
+      ],
+      "action": {
+        "accepted": true,
+        "status": 4,
+        "result": {
+          "success": true,
+          "termination_reason": "completed",
+          "summary": {
+            "run_id": "round_8199a93b9ff3",
+            "discovered": 4,
+            "attempted": 1,
+            "succeeded": 1,
+            "skipped_quality": 0,
+            "skipped_unreachable": 0,
+            "failed": 0,
+            "canceled": 0,
+            "elapsed": {
+              "sec": 32,
+              "nanosec": 417703470
+            },
+            "outcomes": [
+              {
+                "target_id": "target_0",
+                "outcome": 0,
+                "reason": "周期完成；tool.enabled=false 或未宣称采摘成功",
+                "quality_score": 0.0,
+                "elapsed": {
+                  "sec": 19,
+                  "nanosec": 489490755
+                }
+              }
+            ]
+          }
+        }
+      },
+      "ledger": {
+        "request_id": "round_8199a93b9ff3",
+        "path": "/home/mu/Desktop/aubo_e5_jazzy_ws/runs/round_8199a93b9ff3/ledger.json",
+        "mtime": 1792630018.5740876,
+        "error": null,
+        "claimed": [
+          "target_0"
+        ],
+        "rows": [
+          {
+            "target_id": "target_0",
+            "outcome": 0,
+            "outcome_name": "SUCCEEDED",
+            "reason": "周期完成；tool.enabled=false 或未宣称采摘成功",
+            "quality_score": 0.0,
+            "elapsed_s": 19.489,
+            "stages": [
+              {
+                "name": "finalize",
+                "dur_s": 0.002
+              },
+              {
+                "name": "reconfirm",
+                "dur_s": 0.594
+              },
+              {
+                "name": "approach_insert",
+                "dur_s": 9.605
+              },
+              {
+                "name": "tool",
+                "dur_s": 0.0
+              },
+              {
+                "name": "retreat",
+                "dur_s": 9.056
+              }
+            ],
+            "completion_level": 6
+          }
+        ],
+        "totals": {
+          "SUCCEEDED": 1,
+          "SKIPPED_QUALITY": 0,
+          "SKIPPED_UNREACHABLE": 0,
+          "FAILED": 0,
+          "CANCELED": 0,
+          "attempted": 1,
+          "claimed": 1
+        }
+      },
+      "elapsed_s": 38.49885576199998,
+      "streams": {
+        "camera": {
+          "first": 1792629970.87951,
+          "last": 1792630015.550542,
+          "new_frames": 15,
+          "fresh_stamp": false
+        },
+        "joints": {
+          "first": 1792630018.9202666,
+          "last": 1792630019.0752678,
+          "new_frames": 7695,
+          "fresh_stamp": true
+        }
+      }
+    },
+    {
+      "request_id": "round_225b29e9c2bc",
+      "success": true,
+      "target_id": "target_5",
+      "scene_epoch": 3,
+      "entry_position": [
+        0.5688073682138992,
+        -0.607991747817184,
+        0.6730594658853735
+      ],
+      "action": {
+        "accepted": true,
+        "status": 4,
+        "result": {
+          "success": true,
+          "termination_reason": "completed",
+          "summary": {
+            "run_id": "round_225b29e9c2bc",
+            "discovered": 4,
+            "attempted": 1,
+            "succeeded": 1,
+            "skipped_quality": 0,
+            "skipped_unreachable": 0,
+            "failed": 0,
+            "canceled": 0,
+            "elapsed": {
+              "sec": 34,
+              "nanosec": 423112087
+            },
+            "outcomes": [
+              {
+                "target_id": "target_5",
+                "outcome": 0,
+                "reason": "周期完成；tool.enabled=false 或未宣称采摘成功",
+                "quality_score": 0.0,
+                "elapsed": {
+                  "sec": 20,
+                  "nanosec": 463443279
+                }
+              }
+            ]
+          }
+        }
+      },
+      "ledger": {
+        "request_id": "round_225b29e9c2bc",
+        "path": "/home/mu/Desktop/aubo_e5_jazzy_ws/runs/round_225b29e9c2bc/ledger.json",
+        "mtime": 1792630060.6476328,
+        "error": null,
+        "claimed": [
+          "target_5"
+        ],
+        "rows": [
+          {
+            "target_id": "target_5",
+            "outcome": 0,
+            "outcome_name": "SUCCEEDED",
+            "reason": "周期完成；tool.enabled=false 或未宣称采摘成功",
+            "quality_score": 0.0,
+            "elapsed_s": 20.463,
+            "stages": [
+              {
+                "name": "finalize",
+                "dur_s": 0.225
+              },
+              {
+                "name": "reconfirm",
+                "dur_s": 0.405
+              },
+              {
+                "name": "approach_insert",
+                "dur_s": 10.38
+              },
+              {
+                "name": "tool",
+                "dur_s": 0.0
+              },
+              {
+                "name": "retreat",
+                "dur_s": 9.42
+              }
+            ],
+            "completion_level": 6
+          }
+        ],
+        "totals": {
+          "SUCCEEDED": 1,
+          "SKIPPED_QUALITY": 0,
+          "SKIPPED_UNREACHABLE": 0,
+          "FAILED": 0,
+          "CANCELED": 0,
+          "attempted": 1,
+          "claimed": 1
+        }
+      },
+      "elapsed_s": 42.51647692900002,
+      "streams": {
+        "camera": {
+          "first": 1792630056.745854,
+          "last": 1792630061.082559,
+          "new_frames": 137,
+          "fresh_stamp": true
+        },
+        "joints": {
+          "first": 1792630061.4353313,
+          "last": 1792630061.5902712,
+          "new_frames": 8496,
+          "fresh_stamp": true
+        }
+      }
+    },
+    {
+      "request_id": "round_affb0717d3e5",
+      "success": true,
+      "target_id": "target_8",
+      "scene_epoch": 5,
+      "entry_position": [
+        0.5681775909568948,
+        -0.6079978977941646,
+        0.6730295682265491
+      ],
+      "action": {
+        "accepted": true,
+        "status": 4,
+        "result": {
+          "success": true,
+          "termination_reason": "completed",
+          "summary": {
+            "run_id": "round_affb0717d3e5",
+            "discovered": 4,
+            "attempted": 1,
+            "succeeded": 1,
+            "skipped_quality": 0,
+            "skipped_unreachable": 0,
+            "failed": 0,
+            "canceled": 0,
+            "elapsed": {
+              "sec": 35,
+              "nanosec": 463810357
+            },
+            "outcomes": [
+              {
+                "target_id": "target_8",
+                "outcome": 0,
+                "reason": "周期完成；tool.enabled=false 或未宣称采摘成功",
+                "quality_score": 0.0,
+                "elapsed": {
+                  "sec": 21,
+                  "nanosec": 862940649
+                }
+              }
+            ]
+          }
+        }
+      },
+      "ledger": {
+        "request_id": "round_affb0717d3e5",
+        "path": "/home/mu/Desktop/aubo_e5_jazzy_ws/runs/round_affb0717d3e5/ledger.json",
+        "mtime": 1792630103.6502028,
+        "error": null,
+        "claimed": [
+          "target_8"
+        ],
+        "rows": [
+          {
+            "target_id": "target_8",
+            "outcome": 0,
+            "outcome_name": "SUCCEEDED",
+            "reason": "周期完成；tool.enabled=false 或未宣称采摘成功",
+            "quality_score": 0.0,
+            "elapsed_s": 21.863,
+            "stages": [
+              {
+                "name": "finalize",
+                "dur_s": 0.259
+              },
+              {
+                "name": "reconfirm",
+                "dur_s": 0.558
+              },
+              {
+                "name": "approach_insert",
+                "dur_s": 10.997
+              },
+              {
+                "name": "tool",
+                "dur_s": 0.0
+              },
+              {
+                "name": "retreat",
+                "dur_s": 10.015
+              }
+            ],
+            "completion_level": 6
+          }
+        ],
+        "totals": {
+          "SUCCEEDED": 1,
+          "SKIPPED_QUALITY": 0,
+          "SKIPPED_UNREACHABLE": 0,
+          "FAILED": 0,
+          "CANCELED": 0,
+          "attempted": 1,
+          "claimed": 1
+        }
+      },
+      "elapsed_s": 44.589386789,
+      "streams": {
+        "camera": {
+          "first": 1792630102.473039,
+          "last": 1792630105.748988,
+          "new_frames": 315,
+          "fresh_stamp": true
+        },
+        "joints": {
+          "first": 1792630106.0202916,
+          "last": 1792630106.1752696,
+          "new_frames": 8912,
+          "fresh_stamp": true
+        }
+      }
+    },
+    {
+      "request_id": "round_7f8976838f10",
+      "success": true,
+      "target_id": "target_15",
+      "scene_epoch": 7,
+      "entry_position": [
+        0.2082133986617078,
+        -0.7474101351137314,
+        0.6451825365220654
+      ],
+      "action": {
+        "accepted": true,
+        "status": 4,
+        "result": {
+          "success": true,
+          "termination_reason": "completed",
+          "summary": {
+            "run_id": "round_7f8976838f10",
+            "discovered": 7,
+            "attempted": 1,
+            "succeeded": 1,
+            "skipped_quality": 0,
+            "skipped_unreachable": 0,
+            "failed": 0,
+            "canceled": 0,
+            "elapsed": {
+              "sec": 30,
+              "nanosec": 363440752
+            },
+            "outcomes": [
+              {
+                "target_id": "target_15",
+                "outcome": 0,
+                "reason": "周期完成；tool.enabled=false 或未宣称采摘成功",
+                "quality_score": 0.0,
+                "elapsed": {
+                  "sec": 16,
+                  "nanosec": 848596239
+                }
+              }
+            ]
+          }
+        }
+      },
+      "ledger": {
+        "request_id": "round_7f8976838f10",
+        "path": "/home/mu/Desktop/aubo_e5_jazzy_ws/runs/round_7f8976838f10/ledger.json",
+        "mtime": 1792630142.707274,
+        "error": null,
+        "claimed": [
+          "target_15"
+        ],
+        "rows": [
+          {
+            "target_id": "target_15",
+            "outcome": 0,
+            "outcome_name": "SUCCEEDED",
+            "reason": "周期完成；tool.enabled=false 或未宣称采摘成功",
+            "quality_score": 0.0,
+            "elapsed_s": 16.849,
+            "stages": [
+              {
+                "name": "finalize",
+                "dur_s": 0.006
+              },
+              {
+                "name": "reconfirm",
+                "dur_s": 0.625
+              },
+              {
+                "name": "approach_insert",
+                "dur_s": 8.268
+              },
+              {
+                "name": "tool",
+                "dur_s": 0.0
+              },
+              {
+                "name": "retreat",
+                "dur_s": 7.805
+              }
+            ],
+            "completion_level": 6
+          }
+        ],
+        "totals": {
+          "SUCCEEDED": 1,
+          "SKIPPED_QUALITY": 0,
+          "SKIPPED_UNREACHABLE": 0,
+          "FAILED": 0,
+          "CANCELED": 0,
+          "attempted": 1,
+          "claimed": 1
+        }
+      },
+      "elapsed_s": 39.08188591499999,
+      "streams": {
+        "camera": {
+          "first": 1792630124.126849,
+          "last": 1792630144.544483,
+          "new_frames": 154,
+          "fresh_stamp": true
+        },
+        "joints": {
+          "first": 1792630145.1053977,
+          "last": 1792630145.2604244,
+          "new_frames": 7813,
+          "fresh_stamp": true
+        }
+      }
+    },
+    {
+      "request_id": "round_84da47c99eae",
+      "success": true,
+      "target_id": "target_16",
+      "scene_epoch": 9,
+      "entry_position": [
+        0.5688906674002056,
+        -0.6080326695477224,
+        0.6733854680931652
+      ],
+      "action": {
+        "accepted": true,
+        "status": 4,
+        "result": {
+          "success": true,
+          "termination_reason": "completed",
+          "summary": {
+            "run_id": "round_84da47c99eae",
+            "discovered": 4,
+            "attempted": 1,
+            "succeeded": 1,
+            "skipped_quality": 0,
+            "skipped_unreachable": 0,
+            "failed": 0,
+            "canceled": 0,
+            "elapsed": {
+              "sec": 36,
+              "nanosec": 489828257
+            },
+            "outcomes": [
+              {
+                "target_id": "target_16",
+                "outcome": 0,
+                "reason": "周期完成；tool.enabled=false 或未宣称采摘成功",
+                "quality_score": 0.0,
+                "elapsed": {
+                  "sec": 21,
+                  "nanosec": 875441709
+                }
+              }
+            ]
+          }
+        }
+      },
+      "ledger": {
+        "request_id": "round_84da47c99eae",
+        "path": "/home/mu/Desktop/aubo_e5_jazzy_ws/runs/round_84da47c99eae/ledger.json",
+        "mtime": 1792630191.4092183,
+        "error": null,
+        "claimed": [
+          "target_16"
+        ],
+        "rows": [
+          {
+            "target_id": "target_16",
+            "outcome": 0,
+            "outcome_name": "SUCCEEDED",
+            "reason": "周期完成；tool.enabled=false 或未宣称采摘成功",
+            "quality_score": 0.0,
+            "elapsed_s": 21.875,
+            "stages": [
+              {
+                "name": "finalize",
+                "dur_s": 0.258
+              },
+              {
+                "name": "reconfirm",
+                "dur_s": 0.4
+              },
+              {
+                "name": "approach_insert",
+                "dur_s": 10.982
+              },
+              {
+                "name": "tool",
+                "dur_s": 0.0
+              },
+              {
+                "name": "retreat",
+                "dur_s": 9.999
+              }
+            ],
+            "completion_level": 6
+          }
+        ],
+        "totals": {
+          "SUCCEEDED": 1,
+          "SKIPPED_QUALITY": 0,
+          "SKIPPED_UNREACHABLE": 0,
+          "FAILED": 0,
+          "CANCELED": 0,
+          "attempted": 1,
+          "claimed": 1
+        }
+      },
+      "elapsed_s": 47.65866887300001,
+      "streams": {
+        "camera": {
+          "first": 1792630135.069464,
+          "last": 1792630189.681418,
+          "new_frames": 26,
+          "fresh_stamp": true
+        },
+        "joints": {
+          "first": 1792630192.7652755,
+          "last": 1792630192.9203122,
+          "new_frames": 9529,
+          "fresh_stamp": true
+        }
+      }
+    }
+  ],
+  "models": [],
+  "model_attempts": [],
+  "resources": [],
+  "acks": [
+    {
+      "request_id": "round_8199a93b9ff3",
+      "state_seq": 111,
+      "target_id": "target_0",
+      "accepted": true,
+      "message": "已记录现场人工撤离确认；本服务不发送任何运动命令",
+      "evidence": {
+        "source": "canonical_target_succeeded",
+        "completion_level": 6,
+        "event_state_seq": 110
+      }
+    },
+    {
+      "request_id": "round_225b29e9c2bc",
+      "state_seq": 228,
+      "target_id": "target_5",
+      "accepted": true,
+      "message": "已记录现场人工撤离确认；本服务不发送任何运动命令",
+      "evidence": {
+        "source": "ledger",
+        "completion_level": 6
+      }
+    },
+    {
+      "request_id": "round_affb0717d3e5",
+      "state_seq": 352,
+      "target_id": "target_8",
+      "accepted": true,
+      "message": "已记录现场人工撤离确认；本服务不发送任何运动命令",
+      "evidence": {
+        "source": "canonical_target_succeeded",
+        "completion_level": 6,
+        "event_state_seq": 351
+      }
+    },
+    {
+      "request_id": "round_7f8976838f10",
+      "state_seq": 451,
+      "target_id": "target_15",
+      "accepted": true,
+      "message": "已记录现场人工撤离确认；本服务不发送任何运动命令",
+      "evidence": {
+        "source": "canonical_target_succeeded",
+        "completion_level": 6,
+        "event_state_seq": 450
+      }
+    },
+    {
+      "request_id": "round_84da47c99eae",
+      "state_seq": 575,
+      "target_id": "target_16",
+      "accepted": true,
+      "message": "已记录现场人工撤离确认；本服务不发送任何运动命令",
+      "evidence": {
+        "source": "canonical_target_succeeded",
+        "completion_level": 6,
+        "event_state_seq": 574
+      }
+    }
+  ],
+  "errors": [],
+  "rviz_requested": true,
+  "pick_all": false,
+  "owned_process_groups": [
+    10781,
+    10782,
+    11206
+  ],
+  "runtime_environment": {
+    "ROS_DOMAIN_ID": "86",
+    "ROS_HOME": "/home/mu/Desktop/aubo_e5_jazzy_ws/runs/goal_skip_5r_20261022_0847/ros_home",
+    "OPENBLAS_NUM_THREADS": "1",
+    "MKL_NUM_THREADS": "1"
+  },
+  "web_port": 8090,
+  "rviz_started": true,
+  "soak_started_monotonic": 434.902736006,
+  "rviz_lifetime_ok": true,
+  "soak_elapsed_s": 1.0173000021040934e-05,
+  "phase": "finished",
+  "updated_at": 1792630198.642877,
+  "residual_pids": [],
+  "consolidated_records": [
+    "harvest_20261022T084619_074834_s1",
+    "session_20261022_084604",
+    "harvest_20261022T084625_618137_s2",
+    "round_7f8976838f10",
+    "round_8199a93b9ff3",
+    "round_84da47c99eae",
+    "round_225b29e9c2bc",
+    "round_affb0717d3e5"
+  ],
+  "domain_processes_after": [],
+  "model_count": 0,
+  "full_level6_rounds": 4,
+  "model_elapsed_s": {
+    "count": 0,
+    "min": null,
+    "max": null,
+    "p95": null,
+    "range": null
+  },
+  "geometry_statistics": {},
+  "model_samples_per_target": {},
+  "per_target_outcomes": {
+    "target_0": {
+      "SUCCEEDED": 1
+    },
+    "target_5": {
+      "SUCCEEDED": 1
+    },
+    "target_8": {
+      "SUCCEEDED": 1
+    },
+    "target_15": {
+      "SUCCEEDED": 1
+    },
+    "target_16": {
+      "SUCCEEDED": 1
+    }
+  },
+  "physical_bag_level6_coverage": {},
+  "soak_passed": true,
+  "passed": false
+}

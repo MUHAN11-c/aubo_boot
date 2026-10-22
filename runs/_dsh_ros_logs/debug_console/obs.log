@@ -1,0 +1,69 @@
+[INFO] [launch]: All log files can be found below /home/mu/Desktop/aubo_e5_jazzy_ws/runs/_dsh_ros_logs/debug_console/2026-10-22-10-29-51-116904-mu-MS-7E34-117148
+[INFO] [launch]: Default logging verbosity is set to INFO
+[WARN] [1792636191.184321138] [rcl]: ROS_LOCALHOST_ONLY is deprecated but still honored if it is enabled. Use ROS_AUTOMATIC_DISCOVERY_RANGE and ROS_STATIC_PEERS instead.
+[WARN] [1792636191.184336195] [rcl]: 'localhost_only' is enabled, 'automatic_discovery_range' and 'static_peers' will be ignored.
+[INFO] [peach_observability-1]: process started with pid [117163]
+[peach_observability-1] [WARN] [1792636191.708985586] [rcl]: ROS_LOCALHOST_ONLY is deprecated but still honored if it is enabled. Use ROS_AUTOMATIC_DISCOVERY_RANGE and ROS_STATIC_PEERS instead.
+[peach_observability-1] [WARN] [1792636191.708994461] [rcl]: 'localhost_only' is enabled, 'automatic_discovery_range' and 'static_peers' will be ignored.
+[peach_observability-1] [INFO] [1792636191.801082002] [peach_observability]: 无启动事实注入（独立起栈）；startup.json 不落盘
+[peach_observability-1] [WARN] [1792636191.905032421] [peach_observability]: *** 调试操作面已启用：运动类操作=默认拒绝。技能侧既有安全门照常生效；请保持 HTTP 回环绑定 ***
+[peach_observability-1] [INFO] [1792636191.907452689] [peach_observability]: 感知抓取过程页（过程监控+单步调试）: http://127.0.0.1:8090
+[peach_observability-1] [INFO] [1792636191.908728973] [peach_observability]: 全量录制订阅: /joint_states [sensor_msgs/msg/JointState]
+[peach_observability-1] [INFO] [1792636191.909080064] [peach_observability]: 全量录制订阅: /peach/observability/tcp_path [nav_msgs/msg/Path]
+[peach_observability-1] [INFO] [1792636191.909400829] [peach_observability]: 全量录制订阅: /peach/perception/target_observations [peach_interfaces/msg/PeachTargetObservationArray]
+[peach_observability-1] [INFO] [1792636191.909751399] [peach_observability]: 全量录制订阅: /peach/reconstruction/diagnostics [peach_interfaces/msg/ReconstructionStatus]
+[peach_observability-1] [INFO] [1792636191.910080462] [peach_observability]: 全量录制订阅: /peach/reconstruction/diagnostics_debug [std_msgs/msg/String]
+[peach_observability-1] [INFO] [1792636191.910387834] [peach_observability]: 全量录制订阅: /peach/reconstruction/grasp_decision [peach_interfaces/msg/GraspDecision]
+[peach_observability-1] [INFO] [1792636191.910683324] [peach_observability]: 全量录制订阅: /peach/reconstruction/refined_axis [geometry_msgs/msg/Vector3Stamped]
+[peach_observability-1] [INFO] [1792636191.911006261] [peach_observability]: 全量录制订阅: /peach/reconstruction/refined_diagnostics [peach_interfaces/msg/BagFittingArray]
+[peach_observability-1] [INFO] [1792636191.911295896] [peach_observability]: 全量录制订阅: /peach/reconstruction/refined_pose [peach_interfaces/msg/BagGraspCandidateArray]
+[peach_observability-1] [INFO] [1792636191.911598914] [peach_observability]: 全量录制订阅: /peach/reconstruction/status [std_msgs/msg/String]
+[peach_observability-1] [INFO] [1792636191.911992262] [peach_observability]: 全量录制订阅: /peach/reconstruction/tsdf_cloud [sensor_msgs/msg/PointCloud2]
+[peach_observability-1] [INFO] [1792636191.912409510] [peach_observability]: 全量录制订阅: /peach_arm/execute_target/_action/feedback [peach_interfaces/action/ExecuteTarget_FeedbackMessage]
+[peach_observability-1] [INFO] [1792636191.912716828] [peach_observability]: 全量录制订阅: /peach_arm/execute_target/_action/status [action_msgs/msg/GoalStatusArray]
+[peach_observability-1] [INFO] [1792636191.913016209] [peach_observability]: 全量录制订阅: /peach_arm/status [std_msgs/msg/String]
+[peach_observability-1] [INFO] [1792636191.913398638] [peach_observability]: 全量录制订阅: /peach_supervisor/events [peach_interfaces/msg/CanonicalEvent]
+[peach_observability-1] [INFO] [1792636191.913717997] [peach_observability]: 全量录制订阅: /peach_supervisor/run_harvest/_action/feedback [peach_interfaces/action/RunHarvest_FeedbackMessage]
+[peach_observability-1] [INFO] [1792636191.914009314] [peach_observability]: 全量录制订阅: /peach_supervisor/run_harvest/_action/status [action_msgs/msg/GoalStatusArray]
+[peach_observability-1] [INFO] [1792636191.914298244] [peach_observability]: 全量录制订阅: /peach_supervisor/scene_snapshot [peach_interfaces/msg/SceneSnapshot]
+[peach_observability-1] [INFO] [1792636191.914592967] [peach_observability]: 全量录制订阅: /peach_supervisor/state [peach_interfaces/msg/HarvestState]
+[peach_observability-1] [INFO] [1792636191.914897527] [peach_observability]: 全量录制订阅: /peach_target_reconstruction_node/build_target_model/_action/feedback [peach_interfaces/action/BuildTargetModel_FeedbackMessage]
+[peach_observability-1] [INFO] [1792636191.915183939] [peach_observability]: 全量录制订阅: /peach_target_reconstruction_node/build_target_model/_action/status [action_msgs/msg/GoalStatusArray]
+[peach_observability-1] [INFO] [1792636191.915480866] [peach_observability]: 全量录制订阅: /tf [tf2_msgs/msg/TFMessage]
+[peach_observability-1] [INFO] [1792636191.915776419] [peach_observability]: 全量录制订阅: /tf_static [tf2_msgs/msg/TFMessage]
+[peach_observability-1] ----------------------------------------
+[peach_observability-1] Exception occurred during processing of request from ('127.0.0.1', 49274)
+[peach_observability-1] Traceback (most recent call last):
+[peach_observability-1]   File "/usr/lib/python3.12/socketserver.py", line 692, in process_request_thread
+[peach_observability-1]     self.finish_request(request, client_address)
+[peach_observability-1]   File "/usr/lib/python3.12/socketserver.py", line 362, in finish_request
+[peach_observability-1]     self.RequestHandlerClass(request, client_address, self)
+[peach_observability-1]   File "/usr/lib/python3.12/socketserver.py", line 761, in __init__
+[peach_observability-1]     self.handle()
+[peach_observability-1]   File "/usr/lib/python3.12/http/server.py", line 436, in handle
+[peach_observability-1]     self.handle_one_request()
+[peach_observability-1]   File "/usr/lib/python3.12/http/server.py", line 424, in handle_one_request
+[peach_observability-1]     method()
+[peach_observability-1]   File "/home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_observability/lib/python3.12/site-packages/peach_observability/http_server.py", line 108, in do_GET
+[peach_observability-1]     self._json(getter() if callable(getter) else {'groups': []})
+[peach_observability-1]                ^^^^^^^^
+[peach_observability-1]   File "/home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_observability/lib/python3.12/site-packages/peach_observability/observability_node.py", line 1268, in params_report
+[peach_observability-1]     return self._param_bridge.report()
+[peach_observability-1]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[peach_observability-1]   File "/home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_observability/lib/python3.12/site-packages/peach_observability/param_panel.py", line 199, in report
+[peach_observability-1]     running, values, error = self._node_params(node, names)
+[peach_observability-1]                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[peach_observability-1]   File "/home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_observability/lib/python3.12/site-packages/peach_observability/param_panel.py", line 167, in _node_params
+[peach_observability-1]     values = {p.name: parameter_value_to_python(p.value)
+[peach_observability-1]                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[peach_observability-1]   File "/opt/ros/jazzy/lib/python3.12/site-packages/rclpy/parameter.py", line 250, in parameter_value_to_python
+[peach_observability-1]     if parameter_value.type == ParameterType.PARAMETER_BOOL:
+[peach_observability-1]        ^^^^^^^^^^^^^^^^^^^^
+[peach_observability-1] AttributeError: 'bool' object has no attribute 'type'
+[peach_observability-1] ----------------------------------------
+[WARNING] [launch]: user interrupted with ctrl-c (SIGINT)
+[INFO] [peach_observability-1]: sending signal 'SIGINT' to process[peach_observability-1]
+[peach_observability-1] bag 分析报告已生成：/home/mu/Desktop/aubo_e5_jazzy_ws/runs/session_20261022_102951/bag_report.md
+[peach_observability-1] markdown: /home/mu/Desktop/aubo_e5_jazzy_ws/runs/session_20261022_102951/bag_report.md
+[peach_observability-1] json: /home/mu/Desktop/aubo_e5_jazzy_ws/runs/session_20261022_102951/bag_report.json
+[ERROR] [peach_observability-1]: process has died [pid 117163, exit code -2, cmd '/home/mu/Desktop/aubo_e5_jazzy_ws/install/peach_observability/lib/peach_observability/peach_observability --ros-args -r __node:=peach_observability -r __ns:=/ --params-file /tmp/launch_params_t6r190e_ --params-file /tmp/launch_params_jxxvr5s9'].

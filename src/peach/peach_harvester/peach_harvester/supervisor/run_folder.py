@@ -1,43 +1,23 @@
 """一次开栈一个目录：终局收进正在录的 ``session_<时间>/cycles``."""
 from __future__ import annotations
 
-import json
-import re
-import time
 from datetime import datetime
+import hashlib
+import json
 from pathlib import Path
+import re
 
 from peach_common.paths import safe_component
+from peach_common.recording_session import active_session
 
 from .batch import ledger_file
 
 
 def live_session_dir(root: Path, now: float | None = None,
                      fresh_s: float = 20.0) -> Path | None:
-    """袋文件还在写的 ``session_*``。已封口的旧会话不接收新周期."""
-    root = Path(root)
-    if not root.is_dir():
-        return None
-    clock = time.time() if now is None else float(now)
-    best: Path | None = None
-    best_mtime = -1.0
-    try:
-        children = list(root.iterdir())
-    except OSError:
-        return None
-    for session in children:
-        if not session.is_dir() or not session.name.startswith('session_'):
-            continue
-        bag = session / 'bag'
-        if not bag.is_dir():
-            continue
-        newest = _newest_mtime(bag)
-        if newest < 0.0 or (clock - newest) > fresh_s:
-            continue
-        if newest > best_mtime:
-            best = session
-            best_mtime = newest
-    return best
+    """显式active声明且写者存活的唯一会话；不根据袋文件mtime猜测."""
+    del now, fresh_s
+    return active_session(Path(root))
 
 
 def archive_open_session(root: Path, request_id: str,
@@ -82,15 +62,29 @@ def archive_ledger_into(session: Path, ledger_path: Path,
         path.parent.mkdir(parents=True, exist_ok=True)
         elapsed = _elapsed(item)
         start = wall_end - elapsed if elapsed is not None else wall_end
+        wall_end_item = wall_end
+        time_basis = 'estimated_ledger_mtime'
+        try:
+            source_start = int(item['start_unix_ns'])
+            source_end = int(item['end_unix_ns'])
+            if source_start > 0 and source_end >= source_start:
+                start, wall_end_item = source_start / 1e9, source_end / 1e9
+                time_basis = 'source_clock'
+        except (KeyError, TypeError, ValueError, OverflowError):
+            pass
         previous = _read_json(path)
-        if previous is not None and previous.get('end_unix') is not None:
+        if (time_basis != 'source_clock' and previous is not None
+                and previous.get('request_id') == request_id
+                and previous.get('end_unix') is not None):
             # 后一颗落盘会重写整本账本。已归档的墙钟保持第一次写下的终局时刻。
             wall_end_item = float(previous['end_unix'])
             start = float(previous.get('start_unix') or wall_end_item)
-        else:
-            wall_end_item = wall_end
         document = {
             'request_id': request_id,
+            'session_id': Path(session).name,
+            'cycle_id': str(item.get('cycle_id') or
+                            f'{request_id}:{item.get("target_id", "")}'),
+            'time_basis': time_basis,
             'target_id': str(item.get('target_id') or ''),
             'outcome': item.get('outcome'),
             'reason': item.get('reason') or '',
@@ -104,6 +98,10 @@ def archive_ledger_into(session: Path, ledger_path: Path,
             'start_unix': round(start, 3),
             'end_unix': round(wall_end_item, 3),
         }
+        for name in ('start_unix_ns', 'end_unix_ns', 'start_ros_ns',
+                     'end_ros_ns', 'scene_epoch'):
+            if name in item:
+                document[name] = item[name]
         _atomic_json(path, document)
         written.append(path)
     return written
@@ -191,7 +189,9 @@ def _cycle_path(session: Path, request_id: str, item: dict,
                 return path
     stamp = datetime.fromtimestamp(wall_end).strftime('%Y%m%d_%H%M%S')
     safe_target = safe_component(target, 'target')
-    return cycles / f'{stamp}_{safe_target}.json'
+    identity = f'{request_id}:{item.get("cycle_id") or target}'
+    digest = hashlib.sha256(identity.encode('utf-8')).hexdigest()[:16]
+    return cycles / f'{stamp}_{safe_target}_{digest}.json'
 
 
 def _read_json(path: Path) -> dict | None:

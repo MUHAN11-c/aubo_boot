@@ -22,7 +22,7 @@
 
 - 官方 examples：`turtlebot3_simulations`、`turtlebot3_navigation2`、
   `ros2_examples`、`moveit_resources_panda_*`、`nav2_bringup`、`image_transport`；
-- 测试：`pytest`、`websockets`；JS 单测另有 `vitest`（`npm install`）。
+- 演示依赖 `websockets`。行为在浏览器里看，不另跑一套测试文件。
 - UI 组合包（如 `aubo_ros2_web_dashboard`）不是 core 依赖。
 
 ## 2. 构建
@@ -83,17 +83,7 @@ ros2 launch ros_web_link monitor.launch.py start_bridge:=false bridge_port:=8765
 ## 5. 测试
 
 ```bash
-# Python 单元（venv；免 source 时补 ROS env 前缀）
-PYTHONPATH=/opt/ros/jazzy/lib/python3.12/site-packages \
-LD_LIBRARY_PATH=/opt/ros/jazzy/lib ROS_DISTRO=jazzy \
-./aubo_py3.12/bin/python -m pytest src/ros_web_link/test \
-  -k "api_surface or examples or docs_links or gateway or js_units" -q
-
-# JS 单测
-cd src/ros_web_link && npm install && node_modules/.bin/vitest run
-
-# 完整官方仿真 E2E（需 /dev/shm、/dev/dri）
-src/ros_web_link/scripts/run_full_sim_e2e.sh
+# 行为：先起官方仿真，再 ros2 launch ros_web_link monitor.launch.py，看浏览器和日志
 ```
 
 详细测试矩阵见 [testing.md](testing.md)。

@@ -395,7 +395,7 @@ $('btn-tf-stop').addEventListener('click', () => {
 });
 
 // ── 全链路自检 ──────────────────────────────────────────────────────────────
-// 对照 test/test_e2e_comm_matrix.py：同一矩阵的浏览器版。fixture 缺席时相关项标 SKIP。
+// 浏览器自检：fixture 缺席时相关项标 SKIP。
 
 const SELFTEST_STEPS = [
   {

@@ -66,7 +66,7 @@ peach_observability:
       min_step_m: 0.003  # 静止丢弃阈值（米）；位移小且未运动则不写点
       max_points: 8000  # 内存环形缓冲上限（点）
     debug_image_topic: /peach/perception/debug_image  # 感知调试叠加图话题（bgr8）
-    debug_image_raw_topic: /peach/perception/debug_image_raw  # 感知全量叠加图（筛选前，bgr8）；与稳定流成对落盘供对比，不进 RViz
+    debug_image_raw_topic: /peach/perception/debug_image_raw  # RGB-D入口无注解实时预览（不受motion/inference门控），不进 RViz
     tsdf_cloud_topic: /peach/reconstruction/tsdf_cloud  # 在线 TSDF 点云话题（latched）
     tcp_path_topic: /peach/observability/tcp_path  # 末端 TCP 轨迹 nav_msgs/Path（RViz Path，latched）
     tcp_markers_topic: /peach/observability/markers  # 末端轨迹/入口/预抓取 visualization_msgs/MarkerArray（与重建 markers 同契约）

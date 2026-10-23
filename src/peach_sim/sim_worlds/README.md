@@ -28,11 +28,11 @@ src/peach_sim/
     sim_worlds/ config/ worlds/ maps/ blender/
                            # 果园场景生成包：确定性 SDF/manifest/地图 + 离线资产
                            # （与 Blender 感知验收不是同一份 GT）
-    test/                   # 纯核测试
+    test/                   # 官方 flake8 / pep257
   sim_description/          # 机体 xacro + meshes（履带+臂+末端；gz model://sim_description 的 GLB 安装源）
   sim_bringup/              # sim/harvest/orchard_sim/orchard_nav launch + 桥接/Nav2 配置 + orchard_harvest 编排
   sim_perception/           # P3：peach 感知栈快照复制
-  sim_system_tests/         # P2：launch_testing 验收门
+  sim_system_tests/         # 官方 ament lint
 ```
 
 `output/modeling_*/`、`matrix*` 帧、EXR、`.blend` 本机可重渲，不入库。

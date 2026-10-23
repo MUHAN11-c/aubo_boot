@@ -2,10 +2,12 @@
 from __future__ import annotations
 
 import time
+import uuid
 
 from diagnostic_msgs.msg import DiagnosticStatus
 from diagnostic_updater import (
     FrequencyStatusParam, HeaderlessTopicDiagnostic, Updater)
+from peach_interfaces.msg import ForceSample as ForceSampleMsg
 from rcl_interfaces.msg import ParameterDescriptor
 import rclpy
 from rclpy.executors import ExternalShutdownException
@@ -14,9 +16,9 @@ from rclpy.qos import (
     DurabilityPolicy, HistoryPolicy, QoSProfile, ReliabilityPolicy)
 import serial
 from serial_force.force_protocol import (
-    FORCE_CHANNELS, G_TO_N, feed_force)
+    feed_force, FORCE_CHANNELS, G_TO_N)
 from serial_force.force_status import (
-    NAMES, OPEN, SATURATED, classify)
+    classify, NAMES, OPEN, SATURATED)
 from std_msgs.msg import Float64MultiArray, UInt8MultiArray
 
 SERIAL_RETRY_S = 2.0
@@ -56,6 +58,11 @@ class SerialForceNode(Node):
             Float64MultiArray, 'force/ad', FORCE_QOS)
         self._pub_status = self.create_publisher(
             UInt8MultiArray, 'force/status', FORCE_QOS)
+        self._pub_sample = self.create_publisher(
+            ForceSampleMsg, 'force/sample', QoSProfile(
+                reliability=ReliabilityPolicy.RELIABLE,
+                durability=DurabilityPolicy.VOLATILE, depth=100))
+        self._source_uuid = str(uuid.uuid4())
         self._buf = bytearray()
         self._ser = None
         self._last_serial_try = 0.0
@@ -174,6 +181,19 @@ class SerialForceNode(Node):
         self._frame_count += 1
         statuses = [classify(a, t, self._open_ad, self._full_mm)
                     for a, t in zip(sample.ad, sample.travel_mm)]
+        frame = ForceSampleMsg()
+        stamp = self.get_clock().now().to_msg()
+        frame.header.stamp.sec = stamp.sec
+        frame.header.stamp.nanosec = stamp.nanosec
+        frame.header.frame_id = 'tcp'
+        frame.source_uuid = self._source_uuid
+        frame.sequence = self._frame_count
+        frame.channel_ids = list(FORCE_CHANNELS)
+        frame.force_n = list(sample.force_n)
+        frame.travel_mm = list(sample.travel_mm)
+        frame.ad = list(sample.ad)
+        frame.status = statuses
+        self._pub_sample.publish(frame)
         msg = Float64MultiArray()
         msg.data = list(sample.force_n)
         self._pub_force.publish(msg)

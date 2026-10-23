@@ -2,7 +2,7 @@
 
 > 2026-10-10 用户裁定自仓库级 `docs/io.md` 拆写入包：本包四节点（scene_perception / target_reconstruction / supervisor / lifecycle_manager）与独立进程 `peach_scene_obstacles` 的话题、服务、动作与参数。相机契约（/camera/* 前端选择）与跨包边界在 [peach_bringup/doc/io.md](../../peach_bringup/doc/io.md)；字段级 IDL 在 [peach_interfaces/README.md](../../peach_interfaces/README.md)。**源码与本文互相更新，改接口须同一轮改另一边**。
 
-本节描述brain中的vision两节点（看 + 建）；同包另有supervisor及独立scene_obstacles。不发运动、不选下一颗、不写 `ledger.json`（可向 `runs/<request_id>/perception_data/` 追加 `HarvestDataStore` 事件；选中目标只在用到检测的阶段各留一帧：观察（`target_phase=OBSERVING`）和再确认（`VALIDATING`）各写 `colors/<stamp>_<target_id>.png`、`masks/<stamp>_<target_id>.png`、`debug/<stamp>_<target_id>.png`。调试图与 `/peach/perception/debug_image` 同一张画布：每帧画出全部检测框和分割。目标集确认锁定之后，图上的 id 就是抓取顺序（1 最先抓），不再写 `target_id`；锁定前只画框、分割和置信度。`publish_debug_image` 关闭时没有调试图。接近、剪切和撤离不存这些图。跳过或失败且前面没有检测帧时，补一张现场彩色图和调试图。没有掩膜的观察帧不占名额）。感知几何优先 stamp TF，失败 latest 并 `tf_stale`；重建积分必须图像时刻精确 TF，禁止 latest。
+本节描述brain中的vision两节点（看 + 建）；同包另有supervisor及独立scene_obstacles。不发运动、不选下一颗、不写 `ledger.json`（可向 `runs/<request_id>/perception_data/` 追加 `HarvestDataStore` 事件；选中目标只在用到检测的阶段各留一帧：观察（`target_phase=OBSERVING`）和再确认（`VALIDATING`）各写 `colors/<stamp>_<target_id>.png`、`masks/<stamp>_<target_id>.png`、`debug/<stamp>_<target_id>.png`。调试图与 `/peach/perception/debug_image` 同一张画布：每帧画出全部检测框和分割。目标集确认锁定之后，标签显示源身份 `target_N` 与抓取顺序 `#order`（1 最先抓）；锁定前只画框、分割和置信度。`publish_debug_image` 关闭时没有调试图。接近、剪切和撤离不存这些图。跳过或失败且前面没有检测帧时，补一张现场彩色图和调试图。没有掩膜的观察帧不占名额）。感知几何优先 stamp TF，失败 latest 并 `tf_stale`；重建积分必须图像时刻精确 TF，禁止 latest。
 
 ### 3.1 `peach_scene_perception_node`（看）
 
@@ -29,16 +29,16 @@ flowchart TB
 | `/peach/perception/initial_pose` | topic | 单帧袋入口/轴初值。重建当起点；不授权运动 | peach_scene_perception | peach_target_reconstruction |
 | `/peach/perception/diagnostics` | topic | 单帧拟合诊断（直径/RMSE/内点） | peach_scene_perception | peach_target_reconstruction |
 | `/peach/perception/harvest_state` | topic | 感知侧计划 JSON（锁定集镜像，给监控） | peach_scene_perception | peach_observability |
-| `/peach/perception/debug_image` | topic | 每帧全部检测框和分割。当前锁定集里的抓取顺序会留在画面上：本帧没检出就沿用上一帧像素框；新锁定换了名单后旧号去掉。顺序已经在画面上时，锁定集以外的新号和裸置信度不再画，避免过程中叠到已有框上。进 RViz | peach_scene_perception | peach_observability |
+| `/peach/perception/debug_image` | topic | 当前已完成推理曝光的检测叠加；锁定后仅给本帧检测到的锁定目标标源身份与顺序。缺检不复用旧像素框、箭头或分割，运动期间不产生推理叠加。显示可延迟于实时原图 | peach_scene_perception | peach_observability |
 
 清单未列、源码仍发（可视化豁免）：
 
 | 名字 | 含义 |
 |------|------|
 | `/peach/perception/detections` | 本帧检测框（真相流，不进 RViz） |
-| `/peach/perception/debug_image_raw` | 筛选前叠加，与 `debug_image` 成对落盘 |
+| `/peach/perception/debug_image_raw` | Active时在RGB-D同步入口直接发布原始彩色图，不等待YOLO/SAM或臂静止；运动中持续预览，保留原曝光stamp，无旧检测叠加 |
 | `/peach/perception/masks` | SAM 像素掩膜 |
-| `/peach/perception/single_cloud` | 检测框深度反投影，对 TF/深度，不是重建 |
+| `/peach/perception/single_cloud` | 本帧已确认检测框内深度反投影；无检测时发空云覆盖，开始运动或BeginScene立即清云 |
 | `/peach/perception/markers` | 锁定目标 3D：绿 ACCEPT、黄 REOBSERVE、红 REJECT |
 | `/peach/perception/axis` | 袋轴 Vector3Stamped 可视化（RViz） |
 
@@ -287,3 +287,19 @@ flowchart TB
 单视Build在`min_views=1`、实际只有一个独立机位时，对`bag_axis_envelope_ill_conditioned`（3D包络轴条件不足）或`bag_axis_silhouette_unobservable`（2D轮廓轴证据不足）最多采集3次：首拍加两次新曝光替换。所有尝试共用原`capture.build_timeout_s`截止时间；每次拒绝的曝光stamp、模型修订、次数与具体原因写`build_quality_rejected`事件。替换时清帧与TSDF、失效generation、保留末次曝光水位，禁止重复积分同帧或把同机位重复帧算成多视。其他质量拒因立即失败，永久不可观测在次数/时间任一耗尽时明确失败；不改变几何质量门和CONTACT/TOOL能力门。
 
 并行Build失败时，调度不会再派新的FULL；已在等待模型的FULL收到取消并收口。账本以现有`FailureCode.BUILD_FAILED`保留上述具体质量拒因，不以`decision_snapshot_unavailable`掩盖已知Build失败。尚未完成的Build不会被当作拒绝。
+
+
+### 视觉异步边界（2026-10-23）
+
+感知推理任务携带进程内frame_generation。BeginScene、由静止转运动、deactivate/cleanup和destroy先使旧任务失效；registry提交、旁路缓存及发布均在plan_lock内复核世代。不能仅丢弃待处理队列，因为YOLO/SAM中的任务仍会返回。原图预览独立于这道推理门；两种图像均保留各自实际曝光stamp，不把晚完成推理冒充最新相机画面。
+
+重建锁外掩膜解码、TF查询和构云准备均复核capture_generation；同目标同世代的并发准备还须在最终临界区复核曝光stamp严格递增，避免重复积分和倒序提交。发布先在状态锁内取得身份、模型、帧栈与产物版本快照，锁外构造云/marker，发送前再复核并在短临界区串行发布。reset/换绑的空产物不会被尚未完成的旧云或旧许可尾随覆盖；预抓取TF查询结果也不能恢复旧世代残差缓存。
+
+感知输出几何变换到output_frame时，两种3×3协方差同步按RΣRᵀ旋转。BeginScene换存储器后排空关闭旧HarvestDataStore，销毁时先停推理再排空当前写线程。
+
+Build终态同时绑定finalize完成时的capture_generation。返回前在同一状态锁内复核generation、target_id、scene_epoch、Active及READY，再填充TargetModel和动作结果；期间reset、换场或停用则以BUILD_FAILED返回`build_session_changed_before_result`，不把旧成功标志贴到已清空或新世代模型。
+
+感知生产路径显式仅请求`modes=('hybrid_dilated',)`。当前MODE_IDS本身也只有该模式；此调用不改变算法或阈值。实时原图从节点入口发布，worker不再为历史debug_raw结果槽复制或重复绘制一张已不发布的叠加图，debug_image以及显示本帧检测所需的SAM路径保持。
+
+
+周期归档在session.json声明的当前记录会话cycles/内，文件名含request/cycle身份散列，避免同秒同target覆盖。outcome携带真实dispatch/terminal的start/end_unix_ns与start/end_ros_ns及cycle_id，run_folder优先采用这些时刻；旧账本只有elapsed时以mtime估算并标time_basis=estimated_ledger_mtime。归档补session_id，源时钟完整时time_basis=source_clock；不把文件写入时间当真实终局时刻。

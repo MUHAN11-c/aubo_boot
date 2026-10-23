@@ -23,6 +23,7 @@
 #include "peach_arm/grasp_geometry.hpp"
 #include "peach_arm/model_contract.hpp"
 #include "peach_arm/plan_contract.hpp"
+#include "peach_arm/survey_freshness.hpp"
 
 using namespace std::chrono_literals;
 
@@ -695,43 +696,47 @@ void ManipulationSkillsNode::executeSurvey(
     };
   // 动作入口与 ExecuteTarget 一致：execution.enabled 时自动一次性 arm。
   if (execution_enabled_.load()) {execution_armed_.store(true);}
-  std::string snapshot_before;
-  {
-    std::lock_guard<std::mutex> lock(snapshot_mutex_);
-    snapshot_before = last_snapshot_id_;
-  }
   send_feedback("moving_to_photo_pose");
   onGoToPhotoPose(std::make_shared<Trigger::Request>(), response);
   execution_armed_.store(false);
+  bool fresh_frame = false;
   if (response->success && execution_enabled_.load()) {
+    // 以真正到位时刻为曝光下界；订阅晚到的运动前图像不能满足本次Survey。
+    const int64_t pose_reached_ns = now().nanoseconds();
+    uint32_t expected_epoch;
+    {
+      std::lock_guard<std::mutex> lock(snapshot_mutex_);
+      expected_epoch = last_observation_epoch_;
+    }
     send_feedback("waiting_snapshot");
-    // 到位后等一帧新快照再填 result：到位瞬间读到的常是移动前的旧帧
-    // （snapshot_id 未变）。窗口有界 2×等帧超时，超时即用旧值；50ms 切片
-    // 轮询，取消/关停立即退场（沿用 cache_ 等待纪律）。
-    const double deadline_s = now().seconds() + 2.0 * effectiveFrameWaitS();
+    const auto deadline = std::chrono::steady_clock::now() +
+      std::chrono::duration<double>(effectiveFrameWaitS());
     while (rclcpp::ok() && !goal_handle->is_canceling() &&
       !cancel_requested_.load())
     {
-      bool changed = false;
       {
         std::lock_guard<std::mutex> lock(snapshot_mutex_);
-        changed = last_snapshot_id_ != snapshot_before && !last_snapshot_id_.empty();
+        fresh_frame = surveyFrameFresh(
+          last_observation_stamp_ns_, pose_reached_ns,
+          last_observation_epoch_, expected_epoch);
       }
-      if (changed || now().seconds() >= deadline_s) {
+      if (fresh_frame || std::chrono::steady_clock::now() >= deadline) {
         break;
       }
       std::this_thread::sleep_for(50ms);
+    }
+    if (!fresh_frame) {
+      response->success = false;
+      response->message = "survey_fresh_frame_timeout: no exposure after photo pose";
     }
   }
   {
     std::lock_guard<std::mutex> lock(snapshot_mutex_);
     result->snapshot_id = last_snapshot_id_;
-    result->degraded = !last_target_set_locked_ || last_observation_count_ == 0;
+    result->degraded = !fresh_frame || !last_target_set_locked_ || last_observation_count_ == 0;
+    result->scene_epoch = last_observation_epoch_;
   }
   result->message = response->message;
-  // 场景纪元无真实源接入：SurveyScene 结果恒填 0（BeginScene 世代尚未
-  // 回传给本节点）；接入场景纪元源时改此单点，勿在别处复填。
-  result->scene_epoch = 0;
   // M1：survey 终局收口取消旗标（周期不在运行即清；语义见声明处注释）。
   clearCancelFlagIfIdle();
   // 与 executeAction 同款兜底：线程 detach 后若节点正在 shutdown，终局上报可抛

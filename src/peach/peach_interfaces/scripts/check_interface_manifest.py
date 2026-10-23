@@ -52,6 +52,7 @@ _LITERAL_RE = re.compile(r'[\'"](/peach[A-Za-z0-9_/]*)[\'"]')
 
 # consumer 标签 → 源码相对 src/ 的文件或目录（调度节点不含监控）。
 _CONSUMER_PATHS = {
+    'force_web': ['serial_force/scripts/force_web.py'],
     'peach_supervisor': [
         'peach/peach_harvester/peach_harvester/supervisor/executor_node.py',
         'peach/peach_harvester/peach_harvester/supervisor/batch.py',
@@ -150,8 +151,11 @@ def _consumer_blob(src_root: Path, consumer: str) -> str:
 
 
 def _name_in_blob(name: str, blob: str) -> bool:
-    """绝对名或 ~/相对名出现即算接线."""
+    """绝对、节点相对或私有名称的完整字面量出现即算接线."""
     if name in blob:
+        return True
+    relative = name.lstrip('/')
+    if f"'{relative}'" in blob or f'"{relative}"' in blob:
         return True
     rel = name.rsplit('/', 1)[-1]
     return f"'~/{rel}'" in blob or f'"~/{rel}"' in blob

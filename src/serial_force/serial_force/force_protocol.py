@@ -13,8 +13,8 @@
 """
 from __future__ import annotations
 
-import struct
 from dataclasses import dataclass
+import struct
 
 FORCE_HEADER = 0xA5
 FORCE_FRAME_LEN = 32

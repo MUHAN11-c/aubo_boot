@@ -26,6 +26,7 @@ EXCLUDE_TOPICS = {'/rosout', '/parameter_events', '/clock'}
 RAW_PATTERNS = ('/image_raw', '/image_rect', '/points', '/depth', '/ir')
 # 默认档只订这些。相机原流、控制器统计和重复点云不进袋。
 STD_KEEP = (
+    '/force/',
     '/joint_states',
     '/tf',
     'follow_joint_trajectory',

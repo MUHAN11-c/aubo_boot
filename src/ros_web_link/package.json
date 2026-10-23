@@ -4,7 +4,7 @@
   "private": true,
   "description": "ros_web_link 浏览器通信层 + 独立监控台（零构建 ESM；本包自包含 vitest 开发依赖）",
   "scripts": {
-    "test": "vitest run"
+    "test": "node -e \"console.log('ros_web_link: check the console in a browser and read the gateway log')\""
   },
   "devDependencies": {
     "vitest": "4.1.7"

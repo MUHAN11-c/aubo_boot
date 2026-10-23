@@ -6,7 +6,7 @@
   - interfaces：interface_manifest.yaml 现行接口名清单
   - functions：非测试 Python def 与 peach_arm/src C++ 外联定义的位置（file/line/name）
 只锁 schema 不锁数值（数值随重构演进，schema 漂移即失败）。
-用法：python3 gen_baseline_inventory.py [--out test/baseline_inventory.json]
+用法：python3 gen_baseline_inventory.py [--out output/baseline_inventory.json]
 """
 from __future__ import annotations
 
@@ -99,7 +99,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         '--out', default=str(Path(__file__).resolve().parent.parent /
-                             'test/baseline_inventory.json'))
+                             'output/baseline_inventory.json'))
     args = parser.parse_args()
     inventory = {
         'schema_version': SCHEMA_VERSION,

@@ -74,9 +74,8 @@ ros2 launch sim_bringup orchard_sim.launch.py \
   统一机体 URDF、规划帧 `platform_base_link` 接 map/odom 主 TF 树；SRDF/IK/
   Pilz/控制器映射复用 `aubo_e5_moveit_config`（`controllers_mock.yaml`）。
 - 场景参数唯一事实源在 `sim_worlds/config/orchard.yaml`；机体在 `sim_description`。
-- 自测：`colcon test --packages-select sim_bringup`（flake8/pep257 +
-  `test_nav_config.py` 零 ROS 一致性门：桥接清单 / Nav2 参数 / 地图三处对齐）；
-  P2 整栈验收门在 `sim_system_tests`（launch_testing，重世界分钟级）。
+- 自测：`colcon test --packages-select sim_bringup` 只跑官方 flake8 / pep257。
+  整栈是否起来，起 `sim.launch.py` 后看 `/joint_states` 和控制器日志。
 
 测完 Ctrl+C 停栈并 `pgrep -af 'gz sim|ros2|rviz'` 清残留（MUST）。
 许可 BSD-3-Clause。

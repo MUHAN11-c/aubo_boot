@@ -54,9 +54,6 @@ setup(
     maintainer_email='wangxiaoyun@iscas.ac.cn',
     description='Independent Web-ROS2 gateway + JS client + monitor console with API examples',
     license='Apache-2.0',
-    # tests_require 在 setuptools>=72 被忽略（colcon 依赖它探测 pytest runner），
-    # 用 extras_require.test 同义表达——与 aubo_ros2_web_dashboard 同款
-    extras_require={'test': ['pytest']},
     entry_points={
         'console_scripts': [
             'ros_web_link_gateway = ros_web_link.cli:main',

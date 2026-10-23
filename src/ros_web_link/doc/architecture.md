@@ -1,5 +1,7 @@
 # ros_web_link 架构（SNAPSHOT）
 
+> **2026-10-23 迁移说明**：`src/examples` 与 `external/` 已迁到 `/home/mu/demo_ws`。下文 `src/examples/...` 指 `/home/mu/demo_ws/src/examples/...`，`external/...` 指 `/home/mu/demo_ws/external/...`；运行 `sim_demo.launch.py` 前先 `source /home/mu/demo_ws/install/setup.bash`（或确认 apt 包）。
+
 **现在跑什么**的包级活文档；怎么演化以工作区 AGENTS.md 为准。
 
 ## 分层
@@ -91,32 +93,11 @@ client 分层。落地：
   subscribe/publish/service/params/graph，不依赖仿真/peach。
 - **独立安装**：`examples/`、`doc/`、`README.md`、`CHANGELOG.rst` 随包安装到 share；
   demo 脚本去 `/home/mu` 硬编码，版本升 1.1.0（additive）。
-- **门禁**：`test_api_surface.py`/`test_examples.py`/`test_docs_links.py`/
-  `test_package_independence.py` 防签名、示例、链接、硬编码漂移。
+- **门禁**：起 launch 后看日志和浏览器。本包没有官方 lint 文件（源码目前过不了 ament flake8）。
 
 ## 通信矩阵验证（本包的验收面）
 
-| 层 | 工具 | 内容 |
-|---|---|---|
-| JS 纯核 | vitest（本包自包含 devDependencies） | 协议帧/参数助手/TF 数学/**CDR 黄金字节交叉验证**（rclpy 序列化真值 vs JS codec，17 类常用可视化消息，含 PoseWithCovarianceStamped）/**PointCloud2 共享解析器（含 stride 采样/organized 行覆盖）**/**player raw 派发**/**viz_core（缓动/运动动画器/协方差椭圆/odom 轨迹/回放段/预设存取）** 共 135 用例 |
-| Python 单元 | pytest（venv） | 路由挂载 / 组合模式 / health+console 回归 / 配置默认值 / robot_mesh 解析与 symlink 防穿越 / 静态文件类 / 上游重试 helper 共 16 用例 || E2E 通信矩阵 | pytest（自起桥+网关+fixture，随机域/端口） | 订阅/发布 roundtrip/服务/action(goal+feedback+cancel+result)/参数 get-set-get/TF/图谱/健康(含桥组件探测)/视频代理负例/停机端口复核 11 用例（栈编排复用 e2e_harness） |
-| E2E 官方示例 | pytest（`Stack(official=True)`：官方 RSP/panda + 官方 CLI joint_states 驱动 + 官方 map_server/lifecycle_manager） | 官方 panda /robot_description、官方 /tf_static、**web JointState（带时间戳）→官方 RSP→/tf 关节角闭环**、官方 /map 384²、官方生命周期服务 GetState/LoadMap、官方 /diagnostics+/rosout 共 7 用例（panda 资源缺失整组 skip） |
-| E2E 官方仿真数据 | pytest（`LaunchStack` 整仓拉起 `sim_demo.launch.py`） | turtlebot3 官方仿真 + 官方 nav2 + ros2/examples 官方示例经网关：robot_description/joint_states/scan/odom/imu/tf/相机+Info/压缩图/官方点云/talker/map/amcl_pose/粒子云/诊断共 19 用例，含 **web→AMCL 定位闭环**、**web→NavFn 规划闭环** 与 **真实流速率/新鲜度**（2026-10-16 增，`test_e2e_sim.py`，替代已删的合成流可视化套件） |
-| 人工/自动化 | console.html「运行自检」+ 话题回显 | 浏览器内同矩阵（`window.__rwl_selftest`，9 项）+ 任意话题直接回显 |
-| E2E 大数据稳定传输 | pytest（`Stack` + fixture `rwl.bigdata:=true`，裸 websockets 客户端） | 快客户端吞吐/新鲜度 + 停顿-恢复有界积压/新鲜恢复/网关丢帧证据（`test_e2e_bigdata.py`，2 用例） |
-
-黄金字节生成器 `test/generate_viz_golden.py`：schema 文本与桥 message_definition_cache
-同构（根 .msg + DFS 首见序依赖 + `====…MSG: pkg/Type` 分隔；同包裸名按同包解析，
-Header→std_msgs/Header）。升级 ROS 或改 fixture 值后重新生成。
-
-E2E 编排注意（与工作区 MUST 对齐）：`asyncio.create_subprocess_exec` +
-`start_new_session=True`，SIGINT 整组收尾，收尾断言"端口已释放"；子环境补
-`ROS_DISTRO`（桥 banner 对 null getenv 会崩）与桥包 lib 目录（平时由 setup.bash 补）。
-**随机域避开本机占用域**（2026-10-14 修）：`free_domain()` 读 /proc/*/environ
-枚举存活进程的 ROS_DOMAIN_ID 并排除——此前随机 2-230 会撞上并发会话/demo 栈的
-常驻域（实证 2/80/86），表现为 /tf 混入他人帧（AUBO link 名出现在 viz 断言里）
-与 JTC goal 被拒；MoveIt 执行用例的 send_goal 另加了退避重试（冷启动偶发拒绝，
-机器高负载时放大）。
+行为核对：起官方仿真或 `monitor.launch.py`，浏览器打开 console，看自检、Displays 和网关日志。手工起栈要用空闲 `ROS_DOMAIN_ID`，结束清进程。桥进程需要 `ROS_DISTRO=jazzy`。
 
 ## 决策记录（本包内）
 
@@ -224,7 +205,7 @@ tf2_web_republisher、foxglove_bridge 参数面与 urdf-loaders 后的裁定与�
   发布的坐标映射修正（ROS y = −scene z）。
 - **PointCloud2 解析单源**（`view3d/pointcloud_parse.js`）：按 `fields[].offset`
   + DataView 读 float32/float64（旧 viz 实现逐字节读 data → 渲染出的是字节值）；
-  rgb packed/intensity（含整型归一）；viz 与渲染岛共用，vitest 覆盖。
+  rgb packed/intensity（含整型归一）；viz 与渲染岛共用。
 - **消息派发 O(1)**：player 维护 subscriptionId 反向 Map（旧为每消息线性扫描
   订阅表）；视频代理共享 httpx 连接池（旧每请求新建）；OccupancyGrid 换图
   释放旧纹理；robot_mesh containment 改 resolve()（symlink 防穿越）+ 修
@@ -248,8 +229,7 @@ tf2_web_republisher、foxglove_bridge 参数面与 urdf-loaders 后的裁定与�
   物理拷贝，且 dashboard 拷贝滞后——含 ros_client.publish bug）。dashboard 仅保留
   UI 层（面板/组件/latte/vision_grasp/状态栏等），组合网关启动时由 launch_gateway
   **逐文件 symlink 合并**（269 个文件；目录级合并不适用于 core/ 混居）。
-- **共享纯核测试随迁**：tf-math/utils 单测从 dashboard 迁入本包（vitest 51 用例）；
-  dashboard vitest `--passWithNoTests`。
+- **共享纯核**：tf-math/utils 在本包。2026-10-23 起不再保留 vitest 文件。
 - **SymlinkStaticFiles**：colcon `--symlink-install` 下 starlette 0.27 的 realpath
   containment 检查会把指向 build 树的符号链接判越界 → install 树静态全 404。本包
   挂载改用 normpath `..` 段检查的 lookup_path（目录路径也回 stat 以驱动 index.html
@@ -259,7 +239,7 @@ tf2_web_republisher、foxglove_bridge 参数面与 urdf-loaders 后的裁定与�
 
 | 位置 | 内容 |
 |---|---|
-| ros_web_link `web/public/js/` | transport/（foxglove 协议栈+门面+action）、core/（log/tf/utils/runtime 共享纯核）、view3d/、vendor/（three/urdf/transforms）、robotwebtools/（importmap+builds+libs+roslib-esm）、console/、ivg_{transport,runtime}.js、全部 `__tests__` |
+| ros_web_link `web/public/js/` | transport/（foxglove 协议栈+门面+action）、core/（log/tf/utils/runtime 共享纯核）、view3d/、vendor/（three/urdf/transforms）、robotwebtools/（importmap+builds+libs+roslib-esm）、console/、ivg_{transport,runtime}.js |
 | dashboard `web/public/js/` | 面板 html/js、components/、latte/、vision_grasp/、core/{dom_cache,ivg_status_bar,lifecycle,topics}、ivg_site_nav.js |
 
 已删除（两树确证死代码）：core/entities/{connection,ros_data,service}_store、
@@ -314,8 +294,7 @@ rviz2（ImageDisplay latest-wins 纹理、PointCloud 状态行）与 vendored �
 
 证据面（2026-10-16 浏览器实测，浏览器全速消费）：/rwl_demo/big_image +
 big_cloud 双流并行 25MB/s、RTT 2ms、重连 0、解码失败 0、网关丢帧 0、
-积压 0 帧、单连接累计转发 5.37GB；测试塔 vitest 135 + pytest 非仿真门 45 +
-comm_matrix 11 + official 7 + moveit 8 + sim 17 + bigdata 2 全绿。
+积压 0 帧、单连接累计转发 5.37GB。当时的自动用例文件已于 2026-10-23 删除。
 
 ## 官方示例 E2E 轮（2026-10-16 二弧）：gz 相机火流发现与压缩流默认
 

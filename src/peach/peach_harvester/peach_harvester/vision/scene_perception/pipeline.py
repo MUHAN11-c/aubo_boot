@@ -106,7 +106,7 @@ class PerceptionResult:
     debug: Optional[np.ndarray]
     """每帧全部检测框和分割。确认锁定后标签 id 是抓取顺序。None=未开 publish_debug_image."""
     debug_raw: Optional[np.ndarray]
-    """全量检测叠加（含未确认灰框）."""
+    """原始预览由节点同步入口发布；此兼容结果槽恒为None."""
     candidates: BagGraspCandidateArray
     """已确认目标的 3D 抓取候选（/initial_pose）."""
     fittings: BagFittingArray
@@ -239,6 +239,7 @@ class PerceptionPipeline:
         else:
             self.target_registry = None
         self.plan_lock = threading.RLock()
+        self.frame_generation = 0
         self.harvest_plan = GlobalHarvestPlan(
             max_targets=params.target_memory.max_targets,
             prefer_lower_first=params.harvest.priority_prefer_lower_first,
@@ -273,6 +274,7 @@ class PerceptionPipeline:
 
     def begin_scene(self, scene_changed: bool) -> int:
         """Reset lock window; clear identity only on physical scene change."""
+        self.frame_generation += 1
         self.harvest_plan.reset()
         cleared = 0
         if scene_changed:
@@ -310,8 +312,14 @@ class PerceptionPipeline:
                 locked, anchor_px)
 
     def process(self, frame: SyncedRgbd,
-                executor_target_id: str = '') -> Optional[PerceptionResult]:
+                executor_target_id: str = '',
+                generation: Optional[int] = None) -> Optional[PerceptionResult]:
         """Detect → segment → pose → identity. Returns None if YOLO fails."""
+        with self.plan_lock:
+            if generation is None:
+                generation = self.frame_generation
+            if generation != self.frame_generation:
+                return None
         params = self.params
         rgb, depth, K = frame.rgb, frame.depth, frame.K
         cam_frame, out_frame = frame.cam_frame, frame.out_frame
@@ -330,7 +338,7 @@ class PerceptionPipeline:
 
         mask_canvas = np.zeros(depth.shape[:2], dtype=np.uint16)
         debug = rgb.copy() if params.publish_debug_image else None
-        debug_raw = rgb.copy() if params.publish_debug_image else None
+        debug_raw = None  # 原始预览不经推理worker，避免复制和重复绘图。
         cand_arr = BagGraspCandidateArray()
         cand_arr.header = header
         fit_arr = BagFittingArray()
@@ -353,6 +361,8 @@ class PerceptionPipeline:
             and may_commit_identity(tf_status == 'ok'))
         if track:
             with self.plan_lock:
+                if generation != self.frame_generation:
+                    return None
                 # W2/V2：注册表淘汰的 id 须同步清出 bbox_at_edge 旁路缓存，
                 # 否则键只增不减（长运行缓慢泄漏）。
                 for evicted_id in self.target_registry.begin_frame(
@@ -366,7 +376,7 @@ class PerceptionPipeline:
         # 其余检测框也做一次 SAM，掩膜只进画面，不进候选和积分。
         pose_bboxes = {tuple(bbox) for bbox in frame_bboxes}
         segment_bboxes = list(frame_bboxes)
-        if debug is not None or debug_raw is not None:
+        if debug is not None:
             seen = set(pose_bboxes)
             for det in kept:
                 bbox = tuple(det['bbox'])
@@ -407,7 +417,8 @@ class PerceptionPipeline:
                     'calibration_version': params.calibration_version,
                 })
             result = self.estimator.estimate_modes(
-                obs, f'target_{i}', bbox, sam_mask)['hybrid_dilated']
+                obs, f'target_{i}', bbox, sam_mask,
+                modes=('hybrid_dilated',))['hybrid_dilated']
             if tf_status != 'ok':
                 flag = 'tf_stale' if tf_status == 'stale' else 'tf_unavailable'
                 if flag not in result.grasp_3d.diagnostic_flags:
@@ -448,6 +459,8 @@ class PerceptionPipeline:
                     'at_edge': p['at_edge'],
                 })
             with self.plan_lock:
+                if generation != self.frame_generation:
+                    return None
                 assigned_ids = self.target_registry.match_or_register_frame(
                     assign_items, now=self.clock.now())
 
@@ -468,7 +481,10 @@ class PerceptionPipeline:
                             'target_swinging')
                     if not str(tid).startswith('ambiguous_'):
                         at_edge = p['at_edge']
-                        self.bbox_at_edge[tid] = at_edge
+                        with self.plan_lock:
+                            if generation != self.frame_generation:
+                                return None
+                            self.bbox_at_edge[tid] = at_edge
                         if at_edge:
                             result.grasp_3d.diagnostic_flags.append('bbox_edge')
                 else:
@@ -532,8 +548,10 @@ class PerceptionPipeline:
                 header, tid, p['i'], result,
                 tool_d_inner=float(params.tool.d_inner_m)))
 
-        if debug is not None or debug_raw is not None:
+        if debug is not None:
             with self.plan_lock:
+                if generation != self.frame_generation:
+                    return None
                 fresh = grasp_order_by_id(
                     self.harvest_plan.locked,
                     dict(self.harvest_plan.priorities))
@@ -559,11 +577,6 @@ class PerceptionPipeline:
             ))
             for item in draw_items:
                 order = item.get('order') or None
-                if debug_raw is not None:
-                    draw_debug(
-                        debug_raw, item['det'], item['grasp_2d'], item.get('mask'),
-                        item.get('tid') or '', confirmed=item.get('confirmed', True),
-                        order=order)
                 if debug is not None:
                     draw_debug(
                         debug, item['det'], item['grasp_2d'], item.get('mask'),
@@ -571,6 +584,9 @@ class PerceptionPipeline:
                         order=order)
 
         self.timing.record('geometry_ms', (self.clock.now() - t_geom) * 1e3)
+        with self.plan_lock:
+            if generation != self.frame_generation:
+                return None
         return PerceptionResult(
             kept=kept, mask_canvas=mask_canvas, debug=debug, debug_raw=debug_raw,
             candidates=cand_arr, fittings=fit_arr, markers=markers,

@@ -17,6 +17,8 @@ import queue
 import threading
 import time
 
+from peach_common.recording_session import write_session_state
+
 
 def session_folder(root, now: float | None = None) -> Path:
     """会话目录命名：<root>/session_<yyyyMMdd_HHmmss>（bag 在其 bag/ 子目录）."""
@@ -84,7 +86,7 @@ def _is_arm_trajectory(topic: str) -> bool:
 
 def _is_perception_media(topic: str) -> bool:
     """图像、掩膜和点云。机械臂轨迹即使话题名里带 cloud 也不算."""
-    if _is_arm_trajectory(topic):
+    if topic.startswith('/force/') or _is_arm_trajectory(topic):
         return False
     if topic.startswith('/camera/'):
         return True
@@ -113,7 +115,7 @@ class Recorder:
         self._enabled = bool(enabled)
         self._on_info = on_info or (lambda info: None)
         self._log_warning = log_warning
-        self._lock = threading.Lock()
+        self._lock = threading.RLock()
         self._queue: queue.Queue = queue.Queue(
             maxsize=max(1, int(queue_depth)))
         self._drops = 0
@@ -127,6 +129,11 @@ class Recorder:
         self._session_dir: Path | None = None
         self._bag_dir: Path | None = None
         self._open_failed = False
+        self._accepting = self._enabled
+        self._closing = False
+        self._sealed = False
+        self._close_error = ''
+        self._write_errors = 0
         self._thread = threading.Thread(
             target=self._writer_loop, name='peach-web-recorder', daemon=True)
         self._thread.start()
@@ -158,6 +165,9 @@ class Recorder:
                 'queue_size': self._queue.qsize(),
                 'queue_depth': self._queue.maxsize,
                 'drops': self._drops,
+                'sealed': self._sealed,
+                'close_error': self._close_error,
+                'write_errors': self._write_errors,
             }
 
     def mark_perception_segment(self) -> None:
@@ -168,14 +178,15 @@ class Recorder:
     def handle_raw(self, topic: str, message,
                    timestamp_ns: int | None = None) -> None:
         """原始消息入队写 bag；未启用或打开失败时静默丢弃（监控优先）."""
-        if not self._enabled or self._open_failed:
-            return
-        topic = str(topic)
-        if self._control_flow_throttled(topic):
-            return
-        self._enqueue((
-            'msg', topic, message,
-            int(timestamp_ns if timestamp_ns is not None else time.time_ns())))
+        with self._lock:
+            if not self._enabled or not self._accepting or self._open_failed:
+                return
+            topic = str(topic)
+            if self._control_flow_throttled(topic):
+                return
+            self._enqueue((
+                'msg', topic, message,
+                int(timestamp_ns if timestamp_ns is not None else time.time_ns())))
 
     def _perception_segment_open(self, now: float) -> bool:
         with self._lock:
@@ -224,13 +235,27 @@ class Recorder:
             self._note_drop()
             return
         try:
-            self._queue.get_nowait()
-            # 被丢的那条也要销账，否则 close() 的 queue.join() 永远等不齐
-            self._queue.task_done()
+            if not self._evict_message():
+                self._note_drop()
+                return
             self._queue.put_nowait(item)
         except (queue.Empty, queue.Full):
             pass
         self._note_drop()
+
+    def _evict_message(self) -> bool:
+        """原子移除最旧数据项；open/close 控制屏障始终不可丢."""
+        with self._queue.mutex:
+            for index, job in enumerate(self._queue.queue):
+                if job[0] != 'msg':
+                    continue
+                del self._queue.queue[index]
+                self._queue.unfinished_tasks -= 1
+                if not self._queue.unfinished_tasks:
+                    self._queue.all_tasks_done.notify_all()
+                self._queue.not_full.notify()
+                return True
+        return False
 
     def _put_control(self, item) -> bool:
         """open/close 必须入队：满则丢最旧腾位，禁止阻塞 put（SIGINT 挂死源）."""
@@ -240,8 +265,8 @@ class Recorder:
         except queue.Full:
             pass
         try:
-            self._queue.get_nowait()
-            self._queue.task_done()
+            if not self._evict_message():
+                return False
             self._queue.put_nowait(item)
             self._note_drop()
             return True
@@ -262,15 +287,38 @@ class Recorder:
     def close(self, timeout_s: float = 8.0) -> Path | None:
         """排空队列并收尾 bag；有界等待，避免 SIGINT 时 queue.join 永久挂死."""
         budget = max(0.1, float(timeout_s))
+        with self._lock:
+            self._accepting = False
+            first_close = not self._closing
+            self._closing = True
+            session = self._session_dir
+        if first_close and session is not None:
+            self._session_state('closing')
         if self._enabled:
-            self._put_control(('close',))
+            if first_close:
+                try:
+                    # No new data can arrive: wait for space without discarding
+                    # accepted messages, and never evict an open/close barrier.
+                    self._queue.put(('close',), timeout=budget)
+                except queue.Full:
+                    self._close_error = 'close control queue timed out'
             if not self._closed.wait(timeout=budget):
+                self._close_error = self._close_error or 'writer close timed out'
                 self._log_warning(
-                    f'bag 收尾超时 {budget:.1f}s，强制停写线程')
+                    f'bag 收尾超时 {budget:.1f}s；未确认封口，跳过自动报告')
         self._stop.set()
         self._thread.join(timeout=min(2.0, budget))
         with self._lock:
-            return self._bag_dir
+            return self._bag_dir if self._sealed and not self._thread.is_alive() else None
+
+    def _session_state(self, state: str) -> None:
+        """会话声明与bag同属一个写者；声明失败必须可见."""
+        if self._session_dir is None:
+            return
+        try:
+            write_session_state(self._session_dir, state)
+        except OSError as error:
+            self._log_warning(f'会话状态写入失败: {error}')
 
     # ------------------------------------------------------------------
     # 写线程：唯一执行盘写的地方
@@ -293,15 +341,19 @@ class Recorder:
                 elif kind == 'msg':
                     writer = self._write_message(writer, created, job)
                 elif kind == 'close':
-                    self._close_writer(writer)
+                    self._sealed = self._close_writer(writer)
                     writer = None
+                    self._session_state('sealed' if self._sealed else 'error')
                     self._closed.set()
+                    break
             except Exception as error:  # 单任务失败只告警，线程不死
+                self._write_errors += 1
                 self._log_warning(f'bag 记录任务失败（跳过）: {error}')
             finally:
                 self._queue.task_done()
         if writer is not None:  # close 任务未达（异常路径）的兜底收尾
-            self._close_writer(writer)
+            self._sealed = self._close_writer(writer)
+            self._session_state('sealed' if self._sealed else 'error')
         self._closed.set()
 
     def _open_bag(self, writer):
@@ -334,6 +386,9 @@ class Recorder:
         with self._lock:
             self._session_dir = session
             self._bag_dir = bag_dir
+        write_session_state(
+            session, 'closing' if self._closing else 'active',
+            opened_at_ns=time.time_ns())
         self._on_info(self.info())
         return writer
 
@@ -353,11 +408,14 @@ class Recorder:
         writer.write(topic, serialize_message(message), stamp_ns)
         return writer
 
-    def _close_writer(self, writer) -> None:
+    def _close_writer(self, writer) -> bool:
         """收尾 bag（metadata.yaml 落盘）；重复关闭无害."""
         if writer is None:
-            return
+            return False
         try:
             writer.close()
+            return True
         except Exception as error:  # 收尾失败不掩饰：报告侧会走 reindex 兜底
+            self._close_error = str(error)
             self._log_warning(f'bag 收尾异常（报告侧将尝试 reindex）: {error}')
+            return False

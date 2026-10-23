@@ -23,3 +23,6 @@ Lifecycle节点自激活，不进系统四节点名单；双线程executor外有
 ## 状态投影与静态资源
 
 原始精化诊断、绑定来源及typed/raw/decision合并集中在既有pipeline.py，节点ROS回调负责接线，避免多处解释身份。state.py 的投影只解释已有身份与诊断标记：嵌套 candidate/fitting 空身份或与外层 target_id 不符即投影为 null，BagFitting 负值与非有限标量转 null（零仍是合法比例/点数/枚举），`anchor_from_memory` 保留历史关键点但置信度、相机距离、袋径与行程置 null——不改 ROS 原消息或许可门。HTTP静态白名单包含ui-common.js、monitor-renderers.js、trajectory-renderers.js、request-runtime.js；它们由peach_web安装，与app.js协作，不新增ROS控制面。
+
+
+记录器是会话身份所有者：原子session.json声明写者与状态，force_web与调度归档不再用bag mtime判断存活。原子/force/sample在所有录制档完整入袋；固定订阅与发现订阅不重叠写入。Recorder控制屏障不可丢，停止接收后排队封口，只有确认sealed才启动自动报告。离线保留数值数组与源ns时间；旧mtime时间推算明确标estimated，时间重叠关联不能替代目标身份。

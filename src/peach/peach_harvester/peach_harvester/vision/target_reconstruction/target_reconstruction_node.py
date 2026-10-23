@@ -292,6 +292,7 @@ class TargetReconstructionNode(
             message_filters.SimpleFilter(), cache_size=8192)
         # BuildTargetModel 单槽重入护栏（goal 回调置位，执行体 finally 清零）
         self._build_goal_active = False
+        self._completed_build_generation = None
         # ROS 实体（发布器/订阅/服务/ActionServer/TF/心跳）统一在 on_configure
         # 创建（官方 LifecycleNode 写法：Unconfigured 期零 ROS 接口，configure
         # 失败即 ERROR），on_cleanup 释放；见 _wire_ros / _unwire_ros。
@@ -712,6 +713,7 @@ class TargetReconstructionNode(
                 # 切回原 ID）均直通；requested==bound 时赋值幂等
                 self._preferred_target_id = requested_target_id
             preferred = self._preferred_target_id
+            generation = self._capture_generation
         if link_event:
             self._harvest_data.append_event({
                 'source': 'reconstruction',
@@ -766,6 +768,9 @@ class TargetReconstructionNode(
                     np.asarray(mask, dtype=np.uint8),
                     self._candidate_center(bound_obs.candidate))
         with self._state_lock:
+            if (generation != self._capture_generation
+                    or preferred != self._preferred_target_id):
+                return
             if hint is not None:
                 self._bound_axis_hint = hint
             self._locked_target_centers = centers
@@ -1434,6 +1439,7 @@ class TargetReconstructionNode(
                 return status, pose_count, False, detail
             with self._state_lock:
                 ok, message = self._finalize_now()
+                self._completed_build_generation = self._capture_generation
                 attempts += 1
                 if ok:
                     return 'ready', pose_count, True, message
@@ -1480,6 +1486,7 @@ class TargetReconstructionNode(
             return result
         self._on_reset(Trigger.Request(), Trigger.Response())
         with self._state_lock:
+            self._completed_build_generation = None
             self._scene_epoch = int(goal.scene_epoch)
             if goal.target_id:
                 self._executor_state_seen = True
@@ -1530,26 +1537,37 @@ class TargetReconstructionNode(
             else:
                 goal_handle.abort()
             return result
-        result = BuildTargetModel.Result()
-        result.success = bool(ok)
-        result.message = message
-        result.failure_code = FailureCode.NONE if ok \
-            else FailureCode.BUILD_FAILED
-        result.quality_level = model_quality_level(bool(ok), pose_count)
-        model = TargetModel()
-        model.target_id = goal.target_id
-        model.scene_epoch = goal.scene_epoch
-        model.accepted = bool(ok)
-        model.message = message
-        model.quality.level = result.quality_level
-        model.view_count = pose_count
-        self._fill_target_model(model)
-        result.model = model
-        if ok:
-            goal_handle.succeed()
-        else:
-            goal_handle.abort()
-        return result
+        with self._state_lock:
+            same_session = (
+                self._completed_build_generation == self._capture_generation
+                and self.collector.target_id == goal.target_id
+                and self._scene_epoch == int(goal.scene_epoch)
+                and self._lifecycle_active)
+            if ok and (not same_session or self.collector.state != 'READY'):
+                ok = False
+                same_session = False
+                message = 'build_session_changed_before_result'
+            result = BuildTargetModel.Result()
+            result.success = bool(ok)
+            result.message = message
+            result.failure_code = FailureCode.NONE if ok \
+                else FailureCode.BUILD_FAILED
+            result.quality_level = model_quality_level(bool(ok), pose_count)
+            model = TargetModel()
+            model.target_id = goal.target_id
+            model.scene_epoch = goal.scene_epoch
+            model.accepted = bool(ok)
+            model.message = message
+            model.quality.level = result.quality_level
+            model.view_count = pose_count
+            if same_session:
+                self._fill_target_model(model)
+            result.model = model
+            if ok:
+                goal_handle.succeed()
+            else:
+                goal_handle.abort()
+            return result
 
     def _on_save_session(self, request, response):
         """~/save_session：全部已采帧落盘 session_<时间戳>/（含参数快照）."""
@@ -1636,6 +1654,7 @@ class TargetReconstructionNode(
         """
         with self._state_lock:
             target_id = str(self.collector.target_id or '')
+            generation = self._capture_generation
             fused = self._bag_model
             result = self._refined
             previous = self._pregrasp_prev
@@ -1653,7 +1672,9 @@ class TargetReconstructionNode(
         msg.target_id = target_id
         if eval_row is not None:
             with self._state_lock:
-                self._pregrasp_prev = eval_row
+                if (generation == self._capture_generation
+                        and target_id == self.collector.target_id):
+                    self._pregrasp_prev = eval_row
         return msg
 
     def _fill_target_model(self, model: TargetModel) -> None:
@@ -1666,7 +1687,8 @@ class TargetReconstructionNode(
             decision=self._lock_decision_validity(self._grasp_decision()))
 
     def destroy_node(self):
-        """停止重建单写者 worker 与事件落盘线程后销毁 ROS 节点.
+        """
+        停止重建单写者 worker 与事件落盘线程后销毁 ROS 节点.
 
         worker 在 on_configure 的 _wire_ros 里才创建。生命周期未完成
         configure 就拆栈时（例如 change_state 应答丢失）这里必须可调用。

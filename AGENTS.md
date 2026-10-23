@@ -86,7 +86,7 @@ flowchart TB
 ### 权威来源（蒸馏进各章，写代码时回链）
 
 - [Jazzy Developer Guide](https://docs.ros.org/en/jazzy/The-ROS2-Project/Contributing/Developer-Guide.html)：测试金字塔、公有 API、文件系统布局、防御式、`colcon test`
-- [Testing Main](https://docs.ros.org/en/jazzy/Tutorials/Intermediate/Testing/Testing-Main.html) + [launch_testing](https://docs.ros.org/en/jazzy/p/launch_testing/)：gtest / pytest / isolated domain；默认 CI 不依赖真机
+- [Testing Main](https://docs.ros.org/en/jazzy/Tutorials/Intermediate/Testing/Testing-Main.html)：本仓 `colcon test` 只跑官方 ament lint；行为看日志。默认 CI 不依赖真机
 - [REP-2004](https://reps.openrobotics.org/rep-2004/) 质量等级；[REP-2005](https://reps.openrobotics.org/rep-2005/) 包质量声明
 - [Code style](https://docs.ros.org/en/jazzy/The-ROS2-Project/Contributing/Code-Style-Language-Versions.html)：Jazzy C++17；Google C++ 改版；Python PEP8
 - ros2_control + mock_components；MoveIt 2 / MTC / Pilz；Nav2 lifecycle + pluginlib + bond + Collision Monitor
@@ -215,7 +215,7 @@ ISO 10218 要求独立的正常停止、保护停止、急停，且急停优先�
 | 硬件/控制器 | [ros2_control](https://control.ros.org/jazzy/doc/getting_started/getting_started.html)、[mock_components](https://control.ros.org/rolling/doc/ros2_control/hardware_interface/doc/mock_components_userdoc.html)、UR `ur_control.launch.py` |
 | 规划/接触 | MoveIt launch files、MTC、[Pilz](https://moveit.picknik.ai/main/doc/how_to_guides/pilz_industrial_motion_planner/pilz_industrial_motion_planner.html) |
 | 感知高带宽 | Composable nodes、`image_transport`、`message_filters`、tf2 `MessageFilter` |
-| 测试 | [Testing](https://docs.ros.org/en/jazzy/Tutorials/Intermediate/Testing/Testing-Main.html)、gtest/pytest、[launch_testing](https://docs.ros.org/en/jazzy/p/launch_testing/)、isolated `ROS_DOMAIN_ID` |
+| 测试 | [Testing](https://docs.ros.org/en/jazzy/Tutorials/Intermediate/Testing/Testing-Main.html)；本仓只留官方 lint，行为用日志和手工冒烟 |
 | 文档 | [Documenting a ROS 2 package](https://docs.ros.org/en/jazzy/How-To-Guides/Documenting-a-ROS-2-Package.html)、Developer Guide README 七要素 |
 | 风格 | [Code style](https://docs.ros.org/en/jazzy/The-ROS2-Project/Contributing/Code-Style-Language-Versions.html) + 本包 linter |
 | 安全 / 急停 / 使能 | 第 2 章；ISO 10218 / IEC 60204-1 / ISO 13850；[Nav2 Collision Monitor](https://docs.nav2.org/tutorials/docs/using_collision_monitor.html)；[UR robot_state_helper](https://docs.universal-robots.com/Universal_Robots_ROS_Documentation/rolling/doc/ur_robot_driver/ur_robot_driver/doc/robot_state_helper.html)；[Autoware fail-safe](https://autowarefoundation.github.io/autoware-documentation/main/design/autoware-architecture-v1/interfaces/ad-api/features/fail-safe/)；Stretch runstop。禁止把 ROS 当 SIL |
@@ -289,10 +289,10 @@ ISO 10218 要求独立的正常停止、保护停止、急停，且急停优先�
 - 失败可定位：稳定 `failure_code`；规划失败不执行残缺轨迹
 - 授权：运动 / IO 收敛单一权威；默认关执行
 - 会话：一次作业一个 run 目录，结束停写
-- 默认分支始终可编可测（Developer Guide）。把“只有真机才知道对错”留给田间验收，不要拿它挡 unit / integration
-- 改完先本地 `colcon test --packages-select …` 再提。绿的是 lint + 纯核 / gtest / 将来的 launch_testing，不是套袋方向
+- 默认分支始终可编，`colcon test` 能跑官方 lint。把“只有真机才知道对错”留给田间验收
+- 改完先本地 `colcon test --packages-select …` 再提。绿的是官方 ament lint，不是套袋方向
 
-质量等级对照：本仓是**应用栈**，目标 QL3～QL2。不要用核心库的 95% 行覆盖当门；也不要用“应用所以不测”当借口。lint + 纯核 + 逐步 launch_testing 是最低向前走的路径。
+质量等级对照：本仓是**应用栈**。`colcon test` 只跑官方 lint。行为核对用日志和 [testing.md](src/peach/peach_system_tests/doc/testing.md) 的手工步骤。不要再往 `test/` 加自定义 gtest、pytest 或 launch_testing 文件。
 
 ### 通信
 
@@ -352,7 +352,7 @@ TurtleBot 4 / Stretch / UR 的做法：同一套控制器与 MoveIt，只换硬�
 - 第二套自研 lifecycle、自研参数生成、自研“类 ros2_control”
 - 把 8090 Web 做成带登录的产品前端（纯调试客户端可 KEEP）
 - 成熟库已覆盖的功能再手写一遍（自研 TF、时间同步、轨迹插值、四元数、参数框架），或只看了签名就开始调库
-- 用“不上 pluginlib / 禁止 launch_testing / 已删 GPL”当永久禁令（那些是 UNWIND，见第 12 章）
+- 用“不上 pluginlib / 已删 GPL”当永久禁令（那些是 UNWIND，见第 12 章）。测试文件以第 10 章为准：只留官方 lint
 - 把 ROS / 8090 / SROS2 当成功能安全急停，或故障后自动继续原轨迹
 
 ---
@@ -457,9 +457,9 @@ description (URDF + ros2_control 标签)
 ---
 - Autoware 习惯：ROS 参数 `*.param.yaml`，非 ROS 配置普通 `*.yaml`，schema 校验。本仓 SNAPSHOT 是 `config/<节点>.yaml` 全量清单；新文件可向 `.param.yaml` 靠，不要第三套命名
 - launch 文件：Python launch 用 `OpaqueFunction` 只在需要运行期计算时；能 `IncludeLaunchDescription` 就不要复制 bringup。参数文件用 `ParameterFile(..., allow_substs=True)` 时写清哪些键会被替换
-- 测试文件：`test/test_*.py` / `test_*_cpp.cpp`；`ament_add_gtest` / `ament_add_pytest_test` / `add_ros_isolated_launch_test` 进 `BUILD_TESTING`
+- 测试：Python 包 `test/` 只留官方 `test_flake8.py`、`test_pep257.py`；C++ 包 `BUILD_TESTING` 只留 `ament_lint_auto`。`/home/mu/demo_ws/src/examples/` 里的官方示例测试保持原样（2026-10-23 迁出）
 
-工作区按**子工作空间分组**（2026-10-10 用户裁定，对齐 ivg 先例）：`src/peach/` = 现行采摘栈九包、`src/ivg/` = IVG/演示栈、`src/peach_sim/` = 仿真子工作空间（2026-10-13 重组：原顶层 `peach_sim` 拆为 `sim_worlds` 场景 / `sim_description` 机体 / `sim_bringup` 入口 / `sim_perception` 感知快照复制 / `sim_system_tests` launch_testing 验收门；统一机体 `sim.launch.py`（gz_ros2_control 臂 + MoveIt + 可驾驶底盘）与感知闭环 `perception.launch.py` 已落地；P4b（2026-10-14）补自主采摘入口：`harvest.launch.py`（sim+perception+Nav2 一键，field/程序化两预设）+ `orchard_harvest` 编排 CLI（sim_bringup），`generate_field`（sim_worlds，重建 scene_manifest → field_map/field_stations GT）、`odom → platform_base_link` 由 OdometryPublisher 经桥发布、sim.launch spawn 显式 xyz 覆盖；图名、话题名、世界产物不变）、`src/examples/` = 官方示例子工作空间（2026-10-19 自 `src/` 顶层收纳：`ros2_examples` / `turtlebot3_msgs` / `turtlebot3_simulations` / `turtlebot3_navigation2` symlink / `panda_description` / `panda_moveit_config`，供 ros_web_link 官方数据面 E2E 与 MoveIt2 Panda 示例；TB3 与 ros2/examples 为本地克隆不入库，见组内 README）；驱动九包与 `serial_force` / `percipio_camera` / `peach_web`（8090 静态页资源包，2026-10-10 自 peach_observability/web 拆出）留 `src/` 顶层。peach2 已于 2026-10-12 移出 `src/`。分组只是目录收纳：包名、图名、colcon 递归发现与 `--packages-select` 均不变。现行 peach 树见 [peach_bringup/doc/architecture.md](src/peach/peach_bringup/doc/architecture.md)「命名与文件树」，此处不复制。新文件先问：它属于 description、bringup、moveit_config、interfaces，还是某个能力包？不要往驱动九包塞业务。
+工作区按**子工作空间分组**（2026-10-10 用户裁定，对齐 ivg 先例）：`src/peach/` = 现行采摘栈九包、`src/ivg/` = IVG/演示栈、`src/peach_sim/` = 仿真子工作空间（2026-10-13 重组：原顶层 `peach_sim` 拆为 `sim_worlds` 场景 / `sim_description` 机体 / `sim_bringup` 入口 / `sim_perception` 感知快照复制 / `sim_system_tests`（官方 lint）；统一机体 `sim.launch.py`（gz_ros2_control 臂 + MoveIt + 可驾驶底盘）与感知闭环 `perception.launch.py` 已落地；P4b（2026-10-14）补自主采摘入口：`harvest.launch.py`（sim+perception+Nav2 一键，field/程序化两预设）+ `orchard_harvest` 编排 CLI（sim_bringup），`generate_field`（sim_worlds，重建 scene_manifest → field_map/field_stations GT）、`odom → platform_base_link` 由 OdometryPublisher 经桥发布、sim.launch spawn 显式 xyz 覆盖；图名、话题名、世界产物不变）、`src/examples/` 已于 2026-10-23 独立到 `/home/mu/demo_ws`（入口 `/home/mu/demo_ws/src/examples/README.md`；本地克隆不入库）；驱动九包与 `serial_force` / `percipio_camera` / `peach_web`（8090 静态页资源包，2026-10-10 自 peach_observability/web 拆出）留 `src/` 顶层。peach2 已于 2026-10-12 移出 `src/`。分组只是目录收纳：包名、图名、colcon 递归发现与 `--packages-select` 均不变。现行 peach 树见 [peach_bringup/doc/architecture.md](src/peach/peach_bringup/doc/architecture.md)「命名与文件树」，此处不复制。新文件先问：它属于 description、bringup、moveit_config、interfaces，还是某个能力包？不要往驱动九包塞业务。
 
 ---
 
@@ -496,7 +496,7 @@ description (URDF + ros2_control 标签)
 - 不要在默认互斥组里做长时间 CPU
 - 能调用成熟库完成的功能不要手写；调用前已完成第 3 章对该库的文档 + 源码阅读。适配层保持薄：不复制库内已有的滤波、TF、同步、轨迹插值
 - 新依赖：ROS 走 apt / `package.xml`；其余钉进 `requirements.txt`，并验证 numpy 1.26.4
-- 纯核（零 `rclpy` / `rclcpp`）可单测、可复用。节点文件只接线：订、发、转 lifecycle、填 IDL。业务判断进纯核，方便 gtest / pytest 而不造 DDS 现场
+- 纯核（零 `rclpy` / `rclcpp`）与节点分开。节点只接线：订、发、转 lifecycle、填 IDL。行为核对看日志，不另写 test 文件
 - **节点 / 纯核 API（对齐 Nav2 `computeVelocityCommands`、Autoware `FooCore`、本仓 `harvest_fsm.react`）：** 节点 = Lifecycle + 接线 + `decode` / `process` / `publish`。纯核 = `from_params` + 一个热路径动词 + 结果对象，不持有 Node（时钟用适配器）。映射表只出现一次、在产生它的模块；禁止节点与模块各写一份过滤/开关。新能力加模块方法，节点多一行调用。不上第二套注册表（现有 `make_pipeline` / `select_refitter` 字典留在原模块）
 - include 本包公有头用 `#include "pkg/foo.hpp"`，不要相对 `../include`
 - C++ 编译：`-Wall -Wextra -Wpedantic` 跟官方包；不要全局关警告来“过 CI”
@@ -531,7 +531,7 @@ description (URDF + ros2_control 标签)
 
 IDL 文件头写通道语义；字段行内写单位与取值。代码注释解释非显然的 **为什么**，不要复述下一行。行为变化写提交说明或 `CHANGELOG.rst`（[REP-132](https://www.reps.openrobotics.org/rep-0132.html)）；轮次散文不写回测试指导文档。公有 C++ 头必须 `///`。
 
-如何演化以**本文**为准：非完美适配则主流，并同轮改对应包的活文档。不要把当时否决（不上 pluginlib、禁止 launch_testing）当永久禁令。
+如何演化以**本文**为准：非完美适配则主流，并同轮改对应包的活文档。不要把当时否决（不上 pluginlib）当永久禁令。测试文件见第 10 章。
 
 代理写文档时：SNAPSHOT 用现在时（“现行 … 是 …”）；DEFAULT 用祈使（“新代码 …”）；UNWIND 标明“不是完美适配”。禁止把 SNAPSHOT 写成红线，也禁止把 MUST 写成“建议”。
 
@@ -586,63 +586,39 @@ flowchart LR
 
 ## 10. 测试与核对
 
-[ROS 2 Developer Guide](https://docs.ros.org/en/jazzy/The-ROS2-Project/Contributing/Developer-Guide.html)：unit 在本包 + mock；integration 在本包；system 独立包以免环依赖。默认测试不得要求真机或人在环。默认分支始终可编可测；改完先本地 `colcon test` 再提。决策 0006 禁止 launch_testing / gtest 是 **UNWIND**，不是套袋工艺的完美适配。
+2026-10-23 用户裁定：`test/` 只保留 ROS 2 官方 lint 文件。Python 包是 `test_flake8.py`、`test_pep257.py`；C++ 与 ament_cmake 包的 `BUILD_TESTING` 只留 `ament_lint_auto`。`/home/mu/demo_ws/src/examples/` 的官方示例测试不动（2026-10-23 迁出）。行为核对用节点日志、`ros2 topic echo` 和 [testing.md](src/peach/peach_system_tests/doc/testing.md) 里的手工步骤（mock 冒烟、冻结回放、探针）。不要再新增自定义 gtest、pytest 或 launch_testing 文件。
 
 ```mermaid
-flowchart TB
-  Unit[本包纯核_gtest或pytest]
-  Integ[launch_testing_隔离域_mock硬件]
-  Sys[独立系统测包_物理仿真可选]
-  Field[真机命名轮次_runs加提交说明]
-  Unit --> Integ --> Sys --> Field
+flowchart LR
+  Lint[colcon_test_官方lint]
+  Manual[日志与手工冒烟]
+  Field[真机命名轮次]
+  Lint --> Manual --> Field
 ```
-
-| 层 | 社区工具 | 测什么 | 本仓现状 |
-|----|----------|--------|----------|
-| Lint | `ament_lint_auto` / flake8 / pep257 / uncrustify / cppcheck | 风格 | 已有 |
-| Unit | gtest / pytest + mock；零 ROS 纯核也合法 | FSM、几何、协议 | 仅纯核 pytest；**新 C++ 允许 gtest** |
-| Integration | `launch_testing`：`generate_test_description` + `ReadyToTest` + 运行中 TestCase + `@post_shutdown_test` 查退出码；`add_ros_isolated_launch_test` 隔离域；`mock_components` | launch、lifecycle、话题接线、MoveIt piping | **缺口 / UNWIND** |
-| System | 独立 `*_tests` 包；Gazebo Harmonic / Isaac / MuJoCo + clock bridge | 跨包端到端 | **缺口**。系统测在独立 `peach_system_tests` / `peach2_system_tests` 包；旧工作区脚本已退役 |
-| Field | 真机 + bag + 命名 `request_id` | 方向 / 接触 / IO | KEEP：采摘对错的最终权威 |
 
 硬规则：
 
-- 改动后本地 `colcon test --packages-select …` + `colcon test-result --verbose`
-- 新功能：先单测，再 launch_testing，最后才真机
-- **测完即停：** 探针 / bag / 采集 / 演示栈 / mock 冒烟结束后必须退出并 `pgrep` 复核（MUST 第 1 章；步骤第 9 章）。`colcon test` 与 isolated launch_testing 本身会拆栈，但本机手工起的进程不在其列。
-- 真机命名：v1 测试指导（`src/peach/peach_system_tests/doc/testing.md` §4）的 `field_pregrasp_*` / `field_full_*`；`request_id` 不复用
-- `colcon test` 绿 **不等于** 采摘方向验收；也不再把“禁止仿真测”写成原则
-- CI DEFAULT：[industrial_ci](https://github.com/ros-industrial/industrial_ci) GitHub Action，`ROS_DISTRO: jazzy`，跑 build+test。真机 job 不进 PR 必过门。本仓 `.github/workflows/jazzy.yaml`：`industrial_ci` job 编测驱动+peach（原 `peach-core` / `r0_gate.sh` 已退役）（忽略 IVG / `percipio_camera` / `camera_calibration`；apt scipy/pytest/yaml，不 Docker pip）
+- 改动后本地 `colcon test --packages-select …` + `colcon test-result --verbose`。绿的是 lint
+- 行为变化写进日志，用对应手工步骤看一遍。真机另需授权
+- **测完即停：** 探针 / bag / 采集 / 演示栈 / mock 冒烟结束后必须退出并 `pgrep` 复核（MUST 第 1 章；步骤第 9 章）
+- 真机命名：v1 测试指导（`src/peach/peach_system_tests/doc/testing.md`）的 `field_pregrasp_*` / `field_full_*`；`request_id` 不复用
+- `colcon test` 绿不等于采摘方向验收
+- CI：[industrial_ci](https://github.com/ros-industrial/industrial_ci)，`ROS_DISTRO: jazzy`，跑 build 与官方 lint。真机 job 不进 PR 必过门。本仓 `.github/workflows/jazzy.yaml` 忽略 IVG / `percipio_camera` / `camera_calibration`
 
-### launch_testing 怎么写（新接线用这个，不再禁止）
-
-官方形态（[launch_testing](https://docs.ros.org/en/jazzy/p/launch_testing/)）：
-
-1. `generate_test_description()` 返回 launch 描述 + `ReadyToTest` 动作
-2. 运行中 `TestCase` 查话题、lifecycle 状态、服务是否就绪（用 `mock_components`，不要真机）
-3. `@post_shutdown_test` 查进程退出码，避免“测过了但节点已经 SIGABRT”
-4. CMake：`add_ros_isolated_launch_test`，给独立 `ROS_DOMAIN_ID`，避免和开发机上正在跑的栈抢域
-
-测什么：launch 参数是否把节点拉起来、QoS 是否对得上、lifecycle 能否 Active、mock 下 `/joint_states` 是否出。不要在 launch_testing 里断言套袋方向——那是真机 KEEP。
-
-### 物理仿真（缺口，不是禁令）
-
-Gazebo Harmonic（Jazzy 搭配）或 Isaac / MuJoCo：同一 URDF，换 `gz_ros2_control`，全图 `use_sim_time`。系统测放独立包，避免能力包与测试包环依赖。本仓尚未落地（UNWIND）。未落地之前，用 mock_components 做集成测，用独立 `*_system_tests` 包做系统测，**不要**把“还没有 Gazebo”写成“禁止仿真测”。
+仿真仍可手工起 Gazebo / 现有 `peach_sim` launch，看日志。不要为此再写一套测试文件。
 
 ---
 
 ### 改后核对（做完改动要跑）
 
-1. 风格：受影响包 `colcon test --packages-select <pkg>`（lint + 纯核 / gtest）
+1. 风格：受影响包 `colcon test --packages-select <pkg>`（官方 lint）
 2. 接口：改了 IDL / 接线则跑 `python3 src/peach/peach_interfaces/scripts/check_interface_manifest.py`；`ros2 interface show` 对得上包级 io 文档
 3. 图：无重复节点；TF `tf2_echo` 无叠 child frame
 4. Launch：mock 能起；lifecycle Active；**停栈后** pgrep 无残留（含 bag record / collect / probe）
-5. 行为：运动路径至少 `hardware_mode:=mock` 走通；真机另需授权
+5. 行为：运动路径至少 `hardware_mode:=mock` 走通，对照日志；真机另需授权
 6. 文档：architecture / io / testing 与源码同一轮
 7. 静态：C++ 改完 **Clangd: Restart language server**（`CMAKE_EXPORT_COMPILE_COMMANDS`）
 8. 环境：`ros2 doctor`；启动前与结束后都 pgrep
-
-gtest 放本包 `test/`，链到纯核静态库，不 `spin` 整个技能节点。pytest 纯核不 `import rclpy`（现行 `test_harvest_fsm.py` 是范例，KEEP 这种切法）。需要图的，走 launch_testing，不要在 pytest 里手动 `rclpy.init` 抢默认域。
 
 ---
 
@@ -650,7 +626,7 @@ gtest 放本包 `test/`，链到纯核静态库，不 `spin` 整个技能节点�
 
 只记录现在跑什么。没有 KEEP 理由的条目见第 12 章，标 UNWIND。细节链到包级活文档（系统=peach_bringup/doc；包级=各包 doc/），不把 architecture 复制进来。
 
-产品：固定座 AUBO E5 + Percipio RGB-D；愿景含底盘。`src/` 分组：`src/peach/` = 现行采摘栈九包（下表职责摘要对象）、`src/ivg/` = 演示九包、`src/peach_sim/` = 仿真子工作空间五包（2026-10-13 重组，P4b 补自主采摘入口 `harvest.launch.py`/`orchard_harvest`/`generate_field`，见第 6 章分组说明）、`src/examples/` = 官方示例（ros2/examples / TB3 / MoveIt panda，供 ros_web_link E2E）；驱动与 `serial_force`/`percipio_camera`/`peach_web`（8090 静态页资源）顶层。`peach_navigation` 已归档 `_archive/parked_2026-09/`。peach2 十二包已于 2026-10-12 归档 `_archive/parked_2026-10-12/peach2/`（同一冻结 bag 上刀到不了果子：目标位无逆解，拉近后轨迹停在果子前约 23 cm），不再编进工作区；方案书 `docs/peach_v2_重构终版方案.md` 仍只作历史。IVG 三包不是 peach，不进 `harvest_system` / lifecycle（产品范围 KEEP）。`serial_force` 只出 5 点力，不进 lifecycle；`imu_follow` 已随 IMU 方法一并删除（2026-10-19，历史在 git）。
+产品：固定座 AUBO E5 + Percipio RGB-D；愿景含底盘。`src/` 分组：`src/peach/` = 现行采摘栈九包（下表职责摘要对象）、`src/ivg/` = 演示九包、`src/peach_sim/` = 仿真子工作空间五包（2026-10-13 重组，P4b 补自主采摘入口 `harvest.launch.py`/`orchard_harvest`/`generate_field`，见第 6 章分组说明）、`src/examples/` 已迁到 `/home/mu/demo_ws`（原官方示例 ros2/examples / TB3 / MoveIt panda，供 ros_web_link E2E；见该工作区 README）；驱动与 `serial_force`/`percipio_camera`/`peach_web`（8090 静态页资源）顶层。`peach_navigation` 已归档 `_archive/parked_2026-09/`。peach2 十二包已于 2026-10-12 归档 `_archive/parked_2026-10-12/peach2/`（同一冻结 bag 上刀到不了果子：目标位无逆解，拉近后轨迹停在果子前约 23 cm），不再编进工作区；方案书 `docs/peach_v2_重构终版方案.md` 仍只作历史。IVG 三包不是 peach，不进 `harvest_system` / lifecycle（产品范围 KEEP）。`serial_force` 只出 5 点力，不进 lifecycle；`imu_follow` 已随 IMU 方法一并删除（2026-10-19，历史在 git）。
 
 ### KEEP（完美适配当前实现）
 
@@ -671,7 +647,7 @@ gtest 放本包 `test/`，链到纯核静态库，不 `spin` 整个技能节点�
 - IVG 不进 harvest_system、navigation 归档：产品范围 KEEP，不是架构偏好
 - 技能去 BT.CPP、显式 `stages.cpp`：接触序列用 MTC stage 而非 Nav2 BT（套袋接触可 KEEP；不要把“禁止一切树”扩成禁 pluginlib）
 - `message_filters` slop 0.05 s 做 RGB-D 同步（KEEP 用库；具体 slop 是产品调参）
-- C++ 风格门以 uncrustify 为准（cpplint 版权头冲突是 SNAPSHOT 例外，不是禁 gtest 的理由）
+- C++ 风格门以 uncrustify 为准（cpplint 版权头冲突是 SNAPSHOT 例外）
 
 现行应用包职责摘要（清洁重写轮 3a 并包后；跨包仍走 IDL）：
 
@@ -684,7 +660,7 @@ gtest 放本包 `test/`，链到纯核静态库，不 `spin` 整个技能节点�
 | `peach_bringup` | 整栈入口、预检、nav2_lm 托管、autostart 客户端、生命周期桥 | 不含业务 |
 | `peach_observability` | 8090 / 会话 bag / `peach_bag_report`（静态页资源在顶层 `peach_web`，本包 HTTP 托管） | 不发运动 |
 | `peach_vegetation` | GPU 枝/叶 2D 掩膜（独立 launch） | 不写 PlanningScene、不进 harvest_system |
-| `peach_system_tests` | isolated mock launch_testing + 回放塔 | 不进运行 launch |
+| `peach_system_tests` | 手工探针、冻结回放脚本、官方 lint | 不进运行 launch |
 | `peach_stereo` | 主机单图案立体深度相机前端（PS800-E1；0036 起**默认** `camera_frontend:=stereo`，话题与 percipio 同构） | 不做感知业务；不改 percipio 驱动 |
 
 lifecycle 名单现行（nav2_lm 承载，`bond_timeout` launch 参数默认 0；四托管节点已接线心跳——C++ bondcpp 生效、Python 守卫 import 已修（2026-10-08））：场景 → 重建 → 技能 → 调度；observability / vegetation 不进名单。若重划包边界，这张表与 [peach_bringup/doc/io.md](src/peach/peach_bringup/doc/io.md) 消费者列必须同轮改。
@@ -695,7 +671,7 @@ lifecycle 名单现行（nav2_lm 承载，`bond_timeout` launch 参数默认 0�
 - 不上 pluginlib / 只 dict `*.impl`
 - lifecycle 无 bond
 - peach 节点不用 composition（已核实平台阻断：Python 无组件容器；LifecycleNode 不入 ComponentManager，证据见 architecture 偏离表——进程隔离+bond 是当前可达上限）
-- 禁止 gtest / launch_testing / 采摘仿真测（决策 0006）
+- 自定义 gtest / pytest / launch_testing 文件（2026-10-23 用户裁定已清掉；`test/` 只留官方 lint，行为看日志）
 - 无 Gazebo / Isaac 系统测；industrial_ci 已进 workflow（忽略 IVG / `percipio_camera` / `camera_calibration`）
 - ~~diagnostic_updater 仅三包在用~~ 已收口（2026-09-29 观测性轮：全节点 + `/diagnostics` 消费闭环进 8090；peach_stereo 包 lint 预存红未修）
 - 8090 若越权成第二控制面（纯调试客户端仍 KEEP）
@@ -713,9 +689,8 @@ lifecycle 名单现行（nav2_lm 承载，`bond_timeout` launch 参数默认 0�
 | Composition | 高带宽 composable + intra-process | 仅 Percipio；peach 节点独立进程 | 否（peach） | 新高带宽节点优先 composable |
 | Bond | Nav2 lifecycle_manager 有 bond | 四节点已接线（arm 生效；Python import 已修（2026-10-08），lm 超时默认 0） | 是（接线完成） | 新生命周期节点一律加 bond 或显式 watchdog |
 | 参数 | generate_parameter_library | Python peach：yaml 直读 + `attach`（0024）；`peach_arm` C++ GPL（2c） | Python 侧否（KEEP 可读 yaml）；C++ 技能是 | 新 C++ 包 GPL；Python peach 不要再引入 params_gen |
-| 单测 | gtest + pytest | 仅零 ROS pytest；禁 gtest | 否 | 新 C++ 用 gtest |
-| 集成测 | launch_testing + isolated domain | 禁止 launch_testing（0006） | 否 | 新接线/生命周期用 launch_testing |
-| 系统测 | 独立 `*_tests` 包；Gazebo / Isaac | 独立 `*_system_tests` 包（旧工作区脚本已退役） | 否 | 逐步收进 colcon；真机仍最终权威 |
+| 自动测试文件 | gtest / pytest / launch_testing | 2026-10-23 起 `test/` 只留官方 lint | 用户裁定 | 不要新增自定义测试文件；行为看日志 |
+| 系统测 | 独立 `*_tests` 包；Gazebo / Isaac | 手工脚本 + 官方 lint | 用户裁定 | 不要再加测试文件；真机仍最终权威 |
 | CI | industrial_ci | `.github/workflows/jazzy.yaml` 有 r0_gate + industrial_ci（忽略 IVG/`percipio_camera`/`camera_calibration`） | 否（切法） | 真机 job 仍不进 PR 必过门 |
 | 诊断 | `diagnostic_updater` | `peach_arm`（W5 双轨）与 `serial_force` 已用；其余包未用；8090 自研 | 部分 | 新健康信号走 `/diagnostics` |
 | 话题名当参数 | 默认名 + remap | 多数已相对名 | — | 禁止 `declare_parameter("image_topic")` |
@@ -727,9 +702,9 @@ lifecycle 名单现行（nav2_lm 承载，`bond_timeout` launch 参数默认 0�
 | 故障恢复 | 停程序再重新下发（UR Driver） | 示教器复位（KEEP） | 是（不用 dashboard） | 禁止自动 unlock 保护停止后接着跑旧 goal |
 | 命令超时 | Stretch 固件+ROS 双超时；Autoware hazard timeout | 透传靠取消；bond 已接线（lm 超时默认 0） | 部分 | 新流式控制必须超时；新生命周期节点加 bond |
 
-当时否决（0002 不上 pluginlib、0006 禁止 launch_testing、0017 已删 GPL）记在 architecture 决策表里作**历史**，态度改为 UNWIND。新代码碰到这些行，跟 Nav2 / 官方测试塔 / generate_parameter_library，而不是继续维护该禁令。
+当时否决（0002 不上 pluginlib、0017 已删 GPL）记在 architecture 决策表里作**历史**。新代码碰到这些行，跟 Nav2 / generate_parameter_library，而不是继续维护该禁令。测试文件以 2026-10-23 裁定为准：只留官方 lint。
 
-抽查：可以加 launch_testing；不可以改 hardware 包；不可以未授权动臂；不可以把 ROS 话题叫 e-stop；不可以测完留下进程；不可以跳过编写前检索去发明第二套参数框架，或在未读 tf2 / MoveIt 源码前手写变换 / 插值。
+抽查：不要往 `test/` 加自定义用例；不可以改 hardware 包；不可以未授权动臂；不可以把 ROS 话题叫 e-stop；不可以测完留下进程；不可以跳过编写前检索去发明第二套参数框架，或在未读 tf2 / MoveIt 源码前手写变换 / 插值。
 
 ---
 
@@ -742,12 +717,12 @@ lifecycle 名单现行（nav2_lm 承载，`bond_timeout` launch 参数默认 0�
 3. 现行本地做法是否 **完美适配** 当前真机 / 产品？不是则按主流设计，不要迁就现行拆包 / 禁测 / 手写框架
 4. 新接口能否用标准 msg；通道选对 Topic / Service / Action
 5. 文件落在标准树哪一层；会不会改图名
-6. 测试落在金字塔哪一层
+6. 行为核对落在日志还是 testing.md 的哪一节手工步骤
 
 **改后**
 
-7. lint + 单测绿；接口改了则 manifest 绿
-8. mock 冒烟或 launch_testing
+7. 官方 lint 绿；接口改了则 manifest 绿
+8. mock 冒烟，对照日志
 9. 同轮包级活文档/测试指导（若改为主流，删掉旧“禁止 / 不上”口吻）
 10. 未授权则不动真机
 11. 测完 / 跑完 pgrep 无残留（MUST）
@@ -758,7 +733,7 @@ lifecycle 名单现行（nav2_lm 承载，`bond_timeout` launch 参数默认 0�
 2. 标准树建包或在现有能力包加可执行文件；`package.xml` 依赖字母序
 3. 接口：能用标准 msg 就用；否则先改 `peach_interfaces` + manifest + io.md
 4. 参数：Python 用 `yaml_params.attach` + `config/<节点>.yaml`（规则表入 params 模块）；C++ 用 GPL；话题相对名 + remap
-5. 纯核与节点分开；gtest / pytest 先绿
+5. 纯核与节点分开；行为用日志核对
 6. launch Include，不复制 bringup；lifecycle 名单若托管则加 bond
 7. mock 冒烟 + 改后核对 8 条
 8. 同轮 architecture（职责）+ io（接线）
@@ -770,7 +745,7 @@ lifecycle 名单现行（nav2_lm 承载，`bond_timeout` launch 参数默认 0�
 3. 改 [peach_interfaces/doc/io.md](src/peach/peach_interfaces/doc/io.md) 与 [系统 io](src/peach/peach_bringup/doc/io.md) 对应表
 4. **先** `colcon build --packages-select peach_interfaces`
 5. 改各端 pub/sub；跑 `check_interface_manifest.py`
-6. launch_testing 或 mock 冒烟证明两端仍连得上
+6. mock 冒烟或 `ros2 topic echo` 证明两端仍连得上
 
 不要只改一边源码让另一端“下次再跟”。
 
@@ -779,7 +754,7 @@ lifecycle 名单现行（nav2_lm 承载，`bond_timeout` launch 参数默认 0�
 | 反模式 | 改成 |
 |--------|------|
 | “architecture 写了不上 pluginlib” | 新缝 pluginlib；决策 0002 是 UNWIND |
-| “禁止 launch_testing / gtest” | 官方测试塔；决策 0006 是 UNWIND |
+| 再写一大套自定义 test 文件 | 官方 lint；行为用日志和 testing.md 手工步骤 |
 | “GPL 已删永不回退” | 新 C++ 包 GPL；Python 跟 0024 yaml 直读（0017 已被 0024 推翻） |
 | 在应用节点手写关节插值 | JTC / MoveIt |
 | `lookupTransform(latest)` 做 TSDF 积分 | 精确 stamp + timeout |
@@ -792,7 +767,7 @@ lifecycle 名单现行（nav2_lm 承载，`bond_timeout` launch 参数默认 0�
 | 保护停止后 resume 原程序 | 取消 goal，示教器确认，重新下发 |
 | 流式控制无超时 | 命令超时 + 底层固件/柜停 |
 | 感知 import 技能模块 | 只走 IDL |
-| pytest 里 `rclpy.init` 打开发机域 | launch_testing isolated |
+| 手工脚本里 `rclpy.init` 打开发机域 | 单独设 `ROS_DOMAIN_ID`，跑完清进程 |
 | 第三套参数框架 | C++ 用 GPL；Python 用 `yaml_params.attach`（0024） |
 | 测完 / bag 录完不杀进程 | 停栈 + pgrep 复核；挂死按 PID 清（MUST） |
 

@@ -19,6 +19,12 @@ python3 src/peach/peach_interfaces/scripts/check_interface_manifest.py
 
 ## 本包没有运行参数
 
+`ForceSample.msg` 是 `/force/sample` 的原子 5 点力契约：`header.stamp` 为主机 ROS
+接收/解码时刻，`frame_id=tcp`；源进程 UUID 与单调 sequence 区分重启和解码后丢帧。
+五路固定数组按 `channel_ids=[1,2,3,5,7]` 给 N、力等效 mm、uint16 原始 AD、
+OK/SATURATED/OPEN/INVALID 状态；固件无采样时刻或序号，不宣称硬件级时间同步。
+`serial_force` 发布，`peach_observability` 与 `force_web` 消费；旧四 `/force/*` 话题保持兼容。
+
 没有 `*_parameters.yaml`，节点也不会 `declare_parameter`。清单里的 `qos:` 是**跨包必须对齐的传输约定**，不是可调阈值。
 
 真正的运行参数在能力包 `config/<节点>.yaml`（部署事实源）+ `peach_common.yaml_params.attach` 与包内规则模块。C++ 执行合同另有 generate_parameter_library yaml。

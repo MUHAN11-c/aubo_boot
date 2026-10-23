@@ -48,7 +48,6 @@ setup(
     maintainer_email="wangxiaoyun@iscas.ac.cn",
     description="IVG Web Dashboard: FastAPI gateway + ROSLIB.js frontend for ROS 2 robot control",
     license="Apache-2.0",
-    extras_require={"test": ["pytest"]},
     entry_points={
         "console_scripts": [
             "ivg_fastapi_static_gateway = aubo_ros2_web_dashboard.gateway.cli:main",

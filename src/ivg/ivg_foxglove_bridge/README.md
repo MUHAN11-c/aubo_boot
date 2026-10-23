@@ -34,8 +34,7 @@ colcon test --packages-select ivg_foxglove_bridge && colcon test-result --verbos
 ```bash
 # 默认 8765；参数文件 config/ivg_foxglove_bridge_params.yaml
 ros2 launch ivg_foxglove_bridge ivg_foxglove_bridge.launch.xml
-# 验证（另一终端）：
-python3 src/ivg/aubo_ros2_web_dashboard/test/test_foxglove_integration.py --direct
+# 验证：看桥日志，浏览器或 ws 客户端能连上即可
 ```
 
 ## 安全边界

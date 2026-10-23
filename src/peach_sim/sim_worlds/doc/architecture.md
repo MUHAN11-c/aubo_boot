@@ -14,8 +14,8 @@ sim_worlds/                 # Gazebo Harmonic 果园场景包（场景生成+巡
   config/orchard.yaml      # 场景 schema（几何/摆位唯一事实源）
   worlds/ maps/            # 程序化 SDF+manifest+贴图（生成器产物入库）/ 确定性栅格图
   blender/ reconstruction/ # 离线 Blender 4.5 资产与重建管线（不随安装分发）
-  test/                    # 纯核测试（params/scene/textures/nav_map/tour_core + lint）
-兄弟包：sim_description（urdf/ 机体 xacro + meshes/）、sim_bringup（launch/{orchard_sim,orchard_nav}.launch.py + config/{orchard_bridge,nav2_params,gz_gui_ogre1}）、sim_perception（P3 感知复制）、sim_system_tests（P2 launch_testing 验收门）
+  test/                    # 官方 flake8 / pep257
+兄弟包：sim_description（urdf/ 机体 xacro + meshes/）、sim_bringup（launch/{orchard_sim,orchard_nav}.launch.py + config/{orchard_bridge,nav2_params,gz_gui_ogre1}）、sim_perception（P3 感知复制）、sim_system_tests（官方 ament lint）
 
 ## 关节状态现状（区别于真机臂栈）
 

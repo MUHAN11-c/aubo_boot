@@ -1,5 +1,7 @@
 # ros_web_link 测试流程（活文档）
 
+> **2026-10-23 迁移说明**：`src/examples` 与 `external/` 已迁到 `/home/mu/demo_ws`。下文 `src/examples/...` 指 `/home/mu/demo_ws/src/examples/...`，`external/...` 指 `/home/mu/demo_ws/external/...`；运行 `sim_demo.launch.py` 前先 `source /home/mu/demo_ws/install/setup.bash`（或确认 apt 包）。
+
 **怎么测**：环境前置 → 分层命令 → 延迟验收数值 → 浏览器页面验证 → 清理纪律。
 架构与测试矩阵见 [architecture.md](architecture.md)，端点与配置见 [io.md](io.md)；
 本文只写可复制的流程与验收口径，不复制架构内容。
@@ -50,49 +52,11 @@ E2E 套件自起栈（`e2e_harness`）：随机 ROS 域（`free_domain()` 读 /p
 随机端口（`free_port()` 避开临时端口段）+ 唯一 `GZ_PARTITION`，测完 SIGINT 整组收尾并断言端口释放。
 单次等待硬上限 30s（2026-10-15 用户约束）。
 
-## 2. 分层命令与用例数
+## 2. 自动检查与手工核对
 
-全部命令在工作区根执行；`-k` 过滤选套件（勿直接点 .py 路径）。③-⑦ 各套件
-需 `PYTHONPATH=/opt/ros/jazzy/lib/python3.12/site-packages LD_LIBRARY_PATH=/opt/ros/jazzy/lib
-ROS_DISTRO=jazzy` env 前缀（下文以 `$ROS_ENV` 代指；人手 shell 已 source install/setup.bash
-则不需要）。**勿用 `not xxx` 反选当"单元跑法"**——会把全部 E2E 套件卷进来。
+本包 `test/` 不放用例。源码目前过不了 ament flake8，所以没有套上官方 lint 文件。行为看下面的手工起栈和浏览器。
 
-```bash
-# ① 单元：路由/挂载/配置/有界通道语义（21）+ vitest 包装（1）
-#    免 source 跑法须带 ROS env 前缀（ament_index_python/rclpy 在 /opt/ros/jazzy 下）
-PYTHONPATH=/opt/ros/jazzy/lib/python3.12/site-packages \
-LD_LIBRARY_PATH=/opt/ros/jazzy/lib ROS_DISTRO=jazzy \
-./aubo_py3.12/bin/python -m pytest src/ros_web_link/test -k "gateway or js_units" -q
-
-# ①b 独立包/API/示例/文档链接门（不依赖仿真；examples 用 comm fixture）
-PYTHONPATH=/opt/ros/jazzy/lib/python3.12/site-packages \
-LD_LIBRARY_PATH=/opt/ros/jazzy/lib ROS_DISTRO=jazzy \
-./aubo_py3.12/bin/python -m pytest src/ros_web_link/test \
-  -k "api_surface or examples or docs_links or package_independence" -q
-
-# ② JS 纯核：协议帧/TF 数学/CDR 黄金字节/点云/数据面自动适配/barrel/色彩模式（135）
-cd src/ros_web_link && node_modules/.bin/vitest run; cd ../..
-
-# ③ E2E 通信矩阵：订阅/发布/服务/action/参数/TF/图谱/健康（11）
-./aubo_py3.12/bin/python -m pytest src/ros_web_link/test -k comm_matrix -v
-
-# ④ E2E 大数据延迟基准（合成 30Hz 大图+10Hz 点云，2）——§3 数值表
-./aubo_py3.12/bin/python -m pytest src/ros_web_link/test -k bigdata -v
-
-# ⑤ E2E 官方仿真真实数据（TB3+nav2+examples，19）——含 §3 真实流延迟
-./aubo_py3.12/bin/python -m pytest src/ros_web_link/test -k sim -v
-
-# ⑥ E2E MoveIt 官方 Panda（6）
-./aubo_py3.12/bin/python -m pytest src/ros_web_link/test -k moveit -v
-
-# ⑦ E2E 官方组件（官方 RSP/panda + map_server/lifecycle，7）
-./aubo_py3.12/bin/python -m pytest src/ros_web_link/test -k official -v
-
-# ⑧ E2E 独立监控附着（完整官方仿真正常启动 + 另起桥/网关，8；默认跳过，较慢）
-RWL_FULL_SIM=1 ./aubo_py3.12/bin/python -m pytest src/ros_web_link/test -k full_sim -v
-```
-
-**完整仿真正常启动 + 独立监控（手工 E2E，等价 ⑧ 的编排）**：
+**完整仿真 + 独立监控**：
 
 ```bash
 # 终端 A：完整官方仿真（不带传输栈）
@@ -102,25 +66,21 @@ ros2 launch ros_web_link monitor.launch.py
 # 浏览器：http://127.0.0.1:8095/（自动跳转 /console.html）
 ```
 
-无 X/GLX 的 CI 机器给 `gz sim` 注入 `--headless-rendering`（`RWL_GZ_WRAPPER_DIR`
-指向包装器目录；仅测试编排，不改变产品 launch）。
-
-CDR 黄金字节 fixtures 升级 ROS 后重生成：
-`./aubo_py3.12/bin/python src/ros_web_link/test/generate_viz_golden.py`。
+无 X/GLX 时给 `gz sim` 加 `--headless-rendering`。这只影响这次手工起栈，不改产品 launch。
 
 ## 3. 大数据延迟验收数值表（单一权威表）
 
 「稳定传输没有延迟」的语义：**快消费者拿到满速率且帧新鲜；慢/停顿消费者丢帧而不积压**
 （丢帧是 BEST_EFFORT 视觉流的正确降级，积压不是）。帧年龄 = 本地墙钟 − logTime（桥接收时刻）。
 
-| 流 | 名义率 | 到达率门 | 帧年龄门 | 依据用例 |
+| 流 | 名义率 | 到达率门 | 帧年龄门 | 记录 |
 |---|---|---|---|---|
-| 合成 `/rwl_demo/big_image` 0.92MB | 30Hz | ≥19.5fps(65%) | mean<200ms / max<600ms | `test_bigdata_fast_client_throughput_and_freshness` |
+| 合成 `/rwl_demo/big_image` 0.92MB | 30Hz | ≥19.5fps(65%) | mean<200ms / max<600ms | 2026-10 手工日志 |
 | 合成 `/rwl_demo/big_cloud` 50k 点 | 10Hz | ≥6.5fps(65%) | 同上 | 同上 |
 | 快客户端网关丢帧率 | — | <5% | — | 同上 |
-| 停顿 4s 恢复（合成图流） | — | 停顿窗送达 <60 帧（无界≈120） | 恢复首帧 <1.5s；droppedData 递增 | `test_bigdata_stall_recovery_bounded_backlog_and_fresh_resume` |
-| 真实 `/camera/image_raw`（gz 相机） | 30Hz 声明（实测无节流 ~4.7kHz/5GB/s，2026-10-16） | ≥15fps(50%，容忍 gz 实时因子) | mean<300ms / max<1.0s（实测 5.1ms） | `test_tb3_camera_stream_rate_and_freshness` |
-| 真实 `/test_cloud`（官方点云） | 30Hz | ≥18fps(60%)（实测 29.9fps） | mean<300ms / max<1.0s（实测 3.8ms） | `test_tb3_pointcloud_stream_rate_and_freshness` |
+| 停顿 4s 恢复（合成图流） | — | 停顿窗送达 <60 帧（无界≈120） | 恢复首帧 <1.5s；droppedData 递增 | 同上 |
+| 真实 `/camera/image_raw`（gz 相机） | 30Hz 声明（实测无节流 ~4.7kHz/5GB/s，2026-10-16） | ≥15fps(50%，容忍 gz 实时因子) | mean<300ms / max<1.0s（实测 5.1ms） | 2026-10-16 日志 |
+| 真实 `/test_cloud`（官方点云） | 30Hz | ≥18fps(60%)（实测 29.9fps） | mean<300ms / max<1.0s（实测 3.8ms） | 同上 |
 
 配套观测面：`GET /api/ivg/ws/stats`（连接级/进程累计 forwarded/dropped/droppedStale/queued）；
 console 监控区「网关丢帧 / 网关积压」卡。
@@ -169,10 +129,9 @@ ros2 launch ros_web_link monitor.launch.py
 
 ## 5. 验收口径
 
-- **隔离跑全绿**（②-⑦ 逐套件单独跑）是必要条件；
-- **全量连跑至少一次全绿**（机器高负载会轮转抖动，见 architecture.md 决策记录——
-  高负载下 moveit 执行偶发 accepted=False 需退避重试，单套件恒绿）；
-- 延迟数值以 §3 表为准；回归时先看 `/api/ivg/ws/stats` 再定位（网关 lane / 桥 send buffer / 内核套接字）。
+- 浏览器自检和 Displays 与日志一致；
+- 延迟对照 §3 表，先看 `/api/ivg/ws/stats`（网关 lane / 桥 send buffer / 内核套接字）；
+- `colcon test` 绿只说明 lint 过了。
 
 ## 6. 清理纪律（MUST，测完即停）
 

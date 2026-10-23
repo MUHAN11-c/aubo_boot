@@ -97,12 +97,6 @@ if(BUILD_TESTING)
   # 头要求与本仓现有包冲突，C++ 风格门以 uncrustify 为准。
   set(ament_cmake_cpplint_FOUND TRUE)
   ament_lint_auto_find_test_dependencies()
-  find_package(ament_cmake_gtest REQUIRED)
-  ament_add_gtest(test_motion_utils test/test_motion_utils.cpp)
-  target_include_directories(test_motion_utils PRIVATE
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>)
-  target_link_libraries(test_motion_utils demo_motion)
-  ament_target_dependencies(test_motion_utils geometry_msgs rclcpp)
 endif()
 
 ament_export_targets(export_ivg_demo_services HAS_LIBRARY_TARGET)

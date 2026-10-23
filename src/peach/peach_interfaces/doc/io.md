@@ -2,7 +2,11 @@
 
 > 当前接口快照。跨包边界在 [peach_bringup/doc/io.md](../../peach_bringup/doc/io.md)。**改字段只改本包 IDL，先编本包再编下游；同轮改 README、manifest 与本文。**
 
-无节点、无 launch、无运行参数。跨包唯一 IDL；清单 57 active + 5 reserved（预留=四个导航 IDL + `peach_sim/joint_states` gz 桥登记），脚本双向核对（`scripts/check_interface_manifest.py` 已挂 CTest——改 IDL 忘改清单 `colcon test` 会红；可视化话题 8 条、rcl 参数服务后缀、legacy 别名 5 条 `/peach_executor/*` 为脚本内建豁免，旧名 bag 兼容由 `peach_observability/bag_reader.py` 承接）。每根管子与每个字段的含义写在 [peach_interfaces/README.md](../../peach_interfaces/README.md)。改字段只改本包，先编本包再编下游；同轮改 README、manifest 与本文。
+`/force/sample`：`ForceSample`，RELIABLE/VOLATILE/depth100，由 `serial_force` 发布、
+observability 与 force_web 消费。每条含完整五路 N/力等效 mm/AD/状态与
+`source_uuid`/`sequence`；`header.stamp` 是主机 ROS 接收/解码时间，非硬件采样时间。
+
+无节点、无 launch、无运行参数。跨包唯一 IDL；现行清单 active + reserved（预留=四个导航 IDL + `peach_sim/joint_states` gz 桥登记），脚本双向核对（`scripts/check_interface_manifest.py` 可独立核对；可视化话题 8 条、rcl 参数服务后缀、legacy 别名 5 条 `/peach_executor/*` 为脚本内建豁免，旧名 bag 兼容由 `peach_observability/bag_reader.py` 承接）。每根管子与每个字段的含义写在 [peach_interfaces/README.md](../../peach_interfaces/README.md)。改字段只改本包，先编本包再编下游；同轮改 README、manifest 与本文。
 
 | 动作 | 服务端所在包 | 含义 |
 |------|--------------|------|

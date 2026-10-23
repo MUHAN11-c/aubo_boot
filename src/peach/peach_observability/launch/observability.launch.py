@@ -35,6 +35,9 @@ def _launch_node(context):
         overrides['startup_facts'] = startup_facts
     if overrides:
         parameters.append(overrides)
+    task_params = LaunchConfiguration('task_params_file').perform(context).strip()
+    if task_params:
+        parameters.append(ParameterFile(task_params, allow_substs=True))
     node = LifecycleNode(
         package='peach_observability',
         executable='peach_observability',
@@ -64,6 +67,9 @@ def generate_launch_description():
         DeclareLaunchArgument(
             'params_file', default_value=config,
             description='只读监控参数文件；默认 peach_observability/config/observability.yaml'),
+        DeclareLaunchArgument(
+            'task_params_file', default_value='',
+            description='与 brain/arm 同一份标准 ROS 作业参数 YAML'),
         DeclareLaunchArgument(
             'host', default_value='',
             description='覆盖监听地址；空串使用 YAML'),

@@ -8,10 +8,11 @@
 """
 from __future__ import annotations
 
-import math
-import time
 from dataclasses import dataclass, field
+import math
 from pathlib import Path
+
+from peach_common.recording_session import active_session
 
 # 约 15 g 才算「出现变化」；约 8 g 以下视为回到空载。
 # 空载噪声远低于 5 g（doc/force_20s_consistency.md）。
@@ -88,11 +89,18 @@ class ForceEpisodeTracker:
             and (t - self.quiet_since) >= self.hold_s)
         if not held and elapsed < self.max_s:
             return None
+        return self.finish('returned' if held else 'max_duration', t)
+
+    def finish(self, reason: str, t: float | None = None) -> ClosedEpisode | None:
+        """断流、会话切换或退出也须交出未归零的段，原因不得伪称 returned."""
+        if self.phase != 'recording' or self.t0 is None:
+            return None
+        end = float(t if t is not None else self.rows[-1][0])
         closed = ClosedEpisode(
-            reason='returned' if held else 'max_duration',
+            reason=reason,
             t0=self.t0,
-            t_end=t,
-            last_hot_t=self.last_hot_t if self.last_hot_t is not None else t,
+            t_end=max(self.t0, end),
+            last_hot_t=self.last_hot_t if self.last_hot_t is not None else end,
             rows=self.rows)
         self.phase = 'idle'
         self.t0 = None
@@ -107,26 +115,11 @@ def live_peach_session(runs, now: float | None = None,
     """
     正在录的采摘会话目录.
 
-    ``session_*/bag`` 里还有新写入才算这一轮。已封口且袋文件不再变的旧会话、
-    以及崩溃后留下的旧开口袋，都不接收新的力记录。
+    会话身份由记录写者的session.json声明，且写者进程仍存活。
+    sealed/closing/error、无声明、写者已死或多个活会话均拒绝归属。
     """
-    root = Path(runs)
-    if not root.is_dir():
-        return None
-    clock = time.time() if now is None else float(now)
-    best: Path | None = None
-    best_mtime = -1.0
-    for session in root.glob('session_*'):
-        bag = session / 'bag'
-        if not session.is_dir() or not bag.is_dir():
-            continue
-        newest = _newest_mtime(bag)
-        if newest < 0.0 or (clock - newest) > fresh_s:
-            continue
-        if newest > best_mtime:
-            best = session
-            best_mtime = newest
-    return best
+    del now, fresh_s  # compatibility: filesystem freshness is not ownership.
+    return active_session(Path(runs))
 
 
 def _newest_mtime(bag: Path) -> float:

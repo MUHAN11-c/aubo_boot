@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""真实 stereo 相机 + mock 臂重复测试。仅操作自己创建的进程组。"""
+"""真实 stereo 相机 + mock 臂重复测试，仅操作自己创建的进程组."""
 from __future__ import annotations
 
 import argparse
@@ -50,7 +50,7 @@ def consolidate_records(output, started_at):
 
 
 def owned_runtime_environment(base, output, domain):
-    """DDS域之外也隔离spawner文件锁；BLAS 单线程，不钉 OpenMP（SGBM 需要）。"""
+    """DDS域之外也隔离spawner文件锁；BLAS 单线程，不钉 OpenMP（SGBM 需要）."""
     env = dict(base, ROS_DOMAIN_ID=str(domain), ROS_LOCALHOST_ONLY='1',
                ROS_HOME=str(output / 'ros_home'))
     for key in ('OPENBLAS_NUM_THREADS', 'MKL_NUM_THREADS'):
@@ -77,24 +77,21 @@ def parser():
     p.add_argument('--models', type=int, default=30)
     p.add_argument('--soak-seconds', type=float, default=1800)
     p.add_argument('--domain', type=int, default=86)
-    p.add_argument('--output', type=Path, default=Path('runs') / ('live_mock_' + time.strftime('%Y%m%d_%H%M%S')))
+    p.add_argument('--output', type=Path, default=Path('runs') / (
+        'live_mock_' + time.strftime('%Y%m%d_%H%M%S')))
     p.add_argument('--rviz', action=argparse.BooleanOptionalAction, default=True)
-    # None = 用 live_camera_mock.yaml 的 skip_reconstruction；显式覆盖用于
-    # 同日 A/B：同一相机/场景分别跑“跳过重建”和“完整重建”两条路径。
+    p.add_argument('--task-params-file', type=Path,
+                   help='标准 ROS 节点参数 YAML；mock/real 共用同一作业配置，空则使用产品默认')
     p.add_argument('--first-target', action='store_true',
-                   help='每轮都抓当前场景 priority=1 的第一颗（同一位姿重复验证）')
-    p.add_argument('--skip-reconstruction', action=argparse.BooleanOptionalAction,
-                   default=None,
-                   help='覆盖 profile 的 skip_reconstruction；--no-skip-reconstruction 走完整 Build/精化')
+                   help='每轮选择当前锁定集第一颗')
     p.add_argument('--pick-all', action='store_true',
                    help='每轮发 PICK_ALL/AUTO（多目标同场景，复现 drive_3 的完整 Build 轮），'
-                        '不是单目标点名；轮成功=至少一颗 level6')
+                        '不是单目标点名；全部目标达到当前作业完成档才成功')
     return p
 
 
-
 def section(value, *keys):
-    """Optional JSON objects may be explicitly null before first model arrival."""
+    """Handle JSON objects explicitly null before first model arrival."""
     for key in keys:
         value = value.get(key) if isinstance(value, dict) else None
     return value if isinstance(value, dict) else {}
@@ -103,13 +100,15 @@ def section(value, *keys):
 def ros_seconds(value):
     value = section(value)
     sec, ns = value.get('sec'), value.get('nanosec')
-    return float(sec) + float(ns) * 1e-9 if isinstance(sec, (int, float)) and isinstance(ns, (int, float)) else None
+    return (float(sec) + float(ns) * 1e-9
+            if isinstance(sec, (int, float)) and isinstance(ns, (int, float)) else None)
 
 
 def build_generation(model):
     model = section(model)
     key = model_key(model)
-    generated, valid = ros_seconds(model.get('generated_at')), ros_seconds(model.get('valid_until'))
+    generated = ros_seconds(model.get('generated_at'))
+    valid = ros_seconds(model.get('valid_until'))
     if not key or generated is None or valid is None or generated <= 0 or valid < generated:
         return None
     return key + (generated, valid)
@@ -132,6 +131,7 @@ def web_model_matches(state, model):
              (decision.get('valid_until'), proof[4]))
     return all(isinstance(a, (int, float)) and abs(a - b) < 1e-6 for a, b in times)
 
+
 def config_directory():
     local = Path(__file__).resolve().parents[1] / 'config'
     if local.exists():
@@ -140,12 +140,23 @@ def config_directory():
     return Path(get_package_share_directory('peach_system_tests')) / 'config'
 
 
+def application_rviz_config():
+    """Use the same application display profile as the product launch."""
+    local = Path(__file__).resolve().parents[2] / 'peach_bringup/config/harvest.rviz'
+    if local.is_file():
+        return local
+    from ament_index_python.packages import get_package_share_directory
+    return Path(get_package_share_directory('peach_bringup')) / 'config/harvest.rviz'
+
+
 def rviz_parameters(values):
-    return {k: v for k, v in values.items() if v is not None and not (isinstance(v, (list, tuple)) and not v)}
+    return {k: v for k, v in values.items()
+            if v is not None and not (isinstance(v, (list, tuple)) and not v)}
 
 
 def choose_target(targets, index):
-    """按场景 priority（抓取顺序 1..N）选目标，含 memory/LOST 候选.
+    """
+    按场景 priority（抓取顺序 1..N）选目标，含 memory/LOST 候选.
 
     旧实现按 target_id 排序后过滤 LOST/RETIRED；固定相机下只有前排目标
     被跟踪，索引会反复选同一颗（2026-10-22 实测 target_0→8→15→16）。
@@ -169,45 +180,67 @@ def choose_target(targets, index):
 
 def model_key(model):
     model = section(model)
-    if not model.get('target_id') or not model.get('scene_epoch') or not model.get('model_revision'):
+    if not all(model.get(key) for key in ('target_id', 'scene_epoch', 'model_revision')):
         return None
     return model['target_id'], model['scene_epoch'], model['model_revision']
 
 
-def full_cycle(ledger, request):
+def full_cycle(ledger, request, minimum_completion=6):
     rows = ledger.get('rows', [])
     return ledger.get('request_id') == request and bool(rows) and all(
         r.get('outcome_name') == 'SUCCEEDED' and isinstance(r.get('completion_level'), int)
-        and r['completion_level'] >= 6 for r in rows)
+        and r['completion_level'] >= minimum_completion for r in rows)
 
 
-def any_cycle(ledger, request):
-    """PICK_ALL 轮：至少一颗 level6；其它目标允许 skip（诊断用，不是严格验收）。"""
-    rows = ledger.get('rows', [])
-    return ledger.get('request_id') == request and any(
-        r.get('outcome_name') == 'SUCCEEDED' and isinstance(r.get('completion_level'), int)
-        and r['completion_level'] >= 6 for r in rows)
+def require_no_recovery(state):
+    """两种硬件模式同样等待人工恢复，测试驱动不得代替操作员 ACK."""
+    task = section(state, 'task_executor', 'state')
+    if task.get('recovery_required'):
+        raise RuntimeError('Recovery required; stopping test for operator review')
 
 
-def can_ack(mode, request, state, terminal):
-    return mode == 'mock' and terminal and state.get('run_id') == request and state.get('recovery_required') is True
+def required_completion(params, tool=False):
+    """依据实际读回的产品参数决定验收档，缺参数不猜默认值."""
+    for group in params.get('groups', []):
+        if group.get('node') == 'peach_supervisor':
+            for item in group.get('params', []):
+                if item.get('name') == 'execute_pregrasp_only' and item.get('present'):
+                    if not isinstance(item.get('value'), bool):
+                        raise RuntimeError('Invalid execute_pregrasp_only parameter')
+                    return 2 if item['value'] else (7 if tool else 6)
+    raise RuntimeError('Missing effective execute_pregrasp_only parameter')
+
+
+def stack_command(args, profile, web_port):
+    """只装配环境差异，业务参数原样使用与 real 相同的作业配置."""
+    command = ['ros2', 'launch', 'peach_bringup', 'harvest_system.launch.py',
+               'hardware_mode:=mock', 'camera_enabled:=true', 'camera_frontend:=stereo',
+               'extrinsics_enabled:=false', 'force_enabled:=false', 'autostart:=false',
+               'use_sim_time:=false', 'rviz:=false', 'tool_profile:=bite_shear_v1',
+               'mock_initial_positions:=' + ','.join(map(str, profile['mock_initial_positions'])),
+               'observability_port:=' + str(web_port)]
+    if args.task_params_file:
+        command.append('task_params_file:=' + str(args.task_params_file.resolve()))
+    return command
 
 
 def statistics(values):
-    data = sorted(float(v) for v in values if isinstance(v, (int, float)) and not isinstance(v, bool) and math.isfinite(v))
+    data = sorted(float(v) for v in values
+                  if isinstance(v, (int, float)) and not isinstance(v, bool) and math.isfinite(v))
     if not data:
         return {'count': 0, 'min': None, 'max': None, 'p95': None, 'range': None}
     pos = .95 * (len(data) - 1)
     low = int(pos)
     p95 = data[low] + (data[min(low + 1, len(data) - 1)] - data[low]) * (pos - low)
-    return {'count': len(data), 'min': data[0], 'max': data[-1], 'p95': p95, 'range': data[-1] - data[0]}
-
+    return {'count': len(data), 'min': data[0], 'max': data[-1],
+            'p95': p95, 'range': data[-1] - data[0]}
 
 
 def startup_ready(state, domain):
     facts = section(state, 'startup', 'facts')
     task = section(state, 'task_executor', 'state')
-    checks = {item.get('name'): item.get('status') for item in section(state, 'selfcheck', 'report').get('checks', [])}
+    checks = {item.get('name'): item.get('status')
+              for item in section(state, 'selfcheck', 'report').get('checks', [])}
     required = ('managed_lifecycle', 'controllers', 'joint_states_flow', 'move_group',
                 'action_run_harvest', 'action_build_target_model')
     return (facts.get('hardware_mode') == 'mock' and str(facts.get('ros_domain_id')) == str(domain)
@@ -216,34 +249,6 @@ def startup_ready(state, domain):
             and task.get('batch_state') in (0, 1, 6) and not task.get('action_active')
             and not task.get('recovery_required') and not task.get('blockers')
             and all(checks.get(name) == 'pass' for name in required))
-
-
-def ack_evidence(state, request, target):
-    task = section(state, 'task_executor', 'state')
-    arm = section(state, 'manipulation', 'status')
-    if (not can_ack(section(state, 'startup', 'facts').get('hardware_mode'), request, task, True)
-            or arm.get('running') is not False or not target or task.get('target_id') != target):
-        return None
-    ledger = section(state, 'ledger', 'live')
-    if ledger.get('request_id') == request:
-        for row in ledger.get('rows', []):
-            if row.get('target_id') == target and row.get('outcome_name') in ('SUCCEEDED', 'FAILED', 'CANCELED', 'SKIPPED_QUALITY', 'SKIPPED_UNREACHABLE'):
-                return {'source': 'ledger', 'completion_level': row.get('completion_level')}
-    # Historical 20261014 supervisor flushes ledger only after ACK; canonical
-    # target terminal event is already emitted. Do not fabricate a ledger row.
-    for event in reversed(section(state, 'task_executor').get('events', [])):
-        if event.get('request_id') != request or event.get('run_id') != request or event.get('target_id') != target:
-            continue
-        if event.get('code') != 'target_succeeded' or arm.get('state') != 'SUCCEEDED':
-            continue
-        try:
-            details = json.loads(event.get('message', '{}'))
-        except ValueError:
-            continue
-        if isinstance(details.get('completion_level'), int) and details['completion_level'] >= 6:
-            return {'source': 'canonical_target_succeeded', 'completion_level': details['completion_level'],
-                    'event_state_seq': event.get('state_seq')}
-    return None
 
 
 class StreamEvidence:
@@ -274,7 +279,8 @@ def _report_attempt_error(exc: Exception) -> None:
 
 
 def soak_passed(requested, elapsed, resources):
-    return requested == 0 or (elapsed >= requested and bool(resources)
+    return requested == 0 or (
+        elapsed >= requested and bool(resources)
         and all(row.get('streams_fresh') and row.get('rviz_alive') for row in resources))
 
 
@@ -284,9 +290,12 @@ def validate_soak_sample(row):
     if row.get('streams_fresh') is not True:
         raise RuntimeError('camera/joint flow lost during soak')
 
+
 def proc_env(pid):
     try:
-        return dict(part.decode(errors='replace').split('=', 1) for part in Path(f'/proc/{pid}/environ').read_bytes().split(b'\0') if b'=' in part)
+        return dict(part.decode(errors='replace').split('=', 1)
+                    for part in Path(f'/proc/{pid}/environ').read_bytes().split(b'\0')
+                    if b'=' in part)
     except (OSError, ValueError):
         return {}
 
@@ -310,18 +319,37 @@ def gui_environment(base):
     return env
 
 
-def domain_processes(domain):
-    found = []
-    markers = ('peach_', 'ros2 launch', 'component_container', 'move_group', 'extrinsics_publisher', 'robot_state_publisher', 'ros2_control_node')
-    for path in Path('/proc').glob('[0-9]*/cmdline'):
+def domain_processes(domain, proc_root='/proc'):
+    """Reject actual stack executables and launchers, excluding the ros2 run wrapper."""
+    from peach_bringup.preflight import domain_from_environ, running_stack_pids
+    found = {pid: {'pid': pid, 'command': command}
+             for pid, command in running_stack_pids(str(proc_root), str(domain))}
+    launch_files = {
+        ('peach_bringup', 'harvest_system.launch.py'),
+        ('peach_bringup', 'real_web.launch.py'),
+        ('peach_system_tests', 'frozen_camera_grasp.launch.py'),
+        ('aubo_e5_bringup', 'bringup.launch.py'),
+    }
+    for path in Path(proc_root).glob('[0-9]*/cmdline'):
         try:
             pid = int(path.parent.name)
-            command = path.read_bytes().replace(b'\0', b' ').decode(errors='replace')
-            if pid != os.getpid() and any(m in command for m in markers) and proc_env(pid).get('ROS_DOMAIN_ID', '0') == str(domain):
-                found.append({'pid': pid, 'command': command})
+            parts = [p.decode(errors='replace') for p in path.read_bytes().split(b'\0') if p]
+            if pid == os.getpid():
+                continue
+            for index, part in enumerate(parts[:-3]):
+                if (Path(part).name == 'ros2' and parts[index + 1] == 'launch'
+                        and tuple(parts[index + 2:index + 4]) in launch_files):
+                    try:
+                        actual_domain = domain_from_environ(
+                            (path.parent / 'environ').read_bytes())
+                    except OSError:
+                        actual_domain = '?'
+                    if actual_domain in (str(domain), '?'):
+                        found[pid] = {'pid': pid, 'command': ' '.join(parts)}
+                    break
         except (OSError, ValueError):
-            pass
-    return found
+            continue
+    return list(found.values())
 
 
 class OwnedProcesses:
@@ -334,8 +362,9 @@ class OwnedProcesses:
         handle = open(log, 'w', encoding='utf-8') if log else None
         if handle:
             self.logs.append(handle)
-        process = subprocess.Popen(command, env=env or self.env, stdout=handle,
-                                   stderr=subprocess.STDOUT if handle else None, start_new_session=True)
+        process = subprocess.Popen(
+            command, env=env or self.env, stdout=handle,
+            stderr=subprocess.STDOUT if handle else None, start_new_session=True)
         self.processes.append(process)
         self.audit_records.append({'pid': process.pid, 'pgid': process.pid,
                                    'command': command, 'started_at': time.time(),
@@ -444,7 +473,9 @@ class RosDriver:
         self.stamps = {'camera': StreamEvidence(), 'joints': StreamEvidence()}
         from sensor_msgs.msg import Image, JointState
         from rclpy.qos import qos_profile_sensor_data
-        for key, typ, topic in (('camera', Image, '/camera/color/image_raw'), ('joints', JointState, '/joint_states')):
+        for key, typ, topic in (
+                ('camera', Image, '/camera/color/image_raw'),
+                ('joints', JointState, '/joint_states')):
             self.node.create_subscription(typ, topic, lambda msg, k=key: self.stamps[k].add(
                 msg.header.stamp.sec + msg.header.stamp.nanosec * 1e-9), qos_profile_sensor_data)
 
@@ -495,7 +526,8 @@ class RosDriver:
             result = future.result()
             self.active.remove((client, handle))
             client.destroy()
-            return {'accepted': True, 'status': result.status, 'result': message_to_ordereddict(result.result)}
+            return {'accepted': True, 'status': result.status,
+                    'result': message_to_ordereddict(result.result)}
         except BaseException:
             # Preserve the original interruption/failure even if cancellation is
             # unavailable; run() must reach cleanup rather than start another round.
@@ -517,9 +549,13 @@ class RosDriver:
     def rviz_params(self, output):
         from rcl_interfaces.srv import GetParameters, ListParameters
         from rclpy.parameter import parameter_value_to_python
-        listed = self.service(ListParameters, '/move_group/list_parameters', ListParameters.Request(depth=0))
-        names = [n for n in listed.result.names if n in ('robot_description', 'robot_description_semantic') or n.startswith('robot_description_kinematics.')]
-        result = self.service(GetParameters, '/move_group/get_parameters', GetParameters.Request(names=names))
+        listed = self.service(ListParameters, '/move_group/list_parameters',
+                              ListParameters.Request(depth=0))
+        names = [n for n in listed.result.names
+                 if n in ('robot_description', 'robot_description_semantic')
+                 or n.startswith('robot_description_kinematics.')]
+        result = self.service(GetParameters, '/move_group/get_parameters',
+                              GetParameters.Request(names=names))
         params = rviz_parameters(dict(zip(names, map(parameter_value_to_python, result.values))))
         if not params.get('robot_description') or not params.get('robot_description_semantic'):
             raise RuntimeError('RViz model parameters unavailable')
@@ -550,7 +586,8 @@ def wait_state(driver, predicate, timeout=120):
                 return last
         except (OSError, ValueError):
             continue
-    raise TimeoutError('State condition not reached; last revision=' + str(section(last, 'system').get('revision')))
+    raise TimeoutError('State condition not reached; last revision=' + str(
+        section(last, 'system').get('revision')))
 
 
 def new_scene(driver, request, scene, index):
@@ -559,38 +596,15 @@ def new_scene(driver, request, scene, index):
                             BeginScene.Request(request_id=request, scene_key=scene))
     if not result.accepted:
         raise RuntimeError(result.message)
-    state = wait_state(driver, lambda s: section(s, 'perception', 'targets').get('scene_epoch') == result.scene_epoch
-                       and choose_target(s['perception']['targets'], index) is not None, 45)
+    state = wait_state(driver, lambda s: (
+        section(s, 'perception', 'targets').get('scene_epoch') == result.scene_epoch
+        and section(s, 'perception', 'targets').get('target_set_locked') is True
+        and choose_target(s['perception']['targets'], index) is not None), 45)
     return result.scene_epoch, choose_target(state['perception']['targets'], index)
 
 
 def frame_evidence(driver, before):
     return {key: stream.evidence(before[key]) for key, stream in driver.stamps.items()}
-
-
-def ack_tick(driver, request, target, records):
-    state = snapshot()
-    if not target:
-        target = section(state, 'task_executor', 'state').get('target_id') or ''
-    proof = ack_evidence(state, request, target)
-    if not proof:
-        return
-    # Retry only a stale-sequence rejection, taking a fresh snapshot each tick.
-    # PICK_ALL 一轮里有多个目标/多次 recovery，不能用 request 做唯一键（第一
-    # 颗 ACK 成功后会把后续目标全部去重掉，导致轮内死锁）；按 state_seq 去重。
-    task = state['task_executor']['state']
-    previous = [item for item in records
-                if item.get('request_id') == request
-                and item.get('state_seq') == task.get('state_seq')]
-    if any(item.get('accepted') for item in previous) or len(previous) >= 3:
-        return
-    from peach_interfaces.srv import ControlTask
-    reply = driver.service(ControlTask, '/peach_supervisor/control', ControlTask.Request(
-        request_id=request, command=6, expected_state_seq=task['state_seq'],
-        reason='mock only; current target terminal evidence verified'))
-    records.append({'request_id': request, 'state_seq': task['state_seq'],
-                    'target_id': target, 'accepted': reply.accepted,
-                    'message': reply.message, 'evidence': proof})
 
 
 def model_geometry(model, decision):
@@ -604,7 +618,8 @@ def model_geometry(model, decision):
                 isinstance(v, (int, float)) and math.isfinite(v) for v in values):
             raise ValueError('Geometry lacks finite ' + key)
         result[key] = values
-    if not isinstance(result['d95_m'], (int, float)) or not math.isfinite(result['d95_m']) or result['d95_m'] <= 0:
+    if (not isinstance(result['d95_m'], (int, float))
+            or not math.isfinite(result['d95_m']) or result['d95_m'] <= 0):
         raise ValueError('Geometry lacks finite diameter')
     if sum(v*v for v in result['axis']) < 1e-12 or sum(
             (a-b)**2 for a, b in zip(result['entry'], result['cut_pose'])) < 1e-12:
@@ -624,15 +639,18 @@ def geometry_statistics(models):
         for key in ('entry', 'cut_pose'):
             for axis in range(3):
                 metrics[f'{key}_{axis}_m'] = statistics([
-                    g[key][axis] for g in values if isinstance(g.get(key), list) and len(g[key]) >= 3])
-        axes = [g['axis'] for g in values if isinstance(g.get('axis'), list) and len(g['axis']) == 3]
+                    g[key][axis] for g in values
+                    if isinstance(g.get(key), list) and len(g[key]) >= 3])
+        axes = [g['axis'] for g in values
+                if isinstance(g.get('axis'), list) and len(g['axis']) == 3]
         angles = []
         if axes:
             first = axes[0]
             for other in axes:
                 denom = math.sqrt(sum(x*x for x in first) * sum(x*x for x in other))
                 if denom > 0:
-                    angles.append(math.degrees(math.acos(max(-1, min(1, sum(x*y for x, y in zip(first, other))/denom)))))
+                    cosine = sum(x*y for x, y in zip(first, other)) / denom
+                    angles.append(math.degrees(math.acos(max(-1, min(1, cosine)))))
         metrics['axis_angle_from_first_deg'] = statistics(angles)
         result[target] = metrics
     return result
@@ -646,17 +664,22 @@ def physical_coverage(models, rounds):
     counts = {target: 0 for target in anchors}
     for item in rounds:
         point = item.get('entry_position')
-        if not item.get('success') or not isinstance(point, list) or len(point) != 3:
+        if (not item.get('success')
+                or not full_cycle(section(item, 'ledger'), item.get('request_id'))
+                or not isinstance(point, list) or len(point) != 3):
             continue
-        distances = sorted((sum((a-b)**2 for a, b in zip(point, anchor)), target)
-                           for target, anchor in anchors.items() if isinstance(anchor, list) and len(anchor) == 3)
+        distances = sorted(
+            (sum((a-b)**2 for a, b in zip(point, anchor)), target)
+            for target, anchor in anchors.items() if isinstance(anchor, list) and len(anchor) == 3)
         if distances and distances[0][0] <= .06**2 and (
                 len(distances) == 1 or distances[1][0] > .06**2):
             counts[distances[0][1]] += 1
     return counts
 
+
 def run(args):
-    if not (0 <= args.domain <= 232 and args.rounds >= 0 and args.models >= 0 and args.soak_seconds >= 0):
+    if not (0 <= args.domain <= 232 and args.rounds >= 0
+            and args.models >= 0 and args.soak_seconds >= 0):
         raise SystemExit('domain must be 0..232; counts/duration must be nonnegative')
     output = args.output.resolve()
     output.mkdir(parents=True, exist_ok=False)
@@ -672,6 +695,7 @@ def run(args):
         'OPENBLAS_NUM_THREADS', 'MKL_NUM_THREADS') if key in env}
     if 'OMP_NUM_THREADS' in env:
         report['runtime_environment']['OMP_NUM_THREADS'] = env['OMP_NUM_THREADS']
+
     def audit_started(pgid):
         report['owned_process_groups'].append(pgid)
         save(output / 'report.json', report)
@@ -691,50 +715,9 @@ def run(args):
         gui = gui_environment(env) if args.rviz else None
         os.environ['ROS_DOMAIN_ID'] = str(args.domain)
         os.environ['ROS_LOCALHOST_ONLY'] = '1'
-        overlay = output / 'brain_overlay.yaml'
-        skip_reconstruction = (
-            bool(profile['skip_reconstruction'])
-            if args.skip_reconstruction is None else bool(args.skip_reconstruction))
-        # 不跳过重建时强制走产品默认的并行 Build（Finalize 等重建/许可）；
-        # profile 里的 false 是 skip 档的测试值，不能带到完整路径。
-        reconstruct_in_trajectory = (
-            bool(profile['reconstruct_in_trajectory']) if skip_reconstruction else True)
-        profile = dict(profile)
-        profile['skip_reconstruction'] = skip_reconstruction
-        profile['reconstruct_in_trajectory'] = reconstruct_in_trajectory
-        report['profile'] = profile
-        overlay.write_text(yaml.safe_dump({'/peach_supervisor': {'ros__parameters': {
-            'execute_pregrasp_only': False,
-            'skip_reconstruction': skip_reconstruction,
-            'reconstruct_in_trajectory': reconstruct_in_trajectory}}}))
-        arm_overlay = output / 'arm_overlay.yaml'
-        # 接触 LIN（appendLinToPose）的加速度档位由 min(1, 2*velocity) 推导，
-        # 不受 acceleration_scaling 控制；0.8 速度会推到 1.0 档，Pilz 在
-        # wrist1/3 的 3.0 rad/s^2 上限上实测 3.02–3.40 被拒（2026-10-21
-        # 16:54 轮 6/6 skip 的真因）。0.4 → 0.8 档留出余量；转移段仍 0.8。
-        # execute_timeout_s 同步放宽到 30 s：接近变慢后不能被产品 5 s 档误停。
-        # timeouts.refined_s=30 s：恢复 16:57 前的产品值，完整 Build 需要
-        # TSDF+refit 的时间；现行 5 s 只适合 skip 档。
-        arm_overlay.write_text(yaml.safe_dump({
-            '/peach_arm': {'ros__parameters': {
-                'moveit': {
-                    'velocity_scaling': 0.4,
-                    'acceleration_scaling': 0.4,
-                    'transit_velocity_scaling': 0.8,
-                    'transit_acceleration_scaling': 0.8,
-                    'execute_timeout_s': 30.0,
-                },
-                'timeouts': {'refined_s': 30.0},
-            }}}, sort_keys=False))
-        command = ['ros2', 'launch', 'peach_bringup', 'harvest_system.launch.py',
-                   'hardware_mode:=mock', 'camera_enabled:=true', 'camera_frontend:=stereo',
-                   'extrinsics_enabled:=false', 'force_enabled:=false', 'autostart:=false',
-                   'use_sim_time:=false', 'rviz:=false', 'tool_profile:=bite_shear_v1',
-                   'mock_initial_positions:=' + ','.join(map(str, profile['mock_initial_positions'])),
-                   'skip_reconstruction:=' + ('true' if skip_reconstruction else 'false'),
-                   'brain_params_overlay:=' + str(overlay),
-                   'arm_params_overlay:=' + str(arm_overlay),
-                   'observability_port:=' + str(_web_port)]
+        if args.task_params_file and not args.task_params_file.is_file():
+            raise RuntimeError('Task parameter file does not exist')
+        command = stack_command(args, profile, _web_port)
         owner.start(command, output / 'stack.log')
         tf = profile['camera_calibration']
         xyz, quat = tf['xyz_m'], tf['quaternion_xyzw']
@@ -746,11 +729,17 @@ def run(args):
         driver = RosDriver()
         state = wait_state(driver, lambda s: startup_ready(s, args.domain))
         save(output / 'startup_state.json', state)
+        with urllib.request.urlopen(
+                f'http://127.0.0.1:{_web_port}/api/params', timeout=20) as response:
+            effective_params = json.load(response)
+        report['effective_params'] = effective_params
+        report['required_completion_level'] = required_completion(effective_params, tool=False)
         if args.rviz:
             params = output / 'rviz_model_params.yaml'
             driver.rviz_params(params)
-            rviz = owner.start(['rviz2', '-d', str(cfg_dir / 'live_camera_mock.rviz'),
-                                '--ros-args', '--params-file', str(params)], output / 'rviz.log', gui)
+            rviz = owner.start(
+                ['rviz2', '-d', str(application_rviz_config()),
+                 '--ros-args', '--params-file', str(params)], output / 'rviz.log', gui)
             driver.spin_for(5)
             if rviz.poll() is not None:
                 raise RuntimeError('RViz exited during startup; see rviz.log')
@@ -759,14 +748,14 @@ def run(args):
             report['rviz_started'] = False
             report['rviz_note'] = '用户显式 --no-rviz；本轮未验证 RViz'
         from peach_interfaces.action import BuildTargetModel, RunHarvest
-        from peach_interfaces.srv import ControlTask
+
         def rviz_tick():
             if args.rviz and rviz.poll() is not None:
                 raise RuntimeError('RViz exited before test completion')
 
         def round_tick(request, target):
             rviz_tick()
-            ack_tick(driver, request, target, report['acks'])
+            require_no_recovery(snapshot())
 
         driver.enables(False, False)
         seen = set()
@@ -775,7 +764,7 @@ def run(args):
         if args.models:
             sample_epoch, _ = new_scene(driver, sample_request, sample_request, 0)
         # Count completed model identities, never diagnostic heartbeat publications.
-        for attempt in range(args.models * 3):
+        for attempt in range(args.models):
             if len(report['models']) >= args.models:
                 break
             request = 'model_' + uuid.uuid4().hex[:12]
@@ -784,24 +773,34 @@ def run(args):
             try:
                 epoch = sample_epoch
                 current = snapshot()
-                target = choose_target(section(current, 'perception', 'targets'), len(report['models']))
+                target = choose_target(
+                    section(current, 'perception', 'targets'), len(report['models']))
                 if not target:
                     raise RuntimeError('Fixed sampling scene has no current valid target')
-                result = driver.action(BuildTargetModel,
+                result = driver.action(
+                    BuildTargetModel,
                     '/peach_target_reconstruction_node/build_target_model',
-                    BuildTargetModel.Goal(request_id=request, target_id=target, scene_epoch=epoch), 180, on_tick=rviz_tick)
+                    BuildTargetModel.Goal(
+                        request_id=request, target_id=target, scene_epoch=epoch),
+                    180, on_tick=rviz_tick)
                 item.update(result)
                 model = section(result, 'result', 'model')
                 sample_key = build_generation(model)
                 key = model_key(model)
-                if result.get('status') != 4 or section(result, 'result').get('success') is not True:
-                    raise RuntimeError('BuildTargetModel failed: ' + str(section(result, 'result').get('message')))
+                if (result.get('status') != 4
+                        or section(result, 'result').get('success') is not True):
+                    raise RuntimeError('BuildTargetModel failed: ' + str(
+                        section(result, 'result').get('message')))
                 if not sample_key or sample_key in seen or key[:2] != (target, epoch):
-                    raise RuntimeError('BuildResult lacks new generated_at/valid_until/model identity proof')
+                    raise RuntimeError(
+                        'BuildResult lacks new generated_at/valid_until/model identity proof')
                 state = wait_state(driver, lambda s: web_model_matches(s, model), 10)
                 seen.add(sample_key)
-                evidence = model_geometry(model, section(state, 'reconstruction', 'grasp_decision'))
-                report['models'].append({'identity': key, 'sample_identity': sample_key, 'model': model, 'geometry': evidence, 'elapsed_s': time.monotonic() - started})
+                evidence = model_geometry(
+                    model, section(state, 'reconstruction', 'grasp_decision'))
+                report['models'].append({
+                    'identity': key, 'sample_identity': sample_key, 'model': model,
+                    'geometry': evidence, 'elapsed_s': time.monotonic() - started})
                 save(output / f'model_{attempt + 1}_state.json', state)
             except Exception as exc:
                 item['error'] = str(exc)
@@ -810,6 +809,8 @@ def run(args):
             item['elapsed_s'] = time.monotonic() - started
             report['model_attempts'].append(item)
             save(output / 'report.json', report)
+            if item.get('error'):
+                raise RuntimeError('Model sampling failed; no execution: ' + item['error'])
         driver.enables(True, True)
         for index in range(args.rounds):
             request = 'round_' + uuid.uuid4().hex[:12]
@@ -825,29 +826,35 @@ def run(args):
                     goal = RunHarvest.Goal(
                         request_id=request, scene_key=request,
                         intent=RunHarvest.Goal.INTENT_PICK_ALL,
-                        selection_mode=RunHarvest.Goal.AUTO,
-                        per_target_timeout_s=180., sector_timeout_s=240.)
+                        selection_mode=RunHarvest.Goal.AUTO)
                     result = driver.action(
                         RunHarvest, '/peach_supervisor/run_harvest', goal, 300,
                         on_tick=lambda: round_tick(request, None))
                 else:
-                    epoch, target = new_scene(driver, request, request, 0 if args.first_target else index)
+                    epoch, target = new_scene(
+                        driver, request, request, 0 if args.first_target else index)
                     # 场景源 ID 就是 2D/3D/账本 ID；不再另造 grasp_id 重映射。
                     record['grasp_slot'] = index + 1
                     record.update(target_id=target, scene_epoch=epoch)
-                    observations = section(snapshot(), 'perception', 'targets').get('observations', [])
+                    observations = section(snapshot(), 'perception', 'targets').get(
+                        'observations', [])
                     selected = next((o for o in observations if o.get('target_id') == target), {})
                     record['entry_position'] = section(selected, 'candidate').get('entry_position')
-                    result = driver.action(RunHarvest, '/peach_supervisor/run_harvest',
+                    result = driver.action(
+                        RunHarvest, '/peach_supervisor/run_harvest',
                         RunHarvest.Goal(request_id=request, scene_key=request, intent=1,
-                                        selection_mode=1, target_ids=[target], per_target_timeout_s=180., sector_timeout_s=240.), 300,
+                                        selection_mode=1, target_ids=[target]), 300,
                         on_tick=lambda: round_tick(request, target))
                 record['action'] = result
-                state = wait_state(driver, lambda s: section(s, 'ledger', 'live').get('request_id') == request and bool(section(s, 'ledger', 'live').get('rows')), 10)
+                state = wait_state(driver, lambda s: (
+                    section(s, 'ledger', 'live').get('request_id') == request
+                    and bool(section(s, 'ledger', 'live').get('rows'))), 10)
                 ledger = section(state, 'ledger', 'live')
                 record['ledger'] = ledger
-                record['success'] = result.get('status') == 4 and section(result, 'result').get('success') is True and (
-                    any_cycle(ledger, request) if args.pick_all else full_cycle(ledger, request))
+                record['success'] = (
+                    result.get('status') == 4
+                    and section(result, 'result').get('success') is True
+                    and full_cycle(ledger, request, report['required_completion_level']))
                 save(output / f'round_{index + 1}_state.json', state)
             except Exception as exc:
                 record['error'] = str(exc)
@@ -861,6 +868,8 @@ def run(args):
                 record['success'] = False
             report['rounds'].append(record)
             save(output / 'report.json', report)
+            if not record['success']:
+                raise RuntimeError('Round failed; subsequent rounds stopped')
         driver.enables(False, False)
         soak_started = time.monotonic()
         report['soak_started_monotonic'] = soak_started
@@ -869,11 +878,13 @@ def run(args):
             soak_before = {key: value.total for key, value in driver.stamps.items()}
             driver.spin_for(min(5, max(0, until - time.monotonic())))
             state = snapshot()
-            report['resources'].append({'monotonic': time.monotonic(), 'metrics': state.get('metrics'),
-                                        'topic_age_s': section(state, 'system').get('topic_age_s'),
-                                        'streams_fresh': all(v['fresh_stamp'] for v in frame_evidence(driver, soak_before).values()),
-                                        'streams': frame_evidence(driver, soak_before),
-                                        'rviz_alive': not args.rviz or rviz.poll() is None})
+            report['resources'].append({
+                'monotonic': time.monotonic(), 'metrics': state.get('metrics'),
+                'topic_age_s': section(state, 'system').get('topic_age_s'),
+                'streams_fresh': all(
+                    v['fresh_stamp'] for v in frame_evidence(driver, soak_before).values()),
+                'streams': frame_evidence(driver, soak_before),
+                'rviz_alive': not args.rviz or rviz.poll() is None})
             report['soak_elapsed_s'] = time.monotonic() - soak_started
             checkpoint(output, report, 'soaking')
             validate_soak_sample(report['resources'][-1])
@@ -893,7 +904,9 @@ def run(args):
             report['consolidated_records'] = consolidate_records(output, run_started)
             report['domain_processes_after'] = domain_processes(args.domain)
             report['model_count'] = len(report['models'])
-            report['full_level6_rounds'] = sum(r['success'] for r in report['rounds'])
+            report['successful_rounds'] = sum(r['success'] for r in report['rounds'])
+            report['full_level6_rounds'] = sum(
+                full_cycle(section(r, 'ledger'), r['request_id']) for r in report['rounds'])
             report['model_elapsed_s'] = statistics([m['elapsed_s'] for m in report['models']])
             report['geometry_statistics'] = geometry_statistics(report['models'])
             groups = {}
@@ -902,7 +915,8 @@ def run(args):
                 groups[target] = groups.get(target, 0) + 1
             report['model_samples_per_target'] = groups
             if args.models >= 3 and any(count < 3 for count in groups.values()):
-                report['errors'].append('Insufficient repeat samples: each observed target requires at least 3 models')
+                report['errors'].append(
+                    'Insufficient repeat samples: each observed target requires at least 3 models')
             counts = {}
             for round_record in report['rounds']:
                 for row in section(round_record, 'ledger').get('rows', []):
@@ -910,16 +924,23 @@ def run(args):
                     outcome = row.get('outcome_name', 'UNKNOWN')
                     target_counts[outcome] = target_counts.get(outcome, 0) + 1
             report['per_target_outcomes'] = counts
-            report['physical_bag_level6_coverage'] = physical_coverage(report['models'], report['rounds'])
-            if args.rounds >= 6 and len(groups) == 2 and any(
-                    count < 3 for count in report['physical_bag_level6_coverage'].values()):
+            report['physical_bag_level6_coverage'] = physical_coverage(
+                report['models'], report['rounds'])
+            if (report.get('required_completion_level', 6) >= 6
+                    and args.rounds >= 6 and len(groups) == 2 and any(
+                        count < 3 for count in report['physical_bag_level6_coverage'].values())):
                 report['errors'].append('Both modeled bags require at least 3 level6 rounds each')
-            report['soak_passed'] = soak_passed(args.soak_seconds, report.get('soak_elapsed_s', 0), report['resources'])
+            report['soak_passed'] = soak_passed(
+                args.soak_seconds, report.get('soak_elapsed_s', 0), report['resources'])
             if not report['soak_passed']:
                 report['errors'].append('Soak incomplete or camera/joint/RViz liveness failed')
-            report['passed'] = report.get('rviz_lifetime_ok', False) and not report['errors'] and not report['residual_pids'] and report['model_count'] == args.models and report['full_level6_rounds'] == args.rounds
+            report['passed'] = (
+                report.get('rviz_lifetime_ok', False) and not report['errors']
+                and not report['residual_pids'] and report['model_count'] == args.models
+                and report['successful_rounds'] == args.rounds)
             checkpoint(output, report, 'finished')
-        print(json.dumps({'output': str(output), 'passed': report['passed'], 'errors': report['errors']}, ensure_ascii=False))
+        print(json.dumps({'output': str(output), 'passed': report['passed'],
+                          'errors': report['errors']}, ensure_ascii=False))
     return 0 if report['passed'] else 1
 
 
@@ -937,6 +958,7 @@ def cleanup_driver(driver, errors):
 def main(argv=None):
     args = parser().parse_args(argv)
     previous = {sig: signal.getsignal(sig) for sig in (signal.SIGINT, signal.SIGTERM)}
+
     def interrupt(signum, frame):
         raise KeyboardInterrupt('received signal ' + str(signum))
     try:

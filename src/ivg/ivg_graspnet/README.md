@@ -24,8 +24,6 @@ contact_graspnet_pytorch，Contact-GraspNet 移植）。
   `checkpoint-rs.yaml` manifest（`num_view/num_angle/num_depth/...`）——
   换 checkpoint 只换两个文件，零改代码。contact_graspnet 权重随
   `contact_graspnet_lib/`（vendored，AMENT_IGNORE）携带。
-- **行为等价门**：`test/test_backends.py::test_pipeline_matches_pre_refactor_golden`
-  守卫重构前后同输入逐位一致（golden 基准 `test/data/golden_grasps.npz`）。
 - **执行端约定**：`apply_grasp_z_flip`（默认 true）对齐后端
   `BackendInfo.approach_flip_z180`——graspnet_torch 需翻转；
   contact_graspnet 为 false（**待真机方向核验**，先在 RViz/Marker 确认

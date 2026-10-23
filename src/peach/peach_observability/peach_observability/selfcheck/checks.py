@@ -55,8 +55,8 @@ def check_joint_order(names: Sequence[str] | None,
     """
     /joint_states 六关节名集合须与 MUST 冻结集一致.
 
-    名单序不判：JSB 发布按字母序、命令序在 controllers.yaml（与 CI
-    test_mock_launch 同语义——缺/多关节才是 FAIL，透传拧腕风险在驱动侧序）.
+    名单序不判：JSB 发布按字母序、命令序在 controllers.yaml。
+    缺或多出来的关节才是 FAIL；透传拧腕风险在驱动侧关节序。
     """
     if not names:
         return CheckResult('joint_order', FAIL, '未收到 joint_states', None)

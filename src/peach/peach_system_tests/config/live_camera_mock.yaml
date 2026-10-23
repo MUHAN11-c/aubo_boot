@@ -4,10 +4,7 @@ hardware_mode: mock
 camera_frontend: stereo
 autostart: false
 tool_enabled: false
-# 相机固定在 base_link，mock 腕动不产生新机位。抓取轮不发 Build，
-# 用锁定集感知几何进接触。真机产品默认仍是 skip_reconstruction false。
-skip_reconstruction: true
-reconstruct_in_trajectory: false
+# 仅环境配置；运动、重建、质量、超时与恢复语义使用产品参数。
 camera_calibration:
   parent_frame: base_link
   child_frame: camera_link

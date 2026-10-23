@@ -55,14 +55,10 @@ def bridge_module_loggers(
     """
     把纯核模块 logger 桥接到节点的 /rosout 流.
 
-    Args:
-        node: rclpy 节点（或任何带 get_logger() 的对象）.
-        module_names: 模块 logger 名列表（即模块的 __name__）.
-        level: 转发下限；仅当下调（模块 logger 原级别更高时压到该级）.
-
-    Returns:
-        已桥接的 logger 列表（幂等：重复调用不重复挂 handler）.
-
+    :param node: rclpy 节点（或任何带 get_logger() 的对象）.
+    :param module_names: 模块 logger 名列表（即模块的 __name__）.
+    :param level: 转发下限；仅当下调（模块 logger 原级别更高时压到该级）.
+    :returns: 已桥接的 logger 列表（幂等：重复调用不重复挂 handler）.
     """
     handler = RosLoggerHandler(node.get_logger())
     handler.setFormatter(logging.Formatter('%(name)s: %(message)s'))

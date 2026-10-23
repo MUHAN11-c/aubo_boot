@@ -547,6 +547,8 @@ class ReconstructionCore:
                     '采帧准备期间会话已切换/收口，丢弃陈旧帧 '
                     f'{bound_target or "（空）"}')
                 return
+            if context[3] <= self._last_captured_stamp_sec:
+                return
             accepted, message = self._commit_prepared_frame(prepared, t_frame0)
             if not accepted:
                 self.collector.rejected_views += 1
@@ -700,39 +702,47 @@ class ReconstructionCore:
     # ------------------------------------------------------------------
     # Publisher（自 publish.PublisherMixin 迁入；N7 帧栈快照/PF-5 点数）
     # ------------------------------------------------------------------
+    def _publication_key(self):
+        """调用方持锁：消息构造与发送必须属于同一会话/产物/帧栈."""
+        frames = self.collector.frames
+        return (self._capture_generation, self._products_version,
+                self.collector.target_id, self.collector.state,
+                len(frames), float(frames[-1].stamp) if frames else -1.)
+
     def _publish_heartbeat(self):
-        """1Hz 活性心跳：状态 + 诊断 + 抓取许可（轻量三件套，不含云/Marker）."""
+        """1Hz活性心跳；TF与消息准备不持状态锁，发送前复核世代."""
         if not self._lifecycle_active:
             return
-        with self._state_lock:
-            header = Header()
-            header.stamp = self.get_clock().now().to_msg()
-            header.frame_id = self.params.frames.base_frame
-            self._publish_status_trio(header)
+        header = Header(stamp=self.get_clock().now().to_msg(),
+                        frame_id=self.params.frames.base_frame)
+        self._publish_status_trio(header)
 
-    def _publish_status_trio(self, header: Header):
-        """
-        状态名 + 类型化诊断 + 调试 JSON + 抓取许可统一重发（心跳/状态变化共用）.
-
-        结构化核心走 ReconstructionStatus（/diagnostics），完整明细走
-        String JSON（/diagnostics_debug），许可走 GraspDecision——三者同
-        transient_local 闩锁，后启动订阅者读到的始终是最新一轮。
-        """
+    def _status_messages(self, header):
+        """调用方持锁：一次组装同模型身份的轻量状态与许可快照."""
         decision = self._lock_decision_validity(self._grasp_decision())
         diag = self._diagnostics()
-        # JSON 镜像保留模型时间，供诊断区分心跳新鲜与模型新鲜。
         stamp = decision['generated_at']
         diag['model_stamp'] = float(stamp.sec) + 1e-9 * stamp.nanosec
-        self.pub_status.publish(String(data=self.collector.state))
-        self.pub_diag.publish(diagnostics_to_status_msg(diag, header))
-        self.pub_diag_debug.publish(
-            String(data=json.dumps(diag, ensure_ascii=False)))
-        self.pub_grasp_decision.publish(
-            grasp_decision_to_msg(
-                decision, header,
-                validity_s=decision_validity_s(self.params)))
+        return [
+            (self.pub_status, String(data=self.collector.state)),
+            (self.pub_diag, diagnostics_to_status_msg(diag, header)),
+            (self.pub_diag_debug, String(data=json.dumps(diag, ensure_ascii=False))),
+            (self.pub_grasp_decision, grasp_decision_to_msg(
+                decision, header, validity_s=decision_validity_s(self.params))),
+        ]
+
+    def _publish_status_trio(self, header):
+        """锁内快照、锁外TF，最后短锁复核并串行发布，禁止旧许可尾随清屏."""
+        with self._state_lock:
+            key = self._publication_key()
+            messages = self._status_messages(header)
         if getattr(self, 'pub_pregrasp', None) is not None:
-            self.pub_pregrasp.publish(self._pregrasp_verification_msg(header))
+            messages.append((self.pub_pregrasp, self._pregrasp_verification_msg(header)))
+        with self._state_lock:
+            if key != self._publication_key():
+                return
+            for publisher, message in messages:
+                publisher.publish(message)
 
     def _lock_decision_validity(self, decision: dict) -> dict:
         """
@@ -769,72 +779,74 @@ class ReconstructionCore:
 
     def _publish_all(self):
         """
-        状态变化后统一重发：累加云 + 状态三件套 + 相机轨迹 Marker.
+        同世代快照→锁外组装大消息→复核后短锁统一发布.
 
-        E4 发布节流（publish.on_change_only / publish.min_interval_s）：
-        local_cloud/tsdf_cloud/markers 三类大消息仅内容版本变化且距上次
-        实际发布超过最小间隔才真正组装发布（on-change key 用帧数/末帧
-        时间戳/产物版本号等廉价标量，不做内容哈希）；零变化或间隔内抑制
-        ——三话题均为 transient_local 闩锁，订阅者/RViz 保留最后一帧不丢
-        显示，被抑制的变化留待下次调用补发最新版本。产物清空事件
-        （_reset_products 置 force 标志）绕过间隔门立即透传，保证绑定
-        切换/reset 时 RViz 同步清屏。心跳/状态/诊断/refit 三件套不节流
-        （就绪门/新鲜度门载体与闩锁覆盖防陈旧语义不动）。
-        N7：本方法可锁外可达（COMMIT 补发路径），帧栈读取改锁内
-        tuple(frames) 快照（RLock：锁内调用方重入安全）。
+        reset/换绑可在构云时清屏；旧构造结果不得尾随清屏覆盖新世代。
+        几何、身份和状态在同一临界区生成，云/marker组装不占状态锁。
         """
-        header = Header()
-        header.stamp = self.get_clock().now().to_msg()
-        header.frame_id = self.params.frames.base_frame
-        # on_change_only=false 回退逐次全发旧行为（不查节流器）
-        throttle = (self._publish_throttle
-                    if self.params.publish.on_change_only else None)
-        force = self._products_force_publish
-        self._products_force_publish = False
-        # N7：锁内帧栈快照（本方法多在锁内被调，RLock 重入零开销）
+        header = Header(stamp=self.get_clock().now().to_msg(),
+                        frame_id=self.params.frames.base_frame)
         with self._state_lock:
+            key = self._publication_key()
             frames = tuple(self.collector.frames)
-        n_frames = len(frames)
-        # 累加云内容随帧栈增删变化；同长度同末帧戳即同内容（reset 后帧栈
-        # 为空 n=0 自然判变；remove_last 改变 n_frames）
-        last_stamp = float(frames[-1].stamp) if frames else -1.0
-        if throttle is None or throttle.should_publish(
-                'local_cloud', (n_frames, last_stamp), force=force):
-            cloud = self.collector.accumulated_cloud()
-            self.pub_cloud.publish(xyzrgb_to_cloud_msg(
-                cloud, self.collector.accumulated_rgb(), header))
-        # TSDF 云仅 finalize 后非空；无缓存发空云（字段布局保持一致）。
-        # 内容版本 = _tsdf_cloud_version（每次全量 extract/清空递增）
-        if throttle is None or throttle.should_publish(
-                'tsdf_cloud', (self._tsdf_cloud_version,), force=force):
-            if self._tsdf_cloud_cache is not None:
-                tsdf_xyz, tsdf_rgb = self._tsdf_cloud_cache
-            else:
-                tsdf_xyz, tsdf_rgb = np.zeros((0, 3)), None
-            self.pub_tsdf_cloud.publish(
-                xyzrgb_to_cloud_msg(tsdf_xyz, tsdf_rgb, header))
-        self._publish_preview(
-            header, (n_frames, last_stamp, self._tsdf_cloud_version), throttle, force)
-        self._publish_status_trio(header)
-        # Marker 内容 = 相机轨迹（帧栈）+ refined 抓取示意 + mesh
-        # _products_version 覆盖（refit 写入/finalize 清理均递增）
-        if throttle is None or throttle.should_publish(
-                'markers', (n_frames, last_stamp, self._products_version),
-                force=force):
+            target_id = self.collector.target_id
+            refined, mesh = self._refined, self._mesh_cache
+            tsdf = self._tsdf_cloud_cache
+            throttle = self._publish_throttle if self.params.publish.on_change_only else None
+            force = self._products_force_publish
+            self._products_force_publish = False
+            n_frames = len(frames)
+            last_stamp = float(frames[-1].stamp) if frames else -1.
+            cloud_key = (n_frames, last_stamp)
+            tsdf_key = (self._tsdf_cloud_version,)
+            preview_key = (*cloud_key, self._tsdf_cloud_version)
+            marker_key = (*cloud_key, self._products_version)
+            changes = {
+                channel: (throttle is None or throttle.should_publish(
+                    channel, version, force=force))
+                for channel, version in (
+                    ('local_cloud', cloud_key), ('tsdf_cloud', tsdf_key),
+                    ('preview_cloud', preview_key), ('markers', marker_key))
+            }
+            messages = self._status_messages(header)
+            pose, axis, fitting = self._refined_messages(header)
+            messages.extend(((self.pub_refined_pose, pose), (self.pub_refined_axis, axis),
+                             (self.pub_refined_diag, fitting),
+                             (self.pub_shape, self._shape_hypothesis_msg(header))))
+            tool_d_inner = float(self.params.tool.budget.d_inner)
+        # CapturedFrame及产物数组只追加/替换，已取得的快照不随reset改变。
+        clouds = [frame.cloud_base for frame in frames
+                  if frame.cloud_base is not None and frame.cloud_base.size]
+        xyz = np.vstack(clouds) if clouds else np.zeros((0, 3))
+        colors = None
+        if frames and all(frame.cloud_rgb is not None for frame in frames):
+            rgb = [frame.cloud_rgb for frame in frames if frame.cloud_rgb.size]
+            colors = np.vstack(rgb) if rgb else None
+        if changes['local_cloud']:
+            messages.append((self.pub_cloud, xyzrgb_to_cloud_msg(xyz, colors, header)))
+        tsdf_xyz, tsdf_rgb = tsdf if tsdf is not None else (np.zeros((0, 3)), None)
+        if changes['tsdf_cloud']:
+            messages.append((self.pub_tsdf_cloud, xyzrgb_to_cloud_msg(tsdf_xyz, tsdf_rgb, header)))
+        if changes['preview_cloud']:
+            preview_xyz, preview_rgb = (tsdf_xyz, tsdf_rgb) if len(tsdf_xyz) else (xyz, colors)
+            messages.append((self.pub_preview_cloud, preview_cloud_msg(
+                preview_xyz, preview_rgb, header)))
+        if changes['markers']:
             markers = build_camera_markers(header, frames)
             markers.markers.extend(build_refined_grasp_markers(
-                header, self._refined, self.collector.target_id or '',
-                tool_d_inner=float(self.params.tool.budget.d_inner)))
-            mesh_marker = build_mesh_marker(header, self._mesh_cache)
+                header, refined, target_id or '', tool_d_inner=tool_d_inner))
+            mesh_marker = build_mesh_marker(header, mesh)
             if mesh_marker is not None:
                 markers.markers.append(mesh_marker)
-            self.pub_markers.publish(markers)
-        # refit 三件套：闩锁话题每次重发（无结果发空消息，防陈旧数据）
-        pose_arr, axis_msg, fit_arr = self._refined_messages(header)
-        self.pub_refined_pose.publish(pose_arr)
-        self.pub_refined_axis.publish(axis_msg)
-        self.pub_refined_diag.publish(fit_arr)
-        self.pub_shape.publish(self._shape_hypothesis_msg(header))
+            messages.append((self.pub_markers, markers))
+        if getattr(self, 'pub_pregrasp', None) is not None:
+            messages.append((self.pub_pregrasp, self._pregrasp_verification_msg(header)))
+        with self._state_lock:
+            if key != self._publication_key():
+                self._products_force_publish = True
+                return
+            for publisher, message in messages:
+                publisher.publish(message)
 
     def _shape_hypothesis_msg(self, header: Header) -> ShapeHypothesis:
         """由 refit 缓存组形状假设（几何+协方差占位，不含工具抓取量）."""

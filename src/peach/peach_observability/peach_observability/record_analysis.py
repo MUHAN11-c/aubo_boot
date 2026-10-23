@@ -1,11 +1,11 @@
 """离线读取 runs 下的测试记录。只读，不改监控状态."""
 from __future__ import annotations
 
+from datetime import datetime, timedelta
 import json
 import os
-import re
-from datetime import datetime, timedelta
 from pathlib import Path
+import re
 from urllib.parse import quote
 
 _MARKERS = ('ledger.json', 'geometry.jsonl', 'report.json')
@@ -320,7 +320,7 @@ def _owner_batch(path: Path) -> str:
 
 def _frame_index(runs_root: Path, record: Path, relative: str,
                  roots: list[Path]) -> dict:
-    """按批次和目标收齐最新一帧的掩膜和检测调试图。彩色原图只留在磁盘。"""
+    """按批次和目标收齐最新一帧的掩膜和检测调试图，彩色原图只留磁盘."""
     latest: dict[tuple[str, str], dict] = {}
     kinds = {'masks': 'mask', 'debug': 'debug'}
     for base in roots:
@@ -369,7 +369,7 @@ def _stage_rows(item: dict) -> list[dict]:
 
 
 def _cycle_stages(item: dict) -> list[dict]:
-    """补上派发到再确认之前的时间。这段主要是等精化几何和许可，不是开批检测。"""
+    """补上派发到再确认之前的精化几何和许可等待时间."""
     rows = _stage_rows(item)
     if any(row['name'] in {'perceive', 'observe', 'finalize'} for row in rows):
         return rows
@@ -398,7 +398,7 @@ def _geometry_for(geometry: list[dict], batch, target: str) -> dict | None:
 
 
 def _fruits(outcomes: list[dict], frames: dict, geometry: list[dict]) -> list[dict]:
-    """每一颗都带上掩膜、检测调试图和本颗评估。彩色原图不进页面。"""
+    """每一颗带上掩膜、检测调试图和本颗评估，彩色原图不进页面."""
     rows = []
     for item in outcomes:
         target = str(item.get('target_id') or '')
@@ -471,7 +471,7 @@ def _clock(name: str) -> datetime | None:
 
 
 def _report_round_roots(record: Path) -> list[Path]:
-    """runner 的 report.json 把逐目标账本写在 runs/<request_id> 兄弟目录."""
+    """Runner 的 report.json 把逐目标账本写在 runs/<request_id> 兄弟目录."""
     report = _read_json(record / 'report.json')
     roots = []
     if not isinstance(report, dict):
@@ -763,11 +763,19 @@ def _read_episode(path: Path) -> dict | None:
     if not isinstance(payload, dict):
         return None
     start = _parse_wall(payload.get('wall_start'))
+    time_basis = 'estimated_legacy_wall'
+    try:
+        start_ns = int(payload['start_unix_ns'])
+        if start_ns > 0:
+            start = start_ns / 1e9
+            time_basis = str(payload.get('time_basis') or 'host_receive_clock')
+    except (KeyError, TypeError, ValueError, OverflowError):
+        pass
     try:
         duration = float(payload.get('duration_s'))
     except (TypeError, ValueError):
         return None
-    if start is None or duration != duration or duration <= 0:
+    if start is None or duration != duration or duration < 0:
         return None
     peaks = []
     raw_peaks = payload.get('peak_n')
@@ -791,9 +799,10 @@ def _read_episode(path: Path) -> dict | None:
     samples = _sample_times(path.with_suffix('.csv'))
     if samples is not None:
         contact = samples['contact_s']
-        start = _episode_origin(
-            path.with_suffix('.csv'), str(payload.get('wall_start') or ''),
-            start, samples['last_s'])
+        if time_basis == 'estimated_legacy_wall':
+            start = _episode_origin(
+                path.with_suffix('.csv'), str(payload.get('wall_start') or ''),
+                start, samples['last_s'])
         peak_s = samples['peak_s']
     else:
         peak_s = None
@@ -807,6 +816,10 @@ def _read_episode(path: Path) -> dict | None:
         'peak_s': None if peak_s is None else round(peak_s, 3),
         'episode': path.stem,
         'reason': str(payload.get('reason') or ''),
+        'time_basis': time_basis,
+        'session_id': str(payload.get('session_id') or path.parent.parent.name),
+        'start_ros_ns': payload.get('start_ros_ns'),
+        'end_ros_ns': payload.get('end_ros_ns'),
     }
 
 
@@ -849,6 +862,13 @@ def _sample_times(csv_path: Path) -> dict | None:
                 continue
             if value != value:
                 continue
+            status_name = 'st' + header[index][1:]
+            if status_name in header:
+                try:
+                    if int(cols[header.index(status_name)]) not in (0, 1):
+                        continue
+                except (IndexError, ValueError):
+                    continue
             total += max(0.0, value)
             hot = max(hot, abs(value))
         if hot >= _RELEASE_N:
@@ -972,6 +992,7 @@ def _single_grasp_cycles(root: Path) -> list[dict]:
                 'start': end - elapsed,
                 'end': end,
                 'ledger': path.resolve(),
+                'time_basis': 'estimated_ledger_mtime',
             })
     return cycles
 
@@ -984,23 +1005,47 @@ def _match_force(cycles: list[dict], episodes: list[dict],
         for cycle in cycles:
             grouped[cycle['ledger']] = _cycle_bucket(cycle)
     for episode in episodes:
-        mid = (episode['start'] + episode['end']) / 2.0
         best = None
         best_dist = None
+        matched_span = None
+        matches = 0
         for cycle in cycles:
-            if mid < cycle['start'] - _FORCE_SLACK_S:
+            if (cycle.get('session_id') and episode.get('session_id')
+                    and cycle['session_id'] != episode['session_id']):
                 continue
-            if mid > cycle['end'] + _FORCE_SLACK_S:
+            ep_start, ep_end = episode['start'], episode['end']
+            cycle_start, cycle_end = cycle['start'], cycle['end']
+            # Both producers used the ROS clock in this session. Use source
+            # stamps rather than recorder latency or filesystem modification.
+            try:
+                clocks = [int(item) for item in (
+                    episode.get('start_ros_ns'), episode.get('end_ros_ns'),
+                    cycle.get('start_ros_ns'), cycle.get('end_ros_ns'))]
+                if all(item > 0 for item in clocks):
+                    ep_start, ep_end, cycle_start, cycle_end = [
+                        item / 1e9 for item in clocks]
+            except (TypeError, ValueError, OverflowError):
+                pass
+            mid = (ep_start + ep_end) / 2.0
+            exact = (cycle.get('time_basis') == 'source_clock'
+                     and not episode.get('time_basis', '').startswith('estimated'))
+            slack = 0.0 if exact else _FORCE_SLACK_S
+            if mid < cycle_start - slack or mid > cycle_end + slack:
                 continue
-            dist = abs(mid - (cycle['start'] + cycle['end']) / 2.0)
+            matches += 1
+            dist = abs(mid - (cycle_start + cycle_end) / 2.0)
             if best is None or dist < best_dist:
                 best = cycle
                 best_dist = dist
-        if best is None:
+                matched_span = (ep_start, ep_end, cycle_start)
+        if best is None or matches > 1:
+            # Ambiguous overlap is not a target identity. Keep the files for
+            # inspection instead of silently attaching to the closest cycle.
             continue
-        offset = episode['start'] - best['start']
+        ep_start, ep_end, cycle_start = matched_span
+        offset = ep_start - cycle_start
         start_s = round(offset, 3)
-        end_s = round(episode['end'] - best['start'], 3)
+        end_s = round(ep_end - cycle_start, 3)
         bucket = grouped.get(best['ledger'])
         if bucket is None:
             bucket = _cycle_bucket(best)
@@ -1019,6 +1064,8 @@ def _match_force(cycles: list[dict], episodes: list[dict],
             'parts': parts,
             'episode': episode['episode'],
             'reason': episode['reason'],
+            'time_basis': episode.get('time_basis', 'estimated_legacy_wall'),
+            'association': 'time_overlap',
             'stages': _stages_crossed(best['stages'], start_s, painted_end),
         })
     rows = list(grouped.values())
@@ -1040,6 +1087,7 @@ def _cycle_bucket(cycle: dict) -> dict:
         'stages': cycle['stages'],
         'when': when,
         'force': [],
+        'time_basis': cycle.get('time_basis', 'estimated_ledger_mtime'),
         '_end': cycle['end'],
     }
 
@@ -1060,6 +1108,12 @@ def _archived_cycles(record: Path) -> list[dict]:
             elapsed = float(item.get('elapsed_s'))
         except (TypeError, ValueError):
             continue
+        try:
+            if int(item['start_unix_ns']) > 0:
+                start = int(item['start_unix_ns']) / 1e9
+                end = int(item['end_unix_ns']) / 1e9
+        except (KeyError, TypeError, ValueError, OverflowError):
+            pass
         if elapsed != elapsed or elapsed <= 0 or end < start:
             continue
         cycles.append({
@@ -1070,6 +1124,11 @@ def _archived_cycles(record: Path) -> list[dict]:
             'start': start,
             'end': end,
             'ledger': path.resolve(),
+            'session_id': str(item.get('session_id') or record.name),
+            'cycle_id': str(item.get('cycle_id') or ''),
+            'time_basis': str(item.get('time_basis') or 'estimated_ledger_mtime'),
+            'start_ros_ns': item.get('start_ros_ns'),
+            'end_ros_ns': item.get('end_ros_ns'),
         })
     return cycles
 
@@ -1136,7 +1195,8 @@ def analyze_record(root: Path, relative: str) -> dict:
     if not outcomes:
         ledger = _read_json(record / 'ledger.json') or {}
         raw = ledger.get('outcomes') if isinstance(ledger, dict) else None
-        outcomes = [item for item in raw if isinstance(item, dict)] if isinstance(raw, list) else []
+        outcomes = ([item for item in raw if isinstance(item, dict)]
+                    if isinstance(raw, list) else [])
     geometry = _all_geometry(roots) or _geometry_rows(record / 'geometry.jsonl')
     latest = {}
     for row in geometry:
@@ -1217,6 +1277,8 @@ def analyze_record(root: Path, relative: str) -> dict:
             '径向余量和果距只作记录，不代表当时的放行条件。',
             '彩色原图只留在记录目录，分析页只显示掩膜和检测调试图。',
             '每一行是一次周期。掩膜和检测调试图排在数字前面。',
+            '旧记录以estimated标注时间估算；力段仅按同会话时间重叠关联，'
+            '歧义或无重叠的段保留原文件，不强行绑定目标。',
         ],
     }
 

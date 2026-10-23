@@ -45,3 +45,16 @@ brain入口将 `KeyboardInterrupt` 和 `ExternalShutdownException` 作为正常�
 `vision/target_reconstruction/publish.py`固定同model_revision首次generated_at；GraspDecision.header.stamp使用该值，心跳不改model_stamp或valid_until。Build结果TargetModel复用相同生成时间/截止时间，diagnostics_debug顶层model_stamp为浮点秒。独立单机位成功最多MEDIUM，至少2个独立机位才可HIGH；连帧数不代替机位数，质量档变化不另改GraspDecision接触门。READY/accepted表示模型状态，不自动授予套入、剪切或真机运动。
 
 重建Build的有界采集/终检编排由`_collect_and_finalize_build`负责：最多三次单机位新曝光、一个既有时间预算，失败输入经`_restart_single_view_build`替换，不累加重复视角。`_finalize_now`及几何函数继续执行原质量检查；三维包络与二维轮廓不可观测使用不同文本拒因。调度等待动作的公共路径可监视并行Build结果，明确失败即取消依赖它的FULL，保留质量证据到终局账本。
+
+## 动作终态与周期时间（2026-10-23）
+
+ExecuteTarget在途feedback中的recovery标志允许锁存，收到该动作终态后采用臂侧终态值：FULL成功返程可清除，PREGRASP_ONLY或异常要求恢复时保留。feedback回调绑定本次调用token，结果收口后迟到包不能复活action_active或恢复门；网页不能自动代替人工ACK。mock/real共用这些语义。
+
+派发时记录start_unix_ns/start_ros_ns，臂侧动作返回立即记录end_unix_ns/end_ros_ns；账本details同时保存cycle_id/scene_epoch/time_basis。动作结束点早于取消并行Build和落盘，分析不得再由ledger mtime假装精确时间。未经过派发的过滤/跳过只有真实结束点，明确source_clock_end_only。
+
+
+## 视觉帧与发布一致性（2026-10-23）
+
+`debug_image_raw`在RGB-D入口直接预览，运动门只暂停推理；`debug_image`表示实际完成推理的那次曝光。2D框、掩膜和箭头只来自本帧检测，源身份/抓取顺序可记忆，像素几何不跨帧复用。空检测、运动开始和BeginScene覆盖清除检测云/marker。感知worker任务以frame_generation隔离BeginScene、运动和生命周期变化，身份提交及发布都在plan_lock内复核，避免旧推理污染新场景。换窗和销毁排空事件写线程。
+
+重建在采集提交临界区再次检查stamp严格递增，两个入口同时准备同曝光只积分一次。观测掩膜解码和预抓取TF查询同样带generation复核；发布由同一身份/模型/帧栈快照构造，锁外完成云和marker后再复核并串行发送，旧云与许可不能尾随新世代清屏。mock与real使用相同边界，不调整工具工艺门或质量阈值。

@@ -467,7 +467,7 @@ def full_failure_code(outcome, operator_skip: bool) -> str:
 
 
 def merge_cycle_extra(observe_extra, full_extra) -> dict:
-    """合并观察与接触阶段。FULL 里时长为 0 的识别/精化段丢掉，非 0 留在再确认前。"""
+    """合并观察与接触阶段。FULL 里时长为 0 的识别/精化段丢掉，非 0 留在再确认前."""
     merged = dict(observe_extra or {})
     full_extra = dict(full_extra or {})
     obs_names = [str(n) for n in list(merged.get('stage_names') or [])]

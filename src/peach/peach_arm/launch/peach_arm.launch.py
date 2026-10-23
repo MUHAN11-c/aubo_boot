@@ -79,6 +79,9 @@ def launch_setup(context):
     ]
     if overlay:
         parameters.append(ParameterFile(overlay, allow_substs=True))
+    task_params = LaunchConfiguration('task_params_file').perform(context).strip()
+    if task_params:
+        parameters.append(ParameterFile(task_params, allow_substs=True))
     node = LifecycleNode(
         package='peach_arm',
         executable='peach_arm',
@@ -132,8 +135,11 @@ def generate_launch_description():
             description='true 时用场景观测几何代替重建精化；'
                         'harvest_system skip_reconstruction:=true 时传入 true'),
         DeclareLaunchArgument(
+            'task_params_file', default_value='',
+            description='两种硬件共用的作业参数文件，按节点名分节'),
+        DeclareLaunchArgument(
             'params_overlay', default_value='',
             description='可选额外 ParameterFile（后装覆盖 peach_arm.yaml）；'
-                        '空=不装。真实相机+mock 联合测用来提高 mock 速度缩放'),
+                        '空=不装；业务配置使用共用 task_params_file'),
         OpaqueFunction(function=launch_setup),
     ])

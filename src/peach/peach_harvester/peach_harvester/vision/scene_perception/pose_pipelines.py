@@ -92,6 +92,11 @@ def apply_transform_to_reference(grasp_3d, T: np.ndarray) -> None:
     grasp_3d.points_centroid = transform_point(T, grasp_3d.points_centroid)
     grasp_3d.translation_direction = transform_direction(
         T, grasp_3d.translation_direction)
+    rotation = T[:3, :3]
+    for field in ('position_covariance', 'direction_covariance'):
+        covariance = getattr(grasp_3d, field, None)
+        if covariance is not None:
+            setattr(grasp_3d, field, rotation @ np.asarray(covariance) @ rotation.T)
     if grasp_3d.orientation is not None:
         grasp_3d.orientation = (
             T[:3, :3] @ np.asarray(grasp_3d.orientation, dtype=float))

@@ -1,5 +1,8 @@
 """官方示例真实仿真数据面演示栈 — turtlebot3 官方仿真 + nav2 官方栈 + ros2 官方示例.
 
+2026-10-23 迁移：src/examples 与 external 已到 /home/mu/demo_ws；运行前先
+source /home/mu/demo_ws/install/setup.bash（或确认 apt 的 TB3/Nav2 包）。
+
 2026-10-15 用户裁定：viz_fixture 合成流删除；验证数据面全部来自 GitHub 热门官方
 仓库（克隆进本项目：src/examples/turtlebot3_msgs、src/examples/turtlebot3_simulations、
 src/examples/ros2_examples、external/navigation2）与 ros2/moveit2/nav2 官方示例，

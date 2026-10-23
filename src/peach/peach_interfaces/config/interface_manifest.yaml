@@ -7,6 +7,12 @@
 # peach2 已归档到 _archive/parked_2026-10-12/peach2，不参与现行构建与清单检查。
 version: 2
 interfaces:
+  - name: /force/sample
+    kind: topic
+    type: peach_interfaces/msg/ForceSample
+    qos: {reliability: reliable, durability: volatile, depth: 100}
+    producers: [serial_force]
+    consumers: [peach_observability, force_web]
   - name: /peach_supervisor/state
     kind: topic
     type: peach_interfaces/msg/HarvestState

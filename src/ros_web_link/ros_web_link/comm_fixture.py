@@ -1,7 +1,7 @@
 """rwl_comm_fixture — Web↔ROS 通信矩阵演示/验证节点.
 
 在 `/rwl_demo` 命名空间下提供 ROS 生态各通信原语的最小被测端，供
-ros_web_link 的 E2E 测试（test/test_e2e_comm_matrix.py）与 console.html
+console.html
 诊断页自检使用——等价 rosbridge_suite 自带 examples 的定位：
 
   话题  /rwl_demo/chatter      std_msgs/String        5 Hz 发布（订阅面）

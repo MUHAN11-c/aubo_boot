@@ -1,5 +1,7 @@
 # ros_web_link 输入输出（SNAPSHOT）
 
+> **2026-10-23 迁移说明**：`src/examples` 与 `external/` 已迁到 `/home/mu/demo_ws`。下文 `src/examples/...` 指 `/home/mu/demo_ws/src/examples/...`，`external/...` 指 `/home/mu/demo_ws/external/...`；运行 `sim_demo.launch.py` 前先 `source /home/mu/demo_ws/install/setup.bash`（或确认 apt 包）。
+
 本包对外的全部端点、话题、服务与进程边界。
 
 > 完整签名/请求响应/错误语义见 [api/http-ws.md](api/http-ws.md)、
@@ -49,7 +51,7 @@ bash src/ros_web_link/scripts/run_panda_demo.sh   # 桥 18766 + 网关 8095
 # 浏览器 http://127.0.0.1:8095/console.html（白色主题；RobotModel 加载 panda）
 ```
 
-E2E（`test/test_e2e_moveit.py`，6 用例，全经网关 /ws/foxglove）：
+手工核对（浏览器连网关 `/ws/foxglove`，看话题和日志）：
 latched `/robot_description`（panda URDF+mesh）→ `/joint_states`（9 关节）→
 `/compute_ik`（GetPositionIK）→ `/plan_kinematic_path`（OMPL RRTConnect 规划，
 goal 约束→轨迹）→ `/panda_arm_controller/follow_joint_trajectory`（执行→
@@ -122,15 +124,11 @@ external/navigation2 为 Nav2 基线克隆，未参与构建）与 ros2/moveit2/
 | `/initialpose` `/goal_pose` `/clicked_point` | geometry_msgs | web 工具发布（Nav2/RViz 标准交互话题） |
 | `/rosout` | rcl_interfaces/Log | 各官方节点自带 |
 
-验证面：Python E2E（`test/test_e2e_sim.py`，16 用例，官方栈经网关 + web↔官方
-initialpose 定位闭环 / compute_path_to_pose 规划闭环）、CDR 黄金字节
-（`viz_golden.json` + vitest，rclpy 序列化真值 vs JS codec）、浏览器实测
-（console Displays 默认即官方数据面）。
+验证：起官方仿真和 `monitor.launch.py`，在浏览器里看 Displays，对照网关日志。
 
-纯 apt 官方示例栈（panda RSP + nav2 map_server/lifecycle，无仿真）另见
-`official_demo.launch.py` 与 `test/test_e2e_official.py`（7 用例）；
-MoveIt2 官方 panda 全栈见 `panda_moveit_web.launch.py` 与
-`test/test_e2e_moveit.py`（6 用例，moveit_resources 克隆于 src/examples/）。
+纯 apt 官方示例栈（panda RSP + nav2 map_server/lifecycle，无仿真）见
+`official_demo.launch.py`。MoveIt2 官方 panda 全栈见 `panda_moveit_web.launch.py`
+（moveit_resources 克隆于 src/examples/）。对不对看浏览器和节点日志。
 
 ## 实时可视化（console.html「实时可视化」区，RViz2/rqt/Foxglove 风格）
 
@@ -260,7 +258,7 @@ FollowJointTrajectory action（官方控制器在环）；armed 交互锁仅驱�
 
 - `aubo_ros2_web_dashboard`：`create_app(js_roots, html_root, sub_routers)` 组合；
   面板 JS 直接 import 本包 `transport/*` 与 `core/*`。
-- `test/test_e2e_comm_matrix.py`：经 `/ws/foxglove` 全矩阵验收（与浏览器同路）。
+- 浏览器经 `/ws/foxglove` 看订阅、发布、服务和 action，对照节点日志。
 - console.html 自检：`window.__rwl_selftest`（自动化可读）+ `window.__rwlSelfTestRun()`。
 
 ## 配置单源

@@ -112,7 +112,7 @@ class BoundedWorker(Generic[Item]):
             return True
 
     def discard_pending(self) -> int:
-        """丢掉还没开始的帧。正在算的那一帧停不掉。"""
+        """丢掉还没开始的帧。正在算的那一帧停不掉."""
         with self._condition:
             pending = len(self._queue)
             self.dropped += pending
@@ -456,7 +456,7 @@ class HarvestDataStore:
         return relative
 
     def saved_stages(self, target_id: str) -> set[str]:
-        """这个目标已经记过视图的阶段名。"""
+        """这个目标已经记过视图的阶段名."""
         target = str(target_id)
         return {stage for tid, stage in self._stage_saved if tid == target}
 

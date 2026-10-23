@@ -1,5 +1,7 @@
 # ros_web_link 调用示例
 
+> **2026-10-23 迁移说明**：`src/examples` 与 `external/` 已迁到 `/home/mu/demo_ws`。下文 `src/examples/...` 指 `/home/mu/demo_ws/src/examples/...`，`external/...` 指 `/home/mu/demo_ws/external/...`；运行 `sim_demo.launch.py` 前先 `source /home/mu/demo_ws/install/setup.bash`（或确认 apt 包）。
+
 本目录是**可直接运行**的集成示例，不是单元测试夹具。按 [API 文档](../doc/api/README.md)
 的约定使用稳定入口：
 

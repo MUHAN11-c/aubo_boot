@@ -26,7 +26,6 @@ setup(
         if glob(model_dir + '/model.sdf')
     ],
     install_requires=['setuptools'],
-    extras_require={'test': ['pytest']},
     zip_safe=False,
     maintainer='mu',
     maintainer_email='2155413529@qq.com',

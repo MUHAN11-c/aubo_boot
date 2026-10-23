@@ -570,7 +570,9 @@ private:
   // 最近观测快照三元组（SurveyScene result 数据源）：onTargets（订阅线程）写、
   // executeSurvey（survey 线程）读，经 snapshot_mutex_ 互斥。
   std::mutex snapshot_mutex_;
-  std::string last_snapshot_id_;         ///< 最近重建快照 id（到位判定基准）。
+  int64_t last_observation_stamp_ns_{0};  ///< 原始图像曝光时刻（ROS时间）。
+  uint32_t last_observation_epoch_{0};    ///< BeginScene世代。
+  std::string last_snapshot_id_;         ///< 锁定集世代（不随帧递增）。
   uint32_t last_observation_count_{0};   ///< 最近一帧目标观测数。
   bool last_target_set_locked_{false};   ///< 最近一帧锁定集是否非空（degraded 判据）。
   /// on-set 验证钩子句柄（运行中拒改 + 依赖链校验）。

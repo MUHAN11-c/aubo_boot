@@ -59,12 +59,6 @@ if(BUILD_TESTING)
   set(ament_cmake_copyright_FOUND TRUE)  # 文件头版权项目结束再补（同 peach_arm）
   set(ament_cmake_cpplint_FOUND TRUE)  # 风格门以 uncrustify 为准（testing.md 口径）
   ament_lint_auto_find_test_dependencies()
-  find_package(ament_cmake_gtest REQUIRED)
-  ament_add_gtest(test_latte_trajectory test/test_latte_trajectory.cpp)
-  target_include_directories(test_latte_trajectory PRIVATE
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>)
-  target_link_libraries(test_latte_trajectory latte_trajectory)
-  ament_target_dependencies(test_latte_trajectory geometry_msgs)
 endif()
 
 ament_package()

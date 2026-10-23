@@ -68,7 +68,7 @@ from sensor_msgs.msg import CameraInfo, Image, JointState, PointCloud2
 from std_msgs.msg import Header, String
 from tf2_ros import Buffer, TransformException, TransformListener
 from vision_msgs.msg import Detection2DArray
-from visualization_msgs.msg import MarkerArray
+from visualization_msgs.msg import Marker, MarkerArray
 
 
 class ScenePerceptionNode(LifecycleNode):
@@ -186,8 +186,7 @@ class ScenePerceptionNode(LifecycleNode):
              '/peach/perception/markers', default_qos),
             ('pub_norm_debug', Image,
              '/peach/perception/debug_image', default_qos),
-            # 真相流画布（全量检测叠加，含未确认灰框）：只进记录层对比，
-            # 不进 RViz（RViz 只订稳定流 debug_image）
+            # RGB-D入口直出的原图预览，不等待推理或臂停稳。
             ('pub_norm_debug_raw', Image,
              '/peach/perception/debug_image_raw', default_qos),
             ('pub_target_observations', PeachTargetObservationArray,
@@ -322,13 +321,17 @@ class ScenePerceptionNode(LifecycleNode):
         return result
 
     def on_deactivate(self, state):
-        self._lifecycle_active = False
+        with self.pipeline.plan_lock:
+            self.pipeline.frame_generation += 1
+            self._lifecycle_active = False
         break_bond(self._bond)
         self._bond = None
         return super().on_deactivate(state)
 
     def on_cleanup(self, state):
-        self._lifecycle_active = False
+        with self.pipeline.plan_lock:
+            self.pipeline.frame_generation += 1
+            self._lifecycle_active = False
         break_bond(self._bond)
         self._bond = None
         self._diag = None
@@ -380,13 +383,17 @@ class ScenePerceptionNode(LifecycleNode):
                     'scene_key': request.scene_key,
                     'scene_epoch': self._scene_epoch,
                 })
-            self.harvest_data = HarvestDataStore(root=self.harvest_data.root)
+            previous_store = self.harvest_data
+            self.harvest_data = HarvestDataStore(root=previous_store.root)
             self.harvest_run_id = ''
             scene_changed = bool(
                 self._scene_key and request.scene_key != self._scene_key)
             cleared = self.pipeline.begin_scene(scene_changed)
             self._scene_key = request.scene_key
+            if self._ros_entities_wired:
+                self._clear_detection_visuals()
             self._publish_harvest_state()
+        previous_store.close(drain=True)
         response.accepted = True
         response.scene_epoch = self._scene_epoch
         response.message = (
@@ -549,23 +556,44 @@ class ScenePerceptionNode(LifecycleNode):
                     f'TF 失败，输出退回相机系 {cam_frame}: {ex}')
                 return None, 'unavailable'
 
+    def _clear_detection_visuals(self) -> None:
+        """运动或换窗时覆盖检测云和marker；原图预览仍持续."""
+        header = Header(stamp=self.get_clock().now().to_msg(),
+                        frame_id=self.params.output_frame or self.params.camera_optical_frame)
+        self.pub_norm_cloud.publish(xyzrgb_to_cloud_msg(
+            header, np.zeros((0, 3)), np.zeros((0,), dtype=np.float32)))
+        self.pub_norm_markers.publish(MarkerArray(markers=[
+            Marker(header=header, action=Marker.DELETEALL)]))
+
     def _on_joint_states(self, msg: JointState) -> None:
-        """停稳才检测。离开静止时丢掉还没开始算的那一帧。"""
+        """停稳才检测；离开静止时使已排队和推理中的旧帧失效."""
         velocities = list(msg.velocity) if msg.velocity else None
         settled = arm_is_settled(velocities)
-        if self._arm_settled and not settled:
-            self._frame_worker.discard_pending()
-        self._arm_settled = settled
+        with self.pipeline.plan_lock:
+            if self._arm_settled and not settled:
+                self.pipeline.frame_generation += 1
+                self._frame_worker.discard_pending()
+                self._clear_detection_visuals()
+            self._arm_settled = settled
 
     def _on_rgbd(self, rgb_msg: Image, depth_msg: Image, info: CameraInfo):
-        """将最新同步帧交给容量一推理 worker。臂在动时不送。"""
+        """原图直接预览；停稳时才把带世代的最新帧交给推理worker."""
         self._last_frame_mono = time.monotonic()
         if not self._lifecycle_active:
             return
-        if not self._arm_settled:
-            return
-        if not self._frame_worker.submit((rgb_msg, depth_msg, info)):
-            self.get_logger().warning('感知 worker 已停止，丢弃 RGB-D 帧')
+        if self.params.publish_debug_image:
+            try:
+                rgb = self.bridge.imgmsg_to_cv2(rgb_msg, desired_encoding='bgr8')
+                self._publish_debug_image(
+                    self.pub_norm_debug_raw, rgb, rgb_msg.header)
+            except Exception as exc:  # noqa: BLE001 相机预览失败不阻断业务帧
+                self.get_logger().warning(f'原图预览失败: {exc}')
+        with self.pipeline.plan_lock:
+            if not self._arm_settled or not self._lifecycle_active:
+                return
+            generation = self.pipeline.frame_generation
+            if not self._frame_worker.submit((rgb_msg, depth_msg, info, generation)):
+                self.get_logger().warning('感知 worker 已停止，丢弃 RGB-D 帧')
 
     def _decode_rgbd(self, rgb_msg, depth_msg, info) -> Optional[SyncedRgbd]:
         """解码、对齐尺寸、查 TF；失败返回 None（已打日志）."""
@@ -655,7 +683,11 @@ class ScenePerceptionNode(LifecycleNode):
 
     def _process_rgbd(self, frame):
         """Decode RGB-D, run pipeline.process, then publish."""
-        rgb_msg, depth_msg, info = frame
+        rgb_msg, depth_msg, info, generation = frame
+        with self.pipeline.plan_lock:
+            if (not self._lifecycle_active or not self._arm_settled
+                    or generation != self.pipeline.frame_generation):
+                return
         t_total_start = self._algo_clock.now()
         self._report_worker_drops()
         self.get_logger().debug(
@@ -664,10 +696,15 @@ class ScenePerceptionNode(LifecycleNode):
         if synced is None:
             return
         out = self.pipeline.process(
-            synced, executor_target_id=self._executor_target_id)
+            synced, executor_target_id=self._executor_target_id,
+            generation=generation)
         if out is None:
             return
-        self._publish_frame(synced, out)
+        with self.pipeline.plan_lock:
+            if (not self._lifecycle_active or not self._arm_settled
+                    or generation != self.pipeline.frame_generation):
+                return
+            self._publish_frame(synced, out)
         self.pipeline.timing.record(
             'total_ms', (self._algo_clock.now() - t_total_start) * 1e3)
 
@@ -732,10 +769,12 @@ class ScenePerceptionNode(LifecycleNode):
                 out.mask_canvas, encoding='mono16')
             mask_msg.header = out.img_header
             self.pub_norm_masks.publish(mask_msg)
-        if self.params.publish_detection_cloud and out.confirmed_bboxes:
-            xyz_cam, rgb_f = bbox_cloud_xyzrgb(
-                synced.rgb, synced.depth, synced.K, out.confirmed_bboxes,
-                stride=self.params.detection_cloud_stride)
+        if self.params.publish_detection_cloud:
+            xyz_cam, rgb_f = np.zeros((0, 3)), np.zeros((0,), dtype=np.float32)
+            if out.confirmed_bboxes:
+                xyz_cam, rgb_f = bbox_cloud_xyzrgb(
+                    synced.rgb, synced.depth, synced.K, out.confirmed_bboxes,
+                    stride=self.params.detection_cloud_stride)
             if xyz_cam.shape[0] and synced.T_out_cam is not None:
                 rot, trans = synced.T_out_cam[:3, :3], synced.T_out_cam[:3, 3]
                 xyz_out = (rot @ xyz_cam.T).T + trans
@@ -746,15 +785,18 @@ class ScenePerceptionNode(LifecycleNode):
         if out.debug is not None:
             self._publish_debug_image(
                 self.pub_norm_debug, out.debug, out.img_header)
-        if out.debug_raw is not None:
-            self._publish_debug_image(
-                self.pub_norm_debug_raw, out.debug_raw, out.img_header)
 
     def destroy_node(self):
         """停止推理 worker 后销毁 ROS 节点（未 configure 过则无 worker）."""
+        with self.pipeline.plan_lock:
+            self._lifecycle_active = False
+            self.pipeline.frame_generation += 1
         worker = getattr(self, '_frame_worker', None)
         if worker is not None:
             worker.close(drain=False)
+        harvest = getattr(self, 'harvest_data', None)
+        if harvest is not None:
+            harvest.close(drain=True)
         return super().destroy_node()
 
 

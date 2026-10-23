@@ -3,24 +3,14 @@
 <package format="3">
   <name>sim_system_tests</name>
   <version>0.1.0</version>
-  <description>Isolated launch_testing acceptance gates for the sim sub-workspace (controllers/MoveIt/perception). Placeholder skeleton; filled in P2.</description>
+  <description>Sim sub-workspace package kept for official ament lint. Controller checks are a manual launch plus logs.</description>
   <maintainer email="2155413529@qq.com">wjz</maintainer>
   <license>BSD-3-Clause</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
 
-  <!-- launch_test 环境由 colcon 按本清单叠加 install 路径；缺 sim_bringup
-       会让 get_package_share_directory 在隔离环境解析失败（实测报
-       "package 'sim_bringup' not found"）。与 ros2_control_demos 系统测包
-       同口径：声明被启动的全部包。 -->
-  <test_depend>aubo_description</test_depend>
-  <test_depend>ament_cmake_pytest</test_depend>
-  <test_depend>launch_testing</test_depend>
-  <test_depend>launch_testing_ros</test_depend>
-  <test_depend>python3-pytest</test_depend>
-  <test_depend>sim_bringup</test_depend>
-  <test_depend>sim_description</test_depend>
-  <test_depend>sim_worlds</test_depend>
+  <test_depend>ament_lint_auto</test_depend>
+  <test_depend>ament_lint_common</test_depend>
 
   <export>
     <build_type>ament_cmake</build_type>

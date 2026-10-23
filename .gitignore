@@ -140,11 +140,33 @@ src/peach_sim/*/meshes/field_no_grass.glb
 
 # 上游参考库裸克隆（带 .git，本地构建/检索用；入库会变空 gitlink）
 external/
-# 官方示例子工作空间：TB3 / ros2/examples 为本地克隆，navigation2 为 external 内官方包的符号链接
+# 官方示例子工作空间：本地克隆与指向 external/ 的符号链接，不入库
 src/examples/ros2_examples/
+src/examples/ros2_demos/
+src/examples/ros2_control_demos/
+src/examples/moveit2_tutorials/
+src/examples/moveit_resources/
+src/examples/ros_gz/
 src/examples/turtlebot3_msgs/
 src/examples/turtlebot3_simulations/
 src/examples/turtlebot3_navigation2
+src/examples/turtlebot3
+src/examples/turtlebot3_bringup
+src/examples/turtlebot3_cartographer
+src/examples/turtlebot3_description
+src/examples/turtlebot3_example
+src/examples/turtlebot3_node
+src/examples/turtlebot3_teleop
+src/examples/nav2_bringup
+src/examples/nav2_simple_commander
+src/examples/geometry_tutorials/
+src/examples/urdf_tutorial/
+src/examples/ros_tutorials/
+src/examples/navigation2_tutorials/
+src/examples/nav2_minimal_turtlebot_simulation/
+src/examples/ros_gz_project_template/
+src/examples/ros2_i_training/
+src/examples/study/
 
 # 视频工具中间产物（workspace 根 out/）
 /out/

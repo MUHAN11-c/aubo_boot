@@ -27,6 +27,7 @@ from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
 from launch.actions import (
     DeclareLaunchArgument,
+    GroupAction,
     IncludeLaunchDescription,
     OpaqueFunction,
 )
@@ -39,6 +40,7 @@ from launch.substitutions import (
 from launch_ros.actions import Node, SetParameter
 from launch_ros.parameter_descriptions import ParameterValue
 from launch_ros.substitutions import FindPackageShare
+from moveit_configs_utils import MoveItConfigsBuilder
 
 from peach_bringup.preflight import check_disk_free, running_stack_pids
 
@@ -147,6 +149,7 @@ def _collect_startup_facts(context):
         'bond_timeout': cfg.get('bond_timeout', '0.0'),
         'use_sim_time': cfg.get('use_sim_time', 'false'),
         'skip_reconstruction': cfg.get('skip_reconstruction', 'false'),
+        'task_params_file': cfg.get('task_params_file', ''),
         'autostart': cfg.get('autostart', 'false'),
         'require_robot_status':
             'false' if hardware_mode == 'mock' else 'true',
@@ -158,6 +161,25 @@ def _collect_startup_facts(context):
     context.launch_configurations['peach_startup_facts'] = json.dumps(
         facts, ensure_ascii=False)
     return []
+
+
+def _application_rviz(context):
+    """Load the application view with the same tool model as move_group."""
+    if LaunchConfiguration('rviz').perform(context).lower() != 'true':
+        return []
+    profile = LaunchConfiguration('tool_profile').perform(context)
+    mode = LaunchConfiguration('hardware_mode').perform(context)
+    model = (MoveItConfigsBuilder('aubo_e5', package_name='aubo_e5_moveit_config')
+             .robot_description(mappings={'tool_profile': profile})
+             .trajectory_execution(file_path='config/' + (
+                 'controllers_mock.yaml' if mode == 'mock' else 'controllers.yaml'),
+                 moveit_manage_controllers=False)
+             .to_moveit_configs())
+    return [Node(
+        package='rviz2', executable='rviz2', name='peach_rviz', output='screen',
+        arguments=['-d', PathJoinSubstitution([
+            FindPackageShare('peach_bringup'), 'config', 'harvest.rviz'])],
+        parameters=[model.to_dict()])]
 
 
 def generate_launch_description():
@@ -245,7 +267,10 @@ def generate_launch_description():
         DeclareLaunchArgument(
             'skip_reconstruction', default_value='false',
             description='true 时跳过 Build/补视，用未精化场景观测验证接触；'
-                        '默认关。mock+相机不跟随可开；真机 KEEP false'),
+                        '默认关；mock/real 均作为显式作业选择，不按硬件模式自动切换'),
+        DeclareLaunchArgument(
+            'task_params_file', default_value='',
+            description='可选标准 ROS 节点参数 YAML；mock/real 共用同一作业配置'),
         DeclareLaunchArgument(
             'brain_params_overlay', default_value='',
             description='透传 peach_harvester brain params_overlay；空=不装。'
@@ -253,7 +278,7 @@ def generate_launch_description():
         DeclareLaunchArgument(
             'arm_params_overlay', default_value='',
             description='透传 peach_arm params_overlay；空=不装。'
-                        '真实相机+mock 联合测用来提高 mock 速度缩放，不改产品 yaml'),
+                        '调试时显式使用；业务配置优先用 task_params_file，两种硬件同值'),
         DeclareLaunchArgument(
             'observability_port', default_value='0',
             description='透传 peach_observability HTTP 端口；0=用 YAML 8090。'
@@ -288,7 +313,7 @@ def generate_launch_description():
         ),
         # stereo 前端时压掉 aubo bringup 内的 percipio 相机（该文件只读，
         # 相机独占连接，由本文件改起 peach_stereo；percipio 前端保持原链路）
-        _include(
+        GroupAction(scoped=True, actions=[_include(
             'aubo_e5_bringup', 'bringup.launch.py', {
                 'hardware_mode': hardware_mode,
                 'robot_ip': robot_ip,
@@ -296,6 +321,7 @@ def generate_launch_description():
                 'mock_initial_positions': LaunchConfiguration(
                     'mock_initial_positions'),
                 'moveit_enabled': moveit_enabled,
+                'rviz': 'false',
                 'camera_enabled': PythonExpression(
                     ["'true' if '", camera_frontend,
                      "' == 'percipio' and '", camera_enabled,
@@ -303,7 +329,8 @@ def generate_launch_description():
                 'extrinsics_enabled': extrinsics_enabled,
                 'hand_eye_enabled': hand_eye_enabled,
                 'hand_eye_web_enabled': hand_eye_web_enabled,
-            }),
+            })]),
+        OpaqueFunction(function=_application_rviz),
         _include(
             'serial_force', 'serial_force.launch.py', {},
             condition=IfCondition(LaunchConfiguration('force_enabled'))),
@@ -316,6 +343,7 @@ def generate_launch_description():
                     'skip_reconstruction'),
                 'params_overlay': LaunchConfiguration(
                     'brain_params_overlay'),
+                'task_params_file': LaunchConfiguration('task_params_file'),
             }),
         _include(
             'peach_arm', 'peach_arm.launch.py',
@@ -331,11 +359,13 @@ def generate_launch_description():
                     'skip_reconstruction'),
                 'params_overlay': LaunchConfiguration(
                     'arm_params_overlay'),
+                'task_params_file': LaunchConfiguration('task_params_file'),
             }),
         _include('peach_observability', 'observability.launch.py', {
             # 启动事实注入（startup.json 工件 + 自检 facts 单通道推导）
             'startup_facts': LaunchConfiguration('peach_startup_facts'),
             'port': LaunchConfiguration('observability_port'),
+            'task_params_file': LaunchConfiguration('task_params_file'),
         }),
         # 阶段 5：nav2_lifecycle_manager 替自研件（bond_timeout 参数化，
         # 默认 0 关；名单顺序=场景→重建→技能→调度；进程死检=watchdog/bond）

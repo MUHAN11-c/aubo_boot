@@ -27,50 +27,25 @@ python应指向工作区aubo_py3.12；cv_bridge应来自Jazzy。若污染，开�
 
 IDL变更先编peach_interfaces，再编消费包。只改某能力可按其依赖构建；运行时读install配置，源码YAML修改后须重建对应包。参数事实源：Python各包config YAML+attach，arm GPL声明src/arm_parameters.yaml+部署config，停位几何grasp_standoffs.yaml，工具几何只读aubo_description。
 
-## 3. 分层测试
+## 3. 仓库里的自动检查
 
-依据 [Jazzy测试指导](https://docs.ros.org/en/jazzy/Tutorials/Intermediate/Testing/Testing-Main.html) 和 [launch_testing](https://docs.ros.org/en/jazzy/p/launch_testing/)，先纯核/接口、再节点接线、再数据回放与现场。
+`test/` 只保留 ROS 2 官方 lint。Python 包是 `test_flake8.py` 与 `test_pep257.py`；C++ 与 ament_cmake 包由 `ament_lint_auto` 跑 uncrustify、cppcheck、xmllint。不再维护自定义 gtest、pytest 或 launch_testing。行为对不对，看节点日志、`ros2 topic echo` 和后面各节的手工步骤。
 
 ```bash
 colcon test --packages-select peach_common peach_interfaces peach_harvester peach_arm \
   peach_bringup peach_observability peach_vegetation peach_stereo peach_web \
-  --return-code-on-test-failure
+  peach_system_tests --return-code-on-test-failure
 colcon test-result --verbose
 python3 src/peach/peach_interfaces/scripts/check_interface_manifest.py
-node src/peach_web/scripts/run-tests.cjs
-ctest --test-dir build/peach_system_tests -N
 ```
 
-只跑测试包静态组时，先确认筛选命中，再执行：
+接口清单脚本不在 `test/` 里。改了 IDL 仍要跑。`colcon test` 绿只说明 lint 过了，不代表采摘链路正确。
 
-```bash
-ctest --test-dir build/peach_system_tests -N -R 'test_(preflight|replay_approach|perf_baseline|baseline_inventory|frozen_camera_bag|drive_harvest)'
-colcon test --packages-select peach_system_tests --return-code-on-test-failure \
-  --ctest-args -R 'test_(preflight|replay_approach|perf_baseline|baseline_inventory|frozen_camera_bag|drive_harvest)'
-colcon test-result --test-result-base build/peach_system_tests --verbose
-```
+## 4. mock 冒烟
 
-核对测试数量、失败/error/skip及本轮XML时间；0测试、No tests found、旧轮XML汇总、bag缺失导致skip都不能当验收通过。日志在 `log/latest_test/` 与各构建包 `Testing/Temporary/LastTest.log`。前端node测试只验证行为，浏览器布局/WebGL仍须独立验证。
+启动前执行§9的进程盘点，确认域和设备空闲。用日志和话题确认栈起来了。域不要和 IVG、仿真或其他任务共用；换 DDS 域解决不了相机、端口、GPU 争用。看节点是否 Active、action 终态、退出后有没有残留。`bond_timeout=0` 默认关闭进程死检，启用非零值前先在 mock 上看 bond 是否真能传故障。
 
-## 4. 隔离域 mock 节点集成
-
-启动前执行§9的进程盘点，确认域和设备空闲。CMake已为launch_testing设置ROS_DOMAIN_ID及ROS_LOCALHOST_ONLY；不要在普通pytest中初始化默认域。
-
-- 域89：test_mock_launch，使能默认关、无自动goal、关节序和Active。
-- 域90：test_e1_supervisor_chain，合成观测+RunHarvest，包含预抓取等待ACK。
-- 域91/92/93：三工具profile的TF、参数与标签。
-- 域94：test_scene_obstacles，合成点云/目标/假PlanningScene服务。
-- 域98：test_nav2_lifecycle_debug，生命周期调试。
-
-```bash
-colcon test --packages-select peach_system_tests --return-code-on-test-failure \
-  --ctest-args -j1
-colcon test-result --test-result-base build/peach_system_tests --verbose
-```
-
-这些域必须不被IVG、仿真或其他任务共用；不同DDS域不能解决相机、端口、GPU争用。观察节点Active及action终态，也检查退出与残留。`bond_timeout=0`默认关闭进程死检，启用非零值前必须验证bond依赖和故障传播。
-
-人工无相机mock入口：
+人工无相机 mock 入口：
 
 ```bash
 export ROS_DOMAIN_ID=81
@@ -96,9 +71,9 @@ runner默认无头（rviz=false），需桌面时显式`--rviz`，`--no-rviz`显
 
 历史夹具曾将 `grasp.maximum_travel_m` 硬设为 0.02 m，当前 index 70 的合格候选建议行程约 0.03 m（该冻结夹具记录的是旧 0.03 m；现行感知 `(neck-entry)-margin_neck` 为 0.05–0.10 m），在选果 `CheckReachability` 阶段即以 `cut_travel_out_of_range` 过滤，表现为 discovered=1 / attempted=0。这是夹具覆盖与产品门冲突，不是空感知或抓取成功。现已删除该行程覆盖，沿用产品正常范围；后续精化几何、IK、笛卡尔路径和有效期门仍须独立通过。冻结 bag 不能保证当前工具/模型下 FULL 成功，不得通过放宽产品门或点名绕过选果取得绿灯。
 
-冻结runner只清理自己创建的PGID；`--skip-launch`不停止外部栈，仅对自己request取消并关闭自身使用的使能，不按全域匹配清进程。取消/关闭使能真实失败会令wrapper退出非零；当前request已由外部作业替换时只记正常skip，不触碰对方。测试包test_frozen_camera_bag只验证overlay/数据条件，缺bag可skip；FULL联合驱动不属于默认无设备测试。回放只能证明固定数据与当前夹具下的链路。普通 `ros2 bag play --clock` 才使用use_sim_time=true；冻结重发runner按自身launch配置，不能任意混时钟。
+冻结runner只清理自己创建的PGID；`--skip-launch`不停止外部栈，仅对自己request取消并关闭自身使用的使能，不按全域匹配清进程。取消/关闭使能真实失败会令wrapper退出非零；当前request已由外部作业替换时只记正常skip，不触碰对方。FULL联合驱动要有 bag 和 GPU。回放只能证明固定数据与当前夹具下的链路。普通 `ros2 bag play --clock` 才使用use_sim_time=true；冻结重发runner按自身launch配置，不能任意混时钟。
 
-修改接近/融合/护栏/包络后，跑test_replay_approach（现场案册+分层/随机语料，对照replay_baselines.json）；基线变化必须有原因和分母，不能重封基线掩盖退化。
+修改接近、融合、护栏或包络后，用冻结回放或 mock 跑一轮，对照日志里的 failure_code 和行程。不要靠改口径把退化盖掉。
 
 ## 6. 真实相机 + mock + RViz
 
@@ -113,7 +88,7 @@ ros2 run peach_system_tests probe_topics.py --duration 10
 ros2 run peach_system_tests check_planning_scene.py
 ```
 
-RViz Fixed Frame=base_link，检查RGB、深度点云、感知轴、预抓取/剪切参考与实际工具TF。界面几何与数值必须对应同目标同场景；共同主轴构造出的0°不是独立真值。tool始终false。本档相机固定、臂是 mock，腕动不会产生新机位，抓取轮 `skip_reconstruction:=true`：不发 Build，臂把锁定集感知的轴、袋心、袋底、袋口和袋径提升为接触入口并钉住 `grasp_allowed`。这不放宽漂移门或邻果门，也不改真机产品默认（真机仍重建精化）。只读探针均需有限时间，完成即退出。
+RViz Fixed Frame=base_link，检查相机raw、独立实时debug_image_raw、深度点云、感知轴、预抓取/剪切参考与实际工具TF。界面几何必须对应同目标同场景；共同主轴构造出的0°不是独立真值。相机固定在base_link是本档允许的环境差异，腕动不会产生新视角；业务默认与real相同，缺覆盖应明确失败，不自动跳重建或改变质量门来通过。只读探针须有限时间，完成即退出。
 
 当前联合验收（`--rounds 10 --models 30 --soak-seconds 1800`）未通过：已记录30组模型，10轮抓取中6轮达到level6、4轮质量门跳过；soak只有253条资源采样、约21分钟，RViz已退出，不满足30分钟可视化稳定性要求。模型、执行和稳定性须分别判定，不能用模型配额或早先短测成功替代整项通过。RViz监控配置和退出处理已更新，仍须按新配置重新完成验收。新主机网络monitor probe已完成3组模型，RViz在15秒观察窗内存活；抓取轮在180秒预算后FAILED，bag已封口且无本轮进程残留。它只证明该次模型/短时显示/收尾，不能算抓取或完整验收成功。2026-10-16 短测 5 轮见下节，不替代本项。
 
@@ -130,15 +105,15 @@ ros2 run peach_system_tests run_live_camera_mock.py \
 
 RViz默认开启，`--no-rviz`只用于无头排障，不能算可视化验收。先构建测试包以安装脚本/config，再执行；输出目录须为本轮新目录，域86、相机须空闲。监控口优先 8090，已被他人占用则依次试 8091–8098 并透传 `observability_port`，不占用 8099、不清理其他进程。
 
-`config/live_camera_mock.yaml`保存test-only固定采集位校准，来源为20261013固定相机记录，用户确认相机未动；parent=base_link、child=camera_link，mock初始关节也由该配置提供。该校准只用于本测试，不注入产品手眼文件；相机一旦移动必须重测，不继续沿用。`config/live_camera_mock.rviz`是本轮显示配置。产物包括report.json、stack.log、camera_tf.log、rviz.log、rviz_model_params.yaml、startup_state.json、model_N_state.json、round_N_state.json、测试专用brain_overlay.yaml和arm_overlay.yaml（2026-10-21 起：接触 `velocity_scaling=0.4`，`appendLinToPose` 推导加速度档 `min(1,2v)=0.8`，避开 wrist1/3 的 3.0 rad/s² 上限；转移段仍 0.8；`execute_timeout_s=30`、`timeouts.refined_s=30`；产品 `peach_arm.yaml` 仍 0.1，真机不得高于 0.1；近果套入仍 0.05）。runner 新增 `--skip-reconstruction/--no-skip-reconstruction`（同日 A/B）与 `--pick-all`（PICK_ALL/AUTO 多目标，复现完整重建轮）；PICK_ALL 一轮内多次 recovery 的 ACK 按 `state_seq` 去重（旧实现按 request 去重会在第二颗 recovery 死锁）。跑完把本轮在 `runs/` 根新产生的 `session_*`/`harvest_*`/`round_*` 收进 `output/records/`，一次运行只留一个顶层文件夹；`report.json` 记 `consolidated_records`。owned_processes.json在每次创建进程组后立即保存owner PID、PID/PGID、命令、域与时间，信号退出按cancel→disable→close→自有组清理顺序处理。report.json采用同目录临时文件后原子replace，在启动/模型/动作/soak/清理等阶段写入phase与updated_at检查点；中断时保留最后完整状态。soak每次资源采样先落检查点，再检查RViz存活和相机/关节新鲜帧；任一失效立即失败并进入清理，不继续累计成合格时长。通过还要求实际采样时长达到预算且全部样本健康。
+`config/live_camera_mock.yaml` 保存固定采集位TF，来源为20261013记录及相机未移动确认；parent=base_link、child=camera_link，mock初始关节也在其中。该环境校准不写产品手眼文件，移动相机后须重测。RViz统一使用 `peach_bringup/config/harvest.rviz`，不改驱动配置。runner不再生成brain/arm业务overlay；用产品默认，或传 `--task-params-file /path/job.yaml`，同一文件原样传给real launch的 `task_params_file:=/path/job.yaml`。速度、超时、重建和质量门不依硬件模式分叉。report.json保存实际读回的effective_params和required_completion_level；任何模型/轮失败或恢复等待立即收口，不自动ACK。PICK_ALL必须全部目标成功。产物包括stack.log、camera_tf.log、rviz.log、启动/模型/逐轮状态和owned_processes.json；结束按cancel→disable→close→自有组清理，report原子检查点保留中断证据；soak要求实际采样达到预算且每次相机/关节/RViz健康。
 
 RViz重建点云默认订阅 `/peach/reconstruction/preview_cloud`（标准PointCloud2，最多50000点，保留采样点颜色，TSDF优先、否则局部累加云）。原local_cloud/tsdf_cloud仍完整发布，算法输入不变；RViz不同时启用这两条完整云。此预算只约束重建预览，DetectionCloud保持原固定分辨率stride输出，Image/PointCloud2仍使用BEST_EFFORT、queue1、decay0。
 
 联合长测采用监控专用RViz配置：仅一份RobotModel，移除会另建场景机器人/规划机器人/交互标记的MotionPlanning显示插件；规划和操作入口仍在Web。保留两路图像、Detection/50k重建预览、感知关键点、实际TCP轨迹及工具轴/套筒口/剪切平面TF。该简化是针对Ogre顶点缓冲异常的A/B候选，不能仅凭配置测试就宣称GL故障已消除；须重新记录全程RViz存活、渲染错误和进程/资源证据。重复初始化订阅日志不等于运行中存在重复Display，Ogre无时间戳异常行也不能用来确定崩溃时刻。
 
-模型阶段只BeginScene一次，在固定epoch轮换有效目标；Build结果身份包含target/epoch/revision/generated_at/valid_until，并有界等待Web同revision和diag.model_stamp对应，不能以refined接收时间替代。重复Build使用新request及新生成时间去重；最多models×3次尝试，配额不足判失败。models≥3时每个已采目标至少3样本，统计同目标D95、entry、cut及轴角P95。动作各轮新scene，mockACK仅依据当前request/target的终态证据发出，避免预抓取恢复锁死锁。
+模型阶段只BeginScene一次，在固定epoch轮换锁定目标；Build结果身份包含target/epoch/revision/generated_at/valid_until，并有界等待Web同revision和diag.model_stamp，不能用诊断接收时间代替生成时间。每次Build用新request，首次失败就停止，不额外重试补出成功配额。models≥3时每个已采目标至少3样本，统计同目标几何离散度。动作各轮新scene，目标按本场锁定priority选择；人工恢复等待使runner退出并清理，禁止自动ACK。
 
-抓取轮 `config/live_camera_mock.yaml` 的 `skip_reconstruction: true` 同时打开调度跳过 Build 和臂 `quality.allow_unrefined_geometry`。接触几何来自锁定集感知，不再等 TSDF 精化或 `GraspDecision`。臂侧 promote 把 `suggested_travel_m` 置 0，走 `(neck-entry)-neck_margin_m` 几何回退（实测 0.05–0.10 m），不再采信旧 `L_insert=0.03` 封顶；感知 `suggested_travel_m` 也改为 `(neck-entry)-margin_neck`，SELECT/CheckReachability 与实际执行同一量级。`--models` 大于 0 时，模型统计阶段仍单独调用 Build，与抓取轮无关。真机产品默认仍是重建精化。按实际 runner 产物核对每组模型、每轮终态、采样时长和退出清理，不能仅看总返回码。
+抓取档由实际共享作业参数决定：默认 `skip_reconstruction=false`、`execute_pregrasp_only=true`；显式选择skip时，mock/real使用同一配置，须一并写入supervisor.skip_reconstruction、reconstruction.capture.auto_mode、arm.quality.allow_unrefined_geometry，不因固定相机自动开启。参数面板逐项写入结果和读回值必须一致才允许使能。PREGRASP_ONLY仅验证预抓取；FULL不切刀看level6；采摘确认看level7和切断/撤离反馈。`--models>0`时独立模型采样仍走真实Build，不用接受心跳代替模型成功。
 
 短测（不替代上面 10×30×1800）示例：
 

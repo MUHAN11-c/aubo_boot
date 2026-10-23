@@ -12,7 +12,7 @@ peach_supervisor:
     selection_priority: 0  # 0=按 goal.target_ids 或自动第一颗。>0 时本批只抓拍照锁定集里 priority 等于该值的一颗，抓完即收批；调试页「按顺序」每轮改这个数。
     persist_ledger: true  # 是否把 TargetOutcome 写入 runs/ 账本。
     reconstruction_min_views: 1  # OBSERVE 成功后 Build 至少应有的机位数。1=当前拍照位即可派接触，不足才 observe_build_view_race。
-    skip_reconstruction: false  # true 时 DISPATCH 不发 Build/补视，用锁定集场景几何进 PREGRASP/FULL（身份 revision=unrefined:*）。默认关。mock+相机不跟随时验证接触用；真机 KEEP false。须与 peach_arm quality.allow_unrefined_geometry 同开。
+    skip_reconstruction: false  # true 时 DISPATCH 不发 Build/补视，用锁定集场景几何进 PREGRASP/FULL（身份 revision=unrefined:*）。默认关；mock/real 使用同一显式作业选择。须与 peach_arm quality.allow_unrefined_geometry 同开。
     reconstruct_in_trajectory: true  # Build 已绑定即派臂侧精化等待周期，不再串行补视消耗已生成模型有效窗。FinalizeAndValidate 收齐同目标精化/许可后才规划；false 显式保留 fast/conservative 补视流程。
     build_start_timeout_s: 5.0  # Build 目标绑定/资源初始化预算；不改变单果/批次时限，超时仍禁止观察运动。
     observe_build_grace_s: 3.0  # OBSERVE 结束后等待重建机位数追上的宽限秒数。e2e25 轮（09-17）mock 下曾放 12.0（伪影所致 race）；mock 作废转真机后回调原值，真机证据另立。

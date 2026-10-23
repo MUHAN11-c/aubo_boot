@@ -1,18 +1,8 @@
 # peach_system_tests
 
-隔离域 `launch_testing` 与 mock 故障矩阵。不含真机；mock冒烟默认不发goal，E1及人工驱动会按各自夹具发RunHarvest。
+手工复核脚本和官方 ament lint。不含真机。mock 冒烟默认不发 goal；人工驱动按各自夹具发 RunHarvest。`colcon test` 只跑 lint。行为看日志。
 
-**测试流程指导（本栈怎么跑、命名、验收门、真机纪律）：[doc/testing.md](doc/testing.md)**——2026-10-10 自仓库级 `docs/testing.md` 重写入包（用户裁定）。
-
-## 测什么
-
-- `test_preflight.py`：启动预检零 ROS（argv basename，不误伤编辑器路径）
-- `test_mock_launch.py`：isolated launch_testing 起 mock `harvest_system`；使能默认关、无自动 goal；`/joint_states` 关节序；lifecycle Active
-- `test_e1_supervisor_chain.py`：E1 批次链（域 90）——注入器 `test/perception_sim.py` 真发 RunHarvest 走完 FSM
-- `test_tool_profile_smoke.py`：三末端逐档冒烟（域 91/92/93）——TF 对档案 ±2mm、`tool.profile_id`
-- `test_scene_obstacles.py`：场景障碍快照链（域 94）——合成点云+假目标+假 apply 端
-- `test_replay_approach.py`：回放塔——零 ROS 纯几何，现场真袋/分层/随机语料对照 `replay_baselines.json` 冻结基线（改接近/融合/护栏/包络必跑）
-- `test_perf_baseline.py` / `test_baseline_inventory.py`：`perf_baseline.json` / `baseline_inventory.json` schema 守卫
+**测试流程指导（本栈怎么跑、命名、验收门、真机纪律）：[doc/testing.md](doc/testing.md)**
 
 ## 系统测驱动脚本（scripts/，对已起栈的人工复核）
 
@@ -25,8 +15,7 @@
   RELIABLE 时 BEST_EFFORT 会假性 0 帧，09-29 勘定）
 - `check_planning_scene.py`：`GetPlanningScene` 巡检——快照 box 数 +
   ACM 豁免条目（「起点碰撞但本该豁免」类问题用它判）
-- `gen_baseline_inventory.py`：生成重构基线快照 `test/baseline_inventory.json`
-  （参数/接口/函数索引，只锁 schema 不锁数值）
+- `gen_baseline_inventory.py`：把参数/接口/函数索引写到 `output/baseline_inventory.json`
 - 冻结相机一次感知→干跑 FULL（不进默认 `colcon test`，需 bag + GPU）：
   `frozen_camera_replay.py`、`launch/frozen_camera_grasp.launch.py`、
   `config/frozen_one_view.yaml`（`min_views=1`、基线门 0°、
@@ -37,7 +26,7 @@
   `moveit.obstacle_guard_enabled=false` 以免冻结点云 box 拦套入，
   第一颗终局后 action cancel，`tool=false` 跳过 SetIO）。默认 bag
   `runs/peach_camera_capture_20260930/stereo_10s`。成功须 `succeeded≥1`。
-  `test_frozen_camera_bag.py` 核 overlay + bag 帧，缺 bag 则 skip 帧测。
+  缺 bag 时不要把这一轮当成通过。
 
 ## 构建 / 测试
 
@@ -53,6 +42,6 @@ ros2 run peach_system_tests run_frozen_grasp.py
 
 职责、源码地图、参数来源、生命周期/并发与失败处理见 [包架构](doc/architecture.md)。运行环境、分层验证、冻结回放、30组模型/10轮/30分钟验收与精确清理见 [测试指导](../peach_system_tests/doc/testing.md)。本包测试通过不代表现场采摘成功；未授权不得真机运动或SetIO，硬件急停不经ROS，程序结束必须清本轮进程。
 
-真实相机+mock+RViz联合入口为`scripts/run_live_camera_mock.py`，测试专用固定校准与显示配置在`config/live_camera_mock.yaml`、`live_camera_mock.rviz`。该档相机固定，抓取轮 `skip_reconstruction: true`，用感知几何进接触，不发 Build；真机产品默认仍重建。runner 默认托管 RViz，`--no-rviz` 无头；`--skip-reconstruction/--no-skip-reconstruction` 与 `--pick-all` 用于同日 A/B 和完整重建多目标；跑完本轮 `session_*`/`harvest_*`/`round_*` 收进 `output/records/`，一跑一个顶层文件夹。抓取轮按场景 `priority` 顺序选目标，记录 `grasp_slot`；`target_id` 直接用场景源 ID（也是 2D/3D/账本 ID）。2026-10-22 4-slot 4/4 ×2（8/8 level6）。CLI及30组模型/10轮/30分钟判据见测试指导。校准来自20261013固定相机记录及用户未移动确认，不写入产品标定；脚本新增不代表联合验收已通过。
+真实相机+mock+RViz联合入口为 `scripts/run_live_camera_mock.py`。`config/live_camera_mock.yaml` 只保留固定真实相机TF、mock关节初值等环境事实；显示使用 `peach_bringup/config/harvest.rviz`。runner不生成速度/超时/质量门overlay，使用产品默认或 `--task-params-file` 指定的同一标准ROS作业配置；该文件也可原样用于real launch的 `task_params_file`。默认PREGRASP_ONLY按实际读回要求level2，FULL不切刀要求level6；不能把预抓取通过称作完整采摘。运行前显式设置测试使能，任何模型/抓取失败或人工恢复等待立即停止后续，不自动ACK。`--pick-all` 要求该轮全部账本目标达到作业完成档，不能只成功一颗就算整轮成功。清理自有进程组并把记录收进 `output/records/`；历史高速/跳重建结果不证明当前产品参数通过。
 
 冻结runner默认无头，显式--rviz才开桌面；只清自有PGID，--skip-launch保留外部栈。真实联合短测1/1达到level6、RViz存活、cleanup=[]，正式10轮/30模型/1800秒仍待完成。

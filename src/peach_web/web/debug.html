@@ -36,11 +36,10 @@
         <label class="check"><input id="skip" type="checkbox"> 跳过重建（用感知结果）</label>
       </div>
       <div class="operation-buttons">
-        <button type="button" id="fill-success">填入成功测试</button>
         <button type="button" id="round-apply">写入</button>
         <button type="button" id="round-reload" class="ghost">重新读取</button>
       </div>
-      <p class="operation-note">成功测试：跳过重建、套入后撤回、不切刀、接触速度 0.4、执行时限 30 秒。真机与仿真同一组开关；真机接触速度不要高于 0.1。</p>
+      <p class="operation-note">真机与仿真使用同一组业务参数。写入成功并读回核对后才应用使能；默认使能关闭。</p>
     </section>
     <section class="panel" id="single-panel" aria-label="单轮点选">
       <div class="section-head">
@@ -57,7 +56,7 @@
     <section class="panel" aria-label="几轮抓取">
       <div class="section-head">
         <div><p class="kicker">ROUNDS</p><h2>几轮抓取</h2></div>
-        <span id="run-note" class="empty">按轮数自动跑完。按顺序时，第几轮就抓锁定后的第几号。</span>
+        <span id="run-note" class="empty">按轮数自动跑完。按顺序时在本轮锁定目标数内循环。失败或需要人工恢复时停止后续轮。</span>
       </div>
       <div class="round-grid">
         <label>轮数 <input id="rounds" type="number" min="1" max="30" value="4"></label>
@@ -65,7 +64,6 @@
           <select id="round-mode">
             <option value="rotate">每轮按顺序换一颗</option>
             <option value="first">每轮第一颗</option>
-            <option value="selected">每轮都抓已勾选</option>
             <option value="all">每轮全部</option>
           </select>
         </label>

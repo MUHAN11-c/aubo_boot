@@ -30,7 +30,8 @@ serial_force/
   doc/force_frame_v3.md          # 32 字节 v3 帧格式（2026-10-21，克+行程+原始 AD）
   config/serial_force.yaml
   launch/serial_force.launch.py
-  test/test_force_protocol.py
+  test/test_flake8.py
+  test/test_pep257.py
   udev/99-force-usb-serial.rules
 ```
 
@@ -103,7 +104,7 @@ A5 | ch | gL | gH | mm | aL | aH | ... ×5 ... | sum
 - 行程有效 0–5.9 mm，`0x3C`（6.0 mm）是满量程/哨兵。
 - 校验：`sum(frame[0:31]) & 0xFF == frame[31]`。
 
-回归样例（`test/test_force_protocol.py` 固化；2026-10-21 现场帧）：
+回归样例（2026-10-21 现场帧，对照节点日志里的克 / 毫米 / AD）：
 
 - 现场帧：`A5 01 F3 00 25 B0 06 02 18 01 2A D2 05 03 BE 00 1D 19 05
   05 36 01 2F DC 05 07 09 01 28 2C 06 43`
@@ -176,10 +177,19 @@ python3 src/serial_force/scripts/force_web.py   # http://127.0.0.1:8099
 `runs/session_*/force/episode_NNN.csv`（旁路同名 json，`index.jsonl` 汇总）。
 手动记录也在同一目录，文件名 `force_20s_<时间>.csv`。页面可回放已写入的
 `episode_*.csv`（选择接触段后播放或拖动），不必守着实时曲线。会话袋还在写才算当前这一轮；
-栈还没开会话时先留在内存，会话出现后再写入。不另开目录。抓取阶段的墙钟由调度写在同一会话的 `cycles/`，和这里的 `force/` 放在一起。
+起段或手动开始时绑定唯一存活记录写者的 `session.json`（`state=active`），
+找不到当前会话就不开始自动段、手动请求明确拒绝；已有段永不挪入后来会话。
+根目录由 `peach_common.paths.runs_root` 统一解析（支持 `AUBO_RUNS_DIR`），
+安装副本也可传 `--runs-root /绝对路径` 或 launch `runs_root:=/绝对路径`。
+抓取阶段的真实开始/终局时刻由调度写在同一会话 `cycles/`，旧记录的 mtime 推算带 `estimated` 标记。
 只在任一路力达到约 0.15 N 时开始，回到约 0.08 N 并稳住 0.35 s 后封口；
 `contact_s` 是从出现变化到仍高于回到门的时长，`duration_s` 含归零尾段。
 空载不写。180 s 仍未归零会以 `max_duration` 封口。
+断流 0.5 s、无效通道、源进程变化、会话关闭和正常退出分别带原因封口；
+`OPEN/INVALID` 不作为归零或 CoP 输入，`SATURATED` 保留原值。
+每帧先 append `.partial.jsonl`（每 0.5 s fsync），CSV 完成后原子替换、再写 sidecar/index；
+异常退出后由下一次 force_web 恢复原目录里的 partial，不绑定新会话。
+掉电仍可能损失最后一次 fsync 后的约 0.5 s；完整 bag 原子帧可供独立复核。
 
 打印每帧一行（100Hz；`print_decimate` 每 N 帧打一条）：
 
@@ -187,17 +197,23 @@ python3 src/serial_force/scripts/force_web.py   # http://127.0.0.1:8099
 #123 F1[左上]=+2.38N/3.7mm/AD1712 F2[左下]=+2.75N/4.2mm/AD1490 F3[右下]=+1.86N/2.9mm/AD1305 F5[上]=+3.04N/4.7mm/AD1500 F7[右上]=+2.60N/4.0mm/AD1580
 ```
 
-行程哨兵通道打印 `!`（该通道 `/force/points`、`/force/travel`、`/force/ad` 都发 NaN）。
+6.0 mm 满量程保留原始值；AD 与行程联合分类为 OK/SATURATED/OPEN/INVALID。
 
 话题：
 
+- `/force/sample`（`peach_interfaces/ForceSample`，Reliable + Volatile，depth100）：
+  一次解码的原子 5 通道 N、力等效 mm、uint16 AD、状态，含 `channel_ids`、
+  `source_uuid` 与单调 `sequence`。`header.stamp` 是主机 ROS 接收/解码时刻，
+  不是设备采样时间（固件无时间戳/序号）；只能检测主机解码之后的流失。
 - `/force/points`（Reliable + Volatile）：5 值，**REP-103 SI 牛顿**，顺序 1/2/3/5/7；
-- `/force/travel`（同 QoS）：5 值，**毫米**（0.1 mm/LSB），哨兵通道为 `NaN`；
-- `/force/ad`（同 QoS）：5 值，**原始 AD**，哨兵通道为 `NaN`。
+- `/force/travel`（同 QoS）：5 值，**力等效毫米**（0.1 mm/LSB），不是独立位移；
+- `/force/ad`（同 QoS）：5 值，**原始 AD**；
+- `/force/status`：5 路状态（0正常、1饱和、2断线/悬空、3无效）。
 
 `ros2 topic hz /force/points` 验 100Hz。`/diagnostics`：串口开闭 + 帧率
-（期望 100Hz，窗 0.6×–1.4×）。Web 同时订阅三个话题，条下显示行程与 AD，
-并实时计算 5 点 CoP。
+（期望 100Hz，窗 0.6×–1.4×）。Web 只订原子 `/force/sample`，
+不根据不同话题到达顺序拼帧。CSV 保留每帧源 stamp、主机接收 unix_ns、源 UUID/序号；
+observability 的 core/std/all 均记录完整帧，`/force/` 不走相机媒体节流。
 
 无输出时依次核对：波特率（默认 115200）、口是否已被另一个节点占用
 （`/dev/force` 只能开一份）、采集板供电与 Tx/Rx。
@@ -224,11 +240,10 @@ python3 src/serial_force/scripts/force_web.py   # http://127.0.0.1:8099
 ## 5. 测试
 
 ```bash
-PYTHONPATH=src/serial_force pytest src/serial_force/test/test_force_protocol.py
+colcon test --packages-select serial_force
 ```
 
-纯核零 ROS：文档回归帧、通道校验、假帧头重扫、半帧等待。`colcon test
---packages-select serial_force` 另跑 flake8 / pep257。
+`colcon test` 只跑官方 flake8 / pep257。帧是否解析对，看节点日志里的力、行程和 AD，对照上面的现场帧。
 
 ---
 
@@ -238,7 +253,8 @@ PYTHONPATH=src/serial_force pytest src/serial_force/test/test_force_protocol.py
 模型、控制律、20 组统计与限界见
 [../serial_force_sim/doc/force_align_sim.md](../serial_force_sim/doc/force_align_sim.md)。
 
-本包只保留真机驱动与调试页；两者只通过 `/force/points` 契约衔接，本包不依赖
+本包保留传感器节点与调试页，新增依赖唯一 IDL 包 `peach_interfaces` 和共享路径/会话工具 `peach_common`。
+`/force/points` 兼容既有仿真消费者，本包不依赖
 `serial_force_sim`，仿真也不读写串口。
 
 ## 7. 不负责

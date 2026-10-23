@@ -83,7 +83,7 @@ peach_arm:
       frame_wait_s: 4.0  # 视点后等待新帧的超时上限（秒）。实测 EMA 时 ≈4 帧+1s（下限 2s）；未测得时用 assumed_frame_interval_s 估窗口，不预填 EMA。本值为回退值与自适应上限。
     quality:
       minimum_views: 1  # 质量门最少机位数，与重建 capture.min_views 对齐。单视即可，不强制再移一个视点。
-      allow_unrefined_geometry: false  # true 时用场景观测当精化入口（跳过重建 READY/refined 门）。默认关。harvest_system skip_reconstruction:=true 时覆盖为 true；真机 KEEP false。
+      allow_unrefined_geometry: false  # true 时用场景观测当精化入口（跳过重建 READY/refined 门）。默认关。harvest_system skip_reconstruction:=true 时覆盖为 true；mock/real 使用同一显式作业选择。
       minimum_baseline_deg: 0.0  # 质量门最大基线角下限（度）。0=单视可通过，不为张角再补一次短移。
       minimum_mean_nearest_baseline_deg: 0.0  # 质量门平均最近基线角下限（度）。0=不要求多视张角。
       minimum_mean_depth_ratio: 0.4  # 质量门平均有效深度比例下限（0~1）。

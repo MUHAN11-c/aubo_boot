@@ -59,10 +59,9 @@ from .batch import (
     classify_build_failure,
     default_ledger_root,
     full_failure_code,
-    ledger_file,
+    ids_with_priority,    ledger_file,
     load_ledger,
     merge_cycle_extra,
-    ids_with_priority,
     named_targets_exhausted,
     next_target,
     reach_queries,
@@ -116,6 +115,13 @@ def _failed_build_reason(future) -> str | None:
         return str(getattr(result, 'message', '') or 'build_failed')
     except Exception as exc:  # noqa: BLE001
         return f'build_result_error: {exc}'
+
+
+def _source_clock_pair(node) -> tuple[int, int]:
+    """记录系统墙钟及ROS时钟；不同clock域分字段保存，不靠文件mtime还原."""
+    now_method = getattr(node, 'get_clock', None)
+    ros_ns = int(now_method().now().nanoseconds) if now_method is not None else 0
+    return time.time_ns(), ros_ns
 
 
 class TaskExecutorNode(LifecycleNode):
@@ -1221,7 +1227,7 @@ class TaskExecutorNode(LifecycleNode):
         return reaction, True
 
     def _cmd_dispatch(self, goal, reaction):
-        """DISPATCH：时限门后起 Build。默认 reconstruct_in_trajectory 立刻派臂。"""
+        """DISPATCH：时限门后起 Build。默认 reconstruct_in_trajectory 立刻派臂."""
         request_id = goal.request_id
         if not self._execution_enabled_effective():
             return self._fail_dispatch(
@@ -1240,6 +1246,7 @@ class TaskExecutorNode(LifecycleNode):
         grace_s = float(self._params.observe_build_grace_s)
         target_id = self._current_target_id
         dispatch_t0 = time.monotonic()
+        self._cycle_clock_start = _source_clock_pair(self)
         self._cycle_observe_extra = {}
         self._cycle_dispatch_t0 = 0.0
         if self._take_skip():
@@ -1293,7 +1300,7 @@ class TaskExecutorNode(LifecycleNode):
                 failure_code='build_start_timeout', dispatch_t0=dispatch_t0,
                 extra=build_details(self._build_feedback, dispatch_t0, None))
         # 部署 peach_supervisor.yaml 默认 true。getattr 缺字段才回退 False
-        #（走下方补视）。Build 已 COLLECTING 即派臂侧周期（skip_observation），
+        # （走下方补视）。Build 已 COLLECTING 即派臂侧周期（skip_observation），
         # 不额外串行观察而消耗冻结的模型有效窗。FinalizeAndValidate 有界
         # 等待同目标精化/许可，通过后才规划；Build 句柄随周期收口取消。
         if bool(getattr(self._params, 'reconstruct_in_trajectory', False)):
@@ -1591,12 +1598,15 @@ class TaskExecutorNode(LifecycleNode):
         executed = self._send_action(
             self._exec, full, timeout, feedback=True,
             goal_handle=self._run_goal_handle, prerequisite_future=build_future)
+        # 先钉动作终局时间，后续取消Build/磁盘写入耗时不混入动作结束点。
+        terminal_unix_ns, terminal_ros_ns = _source_clock_pair(self)
         build_failure = _failed_build_reason(build_future)
         operator_skip = self._take_skip()
         outcome = TargetOutcome()
         outcome.target_id = target_id
         extra = merge_cycle_extra(
             self._cycle_observe_extra, stages_from_execute(executed))
+        extra.update(end_unix_ns=terminal_unix_ns, end_ros_ns=terminal_ros_ns)
         if executed is None:
             outcome.outcome = TargetOutcome.FAILED
             extra['failure_code'] = (
@@ -1628,10 +1638,10 @@ class TaskExecutorNode(LifecycleNode):
             if int(getattr(executed, 'failure_code', 0) or 0):
                 extra['failure_code_n'] = int(executed.failure_code)
             with self._lock:
-                # ACK 清旗标（_acknowledge_recovery）与反馈置位并发，
-                # 读-改-写须持锁，否则可能把已 ACK 的恢复门写回 True。
-                self._recovery_required = self._recovery_required or bool(
-                    getattr(executed, 'recovery_required', False))
+                # 本动作终态权威：正常返程可清掉接触期间的临时True；
+                # PREGRASP_ONLY/异常终态仍保留臂侧要求的人工恢复门。
+                self._recovery_required = bool(
+                    getattr(executed, 'recovery_required', True))
         if build_failure and not operator_skip:
             outcome.outcome = TargetOutcome.SKIPPED_QUALITY
             outcome.reason = f'build_failed: {build_failure}'
@@ -1779,8 +1789,23 @@ class TaskExecutorNode(LifecycleNode):
 
     def _push_outcome(self, outcome, extra=None) -> None:
         """将 outcomes 与遥测附加字段等长追加."""
+        details = dict(extra or {})
+        end_unix_ns, end_ros_ns = _source_clock_pair(self)
+        details.setdefault('end_unix_ns', end_unix_ns)
+        details.setdefault('end_ros_ns', end_ros_ns)
+        started = getattr(self, '_cycle_clock_start', None)
+        if started is not None:
+            details.setdefault('start_unix_ns', started[0])
+            details.setdefault('start_ros_ns', started[1])
+            details.setdefault('time_basis', 'source_clock')
+        else:
+            details.setdefault('time_basis', 'source_clock_end_only')
+        details.setdefault('clock_domain', 'ros+system')
+        details.setdefault('cycle_id', str(getattr(self, '_cycle_id', '') or ''))
+        details.setdefault('scene_epoch', int(getattr(self, '_scene_epoch', 0) or 0))
         self._outcomes.append(outcome)
-        self._outcome_details.append(dict(extra or {}))
+        self._outcome_details.append(details)
+        self._cycle_clock_start = None
 
     def _wait_build_after_observe(
             self, handle, timeout_s: float, grace_s: float, min_views: int):
@@ -2027,27 +2052,29 @@ class TaskExecutorNode(LifecycleNode):
             self._idle(0.02)
         return False
 
-    def _on_exec_feedback(self, feedback_msg) -> None:
-        """镜像 ExecuteTarget 反馈：阶段/周期消息/恢复旗标并发布状态."""
+    def _on_exec_feedback(self, feedback_msg, *, token=None) -> None:
+        """只镜像在途动作反馈；终态后迟到的包不能重新打开恢复门."""
         feedback = getattr(feedback_msg, 'feedback', feedback_msg)
         state = getattr(feedback, 'state', None)
         if state is None:
             return
-        phase = int(getattr(state, 'target_phase', self._target_phase) or 0)
-        if phase:
-            self._target_phase = phase
-        cycle = str(getattr(state, 'cycle_id', '') or '')
-        if cycle:
-            self._cycle_id = cycle
-        feedback_message = str(getattr(state, 'message', '') or '')
-        if feedback_message:
-            self._cycle_message = feedback_message
-        if bool(getattr(state, 'recovery_required', False)):
-            with self._lock:
+        with self._lock:
+            if token is not None and token is not getattr(self, '_exec_feedback_token', None):
+                return
+            phase = int(getattr(state, 'target_phase', self._target_phase) or 0)
+            if phase:
+                self._target_phase = phase
+            cycle = str(getattr(state, 'cycle_id', '') or '')
+            if cycle:
+                self._cycle_id = cycle
+            feedback_message = str(getattr(state, 'message', '') or '')
+            if feedback_message:
+                self._cycle_message = feedback_message
+            if bool(getattr(state, 'recovery_required', False)):
                 self._recovery_required = True
-        self._grasp_enabled = bool(getattr(state, 'grasp_enabled', False))
-        self._tool_enabled = bool(getattr(state, 'tool_enabled', False))
-        self._action_active = True
+            self._grasp_enabled = bool(getattr(state, 'grasp_enabled', False))
+            self._tool_enabled = bool(getattr(state, 'tool_enabled', False))
+            self._action_active = True
         self._publish_state()
 
     def _wait_result(
@@ -2109,17 +2136,39 @@ class TaskExecutorNode(LifecycleNode):
         if _failed_build_reason(prerequisite_future):
             self._action_active = False
             return (None, 0) if want_status else None
-        handle = self._send_goal(
-            client, goal_msg, timeout_s, feedback=feedback,
-            feedback_cb=feedback_cb)
-        if handle is not None:
-            self._in_flight.append(handle)
-        result = self._wait_result(
-            handle, timeout_s, interrupt_on_pause=interrupt_on_pause,
-            goal_handle=goal_handle, want_status=want_status,
-            prerequisite_future=prerequisite_future)
-        self._forget_handle(handle)
-        return result
+        token = None
+        if feedback and feedback_cb is None:
+            token = object()
+            with self._lock:
+                self._exec_feedback_token = token
+
+            def on_feedback(message):
+                self._on_exec_feedback(message, token=token)
+            feedback_cb = on_feedback
+        result = None
+        try:
+            handle = self._send_goal(
+                client, goal_msg, timeout_s, feedback=feedback,
+                feedback_cb=feedback_cb)
+            if handle is not None:
+                self._in_flight.append(handle)
+            try:
+                result = self._wait_result(
+                    handle, timeout_s, interrupt_on_pause=interrupt_on_pause,
+                    goal_handle=goal_handle, want_status=want_status,
+                    prerequisite_future=prerequisite_future)
+                return result
+            finally:
+                self._forget_handle(handle)
+        finally:
+            if token is not None:
+                with self._lock:
+                    if token is getattr(self, '_exec_feedback_token', None):
+                        self._exec_feedback_token = None
+                        self._action_active = False
+                        if result is None:
+                            # 超时/异常没有臂侧终态，不能假定已安全返程。
+                            self._recovery_required = True
 
     def _cancel_handle(self, handle) -> None:
         """取消单个 action goal（异常仅告警不抛）."""

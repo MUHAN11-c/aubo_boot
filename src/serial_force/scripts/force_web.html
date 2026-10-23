@@ -199,7 +199,7 @@
 <header>
   <div>
     <h1>咬合末端 5 点力 · 实时</h1>
-    <div class="sub">/force/points N · /force/travel mm · /force/ad raw · CoP 实时 · IMS-C04A 50–400 g/点（合计 2 kg）· 100 Hz</div>
+    <div class="sub">/force/sample 原子帧 · N / 力等效 mm / raw AD / 状态 · CoP 实时 · 100 Hz</div>
   </div>
   <span class="vlabel">视角</span>
   <div class="views" role="group" aria-label="观察方向">
@@ -300,7 +300,7 @@
   点位来自 CAD 总装实测（5× 电阻式薄膜压力传感器 力敏电阻）：R = 16.31–16.45 mm，
   角度 0 / 74.7 / 144.6 / 216.3 / 286.2°（自 +Y<sub>tcp</sub> 顺时针）；膜片平面在 tcp z = −72.29 mm。
   通道号按 2026-10-16“5 = 顶点”推定。<br>
-  话题 /force/points = std_msgs/Float64MultiArray（Reliable+Volatile，100 Hz，牛顿）；
+  订阅 /force/sample = peach_interfaces/ForceSample（Reliable+Volatile，100 Hz，含源 UUID、序号、主机 ROS 接收时间）；旧四话题继续兼容发布。<br>
   kgf = N ÷ 9.80665。视角/视场切换只改显示，不改通道；臂侧是同一盘面的镜像（1 ↔ 7、2 ↔ 3）。
 </footer>
 
@@ -540,7 +540,7 @@ function render(d) {
     const ad = rawA == null ? NaN : Number(rawA);
     const rawS = d.s ? d.s[IDX[u.cfg.ch]] : 0;
     const st = rawS == null ? 0 : Number(rawS);
-    if (st === 2 || !Number.isFinite(n)) {
+    if (st >= 2 || !Number.isFinite(n)) {
       u.btn.style.transform = 'scale(1)';
       u.btn.style.background = '#3a2020';
       u.btn.style.boxShadow = '0 0 10px #a33';
@@ -607,7 +607,7 @@ const scrub = document.getElementById('scrub');
 
 function replayFrame(row) {
   return {
-    v: row.v, t: null, a: null, s: [0, 0, 0, 0, 0],
+    v: row.v, t: null, a: null, s: row.s || [0, 0, 0, 0, 0],
     frames: 0, hz: 0, age_ms: 0, episode: null, cop: row.cop || null,
   };
 }

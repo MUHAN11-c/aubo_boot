@@ -138,3 +138,7 @@ Python 参数源为各包 config YAML + `peach_common.yaml_params.attach`，规�
 测试先执行 `colcon test --packages-select peach_bringup --return-code-on-test-failure`，系统接线再按测试包 isolated-domain 入口验证；预检失败不得通过删除检查来绕过。
 
 当前调度在on_stack_ready就绪值改变时立即广播状态，使界面与客户端及时看到转换。reconstruct_in_trajectory默认true走已有并行路径：Build先绑定，臂侧等待Finalize及同目标精化/许可，再开始规划；execute_pregrasp_only默认true，TTL和安全门不放宽。联合runner通过原子阶段检查点保留中间证据，soak检测RViz退出或相机/关节断流立即失败清理。自动报告为继承本轮进程组的subprocess，默认30秒等待、TERM后2秒、KILL后2秒回收；报告失败保留封口bag供离线重算。主机网络SDK能发现相机；隔离网络probe的0设备不能外推为相机故障，新主机网络probe完成3组模型及15秒RViz存活观察，但抓取180秒FAILED；bag封口且无残留，只证明该次短时显示与收尾，不构成抓取或完整验收通过。
+
+应用参数与显示：`task_params_file` 是按节点名分节的标准ROS参数YAML，同一份文件后装到brain、arm与observability，mock/real原样共用；空串使用各包产品默认。显式skip是两种模式相同的作业选择，默认false；real_web也不私设true。应用RViz使用本包 `config/harvest.rviz`，驱动Include在scoped GroupAction内关闭原RViz，应用单独按同一工具档案展开模型，默认显示相机raw和独立实时debug_image_raw；不改驱动/原aubo配置。
+
+本机2026-10-23同进程配对探针中，相机raw的BE/RELIABLE订阅分别8.80/13.15Hz，debug_image_raw分别10.37/13.21Hz；推理两档均0.958Hz。应用RViz两路2D实时图据此使用RELIABLE、depth1匹配现有发布端；这只改变显示订阅，不改生产传感QoS、驱动或推理节拍。证据为本轮 `/tmp/peach-repair-mock-qos-20261023-1438/evidence.json`，其他主机须重新测量。

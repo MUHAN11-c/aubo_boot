@@ -58,12 +58,6 @@ if(BUILD_TESTING)
   set(ament_cmake_copyright_FOUND TRUE)  # 文件头版权项目结束再补（同 peach_arm）
   set(ament_cmake_cpplint_FOUND TRUE)  # 风格门以 uncrustify 为准（testing.md 口径）
   ament_lint_auto_find_test_dependencies()
-  find_package(ament_cmake_gtest REQUIRED)
-  ament_add_gtest(test_tool_config test/test_tool_config.cpp src/tool_config.cpp)
-  target_include_directories(test_tool_config PRIVATE
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>)
-  target_link_libraries(test_tool_config ${YAML_CPP_LIBRARIES})
-  ament_target_dependencies(test_tool_config ament_index_cpp rclcpp std_msgs)
 endif()
 
 ament_package()

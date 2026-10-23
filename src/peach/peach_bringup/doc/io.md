@@ -4,7 +4,7 @@
 
 ## 批次调用顺序
 
-唯一开批action为 `/peach_supervisor/run_harvest`。调度发SurveyScene，拍照位确认成功后BeginScene；感知锁定的target_observations提供选果集合；CheckReachability只查询IK/路径条件，不运动。BuildTargetModel与OBSERVE_ONLY并行，随后按当前策略派PREGRASP_ONLY或FULL。PREGRASP_ONLY到位等待人工ACK，不能自动继续下一颗。ControlTask负责暂停/跳过/取消/ACK，Nav2生命周期PAUSE与批次暂停不同。
+唯一开批action为 `/peach_supervisor/run_harvest`。调度发SurveyScene，拍照位确认成功后BeginScene；感知锁定的target_observations提供选果集合；CheckReachability只查询IK/路径条件，不运动。BuildTargetModel与OBSERVE_ONLY并行，随后按当前策略派PREGRASP_ONLY或FULL。PREGRASP_ONLY成功仅表示预抓取验证；是否允许下一目标由批次策略决定，异常恢复必须人工ACK，前端与runner不得自动确认。ControlTask负责暂停/跳过/取消/ACK，Nav2生命周期PAUSE与批次暂停不同。
 
 感知initial_pose只给重建；调度不据此选果。GraspDecision由重建发布，调度缓存clearance用于goal，臂侧再次校验目标、模型修订、时效和能力。allowed只是汇总观测，网页显示不授予运动权。ledger由调度写；臂不写账本、不调重建Trigger。
 
@@ -37,6 +37,11 @@ scene_obstacles在Survey后按刷新触发生成快照，仅写PlanningScene wor
 
 ## 观测与验证
 
+五点力新增 `/force/sample`（`peach_interfaces/ForceSample`，RELIABLE/VOLATILE/depth100）
+原子帧，旧四 `/force/{points,travel,ad,status}` 保持兼容。完整帧含源进程 UUID、序号、
+主机 ROS 接收/解码时间与五路数值/状态；无固件采样时刻保证。observability 的全部录制档
+保留原子帧，不走相机媒体节流；force_web 只订完整帧，起段绑定显式 active 会话。
+
 `/diagnostics`提供标准健康流，observability聚合到8090；状态/事件带作业身份，会话bag位于runs/session_*，每批ledger在runs/<request_id>。静态页面属于peach_web。调试POST委托现有ROS入口，默认运动调试关闭；不得新增SetIO或旁路门。
 
 排障用 ROS 2 日志：rqt_console 过滤 `peach_supervisor.batch` / `peach_supervisor.contact` / `peach_arm.cycle` / `peach_arm.contact`；目录 `$ROS_HOME/log`（联测 `runs/<本轮>/ros_home/log`）。SELECT 与 Finalize 各打一条 `caller=`，行程不同是预期。读法见 [architecture.md 一批怎么走](architecture.md) 与 [测试指导 §10](../../peach_system_tests/doc/testing.md)。
@@ -50,3 +55,5 @@ python3 src/peach/peach_interfaces/scripts/check_interface_manifest.py
 接线验证及bag封口/精确PID清理见 [测试指导](../../peach_system_tests/doc/testing.md)。清单通过只证明静态一致，节点集成、许可身份与实际终态仍须独立验收。
 
 联合runner的report.json按阶段原子更新，soak只在RViz存活及相机/关节新鲜流成立时计为健康，失效立即终止验收并清理。自动bag报告子进程继承本轮进程组，有界30+2+2秒回收，超时/非零须离线重算；bag可读不代表动作或稳定性验收成功。相机SDK发现需注明网络环境：隔离网络的0设备与主机网络可发现并不矛盾，实际取帧及模型/动作仍须独立证明。
+
+参数装配优先级：包YAML与工具/停位注入 → 显式legacy overlay → 共用 `task_params_file`；最后者按节点名分节且mock/real同值。硬件反馈要求与固定真实相机TF属于环境适配，不通过此文件改业务门。观测startup记录文件路径，runner另落实际参数读回。

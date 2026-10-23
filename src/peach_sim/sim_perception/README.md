@@ -66,12 +66,9 @@ use_sim_time）见 `sim_bringup` README 与 `doc/architecture.md`。
 
 ```bash
 colcon test --packages-select sim_perception
-# 或直跑（须先 source Jazzy 与工作区）：
-python3 -m pytest src/peach_sim/sim_perception/test -q
 ```
 
-open3d 缺失环境按测跳过（不影响其余收集）；模型权重不进单测——推理链路属
-launch_testing / e2e 范畴。
+`colcon test` 只跑官方 flake8 / pep257。推理对不对看感知节点日志。权重缺失时节点会拒启。
 
 **权重依赖**：两份 config 的 `yolo_model_path` / `sam_model_path` 指向
 `$(find-pkg-share peach_harvester)/model/`（launch 期展开）——单建 sim 组时须

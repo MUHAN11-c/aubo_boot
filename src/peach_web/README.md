@@ -5,7 +5,7 @@
 ## 页面与反馈
 
 - 首屏显示运行模式、启动自检、诊断摘要、运行期使能与当前作业。两个视图共用常用操作区：「回到拍照位」转发既有 `photo_pose_service`，保留发送前确认，取消执行/批次保持显眼且独立。批次执行档读取 `/api/state.params./peach_supervisor.execute_pregrasp_only`，明确显示 PREGRASP_ONLY/FULL；当前条件解释运行期使能关闭与调度 blockers，许可允许时的 reason 仅作诊断。当前完成证据沿用 `job.why`，取消不会抹掉已验证的预抓取；感知 HARVESTED 只表示已结算，采摘确认以当前账本 completion_level=7 为准。常用区反馈操作结果，详细响应保留在单步调试。顶栏固定当前阶段（批次态、目标阶段、技能周期、目标 id）。节点/关节硬件、系统负载、参数与系统诊断默认折叠。阶段时序按服务器缓冲全量在面板内滚动。节点日志读 `/api/state` 的 `logs`：时间、级别、节点、消息；级别是该级及以上（默认 INFO），节点名是包含过滤；离开底部不抢滚动。
-- **单步调试 `/debug.html`**：独立页面，监控页顶栏新窗口打开。改轮数、跳过重建、完整抓取和执行/抓取/工具后，可「启动这些轮」（每轮第一颗、按顺序换一颗、点选的 ID、或每轮全部）。每个目标 ID 可直接点「抓」。过程画面和逐轮分析不在此页。真机与仿真用同一套开关，不在这里分两套速度。使能走 `POST /api/debug/set_enables_service`。
+- **单步调试 `/debug.html`**：单轮先建场景，目标与排队点击绑定scene_epoch；换场清空旧选择。几轮支持每轮第一颗、按当前锁定目标数循环、每轮全部。跨场景不复用已勾选ID；需要点名时用单轮重新选择。写入、启动单轮和多轮统一应用skip/auto_mode/allow_unrefined等参数并逐项读回，随后显式SetEnables并核对使能反馈。207、内层拒绝、目标失效、失败、取消和人工恢复等待都会停止后续。202或网络结果未知保留请求身份，不自动重发。真机与mock同一业务参数流程，没有“成功高速档”，恢复只由人工确认。
 - 调试台参数 API：`GET /api/params` 列白名单节点/参数/当前值/节点是否运行；`POST /api/params` body `{"changes":[{"node","name","value"}]}`，只接受白名单、类型/上下界校验，运动类参数在 `debug.motion_enabled=false` 时 423，静态参数提示重启；写操作进 `runs/debug_audit`。观测节点自身参数走本地 Parameter API，其余节点走 `/<node>/{list,get,set}_parameters`。
 - 过程/调试两个视图支持键盘左右键、Home/End 与焦点提示；日志、目标与账本表在窄屏切换为堆叠条目，关节表等宽表仍在容器内横向滚动，支持 reduced-motion。页面使用本地字体、不使用 CDN；本地 JPEG 使用 blob URL，后端 CSP 仅对 img-src 增加 blob:，脚本仍为 self。
 - 状态快照每 1 s、轨迹每 0.4 s 尝试更新，每接口至多一个在途请求，GET 等待上限 6 s。5 s 无新快照或请求失败时标明陈旧/断线并保留旧数据，暂停普通操作。后台页面不发新的 GET；恢复可见或浏览器历史恢复时继续刷新。
@@ -24,11 +24,9 @@ colcon build --packages-select peach_web
 source install/setup.bash
 colcon test --packages-select peach_web --return-code-on-test-failure
 colcon test-result --test-result-base build/peach_web --verbose
-# 直接运行同一组前端行为回归，无 ROS 图或网络
-node src/peach_web/scripts/run-tests.cjs
 ```
 
-测试依赖 Node.js 18+ 与 `ament_cmake_test`；使用 Node 内置 test/vm/assert。CTest 分别注册 `test/*.test.cjs`，直接运行每个测试文件并生成 XUnit。独立 runner 同样逐文件执行，传播子进程失败、信号与启动错误。覆盖请求与确认复检、提交锁与取消、结果未知、恢复锁、预抓取证据、目标选择与换场景、模型来源与错轴、无效几何、图像帧龄与 TF 失联，以及 WebGL 降级；VM 测试之外还须浏览器布局验收。
+`colcon test` 只跑官方 ament lint。页面行为在浏览器里点一遍，对照 `/api/state` 和节点日志。
 
 ## 分步实验台与定位方向
 
@@ -48,7 +46,6 @@ Three.js **0.186.1**、esbuild **0.28.2** 由本包 package-lock.json 固定，�
 cd src/peach_web
 npm ci
 npm run build:vendor
-npm test
 ```
 
 浏览器验证使用独立静态站点与假的 `/api/state`、`/api/trajectory`、`/api/debug/*`，覆盖 320/390/768/1440 px 两视图、慢请求、断线恢复、POST错误和重复点击；不向真机发请求。安装后在现有 observability 服务刷新页面即可加载新静态资源；整栈 mock 启停与清理见 [v1 测试指导](../peach/peach_system_tests/doc/testing.md)。任何临时 HTTP 服务器或测试浏览器结束后都要关闭，不残留进程。

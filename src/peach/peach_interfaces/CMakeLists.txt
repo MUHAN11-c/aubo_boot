@@ -21,6 +21,7 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/DepositResult.msg"
   "msg/Enables.msg"
   "msg/FailureCode.msg"
+  "msg/ForceSample.msg"
   "msg/GraspDecision.msg"
   "msg/GraspHypothesis.msg"
   "msg/HarvestOperationStatus.msg"

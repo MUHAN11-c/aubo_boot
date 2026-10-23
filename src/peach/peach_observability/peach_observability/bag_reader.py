@@ -108,8 +108,13 @@ def _to_dict(value):
     import array
     if value is None or isinstance(value, (str, int, float, bool)):
         return value
-    if isinstance(value, (bytes, bytearray, array.array)):
+    if isinstance(value, (bytes, bytearray)):
         return {'byte_count': len(value)}
+    if isinstance(value, array.array):
+        return value.tolist()
+    # rosidl fixed numeric arrays use numpy.ndarray (numpy stays at 1.26.4).
+    if type(value).__module__.startswith('numpy') and hasattr(value, 'tolist'):
+        return _to_dict(value.tolist())
     if isinstance(value, (list, tuple)):
         return [_to_dict(item) for item in value]
     slots = getattr(value, '__slots__', None)
@@ -161,8 +166,8 @@ def read_bag(bag_dir, *, stamps_only=HEAVY_TOPICS) -> dict:
     type_cache: dict[str, type] = {}
     streams: dict[str, list] = {}
     while reader.has_next():
-        topic, data, t_ns = reader.read_next()
-        topic = LEGACY_TOPIC_ALIASES.get(topic, topic)
+        raw_topic, data, t_ns = reader.read_next()
+        topic = LEGACY_TOPIC_ALIASES.get(raw_topic, raw_topic)
         records = streams.setdefault(topic, [])
         if topic in stamps_only:
             records.append((int(t_ns), None))
@@ -172,7 +177,7 @@ def read_bag(bag_dir, *, stamps_only=HEAVY_TOPICS) -> dict:
             records.append((int(t_ns), None))
             continue
         if msg_type is None:
-            type_name = topic_types.get(topic)
+            type_name = topic_types.get(raw_topic)
             if type_name is None:
                 continue
             type_name = LEGACY_TYPE_ALIASES.get(type_name, type_name)

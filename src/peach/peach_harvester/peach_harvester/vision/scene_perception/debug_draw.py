@@ -90,10 +90,9 @@ def orders_for_image(locked, priorities, remembered=None) -> dict:
 
 def stick_labels(current, remembered, orders):
     """
-    当前锁定集里已经标过的顺序留在画面上.
+    抓取顺序附到本帧检测；绝不复用上一帧像素框或二维几何.
 
-    只保留 orders 里的 target_id。本帧又看见就更新框；这一帧没看见就沿用上一帧
-    的像素框。新锁定没再列入的号会拿掉，不再把旧号套到旁边的新检测上。
+    世界身份可以持续存在，像素几何仅属于当前曝光。remembered仅保留签名兼容。
     """
     allowed = {
         str(target_id): int(order)
@@ -101,14 +100,6 @@ def stick_labels(current, remembered, orders):
         if int(order) > 0
     }
     memory = {}
-    for tid, item in (remembered or {}).items():
-        key = str(tid)
-        if key in allowed and item.get('bbox') is not None and item.get('det'):
-            kept = {k: v for k, v in item.items() if k != 'mask'}
-            kept['tid'] = key
-            kept['order'] = allowed[key]
-            memory[key] = kept
-    seen = set()
     drawn = []
     for item in current:
         tid = str(item.get('tid') or '')
@@ -123,11 +114,7 @@ def stick_labels(current, remembered, orders):
         updated['tid'] = tid
         updated['order'] = allowed[tid]
         memory[tid] = {k: v for k, v in updated.items() if k != 'mask'}
-        seen.add(tid)
         drawn.append(updated)
-    for tid, prev in memory.items():
-        if tid not in seen:
-            drawn.append(prev)
     return drawn, memory
 
 

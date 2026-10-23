@@ -1,8 +1,8 @@
 # 5 点力帧格式 v3（32 字节）
 
 2026-10-21 现场实测帧。v3 在 v2（22 字节）基础上，**每通道增加 2 字节原始测量 AD**；
-解析在 [`serial_force/force_protocol.py`](../serial_force/force_protocol.py)，回归在
-[`test/test_force_protocol.py`](../test/test_force_protocol.py)。
+解析在 [`serial_force/force_protocol.py`](../serial_force/force_protocol.py)。
+对不对看节点日志里的克、行程和 AD。
 
 ## 1. 帧布局
 

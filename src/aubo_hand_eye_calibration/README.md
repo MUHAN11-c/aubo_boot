@@ -73,9 +73,9 @@ ros2 action send_goal /hand_eye_calibration_server/run \
 
 ## 测试
 
-纯核单测（零 rclpy）：`test/test_{transforms,stats,solver,detector,storage,intrinsics,viewpoints,joint_calib,web_goal}.py`——合成 AX=XB 位姿恢复与离群剔除、合成棋盘格渲染→检测→PnP 恢复、候选/激活落盘链、内参产物解析校验、FOV 掩码/视点生成/多样性选择、联合内外参求解合成恢复（观测场景由 viewpoints 模块自生成闭环）、Web 档位参数校验与空串回退。
-
 ```bash
 colcon build --packages-select aubo_hand_eye_calibration
 colcon test --packages-select aubo_hand_eye_calibration && colcon test-result --verbose
 ```
+
+`colcon test` 只跑官方 flake8 / pep257。标定是否收敛，看节点日志里的重投影误差和手眼结果。

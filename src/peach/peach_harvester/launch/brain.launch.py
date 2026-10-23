@@ -95,6 +95,9 @@ def launch_setup(context):
     extra = LaunchConfiguration('params_overlay').perform(context).strip()
     if extra:
         parameters.append(ParameterFile(extra, allow_substs=True))
+    task_params = LaunchConfiguration('task_params_file').perform(context).strip()
+    if task_params:
+        parameters.append(ParameterFile(task_params, allow_substs=True))
     brain = Node(
         package='peach_harvester',
         executable='peach_harvester',
@@ -118,6 +121,9 @@ def generate_launch_description():
             'tool_profile', default_value='adaptive_shear_v1',
             choices=['shear_v1', 'bite_shear_v1', 'adaptive_shear_v1'],
             description='末端工具档案（URDF/许可内径/标签统一注入）'),
+        DeclareLaunchArgument(
+            'task_params_file', default_value='',
+            description='两种硬件共用的标准 ROS 作业参数 YAML，按节点名分节'),
         DeclareLaunchArgument(
             'params_overlay', default_value='',
             description='可选额外 ParameterFile（节点名分节）。冻结相机'

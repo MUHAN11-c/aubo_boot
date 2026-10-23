@@ -11,12 +11,25 @@ let stopRounds = false;
 let roundsBusy = false;
 let singleArmed = false;
 let singleKey = '';
+let lastStateAt = 0;
+let pollPending = null;
+let selectionEpoch = null;
+let sessionGeneration = 0;
+let unknownRequest = '';
 const picked = new Set();
 const clickQueue = [];
 
 async function getJSON(path, opts) {
-  const response = await fetch(path, opts);
-  const text = await response.text();
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), opts?.method === 'POST' ? 195000 : 6000);
+  let response;
+  let text;
+  try {
+    response = await fetch(path, {...opts, signal: controller.signal});
+    text = await response.text();
+  } finally {
+    clearTimeout(timer);
+  }
   let data = null;
   try { data = text ? JSON.parse(text) : null; } catch (_) { data = null; }
   if (!response.ok) {
@@ -26,7 +39,37 @@ async function getJSON(path, opts) {
     error.body = data;
     throw error;
   }
+  if (!data || typeof data !== 'object') throw new Error('响应格式无效');
+  if (response.status === 202 || response.status === 207
+      || (opts?.method === 'POST' && data.accepted === false)) {
+    const message = (data.results || []).filter(row => row.accepted !== true)
+      .map(row => `${row.name || ''}: ${row.message || '未写入'}`).join('；');
+    const error = new Error(message || data.result?.message || data.message || '请求未接受');
+    error.status = response.status;
+    error.body = data;
+    throw error;
+  }
   return data;
+}
+
+function requireReady() {
+  if (unknownRequest) throw new Error(`请求 ${unknownRequest} 结果未知；先核对状态并取消在途动作`);
+  if (!lastStateAt || Date.now() - lastStateAt > 5000) throw new Error('状态已陈旧，请等待连接恢复');
+  if (state.debug?.enabled !== true) throw new Error('调试入口未开启');
+  if (state.task_executor?.state?.recovery_required === true) throw new Error('等待人工恢复确认');
+}
+
+function requireContext(epoch, ids = []) {
+  requireReady();
+  const targets = state.perception?.targets;
+  if (!Number.isInteger(epoch) || epoch <= 0 || targets?.scene_epoch !== epoch
+      || targets.target_set_locked !== true) throw new Error('场景已变化或未锁定，请重新选择');
+  const current = new Set(observations().map(item => item.target_id));
+  if (ids.some(id => !current.has(id))) throw new Error('目标已不属于当前场景，请重新选择');
+}
+
+function requireSession(generation) {
+  if (generation !== sessionGeneration || stopRounds) throw new Error('本次会话已停止');
 }
 
 function findParam(node, name) {
@@ -86,26 +129,9 @@ async function applyRound() {
   if (!window.confirm(summary)) return;
   $('round-note').textContent = '写入中…';
   try {
-    const params = await getJSON('/api/params', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({changes: [
-        {node: 'peach_observability', name: 'debug.motion_enabled', value: motion},
-        {node: 'peach_supervisor', name: 'execute_pregrasp_only', value: !full},
-      ]}),
-    });
-    const rejected = (params.results || []).filter((row) => !row.accepted);
-    const enables = await getJSON('/api/debug/set_enables_service', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({
-        execution, grasp, tool, reason: '单步调试本轮设置',
-      }),
-    });
-    const enableOk = enables.accepted === true && enables.result?.accepted !== false;
-    $('round-note').textContent = rejected.length
-      ? `参数有 ${rejected.length} 项未写入`
-      : (enableOk ? '本轮设置已写入' : (enables.message || '使能未接受'));
+    if (roundsBusy || singleArmed) throw new Error('先停止当前单轮或多轮会话再改参数');
+    await pushSettings();
+    $('round-note').textContent = '本轮设置已写入并读回核对';
     await loadParams();
   } catch (error) {
     $('round-note').textContent = `写入失败：${error.message}`;
@@ -172,11 +198,8 @@ async function applyParams() {
   }
   $('params-note').textContent = '写入中…';
   try {
-    const data = await getJSON('/api/params', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({changes}),
-    });
+    if (roundsBusy || singleArmed) throw new Error('先停止当前会话再改参数');
+    const data = await writeParams(changes);
     const results = data.results || [];
     const rejected = results.filter((row) => !row.accepted);
     $('params-note').textContent = rejected.length
@@ -200,6 +223,13 @@ function byPriority(list) {
 
 let targetKey = '';
 function renderTargets() {
+  const epoch = state.perception?.targets?.scene_epoch ?? null;
+  if (selectionEpoch !== epoch) {
+    picked.clear();
+    clickQueue.length = 0;
+    targetKey = '';
+    selectionEpoch = epoch;
+  }
   const items = byPriority(observations());
   const key = items.map((item) => `${item.target_id}:${item.priority}`).join('|');
   if (key === targetKey && $('target-picks').querySelector('button')) return;
@@ -234,14 +264,49 @@ function logRound(text) {
 }
 
 async function postDebug(action, payload) {
-  return getJSON(`/api/debug/${encodeURIComponent(action)}`, {
+  let body;
+  try {
+    body = await getJSON(`/api/debug/${encodeURIComponent(action)}`, {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
     body: JSON.stringify(payload || {}),
+    });
+  } catch (error) {
+    if (action === 'run_harvest_action' && (!error.status || error.status === 202 || error.status >= 500)) {
+      unknownRequest = payload?.request_id || '在途批次';
+    }
+    throw error;
+  }
+  if (body.accepted !== true || body.result?.accepted === false || body.result?.success === false) {
+    throw new Error(body.result?.message || body.result?.reason || body.message || '操作失败');
+  }
+  if (['set_enables_service', 'control_service', 'begin_scene_service'].includes(action)
+      && body.result?.accepted !== true) throw new Error('服务未确认接受本次请求');
+  if (action.endsWith('_action') && Number(body.result?.action_status) !== 4) throw new Error('动作未成功结束');
+  return body;
+}
+
+async function writeParams(changes) {
+  const result = await getJSON('/api/params', {
+    method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({changes}),
   });
+  if (result.accepted !== true || result.results?.length !== changes.length
+      || result.results.some(row => row.accepted !== true)) throw new Error('参数未全部写入');
+  paramData = await getJSON('/api/params');
+  for (const change of changes) {
+    const actual = findParam(change.node, change.name);
+    if (!actual?.present || actual.value !== change.value) throw new Error(`参数读回不一致：${change.name}`);
+  }
+  return result;
 }
 
 async function pushSettings() {
+  requireReady();
+  if (state.task_executor?.state?.action_active === true || state.manipulation?.status?.running === true) {
+    throw new Error('批次或臂周期正在运行，不能改本轮设置');
+  }
+  const generation = sessionGeneration;
+  const enables = {execution: $('ex').checked, grasp: $('gr').checked, tool: $('tl').checked};
   const changes = [
     {node: 'peach_observability', name: 'debug.motion_enabled', value: $('motion').checked},
     {node: 'peach_supervisor', name: 'execute_pregrasp_only', value: !$('full').checked},
@@ -249,17 +314,22 @@ async function pushSettings() {
     {node: 'peach_target_reconstruction_node', name: 'capture.auto_mode', value: !$('skip').checked},
     {node: 'peach_arm', name: 'quality.allow_unrefined_geometry', value: $('skip').checked},
   ];
-  await getJSON('/api/params', {
-    method: 'POST',
-    headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({changes}),
-  });
+  await writeParams(changes);
+  if (generation !== sessionGeneration) throw new Error('设置会话已停止，未应用使能');
+  await poll();
+  requireReady();
   await postDebug('set_enables_service', {
-    execution: $('ex').checked,
-    grasp: $('gr').checked,
-    tool: $('tl').checked,
+    ...enables,
     reason: '单步调试',
   });
+  const deadline = Date.now() + 5000;
+  while (Date.now() < deadline) {
+    await poll();
+    const task = state.task_executor?.state || {};
+    if (Object.entries(enables).every(([name, value]) => task[`${name}_enabled`] === value)) return;
+    await new Promise(resolve => setTimeout(resolve, 150));
+  }
+  throw new Error('使能读回未确认，请核对当前状态');
 }
 
 function freshRequest() {
@@ -271,17 +341,9 @@ function freshRequest() {
   return `grasp_${stamp}`;
 }
 
-async function ackIfNeeded(request) {
+function requireNoRecovery() {
   const task = (state.task_executor && state.task_executor.state) || {};
-  // 只在批次已停在恢复等待时确认。接触过程中反馈也会带 recovery_required，
-  // 那时确认会打断本颗，不能提前清。
-  if (task.recovery_required !== true || Number(task.batch_state) !== 7) return;
-  await postDebug('control_service', {
-    command: 'ACKNOWLEDGE_RECOVERY',
-    expected_state_seq: 0,
-    request_id: request,
-    reason: '下一轮前确认恢复',
-  });
+  if (task.recovery_required === true) throw new Error('等待人工恢复确认，后续目标已停止');
 }
 
 async function finishHarvest(pending, request) {
@@ -292,7 +354,7 @@ async function finishHarvest(pending, request) {
   );
   while (settled == null) {
     await poll();
-    await ackIfNeeded(request);
+    try { requireNoRecovery(); } catch (error) { unknownRequest = request; throw error; }
     await new Promise((resolve) => setTimeout(resolve, 400));
   }
   if (!settled.ok) throw settled.error;
@@ -307,100 +369,64 @@ async function refreshScene(request, wanted) {
     throw new Error(opened.result.message || '开场景被拒绝');
   }
   const epoch = opened.result && opened.result.scene_epoch;
+  if (!Number.isInteger(epoch) || epoch <= 0) throw new Error('开场景响应缺少有效 epoch');
   const deadline = Date.now() + 45000;
   while (Date.now() < deadline) {
     await poll();
     const targets = state.perception && state.perception.targets;
-    const sameEpoch = epoch == null || !targets || targets.scene_epoch === epoch;
+    const sameEpoch = targets?.scene_epoch === epoch;
     const ids = new Set(observations().map((item) => item.target_id));
     const ready = !wanted || wanted.every((id) => ids.has(id));
-    if (sameEpoch && targets && targets.target_set_locked === true && ready) return;
+    if (sameEpoch && targets.target_set_locked === true && ready && lastStateAt) return epoch;
     await new Promise((resolve) => setTimeout(resolve, 500));
   }
-  if (!observations().length) throw new Error('开场景后没有目标');
-}
-
-function idsForRound(index) {
-  const mode = $('round-mode').value;
-  const items = byPriority(observations());
-  if (mode === 'all') return null;
-  if (mode === 'first') {
-    const first = items.find((item) => Number(item.priority) === 1) || items[0];
-    return first ? [first.target_id] : [];
-  }
-  if (mode === 'rotate') {
-    const wanted = (index % Math.max(items.length, 1)) + 1;
-    const match = items.find((item) => Number(item.priority) === wanted) || items[index % items.length];
-    return match ? [match.target_id] : [];
-  }
-  return items.filter((item) => picked.has(item.target_id)).map((item) => item.target_id);
+  throw new Error('场景锁定超时；请重新核对当前场景');
 }
 
 async function setPriority(ordinal) {
-  const params = await getJSON('/api/params', {
-    method: 'POST',
-    headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({changes: [
+  await writeParams([
       {node: 'peach_supervisor', name: 'selection_priority', value: ordinal},
-    ]}),
-  });
-  const rejected = (params.results || []).filter((row) => !row.accepted);
-  if (rejected.length) throw new Error(rejected.map((row) => row.message).join('；') || '顺序号未写入');
+  ]);
 }
 
-async function harvestRound(index, presetIds) {
+function requireHarvestSuccess(result) {
+  const summary = result?.result;
+  if (summary?.success !== true || Number(summary.action_status) !== 4
+      || Number(summary.summary_attempted) < 1
+      || Number(summary.summary_succeeded) !== Number(summary.summary_attempted)
+      || Number(summary.summary_failed) > 0) throw new Error(summary?.message || '批次未全部成功，后续已停止');
+}
+
+async function harvestRound(index, mode) {
   const request = freshRequest();
-  await ackIfNeeded(request);
-  const mode = $('round-mode').value;
-  // 按顺序 / 每轮第一颗：顺序号交给本批自己的拍照锁定，不提前点一个会换代的 ID。
-  if (presetIds == null && (mode === 'rotate' || mode === 'first')) {
-    const ordinal = mode === 'first' ? 1 : index + 1;
-    await setPriority(ordinal);
-    logRound(`第 ${index + 1} 轮 · 顺序 ${ordinal}`);
-    const result = await finishHarvest(postDebug('run_harvest_action', {
-      request_id: request, scene_key: request,
-      intent: 'PICK_SELECTED', selection_mode: 'AUTO', target_ids: [],
-    }), request);
-    const ok = result.result && result.result.success === true
-      && Number(result.result.summary_succeeded) === 1
-      && Number(result.result.summary_attempted) === 1;
-    logRound(`第 ${index + 1} 轮结束 · ${ok ? '成功' : '见监控页'}`);
-    return;
-  }
-  await setPriority(0);
-  let ids = presetIds;
-  if (ids == null && mode === 'all') {
-    ids = null;
-  } else if (ids == null) {
+  const generation = sessionGeneration;
+  requireReady();
+  let ordinal = 0;
+  if (mode === 'rotate' || mode === 'first') {
     await refreshScene(request);
-    ids = idsForRound(index);
-  } else {
-    await refreshScene(request, ids);
-    const have = new Set(observations().map((item) => item.target_id));
-    ids = (ids || []).filter((id) => have.has(id));
+    const count = observations().length;
+    if (!count) throw new Error('本场没有锁定目标');
+    ordinal = mode === 'first' ? 1 : (index % count) + 1;
+  } else if (mode !== 'all') {
+    throw new Error('目标选择模式无效');
   }
-  if (ids === null) {
-    logRound(`第 ${index + 1} 轮 · 全部`);
-    const result = await finishHarvest(postDebug('run_harvest_action', {
-      request_id: request, scene_key: request,
-      intent: 'PICK_ALL', selection_mode: 'AUTO', target_ids: [],
-    }), request);
-    logRound(`第 ${index + 1} 轮结束 · ${result.result && result.result.success ? '成功' : '见监控页'}`);
-    return;
-  }
-  if (!ids.length) throw new Error('没有可抓的 ID');
-  logRound(`第 ${index + 1} 轮 · ${ids.join(', ')}`);
+  await setPriority(ordinal);
+  requireSession(generation);
+  requireReady();
+  logRound(`第 ${index + 1} 轮 · ${ordinal ? `顺序 ${ordinal}` : '全部'}`);
   const result = await finishHarvest(postDebug('run_harvest_action', {
     request_id: request, scene_key: request,
-    intent: 'PICK_SELECTED', selection_mode: 'MANUAL', target_ids: ids,
+    intent: mode === 'all' ? 'PICK_ALL' : 'PICK_SELECTED',
+    selection_mode: 'AUTO', target_ids: [],
   }), request);
-  logRound(`第 ${index + 1} 轮结束 · ${result.result && result.result.success ? '成功' : '见监控页'}`);
+  requireHarvestSuccess(result);
+  logRound(`第 ${index + 1} 轮结束 · 全部成功`);
 }
 
 function paintSingle() {
   $('single-panel').classList.toggle('live', singleArmed);
   if (!singleArmed) return;
-  const waiting = clickQueue.map((ids) => ids.join('+'));
+  const waiting = clickQueue.map((item) => item.ids.join('+'));
   $('single-note').textContent = roundsBusy
     ? `正在抓。${waiting.length ? `接下来 ${waiting.join('，')}` : '抓完继续等下一次点选。'}`
     : (waiting.length ? `接下来 ${waiting.join('，')}` : '单轮保持。点顺序号，或勾选后抓已勾选。');
@@ -419,15 +445,21 @@ function enqueueGrasp(ids) {
     $('single-note').textContent = '先勾选要抓的顺序';
     return;
   }
-  clickQueue.push(ids);
+  try { requireReady(); } catch (error) { $('single-note').textContent = error.message; return; }
+  clickQueue.push({ids: [...ids], epoch: selectionEpoch});
   paintSingle();
   if (!roundsBusy) drainSingle();
 }
 
 async function harvestNamed(ids) {
   const request = freshRequest();
-  await ackIfNeeded(request);
+  const epoch = selectionEpoch;
+  const generation = sessionGeneration;
+  requireReady();
+  requireContext(epoch, ids);
   await setPriority(0);
+  requireContext(epoch, ids);
+  requireSession(generation);
   logRound(`单轮 · ${ids.join(', ')}`);
   const result = await finishHarvest(postDebug('run_harvest_action', {
     request_id: request,
@@ -436,18 +468,22 @@ async function harvestNamed(ids) {
     selection_mode: 'MANUAL',
     target_ids: ids,
   }), request);
+  requireHarvestSuccess(result);
   const ok = result.result && result.result.success === true;
   logRound(`单轮结束 · ${ids.join(', ')} · ${ok ? '成功' : '见监控页'}`);
 }
 
 async function drainSingle() {
   if (roundsBusy || !singleArmed || !clickQueue.length) return;
-  const ids = clickQueue.shift();
+  const queued = clickQueue.shift();
   roundsBusy = true;
   paintSingle();
   try {
-    await harvestNamed(ids);
+    if (queued.epoch !== selectionEpoch) throw new Error('场景已变化，请重新点选');
+    await harvestNamed(queued.ids);
   } catch (error) {
+    singleArmed = false;
+    clickQueue.length = 0;
     logRound(`单轮未完成：${error.message}`);
     $('single-note').textContent = `未完成：${error.message}`;
   } finally {
@@ -469,25 +505,33 @@ async function startSingle() {
     return;
   }
   if (!window.confirm('启动单轮点选。\n只确认这一次。之后点顺序号就抓那一颗，抓完继续等，直到停止单轮。')) return;
+  const generation = ++sessionGeneration;
+  stopRounds = false;
+  roundsBusy = true;
   try {
     await pushSettings();
     await setPriority(0);
     singleKey = `single_${Date.now().toString(36)}`;
+    await refreshScene(singleKey);
+    if (generation !== sessionGeneration) return;
     singleArmed = true;
     clickQueue.length = 0;
     paintSingle();
   } catch (error) {
     singleArmed = false;
     $('single-note').textContent = `未启动：${error.message}`;
+  } finally {
+    roundsBusy = false;
   }
 }
 
 async function stopSingle() {
+  sessionGeneration += 1;
   singleArmed = false;
   clickQueue.length = 0;
   $('single-panel').classList.remove('live');
   $('single-note').textContent = '单轮已停止';
-  if (!roundsBusy) return;
+  if (!roundsBusy && !unknownRequest) return;
   try {
     await postDebug('control_service', {
       command: 'CANCEL_NOW', expected_state_seq: 0, reason: '停止单轮',
@@ -505,24 +549,24 @@ async function startRounds() {
   if (roundsBusy) return;
   const count = Math.max(1, Math.min(30, parseInt($('rounds').value || '1', 10)));
   const mode = $('round-mode').value;
-  if (mode === 'selected' && !picked.size) {
-    $('run-note').textContent = '先点选 ID，或改成每轮第一颗 / 按顺序 / 全部';
+  if (mode === 'selected') {
+    $('run-note').textContent = '已勾选目标只属于当前场景；请用单轮点选，换场后重新选择。';
     return;
   }
   const summary = `启动 ${count} 轮（${$('round-mode').selectedOptions[0].textContent}）。\n每轮重新开场景。真机与仿真用当前这些开关。`;
   if (!window.confirm(summary)) return;
+  const generation = ++sessionGeneration;
   roundsBusy = true;
   stopRounds = false;
   try {
     await pushSettings();
     for (let index = 0; index < count; index += 1) {
-      if (stopRounds) {
+      if (stopRounds || generation !== sessionGeneration) {
         logRound('后续轮已停止');
         break;
       }
       $('run-note').textContent = `第 ${index + 1} / ${count} 轮`;
-      const preset = mode === 'selected' ? [...picked] : null;
-      await harvestRound(index, preset);
+      await harvestRound(index, mode);
     }
     $('run-note').textContent = stopRounds ? '已停止' : `${count} 轮已跑完`;
   } catch (error) {
@@ -537,11 +581,7 @@ async function startRounds() {
 async function submitDebug(action, payload, confirmText) {
   if (confirmText && !window.confirm(confirmText)) return null;
   try {
-    const body = await getJSON(`/api/debug/${encodeURIComponent(action)}`, {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify(payload || {}),
-    });
+    const body = await postDebug(action, payload);
     return {ok: body.accepted === true, status: 200, body};
   } catch (error) {
     return {ok: false, status: error.status || null, body: error.body || {message: error.message}};
@@ -550,51 +590,6 @@ async function submitDebug(action, payload, confirmText) {
 
 ['motion', 'full', 'ex', 'gr', 'tl'].forEach((id) => {
   $(id).addEventListener('change', () => tieEnables(id));
-});
-async function fillSuccess() {
-  $('motion').checked = true;
-  $('full').checked = true;
-  $('ex').checked = true;
-  $('gr').checked = true;
-  $('tl').checked = false;
-  $('skip').checked = true;
-  $('rounds').value = '4';
-  $('round-mode').value = 'rotate';
-  $('round-note').textContent = '已填入成功测试，正在写入…';
-  const changes = [
-    {node: 'peach_observability', name: 'debug.motion_enabled', value: true},
-    {node: 'peach_supervisor', name: 'execute_pregrasp_only', value: false},
-    {node: 'peach_supervisor', name: 'skip_reconstruction', value: true},
-    {node: 'peach_target_reconstruction_node', name: 'capture.auto_mode', value: false},
-    {node: 'peach_supervisor', name: 'selection_priority', value: 0},
-    {node: 'peach_arm', name: 'quality.allow_unrefined_geometry', value: true},
-    {node: 'peach_arm', name: 'timeouts.refined_s', value: 30},
-    {node: 'peach_arm', name: 'moveit.velocity_scaling', value: 0.4},
-    {node: 'peach_arm', name: 'moveit.acceleration_scaling', value: 0.8},
-    {node: 'peach_arm', name: 'moveit.transit_velocity_scaling', value: 0.8},
-    {node: 'peach_arm', name: 'moveit.transit_acceleration_scaling', value: 0.8},
-    {node: 'peach_arm', name: 'moveit.execute_timeout_s', value: 30},
-  ];
-  const params = await getJSON('/api/params', {
-    method: 'POST',
-    headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({changes}),
-  });
-  await postDebug('set_enables_service', {
-    execution: true, grasp: true, tool: false, reason: '实验室成功测试',
-  });
-  const rejected = (params.results || []).filter((row) => !row.accepted);
-  $('round-note').textContent = rejected.length
-    ? `有 ${rejected.length} 项未写入：${rejected.map((row) => row.name).join(', ')}`
-    : '成功测试已写入：4 轮、按顺序、跳过重建、不切刀';
-  await loadParams();
-}
-
-$('fill-success').addEventListener('click', () => {
-  if (!window.confirm('写入实验室成功测试：接触速度 0.4、执行时限 30 秒、跳过重建、套入不切刀、4 轮按顺序。真机接触速度不要用 0.4。')) return;
-  fillSuccess().catch((error) => {
-    $('round-note').textContent = `写入失败：${error.message}`;
-  });
 });
 $('ack-recovery').addEventListener('click', async () => {
   const task = (state.task_executor && state.task_executor.state) || {};
@@ -632,6 +627,7 @@ $('grasp-selected').addEventListener('click', () => {
 $('start-rounds').addEventListener('click', startRounds);
 $('stop-rounds').addEventListener('click', async () => {
   stopRounds = true;
+  sessionGeneration += 1;
   $('run-note').textContent = '正在停止后续轮';
   try {
     await postDebug('control_service', {
@@ -643,12 +639,21 @@ $('stop-rounds').addEventListener('click', async () => {
 });
 
 async function poll() {
-  try {
-    state = await getJSON('/api/state') || {};
-    renderTargets();
-  } catch (_) {
-    state = state || {};
-  }
+  if (pollPending) return pollPending;
+  pollPending = (async () => {
+    try {
+      const next = await getJSON('/api/state');
+      state = next;
+      lastStateAt = Date.now();
+      renderTargets();
+      const task = state.task_executor?.state || {};
+      if (unknownRequest && task.run_id === unknownRequest && task.action_active === false
+          && !task.recovery_required) unknownRequest = '';
+    } catch (_) {
+      lastStateAt = 0;
+    }
+  })();
+  try { await pollPending; } finally { pollPending = null; }
 }
 poll().then(loadRound).catch((error) => {
   $('round-note').textContent = `读取失败：${error.message}`;

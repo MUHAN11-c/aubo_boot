@@ -54,3 +54,7 @@ CheckReachability 与接近共用刀口滚转梯子 {0,±15°,±30°,±45°}：�
 `grasp_task.cpp::makeTaskShell`直接以`Task(task_name, false)`构造，从创建时关闭introspection。不能先默认构造再`enableIntrospection(false)`：MTC IntrospectionExecutor线程可能尚未spin便被cancel并join，而Jazzy executor启动spin会重新置运行标志，导致销毁等待拖至ROS shutdown。该修正针对任务生命周期，不改变规划、安全门或轨迹形状；候选可视化使用实际TCP/RobotState，不把遭拒的候选发布成执行轨迹。
 
 候选日志分别记录任务建立、plan及reset耗时；每次滚转迭代检查cancel_generation，取消后不继续搜索更大滚转。独立重复创建/销毁探针验证了构造方式差异，证据解释与联合测试边界见测试指导；它不能替代真实相机抓取成功或全路径线程安全验收。
+
+## Survey观测新鲜度（2026-10-23）
+
+`SurveyScene` 到位后等待图像曝光stamp严格晚于到位ROS时刻、且scene_epoch保持一致的观测；`snapshot_id`仅表示锁定集世代，不作为帧计数。截止使用steady clock与公共frame_wait_s预算，超时abort并置degraded，不再成功返回旧帧。首巡未Begin/未锁定可在收到新曝光后success+degraded，随后由调度Begin/WAIT_LOCK完成锁定。

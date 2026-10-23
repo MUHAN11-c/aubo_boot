@@ -81,6 +81,10 @@ void ManipulationSkillsNode::onTargets(
     message->target_set_locked, message->harvest_run_id, locked_updates);
   {
     std::lock_guard<std::mutex> lock(snapshot_mutex_);
+    last_observation_stamp_ns_ =
+      static_cast<int64_t>(message->header.stamp.sec) * 1000000000LL +
+      message->header.stamp.nanosec;
+    last_observation_epoch_ = message->scene_epoch;
     last_snapshot_id_ = std::to_string(message->snapshot_id);
     last_observation_count_ = static_cast<uint32_t>(message->observations.size());
     last_target_set_locked_ = message->target_set_locked;

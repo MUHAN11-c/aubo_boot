@@ -31,6 +31,7 @@ from peach_interfaces.msg import (
     BagFittingArray,
     BagGraspCandidateArray,
     CanonicalEvent,
+    ForceSample,
     GraspDecision,
     GraspHypothesis,
     HarvestState,
@@ -349,8 +350,7 @@ class ObservabilityNode(LifecycleNode):
                 and self._params.record_level in ('all', 'std')):
             self._catch_all = CatchAllRecorder(
                 self, self._recorder, level=self._params.record_level,
-                excluded_topics={self._topic('debug_image_topic'),
-                                 self._topic('debug_image_raw_topic')})
+                excluded_topics=self._owned_recording_topics())
             self._catch_all.start()
         return result
 
@@ -457,6 +457,17 @@ class ObservabilityNode(LifecycleNode):
         self._subs.append(sub)
         return sub
 
+    def _owned_recording_topics(self) -> set[str]:
+        """固定回调拥有唯一写袋权；通配仅补充其余话题，避免事件双写."""
+        topics = {self._topic(row[1]) for row in _CORE_SUBSCRIPTIONS}
+        topics.update(self._topic(param)
+                      for _, param, _, gate in _RAW_SUBSCRIPTIONS
+                      if gate is None or getattr(self._params, gate))
+        topics.update(self._topic(name) for name in (
+            'debug_image_topic', 'debug_image_raw_topic', 'job_topic', 'metrics_topic'))
+        topics.add(self.resolve_topic_name('force/sample'))
+        return topics
+
     def _create_subscriptions(self) -> None:
         """按订阅表建立全部只读订阅（核心镜像表 + bag raw 表）."""
         profiles = {
@@ -501,6 +512,14 @@ class ObservabilityNode(LifecycleNode):
         # 其余 raw 订阅仍仅在对应记录开关开启时建立.
         if not self._params.record_enabled:
             return
+        # Atomic force frames are evidence, including in core mode. They never
+        # pass the perception media window or a four-topic reconstruction cache.
+        self._subscribe(
+            ForceSample, 'force/sample',
+            lambda message: self._recorder.handle_raw(
+                self.resolve_topic_name('force/sample'), message)
+            if self._recorder is not None else None,
+            QoSProfile(depth=100, reliability=ReliabilityPolicy.RELIABLE))
         for msg_type, param, profile, gate in _RAW_SUBSCRIPTIONS:
             if gate is not None and not getattr(self._params, gate):
                 continue
@@ -1229,7 +1248,8 @@ class ObservabilityNode(LifecycleNode):
             return 200, {'accepted': True, 'message': report.get('summary', ''),
                          'result': report}
 
-        if self._debug_bridge is None or self._params is None:
+        if (self._debug_bridge is None or self._params is None
+                or not self._params.debug_enabled):
             return audit(False, 503, '调试操作面未启用（debug.enabled=false）')
         if is_motion(action, payload) and not self._params.debug_motion_enabled:
             return audit(

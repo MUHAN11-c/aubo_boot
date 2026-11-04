@@ -24,7 +24,7 @@ void ManipulationSkillsNode::setState(
     state_json_ = {
       {"state", toString(state)},
       {"message", message},
-      {"running", running_.load()},
+      {"running", motion_admission_.busy()},
       {"execution_enabled", execution_enabled_.load()},
       {"execution_armed", execution_armed_.load()},
       {"grasp_enabled", grasp_enabled_.load()},
@@ -75,7 +75,10 @@ void ManipulationSkillsNode::publishState()
     return;
   }
   std::lock_guard<std::mutex> lock(state_mutex_);
-  state_json_["running"] = running_.load();
+  state_json_["running"] = motion_admission_.busy();
+  state_json_["execution_enabled"] = execution_enabled_.load();
+  state_json_["grasp_enabled"] = grasp_enabled_.load();
+  state_json_["tool_enabled"] = tool_enabled_.load();
   state_json_["execution_armed"] = execution_armed_.load();
   state_json_["contact_recovery_required"] = contact_recovery_required_.load();
   // 回调耗时诊断投影（2.16-5）：复用 ~/status 既有通道，不新增话题。
@@ -275,8 +278,8 @@ void ManipulationSkillsNode::reportToolChainDiagnostics(
   diagnostic_updater::DiagnosticStatusWrapper & status)
 {
   using Status = diagnostic_msgs::msg::DiagnosticStatus;
-  const ToolAxes axes = tool_actuator_.axes();
-  const auto state = tool_actuator_.state();
+  ToolActuatorState state;
+  const ToolAxes axes = tool_actuator_.axes(&state);
   status.add("state", static_cast<int>(state));
   status.add("blade", static_cast<int>(axes.blade));
   status.add("retention", static_cast<int>(axes.retention));

@@ -11,7 +11,8 @@ setup(
     data_files=[
         ('share/ament_index/resource_index/packages',
          ['resource/' + package_name]),
-        (os.path.join('share', package_name), ['package.xml']),
+        (os.path.join('share', package_name), ['package.xml', 'README.md']),
+        (os.path.join('share', package_name, 'config'), ['config/grasp_standoffs.yaml']),
     ],
     install_requires=['setuptools'],
     extras_require={'test': ['pytest']},

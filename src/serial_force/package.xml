@@ -5,14 +5,15 @@
   <name>serial_force</name>
   <version>0.1.0</version>
   <description>
-    USB 串口咬合末端 5 点力传感器驱动（0xA5 帧，100Hz 打印 + 牛顿话题）。
-    不是采摘五包。
+    USB 串口 5 点力传感器驱动：0xA5 32 字节帧，100 Hz，
+    发布 /force/*，并提供本机调试页。
   </description>
   <maintainer email="2155413529@qq.com">wjz</maintainer>
   <license>BSD-3-Clause</license>
 
   <buildtool_depend>ament_python</buildtool_depend>
 
+  <exec_depend>ament_index_python</exec_depend>
   <exec_depend>diagnostic_msgs</exec_depend>
   <exec_depend>diagnostic_updater</exec_depend>
   <exec_depend>launch</exec_depend>
@@ -21,6 +22,15 @@
   <exec_depend>peach_interfaces</exec_depend>
   <exec_depend>python3-serial</exec_depend>
   <exec_depend>rcl_interfaces</exec_depend>
+  <exec_depend>geometry_msgs</exec_depend>
+  <exec_depend>tf2_ros</exec_depend>
+  <exec_depend>moveit_msgs</exec_depend>
+  <exec_depend>control_msgs</exec_depend>
+  <exec_depend>trajectory_msgs</exec_depend>
+  <exec_depend>python3-numpy</exec_depend>
+  <exec_depend>python3-matplotlib</exec_depend>
+  <exec_depend>builtin_interfaces</exec_depend>
+  <exec_depend>sensor_msgs</exec_depend>
   <exec_depend>rclpy</exec_depend>
   <exec_depend>std_msgs</exec_depend>
 

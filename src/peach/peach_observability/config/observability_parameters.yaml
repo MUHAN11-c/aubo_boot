@@ -1,0 +1,405 @@
+peach_observability:
+  host:
+    type: string
+    default_value: 127.0.0.1
+    description: host
+  port:
+    type: int
+    default_value: 8090
+    description: port
+  startup_facts:
+    type: string
+    default_value: ''
+    description: startup_facts
+  robot_status_probe_enabled:
+    type: bool
+    default_value: false
+    description: robot_status_probe_enabled
+  selfcheck:
+    enabled:
+      type: bool
+      default_value: true
+      description: selfcheck.enabled
+    period_s:
+      type: double
+      default_value: 30.0
+      description: selfcheck.period_s
+      validation:
+        gt_eq<>:
+        - 0.0
+    initial_settle_s:
+      type: double
+      default_value: 10.0
+      description: selfcheck.initial_settle_s
+      validation:
+        gt_eq<>:
+        - 0.0
+    initial_timeout_s:
+      type: double
+      default_value: 90.0
+      description: selfcheck.initial_timeout_s
+      validation:
+        gt<>:
+        - 0.0
+    rate_window_s:
+      type: double
+      default_value: 5.0
+      description: selfcheck.rate_window_s
+      validation:
+        gt<>:
+        - 0.0
+    camera_probe_enabled:
+      type: bool
+      default_value: false
+      description: selfcheck.camera_probe_enabled
+    camera_min_hz:
+      type: double
+      default_value: 2.0
+      description: selfcheck.camera_min_hz
+      validation:
+        gt<>:
+        - 0.0
+    disk_min_gb:
+      type: double
+      default_value: 10.0
+      description: selfcheck.disk_min_gb
+      validation:
+        gt<>:
+        - 0.0
+    expected_joints:
+      type: string_array
+      default_value:
+      - shoulder_joint
+      - upperArm_joint
+      - foreArm_joint
+      - wrist1_joint
+      - wrist2_joint
+      - wrist3_joint
+      description: selfcheck.expected_joints
+    expected_tcp_norm_m:
+      type: double
+      default_value: -1.0
+      description: selfcheck.expected_tcp_norm_m
+      validation:
+        gt_eq<>:
+        - -1.0
+    moveit_expected:
+      type: bool
+      default_value: true
+      description: selfcheck.moveit_expected
+    force_expected:
+      type: bool
+      default_value: true
+      description: selfcheck.force_expected
+    model_paths:
+      type: string
+      default_value: ''
+      description: selfcheck.model_paths
+    color_image_topic:
+      type: string
+      default_value: /camera/color/image_raw
+      description: selfcheck.color_image_topic
+    depth_image_topic:
+      type: string
+      default_value: /camera/depth/image_raw
+      description: selfcheck.depth_image_topic
+  param_poll_period_s:
+    type: double
+    default_value: 3.0
+    description: param_poll_period_s
+    validation:
+      gt<>:
+      - 0.0
+  target_observations_topic:
+    type: string
+    default_value: /peach/perception/target_observations
+    description: target_observations_topic
+  harvest_state_topic:
+    type: string
+    default_value: /peach/perception/harvest_state
+    description: harvest_state_topic
+  reconstruction_status_topic:
+    type: string
+    default_value: /peach/reconstruction/status
+    description: reconstruction_status_topic
+  reconstruction_diagnostics_topic:
+    type: string
+    default_value: /peach/reconstruction/diagnostics
+    description: reconstruction_diagnostics_topic
+  reconstruction_diagnostics_debug_topic:
+    type: string
+    default_value: /peach/reconstruction/diagnostics_debug
+    description: reconstruction_diagnostics_debug_topic
+  grasp_decision_topic:
+    type: string
+    default_value: /peach/reconstruction/grasp_decision
+    description: grasp_decision_topic
+  refined_pose_topic:
+    type: string
+    default_value: /peach/reconstruction/refined_pose
+    description: refined_pose_topic
+  refined_axis_topic:
+    type: string
+    default_value: /peach/reconstruction/refined_axis
+    description: refined_axis_topic
+  refined_diagnostics_topic:
+    type: string
+    default_value: /peach/reconstruction/refined_diagnostics
+    description: refined_diagnostics_topic
+  manipulation_status_topic:
+    type: string
+    default_value: /peach_arm/status
+    description: manipulation_status_topic
+  grasp_hypothesis_topic:
+    type: string
+    default_value: /peach/manipulation/grasp_hypothesis
+    description: grasp_hypothesis_topic
+  task_executor_state_topic:
+    type: string
+    default_value: /peach_supervisor/state
+    description: task_executor_state_topic
+  task_executor_events_topic:
+    type: string
+    default_value: /peach_supervisor/events
+    description: task_executor_events_topic
+  robot_status_topic:
+    type: string
+    default_value: /aubo_io_controller/robot_status
+    description: robot_status_topic
+  joint_states_topic:
+    type: string
+    default_value: /joint_states
+    description: joint_states_topic
+  joint_status_topic:
+    type: string
+    default_value: /aubo_io_controller/joint_status
+    description: joint_status_topic
+  tf_topic:
+    type: string
+    default_value: /tf
+    description: tf_topic
+  tf_static_topic:
+    type: string
+    default_value: /tf_static
+    description: tf_static_topic
+  scene_snapshot_topic:
+    type: string
+    default_value: /peach_supervisor/scene_snapshot
+    description: scene_snapshot_topic
+  job_topic:
+    type: string
+    default_value: /peach/observability/job
+    description: job_topic
+  metrics_topic:
+    type: string
+    default_value: /peach/observability/metrics
+    description: metrics_topic
+  event_buffer_size:
+    type: int
+    default_value: 100
+    description: event_buffer_size
+  log_buffer_size:
+    type: int
+    default_value: 200
+    description: log_buffer_size
+  metrics_period_s:
+    type: double
+    default_value: 1.0
+    description: metrics_period_s
+    validation:
+      gt<>:
+      - 0.0
+  metrics_process_patterns:
+    type: string_array
+    default_value:
+    - peach_scene_perception_node
+    - peach_target_reconstruction_node
+    - peach_arm
+    - peach_supervisor
+    - ros2_control_node
+    - percipio
+    description: metrics_process_patterns
+  record:
+    enabled:
+      type: bool
+      default_value: true
+      description: record.enabled
+    root_dir:
+      type: string
+      default_value: ''
+      description: record.root_dir
+    save_images:
+      type: bool
+      default_value: true
+      description: record.save_images
+    save_clouds:
+      type: bool
+      default_value: true
+      description: record.save_clouds
+    rosout:
+      type: bool
+      default_value: true
+      description: record.rosout
+    level:
+      type: string
+      default_value: std
+      description: record.level
+    max_total_bag_gb:
+      type: double
+      default_value: 100.0
+      description: record.max_total_bag_gb
+      validation:
+        gt_eq<>:
+        - 0.0
+    queue_depth:
+      type: int
+      default_value: 512
+      description: record.queue_depth
+  trajectory:
+    enabled:
+      type: bool
+      default_value: true
+      description: trajectory.enabled
+    base_frame:
+      type: string
+      default_value: base_link
+      description: trajectory.base_frame
+    tip_frame:
+      type: string
+      default_value: tcp
+      description: trajectory.tip_frame
+    period_s:
+      type: double
+      default_value: 0.05
+      description: trajectory.period_s
+      validation:
+        gt<>:
+        - 0.0
+    min_step_m:
+      type: double
+      default_value: 0.003
+      description: trajectory.min_step_m
+      validation:
+        gt<>:
+        - 0.0
+    max_points:
+      type: int
+      default_value: 8000
+      description: trajectory.max_points
+  debug_image_topic:
+    type: string
+    default_value: /peach/perception/debug_image
+    description: debug_image_topic
+  debug_image_raw_topic:
+    type: string
+    default_value: /peach/perception/debug_image_raw
+    description: debug_image_raw_topic
+  tsdf_cloud_topic:
+    type: string
+    default_value: /peach/reconstruction/tsdf_cloud
+    description: tsdf_cloud_topic
+  tcp_path_topic:
+    type: string
+    default_value: /peach/observability/tcp_path
+    description: tcp_path_topic
+  tcp_markers_topic:
+    type: string
+    default_value: /peach/observability/markers
+    description: tcp_markers_topic
+  debug:
+    enabled:
+      type: bool
+      default_value: true
+      description: debug.enabled
+    motion_enabled:
+      type: bool
+      default_value: false
+      description: debug.motion_enabled
+    action_timeout_s:
+      type: double
+      default_value: 180.0
+      description: debug.action_timeout_s
+      validation:
+        gt<>:
+        - 0.0
+    audit_enabled:
+      type: bool
+      default_value: true
+      description: debug.audit_enabled
+    endpoints:
+      run_harvest_action:
+        type: string
+        default_value: /peach_supervisor/run_harvest
+        description: debug.endpoints.run_harvest_action
+      control_service:
+        type: string
+        default_value: /peach_supervisor/control
+        description: debug.endpoints.control_service
+      begin_scene_service:
+        type: string
+        default_value: /peach_scene_perception_node/begin_scene
+        description: debug.endpoints.begin_scene_service
+      survey_action:
+        type: string
+        default_value: /peach_arm/survey_scene
+        description: debug.endpoints.survey_action
+      execute_action:
+        type: string
+        default_value: /peach_arm/execute_target
+        description: debug.endpoints.execute_action
+      build_action:
+        type: string
+        default_value: /peach_target_reconstruction_node/build_target_model
+        description: debug.endpoints.build_action
+      check_reachability_service:
+        type: string
+        default_value: /peach_arm/check_reachability
+        description: debug.endpoints.check_reachability_service
+      photo_pose_service:
+        type: string
+        default_value: /peach_arm/go_to_photo_pose
+        description: debug.endpoints.photo_pose_service
+      preview_approach_service:
+        type: string
+        default_value: /peach_arm/preview_approach_insert
+        description: debug.endpoints.preview_approach_service
+      preview_full_service:
+        type: string
+        default_value: /peach_arm/preview_full_contact
+        description: debug.endpoints.preview_full_service
+      ack_recovery_service:
+        type: string
+        default_value: /peach_arm/acknowledge_recovery
+        description: debug.endpoints.ack_recovery_service
+      arm_service:
+        type: string
+        default_value: /peach_arm/set_execution_armed
+        description: debug.endpoints.arm_service
+      skill_cancel_service:
+        type: string
+        default_value: /peach_arm/cancel_cycle
+        description: debug.endpoints.skill_cancel_service
+      recon_save_session_service:
+        type: string
+        default_value: /peach_target_reconstruction_node/save_session
+        description: debug.endpoints.recon_save_session_service
+      recon_reset_service:
+        type: string
+        default_value: /peach_target_reconstruction_node/reset_reconstruction
+        description: debug.endpoints.recon_reset_service
+      recon_finalize_service:
+        type: string
+        default_value: /peach_target_reconstruction_node/finalize_reconstruction
+        description: debug.endpoints.recon_finalize_service
+      recon_query_service:
+        type: string
+        default_value: /peach_target_reconstruction_node/query_reconstruction_state
+        description: debug.endpoints.recon_query_service
+      manage_nodes_service:
+        type: string
+        default_value: /peach_lifecycle_manager/manage_nodes
+        description: debug.endpoints.manage_nodes_service
+      set_enables_service:
+        type: string
+        default_value: /peach_supervisor/set_enables
+        description: debug.endpoints.set_enables_service

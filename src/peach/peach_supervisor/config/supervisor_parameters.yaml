@@ -1,0 +1,132 @@
+peach_supervisor:
+  execution_enabled:
+    type: bool
+    default_value: false
+    description: Enable target selection and ExecuteTarget dispatch.
+  survey_wait_s:
+    type: double
+    default_value: 15.0
+    description: Seconds to wait for the locked set after BeginScene.
+    validation:
+      gt_eq<>:
+      - 0.0
+  survey_dwell_s:
+    type: double
+    default_value: 2.0
+    description: Dwell seconds at the photo pose before a revisit.
+    validation:
+      gt_eq<>:
+      - 0.0
+  service_timeout_s:
+    type: double
+    default_value: 5.0
+    description: Service wait timeout in seconds.
+    validation:
+      gt<>:
+      - 0.0
+  action_timeout_s:
+    type: double
+    default_value: 40.0
+    description: Survey/Build/Execute action timeout in seconds.
+    validation:
+      gt<>:
+      - 0.0
+  empty_survey_limit:
+    type: int
+    default_value: 2
+    description: Consecutive empty surveys before finishing a batch.
+  selection_priority:
+    type: int
+    default_value: 0
+    description: Select only this priority when greater than zero.
+  persist_ledger:
+    type: bool
+    default_value: true
+    description: Persist TargetOutcome records to the run ledger.
+  reconstruction_min_views:
+    type: int
+    default_value: 1
+    description: Minimum reconstruction views before dispatch.
+  skip_reconstruction:
+    type: bool
+    default_value: false
+    description: Use scene observations without BuildTargetModel.
+  reconstruct_in_trajectory:
+    type: bool
+    default_value: true
+    description: Start arm-side refinement while the arm moves.
+  build_start_timeout_s:
+    type: double
+    default_value: 5.0
+    description: Timeout waiting for Build to enter COLLECTING.
+    validation:
+      gt<>:
+      - 0.0
+  observe_build_grace_s:
+    type: double
+    default_value: 3.0
+    description: Grace period after OBSERVE for Build views.
+    validation:
+      gt_eq<>:
+      - 0.0
+  begin_scene_service:
+    type: string
+    default_value: /peach_scene_perception_node/begin_scene
+    description: BeginScene service name.
+  survey_scene_action:
+    type: string
+    default_value: /peach_arm/survey_scene
+    description: SurveyScene action name.
+  execute_target_action:
+    type: string
+    default_value: /peach_arm/execute_target
+    description: ExecuteTarget action name.
+  build_target_model_action:
+    type: string
+    default_value: /peach_target_reconstruction_node/build_target_model
+    description: BuildTargetModel action name.
+  execute_pregrasp_only:
+    type: bool
+    default_value: true
+    description: Stop after pregrasp validation without sleeve or tool IO.
+  selection_reach_min_m:
+    type: double
+    default_value: 0.15
+    description: Minimum selection reach in metres.
+    validation:
+      gt_eq<>:
+      - 0.0
+  selection_reach_max_m:
+    type: double
+    default_value: 0.88
+    description: Maximum selection reach in metres.
+    validation:
+      gt<>:
+      - 0.0
+  check_reachability_service:
+    type: string
+    default_value: /peach_arm/check_reachability
+    description: CheckReachability service name.
+  selection_depth_min_m:
+    type: double
+    default_value: 0.3
+    description: Minimum selection depth in metres.
+    validation:
+      gt_eq<>:
+      - 0.0
+  selection_depth_max_m:
+    type: double
+    default_value: 1.6
+    description: Maximum selection depth in metres.
+    validation:
+      gt<>:
+      - 0.0
+  require_managed_stack:
+    type: bool
+    default_value: false
+    description: Require the managed stack activation flag before RunHarvest.
+  tool:
+    profile_id:
+      type: string
+      default_value: adaptive_shear_v1
+      description: Tool profile id forwarded to ExecuteTarget.

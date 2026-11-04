@@ -1,0 +1,53 @@
+<?xml version="1.0"?>
+<!-- Copyright 2026 ros2_web_link contributors; SPDX-License-Identifier: Apache-2.0 -->
+<robot name="web_link_demo">
+  <material name="base_gray"><color rgba="0.25 0.30 0.35 1"/></material>
+  <material name="arm_orange"><color rgba="0.95 0.45 0.10 1"/></material>
+  <material name="tool_blue"><color rgba="0.20 0.55 0.95 1"/></material>
+  <link name="demo_world"/>
+  <link name="demo_base">
+    <visual>
+      <origin xyz="0 0 0.06"/>
+      <geometry><box size="0.28 0.20 0.12"/></geometry>
+      <material name="base_gray"/>
+    </visual>
+  </link>
+  <joint name="demo_world_fixed" type="fixed">
+    <parent link="demo_world"/>
+    <child link="demo_base"/>
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+  </joint>
+  <link name="demo_arm">
+    <visual>
+      <origin xyz="0.3 0 0"/>
+      <geometry><box size="0.6 0.08 0.08"/></geometry>
+      <material name="arm_orange"/>
+    </visual>
+  </link>
+  <joint name="demo_joint" type="revolute">
+    <parent link="demo_base"/>
+    <child link="demo_arm"/>
+    <origin xyz="0 0 0.13" rpy="0 0 0"/>
+    <axis xyz="0 0 1"/>
+    <limit lower="-0.8" upper="0.8" effort="1" velocity="1"/>
+  </joint>
+  <link name="demo_tool">
+    <visual>
+      <geometry><mesh filename="package://ros2_web_link/description/tool.stl"/></geometry>
+      <material name="tool_blue"/>
+    </visual>
+  </link>
+  <joint name="demo_slide" type="prismatic">
+    <parent link="demo_arm"/>
+    <child link="demo_tool"/>
+    <origin xyz="0.6 0 0" rpy="0 0 0"/>
+    <axis xyz="0 0 1"/>
+    <limit lower="0.02" upper="0.18" effort="1" velocity="0.2"/>
+  </joint>
+  <link name="demo_camera_optical"/>
+  <joint name="demo_camera_fixed" type="fixed">
+    <parent link="demo_base"/>
+    <child link="demo_camera_optical"/>
+    <origin xyz="-0.2 0 0.5" rpy="-1.5707963267948966 0 -1.5707963267948966"/>
+  </joint>
+</robot>

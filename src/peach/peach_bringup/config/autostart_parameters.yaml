@@ -1,0 +1,20 @@
+peach_autostart_client:
+  scene_key:
+    type: string
+    default_value: default
+    description: Scene key used for autostart BeginScene/RunHarvest.
+  intent:
+    type: int
+    default_value: 0
+    description: RunHarvest intent; 0 means PICK_ALL.
+  wait_stack_timeout_s:
+    type: double
+    default_value: 90.0
+    description: Timeout waiting for the managed stack in seconds.
+    validation:
+      gt<>:
+      - 0.0
+  require_selfcheck:
+    type: bool
+    default_value: true
+    description: Require selfcheck_passed before autostart RunHarvest.

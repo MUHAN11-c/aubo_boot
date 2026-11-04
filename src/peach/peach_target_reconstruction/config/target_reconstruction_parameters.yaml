@@ -1,0 +1,472 @@
+peach_target_reconstruction_node:
+  calibration_version:
+    type: string
+    default_value: ''
+    description: calibration_version
+  algorithm_version:
+    type: string
+    default_value: ''
+    description: algorithm_version
+  frames:
+    base_frame:
+      type: string
+      default_value: base_link
+      description: frames.base_frame
+  camera:
+    color_topic:
+      type: string
+      default_value: /camera/color/image_raw
+      description: camera.color_topic
+    depth_topic:
+      type: string
+      default_value: /camera/depth/image_raw
+      description: camera.depth_topic
+    camera_info_topic:
+      type: string
+      default_value: /camera/color/camera_info
+      description: camera.camera_info_topic
+  sync_slop_s:
+    type: double
+    default_value: 0.05
+    description: sync_slop_s
+    validation:
+      gt_eq<>:
+      - 0.0
+  tf_timeout_sec:
+    type: double
+    default_value: 1.0
+    description: tf_timeout_sec
+    validation:
+      gt_eq<>:
+      - 0.0
+  depth_scale_unit:
+    type: double
+    default_value: 0.25
+    description: depth_scale_unit
+    validation:
+      gt<>:
+      - 0.0
+  capture:
+    min_views:
+      type: int
+      default_value: 1
+      description: capture.min_views
+    recommended_views:
+      type: int
+      default_value: 5
+      description: capture.recommended_views
+    max_views:
+      type: int
+      default_value: 24
+      description: capture.max_views
+    minimum_baseline_deg:
+      type: double
+      default_value: 0.0
+      description: capture.minimum_baseline_deg
+      validation:
+        gt_eq<>:
+        - 0.0
+    minimum_mean_nearest_baseline_deg:
+      type: double
+      default_value: 0.0
+      description: capture.minimum_mean_nearest_baseline_deg
+      validation:
+        gt_eq<>:
+        - 0.0
+    minimum_mean_depth_ratio:
+      type: double
+      default_value: 0.4
+      description: capture.minimum_mean_depth_ratio
+      validation:
+        gt_eq<>:
+        - 0.0
+        lt_eq<>:
+        - 1.0
+    require_robot_static:
+      type: bool
+      default_value: true
+      description: capture.require_robot_static
+    static_joint_vel_thresh:
+      type: double
+      default_value: 0.03
+      description: capture.static_joint_vel_thresh
+      validation:
+        gt_eq<>:
+        - 0.0
+    joint_state_tolerance_s:
+      type: double
+      default_value: 0.1
+      description: capture.joint_state_tolerance_s
+      validation:
+        gt<>:
+        - 0.0
+    max_frame_age_s:
+      type: double
+      default_value: 12.0
+      description: capture.max_frame_age_s
+      validation:
+        gt<>:
+        - 0.0
+    auto_mode:
+      type: bool
+      default_value: true
+      description: capture.auto_mode
+    auto_finalize_at_max:
+      type: bool
+      default_value: false
+      description: capture.auto_finalize_at_max
+    auto_min_interval_s:
+      type: double
+      default_value: 0.0
+      description: capture.auto_min_interval_s
+      validation:
+        gt_eq<>:
+        - 0.0
+    require_target_mask:
+      type: bool
+      default_value: true
+      description: capture.require_target_mask
+    mask_stamp_tolerance_s:
+      type: double
+      default_value: 0.45
+      description: capture.mask_stamp_tolerance_s
+      validation:
+        gt_eq<>:
+        - 0.0
+        lt_eq<>:
+        - 0.5
+    min_mask_pixels:
+      type: int
+      default_value: 300
+      description: capture.min_mask_pixels
+    min_mask_depth_ratio:
+      type: double
+      default_value: 0.35
+      description: capture.min_mask_depth_ratio
+      validation:
+        gt_eq<>:
+        - 0.0
+        lt_eq<>:
+        - 1.0
+    max_target_drift_m:
+      type: double
+      default_value: 0.04
+      description: capture.max_target_drift_m
+      validation:
+        gt_eq<>:
+        - 0.0
+    min_neighbor_gap_m:
+      type: double
+      default_value: 0.0
+      description: capture.min_neighbor_gap_m
+    neighbor_gap_area_ratio:
+      type: double
+      default_value: 2.0
+      description: capture.neighbor_gap_area_ratio
+      validation:
+        gt_eq<>:
+        - 0.0
+    build_timeout_s:
+      type: double
+      default_value: 180.0
+      description: capture.build_timeout_s
+      validation:
+        gt<>:
+        - 0.0
+  bind:
+    switch_holdoff_s:
+      type: double
+      default_value: 2.0
+      description: bind.switch_holdoff_s
+      validation:
+        gt_eq<>:
+        - 0.0
+  view_filter:
+    min_translation:
+      type: double
+      default_value: 0.002
+      description: view_filter.min_translation
+      validation:
+        gt_eq<>:
+        - 0.0
+    min_rotation_deg:
+      type: double
+      default_value: 1.0
+      description: view_filter.min_rotation_deg
+      validation:
+        gt_eq<>:
+        - 0.0
+  icp:
+    enable:
+      type: bool
+      default_value: true
+      description: icp.enable
+    min_points:
+      type: int
+      default_value: 300
+      description: icp.min_points
+    coarse_voxel:
+      type: double
+      default_value: 0.006
+      description: icp.coarse_voxel
+      validation:
+        gt<>:
+        - 0.0
+    fine_voxel:
+      type: double
+      default_value: 0.003
+      description: icp.fine_voxel
+      validation:
+        gt<>:
+        - 0.0
+    coarse_correspondence:
+      type: double
+      default_value: 0.015
+      description: icp.coarse_correspondence
+      validation:
+        gt<>:
+        - 0.0
+    fine_correspondence:
+      type: double
+      default_value: 0.007
+      description: icp.fine_correspondence
+      validation:
+        gt<>:
+        - 0.0
+    coarse_iterations:
+      type: int
+      default_value: 20
+      description: icp.coarse_iterations
+    fine_iterations:
+      type: int
+      default_value: 10
+      description: icp.fine_iterations
+    min_fitness:
+      type: double
+      default_value: 0.35
+      description: icp.min_fitness
+      validation:
+        gt_eq<>:
+        - 0.0
+        lt_eq<>:
+        - 1.0
+    max_rmse:
+      type: double
+      default_value: 0.008
+      description: icp.max_rmse
+      validation:
+        gt<>:
+        - 0.0
+    max_translation:
+      type: double
+      default_value: 0.01
+      description: icp.max_translation
+      validation:
+        gt_eq<>:
+        - 0.0
+    max_rotation_deg:
+      type: double
+      default_value: 3.0
+      description: icp.max_rotation_deg
+      validation:
+        gt_eq<>:
+        - 0.0
+    target_refresh_min_period:
+      type: int
+      default_value: 1
+      description: icp.target_refresh_min_period
+    target_refresh_max_period:
+      type: int
+      default_value: 5
+      description: icp.target_refresh_max_period
+    target_refresh_drift_ratio:
+      type: double
+      default_value: 0.5
+      description: icp.target_refresh_drift_ratio
+      validation:
+        gt<>:
+        - 0.0
+  local_volume:
+    size_x:
+      type: double
+      default_value: 0.3
+      description: local_volume.size_x
+      validation:
+        gt<>:
+        - 0.0
+    size_y:
+      type: double
+      default_value: 0.3
+      description: local_volume.size_y
+      validation:
+        gt<>:
+        - 0.0
+    size_z:
+      type: double
+      default_value: 0.4
+      description: local_volume.size_z
+      validation:
+        gt<>:
+        - 0.0
+  tsdf:
+    enable:
+      type: bool
+      default_value: true
+      description: tsdf.enable
+    voxel_length:
+      type: double
+      default_value: 0.003
+      description: tsdf.voxel_length
+      validation:
+        gt<>:
+        - 0.0
+    sdf_trunc:
+      type: double
+      default_value: 0.012
+      description: tsdf.sdf_trunc
+      validation:
+        gt<>:
+        - 0.0
+    depth_trunc:
+      type: double
+      default_value: 1.5
+      description: tsdf.depth_trunc
+      validation:
+        gt<>:
+        - 0.0
+  cloud_filter:
+    voxel_size:
+      type: double
+      default_value: 0.003
+      description: cloud_filter.voxel_size
+      validation:
+        gt_eq<>:
+        - 0.0
+    enable_statistical_filter:
+      type: bool
+      default_value: true
+      description: cloud_filter.enable_statistical_filter
+  decision:
+    validity_s:
+      type: double
+      default_value: 120.0
+      description: decision.validity_s
+      validation:
+        gt<>:
+        - 0.0
+  refit:
+    enable:
+      type: bool
+      default_value: true
+      description: refit.enable
+    cylinder_inlier_min:
+      type: double
+      default_value: 0.35
+      description: refit.cylinder_inlier_min
+      validation:
+        gt_eq<>:
+        - 0.0
+        lt_eq<>:
+        - 1.0
+    rmse_max_m:
+      type: double
+      default_value: 0.005
+      description: refit.rmse_max_m
+      validation:
+        gt<>:
+        - 0.0
+    entry_standoff_m:
+      type: double
+      default_value: 0.0
+      description: refit.entry_standoff_m
+      validation:
+        gt_eq<>:
+        - 0.0
+    pregrasp_standoff_m:
+      type: double
+      default_value: 0.0
+      description: refit.pregrasp_standoff_m
+      validation:
+        gt_eq<>:
+        - 0.0
+    max_axis_angle_deg:
+      type: double
+      default_value: 35.0
+      description: refit.max_axis_angle_deg
+      validation:
+        gt<>:
+        - 0.0
+  publish:
+    on_change_only:
+      type: bool
+      default_value: true
+      description: publish.on_change_only
+    min_interval_s:
+      type: double
+      default_value: 0.2
+      description: publish.min_interval_s
+      validation:
+        gt_eq<>:
+        - 0.0
+  refitter:
+    cylinder_impl:
+      type: string
+      default_value: cylinder_refit
+      description: refitter.cylinder_impl
+    sphere_impl:
+      type: string
+      default_value: sphere_refit
+      description: refitter.sphere_impl
+  session:
+    root_dir:
+      type: string
+      default_value: ''
+      description: session.root_dir
+  tool:
+    budget:
+      cut_reference_offset_m:
+        type: double
+        default_value: 0.0
+        description: tool.budget.cut_reference_offset_m
+        validation:
+          gt_eq<>:
+          - -0.03
+          lt_eq<>:
+          - 0.03
+      d_inner:
+        type: double
+        default_value: 0.12
+        description: tool.budget.d_inner
+        validation:
+          gt_eq<>:
+          - 0.01
+          lt_eq<>:
+          - 0.5
+      blade_capture_half_width:
+        type: double
+        default_value: 0.008
+        description: tool.budget.blade_capture_half_width
+      axial_safety_margin:
+        type: double
+        default_value: 0.0
+        description: tool.budget.axial_safety_margin
+      blade_plane_calibration_error95:
+        type: double
+        default_value: 0.002
+        description: tool.budget.blade_plane_calibration_error95
+      robot_axial_error95:
+        type: double
+        default_value: 0.002
+        description: tool.budget.robot_axial_error95
+      target_motion95:
+        type: double
+        default_value: 0.003
+        description: tool.budget.target_motion95
+      axial_neck_floor_m:
+        type: double
+        default_value: 0.003
+        description: tool.budget.axial_neck_floor_m
+    profile_id:
+      type: string
+      default_value: adaptive_shear_v1
+      description: tool.profile_id

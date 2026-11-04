@@ -60,7 +60,7 @@ def ensure_index(bag_dir) -> Path:
 
 
 def type_name_of(message) -> str:
-    """消息实例 → rosbag2 类型串（与 recorder.message_type_name 一致）."""
+    """消息实例 → rosbag2 类型串；录制器通过 message_type_name 别名复用."""
     cls = type(message)
     return f'{cls.__module__.split(".")[0]}/msg/{cls.__name__}'
 

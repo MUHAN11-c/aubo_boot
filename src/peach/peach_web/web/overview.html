@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#f3efe6">
+<meta name="description" content="Peach 系统总览：能力链路、批次、相机、账本与启动自检。">
+<title>Peach · 系统总览</title>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/overview.css">
+<link rel="stylesheet" href="/shell.css">
+</head>
+<body>
+<header id="app-header"></header>
+<p id="overview-alert" class="overview-alert" role="status" hidden>等待状态连接。</p>
+<main id="main">
+  <section class="hero">
+    <div><p class="eyebrow">CURRENT PEACH STACK</p><h1>系统总览</h1><p>感知 → 重建 → 调度 → 臂；观测与力作为只读旁路。整栈当前按能力包独立进程运行。</p></div>
+    <div class="hero-status" id="heroStatus">
+      <div><span>运行模式</span><strong id="mode">—</strong></div>
+      <div><span>当前批次</span><strong id="runId">—</strong></div>
+      <div><span>当前阶段</span><strong id="phase">—</strong></div>
+      <div><span>恢复要求</span><strong id="recovery">—</strong></div>
+    </div>
+  </section>
+
+  <section class="chain" aria-label="系统链路">
+    <article class="node" id="nodeScene"><div class="node-head"><span class="idx">01</span><h2>场景感知</h2><em id="sceneState">等待</em></div><p class="node-main" id="sceneMain">—</p><p class="node-sub" id="sceneSub">—</p></article>
+    <div class="arrow" aria-hidden="true">→</div>
+    <article class="node" id="nodeRecon"><div class="node-head"><span class="idx">02</span><h2>目标重建</h2><em id="reconState">等待</em></div><p class="node-main" id="reconMain">—</p><p class="node-sub" id="reconSub">—</p></article>
+    <div class="arrow" aria-hidden="true">→</div>
+    <article class="node" id="nodeSup"><div class="node-head"><span class="idx">03</span><h2>调度</h2><em id="supState">等待</em></div><p class="node-main" id="supMain">—</p><p class="node-sub" id="supSub">—</p></article>
+    <div class="arrow" aria-hidden="true">→</div>
+    <article class="node" id="nodeArm"><div class="node-head"><span class="idx">04</span><h2>机械臂</h2><em id="armState">等待</em></div><p class="node-main" id="armMain">—</p><p class="node-sub" id="armSub">—</p></article>
+  </section>
+
+  <section class="bypass" aria-label="旁路与基础设施">
+    <article class="mini"><div><span class="idx">05</span><h2>观测 / 记录</h2></div><strong id="obsState">—</strong><small id="obsSub">—</small></article>
+    <article class="mini"><div><span class="idx">06</span><h2>五点力</h2></div><strong id="forceState">—</strong><small id="forceSub">—</small></article>
+    <article class="mini"><div><span class="idx">07</span><h2>启动自检</h2></div><strong id="checkState">—</strong><small id="checkSub">—</small></article>
+    <article class="mini"><div><span class="idx">08</span><h2>节点诊断</h2></div><strong id="diagState">—</strong><small id="diagSub">—</small></article>
+  </section>
+
+  <section class="grid2">
+    <article class="card">
+      <div class="card-head"><h2>当前批次</h2><span id="batchBadge" class="badge">—</span></div>
+      <dl><div><dt>目标</dt><dd id="target">—</dd></div><div><dt>阶段</dt><dd id="batchPhase">—</dd></div><div><dt>完成度</dt><dd id="completion">—</dd></div><div><dt>动作</dt><dd id="action">—</dd></div></dl>
+      <p class="note" id="batchNote">等待调度状态</p>
+      <div class="linkrow"><a href="/monitor.html">打开过程监控 →</a><a href="/debug.html">单步调试 →</a></div>
+    </article>
+    <article class="card preview-card">
+      <div class="card-head"><h2>相机 / 感知</h2><span id="imageAge" class="badge">—</span></div>
+      <div class="preview-frame"><img id="preview" alt="实时相机预览" hidden><p id="previewEmpty" class="preview-empty">等待相机帧</p></div>
+      <p class="note" id="imageNote">等待相机帧</p>
+    </article>
+  </section>
+
+  <section class="card ledger">
+    <div class="card-head"><h2>最近账本</h2><a href="/analysis.html">数据分析 →</a></div>
+    <div id="ledger" class="ledger-rows"><p class="empty">等待 ledgers</p></div>
+  </section>
+
+  <section class="actions" aria-label="页面入口">
+    <a href="/monitor.html">过程监控 <small>画面 / 轨迹 / 事件 / 日志</small></a>
+    <a href="/debug.html">单步调试 <small>开批 / 使能 / 目标 / 参数 / ACK</small></a>
+    <a href="/analysis.html">数据分析 <small>会话 bag / 成功率 / 接触段</small></a>
+    <a href="/force.html">五点力 <small>CAD 点位 / tcp / CoP</small></a>
+  </section>
+</main>
+<footer id="app-footer"></footer>
+<script src="/ui-common.js"></script>
+<script src="/rosbridge.js"></script>
+<script src="/api.js"></script>
+<script src="/shell.js"></script>
+<script src="/overview.js"></script>
+</body>
+</html>

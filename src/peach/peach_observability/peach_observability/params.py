@@ -1,11 +1,9 @@
 """
-ObservabilityParams：yaml 直读后的扁平快照.
+ObservabilityParams：GPL 参数的扁平快照.
 
-部署事实源 ``peach_observability/config/observability.yaml``（W11 起随包
-走，此前寄居 peach_harvester/config 并跨包 import 其 attach——违反能力包
-单向依赖）。节点一行 ``ObservabilityParams.attach(node)``：声明叶子并挂
-规则校验（端口/周期/缓冲越界启动期拒绝、运行期非法 set 即拒），
-``ros2 param set`` 原地刷新本对象。话题名集中进 topics；debug 端点集中进
+``config/observability_parameters.yaml`` 声明参数，``config/observability.yaml``
+提供部署值。``ObservabilityParams.attach(node)`` 绑定 ParamListener 和整数
+边界校验，成功的参数修改原地刷新快照。话题名集中进 topics；调试端点集中进
 debug_endpoints。
 """
 from __future__ import annotations
@@ -14,39 +12,35 @@ from dataclasses import dataclass, fields
 from types import MappingProxyType
 from typing import Mapping, Tuple
 
-from peach_common.param_rules import check as _check
-from peach_common.yaml_params import attach as _attach
-from peach_common.yaml_params import package_yaml as _package_yaml
+from peach_observability.observability_parameters import (
+    peach_observability as _Generated,
+)
+from rcl_interfaces.msg import SetParametersResult
 
-_RULES = {  # 键 -> 校验规则表（启动期非法即拒启；运行期非法 set 即拒）
-    'port': (('bounds', 1.0, 65535.0),),
-    'param_poll_period_s': (('gt', 0.0),),
-    'event_buffer_size': (('gt_eq', 1),),
-    'log_buffer_size': (('gt_eq', 1),),
-    'metrics_period_s': (('gt', 0.0),),
-    'trajectory.period_s': (('gt', 0.0),),
-    'trajectory.min_step_m': (('gt', 0.0),),
-    'trajectory.max_points': (('gt_eq', 100),),
-    'record.max_total_bag_gb': (('gt_eq', 0.0),),
-    'record.queue_depth': (('gt_eq', 1),),
-    'debug.action_timeout_s': (('gt', 0.0),),
-    'selfcheck.period_s': (('gt_eq', 0.0),),
-    'selfcheck.initial_settle_s': (('gt_eq', 0.0),),
-    'selfcheck.initial_timeout_s': (('gt', 0.0),),
-    'selfcheck.rate_window_s': (('gt', 0.0),),
-    'selfcheck.camera_min_hz': (('gt', 0.0),),
-    'selfcheck.disk_min_gb': (('gt', 0.0),),
-    'selfcheck.expected_tcp_norm_m': (('gt_eq', -1.0),),
+from .startup_facts import normalize_facts, parse_facts_json, selfcheck_overrides_from_facts
+
+_INT_BOUNDS = {
+    'port': (1, 65535),
+    'event_buffer_size': (1, None),
+    'log_buffer_size': (1, None),
+    'record.queue_depth': (1, None),
+    'trajectory.max_points': (100, None),
 }
 
 
-def _validate(name, value):
-    """逐条规则校验；返回拒绝理由或 None."""
-    for rule in _RULES.get(name, ()):
-        why = _check(rule, value, name)
-        if why:
-            return why
-    return None
+def _int_bounds(parameters):
+    """Enforce integer bounds without broken GPL IntegerRange descriptors."""
+    for param in parameters:
+        bounds = _INT_BOUNDS.get(param.name)
+        if bounds is None:
+            continue
+        low, high = bounds
+        value = int(param.value)
+        if (low is not None and value < low) or (
+                high is not None and value > high):
+            return SetParametersResult(
+                successful=False, reason=f'{param.name} out of range')
+    return SetParametersResult(successful=True)
 
 
 TOPIC_NAMES = (
@@ -196,18 +190,21 @@ class ObservabilityParams:
 
     @classmethod
     def attach(cls, node) -> 'ObservabilityParams':
-        """Declare yaml leaves and keep this snapshot live on param set."""
-        holder = []
+        """Declare GPL parameters and keep this snapshot live on set."""
+        node.add_on_set_parameters_callback(_int_bounds)
+        try:
+            listener = _Generated.ParamListener(node)
+        finally:
+            node.remove_on_set_parameters_callback(_int_bounds)
+        # rclpy prepends callbacks: reject before the generated listener commits
+        # its cache/user callback, while retaining startup declaration checks.
+        node.add_on_set_parameters_callback(_int_bounds)
+        snapshot = from_params(listener.get_params())
 
-        def _commit(raw):
-            if holder:
-                _copy_fields(holder[0], from_params(raw))
+        def _commit(params):
+            _copy_fields(snapshot, from_params(params))
 
-        raw = _attach(
-            node, _package_yaml('peach_observability', 'observability.yaml'),
-            on_commit=_commit, validate=_validate)
-        snapshot = from_params(raw)
-        holder.append(snapshot)
+        listener.set_user_callback(_commit)
         return snapshot
 
 
@@ -225,7 +222,7 @@ def from_params(raw) -> ObservabilityParams:
     debug_endpoints = MappingProxyType(
         {name: str(getattr(endpoints, name)).strip()
          for name in DEBUG_ENDPOINTS})
-    return ObservabilityParams(
+    snapshot = ObservabilityParams(
         host=str(raw.host).strip(),
         port=int(raw.port),
         param_poll_period_s=float(raw.param_poll_period_s),
@@ -280,3 +277,7 @@ def from_params(raw) -> ObservabilityParams:
         robot_status_probe_enabled=bool(
             getattr(raw, 'robot_status_probe_enabled', False)),
     )
+    facts = normalize_facts(parse_facts_json(snapshot.startup_facts))
+    for key, value in selfcheck_overrides_from_facts(facts).items():
+        setattr(snapshot, key, value)
+    return snapshot

@@ -1,264 +1,111 @@
 # serial_force
 
-咬合末端 5 点力传感器驱动：QinHeng USB 转串适配器（CH340 `1a86:7523` 旧线 /
-CH343 `1a86:55d3` 现行），采集板 100Hz 主动上报 0xA5 定长帧。发布
-`/force/points`（`std_msgs/Float64MultiArray`，SI 牛顿）与
-`/force/travel`（毫米），可选逐帧打印 N/行程。
+咬合末端五点力传感器驱动：QinHeng USB 转串（CH340 `1a86:7523` /
+CH343 `1a86:55d3`）→ 采集板 100 Hz 主动上报 0xA5 32 字节帧 →
+`/force/sample`（原子帧）+ `/force/points|travel|ad|status`（兼容 array）。
+五点力实时页已合并到 8090 `peach_web /force.html`；历史数据走会话 bag/分析。
 
-**不是**采摘五包，lifecycle 不管。随 `harvest_system` 起（`force_enabled` 默认
-true），不进只读 bringup。
+- 不是 lifecycle 节点，不进 `peach_lifecycle_manager` 名单；
+- 不是控制/许可节点：不发运动、不写 PlanningScene、不参与抓取授权；
+- 力值只用于显示、记录与离线分析；闭环/CoP 工具在本包可选 executable，仿真源用 `source:=sim`；
+- 一个串口只能有一个拥有者，勿与整栈并行再起第二个 `serial_force_node`。
 
-> 2026-10-19 用户裁定：IMU / `imu_follow` 自适应末端方法暂时废弃，本包收敛为
-> 纯力传感器；原 `serial_imu` 包名与 `/dev/imu` 设备名同步改为 `serial_force`
-> / `/dev/force`。历史在 git（`git log -- src/serial_force`）。
+## 构建与启动
 
-现行行为以源码为准。栈内摘要：[系统架构](../peach/peach_bringup/doc/architecture.md)
-§3、[系统 io](../peach/peach_bringup/doc/io.md)、
-[testing.md](../peach/peach_system_tests/doc/testing.md)（怎么跑）。
+```bash
+source /opt/ros/jazzy/setup.bash
+# 工作区若用 aubo_py3.12，先 activate 或确认 python3 指向它
+colcon build --packages-select serial_force
+source install/setup.bash
+
+# 只起驱动（勿与整栈并行）
+ros2 launch serial_force serial_force.launch.py
+
+# 仿真源（不需要串口，使用 mock 臂 + TF）
+ros2 launch serial_force serial_force.launch.py source:=sim
 
 ```
-serial_force/
-  serial_force/force_node.py     # 节点：串口、逐帧打印 N/行程/AD、/force/points、/force/travel、/force/ad、/diagnostics
-  serial_force/force_protocol.py # 无 ROS：0xA5 32 字节帧切帧、校验、克→牛、行程/AD/哨兵
-  scripts/force_web.py           # 调试 Web：5 点力 + CoP，SSE 按 CAD 点位叠加显示
-  scripts/force_web.html         # 上面的页面（整机 220mm/盘面 72mm + 五点 + tcp 三轴 + 侧视）
-  scripts/face_fruit.png         # 盘面渲染（与 URDF 同一 visual STL，72 mm 视场）
-  scripts/face_full.png          # 整机渲染（同一 STL，220 mm 视场）
-  scripts/render_force_pads.py   # 生成 doc/force_pads_on_tool.png（五点核对图）
-  scripts/make_web_face.py       # 生成 face_full.png / face_fruit.png
-  doc/force_pad_positions.md     # 5 点膜片：CAD→URDF 坐标推导、Web/图实现、复现
-  doc/force_frame_v3.md          # 32 字节 v3 帧格式（2026-10-21，克+行程+原始 AD）
-  config/serial_force.yaml
-  launch/serial_force.launch.py
-  test/test_flake8.py
-  test/test_pep257.py
-  udev/99-force-usb-serial.rules
-```
 
----
+真机整栈用 `peach_bringup/launch/harvest_system.launch.py`（`force_enabled`
+默认 true）；8090 页面包含五点力页。
 
-## 1. 查设备与固定串口名
-
-现场出现过两种 QinHeng 芯片：
+## 设备与权限
 
 ```bash
 lsusb | grep -i 1a86
-# CH340 1a86:7523（旧线）→ ttyUSB*
-# CH343 1a86:55d3（现行）→ ttyACM*
 ls -l /dev/ttyUSB* /dev/ttyACM* /dev/serial/by-id/
-dmesg -T | grep -iE 'ttyUSB|ttyACM|ch34|cdc_acm|1a86'
 ```
 
-udev 规则把适配器固定为 `/dev/force`（插拔后不要写死 `ttyUSB0`）：
+udev 规则把适配器固定为 `/dev/force`：
 
 ```bash
 sudo cp $(ros2 pkg prefix serial_force)/share/serial_force/udev/99-force-usb-serial.rules \
   /etc/udev/rules.d/
-# 源码副本：src/serial_force/udev/99-force-usb-serial.rules
-sudo udevadm control --reload-rules
-sudo udevadm trigger
+sudo udevadm control --reload-rules && sudo udevadm trigger
 ls -l /dev/force
-# 期望：/dev/force -> ttyUSB0（CH340）或 /dev/force -> ttyACM0（CH343）
 ```
 
 规则按 `idVendor=1a86` + `idProduct`（`7523` / `55d3`）匹配，`SYMLINK+=force`，
-组 `dialout`，模式 `0660`。插第二块同型适配器时两条规则会抢 `/dev/force`，
-后插的赢。节点按 `port` → `port_fallbacks` 找口：`/dev/force`，再
-`/dev/ttyUSB0`、`/dev/ttyACM0`。
+组 `dialout`，模式 `0660`。插两个同型适配器会抢 `/dev/force`，后插的赢。
+权限：`sudo usermod -aG dialout $USER`，当前终端 `newgrp dialout`；节点每 2 s
+重试，`Errno 13` 时日志提示。节点按 `port` → `port_fallbacks` 找口。
 
-权限：`usermod -aG dialout` **对已经打开的终端无效**。
+## 接口
 
-```bash
-sudo usermod -aG dialout $USER
-newgrp dialout          # 当前终端立刻带上 dialout
-groups                  # 须含 dialout
-```
+| 名字 | 类型 | 含义 |
+|---|---|---|
+| `/force/sample` | `peach_interfaces/ForceSample` | 原子 5 通道帧：N / 力等效 mm / raw AD / status / UUID / sequence；Reliable depth 100 |
+| `/force/points` | `Float64MultiArray` | 5 值，SI 牛顿，顺序 1/2/3/5/7 |
+| `/force/travel` | `Float64MultiArray` | 5 值，力等效 mm（`力/66`，0.1 mm/LSB），不是独立位移 |
+| `/force/ad` | `Float64MultiArray` | 5 值，原始 AD |
+| `/force/status` | `UInt8MultiArray` | 0 OK、1 SATURATED、2 OPEN、3 INVALID |
 
-`Errno 13 Permission denied` 时节点打不开口；节点每 2 s 重试，日志提示
-`newgrp dialout`。
+6.0 mm 既是 370 g 满量程也是断线哨兵：`/force/travel` 保留 6.0、`/force/ad`
+保留原始值，不置 NaN；`AD>=3000` 判 OPEN，否则 `travel>=5.95` 判 SAT。
+帧布局、校验、样帧、QoS 与记录列见 [`doc/io.md`](doc/io.md)。
 
----
+## 参数
 
-## 2. 协议（32 字节定长帧，2026-10-21 v3）
-
-采集板 100Hz 主动上报。2026-10-21 起为 **32 字节 v3**（v2 的 22 字节基础上
-每通道增加 2 字节原始 AD），完整说明与现场实测样例见
-**[doc/force_frame_v3.md](doc/force_frame_v3.md)**。
-
-```
-A5 | ch | gL | gH | mm | aL | aH | ... ×5 ... | sum
-```
-
-| 字段 | 长度 | 含义 |
-|------|------|------|
-| `A5` | 1 | 帧头 |
-| `ch` | 1 | 输出通道号：`01 / 02 / 03 / 05 / 07` |
-| `gL gH` | 2 | 力，**uint16 小端，单位克**（1 LSB = 1 g） |
-| `mm` | 1 | 行程 **×10**（1 LSB = 0.1 mm）；`0x3C` = 6.0 mm 满量程/哨兵 |
-| `aL aH` | 2 | **原始测量 AD**，uint16 小端；标定/诊断，不直接换算力 |
-| `sum` | 1 | 前 **31** 字节累加和的低 8 位 |
-
-- 换算：`N = g × 9.80665 / 1000`；`travel_mm = raw × 0.1`；AD 原样透传。
-- 单点 50–400 g（2026-10-20 用户确认：0–6 mm ↔ 400 g，约 66.7 g/mm）；
-  五点合计 2 kg；**5 mm ≈ 333 g/点**（合计 ≈ 1.67 kg / 16.35 N）。
-- 行程有效 0–5.9 mm，`0x3C`（6.0 mm）是满量程/哨兵。
-- 校验：`sum(frame[0:31]) & 0xFF == frame[31]`。
-
-回归样例（2026-10-21 现场帧，对照节点日志里的克 / 毫米 / AD）：
-
-- 现场帧：`A5 01 F3 00 25 B0 06 02 18 01 2A D2 05 03 BE 00 1D 19 05
-  05 36 01 2F DC 05 07 09 01 28 2C 06 43`
-  （243/280/190/310/265 g，3.7/4.2/2.9/4.7/4.0 mm，AD 1712/1490/1305/1500/1580）
-- 全零（32 字节）：`A5 01 00 00 00 00 00 02 00 00 00 00 00 03 00 00 00 00 00
-  05 00 00 00 00 00 07 00 00 00 00 00 B7`
-- 通道 2 行程哨兵 `3C`：`A5 01 F3 00 25 B0 06 02 18 01 3C D2 05 03 BE 00 1D 19 05
-  05 36 01 2F DC 05 07 09 01 28 2C 06 55`
-
-解析在 `serial_force/force_protocol.py`（零 ROS）：找 `A5` → 32 字节窗口校验
-通道号 + 累加和 → 解码；假帧头（载荷里也会出现 `A5`）跳一字节重扫。v1/v2 的
-旧帧不会被误认，升级固件后必须同时升级本包。
-
-传感器型号 IMS-C04A（小量程）：感应区直径 4 mm；单点 50–400 g
-（0–6 mm 行程），五点合计 2 kg。
-
-### 通道 → 咬合末端点位
-
-2026-10-16 用户裁定：**五点在正五边形顶点（等角等距），5 在正上方顶点**。
-2026-10-19 用 CAD 总装 `_tools/shear_pipeline/bite2/extract_report.json` 的
-`per_part_bbox_m` 复核：半径 16.31–16.45 mm，膜片平面在 `tcp z = −72.29 mm`。
-核对/修改走 `channel_labels` 参数，不动代码：
-
-| 通道 | 圆盘位置（果实侧，2026-10-21 确认） | CAD 零件 | 自 `+Y_tcp` 顺时针 | 半径 |
-|------|----------|----------|--------------------|------|
-| 5 | 上（顶点） | `力敏电阻000` | 0.0° | 16.45 mm |
-| 1 | 右上 | `力敏电阻001` | 74.7° | 16.33 mm |
-| 2 | 右下 | `力敏电阻002` | 144.6° | 16.32 mm |
-| 3 | 左下 | `力敏电阻004` | 216.3° | 16.31 mm |
-| 7 | 左上 | `力敏电阻003` | 286.2° | 16.35 mm |
-
-2026-10-21 用户确认果实侧映射；臂侧是镜像（1↔7、2↔3）。
-
-
-
-Web（`force_web.html`）按同一组角度/半径把五点叠到末端渲染上：默认**整机
-220 mm**，切**盘面 72 mm** 读数；页内可切**果实侧/臂侧**（臂侧是镜像，
-1↔7、2↔3 左右互换，通道值不变）。图心画 **tcp 三轴**，侧视条标出
-`wrist3` 原点、`+Z_tcp` 果实侧与 `−Z_tcp` 臂侧方向。
-
-页面还实时显示 **5 点力 CoP**：`CoP = Σ fᵢ·pᵢ / Σ fᵢ`（tcp 系，mm），红点叠加在盘面/整机视图，
-面板给出 `(x, y)` 与 `|CoP|`；断线/无效通道不参与，力大的点会把 CoP 拉过去。
-
-坐标推导、数据链、渲染/Web 工具、复现命令与已知限制见
-**[doc/force_pad_positions.md](doc/force_pad_positions.md)**（含
-`doc/force_pads_on_tool.png` 四面板核对图）。
-
----
-
-## 3. 启动与输出
-
-```bash
-colcon build --packages-select serial_force
-source install/setup.bash
-
-# 随采摘整栈（mock / real 相同；force_enabled 默认 true）：
-ros2 launch peach_bringup harvest_system.launch.py \
-  hardware_mode:=mock camera_enabled:=false
-# 真机：hardware_mode:=real camera_enabled:=true robot_ip:=169.254.10.98
-
-# 只起力传感器（勿与整栈并行，抢同一口）：
-ros2 launch serial_force serial_force.launch.py
-
-# Web 实时页（只订话题不碰串口，可与驱动并行）：
-python3 src/serial_force/scripts/force_web.py   # http://127.0.0.1:8099
-# 真机整栈连同此页：ros2 launch peach_bringup real_web.launch.py
-```
-
-网页除手动「20 s 记录」外，会自动把接触段写进**当前采摘会话**：
-`runs/session_*/force/episode_NNN.csv`（旁路同名 json，`index.jsonl` 汇总）。
-手动记录也在同一目录，文件名 `force_20s_<时间>.csv`。页面可回放已写入的
-`episode_*.csv`（选择接触段后播放或拖动），不必守着实时曲线。会话袋还在写才算当前这一轮；
-起段或手动开始时绑定唯一存活记录写者的 `session.json`（`state=active`），
-找不到当前会话就不开始自动段、手动请求明确拒绝；已有段永不挪入后来会话。
-根目录由 `peach_common.paths.runs_root` 统一解析（支持 `AUBO_RUNS_DIR`），
-安装副本也可传 `--runs-root /绝对路径` 或 launch `runs_root:=/绝对路径`。
-抓取阶段的真实开始/终局时刻由调度写在同一会话 `cycles/`，旧记录的 mtime 推算带 `estimated` 标记。
-只在任一路力达到约 0.15 N 时开始，回到约 0.08 N 并稳住 0.35 s 后封口；
-`contact_s` 是从出现变化到仍高于回到门的时长，`duration_s` 含归零尾段。
-空载不写。180 s 仍未归零会以 `max_duration` 封口。
-断流 0.5 s、无效通道、源进程变化、会话关闭和正常退出分别带原因封口；
-`OPEN/INVALID` 不作为归零或 CoP 输入，`SATURATED` 保留原值。
-每帧先 append `.partial.jsonl`（每 0.5 s fsync），CSV 完成后原子替换、再写 sidecar/index；
-异常退出后由下一次 force_web 恢复原目录里的 partial，不绑定新会话。
-掉电仍可能损失最后一次 fsync 后的约 0.5 s；完整 bag 原子帧可供独立复核。
-
-打印每帧一行（100Hz；`print_decimate` 每 N 帧打一条）：
-
-```
-#123 F1[左上]=+2.38N/3.7mm/AD1712 F2[左下]=+2.75N/4.2mm/AD1490 F3[右下]=+1.86N/2.9mm/AD1305 F5[上]=+3.04N/4.7mm/AD1500 F7[右上]=+2.60N/4.0mm/AD1580
-```
-
-6.0 mm 满量程保留原始值；AD 与行程联合分类为 OK/SATURATED/OPEN/INVALID。
-
-话题：
-
-- `/force/sample`（`peach_interfaces/ForceSample`，Reliable + Volatile，depth100）：
-  一次解码的原子 5 通道 N、力等效 mm、uint16 AD、状态，含 `channel_ids`、
-  `source_uuid` 与单调 `sequence`。`header.stamp` 是主机 ROS 接收/解码时刻，
-  不是设备采样时间（固件无时间戳/序号）；只能检测主机解码之后的流失。
-- `/force/points`（Reliable + Volatile）：5 值，**REP-103 SI 牛顿**，顺序 1/2/3/5/7；
-- `/force/travel`（同 QoS）：5 值，**力等效毫米**（0.1 mm/LSB），不是独立位移；
-- `/force/ad`（同 QoS）：5 值，**原始 AD**；
-- `/force/status`：5 路状态（0正常、1饱和、2断线/悬空、3无效）。
-
-`ros2 topic hz /force/points` 验 100Hz。`/diagnostics`：串口开闭 + 帧率
-（期望 100Hz，窗 0.6×–1.4×）。Web 只订原子 `/force/sample`，
-不根据不同话题到达顺序拼帧。CSV 保留每帧源 stamp、主机接收 unix_ns、源 UUID/序号；
-observability 的 core/std/all 均记录完整帧，`/force/` 不走相机媒体节流。
-
-无输出时依次核对：波特率（默认 115200）、口是否已被另一个节点占用
-（`/dev/force` 只能开一份）、采集板供电与 Tx/Rx。
-
----
-
-## 4. 参数（`config/serial_force.yaml`）
-
-根键 = 节点名 `serial_force`。
+`config/serial_force.yaml`（根键 `serial_force`）：
 
 | 参数 | 默认 | 作用 |
-|------|------|------|
-| `port` | `/dev/force` | 首选口 |
-| `port_fallbacks` | `ttyUSB0`、`ttyACM0` | 依次试 |
-| `baudrate` | 115200 | |
-| `read_period_s` | 0.005 | 读串口定时器 |
-| `expected_rate_hz` | 100 | `/diagnostics` 帧率期望 |
-| `print_data` | true | 逐帧打印（N / mm） |
-| `print_decimate` | 1 | 每 N 帧打一条；1=全部 ≈100Hz |
-| `channel_labels` | 见 yaml | 通道→点位标签，现场校对后改这里 |
+|---|---|---|
+| `port` | `/dev/force` | 首选串口 |
+| `port_fallbacks` | ttyUSB0、ttyACM0 | 依次试 |
+| `baudrate` | 115200 | 8N1 |
+| `read_period_s` | 0.005 | 读串口定时器（100 Hz） |
+| `expected_rate_hz` | 100.0 | `/diagnostics` 频率窗 0.6–1.4× |
+| `open_ad_threshold` | 3000.0 | AD ≥ 此值判断线/悬空 |
+| `full_travel_mm` | 5.95 | 行程 ≥ 此值判 SAT |
+| `print_data` | true | 逐帧打印 N/mm/AD/status |
+| `print_decimate` | 1 | 每 N 帧打印一条 |
+| `channel_labels` | 右上/右下/左下/上/左上 | 通道 1/2/3/5/7 果实侧标签 |
 
----
+## 力页面
 
-## 5. 测试
+8090 `peach_web /force.html` 显示实时 5 点/CoP；历史力帧在会话 bag，接触段分析由 observability 统一完成。本包不再提供 `--port`/`--runs-root` 或第二套 HTTP 服务。
+
+## 测试
 
 ```bash
 colcon test --packages-select serial_force
 ```
 
-`colcon test` 只跑官方 flake8 / pep257。帧是否解析对，看节点日志里的力、行程和 AD，对照上面的现场帧。
+只跑官方 `flake8` / `pep257`。帧解析是否正确，看节点日志的 N/mm/AD 对照
+[`doc/io.md`](doc/io.md) 的现场样帧；`ros2 topic hz /force/points` 验 100 Hz；
+`/diagnostics` 看串口与帧率。
 
----
+## 文档
 
-## 6. 仿真与真实分开
+| 文档 | 内容 |
+|---|---|
+| [`doc/architecture.md`](doc/architecture.md) | 模块、数据流、会话记录、并发、边界 |
+| [`doc/io.md`](doc/io.md) | 话题/QoS、0xA5 帧、参数、诊断、记录列 |
+| [`doc/geometry.md`](doc/geometry.md) | 5 点 CAD 位置、坐标变换、CoP、工具 |
+| [`doc/validation.md`](doc/validation.md) | 台架/真机数据、已证明/未证明、下一步 |
+| [`doc/hardware.md`](doc/hardware.md) | RP-C5/MY2901/STM32、raw AD 与 mm 语义 |
 
-5 点力 CoP 闭环仿真在独立包 **`serial_force_sim`**（mock 臂、假力源），不在本包：
-模型、控制律、20 组统计与限界见
-[../serial_force_sim/doc/force_align_sim.md](../serial_force_sim/doc/force_align_sim.md)。
+## 不负责
 
-本包保留传感器节点与调试页，新增依赖唯一 IDL 包 `peach_interfaces` 和共享路径/会话工具 `peach_common`。
-`/force/points` 兼容既有仿真消费者，本包不依赖
-`serial_force_sim`，仿真也不读写串口。
-
-## 7. 不负责
-
-采摘调度、MoveIt、底盘 `/scan`、生命周期名单。真机驱动不做力控/接触检测判据
-（只打印与发布原始值）、不写 PlanningScene；§6 的闭环只在 mock 仿真里验证，
-不改驱动行为。点位标签以现场按压校对为准。
+采摘调度、MoveIt、底盘 `/scan`、IMU、力闭环、功能安全。8090 力页是调试页，
+不是第二控制面；没有 SetIO/使能/运动入口。真机硬件急停在柜/示教器，不经 ROS。

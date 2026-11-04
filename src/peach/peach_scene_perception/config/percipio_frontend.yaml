@@ -1,0 +1,10 @@
+# harvest_system camera_frontend:=percipio 时由 scene_perception.launch 最后装入。
+# 只覆盖 1 fps 官方深度需要的入口门；话题名仍走产品默认 /camera/*，禁止运行期热切前端。
+# stereo 不得与本 overlay 同时起：两驱动争同一 GigE 相机并双发同名话题。
+peach_scene_perception_node:
+  ros__parameters:
+    # 设备 18 图案一帧墙钟约 0.4–1 s（含计算与 DDS）。默认 0.50 会把官方帧当陈帧丢掉，
+    # 锁定窗饿死（09-17 A/B：percipio 48 s vs stereo 2.8 s）。
+    max_frame_age_s: 2.5
+    # 1 fps 下推理占 worker 时仍留得住下一对；stereo 默认仍是 3。
+    sync_queue_size: 4

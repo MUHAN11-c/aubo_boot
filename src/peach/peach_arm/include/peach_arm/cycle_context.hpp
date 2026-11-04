@@ -173,6 +173,7 @@ struct CycleContext
 {
   /// ExecuteTarget.goal.target_id；手动周期为空。
   std::string target_id;
+  ModelIdentity requested_model;  ///< goal 的场景/修订及目标观测的感知轮 ID。
   std::optional<ModelIdentity> bound_model;  ///< Finalize 原子快照的身份，接触前必须仍匹配。
   bool observe_only{false};     ///< True=只观察/补视，不接触。
   bool pregrasp_only{false};    ///< True=到预抓取验证后停，不 SetIO。
@@ -182,6 +183,7 @@ struct CycleContext
   bool clearance_present{false};   ///< goal 是否携带接触许可令牌。
   bool clearance_allowed{false};   ///< 令牌 allowed（只授权套入/剪切）。
   std::string clearance_target_id; ///< 令牌绑定的 target_id。
+  std::string clearance_model_revision;  ///< 非空时必须等于实际执行模型的修订。
   rclcpp::Time clearance_valid_until{0, 0, RCL_ROS_TIME};  ///< 过期后不得执行。
   rclcpp::Time clearance_model_stamp{0, 0, RCL_ROS_TIME};  ///< 模型新鲜度戳。
   double clearance_fresh_window_s{0.0};  ///< >0 时启用 stamp 新鲜度复检 [s]。

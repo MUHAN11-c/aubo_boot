@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Drive one frozen-camera FULL dry grasp on an already-running v1 stack.
+"""
+Drive one frozen-camera FULL dry grasp on an already-running v1 stack.
 
 Waits for lifecycle + RGB-D replay + JTC, enables execution+grasp (tool stays
 false: mock has no aubo_io_controller), sends RunHarvest PICK_ALL, and
@@ -9,26 +10,33 @@ photo-pose view then one grasp.
 from __future__ import annotations
 
 import argparse
+from functools import partial
+import hashlib
+import json
 import sys
 import threading
 import time
 
 from action_msgs.msg import GoalStatus
-from controller_manager_msgs.srv import ListControllers
+from controller_manager_msgs.srv import ListControllers, ListHardwareComponents
 from peach_interfaces.action import RunHarvest
 from peach_interfaces.msg import HarvestState
 from peach_interfaces.srv import ControlTask, SetEnables
-import rclpy
-from rcl_interfaces.msg import Parameter, ParameterType, ParameterValue
 from rcl_interfaces.srv import SetParameters
+import rclpy
 from rclpy.action import ActionClient
 from rclpy.callback_groups import ReentrantCallbackGroup
+from rclpy.duration import Duration
 from rclpy.executors import MultiThreadedExecutor
 from rclpy.node import Node
+from rclpy.parameter import Parameter
 from rclpy.qos import DurabilityPolicy, HistoryPolicy, QoSProfile, ReliabilityPolicy
-from sensor_msgs.msg import Image, JointState
+from rclpy.time import Time
+from rosidl_runtime_py.convert import message_to_ordereddict
+from sensor_msgs.msg import CameraInfo, Image, JointState
 from std_msgs.msg import Bool
 from std_srvs.srv import SetBool
+from tf2_ros import Buffer, TransformException, TransformListener
 
 LATCHED = QoSProfile(
     history=HistoryPolicy.KEEP_LAST, depth=1,
@@ -58,7 +66,7 @@ def _wait(predicate, timeout_s: float, period_s: float = 0.2) -> bool:
 class Driver(Node):
     """Operator stand-in: parameters, SetEnables, RunHarvest, cancel/ACK."""
 
-    def __init__(self) -> None:
+    def __init__(self, bind_replay_calibration: bool = False) -> None:
         super().__init__('drive_frozen_grasp')
         self._group = ReentrantCallbackGroup()
         self.activated = False
@@ -67,6 +75,15 @@ class Driver(Node):
         self.state: HarvestState | None = None
         self.replay_paused = False
         self._canceled = False
+        if bind_replay_calibration:
+            self._infos = {}
+            self._tf = Buffer()
+            self._tf_listener = TransformListener(self._tf, self)
+            for sensor in ('color', 'depth'):
+                self.create_subscription(
+                    CameraInfo, f'/camera/{sensor}/camera_info',
+                    partial(self._infos.__setitem__, sensor), RELIABLE,
+                    callback_group=self._group)
         self.create_subscription(
             Bool, '/peach/lifecycle/managed_nodes_activated',
             self._on_flag, LATCHED, callback_group=self._group)
@@ -96,6 +113,9 @@ class Driver(Node):
             callback_group=self._group)
         self._list = self.create_client(
             ListControllers, '/controller_manager/list_controllers',
+            callback_group=self._group)
+        self._hardware = self.create_client(
+            ListHardwareComponents, '/controller_manager/list_hardware_components',
             callback_group=self._group)
         self._run = ActionClient(
             self, RunHarvest, '/peach_supervisor/run_harvest',
@@ -134,6 +154,15 @@ class Driver(Node):
         print(f'controllers ready={ok}', flush=True)
         return ok
 
+    def mock_replay_ready(self) -> bool:
+        """Verify the arm's mock plugin and frozen replay before changing parameters."""
+        response = self._call(self._hardware, ListHardwareComponents.Request(), 3.0)
+        if response is None:
+            return False
+        plugins = [c.plugin_name for c in response.component if c.name == 'AuboE5System']
+        return (plugins == ['mock_components/GenericSystem']
+                and self._replay_pause.wait_for_service(timeout_sec=2.0))
+
     def _call(self, client, request, timeout_s: float = 10.0):
         if not client.wait_for_service(timeout_sec=timeout_s):
             return None
@@ -143,43 +172,41 @@ class Driver(Node):
             time.sleep(0.05)
         return future.result() if future.done() else None
 
-    def set_bool(self, name: str, value: bool, client=None) -> bool:
-        req = SetParameters.Request()
-        param = Parameter()
-        param.name = name
-        param.value = ParameterValue(
-            type=ParameterType.PARAMETER_BOOL, bool_value=value)
-        req.parameters = [param]
+    def set_remote_param(self, name: str, value, client=None) -> bool:
+        req = SetParameters.Request(parameters=[Parameter(name, value=value).to_parameter_msg()])
         target = client if client is not None else self._params
         response = self._call(target, req)
-        ok = response is not None and all(r.successful for r in response.results)
+        ok = response is not None and len(response.results) == 1 and response.results[0].successful
         print(f'param {name}={value}: {"OK" if ok else "FAIL"}', flush=True)
         return ok
 
-    def set_int(self, name: str, value: int) -> bool:
-        req = SetParameters.Request()
-        param = Parameter()
-        param.name = name
-        param.value = ParameterValue(
-            type=ParameterType.PARAMETER_INTEGER, integer_value=int(value))
-        req.parameters = [param]
-        response = self._call(self._params, req)
-        ok = response is not None and all(r.successful for r in response.results)
-        print(f'param {name}={value}: {"OK" if ok else "FAIL"}', flush=True)
-        return ok
-
-    def set_double(self, name: str, value: float, client=None) -> bool:
-        req = SetParameters.Request()
-        param = Parameter()
-        param.name = name
-        param.value = ParameterValue(
-            type=ParameterType.PARAMETER_DOUBLE, double_value=float(value))
-        req.parameters = [param]
-        target = client if client is not None else self._params
-        response = self._call(target, req)
-        ok = response is not None and all(r.successful for r in response.results)
-        print(f'param {name}={value}: {"OK" if ok else "FAIL"}', flush=True)
-        return ok
+    def bind_replay_calibration(self) -> bool:
+        """Identify the intrinsics and wrist extrinsics used by this mock fixture."""
+        if not _wait(lambda: len(self._infos) == 2, 5.0):
+            print('frozen replay missing CameraInfo', file=sys.stderr)
+            return False
+        calibration = {}
+        try:
+            for sensor, info in self._infos.copy().items():
+                if not (info.k[0] > 0 and info.k[4] > 0 and info.width and info.height):
+                    raise ValueError(f'{sensor} CameraInfo is uncalibrated')
+                tf = self._tf.lookup_transform(
+                    'wrist3_Link', info.header.frame_id, Time.from_msg(info.header.stamp),
+                    timeout=Duration(seconds=2.0))
+                intrinsics = message_to_ordereddict(info)
+                del intrinsics['header']['stamp']
+                calibration[sensor] = {
+                    'camera_info': intrinsics, 'parent': tf.header.frame_id,
+                    'wrist_to_optical': message_to_ordereddict(tf.transform)}
+            encoded = json.dumps(calibration, sort_keys=True, allow_nan=False).encode()
+        except (TransformException, ValueError) as error:
+            print(f'frozen calibration unavailable: {error}', file=sys.stderr)
+            return False
+        revision = 'mock-replay:sha256:' + hashlib.sha256(encoded).hexdigest()
+        client = self.create_client(
+            SetParameters, '/peach_target_reconstruction_node/set_parameters',
+            callback_group=self._group)
+        return self.set_remote_param('calibration_version', revision, client)
 
     def set_enables(self, grasp: bool) -> bool:
         req = SetEnables.Request()
@@ -188,7 +215,7 @@ class Driver(Node):
         req.tool = False
         req.reason = 'peach_system_tests frozen_camera one-view FULL dry'
         response = self._call(self._enables, req)
-        ok = response is not None
+        ok = response is not None and response.accepted
         print(
             f'enables(execution=True grasp={grasp} tool=False): '
             f'{"OK" if ok else "FAIL"}',
@@ -247,7 +274,8 @@ class Driver(Node):
             return
 
     def watch_motion_freeze(self, tol_rad: float = 2e-3) -> None:
-        """Pause RGB-D and the point cloud once the arm leaves the photo pose.
+        """
+        Pause RGB-D and the point cloud once the arm leaves the photo pose.
 
         The frozen frame is a wrist camera at global_photo_pose. Republishing
         it with stamp=now() while the joints move would drag the fruit along
@@ -274,28 +302,6 @@ class Driver(Node):
                             f'photo: replay paused on harvest motion '
                             f'(joint dev {dev:.4f} rad)',
                             flush=True)
-                        # #region agent log
-                        try:
-                            import json
-                            _payload = {
-                                'sessionId': 'd5915a', 'runId': 'compare',
-                                'hypothesisId': 'H4',
-                                'location': 'v1/drive_frozen_grasp.py:pause',
-                                'message': 'v1 replay paused',
-                                'timestamp': int(time.time() * 1000),
-                                'data': {
-                                    'joint_dev_rad': round(dev, 4),
-                                    'phase': int(state.target_phase),
-                                    'joints': [round(float(x), 4) for x in js.position],
-                                },
-                            }
-                            with open(
-                                    '/home/mu/Desktop/aubo_e5_jazzy_ws/.cursor/'
-                                    'debug-d5915a.log', 'a') as _fh:
-                                _fh.write(json.dumps(_payload) + '\n')
-                        except Exception:
-                            pass
-                        # #endregion
                         return
                 time.sleep(0.05)
             print('photo: motion watch expired (replay left streaming)',
@@ -334,6 +340,8 @@ def main() -> int:
                         help='batch id (default frozen_v1_<unix>)')
     parser.add_argument('--scene-key', default='lab')
     parser.add_argument('--profile', default='default')
+    parser.add_argument('--bind-replay-calibration', action='store_true',
+                        help='identify calibration from this owned mock replay')
     parser.add_argument('--ready-timeout', type=float, default=120.0,
                         help='stack boot budget; not part of the grasp clock')
     parser.add_argument('--timeout', type=float, default=180.0,
@@ -342,7 +350,7 @@ def main() -> int:
     rid = args.request_id.strip() or f'frozen_v1_{int(time.time())}'
 
     rclpy.init()
-    node = Driver()
+    node = Driver(args.bind_replay_calibration)
     executor = MultiThreadedExecutor(num_threads=4)
     executor.add_node(node)
     threading.Thread(target=executor.spin, daemon=True).start()
@@ -353,19 +361,26 @@ def main() -> int:
         if not node.wait_controllers(12.0):
             print('controllers not active', file=sys.stderr)
             return 2
+        if not node.mock_replay_ready():
+            print('expected AuboE5System mock hardware and frozen camera replay', file=sys.stderr)
+            return 2
+        if args.bind_replay_calibration and not node.bind_replay_calibration():
+            return 2
         time.sleep(5.0)
-        if not node.set_bool('execute_pregrasp_only', False):
+        if not node.set_remote_param('execute_pregrasp_only', False):
             return 1
-        node.set_bool('reconstruct_in_trajectory', True)
-        node.set_int('reconstruction_min_views', 1)
+        if not node.set_remote_param('reconstruct_in_trajectory', True):
+            return 1
+        if not node.set_remote_param('reconstruction_min_views', 1):
+            return 1
         # Frozen RGB-D stays at the photo pose; live TF after leaving it
         # would look like the fruit drifted. Skip ReconfirmTarget.
-        if not node.set_bool(
+        if not node.set_remote_param(
                 'grasp.allow_stale_anchor', True, client=node._arm_params):
             return 1
         # Frozen photo-pose cloud becomes 769 planning boxes; sleeve LIN
         # then fails camera×obstacle. Product switch: idle-only, before harvest.
-        if not node.set_bool(
+        if not node.set_remote_param(
                 'moveit.obstacle_guard_enabled', False,
                 client=node._arm_params):
             return 1
@@ -374,8 +389,8 @@ def main() -> int:
         # CheckReachability before dispatch (cut_travel_out_of_range).
         # Frozen photo-pose cloud is not a job-time map. Shrink the snapshot
         # so 769 boxes cannot occupy the sleeve corridor.
-        node.set_double(
-            'workspace_radius_m', 0.05, client=node._obstacle_params)
+        if not node.set_remote_param('workspace_radius_m', 0.05, node._obstacle_params):
+            return 1
         if not node.set_enables(True):
             return 1
         node.watch_motion_freeze()
@@ -438,31 +453,6 @@ def main() -> int:
             f'grasp_s={elapsed:.1f} summary_elapsed={summary_elapsed:.1f}s '
             f'replay_paused={node.replay_paused}',
             flush=True)
-        # #region agent log
-        try:
-            import json
-            _js = node.joints.position if node.joints is not None else []
-            _payload = {
-                'sessionId': 'd5915a', 'runId': 'compare', 'hypothesisId': 'H4',
-                'location': 'v1/drive_frozen_grasp.py:result',
-                'message': 'v1 grasp result',
-                'timestamp': int(time.time() * 1000),
-                'data': {
-                    'status': status,
-                    'succeeded': int(summary.succeeded),
-                    'grasp_s': round(elapsed, 2),
-                    'replay_paused': bool(node.replay_paused),
-                    'reasons': [str(item.reason) for item in summary.outcomes],
-                    'joints': [round(float(x), 4) for x in _js],
-                },
-            }
-            with open(
-                    '/home/mu/Desktop/aubo_e5_jazzy_ws/.cursor/debug-d5915a.log',
-                    'a') as _fh:
-                _fh.write(json.dumps(_payload) + '\n')
-        except Exception:
-            pass
-        # #endregion
         for item in summary.outcomes:
             print(
                 f'  target={item.target_id} outcome={item.outcome} '

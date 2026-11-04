@@ -48,19 +48,16 @@ test_results/
 harvest_runs/
 web_runs/
 peach_sessions/
-# 过程记录 runs/：结构化文本（jsonl/json/csv/md/yaml/txt/log/mmd）入库随仓推送，
-# 克隆即可离线复算/分析；图像/mcap/点云等二进制仍只留本地。
-runs/**
-!runs/**/
-!runs/**/*.jsonl
-!runs/**/*.json
-!runs/**/*.md
-!runs/**/*.csv
-!runs/**/*.yaml
-!runs/**/*.yml
-!runs/**/*.txt
-!runs/**/*.log
-!runs/**/*.mmd
+# 运行/测试过程数据与打包验收产物仅留本地；源码、文档、模型正常入库。
+/runs/
+/artifacts/
+# 报告保留文档与配图，排除制作中间产物、会话锁和原始统计数据。
+/reports/**/video_build/
+/reports/**/.dsh-ops-update-*.lock
+/reports/**/summary.csv
+/reports/**/summary.json
+src/serial_force/doc/sim/force_align_sim_trials.csv
+src/serial_force/doc/sim/force_align_sim_trials.jsonl
 recon_maps/*.ply
 validation_runs/
 # 手眼标定：hand_eye/active.yaml 是唯一在用外参事实源，入库随仓（09-17 唯一性整理；
@@ -128,8 +125,7 @@ src/peach_sim/sim_worlds/reconstruction/output/blender_tutorial/
 src/peach_sim/sim_worlds/reconstruction/output/**/*.exr
 src/peach_sim/sim_worlds/reconstruction/matrix/
 
-# 会话 bag 二进制留本地（jazzy 分支政策：runs 文本层入库）；peach_sim 重建生成物不入库
-runs/*/bag/
+# peach_sim 重建生成物不入库
 src/peach_sim/sim_worlds/reconstruction/output/
 src/peach_sim/sim_worlds/reconstruction/output/lighting_checks/
 

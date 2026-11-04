@@ -402,8 +402,10 @@ void GraspTask::applyOctomapExemptionImpl(
   const ObstacleExemptionSpec & obstacle_spec,
   const std::vector<std::string> & contact_tool_links,
   const std::string & per_target_id,
-  ContactAcmStage per_target_stage)
+  ContactAcmStage per_target_stage,
+  const std::function<bool()> & still_current)
 {
+  if (still_current && !still_current()) {return;}
   static std::atomic<int> fetch_seq{0};
   const std::string helper_name =
     "peach_octomap_acm_" + std::to_string(fetch_seq.fetch_add(1));
@@ -438,6 +440,14 @@ void GraspTask::applyOctomapExemptionImpl(
     for (const auto & [link, object] : obstacleExemptionEntries(obstacle_spec)) {
       acm.setEntry(link, object, true);
     }
+    // guard 从 false 重开时，现行 ACM 已有相机豁免；必须显式写回 false。
+    // 只写本包管理的 guard_links × 障碍域，不修改 SRDF 或其他对象的条目。
+    auto guard_spec = obstacle_spec;
+    guard_spec.exempt_links = obstacle_spec.guard_links;
+    guard_spec.guard_links.clear();
+    for (const auto & [link, object] : obstacleExemptionEntries(guard_spec)) {
+      acm.setEntry(link, object, !obstacle_spec.guard_enabled);
+    }
   }
   // 接触阶段只对接触连杆 × 指定目标对象放行；默认不豁免整张 octomap。
   if (!per_target_id.empty()) {
@@ -451,6 +461,9 @@ void GraspTask::applyOctomapExemptionImpl(
   diff.is_diff = true;
   diff.robot_state.is_diff = true;
   acm.getMessage(diff.allowed_collision_matrix);
+  // 服务等待期间可能已改参/停用；旧后台轮次写前再次复检。
+  // 这只能阻止尚未派发的请求，不能撤回已发送的 DDS 服务调用。
+  if (still_current && !still_current()) {return;}
   const bool applied = scene.applyPlanningScene(diff);
   // 09-29 真相机轮勘定：成功必须留痕——此前静默成功/静默失败都无日志，
   // 起点碰撞排查时无法区分「条目没写」与「写了被覆盖」。
@@ -470,12 +483,13 @@ void GraspTask::applyWholeOctomapToolExemption(
   const rclcpp::Logger & logger,
   moveit::planning_interface::PlanningSceneInterface & scene,
   const std::vector<std::string> & tool_links,
-  const ObstacleExemptionSpec & obstacle_spec)
+  const ObstacleExemptionSpec & obstacle_spec,
+  const std::function<bool()> & still_current)
 {
   ObstacleExemptionSpec spec = obstacle_spec;
   spec.exempt_links = tool_links;
   applyOctomapExemptionImpl(
-    logger, scene, tool_links, spec, {}, std::string(), ContactAcmStage::Transit);
+    logger, scene, tool_links, spec, {}, std::string(), ContactAcmStage::Transit, still_current);
 }
 
 void GraspTask::applyToolOctomapExemption(
@@ -787,7 +801,21 @@ GraspTaskResult GraspTask::executeBlendedCorridor(
       }
     }
   }
-  // 执行：ExecuteTrajectory 有界（execution_guard + stop 钩子）。
+  // 实际发送的混合走廊只有一个 ExecuteTrajectory goal。
+  moveit_msgs::action::ExecuteTrajectory::Goal goal;
+  goal.trajectory.joint_trajectory = parts.front();
+  if (!fitsExecutionTimeout(
+      plannedDuration(goal.trajectory), config_.execute_timeout_s, output.reason))
+  {
+    return output;
+  }
+  rclcpp_action::Client<moveit_msgs::action::ExecuteTrajectory>::SharedPtr
+    exec_cli = rclcpp_action::create_client<moveit_msgs::action::ExecuteTrajectory>(
+    node_, "/execute_trajectory");
+  if (!exec_cli->wait_for_action_server(std::chrono::duration<double>(2.0))) {
+    output.reason = "execute_trajectory 服务不可用";
+    return output;
+  }
   if (execution_gate && !execution_gate(output.reason)) {
     output.reason = "execution gate rejected: " + output.reason;
     output.retry_forbidden = true;
@@ -797,15 +825,6 @@ GraspTaskResult GraspTask::executeBlendedCorridor(
   // 从提交执行意图起结果可能未知；只有完整成功才能恢复完整历史。
   last_approach_parts_.clear();
   output.execution_started = true;
-  rclcpp_action::Client<moveit_msgs::action::ExecuteTrajectory>::SharedPtr
-    exec_cli = rclcpp_action::create_client<moveit_msgs::action::ExecuteTrajectory>(
-    node_, "/execute_trajectory");
-  if (!exec_cli->wait_for_action_server(std::chrono::duration<double>(2.0))) {
-    output.reason = "execute_trajectory 服务不可用";
-    return output;
-  }
-  moveit_msgs::action::ExecuteTrajectory::Goal goal;
-  goal.trajectory.joint_trajectory = parts.front();
   auto goal_fut = exec_cli->async_send_goal(goal);
   if (goal_fut.wait_for(std::chrono::duration<double>(5.0)) !=
     std::future_status::ready)
@@ -1205,7 +1224,7 @@ GraspTaskResult GraspTask::previewFullContact(
   const Eigen::Isometry3d & entry_tip_pose,
   const Eigen::Vector3d & insertion_axis,
   double insertion_distance_m,
-  const FruitCapsule & fruit)
+  const FruitCapsule & fruit, bool prepare_execution)
 {
   const ApproachSplit split =
     classifyApproach(config_, entry_tip_pose, insertion_axis, fruit);
@@ -1258,7 +1277,8 @@ GraspTaskResult GraspTask::previewFullContact(
     }
     auto task = makeTaskShell("peach_full_contact_preview");
     auto cartesian = makeCartesianSolver(config_.approach_near_velocity_scaling);
-    cartesian->setTimeParameterization(nullptr);
+    // 人工几何预览保留原快路径。作业预规划用与实际套入/撤退相同的时间参数化。
+    if (!prepare_execution) {cartesian->setTimeParameterization(nullptr);}
     auto contact = std::make_unique<mtc::SerialContainer>("preview contact");
     if (staging) {
       const auto w = stagingWaypoints(
@@ -1270,13 +1290,15 @@ GraspTaskResult GraspTask::previewFullContact(
     } else if (split.need_lin) {
       appendApproachToPregrasp(*contact, entry_tip_pose, insertion_axis, split);
     }
-    const double sleeve_m = split.lin_to_entry_m + insertion_distance_m;
+    const double sleeve_m = (prepare_execution ? config_.approach_along_axis_m :
+      split.lin_to_entry_m) + insertion_distance_m;
     contact->add(makeLinearMove(
       "sleeve linear along bag axis", cartesian, insertion_axis, sleeve_m));
     contact->add(makeLinearMove(
       "linear retreat along insertion path", cartesian, -insertion_axis, sleeve_m));
     task->add(std::move(contact));
-    result = planAndMaybeExecute(std::move(task), false, {}, split.need_lin, 2U, true, false);
+    result = planAndMaybeExecute(
+      std::move(task), false, {}, split.need_lin, 2U, true, false, prepare_execution);
     if (!retryStagingCandidate(
         result.success, result.execution_started,
         cancel_generation_.load() != generation, result.retry_forbidden))
@@ -1344,12 +1366,11 @@ GraspTaskResult GraspTask::retreat(
 
 GraspTaskResult GraspTask::planTaskOnly(
   mtc::Task * active, bool guard_approach, std::size_t guard_skip_tail,
-  bool staging_guard, std::size_t max_solutions, bool cartesian_per_part)
+  bool staging_guard, TimingCheck timing, bool cartesian_per_part)
 {
   syncKeepoutCollisionObjects();
   GraspTaskResult output;
-  const std::size_t solutions =
-    max_solutions == 0U ? config_.max_solutions : max_solutions;
+  const std::size_t solutions = timing == TimingCheck::WHOLE_GOAL ? 1U : config_.max_solutions;
   const auto result = active->plan(solutions);
   if (result != moveit::core::MoveItErrorCode::SUCCESS || active->solutions().empty()) {
     std::ostringstream details;
@@ -1364,9 +1385,43 @@ GraspTaskResult GraspTask::planTaskOnly(
     }
     return output;
   }
-  if (guard_approach) {
-    moveit_task_constructor_msgs::msg::Solution solution;
+  moveit_task_constructor_msgs::msg::Solution solution;
+  if (guard_approach || timing != TimingCheck::NONE) {
     active->solutions().front()->toMsg(solution);
+  }
+  if (timing != TimingCheck::NONE) {
+    // MTC 按 sub_trajectory 顺序执行，场景差分项没有运动段。
+    std::chrono::nanoseconds total{}, penultimate{}, last{};
+    std::size_t moves = 0;
+    for (const auto & sub : solution.sub_trajectory) {
+      const auto & traj = sub.trajectory;
+      if (traj.joint_trajectory.points.empty() && traj.multi_dof_joint_trajectory.points.empty()) {
+        continue;
+      }
+      penultimate = last;
+      last = plannedDuration(traj);
+      total += last;
+      ++moves;
+    }
+    if (timing == TimingCheck::WHOLE_GOAL) {
+      if (!fitsExecutionTimeout(total, config_.execute_timeout_s, output.reason)) {return output;}
+    } else {
+      // 预规划末两次运动为套入与撤离，实际分别发 goal，各有一次完整的执行窗口。
+      if (moves < 2U || penultimate.count() <= 0 || last.count() <= 0) {
+        output.reason = "缺少有时间参数的套入或撤退轨迹";
+        return output;
+      }
+      if (!fitsExecutionTimeout(penultimate, config_.execute_timeout_s, output.reason)) {
+        output.reason = "套入预规划: " + output.reason;
+        return output;
+      }
+      if (!fitsExecutionTimeout(last, config_.execute_timeout_s, output.reason)) {
+        output.reason = "撤退预规划: " + output.reason;
+        return output;
+      }
+    }
+  }
+  if (guard_approach) {
     std::vector<trajectory_msgs::msg::JointTrajectory> approach_parts;
     approach_parts.reserve(solution.sub_trajectory.size());
     for (const auto & sub : solution.sub_trajectory) {
@@ -1594,7 +1649,7 @@ GraspTaskResult GraspTask::planAndMaybeExecute(
   bool guard_approach,
   std::size_t guard_skip_tail,
   bool staging_guard,
-  bool cartesian_per_part)
+  bool cartesian_per_part, bool prepare_contact_execution)
 {
   const auto generation = cancel_generation_.load();
   mtc::Task * active = nullptr;
@@ -1611,7 +1666,9 @@ GraspTaskResult GraspTask::planAndMaybeExecute(
     }
     output = planTaskOnly(
       active, guard_approach, guard_skip_tail, staging_guard,
-      execute ? 1U : 0U, cartesian_per_part);
+      execute ? TimingCheck::WHOLE_GOAL :
+      (prepare_contact_execution ? TimingCheck::CONTACT_LEGS : TimingCheck::NONE),
+      cartesian_per_part);
     RCLCPP_INFO(
       node_->get_logger(), "%sMTC规划检查已返回: elapsed=%.3fs success=%s",
       tctx().c_str(), std::chrono::duration<double>(

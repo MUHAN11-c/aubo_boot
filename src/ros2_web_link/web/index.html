@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="color-scheme" content="light"><title>ROS 2 Web Link · 功能自测</title>
+  <link rel="stylesheet" href="uplot.css"><link rel="icon" href="data:,"> <link rel="stylesheet" href="style.css">
+  <script src="ros2-web-link.js" defer></script><script src="app.js" defer></script><script src="project.js" defer></script><script src="shell.js" defer></script>
+</head>
+<body>
+<a id="skip-main" class="skip-link" href="#main">跳到主内容</a>
+<aside class="rail"><a class="brand" href="#overview"><span class="symbol">↗</span><span>ROS 2<br><strong>WEB LINK</strong></span></a>
+  <p class="eyebrow">JAZZY / COMMUNICATION LAB</p>
+  <nav aria-label="功能导航">
+    <span class="nav-group">工作空间</span>
+    <a href="#overview" data-title="项目验收"><span>▤</span> 项目验收</a>
+    <a href="#workbench" data-title="可视化工作台"><span>◇</span> 可视化工作台</a>
+    <span class="nav-group">通信调试</span>
+    <a href="#topics" data-title="Topic 收发"><span>01</span> Topic 收发</a>
+    <a href="#services" data-title="Service 调用"><span>02</span> Service 调用</a>
+    <a href="#actions" data-title="Action 执行"><span>03</span> Action 执行</a>
+    <a href="#parameters" data-title="节点参数"><span>04</span> 节点参数</a>
+    <a href="#lifecycle" data-title="生命周期"><span>05</span> 生命周期</a>
+    <span class="nav-group">单项观测</span>
+    <a href="#observations" data-title="标准数据"><span>06</span> 标准数据</a>
+    <a href="#scene" data-title="3D 观测"><span>07</span> 3D 观测</a>
+    <a href="#media" data-title="图像与曲线"><span>08</span> 图像与曲线</a>
+    <a href="#evidence" data-title="操作记录"><span>09</span> 操作记录</a>
+  </nav><p class="rail-note">独立 SDK · 原生 ROS 接口<br>项目配置驱动 · 交互按需选择</p>
+</aside>
+<div class="workspace">
+<header class="topbar"><div class="topbar-context"><strong id="page-title">项目验收</strong><span id="workspace-title">ROS 2 / 原生接口</span></div><div class="inline"><span id="connection-state" class="state" role="status">未连接</span><button id="connection-toggle" aria-controls="connection-panel" aria-expanded="false">连接设置</button></div></header>
+<div id="connection-panel" class="connection-panel" role="region" aria-label="项目与 ROS 连接设置" hidden>
+  <div class="section-head"><h2>项目与连接</h2><button id="connection-close" aria-label="关闭连接设置">×</button></div>
+<label class="project-picker">测试项目<select id="project-select" aria-label="测试项目"><option>加载项目配置…</option></select></label>  <div class="connection-body"><label for="ws-url">ROSBRIDGE WEBSOCKET</label><div class="inline"><input id="ws-url" type="url" value="ws://127.0.0.1:9090" spellcheck="false"><button id="connect" class="primary">连接</button><button id="disconnect">断开</button></div><label class="connection-mode"><input id="connection-split" type="checkbox">分离观测连接（大数据）</label><p id="observation-connection-state" class="hint" role="status">观测连接：共用控制连接</p><p id="connection-detail" class="hint">网页直接连接 rosbridge；断线不补发操作。</p></div>
+</div>
+<main id="main" tabindex="-1">
+<section id="overview" class="intro">
+  <div class="project-heading"><div><p class="eyebrow">ROS 2 / PROJECT TEST LAB</p><h1 id="project-title">选择项目，核对实际链路。</h1><p class="lead" id="project-description">真实接口、可选用例、可追溯结果。</p></div></div>
+
+  <div class="metrics"><div><span>控制连接</span><strong id="metric-state">OFFLINE</strong></div><div><span>活动订阅</span><strong id="metric-subscriptions">0</strong></div><div><span>等待响应</span><strong id="metric-pending">0</strong></div><div><span id="metric-check-kind">项目验收</span><strong id="metric-checks">—</strong></div></div>
+  <details><summary>传输预算与连接统计</summary><p class="hint">显示当前或最近会话的字节数、分片缓存、发送积压与故障；分连接时分别显示两侧，顶部计数为合计；这些预算不等于整个浏览器的内存上限。</p><pre id="transport-stats">尚未连接</pre></details>
+  <div id="project-workbench" class="project-workbench">
+    <div class="section-head"><div><p class="eyebrow">SELECT / RUN / INSPECT</p><h2>项目用例与结果</h2><p id="project-selection-state">加载用例…</p></div><div class="inline"><button id="project-select-read">只选只读项</button><button id="project-select-none">清空选择</button></div></div>
+    <div class="project-toolbar"><button id="project-run" data-online class="primary">运行所选用例</button><button id="project-stop">停止并收尾</button><button id="project-export">导出验收 JSON</button><span id="project-progress" role="status">尚未运行</span></div>
+    <div class="audit-summary" aria-label="项目验收统计"><div><span>通过</span><strong id="audit-pass">—</strong></div><div><span>失败 / 取消</span><strong id="audit-fail">—</strong></div><div><span>未执行</span><strong id="audit-not-run">—</strong></div><div><span>总耗时</span><strong id="audit-time">—</strong></div></div>
+    <p id="project-analysis" class="project-analysis" role="status">只读项默认选中。交互项会改变项目状态，按需单独勾选；未执行项保留在报告中。</p>
+    <div id="project-cases" class="project-cases" aria-label="可选择的项目测试用例"></div>
+    <div class="audit-bottom-controls"><span id="project-bottom-state">可按需勾选用例</span><button id="project-run-bottom" class="primary">运行所选用例</button><button id="project-stop-bottom">停止并收尾</button></div>
+    <details class="project-json"><summary>查看本轮 JSON 报告摘要（完整内容可导出）</summary><pre id="project-report-json">尚未运行</pre></details>
+    <div class="project-observe-links"><a href="#scene">查看模型 / TF / 点云 →</a><a href="#media">查看图像 / 深度 / 曲线 →</a><a href="#evidence">查看原始操作记录 →</a></div>
+  </div>
+  <details id="demo-tools" class="demo-tools"><summary>独立 demo 通信回归（不代表当前项目业务验收）</summary>
+  <div class="section-head"><div><h2>无硬件功能自测</h2><p>目标固定为 /web_link_demo，按需运行，不会发送机器人指令。</p></div><button id="self-check" data-online class="primary">运行功能自测</button></div>
+  <ol id="check-results" class="check-results"><li class="hint">先启动 self_test.launch.py，再连接并运行。</li></ol>
+  </details>
+  <p id="profile-state" class="hint">正在加载 launch 配置…</p><details><summary>查看 ROS 图谱</summary><button id="graph-refresh" data-online>刷新节点 / 话题 / 服务 / Action</button><pre id="graph-result">尚未查询</pre></details>
+  <details><summary>原生类型发现与接口字段</summary>
+    <div class="fields"><label>接口种类<select id="interface-kind"><option value="topic">Topic</option><option value="service">Service</option><option value="action">Action</option></select></label><label>接口名<input id="interface-name" value="/web_link_demo/ticks"></label><label>接口类型<input id="interface-type" value="std_msgs/msg/String"></label></div>
+    <div class="inline"><button id="interface-resolve" data-online>从 ROS 图谱识别类型</button><button id="interface-describe" data-online>查看接口字段</button></div><pre id="interface-result">尚未查询</pre>
+  </details>
+</section>
+<section id="workbench" class="panel">
+  <div class="section-head"><div><p class="eyebrow">COMPOSABLE / OBSERVATION WORKBENCH</p><h2>可视化工作台</h2><p>选择显示，检查数据与节点关系。</p></div><button id="workbench-load" class="primary">打开工作台</button></div>
+  <div id="workbench-root"><div class="workbench-welcome"><span class="welcome-symbol" aria-hidden="true">◇</span><h3>让 ROS 数据清晰可见</h3><p>从左侧选择模型、TF、点云或图像，在同一工作区观察。</p><ol><li>打开工作台</li><li>右上角连接 ROS</li><li>勾选显示并启动</li></ol></div></div><p id="workbench-state" class="hint" role="status">尚未加载</p>
+</section>
+<section id="topics" class="panel">
+  <div class="section-head"><div><p class="eyebrow">01 / TOPIC</p><h2>连续数据与发布</h2></div><span id="topic-freshness" class="tag">尚无数据</span></div>
+  <div class="fields"><label>订阅话题<input id="topic-name" value="/web_link_demo/echo"></label><label>消息类型<input id="topic-type" value="std_msgs/msg/String"></label><label>QoS<select id="topic-qos"><option value="reliable">Reliable · volatile</option><option value="sensor">Best effort · sensor</option><option value="latched">Reliable · transient local</option><option value="staticTf">Static TF · transient local / 100</option></select></label><label>订阅编码<select id="topic-compression"><option value="none">JSON / Base64</option><option value="cbor">CBOR / 二进制数组</option></select></label></div>
+  <label>订阅间隔 / ms<input id="topic-throttle" type="number" min="0" step="1" value="0"></label>
+  <div class="inline"><button id="topic-subscribe" data-online>订阅</button><button id="topic-unsubscribe">取消订阅</button><span class="hint" id="topic-count">接收 0 条</span></div><pre id="topic-result">等待数据</pre>
+  <div class="fields"><label>发布话题<input id="publish-name" value="/web_link_demo/input"></label><label>消息 JSON<textarea id="publish-json" rows="3">{"data":"hello from browser"}</textarea></label></div>
+  <button id="topic-publish" data-online class="primary">发布一次</button><p class="hint">发布沿用上方消息类型与 QoS；不会循环发送。订阅恢复后保留统计，更新时间单独显示。</p>
+</section>
+<section id="services" class="panel">
+  <div class="section-head"><div><p class="eyebrow">02 / SERVICE</p><h2>请求与响应</h2></div></div>
+  <div class="fields"><label>服务名<input id="service-name" value="/web_link_demo/add_two_ints"></label><label>服务类型<input id="service-type" value="example_interfaces/srv/AddTwoInts"></label><label>等待超时 / ms<input id="service-timeout" type="number" min="1" value="5000"></label></div>
+  <label>请求 JSON<textarea id="service-json" rows="3">{"a":3,"b":4}</textarea></label><div class="inline"><button id="service-call" data-online class="primary">调用服务</button><button id="service-abort">停止等待</button></div><pre id="service-result">尚未调用</pre><p class="hint">超时或停止等待仅结束本地等待，ROS 服务仍可能完成；不会自动重试。</p>
+</section>
+<section id="actions" class="panel">
+  <div class="section-head"><div><p class="eyebrow">03 / ACTION</p><h2>长任务、反馈与取消</h2></div><span id="action-state" class="tag">空闲</span></div>
+  <div class="fields"><label>Action 名<input id="action-name" value="/web_link_demo/fibonacci"></label><label>Action 类型<input id="action-type" value="example_interfaces/action/Fibonacci"></label><label>等待超时 / ms<input id="action-timeout" type="number" min="1" value="60000"></label></div>
+  <label>Goal JSON<textarea id="action-json" rows="3">{"order":8}</textarea></label><div class="inline"><button id="action-send" data-online class="primary">发送 Goal</button><button id="action-cancel">请求取消此 Goal</button></div><div class="split"><div><h3>反馈</h3><pre id="action-feedback">尚无反馈</pre></div><div><h3>最终结果</h3><pre id="action-result">尚无结果</pre></div></div><p class="hint">通用工具展示原生反馈与终态；项目交互验收请使用上方用例，以核对前置状态与收尾。demo 的 order=-1 拒绝、13 中止；终态 5 才是已取消。</p>
+</section>
+<section id="parameters" class="panel">
+  <p class="eyebrow">04 / PARAMETERS</p><h2>节点标准参数</h2><div class="fields"><label>节点名<input id="parameter-node" value="/web_link_demo/demo"></label><label>参数名（逗号分隔）<input id="parameter-names" value="gain,enabled,count,label,read_only"></label></div>
+  <div class="inline"><button id="parameter-list" data-online>列举参数</button><button id="parameter-get" data-online>读取值与描述</button></div><pre id="parameter-result">尚未读取</pre>
+  <label>写入列表 JSON（明确指定 ROS 类型 ID）<textarea id="parameter-json" rows="4">[{"name":"gain","type":3,"value":1.0}]</textarea></label><div class="inline"><button id="parameter-set" data-online class="primary">逐项写入</button><button id="parameter-atomic" data-online>节点内原子写入</button></div><p class="hint">支持九类 ROS 2 参数；只读、类型与范围由节点验证。整数超过 JavaScript 安全范围会拒绝；不自动保存 YAML。</p><pre id="parameter-write-result">尚未写入</pre>
+</section>
+<section id="lifecycle" class="panel">
+  <p class="eyebrow">05 / LIFECYCLE</p><h2>使用原生生命周期服务</h2><div class="fields"><label>节点名<input id="lifecycle-node" value="/web_link_demo/lifecycle"></label><label>当前可用转换<select id="lifecycle-transition"><option value="">先读取状态</option></select></label></div><div class="inline"><button id="lifecycle-read" data-online>读取状态与转换</button><button id="lifecycle-change" data-online>执行选中转换</button></div><pre id="lifecycle-result">尚未读取</pre>
+</section>
+<section id="observations" class="panel">
+  <div class="section-head"><div><p class="eyebrow">06 / STANDARD DATA</p><h2>图像、TF 与诊断</h2><p>跟随所选项目。显示源时间、坐标系、字段与字节规模；大型数组只显示有界摘要。</p></div><div class="inline"><button id="observe-start" data-online>订阅项目标准数据</button><button id="observe-stop">停止</button></div></div>
+  <div class="split"><figure><img id="image-preview" alt="等待 ROS CompressedImage 示例"><figcaption id="image-state">尚无图像</figcaption></figure><pre id="observation-result">等待 TF、JointState、PointCloud2 与 diagnostics</pre></div>
+</section>
+<section id="scene" class="panel">
+  <div class="section-head"><div><p class="eyebrow">07 / 3D OBSERVATION</p><h2>模型与空间数据</h2><p>URDF / JointState · TF · MarkerArray · PointCloud2 · Path</p></div><div class="inline"><button id="scene-start" data-online class="primary">开始 3D 观测</button><button id="scene-stop">停止 3D</button></div></div>
+  <div class="inline"><label>固定坐标系<input id="scene-fixed" value="demo_base"></label><button id="scene-frame">应用坐标系</button><button id="scene-camera">重置视角</button></div>
+  <div class="layers" aria-label="显示图层"><label><input type="checkbox" data-layer="robot" checked>机器人模型</label><label><input type="checkbox" data-layer="tf" checked>TF 坐标轴</label><label><input type="checkbox" data-layer="markers" checked>Marker</label><label><input type="checkbox" data-layer="cloud" checked>点云</label><label><input type="checkbox" data-layer="path" checked>Path</label></div>
+  <div id="scene-view" class="scene-view" aria-label="ROS 3D 观测视图"><span class="hint">按需加载 3D 组件；鼠标拖动旋转，滚轮缩放。</span></div><pre id="scene-state" role="status">尚未启动 3D</pre>
+  <details><summary>3D 性能与资源证据</summary><p class="hint">CPU提交耗时不等同GPU耗时；长任务统计覆盖页面。首次资源加载与渲染分别记录。profileShaders=true可测量已有着色器API调用，不增加GL查询。</p><pre id="scene-bootstrap">尚无启动分段数据</pre><pre id="scene-metrics">尚无性能数据</pre></details>
+  <details><summary>配置观测话题（来自 launch profile，可按需修改）</summary><label>SceneOptions JSON<textarea id="scene-config" rows="9">{}</textarea></label><p class="hint">修改后重新开始观测。网格单位为米；package:// 资源仅从 launch 的 asset_packages 白名单读取。显示图层与视角操作只改变画面。</p></details>
+</section>
+<section id="media" class="panel">
+  <p class="eyebrow">08 / MEDIA & TIME SERIES</p><h2>图像、深度与数值曲线</h2>
+  <div class="fields"><label>图像话题<input id="media-topic" value="/web_link_demo/image/compressed"></label><label>图像类型<select id="media-type"><option>sensor_msgs/msg/CompressedImage</option><option>sensor_msgs/msg/Image</option></select></label><label>16UC1 米 / 原始单位<input id="media-scale" type="number" step="any" min="0" placeholder="必须明确深度单位"></label></div>
+  <div class="fields"><label>图像传输<select id="media-compression"><option value="cbor">CBOR / 二进制数组</option><option value="none">JSON / Base64 对照</option></select></label><label>图像 QoS<select id="media-qos"><option value="sensor">Best effort · sensor</option><option value="reliable">Reliable · volatile</option></select></label><label>订阅间隔 / ms<input id="media-throttle" type="number" min="0" step="1" value="500"></label></div>
+  <div class="inline"><button id="media-image" data-online>使用彩色图配置</button><button id="media-depth" data-online>使用深度图配置</button><button id="media-start" data-online class="primary">显示图像</button><button id="media-stop">停止图像</button></div>
+  <div id="media-view" class="media-view" aria-label="ROS 图像视图"></div><p id="media-state" class="hint" role="status">尚未订阅图像</p>
+  <p class="hint">支持 PNG/JPEG、RGB/BGR/RGBA、mono8、16UC1、32FC1；16UC1 必须明确单位，32FC1 按米显示。无效深度显示黑色。</p>
+  <div class="fields"><label>曲线话题<input id="plot-topic" value="/web_link_demo/sensor"></label><label>消息类型<input id="plot-type" value="std_msgs/msg/Float64"></label><label>数值字段（逗号分隔）<input id="plot-fields" value="data"></label></div>
+  <div class="inline"><button id="plot-start" data-online class="primary">开始曲线</button><button id="plot-stop">停止曲线</button></div><div id="plot-view" class="plot-view" aria-label="ROS 数值曲线"></div><p id="plot-state" class="hint" role="status">最多保留 600 个样本；有 header 时使用 ROS 时间。</p>
+</section>
+<section id="evidence" class="panel"><div class="section-head"><div><p class="eyebrow">09 / EVIDENCE</p><h2>操作记录</h2></div><div class="inline"><button id="export-log">导出 JSON</button><button id="clear-log">清空</button></div></div><p class="hint">最近记录在前，最多保留 200 条有界快照；导出保留摘要。完整项目证据请用上方“导出验收 JSON”。</p><pre id="log" aria-live="polite">等待操作</pre></section>
+<footer>ROS 2 WEB LINK / v0.8.3 · 本地源码可修改 · HTTP + WebSocket 局域网自测</footer>
+</main></div>
+</body></html>

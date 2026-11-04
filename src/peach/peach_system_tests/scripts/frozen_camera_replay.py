@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Republish one RGB-D frame from a camera bag with live timestamps.
+"""
+Republish one RGB-D frame from a camera bag with live timestamps.
 
 The recorded image is fixed (photo-pose simulation). A synchronized RGB-D/cloud
 group is selected using its original exposure stamps, then shifted to live time
@@ -11,17 +12,17 @@ import argparse
 import copy
 import math
 import os
-import sys
 from pathlib import Path
+import sys
 
 from geometry_msgs.msg import TransformStamped
 from message_filters import ApproximateTimeSynchronizer, SimpleFilter
 import rclpy
-import rosbag2_py
 from rclpy.callback_groups import ReentrantCallbackGroup
 from rclpy.node import Node
 from rclpy.qos import DurabilityPolicy, HistoryPolicy, QoSProfile, ReliabilityPolicy
 from rclpy.serialization import deserialize_message
+import rosbag2_py
 from sensor_msgs.msg import CameraInfo, Image, PointCloud2
 from std_srvs.srv import SetBool
 from tf2_ros import StaticTransformBroadcaster
@@ -100,7 +101,8 @@ def discover_bag() -> str | None:
 
 
 def load_frame(uri: str, index: int) -> dict:
-    """Bind RGB index, then use original header stamps with bounded Jazzy ATS.
+    """
+    Bind RGB index, then use original header stamps with bounded Jazzy ATS.
 
     CameraInfo is calibration, selected independently (latest before RGB, or
     earliest after if no earlier sample exists). It is not exposure evidence.

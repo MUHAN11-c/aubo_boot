@@ -1,465 +1,138 @@
 Panels:
-  - Class: rviz_common/Displays
-    Name: Displays
-  - Class: rviz_common/Views
-    Name: Views
-  - Class: rviz_common/Time
-    Name: Time
-    Sync Mode: 0
-    Sync Source: WristCamera
+- Class: rviz_common/Displays
+  Name: Displays
+- Class: rviz_common/Views
+  Name: Views
+- Class: rviz_common/Time
+  Name: Time
 Visualization Manager:
-  Class: rviz_common/VisualizationManager
-  Displays:
-    # ================= 基础 =================
-    - Class: rviz_default_plugins/Grid
-      Name: 基础-栅格
-      Enabled: true
-      Value: true
-      Color: 160; 160; 164
-      Plane Cell Count: 60
-      Cell Size: 1
-      Reference Frame: <Fixed Frame>
-      Plane: XY
-      Line Style:
-        Line Width: 0.029999999329447746
-        Value: Lines
-    - Class: rviz_default_plugins/RobotModel
-      Name: 基础-机器人模型
-      Enabled: true
-      Value: true
-      Description Topic:
-        Depth: 5
-        Durability Policy: Transient Local
-        History Policy: Keep Last
-        Reliability Policy: Reliable
-        Value: /robot_description
-      TF Prefix: ""
-      Links:
-        All Links Enabled: true
-        Expand Joint Details: false
-        Expand Link Details: false
-        Expand Tree: true
-        Link Tree Style: Links in Alphabetic Order
-    - Class: rviz_default_plugins/TF
-      Name: 基础-TF坐标系
-      Enabled: true
-      Value: true
-      Frame Timeout: 15
-      Frames:
-        All Enabled: false
-        base_link:
-          Value: true
-        camera_color_optical_frame:
-          Value: true
-        map:
-          Value: true
-        odom:
-          Value: true
-        platform_base_link:
-          Value: true
-        tcp:
-          Value: true
-        wrist3_Link:
-          Value: true
-      Marker Scale: 0.25
-      Show Arrows: false
-      Show Axes: true
-      Show Names: true
-    # ================= 导航 =================
-    - Class: rviz_default_plugins/Map
-      Name: 导航-静态地图
-      Enabled: true
-      Value: true
-      Topic:
-        Depth: 1
-        Durability Policy: Transient Local
-        History Policy: Keep Last
-        Reliability Policy: Reliable
-        Value: /map
-      Color Scheme: map
-      Alpha: 0.3
-      Draw Behind: true
-    - Class: rviz_default_plugins/Map
-      Name: 导航-全局代价地图
-      Enabled: true
-      Value: true
-      Topic:
-        Depth: 1
-        Durability Policy: Volatile
-        History Policy: Keep Last
-        Reliability Policy: Reliable
-        Value: /global_costmap/costmap
-      Color Scheme: costmap
-      Alpha: 0.4
-      Draw Behind: true
-    - Class: rviz_default_plugins/Map
-      Name: 导航-局部代价地图
-      Enabled: true
-      Value: true
-      Topic:
-        Depth: 1
-        Durability Policy: Volatile
-        History Policy: Keep Last
-        Reliability Policy: Reliable
-        Value: /local_costmap/costmap
-      Color Scheme: costmap
-      Alpha: 0.4
-      Draw Behind: true
-    - Class: rviz_default_plugins/LaserScan
-      Name: 导航-激光雷达
-      Enabled: true
-      Value: true
-      Topic:
-        Depth: 5
-        Durability Policy: Volatile
-        History Policy: Keep Last
-        Reliability Policy: Best Effort
-        Value: /scan
-      Size (m): 0.04
-      Style: Flat Squares
-      Color Transformer: Flat Color
-      Color: 255; 255; 0
-      Channel Name: intensity
-      Autocompute Intensity Bounds: true
-    - Class: rviz_default_plugins/Path
-      Name: 导航-全局路径
-      Enabled: true
-      Value: true
-      Topic:
-        Depth: 5
-        Durability Policy: Volatile
-        History Policy: Keep Last
-        Reliability Policy: Reliable
-        Value: /plan
-      Line Width: 0.08
-      Color: 25; 255; 255
-      Alpha: 1
-      Buffer Length: 3
-    - Class: rviz_default_plugins/Path
-      Name: 导航-平滑路径
-      Enabled: true
-      Value: true
-      Topic:
-        Depth: 5
-        Durability Policy: Volatile
-        History Policy: Keep Last
-        Reliability Policy: Reliable
-        Value: /plan_smoothed
-      Line Width: 0.05
-      Color: 25; 200; 255
-      Alpha: 1
-      Buffer Length: 3
-    - Class: rviz_default_plugins/Path
-      Name: 导航-MPPI局部轨迹
-      Enabled: true
-      Value: true
-      Topic:
-        Depth: 5
-        Durability Policy: Volatile
-        History Policy: Keep Last
-        Reliability Policy: Reliable
-        Value: /optimal_trajectory
-      Line Width: 0.04
-      Color: 25; 255; 0
-      Alpha: 1
-      Buffer Length: 1
-    - Class: rviz_default_plugins/Polygon
-      Name: 导航-全局足迹
-      Enabled: true
-      Value: true
-      Topic:
-        Depth: 5
-        Durability Policy: Volatile
-        History Policy: Keep Last
-        Reliability Policy: Reliable
-        Value: /global_costmap/published_footprint
-      Color: 25; 255; 25
-      Alpha: 0.6
-    - Class: rviz_default_plugins/Polygon
-      Name: 导航-局部足迹
-      Enabled: true
-      Value: true
-      Topic:
-        Depth: 5
-        Durability Policy: Volatile
-        History Policy: Keep Last
-        Reliability Policy: Reliable
-        Value: /local_costmap/published_footprint
-      Color: 255; 255; 25
-      Alpha: 0.6
-    - Class: rviz_default_plugins/PoseArray
-      Name: 导航-AMCL粒子云
-      Enabled: true
-      Value: true
-      Topic:
-        Depth: 5
-        Durability Policy: Volatile
-        History Policy: Keep Last
-        Reliability Policy: Best Effort
-        Value: /particle_cloud
-      Color: 125; 125; 255
-      Arrow Length: 0.15
-      Alpha: 0.5
-    - Class: rviz_default_plugins/PoseWithCovariance
-      Name: 导航-AMCL位姿
-      Enabled: true
-      Value: true
-      Topic:
-        Depth: 5
-        Durability Policy: Volatile
-        History Policy: Keep Last
-        Reliability Policy: Best Effort
-        Value: /amcl_pose
-      Color: 255; 25; 25
-      Covariance:
-        Pose: true
-        x: 0.5
-        Position Offset: 0
-    - Class: rviz_default_plugins/Pose
-      Name: 导航-目标点
-      Enabled: true
-      Value: true
-      Topic:
-        Depth: 5
-        Durability Policy: Volatile
-        History Policy: Keep Last
-        Reliability Policy: Reliable
-        Value: /goal_pose
-      Color: 255; 25; 255
-      Shaft Length: 0.5
-      Shaft Radius: 0.03
-      Head Length: 0.15
-      Head Radius: 0.06
-      Axes: false
-    # ================= 传感器 =================
-    - Class: rviz_default_plugins/Camera
-      Name: 传感器-腕部相机
-      Enabled: true
-      Value: true
-      # Jazzy Camera 显示：话题属性键 = Topic（旧 "Image Topic" 键会被忽略
-      # → "Error subscribing: Empty topic name"）；camera_info 无独立属性，
-      # 由 image_transport 派生为 <image>/camera_info —— 桥上加同名别名
-      # （sim_bridge.yaml: /camera/color/image_raw/camera_info）。
-      Topic:
-        Depth: 2
-        Durability Policy: Volatile
-        History Policy: Keep Last
-        Reliability Policy: Best Effort
-        Value: /camera/color/image_raw
-      Queue Size: 2
-      Transport Hint: raw
-      Overlay Alpha: 0.5
-      Zoom Factor: 1
-    - Class: rviz_default_plugins/Image
-      Name: 传感器-深度图
-      Enabled: true
-      Value: true
-      Topic:
-        Depth: 2
-        Durability Policy: Volatile
-        History Policy: Keep Last
-        Reliability Policy: Best Effort
-        Value: /camera/depth/image_raw
-      Queue Size: 1
-      Transport Hint: raw
-      Normalize Range: true
-    - Class: rviz_default_plugins/PointCloud2
-      Name: 传感器-注册点云
-      # 默认关：gz GUI 已有同视角渲染；此层每帧解码+上传大点云，
-      # 与 gz 传感器渲染抢 GPU（2026-10-14 过载轮实测相机传感器
-      # 被 GUI 端挤到 0.5Hz）。需要时手动勾开。
-      Enabled: false
-      Value: false
-      Topic:
-        Depth: 2
-        Durability Policy: Volatile
-        History Policy: Keep Last
-        Reliability Policy: Best Effort
-        Value: /camera/depth_registered/points
-      Queue Size: 2
-      Selectable: false
-      Style (New): Flat Squares
-      Size (m): 0.015
-      Color Transformer: RGB8
-      Channel Name: rgb
-      Use rainbow: true
-      Invert Rainbow: false
-      Position Transformer: XYZ
-      Alpha: 0.6
-    # ================= 感知 =================
-    - Class: rviz_default_plugins/MarkerArray
-      Name: 感知-检测标记
-      Enabled: true
-      Value: true
-      Topic:
-        Depth: 10
-        Durability Policy: Volatile
-        History Policy: Keep Last
-        Reliability Policy: Reliable
-        Value: /peach/perception/markers
-      Queue Size: 10
-    - Class: rviz_default_plugins/MarkerArray
-      Name: 感知-重建标记
-      Enabled: true
-      Value: true
-      Topic:
-        Depth: 10
-        Durability Policy: Volatile
-        History Policy: Keep Last
-        Reliability Policy: Reliable
-        Value: /peach/reconstruction/markers
-      Queue Size: 10
-    - Class: rviz_default_plugins/PointCloud2
-      Name: 感知-TSDF积分云
-      Enabled: true
-      Value: true
-      Topic:
-        Depth: 2
-        Durability Policy: Volatile
-        History Policy: Keep Last
-        Reliability Policy: Reliable
-        Value: /peach/reconstruction/tsdf_cloud
-      Queue Size: 2
-      Selectable: false
-      Style (New): Flat Squares
-      Size (m): 0.02
-      Color Transformer: AxisColor
-      Channel Name: intensity
-      Use rainbow: true
-      Invert Rainbow: false
-      Position Transformer: XYZ
-      Alpha: 0.8
-    - Class: rviz_default_plugins/Image
-      Name: 感知-调试图像
-      Enabled: true
-      Value: true
-      Topic:
-        Depth: 1
-        Durability Policy: Volatile
-        History Policy: Keep Last
-        Reliability Policy: Reliable
-        Value: /peach/perception/debug_image
-      Queue Size: 1
-      Transport Hint: raw
-      Normalize Range: true
-    # ================= MoveIt =================
-    - Class: moveit_rviz_plugin/PlanningScene
-      Name: MoveIt-规划场景
-      Enabled: true
-      Value: true
-      Robot:
-        Robot Scene Topic:
-          Value: /monitored_planning_scene
-        Scene Geometry:
-          Scene Topic:
-            Value: /monitored_planning_scene
-          Scene Color: 100; 100; 100
-          Scene Alpha: 0.9
-          Attach Body Color: 200; 100; 0
-        Scene Robot:
-          Visible: true
-          Robot Description: robot_description
-      Planning Scene Topic:
-        Value: /monitored_planning_scene
-    - Class: moveit_rviz_plugin/Trajectory
-      Name: MoveIt-规划轨迹
-      Enabled: true
-      Value: true
-      Topic:
-        Depth: 5
-        Durability Policy: Volatile
-        History Policy: Keep Last
-        Reliability Policy: Reliable
-        Value: /display_planned_path
+  Class: ''
   Global Options:
-    Background Color: 48; 48; 48
-    Default Light: true
+    Background Color: 42; 45; 48
     Fixed Frame: map
     Frame Rate: 30
-  Name: root
+  Displays:
+  - Class: rviz_default_plugins/Grid
+    Name: Grid
+    Enabled: true
+    Cell Size: 1
+    Plane Cell Count: 20
+    Color: 110; 110; 110
+  - Class: rviz_default_plugins/RobotModel
+    Name: Harvester
+    Enabled: true
+    Alpha: 1
+    Description Source: Topic
+    Description Topic:
+      Value: /robot_description
+      Reliability Policy: Reliable
+      Durability Policy: Transient Local
+      History Policy: Keep Last
+      Depth: 1
+    Visual Enabled: true
+    Collision Enabled: false
+  - Class: rviz_default_plugins/Map
+    Name: Navigation map
+    Enabled: true
+    Alpha: 0.7
+    Topic:
+      Value: /map
+      Reliability Policy: Reliable
+      Durability Policy: Transient Local
+      History Policy: Keep Last
+      Depth: 1
+  - Class: rviz_default_plugins/LaserScan
+    Name: Lidar
+    Enabled: true
+    Size (m): 0.015
+    Style: Points
+    Color Transformer: FlatColor
+    Color: 60; 180; 240
+    Topic:
+      Value: /scan
+      Reliability Policy: Best Effort
+      Durability Policy: Volatile
+      History Policy: Keep Last
+      Depth: 5
+  - Class: rviz_default_plugins/Path
+    Name: Nav2 path
+    Enabled: true
+    Color: 80; 200; 100
+    Line Style: Lines
+    Line Width: 0.035
+    Topic:
+      Value: /plan
+      Reliability Policy: Reliable
+      Durability Policy: Volatile
+      History Policy: Keep Last
+      Depth: 1
+  - Class: rviz_default_plugins/MarkerArray
+    Name: Targets and mission
+    Enabled: true
+    Topic:
+      Value: /sim_harvest/targets
+      Reliability Policy: Reliable
+      Durability Policy: Transient Local
+      History Policy: Keep Last
+      Depth: 1
+  - Class: moveit_rviz_plugin/PlanningScene
+    Name: MoveIt collision scene
+    Enabled: true
+    Planning Scene Topic: /monitored_planning_scene
+    Robot Description: robot_description
+    Scene Geometry:
+      Scene Alpha: 0.7
+      Scene Color: 80; 150; 90
+      Show Scene Geometry: true
+    Scene Robot:
+      Robot Alpha: 0.5
+      Show Robot Visual: false
+      Show Robot Collision: false
+  - Class: moveit_rviz_plugin/Trajectory
+    Name: MoveIt planned trajectory (optional)
+    Enabled: false
+    Robot Description: robot_description
+    Topic: /display_planned_path
+    State Display Time: 0.1 s
+    Loop Animation: false
+    Trajectory Topic: /display_planned_path
+  - Class: rviz_default_plugins/Camera
+    Name: Wrist RGB camera (optional)
+    Enabled: false
+    Image Rendering: background and overlay
+    Topic:
+      Value: /camera/color/image_raw
+      Reliability Policy: Best Effort
+      Durability Policy: Volatile
+      History Policy: Keep Last
+      Depth: 1
+  - Class: rviz_default_plugins/TF
+    Name: TF (optional)
+    Enabled: false
   Tools:
-    - Class: rviz_default_plugins/Interact
-      Hide Inactive Objects: true
-    - Class: rviz_default_plugins/MoveCamera
-    - Class: rviz_default_plugins/Select
-    - Class: rviz_default_plugins/FocusCamera
-    - Class: rviz_default_plugins/Measure
-      Line color: 128; 128; 0
-    - Class: rviz_default_plugins/SetInitialPose
-      Topic:
-        Depth: 5
-        Durability Policy: Volatile
-        History Policy: Keep Last
-        Reliability Policy: Reliable
-        Value: /initialpose
-    - Class: rviz_default_plugins/SetGoal
-      Topic:
-        Depth: 5
-        Durability Policy: Volatile
-        History Policy: Keep Last
-        Reliability Policy: Reliable
-        Value: /goal_pose
-  Transformation Time Tolerance: 0.5
-  Value: true
+  - Class: rviz_default_plugins/Interact
+  - Class: rviz_default_plugins/MoveCamera
+  - Class: rviz_default_plugins/Select
+  - Class: rviz_default_plugins/SetInitialPose
+    Topic:
+      Value: /initialpose
+  - Class: rviz_default_plugins/SetGoal
+    Topic:
+      Value: /goal_pose
   Views:
     Current:
       Class: rviz_default_plugins/Orbit
-      Name: 当前视角
-      Distance: 10
+      Distance: 5
+      Pitch: 0.7
+      Yaw: 0.8
+      Target Frame: platform_base_link
       Focal Point:
         X: 0
         Y: 0
-        Z: 0.5
-      Focal Shape Fixed Size: true
-      Focal Shape Size: 0.05
-      Invert Z Axis: false
-      Near Clip Distance: 0.01
-      Pitch: 0.55
-      Target Frame: platform_base_link
-      Yaw: 0.8
-    Saved:
-      - Class: rviz_default_plugins/Orbit
-        Name: 俯视全图
-        Distance: 35
-        Focal Point:
-          X: -2.5
-          Y: 1.5
-          Z: 0
-        Focal Shape Fixed Size: true
-        Focal Shape Size: 0.05
-        Invert Z Axis: false
-        Near Clip Distance: 0.01
-        Pitch: 1.2
-        Target Frame: <Fixed Frame>
-        Yaw: 1.57
-      - Class: rviz_default_plugins/Orbit
-        Name: 跟随机器人
-        Distance: 6
-        Focal Point:
-          X: 0
-          Y: 0
-          Z: 0.5
-        Focal Shape Fixed Size: true
-        Focal Shape Size: 0.05
-        Invert Z Axis: false
-        Near Clip Distance: 0.01
-        Pitch: 0.5
-        Target Frame: platform_base_link
-        Yaw: 0
+        Z: 0.65
 Window Geometry:
-  Height: 1020
-  Width: 1080
+  Width: 1400
+  Height: 900
   X: 40
-  Y: 20
-  Displays:
-    collapsed: false
-  Time:
-    collapsed: false
-  Views:
-    collapsed: true
-  传感器-腕部相机:
-    collapsed: false
-  感知-调试图像:
-    collapsed: false
-  传感器-深度图:
-    collapsed: false
+  Y: 40
+  QMainWindow State: 000000ff00000000fd0000000300000000000001400000031dfc0200000001fb000000100044006900730070006c00610079007301000000000000031d0000006100ffffff00000001000000f00000031dfc0200000001fb0000000a0056006900650077007301000000000000031d0000006100ffffff000000030000057800000061fc0100000001fb0000000800540069006d00650100000000000005780000004700ffffff0000033c0000031d00000004000000040000000800000008fc00000000

@@ -50,9 +50,16 @@ void ManipulationSkillsNode::onEnables(
       get_logger(), "使能切换到操作台广播源（/peach/batch/enables）");
   }
   enables_last_beat_ = std::chrono::steady_clock::now();
-  execution_enabled_.store(message->execution);
-  grasp_enabled_.store(message->grasp);
-  tool_enabled_.store(message->tool);
+  const bool execution_revoked = execution_enabled_.exchange(message->execution) &&
+    !message->execution;
+  if (!message->execution) {
+    execution_armed_.store(false);
+  }
+  const bool grasp_revoked = grasp_enabled_.exchange(message->grasp) && !message->grasp;
+  const bool tool_revoked = tool_enabled_.exchange(message->tool) && !message->tool;
+  if (execution_revoked || grasp_revoked || tool_revoked) {
+    requestCancelAll("操作台撤销运行使能");
+  }
   RCLCPP_INFO(
     get_logger(), "操作台使能: execution=%d grasp=%d tool=%d（%s）",
     message->execution ? 1 : 0, message->grasp ? 1 : 0,
@@ -62,6 +69,7 @@ void ManipulationSkillsNode::onEnables(
 
 void ManipulationSkillsNode::checkEnablesHeartbeat()
 {
+  motion_admission_.reloadIfIdle(false, [this] {loadParameters();});
   // 缺心跳=故障（AGENTS 第 2 章 DEFAULT 3）：操作台广播断流超时后不得
   // 永久保持最后值——回落本地参数权威，使能链重新由本节点参数决定。
   // 与 onEnables 同在默认互斥回调组，enables_external_ 无需原子。
@@ -74,6 +82,8 @@ void ManipulationSkillsNode::checkEnablesHeartbeat()
     return;
   }
   enables_external_ = false;
+  // 断流先取消已经下发的运动；仅回写 false 不会停止控制器已接收的完整轨迹。
+  requestCancelAll("操作台使能广播心跳超时");
   const auto params = param_listener_->get_params();
   execution_enabled_.store(params.execution.enabled);
   grasp_enabled_.store(params.grasp.enabled);
@@ -115,7 +125,7 @@ rclcpp_action::GoalResponse ManipulationSkillsNode::onMoveToGoal(
   }
   // 周期独占：接触周期或 Survey 运行中不接受视点/命名位移动（阶段 3 起
   // 由大脑编排保证不并发；本门兜底）。
-  if (running_.load() || contact_recovery_required_.load()) {
+  if (motion_admission_.busy() || contact_recovery_required_.load()) {
     RCLCPP_WARN(get_logger(), "拒绝 MoveTo: 周期占用或待恢复");
     return rclcpp_action::GoalResponse::REJECT;
   }
@@ -152,28 +162,14 @@ rclcpp_action::CancelResponse ManipulationSkillsNode::onMoveToCancel(
 void ManipulationSkillsNode::onMoveToAccepted(
   const std::shared_ptr<MoveToGoalHandle> goal_handle)
 {
-  // M2（W13-B 同款有界回收）：本回调在默认互斥组——旧 MoveTo 线程卡死时
-  // 裸 join 会把 ACK/取消/订阅一并吊死（恢复死锁最坏形态）；经
-  // packaged_task future 有界等 2s，超时 WARN 后 detach 放行新 MoveTo
-  // （放弃回收≠放弃取消，线程仍受取消标志约束；析构的 joinable 检查自然
-  // 跳过已 detach 线程）。
-  if (move_to_thread_.joinable()) {
-    if (move_to_thread_done_.valid() &&
-      move_to_thread_done_.wait_for(2s) == std::future_status::ready)
-    {
-      move_to_thread_.join();
-    } else {
-      RCLCPP_WARN(
-        get_logger(),
-        "上一 MoveTo 执行线程 2s 内未退场，放弃 join 改为 detach；"
-        "线程仍受取消标志约束，请排查卡死原因");
-      move_to_thread_.detach();
-    }
-  }
-  std::packaged_task<void(std::shared_ptr<MoveToGoalHandle>)> move_task(
-    [this](std::shared_ptr<MoveToGoalHandle> handle) {executeMoveTo(handle);});
-  move_to_thread_done_ = move_task.get_future();
-  move_to_thread_ = std::thread(std::move(move_task), goal_handle);
+  startMotionAction(
+    move_to_thread_, move_to_thread_done_, [this, goal_handle] {executeMoveTo(goal_handle);},
+    [goal_handle](const std::string & why) {
+      auto result = std::make_shared<MoveToAction::Result>();
+      result->failure_code = FailureCode::START_NOT_READY;
+      result->detail = why;
+      if (goal_handle->is_active()) {goal_handle->abort(result);}
+    });
 }
 
 void ManipulationSkillsNode::executeMoveTo(
@@ -208,9 +204,13 @@ void ManipulationSkillsNode::executeMoveTo(
     result->arrived = false;
     result->failure_code = FailureCode::DECISION_REJECTED;
     result->detail = why;
-    // M1：授权拒（含取消旗标所致）终局收口，sticky 取消不得延续到下一动作。
-    clearCancelFlagIfIdle();
-    goal_handle->abort(result);
+    if (goal_handle->is_canceling()) {
+      result->failure_code = FailureCode::CANCELED;
+      goal_handle->canceled(result);
+    } else {
+      if (cancel_requested_) {result->failure_code = FailureCode::CANCELED;}
+      goal_handle->abort(result);
+    }
     return;
   }
   if (goal->speed_scaling > 1.0e-6) {
@@ -251,23 +251,26 @@ void ManipulationSkillsNode::executeMoveTo(
       ok = motion_->planOrMoveCamera(
         target_pose, planner, true,
         goal->lin_only ? "move_to_camera_lin" : "move_to_camera_ptp",
-        !goal->lin_only);
+        !goal->lin_only, &message);
     } else {
       ok = motion_->planOrMoveTip(
         target_pose, planner, true,
         goal->lin_only ? "move_to_lin" : "move_to_ptp",
-        !goal->lin_only);
+        !goal->lin_only, &message);
     }
-    message = ok ? "到位" : "移动失败（见节点日志）";
+    if (message.empty()) {message = ok ? "到位" : "移动失败（见节点日志）";}
   }
-  if (goal_handle->is_canceling() || cancel_requested_.load()) {
+  const bool client_canceling = goal_handle->is_canceling();
+  if (client_canceling || cancel_requested_.load()) {
     result->arrived = false;
-    result->failure_code = FailureCode::RECOVERY_REQUIRED;
+    result->failure_code = FailureCode::CANCELED;
     result->detail = "MoveTo 已取消（透传 abort + RobotMoveStop）";
-    // M1：取消终局收口取消旗标（语义见 clearCancelFlagIfIdle 声明处注释）。
-    clearCancelFlagIfIdle();
     try {
-      goal_handle->canceled(result);
+      if (client_canceling) {
+        goal_handle->canceled(result);
+      } else {
+        goal_handle->abort(result);
+      }
     } catch (const std::exception & error) {
       RCLCPP_WARN(
         get_logger(), "MoveTo 终局上报失败（可能正在 shutdown）: %s",
@@ -281,8 +284,6 @@ void ManipulationSkillsNode::executeMoveTo(
   // P2 词表收口：转移失败不再挪用套入规划码（SLEEVE_PLAN_FAILED）
   result->failure_code = ok ? FailureCode::NONE : FailureCode::TRANSIT_FAILED;
   result->detail = message;
-  // M1：MoveTo 终局收口取消旗标（谁最后结束谁清）。
-  clearCancelFlagIfIdle();
   try {
     if (ok) {
       goal_handle->succeed(result);

@@ -10,23 +10,34 @@
 
   <buildtool_depend>ament_python</buildtool_depend>
 
+  <depend>generate_parameter_library_py</depend>
+
   <exec_depend>ament_index_python</exec_depend>
   <exec_depend>aubo_e5_bringup</exec_depend>
+  <exec_depend>controller_manager</exec_depend>
+  <exec_depend>joint_state_broadcaster</exec_depend>
   <exec_depend>launch</exec_depend>
   <exec_depend>launch_ros</exec_depend>
   <exec_depend>moveit_configs_utils</exec_depend>
+  <exec_depend>moveit_ros_move_group</exec_depend>
   <exec_depend>nav2_lifecycle_manager</exec_depend>
   <exec_depend>peach_arm</exec_depend>
   <exec_depend>peach_common</exec_depend>
-  <exec_depend>peach_harvester</exec_depend>
+  <exec_depend>peach_scene_perception</exec_depend>
+  <exec_depend>peach_target_reconstruction</exec_depend>
+  <exec_depend>peach_supervisor</exec_depend>
+  <exec_depend>peach_scene_obstacles</exec_depend>
   <exec_depend>peach_interfaces</exec_depend>
   <exec_depend>peach_observability</exec_depend>
   <exec_depend>peach_stereo</exec_depend>
   <exec_depend>rclpy</exec_depend>
   <exec_depend>rviz2</exec_depend>
+  <exec_depend>peach_rviz_plugins</exec_depend>
+  <exec_depend>ros2_web_link</exec_depend>
   <exec_depend>serial_force</exec_depend>
   <exec_depend>std_msgs</exec_depend>
   <exec_depend>std_srvs</exec_depend>
+  <exec_depend>tf2_ros</exec_depend>
 
   <test_depend>ament_flake8</test_depend>
   <test_depend>ament_pep257</test_depend>

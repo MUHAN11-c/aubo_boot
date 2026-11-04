@@ -7,16 +7,33 @@ require_robot_status），供 startup.json 落盘与参数一致性检查共用�
 """
 from __future__ import annotations
 
+import json
 from typing import Any, Mapping
 
 # 键白名单：进 startup.json 的启动事实（顺序即工件展示序）
 FACT_KEYS = (
     'launched_at', 'hardware_mode', 'robot_ip', 'tool_profile',
-    'moveit_enabled', 'camera_enabled', 'camera_frontend', 'camera_ip',
+    'moveit_enabled', 'move_group_shutdown_workaround',
+    'rosbridge_enabled', 'rosbridge_port',
+    'camera_enabled', 'camera_frontend', 'camera_ip',
     'extrinsics_enabled', 'force_enabled', 'bond_timeout', 'use_sim_time',
-    'skip_reconstruction', 'autostart', 'require_robot_status',
+    'reconstruction_enabled', 'skip_reconstruction', 'autostart', 'require_robot_status',
     'expected_tcp_norm_m', 'ros_domain_id', 'git',
 )
+
+
+def parse_facts_json(raw: str) -> dict:
+    """Decode the optional launch facts supplied to observability."""
+    try:
+        facts = json.loads(raw or '{}')
+    except ValueError:
+        return {}
+    return facts if isinstance(facts, dict) else {}
+
+
+def flag_enabled(value) -> bool:
+    """Interpret the boolean spellings accepted by Jazzy IfCondition."""
+    return str(value).strip().lower() in ('true', '1')
 
 
 def normalize_facts(raw: Mapping | None) -> dict[str, Any]:
@@ -50,17 +67,13 @@ def selfcheck_overrides_from_facts(facts: Mapping) -> dict[str, Any]:
     if not facts:
         return overrides
     if 'camera_enabled' in facts:
-        overrides['selfcheck_camera_probe_enabled'] = (
-            str(facts['camera_enabled']) == 'true')
+        overrides['selfcheck_camera_probe_enabled'] = flag_enabled(facts['camera_enabled'])
     if 'require_robot_status' in facts:
-        overrides['robot_status_probe_enabled'] = (
-            str(facts['require_robot_status']) == 'true')
+        overrides['robot_status_probe_enabled'] = flag_enabled(facts['require_robot_status'])
     if 'moveit_enabled' in facts:
-        overrides['selfcheck_moveit_expected'] = (
-            str(facts['moveit_enabled']) == 'true')
+        overrides['selfcheck_moveit_expected'] = flag_enabled(facts['moveit_enabled'])
     if 'force_enabled' in facts:
-        overrides['selfcheck_force_expected'] = (
-            str(facts['force_enabled']) == 'true')
+        overrides['selfcheck_force_expected'] = flag_enabled(facts['force_enabled'])
     tcp = facts.get('expected_tcp_norm_m')
     if isinstance(tcp, (int, float)) and not isinstance(tcp, bool) \
             and float(tcp) > 0.0:

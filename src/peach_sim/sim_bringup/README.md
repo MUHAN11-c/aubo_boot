@@ -1,5 +1,38 @@
 # sim_bringup
 
+2026-11-02 当前默认代码为 data_orchard + vision + adaptive_shear_v1；用户要求先代码与离线核对，暂不运行 Gazebo，动态闭环尚未验收。两株树、独立果实和同源碰撞见 [项目 README](../README.md)。以下旧默认与运行记录保留为历史说明。
+
+**2026-10-29：用户明确恢复 Gazebo 联合仿真。** 当前入口组合统一机体、Gazebo Harmonic、Nav2、MoveIt 2、RViz2 和 `sim_harvest`。历史暂停记录及旧用法保留在文末，旧命令和历史成功结论不作为本轮验收证据。
+
+在 `peach_sim/` 根目录使用：
+
+```bash
+scripts/sim build
+scripts/sim test
+scripts/sim run --gui --rviz --duration 480
+scripts/sim run --gui --rviz --mission --max-targets 1 --duration 480
+```
+
+默认只启动，不开采摘任务；`--mission` 显式发动作，运行器有限时长运行并清理本次进程组。它通过 `bwrap` 只读挂载项目外文件系统，构建、安装、缓存和日志全部留在本项目；目录外包仅引用，不安装或修改。GUI 需要已有桌面/GPU 环境。
+
+## 入口与配置
+
+- `harvest.launch.py`：完整组合，默认 `scene=demo`、`perception=ground_truth`、`autostart=false`；统一 world/map/stations/spawn/AMCL 初始位姿。运行器始终以 `autostart=false` 启动，再显式发目标。
+- `sim.launch.py`：官方 `ros_gz_sim` 入口，实体生成成功后依次激活 JSB、JTC；失败关闭整栈，无固定等待冒充就绪。
+- `moveit_sim.launch.py`：读取 Gazebo 同一份生成 URDF；SRDF、关节限位和规划插件只读复用已有 AUBO 配置，执行控制策略由本包 `controllers_sim.yaml` 管理。
+- `perception.launch.py`：当前 Peach 完整配置 + `sim_perception` 仿真 overlay，复用现行能力源码；输出限制到本次运行目录，bond 默认 8 秒。
+- `orchard_sim.launch.py`、`orchard_nav.launch.py`：历史参数的兼容 include，不再维护第二套系统。
+- `sim_bridge.yaml`：clock、odom、TF、scan、RGB-D、Gazebo create/remove、持果状态与实体位姿。`/sim_harvest/entity_poses` 用于证据核对，不写入机器人 TF 树。
+
+RViz 配置包含机器人、地图/代价地图、激光、MoveIt 规划场景、腕相机与目标 Marker。`scene=field` 是整园 mesh 预览，不能执行独立果实采收；`ground_truth` 是明确的仿真真值源，不能作为视觉精度验收。视觉链的成功须另看检测/重建结果。
+
+架构和接口见 [doc/architecture.md](doc/architecture.md)、[doc/io.md](doc/io.md)。测试只有官方 lint；本轮已验证有限时长启动与数据流，导航/采摘/视觉的结论必须各自有会话证据，不能沿用下列历史描述。
+
+许可 BSD-3-Clause。
+
+<details>
+<summary>2026-10-28 及以前的历史用法与配置（保留证据，当前入口见上文）</summary>
+
 仿真子工作空间（`src/peach_sim/`）的入口包：launch + gz 桥接 + Nav2 配置 + 自主采摘编排。
 
 ```bash
@@ -79,3 +112,5 @@ ros2 launch sim_bringup orchard_sim.launch.py \
 
 测完 Ctrl+C 停栈并 `pgrep -af 'gz sim|ros2|rviz'` 清残留（MUST）。
 许可 BSD-3-Clause。
+
+</details>

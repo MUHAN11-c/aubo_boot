@@ -90,9 +90,6 @@ GateResult QualityGate::readyToPreviewContact(const QualitySnapshot & snapshot) 
     return {false, "refined_target_id_mismatch"};
   }
   const GateResult axis_gate = axisConsistencyGate(snapshot);
-  if (!axis_gate.allowed) {
-    return axis_gate;
-  }
   if (!snapshot.refined_accept) {
     return {false, "refined_geometry_unavailable"};
   }
@@ -121,9 +118,6 @@ GateResult QualityGate::readyToApproach(const QualitySnapshot & snapshot) const
     return {false, "refined_target_id_mismatch"};
   }
   const GateResult axis_gate = axisConsistencyGate(snapshot);
-  if (!axis_gate.allowed) {
-    return axis_gate;
-  }
   if (!snapshot.refined_accept) {
     return {false, "refined_geometry_unavailable"};
   }

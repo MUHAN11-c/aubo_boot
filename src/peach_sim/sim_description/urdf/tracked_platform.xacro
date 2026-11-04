@@ -117,7 +117,7 @@
           <mass value="25.0"/>
           <inertia ixx="0.30" ixy="0.0" ixz="0.0" iyy="1.60" iyz="0.0" izz="1.45"/>
         </inertial>
-        <xacro:if value="${mobile}">
+        <xacro:if value="${mobile and not bunker_visual}">
           <visual name="${name}_visual">
             <origin xyz="0 0 0" rpy="${pi / 2.0} 0 ${pi / 2.0}"/>
             <geometry>
@@ -198,13 +198,18 @@
           </geometry>
         </collision>
         <visual name="lidar_pole_visual">
-          <!-- 触地桅杆仅视觉（低模）：不给碰撞，避免前端附加摩擦点干扰履带驱动 -->
-          <origin xyz="0 0 ${-lidar_z / 2.0}" rpy="0 0 0"/>
+          <!-- Horizontal bracket overlaps the body front by 25 mm; no pole
+               through the ground or extra ground contact beside the tracks. -->
+          <origin xyz="-0.04 0 0" rpy="0 ${pi / 2.0} 0"/>
           <geometry>
-            <cylinder radius="0.012" length="${lidar_z}"/>
+            <cylinder radius="0.012" length="0.08"/>
           </geometry>
           <material name="lidar_dark"/>
         </visual>
+        <collision name="lidar_bracket_collision">
+          <origin xyz="-0.04 0 0" rpy="0 ${pi / 2.0} 0"/>
+          <geometry><cylinder radius="0.012" length="0.08"/></geometry>
+        </collision>
       </link>
       <joint name="lidar_mount_joint" type="fixed">
         <parent link="platform_base_link"/>

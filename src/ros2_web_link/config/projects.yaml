@@ -1,0 +1,922 @@
+# Copyright 2026 ros2_web_link contributors
+# SPDX-License-Identifier: Apache-2.0
+# Explicit project data contracts; no business implementation dependency.
+projects:
+  peach:
+    id: peach
+    title: Peach · 真实相机 + mock 机械臂
+    description: 真实项目接入验收。默认跳过重建；只读项默认选中。交互测试单独勾选，不执行采摘、接触或工具 IO。
+    view:
+      scene:
+        useSimTime: false
+        fixedFrame: base_link
+        robotDescription: /robot_description
+        jointStates: /joint_states
+        tf: /tf
+        tfStatic: /tf_static
+        markers: /peach/perception/markers
+        pointCloud: /peach/perception/single_cloud
+        path: /peach/observability/tcp_path
+      image:
+        topic: /peach/perception/debug_image
+        type: sensor_msgs/msg/Image
+      depthImage:
+        topic: /camera/depth/image_raw
+        type: sensor_msgs/msg/Image
+        depthScale: 0.00025
+      plot:
+        topic: /joint_states
+        type: sensor_msgs/msg/JointState
+        fields:
+        - position.0
+        - position.1
+      diagnostics: /diagnostics
+      rosout: /rosout
+    mockGuard:
+      topic: /robot_description
+      type: std_msgs/msg/String
+      qos: latched
+      field: data
+      includes: <plugin>mock_components/GenericSystem</plugin>
+    cases:
+    - id: peach.graph
+      label: Peach 节点与数据契约
+      group: 连接与接口
+      kind: graph
+      defaultSelected: true
+      nodes:
+      - /peach_arm
+      - /peach_supervisor
+      - /peach_scene_perception_node
+      - /peach_target_reconstruction_node
+      - /peach_observability
+      topics:
+      - /camera/color/image_raw
+      - /camera/depth/image_raw
+      - /joint_states
+      - /peach/perception/target_observations
+    - id: peach.color
+      label: 真实彩色图：尺寸、解码与新鲜度
+      group: 真实数据
+      kind: image
+      defaultSelected: true
+      topic:
+        name: /camera/color/image_raw
+        type: sensor_msgs/msg/Image
+        qos: sensor
+        throttleMs: 500
+        minSamples: 3
+        maxAgeMs: 3000
+        minHz: 0.5
+        encoding: bgr8
+        width: 640
+        height: 480
+        compression: cbor
+      description: 读取相机实际 BGR 帧；报告源时间与接收频率。
+    - id: peach.depth
+      label: 真实深度：16UC1 与明确单位
+      group: 真实数据
+      kind: image
+      defaultSelected: true
+      topic:
+        name: /camera/depth/image_raw
+        type: sensor_msgs/msg/Image
+        qos: sensor
+        throttleMs: 500
+        minSamples: 3
+        maxAgeMs: 3000
+        minHz: 0.5
+        encoding: 16UC1
+        depthScale: 0.00025
+        width: 640
+        height: 480
+        compression: cbor
+      description: peach_stereo 每原值单位 0.25 mm；仅检查传输与解码，不判深度精度。
+    - id: peach.joints
+      label: 机械臂 JointState 连续数据
+      group: 真实数据
+      kind: topic
+      defaultSelected: true
+      topic:
+        name: /joint_states
+        type: sensor_msgs/msg/JointState
+        qos: sensor
+        minSamples: 3
+        maxAgeMs: 3000
+        minHz: 1
+        requiredFields:
+        - name
+        - position
+        expected:
+          name.length: 6
+          position.length: 6
+      description: 读取 mock 臂实际关节消息；按名字核对，不假设数组排序。
+    - id: peach.observations
+      label: 感知目标与场景世代
+      group: 真实数据
+      kind: topic
+      defaultSelected: true
+      topic:
+        name: /peach/perception/target_observations
+        type: peach_interfaces/msg/PeachTargetObservationArray
+        qos: reliable
+        minSamples: 2
+        maxAgeMs: 4000
+        requiredFields:
+        - scene_epoch
+        - target_set_locked
+        - observations
+      description: 读取实际目标集合；空目标不冒充检出，报告包含锁定状态。
+    - id: peach.cloud
+      label: 感知点云：字段、颜色与有效点
+      group: 真实数据
+      kind: cloud
+      defaultSelected: true
+      topic:
+        name: /peach/perception/single_cloud
+        type: sensor_msgs/msg/PointCloud2
+        qos: sensor
+        minSamples: 2
+        maxAgeMs: 4000
+        minPoints: 100
+        compression: cbor
+        throttleMs: 100
+      description: 实际感知点云，不使用演示点云。
+    - id: peach.tf
+      label: 完整 TF：世界、相机与工具
+      group: 空间观测
+      kind: tf
+      defaultSelected: true
+      target: base_link
+      sources:
+      - world
+      - camera_color_optical_frame
+      - camera_depth_optical_frame
+      - tcp
+      - sleeve_mouth
+      description: 验证全部静态发布者与当前机器人树，不自动修改外参。
+    - id: peach.enables
+      label: 使能参数基线关闭
+      group: 运行状态
+      kind: parameters
+      defaultSelected: true
+      node: /peach_arm
+      names:
+      - execution.enabled
+      - grasp.enabled
+      - tool.enabled
+      expected:
+        execution.enabled: false
+        grasp.enabled: false
+        tool.enabled: false
+    - id: peach.effective_enables
+      label: 臂侧实际使能与空闲状态
+      group: 运行状态
+      kind: topic
+      defaultSelected: true
+      topic:
+        name: /peach_arm/status
+        type: std_msgs/msg/String
+        qos: latched
+        minSamples: 1
+        jsonField: data
+        expected:
+          execution_enabled: false
+          grasp_enabled: false
+          tool_enabled: false
+          running: false
+      description: 读取臂侧当前保留快照，区别于部署参数；不将快照视为连续新鲜数据流。
+    - id: peach.policy
+      label: 调度默认跳过重建
+      group: 运行状态
+      kind: parameters
+      defaultSelected: true
+      node: /peach_supervisor
+      names:
+      - skip_reconstruction
+      expected:
+        skip_reconstruction: true
+    - id: peach.capture
+      label: 重建自动采集关闭
+      group: 运行状态
+      kind: parameters
+      defaultSelected: true
+      node: /peach_target_reconstruction_node
+      names:
+      - capture.auto_mode
+      expected:
+        capture.auto_mode: false
+    - id: peach.lifecycle.peach_scene_perception_node
+      label: 感知生命周期 Active
+      group: 运行状态
+      kind: lifecycle
+      defaultSelected: true
+      node: /peach_scene_perception_node
+      state: active
+      description: Active仅证明节点状态，不表示重建或采摘已执行。
+    - id: peach.lifecycle.peach_target_reconstruction_node
+      label: 重建节点生命周期 Active
+      group: 运行状态
+      kind: lifecycle
+      defaultSelected: true
+      node: /peach_target_reconstruction_node
+      state: active
+      description: Active仅证明节点状态，不表示重建或采摘已执行。
+    - id: peach.lifecycle.peach_arm
+      label: 机械臂生命周期 Active
+      group: 运行状态
+      kind: lifecycle
+      defaultSelected: true
+      node: /peach_arm
+      state: active
+      description: Active仅证明节点状态，不表示重建或采摘已执行。
+    - id: peach.lifecycle.peach_supervisor
+      label: 调度生命周期 Active
+      group: 运行状态
+      kind: lifecycle
+      defaultSelected: true
+      node: /peach_supervisor
+      state: active
+      description: Active仅证明节点状态，不表示重建或采摘已执行。
+    - id: peach.service_schema
+      label: BeginScene 实际服务类型与字段
+      group: 连接与接口
+      kind: interface
+      defaultSelected: true
+      endpoint: /peach_scene_perception_node/begin_scene
+      interfaceKind: service
+      interfaceType: peach_interfaces/srv/BeginScene
+    - id: peach.action_schema
+      label: SurveyScene 实际 Action 类型与字段
+      group: 连接与接口
+      kind: interface
+      defaultSelected: true
+      endpoint: /peach_arm/survey_scene
+      interfaceKind: action
+      interfaceType: peach_interfaces/action/SurveyScene
+    - id: peach.survey
+      label: Mock Action：拍照位、反馈与收尾
+      group: 可选交互
+      kind: action
+      defaultSelected: false
+      interactive: true
+      mockOnly: true
+      timeoutMs: 90000
+      description: 按 Peach DISCOVERY 时序先 Survey 再 BeginScene。会改变 mock 姿态；经 SetEnables，接触/工具保持关闭，结束确认全部使能关闭。仅验动作通信与到位，不判采摘或外参精度。
+      preconditions:
+      - node: /peach_arm
+        names:
+        - execution.enabled
+        - grasp.enabled
+        - tool.enabled
+        expected:
+          execution.enabled: false
+          grasp.enabled: false
+          tool.enabled: false
+      setup:
+      - name: /peach_supervisor/set_enables
+        type: peach_interfaces/srv/SetEnables
+        request:
+          execution: true
+          grasp: false
+          tool: false
+          reason: Web Link mock SurveyScene audit
+        expected:
+          accepted: true
+      cleanup:
+      - name: /peach_supervisor/set_enables
+        type: peach_interfaces/srv/SetEnables
+        request:
+          execution: false
+          grasp: false
+          tool: false
+          reason: Web Link audit cleanup
+        expected:
+          accepted: true
+      action:
+        name: /peach_arm/survey_scene
+        type: peach_interfaces/action/SurveyScene
+        goal:
+          request_id: $runId
+          scene_key: $runId
+        requireFeedback: true
+      afterSetup:
+      - name: /peach_arm/status
+        type: std_msgs/msg/String
+        qos: latched
+        jsonField: data
+        expected:
+          execution_enabled: true
+          grasp_enabled: false
+          tool_enabled: false
+        minSamples: 1
+      afterCleanup:
+      - name: /peach_arm/status
+        type: std_msgs/msg/String
+        qos: latched
+        jsonField: data
+        expected:
+          execution_enabled: false
+          grasp_enabled: false
+          tool_enabled: false
+        minSamples: 1
+    - id: peach.begin
+      label: 交互：新建一次感知场景
+      group: 可选交互
+      kind: service
+      defaultSelected: false
+      interactive: true
+      timeoutMs: 8000
+      description: 会推进感知场景世代；不发运动。
+      service:
+        name: /peach_scene_perception_node/begin_scene
+        type: peach_interfaces/srv/BeginScene
+        request:
+          request_id: $runId
+          scene_key: $runId
+        expected:
+          accepted: true
+    - id: peach.param_write
+      label: 交互：观测参数写入、读回和恢复
+      group: 可选交互
+      kind: parameterRoundtrip
+      defaultSelected: false
+      interactive: true
+      mockOnly: true
+      description: 只改观测节点轮询参数，结束恢复原值；不改运动参数。
+      parameter:
+        node: /peach_observability
+        name: param_poll_period_s
+        type: 3
+        value: 3.25
+    tools:
+      topic:
+        name: /joint_states
+        type: sensor_msgs/msg/JointState
+        qos: sensor
+  peach_replay:
+    id: peach_replay
+    title: Peach · 录制数据回放
+    description: 真实相机和 Peach 输出的离线数据；只验收观测通信与显示，不要求相机在线，不执行服务写入或机械臂动作。保留录制源时间，不能代表当前设备状态。
+    view:
+      scene:
+        useSimTime: true
+        fixedFrame: base_link
+        robotDescription: /robot_description
+        jointStates: /joint_states
+        tf: /tf
+        tfStatic: /tf_static
+        markers: /peach/perception/markers
+        pointCloud: /peach/perception/single_cloud
+        path: /peach/observability/tcp_path
+      image:
+        topic: /peach/perception/debug_image
+        type: sensor_msgs/msg/Image
+        subscription:
+          qos: reliable
+          compression: cbor
+          throttleMs: 500
+      depthImage:
+        topic: /camera/depth/image_raw
+        type: sensor_msgs/msg/Image
+        depthScale: 0.00025
+        subscription:
+          qos: reliable
+          compression: cbor
+          throttleMs: 500
+      plot:
+        topic: /joint_states
+        type: sensor_msgs/msg/JointState
+        fields:
+        - position.0
+        - position.1
+      diagnostics: /diagnostics
+      rosout: /rosout
+    cases:
+    - id: peach_replay.graph
+      label: 回放话题与时钟
+      group: 回放连接
+      kind: graph
+      defaultSelected: true
+      topics:
+      - /camera/color/image_raw
+      - /camera/depth/image_raw
+      - /tf
+      - /tf_static
+      - /robot_description
+      - /joint_states
+      - /clock
+      - /peach/perception/single_cloud
+    - id: peach_replay.color
+      label: 录制彩色图：尺寸、解码与连续帧
+      group: 录制数据回放
+      kind: image
+      defaultSelected: true
+      topic:
+        name: /camera/color/image_raw
+        type: sensor_msgs/msg/Image
+        qos: reliable
+        throttleMs: 500
+        minSamples: 3
+        minHz: 0.5
+        encoding: bgr8
+        width: 640
+        height: 480
+        timestampMode: recorded
+        compression: cbor
+      description: 验证保存的真实项目数据；源时间保持录制值，不断言当前相机在线或当前机械臂状态。
+    - id: peach_replay.depth
+      label: 录制深度：16UC1 与明确单位
+      group: 录制数据回放
+      kind: image
+      defaultSelected: true
+      topic:
+        name: /camera/depth/image_raw
+        type: sensor_msgs/msg/Image
+        qos: reliable
+        throttleMs: 500
+        minSamples: 3
+        minHz: 0.5
+        encoding: 16UC1
+        depthScale: 0.00025
+        width: 640
+        height: 480
+        timestampMode: recorded
+        compression: cbor
+      description: 验证保存的真实项目数据；源时间保持录制值，不断言当前相机在线或当前机械臂状态。
+    - id: peach_replay.joints
+      label: 机械臂 JointState 连续数据
+      group: 录制数据回放
+      kind: topic
+      defaultSelected: true
+      topic:
+        name: /joint_states
+        type: sensor_msgs/msg/JointState
+        qos: sensor
+        minSamples: 3
+        minHz: 1
+        requiredFields:
+        - name
+        - position
+        expected:
+          name.length: 6
+          position.length: 6
+        timestampMode: recorded
+      description: 验证保存的真实项目数据；源时间保持录制值，不断言当前相机在线或当前机械臂状态。
+    - id: peach_replay.observations
+      label: 感知目标与场景世代
+      group: 录制数据回放
+      kind: topic
+      defaultSelected: true
+      topic:
+        name: /peach/perception/target_observations
+        type: peach_interfaces/msg/PeachTargetObservationArray
+        qos: reliable
+        minSamples: 2
+        requiredFields:
+        - scene_epoch
+        - target_set_locked
+        - observations
+        timestampMode: recorded
+      description: 验证保存的真实项目数据；源时间保持录制值，不断言当前相机在线或当前机械臂状态。
+    - id: peach_replay.cloud
+      label: 感知点云：字段、颜色与有效点
+      group: 录制数据回放
+      kind: cloud
+      defaultSelected: true
+      topic:
+        name: /peach/perception/single_cloud
+        type: sensor_msgs/msg/PointCloud2
+        qos: sensor
+        minSamples: 2
+        minPoints: 100
+        timestampMode: recorded
+        compression: cbor
+        throttleMs: 100
+      description: 验证保存的真实项目数据；源时间保持录制值，不断言当前相机在线或当前机械臂状态。
+    - id: peach_replay.tf
+      label: 完整 TF：世界、相机与工具
+      group: 录制数据回放
+      kind: tf
+      defaultSelected: true
+      target: base_link
+      sources:
+      - world
+      - camera_color_optical_frame
+      - camera_depth_optical_frame
+      - tcp
+      - sleeve_mouth
+      description: 验证保存的真实项目数据；源时间保持录制值，不断言当前相机在线或当前机械臂状态。
+    - id: peach_replay.effective_enables
+      label: 录制时的臂侧使能快照
+      group: 录制数据回放
+      kind: topic
+      defaultSelected: true
+      topic:
+        name: /peach_arm/status
+        type: std_msgs/msg/String
+        qos: latched
+        minSamples: 1
+        jsonField: data
+        expected:
+          execution_enabled: false
+          grasp_enabled: false
+          tool_enabled: false
+          running: false
+        timestampMode: recorded
+      description: 验证保存的真实项目数据；源时间保持录制值，不断言当前相机在线或当前机械臂状态。
+    - id: peach_replay.color_info
+      label: 彩色相机内参
+      group: 录制数据回放
+      kind: topic
+      defaultSelected: true
+      topic:
+        name: /camera/color/camera_info
+        type: sensor_msgs/msg/CameraInfo
+        qos: sensor
+        timestampMode: recorded
+        minSamples: 2
+        requiredFields:
+        - k
+        - d
+        - header.frame_id
+        expected:
+          width: 640
+          height: 480
+          k.length: 9
+    - id: peach_replay.depth_info
+      label: 深度相机内参
+      group: 录制数据回放
+      kind: topic
+      defaultSelected: true
+      topic:
+        name: /camera/depth/camera_info
+        type: sensor_msgs/msg/CameraInfo
+        qos: sensor
+        timestampMode: recorded
+        minSamples: 2
+        requiredFields:
+        - k
+        - d
+        - header.frame_id
+        expected:
+          width: 640
+          height: 480
+          k.length: 9
+    tools:
+      topic:
+        name: /joint_states
+        type: sensor_msgs/msg/JointState
+        qos: sensor
+  demo:
+    id: demo
+    title: ROS 2 · 无硬件通信示例
+    description: 用于传输能力对照，结果不代表 Peach 业务验收。
+    view:
+      scene:
+        useSimTime: false
+        fixedFrame: demo_base
+        robotDescription: /web_link_demo/robot_description
+        jointStates: /web_link_demo/joint_states
+        tf: /web_link_demo/tf
+        tfStatic: /web_link_demo/tf_static
+        markers: /web_link_demo/markers
+        pointCloud: /web_link_demo/points
+        path: /web_link_demo/path
+      image:
+        topic: /web_link_demo/image/compressed
+        type: sensor_msgs/msg/CompressedImage
+      depthImage:
+        topic: /web_link_demo/depth
+        type: sensor_msgs/msg/Image
+        depthScale: 0.001
+      plot:
+        topic: /web_link_demo/sensor
+        type: std_msgs/msg/Float64
+        fields:
+        - data
+      diagnostics: /web_link_demo/diagnostics
+      rosout: /rosout
+    cases:
+    - id: demo.graph
+      label: 示例节点与 Topic
+      group: 通信示例
+      kind: graph
+      defaultSelected: true
+      topics:
+      - /web_link_demo/ticks
+      - /web_link_demo/sensor
+    - id: demo.sensor
+      label: Best effort 连续流
+      group: 通信示例
+      kind: topic
+      defaultSelected: true
+      topic:
+        name: /web_link_demo/sensor
+        type: std_msgs/msg/Float64
+        qos: sensor
+        minSamples: 3
+        minHz: 1
+        requiredFields:
+        - data
+    - id: demo.retained
+      label: Transient local 晚订阅
+      group: 通信示例
+      kind: topic
+      defaultSelected: true
+      topic:
+        name: /web_link_demo/retained
+        type: std_msgs/msg/String
+        qos: latched
+        minSamples: 1
+        requiredFields:
+        - data
+    - id: demo.service
+      label: AddTwoInts 标准服务
+      group: 通信示例
+      kind: service
+      defaultSelected: false
+      service:
+        name: /web_link_demo/add_two_ints
+        type: example_interfaces/srv/AddTwoInts
+        request:
+          a: 3
+          b: 4
+        expected:
+          sum: 7
+      interactive: true
+    - id: demo.params
+      label: 示例标准参数
+      group: 通信示例
+      kind: parameters
+      defaultSelected: true
+      node: /web_link_demo/demo
+      names:
+      - gain
+      - read_only
+    - id: demo.lifecycle
+      label: 原生生命周期查询
+      group: 通信示例
+      kind: lifecycle
+      defaultSelected: true
+      node: /web_link_demo/lifecycle
+      state: unconfigured
+    - id: demo.tf
+      label: 示例 TF 树
+      group: 通信示例
+      kind: tf
+      defaultSelected: true
+      target: demo_base
+      sources:
+      - demo_world
+      - demo_tool
+      - demo_camera_optical
+    - id: demo.action
+      label: 交互：Fibonacci 反馈与成功
+      group: 可选交互
+      kind: action
+      defaultSelected: false
+      interactive: true
+      action:
+        name: /web_link_demo/fibonacci
+        type: example_interfaces/action/Fibonacci
+        goal:
+          order: 8
+        requireFeedback: true
+    tools:
+      topic:
+        name: /web_link_demo/echo
+        type: std_msgs/msg/String
+        qos: reliable
+      publish:
+        name: /web_link_demo/input
+        message:
+          data: hello from browser
+  manual:
+    id: manual
+    title: 通用 ROS 项目 · 手动接口
+    description: 查看图谱后，在下方原生接口面板填写当前项目。可用 projects_config 加入自己的验收用例。
+    cases:
+    - id: manual.graph
+      label: 当前 ROS 图谱
+      group: 连接与接口
+      kind: graph
+      defaultSelected: true
+  peach_replay_large:
+    id: peach_replay_large
+    title: Peach · 完整相机点云回放
+    description: 真实录制的完整相机点云约17万点/4.1MB每帧，与RGB-D/TF组合验证。显式Reliable适配本机DDS；保持录制时间，不执行运动或服务写入。
+    view:
+      scene:
+        useSimTime: true
+        fixedFrame: base_link
+        robotDescription: /robot_description
+        jointStates: /joint_states
+        tf: /tf
+        tfStatic: /tf_static
+        markers: /peach/perception/markers
+        pointCloud: /camera/depth_registered/points
+        path: /peach/observability/tcp_path
+        pointCloudOptions:
+          qos: reliable
+          compression: cbor
+          throttleMs: 100
+      image:
+        topic: /peach/perception/debug_image
+        type: sensor_msgs/msg/Image
+        subscription:
+          qos: reliable
+          compression: cbor
+          throttleMs: 500
+      depthImage:
+        topic: /camera/depth/image_raw
+        type: sensor_msgs/msg/Image
+        depthScale: 0.00025
+        subscription:
+          qos: reliable
+          compression: cbor
+          throttleMs: 500
+      plot:
+        topic: /joint_states
+        type: sensor_msgs/msg/JointState
+        fields:
+        - position.0
+        - position.1
+      diagnostics: /diagnostics
+      rosout: /rosout
+    cases:
+    - id: peach_replay_large.graph
+      label: 回放话题与时钟
+      group: 回放连接
+      kind: graph
+      defaultSelected: true
+      topics:
+      - /camera/color/image_raw
+      - /camera/depth/image_raw
+      - /tf
+      - /tf_static
+      - /robot_description
+      - /joint_states
+      - /clock
+      - /camera/depth_registered/points
+    - id: peach_replay_large.color
+      label: 录制彩色图：尺寸、解码与连续帧
+      group: 录制数据回放
+      kind: image
+      defaultSelected: true
+      topic:
+        name: /camera/color/image_raw
+        type: sensor_msgs/msg/Image
+        qos: reliable
+        throttleMs: 500
+        minSamples: 3
+        minHz: 0.5
+        encoding: bgr8
+        width: 640
+        height: 480
+        timestampMode: recorded
+        compression: cbor
+      description: 验证保存的真实项目数据；源时间保持录制值，不断言当前相机在线或当前机械臂状态。
+    - id: peach_replay_large.depth
+      label: 录制深度：16UC1 与明确单位
+      group: 录制数据回放
+      kind: image
+      defaultSelected: true
+      topic:
+        name: /camera/depth/image_raw
+        type: sensor_msgs/msg/Image
+        qos: reliable
+        throttleMs: 500
+        minSamples: 3
+        minHz: 0.5
+        encoding: 16UC1
+        depthScale: 0.00025
+        width: 640
+        height: 480
+        timestampMode: recorded
+        compression: cbor
+      description: 验证保存的真实项目数据；源时间保持录制值，不断言当前相机在线或当前机械臂状态。
+    - id: peach_replay_large.joints
+      label: 机械臂 JointState 连续数据
+      group: 录制数据回放
+      kind: topic
+      defaultSelected: true
+      topic:
+        name: /joint_states
+        type: sensor_msgs/msg/JointState
+        qos: sensor
+        minSamples: 3
+        minHz: 1
+        requiredFields:
+        - name
+        - position
+        expected:
+          name.length: 6
+          position.length: 6
+        timestampMode: recorded
+      description: 验证保存的真实项目数据；源时间保持录制值，不断言当前相机在线或当前机械臂状态。
+    - id: peach_replay_large.observations
+      label: 感知目标与场景世代
+      group: 录制数据回放
+      kind: topic
+      defaultSelected: true
+      topic:
+        name: /peach/perception/target_observations
+        type: peach_interfaces/msg/PeachTargetObservationArray
+        qos: reliable
+        minSamples: 2
+        requiredFields:
+        - scene_epoch
+        - target_set_locked
+        - observations
+        timestampMode: recorded
+      description: 验证保存的真实项目数据；源时间保持录制值，不断言当前相机在线或当前机械臂状态。
+    - id: peach_replay_large.cloud
+      label: 感知点云：字段、颜色与有效点
+      group: 录制数据回放
+      kind: cloud
+      defaultSelected: true
+      topic:
+        name: /camera/depth_registered/points
+        type: sensor_msgs/msg/PointCloud2
+        qos: reliable
+        minSamples: 2
+        minPoints: 100
+        timestampMode: recorded
+        compression: cbor
+        throttleMs: 100
+      description: 验证保存的真实项目数据；源时间保持录制值，不断言当前相机在线或当前机械臂状态。
+    - id: peach_replay_large.tf
+      label: 完整 TF：世界、相机与工具
+      group: 录制数据回放
+      kind: tf
+      defaultSelected: true
+      target: base_link
+      sources:
+      - world
+      - camera_color_optical_frame
+      - camera_depth_optical_frame
+      - tcp
+      - sleeve_mouth
+      description: 验证保存的真实项目数据；源时间保持录制值，不断言当前相机在线或当前机械臂状态。
+    - id: peach_replay_large.effective_enables
+      label: 录制时的臂侧使能快照
+      group: 录制数据回放
+      kind: topic
+      defaultSelected: true
+      topic:
+        name: /peach_arm/status
+        type: std_msgs/msg/String
+        qos: latched
+        minSamples: 1
+        jsonField: data
+        expected:
+          execution_enabled: false
+          grasp_enabled: false
+          tool_enabled: false
+          running: false
+        timestampMode: recorded
+      description: 验证保存的真实项目数据；源时间保持录制值，不断言当前相机在线或当前机械臂状态。
+    - id: peach_replay_large.color_info
+      label: 彩色相机内参
+      group: 录制数据回放
+      kind: topic
+      defaultSelected: true
+      topic:
+        name: /camera/color/camera_info
+        type: sensor_msgs/msg/CameraInfo
+        qos: sensor
+        timestampMode: recorded
+        minSamples: 2
+        requiredFields:
+        - k
+        - d
+        - header.frame_id
+        expected:
+          width: 640
+          height: 480
+          k.length: 9
+    - id: peach_replay_large.depth_info
+      label: 深度相机内参
+      group: 录制数据回放
+      kind: topic
+      defaultSelected: true
+      topic:
+        name: /camera/depth/camera_info
+        type: sensor_msgs/msg/CameraInfo
+        qos: sensor
+        timestampMode: recorded
+        minSamples: 2
+        requiredFields:
+        - k
+        - d
+        - header.frame_id
+        expected:
+          width: 640
+          height: 480
+          k.length: 9
+    tools:
+      topic:
+        name: /joint_states
+        type: sensor_msgs/msg/JointState
+        qos: sensor

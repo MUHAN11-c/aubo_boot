@@ -16,12 +16,12 @@ import argparse
 import sys
 import time
 
+from action_msgs.msg import GoalStatus
+from peach_interfaces.action import RunHarvest
+from peach_interfaces.srv import SetEnables
 import rclpy
 from rclpy.action import ActionClient
 from rclpy.node import Node
-
-from peach_interfaces.action import RunHarvest
-from peach_interfaces.srv import SetEnables
 
 
 def _send_enables(node: Node, grasp: bool, reason: str) -> bool:
@@ -94,8 +94,13 @@ def main() -> int:
             print(f'goal TIMEOUT(budget={args.timeout}s); cancel requested; result unknown')
             return 2
         status_names = {
-            0: 'STATUS_UNKNOWN', 1: 'STATUS_ACCEPTED', 2: 'STATUS_EXECUTING',
-            3: 'STATUS_CANCELED', 4: 'STATUS_SUCCEEDED', 5: 'STATUS_ABORTED',
+            GoalStatus.STATUS_UNKNOWN: 'STATUS_UNKNOWN',
+            GoalStatus.STATUS_ACCEPTED: 'STATUS_ACCEPTED',
+            GoalStatus.STATUS_EXECUTING: 'STATUS_EXECUTING',
+            GoalStatus.STATUS_CANCELING: 'STATUS_CANCELING',
+            GoalStatus.STATUS_SUCCEEDED: 'STATUS_SUCCEEDED',
+            GoalStatus.STATUS_CANCELED: 'STATUS_CANCELED',
+            GoalStatus.STATUS_ABORTED: 'STATUS_ABORTED',
         }
         status = status_names.get(wrapper.status, str(wrapper.status))
         result = wrapper.result
@@ -106,7 +111,7 @@ def main() -> int:
             f'reason={result.termination_reason} elapsed={elapsed:.1f}s '
             f'discovered={summary.discovered} attempted={summary.attempted} '
             f'succeeded={summary.succeeded}')
-        return 0 if wrapper.status == 4 and result.success else 3
+        return 0 if wrapper.status == GoalStatus.STATUS_SUCCEEDED and result.success else 3
     finally:
         node.destroy_node()
         rclpy.shutdown()

@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#f3efe6">
+<meta name="description" content="Peach 单步调试：开场景、点选目标、多轮抓取、参数读写。">
+<title>Peach · 单步调试</title>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/app.css">
+<link rel="stylesheet" href="/debug.css">
+<link rel="stylesheet" href="/shell.css">
+</head>
+<body class="data-stale">
+<header id="app-header"></header>
+<section class="page-context" aria-label="调试上下文">
+  <div class="ctx-group">
+    <div class="ctx-item"><span>场景 epoch</span><strong id="ctx-scene">—</strong></div>
+    <div class="ctx-item"><span>锁定目标</span><strong id="ctx-targets">—</strong></div>
+    <div class="ctx-item"><span>批次</span><strong id="ctx-batch">—</strong></div>
+  </div>
+  <div class="ctx-record" id="ctx-note">先核对设置与使能读回，再启动单轮或多轮。</div>
+</section>
+<main id="main" class="debug-page">
+  <section class="panel debug-status-panel" aria-label="调试门与连接状态">
+    <div class="section-head">
+      <div><p class="kicker">GATES</p><h2>调试门</h2></div>
+      <span id="session-status" class="debug-session-status" role="status" aria-live="polite">等待状态快照</span>
+    </div>
+    <div class="debug-chips" id="debug-chips"></div>
+    <p class="operation-note">页面只转发既有 POST；后端 debug.enabled、debug.motion_enabled、调度使能与臂侧 ExecutionAuthority 仍然强制。停止是应用停轨，不是硬件急停。</p>
+  </section>
+
+  <section class="panel test-workbench" aria-label="测试目标与当前证据">
+    <div class="test-plan">
+      <p class="kicker">TEST INTENT</p><h2>这次验证什么</h2>
+      <label for="test-profile">目标档（只作说明，载入后才填草稿）</label>
+      <select id="test-profile">
+        <option value="observe">01 · 观察与建场景</option>
+        <option value="pregrasp">02 · 预抓取核验 · L2</option>
+        <option value="full">03 · 完整干跑 · L6</option>
+      </select>
+      <p id="test-criteria" class="test-criteria"></p>
+      <ol id="test-steps" class="test-steps"></ol>
+      <button type="button" id="test-load" class="ghost">载入为待写设置</button>
+      <p class="operation-note">只填本轮草稿，不发送请求。三档均关闭工具，并保留“本轮使用重建”的选择；仍须手动写入并核对。</p>
+    </div>
+    <div class="test-evidence">
+      <div class="section-head"><div><p class="kicker">CURRENT EVIDENCE</p><h2>当前批次证据</h2></div><a href="/monitor.html" target="_blank" rel="noopener">打开过程画面 ↗</a></div>
+      <p id="evidence-freshness" class="empty" role="status">等待状态连接</p>
+      <dl class="evidence-grid">
+        <div><dt>运行环境</dt><dd id="evidence-mode">—</dd></div>
+        <div><dt>动作与恢复</dt><dd id="evidence-action">—</dd></div>
+        <div><dt>调度使能 · 执行 / 抓取 / 工具</dt><dd id="evidence-intent">—</dd></div>
+        <div><dt>臂侧实际使能</dt><dd id="evidence-arm">—</dd></div>
+        <div><dt>重建 / 模型 allowed 原始值</dt><dd id="evidence-model">—</dd></div>
+        <div><dt>本轮重建 · 实际读回</dt><dd id="evidence-reconstruction">等待读取</dd></div>
+        <div><dt>本批账本完成级别</dt><dd id="evidence-level">—</dd></div>
+      </dl>
+      <div class="evidence-request"><span>request / target</span><code id="evidence-request">—</code></div>
+      <p class="operation-note">当前证据不代表新测试已通过。L2须停住等待人工恢复；L6是撤退确认，工具关闭时不证明切断或采摘成功。</p>
+    </div>
+  </section>
+
+  <section class="panel" aria-label="本轮设置">
+    <div class="section-head">
+      <div><p class="kicker">THIS ROUND</p><h2>本轮设置</h2></div>
+      <span id="round-note" class="empty">过程画面在监控页，另开窗口一起看。</span>
+    </div>
+    <div class="round-grid">
+      <label class="check"><input id="motion" type="checkbox"> 运动放行</label>
+      <label class="check"><input id="full" type="checkbox"> 套入（不停在预抓取）</label>
+      <label class="check"><input id="ex" type="checkbox"> 执行</label>
+      <label class="check"><input id="gr" type="checkbox"> 抓取</label>
+      <label class="check"><input id="tl" type="checkbox"> 工具</label>
+      <label class="check"><input id="reconstruction" type="checkbox"> 本轮使用重建</label>
+    </div>
+    <div class="operation-buttons">
+      <button type="button" id="round-apply">写入</button>
+      <button type="button" id="round-reload" class="ghost">重新读取</button>
+    </div>
+    <p class="operation-note">真机与仿真使用同一组业务参数。写入成功并读回核对后才应用使能；默认使能关闭。勾选执行/抓取/工具会自动打开运动放行。</p>
+    <p class="operation-note" id="reconstruction-note">默认不使用重建；关闭时使用感知几何，开启时执行 Build/精化。仅在动作空闲时写入切换，载入测试档保留此选择。</p>
+  </section>
+
+  <section class="panel" id="single-panel" aria-label="单轮点选">
+    <div class="section-head">
+      <div><p class="kicker">ONE</p><h2>单轮点选</h2></div>
+      <span id="single-note" class="empty">先启动。启动后保持，点哪一颗就抓哪一颗，抓完继续等下一次点选。</span>
+    </div>
+    <div id="target-picks" class="target-picks"><p class="empty">等待锁定。按钮上的号是抓取顺序，一号最先抓。</p></div>
+    <div class="operation-buttons">
+      <button type="button" id="start-single">启动单轮点选</button>
+      <button type="button" id="grasp-selected">抓取已勾选</button>
+      <button type="button" id="stop-single" class="danger">停止单轮</button>
+    </div>
+  </section>
+
+  <section class="panel" aria-label="几轮抓取">
+    <div class="section-head">
+      <div><p class="kicker">ROUNDS</p><h2>几轮抓取</h2></div>
+      <span id="run-note" class="empty">按轮数自动跑完。按顺序时在本轮锁定目标数内循环。失败或需要人工恢复时停止后续轮。</span>
+    </div>
+    <div class="round-grid">
+      <label>轮数 <input id="rounds" type="number" min="1" max="30" value="1" inputmode="numeric"></label>
+      <label>方式
+        <select id="round-mode">
+          <option value="rotate">每轮按顺序换一颗</option>
+          <option value="first">每轮第一颗</option>
+          <option value="all">每轮全部</option>
+        </select>
+      </label>
+    </div>
+    <div class="operation-buttons">
+      <button type="button" id="start-rounds">启动这些轮</button>
+      <button type="button" id="stop-rounds" class="danger">停止后续轮</button>
+      <button type="button" id="ack-recovery" class="ghost">确认恢复</button>
+    </div>
+    <p class="empty">L2 或异常停驻后，先停止当前单轮/后续轮并核对批次终态，再确认恢复；ACK 不启动新任务。</p>
+    <ol id="round-log" class="round-log" aria-label="轮次日志"></ol>
+  </section>
+
+  <details class="panel" id="params-panel">
+    <summary>参数（白名单读写）</summary>
+    <div class="section-head">
+      <div><p class="kicker">PARAMS</p><h2>参数</h2></div>
+      <span id="params-note" class="empty"></span>
+    </div>
+    <div class="operation-buttons">
+      <button type="button" id="params-reload">重新读取</button>
+      <button type="button" id="params-apply">应用已修改</button>
+    </div>
+    <div class="param-tools">
+      <label>搜索参数 <input type="search" id="params-search" placeholder="参数名、用途或节点"></label>
+      <label class="check"><input type="checkbox" id="params-changed"> 只看待写入</label>
+      <span id="params-count" role="status" aria-live="polite">等待参数</span>
+    </div>
+    <p class="operation-note">运动类参数（臂速度、加速度、行程、位姿门）要先打开运动放行。标成「重启」的参数写入后要重启才生效。</p>
+    <div id="param-groups"></div>
+  </details>
+</main>
+<footer id="app-footer"></footer>
+<script src="/ui-common.js"></script>
+<script src="/rosbridge.js"></script>
+<script src="/api.js"></script>
+<script src="/shell.js"></script>
+<script src="/debug-shared.js"></script>
+<script src="/debug-session.js"></script>
+<script src="/debug-evidence.js"></script>
+<script src="/debug.js"></script>
+</body>
+</html>

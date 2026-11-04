@@ -7,10 +7,6 @@ DEFAULT_DOMAIN_ID = '0'
 UNKNOWN_DOMAIN = '?'
 
 PREFLIGHT_PATTERNS = (
-    # brain 进程 exec=peach_harvester 承载场景/重建/调度三托管节点（launch
-    # 不传 name= 重映射，节点名不进 argv），必须按 exec 名匹配——否则残留
-    # 旧脑时双 supervisor 静默共存（G5，2026-09-20 端到端审查）。
-    'peach_harvester',
     'peach_scene_perception_node',
     'peach_target_reconstruction_node',
     'peach_arm',
@@ -32,8 +28,11 @@ PREFLIGHT_PATTERNS = (
     'extrinsics_publisher',
     'serial_force_node',
     'stereo_camera_node',
+    # 官方 percipio 组件容器节点名；与 stereo 争同一 /camera/* 与 GigE。
+    'camera_container',
     'peach_scene_obstacles',
     'rviz2',
+    'rosbridge_websocket',
 )
 
 
@@ -59,12 +58,19 @@ def cmdline_looks_like_stack(cmdline: str) -> bool:
     if not parts:
         return False
     names = executable_basenames(cmdline)
+    if ('__node:=peach_rosbridge' in parts
+            and any(part.endswith('/lib/ros2_web_link/bridge_node.py') for part in parts)):
+        return True
     if names[0] in PREFLIGHT_PATTERNS:
         return True
     for part in parts[1:]:
         base = os.path.basename(part.rstrip('/'))
         if base in PREFLIGHT_PATTERNS and '/lib/' in part.replace('\\', '/'):
             return True
+        if part.startswith('__node:='):
+            node = os.path.basename(part.split(':=', 1)[1].rstrip('/'))
+            if node in PREFLIGHT_PATTERNS:
+                return True
     return False
 
 

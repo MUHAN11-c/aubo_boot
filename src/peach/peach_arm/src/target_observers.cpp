@@ -24,7 +24,8 @@ void ManipulationSkillsNode::onTargets(
   // 摆动/跟踪诊断透传语义对 selected 与锁定集两路完全一致——记忆锚点帧
   // （anchor_from_memory）不算新鲜观测，锚点可用于派发/规划但不刷新观测
   // 新鲜度，让安全门的 stale 判定继续以真实观测为准。
-  const auto extract = [](const auto & item, auto & out) {
+  const auto extract = [epoch = message->scene_epoch](const auto & item, auto & out) {
+      out.scene_epoch = epoch;
       const bool anchor_from_memory = std::find(
         item.diagnostic_flags.begin(), item.diagnostic_flags.end(),
         "anchor_from_memory") != item.diagnostic_flags.end();

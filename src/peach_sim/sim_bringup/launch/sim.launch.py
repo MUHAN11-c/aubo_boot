@@ -1,241 +1,211 @@
-"""
-统一机体仿真主入口（P2）：可驾驶履带 + gz_ros2_control 臂 + MoveIt（可选）.
-
-组成：
-1. ``gz sim -r <world>``（默认程序化果园 ``peach_orchard.sdf``；无头 ``-s``）；
-2. ``robot_state_publisher``（``harvester_unified.urdf.xacro``：platform_base_link
-   根 + 臂链 + 相机帧链）+ ``ros_gz_sim create`` 走廊中心落地 spawn；
-3. ``ros_gz_bridge``（``sim_bridge.yaml``：clock/odom/tf/scan 入、cmd_vel 出；
-   ``/joint_states`` 由 gz_ros2_control 的 JSB 原生发布，不经桥）；
-4. 控制器 spawner（JSB + JTC，延迟到实体生成后； peach_orchard 首载 40-60 s）；
-5. ``moveit:=true``（默认）include 本包 ``moveit_sim.launch.py``：统一机体
-   URDF → move_group 规划帧 platform_base_link（接 map/odom 主 TF 树；aubo
-   原版 URDF 根为 world，仿真无 world 帧）；SRDF/IK/Pilz/控制器映射复用
-   ``aubo_e5_moveit_config``（``controllers_mock.yaml``——仿真 JTC 与 mock
-   同名同关节，映射零新文件）。
-
-手动验收：``ros2 topic echo /joint_states --once``（六 AUBO 名）；MoveIt RViz
-plan&execute 或 ``ros2 action send_goal /joint_trajectory_controller/
-follow_joint_trajectory``；``ros2 topic pub /cmd_vel`` 驾驶。测完 Ctrl+C 停栈并
-pgrep 清残留（MUST）。
-"""
+"""Launch one isolated Gazebo robot and activate controllers after successful spawn."""
 
 from __future__ import annotations
 
 import os
 from pathlib import Path
+import shlex
+import subprocess
+import xml.etree.ElementTree as ET
 
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
 from launch.actions import (
-    DeclareLaunchArgument,
-    ExecuteProcess,
-    IncludeLaunchDescription,
-    LogInfo,
-    OpaqueFunction,
-    SetEnvironmentVariable,
-    TimerAction,
+    DeclareLaunchArgument, EmitEvent, IncludeLaunchDescription, LogInfo,
+    OpaqueFunction, RegisterEventHandler, SetEnvironmentVariable,
 )
+from launch.event_handlers import OnProcessExit
+from launch.events import Shutdown
 from launch.launch_description_sources import PythonLaunchDescriptionSource
-from launch.substitutions import Command, LaunchConfiguration
+from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node, SetParameter
-from launch_ros.parameter_descriptions import ParameterValue
-
 from sim_worlds.params import params_from_dict, xacro_mappings
 from sim_worlds.scene import PLATFORM_MODEL, work_pose
-
+import xacro
 import yaml
 
 
-def _resource_path(aubo_share: Path, desc_share: Path) -> str:
-    """让 gz 解析 model://aubo_description 与 model://sim_description."""
-    entries = [str(aubo_share.parent), str(desc_share.parent)]
-    existing = os.environ.get('GZ_SIM_RESOURCE_PATH', '')
-    if existing:
-        entries.append(existing)
-    return os.pathsep.join(dict.fromkeys(entries))
+def _runtime_default():
+    """Locate the project-local runtime directory from source or local install."""
+    for directory in Path(__file__).resolve().parents:
+        if (directory / 'sim_description' / 'package.xml').is_file():
+            return str(directory / '.runtime' / 'run')
+    raise RuntimeError('Set runtime_dir explicitly for a relocated installation')
 
 
-def _setup(context, *args, **kwargs):
-    desc_share = Path(get_package_share_directory('sim_description'))
-    aubo_share = Path(get_package_share_directory('aubo_description'))
-    scene_path = Path(LaunchConfiguration('scene_params').perform(context))
-    world_path = Path(LaunchConfiguration('world').perform(context))
-    tool_profile = LaunchConfiguration('tool_profile').perform(context)
-    gui = LaunchConfiguration('gui').perform(context).lower() in ('true', '1')
-    moveit = LaunchConfiguration('moveit').perform(context).lower() in ('true', '1')
-    spawn_mode = LaunchConfiguration('spawn').perform(context)
+def _checked_exit(next_actions, label):
+    """Continue the launch only when the prerequisite process exits successfully."""
+    def callback(event, context):
+        del context
+        if event.returncode != 0:
+            return [EmitEvent(event=Shutdown(
+                reason=f'{label} failed with exit code {event.returncode}'))]
+        return next_actions
+    return callback
 
+
+def _setup(context):
+    """Expand one robot model, bridge its simulator interfaces, then spawn it."""
+    def value(key):
+        return LaunchConfiguration(key).perform(context)
+
+    if value('use_sim_time').lower() != 'true':
+        raise RuntimeError('Gazebo requires use_sim_time:=true throughout the graph')
+    runtime = Path(value('runtime_dir')).expanduser().resolve()
+    runtime.mkdir(parents=True, exist_ok=True)
+    desc = Path(get_package_share_directory('sim_description'))
+    aubo = Path(get_package_share_directory('aubo_description'))
+    bringup = Path(get_package_share_directory('sim_bringup'))
+    scene_path = Path(value('scene_params')).resolve()
+    world = Path(value('world')).resolve()
+    if not world.is_file():
+        raise RuntimeError(f'World file does not exist: {world}')
     raw = yaml.safe_load(scene_path.read_text(encoding='utf-8'))
     params, problems = params_from_dict(raw if isinstance(raw, dict) else {})
     if problems:
-        raise RuntimeError(
-            f'{scene_path} 场景参数不合法：' + '；'.join(problems))
+        raise RuntimeError(f'Invalid scene configuration: {problems}')
+    tool_profile = value('tool_profile')
+    robot_xml = xacro.process_file(
+        str(desc / 'urdf' / 'harvester_unified.urdf.xacro'),
+        mappings=xacro_mappings(params, tool_profile)).toxml()
+    manifest = {}
+    if value('manifest_file'):
+        manifest = yaml.safe_load(Path(value('manifest_file')).read_text(encoding='utf-8'))
+    from sim_worlds.demo import add_harvest_plugins
+    robot_xml = add_harvest_plugins(robot_xml, manifest)
+    robot_file = runtime / 'robot.urdf'
+    robot_file.write_text(robot_xml, encoding='utf-8')
+    # The fixed shear mesh has no actuated jaws. Native fixed attachment models
+    # retention; permit release through that mesh while keeping basket collisions.
+    converted = subprocess.run(['gz', 'sdf', '-p', str(robot_file)],
+                               check=True, capture_output=True, text=True, timeout=30)
+    sdf = ET.fromstring(converted.stdout)
+    for link in sdf.findall('model/link'):
+        basket = [c.get('name') for c in link.findall('collision')
+                  if 'harvest_basket' in c.get('name', '')]
+        if basket:
+            sensor = ET.SubElement(link, 'sensor', name='basket_contacts', type='contact')
+            contact = ET.SubElement(sensor, 'contact')
+            for name in basket:
+                ET.SubElement(contact, 'collision').text = name
+            ET.SubElement(contact, 'topic').text = '/sim_harvest/basket_contacts'
+    # Contact-sensor <collision> entries contain names, not geometry. Never
+    # append surfaces to those references: that makes the model fail DOM parsing.
+    for collision in sdf.findall('model/link/collision'):
+        name = collision.get('name', '')
+        mask = '1' if any(part in name for part in (
+            'tool_body_link', 'sleeve_mouth', 'cutting_plane')) else '3'
+        surface = collision.find('surface')
+        if surface is None:
+            surface = ET.SubElement(collision, 'surface')
+        contact = surface.find('contact')
+        if contact is None:
+            contact = ET.SubElement(surface, 'contact')
+        bitmask = contact.find('collide_bitmask')
+        if bitmask is None:
+            bitmask = ET.SubElement(contact, 'collide_bitmask')
+        bitmask.text = mask
+    robot_sdf = runtime / 'robot.sdf'
+    robot_sdf.write_text(ET.tostring(sdf, encoding='unicode'), encoding='utf-8')
+
+    bridges = yaml.safe_load((bringup / 'config' / 'sim_bridge.yaml').read_text())
+    for target in manifest.get('targets', []):
+        prefix = f"/sim_harvest/{target['id']}"
+        for operation in ('attach', 'detach'):
+            bridges.append({
+                'ros_topic_name': f'{prefix}/{operation}',
+                'gz_topic_name': f'{prefix}/{operation}',
+                'ros_type_name': 'std_msgs/msg/Empty', 'gz_type_name': 'gz.msgs.Empty',
+                'direction': 'ROS_TO_GZ'})
+        bridges.append({
+            'ros_topic_name': f'{prefix}/state', 'gz_topic_name': f'{prefix}/state',
+            'ros_type_name': 'std_msgs/msg/String', 'gz_type_name': 'gz.msgs.StringMsg',
+            'direction': 'GZ_TO_ROS'})
+    bridge_file = runtime / 'bridge.yaml'
+    bridge_file.write_text(yaml.safe_dump(bridges, sort_keys=False), encoding='utf-8')
+
     pose = work_pose(params)
-
-    robot_description = ParameterValue(
-        Command(['xacro ', str(desc_share / 'urdf' / 'harvester_unified.urdf.xacro')]
-                + [f' {key}:={value}'
-                   for key, value in xacro_mappings(params, tool_profile).items()]),
-        value_type=str)
-
-    gz_args = ['-r', str(world_path)]
-    if not gui:
-        gz_args.insert(0, '-s')
-
-    # 落地 spawn：spawn_x/y/yaw 显式覆盖（field 世界 = generate_field 站位）；
-    # 否则 work=作业位（0.95 m，感知深度窗/臂展/拍照位标定；默认）；
-    # corridor=行间走廊中心（程序化世界导航起步位：作业位车侧缘距树干膨胀圈
-    # 仅 ~2.5 cm 骑在障碍上，起步干净——orchard_nav 用）。
-    spawn_x_arg = LaunchConfiguration('spawn_x').perform(context)
-    spawn_y_arg = LaunchConfiguration('spawn_y').perform(context)
-    spawn_yaw_arg = LaunchConfiguration('spawn_yaw').perform(context)
-    if spawn_x_arg and spawn_y_arg:
-        spawn_xyz = (float(spawn_x_arg), float(spawn_y_arg), 0.0)
-        spawn_yaw = (float(spawn_yaw_arg) if spawn_yaw_arg
-                     else 0.0)
-    elif spawn_mode == 'corridor':
-        spawn_xyz = (
-            pose.vehicle_center[0] + params.rows.spacing / 2.0
-            - params.platform.row_gap,
-            pose.vehicle_center[1], 0.0)
-        spawn_yaw = pose.vehicle_yaw
+    if bool(value('spawn_x')) != bool(value('spawn_y')):
+        raise RuntimeError('spawn_x and spawn_y must be supplied together')
+    if value('spawn_x'):
+        spawn = [float(value('spawn_x')), float(value('spawn_y')),
+                 float(value('spawn_yaw') or 0.0)]
     else:
-        spawn_xyz = (pose.mount[0], pose.mount[1], 0.0)
-        # 车头 = 行驶朝向；转台 -32° 后臂基落在 mount_yaw（与锚定模式逐位一致）
-        spawn_yaw = pose.vehicle_yaw
-
-    nodes = [
-        # Mesa 的 EGL 会对 RTX 3090 走 DRI2 并报 driver (null)。指定 NVIDIA
-        # ICD 后警告消失，gz-rendering-ogre2 仍能出图（2026-10-19 最小世界实测）。
+        x = pose.vehicle_center[0]
+        if value('spawn') == 'corridor':
+            x += params.rows.spacing / 2.0 - params.platform.row_gap
+        spawn = [x, pose.vehicle_center[1], pose.vehicle_yaw]
+    spawn_robot = Node(
+        package='ros_gz_sim', executable='create', name='spawn_harvester', output='screen',
+        arguments=['-world', 'peach_orchard', '-name', PLATFORM_MODEL,
+                   '-file', str(robot_sdf), '-x', str(spawn[0]), '-y', str(spawn[1]),
+                   '-z', '0.0', '-Y', str(spawn[2])])
+    jsb = Node(
+        package='controller_manager', executable='spawner', output='screen',
+        arguments=['joint_state_broadcaster', '--controller-manager-timeout', '120',
+                   '--service-call-timeout', '60', '--switch-timeout', '30'])
+    jtc = Node(
+        package='controller_manager', executable='spawner', output='screen',
+        arguments=['joint_trajectory_controller', '--controller-manager-timeout', '120',
+                   '--service-call-timeout', '60', '--switch-timeout', '30'])
+    after_controllers = [LogInfo(msg='Simulator joint controllers are active')]
+    if value('moveit').lower() == 'true':
+        after_controllers.append(IncludeLaunchDescription(
+            PythonLaunchDescriptionSource(str(bringup / 'launch' / 'moveit_sim.launch.py')),
+            launch_arguments={
+                'use_sim_time': 'true', 'scene_params': str(scene_path),
+                'robot_description_file': str(robot_file), 'tool_profile': tool_profile,
+                'rviz': value('rviz'), 'rviz_config': value('rviz_config'),
+                'runtime_dir': str(runtime),
+            }.items()))
+    elif value('rviz').lower() == 'true':
+        after_controllers.append(Node(
+            package='rviz2', executable='rviz2', output='screen',
+            arguments=['-d', value('rviz_config')] if value('rviz_config') else [],
+            parameters=[{'use_sim_time': True, 'robot_description': robot_xml}]))
+    gz_args = ['-r', '-v', '2']
+    if value('gui').lower() != 'true':
+        gz_args.append('-s')
+    gz_args.append(str(world))
+    resource_dirs = [str(aubo.parent), str(desc.parent)]
+    resource_dirs.extend(filter(
+        None, os.environ.get('GZ_SIM_RESOURCE_PATH', '').split(os.pathsep)))
+    return [
+        SetParameter('use_sim_time', True),
         SetEnvironmentVariable(
-            name='__EGL_VENDOR_LIBRARY_FILENAMES',
-            value='/usr/share/glvnd/egl_vendor.d/10_nvidia.json'),
-        SetEnvironmentVariable(
-            name='GZ_SIM_RESOURCE_PATH',
-            value=_resource_path(aubo_share, desc_share)),
-        # 仿真全图统一 sim 时钟（harvest 透传；单独跑默认 true）
-        SetParameter('use_sim_time', LaunchConfiguration('use_sim_time')),
-        LogInfo(msg=[
-            f'统一机体场景：{world_path}；spawn xyz=({spawn_xyz[0]:.3f}, '
-            f'{spawn_xyz[1]:.3f}, {spawn_xyz[2]:.3f}) yaw={spawn_yaw:.3f} rad；',
-            'moveit' if moveit else '无 moveit']),
-        ExecuteProcess(
-            cmd=['gz', 'sim', *gz_args], output='screen', shell=False),
-        Node(
-            package='robot_state_publisher',
-            executable='robot_state_publisher',
-            output='screen',
-            parameters=[{'robot_description': robot_description}]),
-        Node(
-            package='ros_gz_sim',
-            executable='create',
-            output='screen',
-            arguments=[
-                '-name', PLATFORM_MODEL,
-                '-topic', 'robot_description',
-                '-x', str(spawn_xyz[0]),
-                '-y', str(spawn_xyz[1]),
-                '-z', str(spawn_xyz[2]),
-                '-Y', str(spawn_yaw),
-            ]),
-        Node(
-            package='ros_gz_bridge',
-            executable='parameter_bridge',
-            output='screen',
-            parameters=[{
-                'config_file': str(Path(get_package_share_directory('sim_bringup'))
-                                   / 'config' / 'sim_bridge.yaml')}]),
-        # 控制器加载在实体生成之后（重世界首载 40-60 s；gz 内 controller_manager
-        # 冷启动服务调用 >10s，必须拉长 spawner 超时，否则 load 重试撞 already-loaded）
-        TimerAction(
-            period=25.0,
-            actions=[
-                Node(
-                    package='controller_manager',
-                    executable='spawner',
-                    output='screen',
-                    arguments=[
-                        'joint_state_broadcaster',
-                        'joint_trajectory_controller',
-                        '--service-call-timeout', '60',
-                        '--switch-timeout', '30',
-                    ]),
-            ]),
+            'GZ_SIM_RESOURCE_PATH', os.pathsep.join(dict.fromkeys(resource_dirs))),
+        RegisterEventHandler(OnProcessExit(
+            target_action=spawn_robot, on_exit=_checked_exit([jsb], 'Robot spawn'))),
+        RegisterEventHandler(OnProcessExit(
+            target_action=jsb, on_exit=_checked_exit([jtc], 'Joint-state broadcaster'))),
+        RegisterEventHandler(OnProcessExit(
+            target_action=jtc, on_exit=_checked_exit(after_controllers, 'Trajectory controller'))),
+        IncludeLaunchDescription(
+            PythonLaunchDescriptionSource(str(
+                Path(get_package_share_directory('ros_gz_sim')) / 'launch' / 'gz_sim.launch.py')),
+            launch_arguments={'gz_args': shlex.join(gz_args), 'on_exit_shutdown': 'true'}.items()),
+        Node(package='robot_state_publisher', executable='robot_state_publisher', output='screen',
+             parameters=[{'robot_description': robot_xml, 'use_sim_time': True}],
+             on_exit=EmitEvent(event=Shutdown(reason='robot_state_publisher exited'))),
+        Node(package='ros_gz_bridge', executable='parameter_bridge', name='sim_bridge',
+             output='screen', parameters=[{'config_file': str(bridge_file)}],
+             on_exit=EmitEvent(event=Shutdown(reason='Gazebo bridge exited'))),
+        spawn_robot,
     ]
 
-    if moveit:
-        # sim 自有 MoveIt 前端：统一机体 URDF（规划帧 platform_base_link，
-        # 接 map 树）；SRDF/IK/Pilz/控制器映射复用 aubo_e5_moveit_config。
-        # rviz 随 moveit_sim 起（带 robot_description_semantic，moveit 显示层需要）
-        nodes.append(
-            IncludeLaunchDescription(
-                PythonLaunchDescriptionSource(
-                    str(Path(get_package_share_directory('sim_bringup'))
-                        / 'launch' / 'moveit_sim.launch.py')),
-                launch_arguments={
-                    'scene_params': str(scene_path),
-                    'tool_profile': tool_profile,
-                    'controllers_file': 'controllers_mock.yaml',
-                    'use_sim_time': LaunchConfiguration('use_sim_time'),
-                    'rviz': LaunchConfiguration('rviz'),
-                    'rviz_config': LaunchConfiguration('rviz_config'),
-                }.items()))
-    elif LaunchConfiguration('rviz').perform(context).lower() in ('true', '1'):
-        # moveit 关闭时的兜底：裸 RViz（无 MoveIt 参数，moveit 显示层不可用）
-        rviz_cfg = LaunchConfiguration('rviz_config').perform(context)
-        nodes.append(
-            Node(
-                package='rviz2',
-                executable='rviz2',
-                output='screen',
-                **({'arguments': ['-d', rviz_cfg]} if rviz_cfg else {})))
 
-    return nodes
-
-
-def generate_launch_description() -> LaunchDescription:
-    worlds_share = Path(get_package_share_directory('sim_worlds'))
+def generate_launch_description():
+    """Declare the standalone simulator interface."""
+    worlds = Path(get_package_share_directory('sim_worlds'))
+    args = {
+        'use_sim_time': 'true', 'runtime_dir': _runtime_default(),
+        'scene_params': str(worlds / 'config' / 'orchard.yaml'),
+        'world': str(worlds / 'worlds' / 'peach_orchard.sdf'), 'manifest_file': '',
+        'gui': 'false', 'moveit': 'true', 'rviz': 'false', 'rviz_config': '',
+        'spawn': 'work', 'spawn_x': '', 'spawn_y': '', 'spawn_yaw': '',
+        'tool_profile': 'bite_shear_v1',
+    }
     return LaunchDescription([
-        DeclareLaunchArgument(
-            'use_sim_time', default_value='true',
-            description='仿真时钟（全图统一；勿在仿真栈关掉）'),
-        DeclareLaunchArgument(
-            'scene_params',
-            default_value=str(worlds_share / 'config' / 'orchard.yaml'),
-            description='场景参数 yaml（几何/摆位唯一事实源，sim_worlds）'),
-        DeclareLaunchArgument(
-            'world',
-            default_value=str(worlds_share / 'worlds' / 'peach_orchard.sdf'),
-            description='世界 SDF（peach_orchard 带地面碰撞；'
-                        'field_no_grass 需配地面碰撞版）'),
-        DeclareLaunchArgument(
-            'gui', default_value='false',
-            description='gz 仿真器自带 GUI（默认无头 -s，可视化用 RViz）'),
-        DeclareLaunchArgument(
-            'moveit', default_value='true',
-            description='include aubo_e5_moveit_config（JTC 映射复用 '
-                        'controllers_mock.yaml）'),
-        DeclareLaunchArgument(
-            'rviz', default_value='false',
-            description='随栈起 RViz（经 moveit_sim 带 MoveIt 参数）'),
-        DeclareLaunchArgument(
-            'rviz_config', default_value='',
-            description='RViz 配置路径（harvest 传 sim_harvest.rviz）'),
-        DeclareLaunchArgument(
-            'spawn', default_value='work',
-            description='work=作业位 0.95m（感知标定位）；corridor=走廊中心'
-                        '（程序化世界导航起步位，orchard_nav 用）'),
-        DeclareLaunchArgument(
-            'spawn_x', default_value='',
-            description='显式 spawn x（field 世界 = generate_field 站位；'
-                        '给出则覆盖 spawn 模式计算）'),
-        DeclareLaunchArgument('spawn_y', default_value='', description='同上 y'),
-        DeclareLaunchArgument(
-            'spawn_yaw', default_value='', description='同上 yaw (rad)'),
-        DeclareLaunchArgument(
-            'tool_profile', default_value='bite_shear_v1',
-            description='peach 真实末端（bite_shear_v1 / shear_v1 / '
-                        'adaptive_shear_v1）'),
+        *[DeclareLaunchArgument(key, default_value=default) for key, default in args.items()],
         OpaqueFunction(function=_setup),
     ])

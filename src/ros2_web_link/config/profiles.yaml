@@ -1,0 +1,76 @@
+# Copyright 2026 ros2_web_link contributors
+# SPDX-License-Identifier: Apache-2.0
+profiles:
+  demo:
+    scene:
+      useSimTime: false
+      fixedFrame: demo_base
+      robotDescription: /web_link_demo/robot_description
+      jointStates: /web_link_demo/joint_states
+      tf: /web_link_demo/tf
+      tfStatic: /web_link_demo/tf_static
+      markers: /web_link_demo/markers
+      pointCloud: /web_link_demo/points
+      path: /web_link_demo/path
+      pointCloudOptions:
+        qos: sensor
+        compression: cbor
+        throttleMs: 100
+    image:
+      topic: /web_link_demo/image/compressed
+      type: sensor_msgs/msg/CompressedImage
+      subscription:
+        qos: sensor
+        compression: cbor
+        throttleMs: 500
+    depthImage:
+      topic: /web_link_demo/depth
+      type: sensor_msgs/msg/Image
+      depthScale: 0.001
+      subscription:
+        qos: sensor
+        compression: cbor
+        throttleMs: 500
+    plot:
+      topic: /web_link_demo/sensor
+      type: std_msgs/msg/Float64
+      fields:
+      - data
+    diagnostics: /web_link_demo/diagnostics
+    rosout: /rosout
+  robot:
+    scene:
+      useSimTime: false
+      fixedFrame: base_link
+      robotDescription: /robot_description
+      jointStates: /joint_states
+      tf: /tf
+      tfStatic: /tf_static
+      markers: /visualization_marker_array
+      pointCloud: /points
+      path: /plan
+      pointCloudOptions:
+        qos: sensor
+        compression: cbor
+        throttleMs: 100
+    image:
+      topic: /camera/color/image_raw/compressed
+      type: sensor_msgs/msg/CompressedImage
+      subscription:
+        qos: sensor
+        compression: cbor
+        throttleMs: 500
+    depthImage:
+      topic: /camera/depth/image_raw
+      type: sensor_msgs/msg/Image
+      subscription:
+        qos: sensor
+        compression: cbor
+        throttleMs: 500
+    plot:
+      topic: /joint_states
+      type: sensor_msgs/msg/JointState
+      fields:
+      - position.0
+    diagnostics: /diagnostics
+    rosout: /rosout

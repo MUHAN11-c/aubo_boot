@@ -19,17 +19,13 @@ import time
 
 from peach_common.recording_session import write_session_state
 
+from .bag_reader import type_name_of as message_type_name
+
 
 def session_folder(root, now: float | None = None) -> Path:
     """会话目录命名：<root>/session_<yyyyMMdd_HHmmss>（bag 在其 bag/ 子目录）."""
     stamp = time.strftime('%Y%m%d_%H%M%S', time.localtime(now or time.time()))
     return Path(root) / f'session_{stamp}'
-
-
-def message_type_name(message) -> str:
-    """消息实例 → rosbag2 类型串（pkg/msg/Type），供 TopicMetadata 用."""
-    cls = type(message)
-    return f'{cls.__module__.split(".")[0]}/msg/{cls.__name__}'
 
 
 # O1（2026-09-24 S3 真相机轮勘定：26G bag 构成=高频控制流族非相机）：
@@ -91,11 +87,6 @@ def _is_perception_media(topic: str) -> bool:
     if topic.startswith('/camera/'):
         return True
     return any(part in topic for part in PERCEPTION_MEDIA_SUBSTRINGS)
-
-
-def _is_bulky_perception(topic: str) -> bool:
-    """图像和点云。队列满时丢掉，不挤轨迹."""
-    return _is_perception_media(topic)
 
 
 class Recorder:
@@ -231,7 +222,7 @@ class Recorder:
         except queue.Full:
             pass
         topic = item[1] if item and item[0] == 'msg' and len(item) > 1 else ''
-        if _is_bulky_perception(str(topic)) and not _is_arm_trajectory(str(topic)):
+        if _is_perception_media(str(topic)):
             self._note_drop()
             return
         try:
@@ -256,23 +247,6 @@ class Recorder:
                 self._queue.not_full.notify()
                 return True
         return False
-
-    def _put_control(self, item) -> bool:
-        """open/close 必须入队：满则丢最旧腾位，禁止阻塞 put（SIGINT 挂死源）."""
-        try:
-            self._queue.put_nowait(item)
-            return True
-        except queue.Full:
-            pass
-        try:
-            if not self._evict_message():
-                return False
-            self._queue.put_nowait(item)
-            self._note_drop()
-            return True
-        except (queue.Empty, queue.Full):
-            self._log_warning('bag 控制任务未能入队（队列满且腾位失败）')
-            return False
 
     def _note_drop(self) -> None:
         """丢帧计数 + 10s 节流告警（持续掉队=盘速不足，值得看见）."""
@@ -368,11 +342,15 @@ class Recorder:
         from rosbag2_py import ConverterOptions, SequentialWriter, StorageOptions
 
         session = session_folder(self._root)
-        while (session / 'bag').exists():
-            session = session.with_name(f'{session.name}_x')
-        bag_dir = session / 'bag'
         try:
-            session.mkdir(parents=True, exist_ok=True)
+            self._root.mkdir(parents=True, exist_ok=True)
+            while True:
+                try:
+                    session.mkdir()
+                    break
+                except FileExistsError:
+                    session = session.with_name(f'{session.name}_x')
+            bag_dir = session / 'bag'
             writer = SequentialWriter()
             writer.open(
                 StorageOptions(uri=str(bag_dir), storage_id='mcap'),

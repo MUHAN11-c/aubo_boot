@@ -1,6 +1,6 @@
 # Frozen-camera overlay: one photo-pose view then one FULL dry grasp.
 # Product yaml stays min_views=2 and 8° baseline. Loaded last by
-# brain.launch params_overlay (node-named sections). Last-wins against
+# capability launch params_overlay (node-named sections). Last-wins against
 # tool_profile injection of tool.budget.d_inner.
 peach_scene_perception_node:
   ros__parameters:

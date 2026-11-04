@@ -1,0 +1,66 @@
+peach_scene_obstacles:
+  enabled:
+    type: bool
+    default_value: false
+    description: Write Survey point-cloud snapshot into PlanningScene.
+  object_id:
+    type: string
+    default_value: peach_scene_obstacles
+    description: PlanningScene collision object id.
+  base_frame:
+    type: string
+    default_value: base_link
+    description: Snapshot and capsule reference frame.
+  voxel_size_m:
+    type: double
+    default_value: 0.12
+    description: Voxel edge length in metres.
+    validation:
+      gt<>:
+      - 0.0
+  self_filter_margin_m:
+    type: double
+    default_value: 0.05
+    description: Robot self-filter margin in metres.
+    validation:
+      gt_eq<>:
+      - 0.0
+  capsule_radial_margin_m:
+    type: double
+    default_value: 0.1
+    description: Radial capsule margin in metres.
+    validation:
+      gt_eq<>:
+      - 0.0
+  capsule_axial_margin_m:
+    type: double
+    default_value: 0.1
+    description: Axial capsule margin in metres.
+    validation:
+      gt_eq<>:
+      - 0.0
+  workspace_radius_m:
+    type: double
+    default_value: 1.5
+    description: Workspace crop radius in metres.
+    validation:
+      gt<>:
+      - 0.0
+  max_boxes:
+    type: int
+    default_value: 3000
+    description: Maximum number of PlanningScene boxes.
+  cloud_max_age_s:
+    type: double
+    default_value: 2.0
+    description: Maximum accepted cloud age in seconds.
+    validation:
+      gt<>:
+      - 0.0
+  apply_service_timeout_s:
+    type: double
+    default_value: 5.0
+    description: ApplyPlanningScene timeout in seconds.
+    validation:
+      gt<>:
+      - 0.0

@@ -1,0 +1,17 @@
+# Preserve the complete retained static tree for late browser clients.
+# Images and other observations retain rosbag2's recorded topic QoS.
+/tf_static:
+  reliability: reliable
+  durability: transient_local
+  history: keep_last
+  depth: 100
+/robot_description:
+  reliability: reliable
+  durability: transient_local
+  history: keep_last
+  depth: 1
+/peach_arm/status:
+  reliability: reliable
+  durability: transient_local
+  history: keep_last
+  depth: 1

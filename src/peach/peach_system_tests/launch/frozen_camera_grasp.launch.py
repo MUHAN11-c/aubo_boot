@@ -1,4 +1,5 @@
-"""v1 mock stack + frozen RGB-D replay: one photo-pose view then dry FULL grasp.
+"""
+v1 mock stack + frozen RGB-D replay: one photo-pose view then dry FULL grasp.
 
 Does not send RunHarvest or SetEnables. Operator / drive_frozen_grasp.py starts
 the batch. hardware_mode is mock; the arm never talks to a real controller.

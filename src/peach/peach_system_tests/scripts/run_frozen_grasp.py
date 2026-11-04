@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Run a frozen-camera mock grasp and stop only this wrapper's process groups.
+"""
+Run a frozen-camera mock grasp and stop only this wrapper's process groups.
 
 Default ROS domain 81. Frozen regression is headless unless --rviz is explicit.
 The source bag is read only; --skip-launch preserves the external stack.
@@ -16,7 +17,7 @@ import time
 import uuid
 
 from run_live_camera_mock import (
-    OwnedProcesses, RosDriver, cleanup_driver, defer_stop_signals, snapshot,
+    cleanup_driver, defer_stop_signals, OwnedProcesses, RosDriver, snapshot,
 )
 
 GRASP_S = 180.0
@@ -47,7 +48,8 @@ def _pgrep(domain=None):
             if executable in ('bash', 'sh', 'dash', 'timeout', 'bwrap', 'zsh'):
                 continue
             command = path.read_bytes().replace(b'\0', b' ').decode(errors='replace')
-            if any(marker in command for marker in MARKERS) and (domain is None or _domain_of(pid) == domain):
+            if (any(marker in command for marker in MARKERS)
+                    and (domain is None or _domain_of(pid) == domain)):
                 rows.append((pid, executable))
         except (OSError, ValueError):
             pass
@@ -81,7 +83,8 @@ def cleanup_request(env, request):
         state = snapshot()
         facts = state.get('startup', {}).get('facts', {})
         task = state.get('task_executor', {}).get('state', {})
-        if (facts.get('hardware_mode') != 'mock' or str(facts.get('ros_domain_id')) != env['ROS_DOMAIN_ID']
+        if (facts.get('hardware_mode') != 'mock'
+                or str(facts.get('ros_domain_id')) != env['ROS_DOMAIN_ID']
                 or task.get('run_id') != request):
             print('cancel/disable skipped: current request/domain is not owned', flush=True)
             return []
@@ -91,9 +94,10 @@ def cleanup_request(env, request):
         if task.get('action_active') or task.get('batch_state') not in (0, 6, 8):
             from peach_interfaces.srv import ControlTask
             try:
-                reply = driver.service(ControlTask, '/peach_supervisor/control', ControlTask.Request(
-                    request_id=request, expected_state_seq=task['state_seq'], command=4,
-                    reason='frozen wrapper owned request cleanup'))
+                reply = driver.service(
+                    ControlTask, '/peach_supervisor/control', ControlTask.Request(
+                        request_id=request, expected_state_seq=task['state_seq'], command=4,
+                        reason='frozen wrapper owned request cleanup'))
                 if not reply.accepted:
                     errors.append('CANCEL_NOW rejected: ' + reply.message)
             except Exception as exc:
@@ -121,13 +125,15 @@ def main(argv=None):
     env.update(ROS_LOCALHOST_ONLY='1', PEACH_FROZEN_BAG=bag)
     domain = env['ROS_DOMAIN_ID']
     request = args.request_id or ('frozen_' + uuid.uuid4().hex[:12])
-    print(f'ROS_DOMAIN_ID={domain} bag={bag} ready={args.ready_timeout:.0f}s grasp={args.timeout:.0f}s', flush=True)
+    print(f'ROS_DOMAIN_ID={domain} bag={bag} ready={args.ready_timeout:.0f}s '
+          f'grasp={args.timeout:.0f}s', flush=True)
     for pid, executable in _pgrep()[:8]:
         print(f'note: existing process pid={pid} executable={executable}', flush=True)
     owner = OwnedProcesses(env)
     started = time.monotonic()
     code = 1
     previous = {sig: signal.getsignal(sig) for sig in (signal.SIGINT, signal.SIGTERM)}
+
     def interrupt(signum, frame):
         raise KeyboardInterrupt('received signal ' + str(signum))
     try:
@@ -135,8 +141,10 @@ def main(argv=None):
             signal.signal(sig, interrupt)
         if not args.skip_launch:
             if _pgrep(domain):
-                raise RuntimeError('Domain already has ROS processes; refusing to launch over an external stack')
-            launch = owner.start(['ros2', 'launch', 'peach_system_tests', 'frozen_camera_grasp.launch.py',
+                raise RuntimeError(
+                    'Domain already has ROS processes; refusing to launch over an external stack')
+            launch = owner.start([
+                'ros2', 'launch', 'peach_system_tests', 'frozen_camera_grasp.launch.py',
                 f'bag:={bag}', f'frame_index:={args.index}', f'hz:={args.hz}',
                 'rviz:=' + str(args.rviz).lower()])
             time.sleep(3)
@@ -144,9 +152,11 @@ def main(argv=None):
                 return launch.returncode or 1
         else:
             assert_mock_stack(domain)
-        driver = owner.start(['ros2', 'run', 'peach_system_tests', 'drive_frozen_grasp.py',
+        driver = owner.start([
+            'ros2', 'run', 'peach_system_tests', 'drive_frozen_grasp.py',
             '--ready-timeout', str(args.ready_timeout), '--timeout', str(args.timeout),
-            '--request-id', request])
+            '--request-id', request,
+            *([] if args.skip_launch else ['--bind-replay-calibration'])])
         code = driver.wait(timeout=args.ready_timeout + args.timeout + 60)
     except subprocess.TimeoutExpired:
         print('drive timed out; outcome unknown, cancelling owned batch', file=sys.stderr)

@@ -1,0 +1,93 @@
+{
+  "name": "@local/ros2-web-link",
+  "version": "0.8.3",
+  "private": true,
+  "type": "module",
+  "license": "Apache-2.0",
+  "description": "Framework-independent ROS 2 Jazzy browser client and hardware-free self-check page",
+  "engines": {
+    "node": ">=22"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/sdk/index.d.ts",
+      "import": "./dist/sdk/index.js"
+    },
+    "./scene": {
+      "types": "./dist/scene/index.d.ts",
+      "import": "./dist/scene/index.js"
+    },
+    "./media": {
+      "types": "./dist/media/index.d.ts",
+      "import": "./dist/media/index.js"
+    },
+    "./audit": {
+      "types": "./dist/audit/index.d.ts",
+      "import": "./dist/audit/index.js"
+    },
+    "./graph": {
+      "types": "./dist/graph/index.d.ts",
+      "import": "./dist/graph/index.js"
+    },
+    "./workbench": {
+      "types": "./dist/workbench/index.d.ts",
+      "import": "./dist/workbench/index.js"
+    }
+  },
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "check": "tsc --noEmit",
+    "api": "node scripts/public_api_probe.mjs",
+    "probe": "node scripts/probe.mjs",
+    "observe": "node scripts/observation_probe.mjs && node scripts/image_view_probe.mjs && node scripts/image_budget_probe.mjs && node scripts/scene_probe.mjs && node scripts/scene_time_probe.mjs && node scripts/scene_resources_probe.mjs && node scripts/scene_context_probe.mjs && node scripts/event_timing_probe.mjs && node scripts/shader_probe.mjs && node scripts/load_progress_probe.mjs && node scripts/urdf_material_probe.mjs",
+    "fault": "node scripts/fault_probe.mjs",
+    "wire": "node --max-old-space-size=256 scripts/wire_fault_probe.mjs",
+    "browser": "node scripts/browser_probe.mjs",
+    "audit": "node scripts/audit_probe.mjs && node scripts/audit_channels_probe.mjs",
+    "transport": "node --max-old-space-size=512 scripts/transport_probe.mjs",
+    "multi": "node --max-old-space-size=512 scripts/multi_client_probe.mjs",
+    "roundtrip": "node --max-old-space-size=512 scripts/roundtrip_probe.mjs",
+    "preview": "node --max-old-space-size=256 scripts/preview_probe.mjs && node scripts/ui_connections_probe.mjs",
+    "graph": "node scripts/graph_probe.mjs && node scripts/graph_view_probe.mjs",
+    "workbench": "node scripts/workbench_probe.mjs && node scripts/scene_displays_probe.mjs && node scripts/workbench_review_probe.mjs && node scripts/workbench_profile_probe.mjs"
+  },
+  "dependencies": {
+    "cbor2": "2.4.1",
+    "cytoscape": "3.34.4",
+    "gl-matrix": "3.4.4",
+    "image-dimensions": "2.6.0",
+    "roslib": "2.1.0",
+    "three": "0.186.1",
+    "uplot": "1.6.32",
+    "urdf-loader": "0.13.1"
+  },
+  "devDependencies": {
+    "@types/three": "0.186.0",
+    "esbuild": "0.28.2",
+    "playwright": "1.64.1",
+    "typescript": "7.0.2",
+    "ws": "8.22.0"
+  },
+  "files": [
+    "dist",
+    "sdk",
+    "media",
+    "scene",
+    "audit",
+    "graph",
+    "workbench",
+    "web",
+    "config",
+    "doc",
+    "third_party",
+    "LICENSE",
+    "README.md",
+    "tsconfig.json",
+    "scripts/*.mjs",
+    "scripts/*.py",
+    "launch/*.py",
+    "description",
+    "CMakeLists.txt",
+    "package.xml"
+  ]
+}

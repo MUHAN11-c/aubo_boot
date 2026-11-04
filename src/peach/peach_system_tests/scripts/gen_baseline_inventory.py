@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
-"""生成重构基线快照 baseline_inventory.json（FINAL_PLAN §26 缺件补齐）。
+"""
+生成参数、接口与函数索引快照 baseline_inventory.json.
 
 快照内容：
-  - parameters：全部 peach*/config yaml 参数叶值（file/key/value/provenance 占位）
+  - parameters：全部 peach*/config yaml 参数叶值（file/key/value）
   - interfaces：interface_manifest.yaml 现行接口名清单
   - functions：非测试 Python def 与 peach_arm/src C++ 外联定义的位置（file/line/name）
-只锁 schema 不锁数值（数值随重构演进，schema 漂移即失败）。
+本脚本只导出当前索引，不比较历史快照或判定回归。
 用法：python3 gen_baseline_inventory.py [--out output/baseline_inventory.json]
 """
 from __future__ import annotations
@@ -13,17 +14,21 @@ from __future__ import annotations
 import argparse
 import ast
 import json
-import re
 from pathlib import Path
+import re
 
 ROOT = Path(__file__).resolve().parents[4]
 SCHEMA_VERSION = 1
 
 
 def _peach_pkg_roots():
-    """v1 包根列表（2026-10-10 分组后：src/peach/peach_* 嵌套；sim 五包在
-    src/peach_sim/sim_*——漏掉会静默丢 sim 面）。顶层 peach_* 会命中组目录
-    peach_sim 本身，剔除后只收各 sim_* 包根。"""
+    """
+    返回 v1 包根列表.
+
+    2026-10-10 分组后：src/peach/peach_* 嵌套；sim 五包在
+    src/peach_sim/sim_*——漏掉会静默丢 sim 面。顶层 peach_* 会命中组目录
+    peach_sim 本身，剔除后只收各 sim_* 包根。
+    """
     src = ROOT / 'src'
     tops = {path for path in src.glob('peach_*') if path.name != 'peach_sim'}
     return sorted(set(src.glob('peach/peach_*')) | tops
@@ -87,7 +92,7 @@ def collect_functions() -> list:
         for no, line in enumerate(p.read_text().splitlines(), 1):
             m = re.match(r'^\s*[\w:<>~*& ,]+\b((?:\w+::)+\w+)\s*\(', line)
             if m and not m.group(1).startswith(
-                ('std::', 'rclcpp::', 'Eigen::', 'tf2::')):
+                    ('std::', 'rclcpp::', 'Eigen::', 'tf2::')):
                 functions.append({
                     'file': str(p.relative_to(ROOT)), 'line': no,
                     'name': m.group(1),
@@ -119,7 +124,7 @@ def main() -> int:
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(
         json.dumps(inventory, ensure_ascii=False, indent=1), encoding='utf-8')
-    print(f"baseline inventory → {out}")
+    print(f'baseline inventory → {out}')
     print(json.dumps(inventory['counts'], ensure_ascii=False))
     return 0
 

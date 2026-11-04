@@ -1,162 +1,193 @@
-"""
-自主导航采摘全栈（P4 演示入口）：统一机体 + Nav2 + MoveIt + 感知，一键起.
-
-组成（复用既有入口，不复制逻辑）：
-1. Include ``sim.launch.py``（统一机体：可驾驶履带 + gz_ros2_control 臂 +
-   MoveIt + 腕载 rgbd 相机桥；``spawn:=corridor`` 走廊中心起步清障）；
-2. Include ``perception.launch.py``（感知→重建 lifecycle，与 gz 同生命周期）；
-3. Include ``nav2_bringup bringup_launch.py``（AMCL + 确定性生成图，
-   ``nav2_params.yaml``，同 orchard_nav 口径）；
-4. RViz（``sim_harvest.rviz``，默认开）。Gazebo 默认无头服务端；``gui:=true``
-   起自带窗口。2026-10-19 最小世界实测：RTX 3090 / 驱动 595.99 / gz 8.15，
-   默认 GUI 加载 ``gz-rendering-ogre2`` 并画出网格和方盒。日志仍有
-   ``libEGL warning: driver (null)`` 与 ``failed to create dri2 screen``，
-   不是白屏，也不必改 OGRE 1。
-
-采摘编排在独立终端跑（不在 launch 内自动发起，与真机意图纪律一致）：
-
-```bash
-ros2 launch sim_bringup harvest.launch.py rviz:=true
-# 另开终端（等 1-2 分钟世界首载 + 控制器/AMCL 就绪）。
-# field 预设（默认）须带 --stations-file（tour_core 坐标是程序化世界的，
-# 与重建果园不对应）；程序化世界（field:=false）才用 --rows 选行：
-ros2 run sim_bringup orchard_harvest --max-stations 3 \
-  --stations-file $(ros2 pkg prefix sim_worlds)/share/sim_worlds/maps/field_stations.yaml
-```
-
-每站节拍：收臂导航到站 → 拍照位感知出目标和 id → 每个 id 重建、
-回到拍照位、OMPL+Pilz 抓取、回拍照位，再下一颗；本站结束再收纳。
-没有 id 不重建。
-测完 Ctrl+C 停栈并 pgrep 清残留（MUST）。
-"""
+"""Compose the navigation, manipulation, perception and visualization simulation."""
 
 from pathlib import Path
 
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
 from launch.actions import (
-    DeclareLaunchArgument,
-    IncludeLaunchDescription,
-    OpaqueFunction,
+    DeclareLaunchArgument, EmitEvent, IncludeLaunchDescription, LogInfo, OpaqueFunction,
+    SetEnvironmentVariable,
 )
+from launch.events import Shutdown
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration
+from launch_ros.actions import Node
+from sim_worlds.params import params_from_dict
+from sim_worlds.scene import work_pose
+from sim_worlds.tour_core import stations as orchard_stations
 import yaml
 
 
-def generate_launch_description() -> LaunchDescription:
-    worlds_share = Path(get_package_share_directory('sim_worlds'))
+def _runtime_default():
+    """Keep generated maps, models and launch configuration inside this project."""
+    for directory in Path(__file__).resolve().parents:
+        if (directory / 'sim_description' / 'package.xml').is_file():
+            return str(directory / '.runtime' / 'run')
+    raise RuntimeError('Set runtime_dir explicitly for a relocated installation')
 
-    field_world = str(worlds_share / 'worlds' / 'field_no_grass.sdf')
-    field_map = str(worlds_share / 'maps' / 'field_map.yaml')
 
+def _include(share, filename, arguments):
+    """Include a package launch file with explicit arguments."""
+    return IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(str(share / 'launch' / filename)),
+        launch_arguments=arguments.items())
+
+
+def _orchard_resources(worlds, runtime):
+    """Build a task station list matching the procedural world target IDs."""
+    scene_params = worlds / 'config' / 'orchard.yaml'
+    params, problems = params_from_dict(yaml.safe_load(scene_params.read_text()))
+    if problems:
+        raise RuntimeError(f'Invalid orchard parameters: {problems}')
+    manifest_file = worlds / 'worlds' / 'peach_orchard.manifest.yaml'
+    manifest = yaml.safe_load(manifest_file.read_text())
+    targets_by_tree = {}
+    for target in manifest['targets']:
+        targets_by_tree.setdefault(target['tree'], []).append(target)
+    waypoints = []
+    for station in orchard_stations(params):
+        if station.index < 0:
+            continue
+        for target in targets_by_tree.get(station.tree_id, []):
+            waypoints.append({
+                'id': station.tree_id, 'target_id': target['id'],
+                'nav_pose': [station.x, station.y, station.yaw]})
+    work = work_pose(params)
+    spawn = {'x': work.vehicle_center[0] + params.rows.spacing / 2.0 - params.platform.row_gap,
+             'y': work.vehicle_center[1], 'yaw': work.vehicle_yaw}
+    stations_file = runtime / 'orchard_stations.yaml'
+    stations_file.write_text(yaml.safe_dump({'spawn': spawn, 'stations': waypoints}))
+    return {
+        'world': worlds / 'worlds' / 'peach_orchard.sdf', 'manifest': manifest_file,
+        'map': worlds / 'maps' / 'orchard_map.yaml', 'stations': stations_file,
+        'scene_params': scene_params,
+    }
+
+
+def _setup(context):
+    """Choose one coherent scene preset and compose the standard ROS stacks."""
+    def value(key):
+        return LaunchConfiguration(key).perform(context)
+
+    if value('use_sim_time').lower() != 'true':
+        raise RuntimeError('The complete simulation requires use_sim_time:=true')
+    bringup = Path(get_package_share_directory('sim_bringup'))
+    worlds = Path(get_package_share_directory('sim_worlds'))
+    nav2 = Path(get_package_share_directory('nav2_bringup'))
+    runtime = Path(value('runtime_dir')).expanduser().resolve()
+    runtime.mkdir(parents=True, exist_ok=True)
+    scene = value('scene')
+    if value('field'):
+        scene = 'field' if value('field').lower() == 'true' else 'orchard'
+    if scene == 'demo':
+        from sim_worlds.demo import prepare_demo
+        resources = prepare_demo(runtime / 'scene')
+    elif scene == 'data_orchard':
+        from sim_worlds.data_orchard import prepare_data_orchard
+        resources = prepare_data_orchard(runtime / 'scene')
+    elif scene == 'orchard':
+        resources = _orchard_resources(worlds, runtime)
+    elif scene == 'field':
+        resources = {
+            'world': worlds / 'worlds' / 'field_no_grass.sdf',
+            'map': worlds / 'maps' / 'field_map.yaml',
+            'stations': worlds / 'maps' / 'field_stations.yaml',
+            'scene_params': worlds / 'config' / 'orchard.yaml', 'manifest': '',
+        }
+    else:
+        raise RuntimeError('scene must be data_orchard, demo, orchard or field')
+    for key, arg in [('world', 'world'), ('map', 'map'), ('manifest', 'manifest_file'),
+                     ('stations', 'stations_file'), ('scene_params', 'scene_params')]:
+        if value(arg):
+            resources[key] = Path(value(arg)).expanduser().resolve()
+    for key in ('world', 'map', 'stations', 'scene_params'):
+        if not Path(resources[key]).is_file():
+            raise RuntimeError(f'Missing {scene} {key} resource: {resources[key]}')
+    station_data = yaml.safe_load(Path(resources['stations']).read_text(encoding='utf-8'))
+    spawn = station_data['spawn']
+    nav_file = value('nav2_params') or str(bringup / 'config' / (
+        'nav2_params_field.yaml' if scene == 'field' else 'nav2_params.yaml'))
+    nav_config = yaml.safe_load(Path(nav_file).read_text(encoding='utf-8'))
+    nav_config['amcl']['ros__parameters']['initial_pose'] = {
+        'x': float(spawn['x']), 'y': float(spawn['y']),
+        'z': 0.0, 'yaw': float(spawn.get('yaw', 0.0))}
+    if scene in ('demo', 'data_orchard'):
+        checker = nav_config['controller_server']['ros__parameters']['general_goal_checker']
+        checker.update(xy_goal_tolerance=0.06, yaw_goal_tolerance=0.08)
+        nav_config['controller_server']['ros__parameters']['FollowPath']['visualize'] = False
+    for node in ('controller_server', 'behavior_server', 'velocity_smoother', 'collision_monitor'):
+        nav_config[node]['ros__parameters']['enable_stamped_cmd_vel'] = False
+    nav_config['collision_monitor']['ros__parameters']['cmd_vel_in_topic'] = 'cmd_vel_interlocked'
+    runtime_nav = runtime / 'nav2.yaml'
+    runtime_nav.write_text(yaml.safe_dump(nav_config, sort_keys=False), encoding='utf-8')
+    common = {'use_sim_time': 'true', 'runtime_dir': str(runtime)}
+    sim_args = {
+        **common, 'world': str(resources['world']), 'scene_params': str(resources['scene_params']),
+        'manifest_file': str(resources['manifest']), 'tool_profile': value('tool_profile'),
+        'spawn_x': str(spawn['x']), 'spawn_y': str(spawn['y']),
+        'spawn_yaw': str(spawn.get('yaw', 0.0)), 'gui': value('gui'),
+        'moveit': value('moveit'), 'rviz': value('rviz'),
+        'rviz_config': str(bringup / 'config' / 'sim_harvest.rviz'),
+    }
+    nodes = [
+        SetEnvironmentVariable('PEACH_SIM_RUN_DIRECTORY', str(runtime)),
+        LogInfo(msg=f'Joint simulation scene={scene}; runtime={runtime}'),
+        Node(package='sim_harvest', executable='base_guard', output='screen',
+             parameters=[{'use_sim_time': True, 'require_arm_lock': bool(resources['manifest'])}],
+             on_exit=EmitEvent(event=Shutdown(reason='Base interlock exited'))),
+        _include(bringup, 'sim.launch.py', sim_args),
+        _include(nav2, 'bringup_launch.py', {
+            'slam': str(value('slam').lower() == 'true'), 'map': str(resources['map']),
+            'params_file': str(runtime_nav), 'use_sim_time': 'true',
+            'autostart': 'true', 'use_composition': 'False', 'use_respawn': 'False',
+        }),
+    ]
+    if value('perception') == 'vision':
+        nodes.append(_include(bringup, 'perception.launch.py', {
+            **common, 'tool_profile': value('tool_profile')}))
+    elif value('perception') != 'ground_truth':
+        raise RuntimeError('perception must be ground_truth or vision')
+    if resources['manifest']:
+        if value('moveit').lower() != 'true':
+            raise RuntimeError('Harvest manipulation requires moveit:=true')
+        task_params = {
+            'use_sim_time': True, 'manifest_file': str(resources['manifest']),
+            'stations_file': str(resources['stations']), 'run_directory': str(runtime),
+            'robot_description_file': str(runtime / 'robot.urdf'),
+            'perception_mode': value('perception'),
+            'tool_profile': value('tool_profile'),
+        }
+        nodes.extend([
+            Node(package='sim_harvest', executable='grasp_node', output='screen',
+                 parameters=[task_params],
+                 on_exit=EmitEvent(event=Shutdown(reason='Simulator grasp server exited'))),
+            Node(package='sim_harvest', executable='mission_node', output='screen',
+                 parameters=[task_params, {
+                     'autostart': value('autostart').lower() == 'true',
+                     'max_targets': int(value('max_targets')),
+                     'perception_mode': value('perception'),
+                 }], on_exit=EmitEvent(event=Shutdown(reason='Simulator mission server exited'))),
+        ])
+    else:
+        if value('autostart').lower() == 'true':
+            raise RuntimeError('field preview has no independently detachable target manifest')
+        nodes.append(LogInfo(msg=(
+            'Field scene is navigation/visualization only: its whole-orchard GLB has no '
+            'independently detachable fruit models. Use scene:=demo for physical pickup.')))
+    return nodes
+
+
+def generate_launch_description():
+    """Declare the complete simulation deployment configuration."""
+    args = {
+        'scene': 'data_orchard', 'field': '', 'use_sim_time': 'true',
+        'runtime_dir': _runtime_default(), 'world': '', 'map': '',
+        'manifest_file': '', 'stations_file': '', 'scene_params': '', 'nav2_params': '',
+        'slam': 'false', 'gui': 'false', 'moveit': 'true', 'rviz': 'true',
+        'tool_profile': 'adaptive_shear_v1', 'perception': 'vision',
+        'autostart': 'false', 'max_targets': '1',
+    }
     return LaunchDescription([
-        DeclareLaunchArgument(
-            'use_sim_time', default_value='true',
-            description='仿真时钟（全图统一，勿关）'),
-        DeclareLaunchArgument(
-            'field', default_value='true',
-            description='true=重建果园（field_no_grass GLB + generate_field '
-                        '地图/站位，AMCL 初始位姿同源）；false=程序化世界'
-                        '（确定性回归用）'),
-        DeclareLaunchArgument(
-            'world', default_value=field_world,
-            description='世界 SDF（field 预设默认重建果园）'),
-        DeclareLaunchArgument(
-            'map', default_value=field_map,
-            description='静态地图（field 预设 = generate_field 产物）'),
-        DeclareLaunchArgument(
-            'slam', default_value='False',
-            description='true=slam_toolbox 在线建图；false=AMCL + 静态图'),
-        DeclareLaunchArgument(
-            'nav2_params', default_value='',
-            description='Nav2 参数（空 = field 用 nav2_params_field.yaml、'
-                        '否则 nav2_params.yaml）'),
-        DeclareLaunchArgument(
-            'gui', default_value='false', description='gz 自带 GUI（默认无头）'),
-        DeclareLaunchArgument(
-            'moveit', default_value='true',
-            description='include MoveIt（采摘接近动作需要）'),
-        DeclareLaunchArgument(
-            'rviz', default_value='true',
-            description='RViz（sim_harvest 视图：机体、地图、相机、MoveIt）'),
-        DeclareLaunchArgument(
-            'tool_profile', default_value='bite_shear_v1',
-            description='工具档案，同时传给机体 xacro 与感知参数注入'),
-
+        *[DeclareLaunchArgument(key, default_value=default) for key, default in args.items()],
         OpaqueFunction(function=_setup),
     ])
-
-
-def _setup(context, *args, **kwargs):
-    """按 field/程序化预设解析 world/map/params/spawn 后组装."""
-    bringup_share = Path(get_package_share_directory('sim_bringup'))
-    worlds_share = Path(get_package_share_directory('sim_worlds'))
-    use_sim_time = LaunchConfiguration('use_sim_time')
-    slam = LaunchConfiguration('slam')
-    gui = LaunchConfiguration('gui')
-    moveit = LaunchConfiguration('moveit')
-    rviz = LaunchConfiguration('rviz')
-    tool_profile = LaunchConfiguration('tool_profile')
-    field = LaunchConfiguration('field').perform(context).lower() in ('true', '1')
-    world = LaunchConfiguration('world').perform(context)
-    map_yaml = LaunchConfiguration('map').perform(context)
-    params_raw = LaunchConfiguration('nav2_params').perform(context)
-    nav2_share = Path(get_package_share_directory('nav2_bringup'))
-
-    if params_raw:
-        params_file = params_raw
-    else:
-        params_file = str(bringup_share / 'config' /
-                          ('nav2_params_field.yaml' if field
-                           else 'nav2_params.yaml'))
-    sim_args = {'gui': gui, 'moveit': moveit,
-                'use_sim_time': use_sim_time,
-                # world 必须显式转发：sim.launch 默认是程序化 peach_orchard，
-                # field 模式地图/站位/世界三者须同源（此前漏传导致
-                # field 地图 + 程序化物理世界错配）
-                'world': world,
-                # RViz 经 sim→moveit_sim 链起（带 robot_description_semantic，
-                # moveit 显示层需要；直接在此起裸 RViz 会报 SRDF 解析失败）
-                'rviz': rviz,
-                'rviz_config': str(bringup_share / 'config' /
-                                   'sim_harvest.rviz'),
-                'tool_profile': tool_profile}
-    if field:
-        # generate_field 站位同源：spawn 读 field_stations.yaml 的 spawn 段
-        # （走廊中点，非首站——站位是作业位贴树，出生会压膨胀圈）。
-        # AMCL initial_pose（nav2_params_field.yaml）须与此同值。
-        stations = yaml.safe_load(
-            (worlds_share / 'maps' / 'field_stations.yaml')
-            .read_text(encoding='utf-8'))
-        spawn = stations['spawn']
-        sim_args.update({'spawn_x': str(spawn['x']),
-                         'spawn_y': str(spawn['y']),
-                         'spawn_yaw': str(spawn.get('yaw', 0.0))})
-    else:
-        sim_args['spawn'] = 'corridor'
-
-    nodes = [
-        IncludeLaunchDescription(
-            PythonLaunchDescriptionSource(
-                str(bringup_share / 'launch' / 'sim.launch.py')),
-            launch_arguments=sim_args.items()),
-        IncludeLaunchDescription(
-            PythonLaunchDescriptionSource(
-                str(bringup_share / 'launch' / 'perception.launch.py')),
-            launch_arguments={
-                'use_sim_time': use_sim_time,
-                'tool_profile': tool_profile,
-            }.items()),
-        IncludeLaunchDescription(
-            PythonLaunchDescriptionSource(
-                str(nav2_share / 'launch' / 'bringup_launch.py')),
-            launch_arguments={
-                'slam': slam,
-                'map': map_yaml,
-                'params_file': params_file,
-                'use_sim_time': use_sim_time,
-                'autostart': 'true',
-            }.items()),
-    ]
-    return nodes

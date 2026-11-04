@@ -11,8 +11,8 @@ BoundedWorker 连续异常、落盘线程失败等关键信号因此流失。本
     from peach_common.ros_log_bridge import bridge_module_loggers
 
     bridge_module_loggers(self, [
-        'peach_harvester.vision.common.runtime',
-        'peach_harvester.vision.target_reconstruction.session_recorder',
+        'peach_vision_core.runtime',
+        'peach_target_reconstruction.session_recorder',
     ])
 
 幂等：同一 logger 重复桥接不叠 handler。node 只需提供 get_logger()

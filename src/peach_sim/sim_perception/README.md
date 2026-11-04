@@ -1,77 +1,47 @@
 # sim_perception
 
-peach 视觉感知栈的仿真副本：`scene_perception` + `target_reconstruction` 两
-lifecycle 节点 + `vision/{common,domain}` 纯核。2026-10-19 起代码与
-`src/peach/peach_harvester` 的现行视觉源码对齐（import 前缀
-`sim_perception.`），跑在仿真相机流上（`sim_bringup/perception.launch.py`）。
+仿真的视觉参数覆盖与兼容入口。运行时直接复用现行的
+`peach_scene_perception` 和 `peach_target_reconstruction`，不再安装或运行
+本包历史 `sim_perception/vision/` 业务副本。目录外能力包、模型和配置只读引用。
 
-## 快照口径
+- `sim_scene_perception_node` → `peach_scene_perception.scene_perception_node.main`
+- `sim_target_reconstruction_node` →
+  `peach_target_reconstruction.target_reconstruction_node.main`
 
-- **来源**：`src/peach/peach_harvester` 视觉源码（2026-10-19 重新对齐；import
-  前缀写成 `sim_perception.`）。peach 组再改视觉时，仍须人工同步到本包。
-- **不复制**：`peach_interfaces`（防 IDL 双定义）、`peach_common`
-  （yaml_params/qos/paths/lifecycle，exec_depend 复用）、模型权重 best.pt /
-  mobile_sam.pt。
-- **节点名 / 话题名保持 peach 原样**（`peach_scene_perception_node` /
-  `peach_target_reconstruction_node`，`/camera/*`、`/peach/perception/*`）：
-  仿真独立 ROS domain 运行，无冲突；console 脚本名加 `sim_` 前缀避免 overlay
-  撞名（`sim_scene_perception_node` / `sim_target_reconstruction_node`）。
-- 不含 supervisor / scene_obstacles（P4 采摘执行与 MoveIt 场景注入由
-  `orchard_harvest` 编排 CLI 承接演示闭环）。
+两个节点保持 `peach_scene_perception_node`、`peach_target_reconstruction_node`
+名称和现行相机/感知接口。入口只透传 `args`，生命周期、线程、诊断、TF 与取消
+实现由共享能力包维护。Python 解释器由构建环境确定；构建及启动使用工作区既有
+`aubo_py3.12`，保持 `numpy==1.26.4`，本包不安装第三方库。
 
-## launch 组成（`sim_bringup/perception.launch.py`）
+## 配置装配
 
-两个 LifecycleNode（全量 yaml，再按 `tool_profile` 注入 `grasp_standoffs`
-与工具档案，装配方式同真机 brain.launch 的感知两节）+ `nav2_lifecycle_manager`
-（名 `peach_lifecycle_manager`，
-顺序 **感知 → 重建**，autostart；`bond_timeout` 默认 0，与现行真机栈同口径）。
-验收路径：`~/begin_scene` → `/peach/perception/target_observations` 非空 →
-`~/build_target_model` 出 refined_pose（`min_views=1` 单视收口）。
+`sim_bringup/launch/perception.launch.py` 按以下顺序装配：
 
-## sim 分叉调参（2026-10-14 P4b，键名与真机一致、数值分叉）
+1. 对应共享能力包 `config/scene_perception.yaml` 或
+   `config/target_reconstruction.yaml` 的完整配置。
+2. `peach_common.grasp_standoffs` 与 `peach_common.tool_profiles` 的工具覆盖。
+3. 本包同名 YAML 的仿真覆盖，再注入本次运行目录与统一仿真时钟。
 
-- **检测阈值**：gz-ogre2 对重建袋的渲染与 YOLO 训练分布有残余域差——纸袋
-  albedo 烘回后可检出但置信度保守（0.17-0.19 vs Blender 渲染 0.7+；纹理修复
-  前为全零）。`yolo_conf` / `min_detection_conf` 降至 **0.12** 采信这些正确检出，
-  误检由 SAM 掩膜质量门 + 深度窗 + 几何门兜底；真机 peach_harvester 保持
-  0.35/0.4。
-- **袋轴包络**：本场袋高宽约 0.13×0.12 m。球面点云沿轴的 5%–95% 跨度约为直径的 0.9，真机 `min_aspect=1.0` 会拒掉合格圆袋。仿真融合调用用 **0.8**（仍拒绝扁盘和短于 5 cm 的云）。真机副本不改。
-- **ICP**：仿真袋深度点常少于 300，首帧也被 `insufficient_source_points` 拒掉，模型一帧都积不进去。`icp.enable: false`，用 FK 位姿积分。真机仍开。
-- **掩膜配对**：深度约 5 Hz、掩膜约 0.3–0.5 fps。`max_frame_age_s: 8`、`mask_stamp_tolerance_s: 3`，否则采帧全是 `missing_mask`。真机仍是 2 s / 0.08 s。
-- **锁集窗口**：gz 到帧 ~3.4 Hz、YOLO+SAM worker 仅 ~0.3-0.5 fps，真机 10 帧
-  窗口（≈2.8 s）worker 一帧未处理完即锁空集（实测）；放大到 **60 帧（≈17 s
-  墙钟）**，worker 可处理 5-8 帧。
-- config 是 nav2 式全量清单（键名冻结、真机命令零破坏）：逐帧读取键
-  `ros2 param set` 热生效；模型/管线等构造期捕获键改后须重启。
+本包 YAML 是 **overlay**，不能脱离共享完整配置当作另一份完整 schema。
+`ParameterFile(..., allow_substs=True)` 负责展开包路径和环境引用。
+权重来自 `peach_scene_perception/model/`，不再引用已经变为元包的
+`peach_harvester/model/`。目标重建的掩膜时间容差遵守现行 schema 的 0.5 s
+上限，当前仿真覆盖为 0.45 s；不得照搬历史 3 s 设置。
 
-## 运行
+重建 `session.root_dir` 必须是 `peach_sim` 内的绝对运行目录。
+本包覆盖要求项目运行器提供 `PEACH_SIM_RUN_DIRECTORY`，launch 最终还应覆盖为
+本次 `run_directory/vision`；缺环境时拒绝展开，不回退目录外的工作区 `runs/`。
 
-```bash
-# 1) 统一机体仿真（含腕载 rgbd 与相机桥）
-ros2 launch sim_bringup sim.launch.py gui:=false
-# 2) 感知栈（感知→重建 lifecycle 顺序）
-ros2 launch sim_bringup perception.launch.py
-# 3) 驱动采集：begin_scene → target_observations → build_target_model
-```
+## 模式与验收
 
-接口契约（相机五话题 RELIABLE / 精确 stamp TF / AUBO 六关节 `/joint_states` /
-use_sim_time）见 `sim_bringup` README 与 `doc/architecture.md`。
+联合入口的 `perception:=vision` 使用真实 RGB-D 推理链；
+`ground_truth` 模式使用明确标识的仿真目标，不启动视觉能力。
+导航/抓放真值模式通过不能证明视觉精度。运行方式、独立 ROS domain、Gazebo
+partition 与收尾由 `sim_bringup` 项目运行器统一管理。
 
-## 测试
+官方检查：`colcon test --packages-select sim_perception`。
+flake8/pep257 只检查本包实际安装的薄适配、打包与检查入口；历史 `vision/`
+保留供追溯，不随包安装，不再作为本包运行接口或当前验收对象。
+包级设计与接口见 [architecture](doc/architecture.md)、[io](doc/io.md)。
 
-`test/` 移植自 `peach_harvester` 纯核行为测试（快照 fork 的回归门）：
-**基线 = fork 点（P3, 9e30b415）+ 已回灌到本包的融合加固对应用例**；fork 后
-母包新增行为的测试不移植（本包代码未含该行为），peach 侧后续演进同步代码时
-随轮同步测试。运行：
-
-```bash
-colcon test --packages-select sim_perception
-```
-
-`colcon test` 只跑官方 flake8 / pep257。推理对不对看感知节点日志。权重缺失时节点会拒启。
-
-**权重依赖**：两份 config 的 `yolo_model_path` / `sam_model_path` 指向
-`$(find-pkg-share peach_harvester)/model/`（launch 期展开）——单建 sim 组时须
-同装 peach_harvester 或改指本地权重，否则拒启。
-
-许可 BSD-3-Clause（承袭 peach_harvester，见 LICENSE）。
+BSD-3-Clause；模型与共享能力各自遵守原有许可。

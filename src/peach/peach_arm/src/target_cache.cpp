@@ -69,6 +69,11 @@ double freshnessStamp(const CachedTarget & target)
 template<typename Update>
 void applyObservation(CachedTarget & entry, const Update & update, double now_s)
 {
+  if (entry.scene_epoch != update.scene_epoch) {
+    entry.valid = false;
+    entry.received_s = 0.0;
+  }
+  entry.scene_epoch = update.scene_epoch;
   entry.swinging = update.swinging;
   entry.tracking_status = update.tracking_status;
   copyBbox(entry, update);
@@ -260,6 +265,11 @@ ModelSnapshot TargetCache::modelSnapshot() const
 std::optional<DecisionSnapshot> TargetCache::decisionSnapshot() const
 {
   std::lock_guard<std::mutex> lock(mutex_);
+  return decisionSnapshotLocked();
+}
+
+std::optional<DecisionSnapshot> TargetCache::decisionSnapshotLocked() const
+{
   if (!decision_committed_ || !refined_.valid ||
     !modelExecutable(model_, clock_s_(), false))
   {
@@ -364,17 +374,20 @@ bool TargetCache::updateDecisionSnapshot(
   return true;
 }
 
-bool TargetCache::waitForDecision(
-  const std::string & target_id, double timeout_s, const std::atomic_bool & cancel) const
+std::optional<DecisionSnapshot> TargetCache::waitForDecision(
+  const ModelIdentity & expected, double timeout_s, const std::atomic_bool & cancel) const
 {
   std::unique_lock<std::mutex> lock(mutex_);
-  return cv_.wait_for(
-    lock, std::chrono::duration<double>(timeout_s), [this, &target_id, &cancel]() {
-      return cancel.load() || (decision_committed_ &&
-             model_.identity.target_id == target_id &&
-             grasp_decision_target_id_ == target_id &&
-             modelExecutable(model_, clock_s_(), false));
-    }) && !cancel.load();
+  std::optional<DecisionSnapshot> decision;
+  cv_.wait_for(
+    lock, std::chrono::duration<double>(timeout_s), [&]() {
+      if (cancel.load()) {return true;}
+      if (decision_committed_ && matchesRequestedModel(expected, model_.identity)) {
+        decision = decisionSnapshotLocked();
+      }
+      return decision.has_value();
+    });
+  return cancel.load() ? std::nullopt : decision;
 }
 
 bool TargetCache::updateRefinedPose(
@@ -603,7 +616,7 @@ bool TargetCache::waitForRefined(
 }
 
 bool TargetCache::promoteUnrefinedGeometry(
-  const std::string & target_id, std::string * reject_reason)
+  const std::string & target_id, std::string * reject_reason, const ModelIdentity * expected)
 {
   const auto set_reason = [reject_reason](const char * text) {
       if (reject_reason != nullptr) {
@@ -626,6 +639,12 @@ bool TargetCache::promoteUnrefinedGeometry(
     set_reason(src == nullptr ? "no_cached_anchor" : "invalid_initial_axis");
     return false;
   }
+  if (expected && (src->scene_epoch != expected->scene_epoch ||
+    src->harvest_run_id != expected->run_id))
+  {
+    set_reason("observation_scene_changed");
+    return false;
+  }
   Eigen::Vector3d entry = src->initial_pose.translation();
   if (!nonzeroFinite(entry) && nonzeroFinite(src->bottom)) {
     entry = src->bottom - src->initial_axis.normalized() * 0.03;
@@ -633,6 +652,10 @@ bool TargetCache::promoteUnrefinedGeometry(
   if (!entry.allFinite()) {
     return false;
   }
+  // 本周期显式采用感知几何；不得让上一轮重建模型的身份/有效期参与本轮执行门。
+  model_ = ModelSnapshot();
+  decision_committed_ = false;
+  decision_revoked_ = false;
   refined_ = CachedRefined();
   refined_.id = target_id;
   refined_.entry = entry;
@@ -668,6 +691,26 @@ bool TargetCache::promoteUnrefinedGeometry(
   model_generated_s_ = clock_s_();
   cv_.notify_all();
   return true;
+}
+
+void TargetCache::releaseUnrefinedGeometry()
+{
+  std::lock_guard<std::mutex> lock(mutex_);
+  if (!unrefined_hold_) {
+    return;
+  }
+  unrefined_hold_ = false;
+  model_ = ModelSnapshot();
+  model_generated_s_ = 0.0;
+  refined_ = CachedRefined();
+  decision_committed_ = false;
+  decision_revoked_ = false;
+  grasp_decision_target_id_.clear();
+  quality_.refined_target_id.clear();
+  quality_.reconstruction_target_id.clear();
+  quality_.refined_accept = false;
+  quality_.grasp_allowed = false;
+  cv_.notify_all();
 }
 
 bool TargetCache::waitForFreshTarget(

@@ -9,6 +9,8 @@ keeping consumers (supervisor require_managed_stack etc.) unchanged.
 """
 from __future__ import annotations
 
+import time
+
 from peach_bringup.params import attach_flag_bridge
 import rclpy
 from rclpy.executors import ExternalShutdownException, SingleThreadedExecutor
@@ -31,7 +33,7 @@ class LifecycleFlagBridge(Node):
     def __init__(self) -> None:
         """Attach parameters, create publisher, service client, and timer."""
         super().__init__('peach_lifecycle_flag_bridge')
-        # 参数一行接入（config/bringup.yaml 直读 + 校验）；服务名/频率构造期捕获
+        # GPL 参数接入（config/flag_bridge_parameters.yaml）；服务名/频率构造期捕获
         self._params = attach_flag_bridge(self)
         latched = QoSProfile(
             history=HistoryPolicy.KEEP_LAST,
@@ -45,24 +47,39 @@ class LifecycleFlagBridge(Node):
             Trigger, self._params.is_active_service)
         hz = float(self._params.poll_hz)
         self._last = None
-        self._timer = self.create_timer(
-            max(0.1, 1.0 / max(hz, 0.1)), self._poll)
+        period = max(0.1, 1.0 / max(hz, 0.1))
+        self._reply_timeout = max(1.0, 2 * period)
+        self._pending = None
+        self._deadline = 0.0
+        self._timer = self.create_timer(period, self._poll)
 
     def _poll(self) -> None:
-        if not self._client.wait_for_service(timeout_sec=0.0):
-            return  # nav2_lm 未起：不发（消费者保持默认 false）
-        request = Trigger.Request()
-        future = self._client.call_async(request)
-        future.add_done_callback(self._on_response)
+        ready = self._client.service_is_ready()
+        now = time.monotonic()
+        if self._pending is not None:
+            if ready and now < self._deadline:
+                return
+            self._client.remove_pending_request(self._pending)
+            self._pending = None
+            self._publish(False)
+        elif not ready:
+            self._publish(False)
+        if ready:
+            self._deadline = now + self._reply_timeout
+            self._pending = self._client.call_async(Trigger.Request())
+            self._pending.add_done_callback(self._on_response)
 
     def _on_response(self, future) -> None:
+        if future is not self._pending:
+            return
+        self._pending = None
         try:
             response = future.result()
         except Exception:  # noqa: BLE001 服务瞬断
-            return
-        if response is None:
-            return
-        active = bool(response.success)
+            response = None
+        self._publish(bool(response and response.success and time.monotonic() < self._deadline))
+
+    def _publish(self, active: bool) -> None:
         if active is not self._last:
             self._last = active
             self.get_logger().info(

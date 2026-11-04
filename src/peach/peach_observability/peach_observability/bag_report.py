@@ -871,13 +871,13 @@ def generate_session_report(bag_dir, *, out_dir=None,
     log(f'bag 分析报告已生成：{md_path}')
     deleted = []
     if max_total_bag_gb > 0:
-        runs_root = out.parent if out.name.startswith('session_') else out
+        runs_root = bag_path.parent.parent if bag_path.name == 'bag' else bag_path.parent
         deleted = retention.sweep(
-            runs_root, max_total_bag_gb, keep=[out],
+            runs_root, max_total_bag_gb, keep=(*keep, bag_path),
             log_warning=log)
     return {
         'markdown': str(md_path), 'json': str(json_path),
-        'deleted_bags': [str(item.path) for item in deleted],
+        'deleted_bags': [row['deleted'] for row in deleted],
     }
 
 

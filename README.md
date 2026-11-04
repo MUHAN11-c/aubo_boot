@@ -35,7 +35,7 @@ ros2 launch peach_bringup harvest_system.launch.py \
 | [peach_arm](src/peach/peach_arm/README.md) | 拍照、主动视点、质量/安全门、MTC 接触、工具 SetIO、撤退 | `peach_arm` | 不写账本、不调重建 Trigger、不 `BeginScene`/`RunHarvest` |
 | [peach_bringup](src/peach/peach_bringup/README.md) | 整栈入口、预检、lifecycle 托管、autostart 客户端、生命周期桥 | `peach_lifecycle_flag_bridge`、`peach_autostart_client` | 不含业务；launch 不自动开批 |
 | [peach_observability](src/peach/peach_observability/README.md) | 8090 过程页/单步调试、会话 bag、`peach_bag_report` | `peach_observability` | 不发运动 |
-| [peach_web](src/peach_web/README.md) | 8090 过程页静态资源（顶层资源包，HTTP 托管在 peach_observability） | 无 | 不跑节点、不进 launch/lifecycle |
+| [peach_web](src/peach/peach_web/README.md) | 8090 过程页静态资源（采摘栈资源包，HTTP 托管在 peach_observability） | 无 | 不跑节点、不进 launch/lifecycle |
 | [peach_vegetation](src/peach/peach_vegetation/README.md) | GPU 枝/叶 2D 掩膜（独立 launch） | `peach_vegetation` | 不写 PlanningScene、不进 harvest_system |
 | [peach_system_tests](src/peach/peach_system_tests/README.md) | isolated mock launch_testing + 回放塔 | （launch_testing） | 不进运行 launch |
 
@@ -64,10 +64,10 @@ ros2 launch peach_bringup harvest_system.launch.py \
 
 | 路径 | 内容 |
 |------|------|
-| `src/` | v1 采摘栈九包（`src/peach/`，含公共库与相机前端）+ v2 孵化十二包（`src/peach2/`）+ IVG 演示九包（`src/ivg/`）+ 臂/相机驱动九包 + 过程页静态资源 `peach_web` 1 + 仿真 `peach_sim` 1 + 5 点力传感器 `serial_force` 1 + 官方示例 `src/examples/`（ros2/examples / TurtleBot3 / MoveIt panda）+ 夹爪描述 `robotiq_description` 1 |
+| `src/` | v1 采摘栈（`src/peach/`，含公共库、相机前端与 `peach_web` 静态资源）+ v2 孵化十二包（`src/peach2/`）+ IVG 演示九包（`src/ivg/`）+ 臂/相机驱动九包 + 仿真 `peach_sim` 1 + 5 点力传感器 `serial_force` 1 + 官方示例 `src/examples/`（ros2/examples / TurtleBot3 / MoveIt panda）+ 夹爪描述 `robotiq_description` 1 |
 | `docs/` | v1/v2 方案书与架构图交付件（非活文档）；现行架构、IO 与测试指导在各包 `doc/` |
 | `scripts/` | 工作区打包与架构图生成工具；业务、采集与测试入口在所属包 |
-| `runs/` | 过程数据唯一根（文本按 `.gitignore` 可入库，bag/图像等二进制留本地） |
+| `runs/` | 过程数据唯一根（运行/测试记录仅保留本地，不入库） |
 | `_archive/runs/` | 历史过程数据（勿删） |
 | `_archive/code_cleanup_2026-10-12/` | 冻结设计书、历史 A/B 实验与退役源码；manifest.json 可校验和恢复（本地，不随仓） |
 | `_archive/parked_2026-08-24/` | 暂不用：tools / diagnostics / profiles / scripts / 架子机 / 过程文档 |

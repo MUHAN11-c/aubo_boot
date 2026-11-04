@@ -7,15 +7,17 @@
 //   on_activate   ：只做快速可预测切换——开放运动输出权限（原子标志）。
 //   on_deactivate ：先关输出权限（撤 arm、拒新 goal），再按 CANCEL_NOW 等价路径
 //     真取消活动周期（置取消标志、stop MoveIt/MTC、唤醒等待、回收线程，action
-//     侧按 outcome=CANCELED 终局上报）后落 Inactive；接触段 recovery 锁
+//     侧按 outcome=CANCELED 终局上报）后落 Inactive；未退场则 FAILURE 并保留资源。
+//     接触段 recovery 锁
 //     （contact_recovery_required_）跨停用保持，语义不变。
-//   on_cleanup    ：释放 MoveIt/MTC/订阅/服务/action/client 全部资源，
+//   on_cleanup    ：先确认工作体退场，再释放 MoveIt/MTC/订阅/服务/action/client 资源，
 //     回 Unconfigured（参数声明与验证钩子保留，可再次 configure）。
-//   on_shutdown/on_error：关输出权限 + 取消活动周期 + 释放资源。
+//   on_shutdown/on_error：关输出权限 + 取消活动周期；已退场才释放资源。
 #include "peach_arm/manipulation_skills_node.hpp"
 #include <algorithm>
 #include <chrono>
 #include <cmath>
+#include <cstdio>
 #include <exception>
 #include <functional>
 #include <future>
@@ -99,13 +101,7 @@ ManipulationSkillsNode::ManipulationSkillsNode(const rclcpp::NodeOptions & optio
   // 全量生效放 post-set（参数实际写入之后；P0-6：此前被静默吞掉）。
   post_parameter_callback_handle_ = add_post_set_parameters_callback(
     [this](const std::vector<rclcpp::Parameter> &) {
-      // loadParameters 会重建 view_planner_/quality_gate_/safety_gate_（以及
-      // motion_，若 MoveIt 已初始化）（非线程安全），仅空闲时重载；运行中的
-      // 改参已被 onParameters 前置拒绝，此处 !running_ 为兜底（默认互斥回调组，
-      // 不与订阅回调并发）。
-      if (!running_.load()) {
-        loadParameters();
-      }
+      motion_admission_.reloadIfIdle(true, [this] {loadParameters();});
       // execution 关闭时解除人工 arm（原 onParameters 成功路径语义，移到
       // post-set 后读到的必为写入后的值）。
       if (!execution_enabled_.load()) {execution_armed_.store(false);}
@@ -203,6 +199,10 @@ CallbackReturn ManipulationSkillsNode::on_activate(const rclcpp_lifecycle::State
   // 快速可预测切换：开放运动输出权限（原子标志）+ 激活状态发布者，
   // 不做任何资源分配/等待。
   motion_output_permitted_.store(true);
+  if (shutdown_started_.load()) {
+    motion_output_permitted_.store(false);
+    return CallbackReturn::FAILURE;
+  }
   status_pub_->on_activate();
   marker_pub_->on_activate();
   grasp_hyp_pub_->on_activate();
@@ -221,19 +221,29 @@ CallbackReturn ManipulationSkillsNode::on_activate(const rclcpp_lifecycle::State
       params_.tool.links, params_.moveit.obstacle_guard_links,
       params_.moveit.obstacle_object_ids,
       params_.moveit.obstacle_guard_enabled};
-    std::thread([logger, tool_links, obstacle_spec]() {
+    const auto generation = obstacle_acm_generation_;
+    const auto expected = generation->fetch_add(1) + 1;
+    std::thread([logger, tool_links, obstacle_spec, generation, expected]() {
+        const auto still_current = [generation, expected] {
+          return generation->load() == expected && rclcpp::ok();
+        };
         // 分离线程内逃逸异常 = std::terminate（cppreference std::thread）；rcl 关停期
         // 构造 PlanningSceneInterface 会抛 RCLError（2026-09-30 实锤的 exit -6 同款）。
         try {
+          if (!still_current()) {return;}
           moveit::planning_interface::PlanningSceneInterface scene;
           // 09-29 真相机轮勘定：激活早期服务竞态会让 apply 静默落空（ACM
           // 无条目、无 WARN），观察/接近规划起点即撞。重试 3 次——每次都
           // 先读现行 ACM 再整表合并（幂等，不会冲掉别处已写的条目）。
           for (int attempt = 1; attempt <= 3; ++attempt) {
+            if (!still_current()) {return;}
             GraspTask::applyWholeOctomapToolExemption(
-              logger, scene, tool_links, obstacle_spec);
+              logger, scene, tool_links, obstacle_spec, still_current);
             if (attempt < 3) {
-              std::this_thread::sleep_for(std::chrono::seconds(3));
+              for (int slice = 0; slice < 30; ++slice) {
+                if (!still_current()) {return;}
+                std::this_thread::sleep_for(std::chrono::milliseconds(100));
+              }
             }
           }
         } catch (const std::exception & e) {
@@ -250,7 +260,9 @@ CallbackReturn ManipulationSkillsNode::on_deactivate(const rclcpp_lifecycle::Sta
 {
   // 先关输出权限（此后一切运动类入口拒绝），再按 CANCEL_NOW 等价路径取消
   // 活动周期并回收线程；contact_recovery_required_ 不随停用清除。
-  closeMotionOutputAndCancel();
+  if (!closeMotionOutputAndCancel()) {
+    return CallbackReturn::FAILURE;
+  }
   setState(CycleState::IDLE, "节点已停用：运动输出权限关闭，活动周期已按取消路径终止");
   status_pub_->on_deactivate();
   marker_pub_->on_deactivate();
@@ -261,6 +273,9 @@ CallbackReturn ManipulationSkillsNode::on_deactivate(const rclcpp_lifecycle::Sta
 
 CallbackReturn ManipulationSkillsNode::on_cleanup(const rclcpp_lifecycle::State &)
 {
+  if (!closeMotionOutputAndCancel()) {
+    return CallbackReturn::FAILURE;
+  }
   releaseResources();
   RCLCPP_INFO(get_logger(), "已清理：MoveIt/MTC/订阅/服务资源全部释放，回 Unconfigured");
   return CallbackReturn::SUCCESS;
@@ -268,7 +283,9 @@ CallbackReturn ManipulationSkillsNode::on_cleanup(const rclcpp_lifecycle::State 
 
 CallbackReturn ManipulationSkillsNode::on_shutdown(const rclcpp_lifecycle::State &)
 {
-  closeMotionOutputAndCancel();
+  if (!closeMotionOutputAndCancel()) {
+    return CallbackReturn::FAILURE;
+  }
   releaseResources();
   return CallbackReturn::SUCCESS;
 }
@@ -277,7 +294,9 @@ CallbackReturn ManipulationSkillsNode::on_error(const rclcpp_lifecycle::State &)
 {
   // 进入 ErrorProcessing 即关闭运动输出（motionOutputAllowed 随之拒绝一切
   // 运动入口），随后按 shutdown 同路径释放资源。
-  closeMotionOutputAndCancel();
+  if (!closeMotionOutputAndCancel()) {
+    return CallbackReturn::FAILURE;
+  }
   releaseResources();
   return CallbackReturn::SUCCESS;
 }
@@ -297,63 +316,104 @@ void ManipulationSkillsNode::requestCancelAll(const std::string & reason)
   RCLCPP_INFO(
     get_logger(), "requestCancelAll: 停止当前执行（来源：%s）",
     reason.empty() ? "未注明" : reason.c_str());
-  cancel_requested_.store(true);
-  // 防御式（E2E 首跑实锤 2026-09-30）：SIGINT 后 signal_handler 已调
-  // rcl_shutdown，deactivate 收口路径里的 stop/cancel（内部经 rclcpp
-  // 异步口创建 guard condition）会抛 RCLError → std::terminate（exit -6）。
-  // 清理路径的失败只记录，不得终止进程。
+  motion_admission_.cancel([this] {
+      // Admission 已释放内部锁；这里只保护取消所读的资源槽，不能反向取 Admission。
+      std::lock_guard<std::mutex> resources_lock(cancel_resources_mutex_);
+      try {
+        if (move_group_) {move_group_->stop();}
+        if (grasp_task_) {grasp_task_->cancel();}
+      } catch (const std::exception & error) {
+        RCLCPP_DEBUG(get_logger(), "取消清理在关停期失败: %s", error.what());
+      }
+      cache_.notifyAll();
+    });
+}
+
+void ManipulationSkillsNode::startMotionAction(
+  std::thread & worker, std::future<void> & done, std::function<void()> execute,
+  const std::function<void(const std::string &)> & abort)
+{
+  // Jazzy 在发 goal response 超时时不会调用 accepted。只在此取得席位；
+  // 默认组串行处理其它动作和改参，手动规划组若已先取得席位则回报失败。
+  std::unique_lock<MotionAdmission> claim(motion_admission_, std::try_to_lock);
+  if (!claim.owns_lock()) {
+    abort("运动请求或策略重载占用中");
+    return;
+  }
+  auto lifetime = shared_from_this();
+  std::unique_lock<std::mutex> workers_lock(worker_mutex_, std::try_to_lock);
+  if (!workers_lock.owns_lock()) {
+    abort("上一动作线程正在回收");
+    return;
+  }
+  if (!joinFinishedThread(worker, done, std::chrono::seconds(2))) {
+    abort("上一动作线程尚未退场");
+    return;
+  }
   try {
-    if (move_group_) {
-      move_group_->stop();
-    }
-    if (grasp_task_) {
-      grasp_task_->cancel();
-    }
+    std::packaged_task<void()> work(
+      [this, lifetime, claim = std::move(claim),
+      execute = std::move(execute), abort]() mutable {
+        // packaged_task 的 callable 可随 future 留存。把席位移入本次调用的栈。
+        // 节点引用同样移入栈：工作体结束才释放，future 不得反向持有节点形成环。
+        auto keep_alive = std::move(lifetime);
+        auto active = std::move(claim);
+        try {
+          publishState();
+          execute();
+        } catch (const std::exception & error) {
+          abort(error.what());
+        }
+        active.unlock();
+        publishState();
+      });
+    auto ready = work.get_future();
+    worker = std::thread(std::move(work));
+    done = std::move(ready);
   } catch (const std::exception & error) {
-    RCLCPP_DEBUG(
-      get_logger(), "取消清理在关停期失败（可忽略）: %s", error.what());
-  }
-  cache_.notifyAll();
-}
-
-void ManipulationSkillsNode::clearCancelFlagIfIdle()
-{
-  // M1：取消旗标此前唯一复位点是下一 ExecuteTarget 周期 onStart，一次单果
-  // 取消/skip 后 sticky 旗标会把后续一切 MoveTo/观察拒之门外。三动作
-  // （ExecuteTarget/Survey/MoveTo）终局各自调用本收口；只在周期 worker 已
-  // 落终态（running_=false，取消不再向周期内传播）时清，避免取消传播中
-  // 过早清（在途的其它取消经 requestCancelAll 已即时停运动，清旗不复活
-  // 任何被停的运动；各动作自身终局另判 is_canceling）。
-  if (!running_.load()) {
-    cancel_requested_.store(false);
+    abort(error.what());
   }
 }
 
-void ManipulationSkillsNode::closeMotionOutputAndCancel()
+bool ManipulationSkillsNode::closeMotionOutputAndCancel(bool destroying)
 {
+  obstacle_acm_generation_->fetch_add(1);
   // 顺序即语义：先关权限/撤 arm（拒新入口），再取消活动周期并唤醒所有等待。
   motion_output_permitted_.store(false);
   execution_armed_.store(false);
   requestCancelAll("deactivate 收口");
+  std::unique_lock<std::mutex> workers_lock(worker_mutex_, std::try_to_lock);
+  if (!workers_lock.owns_lock()) {
+    RCLCPP_WARN(get_logger(), "生命周期收口：工作线程正在启动，保留取消与资源");
+    return false;
+  }
   // 先回收 worker（executeCycle 落定终态），再回收 action 线程——
   // executeAction 以 running==false 为周期结束信号读终态上报，反向回收会让
   // 它读到覆盖后的状态。
-  // 批次7：deactivate 收口的有界回收——2s 内不落即 detach（TEM 风暴等
-  // 挂死场景不得卡死 lifecycle；与 cycle.cpp 入口线程同语义）。顺序保持：
-  // worker → action → survey → move_to。
-  auto bound_join = [](std::thread & thread, std::future<void> & done, const char * name) {
+  // 每条线程仍只等 2s。超时保留所有权，使本次转换失败并保留资源；工作体
+  // 持节点强引用，外部释放节点也不能使仍访问 this 的线程悬空。
+  bool joined = true;
+  auto bound_join = [destroying, &joined](
+    std::thread & thread, std::future<void> & done, const char * name) {
+      // 最后一个强引用可在工作体的栈收尾释放。此时它已完成所有节点访问，
+      // 但 packaged_task 尚未标记 future ready；只在析构中解离当前线程自身。
+      if (destroying && thread.joinable() && thread.get_id() == std::this_thread::get_id()) {
+        thread.detach();
+        return;
+      }
       if (joinFinishedThread(thread, done, std::chrono::seconds(2))) {
         return;
       }
+      joined = false;
       RCLCPP_WARN(
         rclcpp::get_logger("peach_arm"),
-        "deactivate 收口：线程 %s 2s 未完成，保留取消并 detach；请检查阻塞依赖", name);
-      thread.detach();
+        "生命周期收口：线程 %s 2s 未完成，保留取消、线程与资源；请检查阻塞依赖", name);
     };
   bound_join(worker_, worker_done_, "worker");
   bound_join(action_thread_, action_thread_done_, "action");
   bound_join(survey_thread_, survey_thread_done_, "survey");
   bound_join(move_to_thread_, move_to_thread_done_, "move_to");
+  return joined && !motion_admission_.busy();
 }
 
 void ManipulationSkillsNode::startBond()
@@ -397,15 +457,22 @@ void ManipulationSkillsNode::releaseResources()
   refined_diag_sub_.reset();
   robot_status_sub_.reset();
   joint_status_sub_.reset();
-  contact_guard_timer_.reset();
+  stopContactGuard();
   diagnostics_.reset();
   status_pub_.reset();
   marker_pub_.reset();
   grasp_hyp_pub_.reset();
   tool_io_client_.reset();
-  grasp_task_.reset();
+  std::unique_ptr<GraspTask> retired_task;
+  std::shared_ptr<moveit::planning_interface::MoveGroupInterface> retired_group;
+  {
+    std::lock_guard<std::mutex> resources_lock(cancel_resources_mutex_);
+    retired_task = std::move(grasp_task_);
+    retired_group = std::move(move_group_);
+  }
+  retired_task.reset();
   motion_.reset();
-  move_group_.reset();
+  retired_group.reset();
   planning_scene_client_.reset();
 }
 
@@ -413,7 +480,23 @@ ManipulationSkillsNode::~ManipulationSkillsNode()
 {
   // 先置取消标志并唤醒等待，再回收 worker 与 action 线程，避免 shutdown 后
   // 线程仍访问已销毁成员（use-after-free）。
-  closeMotionOutputAndCancel();
+  closeMotionOutputAndCancel(true);
+}
+
+void ManipulationSkillsNode::prepareForShutdown() noexcept
+{
+  // pre-shutdown 在信号处理专用线程运行；main spin 返回也调用本口。
+  // 先关命令门，且只执行一次有界回收，不叠加两次等待预算。
+  if (shutdown_started_.exchange(true)) {return;}
+  motion_output_permitted_.store(false);
+  execution_armed_.store(false);
+  try {
+    closeMotionOutputAndCancel();
+  } catch (const std::exception & error) {
+    std::fprintf(stderr, "peach_arm 退出取消异常（输出已关闭）: %s\n", error.what());
+  } catch (...) {
+    std::fputs("peach_arm 退出取消异常（输出已关闭）\n", stderr);
+  }
 }
 
 void ManipulationSkillsNode::initializeMoveIt()
@@ -421,9 +504,13 @@ void ManipulationSkillsNode::initializeMoveIt()
   // wait_for_servers 有界化（A8）：默认 -1 为无限等待 move_group 服务器，
   // 会把 on_configure 卡死在生命周期转换回调里；有界等待只影响启动同步
   // （返回值被 MGI 忽略），规划/执行调用自身在服务器缺席时快速失败并报错。
-  move_group_ = std::make_shared<moveit::planning_interface::MoveGroupInterface>(
+  auto configured_group = std::make_shared<moveit::planning_interface::MoveGroupInterface>(
     moveit_node_, params_.moveit.planning_group, std::shared_ptr<tf2_ros::Buffer>(),
     rclcpp::Duration::from_seconds(5.0));
+  {
+    std::lock_guard<std::mutex> resources_lock(cancel_resources_mutex_);
+    move_group_.swap(configured_group);
+  }
   move_group_->setPoseReferenceFrame(params_.frames.base);
   move_group_->setPlanningTime(params_.moveit.planning_time_s);
   move_group_->setNumPlanningAttempts(
@@ -446,6 +533,7 @@ void ManipulationSkillsNode::initializeMoveIt()
 
 void ManipulationSkillsNode::loadParameters()
 {
+  obstacle_acm_generation_->fetch_add(1);
   params_ = param_listener_->get_params();
   const auto & params = params_;
   // Config 值字段经 params_bridge 单点转换（W13-B）；保护区解析需逐盒
@@ -504,7 +592,7 @@ void ManipulationSkillsNode::rebuildMotionInterface()
   // planOrMoveTip 被拦下时的 FAILED 状态投影。CONTACT/TOOL 级在阶段函数
   // （stages.cpp）与 GraspTask 门显式加查。
   if (motion_ && !motion_->executionIdle()) {
-    // 运动在途（MoveTo 不置 running_）：销毁 motion_ 会 UAF 等待环（P1-1），
+    // 底层执行仍在途时保留现有接口，
     // 放弃本次改参重建，下次空闲改参再生效。
     RCLCPP_WARN(get_logger(), "运动在途，跳过 motion 接口重建（改参待空闲生效）");
     return;
@@ -512,8 +600,9 @@ void ManipulationSkillsNode::rebuildMotionInterface()
   motion_ = std::make_unique<MoveItMotionInterface>(
     move_group_, &tf_buffer_, get_logger(), get_clock(),
     toMotionConfig(params_),
-    [this](std::string & reason) {
-      return motionOutputAllowed(reason) && safetyReady(reason);
+    [this](bool execute, std::string & reason) {
+      return execute ? authorizeTransit(reason) :
+             motionOutputAllowed(reason) && safetyReady(reason);
     },
     [this](const std::string & message) {
       setState(CycleState::FAILED, message);
@@ -732,21 +821,29 @@ void ManipulationSkillsNode::rebuildGraspTask()
       }
       return true;
     };
-  task_config.retreat_execution_gate = task_config.approach_execution_gate;
+  // 已套入后的撤离只复核公共命令门；遮挡、模型撤销或过期不阻止退出接触区。
+  task_config.retreat_execution_gate = [this](std::string & reason) {
+      return motionOutputAllowed(reason) && safetyReady(reason) &&
+             !cancel_requested_.load() && execution_enabled_.load() && grasp_enabled_.load();
+    };
   // MTC 执行超时兜底：MGI::stop 打 move_group 节点级停止服务，不依赖
   // MTC 自己的接口实例。
   task_config.execution_stop = [this] {motion_->stopExecution();};
-  grasp_task_ = std::make_unique<GraspTask>(moveit_node_, task_config);
+  auto configured_task = std::make_unique<GraspTask>(moveit_node_, task_config);
+  {
+    std::lock_guard<std::mutex> resources_lock(cancel_resources_mutex_);
+    grasp_task_.swap(configured_task);
+  }
 }
 
 rcl_interfaces::msg::SetParametersResult ManipulationSkillsNode::onParameters(
   const std::vector<rclcpp::Parameter> & parameters)
 {
-  // 纯验证钩子（on-set 阶段，无副作用）：范围校验由手写 ParamListener
-  // （params.hpp）内置完成，本钩子只负责"运行中拒改"与 execution→grasp→tool 依赖链；
+  // 纯验证钩子（on-set 阶段，无副作用）：范围校验由 GPL ParamListener 完成，
+  // 本钩子只负责"运行中拒改"与 execution→grasp→tool 依赖链；
   // 使能原子与状态发布等副作用全在 post-set 回调（ctor 内）落地。
   rcl_interfaces::msg::SetParametersResult result;
-  if (running_.load()) {
+  if (motion_admission_.busy()) {
     result.successful = false;
     result.reason = "周期运行中不能修改运动策略";
     return result;
@@ -874,14 +971,6 @@ void ManipulationSkillsNode::createServices()
       std::placeholders::_1, std::placeholders::_2));
   tool_io_client_ = create_client<aubo_msgs::srv::SetIO>(
     "/aubo_io_controller/set_io");
-  tool_actuator_.setSendIo(
-    [this](std::string & reason) {
-      if (!commandToolClose()) {
-        reason = "set_io_failed";
-        return false;
-      }
-      return true;
-    });
 }
 
 void ManipulationSkillsNode::createActions()

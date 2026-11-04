@@ -8,7 +8,7 @@
 
 用法：
   ros2 run peach_system_tests probe_topics.py --duration 12 \
-      /camera/depth/image_raw /camera/depth/points
+      /camera/depth/image_raw /camera/depth_registered/points
 """
 import argparse
 import sys
@@ -31,12 +31,9 @@ def main() -> int:
         help='RELIABLE 订阅（默认，对齐发布端；关掉用 --no-reliable）')
     parser.add_argument('--no-reliable', dest='reliable', action='store_false')
     parser.add_argument(
-        'topics', nargs='+', default=[], help='话题名（sensor_msgs/Image|PointCloud2）')
+        'topics', nargs='+', help='话题名（sensor_msgs/Image|PointCloud2）')
     args = parser.parse_args()
-    topics = args.topics or [
-        '/camera/color/image_raw', '/camera/depth/image_raw',
-        '/camera/depth/points',
-    ]
+    topics = args.topics
 
     qos = QoSProfile(
         reliability=(ReliabilityPolicy.RELIABLE if args.reliable
@@ -69,7 +66,8 @@ def main() -> int:
     while time.monotonic() < deadline and rclpy.ok():
         rclpy.spin_once(node, timeout_sec=0.2)
 
-    print(f'duration={args.duration:.1f}s reliability={"RELIABLE" if args.reliable else "BEST_EFFORT"}')
+    print(f'duration={args.duration:.1f}s '
+          f'reliability={"RELIABLE" if args.reliable else "BEST_EFFORT"}')
     all_zero = True
     for topic in topics:
         count = counts[topic]

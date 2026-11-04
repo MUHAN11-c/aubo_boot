@@ -28,13 +28,14 @@ from peach_interfaces.action import (
     RunHarvest,
     SurveyScene,
 )
-import rclpy
+from rclpy.action import ActionClient
 from rclpy.qos import (
     DurabilityPolicy,
     qos_profile_sensor_data,
     QoSProfile,
     ReliabilityPolicy,
 )
+from rclpy.time import Time
 from sensor_msgs.msg import Image, JointState
 from std_msgs.msg import Bool, String
 
@@ -53,6 +54,7 @@ from .checks import (
     EXPECTED_CONTROLLERS,
     RateProbe,
 )
+from ..startup_facts import facts_valid, flag_enabled, parse_facts_json
 
 MANAGED_FLAG_TOPIC = '/peach/lifecycle/managed_nodes_activated'
 PASSED_TOPIC = '/peach/observability/selfcheck_passed'
@@ -91,7 +93,7 @@ class SelfCheckRunner:
         self._controller_states = None
         self._controller_queried_at = 0.0
         self._mg_client = None
-        self._managed_seen = None
+        self._managed_active = None
         self._joint_names = None
         window = params.selfcheck_rate_window_s
         self._probes = {
@@ -101,7 +103,6 @@ class SelfCheckRunner:
             'robot_status': RateProbe(window_s=window),
             'vegetation': RateProbe(window_s=window),
         }
-        self._facts = {}
         self._activated_at = 0.0
         self._first_run_done = False
         self._running = False
@@ -145,12 +146,16 @@ class SelfCheckRunner:
         self._mg_client = node.create_client(
             GetPlanningScene, '/get_planning_scene')
         self._clients.append(self._mg_client)
+        facts = parse_facts_json(p.startup_facts)
         for action_type, name in (
                 (RunHarvest, p.debug_endpoints['run_harvest_action']),
                 (SurveyScene, p.debug_endpoints['survey_action']),
                 (ExecuteTarget, p.debug_endpoints['execute_action']),
                 (BuildTargetModel, p.debug_endpoints['build_action'])):
-            client = rclpy.action.ActionClient(node, action_type, name)
+            if action_type is BuildTargetModel and not flag_enabled(
+                    facts.get('reconstruction_enabled', True)):
+                continue
+            client = ActionClient(node, action_type, name)
             self._action_clients.append((name.rsplit('/', 1)[-1], client))
         self._passed_pub = node.create_publisher(Bool, PASSED_TOPIC, latched)
 
@@ -166,9 +171,8 @@ class SelfCheckRunner:
             self._probes['joint_states'].push(time.monotonic())
 
     def _on_managed_flag(self, msg) -> None:
-        if msg.data:
-            with self._lock:
-                self._managed_seen = time.monotonic()
+        with self._lock:
+            self._managed_active = bool(msg.data)
 
     # ------------------------------------------------------------------
     # 生命周期
@@ -216,7 +220,7 @@ class SelfCheckRunner:
             timeout = self._params.selfcheck_initial_timeout_s
             now = time.monotonic()
             elapsed = now - self._activated_at
-            managed_ok = self._managed_seen is not None
+            managed_ok = self._managed_active is True
             if (managed_ok and elapsed >= settle) or elapsed >= timeout:
                 self.run('initial')
 
@@ -266,14 +270,14 @@ class SelfCheckRunner:
         with self._lock:
             joint_names = list(self._joint_names or [])
             probes = dict(self._probes)
-            managed_seen = self._managed_seen
-        facts = self._parse_facts()
+            managed_active = self._managed_active
+        facts = parse_facts_json(p.startup_facts)
         window = p.selfcheck_rate_window_s
         checks = []
 
         # 1) 托管生命周期
         checks.append(check_present(
-            None if managed_seen is None else True,
+            False if managed_active is None and facts_valid(facts) else managed_active,
             'managed_lifecycle', '托管节点已激活',
             'managed_nodes_activated 未置位（lifecycle 栈未就绪）'))
         # 2) 控制器（异步两拍：首轮可能 WARN 查询未返回）
@@ -313,7 +317,7 @@ class SelfCheckRunner:
         checks.append(check_fresh(
             probes['robot_status'].age(mono) if p.robot_status_probe_enabled
             else None, 2.0, 'robot_status',
-            skip_reason='mock 模式不要求'))
+            skip_reason='' if p.robot_status_probe_enabled else '未启用 robot_status 探针'))
         # 8) 5 点力话题在场
         checks.append(self._check_force(p))
         # 9) 磁盘余量
@@ -338,7 +342,7 @@ class SelfCheckRunner:
         veg_on = self._topic_has_publisher(VEGETATION_STATUS_TOPIC)
         checks.append(check_fresh(
             probes['vegetation'].age(mono) if veg_on else None, 30.0,
-            'vegetation_status', skip_reason='vegetation 不在图'))
+            'vegetation_status', skip_reason='' if veg_on else 'vegetation 不在图'))
 
         report = {
             'trigger': trigger,
@@ -356,23 +360,13 @@ class SelfCheckRunner:
     # ------------------------------------------------------------------
     # 辅助
     # ------------------------------------------------------------------
-    def _parse_facts(self) -> dict:
-        raw = (self._params.startup_facts or '').strip()
-        if not raw:
-            return {}
-        try:
-            facts = json.loads(raw)
-            return facts if isinstance(facts, dict) else {}
-        except ValueError:
-            return {}
-
     def _lookup_tcp_norm(self) -> float | None:
         buffer = getattr(self._node, '_tf_buffer', None)
         if buffer is None:
             return None
         try:
             transform = buffer.lookup_transform(
-                'wrist3_Link', 'tcp', rclpy.time.Time())
+                'wrist3_Link', 'tcp', Time())
             tr = transform.transform.translation
             return float((tr.x ** 2 + tr.y ** 2 + tr.z ** 2) ** 0.5)
         except Exception:  # noqa: BLE001 tf2 各类异常统一视为不可用

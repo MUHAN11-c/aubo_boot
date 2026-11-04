@@ -98,9 +98,12 @@ class VegetationNode(LifecycleNode):
         self._image_sub = self.create_subscription(
             Image, 'image', self._on_image, sensor(depth=10),
             callback_group=self._infer_group)
-        self._updater = Updater(self)
+        if self._updater is None:
+            self._updater = Updater(self)
+            self._updater.add('vegetation_split', self._diag)
+        else:
+            self._updater.timer.reset()
         self._updater.setHardwareID(self._splitter.device)
-        self._updater.add('vegetation_split', self._diag)
         self._last_device = self._splitter.device
         self.get_logger().info(
             f'vegetation device={self._splitter.device} '
@@ -151,7 +154,8 @@ class VegetationNode(LifecycleNode):
                 self.destroy_lifecycle_publisher(pub)
                 setattr(self, attr, None)
         self._splitter = None
-        self._updater = None
+        if self._updater is not None:
+            self._updater.timer.cancel()
 
     def _diag(self, stat):
         """diagnostic_updater 回调：延迟 / 丢帧 / 设备 / 末帧新鲜度."""
@@ -196,12 +200,13 @@ class VegetationNode(LifecycleNode):
             self.get_logger().error(f'分割失败: {exc}')
         finally:
             self._busy.release()
-            if self._updater is not None:
+            if self._active and self._updater is not None:
                 self._updater.force_update()
 
     def _process(self, msg: Image) -> None:
         """Decode BGR, split, publish masks and status JSON."""
         bgr = self._to_bgr(msg)
+        self._splitter.update_thresholds(config_from_params(self._params))
         result = self._splitter.split(bgr)
         pixels = float(result.leaf.size) if result.leaf.size else 1.0
         self._last_infer_ms = result.infer_ms

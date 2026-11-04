@@ -6,7 +6,7 @@ r"""从重建整园 .blend 导出 Gazebo 查看 GLB（headless）.
         src/peach_sim/sim_worlds/reconstruction/output/field_no_grass_20261009/ \
         bagged_peach_orchard.blend \
         -P src/peach_sim/sim_worlds/blender/export_field_to_gz.py -- \
-        --out src/peach_sim/sim_worlds/meshes/field_no_grass.glb [--keep-backdrop] [--decimate 0.25]
+        --out src/peach_sim/sim_description/meshes/field_no_grass.glb [--keep-backdrop] [--decimate 0.25]
 
 流程：删相机/灯 → （默认删 backdrop 远景行实例）→ collection 实例实体化 →
 几何节点叶 apply（实例 realize）→ 逐对象烘焙变换（不 join，多节点结构

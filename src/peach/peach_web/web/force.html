@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#f3efe6">
+<meta name="description" content="Peach 五点力：CAD 点位、tcp 坐标系、CoP 与原始帧。">
+<title>Peach · 五点力</title>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/force.css">
+<link rel="stylesheet" href="/shell.css">
+</head>
+<body>
+<header id="app-header"></header>
+<main id="main">
+  <section class="hero">
+    <div>
+      <p class="eyebrow">FIVE-POINT FORCE / TCP FRAME</p>
+      <h1>五点力布局与 CoP</h1>
+      <p class="lede">点位在 <code>tcp</code> 系，膜片平面 <code>z = −72.29 mm</code>，法线 <code>+Z_tcp</code> 指向果实侧。单位：力 N，坐标 mm。</p>
+    </div>
+    <div id="statusCard" class="status-card" role="status" aria-live="polite">
+      <span class="dot" aria-hidden="true"></span><strong id="status">等待数据…</strong>
+      <small id="hint">force_enabled=false 时仍显示点位/坐标系。</small>
+    </div>
+  </section>
+
+  <section class="frame-strip" aria-label="坐标约定">
+    <div><span>frame</span><strong>tcp</strong></div>
+    <div><span>+X</span><strong>→ 右</strong></div>
+    <div><span>+Y</span><strong>↑ 上</strong></div>
+    <div><span>+Z</span><strong>⊙ 果实侧（出纸面）</strong></div>
+    <div><span>膜片 z</span><strong>−72.29 mm</strong></div>
+    <div><span>点位来源</span><strong>CAD 标称</strong></div>
+  </section>
+
+  <section class="grid">
+    <article class="card">
+      <div class="card-head"><h2>五点布局 / 坐标系</h2><span class="muted">CAD 工具视图 · 果实侧</span></div>
+      <div class="facebar"><span id="fovtext">整机 220 mm 视场 · 完整 CAD 工具视图</span><span>↑ +Y<sub>tcp</sub> · 图心 = TCP</span></div>
+      <div class="face full" id="face">
+        <img id="faceimg" src="/force_face_full.png" alt="CAD 工具完整果实侧视图">
+        <div id="plate" class="plate"></div>
+        <div id="ring" class="ring"></div>
+        <div id="padLayer"></div>
+        <div class="frame" title="tcp 原点；+Z 指向果实侧">
+          <div class="dot"></div><div class="ax x"></div><div class="ax y"></div><div class="ax z"></div>
+        </div>
+        <div id="copmark" class="copmark" hidden><i></i><span>CoP</span></div>
+      </div>
+      <div class="face-actions" role="group" aria-label="视场切换">
+        <button type="button" data-fov="disc" aria-pressed="false">盘面 72 mm</button>
+        <button type="button" data-fov="full" class="on" aria-pressed="true">整机 220 mm</button>
+      </div>
+      <p id="viewcap" class="facecap">完整 CAD 工具视图 · 右 = +X<sub>tcp</sub> · +Z 出屏</p>
+    </article>
+    <div class="side">
+      <article class="card">
+        <div class="card-head"><h2>当前读数</h2><span class="muted" id="tableHint">等待</span></div>
+        <div class="readout"><div><span>合力</span><strong id="total">—</strong></div><div><span>|CoP|</span><strong id="copmag">—</strong></div></div>
+        <div id="channels" class="channels"><p class="empty">力源未启用</p></div>
+      </article>
+      <article class="card frame-note">
+        <h2>坐标约定</h2>
+        <p><b>+X</b> 工具右、<b>+Y</b> 工具上、<b>+Z</b> 从膜片指向果实。五点共面，顶点 CH5 在 +Y；CoP 只用 OK/饱和通道。</p>
+        <p class="muted">点位为 CAD 标称，非独立 TF；CoP 是相对五点量，不是计量级压力中心。力值不参与抓取许可。</p>
+      </article>
+    </div>
+  </section>
+
+  <section class="card cad-card">
+    <div class="card-head"><h2>CAD 位置核对</h2><span class="muted">点击看原图 · 果实侧 / 臂侧 / TCP 平面</span></div>
+    <a href="/force_pads_on_tool.png" target="_blank" rel="noopener"><img src="/force_pads_on_tool.png" alt="五点力膜片 CAD 位置与 tcp 平面核对图"></a>
+    <p class="muted">① 果实侧工具视图 ② 盘面放大 ③ 臂侧镜像视图 ④ 膜片平面相对 TCP。点位/角度与上方 tcp 布局一致。</p>
+  </section>
+
+  <section class="card">
+    <div class="card-head"><h2>原始帧</h2><span class="muted" id="frameHint">—</span></div>
+    <div class="table-wrap"><table>
+      <thead><tr><th>CH</th><th>tcp X / Y (mm)</th><th>力 N</th><th>行程 mm</th><th>AD</th><th>状态</th></tr></thead>
+      <tbody id="rows"><tr><td colspan="6" class="empty">力源未启用，仍显示标称点位</td></tr></tbody>
+    </table></div>
+  </section>
+</main>
+<footer id="app-footer"></footer>
+<script src="/ui-common.js"></script>
+<script src="/rosbridge.js"></script>
+<script src="/api.js"></script>
+<script src="/shell.js"></script>
+<script src="/force.js"></script>
+</body>
+</html>

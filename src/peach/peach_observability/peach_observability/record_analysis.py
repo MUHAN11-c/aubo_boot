@@ -824,7 +824,8 @@ def _read_episode(path: Path) -> dict | None:
 
 
 def _sample_times(csv_path: Path) -> dict | None:
-    """从采样读出峰值时刻、最后一帧仍不低于空载门的时刻，和文件最后一帧.
+    """
+    从采样读出峰值时刻、最后一帧仍不低于空载门的时刻，和文件最后一帧.
 
     t_s 相对接触段第一帧，分辨率是采样间隔（约 10 ms），不经过整秒截断。
     """
@@ -883,7 +884,8 @@ def _sample_times(csv_path: Path) -> dict | None:
 
 def _episode_origin(csv_path: Path, wall_text: str, wall_epoch: float,
                     last_s: float) -> float:
-    """接触段起点的 unix 秒.
+    """
+    接触段起点的 unix 秒.
 
     带小数的 wall_start 直接用。只有整秒时，用 CSV 写完的时间减去最后一帧
     t_s，避免把起点提前到该秒的开头（最多差 1 秒）。mtime 若被后来改过，
@@ -903,7 +905,8 @@ def _episode_origin(csv_path: Path, wall_text: str, wall_epoch: float,
 
 
 def _force_parts(start_s: float, peak_s, contact_s) -> list[dict]:
-    """上升止于合力最大的那一帧，下降止于仍不低于空载门的最后一帧.
+    """
+    上升止于合力最大的那一帧，下降止于仍不低于空载门的最后一帧.
 
     门之后还有约 0.35 s 归零等待才关文件。那段力已经是 0，不画进下降。
     """
@@ -954,7 +957,8 @@ def _stages_crossed(stages: list[dict], start_s: float, end_s: float) -> list[st
 
 
 def _single_grasp_cycles(root: Path) -> list[dict]:
-    """一账本一颗才能用文件写入时间减去 elapsed 还原这一次的起点.
+    """
+    一账本一颗才能用文件写入时间减去 elapsed 还原这一次的起点.
 
     多颗写在同一份账本里时，文件时间只落在最后一颗结束之后，
     不能把一段力摊到每一颗上。
@@ -1109,9 +1113,11 @@ def _archived_cycles(record: Path) -> list[dict]:
         except (TypeError, ValueError):
             continue
         try:
-            if int(item['start_unix_ns']) > 0:
-                start = int(item['start_unix_ns']) / 1e9
-                end = int(item['end_unix_ns']) / 1e9
+            source_start = int(item['start_unix_ns'])
+            source_end = int(item['end_unix_ns'])
+            if source_start > 0 and source_end >= source_start:
+                start = source_start / 1e9
+                end = source_end / 1e9
         except (KeyError, TypeError, ValueError, OverflowError):
             pass
         if elapsed != elapsed or elapsed <= 0 or end < start:

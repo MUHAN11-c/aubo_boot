@@ -59,6 +59,20 @@ inline bool identitiesMatch(const ModelIdentity & expected, const ModelIdentity 
          expected.config_revision == actual.config_revision;
 }
 
+/// 并行 Build 在获得修订前已派 goal，只允许本感知轮、本场景与本工具的决策完成绑定。
+inline bool matchesRequestedModel(const ModelIdentity & expected, const ModelIdentity & actual)
+{
+  if (identitiesMatch(expected, actual)) {
+    return true;
+  }
+  return expected.calibration_revision == "pending" && expected.config_revision == "pending" &&
+         expected.model_revision == "pending:" + std::to_string(expected.scene_epoch) +
+         ":" + expected.target_id &&
+         expected.run_id == actual.run_id && expected.scene_epoch == actual.scene_epoch &&
+         expected.target_id == actual.target_id &&
+         expected.tool_profile_id == actual.tool_profile_id;
+}
+
 inline bool allowedFromCapabilities(
   Capability geometry, Capability sleeve, Capability cut)
 {

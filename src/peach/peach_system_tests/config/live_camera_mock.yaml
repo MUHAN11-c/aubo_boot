@@ -5,11 +5,13 @@ camera_frontend: stereo
 autostart: false
 tool_enabled: false
 # 仅环境配置；运动、重建、质量、超时与恢复语义使用产品参数。
+# 与 peach_bringup/config/fixed_camera_mount.yaml 同一组 2026-10-13 采集位。
+# harvest_system 在 extrinsics_enabled:=false 时发布；runner 不再另发 TF。
 camera_calibration:
   parent_frame: base_link
   child_frame: camera_link
   xyz_m: [0.3780573326439316, -0.07547177076037584, 0.7666632351254871]
   quaternion_xyzw: [-0.0036889994433193067, -0.000007498157537607713, -0.6576092061184594, 0.753350199611797]
   provenance: '20261013 fixed camera record; user confirmed camera unmoved; reused by live_camera_rviz_repeat_20261014_1632'
-  scope: 'test-only frozen calibration; never injected into product calibration files'
+  scope: 'cell mount pose; harvest_system publishes when wrist extrinsics are off; never injected into hand-eye active.yaml'
 mock_initial_positions: [0.425175, 0.194274, 1.679546, 1.462579, -0.279948, 0.038859]

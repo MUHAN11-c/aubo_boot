@@ -1,5 +1,27 @@
 # `sim_worlds` 架构（src/peach_sim/ 仿真子工作空间·场景包，活文档）
 
+## 2026-11-02 当前小果园
+
+用户要求先完成代码与离线核对，暂不运行 Gazebo。当前默认场景代码为 `data_orchard`；下面 2026-10-29 及以前的默认 demo、field 和模型说明保留为历史记录。
+
+`blender/export_data_orchard.py` 从现有 `field_no_grass_20261009/bagged_peach_orchard.blend` 的 v11 两株树导出 2 个树体 GLB 和 35 个独立袋果 GLB，保留实际纸袋、内果、扎口和原始倾角。只对叶片减面。枝干 tube 网格按实际环中心/半径转为 3615 段保守圆柱；袋果用实际导出几何的 AABB 作为统一刚体包络，质量沿用源清单的假设密度估算。
+
+`worlds/data_orchard/assets.json` 记录资产、碰撞、真实数据先验/审计、原始模型与导出器哈希。`sim_worlds/data_orchard.py::prepare_data_orchard(output_directory)` 验证资产哈希，返回与 demo 相同的资源键；生成视觉树体、逐果实体、枝干碰撞、25 mm 地图和树级观察站位。地图投影保留底盘/激光高度带，较高枝条仍是三维操作障碍。全部生成物写本次项目内运行目录。
+
+Gazebo 与 MoveIt 消费相同圆柱中心、旋转、长度、半径及袋果包络。独立果实的静态/动态副本共享同一 GLB 和质量/惯量；动态持果仍是原生固定连接抽象，工具与袋代理接触位掩码沿用既有策略。大袋、密集邻果、遮挡和不可达果不按工具尺寸删除。树行布局和隐藏拓扑是数据约束下的推断，地面仍为平面；不是实测三维桃园。
+
+来源与复现见 [SOURCE.md](../worlds/data_orchard/SOURCE.md)。历史整园 `field` 仍缺独立果实和树体碰撞，不作为新小果园入口。
+
+> **2026-10-29 当前状态：用户明确要求恢复 Gazebo 并完成联合仿真重构。** 默认入口为项目根 `scripts/sim`，当前组合见 [sim_bringup 架构](../../sim_bringup/doc/architecture.md)。本项目外只读，生成/构建/缓存/日志均留在 `peach_sim/`；不连接真机。
+>
+> **历史决定保留：2026-10-28 Gazebo 曾按失败项目暂停。** 本轮授权恢复本项目，不将过去的可用性描述重新当作验收。以下旧两模式机体、关节发布和运行说明属于历史快照；当前统一机体采用 gz_ros2_control 的 JSB/JTC。
+>
+> **本轮场景：** `sim_worlds/demo.py` 的 `prepare_demo(output_directory)` 同源生成轻量世界、目标、地图、站位；`add_harvest_plugins` 注入原生持果连接。默认目标源明确为仿真真值；视觉能力独立验收。field 整体 mesh 无独立果实模型，仅导航/视觉预览。原有 Blender 资产、先验、矩阵和历史产物不删除，也不作为本轮采摘成功证据。
+
+> **2026-10-29 模型整理：** 袋 GLB 的原始 +Y 长轴由 `mesh_geometry.py` 统一转为 +Z；实测袋底/扎丝中心约束缩放、原点、果心与完整碰撞包络，demo 与程序化果园共用，不再叠加重复袋体、内果或扎丝外观。程序化树只保留同源基元外观与碰撞，移除无关 GLB 整树叠加；树 GLB 保留为历史资产，原始 +Y 朝上。动态袋的重心与惯量按刚性均匀盒代理计算；MoveIt 持果/落筐代理使用同一尺寸。demo 地图增加有限地面边界禁行环。
+>
+> **资产边界：** BUNKER 为 Z-up，无需树/袋的旋转修正。`field_no_grass.sdf` 实际读取 `sim_description/meshes/field_no_grass.glb`，导出命令已对齐；`sim_worlds/meshes/` 的同名文件为不同历史副本，不安装、不作为现行产物。独立三袋目录清单目前为 v11，但重建脚本仍标 v10，复现未对账；不能将它或旧整园直接认作当前 Gazebo 模型的验收。模型核对范围见 [sim_description 活文档](../../sim_description/doc/architecture.md)。
+
 > 2026-10-13 P1 重组：原顶层单包拆成五包（`sim_worlds` 场景 / `sim_description` 机体 / `sim_bringup` 入口 / `sim_perception` 感知复制（P3）/ `sim_system_tests` 验收门（P2））。2026-10-19 组目录改回 `src/peach_sim/`；包名、图名、话题名、世界产物不变。独立栈：不进 `harvest_system` / lifecycle / 运行 launch；系统级架构在 [src/peach/peach_bringup/doc/architecture.md](../../../peach/peach_bringup/doc/architecture.md)。
 
 > 2026-09-30 套袋专项 v10：纠正 v9 厚盒底和撑满侧壁，改为薄封边、内果局部鼓起和下部余纸，独立三袋模型含原尺寸内果/果梗/扎丝；新增正侧面检查。仅套袋资产更新，既有整园/field/五光照仍属 v9 历史结果，不是 v10 验收。命令与证据见 [sim_worlds README](../README.md)。

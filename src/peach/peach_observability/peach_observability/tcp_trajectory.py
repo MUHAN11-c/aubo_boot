@@ -26,7 +26,6 @@ class TcpPathBuffer:
         self._points: list[dict] = []
         self._tf_ok = False
         self._tf_failures = 0
-        self._last_keep_t = 0.0
 
     def note_tf_fail(self) -> None:
         """Latest TF 查询失败: 计数，不清空已采轨迹."""
@@ -82,14 +81,12 @@ class TcpPathBuffer:
             if overflow > 0:
                 del self._points[:overflow]
             self._tf_ok = True
-            self._last_keep_t = stored['t']
             return dict(stored)
 
     def clear(self) -> None:
         """Drop points from the previous run; keep TF failure counts."""
         with self._lock:
             self._points.clear()
-            self._last_keep_t = 0.0
 
     def summary(self) -> dict:
         """供 /api/state 机械臂卡片：末点 + 路径/弦长（不含全点列）."""

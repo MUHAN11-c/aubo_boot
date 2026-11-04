@@ -219,7 +219,7 @@ public:
     const Eigen::Isometry3d & entry_tip_pose,
     const Eigen::Vector3d & insertion_axis,
     double insertion_distance_m,
-    const FruitCapsule & fruit);
+    const FruitCapsule & fruit, bool prepare_execution = false);
 
   GraspTaskResult moveToPregrasp(
     const Eigen::Isometry3d & entry_tip_pose,
@@ -244,6 +244,7 @@ public:
   trajectory_msgs::msg::JointTrajectory lastApproachTrajectory() const;
 
 private:
+  enum class TimingCheck { NONE, WHOLE_GOAL, CONTACT_LEGS };
   GraspTaskResult planAndMaybeExecute(
     std::unique_ptr<moveit::task_constructor::Task> task,
     bool execute,
@@ -251,12 +252,11 @@ private:
     bool guard_approach = false,
     std::size_t guard_skip_tail = 0,
     bool staging_guard = false,
-    bool cartesian_per_part = false);
+    bool cartesian_per_part = false, bool prepare_contact_execution = false);
   GraspTaskResult planTaskOnly(
     moveit::task_constructor::Task * active, bool guard_approach,
-    std::size_t guard_skip_tail = 0, bool staging_guard = false,
-    std::size_t max_solutions = 0,  // 0 = config_.max_solutions；执行路径传 1
-    bool cartesian_per_part = false);
+    std::size_t guard_skip_tail, bool staging_guard, TimingCheck timing,
+    bool cartesian_per_part);
   GraspTaskResult executeSolution(
     moveit::task_constructor::Task * active,
     const std::function<bool(std::string &)> & execution_gate);
@@ -367,7 +367,8 @@ public:
     const rclcpp::Logger & logger,
     moveit::planning_interface::PlanningSceneInterface & scene,
     const std::vector<std::string> & tool_links,
-    const ObstacleExemptionSpec & obstacle_spec);
+    const ObstacleExemptionSpec & obstacle_spec,
+    const std::function<bool()> & still_current = {});
   // 接触轮内版本：策略默认 PerTarget（整图豁免 + 接触阶段目标对象豁免）。
   void applyToolOctomapExemption(
     moveit::planning_interface::PlanningSceneInterface & scene,
@@ -383,7 +384,8 @@ private:
     const ObstacleExemptionSpec & obstacle_spec,
     const std::vector<std::string> & contact_tool_links,
     const std::string & per_target_id,
-    ContactAcmStage per_target_stage);
+    ContactAcmStage per_target_stage,
+    const std::function<bool()> & still_current = {});
 
   std::shared_ptr<moveit::task_constructor::solvers::PipelinePlanner>
   makePilzSolver(

@@ -1,31 +1,32 @@
 """
-五点力接触段：只保留从离开空载到回到空载的那一段.
+五点力接触段跟踪：从离开空载到回到空载，写成一段记录.
 
-空载发布值是 0 N。起始门高于现场空载噪声，回到门略低并要求稳住，
-避免边缘抖动把一次抓取切成多段。最长时长到了仍未归零也会闭合，避免一直写。
-
-落盘跟采摘会话走：正在写的 ``runs/session_*/force/``，不另开目录。
+空载发布值为 0 N。起始门高于现场空载噪声，回到门略低并要求稳住，
+避免边缘抖动把一次抓取切成多段；最长时长到了仍未归零也会闭合。
+落盘跟随当前采摘会话 ``runs/session_*/force/``，不另开目录。
 """
 from __future__ import annotations
 
+from collections.abc import Iterable
 from dataclasses import dataclass, field
 import math
 from pathlib import Path
 
 from peach_common.recording_session import active_session
 
-# 约 15 g 才算「出现变化」；约 8 g 以下视为回到空载。
-# 空载噪声远低于 5 g（doc/force_20s_consistency.md）。
+# 约 15 g 才算出现变化；约 8 g 以下视为回到空载。空载噪声远低于 5 g。
 ONSET_N = 0.15
 RELEASE_N = 0.08
 RELEASE_HOLD_S = 0.35
 MAX_EPISODE_S = 180.0
 
 
-def peak_level(forces) -> float:
-    """五路里最大的绝对力；非有限值不参与."""
+def peak_level(forces: Iterable[float] | None) -> float:
+    """五路里最大的绝对力；None/非有限值不参与."""
+    if forces is None:
+        return 0.0
     level = 0.0
-    for value in forces or ():
+    for value in forces:
         if value is None or not math.isfinite(value):
             continue
         level = max(level, abs(float(value)))
@@ -34,13 +35,13 @@ def peak_level(forces) -> float:
 
 @dataclass
 class ClosedEpisode:
-    """一段已经闭合的接触."""
+    """一段已经闭合的接触记录."""
 
     reason: str
     t0: float
     t_end: float
     last_hot_t: float
-    rows: list
+    rows: list[list]
 
     @property
     def duration_s(self) -> float:
@@ -55,7 +56,7 @@ class ClosedEpisode:
 
 @dataclass
 class ForceEpisodeTracker:
-    """按帧喂入力幅值，跨过起始门才开始记，归零稳住后交出这一段."""
+    """按帧喂入合力幅值，跨过起始门开始记，归零稳住后交出这一段."""
 
     onset_n: float = ONSET_N
     release_n: float = RELEASE_N
@@ -65,10 +66,10 @@ class ForceEpisodeTracker:
     t0: float | None = None
     last_hot_t: float | None = None
     quiet_since: float | None = None
-    rows: list = field(default_factory=list)
+    rows: list[list] = field(default_factory=list)
 
     def update(self, t: float, level: float, row: list) -> ClosedEpisode | None:
-        """喂入一帧。归零稳住或到达最长时长时返回闭合段，否则 None."""
+        """喂入一帧；归零稳住或到最长时长时返回闭合段，否则 None."""
         if self.phase == 'idle':
             if level >= self.onset_n:
                 self.phase = 'recording'
@@ -110,34 +111,9 @@ class ForceEpisodeTracker:
         return closed
 
 
-def live_peach_session(runs, now: float | None = None,
-                       fresh_s: float = 5.0) -> Path | None:
-    """
-    正在录的采摘会话目录.
-
-    会话身份由记录写者的session.json声明，且写者进程仍存活。
-    sealed/closing/error、无声明、写者已死或多个活会话均拒绝归属。
-    """
-    del now, fresh_s  # compatibility: filesystem freshness is not ownership.
+def live_peach_session(runs: Path) -> Path | None:
+    """当前仍在写的采摘会话目录；无唯一 active 写者时返回 None."""
     return active_session(Path(runs))
-
-
-def _newest_mtime(bag: Path) -> float:
-    newest = -1.0
-    try:
-        newest = bag.stat().st_mtime
-    except OSError:
-        return -1.0
-    try:
-        children = list(bag.iterdir())
-    except OSError:
-        return newest
-    for child in children:
-        try:
-            newest = max(newest, child.stat().st_mtime)
-        except OSError:
-            continue
-    return newest
 
 
 def next_episode_index(force_dir: Path) -> int:

@@ -3,17 +3,25 @@
   ros__parameters:
     device_ip: 169.254.10.110
     camera_name: camera
+    qos_depth: 1              # image/info/pointcloud 发布队列深度；1=只保最新（参考 camera_ros）
+    qos_reliability: reliable # reliable/best_effort；本地 raw 大图默认 reliable（best_effort 640x480 可能掉帧）
     color_mode: 640x480        # 彩色档位（按设备枚举的 yuyv 模式匹配；默认 2560x1920 会拖死组率）
-    # color_camera_info_file：彩色内参唯一事实源（launch 默认注入 percipio_camera/
-    # config/color_camera_info.yaml，与 percipio 前端共用；此处不重复设值）
-    ir_exposure: 990           # 左右 IR 曝光（深度质量/工作距离旋钮；深度帧率不受它影响）
+    # color_camera_info_file：覆盖 camera_info 的棋盘格内参（对着官方去畸变彩图；
+    # launch 默认注入 percipio_camera/config/color_camera_info.yaml）。像素去畸变
+    # 走设备厂参 TYUndistortImage，与官方节点一致；此处不重复设路径。
+    ir_exposure: 990           # 左右 IR 曝光（深度质量/工作距离旋钮）。千兆下与 10-16/10-21 同档；
+                               # 百兆会把 RGB+IR 组率打到 ~0.7 gps，不要为此把曝光压到 100。
     laser_power: 100           # 解锁投射器功率（满功率点亮，停栈自动复位）
     sgbm:
       num_disparities: 128     # 视差搜索范围（半分辨率 128 ≈ 全分辨率 256；0.3m 感知下限已证最优勿改。
                                # 勿与 scale=1.0 组合：128@全分辨率 z_min≈0.53m 侵入 0.3-0.8m 工作区，
-                               # 避障轮实测近枝失深——见 test/report/branch/branch_p3*.log）
+                               # 避障轮实测近枝失深——见 test/report/branch/branch_p3*.log）。
+                               # 匹配前左缘补同宽再裁回，打开 OpenCV SGBM 左 numDisp 列算法盲区
+                               # （不是右相机看不见）；否则配准后约 154 px 竖带无深度，左袋出不了点云。
       block_size: 5
-      uniqueness_ratio: 6      # 匹配唯一性比（10→6：09-20 同帧组扫描覆盖 +2.7pp、精度门内，见 reports）
+      uniqueness_ratio: 6      # 匹配唯一性比（10→6：09-20 同帧组扫描覆盖 +2.7pp、精度门内，见 reports）。
+                               # 提到 10 并不能抠掉玻璃门（单图案门上仍有散斑），反而在袋面打洞。
+                               # 官方套袋轮廓清晰来自 18 图案，不是把 uniqueness 拧紧。
       processing_scale: 0.5    # 匹配分辨率相对 1280x960 的缩放（0.5=640x480）。避障轮四档实测：
                                # 全分辨率(1.0) 换细节 +18% 但枝覆盖 −18%、帧率 13.5→4.3gps、近距失深——
                                # 坏交易勿用；半分辨率是细节/覆盖/帧率的实测最优平衡（test/ 避障轮）
@@ -27,3 +35,6 @@
                                # 半径 std 0.27→0.14mm（−48%），覆盖 +0.4pp，13.7gps 无回归——live A/B 09-21。
                                # 避障轮：tk3 还补细枝深度闪烁（枝上覆盖 0.652 全档最优）——为避障关
                                # med3/tk3 是负收益（细节仅 +2%、覆盖 −3%），见 test/report/branch/
+                               # 多帧融合仅在 /joint_states 覆盖完整曝光窗且六关节静止时启用；
+                               # 运动/缺状态清窗，当前单帧照发；静止恢复自动重新攒 K3。
+                               # 判据按源 stamp，非收到时刻；阈值/边界见 doc/architecture.md。

@@ -1,62 +1,47 @@
-"""
-peach_bringup: yaml 直读 + 一行 attach.
-
-部署事实源 ``config/bringup.yaml``（两节点块）。节点一行
-``attach_flag_bridge(node)`` / ``attach_autostart_client(node)``：声明叶子
-并挂规则校验（启动期非法即拒启、运行期非法 set 即拒），``ros2 param set``
-原地刷新。
-"""
+"""Bringup helper nodes backed by generate_parameter_library."""
 from __future__ import annotations
 
-from peach_common.param_rules import check as _check
-from peach_common.yaml_params import attach, package_yaml
-
-_RULES = {  # 键 -> 校验规则表（启动期非法即拒启；运行期非法 set 即拒）
-    'poll_hz': (('gt', 0.0),),
-    'wait_stack_timeout_s': (('gt', 0.0),),
-}
+from peach_bringup.autostart_parameters import peach_autostart_client
+from peach_bringup.flag_bridge_parameters import peach_lifecycle_flag_bridge
+from rcl_interfaces.msg import SetParametersResult
 
 
-def _validate(name, value):
-    """逐条规则校验；返回拒绝理由或 None."""
-    for rule in _RULES.get(name, ()):
-        why = _check(rule, value, name)
-        if why:
-            return why
-    return None
+class _LiveParams:
+    """Read-through view over a generated ParamListener."""
+
+    def __init__(self, listener) -> None:
+        """Store the generated listener."""
+        object.__setattr__(self, '_listener', listener)
+
+    def __getattr__(self, name: str):
+        """Return the current generated value."""
+        return getattr(self._listener.get_params(), name)
 
 
-class FlagBridgeParams:
-    """peach_lifecycle_flag_bridge 参数."""
-
-    is_active_service: str
-    """查询托管节点是否 Active 的服务名."""
-    poll_hz: float
-    """轮询频率 [Hz]；须 >0."""
+class FlagBridgeParams(_LiveParams):
+    """peach_lifecycle_flag_bridge parameters."""
 
 
-class AutostartClientParams:
-    """peach_autostart_client 参数."""
-
-    scene_key: str
-    """BeginScene / RunHarvest 场景键."""
-    intent: str
-    """autostart 意图（部署参数，默认关）."""
-    wait_stack_timeout_s: float
-    """等栈 Active 超时 [s]；须 >0."""
-    require_selfcheck: bool
-    """自动开批硬等自检绿（软门+autostart 硬等，用户裁定 2026-09-29）."""
+class AutostartClientParams(_LiveParams):
+    """peach_autostart_client parameters."""
 
 
 def attach_flag_bridge(node) -> FlagBridgeParams:
-    """peach_lifecycle_flag_bridge：is_active_service / poll_hz."""
-    return attach(
-        node, package_yaml('peach_bringup', 'bringup.yaml'),
-        node_name='peach_lifecycle_flag_bridge', validate=_validate)
+    """Declare flag-bridge parameters and return a live view."""
+    return FlagBridgeParams(
+        peach_lifecycle_flag_bridge.ParamListener(node))
+
+
+def _int_bounds(parameters):
+    """Enforce non-negative autostart intent without a GPL IntegerRange."""
+    for param in parameters:
+        if param.name == 'intent' and int(param.value) < 0:
+            return SetParametersResult(successful=False, reason='intent >= 0 required')
+    return SetParametersResult(successful=True)
 
 
 def attach_autostart_client(node) -> AutostartClientParams:
-    """peach_autostart_client：scene_key / intent / wait_stack_timeout_s."""
-    return attach(
-        node, package_yaml('peach_bringup', 'bringup.yaml'),
-        node_name='peach_autostart_client', validate=_validate)
+    """Declare autostart parameters and return a live view."""
+    node.add_on_set_parameters_callback(_int_bounds)
+    return AutostartClientParams(
+        peach_autostart_client.ParamListener(node))

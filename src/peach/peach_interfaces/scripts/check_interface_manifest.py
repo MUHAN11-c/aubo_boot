@@ -52,12 +52,11 @@ _LITERAL_RE = re.compile(r'[\'"](/peach[A-Za-z0-9_/]*)[\'"]')
 
 # consumer 标签 → 源码相对 src/ 的文件或目录（调度节点不含监控）。
 _CONSUMER_PATHS = {
-    'force_web': ['serial_force/scripts/force_web.py'],
     'peach_supervisor': [
-        'peach/peach_harvester/peach_harvester/supervisor/executor_node.py',
-        'peach/peach_harvester/peach_harvester/supervisor/batch.py',
-        'peach/peach_harvester/peach_harvester/supervisor/harvest_fsm.py',
-        'peach/peach_harvester/config/peach_supervisor.yaml',
+        'peach/peach_supervisor/peach_supervisor/executor_node.py',
+        'peach/peach_supervisor/peach_supervisor/batch.py',
+        'peach/peach_supervisor/peach_supervisor/harvest_fsm.py',
+        'peach/peach_supervisor/config/peach_supervisor.yaml',
     ],
     'peach_bringup': [
         'peach/peach_bringup/peach_bringup',
@@ -73,16 +72,16 @@ _CONSUMER_PATHS = {
         'peach/peach_observability/config/observability.yaml',
     ],
     'peach_scene_perception': [
-        'peach/peach_harvester/peach_harvester/vision/scene_perception',
-        'peach/peach_harvester/config/scene_perception.yaml',
+        'peach/peach_scene_perception/peach_scene_perception',
+        'peach/peach_scene_perception/config/scene_perception.yaml',
     ],
     'peach_scene_obstacles': [
-        'peach/peach_harvester/peach_harvester/vision/scene_obstacles',
-        'peach/peach_harvester/config/scene_obstacles.yaml',
+        'peach/peach_scene_obstacles/peach_scene_obstacles',
+        'peach/peach_scene_obstacles/config/scene_obstacles.yaml',
     ],
     'peach_target_reconstruction': [
-        'peach/peach_harvester/peach_harvester/vision/target_reconstruction',
-        'peach/peach_harvester/config/target_reconstruction.yaml',
+        'peach/peach_target_reconstruction/peach_target_reconstruction',
+        'peach/peach_target_reconstruction/config/target_reconstruction.yaml',
     ],
     'peach_arm': [
         'peach/peach_arm/src',

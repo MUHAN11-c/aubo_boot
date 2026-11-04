@@ -9,6 +9,7 @@
 
 #include <atomic>
 #include <cstdint>
+#include <functional>
 #include <future>
 #include <memory>
 #include <mutex>
@@ -56,6 +57,7 @@
 #include "peach_arm/frame_timeouts.hpp"
 #include "peach_arm/grasp_task.hpp"
 #include "peach_arm/motion.hpp"
+#include "peach_arm/motion_admission.hpp"
 #include "peach_arm/quality_gate.hpp"
 #include "peach_arm/safety_gate.hpp"
 #include "peach_arm/stage_denial.hpp"
@@ -98,6 +100,9 @@ public:
     const rclcpp::NodeOptions & options = rclcpp::NodeOptions());
   ~ManipulationSkillsNode() override;
 
+  // Context 关闭前与 main 正常退出共用。显式停轨，不依赖 worker 最后释放引用时析构。
+  void prepareForShutdown() noexcept;
+
   // MoveIt/MTC 专用伴随节点：MoveGroupInterface 与 MTC PipelinePlanner 只接受
   // rclcpp::Node（不支持 LifecycleNode），故组合一个同名普通节点承载全部
   // MoveIt 接口（launch 参数经全局 ros-args 同名匹配自动落到伴随节点；
@@ -120,9 +125,13 @@ private:
   // 缓存等待（各取消入口与 closeMotionOutputAndCancel 共用；后者在级联
   // 前先关权限、级联后回收线程，顺序即语义，不得并入本函数）。
   void requestCancelAll(const std::string & reason = std::string());
+  void startMotionAction(
+    std::thread & worker, std::future<void> & done, std::function<void()> execute,
+    const std::function<void(const std::string &)> & abort);
   // 关闭输出权限并按 CANCEL_NOW 等价路径取消活动周期（撤 arm、置取消标志、
-  // stop MoveIt/MTC、唤醒等待、回收 worker/action 线程）。
-  void closeMotionOutputAndCancel();
+  // stop MoveIt/MTC、唤醒等待、回收 worker/action 线程）。超时保留线程与资源，
+  // 返回 false 使生命周期转换失败；destroying 仅允许已退场的当前工作体解离自身。
+  bool closeMotionOutputAndCancel(bool destroying = false);
   // 释放 configure 期分配的全部 ROS/MoveIt 资源（cleanup/shutdown/error 共用）。
   void releaseResources();
   void initializeMoveIt();
@@ -198,15 +207,17 @@ private:
   // （阶段执行器经 motion_ 调用）。
   void rebuildMotionInterface();
   void rebuildGraspTask();
-  bool commandToolClose();
+  bool commandToolClose(std::string & reason);
   bool commandToolOpen();
   void onPreviewApproachInsert(
     const Trigger::Request::SharedPtr, Trigger::Response::SharedPtr response);
   void onPreviewFullContact(
     const Trigger::Request::SharedPtr, Trigger::Response::SharedPtr response);
-  void previewContact(bool include_retreat, Trigger::Response::SharedPtr response);
+  void previewContact(
+    bool include_retreat, Trigger::Response::SharedPtr response, bool from_action = false);
   void onGoToPhotoPose(
     const Trigger::Request::SharedPtr, Trigger::Response::SharedPtr response);
+  void goToPhotoPose(bool from_survey_action, Trigger::Response::SharedPtr response);
   // 选果级 TCP IK 预检（motion.cpp）：入口→停位几何后 setFromIK，只答能否。
   void onCheckReachability(
     const CheckReachability::Request::SharedPtr request,
@@ -243,7 +254,7 @@ private:
   bool waitForFreshCycleTarget(
     const std::string & target_id, double after_s, double window_s,
     bool live_observation_required = true);
-  bool waitForRefined(const std::string & target_id);
+  bool waitForRefined(const std::string & target_id, const ModelIdentity * expected = nullptr);
   // 帧率自适应超时族（W5-3）：公式内聚于 FrameRateTimeouts 纯核
   // （frame_timeouts.hpp），以下节点方法只做转发（保持既有调用点不变）。
   double effectiveFrameWaitS() const;
@@ -270,14 +281,6 @@ private:
   // 取消/使能/许可明确不允许）落 FAILED——并经 failStage 终结周期。
   bool requireStageAuthority(
     CycleContext & ctx, MotionStage stage, const std::string & label);
-  // M1：取消旗标收口。三动作（ExecuteTarget/Survey/MoveTo）终局各自调用：
-  // 周期 worker 已落终态（running_=false，即取消不再向周期内传播）时清除
-  // 全局取消旗标，避免一次单果取消/skip 后 sticky 旗标把后续一切 MoveTo/
-  // 观察拒之门外。并发的其它取消在途时清旗无副作用——requestCancelAll 的
-  // 停运动语义在置旗当下已生效（move_group stop/缓存唤醒），清旗不会
-  // “复活”任何被停的运动；各动作自身终局另判 is_canceling。
-  void clearCancelFlagIfIdle();
-
   // 显式模式 switch 执行器（stages.cpp）。阶段调用序列与原 behavior_tree.xml
   // 主树遍历严格同构：Prepare →（plan-only 预览 | 观察 → 精化验证 →
   // （observe_only 短路 | grasp 未使能短路 | 再确认 → 预抓取 → 验证 →
@@ -406,6 +409,8 @@ private:
   // 运动输出权限（A8）：on_activate 开放、on_deactivate/on_cleanup/on_shutdown/
   // on_error 关闭；一切运动类入口经 motionOutputAllowed 单点检查。
   std::atomic_bool motion_output_permitted_{false};
+  std::atomic_bool shutdown_started_{false};  ///< 进程退出收口只执行一次，禁止随后重开输出。
+  std::mutex cancel_resources_mutex_;  ///< 信号线程取消与 MoveIt/MTC 资源槽替换共用短锁。
 
   // 职责实现直接持有具体类（原工厂缝位已删除）：参数重载时 loadParameters
   // 原地重建；motion_/grasp_task_ 需 MoveIt 初始化后由 rebuild* 装配
@@ -446,26 +451,24 @@ private:
   // （见 cycle_context.hpp 线程规则）。下一周期创建即整体丢弃上一份。
   std::shared_ptr<CycleContext> cycle_;
   std::atomic_bool running_{false};
-  std::atomic_bool cancel_requested_{false};
+  MotionAdmission motion_admission_;
+  const std::atomic_bool & cancel_requested_{motion_admission_.canceled()};
   struct StagingIkEnvironment;
   std::unique_ptr<StagingIkEnvironment> staging_ik_env_;  // staging IK 自碰环境（收集-择优用）
   std::atomic_bool execution_armed_{false};
   std::atomic_bool contact_recovery_required_{false};
   // abort 路径的终局分级（ExecuteTarget::Result 常量），由阶段失败点按需覆盖。
   std::atomic<uint8_t> pending_outcome_{ExecuteTarget::Result::FAILED};
+  std::mutex worker_mutex_;  ///< 工作线程/future 槽：action 启动与生命周期回收共用。
   std::thread worker_;
-  // worker（executeCycle）的配套 future（M2，W13-B 同款）：onStart 经它做
-  // 有界等待，超时分支 WARN 后 detach 放行新周期（detach 只是放弃回收、
-  // 不是放弃取消，线程仍受取消标志约束；析构的 joinable 检查自然跳过）。
+  // worker（executeCycle）的配套 future：有界等待未完成时保留所有权与取消，
+  // 不允许 cleanup 释放资源。工作体持节点强引用，且在调用入口移入栈以防 future 环。
   std::future<void> worker_done_;
   // action 执行线程保持可 join，析构时先取消再回收，避免 shutdown 后访问悬空 this。
-  // 配套 future（W13-B）：onActionAccepted 经它做有界等待——std::thread 无
-  // timed join，超时分支只能 WARN 后 detach 放行新周期（析构的 joinable 检查
-  // 自然跳过已 detach 线程）。
+  // 配套 future：仅完成后 join；超时拒绝生命周期收口，不解离仍访问 this 的线程。
   std::thread action_thread_;
   std::future<void> action_thread_done_;
-  // survey 执行线程与其配套 future（M2：onSurveyAccepted 有界回收，同
-  // action 线程纪律——卡死时 2s 超时 detach，不吊死默认互斥组回调）。
+  // survey 执行线程与其配套 future：与 action 同样有界回收、保留未退场资源。
   std::thread survey_thread_;
   std::future<void> survey_thread_done_;
   // MoveTo 执行线程与其配套 future（M2：onMoveToAccepted 有界回收，同上）。
@@ -486,6 +489,7 @@ private:
   // ④层接触止损接线：joint_status 电流缓存（定长 128 环形，互斥保护，
   // W5-13），guarded 段 timer 评估；默认 enabled=false 只缓存不判定。
   rclcpp::Subscription<aubo_msgs::msg::JointStatus>::SharedPtr joint_status_sub_;
+  std::mutex contact_guard_mutex_;                    ///< 守护 timer/monitor 生命周期与 update 共用锁。
   rclcpp::TimerBase::SharedPtr contact_guard_timer_;  ///< 接触止损守护段评估 timer（enabled=false 时不启动）。
   std::mutex joint_current_mutex_;                    ///< 电流环形缓存互斥（订阅回调写/守护 timer 读）。
   JointCurrentRing joint_current_samples_;            ///< 腕轴电流环形缓存（守护段特征判别输入）。
@@ -507,6 +511,9 @@ private:
   // 门控，Inactive 期自动静默），on_deactivate 断开；nav2_lm 的 bond_timeout
   // 置 0 时无观察者也无害。进程死检从 HeartbeatWatchdog 平滑升级的接线前提。
   std::unique_ptr<bond::Bond> bond_;
+  // 后台 ACM 初始化轮次：共享值无节点引用，改参/关闭后旧轮不得继续写旧策略。
+  std::shared_ptr<std::atomic<uint64_t>> obstacle_acm_generation_{
+    std::make_shared<std::atomic<uint64_t>>(0)};
   void startBond();
   void stopBond();
   void reportStreamDiagnostics(

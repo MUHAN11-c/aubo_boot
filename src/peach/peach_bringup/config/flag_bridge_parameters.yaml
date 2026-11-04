@@ -1,0 +1,11 @@
+peach_lifecycle_flag_bridge:
+  is_active_service:
+    type: string
+    default_value: /peach_lifecycle_manager/is_active
+    description: Nav2 lifecycle manager is_active service name.
+  poll_hz:
+    type: double
+    default_value: 1.0
+    description: Polling frequency in hertz.
+    validation:
+      gt<>: [0.0]

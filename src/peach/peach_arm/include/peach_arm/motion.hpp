@@ -87,7 +87,7 @@ public:
     rclcpp::Logger logger,
     rclcpp::Clock::SharedPtr clock,
     MoveItMotionConfig config,
-    std::function<bool(std::string &)> safety_gate,
+    std::function<bool(bool execute, std::string &)> safety_gate,
     std::function<void(const std::string &)> safety_block_hook,
     std::function<bool()> cancel_probe = {});
   ~MoveItMotionInterface();  // 弃等线程 dispose（完结的 join，滞留的 detach）
@@ -109,12 +109,14 @@ public:
   // 不改 PTP。失败返回 false，不抛异常；execute=true 时下发前复核安全门。
   bool planOrMoveTip(
     const Eigen::Isometry3d & tip_pose, const std::string & planner_id,
-    bool execute, const std::string & label, bool allow_fallback);
+    bool execute, const std::string & label, bool allow_fallback,
+    std::string * rejection = nullptr);
 
   // 以相机目标位姿规划/执行（内部经 TF 换算到 tip）。
   bool planOrMoveCamera(
     const Eigen::Isometry3d & camera_pose, const std::string & planner_id,
-    bool execute, const std::string & label, bool allow_fallback);
+    bool execute, const std::string & label, bool allow_fallback,
+    std::string * rejection = nullptr);
 
   // 移动到 SRDF 命名状态（拍照位姿）：有「拍照位→预抓取」接近轨迹且当前
   // 关节在其终点时，原路返程（不新规划 PTP、不过 transit 6 rad——返程行程
@@ -144,14 +146,14 @@ private:
   // 有界执行：见 src/execution_guard.hpp（弃等线程移交 retiring_，闭包只
   // 持共享 MGI 与 Plan 拷贝，绝不引用 this）。
   moveit::core::MoveItErrorCode boundedExecute(
-    moveit::planning_interface::MoveGroupInterface::Plan & plan);
+    moveit::planning_interface::MoveGroupInterface::Plan & plan, std::string & rejection);
   std::shared_ptr<moveit::planning_interface::MoveGroupInterface> move_group_shared_;
   moveit::planning_interface::MoveGroupInterface * move_group_;
   tf2_ros::Buffer * tf_buffer_;
   rclcpp::Logger logger_;
   rclcpp::Clock::SharedPtr clock_;
   MoveItMotionConfig config_;
-  std::function<bool(std::string &)> safety_gate_;
+  std::function<bool(bool execute, std::string &)> safety_gate_;
   std::function<void(const std::string &)> safety_block_hook_;
   std::function<bool()> cancel_probe_;
   std::unique_ptr<RetireBucket> retiring_;  // 弃等线程桶（execution_guard.hpp，src/ 私有头）

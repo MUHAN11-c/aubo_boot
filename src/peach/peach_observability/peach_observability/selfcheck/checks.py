@@ -24,9 +24,12 @@ DEFAULT_JOINT_ORDER = (
 
 # 各硬件模式期望 active 的控制器（controller_manager 语义）
 EXPECTED_CONTROLLERS = {
-    'mock': ('joint_state_broadcaster', 'joint_trajectory_controller'),
+    'mock': (
+        'joint_state_broadcaster', 'dynamic_joint_state_broadcaster',
+        'joint_trajectory_controller'),
     'real': (
-        'joint_state_broadcaster', 'aubo_io_controller',
+        'joint_state_broadcaster', 'dynamic_joint_state_broadcaster',
+        'aubo_io_controller',
         'aubo_passthrough_trajectory_controller'),
 }
 
@@ -52,21 +55,14 @@ class CheckResult:
 
 def check_joint_order(names: Sequence[str] | None,
                       expected: Sequence[str] = DEFAULT_JOINT_ORDER) -> CheckResult:
-    """
-    /joint_states 六关节名集合须与 MUST 冻结集一致.
-
-    名单序不判：JSB 发布按字母序、命令序在 controllers.yaml。
-    缺或多出来的关节才是 FAIL；透传拧腕风险在驱动侧关节序。
-    """
+    """/joint_states 名称和排列须与应用部署的 MUST 冻结序一致."""
     if not names:
         return CheckResult('joint_order', FAIL, '未收到 joint_states', None)
     names = list(names)
-    missing = [j for j in expected if j not in names]
-    extra = [j for j in names if j not in expected]
-    if missing or extra:
-        detail = f'缺 {missing} 多 {extra}: {names}'
+    if names != list(expected):
+        detail = f'期望 {list(expected)}，收到 {names}'
         return CheckResult('joint_order', FAIL, detail, names)
-    return CheckResult('joint_order', PASS, '六关节名集合一致', names)
+    return CheckResult('joint_order', PASS, '六关节名称与排列一致', names)
 
 
 def check_min_rate(count: int, window_s: float, min_hz: float,

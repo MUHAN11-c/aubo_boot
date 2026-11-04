@@ -4,6 +4,7 @@
   gz_topic_name: "/clock"
   ros_type_name: "rosgraph_msgs/msg/Clock"
   gz_type_name: "gz.msgs.Clock"
+  qos_profile: CLOCK
   direction: GZ_TO_ROS
 
 - ros_topic_name: "odom"
@@ -22,6 +23,7 @@
   gz_topic_name: "/scan"
   ros_type_name: "sensor_msgs/msg/LaserScan"
   gz_type_name: "gz.msgs.LaserScan"
+  qos_profile: SENSOR_DATA
   direction: GZ_TO_ROS
 
 - ros_topic_name: "cmd_vel"
@@ -36,18 +38,21 @@
   gz_topic_name: "/camera/depth/image"
   ros_type_name: "sensor_msgs/msg/Image"
   gz_type_name: "gz.msgs.Image"
+  publisher_queue: 2  # Shared read-only Peach consumers request RELIABLE.
   direction: GZ_TO_ROS
 
 - ros_topic_name: "/camera/depth/image_raw"
   gz_topic_name: "/camera/depth/depth_image"
   ros_type_name: "sensor_msgs/msg/Image"
   gz_type_name: "gz.msgs.Image"
+  publisher_queue: 2
   direction: GZ_TO_ROS
 
 - ros_topic_name: "/camera/color/camera_info"
   gz_topic_name: "/camera/depth/camera_info"
   ros_type_name: "sensor_msgs/msg/CameraInfo"
   gz_type_name: "gz.msgs.CameraInfo"
+  publisher_queue: 2
   direction: GZ_TO_ROS
 
 # RViz Jazzy Camera 显示按 image_transport 约定派生 camera_info 话题
@@ -56,10 +61,37 @@
   gz_topic_name: "/camera/depth/camera_info"
   ros_type_name: "sensor_msgs/msg/CameraInfo"
   gz_type_name: "gz.msgs.CameraInfo"
+  publisher_queue: 2
   direction: GZ_TO_ROS
 
 - ros_topic_name: "/camera/depth_registered/points"
   gz_topic_name: "/camera/depth/points"
   ros_type_name: "sensor_msgs/msg/PointCloud2"
   gz_type_name: "gz.msgs.PointCloudPacked"
+  frame_id: "camera_link"  # Native Gazebo XYZ: +X forward, +Y left, +Z up.
+  qos_profile: SENSOR_DATA
+  direction: GZ_TO_ROS
+
+# Gazebo UserCommands service adapters used by the simulator-only harvest executor.
+- service_name: "/world/peach_orchard/create"
+  ros_type_name: "ros_gz_interfaces/srv/SpawnEntity"
+  gz_req_type_name: "gz.msgs.EntityFactory"
+  gz_rep_type_name: "gz.msgs.Boolean"
+
+- service_name: "/world/peach_orchard/remove"
+  ros_type_name: "ros_gz_interfaces/srv/DeleteEntity"
+  gz_req_type_name: "gz.msgs.Entity"
+  gz_rep_type_name: "gz.msgs.Boolean"
+
+# Entity evidence is kept separate from the authoritative robot TF tree.
+- ros_topic_name: "/sim_harvest/basket_contacts"
+  gz_topic_name: "/sim_harvest/basket_contacts"
+  ros_type_name: "ros_gz_interfaces/msg/Contacts"
+  gz_type_name: "gz.msgs.Contacts"
+  direction: GZ_TO_ROS
+
+- ros_topic_name: "/sim_harvest/entity_poses"
+  gz_topic_name: "/sim_harvest/poses"
+  ros_type_name: "tf2_msgs/msg/TFMessage"
+  gz_type_name: "gz.msgs.Pose_V"
   direction: GZ_TO_ROS

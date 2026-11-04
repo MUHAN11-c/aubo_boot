@@ -7,15 +7,17 @@
 ## 公有入口
 
 ```bash
-ros2 launch peach_observability observability.launch.py record_bag:=false
+ros2 launch peach_observability observability.launch.py
 ros2 run peach_observability peach_bag_report runs/session_*/bag
 ```
 
-默认 `record_bag:=false`。有界关闭走 bag 进程 SIGINT，不经 Web。图名仍是 `peach_observability`。会话 bag 随栈启停（`runs/session_*/bag/`，MCAP 限速进袋）并有体积预算回收（`record.max_total_bag_gb` 默认 100 GB，最旧先删、报告/账本永不删、逐条审计；分析后清理用 `peach_observability.retention.purge_analyzed_sessions` Python API）。Web 静态页资源在顶层资源包 `peach_web`（`share/peach_web/web`，本包 HTTP 层托管），另发 `/peach/observability/{tcp_path,markers}` RViz 可视化。
+会话 bag 由 observability 节点内唯一 rosbag2 写入线程管理；有界关闭走节点生命周期，不经 Web。图名仍是 `peach_observability`。会话 bag 随栈启停（`runs/session_*/bag/`，MCAP 限速进袋）并有体积预算回收（`record.max_total_bag_gb` 默认 100 GB，最旧先删、报告/账本永不删、逐条审计；分析后清理用 `peach_observability.retention.purge_analyzed_sessions` Python API）。Web 静态页资源在顶层资源包 `peach_web`（`share/peach_web/web`，本包 HTTP 层托管），另发 `/peach/observability/{tcp_path,markers}` RViz 可视化。
 
 ## 构建 / 测试 / 许可
 
-`colcon build --packages-select peach_observability`。`colcon test --packages-select peach_observability`（`test_bag_report` 等纯核）。BSD-3-Clause。
+8090 通过 `/vendor/ros2-web-link.js` 提供 ament 安装树 `share/ros2_web_link/dist/web` 中的 SDK。首次构建依赖包时按其说明准备浏览器资源，再构建 Peach。独立启动本包时，页面默认通过 HTTP 读写。见 [ros2_web_link 集成说明](../../ros2_web_link/doc/integration.md)。
+
+`colcon build --packages-select peach_observability`。`colcon test --packages-select peach_observability`（官方 `flake8` / `pep257`）；行为核对见测试指导。BSD-3-Clause。
 
 ## 当前维护入口
 

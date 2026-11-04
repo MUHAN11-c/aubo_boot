@@ -3,24 +3,24 @@
 > 当前接口快照。跨包边界在 [peach_bringup/doc/io.md](../../peach_bringup/doc/io.md)。**改字段只改本包 IDL，先编本包再编下游；同轮改 README、manifest 与本文。**
 
 `/force/sample`：`ForceSample`，RELIABLE/VOLATILE/depth100，由 `serial_force` 发布、
-observability 与 force_web 消费。每条含完整五路 N/力等效 mm/AD/状态与
+observability 消费（8090 力页经 `/api/force`）。每条含完整五路 N/力等效 mm/AD/状态与
 `source_uuid`/`sequence`；`header.stamp` 是主机 ROS 接收/解码时间，非硬件采样时间。
 
 无节点、无 launch、无运行参数。跨包唯一 IDL；现行清单 active + reserved（预留=四个导航 IDL + `peach_sim/joint_states` gz 桥登记），脚本双向核对（`scripts/check_interface_manifest.py` 可独立核对；可视化话题 8 条、rcl 参数服务后缀、legacy 别名 5 条 `/peach_executor/*` 为脚本内建豁免，旧名 bag 兼容由 `peach_observability/bag_reader.py` 承接）。每根管子与每个字段的含义写在 [peach_interfaces/README.md](../../peach_interfaces/README.md)。改字段只改本包，先编本包再编下游；同轮改 README、manifest 与本文。
 
 | 动作 | 服务端所在包 | 含义 |
 |------|--------------|------|
-| `RunHarvest` | `peach_harvester`（supervisor） | **开一批采摘。** launch 默不自动发（`autostart:=true` 选配档例外：整栈客户端硬等自检绿后才发）。goal：`request_id`（账本目录名，须唯一；空则 `auto_<时间戳>` 兜底、账本不复用——批次7 ID-1）、`scene_key`、`profile_id`（**批次参数剖面**，现行未消费；与工具档案 `tool_profile_id` 是两个字段，勿混）、`intent`（PICK_ALL / PICK_SELECTED / SURVEY_ONLY）、可选 `target_ids`。结果：采摘意图至少成功一颗才 `success`（`SURVEY_ONLY` 正常扫场结算可为 true，零目标不算失败） |
+| `RunHarvest` | `peach_supervisor` | **开一批采摘。** launch 默不自动发（`autostart:=true` 选配档例外：整栈客户端硬等自检绿后才发）。goal：`request_id`（账本目录名，须唯一；空则 `auto_<动作 UUID>` 兜底、同秒开批的账本也独立）、`scene_key`、`profile_id`（**批次参数剖面**，现行未消费；与工具档案 `tool_profile_id` 是两个字段，勿混）、`intent`（PICK_ALL / PICK_SELECTED / SURVEY_ONLY）、可选 `target_ids`。结果：采摘意图至少成功一颗才 `success`（`SURVEY_ONLY` 正常扫场结算可为 true，零目标不算失败） |
 | `NavigateToWorksite` | （预留，导航包已归档） | **走到作业位。** 固定座调度直通 `NAV_OK`，不发动作、无服务端 |
 | `SurveyScene` | `peach_arm` | **去全局拍照位并复核关节已静止。** 给感知准备发现 FOV。PAUSE 会取消，恢复后重试。失败整批 `survey_failed`，不 Begin |
-| `BuildTargetModel` | `peach_harvester`（vision） | **绑一颗、收合格机位后 finalize。** 与 OBSERVE_ONLY 并行。积分只用精确 stamp TF。反馈 `view_count` 是机位数 |
+| `BuildTargetModel` | `peach_target_reconstruction` | **绑一颗、收合格机位后 finalize。** 与 OBSERVE_ONLY 并行。积分只用精确 stamp TF。反馈 `view_count` 是机位数 |
 | `ExecuteTarget` | `peach_arm` | **对当前 `target_id` 跑一周期。** `PREVIEW` 只规划；`OBSERVE_ONLY` 只补视角；`PREGRASP_ONLY` 停预抓取不 SetIO（默认干跑）；`FULL` 套入/刀/撤退（三档末端统一 MTC LIN）。终局 `SUCCEEDED` / `SKIPPED_*` / `FAILED` / `CANCELED`。`harvest.grasped` 仅切断且撤退确认 |
 
 | 服务 | 服务端所在包 | 含义 |
 |------|--------------|------|
-| `BeginScene` | `peach_harvester`（vision） | **重启收齐窗。** 推进 `scene_epoch`。同 `scene_key` 保留身份；换场才清表。非 Active 拒绝。调度仅 DISCOVERY 首巡 Survey 到位后调用一次 |
+| `BeginScene` | `peach_scene_perception` | **重启收齐窗。** 推进 `scene_epoch`。同 `scene_key` 保留身份；换场才清表。非 Active 拒绝。调度仅 DISCOVERY 首巡 Survey 到位后调用一次 |
 | `CheckReachability` | `peach_arm` | **选果：预抓取停位 IK。** 默认 `execute_pregrasp_only=true` 不检套入。仅显式套入（调度 `execute_pregrasp_only=false`，或臂侧 Finalize 非 PREGRASP_ONLY）才 `require_sleeve`：套入终点 IK + 沿轴笛卡尔。预抓取后撤 `mtc_approach_along_axis_m`，姿态 `alignFrameZ` 不抄感知滚转；滚转梯子 {0,±15°,±30°,±45°}。套入终点 = 入口沿袋轴 + clamp(travel)，从该档预抓取 IK 解沿轴 interpolate（步长/完成比与接触 LIN 同参），取第一档完成比 ≥ `mtc_cartesian_min_fraction` 的滚转（与接近共用）。不装配 MTC、不动臂。失败码 `no_ik` / `sleeve_no_ik` / `sleeve_no_cartesian`。服务不可用时调度回退半径窗 |
-| `ControlTask` | `peach_harvester`（supervisor） | **人工控批（监控不发）。** PAUSE / RESUME / CANCEL_NOW / SKIP_TARGET / ACKNOWLEDGE_RECOVERY。`expected_state_seq` 须对上，防过期点击。`CANCEL_NOW` 只置 `_cancel`；客户端未发 action cancel 时终局 `abort()`，不得从 EXECUTING 直接 `canceled()` |
+| `ControlTask` | `peach_supervisor` | **人工控批（监控不发）。** PAUSE / RESUME / CANCEL_NOW / SKIP_TARGET / ACKNOWLEDGE_RECOVERY。`expected_state_seq` 须对上，防过期点击。`CANCEL_NOW` 只置 `_cancel`；客户端未发 action cancel 时终局 `abort()`，不得从 EXECUTING 直接 `canceled()` |
 | `nav2_msgs/srv/ManageLifecycleNodes` | Nav2 管理器 `/peach_lifecycle_manager/manage_nodes` | 8090 调试桥/人工；STARTUP、PAUSE、RESUME、RESET、SHUTDOWN，不发 RunHarvest |
 
 | 消息 | 含义 |
@@ -65,5 +65,7 @@ observability 与 force_web 消费。每条含完整五路 N/力等效 mm/AD/状
 | `FireStep.srv` | `/peach_supervisor/fire_step` | `peach_supervisor` | **仅 PHOTO 已接线**（MoveTo KIND_NAMED 到 `global_photo_pose`）；VIEWPOINT/BUILD/APPROACH/PREVIEW/TOOL_DEBUG 占位，调用即拒（response 提示走 8090 既有单步）；8090 页面转发未接——人工 `ros2 service call` | 操作台单步；PHOTO 走 MoveTo（TRANSIT 级授权），未来运动类档位须过臂侧命令门 |
 
 ## 模型时间与结果解释
+
+点名批次的 `RunHarvest.target_ids` 约束允许派发的目标，设置 `selection_priority` 时再按本场景的锁定顺序筛选。`ExecuteTarget.run_id` 标记调度批次，模型身份中的 `run_id` 来自锁定观测的 `harvest_run_id`。臂在同一场景和目标内核对工具与修订，并行 Build 只延后绑定尚未生成的修订。
 
 TargetModel与GraspDecision同model_revision共享首次generated_at及valid_until，header.stamp使用生成时间，心跳不得续签。单独独立机位成功quality最多MEDIUM，至少2独立机位才可HIGH。READY/accepted只表示模型状态，四能力及臂侧运行授权另判；level6干跑与level7真实采摘不能混计。完整模型身份与几何由臂侧从同一决策原子提交，分离诊断/位姿话题不应覆盖该快照。

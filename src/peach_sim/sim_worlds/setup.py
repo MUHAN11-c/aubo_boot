@@ -34,6 +34,8 @@ setup(
         (os.path.join('share', package_name, 'worlds'), _files('worlds')),
         (os.path.join('share', package_name, 'worlds', 'textures'),
          _files('worlds/textures')),
+        (os.path.join('share', package_name, 'worlds', 'data_orchard'),
+         _files('worlds/data_orchard')),
         (os.path.join('share', package_name, 'maps'), _files('maps')),
     ],
     install_requires=['setuptools'],

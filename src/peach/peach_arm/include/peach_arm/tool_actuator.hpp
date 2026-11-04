@@ -8,6 +8,7 @@
 
 #include <cstdint>
 #include <functional>
+#include <mutex>
 #include <string>
 
 namespace peach_arm
@@ -54,29 +55,37 @@ public:
   bool arm(const ToolCommandContext & ctx, std::string & reason);
   // SetIO ACK 只产生 CUT_COMMAND_ACCEPTED，不得自称切断确认。
   bool sendCut(std::string & reason);
+  bool sendCut(int64_t dispatch_stamp_ns, const SendIo & send_io, std::string & reason);
   // 批次3：接 /aubo_io_controller/io_states 工具 DI。hardware_ok=本命令后
   // 的新上升沿（早已卡高不算）；沿只升 BLADE_CLOSED——P0 层位的切断证据
   // （闭合≠分离，M0 台架后升级为组合判别）。
   bool confirmFeedback(bool hardware_ok, std::string & reason);
   // DI 帧摄入：pin 电平快照 → 沿检测与三轴投影。返回 true=产生新沿。
-  bool ingestToolDi(bool pin_closed_level, std::string & edge_desc);
+  bool ingestToolDi(bool pin_closed_level, std::string & edge_desc, int64_t stamp_ns = 0);
   void resetSafe();
   void markUnknown();
+  bool expireUnconfirmed();
   bool sameTransaction(const std::string & transaction_id) const;
   bool cutAlreadyCommanded() const;
 
-  ToolActuatorState state() const {return state_;}
-  const ToolCommandContext & context() const {return ctx_;}
-  ToolAxes axes() const {return axes_;}
+  ToolActuatorState state() const;
+  ToolCommandContext context() const;
+  ToolAxes axes(ToolActuatorState * state = nullptr) const;
 
 private:
+  void confirmClosed();
+  mutable std::mutex mutex_;
   ToolActuatorState state_{ToolActuatorState::SAFE};
   ToolCommandContext ctx_;
   SendIo send_io_;
   bool cut_commanded_{false};
+  bool sending_{false};
   bool di_pin_last_{false};
   bool di_seen_{false};
   bool new_closed_edge_{false};  // 本命令后是否见过闭合新沿（§12.2）
+  uint64_t generation_{0};
+  int64_t dispatch_stamp_ns_{0};
+  int64_t last_di_stamp_ns_{0};
   ToolAxes axes_;
 };
 

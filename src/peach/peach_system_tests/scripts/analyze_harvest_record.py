@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""从一次采摘记录画出论文里常用的运行统计，并导出表格。
+r"""
+从一次采摘记录画出论文里常用的运行统计，并导出表格.
 
 口径对齐田间采摘评价，而不是检测榜的 mAP：
 
@@ -22,20 +23,27 @@
 from __future__ import annotations
 
 import argparse
-import csv
-import json
-import re
 from collections import Counter
+import csv
 from datetime import datetime, timedelta
+import json
 from pathlib import Path
+import re
 
 import cv2
 import matplotlib
-
-matplotlib.use('Agg')
-import matplotlib.pyplot as plt
-import numpy as np
 from matplotlib import font_manager
+import numpy as np
+
+
+def _init_pyplot():
+    """Select the headless backend before importing pyplot."""
+    matplotlib.use('Agg')
+    import matplotlib.pyplot as plt
+    return plt
+
+
+plt = _init_pyplot()
 
 OUTCOME_NAME = {
     0: '周期完成',
@@ -66,7 +74,7 @@ STAGE_COLOR = {
 
 
 def _font() -> None:
-    """用本机思源黑体出中文，避免方框。"""
+    """用本机思源黑体出中文，避免方框."""
     candidates = (
         '/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc',
         '/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.otf',
@@ -140,7 +148,7 @@ def _in_window(path: Path, start: datetime, end: datetime) -> bool:
 
 
 def collect(run: Path) -> list[Path]:
-    """会话目录本身，加上同一次启动写在 runs 根上的批次和感知目录。"""
+    """会话目录本身，加上同一次启动写在 runs 根上的批次和感知目录."""
     run = run.resolve()
     roots = [run]
     if run.name.startswith('session_') and run.parent.is_dir():
@@ -176,7 +184,7 @@ def _rows(ledgers: list[tuple[str, dict]]) -> list[dict]:
 
 
 def _geometry(roots: list[Path]) -> list[dict]:
-    """每个批次、每个目标保留最后一条带许可字段的拟合行。"""
+    """每个批次、每个目标保留最后一条带许可字段的拟合行."""
     latest: dict[tuple[str, str], dict] = {}
     for root in roots:
         for path in root.rglob('geometry.jsonl'):
@@ -206,7 +214,7 @@ def _events(roots: list[Path]) -> list[dict]:
 
 
 def _mask_samples(roots: list[Path]) -> list[dict]:
-    """掩膜面积占比和质心，用来看检测在画面里的分布。"""
+    """掩膜面积占比和质心，用来看检测在画面里的分布."""
     samples = []
     for root in roots:
         for mask_path in root.rglob('masks/*.png'):
@@ -390,7 +398,7 @@ def plot_overlays(pairs: list[tuple[Path, Path, str]], path: Path) -> None:
 
 
 def plot_cdf(rows: list[dict], path: Path) -> None:
-    """单果周期的经验累积分布。田间论文用它看尾部，而不只看平均值。"""
+    """单果周期的经验累积分布。田间论文用它看尾部，而不只看平均值."""
     elapsed = sorted(float(row['elapsed_s']) for row in rows
                      if int(row.get('outcome', -1)) == 0 and row.get('elapsed_s'))
     if not elapsed:
@@ -409,7 +417,7 @@ def plot_cdf(rows: list[dict], path: Path) -> None:
 
 
 def plot_workspace(geometry: list[dict], outcomes: list[dict], path: Path) -> None:
-    """袋心在基座系水平面的位置，按该果终局着色。"""
+    """袋心在基座系水平面的位置，按该果终局着色."""
     status = {(row['batch'], row.get('target_id')): int(row.get('outcome', -1))
               for row in outcomes}
     figure, axis = plt.subplots(figsize=(6.2, 5.4))
@@ -430,7 +438,7 @@ def plot_workspace(geometry: list[dict], outcomes: list[dict], path: Path) -> No
 
 
 def plot_margins(geometry: list[dict], path: Path) -> None:
-    """径向、轴向余量。负值表示按当前刀具预算装不进。"""
+    """径向、轴向余量。负值表示按当前刀具预算装不进."""
     radial, axial = [], []
     for row in geometry:
         if isinstance(row.get('radial_margin_m'), (int, float)) and isinstance(
@@ -451,7 +459,7 @@ def plot_margins(geometry: list[dict], path: Path) -> None:
 
 
 def plot_skips(events: list[dict], path: Path) -> None:
-    """重建拒帧原因。采帧效率按接受帧 /（接受+拒绝）计。"""
+    """重建拒帧原因。采帧效率按接受帧 /（接受+拒绝）计."""
     labels = {
         'missing_mask': '缺掩膜',
         'target_drift': '目标漂移',
@@ -479,7 +487,7 @@ def plot_skips(events: list[dict], path: Path) -> None:
 
 
 def plot_masks(samples: list[dict], path: Path) -> None:
-    """掩膜占画面的比例，以及质心是否挤在视野一侧。"""
+    """掩膜占画面的比例，以及质心是否挤在视野一侧."""
     if not samples:
         return
     figure, axes = plt.subplots(1, 2, figsize=(9.2, 4.2))

@@ -9,7 +9,7 @@ import json
 import math
 import os
 from pathlib import Path
-import shutil
+import re
 import signal
 import socket
 import subprocess
@@ -23,36 +23,10 @@ import yaml
 DISPLAY_KEYS = ('DISPLAY', 'XAUTHORITY', 'XDG_RUNTIME_DIR', 'DBUS_SESSION_BUS_ADDRESS')
 
 
-def consolidate_records(output, started_at):
-    """把本轮在 runs/ 根上新产生的记录目录收进 output/records（一个文件夹）."""
-    runs_root = output.parent
-    records = output / 'records'
-    moved = []
-    try:
-        children = list(runs_root.iterdir())
-    except OSError:
-        return moved
-    for child in children:
-        if child == output or not child.is_dir() or child.name.startswith('_'):
-            continue
-        try:
-            if child.stat().st_mtime < started_at - 5.0:
-                continue
-            records.mkdir(exist_ok=True)
-            destination = records / child.name
-            if destination.exists():
-                continue
-            shutil.move(str(child), str(destination))
-            moved.append(child.name)
-        except OSError:
-            continue
-    return moved
-
-
 def owned_runtime_environment(base, output, domain):
     """DDS域之外也隔离spawner文件锁；BLAS 单线程，不钉 OpenMP（SGBM 需要）."""
     env = dict(base, ROS_DOMAIN_ID=str(domain), ROS_LOCALHOST_ONLY='1',
-               ROS_HOME=str(output / 'ros_home'))
+               ROS_HOME=str(output / 'ros_home'), AUBO_RUNS_DIR=str(output / 'records'))
     for key in ('OPENBLAS_NUM_THREADS', 'MKL_NUM_THREADS'):
         env.setdefault(key, '1')
     return env
@@ -74,7 +48,9 @@ def defer_stop_signals():
 def parser():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument('--rounds', type=int, default=10)
-    p.add_argument('--models', type=int, default=30)
+    p.add_argument('--models', type=int, default=0)
+    p.add_argument('--reconstruction', action=argparse.BooleanOptionalAction, default=False,
+                   help='本轮作业是否调用重建；默认关闭，节点仍部署供网页切换')
     p.add_argument('--soak-seconds', type=float, default=1800)
     p.add_argument('--domain', type=int, default=86)
     p.add_argument('--output', type=Path, default=Path('runs') / (
@@ -142,11 +118,11 @@ def config_directory():
 
 def application_rviz_config():
     """Use the same application display profile as the product launch."""
-    local = Path(__file__).resolve().parents[2] / 'peach_bringup/config/harvest.rviz'
+    local = Path(__file__).resolve().parents[2] / 'peach_bringup/config/harvest_app.rviz'
     if local.is_file():
         return local
     from ament_index_python.packages import get_package_share_directory
-    return Path(get_package_share_directory('peach_bringup')) / 'config/harvest.rviz'
+    return Path(get_package_share_directory('peach_bringup')) / 'config/harvest_app.rviz'
 
 
 def rviz_parameters(values):
@@ -172,10 +148,14 @@ def choose_target(targets, index):
             priority = 0
         if priority == index + 1 and item.get('target_id') and item.get('candidate'):
             return item['target_id']
-    # 兼容/模型阶段回退：只取当前跟踪中的目标
-    ids = sorted({t['target_id'] for t in observations
-                  if t.get('target_id') and t.get('tracking_status') not in ('LOST', 'RETIRED')})
-    return ids[index % len(ids)] if ids else None
+    return None
+
+
+def target_metadata(item):
+    """Keep source identity and image/world anchors without renaming target IDs."""
+    return {key: item.get(key) for key in ('target_id', 'priority', 'bbox')} | {
+        'entry_position': section(item, 'candidate').get('entry_position'),
+        'tracking_status': item.get('tracking_status')}
 
 
 def model_key(model):
@@ -185,18 +165,38 @@ def model_key(model):
     return model['target_id'], model['scene_epoch'], model['model_revision']
 
 
-def full_cycle(ledger, request, minimum_completion=6):
+def full_cycle(ledger, request, minimum_completion=6, expected_targets=None):
     rows = ledger.get('rows', [])
+    targets = [row.get('target_id') for row in rows]
+    if expected_targets is not None and (
+            not expected_targets or set(targets) != set(expected_targets)
+            or len(targets) != len(set(targets))):
+        return False
     return ledger.get('request_id') == request and bool(rows) and all(
         r.get('outcome_name') == 'SUCCEEDED' and isinstance(r.get('completion_level'), int)
         and r['completion_level'] >= minimum_completion for r in rows)
+
+
+def pregrasp_completed(ledger, request, expected_targets, state, minimum_completion):
+    """Recognize successful pregrasp stopped for human recovery without ACK."""
+    return (minimum_completion == 2
+            and section(state, 'task_executor', 'state').get('recovery_required') is True
+            and full_cycle(ledger, request, 2, expected_targets))
+
+
+class RecoveryRequired(RuntimeError):
+    """Carry the stopping snapshot so partial batch evidence is retained."""
+
+    def __init__(self, state):
+        super().__init__('Recovery required; stopping test for operator review')
+        self.state = state
 
 
 def require_no_recovery(state):
     """两种硬件模式同样等待人工恢复，测试驱动不得代替操作员 ACK."""
     task = section(state, 'task_executor', 'state')
     if task.get('recovery_required'):
-        raise RuntimeError('Recovery required; stopping test for operator review')
+        raise RecoveryRequired(state)
 
 
 def required_completion(params, tool=False):
@@ -217,8 +217,11 @@ def stack_command(args, profile, web_port):
                'hardware_mode:=mock', 'camera_enabled:=true', 'camera_frontend:=stereo',
                'extrinsics_enabled:=false', 'force_enabled:=false', 'autostart:=false',
                'use_sim_time:=false', 'rviz:=false', 'tool_profile:=bite_shear_v1',
+               'reconstruction_enabled:=true',
+               'skip_reconstruction:=' + ('false' if args.reconstruction else 'true'),
                'mock_initial_positions:=' + ','.join(map(str, profile['mock_initial_positions'])),
                'observability_port:=' + str(web_port)]
+    command.append('rosbridge_port:=' + str(web_port + 1000))
     if args.task_params_file:
         command.append('task_params_file:=' + str(args.task_params_file.resolve()))
     return command
@@ -263,11 +266,16 @@ class StreamEvidence:
         self.last_received = time.monotonic()
 
     def evidence(self, before):
+        source_age = time.time() - self.stamps[-1] if self.stamps else None
+        receive_age = time.monotonic() - self.last_received
+        new_frames = self.total - before
+        new_stamps = list(self.stamps)[-min(max(new_frames, 0), len(self.stamps)):]
         return {'first': self.stamps[0] if self.stamps else None,
                 'last': self.stamps[-1] if self.stamps else None,
-                'new_frames': self.total - before,
-                'fresh_stamp': self.total - before >= 2 and len(set(self.stamps)) > 1
-                and time.monotonic() - self.last_received <= 3}
+                'new_frames': new_frames,
+                'source_age_s': source_age, 'receive_age_s': receive_age,
+                'fresh_stamp': new_frames >= 2 and len(set(new_stamps)) > 1
+                and receive_age <= 3 and source_age is not None and 0 <= source_age <= 3}
 
 
 def _report_attempt_error(exc: Exception) -> None:
@@ -352,11 +360,38 @@ def domain_processes(domain, proc_root='/proc'):
     return list(found.values())
 
 
+def launch_exit_evidence(path):
+    """Audit explicit launch child exits, allowing only signal-confirmed SIGINT."""
+    prefix = r'^\[(?:ERROR|INFO)\] \[([^\]]+)\]: '
+    signaled = re.compile(prefix + r"sending signal 'SIGINT' to process\[([^\]]+)\]")
+    died = re.compile(prefix + r'process has died \[pid (\d+), exit code (-?\d+),')
+    clean = re.compile(prefix + r'process has finished cleanly \[pid (\d+)\]')
+    interrupted, exits = set(), []
+    with path.open(encoding='utf-8', errors='replace') as source:
+        for line_number, line in enumerate(source, 1):
+            line = re.sub(r'\x1b\[[0-9;]*m', '', line)
+            match = signaled.match(line)
+            if match and match[1] == match[2]:
+                interrupted.add(match[1])
+            match = died.match(line) or clean.match(line)
+            if not match:
+                continue
+            code = int(match[3]) if len(match.groups()) == 3 else 0
+            exits.append({'process': match[1], 'pid': int(match[2]), 'returncode': code,
+                          'line': line_number,
+                          'expected_shutdown': code == 0 or (
+                              code == -signal.SIGINT and match[1] in interrupted)})
+    return exits
+
+
 class OwnedProcesses:
     def __init__(self, env, audit_path=None, on_start=None):
         self.env, self.processes, self.logs = env, [], []
         self.audit_path, self.on_start = audit_path, on_start
         self.audit_records = []
+        self.cleanup_issues = []
+        self.exit_records = []
+        self.cleanup_events = []
 
     def start(self, command, log=None, env=None):
         handle = open(log, 'w', encoding='utf-8') if log else None
@@ -409,12 +444,44 @@ class OwnedProcesses:
             self.signal_group(process.pid, signal.SIGINT)
 
     def cleanup(self):
+        exited_early = {p.pid for p in self.processes if p.poll() is not None}
+        # Drain the visualization client while its MoveIt services still exist.
+        # This orders teardown; it does not claim to repair native destructor crashes.
+        rviz = [p for p in self.processes if p.args and Path(p.args[0]).name == 'rviz2']
+        for p in rviz:
+            self.interrupt(p)
+        started = time.monotonic()
+        while rviz and time.monotonic() - started < 15:
+            live_groups = set()
+            for pid in self.residuals():
+                try:
+                    live_groups.add(os.getpgid(pid))
+                except ProcessLookupError:
+                    pass
+            if not any(p.pid in live_groups for p in rviz):
+                break
+            time.sleep(.2)
+        if rviz:
+            self.cleanup_events.append({
+                'phase': 'rviz_before_stack', 'pgids': [p.pid for p in rviz],
+                'elapsed_s': time.monotonic() - started,
+                'all_exited': all(p.poll() is not None for p in rviz)})
         # SIGINT first; rosbag writers get a full 70 seconds to finalize metadata.
         for sig, budget in ((signal.SIGINT, 70), (signal.SIGTERM, 10), (signal.SIGKILL, 5)):
+            live_groups = set()
+            for pid in self.residuals():
+                try:
+                    live_groups.add(os.getpgid(pid))
+                except ProcessLookupError:
+                    pass
             for p in reversed(self.processes):
                 if sig == signal.SIGINT:
-                    self.interrupt(p)
+                    if p not in rviz:
+                        self.interrupt(p)
                 else:
+                    if p.pid in live_groups:
+                        self.cleanup_issues.append(
+                            f'Forced {signal.Signals(sig).name} for owned group {p.pid}')
                     self.signal_group(p.pid, sig)
             deadline = time.monotonic() + budget
             while self.residuals() and time.monotonic() < deadline:
@@ -425,7 +492,11 @@ class OwnedProcesses:
             try:
                 p.wait(timeout=1)
             except subprocess.TimeoutExpired:
-                pass
+                self.cleanup_issues.append(f'Process did not exit: {p.pid}')
+            self.exit_records.append({'pid': p.pid, 'returncode': p.poll(),
+                                      'exited_before_cleanup': p.pid in exited_early})
+            if p.pid in exited_early or p.poll() not in (0, -signal.SIGINT, 130):
+                self.cleanup_issues.append(f'Unexpected process exit {p.pid}: {p.poll()}')
         for log in self.logs:
             log.close()
         return self.residuals()
@@ -441,7 +512,7 @@ def snapshot():
 
 
 def choose_web_port():
-    # 8099 留给 force-web，不占用、不清理。
+    # Web 统一 8090-8098；8099/8100 第二套页面已删除。
     for port in range(8090, 8099):
         with socket.socket() as probe:
             if probe.connect_ex(('127.0.0.1', port)) != 0:
@@ -470,14 +541,43 @@ class RosDriver:
         rclpy.init(signal_handler_options=SignalHandlerOptions.NO)
         self.node = Node('live_camera_mock_driver')
         self.active = []
-        self.stamps = {'camera': StreamEvidence(), 'joints': StreamEvidence()}
+        self.pending = []
+        self.action_events = []
+        self.target_proofs = {}
+        self.stamps = {key: StreamEvidence() for key in ('camera', 'depth', 'joints')}
         from sensor_msgs.msg import Image, JointState
-        from rclpy.qos import qos_profile_sensor_data
+        from rclpy.qos import QoSProfile, qos_profile_sensor_data, ReliabilityPolicy
+        # The local raw-image publishers are RELIABLE/depth=1. A BEST_EFFORT
+        # acceptance reader can lose fragmented images under load even while
+        # the source and perception keep advancing; match the image contract.
+        image_qos = QoSProfile(depth=1, reliability=ReliabilityPolicy.RELIABLE)
         for key, typ, topic in (
                 ('camera', Image, '/camera/color/image_raw'),
+                ('depth', Image, '/camera/depth/image_raw'),
                 ('joints', JointState, '/joint_states')):
             self.node.create_subscription(typ, topic, lambda msg, k=key: self.stamps[k].add(
-                msg.header.stamp.sec + msg.header.stamp.nanosec * 1e-9), qos_profile_sensor_data)
+                msg.header.stamp.sec + msg.header.stamp.nanosec * 1e-9),
+                qos_profile_sensor_data if key == 'joints' else image_qos)
+        from peach_interfaces.msg import PeachTargetObservationArray
+        self.node.create_subscription(
+            PeachTargetObservationArray, '/peach/perception/target_observations',
+            self._observe_targets, qos_profile_sensor_data)
+
+    def _observe_targets(self, message):
+        for item in message.observations:
+            image = item.candidate_2d
+            key = message.scene_epoch, item.target_id
+            self.target_proofs[key] = {
+                'target_id': item.target_id, 'priority': int(item.priority),
+                'scene_epoch': message.scene_epoch,
+                'entry_position': [item.candidate.entry_pose.position.x,
+                                   item.candidate.entry_pose.position.y,
+                                   item.candidate.entry_pose.position.z],
+                'bbox': [image.bbox_x, image.bbox_y, image.bbox_w, image.bbox_h]
+                if image.target_id == item.target_id and image.bbox_w > 0 else None,
+                'image_stamp': image.header.stamp.sec + image.header.stamp.nanosec * 1e-9}
+        self.target_proofs = {key: value for key, value in self.target_proofs.items()
+                              if key[0] == message.scene_epoch}
 
     def wait(self, future, timeout):
         self.ros.spin_until_future_complete(self.node, future, timeout_sec=timeout)
@@ -508,7 +608,16 @@ class RosDriver:
         if not client.wait_for_server(timeout_sec=30):
             client.destroy()
             raise TimeoutError(name)
-        handle = self.wait(client.send_goal_async(goal), 30)
+        pending = (client, client.send_goal_async(goal), name)
+        self.pending.append(pending)
+        try:
+            handle = self.wait(pending[1], 30)
+        except BaseException:
+            self.action_events.append({'action': name, 'event': 'acceptance_unknown',
+                                       'request_id': getattr(goal, 'request_id', '')})
+            # Keep the future/client alive for bounded late acceptance cleanup.
+            raise
+        self.pending.remove(pending)
         if not handle.accepted:
             client.destroy()
             return {'accepted': False}
@@ -532,19 +641,43 @@ class RosDriver:
             # Preserve the original interruption/failure even if cancellation is
             # unavailable; run() must reach cleanup rather than start another round.
             try:
-                self.wait(handle.cancel_goal_async(), 10)
-            except Exception:
-                pass
+                self.cancel()
+            except Exception as exc:
+                self.action_events.append({'action': name, 'error': str(exc)})
             raise
 
     def cancel(self):
-        for client, handle in self.active:
+        errors = []
+        for client, future, name in list(getattr(self, 'pending', [])):
             try:
-                self.wait(handle.cancel_goal_async(), 10)
-            except Exception:
-                pass
-            client.destroy()
-        self.active.clear()
+                handle = self.wait(future, 10)
+                self.action_events.append({'action': name, 'event': 'late_acceptance',
+                                           'accepted': bool(handle.accepted)})
+                if handle.accepted:
+                    self.active.append((client, handle))
+                else:
+                    client.destroy()
+            except Exception as exc:
+                errors.append(f'{name} late acceptance unresolved: {exc}')
+                client.destroy()
+            self.pending.remove((client, future, name))
+        for client, handle in list(self.active):
+            try:
+                response = self.wait(handle.cancel_goal_async(), 10)
+                terminal = self.wait(handle.get_result_async(), 15)
+                self.action_events.append({
+                    'event': 'cancel_terminal', 'return_code': response.return_code,
+                    'status': terminal.status})
+                if terminal.status not in (4, 5, 6):
+                    raise RuntimeError('Cancel did not reach terminal action status')
+            except Exception as exc:
+                errors.append(str(exc))
+            finally:
+                client.destroy()
+                self.active.remove((client, handle))
+        if errors:
+            self.action_events.append({'event': 'cleanup_failed', 'error': '; '.join(errors)})
+            raise RuntimeError('; '.join(errors))
 
     def rviz_params(self, output):
         from rcl_interfaces.srv import GetParameters, ListParameters
@@ -678,11 +811,14 @@ def physical_coverage(models, rounds):
 
 
 def run(args):
+    if args.models > 0 and not args.reconstruction:
+        raise SystemExit('--models > 0 requires explicit --reconstruction')
     if not (0 <= args.domain <= 232 and args.rounds >= 0
             and args.models >= 0 and args.soak_seconds >= 0):
         raise SystemExit('domain must be 0..232; counts/duration must be nonnegative')
     output = args.output.resolve()
     output.mkdir(parents=True, exist_ok=False)
+    (output / 'records').mkdir()
     cfg_dir = config_directory()
     profile = yaml.safe_load((cfg_dir / 'live_camera_mock.yaml').read_text())
     env = owned_runtime_environment(os.environ, output, args.domain)
@@ -691,7 +827,7 @@ def run(args):
               'rviz_requested': args.rviz, 'pick_all': args.pick_all}
     report['owned_process_groups'] = []
     report['runtime_environment'] = {key: env[key] for key in (
-        'ROS_DOMAIN_ID', 'ROS_HOME',
+        'ROS_DOMAIN_ID', 'ROS_HOME', 'AUBO_RUNS_DIR',
         'OPENBLAS_NUM_THREADS', 'MKL_NUM_THREADS') if key in env}
     if 'OMP_NUM_THREADS' in env:
         report['runtime_environment']['OMP_NUM_THREADS'] = env['OMP_NUM_THREADS']
@@ -700,7 +836,7 @@ def run(args):
         report['owned_process_groups'].append(pgid)
         save(output / 'report.json', report)
     owner = OwnedProcesses(env, output / 'owned_processes.json', on_start=audit_started)
-    run_started = time.time()
+    previous_runs_root = os.environ.get('AUBO_RUNS_DIR')
     driver = None
     try:
         stale = domain_processes(args.domain)
@@ -715,17 +851,25 @@ def run(args):
         gui = gui_environment(env) if args.rviz else None
         os.environ['ROS_DOMAIN_ID'] = str(args.domain)
         os.environ['ROS_LOCALHOST_ONLY'] = '1'
+        os.environ['AUBO_RUNS_DIR'] = env['AUBO_RUNS_DIR']
         if args.task_params_file and not args.task_params_file.is_file():
             raise RuntimeError('Task parameter file does not exist')
+        if args.task_params_file:
+            task_config = yaml.safe_load(args.task_params_file.read_text()) or {}
+            for node in task_config.values():
+                params = section(node, 'ros__parameters')
+                for root_key in ('record', 'session'):
+                    configured = params.get(root_key + '.root_dir') or section(
+                        params, root_key).get('root_dir')
+                    if configured:
+                        raise RuntimeError('Task config must leave record/session root_dir '
+                                           'empty; runner owns output/records')
         command = stack_command(args, profile, _web_port)
         owner.start(command, output / 'stack.log')
-        tf = profile['camera_calibration']
-        xyz, quat = tf['xyz_m'], tf['quaternion_xyzw']
-        tf_args = ['ros2', 'run', 'tf2_ros', 'static_transform_publisher']
-        for flag, value in zip(('--x', '--y', '--z', '--qx', '--qy', '--qz', '--qw'), xyz + quat):
-            tf_args += [flag, str(value)]
-        tf_args += ['--frame-id', 'base_link', '--child-frame-id', 'camera_link']
-        owner.start(tf_args, output / 'camera_tf.log')
+        # harvest_system 在 extrinsics_enabled:=false 时发布固定采集位，
+        # 不要再起一套 static_transform_publisher 叠 camera_link。
+        (output / 'camera_tf.log').write_text(
+            'fixed camera mount published by harvest_system\n')
         driver = RosDriver()
         state = wait_state(driver, lambda s: startup_ready(s, args.domain))
         save(output / 'startup_state.json', state)
@@ -753,16 +897,18 @@ def run(args):
             if args.rviz and rviz.poll() is not None:
                 raise RuntimeError('RViz exited before test completion')
 
-        def round_tick(request, target):
-            rviz_tick()
-            require_no_recovery(snapshot())
-
         driver.enables(False, False)
         seen = set()
         sample_request = 'sample_scene_' + uuid.uuid4().hex[:12]
         sample_epoch = None
+        sample_targets = []
         if args.models:
             sample_epoch, _ = new_scene(driver, sample_request, sample_request, 0)
+            sample_targets = [item['target_id'] for item in sorted(
+                section(snapshot(), 'perception', 'targets').get('observations', []),
+                key=lambda item: int(item.get('priority') or 0))
+                if item.get('target_id') and item.get('candidate') and item.get('priority')]
+            report['model_target_order'] = sample_targets
         # Count completed model identities, never diagnostic heartbeat publications.
         for attempt in range(args.models):
             if len(report['models']) >= args.models:
@@ -772,9 +918,7 @@ def run(args):
             item = {'request_id': request}
             try:
                 epoch = sample_epoch
-                current = snapshot()
-                target = choose_target(
-                    section(current, 'perception', 'targets'), len(report['models']))
+                target = sample_targets[attempt % len(sample_targets)] if sample_targets else None
                 if not target:
                     raise RuntimeError('Fixed sampling scene has no current valid target')
                 result = driver.action(
@@ -800,6 +944,7 @@ def run(args):
                     model, section(state, 'reconstruction', 'grasp_decision'))
                 report['models'].append({
                     'identity': key, 'sample_identity': sample_key, 'model': model,
+                    'target': driver.target_proofs.get((epoch, target)),
                     'geometry': evidence, 'elapsed_s': time.monotonic() - started})
                 save(output / f'model_{attempt + 1}_state.json', state)
             except Exception as exc:
@@ -811,12 +956,42 @@ def run(args):
             save(output / 'report.json', report)
             if item.get('error'):
                 raise RuntimeError('Model sampling failed; no execution: ' + item['error'])
-        driver.enables(True, True)
+        if args.rounds:
+            driver.enables(True, True)
         for index in range(args.rounds):
             request = 'round_' + uuid.uuid4().hex[:12]
             before = {key: value.total for key, value in driver.stamps.items()}
             started = time.monotonic()
             record = {'request_id': request, 'success': False}
+            expected_targets = []
+
+            def capture_targets(state):
+                targets = section(state, 'perception', 'targets')
+                if not targets.get('target_set_locked'):
+                    return
+                epoch = targets.get('scene_epoch')
+                if args.pick_all and epoch != section(
+                        state, 'task_executor', 'state').get('scene_epoch'):
+                    return
+                observations = targets.get('observations', [])
+                record['locked_targets'] = [
+                    target_metadata(item) | driver.target_proofs.get(
+                        (epoch, item.get('target_id')), {}) for item in observations]
+                record['locked_snapshot'] = targets
+                if args.pick_all and not expected_targets:
+                    expected_targets.extend(item['target_id'] for item in observations
+                                            if item.get('target_id'))
+
+            def tick():
+                state = snapshot()
+                task = section(state, 'task_executor', 'state')
+                if task.get('run_id') == request:
+                    if args.pick_all and not expected_targets:
+                        capture_targets(state)
+                    if task.get('batch_state') == 7:
+                        require_no_recovery(state)
+                rviz_tick()
+
             try:
                 if args.pick_all:
                     # 复现 drive_3 的完整重建轮：不预调 BeginScene，交给
@@ -829,22 +1004,27 @@ def run(args):
                         selection_mode=RunHarvest.Goal.AUTO)
                     result = driver.action(
                         RunHarvest, '/peach_supervisor/run_harvest', goal, 300,
-                        on_tick=lambda: round_tick(request, None))
+                        on_tick=tick)
                 else:
                     epoch, target = new_scene(
                         driver, request, request, 0 if args.first_target else index)
                     # 场景源 ID 就是 2D/3D/账本 ID；不再另造 grasp_id 重映射。
-                    record['grasp_slot'] = index + 1
+                    record['requested_slot'] = 1 if args.first_target else index + 1
                     record.update(target_id=target, scene_epoch=epoch)
-                    observations = section(snapshot(), 'perception', 'targets').get(
+                    selected_state = snapshot()
+                    capture_targets(selected_state)
+                    observations = section(selected_state, 'perception', 'targets').get(
                         'observations', [])
                     selected = next((o for o in observations if o.get('target_id') == target), {})
-                    record['entry_position'] = section(selected, 'candidate').get('entry_position')
+                    record.update(target_metadata(selected) | driver.target_proofs.get(
+                        (epoch, target), {}))
+                    record['grasp_slot'] = record.get('priority')
+                    expected_targets.append(target)
                     result = driver.action(
                         RunHarvest, '/peach_supervisor/run_harvest',
                         RunHarvest.Goal(request_id=request, scene_key=request, intent=1,
                                         selection_mode=1, target_ids=[target]), 300,
-                        on_tick=lambda: round_tick(request, target))
+                        on_tick=tick)
                 record['action'] = result
                 state = wait_state(driver, lambda s: (
                     section(s, 'ledger', 'live').get('request_id') == request
@@ -854,13 +1034,46 @@ def run(args):
                 record['success'] = (
                     result.get('status') == 4
                     and section(result, 'result').get('success') is True
-                    and full_cycle(ledger, request, report['required_completion_level']))
+                    and full_cycle(ledger, request, report['required_completion_level'],
+                                   expected_targets))
                 save(output / f'round_{index + 1}_state.json', state)
-            except Exception as exc:
+            except RecoveryRequired as exc:
+                report['recovery_required'] = True
+                record['recovery_required'] = True
+                record['action'] = {'interrupted_for_recovery': True,
+                                    'terminal_events': driver.action_events[-3:]}
+                record['stopping_state'] = exc.state
+                record['stop_reason'] = 'operator_recovery_required'
+            except (Exception, KeyboardInterrupt) as exc:
                 record['error'] = str(exc)
                 record['traceback'] = traceback.format_exc()
                 _report_attempt_error(exc)
+            # Failure/cancel/recovery must retain the same request's final ledger too.
+            try:
+                state = wait_state(driver, lambda s: (
+                    section(s, 'ledger', 'live').get('request_id') == request
+                    and bool(section(s, 'ledger', 'live').get('rows'))), 10)
+                record['ledger'] = section(state, 'ledger', 'live')
+                if not record.get('locked_targets'):
+                    capture_targets(state)
+                record['expected_targets'] = expected_targets
+                if record.get('recovery_required'):
+                    record['pregrasp_completed'] = pregrasp_completed(
+                        record['ledger'], request, expected_targets,
+                        record['stopping_state'], report['required_completion_level'])
+                    record['success'] = record['pregrasp_completed']
+                save(output / f'round_{index + 1}_state.json', state)
+            except Exception as exc:
+                record['ledger_error'] = str(exc)
+                record['success'] = False
+                ledger_file = output / 'records' / request / 'ledger.json'
+                if ledger_file.is_file():
+                    try:
+                        record['persisted_ledger'] = json.loads(ledger_file.read_text())
+                    except (OSError, ValueError) as read_error:
+                        record['ledger_error'] += '; disk: ' + str(read_error)
             record['elapsed_s'] = time.monotonic() - started
+            record['expected_targets'] = expected_targets
             # 证据采样前让驱动相机回调追上；3 s 新鲜门不放宽（真停流仍 false）。
             driver.spin_for(0.5)
             record['streams'] = frame_evidence(driver, before)
@@ -870,10 +1083,15 @@ def run(args):
             save(output / 'report.json', report)
             if not record['success']:
                 raise RuntimeError('Round failed; subsequent rounds stopped')
+            if record.get('recovery_required'):
+                report['recovery_required'] = True
+                report['stop_reason'] = 'operator_recovery_required'
+                # A normal level2 validates this request, not any remaining requests.
+                break
         driver.enables(False, False)
         soak_started = time.monotonic()
         report['soak_started_monotonic'] = soak_started
-        until = soak_started + args.soak_seconds
+        until = soak_started + (0 if report.get('recovery_required') else args.soak_seconds)
         while time.monotonic() < until:
             soak_before = {key: value.total for key, value in driver.stamps.items()}
             driver.spin_for(min(5, max(0, until - time.monotonic())))
@@ -901,10 +1119,50 @@ def run(args):
             checkpoint(output, report, 'stopping_processes')
             report['owned_process_groups'] = [p.pid for p in owner.processes]
             report['residual_pids'] = owner.cleanup()
-            report['consolidated_records'] = consolidate_records(output, run_started)
+            report['process_exits'] = owner.exit_records
+            report['process_cleanup_events'] = getattr(owner, 'cleanup_events', [])
+            report['errors'].extend(owner.cleanup_issues)
+            stack_log = output / 'stack.log'
+            if stack_log.is_file():
+                try:
+                    report['launch_child_exits'] = launch_exit_evidence(stack_log)
+                    report['errors'].extend(
+                        f"Launch child {row['process']} exited {row['returncode']} "
+                        f"(stack.log:{row['line']})"
+                        for row in report['launch_child_exits'] if not row['expected_shutdown'])
+                except OSError as exc:
+                    report['errors'].append('Cannot audit stack child exits: ' + str(exc))
+            report['action_events'] = driver.action_events if driver else []
+            report['errors'].extend(event['error'] for event in report['action_events']
+                                    if event.get('error'))
+            report['record_directories'] = sorted(
+                child.name for child in (output / 'records').iterdir() if child.is_dir())
+            bag_seals = []
+            for bag in (output / 'records').glob('session_*/bag'):
+                sealed = (bag / 'metadata.yaml').is_file()
+                proof = {'path': str(bag), 'metadata_present': sealed}
+                if sealed:
+                    try:
+                        metadata = yaml.safe_load((bag / 'metadata.yaml').read_text())
+                        files = section(metadata, 'rosbag2_bagfile_information').get(
+                            'relative_file_paths', [])
+                        proof['storage_files_present'] = bool(files) and all(
+                            (bag / name).is_file() for name in files)
+                        sealed = proof['storage_files_present']
+                    except (OSError, ValueError, yaml.YAMLError) as exc:
+                        sealed = False
+                        proof['error'] = str(exc)
+                bag_seals.append(proof)
+                if not sealed:
+                    report['errors'].append('Unsealed recording: ' + str(bag))
+            report['bag_seals'] = bag_seals
             report['domain_processes_after'] = domain_processes(args.domain)
             report['model_count'] = len(report['models'])
             report['successful_rounds'] = sum(r['success'] for r in report['rounds'])
+            report['unattempted_rounds'] = args.rounds - len(report['rounds'])
+            if report['unattempted_rounds']:
+                report['errors'].append(
+                    f"Unattempted requested rounds: {report['unattempted_rounds']}")
             report['full_level6_rounds'] = sum(
                 full_cycle(section(r, 'ledger'), r['request_id']) for r in report['rounds'])
             report['model_elapsed_s'] = statistics([m['elapsed_s'] for m in report['models']])
@@ -939,6 +1197,10 @@ def run(args):
                 and not report['residual_pids'] and report['model_count'] == args.models
                 and report['successful_rounds'] == args.rounds)
             checkpoint(output, report, 'finished')
+            if previous_runs_root is None:
+                os.environ.pop('AUBO_RUNS_DIR', None)
+            else:
+                os.environ['AUBO_RUNS_DIR'] = previous_runs_root
         print(json.dumps({'output': str(output), 'passed': report['passed'],
                           'errors': report['errors']}, ensure_ascii=False))
     return 0 if report['passed'] else 1

@@ -1,6 +1,6 @@
 # Peach 源码设计（实现级）
 
-本文按 **2026-10-16 工作区源码** 写现行实现：框架、进程、数据流、一批作业逐步逻辑、几何与授权门。权威是源码与 `peach_interfaces/config/interface_manifest.yaml`。系统摘要仍以 [architecture.md](architecture.md) 为准；图名/QoS 以 [io.md](io.md) 与接口包为准。改行为时同轮改对应包 `doc/`，不要只改本文。
+本文记录实现框架、进程、数据流、一批作业逐步逻辑、几何与授权门。权威是源码与 `peach_interfaces/config/interface_manifest.yaml`。系统摘要见 [architecture.md](architecture.md)；图名/QoS 以 [io.md](io.md) 与接口包为准。改行为时同轮改对应包 `doc/`，不要只改本文。
 
 作业身份字段（`target_id` / `request_id` / `run_id` / `cycle_id` / `plan_id` / 模型七元组 / `scene_epoch`）见 **§3.2**；失败码 0–23 见 **§15**。
 
@@ -58,14 +58,14 @@ flowchart TB
 |----|------|------|
 | `peach_interfaces` | 唯一 IDL + manifest | 无 |
 | `peach_common` | yaml_params / param_rules / qos / paths / lifecycle | 无 |
-| `peach_harvester` | brain 三节点 + 独立 scene_obstacles | `peach_scene_perception_node`、`peach_target_reconstruction_node`、`peach_supervisor`、`peach_scene_obstacles` |
+| 能力包 | 感知、重建、调度、场景障碍各自独立进程 | `peach_scene_perception_node`、`peach_target_reconstruction_node`、`peach_supervisor`、`peach_scene_obstacles` |
 | `peach_arm` | 运动与接触 | `peach_arm`（Lifecycle；MoveIt 伴随节点同 executor） |
 | `peach_bringup` | 整栈入口、预检、lifecycle 桥、autostart | `peach_lifecycle_flag_bridge`、`peach_autostart_client` |
 | `peach_observability` | 8090、会话 bag、自检、诊断聚合 | `peach_observability` |
 | `peach_stereo` | 默认相机前端 | `stereo_camera_node` |
 | `peach_vegetation` | 枝叶 2D 分割 | 独立 launch，不进 harvest_system |
 | `peach_system_tests` | isolated mock / 回放 | 不进生产 launch |
-| 顶层 `peach_web` | 8090 静态页 | 由 observability 托管 |
+| `peach_web` | 8090 静态页 | 由 observability 托管 |
 
 驱动（`aubo_e5_hardware` 等）MUST 只读。IVG / `src/peach_sim` 不进 harvest 业务核。
 
@@ -77,28 +77,28 @@ flowchart TB
 
 Include 顺序（源码）：
 
-1. `peach_stereo`（`camera_enabled ∧ camera_frontend=stereo`；须在 aubo **之前**）
+1. `peach_stereo`（`camera_enabled ∧ camera_frontend=stereo`；percipio 时不起）
 2. `peach_scene_obstacles`（`camera_enabled`）
-3. `aubo_e5_bringup`（mock=`GenericSystem`+标准 JTC；stereo 时压掉 percipio）
+3. `aubo_e5_bringup`（mock=`GenericSystem`+标准 JTC；仅 `camera_frontend=percipio` 时起官方相机，stereo 压掉）
 4. `serial_force`（`force_enabled`）
-5. `peach_harvester/brain.launch.py`（`require_managed_stack:=true`，透传 `tool_profile`）
+5. `peach_scene_perception` / `peach_target_reconstruction` / `peach_supervisor` launch（`require_managed_stack:=true`，透传 `tool_profile`）
 6. `peach_arm.launch.py`（mock 时 `require_robot_status:=false`）
 7. `peach_observability`
 8. Nav2 `lifecycle_manager` 名 `peach_lifecycle_manager`
 9. `peach_lifecycle_flag_bridge`
 10. 可选 `peach_autostart_client`（默认关）
 
-默认 launch 参数（`harvest_system.launch.py` 声明）：`hardware_mode:=mock`、`robot_ip:=169.254.10.98`、`camera_enabled:=false`、`camera_frontend:=stereo`（另 `percipio` / `replay`）、`tool_profile:=bite_shear_v1`、`autostart:=false`、`bond_timeout:=0.0`、`force_enabled:=true`、`extrinsics_enabled:=true`、`hand_eye_enabled:=false`、`use_sim_time:=false`、`skip_reconstruction:=false`（同时注入臂 `allow_unrefined_geometry`）、`observability_port:=0`（0=yaml 8090）。`execute_pregrasp_only` 不在 launch 声明，由 `peach_supervisor.yaml` 默认 `true`。
+默认 launch 参数（`harvest_system.launch.py` 声明）：`hardware_mode:=mock`、`robot_ip:=169.254.10.98`、`camera_enabled:=false`、`camera_frontend:=stereo`（另 `percipio` / `replay`；只 launch 期切换，禁止两驱动同图）、`tool_profile:=bite_shear_v1`、`autostart:=false`、`bond_timeout:=0.0`、`force_enabled:=true`、`extrinsics_enabled:=true`、`hand_eye_enabled:=false`、`use_sim_time:=false`、`reconstruction_enabled:=true`、`skip_reconstruction:=true`（作业跳过重建，同时注入臂 `allow_unrefined_geometry`）、`observability_port:=0`（0=yaml 8090）。`execute_pregrasp_only` 不在 launch 声明，由 `peach_supervisor.yaml` 默认 `true`。`camera_frontend:=percipio` 时 scene_perception 最后装入 `percipio_frontend.yaml`（`max_frame_age_s=2.5`），发布袋轴用身份 EMA 挡住 1 fps 单帧翻转。
 
-覆盖易混：`peach_supervisor.yaml` 里 `require_managed_stack: false`、`tool.profile_id: adaptive_shear_v1`；**整栈** `harvest_system` 给 brain `require_managed_stack:=true` 并把 `tool_profile` 注入 bite。独立 `peach_arm.launch.py` / `brain.launch.py` 声明默认仍 adaptive；`peach_executor.launch.py` 的 `require_managed_stack` 默认 false。以入口 launch 实传为准。
+覆盖易混：`peach_supervisor.yaml` 里 `require_managed_stack: false`、`skip_reconstruction: false`、`tool.profile_id: adaptive_shear_v1`；**整栈** `harvest_system` 给能力包 `require_managed_stack:=true`，注入作业 skip 策略及 bite 工具档案。独立能力包 launch / `peach_arm.launch.py` 声明默认仍 adaptive；`peach_supervisor/launch/supervisor.launch.py` 的 `require_managed_stack` 和 `skip_reconstruction` 默认 false。以入口 launch 实传为准。
 
-mock 初值是 xacro `harvest_stow` 关节（launch `mock_initial_positions` 逗号串），不是拍照位。第一次 Survey 才 PTP 到 SRDF `global_photo_pose`。stereo Include **必须**在 aubo 之前：Jazzy `IncludeLaunchDescription` 会把 `camera_enabled` 落成全局且不回滚，放后面则 stereo 永不启动。
+mock 初值是 xacro `harvest_stow` 关节（launch `mock_initial_positions` 逗号串），不是拍照位。第一次 Survey 才 PTP 到 SRDF `global_photo_pose`。aubo include 位于 scoped `GroupAction` 内，驱动的 `camera_enabled` 覆盖退出组后恢复；stereo 与驱动内 percipio 互斥。
 
 ### 2.3 Lifecycle
 
 托管名单顺序：感知 → 重建 → `peach_arm` → 调度。拆栈反向。四节点接 bond；`bond_timeout=0` 关闭管理器进程死检。flag bridge 把管理器 `is_active` 闩锁成 `/peach/lifecycle/managed_nodes_activated`。整栈 `require_managed_stack:=true`，未就绪拒开批。
 
-brain 三节点同一进程、`MultiThreadedExecutor`：节点内默认互斥组，节点间可并行。这不是 rclcpp composition。scene_obstacles / observability / 相机不进名单。
+感知/重建/调度各自独立进程；重建与调度用 `MultiThreadedExecutor`，感知用 SingleThreadedExecutor + 有界 worker。这不是 rclcpp composition。scene_obstacles / observability / 相机不进名单。
 
 ---
 
@@ -129,7 +129,7 @@ peach_arm ──ACM diff──► PlanningScene（不覆盖 world 对象）
 
 - **`target_id`**：感知 `TargetRegistry` 铸造，形如 `target_0`、`target_1`（`tid = f'target_{self._next_index}'`）。无锚点检测标 `untracked_{i}`，歧义标 `ambiguous_*`，表满溢出标 `overflow_{n}`，三者**不入**注册表。`clear()` 清表并把 `_next_index` 复位 0（2026-10-22；换 `scene_key` 时调用，新一轮从 `target_0` 起）。选果、ExecuteTarget、GraspDecision、ledger 都绑这个字符串。
 
-- **`scene_epoch`**：调度 `BeginScene` 成功后 +1（仅 `scene_epoch==0` 后做一次）。选果要求观测世代 == 调度值且 >0。臂 `SurveyScene` result **恒填 0**（巡航不改世代）。换世代立即清重建帧，不得把上一世代 READY 几何贴到新身份。
+- **`scene_epoch`**：感知 `BeginScene` 递增，调度从服务响应读取（首巡 `scene_epoch==0` 时调用）。选果要求观测世代 == 调度值且 >0。臂 `SurveyScene` result 返回最近观测的世代；巡航本身不递增世代。换世代立即清重建帧，不得把上一世代 READY 几何贴到新身份。
 
 - **`request_id` / 调度 `run_id`**：`RunHarvest` 带来；空则 `auto_<YYYYMMDDTHHMMSS>`。等于账本目录名 `runs/<request_id>/`，不复用。`HarvestState.run_id` 与此相同。
 
@@ -174,16 +174,16 @@ IDL 文件头若仍写 `peach_executor`，以清单与现行图名为准：节�
 
 开批：人发 `/peach_supervisor/run_harvest`（launch 默认不发）。`autostart:=true` 时 `peach_autostart_client` 硬等 `/peach/observability/selfcheck_passed` 再发。空 `request_id` → `auto_<YYYYMMDDTHHMMSS>`（禁止再落固定名 `harvest`，避免重启后 target 重铸误跳过）。`finally`：`ledger.json` 再 `rework_list.json`（有条目才写）。
 
-### 4.0 一颗桃逐步（默认 yaml）
+### 4.0 一颗桃逐步（启用重建）
 
-`execute_pregrasp_only=true`、`reconstruct_in_trajectory=true`、`execution_enabled` 操作台已开：
+显式 `skip_reconstruction=false`，`execute_pregrasp_only=true`、`reconstruct_in_trajectory=true`、`execution_enabled` 操作台已开：
 
 1. `RUN_REQUESTED` → DISCOVERY / NAVIGATE。固定座 `_cmd_navigate` 立刻 `NAV_OK`。
 2. SURVEY：`SurveyScene` 到拍照位。成功发 `obstacles_refresh`。`scene_epoch==0` → `SURVEY_AT_POSE`。
 3. BEGIN_SCENE：调感知；读回 `scene_epoch`；清调度观测缓存。失败 → INTERRUPTED / ABORT，`termination_reason=begin_scene_failed`。
 4. WAIT_LOCK：等到 `_lock_set_ready`（观测 `scene_epoch`==调度值且>0 且 `target_set_locked`）或 `survey_wait_s=15` 超时（仍继续，快照 `degraded`）。然后三路：`INTENT_SURVEY_ONLY`→SETTLE；有效 `execution_enabled` 关→RECORD_DISABLED；否则 LOCK_READY→SELECT。
 5. SELECT：采收率门（达标发 `EMPTY_LIMIT` 结算，不是失败）→ `_query_reachability(reach_queries)` → `next_target` → claim、`cycle_id={run_id}:{target_id}` → TARGET_SELECTED → DISPATCH。
-6. DISPATCH：目标须在锁定集（等 2.5 s）→ 发 Build → 等 COLLECTING（`build_start_timeout_s=8`）→ `model_revision=pending:{epoch}:{target_id}` → READY_FULL。不装未 finalize 的 GraspDecision。
+6. DISPATCH：目标须在锁定集（等 2.5 s）→ 发 Build → 等 COLLECTING（`build_start_timeout_s=5`）→ `model_revision=pending:{epoch}:{target_id}` → READY_FULL。不装未 finalize 的 GraspDecision。
 7. EXECUTE_FULL：goal mode=`PREGRASP_ONLY`、`skip_observation=true`、profile=`PROFILE_PREGRASP_HOLD`。臂 Finalize 等精化/许可 → 回拍照位 → 接近 → 预抓取验证 → Hold。`recovery_required` 置位。
 8. 周期收口：取消并等 Build 结束 → `event_for_outcome` → command NONE → `_cmd_cycle_done`：`goal.target_ids` 已全部入账则 `EMPTY_LIMIT` 结算；否则 CYCLE_DONE → 再 Survey（**禁止再 Begin**）。回访 Survey 成功走 `SURVEY_DONE`（跳过 Begin），并 `survey_dwell_s=2` 后再出快照。
 
@@ -293,13 +293,13 @@ ControlTask（`apply_control`）：PAUSE=0 RESUME=1 ENTER_MAINTENANCE=2 EXIT_MAI
 
 1. `message_filters` 同步 RGB+深度，slop 0.05 s。深度 uint16 **毫米**，有效窗 `min_depth_m`…`max_depth_m`。
 2. YOLO `engine.detect` → `filter_detections`（`enable_fruit` 控制裸果是否保留显示）。
-3. `segmentation_bboxes` → SAM `engine.segment`；批量失败则逐框回退。掩膜裁进 bbox。
+3. `segmentation_bboxes` → FastSAM-s `engine.segment`（bbox prompt；`sam_model_path` 仍可回退 MobileSAM）；批量失败则缓存/重试回退。掩膜裁进 bbox。
 4. 每个检测：`estimator.estimate_modes(..., hybrid_dilated)`。`bag` 缝=`RobustBagPosePipeline`（圆柱 RANSAC 定轴）；`fruit`=`RobustFruitPosePipeline`。产品执行范围是套袋。
 5. `tf_status!='ok'` 则打 `tf_stale` / `tf_unavailable`，`may_commit_identity` 为假，**本帧不进身份链**（`untracked_*`）。
-6. `TargetRegistry.begin_frame` 淘汰未确认超时项，同步清 `bbox_at_edge`。然后 `match_or_register_frame`：世界系 χ²≤9（`CHI2_GATE`）+ 匈牙利 1-1 + 同类 + 次优/最优比 1.2（`AMBIGUOUS_RATIO`）。新 ID `target_{_next_index}`。无 position → `untracked_{i}`；歧义 → `ambiguous_*`（不入表）；表满且无非保护项可逐出 → `overflow_{n}`。`clear()` 清表并复位 `_next_index`。
+6. `TargetRegistry.begin_frame` 淘汰未确认超时项，同步清 `bbox_at_edge`。然后 `match_or_register_frame`：世界系 χ²≤9（`CHI2_GATE`）+ 匈牙利 1-1 + 同类 + 次优/最优比 1.2（`AMBIGUOUS_RATIO`）。新 ID `target_{_next_index}`。无 position → `untracked_{i}`；歧义 → `ambiguous_*`（不入表）；表满且无非保护项可逐出 → `overflow_{n}`。`clear()` 清表并复位 `_next_index`。匹配后 `apply_held_axis` 把身份 EMA 轴写回 `translation_direction`（半球已对齐；夹角≲2.5° 不改），`initial_pose` / 锁定倾角不跟单帧圆柱 RANSAC ± 翻转。
 7. 贴边 `bbox_touches_image_edge`：不攒 `obs_count`（P1-A），旗标 `bbox_edge`。`untracked_`/`ambiguous_` 强制 `confirmed=false`。
 8. `CollectLockPolicy.update`：只累积 `confirmed`。关窗二选一——静止：帧数≥`min_collect_frames=4` 且连续 `lock_settle_frames=2` 无新增确认 ID **且本帧无未确认在攒**；或超时 `max_collect_s=12`（运行期按帧间隔 EMA 自适应，下限为本值×0.4；**空集也关**）。关闭发一次 `LockEvent`。`GlobalHarvestPlan` 锁定后按优先级推进；超 `anchor_max_age` 打 `anchor_stale` 不可选，超 `anchor_drop` 从计划移除。单果墙钟预算 40 s（相对人工偏保守）。
-9. 发布 `target_observations`、`initial_pose`（只进重建）、diagnostics、debug_image。单帧 ACCEPT / REOBSERVE / REJECT **不得据此接触**。
+9. 发布 `target_observations`、`initial_pose`（只进重建）、diagnostics、debug_image。单帧 ACCEPT / REOBSERVE / REJECT **不得据此接触**。`harvest_state.timing` 检测/分割取 Ultralytics `Results.speed`（preprocess+inference+postprocess，毫秒/图）；加载打 `model.info()`。decode/geometry/publish/total 仍为节点墙钟。
 
 `BeginScene`：`scene_epoch++`；换 `scene_key` 才清身份表。调度 `HarvestState.target_id` 反哺覆盖感知 selected。感知 `harvest_run_id` 锁定瞬间重铸。可写 `perception_data` 事件，不写 `ledger.json`。
 
@@ -345,14 +345,14 @@ onDecision：臂从同一条 GraspDecision **原子**提交身份、entry/cut/ax
 
 ---
 
-## 7. DISPATCH（默认并行重建）
+## 7. DISPATCH（跳过重建或并行重建）
 
-源：`executor_node.py::_cmd_dispatch`。部署 `peach_supervisor.yaml`：`reconstruct_in_trajectory: true`。
+源：`executor_node.py::_cmd_dispatch`。整栈默认 `skip_reconstruction=true`；启用重建后，部署 `peach_supervisor.yaml` 的 `reconstruct_in_trajectory: true` 选择并行路径。
 
 时限门 / `execution_enabled` / skip / 目标须在锁定集之后：
 
 1. `skip_reconstruction=true`：不 Build、不观察，unrefined 七元组进接触（须臂 `allow_unrefined_geometry`）。身份 revision=`unrefined:*`。不把未融合 `allowed=false` 的 GraspDecision 装成 CONTACT 令牌。臂侧 promote 把 `suggested_travel_m` 置 0，走 `(neck-entry)-neck_margin` 回退（实测约 0.05–0.10 m），不再采信旧 `L_insert=0.03` 封顶。
-2. 否则发 `BuildTargetModel`，等 COLLECTING（`build_start_timeout_s=8`）。超时取消并**等该动作结束**再派下一颗（单槽）。
+2. 否则发 `BuildTargetModel`，等 COLLECTING（`build_start_timeout_s=5`）。超时取消并**等该动作结束**再派下一颗（单槽）。
 3. **默认** `reconstruct_in_trajectory`：立刻 `READY_FULL`。goal `skip_observation=true`，revision=`pending:{epoch}:{target_id}` 占位（空 revision 会被臂以身份不完整 REJECT）。**不装尚未 finalize 的 GraspDecision**。臂 Finalize 等精化/许可。
 4. 显式 `reconstruct_in_trajectory=false`：
    - `VIEW_FAST=0`：supervisor `observe.py` 直驱 MoveTo 补视（拍照位算 1 视，补视封顶 2，总视 ≤3）。
@@ -424,7 +424,7 @@ SELECT 日志 `caller=SELECT`；Finalize `caller=FINALIZE`。服务端逐档 `Ch
 
 REJECT（不启动周期）当：
 
-1. `!motionOutputAllowed`（非 Active / 未 armed）
+1. `!motionOutputAllowed`（非 Active）
 2. `target_id` 空，或 mode ∉ {PREVIEW, OBSERVE_ONLY, FULL, PREGRASP_ONLY}
 3. `running_` 或 `contact_recovery_required_`
 4. FULL / PREGRASP 且 `!identityComplete`（六个字符串；**不**要求 `scene_epoch≠0`）
@@ -529,7 +529,7 @@ Staging IK 排序：先绝对滚转小，再腕轴加权关节代价（`preferSt
 
 `authorizeStage` CONTACT/TOOL（`cycle.cpp` 唯一实现）：
 
-1. `motionOutputAllowed`（Active + armed/enabled）
+1. `motionOutputAllowed`（Active 输出权限）
 2. `safetyReady`（`robot_status` 抱闸 / motion_possible / 急停**状态**；mock `require_robot_status=false`）
 3. ¬cancel、`grasp_enabled`
 4. 若 `ctx.bound_model`：当前 `decisionSnapshot` 必须 `identitiesMatch`，且 geometry VALID、本阶段 sleeve 或 cut VALID。模型撤销/换版不得复用旧轨迹
@@ -548,7 +548,7 @@ Staging IK 排序：先绝对滚转小，再腕轴加权关节代价（`preferSt
 
 ## 13. 场景障碍 ACM
 
-`peach_scene_obstacles` 独立进程，`camera_enabled` 才起，不进 lifecycle。Survey **成功**后 `obstacles_refresh`。源：最近 RELIABLE 点云。纯核 `core.build_snapshot`：体素 0.06 m → 工作空间裁剪 → 自身滤除（mesh+FK+体素半对角）→ 已精化目标膨胀胶囊 → 上限 3000 box。`ApplyPlanningScene` 对象 id 固定 `peach_scene_obstacles`（首写 ADD，此后 REMOVE+ADD）。
+`camera_enabled` 为真时启动独立的 `peach_scene_obstacles` 节点。启用障碍建图后，Survey 成功触发 `obstacles_refresh`，冻结最近的 RELIABLE 点云，按曝光时刻查询相机及机器人碰撞网格的 TF。部署体素边长 0.12 m，裁剪工作空间并滤除机器人自身后缓存体素。后续精化在同一批体素上滤除目标胶囊，上限 3000 个方块。节点以 `ADD` 替换同名碰撞对象 `peach_scene_obstacles`。禁用或没有剩余体素时，它查询 MoveIt 的 `WORLD_OBJECT_NAMES`，仅在同名对象存在时删除。
 
 避障目的=**保护相机**。部署 `obstacle_guard_enabled=false`（树冠太密，叶墙不当碰撞体）；GPL 声明默认 true。true 时唯一受查对=`camera_body_link`×障碍；`tool.links` 全豁免。peach_arm 激活后 3 次幂等重写 ACM。`sensors_3d.yaml` `sensors: []`，不用 octomap updater；保留名 `<octomap>` 无害。
 
@@ -560,7 +560,7 @@ Staging IK 排序：先绝对滚转小，再腕轴加权关节代价（`preferSt
 
 | 源 | 内容 |
 |----|------|
-| 各包 `config/<节点>.yaml` + `peach_common.yaml_params.attach` | Python 部署值 |
+| 各包 `config/<节点>.yaml` + GPL schema/`ParamListener` | Python 部署值（legacy vegetation 仍 attach） |
 | `peach_arm/src/arm_parameters.yaml`（GPL） | C++ 声明/校验；**部署覆盖**在 `config/peach_arm.yaml` |
 | `grasp_standoffs.yaml` | `entry_standoff_m=0`、`pregrasp_standoff_m=0.03`，launch 注入 scene/recon/臂沿轴后撤 |
 | `aubo_description/config/<profile>.yaml` | 工具开口径/包络；`tool_profiles.py` 注入 |
@@ -580,14 +580,14 @@ Staging IK 排序：先绝对滚转小，再腕轴加权关节代价（`preferSt
 | `tool.profile_id` yaml 基础值 | adaptive | **harvest_system 注入 bite** |
 | `empty_survey_limit` | 2 | 连续空扫结算 |
 | `survey_wait_s` / `survey_dwell_s` | 15 / 2 | 首巡等锁 / 回访驻留 |
-| `build_start_timeout_s` | 8 | 等 COLLECTING |
+| `build_start_timeout_s` | 5 | 等 COLLECTING |
 | `reconstruction_min_views` | 1 | 并行路径不走此 race |
 | `observe_build_grace_s` | 3 | 仅补视后等机位 |
-| `skip_reconstruction` | false | 须与臂 `allow_unrefined_geometry` 同开 |
-| `require_managed_stack` yaml | false | **harvest_system / brain 覆盖 true** |
+| `skip_reconstruction` | 整栈 true，包 YAML false | 整栈联动臂 `allow_unrefined_geometry` |
+| `require_managed_stack` yaml | false | **harvest_system 覆盖 true**；独立 supervisor launch 默认 false |
 | `harvest.min_collect_frames` 等 | 4 / 2 / 12 s | 收齐窗（confirm_frames=2） |
 | `capture.max_frame_age_s` | 12 | 停走式同戳深度等掩膜；关节 Cache 8192 |
-| `action_timeout_s` | 180 | Survey/Build/Execute 上限 |
+| `action_timeout_s` | 40 | Survey/Build/Execute 上限 [s] |
 | yaml 里 `*_service` / `*_action` 绝对名 | SNAPSHOT | DEFAULT 是相对名+remap；现行 yaml 仍列出 |
 
 话题名不用参数传递；相对名 + launch remap。
@@ -644,7 +644,7 @@ Staging IK 排序：先绝对滚转小，再腕轴加权关节代价（`preferSt
 
 动态：URDF 臂链，关节序冻结 `shoulder_joint, upperArm_joint, foreArm_joint, wrist1_joint, wrist2_joint, wrist3_joint`。
 
-静态：world→base/table；wrist3→camera_body / camera_link / tool_axis；tool_axis→tcp / sleeve_mouth / cutting_plane / tool_body；光学系 `*_optical`（z 前 x 右 y 下）。`extrinsics_publisher` **只**发 wrist3→camera_link，其余 URDF。手眼 `aubo_hand_eye_calibration/hand_eye/active.yaml`。禁止第二套 StaticTransformBroadcaster 叠同一 child。
+静态：world→base/table；wrist3→camera_body / camera_link / tool_axis；tool_axis→tcp / sleeve_mouth / cutting_plane / tool_body；光学系 `*_optical`（z 前 x 右 y 下）。腕随动时 `extrinsics_publisher` **只**发 wrist3→camera_link；固定机位（`extrinsics_enabled:=false` 且相机开启）改发 `base_link→camera_link`，数值在 `config/fixed_camera_mount.yaml`。其余 URDF。手眼 `aubo_hand_eye_calibration/hand_eye/active.yaml`。禁止两路同时发同一 child。
 
 深度管线内部毫米；IDL 新字段优先米。体轴 x 前 y 左 z 上。规划/积分用精确 stamp；`TimePointZero` / latest 只允许诊断并打 stale。
 
@@ -657,21 +657,21 @@ Staging IK 排序：先绝对滚转小，再腕轴加权关节代价（`preferSt
 | 整栈组合 / launch 参 | `peach_bringup/launch/harvest_system.launch.py` |
 | 预检 | `peach_bringup/peach_bringup/preflight.py` |
 | FSM 表 / 权限 / blockers | `harvest_fsm.py` |
-| 三维 reducer | `supervisor/domain/reducer.py` |
+| 三维 reducer | `peach_supervisor/peach_supervisor/domain/reducer.py` |
 | 命令循环 / handler 表 | `executor_node.py` `_COMMAND_HANDLERS` |
 | 批次策略 / 采收率 | `cycle_core/batch_policy.py` |
-| 选果/账本 | `supervisor/batch.py` |
-| 补视 fast | `supervisor/observe.py` |
-| 感知一帧 | `vision/scene_perception/pipeline.py` |
-| 身份/收齐窗 | `vision/scene_perception/identity.py` |
-| 重建/许可 | `vision/target_reconstruction/{capture,integrate,refine,publish}.py` |
-| 障碍快照 | `vision/scene_obstacles/core.py` |
+| 选果/账本 | `peach_supervisor/peach_supervisor/batch.py` |
+| 补视 fast | `peach_supervisor/peach_supervisor/observe.py` |
+| 感知一帧 | `peach_scene_perception/peach_scene_perception/pipeline.py` |
+| 身份/收齐窗 | `peach_scene_perception/peach_scene_perception/identity.py` |
+| 重建/许可 | `peach_target_reconstruction/peach_target_reconstruction/{capture,integrate,refine,publish}.py` |
+| 障碍快照 | `peach_scene_obstacles/peach_scene_obstacles/core.py` |
 | 周期阶段 | `peach_arm/src/stages.cpp` `executeCycle` |
 | 受理/授权 | `peach_arm/src/cycle.cpp` `onActionGoal` / `authorizeStage` |
 | 接近/MTC | `grasp_task.cpp` `classifyApproach` / `planToPregrasp` |
 | 可达性 / 滚转梯子 | `motion.cpp` `evaluateReachability` / `toolRollsRad` |
 | 质量/安全门 | `quality_gate.cpp` / `safety_gate.cpp` |
-| 模型元组 | `model_contract.hpp` / `vision/domain/model_contract.py` |
+| 模型元组 | `peach_arm/include/peach_arm/model_contract.hpp` / `peach_vision_core/peach_vision_core/domain/model_contract.py` |
 | 契约 | `peach_interfaces/` + `interface_manifest.yaml` |
 
 测试：`colcon test --packages-select <pkg>`。改 IDL 再跑 `python3 src/peach/peach_interfaces/scripts/check_interface_manifest.py`。测完 `pgrep` 清残留。

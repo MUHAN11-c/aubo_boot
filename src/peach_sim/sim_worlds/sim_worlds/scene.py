@@ -22,9 +22,10 @@ import math
 import random
 import xml.etree.ElementTree as ET
 
+from scipy.spatial.transform import Rotation
+
+from .mesh_geometry import bag_geometry, BAG_MESH_URI
 from .params import check_params, OrchardParams, Vec3
-from .textures import INNER_PAPER as _INNER_RGB
-from .textures import PAPER_DARK as _PAPER_DARK_RGB
 
 SDF_VERSION = '1.11'
 WORLD_NAME = 'peach_orchard'
@@ -38,21 +39,8 @@ _BARK = (0.34, 0.25, 0.16)
 _TWIG = (0.47, 0.36, 0.23)
 _LEAF = (0.24, 0.38, 0.16)
 _LEAF_LIGHT = (0.32, 0.46, 0.20)
-_PAPER = (0.51, 0.27, 0.27)
-_PAPER_NECK = (0.46, 0.24, 0.25)
-_TIE = (0.25, 0.25, 0.25)
-_FRUIT = (0.87, 0.42, 0.30)
 _POST = (0.62, 0.62, 0.60)
 _WIRE = (0.45, 0.45, 0.45)
-
-
-def _flat(rgb255: tuple[int, int, int]) -> Vec3:
-    """贴图调色板（0–255 整数）→ SDF 颜色（0–1 浮点）."""
-    return (rgb255[0] / 255.0, rgb255[1] / 255.0, rgb255[2] / 255.0)
-
-
-PAPER_DARK = _flat(_PAPER_DARK_RGB)
-INNER_PAPER = _flat(_INNER_RGB)
 
 
 def _vec_add(a: Vec3, b: Vec3) -> Vec3:
@@ -126,7 +114,9 @@ class BagTarget:
     @property
     def fruit_center(self) -> Vec3:
         return _vec_add(
-            self.bottom, _vec_scale(self.axis, self.fruit_diameter * 0.5 - 0.004))
+            self.bottom, _vec_scale(self.axis, bag_geometry(
+                self.body_diameter, self.body_thickness, self.bottom_to_neck)[
+                    'fruit_center'][2]))
 
 
 @dataclass(frozen=True)
@@ -194,13 +184,6 @@ def _element(parent: ET.Element, tag: str, text: str | None = None,
     if text is not None:
         node.text = text
     return node
-
-
-# Blender 网格名义尺寸（blender/build_assets.py）：实例按实参非均匀缩放
-MESH_BAG_W = 0.075
-MESH_BAG_T = 0.052
-MESH_BAG_L = 0.088
-MESH_DIR = 'model://sim_description/meshes'
 
 
 def _visual_mesh(link: ET.Element, name: str, pose: tuple[float, ...],
@@ -494,12 +477,8 @@ def _tree(params: OrchardParams, world: ET.Element, tree_id: str,
 
     trunk_height = _sample(rng, tree.trunk_height)
     trunk_radius = _sample(rng, tree.trunk_radius)
-    variant = 'a' if int(tree_id.split('_t')[-1]) % 2 == 0 else 'b'
-    scale = 0.92 + 0.16 * rng.random()
-    _visual_mesh(link, 'tree_mesh', (0.0, 0.0, 0.0, 0.0, 0.0,
-                                     rng.uniform(-0.35, 0.35)),
-                 f'{MESH_DIR}/peach_tree_{variant}.glb',
-                 (scale, scale, scale))
+    # Keep one procedural tree per model. Its trunk/scaffold visuals and
+    # collision proxies share geometry; do not overlay an unrelated tree GLB.
     # 主干收分两段 + 根颈外扩
     for index, (height, radius, base) in enumerate((
             (trunk_height * 0.55, trunk_radius, 0.0),
@@ -621,64 +600,15 @@ def _bagged_peach(world: ET.Element, target: BagTarget,
     """
     model = _static_model(world, target.target_id, pose=pose)
     link = _element(model, 'link', name='bag')
-    body_length = target.body_length
-    half_w = target.body_diameter / 2.0
-    half_t = target.body_thickness / 2.0
-
-    # 袋体整体网格（Blender 建模：皱褶袋体/袋底折边/收拢颈/铁丝/内衬/果），
-    # 名义尺寸按 config 区间中值，实例做非均匀缩放对齐各自实参
-    paper_length = target.bottom_to_neck + target.neck_length
-    _visual_mesh(
-        link, 'bag_mesh',
-        (0.0, 0.0, paper_length / 2.0, 0.0, 0.0, target.tilt_yaw * 0.0),
-        f'{MESH_DIR}/bagged_peach.glb',
-        (target.body_diameter / MESH_BAG_W,
-         target.body_thickness / MESH_BAG_T,
-         paper_length / MESH_BAG_L))
-    # 袋体：扁筒被果实撑起（纸张贴图带折痕/透孔/针孔）
-    _visual_ellipsoid(
-        link, 'body', (0.0, 0.0, body_length / 2.0, 0.0, 0.0, 0.0),
-        (half_w, half_t, body_length * 0.54), _PAPER,
-        texture='paper_bag', roughness=0.72)
-    # 袋底立体折边：横向压痕接缝
-    _visual_box(
-        link, 'bottom_fold', (0.0, 0.0, 0.012, 0.0, 0.0, 0.35),
-        (half_w * 1.55, half_t * 1.15, 0.022), PAPER_DARK,
-        texture='paper_bag', roughness=0.8)
-    # 果实膨起：把袋底顶出弧形（果皮贴图，露出袋口下沿一点更像实物）
-    _visual_sphere(
-        link, 'fruit', (0.0, 0.0, target.fruit_diameter * 0.5 - 0.006),
-        target.fruit_diameter * 0.52, _FRUIT,
-        texture='fruit_skin', roughness=0.55)
-    # 袋口聚集：锥形收拢到袋颈
-    _visual_cylinder(
-        link, 'neck', (0.0, 0.0, body_length + target.neck_length / 2.0),
-        (0.0, 0.0, 1.0), target.neck_length, target.neck_diameter / 2.0,
-        _PAPER_NECK, texture='paper_bag', roughness=0.75)
-    gather = target.neck_diameter / 2.0 + 0.006
-    _visual_cylinder(
-        link, 'gather', (0.0, 0.0, body_length - 0.010),
-        (0.0, 0.0, 1.0), 0.020, gather, PAPER_DARK,
-        texture='paper_bag', roughness=0.8)
-    # 内衬遮光纸层：袋口露出的深色内圈
-    _visual_cylinder(
-        link, 'inner_paper', (0.0, 0.0, body_length + target.neck_length
-                              - 0.004),
-        (0.0, 0.0, 1.0), 0.008, target.neck_diameter / 2.0 - 0.003, INNER_PAPER)
-    # 封口铁丝：两圈缠绕 + 翘起的线尾
-    for index in range(2):
-        _visual_cylinder(
-            link, f'wire_{index}',
-            (0.0, 0.0, body_length + 0.004 + index * 0.007),
-            (0.0, 0.0, 1.0), 0.0035, gather + 0.0015, _TIE)
-    _visual_cylinder(
-        link, 'wire_tail',
-        (0.010, 0.0, body_length + 0.012), (0.5, 0.0, 0.87), 0.026,
-        0.0012, _TIE)
-    # 碰撞用圆柱包络（扁平袋体的保守近似，插入/剪切接触留待物理仿真轮）
-    _collision_cylinder(
-        link, 'body', (0.0, 0.0, body_length / 2.0), (0.0, 0.0, 1.0),
-        body_length, half_w)
+    geometry = bag_geometry(target.body_diameter, target.body_thickness,
+                            target.bottom_to_neck)
+    # The GLB already contains paper, fruit, liner and wire; one visual only.
+    _visual_mesh(link, 'bag_mesh', geometry['visual_pose'], BAG_MESH_URI,
+                 geometry['scale'])
+    collision = _element(link, 'collision', name='bag_envelope')
+    _element(collision, 'pose', _fmt(*geometry['collision_center'], 0, 0, 0))
+    box = _element(_element(collision, 'geometry'), 'box')
+    _element(box, 'size', _fmt(*geometry['collision_size']))
 
 
 def _sun_direction(params: OrchardParams) -> Vec3:
@@ -754,6 +684,11 @@ def _manifest(params: OrchardParams, targets: list[BagTarget], work: WorkPose,
         distance = _vec_dist(work.mount, target.neck)
         is_reachable = distance <= params.work_zone.reach_max_m
         reachable += int(is_reachable)
+        geometry = bag_geometry(target.body_diameter, target.body_thickness,
+                                target.bottom_to_neck)
+        rotation = Rotation.from_euler('xyz', (0, aim_rpy(target.axis)[1], target.tilt_yaw))
+        collision_center = _vec_add(
+            target.bottom, rotation.apply(geometry['collision_center']))
         entries.append({
             'id': target.target_id,
             'tree': target.tree_id,
@@ -763,9 +698,17 @@ def _manifest(params: OrchardParams, targets: list[BagTarget], work: WorkPose,
             'bag_neck': [round(v, 6) for v in target.neck],
             'axis': [round(v, 6) for v in target.axis],
             'fruit_center': [round(v, 6) for v in target.fruit_center],
-            'fruit_diameter': round(target.fruit_diameter, 6),
+            'fruit_diameter': round(min(bag_geometry(
+                target.body_diameter, target.body_thickness, target.bottom_to_neck)[
+                    'fruit_ellipsoid_size']), 6),
+            'fruit_ellipsoid_size': list(bag_geometry(
+                target.body_diameter, target.body_thickness, target.bottom_to_neck)[
+                    'fruit_ellipsoid_size']),
             'body_diameter': round(target.body_diameter, 6),
             'body_thickness': round(target.body_thickness, 6),
+            'collision_center': [round(float(v), 6) for v in collision_center],
+            'collision_center_local': list(geometry['collision_center']),
+            'collision_size': list(geometry['collision_size']),
             'bottom_to_neck': round(target.bottom_to_neck, 6),
             'neck_diameter': target.neck_diameter,
             'sdf_pose': [round(v, 6) for v in (

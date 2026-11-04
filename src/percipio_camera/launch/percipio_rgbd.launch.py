@@ -42,7 +42,7 @@ def generate_launch_description():
         DeclareLaunchArgument('device_ip', default_value='169.254.10.110'),
         DeclareLaunchArgument('camera_name', default_value='camera'),
         DeclareLaunchArgument('color_resolution', default_value='640x480'),
-        DeclareLaunchArgument('depth_resolution', default_value='640x400'),
+        DeclareLaunchArgument('depth_resolution', default_value='640x480'),
         DeclareLaunchArgument(
             'color_camera_info_file',
             default_value=PathJoinSubstitution([

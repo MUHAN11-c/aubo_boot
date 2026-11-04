@@ -77,8 +77,9 @@ public:
   {
     const double interval = waitIntervalS();
     if (interval <= 0.0) {return config_.frame_wait_s;}
-    // 视点到位后等 ~4 帧 + 1s 稳定余量；下限 2s，上限为配置值
-    return adaptive_timeout_s(interval, 4.0, 1.0, 2.0, config_.frame_wait_s);
+    // 视点到位后等 ~4 帧 + 1s 稳定余量；下限最多 2s，不超过配置上限。
+    return adaptive_timeout_s(
+      interval, 4.0, 1.0, std::min(2.0, config_.frame_wait_s), config_.frame_wait_s);
   }
 
   double targetMaxAgeS() const
@@ -97,7 +98,8 @@ public:
     if (interval <= 0.0) {return config_.reconfirm_wait_s;}
     // 与视点等帧同一形状：等 ~4 帧 + 1s 稳定余量，下限 2s，上限为配置值
     // （reconfirm_wait_s 同时承担回退值与自适应上限，摆动等平息也在本窗口预算内）。
-    return adaptive_timeout_s(interval, 4.0, 1.0, 2.0, config_.reconfirm_wait_s);
+    return adaptive_timeout_s(
+      interval, 4.0, 1.0, std::min(2.0, config_.reconfirm_wait_s), config_.reconfirm_wait_s);
   }
 
   // 精化等待（2.7-FINALIZE 的 T(refined)）。collecting=true（重建仍在

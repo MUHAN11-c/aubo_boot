@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from dataclasses import replace
 import time
 from typing import Sequence
 
@@ -132,6 +133,12 @@ class FrangiExgSplitter:
         dummy[:, :] = (40, 160, 40)
         dummy[:, 30:34] = (20, 20, 20)
         self.split(dummy)
+
+    def update_thresholds(self, config: SplitConfig) -> None:
+        """Refresh live thresholds; device and Gaussian scales require reconfigure."""
+        self.config = replace(
+            config, device=self.config.device,
+            branch_sigmas=self.config.branch_sigmas)
 
     def split(self, bgr: np.ndarray) -> VegetationMasks:
         """Segment one BGR uint8 frame into leaf/branch masks and overlay."""

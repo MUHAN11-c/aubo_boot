@@ -1,0 +1,10 @@
+# 固定机位：真实相机相对 base_link 的采集位。
+# 仅当 camera_enabled:=true 且 extrinsics_enabled:=false 时由 harvest_system 发布，
+# 与腕随动 extrinsics_publisher（wrist3_Link→camera_link）互斥，禁止叠同一 child。
+# 数值来自 2026-10-13 固定采集记录；用户确认相机未移动后沿用。
+# 移动相机后必须重测，不要改手眼 active.yaml 来代替这条。
+parent_frame: base_link
+child_frame: camera_link
+xyz_m: [0.3780573326439316, -0.07547177076037584, 0.7666632351254871]
+quaternion_xyzw: [-0.0036889994433193067, -0.000007498157537607713, -0.6576092061184594, 0.753350199611797]
+provenance: '20261013 fixed camera record; user confirmed camera unmoved'

@@ -36,7 +36,7 @@ peach 能力包的共享设施**单源**（W1 起，角色对齐 Nav2 `nav2_comm
 from peach_common import attach, package_yaml
 from peach_common.param_rules import check
 from peach_common.qos import latched
-params = attach(node, package_yaml('peach_harvester', 'peach_supervisor.yaml'))
+params = attach(node, package_yaml('peach_vegetation', 'vegetation.yaml'))
 ```
 
 ## Build / Test
@@ -44,16 +44,14 @@ params = attach(node, package_yaml('peach_harvester', 'peach_supervisor.yaml'))
 ```bash
 colcon build --packages-select peach_common
 colcon test --packages-select peach_common && colcon test-result --verbose
-python3 -m pytest -q -p no:cacheprovider --import-mode=importlib \
-  src/peach/peach_common/test/       # 七个测试文件；qos 用例无 rclpy 环境整体 skip
 ```
 
-（原 `scripts/r0_gate.sh` 纯核门已于 2026-10-10 随 `scripts/` 清理删除，
-等价命令见 `peach_system_tests/doc/testing.md`。）
+只跑官方 `flake8` / `pep257`（2026-10-23 测试策略）；分层验证与系统接线见
+`peach_system_tests/doc/testing.md`。
 
 ## 依赖
 
-`rclpy`、`python3-yaml`（见 `package.xml`）；纯核测试只需 PyYAML。
+`rclpy`、`python3-yaml`（见 `package.xml`）；不引入 numpy/opencv。
 
 ## 许可
 

@@ -13,8 +13,8 @@ from launch_ros.substitutions import FindPackageShare
 from lifecycle_msgs.msg import Transition
 from moveit_configs_utils import MoveItConfigsBuilder
 
-from peach_harvester.vision.grasp_standoffs import manipulation_overlay
-from peach_harvester.vision.tool_profiles import (
+from peach_common.grasp_standoffs import manipulation_overlay
+from peach_common.tool_profiles import (
     tool_profile_body_params,
     tool_profile_d_inner_params,
     tool_profile_id_params,
@@ -74,14 +74,17 @@ def launch_setup(context):
         tool_profile_d_inner_params(LaunchConfiguration('tool_profile')),
         tool_profile_body_params(LaunchConfiguration('tool_profile')),
         *_skills_moveit_params(tool_profile),
-        {'execution.require_robot_status': require_robot_status},
-        {'quality.allow_unrefined_geometry': allow_unrefined_geometry},
     ]
     if overlay:
         parameters.append(ParameterFile(overlay, allow_substs=True))
     task_params = LaunchConfiguration('task_params_file').perform(context).strip()
     if task_params:
         parameters.append(ParameterFile(task_params, allow_substs=True))
+    # Explicit launch policy is authoritative; task YAML must not flip it.
+    parameters.extend([
+        {'execution.require_robot_status': require_robot_status},
+        {'quality.allow_unrefined_geometry': allow_unrefined_geometry},
+    ])
     node = LifecycleNode(
         package='peach_arm',
         executable='peach_arm',

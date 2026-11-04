@@ -119,7 +119,7 @@ Visualization Manager:
         Depth: 5
         Durability Policy: Volatile
         History Policy: Keep Last
-        Reliability Policy: Best Effort
+        Reliability Policy: Reliable
         Value: /camera/depth_registered/points
       Use Fixed Frame: true
       Use rainbow: true
@@ -251,7 +251,7 @@ Visualization Manager:
         Reliability Policy: Reliable
         Value: /peach_arm/planned_views
       Value: true
-    - Class: rviz_default_plugins/Image
+    - Class: peach_rviz_plugins/Image
       Enabled: true
       Max Value: 1
       Median window: 5
@@ -265,7 +265,7 @@ Visualization Manager:
         Reliability Policy: Reliable
         Value: /camera/color/image_raw
       Value: true
-    - Class: rviz_default_plugins/Image
+    - Class: peach_rviz_plugins/Image
       Enabled: true
       Max Value: 1
       Median window: 5

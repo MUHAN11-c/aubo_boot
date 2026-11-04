@@ -1,8 +1,10 @@
 # `peach_arm` io（活文档）
 
-> 2026-10-10 用户裁定自仓库级 `docs/io.md` 拆写入包：技能节点动作/服务/话题与参数。跨包边界在 [peach_bringup/doc/io.md](../../peach_bringup/doc/io.md)；场景障碍快照节点（`peach_scene_obstacles`，属 `peach_harvester`）在 [peach_harvester/doc/io.md](../../peach_harvester/doc/io.md)。**源码与本文互相更新，改接口须同一轮改另一边**。
+> 本页记录技能节点动作、服务、话题与参数。跨包边界见 [系统 IO](../../peach_bringup/doc/io.md)；独立场景障碍快照包见 [peach_scene_obstacles](../../peach_scene_obstacles/README.md)，接口以 [interface_manifest.yaml](../../peach_interfaces/config/interface_manifest.yaml) 为准。**源码与本文互相更新，改接口须同一轮改另一边**。
 
 单节点。不写 `ledger.json`、不调重建 Trigger、不当 `BeginScene` / `RunHarvest` 客户端。规划 tip 为 URDF `tcp`。作业目标以 **goal.target_id** 为准。
+
+`~/status` 每次发布从臂侧原子状态读取 `execution_enabled`、`grasp_enabled`、`tool_enabled`，不依赖周期状态切换刷新；三者表示命令门的实际使能，供操作台与调度意图分别核对。
 
 ```mermaid
 flowchart TB
@@ -56,7 +58,7 @@ flowchart TB
 | `go_to_photo_pose` | 只回拍照位（有接近记录则原路返程，否则 PTP），不采锁定集 |
 | `preview_approach_insert` / `preview_full_contact` | 只规划接触预览 |
 
-`set_execution_armed`（`std_srvs/SetBool`，已进清单；**不是 Trigger**）：data=true 武装本周期 / false 解除；`execution.enabled` 后每个周期还须调一次。
+`set_execution_armed`（`std_srvs/SetBool`，已进清单；**不是 Trigger**）：data=true 武装本周期 / false 解除。手动运动 Trigger 入口需要武装；动作入口在 `execution.enabled=true` 时自动一次性武装，结束后清除。
 
 订阅：感知观测；重建 `grasp_decision` / `refined_*` / `diagnostics`；操作台 `/peach/batch/enables`（收到过即覆盖本地使能参数，`enables_heartbeat_timeout_s` 心跳超时回落本地权威）。柜侧：`RobotStatus` 做安全门；`/aubo_io_controller/joint_status` 电流环形缓存给 ④层接触检测（默认关，只缓存不判定）；工具闭合调 `/aubo_io_controller/set_io`。TF：`tf2::TimePointZero`（规划下一视点，不是积分旧深度）。
 
@@ -83,7 +85,7 @@ flowchart TB
 
 | 参数 | 含义 |
 |------|------|
-| `execution.enabled` | 开了才真动；每个周期还须 `set_execution_armed`。须与调度 `execution_enabled` 同时开 |
+| `execution.enabled` | 开了才真动；手动运动 Trigger 另需 `set_execution_armed`，动作入口自动一次性武装。须与调度 `execution_enabled` 同时开 |
 | `grasp.enabled` | 关则停在 READY、不到预抓取。开要求 execution 已开 |
 | `tool.enabled` | 关则跳过 SetIO，不得宣称采摘成功 |
 | `mtc_approach_along_axis_m` | 预抓取相对入口后撤。由 `grasp_standoffs.yaml` 注入，现行 0.03 m |
@@ -102,7 +104,7 @@ flowchart TB
 | `transit_max_total_joint_travel_rad` / `max_single_joint_travel_rad` | 回拍照位新规划 PTP/OMPL 护栏 6 / 2.5；原路返程不过此门 |
 | `max_camera_step_m` | 下一视点沿当前相机直线截步（默认 0.15 m） |
 | `maximum_moves` | 观察移动次数封顶；覆盖达标即停 |
-| `quality.minimum_baseline_deg` | 覆盖门，部署 0°（单视可通过）；纯核未注入 yaml 时结构默认 8° 仅单测 |
+| `quality.minimum_baseline_deg` | 覆盖门，部署 0°（单视可通过）；纯核未注入参数时结构默认 8° |
 | `quality.allow_unrefined_geometry` | 默认 false；true 时用场景观测当精化入口并钉住 `grasp_allowed`。钉扎期间，滞后的选中帧和重建 `GraspDecision(allowed=false)` 不撤套入许可（`skip_reconstruction` 打开）。promote 把 `suggested_travel_m` 置 0，`insertionTravel` 走 `(neck-entry)-neck_margin_m` 回退（2026-10-21 实测 0.05–0.10 m），不再采信旧 `L_insert=0.03` 封顶；全重建仍用融合 cut travel |
 | `photo_pose_named_target` | Survey / 回拍照位的 SRDF 名（`global_photo_pose`） |
 | `photo_pose_joint_tolerance_rad` / `photo_pose_max_joint_vel_rad_s` | `goToPhotoPose` 成功出口每轴 \|Δq\| / \|qdot\| 上限（默认 0.05） |
@@ -114,10 +116,24 @@ flowchart TB
 
 ## 决策提交、READY与许可边界
 
-`target_observers.cpp::onDecision`将同一GraspDecision的身份、entry/cut/axis、质量和四能力一次提交TargetCache，`status.cpp`承接状态/诊断。FULL在精化到达后有界等待同目标已提交且未过期的决策快照（`timeouts.refined_s`，重建仍在 COLLECTING 时用满该上限，现行 5s），失败为`decision_snapshot_unavailable`。单条轨迹执行等待 `moveit.execute_timeout_s` 现行 5s，超时后停轨宽限 5s，不是用单独refined_pose或READY心跳补许可。提交完整且geometry有效的Snapshot可READY；sleeve/cut无效时仍可有可预抓取几何，CONTACT/TOOL各自复检能力与运行门。模型年龄按generated_at计算，心跳不刷新生成时间，同revision不能续签有效期。Web allowed与臂侧最终授权分别记录。
+接触令牌提供正 `valid_until` 时，以该冻结截止为准，不再叠加仅覆盖图像观测的短新鲜度窗；未提供截止时才回退 `model_stamp` + 原有新鲜度窗。未来超过 0.5s 的 stamp 始终拒绝，同目标模型身份、能力与缓存有效期仍须复检。撤退只查公共运行门，不依赖视觉许可或模型新鲜度。
+
+运行期使能 true→false 或外部心跳超时会取消在途轨迹；连续 false 心跳不重复停轨。CheckReachability 与运动请求共用策略席位以保护 MoveGroup/参数寿命，非 Active 或策略占用时逐项返回 `node_inactive` / `motion_policy_busy`，查询本身不要求 execution 使能，也不发送运动。生命周期关闭若有线程未退场，保留资源并返回 FAILURE，输出保持关闭。
+
+进程信号关停在 Context pre-shutdown 阶段显式关闭输出并取消；main 的 spin 正常返回或抛异常也触发同一 noexcept 入口，异常退出码非零。一次性闩锁避免重复等待，禁止关停期间重新 activate；不依赖 worker 最后释放节点强引用时才触发析构取消。信号线程取消与资源槽替换共用短锁，回收未完成时仍保留资源。
+
+场景障碍 guard 从 false 重开时，ACM 显式写回 guard 连杆×本包受管障碍的 allowed=false；其他碰撞域保持原表内容。接触电流守护 monitor 与 timer 由同一互斥保护，取消在锁外执行。
+
+ACM 激活重试由独立共享 generation 撤销：改参/关闭后，旧轮在每轮及场景读取返回后的写入前退出，重试等待按 100ms 复检。已发送的 DDS 请求无法撤回，当前参数在后续规划前重新写入。
+
+`target_observers.cpp::onDecision`将同一GraspDecision的身份、entry/cut/axis、质量和四能力一次提交TargetCache，`status.cpp`承接状态/诊断。启用重建的 FULL/PREGRASP 周期先有界等待同目标已提交且未过期的决策快照，其中已含精化几何（`timeouts.refined_s`，重建仍在 COLLECTING 时用满该上限，现行 5s），失败为`decision_snapshot_unavailable`。单条轨迹执行等待 `moveit.execute_timeout_s` 现行 5s，超时后停轨宽限 5s，不是用单独refined_pose或READY心跳补许可。提交完整且geometry有效的Snapshot可READY；sleeve/cut无效时仍可有可预抓取几何，CONTACT/TOOL各自复检能力与运行门。模型年龄按generated_at计算，心跳不刷新生成时间，同revision不能续签有效期。Web allowed与臂侧最终授权分别记录。
 
 接近候选排序：IK候选列表先按工具Z轴绝对滚转、再按腕轴加权关节代价排序，随后逐候选验证完整PTP走廊与轨迹门。候选范围为0、±15°、±30°、±45°；较小绝对滚转候选的完整轨迹通过后才停止；完整PTP轨迹守卫失败且尚未运动时可继续下一候选。FULL 另跳过套入直线未走满的滚转档，与 CheckReachability 同形。±45°是工具Z轴滚转限制，110°仍是整体TCP姿态测地线门。排序不改变授权、碰撞及完整走廊判据。
 
 接近轨迹优先完整直线，必要时仅使用原有冠内两段LIN之间2cm blend平滑连接；没有新增CIRC或OMPL接触兜底。PTP是关节空间路径，不能声称TCP走精确圆弧。fallback只允许在尚未运动、未取消且未因授权拒绝时继续。
 
 MTC接触任务从构造时禁用introspection（`Task(task_name, false)`），不采用默认构造后再关闭。候选开始/create、plan、reset计时用于区分IK/规划、任务释放和执行停滞；每个滚转候选检查取消generation，取消不会进入下一档。此处不新增动作接口或放宽有效期/几何门，轨迹展示仍以实际TCP及状态为证。
+
+未精化几何的 `unrefined_hold_` 只覆盖一个执行周期；`executeCycle` 所有终态收口在 running=false 之前调用 `releaseUnrefinedGeometry`，撤销旧未精化模型/许可并通知等待者。下一轮启用重建时可接收新模型；不解除动作途中的保护，不续期旧许可，也不保留跨周期的未精化授权。
+
+从重建ON切回OFF时，promoteUnrefinedGeometry明确丢弃上一轮重建ModelSnapshot与committed/revoked标记，再提升本轮感知几何。否则旧模型身份和过期时刻会在approach_execution_gate错误拦截新OFF周期。执行授权门本身保持原样；未精化许可仍须显式开关与现有目标/运行使能。

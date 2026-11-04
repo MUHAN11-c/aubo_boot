@@ -1,0 +1,96 @@
+#!/usr/bin/env bash
+set -euo pipefail
+PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$PROJECT_ROOT"
+mkdir -p .runtime/{tmp,ros,logs,cache,config,gz/fuel,gz/log,ignition,home-cache,home-config,pycache}
+export PYTHONDONTWRITEBYTECODE=1
+export PYTHONPYCACHEPREFIX="$PROJECT_ROOT/.runtime/pycache"
+export TMPDIR="$PROJECT_ROOT/.runtime/tmp"
+export ROS_HOME="$PROJECT_ROOT/.runtime/ros"
+export ROS_LOG_DIR="$PROJECT_ROOT/.runtime/logs"
+export XDG_CACHE_HOME="$PROJECT_ROOT/.runtime/cache"
+export XDG_CONFIG_HOME="$PROJECT_ROOT/.runtime/config"
+export GZ_LOG_PATH="$PROJECT_ROOT/.runtime/gz/log"
+export GZ_FUEL_CACHE_PATH="$PROJECT_ROOT/.runtime/gz/fuel"
+export FASTDDS_BUILTIN_TRANSPORTS="${PEACH_SIM_DDS_TRANSPORT:-DEFAULT}"
+export FASTDDS_DEFAULT_PROFILES_FILE="$PROJECT_ROOT/scripts/config/fastdds.xml"
+# Jazzy ships Fast DDS 2.14, which reads the legacy variable name.
+export FASTRTPS_DEFAULT_PROFILES_FILE="$FASTDDS_DEFAULT_PROFILES_FILE"
+unset ROS_LOCALHOST_ONLY
+# The XML profile confines UDP discovery to loopback and defines one large SHM
+# transport. RMW LOCALHOST would append another small SHM transport to this list.
+export ROS_AUTOMATIC_DISCOVERY_RANGE=SYSTEM_DEFAULT
+export ROS_DOMAIN_ID="${PEACH_SIM_DOMAIN_ID:-177}"
+export GZ_PARTITION="peach_sim_${ROS_DOMAIN_ID}"
+export PEACH_SIM_PROJECT_ROOT="$PROJECT_ROOT"
+export PEACH_SIM_ISOLATED=1
+# The read-only mount is the enforcement boundary; environment variables are conveniences.
+if [[ "${PEACH_SIM_IN_SANDBOX:-0}" != 1 ]]; then
+  command -v bwrap >/dev/null || { echo 'bubblewrap is required; no files were changed outside the project.' >&2; exit 2; }
+  mount_args=(--unshare-pid --ro-bind / / --proc /proc --dev-bind /dev /dev --bind "$PROJECT_ROOT" "$PROJECT_ROOT" --perms 1777 --tmpfs /dev/shm)
+  for name in .gz .ignition .ros .rviz2 .cache .config; do
+    if [[ -d "$HOME/$name" ]]; then
+      target="$PROJECT_ROOT/.runtime/home-${name#.}"
+      mkdir -p "$target"
+      mount_args+=(--bind "$target" "$HOME/$name")
+    fi
+  done
+  exec bwrap "${mount_args[@]}" --die-with-parent --setenv PEACH_SIM_IN_SANDBOX 1 -- "$PROJECT_ROOT/scripts/sim" "$@"
+fi
+set +u
+source /opt/ros/jazzy/setup.bash
+# Source only the read-only dependency closure, not the workspace's stale overlays.
+for dependency in aubo_description aubo_e5_moveit_config peach_interfaces peach_common peach_vision_core peach_scene_perception peach_target_reconstruction; do
+  dependency_prefix="$PROJECT_ROOT/../../install/$dependency"
+  if [[ -f "$dependency_prefix/share/$dependency/package.bash" && -f "$dependency_prefix/share/$dependency/package.xml" ]]; then
+    COLCON_CURRENT_PREFIX="$(cd "$dependency_prefix" && pwd)"
+    source "$dependency_prefix/share/$dependency/package.bash"
+    unset COLCON_CURRENT_PREFIX
+  fi
+done
+venv_packages="$PROJECT_ROOT/../../aubo_py3.12/lib/python3.12/site-packages"
+if [[ -d "$venv_packages" ]]; then
+  export PYTHONPATH="$venv_packages${PYTHONPATH:+:$PYTHONPATH}"
+fi
+set -u
+case "${1:-help}" in
+  build)
+    colcon --log-base "$PROJECT_ROOT/log" build --base-paths "$PROJECT_ROOT" \
+      --build-base "$PROJECT_ROOT/build" --install-base "$PROJECT_ROOT/install" \
+      --packages-select sim_description sim_worlds sim_perception sim_harvest sim_bringup sim_system_tests \
+      --cmake-args -DBUILD_TESTING=ON
+    ;;
+  test)
+    colcon --log-base "$PROJECT_ROOT/log" test --base-paths "$PROJECT_ROOT" \
+      --build-base "$PROJECT_ROOT/build" --install-base "$PROJECT_ROOT/install" \
+      --packages-select sim_description sim_worlds sim_perception sim_harvest sim_bringup sim_system_tests
+    colcon test-result --test-result-base "$PROJECT_ROOT/build" --verbose
+    ;;
+  run)
+    shift
+    # A project-local advisory lock makes each selected DDS domain single-owner.
+    if [[ -z "${PEACH_SIM_DOMAIN_ID:-}" ]]; then
+      for attempt in {1..80}; do
+        candidate=$((130 + RANDOM % 80))
+        exec 9>"$PROJECT_ROOT/.runtime/domain-$candidate.lock"
+        if flock -n 9; then export ROS_DOMAIN_ID="$candidate"; break; fi
+      done
+      flock -n 9 || { echo 'No free simulation domain lock' >&2; exit 2; }
+    else
+      exec 9>"$PROJECT_ROOT/.runtime/domain-$ROS_DOMAIN_ID.lock"
+      flock -n 9 || { echo 'This simulation domain is already in use' >&2; exit 2; }
+    fi
+    export GZ_PARTITION="peach_sim_${ROS_DOMAIN_ID}"
+    [[ -f install/local_setup.bash ]] || { echo 'Run scripts/sim build first.' >&2; exit 2; }
+    set +u; source install/local_setup.bash; set -u
+    export DISPLAY="${DISPLAY:-:0}"
+    exec /usr/bin/python3 "$PROJECT_ROOT/scripts/run_session.py" "$@"
+    ;;
+  check)
+    shift
+    [[ -f install/local_setup.bash ]] || { echo 'Run scripts/sim build first.' >&2; exit 2; }
+    set +u; source install/local_setup.bash; set -u
+    exec "$@"
+    ;;
+  *) echo 'scripts/sim build | test | run [--gui] [--rviz] [--mission] [--duration SECONDS] [--cancel-after SECONDS] | check COMMAND...';;
+esac

@@ -14,10 +14,9 @@ peach_scene_obstacles 应 allowed=true）。
 import argparse
 import sys
 
+from moveit_msgs.srv import GetPlanningScene
 import rclpy
 from rclpy.node import Node
-
-from moveit_msgs.srv import GetPlanningScene
 
 
 def main() -> int:
@@ -48,7 +47,7 @@ def main() -> int:
     world = response.scene.world.collision_objects
     print(f'world objects: {len(world)}')
     for obj in world:
-        primitive_count = sum(len(o.primitives) for o in [obj])
+        primitive_count = len(obj.primitives)
         pose_frame = (obj.primitive_poses[0].position
                       if obj.primitive_poses else None)
         print(

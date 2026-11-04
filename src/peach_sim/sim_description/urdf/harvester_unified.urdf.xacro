@@ -31,6 +31,9 @@
   <xacro:arg name="track_separation" default="0.56"/>
   <xacro:arg name="wrist_camera" default="true"/>
   <xacro:property name="tool_profile" value="$(arg tool_profile)"/>
+  <xacro:if value="${tool_profile not in ['shear_v1', 'bite_shear_v1', 'adaptive_shear_v1']}">
+    ${xacro.fatal('Unsupported tool_profile: ' + tool_profile)}
+  </xacro:if>
   <xacro:property name="mount_h_arg" value="$(arg arm_mount_height)"/>
   <xacro:property name="mount_yaw_arg" value="$(arg arm_mount_yaw_deg)"/>
 
@@ -42,7 +45,7 @@
   <xacro:include filename="$(find aubo_description)/urdf/components/tcp_bite_shear_v1.xacro"/>
   <xacro:include filename="$(find aubo_description)/urdf/components/tcp_adaptive_shear_v1.xacro"/>
 
-  <!-- 可驾驶履带平台（BUNKER 外观 + DiffDrive + 前桅杆激光）；platform_base_link 即根 -->
+  <!-- 可驾驶履带平台（BUNKER 外观 + VelocityControl + 前桅杆激光）；platform_base_link 即根 -->
   <xacro:peach_tracked_platform
     parent="platform_base_link"
     arm_mount_height="$(arg arm_mount_height)"
@@ -123,43 +126,45 @@
         <pose>0.04485209875285428 0.10840123810873628 0.0016967255768052666
               1.422219176 -1.560927445 -3.015660872</pose>
         <topic>camera/depth</topic>
-        <!-- 5Hz：感知(YOLO+SAM)单帧重，10Hz 连续灌会打满 worker 队列
-             （2026-10-14 过载轮实测满队丢帧 ~1k/轮）；停走式相机节拍
-             5 帧级足够 min_collect_frames=60 的采集 -->
-        <update_rate>5.0</update_rate>
-        <gz_frame_id>camera_color_optical_frame</gz_frame_id>
+        <!-- PS800-E1 official working-distance/rate envelope; ideal RGB-D optics,
+             downsampled output, without modelling structured-light artefacts. -->
+        <update_rate>2.5</update_rate>
+        <!-- Native point coordinates use camera +X forward. Images use the
+             separate optical frame supported by gz-sensors RGB-D. -->
+        <gz_frame_id>camera_link</gz_frame_id>
         <camera name="rgbd">
-          <horizontal_fov>1.203132</horizontal_fov>
+          <optical_frame_id>camera_color_optical_frame</optical_frame_id>
+          <horizontal_fov>1.099557429</horizontal_fov>
           <image><width>640</width><height>480</height></image>
-          <!-- 相机外壳在光心前后几厘米。近裁剪 5 cm 会从壳体中间切开，
-               切开的三角形在左上角画出一块灰盘，深度却是 inf。
-               收到 2 mm 后壳体整体落在近裁剪之外，灰盘消失。 -->
-          <clip><near>0.002</near><far>2.5</far></clip>
+          <!-- 0.2–1.0 m is the manufacturer's working range. Keep the CAD
+               visible in Gazebo; do not hide the wrist/camera from every view. -->
+          <clip><near>0.2</near><far>1.0</far></clip>
           <depth_camera><output>depths</output></depth_camera>
-          <!-- GZ_VISIBILITY_ALL(0x0FFFFFFF) 去掉 GUI 位 0x1。
-               镜头不渲染只标了 GUI 位的安装件。 -->
-          <visibility_mask>268435454</visibility_mask>
         </camera>
       </sensor>
-      <!-- 法兰盘在光心旁约 12 cm，近裁剪 5 cm 仍在视锥里，每帧左上角一块灰盘。
-           腕相机的有效 mask 仍含 GUI 位，只标 visibility_flags=1 时灰盘还在。
-           flags=0 对所有相机不可见；transparency 再挡一层。RViz 机器人模型
-           走 URDF 网格，不受这两个 gz 字段影响。 -->
-      <visual>
-        <visibility_flags>0</visibility_flags>
-        <transparency>1</transparency>
-      </visual>
-    </gazebo>
-    <gazebo reference="camera_body_link">
-      <visual>
-        <visibility_flags>0</visibility_flags>
-        <transparency>1</transparency>
-      </visual>
     </gazebo>
   </xacro:if>
 
+  <!-- Collection basket is part of the same robot in Gazebo and MoveIt. -->
+  <link name="harvest_basket">
+    <!-- Uniform-density five-panel proxy, with its COM above the floor.
+         Panel joints overlap at corners; this is a rigid engineering approximation. -->
+    <inertial><origin xyz="0 0 0.04507418"/><mass value="0.2"/><inertia ixx="0.00293667" iyy="0.00320967" izz="0.00527149" ixy="0" ixz="0" iyz="0"/></inertial>
+    <visual><geometry><box size="0.32 0.30 0.02"/></geometry><material name="basket"><color rgba="0.20 0.45 0.20 1"/></material></visual>
+    <collision><geometry><box size="0.32 0.30 0.02"/></geometry></collision>
+    <visual><origin xyz="0.16 0 0.07"/><geometry><box size="0.02 0.30 0.14"/></geometry><material name="basket"/></visual>
+    <collision><origin xyz="0.16 0 0.07"/><geometry><box size="0.02 0.30 0.14"/></geometry></collision>
+    <visual><origin xyz="-0.16 0 0.07"/><geometry><box size="0.02 0.30 0.14"/></geometry><material name="basket"/></visual>
+    <collision><origin xyz="-0.16 0 0.07"/><geometry><box size="0.02 0.30 0.14"/></geometry></collision>
+    <visual><origin xyz="0 0.15 0.07"/><geometry><box size="0.32 0.02 0.14"/></geometry><material name="basket"/></visual>
+    <collision><origin xyz="0 0.15 0.07"/><geometry><box size="0.32 0.02 0.14"/></geometry></collision>
+    <visual><origin xyz="0 -0.15 0.07"/><geometry><box size="0.32 0.02 0.14"/></geometry><material name="basket"/></visual>
+    <collision><origin xyz="0 -0.15 0.07"/><geometry><box size="0.32 0.02 0.14"/></geometry></collision>
+  </link>
+  <joint name="harvest_basket_mount" type="fixed"><parent link="platform_base_link"/><child link="harvest_basket"/><origin xyz="-0.34 0 0.55"/></joint>
+
   <!-- 臂驱动：gz_ros2_control（JSB + JTC 见 config/gz_controllers.yaml）。
-       履带驱动轮不在 ros2_control 内（gz DiffDrive 直驱，见 tracked_platform）。 -->
+       履带不在 ros2_control 内（gz VelocityControl，见 tracked_platform）。 -->
   <ros2_control name="PeachSimGazeboSystem" type="system">
     <hardware>
       <plugin>gz_ros2_control/GazeboSimSystem</plugin>

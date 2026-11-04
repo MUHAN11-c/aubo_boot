@@ -1,5 +1,5 @@
-# peach_bringup 参数总清单（nav2 式：节点块 = 节点名；attach 直读本文件声明叶子）
-# 代码侧校验规则：peach_bringup/params.py。改键集须与本文件同轮（test_params.py 对账）。
+# peach_bringup 部署参数（节点块 = 节点名；launch 以 ParameterFile 装入）
+# 声明与校验规则：config/autostart_parameters.yaml 与 config/flag_bridge_parameters.yaml（GPL）。
 # 运行期临时改参：ros2 param set——autostart 的 scene_key/intent 读取时生效；
 # flag_bridge 的 poll_hz / is_active_service 构造期捕获，改后需重启节点。
 peach_lifecycle_flag_bridge:

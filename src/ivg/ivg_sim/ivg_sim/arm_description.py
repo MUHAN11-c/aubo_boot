@@ -15,6 +15,8 @@
 import re
 from pathlib import Path
 import xml.etree.ElementTree as ET
+import rclpy 
+from rclpy.node import Node
 
 # 机械臂基座摆放（world 帧，桌面中心原点）。x=-0.58 + 基座宽 0.24：
 # 前缘 -0.46 距桌沿（-0.45）1cm 不相交（MoveIt 永碰撞态红线），同时

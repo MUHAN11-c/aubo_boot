@@ -1,0 +1,17 @@
+# Optional Jetson Orin NX deployment overlay.
+# Use: params_overlay:=$(ros2 pkg prefix peach_scene_perception)/share/peach_scene_perception/config/scene_perception_orin.yaml
+# Measure on the target first; yolo_half is only for verified FP16 devices.
+peach_scene_perception_node:
+  ros__parameters:
+    yolo_imgsz: 640
+    yolo_half: true
+    sync_queue_size: 2
+    publish_debug_image: false
+    publish_masks: false
+    publish_detection_cloud: false
+    max_frame_age_s: 0.5  # stereo；percipio 前端由 percipio_frontend.yaml 最后覆盖为 2.5
+    target_memory:
+      confirm_frames: 2
+    harvest:
+      min_collect_frames: 4
+      lock_settle_frames: 2

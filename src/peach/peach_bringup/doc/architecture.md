@@ -8,50 +8,72 @@
 
 - `peach_interfaces`：消息、服务、动作和接口清单；无节点。
 - `peach_common`：参数、QoS、路径、日志与生命周期辅助库；无节点。
-- `peach_harvester`：一进程三个节点（感知、重建、调度）；场景障碍另进程。
+- `peach_scene_perception`、`peach_target_reconstruction`、`peach_supervisor`、`peach_scene_obstacles`：四个独立能力包；`peach_harvester` 仅兼容 metapackage。
 - `peach_arm`：运动、许可复检、预抓取、套入、工具与撤退。
 - `peach_bringup`：预检、组合、生命周期管理与可选 autostart。
 - `peach_observability`：诊断聚合、8090 调试桥、会话录制与报告。
 - `peach_stereo`：PS800-E1 主机立体相机前端。
 - `peach_vegetation`：独立枝叶二维分割，不进入采摘整栈。
 - `peach_system_tests`：纯核、isolated-domain mock 与冻结数据回放，不进入生产 launch。
-- 顶层 `peach_web`：8090 静态资源，由 observability 托管。
+- `peach_web`：8090 静态资源，由 observability 托管。
 
 ## 运行入口与进程
 
 ```bash
 ros2 launch peach_bringup harvest_system.launch.py hardware_mode:=mock camera_enabled:=false
-# 真机 + 8090 调试页 + 8099 五点力页（不自动开批）：
+# 真机 + 8090 调试页（含五点力页；不自动开批）：
 ros2 launch peach_bringup real_web.launch.py
 ```
 
-默认工具 `bite_shear_v1`；默认 `autostart=false`、执行/接触/工具使能关闭、`execute_pregrasp_only=true`。相机默认关闭；开启时默认 stereo，percipio 显式选择，replay 不占设备。完整部署参数读 launch 的 `--show-args`。环境、分层测试和停栈见 [测试指导](../../peach_system_tests/doc/testing.md)。
+默认工具 `bite_shear_v1`；默认 `autostart=false`、执行/接触/工具使能关闭、`execute_pregrasp_only=true`。相机默认关闭；开启时默认 stereo，`camera_frontend:=percipio` 切官方 18 图案驱动（launch 期互斥，感知年龄门 2.5 s、发布轴走身份 EMA），replay 不占设备。完整部署参数读 launch 的 `--show-args`。环境、分层测试和停栈见 [测试指导](../../peach_system_tests/doc/testing.md)。
 
 ```mermaid
 flowchart TB
   launch[harvest_system] --> driver[只读 aubo bringup / MoveIt / RViz]
   launch --> camera[可选 stereo 或 percipio]
-  launch --> brain[brain: 感知 / 重建 / 调度]
+  launch --> scene_pkg[scene_perception]
+  launch --> recon_pkg[target_reconstruction]
+  launch --> sup_pkg[supervisor]
   launch --> arm[peach_arm]
   launch --> scene[独立 scene_obstacles]
   launch --> obs[observability / 8090 / bag]
   launch --> lm[Nav2 lifecycle manager / flag bridge]
-  camera --> brain
-  brain -->|动作与目标许可| arm
-  brain -->|Survey 后刷新| scene
+  camera --> scene_pkg
+  scene_pkg --> recon_pkg
+  scene_pkg --> sup_pkg
+  recon_pkg -->|模型/许可| sup_pkg
+  sup_pkg -->|动作与目标许可| arm
+  sup_pkg -->|Survey 后刷新| scene
   scene -->|world collision objects| driver
   arm -->|ACM diff / 轨迹| driver
-  brain --> obs
+  scene_pkg --> obs
+  recon_pkg --> obs
+  sup_pkg --> obs
   arm --> obs
 ```
 
-stereo include 位于 aubo include 之前，保持 launch 参数作用域。`serial_force` 按开关启动（5 点力传感器；IMU / `imu_follow` 已于 2026-10-19 删除，历史在 git）。IVG、仿真场景、枝叶分割不属于本业务核。peach2 已归档，不作为活动入口。
+stereo 与驱动内的 percipio 互斥；每个 include 使用独立 scoped GroupAction，子参数 `params_file`、`autostart` 等不外泄，后续节点各读所属包配置，父级自动开批开关保留。作用域转发父级配置，保留全局 `use_sim_time` 与传给 observability 的启动事实。`serial_force` 按开关启动（5 点力传感器；IMU / `imu_follow` 已于 2026-10-19 删除，历史在 git）。IVG、仿真场景、枝叶分割不属于本业务核。peach2 已归档，不作为活动入口。
+
+应用在上述作用域内加载 `config/joint_state_broadcasters.yaml`，不修改驱动文件。
+原 `joint_state_broadcaster` 显式选择冻结六轴的 position/velocity，保证 `/joint_states`
+排列与控制器关节序一致；额外的官方 `dynamic_joint_state_broadcaster` 不过滤接口，
+保留 `/dynamic_joint_states` 的完整关节、GPIO 与 speed-scaling 数据。后者的关节话题
+仅在该实例内重映射到 `/dynamic_joint_state_broadcaster/joint_states`，两条公共话题各有
+一个发布者。两个广播器均不申请命令接口。Jazzy JSB 的 joints/interfaces 同时决定排列和
+接口筛选，单纯关闭 URDF 筛选不能保证资源管理器遍历顺序；采用两个标准实例避免丢失状态或自研转发。
+启动自检检查六轴的名称、数量和顺序，并要求两个广播器均 active。
 
 ## 生命周期与并发
 
-Nav2 管理顺序：`peach_scene_perception_node` → `peach_target_reconstruction_node` → `peach_arm` → `peach_supervisor`，停止按反向处理。brain 的三个节点共享 MultiThreadedExecutor；默认回调组节点内互斥、节点间可并行，重活另有工作线程。进程合并意味着共享故障域，不等于 rclcpp composition。
+`move_group_shutdown_workaround=true` 默认对 `move_group` 单独使用 Jazzy launch 的 `launch-prefix`/`launch-prefix-filter`，以 `env LD_PRELOAD` 保留官方默认 capability 库至进程退出，规避本机 MoveIt 2.12.4 在 Executor 析构时的段错误（[上游 #3680](https://github.com/moveit/moveit2/issues/3680)）。配置放在 scoped include 内，不预加载到控制器、相机、Python 或 RViz，不改驱动与 `/opt/ros`；保留原退出码检查。库由 ament 包前缀定位，缺失明确拒启；自定义 `launch-prefix` 时须关闭此兼容参数以免互相覆盖。上游修复后可显式置 false 对照复验。启动事实记录该参数；这项兼容措施不改变规划和运动授权。
+
+Nav2 管理顺序：`peach_scene_perception_node` → `peach_target_reconstruction_node` → `peach_arm` → `peach_supervisor`，停止按反向处理。`reconstruction_enabled:=false` 时重建不启动、不进入 lifecycle 名单，supervisor 强制 `skip_reconstruction=true`，arm 允许未精化几何；感知仍独立运行。能力包 launch 分别启动感知、重建与调度，节点名和参数分节保持。感知用 SingleThreadedExecutor 配有界推理 worker，重建与调度用各自 MultiThreadedExecutor；进程隔离 Python GIL。`peach_harvester` 不再提供 brain.py 组合入口；整栈只走能力包 launch。
 
 四托管节点接 bond；`bond_timeout=0.0` 默认关闭管理器进程死检。启用非零超时必须先验证本机 bondpy/bondcpp 及 mock 故障链；不能把“已接线”称为“默认已保护”。flag bridge 查询管理器 `is_active` 并发布闩锁就绪标志，调度据此允许开批。桥使用独立单线程 executor；正常中断或外部上下文关闭时先停 executor 再销毁节点，不打印预期中断异常栈，其他错误仍传播。observability、scene_obstacles 和可选外设不在该名单。
+
+supervisor 去激活或 shutdown 时先关派发门、置批次取消并取消在途子动作；批次回调继续等待终态和落账。旧批次或受理中的动作未收口时，cleanup/重新 activate 返回 FAILURE，等待收口后再重试，避免销毁回调仍需的实体或恢复旧批。诊断 Updater 在同一节点只建一次，cleanup 取消 timer，重新 configure 复用并 reset；清理包含可达性客户端和障碍刷新发布器。
+
+单果时限从 SELECT、扇区时限从 RunHarvest 起算，等待和暂停期间不续期。运行期改当前预算仍使用原起算点；超时先取消并保留远端终态追踪，再只记一次 TIMEOUT 补采。扇区统一由 FSM `sector_timeout` 事件进入 INTERRUPTED，结果原因保持 `sector_timeout`。取消终态窗口仍为 10 秒，未收口不派下一动作；时限不是硬件急停或严格的动作返回耗时上限。完整语义见 [supervisor](../../peach_supervisor/README.md)。
 
 ## 作业与安全
 
@@ -121,11 +143,11 @@ SELECT 用感知 `suggested_travel_m`（现行 `(neck-entry)-margin_neck`，实�
 
 ## 配置、证据与限制
 
-Python 参数源为各包 config YAML + `peach_common.yaml_params.attach`，规则留在能力包；arm 声明/校验由 GPL `src/arm_parameters.yaml` 生成，部署值在 config。停位几何单源为 harvester `grasp_standoffs.yaml`，工具几何来自只读 aubo_description 档案。话题接线使用 remap。
+Python 参数源为各包 config YAML + GPL schema/`ParamListener`；arm 声明/校验由 GPL `src/arm_parameters.yaml` 生成，部署值在 config。模块是否启动属于 composition：`reconstruction_enabled` 只控制重建进程/托管名单，不写成重建节点参数。`skip_reconstruction` 属于 supervisor 作业策略，省略时 mock 默认 true（不重建）、real 默认 false（完整重建）；显式传参覆盖模式默认，重建节点仍默认部署以便运行期切换。组合 launch 和 Web 显式联动其 `capture.auto_mode=!skip` 与臂 `quality.allow_unrefined_geometry=skip` 并读回；supervisor 内部不跨节点改参数。停位几何单源为 `peach_common/config/grasp_standoffs.yaml`，工具几何来自只读 aubo_description 档案。话题接线使用 remap。
 
 诊断走 `/diagnostics`，事件/账本保留作业身份，observability 会话落 `runs/session_*`；runner 跑完把本轮 `session_*`/`harvest_*`/`round_*` 收进 `output/records/`（一跑一文件夹，分析页一跑一个顶层选项）。每批 request_id 唯一。网页 allowed、重建 ACCEPT、执行完成级别与真实剪切结果分别核对；level 6 不等于 level 7。当前联合验收已记录30组模型，但10轮中仅6轮level6、4轮质量跳过；253条soak采样约21分钟且RViz退出，不能宣称10轮/30分钟可视化验收通过。2026-10-21 行程修正后统一 skip 3/3、A/B（A 全重建目标级 33.3%、B skip 100%）见 testing.md，不替代上述 10×30×1800。2026-10-22 按抓取顺序 4-slot 4/4 ×2（两次合计 8/8 level6；第二次 slot 4 camera 证据 false，非抓取失败）。监控RViz profile只保留一份RobotModel并移除MotionPlanning重复机器人显示，是GL异常排障候选，尚未证实Ogre根因或修复效果。
 
-本栈不具有功能安全认证；mock 不证明真机安全或接触精度。相机物理固定而 mock 腕移动时必须使用经核对的固定采集位锚定，不能把模拟腕 TF 当新视点。测试与程序结束必须停栈、等 bag 封口并核对本轮 PID 无残留。
+本栈不具有功能安全认证；mock 不证明真机安全或接触精度。相机物理固定而 mock 腕移动时必须关闭腕外参，由 `harvest_system` 发布经核对的 `base_link→camera_link`（`config/fixed_camera_mount.yaml`），不能把模拟腕 TF 当新视点。测试与程序结束必须停栈、等 bag 封口并核对本轮 PID 无残留。
 
 ## 源码与文档导航
 
@@ -133,12 +155,18 @@ Python 参数源为各包 config YAML + `peach_common.yaml_params.attach`，规�
 - `launch/harvest_system.launch.py`：唯一整栈组合与启动事实注入。
 - `peach_bringup/preflight.py`：旧实例与磁盘预检。
 - `peach_bringup/lifecycle_flag_bridge.py`、`autostart_client.py`：就绪桥与可选开批客户端（以 setup.py console_scripts 为准）。
-- [系统 IO](io.md)、[harvester](../../peach_harvester/doc/architecture.md)、[arm](../../peach_arm/doc/architecture.md)、[observability](../../peach_observability/doc/architecture.md)、[接口](../../peach_interfaces/doc/architecture.md)。
+- [系统 IO](io.md)、[scene](../../peach_scene_perception/README.md)、[reconstruction](../../peach_target_reconstruction/README.md)、[supervisor](../../peach_supervisor/README.md)、[arm](../../peach_arm/doc/architecture.md)、[observability](../../peach_observability/doc/architecture.md)、[接口](../../peach_interfaces/doc/architecture.md)。
 
 测试先执行 `colcon test --packages-select peach_bringup --return-code-on-test-failure`，系统接线再按测试包 isolated-domain 入口验证；预检失败不得通过删除检查来绕过。
 
 当前调度在on_stack_ready就绪值改变时立即广播状态，使界面与客户端及时看到转换。reconstruct_in_trajectory默认true走已有并行路径：Build先绑定，臂侧等待Finalize及同目标精化/许可，再开始规划；execute_pregrasp_only默认true，TTL和安全门不放宽。联合runner通过原子阶段检查点保留中间证据，soak检测RViz退出或相机/关节断流立即失败清理。自动报告为继承本轮进程组的subprocess，默认30秒等待、TERM后2秒、KILL后2秒回收；报告失败保留封口bag供离线重算。主机网络SDK能发现相机；隔离网络probe的0设备不能外推为相机故障，新主机网络probe完成3组模型及15秒RViz存活观察，但抓取180秒FAILED；bag封口且无残留，只证明该次短时显示与收尾，不构成抓取或完整验收通过。
 
-应用参数与显示：`task_params_file` 是按节点名分节的标准ROS参数YAML，同一份文件后装到brain、arm与observability，mock/real原样共用；空串使用各包产品默认。显式skip是两种模式相同的作业选择，默认false；real_web也不私设true。应用RViz使用本包 `config/harvest.rviz`，驱动Include在scoped GroupAction内关闭原RViz，应用单独按同一工具档案展开模型，默认显示相机raw和独立实时debug_image_raw；不改驱动/原aubo配置。
+应用参数与显示：`task_params_file` 是按节点名分节的标准ROS参数YAML，同一份文件装到 scene/reconstruction/supervisor、arm 与 observability，mock/real原样共用；空串使用各包产品默认。supervisor/arm 的显式 launch policy（`skip_reconstruction`、`allow_unrefined_geometry`）最后生效；`task_params_file` 含这些键会启动期硬拒绝，避免 last-wins 假动态。`capture.auto_mode` 属于 reconstruction 本地采集参数，可运行期修改；整栈与操作台切换重建时显式联动，三项不一致不得开始。应用RViz使用本包 `config/harvest_app.rviz`，驱动Include在scoped GroupAction内关闭原RViz，应用单独按同一工具档案展开模型，默认显示彩色/深度 raw、独立实时debug_image_raw，以及 RELIABLE depth1 的 `/camera/depth_registered/points`。深度面板关闭逐帧 Normalize：16UC1 固定 0–28000（0–7 m，单位 0.25 mm）；SGBM 偶发 11–16 m 野点若按帧最大拉伸会把整幅灰度打成亮暗闪。（与发布端同档；BEST_EFFORT 订户会把分片大帧假性丢成稀点云，见 [design.md](design.md)）。彩色/深度仍用与发布端兼容的可靠订阅；两路图像插件是 `peach_rviz_plugins/Image`，继承官方 ImageDisplay，仅使取消订阅幂等以兼容 Jazzy 14.1.24 的重复 disconnect 析构问题；不改系统 RViz 库、驱动或原 aubo 配置。
 
 本机2026-10-23同进程配对探针中，相机raw的BE/RELIABLE订阅分别8.80/13.15Hz，debug_image_raw分别10.37/13.21Hz；推理两档均0.958Hz。应用RViz两路2D实时图据此使用RELIABLE、depth1匹配现有发布端；这只改变显示订阅，不改生产传感QoS、驱动或推理节拍。证据为本轮 `/tmp/peach-repair-mock-qos-20261023-1438/evidence.json`，其他主机须重新测量。
+
+## Web 与 ROS 2 传输
+
+整栈默认运行 `ros2_web_link/bridge_node.py` 作为 `/peach_rosbridge`，绑定 `127.0.0.1:9090`。通过 `rosbridge_enabled` 和 `rosbridge_port` 控制部署。8090 从同一依赖包的安装目录提供 `/vendor/ros2-web-link.js`。Peach 页面使用已知 ROS 类型，桥单独运行，不启动 rosapi、通用工作台或 demo。依赖包装本机 Jazzy 的 rosbridge 2.7.1，包含参数字节数组的 JSON 转换修复。
+
+桥允许订阅三个 `web_state/web_force/web_trajectory` 投影，禁止浏览器发布话题。应用服务清单含五个面板节点的 List/Get/Set 参数服务和 15 个业务服务，动作另列四个完整名称。Jazzy rosbridge 会在服务规则中追加 `/rosapi/*`，本入口不提供该节点。原生参数服务的权限粒度是节点上的服务，直接 WS 调用仍由目标节点校验。运动的最终强制点是臂侧 ExecutionAuthority。HTTP 的调试门和审计覆盖其自身入口。WS 断线后只恢复订阅，历史数据、图像、静态资源及显式 `?transport=http` 由 8090 提供。

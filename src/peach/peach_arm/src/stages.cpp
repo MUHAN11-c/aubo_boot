@@ -148,7 +148,8 @@ bool ManipulationSkillsNode::waitForFreshCycleTarget(
     after_s, window_s, cancel_requested_, live_observation_required);
 }
 
-bool ManipulationSkillsNode::waitForRefined(const std::string & target_id)
+bool ManipulationSkillsNode::waitForRefined(
+  const std::string & target_id, const ModelIdentity * expected)
 {
   if (params_.quality.allow_unrefined_geometry) {
     // 未精化锚点随观测流进缓存：感知在派发后的下一帧才标记 selected/锁定，
@@ -156,11 +157,12 @@ bool ManipulationSkillsNode::waitForRefined(const std::string & target_id)
     // 即判「无有效场景几何」，随后观测流带着非零锚点到达）。短窗轮询，
     // 期间可取消；窗口后仍无锚点才落到精化等待（skip 模式下即失败收口）。
     const double window_s = std::min(effectiveRefinedWaitS(), 3.0);
-    const auto deadline = now() + rclcpp::Duration::from_seconds(window_s);
+    const auto deadline = std::chrono::steady_clock::now() +
+      std::chrono::duration<double>(window_s);
     std::string last_reject = "no_cached_anchor";
-    while (rclcpp::ok() && !cancel_requested_ && now() < deadline) {
+    while (rclcpp::ok() && !cancel_requested_ && std::chrono::steady_clock::now() < deadline) {
       std::string reject_reason;
-      if (cache_.promoteUnrefinedGeometry(target_id, &reject_reason)) {
+      if (cache_.promoteUnrefinedGeometry(target_id, &reject_reason, expected)) {
         RCLCPP_WARN(
           get_logger(),
           "quality.allow_unrefined_geometry: 用场景观测几何代替重建精化 target=%s",
@@ -177,6 +179,7 @@ bool ManipulationSkillsNode::waitForRefined(const std::string & target_id)
       "quality.allow_unrefined_geometry 但 %.1fs 内无有效场景几何 target=%s"
       "（拒因=%s）",
       window_s, target_id.c_str(), last_reject.c_str());
+    if (expected) {return false;}
   }
   return cache_.waitForRefined(target_id, effectiveRefinedWaitS(), cancel_requested_);
 }
@@ -301,6 +304,7 @@ void ManipulationSkillsNode::executeCycle(CycleContext & ctx)
 {
   const auto finish = [this, &ctx](CycleState state, const std::string & message) {
       execution_armed_.store(false);
+      cache_.releaseUnrefinedGeometry();
       // 先落终态再解除 running：executeAction 以 running==false 作为周期结束信号，
       // 这样它读到的状态一定是终态而不是上一个中间态。
       setState(state, message, ctx.target_id);
@@ -354,9 +358,11 @@ void ManipulationSkillsNode::executeCycle(CycleContext & ctx)
     // PREGRASP_ONLY 到位也置 recovery（ACK 前不 Survey），但是产品成功：
     // 不得改写成「接触取消/撤离未确认」再 abort 成 FAILED。
     if (contact_recovery_required_.load() && !(ctx.pregrasp_only && ok)) {
+      const std::string recovery = "保持停止，须现场人工撤离后确认恢复";
       finish(
         CycleState::RECOVERY_REQUIRED,
-        "接触阶段取消或撤离未确认；保持停止，须现场人工撤离后确认恢复");
+        (ctx.failure_reason.empty() ? "接触阶段取消或撤离未确认" : ctx.failure_reason) +
+        "；" + recovery);
     } else if (cancel_requested_.load()) {
       finish(CycleState::CANCELED, "用户取消主动视觉/MTC 周期");
     } else if (ok) {
@@ -413,6 +419,13 @@ bool ManipulationSkillsNode::stagePrepareCycle(CycleContext & ctx)
       " 当前 selected=" + ctx.target->id);
   }
   ctx.target_id = ctx.target->id;
+  if (!ctx.observe_only && ctx.requested_model.scene_epoch != ctx.target->scene_epoch) {
+    return failStage(
+      ctx, ExecuteTarget::Result::SKIPPED_QUALITY, FailureCode::MODEL_STALE,
+      "goal_scene_epoch_mismatch");
+  }
+  // action.run_id 属于调度批次；GraspDecision.run_id 属于感知锁定轮。
+  ctx.requested_model.run_id = ctx.target->harvest_run_id;
   // 接触段日志上下文（P0 观测性）：GraspTask 内部日志自此可归属到目标
   grasp_task_->setTargetContext(ctx.target_id);
   setState(CycleState::PLAN_OBSERVATION, "生成目标导向主动视点", ctx.target_id);
@@ -619,6 +632,7 @@ bool ManipulationSkillsNode::stageFinalizeAndValidate(CycleContext & ctx)
         std::chrono::steady_clock::now() - wait_started).count();
     };
   bool refined_arrived = false;
+  std::optional<DecisionSnapshot> decision;
   if (ctx.observe_only) {
     RCLCPP_INFO(
       cycleLogger(),
@@ -641,13 +655,19 @@ bool ManipulationSkillsNode::stageFinalizeAndValidate(CycleContext & ctx)
   // 非观察周期：GraspDecision 提交时已写入精化几何。先等决策，避免
   // waitForRefined 先超时把 refined_arrived 钉成 false，随后决策到达仍
   // 因该布尔合取跳过、臂完全不动（2026-10-16 真实相机+mock：轮 8/9）。
-  if (!params_.quality.allow_unrefined_geometry) {
+  const auto & expected = ctx.requested_model;
+  const bool unrefined = params_.quality.allow_unrefined_geometry &&
+    expected.model_revision == "unrefined:" + std::to_string(expected.scene_epoch) + ":" +
+    expected.target_id && expected.calibration_revision == "unrefined" &&
+    expected.config_revision == "unrefined";
+  if (!unrefined) {
     RCLCPP_INFO(
       cycleLogger(),
       "[FINALIZE] 等 GraspDecision（含精化几何）timeout=%.1fs target=%s rec_state=%s",
       wait_s, ctx.target_id.c_str(),
       qualitySnapshot().reconstruction_state.c_str());
-    if (!cache_.waitForDecision(ctx.target_id, wait_s, cancel_requested_)) {
+    decision = cache_.waitForDecision(ctx.requested_model, wait_s, cancel_requested_);
+    if (!decision) {
       return failStage(
         ctx, ExecuteTarget::Result::SKIPPED_QUALITY, FailureCode::DECISION_REJECTED,
         "decision_snapshot_unavailable: 同目标模型与许可未在时限内到齐或已过期"
@@ -659,18 +679,16 @@ bool ManipulationSkillsNode::stageFinalizeAndValidate(CycleContext & ctx)
       cycleLogger(),
       "[FINALIZE] allow_unrefined：等精化几何 timeout=%.1fs target=%s",
       wait_s, ctx.target_id.c_str());
-    refined_arrived = waitForRefined(ctx.target_id);
+    refined_arrived = waitForRefined(ctx.target_id, &expected);
     RCLCPP_INFO(
       cycleLogger(),
       "[FINALIZE] 精化等待结束 arrived=%s elapsed=%.2fs",
       refined_arrived ? "true" : "false", waitElapsedS());
-  }
-  const auto decision = cache_.decisionSnapshot();
-  if (!decision && !params_.quality.allow_unrefined_geometry) {
-    // 等待返回与读快照之间仍可能过期/撤销，禁止退回无版本 legacy 位姿。
-    return failStage(
-      ctx, ExecuteTarget::Result::SKIPPED_QUALITY, FailureCode::DECISION_REJECTED,
-      "decision_snapshot_expired_or_revoked");
+    if (!refined_arrived) {
+      return failStage(
+        ctx, ExecuteTarget::Result::SKIPPED_QUALITY, FailureCode::MODEL_STALE,
+        "unrefined_observation_unavailable");
+    }
   }
   if (decision) {
     refined_arrived = refined_arrived || decision->geometry.valid;
@@ -1219,7 +1237,7 @@ bool ManipulationSkillsNode::stagePlanSleeveAndReverseRetreat(CycleContext & ctx
   grasp_task_->setContactAcm(ctx.target_id, ContactAcmStage::Sleeve);
   const auto result = grasp_task_->previewFullContact(
     ctx.entry_tip_pose, ctx.refined->axis, ctx.travel_m,
-    fruitCapsuleFor(*ctx.refined));
+    fruitCapsuleFor(*ctx.refined), true);
   if (!result.success) {
     return failStage(
       ctx, ExecuteTarget::Result::SKIPPED_UNREACHABLE,
@@ -1299,7 +1317,7 @@ bool ManipulationSkillsNode::stageActuateCutter(CycleContext & ctx)
   command.run_id = ctx.target_id;
   command.target_id = ctx.target_id;
   command.contact_transaction_id = ctx.contact_transaction_id;
-  if (!tool_actuator_.arm(command, reason) || !tool_actuator_.sendCut(reason)) {
+  if (!tool_actuator_.arm(command, reason) || !commandToolClose(reason)) {
     tool_actuator_.markUnknown();
     ctx.failure_code = FailureCode::TOOL_STATE_UNKNOWN;
     return failStage(
@@ -1342,8 +1360,7 @@ bool ManipulationSkillsNode::stageVerifyCut(CycleContext & ctx)
         ctx, ExecuteTarget::Result::CANCELED,
         FailureCode::CUT_COMMAND_FAILED, "等切断反馈中被取消");
     }
-    if (std::chrono::steady_clock::now() >= deadline) {
-      tool_actuator_.markUnknown();
+    if (std::chrono::steady_clock::now() >= deadline && tool_actuator_.expireUnconfirmed()) {
       ctx.failure_code = FailureCode::CUT_FEEDBACK_TIMEOUT;
       return failStage(
         ctx, ExecuteTarget::Result::FAILED,

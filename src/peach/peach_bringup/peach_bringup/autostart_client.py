@@ -32,7 +32,7 @@ class AutostartClient(Node):
     def __init__(self) -> None:
         """Initialize subscribers, action client, and the readiness timer."""
         super().__init__('peach_autostart_client')
-        # 参数一行接入（config/bringup.yaml 直读 + 校验）；scene_key/intent
+        # GPL 参数接入（config/autostart_parameters.yaml）；scene_key/intent
         # 发批时读取（热生效），wait_stack_timeout_s 构造期捕获
         self._params = attach_autostart_client(self)
         latched = QoSProfile(
@@ -42,7 +42,7 @@ class AutostartClient(Node):
             durability=DurabilityPolicy.TRANSIENT_LOCAL,
         )
         self._stack_ready = False
-        self._selfcheck_passed = not bool(self._params.require_selfcheck)
+        self._selfcheck_passed = False
         self._sent = False
         self._sub = self.create_subscription(
             Bool, '/peach/lifecycle/managed_nodes_activated',
@@ -57,32 +57,25 @@ class AutostartClient(Node):
         self._timer = self.create_timer(0.5, self._tick)
 
     def _on_flag(self, msg: Bool) -> None:
-        if bool(msg.data):
-            self._stack_ready = True
+        self._stack_ready = bool(msg.data)
 
     def _on_selfcheck(self, msg: Bool) -> None:
         # 软门+autostart 硬等（用户裁定）：自动批须等自检绿；手动批不受限
-        if bool(msg.data):
-            self._selfcheck_passed = True
-        else:
-            self._selfcheck_passed = False
-            if self._sent:
-                return
+        self._selfcheck_passed = bool(msg.data)
+        if not self._sent and self._params.require_selfcheck and not self._selfcheck_passed:
             self.get_logger().warning(
                 'autostart：自检转红，暂缓自动开批（等待下一轮自检通过）')
 
     def _tick(self) -> None:
-        if self._sent or not self._stack_ready or not self._selfcheck_passed:
-            if not self._stack_ready and time.monotonic() > self._deadline:
-                self.get_logger().error(
-                    'autostart：等待托管栈就绪超时，放弃自动开批')
-                self._timer.cancel()
-            elif (self._stack_ready and not self._selfcheck_passed
-                    and time.monotonic() > self._deadline):
-                self.get_logger().error(
-                    'autostart：托管栈就绪但自检未通过，放弃自动开批'
-                    '（require_selfcheck=true；手动 RunHarvest 不受限）')
-                self._timer.cancel()
+        if self._sent:
+            return
+        if time.monotonic() >= self._deadline:
+            self.get_logger().error(
+                'autostart：等待托管栈、自检或 RunHarvest 服务端超时，放弃自动开批')
+            self._timer.cancel()
+            return
+        if not self._stack_ready or (
+                self._params.require_selfcheck and not self._selfcheck_passed):
             return
         if not self._client.wait_for_server(timeout_sec=0.0):
             return

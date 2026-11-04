@@ -66,8 +66,9 @@ from .recorder import Recorder
 from .selfcheck.runner import SelfCheckRunner
 from .startup_facts import (
     facts_valid,
+    flag_enabled,
     normalize_facts,
-    selfcheck_overrides_from_facts,
+    parse_facts_json,
 )
 from .state import (
     merge_joint_hardware,
@@ -95,6 +96,7 @@ from .tcp_trajectory import (
     path_from_xyz,
     TcpPathBuffer,
 )
+from .web_streams import WEB_TOPICS, WebStreams
 
 
 # 过程监测需要回答「当前以什么参数在跑」：按节点分组的只读参数白名单。
@@ -152,18 +154,6 @@ def _parameter_scalar(value) -> object:
     if kind == 9:
         return [str(item) for item in value.string_array_value]
     return None
-
-
-def _parse_facts_json(raw: str) -> dict:
-    """startup_facts 参数（JSON 串）→ dict；空/坏输入给空表."""
-    raw = (raw or '').strip()
-    if not raw:
-        return {}
-    try:
-        parsed = json.loads(raw)
-        return parsed if isinstance(parsed, dict) else {}
-    except ValueError:
-        return {}
 
 
 # 核心订阅表（镜像 + 落盘）：(消息类型, 话题参数名, 回调属性名, QoS 档名)。
@@ -259,6 +249,8 @@ class ObservabilityNode(LifecycleNode):
         self._traj_run_id = ''
         self._joint_state = {}
         self._joint_status = {}
+        self._force_sample = None
+        self._force_rx_ns = 0
         self._joints_push_t = 0.0
         # TCP 可视化缓存（RViz 5Hz 与 HTTP /api/trajectory 共享一次构建）
         self._viz_bundle = ([], [], [])
@@ -289,12 +281,16 @@ class ObservabilityNode(LifecycleNode):
         # 启动自检（P0）：探针 + 周期检查 + 闩锁 selfcheck_passed + 会话工件
         self._selfcheck: SelfCheckRunner | None = None
         self._startup_thread: threading.Thread | None = None
+        self._startup_stop: threading.Event | None = None
         # /rosout 页面环（与 bag 解耦；丢最旧）。configure 后按 log_buffer_size 定长
         self._log_lock = threading.Lock()
         self._logs: deque = deque(maxlen=200)
 
     def on_configure(self, state):
         del state
+        if self._recorder is not None or self._startup_thread is not None or self._subs:
+            self.get_logger().error('configure 拒绝：上一会话资源尚未释放')
+            return TransitionCallbackReturn.FAILURE
         try:
             self._params = ObservabilityParams.attach(self)
         except Exception as exc:  # noqa: BLE001 参数库校验异常类型跨 rclpy 版本
@@ -342,6 +338,7 @@ class ObservabilityNode(LifecycleNode):
     def on_activate(self, state):
         result = super().on_activate(state)
         self.start_http()
+        self._web_streams = WebStreams(self)
         if self._selfcheck is not None:
             self._selfcheck.start()
         # 全量录制（record.level 门控）：activate 后计算图已可见，通配
@@ -365,14 +362,22 @@ class ObservabilityNode(LifecycleNode):
 
     def on_cleanup(self, state):
         self._stop_runtime()
-        self._release_resources()
+        try:
+            self._release_resources()
+        except RuntimeError as error:
+            self.get_logger().error(f'cleanup 未完成: {error}')
+            return TransitionCallbackReturn.FAILURE
         return super().on_cleanup(state)
 
     def on_shutdown(self, state):
-        """Shutdown 迁移：先停通配订阅再收尾 bag（名单管理路径走 destroy_node）."""
-        del state
-        self._stop_recording()
-        return TransitionCallbackReturn.SUCCESS
+        """Shutdown 同样停止 HTTP、线程与订阅，不等待进程退出才释放资源."""
+        self._stop_runtime()
+        try:
+            self._release_resources()
+        except RuntimeError as error:
+            self.get_logger().error(f'shutdown 未完成: {error}')
+            return TransitionCallbackReturn.FAILURE
+        return super().on_shutdown(state)
 
     def _record_raw(self, topic_parameter: str, message) -> None:
         """把原始消息按话题参数名解析后入会话 bag（未启用时记录器自丢）."""
@@ -466,6 +471,7 @@ class ObservabilityNode(LifecycleNode):
         topics.update(self._topic(name) for name in (
             'debug_image_topic', 'debug_image_raw_topic', 'job_topic', 'metrics_topic'))
         topics.add(self.resolve_topic_name('force/sample'))
+        topics.update(self.resolve_topic_name(name) for name in WEB_TOPICS.values())
         return topics
 
     def _create_subscriptions(self) -> None:
@@ -509,23 +515,28 @@ class ObservabilityNode(LifecycleNode):
                               ('raw', 'debug_image_raw_topic')):
             self._subscribe(Image, self._topic(param),
                             self._image_cb(stream, param), profiles['reliable'])
+        # Atomic force frames drive both the live panel and bag evidence.
+        self._subscribe(
+            ForceSample, 'force/sample', self._force_callback,
+            QoSProfile(depth=100, reliability=ReliabilityPolicy.RELIABLE))
         # 其余 raw 订阅仍仅在对应记录开关开启时建立.
         if not self._params.record_enabled:
             return
-        # Atomic force frames are evidence, including in core mode. They never
-        # pass the perception media window or a four-topic reconstruction cache.
-        self._subscribe(
-            ForceSample, 'force/sample',
-            lambda message: self._recorder.handle_raw(
-                self.resolve_topic_name('force/sample'), message)
-            if self._recorder is not None else None,
-            QoSProfile(depth=100, reliability=ReliabilityPolicy.RELIABLE))
         for msg_type, param, profile, gate in _RAW_SUBSCRIPTIONS:
             if gate is not None and not getattr(self._params, gate):
                 continue
             self._subscribe(
                 msg_type, self._topic(param), self._raw_cb(param),
                 profiles[profile])
+
+    def _force_callback(self, message: ForceSample) -> None:
+        """Store the latest atomic force frame and optionally write it to the bag."""
+        self._force_sample = message
+        self._force_rx_ns = self.get_clock().now().nanoseconds
+        if self._recorder is not None and self._params is not None \
+                and self._params.record_enabled:
+            self._recorder.handle_raw(
+                self.resolve_topic_name('force/sample'), message)
 
     def _robot_status_callback(self, message: RobotStatus) -> None:
         """机械臂柜侧状态；in_motion 给 TCP 采样当运动标记."""
@@ -1068,26 +1079,34 @@ class ObservabilityNode(LifecycleNode):
 
     def _spawn_startup_facts_writer(self, runs_root: Path) -> None:
         """启动事实落盘 runs/session_*/startup.json（离线排障回答"当时跑的什么配置"）."""
-        facts = normalize_facts(_parse_facts_json(self._params.startup_facts))
+        facts = normalize_facts(parse_facts_json(self._params.startup_facts))
         self._state.update('startup', 'facts', facts)
-        # facts 单通道推导自检开关（camera/robot_status/moveit/force/tcp 档案）
-        for key, value in selfcheck_overrides_from_facts(facts).items():
-            setattr(self._params, key, value)
         if not facts_valid(facts):
             self.get_logger().info(
                 '无启动事实注入（独立起栈）；startup.json 不落盘')
             return
+        recorder = self._recorder
+        if recorder is None or not recorder.enabled:
+            return
+        if self._startup_thread is not None and self._startup_thread.is_alive():
+            raise RuntimeError('上一启动事实写入线程尚未退出')
+        stop = threading.Event()
+        self._startup_stop = stop
 
         def _write() -> None:
             # 会话目录由 bag 写线程在 'open' 后命名，短轮询等它出现
             deadline = time.monotonic() + 30.0
             session = None
             while time.monotonic() < deadline:
-                recorder = self._recorder
-                if recorder is not None and recorder.session_dir is not None:
+                if stop.is_set():
+                    return
+                if recorder.session_dir is not None:
                     session = Path(recorder.session_dir)
                     break
-                time.sleep(0.2)
+                if stop.wait(0.2):
+                    return
+            if stop.is_set():
+                return
             if session is None:
                 self.get_logger().warning(
                     '30s 内未获得会话目录，startup.json 未落盘')
@@ -1105,11 +1124,15 @@ class ObservabilityNode(LifecycleNode):
         self._startup_thread.start()
 
     def _create_diagnostics(self) -> None:
-        """建 /diagnostics 周期任务：录制队列健康 + 订阅摄入活度 + 自检."""
-        self._diag = Updater(self, period=5.0)
-        self._diag.setHardwareID('peach_observability')
-        self._diag.add('session_recorder', self._diag_recorder)
-        self._diag.add('ingest_liveness', self._diag_ingest)
+        """复用节点级 Updater，重配时不重复声明其参数或累积定时器."""
+        if self._diag is None:
+            self._diag = Updater(self, period=5.0)
+            self._diag.setHardwareID('peach_observability')
+            self._diag.add('session_recorder', self._diag_recorder)
+            self._diag.add('ingest_liveness', self._diag_ingest)
+        else:
+            self._diag.timer.reset()
+        self._diag.removeByName('selfcheck')
         if self._selfcheck is not None:
             self._diag.add('selfcheck', self._diag_selfcheck)
 
@@ -1192,11 +1215,7 @@ class ObservabilityNode(LifecycleNode):
             self._params.debug_audit_enabled,
             lambda msg: self.get_logger().warning(msg))
         from .param_panel import ParamBridge
-        self._param_bridge = ParamBridge(
-            self, self._debug_audit,
-            self._params.debug_motion_enabled,
-            self._on_param_change,
-            lambda msg: self.get_logger().warning(msg))
+        self._param_bridge = ParamBridge(self, self._on_param_change)
         self._param_bridge.open_all()
         if not self._params.debug_enabled:
             self.get_logger().info('调试操作面未启用（debug.enabled=false）')
@@ -1287,6 +1306,21 @@ class ObservabilityNode(LifecycleNode):
             return {'groups': [], 'error': '参数面板未启用'}
         return self._param_bridge.report()
 
+    def transport_config(self) -> dict:
+        """Expose static transport/schema metadata, without ROS parameter calls."""
+        from .param_panel import PARAM_GROUPS
+        facts = parse_facts_json(self._params.startup_facts)
+        # Standalone observability serves HTTP without starting a ROS bridge.
+        enabled = flag_enabled(facts.get('rosbridge_enabled', False))
+        return {
+            'default': 'rosbridge' if enabled else 'http',
+            'url': f"ws://127.0.0.1:{int(facts.get('rosbridge_port', 9090))}",
+            'groups': PARAM_GROUPS,
+            'endpoints': dict(self._params.debug_endpoints),
+            'topics': {key: self.resolve_topic_name(name)
+                       for key, name in WEB_TOPICS.items()},
+        }
+
     def params_set(self, payload: dict) -> tuple:
         """调试台参数面板：白名单写入 + 运动门 + 审计；读走 params_report."""
         if self._param_bridge is None:
@@ -1306,7 +1340,7 @@ class ObservabilityNode(LifecycleNode):
         return status, body
 
     # ------------------------------------------------------------------
-    # HttpBackend 窄接口实现（http_server 只依赖这三个方法）
+    # HttpBackend：浏览器状态、图像、轨迹与历史分析的只读投影
     # ------------------------------------------------------------------
     def snapshot(self) -> dict:
         """浏览器状态快照（GET /api/state 的载荷，含 debug 段）."""
@@ -1324,6 +1358,37 @@ class ObservabilityNode(LifecycleNode):
         with self._log_lock:
             snapshot['logs'] = list(self._logs)
         return snapshot
+
+    def force(self) -> dict:
+        """Return the latest five-channel force frame for the live panel."""
+        message = self._force_sample
+        if message is None:
+            return {'available': False, 'error': 'no_frame'}
+        now_ns = self.get_clock().now().nanoseconds
+        stamp_ns = (int(message.header.stamp.sec) * 1_000_000_000
+                    + int(message.header.stamp.nanosec))
+        # A healthy HTTP connection cannot make a stopped/replayed sensor fresh.
+        receive_age_s = (now_ns - self._force_rx_ns) * 1e-9
+        source_age_s = (now_ns - stamp_ns) * 1e-9
+        if min(receive_age_s, source_age_s) <= -0.1:
+            return {'available': False, 'error': 'clock_mismatch',
+                    'age_s': min(receive_age_s, source_age_s)}
+        age_s = max(0.0, receive_age_s, source_age_s)
+        if age_s > 1.5:
+            return {'available': False, 'error': 'stale', 'age_s': age_s}
+        return {
+            'available': True,
+            'age_s': age_s,
+            'source_uuid': str(message.source_uuid),
+            'sequence': int(message.sequence),
+            'channel_ids': [int(v) for v in message.channel_ids],
+            'force_n': [float(v) for v in message.force_n],
+            'travel_mm': [float(v) for v in message.travel_mm],
+            'ad': [int(v) for v in message.ad],
+            'status': [int(v) for v in message.status],
+            'stamp_ns': stamp_ns,
+            'frame_id': str(message.header.frame_id),
+        }
 
     def _images_now(self) -> dict:
         """返回两流预览状态，即使录制关闭或尚未 configure."""
@@ -1457,7 +1522,7 @@ class ObservabilityNode(LifecycleNode):
             self.get_logger().warning(
                 f'*** 安全提示：Web 监听在非回环地址 {host}:{port}，'
                 '严禁暴露到公网或不受信网络 ***')
-        # 静态页资源在顶层资源包 peach_web（2026-10-10 拆出），本包只托管 HTTP
+        # 静态页资源由 peach_web 安装，本包只托管 HTTP
         web_root = Path(get_package_share_directory(
             'peach_web')) / 'web'
         self._http = http_server.start_http(
@@ -1472,6 +1537,10 @@ class ObservabilityNode(LifecycleNode):
 
     def _stop_runtime(self) -> None:
         """停 HTTP 与性能采样；订阅仍保留到 cleanup."""
+        streams = getattr(self, '_web_streams', None)
+        if streams is not None:
+            streams.close()
+            self._web_streams = None
         if self._metrics is not None:
             self._metrics.stop()
         if self._http is not None:
@@ -1481,6 +1550,16 @@ class ObservabilityNode(LifecycleNode):
 
     def _release_resources(self) -> None:
         """释放 configure 期资源，允许再次 configure."""
+        if self._startup_stop is not None:
+            self._startup_stop.set()
+        if self._startup_thread is not None:
+            self._startup_thread.join(timeout=5.0)
+            if self._startup_thread.is_alive():
+                raise RuntimeError('启动事实写入线程未退出，保留资源等待收口')
+            self._startup_thread = None
+        self._startup_stop = None
+        if self._diag is not None:
+            self._diag.timer.cancel()
         preview = getattr(self, '_image_preview', None)
         self._image_preview = None
         if preview is not None:
@@ -1492,9 +1571,6 @@ class ObservabilityNode(LifecycleNode):
         if self._sweep_thread is not None:
             self._sweep_thread.join(timeout=5.0)
             self._sweep_thread = None
-        if self._startup_thread is not None:
-            self._startup_thread.join(timeout=5.0)
-            self._startup_thread = None
         if self._selfcheck is not None:
             self._selfcheck.destroy()
             self._selfcheck = None
@@ -1533,7 +1609,11 @@ class ObservabilityNode(LifecycleNode):
         self._arm_tracker.reset()
         self._ledger_watch = None
         self._ledger_request_id = ''
-        self._diag = None
+        for attribute in ('_job_pub', '_metrics_pub'):
+            publisher = getattr(self, attribute)
+            if publisher is not None:
+                self.destroy_publisher(publisher)
+                setattr(self, attribute, None)
         self._stop_recording()
         self._metrics = None
         self._params = None

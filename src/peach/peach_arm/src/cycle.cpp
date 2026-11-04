@@ -1,6 +1,7 @@
 // 功能：ExecuteTarget / SurveyScene 的接受、执行、取消，以及周期状态投影；
 // 运动阶段授权矩阵（authorizeStage）的唯一实现。不实现阶段函数（见 stages.cpp）。
 #include "peach_arm/manipulation_skills_node.hpp"
+#include "peach_arm/thread_join.hpp"
 
 #include <algorithm>
 #include <chrono>
@@ -74,22 +75,12 @@ bool ManipulationSkillsNode::authorizeStage(
   StageDenial & denial)
 {
   denial = StageDenial::DENIED;
+  if (!authorizeTransit(why)) {
+    return false;
+  }
   if (stage == MotionStage::TRANSIT || stage == MotionStage::PREGRASP) {
-    if (authorizeTransit(why)) {
-      denial = StageDenial::ALLOWED;
-      return true;
-    }
-    return false;
-  }
-  if (!motionOutputAllowed(why)) {
-    return false;
-  }
-  if (!safetyReady(why)) {
-    return false;
-  }
-  if (cancel_requested_.load()) {
-    why = "周期已请求取消";
-    return false;
+    denial = StageDenial::ALLOWED;
+    return true;
   }
   if (!grasp_enabled_.load()) {
     why = "grasp.enabled=false（接触未使能）";
@@ -101,6 +92,12 @@ bool ManipulationSkillsNode::authorizeStage(
     const auto current = cache_.decisionSnapshot();
     if (!current || !identitiesMatch(*ctx.bound_model, current->model.identity)) {
       why = "model_snapshot_revoked_or_changed";
+      return false;
+    }
+    if (!ctx.clearance_model_revision.empty() &&
+      ctx.clearance_model_revision != current->model.identity.model_revision)
+    {
+      why = "clearance_model_revision_mismatch";
       return false;
     }
     const Capability capability = stage == MotionStage::TOOL ?
@@ -128,13 +125,16 @@ bool ManipulationSkillsNode::authorizeStage(
       denial = StageDenial::EXPIRED;
       return false;
     }
-    if (ctx.clearance_fresh_window_s > 0.0) {
-      const double age_s = now().seconds() - ctx.clearance_model_stamp.seconds();
-      if (age_s < -0.5 || age_s > ctx.clearance_fresh_window_s) {
-        why = "接触许可令牌过期（model_stamp 超窗）";
-        denial = StageDenial::EXPIRED;
-        return false;
-      }
+    const double age_s = now().seconds() - ctx.clearance_model_stamp.seconds();
+    // 显式有效期覆盖接近全链；短观测窗只作未提供 valid_until 的旧客户端兜底。
+    // 未来戳无论有没有截止都拒绝，不能用异常时钟放行令牌。
+    if (age_s < -0.5 ||
+      (ctx.clearance_valid_until.nanoseconds() <= 0 &&
+      ctx.clearance_fresh_window_s > 0.0 && age_s > ctx.clearance_fresh_window_s))
+    {
+      why = "接触许可令牌过期或时间无效（model_stamp 超窗）";
+      denial = StageDenial::EXPIRED;
+      return false;
     }
     // 果距与径向余量只随令牌记录，供查看。径向余量是静态初步标记：
     // 接触时弹性会动，目前不拒绝套入或剪切。TOOL 仍要求预备位残差和 tool.enabled。
@@ -206,7 +206,7 @@ rclcpp_action::GoalResponse ManipulationSkillsNode::onActionGoal(
     goal->mode != ExecuteTarget::Goal::OBSERVE_ONLY &&
     goal->mode != ExecuteTarget::Goal::FULL &&
     goal->mode != ExecuteTarget::Goal::PREGRASP_ONLY) ||
-    running_.load() || contact_recovery_required_.load())
+    motion_admission_.busy() || contact_recovery_required_.load())
   {
     RCLCPP_WARN(
       get_logger(), "拒绝目标请求 %s: 周期运行中/恢复待确认/请求非法",
@@ -216,6 +216,13 @@ rclcpp_action::GoalResponse ManipulationSkillsNode::onActionGoal(
   if (goal->mode == ExecuteTarget::Goal::FULL ||
     goal->mode == ExecuteTarget::Goal::PREGRASP_ONLY)
   {
+    {
+      std::lock_guard<std::mutex> lock(snapshot_mutex_);
+      if (goal->scene_epoch != last_observation_epoch_) {
+        RCLCPP_WARN(get_logger(), "拒绝目标请求：场景世代已变更");
+        return rclcpp_action::GoalResponse::REJECT;
+      }
+    }
     ModelIdentity identity;
     identity.run_id = goal->run_id;
     identity.scene_epoch = goal->scene_epoch;
@@ -260,33 +267,14 @@ rclcpp_action::CancelResponse ManipulationSkillsNode::onActionCancel(
 void ManipulationSkillsNode::onActionAccepted(
   const std::shared_ptr<RunTargetGoalHandle> goal_handle)
 {
-  // action 执行线程保持可 join：析构时先置取消标志再回收，避免 detach 后
-  // 线程在 shutdown 之后访问已销毁成员。同一时刻至多一个周期在运行。
-  // 有界回收（W13-B）：onActionGoal 在 running_ 时已拒单，正常路径旧线程
-  // 此刻只剩终局上报，join 立即返回；若旧线程卡死（如 MoveIt 内部长阻塞、
-  // 无视取消标志），无限 join 会把 executor 回调吊死——经 packaged_task
-  // future 有界等 2 s，超时 WARN 后 detach 放行新周期（detach 只是放弃
-  // 回收、不是放弃取消，线程仍受取消标志约束；析构的 joinable 检查自然
-  // 跳过已 detach 线程）。
-  if (action_thread_.joinable()) {
-    if (action_thread_done_.valid() &&
-      action_thread_done_.wait_for(2s) == std::future_status::ready)
-    {
-      action_thread_.join();
-    } else {
-      RCLCPP_WARN(
-        get_logger(),
-        "上一 ExecuteTarget 执行线程 2s 内未退场，放弃 join 改为 detach；"
-        "线程仍受取消标志约束，请排查卡死原因");
-      action_thread_.detach();
-    }
-  }
-  std::packaged_task<void(std::shared_ptr<RunTargetGoalHandle>)> task(
-    [this](std::shared_ptr<RunTargetGoalHandle> handle) {
-      executeAction(handle);
+  startMotionAction(
+    action_thread_, action_thread_done_, [this, goal_handle] {executeAction(goal_handle);},
+    [goal_handle](const std::string & why) {
+      auto result = std::make_shared<ExecuteTarget::Result>();
+      result->outcome = ExecuteTarget::Result::FAILED;
+      result->reason = why;
+      if (goal_handle->is_active()) {goal_handle->abort(result);}
     });
-  action_thread_done_ = task.get_future();
-  action_thread_ = std::thread(std::move(task), goal_handle);
 }
 
 void ManipulationSkillsNode::executeAction(
@@ -325,7 +313,7 @@ void ManipulationSkillsNode::executeAction(
     // 下方全字段比对）校验强度不变。
     last_preview_plan_ = fill_plan(*goal, true);
     last_preview_valid_ = !goal->plan_id.empty();
-    previewContact(false, trigger_response);
+    previewContact(false, trigger_response, true);
   } else {
     bool plan_ok = true;
     if (last_preview_valid_ && !goal->plan_id.empty()) {
@@ -343,11 +331,9 @@ void ManipulationSkillsNode::executeAction(
       }
     }
     if (plan_ok) {
-      // Action 是唯一周期入口（自动编排）：受理即自动 arm（手动 Trigger
-      // 类入口须另行 set_execution_armed）。
-      if (execution_enabled_.load()) {execution_armed_.store(true);}
       ctx = std::make_shared<CycleContext>();
       ctx->target_id = goal->target_id;
+      ctx->requested_model = fill_plan(*goal, false).model;
       ctx->observe_only = goal->mode == ExecuteTarget::Goal::OBSERVE_ONLY;
       ctx->pregrasp_only = pregraspOnlyFromGoal(goal->mode, goal->profile);
       ctx->skip_observation = goal->skip_observation;
@@ -361,6 +347,7 @@ void ManipulationSkillsNode::executeAction(
         ctx->clearance_present = true;
         ctx->clearance_allowed = goal->clearance.allowed;
         ctx->clearance_target_id = goal->clearance.target_id;
+        ctx->clearance_model_revision = goal->clearance.model_fingerprint;
         ctx->clearance_valid_until = rclcpp::Time(goal->clearance.valid_until);
         ctx->clearance_model_stamp = rclcpp::Time(goal->clearance.model_stamp);
         ctx->clearance_fresh_window_s = effectiveTargetMaxAgeS();
@@ -381,37 +368,42 @@ void ManipulationSkillsNode::executeAction(
     fillStageDurations(result);
     fillExecuteResults(result, ctx.get());
     goal_handle->abort(result);
-    // M1：受理即拒的终局同样收口取消旗标（周期未启动，running_=false 恒真）。
-    clearCancelFlagIfIdle();
     return;
   }
 
-  while (rclcpp::ok() && running_.load()) {
-    if (goal_handle->is_canceling()) {
-      requestCancelAll("ExecuteTarget is_canceling");
+  try {
+    while (rclcpp::ok() && running_.load()) {
+      if (goal_handle->is_canceling()) {
+        requestCancelAll("ExecuteTarget is_canceling");
+      }
+      auto feedback = std::make_shared<ExecuteTarget::Feedback>();
+      feedback->state.target_id = goal->target_id;
+      // P1 反馈补齐：run/cycle 身份此前不填，反馈流无法与批次对账
+      feedback->state.run_id = goal->run_id;
+      feedback->state.cycle_id = goal->cycle_id;
+      feedback->state.action_active = running_.load();
+      feedback->state.execution_enabled = execution_enabled_.load();
+      feedback->state.grasp_enabled = grasp_enabled_.load();
+      feedback->state.tool_enabled = tool_enabled_.load();
+      feedback->state.recovery_required = contact_recovery_required_.load();
+      {
+        std::lock_guard<std::mutex> lock(state_mutex_);
+        feedback->state.message = state_json_.value("message", std::string());
+        // A13：CycleState→TargetPhase 投影随反馈下发（此前恒 0/TARGET_IDLE，
+        // 编排器批次过程线的目标阶段在周期内停在 IDLE）。
+        feedback->state.target_phase = targetPhase(current_state_);
+        // 清洁重写轮：阶段检查点随反馈下发（stages.cpp 到达即 mark）。
+        feedback->checkpoint = last_checkpoint_.load();
+      }
+      goal_handle->publish_feedback(feedback);
+      std::this_thread::sleep_for(200ms);
     }
-    auto feedback = std::make_shared<ExecuteTarget::Feedback>();
-    feedback->state.target_id = goal->target_id;
-    // P1 反馈补齐：run/cycle 身份此前不填，反馈流无法与批次对账
-    feedback->state.run_id = goal->run_id;
-    feedback->state.cycle_id = goal->cycle_id;
-    feedback->state.action_active = running_.load();
-    feedback->state.execution_enabled = execution_enabled_.load();
-    feedback->state.grasp_enabled = grasp_enabled_.load();
-    feedback->state.tool_enabled = tool_enabled_.load();
-    feedback->state.recovery_required = contact_recovery_required_.load();
-    {
-      std::lock_guard<std::mutex> lock(state_mutex_);
-      feedback->state.message = state_json_.value("message", std::string());
-      // A13：CycleState→TargetPhase 投影随反馈下发（此前恒 0/TARGET_IDLE，
-      // 编排器批次过程线的目标阶段在周期内停在 IDLE）。
-      feedback->state.target_phase = targetPhase(current_state_);
-      // 清洁重写轮：阶段检查点随反馈下发（stages.cpp 到达即 mark）。
-      feedback->checkpoint = last_checkpoint_.load();
-    }
-    goal_handle->publish_feedback(feedback);
-    std::this_thread::sleep_for(200ms);
+  } catch (const std::exception & error) {
+    requestCancelAll("ExecuteTarget 反馈中断");
+    RCLCPP_WARN(get_logger(), "周期反馈中断: %s", error.what());
   }
+  // 反馈中断或 ROS 关停时，执行线程仍可能在规划。动作席位保留到周期真正退场。
+  if (ctx && worker_done_.valid()) {worker_done_.wait();}
 
   // 终局判定只读结构化的 CycleState 枚举；state_json_ 的字符串仅是发布层投影。
   CycleResult cycle_result;
@@ -428,9 +420,9 @@ void ManipulationSkillsNode::executeAction(
   result->recovery_required = cycle_result.recovery_required;
   // 阶段耗时埋点：成功/取消/失败终局一律填充已历经阶段（含取消路径）。
   fillStageDurations(result);
-  const bool succeeded = outcome == CycleOutcome::SUCCEEDED;
-  const bool canceled =
-    outcome == CycleOutcome::CANCELED || goal_handle->is_canceling();
+  const bool client_canceling = goal_handle->is_canceling();
+  const bool canceled = outcome == CycleOutcome::CANCELED || client_canceling;
+  const bool succeeded = !canceled && outcome == CycleOutcome::SUCCEEDED;
   if (succeeded) {
     result->outcome = ExecuteTarget::Result::SUCCEEDED;
   } else if (canceled) {
@@ -444,13 +436,10 @@ void ManipulationSkillsNode::executeAction(
   try {
     if (succeeded) {
       goal_handle->succeed(result);
-    } else if (canceled) {
-      // 取消终局显式上报 outcome=CANCELED（2026-08 起替代复用 FAILED）：
-      // 编排器据 outcome 判别"操作员跳过"与"暂停/立即取消"语义。
-      // recovery 路径不进本分支（终局枚举为 RECOVERY_REQUIRED，走下方 abort）。
+    } else if (client_canceling) {
       goal_handle->canceled(result);
     } else {
-      // abort 路径按阶段失败点记录的 pending_outcome_ 分级（质量/不可达/失败）。
+      // 服务或生命周期也能停止周期。仅客户端的 cancel 会令 ROS goal 进入 CANCELING。
       goal_handle->abort(result);
     }
   } catch (const std::exception & error) {
@@ -469,9 +458,6 @@ void ManipulationSkillsNode::executeAction(
     last_preview_valid_ = false;
     last_preview_plan_ = ContactPlan{};
   }
-  // M1：周期终局（worker 已落终态、取消不再向周期内传播）收口取消旗标，
-  // 一次单果取消/skip 不得把后续一切 MoveTo/观察拒之门外。
-  clearCancelFlagIfIdle();
 }
 
 void ManipulationSkillsNode::onStart(const Trigger::Response::SharedPtr & response)
@@ -508,16 +494,7 @@ void ManipulationSkillsNode::onStart(const Trigger::Response::SharedPtr & respon
     set_failure(FailureCode::RECOVERY_REQUIRED);
     return;
   }
-  bool expected = false;
-  if (!running_.compare_exchange_strong(expected, true)) {
-    RCLCPP_WARN(get_logger(), "onStart 拒绝: 已有靠近/抓取周期正在运行");
-    set_failure(FailureCode::START_NOT_READY);
-    response->success = false;
-    response->message = "已有靠近/抓取周期正在运行";
-    return;
-  }
-  if (execution_enabled_.load() && !execution_armed_.load()) {
-    running_.store(false);
+  if (execution_enabled_.load() && !cycle_->action_driven && !execution_armed_.exchange(false)) {
     RCLCPP_WARN(
       get_logger(), "onStart 拒绝: execution.enabled=true 但尚未人工 arm");
     set_failure(FailureCode::START_NOT_READY);
@@ -534,7 +511,6 @@ void ManipulationSkillsNode::onStart(const Trigger::Response::SharedPtr & respon
       cycle_->observe_only && !cycle_->target_id.empty();
     const auto target = cycleTargetSnapshot(cycle_->target_id);
     if (!target || target->id.empty()) {
-      running_.store(false);
       RCLCPP_WARN(
         get_logger(), "onStart 拒绝: 无有效目标锚点 target=%s",
         cycle_->target_id.c_str());
@@ -547,34 +523,31 @@ void ManipulationSkillsNode::onStart(const Trigger::Response::SharedPtr & respon
       return;
     }
   }
-  if (worker_.joinable()) {
-    // M2（W13-B 同款有界回收）：正常路径旧 worker 已落终态（finish 置
-    // running_=false 后线程即将退场），join 立即返回；卡死（MoveIt 内部
-    // 长阻塞、无视取消标志）时经 packaged_task future 有界等 2s，超时
-    // WARN 后 detach 放行新周期——放弃回收不等于放弃取消，线程仍受取消
-    // 标志约束；析构的 joinable 检查自然跳过已 detach 线程。
-    if (worker_done_.valid() &&
-      worker_done_.wait_for(2s) == std::future_status::ready)
-    {
-      worker_.join();
-    } else {
-      RCLCPP_WARN(
-        get_logger(),
-        "上一周期 worker 线程 2s 内未退场，放弃 join 改为 detach；"
-        "线程仍受取消标志约束，请排查卡死原因");
-      worker_.detach();
-    }
+  std::unique_lock<std::mutex> workers_lock(worker_mutex_, std::try_to_lock);
+  if (!workers_lock.owns_lock() || !joinFinishedThread(worker_, worker_done_, 2s)) {
+    set_failure(FailureCode::START_NOT_READY);
+    response->success = false;
+    response->message = "上一周期执行线程尚未退场";
+    return;
   }
-  cancel_requested_.store(false);
   // 每周期开始重置终局分级（阶段失败点按需覆盖）。
   pending_outcome_.store(ExecuteTarget::Result::FAILED);
   // 阶段耗时计时随周期真正启动开始（此前一切拒绝路径不计时）。
   startCycleTiming();
   // worker 按 shared_ptr 持有周期上下文：周期消亡即整体丢弃，钉残留不可能。
   std::packaged_task<void()> cycle_task(
-    [this, ctx = cycle_]() {executeCycle(*ctx);});
+    [this, lifetime = shared_from_this(), ctx = cycle_]() mutable {
+      auto keep_alive = std::move(lifetime);
+      executeCycle(*ctx);
+    });
   worker_done_ = cycle_task.get_future();
-  worker_ = std::thread(std::move(cycle_task));
+  running_.store(true);
+  try {
+    worker_ = std::thread(std::move(cycle_task));
+  } catch (...) {
+    running_.store(false);
+    throw;
+  }
   response->success = true;
   response->message = execution_enabled_.load() ? "已启动主动视觉靠近周期" :
     "已启动只规划预览（不会发送运动）";
@@ -592,7 +565,7 @@ void ManipulationSkillsNode::onCancel(
 void ManipulationSkillsNode::onAcknowledgeRecovery(
   const Trigger::Request::SharedPtr, Trigger::Response::SharedPtr response)
 {
-  if (running_.load()) {
+  if (motion_admission_.busy()) {
     response->success = false;
     response->message = "周期运行中不能确认恢复";
     return;
@@ -614,7 +587,7 @@ void ManipulationSkillsNode::onArm(
     response->message = "拒绝 arm 操作: " + motion_reason;
     return;
   }
-  if (running_.load()) {
+  if (motion_admission_.busy()) {
     response->success = false;
     response->message = "周期运行中不能改变 arm 状态";
     return;
@@ -636,7 +609,7 @@ rclcpp_action::GoalResponse ManipulationSkillsNode::onSurveyGoal(
     RCLCPP_WARN(get_logger(), "拒绝 SurveyScene: %s", motion_reason.c_str());
     return rclcpp_action::GoalResponse::REJECT;
   }
-  if (running_.load() || contact_recovery_required_.load()) {
+  if (motion_admission_.busy() || contact_recovery_required_.load()) {
     RCLCPP_WARN(get_logger(), "拒绝 SurveyScene: 周期占用或待恢复");
     return rclcpp_action::GoalResponse::REJECT;
   }
@@ -655,27 +628,14 @@ rclcpp_action::CancelResponse ManipulationSkillsNode::onSurveyCancel(
 void ManipulationSkillsNode::onSurveyAccepted(
   const std::shared_ptr<SurveyGoalHandle> goal_handle)
 {
-  // M2（W13-B 同款有界回收）：本回调在默认互斥组——旧 survey 线程卡死时
-  // 裸 join 会把 ACK/取消/订阅一并吊死；经 packaged_task future 有界等 2s，
-  // 超时 WARN 后 detach 放行新 survey（放弃回收≠放弃取消，线程仍受取消
-  // 标志约束；析构的 joinable 检查自然跳过已 detach 线程）。
-  if (survey_thread_.joinable()) {
-    if (survey_thread_done_.valid() &&
-      survey_thread_done_.wait_for(2s) == std::future_status::ready)
-    {
-      survey_thread_.join();
-    } else {
-      RCLCPP_WARN(
-        get_logger(),
-        "上一 SurveyScene 执行线程 2s 内未退场，放弃 join 改为 detach；"
-        "线程仍受取消标志约束，请排查卡死原因");
-      survey_thread_.detach();
-    }
-  }
-  std::packaged_task<void(std::shared_ptr<SurveyGoalHandle>)> survey_task(
-    [this](std::shared_ptr<SurveyGoalHandle> handle) {executeSurvey(handle);});
-  survey_thread_done_ = survey_task.get_future();
-  survey_thread_ = std::thread(std::move(survey_task), goal_handle);
+  startMotionAction(
+    survey_thread_, survey_thread_done_, [this, goal_handle] {executeSurvey(goal_handle);},
+    [goal_handle](const std::string & why) {
+      auto result = std::make_shared<SurveyScene::Result>();
+      result->degraded = true;
+      result->message = why;
+      if (goal_handle->is_active()) {goal_handle->abort(result);}
+    });
 }
 
 void ManipulationSkillsNode::executeSurvey(
@@ -694,11 +654,8 @@ void ManipulationSkillsNode::executeSurvey(
       }
       goal_handle->publish_feedback(feedback);
     };
-  // 动作入口与 ExecuteTarget 一致：execution.enabled 时自动一次性 arm。
-  if (execution_enabled_.load()) {execution_armed_.store(true);}
   send_feedback("moving_to_photo_pose");
-  onGoToPhotoPose(std::make_shared<Trigger::Request>(), response);
-  execution_armed_.store(false);
+  goToPhotoPose(true, response);
   bool fresh_frame = false;
   if (response->success && execution_enabled_.load()) {
     // 以真正到位时刻为曝光下界；订阅晚到的运动前图像不能满足本次Survey。
@@ -737,8 +694,6 @@ void ManipulationSkillsNode::executeSurvey(
     result->scene_epoch = last_observation_epoch_;
   }
   result->message = response->message;
-  // M1：survey 终局收口取消旗标（周期不在运行即清；语义见声明处注释）。
-  clearCancelFlagIfIdle();
   // 与 executeAction 同款兜底：线程 detach 后若节点正在 shutdown，终局上报可抛
   // RCLError，逃逸到线程外即 std::terminate。
   try {

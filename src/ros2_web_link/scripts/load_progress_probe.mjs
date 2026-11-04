@@ -1,0 +1,43 @@
+/** Deterministic fault checks for the sustained probe's PASS conditions. */
+import assert from 'node:assert/strict';
+import {mkdtempSync,rmdirSync,writeFileSync} from 'node:fs';
+import {tmpdir} from 'node:os';
+import {join} from 'node:path';
+import {RosClient} from '../dist/sdk/index.js';
+import {assertClientReleased,assertStreamProgress,assertSlowProgress,recordRpcResult,diagnosticWriteError} from './load_progress.mjs';
+const client=new RosClient({url:'ws://127.0.0.1:9'});client.dispose();
+const clean=client.stats(),wire=client.transportStats();
+assert.doesNotThrow(()=>assertClientReleased(clean,wire));
+for(const key of ['subscriptions','publishers','pending','listeners'])assert.throws(()=>assertClientReleased({...clean,[key]:1},wire),/not released/);
+for(const key of ['fragmentBytes','fragmentMessages'])assert.throws(()=>assertClientReleased(clean,{...wire,[key]:1}),/not released/);
+console.log('PASS actual disposed SDK resources; metadata accepted and nonzero resource counters rejected');
+const fresh={slot:1,generation:2,startedAt:0,frames:{color:1,depth:2,cloud:3},receivedAt:{color:11900,depth:11900,cloud:11900}};
+assert.doesNotThrow(()=>assertStreamProgress(fresh,12000));
+assert.throws(()=>assertStreamProgress({...fresh,receivedAt:{color:1000,depth:11900,cloud:11900}},12000),/color.*stalled/);
+assert.throws(()=>assertStreamProgress({...fresh,frames:{},receivedAt:{}},12000),/stalled/);
+assert.doesNotThrow(()=>assertStreamProgress({...fresh,startedAt:11900,frames:{},receivedAt:{}},12000));
+console.log('PASS current stream, late subscriber warmup and partial/complete stall detection');
+const slow={frames:10,paused:false,closed:false,readyState:1,lastFrameAt:11900,resumedAt:null,resumeBaseline:0,resumeChecks:0};
+assert.doesNotThrow(()=>assertSlowProgress(slow,12000));
+assert.throws(()=>assertSlowProgress({...slow,closed:true},12000),/closed/);
+assert.throws(()=>assertSlowProgress({...slow,readyState:3},12000),/closed/);
+assert.throws(()=>assertSlowProgress({...slow,lastFrameAt:0,resumedAt:1000,resumeBaseline:10},12000),/resume.*stalled/);
+assert.doesNotThrow(()=>assertSlowProgress({...slow,paused:true,lastFrameAt:0},12000));
+assert.throws(()=>assertSlowProgress({...slow,lastFrameAt:0},12000),/stalled/);
+assertSlowProgress(Object.assign(slow,{resumedAt:11000,resumeBaseline:9}),12000);assert.equal(slow.resumedAt,null);assert.equal(slow.resumeChecks,1);
+console.log('PASS closed/stalled/resumed/paused slow readers; resumed bytes must advance');
+const rpc={rpc:[],rpcCalls:0,rpcFailed:0};
+for(let i=0;i<201;i++)recordRpcResult(rpc,600,true);
+for(let i=0;i<2000;i++)recordRpcResult(rpc,1,true);
+recordRpcResult(rpc,3000,false);
+assert.equal(rpc.rpcCalls,2202);assert.equal(rpc.rpcFailed,1);assert.equal(rpc.rpc.length,2201);
+const ordered=[...rpc.rpc].sort((a,b)=>a-b);assert.equal(ordered[Math.floor((ordered.length-1)*.95)],600);
+console.log('PASS >2000 RPCs retain full-run count, failure count and successful p95');
+const directory=mkdtempSync(join(tmpdir(),'ros2-web-write-error-'));
+try{
+  let message;assert.doesNotThrow(()=>{message=diagnosticWriteError(()=>writeFileSync(directory,'invalid file target'));});
+  assert.match(message,/diagnostic write failed/);
+  assert.equal(diagnosticWriteError(()=>{}),undefined);
+  assert.match(diagnosticWriteError(()=>{throw {toString(){throw null;}};}),/diagnostic write failed/);
+}finally{rmdirSync(directory);}
+console.log('PASS real filesystem write errors remain controlled; timer callbacks do not throw');

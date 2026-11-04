@@ -4,6 +4,7 @@
 #include "peach_arm/motion.hpp"
 #include "execution_guard.hpp"
 
+#include <charconv>
 #include <algorithm>
 #include <chrono>
 #include <cmath>
@@ -140,7 +141,7 @@ void ManipulationSkillsNode::onIoState(
   bool pin_level = false;
   bool pin_found = false;
   for (const auto & d : message->tool_io_states) {
-    if (d.pin == 0) {
+    if (d.pin == 0 && d.flag) {
       pin_level = d.state;
       pin_found = true;
       break;
@@ -149,15 +150,13 @@ void ManipulationSkillsNode::onIoState(
   if (!pin_found) {
     return;  // 本帧无工具 DI（仿真早期/驱动未起）
   }
+  int64_t stamp_ns = 0;
+  const auto end = message->stamp.data() + message->stamp.size();
+  const auto parsed = std::from_chars(message->stamp.data(), end, stamp_ns);
+  if (parsed.ec != std::errc{} || parsed.ptr != end || stamp_ns <= 0) {return;}
   std::string edge;
-  if (tool_actuator_.ingestToolDi(pin_level, edge)) {
+  if (tool_actuator_.ingestToolDi(pin_level, edge, stamp_ns)) {
     RCLCPP_INFO(get_logger(), "工具 DI 沿：%s", edge.c_str());
-    if (edge.find("closed-rise") != std::string::npos) {
-      std::string reason;
-      if (tool_actuator_.confirmFeedback(true, reason)) {
-        RCLCPP_INFO(get_logger(), "切断反馈确认：%s", reason.c_str());
-      }
-    }
     publishToolState(edge);
   }
 }
@@ -230,14 +229,14 @@ void ManipulationSkillsNode::startContactGuard()
       }
     }
   }
+  std::lock_guard<std::mutex> guard_lock(contact_guard_mutex_);
   contact_monitor_ = std::make_unique<ContactMonitor>(contact_detect_config_);
   contact_monitor_->start(baseline);
   contact_guard_timer_ = this->create_wall_timer(
     std::chrono::milliseconds(50),
-    [this]() {
-      if (!contact_monitor_) {
-        return;
-      }
+    [this, weak = weak_from_this()]() {
+      const auto keep_alive = weak.lock();
+      if (!keep_alive) {return;}
       CurrentSample latest;
       {
         std::lock_guard<std::mutex> lock(joint_current_mutex_);
@@ -246,7 +245,13 @@ void ManipulationSkillsNode::startContactGuard()
         }
         latest = joint_current_samples_.back();
       }
-      const ContactReport report = contact_monitor_->update(latest);
+      ContactReport report;
+      {
+        std::lock_guard<std::mutex> guard_lock(contact_guard_mutex_);
+        if (!contact_monitor_) {return;}
+        report = contact_monitor_->update(latest);
+      }
+      // 停轨可能等待其他工作体；不得持 monitor 锁调用取消级联。
       if (report.verdict == ContactVerdict::SUSPECTED_HARD) {
         RCLCPP_ERROR(
           get_logger(),
@@ -261,6 +266,7 @@ void ManipulationSkillsNode::startContactGuard()
 
 void ManipulationSkillsNode::stopContactGuard()
 {
+  std::lock_guard<std::mutex> guard_lock(contact_guard_mutex_);
   contact_guard_timer_.reset();
   contact_monitor_.reset();
 }
@@ -340,10 +346,6 @@ bool ManipulationSkillsNode::commandToolOpen()
   probe.target_id = tool_actuator_.context().target_id;
   std::string why;
   StageDenial denial = StageDenial::DENIED;
-  if (!authorizeStage(probe, MotionStage::TOOL, why, denial)) {
-    setState(CycleState::FAILED, "工具开刀被拒绝: " + why, probe.target_id);
-    return false;
-  }
   if (!tool_io_client_->wait_for_service(
       std::chrono::duration<double>(params_.timeouts.service_s)))
   {
@@ -355,6 +357,10 @@ bool ManipulationSkillsNode::commandToolOpen()
   request->pin = static_cast<int8_t>(params_.tool.io_pin);
   request->state = static_cast<float>(
     params_.tool.close_state > 0.5f ? 0.0f : 1.0f);
+  if (!authorizeStage(probe, MotionStage::TOOL, why, denial)) {
+    setState(CycleState::FAILED, "工具开刀被拒绝: " + why, probe.target_id);
+    return false;
+  }
   auto future = tool_io_client_->async_send_request(request);
   if (future.wait_for(std::chrono::duration<double>(
       params_.timeouts.service_s)) != std::future_status::ready ||
@@ -367,7 +373,7 @@ bool ManipulationSkillsNode::commandToolOpen()
   return true;
 }
 
-bool ManipulationSkillsNode::commandToolClose()
+bool ManipulationSkillsNode::commandToolClose(std::string & reason)
 {
   // 工具 IO 收敛到授权矩阵 TOOL 级（Active ∧ robotReady ∧ !cancel ∧
   // execution ∧ grasp ∧ GraspDecision 复检 ∧ tool.enabled）。周期身份取自
@@ -377,13 +383,10 @@ bool ManipulationSkillsNode::commandToolClose()
   probe.target_id = tool_actuator_.context().target_id;
   std::string why;
   StageDenial denial = StageDenial::DENIED;
-  if (!authorizeStage(probe, MotionStage::TOOL, why, denial)) {
-    setState(CycleState::FAILED, "工具 IO 被拒绝: " + why, probe.target_id);
-    return false;
-  }
   if (!tool_io_client_->wait_for_service(
       std::chrono::duration<double>(params_.timeouts.service_s)))
   {
+    reason = "set_io_unavailable";
     setState(CycleState::FAILED, "末端工具 set_io 服务不可用");
     return false;
   }
@@ -391,14 +394,27 @@ bool ManipulationSkillsNode::commandToolClose()
   request->fun = static_cast<int8_t>(params_.tool.io_fun);
   request->pin = static_cast<int8_t>(params_.tool.io_pin);
   request->state = static_cast<float>(params_.tool.close_state);
-  auto future = tool_io_client_->async_send_request(request);
-  if (future.wait_for(std::chrono::duration<double>(params_.timeouts.service_s)) !=
-    std::future_status::ready || !future.get()->success)
-  {
-    setState(CycleState::FAILED, "末端工具关闭命令失败");
+  if (!authorizeStage(probe, MotionStage::TOOL, why, denial)) {
+    reason = why;
+    setState(CycleState::FAILED, "工具 IO 被拒绝: " + why, probe.target_id);
     return false;
   }
-  return true;
+  const auto dispatch_stamp_ns = now().nanoseconds();
+  if (dispatch_stamp_ns <= 0) {
+    reason = "tool_clock_unavailable";
+    return false;
+  }
+  return tool_actuator_.sendCut(
+    dispatch_stamp_ns, [this, &request](std::string & failure) {
+      auto future = tool_io_client_->async_send_request(request);
+      if (future.wait_for(std::chrono::duration<double>(params_.timeouts.service_s)) !=
+      std::future_status::ready || !future.get()->success)
+      {
+        failure = "set_io_failed";
+        return false;
+      }
+      return true;
+    }, reason);
 }
 
 void ManipulationSkillsNode::onPreviewApproachInsert(
@@ -416,8 +432,14 @@ void ManipulationSkillsNode::onPreviewFullContact(
 }
 
 void ManipulationSkillsNode::previewContact(
-  bool include_retreat, Trigger::Response::SharedPtr response)
+  bool include_retreat, Trigger::Response::SharedPtr response, bool from_action)
 {
+  std::unique_lock<MotionAdmission> claim(motion_admission_, std::defer_lock);
+  if (!from_action && !claim.try_lock()) {
+    response->success = false;
+    response->message = "运动请求或策略重载占用中";
+    return;
+  }
   // 接触轨迹预览是运动类入口（A8）：即便只规划不执行，也非 Active 不放行。
   std::string motion_reason;
   if (!motionOutputAllowed(motion_reason)) {
@@ -436,12 +458,13 @@ void ManipulationSkillsNode::previewContact(
   // 预览周期（含 action PREVIEW 模式）同样计时：approach_insert 段覆盖
   // PREVIEW_CONTACT_PLANNING（见 cycle_support.hpp 阶段投影注释）。
   startCycleTiming();
-  const auto finish = [this, &response](
+  const auto finish = [this, &response, &claim](
     bool success, CycleState state, const std::string & message)
     {
       // 先落终态再解除 running，保证 action 侧读到的一定是终态而非中间态。
       setState(state, message);
       running_.store(false);
+      if (claim.owns_lock()) {claim.unlock();}
       publishState();
       response->success = success;
       response->message = message;
@@ -506,6 +529,16 @@ void ManipulationSkillsNode::onCheckReachability(
   CheckReachability::Response::SharedPtr response)
 {
   const ScopedTimer timer(get_logger(), "check_reachability", &callback_timing_);
+  // 纯 IK 也读取可重载策略与 MoveGroup；占同一席位，避免改参/cleanup 并发释放。
+  // 仅检查生命周期及占用，不要求 execution 使能，也不调用任何执行授权。
+  std::unique_lock<MotionAdmission> claim(motion_admission_, std::try_to_lock);
+  if (!claim.owns_lock() || !motion_output_permitted_.load()) {
+    const std::string code = claim.owns_lock() ? "node_inactive" : "motion_policy_busy";
+    response->reachable.assign(request->tcp_poses.size(), false);
+    response->error_codes.assign(request->tcp_poses.size(), code);
+    response->message = code;
+    return;
+  }
   evaluateReachability(request, response);
 }
 
@@ -773,7 +806,19 @@ bool ManipulationSkillsNode::probeSleeveInsert(
 void ManipulationSkillsNode::onGoToPhotoPose(
   const Trigger::Request::SharedPtr, Trigger::Response::SharedPtr response)
 {
+  goToPhotoPose(false, response);
+}
+
+void ManipulationSkillsNode::goToPhotoPose(
+  bool from_survey_action, Trigger::Response::SharedPtr response)
+{
   const ScopedTimer timer(get_logger(), "go_to_photo_pose", &callback_timing_);
+  std::unique_lock<MotionAdmission> claim(motion_admission_, std::defer_lock);
+  if (!from_survey_action && !claim.try_lock()) {
+    response->success = false;
+    response->message = "运动请求或策略重载占用中";
+    return;
+  }
   // 运动输出权限绑定 Active 态（A8）：非 Active 拒绝并给出明确原因。
   std::string motion_reason;
   if (!motionOutputAllowed(motion_reason)) {
@@ -799,15 +844,20 @@ void ManipulationSkillsNode::onGoToPhotoPose(
     return;
   }
   // 提前返回路径统一经 finish 解除占用并刷新状态投影。
-  const auto finish = [this, &response](bool success, const std::string & message) {
+  const auto finish = [this, &response, &claim](bool success, const std::string & message) {
       running_.store(false);
+      if (claim.owns_lock()) {claim.unlock();}
       publishState();
       response->success = success;
       response->message = message;
     };
+  const bool execute = execution_enabled_.load();
+  if (execute && !from_survey_action && !execution_armed_.exchange(false)) {
+    finish(false, "手动拍照位运动须先 set_execution_armed");
+    return;
+  }
   std::string message;
-  const bool success = motion_->goToPhotoPose(
-    params_.photo_pose_named_target, execution_enabled_.load(), message);
+  const bool success = motion_->goToPhotoPose(params_.photo_pose_named_target, execute, message);
   finish(success, message);
 }
 
@@ -817,7 +867,7 @@ MoveItMotionInterface::MoveItMotionInterface(
   rclcpp::Logger logger,
   rclcpp::Clock::SharedPtr clock,
   MoveItMotionConfig config,
-  std::function<bool(std::string &)> safety_gate,
+  std::function<bool(bool execute, std::string &)> safety_gate,
   std::function<void(const std::string &)> safety_block_hook,
   std::function<bool()> cancel_probe)
 : move_group_shared_(std::move(move_group)),
@@ -851,8 +901,15 @@ void MoveItMotionInterface::stopExecution()
 }
 
 moveit::core::MoveItErrorCode MoveItMotionInterface::boundedExecute(
-  moveit::planning_interface::MoveGroupInterface::Plan & plan)
+  moveit::planning_interface::MoveGroupInterface::Plan & plan, std::string & rejection)
 {
+  rejection.clear();
+  if (!fitsExecutionTimeout(
+      plannedDuration(plan.trajectory), config_.execute_timeout_s, rejection))
+  {
+    RCLCPP_WARN(logger_, "%s", rejection.c_str());
+    return moveit::core::MoveItErrorCode::INVALID_MOTION_PLAN;
+  }
   // 同步 execute 在 move_group TEM 异常（2026-09-23 travel_max 起的 stop
   // 事件风暴，8.2 万行不停）时永久阻塞且不理取消。有界守卫先到先收；
   // 弃等线程移交 retiring_，闭包只持共享 MGI 与 Plan 拷贝（不引用 this），
@@ -867,8 +924,7 @@ moveit::core::MoveItErrorCode MoveItMotionInterface::boundedExecute(
       retiring_->size());
     return moveit::core::MoveItErrorCode::FAILURE;
   }
-  // CAS 抢执行权：MoveTo 与周期动作不共享 running_，首个并发也要拦
-  // （审查 P1-3：MoveTo worker 不置 running_，可与其后受理的周期并发）。
+  // 命令入口已独占，底层仍防御同时进入 execute。
   int expected = 0;
   if (!executing_.compare_exchange_strong(expected, 1)) {
     RCLCPP_WARN_THROTTLE(
@@ -922,7 +978,7 @@ bool MoveItMotionInterface::planOrMoveTip(
   const std::string & planner_id,
   bool execute,
   const std::string & label,
-  bool allow_fallback)
+  bool allow_fallback, std::string * rejection)
 {
   geometry_msgs::msg::PoseStamped target;
   target.header.frame_id = config_.base_frame;
@@ -977,7 +1033,7 @@ bool MoveItMotionInterface::planOrMoveTip(
     return true;
   }
   std::string safety_reason;
-  if (!safety_gate_(safety_reason)) {
+  if (!safety_gate_(true, safety_reason)) {
     if (safety_block_hook_) {
       safety_block_hook_("执行前安全门失败: " + safety_reason);
     }
@@ -985,7 +1041,9 @@ bool MoveItMotionInterface::planOrMoveTip(
   }
   // 目标身份/新鲜度不在运动层判定：由阶段执行器 + SafetyGate 单点决策，
   // 避免与再确认的 stale 放行/记忆锚点获取性移动策略互相否决。
-  const auto execute_result = boundedExecute(plan);
+  std::string budget_reason;
+  const auto execute_result = boundedExecute(plan, budget_reason);
+  if (rejection && !budget_reason.empty()) {*rejection = budget_reason;}
   if (execute_result != moveit::core::MoveItErrorCode::SUCCESS) {
     RCLCPP_WARN(
       logger_, "%s 轨迹执行失败: %s", label.c_str(),
@@ -999,7 +1057,7 @@ bool MoveItMotionInterface::planOrMoveCamera(
   const std::string & planner_id,
   bool execute,
   const std::string & label,
-  bool allow_fallback)
+  bool allow_fallback, std::string * rejection)
 {
   const auto tip_from_camera = lookupTransform(config_.tip_frame, config_.camera_frame);
   if (!tip_from_camera) {
@@ -1010,14 +1068,14 @@ bool MoveItMotionInterface::planOrMoveCamera(
   }
   const Eigen::Isometry3d tip_pose = camera_pose * tip_from_camera->inverse();
   return planOrMoveTip(
-    tip_pose, planner_id, execute, label, allow_fallback);
+    tip_pose, planner_id, execute, label, allow_fallback, rejection);
 }
 
 bool MoveItMotionInterface::goToPhotoPose(
   const std::string & named_target, bool execute, std::string & message)
 {
   std::string reason;
-  if (!safety_gate_(reason)) {
+  if (!safety_gate_(execute, reason)) {
     message = "拍照位姿安全门未通过: " + reason;
     return false;
   }
@@ -1099,12 +1157,13 @@ bool MoveItMotionInterface::goToPhotoPose(
     return true;
   }
   // 执行前复核安全门：规划耗时数秒，期间现场可能拍急停。
-  if (!safety_gate_(reason)) {
+  if (!safety_gate_(true, reason)) {
     message = "拍照位姿执行前安全门失败: " + reason;
     return false;
   }
-  result = boundedExecute(plan);
+  result = boundedExecute(plan, reason);
   if (result != moveit::core::MoveItErrorCode::SUCCESS) {
+    if (!reason.empty()) {message = reason; return false;}
     message = "拍照位姿执行失败: " + moveit::core::errorCodeToString(result);
     return false;
   }
@@ -1205,7 +1264,7 @@ bool MoveItMotionInterface::reverseLastApproachToPhoto(
     return false;
   }
   std::string reason;
-  if (!safety_gate_(reason)) {
+  if (!safety_gate_(true, reason)) {
     message = "拍照位姿原路返程执行前安全门失败: " + reason;
     return false;
   }
@@ -1220,8 +1279,10 @@ bool MoveItMotionInterface::reverseLastApproachToPhoto(
     moveit::core::robotStateToRobotStateMsg(*current, plan.start_state);
   }
   plan.trajectory.joint_trajectory = std::move(reversed);
-  const auto result = boundedExecute(plan);
+  std::string budget_reason;
+  const auto result = boundedExecute(plan, budget_reason);
   if (result != moveit::core::MoveItErrorCode::SUCCESS) {
+    if (!budget_reason.empty()) {message = budget_reason; return false;}
     message = "拍照位姿原路返程执行失败: " +
       moveit::core::errorCodeToString(result);
     return false;

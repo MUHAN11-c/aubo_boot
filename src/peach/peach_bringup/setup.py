@@ -1,7 +1,15 @@
 from glob import glob
 import os
+import sys
 
 from setuptools import find_packages, setup
+
+if len(sys.argv) < 2 or sys.argv[1] != 'clean':
+    from generate_parameter_library_py.setup_helper import generate_parameter_module
+    generate_parameter_module(
+        'flag_bridge_parameters', 'config/flag_bridge_parameters.yaml')
+    generate_parameter_module(
+        'autostart_parameters', 'config/autostart_parameters.yaml')
 
 package_name = 'peach_bringup'
 
@@ -12,7 +20,7 @@ setup(
     data_files=[
         ('share/ament_index/resource_index/packages',
          ['resource/' + package_name]),
-        (os.path.join('share', package_name), ['package.xml', 'LICENSE']),
+        (os.path.join('share', package_name), ['package.xml', 'LICENSE', 'README.md']),
         (os.path.join('share', package_name, 'launch'), glob('launch/*.launch.py')),
         (os.path.join('share', package_name, 'config'), glob('config/*.yaml')),
         (os.path.join('share', package_name, 'config'), glob('config/*.rviz')),

@@ -7,6 +7,7 @@
 #include <Eigen/Geometry>
 
 #include <algorithm>
+#include <chrono>
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
@@ -15,16 +16,43 @@
 #include <utility>
 #include <vector>
 
+#include <moveit_msgs/msg/robot_trajectory.hpp>
 #include <trajectory_msgs/msg/joint_trajectory.hpp>
 
 namespace peach_arm
 {
 
-/// builtin_interfaces::Duration → 秒（double）。轨迹时长运算统一先过本换算，
-/// 避免 sec/nanosec 拆算在多处各写一份。
+/// 保留整数纳秒以便相加；展示和配置上限使用秒。
+inline std::chrono::nanoseconds durationToNs(const builtin_interfaces::msg::Duration & d)
+{
+  return std::chrono::seconds(d.sec) + std::chrono::nanoseconds(d.nanosec);
+}
+
 inline double durationToSec(const builtin_interfaces::msg::Duration & d)
 {
-  return static_cast<double>(d.sec) + static_cast<double>(d.nanosec) * 1.0e-9;
+  return std::chrono::duration<double>(durationToNs(d)).count();
+}
+
+inline std::chrono::nanoseconds plannedDuration(const moveit_msgs::msg::RobotTrajectory & traj)
+{
+  const auto end_time = [](const auto & points) {
+      return points.empty() ? std::chrono::nanoseconds::zero() :
+             durationToNs(points.back().time_from_start);
+    };
+  return std::max(
+    end_time(traj.joint_trajectory.points), end_time(traj.multi_dof_joint_trajectory.points));
+}
+
+inline bool fitsExecutionTimeout(
+  std::chrono::nanoseconds planned, double timeout_s, std::string & reason)
+{
+  const double seconds = std::chrono::duration<double>(planned).count();
+  if (seconds <= timeout_s) {return true;}
+  std::ostringstream text;
+  text << "planned_duration_exceeds_execute_timeout: " << seconds <<
+    "s > moveit.execute_timeout_s=" << timeout_s << "s";
+  reason = text.str();
+  return false;
 }
 
 /// 秒 → builtin_interfaces::Duration；负值截 0（时间戳不允许回退）。

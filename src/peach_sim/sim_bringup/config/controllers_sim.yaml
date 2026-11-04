@@ -1,0 +1,15 @@
+# Simulator-only MoveIt execution policy. Real/mock driver configuration is read-only.
+moveit_manage_controllers: false
+moveit_controller_manager: moveit_simple_controller_manager/MoveItSimpleControllerManager
+trajectory_execution:
+  allowed_execution_duration_scaling: 3.0
+  allowed_goal_duration_margin: 5.0
+  allowed_start_tolerance: 0.05
+  execution_duration_monitoring: true
+moveit_simple_controller_manager:
+  controller_names: [joint_trajectory_controller]
+  joint_trajectory_controller:
+    action_ns: follow_joint_trajectory
+    type: FollowJointTrajectory
+    default: true
+    joints: [shoulder_joint, upperArm_joint, foreArm_joint, wrist1_joint, wrist2_joint, wrist3_joint]

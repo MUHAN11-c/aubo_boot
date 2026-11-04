@@ -156,7 +156,7 @@ def threshold_ridges(
     if not np.any(finite):
         return np.zeros(vesselness.shape, dtype=bool)
     cut = float(np.percentile(vesselness[finite], percentile))
-    mask = vesselness >= cut
+    mask = finite & (vesselness > 0) & (vesselness >= cut)
     mask &= gray_u8 <= dark_max
     if dilate_px > 0:
         mask = _dilate_bool(mask, dilate_px)

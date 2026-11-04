@@ -1,0 +1,9 @@
+<?xml version="1.0"?>
+<robot name="aubo_e5">
+  <!-- Fixed mounting interfaces may touch/overlap; keep all non-adjacent pairs checked. -->
+  <disable_collisions link1="platform_base_link" link2="left_track" reason="Adjacent"/>
+  <disable_collisions link1="platform_base_link" link2="right_track" reason="Adjacent"/>
+  <disable_collisions link1="platform_base_link" link2="lidar_mount" reason="Adjacent"/>
+  <disable_collisions link1="platform_base_link" link2="base_link" reason="Adjacent"/>
+  <disable_collisions link1="platform_base_link" link2="harvest_basket" reason="Adjacent"/>
+</robot>

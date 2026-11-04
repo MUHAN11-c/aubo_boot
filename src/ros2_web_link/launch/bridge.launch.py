@@ -1,0 +1,17 @@
+# Copyright 2026 ros2_web_link contributors
+# SPDX-License-Identifier: Apache-2.0
+"""Compatibility entry point for the unified browser/bridge launch."""
+
+from ament_index_python.packages import get_package_share_directory
+from launch import LaunchDescription
+from launch.actions import IncludeLaunchDescription
+from launch.launch_description_sources import PythonLaunchDescriptionSource
+
+
+def generate_launch_description():
+    """Preserve existing arguments without starting a demo by default."""
+    share = get_package_share_directory('ros2_web_link')
+    return LaunchDescription([
+        IncludeLaunchDescription(PythonLaunchDescriptionSource(
+            share + '/launch/web.launch.py')),
+    ])

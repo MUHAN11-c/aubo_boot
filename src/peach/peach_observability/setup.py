@@ -5,6 +5,11 @@ import sys
 
 from setuptools import find_packages, setup
 
+if len(sys.argv) < 2 or sys.argv[1] != 'clean':
+    from generate_parameter_library_py.setup_helper import generate_parameter_module
+    generate_parameter_module(
+        'observability_parameters', 'config/observability_parameters.yaml')
+
 package_name = 'peach_observability'
 
 
@@ -24,7 +29,7 @@ setup(
     data_files=[
         ('share/ament_index/resource_index/packages',
          ['resource/' + package_name]),
-        (os.path.join('share', package_name), ['package.xml', 'LICENSE']),
+        (os.path.join('share', package_name), ['package.xml', 'LICENSE', 'README.md']),
         (os.path.join('share', package_name, 'launch'), glob('launch/*.launch.py')),
         (os.path.join('share', package_name, 'config'),
          [os.path.join('config', f) for f in sorted(os.listdir('config'))

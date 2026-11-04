@@ -1,18 +1,36 @@
 # peach 跨包契约清单（单一真源，对齐 Autoware component_interface_specs 思路）
 # 名称 / 类型 / QoS / 生产与消费方。脚本 scripts/check_interface_manifest.py 双向核对：
 #   正向 manifest→源码字面量；反向源码绝对 /peach 话题字面量→manifest（可视化豁免表内除外）。
-# 现行核心栈：peach_interfaces / peach_common / peach_harvester / peach_arm /
+# 现行核心栈：peach_interfaces / peach_common / peach_scene_perception / peach_target_reconstruction / peach_supervisor / peach_scene_obstacles / peach_arm /
 # peach_bringup / peach_observability / peach_vegetation / peach_system_tests /
 # peach_stereo（相机前端；peach_sim 场景包另有 /peach_sim/joint_states 预留登记）。
 # peach2 已归档到 _archive/parked_2026-10-12/peach2，不参与现行构建与清单检查。
 version: 2
 interfaces:
+  - name: /peach_observability/web_state
+    kind: topic
+    type: std_msgs/msg/String
+    qos: {reliability: reliable, durability: volatile, depth: 1}
+    producers: [peach_observability]
+    consumers: []  # rosbridge / external Web client
+  - name: /peach_observability/web_force
+    kind: topic
+    type: std_msgs/msg/String
+    qos: {reliability: reliable, durability: volatile, depth: 1}
+    producers: [peach_observability]
+    consumers: []
+  - name: /peach_observability/web_trajectory
+    kind: topic
+    type: std_msgs/msg/String
+    qos: {reliability: reliable, durability: volatile, depth: 1}
+    producers: [peach_observability]
+    consumers: []
   - name: /force/sample
     kind: topic
     type: peach_interfaces/msg/ForceSample
     qos: {reliability: reliable, durability: volatile, depth: 100}
     producers: [serial_force]
-    consumers: [peach_observability, force_web]
+    consumers: [peach_observability]
   - name: /peach_supervisor/state
     kind: topic
     type: peach_interfaces/msg/HarvestState
@@ -82,7 +100,7 @@ interfaces:
   - name: /peach/perception/debug_image
     kind: topic
     type: sensor_msgs/msg/Image
-    qos: {reliability: reliable, durability: volatile, depth: 10}
+    qos: {reliability: reliable, durability: volatile, depth: 1}
     producers: [peach_scene_perception]
     consumers: [peach_observability]
   - name: /peach/reconstruction/diagnostics

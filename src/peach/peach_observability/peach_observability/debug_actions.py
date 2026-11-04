@@ -140,7 +140,14 @@ def is_motion(action: str, payload: dict) -> bool:
 
 
 def _validate_payload(action: str, payload: dict) -> str | None:
-    """枚举字段合法性；非法返回错误文案，合法返回 None."""
+    """校验业务枚举与授权布尔字段，拒绝将文本或数字解释成使能."""
+    boolean_fields = {
+        'arm_service': ('data',),
+        'set_enables_service': ('execution', 'grasp', 'tool'),
+    }
+    for name in boolean_fields.get(action, ()):
+        if name in payload and not isinstance(payload[name], bool):
+            return f'{name} 须为 JSON 布尔值 true 或 false'
     if action == 'execute_action':
         mode = str(payload.get('mode', 'PREVIEW')).upper()
         if mode not in _EXECUTE_MODE:
@@ -159,9 +166,9 @@ def _validate_payload(action: str, payload: dict) -> str | None:
             return f'未知 ManageNodes command: {command}'
     if action == 'set_enables_service':
         return check_enable_deps(
-            bool(payload.get('execution')),
-            bool(payload.get('grasp')),
-            bool(payload.get('tool')))
+            payload.get('execution', False),
+            payload.get('grasp', False),
+            payload.get('tool', False))
     return None
 
 
@@ -236,7 +243,7 @@ def _goal_for(action: str, payload: dict):
         return request
     if action == 'arm_service':
         request = SetBool.Request()
-        request.data = bool(payload.get('data', False))
+        request.data = payload.get('data', False)
         return request
     if action == 'manage_nodes_service':
         request = ManageLifecycleNodes.Request()
@@ -245,9 +252,9 @@ def _goal_for(action: str, payload: dict):
         return request
     if action == 'set_enables_service':
         request = SetEnables.Request()
-        request.execution = bool(payload.get('execution', False))
-        request.grasp = bool(payload.get('grasp', False))
-        request.tool = bool(payload.get('tool', False))
+        request.execution = payload.get('execution', False)
+        request.grasp = payload.get('grasp', False)
+        request.tool = payload.get('tool', False)
         request.reason = str(payload.get('reason') or '单步调试')
         return request
     # 其余全部 Trigger 形（无字段）
@@ -292,7 +299,6 @@ class DebugBridge:
         self._endpoints = dict(endpoints)
         self._timeout_s = float(timeout_s)
         self._motion_enabled = bool(motion_enabled)
-        self._log_warning = log_warning
         self._clients: dict = {}
         self._action_clients: dict = {}
         self._goal_handles: dict = {}

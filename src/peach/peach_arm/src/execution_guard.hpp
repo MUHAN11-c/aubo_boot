@@ -108,6 +108,9 @@ moveit::core::MoveItErrorCode runBoundedExecute(
   bool * abandoned)
 {
   *abandoned = false;
+  if (cancel_probe && cancel_probe()) {
+    return moveit::core::MoveItErrorCode::PREEMPTED;
+  }
   auto result = std::make_shared<
     std::promise<moveit::core::MoveItErrorCode>>();
   auto finished = std::make_shared<std::atomic_bool>(false);
@@ -157,7 +160,8 @@ moveit::core::MoveItErrorCode runBoundedExecute(
     std::future_status::ready)
   {
     worker.join();
-    return settleResult(shared_result);
+    return by_timeout ? moveit::core::MoveItErrorCode::TIMED_OUT :
+           moveit::core::MoveItErrorCode::PREEMPTED;
   }
   retiring.add(std::move(worker), finished);
   *abandoned = true;

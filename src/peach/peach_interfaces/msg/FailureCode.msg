@@ -26,5 +26,22 @@ uint32 TRANSIT_FAILED=21            # MoveTo 转移移动失败（不再挪用�
 uint32 START_NOT_READY=22           # 周期启动门拒绝（MoveIt 未初始化/占用/未 arm）
 uint32 CANCELED=23                  # 动作被取消（BuildTargetModel 等取消终局）
 
+
+# Supervisor / dispatch stable codes (do not use free-form strings).
+uint32 EXECUTION_DISABLED=24      # 执行/接触/工具使能未开
+uint32 BUILD_REJECTED=25          # 并行 Build 质量拒绝
+uint32 BUILD_START_TIMEOUT=26     # 重建未在时限内进入 COLLECTING
+uint32 OBSERVE_BUILD_VIEW_RACE=27 # OBSERVE 与 Build 机位竞争
+uint32 TIMEOUT=28                 # 单果/动作时限
+uint32 FULL_FAILED=29             # FULL 动作失败
+uint32 SKIPPED_QUALITY=30         # 质量门跳过
+uint32 SKIPPED_UNREACHABLE=31     # 不可达跳过
+
+uint32 BUILD_TIMEOUT_EXECUTOR=32       # executor waited for reconstruction timeout
+uint32 BUILD_TIMEOUT_RECONSTRUCTION=33 # reconstruction reported timeout
+uint32 BUILD_FINALIZE_FAILED=34        # finalize failed after capture
+
+uint32 CUT_FRUIT_CLEARANCE=35     # cut plane too close to fruit
+
 uint32 code                         # 上列常量之一
 string name                         # 常量名（如 BUILD_FAILED）；可空，以 code 为准

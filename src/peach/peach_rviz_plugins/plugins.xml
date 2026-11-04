@@ -1,0 +1,8 @@
+<library path="peach_rviz_plugins">
+  <class name="peach_rviz_plugins/Image"
+         type="peach_rviz_plugins::ImageDisplay"
+         base_class_type="rviz_common::Display">
+    <description>Upstream Image display with idempotent subscription teardown for Jazzy.</description>
+    <message_type>sensor_msgs/msg/Image</message_type>
+  </class>
+</library>

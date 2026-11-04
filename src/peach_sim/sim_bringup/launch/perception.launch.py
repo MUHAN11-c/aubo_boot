@@ -1,124 +1,83 @@
-"""
-仿真感知栈：现行 peach 视觉源码的仿真副本，跑在统一机体相机流上.
+"""Run the shared Peach vision capabilities with simulation-only parameter overlays."""
 
-前置：``sim.launch.py`` 已起（统一机体 + 腕载 rgbd + 相机桥 + JSB /joint_states）。
-参数装配与 ``peach_harvester`` brain.launch 的感知两节相同：全量 yaml，
-再注入 ``grasp_standoffs`` 与 ``tool_profile`` 档案。不含 supervisor /
-scene_obstacles。测完 Ctrl+C 停栈并 pgrep 清残留（MUST）。
-"""
-
-import tempfile
 from pathlib import Path
 
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, OpaqueFunction
+from launch.frontend.parse_substitution import parse_substitution
 from launch.substitutions import LaunchConfiguration
-from launch_ros.actions import LifecycleNode, Node, SetParameter
-from launch_ros.parameter_descriptions import ParameterFile, ParameterValue
-from sim_perception.vision.grasp_standoffs import (
-    reconstruction_overlay,
-    scene_overlay,
-)
-from sim_perception.vision.tool_profiles import (
-    reconstruction_tool_params,
-    scene_tool_params,
-)
+from launch.utilities import perform_substitutions
+from launch_ros.actions import LifecycleNode, Node
+from launch_ros.parameter_descriptions import ParameterValue
+from peach_common.grasp_standoffs import reconstruction_overlay, scene_overlay
+from peach_common.tool_profiles import reconstruction_tool_params, scene_tool_params
 import yaml
 
 
-def _perform_param(value, context):
-    """ParameterValue 在 launch 上下文求值，静态值原样写入."""
-    if isinstance(value, ParameterValue):
-        return value.evaluate(context)
-    return value
+def _runtime_default():
+    """Find the project-local runtime directory for standalone vision bringup."""
+    for directory in Path(__file__).resolve().parents:
+        if (directory / 'sim_description' / 'package.xml').is_file():
+            return str(directory / '.runtime' / 'run')
+    raise RuntimeError('Set runtime_dir explicitly for a relocated installation')
 
 
-def _setup(context, *args, **kwargs):
-    perc_share = Path(get_package_share_directory('sim_perception'))
-    use_sim_time = LaunchConfiguration('use_sim_time')
-    tool_profile = LaunchConfiguration('tool_profile')
-    node_overrides = {
-        'peach_scene_perception_node': {
-            **scene_overlay(),
-            **scene_tool_params(tool_profile),
-        },
-        'peach_target_reconstruction_node': {
-            **reconstruction_overlay(),
-            **reconstruction_tool_params(tool_profile),
-        },
-    }
-    sections = {
-        node: {'ros__parameters': {
-            key: _perform_param(value, context)
-            for key, value in overrides.items()}}
-        for node, overrides in node_overrides.items()}
-    overlay = tempfile.NamedTemporaryFile(
-        mode='w', prefix='sim_perception_overlay_', suffix='.yaml',
-        delete=False, encoding='utf-8')
-    yaml.safe_dump(sections, overlay, default_flow_style=False,
-                   allow_unicode=True, sort_keys=True)
-    overlay.close()
+def _resolve_file(context, source, destination):
+    """Evaluate official launch substitutions into a project-local parameter file."""
+    expanded = perform_substitutions(
+        context, parse_substitution(source.read_text(encoding='utf-8')))
+    data = yaml.safe_load(expanded)
+    destination.write_text(yaml.safe_dump(data, sort_keys=False), encoding='utf-8')
+    return str(destination)
 
-    perception = LifecycleNode(
-        package='sim_perception',
-        executable='sim_scene_perception_node',
-        name='peach_scene_perception_node',
-        namespace='',
-        output='screen',
-        parameters=[
-            ParameterFile(
-                str(perc_share / 'config' / 'scene_perception.yaml'),
-                allow_substs=True),
-            ParameterFile(overlay.name, allow_substs=True),
-            {'use_sim_time': use_sim_time},
-        ],
-    )
-    reconstruction = LifecycleNode(
-        package='sim_perception',
-        executable='sim_target_reconstruction_node',
-        name='peach_target_reconstruction_node',
-        namespace='',
-        output='screen',
-        parameters=[
-            ParameterFile(
-                str(perc_share / 'config' / 'target_reconstruction.yaml'),
-                allow_substs=True),
-            ParameterFile(overlay.name, allow_substs=True),
-            {'use_sim_time': use_sim_time},
-        ],
-    )
-    lifecycle_manager = Node(
-        package='nav2_lifecycle_manager',
-        executable='lifecycle_manager',
-        name='peach_lifecycle_manager',
-        output='screen',
-        parameters=[{
-            'node_names': [
-                'peach_scene_perception_node',
-                'peach_target_reconstruction_node',
-            ],
-            'autostart': True,
-            'bond_timeout': 0.0,
-            'use_sim_time': use_sim_time,
-        }],
-    )
 
-    return [
-        SetParameter('use_sim_time', LaunchConfiguration('use_sim_time')),
-        perception,
-        reconstruction,
-        lifecycle_manager,
+def _setup(context):
+    """Compose current upstream capabilities without importing the old vision fork."""
+    if LaunchConfiguration('use_sim_time').perform(context).lower() != 'true':
+        raise RuntimeError('The simulator vision stack requires use_sim_time:=true')
+    runtime = Path(LaunchConfiguration('runtime_dir').perform(context)).expanduser().resolve()
+    runtime.mkdir(parents=True, exist_ok=True)
+    context.environment['PEACH_SIM_RUN_DIRECTORY'] = str(runtime)
+    context.environment['AUBO_RUNS_DIR'] = str(runtime / 'vision')
+    profile = LaunchConfiguration('tool_profile')
+    local = Path(get_package_share_directory('sim_perception'))
+    specifications = [
+        ('peach_scene_perception', 'peach_scene_perception_node', 'scene_perception.yaml',
+         'sim_scene_perception_node', {**scene_overlay(), **scene_tool_params(profile)}),
+        ('peach_target_reconstruction', 'peach_target_reconstruction_node',
+         'target_reconstruction.yaml', 'sim_target_reconstruction_node',
+         {**reconstruction_overlay(), **reconstruction_tool_params(profile),
+          'session.root_dir': str(runtime / 'vision')}),
     ]
+    nodes = []
+    for package, name, filename, executable, overrides in specifications:
+        share = Path(get_package_share_directory(package))
+        base = _resolve_file(context, share / 'config' / filename, runtime / f'base_{filename}')
+        overlay = _resolve_file(
+            context, local / 'config' / filename, runtime / f'sim_{filename}')
+        evaluated = {key: item.evaluate(context) if isinstance(item, ParameterValue) else item
+                     for key, item in overrides.items()}
+        evaluated['use_sim_time'] = True
+        nodes.append(LifecycleNode(
+            package='sim_perception', executable=executable, name=name, namespace='',
+            output='screen', parameters=[base, overlay, evaluated]))
+    nodes.append(Node(
+        package='nav2_lifecycle_manager', executable='lifecycle_manager',
+        name='sim_perception_lifecycle_manager', output='screen', parameters=[{
+            'node_names': [item[1] for item in specifications], 'autostart': True,
+            'bond_timeout': float(LaunchConfiguration('bond_timeout').perform(context)),
+            'use_sim_time': True,
+        }]))
+    return nodes
 
 
-def generate_launch_description() -> LaunchDescription:
+def generate_launch_description():
+    """Declare the vision overlay settings."""
     return LaunchDescription([
-        DeclareLaunchArgument(
-            'use_sim_time', default_value='true',
-            description='仿真时钟（与 sim.launch.py 同源 /clock）'),
-        DeclareLaunchArgument(
-            'tool_profile', default_value='bite_shear_v1',
-            description='工具档案，与 sim.launch 的 xacro 同一参数'),
+        DeclareLaunchArgument('runtime_dir', default_value=_runtime_default()),
+        DeclareLaunchArgument('use_sim_time', default_value='true'),
+        DeclareLaunchArgument('tool_profile', default_value='bite_shear_v1'),
+        DeclareLaunchArgument('bond_timeout', default_value='8.0'),
         OpaqueFunction(function=_setup),
     ])

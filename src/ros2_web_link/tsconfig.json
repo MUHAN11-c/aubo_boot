@@ -1,0 +1,8 @@
+{
+  "compilerOptions": {
+    "target": "ES2022", "module": "ESNext", "moduleResolution": "Bundler",
+    "strict": true, "lib": ["ES2022", "DOM"], "skipLibCheck": true,
+    "declaration": true, "outDir": "dist", "rootDir": "."
+  },
+  "include": ["sdk/**/*.ts", "audit/**/*.ts", "media/**/*.ts", "scene/**/*.ts", "graph/**/*.ts", "workbench/**/*.ts", "third_party/**/*.ts"]
+}

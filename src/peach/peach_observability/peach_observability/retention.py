@@ -32,19 +32,19 @@ class BagEntry:
 
 def collect_bag_entries(runs_root) -> list[BagEntry]:
     """扫描 runs 根下的 bag 目录（缺失目录给空表）."""
-    root = Path(runs_root)
+    root = Path(runs_root).resolve()
     entries: list[BagEntry] = []
     if not root.is_dir():
         return entries
     for pattern, kind in _BAG_GLOBS:
         for path in sorted(root.glob(pattern)):
-            if not path.is_dir():
+            if path.is_symlink() or path.parent.is_symlink() or not path.is_dir():
                 continue
-            entries.append(BagEntry(
-                path=path,
-                size_bytes=directory_size(path),
-                mtime=path.stat().st_mtime,
-                kind=kind))
+            try:
+                mtime = path.stat().st_mtime
+            except FileNotFoundError:
+                continue  # Another retention pass has already removed this bag.
+            entries.append(BagEntry(path, directory_size(path), mtime, kind))
     return entries
 
 
@@ -87,18 +87,38 @@ def select_bags_to_delete(entries: list[BagEntry], budget_bytes: int,
     return chosen
 
 
+def _closed_bag(bag: Path) -> bool:
+    """Only retire sealed sessions or legacy bags finalized by rosbag2."""
+    if bag.name == 'bag':
+        try:
+            state = json.loads((bag.parent / 'session.json').read_text(encoding='utf-8'))
+        except FileNotFoundError:
+            pass  # Older recorders only have rosbag2 metadata, written on close.
+        except (OSError, ValueError):
+            return False
+        else:
+            return isinstance(state, dict) and state.get('state') == 'sealed'
+    return (bag / 'metadata.yaml').is_file()
+
+
 def sweep(runs_root, max_total_bag_gb: float, keep=(),
           log_warning=lambda msg: None, audit_path=None,
-          now: float | None = None) -> list[BagEntry]:
+          now: float | None = None) -> list[dict]:
     """执行回收并追加审计；返回实际删除的条目（I/O 层，纯核在 select）."""
     budget_bytes = int(float(max_total_bag_gb) * (1024 ** 3))
+    if budget_bytes <= 0:
+        return []
     entries = collect_bag_entries(runs_root)
-    doomed = select_bags_to_delete(entries, budget_bytes, keep=keep)
+    protected = set(keep)
+    protected.update(entry.path for entry in entries if not _closed_bag(entry.path))
+    doomed = select_bags_to_delete(entries, budget_bytes, keep=protected)
     if not doomed:
         return []
     audit = Path(audit_path) if audit_path else Path(runs_root) / AUDIT_FILENAME
     rows = []
     for entry in doomed:
+        if not _closed_bag(entry.path):
+            continue
         try:
             shutil.rmtree(entry.path)
         except OSError as error:
@@ -136,11 +156,15 @@ def purge_analyzed_sessions(runs_root, sessions, log_warning=lambda msg: None,
     """
     deleted = []
     rows = []
+    root = Path(runs_root).resolve()
     stamp = round(time.time() if now is None else now, 3)
     for item in sessions:
         path = Path(item)
         bag = path if path.name == 'bag' else path / 'bag'
         if not bag.is_dir():
+            continue
+        if bag.is_symlink() or root not in bag.resolve().parents or not _closed_bag(bag):
+            log_warning(f'跳过未封口或记录根目录外的 bag：{bag}')
             continue
         size = directory_size(bag)
         try:

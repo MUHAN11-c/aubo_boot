@@ -1,0 +1,317 @@
+peach_scene_perception_node:
+  color_topic:
+    type: string
+    default_value: '/camera/color/image_raw'
+    description: color_topic
+  depth_topic:
+    type: string
+    default_value: '/camera/depth/image_raw'
+    description: depth_topic
+  camera_info_topic:
+    type: string
+    default_value: '/camera/color/camera_info'
+    description: camera_info_topic
+  camera_optical_frame:
+    type: string
+    default_value: 'camera_color_optical_frame'
+    description: camera_optical_frame
+  output_frame:
+    type: string
+    default_value: 'base_link'
+    description: output_frame
+  tf_timeout_sec:
+    type: double
+    default_value: 0.5
+    description: tf_timeout_sec
+    validation:
+      gt_eq<>: [0.0]
+  tf_fallback_timeout_sec:
+    type: double
+    default_value: 0.5
+    description: tf_fallback_timeout_sec
+    validation:
+      gt_eq<>: [0.0]
+  depth_scale_unit:
+    type: double
+    default_value: 0.25
+    description: depth_scale_unit
+    validation:
+      gt<>: [0.0]
+  sync_slop_s:
+    type: double
+    default_value: 0.05
+    description: sync_slop_s
+    validation:
+      gt_eq<>: [0.0]
+  sync_queue_size:
+    type: int
+    default_value: 3
+    description: sync_queue_size
+  max_frame_age_s:
+    type: double
+    default_value: 0.5
+    description: max_frame_age_s
+    validation:
+      gt_eq<>: [0.0]
+  min_detection_conf:
+    type: double
+    default_value: 0.4
+    description: min_detection_conf
+  yolo_conf:
+    type: double
+    default_value: 0.3
+    description: yolo_conf
+  yolo_nms_iou:
+    type: double
+    default_value: 0.5
+    description: yolo_nms_iou
+  yolo_imgsz:
+    type: int
+    default_value: 640
+    description: yolo_imgsz
+  yolo_half:
+    type: bool
+    default_value: False
+    description: yolo_half
+  sam_max_bboxes:
+    type: int
+    default_value: 16
+    description: sam_max_bboxes
+  sam_min_area:
+    type: int
+    default_value: 100
+    description: sam_min_area
+  min_mask_points:
+    type: int
+    default_value: 50
+    description: min_mask_points
+  detection_dedup_ios:
+    type: double
+    default_value: 0.6
+    description: detection_dedup_ios
+  detection_dedup_area_ratio:
+    type: double
+    default_value: 0.5
+    description: detection_dedup_area_ratio
+  publish_debug_image:
+    type: bool
+    default_value: True
+    description: publish_debug_image
+  debug_downscale:
+    type: double
+    default_value: 1.0
+    description: debug_downscale
+    validation:
+      gt<>: [0.0]
+  publish_masks:
+    type: bool
+    default_value: True
+    description: publish_masks
+  publish_detection_cloud:
+    type: bool
+    default_value: True
+    description: publish_detection_cloud
+  detection_cloud_stride:
+    type: int
+    default_value: 2
+    description: detection_cloud_stride
+  yolo_model_path:
+    type: string
+    default_value: '$(find-pkg-share peach_scene_perception)/model/best.pt'
+    description: yolo_model_path
+  sam_model_path:
+    type: string
+    default_value: '$(find-pkg-share peach_scene_perception)/model/FastSAM-s.pt'
+    description: sam_model_path
+  model_version:
+    type: string
+    default_value: 'yolo:6981750db67a726e|fastsam_s:c9f78716a81c7aff'
+    description: model_version
+  calibration_version:
+    type: string
+    default_value: 'percipio-640x480-chessboard|hand_eye:import_humble_20260128T114006'
+    description: calibration_version
+  gravity_hint_xyz:
+    type: string
+    default_value: ''
+    description: gravity_hint_xyz
+  gravity_mode:
+    type: string
+    default_value: 'tf'
+    description: gravity_mode
+  pipeline:
+    bag_impl:
+      type: string
+      default_value: 'robust_bag'
+      description: pipeline.bag_impl
+    fruit_impl:
+      type: string
+      default_value: 'robust_fruit'
+      description: pipeline.fruit_impl
+    min_depth_m:
+      type: double
+      default_value: 0.3
+      description: pipeline.min_depth_m
+      validation:
+        gt<>: [0.0]
+    max_depth_m:
+      type: double
+      default_value: 1.5
+      description: pipeline.max_depth_m
+      validation:
+        gt<>: [0.0]
+    min_points:
+      type: int
+      default_value: 100
+      description: pipeline.min_points
+    locked_only_segmentation:
+      type: bool
+      default_value: True
+      description: pipeline.locked_only_segmentation
+  tool:
+    D_inner:
+      type: double
+      default_value: 0.12
+      description: tool.D_inner
+      validation:
+        gt<>: [0.0]
+    L_insert:
+      type: double
+      default_value: 0.09
+      description: tool.L_insert
+      validation:
+        gt<>: [0.0]
+    L_blade:
+      type: double
+      default_value: 0.079
+      description: tool.L_blade
+    entry_d_tool:
+      type: double
+      default_value: 0.0
+      description: tool.entry_d_tool
+      validation:
+        gt_eq<>: [0.0]
+    entry_d_s:
+      type: double
+      default_value: 0.0
+      description: tool.entry_d_s
+      validation:
+        gt_eq<>: [0.0]
+    clearance_min:
+      type: double
+      default_value: 0.005
+      description: tool.clearance_min
+      validation:
+        gt<>: [0.0]
+    margin_neck:
+      type: double
+      default_value: 0.015
+      description: tool.margin_neck
+      validation:
+        gt_eq<>: [0.0]
+    version:
+      type: string
+      default_value: '1.1'
+      description: tool.version
+  target_memory:
+    enable:
+      type: bool
+      default_value: True
+      description: target_memory.enable
+    match_radius_m:
+      type: double
+      default_value: 0.06
+      description: target_memory.match_radius_m
+      validation:
+        gt<>: [0.0]
+    max_targets:
+      type: int
+      default_value: 50
+      description: target_memory.max_targets
+    position_ema:
+      type: double
+      default_value: 0.3
+      description: target_memory.position_ema
+      validation:
+        gt<>: [0.0]
+    recovery_scale:
+      type: double
+      default_value: 1.0
+      description: target_memory.recovery_scale
+      validation:
+        gt_eq<>: [1.0]
+    confirm_frames:
+      type: int
+      default_value: 2
+      description: target_memory.confirm_frames
+    tentative_ttl_frames:
+      type: int
+      default_value: 20
+      description: target_memory.tentative_ttl_frames
+    anchor_max_age_s:
+      type: double
+      default_value: 30.0
+      description: target_memory.anchor_max_age_s
+      validation:
+        gt<>: [0.0]
+    anchor_drop_s:
+      type: double
+      default_value: 120.0
+      description: target_memory.anchor_drop_s
+      validation:
+        gt<>: [0.0]
+    max_age_s:
+      type: double
+      default_value: 600.0
+      description: target_memory.max_age_s
+      validation:
+        gt<>: [0.0]
+  wind:
+    swing_threshold_m:
+      type: double
+      default_value: 0.03
+      description: wind.swing_threshold_m
+      validation:
+        gt<>: [0.0]
+    swing_frames:
+      type: int
+      default_value: 3
+      description: wind.swing_frames
+  lighting:
+    min_depth_ratio:
+      type: double
+      default_value: 0.35
+      description: lighting.min_depth_ratio
+      validation:
+        gt_eq<>: [0.0]
+        lt_eq<>: [1.0]
+    min_conf_mean:
+      type: double
+      default_value: 0.3
+      description: lighting.min_conf_mean
+      validation:
+        gt_eq<>: [0.0]
+        lt_eq<>: [1.0]
+    bad_frames:
+      type: int
+      default_value: 5
+      description: lighting.bad_frames
+  harvest:
+    min_collect_frames:
+      type: int
+      default_value: 4
+      description: harvest.min_collect_frames
+    lock_settle_frames:
+      type: int
+      default_value: 2
+      description: harvest.lock_settle_frames
+    max_collect_s:
+      type: double
+      default_value: 12.0
+      description: harvest.max_collect_s
+      validation:
+        gt<>: [0.0]
+    priority_prefer_lower_first:
+      type: bool
+      default_value: True
+      description: harvest.priority_prefer_lower_first

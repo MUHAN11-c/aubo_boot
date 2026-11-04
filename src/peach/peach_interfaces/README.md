@@ -23,21 +23,21 @@ python3 src/peach/peach_interfaces/scripts/check_interface_manifest.py
 接收/解码时刻，`frame_id=tcp`；源进程 UUID 与单调 sequence 区分重启和解码后丢帧。
 五路固定数组按 `channel_ids=[1,2,3,5,7]` 给 N、力等效 mm、uint16 原始 AD、
 OK/SATURATED/OPEN/INVALID 状态；固件无采样时刻或序号，不宣称硬件级时间同步。
-`serial_force` 发布，`peach_observability` 与 `force_web` 消费；旧四 `/force/*` 话题保持兼容。
+`serial_force` 发布，`peach_observability` 消费（8090 力页）；旧四 `/force/*` 话题保持兼容。
 
 没有 `*_parameters.yaml`，节点也不会 `declare_parameter`。清单里的 `qos:` 是**跨包必须对齐的传输约定**，不是可调阈值。
 
-真正的运行参数在能力包 `config/<节点>.yaml`（部署事实源）+ `peach_common.yaml_params.attach` 与包内规则模块。C++ 执行合同另有 generate_parameter_library yaml。
+真正的运行参数在能力包 `config/<节点>.yaml`（部署事实源）+ GPL schema/`ParamListener`；C++ 执行合同同样由 generate_parameter_library 生成。legacy `peach_vegetation` 仍用 `attach`。
 
 | 文件 | 管什么 |
 |------|--------|
-| `peach_harvester/config/scene_perception.yaml` | 检测、锁定窗、深度窗、袋/果管线 |
-| `peach_harvester/config/target_reconstruction.yaml` | 采帧门、TSDF、机位数 |
-| `peach_harvester/config/scene_obstacles.yaml` | 场景障碍快照（体素/胶囊余量；0035） |
-| `peach_harvester/config/grasp_standoffs.yaml` | 入口相对袋底、预抓取后撤（launch 注入各节点已声明参数） |
+| `peach_scene_perception/config/scene_perception.yaml` | 检测、锁定窗、深度窗、袋/果管线 |
+| `peach_target_reconstruction/config/target_reconstruction.yaml` | 采帧门、TSDF、机位数 |
+| `peach_scene_obstacles/config/scene_obstacles.yaml` | 场景障碍快照（体素/胶囊余量；0035） |
+| `peach_common/config/grasp_standoffs.yaml` | 入口相对袋底、预抓取后撤（launch 注入各节点已声明参数） |
 | `peach_arm/config/peach_arm.yaml` | 视点、MTC、接触、刀具 IO |
 | `peach_arm/src/arm_parameters.yaml` | 执行合同（GPL 单源，2c 回迁） |
-| `peach_harvester/config/peach_supervisor.yaml` | 批次、选果、`execute_pregrasp_only` |
+| `peach_supervisor/config/peach_supervisor.yaml` | 批次、选果、`execute_pregrasp_only` |
 | `peach_bringup/launch/harvest_system.launch.py` | Nav2 lifecycle 名单与顺序 |
 | `peach_observability/config/observability.yaml` | 监控 Web + 启动自检；`debug.motion_enabled` 默认关（W11 起随包走） |
 

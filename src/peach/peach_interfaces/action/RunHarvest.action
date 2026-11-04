@@ -1,6 +1,6 @@
-# 显式开一批采摘。唯一开批开关；launch 绝不自动发本动作。
+# 显式开一批采摘。唯一开批动作；launch 的 autostart 默认关，启用后等待就绪再发。
 # 动作：/peach_supervisor/run_harvest
-# 服务端：peach_supervisor    客户端：人工（监控 Web 默认不发）
+# 服务端：peach_supervisor    客户端：操作台、人工 CLI、可选 autostart 客户端
 # intent 取值见本文件 INTENT_* 常量（JobIntent 已删，此处为唯一权威）。
 # Result.success 至少成功一颗为 true。
 

@@ -1,6 +1,14 @@
 # sim_worlds — Blender 数据驱动果园重建 + 多视角感知验证矩阵（src/peach_sim/ 组）
 
-当前套袋专项修正版为 **v10 独立资产**：
+2026-11-02 当前新增 `data_orchard`：两株 v11 数据驱动桃树、35 个独立袋果、3615 段枝干碰撞；同源地图和观察站位。默认场景代码已切换，用户当前要求仅代码与离线核对，Gazebo 行为尚未验收。来源和复现见 [SOURCE.md](worlds/data_orchard/SOURCE.md)，结构见 [architecture.md](doc/architecture.md)。下面旧版本和默认 demo 描述保留为历史口径。
+
+> **2026-10-29：用户明确恢复 Gazebo 联合仿真。** 当前默认可采摘轻量场景由 `sim_worlds/demo.py` 同源生成 SDF、manifest、地图和站位，产物写入本次 `.runtime/session_*/scene/`。统一构建/测试/运行方式见 [项目 README](../README.md)。目录外依赖只读，所有生成、缓存和运行日志限本项目；原有 Blender 资产与历史证据保留。
+>
+> `ground_truth` 目标用于导航/操作闭环验收，不代表视觉精度；视觉模式复用当前 Peach 感知/重建链并单独验收。`field_no_grass.sdf` 是整园 mesh 预览，缺少独立可摘果实实体，不能执行逐果采收。下面的 v9/v10、旧 Gazebo 和离线矩阵说明保持原始证据口径，不能推导本轮联合仿真采摘通过。
+
+## 既有离线资产与历史验证
+
+历史 v10 套袋专项入口如下。2026-10-29 核对发现本地 `output/bag_assets/asset_manifest.json` 标注 **2026-09-30-reference-scene-v11**，而 `build_bag_assets.py` 仍生成 v10；两者尚未复现对账。重跑必须显式 `--out` 指定新的项目内目录，避免覆盖现有证据。它们均不是当前 Gazebo 使用的 `sim_description/meshes/bagged_peach.glb`：
 [三只套袋桃子](reconstruction/output/bag_assets/bagged_peaches.png)、
 [正面](reconstruction/output/bag_assets/front.png)、
 [侧面](reconstruction/output/bag_assets/side.png)、
@@ -11,7 +19,8 @@
 工作区根目录重现：
 ```bash
 CUDA_VISIBLE_DEVICES=0 _tools/blender-4.5.14-linux-x64/blender -b -t 6 \
-  --python-exit-code 1 -P src/peach_sim/sim_worlds/reconstruction/build_bag_assets.py
+  --python-exit-code 1 -P src/peach_sim/sim_worlds/reconstruction/build_bag_assets.py -- \
+  --out src/peach_sim/.runtime/bag_assets_v10_rebuild
 ```
 
 外观建模与感知验证的唯一入口是 **`reconstruction/`**（2026-09-24 重建，
@@ -237,7 +246,7 @@ build_assets 树 GLB 的表现差异未深究，以实测为准）。全叶版 �
 _tools/blender-4.5.14-linux-x64/blender -b \
   src/peach_sim/sim_worlds/reconstruction/output/field_no_grass_20261009/bagged_peach_orchard.blend \
   -P src/peach_sim/sim_worlds/blender/export_field_to_gz.py -- \
-  --out src/peach_sim/sim_worlds/meshes/field_no_grass.glb
+  --out src/peach_sim/sim_description/meshes/field_no_grass.glb
 
 # 仅看世界（查看完关窗即清）
 GZ_SIM_RESOURCE_PATH=src:src/peach_sim/sim_worlds:src/peach_sim/sim_description gz sim -r \

@@ -1,6 +1,6 @@
 # 五点力 CoP 闭环控制仿真 — 统计结果
 
-- 数据文件：src/serial_force_sim/doc/force_align_sim_trials.jsonl
+- 历史数据（2026-10-21）：原 `src/serial_force_sim/doc/force_align_sim_trials.jsonl`，现迁至本目录 `force_align_sim_trials.jsonl`（本机生成物，不随 Git）。本文保留该轮结果，不代表当前源码重新运行。
 - 有效试验：**20** 组（5 点力 → CoP → IK/JTC 闭环校正）
 - 成功率（最终 |CoP| < 1.2 mm）：**20/20 = 100.0%**
 - 最终 |CoP|：0.53 ± 0.37 mm；降幅：94.40 ± 4.61%

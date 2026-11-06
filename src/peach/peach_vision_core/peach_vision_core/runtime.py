@@ -31,16 +31,16 @@ Item = TypeVar('Item')
 
 class Clock(ABC):
     """
-    单调时钟抽象基类（协议 I3）.
+    注入时钟抽象基类（协议 I3）.
 
     生命周期：通常与节点同寿，由编排层构造并注入各纯核组件。
-    线程安全：实现方保证 now() 可并发调用。可替换性：真机用
-    RclpyClockAdapter，单测/回放开 ManualClock。
+    线程安全及时间基准由实现方保证。节点用 RclpyClockAdapter，测试/回放
+    可用 ManualClock；ROS 时间可能跳变，适配器不把它转换为主机单调时钟。
     """
 
     @abstractmethod
     def now(self) -> float:
-        """返回当前单调秒（float）."""
+        """返回所注入时间基准的当前秒（float）."""
 
 
 class ManualClock(Clock):
@@ -265,8 +265,9 @@ class HarvestDataStore:
         """
         停止写线程（V4）.
 
-        drain=True 先排空队列再收口（节点 destroy 用）；drain=False 直接
-        放弃未写条目（进程即将退出、容忍丢失时用）。
+        drain=True 先等待队列清空再投递停止哨兵（节点 destroy 用）。
+        drain=False 不先等待，也不清队列；哨兵排在已有任务后，队列满时
+        本次无法投递。成功投递后最多等待写线程 5 秒，不保证此时已退出。
         """
         if not self._writer.is_alive():
             return

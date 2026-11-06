@@ -3,9 +3,9 @@ project(ros2_web_link)
 
 find_package(ament_cmake REQUIRED)
 
-# Frontend builds are explicit and reproducible (npm ci && npm run build).
-# A source checkout still builds in colcon/industrial_ci without network access;
-# the server gives a precise error if the optional web assets were not built.
+# Install dependencies explicitly with npm ci; colcon rebuilds local assets when
+# node and esbuild are available. Without them, installation is source-only and
+# dist is optional; the server reports missing built assets at runtime.
 install(DIRECTORY launch doc config description DESTINATION share/${PROJECT_NAME})
 install(DIRECTORY dist/ DESTINATION share/${PROJECT_NAME}/dist OPTIONAL)
 install(DIRECTORY sdk media scene audit graph workbench web scripts third_party DESTINATION share/${PROJECT_NAME}/source)

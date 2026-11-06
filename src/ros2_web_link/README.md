@@ -114,10 +114,10 @@ start().catch(console.error);
 - 构建与官方 lint：`colcon test --packages-select ros2_web_link`，然后 `colcon test-result --verbose`。
 - 显式行为探针：启动自测环境后，在包目录 `npm run probe`；浏览器探针与故障步骤见 [testing.md](doc/testing.md)。`test/` 不增加自定义测试框架。
 - 架构与限制：[architecture.md](doc/architecture.md)；公有接口：[io.md](doc/io.md)。文档是包内 Markdown，直接阅读，无额外文档生成工具。
-- 自有源码位于 `sdk/`、`web/`、`scripts/`、`launch/`，组件源码位于 `media/`、`scene/`，演示模型位于 `description/`；构建包含 source map；公共接口有类型与注释，重点说明断线、QoS、超时和取消语义。
+- 六个入口源码位于 `sdk/`、`scene/`、`media/`、`audit/`、`graph/`、`workbench/`；独立页面在 `web/`，ROS/构建/显式探针在 `scripts/`、`launch/`，演示模型在 `description/`。构建包含类型声明与 source map；公共注释说明断线、QoS、超时和取消语义。
 - 依赖固定在 `package-lock.json`，ROS 依赖走 Jazzy apt。上游完整源码位于本地 `.upstream/`，获取与替换见 [source.md](doc/source.md)；许可见 [LICENSE](LICENSE) 与构建生成的 `dist/web/THIRD_PARTY_NOTICES.txt`。自有代码 Apache-2.0；roslibjs BSD-2-Clause，Three/gl-matrix/uPlot MIT，URDFLoader Apache-2.0，TF 复用的 Lichtblick 文件 MPL-2.0（逐文件保留）；rosbridge_suite 保留上游 BSD 许可。
 
-v0.2 提供完整通信基础、按需 3D/图像/曲线与标准自测示例。Peach/IVG 迁移、完整 Lichtblick/Foxglove 界面、MCAP 管理、MoveIt 关节轨迹回放暂不包含。Android 实机触控与高带宽相机需后续现场验收。
+当前提供通信 SDK、独立工作台、按需观测组件和标准自测示例。Peach 已复用核心 SDK/桥，接线见 [集成说明](doc/integration.md#peach-当前接线)；采摘/IVG 业务迁移、完整 Lichtblick/Foxglove 界面、浏览器 MCAP 管理和 MoveIt 关节轨迹回放不在本包职责内。Android 实机触控与高带宽相机仍需现场验收。
 
 ## 复用观测组件
 

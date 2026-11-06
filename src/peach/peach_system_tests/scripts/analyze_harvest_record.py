@@ -46,7 +46,7 @@ def _init_pyplot():
 plt = _init_pyplot()
 
 OUTCOME_NAME = {
-    0: '周期完成',
+    0: '目标成功',
     1: '质量跳过',
     2: '不可达',
     3: '失败',
@@ -298,7 +298,7 @@ def plot_outcomes(rows: list[dict], path: Path) -> None:
                and int(row.get('completion_level') or 0) >= 6)
     rate = done / len(rows) if rows else 0.0
     figure, axis = plt.subplots(figsize=(7.2, 4.2))
-    colors = [ACCENT if label == '周期完成' else WARN if '跳过' in label or label == '不可达' else BAD
+    colors = [ACCENT if label == '目标成功' else WARN if '跳过' in label or label == '不可达' else BAD
               for label in labels]
     axis.bar(labels, values, color=colors, width=0.62)
     axis.set_ylabel('果数')
@@ -309,7 +309,8 @@ def plot_outcomes(rows: list[dict], path: Path) -> None:
 
 
 def plot_cycle(rows: list[dict], path: Path) -> None:
-    done = [row for row in rows if int(row.get('outcome', -1)) == 0]
+    done = [row for row in rows if int(row.get('outcome', -1)) == 0
+            and int(row.get('completion_level') or 0) >= 6]
     elapsed = [float(row['elapsed_s']) for row in done if row.get('elapsed_s')]
     figure, axes = plt.subplots(1, 2, figsize=(9.6, 4.2))
     axes[0].hist(elapsed, bins=8, color=ACCENT, edgecolor=PAPER)
@@ -347,7 +348,8 @@ def plot_rounds(rows: list[dict], path: Path) -> None:
     rates = []
     for batch in sorted({row['batch'] for row in rows}):
         group = [row for row in rows if row['batch'] == batch]
-        done = sum(int(row.get('outcome', -1)) == 0 for row in group)
+        done = sum(int(row.get('outcome', -1)) == 0
+                   and int(row.get('completion_level') or 0) >= 6 for row in group)
         batches.append(batch.replace('flow10_', '').replace('flow_', ''))
         rates.append(done / len(group) if group else 0.0)
     figure, axis = plt.subplots(figsize=(8.4, 4.2))
@@ -400,7 +402,8 @@ def plot_overlays(pairs: list[tuple[Path, Path, str]], path: Path) -> None:
 def plot_cdf(rows: list[dict], path: Path) -> None:
     """单果周期的经验累积分布。田间论文用它看尾部，而不只看平均值."""
     elapsed = sorted(float(row['elapsed_s']) for row in rows
-                     if int(row.get('outcome', -1)) == 0 and row.get('elapsed_s'))
+                     if int(row.get('outcome', -1)) == 0
+                     and int(row.get('completion_level') or 0) >= 6 and row.get('elapsed_s'))
     if not elapsed:
         return
     figure, axis = plt.subplots(figsize=(6.4, 4.2))
@@ -418,7 +421,8 @@ def plot_cdf(rows: list[dict], path: Path) -> None:
 
 def plot_workspace(geometry: list[dict], outcomes: list[dict], path: Path) -> None:
     """袋心在基座系水平面的位置，按该果终局着色."""
-    status = {(row['batch'], row.get('target_id')): int(row.get('outcome', -1))
+    status = {(row['batch'], row.get('target_id')): int(row.get('outcome', -1)) == 0
+              and int(row.get('completion_level') or 0) >= 6
               for row in outcomes}
     figure, axis = plt.subplots(figsize=(6.2, 5.4))
     for row in geometry:
@@ -426,13 +430,13 @@ def plot_workspace(geometry: list[dict], outcomes: list[dict], path: Path) -> No
         if not (isinstance(bottom, list) and isinstance(neck, list)):
             continue
         center = 0.5 * (np.asarray(bottom[:3]) + np.asarray(neck[:3]))
-        code = status.get((row.get('batch'), row.get('target_id')), 0)
-        color = ACCENT if code == 0 else BAD
+        completed = status.get((row.get('batch'), row.get('target_id')), False)
+        color = ACCENT if completed else BAD
         axis.scatter(center[0], center[1], s=46, color=color, zorder=3)
     axis.set_aspect('equal', adjustable='datalim')
     axis.set_xlabel('x / m')
     axis.set_ylabel('y / m')
-    axis.set_title('袋心分布    绿=周期完成  红=未完成')
+    axis.set_title('袋心分布    绿=运动周期完成  红=未完成或未知')
     _bare(axis)
     _save(figure, path)
 
@@ -528,7 +532,8 @@ def _write_tables(out: Path, rows: list[dict], geometry: list[dict],
                 'elapsed_s': row.get('elapsed_s'),
                 'reason': row.get('reason'),
             })
-    done = [row for row in rows if int(row.get('outcome', -1)) == 0]
+    done = [row for row in rows if int(row.get('outcome', -1)) == 0
+            and int(row.get('completion_level') or 0) >= 6]
     elapsed = [float(row['elapsed_s']) for row in done if row.get('elapsed_s')]
     summary = {
         'fruits': len(rows),

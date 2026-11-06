@@ -1,5 +1,6 @@
 # peach_target_reconstruction_node 参数全量清单（nav2 式：launch 以 ParameterFile 装入，部署值即事实源）
-# 节点 TargetReconstructionParams.attach 按本文件声明叶子；ros2 param set 原地刷新。
+# schema target_reconstruction_parameters.yaml 生成 GPL 声明；本文件提供部署覆盖值。
+# 逐次读取键可热更新；构造期捕获的算法配置须重启，启动只读键由 schema 标明。
 # 键名冻结。跨包轴向后撤由 grasp_standoffs.yaml 经 launch 注入覆盖。
 peach_target_reconstruction_node:
   ros__parameters:
@@ -11,10 +12,12 @@ peach_target_reconstruction_node:
       color_topic: /camera/color/image_raw  # 彩色图话题（bgr8）
       depth_topic: /camera/depth/image_raw  # 深度图话题（uint16 或 32FC1）
       camera_info_topic: /camera/color/camera_info  # 彩色相机内参话题（只用 K 矩阵）
-    sync_slop_s: 0.05  # RGB/深度/内参三路近似时间同步允差 (s)
+    sync_slop_s: 0.05  # RGB/深度/内参同步允差 (s)，须 >0；启动只读，修改须重启
     tf_timeout_sec: 1.0  # 按 depth.header.stamp 精确查询 TF 的最长等待 (s)；连续运动时严禁回退 latest TF，否则深度与机器人位姿错时会产生重影
     depth_scale_unit: 0.25  # 深度比例因子（仅 uint16 原始深度生效）：raw × 本值 = 毫米（Percipio 常见 0.25）；数据集回放(真毫米)设 1.0；32FC1 浮点深度按（米）×1000，本参数不生效
     capture:
+      # min/recommended/max_views 在构造期读取，启动只读；修改后须重启。
+      # 必须 min_views <= max_views；recommended_views 只作建议。
       min_views: 1  # finalize 所需最少机位数。单视即可收口，不为凑第二机位再移臂（效率优先）；同机位连帧不加机位
       recommended_views: 5  # 推荐视角数（不足仅提示，不阻塞 finalize）
       max_views: 24  # 帧栈上限（不是节拍）：percipio 端约 2.5 FPS 时有效视角常 4–6；peach_stereo 端（09-17 A/B 实测感知处理 ~7.5fps）单停帧密度约 3 倍，同视角去重靠 view_filter，本上限无需改动
@@ -25,8 +28,8 @@ peach_target_reconstruction_node:
       static_joint_vel_thresh: 0.03  # 到位后残余速度阈值 (rad/s)；转移中仍是 0.4–1.5 rad/s
       joint_state_tolerance_s: 0.1  # 曝光前后关节状态各自最大间距(s)；缺失/过旧/无速度拒帧，不回退处理时刻速度
       max_frame_age_s: 12.0  # 缓存帧龄期上限 (s)。停走式+require_robot_static：按曝光时刻查关节。8.0 在 2026-10-16 live_mock 对上掩膜后仍拒 8.42 s 陈帧；12 s 覆盖一帧感知滞后。运动中仍由静止门拒采。
-      auto_mode: true  # 有候选自动开始，每个唯一同步帧进入质量门；false = 纯手动 Trigger 服务流
-      auto_finalize_at_max: false  # 默认由用户在覆盖充分后 finalize
+      auto_mode: true  # 有候选自动开始；false 时仅显式 BuildTargetModel 可开新会话。独立 launch 默认 capture_auto_mode=false，最后覆盖本值
+      auto_finalize_at_max: false  # 自动采集满栈不自行 finalize；显式 Build 覆盖达标后仍会自行收口
       auto_min_interval_s: 0.0  # 每个唯一相机时间戳均进入质量门
       require_target_mask: true  # 只积分所选稳定 ID 的掩膜（F1 后=容差内最近邻配对）
       mask_stamp_tolerance_s: 0.45  # [s] 掩膜 stamp 最近邻容差（F1：须 < 掩膜流周期之半；0=回精确匹配）。2026-10-16 真实相机+mock：感知约 1 Hz、深度 12 Hz，0.08 按 7.5 fps 掩膜设计会 missing_mask 饿死采帧；1 Hz 半周期=0.5，本值 0.45。上限见 params 0.5。
@@ -35,7 +38,7 @@ peach_target_reconstruction_node:
       max_target_drift_m: 0.04  # [m] 风吹目标漂移过大时跳帧：0.06 档吸纳正常风摆（峰峰 5~6cm）仍能拦住跨目标误绑。e2e25 轮（09-17）曾在 mock 下放宽到 0.25 解锁（mock 下相机固定而 TF 按眼在手上算，视点一动 base 系锚必偏 ~220mm，纯伪影）；用户裁定 mock 测试作废转真机后已回调 0.04。本节点门配置 configure 期冻结，ros2 param set 运行时改不生效（须重启）。
       min_neighbor_gap_m: 0.0  # [m] 邻锚整帧拒采。0=关闭：成串套袋是正常工况，每颗只用自己的掩膜积分，不因锚点距离停采。掩膜重叠时的串点由掩膜本身限制，不靠这道距离门。>0 时才恢复「近于该距离则拒帧」
       neighbor_gap_area_ratio: 2.0  # 串扰门小框豁免比；邻居检测框面积×本值 < 绑定框面积时该邻居不计入间距（叶片遮挡残片/误检）；≤0 关闭豁免
-      build_timeout_s: 180.0  # BuildTargetModel 等 min_views 上限 (s)；超时不 finalize
+      build_timeout_s: 180.0  # 整次 BuildTargetModel 预算 (s)，包含等待、重试、finalize 和结果提交；超时作废迟到产物
     bind:
       switch_holdoff_s: 2.0  # [s] selected 切换防抖：selected_target_id 变化（含变空）须持续超过本时长才放弃进行中会话重绑；holdoff 内切回原 ID 取消挂起，旧会话继续采帧
     view_filter:

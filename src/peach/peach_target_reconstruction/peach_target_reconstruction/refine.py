@@ -1,6 +1,7 @@
 """精化：候选契约、柱/球 refit、袋融合、预抓取残差."""
 from __future__ import annotations
 
+from contextlib import nullcontext
 from dataclasses import dataclass
 from dataclasses import field
 from typing import Callable, Iterable, List, Mapping, Optional, Tuple
@@ -1289,7 +1290,7 @@ def fuse_bag_views(
 
 def collect_bag_views(frames, target_center,
                       on_view: Optional[Callable] = None,
-                      axis_hint=None, axis_origin=None) -> List[BagLandmarks]:
+                      axis_hint=None, axis_origin=None, timing=None) -> List[BagLandmarks]:
     """
     Extract bag landmarks, one cloud per camera pose cluster.
 
@@ -1332,14 +1333,16 @@ def collect_bag_views(frames, target_center,
         cloud = np.asarray(cloud, dtype=np.float64)
         if cloud.ndim != 2 or cloud.shape[0] < 30:
             continue
-        landmarks = estimate_bag_landmarks(
-            cloud,
-            gravity=np.array([0.0, 0.0, -1.0], dtype=np.float64),
-            valid_depth_ratio=float(frame.valid_depth_ratio), axis_hint=axis_hint,
-            axis_origin=axis_origin)
+        with timing.phase('captured_landmarks') if timing is not None else nullcontext():
+            landmarks = estimate_bag_landmarks(
+                cloud,
+                gravity=np.array([0.0, 0.0, -1.0], dtype=np.float64),
+                valid_depth_ratio=float(frame.valid_depth_ratio), axis_hint=axis_hint,
+                axis_origin=axis_origin)
         views.append(landmarks)
         if on_view is not None:
-            on_view(landmarks, frame)
+            with timing.phase('geometry_record') if timing is not None else nullcontext():
+                on_view(landmarks, frame)
     return views
 
 

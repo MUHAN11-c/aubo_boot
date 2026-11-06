@@ -190,7 +190,12 @@ class ObservabilityParams:
 
     @classmethod
     def attach(cls, node) -> 'ObservabilityParams':
-        """Declare GPL parameters and keep this snapshot live on set."""
+        """Reuse one GPL listener and live snapshot for the lifetime of a node."""
+        binding = getattr(node, '_peach_observability_param_binding', None)
+        if binding is not None:
+            listener, snapshot = binding
+            _copy_fields(snapshot, from_params(listener.get_params()))
+            return snapshot
         node.add_on_set_parameters_callback(_int_bounds)
         try:
             listener = _Generated.ParamListener(node)
@@ -205,6 +210,7 @@ class ObservabilityParams:
             _copy_fields(snapshot, from_params(params))
 
         listener.set_user_callback(_commit)
+        node._peach_observability_param_binding = (listener, snapshot)
         return snapshot
 
 

@@ -166,3 +166,10 @@ src/examples/study/
 
 # 视频工具中间产物（workspace 根 out/）
 /out/
+
+# Local credentials and agent/session caches never belong in a source release.
+.aws/
+.codex/
+.mimocode/
+.cache/
+/deps/

@@ -58,7 +58,7 @@ interfaces:
     kind: service
     type: peach_interfaces/srv/SetEnables
     producers: [peach_supervisor]
-    consumers: []   # 人工（8090 转发未接；ros2 service call 可用）；服务端广播 /peach/batch/enables
+    consumers: [peach_observability]   # 8090 set_enables_service调试桥；服务端广播使能
   - name: /peach_supervisor/set_batch_policy
     kind: service
     type: peach_interfaces/srv/SetBatchPolicy
@@ -226,12 +226,12 @@ interfaces:
     kind: action
     type: peach_interfaces/action/MoveTo
     producers: [peach_arm]
-    consumers: [peach_supervisor]   # fast 档观察补视 + FireStep PHOTO 拍照位（2026-10-08 起）；stow 仍走接触周期内 PTP
+    consumers: [peach_supervisor]   # fast补视 + FireStep PHOTO；FULL返程在周期内沿成功接近段倒放回拍照位
   - name: /peach_arm/tool_state
     kind: topic
     type: peach_interfaces/msg/ToolState
     qos: {reliability: reliable, durability: transient_local, depth: 1}
-    producers: [peach_arm]   # 批次3：三轴工具状态（刀/保持/载荷），on-change+1Hz
+    producers: [peach_arm]   # 三轴工具状态；当前有效DI新沿/开刀释放时发布，无周期心跳
     consumers: []   # 无显式订户（会话 bag catch-all 落证据；回写禁止）
   - name: /peach/batch/enables
     kind: topic

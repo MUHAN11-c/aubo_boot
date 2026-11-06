@@ -87,41 +87,6 @@ inline Eigen::Isometry3d pregraspAlongAxis(
   return pose;
 }
 
-/// v4 接近三路点（零 ROS，2026-09-23 定型）：pregrasp=entry−axis·along_m；
-/// mid=pregrasp−axis·final_axial_m（末段对轴起点）；staging=mid−ẑ·canopy_m
-/// （世界垂直线上、树冠外，PTP 落点）。三路点姿态统一
-/// alignFrameZRolled(current_R, axis, roll)——与 staging_ik 滚转梯子命中的
-/// roll 一致，PTP 落点与两段 LIN 目标同姿态族（20° 门可过，审查 P1-2）。
-struct StagingWaypoints
-{
-  Eigen::Isometry3d pregrasp{Eigen::Isometry3d::Identity()};
-  Eigen::Isometry3d mid{Eigen::Isometry3d::Identity()};
-  Eigen::Isometry3d staging{Eigen::Isometry3d::Identity()};
-};
-
-inline StagingWaypoints stagingWaypoints(
-  const Eigen::Isometry3d & entry, const Eigen::Vector3d & axis,
-  const Eigen::Matrix3d & current_R, double roll_rad,
-  double along_m, double final_axial_m, double canopy_m)
-{
-  const Eigen::Vector3d u =
-    (axis.allFinite() && axis.norm() > 1.0e-9) ? axis.normalized() :
-    Eigen::Vector3d::UnitZ();
-  const Eigen::Matrix3d R = alignFrameZRolled(current_R, u, roll_rad);
-  StagingWaypoints w;
-  w.pregrasp = entry;
-  w.pregrasp.translation() -= u * (along_m > 0.0 ? along_m : 0.0);
-  w.pregrasp.linear() = R;
-  w.mid = w.pregrasp;
-  w.mid.translation() -= u * (final_axial_m > 0.0 ? final_axial_m : 0.0);
-  w.mid.linear() = R;
-  w.staging = w.mid;
-  w.staging.translation() -= Eigen::Vector3d::UnitZ() *
-    (canopy_m > 0.0 ? canopy_m : 0.0);
-  w.staging.linear() = R;
-  return w;
-}
-
 inline constexpr char kShearProfileId[] = "shear_v1";
 inline constexpr char kBiteShearProfileId[] = "bite_shear_v1";
 
@@ -143,7 +108,7 @@ inline std::vector<std::string> harvestStowNamedHops(
   return {photo, stow};
 }
 
-// SELECT / CheckReachability 与 MovePregrasp 同一停位：请求当入口（Z=袋轴），
+// 原视觉预抓取几何：入口 Z=袋轴；轨迹额外净空由 trajectoryApproachGeometry 处理。
 // 位置沿 −Z 后撤 standoff，姿态 alignFrameZ 保留当前 TCP 滚转。轴无效则原样返回。
 inline Eigen::Isometry3d pregraspFromEntryKeepRoll(
   const Eigen::Isometry3d & entry,
@@ -170,6 +135,41 @@ inline Eigen::Isometry3d sleeveAlongAxis(
   const double travel = travel_m > 0.0 ? travel_m : 0.0;
   pose.translation() += axis.normalized() * travel;
   return pose;
+}
+
+struct TrajectoryApproachGeometry
+{
+  Eigen::Isometry3d visual_pregrasp;
+  Eigen::Isometry3d transfer;
+  Eigen::Isometry3d sleeve_end;
+  double sleeve_distance_m{0.0};
+};
+
+// 视觉停位原样保留；仅轨迹转移点沿反套入方向后移。所有 arm 调用共用。
+inline std::optional<TrajectoryApproachGeometry> trajectoryApproachGeometry(
+  const Eigen::Isometry3d & entry, const Eigen::Vector3d & axis,
+  double visual_standoff_m, double clearance_m, double travel_m = 0.0)
+{
+  if (!entry.matrix().allFinite() || !axis.allFinite() ||
+    !std::isfinite(axis.norm()) || axis.norm() < 1.0e-9 ||
+    !std::isfinite(visual_standoff_m) || visual_standoff_m < 0.0 ||
+    !std::isfinite(clearance_m) || clearance_m < 0.0 ||
+    !std::isfinite(travel_m) || travel_m < 0.0)
+  {
+    return std::nullopt;
+  }
+  TrajectoryApproachGeometry geometry;
+  geometry.visual_pregrasp = pregraspAlongAxis(entry, axis, visual_standoff_m);
+  geometry.transfer = geometry.visual_pregrasp;
+  geometry.transfer.translation() -= axis.normalized() * clearance_m;
+  geometry.sleeve_end = sleeveAlongAxis(entry, axis, travel_m);
+  geometry.sleeve_distance_m = visual_standoff_m + clearance_m + travel_m;
+  if (!geometry.transfer.matrix().allFinite() || !geometry.sleeve_end.matrix().allFinite() ||
+    !std::isfinite(geometry.sleeve_distance_m))
+  {
+    return std::nullopt;
+  }
+  return geometry;
 }
 
 // SELECT / CheckReachability 套入终点与接触 LIN 同一几何：入口沿袋轴前插

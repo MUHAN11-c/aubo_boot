@@ -257,7 +257,7 @@ class MobileSam:
     Ultralytics bbox-prompt 分割器（直接构造）.
 
     默认权重 FastSAM-s：先出全图实例再按检测框匹配掩膜（8.3 FastSAM 的 prompt
-    语义）。stem 仍为 mobile_sam 时走 SAM box prompt。面积 < sam_min_area 丢弃。
+    语义）。非 FastSAM 权重走 SAM box prompt。面积 <= sam_min_area 丢弃。
     所有推理经 self._lock 序列化（CUDA 线程安全，同 UltralyticsYolo）。
     """
 
@@ -372,6 +372,7 @@ class MobileSam:
         """Match FastSAM instances to YOLO boxes; prompt order is not 1:1."""
         ih, iw = rgb.shape[:2]
         resized = [self._resize_mask(mask, rgb.shape) for mask in masks]
+        mask_areas = {}
         used = set()
         output = []
         for bbox in bboxes:
@@ -387,12 +388,14 @@ class MobileSam:
                 inter = float(bin_mask[y1:y2, x1:x2].sum())
                 if inter <= 0.0:
                     continue
-                union = float(bin_mask.sum()) + box_area - inter
+                if i not in mask_areas:
+                    mask_areas[i] = int(bin_mask.sum())
+                union = float(mask_areas[i]) + box_area - inter
                 score = inter / max(union, 1.0)
                 if score > best:
                     best_i, best = i, score
             if (best_i >= 0 and best >= 0.05
-                    and resized[best_i].sum() > self._sam_min_area):
+                    and mask_areas[best_i] > self._sam_min_area):
                 used.add(best_i)
                 output.append((resized[best_i], bbox))
         return output
@@ -411,7 +414,7 @@ class MobileSam:
 
         Returns
         -------
-        [(binary_mask, bbox), ...]，面积 < sam_min_area 的掩码被丢弃
+        [(binary_mask, bbox), ...]，面积 <= sam_min_area 的掩码被丢弃
 
         """
         if not bboxes:

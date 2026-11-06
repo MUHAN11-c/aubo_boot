@@ -55,6 +55,23 @@ inline bool fitsExecutionTimeout(
   return false;
 }
 
+/// 平移必要时间下界，不含加减速和对轴。未知/非法界返回0，不据此剪枝。
+/// 额外减去1mm只让下界更保守；不改变规划目标或任何轨迹验收容差。
+inline double cartesianTranslationLowerBound(
+  double chord_m, double max_velocity_mps, double velocity_scaling)
+{
+  if (!std::isfinite(chord_m) || chord_m < 0.0 ||
+    !std::isfinite(max_velocity_mps) || max_velocity_mps <= 0.0 ||
+    !std::isfinite(velocity_scaling) || velocity_scaling <= 0.0 ||
+    velocity_scaling > 1.0)
+  {
+    return 0.0;
+  }
+  const double duration = std::max(0.0, chord_m - 0.001) /
+    (max_velocity_mps * velocity_scaling);
+  return std::isfinite(duration) ? duration : 0.0;
+}
+
 /// 秒 → builtin_interfaces::Duration；负值截 0（时间戳不允许回退）。
 inline builtin_interfaces::msg::Duration secToDuration(double s)
 {
@@ -173,12 +190,15 @@ inline trajectory_msgs::msg::JointTrajectory reverseJointTrajectory(
   if (forward.points.size() < 2U) {
     return out;
   }
-  const double t_end = durationToSec(forward.points.back().time_from_start);
+  const auto t_end = durationToNs(forward.points.back().time_from_start);
   out.points.reserve(forward.points.size());
   for (std::size_t i = 0; i < forward.points.size(); ++i) {
     const auto & src = forward.points[forward.points.size() - 1U - i];
     auto point = src;
-    point.time_from_start = secToDuration(t_end - durationToSec(src.time_from_start));
+    // 保持每个原区间的整数纳秒，避免double相减再截断改变quintic动态界。
+    const auto ns = std::max<int64_t>(0, (t_end - durationToNs(src.time_from_start)).count());
+    point.time_from_start.sec = static_cast<int32_t>(ns / 1000000000LL);
+    point.time_from_start.nanosec = static_cast<uint32_t>(ns % 1000000000LL);
     for (double & v : point.velocities) {
       v = -v;
     }
@@ -285,6 +305,13 @@ inline TrajectoryGuardReport inspectApproachTrajectories(
     for (const auto & point : trajectory.points) {
       if (point.positions.size() != joint_count) {
         report.reason = "接近轨迹关节维度不一致";
+        return report;
+      }
+      if (!std::all_of(
+          point.positions.begin(), point.positions.end(),
+          [](double value) {return std::isfinite(value);}))
+      {
+        report.reason = "接近轨迹含非有限关节值";
         return report;
       }
     }

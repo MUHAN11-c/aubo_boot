@@ -150,7 +150,7 @@ class TaskExecutorNode(LifecycleNode):
     _operation_mode: int
     """MODE_AUTO / PAUSED / MAINTENANCE."""
     _action_active: bool
-    """RunHarvest action 正在执行."""
+    """调度侧有在途技能/重建动作."""
     _recovery_required: bool
     """接触故障，须 ACK."""
     _grasp_enabled: bool
@@ -611,14 +611,17 @@ class TaskExecutorNode(LifecycleNode):
     def _on_set_batch_policy(self, request, response):
         """批次策略运行期改：当前批立即生效或作下批默认."""
         updates = {
-            'target_harvest_ratio': max(
-                0.0, float(request.target_harvest_ratio)),
-            'per_target_timeout_s': max(
-                0.0, float(request.per_target_timeout_s)),
-            'sector_timeout_s': max(0.0, float(request.sector_timeout_s)),
+            'target_harvest_ratio': float(request.target_harvest_ratio),
+            'per_target_timeout_s': float(request.per_target_timeout_s),
+            'sector_timeout_s': float(request.sector_timeout_s),
             'view_policy': int(request.view_policy),
         }
         updated = self._batch_policy.with_updates(**updates)
+        error = updated.validation_error()
+        if error:
+            response.accepted = False
+            response.message = f'拒绝：{error}'
+            return response
         if bool(request.apply_to_current):
             with self._lock:
                 self._batch_policy = updated
@@ -715,6 +718,14 @@ class TaskExecutorNode(LifecycleNode):
 
     def _goal_if_active(self, goal_request):
         """放行或拒绝 RunHarvest goal：未激活/栈未就绪/已有批次则拒绝."""
+        policy = BatchPolicy.from_goal({
+            name: getattr(goal_request, name, 0)
+            for name in ('target_harvest_ratio', 'per_target_timeout_s',
+                         'sector_timeout_s', 'view_policy')})
+        error = policy.validation_error()
+        if error:
+            self.get_logger().warning(f'RunHarvest 拒绝：{error}')
+            return GoalResponse.REJECT
         if goal_request.intent not in (
                 RunHarvest.Goal.INTENT_PICK_ALL, RunHarvest.Goal.INTENT_PICK_SELECTED,
                 RunHarvest.Goal.INTENT_SURVEY_ONLY):
@@ -1025,7 +1036,7 @@ class TaskExecutorNode(LifecycleNode):
                     out = self._rework.save(default_ledger_root())
                     self.get_logger().info(
                         f'补采清单已落盘：{out}（{len(self._rework.entries)} 项）')
-                except OSError as error:
+                except (OSError, ValueError) as error:
                     self.get_logger().warning(f'补采清单落盘失败: {error}')
             self._target_deadline = None
             with self._lock:
@@ -1150,7 +1161,11 @@ class TaskExecutorNode(LifecycleNode):
         return result
 
     def _cmd_survey(self, goal, reaction):
-        """SURVEY 分支（原循环分支逐字搬运）：SurveyScene + 首轮后断点恢复."""
+        """SURVEY 分支：先检查配额，再派 SurveyScene，首轮后恢复断点."""
+        if self._ratio_satisfied(goal.request_id):
+            reaction = self._react(Event.EMPTY_LIMIT)
+            self._apply(reaction, goal.request_id)
+            return reaction, False
         survey_ok = self._survey_body(self._survey_goal)
         if not self._ledger_loaded:
             claimed, restored, restored_details = self._restore_ledger(
@@ -1200,6 +1215,19 @@ class TaskExecutorNode(LifecycleNode):
         self._apply(reaction, goal.request_id)
         return reaction, True
 
+    def _ratio_satisfied(self, request_id: str) -> bool:
+        """SELECT 与下一次 Survey 派发前共用采收率门，达标记录收批原因."""
+        with self._lock:
+            policy = self._batch_policy
+            reached = ratio_reached(
+                sum(1 for item in self._outcomes
+                    if int(item.outcome) == int(TargetOutcome.SUCCEEDED)),
+                int(self._discovered or 0), policy)
+        if reached:
+            self._emit('batch_ratio_satisfied', request_id, details={
+                'target_harvest_ratio': policy.target_harvest_ratio})
+        return reached
+
     def _cmd_select(self, goal, reaction):
         """SELECT 分支（原循环分支逐字搬运）：采收率门→联合约束选果→claim."""
         if not self._execution_enabled_effective():
@@ -1208,15 +1236,7 @@ class TaskExecutorNode(LifecycleNode):
             return reaction, True
         # 采收率门（3c-2a：跳过是调度参数不是失败——达标即收批，
         # 余果不再尝试，入补采清单）
-        if ratio_reached(
-                sum(1 for o in self._outcomes
-                    if int(o.outcome) == int(TargetOutcome.SUCCEEDED)),
-                int(self._discovered or 0), self._batch_policy):
-            self._emit(
-                'batch_ratio_satisfied', goal.request_id,
-                details={
-                    'target_harvest_ratio':
-                        self._batch_policy.target_harvest_ratio})
+        if self._ratio_satisfied(goal.request_id):
             reaction = self._react(Event.EMPTY_LIMIT)
             self._apply(reaction, goal.request_id)
             return reaction, False
@@ -1850,7 +1870,8 @@ class TaskExecutorNode(LifecycleNode):
         """
         Fast 档观察循环薄接线（W6-A）：循环与判定在 supervisor.observe 纯核.
 
-        返回 (observe_ok, details)；取消/跳过/几何缺失 → not ok。
+        返回 (observe_ok, details)；缺几何/无候选按封顶交 Build 判定，
+        取消返回失败，人工跳过由派发分支另行收口。
         """
         del request_id  # 原签名保留（调用方兼容）；循环体不消费
         return observe.fast_observe_loop(

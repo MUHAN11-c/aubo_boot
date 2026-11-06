@@ -6,7 +6,7 @@ peach_autostart_client:
   intent:
     type: int
     default_value: 0
-    description: RunHarvest intent; 0 means PICK_ALL.
+    description: RunHarvest intent; PICK_ALL=0, PICK_SELECTED=1 or SURVEY_ONLY=2.
   wait_stack_timeout_s:
     type: double
     default_value: 90.0

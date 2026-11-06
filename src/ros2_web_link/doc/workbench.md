@@ -111,7 +111,7 @@ view.syncConnection();
 
 ## 本轮核对与来源
 
-当前实现与核对步骤在 [实施计划](universal-workbench-plan.md)，逐轮原始证据在工作区 `runs/ros2_web_workbench_20261102/`。CPU 探针使用 `npm run graph`、`npm run workbench`、`npm run observe`；真实浏览器入口为 `scripts/workbench_browser_probe.mjs`，必须使用有界原生 runner，结束查 `resources.json`。本轮功能核对已完成，完整步骤与失败更正见 [testing.md](testing.md) 的 0.8.0 记录；六入口、离线重建、wire与官方lint已验证；分发验证独立记录在工作区 artifacts/ros2_web_link/，不能把旧 0.7.1 的长测当作新工作台通过。
+0.8.0 的实施清单保留在 [历史计划](universal-workbench-plan.md)，逐轮原始证据在工作区 `runs/ros2_web_workbench_20261102/`。CPU 探针使用 `npm run graph`、`npm run workbench`、`npm run observe`；真实浏览器入口为 `scripts/workbench_browser_probe.mjs`，必须使用有界原生 runner，结束查 `resources.json`。本轮功能核对已完成，完整步骤与失败更正见 [testing.md](testing.md) 的 0.8.0 记录；六入口、离线重建、wire与官方lint已验证；分发验证独立记录在工作区 artifacts/ros2_web_link/，不能把旧 0.7.1 的长测当作新工作台通过。
 
 设计核对来自 [RViz Jazzy 插件文档](https://raw.githubusercontent.com/ros2/rviz/jazzy/docs/plugin_development.md)、本机 `rviz_common/display.hpp` / `display_group.hpp` / `ros_topic_display.hpp`、[rqt_graph ROS 2 源码](https://github.com/ros-visualization/rqt_graph/blob/ros2/src/rqt_graph/rosgraph2_impl.py)、本机 rosapi 2.7.1 的 `proxy.py` / `NodeDetails.srv`、[Cytoscape 官方 API](https://js.cytoscape.org/)。依赖版本、API 限制与源码哈希见本轮 `source-review.json`。本包继续保留所有第三方许可证；未把网页操作当作硬件急停或运动授权。
 

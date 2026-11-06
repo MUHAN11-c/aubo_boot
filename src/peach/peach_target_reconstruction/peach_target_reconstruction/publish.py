@@ -56,7 +56,7 @@ class PublishThrottle:
 
     def __init__(self, min_interval_s: float = 0.2,
                  now: Optional[Callable] = None):
-        """保存最小间隔与注入时钟；now 为单调秒，None 则用 time.perf_counter."""
+        """保存最小间隔与注入秒值时钟；None 时使用 time.perf_counter."""
         self._min_interval = max(0.0, float(min_interval_s))
         self._now = now if now is not None else time.perf_counter
         # 每话题最近一次「实际发布」的版本 key 与时刻；未发布过无记录

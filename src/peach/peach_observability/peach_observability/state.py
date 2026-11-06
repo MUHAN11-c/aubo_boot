@@ -1,12 +1,15 @@
 """监控状态缓存、消息→JSON 编解码与性能采样."""
 from __future__ import annotations
 
+from collections import OrderedDict
 import json
 import math
+from pathlib import Path
+import re
 import subprocess
 import threading
 import time
-from typing import Any
+from typing import Any, Callable
 
 from .job import build_harvest_job
 
@@ -17,6 +20,8 @@ except ImportError:  # pragma: no cover - 部署机保证有 psutil，仅防御
 
 
 _STATUS_NAMES = {0: 'ACCEPT', 1: 'REOBSERVE', 2: 'REJECT'}
+_DIAGNOSTIC_STALE_S = 5.0
+_DIAGNOSTIC_TASK_LIMIT = 256
 # 与 PeachTargetObservation.msg 常量一一对应（阶段 D1 追加 4/5）：
 # OUT_OF_VIEW=出画（检测框触图像边缘后消失）、DEPTH_VOID=深度空洞
 # （掩膜内有效深度占比低于阈值）；沿用既有英文 token 风格，前端徽标
@@ -448,12 +453,65 @@ def finite_or_none(value: Any) -> Any:
     return value
 
 
+def _process_identities(cmdline: list[str]) -> set[str]:
+    """提取执行入口与首条适用的 ROS 节点改名，不扫描任意参数子串."""
+    if not cmdline:
+        return set()
+    executable = Path(cmdline[0]).name
+    identities = {executable}
+    if re.fullmatch(r'python(?:\d+(?:\.\d+)*)?', executable):
+        index = 1
+        while index < len(cmdline):
+            arg = cmdline[index]
+            if arg == '-c':
+                break
+            if arg == '-m':
+                if index + 1 < len(cmdline):
+                    module = cmdline[index + 1]
+                    identities.update((module, module.rsplit('.', 1)[-1]))
+                break
+            if arg in ('-W', '-X', '--check-hash-based-pycs'):
+                index += 2
+                continue
+            if arg == '--':
+                index += 1
+                if index >= len(cmdline):
+                    break
+                arg = cmdline[index]
+            elif arg.startswith('-'):
+                index += 1
+                continue
+            entry = Path(arg).name
+            identities.add(entry)
+            if entry.endswith('.py'):
+                identities.add(entry[:-3])
+            break
+    ros_args = False
+    index = 1
+    while index < len(cmdline):
+        arg = cmdline[index]
+        if arg == '--ros-args':
+            ros_args = True
+        elif arg == '--':
+            ros_args = False
+        elif ros_args and arg in ('-r', '--remap') and index + 1 < len(cmdline):
+            index += 1
+            match = re.fullmatch(
+                r'(?:([A-Za-z_][A-Za-z0-9_]*):)?'
+                r'(?:__node|__name):=([A-Za-z_][A-Za-z0-9_]*)', cmdline[index])
+            if match and (match[1] is None or match[1] in identities):
+                identities.add(match[2])
+                break
+        index += 1
+    return identities
+
+
 class MetricsSampler:
     """周期采集 CPU/内存/load、GPU 与关键进程 CPU/RSS 的后台线程."""
 
     def __init__(self, period_s: float, patterns: list[str], apply,
                  log_warning=lambda msg: None):
-        """保存采样周期、进程 cmdline 匹配关键字与结果回调."""
+        """保存采样周期、执行入口/节点名精确匹配列表与结果回调."""
         self._period = max(0.5, float(period_s))
         self._patterns = [str(item) for item in patterns if str(item)]
         self._apply = apply
@@ -465,11 +523,14 @@ class MetricsSampler:
 
     def start(self) -> None:
         """启动后台采样线程（幂等）."""
-        if self._thread is not None:
+        if self._thread is not None and self._thread.is_alive():
+            if self._stop.is_set():
+                self._log_warning('性能采样线程仍在退出，本次不重复启动')
             return
-        self._stop.clear()
+        self._stop = threading.Event()
         self._thread = threading.Thread(
-            target=self._run, name='peach-observability-metrics', daemon=True)
+            target=self._run, args=(self._stop,),
+            name='peach-observability-metrics', daemon=True)
         self._thread.start()
 
     def stop(self) -> None:
@@ -477,15 +538,21 @@ class MetricsSampler:
         self._stop.set()
         if self._thread is not None:
             self._thread.join(timeout=2.0)
-            self._thread = None
+            if self._thread.is_alive():
+                self._log_warning('性能采样线程未在2秒内退出，保留句柄等待收口')
+            else:
+                self._thread = None
 
-    def _run(self) -> None:
-        while not self._stop.is_set():
+    def _run(self, stop: threading.Event) -> None:
+        while not stop.is_set():
             try:
-                self._apply(self._collect())
+                sample = self._collect()
+                if stop.is_set():
+                    return
+                self._apply(sample)
             except Exception as error:  # 采样失败只降级，绝不炸采样线程
                 self._log_warning(f'性能采样失败（本轮跳过）: {error}')
-            self._stop.wait(self._period)
+            stop.wait(self._period)
 
     def _collect(self) -> dict:
         """采集一帧性能样本；任何子项失败都局部降级."""
@@ -537,48 +604,54 @@ class MetricsSampler:
             return None
 
     def _collect_processes(self) -> list[dict]:
-        """按 cmdline 关键字匹配关键进程，取每组 RSS 最大者报 CPU/RSS."""
+        """按进程身份精确匹配，宿主同名取 RSS 最大者；缺失显式留空."""
+        missing = [{'name': name, 'pid': None, 'cpu_percent': None, 'rss_mb': None}
+                   for name in self._patterns]
         if psutil is None or not self._patterns:
-            return []
+            return missing
         try:
             candidates = list(psutil.process_iter(['pid', 'cmdline']))
         except (OSError, RuntimeError):
-            return []
-        matched = []
+            return missing
+        groups = {}
         live_pids = set()
-        for pattern in self._patterns:
-            best = None
-            for info in candidates:
-                cmdline = info.info.get('cmdline') or []
-                if pattern not in ' '.join(cmdline):
-                    continue
-                try:
-                    process = self._processes.get(info.info['pid'])
-                    if process is None:
-                        process = psutil.Process(info.info['pid'])
-                        self._processes[info.info['pid']] = process
-                    live_pids.add(process.pid)
-                    rss = process.memory_info().rss
-                    if best is None or rss > best[1]:
-                        best = (process, rss)
-                except (psutil.NoSuchProcess, psutil.AccessDenied):
-                    continue
+        patterns = set(self._patterns)
+        for info in candidates:
+            names = patterns.intersection(_process_identities(info.info.get('cmdline') or []))
+            if not names:
+                continue
+            try:
+                process = self._processes.get(info.info['pid'])
+                if process is None:
+                    process = psutil.Process(info.info['pid'])
+                    self._processes[info.info['pid']] = process
+                live_pids.add(process.pid)
+                rss = process.memory_info().rss
+                for name in names:
+                    if name not in groups or rss > groups[name][1]:
+                        groups[name] = (process, rss)
+            except (psutil.NoSuchProcess, psutil.AccessDenied):
+                continue
+        sampled = {}
+        for row in missing:
+            best = groups.get(row['name'])
             if best is None:
                 continue
             process, rss = best
             try:
-                matched.append({
-                    'name': pattern,
-                    'pid': process.pid,
-                    'cpu_percent': float(process.cpu_percent(None)),
-                    'rss_mb': round(rss / 1048576.0, 1),
-                })
+                if process.pid not in sampled:
+                    sampled[process.pid] = {
+                        'pid': process.pid,
+                        'cpu_percent': float(process.cpu_percent(None)),
+                        'rss_mb': round(rss / 1048576.0, 1),
+                    }
+                row.update(sampled[process.pid])
             except (psutil.NoSuchProcess, psutil.AccessDenied):
                 continue
         # 清掉已退出进程的缓存句柄，防止 pid 复用后误读
         for pid in [pid for pid in self._processes if pid not in live_pids]:
             del self._processes[pid]
-        return matched
+        return missing
 
 
 class ObservabilityState:
@@ -607,6 +680,9 @@ class ObservabilityState:
         self._started = time.time()
         self._job_cache: dict | None = None
         self._job_revision: int = -1
+        self._diagnostic_tasks: OrderedDict = OrderedDict()
+        self._diagnostic_evicted = 0
+        self._record_info_source: Callable[[], dict] | None = None
         self._values = {
             'perception': {
                 'harvest': {},
@@ -671,13 +747,60 @@ class ObservabilityState:
         }
         self._updated = {}
 
-    def update_diagnostics(self, nodes: dict) -> None:
-        """整体替换 /diagnostics 聚合并刷新时间戳（回调线程调用）."""
-        now = time.time()
+    def set_record_info_source(self, source: Callable[[], dict] | None) -> None:
+        """绑定唯一记录状态读取器；下次会话替换，迟后封口也能读取最终值."""
         with self._lock:
-            self._values['diagnostics']['nodes'] = finite_or_none(nodes)
+            self._record_info_source = source
+
+    def update_diagnostics(self, nodes: dict) -> None:
+        """按硬件与任务合并诊断；有界保存各任务的实际接收时间."""
+        now = time.time()
+        mono = time.monotonic()
+        nodes = finite_or_none(nodes)
+        with self._lock:
+            for hardware_id, entry in nodes.items():
+                for name, task in entry.get('tasks', {}).items():
+                    if hardware_id:
+                        # Updater startup uses an empty hardware ID temporarily.
+                        self._diagnostic_tasks.pop(('', name), None)
+                    elif any(key[0] and key[1] == name
+                             for key in self._diagnostic_tasks):
+                        continue
+                    key = (hardware_id, name)
+                    self._diagnostic_tasks[key] = ({
+                        **task, 'stamp': entry.get('stamp'),
+                        'received_at': now,
+                    }, mono)
+                    self._diagnostic_tasks.move_to_end(key)
+                    if len(self._diagnostic_tasks) > _DIAGNOSTIC_TASK_LIMIT:
+                        self._diagnostic_tasks.popitem(last=False)
+                        self._diagnostic_evicted += 1
             self._updated['diagnostics.nodes'] = now
             self._revision += 1
+
+    def _diagnostics_snapshot(self, mono: float) -> dict:
+        """锁内生成逐任务新鲜度；HTTP 读取不会刷新诊断接收时间."""
+        nodes: dict = {}
+        for (hardware_id, name), (task, received_mono) in self._diagnostic_tasks.items():
+            age = max(0.0, mono - received_mono)
+            stale = age > _DIAGNOSTIC_STALE_S
+            level = 3 if stale else task['level']  # DiagnosticStatus.STALE
+            entry = nodes.setdefault(hardware_id or 'unknown', {'level': 0, 'tasks': {}})
+            entry['level'] = max(entry['level'], level)
+            entry['stamp'] = task['stamp']
+            entry['received_at'] = task['received_at']
+            entry['tasks'][name] = {
+                **task, 'reported_level': task['level'],
+                'reported_message': task['message'],
+                'level': level, 'age_s': round(age, 3), 'stale': stale,
+                'message': (f'诊断陈旧（{age:.1f} s 未更新）；上次: '
+                            f'{task["message"]}') if stale else task['message'],
+            }
+        return {
+            'nodes': nodes, 'stale_after_s': _DIAGNOSTIC_STALE_S,
+            'task_limit': _DIAGNOSTIC_TASK_LIMIT,
+            'evicted_tasks': self._diagnostic_evicted,
+        }
 
     def update(self, section: str, key: str, value) -> None:
         """更新一个结构化状态区段."""
@@ -722,6 +845,7 @@ class ObservabilityState:
     def snapshot(self) -> dict:
         """返回浏览器状态快照与话题年龄（只读浅拷贝视图，禁止原地改叶子）."""
         now = time.time()
+        mono = time.monotonic()
         with self._lock:
             # 短锁内两层浅拷贝：区段 dict 复制一层（顶层键替换不写穿），
             # events 列表复制一份（写侧原地追加/截头）；其余叶子按引用
@@ -734,7 +858,9 @@ class ObservabilityState:
                 if isinstance(events, list):
                     copied['events'] = list(events)
                 result[section] = copied
+            result['diagnostics'] = self._diagnostics_snapshot(mono)
             revision = self._revision
+            record_info_source = self._record_info_source
             result['system'] = {
                 'revision': revision,
                 'server_time': now,
@@ -743,6 +869,10 @@ class ObservabilityState:
                     key: round(now - stamp, 3)
                     for key, stamp in self._updated.items()},
             }
+        # Recorder.info 自持其锁；不得在 State 锁内调用，避免反向锁序。
+        if record_info_source is not None:
+            result['record']['info'] = record_info_source()
+            result['system']['topic_age_s']['record.info'] = 0.0
         result['job'] = self._job_for(result, revision)
         return result
 

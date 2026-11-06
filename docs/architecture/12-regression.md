@@ -1,5 +1,7 @@
 # 全功能回归矩阵
 
+> 下列“本轮”指 2026-10-27 历史验证，未在 2026-11-06 文档整理中重跑。命令与参数的现行行为以源码和包级测试指导为准。
+
 ## 目标
 
 把 Web、仿真、RViz、真实相机、重建、调度和记录放在同一张可执行矩阵里；每项独立判定，不用短测成功替代长测。
@@ -51,7 +53,7 @@
 - 自动 runner `full_regression2`（`--models 1 --rounds 1 --rviz`）出现 **测试目标选择与账本 report target_id 不一致**（report target_1，臂日志 target_2），该轮判失败；不能把它算作产品抓取失败，也不能算测试通过。需要修 runner 的 scene/target 记录后再跑。
 - `web_rviz_102246` 是手动 Web 驱动、完整相机+mock+RViz 的成功轮（L6，33.456 s），但它不是自动 runner 的 10×30×1800 长测。
 - tool=false 的 L6 不等于 L7 真剪切；mock 无 SetIO。
-- `move_group` shutdown `-11` 仍是外部 MoveIt 退出问题。
+- 这些轮次出现的 `move_group` shutdown `-11` 是退出问题；当前 bringup 已提供默认开启的局部兼容参数，不能据此追认旧失败轮次通过。
 
 ## 结论口径
 
@@ -59,3 +61,7 @@
 - 自动全功能 runner：仍有 target 记录不一致，未通过。
 - 30 模型/10 轮/30 分钟长测：文档已记录未通过（6/10 level6、4 质量跳过、soak 约21min、RViz 退出）。
 - 当前新 `web_rviz_102246` 是 Web 手动触发的 L6 单轮，不是自动 10×30×1800。
+
+## 当前源码与旧轮次的区别（2026-11-06）
+
+当前 `harvest_system.launch.py` 把 `capture_auto_mode` 设为 `not effective_skip_reconstruction`；所以启用重建进程但 skip=true 时自动采集为 false。上面的 2026-10-27 `capture.auto_mode=true` 是旧轮次观测，不能当当前接线结论。进程开关与本批策略仍须分别测试。

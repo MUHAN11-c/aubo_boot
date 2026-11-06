@@ -90,7 +90,7 @@ def _is_perception_media(topic: str) -> bool:
 
 
 class Recorder:
-    """会话 bag 写入器：回调只入队，唯一执行盘写的是守护写线程."""
+    """会话 bag 写入器：rosbag2 写操作由唯一守护线程执行."""
 
     def __init__(self, root_dir='runs', enabled: bool = True,
                  on_info=None, log_warning=lambda msg: None,
@@ -99,8 +99,9 @@ class Recorder:
         """
         初始化并启动写线程；enabled 时入队开会话 bag（on_info 回调状态）.
 
-        queue_depth 给写队列上界（drop-oldest）：'all' 档 ~50MB/s 时盘速
-        掉队不再无界吃内存，丢最旧保最新并计数（info().drops 供诊断）。
+        queue_depth 给数据与控制项共用的队列上界。满队列时媒体丢自身，
+        其它消息淘汰最旧数据项；open/close 控制屏障不被淘汰。
+        info().drops 只统计队列丢弃，主动限速不计入。
         """
         self._root = Path(root_dir)
         self._enabled = bool(enabled)
@@ -110,6 +111,8 @@ class Recorder:
         self._queue: queue.Queue = queue.Queue(
             maxsize=max(1, int(queue_depth)))
         self._drops = 0
+        self._written = 0
+        self._unwritten = 0
         self._drop_warn_t = 0.0
         self._throttle_ts: dict[str, float] = {}  # O1 控制流族限速时间戳
         self._perception_until = 0.0  # 感知关键段截止（monotonic）
@@ -156,6 +159,9 @@ class Recorder:
                 'queue_size': self._queue.qsize(),
                 'queue_depth': self._queue.maxsize,
                 'drops': self._drops,
+                'written': self._written,
+                'dropped': self._drops + self._unwritten,
+                'open_failed': self._open_failed,
                 'sealed': self._sealed,
                 'close_error': self._close_error,
                 'write_errors': self._write_errors,
@@ -283,19 +289,27 @@ class Recorder:
         self._stop.set()
         self._thread.join(timeout=min(2.0, budget))
         with self._lock:
+            state = 'sealed' if self._sealed else (
+                'error' if self._closed.is_set() else 'closing')
+            self._session_state(state)
             return self._bag_dir if self._sealed and not self._thread.is_alive() else None
 
-    def _session_state(self, state: str) -> None:
+    def _session_state(self, state: str, **fields) -> None:
         """会话声明与bag同属一个写者；声明失败必须可见."""
-        if self._session_dir is None:
-            return
-        try:
-            write_session_state(self._session_dir, state)
-        except OSError as error:
-            self._log_warning(f'会话状态写入失败: {error}')
+        with self._lock:
+            if self._session_dir is None:
+                return
+            try:
+                write_session_state(
+                    self._session_dir, state, written=self._written,
+                    dropped=self._drops + self._unwritten, drops=self._drops,
+                    write_errors=self._write_errors, close_error=self._close_error,
+                    open_failed=self._open_failed, sealed=self._sealed, **fields)
+            except OSError as error:
+                self._log_warning(f'会话状态写入失败: {error}')
 
     # ------------------------------------------------------------------
-    # 写线程：唯一执行盘写的地方
+    # 写线程：唯一调用 rosbag2 writer 的地方；session.json 另受状态锁保护。
     # ------------------------------------------------------------------
     def _writer_loop(self) -> None:
         """顺序处理 open/msg/close；写盘异常只降级告警，线程不死."""
@@ -313,22 +327,34 @@ class Recorder:
                 if kind == 'open':
                     writer = self._open_bag(writer)
                 elif kind == 'msg':
-                    writer = self._write_message(writer, created, job)
+                    if writer is None:
+                        with self._lock:
+                            self._unwritten += 1
+                    else:
+                        writer = self._write_message(writer, created, job)
                 elif kind == 'close':
-                    self._sealed = self._close_writer(writer)
+                    sealed = self._close_writer(writer)
                     writer = None
-                    self._session_state('sealed' if self._sealed else 'error')
-                    self._closed.set()
+                    with self._lock:
+                        self._sealed = sealed
+                        self._session_state('sealed' if sealed else 'error')
+                        self._closed.set()
                     break
             except Exception as error:  # 单任务失败只告警，线程不死
-                self._write_errors += 1
+                with self._lock:
+                    self._write_errors += 1
+                    if job[0] == 'msg':
+                        self._unwritten += 1
                 self._log_warning(f'bag 记录任务失败（跳过）: {error}')
             finally:
                 self._queue.task_done()
-        if writer is not None:  # close 任务未达（异常路径）的兜底收尾
-            self._sealed = self._close_writer(writer)
-            self._session_state('sealed' if self._sealed else 'error')
-        self._closed.set()
+        if not self._closed.is_set():
+            # close 任务未达（异常路径）的兜底收尾。
+            sealed = self._close_writer(writer) if writer is not None else False
+            with self._lock:
+                self._sealed = sealed
+                self._session_state('sealed' if sealed else 'error')
+                self._closed.set()
 
     def _open_bag(self, writer):
         """
@@ -350,6 +376,8 @@ class Recorder:
                     break
                 except FileExistsError:
                     session = session.with_name(f'{session.name}_x')
+            with self._lock:
+                self._session_dir = session
             bag_dir = session / 'bag'
             writer = SequentialWriter()
             writer.open(
@@ -359,13 +387,14 @@ class Recorder:
                     output_serialization_format='cdr'))
         except Exception as error:
             self._open_failed = True
+            self._session_state('error')
             self._log_warning(f'会话 bag 打开失败，本会话不录制: {error}')
             return None
         with self._lock:
             self._session_dir = session
             self._bag_dir = bag_dir
-        write_session_state(
-            session, 'closing' if self._closing else 'active',
+        self._session_state(
+            'closing' if self._closing else 'active',
             opened_at_ns=time.time_ns())
         self._on_info(self.info())
         return writer
@@ -384,6 +413,8 @@ class Recorder:
                 serialization_format='cdr'))
             created.add(topic)
         writer.write(topic, serialize_message(message), stamp_ns)
+        with self._lock:
+            self._written += 1
         return writer
 
     def _close_writer(self, writer) -> bool:

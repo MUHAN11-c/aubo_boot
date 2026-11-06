@@ -5,7 +5,7 @@
 # command 还须出现在 HarvestState.permissions 中。
 
 # === Request ===
-uint8 PAUSE=0                  # 非接触段立即停；接触段标 PAUSE_PENDING，动作结束后再停
+uint8 PAUSE=0                  # 置暂停请求；Survey 可取消后重试，接触段等当前动作收口，不写 PAUSE_PENDING
 uint8 RESUME=1                 # 从 PAUSED 恢复跑批
 uint8 ENTER_MAINTENANCE=2      # 进入维护态，不选下一颗
 uint8 EXIT_MAINTENANCE=3       # 退出维护态

@@ -2,7 +2,8 @@
 # 动作：/peach_arm/survey_scene
 # 服务端：peach_arm    客户端：peach_supervisor
 # 调度 DISCOVERY 首巡在 BeginScene 之前调用；回访只 Survey、不再 Begin。
-# 成功须 GoalStatus 成功且当前关节过 atNamedTarget。PAUSE 会取消，恢复后重试。
+# 成功须当前关节过 atNamedTarget；执行使能时还须观测曝光晚于实际到位时刻且世代未变。
+# 调度核 GoalStatus 成功；PAUSE 会取消，恢复后重试。
 # 失败整批 survey_failed，不 Begin。
 
 # === Goal ===
@@ -17,4 +18,4 @@ string message                 # 人读说明
 ---
 # === Feedback ===
 uint32 observation_count       # 已见观测数
-string status                  # 短状态：moving / capturing / …
+string status                  # moving_to_photo_pose / waiting_snapshot

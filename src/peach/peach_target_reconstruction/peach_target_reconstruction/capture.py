@@ -1,9 +1,12 @@
 """采帧：门禁、帧栈、绑定防抖、掩膜门、自动采集."""
 from __future__ import annotations
 
+from bisect import bisect_left, bisect_right
+from contextlib import contextmanager
 from dataclasses import dataclass
 from dataclasses import field
 import math
+import threading
 import time
 from typing import Callable, List, Mapping, Optional, Tuple
 
@@ -131,6 +134,38 @@ def exposure_joint_velocity(
     return max(abs(v) for v in velocities), ''
 
 
+class ExposureJointHistory:
+    """有界曝光关节历史；调用方串行化读写，整数时间戳二分查询."""
+
+    def __init__(self, capacity: int = 8192):
+        """保持与原 Cache 相同的到达顺序和容量."""
+        self._capacity = capacity
+        self._stamps: List[int] = []
+        self._velocities: List[Tuple[float, ...]] = []
+
+    def append(self, stamp_ns: int, velocities: Tuple[float, ...]) -> None:
+        """时钟回退/乱序时清空旧域；重复时间戳保留各条证据."""
+        if self._stamps and stamp_ns < self._stamps[-1]:
+            self._stamps.clear()
+            self._velocities.clear()
+        self._stamps.append(stamp_ns)
+        self._velocities.append(velocities)
+        if len(self._stamps) > self._capacity:
+            del self._stamps[0]
+            del self._velocities[0]
+
+    def velocity_at(self, stamp_ns: int,
+                    tolerance_s: float) -> Tuple[Optional[float], str]:
+        """前侧取最后一条、后侧取第一条，边界含相等；无证据仍拒绝."""
+        before_index = bisect_right(self._stamps, stamp_ns) - 1
+        after_index = bisect_left(self._stamps, stamp_ns)
+        before = ((self._stamps[before_index], self._velocities[before_index])
+                  if before_index >= 0 else None)
+        after = ((self._stamps[after_index], self._velocities[after_index])
+                 if after_index < len(self._stamps) else None)
+        return exposure_joint_velocity(stamp_ns, before, after, tolerance_s)
+
+
 def capture_gate(
         *,
         frame_available: bool,
@@ -244,7 +279,7 @@ class BindSwitchHoldoff:
             holdoff_s: 切换挂起时长 [s]；requested 须持续超过本时长才
                 commit。0 等价于「下一条维持新 ID 的观测即到期」，近似
                 旧版立即跟随行为。
-            now: 单调时钟（秒），节点注入 RclpyClockAdapter.now（I3）.
+            now: 同一时间基准的秒值，节点注入 RclpyClockAdapter.now（I3）.
 
         Returns
         -------
@@ -308,7 +343,7 @@ EMA_ALPHA = 0.3
 class TimingStats:
     """重建流水线耗时累计器（分项 EMA + 单次 last 值；纯数值，零 ROS）."""
 
-    def __init__(self):
+    def __init__(self, now: Callable[[], float] = time.perf_counter):
         """清零：EMA 分项未播种（快照投影 0.0），计数为 0."""
         self._icp_ms = ScalarEma(EMA_ALPHA)
         self._tsdf_integrate_ms = ScalarEma(EMA_ALPHA)
@@ -316,6 +351,33 @@ class TimingStats:
         self._refit_ms_last = 0.0
         self._finalize_ms_last = 0.0
         self._frames_timed = 0
+        self._phase_now = now
+        self._phase_ms_last = {}
+        self._active_phase = None
+
+    @contextmanager
+    def phase(self, name: str):
+        """诊断专用单调计时；嵌套/异常均恢复上层阶段，不参与业务期限."""
+        previous = self._active_phase
+        start = self._phase_now()
+        self._active_phase = (str(name), start, threading.get_ident())
+        try:
+            yield
+        finally:
+            elapsed = max(0.0, (self._phase_now() - start) * 1000.0)
+            self._phase_ms_last = {**self._phase_ms_last, str(name): elapsed}
+            self._active_phase = previous
+
+    def phase_snapshot(self) -> dict:
+        """无状态锁读取不可变阶段快照，供独立健康回调诊断慢计算."""
+        active = self._active_phase
+        if active is None:
+            return {'name': '', 'elapsed_ms': 0.0, 'started_monotonic': 0.0,
+                    'thread_id': None}
+        name, start, thread_id = active
+        return {'name': name, 'elapsed_ms': max(
+            0.0, (self._phase_now() - start) * 1000.0),
+            'started_monotonic': start, 'thread_id': thread_id}
 
     def record_icp(self, sample_ms: float) -> None:
         """记录一次 ICP refine 耗时 [ms]（每帧至多一次，拒帧也计入）."""
@@ -349,7 +411,7 @@ class TimingStats:
 
         Returns
         -------
-            六个契约键的 dict（见模块 docstring）；全部数值非负，
+            保留六个原契约键，另附诊断用 phase_ms_last；全部耗时非负，
             frames_timed=0 表示尚无成功采帧计时样本.
 
         """
@@ -360,6 +422,7 @@ class TimingStats:
             'refit_ms_last': float(self._refit_ms_last),
             'finalize_ms_last': float(self._finalize_ms_last),
             'frames_timed': int(self._frames_timed),
+            'phase_ms_last': dict(self._phase_ms_last),
         }
 
 

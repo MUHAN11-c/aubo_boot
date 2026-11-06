@@ -28,6 +28,10 @@
       headers = null,
       throwOnHttpError = true,
     } = options;
+    if (!Number.isFinite(timeoutMs) || timeoutMs <= 0 || timeoutMs > 2147483647) {
+      throw new TypeError("timeoutMs 必须是有效的正数毫秒时限");
+    }
+    const deadline = performance.now() + timeoutMs;
     const controller = new AbortController();
     liveControllers.add(controller);
     let timedOut = false;
@@ -38,17 +42,31 @@
       else signal.addEventListener("abort", onAbort, {once: true});
     }
     const timer = setTimeout(() => { timedOut = true; controller.abort(); }, timeoutMs);
+    function checkCompletion(body = null, status = null) {
+      const partial = Array.isArray(body?.results);
+      // Browser long tasks can delay the timer past response completion.
+      if (timedOut || performance.now() >= deadline) {
+        const message = partial ? "等待响应超时；已保留逐项结果，请重新读回参数"
+          : method === "GET" ? "等待响应超时" : "等待响应超时，命令结果未知；请查询状态";
+        throw new ApiError(message, {kind: "timeout", url: path, body, status});
+      }
+      if (controller.signal.aborted) {
+        throw new ApiError(partial ? "请求已取消；已保留逐项结果" : "请求已取消", {kind: "abort", url: path, body, status});
+      }
+    }
     let response;
     let text;
     try {
+      checkCompletion();
       if (new URLSearchParams(root.location?.search || "").get("transport") !== "http") {
         if (!root.PeachRosbridge && /^\/api\/(state|force|trajectory|params|debug)(?:[/?]|$)/.test(path)) {
           throw new ApiError("ROSbridge 资源未加载", {kind: "network", url: path});
         }
         const bridged = await root.PeachRosbridge?.request(path, {
-          method, body, timeoutMs, signal: controller.signal,
+          method, body, timeoutMs, deadline, signal: controller.signal,
         });
         if (bridged) {
+          checkCompletion(bridged.body, bridged.response.status);
           if (!bridged.response.ok && throwOnHttpError) {
             throw new ApiError(bridged.body?.message || `ROS ${bridged.response.status}`, {
               kind: "http", status: bridged.response.status, body: bridged.body, url: path,
@@ -57,6 +75,7 @@
           return bridged;
         }
       }
+      checkCompletion();
       const init = {method, cache: "no-store", signal: controller.signal};
       if (headers) init.headers = headers;
       if (body !== null && body !== undefined) init.body = body;
@@ -64,9 +83,7 @@
       text = await response.text();
     } catch (error) {
       if (error instanceof ApiError) throw error;
-      if (timedOut) {
-        throw new ApiError(method === "GET" ? "等待响应超时" : "等待响应超时，命令结果未知；请查询状态", {kind: "timeout", url: path});
-      }
+      checkCompletion();
       if (externallyAborted || error?.name === "AbortError") {
         throw new ApiError("请求已取消", {kind: "abort", url: path});
       }
@@ -81,6 +98,7 @@
       try {
         data = JSON.parse(text);
       } catch (_) {
+        checkCompletion(null, response.status);
         if (response.ok) {
           throw new ApiError("响应不是合法 JSON", {
             kind: "parse", status: response.status, url: path,
@@ -88,6 +106,8 @@
         }
       }
     }
+    // Keep confirmed per-item results even when the completed body arrives late.
+    checkCompletion(data, response.status);
     if (!response.ok && throwOnHttpError) {
       const message = (data && (data.message || data.error))
         || `HTTP ${response.status}`;

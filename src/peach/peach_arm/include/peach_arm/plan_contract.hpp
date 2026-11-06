@@ -18,22 +18,26 @@ namespace peach_arm
 /// 接触计划绑定契约：预览与执行共用 plan_id + 模型元组 + 起始关节。
 struct ContactPlan
 {
-  std::string plan_id;              ///< 计划标识（空=未绑定，执行侧拒）。
+  std::string plan_id;              ///< 计划标识；空时 executePlanGate 不启用预览绑定。
   ModelIdentity model;              ///< 生成该计划的模型身份元组。
   std::vector<double> start_joints; ///< 计划起始关节（require_start_joints 时比对容差）。
   std::uint32_t scene_epoch{0};     ///< 生成时的场景世代（跨世代计划作废）。
   bool require_start_joints{true};  ///< true=执行前核对当前关节仍在起点容差内。
 };
 
-/// 逐轴关节差是否全在容差内（维度不符/空集恒 false——宁拒不猜）。
+/// 逐轴关节差是否全在有限非负容差内；维度不符/空集/非有限样本恒 false。
 inline bool jointsWithinTolerance(
   const std::vector<double> & left, const std::vector<double> & right, double tol_rad)
 {
-  if (left.size() != right.size() || left.empty()) {
+  if (left.size() != right.size() || left.empty() ||
+    !std::isfinite(tol_rad) || tol_rad < 0.0)
+  {
     return false;
   }
   for (std::size_t i = 0; i < left.size(); ++i) {
-    if (std::abs(left[i] - right[i]) > tol_rad) {
+    if (!std::isfinite(left[i]) || !std::isfinite(right[i]) ||
+      std::abs(left[i] - right[i]) > tol_rad)
+    {
       return false;
     }
   }

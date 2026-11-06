@@ -1,12 +1,12 @@
 # 融合后的抓取几何 + 套入/剪切许可。不发送任何运动指令。
 # 话题：/peach/reconstruction/grasp_decision（reliable, transient_local, depth 1；约 1 Hz 心跳）
-# 生产：peach_target_reconstruction    消费：peach_arm、peach_observability
+# 生产：peach_target_reconstruction    消费：peach_arm、peach_supervisor（令牌缓存）、peach_observability
 # allowed 只拦套入和 SetIO，不拦预抓取。allowed=false 时仍可有几何，禁止降级接触。
 # 无融合几何时 entry/axis 填零，reason / failure_code 说明原因。
 
-std_msgs/Header header    # stamp=发布时刻，frame_id=base_frame（入口/轴坐标系）
+std_msgs/Header header    # stamp=本修订首次生成时间（心跳不刷新），frame_id=base_frame
 
-string harvest_run_id     # 所属批次；空=无批次
+string harvest_run_id     # 感知锁定轮身份；不同于调度 ExecuteTarget.run_id，空=无锁定轮
 string target_id          # 绑定目标；空=未绑定
 string model_revision     # 模型修订；空=无模型
 string tool_profile_id    # 工具剖面；空=未指定

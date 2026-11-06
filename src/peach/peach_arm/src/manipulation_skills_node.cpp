@@ -206,6 +206,7 @@ CallbackReturn ManipulationSkillsNode::on_activate(const rclcpp_lifecycle::State
   status_pub_->on_activate();
   marker_pub_->on_activate();
   grasp_hyp_pub_->on_activate();
+  tool_state_pub_->on_activate();
   startBond();
   // ③层场景障碍 ACM 豁免：后台线程一次应用（含最多 4s 服务等待，
   // 不得占激活回调；static 入口无对象生命周期依赖）。Survey/观察/接近
@@ -267,6 +268,7 @@ CallbackReturn ManipulationSkillsNode::on_deactivate(const rclcpp_lifecycle::Sta
   status_pub_->on_deactivate();
   marker_pub_->on_deactivate();
   grasp_hyp_pub_->on_deactivate();
+  tool_state_pub_->on_deactivate();
   stopBond();
   return CallbackReturn::SUCCESS;
 }
@@ -457,11 +459,13 @@ void ManipulationSkillsNode::releaseResources()
   refined_diag_sub_.reset();
   robot_status_sub_.reset();
   joint_status_sub_.reset();
+  io_state_sub_.reset();
   stopContactGuard();
   diagnostics_.reset();
   status_pub_.reset();
   marker_pub_.reset();
   grasp_hyp_pub_.reset();
+  tool_state_pub_.reset();
   tool_io_client_.reset();
   std::unique_ptr<GraspTask> retired_task;
   std::shared_ptr<moveit::planning_interface::MoveGroupInterface> retired_group;
@@ -535,6 +539,9 @@ void ManipulationSkillsNode::loadParameters()
 {
   obstacle_acm_generation_->fetch_add(1);
   params_ = param_listener_->get_params();
+  if (!std::isfinite(params_.moveit.approach_clearance_m)) {
+    throw std::invalid_argument("moveit.approach_clearance_m must be finite");
+  }
   const auto & params = params_;
   // Config 值字段经 params_bridge 单点转换（W13-B）；保护区解析需逐盒
   // WARN 日志，留在节点装配。
@@ -599,7 +606,7 @@ void ManipulationSkillsNode::rebuildMotionInterface()
   }
   motion_ = std::make_unique<MoveItMotionInterface>(
     move_group_, &tf_buffer_, get_logger(), get_clock(),
-    toMotionConfig(params_),
+    toMotionConfig(params_), planning_scene_client_,
     [this](bool execute, std::string & reason) {
       return execute ? authorizeTransit(reason) :
              motionOutputAllowed(reason) && safetyReady(reason);
@@ -622,12 +629,13 @@ void ManipulationSkillsNode::rebuildGraspTask()
     };
   // 工具 Z 滚转为工艺自由度。通过 IK/自碰/走廊检查后，先最小化额外滚转，
   // 同等滚转再选腕轴加权关节距离。完整 PTP 仍须规划器检查场景碰撞。
-  // 批次4：unrefined 链袋径门（档案内径注入；0=门关）
+  // 档案内径留在缓存供归因；当前 unrefined 链不以袋径/内径比较拒绝授权。
   cache_.setToolInnerDiameter(params_.tool.d_inner_m);
 
   task_config.staging_ik = [this](
-    const Eigen::Isometry3d & staging_pose, const std::vector<Eigen::Isometry3d> & corridor)
-    -> std::vector<StagingCandidate>
+    const Eigen::Isometry3d & staging_pose, const std::vector<Eigen::Isometry3d> & corridor,
+    const std::vector<double> & roll_group,
+    const std::map<std::string, double> & seed_override) -> std::vector<StagingCandidate>
     {
       std::string target_id;
       {
@@ -643,13 +651,18 @@ void ManipulationSkillsNode::rebuildGraspTask()
           target_id.c_str());
         return {};
       }
-      const auto base = move_group_->getCurrentState();
+      const auto measured = move_group_->getCurrentState();
+      const auto base = measured ? std::make_shared<moveit::core::RobotState>(*measured) : nullptr;
       if (!base) {
         // 状态监视器断流/启动早期 getCurrentState 可为空（审查 P1-1）
         RCLCPP_WARN(
           get_logger(), "staging IK 不可用 target=%s reason=robot_state_unavailable",
           target_id.c_str());
         return {};
+      }
+      if (!seed_override.empty()) {
+        base->setVariablePositions(seed_override);
+        base->update();
       }
       const auto * group =
         base->getJointModelGroup(params_.moveit.planning_group);
@@ -665,6 +678,41 @@ void ManipulationSkillsNode::rebuildGraspTask()
         base->getGlobalLinkTransform(params_.frames.tip).linear();
       std::vector<double> current_joints;
       base->copyJointGroupPositions(group, current_joints);
+      // 当前种子的 KDL 搜索失败后也会全局随机重启；限制首次搜索到
+      // PTP 在既有速度和执行时限内可能到达的邻域，避免首解落入远端构型。
+      // 这是必要位移界，不代替完整轨迹门；其余三次随机重启保持全空间。
+      const auto current_consistency = [&]() -> std::vector<double> {
+          const double velocity = params_.moveit.velocity_scaling;
+          const double timeout = params_.moveit.execute_timeout_s;
+          if (!std::isfinite(velocity) || velocity <= 0.0 || velocity > 1.0 ||
+            !std::isfinite(timeout) || timeout <= 0.0 ||
+            group->getVariableCount() != names.size())
+          {
+            return {};
+          }
+          std::vector<double> limits;
+          for (const auto & variable : group->getVariableNames()) {
+            const auto * joint = base->getRobotModel()->getJointOfVariable(variable);
+            const auto & bounds = base->getRobotModel()->getVariableBounds(variable);
+            if (joint == nullptr || joint->getType() != moveit::core::JointModel::REVOLUTE ||
+              joint->getVariableCount() != 1 || !bounds.position_bounded_ ||
+              !std::isfinite(bounds.min_position_) || !std::isfinite(bounds.max_position_) ||
+              !bounds.velocity_bounded_ || !std::isfinite(bounds.min_velocity_) ||
+              !std::isfinite(bounds.max_velocity_))
+            {
+              return {};
+            }
+            const double speed = std::max(
+              std::abs(bounds.min_velocity_), std::abs(bounds.max_velocity_));
+            const double limit = speed * velocity * timeout;
+            if (!std::isfinite(limit) || limit <= 0.0) {
+              return {};
+            }
+            limits.push_back(limit);
+          }
+          return limits;
+        }();
+      const std::vector<double> unrestricted_consistency;
       if (!staging_ik_env_) {
         staging_ik_env_ = std::make_unique<StagingIkEnvironment>();
       }
@@ -674,14 +722,14 @@ void ManipulationSkillsNode::rebuildGraspTask()
       constexpr int kRandomRestarts = 3;
       constexpr double kWristWeight = 2.5;
       int attempts = 0;
-      // 每次尝试只计首个拒绝门，四项之和恒等于 attempts；valid 不是择优次数。
+      // 每次尝试只计首个结果，五项之和恒等于 attempts；valid 不是择优次数。
       int ik_failed = 0;
       int bounds_failed = 0;
       int self_collision = 0;
       int valid_candidates = 0;
       int corridor_failed = 0;
       std::vector<StagingCandidate> candidates;
-      for (const double roll : toolRollsRad()) {
+      for (const double roll : roll_group) {
         Eigen::Isometry3d rolled = staging_pose;
         rolled.linear() = alignFrameZRolled(current_R, axis, roll);
         for (int attempt = 0; attempt <= kRandomRestarts; ++attempt) {
@@ -691,7 +739,9 @@ void ManipulationSkillsNode::rebuildGraspTask()
             probe.setToRandomPositions(group);
           }
           if (!probe.setFromIK(
-              group, rolled, params_.frames.tip, kStagingIkSolveTimeoutS))
+              group, rolled, params_.frames.tip,
+              attempt == 0 ? current_consistency : unrestricted_consistency,
+              kStagingIkSolveTimeoutS))
           {
             ++ik_failed;
             continue;
@@ -736,9 +786,11 @@ void ManipulationSkillsNode::rebuildGraspTask()
           moveit::core::CartesianPrecision precision;
           precision.translational = params_.moveit.mtc_cartesian_precision_m > 0.0 ?
             params_.moveit.mtc_cartesian_precision_m : 0.001;
+          // 插值可更新种子；候选关节必须保留在净空转移点 A。
+          auto axial_probe = probe;
           std::vector<moveit::core::RobotStatePtr> path;
           const auto fraction = moveit::core::CartesianInterpolator::computeCartesianPath(
-            &probe, group, path, tip_link, waypoints, true,
+            &axial_probe, group, path, tip_link, waypoints, true,
             moveit::core::MaxEEFStep(params_.moveit.mtc_cartesian_step_m),
             precision, valid_state, kinematics::KinematicsQueryOptions());
           if (path.empty() || !stagingCorridorComplete(
@@ -854,6 +906,13 @@ rcl_interfaces::msg::SetParametersResult ManipulationSkillsNode::onParameters(
   bool grasp = current.grasp.enabled;
   bool tool = current.tool.enabled;
   for (const auto & parameter : parameters) {
+    if (parameter.get_name() == "moveit.approach_clearance_m" &&
+      !std::isfinite(parameter.as_double()))
+    {
+      result.successful = false;
+      result.reason = "moveit.approach_clearance_m must be finite";
+      return result;
+    }
     if (parameter.get_name() == "execution.enabled") {
       execution = parameter.as_bool();
     } else if (parameter.get_name() == "grasp.enabled") {
@@ -906,13 +965,13 @@ void ManipulationSkillsNode::createSubscriptions()
     "/aubo_io_controller/joint_status", 10,
     std::bind(&ManipulationSkillsNode::onJointStatus, this, std::placeholders::_1));
   // 批次3：工具 DI（io_states.tool_io_states，pin0=刀闭合）。沿→三轴投影
-  // →confirmFeedback（仅 CUT_COMMAND_SENT 态消费）；早已卡高不算新沿。
+  // →事务确认（成功 ACK 与发送后新闭合沿到齐才确认）；早已卡高不算新沿。
   io_state_sub_ = create_subscription<aubo_msgs::msg::IOState>(
     "/aubo_io_controller/io_states", 10,
     std::bind(&ManipulationSkillsNode::onIoState, this, std::placeholders::_1));
   tool_state_pub_ = create_publisher<peach_interfaces::msg::ToolState>(
     "/peach_arm/tool_state", latched);
-  // move_group 可用性探针（诊断只读；不做规划请求）
+  // 共享场景查询：可用性诊断与返程离散路径复检；不发送运动或场景写入。
   planning_scene_client_ = create_client<moveit_msgs::srv::GetPlanningScene>(
     "/get_planning_scene");
   status_pub_ = create_publisher<std_msgs::msg::String>("~/status", latched);

@@ -17,7 +17,8 @@ FACT_KEYS = (
     'rosbridge_enabled', 'rosbridge_port',
     'camera_enabled', 'camera_frontend', 'camera_ip',
     'extrinsics_enabled', 'force_enabled', 'bond_timeout', 'use_sim_time',
-    'reconstruction_enabled', 'skip_reconstruction', 'autostart', 'require_robot_status',
+    'reconstruction_enabled', 'vegetation_enabled',
+    'skip_reconstruction', 'autostart', 'require_robot_status',
     'expected_tcp_norm_m', 'ros_domain_id', 'git',
 )
 

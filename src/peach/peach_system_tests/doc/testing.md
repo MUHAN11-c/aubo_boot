@@ -8,14 +8,14 @@
 
 未授权不得真机运动或 SetIO；操作员发起 real launch/操作台指令属于授权语义。驱动栈只读，不起 dashboard，示教器上电/抱闸。硬件急停在柜/示教器，不经 ROS；取消和 RobotMoveStop 是应用停轨。保护停止后处理现场、取消并丢弃在途 goal、示教器复位，重新授权后下发新目标，禁止恢复旧轨迹。
 
-默认 mock、相机关、autostart=false、执行/接触/工具使能关、PREGRASP_ONLY，本轮不重建（节点默认保留供开关切换）。SURVEY_ONLY 可能移动到拍照位；tool=false 只关闭工具IO，不代表不动臂。所有测试和探针结束必须停止并核对本轮进程，见§9。
+默认 mock、相机关、autostart=false、执行/接触/工具使能关、PREGRASP_ONLY；mock 整栈缺省跳过重建，节点默认保留供开关切换。联合 runner 缺省关闭作业重建，冻结回放等夹具按各自显式参数处理，不能把该缺省当成所有测试的共同配置。SURVEY_ONLY 可能移动到拍照位；tool=false 只关闭工具IO，不代表不动臂。所有测试和探针结束必须停止并核对本轮进程，见§9。
 
 ## 2. 环境与构建
 
 从新终端执行，先 ROS，再工作区，再 venv。numpy 必须是1.26.4；ROS依赖用Jazzy apt，不额外pip同名ROS包。
 
 ```bash
-cd /home/mu/Desktop/aubo_e5_jazzy_ws
+# 在克隆的仓库根目录执行
 source /opt/ros/jazzy/setup.bash
 colcon build --packages-up-to peach_system_tests peach_web peach_stereo peach_vegetation \
   --cmake-args -DCMAKE_BUILD_TYPE=Release -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
@@ -27,11 +27,11 @@ python3 -c 'import sys,numpy,cv_bridge,open3d; print(sys.executable,numpy.__vers
 
 python应指向工作区aubo_py3.12；cv_bridge应来自Jazzy。若污染，开新终端或unset PYTHONPATH后按顺序重载。source venv不会改变已生成CTest的解释器，检查 `build/peach_system_tests/CTestTestfile.cmake`；显式site-packages用于系统Python节点发现已固定的非ROS依赖。模型资产检查 `peach_scene_perception/model/` 的 best.pt/FastSAM-s.pt，缺资产与依赖属于环境失败。`mobile_sam.pt` 仅作回退，不是启动必检。
 
-IDL变更先编peach_interfaces，再编消费包。只改某能力可按其依赖构建；运行时读install配置，源码YAML修改后须重建对应包。参数事实源：Python各包config YAML+attach，arm GPL声明src/arm_parameters.yaml+部署config，停位几何grasp_standoffs.yaml，工具几何只读aubo_description。
+IDL变更先编peach_interfaces，再编消费包。只改某能力可按其依赖构建；运行时读install配置，源码YAML修改后须重建对应包。参数事实源：Python 主链为各包 config YAML + GPL schema/ParamListener，独立 vegetation 仍用 attach；arm 为 GPL 声明 src/arm_parameters.yaml + 部署 config，停位几何为 peach_common 的 grasp_standoffs.yaml，工具档案在只读 aubo_description。
 
 ## 3. 仓库里的自动检查
 
-`test/` 只保留 ROS 2 官方 lint。Python 包是 `test_flake8.py` 与 `test_pep257.py`；C++ 与 ament_cmake 包由 `ament_lint_auto` 跑 uncrustify、cppcheck、xmllint。不再维护自定义 gtest、pytest 或 launch_testing。行为对不对，看节点日志、`ros2 topic echo` 和后面各节的手工步骤。
+主路径为 ROS 2 官方 lint：Python 包使用 `test_flake8.py` / `test_pep257.py`，ament_cmake 包由各自 `CMakeLists.txt` 与依赖注册检查（含 uncrustify、cppcheck、xmllint）。本包不注册自定义行为套件。当前源码另保留 `peach_scene_perception/test/test_image_codec.py` 图像解码行为测试；它只覆盖该工具函数，不代表采摘链路验收。不要据“只跑 lint”推断全仓没有既有行为测试，也不在 `test/` 下新增采摘行为套件。系统行为仍按日志、话题、账本和以下手工步骤核对。
 
 ```bash
 colcon test --packages-select peach_common peach_interfaces peach_scene_perception peach_target_reconstruction peach_supervisor peach_scene_obstacles peach_arm \
@@ -41,7 +41,9 @@ colcon test-result --verbose
 python3 src/peach/peach_interfaces/scripts/check_interface_manifest.py
 ```
 
-接口清单脚本不在 `test/` 里。改了 IDL 仍要跑。`colcon test` 绿只说明 lint 过了，不代表采摘链路正确。
+测试注册取自已有 build 缓存，不会因源码删去 `ament_add_gtest` 就自动刷新。修改构建清单后先重建受影响包，再用 `ctest --test-dir build/<包名> -N` 核对本轮实际注册；旧 `test_results` 也不能当成本轮执行证据。2026-11-06 核对发现 IVG 的旧 build 仍登记 `test_motion_utils` / `test_tool_config`，而当前源码没有这些注册；本次文档核对只选明确的静态 lint，不运行这类旧缓存程序。
+
+接口清单脚本不在 `test/` 里。改了 IDL 仍要跑。`colcon test` 绿只说明本轮已注册并实际执行的检查通过，不代表采摘链路正确；核对失败、错误、skip 和测试数量。
 
 ### Web 五页与完整 mock 单轮
 
@@ -49,7 +51,7 @@ python3 src/peach/peach_interfaces/scripts/check_interface_manifest.py
 
 调试页按观察/建场景、L2预抓取、L6完整干跑分别显示步骤与完成口径。载入档位只填草稿，仍须人工写入和使能读回；不提供自动ACK或开刀测试档。额外核对参数搜索/改回原值、整数小数/非有限值/越界拒绝、节点离线只读、400/207保留草稿、读写提交锁、断线陈旧提示、恢复确认取消与状态序号变化，以及当前请求账本身份。界面协议模拟与实际ROS干跑分别报告，模拟不算物理动作通过。
 
-先按§6启动只读相机+mock+RViz，或提供有效冻结回放数据；Web位于8090。运行 `node src/peach/peach_web/scripts/e2e-console.js --out runs/web_e2e_YYYYMMDD_HHMMSS`（Playwright须可解析，必要时设置NODE_PATH）。脚本先检查hardware_mode=mock；覆盖总览、监控、调试、分析、五点力，四档屏宽以及断线/错误/确认/重复提交。默认会创建一次关闭执行的调试会话。加`--harvest`从网页做FULL单轮，要求重建开启、tool=false、账本L6且无恢复锁；完成后取消在途批次、关闭三项使能及debug动臂门，并读回核对。`--only harvest --harvest`可只复查完整周期。输出report.json、harvest.json和截图；L2不作为FULL通过。脚本不负责停止外部栈，仍须按§9收尾；RViz存活、录包封口和残留进程另行核对。
+先按§6启动只读相机+mock+RViz，或提供有效冻结回放数据；Web位于8090。运行 `node src/peach/peach_web/scripts/e2e-console.js --out runs/web_e2e_YYYYMMDD_HHMMSS`（Playwright须可解析，必要时设置NODE_PATH）。脚本先检查hardware_mode=mock；覆盖总览、监控、调试、分析、五点力，四档屏宽以及断线/错误/确认/重复提交。默认会创建一次关闭执行的调试会话。加 `--only harvest --harvest --reconstruction off|on` 从网页做 FULL 单轮，重建默认 off；分别保存两组新请求，要求 tool=false、同请求账本 L6 且无恢复锁；完成后取消在途批次、关闭三项使能及debug动臂门，并读回核对。`--only harvest --harvest`可只复查完整周期。输出report.json、harvest.json和截图；L2不作为FULL通过。脚本不负责停止外部栈，仍须按§9收尾；RViz存活、录包封口和残留进程另行核对。
 
 ### 3.1 感知离线基准
 
@@ -77,7 +79,7 @@ ros2 launch peach_bringup harvest_system.launch.py hardware_mode:=mock \
   camera_enabled:=false force_enabled:=false rviz:=false autostart:=false
 ```
 
-无相机栈只能证明启动。完整合成动作链优先使用E1测试夹具，不拿零目标正常结算当抓取成功。固定关节序：shoulder_joint、upperArm_joint、foreArm_joint、wrist1_joint、wrist2_joint、wrist3_joint。
+无相机栈只能证明启动。现行完整数据链入口为下一节的冻结 RGB-D 回放或真实相机 + mock；旧 E1 合成夹具已无本包入口，不拿零目标正常结算当抓取成功。固定关节序：shoulder_joint、upperArm_joint、foreArm_joint、wrist1_joint、wrist2_joint、wrist3_joint。
 
 关节排列验收同时核对 `/joint_states` 的名称顺序和各名称对应的 position/velocity/effort，
 不能只排序名称。`ros2 topic info /joint_states --verbose` 与 `/dynamic_joint_states --verbose`
@@ -91,13 +93,12 @@ ros2 launch peach_bringup harvest_system.launch.py hardware_mode:=mock \
 
 runner 自己启动的 mock 栈使用两路回放 `CameraInfo` 和各自曝光时刻的 `wrist3_Link` 到光学帧 TF 计算 `mock-replay:sha256:…` 标定版本，写入重建参数并记入日志。缺少内参、TF 或写入回执会在启动批次前退出。`--skip-launch` 使用外部栈已配置的 `calibration_version`。真机部署需要自己的标定版本。
 
-现有可靠联合入口如下；bag目录必须含metadata.yaml，GPU/依赖/模型齐全，域81空闲。先核对CLI，不从/tmp运行试验脚本。
+随仓 `data/rgbd_mock_v1` 提供一组真实同步帧，构建时安装到包 share。默认索引0，不再依赖本机 runs 录包；详见 [部署说明](../../../../docs/deployment.md)。显式其他 bag 仍须含 metadata.yaml，并填写对应原索引。先确认 GPU/依赖/模型齐全和域81空闲。
 
 ```bash
 ros2 run peach_system_tests run_frozen_grasp.py --help
 ros2 run peach_system_tests run_frozen_grasp.py \
-  --bag runs/peach_camera_capture_20260930/stereo_10s \
-  --index 70 --hz 2 --ready-timeout 120 --timeout 180
+  --index 0 --hz 2 --ready-timeout 120 --timeout 180
 ```
 
 runner默认无头（rviz=false），需桌面时显式`--rviz`，`--no-rviz`显式保持无头；launch也默认关闭RViz并透传开关。runner在本域启动 frozen_camera_grasp.launch.py，出生于拍照位，冻结重发camera话题；离开拍照位后pause图像/点云。overlay单视配置、测试口径与关闭障碍门属于回放夹具，不可复制到real部署。`skip_reconstruction=false`、tool=false；ready预算与goal受理后的抓取预算分开。
@@ -105,6 +106,12 @@ runner默认无头（rviz=false），需桌面时显式`--rviz`，`--no-rviz`显
 历史夹具曾将 `grasp.maximum_travel_m` 硬设为 0.02 m，当前 index 70 的合格候选建议行程约 0.03 m（该冻结夹具记录的是旧 0.03 m；现行感知 `(neck-entry)-margin_neck` 为 0.05–0.10 m），在选果 `CheckReachability` 阶段即以 `cut_travel_out_of_range` 过滤，表现为 discovered=1 / attempted=0。这是夹具覆盖与产品门冲突，不是空感知或抓取成功。现已删除该行程覆盖，沿用产品正常范围；后续精化几何、IK、笛卡尔路径和有效期门仍须独立通过。冻结 bag 不能保证当前工具/模型下 FULL 成功，不得通过放宽产品门或点名绕过选果取得绿灯。
 
 冻结runner只清理自己创建的PGID；`--skip-launch`不停止外部栈，仅对自己request取消并关闭自身使用的使能，不按全域匹配清进程。取消/关闭使能真实失败会令wrapper退出非零；当前request已由外部作业替换时只记正常skip，不触碰对方。FULL联合驱动要有 bag 和 GPU。回放只能证明固定数据与当前夹具下的链路。普通 `ros2 bag play --clock` 才使用use_sim_time=true；冻结重发runner按自身launch配置，不能任意混时钟。
+
+冻结驱动遇到自身 request 的恢复等待只记录 `recovery_required` 并取消，不发送 ACK；
+当前状态缺失或属于其它 request 时，不发全局 ControlTask，显式超时只能取消自身 action handle。
+它在第一颗终局后主动取消批次，退出 0 使用单果 `summary.succeeded≥1`、回放已暂停和墙钟门，
+不等同于 RunHarvest 自然成功或 PICK_ALL 全目标完成。日志中的 action status、result.success、
+单果 outcome 与完成等级须分开报告；tool=false 仍不能证明真实剪切。
 
 修改接近、融合、护栏或包络后，用冻结回放或 mock 跑一轮，对照日志里的 failure_code 和行程。不要靠改口径把退化盖掉。
 
@@ -138,9 +145,14 @@ RViz Fixed Frame=base_link，检查相机raw、独立实时debug_image_raw、深
 ```bash
 ros2 run peach_system_tests run_live_camera_mock.py --help
 ros2 run peach_system_tests run_live_camera_mock.py \
-  --rounds 10 --models 30 --soak-seconds 1800 --domain 86 \
+  --rounds 10 --models 30 --reconstruction --soak-seconds 1800 --domain 86 \
+  --task-params-file /绝对路径/full_job.yaml \
   --output runs/live_mock_YYYYMMDD_HHMMSS
 ```
+
+完整干跑的作业文件须显式设置 `peach_supervisor.ros__parameters.execute_pregrasp_only: false`，
+例如 [Web 手册](../../peach_web/doc/debug-testing.md) 的标准作业 YAML。省略文件会沿用
+产品 PREGRASP_ONLY，在首个 L2 恢复等待后停止，不能完成上例的 10 轮和 soak 配额。
 
 RViz默认开启，`--no-rviz`只用于无头排障，不能算可视化验收。先构建测试包以安装脚本/config，再执行；输出目录须为本轮新目录，域86、相机须空闲。监控口优先 8090，已被他人占用则依次试 8091–8098 并透传 `observability_port`，不占用 8099、不清理其他进程。
 
@@ -150,7 +162,7 @@ RViz默认开启，`--no-rviz`只用于无头排障，不能算可视化验收�
 
 模型失败、动作失败或人工恢复等待均停止后续请求；失败/取消也保留本request账本与停驻快照。PREGRASP_ONLY正常到位的level2及恢复锁记为 `pregrasp_completed=true`，取消等待ACK的批次并关闭使能，保留 `recovery_required=true`；不自动ACK、不发下一轮、不继续soak。只请求这一轮且其他证据齐全时可通过预抓取档；原定多轮/soak未完成则整项不通过。FULL接触中的临时恢复标志不等于已进入人工恢复等待；runner只在批次RECOVERY_REQUIRED状态停止。PICK_ALL对照本批epoch的锁定目标集合逐颗核账本，漏项/重复项/任一未达作业完成档都失败。
 
-相机color与depth、关节均要求至少两帧不同源stamp，最近接收时间与源stamp年龄都不超过3秒；soak要求实际采样达到预算且每次流/RViz健康。只做模型或soak时不打开execution/grasp。runner不提供skip重建CLI；FULL干跑使用标准作业YAML中的 `peach_supervisor.ros__parameters.execute_pregrasp_only: false`，tool仍关闭。
+相机color与depth、关节均要求至少两帧不同源stamp，最近接收时间与源stamp年龄都不超过3秒；soak要求实际采样达到预算且每次流/RViz健康。只做模型或soak时不打开execution/grasp。重建策略用 `--reconstruction` / `--no-reconstruction`，没有旧 `--skip-reconstruction` 开关；FULL干跑使用标准作业YAML中的 `peach_supervisor.ros__parameters.execute_pregrasp_only: false`，tool仍关闭。
 
 RViz重建点云默认订阅 `/peach/reconstruction/preview_cloud`（标准PointCloud2，最多50000点，保留采样点颜色，TSDF优先、否则局部累加云）。原local_cloud/tsdf_cloud仍完整发布，算法输入不变；RViz不同时启用这两条完整云。此预算只约束重建预览，DetectionCloud保持原固定分辨率stride输出，Image/PointCloud2仍使用BEST_EFFORT、queue1、decay0。
 
@@ -202,6 +214,8 @@ A/B（每边 2 轮 PICK_ALL，RViz + 8090 实时）：
 
 ## 7. 量化验收与结果口径
 
+轨迹净空复验：保留视觉/重建预抓取 `N`，只用臂参数 `moveit.approach_clearance_m=C` 沿反套入方向后移实际转移点 `A=N−unit(axis)×C`。分别保存 C=0 与候选值的参数读回、同目标 entry/pregrasp/cut_pose 和实际 TCP；核对原视觉 N 与最终剪切点不变。FULL 去程应为直接转移至 A、单条轴向套入；撤至 A 后倒放实际成功转移，不能把规划预览计入已执行段数。首次接近前须拒绝超时或不完整的套入/撤退方案。额外拍照位运动、PREGRASP_ONLY 停 A、纠偏重规划、质量拒绝和恢复等待单列，不能用删失败样本或放宽许可证明提速。
+
 每轮唯一request_id，结果放runs下本轮目录，保存启动配置/git身份/域、原始RGB-D、模型与geometry.jsonl、许可身份及时效、action终态、ledger、diagnostics、RViz截图和退出证据。禁止复用旧轮次文件充当本轮证据。
 
 1. **30组模型**：每组记录可见目标、输入帧、袋底/袋口极性、轴方向、D95/拟合质量及四项能力；包含正常、低质深度、遮挡、无效/陈旧TF和身份切换。逐组报告ACCEPT/拒绝原因，外部真值不足时标未知。
@@ -210,7 +224,7 @@ A/B（每边 2 轮 PICK_ALL，RViz + 8090 实时）：
 
 三项分别报告样本分母、通过/失败/跳过及证据，未完成明确写未完成。重建ACCEPT≠许可有效；Web allowed≠臂授权；action SUCCEEDED≠业务成功；level6干跑完成≠level7真实采摘。只有切断与撤退确认才允许业务grasped；tool=false不可能证明真实剪切。
 
-PREGRASP_ONLY到位应SUCCEEDED并recovery_required，停在预抓取等人工ACK，不回stow、不SetIO；残差/方向仍需独立目视或测量。HTTP accepted/202只是受理/在途，超时或网络失联是结果未知，不自动重发。
+PREGRASP_ONLY到位应SUCCEEDED并recovery_required，停在轨迹预抓取停点 A 等人工ACK（视觉预抓取 N 不改），不回stow、不SetIO；残差/方向仍需独立目视或测量。HTTP accepted/202只是受理/在途，超时或网络失联是结果未知，不自动重发。
 
 ## 8. 真机验收另授权
 
@@ -269,7 +283,7 @@ MTC任务销毁问题用独立100次创建/销毁探针隔离，`runs/peach_opti
 
 模型采集为0帧时先对齐曝光到处理延迟与 12 秒帧龄门。runner 只钉 `OPENBLAS_NUM_THREADS`/`MKL_NUM_THREADS=1`，不钉 `OMP_NUM_THREADS`（SGBM 走 OpenMP）。比较时保留线程数、主机CPU/load、处理耗时、曝光stamp和captured计数；他程序抢核可把立体组率从 12+ gps 打到约 6 gps，低组率本身不构成质量门失败。不能将环境过载记作几何通过或靠放宽门补帧。
 
-UI布局/行为证据沿用已有截图验证。本轮CUA浏览器策略拒绝访问，未绕过该限制，不能声称已用新浏览器会话复验当前UI。RViz存活、浏览器UI与真实抓取分别记录。
+UI 布局/行为须标明截图和浏览器验证的实际日期与版本。历史运行曾因 CUA 浏览器策略拒绝访问而未复验；这不是当前自动检查结果。RViz 存活、浏览器 UI 与真实抓取分别记录。
 
 ## 重建开关复验（2026-10-27）
 

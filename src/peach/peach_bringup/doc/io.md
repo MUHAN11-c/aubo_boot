@@ -14,11 +14,15 @@ SetEnables由supervisor接收并发布 `/peach/batch/enables`；臂收到广播�
 
 ## 生命周期
 
-`/peach_lifecycle_manager/manage_nodes` 使用 nav2_msgs/ManageLifecycleNodes。bringup 将 `is_active` 的结果发布至 `/peach/lifecycle/managed_nodes_activated`（RELIABLE、TRANSIENT_LOCAL、depth1）。服务下线、失败或超过两个轮询周期（至少 1 秒）返回时发布 false。自动开批采用最近一次托管状态，`wait_stack_timeout_s` 涵盖等待托管栈、自检和 RunHarvest 服务端的总时间。名单为感知→重建→臂→调度。四节点接 bond，bond_timeout 默认 0 关闭进程死检。observability、scene_obstacles 和相机在名单外。
+自动启动参数拒绝写入时，ROS 参数服务读值与发批缓存一致；不因 GPL 回调顺序使用被拒绝的负 `intent`。`startup_facts.git.branch` 保留完整分支路径，`commit` 为当前引用的 12 位提交号（兼容 packed refs）；无法读取身份时仍明确标为 unknown。
+
+autostart `intent` 只接受 RunHarvest 定义的 PICK_ALL=0、PICK_SELECTED=1、SURVEY_ONLY=2；启动 override 与动态写入均使用同一集合，非法动态写入不改变 ROS 值或发批缓存。
+
+`/peach_lifecycle_manager/manage_nodes` 使用 nav2_msgs/ManageLifecycleNodes。bringup 将 `is_active` 的结果发布至 `/peach/lifecycle/managed_nodes_activated`（RELIABLE、TRANSIENT_LOCAL、depth1）。服务下线、失败或超过两个轮询周期（至少 1 秒）返回时发布 false。自动开批采用最近一次托管状态，`wait_stack_timeout_s` 涵盖等待托管栈、自检和 RunHarvest 服务端的总时间。默认名单为感知→重建→臂→调度；关闭重建进程时从名单移除。四节点接 bond，bond_timeout 默认 0 关闭进程死检。observability、scene_obstacles 和相机在名单外。
 
 ## 相机与TF
 
-camera_enabled默认false；camera_frontend默认stereo，可选percipio或replay。该参数只在launch期选择前端，禁止运行期热切：两驱动争同一GigE并双发`/camera/*`。stereo/percipio互斥；预检拒绝残留`stereo_camera_node`/`component_container`/`camera_container`。replay不起驱动。percipio时装入`peach_scene_perception/config/percipio_frontend.yaml`（`max_frame_age_s=2.5`），避免18图案一帧0.4–1s被默认0.50年龄门丢掉；发布袋轴走身份EMA，挡住1fps单帧RANSAC翻转。共同话题：
+camera_enabled默认false；camera_frontend默认stereo，可选percipio或replay。该参数只在launch期选择前端，禁止运行期热切：两驱动争同一GigE并双发`/camera/*`。stereo/percipio互斥；预检拒绝残留`stereo_camera_node`/`component_container`/`camera_container`。replay不起驱动。percipio时装入`peach_scene_perception/config/percipio_frontend.yaml`（`max_frame_age_s=2.5`），避免18图案一帧0.4–1s被默认0.50年龄门丢掉。候选袋轴、袋底/袋颈与入口旋转保持同一曝光的几何一致性；身份EMA不覆写候选方向，也不替代时间稳定性检查。共同话题：
 
 - `/camera/color/image_raw`：彩色图。stereo 与官方驱动同厂参 `TYUndistortImage`（棋盘格对着官方去畸变彩图）。
 - `/camera/depth/image_raw`：配准深度。stereo 再按彩色厂参最近邻 remap 到与彩图同一网格。
@@ -50,7 +54,7 @@ scene_obstacles在Survey后按刷新触发生成快照，仅写PlanningScene wor
 五点力新增 `/force/sample`（`peach_interfaces/ForceSample`，RELIABLE/VOLATILE/depth100）
 原子帧，旧四 `/force/{points,travel,ad,status}` 保持兼容。完整帧含源进程 UUID、序号、
 主机 ROS 接收/解码时间与五路数值/状态；无固件采样时刻保证。observability 的全部录制档
-保留原子帧，不走相机媒体节流；8090 力页只订完整帧，起段绑定显式 active 会话。
+保留原子帧，不走相机媒体节流；observability 只用完整帧形成力页聚合状态。当前力页只读，没有自动分段或手动 20 秒写者；历史接触段 sidecar 仅兼容读取。
 
 `/diagnostics`提供标准健康流，observability聚合到8090；状态/事件带作业身份，会话bag位于runs/session_*，每批ledger在runs/<request_id>。静态页面属于peach_web。调试POST委托现有ROS入口，默认运动调试关闭；不得新增SetIO或旁路门。
 

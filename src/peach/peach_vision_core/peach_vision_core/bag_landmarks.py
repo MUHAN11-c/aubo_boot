@@ -44,6 +44,7 @@ class BagLandmarks:
     occlusion_class: str = OCCLUSION_CLEAR
     sigma_position_m: float = 0.02
     sigma_axis_deg: float = 8.0
+    axis_conditioning_weight: float = 1.0
     flags: list = field(default_factory=list)
 
 
@@ -273,50 +274,11 @@ def clamp_upper_hemisphere(bottom, neck, axis, gravity) -> tuple:
     return bottom_v, neck_v, axis_u, False
 
 
-def estimate_bag_landmarks(
-        points: np.ndarray, gravity=None,
-        mask_area_ratio: float = 0.05, edge_touch: bool = False,
-        neighbor_gap_m: float = 1.0, valid_depth_ratio: float = 1.0,
-        bbox_aspect: float = 1.0, axis_hint=None, axis_origin=None) -> BagLandmarks:
-    """
-    沿袋长轴做半径剖面：窄头为扎口，宽头为袋底，轴从袋底指向袋口.
-
-    两端差不多粗时才用逆重力当颈。窄头若会把轴翻到朝下则忽略：袋底→袋口
-    只许从下往上（左右最多水平）。主轴来自袋底→袋口。球拟合只填先验包络.
-    """
-    result = BagLandmarks()
-    result.occlusion_class = classify_occlusion(
-        mask_area_ratio, edge_touch, neighbor_gap_m, valid_depth_ratio,
-        bbox_aspect)
-    pts = np.asarray(points, dtype=np.float64)
-    if pts.ndim != 2 or pts.shape[0] < 30 or pts.shape[1] != 3:
-        result.flags.append('too_few_points')
-        return result
-    finite = pts[np.isfinite(pts).all(axis=1)]
-    if finite.shape[0] < 30:
-        result.flags.append('too_few_finite_points')
-        return result
-    # A point cloud has no row-order semantics. Canonicalize before seeded
-    # sampling and tie-breaking so storage/voxel iteration cannot change a
-    # fitted auxiliary sphere or endpoint for the same geometric point set.
-    finite = finite[np.lexsort((finite[:, 2], finite[:, 1], finite[:, 0]))]
-    gravity_u = _unit(gravity)
-    if gravity_u is None:
-        gravity_u = np.array([0.0, 0.0, -1.0])
-        result.flags.append('gravity_defaulted')
-    long_axis = _unit(axis_hint)
-    from_hint = long_axis is not None
-    from_pca = False
-    if from_hint:
-        if float(long_axis @ gravity_u) > 0.0:
-            long_axis = -long_axis
-        result.flags.append('axis_from_primary')
-    else:
-        long_axis, from_pca = _long_axis(finite, gravity_u)
-    if not from_hint and from_pca:
-        result.flags.append('axis_from_pca')
-    elif not from_hint:
-        result.flags.append('axis_from_gravity_prior')
+def _estimate_axis_sections(
+        result: BagLandmarks, finite: np.ndarray, long_axis: np.ndarray,
+        gravity_u: np.ndarray, *, project_to_axis: bool,
+        axis_origin=None) -> BagLandmarks:
+    """Estimate current-cloud sections, retaining one selected center line."""
     profile = _bin_radii(finite, long_axis)
     if profile[0] is None:
         result.flags.append('bag_axis_too_short')
@@ -381,7 +343,7 @@ def estimate_bag_landmarks(
     if result.bottom_center is None:
         result.bottom_center = np.mean(bottom_band, axis=0)
         result.flags.append('bottom_from_band')
-    if from_hint or from_pca:
+    if project_to_axis:
         # Surface centres move with taper; both endpoints must remain on
         # one line along the already selected process axis, including a
         # conditioned whole-bag principal axis selected from this cloud.
@@ -417,6 +379,125 @@ def estimate_bag_landmarks(
     result.bag_axis = axis
     radial = axis_radial_distance(finite, result.bag_axis, result.bottom_center)
     result.d95_m = float(2.0 * np.percentile(radial, 95))
+    return result
+
+
+def condition_bag_landmarks(
+        points: np.ndarray, gravity, reference: BagLandmarks) -> Optional[BagLandmarks]:
+    """
+    Build a same-exposure continuous reference for an unqualified PCA axis.
+
+    The legacy estimate remains the qualification reference. The spectral
+    gap and gravity angle attenuate only its geometric fallback, without
+    retaining earlier frames or treating the prior as measured orientation.
+    """
+    if ('axis_from_gravity_prior' not in reference.flags
+            or reference.bag_axis is None
+            or reference.bottom_center is None or reference.neck_center is None):
+        return None
+    finite = np.asarray(points, dtype=np.float64)
+    if finite.ndim != 2 or finite.shape[1] != 3:
+        return None
+    finite = finite[np.isfinite(finite).all(axis=1)]
+    gravity_u = _unit(gravity)
+    if len(finite) < 30 or gravity_u is None:
+        return None
+    finite = finite[np.lexsort((finite[:, 2], finite[:, 1], finite[:, 0]))]
+    try:
+        _, singular, vt = np.linalg.svd(
+            finite - np.median(finite, axis=0), full_matrices=False)
+    except np.linalg.LinAlgError:
+        return None
+    if singular.size < 2 or float(singular[0]) < 1e-9:
+        return None
+    principal = _unit(vt[0])
+    if principal is None:
+        return None
+    if float(principal @ gravity_u) > 0.0:
+        principal = -principal
+    ratio = float(singular[0] / max(float(singular[1]), 1e-9))
+    angle_deg = float(np.degrees(np.arccos(np.clip(
+        -(principal @ gravity_u), 0.0, 1.0))))
+    gap_t = float(np.clip(
+        (ratio - 1.0) / (_PCA_MIN_ANISOTROPY - 1.0), 0.0, 1.0))
+    angle_t = float(np.clip(
+        (90.0 - angle_deg) / (90.0 - _PCA_MAX_GRAVITY_DEG), 0.0, 1.0))
+    weight = (gap_t * gap_t * (3.0 - 2.0 * gap_t)
+              * angle_t * angle_t * (3.0 - 2.0 * angle_t))
+    axis = _unit(weight * principal - (1.0 - weight) * gravity_u)
+    if axis is None:
+        return None
+    result = BagLandmarks(
+        occlusion_class=reference.occlusion_class,
+        sigma_position_m=reference.sigma_position_m,
+        sigma_axis_deg=max(20.0, reference.sigma_axis_deg),
+        flags=['axis_from_gravity_prior', 'axis_conditioned_from_current_cloud'])
+    result = _estimate_axis_sections(
+        result, finite, axis, gravity_u, project_to_axis=True)
+    if result.bag_axis is None:
+        return None
+    # Neither the smaller conditioned envelope nor the visual continuity may
+    # erase an earlier clearance failure from this same exposure.
+    result.d95_m = max(result.d95_m, reference.d95_m)
+    result.fruit_prior_center = reference.fruit_prior_center
+    result.fruit_prior_radius_m = reference.fruit_prior_radius_m
+    result.axis_conditioning_weight = weight
+    if 'fruit_prior_auxiliary' in reference.flags:
+        result.flags.append('fruit_prior_auxiliary')
+    if result.occlusion_class != OCCLUSION_CLEAR:
+        result.flags.append(result.occlusion_class)
+    return result
+
+
+def estimate_bag_landmarks(
+        points: np.ndarray, gravity=None,
+        mask_area_ratio: float = 0.05, edge_touch: bool = False,
+        neighbor_gap_m: float = 1.0, valid_depth_ratio: float = 1.0,
+        bbox_aspect: float = 1.0, axis_hint=None, axis_origin=None) -> BagLandmarks:
+    """
+    沿袋长轴做半径剖面：窄头为扎口，宽头为袋底，轴从袋底指向袋口.
+
+    两端差不多粗时才用逆重力当颈。窄头若会把轴翻到朝下则忽略：袋底→袋口
+    只许从下往上（左右最多水平）。主轴来自袋底→袋口。球拟合只填先验包络.
+    """
+    result = BagLandmarks()
+    result.occlusion_class = classify_occlusion(
+        mask_area_ratio, edge_touch, neighbor_gap_m, valid_depth_ratio,
+        bbox_aspect)
+    pts = np.asarray(points, dtype=np.float64)
+    if pts.ndim != 2 or pts.shape[0] < 30 or pts.shape[1] != 3:
+        result.flags.append('too_few_points')
+        return result
+    finite = pts[np.isfinite(pts).all(axis=1)]
+    if finite.shape[0] < 30:
+        result.flags.append('too_few_finite_points')
+        return result
+    # A point cloud has no row-order semantics. Canonicalize before seeded
+    # sampling and tie-breaking so storage/voxel iteration cannot change a
+    # fitted auxiliary sphere or endpoint for the same geometric point set.
+    finite = finite[np.lexsort((finite[:, 2], finite[:, 1], finite[:, 0]))]
+    gravity_u = _unit(gravity)
+    if gravity_u is None:
+        gravity_u = np.array([0.0, 0.0, -1.0])
+        result.flags.append('gravity_defaulted')
+    long_axis = _unit(axis_hint)
+    from_hint = long_axis is not None
+    from_pca = False
+    if from_hint:
+        if float(long_axis @ gravity_u) > 0.0:
+            long_axis = -long_axis
+        result.flags.append('axis_from_primary')
+    else:
+        long_axis, from_pca = _long_axis(finite, gravity_u)
+    if not from_hint and from_pca:
+        result.flags.append('axis_from_pca')
+    elif not from_hint:
+        result.flags.append('axis_from_gravity_prior')
+    result = _estimate_axis_sections(
+        result, finite, long_axis, gravity_u,
+        project_to_axis=from_hint or from_pca, axis_origin=axis_origin)
+    if result.bag_axis is None:
+        return result
     # 球先验是辅助量（诊断，不作为袋内果实观测或剪切许可条件）：
     # RANSAC 打分与 LM 抛光都随点数线性走，>1200 时固定种子均匀抽稀
     # （PCL「先降采样云再拟合」同一实践；先验经 refine 多帧融合平滑）

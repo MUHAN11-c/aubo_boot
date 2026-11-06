@@ -3,10 +3,10 @@ Load tool profile archives from aubo_description (plain keys, not ROS ParameterF
 
 工具档案单一事实源：aubo_description/config/<profile_id>.yaml。
 launch 期按 tool_profile 参数装载注入各包（模式同 grasp_standoffs 的 overlay 注入）：
-  - scene:        tool.D_inner（径向走廊门）+ tool.L_insert/tool.L_blade（行程/刀口轴向）
-  - reconstruction: tool.budget.d_inner（GraspDecision 许可数学）+ tool.profile_id（标签）
+  - scene:        tool.D_inner + tool.L_insert/tool.L_blade（内径/行程/刀口轴向参数）
+  - reconstruction: tool.budget.d_inner（余量计算）+ tool.profile_id（标签）
   - manipulation / executor: tool.profile_id（标签）
-  - manipulation:  tool.d_inner_m / tool.body_length_m / tool.body_radius_m（袋径门+①层胶囊审查包络）
+  - manipulation:  tool.d_inner_m / tool.body_length_m / tool.body_radius_m（内径记录+①层胶囊包络）
 档案里其余字段（error_m、io 等登记项）运行期不注入。
 
 新增工具：aubo_description 加档案 yaml + tcp_<profile>.xacro wrapper + 主 xacro
@@ -138,7 +138,7 @@ _tool_profile_value_cls.cache = None
 
 
 def scene_tool_params(profile_id):
-    """场景感知注入：径向走廊门内径 + 行程/刀口轴向（随档案）."""
+    """场景感知注入：内径、行程与刀口轴向参数（随档案）."""
     from launch_ros.parameter_descriptions import ParameterValue
     cls = _tool_profile_value_cls()
     return {
@@ -149,7 +149,7 @@ def scene_tool_params(profile_id):
 
 
 def reconstruction_tool_params(profile_id):
-    """重建注入：许可数学内径 + 档案标签."""
+    """重建注入：余量计算内径与档案标签，许可规则由重建实现决定."""
     from launch_ros.parameter_descriptions import ParameterValue
     cls = _tool_profile_value_cls()
     return {
@@ -168,7 +168,7 @@ def tool_profile_id_params(profile_id):
 
 
 def tool_profile_d_inner_params(profile_id):
-    """内径注入（peach_arm unrefined 袋径门，批次4）：按档案 D_inner 求值."""
+    """内径注入：按档案 D_inner 求值；当前 arm unrefined 链仅保留记录."""
     from launch_ros.parameter_descriptions import ParameterValue
     value = _tool_profile_value_cls()(profile_id, 'd_inner')
     return {'tool.d_inner_m': ParameterValue(value, value_type=float)}

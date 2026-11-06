@@ -134,7 +134,7 @@ class peach_autostart_client:
                 self.node_.declare_parameter(self.prefix_ + "scene_key", parameter, descriptor)
 
             if not self.node_.has_parameter(self.prefix_ + "intent"):
-                descriptor = ParameterDescriptor(description=r"RunHarvest intent; 0 means PICK_ALL.", read_only = False)
+                descriptor = ParameterDescriptor(description=r"RunHarvest intent; PICK_ALL=0, PICK_SELECTED=1 or SURVEY_ONLY=2.", read_only = False)
                 parameter = updated_params.intent
                 self.node_.declare_parameter(self.prefix_ + "intent", parameter, descriptor)
 

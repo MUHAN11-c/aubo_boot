@@ -2,8 +2,8 @@
 # 动作：/peach_arm/execute_target
 # 服务端：peach_arm    客户端：peach_supervisor（调度是唯一动作客户端）
 # PREGRASP_ONLY 为现行默认干跑：到预抓取停住、不回 harvest_stow、任何路径不 SetIO；
-# ACK 后调度才 Survey / 派下一颗。套入/剪切须许可复检：allowed 为汇总位（geometry∧sleeve∧cut），
-# 臂侧 CONTACT 查令牌径向余量、TOOL 查轴向余量 ∧ 预抓取已验证（批次4 分档）。
+# ACK 后调度才 Survey / 派下一颗。套入/剪切复检目标、冻结期限和当前模型能力；
+# allowed 为汇总位（geometry∧sleeve∧cut）。余量仅记录，TOOL 另要求预抓取已验证和工具使能。
 
 # === Goal ===
 uint8 PREVIEW=0                # 只规划接触，不执行
@@ -18,25 +18,25 @@ string target_id               # 须与 HarvestState.target_id 一致
 uint8 mode                     # PREVIEW / OBSERVE_ONLY / FULL / PREGRASP_ONLY
 bool skip_observation          # FULL 时可跳过观察段
 uint32 scene_epoch             # 须与当前 BeginScene 世代一致
-string model_revision          # 期望模型修订；空=非预览执行须拒
+string model_revision          # 期望模型修订；FULL/PREGRASP_ONLY 为空拒绝；OBSERVE_ONLY 可空
 string tool_profile_id         # 工具剖面
-string calibration_revision    # 标定修订；空=非预览执行须拒
-string config_revision         # 配置修订；空=非预览执行须拒
-string plan_id                 # 预览与执行须同一计划对象
+string calibration_revision    # 标定修订；FULL/PREGRASP_ONLY 为空拒绝
+string config_revision         # 配置修订；FULL/PREGRASP_ONLY 为空拒绝
+string plan_id                 # 已有 PREVIEW 绑定且本字段非空时，执行须匹配同一计划/身份/起始关节
 uint64 generation              # 动作事务世代；迟到结果丢弃
-# 清洁重写轮附加（观察模式届时由大脑内化，本动作收窄为纯接触）：
+# 接触档位；OBSERVE_ONLY 仍由本动作提供，fast 补视另走 MoveTo。
 uint8 PROFILE_PREGRASP_HOLD=0  # IDL 默认。mode=FULL 仍走套入；不要把未填 profile 当成强制 HOLD
 uint8 PROFILE_FULL=1           # 强制全程套入 / 剪切 / 撤退（覆盖 mode=PREGRASP_ONLY）
 # 阶段检查点（阶段 2 起 feedback.checkpoint 取值；均 abortable——取消即透传 abort + RobotMoveStop）
-uint8 CK_AT_STAGING=1          # 到 staging 停位
-uint8 CK_AT_PREGRASP=2         # 到预抓取（PREGRASP_HOLD 终点）
+uint8 CK_AT_STAGING=1          # 兼容预留；当前直接转移到净空点，不单独发布此检查点
+uint8 CK_AT_PREGRASP=2         # 到轨迹净空点 A（PREGRASP_HOLD 终点；视觉预抓取不另停）
 uint8 CK_SLEEVE_PLANNED=3      # 套入与反向撤退规划过门
 uint8 CK_SLEEVED=4             # 套入到位
 uint8 CK_CUT_ACCEPTED=5        # SetIO 受理（≠切断）
-uint8 CK_CUT_CONFIRMED=6       # 切断确认（刀具 DI / 电流特征）
+uint8 CK_CUT_CONFIRMED=6       # 当前证据为 SetIO ACK + 命令后刀具 DI 新闭合沿，尚无独立分离传感
 uint8 CK_RETAINED=7            # 承接确认（DI 预留 / 操作台目视）
 uint8 CK_RETREATED=8           # 原路撤回预抓取
-uint8 CK_STOWED=9              # 回 harvest_stow
+uint8 CK_STOWED=9              # 当前部署回 global_photo_pose；不同名 stow 配置仍在 photo 后再转移
 peach_interfaces/Clearance clearance   # 接触许可令牌（TOOL/CONTACT 级复检输入）
 uint8 profile                  # PROFILE_*；0 与 PREGRASP_ONLY 语义衔接
 ---

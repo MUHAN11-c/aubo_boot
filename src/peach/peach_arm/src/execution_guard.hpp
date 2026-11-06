@@ -10,6 +10,7 @@
 #include <algorithm>
 #include <atomic>
 #include <chrono>
+#include <exception>
 #include <functional>
 #include <future>
 #include <memory>
@@ -153,13 +154,25 @@ moveit::core::MoveItErrorCode runBoundedExecute(
   } else {
     RCLCPP_INFO(logger, "有界执行收到取消，已发起停止并进入 5s 宽限");
   }
-  if (stop_fn) {
-    stop_fn();
+  bool stop_failed = false;
+  try {
+    if (stop_fn) {
+      stop_fn();
+    }
+  } catch (const std::exception & error) {
+    stop_failed = true;
+    RCLCPP_ERROR(logger, "有界执行停止回调异常，继续回收执行线程: %s", error.what());
+  } catch (...) {
+    stop_failed = true;
+    RCLCPP_ERROR(logger, "有界执行停止回调异常，继续回收执行线程");
   }
   if (shared_result.wait_for(std::chrono::seconds(5)) ==
     std::future_status::ready)
   {
     worker.join();
+    if (stop_failed) {
+      return moveit::core::MoveItErrorCode::FAILURE;
+    }
     return by_timeout ? moveit::core::MoveItErrorCode::TIMED_OUT :
            moveit::core::MoveItErrorCode::PREEMPTED;
   }

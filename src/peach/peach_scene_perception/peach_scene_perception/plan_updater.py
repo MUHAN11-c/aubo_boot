@@ -279,7 +279,7 @@ class PlanUpdater:
         for target_id in plan.locked_ids:
             payload = payloads.get(target_id)
             record = current.get(target_id, {})
-            # 跟踪状态四分类（阶段 D1，协议 2.4 第 4 条）：分类纯函数
+            # 跟踪状态五分类（阶段 D1，协议 2.4 第 4 条）：分类纯函数
             # 在 assignment.classify_tracking_status，本处只产 token
             token = classify_tracking_status(
                 has_observation=payload is not None,

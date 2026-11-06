@@ -125,21 +125,31 @@ def build_harvest_job(snapshot: dict) -> dict:
     # 终局与最高完成级别是两条事实；取消不能抹掉已验证的预抓取。
     # 仅使用同批同目标、当前无在途动作的账本行，避免旧结果串入新周期。
     live = (snapshot.get('ledger') or {}).get('live') or {}
+    empty_batch = bool(
+        batch in (_BATCH_COMPLETED, _BATCH_INTERRUPTED)
+        and executor.get('run_id') == live.get('request_id')
+        and executor.get('run_id') and not live.get('error')
+        and live.get('rows') == [] and live.get('claimed') == []
+        and not executor.get('target_id')
+        and executor.get('cycle_id') in ('', None, executor.get('run_id'))
+        and not executor.get('action_active')
+        and not manipulation.get('running'))
     completion = {}
-    if (live.get('request_id') == executor.get('run_id')
+    if (executor.get('run_id') and not live.get('error')
+            and live.get('request_id') == executor.get('run_id')
             and target_id and not executor.get('action_active')
             and not manipulation.get('running')):
         for row in reversed(live.get('rows') or []):
             if row.get('target_id') == target_id:
-                level = _int(row.get('completion_level'), -1)
-                if level in range(8):
+                cycle = row.get('cycle_id')
+                if cycle and cycle != executor.get('cycle_id'):
+                    continue
+                epoch = _int(row.get('scene_epoch'), 0)
+                current_epoch = _int(executor.get('scene_epoch'), 0)
+                if epoch > 0 and current_epoch > 0 and epoch != current_epoch:
+                    continue
+                if _int(row.get('outcome'), -1) in range(5):
                     completion = dict(row)
-                    if level >= 1:
-                        statuses['approach'] = 'done'
-                    if level >= 5 and tool_on:
-                        statuses['tool'] = 'done'
-                    if level >= 6:
-                        statuses['retreat'] = 'done'
                 break
 
     why = _why(
@@ -147,15 +157,47 @@ def build_harvest_job(snapshot: dict) -> dict:
         allowed, decision.get('reason') or '', recon_state,
         manipulation.get('message') or '', fail_at)
     if completion:
+        level = _int(completion.get('completion_level'), -1)
+        for stage_id, minimum in (('approach', 1), ('tool', 5), ('retreat', 6)):
+            if stage_id == 'tool' and level == 6:
+                # 干运行也可到 L6；撤退确认不蕴含切断证据。
+                if statuses.get(stage_id) != 'failed':
+                    statuses[stage_id] = 'pending'
+            elif level in range(8) and level >= minimum:
+                statuses[stage_id] = 'done'
+            elif statuses.get(stage_id) != 'failed':
+                statuses[stage_id] = 'skipped' if level in range(8) else 'pending'
+        outcome = _int(completion.get('outcome'), -1)
+        statuses['done'] = ('done', 'skipped', 'skipped', 'failed', 'failed')[outcome]
+        if not recovery:
+            active = 'done'
         labels = ('尚未到达预抓取', '预抓取已到达', '预抓取已验证',
                   '套入已完成', '刀指令已受理（未确认切断）',
                   '切断已确认', '撤退已确认（采摘未确认）', '采摘已确认')
-        outcome = completion.get('outcome_name') or ''
-        terminal = {'CANCELED': '批次已取消', 'FAILED': '周期失败',
-                    'SUCCEEDED': '周期完成'}.get(outcome, outcome)
-        why = f"{labels[completion['completion_level']]} · {terminal}"
+        terminal = ('周期完成', '质量跳过', '不可达跳过', '周期失败', '批次已取消')[outcome]
+        evidence = labels[level] if level in range(8) else '完成级别待确认'
+        why = f'{evidence} · {terminal}'
+        if outcome != 0 and completion.get('reason'):
+            why += f" · {completion['reason']}"
         if recovery:
             why += ' · 等待人工恢复确认'
+    elif empty_batch:
+        for stage_id in ('approach', 'tool', 'retreat'):
+            statuses[stage_id] = 'skipped'
+        if batch == _BATCH_COMPLETED:
+            for stage_id in ('lock', 'observe', 'permit', 'done'):
+                statuses[stage_id] = 'skipped'
+            active = 'done'
+            why = '批次已结束，未执行目标'
+    elif (batch in (_BATCH_COMPLETED, _BATCH_INTERRUPTED)
+            or phase in (_PHASE_SUCCEEDED, _PHASE_SKIPPED, _PHASE_FAILED)):
+        # 终态消息可能先于账本落盘；没有同批同目标证据时不猜完成度。
+        for stage_id in ('approach', 'tool', 'retreat', 'done'):
+            if statuses.get(stage_id) != 'failed':
+                statuses[stage_id] = 'pending'
+        why = '调度已终止，等待同批同目标账本终局'
+        if live.get('error'):
+            why += f" · {live['error']}"
 
     stages = []
     for stage_id, label in STAGE_SPECS:
@@ -228,6 +270,7 @@ def build_harvest_job(snapshot: dict) -> dict:
         'active_id': active,
         'why': why,
         'completion': completion,
+        'empty_batch': empty_batch,
         'flags': flags,
         'stages': stages,
         'coords': coords,
@@ -342,6 +385,8 @@ def _observation(targets: dict, target_id: str) -> dict | None:
         for item in items:
             if str(item.get('target_id') or '') == target_id:
                 return item
+        # An explicit job identity must not borrow another target's geometry.
+        return None
     for item in items:
         if item.get('selected'):
             return item

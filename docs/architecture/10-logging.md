@@ -5,7 +5,7 @@
 - 结构化字段优先，文本只做人类可读补充。
 - 稳定错误码只来自 `peach_interfaces/msg/FailureCode.msg`；不新增自由字符串码。
 - 逐帧 INFO 禁止；启动/状态变化/失败/耗时用 INFO/WARN/ERROR。
-- ROS 节点用 `get_logger()`，不用 `print`；高频失败要节流。
+- ROS 状态/诊断用 `get_logger()`；高频失败节流。`serial_force` 的显式逐帧调试输出走 stdout，避免 100 Hz `/rosout` 负载；launch 预检同样在 ROS 节点建立前打印。
 - 日志不得作为控制/安全通道；功能安全仍走硬件急停。
 
 ## 稳定字段

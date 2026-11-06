@@ -2,17 +2,19 @@
 袋/果位姿管线：圆柱轴袋线与球+梗洼果线（看场景算法核）.
 
 两条线共用同一圆柱刀具、入口/行程公式与安全门控；掩膜/深度门控
-委托 image_gates，协方差委托 identity，拟合委托 common.geometry。
+委托 image_gates，协方差委托 identity，拟合委托 peach_vision_core.geometry。
 """
 from __future__ import annotations
 
 from dataclasses import dataclass
+from dataclasses import replace
 import logging
 from typing import Optional, Tuple
 
 import numpy as np
 from peach_common.event_meter import EventMeter
 from peach_vision_core.bag_landmarks import clamp_upper_hemisphere
+from peach_vision_core.bag_landmarks import condition_bag_landmarks
 from peach_vision_core.bag_landmarks import enforce_wide_bottom
 from peach_vision_core.bag_landmarks import estimate_bag_landmarks
 from peach_vision_core.geometry import backproject
@@ -43,7 +45,7 @@ _logger = logging.getLogger(__name__)
 # P1 纯核决策点观测：拟合拒绝计数（经 ros_log_bridge 进 /rosout）
 _fit_reject_meter = EventMeter(_logger, '位姿拟合拒绝', every=20)
 
-# W3 迁移兼容 re-export：grasp_frame_from_axis 已迁 common.geometry
+# W3 迁移兼容 re-export：grasp_frame_from_axis 已迁 peach_vision_core.geometry
 # （identity.memory_grasp 与本模块共用；迁出消除 identity↔pose_pipelines
 # 循环依赖）。旧 import 路径保持可用，调用方逐步改走 geometry。
 __all__ = [
@@ -63,7 +65,7 @@ def apply_transform_to_reference(grasp_3d, T: np.ndarray) -> None:
 
     T 为 4×4 齐次矩阵（输出系←相机系）。规则：点 R@p+t（含 entry_start /
     bag_bottom / bag_neck / suggested_travel_end / legacy position /
-    points_centroid，走 common.geometry transform_point）；方向只乘 R 并
+    points_centroid，走 peach_vision_core.geometry.transform_point）；方向只乘 R 并
     归一化（transform_direction：平移不影响方向）；姿态矩阵左乘 R。None
     字段原样保留。（W3 起 `_apply_T_to_grasp3d` 公开为本名，pipeline 不再
     跨模块 import 私有符号。）
@@ -116,6 +118,7 @@ class TargetPoseResult:
 # flag 可达，REJECT/REOBSERVE 语义不变。
 _INFORMATIONAL_FLAGS = frozenset({
     'axis_from_pca',              # 轴来自 PCA 而非圆柱 RANSAC（过程事实）
+    'axis_conditioned_from_current_cloud',  # 当前点云条件轴；不改变资格下限
     'axis_from_profile_sign',     # 剖面符号退化回主轴（过程事实）
     'taper_neck',                 # 锥度判口成功（过程事实）
     'taper_polarity_swapped',     # 宽窄端已对调（校正完成）
@@ -308,9 +311,49 @@ class RobustBagPosePipeline:
             target_valid_ratio)
         if failure is not None:
             return failure
+        landmarks = estimate_bag_landmarks(
+            inputs.points, inputs.gravity, mask_area_ratio=inputs.coverage,
+            edge_touch=False, neighbor_gap_m=1.0,
+            valid_depth_ratio=inputs.valid_ratio,
+            bbox_aspect=float(max(inputs.x2 - inputs.x1, 1)
+                              / max(inputs.y2 - inputs.y1, 1)))
+        reference = self._estimate_geometry(
+            obs, target_id, inputs, raw_mask, landmarks)
+        conditioned = condition_bag_landmarks(
+            inputs.points, inputs.gravity, landmarks)
+        if conditioned is None:
+            return reference
+        result = self._estimate_geometry(
+            obs, target_id, inputs, raw_mask, conditioned)
+        if result.grasp_3d.translation_direction is None:
+            return reference
+        # Qualification is evaluated on the original same-exposure geometry,
+        # then may only become stricter. No prior frame or identity is cached.
+        rank = {'ACCEPT': 0, 'REOBSERVE': 1, 'REJECT': 2}
+        if rank[result.grasp_3d.status] < rank[reference.grasp_3d.status]:
+            result.grasp_3d.status = reference.grasp_3d.status
+            result.grasp_3d.diagnostic_flags.append(
+                'axis_conditioning_qualification_preserved')
+        result.grasp_2d.status = result.grasp_3d.status
+        result.grasp_2d.diagnostic_flags = result.grasp_3d.diagnostic_flags.copy()
+        result.grasp_3d.confidence = min(
+            result.grasp_3d.confidence, reference.grasp_3d.confidence)
+        result.grasp_2d.confidence = result.grasp_3d.confidence
+        evidence = {
+            'axis_conditioning_weight': conditioned.axis_conditioning_weight,
+            'axis_qualification_reference_status': reference.grasp_3d.status,
+        }
+        result.metrics.update(evidence)
+        result.grasp_3d.diagnostic_info.update(evidence)
+        return result
+
+    def _estimate_geometry(self, obs: BagObservation, target_id: str,
+                           inputs: _EstimateInputs, raw_mask, landmarks
+                           ) -> TargetPoseResult:
+        """Evaluate one current-cloud geometry, independently of qualification."""
         x1, y1, x2, y2 = inputs.x1, inputs.y1, inputs.x2, inputs.y2
         roi = inputs.roi
-        base_2d = inputs.base_2d
+        base_2d = replace(inputs.base_2d)
         local_mask = inputs.local_mask
         valid_ratio = inputs.valid_ratio
         coverage = inputs.coverage
@@ -318,19 +361,7 @@ class RobustBagPosePipeline:
         source = inputs.source
         gravity = inputs.gravity
 
-        # ── 局部圆柱诊断；最终袋轴由独立整袋地标估计并做 2D 校验 ──
-        # 理论: 圆柱法线 ⊥ 轴 (a = n₁×n₂)；局部几何结构良态，全局 PCA 对
-        # 近回转体退化。自由悬垂时重力是悬挂方向；PCA 过各向异性门仍可能
-        # 把剪影宽度当长轴，_long_axis 在相对重力 >45° 时回退。
-        bbox_aspect = float(max(x2 - x1, 1) / max(y2 - y1, 1))
-        # Whole-bag landmarks are the primary pose source; the local cylinder
-        # is only a fallback/diagnostic. Run landmarks first so a successful
-        # primary fit can skip the redundant RANSAC+polish path entirely.
-        landmarks = estimate_bag_landmarks(
-            points, gravity,
-            mask_area_ratio=coverage, edge_touch=False,
-            neighbor_gap_m=1.0, valid_depth_ratio=valid_ratio,
-            bbox_aspect=bbox_aspect)
+        # Whole-bag geometry is prepared once; the local cylinder is fallback.
         landmarks_ok = (
             landmarks.neck_center is not None
             and landmarks.bottom_center is not None
@@ -360,18 +391,20 @@ class RobustBagPosePipeline:
         if float(axis @ gravity) > 0.0:
             axis = -axis
         # ── 底/颈/袋径: 沿拟合轴投影分位带（背面遮挡时为观测下界） ──
-        proj = points @ axis
-        bottom_band = points[proj <= np.percentile(proj, 10)]
-        neck_band = points[proj >= np.percentile(proj, 90)]
-        transverse_points = points - np.outer(points @ axis, axis)
-        transverse_center = np.median(transverse_points, axis=0)
-        bottom_axis = float(np.median(bottom_band @ axis))
-        neck_axis = float(np.median(neck_band @ axis))
-        bottom = transverse_center + bottom_axis * axis
-        neck = transverse_center + neck_axis * axis
-        length = float(np.dot(neck - bottom, axis))
-        radial = np.linalg.norm(transverse_points - transverse_center, axis=1)
-        diameter = float(2.0 * np.percentile(radial, 95))
+        # 成功地标会覆盖下面全部端点/直径；只有需要回退时才计算。
+        # d95 为零、负或 NaN 时沿用原局部轴直径，不跳过退化输入路径。
+        if not landmarks_ok or not landmarks.d95_m > 0.0:
+            proj = points @ axis
+            bottom_band = points[proj <= np.percentile(proj, 10)]
+            neck_band = points[proj >= np.percentile(proj, 90)]
+            transverse_points = points - np.outer(points @ axis, axis)
+            transverse_center = np.median(transverse_points, axis=0)
+            bottom_axis = float(np.median(bottom_band @ axis))
+            neck_axis = float(np.median(neck_band @ axis))
+            bottom = transverse_center + bottom_axis * axis
+            neck = transverse_center + neck_axis * axis
+            radial = np.linalg.norm(transverse_points - transverse_center, axis=1)
+            diameter = float(2.0 * np.percentile(radial, 95))
         # A paper bag is not a rigid cylinder. Local fold normals can fit a
         # low-residual cylinder across the bag; whole-bag landmarks must
         # estimate their axis independently of that local fit.
@@ -701,7 +734,7 @@ class RobustBagPosePipeline:
 
         W3：距离窗不再在此重算——直接复用 estimate 已解析的 `valid`
         掩膜（valid_roi 或管线深度窗，同一 valid_depth_mask 口径）；
-        反投影数学单源在 common.geometry.backproject。
+        反投影数学单源在 peach_vision_core.geometry.backproject。
         （W13-A：原声明 self 但函数体零引用，改为静态方法；调用点
         self._to_points(...) / 实例直调均不受影响。）
 
@@ -894,7 +927,7 @@ class RobustFruitPosePipeline(RobustBagPosePipeline):
     与袋装线并列：袋装用"圆柱 RANSAC 定轴"，裸果是近球体、没有圆柱结构，
     改用"球拟合定心定径 + 梗洼定向"：
 
-    - **球心/半径**：点+法线 RANSAC 球拟合（fitting.fit_sphere_robust），
+    - **球心/半径**：点+法线 RANSAC 球拟合（peach_vision_core.geometry），
       半径夹紧 [25,45]mm（成熟桃 Ø60–85mm），内点几何 LM 抛光；
     - **套入轴（梗方向）**：桃的果梗附着处有凹陷（植物学事实）。在拟合球面上
       按 Fibonacci 方向扫描，找"实测表面相对拟合球面下陷最深"的方向帽

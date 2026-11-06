@@ -1,7 +1,8 @@
 """
-感知纯核门面：from_params + process(frame) → PerceptionResult.
+感知管线门面：from_params + process(frame) → PerceptionResult.
 
-节点只做 ROS 解码/发布。袋/果 impl 字典仍在 pose_pipelines.make_pipeline。
+不持有 Node、不发布话题；本门面使用 ROS 消息值对象组装结果，几何与身份
+算法在各纯核模块。袋/果 impl 字典仍在 pose_pipelines.make_pipeline。
 """
 from __future__ import annotations
 
@@ -18,7 +19,6 @@ from peach_scene_perception.debug_draw import draw_debug
 from peach_scene_perception.debug_draw import grasp_order_by_id
 from peach_scene_perception.debug_draw import orders_for_image
 from peach_scene_perception.debug_draw import stick_labels
-from peach_scene_perception.identity import apply_held_axis
 from peach_scene_perception.identity import bbox_touches_image_edge
 from peach_scene_perception.identity import CollectLockPolicy
 from peach_scene_perception.identity import first_point
@@ -91,7 +91,7 @@ class PerceptionResult:
     mask_canvas: np.ndarray
     """全图 uint16 实例掩膜，像素值=检测序号+1."""
     debug: Optional[np.ndarray]
-    """每帧全部检测框和分割。确认锁定后标签 id 是抓取顺序。None=未开 publish_debug_image."""
+    """检测叠加图：target_N 为身份，#order 为锁定后抓取顺序；关闭时 None."""
     candidates: BagGraspCandidateArray
     """已确认目标的 3D 抓取候选（/initial_pose）."""
     fittings: BagFittingArray
@@ -151,7 +151,7 @@ class PerceptionPipeline:
     """检测→分割→袋位姿门面。不持有 Node，不发话题."""
 
     params: object
-    """ScenePerceptionParams 快照（yaml 直读）."""
+    """ScenePerceptionParams 实时 GPL 视图；构造期捕获的算法配置不会自动重建."""
     clock: object
     """算法时钟适配器（秒，float）；与节点 get_clock 同源."""
     enable_fruit: bool
@@ -390,7 +390,7 @@ class PerceptionPipeline:
             try:
                 segs = self.engine.segment(rgb, segment_bboxes)
             except Exception as exc:  # noqa: BLE001
-                # One image encoder + prompt cache; never re-encode per box.
+                # SAM 可复用图像特征逐框重试；FastSAM 无此缓存，重跑整批。
                 self._log.warning(
                     f'分割批量异常，改用缓存/重试回退: {exc}')
                 segs = self.engine.segment_cached(rgb, segment_bboxes)
@@ -445,6 +445,7 @@ class PerceptionPipeline:
 
         prefix = 'target' if self.target_registry is None else 'untracked'
         assigned_ids = [(f'{prefix}_{p["i"]}', False) for p in pending]
+        registry_has_pending = False
         if self.target_registry is not None and track:
             assign_items = []
             for p in pending:
@@ -464,6 +465,7 @@ class PerceptionPipeline:
                     return None
                 assigned_ids = self.target_registry.match_or_register_frame(
                     assign_items, now=self.clock.now())
+                registry_has_pending = self.target_registry.pending_count > 0
 
         overlays = []
         for p, (tid, is_new) in zip(pending, assigned_ids):
@@ -494,7 +496,7 @@ class PerceptionPipeline:
             registry_item = (
                 None if self.target_registry is None
                 else self.target_registry.get(tid))
-            apply_held_axis(g3, registry_item)
+            # 身份 EMA 仅供跨帧关联；候选方向、端点和入口旋转保持同帧几何。
             frame_axes.append((g3.status, g3.translation_direction))
             candidate_msg = to_candidate(
                 header, tid, g3, model_version=params.model_version,
@@ -503,7 +505,8 @@ class PerceptionPipeline:
             candidate_2d_msg = to_candidate_2d(header, tid, g2)
             fitting_msg = to_fitting(header, tid, result)
             # Report every detected bag's geometry failure, including an
-            # untracked depth void. Only confirmed 3-D candidates may move.
+            # untracked depth void. Confirmed candidates are perception inputs;
+            # execution still requires the independent model/arm permission gates.
             fit_arr.fittings.append(fitting_msg)
             confirmed = (
                 True if self.target_registry is None
@@ -517,6 +520,12 @@ class PerceptionPipeline:
                 'confidence': float(candidate_msg.confidence),
                 'camera_distance_m': p['camera_distance_m'],
                 'confirmed': confirmed,
+                # untracked_* has no finite 3-D anchor and no registry entry.
+                # A prior tentative may have lost depth this frame; keep waiting
+                # until it confirms or expires, as well as for ambiguous/overflow.
+                'confirmation_pending': (
+                    not confirmed and (registry_has_pending
+                                       or not str(tid).startswith('untracked_'))),
                 'diagnostic_flags': list(candidate_msg.diagnostic_flags),
             }
             if base_anchor is not None:

@@ -55,10 +55,10 @@ QoS 缩写：`R` reliable；`TL` transient_local（晚订户仍拿得到最后�
 |------|------|------|------|----|----|-----|
 | `/peach_supervisor/run_harvest` | action | `RunHarvest` | **唯一开批开关。** 采摘意图至少成功一颗才 `success`；`SURVEY_ONLY` 正常扫场结算可为 true（零目标不算失败）；autostart 部署参数可自动发（默认关，且硬等 `/peach/observability/selfcheck_passed`） | 调度 | （人工/客户端/autostart） | — |
 | `/peach_supervisor/control` | service | `ControlTask` | 暂停/恢复/取消/跳过/ACK 恢复。`expected_state_seq` 须对上当前快照 | 调度 | （人工；监控默认不发） | — |
-| `/peach_supervisor/state` | topic | `HarvestState` | **批次唯一快照。** 能力包只认其中的 `target_id` 当当前作业 | 调度 | 感知、重建、监控；调度自订 | R/TL/1 |
+| `/peach_supervisor/state` | topic | `HarvestState` | **批次唯一快照。** 能力包只认其中的 `target_id` 当当前作业 | 调度 | 感知、重建、监控 | R/TL/1 |
 | `/peach_supervisor/events` | topic | `CanonicalEvent` | 可检索事件流（派发/成功/失败/暂停/ACK/过滤） | 调度 | 监控 | R/TL/50 |
 | `/peach_supervisor/scene_snapshot` | topic | `SceneSnapshot` | WAIT_LOCK 结束或回访后的锁定集快照 | 调度 | 监控（bag 专用，不镜像） | R/TL/1 |
-| `/peach_supervisor/set_enables` | service | `SetEnables` | 操作台使能开关；服务后广播 `/peach/batch/enables` + 审计 | 调度 | （人工；8090 转发未接，`ros2 service call` 可用） | — |
+| `/peach_supervisor/set_enables` | service | `SetEnables` | 操作台使能开关；服务后广播 `/peach/batch/enables` + 审计 | 调度 | 人工 / 8090 `set_enables_service` 调试桥（受门控） | — |
 | `/peach_supervisor/set_batch_policy` | service | `SetBatchPolicy` | 运行期改批次策略（当前批或下批默认） | 调度 | （人工；8090 转发未接） | — |
 | `/peach_supervisor/fire_step` | service | `FireStep` | 操作台单步；现行仅 PHOTO 已接线（MoveTo KIND_NAMED 到拍照位），VIEWPOINT/BUILD/APPROACH/PREVIEW/TOOL_DEBUG 占位调用即拒；未来运动类档位过臂侧命令门 | 调度 | （人工；8090 转发未接） | — |
 | `/peach/batch/enables` | topic | `Enables` | 使能广播（Active 且 override 非空时 1Hz 心跳重发）；臂侧收到过即覆盖本地参数，缺心跳回落本地参数权威 | 调度 | 技能 | R/TL/1 |
@@ -80,14 +80,14 @@ QoS 缩写：`R` reliable；`TL` transient_local（晚订户仍拿得到最后�
 | `/peach/perception/initial_pose` | topic | `BagGraspCandidateArray` | 单帧袋入口/轴**初值**。只给重建当起点；`ACCEPT` 也不授权运动 | 感知 | **仅重建** | R/TL/1 |
 | `/peach/perception/diagnostics` | topic | `BagFittingArray` | 单帧拟合诊断（直径/RMSE/内点） | 感知 | 重建 | — |
 | `/peach/perception/harvest_state` | topic | `std_msgs/String` | 感知侧锁定集 JSON，给监控看 | 感知 | 监控 | R/TL/1 |
-| `/peach/perception/debug_image` | topic | `sensor_msgs/Image` | 检/分割叠加（confirmed-only） | 感知 | 监控 | R/V/10 |
+| `/peach/perception/debug_image` | topic | `sensor_msgs/Image` | 检/分割叠加（confirmed-only） | 感知 | 监控 | R/V/1 |
 | `/peach/scene/obstacles_refresh` | topic | `std_msgs/Empty` | Survey 快照式建图触发（Survey 成功=拍照位刚拍完，点云帧即障碍快照源；新批次自动重建） | 调度 | 场景障碍 | R/TL/1 |
 
 ### 建当前目标
 
 | 名字 | 种类 | 类型 | 含义 | 发 | 订 | QoS |
 |------|------|------|------|----|----|-----|
-| `/peach_target_reconstruction_node/build_target_model` | action | `BuildTargetModel` | 绑 `target_id`，收够机位后 finalize。与 OBSERVE_ONLY **并行**。只用图像时刻精确 TF | 重建 | 调度 | — |
+| `/peach_target_reconstruction_node/build_target_model` | action | `BuildTargetModel` | 绑 `target_id`，收够机位后 finalize。默认与臂侧精化等待并行；显式补视路径才与观察并行。只用图像时刻精确 TF | 重建 | 调度 | — |
 | `/peach/reconstruction/grasp_decision` | topic | `GraspDecision` | **融合入口/轴/预抓取/剪切 + `allowed`。** `allowed` 只拦套入和刀，不拦预抓取 | 重建 | 技能、调度（闩锁许可令牌缓存）、监控 | R/TL/1 |
 | `/peach/reconstruction/refined_pose` | topic | `BagGraspCandidateArray` | 融合后袋位姿 | 重建 | 技能、场景障碍、监控 | R/TL/1 |
 | `/peach/reconstruction/refined_axis` | topic | `Vector3Stamped` | 融合袋轴，给监控三维 | 重建 | 监控 | R/TL/1 |
@@ -111,7 +111,7 @@ QoS 缩写：`R` reliable；`TL` transient_local（晚订户仍拿得到最后�
 | `/peach_arm/acknowledge_recovery` | service | `std_srvs/Trigger` | 接触或预抓取停住后，调度转发人工 ACK | 技能 | 调度 | — |
 | `/peach/manipulation/grasp_hypothesis` | topic | `GraspHypothesis` | 本周期技能打算怎么抓。**只有监控订**，FSM 不靠它做决定 | 技能 | 监控 | R/TL/1 |
 | `/peach_arm/status` | topic | `std_msgs/String` | 技能短状态 | 技能 | 监控 | R/TL/1 |
-| `/peach_arm/tool_state` | topic | `ToolState` | 三轴工具状态（刀/保持/载荷），on-change + 1Hz 心跳 | 技能 | （核内无订；会话 bag 落证据） | R/TL/1 |
+| `/peach_arm/tool_state` | topic | `ToolState` | 三轴工具状态（刀/保持/载荷）；当前有效 DI 新沿/开刀释放时发布，无周期心跳 | 技能 | （核内无订；会话 bag 落证据） | R/TL/1 |
 
 ### 监控自产
 
@@ -148,14 +148,17 @@ Goal：
 
 | 字段 | 含义 |
 |------|------|
-| `request_id` | 本批 ID，同时作账本目录名，须唯一 |
+| `request_id` | 本批 ID/账本目录名；空时以动作 UUID 派生 `auto_<UUID>` |
 | `scene_key` | 场景键，传给 `BeginScene` / `SurveyScene`；换键=换场清身份 |
 | `profile_id` | 参数剖面（现行调度未消费） |
-| `intent` | 见本 action `INTENT_*` 常量（`JobIntent` 已删，此处唯一权威）：`INTENT_PICK_ALL=0` 锁定集逐颗；`INTENT_PICK_SELECTED=1` 只采 `target_ids`；`INTENT_SURVEY_ONLY=2` 只扫不派 |
-| `selection_mode` | 预留 `AUTO/MANUAL`；现行：`target_ids` 非空即优先按列表 |
+| `intent` | `INTENT_PICK_ALL=0` 锁定集逐颗；`INTENT_PICK_SELECTED=1` 须提供 `target_ids` 或部署 `selection_priority>0`，两者并存取交集；`INTENT_SURVEY_ONLY=2` 只扫不派 |
+| `selection_mode` | 预留 `AUTO/MANUAL`；现行由 `target_ids` 与 `selection_priority` 限定目标 |
 | `target_ids` | 可选允许列表；空=不限定 |
+| `target_harvest_ratio` | 有限 `[0,1]`；0 不限，达标后正常结算 |
+| `per_target_timeout_s` / `sector_timeout_s` | 有限非负秒数；0 不限。单果从 SELECT 选中起、扇区从开批起计 |
+| `view_policy` | FAST=0 / CONSERVATIVE=1；显式串行补视路径消费 |
 
-Result：采摘意图（PICK_ALL / PICK_SELECTED）`success` = 至少成功一颗——空场景、全过滤或全失败均 false（`termination_reason=no_targets_succeeded`）；`SURVEY_ONLY` 正常扫场结算可为 true，零目标不算失败；取消或中止保持 false。批次态 `COMPLETED` / action `SUCCEEDED` 只证明批次正常结算，请求是否达成读本字段。`termination_reason`（`completed` / `canceled` / `survey_failed` / `begin_scene_failed` / `no_targets_succeeded` 等）；`summary` 见 `HarvestSummary`。
+Result：采摘意图（PICK_ALL / PICK_SELECTED）`success` = 至少成功一颗——空场景、全过滤或全失败均 false（`termination_reason=no_targets_succeeded`）；`SURVEY_ONLY` 正常扫场结算可为 true，零目标不算失败；取消或中止保持 false。批次态 `COMPLETED` / action `SUCCEEDED` 只证明批次正常结算，请求是否达成读本字段。`termination_reason`（`completed` / `CANCELED` / `sector_timeout` / `survey_failed` / `begin_scene_failed` / `no_targets_succeeded` 等）；`summary` 见 `HarvestSummary`。
 
 Feedback：与 `~/state` 同源的 `HarvestState`。
 
@@ -165,9 +168,11 @@ Goal：`request_id`、`scene_key`（须与 Begin 相同）。
 
 Result：`snapshot_id`、`scene_epoch`、`degraded`（空集/超时/未锁）、`message`。
 
-Feedback：`observation_count`、`status`（`moving` / `capturing` / …）。
+Feedback：`observation_count`、`status`（`moving_to_photo_pose` / `waiting_snapshot`）。
 
-PAUSE 会取消本动作，恢复后重试。成功还须当前关节过命名拍照位。
+PAUSE 会取消本动作，恢复后重试。成功还须当前关节过命名拍照位；执行使能时
+另等曝光时间晚于实际到位时刻、场景世代未变的观测。`scene_epoch` 返回当前观测
+世代，首巡 Begin 前可能为0。
 
 ### `BuildTargetModel` — 绑一颗并出模型
 
@@ -213,15 +218,26 @@ Goal：`pose`、`site_id`。现行固定座调度直通 `NAV_OK`，**不发送**
 
 ### `CheckReachability`
 
-请求：`header`；`tcp_poses[]` = 感知入口（位置=袋底，姿态 Z=袋轴，滚转任意）；`timeout_s`（≤0 用服务端 0.1 s）；`require_sleeve`（默认 false=只预抓取；true=再检套入终点）；`suggested_travel_m[]` 与入口并行（空或 ≤0 用服务端 `minimum_travel_m`）。
+请求：`header`；`tcp_poses[]` = 感知入口（姿态 Z=袋轴，滚转任意）；`timeout_s`（非正/非有限用0.05s，正值封顶0.2s）；`require_sleeve`（默认 false=只停位；true=再检套入终点与沿轴笛卡尔）；`suggested_travel_m[]` 与入口并行（缺省/0 用最小行程，其余须有限且在执行行程范围内，越界为 `cut_travel_out_of_range`）。
 
-服务端预抓取停位再 IK：沿 −Z 后撤 `mtc_approach_along_axis_m`（`grasp_standoffs.yaml`，现行 0.03 m）；姿态 `alignFrameZ(当前 TCP, 袋轴)`，不抄感知滚转。`require_sleeve` 时套入终点 = 入口沿袋轴 + clamp(travel, grasp min/max)，同姿态滚转扫描，再从预抓取 IK 解沿轴笛卡尔插值（步长/完成比与接触 LIN 同参）。
+服务端以 `trajectoryApproachGeometry` 算轨迹净空点 A，再 IK：沿 −Z 后撤共享
+`mtc_approach_along_axis_m` 与 arm 独有 `approach_clearance_m`（部署0.03+0.05m）。
+视觉预抓取 N 不改；姿态 `alignFrameZ(当前 TCP, 袋轴)`，不抄感知滚转。
+`require_sleeve` 时套入终点 F=入口+轴×行程，同姿态滚转扫描，再从 A 的 IK 解沿轴
+插值（步长/完成比与接触 LIN 同参）。此查询不装配 MTC，不证明完整转移轨迹可行。
 
-响应：`reachable[]` 与请求等长；`error_codes[]`（`no_ik` / `sleeve_no_ik` / `sleeve_no_cartesian` / `invalid_frame` / `moveit_unavailable`）；`message`。服务不可用时调度回退半径窗（FULL 另卡套入终点半径）。旧客户端不填新字段则行为与只检预抓取相同。
+响应：`reachable[]`、`error_codes[]` 与请求等长。错误含 `no_ik` / `sleeve_no_ik` /
+`sleeve_no_cartesian` / `invalid_frame` / `moveit_unavailable` / `invalid_group` /
+`robot_state_unavailable` / `invalid_approach_geometry` / `cut_travel_out_of_range` /
+`node_inactive` / `motion_policy_busy`；成功为空串。查询共用运动策略席位，非 Active
+或席位占用时逐项拒绝，但本身不要求 execution 使能。服务不可用时调度回退半径窗。
 
 ### `ControlTask`
 
-`command`：`PAUSE=0`（接触段标 PAUSE_PENDING）/ `RESUME=1` / `ENTER_MAINTENANCE=2` / `EXIT_MAINTENANCE=3` / `CANCEL_NOW=4` / `SKIP_TARGET=5` / `ACKNOWLEDGE_RECOVERY=6`。
+`command`：`PAUSE=0` / `RESUME=1` / `ENTER_MAINTENANCE=2` / `EXIT_MAINTENANCE=3` /
+`CANCEL_NOW=4` / `SKIP_TARGET=5` / `ACKNOWLEDGE_RECOVERY=6`。暂停保留工作流 batch_state，
+由 operation_mode 投影；Survey 可取消重试，接触段等当前动作收口，不写 PAUSE_PENDING。
+维护枚举未形成独立完整流程，须以当前 permissions 为准。
 
 `expected_state_seq` 须等于当前 `HarvestState.state_seq`（0=不检查）。命令还须出现在快照 `permissions[]` 里。ACK 失败不消耗序号。
 
@@ -244,7 +260,7 @@ Goal：`pose`、`site_id`。现行固定座调度直通 `NAV_OK`，**不发送**
 | `state_seq` | 乐观并发；`ControlTask` 须匹配 |
 | `revision` | 记录器去重（现行与 `state_seq` 同值） |
 | `operation_mode` | `MODE_AUTO=0` / `PAUSED=1` / `MAINTENANCE=2` |
-| `batch_state` | `WAITING_READY=0` 等开批 → `DISCOVERY=1` 首巡 → `RUNNING=2` → `PAUSE_PENDING=3` / `PAUSED=4` / `MAINTENANCE=5` / `COMPLETED=6` / `RECOVERY_REQUIRED=7` / `INTERRUPTED=8` / `NAVIGATING=9`（预留，现行不进） |
+| `batch_state` | 现行工作流为 `WAITING_READY=0` / `DISCOVERY=1` / `RUNNING=2` / `COMPLETED=6` / `RECOVERY_REQUIRED=7` / `INTERRUPTED=8`；`PAUSE_PENDING=3` / `PAUSED=4` / `MAINTENANCE=5` / `NAVIGATING=9` 为兼容/预留值，暂停由 operation_mode 表达 |
 | `target_phase` | `TARGET_IDLE=0` … `SELECTING` / `OBSERVING` / `FINALIZING` / `VALIDATING` / `APPROACHING` / `TOOL_ACTION` / `RETREATING` / `COMPLETING` / `TARGET_SUCCEEDED|SKIPPED|FAILED` |
 | `action_active` | 技能或重建动作进行中 |
 | `auto_start_enabled` | 现行恒 false |
@@ -266,7 +282,7 @@ Goal：`pose`、`site_id`。现行固定座调度直通 `NAV_OK`，**不发送**
 | `sequence` | 预留，现行恒 0 |
 | `details[]` | 键值（失败码、阶段、过滤原因） |
 
-事件码：终局 `target_dispatched` / `target_succeeded` / `target_skipped` / `target_failed` / `target_canceled` / `target_operator_skipped`；批次中断 `survey_failed` / `begin_scene_failed` / `navigate_failed`；过程 `photo_pose_reached` / `round_locked`；单果时限 `target_timeout`（WARNING 级）；过滤 `targets_filtered`（`out_of_reach_window` / `out_of_depth_window` / `ik_no_solution`）；审计 `batch_paused` / `batch_resumed` / `recovery_required` / `recovery_acknowledged` / `enables_changed` / `batch_policy_updated` / `fire_step` / `ledger_restored`；派发异常 `observe_build_view_race`。
+事件码：终局 `target_dispatched` / `target_succeeded` / `target_skipped` / `target_failed` / `target_canceled` / `target_operator_skipped`；批次中断 `survey_failed` / `begin_scene_failed` / `navigate_failed`；过程 `photo_pose_reached` / `round_locked`；单果时限 `target_timeout`（WARNING 级）；过滤 `targets_filtered`（`out_of_reach_window` / `out_of_depth_window` / `ik_no_solution`）；审计 `batch_paused` / `batch_resumed` / `recovery_required` / `recovery_acknowledged` / `enables_changed` / `batch_policy_updated` / `fire_step` / `ledger_restored`；派发异常 `OBSERVE_BUILD_VIEW_RACE`；另有 `sector_timeout` 与 `batch_ratio_satisfied`。
 
 **`SceneSnapshot`**：`snapshot_id`、`scene_epoch`（须已 Begin）、`scene_key`、`degraded`、`observation_count`、`target_ids[]`、`message`。
 
@@ -354,7 +370,8 @@ Goal：`pose`、`site_id`。现行固定座调度直通 `NAV_OK`，**不发送**
 
 **`HarvestResult`**：`grasped` 仅切断且撤退确认；`commanded` / `confirmed`；`completion_level` 与 ExecuteTarget 同一组。规划占位不得置 `grasped`。
 
-**`DepositResult`**：`deposited`；卸果站未标定时最高到 G9，`deposited=false`，`reason` 如 `pending_m8_unload_pose`。W7 起不再随 `ExecuteTarget.Result` 携带（消息保留，卸果站预留）。
+**`DepositResult`**：卸果站预留类型，当前无生产/消费，也不随 `ExecuteTarget.Result`
+携带。不能用其字段或旧阶段名推断现行 FULL 已完成卸果。
 
 **`Verification`**：本周期 `passed`；`harvest_confirmed` 才表示果已带走；`failure_code`。
 
@@ -379,7 +396,7 @@ Goal：`pose`、`site_id`。现行固定座调度直通 `NAV_OK`，**不发送**
 | 12 | `DYNAMIC_BUDGET_NEGATIVE` | 动态余量为负 |
 | 13 | `UNBAGGED_NOT_IN_SCOPE` | 未套袋不在范围 |
 | 14 | `DEGRADED_CONTACT_FORBIDDEN` | 禁止降级接触 |
-| 15 | `MODEL_STALE` | 模型过期 |
+| 15 | `MODEL_STALE` | 模型/观测目标或场景不符等陈旧身份 |
 | 16 | `CORRIDOR_BLOCKED` | 走廊被挡 |
 | 17 | `MODEL_IDENTITY_INCOMPLETE` | 身份元组缺版本 |
 | 18 | `MODEL_EXPIRED` | `valid_until` 已过 |
@@ -388,6 +405,18 @@ Goal：`pose`、`site_id`。现行固定座调度直通 `NAV_OK`，**不发送**
 | 21 | `TRANSIT_FAILED` | MoveTo 转移移动失败（2026-09-29 补，不再挪用 5） |
 | 22 | `START_NOT_READY` | 周期启动门拒绝（MoveIt 未初始化/占用/未 arm） |
 | 23 | `CANCELED` | 动作取消终局（BuildTargetModel 等） |
+| 24 | `EXECUTION_DISABLED` | 执行使能未开 |
+| 25 | `BUILD_REJECTED` | Build 受理/质量拒绝 |
+| 26 | `BUILD_START_TIMEOUT` | 重建未及时进入 COLLECTING |
+| 27 | `OBSERVE_BUILD_VIEW_RACE` | 观察结束而 Build 机位不足 |
+| 28 | `TIMEOUT` | 单果/动作时限 |
+| 29 | `FULL_FAILED` | 接触周期失败 |
+| 30 | `SKIPPED_QUALITY` | 质量跳过 |
+| 31 | `SKIPPED_UNREACHABLE` | 不可达跳过 |
+| 32 | `BUILD_TIMEOUT_EXECUTOR` | 调度等待 Build 超时 |
+| 33 | `BUILD_TIMEOUT_RECONSTRUCTION` | 重建报告超时 |
+| 34 | `BUILD_FINALIZE_FAILED` | 采集后 finalize 失败 |
+| 35 | `CUT_FRUIT_CLEARANCE` | 切割面与果体间距原因码 |
 
 ---
 
@@ -406,7 +435,7 @@ Goal：`pose`、`site_id`。现行固定座调度直通 `NAV_OK`，**不发送**
 
 ## 清洁重写轮契约接线状态（阶段 2b/3 已全部落码）
 
-`MoveTo.action`（`/peach_arm/move_to`，已接线 2b；supervisor 为消费方——fast 档观察补视/回拍照位，stow 仍走接触周期内 PTP）、`Clearance.msg`（接触许可令牌，随 `ExecuteTarget` goal）、`SetEnables.srv` / `SetBatchPolicy.srv`（`/peach_supervisor/*`，已接线 3；8090 页面转发未接——人工 `ros2 service call` 可用）、`FireStep.srv`（服务端已接线；现行仅 PHOTO 档实现走 MoveTo，其余档位占位调用即拒）。`RunHarvest` 已附加 `INTENT_*` 常量与批次策略字段（`target_harvest_ratio` / `per_target_timeout_s` / `sector_timeout_s` / `view_policy`）；`ExecuteTarget` 已附加 `clearance` / `profile` 与 `CK_*` 检查点常量（AT_STAGING→…→CUT_CONFIRMED→RETAINED→RETREATED→STOWED）。均已登记 manifest 现行区；状态与语义详见 [doc/io.md](doc/io.md) 的「清洁重写轮契约接线状态」表。
+`MoveTo.action`（`/peach_arm/move_to`，已接线 2b；supervisor 为消费方——fast 档观察补视/回拍照位，FULL 返程在周期内沿成功接近段倒放回拍照位）、`Clearance.msg`（接触许可令牌，随 `ExecuteTarget` goal）、`SetEnables.srv` / `SetBatchPolicy.srv`（`/peach_supervisor/*`，已接线；SetEnables 已有8090受门控调试桥，SetBatchPolicy 仍由人工 ROS 调用）、`FireStep.srv`（服务端已接线；现行仅 PHOTO 档实现走 MoveTo，其余档位占位调用即拒）。`RunHarvest` 已附加 `INTENT_*` 常量与批次策略字段（`target_harvest_ratio` / `per_target_timeout_s` / `sector_timeout_s` / `view_policy`）；`ExecuteTarget` 已附加 `clearance` / `profile` 与 `CK_*` 检查点常量（AT_STAGING→…→CUT_CONFIRMED→RETAINED→RETREATED→STOWED）。均已登记 manifest 现行区；状态与语义详见 [doc/io.md](doc/io.md) 的「清洁重写轮契约接线状态」表。
 
 旁路视觉抓取走 `ivg_interfaces`，不进本清单、不进 `harvest_system`。
 

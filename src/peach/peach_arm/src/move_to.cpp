@@ -44,26 +44,38 @@ void ManipulationSkillsNode::onEnables(
 {
   // 意图源=大脑广播（阶段 3 起 SetEnables 服务后发）。旧栈无发布者时
   // 本地参数保持唯一权威——本订阅静默，行为零变化。
+  const bool source_changed = !enables_external_ ||
+    enables_last_source_ != message->header.frame_id;
   if (!enables_external_) {
     enables_external_ = true;
     RCLCPP_INFO(
       get_logger(), "使能切换到操作台广播源（/peach/batch/enables）");
   }
   enables_last_beat_ = std::chrono::steady_clock::now();
-  const bool execution_revoked = execution_enabled_.exchange(message->execution) &&
-    !message->execution;
+  const bool previous_execution = execution_enabled_.exchange(message->execution);
+  const bool execution_revoked = previous_execution && !message->execution;
   if (!message->execution) {
     execution_armed_.store(false);
   }
-  const bool grasp_revoked = grasp_enabled_.exchange(message->grasp) && !message->grasp;
-  const bool tool_revoked = tool_enabled_.exchange(message->tool) && !message->tool;
+  const bool previous_grasp = grasp_enabled_.exchange(message->grasp);
+  const bool previous_tool = tool_enabled_.exchange(message->tool);
+  const bool grasp_revoked = previous_grasp && !message->grasp;
+  const bool tool_revoked = previous_tool && !message->tool;
   if (execution_revoked || grasp_revoked || tool_revoked) {
     requestCancelAll("操作台撤销运行使能");
   }
-  RCLCPP_INFO(
-    get_logger(), "操作台使能: execution=%d grasp=%d tool=%d（%s）",
-    message->execution ? 1 : 0, message->grasp ? 1 : 0,
-    message->tool ? 1 : 0, message->reason.c_str());
+  // 心跳仍更新时钟、撤权门和状态投影；只省略未变化的审计日志。
+  if (source_changed || previous_execution != message->execution ||
+    previous_grasp != message->grasp || previous_tool != message->tool ||
+    enables_last_reason_ != message->reason)
+  {
+    RCLCPP_INFO(
+      get_logger(), "操作台使能: execution=%d grasp=%d tool=%d（%s）",
+      message->execution ? 1 : 0, message->grasp ? 1 : 0,
+      message->tool ? 1 : 0, message->reason.c_str());
+  }
+  enables_last_reason_ = message->reason;
+  enables_last_source_ = message->header.frame_id;
   publishState();
 }
 

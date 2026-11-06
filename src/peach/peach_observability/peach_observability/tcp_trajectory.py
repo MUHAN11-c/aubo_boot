@@ -26,6 +26,8 @@ class TcpPathBuffer:
         self._points: list[dict] = []
         self._tf_ok = False
         self._tf_failures = 0
+        self._points_revision = 0
+        self._summary_cache: dict | None = None
 
     def note_tf_fail(self) -> None:
         """Latest TF 查询失败: 计数，不清空已采轨迹."""
@@ -77,6 +79,8 @@ class TcpPathBuffer:
                 self._tf_ok = True
                 return None
             self._points.append(stored)
+            self._points_revision += 1
+            self._summary_cache = None
             overflow = len(self._points) - self._max_points
             if overflow > 0:
                 del self._points[:overflow]
@@ -87,29 +91,39 @@ class TcpPathBuffer:
         """Drop points from the previous run; keep TF failure counts."""
         with self._lock:
             self._points.clear()
+            self._points_revision += 1
+            self._summary_cache = None
 
     def summary(self) -> dict:
-        """供 /api/state 机械臂卡片：末点 + 路径/弦长（不含全点列）."""
+        """按收点版本缓存几何；TF 计数实时读取，返回值与缓存相互隔离."""
         with self._lock:
-            points = list(self._points)
+            cached = self._summary_cache
+            revision = self._points_revision
+            points = list(self._points) if cached is None else None
             tf_ok = self._tf_ok
             tf_failures = self._tf_failures
-        metrics = path_metrics(
-            [(item['x'], item['y'], item['z']) for item in points])
-        last = points[-1] if points else None
-        quat = None
-        if last is not None:
-            quat = [last['qx'], last['qy'], last['qz'], last['qw']]
-        return {
-            'frame_id': None,
-            'tip_frame': None,
-            'tf_ok': tf_ok,
-            'tf_failures': tf_failures,
-            'xyz': [last['x'], last['y'], last['z']] if last else None,
-            'quat': quat,
-            'stamp': last['t'] if last else None,
-            **metrics,
-        }
+        if cached is None:
+            metrics = path_metrics(
+                [(item['x'], item['y'], item['z']) for item in points])
+            last = points[-1] if points else None
+            cached = {
+                'frame_id': None,
+                'tip_frame': None,
+                'xyz': [last['x'], last['y'], last['z']] if last else None,
+                'quat': [last['qx'], last['qy'], last['qz'], last['qw']]
+                if last else None,
+                'stamp': last['t'] if last else None,
+                **metrics,
+            }
+            with self._lock:
+                if self._points_revision == revision:
+                    self._summary_cache = cached
+        # 锁外计算的旧版本仍是本次读取的有效快照，但不能回写新点集缓存。
+        result = dict(cached, tf_ok=tf_ok, tf_failures=tf_failures)
+        for key in ('xyz', 'quat'):
+            if result[key] is not None:
+                result[key] = list(result[key])
+        return result
 
     def export(self, max_out: int = 2500) -> dict[str, Any]:
         """三维 API：时间/xyz 打包数组；过密则等距抽稀，始终保留首末点."""
@@ -253,7 +267,7 @@ def build_selection_marker_dicts(
             isinstance(v, (int, float)) for v in entry) else None
 
     markers = []
-    for item in observations or []:
+    for index, item in enumerate(observations or []):
         tid = str(item.get('target_id') or '')
         xyz = _pos(item)
         if not tid or not xyz:
@@ -269,6 +283,9 @@ def build_selection_marker_dicts(
                 color=_color(0.16, 0.95, 0.25, 1.0),
                 text=f'selected {tid}'))
         elif tid in filtered:
+            # The enclosing frame starts with DELETEALL. Keep selected IDs
+            # unchanged and give every rejected target two distinct keys.
+            marker_id = 100 + 2 * index
             size = 0.035
             cross = [
                 [xyz[0] - size, xyz[1] - size, xyz[2]],
@@ -276,12 +293,12 @@ def build_selection_marker_dicts(
                 [xyz[0] - size, xyz[1] + size, xyz[2]],
                 [xyz[0] + size, xyz[1] - size, xyz[2]]]
             markers.append(_marker(
-                'selection', 2, MARKER_LINE_LIST, frame_id,
+                'selection', marker_id, MARKER_LINE_LIST, frame_id,
                 points=cross, scale={'x': 0.006, 'y': 0.0, 'z': 0.0},
                 color=_color(0.95, 0.22, 0.22, 0.95)))
             reason = str(filtered[tid])[:24]
             markers.append(_marker(
-                'selection', 12, MARKER_TEXT, frame_id, xyz=xyz,
+                'selection', marker_id + 1, MARKER_TEXT, frame_id, xyz=xyz,
                 scale={'x': 0.0, 'y': 0.0, 'z': 0.026},
                 color=_color(0.95, 0.45, 0.45, 1.0),
                 text=f'{tid} {reason}'))

@@ -11,10 +11,8 @@ ros2 launch peach_arm peach_arm.launch.py
 #  execution.require_robot_status:=false，否则 Survey 直接 robot_status_missing）
 ```
 
-默认 `execution.enabled` / `grasp.enabled` / `tool.enabled` 全关；真运动须与调度 `execution_enabled` 同时开并经人工授权。工具几何权威在 `aubo_description` 工具档案（整栈 `tool_profile` 参数，默认 `bite_shear_v1`）。三档末端统一走 MTC LIN；自适应 IMU 跟随方法已随 `imu_follow` 删除（2026-10-19，历史在 git）。接近先在几何允许直连时验证完整LIN（含必要对轴）；仅在未运动、未取消且未因授权拒绝时回退。树冠外路径是 PTP 关节空间到中段点正下方（树冠外，滚转梯子 {0,±15°,±30°,±45°} IK）+ 世界垂直 LIN 入冠 + 沿轴 LIN 对轴进入预抓取（冠内两段 LIN 优先 Pilz sequence blend 0.02 平滑连续）；已在果下方且直连不穿囊的短修正走直连 LIN（滚转梯子扫刀口）。场景障碍快照避障（部署 `moveit.obstacle_guard_enabled=false`，树冠太密；true 才让相机连杆受查，见 doc/io.md）。节点回调只抽字段委托 `cache_`；周期走 `executeCycle`。测试：`colcon test --packages-select peach_arm`（仅官方 ament lint；行为核对使用日志与测试指导的手工步骤）。
+默认 `execution.enabled` / `grasp.enabled` / `tool.enabled` 全关；真运动须与调度 `execution_enabled` 同时开并经人工授权。工具几何权威在 `aubo_description` 工具档案（整栈 `tool_profile` 参数，默认 `bite_shear_v1`）。三档末端统一走 MTC LIN；自适应 IMU 跟随方法已随 `imu_follow` 删除（2026-10-19，历史在 git）。接近仅两段：直接转移至轨迹净空点 A，再单条轴向套入到 F。令 E 为原入口、u 为单位套入轴、S 为共享视觉后撤、C 为 `moveit.approach_clearance_m`、L 为原切断行程，则视觉预抓取 N=E−uS 保持不变，A=N−uC，F=E+uL；套入/撤退名义长度为 S+C+L。N 只在轴向路径上经过，不另停。C 默认 0.05 m，有限且在 [0,0.20]；C=0 回到视觉停位。远处用受护栏约束的直接 PTP，已对轴且几何允许时可单条 LIN；无解明确拒绝，没有中间走廊或三段回退。只有尚未运动、未取消且未因授权拒绝时才继续候选搜索。场景障碍快照避障（部署 `moveit.obstacle_guard_enabled=false`，树冠太密；true 才让相机连杆受查，见 doc/io.md）。节点回调只抽字段委托 `cache_`；周期走 `executeCycle`。测试：`colcon test --packages-select peach_arm`（仅官方 ament lint；行为核对使用日志与测试指导的手工步骤）。
 
 ## 当前维护入口
 
 职责、源码地图、参数来源、生命周期/并发与失败处理见 [包架构](doc/architecture.md)。运行环境、分层验证、冻结回放、30组模型/10轮/30分钟验收与精确清理见 [测试指导](../peach_system_tests/doc/testing.md)。本包测试通过不代表现场采摘成功；未授权不得真机运动或SetIO，硬件急停不经ROS，程序结束必须清本轮进程。
-
-接近轨迹优先完整直线，必要时仅使用原有冠内两段LIN之间2cm blend平滑连接；没有新增CIRC或OMPL接触兜底。PTP是关节空间路径，不能声称TCP走精确圆弧。fallback只允许在尚未运动、未取消且未因授权拒绝时继续。

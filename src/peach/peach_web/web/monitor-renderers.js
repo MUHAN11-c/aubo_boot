@@ -84,6 +84,35 @@ function decisionSummary(decision) {
 let monitorState = null;
 let logsPaused = false;
 
+// Keep only currently rendered rows. Reuse unchanged nodes so reading expanded
+// evidence survives the next snapshot, including when new rows arrive.
+const renderedRows = new WeakMap();
+function paintRows(el, markup, {scope = "", scroller = el, stickToBottom = false} = {}) {
+  if (!el) return;
+  const previous = renderedRows.get(el);
+  const available = previous?.scope === scope
+    ? new Map(Array.from(previous.rows, ([html, groups]) => [html, groups.slice()])) : new Map();
+  const rows = new Map();
+  const nodes = [];
+  for (const html of markup) {
+    let group = available.get(html)?.shift();
+    if (!group) {
+      const range = document.createRange();
+      range.selectNodeContents(el);
+      group = Array.from(range.createContextualFragment(html).childNodes);
+    }
+    if (!rows.has(html)) rows.set(html, []);
+    rows.get(html).push(group);
+    nodes.push(...group);
+  }
+  renderedRows.set(el, {scope, rows});
+  if (el.childNodes.length === nodes.length && nodes.every((node, index) => el.childNodes[index] === node)) return;
+  const top = scroller?.scrollTop || 0;
+  const follow = stickToBottom && scroller && scroller.scrollHeight - top - scroller.clientHeight < 48;
+  el.replaceChildren(...nodes);
+  if (scroller) scroller.scrollTop = follow ? scroller.scrollHeight : top;
+}
+
 function renderPipeline(job, state) {
   const byId = {};
   (job && job.stages ? job.stages : []).forEach((stage) => {
@@ -257,12 +286,11 @@ function renderGeometryAnalysis(job) {
 function renderEvents(events) {
   setText("event-count", `${events.length} 条`);
   if (!events.length) {
-    $("event-list").innerHTML = '<p class="empty">等待调度事件</p>';
+    paintRows($("event-list"), ['<p class="empty">等待调度事件</p>']);
     return;
   }
-  $("event-list").innerHTML = events.slice().reverse().map((ev) => {
-    const time = numeric(ev.stamp) && ev.stamp > 0
-      ? new Date(ev.stamp * 1000).toLocaleTimeString("zh-CN", {hour12: false}) : "--:--:--";
+  paintRows($("event-list"), events.slice().reverse().map((ev) => {
+    const time = timeLabel(ev.stamp);
     const severity = numeric(ev.severity) ? Number(ev.severity) : 0;
     const sevLabel = ["信息", "警告", "错误", "审计"][severity] || "信息";
     const codeLabel = eventCodeNames[ev.code] || ev.code;
@@ -273,7 +301,7 @@ function renderEvents(events) {
       ? `<details class="event-details"><summary>${detailKeys.length} 项详情</summary><pre>${safe(JSON.stringify(ev.details))}</pre></details>`
       : "";
     return `<div class="event-item sev-${severity}"><time>${time}</time><i class="dot" title="${safe(ev.severity_name)}"></i><div class="body"><span class="code">${safe(codeLabel)}</span><span class="sev-badge sev-${severity}">${sevLabel}</span>${target}<p>${safe(ev.message)}</p>${details}</div></div>`;
-  }).join("");
+  }));
 }
 
 function renderFlow(taskExecutor, job) {
@@ -377,7 +405,7 @@ function renderLedger(ledger) {
   if (!live.request_id) {
     note.textContent = "等待批次账本（runs/<request_id>/ledger.json，随终局入账）";
     $("ledger-summary").innerHTML = "";
-    $("ledger-body").innerHTML = '<tr><td colspan="6" class="empty">尚未开批</td></tr>';
+    paintRows($("ledger-body"), ['<tr><td colspan="6" class="empty">尚未开批</td></tr>']);
     return;
   }
   note.textContent = live.error
@@ -397,10 +425,10 @@ function renderLedger(ledger) {
   ].map(([label, value]) => `<span>${label} <b>${safe(String(value))}</b></span>`).join("");
 
   if (!rows.length) {
-    $("ledger-body").innerHTML = '<tr><td colspan="6" class="empty">本批尚无终局目标</td></tr>';
+    paintRows($("ledger-body"), ['<tr><td colspan="6" class="empty">本批尚无终局目标</td></tr>'], {scope: live.request_id});
     return;
   }
-  $("ledger-body").innerHTML = rows.slice().reverse().map((row) => {
+  paintRows($("ledger-body"), rows.slice().reverse().map((row) => {
     const cls = ledgerChip[row.outcome_name] || "";
     const name = ledgerNames[row.outcome_name] || row.outcome_name || "—";
     const code = row.failure_code_n !== undefined && row.failure_code_n !== null
@@ -421,21 +449,17 @@ function renderLedger(ledger) {
       <td class="mono">${row.build_view_count ?? "—"}</td>
       <td><details class="stage-details"><summary>${stages.length} 段${stageTotal}</summary><div class="phase-durations">${stageChips}</div></details></td>
     </tr>`;
-  }).join("");
+  }), {scope: live.request_id});
 }
 
 /* ---------- 阶段时序（服务器侧 pipeline.fsm / pipeline.arm） ---------- */
 
 function timelineTime(t) {
-  return numeric(t) && t > 0
-    ? new Date(t * 1000).toLocaleTimeString("zh-CN", {hour12: false}) : "--:--:--";
+  return timeLabel(t);
 }
 
 function paintKeepingScroll(el, html) {
-  if (!el) return;
-  const top = Number(el.scrollTop) || 0;
-  el.innerHTML = html;
-  el.scrollTop = top;
+  paintRows(el, [html]);
 }
 
 function renderStageHeader(state) {
@@ -529,18 +553,13 @@ function renderLogs(logs) {
   const keyword = $("log-keyword")?.value || '';
   const rows = filterLogs(logs, floor, query, keyword);
   setText("log-count", `${rows.length} 条`);
-  const html = rows.length
+  const markup = rows.length
     ? rows.map((row) => {
       const level = numeric(row.level) ? Number(row.level) : 0;
       return `<tr class="log-${logLevelClass(level)}"><td>${timelineTime(row.stamp)}</td><td>${safe(logLevelName[level] || String(level))}</td><td>${safe(row.name)}</td><td>${safe(row.msg)}</td></tr>`;
-    }).join("")
-    : '<tr><td colspan="4" class="empty">等待 /rosout</td></tr>';
-  const height = scroller ? (Number(scroller.scrollHeight) || 0) : 0;
-  const top = scroller ? (Number(scroller.scrollTop) || 0) : 0;
-  const client = scroller ? (Number(scroller.clientHeight) || 0) : 0;
-  const stick = !scroller || height - top - client < 48;
-  body.innerHTML = html;
-  if (scroller) scroller.scrollTop = stick ? (Number(scroller.scrollHeight) || 0) : top;
+    })
+    : ['<tr><td colspan="4" class="empty">等待 /rosout</td></tr>'];
+  paintRows(body, markup, {scroller, stickToBottom: true});
 }
 
 /* ---------- 感知节拍 / 重建进度 ---------- */
@@ -562,6 +581,23 @@ function officialSpeedChip(label, timing, prefix) {
       `${Number(cycle).toFixed(1)}ms (${Number(pre).toFixed(1)}/${Number(inf).toFixed(1)}/${Number(post).toFixed(1)})`);
   }
   return metricChip(label, `${Number(cycle).toFixed(1)}ms`);
+}
+
+function reconstructionTimingHtml(timing) {
+  const phases = timing?.phase_ms_last;
+  if (!phases || typeof phases !== "object" || Array.isArray(phases)) return "";
+  const finiteDuration = (value) => typeof value === "number" && Number.isFinite(value) && value >= 0;
+  const chips = [
+    ["TSDF 提取", "tsdf_extract"], ["柱／球拟合", "cylinder_or_sphere_refit"],
+    ["采集云关键点", "captured_landmarks"], ["袋模型融合", "fuse_bag_views"],
+    ["几何记录", "geometry_record"], ["结果发布", "finalize_publish"],
+  ].filter(([, key]) => finiteDuration(phases[key])).map(([label, key]) =>
+    metricChip(label, `${phases[key].toFixed(1)} ms`, phases[key] >= 2000 ? "hot" : ""));
+  if (!chips.length) return "";
+  if (finiteDuration(timing.finalize_ms_last) && timing.finalize_ms_last > 0) {
+    chips.unshift(metricChip("总定稿", `${timing.finalize_ms_last.toFixed(1)} ms`));
+  }
+  return chips.join("") + '<p class="traj-hint">最近完成的重建阶段；各项可能来自不同次计算且存在嵌套，不能相加。</p>';
 }
 
 function renderVision(state) {
@@ -620,11 +656,55 @@ function renderVision(state) {
       metricChip("最大基线", numeric(coverage.max_baseline_deg) ? `${Number(coverage.max_baseline_deg).toFixed(1)}°` : "—"),
       metricChip("许可", validText, decision.allowed ? "" : "hot"),
       metricChip(decision.allowed === true ? "许可诊断" : "未许可原因", decision.reason || null),
+      reconstructionTimingHtml(diag.timing),
     ].filter(Boolean).join("") || '<p class="empty">等待重建心跳</p>';
   }
 }
 
 /* ---------- 系统负载与参数镜像 ---------- */
+
+function stereoDiagnosticNumber(value, signed = false) {
+  if (typeof value !== "number" && typeof value !== "string") return null;
+  if (typeof value === "string" &&
+      !/^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?$/i.test(value.trim())) return null;
+  const number = Number(value);
+  return Number.isFinite(number) && (signed || number >= 0) ? number : null;
+}
+
+function stereoTimingHtml(name, task, staleAfter) {
+  if (name.split(":").pop().trim() !== "stereo_health") return "";
+  const values = task.values || {};
+  const sequence = stereoDiagnosticNumber(values.pipeline_sequence);
+  // Initial diagnostic storage contains zeros before any successful RGB-D frame.
+  if (!Number.isSafeInteger(sequence) || sequence <= 0) {
+    return `<div class="vision-metrics">${metricChip("同帧计时",
+      sequence === 0 ? "等待首帧" : "不可用（缺少有效序号）", "hot")}</div>`;
+  }
+  const diagnosticAge = stereoDiagnosticNumber(task.age_s);
+  const publishAge = stereoDiagnosticNumber(values.last_publish_age_s);
+  const age = diagnosticAge !== null && publishAge !== null ? diagnosticAge + publishAge : null;
+  const limit = stereoDiagnosticNumber(staleAfter) || 5;
+  const stale = task.stale === true || Number(task.level) === 3 ||
+    diagnosticAge > limit || publishAge > limit || age > limit;
+  const freshness = stale ? "过期快照（历史值）"
+    : age === null ? "快照时效未知" : `最近成功帧 · ${age.toFixed(1)} s 前`;
+  const timings = [
+    ["源戳年龄（取回时）", "capture_age", true],
+    ["fetch 等待", "fetch_wait"],
+    ["槽等待（含克隆）", "queue_wait"],
+    ["processing", "processing"],
+    ["SGBM", "sgbm"],
+    ["空间 median", "spatial_median"],
+    ["fetch 返回→发布", "fetch_to_publish"],
+  ].map(([label, key, signed]) => {
+    const value = stereoDiagnosticNumber(values[`pipeline_${key}_ms`], signed);
+    return metricChip(label, value === null ? "—" : `${value.toFixed(1)} ms`);
+  });
+  return `<div class="vision-metrics">${metricChip("同帧序号", `#${sequence}`)}` +
+    `${metricChip("时效", freshness, stale || age === null ? "hot" : "")}${timings.join("")}</div>` +
+    '<p class="empty">1 Hz 最近成功帧采样；源戳年龄含设备/主机时钟偏差，不等于物理延迟。' +
+    '槽等待含克隆；分段互有包含，不累加。— 为缺失或无效值。</p>';
+}
 
 function renderSystem(state) {
   const sample = state.metrics?.sample || {};
@@ -687,7 +767,8 @@ function renderSystem(state) {
     `<div class="param-node"><h3 class="${pillClass(levelText[entry.level] || "")}">${safe(node)}</h3>` +
     Object.entries(entry.tasks || {}).map(([name, task]) =>
       `<div class="node-row"><span>${safe(name)}</span>` +
-      `<b class="${pillClass(levelText[task.level] || "")}">${safe(levelText[task.level] || task.level)} · ${safe(task.message || "")}</b></div>`).join("") +
+      `<b class="${pillClass(levelText[task.level] || "")}">${safe(levelText[task.level] || task.level)} · ${safe(task.message || "")}</b></div>` +
+      stereoTimingHtml(name, task, state.diagnostics?.stale_after_s)).join("") +
     `</div>`).join("");
   $("diagnostics-panel").innerHTML = diagRows || '<p class="empty">等待诊断聚合</p>';
 }
@@ -707,8 +788,8 @@ function pillClass(text) {
   return "";
 }
 
-const yesNo = (value, yes = "是", no = "否") =>
-  value === true || value === 1 ? yes : value === false || value === 0 ? no : "—";
+const yesNo = (value, yes = "是", no = "否", unknown = "—") =>
+  value === true || value === 1 ? yes : value === false || value === 0 ? no : unknown;
 
 function nodeCard(label, age, rows) {
   const [cls, fresh] = freshnessHtml(age);
@@ -794,11 +875,11 @@ function renderHardware(state) {
   const joints = state.robot?.joints || {};
   const ages = state.system?.topic_age_s || {};
   const flags = [
-    [robot.drives_powered === 1 ? "已上电" : "未上电", robot.drives_powered === 1, robot.drives_powered === 0],
-    [robot.e_stopped === 1 ? "急停" : "无急停", robot.e_stopped === 0, robot.e_stopped === 1],
-    [robot.motion_possible === 1 ? "可接轨" : "不可接轨", robot.motion_possible === 1, robot.motion_possible === 0],
-    [robot.in_motion === 1 ? "运动中" : "静止", robot.in_motion === 1, false],
-    [robot.in_error === 1 ? "故障" : "无故障", robot.in_error === 0, robot.in_error === 1],
+    [yesNo(robot.drives_powered, "已上电", "未上电", "上电未知"), robot.drives_powered === 1, robot.drives_powered === 0],
+    [yesNo(robot.e_stopped, "急停", "无急停", "急停未知"), robot.e_stopped === 0, robot.e_stopped === 1],
+    [yesNo(robot.motion_possible, "可接轨", "不可接轨", "接轨状态未知"), robot.motion_possible === 1, robot.motion_possible === 0],
+    [yesNo(robot.in_motion, "运动中", "静止", "运动状态未知"), robot.in_motion === 1, false],
+    [yesNo(robot.in_error, "故障", "无故障", "故障状态未知"), robot.in_error === 0, robot.in_error === 1],
   ];
   $("hw-flags").innerHTML = flags.map(([label, ok, bad]) =>
     `<span class="badge ${ok ? "on" : (bad ? "off" : "")}">${safe(label)}</span>`

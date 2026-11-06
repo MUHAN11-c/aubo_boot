@@ -373,7 +373,20 @@
   }
 
   async function writeParams(changes) {
-    const {response, body} = await api.setParams(changes);
+    let reply;
+    try {
+      reply = await api.setParams(changes);
+    } catch (error) {
+      const rows = error.body?.results;
+      if (Array.isArray(rows)) {
+        const details = rows.map((row) => `${row.node}/${row.name} ${
+          row.accepted === true ? "已确认写入" : row.outcome === "not_sent"
+            ? "未发送" : row.outcome === "unknown" ? "结果未知" : row.message || "未写入"}`);
+        throw new Error([error.message, ...details].join("；"));
+      }
+      throw error;
+    }
+    const {response, body} = reply;
     const results = body?.results || [];
     if (!response.ok || body?.accepted !== true || results.length !== changes.length
       || results.some((row) => row.accepted !== true)) {

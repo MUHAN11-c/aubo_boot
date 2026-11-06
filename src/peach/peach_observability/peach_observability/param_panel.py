@@ -5,7 +5,8 @@
   - 只允许显式列出的节点/参数；不暴露任意参数、不做新控制路径.
   - 运动类参数（臂速度/加速度/行程/位姿门）须 `debug.motion_enabled` 放行.
   - 静态参数（启动时读取）标注 `static=true`，设置仍落参但提示需重启.
-  - 每次写（含被拒）由 DebugAudit 追加一行；读取不写审计.
+  - 进入本桥的写请求由节点调用方审计，包含逐项拒绝；读取不写审计.
+    调用方在总开关处提前拒绝的请求不进入此桥，也不由它补写审计.
   - 观测节点自身参数走本地 Parameter API；其余节点走 /<node>/{list,get,set}_parameters.
 """
 from __future__ import annotations
@@ -37,9 +38,9 @@ PARAM_GROUPS = [
     {
         'node': 'peach_arm', 'label': '臂 peach_arm', 'params': [
             {'name': 'moveit.velocity_scaling', 'type': 'double',
-             'label': '接触速度缩放', 'min': 0.02, 'max': 1.0, 'motion': True},
-            {'name': 'moveit.acceleration_scaling', 'type': 'double',
-             'label': '接触加速度缩放', 'min': 0.02, 'max': 1.0, 'motion': True},
+             'label': '接近转移速度缩放', 'min': 0.02, 'max': 1.0, 'motion': True},
+            {'name': 'moveit.approach_near_velocity_scaling', 'type': 'double',
+             'label': '套入／撤退速度缩放', 'min': 0.02, 'max': 1.0, 'motion': True},
             {'name': 'moveit.transit_velocity_scaling', 'type': 'double',
              'label': '转移速度缩放', 'min': 0.02, 'max': 1.0, 'motion': True},
             {'name': 'moveit.transit_acceleration_scaling', 'type': 'double',
@@ -59,8 +60,9 @@ PARAM_GROUPS = [
              'label': '袋颈余量', 'min': 0, 'max': 0.10, 'motion': True},
             {'name': 'moveit.mtc_cartesian_min_fraction', 'type': 'double',
              'label': '插入完成比', 'min': 0.5, 'max': 1.0},
-            {'name': 'moveit.mtc_approach_along_axis_m', 'type': 'double',
-             'label': '预抓取后撤', 'min': 0, 'max': 0.20},
+            {'name': 'moveit.approach_clearance_m', 'type': 'double',
+             'label': '轨迹额外后撤（米，视觉位姿不变）', 'min': 0, 'max': 0.20,
+             'motion': True},
             {'name': 'moveit.mtc_approach_max_chord_deviation_m', 'type': 'double',
              'label': '接近弦偏离', 'min': 0, 'max': 0.50},
             {'name': 'moveit.mtc_approach_max_detour_ratio', 'type': 'double',

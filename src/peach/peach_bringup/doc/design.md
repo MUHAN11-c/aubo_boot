@@ -88,7 +88,7 @@ Include 顺序（源码）：
 9. `peach_lifecycle_flag_bridge`
 10. 可选 `peach_autostart_client`（默认关）
 
-默认 launch 参数（`harvest_system.launch.py` 声明）：`hardware_mode:=mock`、`robot_ip:=169.254.10.98`、`camera_enabled:=false`、`camera_frontend:=stereo`（另 `percipio` / `replay`；只 launch 期切换，禁止两驱动同图）、`tool_profile:=bite_shear_v1`、`autostart:=false`、`bond_timeout:=0.0`、`force_enabled:=true`、`extrinsics_enabled:=true`、`hand_eye_enabled:=false`、`use_sim_time:=false`、`reconstruction_enabled:=true`、`skip_reconstruction:=true`（作业跳过重建，同时注入臂 `allow_unrefined_geometry`）、`observability_port:=0`（0=yaml 8090）。`execute_pregrasp_only` 不在 launch 声明，由 `peach_supervisor.yaml` 默认 `true`。`camera_frontend:=percipio` 时 scene_perception 最后装入 `percipio_frontend.yaml`（`max_frame_age_s=2.5`），发布袋轴用身份 EMA 挡住 1 fps 单帧翻转。
+默认 launch 参数（`harvest_system.launch.py` 声明）：`hardware_mode:=mock`、`robot_ip:=169.254.10.98`、`camera_enabled:=false`、`camera_frontend:=stereo`（另 `percipio` / `replay`；只 launch 期切换，禁止两驱动同图）、`tool_profile:=bite_shear_v1`、`autostart:=false`、`bond_timeout:=0.0`、`force_enabled:=true`、`extrinsics_enabled:=true`、`hand_eye_enabled:=false`、`use_sim_time:=false`、`reconstruction_enabled:=true`、`skip_reconstruction:=true`（作业跳过重建，同时注入臂 `allow_unrefined_geometry`）、`observability_port:=0`（0=yaml 8090）。`execute_pregrasp_only` 不在 launch 声明，由 `peach_supervisor.yaml` 默认 `true`。`camera_frontend:=percipio` 时 scene_perception 最后装入 `percipio_frontend.yaml`（`max_frame_age_s=2.5`），候选袋轴保留当帧几何，与袋底/袋颈和入口旋转一致；身份 EMA 仅用于关联，不证明时间稳定性。
 
 覆盖易混：`peach_supervisor.yaml` 里 `require_managed_stack: false`、`skip_reconstruction: false`、`tool.profile_id: adaptive_shear_v1`；**整栈** `harvest_system` 给能力包 `require_managed_stack:=true`，注入作业 skip 策略及 bite 工具档案。独立能力包 launch / `peach_arm.launch.py` 声明默认仍 adaptive；`peach_supervisor/launch/supervisor.launch.py` 的 `require_managed_stack` 和 `skip_reconstruction` 默认 false。以入口 launch 实传为准。
 
@@ -296,7 +296,7 @@ ControlTask（`apply_control`）：PAUSE=0 RESUME=1 ENTER_MAINTENANCE=2 EXIT_MAI
 3. `segmentation_bboxes` → FastSAM-s `engine.segment`（bbox prompt；`sam_model_path` 仍可回退 MobileSAM）；批量失败则缓存/重试回退。掩膜裁进 bbox。
 4. 每个检测：`estimator.estimate_modes(..., hybrid_dilated)`。`bag` 缝=`RobustBagPosePipeline`（圆柱 RANSAC 定轴）；`fruit`=`RobustFruitPosePipeline`。产品执行范围是套袋。
 5. `tf_status!='ok'` 则打 `tf_stale` / `tf_unavailable`，`may_commit_identity` 为假，**本帧不进身份链**（`untracked_*`）。
-6. `TargetRegistry.begin_frame` 淘汰未确认超时项，同步清 `bbox_at_edge`。然后 `match_or_register_frame`：世界系 χ²≤9（`CHI2_GATE`）+ 匈牙利 1-1 + 同类 + 次优/最优比 1.2（`AMBIGUOUS_RATIO`）。新 ID `target_{_next_index}`。无 position → `untracked_{i}`；歧义 → `ambiguous_*`（不入表）；表满且无非保护项可逐出 → `overflow_{n}`。`clear()` 清表并复位 `_next_index`。匹配后 `apply_held_axis` 把身份 EMA 轴写回 `translation_direction`（半球已对齐；夹角≲2.5° 不改），`initial_pose` / 锁定倾角不跟单帧圆柱 RANSAC ± 翻转。
+6. `TargetRegistry.begin_frame` 淘汰未确认超时项，同步清 `bbox_at_edge`。然后 `match_or_register_frame`：世界系 χ²≤9（`CHI2_GATE`）+ 匈牙利 1-1 + 同类 + 次优/最优比 1.2（`AMBIGUOUS_RATIO`）。新 ID `target_{_next_index}`。无 position → `untracked_{i}`；歧义 → `ambiguous_*`（不入表）；表满且无非保护项可逐出 → `overflow_{n}`。`clear()` 清表并复位 `_next_index`。身份表保留位置与半球对齐轴的 EMA，供关联及记忆锚点使用；`initial_pose.translation_direction`、袋底/袋颈和入口旋转保留同一曝光的几何，方向等于单位 `neck-bottom` 及入口旋转 Z 轴。锁定倾角取当帧几何，不用身份 EMA 掩盖来源切换；身份确认与 EMA 均不证明入口或轴已达时间稳定。
 7. 贴边 `bbox_touches_image_edge`：不攒 `obs_count`（P1-A），旗标 `bbox_edge`。`untracked_`/`ambiguous_` 强制 `confirmed=false`。
 8. `CollectLockPolicy.update`：只累积 `confirmed`。关窗二选一——静止：帧数≥`min_collect_frames=4` 且连续 `lock_settle_frames=2` 无新增确认 ID **且本帧无未确认在攒**；或超时 `max_collect_s=12`（运行期按帧间隔 EMA 自适应，下限为本值×0.4；**空集也关**）。关闭发一次 `LockEvent`。`GlobalHarvestPlan` 锁定后按优先级推进；超 `anchor_max_age` 打 `anchor_stale` 不可选，超 `anchor_drop` 从计划移除。单果墙钟预算 40 s（相对人工偏保守）。
 9. 发布 `target_observations`、`initial_pose`（只进重建）、diagnostics、debug_image。单帧 ACCEPT / REOBSERVE / REJECT **不得据此接触**。`harvest_state.timing` 检测/分割取 Ultralytics `Results.speed`（preprocess+inference+postprocess，毫秒/图）；加载打 `model.info()`。decode/geometry/publish/total 仍为节点墙钟。
@@ -336,9 +336,9 @@ ControlTask（`apply_control`）：PAUSE=0 RESUME=1 ENTER_MAINTENANCE=2 EXIT_MAI
 话题 `/peach/reconstruction/grasp_decision`。能力三态：`VALID=0` `INVALID=1` `UNKNOWN=2`。
 
 - `allowed` = geometry∧sleeve∧cut（**pregrasp 不进**）。false 时仍可有几何，预抓取可以走。
-- 臂 CONTACT：令牌优先，查 `radial_margin_m>0`（现行余量只记录、批次 4 分档以能力位为准；实现以 `authorizeStage` 为准）。
-- 臂 TOOL：`axial_margin_m` + `pregrasp_verified` + `tool.enabled`。
-- 果距与径向余量是数据参考，接触时弹性会动，不单独当硬门。
+- 臂 CONTACT：令牌/绑定模型身份、时效与 sleeve 能力复检；`radial_margin_m` 仅记录，不单独否决。
+- 臂 TOOL：同目标 cut 能力、`pregrasp_verified` 与 `tool.enabled` 等门；`axial_margin_m` 仅记录。
+- 视觉纯核 `evaluate_sleeve_cut` 当前令 sleeve_ok=true，cut_ok 按刀口果距阈值产生；径向/轴向 margin 影响诊断 reason。进入臂侧后仍按阶段能力、许可身份/时效及残差复检，不能用单个 margin 替代整套门。
 - 禁止单帧/unrefined 降级接触，除非 `skip_reconstruction` 且臂 `allow_unrefined_geometry`。
 
 onDecision：臂从同一条 GraspDecision **原子**提交身份、entry/cut/axis、质量、四项能力到 `TargetCache`，避免分离话题把新许可配到旧几何。
@@ -494,36 +494,27 @@ Reconfirm（`allow_stale_anchor` 默认 false）：`ReconfirmPolicy` 容差 `rec
 
 ## 11. 接近几何（planToPregrasp）
 
-源：`grasp_task.cpp`。分档 `classifyApproach`。
+源：`grasp_task.cpp`、`grasp_geometry.hpp::trajectoryApproachGeometry`、`joint_line_ptp.hpp`、`joint_line_retiming.hpp` 与 `motion.cpp::reverseLastApproachToPhoto`。细节与参数见 [arm 架构](../../peach_arm/doc/architecture.md)。
 
-`classifyApproach`（`grasp_task.cpp`，阈值来自 yaml/`GraspTaskConfig`）：
+视觉/重建预抓取为 `N=entry−unit(axis)×S`（共享 `S=0.03 m`）。臂侧 `moveit.approach_clearance_m=C` 将实际转移停点后移到 `A=N−unit(axis)×C`，范围 0..0.20 m，部署默认 0.05 m；终点仍为 `F=entry+unit(axis)×travel`，完整轴向行程为 `S+C+travel`。
 
-- 量：轴向 `delta·axis`、侧向、工具 Z 与袋轴夹角 `align_deg`。无当前 TCP → 无法分档。
-- `SKIP`：夹角≤`mtc_approach_max_align_deg=20°` **且** 侧向≤`mtc_approach_max_lateral_m=0.05` **且** 轴向 ∈ [−0.02, along_axis+0.02] 且 ≤ 弦长上限。轴向 <5 mm 视为 0。
-- 否则测 LIN 资格：起点已在果底平面下方（`start_s≤0`）、直连工具扫掠不碰果实胶囊、弦长≤`mtc_approach_cartesian_max_distance_m=0.80`。资格成立则：夹角≤**2°** → `LIN`，否则 `LIN_ALIGN_THEN_LIN`（先对轴再平移）。
-- 否则 `STAGING`。
+去程直接转移到 A，再单条轴向套入至 F；N 只是沿途参考，不另停，没有世界垂直入冠、中间点或 sequence blend。`PREGRASP_ONLY` 停在 A，视觉显示的预抓取仍是 N。
 
-注意 SKIP 的「已齐」是 20°；走 LIN 还是先对轴是 2°。两者不是同一门。
+`classifyApproach` 只在当前 TCP 到 A 且工具 Z 已对轴时允许 SKIP。符合果实几何、扫掠、对轴及弦长条件才尝试直连 LIN；明确使用单插件 Pilz LIN 且 tip 与 URDF 定义匹配时，先用弦长减容差和实际平移限速计算时长下界，下界已超过执行预算才跳过该直连候选。其余情况仍交规划器与轨迹门判定。
 
-`planToPregrasp`：
+直连未运动、未被授权或取消门拒绝时，才可进入 `tryStagingTransit`，直接对 A 做滚转分组 IK/PTP。候选按绝对滚转分组惰性求解，组内按腕轴加权关节代价排序；有 IK 不代表路径可执行。FULL 在首次回拍照位前从命名拍照关节局部预检“转移→套入→撤退”，实际候选下发前再预检。Sleeve/Retreat ACM 只用于对应局部场景，不能给转移段放宽碰撞许可。已运动、取消或授权拒绝后不换路径重试。
 
-1. LIN 类：先 `tryRolledApproach` 滚转梯子扫完整 LIN（含对轴）。FULL 且 `insert_travel_m>0` 时跳过套入直线未走满的档。同一笛卡尔 LIN 连续两档规划失败（常见：关节速度极限，与滚转无关）即停梯子，改走 PTP，避免 7 档重复超速规划。
-2. 仅当 `!execution_started && !retry_forbidden` 才 `tryStagingTransit`：滚转梯子 IK 落到**中段点正下方**（树冠外、世界垂直线）→ Pilz PTP（弧过果实胶囊 `staging_guard`）→ 世界垂直 LIN 入冠 `approach_canopy_entry_m=0.05` → 沿轴 LIN `approach_final_axial_m=0.05` 进预抓取。冠内两段优先 Pilz sequence blend 0.02，失败降级单任务 LIN。笛卡尔审查拒绝大弧后 `retryStagingCandidate` 试下一 IK 候选。
-3. 许可拒绝、取消、已经运动均不得改路径。不走 CIRC/STOMP/OMPL 接触兜底。
+当明确配置单插件 Pilz CommandPlanner 时，PTP 包装器可尝试同路径重定时：只接受静止到静止、同步单调关节直线及有界单自由度转动关节，用单标量 Ruckig 保持原路径与原 q 点，并加入相位点。速度/加速度/jerk 均受模型及实际缩放约束；最终 JTC quintic 每区间以 Bernstein 界验证 q/v/a/j，RobotTrajectory 序列化后再次验证。新增点还须通过完整场景/约束、原几何和执行预算门；无收益、未知模型或任一验证失败均保留原轨迹。套入/撤退仍是沿轴 LIN，不扩展为 OMPL 接触兜底。
 
-观察后常无 IK：**先回拍照位**（有记录的接近则倒放轨迹；否则 PTP 0.5 s，失败 OMPL 3.0 s）。倒放缓存只含实际执行成功的接近；拒绝候选不得加入。
+仅实际执行成功的接近段进入返程缓存。已有缓存时逐段逆序倒放，保留原段界，时间按整数纳秒反转，q/a 不变、v 取反；每段复核起止关节、当前完整场景离散点、预算、授权与取消。读取场景有界等待并轮询取消；失败清缓存并终止，不另规划绕路。没有缓存时，回拍照位才使用 PTP 0.5 s、失败 OMPL 3.0 s。
 
-护栏四层：①果实胶囊（工具有限圆柱 vs 感知胶囊，仅接近段）②反爬（s 不得超过本段起点 max(s,0)+2 cm；PTP 首段不查反爬）③场景障碍 ACM ④近果速度 0.05 仅套入/撤退；ContactMonitor 默认关。绕腕累计 12 rad / 单轴 6.1 rad。笛卡尔绕行比 1.5 / 偏离 0.12 m / 回退 0.08 m（2026-10-16：放行 path/chord≈1.07 近直线 PTP，拒绝 2.40 族大弧）。TCP 姿态测地线 110°（倾斜+滚转合成）；45° 只限制工具 Z 滚转。
-
-Staging IK 排序：先绝对滚转小，再腕轴加权关节代价（`preferStagingCandidate`）。仅 IK 有解不能宣称轨迹可用。
-
-返程：倒放同一接近轨迹回预抓取，再回 `global_photo_pose`。`harvest_stow` 是 2026-08-13 旧拍照位，现行不再作为收回目标。
+返程从 F 沿轴退至 A，再按本轮成功缓存回拍照位。`stageReturnHarvestStow` 保留历史函数名；当前部署的 photo/stow 均为 `global_photo_pose`，所以只回拍照位。helper 仍支持显式不同 stow 名称时先回 photo、再转移到配置 stow，不能把第二跳支持写成已删除。刀具状态未知或新 DI 沿确认超时停驻待 ACK，不自动撤退或重发工具命令。
 
 ---
 
 ## 12. 授权与使能
 
-使能链 `execution → grasp → tool`，默认全关。意图源：操作台 `SetEnables` → `/peach/batch/enables`；臂收到过即覆盖本地参数，心跳超时回落本地 yaml。autostart 是部署参数，授权语义=操作员在 real 上发起 launch。
+使能链 `execution → grasp → tool`，默认全关。意图源：操作台 `SetEnables` → `/peach/batch/enables`；臂收到过即覆盖本地参数，心跳超时回落本地 yaml。autostart 是显式部署参数，只选择就绪后是否发 RunHarvest；运动、接触和工具仍须对应使能与操作员授权。
 
 `authorizeTransit`（Survey / MoveTo / 回拍照位 / 接近转移）：使能×Active×robotReady×¬cancel，**不**复检 GraspDecision。失败码 `TRANSIT_FAILED`，不得挪用 `SLEEVE_PLAN_FAILED`。
 
@@ -533,10 +524,10 @@ Staging IK 排序：先绝对滚转小，再腕轴加权关节代价（`preferSt
 2. `safetyReady`（`robot_status` 抱闸 / motion_possible / 急停**状态**；mock `require_robot_status=false`）
 3. ¬cancel、`grasp_enabled`
 4. 若 `ctx.bound_model`：当前 `decisionSnapshot` 必须 `identitiesMatch`，且 geometry VALID、本阶段 sleeve 或 cut VALID。模型撤销/换版不得复用旧轨迹
-5. **令牌优先**（`clearance_present`）：`allowed`、`clearance_target_id==target_id`、`valid_until`（零值跳过）、`model_stamp` 新鲜窗。径向/轴向余量**只记录不拒绝**。TOOL 另要 `pregrasp_verified` + `tool_enabled`
+5. **令牌优先**（`clearance_present`）：`Clearance.allowed`、`clearance_target_id==target_id`；有正值 `valid_until` 时按截止期检查，否则使用 `model_stamp` 年龄窗，未来时间另受 0.5 s 门限制。绑定模型时还核非空 `model_fingerprint` 与 revision 一致。径向/轴向余量**只记录不拒绝**。TOOL 另要 `pregrasp_verified` + `tool_enabled`
 6. 无令牌：快照目标一致且 `grasp_allowed`；精化能力完整时 CONTACT 查 sleeve VALID、TOOL 查 cut VALID + 残差 + tool
 
-过期（valid_until / model_stamp）→ `StageDenial::EXPIRED`（可重派）；其余 DENIED。`requireStageAuthority` 把 CONTACT/TOOL 的令牌复检失败映射为对应 outcome。8090 调试运动另需 `debug.motion_enabled`，仍进同一门。
+过期（valid_until / model_stamp）→ `StageDenial::EXPIRED`（可重派）；其余 DENIED。`requireStageAuthority` 把 CONTACT/TOOL 的令牌复检失败映射为对应 outcome。8090 HTTP 调试运动另需 `debug.motion_enabled`，仍进同一门；HTTP 门与审计不覆盖直接 ROSbridge 调用，后者依赖 ROS 节点的最终授权。
 
 `SetEnables`：意图源在 supervisor，广播 `/peach/batch/enables`；臂收到过即覆盖本地 yaml，心跳超时回落。越级（未 execution 开 grasp/tool）拒绝且不落 override。
 

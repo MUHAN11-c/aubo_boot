@@ -1,12 +1,12 @@
 # 5 点力 CoP 闭环对齐仿真
 
-独立仿真包 **`serial_force`**，与真机驱动 `serial_force` 分开。定位是 **mock 仿真与离线分析工具**：不接串口、不进 `harvest_system`、不改真机话题契约；它用同一份 `/force/points`（顺序 1/2/3/5/7，SI 牛顿）把「5 点力 → CoP → 机械臂姿态校正」整条链路跑通，并给出可复现的多场景统计。
+同一 **`serial_force`** 包内的独立工具，与串口源互斥。本文结果记录于 **2026-10-21**；现行入口名见 [README](README.md)。定位是 **mock 仿真与离线分析工具**：不接串口、不进 `harvest_system`、不改真机话题契约；它用同一份 `/force/points`（顺序 1/2/3/5/7，SI 牛顿）把「5 点力 → CoP → 机械臂姿态校正」整条链路跑通，并给出可复现的多场景统计。
 
 - 结论与图：[force_align_sim_stats.md](force_align_sim_stats.md)、[force_align_sim.png](force_align_sim.png)
 - 逐组明细：[force_align_sim_trials.csv](force_align_sim_trials.csv)
 - 原始逐步记录：[force_align_sim_trials.jsonl](force_align_sim_trials.jsonl)
-- 工具：[../serial_force/](../serial_force/)
-- 点位唯一来源：[../../serial_force/doc/geometry.md](../../serial_force/doc/geometry.md)（CAD 复核，tcp 系）
+- 工具：[../../serial_force/](../../serial_force/)
+- 点位唯一来源：[geometry.md](../geometry.md)（CAD 复核，tcp 系）
 
 ## 1. 这套东西在回答什么问题
 
@@ -25,7 +25,7 @@
 ### 2.1 点位
 
 5 个压点在 `tcp` 系共面，平面 `tcp z = −72.29 mm`，法线 `+Z_tcp`（果实侧）。
-坐标与 [serial_force 包 geometry.md](../../serial_force/doc/geometry.md) 一致，代码里集中在 `common.py` 的 `PADS`：
+坐标与 [serial_force 包 geometry.md](../geometry.md) 一致，代码里集中在 `force_sim_common.py` 的 `PADS`：
 
 | 通道 | tcp x / mm | tcp y / mm |
 |---|---:|---:|
@@ -71,11 +71,11 @@ CoP = Σ f_i · (x_i, y_i) / Σ f_i          # mm（tcp 平面内）
 
 | 程序 | 节点名 | 作用 |
 |---|---|---|
-| `force_sim_node.py` | `force_sim_node_sim` | 用 tcp TF + 虚拟平面算 5 点力，发布 `/force/points` 等 |
+| `force_sim_node.py` | `serial_force` | 用 tcp TF + 虚拟平面算 5 点力，发布 `/force/points` 等 |
 | `8090 /force.html` | observability | 订阅力，实时 5 点 / CoP 网页 |
 | `cop_control.py` | `force_align_cop_control` | 单次闭环：CoP → IK → JTC 旋转 TCP |
-| `trial_runner.py` | `cop_trial_runner` | 批量：复位 → 起场景 → 闭环 → 记录 JSONL |
-| `analysis.py` | 无（离线） | JSONL → CSV / 统计表 / 三联图 |
+| `cop_trials.py` | `cop_trial_runner` | 批量：复位 → 起场景 → 闭环 → 记录 JSONL |
+| `cop_analysis.py` | 无（离线） | JSONL → CSV / 统计表 / 三联图 |
 
 | 接口 | 类型 | 说明 |
 |---|---|---|
@@ -89,7 +89,7 @@ CoP = Σ f_i · (x_i, y_i) / Σ f_i          # mm（tcp 平面内）
 
 依赖：`rclpy`、`tf2_ros`、`std_msgs`、`sensor_msgs`、`geometry_msgs`、
 `moveit_msgs`、`control_msgs`、`trajectory_msgs`；分析脚本另需 `numpy`、`matplotlib`。
-这些只用于仿真/分析，真机驱动本身仍只依赖串口与 `std_msgs`/`diagnostic_msgs`。
+这些只用于仿真/分析，串口源还使用 `peach_interfaces/ForceSample`、rclpy 与诊断/参数接口；完整包依赖见 `package.xml`。
 
 ## 4. 控制律
 
@@ -116,9 +116,9 @@ JTC(q_new, 1 s)                             # 执行
 
 ## 5. 试验协议与数据格式
 
-`trial_runner.py` 对每个（倾角, 方位, 重复）执行：
+`cop_trials.py` 对每个（倾角, 方位, 重复）执行：
 
-1. JTC 复位到 `HOME`（`common.py`，与 bringup 默认 mock 初值一致），等 0.4 s；
+1. JTC 复位到 `HOME`（`force_sim_common.py`，与 bringup 默认 mock 初值一致），等 0.4 s；
 2. 以 `tilt_deg` / `tilt_yaw_deg` 启动一个新的 `force_sim_node.py`（每场景重新冻结平面）；
 3. 等到收到 >20 帧且总力 >0.05 N，静置 0.6 s；
 4. 采 0.6 s 平均作为 **初始** CoP / 5 点力；
@@ -211,18 +211,18 @@ ros2 run serial_force force_sim_node --ros-args \
 ### 7.2 单次闭环
 
 ```bash
-ros2 run serial_force cop_control \
+ros2 run serial_force force_cop_control \
   --center-mm 1.2 --max-rot-deg 5 --max-steps 12
 ```
 
 ### 7.3 批量 + 统计
 
 ```bash
-ros2 run serial_force cop_trials \
+ros2 run serial_force force_cop_trials \
   --tilt 1,2,3,4,5 --yaw 0,90 --repeats 2
 # 默认写 $ROS_HOME/serial_force/force_align_sim_trials.jsonl
 
-ros2 run serial_force cop_analyze \
+ros2 run serial_force force_cop_analyze \
   $ROS_HOME/serial_force/force_align_sim_trials.jsonl
 # CSV / 统计表 / 图默认写回 $ROS_HOME/serial_force/
 ```
@@ -230,11 +230,11 @@ ros2 run serial_force cop_analyze \
 重生成包内基线数据：
 
 ```bash
-ros2 run serial_force cop_trials \
+ros2 run serial_force force_cop_trials \
   --out src/serial_force/doc/force_align_sim_trials.jsonl \
   --log-dir /tmp/force_sim_logs \
   --tilt 1,2,3,4,5 --yaw 0,90 --repeats 2
-ros2 run serial_force cop_analyze --out-dir src/serial_force/doc \
+ros2 run serial_force force_cop_analyze --out-dir src/serial_force/doc \
   src/serial_force/doc/force_align_sim_trials.jsonl
 ```
 

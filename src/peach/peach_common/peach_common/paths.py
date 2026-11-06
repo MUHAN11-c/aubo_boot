@@ -3,7 +3,7 @@
 
 消息来源的 run_id / target_id 会拼进落盘路径（runs/&lt;request_id&gt;/…），
 三包此前各持口径不一的净化（supervisor `_safe_run_component` 不滤 NUL/纯点；
-vision 侧无净化）。本模块是唯一实现：拒绝分隔符、上跳、NUL、空与纯点，
+vision 侧无净化）。本模块是唯一实现：拒绝分隔符、上跳、NUL、空值及单独的 . / ..，
 非法值回退 fallback 目录段（折叠隔离，不拒绝整批——与账本侧既有语义一致）。
 
 runs_root（W6-B）归一 supervisor/batch 与 vision/common/runtime 两份同名

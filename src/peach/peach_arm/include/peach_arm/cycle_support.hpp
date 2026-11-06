@@ -24,14 +24,14 @@ namespace peach_arm
 //   公共（全部阶段）  ：motion_output_permitted_（Lifecycle Active）
 //                       ∧ SafetyGate::robotReady ∧ !cancel_requested_
 //   TRANSIT / PREGRASP：公共 ∧ execution_enabled_
-//   CONTACT（套入）    ：公共 ∧ grasp_enabled_ ∧ GraspDecision 复检
-//                        （graspDecisionTargetSnapshot()==ctx.target_id 且
-//                         qualitySnapshot().grasp_allowed）
-//   TOOL：CONTACT 条件 ∧ tool_enabled_
-// 撤离（撤退/回 stow 的撤退段）不依赖视觉：插入后目标常被工具遮挡、收割后
+//   CONTACT（套入）    ：公共 ∧ execution_enabled_ ∧ grasp_enabled_
+//                       ∧ 当前绑定模型身份/能力 ∧（goal 令牌或决策快照复检）
+//   TOOL：CONTACT 条件 ∧ pregrasp_verified ∧ tool_enabled_
+// 令牌核目标、allowed、冻结有效期；径向/轴向余量不作为授权门。
+// 沿轴撤离不依赖视觉：插入后目标常被工具遮挡、收割后
 // GraspDecision 可能翻转，决策复检只在套入/剪切入口（requireStageAuthority
 // CONTACT/TOOL）判定；撤退段授权经 GraspTask retreat 门（公共 + execution +
-// grasp，无决策复检）。原 motion 注入 safety_gate lambda（Active ∧ robotReady）
+// grasp，无决策复检）。回拍照位走 TRANSIT。motion 注入 safety_gate lambda
 // 保留为 TRANSIT 级底座，plan-only 路径不经其执行段。
 enum class MotionStage { TRANSIT, PREGRASP, CONTACT, TOOL };
 

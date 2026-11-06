@@ -15,7 +15,7 @@
 #   可重渲/重建   reconstruction/output/ 内未跟踪的重渲大件（*.blend/*.exr 等，git 索引现算）、
 #                 field_no_grass.glb（见 sim_worlds/README.md 重导出）、.dinov2_index.npz
 #
-# 保留：src/ 全部源码与资产（含 sim_description/sim_worlds meshes、peach_harvester/model 自训练模型、
+# 保留：src/ 全部源码与资产（含 sim_description/sim_worlds meshes、peach_scene_perception/model 自训练模型、
 #       驱动 vendor、web/public 前端 vendor JS——three.js/robotwebtools 的 build 发行件，
 #       仓内无重下脚本）、docs/ wiki/ reports/ weights/ peach_autonomous_harvest_design/、
 #       根文档与 requirements.txt、.clangd/.colcon 构建配置、.github、.agents、
@@ -34,7 +34,8 @@
 # 目标环境恢复示例：
 #   tar -xf aubo_e5_jazzy_ws-src-*.tar.zst
 #   rosdep install --from-paths src --ignore-src -r -y
-#   python3 -m venv aubo_py3.12 && aubo_py3.12/bin/pip install -r requirements.txt
+#   python3 -m venv --system-site-packages aubo_py3.12
+#   PYTHONNOUSERSITE=1 aubo_py3.12/bin/pip install --ignore-installed -r requirements-peach.txt
 #   colcon build --cmake-args -DCMAKE_BUILD_TYPE=Release -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
 # 大件重取：ivg 权重见 src/ivg/ivg_pose_estimation/models/README.md；
 #   YCB meshes 见 src/ivg/ivg_sim/models/fetch_ycb.sh；Blender 重下放 _tools/。
@@ -97,8 +98,7 @@ OUT_FILE="$OUT_DIR/${NAME}-src-${STAMP}.tar.${EXT}"
 # 顶层白名单：不在此列的根目录（_archive/build/install/log/runs/各工具点目录）整体不入包。
 INCLUDE=(AGENTS.md CLAUDE.md LICENSE README.md README_PACKAGE.md .gitignore .zcodeignore
          .clangd .colcon .github .agents .cursor/rules .vscode docs wiki reports weights
-         peach_autonomous_harvest_design scripts src requirements.txt
-         cursor_peach_camera_simulation_validati.md)
+         peach_autonomous_harvest_design scripts src requirements.txt requirements-peach.txt)
 [[ $WITH_GIT -eq 1 ]] && INCLUDE+=(.git)
 [[ $WITH_ARCHIVE -eq 1 ]] && INCLUDE+=(_archive)
 [[ $WITH_TOOLS -eq 1 ]] && INCLUDE+=(_tools)
@@ -135,11 +135,6 @@ EXC_ANY=(
   '*.pyc' '*.pyo' '*.orig' '*~' .DS_Store Thumbs.db .patch_probe
   '*.preview.png' .dinov2_index.npz mobileclip2_b.ts
 )
-# *.mcap/*.db3/*.bag 默认不入包；带 --records-days 时回放包属于测试证据，需放行。
-# 这些后缀在 runs/ 之外基本不出现（_archive 内已核对无 mcap）。
-if [[ $RECORD_DAYS -eq 0 ]]; then
-  EXC_ANY+=('*.mcap' '*.db3' '*.bag')
-fi
 # 锚定路径排除（相对工作区根）
 EXC_ANCHOR=(
   "$NAME/_tools/blender-*"
@@ -155,6 +150,19 @@ EXC_ANCHOR=(
   "$NAME/.vscode/browse.vc.db" "$NAME/.vscode/browse.vc.db-*"
   "$NAME/.vscode/browse.vc.db.lock"
 )
+# Runtime recordings stay excluded by default; versioned system-test datasets
+# are deployment assets and must retain their MCAP along with metadata/SHA.
+if [[ $RECORD_DAYS -eq 0 ]]; then
+  for included in "${PATHS[@]}"; do
+    relative="${included#"$NAME"/}"
+    while IFS= read -r -d '' recording; do
+      [[ "$recording" == src/peach/peach_system_tests/data/* ]] && continue
+      EXC_ANCHOR+=("$NAME/$recording")
+    done < <(find "$relative" -type d -name node_modules -prune -o -type f \
+      \( -name '*.mcap' -o -name '*.db3' -o -name '*.bag' \) -print0)
+  done
+fi
+
 # --include-tools 时上面三条 _tools 锚点要撤掉（用户明确要求整体入包）。
 if [[ $WITH_TOOLS -eq 1 ]]; then
   _keep=()
@@ -163,7 +171,7 @@ if [[ $WITH_TOOLS -eq 1 ]]; then
   done
   EXC_ANCHOR=("${_keep[@]}")
 fi
-# 注意：peach_harvester/model/*.pt 是 git 跟踪的自训练模型，必须入包，勿加全局 *.pt 排除。
+# 注意：peach_scene_perception/model/*.pt 是 git 跟踪的自训练模型，必须入包，勿加全局 *.pt 排除。
 # *.blend/*.exr 不做全局排除：_tools/blender 发行版自带 46 个（14M，启动模板/画笔），
 # 排除会让 Blender 不完整；src 内可再生的 *.blend/*.exr 全部落在下面的 git 索引排除里。
 
@@ -185,9 +193,11 @@ done < <(find "$WS/$OUT_REL" -mindepth 1 -type d -printf '%P\0')
 # （新环境重新 colcon build 即有）。web/public/ 下的前端 vendor build 不在排除之列。
 while IFS= read -r -d '' d; do
   EXC_ANCHOR+=("$NAME/$d")
-done < <(find src docs wiki reports peach_autonomous_harvest_design .agents .github .colcon \
-           -mindepth 1 -type d \( -name build -o -name install -o -name log \) \
-           -not -path '*/web/public/*' -print0)
+done < <(for scan in src docs wiki reports peach_autonomous_harvest_design .agents .github .colcon; do
+  [[ -d "$scan" ]] || continue
+  find "$scan" -mindepth 1 -type d \( -name build -o -name install -o -name log \) \
+    -not -path '*/web/public/*' -print0
+done)
 
 TAR_ARGS=(--create --file="$OUT_FILE" "${COMP[@]}" -C "$(dirname "$WS")"
           --exclude="$NAME/$(basename "$OUT_FILE")")

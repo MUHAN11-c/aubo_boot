@@ -1,14 +1,14 @@
 """
 彩色相机内参标定产物的解析、校验与落盘 (纯核, 无 ROS 依赖).
 
-配合 vendored camera_calibration (image_pipeline jazzy 分支) 使用:
+配合 apt camera_calibration (image_pipeline 的 Jazzy 包) 使用:
 
     ros2 launch aubo_hand_eye_calibration intrinsics_calibration.launch.py
     # GUI 里 CALIBRATE -> SAVE, 产物在 /tmp/calibrationdata.tar.gz
     ros2 run aubo_hand_eye_calibration apply_intrinsics /tmp/calibrationdata.tar.gz
 
 落盘目标 src/percipio_camera/config/color_camera_info.yaml 是全项目
-彩色内参唯一事实源 (percipio 与 peach_stereo 两前端共用, 决策 7a)。
+彩色 CameraInfo 内参覆盖文件 (percipio 与 peach_stereo 共用)，不改设备 Flash。
 """
 
 import argparse
@@ -214,6 +214,6 @@ def main(argv=None):
           '(launch 经 FindPackageShare 读 install 副本, 重建后新内参才进前端)')
     print('  2. 重启相机前端 (percipio 或 stereo) 生效')
     print('  3. 验证: ros2 topic echo /camera/color/camera_info --once 核对 K')
-    print('  4. 手动更新 src/peach/peach_harvester/config/scene_perception.yaml '
+    print('  4. 手动更新 src/peach/peach_scene_perception/config/scene_perception.yaml '
           '的 calibration_version 标签')
     return 0

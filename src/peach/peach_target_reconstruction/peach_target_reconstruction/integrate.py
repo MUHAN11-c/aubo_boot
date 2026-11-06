@@ -50,13 +50,13 @@ class LocalTsdf:
             voxel_length: 体素边长 [m].
             sdf_trunc: 截断距离 [m].
             depth_trunc: 深度截断 [m]（更远的深度不积分）.
-            now: 单调时钟（返回 float 秒，协议 I3 由编排层注入，如
+            now: 计时时钟（返回 float 秒，协议 I3 由编排层注入，如
                 peach_vision_core.clock_adapter.RclpyClockAdapter.now）；None 回退
                 time.perf_counter（纯核自包含缺省，单测直建实例用）.
 
         Returns
         -------
-            无返回值（None）；integrate_time_s 累计积分墙钟 [s].
+            无返回值（None）；integrate_time_s 按所注入时钟累计积分耗时 [s].
 
         """
         o3d = require_open3d()

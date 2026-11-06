@@ -1,20 +1,21 @@
 """
 批次策略与补采清单（清洁重写轮 3c 纯核，零 ROS）.
 
-跳过是调度参数不是失败（FFRobotics 先例）：采收率/单果时限/扇区时限超限
-即跳过，跳过目标自动入 rework_list.json 人工补采清单；策略来源
-RunHarvest goal（开批初值）与 SetBatchPolicy 服务（运行期改）。
+采收率达标后结算；单果超时跳过，扇区超时中断批次。节点将已产生的
+非成功目标归入 rework_list.json；本模块只校验策略、计时与读写补采清单。
+策略来源为 RunHarvest goal（开批初值）与 SetBatchPolicy（运行期改）。
 """
 from __future__ import annotations
 
 from dataclasses import dataclass
 from dataclasses import field
 import json
+import math
 from pathlib import Path
 import time
 from typing import Optional
 
-from peach_common.paths import safe_component
+from peach_common.paths import ensure_within, safe_component
 
 
 @dataclass(frozen=True)
@@ -31,7 +32,7 @@ class BatchPolicy:
     """0=fast（默认少补视）/ 1=conservative."""
 
     VIEW_FAST = 0
-    """少补视：当前位+短 PTP."""
+    """少补视：当前位优先，必要时 MoveTo 相机短 LIN."""
     VIEW_CONSERVATIVE = 1
     """多机位覆盖后再接触."""
 
@@ -57,13 +58,24 @@ class BatchPolicy:
                 data[key] = value
         return BatchPolicy(**data)
 
+    def validation_error(self) -> str | None:
+        """Goal 与运行期服务共用值域；合法时返回 None，零仍表示不限."""
+        for name in ('target_harvest_ratio', 'per_target_timeout_s', 'sector_timeout_s'):
+            value = getattr(self, name)
+            upper = 1.0 if name == 'target_harvest_ratio' else math.inf
+            if not math.isfinite(value) or not 0.0 <= value <= upper:
+                return f'{name} 必须有限且在 [0, {upper}] 内'
+        if self.view_policy not in (self.VIEW_FAST, self.VIEW_CONSERVATIVE):
+            return 'view_policy 必须为 VIEW_FAST 或 VIEW_CONSERVATIVE'
+        return None
+
 
 @dataclass
 class TargetDeadline:
-    """单果时限簿记：dispatch 时刻起算，超限即跳过."""
+    """单果时限簿记：节点在 SELECT 选中目标时建立起算点."""
 
     started_s: float
-    """monotonic 派发时刻 [s]."""
+    """monotonic 起算时刻 [s]；运行期改预算仍保留此值."""
     timeout_s: float
     """时限长度 [s]；0=不限."""
 
@@ -148,9 +160,11 @@ class ReworkList:
 
     def save(self, runs_root: Path) -> Path:
         """落盘 rework_list.json（tmp+replace 原子写，对齐 save_ledger）."""
-        out = Path(runs_root) / safe_component(self.request_id, 'harvest') / 'rework_list.json'
+        out = Path(ensure_within(
+            Path(runs_root) / safe_component(self.request_id, 'harvest') / 'rework_list.json',
+            runs_root))
+        tmp = Path(ensure_within(out.with_suffix('.json.tmp'), runs_root))
         out.parent.mkdir(parents=True, exist_ok=True)
-        tmp = out.with_suffix('.json.tmp')
         tmp.write_text(
             json.dumps(
                 {'request_id': self.request_id, 'entries': self.entries},
@@ -162,7 +176,9 @@ class ReworkList:
     @classmethod
     def load(cls, runs_root: Path, request_id: str) -> 'ReworkList':
         """读回补采清单（文件缺失=空清单）."""
-        path = Path(runs_root) / safe_component(request_id, 'harvest') / 'rework_list.json'
+        path = Path(ensure_within(
+            Path(runs_root) / safe_component(request_id, 'harvest') / 'rework_list.json',
+            runs_root))
         out = cls(request_id=request_id)
         if path.exists():
             doc = json.loads(path.read_text(encoding='utf-8'))

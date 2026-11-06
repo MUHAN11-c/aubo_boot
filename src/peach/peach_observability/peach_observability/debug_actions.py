@@ -105,15 +105,16 @@ def is_motion(action: str, payload: dict) -> bool:
 
     规则（与各 IDL/阶段文档对齐）：
       - run_harvest：恒为运动（SURVEY_ONLY 也会 Survey 移到拍照位）
-      - survey / photo_pose / arm / skill 端 start_cycle：本身运动
+      - survey / photo_pose / arm：均按运动类处理
       - execute：mode != PREVIEW（OBSERVE_ONLY 有 0.15 m 级观察短移）
       - control：RESUME / EXIT_MAINTENANCE（恢复自动流会继续派动作）；
         PAUSE / CANCEL_NOW / SKIP / ACK 是降低风险操作，不拦
+      - set_enables：任一使能设为 true 时按运动类处理
       - 其余（重建 Trigger、check_reachability、begin_scene、lifecycle）
-        不动臂
+        不在此桥的运动类集合；目标节点仍执行自己的命令门
 
     Args:
-        action: 端点键（ACTIONS 注册表键）.
+        action: _SERVICE_TYPES / _ACTION_TYPES 的端点键，或辅助命令键.
         payload: 已解析的 JSON 请求体.
 
     Returns
@@ -450,7 +451,8 @@ class DebugBridge:
         summary = _summarize_result(key, result)
         summary['action_status'] = status
         with self._lock:
-            self._goal_handles.pop(key, None)
+            if self._goal_handles.get(key) is handle:
+                self._goal_handles.pop(key, None)
         return True, summary
 
     @staticmethod

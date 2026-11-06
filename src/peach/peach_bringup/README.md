@@ -1,6 +1,6 @@
 # peach_bringup
 
-整栈组合入口。Include 只读 `aubo_e5_bringup`，启动相机前端（`camera_frontend:=stereo` 默认 / `percipio` 官方 18 图案 / `replay`；launch 期互斥，禁止两驱动同图）、各自独立进程的感知 / 重建 / 调度，以及机械臂 / 观测 / 场景障碍、可选 `serial_force`（5 点力传感器）。`nav2_lifecycle_manager` 默认托管名单为场景 → 重建 → 机械臂 → 调度；关闭重建进程时从名单移除。**默认不自动 RunHarvest**；`autostart:=true` 为部署选配档——栈就绪且默认等待 `selfcheck_passed=true` 后自动开批（授权=操作员发起 real launch）。
+整栈组合入口。Include 只读 `aubo_e5_bringup`，启动相机前端（`camera_frontend:=stereo` 默认 / `percipio` 官方 18 图案 / `replay`；launch 期互斥，禁止两驱动同图）、各自独立进程的感知 / 重建 / 调度，以及机械臂 / 观测 / 场景障碍、可选 `serial_force`（5 点力传感器）。`nav2_lifecycle_manager` 默认托管名单为场景 → 重建 → 机械臂 → 调度；关闭重建进程时从名单移除。**默认不自动 RunHarvest**；`autostart:=true` 为部署选配档——栈就绪且默认等待 `selfcheck_passed=true` 后自动开批；它只自动发批，运动/接触/工具仍须独立使能与授权。
 
 ## 公有入口
 
@@ -17,7 +17,7 @@ bag 回放另加 `use_sim_time:=true`，并先 `ros2 bag play --clock`。其余�
 
 ## 构建 / 测试 / 许可
 
-随工作区 `colcon build --packages-up-to peach_bringup`。首次部署 Web 时先按依赖包说明构建浏览器资源。整栈使用其 `bridge_node.py` 和 SDK。WebSocket 默认监听 `127.0.0.1:9090`，可设 `rosbridge_port` 或用 `rosbridge_enabled:=false` 单独保留 HTTP 操作台。`colcon test` 跑官方 flake8 / pep257。BSD-3-Clause。见 [ros2_web_link 集成说明](../../ros2_web_link/doc/integration.md)。
+随工作区 `colcon build --packages-up-to peach_bringup`。首次部署 Web 时先按依赖包说明构建浏览器资源。整栈使用 `ros2_web_link` 的 `bridge_node.py` 和 SDK，`peach_harvester` 仅为无代码 metapackage。WebSocket 默认监听 `127.0.0.1:9090`，可设 `rosbridge_port` 或用 `rosbridge_enabled:=false` 单独保留 HTTP 操作台。`colcon test` 跑官方 flake8 / pep257。BSD-3-Clause。见 [ros2_web_link 集成说明](../../ros2_web_link/doc/integration.md)。
 
 ## 当前维护入口
 

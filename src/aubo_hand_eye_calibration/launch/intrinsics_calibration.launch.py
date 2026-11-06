@@ -1,5 +1,5 @@
 """
-内参标定: vendored camera_calibration 的交互式棋盘格标定器.
+内参标定: apt camera_calibration 的交互式棋盘格标定器（vendored 副本已删）.
 
 需先启动相机前端 (percipio 或 stereo) 且有 X 显示 (OpenCV GUI)。
 棋盘格参数与手眼标定共用同一块板: 默认值运行时取自包内

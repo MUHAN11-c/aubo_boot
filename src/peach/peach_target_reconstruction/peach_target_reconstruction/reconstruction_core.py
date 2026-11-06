@@ -71,7 +71,7 @@ class ReconstructionCore:
             collector: FrameCollector（采帧状态机）.
             mask_gate: StrictMaskGate（五道掩膜门）.
             kind_memory: TargetKindMemory（target_id→target_kind）.
-            params: TargetReconstructionParams（yaml 直读快照）.
+            params: TargetReconstructionParams（实时 GPL 视图）.
             algo_clock: 纯核 Clock 适配（协议 I3）.
             logger: 宿主 logger（node.get_logger()）.
             timing: TimingStats（耗时累计器）.
@@ -98,10 +98,10 @@ class ReconstructionCore:
         # （_process_rgbd→_auto_drive）与 executor 线程（订阅/服务回调）
         # 双写；节点级 RLock 使服务/订阅/自动驱动入口互斥，帧栈、TSDF
         # 积分与全部产物读写均在锁内（RLock 允许 _auto_drive→_finalize_now
-        # 等锁内嵌套调用）。唯一锁外段：采帧门禁的阻塞式精确时刻 TF 查询
-        # （节点 _gated_capture_* 三段式）。_latest_frame/_latest_candidates/
-        # _max_joint_vel 等单字段原子赋值不持锁（CPython 引用赋值原子）。
+        # 等锁内嵌套调用）。精确 TF、构云/ICP 及发布大消息组装可在锁外
+        # 进行，返回后复核采集世代与目标；锁内只提交同一会话的结果。
         self._state_lock = threading.RLock()
+        self._heartbeat_busy_skips = 0
         self._lifecycle_active = False
         # —— FrameStore 状态 ——
         # 12 Hz 深度 × 感知 ~5 s 滞后：须能保留匹配曝光直到掩膜到达。
@@ -294,7 +294,7 @@ class ReconstructionCore:
         return sum(int(getattr(array, 'nbytes', 0)) for array in frame_tuple[:2])
 
     def _push_frame_ring(self, frame_tuple) -> None:
-        """在既有采帧新鲜度窗内等精确同戳掩膜，最多96帧/192MiB数组."""
+        """在采帧新鲜度窗内等待同戳/容差内掩膜，最多96帧/192MiB数组."""
         stamp_ns = self._stamp_ns(frame_tuple[3])
         array_bytes = self._frame_array_bytes(frame_tuple)
         with self._state_lock:
@@ -382,7 +382,7 @@ class ReconstructionCore:
         return center
 
     def _target_mask_for_frame(self, stamp_msg, depth_mm):
-        """取严格同时间戳掩膜并过五道质量门（判定本体在 MaskGate 实现）."""
+        """取同戳或容差内最近掩膜并过五道质量门（判定在 StrictMaskGate）."""
         stamp_ns = self._stamp_ns(stamp_msg)
         # 邻目标锚点=锁定集锚点缓存剔除绑定目标自身（E2 串扰门输入）；
         # 框面积并行携带，供串扰门按面积比豁免小框邻居
@@ -522,17 +522,7 @@ class ReconstructionCore:
             if action != 'capture':
                 self._record_auto_skip(reason)
                 return
-        prepared, reject = self._prepare_frame(context, bound_target)
-        if prepared is None:
-            # 构云/ICP 拒帧：与原 _accept_frame 失败路径同语义
-            with self._state_lock:
-                if generation != self._capture_generation:
-                    return
-                self.collector.rejected_views += 1
-                self._record_auto_skip(reject, count_reject=False)
-            self._logger.warning(f'自动采帧未入库：{reject}',
-                                 throttle_duration_sec=1.0)
-            return
+        prepared, reject, icp_observation = self._prepare_frame(context, bound_target)
         with self._state_lock:
             if (generation != self._capture_generation
                     or self.collector.state != STATE_COLLECTING
@@ -541,7 +531,19 @@ class ReconstructionCore:
                     '采帧准备期间会话已切换/收口，丢弃陈旧帧 '
                     f'{bound_target or "（空）"}')
                 return
-            if context[3] <= self._last_captured_stamp_sec:
+            if prepared is not None and context[3] <= self._last_captured_stamp_sec:
+                return
+            # 成功与拒绝都先校验同一会话；旧 ICP 返回不得污染 reset 后的
+            # 自适应刷新周期、修正量 EMA 或耗时统计。
+            if icp_observation is not None:
+                mode, translation_m, elapsed_ms = icp_observation
+                self._icp_target_cache.note_result(mode, translation_m)
+                self._timing.record_icp(elapsed_ms)
+            if prepared is None:
+                self.collector.rejected_views += 1
+                self._record_auto_skip(reject, count_reject=False)
+                self._logger.warning(f'自动采帧未入库：{reject}',
+                                     throttle_duration_sec=1.0)
                 return
             accepted, message = self._commit_prepared_frame(prepared, t_frame0)
             if not accepted:
@@ -583,9 +585,11 @@ class ReconstructionCore:
     # ------------------------------------------------------------------
     # finalize 编排（W4 自节点迁入；全部为 Core 持有的共享状态操作）
     # ------------------------------------------------------------------
-    def _finalize_now(self) -> Tuple[bool, str]:
+    def _finalize_now(self, *, publish: bool = True) -> Tuple[bool, str]:
         """
         共享 finalize：状态迁移、重叠指标、最终网格与几何精化.
+
+        Build 使用 publish=False，先复核取消和总期限，再发布计算结果。
 
         Returns
         -------
@@ -599,8 +603,8 @@ class ReconstructionCore:
             self.collector.frames, self.collector.target_center)
         pose_count = int(coverage.get('view_count') or 0)
         min_views = int(self.params.capture.min_views)
-        # 采帧器在节点构造时拷了一份 min_views；运行期 param set 只更新
-        # params，finalize 前对齐，否则单视仍被旧门槛「已采 1 帧 < min_views=2」拒掉。
+        # 采帧器在节点构造时拷贝 min_views；finalize 前与参数快照再次对齐。
+        # 当前 schema 将视角预算声明为启动只读，不提供运行期改门槛的承诺。
         self.collector.config.min_views = min_views
         if pose_count < min_views:
             message = (
@@ -609,7 +613,8 @@ class ReconstructionCore:
             self._logger.warning(message)
             self._timing.record_finalize(
                 (self._algo_clock.now() - t_finalize0) * 1000.0)
-            self._publish_all()
+            if publish:
+                self._publish_all()
             return False, message
         ok, message, _cloud = self.collector.finalize()
         if not ok:
@@ -621,7 +626,8 @@ class ReconstructionCore:
             self._bump_products_version(tsdf_cloud=True)
             self._logger.warning(message)
         else:
-            self._overlap_cache = assembly_overlap_metrics(self.collector.frames)
+            with self._timing.phase('assembly_overlap'):
+                self._overlap_cache = assembly_overlap_metrics(self.collector.frames)
             summary = summarize_pairs_mm(self._overlap_cache['pairs'])
             if summary is None:
                 message += '；重叠指标需 ≥2 帧，本批次不可用'
@@ -644,15 +650,16 @@ class ReconstructionCore:
                         message += '；refit 未产出可用几何'
             if product_ok:
                 self._logger.info(message)
-                self._harvest_data.append_event({
-                    'source': 'reconstruction',
-                    'event': 'reconstruction_finalized',
-                    'target_id': self.collector.target_id,
-                    'captured_views': len(self.collector.frames),
-                    'pose_count': pose_count,
-                    'refined': self._refined_info(),
-                    'grasp_decision': self._grasp_decision(),
-                })
+                with self._timing.phase('finalize_event'):
+                    self._harvest_data.append_event({
+                        'source': 'reconstruction',
+                        'event': 'reconstruction_finalized',
+                        'target_id': self.collector.target_id,
+                        'captured_views': len(self.collector.frames),
+                        'pose_count': pose_count,
+                        'refined': self._refined_info(),
+                        'grasp_decision': self._grasp_decision(),
+                    })
             else:
                 # 已提取的 TSDF 留给 RViz；状态退回 COLLECTING，Build 失败
                 ok = False
@@ -660,7 +667,9 @@ class ReconstructionCore:
                 self._logger.warning(message)
         self._timing.record_finalize(
             (self._algo_clock.now() - t_finalize0) * 1000.0)
-        self._publish_all()
+        if publish:
+            with self._timing.phase('finalize_publish'):
+                self._publish_all()
         return ok, message
 
     def _run_tsdf(self) -> str:
@@ -676,7 +685,8 @@ class ReconstructionCore:
 
         """
         try:
-            self._refresh_tsdf_outputs(extract_mesh=True)
+            with self._timing.phase('tsdf_extract'):
+                self._refresh_tsdf_outputs(extract_mesh=True)
             xyz = self._tsdf_cloud_cache[0]
             mesh_vertices = (
                 0 if self._mesh_cache is None
@@ -704,7 +714,7 @@ class ReconstructionCore:
                 len(frames), float(frames[-1].stamp) if frames else -1.)
 
     def _publish_heartbeat(self):
-        """1Hz活性心跳；TF与消息准备不持状态锁，发送前复核世代."""
+        """1Hz心跳尝试；忙锁则跳过，预抓取TF在锁外，发送前复核世代."""
         if not self._lifecycle_active:
             return
         header = Header(stamp=self.get_clock().now().to_msg(),
@@ -726,19 +736,29 @@ class ReconstructionCore:
         ]
 
     def _publish_status_trio(self, header):
-        """锁内快照、锁外TF，最后短锁复核并串行发布，禁止旧许可尾随清屏."""
-        with self._state_lock:
+        """忙时跳过本次心跳；锁外TF、短锁复核，保留取消回调的执行器容量."""
+        if not self._state_lock.acquire(blocking=False):
+            self._heartbeat_busy_skips += 1
+            return
+        try:
             if not self._lifecycle_active or not self._ros_entities_wired:
                 return
             key = self._publication_key()
             messages = self._status_messages(header)
+        finally:
+            self._state_lock.release()
         if getattr(self, 'pub_pregrasp', None) is not None:
             messages.append((self.pub_pregrasp, self._pregrasp_verification_msg(header)))
-        with self._state_lock:
+        if not self._state_lock.acquire(blocking=False):
+            self._heartbeat_busy_skips += 1
+            return
+        try:
             if key != self._publication_key():
                 return
             for publisher, message in messages:
                 publisher.publish(message)
+        finally:
+            self._state_lock.release()
 
     def _lock_decision_validity(self, decision: dict) -> dict:
         """
@@ -766,12 +786,13 @@ class ReconstructionCore:
         decision.update(self._locked_revisions)
         return decision
 
-    def _publish_all(self):
+    def _publish_all(self, *, publish_guard=None):
         """
         同世代快照→锁外组装大消息→复核后短锁统一发布.
 
         reset/换绑可在构云时清屏；旧构造结果不得尾随清屏覆盖新世代。
         几何、身份和状态在同一临界区生成，云/marker组装不占状态锁。
+        Build 可传只读 guard，在组装后及每条消息提交前复核取消/期限。
         """
         header = Header(stamp=self.get_clock().now().to_msg(),
                         frame_id=self.params.frames.base_frame)
@@ -779,7 +800,10 @@ class ReconstructionCore:
             # shutdown/cleanup 可能先于在途 Build 的取消收口返回；此时
             # ROS 实体已经拆除，不再组装或发布其迟到的清屏消息。
             if not self._lifecycle_active or not self._ros_entities_wired:
-                return
+                return False
+            if publish_guard is not None and not publish_guard():
+                self._products_force_publish = True
+                return False
             key = self._publication_key()
             frames = tuple(self.collector.frames)
             target_id = self.collector.target_id
@@ -808,16 +832,19 @@ class ReconstructionCore:
                              (self.pub_shape, self._shape_hypothesis_msg(header))))
             tool_d_inner = float(self.params.tool.budget.d_inner)
         # CapturedFrame及产物数组只追加/替换，已取得的快照不随reset改变。
-        clouds = [frame.cloud_base for frame in frames
-                  if frame.cloud_base is not None and frame.cloud_base.size]
-        xyz = np.vstack(clouds) if clouds else np.zeros((0, 3))
-        colors = None
-        if frames and all(frame.cloud_rgb is not None for frame in frames):
-            rgb = [frame.cloud_rgb for frame in frames if frame.cloud_rgb.size]
-            colors = np.vstack(rgb) if rgb else None
+        tsdf_xyz, tsdf_rgb = tsdf if tsdf is not None else (np.zeros((0, 3)), None)
+        # 只有待发 local cloud 或无 TSDF 的 preview 消费帧栈拼接结果。
+        # 节流拒绝时不分配整云；世代复核、状态/许可发布仍照常执行。
+        xyz, colors = np.zeros((0, 3)), None
+        if changes['local_cloud'] or (changes['preview_cloud'] and not len(tsdf_xyz)):
+            clouds = [frame.cloud_base for frame in frames
+                      if frame.cloud_base is not None and frame.cloud_base.size]
+            xyz = np.vstack(clouds) if clouds else xyz
+            if frames and all(frame.cloud_rgb is not None for frame in frames):
+                rgb = [frame.cloud_rgb for frame in frames if frame.cloud_rgb.size]
+                colors = np.vstack(rgb) if rgb else None
         if changes['local_cloud']:
             messages.append((self.pub_cloud, xyzrgb_to_cloud_msg(xyz, colors, header)))
-        tsdf_xyz, tsdf_rgb = tsdf if tsdf is not None else (np.zeros((0, 3)), None)
         if changes['tsdf_cloud']:
             messages.append((self.pub_tsdf_cloud, xyzrgb_to_cloud_msg(tsdf_xyz, tsdf_rgb, header)))
         if changes['preview_cloud']:
@@ -837,9 +864,13 @@ class ReconstructionCore:
         with self._state_lock:
             if key != self._publication_key():
                 self._products_force_publish = True
-                return
+                return False
             for publisher, message in messages:
+                if publish_guard is not None and not publish_guard():
+                    self._products_force_publish = True
+                    return False
                 publisher.publish(message)
+            return True
 
     def _shape_hypothesis_msg(self, header: Header) -> ShapeHypothesis:
         """由 refit 缓存组形状假设（几何+协方差占位，不含工具抓取量）."""

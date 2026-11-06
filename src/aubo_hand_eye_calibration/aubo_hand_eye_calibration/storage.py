@@ -152,8 +152,8 @@ def load_active_extrinsics(path=None):
     """
     读 active.yaml 的 wrist_from_camera_optical (4x4), 供 auto 档做 X0.
 
-    缺失/损坏/缺键一律抛 ValueError —— 名义 TF 已知偏约 10cm,
-    不能用于轨迹生成, 不做静默回退。
+    缺失/损坏/缺键会报错，不做 nominal 回退；文件/解析错误保留各自异常类型。
+    此入口用于 auto 视点生成，不与静态发布器的启动回退策略混用。
     """
     active = Path(path) if path else (
         default_storage_directory() / 'active.yaml')

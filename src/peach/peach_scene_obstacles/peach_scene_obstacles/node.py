@@ -1,5 +1,5 @@
 """
-peach_scene_obstacles 节点（薄壳）：订阅/TF/服务客户端，逻辑全在 core.
+peach_scene_obstacles 节点：订阅、快照调度、TF 与场景写入；几何滤除在 core.
 
 数据流：缓存最近一帧点云 + 累积已精化目标胶囊；Survey 完成触发
 （/peach/scene/obstacles_refresh，supervisor 发）后在工作线程一次性跑
@@ -66,7 +66,7 @@ class _SurveyFrame:
 
 
 class SceneObstaclesNode(Node):
-    """场景障碍快照服务（无状态转发，不进 lifecycle 名单）."""
+    """持有 Survey 体素和目标胶囊的场景障碍节点，不进 lifecycle 名单."""
 
     def __init__(self) -> None:
         """订阅/客户端/缓存初始化；触发经 0.5s 泵转工作线程."""

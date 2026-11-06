@@ -132,6 +132,7 @@ PARAM_WATCHLIST = {
         'persist_ledger',
     ],
 }
+_PARAM_REQUEST_TIMEOUT_S = 2.0
 
 
 def _parameter_scalar(value) -> object:
@@ -220,7 +221,8 @@ class ObservabilityNode(LifecycleNode):
         self._subs = []
         self._param_clients = {}
         self._param_timer = None
-        self._param_inflight = set()
+        self._param_lock = threading.Lock()
+        self._param_inflight = {}
         # 轮询定时器/参数服务回调与订阅回调共享再入组（触发状态镜像并发写）。
         self._cb = ReentrantCallbackGroup()
         # 重建镜像合并缓存：调试 JSON 明细（tsdf/registration/refined 等）与
@@ -247,6 +249,7 @@ class ObservabilityNode(LifecycleNode):
             'skill': '',
         }
         self._traj_run_id = ''
+        self._traj_target_id = ''
         self._joint_state = {}
         self._joint_status = {}
         self._force_sample = None
@@ -273,6 +276,9 @@ class ObservabilityNode(LifecycleNode):
         # 批次账本直播（runs/<request_id>/ledger.json；run_id==request_id）
         self._ledger_watch: pipeline.LedgerWatch | None = None
         self._ledger_request_id = ''
+        self._ledger_state_key: tuple | None = None
+        self._ledger_context_lock = threading.Lock()
+        self._ledger_refresh_lock = threading.Lock()
         # /diagnostics 双轨（W15：对齐 peach_arm W5 / vegetation 的做法）
         self._diag: Updater | None = None
         # /diagnostics 聚合防御计数（畸形条目跳过；节流告警）
@@ -301,7 +307,7 @@ class ObservabilityNode(LifecycleNode):
         self._ledger_watch = pipeline.LedgerWatch(runs_root)
         # 会话 bag 开启前先跑一次体积回收（超预算清最旧 bag，写审计）。
         # rglob 全部 bag 目录在 20GB 库下秒级阻塞 configure，挪后台线程；
-        # 与停栈报告线程的 sweep 极小概率并发删同一目录，失败侧跳过并告警
+        # 可与停栈报告子进程的 sweep 并发；已删除候选跳过，删除失败告警。
         self._sweep_thread = threading.Thread(
             target=retention.sweep,
             args=(runs_root, self._params.record_max_total_bag_gb),
@@ -315,6 +321,7 @@ class ObservabilityNode(LifecycleNode):
             on_info=lambda info: self._state.update('record', 'info', info),
             log_warning=lambda msg: self.get_logger().warning(msg),
             limit_perception_media=self._params.record_level != 'all')
+        self._state.set_record_info_source(self._recorder.info)
         self._spawn_startup_facts_writer(runs_root)
         if self._params.selfcheck_enabled:
             self._selfcheck = SelfCheckRunner(
@@ -341,8 +348,8 @@ class ObservabilityNode(LifecycleNode):
         self._web_streams = WebStreams(self)
         if self._selfcheck is not None:
             self._selfcheck.start()
-        # 全量录制（record.level 门控）：activate 后计算图已可见，通配
-        # 发现订阅域内全部话题自动进会话 bag；仿真复现/问题分析用
+        # activate 后按 record.level 发现固定写者之外的补充话题；
+        # std 用白名单，all 放开白名单，但均保留排除集及 Recorder 限速。
         if (self._recorder is not None and self._recorder.enabled
                 and self._params.record_level in ('all', 'std')):
             self._catch_all = CatchAllRecorder(
@@ -546,7 +553,7 @@ class ObservabilityNode(LifecycleNode):
 
     def _diagnostics_callback(self, message: DiagnosticArray) -> None:
         """
-        /diagnostics 聚合：按 hardware_id 归组为 {节点: {level, tasks}}.
+        /diagnostics 本帧按 hardware_id 归组，状态缓存按任务跨帧合并.
 
         防御式（2026-09-29 E2E 实锤）：本进程镜像订阅上 status.level 曾
         整体反序列化为 bytes（bag 侧同字节正常；疑 venv/系统 python 类型
@@ -563,12 +570,13 @@ class ObservabilityNode(LifecycleNode):
                 return raw.decode('utf-8', 'replace')
             return str(raw)
 
-        stamp_s = message.header.stamp.sec
+        stamp_s = (message.header.stamp.sec
+                   + message.header.stamp.nanosec * 1e-9)
         nodes: dict = {}
         for status in message.status:
             try:
                 level = as_int(status.level)
-                node = as_text(status.hardware_id) or 'unknown'
+                node = as_text(status.hardware_id)
                 tasks_values = {
                     as_text(item.key): as_text(item.value)
                     for item in status.values}
@@ -761,7 +769,7 @@ class ObservabilityNode(LifecycleNode):
 
     def _track_run_context(self, value: dict) -> None:
         """轨迹上下文与账本 run_id 跟随（换 run / 目标清空上一轮轨迹与路标）."""
-        previous_tid = str(self._traj_ctx.get('target_id') or '')
+        previous_tid = self._traj_target_id
         new_tid = str(value['target_id'] or '')
         self._traj_ctx['target_id'] = new_tid
         self._traj_ctx['phase'] = int(value['target_phase'] or 0)
@@ -771,14 +779,27 @@ class ObservabilityNode(LifecycleNode):
         if run_changed or target_changed:
             if run_changed:
                 self._traj_run_id = run_id
+                self._traj_target_id = ''
             if self._tcp_path is not None:
                 self._tcp_path.clear()
             self._traj_landmarks.clear()
             self._viz_bundle_sig = None
             self._last_marker_sig = None
+        if new_tid:
+            self._traj_target_id = new_tid
         # run_id 即账本目录名（supervisor：_run_id = goal.request_id）
-        if run_id:
+        terminal = (int(value.get('batch_state') or 0) in (6, 8)
+                    or int(value.get('target_phase') or 0) in (9, 10, 11))
+        key = (run_id, str(value.get('cycle_id') or ''), new_tid, terminal)
+        with self._ledger_context_lock:
+            previous = self._ledger_state_key
+            refresh = (previous is None or key[:3] != previous[:3]
+                       or (terminal and not previous[3]))
             self._ledger_request_id = run_id
+            self._ledger_state_key = key
+        # 身份切换或进入终态时立即读一次；心跳仍只走周期增量轮询。
+        if refresh:
+            self._refresh_ledger()
 
     def _track_fsm(self, message: HarvestState) -> None:
         """调度 FSM 时序：状态/相位/消息/使能任一变化记一条转移."""
@@ -827,47 +848,83 @@ class ObservabilityNode(LifecycleNode):
             for name in PARAM_WATCHLIST
         }
         # 服务未就绪时静默跳过（节点可能未启动），不刷错误日志
-        self._param_inflight = set()
+        with self._param_lock:
+            self._param_inflight.clear()
         self._param_timer = self.create_timer(
             self._params.param_poll_period_s, self._poll_params,
             callback_group=self._cb)
 
     def _poll_params(self) -> None:
-        """对就绪的参数服务发起异步查询（在途请求去重）+ 刷批次账本."""
-        for name, client in self._param_clients.items():
-            if name in self._param_inflight or not client.service_is_ready():
-                continue
-            request = GetParameters.Request()
-            request.names = list(PARAM_WATCHLIST[name])
-            self._param_inflight.add(name)
-            future = client.call_async(request)
+        """有界查询参数；过期请求撤下后重试，迟回只认当前请求身份."""
+        callbacks = []
+        with self._param_lock:
+            for name, client in self._param_clients.items():
+                pending = self._param_inflight.get(name)
+                if pending is not None:
+                    old_client, old_future, deadline = pending
+                    if time.monotonic() < deadline:
+                        continue
+                    del self._param_inflight[name]
+                    old_client.remove_pending_request(old_future)
+                if not client.service_is_ready():
+                    continue
+                request = GetParameters.Request()
+                request.names = list(PARAM_WATCHLIST[name])
+                try:
+                    future = client.call_async(request)
+                except (RuntimeError, rclpy.exceptions.RCLError):
+                    continue
+                self._param_inflight[name] = (
+                    client, future, time.monotonic() + _PARAM_REQUEST_TIMEOUT_S)
+                callbacks.append((name, future))
+        # 已完成的 future 可立即执行 callback，不能在参数锁内注册。
+        for name, future in callbacks:
             future.add_done_callback(
                 lambda fut, node_name=name: self._on_params(node_name, fut))
         self._refresh_ledger()
 
     def _refresh_ledger(self) -> None:
-        """账本直播：mtime 变化才刷镜像（run_id 即 request_id）."""
-        if self._ledger_watch is None:
+        """增量读账本；并发刷新不等待，迟回不能写入另一批的镜像."""
+        if not self._ledger_refresh_lock.acquire(blocking=False):
             return
-        payload = self._ledger_watch.refresh(self._ledger_request_id)
-        if payload is not None:
-            self._state.update('ledger', 'live', payload)
+        try:
+            with self._ledger_context_lock:
+                watch = self._ledger_watch
+                request_id = self._ledger_request_id
+            if watch is None:
+                return
+            payload = watch.refresh(request_id)
+            with self._ledger_context_lock:
+                if (payload is not None and watch is self._ledger_watch
+                        and request_id == self._ledger_request_id):
+                    self._state.update('ledger', 'live', payload)
+                elif payload is not None:
+                    # 未提交的签名不能阻止 A→B→A 后重新读回 A。
+                    watch.invalidate()
+        finally:
+            self._ledger_refresh_lock.release()
 
     def _on_params(self, node_name: str, future) -> None:
-        """落参数镜像到状态缓存；异常仅降级为空镜像."""
-        self._param_inflight.discard(node_name)
-        try:
-            response = future.result()
-        except (RuntimeError, rclpy.exceptions.RCLError):
-            return
-        if response is None:
-            return
-        values = {
-            name: _parameter_scalar(value)
-            for name, value in zip(
-                PARAM_WATCHLIST[node_name], response.values)
-        }
-        self._state.update_params(node_name, values)
+        """仅当前且未过期的响应可提交；旧请求不能清除新请求或污染镜像."""
+        with self._param_lock:
+            pending = self._param_inflight.get(node_name)
+            if pending is None or pending[1] is not future:
+                return
+            del self._param_inflight[node_name]
+            if time.monotonic() >= pending[2]:
+                return
+            try:
+                response = future.result()
+            except (RuntimeError, rclpy.exceptions.RCLError):
+                return
+            if response is None:
+                return
+            values = {
+                name: _parameter_scalar(value)
+                for name, value in zip(
+                    PARAM_WATCHLIST[node_name], response.values)
+            }
+            self._state.update_params(node_name, values)
 
     # ------------------------------------------------------------------
     # 性能采样：独立线程写 state，绝不占用 ROS 回调线程
@@ -988,7 +1045,7 @@ class ObservabilityNode(LifecycleNode):
             'phase': self._traj_ctx['phase'],
             'skill': self._traj_ctx['skill'],
         })
-        # 轨迹经 /tf 全量进会话 bag，报告侧离线重算；此处只驱动 Web/RViz
+        # /tf 按记录器控制流限速进 bag，报告侧离线重算；此处驱动 Web/RViz。
         self._publish_tcp_summary()
         self._maybe_publish_tcp_viz(force=kept is not None)
 
@@ -1159,19 +1216,31 @@ class ObservabilityNode(LifecycleNode):
         return stat
 
     def _diag_recorder(self, stat) -> object:
-        """会话录制健康：丢帧>0 报 WARN（盘速掉队），否则 OK."""
+        """打开/写入/封口错误报 ERROR；队列丢帧与尚未打开报 WARN."""
         info = self._recorder.info() if self._recorder is not None else {}
         if not info.get('enabled'):
             stat.summary(DiagnosticStatus.OK, 'record disabled by config')
+        elif info.get('open_failed'):
+            stat.summary(DiagnosticStatus.ERROR, 'bag open failed; not recording')
+        elif info.get('write_errors', 0) > 0:
+            stat.summary(
+                DiagnosticStatus.ERROR, f"bag write errors={info['write_errors']}")
+        elif info.get('close_error'):
+            stat.summary(DiagnosticStatus.ERROR, f"bag close failed: {info['close_error']}")
         elif info.get('drops', 0) > 0:
             stat.summary(
                 DiagnosticStatus.WARN,
                 f"bag queue drops={info['drops']} (disk behind, oldest dropped)")
+        elif not info.get('directory'):
+            stat.summary(DiagnosticStatus.WARN, 'waiting for bag open')
         else:
             stat.summary(DiagnosticStatus.OK, 'recording')
         stat.add('queue_size', str(info.get('queue_size')))
         stat.add('queue_depth', str(info.get('queue_depth')))
         stat.add('drops', str(info.get('drops', 0)))
+        stat.add('open_failed', str(info.get('open_failed', False)))
+        stat.add('write_errors', str(info.get('write_errors', 0)))
+        stat.add('close_error', str(info.get('close_error', '')))
         stat.add('session', str(info.get('session')))
         return stat
 
@@ -1594,10 +1663,14 @@ class ObservabilityNode(LifecycleNode):
         for sub in self._subs:
             self.destroy_subscription(sub)
         self._subs.clear()
-        for client in list(self._param_clients.values()):
+        with self._param_lock:
+            for client, future, _ in self._param_inflight.values():
+                client.remove_pending_request(future)
+            self._param_inflight.clear()
+            clients = list(self._param_clients.values())
+            self._param_clients.clear()
+        for client in clients:
             self.destroy_client(client)
-        self._param_clients.clear()
-        self._param_inflight.clear()
         if self._param_bridge is not None:
             self._param_bridge.close()
             self._param_bridge = None
@@ -1607,8 +1680,10 @@ class ObservabilityNode(LifecycleNode):
         self._debug_audit = None
         self._fsm_tracker.reset()
         self._arm_tracker.reset()
-        self._ledger_watch = None
-        self._ledger_request_id = ''
+        with self._ledger_context_lock:
+            self._ledger_watch = None
+            self._ledger_request_id = ''
+            self._ledger_state_key = None
         for attribute in ('_job_pub', '_metrics_pub'):
             publisher = getattr(self, attribute)
             if publisher is not None:
@@ -1633,7 +1708,10 @@ class ObservabilityNode(LifecycleNode):
         recorder, self._recorder = self._recorder, None
         if recorder is None:
             return None
-        return recorder.close()
+        try:
+            return recorder.close()
+        finally:
+            self._state.update('record', 'info', recorder.info())
 
     def _spawn_report(self, bag_dir) -> None:
         """封口后启动独立分析进程，重活不得阻止 ROS 节点退出."""
@@ -1683,7 +1761,7 @@ class ObservabilityNode(LifecycleNode):
 
 
 def main(args=None):
-    """运行 ROS 与只读 HTTP 监控；HTTP 在 Lifecycle Active 后才监听."""
+    """运行 ROS 观测与 HTTP 调试服务；HTTP 在 Lifecycle Active 后才监听."""
     rclpy.init(args=args)
     node = ObservabilityNode()
     executor = MultiThreadedExecutor(num_threads=2)

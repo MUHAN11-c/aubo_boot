@@ -302,14 +302,25 @@ async function testMonitor(page) {
 }
 
 async function testDebug(page) {
+  let watchDraft = false;
+  let draftWrites = 0;
+  const watchSocket = (socket) => socket.on("framesent", ({payload}) => {
+    if (!watchDraft) return;
+    let frame;
+    try { frame = JSON.parse(String(payload)); } catch (_) { return; }
+    const readParameters = /\/(list_parameters|get_parameters|describe_parameters|get_parameter_types)$/.test(frame.service || "");
+    if (frame.op === "send_action_goal" || frame.op === "publish"
+      || (frame.op === "call_service" && !readParameters)) draftWrites += 1;
+  });
+  page.on("websocket", watchSocket);
   await goto(page, "debug");
   await waitOnline(page);
   await page.waitForFunction(() => document.querySelectorAll(".param-row").length > 0, null, {timeout: 10000});
   assert((await page.locator(".debug-chip").count()) >= 5, "gate chips missing");
   assert((await page.locator(".target-pick button[data-target]").count()) > 0, "targets missing");
-  let draftPosts = 0;
-  const onDraftRequest = (request) => { if (request.method() === "POST") draftPosts += 1; };
+  const onDraftRequest = (request) => { if (watchDraft && request.method() === "POST") draftWrites += 1; };
   page.on("request", onDraftRequest);
+  watchDraft = true;
   const reconstructionBefore = await page.locator("#reconstruction").isChecked();
   await page.locator("#test-profile").selectOption("full");
   await page.locator("#test-load").click();
@@ -317,10 +328,12 @@ async function testDebug(page) {
   assert(!(await page.locator("#tl").isChecked())
     && await page.locator("#reconstruction").isChecked() === reconstructionBefore,
   "recipe changed tool/reconstruction selection");
-  assert(draftPosts === 0, "recipe selection wrote to backend");
+  assert(draftWrites === 0, "recipe selection wrote to backend");
   await page.locator("#test-profile").selectOption("observe");
   await page.locator("#test-load").click();
   assert(!(await page.locator("#ex").isChecked()), "observation recipe enabled execution");
+  assert(draftWrites === 0, "observation recipe selection wrote to backend");
+  watchDraft = false;
   page.off("request", onDraftRequest);
 
   // Parameters read, no-op apply.
@@ -330,7 +343,12 @@ async function testDebug(page) {
   const ordinal = page.locator('.param-row[data-name="selection_priority"] input');
   await ordinal.fill("1.5");
   await page.locator("#params-apply").click();
-  await page.waitForFunction(() => document.querySelector("#params-note")?.textContent.includes("必须是整数"));
+  await page.waitForFunction(() => {
+    const input = document.querySelector('.param-row[data-name="selection_priority"] input');
+    const note = document.querySelector("#params-note")?.textContent || "";
+    return input?.getAttribute("aria-invalid") === "true"
+      && note.includes("selection_priority") && note.includes("整数");
+  });
   const original = await ordinal.locator("..").locator("..").getAttribute("data-orig");
   await ordinal.fill(original);
   await page.locator("#params-changed").check();
@@ -695,8 +713,8 @@ async function main() {
 
   try {
     assert(["http", "rosbridge"].includes(TRANSPORT), "--transport must be http or rosbridge");
-    assert(TRANSPORT !== "rosbridge" || ["harvest", "responsive", "a11y"].includes(ONLY),
-      "Use --only harvest --harvest, --only responsive or --only a11y with ROSbridge; HTTP fixtures require --transport http");
+    assert(TRANSPORT !== "rosbridge" || ["harvest", "debug", "responsive", "a11y"].includes(ONLY),
+      "Use --only harvest --harvest, --only debug, --only responsive or --only a11y with ROSbridge; HTTP fixtures require --transport http");
     assert(!ONLY || [...Object.keys(PAGE_PATHS), "a11y", "responsive", "harvest"].includes(ONLY),
       `Unknown --only target: ${ONLY}`);
     assert(ONLY !== "harvest" || RUN_HARVEST, "--only harvest requires --harvest");

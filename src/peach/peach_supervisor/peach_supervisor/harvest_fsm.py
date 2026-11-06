@@ -160,7 +160,7 @@ class Command:
     SELECT = 'select'
     """从锁定集选下一颗."""
     DISPATCH = 'dispatch'
-    """派观察周期（OBSERVE_ONLY）."""
+    """启动目标建模分支；按参数并行派臂、串行补视或跳过重建."""
     EXECUTE_FULL = 'execute_full'
     """派 ExecuteTarget FULL 或 PREGRASP_ONLY."""
     RECORD_DISABLED = 'record_disabled'
@@ -291,13 +291,13 @@ def apply_event(phase: int, event: str, paused: bool) -> Reaction:
 
 @dataclass
 class EventHold:
-    """暂停期间暂存第一条非 NONE 命令，恢复时只释放一次."""
+    """暂停期间暂存非 NONE 命令；不同事件可替换待派命令，恢复时只取一次."""
 
     pending: Optional[Reaction] = None
     pending_event: Optional[str] = None
 
     def apply_event(self, phase: int, event: str, paused: bool) -> Reaction:
-        """Paused hold records the first non-NONE command once."""
+        """暂存非 NONE 命令；同一事件不重复覆盖已有待派命令."""
         hit = react(phase, event)
         if paused:
             if (hit.command != Command.NONE

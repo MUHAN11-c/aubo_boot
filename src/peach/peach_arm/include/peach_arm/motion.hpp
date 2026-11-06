@@ -1,5 +1,5 @@
 // 功能：MoveIt 运动接口（唯一实现，节点直接构造）。TF 查询 + 规划/执行；
-// 真实下发前必须过注入的安全门回调（TRANSIT 级底座：Active ∧ robotReady，
+// 真实下发前必须过注入的安全门回调（TRANSIT：Active ∧ robotReady ∧ execution ∧ ¬cancel，
 // 见 cycle_support.hpp；CONTACT/TOOL 级在阶段函数与 GraspTask 门加查）。
 #ifndef PEACH_MANIPULATION__MOTION_HPP_
 #define PEACH_MANIPULATION__MOTION_HPP_
@@ -8,6 +8,7 @@
 #include <atomic>
 #include <moveit/move_group_interface/move_group_interface.hpp>
 #include <moveit/utils/moveit_error_code.hpp>
+#include <moveit_msgs/srv/get_planning_scene.hpp>
 #include <tf2_ros/buffer.h>
 
 #include <functional>
@@ -73,9 +74,9 @@ struct MoveItMotionConfig
 };
 
 // MoveIt 运动接口：tip/camera 位姿规划执行、TF 查询、拍照位往返。
-// 生命周期：节点持有（unique_ptr<MoveItMotionInterface>）；本对象不拥有
-//   MoveGroup/TF Buffer，仅引用节点持有的实例，析构先于它们发生由节点保证。
-// 线程安全：与节点既有同步模型一致（周期运行独占调用），内部不新增线程。
+// 生命周期：节点独占本接口；MGI 由 shared_ptr 保活，TF Buffer 是节点拥有的借用指针。
+// 线程安全：上层命令席位保证串行调用；有界执行在内部 worker 运行，弃等时
+// 仅保留自身的 MGI/Plan 共享资源，不引用调用栈或本接口。
 // 安全门经回调注入（I5 不得旁路）：所有 execute 路径下发前必须复核；
 // safety_block_hook 在执行被安全门拦下时由节点投影状态（可为空）。
 class MoveItMotionInterface
@@ -87,6 +88,7 @@ public:
     rclcpp::Logger logger,
     rclcpp::Clock::SharedPtr clock,
     MoveItMotionConfig config,
+    rclcpp::Client<moveit_msgs::srv::GetPlanningScene>::SharedPtr planning_scene_client,
     std::function<bool(bool execute, std::string &)> safety_gate,
     std::function<void(const std::string &)> safety_block_hook,
     std::function<bool()> cancel_probe = {});
@@ -120,14 +122,15 @@ public:
 
   // 移动到 SRDF 命名状态（拍照位姿）：有「拍照位→预抓取」接近轨迹且当前
   // 关节在其终点时，原路返程（不新规划 PTP、不过 transit 6 rad——返程行程
-  // 等于已过门的接近）。否则先 Pilz PTP，失败回退 OMPL。execute=false 时
+  // 等于已过门的接近）。有缓存但端点不符即拒绝；无缓存才先 Pilz PTP，
+  // 失败回退 OMPL。execute=false 时
   // 仅规划，仍核当前关节。真实下发前必须复核硬件安全门。成功出口 atNamedTarget。
   bool goToPhotoPose(
     const std::string & named_target, bool execute, std::string & message);
 
-  // 记录刚执行成功、且从拍照位出发的接近轨迹，供下次回拍照位原路返程。
-  void rememberPhotoApproach(trajectory_msgs::msg::JointTrajectory trajectory);
-  void appendPhotoApproach(trajectory_msgs::msg::JointTrajectory trajectory);
+  // 保留刚执行成功的接近段边界；返程反序逐段执行，各自复检同一执行预算。
+  void rememberPhotoApproach(std::vector<trajectory_msgs::msg::JointTrajectory> trajectories);
+  void appendPhotoApproach(std::vector<trajectory_msgs::msg::JointTrajectory> trajectories);
   void clearPhotoApproach();
 
 private:
@@ -143,22 +146,26 @@ private:
     const std::vector<double> & positions) const;
   bool reverseLastApproachToPhoto(
     const std::string & named_target, std::string & message);
+  bool validateReplayTrajectory(
+    const moveit::planning_interface::MoveGroupInterface::Plan & plan, std::string & reason);
   // 有界执行：见 src/execution_guard.hpp（弃等线程移交 retiring_，闭包只
   // 持共享 MGI 与 Plan 拷贝，绝不引用 this）。
   moveit::core::MoveItErrorCode boundedExecute(
-    moveit::planning_interface::MoveGroupInterface::Plan & plan, std::string & rejection);
+    moveit::planning_interface::MoveGroupInterface::Plan & plan, std::string & rejection,
+    const std::string & audit_label);
   std::shared_ptr<moveit::planning_interface::MoveGroupInterface> move_group_shared_;
   moveit::planning_interface::MoveGroupInterface * move_group_;
   tf2_ros::Buffer * tf_buffer_;
   rclcpp::Logger logger_;
   rclcpp::Clock::SharedPtr clock_;
   MoveItMotionConfig config_;
+  rclcpp::Client<moveit_msgs::srv::GetPlanningScene>::SharedPtr planning_scene_client_;
   std::function<bool(bool execute, std::string &)> safety_gate_;
   std::function<void(const std::string &)> safety_block_hook_;
   std::function<bool()> cancel_probe_;
   std::unique_ptr<RetireBucket> retiring_;  // 弃等线程桶（execution_guard.hpp，src/ 私有头）
   std::atomic_int executing_{0};  // 有界执行在途计数（0=可安全重建 motion_）
-  std::optional<trajectory_msgs::msg::JointTrajectory> last_photo_approach_;
+  std::vector<trajectory_msgs::msg::JointTrajectory> last_photo_approach_parts_;
 };
 
 }  // namespace peach_arm

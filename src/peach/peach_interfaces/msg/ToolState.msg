@@ -1,6 +1,7 @@
 # 末端工具三轴状态（批次3，2026-09-23 重构；FINAL_PLAN §7.2/§12）。
 # 三轴独立观测、各自 UNKNOWN 优先；刀闭合 ≠ 果柄分离（L86 红线）。
-# 发布：/peach_arm/tool_state（peach_arm，on-change + 1Hz 心跳，latched）。
+# 发布：/peach_arm/tool_state（peach_arm，latched）；当前在有效 DI 新沿或开刀释放时发布。
+# 当前无周期心跳；last_edge_stamp 与 tool_serial 尚未填充。
 std_msgs/Header header
 
 # 刀轴：BLADE_CLOSED 只证明机构闭合。

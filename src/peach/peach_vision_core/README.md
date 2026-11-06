@@ -1,6 +1,8 @@
 # peach_vision_core
 
-Peach pure vision core: geometry, runtime, domain.
+感知与重建共用的视觉算法库：几何、袋关键点、工具预算、模型合同，以及注入时钟、worker 和事件落盘；不提供 ROS 节点或 console script。
+
+模块分工见 [架构](doc/architecture.md)，数值单位、预算能力与运行时 API 边界见 [接口](doc/io.md)。以下保留关键算法边界与历史对照口径。
 
 感知和重建共用 `normalize_depth_to_uint16_mm`。对 uint16 输入，只对有效测距应用
 `depth_scale_unit`，原始值 0 与 65535 均保留为无效深度；对浮点输入按米换算为毫米。
@@ -8,3 +10,22 @@ Peach pure vision core: geometry, runtime, domain.
 挂袋长轴：`bag_landmarks._long_axis` 在点云 PCA 各向异性不足（s0/s1 小于 1.2）或
 相对逆重力超过 45° 时回退重力先验。自由悬垂时剪影宽度不是袋轴；18 图案月牙
 可把 SVD 主方向拧到侧面（台架袋2 官方 +65° 对 stereo 重力 +7°）。
+
+`estimate_bag_landmarks` 保留上述资格参考以及显式 `axis_hint` 的原有行为。
+感知可另外调用 `condition_bag_landmarks`：只对本曝光的退化参考，用当前点云
+PCA/逆重力连续构造方向，再沿该方向重新取截面、投影端点到同一中心线。
+各向异性权重在 1.0–1.2 间平滑增加；超过 45° 后，方向权重在 45–90° 间
+平滑退到零。此权重是几何构造参数，不是已标定的正确率或方向精度。
+
+条件参考保留 `axis_from_gravity_prior`，增加 `axis_conditioned_from_current_cloud`，
+轴误差代理至少 20°，直径取原参考与条件参考的较大值。调用方必须以原同曝光的
+完整资格作为下限，不能用更小的条件包络或连续外观解除 REOBSERVE/REJECT。
+这里保留的是直径/净空标量，不是新旧轴线、中心和端点所定义空间包络的并集。
+此函数不缓存身份、时间戳、前帧几何或许可；辅助球拟合结果只复用同曝光原参考。
+重建继续调用原 `estimate_bag_landmarks`，不自行采用条件参考。
+但感知发布的退化候选仍可作为重建的当前轴 hint/ROI 中心，因此“显式 hint
+算法逐值不变”不表示弱轴目标的重建输入或最终模型不变，须走原重建质量门复验。
+
+球/圆柱 RANSAC 对整数种子复用确定性采样索引：LRU 最多 32 项，键包含点数、迭代预算、每假设采样数、种子及粗排点数预算。缓存数组只读；只缓存 `max_iter <= 1024` 的整型预算，按当前 512 点粗排与最多 4 点假设，索引数组总量上限约 1.13 MiB。点云、法线、候选和拟合结果不进入缓存；每次仍用当次完整输入拟合/打分。
+
+`None`、Generator、SeedSequence、序列种子和更大迭代预算不缓存，保持原 RNG 消耗顺序。冷缓存同样先抽粗排索引再抽假设，1 点用 `integers`、2/4 点用逐假设无放回 `choice`；原始边界检查、临界标量复算、候选顺序、内点和误差门均不变。numpy 固定 1.26.4 的离线同输入对照保留在 `runs/peach_optimization_20261105/reports/perception/`。

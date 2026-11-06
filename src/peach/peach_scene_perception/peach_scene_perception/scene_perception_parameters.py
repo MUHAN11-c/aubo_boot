@@ -210,7 +210,7 @@ class peach_scene_perception_node:
                     self.logger_.debug(param.name + ": " + param.type_.name + " = " + str(param.value))
 
                 if param.name == self.prefix_ + "sync_slop_s":
-                    validation_result = ParameterValidators.gt_eq(param, 0.0)
+                    validation_result = ParameterValidators.gt(param, 0.0)
                     if validation_result:
                         return SetParametersResult(successful=False, reason=validation_result)
                     updated_params.sync_slop_s = param.value
@@ -570,9 +570,9 @@ class peach_scene_perception_node:
                 self.node_.declare_parameter(self.prefix_ + "depth_scale_unit", parameter, descriptor)
 
             if not self.node_.has_parameter(self.prefix_ + "sync_slop_s"):
-                descriptor = ParameterDescriptor(description=r"sync_slop_s", read_only = False)
+                descriptor = ParameterDescriptor(description=r"RGB-D sync tolerance; strictly positive, restart required", read_only = True)
                 descriptor.floating_point_range.append(FloatingPointRange())
-                descriptor.floating_point_range[-1].from_value = 0.0
+                descriptor.floating_point_range[-1].from_value = (0.0 + sys.float_info.epsilon)
                 descriptor.floating_point_range[-1].to_value = float('inf')
                 parameter = updated_params.sync_slop_s
                 self.node_.declare_parameter(self.prefix_ + "sync_slop_s", parameter, descriptor)
@@ -954,7 +954,7 @@ class peach_scene_perception_node:
             updated_params.depth_scale_unit = param.value
             param = self.node_.get_parameter(self.prefix_ + "sync_slop_s")
             self.logger_.debug(param.name + ": " + param.type_.name + " = " + str(param.value))
-            validation_result = ParameterValidators.gt_eq(param, 0.0)
+            validation_result = ParameterValidators.gt(param, 0.0)
             if validation_result:
                 raise InvalidParameterValueException('sync_slop_s',param.value, 'Invalid value set during initialization for parameter sync_slop_s: ' + validation_result)
             updated_params.sync_slop_s = param.value

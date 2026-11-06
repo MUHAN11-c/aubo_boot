@@ -1,6 +1,6 @@
-# peach_scene_obstacles 全量参数（决策 0024：yaml 直读 attach，本文件即部署事实源）。
-# 节点为无状态快照服务（不进 lifecycle 名单）；改参重启生效。
-# 机制见 vision/scene_obstacles/core.py 头注释：Survey 快照式建图（2026-09-29
+# peach_scene_obstacles 部署参数；声明/约束由 scene_obstacles_parameters.yaml 生成 GPL。
+# 普通 Node（不进 lifecycle）；enabled 等逐次读取，滤除参数在下一次 Survey 冻结。
+# 机制见 peach_scene_obstacles/core.py 头注释：Survey 快照式建图（2026-09-29
 # 裁定：不用 octomap、障碍=场景碰撞对象、建图/作业分离、避障只为保护相机）。
 peach_scene_obstacles:
   ros__parameters:

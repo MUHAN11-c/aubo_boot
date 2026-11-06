@@ -1,82 +1,52 @@
 # serial_force 架构
 
-## 职责
+## 职责与入口
 
-USB 串口五点力传感器驱动：把咬合末端 IMS-C04A 五片薄膜力敏电阻的 0xA5 帧
-解析为 SI 牛顿、力等效毫米、原始 AD 与通道状态，发布 `/force/*`；附带一个
-只读调试页 `8090 force page`，用于实时 5 点/CoP 观察和接触段记录。
+本包包含五点串口力驱动、同接口虚拟平面力源，以及独立 CoP 对中实验/离线分析工具。`setup.py` 的现行 console scripts 为 `serial_force_node`、`force_sim_node`、`force_cop_control`、`force_cop_trials`、`force_cop_analyze`。
 
-- **不是** lifecycle 节点，不进 `peach_lifecycle_manager` 名单；
-- **不是** 控制/许可节点：不参与抓取授权、不发运动、不写 PlanningScene；
-- 力值只用于显示、记录和离线分析；闭环力对准在独立包 `serial_force`。
+`serial_force.launch.py source:=serial|sim` 互斥选择一个力源，默认 serial；两种源的节点名都是 `serial_force`，均非 lifecycle。采摘整栈在 `force_enabled=true` 时只 include 默认串口源，不调用 CoP 控制工具。主链不根据力值授予运动许可。
 
 ## 源码地图
 
-| 文件 | 作用 |
+| 文件 | 当前职责 |
 |---|---|
-| `serial_force/force_node.py` | ROS 节点：串口重连、100 Hz 定时读、发布 `/force/sample` 与四个兼容 array、`/diagnostics` |
-| `serial_force/force_protocol.py` | 纯 Python：0xA5 32 字节切帧/校验/解码，克→牛，行程 0.1 mm/LSB |
-| `serial_force/force_status.py` | 纯 Python：按 AD + 行程分 OK / SATURATED / OPEN / INVALID |
-| `serial_force/force_episode.py` | 纯 Python：接触段状态机；起段/封口与 `peach_common.recording_session` 会话绑定 |
-| `serial_force/8090 force page.py` | 调试 HTTP/SSE 服务；只订 `/force/sample`，不碰串口 |
-| `web/8090 force page.html` | 页面：5 点、CoP、盘面/整机、回放、20 s 记录 |
-| `web/face_*.png` | 与 URDF 同一 visual STL 的 220/72 mm 底图 |
-| `tools/` | 一次性资产生成器（渲染底图、五点核对图），不随节点运行 |
+| `serial_force/force_node.py` | 独占串口、非阻塞轮询/重连、解码、原子帧与四个 array 发布、诊断 |
+| `serial_force/force_protocol.py` | 零 ROS 的 0xA5 32 字节切帧/校验/解码、克转牛顿 |
+| `serial_force/force_status.py` | AD 与力等效行程联合判 OK/SATURATED/OPEN/INVALID |
+| `serial_force/force_sim_node.py` | 按 base_link→tcp TF、冻结虚拟平面与线性弹簧生成同契约力帧 |
+| `serial_force/force_sim_common.py` | CoP、五点几何、关节顺序、实验 HOME 与旋转函数 |
+| `serial_force/cop_control.py`、`cop_trials.py` | 独立 CoP→IK→JTC 实验；非 harvest_system 授权链的一部分 |
+| `serial_force/cop_analysis.py` | 实验 JSONL 转 CSV、Markdown 与图；不运行 ROS |
+| `tools/`、`web/face_*.png` | 开发期 CAD 底图生成器及原图；运行页面在 peach_web |
+
+旧 `force_episode.py` 没有现行入口或调用方，已与旧文档一起移入工作区 `_archive/source_docs_2026-11-06/`。历史 `force/episode_*.csv/json` 的读取兼容由 observability 保留；当前源码没有自动生成这些分段文件的写者。
 
 ## 数据流
 
 ```text
-/dev/force --115200--> force_node
-  A5 帧 -> force_protocol.decode_force_frame
-        -> ForceFrame(grams, travel_mm, ad)
-        -> force_status.classify -> status[5]
-        -> /force/sample (原子帧) + /force/points|travel|ad|status
-                                   |
-                              8090 force page
-                                   |
-                  SSE /stream + /record/* + /episodes*
-                                   |
-                  runs/session_*/force/episode_NNN.{csv,json}
+/dev/force → 200 Hz 非阻塞串口轮询 → 约 100 Hz 固件帧
+          → force_protocol → force_status
+          → /force/sample + /force/{points,travel,ad,status}
+                                      ↓
+            peach_observability → 同一会话 MCAP / web_force / HTTP /api/force
+                                      ↓
+                         peach_web /force.html（只读）
+
+base_link→tcp → force_sim_node → 同名 /force/*（独立实验时替代串口源）
 ```
 
-`/force/sample` 是唯一完整帧来源；`8090 force page` 不按不同 array 话题的到达顺序拼帧。
-`/force/points` 等四个 array 保留给既有消费者（调度、仿真、分析页）。
+串口轮询周期 `read_period_s=0.005 s` 即 200 Hz，不等于采样率；采集板约 100 Hz 主动上报，一个轮询可解析多帧。`ForceSample.header.stamp` 是主机 ROS 接收/解码时刻，固件没有可恢复的采样时间。原子消息绑定源 UUID、序号、通道号、N/mm/AD/status；不能按不同 array 的到达次序拼帧。
 
-## 进程与启动
+## 显示与记录
 
-- `ros2 launch serial_force serial_force.launch.py`：只起驱动；
-- `ros2 launch serial_force 8090 force page.launch.py`：只起调试页（可与驱动并行）；
-- `peach_bringup real_web.launch.py` include 本包的 `8090 force page.launch.py`，
-  由 `8090 force page_port` 控制端口；`harvest_system.launch.py` 只 include 驱动。
+[peach_web](../../peach/peach_web/README.md) 提供 `/force.html`，由 [peach_observability](../../peach/peach_observability/doc/io.md) 托管 HTTP/API 与 ROSbridge 聚合状态。力页展示五点、通道状态和 CoP；本包不提供第二套 HTTP/SSE、`/record/*`、`/episodes*` 或手动 20 秒记录端点。
 
-一个串口只能有一个拥有者：`serial_force_node` 用 `serial.Serial(..., exclusive=True)`
-打开 `/dev/force`；不要在整栈之外再起第二个节点。`8090 force page` 只订话题，不受此限。
-
-## 会话与记录
-
-`8090 force page` 只在**当前仍在写的采摘会话** `runs/session_*/` 下写 `force/`：
-
-- 自动接触段：合力 ≥ `ONSET_N`（0.15 N）开始，回到 < `RELEASE_N`（0.08 N）
-  并稳住 `RELEASE_HOLD_S`（0.35 s）封口；180 s 未归零按 `max_duration` 封口；
-- 断流、源 UUID 变化、会话关闭、退出分别以明确 reason 封口，不伪称 `returned`；
-- 每帧先 append `.partial.jsonl`，内存行集完成后原子写 `episode_NNN.csv` + `.json`，
-  再 append `index.jsonl`；异常退出后下次 `8090 force page` 只恢复到原目录；
-- 手动 20 s 记录写 `force_20s_<stamp>_<id>.csv`，同一目录；
-- 起段时绑定唯一 `state=active` 的 `session.json` 写者；没有活会话就不自动记，
-  手动请求明确拒绝；已有段不挪入后来会话。
+observability 订阅 `/force/sample`，core/std/all 录制档均将原子帧写入会话 bag。分析页可读取旧接触段 sidecar；有 bag 不代表已经生成接触段。CoP 实验工具另将结果默认写到 `$ROS_HOME/serial_force/`，它不是采摘会话录制器。
 
 ## 并发与失败
 
-- `serial_force_node`：单 executor；串口打开失败每 2 s 重试；读失败关口后重连；
-  解析失败丢字节重扫，不阻塞定时器；
-- `8090 force page`：HTTP 线程 + ROS spin 线程 + `_lock`/`_flush_lock`；SSE 每 0.1 s
-  推快照；每个 runs 根一个 `.8090 force page.lock`，防两个 web 进程抢同一段号；
-- 串口/帧率异常走 `/diagnostics`（`serial` + `/force/points` 频率窗 0.6–1.4×）；
-- 6.0 mm 是合法满量程也是断线哨兵：由 AD 区分，不能只看 mm。
+串口节点使用单 executor；`serial.Serial(..., timeout=0, exclusive=True)` 保证非阻塞与单拥有者。打开失败按 2 秒间隔重试候选端口，读失败关闭后重连。解析失败跳字节重扫；诊断按配置帧率检查，OPEN 警告节流，SATURATED 是可表示的饱和状态。
 
-## 边界
+仿真源每 0.01 秒查询最新 tcp TF；缺 TF 时不发布，首次有效 TF 冻结平面。它不打开串口，也不具备真实力学、固件状态或主链执行授权的等价性。CoP 工具会直接调用 IK/JTC，只供明确授权的独立 mock 实验；单独运行不会自动继承臂侧 ExecutionAuthority。
 
-不负责采摘调度、MoveIt、底盘、IMU、力闭环。`8090 force page` 是调试客户端，
-不是第二控制面；它不能 SetIO、不能使能、不能绕过臂侧 `ExecutionAuthority`。
-绝对力未做砝码标定，`travel_mm` 是力等效而非独立位移；详见
-[validation.md](validation.md) 与 [hardware.md](hardware.md)。
+6.0 mm 同时可能表示满量程和断线，必须结合 AD 分类。绝对力未做砝码标定，`travel_mm` 是力等效量。点位、协议及限制见 [geometry.md](geometry.md)、[io.md](io.md)、[validation.md](validation.md)；历史仿真实验见 [doc/sim](sim/README.md)。

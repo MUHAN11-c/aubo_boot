@@ -387,14 +387,13 @@ def _cycle_stages(item: dict) -> list[dict]:
 
 
 def _geometry_for(geometry: list[dict], batch, target: str) -> dict | None:
-    fallback = None
+    """Join exact batch/target identities; unscoped legacy rows match each other."""
     for row in geometry:
         if str(row.get('target_id') or '') != target:
             continue
-        fallback = row
         if str(row.get('batch') or '') == str(batch or ''):
             return row
-    return fallback
+    return None
 
 
 def _fruits(outcomes: list[dict], frames: dict, geometry: list[dict]) -> list[dict]:
@@ -479,11 +478,17 @@ def _report_round_roots(record: Path) -> list[Path]:
     for item in report.get('rounds') or []:
         if not isinstance(item, dict):
             continue
-        request_id = str(item.get('request_id') or '')
+        request_id = str(item.get('request_id') or '').strip()
         if not request_id or record.parent is None:
             continue
-        candidate = record.parent / request_id
-        if candidate.is_dir():
+        # A request ID names one sibling directory, never an arbitrary path.
+        if request_id in ('.', '..') or '/' in request_id or '\\' in request_id:
+            continue
+        try:
+            candidate = _under(record.parent, request_id)
+        except ValueError:
+            continue
+        if candidate != record.parent.resolve() and candidate.is_dir():
             roots.append(candidate)
     return roots
 
@@ -744,7 +749,7 @@ def _centers(geometry: list[dict], outcomes: list[dict]) -> list[dict]:
 
 _FORCE_SLACK_S = 1.5
 _FORCE_CHANNELS = ('f1', 'f2', 'f3', 'f5', 'f7')
-# 与 serial_force.force_episode.RELEASE_N 相同：低于此值已经回到空载。
+# 兼容旧接触段 sidecar 的空载阈值；此模块只读历史段，不生成新段。
 _RELEASE_N = 0.08
 
 

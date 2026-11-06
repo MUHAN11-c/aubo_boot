@@ -3,6 +3,7 @@ from __future__ import annotations
 """几何原语：拟合、深度单位、TF、点云 RGB 打包。"""
 
 from dataclasses import dataclass
+from functools import lru_cache
 from typing import Optional, Tuple
 
 import numpy as np
@@ -270,7 +271,7 @@ def ransac_sphere(points: np.ndarray, normals: Optional[np.ndarray] = None,
     理论: c = p − r·n（射线约束）；半径已知 → 最小采样 1 点（迭代数 ~7）；
     半径未知 → 2 点+法线，r = |p₁−p₂|² / ((n₁−n₂)·(p₁−p₂))。
     打分两段式（preemptive）：全部假设先在固定种子子样本（≤512 点）上
-    粗排，仅前 16 名回全点集复核（动机见 _preempt_screen 注释）。
+    粗排，仅前 16 名回全点集复核（动机见 _draw_ransac_indices 前的注释）。
 
     Args:
         points: (N, 3) 点（米）；N<10 直接 None.
@@ -291,13 +292,9 @@ def ransac_sphere(points: np.ndarray, normals: Optional[np.ndarray] = None,
     if n < 10 or max_iter <= 0:
         return None
     use_normals = normals is not None and len(normals) == n and np.isfinite(normals).all()
-    screen = _preempt_screen(points, rng)
-    if use_normals and radius_prior is not None:
-        sample_indices = np.array([[rng.integers(n)] for _ in range(max_iter)])
-    else:
-        sample_indices = np.array([
-            rng.choice(n, size=2 if use_normals else min(4, n), replace=False)
-            for _ in range(max_iter)])
+    sample_size = 1 if use_normals and radius_prior is not None else (2 if use_normals else 4)
+    screen_indices, sample_indices = _ransac_indices(n, max_iter, sample_size, seed, rng)
+    screen = points if screen_indices is None else points[screen_indices]
     centers = np.zeros((max_iter, 3))
     radii = np.zeros(max_iter)
     valid = np.zeros(max_iter, bool)
@@ -494,23 +491,48 @@ _PREEMPT_SCREEN_N = 512
 _PREEMPT_FINALISTS = 16
 
 
-def _preempt_screen(points: np.ndarray, rng) -> np.ndarray:
+def _draw_ransac_indices(n: int, max_iter: int, sample_size: int,
+                         rng: np.random.Generator, screen_n: int
+                         ) -> tuple[Optional[np.ndarray], np.ndarray]:
     """
-    打分子样本：N 超过 _PREEMPT_SCREEN_N 时固定种子均匀抽取.
+    按原 RNG 顺序先抽粗排再抽假设索引，不持有或缓存输入点云.
 
-    Args:
-        points: (N, 3) 点（米）.
-        rng: 已种子化的 Generator（抽取只发生一次，在假设循环之前）.
-
-    Returns
-    -------
-        (≤ _PREEMPT_SCREEN_N, 3) 打分点集；N 不超限时原样返回（零 rng 消耗）.
-
+    N 不超过粗排预算时返回 screen=None，调用方原样使用全部输入点，
+    此步不消耗 RNG；超限时仅抽一次均匀子样本。之后逐假设采样，
+    保留固定种子下的候选及先到先得顺序。
     """
-    n = len(points)
-    if n <= _PREEMPT_SCREEN_N:
-        return points
-    return points[rng.choice(n, _PREEMPT_SCREEN_N, replace=False)]
+    screen = rng.choice(n, screen_n, replace=False) if n > screen_n else None
+    if sample_size == 1:
+        samples = np.array([[rng.integers(n)] for _ in range(max_iter)])
+    else:
+        samples = np.array([
+            rng.choice(n, size=sample_size, replace=False) for _ in range(max_iter)])
+    if screen is not None:
+        screen.setflags(write=False)
+    samples.setflags(write=False)
+    return screen, samples
+
+
+@lru_cache(maxsize=32)
+def _cached_ransac_indices(n: int, max_iter: int, sample_size: int,
+                           seed: int, screen_n: int
+                           ) -> tuple[Optional[np.ndarray], np.ndarray]:
+    """整数种子的有界只读索引缓存；键包含全部采样参数."""
+    return _draw_ransac_indices(
+        n, max_iter, sample_size, np.random.default_rng(seed), screen_n)
+
+
+def _ransac_indices(n: int, max_iter: int, sample_size: int, seed: object,
+                    rng: np.random.Generator) -> tuple[Optional[np.ndarray], np.ndarray]:
+    """复用确定性采样；可变 RNG/熵种子及大迭代预算保留原状态推进."""
+    # 32 项 × (512 + 1024×4) 个 int64：默认粗排预算下至多约 1.13 MiB。
+    # 非整数 seed（None/Generator/SeedSequence/序列）不缓存；尤其不能
+    # 因命中缓存而跳过调用方 Generator 的原 RNG 消耗。
+    if (isinstance(seed, (int, np.integer))
+            and isinstance(max_iter, (int, np.integer)) and 0 < max_iter <= 1024):
+        return _cached_ransac_indices(
+            n, max_iter, sample_size, int(seed), _PREEMPT_SCREEN_N)
+    return _draw_ransac_indices(n, max_iter, sample_size, rng, _PREEMPT_SCREEN_N)
 
 
 def _cylinder_radial_dist(points: np.ndarray, q0: np.ndarray, axis: np.ndarray) -> np.ndarray:
@@ -542,7 +564,7 @@ def ransac_cylinder(points: np.ndarray, normals: np.ndarray,
     理论: 圆柱法线 ⊥ 轴 → a = (n₁×n₂)/|n₁×n₂|；投影 ⊥a 平面退化为 2D 圆，
     圆心 = 两射线 p'₁+α·n'₁ 与 p'₂+β·n'₂ 的交点；半径夹紧剪掉退化假设。
     打分两段式（preemptive）：全部假设先在固定种子子样本（≤512 点）上
-    粗排，仅前 16 名回全点集复核（动机见 _preempt_screen 注释）。
+    粗排，仅前 16 名回全点集复核（动机见 _draw_ransac_indices 前的注释）。
 
     Args:
         points: (N, 3) 点（米）；N<20 直接 None.
@@ -561,9 +583,8 @@ def ransac_cylinder(points: np.ndarray, normals: np.ndarray,
     n = len(points)
     if n < 20 or normals is None or len(normals) != n or (max_iter <= 0):
         return None
-    screen = _preempt_screen(points, rng)
-    sample_indices = np.array([
-        rng.choice(n, size=2, replace=False) for _ in range(max_iter)])
+    screen_indices, sample_indices = _ransac_indices(n, max_iter, 2, seed, rng)
+    screen = points if screen_indices is None else points[screen_indices]
     centers = np.zeros((max_iter, 3))
     axes = np.zeros((max_iter, 3))
     radii = np.zeros(max_iter)

@@ -2,6 +2,8 @@
 
 本文记录当前运行结构。如何修改以根 AGENTS.md 为准；字段与图名以源码及 `peach_interfaces/config/interface_manifest.yaml` 为准。实现级流程、FSM、几何与授权门见 [design.md](design.md)。各能力内部接口表放在各包文档，系统不重复参数清单和历史决策。
 
+自动启动辅助节点的整数验证在声明期启用，运行期按 rclpy 的前插顺序置于 GPL 缓存更新之前。被拒绝的 `intent` 写入不会改变实际发批读取的值。启动事实的 Git 分支保留 `test/…` 等完整名称，提交号同时读取 loose refs 与 `packed-refs`，避免仓库压缩引用后把已知版本标成 unknown。
+
 ## 职责与边界
 
 固定座 AUBO E5 的套袋桃采摘链：相机输出 RGB-D，感知生成事实，重建生成目标模型与许可，调度选择目标并编排动作，臂侧规划并执行。跨能力通过 ROS IDL 通信；共享基础函数属于 `peach_common`，不能用于跨包传递业务状态。
@@ -13,9 +15,98 @@
 - `peach_bringup`：预检、组合、生命周期管理与可选 autostart。
 - `peach_observability`：诊断聚合、8090 调试桥、会话录制与报告。
 - `peach_stereo`：PS800-E1 主机立体相机前端。
-- `peach_vegetation`：独立枝叶二维分割，不进入采摘整栈。
-- `peach_system_tests`：纯核、isolated-domain mock 与冻结数据回放，不进入生产 launch。
+- `peach_vegetation`：独立枝叶二维分割，不进入采摘整栈；启动事实明确 `vegetation_enabled=false`，自检按未部署 SKIP。
+- `peach_system_tests`：手工探针、隔离域 mock runner、冻结回放与官方 ament lint，不进入生产 launch；没有旧版自动 launch_testing 套件。
 - `peach_web`：8090 静态资源，由 observability 托管。
+
+## 完整数据与作业流程
+
+实线表示数据或命令，虚线表示监控、记录或反馈。感知持续运行；重建按目标启动；调度与臂侧通过动作并行等待，不能把模型就绪、动作完成和物理切断混为同一成功信号。
+
+```mermaid
+flowchart TB
+  subgraph sensing[感知与场景]
+    camera[真实相机 RGB / 左右 IR / 曝光时间]
+    stereo[peach_stereo 快速取帧与最新帧槽<br/>SGBM 深度 / 对齐 / 有界时域融合]
+    rgbd[同曝光 RGB-D / CameraInfo / 点云]
+    calibration[内参和曝光时刻 TF<br/>腕相机或经核对的固定外参]
+    perception[YOLO 检测 → FastSAM 分割<br/>深度几何 / 身份跟踪 / 稳定性与质量]
+    observations[target_observations<br/>目标身份 / 掩膜 / 候选位姿 / 跟踪态]
+    obstacles[peach_scene_obstacles<br/>场景障碍更新]
+    camera --> stereo --> rgbd --> perception --> observations
+    calibration --> perception
+    rgbd --> obstacles
+  end
+  subgraph reconstruction[按目标重建]
+    build[BuildTargetModel<br/>绑定目标与本次会话]
+    fusion[曝光同步与精确 TF<br/>多视点 / ICP / TSDF / 几何精化]
+    decision[精化模型 + GraspDecision<br/>身份 / 新鲜度 / 质量 / 接触分档]
+    build --> fusion --> decision
+    observations --> fusion
+    rgbd --> fusion
+    calibration --> fusion
+  end
+  subgraph scheduling[调度]
+    start[RunHarvest / 批次 FSM]
+    survey[Survey 到拍照位<br/>首巡 BeginScene / 等待锁定]
+    select[SELECT<br/>目标资格 / 排序 / 可达性]
+    dispatch[派发 Build 与 ExecuteTarget<br/>等待结果 / 取消 / 时限]
+    settle[结算目标 / 补采清单<br/>完成或回访下一目标]
+    done[结束批次<br/>Action 终态 / 汇总 / 账本]
+    start --> survey --> select --> dispatch
+    observations --> select
+    survey -->|BeginScene| perception
+    dispatch --> build
+    settle -->|仍有目标| survey
+    settle -->|达到额度或无需下一动作| done
+  end
+  subgraph execution[机械臂与工具]
+    finalize[FINALIZE 模型与许可<br/>RECONFIRM 新鲜观测和锚点]
+    approach[规划接近 → 预抓取停稳验证]
+    mode{执行档位}
+    hold[PREGRASP_ONLY<br/>停住等待恢复 ACK]
+    full[FULL 预留撤退轨迹 → 套入<br/>工具命令 → 新 DI 沿确认<br/>撤退 → 回拍照位 → 释放命令与结果核对]
+    authority[ExecutionAuthority<br/>每次运动及工具写入前复检<br/>使能 / 就绪 / 取消 / 同目标许可]
+    moveit[MoveIt / 只读驱动栈<br/>轨迹控制器 / mock 或真实硬件]
+    force[可选五点力源<br/>力监控与独立对中工具]
+    dispatch --> finalize
+    decision --> finalize
+    observations --> finalize
+    finalize --> approach --> mode
+    mode --> hold
+    mode --> full
+    approach --> authority
+    full --> authority --> moveit
+    obstacles -->|PlanningScene world| moveit
+    hold -.-> settle
+    full -.->|完成级别与实际结果分别落账| settle
+  end
+  subgraph console[Web 监控、调试与证据]
+    web[peach_web<br/>总览 / 监控 / 调试 / 分析 / 力]
+    sdk[ros2_web_link SDK + ROSbridge<br/>类型化 ROS 服务 / 动作 / 状态订阅]
+    controls[ControlTask / SetEnables / 参数服务<br/>暂停 / 取消 / 人工恢复 / 显式配置]
+    observable[peach_observability<br/>HTTP / 诊断聚合 / 日志 / 自检]
+    records[rosbag2 MCAP / 会话信息<br/>事件 / 账本 / 感知与重建快照]
+    web <-->|默认实时传输| sdk
+    web <-->|图像 / 历史 / 显式 HTTP 对照| observable
+    sdk -->|经确认的作业命令| start
+    observable -->|HTTP 调试入口| start
+    sdk --> controls
+    observable --> controls
+    controls -->|批次控制| start
+    controls -.->|运行期使能与取消| authority
+    observable --> records --> web
+  end
+  observations -.-> observable
+  decision -.-> observable
+  settle -.-> observable
+  done -.-> observable
+  moveit -.-> observable
+  force -.-> observable
+  observable -.->|web_state / web_force / web_trajectory| sdk
+```
+
+`skip_reconstruction` 是显式策略分支：臂侧在允许未精化几何时使用感知候选，仍受最终执行授权与对应质量门约束。默认执行、接触、工具使能关闭。`peach_vegetation` 是可独立运行的二维分割能力，当前整栈没有部署，不能画成已接入的障碍来源。真实相机加 mock 验证接线和软件流程；mock 刀具反馈不能证明物理切断，L6 也不能替代完整 L7 结果。
 
 ## 运行入口与进程
 
@@ -25,7 +116,7 @@ ros2 launch peach_bringup harvest_system.launch.py hardware_mode:=mock camera_en
 ros2 launch peach_bringup real_web.launch.py
 ```
 
-默认工具 `bite_shear_v1`；默认 `autostart=false`、执行/接触/工具使能关闭、`execute_pregrasp_only=true`。相机默认关闭；开启时默认 stereo，`camera_frontend:=percipio` 切官方 18 图案驱动（launch 期互斥，感知年龄门 2.5 s、发布轴走身份 EMA），replay 不占设备。完整部署参数读 launch 的 `--show-args`。环境、分层测试和停栈见 [测试指导](../../peach_system_tests/doc/testing.md)。
+默认工具 `bite_shear_v1`；默认 `autostart=false`、执行/接触/工具使能关闭、`execute_pregrasp_only=true`。相机默认关闭；开启时默认 stereo，`camera_frontend:=percipio` 切官方 18 图案驱动（launch 期互斥，感知年龄门 2.5 s），replay 不占设备。两个前端的候选轴均保留当帧几何；身份 EMA 仅用于跨帧关联，不证明轴或入口已稳定。完整部署参数读 launch 的 `--show-args`。环境、分层测试和停栈见 [测试指导](../../peach_system_tests/doc/testing.md)。
 
 ```mermaid
 flowchart TB
@@ -63,6 +154,15 @@ stereo 与驱动内的 percipio 互斥；每个 include 使用独立 scoped Grou
 接口筛选，单纯关闭 URDF 筛选不能保证资源管理器遍历顺序；采用两个标准实例避免丢失状态或自研转发。
 启动自检检查六轴的名称、数量和顺序，并要求两个广播器均 active。
 
+## 只读驱动文档的现状差异
+
+以下只记录当前源码事实；对应驱动、描述、MoveIt 配置和 AUBO IDL 按工作区约束只读，保留其原文。阅读旧注释时应结合本页和所属能力包的当前实现。
+
+- 驱动 [README](../../../aubo_e5_bringup/README.md) 仍写 `peach_harvester/harvest_system.launch.py` 转发；当前 harvester 是无代码 metapackage，整栈实体入口为本包 `harvest_system.launch.py`，没有该旧转发文件。
+- MoveIt [_moveit_configs 注释](../../../aubo_e5_moveit_config/launch/moveit.launch.py) 仍称 octomap 保护；实际 [sensors_3d.yaml](../../../aubo_e5_moveit_config/config/sensors_3d.yaml) 的 `sensors: []` 不启动 updater。场景 world 写者是独立 peach_scene_obstacles，部署体素为 0.12 m 且 enabled 默认 false，不能沿用驱动注释中的旧包归属和 0.06 m。
+- 驱动 launch / 主 [xacro](../../../aubo_description/urdf/aubo_e5.urdf.xacro) 的工具缺省仍为 adaptive_shear_v1；Peach 组合入口显式传入 bite_shear_v1，两者不应混写。主 xacro 的“自适应剪切手+IMU”是旧说明；对应 component 与工具档案已记载 MPU6050/imu_follow 删除。档案的实际 loader 在 peach_common/tool_profiles.py，旧 peach_harvester/vision 路径已退役。
+- [RunHandEyeCalibration IDL](../../../aubo_msgs/action/RunHandEyeCalibration.action) 的结果注释称非 joint 内参为单位阵；[标定服务](../../../aubo_hand_eye_calibration/aubo_hand_eye_calibration/server.py) 只在 joint 分支填写内参，其他分支保留消息默认的九个零、空畸变和 0 RMS。消费方不能将默认数组当作已标定内参，详见 [标定接口](../../../aubo_hand_eye_calibration/doc/io.md)。
+
 ## 生命周期与并发
 
 `move_group_shutdown_workaround=true` 默认对 `move_group` 单独使用 Jazzy launch 的 `launch-prefix`/`launch-prefix-filter`，以 `env LD_PRELOAD` 保留官方默认 capability 库至进程退出，规避本机 MoveIt 2.12.4 在 Executor 析构时的段错误（[上游 #3680](https://github.com/moveit/moveit2/issues/3680)）。配置放在 scoped include 内，不预加载到控制器、相机、Python 或 RViz，不改驱动与 `/opt/ros`；保留原退出码检查。库由 ament 包前缀定位，缺失明确拒启；自定义 `launch-prefix` 时须关闭此兼容参数以免互相覆盖。上游修复后可显式置 false 对照复验。启动事实记录该参数；这项兼容措施不改变规划和运动授权。
@@ -98,14 +198,16 @@ flowchart LR
   fin --> grasp{grasp.enabled?}
   grasp -->|否| ready[READY_FOR_GRASP]
   grasp -->|是| rec[RECONFIRM]
-  rec --> app[接近预抓取]
+  rec --> app[直接转移至轨迹净空点]
   app --> mode{PREGRASP_ONLY?}
-  mode -->|是 须 ACK| ack[停住]
-  mode -->|FULL| sleeve[套入/刀/撤]
+  mode -->|是 须 ACK| ack[停在净空点]
+  mode -->|FULL| sleeve[单条轴向套入/刀/沿轴撤退]
   ack --> revisit[Survey 回访]
   sleeve --> revisit
   revisit --> sel
 ```
+
+视觉/重建预抓取保持原值；实际轨迹净空点为该位置沿反套入方向后移 `moveit.approach_clearance_m`。这是臂侧距离参数，不改共享预抓取后撤、视觉入口或剪切参考。去程直接转移后沿轴套入，不再经过固定世界垂直入冠段。FULL 在首次回拍照位前以命名拍照关节局部预检转移、套入与撤退，候选下发前再预检；执行时继续检查原授权和碰撞门；参数与几何详见 [design.md §11](design.md#11-接近几何plantopregrasp)。
 
 这些记录走 ROS 2 节点 logger（`/rosout`、rqt_console、`$ROS_HOME/log`）。rqt 按 **logger 名** 过滤，不要只搜消息前缀。
 

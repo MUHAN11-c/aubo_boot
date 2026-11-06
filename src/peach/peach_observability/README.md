@@ -1,8 +1,8 @@
 # peach_observability
 
-观测为主：8090 Web（过程页只读）+ 调试 POST 桥 + 会话 bag + `peach_bag_report`。实现模块与参数 yaml（`config/observability.yaml`，W11 起随包走）都在本包，节点 `ObservabilityParams.attach`。删除本包后核心调度仍可构建，但 8090 不起。
+观测为主：FastAPI/uvicorn 托管 8090 Web、状态投影、HTTP 调试桥、会话 bag 与 `peach_bag_report`。参数声明在 `config/observability_parameters.yaml`，部署值在 `config/observability.yaml`，由 `ObservabilityParams.attach` 绑定节点。静态资源由 `peach_web` 安装；核心调度不依赖 HTTP。
 
-**调试面不是纯只读**：`debug.enabled`（默认 true）放行 `POST /api/debug/<action>` 转发 18 个既有动作/服务端点（含 RunHarvest/Survey/Execute——运动类另需 `debug.motion_enabled`，默认 false 拦 423；每次操作含被拒审计落 `runs/debug_audit/`）。话题/端点/参数契约见 [doc/io.md](doc/io.md) 与 [doc/architecture.md](doc/architecture.md)。
+**调试面不是纯只读**：HTTP 调试桥转发 19 个既有动作/服务端点，另有取消与只读自检入口。普通转发受 `debug.enabled`（默认 true）控制，运动类另需 `debug.motion_enabled`（默认 false，拒绝时 423）。进入调试命令处理的请求按 `debug.audit_enabled` 写入 `runs/debug_audit/`；自检独立受 `selfcheck.enabled` 控制。整栈默认的 rosbridge 路径直接调用 ROS 接口，HTTP 审计不覆盖它；最终执行仍由目标节点和臂侧命令门复核。详细契约见 [doc/io.md](doc/io.md)。
 
 ## 公有入口
 
@@ -11,7 +11,7 @@ ros2 launch peach_observability observability.launch.py
 ros2 run peach_observability peach_bag_report runs/session_*/bag
 ```
 
-会话 bag 由 observability 节点内唯一 rosbag2 写入线程管理；有界关闭走节点生命周期，不经 Web。图名仍是 `peach_observability`。会话 bag 随栈启停（`runs/session_*/bag/`，MCAP 限速进袋）并有体积预算回收（`record.max_total_bag_gb` 默认 100 GB，最旧先删、报告/账本永不删、逐条审计；分析后清理用 `peach_observability.retention.purge_analyzed_sessions` Python API）。Web 静态页资源在顶层资源包 `peach_web`（`share/peach_web/web`，本包 HTTP 层托管），另发 `/peach/observability/{tcp_path,markers}` RViz 可视化。
+会话 bag 由节点内唯一 rosbag2 写入线程管理；configure 开会话，cleanup/shutdown/destroy 有界关闭，deactivate 只停运行期服务。图名是 `peach_observability`。MCAP 位于 `runs/session_*/bag/`；预算回收默认 100 GiB，按 bag 目录 mtime 从旧到新处理已封口目录，保留报告/账本并先持久化删除审计。分析后显式清理用 `peach_observability.retention.purge_analyzed_sessions` Python API。节点另发 `/peach/observability/{tcp_path,markers}` RViz 可视化和 `~/web_{state,force,trajectory}` 浏览器投影。
 
 ## 构建 / 测试 / 许可
 

@@ -389,7 +389,7 @@ private:
   // 仅周期 worker 线程写（arm 前快照），同线程 IO 回调读，无锁。
   CycleContext tool_authority_ctx_{};
   rclcpp::Subscription<aubo_msgs::msg::IOState>::SharedPtr io_state_sub_;
-  rclcpp::Publisher<peach_interfaces::msg::ToolState>::SharedPtr tool_state_pub_;
+  rclcpp_lifecycle::LifecyclePublisher<peach_interfaces::msg::ToolState>::SharedPtr tool_state_pub_;
 
   // /rosout 子 logger：rqt_console 按 peach_arm.cycle / peach_arm.contact 过滤。
   // 必须持有对象，临时 get_child() 析构会注销子 logger。
@@ -567,6 +567,8 @@ private:
   // 未收到过（旧栈/无大脑）本地参数保持唯一权威——行为零变化。
   rclcpp::Subscription<peach_interfaces::msg::Enables>::SharedPtr enables_sub_;
   bool enables_external_{false};
+  std::string enables_last_reason_;  ///< 同值心跳不重复打印；原因变更保留审计。
+  std::string enables_last_source_;  ///< 发布来源改变时仍打印；默认互斥回调组所有。
   // 使能心跳看门狗（缺心跳=故障）：steady 时钟记录最近一拍，超时回落
   // 本地参数权威。timeout<=0 时禁用（锁存兼容档）。
   rclcpp::TimerBase::SharedPtr enables_watchdog_timer_;

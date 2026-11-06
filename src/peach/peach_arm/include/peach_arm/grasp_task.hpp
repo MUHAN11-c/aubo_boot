@@ -3,8 +3,8 @@
 // ③场景障碍快照 ACM（保护相机；updater 关闭，<octomap> 保留名无害）
 // 在 acm_policy；④近果低速档（本文件 solver）与接触检测（节点侧
 // contact_monitor，默认关）。接近：几何允许直连时先完整 LIN（含对轴）；
-// 未运动、未取消、未授权拒绝才回退 PTP 到中段点正下方 + 世界垂直 LIN
-// 入冠 + 沿轴 LIN。套入/撤退沿轴；返程倒放同一接近轨迹。G/under 已删。
+// 直接 PTP/LIN 到轨迹净空点，再单条轴向套入；视觉预抓取不另停。
+// 返程先沿轴到净空点，再倒放同一实际转移轨迹。
 // 刀具 IO 不在此。
 #ifndef PEACH_MANIPULATION__GRASP_TASK_HPP_
 #define PEACH_MANIPULATION__GRASP_TASK_HPP_
@@ -57,9 +57,8 @@ class RetireBucket;  // execution_guard.hpp（src/ 私有头）
 
 // tip 姿态不偏离 target_pose 超过 tol_deg 的三轴等宽容差约束集。
 // 只挂已齐 LIN（分档要求起点对轴，拦笛卡尔插值中途侧翻）。
-// 未齐第一段 LIN-align 不挂：Jazzy ValidateSolution 验每个路点含起点，
-// 起点相对目标 >20° 会 INVALID_MOTION_PLAN。
-// 不挂门；其后已齐沿轴 LIN 挂门。PTP staging 兜底不挂姿态门（关节目标即 IK 解）。
+// 未齐姿态走直接 PTP：Jazzy ValidateSolution 验每个路点含起点，
+// 起点相对目标 >20° 的 LIN 会 INVALID_MOTION_PLAN；PTP 关节目标即 IK 解。
 inline moveit_msgs::msg::Constraints makeOrientationGate(
   const std::string & link_name, const std::string & frame_id,
   const Eigen::Isometry3d & target_pose, double tol_deg,
@@ -82,18 +81,17 @@ inline moveit_msgs::msg::Constraints makeOrientationGate(
 
 // 接近分档结论（只出结论，不规划）。同一 (config, entry, axis) 每条公共入口算一次，
 // 下游装配/预览复用，避免周期内重复 classifyApproach。
-// STAGING=树冠外 PTP+入冠两段 LIN（直连 LIN 失败后）；LIN/LIN_ALIGN_THEN_LIN=
-// 几何允许的直连（含对轴）；G/under 已删。
+// STAGING=直接 PTP 到净空点 A；LIN=已对轴、果实几何允许的单条直连。
+// 视觉预抓取 N 不再是另一个运动段的停点。
 struct ApproachSplit
 {
-  bool need_lin{true};     ///< True=需要沿轴 LIN。
-  bool need_align{true};   ///< True=需要先对轴。
+  bool need_lin{true};     ///< True=需要转移到净空点。
+  bool need_align{true};   ///< True=直接 PTP 需完成对轴。
   enum class Kind
   {
-    SKIP,                 ///< 已在入口，无需接近。
+    SKIP,                 ///< 已在净空点，无需接近。
     LIN,                  ///< 已齐，直连 LIN。
-    LIN_ALIGN_THEN_LIN,   ///< 先短 LIN 对轴再插入。
-    STAGING,              ///< 树冠外回退：PTP 到中段点正下方 + 入冠两段 LIN。
+    STAGING,              ///< 直接 PTP 到轨迹净空停点；不经中间走廊。
     BLOCKED               ///< 无法接近。
   } kind{
     Kind::STAGING};
@@ -118,7 +116,7 @@ struct GraspTaskConfig
   std::string free_space_planner{"LIN"};  ///< 自由空间规划器 ID。
   double planning_time_s{1.5};            ///< 规划时限 [s]。
   double velocity_scaling{0.10};          ///< 接触段速度缩放。
-  double acceleration_scaling{0.10};      ///< 接触段加速度缩放。
+  double acceleration_scaling{0.10};      ///< 兼容旧配置；MTC 实际 a=min(1,2v)。
   double cartesian_step_m{0.005};         ///< 直线插入步长 [m]。
   double cartesian_min_fraction{0.95};    ///< 直线完成比例；1.0 会因末步离散失败。
   double cartesian_precision_m{0.001};    ///< 笛卡尔精度 [m]。
@@ -139,12 +137,9 @@ struct GraspTaskConfig
   double fruit_inflation_m{0.01};                     ///< 感知半径外膨胀 [m]。
   double approach_cartesian_max_distance_m{0.80};     ///< 接触笛卡尔弦长上限 [m]。
   double approach_along_axis_m{0.0};                  ///< 预抓取相对入口沿 −axis 后撤 [m]。
-  double approach_final_axial_m{0.05};               ///< 末段：中段点→预抓取沿 −axis 后撤 [m]。
-  double approach_canopy_entry_m{0.05};               ///< 入冠段：世界垂直上行伸进果树 [m]（v4）。
-  double approach_blend_radius_m{0.02};               ///< 冠内角（垂直→沿轴）Pilz sequence 混合半径 [m]（v4d 平滑连续）。
-  double approach_max_lateral_m{0.05};                ///< 小于此值视为已对轴 [m]。
+  double approach_clearance_m{0.05};                 ///< 轨迹点在视觉预抓取后方的净空 [m]。
   double approach_max_align_deg{20.0};                ///< 小于此值视为已齐 [deg]。
-  double approach_near_velocity_scaling{0.05};        ///< 近果低速档（仅套入/撤退）。
+  double approach_near_velocity_scaling{0.10};        ///< 近果低速档（仅套入/撤退）。
   // 工具档案（W5-6，GPL yaml tool.*；默认值=原三处硬编码）：
   std::vector<std::string> tool_links{
     "tool_axis", "cutting_plane", "tcp", "sleeve_mouth",
@@ -163,12 +158,14 @@ struct GraspTaskConfig
   double tool_body_radius_m{0.060};  ///< 工具筒体半径 [m]。
   std::function<std::optional<Eigen::Isometry3d>()> lookup_current_tip;  ///< 查当前 TCP。
   /// staging 滚转梯子 IK 返回候选列表（关节解、滚转rad、加权关节代价）；
-  /// ±15°/±30°/±45° 按绝对滚转量优先，每档当前种子+随机重启≤3；无解返回空列表。
-  /// 调用方用命中滚转构造三路点（stagingWaypoints），保证 PTP 落点与
-  /// LIN 目标同姿态族。自碰由 MoveIt PTP 规划器在规划场景内校验。
+  /// 执行按 0 / ±15° / ±30° / ±45° 惰性请求同绝对滚转组；组内每档
+  /// 当前种子+随机重启≤3，FULL 从净空停点沿轴到套入终点全部验证。
+  /// 原候选类型名保留；落点为唯一轨迹净空点，不含世界垂直或中段点。
   std::function<std::vector<StagingCandidate>(
       const Eigen::Isometry3d & staging_pose,
-      const std::vector<Eigen::Isometry3d> & corridor)> staging_ik;
+      const std::vector<Eigen::Isometry3d> & corridor,
+      const std::vector<double> & roll_group,
+      const std::map<std::string, double> & seed_override)> staging_ik;
   /// 某刀口滚转从预抓取沿轴插完 travel 是否达标（与 CheckReachability 同形）。
   /// 空或不调用 = 接近不筛套入直线（仅预抓取）。
   std::function<bool(
@@ -192,7 +189,7 @@ struct GraspTaskResult
   std::string reason;
 };
 
-// 接触运动只走 MTC；工具 IO 留在阶段执行器（stages.cpp），失败才能进撤离。
+// 接触运动只走 MTC；stages.cpp 编排工具 IO，正常套入/工具阶段通过才进入撤离。
 // active_task_：正在 plan/execute 的任务，串行独占（task_mutex_ 保护）。
 class GraspTask
 {
@@ -219,7 +216,8 @@ public:
     const Eigen::Isometry3d & entry_tip_pose,
     const Eigen::Vector3d & insertion_axis,
     double insertion_distance_m,
-    const FruitCapsule & fruit, bool prepare_execution = false);
+    const FruitCapsule & fruit, bool prepare_execution = false, bool include_retreat = true,
+    const std::string & start_named = {});
 
   GraspTaskResult moveToPregrasp(
     const Eigen::Isometry3d & entry_tip_pose,
@@ -229,19 +227,22 @@ public:
     double insert_travel_m = 0.0);
 
   GraspTaskResult sleeveLinear(
+    const Eigen::Isometry3d & entry_tip_pose,
+    const Eigen::Vector3d & insertion_axis,
+    double insertion_distance_m,
+    bool execute,
+    const std::function<bool(std::string &)> & execution_gate);
+
+  GraspTaskResult retreat(
+    const Eigen::Isometry3d & entry_tip_pose,
     const Eigen::Vector3d & insertion_axis,
     double insertion_distance_m,
     bool execute);
 
-  GraspTaskResult retreat(
-    const Eigen::Vector3d & insertion_axis,
-    double retreat_distance_m,
-    bool execute);
-
   void cancel();  // preempt 当前 active 任务
 
-  // 最近一次过护栏且已下发成功的接近轨迹（多段已拼接）。空 = 无可返程记录。
-  trajectory_msgs::msg::JointTrajectory lastApproachTrajectory() const;
+  // 最近一次过护栏且已执行成功的接近段；保留段界以逐段原路返程。
+  std::vector<trajectory_msgs::msg::JointTrajectory> lastApproachTrajectories() const;
 
 private:
   enum class TimingCheck { NONE, WHOLE_GOAL, CONTACT_LEGS };
@@ -252,49 +253,29 @@ private:
     bool guard_approach = false,
     std::size_t guard_skip_tail = 0,
     bool staging_guard = false,
-    bool cartesian_per_part = false, bool prepare_contact_execution = false);
+    bool cartesian_per_part = false, bool prepare_contact_execution = false,
+    const std::vector<Eigen::Vector3d> & endpoint_targets = {});
   GraspTaskResult planTaskOnly(
     moveit::task_constructor::Task * active, bool guard_approach,
     std::size_t guard_skip_tail, bool staging_guard, TimingCheck timing,
-    bool cartesian_per_part);
+    bool cartesian_per_part, const std::vector<Eigen::Vector3d> & endpoint_targets);
   GraspTaskResult executeSolution(
     moveit::task_constructor::Task * active,
     const std::function<bool(std::string &)> & execution_gate);
 
   std::unique_ptr<moveit::task_constructor::Task> makeTaskShell(
     const std::string & task_name) const;
-  std::unique_ptr<moveit::task_constructor::Task> makeApproachInsertTask(
-    const std::string & task_name,
-    const Eigen::Vector3d & insertion_axis,
-    double along_axis_m,
-    double insertion_distance_m);
   std::unique_ptr<moveit::task_constructor::Task> makeApproachOnlyTask(
     const std::string & task_name,
     const Eigen::Isometry3d & entry_tip_pose,
     const Eigen::Vector3d & insertion_axis,
     const ApproachSplit & split);
-  // 主路径：PTP 关节空间落到中段点正下方（垂直线上）+ 世界垂直 LIN 入冠
-  // 到中段点 + 沿轴 LIN 到预抓取；正式转移与预览共用（v4）。
-  std::unique_ptr<moveit::task_constructor::SerialContainer> makeStagingSequence(
-    const Eigen::Isometry3d & pregrasp_tip_pose,
-    const Eigen::Isometry3d & mid_tip_pose,
-    const Eigen::Isometry3d & staging_tip_pose,
-    const std::map<std::string, double> & staging_joints,
-    const std::string & label) const;
-  /// 冠内平滑连续执行（v4d）：[LIN 入冠 → LIN 沿轴] 经 /plan_sequence_path
-  /// 以 blend_radius 圆滑混合成一条速度连续轨迹；同一守卫族审计后
-  /// ExecuteTrajectory 有界执行。sequence 规划失败返回 false（调用方降级
-  /// 回未混合 LIN 路径，形状不变仅不平滑）。
-  GraspTaskResult executeBlendedCorridor(
-    const Eigen::Isometry3d & mid, const Eigen::Isometry3d & pregrasp,
-    bool execute, const moveit::core::RobotModelConstPtr & robot_model,
-    const std::function<bool(std::string &)> & execution_gate);
-  std::unique_ptr<moveit::task_constructor::Task> makeStagingTransitTask(
-    const std::string & task_name,
-    const Eigen::Isometry3d & pregrasp_tip_pose,
-    const Eigen::Isometry3d & mid_tip_pose,
-    const Eigen::Isometry3d & staging_tip_pose,
-    const std::map<std::string, double> & staging_joints);
+  std::unique_ptr<moveit::task_constructor::Task> makePtpTransferTask(
+    const std::string & task_name, const std::map<std::string, double> & joints);
+  GraspTaskResult preflightContact(
+    std::unique_ptr<moveit::task_constructor::Task> task,
+    const TrajectoryApproachGeometry & geometry, bool has_transfer, bool ptp_transfer,
+    bool include_retreat = true);
   bool tryRolledApproach(
     const std::string & task_name,
     const Eigen::Isometry3d & entry_tip_pose,
@@ -303,7 +284,7 @@ private:
     ApproachSplit::Kind kind,
     bool execute,
     GraspTaskResult & last,
-    double insert_travel_m);
+    double insert_travel_m, bool contact_preview = false, bool include_retreat = true);
   bool tryStagingTransit(
     const std::string & task_name,
     const Eigen::Isometry3d & entry_tip_pose,
@@ -311,7 +292,7 @@ private:
     const ApproachSplit & split,
     bool execute,
     GraspTaskResult & last,
-    double insert_travel_m);
+    double insert_travel_m, bool contact_preview = false, bool include_retreat = true);
   GraspTaskResult planToPregrasp(
     const std::string & task_name,
     const Eigen::Isometry3d & entry_tip_pose,
@@ -319,15 +300,7 @@ private:
     const ApproachSplit & split,
     const FruitCapsule & fruit,
     bool execute,
-    double insert_travel_m = 0.0);
-  std::unique_ptr<moveit::task_constructor::Task> makeInsertOnlyTask(
-    const std::string & task_name,
-    const Eigen::Vector3d & insertion_axis,
-    double insertion_distance_m);
-  std::unique_ptr<moveit::task_constructor::SerialContainer> makeApproachInsertSequence(
-    const Eigen::Vector3d & insertion_axis,
-    double along_axis_m,
-    double insertion_distance_m) const;
+    double insert_travel_m = 0.0, bool contact_preview = false, bool include_retreat = true);
   void appendLinToPose(
     moveit::task_constructor::SerialContainer & sequence,
     const Eigen::Isometry3d & target_tip_pose,
@@ -340,11 +313,6 @@ private:
     const Eigen::Isometry3d & entry_tip_pose,
     const Eigen::Vector3d & insertion_axis,
     const ApproachSplit & split) const;
-  void appendAlongAxisMove(
-    moveit::task_constructor::SerialContainer & sequence,
-    const Eigen::Vector3d & insertion_axis,
-    double along_axis_m,
-    const std::string & label) const;
   void syncKeepoutCollisionObjects() const;
 
 public:
@@ -353,8 +321,8 @@ public:
   //                线程应用一次，Survey/观察/接近全程生效）；
   //   PerTarget —— 整图豁免（若策略开启）+ 接触阶段 指定目标对象 × 接触
   //                连杆（pending_acm_* 由 setContactAcm 预置）。
-  // 09-17 真机实锤：眼在手上时 updater self-filter 漏收工具点云，不豁免则
-  // 工具×自家幽灵体素自碰死锁。臂/相机连杆保持受查（防撞主力）。
+  // <octomap> 保留兼容名，当前不用 updater。场景障碍只保护配置的 guard
+  // 连杆；其余豁免连杆由 tool_links 指定。guard 关闭时相机也显式豁免。
   enum class OctomapExemptionPolicy
   {
     WholeMap,
@@ -400,13 +368,13 @@ private:
     const std::shared_ptr<moveit::task_constructor::solvers::PipelinePlanner> & solver,
     const Eigen::Isometry3d & entry_tip_pose,
     const std::string & label) const;
-  std::unique_ptr<moveit::task_constructor::stages::MoveRelative> makeLinearMove(
-    const std::string & label,
-    const std::shared_ptr<moveit::task_constructor::solvers::CartesianPath> & solver,
-    const Eigen::Vector3d & direction, double distance_m) const;
+  std::unique_ptr<moveit::task_constructor::stages::MoveTo> makeCartesianMoveToPoint(
+    const std::string & label, const Eigen::Vector3d & target) const;
 
   rclcpp::Node::SharedPtr node_;
   GraspTaskConfig config_;
+  struct RobotModelResources;
+  std::shared_ptr<RobotModelResources> model_resources_;
   std::mutex task_mutex_;
   std::atomic<std::uint64_t> cancel_generation_{0};
   std::unique_ptr<moveit::task_constructor::Task> active_task_;
@@ -414,6 +382,7 @@ private:
   std::unique_ptr<peach_arm::RetireBucket> retiring_;  // 弃等线程桶（execution_guard.hpp）
   FruitCapsule pending_fruit_;
   bool inspect_fruit_{false};
+  std::map<std::string, double> planning_start_override_;  // 仅命名起点预览的局部关节种子
   std::string pending_acm_target_id_;
   ContactAcmStage pending_acm_stage_{ContactAcmStage::Transit};
   std::string target_context_;  ///< 当前周期 target_id（仅日志上下文，不参与判定）

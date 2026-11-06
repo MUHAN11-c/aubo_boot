@@ -10,7 +10,7 @@ CAPABILITY_UNKNOWN = 2
 
 @dataclass(frozen=True)
 class ModelIdentity:
-    """执行绑定身份：缺任一非空字段则不完整."""
+    """执行绑定身份；六个字符串字段须非空，scene_epoch 参与相等比较."""
 
     run_id: str = ''
     scene_epoch: int = 0
@@ -85,7 +85,7 @@ def allowed_from_decision(decision: dict) -> bool:
 def model_executable(
         identity: ModelIdentity, generated_s: float, valid_until_s: float,
         now_s: float, preview: bool = False) -> tuple[bool, str]:
-    """空版本/过期/错时拒执行；preview 显式非执行模式除外."""
+    """检查身份、有效窗先后与过期；不检查能力或可达性，preview 可旁路."""
     if preview:
         return True, 'preview'
     if not identity_complete(identity):

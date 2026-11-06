@@ -1,0 +1,275 @@
+{
+  "scope": "Peach and required dependencies; IVG deferred by user",
+  "dataset": "peach_system_tests/data/rgbd_mock_v1",
+  "dataset_bytes": 5709550,
+  "mock_run": "github_release_20261106_4",
+  "ledger": {
+    "claimed": [
+      "target_1",
+      "target_2"
+    ],
+    "outcomes": [
+      {
+        "target_id": "target_2",
+        "outcome": 1,
+        "reason": "build_failed: bag_axis_envelope_ill_conditioned; attempts=3; 局部重建完成：1 帧，3717 点（少于推荐 5 帧）；跳过 1 次（missing_mask=1）；重叠指标需 ≥2 帧，本批次不可用；TSDF 1138 点 / mesh 2006 顶点（累计积分 0.01s）；refit 失败（bag_axis_envelope_ill_conditioned）；refit 未产出可用几何",
+        "quality_score": 0.0,
+        "elapsed_s": 1.603,
+        "failure_code": "build_failed",
+        "failure_code_n": 2,
+        "completion_level": 0,
+        "stage_names": [
+          "finalize"
+        ],
+        "stage_durations": [
+          1.463
+        ],
+        "start_unix_ns": 1793962300652012044,
+        "end_unix_ns": 1793962302262249758,
+        "start_ros_ns": 1793962300652005336,
+        "end_ros_ns": 1793962302262234808,
+        "time_basis": "source_clock",
+        "clock_domain": "ros+system",
+        "cycle_id": "github_release_20261106_4:target_2",
+        "scene_epoch": 1
+      },
+      {
+        "target_id": "target_1",
+        "outcome": 0,
+        "reason": "周期完成；tool.enabled=false 或未宣称采摘成功",
+        "quality_score": 0.0,
+        "elapsed_s": 18.015,
+        "completion_level": 6,
+        "stage_names": [
+          "finalize",
+          "approach_insert",
+          "reconfirm",
+          "tool",
+          "retreat"
+        ],
+        "stage_durations": [
+          0.446,
+          8.819,
+          0.2,
+          0.0,
+          8.475
+        ],
+        "start_unix_ns": 1793962304697613941,
+        "end_unix_ns": 1793962322718551627,
+        "start_ros_ns": 1793962304697607873,
+        "end_ros_ns": 1793962322718541119,
+        "time_basis": "source_clock",
+        "clock_domain": "ros+system",
+        "cycle_id": "github_release_20261106_4:target_1",
+        "scene_epoch": 1
+      }
+    ]
+  },
+  "web": {
+    "pages": [
+      {
+        "name": "overview",
+        "status": 200,
+        "title": "Peach · 系统总览",
+        "bodyChars": 773,
+        "image": {
+          "width": 640,
+          "height": 480
+        }
+      },
+      {
+        "name": "monitor",
+        "status": 200,
+        "title": "Peach · 过程监控",
+        "bodyChars": 12897
+      },
+      {
+        "name": "debug",
+        "status": 200,
+        "title": "Peach · 单步调试",
+        "bodyChars": 1383
+      },
+      {
+        "name": "analysis",
+        "status": 200,
+        "title": "Peach · 数据分析",
+        "bodyChars": 310
+      },
+      {
+        "name": "force",
+        "status": 200,
+        "title": "Peach · 五点力",
+        "bodyChars": 1076
+      }
+    ],
+    "errors": [],
+    "rviz": [
+      {
+        "at": 1793962299892,
+        "pids": [
+          "488760"
+        ]
+      },
+      {
+        "at": 1793962300903,
+        "pids": [
+          "488760"
+        ]
+      },
+      {
+        "at": 1793962301912,
+        "pids": [
+          "488760"
+        ]
+      },
+      {
+        "at": 1793962302921,
+        "pids": [
+          "488760"
+        ]
+      },
+      {
+        "at": 1793962303935,
+        "pids": [
+          "488760"
+        ]
+      },
+      {
+        "at": 1793962304942,
+        "pids": [
+          "488760"
+        ]
+      },
+      {
+        "at": 1793962305955,
+        "pids": [
+          "488760"
+        ]
+      },
+      {
+        "at": 1793962306966,
+        "pids": [
+          "488760"
+        ]
+      },
+      {
+        "at": 1793962307980,
+        "pids": [
+          "488760"
+        ]
+      },
+      {
+        "at": 1793962308988,
+        "pids": [
+          "488760"
+        ]
+      },
+      {
+        "at": 1793962309997,
+        "pids": [
+          "488760"
+        ]
+      },
+      {
+        "at": 1793962311005,
+        "pids": [
+          "488760"
+        ]
+      },
+      {
+        "at": 1793962312020,
+        "pids": [
+          "488760"
+        ]
+      },
+      {
+        "at": 1793962313028,
+        "pids": [
+          "488760"
+        ]
+      },
+      {
+        "at": 1793962314039,
+        "pids": [
+          "488760"
+        ]
+      },
+      {
+        "at": 1793962315052,
+        "pids": [
+          "488760"
+        ]
+      },
+      {
+        "at": 1793962316061,
+        "pids": [
+          "488760"
+        ]
+      },
+      {
+        "at": 1793962317069,
+        "pids": [
+          "488760"
+        ]
+      },
+      {
+        "at": 1793962318078,
+        "pids": [
+          "488760"
+        ]
+      },
+      {
+        "at": 1793962319085,
+        "pids": [
+          "488760"
+        ]
+      },
+      {
+        "at": 1793962320098,
+        "pids": [
+          "488760"
+        ]
+      },
+      {
+        "at": 1793962321106,
+        "pids": [
+          "488760"
+        ]
+      },
+      {
+        "at": 1793962322113,
+        "pids": [
+          "488760"
+        ]
+      },
+      {
+        "at": 1793962323128,
+        "pids": [
+          "488760"
+        ]
+      },
+      {
+        "at": 1793962324146,
+        "pids": [
+          "488760"
+        ]
+      },
+      {
+        "at": 1793962325159,
+        "pids": []
+      }
+    ],
+    "readonly": true
+  },
+  "hardware_mode": "mock",
+  "tool_enabled": false,
+  "wrapper_exit_code": 0,
+  "batch_status": "STATUS_CANCELED (intentional after first completed fruit)",
+  "runtime_dependencies": "33 pinned versions matched the isolated validation environment",
+  "limitations": [
+    "Physical camera, robot motion, tool IO and Gazebo were not part of release validation.",
+    "A full online pip reinstall was not completed due to truncated package-index responses; validated third-party dependency snapshot was used.",
+    "Read-only driver packages retain baseline copyright/style lint failures.",
+    "Shutdown can emit upstream Destroyable/context warnings; owned process cleanup and bag closure succeeded."
+  ]
+}

@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """
-给 8090 force page 生成两张 +Z 侧渲染（均 1:1，盘心居中）.
+生成五点力页的 CAD 参考底图（均 1:1，盘心居中）.
 
   src/serial_force/web/face_fruit.png   72 mm 视场（盘面视图）
   src/serial_force/web/face_full.png   220 mm 视场（整机视图）
 
-网页按 R=16.35 mm 在同一 tcp 坐标上叠加五点；果实侧是同一渲染的 CSS 镜像
-（与 render_force_pads.py 的 ③ 同向），臂侧是直接视图。
+本脚本只写本包 web/，不会同步运行页面 peach_web/web/ 的 force_face_*.png。
+历史页面曾提供 CSS 镜像切换；当前页面的点位与视图以 force.js 为准。
 """
 from __future__ import annotations
 

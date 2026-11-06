@@ -1,0 +1,104 @@
+{
+  "dataset": "peach-rgbd-mock-v1",
+  "version": 1,
+  "source_session": "ros2_web_live_camera_mock_20261028",
+  "source_bag": "peach_rgbd_mock_60s",
+  "source_rgb_index": 14,
+  "source_files": {
+    "metadata.yaml": {
+      "bytes": 33072,
+      "sha256": "3ff0f5c8ca224459f07d53869d642553398cdb35c82b3bc01f0334f7405c0b36"
+    },
+    "peach_rgbd_mock_60s_0.mcap": {
+      "bytes": 1074182785,
+      "sha256": "6eb5efa848c2a6b44c6ac56ed061305d235c0d8920a7ce706e5f749d3135c0d5"
+    },
+    "peach_rgbd_mock_60s_1.mcap": {
+      "bytes": 133691944,
+      "sha256": "97bbf6698f05480a7ef6b3c8eaf8a1a479a6f3569ecadac74508e876c51f291e"
+    }
+  },
+  "frame_count": 1,
+  "replay_index": 0,
+  "payload_policy": "Original CDR bytes, exposure stamps and bag record timestamps preserved; no resampling or synthesis.",
+  "topics": {
+    "/camera/color/image_raw": {
+      "type": "sensor_msgs/msg/Image",
+      "stamp_ns": 1793181258647350000,
+      "skew_to_rgb_ms": 0.0,
+      "frame_id": "camera_color_optical_frame",
+      "width": 640,
+      "height": 480,
+      "record_ns": 1793181258931585235,
+      "cdr_sha256": "9597516da578372be324b3b7be32ade291f74c57aea4887b3cc47f43b988c06c",
+      "encoding": "bgr8"
+    },
+    "/camera/depth/image_raw": {
+      "type": "sensor_msgs/msg/Image",
+      "stamp_ns": 1793181258647350000,
+      "skew_to_rgb_ms": 0.0,
+      "frame_id": "camera_depth_optical_frame",
+      "width": 640,
+      "height": 480,
+      "record_ns": 1793181258998606436,
+      "cdr_sha256": "0b0b152dfb7663dedb6f40c8d72ee7f2a72e396abe55c4c28e4a15320a09ecd8",
+      "encoding": "16UC1"
+    },
+    "/camera/depth_registered/points": {
+      "type": "sensor_msgs/msg/PointCloud2",
+      "stamp_ns": 1793181258647350000,
+      "skew_to_rgb_ms": 0.0,
+      "frame_id": "camera_depth_optical_frame",
+      "width": 172294,
+      "height": 1,
+      "record_ns": 1793181259000727916,
+      "cdr_sha256": "9d3e6bbd0d2655da1859c0bf358b72bd02f57e6a6f7e08aa6013ba4bca9cc66c"
+    },
+    "/camera/depth/camera_info": {
+      "type": "sensor_msgs/msg/CameraInfo",
+      "stamp_ns": 1793181258647350000,
+      "skew_to_rgb_ms": 0.0,
+      "frame_id": "camera_depth_optical_frame",
+      "width": 640,
+      "height": 480,
+      "record_ns": 1793181258998613921,
+      "cdr_sha256": "9f33f656f6a4fa8c9c5e60de26becc49ac6eae2f25136557eef0a624ea69b3a0",
+      "K": [
+        466.174635,
+        0.0,
+        326.071333,
+        0.0,
+        465.556589,
+        244.789156,
+        0.0,
+        0.0,
+        1.0
+      ]
+    },
+    "/camera/color/camera_info": {
+      "type": "sensor_msgs/msg/CameraInfo",
+      "stamp_ns": 1793181258647350000,
+      "skew_to_rgb_ms": 0.0,
+      "frame_id": "camera_color_optical_frame",
+      "width": 640,
+      "height": 480,
+      "record_ns": 1793181258931593535,
+      "cdr_sha256": "eaae682ff2fd7c601e9a060431fbf5d7b544dc65e30186f8b995ee85c3a4a6e3",
+      "K": [
+        466.174635,
+        0.0,
+        326.071333,
+        0.0,
+        465.556589,
+        244.789156,
+        0.0,
+        0.0,
+        1.0
+      ]
+    }
+  },
+  "limitations": [
+    "One stationary photo-pose view; no multiview or camera-motion validation.",
+    "Mock dry grasp validates software; no physical cut, force, or hardware validation."
+  ]
+}

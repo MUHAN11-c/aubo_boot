@@ -2,21 +2,62 @@ name: jazzy
 on:
   push:
   pull_request:
+permissions:
+  contents: read
 jobs:
-  industrial_ci:
+  build-and-check:
     runs-on: ubuntu-24.04
-    timeout-minutes: 120
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
-      - uses: ros-industrial/industrial_ci@master
-        env:
-          ROS_DISTRO: jazzy
-          ROS_REPO: main
-          CMAKE_ARGS: -DCMAKE_BUILD_TYPE=Release
-          IMMEDIATE_TEST_OUTPUT: 'true'
-          ADDITIONAL_DEBS: python3-scipy python3-pytest python3-yaml
-          BEFORE_BUILD_TARGET_WORKSPACE: >-
-            touch src/ivg/ivg_interfaces/COLCON_IGNORE
-            src/ivg/ivg_pose_estimation/COLCON_IGNORE
-            src/ivg/ivg_graspnet/COLCON_IGNORE
-            src/percipio_camera/COLCON_IGNORE
+      - uses: ros-tooling/setup-ros@v0.7
+        with:
+          required-ros-distributions: jazzy
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install declared Jazzy dependencies
+        shell: bash
+        run: |
+          source /opt/ros/jazzy/setup.bash
+          rosdep update --rosdistro jazzy
+          sudo apt-get update
+          mapfile -t peach_package_paths < <(colcon list --packages-up-to \
+            peach_system_tests peach_web peach_stereo peach_vegetation --paths-only)
+          rosdep install --from-paths "${peach_package_paths[@]}" --ignore-src --rosdistro jazzy -y
+      - name: Build the full Peach dependency closure and browser distributions
+        shell: bash
+        run: bash scripts/build_workspace.sh
+      - name: Check interfaces and bundled real RGB-D data
+        shell: bash
+        run: |
+          source /opt/ros/jazzy/setup.bash
+          python3 src/peach/peach_interfaces/scripts/check_interface_manifest.py
+          cd src/peach/peach_system_tests/data/rgbd_mock_v1
+          sha256sum -c SHA256SUMS
+      - name: Check SDK types and offline components
+        run: |
+          npm --prefix src/ros2_web_link run check
+          npm --prefix src/ros2_web_link run observe
+          npm --prefix src/ros2_web_link run graph
+          npm --prefix src/ros2_web_link run workbench
+      - name: Run registered application checks
+        shell: bash
+        run: |
+          source /opt/ros/jazzy/setup.bash
+          source install/setup.bash
+          # Driver sources stay read-only; their known baseline style failures
+          # are documented in docs/releases/2026-11-06.md.
+          colcon test --packages-up-to peach_system_tests peach_web peach_stereo peach_vegetation \
+            --packages-skip aubo_e5_hardware aubo_e5_controllers aubo_e5_bringup \
+            --return-code-on-test-failure
+          colcon test-result --verbose
+      - name: Save build and check logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: jazzy-validation
+          path: |
+            log/
+            build/**/test_results/
+          retention-days: 14

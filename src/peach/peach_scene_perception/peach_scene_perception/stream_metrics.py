@@ -48,9 +48,9 @@ class RateEstimator:
 
     def update(self, now: float) -> None:
         """
-        注入一个事件的单调时钟秒；内部完成间隔计算与 EMA 更新.
+        注入一个事件的时钟秒；内部完成间隔计算与 EMA 更新.
 
-        异常间隔（≤min_interval_s 或 >max_interval_s）不进 EMA；
+        异常间隔（≤min_interval_s 或 ≥max_interval_s）不进 EMA；
         首个合法样本直接作 EMA 初值。
         now 为注入时钟的当前秒（协议 I3：禁止内部自行取时钟）。
         """

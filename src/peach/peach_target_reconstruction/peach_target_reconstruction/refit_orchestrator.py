@@ -98,7 +98,7 @@ class RefitOrchestrator:
     """
     refit 管线编排器（refitters/refit_config/timing 注入；零 ROS）.
 
-    ctor 另注入单调时钟 now（协议 I3）和宿主 logger。
+    ctor 另注入计时时钟 now（协议 I3）和宿主 logger。
 
     G3（2026-09-20）：本对象是 revision 单调计数的宿主——进程级
     ``_finalize_counter`` 每次 ``run``（每轮 refit/融合，含 finalize 与
@@ -111,7 +111,7 @@ class RefitOrchestrator:
     def __init__(self, refitters: dict, refit_config: RefitConfig,
                  timing, logger, now: Callable[[], float] = time.perf_counter):
         """
-        保存注入组件（协议 I3：now 注入单调时钟）.
+        保存注入组件（协议 I3：now 使用调用方的统一时间基准）.
 
         节点注入 RclpyClockAdapter.now；纯核自包含缺省回退
         time.perf_counter（与 LocalTsdf 同模式）。
@@ -121,7 +121,7 @@ class RefitOrchestrator:
             refit_config: RefitConfig 门控.
             timing: capture.TimingStats（refit 耗时落账）.
             logger: 宿主 logger（节点 get_logger()，行为与旧节点内打日志一致）.
-            now: 单调时钟（秒）.
+            now: 计时时钟（秒）；节点适配器不保证主机单调性。
 
         Returns
         -------
@@ -201,8 +201,9 @@ class RefitOrchestrator:
                 f'REFINING：几何二次拟合开始（kind={kind}，{xyz.shape[0]} 点）')
             t_refit0 = self._now()
             try:
-                result = select_refitter(self._refitters, kind).refit(
-                    xyz, kind, self._refit_config, bound_axis_hint)
+                with self._timing.phase('cylinder_or_sphere_refit'):
+                    result = select_refitter(self._refitters, kind).refit(
+                        xyz, kind, self._refit_config, bound_axis_hint)
                 self._timing.record_refit(
                     (self._now() - t_refit0) * 1000.0)
             except Exception as exc:  # noqa: BLE001
@@ -235,8 +236,9 @@ class RefitOrchestrator:
             # its role. Never replace captured evidence with a newer live hint.
             coverage = summarize_view_coverage(frames, target_center)
             multiple_views = coverage.get('valid') and coverage.get('view_count', 0) >= 2
-            support_angle, invalid_views = reconstruction_axis_image_support(
-                frames, result, min_supported_views=2 if multiple_views else 1)
+            with self._timing.phase('refit_axis_support'):
+                support_angle, invalid_views = reconstruction_axis_image_support(
+                    frames, result, min_supported_views=2 if multiple_views else 1)
             if invalid_views:
                 result.flags.append('refit_axis_invalid_view_metadata')
             if support_angle is None:
@@ -253,17 +255,19 @@ class RefitOrchestrator:
                     # local cylinder fit succeeds or fails. Mixing a visible
                     # surface centre with a cylinder centre causes depth jumps.
                     result.flags.append('axis_from_captured_shape')
-        views = collect_bag_views(
-            frames, target_center, on_view=on_view, axis_hint=primary_axis,
-            axis_origin=primary_origin)
-        fused = fuse_bag_views(
-            views,
-            cloud_xyz=cloud_xyz,
-            detection_axis=bound_axis_hint,
-            entry_standoff_m=float(entry_standoff_m),
-            pregrasp_standoff_m=float(pregrasp_standoff_m),
-            # 许可数学内径随当前工具档案（tool_profile launch 注入）
-            params=budget_params)
+        with self._timing.phase('collect_bag_views'):
+            views = collect_bag_views(
+                frames, target_center, on_view=on_view, axis_hint=primary_axis,
+                axis_origin=primary_origin, timing=self._timing)
+        with self._timing.phase('fuse_bag_views'):
+            fused = fuse_bag_views(
+                views,
+                cloud_xyz=cloud_xyz,
+                detection_axis=bound_axis_hint,
+                entry_standoff_m=float(entry_standoff_m),
+                pregrasp_standoff_m=float(pregrasp_standoff_m),
+                # 许可数学内径随当前工具档案（tool_profile launch 注入）
+                params=budget_params)
         if not summarize_view_coverage(frames, target_center).get('valid'):
             # collect 的无覆盖 fallback 是逐帧，不能称为独立机位证据。
             fused.fusion_pose_count = 0
@@ -272,16 +276,18 @@ class RefitOrchestrator:
             fused.fusion_landmark_inlier_ratio = None
         # G3：先取号再 merge——本轮 revision 尾段即该单调计数
         self._finalize_counter += 1
-        result = merge_fused_bag_model(
-            result, fused, len(views), bound_axis_hint, target_id,
-            finalize_counter=self._finalize_counter,
-            max_axis_angle_deg=self._refit_config.max_axis_angle_deg)
+        with self._timing.phase('merge_bag_model'):
+            result = merge_fused_bag_model(
+                result, fused, len(views), bound_axis_hint, target_id,
+                finalize_counter=self._finalize_counter,
+                max_axis_angle_deg=self._refit_config.max_axis_angle_deg)
         # Validate the actual output, including hint-based fallbacks. Checking
         # only an accepted TSDF refit leaves failed fits free to authorize a
         # different axis that was never checked against the captured image.
         if result.ok and any(getattr(frame, 'target_mask', None) is not None
                              for frame in frames):
-            support_angle, invalid_views = reconstruction_axis_image_support(frames, result)
+            with self._timing.phase('fused_axis_support'):
+                support_angle, invalid_views = reconstruction_axis_image_support(frames, result)
             reason = ''
             if support_angle is None or invalid_views:
                 reason = 'bag_axis_silhouette_unobservable'

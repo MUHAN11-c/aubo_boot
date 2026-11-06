@@ -1,4 +1,4 @@
-# 编排器过程/审计事件。线上唯一事件流（唯一事件流）。
+# 编排器过程/审计事件。线上标准批次事件流。
 # 话题：/peach_supervisor/events（reliable, transient_local, depth 50）
 # 生产：peach_supervisor    消费：peach_observability
 # 监控与 JSONL 按 code 聚合，不要只解析 message。
@@ -16,7 +16,9 @@
 #   人工审计：batch_paused / batch_resumed / recovery_required /
 #     recovery_acknowledged / enables_changed / batch_policy_updated /
 #     fire_step / ledger_restored（details 可带 ControlTask reason）
-#   派发异常：observe_build_view_race（观察成功但 Build 机位数不足）
+#   配额/时限：batch_ratio_satisfied / sector_timeout
+#   派发异常：OBSERVE_BUILD_VIEW_RACE（观察成功但 Build 机位数不足；码为大写）
+# 上述细节当前写入 message 的 JSON；details 数组尚未填充。
 
 std_msgs/Header header    # stamp=事件时刻，frame_id 一般为空或 base_link
 uint64 sequence           # 节点内单调序号（预留，现行恒 0；与 HarvestState.state_seq 独立）
@@ -33,4 +35,4 @@ string request_id         # 对应 RunHarvest.goal.request_id；无批次时为�
 string run_id             # 批次 run_id
 string target_id          # 相关目标；批次级事件可为空
 uint64 state_seq          # 发出时的 HarvestState.state_seq，便于与快照对齐
-diagnostic_msgs/KeyValue[] details  # 可选键值（失败码、阶段名、过滤原因、ACK reason）
+diagnostic_msgs/KeyValue[] details  # 可选键值；当前 supervisor 留空，细节在 message JSON

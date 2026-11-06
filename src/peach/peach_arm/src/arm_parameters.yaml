@@ -67,7 +67,7 @@ peach_arm:
     acceleration_scaling:
       type: double
       default_value: 0.1
-      description: "默认加速度缩放（接近 LIN/PTP 档位；近果套入另用 approach_near_velocity_scaling）"
+      description: "兼容旧 YAML 保留；现行 MTC 不消费此键，实际 a=min(1,2v)，v 为对应转移/近果速度档"
       validation:
         gt<>: [0.0]
         lt_eq<>: [1.0]
@@ -225,7 +225,7 @@ peach_arm:
     mtc_approach_cartesian_max_distance_m:
       type: double
       default_value: 0.8
-      description: "直连 LIN / 冠内两段 LIN 单跳弦长上限 [m]"
+      description: "直接 LIN 到轨迹净空停点的弦长上限 [m]"
       validation:
         gt<>: [0.0]
     mtc_approach_along_axis_m:
@@ -234,31 +234,20 @@ peach_arm:
       description: "预抓取沿 −axis 后撤 [m]（grasp_standoffs 注入现行 0.03）"
       validation:
         gt_eq<>: [0.0]
-    approach_final_axial_m:
+    approach_clearance_m:
       type: double
       default_value: 0.05
-      description: "末段沿轴后撤 [m]：中段点→预抓取沿 −axis（v4）"
+      description: "仅轨迹净空：视觉预抓取沿反套入方向后移 [m]；0 保持视觉停位"
       validation:
         gt_eq<>: [0.0]
-    approach_canopy_entry_m:
-      type: double
-      default_value: 0.05
-      description: "入冠段 [m]：世界垂直上行伸进果树到中段点正上方（v4）"
-      validation:
-        gt_eq<>: [0.0]
+        lt_eq<>: [0.20]
     approach_near_velocity_scaling:
       type: double
-      default_value: 0.05
-      description: "近果速度档（仅套入/撤退 LIN；直连/冠内接近不降近果档）"
+      default_value: 0.10
+      description: "近果速度档（仅套入/撤退 LIN；直接转移不降近果档）"
       validation:
         gt<>: [0.0]
         lt_eq<>: [1.0]
-    mtc_approach_max_lateral_m:
-      type: double
-      default_value: 0.05
-      description: "已对轴判定横向容差 [m]"
-      validation:
-        gt<>: [0.0]
     mtc_approach_max_align_deg:
       type: double
       default_value: 20.0

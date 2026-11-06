@@ -74,9 +74,11 @@ def evaluate_sleeve_cut(
         cut_to_fruit_m: float,
         params: ToolBudgetParams | None = None) -> dict:
     """
-    逐目标套入/剪切许可.
+    逐目标净空预算、诊断与当前 sleeve/cut 布尔值.
 
-    固定 35° 只作完全错轴诊断，不授权接触。
+    径向/轴向余量与固定轴角只作诊断；sleeve_ok 恒真，cut_ok 只由
+    cut_to_fruit_m > fruit_safety_clearance 派生。调用方另行核对模型、
+    观测质量和执行许可，不能把本函数当作完整接触授权。
     """
     cfg = params or ToolBudgetParams()
     available = radial_available(cfg.d_inner, d_bag95, cfg.wall_clearance)
@@ -89,8 +91,8 @@ def evaluate_sleeve_cut(
     diagnostic_mismatch = float(axis_error_deg) > cfg.diagnostic_axis_deg
     too_wide = available <= 0.0
     fruit_ok = float(cut_to_fruit_m) > cfg.fruit_safety_clearance
-    # 果距 cut_to_fruit_m 与径向余量只作数据参考，不构成套入或剪切约束，
-    # 不得据此把 allowed 打成 false。套袋桃看不见内部果实，果距只能估计。
+    # 径向/轴向余量不否决这里的套入或剪切布尔值；果距仍由 fruit_ok
+    # 决定 cut_ok。套袋桃看不见内部果实，果距来源与完整授权由调用方负责。
     # 径向余量是静态开口相对袋径的初步查看标记：接触时袋和刀具都有弹性、
     # 会动，目前只记录；以后若要当约束，须另立接触过程中的动态判据。
     sleeve_ok = True

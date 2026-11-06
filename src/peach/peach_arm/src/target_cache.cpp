@@ -662,12 +662,9 @@ bool TargetCache::promoteUnrefinedGeometry(
   refined_.bottom = src->bottom;
   refined_.neck = src->neck;
   refined_.axis = src->initial_axis.normalized();
-  // 感知的 suggested_travel_m 是 compute_travel_range 的保守值：先减
-  // L_blade(37mm)、再减 margin_neck(15mm)，最后被 L_insert(30mm) 封顶；
-  // 重建的 cut_travel 是 (neck-entry)·axis（不减、不封顶）。skip 档直接
-  // 采信会把 0.08-0.09m 的切点压到 0.03m（2026-10-21 17:45 实测）。
-  // 置 0 让臂侧 insertionTravel 走几何回退：
-  //   (neck-entry)·axis - grasp.neck_margin_m（约 0.09m）。
+  // skip 档不沿用单帧 suggested_travel_m；置 0 让 insertionTravel 按
+  // (neck-entry)·axis - grasp.neck_margin_m 回退，再夹到执行行程范围。
+  // 全重建周期仍使用同一决策快照中明确给出的行程。
   refined_.suggested_travel_m = 0.0;
   refined_.bag_diameter_upper_m = src->bag_diameter_upper_m;
   refined_.valid = nonzeroFinite(refined_.axis) && refined_.entry.allFinite();

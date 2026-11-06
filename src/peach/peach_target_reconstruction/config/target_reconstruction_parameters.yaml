@@ -28,9 +28,10 @@ peach_target_reconstruction_node:
   sync_slop_s:
     type: double
     default_value: 0.05
-    description: sync_slop_s
+    description: 'RGB-D sync tolerance; strictly positive, restart required'
+    read_only: true
     validation:
-      gt_eq<>:
+      gt<>:
       - 0.0
   tf_timeout_sec:
     type: double
@@ -50,15 +51,18 @@ peach_target_reconstruction_node:
     min_views:
       type: int
       default_value: 1
-      description: capture.min_views
+      description: 'Minimum views; <= capture.max_views, restart required'
+      read_only: true
     recommended_views:
       type: int
       default_value: 5
-      description: capture.recommended_views
+      description: 'Recommended views; restart required'
+      read_only: true
     max_views:
       type: int
       default_value: 24
-      description: capture.max_views
+      description: 'Maximum views; >= capture.min_views, restart required'
+      read_only: true
     minimum_baseline_deg:
       type: double
       default_value: 0.0

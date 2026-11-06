@@ -1,4 +1,8 @@
-# 通用ROS 2工作台 Implementation Plan
+# 通用 ROS 2 工作台历史实施计划（0.8.0）
+
+本文件保留 2026-11-02 的已执行计划、当时约束与完成清单。现行接口见
+[io.md](io.md)，使用见 [workbench.md](workbench.md)，验证范围见
+[testing.md](testing.md)。下文工作流指令仅属于历史计划，不要求在维护时重新执行。
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans；本会话由当前agent执行，只有最终只读代码审查使用fresh reviewer，不委托实现。Steps use checkbox syntax.
 

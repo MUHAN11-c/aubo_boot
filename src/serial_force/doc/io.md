@@ -11,8 +11,9 @@ flowchart LR
   node --> t["/force/travel Float64MultiArray mm"]
   node --> a["/force/ad Float64MultiArray raw AD"]
   node --> st["/force/status UInt8MultiArray"]
-  s --> web["8090 force page"]
-  web --> rec["runs/session_*/force/episode_NNN.csv/json"]
+  s --> obs["peach_observability"]
+  obs --> web["peach_web /force.html"]
+  obs --> rec["runs/session_*/bag/ MCAP"]
 ```
 
 ## 话题
@@ -71,7 +72,7 @@ A5 01 F3 00 25 B0 06 02 18 01 2A D2 05 03 BE 00 1D 19 05
 | `port` | `/dev/force` | 首选串口 |
 | `port_fallbacks` | `/dev/ttyUSB0`、`/dev/ttyACM0` | 打不开时依次试 |
 | `baudrate` | 115200 | 8N1 |
-| `read_period_s` | 0.005 | 读串口定时器周期（100 Hz） |
+| `read_period_s` | 0.005 | 串口轮询周期，200 Hz；固件约 100 Hz 上报 |
 | `expected_rate_hz` | 100.0 | `/diagnostics` 频率窗 0.6–1.4× |
 | `open_ad_threshold` | 3000.0 | AD ≥ 此值判断线/悬空 |
 | `full_travel_mm` | 5.95 | 行程 ≥ 此值判 SATURATED |
@@ -87,28 +88,20 @@ A5 01 F3 00 25 B0 06 02 18 01 2A D2 05 03 BE 00 1D 19 05
 - `/force/points` 频率：期望 `expected_rate_hz`，窗 0.6–1.4×；
 - 状态计数：`OPEN` 警告 1 s 节流；`SATURATED` 正常，不告警。
 
+## 仿真源差异
+
+`serial_force.launch.py source:=sim` 选择 `force_sim_node`，仍用节点名 `serial_force`。参数为 `tilt_deg=3.0`、`tilt_yaw_deg=0.0`、`preload_mm=0.30`、`k_n_per_mm=0.8`；串口参数不控制仿真模型。100 Hz timer 只有在 `base_link→tcp` 可读时才发布。
+
+仿真 `/force/sample` 与兼容 array 均为 RELIABLE/VOLATILE/depth 10；真实串口原子帧 depth 100。仿真 UUID 带 `sim-`，sequence 从 0 开始，header 为生成时刻；AD/travel/status 是演示派生量，不是固件原始测量，不能用于证明真实串口/断线分类通过。
+
 ## 调试页与记录
 
-8090 力页由 observability 托管：
+当前页面是 `peach_web /force.html`，服务端是 observability 的 `GET /api/force`；ROSbridge 模式消费对应 `web_force` 聚合帧。它只读显示五点、通道状态及 CoP，没有 `/record/start`、`/stream` 或 `/episodes` 端点。
 
-| 端点 | 作用 |
-|---|---|
-| `GET /` | 页面 |
-| `GET /stream` | SSE 快照：5 点、CoP、总力、Hz、age、接触段状态 |
-| `GET /record/start?seconds=20` | 手动记录（须有唯一 active 会话） |
-| `GET /record/status` / `/record/download` | 记录状态/下载 |
-| `GET /episodes` / `/episodes/data?session=&name=` | 已写接触段目录/回放 |
+observability 将 `/force/sample` 原样写入同一会话的 `runs/session_*/bag/`，不通过相机媒体节流。`ForceSample` 的主机时间与接收时间须按各自语义使用，不能当固件采样时间。分析模块只读兼容既有 `force/episode_*.csv/json`；当前运行不自动生成 episode、index 或手动 20 秒 CSV。
 
-产物（同一采摘会话）：
+独立 `force_cop_trials` / `force_cop_analyze` 的 JSONL/CSV/统计/图默认写到 `$ROS_HOME/serial_force/`，可用其 CLI 参数改输出位置。它们不与采摘 bag 共用写者。
 
-- `force/episode_NNN.csv`：列 `t_s,f1..f7,tr1..tr7,ad1..ad7,st1..st7,frames,hz,stamp_ns,receive_unix_ns,source_uuid,sequence`；
-- `force/episode_NNN.json`：`reason`、`duration_s`、`contact_s`、`samples`、`peak_n[5]`、起止 ns、`wall_start/end`；
-- `force/index.jsonl`：上述 sidecar 的追加索引；
-- `force/force_20s_<stamp>_<id>.csv`：手动段。
+## 边界
 
-`diagnostics` 与记录写入失败不阻塞驱动；驱动只负责发布。
-
-## 不负责
-
-采摘调度、MoveIt、底盘、IMU、力闭环、功能安全。`8090 force page` 是调试页，
-不是第二控制面；没有 SetIO/使能/运动入口。
+本包不定义采摘 FSM、SetIO 或运动许可；独立 CoP 工具的 IK/JTC 实验不属于主链。硬件急停在柜/示教器，不经 ROS；力/CoP 显示和实验结果不是功能安全或计量标定。

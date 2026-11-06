@@ -2,9 +2,10 @@
 """
 话题帧率探针（对已起栈的相机流复核；RELIABLE 订阅）.
 
-09-29 真相机轮勘定：percipio/stereo 发布端是 RELIABLE，BEST_EFFORT 订户
-在 FastDDS 大帧下会大量丢包（RViz 正常而 BE 探针 0 帧的假故障），探针
-必须与发布端可靠性对齐。收编自 /tmp 手工探针。
+默认采用此前 percipio/stereo 大帧检查使用的 RELIABLE；可用 --no-reliable
+做 BEST_EFFORT 对照。发布端 RELIABLE 与订户 BEST_EFFORT 在 QoS 上兼容，
+历史 BE 零帧是本机负载下的观测，不能当成通用 QoS 不匹配规则。
+打印到达计数与平均频率；全零也退出 0，不能只凭退出码判通过。
 
 用法：
   ros2 run peach_system_tests probe_topics.py --duration 12 \

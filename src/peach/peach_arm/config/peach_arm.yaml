@@ -16,7 +16,7 @@ peach_arm:
       planning_time_s: 1.5  # MTC/默认单次规划时间上限（秒）。观察另用 observe_planning_time_s。
       planning_attempts: 1  # 默认规划尝试次数。观察另用 observe_planning_attempts。
       velocity_scaling: 0.1  # 接触段速度缩放（MTC 靠近/插入/撤离）。0.05 时接近段常被参数化到 40s 而护栏拒发；真机初始验证不得高于 0.1。
-      acceleration_scaling: 0.1  # 接触段加速度缩放（接近 LIN 段档位；v4 已无降速重试档）。
+      acceleration_scaling: 0.1  # 兼容旧 YAML 保留，现行 MTC 不消费；实际 a=min(1,2v)，v 为对应转移/近果档。
       transit_velocity_scaling: 0.1  # 自由空间转移速度缩放（环绕视点/拍照位姿往返）；高速度缩短高重力矩姿态持续时间，反而降低过流风险；真机初始验证不得高于 0.1。
       transit_acceleration_scaling: 0.1  # 自由空间转移加速度缩放（同 transit_velocity_scaling 的档位约束）。
       execute_timeout_s: 5.0  # 单条轨迹/MTC 解执行有界等待（秒）；超时下发 stop 并判失败。正常段约 1–4 s，不再用 90 s 空等死掉的 move_group。
@@ -25,8 +25,8 @@ peach_arm:
       obstacle_object_ids: [peach_scene_obstacles]  # 场景障碍对象 id（peach_scene_obstacles 快照节点写入）；豁免=tool.links×这些对象+<octomap>
       pilz_pipeline: pilz_industrial_motion_planner  # Pilz 规划管线名（PTP/LIN）。
       fallback_pipeline: ompl  # Pilz 失败后的兜底规划管线。
-      mtc_free_space_pipeline: pilz_industrial_motion_planner  # MTC 转移管线。树冠外回退（直连 LIN 失败后）= PTP 到中段点正下方 + 世界垂直 LIN 入冠 + 沿轴 LIN 对轴进入预抓取。
-      mtc_free_space_planner: LIN  # Pilz LIN 规划器 id。直连短修正与冠内两段 LIN 用它；keep-roll 自碰则按 {0,±15°,±30°,±45°} 扫刀口。插入段仍是沿轴 CartesianPath。接触不用 CIRC/STOMP/OMPL。
+      mtc_free_space_pipeline: pilz_industrial_motion_planner  # MTC 转移管线：直接 PTP 到轨迹净空点 A；已齐且几何允许时用单条 LIN。
+      mtc_free_space_planner: LIN  # 直连转移的 Pilz LIN；套入/撤退为单条 CartesianPath，不另停视觉预抓取。
       mtc_cartesian_step_m: 0.005  # MTC 笛卡尔段步长（米）。
       mtc_cartesian_min_fraction: 0.95  # MTC 直线插入最低完成比例。1.0 会因笛卡尔末步离散在接触深度失败（真机常见 0.966）；0.95 仍拒绝半程插入。
       mtc_cartesian_precision_m: 0.001  # MTC 笛卡尔段平移精度（米）。
@@ -44,13 +44,11 @@ peach_arm:
       mtc_approach_tcp_rotation_slack_deg: 20.0  # 相对本段起止测地线的路径余量（度）。0=只看绝对上限。拦对轴只需 ~20° 却中途拧到 90°+ 的 PTP（09-11 的 108°）。
       mtc_approach_keepout_radius_m: 0.12  # ①层果实胶囊回退半径（米）：感知直径无效时用本值作 fruitRadiusM 的 base，再加 fruit_inflation_m。键名冻结，不再当半无限圆柱半径。
       mtc_approach_keepout_axial_m: 0.12  # ①+②层开关：>0 启用接近段果实胶囊/反爬审查。0=关闭。套入/撤退不审。
-      mtc_approach_cartesian_max_distance_m: 0.8  # 直连 LIN 与冠内两段 LIN 单跳弦长上限（米）。超限则该候选不走直连、改树冠外 PTP。0.80 覆盖拍照位到袋口（现场弦长约 0.44 m）。
-      mtc_approach_along_axis_m: 0.0  # 预抓取点在入口沿检测轴反向后撤量（米）。0=与入口重合。整栈由 grasp_standoffs.yaml 注入；已对轴时 LIN 走这一段。
-      approach_final_axial_m: 0.05  # 末段沿轴后撤（米）：中段点→预抓取沿 −axis（v4，对轴进入段）。
-      approach_canopy_entry_m: 0.05  # 入冠段（米）：世界垂直上行伸进果树到中段点（v4，PTP 落点在中段点正下方）。
-      approach_near_velocity_scaling: 0.05  # ④层近果低速档：只套入/撤退 LIN。直连/冠内接近走 velocity_scaling 0.10，不降近果档。
-      mtc_approach_max_lateral_m: 0.05  # 末端到抓取轴线的侧向偏差（米）。小于此值视为已对轴，LIN 是最短直线。
-      mtc_approach_max_align_deg: 20.0  # 末端 Z 与检测轴夹角（度）。小于此值视为已齐，走 LIN 且挂同值姿态路径约束。未齐则先 LIN 原地对齐再平移。规划时另按 keep-roll 及 ±15°/±30°/±45° 扫描刀口滚转；接触不用 STOMP/OMPL。
+      mtc_approach_cartesian_max_distance_m: 0.8  # 直连转移 LIN 弦长/弧长上限；超过改试受原护栏约束的直接 PTP。
+      mtc_approach_along_axis_m: 0.0  # 原视觉预抓取沿轴后撤 S，由共享 grasp_standoffs 注入；净空参数另加且不改视觉。
+      approach_clearance_m: 0.05  # 仅轨迹：视觉预抓取沿反套入方向后移；0=视觉停位。视觉/重建几何不变。
+      approach_near_velocity_scaling: 0.10  # 近果速度，仅单条套入/撤退；转移使用 velocity_scaling。
+      mtc_approach_max_align_deg: 20.0  # 已对轴直连 LIN 的姿态路径约束容差；未齐时直接 PTP。
       observe_planning_time_s: 1.0  # 观察短 LIN 单次规划时间上限（秒）。
       observe_planning_attempts: 1  # 观察短 LIN 规划尝试次数。
       observe_max_duration_s: 0.0  # 观察转移轨迹预计时长上限（秒）。0=不按时长拒发。绕行看累计/单轴行程。

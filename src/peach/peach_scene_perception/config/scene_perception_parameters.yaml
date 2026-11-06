@@ -40,9 +40,10 @@ peach_scene_perception_node:
   sync_slop_s:
     type: double
     default_value: 0.05
-    description: sync_slop_s
+    description: 'RGB-D sync tolerance; strictly positive, restart required'
+    read_only: true
     validation:
-      gt_eq<>: [0.0]
+      gt<>: [0.0]
   sync_queue_size:
     type: int
     default_value: 3

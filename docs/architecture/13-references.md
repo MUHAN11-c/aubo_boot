@@ -1,6 +1,6 @@
 # 参考来源
 
-本页记录本轮重构/测试实际参考的官方规范、源码和项目内记录。只列与本项目决策/验证有关的条目；未落地的方向标为“待验证”，不当成已实现。
+本页保留 2026-10-27 重构/测试使用的参考与历史证据，2026-11-06 校正项目路径和当前传输边界；外部版本比较是当时快照，不作当前最新版本声明。只列与本项目决策/验证有关的条目；未落地的方向标为“待验证”，不当成已实现。
 
 ## 官方 ROS 2 / Nav2 / MoveIt
 
@@ -28,7 +28,7 @@
 
 | 参考 | 用途 |
 |---|---|
-| `AGENTS.md` / `CLAUDE.md` | MUST/DEFAULT/KEEP/UNWIND、测试边界、禁止真机未授权运动/SetIO |
+| `AGENTS.md` | MUST/DEFAULT/KEEP/UNWIND、测试边界、禁止真机未授权运动/SetIO |
 | `src/peach/peach_system_tests/doc/testing.md` | 既有短测/A-B/4-slot/10×30×1800 记录与验收口径 |
 | `src/peach/peach_bringup/doc/architecture.md`、`io.md`、`design.md` | 系统进程、数据流、FSM、动作/服务/话题、RViz 应用视图 |
 | `src/peach/peach_arm/doc/architecture.md`、`io.md` | 接触/套入/工具、ExecutionAuthority、SetIO、completion level |
@@ -37,7 +37,7 @@
 | `src/peach/peach_interfaces/msg/FailureCode.msg` | 跨包失败码 |
 | `src/serial_force/doc/geometry.md` | 五点膜片坐标、tcp z=−72.29 mm、CoP 公式 |
 | `src/serial_force/scripts/force_web.html`（git 历史） | 旧力页 CAD 底图/五点点位/镜像视图设计 |
-| `src/serial_force/web/face_fruit.png`、`face_full.png` | 力页 CAD 果实侧/整机底图 |
+| `src/serial_force/web/face_fruit.png`、`face_full.png`；`src/peach/peach_web/web/force_face_*.png` | 开发期原图与当前运行底图（生成器不自动同步） |
 | `src/serial_force/doc/force_pads_on_tool.png` | 四点 CAD 位置联图 |
 | `src/peach/peach_bringup/config/harvest.rviz` | 原应用 RViz 显示集合 |
 | `src/peach/peach_bringup/config/harvest_app.rviz` | 去 MotionPlanning 崩溃面板后的应用视图 |
@@ -67,7 +67,7 @@
 ## 未作为已实现参考
 
 - TensorRT/Orin 实测：仅有 x86 RTX 3090 数据；Orin 目标机未接入。
-- rosbridge/foxglove：明确不作为控制面参考。
+- 旧轮次未使用 rosbridge；当前整栈默认使用受限 ROSbridge/SDK，具体 allowlist 和 HTTP 分工见 ADR 0003 与 observability IO。foxglove 不是当前 Peach 操作台路径。
 - `src/peach_sim`：环境仿真，不修改、不纳入本重构验收。
 
 ## 引用原则

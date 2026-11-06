@@ -22,7 +22,8 @@ from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
 
 _DEFAULT_BAG = str(
-    Path.cwd() / 'runs' / 'peach_camera_capture_20260930' / 'stereo_10s')
+    Path(get_package_share_directory('peach_system_tests'))
+    / 'data' / 'rgbd_mock_v1' / 'bag')
 
 
 def generate_launch_description() -> LaunchDescription:
@@ -39,7 +40,7 @@ def generate_launch_description() -> LaunchDescription:
         DeclareLaunchArgument(
             'bag', default_value=bag_default,
             description='mcap bag directory with /camera/* (frozen frame)'),
-        DeclareLaunchArgument('frame_index', default_value='70'),
+        DeclareLaunchArgument('frame_index', default_value='0'),
         DeclareLaunchArgument('hz', default_value='2.0'),
         DeclareLaunchArgument('rviz', default_value='false'),
         DeclareLaunchArgument(

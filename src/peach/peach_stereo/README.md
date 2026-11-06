@@ -27,7 +27,7 @@ ros2 launch peach_bringup harvest_system.launch.py hardware_mode:=mock \
 
 ## 生命周期、失败与限制
 
-普通C++节点，不进入四节点生命周期名单。launch失败退出后延迟3秒respawn。激光/曝光/标定写入失败拒启，TIME_SYNC_HOST 写失败或 READY 等待超时拒启；停栈释放设备并复位激光。长期满功率激光温升、近于额定0.4–0.8m范围的光学质量仍需现场验证。
+普通C++节点，不进入四节点生命周期名单。launch失败退出后延迟3秒respawn。激光/曝光/设备标定等初始化失败拒启；彩色标定覆盖文件解析失败则记录 ERROR 并回退设备内参。TIME_SYNC_HOST 写失败拒启，不等待 READY；采集线程克隆 RGB/IR 后立即归还 SDK 缓冲，独立处理线程从容量为 1 的最新帧槽取图；过载覆盖旧帧计 `drop_processing_backlog`。源曝光 stamp 和下游新鲜度门保持不变。停栈先收净两个线程，再释放设备并复位激光。长期满功率激光温升、近于额定0.4–0.8m范围的光学质量仍需现场验证。
 
 依赖percipio源码中vendored camport4 SDK头文件与安装库，不改驱动栈。只发布raw Image，不自行扩展压缩传输；大消息QoS、订阅残留与FastDDS共享内存问题须通过有限时探针定位。部署hh4+半分辨率隔离台架约13.7 gps；真实相机+mock整栈在不钉OpenMP时约12–13 gps（2026-10-16短测，见测试指导）。钉OpenMP或他程序抢核可落到约6 gps。历史台架帧率/精度不是当前环境的验收保证，切前端后重验配准、深度、手眼及目标几何，不能以新手眼数值掩盖未定位的配准误差。
 

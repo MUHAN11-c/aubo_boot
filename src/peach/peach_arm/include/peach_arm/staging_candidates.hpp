@@ -1,4 +1,4 @@
-// 功能：入冠候选的确定性工艺排序，以及未运动时的重试边界。
+// 功能：净空点关节候选的确定性排序，以及未运动时的重试边界。
 #ifndef PEACH_ARM__STAGING_CANDIDATES_HPP_
 #define PEACH_ARM__STAGING_CANDIDATES_HPP_
 
@@ -16,6 +16,19 @@ struct StagingCandidate
   double roll_rad{0.0};
   double joint_cost{0.0};
 };
+
+/// 保持输入顺序，把相同绝对滚转的正负档一起求解和排序。
+inline std::vector<std::vector<double>> groupStagingRolls(const std::vector<double> & rolls)
+{
+  std::vector<std::vector<double>> groups;
+  for (const double roll : rolls) {
+    if (groups.empty() || std::abs(std::abs(groups.back().front()) - std::abs(roll)) > 1.0e-9) {
+      groups.emplace_back();
+    }
+    groups.back().push_back(roll);
+  }
+  return groups;
+}
 
 inline void sortStagingCandidates(std::vector<StagingCandidate> & candidates)
 {

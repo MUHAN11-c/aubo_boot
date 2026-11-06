@@ -64,10 +64,11 @@ def _wait(predicate, timeout_s: float, period_s: float = 0.2) -> bool:
 
 
 class Driver(Node):
-    """Operator stand-in: parameters, SetEnables, RunHarvest, cancel/ACK."""
+    """Operator stand-in: parameters, SetEnables, RunHarvest and owned cancellation."""
 
-    def __init__(self, bind_replay_calibration: bool = False) -> None:
+    def __init__(self, bind_replay_calibration: bool = False, request_id: str = '') -> None:
         super().__init__('drive_frozen_grasp')
+        self._request_id = request_id
         self._group = ReentrantCallbackGroup()
         self.activated = False
         self.images = 0
@@ -229,9 +230,12 @@ class Driver(Node):
         if handle is not None:
             handle.cancel_goal_async()
         state = self.state
+        if state is None or not self._request_id or state.run_id != self._request_id:
+            print('CANCEL_NOW skipped: current request is not owned', flush=True)
+            return
         req = ControlTask.Request()
-        req.request_id = '' if state is None else state.run_id
-        req.expected_state_seq = 0
+        req.request_id = self._request_id
+        req.expected_state_seq = int(state.state_seq)
         req.command = ControlTask.Request.CANCEL_NOW
         req.reason = reason
         response = self._call(self._control, req, 5.0)
@@ -243,26 +247,16 @@ class Driver(Node):
 
     def maybe_stop_after_first(self, handle) -> None:
         state = self.state
-        if state is None or self._canceled:
+        if (state is None or self._canceled or not self._request_id
+                or state.run_id != self._request_id):
             return
         # ExecuteTarget feedback can latch recovery_required at pregrasp
         # while FULL is still planning sleeve. ACK/cancel then aborts the cut.
         if state.action_active:
             return
         if state.recovery_required:
-            allowed = list(state.permissions)
-            if ControlTask.Request.ACKNOWLEDGE_RECOVERY in allowed:
-                req = ControlTask.Request()
-                req.request_id = state.run_id
-                req.expected_state_seq = int(state.state_seq)
-                req.command = ControlTask.Request.ACKNOWLEDGE_RECOVERY
-                req.reason = 'peach_system_tests frozen_camera ACK'
-                response = self._call(self._control, req, 5.0)
-                print(
-                    f'ACK seq={state.state_seq} accepted='
-                    f'{getattr(response, "accepted", None)} '
-                    f'{getattr(response, "message", "")}',
-                    flush=True)
+            print(f'recovery_required retained: request={self._request_id} '
+                  f'state_seq={state.state_seq}; operator ACK required', flush=True)
             self.cancel_now(handle, 'frozen_camera one target (recovery)')
             return
         if state.target_phase in (
@@ -350,7 +344,7 @@ def main() -> int:
     rid = args.request_id.strip() or f'frozen_v1_{int(time.time())}'
 
     rclpy.init()
-    node = Driver(args.bind_replay_calibration)
+    node = Driver(args.bind_replay_calibration, request_id=rid)
     executor = MultiThreadedExecutor(num_threads=4)
     executor.add_node(node)
     threading.Thread(target=executor.spin, daemon=True).start()

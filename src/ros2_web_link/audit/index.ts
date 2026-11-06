@@ -181,7 +181,9 @@ function replaceRunId(value:unknown,runId:string):unknown {
 }
 class Context {
   readonly controller=new AbortController();readonly cleanups:(()=>void)[]=[];fault?:AuditError;
+  private readonly deadline:number;
   constructor(readonly client:RosClient,readonly timeoutMs:number,signal?:AbortSignal,readonly observationClient:RosClient=client) {
+    this.deadline=performance.now()+timeoutMs;
     const abort=()=>this.stop(new AuditError('cancelled','用户停止；远端已发送的服务结果可能未知'));
     signal?.addEventListener('abort',abort,{once:true});this.cleanups.push(()=>signal?.removeEventListener('abort',abort));
     const timer=setTimeout(()=>this.stop(new AuditError('timeout',`等待 ${timeoutMs}ms 超时；远端结果未知`)),timeoutMs);this.cleanups.push(()=>clearTimeout(timer));
@@ -190,13 +192,17 @@ class Context {
   }
   get options(){return {signal:this.controller.signal,timeoutMs:this.timeoutMs};}
   stop(error:AuditError){if(this.fault)return;this.fault=error;this.controller.abort(error);}
-  check(){if(this.fault)throw this.fault;if(!this.client.connected||!this.observationClient.connected)throw new AuditError('disconnected','控制或观测ROS未连接；未发送请求');}
+  check(){
+    // A message/decode callback can cross the deadline before the timer runs.
+    if(!this.fault&&performance.now()>=this.deadline)this.stop(new AuditError('timeout',`等待 ${this.timeoutMs}ms 超时；远端结果未知`));
+    if(this.fault)throw this.fault;if(!this.client.connected||!this.observationClient.connected)throw new AuditError('disconnected','控制或观测ROS未连接；未发送请求');
+  }
   async wait<T>(work:Promise<T>):Promise<T> {
     // A dependency may synchronously signal cancellation while returning an
     // already rejected promise. Always observe it, even when check() now fails.
     try{this.check();}catch(error){void work.catch(()=>{});throw error;}let abort:()=>void=()=>{};
     const stopped=new Promise<never>((_,reject)=>{abort=()=>reject(this.fault??new AuditError('cancelled','已停止'));this.controller.signal.addEventListener('abort',abort,{once:true});});
-    try{return await Promise.race([work,stopped]);}catch(error){throw this.fault??error;}finally{this.controller.signal.removeEventListener('abort',abort);}
+    try{const value=await Promise.race([work,stopped]);this.check();return value;}catch(error){throw this.fault??error;}finally{this.controller.signal.removeEventListener('abort',abort);}
   }
   dispose(){for(const cleanup of this.cleanups.splice(0).reverse())cleanup();}
 }
@@ -264,6 +270,7 @@ async function invokeService(ctx:Context,spec:ServiceSpec,runId:string,cleanup=f
   if(!cleanup)ctx.check();else if(!ctx.client.connected)throw new Error('断线无法发送清理服务；远端状态未知');
   const request=replaceRunId(spec.request??{},runId);
   const options=cleanup?{timeoutMs:CLEANUP_TIMEOUT}:ctx.options;
+  if(!cleanup)ctx.check();
   const pending=ctx.client.callService<Wire>(spec.name,spec.type,request,options);const response=cleanup?await pending:await ctx.wait(pending);
   for(const [path,value]of Object.entries(spec.expected??{})){const actual=field(response,path);const substituted=replaceRunId(value,runId);if(!actual.found||!same(actual.value,substituted))throw new Error(`${spec.name} 响应 ${path} 不等于 ${JSON.stringify(substituted)}，实际 ${JSON.stringify(actual.value)}`);}
   return {name:spec.name,type:spec.type,request:compact(request),response:compact(response)};
@@ -296,11 +303,11 @@ async function action(ctx:Context,spec:Extract<CheckSpec,{kind:'action'}>,runId:
     for(const precondition of spec.preconditions??[]){const proof:Wire={};await readParameters(ctx,precondition,proof);((evidence.preconditions??=[]) as unknown[]).push(proof);}
     setupAttempted=true;for(const step of spec.setup??[])setup.push(await invokeService(ctx,step,runId));
     for(const check of spec.afterSetup??[]){const proof:Wire={};((evidence.afterSetup??=[]) as unknown[]).push(proof);await sample(ctx,{id:'afterSetup',label:'afterSetup',kind:'topic',topic:{...check,minSamples:check.minSamples??1}},proof);}
-    ctx.check();
+    const goal=replaceRunId(spec.action.goal,runId);ctx.check();
     // The audit signal must not erase the result listener before cancellation
     // is confirmed. This separate lifetime ends only after the terminal window.
     const resultWait=new AbortController();
-    const handle=ctx.client.sendGoal(spec.action.name,spec.action.type,replaceRunId(spec.action.goal,runId),{signal:resultWait.signal,timeoutMs:Math.min(ctx.timeoutMs+CLEANUP_TIMEOUT,2147483647),onFeedback:message=>{feedback++;evidence.feedbackCount=feedback;evidence.lastFeedback=compact(message);}});
+    const handle=ctx.client.sendGoal(spec.action.name,spec.action.type,goal,{signal:resultWait.signal,timeoutMs:Math.min(ctx.timeoutMs+CLEANUP_TIMEOUT,2147483647),onFeedback:message=>{feedback++;evidence.feedbackCount=feedback;evidence.lastFeedback=compact(message);}});
     evidence.action=spec.action.name;evidence.type=spec.action.type;evidence.goalId=handle.id;
     try{
       const result=await ctx.wait(handle.result);evidence.terminalStatus=result.status;evidence.result=compact(result.value);

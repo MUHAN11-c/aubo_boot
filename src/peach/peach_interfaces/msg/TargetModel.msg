@@ -34,7 +34,7 @@ builtin_interfaces/Time source_start   # 积分源时间范围起点
 builtin_interfaces/Time source_end     # 积分源时间范围终点
 
 # 身份元组与有效期（R2）。空版本不得执行（预览除外）。
-string run_id                          # 所属批次；空=无批次
+string run_id                          # 感知锁定轮 harvest_run_id；不同于调度批次 ID
 string calibration_revision            # 标定修订
 string config_revision                 # 参数/配置修订
 builtin_interfaces/Time capture_start  # 采集窗起点
@@ -47,4 +47,4 @@ uint8 CAPABILITY_UNKNOWN=2
 uint8 geometry_capability              # VALID/INVALID/UNKNOWN
 uint8 pregrasp_capability
 uint8 sleeve_capability
-uint8 cut_capability                   # 默认档案轴向余量常负 → INVALID，仍可 READY
+uint8 cut_capability                   # 剪切能力；当前径向/轴向余量仅记录，不以其负值直接置 INVALID

@@ -1,6 +1,13 @@
 # peach_supervisor
 
-Peach harvest batch supervisor lifecycle node.
+批次调度 Lifecycle 节点，图名与可执行文件均为 `peach_supervisor`。接收显式
+`RunHarvest`，负责锁定集选果、Build/臂动作编排、暂停/恢复、时限与账本；节点
+不自行开批。`peach_harvester` 仅为兼容 metapackage。
+
+源码地图与命令链见 [doc/architecture.md](doc/architecture.md)，动作、服务、
+话题与落盘契约见 [doc/io.md](doc/io.md)。部署参数在
+`config/peach_supervisor.yaml`，声明/默认/校验在 GPL
+`config/supervisor_parameters.yaml`。
 
 ## 开关语义
 
@@ -18,6 +25,10 @@ GPL listener 构造后再注册只读范围/跨字段验证，使它们先于内
 
 单果预算从 SELECT 选中目标起算，扇区预算从本次 RunHarvest 开始起算，均使用单调墙钟；0 表示不限。服务/动作的可用性、受理与结果等待共用各自固定截止，并取单果/扇区剩余预算的最小值。Build、锁定等待、回访驻留以及暂停/恢复等待也观察作业截止。`SetBatchPolicy(apply_to_current=true)` 按原起算点重算当前预算；已经触发取消的超时不因后续加预算而恢复。
 
+`RunHarvest` Goal 入场与 `SetBatchPolicy` 使用同一个 BatchPolicy 值域检查：采收率必须有限且在 `[0,1]`，两个时限必须有限且非负，视点策略只能为 FAST=0 或 CONSERVATIVE=1。非法 Goal 在设置 busy 前拒绝；非法策略服务返回 `accepted=false`，不改变当前策略、下批默认或已开始的 deadline，也不发布策略已更新事件；0 仍表示不限。
+
+每次 Survey 派发前与 SELECT 共用采收率门：成功数已达到采收率乘发现数时，记录 `batch_ratio_satisfied` 并沿现有 FSM 结算，不再回访拍照位。这样已达配额的批次不会因多余 Survey 失败被改判失败。采收率为0或发现数为0不触发此门；取消、扇区超时和恢复等待仍保留原有优先级。
+
 预算耗尽先取消在途动作，再沿现有最多 10 秒终态等待收口；这段停轨等待可以超过作业预算。单果仅记录一次 `FailureCode.TIMEOUT` 并进入 timeout 补采类别。扇区经 `sector_timeout` FSM 事件进入 INTERRUPTED，RunHarvest 返回 `termination_reason=sector_timeout`。迟到受理仍被取消并追踪；未获远端终态时保留在途/恢复门，不能派下一颗。超时不代替人工恢复 ACK，ACK 服务自身的有界等待不继承已取消批次的预算。
 
 ## 操作员状态发布
@@ -29,6 +40,8 @@ SetEnables、ControlTask 接受和 ACK 成功后立即广播最新 HarvestState�
 ## 账本与周期归档
 
 补采清单 `rework_list.json` 与同批账本共用目录。含路径分隔符、上跳段或 NUL 的批次 ID 统一落到 `runs/harvest/`。
+
+补采清单读写还会解析目录、目标文件和写入临时文件的实际路径；已有符号链接将它们指向 runs 根外时拒绝，不触碰外部文件。拒绝落盘会告警并继续批次收尾。此检查针对已有路径，不承诺抵抗并发恶意替换目录的文件系统竞态。
 
 补采类别匹配前统一失败码大小写，`TIMEOUT`/`BUILD_TIMEOUT_*` 归 timeout，`SKIPPED_UNREACHABLE` 归 unreachable，刀具/套入/撤退失败归 contact_failed。
 

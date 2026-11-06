@@ -1,10 +1,9 @@
 """
-Autostart client: sends RunHarvest when the managed stack becomes Active.
+Opt-in client: send one RunHarvest after managed-stack and self-check readiness.
 
-Original "launch never auto-sends RunHarvest" red line removed per user
-decision (2026-09-16). Autostart is now a deployment parameter.
-Authorization semantics converge on red line 3: the operator launching
-on real hardware constitutes human authorization.
+The launch parameter defaults to false. Scheduling a batch does not enable
+execution, contact or tool output; those remain subject to ROS-side gates
+and operator authorization. One wall-clock deadline covers all readiness waits.
 """
 from __future__ import annotations
 

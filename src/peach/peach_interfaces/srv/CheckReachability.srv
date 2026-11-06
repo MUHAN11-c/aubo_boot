@@ -4,8 +4,9 @@
 # 服务端：peach_arm（MoveIt RobotState::setFromIK + CartesianInterpolator）
 # 客户端：peach_supervisor（SELECT 段批量查询）。服务不可用时调度回退半径窗。
 # tcp_poses：调度填感知入口（位置=袋底；姿态 Z=袋轴，滚转任意）。
-# 服务端预抓取停位：沿 −Z 后撤 mtc_approach_along_axis_m（grasp_standoffs.yaml，
-# 现行 0.03 m）；姿态=alignFrameZ(当前 TCP, 袋轴)，不抄感知滚转。
+# 服务端停位 A：沿 −Z 后撤 mtc_approach_along_axis_m + approach_clearance_m
+# （部署 0.03 + 0.05 m）；与实际接近共用 trajectoryApproachGeometry。
+# 视觉预抓取 N 不变；姿态=alignFrameZ(当前 TCP, 袋轴)，不抄感知滚转。
 # require_sleeve=true（FULL / 非 execute_pregrasp_only）时再检套入终点：
 # 入口沿袋轴 + 明确行程须落在 grasp min/max（越界 cut_travel_out_of_range，
 # 空/0 才夹到 min）；刀口滚转 0、±15°、±30°、±45°。
@@ -13,16 +14,16 @@
 # （步长/完成比与接触 LIN 同参）。取第一档完成比达标的滚转；
 # 仅两端 IK、直线走不满 → sleeve_no_cartesian。与接近共用此规则。
 # 空 suggested_travel_m 或长度不够用服务端 minimum_travel_m。
-# 后撤为 0 则预抓取只改姿态。非 base_link 由服务端 TF 转换。
+# 两项后撤之和为 0 时只改姿态。非模型系位姿由服务端以 latest TF 转换。
 
 # === Request ===
 std_msgs/Header header                 # stamp 可空；frame_id 一般为 base_link
 geometry_msgs/PoseStamped[] tcp_poses  # 感知入口；服务端映射为预抓取停位后再 IK
-float64 timeout_s                      # 单位姿求解超时 [s]；≤0 用服务端默认 0.1
+float64 timeout_s                      # 单次 IK 超时 [s]；非正/非有限用 0.05，正值封顶 0.2
 bool require_sleeve                    # true=预抓取 IK + 套入终点 IK + 沿轴笛卡尔；false=只预抓取（默认，兼容旧客户端）
-float64[] suggested_travel_m           # 与 tcp_poses 并行；缺省或 ≤0 用服务端 minimum_travel_m
+float64[] suggested_travel_m           # 与 tcp_poses 并行；缺省/0 用最小行程，其他须有限且在执行范围内
 ---
 # === Response ===
 bool[] reachable                       # 与请求 tcp_poses 等长；true=停位（及套入 IK+笛卡尔，若要求）通过
-string[] error_codes                   # 与请求等长；失败码 no_ik / sleeve_no_ik / sleeve_no_cartesian / invalid_frame / moveit_unavailable；成功可空串
+string[] error_codes                   # 与请求等长；IK/几何/TF/节点状态拒因，详见包 io；成功为空串
 string message                         # 整体说明（服务端异常时非空）

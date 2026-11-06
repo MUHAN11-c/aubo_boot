@@ -6,7 +6,7 @@
 
 ## 源码地图
 
-`peach_vegetation/`：节点、参数、Frangi/ExG 分割核；`config/`：部署 YAML；`launch/vegetation.launch.py`：输入 remap；`test/`：规则与纯核测试。
+`peach_vegetation/vegetation_node.py`：生命周期、图像解码、发布与诊断；`params.py`：部署 YAML 读取与规则校验；`split.py`：ExG/HSV 叶掩膜、Frangi 枝掩膜及叠加；`frangi.py`：torch Hessian、多尺度响应与暗脊阈值。`config/` 提供部署 YAML；`launch/vegetation.launch.py` 只配置输入 remap 与参数，生命周期由 main 自激活；`test/` 只有 ament flake8/pep257 包装。
 
 ## 入口、输入输出与参数
 

@@ -1,15 +1,17 @@
 #!/usr/bin/env python3
 """
-全量录制：计算图通配发现订阅，域内全部话题自动进会话 bag.
+计算图发现录制：按档位补充固定订阅之外的话题，送入会话 bag.
 
 设计（09-17 用户口径"整个 peach 过程全量录制，便于仿真复现与问题分析"）：
-- 不枚举话题——activate 后周期扫描 `get_topic_names_and_types()`，新话题
-  自动建 bag 专用订阅（消息类型运行期 import），删掉话题不再重订。
+- activate 后每 2 秒扫描 `get_topic_names_and_types()`；符合档位且类型可用
+  的新话题自动建 bag 专用订阅。已建订阅保留到 stop，不追踪发布者退出。
 - 大流护栏：`level=std`（默认）只订阅关键话题：关节、TF、已下发轨迹、
   调度/重建结果。感知图和点云仍由 Recorder 只在结果关键段进袋。
   不订阅相机原流、控制器统计、即时检测图和单帧点云。
-  `level=all` 仍录域内全部话题（真全量，约 50MB/s）。
-- 排除：/rosout（专用订阅已录）、/parameter_events（噪声）。
+  `level=all` 放开发现白名单，但 Recorder 的控制流等限速仍生效。
+  `level=core` 不建立补充订阅。
+- 排除：固定回调拥有的话题、浏览器投影、/rosout、/parameter_events 和
+  /clock；并非逐消息无损的全域记录。
 """
 from __future__ import annotations
 

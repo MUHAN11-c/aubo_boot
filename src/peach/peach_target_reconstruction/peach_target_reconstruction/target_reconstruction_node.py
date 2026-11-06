@@ -1,12 +1,13 @@
 """
-连续运动局部重建节点（精确时间 FK + 有界 ICP + 在线 TSDF）.
+当前目标局部重建节点（精确时间 TF + 有界 ICP + 在线 TSDF）.
 
-默认工作流：IDLE 时 /peach/perception/initial_pose 有候选即自动绑定开始
+自动模式工作流：IDLE 时 /peach/perception/initial_pose 有候选即自动绑定开始
 （或由 BuildTargetModel 直接绑定）；COLLECTING 时每个唯一 RGB-D 时间戳均
 进入质量门，合格即在线积分 TSDF；finalize 只提取最终网格并做几何 refit。
 手动 Trigger 保留 reset / finalize / save_session / query 四口（Web 调试面
 用）；采集由 auto 状态机驱动，`capture.auto_mode=false` 时仅 Build 路径可
-开新会话。
+开新会话。部署 YAML 默认要求曝光时机器人静止；只有显式关闭该门才允许
+运动帧进入后续质量检查。独立 launch 默认关闭 auto_mode，显式 Build 仍可采集。
 
 每帧只按 depth.header.stamp 查 base←camera TF；失败跳帧，禁止运动中使用
 latest TF。当前帧先由 FK 变到 base 系，再与已有 TSDF 表面做有界 ICP；
@@ -34,8 +35,10 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+import sys
 import threading
 import time
+import traceback
 from typing import Optional, Tuple
 
 import cv_bridge
@@ -63,13 +66,14 @@ from peach_target_reconstruction.capture import BindSwitchHoldoff
 from peach_target_reconstruction.capture import capture_gate
 from peach_target_reconstruction.capture import CapturedFrame
 from peach_target_reconstruction.capture import CollectorConfig
-from peach_target_reconstruction.capture import exposure_joint_velocity
+from peach_target_reconstruction.capture import ExposureJointHistory
 from peach_target_reconstruction.capture import FrameCollector
 from peach_target_reconstruction.capture import GATE_ALLOW
 from peach_target_reconstruction.capture import GATE_DENY
 from peach_target_reconstruction.capture import GATE_NEED_TF
 from peach_target_reconstruction.capture import GATE_SKIP
 from peach_target_reconstruction.capture import GateDecision
+from peach_target_reconstruction.capture import STATE_COLLECTING
 from peach_target_reconstruction.capture import STATE_IDLE
 from peach_target_reconstruction.capture import StrictMaskGate
 from peach_target_reconstruction.capture import TimingStats
@@ -108,6 +112,7 @@ import rclpy
 from rclpy.action import ActionServer
 from rclpy.action import CancelResponse
 from rclpy.action import GoalResponse
+from rclpy.callback_groups import MutuallyExclusiveCallbackGroup
 from rclpy.callback_groups import ReentrantCallbackGroup
 from rclpy.duration import Duration
 from rclpy.event_handler import PublisherEventCallbacks
@@ -133,7 +138,7 @@ from visualization_msgs.msg import MarkerArray
 
 
 class TargetReconstructionNode(ReconstructionCore, LifecycleNode):
-    """连续运动局部重建 Lifecycle 节点：Active 后才积分与受理 BuildTargetModel."""
+    """局部重建 Lifecycle 节点：Active 后才积分与受理 BuildTargetModel."""
 
     params: TargetReconstructionParams
     """config/target_reconstruction.yaml 快照."""
@@ -159,6 +164,7 @@ class TargetReconstructionNode(ReconstructionCore, LifecycleNode):
         ])
         # /diagnostics 进程内只创建一次；cleanup 暂停，configure 恢复。
         self._diag = None
+        self._diagnostic_cb = MutuallyExclusiveCallbackGroup()
         # 帧流活性（_on_rgbd 刷新；诊断投影用）
         self._last_frame_mono = 0.0
         self.bridge = cv_bridge.CvBridge()
@@ -212,12 +218,12 @@ class TargetReconstructionNode(ReconstructionCore, LifecycleNode):
             min_neighbor_gap_m=p.capture.min_neighbor_gap_m,
             neighbor_gap_area_ratio=p.capture.neighbor_gap_area_ratio,
             mask_stamp_tolerance_s=p.capture.mask_stamp_tolerance_s)
-        # E2 selected 切换防抖状态机（纯核 bind_holdoff.BindSwitchHoldoff，
+        # E2 selected 切换防抖状态机（纯核 capture.BindSwitchHoldoff，
         # 注入时钟 I3）：selected 变化须持续超过 bind.switch_holdoff_s 才
         # 放弃进行中会话重绑，holdoff 内切回原 ID 取消挂起
         self._switch_holdoff = BindSwitchHoldoff(
             holdoff_s=p.bind.switch_holdoff_s, now=self._algo_clock.now)
-        # E4 ICP target 增量复用缓存（纯核 icp_target_cache.IcpTargetCache）：
+        # E4 ICP target 增量复用缓存（纯核 integrate.IcpTargetCache）：
         # 两次全量 extract 之间复用「上次全量+已采帧修正后云增量拼接」做
         # ICP target；全量刷新周期 k 按修正量 EMA 在上下限间自适应伸缩。
         # max_translation_m 注入 icp 配置（漂移阈值基准）；downsample_voxel
@@ -228,7 +234,7 @@ class TargetReconstructionNode(ReconstructionCore, LifecycleNode):
             drift_ratio=p.icp.target_refresh_drift_ratio,
             max_translation_m=p.icp.max_translation,
             downsample_voxel=p.tsdf.voxel_length))
-        # E4 发布节流（纯核 publish_throttle.PublishThrottle，注入时钟 I3）：
+        # E4 发布节流（publish.PublishThrottle，注入时钟 I3）：
         # 点云/Marker 类大消息 on-change + 最小间隔；心跳/状态/诊断/refit
         # 三件套不经过本节流。on_change_only=false 时编排层整体绕过
         self._publish_throttle = PublishThrottle(
@@ -265,10 +271,9 @@ class TargetReconstructionNode(ReconstructionCore, LifecycleNode):
         self._view_progress = threading.Event()
         self._executor_target_id = ''
         self._executor_state_seen = False
-        # Cache 只按 header stamp 留历史；Jazzy 实现无内部锁，读写共用
-        # _state_lock。8192 条在 mock ~250 Hz 下约 30 s，覆盖感知滞后曝光。
-        self._joint_state_cache = message_filters.Cache(
-            message_filters.SimpleFilter(), cache_size=8192)
+        # 曝光关节历史读写共用 _state_lock；整数 ns 二分避免锁内扫描。
+        # 8192 条在 mock ~250 Hz 下约 30 s，覆盖感知滞后曝光。
+        self._joint_state_cache = ExposureJointHistory(capacity=8192)
         # BuildTargetModel 单槽重入护栏（goal 回调置位，执行体 finally 清零）
         self._build_goal_active = False
         self._completed_build_generation = None
@@ -297,12 +302,12 @@ class TargetReconstructionNode(ReconstructionCore, LifecycleNode):
             return
         # ---- 发布者（/peach/reconstruction/* 固定命名）----
         # 状态类话题用 transient_local 闩锁（depth=1）：后启动的订阅者
-        # （验证记录器 / RViz）也能拿到最后一次发布；发布频率低，闩锁代价可忽略
+        # （验证记录器 / RViz）也能拿到最后一次发布；大消息另有变更/间隔节流
         latched_qos = rclpy.qos.QoSProfile(
             depth=1,
             durability=rclpy.qos.DurabilityPolicy.TRANSIENT_LOCAL,
         )
-        # A10：diagnostics 叠加 DDS Deadline（offered 1.5s < 1Hz 心跳周期留 50%
+        # A10：diagnostics 叠加 DDS Deadline（offered 1.5s > 1s 心跳周期留 50%
         # 余量），DDS 层补强应用层 2s 新鲜度门——执行器卡死/心跳断供在 1.5s 内
         # 暴露为 offered-deadline-missed 事件（只记日志，不改行为）。兼容面：
         # 请求方 deadline ≥ 1.5s 或不设 deadline（编排器 2s / Web 与能力端不设）
@@ -386,8 +391,7 @@ class TargetReconstructionNode(ReconstructionCore, LifecycleNode):
         self._sub_perc_diag = self.create_subscription(
             BagFittingArray, '/peach/perception/diagnostics',
             self._on_perception_diagnostics, default_qos)
-        self._joint_state_cache = message_filters.Cache(
-            message_filters.SimpleFilter(), cache_size=8192)
+        self._joint_state_cache = ExposureJointHistory(capacity=8192)
         self._sub_joint = self.create_subscription(
             JointState, '/joint_states', self._on_joint_states, default_qos)
         self._cb = ReentrantCallbackGroup()
@@ -397,9 +401,10 @@ class TargetReconstructionNode(ReconstructionCore, LifecycleNode):
             reliability=ReliabilityPolicy.RELIABLE,
             durability=DurabilityPolicy.TRANSIENT_LOCAL,
         )
+        self._executor_state_cb = MutuallyExclusiveCallbackGroup()
         self._sub_exec_state = self.create_subscription(
             HarvestState, '/peach_supervisor/state',
-            self._on_executor_state, latched, callback_group=self._cb)
+            self._on_executor_state, latched, callback_group=self._executor_state_cb)
 
         # ---- 服务（std_srvs/Trigger，节点相对名；人工/阶段执行器调试口）----
         # 会改状态的入口统一过 Active 门（非 Active 只读口拒绝驱动
@@ -425,7 +430,8 @@ class TargetReconstructionNode(ReconstructionCore, LifecycleNode):
         self.tf_buffer = Buffer()
         self.tf_listener = TransformListener(self.tf_buffer, self)
 
-        # 1Hz 活性心跳：状态/诊断/抓取许可三件套周期重发。_publish_all 只在
+        # 1Hz 活性心跳：状态、类型化/JSON诊断、许可及预抓取观测尝试重发。
+        # 状态锁忙时跳过并计数；_publish_all 只在
         # 状态变化时触发，IDLE 期无消息会让编排器重建就绪门（2s 新鲜度）永远
         # 不满足——拍照前置建立不了目标→无法锁定→无法绑定的死锁由此解开。
         self._heartbeat_timer = self.create_timer(
@@ -493,18 +499,42 @@ class TargetReconstructionNode(ReconstructionCore, LifecycleNode):
         # /diagnostics 周期健康（P1）：帧流/队列丢弃/Build 占用（只读）
         if self._diag is None:
             self._diag = diagnostic_updater.Updater(self, period=5.0)
+            # 默认回调组可能正等待状态锁；诊断独立调度且不读取锁内产物。
+            self.destroy_timer(self._diag.timer)
+            self._diag.timer = self.create_timer(
+                self._diag.period, self._diag.update, callback_group=self._diagnostic_cb)
             self._diag.setHardwareID(self.get_name())
             self._diag.add('reconstruction_health', self._diag_health)
         else:
             self._diag.timer.reset()
         return TransitionCallbackReturn.SUCCESS
 
+    def _executor_wait_timeout_s(self) -> float:
+        """只读无锁活动快照；计算期短轮次，空闲期等事件提前唤醒."""
+        if (self._build_goal_active
+                or self.collector.state == STATE_COLLECTING
+                or self._timing.phase_snapshot()['name']):
+            return 0.001
+        return 0.05
+
     def _diag_health(self, stat):
         """重建健康投影：帧流年龄/worker 丢弃/Build 单槽占用."""
         now = time.monotonic()
         age = (now - self._last_frame_mono) if self._last_frame_mono else None
         dropped = getattr(self._frame_worker, 'dropped', 0)
-        if self._lifecycle_active and age is not None and age > 10.0:
+        phase = self._timing.phase_snapshot()
+        if phase['elapsed_ms'] >= 2000.0:
+            stat.summary(DiagnosticStatus.WARN,
+                         f"重建阶段缓慢 {phase['name']} {phase['elapsed_ms']:.0f}ms")
+            token = (phase['name'], phase['started_monotonic'])
+            if token != getattr(self, '_last_slow_phase_token', None):
+                self._last_slow_phase_token = token
+                frame = sys._current_frames().get(phase['thread_id'])
+                stack = ''.join(traceback.format_stack(frame, limit=20)) if frame else ''
+                self.get_logger().warning(
+                    f"慢重建阶段 {phase['name']} {phase['elapsed_ms']:.0f}ms "
+                    f"thread={phase['thread_id']}\n{stack}")
+        elif self._lifecycle_active and age is not None and age > 10.0:
             stat.summary(DiagnosticStatus.WARN, f'帧流陈旧 {age:.1f}s')
         elif dropped > 0:
             stat.summary(DiagnosticStatus.WARN, f'队列拒绝 {dropped} 帧')
@@ -515,6 +545,9 @@ class TargetReconstructionNode(ReconstructionCore, LifecycleNode):
             'last_frame_age_s', '-' if age is None else f'{age:.1f}')
         stat.add('worker_dropped', str(dropped))
         stat.add('build_goal_active', str(self._build_goal_active))
+        stat.add('heartbeat_skipped_busy', str(self._heartbeat_busy_skips))
+        stat.add('reconstruction_phase', phase['name'])
+        stat.add('reconstruction_phase_elapsed_ms', f"{phase['elapsed_ms']:.1f}")
         return stat
 
     def on_activate(self, state):
@@ -689,7 +722,7 @@ class TargetReconstructionNode(ReconstructionCore, LifecycleNode):
                 requested_target_id = self._executor_target_id
             else:
                 requested_target_id = msg.selected_target_id
-            # E2 切换防抖（bind_holdoff.BindSwitchHoldoff）：进行中会话的
+            # E2 切换防抖（capture.BindSwitchHoldoff）：进行中会话的
             # 放弃重绑须新 selected 持续稳定超过 bind.switch_holdoff_s；
             # 挂起中（PEND/WAIT）保持旧绑定，旧会话照常采帧，瞬态抖动
             # （A→空→A、A→B→A）不再销毁正在积分的 TSDF 会话
@@ -849,39 +882,24 @@ class TargetReconstructionNode(ReconstructionCore, LifecycleNode):
         return self._target_kind_memory.resolve()
 
     def _on_joint_states(self, msg: JointState):
-        """缓存带曝光可查询时间戳的关节状态；回退时丢弃旧时钟域历史."""
+        """缓存曝光关节证据；解码一次，历史时钟回退仍清空旧域."""
+        velocities = tuple(float(v) for v in msg.velocity)
+        arm_joints = {
+            'shoulder_joint', 'upperArm_joint', 'foreArm_joint',
+            'wrist1_joint', 'wrist2_joint', 'wrist3_joint'}
+        if (len(msg.name) != len(velocities)
+                or not arm_joints.issubset(msg.name)):
+            velocities = ()
         with self._state_lock:
-            stamp = Time.from_msg(msg.header.stamp)
-            newest = self._joint_state_cache.getLastestTime()
-            if newest is not None and stamp < newest:
-                # 安装的 Jazzy Cache.add 按到达顺序 append；回放重启或
-                # 乱序都保守重建，不把旧域消息误作曝光时刻证据。
-                self._joint_state_cache = message_filters.Cache(
-                    message_filters.SimpleFilter(), cache_size=8192)
-            self._joint_state_cache.add(msg)
+            self._joint_state_cache.append(
+                self._stamp_ns(msg.header.stamp), velocities)
 
     def _joint_velocity_at_frame(self, stamp_msg):
         """锁内查曝光两侧关节证据；无证据不可回退最新状态."""
         if stamp_msg is None:
             return None, '曝光时刻关节状态缺失（无图像时间戳）'
-        stamp = Time.from_msg(stamp_msg)
-
-        def sample(msg):
-            if msg is None:
-                return None
-            velocities = tuple(float(v) for v in msg.velocity)
-            arm_joints = {
-                'shoulder_joint', 'upperArm_joint', 'foreArm_joint',
-                'wrist1_joint', 'wrist2_joint', 'wrist3_joint'}
-            if (len(msg.name) != len(velocities)
-                    or not arm_joints.issubset(msg.name)):
-                velocities = ()
-            return self._stamp_ns(msg.header.stamp), velocities
-
-        return exposure_joint_velocity(
-            stamp.nanoseconds,
-            sample(self._joint_state_cache.getElemBeforeTime(stamp)),
-            sample(self._joint_state_cache.getElemAfterTime(stamp)),
+        return self._joint_state_cache.velocity_at(
+            self._stamp_ns(stamp_msg),
             float(self.params.capture.joint_state_tolerance_s))
 
     # ------------------------------------------------------------------
@@ -1086,19 +1104,19 @@ class TargetReconstructionNode(ReconstructionCore, LifecycleNode):
         return cloud_fk, cloud_rgb
 
     def _register_cloud(self, cloud_fk, target):
-        """有界 ICP（或纯 FK）。返回 (ok, T_corr, mode, info, err)."""
+        """锁外有界 ICP；返回结果与耗时，状态落账由提交段校验世代后完成."""
         if not self.params.icp.enable:
             info = {
                 'mode': 'fk', 'reason': 'icp_disabled',
                 'fitness': -1.0, 'rmse_m': -1.0,
                 'translation_m': 0.0, 'rotation_deg': 0.0,
             }
-            return True, np.eye(4, dtype=np.float64), 'fk', info, ''
+            return True, np.eye(4, dtype=np.float64), 'fk', info, '', None
         t_icp0 = self._algo_clock.now()
         registration = self._icp_refiner.refine(cloud_fk, target)
-        self._timing.record_icp((self._algo_clock.now() - t_icp0) * 1000.0)
-        self._icp_target_cache.note_result(
-            registration.mode, registration.translation_m)
+        observation = (
+            registration.mode, float(registration.translation_m),
+            (self._algo_clock.now() - t_icp0) * 1000.0)
         if not registration.accepted:
             err = (
                 f'配准拒帧：{registration.reason}，'
@@ -1106,7 +1124,7 @@ class TargetReconstructionNode(ReconstructionCore, LifecycleNode):
                 f'rmse={registration.rmse * 1000.0:.1f}mm，'
                 f'修正={registration.translation_m * 1000.0:.1f}mm/'
                 f'{registration.rotation_deg:.2f}deg')
-            return False, None, '', {}, err
+            return False, None, '', {}, err, observation
         info = {
             'mode': registration.mode,
             'reason': registration.reason,
@@ -1115,7 +1133,7 @@ class TargetReconstructionNode(ReconstructionCore, LifecycleNode):
             'translation_m': float(registration.translation_m),
             'rotation_deg': float(registration.rotation_deg),
         }
-        return True, registration.correction, registration.mode, info, ''
+        return True, registration.correction, registration.mode, info, '', observation
 
     def _integrate_tsdf(self, rgb, masked_depth, K, T_used, cloud_base):
         """积分当前帧；体积失败才回滚。袋融合失败保留体积，该帧仍算采入."""
@@ -1172,8 +1190,8 @@ class TargetReconstructionNode(ReconstructionCore, LifecycleNode):
 
         Returns
         -------
-            (payload, None) 或 (None, 拒帧原因)；payload =
-            (frame, ratio, mode, reg_info)。
+            (payload, 拒帧原因或 None, ICP 观测或 None)；payload =
+            (frame, ratio, mode, reg_info)。观测不在此写入共享统计或缓存。
 
         """
         (rgb, depth_mm, K, stamp_sec,
@@ -1186,18 +1204,18 @@ class TargetReconstructionNode(ReconstructionCore, LifecycleNode):
                     depth_mm, rgb, K, T_base_camera,
                     target_mask=target_mask)
         except (RuntimeError, ValueError) as exc:
-            return None, f'点云构建失败: {exc}'
+            return None, f'点云构建失败: {exc}', None
         if tf_status != 'ok':
-            return None, '非精确时间 TF 帧禁止进入 TSDF'
+            return None, '非精确时间 TF 帧禁止进入 TSDF', None
 
         cloud_fk, cloud_rgb = self._crop_for_icp(cloud_fk, cloud_rgb)
         cached_target = self._icp_target_cache.current_target()
         target = (np.zeros((0, 3), dtype=np.float64)
                   if cached_target is None else cached_target)
-        ok, correction, mode, reg_info, err = self._register_cloud(
+        ok, correction, mode, reg_info, err, observation = self._register_cloud(
             cloud_fk, target)
         if not ok:
-            return None, err
+            return None, err, observation
         T_used = correction @ np.asarray(T_base_camera, dtype=np.float64)
         cloud_base = transform_points(cloud_fk, correction)
         flags = [f'pose_{mode}']
@@ -1212,7 +1230,7 @@ class TargetReconstructionNode(ReconstructionCore, LifecycleNode):
             valid_depth_ratio=ratio, cloud_base=cloud_base,
             cloud_rgb=cloud_rgb, diagnostic_flags=flags,
             registration=reg_info)
-        return (frame, ratio, mode, reg_info), None
+        return (frame, ratio, mode, reg_info), None, observation
 
     def _commit_prepared_frame(self, prepared, t_frame0):
         """
@@ -1306,43 +1324,45 @@ class TargetReconstructionNode(ReconstructionCore, LifecycleNode):
             tsdf_xyz = self._tsdf_cloud_cache[0]
         else:
             tsdf_xyz = None
-        result, fused = self._refit_orchestrator.run(
-            tsdf_xyz=tsdf_xyz,
-            frames=list(self.collector.frames),
-            target_center=self.collector.target_center,
-            kind=kind,
-            kind_defaulted=defaulted,
-            bound_axis_hint=self._bound_axis_hint,
-            target_id=self.collector.target_id,
-            entry_standoff_m=float(self.params.refit.entry_standoff_m),
-            pregrasp_standoff_m=float(self.params.refit.pregrasp_standoff_m),
-            # 许可数学内径随当前工具档案（tool_profile launch 注入）
-            budget_params=ToolBudgetParams(
-                d_inner=float(self.params.tool.budget.d_inner),
-                cut_reference_offset_m=float(
-                    self.params.tool.budget.cut_reference_offset_m),
-                blade_capture_half_width=float(
-                    self.params.tool.budget.blade_capture_half_width),
-                axial_safety_margin=float(
-                    self.params.tool.budget.axial_safety_margin),
-                blade_plane_calibration_error95=float(
-                    self.params.tool.budget.blade_plane_calibration_error95),
-                robot_axial_error95=float(
-                    self.params.tool.budget.robot_axial_error95),
-                target_motion95=float(
-                    self.params.tool.budget.target_motion95),
-                axial_neck_floor_m=float(
-                    self.params.tool.budget.axial_neck_floor_m)),
-            mark_final=mark_final,
-            previous=previous,
-            on_view=self._on_view_geometry)
+        with self._timing.phase('refit_total'):
+            result, fused = self._refit_orchestrator.run(
+                tsdf_xyz=tsdf_xyz,
+                frames=list(self.collector.frames),
+                target_center=self.collector.target_center,
+                kind=kind,
+                kind_defaulted=defaulted,
+                bound_axis_hint=self._bound_axis_hint,
+                target_id=self.collector.target_id,
+                entry_standoff_m=float(self.params.refit.entry_standoff_m),
+                pregrasp_standoff_m=float(self.params.refit.pregrasp_standoff_m),
+                # 许可数学内径随当前工具档案（tool_profile launch 注入）
+                budget_params=ToolBudgetParams(
+                    d_inner=float(self.params.tool.budget.d_inner),
+                    cut_reference_offset_m=float(
+                        self.params.tool.budget.cut_reference_offset_m),
+                    blade_capture_half_width=float(
+                        self.params.tool.budget.blade_capture_half_width),
+                    axial_safety_margin=float(
+                        self.params.tool.budget.axial_safety_margin),
+                    blade_plane_calibration_error95=float(
+                        self.params.tool.budget.blade_plane_calibration_error95),
+                    robot_axial_error95=float(
+                        self.params.tool.budget.robot_axial_error95),
+                    target_motion95=float(
+                        self.params.tool.budget.target_motion95),
+                    axial_neck_floor_m=float(
+                        self.params.tool.budget.axial_neck_floor_m)),
+                mark_final=mark_final,
+                previous=previous,
+                on_view=self._on_view_geometry)
         if result.ok and result.budget:
             # _refined/_bag_model 须成对写入：GraspDecision 读 _refined、
             # PregraspVerification/TargetModel 读 _bag_model，只写一个会让
             # 同一时刻「许可与残差观测」互相矛盾。
             self._refined = result
             self._bag_model = fused
-            self._log_geometry_row(result, fused)
+            with self._timing.phase('fused_geometry_record'):
+                self._log_geometry_row(result, fused)
             self._bump_products_version()
             self._products_force_publish = True
             status_text = (
@@ -1360,7 +1380,7 @@ class TargetReconstructionNode(ReconstructionCore, LifecycleNode):
         return f'；refit 失败（{result.reason}）'
 
     def _on_finalize(self, request, response):
-        """~/finalize_reconstruction：机位与帧数达标则拼接全部帧发 local_cloud."""
+        """~/finalize_reconstruction：检查覆盖并提取 TSDF/refit，发布收口产物."""
         del request
         with self._state_lock:
             ok, message = self._finalize_now()
@@ -1442,11 +1462,59 @@ class TargetReconstructionNode(ReconstructionCore, LifecycleNode):
         self._bound_axis_hint = candidate_axis_hint(self._latest_candidates, target_id)
         self._publish_all()
 
-    def _collect_and_finalize_build(self, goal_handle, target_id: str):
+    def _discard_build_result(self, target_id: str, reason: str) -> None:
+        """调用方持原状态锁：作废迟到产物，再允许其它回调读取或发布."""
+        revision = str(getattr(self._refined, 'model_revision', '') or '')
+        self._reset_capture_session()
+        self._completed_build_generation = None
+        self._harvest_data.append_event({
+            'source': 'reconstruction', 'event': 'build_result_discarded',
+            'target_id': target_id, 'reason': reason,
+            'model_revision': revision})
+
+    def _build_stop_reason(self, goal_handle, deadline: float) -> str:
+        """取消优先于期限；仅查询，供计算、发布和终态共用同一预算."""
+        if goal_handle.is_cancel_requested or not self._lifecycle_active:
+            return 'canceled'
+        if self._algo_clock.now() >= deadline:
+            return 'timeout'
+        return ''
+
+    def _stopped_build_result(self, goal_handle, pose_count: int,
+                              status: str, message: str):
+        """失效并清屏后提交失败终态；已受理取消才进入 CANCELED."""
+        goal = goal_handle.request
+        with self._state_lock:
+            if (self.collector.state != STATE_IDLE or self._refined is not None
+                    or self._bag_model is not None):
+                self._discard_build_result(goal.target_id, status)
+            self._publish_all()
+        result = BuildTargetModel.Result()
+        result.success = False
+        result.message = message
+        result.failure_code = (
+            FailureCode.CANCELED if status == 'canceled' else FailureCode.BUILD_FAILED)
+        result.quality_level = TargetQuality.LOW
+        model = TargetModel()
+        model.target_id = goal.target_id
+        model.scene_epoch = goal.scene_epoch
+        model.accepted = False
+        model.message = message
+        model.quality.level = result.quality_level
+        model.view_count = pose_count
+        result.model = model
+        if status == 'canceled' and goal_handle.is_cancel_requested:
+            goal_handle.canceled()
+        else:
+            goal_handle.abort()
+        return result
+
+    def _collect_and_finalize_build(self, goal_handle, target_id: str, *, deadline=None):
         """首拍加至多两次新曝光替换，共用原Build时间预算及全部质量门."""
         max_attempts = 3
         retryable = {'bag_axis_envelope_ill_conditioned', 'bag_axis_silhouette_unobservable'}
-        deadline = self._algo_clock.now() + float(self.params.capture.build_timeout_s)
+        if deadline is None:
+            deadline = self._algo_clock.now() + float(self.params.capture.build_timeout_s)
         attempts, last_reason = 0, ''
         while True:
             status, pose_count, _bound = self._wait_min_views(
@@ -1455,8 +1523,24 @@ class TargetReconstructionNode(ReconstructionCore, LifecycleNode):
                 detail = f'{status}: {last_reason}; attempts={attempts}' if last_reason else status
                 return status, pose_count, False, detail
             with self._state_lock:
-                ok, message = self._finalize_now()
+                stop_reason = self._build_stop_reason(goal_handle, deadline)
+                if stop_reason:
+                    self._discard_build_result(target_id, stop_reason + '_before_finalize')
+                    return stop_reason, pose_count, False, stop_reason + ' before finalize'
+                # 延迟发布；原锁内复核并作废，避免释放锁后其它回调发出迟到许可。
+                ok, message = self._finalize_now(publish=False)
+                stop_reason = self._build_stop_reason(goal_handle, deadline)
+                if stop_reason:
+                    self._discard_build_result(target_id, stop_reason + '_during_finalize')
+                    return stop_reason, pose_count, False, stop_reason + ' during finalize'
                 self._completed_build_generation = self._capture_generation
+                with self._timing.phase('finalize_publish'):
+                    self._publish_all(publish_guard=lambda: not self._build_stop_reason(
+                        goal_handle, deadline))
+                stop_reason = self._build_stop_reason(goal_handle, deadline)
+                if stop_reason:
+                    self._discard_build_result(target_id, stop_reason + '_during_publish')
+                    return stop_reason, pose_count, False, stop_reason + ' during publish'
                 attempts += 1
                 if ok:
                     return 'ready', pose_count, True, message
@@ -1528,33 +1612,16 @@ class TargetReconstructionNode(ReconstructionCore, LifecycleNode):
         started.view_count = 0
         started.status = bound_state
         goal_handle.publish_feedback(started)
+        deadline = self._algo_clock.now() + float(self.params.capture.build_timeout_s)
         status, pose_count, ok, message = self._collect_and_finalize_build(
-            goal_handle, goal.target_id)
+            goal_handle, goal.target_id, deadline=deadline)
         if status in ('canceled', 'timeout'):
-            with self._state_lock:
-                self._reset_capture_session()
-                self._publish_all()
-            result = BuildTargetModel.Result()
-            result.success = False
-            result.message = message
-            result.failure_code = (
-                FailureCode.CANCELED if status == 'canceled'
-                else FailureCode.BUILD_FAILED)
-            result.quality_level = TargetQuality.LOW
-            model = TargetModel()
-            model.target_id = goal.target_id
-            model.scene_epoch = goal.scene_epoch
-            model.accepted = False
-            model.message = message
-            model.quality.level = result.quality_level
-            model.view_count = pose_count
-            result.model = model
-            if status == 'canceled':
-                goal_handle.canceled()
-            else:
-                goal_handle.abort()
-            return result
+            return self._stopped_build_result(goal_handle, pose_count, status, message)
         with self._state_lock:
+            stop_reason = self._build_stop_reason(goal_handle, deadline)
+            if stop_reason:
+                return self._stopped_build_result(
+                    goal_handle, pose_count, stop_reason, stop_reason + ' before result')
             same_session = (
                 self._completed_build_generation == self._capture_generation
                 and self.collector.target_id == goal.target_id
@@ -1584,6 +1651,10 @@ class TargetReconstructionNode(ReconstructionCore, LifecycleNode):
                         f'{message}；缺少 calibration_version，臂侧无法使用此模型执行')
                     self.get_logger().warning(f'{goal.target_id}: {result.message}')
             result.model = model
+            stop_reason = self._build_stop_reason(goal_handle, deadline)
+            if stop_reason:
+                return self._stopped_build_result(
+                    goal_handle, pose_count, stop_reason, stop_reason + ' during result')
             if ok:
                 goal_handle.succeed()
             else:
@@ -1747,7 +1818,11 @@ def main(args=None):
     executor = MultiThreadedExecutor(num_threads=4)
     executor.add_node(node)
     try:
-        executor.spin()
+        while rclpy.ok():
+            # 空 wait-set 唤醒不能让主线程持续抢占数值线程的 GIL。
+            # 仅约束等待轮次；正在执行的回调/数值库仍不可抢占。
+            executor.spin_once(timeout_sec=node._executor_wait_timeout_s())
+            time.sleep(0)
     except (KeyboardInterrupt, ExternalShutdownException):
         pass
     except RuntimeError:

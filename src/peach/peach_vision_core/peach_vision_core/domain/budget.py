@@ -28,8 +28,8 @@ def evaluate_capabilities(
         neck_position95, cut_to_fruit_m, params)
     sleeve = capability_from_ok(raw['sleeve_ok'])
     cut = capability_from_ok(raw['cut_ok'])
-    # TODO(W13-A 占位)：geometry 恒 VALID 是占位语义——本评估器只见点云
-    # 拟合质量，几何/预抓可达性（IK、场景碰撞）尚无独立信号源接入；
+    # TODO(W13-A 占位)：geometry 恒 VALID 是占位语义——本评估器只接收
+    # 几何/误差标量，不读取拟合状态或几何/预抓可达性（IK、场景碰撞）；
     # 接入真实信号后此处应改为按观测推导，不得默认放行。
     geometry = capability_from_ok(True)
     allowed = allowed_from_capabilities(geometry, geometry, sleeve, cut)

@@ -25,7 +25,7 @@ def pregrasp_pose_of(item):
     观测候选 → 感知入口 7 元组 (px,py,pz,qx,qy,qz,qw).
 
     SELECT 把入口送给 CheckReachability；服务端再换成与 MovePregrasp 同一
-    停位（沿袋轴后撤 mtc_approach_along_axis_m + alignFrameZ）。本函数仍
+    停位 A（沿袋轴后撤共享 standoff 与 arm 净空，再 alignFrameZ）。本函数仍
     返回入口，供查询与半径回退。几何未绑定 / 坐标系非 base 系返回 None.
     """
     cand = getattr(item, 'candidate', None)
@@ -120,7 +120,8 @@ def reach_queries(observations, claimed, preferred=()):
     枚举待检目标：(tid, 入口 pose7, suggested_travel_m)（纯函数，供 IK 预检）.
 
     只含锁定集内已确认、未入账、非裸果且几何可构造的表项；
-    preferred（goal 显式名单）不参与预检——直通不受窗限。
+    preferred 参数当前不参与本函数过滤，合格显式名单仍会被查询；
+    next_target 选择名单目标时不以查询结果或深度/半径窗拒绝。
     """
     out = []
     for tid, item in _eligible_locked_items(observations, claimed):
@@ -131,7 +132,7 @@ def reach_queries(observations, claimed, preferred=()):
 
 
 def _pregrasp_radius(item):
-    """估计预抓取点半径（无 IK 时的回退窗基准）；几何缺失 None."""
+    """入口半径（历史函数名保留；无 IK 时的回退窗基准），缺几何则 None."""
     pose = pregrasp_pose_of(item)
     if pose is None:
         return None
@@ -348,8 +349,8 @@ def set_elapsed(outcome, seconds: float) -> None:
 
 # ledger 遥测与周期来源白名单：落盘和断点恢复共用；只保留生产端
 # 已提供的字段，缺失的时钟与身份不补默认值。
-# cut/retreat/harvest_confirmed 三 bool 键不补——W7 IDL 收敛将随
-# ExecuteTarget.Result 顶层删除。
+# cut/retreat/harvest_confirmed 三 bool 键不在此白名单；执行结果的证据
+# 单源为 harvest/verification 块，持久化附加字段仅以下列键为准。
 _EXTRA_KEYS = (
     'failure_code', 'failure_code_n', 'completion_level', 'stage_names',
     'stage_durations', 'build_view_count', 'build_status', 'build_duration_s',

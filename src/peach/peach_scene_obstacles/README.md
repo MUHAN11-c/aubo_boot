@@ -2,7 +2,7 @@
 
 退出时若SIGINT已关闭rclpy上下文，允许executor取消息阶段的RuntimeError随关闭流程结束；上下文仍有效时的运行错误继续抛出，不将真实故障伪装成正常退出。
 
-Peach Survey-triggered PlanningScene obstacle snapshot node.
+Survey 触发的 PlanningScene 障碍快照普通节点，不进入 lifecycle 名单。默认 `enabled=false`，不会订阅大点云或主动写入障碍；开启后才处理 Survey 请求。源码分工见 [架构](doc/architecture.md)，话题、MoveIt 服务和参数语义见 [接口](doc/io.md)。
 
 开启 `enabled` 后，每次 Survey 固定触发时的最近一帧点云。触发时还没有点云则等首帧。
 节点按点云曝光时间查询相机和各网格连杆到 `base_frame` 的 TF，体素化并滤除自身后缓存。

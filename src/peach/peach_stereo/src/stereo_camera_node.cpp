@@ -22,19 +22,21 @@
 // camera_info 仍覆盖 color_camera_info.yaml，与官方节点覆盖语义一致。
 // 标定数组是 float32，转换到 OpenCV double 矩阵时必须显式 convertTo。
 // 彩色分辨率显式设为 640×480，防止默认大图降低整个帧组节拍。
-// 捕获线程独占设备缓冲，发布内容须在归还缓冲前拷贝；析构停止采集后回收线程。
+// 捕获线程独占设备缓冲，克隆后立即归还；最新帧单槽交给处理线程，析构先收净两线程。
 // 激光自动控制和功率连接时重置；不把设置成功当作现场光学安全证明。
 #include <algorithm>
 #include <array>
 #include <atomic>
 #include <chrono>
 #include <cmath>
+#include <condition_variable>
 #include <cstdint>
 #include <cstring>
 #include <deque>
 #include <limits>
 #include <memory>
 #include <mutex>
+#include <optional>
 #include <string>
 #include <thread>
 #include <vector>
@@ -44,6 +46,7 @@
 #include <opencv2/imgproc.hpp>
 
 #include <rclcpp/rclcpp.hpp>
+#include <rcl_interfaces/msg/parameter_descriptor.hpp>
 #include <sensor_msgs/msg/camera_info.hpp>
 #include <sensor_msgs/msg/image.hpp>
 #include <sensor_msgs/msg/joint_state.hpp>
@@ -62,9 +65,35 @@
 #include "TYApi.h"
 #include "TYCoordinateMapper.h"
 #include "TYImageProc.h"
+#include "packet_delay_transaction.hpp"
 
 namespace peach_stereo
 {
+
+struct PacketDelaySdkApi
+{
+  TY_DEV_HANDLE device;
+
+  int getInfo(TY_FEATURE_INFO & info)
+  {
+    return TYGetFeatureInfo(device, TY_COMPONENT_DEVICE, TY_INT_PACKET_DELAY, &info);
+  }
+
+  int getRange(TY_INT_RANGE & range)
+  {
+    return TYGetIntRange(device, TY_COMPONENT_DEVICE, TY_INT_PACKET_DELAY, &range);
+  }
+
+  int get(int32_t & value)
+  {
+    return TYGetInt(device, TY_COMPONENT_DEVICE, TY_INT_PACKET_DELAY, &value);
+  }
+
+  int set(int32_t value)
+  {
+    return TYSetInt(device, TY_COMPONENT_DEVICE, TY_INT_PACKET_DELAY, value);
+  }
+};
 
 // 只保存源时间证据，不插值关节、不使用消息到达时刻代替曝光时刻。
 struct JointMotionHistory
@@ -130,8 +159,8 @@ struct JointMotionHistory
 
 // SDK 标注微秒。HOST 同步后部分固件写入 Unix 纳秒（2026 年约 1.7e18）；
 // 1e17 以上不可能是 Unix 微秒。设备启动时间两种单位都过不了年龄门。
-// 年龄上限须大于 TYFetchFrame 2000 ms 与 IR 曝光 990 ms；本机 harvest+RViz
-// 实测送达 2.7–7.3 s，2 s 门会把彩色/深度整路丢掉。
+// 保留历史 harvest+RViz 送达 2.7–7.3 s 时采用的纪元检查上限；
+// TY_INT_EXPOSURE_TIME 整数单位由设备定义，不能由参数 990 推断为 990 ms。
 constexpr int64_t kMaxExposureAgeNs = 10000000000LL;
 
 int64_t sourceStampNs(uint64_t stamp)
@@ -169,6 +198,74 @@ bool imageFitsBuffer(const TY_IMAGE_DATA & image, const cv::Size & expected, int
          image.size >= static_cast<int64_t>(image.width) * image.height * bytes_per_pixel;
 }
 
+// Monotonic durations from one successfully published group. Epoch ages are separate.
+struct PipelineTiming
+{
+  int sequence{0};
+  int64_t color_ns{0}, depth_ns{0};
+  double capture_age_ms{0.0}, fetch_wait_ms{0.0}, clone_return_ms{0.0};
+  double queue_wait_ms{0.0}, color_decode_ms{0.0}, color_undistort_ms{0.0};
+  double color_publish_ms{0.0}, rectify_ms{0.0}, sgbm_ms{0.0};
+  double spatial_median_ms{0.0}, depth_convert_average_ms{0.0};
+  double registration_ms{0.0}, temporal_ms{0.0}, depth_publish_ms{0.0};
+  double points_ms{0.0}, processing_ms{0.0}, fetch_to_publish_ms{0.0};
+};
+
+double elapsedMs(const std::chrono::steady_clock::time_point & start)
+{
+  return std::chrono::duration<double, std::milli>(
+    std::chrono::steady_clock::now() - start).count();
+}
+
+// Each pending frame owns its pixels; SDK buffers never leave the capture thread.
+struct CapturedFrame
+{
+  cv::Mat color_yuyv, ir_left, ir_right;
+  int64_t color_ns{0}, depth_ns{0};
+  uint64_t temporal_epoch{0};
+  PipelineTiming timing;
+  std::chrono::steady_clock::time_point received_at;
+};
+
+// A slow consumer replaces old work instead of delaying the next SDK fetch.
+class LatestFrameSlot
+{
+public:
+  bool replace(CapturedFrame frame)
+  {
+    std::lock_guard<std::mutex> lock(mutex_);
+    if (stopped_) {return false;}
+    const bool dropped = frame_.has_value();
+    frame_ = std::move(frame);
+    ready_.notify_one();
+    return dropped;
+  }
+
+  bool waitTake(CapturedFrame & frame)
+  {
+    std::unique_lock<std::mutex> lock(mutex_);
+    ready_.wait(lock, [this] {return stopped_ || frame_.has_value();});
+    if (stopped_) {return false;}
+    frame = std::move(*frame_);
+    frame_.reset();
+    return true;
+  }
+
+  void stop()
+  {
+    std::lock_guard<std::mutex> lock(mutex_);
+    stopped_ = true;
+    frame_.reset();
+    ready_.notify_all();
+  }
+
+private:
+  std::mutex mutex_;
+  std::condition_variable ready_;
+  std::optional<CapturedFrame> frame_;
+  bool stopped_{false};
+};
+
 class StereoCameraNode : public rclcpp::Node {
 public:
   explicit StereoCameraNode(const rclcpp::NodeOptions & options)
@@ -180,6 +277,12 @@ public:
     color_mode_ = get_parameter("color_mode").as_string();
     ir_exposure_ = static_cast<int32_t>(get_parameter("ir_exposure").as_int());
     laser_power_ = static_cast<int32_t>(get_parameter("laser_power").as_int());
+    const auto packet_delay_value = get_parameter("packet_delay_us").as_int();
+    if (packet_delay_value < -1 || packet_delay_value > std::numeric_limits<int32_t>::max()) {
+      RCLCPP_FATAL(get_logger(), "packet_delay_us must be -1 or a nonnegative int32");
+      throw std::runtime_error("invalid packet_delay_us");
+    }
+    packet_delay_us_ = static_cast<int32_t>(packet_delay_value);
     num_disp_ = static_cast<int>(get_parameter("sgbm.num_disparities").as_int());
     block_ = static_cast<int>(get_parameter("sgbm.block_size").as_int());
     uniq_ = static_cast<int>(get_parameter("sgbm.uniqueness_ratio").as_int());
@@ -283,10 +386,11 @@ public:
       }
       last_diag_at_ = std::chrono::steady_clock::now();
       running_.store(true);
-      capture_thread_ = std::thread([this] {captureLoop();});
+      processing_thread_ = std::thread([this] {runWorker(false);});
+      capture_thread_ = std::thread([this] {runWorker(true);});
     } catch (...) {
       // 构造失败不会调用本类析构，仍须释放已打开设备并复位激光。
-      running_.store(false);
+      stopWorkers();
       closeDevice();
       throw;
     }
@@ -294,8 +398,7 @@ public:
 
   ~StereoCameraNode() override
   {
-    running_.store(false);
-    if (capture_thread_.joinable()) {capture_thread_.join();}
+    stopWorkers();
     closeDevice();
   }
 
@@ -344,11 +447,51 @@ public:
     stat.add("drop_no_stamp", drop_nostamp_.load());
     stat.add("drop_invalid_stamp", drop_invalid_stamp_.load());
     stat.add("drop_depth", drop_depth_.load());
+    stat.add("drop_processing_backlog", drop_processing_backlog_.load());
+    stat.add("capture_age_ms", last_capture_age_ms_.load());
+    stat.add("processing_queue_wait_ms", last_processing_queue_wait_ms_.load());
+    PipelineTiming timing;
+    {
+      std::lock_guard<std::mutex> lock(timing_mutex_);
+      timing = last_pipeline_timing_;
+    }
+    stat.add("pipeline_sequence", timing.sequence);
+    stat.add("pipeline_color_stamp_ns", std::to_string(timing.color_ns));
+    stat.add("pipeline_depth_stamp_ns", std::to_string(timing.depth_ns));
+    stat.add("pipeline_capture_age_ms", timing.capture_age_ms);
+    stat.add("pipeline_fetch_wait_ms", timing.fetch_wait_ms);
+    stat.add("pipeline_clone_return_ms", timing.clone_return_ms);
+    stat.add("pipeline_queue_wait_ms", timing.queue_wait_ms);
+    stat.add("pipeline_color_decode_ms", timing.color_decode_ms);
+    stat.add("pipeline_color_undistort_ms", timing.color_undistort_ms);
+    stat.add("pipeline_color_publish_ms", timing.color_publish_ms);
+    stat.add("pipeline_rectify_ms", timing.rectify_ms);
+    stat.add("pipeline_sgbm_ms", timing.sgbm_ms);
+    stat.add("pipeline_spatial_median_ms", timing.spatial_median_ms);
+    stat.add("pipeline_depth_convert_average_ms", timing.depth_convert_average_ms);
+    stat.add("pipeline_registration_ms", timing.registration_ms);
+    stat.add("pipeline_temporal_ms", timing.temporal_ms);
+    stat.add("pipeline_depth_publish_ms", timing.depth_publish_ms);
+    stat.add("pipeline_points_ms", timing.points_ms);
+    stat.add("pipeline_processing_ms", timing.processing_ms);
+    stat.add("pipeline_fetch_to_publish_ms", timing.fetch_to_publish_ms);
     stat.add("temporal_fusion_active", temporal_active_.load());
     stat.add("temporal_window_frames", temporal_window_frames_.load());
     stat.add("temporal_bypass_frames", temporal_bypass_frames_.load());
     stat.add("laser_config_ok", laser_config_ok_.load() ? "true" : "false");
     stat.add("time_sync_ready", time_sync_ready_.load() ? "true" : "false");
+    PacketDelayTransaction packet;
+    {
+      std::lock_guard<std::mutex> lock(packet_delay_mutex_);
+      packet = packet_delay_;
+    }
+    stat.add("packet_delay_requested_us", packet.requested_us);
+    stat.add("packet_delay_original_us", packet.original_us);
+    stat.add("packet_delay_applied_us", packet.applied_us);
+    stat.add("packet_delay_configured", packet.configured ? "true" : "false");
+    stat.add("packet_delay_setup_error", packet.setup_error);
+    stat.add("packet_delay_restore_pending", packet.restore_pending ? "true" : "false");
+    stat.add("packet_delay_restore_verified", packet.restore_verified ? "true" : "false");
   }
 
 private:
@@ -374,7 +517,7 @@ private:
       sample.position[joint] = msg.position[index];
       sample.max_velocity = std::max(sample.max_velocity, std::abs(msg.velocity[index]));
     }
-    // Executor 回调与 SDK 采集线程独立；锁仅保护小型关节证据窗。
+    // Executor 回调与图像处理线程独立；锁仅保护小型关节证据窗。
     std::lock_guard<std::mutex> lock(joint_mutex_);
     joint_history_.add(sample);
   }
@@ -387,7 +530,7 @@ private:
 
   void clearTemporalWindow()
   {
-    // 图像历史只由采集线程访问，订阅回调不触碰 cv::Mat。
+    // 图像历史只由处理线程访问，订阅回调不触碰 cv::Mat。
     treg_.clear();
     treg_start_ns_.clear();
     tconf_.release();
@@ -403,6 +546,11 @@ private:
     declare_parameter<std::string>("color_camera_info_file", "");
     declare_parameter<int>("ir_exposure", 990);
     declare_parameter<int>("laser_power", 100);
+    rcl_interfaces::msg::ParameterDescriptor packet_delay_descriptor;
+    packet_delay_descriptor.read_only = true;
+    packet_delay_descriptor.description =
+      "Startup GigE packet delay in microseconds; -1 preserves the device value.";
+    declare_parameter<int64_t>("packet_delay_us", -1, packet_delay_descriptor);
     declare_parameter<int>("qos_depth", 1);
     declare_parameter<std::string>("qos_reliability", "reliable");
     declare_parameter<int>("sgbm.num_disparities", 128);
@@ -530,7 +678,7 @@ private:
     {
       RCLCPP_ERROR(
         get_logger(),
-        "激光/IR 曝光参数写入失败（power=%d exposure=%dms）：深度将静默劣化，拒启",
+        "激光/IR 曝光参数写入失败（power=%d ir_exposure=%d）：深度将静默劣化，拒启",
         laser_power_, ir_exposure_);
       return false;
     }
@@ -562,6 +710,7 @@ private:
       buf.resize(frame_size);
       TYEnqueueBuffer(dev_, buf.data(), frame_size);
     }
+    if (!setupPacketDelay()) {return false;}
     if (TYStartCapture(dev_) != TY_STATUS_OK) {
       RCLCPP_ERROR(get_logger(), "start capture failed");
       return false;
@@ -733,20 +882,69 @@ private:
     return true;
   }
 
+  bool setupPacketDelay()
+  {
+    std::lock_guard<std::mutex> lock(packet_delay_mutex_);
+    PacketDelaySdkApi api{dev_};
+    if (!packet_delay_.configure(api, packet_delay_us_)) {
+      RCLCPP_ERROR(
+        get_logger(),
+        "packet_delay setup failed: %s requested=%d original=%d applied=%d "
+        "info=%d range=%d original_get=%d set=%d get=%d "
+        "rollback_verified=%d pending=%d rollback_set=%d rollback_get=%d",
+        packet_delay_.setup_error, packet_delay_.requested_us, packet_delay_.original_us,
+        packet_delay_.applied_us, packet_delay_.info_status, packet_delay_.range_status,
+        packet_delay_.original_status, packet_delay_.set_status, packet_delay_.readback_status,
+        packet_delay_.restore_verified, packet_delay_.restore_pending,
+        packet_delay_.restore_set_status, packet_delay_.restore_get_status);
+      return false;
+    }
+    if (packet_delay_us_ >= 0) {
+      RCLCPP_INFO(get_logger(), "packet_delay configured requested=%d original=%d readback=%d us",
+        packet_delay_.requested_us, packet_delay_.original_us, packet_delay_.applied_us);
+    }
+    return true;
+  }
+
+  void restorePacketDelay()
+  {
+    std::lock_guard<std::mutex> lock(packet_delay_mutex_);
+    if (!packet_delay_.restore_pending) {return;}
+    PacketDelaySdkApi api{dev_};
+    if (packet_delay_.restore(api)) {
+      RCLCPP_INFO(get_logger(), "packet_delay restored original=%d readback=%d us",
+        packet_delay_.original_us, packet_delay_.restored_us);
+    } else {
+      RCLCPP_ERROR(get_logger(),
+        "packet_delay RESTORE FAILED original_known=%d original=%d readback=%d set=%d get=%d",
+        packet_delay_.original_known, packet_delay_.original_us, packet_delay_.restored_us,
+        packet_delay_.restore_set_status, packet_delay_.restore_get_status);
+    }
+  }
+
   void closeDevice()
   {
     if (dev_ == nullptr) {return;}
     device_open_.store(false);
     time_sync_ready_.store(false);
-    TYStopCapture(dev_);
-    TYClearBufferQueue(dev_);
+    const auto stopped = TYStopCapture(dev_);
+    const auto cleared = TYClearBufferQueue(dev_);
+    if (stopped != TY_STATUS_OK || cleared != TY_STATUS_OK) {
+      RCLCPP_ERROR(get_logger(), "capture shutdown failed stop=%d clear=%d", stopped, cleared);
+    }
+    restorePacketDelay();
     // 礼貌复位（连接关闭本也会自动复位，双保险）
     TYSetBool(dev_, TY_COMPONENT_LASER, TY_BOOL_LASER_AUTO_CTRL, true);
     TYSetInt(dev_, TY_COMPONENT_LASER, TY_INT_LASER_POWER, 50);
-    TYCloseDevice(dev_);
-    TYCloseInterface(iface_);
+    const auto device_closed = TYCloseDevice(dev_);
+    const auto interface_closed = TYCloseInterface(iface_);
     dev_ = nullptr;
-    RCLCPP_INFO(get_logger(), "device closed, laser restored");
+    if (device_closed != TY_STATUS_OK || interface_closed != TY_STATUS_OK) {
+      RCLCPP_ERROR(get_logger(), "device close failed device=%d interface=%d",
+        device_closed, interface_closed);
+    } else {
+      RCLCPP_INFO(get_logger(), "device closed; laser reset requested");
+    }
   }
 
   void setupRectification()
@@ -930,16 +1128,41 @@ private:
     return msg;
   }
 
+  void stopWorkers()
+  {
+    running_.store(false);
+    pending_frame_.stop();
+    if (capture_thread_.joinable()) {capture_thread_.join();}
+    if (processing_thread_.joinable()) {processing_thread_.join();}
+  }
+
+  void runWorker(bool capture)
+  {
+    try {
+      if (capture) {captureLoop();} else {processingLoop();}
+    } catch (const std::exception & error) {
+      RCLCPP_ERROR(get_logger(), "%s worker failed: %s",
+                   capture ? "capture" : "processing", error.what());
+      running_.store(false);
+      pending_frame_.stop();
+      // Unwind through main/destruction so respawn can reopen a clean device.
+      rclcpp::shutdown();
+    } catch (...) {
+      RCLCPP_ERROR(get_logger(), "%s worker failed with unknown exception",
+                   capture ? "capture" : "processing");
+      running_.store(false);
+      pending_frame_.stop();
+      rclcpp::shutdown();
+    }
+  }
+
   void captureLoop()
   {
     auto t_start = std::chrono::steady_clock::now();
-    int groups = 0, published = 0;
-    int acc_frames = 0;
-    int64_t average_start_ns = 0, last_color_ns = 0, last_depth_ns = 0;
-    cv::Mat z_sum, z_cnt;
-
+    int64_t last_color_ns = 0, last_depth_ns = 0;
+    uint64_t temporal_epoch = 0;
     while (running_.load() && rclcpp::ok()) {
-      TY_FRAME_DATA frame;
+      TY_FRAME_DATA frame{};
       const auto t_fetch = std::chrono::steady_clock::now();
       TY_STATUS s = TYFetchFrame(dev_, &frame, 2000);
       if (s != TY_STATUS_OK) {
@@ -949,7 +1172,20 @@ private:
           static_cast<int>(s), static_cast<int>(TY_STATUS_TIMEOUT));
         continue;
       }
-      groups++;
+      // Return on every exit, including an allocation exception during clone().
+      struct ReturnBuffer
+      {
+        TY_DEV_HANDLE device;
+        TY_FRAME_DATA & frame;
+        ~ReturnBuffer()
+        {
+          if (frame.userBuffer != nullptr) {
+            TYEnqueueBuffer(device, frame.userBuffer, frame.bufferSize);
+          }
+        }
+      } return_buffer{dev_, frame};
+      const int groups = ++groups_;
+      const auto received_at = std::chrono::steady_clock::now();
       if (groups <= 20) {
         uint32_t components = 0;
         for (int k = 0; k < frame.validCount; k++) {
@@ -1023,9 +1259,8 @@ private:
       const bool stamps_forward = stamps_valid &&
         color_ns > last_color_ns && ir_l_ns > last_depth_ns;
       if (!stamps_forward) {
-        clearTemporalWindow();
-        acc_frames = 0;
-        average_start_ns = 0;
+        // Carry a discontinuity through overwritten slots to the processing owner.
+        ++temporal_epoch;
         if (stamps_valid) {
           // 回跳后首帧丢弃并建立新时域；重复帧不能通过下一次清零重发。
           last_color_ns = color_ns;
@@ -1049,79 +1284,125 @@ private:
           color_age_ms, ir_age_ms,
           pair_ns >= 0 ? static_cast<double>(pair_ns) / 1000.0 : -1.0);
       } else {
-        rclcpp::Time color_stamp(color_ns, RCL_SYSTEM_TIME);
-        rclcpp::Time depth_stamp(ir_l_ns, RCL_SYSTEM_TIME);
-        last_color_ns = color_stamp.nanoseconds();
-        last_depth_ns = depth_stamp.nanoseconds();
-        last_stamp_delta_ms_.store(
-          static_cast<double>(last_depth_ns - last_color_ns) * 1e-6);
-        // 先拷出再归还 SDK 缓冲，避免 SGBM/点云发布占着 2 槽把相机停到曝光节拍。
-        cv::Mat color_yuyv(ch, cw, CV_8UC2, const_cast<uint8_t *>(color));
-        cv::Mat ir_l_mat(ir_size_, CV_8UC1, const_cast<uint8_t *>(ir_l));
-        cv::Mat ir_r_mat(ir_size_, CV_8UC1, const_cast<uint8_t *>(ir_r));
-        color_yuyv = color_yuyv.clone();
-        ir_l_mat = ir_l_mat.clone();
-        ir_r_mat = ir_r_mat.clone();
-        TYEnqueueBuffer(dev_, frame.userBuffer, frame.bufferSize);
+        last_color_ns = color_ns;
+        last_depth_ns = ir_l_ns;
+        CapturedFrame captured;
+        captured.color_ns = color_ns;
+        captured.depth_ns = ir_l_ns;
+        captured.temporal_epoch = temporal_epoch;
+        captured.received_at = received_at;
+        captured.timing.color_ns = color_ns;
+        captured.timing.depth_ns = ir_l_ns;
+        captured.timing.capture_age_ms = static_cast<double>(host_now_ns - color_ns) * 1e-6;
+        captured.timing.fetch_wait_ms = std::chrono::duration<double, std::milli>(
+          received_at - t_fetch).count();
+        const auto clone_started = std::chrono::steady_clock::now();
+        captured.color_yuyv = cv::Mat(
+          ch, cw, CV_8UC2, const_cast<uint8_t *>(color)).clone();
+        captured.ir_left = cv::Mat(
+          ir_size_, CV_8UC1, const_cast<uint8_t *>(ir_l)).clone();
+        captured.ir_right = cv::Mat(
+          ir_size_, CV_8UC1, const_cast<uint8_t *>(ir_r)).clone();
+        const TY_STATUS returned = TYEnqueueBuffer(dev_, frame.userBuffer, frame.bufferSize);
         frame.userBuffer = nullptr;
-        // 参考 camera_ros：color 在深度计算前先发，避免 color 的 header age
-        // 被 SGBM/配准/点云时间污染；RGB-D 下游按各自曝光 stamp 同步。
-        // 棋盘格对着官方去畸变彩图：YUYV 解码后走与官方相同的厂参去畸变。
-        cv::Mat bgr = decodeColor(color_yuyv.ptr<uint8_t>(), cw, ch);
-        cv::Mat bgr_u;
-        if (!undistortBgr(bgr, bgr_u)) {
-          drop_stream_++;
-        } else {
-          publishColor(color_stamp, bgr_u);
-          int64_t window_start_ns = treg_start_ns_.empty() ?
-            last_depth_ns : treg_start_ns_.front();
-          if (acc_frames > 0) {
-            window_start_ns = std::min(window_start_ns, average_start_ns);
-          }
-          bool stationary = stationaryWindow(window_start_ns, last_depth_ns);
-          if (!stationary) {
-            clearTemporalWindow();
-            acc_frames = 0;
-            average_start_ns = 0;
-            // 旧窗含运动不代表本帧运动；本帧证据充分则从空窗重新积累。
-            stationary = stationaryWindow(last_depth_ns, last_depth_ns);
-          }
-          if (!stationary) {temporal_bypass_frames_++;}
-          if (acc_frames == 0) {average_start_ns = last_depth_ns;}
-          const auto t_depth = std::chrono::steady_clock::now();
-          cv::Mat z;
-          const bool depth_ok = computeDepth(
-              ir_l_mat.ptr<uint8_t>(), ir_r_mat.ptr<uint8_t>(),
-              z_sum, z_cnt, acc_frames, stationary, z);
-          last_depth_compute_ms_.store(std::chrono::duration<double, std::milli>(
-              std::chrono::steady_clock::now() - t_depth).count());
-          if (depth_ok && publishDepth(
-              depth_stamp, bgr_u, z, average_start_ns, stationary))
-          {
-            published++;
-            last_publish_ns_.store(std::chrono::duration_cast<std::chrono::nanoseconds>(
-                std::chrono::steady_clock::now().time_since_epoch()).count());
-          } else {
-            drop_depth_++;
-          }
+        if (returned != TY_STATUS_OK) {
+          throw std::runtime_error("failed to return captured SDK buffer");
         }
+        captured.timing.clone_return_ms = elapsedMs(clone_started);
+        last_capture_age_ms_.store(static_cast<double>(host_now_ns - color_ns) * 1e-6);
+        if (pending_frame_.replace(std::move(captured))) {drop_processing_backlog_++;}
       }
-      if (frame.userBuffer != nullptr) {
-        TYEnqueueBuffer(dev_, frame.userBuffer, frame.bufferSize);
-      }
-      groups_.store(groups);
-      published_.store(published);
-
       if (groups == 10 || groups == 20 || groups == 50 || groups % 100 == 0) {
-        double dt = std::chrono::duration<double>(
-            std::chrono::steady_clock::now() - t_start).count();
+        const double dt = std::chrono::duration<double>(
+          std::chrono::steady_clock::now() - t_start).count();
         RCLCPP_INFO(get_logger(),
                     "groups=%d published=%d rate=%.1f gps depth_compute_ms=%.1f "
-                    "drop(stream=%d incomplete=%d nostamp=%d invalid_stamp=%d depth=%d)",
-                    groups, published, groups / dt, last_depth_compute_ms_.load(),
+                    "drop(stream=%d incomplete=%d nostamp=%d invalid_stamp=%d "
+                    "depth=%d processing_backlog=%d)",
+                    groups, published_.load(), groups / dt, last_depth_compute_ms_.load(),
                     drop_stream_.load(), drop_incomplete_.load(),
                     drop_nostamp_.load(), drop_invalid_stamp_.load(),
-                    drop_depth_.load());
+                    drop_depth_.load(), drop_processing_backlog_.load());
+      }
+    }
+    pending_frame_.stop();
+  }
+
+  void processingLoop()
+  {
+    int acc_frames = 0;
+    int64_t average_start_ns = 0;
+    uint64_t temporal_epoch = 0;
+    cv::Mat z_sum, z_cnt;
+    CapturedFrame frame;
+    while (pending_frame_.waitTake(frame)) {
+      if (!running_.load() || !rclcpp::ok()) {break;}
+      if (frame.temporal_epoch != temporal_epoch) {
+        clearTemporalWindow();
+        acc_frames = 0;
+        average_start_ns = 0;
+        temporal_epoch = frame.temporal_epoch;
+      }
+      const auto processing_started = std::chrono::steady_clock::now();
+      PipelineTiming timing = frame.timing;
+      timing.queue_wait_ms = std::chrono::duration<double, std::milli>(
+        processing_started - frame.received_at).count();
+      last_processing_queue_wait_ms_.store(timing.queue_wait_ms);
+      const rclcpp::Time color_stamp(frame.color_ns, RCL_SYSTEM_TIME);
+      const rclcpp::Time depth_stamp(frame.depth_ns, RCL_SYSTEM_TIME);
+      last_stamp_delta_ms_.store(static_cast<double>(frame.depth_ns - frame.color_ns) * 1e-6);
+      // Publish the color and depth of this same group, preserving both exposure stamps.
+      const auto color_started = std::chrono::steady_clock::now();
+      cv::Mat bgr = decodeColor(
+        frame.color_yuyv.ptr<uint8_t>(), frame.color_yuyv.cols, frame.color_yuyv.rows);
+      timing.color_decode_ms = elapsedMs(color_started);
+      const auto undistort_started = std::chrono::steady_clock::now();
+      cv::Mat bgr_u;
+      if (!undistortBgr(bgr, bgr_u)) {
+        drop_stream_++;
+        continue;
+      }
+      if (!running_.load() || !rclcpp::ok()) {break;}
+      timing.color_undistort_ms = elapsedMs(undistort_started);
+      const auto color_publish_started = std::chrono::steady_clock::now();
+      publishColor(color_stamp, bgr_u);
+      timing.color_publish_ms = elapsedMs(color_publish_started);
+      int64_t window_start_ns = treg_start_ns_.empty() ?
+        frame.depth_ns : treg_start_ns_.front();
+      if (acc_frames > 0) {
+        window_start_ns = std::min(window_start_ns, average_start_ns);
+      }
+      bool stationary = stationaryWindow(window_start_ns, frame.depth_ns);
+      if (!stationary) {
+        clearTemporalWindow();
+        acc_frames = 0;
+        average_start_ns = 0;
+        stationary = stationaryWindow(frame.depth_ns, frame.depth_ns);
+      }
+      if (!stationary) {temporal_bypass_frames_++;}
+      if (acc_frames == 0) {average_start_ns = frame.depth_ns;}
+      const auto t_depth = std::chrono::steady_clock::now();
+      cv::Mat z;
+      const bool depth_ok = computeDepth(
+        frame.ir_left.ptr<uint8_t>(), frame.ir_right.ptr<uint8_t>(),
+        z_sum, z_cnt, acc_frames, stationary, z, timing);
+      last_depth_compute_ms_.store(std::chrono::duration<double, std::milli>(
+          std::chrono::steady_clock::now() - t_depth).count());
+      if (!running_.load() || !rclcpp::ok()) {break;}
+      if (depth_ok && publishDepth(
+          depth_stamp, bgr_u, z, average_start_ns, stationary, timing))
+      {
+        timing.sequence = ++published_;
+        timing.processing_ms = elapsedMs(processing_started);
+        timing.fetch_to_publish_ms = elapsedMs(frame.received_at);
+        {
+          std::lock_guard<std::mutex> lock(timing_mutex_);
+          last_pipeline_timing_ = timing;
+        }
+        last_publish_ns_.store(std::chrono::duration_cast<std::chrono::nanoseconds>(
+            std::chrono::steady_clock::now().time_since_epoch()).count());
+      } else {
+        drop_depth_++;
       }
     }
   }
@@ -1131,8 +1412,9 @@ private:
   bool computeDepth(
     const uint8_t * ir_l, const uint8_t * ir_r,
     cv::Mat & z_sum, cv::Mat & z_cnt, int & acc_frames,
-    bool allow_average, cv::Mat & z_out)
+    bool allow_average, cv::Mat & z_out, PipelineTiming & timing)
   {
+    const auto rectify_started = std::chrono::steady_clock::now();
     cv::Mat L(ir_size_, CV_8UC1, const_cast<uint8_t *>(ir_l));
     cv::Mat R(ir_size_, CV_8UC1, const_cast<uint8_t *>(ir_r));
     cv::Mat Lr, Rr;
@@ -1155,7 +1437,11 @@ private:
       cv::copyMakeBorder(
         Rr, Rpad, 0, 0, num_disp_, 0, cv::BORDER_CONSTANT, cv::Scalar(0));
     }
+    timing.rectify_ms = elapsedMs(rectify_started);
+    const auto sgbm_started = std::chrono::steady_clock::now();
     sgbm_->compute(Lpad, Rpad, disp16);
+    timing.sgbm_ms = elapsedMs(sgbm_started);
+    const auto convert_started = std::chrono::steady_clock::now();
     const cv::Mat disp_roi = num_disp_ > 0 ?
       disp16(cv::Rect(num_disp_, 0, proc_size_.width, proc_size_.height)) : disp16;
     cv::Mat disp;
@@ -1174,14 +1460,28 @@ private:
     // 3x3 过同帧组三门（谷底 8.75 vs 9.00、鬼影 +0.04 门内、覆盖不变）且点云局部平面
     // 粗糙度 −12%（1.17→1.03mm，低于设备链 1.08）；5x5/联合双边/引导滤波被精度门或
     // 粗糙度证伪，见 reports/2026-09-20-camera-image-analysis/pointcloud-quality.md。
+    timing.depth_convert_average_ms = elapsedMs(convert_started);
+    const auto spatial_started = std::chrono::steady_clock::now();
     if (median_ksize_ >= 3) {
       const int r = median_ksize_ / 2;
-      cv::Mat zm = z.clone();
+      cv::Mat positive, full_neighborhood, zm;
+      cv::compare(z, 0.0, positive, cv::CMP_GT);
+      cv::erode(positive, full_neighborhood,
+        cv::Mat::ones(median_ksize_, median_ksize_, CV_8UC1), cv::Point(-1, -1), 1,
+        cv::BORDER_CONSTANT, cv::Scalar(0));
+      cv::medianBlur(z, zm, median_ksize_);
       for (int y = 0; y < proc_size_.height; y++) {
         const float * src = z.ptr<float>(y);
+        const uint8_t * dense = full_neighborhood.ptr<uint8_t>(y);
         float * dst = zm.ptr<float>(y);
         for (int x = 0; x < proc_size_.width; x++) {
-          if (src[x] <= 0.f) {continue;}
+          if (src[x] <= 0.f) {
+            dst[x] = src[x];
+            continue;
+          }
+          // Only complete positive neighborhoods match OpenCV's unmasked median.
+          // Holes and truncated image borders keep the original upper median.
+          if (dense[x]) {continue;}
           float nb[25];
           int n = 0;
           for (int dy = -r; dy <= r; dy++) {
@@ -1194,13 +1494,20 @@ private:
               if (s2[xx] > 0.f) {nb[n++] = s2[xx];}
             }
           }
-          std::nth_element(nb, nb + n / 2, nb + n);
-          dst[x] = nb[n / 2];
+          if (n > 0) {
+            std::nth_element(nb, nb + n / 2, nb + n);
+            dst[x] = nb[n / 2];
+          } else {
+            // NaN center with no positive neighbor: preserve the source bits.
+            dst[x] = src[x];
+          }
         }
       }
       z = zm;
     }
 
+    timing.spatial_median_ms = elapsedMs(spatial_started);
+    const auto average_started = std::chrono::steady_clock::now();
     if (avg_k_ > 1 && allow_average) {
       if (acc_frames == 0) {
         z_sum = cv::Mat::zeros(proc_size_, CV_32FC1);
@@ -1214,6 +1521,7 @@ private:
       acc_frames = 0;
     }
     // 注意：z 保持校正左系网格直接进 SDK 配准（见文件头 09-20 复核），勿反校正。
+    timing.depth_convert_average_ms += elapsedMs(average_started);
     z_out = z;
     return true;
   }
@@ -1286,8 +1594,10 @@ private:
 
   bool publishDepth(
     const rclcpp::Time & stamp, const cv::Mat & bgr,
-    const cv::Mat & z, int64_t source_begin_ns, bool allow_temporal)
+    const cv::Mat & z, int64_t source_begin_ns, bool allow_temporal,
+    PipelineTiming & timing)
   {
+    const auto registration_started = std::chrono::steady_clock::now();
     cv::Mat depth16(proc_size_, CV_16UC1, cv::Scalar(0));
     for (int y = 0; y < proc_size_.height; y++) {
       const float * zr = z.ptr<float>(y);
@@ -1329,6 +1639,8 @@ private:
     // avg_k 批式 Z 域均值）。中值是序统计量、与单调变换可交换（域无关，round4
     // 已证），顺带稳定配准闪烁；参考 librealsense temporal filter 的多帧融合
     // 设计。置信度=采样数占比×窗内取值一致性，与发布深度/点云逐像素对齐。
+    timing.registration_ms = elapsedMs(registration_started);
+    const auto temporal_started = std::chrono::steady_clock::now();
     if (temporal_k_ > 1 && allow_temporal) {
       // reg owns this frame's allocation. Fusion writes into a separate Mat.
       treg_.push_back(reg);
@@ -1371,6 +1683,8 @@ private:
       reg = fused;
     }
 
+    timing.temporal_ms = elapsedMs(temporal_started);
+    const auto depth_publish_started = std::chrono::steady_clock::now();
     auto depth_msg = cv_bridge::CvImage(
         std_msgs::msg::Header(), sensor_msgs::image_encodings::TYPE_16UC1, reg).toImageMsg();
     depth_msg->header.stamp = stamp;
@@ -1378,7 +1692,10 @@ private:
     depth_pub_->publish(*depth_msg);
 
     depth_info_pub_->publish(makeCameraInfo(stamp, depth_optical_));
+    timing.depth_publish_ms = elapsedMs(depth_publish_started);
+    const auto points_started = std::chrono::steady_clock::now();
     publishRegisteredCloud(stamp, bgr, reg);
+    timing.points_ms = elapsedMs(points_started);
     last_depth_age_ms_.store(age_ms(stamp));
     return true;
   }
@@ -1465,12 +1782,17 @@ private:
   // ---- 成员 ----
   std::string device_ip_, camera_name_, color_mode_;
   int32_t ir_exposure_{990}, laser_power_{100};
+  int32_t packet_delay_us_{-1};
+  std::mutex packet_delay_mutex_;
+  PacketDelayTransaction packet_delay_;
   int num_disp_{128}, block_{5}, avg_k_{1}, uniq_{6}, median_ksize_{3};
   int sgbm_mode_{cv::StereoSGBM::MODE_SGBM_3WAY};
   int temporal_k_{1};
   std::vector<cv::Mat> treg_;  // 滑窗时域中值的配准深度环形缓冲（CV_16UC1）
   std::vector<int64_t> treg_start_ns_;  // 每个深度的最早贡献曝光（含 avg_k）
   cv::Mat tconf_;              // 逐像素置信度（与发布深度同彩色网格）
+  std::mutex timing_mutex_;
+  PipelineTiming last_pipeline_timing_;
   std::mutex joint_mutex_;
   JointMotionHistory joint_history_;
   double proc_scale_{0.5};
@@ -1486,7 +1808,8 @@ private:
   cv::Ptr<cv::StereoSGBM> sgbm_;
   std::vector<uint8_t> buf_[4];
   std::atomic<bool> running_{false};
-  std::thread capture_thread_;
+  std::thread capture_thread_, processing_thread_;
+  LatestFrameSlot pending_frame_;
   // 观测计数（P0/P1）：帧组/发布/分类丢弃 + 设备与配置状态（诊断任务读）
   std::atomic<int> groups_{0};
   std::atomic<int> published_{0};
@@ -1495,6 +1818,9 @@ private:
   std::atomic<int> drop_nostamp_{0};
   std::atomic<int> drop_invalid_stamp_{0};
   std::atomic<int> drop_depth_{0};
+  std::atomic<int> drop_processing_backlog_{0};
+  std::atomic<double> last_capture_age_ms_{0.0};
+  std::atomic<double> last_processing_queue_wait_ms_{0.0};
   std::atomic<bool> temporal_active_{false};
   std::atomic<int> temporal_window_frames_{0};
   std::atomic<int> temporal_bypass_frames_{0};

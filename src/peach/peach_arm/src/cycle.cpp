@@ -65,8 +65,9 @@ static_assert(kProfileFull == ExecuteTarget::Goal::PROFILE_FULL);
 // 运动阶段授权矩阵（cycle_support.hpp）：一切运动执行入口最终收敛到
 // 本判定。公共 = Active ∧ robotReady ∧ !cancel；TRANSIT/PREGRASP 叠加
 // execution_enabled；CONTACT 叠加 grasp_enabled ∧ 接触许可复检（清洁重写轮
-// 双路：goal.clearance 令牌优先——只验新鲜度与 allowed，不重算几何；旧
-// 客户端未填令牌时回退 GraspDecision 话题快照）；TOOL 再叠加 tool_enabled。
+// 双路：goal.clearance 令牌优先，核目标、冻结期限与 allowed；未填令牌时
+// 回退 GraspDecision 快照。绑定模型仍须身份未变且相应能力 VALID；径向/
+// 轴向余量只记录。TOOL 再要求 pregrasp_verified 与 tool_enabled。
 // denial（M3c）输出拒因分类：令牌/许可「过期」（valid_until / model_stamp
 // 超窗）= EXPIRED——可重派；其余（含令牌 allowed=false 的明确不允许）
 // = DENIED；通过 = ALLOWED。requireStageAuthority 据此分级终局。
@@ -503,10 +504,9 @@ void ManipulationSkillsNode::onStart(const Trigger::Response::SharedPtr & respon
     return;
   }
   {
-    // 启动前目标检查按周期生效目标取快照（OBSERVE_ONLY=锁定集锚点缓存的
-    // goal 目标，其余=感知 selected 缓存；语义见 stages.cpp
-    // cycleTargetSnapshot）。OBSERVE_ONLY 受理时锁定集命中，但受理到启动
-    // 之间可能解锁/换批次，此处必须按同一数据源复核。
+    // 启动前按 goal.target_id 优先取锁定集锚点，缺失才回退 selected 缓存
+    // （见 stages.cpp::cycleTargetSnapshot）。受理到启动之间可能解锁/
+    // 换批次，此处必须复核有效目标，随后 stagePrepareCycle 再核身份。
     const bool observe_only =
       cycle_->observe_only && !cycle_->target_id.empty();
     const auto target = cycleTargetSnapshot(cycle_->target_id);
@@ -694,8 +694,8 @@ void ManipulationSkillsNode::executeSurvey(
     result->scene_epoch = last_observation_epoch_;
   }
   result->message = response->message;
-  // 与 executeAction 同款兜底：线程 detach 后若节点正在 shutdown，终局上报可抛
-  // RCLError，逃逸到线程外即 std::terminate。
+  // 与 executeAction 同款兜底：shutdown 期间终局上报可抛 RCLError，
+  // 不让异常逃出 action 工作体。
   try {
     if (goal_handle->is_canceling()) {
       goal_handle->canceled(result);

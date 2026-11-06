@@ -24,6 +24,7 @@ find_package(peach_interfaces REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(rclcpp_action REQUIRED)
 find_package(rclcpp_lifecycle REQUIRED)
+find_package(ruckig REQUIRED)
 find_package(shape_msgs REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(std_srvs REQUIRED)
@@ -89,6 +90,7 @@ target_link_libraries(peach_arm PRIVATE
   rclcpp::rclcpp
   rclcpp_action::rclcpp_action
   rclcpp_lifecycle::rclcpp_lifecycle
+  ruckig::ruckig
   tf2::tf2
   tf2_eigen::tf2_eigen
   tf2_geometry_msgs::tf2_geometry_msgs

@@ -12,6 +12,13 @@
   const reply = (status, body) => ({response: {ok: status >= 200 && status < 300, status}, body});
   const mode = () => ["http", "rosbridge"].includes(explicitMode) ? explicitMode : config?.default;
 
+  function remainingOptions(options) {
+    if (stopped || options.signal?.aborted) throw fail("请求已取消", "abort");
+    const timeoutMs = options.deadline - performance.now();
+    if (timeoutMs <= 0) throw fail("等待 ROS 响应超时，命令结果须查询状态", "timeout");
+    return {...options, timeoutMs};
+  }
+
   async function configuration() {
     const response = await fetch("/api/transport", {cache: "no-store", signal: AbortSignal.timeout(6000)});
     if (!response.ok) throw fail(`通信配置 HTTP ${response.status}`);
@@ -100,7 +107,7 @@
     const frame = await waitFor(() => {
       const sample = frames.get(key);
       return client.connected && sample && performance.now() - sample.at <= (key === "force" ? 1500 : 5000) && sample;
-    }, options);
+    }, remainingOptions(options));
     const result = reply(200, frame.value);
     result.response.receivedAt = frame.receivedAt;
     return result;
@@ -108,7 +115,7 @@
 
   async function gates(options) {
     const {values: [enabled, motion]} = await client.parameters("/peach_observability")
-      .get(["debug.enabled", "debug.motion_enabled"], options);
+      .get(["debug.enabled", "debug.motion_enabled"], remainingOptions(options));
     return {debug_enabled: enabled?.value === true, motion_enabled: motion?.value === true};
   }
 
@@ -117,12 +124,12 @@
       const values = new Map(), api = client.parameters(`/${group.node}`);
       let running = false, error = "";
       try {
-        const listed = await api.list([], 0, options);
+        const listed = await api.list([], 0, remainingOptions(options));
         running = true;
         // Jazzy rclpy can return an empty array for the whole get if any name is undeclared.
         const declared = group.params.filter((p) => listed.names.includes(p.name));
         if (declared.length) {
-          const result = await api.get(declared.map((p) => p.name), options);
+          const result = await api.get(declared.map((p) => p.name), remainingOptions(options));
           declared.forEach((p, i) => {
             const item = result.values[i];
             if (item && item.type === paramTypes[p.type]) values.set(p.name, item.value);
@@ -160,6 +167,7 @@
     let stopReason = "";
     for (const change of payload.changes) {
       const row = {node: change?.node || "", name: change?.name || "", accepted: false, message: ""};
+      let dispatched = false;
       if (stopReason || !gate.debug_enabled) {
         results.push({...row, outcome: "not_sent", message: stopReason || "debug.enabled=false，后续参数未发送"});
         continue;
@@ -169,7 +177,9 @@
         if (!spec) throw fail("不在白名单", "validation");
         if (spec.motion && !gate.motion_enabled) throw fail("运动类参数需先开启 debug.motion_enabled", "validation");
         const write = parameterWrite(spec, change.value);
-        const response = await client.parameters(`/${row.node}`).set([write], options);
+        const sendOptions = remainingOptions(options);
+        dispatched = true;
+        const response = await client.parameters(`/${row.node}`).set([write], sendOptions);
         if (response.results?.length !== 1 || typeof response.results[0]?.successful !== "boolean") {
           throw fail("节点未返回单项写入结果");
         }
@@ -179,9 +189,11 @@
       } catch (error) {
         if (error.kind === "validation") row.message = error.message;
         else {
-          stopReason = row.accepted ? "调试开关读回失败，后续参数未发送" : "前一项写入结果未知，后续参数未发送";
-          if (!row.accepted) row.outcome = "unknown";
-          row.message = row.accepted ? `已设置，调试开关读回失败：${error.message}` : `写入结果未知：${error.message}`;
+          stopReason = row.accepted ? "调试开关读回失败，后续参数未发送"
+            : dispatched ? "前一项写入结果未知，后续参数未发送" : "本地等待已结束，后续参数未发送";
+          if (!row.accepted) row.outcome = dispatched ? "unknown" : "not_sent";
+          row.message = row.accepted ? `已设置，调试开关读回失败：${error.message}`
+            : dispatched ? `写入结果未知：${error.message}` : `未发送：${error.message}`;
         }
       }
       results.push(row);
@@ -247,7 +259,7 @@
     const gate = await gates(options);
     if (!gate.debug_enabled) return reply(503, {accepted: false, message: "debug.enabled=false"});
     if (isMotion(key, goal) && !gate.motion_enabled) return reply(423, {accepted: false, message: "debug.motion_enabled=false"});
-    if (options.signal?.aborted) throw fail("请求已取消", "abort");
+    const sendOptions = remainingOptions(options);
     if (key === "cancel") {
       const active = goals.get(payload.target);
       if (!active) return reply(404, {accepted: false, message: "无本页在途目标"});
@@ -260,11 +272,11 @@
     }
     if (!config.endpoints[key] || !(actions[key] || services[key] || triggers.has(key))) return reply(404, {accepted: false, message: "未知调试端点"});
     if (!actions[key]) {
-      const result = await client.callService(config.endpoints[key], services[key] || "std_srvs/srv/Trigger", goal, options);
+      const result = await client.callService(config.endpoints[key], services[key] || "std_srvs/srv/Trigger", goal, sendOptions);
       return reply(200, {accepted: true, result});
     }
     if (goals.has(key)) return reply(409, {accepted: false, message: "本页已有该动作目标；请查询状态或取消"});
-    const handle = client.sendGoal(config.endpoints[key], `peach_interfaces/action/${actions[key]}`, goal, options);
+    const handle = client.sendGoal(config.endpoints[key], `peach_interfaces/action/${actions[key]}`, goal, sendOptions);
     goals.set(key, handle);
     // If waiting fails, the remote outcome is unknown. Keep the handle and block resubmission.
     const {status, successful, value, error} = await handle.result;
@@ -288,12 +300,14 @@
     const key = url.pathname.split("/").pop();
     if (!["/api/state", "/api/force", "/api/trajectory", "/api/params"].includes(url.pathname) && !url.pathname.startsWith("/api/debug/")) return null;
     if (explicitMode === "http") return null;
+    options = {...options, deadline: options.deadline ?? performance.now() + (options.timeoutMs ?? 6000)};
     await waitForTransport(options.signal);
+    remainingOptions(options);
     if (mode() === "http") return null;
     if (stopped || options.signal?.aborted) throw fail("请求已取消", "abort");
     if (["state", "force", "trajectory"].includes(key)) return snapshot(key, options);
     if (url.pathname === "/api/params" && options.method !== "POST") {
-      await waitFor(() => client.connected, options);
+      await waitFor(() => client.connected, remainingOptions(options));
       return reply(200, await parameters(options));
     }
     if (!client.connected) throw fail("ROSbridge 未连接，命令未发送");

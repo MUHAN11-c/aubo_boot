@@ -73,7 +73,7 @@ ls -l /dev/force
 | `port` | `/dev/force` | 首选串口 |
 | `port_fallbacks` | ttyUSB0、ttyACM0 | 依次试 |
 | `baudrate` | 115200 | 8N1 |
-| `read_period_s` | 0.005 | 读串口定时器（100 Hz） |
+| `read_period_s` | 0.005 | 200 Hz 非阻塞轮询；固件约 100 Hz 上报 |
 | `expected_rate_hz` | 100.0 | `/diagnostics` 频率窗 0.6–1.4× |
 | `open_ad_threshold` | 3000.0 | AD ≥ 此值判断线/悬空 |
 | `full_travel_mm` | 5.95 | 行程 ≥ 此值判 SAT |
@@ -83,7 +83,11 @@ ls -l /dev/force
 
 ## 力页面
 
-8090 `peach_web /force.html` 显示实时 5 点/CoP；历史力帧在会话 bag，接触段分析由 observability 统一完成。本包不再提供 `--port`/`--runs-root` 或第二套 HTTP 服务。
+8090 `peach_web /force.html` 显示实时 5 点/CoP；力原子帧写入会话 bag；observability 分析模块只读兼容旧接触段文件，当前没有自动分段写者。本包不再提供 `--port`/`--runs-root` 或第二套 HTTP 服务。
+
+## 仿真源与独立实验
+
+本包同时保留 `force_sim_node` 和 `force_cop_control` / `force_cop_trials` / `force_cop_analyze`。`serial_force.launch.py source:=sim` 用虚拟平面源替代串口源，发布同名 `/force/*`；不要同时启动两种源。CoP 控制工具直接调用 IK/JTC，不由 harvest_system 使用，也不继承主链授权。历史 mock 实验与现行可执行名见 [doc/sim/README.md](doc/sim/README.md)。
 
 ## 测试
 
@@ -107,5 +111,5 @@ colcon test --packages-select serial_force
 
 ## 不负责
 
-采摘调度、MoveIt、底盘 `/scan`、IMU、力闭环、功能安全。8090 力页是调试页，
+采摘调度、主链 MoveIt 规划、底盘 `/scan`、IMU、主链力闭环、功能安全。8090 力页是调试页，
 不是第二控制面；没有 SetIO/使能/运动入口。真机硬件急停在柜/示教器，不经 ROS。

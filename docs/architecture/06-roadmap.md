@@ -1,11 +1,13 @@
-# 待迁移清单
+# 维护与待验证事项
 
-1. ~~**GPL 参数**：六个生产/观测包已完成。~~ `peach_vegetation` 不在主链范围，仍保留 `attach`。
-2. **日志/错误码**：已完成 FailureCode 枚举化、`failure_code_n`、`CUT_FRUIT_CLEARANCE` 拆分与日志规范文档。
-3. **录制**：已完成单一路径（节点内 rosbag2 MCAP）；旁路 `record_bag` 已删除。
-4. **Web**：FastAPI 后端与 `peach_web` 五点力页已完成；8099/8100 第二套入口已删除。
-5. **性能/Orin**：x86 实测 13.74 FPS / p95 78.9 ms；Orin profile 已提供，TensorRT/Orin 实测待目标机。
-6. **文档**：最终架构图、流程图、参数生成文档、ADR；删除旧包文档中的过期描述。
-7. **回归**：真实相机 + RViz、感知 benchmark、bag 录制/读取、force serial/sim、接口/包图检查。
+按 2026-11-06 当前源码整理。包级活文档记录实现，历史运行结果见 [验证与证据](05-verification.md) 和 [回归矩阵](12-regression.md)。
 
-`peach_sim` 始终不修改。
+1. 参数：生产能力、观测和 bringup 辅助节点使用 GPL；独立 vegetation 保留 `attach`。升级生成器后重新检查整数范围与回调先后语义。
+2. 错误码：维护 FailureCode 稳定值；保留旧事件文本兼容，逐项审查纯核中剩余数值而不凭字符串猜语义。
+3. Web：整栈默认 SDK/ROSbridge + 同源 HTTP；HTTP 调试门、审计与 ROS 节点最终授权的范围须分别验证。
+4. 记录：会话 bag 由 observability 单写者维护；力分段仅兼容读取历史 sidecar，当前没有自动分段写者。
+5. 性能：x86 历史基准不能替代 Orin 实测；TensorRT/Orin 验收仍待目标机。
+6. 回归：按受影响包官方检查和手工 mock/replay 验证；感知已有图像解码 pytest 不扩展为新行为套件。10×30×1800 未通过，不能用短测补成通过。
+7. 归档：旧 Wiki、会话转录、未实施 ForceSeat 与未安装的 sim_perception/vision 快照已归档，原路径/校验见工作区 `_archive/source_docs_2026-11-06/manifest.json`。
+
+Gazebo 当前暂停；仿真子工作区的离线文档整理不表示恢复运行授权。

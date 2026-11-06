@@ -194,11 +194,17 @@ def attach(
                 preview(trial)
             except (TypeError, ValueError) as exc:
                 return SetParametersResult(successful=False, reason=str(exc))
+        return SetParametersResult(successful=True)
+
+    def _post_set(parameters):
+        ours = [item for item in parameters if item.name in keyset]
+        if not ours:
+            return
         for item in ours:
             set_dotted(ns, item.name, item.value)
         if on_commit is not None:
             on_commit(ns)
-        return SetParametersResult(successful=True)
 
     node.add_on_set_parameters_callback(_on_set)
+    node.add_post_set_parameters_callback(_post_set)
     return ns

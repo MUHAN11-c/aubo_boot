@@ -35,7 +35,7 @@ from .transforms import (
     se3_vector,
 )
 
-# plumb_bob 家族: 只放 k1,k2,p1,p2 (k3 固定 0), 与 vendored 标定器
+# plumb_bob 家族: 只放 k1,k2,p1,p2 (k3 固定 0), 与内参标定 launch 的
 # --k-coefficients 2 的输出同构
 _PLUMBOB_FLAGS = (
     cv2.CALIB_FIX_K3 | cv2.CALIB_FIX_K4 | cv2.CALIB_FIX_K5
@@ -44,7 +44,7 @@ _PLUMBOB_FLAGS = (
 
 @dataclass(frozen=True)
 class JointObservation:
-    # T_base_gripper: 腕部 TF (该帧采集时刻)
+    # T_base_gripper: 采集器配给该观测的腕部 TF；当前上层读取 latest。
     base_from_gripper: np.ndarray
     # 检测原始角点 (N,2) px
     corners: np.ndarray

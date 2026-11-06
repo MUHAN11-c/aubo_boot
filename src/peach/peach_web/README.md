@@ -38,11 +38,21 @@
 
 监控账本按当前FailureCode的0至35显示稳定常量名与中文原因，包含作业超时、使能未开、重建启动/采集/精化失败及剪切间隙；未知新码仍保留数值。
 
+监控页复用内容未变的事件、账本及日志行；新事件到达时保留已展开的旧详情，切换账本批次后重新建立行。列表缓存只保留当前画面，日志过滤、暂停与滚动跟随仍生效。共享时钟格式化器避免每行重复创建本地化格式对象；相同文本不反复重写 DOM。格式器使用页面启动时的本地时区，改变系统或浏览器时区后需刷新页面。
+
+监控页“系统负载 · 参数 · 自检 · 诊断”中的 `stereo_health` 保留原等级和消息，追加最近成功 RGB-D 组的同帧序号、取回时源戳年龄、fetch 等待、槽等待（含克隆）、processing、SGBM、空间 median、fetch 返回至发布耗时。只读取现有状态投影 `diagnostics.nodes.*.tasks.*.values` 的 `pipeline_*` 字段，不用旧独立最近值拼接，不增加订阅、轮询或控制入口。诊断每秒采样最近成功帧，不代表逐帧全集；各分段存在包含关系，不可全部相加。字段边界见 [stereo IO](../peach_stereo/doc/io.md)。
+
+同帧序号必须是正安全整数；零表示等待首帧，缺失或非法时不展示预置零耗时。耗时只接受有限非负数，缺失/非法显示 `—`；源戳年龄保留正负号并明确含设备/主机时钟偏差，不能单独当作物理曝光延迟。卡片按任务 `age_s` 与 `last_publish_age_s` 的和、后端 `stale_after_s`（缺失时5秒）及 STALE 标志提示过期快照；缺少有效年龄显示时效未知，仍保留历史数值。全页状态停更继续由既有断线/陈旧横幅提示，不在浏览器重算源时间戳年龄。
+
 8090是调试客户端。HTTP调试桥的debug运动门和debug_audit仅覆盖HTTP；rosbridge直接ROS调用依赖节点自身使能与臂侧ExecutionAuthority，不能将HTTP门或审计当作WS授权层。上电、硬件急停与保护停止复位由现场负责；网页取消只属于应用停轨。
 
 部署参数 `reconstruction_enabled=true` 默认保留重建节点，运行策略 `skip_reconstruction=true` 默认关闭本轮Build/精化。ON逐项读回skip=false、capture.auto_mode=true、quality.allow_unrefined_geometry=false；OFF读回true/false/true。混合模式或未知读回阻止开始，部分成功不假设回滚。未部署/未运行时页面不能启动重建节点，须重新部署。OFF的旧模型不作当前证据；目标TSDF开关不关闭MoveIt PlanningScene、TF或碰撞检查，mock也不证明现场安全。
 
 ## 源码地图
+
+监控页“重建进度”读取既有状态中的 `reconstruction.diagnostics.timing.phase_ms_last`，展示最近完成的 TSDF 提取、柱／球拟合、采集云关键点、袋模型融合、几何记录和发布耗时。只有实际存在的有限非负数才显示；缺字段的旧节点保持原显示。分项可能来自不同次计算并存在嵌套，不能相加，也不代表当前模型的同步性能快照；状态停更沿用现有陈旧提示。该显示不新增网络订阅或控制入口。
+
+包内职责与请求生命周期见 [doc/architecture.md](doc/architecture.md)，页面输入输出见 [doc/io.md](doc/io.md)。
 
 - `rosbridge.js` 将 Peach 的投影、参数清单和调试请求接入 SDK。`api.js` 管理 HTTP 对照、超时和状态更新。`shell.js`：共享导航、确认框、通知。
 - `overview.js`：总览；`app.js` + `monitor-renderers.js` + `trajectory-renderers.js`：监控；`visualization.js`：相机/三维。

@@ -6,10 +6,11 @@ rosbag2_py / rclpy.serialization / rosidl_runtime_py 全部延迟导入，本模
 metadata.yaml 缺失（kill -9 等非正常退出）时用 rosbag2_py.Reindexer 进程内
 兜底重建索引后重读，不执行外部命令。
 
-转换约定：图像/点云（HEAVY_TOPICS）只留时间戳（dict 恒 None）防内存爆；
+转换约定：HEAVY_TOPICS 中三个固定图像/点云话题只留时间戳（dict 恒 None）；
 其余消息按类型转换——CanonicalEvent/PeachTargetObservationArray 复用
 state 的既有转换（与旧 jsonl 字段一致），其余走通用 dict 转换（bytes
-字段折叠为 ``{'byte_count': n}``，不展开图像/点云原始数据）。
+字段折叠为 ``{'byte_count': n}``，数值数组保留）。读取仍将全部流保存在
+内存，非固定话题名的图像/点云不会仅因类型相同而自动跳过转换。
 """
 
 from __future__ import annotations
@@ -62,11 +63,15 @@ def ensure_index(bag_dir) -> Path:
 def type_name_of(message) -> str:
     """消息实例 → rosbag2 类型串；录制器通过 message_type_name 别名复用."""
     cls = type(message)
-    return f'{cls.__module__.split(".")[0]}/msg/{cls.__name__}'
+    namespaces = cls.__module__.split('.')[:-1]
+    if (len(namespaces) < 2 or namespaces[1] not in {'msg', 'srv', 'action'}
+            or not hasattr(cls, 'SLOT_TYPES')):
+        raise ValueError(f'不是生成的 ROS 消息类型: {cls.__module__}.{cls.__name__}')
+    return '/'.join((*namespaces, cls.__name__))
 
 
-# action 生成消息在 DDS 侧按 msg 命名空间登记（如 RunHarvest_FeedbackMessage），
-# rosidl get_message 只认 action 命名空间；按后缀回退解析。仍失败的类型折叠为
+# 旧录制器曾把 action 生成消息误写进 msg 命名空间（如 RunHarvest_FeedbackMessage）；
+# rosidl get_message 只认真实的 action 命名空间；按后缀兼容旧 bag。仍失败的类型折叠为
 # 「仅时间戳」（单个未知类型不断整份报告——全量录制订阅域内全部话题）。
 _ACTION_MSG_SUFFIXES = ('_FeedbackMessage', '_Goal', '_Result')
 # 「类型解析失败」哨兵：与合法 msg 类型区分开，整袋只解析一次

@@ -1,5 +1,7 @@
 # 全栈适配性评估
 
+> 2026-10-27 评估快照：下列评分和差距保留历史语义，不代表当前工作树的重新审计。2026-11-06 源码整理确认当前已增加 ROSbridge/SDK 路径、RViz 兼容插件及 move_group 退出兼容参数；现状请读包级文档。
+
 ## 方法
 
 - **官方基线**：ROS 2 Jazzy 生命周期/参数/Executor/QoS/launch、Nav2 lifecycle、MoveIt/RViz、rosbag2、FastAPI。

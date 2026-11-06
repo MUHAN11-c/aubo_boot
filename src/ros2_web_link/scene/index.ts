@@ -52,6 +52,7 @@ type Resource={object:THREE.Object3D;header:Header;pose?:Pose;latest?:boolean;ex
 // only a bounded recent tail of unmapped names; loaded model values are scoped
 // to that URDF. Name length also bounds retained string memory, not just count.
 const MAX_PENDING_JOINTS=1024,MAX_PENDING_JOINT_NAME=1024;
+const MAX_ASSET_ERRORS=32,MAX_ASSET_ERROR_LENGTH=1024;
 
 /** Update GPU attributes in place; changing topology releases only geometry.
  * Materials own shader program references and must outlive ordinary samples.
@@ -209,9 +210,15 @@ export class SceneView {
     if(url.origin!==location.origin || !url.pathname.startsWith(this.options.assetBase??'/assets/'))throw new TypeError(`Asset must use the local package resource route: ${uri}`);
     return url.href;
   }
+  private assetError(path:string):void {
+    const summary=path.length>MAX_ASSET_ERROR_LENGTH?path.slice(0,MAX_ASSET_ERROR_LENGTH-1)+'…':path;
+    // Retain recent failures, including a newly failing URL when already full.
+    this.assetErrors.delete(summary);this.assetErrors.add(summary);
+    while(this.assetErrors.size>MAX_ASSET_ERRORS)this.assetErrors.delete(this.assetErrors.values().next().value!);
+  }
   private loader(generation:number,robotAssets=false):URDFLoader {
     const manager=new THREE.LoadingManager();manager.setURLModifier(url=>url.startsWith('data:')?url:this.asset(url));
-    manager.onError=url=>{if(generation===this.generation)this.assetErrors.add(url);};
+    manager.onError=url=>{if(generation===this.generation)this.assetError(url);};
     if(robotAssets){
       manager.onStart=(_url,loaded,total)=>{if(generation===this.generation){this.assetsLoaded=loaded;this.assetsTotal=total;}};
       manager.onProgress=(_url,loaded,total)=>{if(generation===this.generation){this.assetsLoaded=loaded;this.assetsTotal=total;}};
@@ -222,7 +229,7 @@ export class SceneView {
     loader.loadMeshCb=(path,manager,material,done)=>{
       const complete:typeof done=(object,error)=>{
         if(this.disposed||generation!==this.generation){if(object)release(object);return;}
-        if(error)this.assetErrors.add(path);if(object)this.dirty=true;done(object,error);
+        if(error)this.assetError(path);if(object)this.dirty=true;done(object,error);
         if(robotAssets&&object&&!error)this.applyRobotMaterial(object,material);
       };
       if(/\.(glb|gltf)(\?|$)/i.test(path))new GLTFLoader(manager).load(path,gltf=>complete(gltf.scene),undefined,e=>complete(new THREE.Group(),e as Error));
@@ -464,7 +471,7 @@ export class SceneView {
           let ancestor:THREE.Object3D|null=group;
           while(ancestor&&ancestor!==this.scene)ancestor=ancestor.parent;
           if(this.disposed||generation!==this.generation||!ancestor){if(object)release(object);return;}
-          if(error){if(object)release(object);this.assetErrors.add(marker.mesh_resource);return;}if(!object)return;
+          if(error){if(object)release(object);this.assetError(marker.mesh_resource);return;}if(!object)return;
           object.scale.set(x,y,z);group.add(object);this.dirty=true;
         });return group;
       }
@@ -535,7 +542,7 @@ export class SceneView {
     if(performance.now()-this.lastReport>500){
       this.lastReport=performance.now();const stats=this.stats();
       const clockLabel=stats.useSimTime?`ROS 时间 ${stats.clockSeconds.toFixed(3)}`:'系统时间';
-      this.options.onStatus?.(`${this.layerEnabled.get('robot')===false?'空间显示':stats.robotLoaded?'URDF 已加载':'等待 URDF'} · ${stats.joints} 关节（${stats.movableJoints} 活动） · ${stats.frames} TF 帧 · ${stats.markers} Marker · ${stats.points} 点 · ${stats.pathPoints} 轨迹点 · ${clockLabel}${issues.size?'\n'+[...issues].join('\n'):''}${this.assetErrors.size?'\n资源加载失败：'+[...this.assetErrors].join(', '):''}`);
+      this.options.onStatus?.(`${this.layerEnabled.get('robot')===false?'空间显示':stats.robotLoaded?'URDF 已加载':'等待 URDF'} · ${stats.joints} 关节（${stats.movableJoints} 活动） · ${stats.frames} TF 帧 · ${stats.markers} Marker · ${stats.points} 点 · ${stats.pathPoints} 轨迹点 · ${clockLabel}${issues.size?'\n'+[...issues].join('\n'):''}${this.assetErrors.size?`\n资源加载失败（最近至多 ${MAX_ASSET_ERRORS} 项）：`+[...this.assetErrors].join(', '):''}`);
     }
   }
   stats():SceneStats {const now=this.displayTime(),clock=this.parent?.clock??this.clock,children=[...this.children].map(child=>child.stats());return {useSimTime:!!this.options.useSimTime,clockReady:!this.options.useSimTime||(clock!==undefined&&clock!==0n),clockSeconds:Number(now)/1e9,clockNanoseconds:now.toString(),

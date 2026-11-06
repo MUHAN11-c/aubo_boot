@@ -253,7 +253,7 @@ class SelfCheckRunner:
     # 检查执行（触发：initial / periodic / manual(8090)）
     # ------------------------------------------------------------------
     def run(self, trigger: str = 'manual') -> dict:
-        """执行一轮全量检查（非阻塞）并发布/落盘；返回报告字典."""
+        """同步生成并落盘报告；已有一轮执行时直接返回上一份报告."""
         if self._running:
             return dict(self._last_report)
         self._running = True
@@ -338,11 +338,16 @@ class SelfCheckRunner:
             f'缺失: {", ".join(missing)}', skip_reason='未配置检查清单'))
         # 11) 启动参数组合自洽
         checks.append(check_param_consistency(facts))
-        # 12) vegetation（独立 launch，在图才查；否则 SKIP）
-        veg_on = self._topic_has_publisher(VEGETATION_STATUS_TOPIC)
+        # 12) vegetation：部署事实优先；独立起栈只发现实际发布者。
+        if 'vegetation_enabled' in facts:
+            veg_on = flag_enabled(facts['vegetation_enabled'])
+            veg_skip = 'vegetation_enabled=false（未部署）'
+        else:
+            veg_on = self._topic_has_publisher(VEGETATION_STATUS_TOPIC)
+            veg_skip = '未声明部署且无 vegetation 发布者'
         checks.append(check_fresh(
             probes['vegetation'].age(mono) if veg_on else None, 30.0,
-            'vegetation_status', skip_reason='' if veg_on else 'vegetation 不在图'))
+            'vegetation_status', skip_reason='' if veg_on else veg_skip))
 
         report = {
             'trigger': trigger,
@@ -374,9 +379,7 @@ class SelfCheckRunner:
 
     def _topic_has_publisher(self, topic: str) -> bool:
         try:
-            return any(
-                name == topic
-                for name, _ in self._node.get_topic_names_and_types())
+            return self._node.count_publishers(topic) > 0
         except Exception:  # noqa: BLE001
             return False
 

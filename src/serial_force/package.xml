@@ -6,12 +6,11 @@
   <version>0.1.0</version>
   <description>
     USB 串口 5 点力传感器驱动：0xA5 32 字节帧，100 Hz，
-    发布 /force/*，并提供本机调试页。
+    发布 /force/*；附带同接口仿真源与独立 CoP 实验工具。
   </description>
   <maintainer email="2155413529@qq.com">wjz</maintainer>
   <license>BSD-3-Clause</license>
 
-  <buildtool_depend>ament_python</buildtool_depend>
 
   <exec_depend>ament_index_python</exec_depend>
   <exec_depend>diagnostic_msgs</exec_depend>

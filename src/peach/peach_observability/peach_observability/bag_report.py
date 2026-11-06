@@ -89,27 +89,31 @@ def _reason_text(message: str) -> str:
 
 
 def build_target_rows(events: list[dict], priorities: dict) -> list[dict]:
-    """从事件流推导逐目标 outcome 表（派发/终局时刻与耗时）."""
+    """按 request_id/target_id 推导 outcome，旧无 request_id 事件仍可读."""
     dispatched = {}
     rows = {}
     for event in events:
         code = event.get('code')
         target_id = event.get('target_id') or ''
+        request_id = str(event.get('request_id') or '')
+        key = (request_id, target_id)
         stamp = float(event.get('stamp') or 0.0)
         if code == 'target_dispatched' and target_id:
-            dispatched[target_id] = stamp
-            rows.setdefault(target_id, {
+            dispatched[key] = stamp
+            rows.setdefault(key, {
+                'request_id': request_id,
                 'target_id': target_id,
                 'priority': priorities.get(target_id),
                 'outcome': 'unfinished', 'reason': '',
                 'dispatched_at': stamp, 'finished_at': None,
             })
         elif code in TERMINAL_TARGET_CODES and target_id:
-            row = rows.setdefault(target_id, {
+            row = rows.setdefault(key, {
+                'request_id': request_id,
                 'target_id': target_id,
                 'priority': priorities.get(target_id),
                 'outcome': None, 'reason': '',
-                'dispatched_at': dispatched.get(target_id),
+                'dispatched_at': dispatched.get(key),
                 'finished_at': None,
             })
             row['outcome'] = code.replace('target_', '')
@@ -475,7 +479,7 @@ def tcp_points_from_tf(streams: dict, base_frame: str = 'base_link',
                 np.array([float(rot.get('x') or 0.0),
                           float(rot.get('y') or 0.0),
                           float(rot.get('z') or 0.0),
-                          float(rot.get('w') or 1.0)]))
+                          float(rot.get('w', 1.0))]))
         if is_static:
             continue
         composed = _compose_chain(

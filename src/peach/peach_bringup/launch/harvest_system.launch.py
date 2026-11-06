@@ -1,13 +1,13 @@
 """
 启动桃子采摘完整业务栈（整栈入口；autostart 参数控制是否自动开批）.
 
-本文件只做预检与 Include，不含业务。Python 参数公共函数直接使用
+本文件负责预检、参数装配、Include 与应用辅助节点，不含采摘业务。Python 参数使用
 GPL schema；各节点部署 YAML 留在所属能力包。
 
 nav2_lifecycle_manager 管理能力节点，bond_timeout 默认 0.0 关闭进程死检。
 lifecycle_flag_bridge 把 is_active 桥接到闩锁话题
 /peach/lifecycle/managed_nodes_activated。autostart 默认关；启用时客户端
-等待栈就绪与自检通过后发 RunHarvest，真机授权来自操作员发起 launch。
+等待栈就绪与自检通过后发 RunHarvest，运动/工具仍需独立使能与操作员授权。
 
 观测性轮（P0）：展开期采集启动事实（配置 + git 版本 + 域 ID）注入
 peach_observability——落 runs/session_*/startup.json、驱动启动自检
@@ -240,14 +240,23 @@ def _git_facts() -> dict:
         head = ''
     if head.startswith('ref: '):
         ref = head[5:]
-        branch = ref.rsplit('/', 1)[-1]
+        branch = ref.removeprefix('refs/heads/')
         commit = 'unknown'
         try:
             with open(os.path.join(root, '.git', ref),
                       encoding='utf-8') as stream:
                 commit = stream.read().strip()[:12]
         except OSError:
-            pass
+            try:
+                with open(os.path.join(root, '.git', 'packed-refs'),
+                          encoding='utf-8') as stream:
+                    for line in stream:
+                        fields = line.split()
+                        if len(fields) == 2 and fields[1] == ref:
+                            commit = fields[0][:12]
+                            break
+            except OSError:
+                pass
     else:  # detached HEAD：内容即 commit sha
         branch = '(detached)'
         commit = head[:12]
@@ -290,6 +299,8 @@ def _collect_startup_facts(context):
         'bond_timeout': cfg.get('bond_timeout', '0.0'),
         'use_sim_time': cfg.get('use_sim_time', 'false'),
         'reconstruction_enabled': cfg.get('reconstruction_enabled', 'true'),
+        # Vegetation has an independent entry point and is not deployed here.
+        'vegetation_enabled': False,
         'skip_reconstruction': cfg.get(
             'effective_skip_reconstruction',
             cfg.get('skip_reconstruction', 'false')),
@@ -402,8 +413,8 @@ def generate_launch_description():
                         '冻结仿真传入 SRDF global_photo_pose'),
         DeclareLaunchArgument(
             'autostart', default_value='false',
-            description='true 时托管栈就绪后自动发 RunHarvest（授权=操作员'
-                        '发起本 launch，红线 3；默认关，部署档自定）'),
+            description='true 时托管栈与自检就绪后自动发 RunHarvest；'
+                        '默认关，运动/工具仍须独立使能和操作员授权'),
         DeclareLaunchArgument(
             'moveit_enabled', default_value='true',
             description='启动 MoveIt move_group；RViz2 由 rviz 单独开关'),
@@ -429,7 +440,7 @@ def generate_launch_description():
             description='相机前端（launch 期互斥开关，禁止运行期热切）：'
                         'stereo=peach_stereo 主机单图案立体（~13 fps）；'
                         'percipio=官方设备 18 图案深度（~1 fps，轮廓清晰；'
-                        '感知装入 percipio_frontend.yaml 年龄门 2.5 s，发布轴走身份 EMA）；'
+                        '感知装入 percipio_frontend.yaml 年龄门 2.5 s；候选保持当帧几何）；'
                         'replay=不起驱动，冻结 bag 重发 /camera/*。'
                         '同一相机连接独占；预检拒绝残留 stereo/percipio 进程'),
         DeclareLaunchArgument(
@@ -502,7 +513,7 @@ def generate_launch_description():
                 ["'", camera_enabled, "' == 'true' and '",
                  camera_frontend, "' == 'stereo'"]))),
         # 场景障碍快照节点（2026-09-29 避障只为保护相机）：Survey 完成触发后
-        # 把最近一帧点云转 PlanningScene 碰撞对象（peach_scene_obstacles），
+        # 启用建图后将最新点云转 PlanningScene 碰撞对象；部署 enabled 默认 false。
         OpaqueFunction(function=_fixed_camera_mount),
         # 作业期冻结。两前端话题/帧同构，percipio/stereo 通用。
         # 不进 lifecycle 名单（无状态快照服务）；mock camera_enabled:=false
@@ -609,7 +620,7 @@ def generate_launch_description():
         # mock 初始位姿：xacro state_interface initial_value（harvest_stow，
         # 不是 SRDF global_photo_pose；第一次 Survey 才 PTP 到拍照位）
         # 官方 ros2_control 机制，非轨迹——详见 aubo_e5.ros2_control.xacro
-        # autostart 客户端（默认关；授权=操作员发起 launch，红线 3）
+        # autostart 客户端默认关；启用只发批，不代替运动/工具使能与授权。
         Node(
             package='peach_bringup',
             executable='peach_autostart_client',

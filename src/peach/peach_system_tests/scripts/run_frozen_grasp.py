@@ -59,7 +59,7 @@ def _pgrep(domain=None):
 def create_parser():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--bag', default='')
-    parser.add_argument('--index', type=int, default=70)
+    parser.add_argument('--index', type=int, default=0)
     parser.add_argument('--hz', type=float, default=2.0)
     parser.add_argument('--request-id', default='')
     parser.add_argument('--timeout', type=float, default=GRASP_S)
@@ -156,7 +156,8 @@ def main(argv=None):
             'ros2', 'run', 'peach_system_tests', 'drive_frozen_grasp.py',
             '--ready-timeout', str(args.ready_timeout), '--timeout', str(args.timeout),
             '--request-id', request,
-            *([] if args.skip_launch else ['--bind-replay-calibration'])])
+            *([] if args.skip_launch else ['--bind-replay-calibration'])],
+            allow_success_exit=True)
         code = driver.wait(timeout=args.ready_timeout + args.timeout + 60)
     except subprocess.TimeoutExpired:
         print('drive timed out; outcome unknown, cancelling owned batch', file=sys.stderr)
@@ -172,10 +173,14 @@ def main(argv=None):
                 if errors:
                     code = code or 1
                 residuals = owner.cleanup()
+                for message in owner.cleanup_issues:
+                    print(message, file=sys.stderr)
+                if owner.cleanup_issues:
+                    code = code or 1
                 if residuals:
                     print('owned process residual PIDs: ' + str(residuals), file=sys.stderr)
                     code = code or 1
-                else:
+                elif not owner.cleanup_issues:
                     print('owned process groups clean; external stacks untouched', flush=True)
                 print(f'wall elapsed={time.monotonic() - started:.1f}s', flush=True)
         finally:

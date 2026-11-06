@@ -43,8 +43,8 @@ CoP = Σ f_i · (x_i, y_i) / F        # tcp 系，mm
 
 - 只用 `status ∈ {OK, SATURATED}` 的通道；OPEN/INVALID 不参与；
 - 合力 < 0.05 N 时 CoP 无意义，显示 `--`；
-- `8090 force page` 默认整机 220 mm、可切盘面 72 mm；页面红点为 CoP，
-  面板给 `(x, y)` 与 `|CoP|`；臂侧视图是 CSS 镜像，通道值不变。
+- `peach_web /force.html` 默认整机 220 mm、可切盘面 72 mm；CoP 标记的
+  title 给 `(x, y)`。当前页面没有旧版臂侧 CSS 镜像切换。
 
 ## 4. 工具与复现
 
@@ -54,8 +54,6 @@ python3 tools/render_force_pads.py
 
 # Web 底图 -> web/face_fruit.png（72 mm）、web/face_full.png（220 mm）
 python3 tools/make_web_face.py
-
-# 起调试页（先 source Jazzy 与工作区）
 ```
 
 两个工具只在开发/换工具时跑，不随节点安装；依赖 numpy/Pillow/matplotlib，
@@ -67,6 +65,7 @@ python3 tools/make_web_face.py
    位置叠加，不是渲染出来的传感器。
 2. URDF 里仍没有五个固定 frame；若要让 RViz/TF 直接消费，可在
    `tcp_bite_shear_v1.xacro` 加 5 个 fixed link，坐标用上表。
-3. `channel_labels` 参数与 `web/8090 force page.html` 的 `CH` 表须与上表一致；
-   现场改线/换工具只改这两处，不改代码。
+3. 驱动 `channel_labels`、`serial_force/force_sim_common.py::PADS` 与
+   `peach_web/web/force.js::PADS` 须按通道号保持一致；当前没有自动同步这些点位。
+   页面运行底图是 `peach_web/web/force_face_{fruit,full}.png`，本包生成器不会自动覆盖它们。
 4. 绝对力未做砝码标定；CoP 是相对 5 点量，不是计量级压力中心。

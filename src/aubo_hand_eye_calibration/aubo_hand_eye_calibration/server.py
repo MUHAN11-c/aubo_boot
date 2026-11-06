@@ -281,7 +281,7 @@ class CalibrationServer(Node):
         )
         self._bridge = CvBridge()
         self._camera_info = None
-        # 元素: (monotonic_stamp, observation)
+        # 元素: (处理时的 monotonic_stamp, observation)，不保存图像源 stamp。
         self._observations = deque(maxlen=30)
         self._observations_lock = threading.Lock()
         self._board_visible = False
@@ -710,11 +710,13 @@ class CalibrationServer(Node):
 
     async def _capture(self, goal_handle, started_at, want_frames=False):
         """
-        收集 frames_per_pose 帧 (观测, 腕部TF) 配对, 剔除离群帧后取均值.
+        静止后收集 frames_per_pose 个观测并配 latest 腕部 TF，剔除后取均值.
+
+        配对时读取当前 TF，不按图像曝光时间查询；started_at 过滤处理时刻。
 
         返回 (base_from_gripper, camera_from_target, reprojection_rms,
         frame_records, kept_frames); frame_records 为逐帧观测明细 (含 kept
-        剔除标记), kept_frames 为 (观测, 腕部TF) 逐帧配对 (joint 档用).
+        剔除标记), kept_frames 为 (观测, latest 腕部TF) 配对 (joint 档用).
         """
         count = int(self.get_parameter('frames_per_pose').value)
         deadline = time.monotonic() + float(

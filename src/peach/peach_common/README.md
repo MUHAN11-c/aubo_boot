@@ -4,7 +4,9 @@ peach 能力包的共享设施**单源**（W1 起，角色对齐 Nav2 `nav2_comm
 `yaml_params`（yaml 直读 + `attach`）、`param_rules`（三包规则并集）、
 `qos`（QoS 工厂）、`paths`（目录段净化与 `runs/` 根单源）、
 `lifecycle`（名单外节点自转换 + bond 心跳守卫）、`ros_log_bridge`
-（stdlib logging → /rosout 桥）、`event_meter`（纯核事件计数摘要）。
+（stdlib logging → /rosout 桥）、`event_meter`（纯核事件计数摘要）、
+`grasp_standoffs` / `tool_profiles`（launch 几何注入）与 `recording_session`
+（记录写者身份和 active 会话判定）。
 能力包直接导入 `peach_common`。原 harvester/bringup/vegetation 的六个参数转发模块已退役；外部脚本也应改用下列公共 API。参数键与规则行为不变。
 
 ## 公有 API
@@ -24,11 +26,18 @@ peach 能力包的共享设施**单源**（W1 起，角色对齐 Nav2 `nav2_comm
 - `peach_common.ros_log_bridge`：`RosLoggerHandler`、
   `bridge_module_loggers`（纯核模块 stdlib logger 转发进节点 /rosout）
 - `peach_common.event_meter`：`EventMeter`（第 1 次必记、之后每 every 次
-  一条 WARN 摘要）
+  一条摘要；默认 WARN，可指定 level）
 - `peach_common.qos`：`latched()`（RELIABLE+TRANSIENT_LOCAL+depth 1）、
   `stream(depth=10)` 与其显式别名 `reliable(depth=10)`
   （RELIABLE+VOLATILE+KEEP_LAST）、`sensor(depth=5)`
   （BEST_EFFORT+VOLATILE+KEEP_LAST）；rclpy 延迟 import，模块顶层零 ROS 依赖
+- `peach_common.grasp_standoffs`：读取共享 YAML，并分别生成 scene / reconstruction /
+  manipulation overlay；不包含 arm 的额外轨迹净空 `approach_clearance_m`
+- `peach_common.tool_profiles`：`parse_tool_profile`、`load_tool_profile` 与各节点
+  参数 overlay；从 `aubo_description/config/<profile_id>.yaml` 读取工具档案
+- `peach_common.recording_session`：`write_session_state` 原子写 `session.json`；
+  `active_session` 仅接受唯一 active 声明且 PID/start tick 仍匹配的会话，
+  不以 bag 文件 mtime 判活
 
 ## 用法
 
@@ -51,7 +60,9 @@ colcon test --packages-select peach_common && colcon test-result --verbose
 
 ## 依赖
 
-`rclpy`、`python3-yaml`（见 `package.xml`）；不引入 numpy/opencv。
+依赖 `rclpy`、`rcl_interfaces`、`python3-yaml`、`ament_index_python`、
+`launch` / `launch_ros`、`aubo_description` 与 `bondpy`（见 `package.xml`）；
+不引入 numpy/opencv。各子模块的导入边界和文件 IO 见 [doc/io.md](doc/io.md)。
 
 ## 许可
 

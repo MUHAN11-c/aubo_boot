@@ -4,6 +4,8 @@ ROS 2 Jazzy RViz 的临时兼容插件。`peach_rviz_plugins/Image` 继承官方
 `rviz_default_plugins::displays::ImageDisplay`，只修正订阅的重复清理；图像处理、
 图像传输、QoS、属性和绘制全部沿用官方实现。不修改系统 ROS 库，也不运行节点。
 
+源码与注册关系见 [架构](doc/architecture.md)，插件入口和配置边界见 [接口](doc/io.md)。
+
 ## 适用范围与原因
 
 本机 RViz 14.1.24、message_filters 4.11.17 的 `unsubscribe()` 会断开连接后销毁

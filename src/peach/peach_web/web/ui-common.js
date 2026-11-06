@@ -16,7 +16,8 @@ const safe = (value) => String(value ?? "—").replace(/[&<>"']/g, (char) => ({
 })[char]);
 const setText = (id, value) => {
   const el = $(id);
-  if (el) el.textContent = value ?? "—";
+  const text = String(value ?? "—");
+  if (el && el.textContent !== text) el.textContent = text;
 };
 
 function clamp(value, min, max) {
@@ -24,10 +25,13 @@ function clamp(value, min, max) {
   return Number.isFinite(number) ? Math.min(max, Math.max(min, number)) : min;
 }
 
+const clockTimeFormat = new Intl.DateTimeFormat("zh-CN", {
+  hour12: false, hour: "2-digit", minute: "2-digit", second: "2-digit",
+});
 function timeLabel(stampSeconds) {
-  return numeric(stampSeconds) && Number(stampSeconds) > 0
-    ? new Date(Number(stampSeconds) * 1000).toLocaleTimeString("zh-CN", {hour12: false})
-    : "--:--:--";
+  if (!numeric(stampSeconds) || Number(stampSeconds) <= 0) return "--:--:--";
+  const date = new Date(Number(stampSeconds) * 1000);
+  return Number.isNaN(date.getTime()) ? "Invalid Date" : clockTimeFormat.format(date);
 }
 
 function ageLabel(ageSeconds) {

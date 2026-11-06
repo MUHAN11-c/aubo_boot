@@ -1,7 +1,6 @@
-// 功能：显式模式 switch 执行器（阶段函数）。主链阶段：观察、精化验证、再确认、
+// 功能：按模式分流的阶段执行器。主链阶段：观察、精化验证、再确认、
 // 预抓取验证、套入、刀具、原路撤退。不写账本、不调重建 Trigger。接触走
-// GraspTask；刀具 IO 只在本文件。阶段调用序列与原 behavior_tree.xml 主树
-// 遍历严格同构（映射表见 executeCycle 注释）。
+// GraspTask；本文件编排刀具动作，SetIO 发送在 motion.cpp。阶段顺序见 executeCycle。
 #include "peach_arm/manipulation_skills_node.hpp"
 #include "peach_arm/math_utils.hpp"
 #include "peach_arm/pregrasp_level.hpp"
@@ -83,13 +82,13 @@ std::optional<CachedTarget> ManipulationSkillsNode::targetSnapshot()
   return cache_.targetSnapshot();
 }
 
-// 周期生效目标快照（阶段 E 残局抬质量能力端）。
+// 周期生效目标快照：所有带 target_id 的周期优先取该 ID 的锁定集锚点。
 // 为什么按周期分流而不是在执行接受时把 goal 目标写进 selected 缓存：
 // 覆盖 target_ 会污染感知驱动的四源调和（selected 身份/精化/决策缓存的 ID
 // 一致性全部以 target_ 为准），周期结束后还会留下"假 selected"干扰后续
 // 周期；而锁定集锚点缓存是独立数据源，goal 钉入 ID（ctx.target_id）在
 // 受理时已写好，执行体按"本周期生效目标"取快照即可，零侵入既有调和语义。
-// FULL/PREVIEW/手动周期（target_id 空）恒退化为 selected 缓存。
+// 未命中锁定锚点或 target_id 为空时回退 selected 缓存；调用方另核目标身份。
 std::optional<CachedTarget> ManipulationSkillsNode::cycleTargetSnapshot(
   const std::string & target_id)
 {
@@ -137,7 +136,7 @@ bool ManipulationSkillsNode::waitForFreshCycleTarget(
   bool live_observation_required)
 {
   // 数据源随周期生效目标走（同 cycleTargetSnapshot 的分流理由）：
-  // OBSERVE_ONLY 等 goal 目标的锁定集锚点新鲜帧，其余等 selected 新鲜帧。
+  // 带 target_id 时等该 ID 的锁定集锚点新鲜帧，空 ID 才等 selected 新鲜帧。
   // live_observation_required=false 仅再确认：已 OBSERVED 则用当前锚点。
   if (!target_id.empty()) {
     return cache_.waitForFreshLockedTarget(
@@ -293,13 +292,11 @@ bool ManipulationSkillsNode::requireStageAuthority(
 }
 
 
-// 阶段调用序列（与原 behavior_tree.xml 主树遍历严格同构；BT 节点→阶段函数
-// 映射见包内重构说明）：PrepareCycle →（IsPlanOnly→PlanObservationPreview |
-// （IsSkipObservation|ObserveScan）→ QualityValidate →（IsObserveOnly→
-// ReportObserveOnly | IsGraspDisabled→ReportReadyForGrasp |（ReconfirmTarget →
-// MovePregrasp → VerifyPregrasp →（IsPregraspOnly→HoldPregrasp |
-// SleeveCutRetreat 子树））→ CompleteTarget））。VerifyCutHold 空阶段已删
-// （W5-12：原实现只落状态不判定；tool 遥测桶由 ActuateCutter 同投影）。
+// 阶段顺序：Prepare →（execution 关则 PlanPreview；否则按 skip_observation
+// 决定 AcquireViews）→ Finalize →（ObserveOnly / ReportReady 短路；否则
+// Reconfirm → MovePregrasp → VerifyPregrasp →（HoldPregrasp 或
+// PlanSleeve → Sleeve → Cutter → VerifyCut → Retreat → ReturnPhoto →
+// ReleasePayload → VerifyHarvest）→ CompleteTarget）。失败立即进入统一终局。
 void ManipulationSkillsNode::executeCycle(CycleContext & ctx)
 {
   const auto finish = [this, &ctx](CycleState state, const std::string & message) {
@@ -355,7 +352,7 @@ void ManipulationSkillsNode::executeCycle(CycleContext & ctx)
       }
     }
     // 终局分级（顺序即语义）：接触 recovery > 取消 > 成功 > 失败。
-    // PREGRASP_ONLY 到位也置 recovery（ACK 前不 Survey），但是产品成功：
+    // PREGRASP_ONLY 到位也置 recovery（ACK 前不 Survey），但可为周期成功：
     // 不得改写成「接触取消/撤离未确认」再 abort 成 FAILED。
     if (contact_recovery_required_.load() && !(ctx.pregrasp_only && ok)) {
       const std::string recovery = "保持停止，须现场人工撤离后确认恢复";
@@ -385,8 +382,7 @@ void ManipulationSkillsNode::executeCycle(CycleContext & ctx)
 
 bool ManipulationSkillsNode::stagePrepareCycle(CycleContext & ctx)
 {
-  // 周期"黑板"锚定本周期生效目标：OBSERVE_ONLY=锁定集锚点缓存的 goal 目标，
-  // 其余=感知 selected（见 cycleTargetSnapshot 注释）。
+  // 周期上下文优先锚定 goal 目标的锁定集缓存，缺失才回退 selected。
   ctx.target = cycleTargetSnapshot(ctx.target_id);
   ctx.refined.reset();
   ctx.candidates.clear();
@@ -407,11 +403,9 @@ bool ManipulationSkillsNode::stagePrepareCycle(CycleContext & ctx)
       ctx, FailureCode::OBSERVE_FAILED,
       "周期目标（selected/锁定集锚点）在启动后失效");
   }
-  // goal 钉死校验（ExecuteTarget.goal.target_id）：action 受理到本快照之间感知若已切换
-  // selected，身份不一致即周期失败，由编排按新 selected 重新派发；
-  // 手动周期钉入值为空，直接采纳当下快照身份。OBSERVE_ONLY 周期的快照按
-  // goal ID 取自锁定集缓存，身份一致由缓存键保证（条目消失走上方空快照
-  // 失败分支），本校验恒通过。
+  // goal 钉死校验：锁定集命中时身份由缓存键保证；回退 selected 后仍须
+  // 等于 goal.target_id，不能借受理后的 selected 切换执行另一目标。
+  // 空目标的内部调用才采纳当下快照身份。
   if (!ctx.target_id.empty() && ctx.target->id != ctx.target_id) {
     return failStage(
       ctx, FailureCode::MODEL_STALE,
@@ -992,10 +986,24 @@ bool ManipulationSkillsNode::stageMovePregrasp(CycleContext & ctx)
   if (!requireStageAuthority(ctx, MotionStage::PREGRASP, "到预抓取")) {
     return false;
   }
-  setState(CycleState::MTC_APPROACH_INSERT, "拍照位再最短路径到预抓取", ctx.target_id);
+  setState(CycleState::MTC_APPROACH_INSERT, "直接转移到轨迹净空停位", ctx.target_id);
   if (!ctx.refined || !grasp_task_) {
     return failStage(
       ctx, FailureCode::DEGRADED_CONTACT_FORBIDDEN, "预抓取无入口几何");
+  }
+  const FruitCapsule fruit = fruitCapsuleFor(*ctx.refined);
+  grasp_task_->setContactAcm(ctx.target_id, ContactAcmStage::Pregrasp);
+  if (!ctx.pregrasp_only) {
+    // 拍照位转移也是运动：完整套入/撤退的时间和碰撞验证必须先完成。
+    const auto preflight = grasp_task_->previewFullContact(
+      ctx.entry_tip_pose, ctx.refined->axis, ctx.travel_m, fruit, true, true,
+      params_.photo_pose_named_target);
+    if (!preflight.success) {
+      return failStage(
+        ctx, ExecuteTarget::Result::SKIPPED_UNREACHABLE,
+        FailureCode::SLEEVE_PLAN_FAILED,
+        "首次运动前接近/套入/撤退预验证失败: " + preflight.reason);
+    }
   }
   // 观察停在 look-at。从该姿态直接 LIN/PTP 到预抓取现场常无 IK
   // （08-28 G PTP 0/1；08-31 1405 LIN NO_IK）。拍照位是已知可达的自由空间点。
@@ -1009,7 +1017,6 @@ bool ManipulationSkillsNode::stageMovePregrasp(CycleContext & ctx)
       get_logger(),
       "预抓取未回到拍照位，从当前位规划: %s", photo_msg.c_str());
   }
-  const FruitCapsule fruit = fruitCapsuleFor(*ctx.refined);
   startContactGuard();
   const double insert_travel = ctx.pregrasp_only ? 0.0 : ctx.travel_m;
   RCLCPP_INFO(
@@ -1052,8 +1059,8 @@ bool ManipulationSkillsNode::stageMovePregrasp(CycleContext & ctx)
   }
   if (motion_) {
     if (from_photo) {
-      auto approach = grasp_task_->lastApproachTrajectory();
-      if (!approach.points.empty()) {
+      auto approach = grasp_task_->lastApproachTrajectories();
+      if (!approach.empty()) {
         motion_->rememberPhotoApproach(std::move(approach));
       } else {
         motion_->clearPhotoApproach();
@@ -1067,15 +1074,14 @@ bool ManipulationSkillsNode::stageMovePregrasp(CycleContext & ctx)
   }
   ctx.completion_level = std::max(
     ctx.completion_level, ExecuteTarget::Result::LEVEL_PREGRASP_REACHED);
-  // CK_AT_STAGING 待 GraspTask 增设 staging 到位回调后补记（staging PTP 与
-  // 轴向 LIN 在 moveToPregrasp 单调用内完成，2b 层不可区分）。
-  markCheckpoint(ExecuteTarget::Goal::CK_AT_PREGRASP, "到预抓取");
+  markCheckpoint(
+    ExecuteTarget::Goal::CK_AT_PREGRASP, "到轨迹净空停位（视觉预抓取未改）");
   return true;
 }
 
 bool ManipulationSkillsNode::stageVerifyPregrasp(CycleContext & ctx)
 {
-  setState(CycleState::RECONFIRM, "预抓取停稳验证（不 SetIO）", ctx.target_id);
+  setState(CycleState::RECONFIRM, "轨迹净空停位验证（视觉预抓取未改）", ctx.target_id);
   if (!ctx.refined || !ctx.refined->valid) {
     return failStage(
       ctx, ExecuteTarget::Result::SKIPPED_QUALITY,
@@ -1122,10 +1128,17 @@ bool ManipulationSkillsNode::stageVerifyPregrasp(CycleContext & ctx)
     ctx.pregrasp_msg.axis_angle_deg = static_cast<float>(residual.angle_deg);
     ctx.pregrasp_msg.lateral_error_m = static_cast<float>(residual.lateral_m);
     ctx.pregrasp_msg.axial_error_m = static_cast<float>(residual.axial_m);
+    const auto geometry = trajectoryApproachGeometry(
+      ctx.entry_tip_pose, ctx.refined->axis, params_.moveit.mtc_approach_along_axis_m,
+      params_.moveit.approach_clearance_m, ctx.pregrasp_only ? 0.0 : ctx.travel_m);
+    const auto current_tip = motion_->lookupTransform(params_.frames.base, params_.frames.tip);
+    const bool at_clearance = geometry && current_tip && current_tip->matrix().allFinite() &&
+      (current_tip->translation() - geometry->transfer.translation()).norm() <=
+      params_.moveit.mtc_cartesian_precision_m;
     ctx.pregrasp_msg.needs_correction =
-      (!residual.passed) && residual.consistent;
-    ctx.pregrasp_msg.passed = residual.passed;
-    if (residual.passed) {
+      (!residual.passed || !at_clearance) && residual.consistent;
+    ctx.pregrasp_msg.passed = residual.passed && at_clearance;
+    if (ctx.pregrasp_msg.passed) {
       ctx.pregrasp_verified = true;
       ctx.pregrasp_msg.reason = "pregrasp_verified";
       ctx.completion_level = std::max(
@@ -1136,9 +1149,8 @@ bool ManipulationSkillsNode::stageVerifyPregrasp(CycleContext & ctx)
     if (ctx.pregrasp_msg.needs_correction && attempt < 2 && grasp_task_) {
       // 修正回路：第一次到位后按原目标重规划是 no-op；必须从缓存取最新
       // 精化快照（身份必须仍钉在本周期目标）重算 entry/pregrasp 目标——
-      // 与 movePregrasp 同一几何构造（alignFrameZ 保留滚转；预抓取=entry
-      // 沿轴后撤 approach_along_axis_m，0 时预抓取=入口=袋底；由 GraspTask 内部完成）——再做
-      // 增量修正，后续接触段同步用修正后几何。
+      // 由统一 helper 从最新入口重算轨迹净空点 A，C 仅加一次；
+      // 视觉预抓取与原切断行程语义保持不变，后续接触同步用修正后几何。
       const auto latest_refined = refinedSnapshot();
       if (!latest_refined || latest_refined->id != ctx.target_id ||
         !latest_refined->valid)
@@ -1176,7 +1188,7 @@ bool ManipulationSkillsNode::stageVerifyPregrasp(CycleContext & ctx)
       }
       if (motion_ && fix.execution_started) {
         // 修正后终点已变；返程必须先倒放本次实际成功修正，再走原接近。
-        motion_->appendPhotoApproach(grasp_task_->lastApproachTrajectory());
+        motion_->appendPhotoApproach(grasp_task_->lastApproachTrajectories());
       }
       continue;
     }
@@ -1190,7 +1202,7 @@ bool ManipulationSkillsNode::stageVerifyPregrasp(CycleContext & ctx)
       completion_level_after_pregrasp_verify(false));
     RCLCPP_WARN(
       get_logger(),
-      "PREGRASP_ONLY 残差未过门仍停在预抓取 angle=%.2fdeg lateral=%.4fm",
+      "PREGRASP_ONLY 残差未过门仍停在轨迹净空附近 angle=%.2fdeg lateral=%.4fm",
       ctx.pregrasp_msg.axis_angle_deg,
       ctx.pregrasp_msg.lateral_error_m);
     return true;
@@ -1210,12 +1222,12 @@ bool ManipulationSkillsNode::stageHoldPregrasp(CycleContext & ctx)
   // 调度 ACK 前不得 Survey / 下一颗。
   setState(
     CycleState::MTC_APPROACH_INSERT,
-    "PREGRASP_ONLY：停在预抓取，不回 harvest_stow，未套入未 SetIO",
+    "PREGRASP_ONLY：停在轨迹净空点，视觉预抓取未改，未套入未 SetIO",
     ctx.target_id);
   contact_recovery_required_.store(true);
   RCLCPP_INFO(
     get_logger(),
-    "PREGRASP_ONLY 停在预抓取；ACK 后再 Survey / 派下一颗");
+    "PREGRASP_ONLY 停在轨迹净空点（视觉预抓取未改）；ACK 后再 Survey / 派下一颗");
   return true;
 }
 
@@ -1234,7 +1246,7 @@ bool ManipulationSkillsNode::stagePlanSleeveAndReverseRetreat(CycleContext & ctx
     return failStage(
       ctx, FailureCode::DEGRADED_CONTACT_FORBIDDEN, "套入预规划无几何");
   }
-  grasp_task_->setContactAcm(ctx.target_id, ContactAcmStage::Sleeve);
+  grasp_task_->setContactAcm(ctx.target_id, ContactAcmStage::Pregrasp);
   const auto result = grasp_task_->previewFullContact(
     ctx.entry_tip_pose, ctx.refined->axis, ctx.travel_m,
     fruitCapsuleFor(*ctx.refined), true);
@@ -1264,7 +1276,11 @@ bool ManipulationSkillsNode::stageSleeveLinear(CycleContext & ctx)
   }
   startContactGuard();
   const auto result = grasp_task_->sleeveLinear(
-    ctx.refined->axis, ctx.travel_m, true);
+    ctx.entry_tip_pose, ctx.refined->axis, ctx.travel_m, true,
+    [this, &ctx](std::string & why) {
+      StageDenial denial;
+      return authorizeStage(ctx, MotionStage::CONTACT, why, denial);
+    });
   stopContactGuard();
   if (result.execution_started) {
     contact_recovery_required_.store(true);
@@ -1405,7 +1421,7 @@ bool ManipulationSkillsNode::stageExecuteReservedReverseRetreat(CycleContext & c
   // 撤离授权经 GraspTask retreat 门（Active∧robotReady∧!cancel∧execution∧
   // grasp，无决策复检——插入后目标常被遮挡/收割后决策翻转，撤离不依赖视觉）。
   const auto result = grasp_task_->retreat(
-    ctx.refined->axis, ctx.travel_m + params_.moveit.mtc_approach_along_axis_m, true);
+    ctx.entry_tip_pose, ctx.refined->axis, ctx.travel_m, true);
   if (!result.success) {
     ctx.failure_code = FailureCode::RETREAT_FAILED;
     return failStage(ctx, "MTC 抓取后撤离失败，需要人工处理: " + result.reason);
@@ -1415,7 +1431,7 @@ bool ManipulationSkillsNode::stageExecuteReservedReverseRetreat(CycleContext & c
   ctx.completion_level = std::max(
     ctx.completion_level,
     ExecuteTarget::Result::LEVEL_RETREAT_CONFIRMED);
-  markCheckpoint(ExecuteTarget::Goal::CK_RETREATED, "原路撤回预抓取");
+  markCheckpoint(ExecuteTarget::Goal::CK_RETREATED, "沿轴撤回轨迹净空点");
   return true;
 }
 

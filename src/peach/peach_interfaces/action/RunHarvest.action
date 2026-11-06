@@ -2,11 +2,12 @@
 # 动作：/peach_supervisor/run_harvest
 # 服务端：peach_supervisor    客户端：操作台、人工 CLI、可选 autostart 客户端
 # intent 取值见本文件 INTENT_* 常量（JobIntent 已删，此处为唯一权威）。
-# Result.success 至少成功一颗为 true。
+# Result.success：采摘意图须至少一个周期 SUCCEEDED；SURVEY_ONLY 正常结算可为 true。
+# 周期 SUCCEEDED 包含 PREGRASP_ONLY，真实采摘仍须检查单颗 level7 / harvest.grasped。
 
 # === Goal ===
 uint8 AUTO=0                   # selection_mode 预留：执行器不独立消费
-uint8 MANUAL=1                 # selection_mode 预留：goal.target_ids 非空即优先按列表
+uint8 MANUAL=1                 # selection_mode 预留：goal.target_ids 非空时限定允许列表
 # intent 常量（清洁重写轮起本文件为唯一权威；数值与 JobIntent 对齐，其删除后不迁回）
 uint8 INTENT_PICK_ALL=0
 uint8 INTENT_PICK_SELECTED=1
@@ -15,7 +16,7 @@ uint8 INTENT_SURVEY_ONLY=2
 uint8 VIEW_FAST=0              # 单视优先，低置信补视，封顶 3 固定视（新默认）
 uint8 VIEW_CONSERVATIVE=1      # 现行多视观察循环（原值）
 
-string request_id              # 本批请求 ID，同时作账本目录名；须唯一
+string request_id              # 本批请求 ID/账本目录名；空时以动作 UUID 派生 auto_<UUID>
 string scene_key               # 场景键，传给 BeginScene / SurveyScene；换键=换场清身份
 string profile_id              # 参数剖面 ID（现行执行器未消费）
 uint8 intent                   # INTENT_*：PICK_ALL=0 / PICK_SELECTED=1 / SURVEY_ONLY=2
@@ -27,7 +28,7 @@ float64 sector_timeout_s       # 扇区时限 [s]；0=不限
 uint8 view_policy              # VIEW_*；默认 0=fast（阶段 3 消费）
 ---
 # === Result ===
-bool success                   # 至少成功一颗为 true；尝试过但 succeeded=0 为 false（no_targets_succeeded）
+bool success                   # 采摘意图须 summary.succeeded>0；SURVEY_ONLY 正常结算可为 true
 string termination_reason      # completed / canceled / begin_scene_failed / survey_failed / no_targets_succeeded 等
 peach_interfaces/HarvestSummary summary  # 发现/尝试/成功/跳过/失败计数与逐颗 outcomes
 ---

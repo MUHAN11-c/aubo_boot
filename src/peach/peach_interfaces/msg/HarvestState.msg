@@ -1,12 +1,12 @@
 # 批次唯一状态快照。能力包作业目标只认本消息的 target_id
 # （感知 SAM 焦点、重建绑定、观测 selected 都须与此调和）。
 # 话题：/peach_supervisor/state（reliable, transient_local, depth 1）
-# 生产：peach_supervisor    消费：感知、重建、监控；调度自订
+# 生产：peach_supervisor    消费：感知、重建、监控
 # batch_state / target_phase 只由 harvest_fsm.react 推导，禁止节点手写。
 
 # operation_mode：人机模式（与 batch_state 正交）
 uint8 MODE_AUTO=0         # 自动跑批
-uint8 MODE_PAUSED=1       # 人工暂停（含 PAUSE_PENDING）
+uint8 MODE_PAUSED=1       # 人工暂停投影；工作流 batch_state 保留
 uint8 MODE_MAINTENANCE=2  # 维护态，不选下一颗
 
 # batch_state：批次级状态机
@@ -52,7 +52,7 @@ bool tool_enabled         # 是否允许工具 SetIO；默认 false
 bool recovery_required    # 接触或 PREGRASP_ONLY 停住，待 ACKNOWLEDGE_RECOVERY
 float32 progress          # 已尝试 / max(发现数, 已尝试, 1)，约 0..1
 string message            # 批次态名或当前周期说明
-string[] blockers         # 阻塞原因列表（预留，现行恒空；无写入方）
+string[] blockers         # supervisor 由栈就绪、恢复、暂停/维护、账本写失败派生的阻塞词表
 uint8[] permissions       # 当前允许的 ControlTask.command；编排器按 FSM 允许表填充
 bool navigation_enabled   # 预留：固定座现行恒 false（调度到位直通 NAV_OK）
 uint64 action_generation  # 当前动作事务世代；迟到结果对照此值丢弃

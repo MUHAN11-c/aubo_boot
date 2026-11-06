@@ -160,6 +160,7 @@ class SerialForceNode(Node):
                 f'打不开口 {self._ports()}: {last_err}{hint}')
 
     def _on_timer(self) -> None:
+        """按轮询周期读现有字节；每轮可能解码零帧或多帧固件数据."""
         self._ensure_serial()
         if self._ser is None:
             return

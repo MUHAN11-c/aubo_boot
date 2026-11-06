@@ -6,7 +6,20 @@ ARM64/Jetson集成前先看[NX 16GB 本机浏览器压力测试](jetson-orin-nx-
 
 本包分六个可独立使用的入口：SDK（通信）、scene（空间显示）、media（图像/曲线）、audit（项目验收）、graph（有界ROS声明关系）、workbench（可组合显示与配置）。各入口默认共享一个RosClient，也可显式组合控制/观测两个现有客户端；项目通过数据配置声明已有原生ROS接口，不增加业务HTTP代理，不导入Peach/IVG实现。
 
-0.8.0 的自带工作台和应用自建 UI 都可消费同一 controller / registry；共享空间 Scene 和可重复输入由组件管理，不需要将应用改成固定页面。使用步骤、保存格式、内置类型与本地插件扩展见 [workbench.md](workbench.md)。本轮只完善独立包，Peach / IVG 迁移仍不执行；IVG 硬件 SDK 的 FK / IK 对比分析入口保留，规划 / 业务语义仍归各项目。
+0.8.0 的自带工作台和应用自建 UI 都可消费同一 controller / registry；共享空间 Scene 和可重复输入由组件管理，不需要将应用改成固定页面。使用步骤、保存格式、内置类型与本地插件扩展见 [workbench.md](workbench.md)。Peach 当前已复用核心 SDK 和桥，业务映射仍在应用侧；本包不迁移其采摘逻辑。IVG 硬件 SDK 的 FK / IK 对比分析入口保留，规划 / 业务语义仍归各项目。
+
+## Peach 当前接线
+
+`peach_bringup/launch/harvest_system.launch.py::_web_bridge` 直接启动本包的
+`bridge_node.py`，默认回环 9090，仅订阅三个 observability Web 投影，放行应用
+白名单服务和四个 Action，禁止浏览器发布话题。它不启动本包的 rosapi、demo
+或独立静态服务器。8090 及 `/vendor/ros2-web-link.js` 由 Peach 观测包托管，
+SDK 文件从本包 ament 安装目录读取；应用请求映射在 `peach_web/web/rosbridge.js`。
+
+关闭 `rosbridge_enabled` 或独立运行观测节点时，页面使用 HTTP 对照接口。
+两条路径复用既有 ROS 业务契约，HTTP 调试审计不覆盖 WS 直接调用；最终执行
+许可由业务节点与臂侧门负责。此接线不改变通用工作台的默认白名单、HTTP 端口
+或项目配置。细节见 [Peach Web 架构](../../peach/peach_web/doc/architecture.md)。
 
 ## ROS 端
 

@@ -28,7 +28,7 @@ _evict_meter = EventMeter(_logger, '注册表逐出（满）', every=1)
 CHI2_GATE = 9.0
 """马氏 χ² 门（约 3σ / 3 自由度）；超过则禁止配对."""
 AMBIGUOUS_RATIO = 1.2
-"""次优/最优代价比超过本值判歧义，不分配."""
+"""另一有限代价与已分配代价在此倍率内接近时判歧义，不分配."""
 
 
 def regularize_cov(cov, floor: float = 1e-6) -> np.ndarray:
@@ -206,7 +206,7 @@ def classify_tracking_status(has_observation: bool, has_mask: bool,
                              min_depth_ratio: float,
                              last_bbox_touched_edge: bool) -> str:
     """
-    单目标跟踪状态四分类（阶段 D1；优先级自上而下首个命中即返回）.
+    单目标跟踪状态五分类（阶段 D1；优先级自上而下首个命中即返回）.
 
     Args:
         has_observation: 本帧该目标是否有检测/几何输出（payload 非空）.
@@ -272,7 +272,7 @@ class CollectLockPolicy:
 
     逐帧累积确认目标（同 ID 后者覆盖，窗口关闭时取最新一帧的质量量）；
     关闭条件二选一：静止关闭（累积帧数 ≥ min_collect_frames 且连续
-    lock_settle_frames 帧无新增确认 ID，且当前帧无未确认记录在攒帧）
+    lock_settle_frames 帧无新增确认 ID，且当前帧无进行中的身份确认）
     或超时兜底（now − 窗口起点 ≥ max_collect_s，空集也关闭）。关闭后
     发一次 LockEvent 即冻结，reset() 后重新开窗。
 
@@ -317,7 +317,8 @@ class CollectLockPolicy:
 
         Args:
             records: 本帧候选 record dict 列表（须带 target_id；确认判定
-                只看 confirmed 键）.
+                只看 confirmed 键）。confirmation_pending=False 只表示
+                无可注册的三维锚点，不是确认成功；缺省仍视为待确认.
             now: 当前时刻 (s)，调用方注入（协议 I3）；窗口内各帧须同一
                 时钟基准.
 
@@ -342,11 +343,14 @@ class CollectLockPolicy:
             if target_id not in self._accumulated:
                 self._last_new_id_frame = self._collect_frames
             self._accumulated[target_id] = record
-        # 静止关闭追加前提"无进行中确认"：当前帧仍有未确认记录（确认
-        # 进度攒帧中）时不得关窗，否则低置信/闪烁场景会在确认完成前
-        # 锁定空集（2026-08-14 真机：0.3 阈值下检测迟到，窗口提前锁定空集）。
+        # 未注册的无深度/无掩膜占位不会积累确认帧，不能让已确认集合
+        # 每轮等到超时。仅当前帧有确认目标时忽略显式非待确认占位；
+        # 空集合、仅历史确认及未知记录仍保留原等待，防迟到检测锁空集。
+        has_current_confirmed = any(record.get('confirmed') for record in records)
         has_pending_confirmation = any(
-            not record.get('confirmed') for record in records)
+            not record.get('confirmed')
+            and (record.get('confirmation_pending', True) or not has_current_confirmed)
+            for record in records)
         settled = (
             self._collect_frames >= self.min_collect_frames
             and self._collect_frames - self._last_new_id_frame
@@ -380,64 +384,6 @@ def tilt_from_vertical_deg(axis) -> float:
         return 90.0
     align = min(1.0, abs(float(vec[2] / norm)))
     return float(math.degrees(math.acos(align)))
-
-
-def held_registry_axis(registry_item) -> Optional[np.ndarray]:
-    """注册表 EMA 袋轴的单位向量；无轴或退化时 None."""
-    if not registry_item:
-        return None
-    axis = registry_item.get('axis')
-    if axis is None:
-        return None
-    try:
-        vec = np.asarray(axis, dtype=float).reshape(-1)
-    except (TypeError, ValueError):
-        return None
-    if vec.size != 3 or not np.isfinite(vec).all():
-        return None
-    norm = float(np.linalg.norm(vec))
-    if norm < 1e-9:
-        return None
-    return vec / norm
-
-
-def apply_held_axis(grasp_3d, registry_item) -> bool:
-    """
-    把身份 EMA 轴写回本帧发布方向，挡住单帧圆柱 RANSAC 的 ± 翻转.
-
-    注册表更新已经半球对齐后再 EMA；initial_pose / 锁定优先级若仍发
-    本帧轴，1 fps 官方深度会把方向判断做成逐帧跳。夹角已小于约 2.5°
-    时不改、不打旗标。axis_held 不是资格阻断旗标.
-
-    Args:
-        grasp_3d: 本帧 BagGraspReference3D（就地改 translation_direction）.
-        registry_item: TargetRegistry 表项或 None.
-
-    Returns
-    -------
-        True 表示发布轴被换成 EMA.
-
-    """
-    held = held_registry_axis(registry_item)
-    if held is None or grasp_3d is None:
-        return False
-    current = grasp_3d.translation_direction
-    if current is not None:
-        try:
-            cur = np.asarray(current, dtype=float).reshape(-1)
-        except (TypeError, ValueError):
-            cur = None
-        else:
-            if (cur.size == 3 and np.isfinite(cur).all()
-                    and float(np.dot(cur, held)) > 0.999):
-                return False
-    grasp_3d.translation_direction = held
-    flags = grasp_3d.diagnostic_flags
-    if flags is None:
-        grasp_3d.diagnostic_flags = ['axis_held']
-    elif 'axis_held' not in flags:
-        flags.append('axis_held')
-    return True
 
 
 class GlobalHarvestPlan:
@@ -870,7 +816,7 @@ class TargetRegistry:
     tentative_ttl_frames: int
     """未确认表项连续未命中超过本帧数即清除."""
     max_age_s: float
-    """已确认表项墙钟龄上限 [s]."""
+    """全部表项距最后命中的时间上限 [s]，按调用方注入时钟判断."""
     swing_threshold_m: float
     """观测残差超本值 [m] 计入摆动连击."""
     swing_frames: int
@@ -909,7 +855,7 @@ class TargetRegistry:
         self.swing_threshold_m = float(swing_threshold_m)
         self.swing_frames = int(swing_frames)
         self._targets: Dict[str, dict] = {}
-        self._next_index = 0          # 单调计数器，不复用已消亡序号
+        self._next_index = 0          # 场景内单调；clear() 换场时复位
         # W2/V3：ambiguous/overflow 匿名 id 单调计数器——旧式
         # f'{frame_index}_{len(frame_used)}' 在同帧多次歧义/溢出时会撞号
         self._anon_seq = 0
@@ -988,11 +934,9 @@ class TargetRegistry:
         无 position 的项标 untracked_{i}、不占表（不用 target_{i}，避免
         与注册表 target_0 撞号）。歧义标 ambiguous_* 且不入表.
         """
-        # S9 时钟纪律（W13-A 注明）：表项年龄只与单调钟比，wall stamp 不得
-        # 混入。now=None 的兜底统一 time.monotonic()——与 begin_frame 注入
-        # 的 now（生产路径两者都传 pipeline.clock.now()，同源）混用时，
-        # last_seen 会瞬间误判超龄；故本默认值只允许与单调钟基准比较，
-        # 注入 wall-clock now 的调用方必须对 begin_frame 传同一基准。
+        # 年龄比较须使用同一时间基准。now=None 回退 time.monotonic()；
+        # 生产路径 begin_frame/本方法均传 pipeline.clock.now()（节点时钟），
+        # 不可混用两种基准，否则 last_seen 会误判超龄。
         ts = time.monotonic() if now is None else float(now)
         out: List[Optional[Tuple[str, bool]]] = [None] * len(items)
         detections: List[dict] = []
@@ -1169,9 +1113,9 @@ class TargetRegistry:
         清空全部表项（阶段 D1；节点 BeginScene 换场时调用）.
 
         用途：物理场景切换时清掉上一轮锚点记忆，防陈旧锚点在新场景被
-        恢复匹配误命中。计划/锁定集不在本类职责内，由节点保持不动。
+        恢复匹配误命中。计划/锁定集不在本类职责内，调用方另行重置。
         序号计数器 _next_index 在 BeginScene 换场时复位：物理场景
-        切换即一轮新启动/新抓取，新一轮 4 颗目标从 target_0 起，
+        切换后新目标从 target_0 起；匿名 ID 与累计诊断计数不在此复位。
 
         Returns
         -------
@@ -1180,7 +1124,7 @@ class TargetRegistry:
         """
         count = len(self._targets)
         self._targets.clear()
-        # 换场即新一轮启动/抓取：4 颗目标重新从 target_0 起，保证
+        # 换场即新一轮启动/抓取：目标重新从 target_0 起，保证
         # 2D/3D/报告同 ID（2026-10-22）。
         self._next_index = 0
         self._frame_used.clear()
@@ -1193,8 +1137,8 @@ class TargetRegistry:
         Returns
         -------
             dict：n_targets（当前表规模）、next_index（下一个序号）、
-            n_matched（累计命中次数）、n_registered（累计注册次数；
-            与 next_index 恒等，序号不复用）.
+            n_matched（进程内累计命中次数）、n_registered（进程内累计
+            注册次数）；next_index 可在 clear() 复位，不保证等于累计数。
 
         """
         return {
@@ -1258,7 +1202,7 @@ def memory_grasp(entry: dict, standoff: float) -> Optional[MemoryGrasp]:
     """
     从 TargetRegistry 条目还原可规划锚点；缺位置则 None.
 
-    grasp_frame_from_axis 自 W3 起迁 common.geometry（顶层 import），
+    grasp_frame_from_axis 自 W3 起迁 peach_vision_core.geometry（顶层 import），
     消除原 ``from .pose_pipelines import ...`` 的 lazy 循环依赖
     （pose_pipelines 顶层 import 本模块）。
     """

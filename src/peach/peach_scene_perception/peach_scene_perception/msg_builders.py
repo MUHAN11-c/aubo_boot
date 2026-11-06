@@ -129,7 +129,7 @@ def _metric(m: dict, key: str, default: float = -1.0) -> float:
 
 def _rotation_to_quat(R: np.ndarray) -> Quaternion:
     """
-    3×3 旋转矩阵 → geometry_msgs/Quaternion（common.geometry 值对象的消息包装）.
+    3×3 旋转矩阵 → Quaternion（peach_vision_core.geometry 值对象的消息包装）.
 
     W3 自 pose_pipelines 迁入（V5：位姿纯核顶层零 ROS msg import）；
     数值路径不变——官方 scipy Rotation（geometry.rotation_to_quat），

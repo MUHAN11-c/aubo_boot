@@ -10,6 +10,7 @@ endif()
 
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
+find_package(rcl_interfaces REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(cv_bridge REQUIRED)
@@ -33,7 +34,7 @@ add_executable(stereo_camera_node src/stereo_camera_node.cpp)
 target_include_directories(stereo_camera_node SYSTEM PRIVATE ${TYCAM_DIR}/include)
 target_link_libraries(stereo_camera_node ${LIB_TYCAM} ${LIB_TYIMGPROC} ${OpenCV_LIBS})
 ament_target_dependencies(stereo_camera_node
-  rclcpp sensor_msgs std_msgs cv_bridge camera_calibration_parsers diagnostic_updater
+  rclcpp rcl_interfaces sensor_msgs std_msgs cv_bridge camera_calibration_parsers diagnostic_updater
   tf2_ros)
 
 install(TARGETS stereo_camera_node DESTINATION lib/${PROJECT_NAME})

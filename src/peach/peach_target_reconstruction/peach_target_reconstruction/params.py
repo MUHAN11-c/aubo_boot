@@ -1,6 +1,8 @@
 """Target reconstruction parameters backed by generate_parameter_library."""
 from __future__ import annotations
 
+from functools import partial
+
 from peach_target_reconstruction.target_reconstruction_parameters import (
     peach_target_reconstruction_node as _Generated,
 )
@@ -20,13 +22,25 @@ _INT_MIN = {
 }
 
 
-def _int_bounds(parameters):
-    """Enforce integer lower bounds without broken GPL IntegerRange descriptors."""
+def _set_constraints(node, parameters):
+    """Validate integer floors and the complete startup view budget."""
     for param in parameters:
         minimum = _INT_MIN.get(param.name)
         if minimum is not None and int(param.value) < minimum:
             return SetParametersResult(
                 successful=False, reason=f'{param.name} >= {minimum} required')
+    proposed = {param.name: param.value for param in parameters}
+    low_name, high_name = 'capture.min_views', 'capture.max_views'
+    if low_name in proposed or high_name in proposed:
+        low, high = proposed.get(low_name), proposed.get(high_name)
+        if low is None and node.has_parameter(low_name):
+            low = node.get_parameter(low_name).value
+        if high is None and node.has_parameter(high_name):
+            high = node.get_parameter(high_name).value
+        if low is not None and high is not None and int(low) > int(high):
+            return SetParametersResult(
+                successful=False,
+                reason='capture.min_views must be <= capture.max_views')
     return SetParametersResult(successful=True)
 
 
@@ -97,13 +111,14 @@ class TargetReconstructionParams:
     @classmethod
     def attach(cls, node) -> 'TargetReconstructionParams':
         """Declare GPL parameters and return the live wrapper."""
-        node.add_on_set_parameters_callback(_int_bounds)
+        validate = partial(_set_constraints, node)
+        node.add_on_set_parameters_callback(validate)
         try:
             listener = _Generated.ParamListener(node)
         finally:
-            node.remove_on_set_parameters_callback(_int_bounds)
+            node.remove_on_set_parameters_callback(validate)
         # rclpy prepends callbacks. Validate both declarations and updates before GPL commits.
-        node.add_on_set_parameters_callback(_int_bounds)
+        node.add_on_set_parameters_callback(validate)
         wrapper = cls(None)
         object.__setattr__(wrapper, '_listener', listener)
         return wrapper

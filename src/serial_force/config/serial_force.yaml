@@ -7,7 +7,7 @@ serial_force:
       - /dev/ttyUSB0
       - /dev/ttyACM0
     baudrate: 115200
-    read_period_s: 0.005
+    read_period_s: 0.005  # 200 Hz 非阻塞轮询；采集板约 100 Hz 主动上报
     expected_rate_hz: 100.0  # 力板 100Hz 主动上报；诊断窗 0.6×–1.4×
     print_data: true
     print_decimate: 1

@@ -392,8 +392,9 @@ class OwnedProcesses:
         self.cleanup_issues = []
         self.exit_records = []
         self.cleanup_events = []
+        self.expected_success_exits = set()
 
-    def start(self, command, log=None, env=None):
+    def start(self, command, log=None, env=None, *, allow_success_exit=False):
         handle = open(log, 'w', encoding='utf-8') if log else None
         if handle:
             self.logs.append(handle)
@@ -401,9 +402,12 @@ class OwnedProcesses:
             command, env=env or self.env, stdout=handle,
             stderr=subprocess.STDOUT if handle else None, start_new_session=True)
         self.processes.append(process)
+        if allow_success_exit:
+            self.expected_success_exits.add(process.pid)
         self.audit_records.append({'pid': process.pid, 'pgid': process.pid,
                                    'command': command, 'started_at': time.time(),
-                                   'ros_domain_id': (env or self.env).get('ROS_DOMAIN_ID')})
+                                   'ros_domain_id': (env or self.env).get('ROS_DOMAIN_ID'),
+                                   'allow_success_exit': bool(allow_success_exit)})
         if self.audit_path:
             save(self.audit_path, {'owner_pid': os.getpid(), 'processes': self.audit_records})
         if self.on_start:
@@ -495,7 +499,9 @@ class OwnedProcesses:
                 self.cleanup_issues.append(f'Process did not exit: {p.pid}')
             self.exit_records.append({'pid': p.pid, 'returncode': p.poll(),
                                       'exited_before_cleanup': p.pid in exited_early})
-            if p.pid in exited_early or p.poll() not in (0, -signal.SIGINT, 130):
+            expected_success = p.pid in self.expected_success_exits and p.poll() == 0
+            if ((p.pid in exited_early and not expected_success)
+                    or p.poll() not in (0, -signal.SIGINT, 130)):
                 self.cleanup_issues.append(f'Unexpected process exit {p.pid}: {p.poll()}')
         for log in self.logs:
             log.close()

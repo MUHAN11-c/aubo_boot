@@ -16,7 +16,7 @@ class ToolGeometry:
     d_inner_m: float = 0.104
     """圆柱内径；袋子必须能通过."""
     insert_length_m: float = 0.200
-    """最大插入深度，从入口起点计."""
+    """工具名义插入长度；用于最短有效行程门，不封顶视觉建议行程."""
     blade_offset_m: float = 0.0
     """TCP 到剪切平面的轴向距离（沿 Z_tool；现行 0=重合）."""
     entry_d_tool: float = 0.0
@@ -39,7 +39,7 @@ class ToolGeometry:
 
 TOOL_GEOMETRY = ToolGeometry(
     d_inner_m=0.104,          # 104mm 内径
-    insert_length_m=0.200,         # 200mm 最大插入
+    insert_length_m=0.200,         # 200mm 名义插入长度（纯核默认，节点由档案注入）
     blade_offset_m=0.0,            # TCP 与剪切平面重合
     entry_d_tool=0.0,
     entry_d_s=0.0,
@@ -67,7 +67,7 @@ class BagObservation:
     frame_id: str = 'camera_depth_optical_frame'
     """相机光学系 frame_id."""
     gravity_hint: Optional[np.ndarray] = None
-    """(3,) 相机系重力；IMU 不可用时 None."""
+    """(3,) 相机系重力；节点由 TF/固定提示给出，None 时管线用 +Y."""
     detections: List[dict] = field(default_factory=list)
     """[{'bbox','class_id','conf'}, ...]，bbox 常为 xyxy."""
     metadata: dict = field(default_factory=dict)
@@ -85,7 +85,7 @@ class BagGrasp2D:
     detection_bbox: Tuple[int, int, int, int] = (0, 0, 0, 0)
     """检测框 x, y, w, h [px]."""
     foreground_mask: Optional[np.ndarray] = None
-    """bbox 深度前景伪 mask."""
+    """bbox 内用于当前几何估计的前景掩膜（局部像素网格）."""
     bottom_px: Optional[Tuple[float, float]] = None
     """袋底像素 (u, v)."""
     neck_px: Optional[Tuple[float, float]] = None
@@ -189,20 +189,20 @@ def compute_travel_range(P_entry_start: np.ndarray, P_neck: np.ndarray,
 
     s_neck = dot(P_neck - P_entry_start, Z_tool) - tool.blade_offset_m
 
-    行程受 insert_length_m 上限约束, 并在袋颈前方保留 margin_neck 安全距离。
+    在袋颈前方保留 margin_neck 安全距离，不以 insert_length_m 封顶。
 
     Args:
         P_entry_start: (3,) 入口起点（米）.
         P_neck: (3,) 袋颈候选位置（米）.
         Z_tool: (3,) 归一化的工具轴方向.
-        tool: ToolGeometry 实例（读 blade_offset_m / margin_neck / insert_length_m）.
+        tool: ToolGeometry 实例（读 blade_offset_m / margin_neck）.
 
     Returns
     -------
         (travel_min, travel_max): 建议行程区间 (m)；travel_max = s_safe
         （袋颈前留 margin_neck），不再按工具档案 L_insert 封顶。执行上限
-        由臂侧 grasp.minimum/maximum_travel_m 夹紧；全重建的 cut_travel
-        （0.067-0.091，实测到颈）也不封顶，二者同一套计算。
+        由臂侧 grasp.minimum/maximum_travel_m 夹紧；重建 cut_travel 另由
+        融合入口到剪切平面的轴向距离生成，不调用本函数。
 
     """
     s_neck = float(np.dot(P_neck - P_entry_start, Z_tool) - tool.blade_offset_m)
@@ -216,7 +216,7 @@ def compute_travel_range(P_entry_start: np.ndarray, P_neck: np.ndarray,
 
 
 # 长行程工具的绝对最短有效插入。bite_shear_v1 的设计行程只有 0.03 m，
-# 下限若固定 0.05 m，封顶后的满行程也会恒判 travel_too_short。
+# 下限若固定 0.05 m，0.03 m 的名义有效行程也会恒判 travel_too_short。
 ABSOLUTE_MIN_TRAVEL_M = 0.05
 
 
@@ -226,18 +226,18 @@ def minimum_useful_travel_m(insert_length_m: float) -> float:
 
 
 def travel_is_too_short(travel_m: float, insert_length_m: float) -> bool:
-    """封顶后的建议行程短于本工具能完成的最短有效插入."""
+    """视觉建议行程短于由工具名义长度派生的最短有效插入."""
     return float(travel_m) < minimum_useful_travel_m(insert_length_m)
 
 
 @dataclass(frozen=True)
 class MatchResult:
-    """SpatialEmaMatcher 匹配结果（不可变）."""
+    """身份匹配结果（不可变）；distance 的量纲取决于调用路径."""
 
     target_id: Optional[str]
     """命中的历史表项 ID；None=未命中，调用方发新 ID."""
     distance: float
-    """命中距离 [m]；未命中时为查询半径（诊断）."""
+    """帧级 χ² 分配为平方马氏距离；SpatialEmaMatcher.match 为米制距离."""
     status: str = 'ok'
     """'ok' | 其它诊断短码."""
 

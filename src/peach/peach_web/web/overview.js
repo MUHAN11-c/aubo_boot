@@ -3,7 +3,7 @@
 // System overview: one state feed + one force feed. All cards are read-only;
 // no operation is reachable from this page.
 (function () {
-  const {$, safe} = Peach.ui;
+  const {$, safe, numeric} = Peach.ui;
   const BATCH = ["等待就绪", "WAIT_LOCK", "RUNNING", "等待安全暂停点", "PAUSED", "MAINTENANCE",
     "已结算", "需要恢复", "已中断"];
   let stateFeed = null;
@@ -105,8 +105,8 @@
     setState("sceneState", targetCount ? "有目标" : "无目标", targetCount ? "ok" : "warn");
     text("sceneMain", `${targetCount} 个目标 · ${targets.target_set_locked ? "已锁" : "采集中"}`);
     const timing = harvest.timing || {};
-    text("sceneSub", timing.total_ms
-      ? `${(1000 / timing.total_ms).toFixed(1)} FPS · ${Number(timing.total_ms).toFixed(0)} ms`
+    text("sceneSub", numeric(timing.total_ms)
+      ? `${numeric(timing.fps) ? Number(timing.fps).toFixed(1) : "—"} FPS · ${Number(timing.total_ms).toFixed(0)} ms`
       : (harvest.scene_epoch ? `epoch ${harvest.scene_epoch}` : "等待帧"));
 
     setState("reconState", recon.state || "等待", recon.state === "READY" ? "ok" : "");

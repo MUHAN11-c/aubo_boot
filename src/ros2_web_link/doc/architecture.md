@@ -1,5 +1,22 @@
 # 架构与当前验证范围
 
+## 当前源码入口
+
+`package.json` 的六个 exports 分别对应 `sdk/`、`scene/`、`media/`、`audit/`、
+`graph/` 和 `workbench/`；`web/` 是复用这些入口的独立工作台。
+`scripts/build.mjs` 生成 ESM、声明、浏览器 bundle 和第三方许可，`CMakeLists.txt`
+在已有 node/esbuild 时重建并安装 `dist`，不会隐式下载 npm 依赖。
+
+`launch/web.launch.py` 组合 `bridge_node.py`、`rosapi_node.py`、`serve.py` 与
+可选 demo；`replay.launch.py` 组合原生 rosbag2 观测回放。`serve.py` 使用 Python
+`ThreadingHTTPServer` 提供静态文件、配置和白名单包资源，不是 Peach 的 8090
+FastAPI 服务。Peach 只消费本包 SDK/bridge，自行定义业务映射；其接线见
+[集成说明](integration.md#peach-当前接线)。
+
+`colcon test` 注册官方 ament lint，`npm run check` 仅做 TypeScript 静态检查；
+显式脚本各自覆盖的行为与运行条件见 [testing.md](testing.md)。下文带版本的
+通过/失败记录保留原时间和负载范围，不能代替当前源码的新验收。
+
 公有SDK声明中的传输预算位于无上游依赖的`sdk/limits.ts`；内部`BoundedTransport`继续使用roslib公有Transport API。六个exports的声明不向消费端暴露roslib内部类型，严格NodeNext/Bundler与浏览器打包由显式`npm run api`核对。此拆分不改变预算值、WebSocket协议或ROS行为。
 
 DDS配置选择补充：检测到当前目录的`DEFAULT_FASTRTPS_PROFILES.xml`时，不注入本包默认XML，由上游处理已有隐式/显式配置；此时需要部署者自行加入所需恢复周期。已有显式环境配置同样优先。
@@ -73,6 +90,7 @@ roslibjs 2.1.0 负责Topic及原生操作事件；其公开Transport接口接nat
 自测页的Topic/图像表单沿用项目TopicOptions；结构化QoS通过有界的可见select选项保留到SDK，未指定时与audit的sensor/none/0一致。组件的独立默认选项保持原值。Peach录制图像在项目数据中显式Reliable，仅针对已验证录制与本机环境，不改变通用sensor或在线Peach配置。
 
 - Three 负责 WebGL/OrbitControls；URDFLoader 负责 URDF 拓扑、网格与关节变换。JointState 更新测量值，不写关节命令。米为网格单位，Z 向上。资源走静态服务器包白名单；支持 STL/DAE/OBJ/glTF/GLB，不在浏览器执行 xacro。
+- 每个 Scene 的资源失败摘要按最近顺序去重，最多 32 项、每项最多 1024 字符；新错误替换最旧摘要，状态文本明确记录范围。模型 generation 隔离与资源释放路径保持，错误诊断不会随不同失败 URL 无限增长。
 - JointState位置缓存只保留当前URDF的自有关节；模型前到达或属于其他模型的名称单独以LRU保留最多1024项、单名最多1024字符。替换模型时过滤旧名并应用匹配的早到值；空position或非有限值不覆盖测量位置，断线/停止清缓存。该策略限制长期多模型共用话题的内存与每次setJointValues遍历，不改变ROS消息或发布任何关节命令。
 - 着色器默认errors-only：关闭Three成功路径的详细日志查询，每个新链接程序仍检查LINK_STATUS，失败日志通过onStatus报告并保留到组件销毁；ROS数据reset不会清除仍被网格/坐标轴使用的程序错误。verbose保留Three详细日志。上下文方法不能挂接时退回verbose，错误由Three控制台报告；不修改全局WebGL原型。profileShaders显式开启调用计时，默认不查询GPU设备信息，dispose恢复本上下文方法。详见io.md；同步GL查询导致的首载长任务仍未解决。
 - 静态TF采用reliable/transient_local、depth100接收多发布者；JointState与曲线统一sensor QoS以共享订阅。TF 树、组合和插值复用 Lichtblick v1.30.0 的 7 个必要源码文件（保留 MPL-2.0）。适配层负责订阅、10秒历史、最多256帧/每帧500样本；动态数据按精确时间查询，latest 使用共同可用时间；缺失 TF 时隐藏对象并显示原因。显示边界的零时间戳用latest；非锁定对象首次定位后保留fixedFrame位置，避免历史淘汰使永久Marker消失。/clock 回退清动态历史并保留静态，断线清全部会话数据；乱序 TF 不等同于时间回退。
@@ -93,6 +111,8 @@ roslibjs 2.1.0 负责Topic及原生操作事件；其公开Transport接口接nat
 ## 项目验收与录制数据
 
 `audit/index.ts`独立导出选择式检查器，与页面共用RosClient。项目差异在config/projects.yaml：Peach在线17只读+3交互，Peach回放10只读；未执行/取消/失败独立计数。项目配置不import业务实现；在线mock动作先验证真实robot_description及应用使能，finally确认恢复。参数往返同样恢复并读回。
+
+每项验收使用 `performance.now()` 的绝对截止时间；等待返回、完成判定与新命令发送前复核，避免消息解码阻塞主线程后，过期证据先于定时器回调而被判通过。Action 的 afterSetup 完成及 Goal 数据替换后再次检查，超期不发送新 Goal。取消确认、参数恢复和 cleanup 仍使用各自既有的 5 秒收尾预算；验收截止不取消这些必要收尾，也不表示实时停止远端任务。
 
 `replay.launch.py`复用Jazzy rosbag2播放器、原Web launch和项目数据契约；不启动相机、机械臂驱动、Peach业务节点或demo。仅播放项目topic检查及view引用的观测话题，发布/clock，静态TF保留depth100；桥禁止发布和Action，服务仅rosapi图谱。必须使用独立ROS_DOMAIN_ID，不能与现场TF/JointState发布者混用。
 

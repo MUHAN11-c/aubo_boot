@@ -92,6 +92,10 @@ def launch_setup(context):
         namespace='',
         output='screen',
         parameters=parameters,
+        arguments=[
+            '--ros-args', '--log-level',
+            ['peach_arm.trajectory_audit:=',
+             LaunchConfiguration('trajectory_audit_log_level')]],
     )
     autostart = LaunchConfiguration('autostart')
     configure = EmitEvent(
@@ -144,5 +148,9 @@ def generate_launch_description():
             'params_overlay', default_value='',
             description='可选额外 ParameterFile（后装覆盖 peach_arm.yaml）；'
                         '空=不装；业务配置使用共用 task_params_file'),
+        DeclareLaunchArgument(
+            'trajectory_audit_log_level', default_value='info',
+            choices=['debug', 'info', 'warn', 'error', 'fatal'],
+            description='仅控制 peach_arm.trajectory_audit；debug 记录出站轨迹消息'),
         OpaqueFunction(function=launch_setup),
     ])

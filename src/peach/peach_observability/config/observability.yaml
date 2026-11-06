@@ -1,5 +1,6 @@
 # peach_observability 参数全量清单（nav2 式：launch 以 ParameterFile 装入，部署值即事实源）
-# 节点 ObservabilityParams.attach 按本文件声明叶子；ros2 param set 原地刷新。
+# 声明来自 observability_parameters.yaml；本文件提供部署值。
+# ObservabilityParams.attach 同步合法参数，端口/订阅/录制等资源按生命周期重建。
 # 键名冻结。yaml 随包走（W11 起从 peach_harvester/config 迁入，实现包自持清单）。
 peach_observability:
   ros__parameters:
@@ -48,16 +49,16 @@ peach_observability:
     event_buffer_size: 100  # 事件时间线环形缓冲上限（条），超出丢弃最旧
     log_buffer_size: 200  # /api/state.logs 环形缓冲（条）：/rosout 的 stamp/level/name/msg，超出丢最旧；消息截断 400 字。页面按级别阈值与节点名过滤，不进图像或点云
     metrics_period_s: 1.0  # 系统/GPU/进程性能采样周期（秒），独立线程采集
-    metrics_process_patterns: [peach_scene_perception_node, peach_target_reconstruction_node, peach_arm, peach_supervisor, ros2_control_node, percipio]  # 进程性能监控的 cmdline 子串匹配关键字列表
+    metrics_process_patterns: [peach_scene_perception_node, peach_target_reconstruction_node, peach_arm, peach_supervisor, ros2_control_node, percipio]  # 执行入口/ROS节点名精确匹配；宿主同名取RSS最大者
     record:
       enabled: true  # 会话 bag 录制总开关（栈启动开 runs/session_*/bag，栈停止关 bag 并自动出报告）
       root_dir: ''  # 过程数据根；空=工作区 runs/（与账本、session 同一目录）
-      save_images: true  # debug_image/debug_image_raw 进 bag（替代旧 jpg 落盘；QoS 与监控订阅一致）
-      save_clouds: true  # tsdf_cloud 可进 bag；std 只在感知结果关键段留样，不整段录点云
-      rosout: true  # /rosout 全量进 bag：全部节点日志（stamp/level/logger）可回放——测试复盘最低完备集（scripts/collect_round.py 离线归集依赖它）
-      level: std  # 默认只录关键话题：关节/TF/已下发轨迹、调度与重建结果；感知图和点云只在结果关键段约 3 秒、段内 1Hz。不录相机原流、控制器统计、即时检测图和单帧点云。all=域内全部话题且不按关键段丢弃（约 50MB/s，只给短时复现）；core=仅固定订阅集
-      max_total_bag_gb: 100.0  # bag 二进制总量预算（GB）：session_*/bag 与旧 mcap_* 合计超限按最旧先删；0=禁用回收；报告/账本/文本永不删；回收写 runs/retention_audit.jsonl。战役上限 100；分析完成后用 peach_observability.retention.purge_analyzed_sessions（Python API，审计 reason=analyzed_purge；原 scripts/purge_analyzed_bags.py 已随 scripts/ 删除）删 MCAP 留报告
-      queue_depth: 512  # bag 写队列深度上限：盘速掉队时丢最旧保最新（不再无界吃内存），丢帧计数进 /api/state 的 record.drops
+      save_images: true  # 非 all 档仅允许稳定 debug_image 在结果关键段进 bag；all 档两幅预览图均送袋，不由此开关过滤
+      save_clouds: true  # 固定TSDF专用订阅开关；std/all发现订阅仍可能补录点云，std媒体只留关键段
+      rosout: true  # /rosout 日志送入 bag；受写队列/错误计数约束，页面日志环独立于此开关
+      level: std  # std=固定订阅+发现白名单，感知媒体仅关键段约3秒/1Hz；all放开发现白名单和媒体窗口，仍保留排除集与控制流等限速；core仅固定订阅集
+      max_total_bag_gb: 100.0  # bag总量预算（GiB）：session_*/bag 与旧 mcap_* 合计，仅删已封口目录、按mtime从旧到新；0禁用。先刷盘审计，报告/账本不删；显式分析后清理用 retention.purge_analyzed_sessions
+      queue_depth: 512  # 队列项上限：满时媒体丢自身，其它数据淘汰最旧数据；控制屏障保留；队列丢弃数在 record.info.drops
     trajectory:
       enabled: true  # 采样末端 TCP 轨迹供 Web/路标（latest TF base←tip；bag 侧由 /tf 离线重算，同一来源）
       base_frame: base_link  # 轨迹参考系（与 GraspDecision 入口同系）
@@ -71,8 +72,8 @@ peach_observability:
     tcp_path_topic: /peach/observability/tcp_path  # 末端 TCP 轨迹 nav_msgs/Path（RViz Path，latched）
     tcp_markers_topic: /peach/observability/markers  # 末端轨迹/入口/预抓取 visualization_msgs/MarkerArray（与重建 markers 同契约）
     debug:
-      enabled: true  # 调试 POST 总开关；false 时全部 POST 拒绝，只读监控不受影响
-      motion_enabled: false  # 运动类操作放行（Survey / Execute 非 PREVIEW / go_to_photo_pose / 非 SURVEY_ONLY 的 RunHarvest 等）；false 一律 423；PREVIEW 与 BeginScene 不拦；技能侧既有安全门不受影响
+      enabled: true  # 普通调试转发/参数写入开关；只读 selfcheck 另由 selfcheck.enabled 控制；不作为 WS 后端授权层
+      motion_enabled: false  # HTTP运动类含所有RunHarvest（含SURVEY_ONLY）、Survey、非PREVIEW Execute、photo/arm、恢复控制及开启使能；拒绝423。参数桥对运动项逐项拒绝
       action_timeout_s: 180.0  # 动作结果等待上限（秒）；服务 10 秒
       audit_enabled: true  # 调试操作审计落盘 runs/debug_audit/<日期>.jsonl（含被拒请求）
     debug.endpoints:

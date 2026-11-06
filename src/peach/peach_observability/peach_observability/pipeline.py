@@ -4,7 +4,7 @@
 服务器侧权威时间线：HarvestState / 技能 ~/status 的每次键变化记一条
 转移，段时长 = 到下一条转移的间隔（前端不再依赖页面存活期自行掐表，
 刷新不丢历史）。批次账本 ``runs/<request_id>/ledger.json`` 按
-mtime+size 增量重读，归一成 per-target 行（阶段名/时长 zip、outcome
+inode+mtime+size 增量重读，归一成 per-target 行（阶段名/时长 zip、outcome
 命名、总计）。observability_node 只做接线；本模块可被无 ROS 上下文
 的单测直接装载。
 """
@@ -27,6 +27,7 @@ OUTCOME_NAMES = {
 _ROW_PASSTHROUGH = (
     'failure_code', 'build_view_count', 'build_status', 'build_duration_s',
     'timeout_source', 'completion_level', 'failure_code_n',
+    'cycle_id', 'scene_epoch',
 )
 
 
@@ -113,7 +114,7 @@ class StageTracker:
 
 
 class LedgerWatch:
-    """``runs/<request_id>/ledger.json`` 增量直播（mtime+size 缓存）."""
+    """``runs/<request_id>/ledger.json`` 增量直播（inode+mtime+size 缓存）."""
 
     def __init__(self, runs_root):
         """runs_root 已由节点侧解析（resolve_runs_root）."""
@@ -140,9 +141,10 @@ class LedgerWatch:
         path = self._root / safe / 'ledger.json'
         try:
             stat = path.stat()
-            sig = (safe, stat.st_mtime_ns, stat.st_size)
+            sig = (safe, stat.st_ino, stat.st_mtime_ns, stat.st_size)
         except OSError:
-            if safe == self._last_id:
+            if (safe == self._last_id and self._last_sig is None
+                    and self._payload.get('error')):
                 return None
             self._last_id = safe
             self._last_sig = None
@@ -152,7 +154,8 @@ class LedgerWatch:
         if sig == self._last_sig:
             return None
         self._last_id = safe
-        self._last_sig = sig
+        # 失败不缓存签名：瞬时读失败后，即使文件没变也要能重试。
+        self._last_sig = None
         try:
             document = json.loads(path.read_text(encoding='utf-8'))
             if not isinstance(document, dict):
@@ -170,9 +173,16 @@ class LedgerWatch:
                 'rows': rows,
                 'totals': self._totals(rows, claimed),
             }
+            self._last_sig = sig
         except (OSError, ValueError, TypeError, AttributeError) as error:
             self._payload = self._empty(safe, path, f'账本解析失败: {error}')
         return self._payload
+
+    def invalidate(self) -> None:
+        """丢弃未提交的读取缓存，让下一次同批刷新仍可重读并提交."""
+        self._last_id = ''
+        self._last_sig = None
+        self._payload = {}
 
     @staticmethod
     def _empty(safe: str, path: Path, error: str) -> dict:

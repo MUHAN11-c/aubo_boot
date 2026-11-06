@@ -15,6 +15,7 @@ import os
 from pathlib import Path
 import sys
 
+from ament_index_python.packages import get_package_share_directory, PackageNotFoundError
 from geometry_msgs.msg import TransformStamped
 from message_filters import ApproximateTimeSynchronizer, SimpleFilter
 import rclpy
@@ -31,6 +32,7 @@ from tf2_ros import StaticTransformBroadcaster
 _OPTICAL_Q = (-0.5, 0.5, -0.5, 0.5)
 
 BAG_RELATIVE = 'runs/peach_camera_capture_20260930/stereo_10s'
+BUNDLED_BAG = Path('data/rgbd_mock_v1/bag')
 TOPICS = {
     '/camera/color/image_raw': Image,
     '/camera/depth/image_raw': Image,
@@ -93,6 +95,15 @@ def discover_bag() -> str | None:
     if env:
         return env if (Path(env) / 'metadata.yaml').is_file() else None
     here = Path(__file__).resolve()
+    candidates = [here.parent.parent / BUNDLED_BAG]
+    try:
+        candidates.insert(0, Path(get_package_share_directory(
+            'peach_system_tests')) / BUNDLED_BAG)
+    except PackageNotFoundError:
+        pass
+    for candidate in candidates:
+        if (candidate / 'metadata.yaml').is_file():
+            return str(candidate)
     for base in (Path.cwd(), *Path.cwd().parents, *here.parents):
         cand = base / BAG_RELATIVE
         if (cand / 'metadata.yaml').is_file():
@@ -256,8 +267,8 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         '--bag', default='',
-        help='ros2 bag directory (mcap); empty = PEACH_FROZEN_BAG or workspace capture')
-    parser.add_argument('--index', type=int, default=70,
+        help='ros2 bag directory (mcap); empty = PEACH_FROZEN_BAG or bundled rgbd_mock_v1')
+    parser.add_argument('--index', type=int, default=0,
                         help='0-based RGB frame index; requires original synchronized depth/cloud')
     parser.add_argument('--hz', type=float, default=2.0)
     parser.add_argument(

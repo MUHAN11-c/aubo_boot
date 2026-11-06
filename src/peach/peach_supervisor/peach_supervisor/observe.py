@@ -119,8 +119,8 @@ def fast_observe_loop(
     依赖全部注入（零 ROS）：signals() → ViewSignals，camera_pos() /
     anchor() → [x,y,z]|None，move(position, quat, timeout_s) 执行补视
     移动并返回 MoveTo 结果（None=失败/未到），canceled()/skip_requested()
-    为谓词，warn(str) 记日志。返回 (observe_ok, details)；取消/跳过/
-    几何缺失 → not ok。
+    为谓词，warn(str) 记日志。返回 (observe_ok, details)；几何缺失、无候选
+    或移动失败按封顶交 Build 判定，取消才返回失败；不单凭此返回值授权接触。
     """
     # W2/S2：单步移动上限压到仓规 ≤18s（旧式 min(timeout,30)=30s）。
     move_timeout = min(float(action_timeout_s), 18.0)

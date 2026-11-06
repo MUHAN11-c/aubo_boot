@@ -1,1 +1,1 @@
-"""只读 Web / JSONL 监控（peach_observability 实现）."""
+"""状态观测、HTTP 调试桥与会话 MCAP 记录."""

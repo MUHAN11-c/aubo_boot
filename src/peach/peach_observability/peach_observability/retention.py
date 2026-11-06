@@ -2,7 +2,7 @@
 bag 体积预算回收：纯核选择 + I/O 执行 + runs/retention_audit.jsonl 审计.
 
 回收对象只有 bag 二进制目录（新会话 ``runs/session_*/bag`` 与旧 launch
-录制的 ``runs/mcap_*``），按起始时间从旧到新删至预算内；bag_report、
+录制的 ``runs/mcap_*``），按 bag 目录 mtime 从旧到新删至预算内；bag_report、
 ledger.json 与一切文本记录永不触碰（AGENTS 红线的预算化例外，回收必须
 逐条写审计）。预算 <=0 视为禁用回收。
 """
@@ -11,9 +11,11 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import json
+import os
 from pathlib import Path
 import shutil
 import time
+from uuid import uuid4
 
 # 回收对象 glob（相对 runs 根）；kind 标记进审计
 _BAG_GLOBS = (('session_*/bag', 'session_bag'), ('mcap_*', 'legacy_mcap'))
@@ -22,7 +24,7 @@ AUDIT_FILENAME = 'retention_audit.jsonl'
 
 @dataclass(frozen=True)
 class BagEntry:
-    """一个可回收 bag 目录：路径、字节数、起始时间、类别."""
+    """一个候选 bag 目录：路径、字节数、目录 mtime、类别."""
 
     path: Path
     size_bytes: int
@@ -65,8 +67,8 @@ def select_bags_to_delete(entries: list[BagEntry], budget_bytes: int,
     """
     纯核：超预算时从旧到新选 bag 目录直至总量回落预算内.
 
-    keep（绝对路径集合）与预算 <=0 都给空表；keep 之外的目录仍参与
-    总量统计——全保不下时只能删到只剩 keep。
+    预算 <=0 给空表；keep 中的目录计入总量但不参与删除。
+    若受保护目录已超过预算，只能删尽其它候选，不能保证回落预算内。
     """
     if budget_bytes <= 0:
         return []
@@ -101,6 +103,37 @@ def _closed_bag(bag: Path) -> bool:
     return (bag / 'metadata.yaml').is_file()
 
 
+def _append_audit(audit: Path, row: dict, log_warning) -> bool:
+    """追加并刷盘审计；删除意图写入失败时调用方必须保留 bag."""
+    try:
+        audit.parent.mkdir(parents=True, exist_ok=True)
+        with audit.open('a', encoding='utf-8') as stream:
+            stream.write(json.dumps(row, ensure_ascii=False) + '\n')
+            stream.flush()
+            os.fsync(stream.fileno())
+        return True
+    except OSError as error:
+        log_warning(f'回收审计写入失败: {error}')
+        return False
+
+
+def _remove_bag(entry: BagEntry, audit: Path, row: dict, log_warning) -> bool:
+    """先持久记录意图再删除；同一 operation_id 关联实际成功或失败."""
+    intent = {**row, 'operation_id': uuid4().hex, 'phase': 'intent'}
+    if not _append_audit(audit, intent, log_warning):
+        log_warning(f'审计不可用，保留 bag：{entry.path}')
+        return False
+    try:
+        shutil.rmtree(entry.path)
+    except OSError as error:
+        _append_audit(
+            audit, {**intent, 'phase': 'delete_failed', 'error': str(error)}, log_warning)
+        log_warning(f'回收失败（跳过）{entry.path}: {error}')
+        return False
+    _append_audit(audit, {**intent, 'phase': 'deleted'}, log_warning)
+    return True
+
+
 def sweep(runs_root, max_total_bag_gb: float, keep=(),
           log_warning=lambda msg: None, audit_path=None,
           now: float | None = None) -> list[dict]:
@@ -119,30 +152,20 @@ def sweep(runs_root, max_total_bag_gb: float, keep=(),
     for entry in doomed:
         if not _closed_bag(entry.path):
             continue
-        try:
-            shutil.rmtree(entry.path)
-        except OSError as error:
-            log_warning(f'回收失败（跳过）{entry.path}: {error}')
-            continue
-        rows.append({
+        row = {
             'recorded_at': round(time.time() if now is None else now, 3),
             'deleted': str(entry.path),
             'kind': entry.kind,
             'size_bytes': entry.size_bytes,
             'budget_bytes': budget_bytes,
             'reason': 'bag_budget',
-        })
+        }
+        if not _remove_bag(entry, audit, row, log_warning):
+            continue
+        rows.append(row)
         log_warning(
             f'bag 体积回收：删除 {entry.path.name}'
             f'（{entry.size_bytes / (1024 ** 3):.2f} GB）')
-    if rows:
-        try:
-            audit.parent.mkdir(parents=True, exist_ok=True)
-            with open(audit, 'a', encoding='utf-8') as stream:
-                for row in rows:
-                    stream.write(json.dumps(row, ensure_ascii=False) + '\n')
-        except OSError as error:
-            log_warning(f'回收审计写入失败: {error}')
     return rows
 
 
@@ -155,9 +178,9 @@ def purge_analyzed_sessions(runs_root, sessions, log_warning=lambda msg: None,
     同级 bag_report.md/json、ledger 与其它文本不动。审计 reason=analyzed_purge。
     """
     deleted = []
-    rows = []
     root = Path(runs_root).resolve()
     stamp = round(time.time() if now is None else now, 3)
+    audit = Path(audit_path) if audit_path else root / AUDIT_FILENAME
     for item in sessions:
         path = Path(item)
         bag = path if path.name == 'bag' else path / 'bag'
@@ -167,28 +190,17 @@ def purge_analyzed_sessions(runs_root, sessions, log_warning=lambda msg: None,
             log_warning(f'跳过未封口或记录根目录外的 bag：{bag}')
             continue
         size = directory_size(bag)
-        try:
-            shutil.rmtree(bag)
-        except OSError as error:
-            log_warning(f'分析后清理失败（跳过）{bag}: {error}')
-            continue
-        deleted.append(bag)
-        rows.append({
+        row = {
             'recorded_at': stamp,
             'deleted': str(bag),
             'kind': 'session_bag',
             'size_bytes': size,
             'budget_bytes': 0,
             'reason': 'analyzed_purge',
-        })
+        }
+        entry = BagEntry(bag, size, stamp, 'session_bag')
+        if not _remove_bag(entry, audit, row, log_warning):
+            continue
+        deleted.append(bag)
         log_warning(f'分析后清理 bag：{bag}')
-    if rows:
-        audit = Path(audit_path) if audit_path else Path(runs_root) / AUDIT_FILENAME
-        try:
-            audit.parent.mkdir(parents=True, exist_ok=True)
-            with open(audit, 'a', encoding='utf-8') as stream:
-                for row in rows:
-                    stream.write(json.dumps(row, ensure_ascii=False) + '\n')
-        except OSError as error:
-            log_warning(f'回收审计写入失败: {error}')
     return deleted

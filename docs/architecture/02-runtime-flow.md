@@ -13,7 +13,8 @@ flowchart LR
   SUP --> ARM[ExecuteTarget / Survey]
   TR -->|refined_pose| SO[scene obstacles]
   SUP -->|obstacles_refresh| SO
-  SO -->|ApplyPlanningScene| ARM
+  SO -->|ApplyPlanningScene world| MOVEIT[MoveIt PlanningScene]
+  ARM -->|ACM diff / trajectories| MOVEIT
   SUP --> OBS[state/events/ledger]
   FORCE[serial_force serial/sim] --> OBS
   WEB[peach_web] --> OBS
@@ -31,4 +32,4 @@ flowchart LR
 - scene/reconstruction/supervisor/arm：`LifecycleNode`，configure 建资源，activate 才处理/接单。
 - scene_obstacles：普通 Node + worker，只写 PlanningScene world objects。
 - serial_force：普通 Node，`source:=serial|sim` 选源。
-- `peach_web` 无节点；`peach_observability` 托管。
+- `peach_web` 无节点；`peach_observability` 为自管生命周期节点，托管 Web/录制，不在整栈四节点管理名单内。

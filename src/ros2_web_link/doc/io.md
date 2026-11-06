@@ -83,6 +83,8 @@ Service 没有通用取消协议，Action 的 signal 也只结束本地等待。
 
 `audit/index.ts`导出`validateProject`、`runProjectChecks`及ProjectSpec/ProjectReport类型。调用方提供控制RosClient、项目数据配置和selectedIds；RunOptions.observationClient可选传同一URL字符串的第二个已连接RosClient，省略则共用。Topic/image/cloud/TF证据走观测侧；图谱、类型、Service、参数、Action和mockGuard走控制侧。引擎不dispose调用者客户端；任一连接中断终止用例，取消/恢复仍须经控制侧确认。ProjectReport.connectionMode是兼容旧报告的可选字段，新报告总返回shared/separate。可通过AbortSignal停止，通过onResult/onProgress接收结果。结果始终区分PASS/FAIL/CANCELLED/NOT_RUN；远端未知不能标成功。完整字段与示例见[project-testing.md](project-testing.md)。
 
+Case.timeoutMs 为整项的单调时钟预算（默认 10000 ms），跨越截止的证据不能 PASS，afterSetup 等待或请求数据处理后超期不能再发送新 Goal/普通 Service。计时器仅唤醒本地等待；取消确认、参数恢复及 cleanup 的独立 5000 ms 预算保持，收尾失败仍为 FAIL。
+
 TopicSpec.timestampMode默认为live（检查源时间与浏览器时钟的新鲜度），recorded显式保留录制时间、检查到达/结构/解码/段内频率，并报告liveFreshnessChecked=false；不能据回放判断当前设备状态。Peach回放项目只含10项观测用例，无参数/Service/Action写入。
 
 ## 标准图像预算入口（0.7.1）
@@ -94,6 +96,8 @@ TopicSpec.timestampMode默认为live（检查源时间与浏览器时钟的新�
 0.8.0 的 `SceneOptions.layers?:SceneLayer[]` 只规定初始订阅集合，省略保持原五类订阅；旧 `setLayer()` 仍只切可见性，包括在 start 前调用。已启动根 Scene 可用 `createDisplay({layers,...options})` 创建逻辑显示，子实例共享 renderer / 相机 / TF / clock，不拥有公共资源或单独 RAF。启停订阅通过实例 start/dispose 管理；最后一个工作台空间实例退出后释放根画布。共享绘制后同时释放各子实例被替换的 Marker 资源。
 
 SceneOptions 增加 robotDescriptionOptions、markersOptions、pathOptions；默认保留原有 QoS，可像点云与关节一样显式覆盖 TopicOptions。`assetStats()` 返回所属逻辑实例的 URDF 解析、资产进度及关节缓存。SeriesPlot 增加 subscription:TopicOptions 与 stats()，旧默认 sensor / 600 点不变。
+
+Scene 的资源失败诊断保留最近至多 32 个去重 URL 摘要，每项至多 1024 个字符，超长以省略号标记。重复失败刷新其先后顺序，新失败始终可见并淘汰最旧摘要；状态文字明确这是近期记录。新 robotDescription 仍清空记录，迟到的旧 generation 结果仍被忽略；此缓存不是所有历史失败资源的完整清单。
 
 `@local/ros2-web-link/graph` 导出 `discoverGraph` / `graphElements` 与 `GraphView`。采集输入仅要求 client 的 callService / onState / connected；快照含 status、receivedAt、elapsedMs、声明边、服务提供者、Action服务端名称、errors、scope、capabilities。支持 signal、timeoutMs、concurrency、maxNodes/maxTopics/maxEdges；缺省10秒/4并发/256/512/2048，单 RPC 最大3秒。取消只释放本地等待，不取消已进入 rosapi 的短查询。GraphView 提供 setSnapshot/filter/focus/fit/stats/dispose；节点投影截断单独报告，不改变原快照的声明事实。
 

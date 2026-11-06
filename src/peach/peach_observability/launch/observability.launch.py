@@ -1,5 +1,5 @@
 """
-只读监控节点 + 可选独立 rosbag2。核心调度不依赖本 launch.
+观测节点、HTTP 调试桥与可选会话 rosbag2 写线程。核心调度不依赖本 launch.
 
 2026-09-29 观测性轮修复：launch 不再发 configure/activate 事件——节点
 main() 的 ensure_active() 是唯一转换源（与 vegetation.launch 同款修法；
@@ -46,9 +46,9 @@ def _launch_node(context):
         namespace='',
         parameters=parameters,
         output='screen',
-        # G4（2026-09-20 审查）：launch 默认停栈窗 5+5s 会杀掉 bag 报告线程
-        # （join_report 上限 55s）——给本进程放宽 SIGTERM 窗，写盘为原子
-        # （tmp+rename），超窗最坏留「无新报告」（CLI 可复跑）而非半份。
+        # 给节点排空写队列、封口 bag 和回收自动报告子进程留出退出窗口。
+        # join_report 默认等 30s，再依次 TERM/KILL 各等 2s；超时保留 bag，
+        # 报告可离线重算，输出使用 tmp+rename 防止交付半份文件。
         # 须为字符串 substitution：浮点会让 launch 展开报
         # 'float' object is not iterable（09-21 E2E 实测修复）
         sigterm_timeout='60',

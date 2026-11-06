@@ -13,7 +13,7 @@ float32 axis_angle_deg          # 工具轴相对袋轴夹角 [deg]
 float32 lateral_error_m         # 袋底/切割面侧向残差 [m]
 float32 axial_error_m           # 切割面轴向残差 [m]
 float32 radial_margin_m         # 剩余径向余量 [m]；静态初步标记，只记录，负值目前不表示不可套
-float32 axial_margin_m          # 剩余轴向余量 [m]；负值不可剪
+float32 axial_margin_m          # 剩余轴向余量 [m]；当前仅记录，负值不构成剪切拒绝门
 bool needs_correction           # 建议再做短修正
 bool passed                     # 本帧/本次验证过门（技能 Result 口径）
 uint32 failure_code             # FailureCode.*；0=NONE

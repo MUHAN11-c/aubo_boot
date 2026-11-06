@@ -53,7 +53,7 @@ peach_scene_obstacles:
   cloud_max_age_s:
     type: double
     default_value: 2.0
-    description: Maximum accepted cloud age in seconds.
+    description: Cloud age warning threshold in seconds; older Survey clouds are still used.
     validation:
       gt<>:
       - 0.0

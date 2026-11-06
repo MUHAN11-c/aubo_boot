@@ -32,7 +32,7 @@ inline bool nonzeroFinite(const Eigen::Vector3d & value)
 struct CachedTarget
 {
   std::string id;                 ///< 稳定 target_id。
-  std::string harvest_run_id;     ///< 所属批次；空=无批次。
+  std::string harvest_run_id;     ///< 感知锁定轮身份；不同于调度批次 run_id。
   uint32_t scene_epoch{0};        ///< 产生本锚点的 BeginScene 世代。
   Eigen::Vector3d center{Eigen::Vector3d::Zero()};           ///< 身份锚点 [m]。
   Eigen::Isometry3d initial_pose{Eigen::Isometry3d::Identity()};  ///< 入口姿态。
@@ -123,7 +123,7 @@ struct LockedTargetUpdate
   double foreground_ratio{-1.0};
 };
 
-// updateReconstructionDiagnostics 输入：节点解析 diagnostics JSON 后的纯值字段。
+// updateReconstructionDiagnostics 输入：节点从 ReconstructionStatus 提取的纯值字段。
 struct ReconstructionDiagnosticsUpdate
 {
   std::string target_id;
@@ -171,8 +171,8 @@ struct DecisionSnapshot
 };
 
 // 目标数据缓存（纯逻辑，零 ROS）：目标观测/精化位姿/精化指标/抓取决策四源的
-// ID 一致性调和与快照访问，外加锁定集锚点缓存（id→几何，供 OBSERVE_ONLY 残局
-// 抬质量周期受理与执行）。时钟以 std::function 注入（秒），数据经方法传入，
+// ID 一致性调和与快照访问，外加锁定集锚点缓存（id→几何，供带目标的周期
+// 受理与执行）。时钟以 std::function 注入（秒），数据经方法传入，
 // 不碰 ROS 订阅；内部自带互斥与条件变量，等待语义与原节点 data_cv_ 一致。
 class TargetCache
 {
@@ -200,7 +200,7 @@ public:
   bool updateGraspDecision(const std::string & target_id, bool allowed);
   bool updateGraspDecision(
     const ModelIdentity & identity, bool allowed, double valid_until_s = 0.0);
-  // 批次4：unrefined 链袋径门注入（工具内径 [m]；0=门关——与参数缺席同义）。
+  // 工具内径 [m] 注入；当前只保留记录，不作为 unrefined 授权拒绝门。
   void setToolInnerDiameter(double d_inner_m) {tool_d_inner_m_ = d_inner_m;}
 
   // 模型快照只在 finalize 路径写入；诊断心跳不得调用。
@@ -223,7 +223,7 @@ public:
     const RefinedFittingUpdate & update, std::string * reject_reason = nullptr);
 
   std::optional<CachedTarget> targetSnapshot() const;
-  // 锁定集锚点快照（OBSERVE_ONLY 残局抬质量周期的受理与执行数据源）：
+  // 锁定集锚点快照（带目标周期的优先受理/执行数据源）：
   // 目标不在锁定集或锚点无效（从未携带有效几何）均返回 nullopt——与
   // targetSnapshot 的"无效即空"语义一致；需要区分两种拒绝原因时用
   // lockedTargetGateSample（id 空=不在锁定集，id 命中但 valid=false=锚点缺失）。
@@ -247,8 +247,7 @@ public:
   // 等待新重建帧：谓词满足返回 true，超时或 cancel 置位返回 false。
   bool waitForNewView(
     std::size_t previous_views, double timeout_s, const std::atomic_bool & cancel) const;
-  // 等待新机位：view_directions 聚类代表数增加。同机位停稳连帧会增加
-  // captured_views 但不增加机位；NBV 式覆盖要用机位而不是积分帧。
+  // 等待新机位：view_directions 聚类代表数增加，不按同机位的积分帧判断。
   bool waitForNewStation(
     std::size_t previous_stations, double timeout_s,
     const std::atomic_bool & cancel) const;
@@ -290,8 +289,8 @@ private:
   mutable std::condition_variable cv_;
   CachedTarget target_;
   CachedRefined refined_;
-  // 锁定集锚点缓存（id → 几何/诊断，复用 CachedTarget）：OBSERVE_ONLY 残局
-  // 抬质量周期的受理门与执行体数据源；仅由 updateLockedTargets 维护
+  // 锁定集锚点缓存（id → 几何/诊断，复用 CachedTarget）：带目标周期的
+  // 受理门与执行体优先数据源；仅由 updateLockedTargets 维护
   // （locked_run_id_ 为批次记钥，空串=当前无锁定集）。
   std::unordered_map<std::string, CachedTarget> locked_targets_;
   std::string locked_run_id_;

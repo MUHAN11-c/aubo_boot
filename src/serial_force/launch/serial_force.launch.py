@@ -1,4 +1,4 @@
-"""USB 串口 5 点力传感器：驱动，逐帧打印 N/行程/AD（无 RViz）."""
+"""互斥启动五点力串口源或虚拟平面源；均不启动 Web 或运动工具."""
 
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument
@@ -12,7 +12,7 @@ from launch_ros.substitutions import FindPackageShare
 
 
 def generate_launch_description():
-    """装载参数并起 5 点力驱动."""
+    """按 source 选择唯一力源，并装载对应节点使用的参数."""
     share = FindPackageShare('serial_force')
     default_params = PathJoinSubstitution([share, 'config', 'serial_force.yaml'])
     return LaunchDescription([
